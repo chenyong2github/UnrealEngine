@@ -24,7 +24,7 @@ public:
 		const FVector2D Icon20x20(20.0f, 20.0f);
 		const FVector2D Icon40x40(40.0f, 40.0f);
 
-		const FString BaseDir = IPluginManager::Get().FindPlugin("HairStrands")->GetBaseDir();
+		const FString BaseDir = IPluginManager::Get().FindPlugin(TEXT("HairStrands"))->GetBaseDir();
 		SetContentRoot(BaseDir / TEXT("Content/Icons"));
 
 		// Set the icon and thumbnail for this class

@@ -167,6 +167,7 @@ TSharedRef<SWidget> FLevelEditorPlayNetworkEmulationSettingsDetail::OnGetProfile
 
 void FLevelEditorPlayNetworkEmulationSettingsDetail::OnEmulationProfileChanged(int32 Index) const
 {
+#if DO_ENABLE_NET_TEST
 	FString Selection;
 	if (const UNetworkSettings* NetworkSettings = GetDefault<UNetworkSettings>())
 	{
@@ -199,6 +200,7 @@ void FLevelEditorPlayNetworkEmulationSettingsDetail::OnEmulationProfileChanged(i
 	}
 
 	CurrentProfileHandle->SetValue(Selection);
+#endif
 }
 
 FText FLevelEditorPlayNetworkEmulationSettingsDetail::GetSelectedNetworkEmulationProfile() const

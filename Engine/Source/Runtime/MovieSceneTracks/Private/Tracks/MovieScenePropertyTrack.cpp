@@ -97,6 +97,11 @@ bool UMovieScenePropertyTrack::HasSection(const UMovieSceneSection& Section) con
 void UMovieScenePropertyTrack::AddSection(UMovieSceneSection& Section) 
 {
 	Sections.Add(&Section);
+
+	if (Sections.Num() > 1)
+	{
+		SetSectionToKey(&Section);
+	}
 }
 
 

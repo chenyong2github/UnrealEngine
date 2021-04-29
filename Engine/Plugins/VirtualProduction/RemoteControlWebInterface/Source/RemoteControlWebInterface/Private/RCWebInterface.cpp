@@ -6,6 +6,8 @@
 #include "RCWebInterfaceProcess.h"
 #include "RCWebInterfaceSettings.h"
 #include "IWebRemoteControlModule.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 #if WITH_EDITOR
 #include "ISettingsContainer.h"
@@ -19,9 +21,11 @@
 
 void FRemoteControlWebInterfaceModule::StartupModule()
 {
+	bRCWebInterfaceDisable = FParse::Param(FCommandLine::Get(), TEXT("RCWebInterfaceDisable")) || IsRunningCommandlet();
+
 	WebApp = MakeShared<FRemoteControlWebInterfaceProcess>();
 	
-	if (!IsRunningCommandlet())
+	if (!bRCWebInterfaceDisable)
 	{
 		WebApp->Start();
 	}
@@ -49,8 +53,8 @@ void FRemoteControlWebInterfaceModule::StartupModule()
 }
 
 void FRemoteControlWebInterfaceModule::ShutdownModule()
-{	
-	if (!IsRunningCommandlet())
+{
+	if (!bRCWebInterfaceDisable)
 	{
 		WebApp->Shutdown();
 	}
@@ -70,8 +74,14 @@ void FRemoteControlWebInterfaceModule::ShutdownModule()
 
 bool FRemoteControlWebInterfaceModule::OnSettingsModified()
 {
+	if (bRCWebInterfaceDisable)
+	{
+		return true;
+	}
+
 	WebApp->Shutdown();
 	WebApp->Start();
+
 	return true;
 }
 

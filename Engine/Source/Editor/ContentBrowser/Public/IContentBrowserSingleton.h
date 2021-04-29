@@ -360,12 +360,16 @@ struct FPathPickerConfig
 	/** If true, will add the path specified in DefaultPath to the tree if it doesn't exist already */
 	bool bAddDefaultPath;
 
+	/** If true, passes virtual paths to OnPathSelected instead of internal asset paths */
+	bool bOnPathSelectedPassesVirtualPaths;
+
 	FPathPickerConfig()
 		: bFocusSearchBoxWhenOpened(true)
 		, bAllowContextMenu(true)
 		, bAllowClassesFolder(false)
 		, bAllowReadOnlyFolders(true)
 		, bAddDefaultPath(false)
+		, bOnPathSelectedPassesVirtualPaths(false)
 	{}
 };
 
@@ -631,7 +635,7 @@ public:
 	/**
 	 * Sets the content browser to display the selected paths
 	 */
-	virtual void SetSelectedPaths(const TArray<FString>& FolderPaths, bool bNeedsRefresh = false) = 0;
+	virtual void SetSelectedPaths(const TArray<FString>& FolderPaths, bool bNeedsRefresh = false, bool bPathsAreVirtual = false) = 0;
 
 	/**
 	 * Forces the content browser to show plugin content if it's not already showing.

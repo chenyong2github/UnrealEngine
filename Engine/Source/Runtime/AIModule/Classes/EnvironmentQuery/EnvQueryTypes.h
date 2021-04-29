@@ -809,6 +809,11 @@ struct AIMODULE_API FEnvQueryInstance : public FEnvQueryResult
 	/** if > 0 then it's how much time query has for performing current step */
 	float CurrentStepTimeLimit;
 
+#if !UE_BUILD_SHIPPING
+	/** Maximum EQS Generator duration (in seconds) before a warning is reported in non-shipping build. */
+	double GenerationTimeWarningSeconds = 0.01f;
+#endif // UE_BUILD_SHIPPING
+
 	/** run mode */
 	EEnvQueryRunMode::Type Mode;
 

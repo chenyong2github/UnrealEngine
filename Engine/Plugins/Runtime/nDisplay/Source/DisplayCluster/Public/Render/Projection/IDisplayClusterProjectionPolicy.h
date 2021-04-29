@@ -4,13 +4,10 @@
 
 #include "CoreMinimal.h"
 
-#include "DisplayClusterRootActor.h"
-
 #include "RHI.h"
 #include "RHIDefinitions.h"
 #include "RHIResources.h"
-
-#include "IDisplayClusterProjectionPolicy.generated.h"
+#include "RHICommandList.h"
 
 class FRHICommandListImmediate;
 struct FDisplayClusterConfigurationProjection;
@@ -23,22 +20,6 @@ class IDetailLayoutBuilder;
 class UMeshComponent;
 #endif
 
-
-UCLASS(Abstract)
-class DISPLAYCLUSTER_API UDisplayClusterProjectionPolicyParameters
-	: public UObject
-{
-	GENERATED_BODY()
-
-public:
-	virtual bool Parse(ADisplayClusterRootActor* RootActor, const FDisplayClusterConfigurationProjection& ConfigData)
-	{
-		return false;
-	}
-};
-
-
-
 /**
  * nDisplay projection policy
  */
@@ -50,34 +31,63 @@ public:
 
 public:
 	/**
+	* Return projection name
+	*/
+	virtual const FString& GetId() const = 0;
+	virtual const FString GetTypeId() const = 0;
+
+	/**
 	* Called each time a new game level starts
 	*
-	* @param World - A new world that is being started
+	* @param InViewport - a owner viewport
 	*/
-	virtual void StartScene(UWorld* World)
-	{ }
+	virtual bool HandleStartScene(class IDisplayClusterViewport* InViewport) = 0;
 
 	/**
 	* Called when current level is going to be closed (i.e. before loading a new map)
+	*
+	* @param InViewport - a owner viewport
 	*/
-	virtual void EndScene()
-	{ }
+	virtual void HandleEndScene(class IDisplayClusterViewport* InViewport) = 0;
+
+	// Handle request for additional render targetable resource inside viewport api for projection policy
+	virtual bool ShouldUseAdditionalTargetableResource() const
+	{ 
+		return false; 
+	}
 
 	/**
-	* Called once the viewport is added
+	* Returns true if the policy supports input mip-textures.
+	* Use a mip texture for smoother deformation on curved surfaces.
 	*
-	* @param ViewportSize - Size of a new viewport
-	* @param ViewsAmount  - Amount of views depending on a rendering device
-	*
-	* @return - True if success
+	* @return - true, if mip-texture is supported by the policy implementation
 	*/
-	virtual bool HandleAddViewport(const FIntPoint& ViewportSize, const uint32 ViewsAmount) = 0;
+	virtual bool ShouldUseSourceTextureWithMips() const
+	{
+		return false;
+	}
+
+	// This policy can support ICVFX rendering
+	virtual bool ShouldSupportICVFX() const
+	{
+		return false;
+	}
+
+	// Return true, if camera projection visible for this viewport geometry
+	// ICVFX Perforamance : if camera frame not visible on this node, disable render for this camera
+	virtual bool IsCameraProjectionVisible(const FRotator& InViewRotation, const FVector& InViewLocation, const FMatrix& InProjectionMatrix)
+	{
+		return true;
+	}
 
 	/**
-	* Called before remove the viewport
+	* Check projection policy settings changes
+	*
+	* @param InConfigurationProjectionPolicy - new settings
+	*
+	* @return - True if found changes
 	*/
-	virtual void HandleRemoveViewport()
-	{ }
+	virtual bool IsConfigurationChanged(const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy) const = 0;
 
 	/**
 	* @param ViewIdx           - Index of view that is being processed for this viewport
@@ -90,7 +100,7 @@ public:
 	*
 	* @return - True if success
 	*/
-	virtual bool CalculateView(const uint32 ViewIdx, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) = 0;
+	virtual bool CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) = 0;
 
 	/**
 	* @param ViewIdx      - Index of view that is being processed for this viewport
@@ -98,7 +108,7 @@ public:
 	*
 	* @return - True if success
 	*/
-	virtual bool GetProjectionMatrix(const uint32 ViewIdx, FMatrix& OutPrjMatrix) = 0;
+	virtual bool GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix) = 0;
 
 	/**
 	* Returns if a policy provides warp&blend feature
@@ -111,7 +121,27 @@ public:
 	}
 
 	/**
+	* Initializing the projection policy logic for the current frame before applying warp blending. Called if IsWarpBlendSupported() returns true
+	*
+	* @param RHICmdList      - RHI commands
+	* @param InViewportProxy - viewport proxy
+	*
+	*/
+	virtual void BeginWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy)
+	{ }
+
+	/**
 	* Performs warp&blend. Called if IsWarpBlendSupported() returns true
+	*
+	* @param RHICmdList      - RHI commands
+	* @param InViewportProxy - viewport proxy
+	*
+	*/
+	virtual void ApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy)
+	{ }
+
+	/**
+	* Completing the projection policy logic for the current frame after applying warp blending. Called if IsWarpBlendSupported() returns true
 	*
 	* @param ViewIdx      - Index of view that is being processed for this viewport
 	* @param RHICmdList   - RHI commands
@@ -119,36 +149,16 @@ public:
 	* @param ViewportRect - Region of the SrcTexture to perform warp&blend operations
 	*
 	*/
-	virtual void ApplyWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewportRect)
+	virtual void EndWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy)
 	{ }
-
 
 #if WITH_EDITOR
-
-	/**
-	* Provide with projection policy specific parameters class
-	*
-	* @return - UDisplayClusterProjectionPolicyParameters based parameters class
-	*/
-	virtual UDisplayClusterProjectionPolicyParameters* CreateParametersObject(UObject* Owner)
-	{
-		return nullptr;
-	}
-
-	/**
-	* Allows policy instance to perform any additional initialization
-	*
-	* @param PolicyParameters - Projection specific parameters. It needs to be Cast-ed to internal parameters class type returned by GetParametersClass().
-	*/
-	virtual void InitializePreview(UDisplayClusterProjectionPolicyParameters* PolicyParameters)
-	{ }
-
 	/**
 	* Ask projection policy instance if it has any mesh based preview
 	*
 	* @return - True if mesh based preview is available
 	*/
-	virtual bool HasMeshPreview()
+	virtual bool HasPreviewMesh()
 	{
 		return false;
 	}
@@ -157,48 +167,11 @@ public:
 	* Build preview mesh
 	*
 	* @param PolicyParameters - Projection specific parameters. It needs to be Cast-ed to internal parameters class type returned by GetParametersClass().
+	* @param bOutHandleDeleteComponent - return true, if component delete op must handled outside
 	*/
-	virtual UMeshComponent* BuildMeshPreview(UDisplayClusterProjectionPolicyParameters* PolicyParameters)
+	virtual class UMeshComponent* GetOrCreatePreviewMeshComponent(class IDisplayClusterViewport* InViewport)
 	{
 		return nullptr;
 	}
-
-	/**
-	* Ask projection policy instance if it has any frustum visualization
-	*
-	* @return - True if frustum visualization is supported
-	*/
-	virtual bool HasFrustum()
-	{
-		return false;
-	}
-
-	/**
-	* Visualize frustum
-	*/
-	virtual void BuildFrustum()
-	{ }
-
-	/**
-	* Ask projection policy instance if it supports preview rendering
-	*
-	* @return - True if preview rendering is supported
-	*/
-	virtual bool HasPreviewRendering()
-	{
-		return false;
-	}
-
-	/**
-	* Render preview frame
-	*
-	* @param Camera           - View point
-	* @param PolicyParameters - Projection specific parameters. It needs to be Cast-ed to internal parameters class type returned by GetParametersClass().
-	* @param RenderTarget     - RenderTarget to render to
-	* @param RenderRegion     - RenderTarget region to render to
-	*/
-	virtual void RenderFrame(USceneComponent* Camera, UDisplayClusterProjectionPolicyParameters* PolicyParameters, FTextureRenderTargetResource* RenderTarget, FIntRect RenderRegion, bool bApplyWarpBlend)
-	{ }
-
 #endif
 };

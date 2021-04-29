@@ -36,6 +36,10 @@ public:
 	~SMaterialEditor3DPreviewViewport();
 	
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SMaterialEditor3DPreviewViewport");
+	}
 
 	void RefreshViewport();
 	

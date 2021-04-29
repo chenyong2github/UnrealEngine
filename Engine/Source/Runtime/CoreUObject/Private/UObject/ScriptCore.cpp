@@ -207,6 +207,15 @@ void FBlueprintCoreDelegates::SetScriptMaximumLoopIterations( const int32 Maximu
 	}
 }
 
+bool FBlueprintCoreDelegates::IsDebuggingEnabled()
+{
+#if WITH_EDITORONLY_DATA
+	return GIsEditor;
+#else
+	return FBlueprintCoreDelegates::OnScriptException.IsBound();
+#endif
+}
+
 #if DO_BLUEPRINT_GUARD
 
 FBlueprintContextTracker::FOnEnterScriptContext FBlueprintContextTracker::OnEnterScriptContext;
@@ -2271,37 +2280,31 @@ IMPLEMENT_VM_FUNCTION( EX_DeprecatedOp4A, execNothingOp4a );
 
 DEFINE_FUNCTION(UObject::execBreakpoint)
 {
-#if WITH_EDITORONLY_DATA
-	if (GIsEditor)
+	if (FBlueprintCoreDelegates::IsDebuggingEnabled())
 	{
 		FBlueprintExceptionInfo BreakpointExceptionInfo(EBlueprintExceptionType::Breakpoint);
 		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, BreakpointExceptionInfo);
 	}
-#endif
 }
 IMPLEMENT_VM_FUNCTION( EX_Breakpoint, execBreakpoint );
 
 DEFINE_FUNCTION(UObject::execTracepoint)
 {
-#if WITH_EDITORONLY_DATA
-	if (GIsEditor)
+	if (FBlueprintCoreDelegates::IsDebuggingEnabled())
 	{
 		FBlueprintExceptionInfo TracepointExceptionInfo(EBlueprintExceptionType::Tracepoint);
 		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, TracepointExceptionInfo);
 	}
-#endif
 }
 IMPLEMENT_VM_FUNCTION( EX_Tracepoint, execTracepoint );
 
 DEFINE_FUNCTION(UObject::execWireTracepoint)
 {
-#if WITH_EDITORONLY_DATA
-	if (GIsEditor)
+	if (FBlueprintCoreDelegates::IsDebuggingEnabled())
 	{
 		FBlueprintExceptionInfo TracepointExceptionInfo(EBlueprintExceptionType::WireTracepoint);
 		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, TracepointExceptionInfo);
 	}
-#endif
 }
 IMPLEMENT_VM_FUNCTION( EX_WireTracepoint, execWireTracepoint );
 

@@ -38,6 +38,10 @@
 		{
 			"Name": "GeometryProcessing",
 			"Enabled": true
+		},
+		{
+			"Name": "ProxyLODPlugin",
+			"Enabled": true
 		}
 	]
 }

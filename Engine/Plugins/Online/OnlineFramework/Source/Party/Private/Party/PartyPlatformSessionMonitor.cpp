@@ -437,12 +437,12 @@ void FPartyPlatformSessionMonitor::EvaluateCurrentSession()
 		// TODO: We need to check which of the local players are in the session and process them accordingly 
 		// We already have a platform session session, so we should be all set. Just check the session ids to make sure we have the correct session.
 		UPartyMember& LocalUserMember = MonitoredParty->GetOwningLocalMember();
-		const FSessionId& ReplicatedSessionId = LocalUserMember.GetRepData().GetPlatformSessionId();
+		const FSessionId& ReplicatedSessionId = LocalUserMember.GetRepData().GetPlatformDataSessionId();
 		const FSessionId TrueSessionId = Session->GetSessionIdStr();
 		if (ReplicatedSessionId != TrueSessionId && ensure(DoesLocalUserOwnPlatformSession()))
 		{
 			UE_CLOG(!ReplicatedSessionId.IsEmpty(), LogParty, Warning, TEXT("PartyPlatformSessionMonitor: Local player's session [%s] does not match replicated session [%s]"), *TrueSessionId, *ReplicatedSessionId);
-			LocalUserMember.GetMutableRepData().SetPlatformSessionId(TrueSessionId);
+			LocalUserMember.GetMutableRepData().SetPlatformDataSessionId(TrueSessionId);
 		}
 	}
 	else if (const FPartyPlatformSessionInfo* ExistingSessionInfo = FindLocalPlatformSessionInfo())
@@ -453,7 +453,7 @@ void FPartyPlatformSessionMonitor::EvaluateCurrentSession()
 			// Potentially saves a bit on traffic in edge cases where we're joining just after the former sole session owner has left
 			for (UPartyMember* Member : MonitoredParty->GetPartyMembers())
 			{
-				if (Member->GetRepData().GetPlatformSessionId() == ExistingSessionInfo->SessionId)
+				if (Member->GetRepData().GetPlatformDataSessionId() == ExistingSessionInfo->SessionId)
 				{
 					if (LastAttemptedFindSessionId.IsSet() && LastAttemptedFindSessionId.GetValue() == ExistingSessionInfo->SessionId)
 					{
@@ -474,7 +474,7 @@ void FPartyPlatformSessionMonitor::EvaluateCurrentSession()
 					if (ExistingSessionInfo->IsSessionOwner(*Member))
 					{
 						// There is no session ID yet, but the session owner is a local player, so it's on us to create it now
-						CreateSession(Member->GetRepData().GetPlatformUniqueId());
+						CreateSession(Member->GetRepData().GetPlatformDataUniqueId());
 						break;
 					}
 				}
@@ -579,9 +579,9 @@ void FPartyPlatformSessionMonitor::AddLocalPlayerToSession(UPartyMember* PartyMe
 			const FSessionId SessionId = Session->GetSessionIdStr();
 
 			// TODO: Move SetPlatformSessionId to after AddLocalPlayerToSession completes
-			PartyMember->GetMutableRepData().SetPlatformSessionId(SessionId);
+			PartyMember->GetMutableRepData().SetPlatformDataSessionId(SessionId);
 
-			const FUniqueNetIdRepl PartyMemberPlatformUniqueId = PartyMember->GetRepData().GetPlatformUniqueId();
+			const FUniqueNetIdRepl PartyMemberPlatformUniqueId = PartyMember->GetRepData().GetPlatformDataUniqueId();
 			if (PartyMemberPlatformUniqueId.IsValid())
 			{
 				UE_LOG(LogParty, Verbose, TEXT("AddLocalPlayerToSession: Registering player, PartyMember=%s PPUID=%s"), *PartyMember->ToDebugString(true), *PartyMemberPlatformUniqueId->ToDebugString());
@@ -607,7 +607,7 @@ void FPartyPlatformSessionMonitor::RemoveLocalPlayerFromSession(UPartyMember* Pa
 
 		if (ensure(Session))
 		{
-			const FUniqueNetIdRepl PartyMemberPlatformUniqueId = PartyMember->GetRepData().GetPlatformUniqueId();
+			const FUniqueNetIdRepl PartyMemberPlatformUniqueId = PartyMember->GetRepData().GetPlatformDataUniqueId();
 			if (PartyMemberPlatformUniqueId.IsValid())
 			{
 				UE_LOG(LogParty, Verbose, TEXT("RemoveLocalPlayerFromSession: Unregistering player, PartyMember=%s PPUID=%s"), *PartyMember->ToDebugString(true), *PartyMemberPlatformUniqueId->ToDebugString());
@@ -815,7 +815,7 @@ void FPartyPlatformSessionMonitor::HandlePartyMemberInitialized(UPartyMember* In
 {
 	if (IsTencentPlatform() && InitializedMember->GetPlatformOssName() == TENCENT_SUBSYSTEM)
 	{
-		SessionManager->GetSessionInterface()->RegisterPlayer(NAME_PartySession, *InitializedMember->GetRepData().GetPlatformUniqueId(), false);
+		SessionManager->GetSessionInterface()->RegisterPlayer(NAME_PartySession, *InitializedMember->GetRepData().GetPlatformDataUniqueId(), false);
 	}
 
 	// If a local player joined the party (split screen) we add them to the platform session
@@ -828,11 +828,11 @@ void FPartyPlatformSessionMonitor::HandlePartyMemberInitialized(UPartyMember* In
 void FPartyPlatformSessionMonitor::HandlePartyMemberLeft(UPartyMember* OldMember, const EMemberExitedReason ExitReason)
 {
 	UE_LOG(LogParty, Verbose, TEXT("HandlePartyMemberLeft: PartyMember=%s User=%s ExitReason=%s"),
-		*OldMember->ToDebugString(true), *OldMember->GetRepData().GetPlatformUniqueId().ToDebugString(), ToString(ExitReason));
+		*OldMember->ToDebugString(true), *OldMember->GetRepData().GetPlatformDataUniqueId().ToDebugString(), ToString(ExitReason));
 
 	if (IsTencentPlatform() && OldMember->GetPlatformOssName() == TENCENT_SUBSYSTEM)
 	{
-		SessionManager->GetSessionInterface()->UnregisterPlayer(NAME_PartySession, *OldMember->GetRepData().GetPlatformUniqueId());
+		SessionManager->GetSessionInterface()->UnregisterPlayer(NAME_PartySession, *OldMember->GetRepData().GetPlatformDataUniqueId());
 	}
 
 	if (OldMember->IsLocalPlayer())
@@ -972,7 +972,7 @@ void FPartyPlatformSessionMonitor::HandleJoinSessionComplete(FName SessionName, 
 			{
 				if (PartyMember->GetPlatformOssName() == TENCENT_SUBSYSTEM)
 				{
-					MemberIdsOnPlatform.Add(PartyMember->GetRepData().GetPlatformUniqueId().GetUniqueNetId().ToSharedRef());
+					MemberIdsOnPlatform.Add(PartyMember->GetRepData().GetPlatformDataUniqueId().GetUniqueNetId().ToSharedRef());
 				}
 			}
 			SessionInterface->RegisterPlayers(NAME_PartySession, MemberIdsOnPlatform);
@@ -1032,16 +1032,16 @@ bool FPartyPlatformSessionMonitor::ConfigurePlatformSessionSettings(FOnlineSessi
 		for (const UPartyMember* PartyMember : MonitoredParty->GetPartyMembers())
 		{
 			const FPartyMemberRepData& MemberData = PartyMember->GetRepData();
-			if (MemberData.GetPlatform() == PlatformName)
+			if (MemberData.GetPlatformDataPlatform() == PlatformName)
 			{
 				// Even if they end up joining a different session than ours, keep our session open so they could join ours if they have issues with the session they are in
 				++NumMembersOnPlatform;
-				if (!MemberData.GetPlatformSessionId().IsEmpty())
+				if (!MemberData.GetPlatformDataSessionId().IsEmpty())
 				{
 					++NumMembersInSession;
 				}
 			}
-			else if (!MemberData.GetPlatform().IsValid())
+			else if (!MemberData.GetPlatformDataPlatform().IsValid())
 			{
 				// We don't yet know what platform this player is on, so assume that they are the local platform to keep session open.
 				++NumMembersOnPlatform;

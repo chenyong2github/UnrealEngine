@@ -4,7 +4,7 @@
 #include "Chaos/Box.h"
 #include "GeometryParticlesfwd.h"
 #include "ChaosCheck.h"
-
+#include "ChaosDebugDrawDeclares.h"
 
 namespace Chaos
 {
@@ -99,7 +99,7 @@ struct CHAOS_API TSpatialVisitorData
 	TPayloadType Payload;
 	TSpatialVisitorData(const TPayloadType& InPayload, const bool bInHasBounds = false, const FAABB3& InBounds = FAABB3::ZeroAABB())
 		: Payload(InPayload)
-#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
+#if CHAOS_DEBUG_DRAW
 		, bHasBounds(bInHasBounds)
 		, Bounds(InBounds)
 	{ }

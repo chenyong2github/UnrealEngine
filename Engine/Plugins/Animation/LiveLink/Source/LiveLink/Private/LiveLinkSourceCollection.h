@@ -86,6 +86,10 @@ public:
 public:
 	//~ Begin FGCObject implementation
 	virtual void AddReferencedObjects(FReferenceCollector & Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FLiveLinkSourceCollection");
+	}
 	//~ End FGCObject implementation
 
 public:

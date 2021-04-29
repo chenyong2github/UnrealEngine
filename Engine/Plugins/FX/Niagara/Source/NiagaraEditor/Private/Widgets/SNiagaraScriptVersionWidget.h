@@ -86,4 +86,5 @@ private:
 	bool CanExecuteExposeAction(FNiagaraAssetVersion AssetVersion);
 	void ExecuteDeleteAction(FNiagaraAssetVersion AssetVersion);
 	void ExecuteExposeAction(FNiagaraAssetVersion AssetVersion);
+	void ExecuteSaveAsAssetAction(FNiagaraAssetVersion AssetVersion);
 };

@@ -127,6 +127,7 @@ TSharedPtr<FTextureImageFile> FTextureImageFile::Create(TSharedPtr<FTexture> Tex
 	TextureImageFile->TextureFileName = FDatasmithUtils::SanitizeFileName(Texture->TextureBaseName) + FPaths::GetExtension(Texture->SourceTextureFileName, /*bIncludeDot*/ true);
 	TextureImageFile->TextureName = FDatasmithUtils::SanitizeObjectName(FPaths::GetBaseFilename(TextureImageFile->TextureFileName));
 	TextureImageFile->TextureElement = FDatasmithSceneFactory::CreateTexture(*TextureImageFile->TextureName);
+	TextureImageFile->TextureElement->SetSRGB(EDatasmithColorSpace::sRGB);
 
 	TextureImageFile->Textures.Add(Texture);
 	return TextureImageFile;

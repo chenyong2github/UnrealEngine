@@ -1311,6 +1311,7 @@ INiagaraMergeManager::FMergeEmitterResults FNiagaraScriptMergeManager::MergeEmit
 	}
 	else
 	{
+		DiffResults = DiffEmitters(Parent, Instance); // diff again for version changes
 		UNiagaraEmitter* MergedInstance = Parent.DuplicateWithoutMerging((UObject*)GetTransientPackage());
 		TSharedRef<FNiagaraEmitterMergeAdapter> MergedInstanceAdapter = MakeShared<FNiagaraEmitterMergeAdapter>(*MergedInstance);
 
@@ -2330,6 +2331,7 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::AddMod
 	else
 	{
 		UNiagaraScript* FunctionScript = nullptr;
+		FGuid VersionGuid;
 		if (AddModule->GetUsesScratchPadScript())
 		{
 			FunctionScript = ScratchPadAdapter->GetScratchPadScriptForFunctionId(AddModule->GetFunctionCallNode()->NodeGuid);
@@ -2337,9 +2339,10 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::AddMod
 		else
 		{
 			FunctionScript = AddModule->GetFunctionCallNode()->FunctionScript;
+			VersionGuid = AddModule->GetFunctionCallNode()->SelectedScriptVersion;
 		}
 
-		AddedModuleNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(FunctionScript, TargetOutputNode, AddModule->GetStackIndex(), AddModule->GetFunctionCallNode()->GetFunctionName());
+		AddedModuleNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(FunctionScript, TargetOutputNode, AddModule->GetStackIndex(), AddModule->GetFunctionCallNode()->GetFunctionName(), VersionGuid);
 		AddedModuleNode->NodeGuid = AddModule->GetFunctionCallNode()->NodeGuid; // Synchronize the node Guid across runs so that the compile id's sync up.
 		Results.bModifiedGraph = true;
 	}
@@ -2733,14 +2736,21 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyS
 		BaseScriptStackAdapter->GetScript()->SetUsage(DiffResults.ChangedOtherUsage.GetValue());
 		BaseScriptStackAdapter->GetOutputNode()->SetUsage(DiffResults.ChangedOtherUsage.GetValue());
 	}
-
+	
 	// Update module versions
 	for (int i = 0; i < DiffResults.ChangedVersionOtherModules.Num(); i++)
 	{
 		TSharedRef<FNiagaraStackFunctionMergeAdapter> BaseModule = DiffResults.ChangedVersionBaseModules[i];
 		TSharedRef<FNiagaraStackFunctionMergeAdapter> ChangedModule = DiffResults.ChangedVersionOtherModules[i];
 		FGuid NewScriptVersion = BaseModule->GetFunctionCallNode()->SelectedScriptVersion;
-		ChangedModule->GetFunctionCallNode()->ChangeScriptVersion(NewScriptVersion, true);
+		FNiagaraScriptVersionUpgradeContext UpgradeContext;
+		UpgradeContext.bSkipPythonScript = true;
+		UNiagaraNodeFunctionCall* FunctionCallNode = ChangedModule->GetFunctionCallNode();
+		FunctionCallNode->ChangeScriptVersion(NewScriptVersion, UpgradeContext, true);
+		if (FunctionCallNode->RefreshFromExternalChanges())
+		{
+			FunctionCallNode->GetNiagaraGraph()->NotifyGraphNeedsRecompile();
+		}
 	}
 
 	// Apply the graph actions.

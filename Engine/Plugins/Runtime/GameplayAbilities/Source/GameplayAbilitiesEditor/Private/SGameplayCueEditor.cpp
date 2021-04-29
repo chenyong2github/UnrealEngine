@@ -454,7 +454,7 @@ public:
 
 	void CheckSelectGCItem(TSharedPtr< FGCTreeItem > NewItem)
 	{
-		if (SelectedTag != NAME_Name && !SelectedItem.IsValid() && (SelectedTag == NewItem->GameplayCueTagName && NewItem->TranslationUniqueID == SelectedUniqueID))
+		if (SelectedTag != NAME_None && !SelectedItem.IsValid() && (SelectedTag == NewItem->GameplayCueTagName && NewItem->TranslationUniqueID == SelectedUniqueID))
 		{
 			SelectedItem = NewItem;
 		}

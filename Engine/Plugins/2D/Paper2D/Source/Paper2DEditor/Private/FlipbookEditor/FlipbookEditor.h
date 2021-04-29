@@ -38,6 +38,10 @@ public:
 
 	// FSerializableObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FFlipbookEditor");
+	}
 	// End of FSerializableObject interface
 
 public:

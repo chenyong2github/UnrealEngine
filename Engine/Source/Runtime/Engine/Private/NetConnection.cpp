@@ -410,6 +410,29 @@ void UNetConnection::InitBase(UNetDriver* InDriver,class FSocket* InSocket, cons
 		PackageMap = PackageMapClient;
 	}
 
+	if (Driver->IsServer() && !IsReplay())
+	{
+		RPCDoS.Init(Driver->NetDriverName, AnalyticsAggregator,
+			[Driver = InDriver]() -> UWorld*
+			{
+				return Driver->GetWorld();
+			},
+			[this]() -> FString
+			{
+				return LowLevelGetRemoteAddress(true);
+			},
+			[this]() -> FString
+			{
+				APlayerState* PS = PlayerController != nullptr ? PlayerController->PlayerState : nullptr;
+
+				return PS != nullptr ? PS->GetUniqueId().ToString() : TEXT("");
+			},
+			[this]()
+			{
+				Close();
+			});
+	}
+
 	UE_NET_TRACE_CONNECTION_CREATED(NetTraceId, GetConnectionId());
 }
 
@@ -791,6 +814,8 @@ void UNetConnection::Close()
 		{
 			NetAnalyticsData->CommitAnalytics(AnalyticsVars);
 		}
+
+		RPCDoS.NotifyClose();
 
 		if (const uint32 MyConnectionId = GetConnectionId())
 		{
@@ -1354,6 +1379,16 @@ void UNetConnection::ReceivedRawPacket( void* InData, int32 Count )
 	}
 }
 
+void UNetConnection::PreTickDispatch()
+{
+	const bool bIsServer = Driver->ServerConnection == nullptr;
+
+	if (bIsServer && !IsReplay())
+	{
+		RPCDoS.PreTickDispatch(Driver->LastTickDispatchRealtime);
+	}
+}
+
 void UNetConnection::PostTickDispatch()
 {
 	if (!IsInternalAck())
@@ -1364,6 +1399,13 @@ void UNetConnection::PostTickDispatch()
 
 		FlushPacketOrderCache(/*bFlushWholeCache=*/true);
 		PacketAnalytics.Tick();
+	}
+
+	const bool bIsServer = Driver->ServerConnection == nullptr;
+
+	if (bIsServer && !IsReplay())
+	{
+		RPCDoS.PostTickDispatch();
 	}
 }
 
@@ -2136,9 +2178,10 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 	ValidateSendBuffer();
 
 	// Record the packet time to the histogram
+	const double CurrentReceiveTimeInS = FPlatformTime::Seconds();
+
 	if (!bIsReinjectedPacket)
 	{
-		const double CurrentReceiveTimeInS = FPlatformTime::Seconds();
 		const double LastPacketTimeDiffInMs = (CurrentReceiveTimeInS - LastReceiveRealtime) * 1000.0;
 		NetConnectionHistogram.AddMeasurement(LastPacketTimeDiffInMs);
 
@@ -2331,6 +2374,12 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 	// Track channels that were rejected while processing this packet - used to avoid sending multiple close-channel bunches,
 	// which would cause a disconnect serverside
 	TArray<int32> RejectedChans;
+	const bool bIsServer = Driver->ServerConnection == nullptr;
+
+	if (bIsServer && !IsReplay())
+	{
+		RPCDoS.PreReceivedPacket(CurrentReceiveTimeInS);
+	}
 
 	// Disassemble and dispatch all bunches in the packet.
 	while( !Reader.AtEnd() && State!=USOCK_Closed )
@@ -2816,7 +2865,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 			Driver->InTotalBunches++;
 
 			// Disconnect if we received a corrupted packet from the client (eg server crash attempt).
-			if ( !Driver->ServerConnection && ( Bunch.IsCriticalError() || Bunch.IsError() ) )
+			if (bIsServer && (Bunch.IsCriticalError() || Bunch.IsError()))
 			{
 				UE_LOG( LogNetTraffic, Error, TEXT("Received corrupted packet data from client %s.  Disconnecting."), *LowLevelGetRemoteAddress() );
 				Close();
@@ -2836,10 +2885,17 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 
 	ValidateSendBuffer();
 
+	double PostReceiveTime = FPlatformTime::Seconds();
+
+	if (bIsServer && !IsReplay())
+	{
+		RPCDoS.PostReceivedPacket(PostReceiveTime);
+	}
+
 	// Acknowledge the packet.
 	if ( !bSkipAck )
 	{
-		LastGoodPacketRealtime = FPlatformTime::Seconds();
+		LastGoodPacketRealtime = PostReceiveTime;
 	}
 
 	if( !IsInternalAck() )

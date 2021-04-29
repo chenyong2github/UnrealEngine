@@ -7,8 +7,9 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-class FDisplayClusterConfiguratorToolkit;
+class FDisplayClusterConfiguratorBlueprintEditor;
 class SDisplayClusterConfiguratorBaseNode;
+class FScopedTransaction;
 
 class SDisplayClusterConfiguratorResizer
 	: public SCompoundWidget
@@ -20,7 +21,7 @@ public:
 		SLATE_ATTRIBUTE(bool, IsFixedAspectRatio)
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit, const TSharedRef<SDisplayClusterConfiguratorBaseNode>& InBaseNode);
+	void Construct( const FArguments& InArgs, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit, const TSharedRef<SDisplayClusterConfiguratorBaseNode>& InBaseNode);
 
 	//~ Begin SWidget Interface
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
@@ -29,9 +30,12 @@ public:
 	//~ End SWidget Interface
 
 private:
-	TWeakPtr<FDisplayClusterConfiguratorToolkit> ToolkitPtr;
+	float GetDPIScale() const;
 
+private:
+	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
 	TWeakPtr<SDisplayClusterConfiguratorBaseNode> BaseNodePtr;
+	TSharedPtr<FScopedTransaction> ScopedTransaction;
 
 	bool bResizing;
 	float CurrentAspectRatio;

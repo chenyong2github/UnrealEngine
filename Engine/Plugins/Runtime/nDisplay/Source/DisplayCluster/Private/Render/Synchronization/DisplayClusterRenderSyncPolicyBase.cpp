@@ -8,6 +8,11 @@
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterLog.h"
 
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
+
+#include "RHIResources.h"
+
 
 void FDisplayClusterRenderSyncPolicyBase::SyncBarrierRenderThread()
 {
@@ -16,15 +21,22 @@ void FDisplayClusterRenderSyncPolicyBase::SyncBarrierRenderThread()
 		return;
 	}
 
-	double ThreadTime  = 0.f;
-	double BarrierTime = 0.f;
-
 	IDisplayClusterNodeController* const pController = GDisplayCluster->GetPrivateClusterMgr()->GetController();
 	if (pController)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay SyncPolicyBase::SyncBarrier);
-		pController->WaitForSwapSync(&ThreadTime, &BarrierTime);
+		pController->WaitForSwapSync();
 	}
+}
 
-	UE_LOG(LogDisplayClusterRenderSync, VeryVerbose, TEXT("Render barrier wait: t=%lf b=%lf"), ThreadTime, BarrierTime);
+void FDisplayClusterRenderSyncPolicyBase::WaitForFrameCompletion()
+{
+	if (GEngine && GEngine->GameViewport && GEngine->GameViewport->Viewport)
+	{
+		FRHIViewport* const Viewport = GEngine->GameViewport->Viewport->GetViewportRHI().GetReference();
+		check(Viewport);
+
+		Viewport->IssueFrameEvent();
+		Viewport->WaitForFrameEventCompletion();
+	}
 }

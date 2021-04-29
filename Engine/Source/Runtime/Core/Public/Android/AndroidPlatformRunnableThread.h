@@ -63,7 +63,7 @@ private:
 			}
 		}
 
-		FAndroidMisc::SetThreadName(TCHAR_TO_ANSI(*SizeLimitedThreadName));
+		FPlatformProcess::SetThreadName(*SizeLimitedThreadName);
 	}
 
 	/**

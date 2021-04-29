@@ -36,6 +36,7 @@
 #include "Modules/ModuleManager.h"
 
 //Customization
+#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IDetailChildrenBuilder.h"
@@ -51,6 +52,8 @@
 ///Niagara
 #include "NiagaraEditorModule.h"
 #include "NiagaraComponent.h"
+
+#if WITH_NIAGARA_DEBUGGER
 
 #define LOCTEXT_NAMESPACE "NiagaraDebugHUDCustomization"
 
@@ -685,66 +688,81 @@ FReply SNiagaraDebuggerObjectInputBox::OnKeyCharHandler(const FGeometry& MyGeome
 
 //////////////////////////////////////////////////////////////////////////
 
-void FNiagaraDebugHUDSettingsDetailsCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+FNiagaraDebugHUDSettingsDetailsCustomization::FNiagaraDebugHUDSettingsDetailsCustomization(UNiagaraDebugHUDSettings* InSettings)
+	: WeakSettings(InSettings)
 {
-// 	HeaderRow
-// 		.NameContent()
-// 		[
-// 			StructPropertyHandle->CreatePropertyNameWidget()
-// 		]
-// 	.ValueContent()
-// 		[
-// 			StructPropertyHandle->CreatePropertyValueWidget()
-// 		];
 }
 
-void FNiagaraDebugHUDSettingsDetailsCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+void FNiagaraDebugHUDSettingsDetailsCustomization::CustomizeDetails(class IDetailLayoutBuilder& DetailBuilder)
 {
-	PropertyHandle = StructPropertyHandle;
-
 	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
-
-	uint32 NumChildren = 0;
-	PropertyHandle->GetNumChildren(NumChildren);
-
-	for (uint32 ChildNum = 0; ChildNum < NumChildren; ++ChildNum)
-	{
-		TSharedPtr<IPropertyHandle> ChildProperty = PropertyHandle->GetChildHandle(ChildNum);
-
-		TSharedPtr<SWidget> NameWidget;
-		TSharedPtr<SWidget> ValueWidget;
-		FDetailWidgetRow WidgetRow;
-		IDetailPropertyRow& PropertyRow = ChildBuilder.AddProperty(ChildProperty.ToSharedRef());
-		PropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, WidgetRow);
-
-		UClass* ObjRefClass = nullptr;
-		if (ChildProperty->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FNiagaraDebugHUDSettingsData, SystemFilter)) ObjRefClass = UNiagaraSystem::StaticClass();
-		if (ChildProperty->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FNiagaraDebugHUDSettingsData, EmitterFilter)) ObjRefClass = UNiagaraEmitter::StaticClass();
-		if (ChildProperty->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FNiagaraDebugHUDSettingsData, ActorFilter)) ObjRefClass = AActor::StaticClass();
-		if (ChildProperty->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FNiagaraDebugHUDSettingsData, ComponentFilter)) ObjRefClass = UNiagaraComponent::StaticClass();
-
-		if (ObjRefClass)
+	auto CustomAssetSearch =
+		[&](IDetailCategoryBuilder& DetailCategory, TSharedRef<IPropertyHandle> PropertyHandle, UClass* ObjRefClass, TFunction<bool&()> GetEditBool)
 		{
-			PropertyRow.CustomWidget()
+			if ( !PropertyHandle->IsValidHandle() || (ObjRefClass == nullptr) )
+			{
+				return;
+			}
+
+			DetailBuilder.HideProperty(PropertyHandle);
+
+			DetailCategory.AddCustomRow(PropertyHandle->GetPropertyDisplayName())
 			.NameContent()
 			[
-				ChildProperty->CreatePropertyNameWidget()
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SCheckBox)
+					.IsChecked_Lambda([=]() -> ECheckBoxState { return GetEditBool() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; } )
+					.OnCheckStateChanged_Lambda([=](ECheckBoxState NewState) { GetEditBool() = NewState == ECheckBoxState::Checked; WeakSettings.Get()->NotifyPropertyChanged(); })
+				]
+				+ SHorizontalBox::Slot()
+				[
+					SNew(SHorizontalBox)
+					.IsEnabled_Lambda([=]() { return GetEditBool(); })
+					+ SHorizontalBox::Slot()
+					[
+						PropertyHandle->CreatePropertyNameWidget()
+					]
+				]
 			]
 			.ValueContent()
 			[
+				SNew(SHorizontalBox)
+				.IsEnabled_Lambda([=]() { return GetEditBool(); })
+				+ SHorizontalBox::Slot()
+				[
 					SNew(SNiagaraDebuggerObjectInputBox)
-					.OwnerProperty(ChildProperty)
+					.OwnerProperty(PropertyHandle)
 					.Debugger(NiagaraEditorModule.GetDebugger())
 					.ObjectClass(ObjRefClass)
 					.bAllowWildcards(true)
 					.SuggestionListPlacement(EMenuPlacement::MenuPlacement_BelowAnchor)
-// 					.OnTextCommittedEvent(FOnTextCommitted::CreateLambda([ChildProperty](const FText& InText, ETextCommit::Type CommitInfo)
-// 					{
-// 						ChildProperty->SetValueFromFormattedString(InText.ToString());
-// 					}))
+				]
 			];
-		}
+		};
+
+	// Customize General
+	{
+		IDetailCategoryBuilder& GeneralCategory = DetailBuilder.EditCategory("Debug General");
+	}
+
+	// Customize Overview
+	{
+		IDetailCategoryBuilder& OverviewCategory = DetailBuilder.EditCategory("Debug Overview");
+	}
+
+	// Customize Filters
+	{
+		IDetailCategoryBuilder& FilterCategory = DetailBuilder.EditCategory("Debug Filter");
+		CustomAssetSearch(FilterCategory, DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(FNiagaraDebugHUDSettingsData, SystemFilter), FNiagaraDebugHUDSettingsData::StaticStruct()), UNiagaraSystem::StaticClass(), [&]() -> bool& { return WeakSettings.Get()->Data.bSystemFilterEnabled; });
+		CustomAssetSearch(FilterCategory, DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(FNiagaraDebugHUDSettingsData, EmitterFilter), FNiagaraDebugHUDSettingsData::StaticStruct()), UNiagaraEmitter::StaticClass(), [&]() -> bool& { return WeakSettings.Get()->Data.bEmitterFilterEnabled; });
+		CustomAssetSearch(FilterCategory, DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(FNiagaraDebugHUDSettingsData, ActorFilter), FNiagaraDebugHUDSettingsData::StaticStruct()), AActor::StaticClass(), [&]() -> bool& { return WeakSettings.Get()->Data.bActorFilterEnabled; });
+		CustomAssetSearch(FilterCategory, DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(FNiagaraDebugHUDSettingsData, ComponentFilter), FNiagaraDebugHUDSettingsData::StaticStruct()), UNiagaraComponent::StaticClass(), [&]() -> bool& { return WeakSettings.Get()->Data.bComponentFilterEnabled; });
 	}
 }
 
 #undef LOCTEXT_NAMESPACE
+
+#endif

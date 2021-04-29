@@ -78,7 +78,7 @@ struct FPhysicsOverlapInputAdapater
 /** This is used to add debug data to scene query visitors in non-shipping builds */
 struct FQueryDebugParams
 {
-#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING) 
+#if CHAOS_DEBUG_DRAW
 	FQueryDebugParams()
 		: bDebugQuery(false)
 		, bExternalQuery(true) { }

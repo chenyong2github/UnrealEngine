@@ -3,9 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "ISettingsSection.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/SWidget.h"
 
+class ULevelSnapshotsEditorProjectSettings;
 class FToolBarBuilder;
 class FLevelSnapshotsEditorToolkit;
 class ULevelSnapshotsEditorData;
@@ -21,35 +24,36 @@ public:
 	virtual void ShutdownModule() override;
 	//~ End IModuleInterface Interface
 
-	bool GetUseCreationForm() const
-	{
-		return bUseCreationForm;
-	}
+	bool GetUseCreationForm() const;
 
-	void SetUseCreationForm(bool bInUseCreationForm)
-	{
-		bUseCreationForm = bInUseCreationForm;
-	}
+	void SetUseCreationForm(bool bInUseCreationForm);
 
 	void ToggleUseCreationForm()
 	{
 		SetUseCreationForm(!GetUseCreationForm());
 	}
 
-	void CallTakeSnapshot();
+	void BuildPathsToSaveSnapshotWithOptionalForm() const;
+
+	void HandleFormReply(bool bWasCreateSnapshotPressed, FText InDescription) const;
+
+	void TakeAndSaveSnapshot(const FText& InDescription, const bool bShouldUseOverrides = false) const;
+	
+	static void OpenLevelSnapshotsSettings();
 
 private:
 	
 	void RegisterMenus();
+
+	bool RegisterProjectSettings();
+	bool HandleModifiedProjectSettings();
 	
 	void RegisterEditorToolbar();
 	void MapEditorToolbarActions();
 	void CreateEditorToolbarButton(FToolBarBuilder& Builder);
 	TSharedRef<SWidget> FillEditorToolbarComboButtonMenuOptions(TSharedPtr<class FUICommandList> Commands);
 
-	
 	void OpenSnapshotsEditor();
-	void OpenLevelSnapshotsSettings();
 
 	ULevelSnapshotsEditorData* AllocateTransientPreset();
 
@@ -59,5 +63,6 @@ private:
 	/* Lives for as long as the UI is open. */
 	TWeakPtr<FLevelSnapshotsEditorToolkit> SnapshotEditorToolkit;
 
-	bool bUseCreationForm = false;
+	TSharedPtr<ISettingsSection> ProjectSettingsSectionPtr;
+	TWeakObjectPtr<ULevelSnapshotsEditorProjectSettings> ProjectSettingsObjectPtr;
 };

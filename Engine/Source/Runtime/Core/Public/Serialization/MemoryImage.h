@@ -294,6 +294,7 @@ struct FFrozenMemoryImagePtr
 	int32 TypeIndex; // store 0-based index or INDEX_NONE, don't really need 32bit for this, but nothing else to store here for now
 };
 
+
 template<typename T>
 class TMemoryImagePtr
 {

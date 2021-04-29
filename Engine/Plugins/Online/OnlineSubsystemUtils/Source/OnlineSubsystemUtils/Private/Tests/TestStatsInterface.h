@@ -50,17 +50,11 @@
 	 *	Delegate called when a Stats has been successfully read
 	 */
 	void OnStatsReadComplete(bool bWasSuccessful);
-	//void OnStatsRankReadComplete(bool bWasSuccessful);
-	//void OnStatsUserRankReadComplete(bool bWasSuccessful);
 
 	/**
 	 *	Read in some predefined data from a Stats
 	 */
 	void ReadStats();
-	//void ReadStatssFriends();
-	//void ReadStatssRank(int32 Rank, int32 Range);
-	//void ReadStatssUser(const FUniqueNetId& InUserId, int32 Range);
-	//void ReadStatssUser(int32 Range);
 
 	/** Utilities */
 	void PrintStats();
@@ -85,8 +79,6 @@
 	 * Kicks off all of the testing process
 	 */
 	void Test(UWorld* InWorld);
-
-	void TestFromConfig(UWorld* InWorld);
  };
 
 #endif //WITH_DEV_AUTOMATION_TESTS

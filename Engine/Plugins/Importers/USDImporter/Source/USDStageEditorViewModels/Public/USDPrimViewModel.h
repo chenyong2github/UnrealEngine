@@ -49,7 +49,6 @@ public:
 	void TogglePayload();
 
 	void DefinePrim( const TCHAR* PrimName );
-	bool RenamePrim( const TCHAR* PrimName );
 
 	/** Delegate for hooking up an inline editable text block to be notified that a rename is requested. */
 	DECLARE_DELEGATE( FOnRenameRequest );

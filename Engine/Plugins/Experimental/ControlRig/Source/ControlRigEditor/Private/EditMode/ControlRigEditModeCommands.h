@@ -29,6 +29,9 @@ public:
 	/** Reset Transforms for Controls */
 	TSharedPtr< FUICommandInfo > ResetAllTransforms;
 
+	/** Clear Selection*/
+	TSharedPtr< FUICommandInfo > ClearSelection;
+
 	/** Frame selected elements */
 	TSharedPtr<FUICommandInfo> FrameSelection;
 

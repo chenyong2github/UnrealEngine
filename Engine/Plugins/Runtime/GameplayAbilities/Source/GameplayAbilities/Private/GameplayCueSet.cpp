@@ -233,7 +233,7 @@ bool UGameplayCueSet::HandleGameplayCueNotify_Internal(AActor* TargetActor, int3
 		if (CueData.LoadedGameplayCueClass == nullptr)
 		{
 			// See if the object is loaded but just not hooked up here
-			CueData.LoadedGameplayCueClass = FindObject<UClass>(nullptr, *CueData.GameplayCueNotifyObj.ToString());
+			CueData.LoadedGameplayCueClass = Cast<UClass>(CueData.GameplayCueNotifyObj.ResolveObject());
 			if (CueData.LoadedGameplayCueClass == nullptr)
 			{
 				if (!CueManager->HandleMissingGameplayCue(this, CueData, TargetActor, EventType, Parameters))

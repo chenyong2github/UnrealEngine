@@ -189,6 +189,9 @@ struct FColorMaterialInput : public FMaterialInput
 
 	UPROPERTY()
 	FColor Constant;
+
+	FColorMaterialInput() :
+		UseConstant(0) {}
 #endif
 };
 #endif
@@ -203,6 +206,9 @@ struct FScalarMaterialInput : public FMaterialInput
 
 	UPROPERTY()
 	float Constant;
+
+	FScalarMaterialInput() :
+		UseConstant(0) {}
 #endif
 };
 #endif
@@ -233,6 +239,9 @@ struct FVectorMaterialInput : public FMaterialInput
 
 	UPROPERTY()
 	FVector Constant;
+
+	FVectorMaterialInput:
+		UseConstant(0) {}
 #endif
 };
 #endif
@@ -246,10 +255,13 @@ struct FVector2MaterialInput : public FMaterialInput
 	uint32 UseConstant : 1;
 
 	UPROPERTY()
-	float ConstantX;
+	float ConstantX=0.0f;
 
 	UPROPERTY()
-	float ConstantY;
+	float ConstantY=0.0f;
+
+	FVector2MaterialInput:
+		UseConstant(0) {}
 #endif
 };
 #endif
@@ -1004,8 +1016,8 @@ public:
 	ENGINE_API virtual FMaterialResource* GetMaterialResource(ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel = EMaterialQualityLevel::Num) override;
 	ENGINE_API virtual const FMaterialResource* GetMaterialResource(ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel = EMaterialQualityLevel::Num) const override;
 #if WITH_EDITORONLY_DATA
-	ENGINE_API virtual bool GetStaticSwitchParameterValues(FStaticParamEvaluationContext& EvalContext, TBitArray<>& OutValues, FGuid* OutExpressionGuids, bool bCheckParent = true) const override;
-	ENGINE_API virtual bool GetStaticComponentMaskParameterValues(FStaticParamEvaluationContext& EvalContext, TBitArray<>& OutRGBAOrderedValues, FGuid* OutExpressionGuids, bool bCheckParent = true) const override;
+	ENGINE_API virtual bool GetStaticSwitchParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid, bool bOveriddenOnly = false, bool bCheckParent = true) const override;
+	ENGINE_API virtual bool GetStaticComponentMaskParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& R, bool& G, bool& B, bool& A, FGuid& OutExpressionGuid, bool bOveriddenOnly = false, bool bCheckParent = true) const override;
 	ENGINE_API virtual bool GetMaterialLayersParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, FMaterialLayersFunctions& OutLayers, FGuid& OutExpressionGuid, bool bCheckParent = true) const override;
 #endif // WITH_EDITORONLY_DATA
 	ENGINE_API virtual bool GetTerrainLayerWeightParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32& OutWeightmapIndex, FGuid& OutExpressionGuid) const override;

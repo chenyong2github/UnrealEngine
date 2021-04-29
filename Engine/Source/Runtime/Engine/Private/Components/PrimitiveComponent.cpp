@@ -68,29 +68,32 @@ static FAutoConsoleVariableRef CVarAllowCachedOverlaps(
 	TEXT("0: disable cached overlaps, 1: enable (default)"),
 	ECVF_Default);
 
-static float InitialOverlapToleranceCVar = 0.0f;
-static FAutoConsoleVariableRef CVarInitialOverlapTolerance(
-	TEXT("p.InitialOverlapTolerance"),
-	InitialOverlapToleranceCVar,
-	TEXT("Tolerance for initial overlapping test in PrimitiveComponent movement.\n")
-	TEXT("Normals within this tolerance are ignored if moving out of the object.\n")
-	TEXT("Dot product of movement direction and surface normal."),
-	ECVF_Default);
-
-static float HitDistanceToleranceCVar = 0.0f;
-static FAutoConsoleVariableRef CVarHitDistanceTolerance(
-	TEXT("p.HitDistanceTolerance"),
-	HitDistanceToleranceCVar,
-	TEXT("Tolerance for hit distance for overlap test in PrimitiveComponent movement.\n")
-	TEXT("Hits that are less than this distance are ignored."),
-	ECVF_Default);
-
 static int32 AlwaysCreatePhysicsStateConversionHackCVar = 0;
 static FAutoConsoleVariableRef CVarAlwaysCreatePhysicsStateConversionHack(
 	TEXT("p.AlwaysCreatePhysicsStateConversionHack"),
 	AlwaysCreatePhysicsStateConversionHackCVar,
 	TEXT("Hack to convert actors with query and ignore all to always create physics."),
 	ECVF_Default);
+
+namespace PrimitiveComponentCVars
+{
+	float InitialOverlapToleranceCVar = 0.0f;
+	static FAutoConsoleVariableRef CVarInitialOverlapTolerance(
+		TEXT("p.InitialOverlapTolerance"),
+		InitialOverlapToleranceCVar,
+		TEXT("Tolerance for initial overlapping test in PrimitiveComponent movement.\n")
+		TEXT("Normals within this tolerance are ignored if moving out of the object.\n")
+		TEXT("Dot product of movement direction and surface normal."),
+		ECVF_Default);
+
+	float HitDistanceToleranceCVar = 0.0f;
+	static FAutoConsoleVariableRef CVarHitDistanceTolerance(
+		TEXT("p.HitDistanceTolerance"),
+		HitDistanceToleranceCVar,
+		TEXT("Tolerance for hit distance for overlap test in PrimitiveComponent movement.\n")
+		TEXT("Hits that are less than this distance are ignored."),
+		ECVF_Default);
+}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 int32 CVarShowInitialOverlaps = 0;
@@ -145,36 +148,6 @@ struct FPredicateOverlapHasDifferentActor
 private:
 	const TWeakObjectPtr<const AActor> MyOwnerPtr;
 };
-
-
-/*
- * Predicate for comparing FOverlapInfos when exact weak object pointer index/serial numbers should match, assuming one is not null and not invalid.
- * Compare to operator== for WeakObjectPtr which does both HasSameIndexAndSerialNumber *and* IsValid() checks on both pointers.
- */
-struct FFastOverlapInfoCompare
-{
-	FFastOverlapInfoCompare(const FOverlapInfo& BaseInfo)
-	: MyBaseInfo(BaseInfo)
-	{
-	}
-
-	bool operator() (const FOverlapInfo& Info)
-	{
-		return MyBaseInfo.OverlapInfo.Component.HasSameIndexAndSerialNumber(Info.OverlapInfo.Component)
-			&& MyBaseInfo.GetBodyIndex() == Info.GetBodyIndex();
-	}
-
-	bool operator() (const FOverlapInfo* Info)
-	{
-		return MyBaseInfo.OverlapInfo.Component.HasSameIndexAndSerialNumber(Info->OverlapInfo.Component)
-			&& MyBaseInfo.GetBodyIndex() == Info->GetBodyIndex();
-	}
-
-private:
-	const FOverlapInfo& MyBaseInfo;
-
-};
-
 
 // Helper for finding the index of an FOverlapInfo in an Array using the FFastOverlapInfoCompare predicate, knowing that at least one overlap is valid (non-null).
 template<class AllocatorType>
@@ -801,7 +774,7 @@ void UPrimitiveComponent::OnCreatePhysicsState()
 
 			// Create the body.
 			BodyInstance.InitBody(BodySetup, BodyTransform, this, GetWorld()->GetPhysicsScene());		
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_ENABLE_DEBUG_DRAWING
 			SendRenderDebugPhysics();
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
@@ -901,14 +874,14 @@ void UPrimitiveComponent::OnDestroyPhysicsState()
 		BodyInstance.TermBody();
 	}
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_ENABLE_DEBUG_DRAWING
 	SendRenderDebugPhysics();
 #endif
 
 	Super::OnDestroyPhysicsState();
 }
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_ENABLE_DEBUG_DRAWING
 void UPrimitiveComponent::SendRenderDebugPhysics(FPrimitiveSceneProxy* OverrideSceneProxy)
 {
 	FPrimitiveSceneProxy* UseSceneProxy = OverrideSceneProxy ? OverrideSceneProxy : SceneProxy;
@@ -2018,9 +1991,9 @@ static bool ShouldIgnoreHitResult(const UWorld* InWorld, FHitResult const& TestH
 	
 		// If we started penetrating, we may want to ignore it if we are moving out of penetration.
 		// This helps prevent getting stuck in walls.
-		if ( (TestHit.Distance < HitDistanceToleranceCVar || TestHit.bStartPenetrating) && !(MoveFlags & MOVECOMP_NeverIgnoreBlockingOverlaps) )
+		if ( (TestHit.Distance < PrimitiveComponentCVars::HitDistanceToleranceCVar || TestHit.bStartPenetrating) && !(MoveFlags & MOVECOMP_NeverIgnoreBlockingOverlaps) )
 		{
- 			const float DotTolerance = InitialOverlapToleranceCVar;
+ 			const float DotTolerance = PrimitiveComponentCVars::InitialOverlapToleranceCVar;
 
 			// Dot product of movement direction against 'exit' direction
 			const FVector MovementDir = MovementDirDenormalized.GetSafeNormal();

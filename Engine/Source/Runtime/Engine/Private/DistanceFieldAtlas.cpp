@@ -218,7 +218,8 @@ void FDistanceFieldVolumeData::CacheDerivedData(const FString& InStaticMeshDeriv
 			}
 		}
 
-		GDistanceFieldAsyncQueue->AddTask(NewTask);
+		if (GDistanceFieldAsyncQueue)
+			GDistanceFieldAsyncQueue->AddTask(NewTask);
 	}
 }
 

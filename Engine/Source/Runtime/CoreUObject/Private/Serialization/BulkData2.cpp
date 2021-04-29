@@ -278,7 +278,7 @@ static FCriticalSection FReadChunkIdRequestEvent;
 class FReadChunkIdRequest : public IAsyncReadRequest
 {
 public:
-	FReadChunkIdRequest(const FIoChunkId& InChunkId, FAsyncFileCallBack* InCallback, uint8* InUserSuppliedMemory, int64 InOffset, int64 InBytesToRead)
+	FReadChunkIdRequest(const FIoChunkId& InChunkId, FAsyncFileCallBack* InCallback, uint8* InUserSuppliedMemory, int64 InOffset, int64 InBytesToRead, int32 InPriority)
 		: IAsyncReadRequest(InCallback, false, InUserSuppliedMemory)
 	{
 		// Because IAsyncReadRequest can return ownership of the target memory buffer in the form
@@ -318,7 +318,7 @@ public:
 		};
 
 		FIoBatch IoBatch = FBulkDataBase::GetIoDispatcher()->NewBatch();
-		IoRequest = IoBatch.ReadWithCallback(InChunkId, Options, IoDispatcherPriority_Low, OnRequestLoaded);
+		IoRequest = IoBatch.ReadWithCallback(InChunkId, Options, InPriority, OnRequestLoaded);
 		IoBatch.Issue();
 	}
 
@@ -405,7 +405,7 @@ public:
 
 	virtual IAsyncReadRequest* ReadRequest(int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags PriorityAndFlags = AIOP_Normal, FAsyncFileCallBack* CompleteCallback = nullptr, uint8* UserSuppliedMemory = nullptr) override
 	{
-		return new FReadChunkIdRequest(ChunkID, CompleteCallback, UserSuppliedMemory, Offset, BytesToRead);
+		return new FReadChunkIdRequest(ChunkID, CompleteCallback, UserSuppliedMemory, Offset, BytesToRead, ConvertToIoDispatcherPriority(PriorityAndFlags));
 	}
 private:
 	FIoChunkId ChunkID;
@@ -415,10 +415,10 @@ static FCriticalSection FBulkDataIoDispatcherRequestEvent;
 class FBulkDataIoDispatcherRequest : public IBulkDataIORequest
 {
 public:
-	FBulkDataIoDispatcherRequest(const FIoChunkId& InChunkID, int64 InOffsetInBulkData, int64 InBytesToRead, FBulkDataIORequestCallBack* InCompleteCallback, uint8* InUserSuppliedMemory)
+	FBulkDataIoDispatcherRequest(const FIoChunkId& InChunkID, int64 InOffsetInBulkData, int64 InBytesToRead, int32 Priority, FBulkDataIORequestCallBack* InCompleteCallback, uint8* InUserSuppliedMemory)
 		: UserSuppliedMemory(InUserSuppliedMemory)
 	{
-		RequestArray.Push({ InChunkID, (uint64)InOffsetInBulkData , (uint64)InBytesToRead });
+		RequestArray.Push({ InChunkID, (uint64)InOffsetInBulkData , (uint64)InBytesToRead, Priority });
 
 		if (InCompleteCallback != nullptr)
 		{
@@ -426,11 +426,11 @@ public:
 		}
 	}
 
-	FBulkDataIoDispatcherRequest(const FIoChunkId& InChunkID, FBulkDataIORequestCallBack* InCompleteCallback)
+	FBulkDataIoDispatcherRequest(const FIoChunkId& InChunkID, int32 Priority, FBulkDataIORequestCallBack* InCompleteCallback)
 		: UserSuppliedMemory(nullptr)
 	{
 		const uint64 Size = FBulkDataBase::GetIoDispatcher()->GetSizeForChunk(InChunkID).ConsumeValueOrDie();
-		RequestArray.Push({ InChunkID, 0, Size });
+		RequestArray.Push({ InChunkID, 0, Size, Priority });
 
 		if (InCompleteCallback != nullptr)
 		{
@@ -525,7 +525,7 @@ public:
 		{
 			FIoReadOptions ReadOptions(Request.OffsetInBulkData, Request.BytesToRead);
 			ReadOptions.SetTargetVa(Dst);
-			Request.IoRequest = IoBatch.Read(Request.ChunkId, ReadOptions, IoDispatcherPriority_Low);
+			Request.IoRequest = IoBatch.Read(Request.ChunkId, ReadOptions, Request.Priority);
 			Dst += Request.BytesToRead;
 		}
 
@@ -610,6 +610,7 @@ private:
 		FIoChunkId ChunkId;
 		uint64 OffsetInBulkData;
 		uint64 BytesToRead;
+		int32 Priority;
 		FIoRequest IoRequest;
 	};
 
@@ -637,17 +638,18 @@ TUniquePtr<IBulkDataIORequest> CreateBulkDataIoDispatcherRequest(
 	int64 InOffsetInBulkData,
 	int64 InBytesToRead,
 	FBulkDataIORequestCallBack* InCompleteCallback,
-	uint8* InUserSuppliedMemory)
+	uint8* InUserSuppliedMemory,
+	int32 InPriority)
 {
 	TUniquePtr<FBulkDataIoDispatcherRequest> Request;
 
 	if (InBytesToRead > 0)
 	{
-		Request.Reset(new FBulkDataIoDispatcherRequest(InChunkID, InOffsetInBulkData, InBytesToRead, InCompleteCallback, InUserSuppliedMemory));
+		Request.Reset(new FBulkDataIoDispatcherRequest(InChunkID, InOffsetInBulkData, InBytesToRead, InPriority, InCompleteCallback, InUserSuppliedMemory));
 	}
 	else
 	{
-		Request.Reset(new FBulkDataIoDispatcherRequest(InChunkID, InCompleteCallback));
+		Request.Reset(new FBulkDataIoDispatcherRequest(InChunkID, InPriority, InCompleteCallback));
 	}
 
 	Request->StartAsyncWork();
@@ -1291,7 +1293,7 @@ IBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(int64 OffsetInBulkData
 		checkf(IsInSeparateFile(),
 			TEXT("Attempting to CreateStreamingRequest on %s when the IoDispatcher is enabled, this operation is not supported!"),
 			IsInlined() ? TEXT("inline BulkData") : TEXT("BulkData in end-of-package-file section"));
-		FBulkDataIoDispatcherRequest* BulkDataIoDispatcherRequest = new FBulkDataIoDispatcherRequest(CreateChunkId(), BulkDataOffset + OffsetInBulkData, BytesToRead, CompleteCallback, UserSuppliedMemory);
+		FBulkDataIoDispatcherRequest* BulkDataIoDispatcherRequest = new FBulkDataIoDispatcherRequest(CreateChunkId(), BulkDataOffset + OffsetInBulkData, BytesToRead, ConvertToIoDispatcherPriority(Priority), CompleteCallback, UserSuppliedMemory);
 		BulkDataIoDispatcherRequest->StartAsyncWork();
 
 		return BulkDataIoDispatcherRequest;
@@ -1352,7 +1354,7 @@ IBulkDataIORequest* FBulkDataBase::CreateStreamingRequestForRange(const BulkData
 
 		checkf(ReadLength > 0, TEXT("Read length is 0"));
 
-		FBulkDataIoDispatcherRequest* IoRequest = new FBulkDataIoDispatcherRequest(Start.CreateChunkId(), ReadOffset, ReadLength, CompleteCallback, nullptr);
+		FBulkDataIoDispatcherRequest* IoRequest = new FBulkDataIoDispatcherRequest(Start.CreateChunkId(), ReadOffset, ReadLength, ConvertToIoDispatcherPriority(Priority), CompleteCallback, nullptr);
 		IoRequest->StartAsyncWork();
 
 		return IoRequest;

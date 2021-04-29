@@ -149,6 +149,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Serialization/LoadTimeTrace.h"
 #include "Async/ParallelFor.h"
+#include "IO/IoDispatcher.h"
 
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"
@@ -156,6 +157,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "TextureCompiler.h"
 #include "StaticMeshCompiler.h"
 #include "AssetCompilingManager.h"
+#include "GenericPlatform/GenericPlatformCrashContext.h"
 #endif
 // @todo this is here only due to circular dependency to AIModule. To be removed
 
@@ -201,7 +203,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "FramePro/FrameProProfiler.h"
 
 #include "InstancedReferenceSubobjectHelper.h"
-
+#include "Misc/EngineBuildSettings.h"
 #include "Engine/LODActor.h"
 #include "Engine/AssetManager.h"
 #include "GameplayTagsManager.h"
@@ -224,11 +226,10 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "ProfilingDebugging/TracingProfiler.h"
 #include "Engine/CoreSettings.h"
 #include "IEyeTrackerModule.h"
+#include "Interfaces/IPluginManager.h"
 
 #if !UE_BUILD_SHIPPING
-#include "Interfaces/IPluginManager.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
-#include "Misc/EngineBuildSettings.h"
 #include "Streaming/StreamingManagerTexture.h"
 #endif
 
@@ -2130,6 +2131,7 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 		if (!bRunEngineCode)
 		{
 			UpdateTimecode();
+			FApp::SetGameTime(FApp::GetGameTime() + FApp::GetDeltaTime());
 			return;
 		}
 	}
@@ -2353,6 +2355,8 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 #endif // !UE_BUILD_SHIPPING
 
 	UpdateTimecode();
+
+	FApp::SetGameTime(FApp::GetGameTime() + FApp::GetDeltaTime());
 }
 
 void UEngine::ReinitializeCustomTimeStep()
@@ -2859,7 +2863,10 @@ void UEngine::InitializeObjectReferences()
 
 			if (AssetManager)
 			{
-				AssetManager->StartInitialLoading();
+				if (!FParse::Param(FCommandLine::Get(), TEXT("SkipAssetScan")))
+				{
+					AssetManager->StartInitialLoading();
+				}
 			}
 		}
 		else
@@ -9533,6 +9540,9 @@ FGuid UEngine::GetPackageGuid(FName PackageName, bool bForPIE)
 	FGuid Result(0,0,0,0);
 	FPackagePath PackagePath;
 	if (!FPackagePath::TryFromMountedName(PackageName.ToString(), PackagePath))
+
+	// There is no package guid support when using the I/O dispatcher
+	if (FIoDispatcher::IsInitialized())
 	{
 		return Result;
 	}

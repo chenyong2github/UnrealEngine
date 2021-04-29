@@ -39,10 +39,6 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(RHI_API, RHITFlushes);
 #include "HAL/PlatformStackwalk.h"
 #endif
 
-#ifndef DISABLE_BREADCRUMBS
-#define DISABLE_BREADCRUMBS 1
-#endif
-
 class FApp;
 class FBlendStateInitializerRHI;
 class FGraphicsPipelineStateInitializer;
@@ -467,6 +463,7 @@ public:
 		CommandLink = &Result->Next;
 		return Result;
 	}
+
 	template <typename TCmd>
 	FORCEINLINE void* AllocCommand()
 	{
@@ -571,6 +568,43 @@ public:
 
 	FORCEINLINE const FRHIGPUMask& GetGPUMask() const { return GPUMask; }
 
+protected:
+#if RHI_WANT_BREADCRUMB_EVENTS
+	FRHIBreadcrumb* PushBreadcrumb_Internal(const TCHAR* InName)
+	{
+		FRHIBreadcrumb* NewBreadcrumb = (FRHIBreadcrumb*)MemManager.Alloc(sizeof(FRHIBreadcrumb), alignof(FRHIBreadcrumb));
+
+		int32 Len = FCString::Strlen(InName) + 1;
+		TCHAR* NewName = (TCHAR*)MemManager.Alloc(Len * sizeof(TCHAR), alignof(TCHAR));
+		FCString::Strcpy(NewName, Len, InName);
+
+		NewBreadcrumb->Parent = BreadcrumbStackTop;
+		NewBreadcrumb->Name = NewName;
+
+		BreadcrumbStackTop = NewBreadcrumb;
+		if (FirstUnsubmittedBreadcrumb == nullptr)
+		{
+			FirstUnsubmittedBreadcrumb = NewBreadcrumb;
+		}
+		return NewBreadcrumb;
+	}
+
+	FRHIBreadcrumb* PopBreadcrumb_Internal()
+	{
+		check(BreadcrumbStackTop != nullptr); // popping more than pushing
+		BreadcrumbStackTop = BreadcrumbStackTop->Parent;
+		return BreadcrumbStackTop;
+	}
+
+	FRHIBreadcrumb* GetBreadcrumbStackTop() const { return BreadcrumbStackTop; }
+	FRHIBreadcrumb* PopFirstUnsubmittedBreadcrumb()
+	{
+		FRHIBreadcrumb* Breadcrumb = FirstUnsubmittedBreadcrumb;
+		FirstUnsubmittedBreadcrumb = nullptr;
+		return Breadcrumb;
+	}
+#endif
+
 private:
 	FRHICommandBase* Root;
 	FRHICommandBase** CommandLink;
@@ -588,6 +622,11 @@ private:
 
 protected:
 	FRHICommandListBase(FRHIGPUMask InGPUMask);
+
+#if RHI_WANT_BREADCRUMB_EVENTS
+	FRHIBreadcrumb* BreadcrumbStackTop{};
+	FRHIBreadcrumb* FirstUnsubmittedBreadcrumb{};
+#endif
 
 	bool bAsyncPSOCompileAllowed;
 	FRHIGPUMask GPUMask;
@@ -1817,6 +1856,11 @@ struct FRHICommandSubmitCommandsHint final : public FRHICommand<FRHICommandSubmi
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+FRHICOMMAND_MACRO(FRHICommandPostExternalCommandsReset)
+{
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
 FRHICOMMAND_MACRO(FRHICommandPollOcclusionQueries)
 {
 	RHI_API void Execute(FRHICommandListBase& CmdList);
@@ -1919,6 +1963,20 @@ struct FRHICommandPopEvent final : public FRHICommand<FRHICommandPopEvent, FRHIC
 		Context.PopMarker();
 	};
 };
+
+#if RHI_WANT_BREADCRUMB_EVENTS
+FRHICOMMAND_MACRO(FRHICommandSetBreadcrumbStackTop)
+{
+	FRHIBreadcrumb* Breadcrumb;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandSetBreadcrumbStackTop(FRHIBreadcrumb* InBreadcrumb)
+		: Breadcrumb(InBreadcrumb)
+	{
+	}
+
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+#endif
 
 FRHICOMMAND_MACRO(FRHICommandInvalidateCachedState)
 {
@@ -2684,6 +2742,32 @@ public:
 		ALLOC_COMMAND(FRHICommandPopEvent)();
 	}
 
+	FORCEINLINE_DEBUGGABLE void PushBreadcrumb(const TCHAR* Name)
+	{
+#if RHI_WANT_BREADCRUMB_EVENTS
+		FRHIBreadcrumb* Breadcrumb = PushBreadcrumb_Internal(Name);
+		if (Bypass())
+		{
+			GetComputeContext().RHISetBreadcrumbStackTop(Breadcrumb);
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandSetBreadcrumbStackTop)(Breadcrumb);
+#endif
+	}
+
+	FORCEINLINE_DEBUGGABLE void PopBreadcrumb()
+	{
+#if RHI_WANT_BREADCRUMB_EVENTS
+		FRHIBreadcrumb* Breadcrumb = PopBreadcrumb_Internal();
+		if (Bypass())
+		{
+			GetComputeContext().RHISetBreadcrumbStackTop(Breadcrumb);
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandSetBreadcrumbStackTop)(Breadcrumb);
+#endif
+	}
+
 	FORCEINLINE_DEBUGGABLE void BreakPoint()
 	{
 #if !UE_BUILD_SHIPPING
@@ -2844,6 +2928,22 @@ public:
 		}
 	}
 #endif
+
+#if RHI_WANT_BREADCRUMB_EVENTS
+	void ExportBreadcrumbState(FRHIBreadcrumbState& State);
+	void ImportBreadcrumbState(const FRHIBreadcrumbState& State);
+	void InheritBreadcrumbs(const FRHIComputeCommandList& Parent);
+#endif
+
+	FORCEINLINE_DEBUGGABLE void PostExternalCommandsReset()
+	{
+		if (Bypass())
+		{
+			GetComputeContext().RHIPostExternalCommandsReset();
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandPostExternalCommandsReset)();
+	}
 };
 
 class RHI_API FRHICommandList : public FRHIComputeCommandList
@@ -4648,12 +4748,41 @@ public:
 		return GDynamicRHI->RHIGetNativeDevice();
 	}
 	
+	FORCEINLINE void* GetNativePhysicalDevice()
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_GetNativePhysicalDevice_Flush);
+		ImmediateFlush(EImmediateFlushType::FlushRHIThread); 
+		 
+		return GDynamicRHI->RHIGetNativePhysicalDevice();
+	}
+	
+	FORCEINLINE void* GetNativeGraphicsQueue()
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_GetNativeGraphicsQueue_Flush);
+		ImmediateFlush(EImmediateFlushType::FlushRHIThread); 
+		 
+		return GDynamicRHI->RHIGetNativeGraphicsQueue();
+	}
+	
+	FORCEINLINE void* GetNativeComputeQueue()
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_GetNativeComputeQueue_Flush);
+		ImmediateFlush(EImmediateFlushType::FlushRHIThread); 
+		 
+		return GDynamicRHI->RHIGetNativeComputeQueue();
+	}
+	
 	FORCEINLINE void* GetNativeInstance()
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_GetNativeInstance_Flush);
 		ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 
 		return GDynamicRHI->RHIGetNativeInstance();
+	}
+	
+	FORCEINLINE void* GetNativeCommandBuffer()
+	{
+		return GDynamicRHI->RHIGetNativeCommandBuffer();
 	}
 
 	FORCEINLINE class IRHICommandContext* GetDefaultContext()
@@ -5473,11 +5602,30 @@ FORCEINLINE void* RHIGetNativeDevice()
 	return FRHICommandListExecutor::GetImmediateCommandList().GetNativeDevice();
 }
 
+FORCEINLINE void* RHIGetNativePhysicalDevice()
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().GetNativePhysicalDevice();
+}
+
+FORCEINLINE void* RHIGetNativeGraphicsQueue()
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().GetNativeGraphicsQueue();
+}
+
+FORCEINLINE void* RHIGetNativeComputeQueue()
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().GetNativeComputeQueue();
+}
+
 FORCEINLINE void* RHIGetNativeInstance()
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().GetNativeInstance();
 }
 
+FORCEINLINE void* RHIGetNativeCommandBuffer()
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().GetNativeCommandBuffer();
+}
 
 FORCEINLINE FRHIShaderLibraryRef RHICreateShaderLibrary(EShaderPlatform Platform, FString const& FilePath, FString const& Name)
 {

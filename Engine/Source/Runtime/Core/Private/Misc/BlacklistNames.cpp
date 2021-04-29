@@ -243,9 +243,7 @@ bool FBlacklistPaths::PassesFilter(const FStringView Item) const
 
 bool FBlacklistPaths::PassesFilter(const FName Item) const
 {
-	TStringBuilder<FName::StringBufferSize> ItemStr;
-	Item.ToString(ItemStr);
-	return PassesFilter(FStringView(ItemStr));
+	return PassesFilter(FNameBuilder(Item));
 }
 
 bool FBlacklistPaths::PassesFilter(const TCHAR* Item) const
@@ -304,9 +302,7 @@ bool FBlacklistPaths::PassesStartsWithFilter(const FStringView Item, const bool 
 
 bool FBlacklistPaths::PassesStartsWithFilter(const FName Item, const bool bAllowParentPaths) const
 {
-	TStringBuilder<FName::StringBufferSize> ItemStr;
-	Item.ToString(ItemStr);
-	return PassesStartsWithFilter(FStringView(ItemStr), bAllowParentPaths);
+	return PassesStartsWithFilter(FNameBuilder(Item), bAllowParentPaths);
 }
 
 bool FBlacklistPaths::PassesStartsWithFilter(const TCHAR* Item, const bool bAllowParentPaths) const
@@ -337,9 +333,7 @@ bool FBlacklistPaths::AddBlacklistItem(const FName OwnerName, const FStringView 
 
 bool FBlacklistPaths::AddBlacklistItem(const FName OwnerName, const FName Item)
 {
-	TStringBuilder<FName::StringBufferSize> ItemStr;
-	Item.ToString(ItemStr);
-	return AddBlacklistItem(OwnerName, FStringView(ItemStr));
+	return AddBlacklistItem(OwnerName, FNameBuilder(Item));
 }
 
 bool FBlacklistPaths::AddBlacklistItem(const FName OwnerName, const TCHAR* Item)
@@ -370,9 +364,7 @@ bool FBlacklistPaths::AddWhitelistItem(const FName OwnerName, const FStringView 
 
 bool FBlacklistPaths::AddWhitelistItem(const FName OwnerName, const FName Item)
 {
-	TStringBuilder<FName::StringBufferSize> ItemStr;
-	Item.ToString(ItemStr);
-	return AddWhitelistItem(OwnerName, FStringView(ItemStr));
+	return AddWhitelistItem(OwnerName, FNameBuilder(Item));
 }
 
 bool FBlacklistPaths::AddWhitelistItem(const FName OwnerName, const TCHAR* Item)

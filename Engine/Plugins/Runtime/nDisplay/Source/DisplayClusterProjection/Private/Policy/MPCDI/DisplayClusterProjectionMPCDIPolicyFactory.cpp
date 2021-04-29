@@ -7,44 +7,26 @@
 #include "DisplayClusterProjectionLog.h"
 #include "DisplayClusterProjectionStrings.h"
 
-
-TArray<TSharedPtr<FDisplayClusterProjectionPolicyBase>> FDisplayClusterProjectionMPCDIPolicyFactory::GetPolicy()
-{
-	return Policy;
-}
-
-TSharedPtr<FDisplayClusterProjectionPolicyBase> FDisplayClusterProjectionMPCDIPolicyFactory::GetPolicyByViewport(const FString& ViewportId)
-{
-	for (auto& It : Policy)
-	{
-		if (!ViewportId.Compare(It->GetViewportId(), ESearchCase::IgnoreCase))
-		{
-			return It;
-		}
-	}
-	return nullptr;
-}
+#include "DisplayClusterConfigurationTypes.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicyFactory
 //////////////////////////////////////////////////////////////////////////////////////////////
-TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionMPCDIPolicyFactory::Create(const FString& PolicyType, const FString& RHIName, const FString& ViewportId, const TMap<FString, FString>& Parameters)
+TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionMPCDIPolicyFactory::Create(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 {
-	UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("Instantiating projection policy <%s>..."), *PolicyType);
+	check(InConfigurationProjectionPolicy != nullptr);
 
-	if (PolicyType.Equals(DisplayClusterProjectionStrings::projection::MPCDI, ESearchCase::IgnoreCase))
+	UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("Instantiating projection policy <%s>...id='%s'"), *InConfigurationProjectionPolicy->Type, *ProjectionPolicyId);
+
+	if (InConfigurationProjectionPolicy->Type.Equals(DisplayClusterProjectionStrings::projection::MPCDI, ESearchCase::IgnoreCase))
 	{
-		TSharedPtr<FDisplayClusterProjectionPolicyBase> Result = MakeShared<FDisplayClusterProjectionMPCDIPolicy>(ViewportId, Parameters);
-		Policy.Add(Result);
-		return StaticCastSharedPtr<IDisplayClusterProjectionPolicy>(Result);
+		return MakeShared<FDisplayClusterProjectionMPCDIPolicy>(ProjectionPolicyId, InConfigurationProjectionPolicy);
 	}
 
-	if (PolicyType.Equals(DisplayClusterProjectionStrings::projection::Mesh, ESearchCase::IgnoreCase))
+	if (InConfigurationProjectionPolicy->Type.Equals(DisplayClusterProjectionStrings::projection::Mesh, ESearchCase::IgnoreCase))
 	{
-		TSharedPtr<FDisplayClusterProjectionPolicyBase> Result = MakeShared<FDisplayClusterProjectionMeshPolicy>(ViewportId, Parameters);
-		Policy.Add(Result);
-		return StaticCastSharedPtr<IDisplayClusterProjectionPolicy>(Result);
+		return MakeShared<FDisplayClusterProjectionMeshPolicy>(ProjectionPolicyId, InConfigurationProjectionPolicy);
 	}
 
-	return MakeShared<FDisplayClusterProjectionMPCDIPolicy>(ViewportId, Parameters);
+	return MakeShared<FDisplayClusterProjectionMPCDIPolicy>(ProjectionPolicyId, InConfigurationProjectionPolicy);
 };

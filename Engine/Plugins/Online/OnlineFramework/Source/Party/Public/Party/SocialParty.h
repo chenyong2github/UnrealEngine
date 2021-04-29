@@ -118,7 +118,7 @@ public:
 	}
 
 	bool ContainsUser(const USocialUser& User) const;
-	
+
 	ULocalPlayer& GetOwningLocalPlayer() const;
 	const FUniqueNetIdRepl& GetOwningLocalUserId() const { return OwningLocalUserId; }
 	const FUniqueNetIdRepl& GetPartyLeaderId() const { return CurrentLeaderId; }
@@ -221,7 +221,7 @@ PACKAGE_SCOPE:
 	bool CanPromoteMember(const UPartyMember& PartyMember) const;
 	bool CanKickMember(const UPartyMember& PartyMember) const;
 	
-	bool TryInviteUser(const USocialUser& UserToInvite);
+	bool TryInviteUser(const USocialUser& UserToInvite, const ESocialPartyInviteMethod InviteMethod = ESocialPartyInviteMethod::Other);
 	bool TryPromoteMember(const UPartyMember& PartyMember);
 	bool TryKickMember(const UPartyMember& PartyMember);
 	//--------------------------
@@ -245,8 +245,11 @@ protected:
 	virtual bool CanPromoteMemberInternal(const UPartyMember& PartyMember) const;
 	virtual bool CanKickMemberInternal(const UPartyMember& PartyMember) const;
 
-	virtual void OnInviteSentInternal(ESocialSubsystem SubsystemType, const USocialUser& InvitedUser, bool bWasSuccessful);
-	
+	virtual void OnInviteSentInternal(ESocialSubsystem SubsystemType, const USocialUser& InvitedUser, bool bWasSuccessful, const ESocialPartyInviteMethod InviteMethod);
+
+	/* Deprecated version */
+	virtual void OnInviteSentInternal(ESocialSubsystem SubsystemType, const USocialUser& InvitedUser, bool bWasSuccessful) {};
+
 	virtual void HandlePartySystemStateChange(EPartySystemState NewState);
 
 	/** Determines the joinability of this party for a group of users requesting to join */

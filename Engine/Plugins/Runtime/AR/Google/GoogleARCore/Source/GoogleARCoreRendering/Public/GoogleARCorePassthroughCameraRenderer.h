@@ -73,7 +73,11 @@ public:
 	void UpdateCameraTextures(UTexture* NewCameraTexture, UTexture* DepthTexture, bool bEnableOcclusion);
 	
 	void AddReferencedObjects(FReferenceCollector& Collector) override;
-	
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FGoogleARCorePassthroughCameraRenderer");
+	}
+
 private:
 	void RenderVideoOverlayWithMaterial(FRHICommandListImmediate& RHICmdList, FSceneView& InView, UMaterialInstanceDynamic* OverlayMaterialToUse, bool bRenderingOcclusion);
 

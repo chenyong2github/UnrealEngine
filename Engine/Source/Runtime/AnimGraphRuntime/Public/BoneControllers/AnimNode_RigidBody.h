@@ -319,6 +319,41 @@ private:
 	// Update sim-space transforms of world objects
 	void UpdateWorldObjects(const FTransform& SpaceTransform);
 
+	struct FSimulationTask
+	{
+		FSimulationTask(FAnimNode_RigidBody* InRigidBodyNode, const float InDeltaSeconds, const float InMaxDeltaSeconds, const int32 InMaxSteps, const FVector& InSimSpaceGravity)
+			: RigidBodyNode(InRigidBodyNode)
+			, DeltaSeconds(InDeltaSeconds)
+			, MaxDeltaSeconds(InMaxDeltaSeconds)
+			, MaxSteps(InMaxSteps)
+			, SimSpaceGravity(InSimSpaceGravity)
+		{
+		}
+
+		static FORCEINLINE TStatId GetStatId()
+		{
+			RETURN_QUICK_DECLARE_CYCLE_STAT(FRigidBodyNodeSimulationTask, STATGROUP_TaskGraphTasks);
+		}
+
+		static FORCEINLINE ENamedThreads::Type GetDesiredThread();
+
+		static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode()
+		{
+			return ESubsequentsMode::TrackSubsequents;
+		}
+
+		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& CompletionGraphEvent);
+
+		FAnimNode_RigidBody* const RigidBodyNode;
+		const float DeltaSeconds;
+		const float MaxDeltaSeconds;
+		const int32 MaxSteps;
+		const FVector SimSpaceGravity;
+	};
+
+	// Wait for the simulation task to complete, which clears the reference
+	void FlushDeferredSimulationTask();
+
 private:
 
 	float WorldTimeSeconds;
@@ -336,6 +371,7 @@ private:
 
 	ImmediatePhysics::FSimulation* PhysicsSimulation;
 	FSolverIterations SolverIterations;
+	FGraphEventRef PhysicsSimulationTask;
 
 	struct FOutputBoneData
 	{

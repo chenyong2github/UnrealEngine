@@ -560,7 +560,7 @@ public:
 	virtual bool ContainsTag(FName TagName) const = 0;
 
 	/** Fills in FAssetRegistrySerializationOptions from ini, optionally using a target platform ini name */
-	virtual void InitializeSerializationOptions(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName = FString()) const = 0;
+	virtual void InitializeSerializationOptions(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName = FString(), UE::AssetRegistry::ESerializationTarget Target = UE::AssetRegistry::ESerializationTarget::ForGame) const = 0;
 
 	struct FLoadPackageRegistryData
 	{

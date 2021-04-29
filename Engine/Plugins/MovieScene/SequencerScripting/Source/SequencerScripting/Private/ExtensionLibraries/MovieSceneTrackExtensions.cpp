@@ -16,7 +16,10 @@ void UMovieSceneTrackExtensions::SetDisplayName(UMovieSceneTrack* Track, const F
 
 FText UMovieSceneTrackExtensions::GetDisplayName(UMovieSceneTrack* Track)
 {
+#if WITH_EDITORONLY_DATA
 	return Track->GetDisplayName();
+#endif
+	return FText::GetEmpty();
 }
 
 UMovieSceneSection* UMovieSceneTrackExtensions::AddSection(UMovieSceneTrack* Track)

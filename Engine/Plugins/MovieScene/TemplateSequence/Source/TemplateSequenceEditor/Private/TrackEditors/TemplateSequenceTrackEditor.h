@@ -54,4 +54,10 @@ class FTemplateSequenceSection
 public:
 	FTemplateSequenceSection(TSharedPtr<ISequencer> InSequencer, UTemplateSequenceSection& InSection);
 	virtual ~FTemplateSequenceSection() {}
+
+	virtual void BuildSectionContextMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding) override;
+
+private:
+	void BuildPropertyScalingSubMenu(FMenuBuilder& MenuBuilder, FGuid ObjectBinding);
 };
+

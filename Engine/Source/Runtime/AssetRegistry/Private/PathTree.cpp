@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PathTree.h"
+#include "AssetRegistry/PathTree.h"
 #include <UObject/NameTypes.h>
 
 bool FPathTree::CachePath(FName Path, TFunctionRef<void(FName)> OnPathAdded)

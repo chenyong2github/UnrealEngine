@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "AddonTools.h"
+#include "Utils/AddonTools.h"
+
+#include "Lock.hpp"
 
 #include <map>
 
@@ -112,6 +114,7 @@ class FSyncDatabase
 
 	// Map mesh name (hash) to mesh info
 	FMapHashToMeshInfo HashToMeshInfo;
+	GS::Lock		   HashToMeshInfoAccesControl;
 };
 
 END_NAMESPACE_UE_AC

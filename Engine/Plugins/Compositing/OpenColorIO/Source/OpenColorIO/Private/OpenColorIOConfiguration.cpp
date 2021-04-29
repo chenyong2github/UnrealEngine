@@ -2,12 +2,14 @@
 
 #include "OpenColorIOConfiguration.h"
 
+#include "EngineAnalytics.h"
 #include "Engine/VolumeTexture.h"
 #include "Math/PackedVector.h"
 #include "Modules/ModuleManager.h"
 #include "OpenColorIOColorTransform.h"
 #include "OpenColorIOModule.h"
 #include "TextureResource.h"
+#include "UObject/ObjectSaveContext.h"
 
 
 #if WITH_EDITOR
@@ -140,6 +142,30 @@ void UOpenColorIOConfiguration::PostLoad()
 		Transform->ConditionalPostLoad();
 	}
 }
+
+namespace OpenColorIOConfiguration
+{
+	static void SendAnalytics(const FString& EventName, const TArray<FOpenColorIOColorSpace>& DesiredColorSpaces)
+	{
+		if (!FEngineAnalytics::IsAvailable())
+		{
+			return;
+		}
+
+		TArray<FAnalyticsEventAttribute> EventAttributes;
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("NumDesiredColorSpaces"), DesiredColorSpaces.Num()));
+
+		FEngineAnalytics::GetProvider().RecordEvent(EventName, EventAttributes);
+	}
+}
+
+void UOpenColorIOConfiguration::PreSave(FObjectPreSaveContext SaveContext)
+{
+	Super::PreSave(SaveContext);
+
+	OpenColorIOConfiguration::SendAnalytics(TEXT("Usage.OpenColorIO.ConfigAssetSaved"), DesiredColorSpaces);
+}
+
 
 #if WITH_EDITOR
 

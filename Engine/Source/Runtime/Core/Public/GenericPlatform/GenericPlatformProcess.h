@@ -486,8 +486,9 @@ struct CORE_API FGenericPlatformProcess
 	 * @param	FileName	Name of the file to attempt to launch in its default external application
 	 * @param	Parms		Optional parameters to the default application
 	 * @param	Verb		Optional verb to use when opening the file, if it applies for the platform.
+	 * @return true if the file is launched successfully, false otherwise.
 	 */
-	static void LaunchFileInDefaultExternalApplication( const TCHAR* FileName, const TCHAR* Parms = NULL, ELaunchVerb::Type Verb = ELaunchVerb::Open );
+	static bool LaunchFileInDefaultExternalApplication( const TCHAR* FileName, const TCHAR* Parms = NULL, ELaunchVerb::Type Verb = ELaunchVerb::Open, bool bPromptToOpenOnFailure = true );
 
 	/**
 	 * Attempt to "explore" the folder specified by the provided file path

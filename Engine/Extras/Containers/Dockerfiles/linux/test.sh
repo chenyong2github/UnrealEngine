@@ -34,7 +34,7 @@ function runTests {
 
 
 # Determine which release of the Unreal Engine we will be testing the built container images for
-UNREAL_ENGINE_RELEASE=master
+UNREAL_ENGINE_RELEASE="4.27"
 if [[ ! -z "$1" ]]; then
 	UNREAL_ENGINE_RELEASE="$1"
 fi
@@ -44,4 +44,4 @@ set -ex
 
 # Run tests using both the regular and slim variants of the development container image
 runTests "ghcr.io/epicgames/unreal-engine:dev-${UNREAL_ENGINE_RELEASE}" 'dist-dev'
-runTests "ghcr.io/epicgames/unreal-engine:dev-${UNREAL_ENGINE_RELEASE}-slim" 'dist-slim'
+runTests "ghcr.io/epicgames/unreal-engine:dev-slim-${UNREAL_ENGINE_RELEASE}" 'dist-slim'

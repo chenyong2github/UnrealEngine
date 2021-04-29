@@ -270,6 +270,9 @@ class ENGINE_API UMaterialExpression : public UObject
 	}
 	//~ End UObject Interface.
 
+	UObject* GetAssetOwner() const;
+	FString GetAssetPathName() const;
+
 #if WITH_EDITOR
 	/**
 	 * Create the new shader code chunk needed for the Abs expression

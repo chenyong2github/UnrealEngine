@@ -68,6 +68,8 @@ void FStaticMeshInstance::AllocateLightmaps(TEntityArray<FLightmap>& LightmapCon
 
 TArray<FMeshBatch> FStaticMeshInstanceRenderState::GetMeshBatchesForGBufferRendering(int32 LODIndex)
 {
+	LODIndex = FMath::Max(LODIndex, ClampedMinLOD);
+
 	TArray<FMeshBatch> MeshBatches;
 
 	// TODO: potential race conditions between GT & RT everywhere in the following code

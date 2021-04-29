@@ -685,6 +685,11 @@ namespace UnrealBuildTool
 			return IOSArchitecture;
 		}
 
+		public override string GetFolderNameForArchitecture(string Architecture)
+		{
+			return IOSArchitecture;
+		}
+
 		public override List<FileReference> FinalizeBinaryPaths(FileReference BinaryName, FileReference ProjectFile, ReadOnlyTargetRules Target)
 		{
 			List<FileReference> BinaryPaths = new List<FileReference>();
@@ -974,6 +979,12 @@ namespace UnrealBuildTool
 		/// <param name="Target">The target being build</param>
 		public override void ModifyModuleRulesForOtherPlatform(string ModuleName, ModuleRules Rules, ReadOnlyTargetRules Target)
 		{
+			// don't do any target platform stuff if SDK is not available
+			if (!UEBuildPlatform.IsPlatformAvailableForTarget(Platform, Target))
+			{
+				return;
+			}
+
 			if ((Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Mac))
 			{
 				bool bBuildShaderFormats = Target.bForceBuildShaderFormats;
@@ -1013,6 +1024,31 @@ namespace UnrealBuildTool
 						Rules.DynamicallyLoadedModuleNames.Add("MetalShaderFormat");
 					}
 				}
+
+				if (ModuleName == "UnrealEd")
+				{
+					Rules.DynamicallyLoadedModuleNames.Add("IOSPlatformEditor");
+				}
+			}
+		}
+
+		public override void ModifyModuleRulesForActivePlatform(string ModuleName, ModuleRules Rules, ReadOnlyTargetRules Target)
+		{
+			if (ModuleName == "Launch")
+			{
+				Rules.PrivateDependencyModuleNames.AddRange(new string[] {
+					"AudioMixerAudioUnit",
+					"IOSAudio",
+					"LaunchDaemonMessages",
+				});
+
+				Rules.DynamicallyLoadedModuleNames.AddRange(new string[] {
+					"IOSLocalNotification",
+					"IOSRuntimeSettings",
+				});
+
+				// needed for Metal layer
+				Rules.PublicFrameworks.Add("QuartzCore");
 			}
 		}
 

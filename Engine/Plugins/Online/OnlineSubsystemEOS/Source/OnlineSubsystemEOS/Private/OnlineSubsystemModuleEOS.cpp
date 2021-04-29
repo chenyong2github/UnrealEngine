@@ -100,6 +100,10 @@ void FOnlineSubsystemEOSModule::ShutdownModule()
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 	FCoreDelegates::OnPreExit.RemoveAll(this);
 
+#if WITH_EOS_SDK
+	FOnlineSubsystemEOS::ModuleShutdown();
+#endif
+
 	FOnlineSubsystemModule& OSS = FModuleManager::GetModuleChecked<FOnlineSubsystemModule>("OnlineSubsystem");
 	OSS.UnregisterPlatformService(EOS_SUBSYSTEM);
 

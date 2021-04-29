@@ -62,6 +62,11 @@ void UCommonInputSettings::PostEditChangeProperty(struct FPropertyChangedEvent& 
 }
 #endif
 
+const TArray<FName>& UCommonInputSettings::GetRegisteredPlatforms()
+{
+	return FCommonInputPlatformBaseData::GetRegisteredPlatforms();
+}
+
 void UCommonInputSettings::LoadInputData()
 {
 	if (!bInputDataLoaded)

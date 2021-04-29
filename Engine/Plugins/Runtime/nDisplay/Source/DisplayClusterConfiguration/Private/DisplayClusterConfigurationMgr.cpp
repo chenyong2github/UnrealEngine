@@ -72,6 +72,14 @@ bool FDisplayClusterConfigurationMgr::SaveConfig(const UDisplayClusterConfigurat
 	return Parser->SaveData(Config, FilePath);
 }
 
+bool FDisplayClusterConfigurationMgr::ConfigAsString(const UDisplayClusterConfigurationData* Config, FString& OutString)
+{
+	// Stringify to json only
+	TUniquePtr<IDisplayClusterConfigurationDataParser> Parser = MakeUnique<FDisplayClusterConfigurationJsonParser>();
+	check(Parser);
+	return Parser->AsString(Config, OutString);
+}
+
 UDisplayClusterConfigurationData* FDisplayClusterConfigurationMgr::CreateDefaultStandaloneConfigData()
 {
 	// Not implemented yet

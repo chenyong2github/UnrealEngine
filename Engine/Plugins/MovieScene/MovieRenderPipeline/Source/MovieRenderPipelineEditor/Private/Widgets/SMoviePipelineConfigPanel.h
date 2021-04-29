@@ -53,7 +53,10 @@ public:
 
 private:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SMoviePipelineConfigPanel");
+	}
 private:
 	/** Attempts to work with the user to find a suitable package path to save the asset under. */
 	bool GetSavePresetPackageName(const FString& InExistingName, FString& OutName);

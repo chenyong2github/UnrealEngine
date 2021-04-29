@@ -148,7 +148,7 @@ private:
 
 		if (!v_dllHandle)
 		{
-			FString DllDirectory = FPaths::Combine(IPluginManager::Get().FindPlugin("LidarPointCloud")->GetBaseDir(), TEXT("Source/ThirdParty/LibE57"));
+			FString DllDirectory = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("LidarPointCloud"))->GetBaseDir(), TEXT("Source/ThirdParty/LibE57"));
 #if PLATFORM_WINDOWS
 			FPlatformProcess::GetDllHandle(*FPaths::Combine(DllDirectory, TEXT("Win64/xerces-c_3_2.dll")));
 			v_dllHandle = FPlatformProcess::GetDllHandle(*FPaths::Combine(DllDirectory, TEXT("Win64/E57UE4.dll")));

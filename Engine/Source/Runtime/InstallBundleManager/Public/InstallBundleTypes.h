@@ -184,12 +184,6 @@ enum class EInstallBundleStatus : int
 };
 INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleStatus Status);
 
-enum class EOverallInstallationProcessStep : int
-{
-	Downloading,
-	Installing
-};
-
 enum class EInstallBundleManagerPatchCheckResult : uint32
 {
 	/** No patch required */

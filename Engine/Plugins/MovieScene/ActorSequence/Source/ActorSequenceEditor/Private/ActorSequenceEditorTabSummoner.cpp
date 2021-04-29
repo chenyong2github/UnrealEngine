@@ -398,7 +398,6 @@ public:
 		Options.bRequiresLevelEvents = true;
 		Options.bRequiresActorEvents = false;
 		Options.bForceRefreshDetails = false;
-		Options.bCanRecord = false;
 
 		FLevelEditorSequencerIntegration::Get().AddSequencer(Sequencer.ToSharedRef(), Options);
 	}

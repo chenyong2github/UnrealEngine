@@ -4101,7 +4101,7 @@ float GetFragmentationPercentage(const TArray<FPakInputPair>& FilesToPak, const 
 	}
 	// First always shows as different, so discount it
 	DiffCount--;
-	return 100.0f * float(DiffCount) / float(ConsideredCount);
+	return ConsideredCount ? (100.0f * float(DiffCount) / float(ConsideredCount)) : 0;
 }
 
 int64 ComputePatchSize(const TArray<FPakInputPair>& FilesToPak, const TArray<int64>& FileSizes, TBitArray<>& IncludeFilesMask, int32& OutFileCount)

@@ -4,6 +4,15 @@
 #include "Quartz/AudioMixerClockManager.h"
 #include "AudioMixerSourceManager.h"
 
+
+static float HeadlessClockSampleRateCvar = 100000.f;
+FAutoConsoleVariableRef CVarHeadlessClockSampleRate(
+	TEXT("au.Quartz.HeadlessClockSampleRate"),
+	HeadlessClockSampleRateCvar,
+	TEXT("Sample rate to use for Quartz Clocks/Metronomes when no Mixer Device is present.\n")
+	TEXT("0: Not Enabled, 1: Enabled"),
+	ECVF_Default);
+
 namespace Audio
 {
 	FQuartzClock::FQuartzClock(const FName& InName, const FQuartzClockSettings& InClockSettings, FQuartzClockManager* InOwningClockManagerPtr)
@@ -20,6 +29,10 @@ namespace Audio
 		{
 			Metronome.SetSampleRate(MixerDevice->GetSampleRate());
 		}
+		else
+		{
+			Metronome.SetSampleRate(HeadlessClockSampleRateCvar);
+		}
 	}
 
 	FQuartzClock::~FQuartzClock()
@@ -34,6 +47,10 @@ namespace Audio
 		if (MixerDevice)
 		{
 			InNewTickRate.SetSampleRate(MixerDevice->GetSampleRate());
+		}
+		else
+		{
+			InNewTickRate.SetSampleRate(HeadlessClockSampleRateCvar);
 		}
 
 		Metronome.SetTickRate(InNewTickRate, NumFramesLeft);
@@ -140,6 +157,11 @@ namespace Audio
 
 		PendingCommands.Reset();
 		ClockAlteringPendingCommands.Reset();
+	}
+
+	void FQuartzClock::LowResolutionTick(float InDeltaTimeSeconds)
+	{
+		Tick(static_cast<int32>(InDeltaTimeSeconds * Metronome.GetTickRate().GetSampleRate()));
 	}
 
 	void FQuartzClock::Tick(int32 InNumFramesUntilNextTick)
@@ -259,6 +281,11 @@ namespace Audio
 
 	void FQuartzClock::AddQuantizedCommand(FQuartzQuantizationBoundary InQuantizationBondary, TSharedPtr<IQuartzQuantizedCommand> InNewEvent)
 	{
+		if (!ensure(InNewEvent.IsValid()))
+		{
+			return;
+		}
+
 		// if this is unquantized, execute immediately (even if the clock is paused)
 		if (InQuantizationBondary.Quantization == EQuartzCommandQuantization::None)
 		{

@@ -433,4 +433,27 @@ bool FHoloLensProcess::ShouldSaveToUserDir()
 	return true;
 }
 
+bool FHoloLensProcess::CanLaunchURL(const TCHAR* URL)
+{
+	return URL != nullptr;
+}
+
+void FHoloLensProcess::LaunchURL(const TCHAR* URL, const TCHAR* Params, FString* Error)
+{
+#if PLATFORM_HOLOLENS
+	try
+	{
+		Windows::Foundation::Uri^ uri = ref new Windows::Foundation::Uri(ref new Platform::String(URL));
+		Windows::System::Launcher::LaunchUriAsync(uri);
+	}
+	catch (Platform::Exception^)
+	{
+		if (Error != nullptr)
+		{
+			*Error = TEXT("Failed to launch URL");
+		}
+	}
+#endif
+}
+
 #include "HideWindowsPlatformTypes.h"

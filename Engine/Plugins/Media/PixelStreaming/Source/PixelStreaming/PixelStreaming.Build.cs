@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.IO;
 using System.Collections.Generic;
 using EpicGames.Core;
+
 
 namespace UnrealBuildTool.Rules
 {
@@ -62,9 +64,9 @@ namespace UnrealBuildTool.Rules
 
 		private void AddWebRTCServers()
         {
-            string webRTCRevision = "23789";
+			string webRTCRevision = "31262";
             string webRTCRevisionDirectory = "./ThirdParty/WebRTC/rev." + webRTCRevision;
-			string webRTCProgramsDirectory = Path.Combine(webRTCRevisionDirectory, "programs/Win64/VS2017/release");
+			string webRTCProgramsDirectory = Path.Combine(webRTCRevisionDirectory, "programs/Win64/VS2015/Release");
 
             List<string> DependenciesToAdd = new List<string>();
             DependenciesToAdd.AddRange(Directory.GetFiles(webRTCProgramsDirectory, "*.exe"));
@@ -103,7 +105,6 @@ namespace UnrealBuildTool.Rules
 				"RenderCore",
                 "RHI",
 				"RHICore",
-				"D3D11RHI",
                 "Slate",
 				"SlateCore",
                 "AudioMixer",
@@ -115,6 +116,11 @@ namespace UnrealBuildTool.Rules
 				"DeveloperSettings"
 			});
 
+			if (Target.Type == TargetType.Editor)
+			{
+				PrivateDependencyModuleNames.Add("UnrealEd");
+			}
+
             DynamicallyLoadedModuleNames.AddRange(new string[]
            {
                 "Media",
@@ -122,7 +128,7 @@ namespace UnrealBuildTool.Rules
 
             PrivateIncludePathModuleNames.AddRange(new string[]
             {
-                "Media",
+				"Media"
             });
 
             if (Target.bCompileAgainstEngine)
@@ -131,49 +137,69 @@ namespace UnrealBuildTool.Rules
                 PrivateDependencyModuleNames.Add("HeadMountedDisplay");
             }
 
-            // required for casting UnrealEngine BackBuffer to D3D11 Texture2D for NvEnc
-            PrivateDependencyModuleNames.AddRange(new string[] { "D3D11RHI" });
-            PrivateIncludePaths.AddRange(new string[]
-            {
-                    Path.Combine(EngineDir, "Source/Runtime/Windows/D3D11RHI/Private"),
-                    Path.Combine(EngineDir, "Source/Runtime/Windows/D3D11RHI/Private/Windows"),
-            });
-            // required by D3D11RHI
-            AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
-            AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
+			if (Target.Platform == UnrealTargetPlatform.Win64)
+			{
+            	// required for casting UnrealEngine BackBuffer to D3D11 Texture2D for NvEnc
+				PrivateDependencyModuleNames.AddRange(new string[] { "D3D11RHI" });
+				PrivateIncludePaths.AddRange(new string[]
+				{
+						Path.Combine(EngineDir, "Source/Runtime/Windows/D3D11RHI/Private"),
+						Path.Combine(EngineDir, "Source/Runtime/Windows/D3D11RHI/Private/Windows"),
+				});
+				// required by D3D11RHI
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 
-            {   // WebRTC stuff
-                PublicSystemLibraries.Add("Msdmo.lib");
-                PublicSystemLibraries.Add("Dmoguids.lib");
-                PublicSystemLibraries.Add("wmcodecdspuuid.lib");
-                PublicSystemLibraries.Add("winmm.lib");
-            }
+				{   // WebRTC stuff
+					PublicSystemLibraries.Add("Msdmo.lib");
+					PublicSystemLibraries.Add("Dmoguids.lib");
+					PublicSystemLibraries.Add("wmcodecdspuuid.lib");
+					PublicSystemLibraries.Add("winmm.lib");
+				}
 
-            // for `FWmfMediaHardwareVideoDecodingTextureSample`
-            // this really needs to be refactored to break dependency on WmfMedia plugin
-            PrivateDependencyModuleNames.Add("WmfMedia");
-            PrivateIncludePaths.Add("../../../Media/WmfMedia/Source/WmfMedia/Private/");
+				// for `FWmfMediaHardwareVideoDecodingTextureSample`
+				// this really needs to be refactored to break dependency on WmfMedia plugin
+				PrivateDependencyModuleNames.Add("WmfMedia");
+				PrivateIncludePaths.Add("../../../Media/WmfMedia/Source/WmfMedia/Private/");
 
-            AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
-            AddEngineThirdPartyPrivateStaticDependencies(Target, "DX9");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX9");
 
-            PublicAdditionalLibraries.Add(Target.UEThirdPartySourceDirectory + "Windows/DirectX/Lib/x64/dxerr.lib");
+				PublicAdditionalLibraries.Add(Target.UEThirdPartySourceDirectory + "Windows/DirectX/Lib/x64/dxerr.lib");
 
-            PublicSystemLibraries.Add("Dxva2.lib");
-            PublicSystemLibraries.Add("strmiids.lib");
-            PublicSystemLibraries.Add("legacy_stdio_definitions.lib");
+				PublicSystemLibraries.Add("Dxva2.lib");
+				PublicSystemLibraries.Add("strmiids.lib");
+				PublicSystemLibraries.Add("legacy_stdio_definitions.lib");
 
-            //delay - load all MF DLLs to be able to check Windows version for compatibility in `StartupModule` before
-            //  loading them manually
-            PublicSystemLibraries.Add("mfplat.lib");
-            PublicDelayLoadDLLs.Add("mfplat.dll");
-            PublicSystemLibraries.Add("mfuuid.lib");
+				//delay - load all MF DLLs to be able to check Windows version for compatibility in `StartupModule` before
+				//  loading them manually
+				PublicSystemLibraries.Add("mfplat.lib");
+				PublicDelayLoadDLLs.Add("mfplat.dll");
+				PublicSystemLibraries.Add("mfuuid.lib");
+			}
+			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
+			{
+				// required for casting UnrealEngine BackBuffer to Vulkan Texture2D for NvEnc
+				PrivateDependencyModuleNames.AddRange(new string[] { "CUDA", "VulkanRHI", "nvEncode"});
+				PrivateIncludePaths.AddRange(new string[]
+				{
+					Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private"),
+					Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Linux"),
+				});
+
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
+
+			}
 
             AddSignallingServer();
     	    AddMatchmakingServer();
-        	AddWebRTCServers();
 
+			// We have not been able to build these yet for M84 (these are the WebRTC bundled sample STUN/TURN servers).
+			// For future I think we should advise use of COTURN instead of the WebRTC sample servers.
+			// if (Target.Platform == UnrealTargetPlatform.Win64) {
+			//     AddWebRTCServers();
+			// }
         }
     }
 }

@@ -25,7 +25,6 @@
 #include "Framework/Application/SlateApplication.h"
 #include "KeyDrawParams.h"
 #include "MovieSceneTimeHelpers.h"
-#include "Tracks/MovieScenePropertyTrack.h"
 #include "Sections/MovieSceneSubSection.h"
 
 double SSequencerSection::SectionSelectionThrobEndTime = 0;
@@ -1024,19 +1023,16 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 	}
 
 	UMovieSceneTrack* Track = SectionObject->GetTypedOuter<UMovieSceneTrack>();
-	const bool bEnabled = bParentEnabled && SectionObject->IsActive() && !(Track && Track->IsEvalDisabled());
+	const bool bTrackDisabled = Track && (Track->IsEvalDisabled() || Track->IsRowEvalDisabled(SectionObject->GetRowIndex()));
+	const bool bEnabled = bParentEnabled && SectionObject->IsActive() && !(bTrackDisabled);
 	const bool bLocked = SectionObject->IsLocked() || SectionObject->IsReadOnly();
 
-	UMovieScenePropertyTrack* PropertyTrack = Cast<UMovieScenePropertyTrack>(Track);
 	bool bSetSectionToKey = false;
-	if (PropertyTrack)
-	{
-		if (PropertyTrack->GetSectionToKey() == SectionObject)
-		{
-			bSetSectionToKey = true;
-		}
-	}
 
+	if (Track && Track->GetSectionToKey() == SectionObject)
+	{
+		bSetSectionToKey = true;
+	}
 
 	const ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 

@@ -65,6 +65,8 @@ public:
 	/** If true then the value of this static switch is not set by the user but directly by the compiler via one of the engine constants (e.g. Emitter.Determinism). */
 	bool IsSetByCompiler() const;
 
+	bool IsDebugSwitch() const;
+
 	/** This is a hack used in the translator to check for inconsistencies with old static switches before auto refresh was a thing */
 	void CheckForOutdatedEnum(FHlslNiagaraTranslator* Translator);
 

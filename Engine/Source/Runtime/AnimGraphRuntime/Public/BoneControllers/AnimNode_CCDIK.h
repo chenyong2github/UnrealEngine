@@ -79,9 +79,9 @@ private:
 
 public:
 #if WITH_EDITOR
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_ENABLE_DEBUG_DRAWING
 	TArray<FVector> DebugLines;
-#endif // #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // #if UE_ENABLE_DEBUG_DRAWING
 	// resize rotation limit array based on set up
 	void ResizeRotationLimitPerJoints(int32 NewSize);
 #endif

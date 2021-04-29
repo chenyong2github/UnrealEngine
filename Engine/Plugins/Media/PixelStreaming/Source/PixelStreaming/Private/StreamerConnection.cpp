@@ -4,10 +4,17 @@
 #include "WebRTCLogging.h"
 #include "WebRtcObservers.h"
 #include "AudioSink.h"
-#include "Codecs/VideoEncoder.h"
-#include "Codecs/VideoDecoder.h"
+#include "VideoEncoder.h"
+
+// HACK decoder doesnt currently work under linux
+#if PLATFORM_WINDOWS
+	#include "VideoDecoder.h"
+	#include "api/video_codecs/builtin_video_encoder_factory.h"
+	#include "api/video_codecs/builtin_video_decoder_factory.h"
+#endif
+
 #include "VideoSink.h"
-#include "WebRtcLogging.h"
+#include "WebRTCLogging.h"
 
 #include "Modules/ModuleManager.h"
 #include "WebSocketsModule.h"
@@ -38,9 +45,13 @@ FStreamerConnection::~FStreamerConnection()
 	DataChannel = nullptr;
 	PeerConnection = nullptr;
 
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	// stop Signalling Thread
 	check(SignallingThreadId != 0);
 	PostThreadMessage(SignallingThreadId, WM_QUIT, 0, 0);
+#elif PLATFORM_LINUX
+	check(SignallingThreadId != 0);
+#endif
 
 	check(SignallingThread.IsValid());
 	SignallingThread->Join();
@@ -50,13 +61,26 @@ FStreamerConnection::~FStreamerConnection()
 
 void FStreamerConnection::SignallingThreadFunc()
 {
-	SignallingThreadId = GetCurrentThreadId();
+	SignallingThreadId = FPlatformTLS::GetCurrentThreadId();
+
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 
 	// init WebRTC networking and inter-thread communication
-	rtc::EnsureWinsockInit();
+	rtc::WinsockInitializer WSInitialiser;
+	if (WSInitialiser.error())
+	{
+		UE_LOG(PixelPlayer, Error, TEXT("Failed to initialise Winsock"));
+		return;
+	}
 	rtc::Win32SocketServer SocketServer;
 	rtc::Win32Thread W32Thread(&SocketServer);
 	rtc::ThreadManager::Instance()->SetCurrentThread(&W32Thread);
+
+#elif PLATFORM_LINUX
+	rtc::PhysicalSocketServer ss;
+	rtc::Thread thread(&ss);
+	rtc::ThreadManager::Instance()->SetCurrentThread(&thread);
+#endif 
 
 	rtc::InitializeSSL();
 
@@ -65,6 +89,9 @@ void FStreamerConnection::SignallingThreadFunc()
 	// don't claim support for any audio codecs.
 	// It also requires support for at least one video encoder (we use `webrtc::InternalEncoderFactory`) even if we don't want to 
 	// send video, because of `cricket::WebRtcVideoChannel` constructor that takes `flexfec_payload_type` from it
+	
+#if PLATFORM_WINDOWS
+	// TODO replace built in Encoders with the new encoders
 	PeerConnectionFactory = webrtc::CreatePeerConnectionFactory(
 		nullptr,
 		nullptr,
@@ -72,15 +99,17 @@ void FStreamerConnection::SignallingThreadFunc()
 		nullptr,
 		webrtc::CreateAudioEncoderFactory<webrtc::AudioEncoderOpus>(),
 		webrtc::CreateAudioDecoderFactory<webrtc::AudioDecoderOpus>(),
-		std::make_unique<FDummyVideoEncoderFactory>(),
-		std::make_unique<FVideoDecoderFactory>(),
+		webrtc::CreateBuiltinVideoEncoderFactory(),
+		webrtc::CreateBuiltinVideoDecoderFactory(),
 		nullptr,
 		nullptr);
 	check(PeerConnectionFactory);
+#endif
 
 	// now that everything is ready connect to SignallingServer
 	SignallingServerConnection = MakeUnique<FSignallingServerConnection>(SignallingServerAddress, *this);
 
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	// WebRTC window messaging loop
 	MSG Msg;
 	BOOL Gm;
@@ -89,6 +118,7 @@ void FStreamerConnection::SignallingThreadFunc()
 		::TranslateMessage(&Msg);
 		::DispatchMessage(&Msg);
 	}
+#endif
 
 	// cleanup
 	SignallingServerConnection = nullptr;
@@ -207,39 +237,39 @@ void FStreamerConnection::OnSignallingServerDisconnected()
 
 void FStreamerConnection::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState NewState)
 {
-	UE_LOG(PixelPlayer, Log, TEXT("%s : NewState=%s"), TEXT(__FUNCTION__), ToString(NewState));
+	UE_LOG(PixelPlayer, Log, TEXT("%s : NewState=%s"), TEXT("FStreamerConnection::OnSignalingChange"), ToString(NewState));
 }
 
 // Called when a remote stream is added
 void FStreamerConnection::OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> Stream)
 {
-	UE_LOG(PixelPlayer, Log, TEXT("%s : Stream=%s"), TEXT(__FUNCTION__), *ToString(Stream->id()));
+	UE_LOG(PixelPlayer, Log, TEXT("%s : Stream=%s"), TEXT("FStreamerConnection::OnAddStream"), *ToString(Stream->id()));
 }
 
 void FStreamerConnection::OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> Stream)
 {
-	checkf(false, TEXT("Unexpected %s : Stream=%s"), TEXT(__FUNCTION__), *ToString(Stream->id()));
+	checkf(false, TEXT("Unexpected %s : Stream=%s"), TEXT("FStreamerConnection::OnRemoveStream"), *ToString(Stream->id()));
 }
 
 void FStreamerConnection::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> InDataChannel)
 {
-	checkf(false, TEXT("Unexpected %s"), TEXT(__FUNCTION__));
+	checkf(false, TEXT("Unexpected %s"), TEXT("FStreamerConnection::OnDataChannel"));
 }
 
 void FStreamerConnection::OnRenegotiationNeeded()
 {
 	// happens even before initial negotiation so is expected
-	UE_LOG(PixelPlayer, Log, TEXT("%s"), TEXT(__FUNCTION__));
+	UE_LOG(PixelPlayer, Log, TEXT("%s"), TEXT("FStreamerConnection::OnRenegotiationNeeded"));
 }
 
 void FStreamerConnection::OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState NewState)
 {
-	UE_LOG(PixelPlayer, Log, TEXT("%s : NewState=%s"), TEXT(__FUNCTION__), ToString(NewState));
+	UE_LOG(PixelPlayer, Log, TEXT("%s : NewState=%s"), TEXT("FStreamerConnection::OnIceConnectionChange"), ToString(NewState));
 }
 
 void FStreamerConnection::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState NewState)
 {
-	UE_LOG(PixelPlayer, Log, TEXT("%s : NewState=%s"), TEXT(__FUNCTION__), ToString(NewState));
+	UE_LOG(PixelPlayer, Log, TEXT("%s : NewState=%s"), TEXT("FStreamerConnection::OnIceGatheringChange"), ToString(NewState));
 }
 
 void FStreamerConnection::OnIceCandidate(const webrtc::IceCandidateInterface* Candidate)
@@ -249,18 +279,18 @@ void FStreamerConnection::OnIceCandidate(const webrtc::IceCandidateInterface* Ca
 
 void FStreamerConnection::OnIceCandidatesRemoved(const std::vector<cricket::Candidate>& Candidates)
 {
-	UE_LOG(PixelPlayer, Log, TEXT("%s"), TEXT(__FUNCTION__));
+	UE_LOG(PixelPlayer, Log, TEXT("%s"), TEXT("FStreamerConnection::OnIceCandidatesRemoved"));
 	// NOTE(andriy): unimplemented
 }
 
 void FStreamerConnection::OnIceConnectionReceivingChange(bool Receiving)
 {
-	UE_LOG(PixelPlayer, Log, TEXT("%s : Receiving=%d"), TEXT(__FUNCTION__), Receiving);
+	UE_LOG(PixelPlayer, Log, TEXT("%s : Receiving=%d"), TEXT("FStreamerConnection::OnIceConnectionReceivingChange"), Receiving);
 }
 
 void FStreamerConnection::OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> Transceiver)
 {
-	UE_LOG(PixelPlayer, Log, TEXT("%s"), TEXT(__FUNCTION__));
+	UE_LOG(PixelPlayer, Log, TEXT("%s"), TEXT("FStreamerConnection::OnTrack"));
 	checkf(Transceiver->media_type() == cricket::MEDIA_TYPE_VIDEO || Transceiver->media_type() == cricket::MEDIA_TYPE_AUDIO, TEXT("%s"), *ToString(cricket::MediaTypeToString(Transceiver->media_type())));
 
 	if (Transceiver->media_type() == cricket::MEDIA_TYPE_VIDEO)
@@ -277,7 +307,7 @@ void FStreamerConnection::OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInter
 
 void FStreamerConnection::OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> Receiver)
 {
-	checkf(false, TEXT("Unexpected %s: %s"), TEXT(__FUNCTION__), *ToString(Receiver->track()->id()));
+	checkf(false, TEXT("Unexpected %s: %s"), TEXT("FStreamerConnection::OnRemoveTrack"), *ToString(Receiver->track()->id()));
 }
 
 //
@@ -286,6 +316,6 @@ void FStreamerConnection::OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverIn
 
 void FStreamerConnection::OnMessage(const webrtc::DataBuffer& Buffer)
 {
-	UE_LOG(PixelPlayer, Log, TEXT("%s"), TEXT(__FUNCTION__));
+	UE_LOG(PixelPlayer, Log, TEXT("%s"), TEXT("FStreamerConnection::OnMessage"));
 	unimplemented();
 }

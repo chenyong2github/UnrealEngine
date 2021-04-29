@@ -498,6 +498,10 @@ public:
 	{
 		Collector.AddReferencedObject(Tutorial);
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FTutorialListEntry_Tutorial");
+	}
 
 public:
 	/** Parent category */

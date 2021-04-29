@@ -16,11 +16,11 @@ namespace UnrealBuildTool.Rules
             PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"CameraCalibration",
 					"CinematicCamera",
 					"Core",
                     "CoreUObject",
                     "Engine",
-					"LensDistortion",
 					"MediaIOCore",
 					"MovieScene",
 					"MovieSceneTracks",

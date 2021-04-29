@@ -17,7 +17,7 @@
 #include "EditorModeManager.h"
 #include "ISequencer.h"
 #include "LevelSequence.h"
-#include "LevelSequenceEditor/Private/LevelSequenceEditorBlueprintLibrary.h"
+#include "LevelSequenceEditorBlueprintLibrary.h"
 #include "ILevelSequenceEditorToolkit.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigTweenWidget"

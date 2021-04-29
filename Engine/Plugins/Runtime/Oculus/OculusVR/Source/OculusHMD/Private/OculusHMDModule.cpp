@@ -8,6 +8,7 @@
 #include "Misc/Paths.h"
 #if PLATFORM_ANDROID
 #include "Android/AndroidApplication.h"
+#include "Android/AndroidPlatformMisc.h"
 #endif
 #include "Interfaces/IPluginManager.h"
 #include "ShaderCore.h"
@@ -52,7 +53,7 @@ void FOculusHMDModule::ShutdownModule()
 #endif
 }
 
-#if OCULUS_HMD_SUPPORTED_PLATFORMS && PLATFORM_ANDROID
+#if PLATFORM_ANDROID
 extern bool AndroidThunkCpp_IsOculusMobileApplication();
 #endif
 
@@ -98,51 +99,59 @@ bool FOculusHMDModule::PreInit()
 				return false;
 			}
 
-			bool pluginWrapperInited = InitializeOculusPluginWrapper(&PluginWrapper);
-			if (!pluginWrapperInited)
+			if (!InitializeOculusPluginWrapper(&PluginWrapper))
 			{
 				UE_LOG(LogHMD, Log, TEXT("Failed InitializeOculusPluginWrapper"));
 				return false;
 			}
 
 			// Initialize OVRPlugin
+			ovrpRenderAPIType PreinitApiType = ovrpRenderAPI_None;
 #if PLATFORM_ANDROID
-			void* activity = (void*) FAndroidApplication::GetGameActivityThis();
+			void* Activity = (void*) FAndroidApplication::GetGameActivityThis();
+
+			FConfigFile AndroidEngineSettings;
+			FConfigCacheIni::LoadLocalIniFile(AndroidEngineSettings, TEXT("Engine"), true, TEXT("Android"));
+
+			bool bPackagedForVulkan = false;
+			AndroidEngineSettings.GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bSupportsVulkan"), bPackagedForVulkan);
+			UE_LOG(LogHMD, Log, TEXT("Oculus game packaged for Vulkan : %d"), bPackagedForVulkan);
+			PreinitApiType = bPackagedForVulkan ? ovrpRenderAPI_Vulkan : ovrpRenderAPI_OpenGL;
 #else
-			void* activity = nullptr;
+			void* Activity = nullptr;
 #endif
 
-			if (OVRP_FAILURE(PluginWrapper.PreInitialize3(activity)))
+			if (OVRP_FAILURE(PluginWrapper.PreInitialize4(Activity, PreinitApiType)))
 			{
 				UE_LOG(LogHMD, Log, TEXT("Failed initializing OVRPlugin %s"), TEXT(OVRP_VERSION_STR));
 				return false;
 			}
 
 #if PLATFORM_WINDOWS
-			const LUID* displayAdapterId;
-			if (OVRP_SUCCESS(PluginWrapper.GetDisplayAdapterId2((const void**) &displayAdapterId)) && displayAdapterId)
+			const LUID* DisplayAdapterId;
+			if (OVRP_SUCCESS(PluginWrapper.GetDisplayAdapterId2((const void**) &DisplayAdapterId)) && DisplayAdapterId)
 			{
-				SetGraphicsAdapterLuid(*(const uint64*) displayAdapterId);
+				SetGraphicsAdapterLuid(*(const uint64*) DisplayAdapterId);
 			}
 			else
 			{
 				UE_LOG(LogHMD, Log, TEXT("Could not determine HMD display adapter"));
 			}
 
-			const WCHAR* audioInDeviceId;
-			if (OVRP_SUCCESS(PluginWrapper.GetAudioInDeviceId2((const void**) &audioInDeviceId)) && audioInDeviceId)
+			const WCHAR* AudioInDeviceId;
+			if (OVRP_SUCCESS(PluginWrapper.GetAudioInDeviceId2((const void**) &AudioInDeviceId)) && AudioInDeviceId)
 			{
-				GConfig->SetString(TEXT("Oculus.Settings"), TEXT("AudioInputDevice"), audioInDeviceId, GEngineIni);
+				GConfig->SetString(TEXT("Oculus.Settings"), TEXT("AudioInputDevice"), AudioInDeviceId, GEngineIni);
 			}
 			else
 			{
 				UE_LOG(LogHMD, Log, TEXT("Could not determine HMD audio input device"));
 			}
 
-			const WCHAR* audioOutDeviceId;
-			if (OVRP_SUCCESS(PluginWrapper.GetAudioOutDeviceId2((const void**) &audioOutDeviceId)) && audioOutDeviceId)
+			const WCHAR* AudioOutDeviceId;
+			if (OVRP_SUCCESS(PluginWrapper.GetAudioOutDeviceId2((const void**) &AudioOutDeviceId)) && AudioOutDeviceId)
 			{
-				GConfig->SetString(TEXT("Oculus.Settings"), TEXT("AudioOutputDevice"), audioOutDeviceId, GEngineIni);
+				GConfig->SetString(TEXT("Oculus.Settings"), TEXT("AudioOutputDevice"), AudioOutDeviceId, GEngineIni);
 			}
 			else
 			{
@@ -268,6 +277,16 @@ TSharedPtr< IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe >  FOculusH
 	return VulkanExtensions;
 #endif
 	return nullptr;
+}
+
+
+bool FOculusHMDModule::IsStandaloneStereoOnlyDevice()
+{
+#if PLATFORM_ANDROID
+	return FAndroidMisc::GetDeviceMake() == FString("Oculus");
+#else
+	return false;
+#endif
 }
 
 

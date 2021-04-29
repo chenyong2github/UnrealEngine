@@ -8,11 +8,12 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FDisplayClusterConfiguratorOutputMappingViewportSlot;
-class FDisplayClusterConfiguratorToolkit;
+class FDisplayClusterConfiguratorBlueprintEditor;
 class IDisplayClusterConfiguratorTreeItem;
 class SImage;
 class UDisplayClusterConfigurationViewport;
 class UDisplayClusterConfiguratorViewportNode;
+class UTexture;
 
 class SDisplayClusterConfiguratorViewportNode
 	: public SDisplayClusterConfiguratorBaseNode
@@ -21,40 +22,46 @@ public:
 	SLATE_BEGIN_ARGS(SDisplayClusterConfiguratorViewportNode)
 	{}
 	SLATE_END_ARGS()
-
+	
 	void Construct(const FArguments& InArgs,
 		UDisplayClusterConfiguratorViewportNode* InViewportNode,
-		const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit);
+		const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit);
 
 	//~ Begin SGraphNode interface
 	virtual void UpdateGraphNode() override;
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter) override;
-	virtual FVector2D ComputeDesiredSize(float) const override;
 	//~ End of SGraphNode interface
 
 	//~ Begin SDisplayClusterConfiguratorBaseNode interface
-	virtual UObject* GetEditingObject() const override;
-	virtual void SetNodeSize(const FVector2D InLocalSize, bool bFixedAspectRatio) override;
-	virtual void OnSelectedItemSet(const TSharedRef<IDisplayClusterConfiguratorTreeItem>& InTreeItem) override;
 	virtual bool IsNodeVisible() const override;
 	virtual int32 GetNodeLayerIndex() const override { return DefaultZOrder; }
+	virtual bool CanNodeOverlapSiblings() const override { return false; }
+	virtual bool CanNodeBeSnapAligned() const override { return true; }
 	//~ End of SDisplayClusterConfiguratorBaseNode interface
-
-	void SetPreviewTexture(UTexture* InTexture);
 
 private:
 	FSlateColor GetBackgroundColor() const;
 	const FSlateBrush* GetBackgroundBrush() const;
+	const FSlateBrush* GetNodeShadowBrush() const;
 	const FSlateBrush* GetBorderBrush() const;
+	FSlateColor GetTextBoxColor() const;
 	FText GetPositionAndSizeText() const;
 	FMargin GetBackgroundPosition() const;
 	FMargin GetAreaResizeHandlePosition() const;
+	EVisibility GetAreaResizeHandleVisibility() const;
 	bool IsAspectRatioFixed() const;
+	bool IsViewportLocked() const;
+	EVisibility GetLockIconVisibility() const;
+
+	void UpdatePreviewTexture();
 
 private:
 	FSlateBrush BackgroundActiveBrush;
 	TSharedPtr<SImage> BackgroundImage;
 
-private:
+	UTexture* CachedTexture;
+
+public:
 	static const int32 DefaultZOrder;
 };

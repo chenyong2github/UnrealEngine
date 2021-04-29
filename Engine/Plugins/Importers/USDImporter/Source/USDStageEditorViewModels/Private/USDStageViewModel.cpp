@@ -130,7 +130,8 @@ void FUsdStageViewModel::ReloadStage()
 	}
 
 #if USE_USD_SDK
-	pxr::UsdStageRefPtr UsdStage = pxr::UsdStageRefPtr( UsdStageActor->GetUsdStage() );
+	UE::FUsdStage Stage = UsdStageActor->GetOrLoadUsdStage();
+	pxr::UsdStageRefPtr UsdStage = pxr::UsdStageRefPtr( Stage );
 
 	if ( UsdStage )
 	{
@@ -146,7 +147,7 @@ void FUsdStageViewModel::ReloadStage()
 			// that would automatically pull the UEState session layer and cause it to be reloaded, so we need to try
 			// to load it back again
 			const bool bCreateIfNeeded = false;
-			UsdUtils::GetUEPersistentStateSublayer( UsdStageActor->GetUsdStage(), bCreateIfNeeded );
+			UsdUtils::GetUEPersistentStateSublayer( Stage, bCreateIfNeeded );
 		}
 
 		if ( UsdUtils::ShowErrorsAndStopMonitoring() )
@@ -178,9 +179,7 @@ void FUsdStageViewModel::SaveStage()
 #if USE_USD_SDK
 	if ( UsdStageActor.IsValid() )
 	{
-		UE::FUsdStage UsdStage = UsdStageActor->GetUsdStage();
-
-		if ( UsdStage )
+		if ( UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage() )
 		{
 			FScopedUsdAllocs UsdAllocs;
 
@@ -205,14 +204,11 @@ void FUsdStageViewModel::SaveStageAs( const TCHAR* FilePath )
 
 	if ( UsdStageActor.IsValid() )
 	{
-		UE::FUsdStage UsdStage = UsdStageActor->GetUsdStage();
-
-		if ( UsdStage )
+		if ( UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage() )
 		{
 			UsdUtils::StartMonitoringErrors();
 
-			UE::FSdfLayer RootLayer = UsdStage.GetRootLayer();
-			if ( RootLayer )
+			if ( UE::FSdfLayer RootLayer = UsdStage.GetRootLayer() )
 			{
 				if ( pxr::SdfLayerRefPtr( RootLayer )->Export( TCHAR_TO_ANSI( FilePath ) ) )
 				{
@@ -239,8 +235,7 @@ void FUsdStageViewModel::ImportStage()
 		return;
 	}
 
-	const UE::FUsdStage UsdStage = StageActor->GetUsdStage();
-
+	const UE::FUsdStage UsdStage = StageActor->GetOrLoadUsdStage();
 	if ( !UsdStage )
 	{
 		return;

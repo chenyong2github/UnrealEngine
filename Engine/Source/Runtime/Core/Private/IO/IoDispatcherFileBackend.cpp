@@ -57,6 +57,7 @@ static FAutoConsoleVariableRef CVar_IoDispatcherCacheSizeMB(
 
 uint32 FFileIoStoreReadRequest::NextSequence = 0;
 TAtomic<uint32> FFileIoStoreReader::GlobalPartitionIndex{ 0 };
+TAtomic<uint32> FFileIoStoreReader::GlobalContainerInstanceId{ 0 };
 
 class FMappedFileProxy final : public IMappedFileHandle
 {
@@ -260,6 +261,8 @@ FFileIoStoreReadRequest* FFileIoStoreRequestQueue::Pop()
 	}
 	FFileIoStoreReadRequest* Result;
 	Heap.HeapPop(Result, QueueSortFunc, false);
+	check(Result->QueueStatus == FFileIoStoreReadRequest::QueueStatus_InQueue);
+	Result->QueueStatus = FFileIoStoreReadRequest::QueueStatus_Started;
 	return Result;
 }
 
@@ -267,6 +270,8 @@ void FFileIoStoreRequestQueue::Push(FFileIoStoreReadRequest& Request)
 {
 	//TRACE_CPUPROFILER_EVENT_SCOPE(RequestQueuePush);
 	FScopeLock _(&CriticalSection);
+	check(Request.QueueStatus != FFileIoStoreReadRequest::QueueStatus_InQueue);
+	Request.QueueStatus = FFileIoStoreReadRequest::QueueStatus_InQueue;
 	Heap.HeapPush(&Request, QueueSortFunc);
 }
 
@@ -277,6 +282,8 @@ void FFileIoStoreRequestQueue::Push(const FFileIoStoreReadRequestList& Requests)
 	FFileIoStoreReadRequest* Request = Requests.GetHead();
 	while (Request)
 	{
+		check(Request->QueueStatus != FFileIoStoreReadRequest::QueueStatus_InQueue);
+		Request->QueueStatus = FFileIoStoreReadRequest::QueueStatus_InQueue;
 		Heap.HeapPush(Request, QueueSortFunc);
 		Request = Request->Next;
 	}
@@ -289,9 +296,36 @@ void FFileIoStoreRequestQueue::UpdateOrder()
 	Heap.Heapify(QueueSortFunc);
 }
 
+void FFileIoStoreRequestQueue::Lock()
+{
+	CriticalSection.Lock();
+}
+
+void FFileIoStoreRequestQueue::Unlock()
+{
+	CriticalSection.Unlock();
+}
+
+void FFileIoStoreRequestQueue::CancelRequestsWithFileHandle(const uint64 FileHandle)
+{
+	FScopeLock _(&CriticalSection);
+	for (FFileIoStoreReadRequest* Request : Heap)
+	{
+		if (Request->FileHandle == FileHandle)
+		{
+			Request->bCancelled = true;
+		}
+	}
+}
+
 FFileIoStoreReader::FFileIoStoreReader(FFileIoStoreImpl& InPlatformImpl)
 	: PlatformImpl(InPlatformImpl)
 {
+}
+
+FFileIoStoreReader::~FFileIoStoreReader()
+{
+	Close();
 }
 
 FIoStatus FFileIoStoreReader::Initialize(const TCHAR* InContainerPath, int32 InOrder)
@@ -347,19 +381,43 @@ FIoStatus FFileIoStoreReader::Initialize(const TCHAR* InContainerPath, int32 InO
 	ContainerFile.ContainerFlags		= TocResource.Header.ContainerFlags;
 	ContainerFile.EncryptionKeyGuid		= TocResource.Header.EncryptionKeyGuid;
 	ContainerFile.BlockSignatureHashes	= MoveTemp(TocResource.ChunkBlockSignatures);
+	ContainerFile.ContainerInstanceId	= ++GlobalContainerInstanceId;
 
 	ContainerId = TocResource.Header.ContainerId;
 	Order = InOrder;
 	return FIoStatus::Ok;
 }
 
+FIoStatus FFileIoStoreReader::Close()
+{
+	if (bClosed)
+	{
+		return FIoStatus::Ok;
+	}
+
+	for (FFileIoStoreContainerFilePartition& Partition : ContainerFile.Partitions)
+	{
+		PlatformImpl.CloseContainer(Partition.FileHandle);
+	}
+
+	Toc.Empty();
+	ContainerFile = FFileIoStoreContainerFile();
+	ContainerId = FIoContainerId();
+	Order = INDEX_NONE;
+	bClosed = true;
+
+	return FIoStatus::Ok;
+}
+
 bool FFileIoStoreReader::DoesChunkExist(const FIoChunkId& ChunkId) const
 {
+	check(!bClosed);
 	return Toc.Find(ChunkId) != nullptr;
 }
 
 TIoStatusOr<uint64> FFileIoStoreReader::GetSizeForChunk(const FIoChunkId& ChunkId) const
 {
+	check(!bClosed);
 	const FIoOffsetAndLength* OffsetAndLength = Toc.Find(ChunkId);
 
 	if (OffsetAndLength != nullptr)
@@ -374,11 +432,13 @@ TIoStatusOr<uint64> FFileIoStoreReader::GetSizeForChunk(const FIoChunkId& ChunkI
 
 const FIoOffsetAndLength* FFileIoStoreReader::Resolve(const FIoChunkId& ChunkId) const
 {
+	check(!bClosed);
 	return Toc.Find(ChunkId);
 }
 
 IMappedFileHandle* FFileIoStoreReader::GetMappedContainerFileHandle(uint64 TocOffset)
 {
+	check(!bClosed);
 	int32 PartitionIndex = int32(TocOffset / ContainerFile.PartitionSize);
 	FFileIoStoreContainerFilePartition& Partition = ContainerFile.Partitions[PartitionIndex];
 	if (!Partition.MappedFileHandle)
@@ -394,14 +454,12 @@ IMappedFileHandle* FFileIoStoreReader::GetMappedContainerFileHandle(uint64 TocOf
 FFileIoStoreResolvedRequest::FFileIoStoreResolvedRequest(
 	FIoRequestImpl& InDispatcherRequest,
 	const FFileIoStoreContainerFile& InContainerFile,
-	uint32 InContainerFileIndex,
 	uint64 InResolvedOffset,
 	uint64 InResolvedSize)
-	: DispatcherRequest(InDispatcherRequest)
+	: DispatcherRequest(&InDispatcherRequest)
 	, ContainerFile(InContainerFile)
 	, ResolvedOffset(InResolvedOffset)
 	, ResolvedSize(InResolvedSize)
-	, ContainerFileIndex(InContainerFileIndex)
 {
 
 }
@@ -512,18 +570,36 @@ void FFileIoStoreRequestTracker::RemoveCompressedBlock(const FFileIoStoreCompres
 	}
 }
 
-void FFileIoStoreRequestTracker::CancelIoRequest(FFileIoStoreResolvedRequest& ResolvedRequest)
+bool FFileIoStoreRequestTracker::CancelIoRequest(FFileIoStoreResolvedRequest& ResolvedRequest)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(RequestTrackerCancelIoRequest);
-	bool bUpdateQueueOrder = false;
+	check(!ResolvedRequest.bCancelled);
+	bool bShouldComplete = true;
+	RequestQueue.Lock();
 	FFileIoStoreReadRequestLink* Link = ResolvedRequest.ReadRequestsHead;
 	while (Link)
 	{
 		FFileIoStoreReadRequest& ReadRequest = Link->ReadRequest;
 		Link = Link->Next;
+
+		if (ReadRequest.bCancelled)
+		{
+			continue;
+		}
+
+		if (ReadRequest.QueueStatus == FFileIoStoreReadRequest::QueueStatus_Started)
+		{
+			bShouldComplete = false;
+			continue;
+		}
+
 		bool bCancelReadRequest = true;
 		for (FFileIoStoreCompressedBlock* CompressedBlock : ReadRequest.CompressedBlocks)
 		{
+			if (CompressedBlock->bCancelled)
+			{
+				continue;
+			}
 			bool bCancelCompressedBlock = true;
 			for (FFileIoStoreBlockScatter& Scatter : CompressedBlock->ScatterList)
 			{
@@ -531,9 +607,11 @@ void FFileIoStoreRequestTracker::CancelIoRequest(FFileIoStoreResolvedRequest& Re
 				{
 					bCancelCompressedBlock = false;
 					bCancelReadRequest = false;
-					break;
 				}
-				Scatter.Size = 0;
+				else
+				{
+					Scatter.Size = 0;
+				}
 			}
 			if (bCancelCompressedBlock)
 			{
@@ -548,17 +626,21 @@ void FFileIoStoreRequestTracker::CancelIoRequest(FFileIoStoreResolvedRequest& Re
 				RawBlocksMap.Remove(ReadRequest.Key);
 			}
 			ReadRequest.bCancelled = true;
-			if (ReadRequest.Priority != IoDispatcherPriority_Max)
+#if DO_CHECK
+			for (FFileIoStoreCompressedBlock* CompressedBlock : ReadRequest.CompressedBlocks)
 			{
-				ReadRequest.Priority = IoDispatcherPriority_Max;
-				bUpdateQueueOrder = true;
+				check(CompressedBlock->bCancelled);
+				for (FFileIoStoreBlockScatter& Scatter : CompressedBlock->ScatterList)
+				{
+					check(!Scatter.Request->DispatcherRequest || Scatter.Request->DispatcherRequest->IsCancelled());
+				}
 			}
+#endif
 		}
 	}
-	if (bUpdateQueueOrder)
-	{
-		RequestQueue.UpdateOrder();
-	}
+	RequestQueue.Unlock();
+
+	return bShouldComplete;
 }
 
 void FFileIoStoreRequestTracker::UpdatePriorityForIoRequest(FFileIoStoreResolvedRequest& ResolvedRequest)
@@ -606,6 +688,7 @@ void FFileIoStoreRequestTracker::ReleaseIoRequestReferences(FFileIoStoreResolved
 	}
 	ResolvedRequest.ReadRequestsHead = nullptr;
 	ResolvedRequest.ReadRequestsTail = nullptr;
+	RequestAllocator.Free(&ResolvedRequest);
 }
 
 FFileIoStore::FFileIoStore()
@@ -674,18 +757,15 @@ TIoStatusOr<FIoContainerId> FFileIoStore::Mount(const TCHAR* ContainerPath, int3
 	FIoContainerId ContainerId = Reader->GetContainerId();
 	{
 		FWriteScopeLock _(IoStoreReadersLock);
-		Reader->SetIndex(UnorderedIoStoreReaders.Num());
-		InsertionIndex = Algo::UpperBound(OrderedIoStoreReaders, Reader.Get(), [](const FFileIoStoreReader* A, const FFileIoStoreReader* B)
+		InsertionIndex = Algo::UpperBound(IoStoreReaders, Reader, [](const TUniquePtr<FFileIoStoreReader>& A, const TUniquePtr<FFileIoStoreReader>& B)
 		{
 			if (A->GetOrder() != B->GetOrder())
 			{
 				return A->GetOrder() > B->GetOrder();
 			}
-			return A->GetIndex() > B->GetIndex();
+			return A->GetContainerInstanceId() > B->GetContainerInstanceId();
 		});
-		FFileIoStoreReader* RawReader = Reader.Release();
-		UnorderedIoStoreReaders.Add(RawReader);		
-		OrderedIoStoreReaders.Insert(RawReader, InsertionIndex);
+		IoStoreReaders.Insert(MoveTemp(Reader), InsertionIndex);
 		UE_LOG(LogIoDispatcher, Display, TEXT("Mounting container '%s' in location slot %d"), ContainerPath, InsertionIndex);
 	}
 	if (BackendContext && BackendContext->ContainerMountedDelegate.IsBound())
@@ -695,10 +775,40 @@ TIoStatusOr<FIoContainerId> FFileIoStore::Mount(const TCHAR* ContainerPath, int3
 	return ContainerId;
 }
 
+TIoStatusOr<FIoContainerId> FFileIoStore::Unmount(const TCHAR* ContainerPath)
+{
+	FWriteScopeLock _(IoStoreReadersLock);
+	
+	FString FilePathToUnmount = FPaths::SetExtension(ContainerPath, FString(".utoc"));
+
+	for (int32 Idx = 0; Idx < IoStoreReaders.Num(); ++Idx)
+	{
+		if (IoStoreReaders[Idx]->GetContainerFile().FilePath == FilePathToUnmount)
+		{
+			UE_LOG(LogIoDispatcher, Display, TEXT("Unmounting container '%s'"), *FPaths::GetBaseFilename(ContainerPath));
+
+			// Cancel pending I/O requests trying to read from the container
+			for (const FFileIoStoreContainerFilePartition& Partition : IoStoreReaders[Idx]->GetContainerFile().Partitions)
+			{
+				RequestQueue.CancelRequestsWithFileHandle(Partition.FileHandle);
+			}
+
+			FIoContainerId ContainerId = IoStoreReaders[Idx]->GetContainerId();
+			IoStoreReaders.RemoveAt(Idx);
+			
+			return TIoStatusOr<FIoContainerId>(ContainerId);
+		}
+	}
+
+	UE_LOG(LogIoDispatcher, Display, TEXT("Failed to unmount container '%s'"), *FPaths::GetBaseFilename(ContainerPath));
+	
+	return FIoStatus(EIoErrorCode::NotFound);
+}
+
 bool FFileIoStore::Resolve(FIoRequestImpl* Request)
 {
 	FReadScopeLock _(IoStoreReadersLock);
-	for (FFileIoStoreReader* Reader : OrderedIoStoreReaders)
+	for (const TUniquePtr<FFileIoStoreReader>& Reader : IoStoreReaders)
 	{
 		if (const FIoOffsetAndLength* OffsetAndLength = Reader->Resolve(Request->ChunkId))
 		{
@@ -713,7 +823,6 @@ bool FFileIoStore::Resolve(FIoRequestImpl* Request)
 			FFileIoStoreResolvedRequest* ResolvedRequest = RequestAllocator.AllocResolvedRequest(
 				*Request,
 				Reader->GetContainerFile(),
-				Reader->GetIndex(),
 				ResolvedOffset,
 				ResolvedSize);
 			Request->BackendData = ResolvedRequest;
@@ -747,6 +856,7 @@ bool FFileIoStore::Resolve(FIoRequestImpl* Request)
 			{
 				// Nothing to read
 				CompleteDispatcherRequest(ResolvedRequest);
+				RequestTracker.ReleaseIoRequestReferences(*ResolvedRequest);
 			}
 
 			return true;
@@ -761,7 +871,12 @@ void FFileIoStore::CancelIoRequest(FIoRequestImpl* Request)
 	if (Request->BackendData)
 	{
 		FFileIoStoreResolvedRequest* ResolvedRequest = static_cast<FFileIoStoreResolvedRequest*>(Request->BackendData);
-		RequestTracker.CancelIoRequest(*ResolvedRequest);
+		bool bShouldComplete = RequestTracker.CancelIoRequest(*ResolvedRequest);
+		if (bShouldComplete)
+		{
+			ResolvedRequest->bCancelled = true;
+			CompleteDispatcherRequest(ResolvedRequest);
+		}
 	}
 }
 
@@ -777,7 +892,7 @@ void FFileIoStore::UpdatePriorityForIoRequest(FIoRequestImpl* Request)
 bool FFileIoStore::DoesChunkExist(const FIoChunkId& ChunkId) const
 {
 	FReadScopeLock _(IoStoreReadersLock);
-	for (FFileIoStoreReader* Reader : UnorderedIoStoreReaders)
+	for (const TUniquePtr<FFileIoStoreReader>& Reader : IoStoreReaders)
 	{
 		if (Reader->DoesChunkExist(ChunkId))
 		{
@@ -790,7 +905,7 @@ bool FFileIoStore::DoesChunkExist(const FIoChunkId& ChunkId) const
 TIoStatusOr<uint64> FFileIoStore::GetSizeForChunk(const FIoChunkId& ChunkId) const
 {
 	FReadScopeLock _(IoStoreReadersLock);
-	for (FFileIoStoreReader* Reader : OrderedIoStoreReaders)
+	for (const TUniquePtr<FFileIoStoreReader>& Reader : IoStoreReaders)
 	{
 		TIoStatusOr<uint64> ReaderResult = Reader->GetSizeForChunk(ChunkId);
 		if (ReaderResult.IsOk())
@@ -845,8 +960,13 @@ void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bo
 			FIoSignatureError Error;
 			{
 				FReadScopeLock _(IoStoreReadersLock);
-				const FFileIoStoreReader& Reader = *UnorderedIoStoreReaders[CompressedBlock->Key.FileIndex];
-				Error.ContainerName = FPaths::GetBaseFilename(Reader.GetContainerFile().FilePath);
+				for (const TUniquePtr<FFileIoStoreReader>& Reader : IoStoreReaders)
+				{
+					if (CompressedBlock->Key.FileIndex == Reader->GetContainerInstanceId())
+					{
+						Error.ContainerName = FPaths::GetBaseFilename(Reader->GetContainerFile().FilePath);
+					}
+				}
 				Error.BlockIndex = CompressedBlock->Key.BlockIndex;
 				Error.ExpectedHash = *CompressedBlock->SignatureHash;
 				Error.ActualHash = BlockHash;
@@ -892,7 +1012,10 @@ void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bo
 
 		for (FFileIoStoreBlockScatter& Scatter : CompressedBlock->ScatterList)
 		{
-			FMemory::Memcpy(Scatter.Request->GetIoBuffer().Data() + Scatter.DstOffset, UncompressedBuffer + Scatter.SrcOffset, Scatter.Size);
+			if (Scatter.Size)
+			{
+				FMemory::Memcpy(Scatter.Request->GetIoBuffer().Data() + Scatter.DstOffset, UncompressedBuffer + Scatter.SrcOffset, Scatter.Size);
+			}
 		}
 	}
 
@@ -909,14 +1032,13 @@ void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bo
 void FFileIoStore::CompleteDispatcherRequest(FFileIoStoreResolvedRequest* ResolvedRequest)
 {
 	check(ResolvedRequest);
-	FIoRequestImpl* DispatcherRequest = &ResolvedRequest->DispatcherRequest;
+	check(ResolvedRequest->DispatcherRequest);
+	FIoRequestImpl* DispatcherRequest = ResolvedRequest->DispatcherRequest;
+	ResolvedRequest->DispatcherRequest = nullptr;
 	if (ResolvedRequest->bFailed)
 	{
 		DispatcherRequest->SetFailed();
 	}
-
-	RequestTracker.ReleaseIoRequestReferences(*ResolvedRequest);
-	RequestAllocator.Free(ResolvedRequest);
 	DispatcherRequest->BackendData = nullptr;
 	if (!CompletedRequestsTail)
 	{
@@ -964,11 +1086,15 @@ void FFileIoStore::FinalizeCompressedBlock(FFileIoStoreCompressedBlock* Compress
 		FFileIoStoreBlockScatter& Scatter = CompressedBlock->ScatterList[ScatterIndex];
 		TRACE_COUNTER_ADD(IoDispatcherTotalBytesScattered, Scatter.Size);
 		Scatter.Request->bFailed |= CompressedBlock->bFailed;
-		check(!CompressedBlock->bCancelled || Scatter.Request->DispatcherRequest.IsCancelled());
+		check(!CompressedBlock->bCancelled || !Scatter.Request->DispatcherRequest || Scatter.Request->DispatcherRequest->IsCancelled());
 		check(Scatter.Request->UnfinishedReadsCount > 0);
 		if (--Scatter.Request->UnfinishedReadsCount == 0)
 		{
-			CompleteDispatcherRequest(Scatter.Request);
+			if (!Scatter.Request->bCancelled)
+			{
+				CompleteDispatcherRequest(Scatter.Request);
+			}
+			RequestTracker.ReleaseIoRequestReferences(*Scatter.Request);
 		}
 	}
 }
@@ -1001,7 +1127,7 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 			for (FFileIoStoreCompressedBlock* CompressedBlock : CompletedRequest->CompressedBlocks)
 			{
 				CompressedBlock->bFailed |= CompletedRequest->bFailed;
-				check(!CompletedRequest->bCancelled || CompressedBlock->bCancelled);
+				CompressedBlock->bCancelled |= CompletedRequest->bCancelled;
 				if (CompressedBlock->RawBlocks.Num() > 1)
 				{
 					//TRACE_CPUPROFILER_EVENT_SCOPE(HandleComplexBlock);
@@ -1069,11 +1195,15 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 			check(!CompletedRequest->Buffer);
 			FFileIoStoreResolvedRequest* CompletedResolvedRequest = CompletedRequest->ImmediateScatter.Request;
 			CompletedResolvedRequest->bFailed |= CompletedRequest->bFailed;
-			check(!CompletedRequest->bCancelled || CompletedResolvedRequest->DispatcherRequest.IsCancelled());
+			check(!CompletedRequest->bCancelled || !CompletedResolvedRequest->DispatcherRequest || CompletedResolvedRequest->DispatcherRequest->IsCancelled());
 			check(CompletedResolvedRequest->UnfinishedReadsCount > 0);
 			if (--CompletedResolvedRequest->UnfinishedReadsCount == 0)
 			{
-				CompleteDispatcherRequest(CompletedResolvedRequest);
+				if (!CompletedResolvedRequest->bCancelled)
+				{
+					CompleteDispatcherRequest(CompletedResolvedRequest);
+				}
+				RequestTracker.ReleaseIoRequestReferences(*CompletedResolvedRequest);
 			}
 		}
 		
@@ -1137,7 +1267,7 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 void FFileIoStore::AppendMountedContainers(TSet<FIoContainerId>& OutContainers)
 {
 	FReadScopeLock _(IoStoreReadersLock);
-	for (FFileIoStoreReader* Reader : UnorderedIoStoreReaders)
+	for (TUniquePtr<FFileIoStoreReader>& Reader : IoStoreReaders)
 	{
 		OutContainers.Add(Reader->GetContainerId());
 	}
@@ -1158,7 +1288,7 @@ TIoStatusOr<FIoMappedRegion> FFileIoStore::OpenMapped(const FIoChunkId& ChunkId,
 	IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
 
 	FReadScopeLock _(IoStoreReadersLock);
-	for (FFileIoStoreReader* Reader : OrderedIoStoreReaders)
+	for (TUniquePtr<FFileIoStoreReader>& Reader : IoStoreReaders)
 	{
 		if (const FIoOffsetAndLength* OffsetAndLength = Reader->Resolve(ChunkId))
 		{
@@ -1218,11 +1348,12 @@ void FFileIoStore::ReadBlocks(FFileIoStoreResolvedRequest& ResolvedRequest)
 	for (int32 CompressedBlockIndex = RequestBeginBlockIndex; CompressedBlockIndex <= RequestEndBlockIndex; ++CompressedBlockIndex)
 	{
 		FFileIoStoreBlockKey CompressedBlockKey;
-		CompressedBlockKey.FileIndex = ResolvedRequest.GetContainerFileIndex();
+		CompressedBlockKey.FileIndex = ResolvedRequest.GetContainerFile().ContainerInstanceId;
 		CompressedBlockKey.BlockIndex = CompressedBlockIndex;
 		bool bCompressedBlockWasAdded;
 		FFileIoStoreCompressedBlock* CompressedBlock = RequestTracker.FindOrAddCompressedBlock(CompressedBlockKey, bCompressedBlockWasAdded);
 		check(CompressedBlock);
+		check(!CompressedBlock->bCancelled);
 		if (bCompressedBlockWasAdded)
 		{
 			CompressedBlock->EncryptionKey = ContainerFile.EncryptionKey;
@@ -1252,6 +1383,7 @@ void FFileIoStore::ReadBlocks(FFileIoStoreResolvedRequest& ResolvedRequest)
 				bool bRawBlockWasAdded;
 				FFileIoStoreReadRequest* RawBlock = RequestTracker.FindOrAddRawBlock(RawBlockKey, bRawBlockWasAdded);
 				check(RawBlock);
+				check(!RawBlock->bCancelled);
 				if (bRawBlockWasAdded)
 				{
 					RawBlock->Priority = ResolvedRequest.GetPriority();

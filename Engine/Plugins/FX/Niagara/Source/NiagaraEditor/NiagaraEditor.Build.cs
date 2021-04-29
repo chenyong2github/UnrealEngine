@@ -54,9 +54,20 @@ public class NiagaraEditor : ModuleRules
 				"Renderer",
 				"DeveloperSettings",
 				"SessionServices",
-				"SessionFrontend"
+				"SessionFrontend",
+				"PythonScriptPlugin"
 			}
         );
+
+		if (Target.bBuildTargetDeveloperTools)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"SessionServices",
+					"SessionFrontend"
+				}
+			);
+		}
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {

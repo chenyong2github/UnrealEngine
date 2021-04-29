@@ -13,7 +13,9 @@ public class LevelSnapshots : ModuleRules
 	        new string[] 
 	        {
 		        Path.Combine(ModuleDirectory, "Public"),
-		        Path.Combine(ModuleDirectory, "Public", "Data")
+		        Path.Combine(ModuleDirectory, "Public", "Data"),
+		        Path.Combine(ModuleDirectory, "Public", "Restorability"),
+		        Path.Combine(ModuleDirectory, "Public", "Settings")
 	        }
         );
         PrivateIncludePaths.AddRange(

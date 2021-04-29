@@ -85,18 +85,6 @@ namespace Gauntlet
 		/// <returns></returns>
 		Dictionary<EIntendedBaseCopyDirectory, string> GetPlatformDirectoryMappings();
 
-		/// <summary>
-		/// Checks the device's OS/Firmware version and returns whether an update is necessary
-		/// </summary>
-		/// <returns></returns>
-		bool IsOSOutOfDate();
-
-		/// <summary>
-		/// Pushes the latest version of the console's OS/Firmware to the device, returning false if the process fails
-		/// </summary>
-		/// <returns></returns>
-		bool UpdateOS();
-
 		IAppInstall InstallApplication(UnrealAppConfig AppConfiguration);
 
 		IAppInstance Run(IAppInstall App);

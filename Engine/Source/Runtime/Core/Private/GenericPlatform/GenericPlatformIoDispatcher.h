@@ -32,6 +32,7 @@ public:
 		WakeUpDispatcherThreadDelegate = InWakeUpDispatcherThreadDelegate;
 	}
 	bool OpenContainer(const TCHAR* ContainerFilePath, uint64& ContainerFileHandle, uint64& ContainerFileSize);
+	void CloseContainer(uint64 ContainerFileHandle);
 	bool CreateCustomRequests(FFileIoStoreRequestAllocator& RequestAllocator, FFileIoStoreResolvedRequest& ResolvedRequest, FFileIoStoreReadRequestList& OutRequests)
 	{
 		return false;

@@ -257,6 +257,16 @@ public:
 	*/
 	virtual void ObjectImplicitlyRemoved(UObject* InObject) {}
 
+	/**
+	 * Called before the sequencer restores pre-animated state on all objects before saving the level.
+	 */
+	virtual void OnPreSaveWorld(UWorld* World) {}
+
+	/**
+	 * Called after the sequencer has re-evaluated all objects after saving the level.
+	 */
+	virtual void OnPostSaveWorld(UWorld* World) {}
+
 public:
 
 	/** Virtual destructor. */

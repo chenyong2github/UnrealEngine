@@ -41,6 +41,9 @@ class MOVIESCENE_API UMovieSceneFolder : public UObject
 	/** Removes a master track from this folder. Automatically calls Modify() on the folder object. */
 	void RemoveChildMasterTrack( UMovieSceneTrack* InMasterTrack );
 
+	/** Clear all child master tracks from this folder. */
+	void ClearChildMasterTracks();
+
 	/** Gets the guids for the object bindings contained by this folder. */
 	const TArray<FGuid>& GetChildObjectBindings() const;
 
@@ -50,12 +53,20 @@ class MOVIESCENE_API UMovieSceneFolder : public UObject
 	/** Removes a guid for an object binding from this folder. Automatically calls Modify() on the folder object. */
 	void RemoveChildObjectBinding( const FGuid& InObjectBinding );
 
+	/** Clear all child object bindings from this folder. */
+	void ClearChildObjectBindings();
+
 	/** Called after this object has been deserialized */
 	virtual void PostLoad() override;
 
-	/** Searches for a guid in this folder and it's child folders, if found returns the folder containing the guid. */
+	/** Searches for a guid in this folder and its child folders, if found returns the folder containing the guid. */
 	UMovieSceneFolder* FindFolderContaining(const FGuid& InObjectBinding);
 
+	/** Get the folder path for this folder, stopping at the given root folders */
+	static void CalculateFolderPath(UMovieSceneFolder* InFolder, const TArray<UMovieSceneFolder*>& RootFolders, TArray<FName>& FolderPath);
+	
+	/** For the given set of folders, return the folder that has the matching folder path */
+	static UMovieSceneFolder* GetFolderWithPath(const TArray<FName>& InFolderPath, const TArray<UMovieSceneFolder*>& InFolders, const TArray<UMovieSceneFolder*>& RootFolders);
 
 	virtual void Serialize( FArchive& Archive );
 

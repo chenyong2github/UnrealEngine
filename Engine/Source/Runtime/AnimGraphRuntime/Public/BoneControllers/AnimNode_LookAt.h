@@ -139,14 +139,14 @@ private:
 	float AccumulatedInterpoolationTime;
 
 
-#if !UE_BUILD_SHIPPING
+#if UE_ENABLE_DEBUG_DRAWING
 	/** Debug draw cached data */
 	FTransform CachedOriginalTransform;
 	FTransform CachedLookAtTransform;
 	FTransform CachedTargetCoordinate;
 	FVector CachedPreviousTargetLocation;
 	FVector CachedCurrentLookAtLocation;
-#endif // UE_BUILD_SHIPPING
+#endif // UE_ENABLE_DEBUG_DRAWING
 	FVector CachedCurrentTargetLocation;
 
 protected:

@@ -1867,7 +1867,7 @@ IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(int64 OffsetInBulkD
 #if WITH_IOSTORE_IN_EDITOR
 	if (IsUsingIODispatcher())
 	{
-		TUniquePtr<IBulkDataIORequest> Request = CreateBulkDataIoDispatcherRequest(CreateBulkDataChunkId(PackageId, BulkDataFlags), BulkDataOffsetInFile + OffsetInBulkData, BytesToRead, CompleteCallback, UserSuppliedMemory);
+		TUniquePtr<IBulkDataIORequest> Request = CreateBulkDataIoDispatcherRequest(CreateBulkDataChunkId(PackageId, BulkDataFlags), BulkDataOffsetInFile + OffsetInBulkData, BytesToRead, CompleteCallback, UserSuppliedMemory, ConvertToIoDispatcherPriority(Priority));
 		return Request.Release();
 	}
 #endif

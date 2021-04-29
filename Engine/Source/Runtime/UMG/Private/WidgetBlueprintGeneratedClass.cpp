@@ -193,7 +193,7 @@ void UWidgetBlueprintGeneratedClass::InitializeWidgetStatic(UUserWidget* UserWid
 		return;
 	}
 
-#if !UE_BUILD_SHIPPING
+#if UE_HAS_WIDGET_GENERATED_BY_CLASS
 	TWeakObjectPtr<UClass> WidgetGeneratedByClass = MakeWeakObjectPtr(const_cast<UClass*>(InClass));
 	UserWidget->WidgetGeneratedByClass = WidgetGeneratedByClass;
 #endif
@@ -232,7 +232,7 @@ void UWidgetBlueprintGeneratedClass::InitializeWidgetStatic(UUserWidget* UserWid
 				return;
 			}
 
-#if !UE_BUILD_SHIPPING
+#if UE_HAS_WIDGET_GENERATED_BY_CLASS
 			Widget->WidgetGeneratedByClass = WidgetGeneratedByClass;
 #endif
 
@@ -392,7 +392,7 @@ void UWidgetBlueprintGeneratedClass::SetWidgetTreeArchetype(UWidgetTree* InWidge
 	if (WidgetTree)
 	{
 		// We don't want any of these flags to carry over from the WidgetBlueprint
-		WidgetTree->ClearFlags(RF_Public | RF_ArchetypeObject | RF_DefaultSubObject);
+		WidgetTree->ClearFlags(RF_Public | RF_ArchetypeObject | RF_DefaultSubObject | RF_Transient);
 	}
 }
 

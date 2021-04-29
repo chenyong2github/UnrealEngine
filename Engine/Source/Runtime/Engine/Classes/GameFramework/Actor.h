@@ -901,7 +901,7 @@ public:
 	/** Whether this actor is hidden by the level browser. */
 	UPROPERTY(Transient)
 	uint8 bHiddenEdLevel:1;
-		
+
 	/** If true during PostEditMove the construction script will be run every time. If false it will only run when the drag finishes. */
 	uint8 bRunConstructionScriptOnDrag:1;
 
@@ -1545,7 +1545,7 @@ public:
 
 	/** DEPRECATED - Use DetachFromActor() instead */
 	UE_DEPRECATED(4.17, "Use DetachFromActor() instead")
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "DetachActorFromActor (Deprecated)", ScriptNoExport), Category = "Utilities|Transformation")
+	UFUNCTION(BlueprintCallable, meta=(DisplayName = "DetachActorFromActor (Deprecated)", ScriptNoExport), Category="Utilities|Transformation")
 	void DetachRootComponentFromParent(bool bMaintainWorldPosition = true);
 
 	/** 
@@ -1884,6 +1884,7 @@ public:
 
 	/** Does this actor supports external packaging? */
 	virtual bool SupportsExternalPackaging() const;
+#endif
 
 	/** Internal struct used to store information about an actor's components during reconstruction */
 	struct FActorRootComponentReconstructionData
@@ -1915,6 +1916,18 @@ public:
 		friend FArchive& operator<<(FArchive& Ar, FActorRootComponentReconstructionData& RootComponentData);
 	};
 
+	struct FActorTransactionAnnotationData
+	{
+		TWeakObjectPtr<const AActor> Actor;
+		FComponentInstanceDataCache ComponentInstanceData;
+
+		bool bRootComponentDataCached;
+		FActorRootComponentReconstructionData RootComponentData;
+
+		friend ENGINE_API FArchive& operator<<(FArchive& Ar, FActorTransactionAnnotationData& ActorTransactionAnnotationData);
+	};
+
+#if WITH_EDITOR
 	/** Internal struct to track currently active transactions */
 	class FActorTransactionAnnotation : public ITransactionObjectAnnotation
 	{
@@ -1934,11 +1947,7 @@ public:
 
 		bool HasInstanceData() const;
 
-		TWeakObjectPtr<const AActor> Actor;
-		FComponentInstanceDataCache ComponentInstanceData;
-
-		bool bRootComponentDataCached;
-		FActorRootComponentReconstructionData RootComponentData;
+		FActorTransactionAnnotationData ActorTransactionAnnotationData;
 
 	private:
 		FActorTransactionAnnotation();
@@ -2385,7 +2394,7 @@ protected:
 	void SyncReplicatedPhysicsSimulation();
 
 public:
-	/**
+	/** 
 	 * Set the owner of this Actor, used primarily for network replication. 
 	 * @param NewOwner	The Actor who takes over ownership of this Actor
 	 */

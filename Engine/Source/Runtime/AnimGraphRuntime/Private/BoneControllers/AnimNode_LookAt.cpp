@@ -122,7 +122,7 @@ void FAnimNode_LookAt::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseCont
 		CurrentLookAtLocation = CurrentTargetLocation;
 	}
 
-#if !UE_BUILD_SHIPPING
+#if UE_ENABLE_DEBUG_DRAWING
 	CachedOriginalTransform = ComponentBoneTransform;
 	CachedTargetCoordinate = LookAtTarget.GetTargetTransform(FVector::ZeroVector, Output.Pose, Output.AnimInstanceProxy->GetComponentTransform());
 	CachedPreviousTargetLocation = PreviousTargetLocation;
@@ -142,7 +142,7 @@ void FAnimNode_LookAt::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseCont
 	// Sort OutBoneTransforms so indices are in increasing order.
 	OutBoneTransforms.Sort(FCompareBoneTransformIndex());
 
-#if !UE_BUILD_SHIPPING
+#if UE_ENABLE_DEBUG_DRAWING
 	CachedLookAtTransform = ComponentBoneTransform;
 #endif
 

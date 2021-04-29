@@ -247,6 +247,8 @@ namespace DatasmithRhino.DirectLink
 		{
 			if (OngoingEvent == RhinoOngoingEventTypes.MovingActor)
 			{
+				// Make sure to only update referenced object, as the mesh has already been moved.
+				TryCatchExecute(() => ExportContext.UpdateActorObject(InObject));
 				EventStack.Pop();
 			}
 			else if (OngoingEvent == RhinoOngoingEventTypes.ReplacingActor)

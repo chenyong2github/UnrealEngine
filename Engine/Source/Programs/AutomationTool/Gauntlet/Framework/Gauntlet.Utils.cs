@@ -747,10 +747,19 @@ namespace Gauntlet
 		public static class InterfaceHelpers
 		{
 
-			public static IEnumerable<InterfaceType> FindImplementations<InterfaceType>()
+			public static IEnumerable<InterfaceType> FindImplementations<InterfaceType>(bool bIncludeCompiledScripts = false)
 				where InterfaceType : class
 			{
-				var AllTypes = Assembly.GetExecutingAssembly().GetTypes().Where(T => typeof(InterfaceType).IsAssignableFrom(T));
+				HashSet<Type> AllTypes = new HashSet<Type>(Assembly.GetExecutingAssembly().GetTypes().Where(T => typeof(InterfaceType).IsAssignableFrom(T)));
+
+				if (bIncludeCompiledScripts)
+				{
+					foreach (Assembly assembly in ScriptCompiler.GetCompiledAssemblies())
+					{
+						List<Type> AssemblyTypes = assembly.GetTypes().Where(T => typeof(InterfaceType).IsAssignableFrom(T)).ToList();
+						AllTypes.UnionWith(AssemblyTypes);
+					}
+				}
 
 				List<InterfaceType> ConstructedTypes = new List<InterfaceType>();
 
@@ -765,10 +774,9 @@ namespace Gauntlet
 						ConstructedTypes.Add(NewInstance);
 					}
 				}
-				
+
 				return ConstructedTypes;
 			}
-
 			/// <summary>
 			/// Check if the method signature is overridden.
 			/// </summary>
@@ -1337,7 +1345,7 @@ namespace Gauntlet
 			public static string GetFullyQualifiedPath(string FilePath)
 			{
 				FilePath = Path.GetFullPath(FilePath);
-				if (FilePath.Length > 260)
+				if (!FilePath.StartsWith(@"\\") && FilePath.Length > 260)
 				{
 					return Globals.LongPathPrefix + FilePath;
 				}

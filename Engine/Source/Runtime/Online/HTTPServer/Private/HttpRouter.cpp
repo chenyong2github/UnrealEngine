@@ -13,7 +13,9 @@ bool FHttpRouter::Query(const TSharedPtr<FHttpServerRequest>& Request, const FHt
 {
 	bool bRequestHandled = false;
 
-	FHttpRequestHandlerIterator Iterator(Request, RequestHandlerRegistrar);
+	TArray<FHttpRequestHandler> PreprocessorsArray;
+	RequestPreprocessors.GenerateValueArray(PreprocessorsArray);
+	FHttpRequestHandlerIterator Iterator(Request, RequestHandlerRegistrar, MoveTemp(PreprocessorsArray));
 	while (const FHttpRequestHandler* RequestHandlerPtr = Iterator.Next())
 	{
 		(*RequestHandlerPtr).CheckCallable();
@@ -58,9 +60,23 @@ void FHttpRouter::UnbindRoute(const FHttpRouteHandle& RouteHandle)
 	}
 }
 
+FDelegateHandle FHttpRouter::RegisterRequestPreprocessor(FHttpRequestHandler RequestPreprocessor)
+{
+	FDelegateHandle Handle = FDelegateHandle(FDelegateHandle::GenerateNewHandle);
+	RequestPreprocessors.Add(Handle, MoveTemp(RequestPreprocessor));
+	return Handle;
+}
+
+void FHttpRouter::UnregisterRequestPreprocessor(const FDelegateHandle& RequestPreprocessorHandle)
+{
+	RequestPreprocessors.Remove(RequestPreprocessorHandle);
+}
+
 FHttpRequestHandlerIterator FHttpRouter::CreateRequestHandlerIterator(const TSharedPtr<FHttpServerRequest>& Request) const
 {
-	FHttpRequestHandlerIterator Iterator(Request, RequestHandlerRegistrar);
+	TArray<FHttpRequestHandler> PreprocessorsArray;
+	RequestPreprocessors.GenerateValueArray(PreprocessorsArray);
+	FHttpRequestHandlerIterator Iterator(Request, RequestHandlerRegistrar, MoveTemp(PreprocessorsArray));
 	return Iterator;
 }
 

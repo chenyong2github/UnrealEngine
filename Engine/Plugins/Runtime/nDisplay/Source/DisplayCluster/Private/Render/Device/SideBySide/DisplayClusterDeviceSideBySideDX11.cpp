@@ -7,6 +7,7 @@
 
 
 FDisplayClusterDeviceSideBySideDX11::FDisplayClusterDeviceSideBySideDX11()
+	: FDisplayClusterDeviceBase(EDisplayClusterRenderFrameMode::SideBySide)
 {
 }
 

@@ -28,6 +28,7 @@
 #include "ProfilingDebugging/CookStats.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
+#include "ShaderCompiler.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystem"
 
@@ -84,6 +85,7 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 , bBakeOutRapidIterationOnCook(true)
 , bTrimAttributes(false)
 , bTrimAttributesOnCook(true)
+, bDisableAllDebugSwitches(false)
 #endif
 , bFixedBounds(false)
 #if WITH_EDITORONLY_DATA
@@ -95,6 +97,7 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 , WarmupTickCount(0)
 , WarmupTickDelta(1.0f / 15.0f)
 , bHasSystemScriptDIsWithPerInstanceData(false)
+, bNeedsGPUContextInitForDataInterfaces(false)
 , bHasAnyGPUEmitters(false)
 , bNeedsSortedSignificanceCull(false)
 , ActiveInstances(0)
@@ -396,6 +399,8 @@ void UNiagaraSystem::Serialize(FArchive& Ar)
 
 		bBakeOutRapidIteration = bBakeOutRapidIteration || bBakeOutRapidIterationOnCook;
 		bTrimAttributes = bTrimAttributes || bTrimAttributesOnCook;
+
+		bDisableAllDebugSwitches = true;
 	}
 #endif
 }
@@ -1519,9 +1524,30 @@ void UNiagaraSystem::UpdatePostCompileDIInfo()
 {
 	bHasSystemScriptDIsWithPerInstanceData = false;
 	UserDINamesReadInSystemScripts.Empty();
+	bNeedsGPUContextInitForDataInterfaces = false;
 
 	CheckDICompileInfo(SystemSpawnScript->GetVMExecutableData().DataInterfaceInfo, bHasSystemScriptDIsWithPerInstanceData, UserDINamesReadInSystemScripts);
 	CheckDICompileInfo(SystemUpdateScript->GetVMExecutableData().DataInterfaceInfo, bHasSystemScriptDIsWithPerInstanceData, UserDINamesReadInSystemScripts);
+
+	for (const FNiagaraEmitterHandle& EmitterHandle : GetEmitterHandles())
+	{
+		if (EmitterHandle.GetIsEnabled() == false || !EmitterHandle.GetInstance())
+		{
+			continue;
+		}
+		if (EmitterHandle.GetInstance()->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+		{
+			UNiagaraScript* GPUScript = EmitterHandle.GetInstance()->GetGPUComputeScript();
+			if (GPUScript)
+			{
+				FNiagaraVMExecutableData& VMData = GPUScript->GetVMExecutableData();
+				if (VMData.IsValid() && VMData.bNeedsGPUContextInit)
+				{
+					bNeedsGPUContextInitForDataInterfaces = true;
+				}
+			}
+		}
+	}
 }
 
 void UNiagaraSystem::UpdateDITickFlags()
@@ -2235,8 +2261,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 		return false;
 	}
 
-	static const bool bNoShaderCompile = FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
-	if (bNoShaderCompile)
+	if (!AllowShaderCompiling())
 	{
 		return false;
 	}
@@ -2889,13 +2914,13 @@ void FNiagaraParameterDataSetBindingCollection::BuildInternal(const TArray<FNiag
 	Int32Offsets.Shrink();
 }
 
-UNiagaraFlipbookSettings* UNiagaraSystem::GetFlipbookSettings()
+UNiagaraBakerSettings* UNiagaraSystem::GetBakerSettings()
 {
-	if ( FlipbookSettings == nullptr )
+	if ( BakerSettings == nullptr )
 	{
-		FlipbookSettings = NewObject<UNiagaraFlipbookSettings>(this, "FlipbookSettings", RF_Transactional);
+		BakerSettings = NewObject<UNiagaraBakerSettings>(this, "BakerSettings", RF_Transactional);
 	}
-	return FlipbookSettings;
+	return BakerSettings;
 }
 #endif
 

@@ -132,7 +132,7 @@ void FAnimNode_CCDIK::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseConte
 			}
 		}
 
-#if WITH_EDITOR
+#if WITH_EDITOR && UE_ENABLE_DEBUG_DRAWING
 		DebugLines.Reset(OutBoneTransforms.Num());
 		DebugLines.AddUninitialized(OutBoneTransforms.Num());
 		for (int32 Index = 0; Index < OutBoneTransforms.Num(); ++Index)

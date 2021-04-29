@@ -18,6 +18,10 @@
 #include "Engine/Engine.h"
 #include "Stats/Stats.h"
 
+#if NV_GEFORCENOW
+#include "GeForceNOWWrapper.h"
+#endif
+
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"
 #endif
@@ -693,6 +697,11 @@ bool UCommonInputSubsystem::PlatformSupportsInputType(ECommonInputType InInputTy
 		bPlatformSupportsInput &= SUPPORT_SWITCH_TOUCHSCREEN;
 #elif PLATFORM_DESKTOP && !UE_BUILD_SHIPPING
 		bPlatformSupportsInput = true; // Support touch testing until touch is supported on desktop
+#elif NV_GEFORCENOW
+		if (GeForceNOWWrapper::Get().IsRunningInGFN())
+		{
+			bPlatformSupportsInput = true;
+		}
 #endif
 	}
 	break;

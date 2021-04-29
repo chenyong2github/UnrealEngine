@@ -34,6 +34,12 @@ struct FConvexVolume;
 struct FEngineShowFlags;
 struct FNavigableGeometryExport;
 
+namespace PrimitiveComponentCVars
+{
+	extern float HitDistanceToleranceCVar;
+	extern float InitialOverlapToleranceCVar;
+}
+
 /** Determines whether a Character can attempt to step up onto a component when they walk in to it. */
 UENUM()
 enum ECanBeCharacterBase
@@ -153,6 +159,34 @@ struct FRendererStencilMaskEvaluation
 			return EStencilMask::SM_Default;
 		}
 	}
+};
+
+/*
+ * Predicate for comparing FOverlapInfos when exact weak object pointer index/serial numbers should match, assuming one is not null and not invalid.
+ * Compare to operator== for WeakObjectPtr which does both HasSameIndexAndSerialNumber *and* IsValid() checks on both pointers.
+ */
+struct FFastOverlapInfoCompare
+{
+	FFastOverlapInfoCompare(const FOverlapInfo& BaseInfo)
+		: MyBaseInfo(BaseInfo)
+	{
+	}
+
+	bool operator() (const FOverlapInfo& Info)
+	{
+		return MyBaseInfo.OverlapInfo.Component.HasSameIndexAndSerialNumber(Info.OverlapInfo.Component)
+			&& MyBaseInfo.GetBodyIndex() == Info.GetBodyIndex();
+	}
+
+	bool operator() (const FOverlapInfo* Info)
+	{
+		return MyBaseInfo.OverlapInfo.Component.HasSameIndexAndSerialNumber(Info->OverlapInfo.Component)
+			&& MyBaseInfo.GetBodyIndex() == Info->GetBodyIndex();
+	}
+
+private:
+	const FOverlapInfo& MyBaseInfo;
+
 };
 
 
@@ -1938,7 +1972,7 @@ protected:
 	}
 
 public:
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_ENABLE_DEBUG_DRAWING
 	/** Updates the renderer with the center of mass data */
 	virtual void SendRenderDebugPhysics(FPrimitiveSceneProxy* OverrideSceneProxy = nullptr);
 #endif

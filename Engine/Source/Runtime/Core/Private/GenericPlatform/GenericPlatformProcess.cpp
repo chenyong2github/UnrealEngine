@@ -308,9 +308,10 @@ bool FGenericPlatformProcess::ExecElevatedProcess(const TCHAR* URL, const TCHAR*
 	return FPlatformProcess::ExecProcess(URL, Params, OutReturnCode, NULL, NULL);
 }
 
-void FGenericPlatformProcess::LaunchFileInDefaultExternalApplication( const TCHAR* FileName, const TCHAR* Parms, ELaunchVerb::Type Verb )
+bool FGenericPlatformProcess::LaunchFileInDefaultExternalApplication( const TCHAR* FileName, const TCHAR* Parms, ELaunchVerb::Type Verb, bool bPromptToOpenOnFailure )
 {
 	UE_LOG(LogHAL, Fatal, TEXT("FGenericPlatformProcess::LaunchFileInDefaultExternalApplication not implemented on this platform"));
+	return false;
 }
 
 void FGenericPlatformProcess::ExploreFolder( const TCHAR* FilePath )

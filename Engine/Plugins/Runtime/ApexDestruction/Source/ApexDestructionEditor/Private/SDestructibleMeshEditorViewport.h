@@ -33,6 +33,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	
 	// FGCObject interface
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SDestructibleMeshEditorViewport");
+	}
 	// End of FGCObject interface
 
 	// FNotifyHook interface

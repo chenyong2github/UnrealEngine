@@ -105,9 +105,13 @@ int32 FOcclusionQueryHelpers::GetNumBufferedFrames(ERHIFeatureLevel::Type Featur
 	{
 		NumExtraMobileFrames++; // the mobile renderer just doesn't do much after the basepass, and hence it will be asking for the query results almost immediately; the results can't possibly be ready in 1 frame.
 		
-		if ((
-			//IsOpenGLPlatform(ShaderPlatform) || 
-			IsVulkanPlatform(ShaderPlatform) || IsSwitchPlatform(ShaderPlatform) || IsVulkanMobileSM5Platform(ShaderPlatform)) && IsRunningRHIInSeparateThread())
+		bool bNeedsAnotherExtraMobileFrame = IsVulkanPlatform(ShaderPlatform); // || IsOpenGLPlatform(ShaderPlatform)
+		bNeedsAnotherExtraMobileFrame = bNeedsAnotherExtraMobileFrame || IsSwitchPlatform(ShaderPlatform);
+		bNeedsAnotherExtraMobileFrame = bNeedsAnotherExtraMobileFrame || IsVulkanMobileSM5Platform(ShaderPlatform);
+		bNeedsAnotherExtraMobileFrame = bNeedsAnotherExtraMobileFrame || FDataDrivenShaderPlatformInfo::GetNeedsExtraMobileFrames(ShaderPlatform);
+		bNeedsAnotherExtraMobileFrame = bNeedsAnotherExtraMobileFrame && IsRunningRHIInSeparateThread();
+
+		if (bNeedsAnotherExtraMobileFrame)
 		{
 			// Android, unfortunately, requires the RHIThread to mediate the readback of queries. Therefore we need an extra frame to avoid a stall in either thread. 
 			// The RHIT needs to do read back after the queries are ready and before the RT needs them to avoid stalls. The RHIT may be busy when the queries become ready, so this is all very complicated.

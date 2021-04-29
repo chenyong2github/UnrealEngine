@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Cluster/DisplayClusterClusterManager.h"
+#include "Cluster/DisplayClusterClusterEvent.h"
 #include "Cluster/DisplayClusterClusterEventHandler.h"
 
 #include "Cluster/IDisplayClusterClusterSyncObject.h"
@@ -11,8 +12,6 @@
 
 #include "Config/IPDisplayClusterConfigManager.h"
 #include "DisplayClusterConfigurationTypes.h"
-
-#include "Input/IPDisplayClusterInputManager.h"
 
 #include "Dom/JsonObject.h"
 
@@ -45,7 +44,6 @@ FDisplayClusterClusterManager::FDisplayClusterClusterManager()
 bool FDisplayClusterClusterManager::Init(EDisplayClusterOperationMode OperationMode)
 {
 	CurrentOperationMode = OperationMode;
-	
 	return true;
 }
 
@@ -53,7 +51,7 @@ void FDisplayClusterClusterManager::Release()
 {
 }
 
-bool FDisplayClusterClusterManager::StartSession(const UDisplayClusterConfigurationData* InConfigData, const FString& InNodeId)
+bool FDisplayClusterClusterManager::StartSession(UDisplayClusterConfigurationData* InConfigData, const FString& InNodeId)
 {
 	ClusterNodeId = InNodeId;
 
@@ -166,11 +164,11 @@ void FDisplayClusterClusterManager::PreTick(float DeltaSeconds)
 		FScopeLock Lock(&ClusterEventsJsonCritSec);
 
 		ClusterEventsJsonPoolOut.Reset();
-		ClusterEventsJsonPoolOut = MoveTemp(ClusterEventsJsonPoolMain);
+		ClusterEventsJsonPoolOut = ClusterEventsJsonPoolMain;
 		ClusterEventsJsonPoolMain.Reset();
 
 		ClusterEventsJsonNonDiscardedPoolOut.Reset();
-		ClusterEventsJsonNonDiscardedPoolOut = MoveTemp(ClusterEventsJsonNonDiscardedPoolMain);
+		ClusterEventsJsonNonDiscardedPoolOut = ClusterEventsJsonNonDiscardedPoolMain;
 		ClusterEventsJsonNonDiscardedPoolMain.Reset();
 	}
 
@@ -179,16 +177,13 @@ void FDisplayClusterClusterManager::PreTick(float DeltaSeconds)
 		FScopeLock Lock(&ClusterEventsBinaryCritSec);
 
 		ClusterEventsBinaryPoolOut.Reset();
-		ClusterEventsBinaryPoolOut = MoveTemp(ClusterEventsBinaryPoolMain);
+		ClusterEventsBinaryPoolOut = ClusterEventsBinaryPoolMain;
 		ClusterEventsBinaryPoolMain.Reset();
 
 		ClusterEventsBinaryNonDiscardedPoolOut.Reset();
-		ClusterEventsBinaryNonDiscardedPoolOut = MoveTemp(ClusterEventsBinaryNonDiscardedPoolMain);
+		ClusterEventsBinaryNonDiscardedPoolOut = ClusterEventsBinaryNonDiscardedPoolMain;
 		ClusterEventsBinaryNonDiscardedPoolMain.Reset();
 	}
-
-	// Update input state in the cluster
-	SyncInput();
 
 	// Sync cluster objects (PreTick)
 	SyncObjects(EDisplayClusterSyncGroup::PreTick);
@@ -363,6 +358,33 @@ void FDisplayClusterClusterManager::EmitClusterEventBinary(const FDisplayCluster
 	}
 }
 
+void FDisplayClusterClusterManager::SendClusterEventTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventJson& Event, bool bMasterOnly)
+{
+	if (CurrentOperationMode == EDisplayClusterOperationMode::Cluster || CurrentOperationMode == EDisplayClusterOperationMode::Editor)
+	{
+		if (Controller)
+		{
+			if (IsMaster() || !bMasterOnly)
+			{
+				Controller->SendClusterEventTo(Address, Port, Event, bMasterOnly);
+			}
+		}
+	}
+}
+
+void FDisplayClusterClusterManager::SendClusterEventTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly)
+{
+	if (CurrentOperationMode == EDisplayClusterOperationMode::Cluster || CurrentOperationMode == EDisplayClusterOperationMode::Editor)
+	{
+		if (Controller)
+		{
+			if (IsMaster() || !bMasterOnly)
+			{
+				Controller->SendClusterEventTo(Address, Port, Event, bMasterOnly);
+			}
+		}
+	}
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IPDisplayClusterClusterManager
@@ -431,32 +453,32 @@ void FDisplayClusterClusterManager::ExportEventsData(TArray<TSharedPtr<FDisplayC
 	{
 		FScopeLock Lock(&ClusterEventsJsonCritSec);
 
-	// Export all system and non-system json events that have 'discard on repeat' flag
-	for (const auto& it : ClusterEventsJsonPoolOut)
-	{
+		// Export all system and non-system json events that have 'discard on repeat' flag
+		for (const auto& it : ClusterEventsJsonPoolOut)
+		{
 			TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>> JsonEventsToExport;
-		it.Value.GenerateValueArray(JsonEventsToExport);
-		JsonEvents.Append(JsonEventsToExport);
-	}
+			it.Value.GenerateValueArray(JsonEventsToExport);
+			JsonEvents.Append(JsonEventsToExport);
+		}
 
-	// Export all json events that don't have 'discard on repeat' flag
-	JsonEvents.Append(ClusterEventsJsonNonDiscardedPoolOut);
+		// Export all json events that don't have 'discard on repeat' flag
+		JsonEvents.Append(ClusterEventsJsonNonDiscardedPoolOut);
 	}
 
 	// Export binary events
 	{
 		FScopeLock Lock(&ClusterEventsBinaryCritSec);
 
-	// Export all binary events that have 'discard on repeat' flag
-	for (const auto& it : ClusterEventsBinaryPoolOut)
-	{
+		// Export all binary events that have 'discard on repeat' flag
+		for (const auto& it : ClusterEventsBinaryPoolOut)
+		{
 			TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>> BinaryEventsToExport;
-		it.Value.GenerateValueArray(BinaryEventsToExport);
-		BinaryEvents.Append(BinaryEventsToExport);
-	}
+			it.Value.GenerateValueArray(BinaryEventsToExport);
+			BinaryEvents.Append(BinaryEventsToExport);
+		}
 
-	// Export all binary events that don't have 'discard on repeat' flag
-	BinaryEvents.Append(ClusterEventsBinaryNonDiscardedPoolOut);
+		// Export all binary events that don't have 'discard on repeat' flag
+		BinaryEvents.Append(ClusterEventsBinaryNonDiscardedPoolOut);
 	}
 }
 
@@ -506,26 +528,6 @@ void FDisplayClusterClusterManager::SyncObjects(EDisplayClusterSyncGroup SyncGro
 		{
 			// Perform data load (objects state update)
 			ImportSyncData(SyncData, SyncGroup);
-		}
-	}
-}
-
-void FDisplayClusterClusterManager::SyncInput()
-{
-	if (Controller)
-	{
-		TMap<FString, FString> InputData;
-
-		// Get input data from a provider
-		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading synchronization data (input)..."));
-		Controller->GetInputData(InputData);
-		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading finished. Available %d records (input)."), InputData.Num());
-
-		// We don't have to import data here unless input data provider is located on master node
-		if (IsSlave())
-		{
-			// Perform data load (objects state update)
-			GDisplayCluster->GetPrivateInputMgr()->ImportInputData(InputData);
 		}
 	}
 }

@@ -52,9 +52,9 @@ public:
 	FTexture2DRHIRef GetBackBuffer(FRHICommandListImmediate& RHICmdList);
 	void AdvanceBackBufferFrame(FRHICommandListImmediate& RHICmdList);
 
-	void WaitForFrameEventCompletion();
+	virtual void WaitForFrameEventCompletion() override;
 
-	void IssueFrameEvent();
+	virtual void IssueFrameEvent() override;
 
 	inline FIntPoint GetSizeXY() const
 	{
@@ -127,6 +127,7 @@ protected:
 	FVulkanSwapChain* SwapChain;
 	void* WindowHandle;
 	uint32 PresentCount;
+	bool bRenderOffscreen;
 
 	int8 LockToVsync;
 
@@ -149,6 +150,9 @@ protected:
 
 	static int32 DoAcquireImageIndex(FVulkanViewport* Viewport);
 	bool DoCheckedSwapChainJob(TFunction<int32(FVulkanViewport*)> SwapChainJob);
+	bool SupportsStandardSwapchain();
+	bool RequiresRenderingBackBuffer();
+	EPixelFormat GetPixelFormatForNonDefaultSwapchain();
 
 	friend class FVulkanDynamicRHI;
 	friend class FVulkanCommandListContext;

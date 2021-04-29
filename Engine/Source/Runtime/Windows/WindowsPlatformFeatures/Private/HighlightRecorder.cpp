@@ -63,7 +63,7 @@ bool FHighlightRecorder::Start(double RingBufferDurationSecs)
 	RingBuffer.Reset();
 	RingBuffer.SetMaxDuration(FTimespan::FromSeconds(RingBufferDurationSecs));
 
-	RecordingStartTime = FTimespan::FromSeconds(FGameplayMediaEncoder::Get()->QueryClock());
+	RecordingStartTime = FTimespan::FromSeconds(FPlatformTime::Seconds());
 	PauseTimestamp = 0;
 	TotalPausedDuration = 0;
 	NumPushedFrames = 0;
@@ -128,10 +128,10 @@ void FHighlightRecorder::Stop()
 
 FTimespan FHighlightRecorder::GetRecordingTime() const
 {
-	return FTimespan::FromSeconds(FGameplayMediaEncoder::Get()->QueryClock()) - RecordingStartTime - TotalPausedDuration;
+	return FTimespan::FromSeconds(FPlatformTime::Seconds()) - RecordingStartTime - TotalPausedDuration;
 }
 
-void FHighlightRecorder::OnMediaSample(const AVEncoder::FAVPacket& InSample)
+void FHighlightRecorder::OnMediaSample(const AVEncoder::FMediaPacket& InSample)
 {
 	// We might be paused, so don't do anything
 	if (State != EState::Recording)
@@ -150,14 +150,14 @@ void FHighlightRecorder::OnMediaSample(const AVEncoder::FAVPacket& InSample)
 		++NumPushedFrames;
 	}
 
-	AVEncoder::FAVPacket SampleCopy = InSample;
+	AVEncoder::FMediaPacket SampleCopy = InSample;
 
 
-	AVEncoder::FAVPacket A = InSample;
-	AVEncoder::FAVPacket B = MoveTemp(A);
-	AVEncoder::FAVPacket C(AVEncoder::EPacketType::Video);
+	AVEncoder::FMediaPacket A = InSample;
+	AVEncoder::FMediaPacket B = MoveTemp(A);
+	AVEncoder::FMediaPacket C(AVEncoder::EPacketType::Video);
 	C = MoveTemp(B);
-	AVEncoder::FAVPacket D(AVEncoder::EPacketType::Video);
+	AVEncoder::FMediaPacket D(AVEncoder::EPacketType::Video);
 	D = C;
 
 	if (TotalPausedDuration != 0)
@@ -186,7 +186,8 @@ bool FHighlightRecorder::SaveHighlight(const TCHAR* Filename, FDoneCallback InDo
 
 	UE_LOG(HighlightRecorder, Log, TEXT("start saving to %s, max duration %.3f"), Filename, MaxDurationSecs);
 
-	FString LocalFilename = Filename;
+	auto& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+	FString FullFilename = PlatformFile.ConvertToAbsolutePathForExternalAppForWrite(*(FPaths::VideoCaptureDir() + Filename));
 
 	bSaving = true;
 	DoneCallback = MoveTemp(InDoneCallback);
@@ -198,9 +199,9 @@ bool FHighlightRecorder::SaveHighlight(const TCHAR* Filename, FDoneCallback InDo
 			BackgroundSaving->Join();
 		}
 
-		BackgroundSaving.Reset(new FThread(TEXT("Highlight Saving"), [this, LocalFilename, MaxDurationSecs]()
+		BackgroundSaving.Reset(new FThread(TEXT("Highlight Saving"), [this, FullFilename, MaxDurationSecs]()
 		{
-			SaveHighlightInBackground(LocalFilename, MaxDurationSecs);
+			SaveHighlightInBackground(FullFilename, MaxDurationSecs);
 		}));
 	}
 
@@ -221,7 +222,7 @@ bool FHighlightRecorder::SaveHighlightInBackground(const FString& Filename, doub
 	double PassedSecs = FPlatformTime::Seconds() - T0;
 	UE_LOG(HighlightRecorder, Log, TEXT("saving to %s %s, took %.3f secs"), *Filename, bRes ? TEXT("succeeded") : TEXT("failed"), PassedSecs);
 
-	DoneCallback(bRes);
+	DoneCallback(bRes, Filename);
 	bSaving = false;
 
 	return bRes;
@@ -229,7 +230,7 @@ bool FHighlightRecorder::SaveHighlightInBackground(const FString& Filename, doub
 
 bool FHighlightRecorder::SaveHighlightInBackgroundImpl(const FString& Filename, double MaxDurationSecs)
 {
-	TArray<AVEncoder::FAVPacket> Samples = RingBuffer.GetCopy();
+	TArray<AVEncoder::FMediaPacket> Samples = RingBuffer.GetCopy();
 
 	if (Samples.Num()==0)
 	{
@@ -277,7 +278,7 @@ bool FHighlightRecorder::SaveHighlightInBackgroundImpl(const FString& Filename, 
 	// get samples starting from `StartTime` and push them into Mp4Writer
 	for (int Idx = FirstSampleIndex; Idx != Samples.Num(); ++Idx)
 	{
-		AVEncoder::FAVPacket& Sample = Samples[Idx];
+		AVEncoder::FMediaPacket& Sample = Samples[Idx];
 		Sample.Timestamp = Sample.Timestamp - StartTime;
 		if (!Mp4Writer->Write(Sample, (Sample.Type==AVEncoder::EPacketType::Audio) ? AudioStreamIndex : VideoStreamIndex))
 		{
@@ -293,21 +294,20 @@ bool FHighlightRecorder::SaveHighlightInBackgroundImpl(const FString& Filename, 
 	return true;
 }
 
-bool FHighlightRecorder::InitialiseMp4Writer(const FString& Filename, bool bHasAudio)
+bool FHighlightRecorder::InitialiseMp4Writer(const FString& FullFilename, bool bHasAudio)
 {
-	FString VideoCaptureDir = FPaths::VideoCaptureDir();
+	// create target directory if it does not exist
+	FString DirName = FPaths::GetPath(FullFilename);
 	auto& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-	if (!PlatformFile.DirectoryExists(*VideoCaptureDir))
+	if (!PlatformFile.DirectoryExists(*DirName))
 	{
-		bool bRes = PlatformFile.CreateDirectory(*VideoCaptureDir);
+		bool bRes = PlatformFile.CreateDirectory(*DirName);
 		if (!bRes)
 		{
-			UE_LOG(HighlightRecorder, Error, TEXT("Can't create directory %s"), *VideoCaptureDir);
+			UE_LOG(HighlightRecorder, Error, TEXT("Can't create directory %s"), *DirName);
 			return false;
 		}
 	}
-
-	FString FullFilename = PlatformFile.ConvertToAbsolutePathForExternalAppForWrite(*(VideoCaptureDir + Filename));
 
 	Mp4Writer.Reset(new FWmfMp4Writer);
 
@@ -318,7 +318,7 @@ bool FHighlightRecorder::InitialiseMp4Writer(const FString& Filename, bool bHasA
 
 	if (bHasAudio)
 	{
-		TPair<FString, AVEncoder::FAudioEncoderConfig> AudioConfig = FGameplayMediaEncoder::Get()->GetAudioConfig();
+		TPair<FString, AVEncoder::FAudioConfig> AudioConfig = TPair<FString, AVEncoder::FAudioConfig>( FGameplayMediaEncoder::Get()->GetAudioConfig().Codec, FGameplayMediaEncoder::Get()->GetAudioConfig());		
 		if (AudioConfig.Key == "")
 		{
 			UE_LOG(HighlightRecorder, Error, TEXT("Could not get audio config"));
@@ -336,7 +336,7 @@ bool FHighlightRecorder::InitialiseMp4Writer(const FString& Filename, bool bHasA
 		}
 	}
 
-	TPair<FString, AVEncoder::FVideoEncoderConfig> VideoConfig = FGameplayMediaEncoder::Get()->GetVideoConfig();
+	TPair<FString, AVEncoder::FVideoConfig> VideoConfig = TPair<FString, AVEncoder::FVideoConfig>( FGameplayMediaEncoder::Get()->GetVideoConfig().Codec, FGameplayMediaEncoder::Get()->GetVideoConfig());
 	if (VideoConfig.Key == "")
 	{
 		UE_LOG(HighlightRecorder, Error, TEXT("Could not get video config"));
@@ -362,7 +362,7 @@ bool FHighlightRecorder::InitialiseMp4Writer(const FString& Filename, bool bHasA
 }
 
 // finds index and timestamp of the first sample that should be written to .mp4
-bool FHighlightRecorder::GetSavingStart(const TArray<AVEncoder::FAVPacket>& Samples, FTimespan MaxDuration, int& StartIndex, FTimespan& StartTime) const
+bool FHighlightRecorder::GetSavingStart(const TArray<AVEncoder::FMediaPacket>& Samples, FTimespan MaxDuration, int& StartIndex, FTimespan& StartTime) const
 // the first sample in .mp4 file should have timestamp 0 and all other timestamps should be relative to the
 // first one
 // 1) if `MaxDurationSecs` > actual ring buffer duration (last sample timestamp - first) -> we need to save all

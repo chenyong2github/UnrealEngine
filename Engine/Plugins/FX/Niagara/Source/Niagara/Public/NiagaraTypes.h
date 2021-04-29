@@ -382,7 +382,29 @@ enum class ENiagaraExecutionState : uint32
 	Num UMETA(Hidden)
 };
 
+UENUM()
+enum class ENiagaraCoordinateSpace : uint32
+{
+	/** Use the coordinate space specified by the Emitter*/
+	Simulation,
+	/** Use the world coordinate space*/
+	World,
+	/** Use the local coordinate space*/
+	Local,
 
+	// insert new states before
+	//NewEnumerator0 = 0 UMETA(Hidden),
+	//NewEnumerator1 = 1 UMETA(Hidden),
+	//NewEnumerator2 = 2 UMETA(Hidden)
+};
+
+UENUM()
+enum class ENiagaraPythonUpdateScriptReference : uint8
+{
+	None,
+    ScriptAsset,
+    DirectTextEntry
+};
 
 USTRUCT()
 struct NIAGARA_API FNiagaraCompileHashVisitorDebugInfo
@@ -1080,11 +1102,13 @@ public:
 	static UScriptStruct* GetHalfVec4Struct() { return HalfVec4Struct; }
 
 	static UEnum* GetExecutionStateEnum() { return ExecutionStateEnum; }
+	static UEnum* GetCoordinateSpaceEnum() { return CoordinateSpaceEnum; }
 	static UEnum* GetExecutionStateSouceEnum() { return ExecutionStateSourceEnum; }
 	static UEnum* GetSimulationTargetEnum() { return SimulationTargetEnum; }
 	static UEnum* GetScriptUsageEnum() { return ScriptUsageEnum; }
 	static UEnum* GetScriptContextEnum() { return ScriptContextEnum; }
 	static UEnum* GetParameterPanelCategoryEnum() { return ParameterPanelCategoryEnum; }
+	static UEnum* GetFunctionDebugStateEnum() { return FunctionDebugStateEnum; }
 
 	static UEnum* GetParameterScopeEnum() { return ParameterScopeEnum; }
 
@@ -1160,10 +1184,13 @@ private:
 	static UEnum* ScriptUsageEnum;
 	static UEnum* ScriptContextEnum;
 	static UEnum* ExecutionStateEnum;
+	static UEnum* CoordinateSpaceEnum;
 	static UEnum* ExecutionStateSourceEnum;
 
 	static UEnum* ParameterScopeEnum;
 	static UEnum* ParameterPanelCategoryEnum;
+
+	static UEnum* FunctionDebugStateEnum;
 
 	static UScriptStruct* ParameterMapStruct;
 	static UScriptStruct* IDStruct;

@@ -105,6 +105,14 @@ public:
 	 */
 	static UBlueprint* CreateBlueprint(UClass* ParentClass, UObject* Outer, const FName NewBPName, enum EBlueprintType BlueprintType, TSubclassOf<UBlueprint> BlueprintClassType, TSubclassOf<UBlueprintGeneratedClass> BlueprintGeneratedClassType, FName CallingContext = NAME_None);
 
+	/**
+	 * Creates a user construction script graph for the blueprint.
+	 *
+	 * @param Blueprint					the blueprint
+	 * @return							the new UCS Graph, does not register it.
+	 */
+	static UEdGraph* CreateUserConstructionScript(UBlueprint* Blueprint);
+
 	/** 
 	 * Event that's broadcast anytime a blueprint is unloaded, and becomes 
 	 * invalid (with calls to ReplaceBlueprint(), for example).

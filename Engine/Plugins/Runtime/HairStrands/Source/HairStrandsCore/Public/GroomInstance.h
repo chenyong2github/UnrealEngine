@@ -12,6 +12,7 @@
 class UMeshComponent;
 class FHairCardsVertexFactory;
 class FHairStrandsVertexFactory;
+enum class EGroomCacheType : uint8;
 
 // @hair_todo: pack card ID + card UV in 32Bits alpha channel's of the position buffer:
 //  * 10/10 bits for UV -> max 1024/1024 rect resolution
@@ -193,11 +194,14 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 
 		int32					MeshLODIndex = ~0;
 		EGroomBindingMeshType	GroomBindingType;
+		EGroomCacheType			GroomCacheType;
 		UMeshComponent*			MeshComponent = nullptr;
 		FString					MeshComponentName;
 		FTransform				SkeletalLocalToWorld = FTransform::Identity;
 		FTransform				SkeletalPreviousLocalToWorld = FTransform::Identity;
 		bool					bDrawCardsGuides = false;
+
+		TSharedPtr<class IGroomCacheBuffers, ESPMode::ThreadSafe> GroomCacheBuffers;
 
 		// Transfer
 		TArray<FRWBuffer> TransferredPositions;

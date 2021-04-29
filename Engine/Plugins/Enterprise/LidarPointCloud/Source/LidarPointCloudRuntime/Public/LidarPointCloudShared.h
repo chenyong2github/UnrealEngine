@@ -473,7 +473,7 @@ enum class ELidarPointCloudAsyncMode : uint8
 };
 
 /** Used to help track multiple buffer allocations */
-class FLidarPointCloudDataBuffer
+class LIDARPOINTCLOUDRUNTIME_API FLidarPointCloudDataBuffer
 {
 public:
 	FLidarPointCloudDataBuffer() : bInUse(false), PendingSize(0) {}
@@ -509,7 +509,7 @@ private:
 };
 
 /** Used to help track multiple buffer allocations */
-class FLidarPointCloudDataBufferManager
+class LIDARPOINTCLOUDRUNTIME_API FLidarPointCloudDataBufferManager
 {
 public:
 	/** If MaxNumberOfBuffers is 0, no limit is applied */

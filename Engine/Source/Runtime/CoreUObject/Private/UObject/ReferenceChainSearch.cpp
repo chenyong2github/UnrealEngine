@@ -360,7 +360,7 @@ public:
 		, ReferencedObjects(InReferencedObjects)		
 	{
 	}
-	FORCEINLINE void HandleTokenStreamObjectReference(TArray<UObject*>& ObjectsToSerialize, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, bool bAllowReferenceElimination)
+	FORCEINLINE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, bool bAllowReferenceElimination)
 	{
 		FReferenceChainSearch::FObjectReferenceInfo RefInfo(Object);
 		if (Object && !ReferencedObjects.Contains(RefInfo))

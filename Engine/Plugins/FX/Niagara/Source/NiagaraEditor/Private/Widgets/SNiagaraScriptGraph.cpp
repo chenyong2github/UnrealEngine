@@ -32,6 +32,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
+#include "Widgets/SNiagaraGraphActionMenu.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptGraph"
 
@@ -177,6 +178,7 @@ TSharedRef<SGraphEditor> SNiagaraScriptGraph::ConstructGraphEditor()
 	Events.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &SNiagaraScriptGraph::OnNodeTitleCommitted);
 	Events.OnVerifyTextCommit = FOnNodeVerifyTextCommit::CreateSP(this, &SNiagaraScriptGraph::OnVerifyNodeTextCommit);
 	Events.OnSpawnNodeByShortcut = SGraphEditor::FOnSpawnNodeByShortcut::CreateSP(this, &SNiagaraScriptGraph::OnSpawnGraphNodeByShortcut);
+	Events.OnCreateActionMenu = SGraphEditor::FOnCreateActionMenu::CreateSP(this, &SNiagaraScriptGraph::OnCreateActionMenu);
 
 	Commands = MakeShared<FUICommandList>();
 	Commands->Append(ViewModel->GetCommands());
@@ -315,7 +317,7 @@ bool SNiagaraScriptGraph::OnVerifyNodeTextCommit(const FText& NewText, UEdGraphN
 	UNiagaraNodeInput* InputNodeBeingChanged = Cast<UNiagaraNodeInput>(NodeBeingChanged);
 	if (InputNodeBeingChanged != nullptr)
 	{
-		return FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(*InputNodeBeingChanged, InputNodeBeingChanged->Input.GetName(), *NewText.ToString(), OutErrorMessage);
+		return FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(*InputNodeBeingChanged, InputNodeBeingChanged->Input.GetName(), NewText.ToString(), OutErrorMessage);
 	}
 	return bValid;
 }
@@ -346,30 +348,42 @@ FReply SNiagaraScriptGraph::OnSpawnGraphNodeByShortcut(FInputChord InChord, cons
 
 			UEdGraph* OwnerOfTemporaries = NewObject<UEdGraph>((UObject*)GetTransientPackage());
 			TArray<UObject*> SelectedObjects;
-			TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > Actions = Schema->GetGraphContextActions(Graph, SelectedObjects, nullptr, OwnerOfTemporaries);
+			TArray<TSharedPtr<FNiagaraAction_NewNode>> Actions = Schema->GetGraphActions(Graph, nullptr, OwnerOfTemporaries);
 
 			for (int32 ActionIdx = 0; ActionIdx < Actions.Num(); ActionIdx++)
 			{
-				TSharedPtr<FNiagaraSchemaAction_NewNode> NiagaraAction = Actions[ActionIdx];
-				if (!NiagaraAction.IsValid())
+				TSharedPtr<FNiagaraAction_NewNode>& NiagaraAction = Actions[ActionIdx];
+				
+				bool bMatch = false;
+				bool bCanMatch = true;
+				TArray<FString> CategoryParsedTerms;
+				Settings->GraphCreationShortcuts[i].Name.ParseIntoArray(CategoryParsedTerms, TEXT("::"), true);
+				FString ActionDisplayName = CategoryParsedTerms.Last();
+
+				// if we have more than one term, the shortcut has at least one category specified. In that case, we require the category chain to be identical
+				if(CategoryParsedTerms.Num() > 1 && CategoryParsedTerms.Num() - 1 == NiagaraAction->Categories.Num())
 				{
-					continue;
+					for(int32 CategoryIndex = 0; CategoryIndex < CategoryParsedTerms.Num() - 1; CategoryIndex++)
+					{
+						if(!CategoryParsedTerms[CategoryIndex].Equals(NiagaraAction->Categories[CategoryIndex], ESearchCase::IgnoreCase))
+						{
+							bCanMatch = false;
+							break;
+						}
+					}					
 				}
 
-				bool bMatch = false;
-				if (NiagaraAction->InternalName.ToString().Equals(Settings->GraphCreationShortcuts[i].Name, ESearchCase::IgnoreCase))
+				// we can match either only via DisplayName or via Category1::...:::ActionDisplayName 
+				if (bCanMatch && NiagaraAction->DisplayName.ToString().Equals(ActionDisplayName, ESearchCase::IgnoreCase))
 				{
 					bMatch = true;
 				}
-				if (!bMatch && NiagaraAction->GetMenuDescription().ToString().Equals(Settings->GraphCreationShortcuts[i].Name, ESearchCase::IgnoreCase))
-				{
-					bMatch = true;
-				}
+				
 				if (bMatch)
 				{
 					FScopedTransaction Transaction(LOCTEXT("AddNode", "Add Node"));
 					TArray<UEdGraphPin*> Pins;
-					NiagaraAction->PerformAction(Graph, Pins, InPosition);
+					NiagaraAction->CreateNode(Graph, Pins, InPosition);
 					return FReply::Handled();
 				}					
 			}
@@ -410,6 +424,23 @@ FReply SNiagaraScriptGraph::OnSpawnGraphNodeByShortcut(FInputChord InChord, cons
 	return FReply::Handled();
 	*/
 }
+
+FActionMenuContent SNiagaraScriptGraph::OnCreateActionMenu(UEdGraph* Graph, const FVector2D& Position, const TArray<UEdGraphPin*>& DraggedPins, bool bAutoExpandActionMenu, SGraphEditor::FActionMenuClosed OnClosed)
+{
+	FActionMenuContent Content;
+	
+	TSharedPtr<SNiagaraGraphActionMenu> ActionMenu = SNew(SNiagaraGraphActionMenu)
+	.GraphObj(Graph)
+	.NewNodePosition(Position)
+	.DraggedFromPins(DraggedPins)
+	.AutoExpandActionMenu(bAutoExpandActionMenu)
+	.OnClosedCallback(OnClosed);
+
+	Content.Content = ActionMenu.ToSharedRef();
+	Content.WidgetToFocus = ActionMenu->GetFilterTextBox();
+	return Content;
+}
+
 
 void SNiagaraScriptGraph::NodesPasted(const TSet<UEdGraphNode*>& PastedNodes)
 {

@@ -33,6 +33,7 @@
 #include "RendererUtils.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Rendering/RenderingCommon.h"
+#include "IHeadMountedDisplayModule.h"
 
 DECLARE_CYCLE_STAT(TEXT("Slate RT: Rendering"), STAT_SlateRenderingRTTime, STATGROUP_Slate);
 
@@ -192,6 +193,7 @@ FSlateRHIRenderer::FSlateRHIRenderer(TSharedRef<FSlateFontServices> InSlateFontS
 	bTakingAScreenShot = false;
 	OutScreenshotData = NULL;
 	ScreenshotViewportInfo = nullptr;
+	bIsStandaloneStereoOnlyDevice = IHeadMountedDisplayModule::IsAvailable() && IHeadMountedDisplayModule::Get().IsStandaloneStereoOnlyDevice();
 }
 
 FSlateRHIRenderer::~FSlateRHIRenderer()
@@ -334,7 +336,7 @@ void FSlateRHIRenderer::CreateViewport(const TSharedRef<SWindow> Window)
 		NewInfo->DesiredWidth = Width;
 		NewInfo->DesiredHeight = Height;
 		NewInfo->ProjectionMatrix = CreateProjectionMatrix( Width, Height );
-		if (FPlatformMisc::IsStandaloneStereoOnlyDevice())
+		if (bIsStandaloneStereoOnlyDevice)
 		{
 			NewInfo->PixelFormat = GetSlateRecommendedColorFormat();
 		}
@@ -1657,7 +1659,7 @@ void FSlateRHIRenderer::ClearScenes()
 
 EPixelFormat FSlateRHIRenderer::GetSlateRecommendedColorFormat()
 {
-	return FPlatformMisc::IsStandaloneStereoOnlyDevice() ? PF_R8G8B8A8 : PF_B8G8R8A8;
+	return bIsStandaloneStereoOnlyDevice ? PF_R8G8B8A8 : PF_B8G8R8A8;
 }
 
 FRHICOMMAND_MACRO(FClearCachedRenderingDataCommand)

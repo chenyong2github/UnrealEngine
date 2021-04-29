@@ -21,6 +21,8 @@
 #include "ScopedTransaction.h"
 #include "Interfaces/IMainFrameModule.h"
 
+#if WITH_AUTOMATION_TESTS
+
 #define LOCTEXT_NAMESPACE "EditorPromotionTestCommon"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorPromotionTests, Log, All);
@@ -319,3 +321,5 @@ void FEditorPromotionTestUtilities::TakeScreenshot(const FString& ScreenshotName
 }
 
 #undef LOCTEXT_NAMESPACE
+
+#endif

@@ -2,10 +2,21 @@
 
 #pragma once
 
-#include "WebRtcIncludes.h"
-#include "Codecs/WmfIncludes.h"
+
+#include "HAL/Thread.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformProcess.h"
+#include "HAL/PlatformTime.h"
+#include "HAL/ThreadSafeBool.h"
+#include "HAL/ThreadSafeCounter.h"
+#include "HAL/PlatformFilemanager.h"
+#include "HAL/IConsoleManager.h"
+#include "HAL/CriticalSection.h"
+
+#include "WebRTCIncludes.h"
+
+#include "WebRTCLogging.h"
 #include "Utils.h"
-#include "WebRtcLogging.h"
 
 // Engine
 
@@ -43,16 +54,6 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
-#include "HAL/Thread.h"
-#include "HAL/Platform.h"
-#include "HAL/PlatformProcess.h"
-#include "HAL/PlatformTime.h"
-#include "HAL/ThreadSafeBool.h"
-#include "HAL/ThreadSafeCounter.h"
-#include "HAL/PlatformFileManager.h"
-#include "HAL/IConsoleManager.h"
-#include "HAL/CriticalSection.h"
-
 #include "Containers/StringConv.h"
 #include "Containers/UnrealString.h"
 #include "Containers/Queue.h"
@@ -70,7 +71,13 @@
 #include "Sockets.h"
 #include "Engine/Engine.h"
 #include "Framework/Application/SlateUser.h"
+
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 #include "Windows/WindowsPlatformMisc.h"
+#elif PLATFORM_LINUX
+#include "Linux/LinuxPlatformMisc.h"
+#endif
+
 #include "Internationalization/Internationalization.h"
 #include "Delegates/IDelegateInstance.h"
 #include "Stats/Stats.h"

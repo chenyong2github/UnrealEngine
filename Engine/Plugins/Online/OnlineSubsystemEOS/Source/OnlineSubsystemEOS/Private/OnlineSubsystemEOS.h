@@ -7,11 +7,15 @@
 #include "OnlineSubsystemImpl.h"
 #include "SocketSubsystemEOS.h"
 
+#include COMPILED_PLATFORM_HEADER(EOSHelpers.h)
+
 DECLARE_STATS_GROUP(TEXT("EOS"), STATGROUP_EOS, STATCAT_Advanced);
 
 #if WITH_EOS_SDK
 
 #include "eos_sdk.h"
+
+class IEOSSDKManager;
 
 class FUserManagerEOS;
 typedef TSharedPtr<class FUserManagerEOS, ESPMode::ThreadSafe> FUserManagerEOSPtr;
@@ -37,6 +41,8 @@ typedef TSharedPtr<class FOnlineTitleFileEOS, ESPMode::ThreadSafe> FOnlineTitleF
 class FOnlineUserCloudEOS;
 typedef TSharedPtr<class FOnlineUserCloudEOS, ESPMode::ThreadSafe> FOnlineUserCloudEOSPtr;
 
+typedef TSharedPtr<FPlatformEOSHelpers, ESPMode::ThreadSafe> FPlatformEOSHelpersPtr;
+
 #ifndef EOS_PRODUCTNAME_MAX_BUFFER_LEN
 	#define EOS_PRODUCTNAME_MAX_BUFFER_LEN 64
 #endif
@@ -56,9 +62,10 @@ public:
 
 	/** Used to be called before RHIInit() */
 	static void ModuleInit();
+	static void ModuleShutdown();
 
-	/** Common method for creating the EOS platform */
-	static EOS_PlatformHandle* PlatformCreate();
+
+	FPlatformEOSHelpersPtr GetEOSHelpers() { return EOSHelpersPtr; };
 
 // IOnlineSubsystem
 	virtual IOnlineSessionPtr GetSessionInterface() const override;
@@ -103,6 +110,7 @@ PACKAGE_SCOPE:
 	FOnlineSubsystemEOS() = delete;
 	explicit FOnlineSubsystemEOS(FName InInstanceName) :
 		FOnlineSubsystemImpl(EOS_SUBSYSTEM, InInstanceName)
+		, EOSSDKManager(nullptr)
 		, EOSPlatformHandle(nullptr)
 		, AuthHandle(nullptr)
 		, UIHandle(nullptr)
@@ -127,12 +135,16 @@ PACKAGE_SCOPE:
 		, TitleFileInterfacePtr(nullptr)
 		, UserCloudInterfacePtr(nullptr)
 		, bWasLaunchedByEGS(false)
+		, bIsDefaultOSS(false)
+		, bIsPlatformOSS(false)
 	{
 		StopTicker();
 	}
 
 	char ProductNameAnsi[EOS_PRODUCTNAME_MAX_BUFFER_LEN];
 	char ProductVersionAnsi[EOS_PRODUCTVERSION_MAX_BUFFER_LEN];
+
+	IEOSSDKManager* EOSSDKManager;
 
 	/** EOS handles */
 	EOS_HPlatform EOSPlatformHandle;
@@ -173,6 +185,11 @@ PACKAGE_SCOPE:
 	bool bIsPlatformOSS;
 
 	TSharedPtr<FSocketSubsystemEOS, ESPMode::ThreadSafe> SocketSubsystem;
+
+	static FPlatformEOSHelpersPtr EOSHelpersPtr;
+
+private:
+	bool PlatformCreate();
 };
 
 #else

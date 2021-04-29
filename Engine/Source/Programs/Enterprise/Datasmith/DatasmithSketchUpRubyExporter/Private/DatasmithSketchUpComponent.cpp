@@ -57,7 +57,7 @@ void FNodeOccurence::ToDatasmith(FExportContext& Context)
 	// Convert the SketchUp normal component instances into sub-hierarchies of Datasmith actors.
 	for (SUComponentInstanceRef SComponentInstanceRef : Entities.GetComponentInstances())
 	{
-		TSharedPtr<FComponentInstance> ComponentInstance = Context.ComponentInstances.AddComponentInstance(SComponentInstanceRef);
+		TSharedPtr<FComponentInstance> ComponentInstance = Context.ComponentInstances.AddComponentInstance(*EntityDefinition, SComponentInstanceRef);
 		if (ComponentInstance.IsValid())
 		{
 			AddChildOccurrence(Context, *ComponentInstance);
@@ -69,7 +69,7 @@ void FNodeOccurence::ToDatasmith(FExportContext& Context)
 	{
 		SUComponentInstanceRef SComponentInstanceRef = SUGroupToComponentInstance(SGroupRef);
 
-		TSharedPtr<FComponentInstance> ComponentInstance = Context.ComponentInstances.AddComponentInstance(SComponentInstanceRef);
+		TSharedPtr<FComponentInstance> ComponentInstance = Context.ComponentInstances.AddComponentInstance(*EntityDefinition, SComponentInstanceRef);
 		if (ComponentInstance.IsValid())
 		{
 			AddChildOccurrence(Context, *ComponentInstance);
@@ -122,7 +122,6 @@ void FNodeOccurence::UpdateMeshActors(FExportContext& Context)
 
 		// Create a Datasmith mesh actor for the Datasmith mesh element.
 		TSharedPtr<IDatasmithMeshActorElement> DMeshActorPtr = FDatasmithSceneFactory::CreateMeshActor(*MeshActorName);
-		DMeshActorPtr->SetIsAComponent(true);
 
 		MeshActors.Add(DMeshActorPtr);
 
@@ -264,13 +263,16 @@ void FNodeOccurence::RemoveOccurrence(FExportContext& Context)
 		}
 	}
 
-	if (const TSharedPtr<IDatasmithActorElement>& ParentActor = DatasmithActorElement->GetParentActor())
+	if (DatasmithActorElement)
 	{
-		ParentActor->RemoveChild(DatasmithActorElement);
-	}
-	else
-	{
-		Context.DatasmithScene->RemoveActor(DatasmithActorElement, EDatasmithActorRemovalRule::RemoveChildren);
+		if (const TSharedPtr<IDatasmithActorElement>& ParentActor = DatasmithActorElement->GetParentActor())
+		{
+			ParentActor->RemoveChild(DatasmithActorElement);
+		}
+		else
+		{
+			Context.DatasmithScene->RemoveActor(DatasmithActorElement, EDatasmithActorRemovalRule::RemoveChildren);
+		}
 	}
 }
 
@@ -752,6 +754,21 @@ void FComponentInstance::RemoveComponentInstance(FExportContext& Context)
 	Definition.EntityVisible(this, false);
 	Definition.UnlinkComponentInstance(this);
 	RemoveOccurrences(Context);
+}
+
+void FComponentInstance::SetParentDefinition(FExportContext& Context, FDefinition* InParent)
+{
+	if (!IsParentDefinition(InParent)) // Changing parent
+	{
+		// If we are re-parenting(i.e. entity was previously owned by another Definition - this happens
+		// when say a ComponentInstance was selected in UI and "Make Group" was performed.
+		if (Parent)
+		{
+			RemoveOccurrences(Context);
+		}
+
+		Parent = InParent;
+	}
 }
 
 FModel::FModel(FModelDefinition& InDefinition) : Definition(InDefinition)

@@ -145,9 +145,13 @@ private:
 	TSharedPtr<FStructOnScope> CreateInitialStructInstance(const void* SourceChannel, UMovieSceneKeyStructType* GeneratedStructType, int32 InitialKeyIndex);
 
 	/**
-	 * Applies reflected values from the key struct instance back into the channel
+	 * FGCObject Interface
 	 */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FSequencerKeyStructGenerator");
+	}
 
 	/**
 	 * Applies reflected values from the key struct instance back into the channel, called on user-interaction with the edit instance

@@ -5,8 +5,11 @@
 #include "DatasmithRuntime.h"
 #include "DirectLinkUtils.h"
 #include "LogCategory.h"
+#include "MaterialImportUtils.h"
+#include "MaterialSelectors/DatasmithRuntimeMaterialSelector.h"
 
 #include "DatasmithTranslatorModule.h"
+#include "MasterMaterials/DatasmithMasterMaterialManager.h"
 
 #if WITH_EDITOR
 #include "Settings/ProjectPackagingSettings.h"
@@ -16,8 +19,9 @@
 #ifdef USE_CAD_RUNTIME_DLL
 #include "CoreTechTypes.h"
 #include "DatasmithCADTranslatorModule.h"
-#include "DatasmithOpenNurbsTranslatorModule.h"
-#include "DatasmithWireTranslatorModule.h"
+// Temporarily remove dependency to Rhino and Wire translators
+//#include "DatasmithOpenNurbsTranslatorModule.h"
+//#include "DatasmithWireTranslatorModule.h"
 #include "DatasmithDispatcherModule.h"
 #include "CADInterfacesModule.h"
 
@@ -83,8 +87,9 @@ public:
 				if (((int32 (*)(void (*)(TSharedPtr<CADLibrary::ICoreTechInterface>)))DatasmithCADRuntimeInit)(&CADLibrary::SetCoreTechInterface) == 0)
 				{
 					FModuleManager::Get().LoadModuleChecked(DATASMITHDISPATCHER_MODULE_NAME);
-					FModuleManager::Get().LoadModuleChecked(DATASMITHWIRETRANSLATOR_MODULE_NAME);
-					FModuleManager::Get().LoadModuleChecked(DATASMITHOPENNURBSTRANSLATOR_MODULE_NAME);
+					// Temporarily remove dependency to Rhino and Wire translators
+					//FModuleManager::Get().LoadModuleChecked(DATASMITHWIRETRANSLATOR_MODULE_NAME);
+					//FModuleManager::Get().LoadModuleChecked(DATASMITHOPENNURBSTRANSLATOR_MODULE_NAME);
 					FModuleManager::Get().LoadModuleChecked(DATASMITHCADTRANSLATOR_MODULE_NAME);
 
 					if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.CADTranslator.EnableThreadedImport")))
@@ -109,12 +114,16 @@ public:
 
 		DatasmithRuntime::FDestinationProxy::InitializeEndpointProxy();
 
+		FDatasmithMasterMaterialManager::Get().RegisterSelector(DatasmithRuntime::MATERIAL_HOST, MakeShared< FDatasmithRuntimeMaterialSelector >());
+
 		ADatasmithRuntimeActor::OnStartupModule(bCADRuntimeSupported);
 	}
 
 	virtual void ShutdownModule() override
 	{
 		ADatasmithRuntimeActor::OnShutdownModule();
+		
+		FDatasmithMasterMaterialManager::Get().UnregisterSelector(DatasmithRuntime::MATERIAL_HOST);
 
 		DatasmithRuntime::FDestinationProxy::ShutdownEndpointProxy();
 	}

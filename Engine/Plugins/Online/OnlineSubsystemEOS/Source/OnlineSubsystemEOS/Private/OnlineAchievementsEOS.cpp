@@ -41,7 +41,12 @@ void FOnlineAchievementsEOS::QueryAchievements(const FUniqueNetId& PlayerId, con
 
 	EOS_Achievements_QueryPlayerAchievementsOptions Options = { };
 	Options.ApiVersion = EOS_ACHIEVEMENTS_QUERYPLAYERACHIEVEMENTS_API_LATEST;
+#if EOS_ACHIEVEMENTS_QUERYPLAYERACHIEVEMENTS_API_LATEST >= 2
+	Options.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(LocalUserId);
+	Options.TargetUserId = Options.LocalUserId;
+#else
 	Options.UserId = EOSSubsystem->UserManager->GetLocalProductUserId(LocalUserId);
+#endif
 
 	FQueryProgressCallback* CallbackObj = new FQueryProgressCallback();
 	CallbackObj->CallbackLambda = [this, LambdaPlayerId = PlayerId.AsShared(), OnComplete = FOnQueryAchievementsCompleteDelegate(Delegate)](const EOS_Achievements_OnQueryPlayerAchievementsCompleteCallbackInfo* Data)
@@ -62,7 +67,12 @@ void FOnlineAchievementsEOS::QueryAchievements(const FUniqueNetId& PlayerId, con
 
 			EOS_Achievements_CopyPlayerAchievementByIndexOptions CopyOptions = { };
 			CopyOptions.ApiVersion = EOS_ACHIEVEMENTS_COPYPLAYERACHIEVEMENTBYINDEX_API_LATEST;
+#if EOS_ACHIEVEMENTS_COPYPLAYERACHIEVEMENTBYINDEX_API_LATEST >= 2
+			CopyOptions.LocalUserId = UserId;
+			CopyOptions.TargetUserId = UserId;
+#else
 			CopyOptions.UserId = UserId;
+#endif
 
 			for (uint32 Index = 0; Index < Count; Index++)
 			{

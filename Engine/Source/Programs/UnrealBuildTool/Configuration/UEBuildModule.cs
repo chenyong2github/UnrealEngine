@@ -206,7 +206,7 @@ namespace UnrealBuildTool
 				else
 				{
 					// the library path does not seem to be resolvable as is, lets warn about it as dependency checking will not work for it
-					Log.TraceWarning("Library '{0}' was not resolvable to a file when used in Module '{1}', assuming it is a filename and will search library paths for it. This is slow and dependency checking will not work for it. Please update reference to be fully qualified alternatively use PublicSystemLibraryPaths if you do intended to use this slow path to suppress this warning. ", LibraryName, Name);
+					LogWarningOrThrowError(Rules.Target.DefaultWarningLevel, "Library '{0}' was not resolvable to a file when used in Module '{1}', assuming it is a filename and will search library paths for it. This is slow and dependency checking will not work for it. Please update reference to be fully qualified alternatively use PublicSystemLibraryPaths if you do intended to use this slow path to suppress this warning. ", LibraryName, Name);
 					PublicSystemLibraries.Add(LibraryName);
 				}
 			}
@@ -247,6 +247,24 @@ namespace UnrealBuildTool
 
 			// get the module directories from the module
 			ModuleDirectories = Rules.GetAllModuleDirectories();
+		}
+
+		/// <summary>
+		/// Log a warning or throw an error message
+		/// </summary>
+		/// <param name="Level"></param>
+		/// <param name="Format"></param>
+		/// <param name="Args"></param>
+		static void LogWarningOrThrowError(WarningLevel Level, string Format, params object[] Args)
+		{
+			if (Level == WarningLevel.Error)
+			{
+				throw new BuildException(Format, Args);
+			}
+			else if (Level == WarningLevel.Warning)
+			{
+				Log.TraceWarning(Format, Args);
+			}
 		}
 
 		/// <summary>
@@ -835,6 +853,34 @@ namespace UnrealBuildTool
 		/// <param name="bOnlyDirectDependencies">True to return only this module's direct dependencies</param>
 		public virtual void GetAllDependencyModules(List<UEBuildModule> ReferencedModules, HashSet<UEBuildModule> IgnoreReferencedModules, bool bIncludeDynamicallyLoaded, bool bForceCircular, bool bOnlyDirectDependencies)
 		{
+			List<UEBuildModule> AllDependencyModules = new List<UEBuildModule>();
+			AllDependencyModules.AddRange(PrivateDependencyModules!);
+			AllDependencyModules.AddRange(PublicDependencyModules!);
+			if (bIncludeDynamicallyLoaded)
+			{
+				AllDependencyModules.AddRange(DynamicallyLoadedModules!);
+			}
+
+			foreach (UEBuildModule DependencyModule in AllDependencyModules)
+			{
+				if (!IgnoreReferencedModules.Contains(DependencyModule))
+				{
+					// Don't follow circular back-references!
+					bool bIsCircular = HasCircularDependencyOn(DependencyModule.Name);
+					if (bForceCircular || !bIsCircular)
+					{
+						IgnoreReferencedModules.Add(DependencyModule);
+
+						if (!bOnlyDirectDependencies)
+						{
+							// Recurse into dependent modules first
+							DependencyModule.GetAllDependencyModules(ReferencedModules, IgnoreReferencedModules, bIncludeDynamicallyLoaded, bForceCircular, bOnlyDirectDependencies);
+						}
+
+						ReferencedModules.Add(DependencyModule);
+					}
+				}
+			}
 		}
 
 		public delegate UEBuildModule CreateModuleDelegate(string Name, string ReferenceChain);
@@ -921,6 +967,17 @@ namespace UnrealBuildTool
 			// same module twice (it produces better errors if something fails).
 			if(PrivateIncludePathModules == null)
 			{
+				// Log dependencies if required
+				if ( Log.OutputLevel >= LogEventType.VeryVerbose)
+				{
+					Log.TraceVeryVerbose("Module {0} dependencies:", this.Name);
+					LogDependencyNameList("Public:", Rules.PublicDependencyModuleNames);
+					LogDependencyNameList("Private:", Rules.PrivateDependencyModuleNames);
+					LogDependencyNameList("Dynamic:", Rules.DynamicallyLoadedModuleNames);
+					LogDependencyNameList("Public Include Paths:", Rules.PublicIncludePathModuleNames);
+					LogDependencyNameList("Private Include Paths:", Rules.PrivateIncludePathModuleNames);
+				}
+
 				// Create the private include path modules
 				RecursivelyCreateIncludePathModulesByName(Rules.PrivateIncludePathModuleNames, ref PrivateIncludePathModules, CreateModule, NextReferenceChain);
 
@@ -933,6 +990,15 @@ namespace UnrealBuildTool
 
 			// pop us off the current stack
 			ReferenceStack.RemoveAt(ReferenceStack.Count - 1);
+		}
+
+		private static void LogDependencyNameList(string Title, List<string> DependencyNameList)
+		{
+			Log.TraceVeryVerbose("  " + Title);
+			foreach (string name in DependencyNameList)
+			{
+				Log.TraceVeryVerbose("    " + name);
+			}
 		}
 
 		private static void RecursivelyCreateModulesByName(List<string> ModuleNames, ref List<UEBuildModule>? Modules, CreateModuleDelegate CreateModule, string ReferenceChain, List<UEBuildModule> ReferenceStack)

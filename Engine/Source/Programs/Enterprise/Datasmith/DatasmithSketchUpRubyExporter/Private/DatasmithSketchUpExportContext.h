@@ -46,8 +46,8 @@ namespace DatasmithSketchUp
 	public:
 		FComponentInstanceCollection(FExportContext& InContext) : Context(InContext) {}
 
-		TSharedPtr<FComponentInstance> AddComponentInstance(SUComponentInstanceRef InComponentInstanceRef); // Register ComponentInstanceRef in the collection
-		bool RemoveComponentInstance(FComponentInstanceIDType ComponentInstanceId);
+		TSharedPtr<FComponentInstance> AddComponentInstance(FDefinition& ParentDefinition, SUComponentInstanceRef InComponentInstanceRef); // Register ComponentInstance as a child of ParentDefinition
+		bool RemoveComponentInstance(FComponentInstanceIDType ParentEntityId, FComponentInstanceIDType ComponentInstanceId); // Take note that ComponentInstance removed from ParentDefinition children
 
 		bool InvalidateComponentInstanceProperties(FComponentInstanceIDType ComponentInstanceID);
 		void InvalidateComponentInstanceGeometry(FComponentInstanceIDType ComponentInstanceID);
@@ -192,8 +192,8 @@ namespace DatasmithSketchUp
 		void Populate(); // Create Datasmith scene from the Model
 		void Update(); // Update Datasmith scene to reflect iterative changes done to the Model 
 
-		DatasmithSketchUp::FDefinition* GetEntityDefinition(SUEntityRef Entity);
-
+		FDefinition* GetDefinition(SUEntityRef Entity);
+		FDefinition* GetDefinition(FEntityIDType DefinitionEntityId);
 
 		SUModelRef ModelRef = SU_INVALID;
 

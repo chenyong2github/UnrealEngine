@@ -85,6 +85,19 @@ public:
 							const float ConeAngle = ShapeDetails.Extents.Y;
 							DrawWireSphereCappedCone(PDI, Origin, ConeRadius, ConeAngle, 16, 4, 10, OuterRadiusColor, SDPG_World );
 						}
+
+						if (!FMath::IsNearlyZero(ShapeDetails.ConeSphereRadius, KINDA_SMALL_NUMBER))
+						{
+							if (ShapeDetails.ConeSphereFalloff > 0.f)
+							{
+								DrawWireSphereAutoSides(PDI, Origin, OuterRadiusColor, ShapeDetails.ConeSphereRadius + ShapeDetails.ConeSphereFalloff, SDPG_World);
+								DrawWireSphereAutoSides(PDI, Origin, InnerRadiusColor, ShapeDetails.ConeSphereRadius, SDPG_World);
+							}
+							else
+							{
+								DrawWireSphereAutoSides(PDI, Origin, OuterRadiusColor, ShapeDetails.ConeSphereRadius, SDPG_World);
+							}
+						}
 					}
 					break;
 

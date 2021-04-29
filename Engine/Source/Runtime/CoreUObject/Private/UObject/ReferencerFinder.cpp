@@ -12,22 +12,20 @@ class FAllReferencesProcessor : public FSimpleReferenceProcessorBase
 {
 	const TSet<UObject*>& PotentiallyReferencedObjects;
 	TSet<UObject*>& ReferencingObjects;
-	UObject* CurrentObject;
 	EReferencerFinderFlags Flags;
 
 public:
 	FAllReferencesProcessor(const TSet<UObject*>& InPotentiallyReferencedObjects, EReferencerFinderFlags InFlags, TSet<UObject*>& OutReferencingObjects)
 		: PotentiallyReferencedObjects(InPotentiallyReferencedObjects)
 		, ReferencingObjects(OutReferencingObjects)
-		, CurrentObject(nullptr)
 		, Flags(InFlags)
 	{
 	}
-	FORCEINLINE_DEBUGGABLE void HandleTokenStreamObjectReference(TArray<UObject*>& ObjectsToSerialize, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, bool bAllowReferenceElimination)
+	FORCEINLINE_DEBUGGABLE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, bool bAllowReferenceElimination)
 	{
 		if (!ReferencingObject)
 		{
-			ReferencingObject = CurrentObject;
+			ReferencingObject = ObjectsToSerializeStruct.GetReferencingObject();
 		}
 		if (Object && ReferencingObject && Object != ReferencingObject)
 		{
@@ -43,10 +41,6 @@ public:
 				ReferencingObjects.Add(ReferencingObject);
 			}
 		}
-	}
-	void SetCurrentObject(UObject* Obj)
-	{
-		CurrentObject = Obj;
 	}
 };
 typedef TDefaultReferenceCollector<FAllReferencesProcessor> FAllReferencesCollector;
@@ -123,9 +117,14 @@ TArray<UObject*> FReferencerFinder::GetAllReferencers(const TSet<UObject*>& Refe
 					}
 				}
 			}
-
-			// Now check if any of the potential referencers is referencing any of the referencees
-			ReferenceCollector.CollectReferences(ArrayStruct);
+			
+			{
+				// Since ReferenceCollector is configured to automatically assemble reference token streams
+				// for classes that require it, make sure GC is locked because UClass::AssembleReferenceTokenStream requires it
+				FGCScopeGuard GCGuard;
+				// Now check if any of the potential referencers is referencing any of the referencees
+				ReferenceCollector.CollectReferences(ArrayStruct);
+			}
 
 			if (ThreadResult.Num())
 			{

@@ -9,6 +9,7 @@
 #include "NiagaraEditorCommon.h"
 #include "NiagaraClipboard.h"
 #include "NiagaraEditorModule.h"
+#include "NiagaraNodeFunctionCall.h"
 
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -282,6 +283,15 @@ void ToggleEnabledState(TWeakObjectPtr<UNiagaraStackItem> StackItemWeak)
 	}
 }
 
+void ToggleShouldDebugDraw(TWeakObjectPtr<UNiagaraStackItem> StackItemWeak)
+{
+	UNiagaraStackModuleItem* ModuleItem = Cast<UNiagaraStackModuleItem>(StackItemWeak.Get());
+	if (ModuleItem != nullptr)
+	{
+		ModuleItem->SetDebugDrawEnabled(!ModuleItem->IsDebugDrawEnabled());
+	}
+}
+
 bool FNiagaraStackEditorWidgetsUtilities::AddStackItemContextMenuActions(FMenuBuilder& MenuBuilder, UNiagaraStackItem& StackItem)
 {
 	if (StackItem.SupportsChangeEnabled())
@@ -301,6 +311,22 @@ bool FNiagaraStackEditorWidgetsUtilities::AddStackItemContextMenuActions(FMenuBu
 					NAME_None,
 					EUserInterfaceActionType::Check);
 			}
+
+			UNiagaraStackModuleItem* ModuleItem = Cast<UNiagaraStackModuleItem>(&StackItem);
+			if (ModuleItem && ModuleItem->GetModuleNode().ContainsDebugSwitch())
+			{
+				FUIAction Action(FExecuteAction::CreateStatic(&ToggleShouldDebugDraw, TWeakObjectPtr<UNiagaraStackItem>(&StackItem)),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateUObject(ModuleItem, &UNiagaraStackModuleItem::IsDebugDrawEnabled));
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("ShouldDebugDraw", "Enable Debug Draw"),
+					LOCTEXT("ToggleShouldDebugDrawToolTip", "Toggle debug draw enable/disabled"),
+					FSlateIcon(),
+					Action,
+					NAME_None,
+					EUserInterfaceActionType::Check);
+			}
+
 		}
 		MenuBuilder.EndSection();
 		return true;
@@ -314,11 +340,12 @@ void ShowInsertModuleMenu(TWeakObjectPtr<UNiagaraStackModuleItem> StackModuleIte
 	TSharedPtr<SWidget> TargetWidget = TargetWidgetWeak.Pin();
 	if (StackModuleItem != nullptr && TargetWidget.IsValid())
 	{
-		TSharedRef<SWidget> MenuContent = SNew(SNiagaraStackItemGroupAddMenu, StackModuleItem->GetGroupAddUtilities(), StackModuleItem->GetModuleIndex() + InsertOffset);
+		TSharedRef<SNiagaraStackItemGroupAddMenu> MenuContent = SNew(SNiagaraStackItemGroupAddMenu, StackModuleItem->GetGroupAddUtilities(), StackModuleItem->GetModuleIndex() + InsertOffset);
 		FGeometry ThisGeometry = TargetWidget->GetCachedGeometry();
 		bool bAutoAdjustForDpiScale = false; // Don't adjust for dpi scale because the push menu command is expecting an unscaled position.
 		FVector2D MenuPosition = FSlateApplication::Get().CalculatePopupWindowPosition(ThisGeometry.GetLayoutBoundingRect(), MenuContent->GetDesiredSize(), bAutoAdjustForDpiScale);
 		FSlateApplication::Get().PushMenu(TargetWidget.ToSharedRef(), FWidgetPath(), MenuContent, MenuPosition, FPopupTransitionEffect::ContextMenu);
+		FSlateApplication::Get().SetKeyboardFocus(MenuContent->GetFilterTextBox());
 	}
 }
 

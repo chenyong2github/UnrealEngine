@@ -1107,7 +1107,8 @@ void RecombineMainCS(
 		// This matches what is done in ComposeSeparateTranslucency.usf
 		OutputFinalSceneColor.rgb = OutputFinalSceneColor.rgb * SeparateTranslucencyBackgroundVisibility * SeparateTranslucencyModulateColor.rgb + SeparateTranslucencyColor.rgb;
 		// Also stores BackgroundVisibility (=transmittance) in alpha
-		OutputFinalSceneColor.a = SeparateTranslucencyBackgroundVisibility * GreyScaleModulateColorBackgroundVisibility;
+		float FinalSceneVisibility = 1.0 - OutputFinalSceneColor.a;
+		OutputFinalSceneColor.a = FinalSceneVisibility * SeparateTranslucencyBackgroundVisibility * GreyScaleModulateColorBackgroundVisibility;
 
 		// Convert from visibility to coverage to comply with the following process
 		OutputFinalSceneColor.a = 1.0f - OutputFinalSceneColor.a;

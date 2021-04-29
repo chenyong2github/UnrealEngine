@@ -205,6 +205,8 @@ struct ENGINE_API FCameraShakeDuration
 	/** Creates a new shake duration */
 	FCameraShakeDuration(float InDuration, ECameraShakeDurationType InType = ECameraShakeDurationType::Fixed) : Duration(InDuration), Type(InType) {}
 	
+	/** Returns the duration type */
+	ECameraShakeDurationType GetDurationType() const { return Type; }
 	/** Returns whether this duration is a fixed time */
 	bool IsFixed() const { return Type == ECameraShakeDurationType::Fixed; }
 	/** Returns whether this duration is infinite */
@@ -478,6 +480,13 @@ public:
 	 * A camera shake is active between the calls to StartShake and TeardownShake.
 	 */
 	bool IsActive() const { return State.IsActive(); }
+
+	/**
+	 * Returns the elapsed time of the current state.
+	 *
+	 * A camera shake is active between the calls to StartShake and TeardownShake.
+	 */
+	float GetElapsedTime() const { return State.IsActive() ? State.GetElapsedTime() : 0.0f; }
 
 	/** Starts this camera shake with the given parameters */
 	void StartShake(APlayerCameraManager* Camera, float Scale, ECameraShakePlaySpace InPlaySpace, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);

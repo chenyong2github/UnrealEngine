@@ -41,6 +41,10 @@ namespace MoviePipeline
 	static void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const MoviePipeline::FImageSampleAccumulationArgs& InParams);
 }
 
+FString UMoviePipelineDeferredPassBase::StencilLayerMaterialAsset = TEXT("/MovieRenderPipeline/Materials/MoviePipeline_StencilCutout.MoviePipeline_StencilCutout");
+FString UMoviePipelineDeferredPassBase::DefaultDepthAsset = TEXT("/MovieRenderPipeline/Materials/MovieRenderQueue_WorldDepth.MovieRenderQueue_WorldDepth");
+FString UMoviePipelineDeferredPassBase::DefaultMotionVectorsAsset = TEXT("/MovieRenderPipeline/Materials/MovieRenderQueue_MotionVectors.MovieRenderQueue_MotionVectors");
+
 UMoviePipelineDeferredPassBase::UMoviePipelineDeferredPassBase() 
 	: UMoviePipelineImagePassBase()
 {
@@ -48,8 +52,8 @@ UMoviePipelineDeferredPassBase::UMoviePipelineDeferredPassBase()
 
 	// To help user knowledge we pre-seed the additional post processing materials with an array of potentially common passes.
 	TArray<FString> DefaultPostProcessMaterials;
-	DefaultPostProcessMaterials.Add(TEXT("/MovieRenderPipeline/Materials/MovieRenderQueue_WorldDepth.MovieRenderQueue_WorldDepth"));
-	DefaultPostProcessMaterials.Add(TEXT("/MovieRenderPipeline/Materials/MovieRenderQueue_MotionVectors.MovieRenderQueue_MotionVectors"));
+	DefaultPostProcessMaterials.Add(DefaultDepthAsset);
+	DefaultPostProcessMaterials.Add(DefaultMotionVectorsAsset);
 
 	for (FString& MaterialPath : DefaultPostProcessMaterials)
 	{
@@ -103,7 +107,7 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 	}
 
 	{
-		TSoftObjectPtr<UMaterialInterface> StencilMatRef = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/MovieRenderPipeline/Materials/MoviePipeline_StencilCutout.MoviePipeline_StencilCutout")));
+		TSoftObjectPtr<UMaterialInterface> StencilMatRef = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(StencilLayerMaterialAsset));
 		StencilLayerMaterial = StencilMatRef.LoadSynchronous();
 		if (!StencilLayerMaterial)
 		{

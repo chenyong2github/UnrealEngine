@@ -10,15 +10,14 @@ USTRUCT(BlueprintType)
 struct LEVELSNAPSHOTFILTERS_API FIsActorValidParams
 {
 	GENERATED_BODY()
-public:
 
 	/* The actor saved in the snapshot */
 	UPROPERTY(BlueprintReadWrite, Category = "Level Snapshots")
-	AActor* SnapshotActor;
+	AActor* SnapshotActor = nullptr;
 	
 	/* The actor equivalent to LevelActor: it exists in the world */
 	UPROPERTY(BlueprintReadWrite, Category = "Level Snapshots")
-	AActor* LevelActor;
+	AActor* LevelActor = nullptr;
 
 	FIsActorValidParams() = default;
 	FIsActorValidParams(AActor* InSnapshotActor, AActor* InLevelActor)
@@ -31,15 +30,14 @@ USTRUCT(BlueprintType)
 struct LEVELSNAPSHOTFILTERS_API FIsPropertyValidParams
 {
 	GENERATED_BODY()
-public:
 
 	/* The actor saved in the snapshot */
 	UPROPERTY(BlueprintReadOnly, Category = "Level Snapshots")
-	AActor* SnapshotActor;
+	AActor* SnapshotActor = nullptr;
 	
 	/* The actor equivalent to LevelActor: it exists in the world */
 	UPROPERTY(BlueprintReadOnly, Category = "Level Snapshots")
-	AActor* LevelActor;
+	AActor* LevelActor = nullptr;
 
 	/* For passing to FProperty::ContainerPtrToValuePtr. This is either SnapshotActor or a subobject thereof. */
 	UPROPERTY(BlueprintReadOnly, Category = "Level Snapshots")
@@ -72,5 +70,42 @@ public:
 		  LevelPropertyContainers(InLevelPropertyContainers),
 		  Property(InProperty),
 		  PropertyPath(InPropertyPath)
+	{}
+};
+
+USTRUCT(BlueprintType)
+struct LEVELSNAPSHOTFILTERS_API FIsDeletedActorValidParams
+{
+	GENERATED_BODY()
+
+	/* Holds path info for an actor that was deleted since the snapshot was taken.
+	 * Contains the path to the original actor before it was deleted. */
+	UPROPERTY(BlueprintReadOnly, Category = "Level Snapshots")
+	FSoftObjectPath SavedActorPath;
+
+	/* Helper property for deserializing SavedActorPath. */
+	TFunction<AActor*(const FSoftObjectPath&)> HelperForDeserialization;
+
+	FIsDeletedActorValidParams() = default;
+	FIsDeletedActorValidParams(FSoftObjectPath SavedActorPath, TFunction<AActor*(const FSoftObjectPath&)> HelperForDeserialization)
+		:
+		SavedActorPath(SavedActorPath),
+		HelperForDeserialization(HelperForDeserialization)
+	{}
+};
+
+USTRUCT(BlueprintType)
+struct LEVELSNAPSHOTFILTERS_API FIsAddedActorValidParams
+{
+	GENERATED_BODY()
+
+	/* This actor was added to the level since the snapshot was taken. */
+	UPROPERTY(BlueprintReadOnly, Category = "Level Snapshots")
+	AActor* NewActor = nullptr;
+
+	FIsAddedActorValidParams() = default;
+	explicit FIsAddedActorValidParams(AActor* NewActor)
+		:
+		NewActor(NewActor)
 	{}
 };

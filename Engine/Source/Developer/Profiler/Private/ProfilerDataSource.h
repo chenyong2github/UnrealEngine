@@ -9,6 +9,8 @@
 #include "ProfilerCommon.h"
 #include "ProfilerSample.h"
 
+#if STATS
+
 class FEventGraphData;
 class FEventGraphSample;
 class FProfilerAggregatedStat;
@@ -2255,3 +2257,5 @@ protected:
 };
 
 //}//namespace FEventGraphSample
+
+#endif // STATS

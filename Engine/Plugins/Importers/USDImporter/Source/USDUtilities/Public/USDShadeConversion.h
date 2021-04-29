@@ -42,6 +42,17 @@ namespace UsdToUnreal
 	USDUTILITIES_API bool ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& Material, UUsdAssetCache* TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex );
 	USDUTILITIES_API bool ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material );
 	USDUTILITIES_API bool ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material, UUsdAssetCache* TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex );
+
+	/**
+	 * Attemps to assign the values of the surface shader inputs to the MaterialInstance parameters by matching the inputs display names to the parameters names.
+	 * @param UsdShadeMaterial - Shade material with the data to convert
+	 * @param MaterialInstance - Material instance on which we will set the parameter values
+	 * @param TexturesCache - Cache to prevent importing a texture more than once
+	 * @param RenderContext - The USD render context to use when fetching the surface shader
+	 * @return Whether the conversion was successful or not.
+	 * 
+	 */
+	USDUTILITIES_API bool ConvertShadeInputsToParameters( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& MaterialInstance, UUsdAssetCache* TexturesCache, const TCHAR* RenderContext = nullptr );
 }
 
 #if WITH_EDITOR

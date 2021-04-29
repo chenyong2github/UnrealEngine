@@ -2160,8 +2160,7 @@ void UNiagaraGraph::RebuildCachedCompileIds(bool bForce)
 		return;
 	}
 
-	static const bool bNoShaderCompile = FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
-	if (bNoShaderCompile)
+	if (!AllowShaderCompiling())
 	{
 		return;
 	}

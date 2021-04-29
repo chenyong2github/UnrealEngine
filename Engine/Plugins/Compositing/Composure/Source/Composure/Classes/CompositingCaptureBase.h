@@ -4,9 +4,11 @@
 
 #include "CompositingElement.h"
 
-#include "LensDistortionDataHandler.h"
+#include "LensDistortionModelHandlerBase.h"
 
 #include "CompositingCaptureBase.generated.h"
+
+class USceneCaptureComponent2D;
 
 /**
  * Base class for CG Compositing Elements
@@ -28,7 +30,7 @@ protected:
 
 	/** Pointer to the Lens Distortion Data Handler that belongs to the CameraComponent of the TargetCameraActor */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Composure|LensDistortion", Transient)
-	ULensDistortionDataHandler* LensDistortionHandler = nullptr;
+	ULensDistortionModelHandlerBase* LensDistortionHandler = nullptr;
 
 	/** Cached distortion MID produced by the Lens Distortion Handler, used to clean up the post-process materials in the case that the the MID changes */
 	UPROPERTY(Transient)

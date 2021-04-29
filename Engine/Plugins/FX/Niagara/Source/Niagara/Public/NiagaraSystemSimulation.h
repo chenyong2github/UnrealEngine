@@ -241,6 +241,10 @@ class FNiagaraSystemSimulation : public TSharedFromThis<FNiagaraSystemSimulation
 public:
 	//FGCObject Interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector)override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FNiagaraSystemSimulation");
+	}
 	//FGCObject Interface END
 
 	FNiagaraSystemSimulation();

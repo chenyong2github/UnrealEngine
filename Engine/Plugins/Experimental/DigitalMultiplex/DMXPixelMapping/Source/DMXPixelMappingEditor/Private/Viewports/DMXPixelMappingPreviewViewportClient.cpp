@@ -36,12 +36,12 @@ void FDMXPixelMappingPreviewViewportClient::Draw(FViewport* InViewport, FCanvas*
 	{
 		for (UDMXPixelMappingOutputComponent* OutputComponent : Toolkit->GetActiveOutputComponents())
 		{
-			UTextureRenderTarget2D* InputTexture = OutputComponent->GetOutputTexture();
+			UTextureRenderTarget2D* InputTexture = RendererComponent->GetPreviewRenderTarget();
 			const TSharedPtr<IDMXPixelMappingRenderer>& Renderer = RendererComponent->GetRenderer();
 
 			if (Renderer.IsValid() && InputTexture != nullptr)
 			{
-				Renderer->RenderTextureToRectangle_GameThread(InputTexture->Resource, InViewport->GetRenderTargetTexture(), InViewport->GetSizeXY(), InputTexture->SRGB);
+				Renderer->RenderTextureToRectangle(InputTexture->Resource, InViewport->GetRenderTargetTexture(), InViewport->GetSizeXY(), InputTexture->SRGB);
 			}
 		}
 	}

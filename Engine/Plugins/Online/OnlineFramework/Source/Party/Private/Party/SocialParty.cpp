@@ -159,7 +159,7 @@ bool USocialParty::ApplyCrossplayRestriction(FPartyJoinApproval& JoinApproval, c
 	TArray<FString> MemberPlatforms;
 	for (const UPartyMember* Member : GetPartyMembers())
 	{
-		const FUserPlatform& MemberPlatform = Member->GetRepData().GetPlatform();
+		const FUserPlatform& MemberPlatform = Member->GetRepData().GetPlatformDataPlatform();
 		if (Platform.IsCrossplayWith(MemberPlatform))
 		{
 			const ECrossplayPreference MemberCrossplayPreference = Member->GetRepData().GetCrossplayPreference();
@@ -296,7 +296,7 @@ bool USocialParty::CanInviteUserInternal(const USocialUser& User) const
 	return true;
 }
 
-bool USocialParty::TryInviteUser(const USocialUser& UserToInvite)
+bool USocialParty::TryInviteUser(const USocialUser& UserToInvite, const ESocialPartyInviteMethod InviteMethod)
 {
 	bool bSentInvite = false;
 	if (CanInviteUser(UserToInvite))
@@ -320,7 +320,7 @@ bool USocialParty::TryInviteUser(const USocialUser& UserToInvite)
 			const IOnlineSessionPtr PlatformSessionInterface = Online::GetSessionInterface(GetWorld(), SocialOssName);
 			if (PlatformSessionInterface)
 			{
-				FUniqueNetIdRepl LocalUserPlatformId = GetOwningLocalMember().GetRepData().GetPlatformUniqueId();
+				FUniqueNetIdRepl LocalUserPlatformId = GetOwningLocalMember().GetRepData().GetPlatformDataUniqueId();
 
 				//@todo FORT-244991 Temporarily fall back on grabbing the LocalUserPlatformId from the Platform identity interface
 				if (!LocalUserPlatformId.IsValid())
@@ -337,7 +337,7 @@ bool USocialParty::TryInviteUser(const USocialUser& UserToInvite)
 					bSentPlatformInvite = PlatformSessionInterface->SendSessionInviteToFriend(*LocalUserPlatformId, NAME_PartySession, *UserPlatformId);
 				}
 			}
-			OnInviteSentInternal(ESocialSubsystem::Platform, UserToInvite, bSentPlatformInvite);
+			OnInviteSentInternal(ESocialSubsystem::Platform, UserToInvite, bSentPlatformInvite, InviteMethod);
 			bSentInvite |= bSentPlatformInvite;
 		}
 		if ((!bSentInvite || bMustSendPrimaryInvite) && UserPrimaryId.IsValid())
@@ -345,13 +345,13 @@ bool USocialParty::TryInviteUser(const USocialUser& UserToInvite)
 			// Primary subsystem invites can be sent directly to the user via the party interface
 			const IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
 			const bool bSentPrimaryInvite = PartyInterface->SendInvitation(*OwningLocalUserId, GetPartyId(), *UserPrimaryId);
-			OnInviteSentInternal(ESocialSubsystem::Primary, UserToInvite, bSentPrimaryInvite);
+			OnInviteSentInternal(ESocialSubsystem::Primary, UserToInvite, bSentPrimaryInvite, InviteMethod);
 			bSentInvite |= bSentPrimaryInvite;
 		}
 	}
 	else
 	{
-		OnInviteSentInternal(ESocialSubsystem::MAX, UserToInvite, false);
+		OnInviteSentInternal(ESocialSubsystem::MAX, UserToInvite, false, InviteMethod);
 	}
 	return bSentInvite;
 }
@@ -591,7 +591,7 @@ void USocialParty::OnLocalPlayerIsLeaderChanged(bool bIsLeader)
 		TArray<FString> SessionsToCreate;
 		for (UPartyMember* Member : GetPartyMembers())
 		{
-			const FUserPlatform& MemberPlatform = Member->GetRepData().GetPlatform();
+			const FUserPlatform& MemberPlatform = Member->GetRepData().GetPlatformDataPlatform();
 			const FString& MemberSessionType = MemberPlatform.GetPlatformDescription().SessionType;
 			if (!MemberSessionType.IsEmpty())
 			{
@@ -629,9 +629,12 @@ void USocialParty::OnLeftPartyInternal(EMemberExitedReason Reason)
 	OnPartyLeft().Broadcast(Reason);
 }
 
-void USocialParty::OnInviteSentInternal(ESocialSubsystem SubsystemType, const USocialUser& InvitedUser, bool bWasSuccessful)
+void USocialParty::OnInviteSentInternal(ESocialSubsystem SubsystemType, const USocialUser& InvitedUser, bool bWasSuccessful, const ESocialPartyInviteMethod InviteMethod)
 {
 	OnInviteSent().Broadcast(InvitedUser);
+
+	// Call the deprecated method after the current OnInviteSentInternal
+	OnInviteSentInternal(SubsystemType, InvitedUser, bWasSuccessful);
 }
 
 UPartyMember* USocialParty::GetOrCreatePartyMember(const FUniqueNetId& MemberId)
@@ -778,7 +781,7 @@ void USocialParty::HandlePartyJIPRequestReceived(const FUniqueNetId& LocalUserId
 		{
 			if (Member->GetPrimaryNetId() == SenderId)
 			{
-				MemberPlatform = Member->GetRepData().GetPlatform();
+				MemberPlatform = Member->GetRepData().GetPlatformDataPlatform();
 				break;
 			}
 		}
@@ -953,10 +956,10 @@ void USocialParty::HandleMemberInitialized(UPartyMember* Member)
 {
 	if (IsLocalPlayerPartyLeader())
 	{
-		Member->GetRepData().OnPlatformUniqueIdChanged().AddUObject(this, &USocialParty::HandleMemberPlatformUniqueIdChanged, Member);
-		Member->GetRepData().OnPlatformSessionIdChanged().AddUObject(this, &USocialParty::HandleMemberSessionIdChanged, Member);
+		Member->GetRepData().OnPlatformDataUniqueIdChanged().AddUObject(this, &USocialParty::HandleMemberPlatformUniqueIdChanged, Member);
+		Member->GetRepData().OnPlatformDataSessionIdChanged().AddUObject(this, &USocialParty::HandleMemberSessionIdChanged, Member);
 
-		HandleMemberPlatformUniqueIdChanged(Member->GetRepData().GetPlatformUniqueId(), Member);
+		HandleMemberPlatformUniqueIdChanged(Member->GetRepData().GetPlatformDataUniqueId(), Member);
 	}
 }
 
@@ -1192,7 +1195,7 @@ bool USocialParty::IsCurrentlyCrossplaying() const
 	TArray<FUserPlatform> AllPlatformsPresent;
 	for (const UPartyMember* Member : GetPartyMembers())
 	{
-		const FUserPlatform& MemberPlatform = Member->GetRepData().GetPlatform();
+		const FUserPlatform& MemberPlatform = Member->GetRepData().GetPlatformDataPlatform();
 		if (!AllPlatformsPresent.Contains(MemberPlatform))
 		{
 			for (const FUserPlatform& Platform : AllPlatformsPresent)
@@ -1770,7 +1773,7 @@ void USocialParty::CreatePlatformSession(const FString& SessionType)
 		FUniqueNetIdRepl OwnerPrimaryId;
 		for (UPartyMember* Member : GetPartyMembers())
 		{
-			if (SessionType == Member->GetRepData().GetPlatform().GetPlatformDescription().SessionType)
+			if (SessionType == Member->GetRepData().GetPlatformDataPlatform().GetPlatformDescription().SessionType)
 			{
 				OwnerPrimaryId = Member->GetPrimaryNetId();
 				if (Member->IsLocalPlayer())

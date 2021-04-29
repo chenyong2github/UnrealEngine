@@ -103,9 +103,6 @@ protected:
 	/** Children of this blueprint, which will need to be recompiled and relinked temporarily to maintain the class layout */
 	TArray<UBlueprint*> Children;
 
-	/** Bytecode dependent blueprints, which will need to be updated after the compilation */
-	TArray<UBlueprint*> Dependencies;
-
 	/** Mappings from old fields before recompilation to their new equivalents */
 	TMap<FName, FProperty*> PropertyMap;
 	TMap<FName, UFunction*> FunctionMap;
@@ -137,6 +134,10 @@ protected:
 public:
 	// FSerializableObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FBlueprintCompileReinstancer");
+	}
 	// End of FSerializableObject interface
 
 	static void OptionallyRefreshNodes(UBlueprint* BP);

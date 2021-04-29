@@ -646,68 +646,48 @@ bool FFileActivityTimingTrack::FindIoTimingEvent(const FTimingEventSearchParamet
 		// Search...
 		[this](TTimingEventSearch<FFileActivitySharedState::FIoTimingEvent>::FContext& InContext)
 		{
-			const TArray<FFileActivitySharedState::FIoTimingEvent>& Events = SharedState.GetAllEvents();
-
 			if (bIgnoreDuration)
 			{
-				// Events are sorted by start time.
-				// Find the first event with StartTime >= searched StartTime.
-				int32 StartIndex = Algo::LowerBoundBy(Events, InContext.GetParameters().StartTime,
-					[](const FFileActivitySharedState::FIoTimingEvent& Event) { return Event.StartTime; });
-
-				for (int32 Index = StartIndex; Index < Events.Num(); ++Index)
+				for (const FFileActivitySharedState::FIoTimingEvent& Event : SharedState.GetAllEvents())
 				{
-					const FFileActivitySharedState::FIoTimingEvent& Event = Events[Index];
-
 					if (bShowOnlyErrors && ((Event.Type & 0xF0) == 0))
 					{
 						continue;
 					}
 
-					ensure(Event.StartTime >= InContext.GetParameters().StartTime);
+					if (Event.StartTime < InContext.GetParameters().StartTime)
+					{
+						continue;
+					}
 
-					if (Event.StartTime > InContext.GetParameters().EndTime)
+					if (!InContext.ShouldContinueSearching() || Event.StartTime > InContext.GetParameters().EndTime)
 					{
 						break;
 					}
 
 					InContext.Check(Event.StartTime, Event.StartTime, bIgnoreEventDepth ? 0 : Event.Depth, Event);
-
-					if (!InContext.ShouldContinueSearching())
-					{
-						break;
-					}
 				}
 			}
 			else
 			{
-				// Events are sorted by start time.
-				// Find the first event with StartTime >= searched EndTime.
-				int32 StartIndex = Algo::LowerBoundBy(Events, InContext.GetParameters().EndTime,
-					[](const FFileActivitySharedState::FIoTimingEvent& Event) { return Event.StartTime; });
-
-				// Start at the last event with StartTime < searched EndTime.
-				for (int32 Index = StartIndex - 1; Index >= 0; --Index)
+				for (const FFileActivitySharedState::FIoTimingEvent& Event : SharedState.GetAllEvents())
 				{
-					const FFileActivitySharedState::FIoTimingEvent& Event = Events[Index];
-
 					if (bShowOnlyErrors && ((Event.Type & 0xF0) == 0))
 					{
 						continue;
 					}
 
-					if (Event.EndTime <= InContext.GetParameters().StartTime ||
-						Event.StartTime >= InContext.GetParameters().EndTime)
+					if (!bIgnoreDuration && Event.EndTime <= InContext.GetParameters().StartTime)
 					{
 						continue;
 					}
 
-					InContext.Check(Event.StartTime, Event.EndTime, bIgnoreEventDepth ? 0 : Event.Depth, Event);
-
-					if (!InContext.ShouldContinueSearching())
+					if (!InContext.ShouldContinueSearching() || Event.StartTime >= InContext.GetParameters().EndTime)
 					{
 						break;
 					}
+
+					InContext.Check(Event.StartTime, Event.EndTime, bIgnoreEventDepth ? 0 : Event.Depth, Event);
 				}
 			}
 		},

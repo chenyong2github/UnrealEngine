@@ -59,6 +59,22 @@ void FDatasmithExpressionInputImpl::SetExpression( IDatasmithMaterialExpression*
 	}
 }
 
+void FDatasmithExpressionInputImpl::CustomSerialize(DirectLink::FSnapshotProxy& Ar)
+{
+	// [4.26.1 .. 4.27.0[ compatibility
+	if (Ar.IsSaving())
+	{
+		// In 4.26, an ExpressionType info was used alongside the expression itself.
+		// namely: TReflected<EDatasmithMaterialExpressionType, int32> ExpressionType;
+		// This field was required. In order to be readable by 4.26, it is recreated here.
+		// Without it, a 4.26 DirectLink receiver could crash on 4.27 data usage.
+		const EDatasmithMaterialExpressionType ExpressionTypeEnum = Expression.View().IsValid() ? Expression.View()->GetExpressionType() : EDatasmithMaterialExpressionType::None;
+		int32 ExpressionType = int32(ExpressionTypeEnum);
+		Ar.TagSerialize("ExpressionType", ExpressionType);
+	}
+}
+
+
 FDatasmithMaterialExpressionBoolImpl::FDatasmithMaterialExpressionBoolImpl()
 	: FDatasmithExpressionParameterImpl( EDatasmithMaterialExpressionType::ConstantBool )
 {

@@ -11,31 +11,6 @@
 #include "Misc/Guid.h"
 
 
-FDMXOutputPortConfig::FDMXOutputPortConfig()
-	: CommunicationType(EDMXCommunicationType::InternalOnly)
-	, DeviceAddress()
-	, DestinationAddress()
-	, bLoopbackToEngine(true)
-	, LocalUniverseStart(1)
-	, NumUniverses(10)
-	, ExternUniverseStart(1)
-	, Priority(100)
-	, PortGuid(FGuid())
-{
-	// May be called before the protocol module is loaded, at this point we only expect already sanetized structs
-	if (FModuleManager::Get().IsModuleLoaded("DMXProtocol"))
-	{
-		PortGuid = FGuid::NewGuid();
-
-		SanetizePortName();
-		SanetizeProtocolName();
-		SanetizeCommunicationType();
-
-		IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName);
-		check(Protocol.IsValid());
-	}
-}
-
 FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid)
 	: CommunicationType(EDMXCommunicationType::InternalOnly)
 	, DeviceAddress()
@@ -61,8 +36,6 @@ FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid)
 
 const FGuid& FDMXOutputPortConfig::GetPortGuid() const
 {	
-	check(PortGuid.IsValid());
-
 	return PortGuid;
 }
 

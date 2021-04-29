@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/NiagaraSystemAuditCommandlet.h"
+#include "DeviceProfiles/DeviceProfile.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
@@ -12,6 +13,7 @@
 #include "ICollectionManager.h"
 #include "CollectionManagerModule.h"
 
+#include "NiagaraSettings.h"
 #include "NiagaraSystem.h"
 #include "NiagaraRendererProperties.h"
 #include "NiagaraLightRendererProperties.h"
@@ -102,6 +104,9 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 
 	const double StartProcessNiagaraSystemsTime = FPlatformTime::Seconds();
 
+	// Get Settings
+	const UNiagaraSettings* NiagaraSettings = GetDefault<UNiagaraSettings>();
+
 	//  Iterate over all systems
 	const FString DevelopersFolder = FPackageName::FilenameToLongPackageName(FPaths::GameDevelopersDir().LeftChop(1));
 	FString LastPackageName = TEXT("");
@@ -159,7 +164,6 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 
 		// Iterate over all emitters
 		bool bHasLights = false;
-		bool bHasGPUEmitters = false;
 		bool bHasEvents = false;
 
 		for (const FNiagaraEmitterHandle& EmitterHandle : NiagaraSystem->GetEmitterHandles())
@@ -170,7 +174,41 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 				continue;
 			}
 
-			bHasGPUEmitters |= NiagaraEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim;
+			if (NiagaraEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+			{
+				TStringBuilder<512> GpuEmitterBuilder;
+				GpuEmitterBuilder.Append(NiagaraEmitter->GetDebugSimName());
+				for (int32 iQualityLevel=0; iQualityLevel < NiagaraSettings->QualityLevels.Num(); ++iQualityLevel)
+				{
+					const bool bEnabled = NiagaraEmitter->Platforms.IsEffectQualityEnabled(iQualityLevel);
+
+					TArray<UDeviceProfile*> EnabledProfiles;
+					TArray<UDeviceProfile*> DisabledProfiles;
+					NiagaraEmitter->Platforms.GetOverridenDeviceProfiles(iQualityLevel, EnabledProfiles, DisabledProfiles);
+
+					GpuEmitterBuilder.Append(TEXT(","));
+					GpuEmitterBuilder.Append(bEnabled ? TEXT("Enabled") : TEXT("Disabled"));
+
+					for (UDeviceProfile* EnabledProfile : EnabledProfiles)
+					{
+						GpuEmitterBuilder.Appendf(TEXT(" +%s"), *EnabledProfile->DeviceType);
+					}
+					for (UDeviceProfile* DisabledProfile : DisabledProfiles)
+					{
+						GpuEmitterBuilder.Appendf(TEXT(" -%s"), *DisabledProfile->DeviceType);
+					}
+				}
+
+				GpuEmitterBuilder.Append(TEXT(","));
+				for (const FNiagaraPlatformSetCVarCondition& Condition : NiagaraEmitter->Platforms.CVarConditions)
+				{
+					GpuEmitterBuilder.Appendf(TEXT(" CVarName(%s)"), *Condition.CVarName.ToString());
+				}
+
+				GpuEmitterBuilder.Append(TEXT(","));
+				GpuEmitterBuilder.Append(NiagaraSystem->GetPathName());
+				NiagaraSystemsWithGPUEmitters.Add(GpuEmitterBuilder.ToString());
+			}
 
 			bHasEvents |= NiagaraEmitter->GetEventHandlers().Num() > 0;
 
@@ -194,10 +232,6 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 			NiagaraSystemsWithLights.Add(NiagaraSystem->GetPathName());
 		}
 
-		if (bHasGPUEmitters)
-		{
-			NiagaraSystemsWithGPUEmitters.Add(NiagaraSystem->GetPathName());
-		}
 		if (bHasEvents)
 		{
 			NiagaraSystemsWithEvents.Add(NiagaraSystem->GetPathName());
@@ -246,12 +280,23 @@ void UNiagaraSystemAuditCommandlet::DumpResults()
 	// Dump all the simple mappings...
 	DumpSimpleSet(NiagaraSystemsWithWarmup, TEXT("NiagaraSystemsWithWarmup"), TEXT("Name,WarmupTime"));
 	DumpSimpleSet(NiagaraSystemsWithLights, TEXT("NiagaraSystemsWithLights"), TEXT("Name"));
-	DumpSimpleSet(NiagaraSystemsWithGPUEmitters, TEXT("NiagaraSystemsWithGPUEmitters"), TEXT("Name"));
 	DumpSimpleSet(NiagaraSystemsWithEvents, TEXT("NiagaraSystemsWithEvents"), TEXT("Name"));
 	DumpSimpleSet(NiagaraSystemsWithPrerequisites, TEXT("NiagaraSystemsWithPrerequisites"), TEXT("Name,DataInterface"));
 	if (UserDataInterfacesToFind.Num() > 0)
 	{
 		DumpSimpleSet(NiagaraSystemsWithUserDataInterface, TEXT("NiagaraSystemsWithUserDataInterface"), TEXT("Name,DataInterface"));
+	}
+	if (NiagaraSystemsWithGPUEmitters.Num() > 0)
+	{
+		TStringBuilder<512> HeaderString;
+		HeaderString.Append(TEXT("Emitter Name"));
+		for (const FText& QualityLevelName : GetDefault<UNiagaraSettings>()->QualityLevels)
+		{
+			HeaderString.Append(TEXT(","));
+			HeaderString.Append(QualityLevelName.ToString());
+		}
+		HeaderString.Append(TEXT(",CVar Conditions,System Path"));
+		DumpSimpleSet(NiagaraSystemsWithGPUEmitters, TEXT("NiagaraSystemsWithGPUEmitters"), HeaderString.ToString());
 	}
 }
 

@@ -141,7 +141,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 
 	for (uint RefractionRayIndex = 0; RefractionRayIndex < MaxRefractionRays; ++RefractionRayIndex)
 	{
-		const uint RefractionRayFlags = 0;
+		const uint RefractionRayFlags = RefractionRayIndex == 0? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
 		const uint RefractionInstanceInclusionMask = RAY_TRACING_MASK_ALL;
 		const bool bRefractionRayTraceSkyLightContribution = false;
 		const bool bRefractionDecoupleSampleGeneration = true;

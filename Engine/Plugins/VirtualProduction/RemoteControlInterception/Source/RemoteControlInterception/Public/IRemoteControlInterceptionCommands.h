@@ -1,0 +1,181 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
+
+struct FRCIObjectMetadata;
+struct FRCIPropertiesMetadata;
+
+/**
+ * Interception flags that define how RemoteControl should behave after a message was intercepted.
+ */
+enum class ERCIResponse : uint8
+{
+	// Set/reset property on RemoteControl side even though the message was intercepted
+	Apply,
+	// Do not process the RC command on RemoteControl side. An interceptor will decide what to do with it.
+	Intercept,
+};
+
+/**
+ * Payload serialization type (proxy type for ERCPayloadType to avoid RC module dependency)
+ */
+enum class ERCIPayloadType : uint8
+{
+	Cbor,
+	Json,
+};
+
+/**
+ * Remote property access mode  (proxy type for ERCAccess to avoid RC module dependency)
+ */
+enum class ERCIAccess : uint8
+{
+	NO_ACCESS,
+	READ_ACCESS,
+	WRITE_ACCESS,
+	WRITE_TRANSACTION_ACCESS,
+};
+
+
+/**
+ * The list of remote control commands available for interception
+ */
+template <class TResponseType>
+class IRemoteControlInterceptionCommands
+{
+public:
+	virtual ~IRemoteControlInterceptionCommands() = default;
+
+public:
+	/**
+	 * SetObjectProperty command to process
+	 *
+	 * @param InObjectProperties - Metadata of the object and its properties that are going to be modified
+	 *
+	 * @return - Return types depends on the interface implementation (template parameter)
+	 */
+	virtual TResponseType SetObjectProperties(FRCIPropertiesMetadata& InObjectProperties) = 0;
+
+	/**
+	 * ResetObject command to process
+	 *
+	 * @param InObject - Metadata of the object and its properties that are going to be modified
+	 *
+	 * @return - Return types depends on the interface implementation (template parameter)
+	 * @param OutResponse - interception response flag (not requred for the handlers)
+	 */
+	virtual TResponseType ResetObjectProperties(FRCIObjectMetadata& InObject) = 0;
+};
+
+
+/**
+ * Object metadata for custom interception/replication/processing purposes
+ */
+struct FRCIObjectMetadata
+{
+public:
+	FRCIObjectMetadata()
+	{ }
+
+	FRCIObjectMetadata(const FString& InObjectPath, const FString& InPropertyPath, const FString& InPropertyPathInfo, const ERCIAccess InAccess)
+		: ObjectPath(InObjectPath)
+		, PropertyPath(InPropertyPath)
+		, PropertyPathInfo(InPropertyPathInfo)
+		, Access(InAccess)
+	{ }
+
+	virtual ~FRCIObjectMetadata() = default;
+
+public:
+	/** Returns true if reference is valid */
+	virtual bool IsValid() const
+	{
+		return !ObjectPath.IsEmpty() && !PropertyPath.IsEmpty() && !PropertyPathInfo.IsEmpty();
+	}
+
+	/**
+	 * FRCObjectMetadata serialization
+	 *
+	 * @param Ar       - The archive
+	 * @param Instance - Instance to serialize/deserialize
+	 *
+	 * @return FArchive instance.
+	 */
+	friend FArchive& operator<<(FArchive& Ar, FRCIObjectMetadata& Interception)
+	{
+		Ar << Interception.ObjectPath;
+		Ar << Interception.PropertyPath;
+		Ar << Interception.PropertyPathInfo;
+		Ar << Interception.Access;
+		return Ar;
+	}
+
+public:
+	/** Owner object path */
+	FString ObjectPath;
+	
+	/** FProperty path */
+	FString PropertyPath;
+
+	/** Full property path, including path to inner structs, arrays, maps, etc */
+	FString PropertyPathInfo;
+
+	/** Property access type */
+	ERCIAccess Access = ERCIAccess::NO_ACCESS;
+};
+
+
+/**
+ * Object properties metadata for custom interception/replication/processing purposes
+ */
+struct FRCIPropertiesMetadata : public FRCIObjectMetadata
+{
+public:
+	FRCIPropertiesMetadata() = default;
+
+	FRCIPropertiesMetadata(const FString& InObjectPath, const FString& InPropertyPath, const FString& InPropertyPathInfo, const ERCIAccess InAccess, const ERCIPayloadType InPayloadType, const TArray<uint8>& InPayload)
+		: FRCIObjectMetadata(InObjectPath, InPropertyPath, InPropertyPathInfo, InAccess)
+		, PayloadType(InPayloadType)
+		, Payload(InPayload)
+	{ }
+
+	virtual ~FRCIPropertiesMetadata() = default;
+
+public:
+	//~ Begin FRCObjectMetadata
+	virtual bool IsValid() const override
+	{
+		return FRCIObjectMetadata::IsValid() && PayloadType != ERCIPayloadType::Json && Payload.Num() > 0;
+	}
+	//~ End FRCObjectMetadata
+
+	/**
+	 * FRCObjectPropertiesMetadata serialization
+	 *
+	 * @param Ar       - The archive
+	 * @param Instance - Instance to serialize/deserialize
+	 *
+	 * @return FArchive instance.
+	 */
+	friend FArchive& operator<<(FArchive& Ar, FRCIPropertiesMetadata& Instance)
+	{
+		// Call achive from the parent class
+		FRCIObjectMetadata& Super = static_cast<FRCIObjectMetadata&>(Instance);
+		Ar << Super;
+		
+		Ar << Instance.PayloadType;
+		// const cast is needed for keeping the const& on a constractor and as a class parameter
+		Ar << const_cast<TArray<uint8>&>(Instance.Payload);
+		return Ar;
+	}
+
+public:
+	/** Intercepted payload type */
+	ERCIPayloadType PayloadType = ERCIPayloadType::Json;
+
+	/** Property payload to intercept */
+	const TArray<uint8> Payload;
+};

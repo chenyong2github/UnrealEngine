@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "AddonTools.h"
+#include "Utils/AddonTools.h"
 #include "DG.h"
-#include "ShellOpenDocument.h"
+#include "Utils/ShellOpenDocument.h"
 
 BEGIN_NAMESPACE_UE_AC
 
@@ -28,6 +28,9 @@ class FPalette
 
 	// Switch to another window
 	static void WindowChanged();
+
+	// LiveLink status changed
+	static void LiveLinkChanged();
 
 	// Delete palette
 	static void Delete();

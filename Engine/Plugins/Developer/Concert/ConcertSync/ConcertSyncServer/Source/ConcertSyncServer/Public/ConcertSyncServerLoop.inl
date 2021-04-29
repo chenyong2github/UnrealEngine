@@ -90,7 +90,7 @@ int32 ConcertSyncServerLoop(int32 ArgC, TCHAR** ArgV, const FConcertSyncServerLo
 
 	if (Result >= 0)
 	{
-		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin("UdpMessaging");
+		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("UdpMessaging"));
 		if (!Plugin || !Plugin->IsEnabled())
 		{
 			// The UdpMessaging plugin should be added to the {appname}.Target.cs build file.

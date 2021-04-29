@@ -108,7 +108,7 @@ public:
 	 * structure currently under source control) 
 	 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
-	bool bCanAdd;
+	bool bCanAdd = false;
 
 	/** Determine if this file is in a conflicted state */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")

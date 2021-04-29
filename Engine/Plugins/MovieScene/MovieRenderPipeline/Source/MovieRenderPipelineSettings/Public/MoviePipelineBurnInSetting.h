@@ -19,7 +19,7 @@ class MOVIERENDERPIPELINESETTINGS_API UMoviePipelineBurnInSetting : public UMovi
 	GENERATED_BODY()
 
 	UMoviePipelineBurnInSetting()
-		: BurnInClass(TEXT("/MovieRenderPipeline/Blueprints/DefaultBurnIn.DefaultBurnIn_C"))
+		: BurnInClass(DefaultBurnInWidgetAsset)
 		, bCompositeOntoFinalImage(true)
 	{
 	}
@@ -58,4 +58,6 @@ private:
 
 	UPROPERTY(Transient)
 	UMoviePipelineBurnInWidget* BurnInWidgetInstance;
+public:
+	static FString DefaultBurnInWidgetAsset;
 };

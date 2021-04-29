@@ -45,6 +45,10 @@ public:
 	void DoConvert();
 
 	void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FVTConversionWorker");
+	}
 
 private:
 	void FindAllTexturesAndMaterials_Iteration(TArray<UMaterial*>& InAffectedMaterials,

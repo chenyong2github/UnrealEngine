@@ -2,7 +2,7 @@
 
 #include "Views/TreeViews/SDisplayClusterConfiguratorViewTree.h"
 
-#include "DisplayClusterConfiguratorToolkit.h"
+#include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorTreeBuilder.h"
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
@@ -18,13 +18,15 @@
 #include "Types/ISlateMetaData.h"
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/Layout/SScrollBorder.h"
+#include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Input/SComboButton.h"
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorViewTree"
 
 void SDisplayClusterConfiguratorViewTree::Construct(const FArguments& InArgs,
-	const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit,
+	const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit,
 	const TSharedRef<IDisplayClusterConfiguratorTreeBuilder>& InBuilder,
 	const TSharedRef<IDisplayClusterConfiguratorViewTree>& InViewTree,
 	const FDisplayClusterConfiguratorTreeArgs& InTreeArgs)
@@ -48,6 +50,8 @@ void SDisplayClusterConfiguratorViewTree::Construct(const FArguments& InArgs,
 	PinnedCommands = PinnedCommandListModule.CreatePinnedCommandList(ContextName);
 
 	// Register and bind all our menu commands
+	UICommandList = MakeShareable(new FUICommandList_Pinnable);
+
 	FDisplayClusterConfiguratorTreeViewCommands::Register();
 	BindCommands();
 
@@ -72,51 +76,97 @@ void SDisplayClusterConfiguratorViewTree::Construct(const FArguments& InArgs,
 				.AutoHeight()
 				.Padding(FMargin(0.0f, 0.0f, 0.0f, 2.0f))
 				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.Padding(0.0f, 0.0f, InTreeArgs.bShowFilterMenu ? 2.0f : 0.0f, 0.0f)
+					SNew(SBorder)
+					.Padding(0)
+					.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+					.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
 					[
-						SAssignNew(FilterComboButton, SComboButton)
-						.Visibility(InTreeArgs.bShowFilterMenu ? EVisibility::Visible : EVisibility::Collapsed)
-						.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
-						.ForegroundColor(FLinearColor::White)
-						.ContentPadding(0.0f)
-						.OnGetMenuContent( this, &SDisplayClusterConfiguratorViewTree::CreateFilterMenu )
-						.ToolTipText( this, &SDisplayClusterConfiguratorViewTree::GetFilterMenuTooltip )
-						.AddMetaData<FTagMetaData>(TEXT("ConfiguratorViewTree.Items"))
-						.ButtonContent()
+						SNew(SHorizontalBox)
+						+SHorizontalBox::Slot()
+						.Padding(3.0f, 3.0f)
+						.AutoWidth()
+						.VAlign(VAlign_Center)
 						[
-							SNew(SHorizontalBox)
-							+SHorizontalBox::Slot()
-							.AutoWidth()
-							.VAlign(VAlign_Center)
+					
+							SNew(SComboButton)
+							.ContentPadding(FMargin(5, 0))
+							.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
+							.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+							.ForegroundColor(FLinearColor::White)
+							.Visibility(this, &SDisplayClusterConfiguratorViewTree::GetAddNewComboButtonVisibility)
+							.OnGetMenuContent(this, &SDisplayClusterConfiguratorViewTree::CreateAddNewMenuContent)
+							.ButtonContent()
 							[
-								SNew(STextBlock)
-								.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
-								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
-								.Text(FText::FromString(FString(TEXT("\xf0b0"))) /*fa-filter*/)
-							]
-							+SHorizontalBox::Slot()
-							.AutoWidth()
-							.Padding(2, 0, 0, 0)
-							.VAlign(VAlign_Center)
-							[
-								SNew( STextBlock )
-								.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
-								.Text( LOCTEXT("FilterMenuLabel", "Options") )
+								SNew(SHorizontalBox)
+								+SHorizontalBox::Slot()
+								.VAlign(VAlign_Center)
+								.AutoWidth()
+								.Padding(1.f,1.f)
+								[
+									SNew(STextBlock)
+									.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+									.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+									.Text(FText::FromString(FString(TEXT("\xf067"))) /*fa-plus*/)
+								]
+								+ SHorizontalBox::Slot()
+								.VAlign(VAlign_Center)
+								.Padding(1.f)
+								[
+									SNew(STextBlock)
+									.Text(LOCTEXT("AddNewItem", "Add New"))
+									.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+								]
 							]
 						]
-					]
-					+SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					[
-						SAssignNew( NameFilterBox, SSearchBox )
-						.SelectAllTextWhenFocused( true )
-						.OnTextChanged( this, &SDisplayClusterConfiguratorViewTree::OnFilterTextChanged )
-						.HintText( LOCTEXT( "SearchBoxHint", "Search Config Tree...") )
-						.AddMetaData<FTagMetaData>(TEXT("ConfiguratorViewTree.Search"))
+
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(3.0f, 3.0f)
+						[
+							SAssignNew(FilterComboButton, SComboButton)
+							.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
+							.ForegroundColor(FLinearColor::White)
+							.Visibility(this, &SDisplayClusterConfiguratorViewTree::GetFilterOptionsComboButtonVisibility)
+							.ContentPadding(0.0f)
+							.OnGetMenuContent(this, &SDisplayClusterConfiguratorViewTree::CreateFilterMenuContent)
+							.ToolTipText(this, &SDisplayClusterConfiguratorViewTree::GetFilterMenuTooltip)
+							.AddMetaData<FTagMetaData>(TEXT("ConfiguratorViewTree.Items"))
+							.ButtonContent()
+							[
+								SNew(SHorizontalBox)
+								+SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Center)
+								[
+									SNew(STextBlock)
+									.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
+									.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+									.Text(FText::FromString(FString(TEXT("\xf0b0"))) /*fa-filter*/)
+								]
+								+SHorizontalBox::Slot()
+								.AutoWidth()
+								.Padding(2, 0, 0, 0)
+								.VAlign(VAlign_Center)
+								[
+									SNew( STextBlock )
+									.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
+									.Text( LOCTEXT("FilterMenuLabel", "Options") )
+								]
+							]
+						]
+
+						+SHorizontalBox::Slot()
+						.FillWidth(1.0f)
+						.VAlign(VAlign_Center)
+						.Padding(3.0f, 3.0f)
+						[
+							SAssignNew( NameFilterBox, SSearchBox )
+							.SelectAllTextWhenFocused( true )
+							.OnTextChanged( this, &SDisplayClusterConfiguratorViewTree::OnFilterTextChanged )
+							.HintText( LOCTEXT( "SearchBoxHint", "Search Config Tree...") )
+							.AddMetaData<FTagMetaData>(TEXT("ConfiguratorViewTree.Search"))
+						]
 					]
 				]
 
@@ -132,11 +182,76 @@ void SDisplayClusterConfiguratorViewTree::Construct(const FArguments& InArgs,
 				[
 					SAssignNew(TreeHolder, SOverlay)
 				]
+
+				+ SVerticalBox::Slot()
+				.Padding(FMargin(0.0f, 2.0f, 0.0f, 0.0f))
+				.AutoHeight()
+				[
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					[
+						SNew(SSpacer)
+					]
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SComboButton)
+						.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
+						.ForegroundColor(FLinearColor::White)
+						.Visibility(this, &SDisplayClusterConfiguratorViewTree::GetViewOptionsComboButtonVisibility)
+						.ContentPadding(0)
+						.OnGetMenuContent(this, &SDisplayClusterConfiguratorViewTree::CreateViewOptionsMenuContent)
+						.HasDownArrow(true)
+						.ContentPadding(FMargin(1, 0))
+						.ButtonContent()
+						[
+							SNew(SHorizontalBox)
+
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							[
+								SNew(SImage).Image(FEditorStyle::GetBrush("GenericViewButton"))
+							]
+
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.Padding(2, 0, 0, 0)
+							.VAlign(VAlign_Center)
+							[
+								SNew(STextBlock).Text(LOCTEXT("ViewOptions", "View Options"))
+							]
+						]
+					]
+				]
+			]
+
+			+ SOverlay::Slot()
+			.Padding(10)
+			.VAlign(VAlign_Bottom)
+			.HAlign(HAlign_Right)
+			[
+				SNew(STextBlock)
+				.Visibility(EVisibility::HitTestInvisible)
+				.TextStyle(FEditorStyle::Get(), "Graph.CornerText")
+				.Text(this, &SDisplayClusterConfiguratorViewTree::GetCornerText)
 			]
 		],
 		InToolkit);
 
 	CreateTreeColumns();
+}
+
+FReply SDisplayClusterConfiguratorViewTree::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (UICommandList->ProcessCommandBindings(InKeyEvent))
+	{
+		return FReply::Handled();
+	}
+	return FReply::Unhandled();
 }
 
 void SDisplayClusterConfiguratorViewTree::Refresh()
@@ -148,10 +263,16 @@ void SDisplayClusterConfiguratorViewTree::CreateTreeColumns()
 {
 	TSharedRef<SHeaderRow> TreeHeaderRow =
 		SNew(SHeaderRow)
-		.Visibility(EVisibility::Collapsed)
-		+ SHeaderRow::Column(IDisplayClusterConfiguratorViewTree::Columns::Item)
-		.DefaultLabel(LOCTEXT("DisplayClusterConfiguratorNameLabel", "Items"))
-		.FillWidth(0.5f);
+		.Visibility(EVisibility::Collapsed);
+
+	TArray<SHeaderRow::FColumn::FArguments> Columns;
+	ViewTreePtr.Pin()->ConstructColumns(Columns);
+
+	for (const auto& Args : Columns)
+	{
+		TreeHeaderRow->AddColumn(Args);
+	}
+
 	{
 		ConfigTreeView = SNew(STreeView<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>)
 			.TreeItemsSource(&FilteredItems)
@@ -201,7 +322,7 @@ void SDisplayClusterConfiguratorViewTree::ApplyFilter()
 	FilteredItems.Empty();
 
 	FDisplayClusterConfiguratorTreeFilterArgs FilterArgs(!FilterText.IsEmpty() ? TextFilterPtr : nullptr);
-	BuilderPtr.Pin()->Filter(FilterArgs, Items, FilteredItems);
+	ViewTreePtr.Pin()->Filter(FilterArgs, Items, FilteredItems);
 
 	if (!FilterText.IsEmpty())
 	{
@@ -235,6 +356,26 @@ void SDisplayClusterConfiguratorViewTree::SetInitialExpansionState()
 	}
 }
 
+TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>> SDisplayClusterConfiguratorViewTree::GetSelectedItems() const
+{
+	return ConfigTreeView->GetSelectedItems();
+}
+
+void SDisplayClusterConfiguratorViewTree::SetSelectedItems(const TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>& InTreeItems)
+{
+	ConfigTreeView->SetItemSelection(InTreeItems, true);
+}
+
+void SDisplayClusterConfiguratorViewTree::ClearSelection()
+{
+	ConfigTreeView->ClearSelection();
+}
+
+TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>> SDisplayClusterConfiguratorViewTree::GetAllItemsFlattened() const
+{
+	return LinearItems;
+}
+
 TSharedRef<ITableRow> SDisplayClusterConfiguratorViewTree::MakeTreeRowWidget(TSharedPtr<IDisplayClusterConfiguratorTreeItem> InInfo, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	check(InInfo.IsValid());
@@ -253,6 +394,8 @@ TSharedPtr<SWidget> SDisplayClusterConfiguratorViewTree::CreateContextMenu()
 	const bool CloseAfterSelection = true;
 	FMenuBuilder MenuBuilder(CloseAfterSelection, UICommandList, Extenders);
 
+	ViewTreePtr.Pin()->FillContextMenu(MenuBuilder);
+
 	return MenuBuilder.MakeWidget();
 }
 
@@ -260,13 +403,18 @@ void SDisplayClusterConfiguratorViewTree::OnSelectionChanged(TSharedPtr<IDisplay
 {
 	if (SelectInfo != ESelectInfo::Direct)
 	{
-		ViewTreePtr.Pin()->ClearSelectedItem();
-
 		TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>> SelectedItems = ConfigTreeView->GetSelectedItems();
+		TArray<UObject*> SelectedObjects;
+		for (TSharedPtr<IDisplayClusterConfiguratorTreeItem>& Item : SelectedItems)
+		{
+			SelectedObjects.Add(Item->GetObject());
+		}
+
+		ToolkitPtr.Pin()->SelectObjects(SelectedObjects);
+
 		for (TSharedPtr<IDisplayClusterConfiguratorTreeItem>& Item : SelectedItems)
 		{
 			Item->OnSelection();
-			ViewTreePtr.Pin()->SetSelectedItem(Item.ToSharedRef());
 		}
 	}
 }
@@ -282,12 +430,50 @@ void SDisplayClusterConfiguratorViewTree::SetTreeItemExpansionRecursive(TSharedP
 	}
 }
 
-TSharedRef<SWidget> SDisplayClusterConfiguratorViewTree::CreateFilterMenu()
+void SDisplayClusterConfiguratorViewTree::BindCommands()
+{
+	ViewTreePtr.Pin()->BindPinnableCommands(*UICommandList);
+}
+
+void SDisplayClusterConfiguratorViewTree::OnFilterTextChanged(const FText& SearchText)
+{
+	FilterText = SearchText;
+	ApplyFilter();
+}
+
+void SDisplayClusterConfiguratorViewTree::OnConfigReloaded()
+{
+	RebuildTree();
+}
+
+EVisibility SDisplayClusterConfiguratorViewTree::GetAddNewComboButtonVisibility() const
+{
+	bool showButton = ViewTreePtr.IsValid() && ViewTreePtr.Pin()->ShowAddNewButton();
+	return showButton ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+TSharedRef<SWidget> SDisplayClusterConfiguratorViewTree::CreateAddNewMenuContent()
+{
+	const bool bCloseAfterSelection = true;
+	FMenuBuilder MenuBuilder(bCloseAfterSelection, UICommandList, Extenders);
+
+	ViewTreePtr.Pin()->FillAddNewMenu(MenuBuilder);
+
+	return MenuBuilder.MakeWidget();
+}
+
+EVisibility SDisplayClusterConfiguratorViewTree::GetFilterOptionsComboButtonVisibility() const
+{
+	bool showButton = ViewTreePtr.IsValid() && ViewTreePtr.Pin()->ShowFilterOptionsButton();
+	return showButton ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+TSharedRef<SWidget> SDisplayClusterConfiguratorViewTree::CreateFilterMenuContent()
 {
 	const FDisplayClusterConfiguratorTreeViewCommands& Actions = FDisplayClusterConfiguratorTreeViewCommands::Get();
 
-	const bool CloseAfterSelection = true;
-	FMenuBuilder MenuBuilder(CloseAfterSelection, UICommandList, Extenders);
+	const bool bCloseAfterSelection = true;
+	FMenuBuilder MenuBuilder(bCloseAfterSelection, UICommandList, Extenders);
 
 	return MenuBuilder.MakeWidget();
 }
@@ -297,23 +483,35 @@ FText SDisplayClusterConfiguratorViewTree::GetFilterMenuTooltip() const
 	return FText::GetEmpty();
 }
 
-void SDisplayClusterConfiguratorViewTree::OnConfigReloaded()
+EVisibility SDisplayClusterConfiguratorViewTree::GetViewOptionsComboButtonVisibility() const
 {
-	RebuildTree();
+	bool showButton = ViewTreePtr.IsValid() && ViewTreePtr.Pin()->ShowViewOptionsButton();
+	return showButton ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
-void SDisplayClusterConfiguratorViewTree::OnObjectSelected()
+TSharedRef<SWidget> SDisplayClusterConfiguratorViewTree::CreateViewOptionsMenuContent()
 {
-	ConfigTreeView->ClearSelection();
+	const bool bCloseAfterSelection = true;
+	FMenuBuilder MenuBuilder(bCloseAfterSelection, UICommandList, Extenders);
 
-	RebuildTree();
+	TSharedPtr<IDisplayClusterConfiguratorViewTree> ViewTree = ViewTreePtr.Pin();
+	if (ViewTree.IsValid())
+	{
+		ViewTree->FillViewOptionsMenu(MenuBuilder);
+	}
+
+	return MenuBuilder.MakeWidget();
 }
 
-EDisplayClusterConfiguratorTreeFilterResult SDisplayClusterConfiguratorViewTree::HandleFilterConfiguratonTreeItem(const FDisplayClusterConfiguratorTreeFilterArgs& InArgs, const TSharedPtr<IDisplayClusterConfiguratorTreeItem>& InItem)
+FText SDisplayClusterConfiguratorViewTree::GetCornerText() const
 {
-	EDisplayClusterConfiguratorTreeFilterResult Result = EDisplayClusterConfiguratorTreeFilterResult::Shown;
+	TSharedPtr<IDisplayClusterConfiguratorViewTree> ViewTree = ViewTreePtr.Pin();
+	if (ViewTree.IsValid())
+	{
+		return ViewTree->GetCornerText();
+	}
 
-	return Result;
+	return FText::GetEmpty();
 }
 
 #undef LOCTEXT_NAMESPACE

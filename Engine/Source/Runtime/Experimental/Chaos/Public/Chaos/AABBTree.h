@@ -863,12 +863,13 @@ private:
 			int32 Idx = 0;
 
 			//TODO: we need a better way to time-slice this case since there can be a huge number of Particles. Can't do it right now without making full copy
+			FVec3 CenterSum(0);
+
 			for (auto& Particle : Particles)
 			{
 				bool bHasBoundingBox = HasBoundingBox(Particle);
 				auto Payload = Particle.template GetPayload<TPayloadType>(Idx);
 				FAABB3 ElemBounds = ComputeWorldSpaceBoundingBox(Particle, false, (FReal)0);
-
 				if (bHasBoundingBox)
 				{
 					if (ElemBounds.Extents().Max() > MaxPayloadBounds)
@@ -879,6 +880,7 @@ private:
 					{
 						WorkSnapshot.Elems.Add(FElement{ Payload, ElemBounds });
 						WorkSnapshot.Bounds.GrowToInclude(ElemBounds);
+						CenterSum += ElemBounds.Center();
 					}
 				}
 				else
@@ -897,6 +899,15 @@ private:
 
 				++Idx;
 				//todo: payload info
+			}
+
+			if(WorkSnapshot.Elems.Num())
+			{
+				WorkSnapshot.AverageCenter = CenterSum * ((FReal)1 / WorkSnapshot.Elems.Num());
+			}
+			else
+			{
+				WorkSnapshot.AverageCenter = FVec3(0);
 			}
 		}
 
@@ -968,6 +979,7 @@ private:
 		eTimeSlicePhase TimeslicePhase;
 
 		FAABB3 Bounds;
+		FVec3 AverageCenter;
 		TArray<FElement> Elems;
 
 		int32 NodeLevel;
@@ -1004,6 +1016,7 @@ private:
 			{
 				FSplitInfo& SplitInfo = CurrentSnapshot.SplitInfos[MinBoxIdx];
 				WorkPool[SplitInfo.WorkSnapshotIdx].Elems.Add(Elem);
+				WorkPool[SplitInfo.WorkSnapshotIdx].AverageCenter += Elem.Bounds.Center();
 				SplitInfo.RealBounds.GrowToInclude(Elem.Bounds);
 			}
 		}
@@ -1074,7 +1087,7 @@ private:
 			if (WorkPool[CurIdx].TimeslicePhase == eTimeSlicePhase::PreFindBestBounds)
 			{
 				const FVec3 Extents = WorkPool[CurIdx].Bounds.Extents();
-				const int32 MaxAxis = WorkPool[CurIdx].Bounds.LargestAxis();
+				const int32 MaxAxis = WorkPool[CurIdx].Bounds.LargestAxis();	//todo: use variance instead
 
 				//Add two children, remember this invalidates any pointers to current snapshot
 				const int32 FirstChildIdx = GetNewWorkSnapshot();
@@ -1088,7 +1101,7 @@ private:
 				WorkPool[CurIdx].SplitInfos[0].SplitBounds = FAABB3(WorkPool[CurIdx].Bounds.Min(), WorkPool[CurIdx].Bounds.Min());
 				WorkPool[CurIdx].SplitInfos[1].SplitBounds = FAABB3(WorkPool[CurIdx].Bounds.Max(), WorkPool[CurIdx].Bounds.Max());
 
-				const FVec3 Center = WorkPool[CurIdx].Bounds.Center();
+				const FVec3 Center = WorkPool[CurIdx].AverageCenter;
 				for (FSplitInfo& SplitInfo : WorkPool[CurIdx].SplitInfos)
 				{
 					SplitInfo.RealBounds = FAABB3::EmptyAABB();
@@ -1115,6 +1128,9 @@ private:
 				{
 					WorkPool[FirstChildIdx].Elems.Reserve(ExpectedNumPerChild);
 					WorkPool[SecondChildIdx].Elems.Reserve(ExpectedNumPerChild);
+
+					WorkPool[FirstChildIdx].AverageCenter = FVec3(0);
+					WorkPool[SecondChildIdx].AverageCenter = FVec3(0);
 				}
 			}
 
@@ -1155,6 +1171,9 @@ private:
 
 				WorkPool[FirstChildIdx].NewNodeIdx = Nodes[NewNodeIdx].ChildrenNodes[0];
 				WorkPool[SecondChildIdx].NewNodeIdx = Nodes[NewNodeIdx].ChildrenNodes[1];
+
+				WorkPool[FirstChildIdx].AverageCenter *= ((FReal)1 / WorkPool[FirstChildIdx].Elems.Num());
+				WorkPool[SecondChildIdx].AverageCenter *= ((FReal)1 / WorkPool[SecondChildIdx].Elems.Num());
 
 				//push these two new nodes onto the stack
 				WorkStack.Add(SecondChildIdx);

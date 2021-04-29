@@ -46,8 +46,7 @@ namespace DatasmithRuntime
 
 		if ( !MaterialData.Object.IsValid() )
 		{
-			//MaterialData.Hash = Element->GetStore().Snapshot().Hash();
-			MaterialData.Hash = GetTypeHash(Element->CalculateElementHash(true));
+			MaterialData.Hash = GetTypeHash(Element->CalculateElementHash(true), EDataType::Material);
 
 			if (UObject* Asset = FAssetRegistry::FindObjectFromHash(MaterialData.Hash))
 			{
@@ -152,7 +151,7 @@ namespace DatasmithRuntime
 
 			TSharedPtr< IDatasmithMasterMaterialElement > MaterialElement = StaticCastSharedPtr< IDatasmithMasterMaterialElement >( Element );
 
-			bCreationSuccessful = LoadMasterMaterial(MaterialInstance, MaterialElement, SceneElement->GetHost());
+			bCreationSuccessful = LoadMasterMaterial(MaterialInstance, MaterialElement);
 		}
 		else if ( Element->IsA( EDatasmithElementType::UEPbrMaterial ) )
 		{

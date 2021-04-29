@@ -338,7 +338,7 @@ namespace UnrealBuildTool
 				string ParentPluginName = Tokens[0];
 				foreach (KeyValuePair<DirectoryReference, List<PluginInfo>> Pair in PluginInfoCache)
 				{
-					Parent = Pair.Value.FirstOrDefault(x => x.Name.Equals(ParentPluginName, StringComparison.InvariantCultureIgnoreCase));
+					Parent = Pair.Value.FirstOrDefault(x => x.Name.Equals(ParentPluginName, StringComparison.InvariantCultureIgnoreCase) && x.LoadedFrom == Child.LoadedFrom);
 					if (Parent != null)
 					{
 						break;

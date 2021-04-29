@@ -165,6 +165,12 @@ public class Core : ModuleRules
 			DynamicallyLoadedModuleNames.AddRange(new string[] { "DerivedDataCache" });
 		}
 
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Desktop))
+        {
+			// Enabling more crash information on Desktop platforms.
+			PublicDefinitions.Add("WITH_ADDITIONAL_CRASH_CONTEXTS=1");
+		}
+		
 		// On Windows platform, VSPerfExternalProfiler.cpp needs access to "VSPerf.h".  This header is included with Visual Studio, but it's not in a standard include path.
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{

@@ -42,9 +42,6 @@ class UBodySetup;
 /** The maximum number of static mesh LODs allowed. */
 #define MAX_STATIC_MESH_LODS 8
 
-/** Whether FStaticMeshSceneProxy should to store data and enable codepaths needed for debug rendering */
-#define STATICMESH_ENABLE_DEBUG_RENDERING (!(UE_BUILD_SHIPPING || UE_BUILD_TEST) || WITH_EDITOR)
-
 struct FStaticMaterial;
 
 /**
@@ -636,7 +633,7 @@ public:
 	/** Bounds of the renderable mesh. */
 	FBoxSphereBounds Bounds;
 
-	bool IsInitialized()
+	bool IsInitialized() const
 	{
 		return bIsInitialized;
 	}

@@ -21,6 +21,7 @@
 
 class FMediaPlayerFacade;
 class IMediaPlayer;
+class IMediaModule;
 class UMediaPlaylist;
 class UMediaSource;
 
@@ -976,6 +977,11 @@ public:
 	 */
 	void RegisterWithMediaModule();
 
+	/** 
+	 * When the player goes out of scope, make sure to clean up the clock sink
+	 */
+	void UnregisterWithMediaModule();
+
 	/**
 	 * Get the current play list.
 	 *
@@ -1020,6 +1026,7 @@ public:
 	//~ UObject interface
 
 	virtual void BeginDestroy() override;
+
 	virtual FString GetDesc() override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	virtual void PostInitProperties() override;

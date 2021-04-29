@@ -68,9 +68,9 @@ void SUsdStageInfo::Construct( const FArguments& InArgs, AUsdStageActor* InUsdSt
 				.Text( this, &SUsdStageInfo::GetMetersPerUnit )
 				.IsReadOnly_Lambda([this]()
 				{
-					if ( AUsdStageActor* StageActor = UsdStageActor.Get() )
+					if ( const AUsdStageActor* StageActor = UsdStageActor.Get() )
 					{
-						return !( bool ) UsdStageActor->GetUsdStage();
+						return !( bool ) StageActor->GetUsdStage();
 					}
 					return true;
 				})
@@ -86,7 +86,7 @@ void SUsdStageInfo::RefreshStageInfos( AUsdStageActor* InUsdStageActor )
 
 	if ( InUsdStageActor )
 	{
-		if ( const UE::FUsdStage& UsdStage = UsdStageActor->GetUsdStage() )
+		if ( const UE::FUsdStage& UsdStage = static_cast< const AUsdStageActor* >( UsdStageActor.Get() )->GetUsdStage() )
 		{
 			StageInfos.RootLayerDisplayName = FText::FromString( UsdStage.GetRootLayer().GetDisplayName() );
 			StageInfos.MetersPerUnit = UsdUtils::GetUsdStageMetersPerUnit( UsdStage );
@@ -168,7 +168,7 @@ void SUsdStageInfo::OnMetersPerUnitCommitted( const FText& InUnitsPerMeterText, 
 		MetersPerUnit
 	) );
 
-	UsdUtils::SetUsdStageMetersPerUnit( UsdStageActor->GetUsdStage(), MetersPerUnit );
+	UsdUtils::SetUsdStageMetersPerUnit( static_cast< const AUsdStageActor* >( UsdStageActor.Get() )->GetUsdStage(), MetersPerUnit );
 	RefreshStageInfos( UsdStageActor.Get() );
 }
 

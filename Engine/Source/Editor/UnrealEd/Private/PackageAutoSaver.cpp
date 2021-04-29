@@ -92,9 +92,8 @@ FPackageAutoSaver::FPackageAutoSaver()
 	, AutoSaveCount(0.0f)
 	, bIsAutoSaving(false)
 	, bDelayingDueToFailedSave(false)
+	, bAutoDeclineRecovery(FParse::Param(FCommandLine::Get(), TEXT("AutoDeclinePackageRecovery")))
 {
-	const UEditorLoadingSavingSettings* LoadingSavingSettings = GetDefault<UEditorLoadingSavingSettings>();
-
 	// Register for the package dirty state updated callback to catch packages that have been cleaned without being saved
 	UPackage::PackageDirtyStateChangedEvent.AddRaw(this, &FPackageAutoSaver::OnPackageDirtyStateUpdated);
 

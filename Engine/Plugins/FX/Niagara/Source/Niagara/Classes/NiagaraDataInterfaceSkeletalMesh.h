@@ -667,8 +667,6 @@ struct FNDISkeletalMesh_InstanceData
 	/** Flag to stub VM functions that rely on mesh data being accessible on the CPU */
 	bool bAllowCPUMeshDataAccess;
 
-	/** The MinLOD applicable to the skeletal mesh, based on USkeletalMesh::MinLod which is platform specific.*/
-	int32 MinLODIdx = 0;
 	/** Whether to reset the emitter if any LOD get streamed in. Used when the required LOD was not initially available. */
 	bool bResetOnLODStreamedIn = false;
 	/** The cached LODIdx used to initialize the FNDIStaticMesh_InstanceData.*/

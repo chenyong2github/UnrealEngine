@@ -41,7 +41,9 @@ const FName FSoundCueEditor::PaletteTabId( TEXT( "SoundCueEditor_Palette" ) );
 
 FSoundCueEditor::FSoundCueEditor()
 	: SoundCue(nullptr)
+#if ENABLE_AUDIO_DEBUG
 	, Debugger(nullptr)
+#endif
 {
 }
 
@@ -147,10 +149,12 @@ void FSoundCueEditor::InitSoundCueEditor(const EToolkitMode::Type Mode, const TS
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();
 
+#if ENABLE_AUDIO_DEBUG
 	if (GEditor->GetAudioDeviceManager())
 	{
 		Debugger = &GEditor->GetAudioDeviceManager()->GetDebugger();
 	}	
+#endif
 	
 	// @todo toolkit world centric editing
 	/*if(IsWorldCentricAssetEditor())
@@ -421,40 +425,68 @@ void FSoundCueEditor::TogglePlayback()
 
 void FSoundCueEditor::ToggleSolo()
 {
+#if ENABLE_AUDIO_DEBUG
 	if (Debugger)
 	{
 		Debugger->ToggleSoloSoundCue(SoundCue->GetFName());
 	}
+#endif
 }
 
 bool FSoundCueEditor::CanExcuteToggleSolo() const
 {
+#if ENABLE_AUDIO_DEBUG
 	// Allow Solo if Mute is not Toggle on
-	return Debugger ? !Debugger->IsMuteSoundCue(SoundCue->GetFName()) : false;
+	if (Debugger)
+	{
+		return !Debugger->IsMuteSoundCue(SoundCue->GetFName());
+	}
+#endif
+	return false;
 }
 
 bool FSoundCueEditor::IsSoloToggled() const
 {
-	return Debugger ? Debugger->IsSoloSoundCue(SoundCue->GetFName()) : false;
+#if ENABLE_AUDIO_DEBUG
+	if (Debugger)
+	{
+		return Debugger->IsSoloSoundCue(SoundCue->GetFName());
+	}
+#endif
+	return false;
 }
 
 void FSoundCueEditor::ToggleMute()
 {
+#if ENABLE_AUDIO_DEBUG
 	if (Debugger)
 	{
 		Debugger->ToggleMuteSoundCue(SoundCue->GetFName());
 	}
+#endif
 }
 
 bool FSoundCueEditor::CanExcuteToggleMute() const
 {
+#if ENABLE_AUDIO_DEBUG
 	// Allow Mute if Solo is not Toggle on
-	return Debugger ? !Debugger->IsSoloSoundCue(SoundCue->GetFName()) : false;
+	if (Debugger)
+	{
+		return !Debugger->IsSoloSoundCue(SoundCue->GetFName());
+	}
+#endif
+	return false;
 }
 
 bool FSoundCueEditor::IsMuteToggled() const
 {
-	return Debugger ? Debugger->IsMuteSoundCue(SoundCue->GetFName()) : false;
+#if ENABLE_AUDIO_DEBUG
+	if (Debugger)
+	{
+		return Debugger->IsMuteSoundCue(SoundCue->GetFName());
+	}
+#endif
+	return false;
 }
 
 void FSoundCueEditor::PlaySingleNode(UEdGraphNode* Node)

@@ -20,12 +20,31 @@ static TAutoConsoleVariable<int32> CVarSpanishUsesRAENumberFormat(
 
 namespace
 {
-	TSharedRef<const icu::BreakIterator> CreateBreakIterator( const icu::Locale& ICULocale, const EBreakIteratorType Type)
+	const icu::Locale& GetInvariantLocale()
+	{
+		auto MakeInvariantLocale = []()
+		{
+			icu::Locale TmpLocale("en-US-POSIX");
+			if (TmpLocale.isBogus())
+			{
+				TmpLocale = icu::Locale();
+			}
+			return TmpLocale;
+		};
+
+		static const icu::Locale InvariantLocale = MakeInvariantLocale();
+		return InvariantLocale;
+	}
+
+	TSharedRef<const icu::BreakIterator> CreateBreakIterator(const icu::Locale& ICULocale, const EBreakIteratorType Type)
 	{
 		UErrorCode ICUStatus = U_ZERO_ERROR;
 		icu::BreakIterator* (*FactoryFunction)(const icu::Locale&, UErrorCode&) = nullptr;
 		switch (Type)
 		{
+		default:
+			ensureAlwaysMsgf(false, TEXT("Unhandled break iterator type"));
+			// No break - use Grapheme
 		case EBreakIteratorType::Grapheme:
 			FactoryFunction = icu::BreakIterator::createCharacterInstance;
 			break;
@@ -41,46 +60,61 @@ namespace
 		case EBreakIteratorType::Title:
 			FactoryFunction = icu::BreakIterator::createTitleInstance;
 			break;
-		default:
-			checkf(false, TEXT("Unhandled break iterator type"));
 		}
-		TSharedPtr<const icu::BreakIterator> Ptr = MakeShareable( FactoryFunction(ICULocale, ICUStatus) );
-		checkf(Ptr.IsValid(), TEXT("Creating a break iterator object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get());
+		TSharedPtr<const icu::BreakIterator> Ptr = MakeShareable(FactoryFunction(ICULocale, ICUStatus));
+		if (!ensureAlwaysMsgf(Ptr, TEXT("Creating a break iterator object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get()))
+		{
+			Ptr = MakeShareable(FactoryFunction(GetInvariantLocale(), ICUStatus));
+			check(Ptr);
+		}
 		return Ptr.ToSharedRef();
 	}
 
-	TSharedRef<const icu::Collator, ESPMode::ThreadSafe> CreateCollator( const icu::Locale& ICULocale )
+	TSharedRef<const icu::Collator, ESPMode::ThreadSafe> CreateCollator(const icu::Locale& ICULocale)
 	{
 		UErrorCode ICUStatus = U_ZERO_ERROR;
-		TSharedPtr<const icu::Collator, ESPMode::ThreadSafe> Ptr = MakeShareable( icu::Collator::createInstance( ICULocale, ICUStatus ) );
-		checkf(Ptr.IsValid(), TEXT("Creating a collator object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get());
+		TSharedPtr<const icu::Collator, ESPMode::ThreadSafe> Ptr = MakeShareable(icu::Collator::createInstance(ICULocale, ICUStatus));
+		if (!ensureAlwaysMsgf(Ptr, TEXT("Creating a collator object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get()))
+		{
+			Ptr = MakeShareable(icu::Collator::createInstance(GetInvariantLocale(), ICUStatus));
+			check(Ptr);
+		}
 		return Ptr.ToSharedRef();
 	}
 
-	TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> CreateDateFormat( const icu::Locale& ICULocale )
+	TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> CreateDateFormat(const icu::Locale& ICULocale)
 	{
-		UErrorCode ICUStatus = U_ZERO_ERROR;
-		TSharedPtr<icu::DateFormat, ESPMode::ThreadSafe> Ptr = MakeShareable( icu::DateFormat::createDateInstance( icu::DateFormat::kDefault, ICULocale ) );
-		checkf(Ptr.IsValid(), TEXT("Creating a date format object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get());
-		Ptr->adoptTimeZone( icu::TimeZone::createDefault() );
+		TSharedPtr<icu::DateFormat, ESPMode::ThreadSafe> Ptr = MakeShareable(icu::DateFormat::createDateInstance(icu::DateFormat::kDefault, ICULocale));
+		if (!ensureAlwaysMsgf(Ptr, TEXT("Creating a date format object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get()))
+		{
+			Ptr = MakeShareable(icu::DateFormat::createDateInstance(icu::DateFormat::kDefault, GetInvariantLocale()));
+			check(Ptr);
+		}
+		Ptr->adoptTimeZone(icu::TimeZone::createDefault());
 		return Ptr.ToSharedRef();
 	}
 
-	TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> CreateTimeFormat( const icu::Locale& ICULocale )
+	TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> CreateTimeFormat(const icu::Locale& ICULocale)
 	{
-		UErrorCode ICUStatus = U_ZERO_ERROR;
-		TSharedPtr<icu::DateFormat, ESPMode::ThreadSafe> Ptr = MakeShareable( icu::DateFormat::createTimeInstance( icu::DateFormat::kDefault, ICULocale ) );
-		checkf(Ptr.IsValid(), TEXT("Creating a time format object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get());
-		Ptr->adoptTimeZone( icu::TimeZone::createDefault() );
+		TSharedPtr<icu::DateFormat, ESPMode::ThreadSafe> Ptr = MakeShareable(icu::DateFormat::createTimeInstance(icu::DateFormat::kDefault, ICULocale));
+		if (!ensureAlwaysMsgf(Ptr, TEXT("Creating a time format object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get()))
+		{
+			Ptr = MakeShareable(icu::DateFormat::createTimeInstance(icu::DateFormat::kDefault, GetInvariantLocale()));
+			check(Ptr);
+		}
+		Ptr->adoptTimeZone(icu::TimeZone::createDefault());
 		return Ptr.ToSharedRef();
 	}
 
-	TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> CreateDateTimeFormat( const icu::Locale& ICULocale )
+	TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> CreateDateTimeFormat(const icu::Locale& ICULocale)
 	{
-		UErrorCode ICUStatus = U_ZERO_ERROR;
-		TSharedPtr<icu::DateFormat, ESPMode::ThreadSafe> Ptr = MakeShareable( icu::DateFormat::createDateTimeInstance( icu::DateFormat::kDefault, icu::DateFormat::kDefault, ICULocale ) );
-		checkf(Ptr.IsValid(), TEXT("Creating a date-time format object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get());
-		Ptr->adoptTimeZone( icu::TimeZone::createDefault() );
+		TSharedPtr<icu::DateFormat, ESPMode::ThreadSafe> Ptr = MakeShareable(icu::DateFormat::createDateTimeInstance(icu::DateFormat::kDefault, icu::DateFormat::kDefault, ICULocale));
+		if (!ensureAlwaysMsgf(Ptr, TEXT("Creating a date-time format object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get()))
+		{
+			Ptr = MakeShareable(icu::DateFormat::createDateTimeInstance(icu::DateFormat::kDefault, icu::DateFormat::kDefault, GetInvariantLocale()));
+			check(Ptr);
+		}
+		Ptr->adoptTimeZone(icu::TimeZone::createDefault());
 		return Ptr.ToSharedRef();
 	}
 }
@@ -150,18 +184,26 @@ FICUCultureImplementation::FICUCultureImplementation(const FString& LocaleName)
 {
 	if (ICULocale.isBogus())
 	{
-		ICULocale = icu::Locale();
+		ICULocale = GetInvariantLocale();
 	}
 	{
 		UErrorCode ICUStatus = U_ZERO_ERROR;
 		ICUCardinalPluralRules = icu::PluralRules::forLocale(ICULocale, UPLURAL_TYPE_CARDINAL, ICUStatus);
-		checkf(U_SUCCESS(ICUStatus) && ICUCardinalPluralRules, TEXT("Creating a cardinal plural rules object failed using locale %s. Perhaps this locale has no data."), *LocaleName);
+		if (!ensureAlwaysMsgf(U_SUCCESS(ICUStatus) && ICUCardinalPluralRules, TEXT("Creating a cardinal plural rules object failed using locale %s. Perhaps this locale has no data."), *LocaleName))
+		{
+			ICUCardinalPluralRules = icu::PluralRules::forLocale(GetInvariantLocale(), UPLURAL_TYPE_CARDINAL, ICUStatus);
+			check(ICUCardinalPluralRules);
+		}
 		UEAvailableCardinalPluralForms = ICUPluralRulesToUEValidPluralForms(ICUCardinalPluralRules);
 	}
 	{
 		UErrorCode ICUStatus = U_ZERO_ERROR;
 		ICUOrdinalPluralRules = icu::PluralRules::forLocale(ICULocale, UPLURAL_TYPE_ORDINAL, ICUStatus);
-		checkf(U_SUCCESS(ICUStatus) && ICUOrdinalPluralRules, TEXT("Creating an ordinal plural rules object failed using locale %s. Perhaps this locale has no data."), *LocaleName);
+		if (!ensureAlwaysMsgf(U_SUCCESS(ICUStatus) && ICUOrdinalPluralRules, TEXT("Creating an ordinal plural rules object failed using locale %s. Perhaps this locale has no data."), *LocaleName))
+		{
+			ICUOrdinalPluralRules = icu::PluralRules::forLocale(GetInvariantLocale(), UPLURAL_TYPE_ORDINAL, ICUStatus);
+			check(ICUOrdinalPluralRules);
+		}
 		UEAvailableOrdinalPluralForms = ICUPluralRulesToUEValidPluralForms(ICUOrdinalPluralRules);
 	}
 }
@@ -734,9 +776,14 @@ TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> FICUCultureImplementation
 	}
 	else
 	{
-		const TSharedRef<icu::DateFormat, ESPMode::ThreadSafe> Formatter( icu::DateFormat::createDateInstance( UEToICU(DateStyle), ICULocale ) );
-		Formatter->adoptTimeZone( bIsDefaultTimeZone ? icu::TimeZone::createDefault() : icu::TimeZone::createTimeZone(InputTimeZoneID) );
-		return Formatter;
+		TSharedPtr<icu::DateFormat, ESPMode::ThreadSafe> Formatter = MakeShareable(icu::DateFormat::createDateInstance(UEToICU(DateStyle), ICULocale));
+		if (!ensureAlwaysMsgf(Formatter, TEXT("Creating a date format object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get()))
+		{
+			Formatter = MakeShareable(icu::DateFormat::createDateInstance(UEToICU(DateStyle), GetInvariantLocale()));
+			check(Formatter);
+		}
+		Formatter->adoptTimeZone(bIsDefaultTimeZone ? icu::TimeZone::createDefault() : icu::TimeZone::createTimeZone(InputTimeZoneID));
+		return Formatter.ToSharedRef();
 	}
 }
 
@@ -781,9 +828,14 @@ TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> FICUCultureImplementation
 	}
 	else
 	{
-		const TSharedRef<icu::DateFormat, ESPMode::ThreadSafe> Formatter( icu::DateFormat::createTimeInstance( UEToICU(TimeStyle), ICULocale ) );
-		Formatter->adoptTimeZone( bIsDefaultTimeZone ? icu::TimeZone::createDefault() : icu::TimeZone::createTimeZone(InputTimeZoneID) );
-		return Formatter;
+		TSharedPtr<icu::DateFormat, ESPMode::ThreadSafe> Formatter = MakeShareable(icu::DateFormat::createTimeInstance(UEToICU(TimeStyle), ICULocale));
+		if (!ensureAlwaysMsgf(Formatter, TEXT("Creating a time format object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get()))
+		{
+			Formatter = MakeShareable(icu::DateFormat::createTimeInstance(UEToICU(TimeStyle), GetInvariantLocale()));
+			check(Formatter);
+		}
+		Formatter->adoptTimeZone(bIsDefaultTimeZone ? icu::TimeZone::createDefault() : icu::TimeZone::createTimeZone(InputTimeZoneID));
+		return Formatter.ToSharedRef();
 	}
 }
 
@@ -829,9 +881,14 @@ TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> FICUCultureImplementation
 	}
 	else
 	{
-		const TSharedRef<icu::DateFormat, ESPMode::ThreadSafe> Formatter( icu::DateFormat::createDateTimeInstance( UEToICU(DateStyle), UEToICU(TimeStyle), ICULocale ) );
-		Formatter->adoptTimeZone( bIsDefaultTimeZone ? icu::TimeZone::createDefault() : icu::TimeZone::createTimeZone(InputTimeZoneID) );
-		return Formatter;
+		TSharedPtr<icu::DateFormat, ESPMode::ThreadSafe> Formatter = MakeShareable(icu::DateFormat::createDateTimeInstance(UEToICU(DateStyle), UEToICU(TimeStyle), ICULocale));
+		if (!ensureAlwaysMsgf(Formatter, TEXT("Creating a date-time format object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get()))
+		{
+			Formatter = MakeShareable(icu::DateFormat::createDateTimeInstance(UEToICU(DateStyle), UEToICU(TimeStyle), GetInvariantLocale()));
+			check(Formatter);
+		}
+		Formatter->adoptTimeZone(bIsDefaultTimeZone ? icu::TimeZone::createDefault() : icu::TimeZone::createTimeZone(InputTimeZoneID));
+		return Formatter.ToSharedRef();
 	}
 }
 
@@ -918,7 +975,11 @@ const FDecimalNumberFormattingRules& FICUCultureImplementation::GetDecimalNumber
 	{
 		UErrorCode ICUStatus = U_ZERO_ERROR;
 		DecimalFormatterForCulture = MakeShareable(static_cast<icu::DecimalFormat*>(icu::NumberFormat::createInstance(ICULocale, ICUStatus)));
-		checkf(DecimalFormatterForCulture.IsValid(), TEXT("Creating a decimal format object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get());
+		if (!ensureAlwaysMsgf(DecimalFormatterForCulture, TEXT("Creating a decimal format object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get()))
+		{
+			DecimalFormatterForCulture = MakeShareable(static_cast<icu::DecimalFormat*>(icu::NumberFormat::createInstance(GetInvariantLocale(), ICUStatus)));
+			check(DecimalFormatterForCulture);
+		}
 	}
 
 	const FDecimalNumberFormattingRules NewUEDecimalNumberFormattingRules = ExtractNumberFormattingRulesFromICUDecimalFormatter(ICULocale, *DecimalFormatterForCulture);
@@ -929,7 +990,7 @@ const FDecimalNumberFormattingRules& FICUCultureImplementation::GetDecimalNumber
 
 		if (!UEDecimalNumberFormattingRules.IsValid())
 		{
-			UEDecimalNumberFormattingRules = MakeShareable(new FDecimalNumberFormattingRules(NewUEDecimalNumberFormattingRules));
+			UEDecimalNumberFormattingRules = MakeShared<FDecimalNumberFormattingRules, ESPMode::ThreadSafe>(NewUEDecimalNumberFormattingRules);
 		}
 	}
 
@@ -948,7 +1009,11 @@ const FDecimalNumberFormattingRules& FICUCultureImplementation::GetPercentFormat
 	{
 		UErrorCode ICUStatus = U_ZERO_ERROR;
 		PercentFormatterForCulture = MakeShareable(static_cast<icu::DecimalFormat*>(icu::NumberFormat::createPercentInstance(ICULocale, ICUStatus)));
-		checkf(PercentFormatterForCulture.IsValid(), TEXT("Creating a percent format object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get());
+		if (!ensureAlwaysMsgf(PercentFormatterForCulture, TEXT("Creating a percent format object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get()))
+		{
+			PercentFormatterForCulture = MakeShareable(static_cast<icu::DecimalFormat*>(icu::NumberFormat::createPercentInstance(GetInvariantLocale(), ICUStatus)));
+			check(PercentFormatterForCulture);
+		}
 	}
 
 	const FDecimalNumberFormattingRules NewUEPercentFormattingRules = ExtractNumberFormattingRulesFromICUDecimalFormatter(ICULocale, *PercentFormatterForCulture);
@@ -959,7 +1024,7 @@ const FDecimalNumberFormattingRules& FICUCultureImplementation::GetPercentFormat
 
 		if (!UEPercentFormattingRules.IsValid())
 		{
-			UEPercentFormattingRules = MakeShareable(new FDecimalNumberFormattingRules(NewUEPercentFormattingRules));
+			UEPercentFormattingRules = MakeShared<FDecimalNumberFormattingRules, ESPMode::ThreadSafe>(NewUEPercentFormattingRules);
 		}
 	}
 
@@ -982,7 +1047,7 @@ const FDecimalNumberFormattingRules& FICUCultureImplementation::GetCurrencyForma
 	{
 		FScopeLock MapLock(&UEAlternateCurrencyFormattingRulesCS);
 
-		auto FoundUEAlternateCurrencyFormattingRules = UEAlternateCurrencyFormattingRules.FindRef(SanitizedCurrencyCode);
+		TSharedPtr<const FDecimalNumberFormattingRules> FoundUEAlternateCurrencyFormattingRules = UEAlternateCurrencyFormattingRules.FindRef(SanitizedCurrencyCode);
 		if (FoundUEAlternateCurrencyFormattingRules.IsValid())
 		{
 			return *FoundUEAlternateCurrencyFormattingRules;
@@ -994,7 +1059,11 @@ const FDecimalNumberFormattingRules& FICUCultureImplementation::GetCurrencyForma
 	{
 		UErrorCode ICUStatus = U_ZERO_ERROR;
 		CurrencyFormatterForCulture = MakeShareable(static_cast<icu::DecimalFormat*>(icu::NumberFormat::createCurrencyInstance(ICULocale, ICUStatus)));
-		checkf(CurrencyFormatterForCulture.IsValid(), TEXT("Creating a currency format object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get());
+		if (!ensureAlwaysMsgf(CurrencyFormatterForCulture, TEXT("Creating a currency format object failed using locale %s. Perhaps this locale has no data."), StringCast<TCHAR>(ICULocale.getName()).Get()))
+		{
+			CurrencyFormatterForCulture = MakeShareable(static_cast<icu::DecimalFormat*>(icu::NumberFormat::createCurrencyInstance(GetInvariantLocale(), ICUStatus)));
+			check(CurrencyFormatterForCulture);
+		}
 	}
 
 	if (!bUseDefaultFormattingRules)
@@ -1014,7 +1083,7 @@ const FDecimalNumberFormattingRules& FICUCultureImplementation::GetCurrencyForma
 
 			if (!UECurrencyFormattingRules.IsValid())
 			{
-				UECurrencyFormattingRules = MakeShareable(new FDecimalNumberFormattingRules(NewUECurrencyFormattingRules));
+				UECurrencyFormattingRules = MakeShared<FDecimalNumberFormattingRules, ESPMode::ThreadSafe>(NewUECurrencyFormattingRules);
 			}
 		}
 
@@ -1025,13 +1094,13 @@ const FDecimalNumberFormattingRules& FICUCultureImplementation::GetCurrencyForma
 		FScopeLock MapLock(&UEAlternateCurrencyFormattingRulesCS);
 
 		// Find again in case another thread beat us to it
-		auto FoundUEAlternateCurrencyFormattingRules = UEAlternateCurrencyFormattingRules.FindRef(SanitizedCurrencyCode);
+		TSharedPtr<const FDecimalNumberFormattingRules> FoundUEAlternateCurrencyFormattingRules = UEAlternateCurrencyFormattingRules.FindRef(SanitizedCurrencyCode);
 		if (FoundUEAlternateCurrencyFormattingRules.IsValid())
 		{
 			return *FoundUEAlternateCurrencyFormattingRules;
 		}
 
-		FoundUEAlternateCurrencyFormattingRules = MakeShareable(new FDecimalNumberFormattingRules(NewUECurrencyFormattingRules));
+		FoundUEAlternateCurrencyFormattingRules = MakeShared<FDecimalNumberFormattingRules>(NewUECurrencyFormattingRules);
 		UEAlternateCurrencyFormattingRules.Add(SanitizedCurrencyCode, FoundUEAlternateCurrencyFormattingRules);
 		return *FoundUEAlternateCurrencyFormattingRules;
 	}

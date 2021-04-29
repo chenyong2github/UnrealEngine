@@ -6,6 +6,7 @@
 #include "Engine/DeveloperSettings.h"
 #include "AdvancedCopyCustomization.h"
 #include "Engine/AssetUserData.h"
+#include "Engine/EngineTypes.h"
 #include "AssetToolsSettings.generated.h"
 
 USTRUCT()
@@ -32,6 +33,6 @@ public:
 	UAssetToolsSettings() {};
 
 	/** List of rules to use when advanced copying assets */
-	UPROPERTY(config, EditAnywhere, Category = "Asset Tools", Meta = (TitleProperty = "ClassToCopy"))
+	UPROPERTY(config, EditAnywhere, Category = "Advanced Copy", Meta = (TitleProperty = "ClassToCopy"))
 	TArray<FAdvancedCopyMap> AdvancedCopyCustomizations;
 };

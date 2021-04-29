@@ -12,13 +12,13 @@
 
 #include "Render/IDisplayClusterRenderManager.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
-#include "Render/Device/DisplayClusterRenderViewport.h"
 
 #include "ITextureShareItem.h"
 
 #include "ITextureShareD3D12.h"
 #include "ID3D12CrossGPUHeap.h"
 
+/*
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterPostprocessD3D12CrossGPU
@@ -29,7 +29,7 @@ static bool GetCrossGPUHeap(TSharedPtr<ID3D12CrossGPUHeap>& OutCrossGPUHeap)
 	return SingletoneApi.GetCrossGPUHeap(OutCrossGPUHeap);
 }
 
-bool FDisplayClusterPostprocessD3D12CrossGPU::CreateResource_RenderThread(FRHICommandListImmediate& RHICmdList, const FString& ShareName, const FDisplayClusterRenderViewport& ResourceViewport, int ResourceViewportIndex, FRHITexture2D* ResourceTexture) const
+bool FDisplayClusterPostprocessD3D12CrossGPU::CreateResource_RenderThread(FRHICommandListImmediate& RHICmdList, const FString& ShareName, const FDisplayClusterViewport& ResourceViewport, int ResourceViewportIndex, FRHITexture2D* ResourceTexture) const
 {
 	FIntRect SrcTextureRect = ResourceViewport.GetRect();
 
@@ -66,3 +66,4 @@ bool FDisplayClusterPostprocessD3D12CrossGPU::ReceiveResource_RenderThread(FRHIC
 	TSharedPtr<ID3D12CrossGPUHeap> CrossGPUHeap;
 	return GetCrossGPUHeap(CrossGPUHeap) ? CrossGPUHeap->ReceiveCrossGPUResource(RHICmdList, ResourceID, DstResource, &DstTextureRect) : false;
 }
+*/

@@ -1,62 +1,66 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraEditorUtilities.h"
-#include "NiagaraEditorModule.h"
+
+#include "AssetRegistryModule.h"
+#include "AssetToolsModule.h"
+#include "ContentBrowserModule.h"
+#include "EdGraphSchema_Niagara.h"
+#include "EditorStyleSet.h"
+#include "IContentBrowserSingleton.h"
 #include "INiagaraEditorTypeUtilities.h"
-#include "NiagaraNodeInput.h"
-#include "NiagaraNodeFunctionCall.h"
-#include "NiagaraNodeParameterMapSet.h"
-#include "NiagaraDataInterface.h"
+#include "IPythonScriptPlugin.h"
+#include "NiagaraClipboard.h"
 #include "NiagaraComponent.h"
-#include "UObject/StructOnScope.h"
+#include "NiagaraConstants.h"
+#include "NiagaraCustomVersion.h"
+#include "NiagaraDataInterface.h"
+#include "NiagaraEditorModule.h"
+#include "NiagaraEditorSettings.h"
+#include "NiagaraEditorStyle.h"
 #include "NiagaraGraph.h"
+#include "NiagaraNodeFunctionCall.h"
+#include "NiagaraNodeInput.h"
+#include "NiagaraNodeOutput.h"
+#include "NiagaraNodeParameterMapSet.h"
+#include "NiagaraNodeStaticSwitch.h"
+#include "NiagaraOverviewNode.h"
+#include "NiagaraParameterMapHistory.h"
+#include "NiagaraScript.h"
+#include "NiagaraScriptSource.h"
+#include "NiagaraSimulationStageBase.h"
+#include "NiagaraStackEditorData.h"
 #include "NiagaraSystem.h"
 #include "NiagaraSystemEditorData.h"
-#include "NiagaraScriptSource.h"
-#include "NiagaraScript.h"
-#include "NiagaraNodeOutput.h"
-#include "NiagaraOverviewNode.h"
-#include "NiagaraConstants.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/SBoxPanel.h"
-#include "HAL/PlatformApplicationMisc.h"
-#include "NiagaraEditorStyle.h"
-#include "EditorStyleSet.h"
-#include "ViewModels/NiagaraSystemViewModel.h"
-#include "ViewModels/NiagaraEmitterViewModel.h"
-#include "ViewModels/NiagaraEmitterHandleViewModel.h"
-#include "ViewModels/NiagaraOverviewGraphViewModel.h"
-#include "ViewModels/NiagaraSystemSelectionViewModel.h"
-#include "AssetRegistryModule.h"
-#include "Misc/FeedbackContext.h"
-#include "EdGraphSchema_Niagara.h"
-#include "HAL/PlatformFileManager.h"
-#include "Misc/FileHelper.h"
-#include "EdGraph/EdGraphPin.h"
-#include "ViewModels/Stack/NiagaraParameterHandle.h"
-#include "NiagaraNodeStaticSwitch.h"
-#include "NiagaraParameterMapHistory.h"
 #include "ScopedTransaction.h"
-#include "NiagaraStackEditorData.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "IContentBrowserSingleton.h"
-#include "ContentBrowserModule.h"
-#include "Modules/ModuleManager.h"
-#include "AssetToolsModule.h"
-#include "NiagaraCustomVersion.h"
-#include "Subsystems/AssetEditorSubsystem.h"
-#include "UObject/TextProperty.h"
+#include "UpgradeNiagaraScriptResults.h"
+#include "EdGraph/EdGraphPin.h"
 #include "Editor/EditorEngine.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Styling/CoreStyle.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "NiagaraSimulationStageBase.h"
-#include "NiagaraEditorSettings.h"
-#include "Widgets/SNiagaraParameterName.h"
+#include "HAL/PlatformFileManager.h"
+#include "Misc/FeedbackContext.h"
+#include "Misc/FileHelper.h"
+#include "Misc/ScopeExit.h"
+#include "Modules/ModuleManager.h"
+#include "Styling/CoreStyle.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "UObject/StructOnScope.h"
+#include "UObject/TextProperty.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
+#include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "ViewModels/NiagaraScratchPadUtilities.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/Stack/NiagaraParameterHandle.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SNiagaraParameterName.h"
 #include "Widgets/SNiagaraParameterPanel.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -1080,27 +1084,31 @@ void FNiagaraEditorUtilities::SetStaticSwitchConstants(UNiagaraGraph* Graph, TAr
 		// if there is a function node, it might have delegated some of the static switch values inside its script graph
 		// to be set by the next higher caller instead of directly by the user
 		UNiagaraNodeFunctionCall* FunctionNode = Cast<UNiagaraNodeFunctionCall>(Node);
-		if (FunctionNode && FunctionNode->PropagatedStaticSwitchParameters.Num() > 0)
+		if (FunctionNode)
 		{
-			for (const FNiagaraPropagatedVariable& SwitchValue : FunctionNode->PropagatedStaticSwitchParameters)
-			{
-				UEdGraphPin* ValuePin = FunctionNode->FindPin(SwitchValue.SwitchParameter.GetName(), EGPD_Input);
-				if (!ValuePin)
-				{
-					continue;
-				}
-				ValuePin->DefaultValue = FString();
-				FName PinName = SwitchValue.ToVariable().GetName();
-				for (UEdGraphPin* InputPin : CallInputs)
-				{
-					if (InputPin->GetFName().IsEqual(PinName) && InputPin->PinType == ValuePin->PinType)
-					{
-						ValuePin->DefaultValue = InputPin->DefaultValue;
-						break;
-					}
-				}				
-			}
+			FunctionNode->DebugState = FunctionNode->bInheritDebugStatus? ConstantResolver.GetDebugState() : ENiagaraFunctionDebugState::NoDebug;
 
+			if (FunctionNode->PropagatedStaticSwitchParameters.Num() > 0)
+			{
+				for (const FNiagaraPropagatedVariable& SwitchValue : FunctionNode->PropagatedStaticSwitchParameters)
+				{
+					UEdGraphPin* ValuePin = FunctionNode->FindPin(SwitchValue.SwitchParameter.GetName(), EGPD_Input);
+					if (!ValuePin)
+					{
+						continue;
+					}
+					ValuePin->DefaultValue = FString();
+					FName PinName = SwitchValue.ToVariable().GetName();
+					for (UEdGraphPin* InputPin : CallInputs)
+					{
+						if (InputPin->GetFName().IsEqual(PinName) && InputPin->PinType == ValuePin->PinType)
+						{
+							ValuePin->DefaultValue = InputPin->DefaultValue;
+							break;
+						}
+					}
+				}
+			}
 		}
 	}
 }
@@ -1402,6 +1410,21 @@ void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOp
 			continue;
 		}
 
+		// Check suggested state
+		bool bSuggested = false;
+		const bool bFoundSuggested = FilteredScriptAssets[i].GetTagValue(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, bSuggested), bSuggested);
+		if(bFoundSuggested)
+		{
+			if(InFilter.SuggestedFiltering == FGetFilteredScriptAssetsOptions::OnlySuggested && !bSuggested)
+			{
+				continue;
+			}
+			else if(InFilter.SuggestedFiltering == FGetFilteredScriptAssetsOptions::NoSuggested && bSuggested)
+			{
+				continue;
+			}
+		}
+		
 		OutFilteredScriptAssets.Add(FilteredScriptAssets[i]);
 	}
 }
@@ -1512,6 +1535,318 @@ ENiagaraScriptLibraryVisibility FNiagaraEditorUtilities::GetScriptAssetVisibilit
 bool FNiagaraEditorUtilities::IsScriptAssetInLibrary(const FAssetData& ScriptAssetData)
 {
 	return GetScriptAssetVisibility(ScriptAssetData) == ENiagaraScriptLibraryVisibility::Library;
+}
+
+int32 FNiagaraEditorUtilities::GetWeightForItem(const TSharedPtr<FNiagaraMenuAction_Generic>& InCurrentAction, const TArray<FString>& InFilterTerms)
+{
+	// The overall 'weight'
+	int32 TotalWeight = 0;
+
+	// Some simple weight figures to help find the most appropriate match
+	const float KeywordWeight = 10.f;
+	const float DescriptionWeight = 5.f;
+	const float DisplayNameWeight = 30.f;
+	const float CategoryWeight = 40.f;
+	const int32 PartialMatchExponent = 2;
+	const int32 ConsecutiveMatchExponent = 3;
+	const int32 WholeMatchExponent = 4;
+
+	const float WordContainsLetterWeightMultiplier = 0.5f;
+	const float StartsWithBonusWeightMultiplier = 10.f;
+	const float AlsoEndsWithBonusWeightMultiplier = 50.f;
+	const float ShorterWeight = 15.f;
+
+	FString FilterText;
+
+	for(const FString& FilterTerm : InFilterTerms)
+	{
+		FilterText += FilterTerm + TEXT(" ");
+	}
+
+	FilterText = FilterText.TrimStartAndEnd();
+
+	// the 'looser' this is set the larger the score
+	enum EWordMatchStyle
+	{
+		Contains,
+		StartsWith,
+		IsEqual
+	};
+	// Helper array
+	struct FArrayWithWeight
+	{
+		FArrayWithWeight(const TArray< FString >* InArray, int32 InWeight, int32 InFirstTermMultiplier = 1, EWordMatchStyle InConsecutiveMatchStyle = StartsWith)
+			: Array(InArray)
+			, Weight(InWeight)
+			, FirstTermMultiplier(InFirstTermMultiplier)
+			, ConsecutiveMatchStyle(InConsecutiveMatchStyle)
+		{
+		}
+
+		const TArray< FString >* Array;
+		int32 Weight;
+		int32 FirstTermMultiplier;
+		EWordMatchStyle ConsecutiveMatchStyle;
+	};
+
+	// Setup an array of arrays so we can do a weighted search			
+	TArray<FArrayWithWeight> WeightedArrayList;
+
+	// DisplayName
+	TArray<FString> DisplayNameArray;
+	InCurrentAction->DisplayName.ToString().ParseIntoArray(DisplayNameArray, TEXT(" "), true);
+	WeightedArrayList.Add(FArrayWithWeight(&DisplayNameArray, DisplayNameWeight, 10, StartsWith));
+
+	// Keywords
+	TArray<FString> KeywordsArray;
+	InCurrentAction->Keywords.ToString().ParseIntoArray(KeywordsArray, TEXT(" "), true);
+	WeightedArrayList.Add(FArrayWithWeight(&KeywordsArray, KeywordWeight));
+
+	// The categories
+	TArray<FString> CategoryArray = InCurrentAction->Categories;
+	WeightedArrayList.Add(FArrayWithWeight(&CategoryArray, CategoryWeight, 5, IsEqual));
+
+	// Now iterate through all the filter terms and calculate a 'weight' using the values and multipliers
+	const FString* EachTerm = nullptr;
+
+	// Now check the weighted lists	(We could further improve the hit weight by checking consecutive word matches)
+	for (int32 iFindCount = 0; iFindCount < WeightedArrayList.Num(); ++iFindCount)
+	{
+		const TArray<FString>& KeywordArray = *WeightedArrayList[iFindCount].Array;
+		float WeightPerList = 0.0f;
+		float KeywordArrayWeight = WeightedArrayList[iFindCount].Weight;
+		int32 FirstTermMultiplier = WeightedArrayList[iFindCount].FirstTermMultiplier;
+		EWordMatchStyle WordMatchStyle = WeightedArrayList[iFindCount].ConsecutiveMatchStyle;
+
+		FString FullKeyword;
+
+		for (const FString& Keyword : KeywordArray)
+		{
+			FullKeyword += Keyword + TEXT(" ");
+		}
+
+		FullKeyword = FullKeyword.TrimStartAndEnd();
+		
+		int32 ConsecutiveWordMatchCount = 0;
+		// Count of how many words in this keyword array contain a filter(letter) that the user has typed in
+		int32 WordMatchCount = 0;
+		int32 LastMatchingIndex = INDEX_NONE;
+
+		auto CalculateConsecutive = [&](int32 FilterIndex)
+		{
+			int32 PreviousLastMatchingIndex = LastMatchingIndex;
+			LastMatchingIndex = FilterIndex;
+
+			// this calculation is not quite correct in case there are multiple sets of consecutive hits
+			if(LastMatchingIndex - PreviousLastMatchingIndex == 1)
+			{
+				ConsecutiveWordMatchCount++;
+			}
+		};
+		
+		// The number of characters in this keyword array
+		int32 KeywordArrayCharLength = 0;
+		
+		// Loop through every word that the user could be looking for
+		for (int32 FilterIndex = 0; FilterIndex < InFilterTerms.Num(); ++FilterIndex)
+		{
+			// we exclude any word from appearing more than once
+			TSet<FString> UsedWords;
+			
+			EachTerm = &InFilterTerms[FilterIndex];
+			int32 TermLen = EachTerm->Len();
+			
+			for (int32 iEachWord = 0; iEachWord < KeywordArray.Num(); ++iEachWord)
+			{
+				// Keep track of how long all the words in the array are
+				KeywordArrayCharLength += KeywordArray[iEachWord].Len();
+				if(UsedWords.Contains(KeywordArray[iEachWord]))
+				{
+					continue;
+				}
+
+				UsedWords.Add(KeywordArray[iEachWord]);
+								
+				if (KeywordArray[iEachWord].Contains(*EachTerm, ESearchCase::IgnoreCase))
+				{					
+					WeightPerList += KeywordArrayWeight * WordContainsLetterWeightMultiplier;
+
+					if(WordMatchStyle == Contains)
+					{
+						++WordMatchCount;
+						CalculateConsecutive(FilterIndex);
+					}
+					
+					// If the word starts with the term, give it a little extra boost of weight
+					if (KeywordArray[iEachWord].StartsWith(*EachTerm, ESearchCase::IgnoreCase))
+					{
+						WeightPerList += KeywordArrayWeight * StartsWithBonusWeightMultiplier;
+
+						if(WordMatchStyle == StartsWith)
+						{
+							++WordMatchCount;
+							CalculateConsecutive(FilterIndex);
+						}
+
+						// additional boost if it also ends with the term (= usually means they are equal)
+						if(KeywordArray[iEachWord].EndsWith(*EachTerm, ESearchCase::IgnoreCase))
+						{
+							WeightPerList += KeywordArrayWeight * AlsoEndsWithBonusWeightMultiplier;
+
+							if(WordMatchStyle == IsEqual)
+							{
+								++WordMatchCount;
+								CalculateConsecutive(FilterIndex);
+							}
+						}
+					}
+				}
+			}
+
+			// the first filter term can have special meaning, for example as a category. "Make" is a category, so if the user types "Make" we want to favor it
+			if(FilterIndex == 0)
+			{
+				WeightPerList *= FirstTermMultiplier;
+			}
+		}
+		
+		// If the user has dragged off of a pin then do not prefer shorter things, because that will result
+		// in the matching of "Add" for a container instead of "+" for numeric types
+		if (KeywordArrayCharLength > 0)
+		{			
+			// The longer the match is, the more points it loses
+			float ShortWeight = KeywordArrayCharLength * ShorterWeight;
+			WeightPerList -= ShortWeight;
+		}
+
+		WeightPerList += FMath::Pow(WordMatchCount * KeywordArrayWeight, 3);
+
+		WeightPerList += FMath::Pow(ConsecutiveWordMatchCount * KeywordArrayWeight, ConsecutiveMatchExponent);
+
+		if(FilterText.Equals(FullKeyword, ESearchCase::IgnoreCase))
+		{
+			WeightPerList += FMath::Pow(KeywordArrayWeight, WholeMatchExponent);
+		}
+		
+		TotalWeight += WeightPerList;
+	}
+
+	// parameter actions get favored
+	if(InCurrentAction->GetParameterVariable().IsSet())
+	{
+		TotalWeight *= 2;
+	}
+
+	// suggested actions get favored massively
+	if(InCurrentAction->Section == ENiagaraMenuSections::Suggested)
+	{
+		//TotalWeight *= TotalWeight;
+		TotalWeight += (int32)FMath::Pow(10.0f, 4.0f);
+	}
+	
+	return TotalWeight;
+}
+
+bool FNiagaraEditorUtilities::DoesItemMatchFilterText(const FText& FilterText, const TSharedPtr<FNiagaraMenuAction_Generic>& Item)
+{
+	TArray<FString> FilterTerms;
+	FilterText.ToString().ParseIntoArray(FilterTerms, TEXT(" "), true);
+
+	int32 DisplayNameMatchCount = 0;
+	FString DisplayNameWithoutSpaces = Item->DisplayName.ToString().Replace(TEXT(" "), TEXT(""));
+	for(int32 FilterIndex = 0; FilterIndex < FilterTerms.Num(); FilterIndex++)
+	{
+		FString FilterTerm = FilterTerms[FilterIndex];
+		
+		if(Item->DisplayName.ToString().Contains(FilterTerm))
+		{
+			DisplayNameMatchCount++;
+		}
+	}
+
+	// we also want to include items that would match the filter text if the spaces are removed.
+	// i.e. typing "oneminus" should also allow the action "one minus"
+	if(DisplayNameWithoutSpaces.Contains(FilterText.ToString()))
+	{
+		return true;
+	}
+
+	if(DisplayNameMatchCount >= FilterTerms.Num() / 2.f)
+	{
+		return true;
+	}
+	
+	if(Item->Keywords.ToString().Contains(FilterText.ToString()))
+	{
+		return true;
+	}
+	
+	for(const FString& Category : Item->Categories)
+	{
+		if(Category.Contains(FilterText.ToString()))
+		{
+			return true;
+		}
+	}	
+
+	return false;
+}
+
+TTuple<EScriptSource, FText> FNiagaraEditorUtilities::GetScriptSource(const FAssetData& ScriptAssetData)
+{
+	FString PackagePathLocal ="";
+	FPackageName::TryConvertGameRelativePackagePathToLocalPath(ScriptAssetData.PackagePath.ToString(), PackagePathLocal);
+
+	if(FPaths::IsUnderDirectory(PackagePathLocal, FPaths::EnginePluginsDir() / TEXT("FX/Niagara")))
+	{
+		int32 ContentFoundIndex = PackagePathLocal.Find(TEXT("/Content"));
+
+		if(ContentFoundIndex != INDEX_NONE)
+		{
+			FString LeftPart = PackagePathLocal.Left(ContentFoundIndex);
+			bool bFound = LeftPart.FindLastChar('/', ContentFoundIndex);
+
+			if(bFound)
+			{
+				FString PluginName = LeftPart.RightChop(ContentFoundIndex + 1);
+				return TTuple<EScriptSource, FText>(EScriptSource::Niagara, FText::FromString(PluginName));
+			}
+		}
+	}
+	
+	if(FPaths::IsUnderDirectory(PackagePathLocal, FPaths::EnginePluginsDir()) || FPaths::IsUnderDirectory(PackagePathLocal, FPaths::ProjectPluginsDir()))
+	{
+		int32 ContentFoundIndex = PackagePathLocal.Find(TEXT("/Content"));
+
+		if(ContentFoundIndex != INDEX_NONE)
+		{
+			FString LeftPart = PackagePathLocal.Left(ContentFoundIndex);
+			bool bFound = LeftPart.FindLastChar('/', ContentFoundIndex);
+
+			if(bFound)
+			{
+				FString PluginName = LeftPart.RightChop(ContentFoundIndex + 1);
+				return TTuple<EScriptSource, FText>(EScriptSource::Plugins, FText::FromString(PluginName));
+			}
+		}
+	}
+
+	if(FPaths::IsUnderDirectory(PackagePathLocal, FPaths::GameDevelopersDir()))
+	{
+		return TTuple<EScriptSource, FText>(EScriptSource::Developer, FText::FromString("Developer"));
+	}
+	
+	if(FPaths::IsUnderDirectory(PackagePathLocal, FPaths::ProjectContentDir()))
+	{
+		return TTuple<EScriptSource, FText>(EScriptSource::Game, FText::FromString("Game"));
+	}		
+
+	return TTuple<EScriptSource, FText>(EScriptSource::Unknown, FText::FromString(""));
+}
+
+FLinearColor FNiagaraEditorUtilities::GetScriptSourceColor(EScriptSource ScriptData)
+{
+	return GetDefault<UNiagaraEditorSettings>()->GetSourceColor(ScriptData);	
 }
 
 NIAGARAEDITOR_API FText FNiagaraEditorUtilities::FormatScriptName(FName Name, bool bIsInLibrary)
@@ -1666,8 +2001,16 @@ void FNiagaraEditorUtilities::KillSystemInstances(const UNiagaraSystem& System)
 	}
 }
 
-bool FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(const UNiagaraNode& NodeBeingChanged, FName OldName, FName NewName, FText& OutErrorMessage)
+bool FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(const UNiagaraNode& NodeBeingChanged, FName OldName, FString NewNameString, FText& OutErrorMessage)
 {
+	if (NewNameString.Len() >= FNiagaraConstants::MaxParameterLength)
+	{
+		OutErrorMessage = FText::FormatOrdered(LOCTEXT("EmptyNameError", "Name cannot exceed {0} characters."), FNiagaraConstants::MaxParameterLength);
+		return false;
+	}
+
+	FName NewName = *NewNameString;
+
 	if (NewName == NAME_None)
 	{
 		OutErrorMessage = LOCTEXT("EmptyNameError", "Name can not be empty.");
@@ -2600,6 +2943,135 @@ void FNiagaraEditorUtilities::CollectPinTypeChangeActions(FGraphActionListBuilde
 	}
 
 	bOutCreateRemainingActions = false;
+}
+
+TArray<UNiagaraPythonScriptModuleInput*> GetFunctionCallInputs(const FNiagaraScriptVersionUpgradeContext& UpgradeContext)
+{
+	TArray<UNiagaraPythonScriptModuleInput*> ScriptInputs;
+	UNiagaraClipboardContent* ClipboardContent = UNiagaraClipboardContent::Create();
+	UpgradeContext.CreateClipboardCallback(ClipboardContent);
+	for (const UNiagaraClipboardFunctionInput* FunctionInput : ClipboardContent->FunctionInputs)
+	{
+		UNiagaraPythonScriptModuleInput* ScriptInput = NewObject<UNiagaraPythonScriptModuleInput>();
+		ScriptInput->Input = FunctionInput;
+		ScriptInputs.Add(ScriptInput);
+	}
+	return ScriptInputs;
+}
+
+void AddStackWarning(const FNiagaraAssetVersion& FromVersion, const FNiagaraAssetVersion& ToVersion, const FString& ToAdd, bool& bLoggedWarning, FString& OutWarnings)
+{
+	if (!bLoggedWarning)
+	{
+		OutWarnings.Appendf(TEXT("%i.%i -> %i.%i:\n"), FromVersion.MajorVersion, FromVersion.MinorVersion, ToVersion.MajorVersion, ToVersion.MinorVersion);
+	}
+	bLoggedWarning = true;
+	OutWarnings.Appendf(TEXT("  * %s\n"), *ToAdd);
+}
+
+const FString PythonUpgradeScriptStub = TEXT(
+	"import sys\n"
+	"import unreal as ue\n"
+	"upgrade_context = ue.load_object(None, '{0}')\n"
+	"### User Upgrade Script ###\n"
+	"{1}\n"
+	"### End User Script ###\n"
+	"upgrade_context.cancelled_by_python_error = False\n");
+
+void FNiagaraEditorUtilities::RunPythonUpgradeScripts(UNiagaraNodeFunctionCall* SourceNode,	const TArray<FVersionedNiagaraScriptData*>& UpgradeVersionData, const FNiagaraScriptVersionUpgradeContext& UpgradeContext, FString& OutWarnings)
+{
+	UUpgradeNiagaraScriptResults* Results = NewObject<UUpgradeNiagaraScriptResults>();
+	FGuid SavedVersion = SourceNode->SelectedScriptVersion;
+	
+	for (int i = 1; i < UpgradeVersionData.Num(); i++)
+	{
+		FVersionedNiagaraScriptData* PreviousData = UpgradeVersionData[i - 1];
+		FVersionedNiagaraScriptData* NewData = UpgradeVersionData[i];
+		if (NewData == nullptr || PreviousData == nullptr)
+		{
+			continue;
+		}
+
+		FString PythonScript;
+		if (NewData->UpdateScriptExecution == ENiagaraPythonUpdateScriptReference::DirectTextEntry)
+		{
+			PythonScript = NewData->PythonUpdateScript;
+		}
+		else if (NewData->UpdateScriptExecution == ENiagaraPythonUpdateScriptReference::ScriptAsset && !NewData->ScriptAsset.FilePath.IsEmpty())
+		{
+			FFileHelper::LoadFileToString(PythonScript, *NewData->ScriptAsset.FilePath);
+		}
+
+		bool bLoggedWarning = false;
+		if (!PythonScript.IsEmpty())
+		{
+			// set up script context
+			if (SourceNode->SelectedScriptVersion != PreviousData->Version.VersionGuid)
+			{
+				SourceNode->SelectedScriptVersion = PreviousData->Version.VersionGuid;
+				SourceNode->RefreshFromExternalChanges();
+			}
+			Results->OldInputs = GetFunctionCallInputs(UpgradeContext);
+			SourceNode->SelectedScriptVersion = NewData->Version.VersionGuid;
+			SourceNode->RefreshFromExternalChanges();
+			Results->NewInputs = GetFunctionCallInputs(UpgradeContext);
+			Results->Init();
+			
+			// save python script to a temp file to execute
+			FString TempScriptFile = FPaths::CreateTempFilename(*FPaths::ProjectIntermediateDir(), TEXT("VersionUpgrade-"), TEXT(".py"));
+			IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+			ON_SCOPE_EXIT
+			{
+				// Delete temp script file
+				PlatformFile.DeleteFile(*TempScriptFile);
+			};
+			if (!FFileHelper::SaveStringToFile(FString::Format(*PythonUpgradeScriptStub, {Results->GetPathName(), PythonScript}), *TempScriptFile))
+			{
+				UE_LOG(LogNiagaraEditor, Error, TEXT("Unable to save python script to file %s"), *TempScriptFile);
+				AddStackWarning(PreviousData->Version, NewData->Version, "Cannot create python script file!", bLoggedWarning, OutWarnings);
+				continue;
+			}
+
+			Results->bCancelledByPythonError = true;
+			FPythonCommandEx PythonCommand = FPythonCommandEx();
+			PythonCommand.ExecutionMode = EPythonCommandExecutionMode::ExecuteFile;
+			PythonCommand.Command = TempScriptFile;
+
+			// execute python script
+			IPythonScriptPlugin::Get()->ExecPythonCommandEx(PythonCommand);
+
+			if (Results->bCancelledByPythonError)
+			{
+				UE_LOG(LogNiagaraEditor, Error, TEXT("%s\n\nPython script:\n%s"), *PythonCommand.CommandResult, *PythonCommand.Command);
+				AddStackWarning(PreviousData->Version, NewData->Version, "Python script ended with error!", bLoggedWarning, OutWarnings);
+			}
+			else
+			{
+				UNiagaraClipboardContent* ClipboardContent = UNiagaraClipboardContent::Create();
+				for (UNiagaraPythonScriptModuleInput* ModuleInput : Results->NewInputs)
+				{
+					ClipboardContent->FunctionInputs.Add(ModuleInput->Input);	
+				}
+				if (ClipboardContent->FunctionInputs.Num() > 0)
+				{
+					FText Warnings;
+					UpgradeContext.ApplyClipboardCallback(ClipboardContent, Warnings);
+					if (!Warnings.IsEmpty())
+					{
+						AddStackWarning(PreviousData->Version, NewData->Version, Warnings.ToString(), bLoggedWarning, OutWarnings);
+					}
+				}
+			}
+			if (PythonCommand.LogOutput.Num() > 0)
+			{
+				for (FPythonLogOutputEntry& Entry : PythonCommand.LogOutput)
+				{
+					AddStackWarning(PreviousData->Version, NewData->Version, Entry.Output, bLoggedWarning, OutWarnings);
+				}
+			}
+		}
+	}
+	SourceNode->SelectedScriptVersion = SavedVersion;
 }
 
 bool FNiagaraParameterUtilities::DoesParameterNameMatchSearchText(FName ParameterName, const FString& SearchTextString)

@@ -10,6 +10,9 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
 #include "IAssetTools.h"
+#include "Containers/UnrealString.h"
+#include "Containers/Map.h"
+#include "Containers/Array.h"
 
 struct FAdvancedCopyReportNode;
 class SAdvancedCopyTreeRow;
@@ -42,16 +45,24 @@ struct FAdvancedCopyReportNode
 	FString Destination;
 	/** The children of this node */
 	TArray< TSharedPtr<FAdvancedCopyReportNode> > Children;
+	/** The included set */
+	TSharedPtr<TSet<FString>> IncludedSet;
 
 	/** Constructor */
 	FAdvancedCopyReportNode();
-	FAdvancedCopyReportNode(const FString& InSource, const FString& InDestination);
+	FAdvancedCopyReportNode(const FString& InSource, const FString& InDestination, TSharedPtr<TSet<FString>> InIncludedSet);
 
 	/** Adds the path to the tree relative to this node, creating nodes as needed. */
 	void AddPackage(const FString& Source, const FString& Destination, const FString& DependencyOf);
 
 	/** Expands this node and all its children */
 	void ExpandChildrenRecursively(const TSharedRef<SAdvancedCopyReportTree>& TreeView);
+
+	/** Perform recursive action on all descendants. */
+	void ForAllDescendants(TFunctionRef<void(const TSharedPtr<FAdvancedCopyReportNode>& /*Node*/)> RecursiveAction);
+
+	bool GetWillCopy() const;
+	void SetWillCopy(bool bCopy);
 
 private:
 	bool AddPackage_Recursive(const FString& Source, const FString& Destination, const FString& DependencyOf);
@@ -60,7 +71,8 @@ private:
 class SAdvancedCopyReportDialog : public SCompoundWidget
 {
 public:
-	DECLARE_DELEGATE(FOnReportConfirmed)
+	typedef TArray<TMap<FString, FString>> FCopyDestinationMap;
+	DECLARE_DELEGATE_TwoParams(FOnReportConfirmed, FAdvancedCopyParams, FCopyDestinationMap)
 
 	SLATE_BEGIN_ARGS(SAdvancedCopyReportDialog){}
 
@@ -93,6 +105,8 @@ private:
 	/** Gets the children for the specified tree item */
 	void GetChildrenForTree( TSharedPtr<FAdvancedCopyReportNode> TreeItem, TArray< TSharedPtr<FAdvancedCopyReportNode> >& OutChildren );
 
+	void SetItemExpansionRecursive(TSharedPtr<FAdvancedCopyReportNode> TreeItem, bool bInExpansionState);
+
 	/** Handler for when "Ok" is clicked */
 	FReply OkClicked();
 
@@ -105,10 +119,15 @@ private:
 	FOnReportConfirmed OnReportConfirmed;
 	FAdvancedCopyReportNode PackageReportRootNode;
 	TSharedPtr<SAdvancedCopyReportTree> ReportTreeView;
+	/** The set of things to actually clone. */
+	TSharedPtr<TSet<FString>> CloneSet;
 	/** Map of columns that are shown on this report. */
 	TMap<FName, TSharedPtr<SAdvancedCopyColumn>> Columns;
 	FString ReportString;
 	FAdvancedCopyParams CurrentCopyParams;
+	TArray<TMap<FString, FString>> InitialDestinationMap;
+	FString FindString;
+	FString ReplaceString;
 };
 
 
@@ -139,11 +158,12 @@ public:
 	}
 
 private:
+	ECheckBoxState GetWillCopyCheckedState() const;
+	void ApplyWillCopyCheckedState(const ECheckBoxState NewCheckState);
 
 	/** Weak reference to the outliner widget that owns our list */
 	TWeakPtr< SAdvancedCopyReportDialog > ReportDialogWeak;
 
 	/** The item associated with this row of data */
 	TWeakPtr<struct FAdvancedCopyReportNode> Item;
-
 };

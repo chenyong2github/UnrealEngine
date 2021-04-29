@@ -3,18 +3,18 @@
 #pragma once
 
 #include "Components/DMXPixelMappingOutputComponent.h"
+#include "IDMXPixelMappingRenderer.h"
 #include "Templates/SubclassOf.h"
 #include "DMXPixelMappingRendererComponent.generated.h"
+
 
 class UMaterialInterface;
 class UTexture;
 class UUserWidget;
-class IDMXPixelMappingRenderer;
 class UTextureRenderTarget2D;
 class UWorld;
 
 enum class EMapChangeType : uint8;
-
 enum class EDMXPixelMappingRendererType : uint8;
 
 /**
@@ -30,6 +30,7 @@ public:
 	/** Default Constructor */
 	UDMXPixelMappingRendererComponent();
 
+	/** Destructor */
 	~UDMXPixelMappingRendererComponent();
 
 	//~ Begin UObject implementation
@@ -51,19 +52,31 @@ public:
 
 	//~ Begin UDMXPixelMappingOutputComponent implementation
 #if WITH_EDITOR
-	//~ Output Texutre is only for preivew and should be controlled in editor only
-	virtual UTextureRenderTarget2D* GetOutputTexture() override;
 	virtual FVector2D GetSize() const override;
-
-	virtual void RenderEditorPreviewTexture() override;
 #endif
 	//~ End UDMXPixelMappingOutputComponent implementation
+
+#if WITH_EDITOR
+	/** Render all downsample pixel for editor preview texture */
+	void RenderEditorPreviewTexture();
+	
+	/** Get target for preview, create new one if does not exists. */
+	UTextureRenderTarget2D* GetPreviewRenderTarget();
+#endif
 
 	/** Get reference to the active input texture */
 	UTexture* GetRendererInputTexture() const;
 
 	/** Get renderer interfece */
 	const TSharedPtr<IDMXPixelMappingRenderer>& GetRenderer() { return PixelMappingRenderer; }
+
+	/**
+	 * Get pixel position in downsample buffer target based on pixel index
+	 *
+	 * @param InIndex Index of the pixel in buffer texture.
+	 * @return FIntPoint X and Y position of the pixel in texture
+	 */
+	FIntPoint GetPixelPosition(int32 InIndex) const;
 
 	/** Get active world. It could be editor or build world */
 	UWorld* GetWorld() const;
@@ -83,21 +96,63 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX|PixelMapping")
 	void RendererInputTexture();
 
+	/** Create or update size of  buffer target for rendering downsample pixels */
+	void CreateOrUpdateDownsampleBufferTarget();
+
+	/** 
+	 * Add pixel params for downsampling set
+	 *
+	 * @param InDownsamplePixelParam pixel rendering params
+	 */
+	void AddPixelToDownsampleSet(FDMXPixelMappingDownsamplePixelParam&& InDownsamplePixelParam);
+
+	/** Get amount of downsample pixels */
+	int32 GetDownsamplePixelNum() const { return DownsamplePixelParams.Num(); }
+
+	/**
+	 * Pass the downsample CPU buffer from Render Thread to Game Thread and store 
+	 * 
+	 * @param InDownsampleBuffer CPU buffer
+	 * @param InRect buffer X and Y dimension
+	 */
+	void SetDownsampleBuffer(TArray<FColor>&& InDownsampleBuffer, FIntRect InRect);
+
+	/** Get Pixel color by given downsample pixel index */
+	TOptional<FColor> GetDownsampleBufferPixel(const int32 InDownsamplePixelIndex);
+
+	/** Get Pixels color by given downsample pixel range */
+	TArray<FColor> GetDownsampleBufferPixels(const int32 InDownsamplePixelIndexStart, const int32 InDownsamplePixelIndexEnd);
+
+	/** Reset the color by given downsample pixel index */
+	bool ResetColorDownsampleBufferPixel(const int32 InDownsamplePixelIndex);
+
+	/** Reset the color by given downsample pixel range */
+	bool ResetColorDownsampleBufferPixels(const int32 InDownsamplePixelIndexStart, const int32 InDownsamplePixelIndexEnd);
+
+	/** Remove all pixels from DownsampleBuffer */
+	void EmptyDownsampleBuffer();
+
 private:
-	void ResizeMaterialRenderTarget(uint32 InSizeX, uint32 InSizeY);
+	/** Resize input target based on X and Y input material size  */
+	void ResizeMaterialRenderTarget(int32 InSizeX, int32 InSizeY);
 
 	/** Generate new input widget based on UMG */
 	void UpdateInputWidget(TSubclassOf<UUserWidget> InInputWidget);
 
-#if WITH_EDITOR
 	/** Resize output texture for editor preview */
-	void ResizeOutputTarget(uint32 InSizeX, uint32 InSizeY);
+	void ResizePreviewRenderTarget(uint32 InSizeX, uint32 InSizeY);
 
+#if WITH_EDITOR
+	/** Map changer handler */
 	void OnMapChanged(UWorld* InWorld, EMapChangeType MapChangeType);
 #endif
 
 	/** Initialize all textures and creation or loading asset */
 	void Initialize();
+
+	/** Create a render target with unique name */
+	UTextureRenderTarget2D* CreateRenderTarget(const FName& InBaseName);
+
 public:
 	/** Type of rendering, Texture, Material, UMG, etc... */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Render Settings")
@@ -126,7 +181,7 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** Editor preview output target */
 	UPROPERTY(Transient)
-	UTextureRenderTarget2D* OutputTarget;
+	UTextureRenderTarget2D* PreviewRenderTarget;
 #endif
 
 	/** Material of UMG texture to downsample */
@@ -141,9 +196,38 @@ private:
 	UUserWidget* UserWidget;
 
 #if WITH_EDITORONLY_DATA
-	/** Canvas for all UI downsamping component witgets */
+	/** Canvas for all UI downsamping component widgets */
 	TSharedPtr<SConstraintCanvas> ComponentsCanvas;
 
+	/** Change level Delegate */
 	FDelegateHandle OnChangeLevelHandle;
 #endif
+
+	/** Retrieve total count of all output targets that support shared rendering and updates a counter. O(n) */
+	int32 GetTotalDownsamplePixelCount();
+
+	/** Helper function checks the downsample pixel range */
+	bool IsPixelRangeValid(const int32 InDownsamplePixelIndexStart, const int32 InDownsamplePixelIndexEnd) const;
+
+	/** GPU downsample pixel buffer target texture */
+	UPROPERTY(Transient)
+	UTextureRenderTarget2D* DownsampleBufferTarget;
+
+	/** CPU downsample pixel buffer */
+	TArray<FColor> DownsampleBuffer;
+
+	/** Counter for all pixels from child components */
+	int32 DownsamplePixelCount;
+
+	/** Critical section for set, update and get color array */
+	FCriticalSection DownsampleBufferCS;
+
+	/** Hold the params of the pixels for downsamle rendering */
+	TArray<FDMXPixelMappingDownsamplePixelParam> DownsamplePixelParams;
+
+	/** Initial texture color */
+	static const FLinearColor ClearTextureColor;
+public:
+	/** Max downsample target size */
+	static const FIntPoint MaxDownsampleBufferTargetSize;
 };

@@ -125,7 +125,7 @@ private:
 	bool bDelayingDueToFailedSave;
 
 	/** Flag as true if recovery prompt is disabled. Should be true if another system is restoring, replacing the auto-saver recovery, like the Disaster Recovery plugin. */
-	bool bAutoDeclineRecovery = false;
+	bool bAutoDeclineRecovery;
 
 	/** Indicate that we need to update the restore file. */
 	bool bNeedRestoreFileUpdate = false;

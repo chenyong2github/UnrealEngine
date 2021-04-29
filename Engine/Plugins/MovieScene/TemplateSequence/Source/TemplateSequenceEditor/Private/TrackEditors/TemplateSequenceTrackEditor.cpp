@@ -25,6 +25,8 @@
 #include "TemplateSequence.h"
 #include "TrackEditors/CameraAnimTrackEditorHelper.h"
 #include "Tracks/MovieSceneCameraAnimTrack.h"
+#include "Tracks/MovieSceneFloatTrack.h"
+#include "Tracks/MovieScene3DTransformTrack.h"
 #include "Tracks/TemplateSequenceTrack.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
@@ -289,6 +291,12 @@ void FTemplateSequenceTrackEditor::OnTemplateSequenceAssetSelected(const FAssetD
 {
 	FSlateApplication::Get().DismissAllMenus();
 
+	UMovieScene* FocusedMovieScene = GetFocusedMovieScene();
+	if (FocusedMovieScene == nullptr || FocusedMovieScene->IsReadOnly())
+	{
+		return;
+	}
+
 	if (UTemplateSequence* SelectedSequence = Cast<UTemplateSequence>(AssetData.GetAsset()))
 	{
 		const FScopedTransaction Transaction(LOCTEXT("AddTemplateSequence_Transaction", "Add Template Animation"));
@@ -368,8 +376,10 @@ FKeyPropertyResult FTemplateSequenceTrackEditor::AddKeyInternal(FFrameNumber Key
 				UMovieSceneTrack* Track = TrackResult.Track;
 				KeyPropertyResult.bTrackCreated |= TrackResult.bWasCreated;
 
-				if (ensure(Track))
+				if (ensure(Track) && Track->CanModify())
 				{
+					Track->Modify();
+
 					UMovieSceneSection* NewSection = Cast<UTemplateSequenceTrack>(Track)->AddNewTemplateSequenceSection(KeyTime, TemplateSequence);
 					KeyPropertyResult.bTrackModified = true;
 					KeyPropertyResult.SectionsCreated.Add(NewSection);
@@ -469,6 +479,140 @@ UCameraComponent* FTemplateSequenceTrackEditor::AcquireCameraComponentFromObject
 FTemplateSequenceSection::FTemplateSequenceSection(TSharedPtr<ISequencer> InSequencer, UTemplateSequenceSection& InSection)
 	: TSubSectionMixin(InSequencer, InSection)
 {
+}
+
+void FTemplateSequenceSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding)
+{
+	TSubSectionMixin::BuildSectionContextMenu(MenuBuilder, ObjectBinding);
+
+	MenuBuilder.AddMenuSeparator();
+
+	MenuBuilder.AddSubMenu(
+		LOCTEXT("AddPropertyScalingMenu", "Property Multipliers"),
+		LOCTEXT("AddPropertyScalingMenuTooltip", "Adds a multiplier channel that affects an animated property of the child sequence"),
+		FNewMenuDelegate::CreateRaw(this, &FTemplateSequenceSection::BuildPropertyScalingSubMenu, ObjectBinding),
+		false /*bInOpenSubMenuOnClick*/,
+		FSlateIcon()//"LevelSequenceEditorStyle", "LevelSequenceEditor.PossessNewActor")
+	);
+}
+
+void FTemplateSequenceSection::BuildPropertyScalingSubMenu(FMenuBuilder& MenuBuilder, FGuid ObjectBinding)
+{
+	using FScalablePropertyInfo = TTuple<FGuid, FMovieScenePropertyBinding, ETemplateSectionPropertyScaleType>;
+
+	TArray<FScalablePropertyInfo> AllAnimatedProperties;
+	TArray<FScalablePropertyInfo> AlreadyAddedProperties;
+
+	TSharedPtr<ISequencer> Sequencer = GetSequencer();
+	UTemplateSequenceSection& TemplateSequenceSection = GetSectionObjectAs<UTemplateSequenceSection>();
+
+	for (const FTemplateSectionPropertyScale& PropertyScale : TemplateSequenceSection.PropertyScales)
+	{
+		AlreadyAddedProperties.Add(FScalablePropertyInfo(
+				PropertyScale.ObjectBinding, PropertyScale.PropertyBinding, PropertyScale.PropertyScaleType));
+	}
+
+	UMovieSceneSequence* SubSequence = TemplateSequenceSection.GetSequence();
+	UMovieScene* SubMovieScene = SubSequence->GetMovieScene();
+	for (const FMovieSceneBinding& Binding : SubMovieScene->GetBindings())
+	{
+		for (const UMovieSceneTrack* BindingTrack : Binding.GetTracks())
+		{
+			if (const UMovieScenePropertyTrack* PropertyTrack = Cast<UMovieScenePropertyTrack>(BindingTrack))
+			{
+				const UClass* PropertyTrackClass = PropertyTrack->GetClass();
+				TArray<ETemplateSectionPropertyScaleType, TInlineAllocator<2>> SupportedScaleTypes;
+				if (PropertyTrackClass->IsChildOf<UMovieSceneFloatTrack>())
+				{
+					SupportedScaleTypes.Add(ETemplateSectionPropertyScaleType::FloatProperty);
+				}
+				else if (PropertyTrackClass->IsChildOf<UMovieScene3DTransformTrack>())
+				{
+					SupportedScaleTypes.Add(ETemplateSectionPropertyScaleType::TransformPropertyLocationOnly);
+					SupportedScaleTypes.Add(ETemplateSectionPropertyScaleType::TransformPropertyRotationOnly);
+				}
+
+				for (ETemplateSectionPropertyScaleType ScaleType : SupportedScaleTypes)
+				{
+					AllAnimatedProperties.Add(FScalablePropertyInfo(
+							Binding.GetObjectGuid(), PropertyTrack->GetPropertyBinding(), ScaleType));
+				}
+			}
+		}
+	}
+
+	if (AllAnimatedProperties.Num() > 0)
+	{
+		for (const FScalablePropertyInfo& AnimatedProperty : AllAnimatedProperties)
+		{
+			const FGuid& SubObjectBinding = AnimatedProperty.Get<0>();
+			const FMovieScenePropertyBinding& SubPropertyBinding = AnimatedProperty.Get<1>();
+			const ETemplateSectionPropertyScaleType ScaleType = AnimatedProperty.Get<2>();
+
+			FText ScaleTypeSuffix;
+			switch (ScaleType)
+			{
+				case ETemplateSectionPropertyScaleType::TransformPropertyLocationOnly:
+					ScaleTypeSuffix = LOCTEXT("TransformPropertyLocationOnlyScaleSuffix", "[Location]");
+					break;
+				case ETemplateSectionPropertyScaleType::TransformPropertyRotationOnly:
+					ScaleTypeSuffix = LOCTEXT("TransformPropertyRotationOnlyScaleSuffix", "[Rotation]");
+					break;
+				default:
+					// Leave empty
+					break;
+			}
+
+			const int32 AlreadyAddedPropertyIndex = AlreadyAddedProperties.Find(AnimatedProperty);
+
+			FUIAction MenuEntryAction = FUIAction(
+					FExecuteAction::CreateLambda(
+						[Sequencer, &TemplateSequenceSection, AlreadyAddedPropertyIndex, SubObjectBinding, SubPropertyBinding, ScaleType]()
+						{
+							if (AlreadyAddedPropertyIndex == INDEX_NONE)
+							{
+								FTemplateSectionPropertyScale NewPropertyScale;
+								NewPropertyScale.ObjectBinding = SubObjectBinding;
+								NewPropertyScale.PropertyBinding = SubPropertyBinding;
+								NewPropertyScale.PropertyScaleType = ScaleType;
+								NewPropertyScale.FloatChannel.SetDefault(1.f);
+
+								TemplateSequenceSection.AddPropertyScale(NewPropertyScale);
+							}
+							else
+							{
+								TemplateSequenceSection.RemovePropertyScale(AlreadyAddedPropertyIndex);
+							}
+							Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+						}),
+					FCanExecuteAction::CreateLambda([]() { return true; }),
+					FGetActionCheckState::CreateLambda(
+						[AlreadyAddedPropertyIndex]() -> ECheckBoxState
+						{
+							return AlreadyAddedPropertyIndex != INDEX_NONE ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+						})
+					);
+
+			MenuBuilder.AddMenuEntry(
+				FText::Format(LOCTEXT("AddPropertyScaling", "{0}{1}"), FText::FromName(SubPropertyBinding.PropertyPath), ScaleTypeSuffix),
+				FText::Format(LOCTEXT("AddPropertyScalingTooltip", "Toggle the multiplier channel for property: {0}"),
+					FText::FromName(SubPropertyBinding.PropertyPath)),
+				FSlateIcon(),
+				MenuEntryAction,
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton);
+		}
+	}
+	else
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("NoAvailablePropertyScaling", "None"), 
+			LOCTEXT("NoAvailablePropertyScalingTooltip", "No animated properties are available for scaling"),
+			FSlateIcon(),
+			FUIAction(),
+			NAME_None,
+			EUserInterfaceActionType::None);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

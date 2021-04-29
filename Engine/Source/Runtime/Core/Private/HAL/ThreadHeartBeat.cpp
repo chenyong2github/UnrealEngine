@@ -940,6 +940,7 @@ FGameThreadHitchHeartBeatThreaded* FGameThreadHitchHeartBeatThreaded::GetNoInit(
 //~ Begin FRunnable Interface.
 bool FGameThreadHitchHeartBeatThreaded::Init()
 {
+	StopTaskCounter.Reset();
 	return true;
 }
 

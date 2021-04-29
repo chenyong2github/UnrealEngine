@@ -6,7 +6,7 @@
 #include "NiagaraDataInterface.h"
 #include "NiagaraDataInterfaceDebugDraw.generated.h"
 
-UCLASS(Experimental, EditInlineNew, Category = "Debug", meta = (DisplayName = "DebugDraw"))
+UCLASS(EditInlineNew, Category = "Debug", meta = (DisplayName = "DebugDraw"))
 class NIAGARA_API UNiagaraDataInterfaceDebugDraw : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
@@ -23,10 +23,25 @@ public:
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction& OutFunc) override;
 
+	enum ShapeId
+	{
+		Box = 0,
+		Circle,
+		CoordinateSystem,
+		Grid2D,
+		Grid3D,
+		Line,
+		Sphere,
+		Max
+	};
+
+	static FName CompileTagKey;
+
 #if WITH_EDITORONLY_DATA
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 	virtual void GetCommonHLSL(FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
+	virtual bool GenerateCompilerTagPrefix(const FNiagaraFunctionSignature& InSignature, FString& OutPrefix) const override;
 #endif
 
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
@@ -38,5 +53,9 @@ public:
 	int32 PerInstanceDataSize() const;
 	bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance);
 	void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance);
+
+	virtual bool NeedsGPUContextInit() const override { return true; }
+	virtual bool GPUContextInit(const FNiagaraScriptDataInterfaceCompileInfo& InInfo, void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) const override;
+
 	//UNiagaraDataInterface Interface
 };

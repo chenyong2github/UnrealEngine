@@ -327,6 +327,14 @@ static TAutoConsoleVariable<int32> CVarBasePassForceOutputsVelocity(
 	TEXT("1: Enabled"),
 	ECVF_RenderThreadSafe);
 
+static int32 GParallelCmdListInheritBreadcrumbs = 1;
+static FAutoConsoleVariableRef CVarParallelCmdListInheritBreadcrumbs(
+	TEXT("r.ParallelCmdListInheritBreadcrumbs"),
+	GParallelCmdListInheritBreadcrumbs,
+	TEXT("Whether to inherit breadcrumbs to parallel cmd lists"),
+	ECVF_ReadOnly
+);
+
 #if !UE_BUILD_SHIPPING
 
 static TAutoConsoleVariable<int32> CVarTestInternalViewRectOffset(
@@ -758,6 +766,14 @@ FRHICommandList* FParallelCommandListSet::NewParallelCommandList()
 {
 	FRHICommandList* Result = AllocCommandList();
 	Result->ExecuteStat = ExecuteStat;
+
+#if RHI_WANT_BREADCRUMB_EVENTS
+	if (GParallelCmdListInheritBreadcrumbs)
+	{
+		Result->InheritBreadcrumbs(ParentCmdList);
+	}
+#endif
+
 	SetStateOnCommandList(*Result);
 	return Result;
 }
@@ -3586,7 +3602,7 @@ void FSceneRenderer::UpdatePrimitiveIndirectLightingCacheBuffers()
 *
 * @param SceneRenderer	Scene renderer to use for rendering.
 */
-static void ViewExtensionPreRender_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer)
+void FSceneRenderer::ViewExtensionPreRender_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer)
 {
 	FMemMark MemStackMark(FMemStack::Get());
 
@@ -3925,7 +3941,7 @@ void FRendererModule::BeginRenderingViewFamily(FCanvas* Canvas, FSceneViewFamily
 		ENQUEUE_RENDER_COMMAND(FViewExtensionPreDrawCommand)(
 			[SceneRenderer](FRHICommandListImmediate& RHICmdList)
 			{
-				ViewExtensionPreRender_RenderThread(RHICmdList, SceneRenderer);
+				FSceneRenderer::ViewExtensionPreRender_RenderThread(RHICmdList, SceneRenderer);
 			});
 
 		if (!SceneRenderer->ViewFamily.EngineShowFlags.HitProxies)

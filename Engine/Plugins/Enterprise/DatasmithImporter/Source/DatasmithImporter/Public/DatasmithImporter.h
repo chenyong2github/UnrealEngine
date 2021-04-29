@@ -157,10 +157,11 @@ struct DATASMITHIMPORTER_API FDatasmithImporter
 	 * @param SourceActor			The actor to finalize.
 	 * @param ExistingActor			An optional existing actor on which we will finalize over.
 	 * @param ReferencesToRemap		A map of migrated objects. If SourceActor refers to any key objects, those references will be replaced by the corresponding map value.
+	 * @param ReusableBuffer		An array that will be used for the migration of the data from the temp actor to the final actor. The array doesn't have to be empty the function will clean it before using it and it will try to keep it's existing allocation.
 	 *
 	 * @return The resulting actor
 	 */
-	static AActor* FinalizeActor( FDatasmithImportContext& ImportContext, AActor& SourceActor, AActor* ExistingActor, TMap< UObject*, UObject* >& ReferencesToRemap);
+	static AActor* FinalizeActor( FDatasmithImportContext& ImportContext, AActor& SourceActor, AActor* ExistingActor, TMap< UObject*, UObject* >& ReferencesToRemap, TArray<uint8>& ReusableBuffer );
 
 	/**
 	 * Imports the level sequences

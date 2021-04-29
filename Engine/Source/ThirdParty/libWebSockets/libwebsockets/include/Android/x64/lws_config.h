@@ -103,9 +103,9 @@
 /* SSL server using ECDH certificate */
 /* #undef LWS_SSL_SERVER_WITH_ECDH_CERT */
 /* #undef LWS_HAVE_SSL_CTX_set1_param */
-/* #undef LWS_HAVE_X509_VERIFY_PARAM_set1_host */
-/* #undef LWS_HAVE_RSA_SET0_KEY */
-/* #undef LWS_HAVE_X509_get_key_usage */
+#define LWS_HAVE_X509_VERIFY_PARAM_set1_host
+#define LWS_HAVE_RSA_SET0_KEY
+#define LWS_HAVE_X509_get_key_usage
 /* #undef LWS_HAVE_SSL_CTX_get0_certificate */
 
 /* #undef LWS_HAVE_UV_VERSION_H */

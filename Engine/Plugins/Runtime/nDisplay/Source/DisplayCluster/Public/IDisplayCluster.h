@@ -10,7 +10,6 @@
 
 class IDisplayClusterRenderManager;
 class IDisplayClusterClusterManager;
-class IDisplayClusterInputManager;
 class IDisplayClusterConfigManager;
 class IDisplayClusterGameManager;
 
@@ -83,7 +82,12 @@ public:
 	*
 	* @return Current cluster manager or nullptr
 	*/
-	virtual IDisplayClusterInputManager* GetInputMgr() const = 0;
+	class IDisplayClusterInputManager { };
+	UE_DEPRECATED(4.27, "VRPN functionality has been moved to LiveLinkVRPN")
+	virtual IDisplayClusterInputManager* GetInputMgr() const
+	{
+		return nullptr;
+	}
 
 	/**
 	* Access to the config manager.
@@ -107,6 +111,14 @@ public:
 	/** Called on session end **/
 	DECLARE_EVENT(IDisplayCluster, FDisplayClusterEndSessionEvent);
 	virtual FDisplayClusterEndSessionEvent& OnDisplayClusterEndSession() = 0;
+
+	/** Called on start scene **/
+	DECLARE_EVENT(IDisplayCluster, FDisplayClusterStartSceneEvent);
+	virtual FDisplayClusterStartSceneEvent& OnDisplayClusterStartScene() = 0;
+
+	/** Called on end scene **/
+	DECLARE_EVENT(IDisplayCluster, FDisplayClusterEndSceneEvent);
+	virtual FDisplayClusterEndSceneEvent& OnDisplayClusterEndScene() = 0;
 
 	/** Called on DisplayCluster StartFrame **/
 	DECLARE_EVENT_OneParam(IDisplayCluster, FDisplayClusterStartFrameEvent, uint64);

@@ -19,6 +19,8 @@
 
 namespace DatasmithRuntime
 {
+	const TCHAR* MATERIAL_HOST = TEXT("_Runtime_");
+
 	namespace EPbrTexturePropertySlot
 	{
 		enum Type
@@ -50,7 +52,9 @@ namespace DatasmithRuntime
 	};
 
 	constexpr const TCHAR* OpaqueMaterialPath = TEXT("/DatasmithRuntime/Materials/M_PbrOpaque.M_PbrOpaque");
+	constexpr const TCHAR* OpaqueMaterialPath_2Sided = TEXT("/DatasmithRuntime/Materials/M_PbrOpaque_2Sided.M_PbrOpaque_2Sided");
 	constexpr const TCHAR* TranslucentMaterialPath = TEXT("/DatasmithRuntime/Materials/M_PbrTranslucent.M_PbrTranslucent");
+	constexpr const TCHAR* TranslucentMaterialPath_2Sided = TEXT("/DatasmithRuntime/Materials/M_PbrTranslucent_2Sided.M_PbrTranslucent_2Sided");
 
 	struct FMaterialParameters
 	{
@@ -182,13 +186,13 @@ namespace DatasmithRuntime
 		return MaterialRequirement;
 	}
 
-	bool LoadMasterMaterial(UMaterialInstanceDynamic* MaterialInstance, TSharedPtr<IDatasmithMasterMaterialElement>& MaterialElement, const FString& HostString )
+	bool LoadMasterMaterial(UMaterialInstanceDynamic* MaterialInstance, TSharedPtr<IDatasmithMasterMaterialElement>& MaterialElement )
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::LoadMasterMaterial);
 
 		FDatasmithMasterMaterialManager& MaterialManager = FDatasmithMasterMaterialManager::Get();
-		const FString Host = MaterialManager.GetHostFromString( HostString );
-		TSharedPtr< FDatasmithMasterMaterialSelector > MaterialSelector = MaterialManager.GetSelector( *Host );
+		const FString Host = MaterialManager.GetHostFromString( MATERIAL_HOST );
+		TSharedPtr< FDatasmithMasterMaterialSelector > MaterialSelector = MaterialManager.GetSelector( MATERIAL_HOST );
 
 		UMaterial* MasterMaterial = nullptr;
 
@@ -420,8 +424,16 @@ namespace DatasmithRuntime
 
 			bool bNeedsTranslucent = (OpacityValue.bNumericValid && OpacityValue.GetScalar() != 1.0f) || OpacityValue.Texture || RefractionValue.bNumericValid || RefractionValue.Texture;
 
-			FSoftObjectPath SoftObject(bNeedsTranslucent ? TranslucentMaterialPath : OpaqueMaterialPath);
-			MaterialInstance->Parent = Cast<UMaterial>(SoftObject.TryLoad());
+			if (UEPbrMaterial.GetTwoSided())
+			{
+				FSoftObjectPath SoftObject(bNeedsTranslucent ? TranslucentMaterialPath_2Sided : OpaqueMaterialPath_2Sided);
+				MaterialInstance->Parent = Cast<UMaterial>(SoftObject.TryLoad());
+			}
+			else
+			{
+				FSoftObjectPath SoftObject(bNeedsTranslucent ? TranslucentMaterialPath : OpaqueMaterialPath);
+				MaterialInstance->Parent = Cast<UMaterial>(SoftObject.TryLoad());
+			}
 			check(MaterialInstance->Parent);
 
 			// PBR Material are too complex to be fully supported with simple Twinmotion material
@@ -503,7 +515,7 @@ namespace DatasmithRuntime
 				SetTextureParams(InputValue.Texture.Get(), EPbrTexturePropertySlot::SpecularMapSlot);
 			}
 
-			// GetTwoSided(), GetWorldDisplacement() & GetAmbientOcclusion() Not supported
+			// GetWorldDisplacement() & GetAmbientOcclusion() Not supported
 
 			return true;
 		}

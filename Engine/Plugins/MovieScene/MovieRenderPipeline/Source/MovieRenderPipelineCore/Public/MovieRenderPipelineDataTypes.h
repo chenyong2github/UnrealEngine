@@ -8,8 +8,10 @@
 #include "Engine/EngineTypes.h"
 #include "DSP/BufferVectorOperations.h"
 #include "Evaluation/MovieSceneSequenceTransform.h"
+#include "Sections/MovieSceneSubSection.h"
 #include "OpenColorIOColorSpace.h"
 #include "Async/ParallelFor.h"
+#include "MovieSceneSequenceID.h"
 #include "MovieRenderPipelineDataTypes.generated.h"
 
 class UMovieSceneCinematicShotSection;
@@ -85,8 +87,11 @@ enum class EMovieRenderShotState : uint8
 	Finished = 4
 };
 
+USTRUCT(BlueprintType)
 struct FMoviePipelinePassIdentifier
 {
+	GENERATED_BODY()
+
 	FMoviePipelinePassIdentifier()
 	{}
 
@@ -111,6 +116,7 @@ struct FMoviePipelinePassIdentifier
 	}
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Pipeline")
 	FString Name;
 };
 
@@ -276,6 +282,116 @@ namespace MoviePipeline
 			return FFrameTime(InTime) + MotionBlurCenteringOffsetTicks + ShutterOffsetTicks;
 		}
 	};
+
+	struct FCameraCutSubSectionHierarchyNode : TSharedFromThis<FCameraCutSubSectionHierarchyNode>
+	{
+		FCameraCutSubSectionHierarchyNode()
+			: bOriginalMovieSceneReadOnly(false)
+			, bOriginalMovieScenePlaybackRangeLocked(false)
+			, bOriginalMovieScenePackageDirty(false)
+			, bOriginalShotSectionIsLocked(false)
+			, bOriginalCameraCutIsActive(false)
+			, bOriginalShotSectionIsActive(false)
+			, EvaluationType(EMovieSceneEvaluationType::WithSubFrames)
+			, NodeID(MovieSceneSequenceID::Invalid)
+		{
+		}
+
+		/** The UMovieScene that this node has data for. */
+		TWeakObjectPtr<class UMovieScene> MovieScene;
+		/** The UMovieSceneSubSection within the movie scene (if any) */
+		TWeakObjectPtr<class UMovieSceneSubSection> Section;
+		/** The UMovieSceneCameraCutSection within the movie scene (if any) */
+		TWeakObjectPtr<class UMovieSceneCameraCutSection> CameraCutSection;
+		
+		// These are used to restore this node back to its proper shape post render.
+		TRange<FFrameNumber> OriginalMovieScenePlaybackRange;
+		bool bOriginalMovieSceneReadOnly;
+		bool bOriginalMovieScenePlaybackRangeLocked;
+		bool bOriginalMovieScenePackageDirty;
+
+		bool bOriginalShotSectionIsLocked;
+		TRange<FFrameNumber> OriginalShotSectionRange;
+		TRange<FFrameNumber> OriginalCameraCutSectionRange;
+
+		bool bOriginalCameraCutIsActive;
+		bool bOriginalShotSectionIsActive;
+
+		EMovieSceneEvaluationType EvaluationType;
+		FMovieSceneSequenceID NodeID;
+
+		void AddChild(TSharedPtr<FCameraCutSubSectionHierarchyNode> InChild)
+		{
+			if (!InChild)
+			{
+				return;
+			}
+
+			InChild->Parent = AsShared();
+			Children.AddUnique(InChild);
+		}
+
+		TArray<TSharedPtr<FCameraCutSubSectionHierarchyNode>> GetChildren() const
+		{
+			return Children;
+		}
+
+		void SetParent(TSharedPtr<FCameraCutSubSectionHierarchyNode> InParent)
+		{
+			if (!InParent)
+			{
+				return;
+			}
+
+			if (InParent == Parent)
+			{
+				return;
+			}
+
+			ensureAlwaysMsgf(!Parent, TEXT("Cannot switch parents of FCameraCutSubSectionHierarchy nodes."));
+
+			// Automatically adds us as a child of the parent and assigns out parent.
+			InParent->AddChild(AsShared());
+		}
+
+		bool IsEmpty() const
+		{
+			return *this == FCameraCutSubSectionHierarchyNode();
+		}
+
+		TSharedPtr<FCameraCutSubSectionHierarchyNode> GetParent() const { return Parent; }
+
+	private:
+		/** A pointer to the next node in the tree who actually includes us in the hierarchy. Different than outers as each moviescene is outered to its own package. */
+		TSharedPtr<FCameraCutSubSectionHierarchyNode> Parent;
+		/** An array of pointers to our children for downwards traversal. */
+		TArray<TSharedPtr<FCameraCutSubSectionHierarchyNode>> Children;
+
+		bool operator == (const FCameraCutSubSectionHierarchyNode& InRHS) const
+		{
+			return MovieScene == InRHS.MovieScene
+				&& Section == InRHS.Section
+				&& CameraCutSection == InRHS.CameraCutSection
+				&& OriginalMovieScenePlaybackRange == InRHS.OriginalMovieScenePlaybackRange
+				&& bOriginalMovieSceneReadOnly == InRHS.bOriginalMovieSceneReadOnly
+				&& bOriginalMovieScenePlaybackRangeLocked == InRHS.bOriginalMovieScenePlaybackRangeLocked
+				&& bOriginalMovieScenePackageDirty == InRHS.bOriginalMovieScenePackageDirty
+				&& bOriginalShotSectionIsLocked == InRHS.bOriginalShotSectionIsLocked
+				&& OriginalShotSectionRange == InRHS.OriginalShotSectionRange
+				&& OriginalCameraCutSectionRange == InRHS.OriginalCameraCutSectionRange
+				&& bOriginalCameraCutIsActive == InRHS.bOriginalCameraCutIsActive
+				&& bOriginalShotSectionIsActive == InRHS.bOriginalShotSectionIsActive
+				&& EvaluationType == InRHS.EvaluationType
+				&& NodeID == InRHS.NodeID
+				&& Children == InRHS.Children
+				&& Parent == InRHS.Parent;
+		}
+
+		bool operator != (const FCameraCutSubSectionHierarchyNode& InRHS) const
+		{
+			return !(*this == InRHS);
+		}
+	};
 }
 
 USTRUCT(BlueprintType)
@@ -341,15 +457,11 @@ struct FMoviePipelineCameraCutInfo
 	GENERATED_BODY()
 public:
 	FMoviePipelineCameraCutInfo()
-		: OriginalRangeLocal(TRange<FFrameNumber>::Empty())
-		, TotalOutputRangeLocal(TRange<FFrameNumber>::Empty())
-		, WarmUpRangeLocal(TRange<FFrameNumber>::Empty())
-		, bEmulateFirstFrameMotionBlur(true)
+		: bEmulateFirstFrameMotionBlur(true)
 		, NumTemporalSamples(0)
 		, NumSpatialSamples(0)
 		, NumTiles(0, 0)
 		, State(EMovieRenderShotState::Uninitialized)
-		, CurrentLocalSeqTick(FFrameNumber(0))
 		, bHasEvaluatedMotionBlurFrame(false)
 		, NumEngineWarmUpFramesRemaining(0)
 	{
@@ -363,17 +475,9 @@ private:
 	FFrameNumber GetOutputFrameCountEstimate() const;
 
 public:
-	/** The original non-modified range for this shot that will be rendered. This is in local space and should be multiplied by InnerToOuterTransform to convert to top-level space. */
-	TRange<FFrameNumber> OriginalRangeLocal;
+	
+	TSharedPtr<MoviePipeline::FCameraCutSubSectionHierarchyNode> SubSectionHierarchy;
 
-	/** The range for this shot including handle frames that will be rendered. This is in local space and should be multiplied by InnerToOuterTransform to convert to top-level space. */
-	TRange<FFrameNumber> TotalOutputRangeLocal;
-
-	/** The range for this shot (overlapping handle frames) that has data to do real warm ups with. Intermediate product to turn into NumEngineWarmUpFramesRemaining later. */
-	TRange<FFrameNumber> WarmUpRangeLocal;
-
-	/** The ranges in this class are in local space and need to be multiplied by the LinearTransform of this to convert them to master space. If they are already in master space the transform is identity. */
-	FMovieSceneSequenceTransform InnerToOuterTransform;
 
 	/** 
 	* Should we evaluate/render an extra frame at the start of this shot to show correct motion blur on the first frame? 
@@ -396,14 +500,18 @@ public:
 	/** Cached Tick Resolution our numbers are in. Simplifies some APIs. */
 	FFrameRate CachedTickResolution;
 	
-	
-	TWeakObjectPtr<UMovieSceneCameraCutSection> CameraCutSection;
 public:
 	/** The current state of processing this Shot is in. Not all states will be passed through. */
 	EMovieRenderShotState State;
 
-	/** The current tick of this shot that we're on local space, for knowing which frame of this sub-section is equivalent to the master. */
-	FFrameNumber CurrentLocalSeqTick;
+	/** The current tick of this shot that we're on in master space */
+	FFrameNumber CurrentTickInMaster;
+	
+	/** The total range of output frames in master space */
+	TRange<FFrameNumber> TotalOutputRangeMaster;
+	
+	/** The total range of warmup frames in master space */
+	TRange<FFrameNumber> WarmupRangeMaster;
 
 	/** Metrics - How much work has been done for this particular shot and how much do we estimate we have to do? */
 	FMoviePipelineSegmentWorkMetrics WorkMetrics;
@@ -414,26 +522,6 @@ public:
 
 	/** How many engine warm up frames are left to process for this shot. May be zero. */
 	int32 NumEngineWarmUpFramesRemaining;
-
-
-
-	bool operator == (const FMoviePipelineCameraCutInfo& InRHS) const
-	{
-		return
-			OriginalRangeLocal == InRHS.OriginalRangeLocal &&
-			TotalOutputRangeLocal == InRHS.TotalOutputRangeLocal &&
-			State == InRHS.State &&
-			NumEngineWarmUpFramesRemaining == InRHS.NumEngineWarmUpFramesRemaining &&
-			bEmulateFirstFrameMotionBlur == InRHS.bEmulateFirstFrameMotionBlur &&
-			bHasEvaluatedMotionBlurFrame == InRHS.bHasEvaluatedMotionBlurFrame &&
-			CurrentLocalSeqTick == InRHS.CurrentLocalSeqTick &&
-			CameraCutSection == InRHS.CameraCutSection;
-	}
-
-	bool operator != (const FMoviePipelineCameraCutInfo& InRHS) const
-	{
-		return !(*this == InRHS);
-	}
 };
 
 /**
@@ -696,13 +784,13 @@ struct FMoviePipelineFilenameResolveParams
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
 	int32 FrameNumberShotRel;
 	
-	/** Name used by the {camera_name} format tag. */
+	/** Name used by the {camera_name} format tag. If specified, this will override the camera name (which is normally pulled from the ShotOverride object). */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
-	FString CameraName;
+	FString CameraNameOverride;
 	
-	/** Name used by the {shot_name} format tag. */
+	/** Name used by the {shot_name} format tag. If specified, this will override the shot name (which is normally pulled from the ShotOverride object) */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
-	FString ShotName;
+	FString ShotNameOverride;
 
 	/** When converitng frame numbers to strings, how many digits should we pad them up to? ie: 5 => 0005 with a count of 4. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
@@ -959,6 +1047,12 @@ namespace MoviePipeline
 	{
 		struct FAudioSegment
 		{
+			FAudioSegment()
+			{
+				Id = FGuid::NewGuid();
+			}
+
+			FGuid Id;
 			FMoviePipelineFrameOutputState OutputState;
 
 			float NumChannels;
@@ -993,6 +1087,89 @@ namespace MoviePipeline
 		TUniquePtr<FImagePixelData> PixelData;
 	};
 }
+
+USTRUCT(BlueprintType)
+struct FMoviePipelineRenderPassOutputData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movie Pipeline")
+	TArray<FString> FilePaths;
+};
+
+USTRUCT(BlueprintType)
+struct FMoviePipelineShotOutputData
+{
+	GENERATED_BODY()
+
+	/** Which shot was this output data for? */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movie Pipeline")
+	TWeakObjectPtr<UMoviePipelineExecutorShot> Shot;
+
+	/** 
+	* A mapping between render passes (such as 'FinalImage') and an array containing the files written for that shot.
+	* Will be multiple files if using image sequences.
+	*/
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movie Pipeline")
+	TMap<FMoviePipelinePassIdentifier, FMoviePipelineRenderPassOutputData> RenderPassData;
+};
+
+namespace MoviePipeline
+{
+	struct FMoviePipelineOutputFutureData
+	{
+		FMoviePipelineOutputFutureData()
+			: Shot(nullptr)
+		{}
+
+		UMoviePipelineExecutorShot* Shot;
+		FString FilePath;
+		FMoviePipelinePassIdentifier PassIdentifier;
+	};
+}
+
+/**
+* Contains information about the to-disk output generated by a movie pipeline. This structure is used both for per-shot work finished
+* callbacks and for the final render finished callback. When used as a per-shot callback ShotData will only have one entry (for the
+* shot that was just finished), and for the final render callback it will have data for all shots that managed to render. Can be empty
+* if the job failed to produce any files.
+*/
+USTRUCT(BlueprintType)
+struct FMoviePipelineOutputData
+{
+	GENERATED_BODY()
+
+	FMoviePipelineOutputData()
+	: Pipeline(nullptr)
+	, Job(nullptr)
+	, bSuccess(false)
+	{}
+	
+	/** 
+	* The UMoviePipeline instance that generated this data. This is only provided as an id (in the event you were the one who created
+	* the UMoviePipeline instance. DO NOT CALL FUNCTIONS ON THIS (unless you know what you're doing)
+	*
+	* Provided here for backwards compatibility.
+	*/
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movie Pipeline")
+	UMoviePipeline* Pipeline;
+	
+	/** Job the data is for. Job may still be in progress (if a shot callback) so be careful about modifying properties on it */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movie Pipeline")
+	UMoviePipelineExecutorJob* Job;
+	
+	/** Did the job succeed, or was it canceled early due to an error (such as failure to write file to disk)? */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movie Pipeline")
+	bool bSuccess;
+
+	/** 
+	* The file data for each shot that was rendered. If no files were written this will be empty. If this is from the per-shot work
+	* finished callback it will only have one entry (for the just finished shot). Will not include shots that did not get rendered
+	* due to the pipeline encountering an error.
+	*/
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movie Pipeline")
+	TArray<FMoviePipelineShotOutputData> ShotData;
+};
 
 /**
  * A pixel preprocessor for use with FImageWriteTask::PixelPreProcessor that does a simple alpha blend of the provided image onto the

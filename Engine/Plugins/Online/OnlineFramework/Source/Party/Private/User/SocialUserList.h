@@ -14,6 +14,10 @@ public:
 	static TSharedRef<FSocialUserList> CreateUserList(const USocialToolkit& InOwnerToolkit, const FSocialUserListConfig& Config);
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FSocialUserList");
+	}
 
 	FOnUserAdded& OnUserAdded() const override { return OnUserAddedEvent; }
 	FOnUserRemoved& OnUserRemoved() const override { return OnUserRemovedEvent; }

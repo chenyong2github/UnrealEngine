@@ -10,6 +10,7 @@
 #include "NiagaraEditorSettings.generated.h"
 
 class UCurveFloat;
+enum class EScriptSource : uint8;
 
 USTRUCT()
 struct FNiagaraNewAssetDialogConfig
@@ -159,6 +160,24 @@ struct NIAGARAEDITOR_API FNiagaraCurveTemplate
 	FSoftObjectPath CurveAsset;
 };
 
+USTRUCT()
+struct NIAGARAEDITOR_API FNiagaraActionColors
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, Category = Color)
+	FLinearColor NiagaraColor;
+
+	UPROPERTY(EditAnywhere, Category = Color)
+	FLinearColor GameColor;
+
+	UPROPERTY(EditAnywhere, Category = Color)
+	FLinearColor PluginColor;
+
+	UPROPERTY(EditAnywhere, Category = Color)
+	FLinearColor DeveloperColor;
+};
+
 UCLASS(config = Niagara, defaultconfig, meta=(DisplayName="Niagara"))
 class NIAGARAEDITOR_API UNiagaraEditorSettings : public UDeveloperSettings
 {
@@ -188,6 +207,10 @@ public:
 	/** Shortcut key bindings that if held down while doing a mouse click, will spawn the specified type of Niagara node.*/
 	UPROPERTY(config, EditAnywhere, Category = Niagara)
 	TArray<FNiagaraSpawnShortcut> GraphCreationShortcuts;
+
+	/** Enables the Niagara Baker to be used within the system editor. */
+	UPROPERTY(config, EditAnywhere, Category = Experimental)
+	bool bEnableBaker = false;
 
 	TArray<float> GetPlaybackSpeeds() const;
 
@@ -255,6 +278,7 @@ public:
 
 	const TMap<FString, FString>& GetHLSLKeywordReplacementsMap()const { return HLSLKeywordReplacements; }
 
+	FLinearColor GetSourceColor(EScriptSource Source) const;
 private:
 	void SetupNamespaceMetadata();
 	void BuildCachedPlaybackSpeeds() const;
@@ -288,6 +312,9 @@ private:
 	/** Speeds used for slowing down and speeding up the playback speeds */
 	UPROPERTY(config, EditAnywhere, Category = Niagara)
 	TArray<float> PlaybackSpeeds;
+
+	UPROPERTY(config, EditAnywhere, Category = "Niagara Colors")
+	FNiagaraActionColors ActionColors;
 
 	/** This is built using PlaybackSpeeds, populated whenever it is accessed using GetPlaybackSpeeds() */
 	mutable TOptional<TArray<float>> CachedPlaybackSpeeds;

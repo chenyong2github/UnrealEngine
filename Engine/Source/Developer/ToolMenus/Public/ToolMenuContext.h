@@ -56,6 +56,7 @@ public:
 	}
 
 	template <typename TContextType>
+	UE_DEPRECATED(4.27, "Find is deprecated. Use the FindContext instead.")
 	TContextType* Find() const
 	{
 		return FindContext<TContextType>();

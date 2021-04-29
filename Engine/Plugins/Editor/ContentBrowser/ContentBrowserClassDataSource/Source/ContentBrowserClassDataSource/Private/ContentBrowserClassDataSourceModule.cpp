@@ -10,7 +10,7 @@ public:
 	virtual void StartupModule() override
 	{
 		ClassDataSource.Reset(NewObject<UContentBrowserClassDataSource>(GetTransientPackage(), "ClassData"));
-		ClassDataSource->Initialize("/");
+		ClassDataSource->Initialize();
 	}
 
 	virtual void ShutdownModule() override

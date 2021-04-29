@@ -893,9 +893,15 @@ void FCompositeNavModifier::CreateAreaModifiers(const UPrimitiveComponent* PrimC
 	for (int32 Idx = 0; Idx < BodySetup->AggGeom.ConvexElems.Num(); Idx++)
 	{
 		const FKConvexElem& ConvexElem = BodySetup->AggGeom.ConvexElems[Idx];
-		
-		FAreaNavModifier AreaMod(ConvexElem.VertexData, 0, ConvexElem.VertexData.Num(), ENavigationCoordSystem::Unreal, PrimComp->GetComponentTransform(), AreaClass);
-		Add(AreaMod);
+		if (ConvexElem.VertexData.Num() > 0)
+		{
+			FAreaNavModifier AreaMod(ConvexElem.VertexData, 0, ConvexElem.VertexData.Num(), ENavigationCoordSystem::Unreal, PrimComp->GetComponentTransform(), AreaClass);
+			Add(AreaMod);
+		}
+		else
+		{
+			UE_LOG(LogNavigation, Warning, TEXT("CreateAreaModifiers called for component %s whose BodySetup contains ConvexElem with no vertex data at index %d. Not adding nav modifier."), *GetPathNameSafe(PrimComp), Idx);
+		}
 	}
 	
 	for (int32 Idx = 0; Idx < BodySetup->AggGeom.SphereElems.Num(); Idx++)

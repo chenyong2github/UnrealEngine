@@ -44,7 +44,7 @@ TSharedRef<FSlateStyleSet> FDMXEditorStyle::Create()
 	static const FVector2D Icon51x31(51.0f, 31.0f);
 
 	TSharedRef<FSlateStyleSet> Style = MakeShared<FSlateStyleSet>(GetStyleSetName());
-	Style->SetContentRoot(IPluginManager::Get().FindPlugin("DMXEngine")->GetBaseDir() / TEXT("Resources"));
+	Style->SetContentRoot(IPluginManager::Get().FindPlugin(TEXT("DMXEngine"))->GetBaseDir() / TEXT("Resources"));
 
 	// Solid color brushes
 	Style->Set("DMXEditor.WhiteBrush", new FSlateColorBrush(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f)));

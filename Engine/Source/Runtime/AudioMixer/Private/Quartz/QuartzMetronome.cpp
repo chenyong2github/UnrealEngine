@@ -125,7 +125,7 @@ namespace Audio
 
 	int32 FQuartzMetronome::GetFramesUntilBoundary(FQuartzQuantizationBoundary InQuantizationBoundary) const
 	{
-		if(!ensure(InQuantizationBoundary.Quantization != EQuartzCommandQuantization::None))
+		if (!ensure(InQuantizationBoundary.Quantization != EQuartzCommandQuantization::None))
 		{
 			return 0; // Metronome's should not have to deal w/ Quartization == None
 		}
@@ -139,19 +139,28 @@ namespace Audio
 		// number of frames until the next occurrence of this boundary
 		int32 FramesUntilBoundary = FramesLeftInMusicalDuration[InQuantizationBoundary.Quantization];
 
+		// how many multiples actually exist until the boundary we care about?
+		int32 NumDurationsLeft = static_cast<int32>(InQuantizationBoundary.Multiplier) - 1;
+
 		// in the simple case that's all we need to know
 		bool bIsSimpleCase = FMath::IsNearlyEqual(InQuantizationBoundary.Multiplier, 1.f);
 
 		// it is NOT the simple case if we are in Bar-Relative. // i.e. 1.f Beat here means "Beat 1 of the bar"
 		bIsSimpleCase &= (InQuantizationBoundary.CountingReferencePoint != EQuarztQuantizationReference::BarRelative);
 
-		if (bIsSimpleCase || CurrentTimeStamp.IsZero())
+		if (CurrentTimeStamp.IsZero() && !InQuantizationBoundary.bFireOnClockStart)
+		{
+			FramesUntilBoundary = MusicalDurationsInFrames[InQuantizationBoundary.Quantization];
+
+			if (NumDurationsLeft == 0)
+			{
+				return FramesUntilBoundary;
+			}
+		}
+		else if (bIsSimpleCase || CurrentTimeStamp.IsZero())
 		{
 			return FramesUntilBoundary;
 		}
-
-		// how many multiples actually exist until the boundary we care about?
-		int32 NumDurationsLeft = static_cast<int32>(InQuantizationBoundary.Multiplier) - 1;
 
 		// counting from the current point in time
 		if (InQuantizationBoundary.CountingReferencePoint == EQuarztQuantizationReference::CurrentTimeRelative)

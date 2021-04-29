@@ -6,19 +6,25 @@
 #include "DisplayClusterProjectionLog.h"
 #include "Misc/DisplayClusterStrings.h"
 
+#include "DisplayClusterConfigurationTypes.h"
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicyFactory
 //////////////////////////////////////////////////////////////////////////////////////////////
-TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionDomeprojectionPolicyFactory::Create(const FString& PolicyType, const FString& RHIName, const FString& ViewportId, const TMap<FString, FString>& Parameters)
+TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionDomeprojectionPolicyFactory::Create(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 {
+	FString RHIName = GDynamicRHI->GetName();
+
 	if (RHIName.Equals(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase))
 	{
-		UE_LOG(LogDisplayClusterProjectionDomeprojection, Log, TEXT("Instantiating projection policy <%s>..."), *PolicyType);
-		return MakeShared<FDisplayClusterProjectionDomeprojectionPolicyDX11>(ViewportId, Parameters);
+		check(InConfigurationProjectionPolicy != nullptr);
+
+		UE_LOG(LogDisplayClusterProjectionDomeprojection, Log, TEXT("Instantiating projection policy <%s> id='%s'"), *InConfigurationProjectionPolicy->Type, *ProjectionPolicyId);
+		return  MakeShared<FDisplayClusterProjectionDomeprojectionPolicyDX11>(ProjectionPolicyId, InConfigurationProjectionPolicy);
 	}
 
-	UE_LOG(LogDisplayClusterProjectionDomeprojection, Warning, TEXT("There is no implementation of '%s' projection policy for RHI %s"), *PolicyType, *RHIName);
+	UE_LOG(LogDisplayClusterProjectionDomeprojection, Warning, TEXT("There is no implementation of '%s' projection policy for RHI %s"), *InConfigurationProjectionPolicy->Type, *RHIName);
 
 	return nullptr;
 }

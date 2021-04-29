@@ -1,0 +1,14 @@
+{
+  "name": "georeferencing",
+  "version-string": "0.0.0",
+  "description": "An Unreal Engine 4 Plugin for geospatial coordinate transformation",
+  "dependencies": [
+    {
+      "name": "proj4",
+      "features": [
+      	"database"
+      ],
+      "default-features": false
+    }
+  ]
+}

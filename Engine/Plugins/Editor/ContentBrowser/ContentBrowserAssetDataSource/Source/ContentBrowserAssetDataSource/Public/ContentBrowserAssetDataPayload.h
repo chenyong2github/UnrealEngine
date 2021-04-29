@@ -85,6 +85,10 @@ public:
 		Collector.AddReferencedObject(AssetClass);
 		Collector.AddReferencedObject(Factory);
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FContentBrowserAssetFileItemDataPayload_Creation");
+	}
 
 	UClass* GetAssetClass() const
 	{

@@ -67,20 +67,6 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is slave node"), Category = "DisplayCluster|Cluster")
 	virtual bool IsSlave() const = 0;
 
-	/** Returns true if current application is running in cluster mode. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is cluster mode", DeprecatedFunction, DeprecationMessage = "This feature is no longer supported."), Category = "DisplayCluster|Cluster")
-	virtual bool IsCluster()
-	{
-		return false;
-	}
-
-	/** Returns true if current application is running in standalone mode. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is standalone mode", DeprecatedFunction, DeprecationMessage = "This feature is no longer supported."), Category = "DisplayCluster|Cluster")
-	virtual bool IsStandalone()
-	{
-		return false;
-	}
-
 	/** Returns cluster node name of the current application instance. */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get node ID"), Category = "DisplayCluster|Cluster")
 	virtual FString GetNodeId() const = 0;
@@ -97,18 +83,21 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Remove cluster event listener"), Category = "DisplayCluster|Cluster")
 	virtual void RemoveClusterEventListener(TScriptInterface<IDisplayClusterClusterEventListener> Listener) = 0;
 
-	/** Emits cluster event. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Emit cluster event", DeprecatedFunction, DeprecationMessage = "Please, use EmitClusterEventJson"), Category = "DisplayCluster|Cluster")
-	virtual void EmitClusterEvent(const FDisplayClusterClusterEvent& Event, bool MasterOnly)
-	{ }
-
-	/** Emits cluster event. */
+	/** Emits JSON cluster event. */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Emit JSON cluster event"), Category = "DisplayCluster|Cluster")
 	virtual void EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event, bool bMasterOnly) = 0;
 
-	/** Emits cluster event. */
+	/** Emits binary cluster event. */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Emit binary cluster event"), Category = "DisplayCluster|Cluster")
 	virtual void EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly) = 0;
+
+	/** Sends JSON cluster event to a specific target (outside of the cluster). */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Send JSON event to a specific host"), Category = "DisplayCluster|Cluster")
+	virtual void SendClusterEventJsonTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventJson& Event, bool bMasterOnly) = 0;
+
+	/** Sends binary cluster event to a specific target (outside of the cluster). */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Send binary event to a specific host"), Category = "DisplayCluster|Cluster")
+	virtual void SendClusterEventBinaryTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly) = 0;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -210,66 +199,66 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// Device information
 	/** Returns amount of VRPN axis devices. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get amount of VRPN axis devices"), Category = "DisplayCluster|Input")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get amount of VRPN axis devices", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
 	virtual int32 GetAxisDeviceAmount() const = 0;
 
 	/** Returns amount of VRPN button devices. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get amount of VRPN button devices"), Category = "DisplayCluster|Input")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get amount of VRPN button devices", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
 	virtual int32 GetButtonDeviceAmount() const = 0;
 
 	/** Returns amount of VRPN tracker devices. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get amount of VRPN tracker devices"), Category = "DisplayCluster|Input")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get amount of VRPN tracker devices", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
 	virtual int32 GetTrackerDeviceAmount() const = 0;
 
 	/** Returns array of names of all VRPN axis devices. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get IDs of VRPN axis devices"), Category = "DisplayCluster|Input")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get IDs of VRPN axis devices", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
 	virtual void GetAxisDeviceIds(TArray<FString>& DeviceIDs) const = 0;
 
 	/** Returns array of names of all VRPN button devices. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get IDs of VRPN button devices"), Category = "DisplayCluster|Input")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get IDs of VRPN button devices", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
 	virtual void GetButtonDeviceIds(TArray<FString>& DeviceIDs) const = 0;
 
 	/** Returns array of names of all keyboard devices. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get IDs of keyboard devices"), Category = "DisplayCluster|Input")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get IDs of keyboard devices", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
 	virtual void GetKeyboardDeviceIds(TArray<FString>& DeviceIDs) const = 0;
 
 	/** Returns array of names of all VRPN tracker devices. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get IDs of VRPN tracker devices"), Category = "DisplayCluster|Input")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get IDs of VRPN tracker devices", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
 	virtual void GetTrackerDeviceIds(TArray<FString>& DeviceIDs) const = 0;
 
 	// Buttons
 	/** Returns state of VRPN button at specified device and channel. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get VRPN button state"), Category = "DisplayCluster|Input")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get VRPN button state", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
 	virtual void GetButtonState(const FString& DeviceID, int32 DeviceChannel, bool& CurrentState, bool& IsChannelAvailable) const = 0;
 
 	/** Returns whether VRPN button is pressed at specified device and channel. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is VRPN button pressed"), Category = "DisplayCluster|Input")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is VRPN button pressed", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
 	virtual void IsButtonPressed(const FString& DeviceID, int32 DeviceChannel, bool& IsPressedCurrently, bool& IsChannelAvailable) const = 0;
 
 	/** Returns whether VRPN button is released at specified device and channel. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is VRPN button released"), Category = "DisplayCluster|Input")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is VRPN button released", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
 	virtual void IsButtonReleased(const FString& DeviceID, int32 DeviceChannel, bool& IsReleasedCurrently, bool& IsChannelAvailable) const = 0;
 
 	/** Returns whether VRPN button was released at specified device and channel. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Was VRPN button pressed"), Category = "DisplayCluster|Input")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Was VRPN button pressed", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
 	virtual void WasButtonPressed(const FString& DeviceID, int32 DeviceChannel, bool& WasPressed, bool& IsChannelAvailable) const = 0;
 
 	/** Returns whether VRPN button was released at specified device and channel. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Was VRPN button released"), Category = "DisplayCluster|Input")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Was VRPN button released", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
 	virtual void WasButtonReleased(const FString& DeviceID, int32 DeviceChannel, bool& WasReleased, bool& IsChannelAvailable) const = 0;
 
 	// Axes
 	/** Returns axis value at specified device and channel. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get VRPN axis value"), Category = "DisplayCluster|Input")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get VRPN axis value", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
 	virtual void GetAxis(const FString& DeviceID, int32 DeviceChannel, float& Value, bool& IsAvailable) const = 0;
 
 	// Trackers
 	/** Returns tracker location values at specified device and channel. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get VRPN tracker location"), Category = "DisplayCluster|Input")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get VRPN tracker location", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
 	virtual void GetTrackerLocation(const FString& DeviceID, int32 DeviceChannel, FVector& Location, bool& IsChannelAvailable) const = 0;
 
 	/** Returns tracker quaternion values at specified device and channel. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get VRPN tracker rotation (as quaternion)"), Category = "DisplayCluster|Input")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get VRPN tracker rotation (as quaternion)", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
 	virtual void GetTrackerQuat(const FString& DeviceID, int32 DeviceChannel, FQuat& Rotation, bool& IsChannelAvailable) const = 0;
 
 public:
@@ -277,73 +266,38 @@ public:
 	// Render API
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	/** Binds camera to a viewport. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set viewport camera"), Category = "DisplayCluster|Render")
-	virtual void SetViewportCamera(const FString& CameraID, const FString& ViewportID) = 0;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set viewport camera", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
+	virtual void SetViewportCamera(const FString& CameraId, const FString& ViewportId) = 0;
 
 	/** Returns current buffer ratio for specified viewport. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get viewport's buffer ratio"), Category = "DisplayCluster|Render")
-	virtual bool GetBufferRatio(const FString& ViewportID, float& BufferRatio) const = 0;
-	
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get viewport's buffer ratio", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
+	virtual bool GetBufferRatio(const FString& ViewportId, float& BufferRatio) const = 0;
+
 	/** Sets buffer ratio for specified viewport. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set viewport's buffer ratio"), Category = "DisplayCluster|Render")
-	virtual bool SetBufferRatio(const FString& ViewportID, float BufferRatio) = 0;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set viewport's buffer ratio", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
+	virtual bool SetBufferRatio(const FString& ViewportId, float BufferRatio) = 0;
 
 	/** Overrides postprocess settings for specified viewport. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set start post processing settings for viewport"), Category = "DisplayCluster|Render")
-	virtual void SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings) = 0;
-	
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set start post processing settings for viewport", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
+	virtual void SetStartPostProcessingSettings(const FString& ViewportId, const FPostProcessSettings& StartPostProcessingSettings) = 0;
+
 	/** Overrides postprocess settings for specified viewport. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set override post processing settings for viewport"), Category = "DisplayCluster|Render")
-	virtual void SetOverridePostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight = 1.0f) = 0;
-	
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set override post processing settings for viewport", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
+	virtual void SetOverridePostProcessingSettings(const FString& ViewportId, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight = 1.0f) = 0;
+
 	/** Overrides postprocess settings for specified viewport. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set final post processing settings for viewport"), Category = "DisplayCluster|Render")
-	virtual void SetFinalPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& FinalPostProcessingSettings) = 0;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set final post processing settings for viewport", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
+	virtual void SetFinalPostProcessingSettings(const FString& ViewportId, const FPostProcessSettings& FinalPostProcessingSettings) = 0;
 
 	/** Returns location and size of specified viewport. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get viewport rectangle"), Category = "DisplayCluster|Render")
-	virtual bool GetViewportRect(const FString& ViewportID, FIntPoint& ViewportLoc, FIntPoint& ViewportSize) const = 0;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get viewport rectangle", DeprecatedFunction, DeprecationMessage = "Use new api"), Category = "DisplayCluster|Render")
+	virtual bool GetViewportRect(const FString& ViewportId, FIntPoint& ViewportLoc, FIntPoint& ViewportSize) const = 0;
 
 	/** Returns list of local viewports. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get local viewports"), Category = "DisplayCluster|Config")
-	virtual void GetLocalViewports(TArray<FString>& ViewportIDs, TArray<FString>& ViewportTypes, TArray<FIntPoint>& ViewportLocations, TArray<FIntPoint>& ViewportSizes) const = 0;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get local viewports", DeprecatedFunction, DeprecationMessage = "Use new api"), Category = "DisplayCluster|Config")
+	virtual void GetLocalViewports(TArray<FString>& ViewportIDs, TArray<FString>& ProjectionTypes, TArray<FIntPoint>& ViewportLocations, TArray<FIntPoint>& ViewportSizes) const = 0;
 
 	/** Returns a functor that determines if any given scene view extension should be active in the given context for the current frame */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Scene View Extension Is Active In Context Function"), Category = "DisplayCluster|Render")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Scene View Extension Is Active In Context Function", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
 	virtual void SceneViewExtensionIsActiveInContextFunction(const TArray<FString>& ViewportIDs, FSceneViewExtensionIsActiveFunctor& OutIsActiveFunction) const = 0;
-
-public:
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// Render/Camera API
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	/** Returns interpupillary distance (eye separation) for stereoscopic rendering. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get interpuppillary distance", DeprecatedFunction, DeprecationMessage = "This function has been moved to UDisplayClusterCameraComponent."), Category = "DisplayCluster|Render|Camera")
-	virtual float GetInterpupillaryDistance(const FString& CameraID)
-	{
-		return 0.f;
-	}
-
-	/** Sets interpupillary distance (eye separation) for stereoscopic rendering. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set interpuppillary distance", DeprecatedFunction, DeprecationMessage = "This function has been moved to UDisplayClusterCameraComponent."), Category = "DisplayCluster|Render|Camera")
-	virtual void SetInterpupillaryDistance(const FString& CameraID, float EyeDistance)
-	{ }
-
-	/** Gets Swap eye rendering state. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get eye swap", DeprecatedFunction, DeprecationMessage = "This function has been moved to UDisplayClusterCameraComponent."), Category = "DisplayCluster|Render|Camera")
-	virtual bool GetEyesSwap(const FString& CameraID)
-	{
-		return false;
-	}
-
-	/** Sets Swap eye rendering state. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set eye swap", DeprecatedFunction, DeprecationMessage = "This function has been moved to UDisplayClusterCameraComponent."), Category = "DisplayCluster|Render|Camera")
-	virtual void SetEyesSwap(const FString& CameraID, bool EyeSwapped)
-	{ }
-
-	/** Toggles current eye swap state. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Toggle eye swap", DeprecatedFunction, DeprecationMessage = "This function has been moved to UDisplayClusterCameraComponent."), Category = "DisplayCluster|Render|Camera")
-	virtual bool ToggleEyesSwap(const FString& CameraID)
-	{
-		return false;
-	}
 };

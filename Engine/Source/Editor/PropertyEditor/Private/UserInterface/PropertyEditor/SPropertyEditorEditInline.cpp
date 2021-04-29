@@ -209,37 +209,104 @@ void SPropertyEditorEditInline::OnClassPicked(UClass* InClass)
 	{
 		GEditor->BeginTransaction(TEXT("PropertyEditor"), NSLOCTEXT("PropertyEditor", "OnClassPicked", "Set Class"), nullptr /* PropertyNode->GetProperty()) */ );
 
+		auto ExtractClassAndObjectNames = [](FStringView PathName, FStringView& ClassName, FStringView& ObjectName)
+		{
+			int32 ClassEnd;
+			PathName.FindChar(TCHAR('\''), ClassEnd);
+			if (ensure(ClassEnd != INDEX_NONE))
+			{
+				ClassName = PathName.Left(ClassEnd);
+			}
+
+			int32 LastPeriod, LastColon;
+			PathName.FindLastChar(TCHAR('.'), LastPeriod);
+			PathName.FindLastChar(TCHAR(':'), LastColon);
+			const int32 ObjectNameStart = FMath::Max(LastPeriod, LastColon);
+
+			if (ensure(ObjectNameStart != INDEX_NONE))
+			{
+				ObjectName = PathName.RightChop(ObjectNameStart + 1).LeftChop(1);
+			}
+		};
+
+		FString NewObjectName;
+		UObject* NewObjectTemplate = nullptr;
+
+		// If we've picked the same class as our archetype, then we want to create an object with the same name and properties
+		if (InClass)
+		{
+			FString DefaultValue = PropertyNode->GetDefaultValueAsString(/*bUseDisplayName=*/false);
+			if (DefaultValue != FName(NAME_None).ToString())
+			{
+				FStringView ClassName, ObjectName;
+				ExtractClassAndObjectNames(DefaultValue, ClassName, ObjectName);
+				if (InClass->GetName() == ClassName)
+				{
+					NewObjectName = ObjectName;
+
+					ConstructorHelpers::StripObjectClass(DefaultValue);
+					NewObjectTemplate = StaticFindObject(InClass, ANY_PACKAGE, *DefaultValue);
+				}
+			}
+		}
+
+		const TSharedRef<IPropertyHandle> PropertyHandle = PropertyEditor->GetPropertyHandle();
+
+		// If this is an instanced component property collect current names so we can clean them properly if necessary
+		TArray<FString> PrevPerObjectValues;
+		FObjectProperty* ObjectProperty = CastFieldChecked<FObjectProperty>(PropertyHandle->GetProperty());
+		if (ObjectProperty && ObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference))
+		{
+			PropertyHandle->GetPerObjectValues(PrevPerObjectValues);
+		}
+
 		for ( TPropObjectIterator Itor( ObjectNode->ObjectIterator() ) ; Itor ; ++Itor )
 		{
 			FString NewValue;
 			if (InClass)
 			{
-				UObject*		Object = Itor->Get();
-				UObject*		UseOuter = (InClass->IsChildOf(UClass::StaticClass()) ? Cast<UClass>(Object)->GetDefaultObject() : Object);
-				EObjectFlags	MaskedOuterFlags = UseOuter ? UseOuter->GetMaskedFlags(RF_PropagateToSubObjects) : RF_NoFlags;
-				if (UseOuter && UseOuter->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+				FStringView CurClassName, CurObjectName;
+				if (PrevPerObjectValues[NewValues.Num()] != FName(NAME_None).ToString())
 				{
-					MaskedOuterFlags |= RF_ArchetypeObject;
+					ExtractClassAndObjectNames(PrevPerObjectValues[NewValues.Num()], CurClassName, CurObjectName);
 				}
-				UObject*		NewUObject = NewObject<UObject>(UseOuter, InClass, NAME_None, MaskedOuterFlags, NULL);
 
-				NewValue = NewUObject->GetPathName();
+				if (CurObjectName == NewObjectName && InClass->GetName() == CurClassName)
+				{
+					NewValue = MoveTemp(PrevPerObjectValues[NewValues.Num()]);
+					PrevPerObjectValues[NewValues.Num()].Reset();
+				}
+				else
+				{
+					UObject*		Object = Itor->Get();
+					UObject*		UseOuter = (InClass->IsChildOf(UClass::StaticClass()) ? Cast<UClass>(Object)->GetDefaultObject() : Object);
+					EObjectFlags	MaskedOuterFlags = UseOuter ? UseOuter->GetMaskedFlags(RF_PropagateToSubObjects) : RF_NoFlags;
+					if (UseOuter && UseOuter->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+					{
+						MaskedOuterFlags |= RF_ArchetypeObject;
+					}
+
+					if (NewObjectName.Len() > 0)
+					{
+						if (UObject* SubObject = StaticFindObject(UObject::StaticClass(), UseOuter, *NewObjectName))
+						{
+							SubObject->Rename(*MakeUniqueObjectName(GetTransientPackage(), SubObject->GetClass()).ToString(), GetTransientPackage(), REN_DontCreateRedirectors);
+
+							// If we've renamed the object out of the way here, we don't need to do it again below
+							PrevPerObjectValues[NewValues.Num()].Reset();
+						}
+					}
+
+					UObject* NewUObject = NewObject<UObject>(UseOuter, InClass, *NewObjectName, MaskedOuterFlags, NewObjectTemplate);
+
+					NewValue = NewUObject->GetPathName();
+				}
 			}
 			else
 			{
 				NewValue = FName(NAME_None).ToString();
 			}
-			NewValues.Add(NewValue);
-		}
-
-		const TSharedRef< IPropertyHandle > PropertyHandle = PropertyEditor->GetPropertyHandle();
-
-		// If this is an instanced component property collect current component names so we can clean them properly if necessary
-		TArray<FString> PrevPerObjectValues;
-		FObjectProperty* ObjectProperty = CastFieldChecked<FObjectProperty>(PropertyHandle->GetProperty());
-		if (ObjectProperty && ObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference) && ObjectProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass()))
-		{
-			PropertyHandle->GetPerObjectValues(PrevPerObjectValues);
+			NewValues.Add(MoveTemp(NewValue));
 		}
 
 		PropertyHandle->SetPerObjectValues(NewValues);
@@ -247,14 +314,14 @@ void SPropertyEditorEditInline::OnClassPicked(UClass* InClass)
 
 		for (int32 Index = 0; Index < PrevPerObjectValues.Num(); ++Index)
 		{
-			if (PrevPerObjectValues[Index] != NewValues[Index])
+			if (PrevPerObjectValues[Index].Len() > 0 && PrevPerObjectValues[Index] != NewValues[Index])
 			{
-				// Move the old component to the transient package so resetting owned components on the parent doesn't find it
+				// Move the old subobject to the transient package so GetObjectsWithOuter will not return it
+				// This is particularly important for UActorComponent objects so resetting owned components on the parent doesn't find it
 				ConstructorHelpers::StripObjectClass(PrevPerObjectValues[Index]);
-				if (UActorComponent* Component = Cast<UActorComponent>(StaticFindObject(UActorComponent::StaticClass(), ANY_PACKAGE, *PrevPerObjectValues[Index])))
+				if (UObject* SubObject = StaticFindObject(UObject::StaticClass(), ANY_PACKAGE, *PrevPerObjectValues[Index]))
 				{
-					Component->Modify();
-					Component->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
+					SubObject->Rename(*MakeUniqueObjectName(GetTransientPackage(), SubObject->GetClass()).ToString(), GetTransientPackage(), REN_DontCreateRedirectors);
 				}
 			}
 		}

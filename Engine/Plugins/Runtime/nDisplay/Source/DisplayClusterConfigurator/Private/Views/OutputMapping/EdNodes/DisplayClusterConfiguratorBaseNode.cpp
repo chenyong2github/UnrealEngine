@@ -2,26 +2,50 @@
 
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorBaseNode.h"
 
-#include "DisplayClusterConfiguratorToolkit.h"
+#include "Interfaces/Views/OutputMapping/IDisplayClusterConfiguratorViewOutputMapping.h"
+#include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
+#include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
 
-void UDisplayClusterConfiguratorBaseNode::Initialize(const FString& InNodeName, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit)
+#include "DisplayClusterConfiguratorBlueprintEditor.h"
+
+void UDisplayClusterConfiguratorBaseNode::Initialize(const FString& InNodeName, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
 {
 	ObjectToEdit = InObject;
 	NodeName = InNodeName;
 	ToolkitPtr = InToolkit;
 }
 
+
+#if WITH_EDITOR
 void UDisplayClusterConfiguratorBaseNode::PostEditUndo()
 {
 	Super::PostEditUndo();
-	
+
 	UpdateObject();
+
+	// Don't update the child nodes if this node is auto-positioned because this node is probably in the undo stack as part of
+	// a change to a child, and we don't want to overwrite the child's undo. If the children need updating, it will be handled on
+	// the next position tick.
+	if (!IsNodeAutoPositioned())
+	{
+		UpdateChildNodes();
+	}
+}
+#endif
+
+void UDisplayClusterConfiguratorBaseNode::PostPlacedNewNode()
+{
+	Super::PostPlacedNewNode();
+
+	ReadNodeStateFromObject();
 }
 
 void UDisplayClusterConfiguratorBaseNode::ResizeNode(const FVector2D& NewSize)
 {
-	NodeHeight = NewSize.Y;
+	Modify();
+
 	NodeWidth = NewSize.X;
+	NodeHeight = NewSize.Y;
 
 	UpdateObject();
 }
@@ -29,7 +53,10 @@ void UDisplayClusterConfiguratorBaseNode::ResizeNode(const FVector2D& NewSize)
 void UDisplayClusterConfiguratorBaseNode::OnSelection()
 {
 	TArray<UObject*> SelectedObjects;
-	SelectedObjects.Add(GetObject());
+	if (UObject* Object = GetObject())
+	{
+		SelectedObjects.Add(Object);
+	}
 
 	ToolkitPtr.Pin()->SelectObjects(SelectedObjects);
 }
@@ -58,7 +85,59 @@ const FString& UDisplayClusterConfiguratorBaseNode::GetNodeName() const
 	return NodeName;
 }
 
-FBox2D UDisplayClusterConfiguratorBaseNode::GetNodeBounds() const
+void UDisplayClusterConfiguratorBaseNode::SetParent(UDisplayClusterConfiguratorBaseNode* InParent)
+{
+	Parent = InParent;
+}
+
+UDisplayClusterConfiguratorBaseNode* UDisplayClusterConfiguratorBaseNode::GetParent() const
+{
+	if (Parent.IsValid())
+	{
+		return Parent.Get();
+	}
+	
+	return nullptr;
+}
+
+void UDisplayClusterConfiguratorBaseNode::AddChild(UDisplayClusterConfiguratorBaseNode* InChild)
+{
+	InChild->SetParent(this);
+	Children.Add(InChild);
+}
+
+const TArray<UDisplayClusterConfiguratorBaseNode*>& UDisplayClusterConfiguratorBaseNode::GetChildren() const
+{
+	return Children;
+}
+
+FVector2D UDisplayClusterConfiguratorBaseNode::TransformPointToLocal(FVector2D GlobalPosition) const
+{
+	const FVector2D ParentPosition = Parent.IsValid() ? Parent->GetNodePosition() + Parent->GetTranslationOffset() : FVector2D::ZeroVector;
+	const float ViewScale = GetViewScale();
+	return (GlobalPosition - ParentPosition) / ViewScale;
+}
+
+FVector2D UDisplayClusterConfiguratorBaseNode::TransformPointToGlobal(FVector2D LocalPosition) const
+{
+	FVector2D ParentPosition = Parent.IsValid() ? Parent->GetNodePosition() + Parent->GetTranslationOffset() : FVector2D::ZeroVector;
+	const float ViewScale = GetViewScale();
+	return LocalPosition * ViewScale + ParentPosition;
+}
+
+FVector2D UDisplayClusterConfiguratorBaseNode::TransformSizeToLocal(FVector2D GlobalSize) const
+{
+	const float ViewScale = GetViewScale();
+	return GlobalSize / ViewScale;
+}
+
+FVector2D UDisplayClusterConfiguratorBaseNode::TransformSizeToGlobal(FVector2D LocalSize) const
+{
+	const float ViewScale = GetViewScale();
+	return LocalSize * ViewScale;
+}
+
+FBox2D UDisplayClusterConfiguratorBaseNode::GetNodeBounds(bool bAsParent) const
 {
 	FVector2D Min = FVector2D(NodePosX, NodePosY);
 	FVector2D Max = Min + FVector2D(NodeWidth, NodeHeight);
@@ -70,14 +149,247 @@ FVector2D UDisplayClusterConfiguratorBaseNode::GetNodePosition() const
 	return FVector2D(NodePosX, NodePosY);
 }
 
+FVector2D UDisplayClusterConfiguratorBaseNode::GetNodeLocalPosition() const
+{
+	return TransformPointToLocal(GetNodePosition());
+}
+
 FVector2D UDisplayClusterConfiguratorBaseNode::GetNodeSize() const
 {
 	return FVector2D(NodeWidth, NodeHeight);
 }
 
-void UDisplayClusterConfiguratorBaseNode::OnNodeAligned(const FVector2D& PositionChange, bool bUpdateChildren)
+FVector2D UDisplayClusterConfiguratorBaseNode::GetNodeLocalSize() const
+{
+	return TransformSizeToLocal(GetNodeSize());
+}
+
+FNodeAlignmentAnchors UDisplayClusterConfiguratorBaseNode::GetNodeAlignmentAnchors(bool bAsParent) const
+{
+	FNodeAlignmentAnchors Anchors;
+
+	const FVector2D NodePos = GetNodePosition();
+	const FVector2D NodeExtent = 0.5f * GetNodeSize();
+
+	Anchors.Center = NodePos + NodeExtent;
+	Anchors.Top = Anchors.Center - FVector2D(0, NodeExtent.Y);
+	Anchors.Bottom = Anchors.Center + FVector2D(0, NodeExtent.Y);
+	Anchors.Left = Anchors.Center - FVector2D(NodeExtent.X, 0);
+	Anchors.Right = Anchors.Center + FVector2D(NodeExtent.X, 0);
+
+	return Anchors;
+}
+
+void UDisplayClusterConfiguratorBaseNode::FillParent(bool bRepositionNode)
+{
+	if (Parent.IsValid())
+	{
+		const FBox2D ParentBounds = Parent->GetNodeBounds(true);
+		const FVector2D ParentSize = ParentBounds.GetSize();
+
+		Modify();
+
+		NodeWidth = ParentSize.X;
+		NodeHeight = ParentSize.Y;
+
+		if (bRepositionNode)
+		{
+			NodePosX = ParentBounds.Min.X;
+			NodePosY = ParentBounds.Min.Y;
+
+			// Call UpdateObject on this node's children, which will force them to update their backing objects' states and recompute any local coordinates
+			// that may have changed when their parent was repositioned. No need to edit the node's position, since that is in global coordinates and 
+			// we want to keep the children located at the same global position as they were before.
+			for (UDisplayClusterConfiguratorBaseNode* Child : Children)
+			{
+				Child->Modify();
+				Child->UpdateObject();
+			}
+		}
+
+		UpdateObject();
+	}
+}
+
+void UDisplayClusterConfiguratorBaseNode::SizeToChildren(bool bRepositionNode)
+{
+	const FBox2D ChildBounds = GetChildBounds();
+	if (ChildBounds.bIsValid)
+	{
+		Modify();
+
+		NodeWidth = ChildBounds.GetSize().X;
+		NodeHeight = ChildBounds.GetSize().Y;
+
+		if (bRepositionNode)
+		{
+			NodePosX = ChildBounds.Min.X;
+			NodePosY = ChildBounds.Min.Y;
+
+			// Call UpdateObject on this node's children, which will force them to update their backing objects' states and recompute any local coordinates
+			// that may have changed when their parent was repositioned. No need to edit the node's position, since that is in global coordinates and 
+			// we want to keep the children located at the same global position as they were before.
+			for (UDisplayClusterConfiguratorBaseNode* Child : Children)
+			{
+				Child->Modify();
+				Child->UpdateObject();
+			}
+		}
+
+		UpdateObject();
+	}
+}
+
+FBox2D UDisplayClusterConfiguratorBaseNode::GetChildBounds() const
+{
+	FBox2D ChildBounds;
+	ChildBounds.Init();
+
+	for (const UDisplayClusterConfiguratorBaseNode* ChildNode : Children)
+	{
+		// Only add non-zero sized children, so that if all children are zero-sized, the returned bounds have bIsValid set to false
+		// allowing the caller to test if all children had zero bounds.
+		if (!ChildNode->GetNodeSize().IsZero())
+		{
+			ChildBounds += ChildNode->GetNodeBounds();
+		}
+	}
+
+	return ChildBounds;
+}
+
+FBox2D UDisplayClusterConfiguratorBaseNode::GetDescendentBounds() const
+{
+	// Similar to GetChildBounds, but adds the bounds of all descendents of this node, not just its direct children
+	FBox2D ChildBounds;
+	ChildBounds.Init();
+
+	for (const UDisplayClusterConfiguratorBaseNode* ChildNode : Children)
+	{
+		// Only add non-zero sized children, so that if all children are zero-sized, the returned bounds have bIsValid set to false
+		// allowing the caller to test if all children had zero bounds.
+		if (!ChildNode->GetNodeSize().IsZero())
+		{
+			ChildBounds += ChildNode->GetNodeBounds();
+		}
+
+		ChildBounds += ChildNode->GetDescendentBounds();
+	}
+
+	return ChildBounds;
+}
+
+bool UDisplayClusterConfiguratorBaseNode::IsOutsideParent() const
+{
+	if (Parent.IsValid())
+	{
+		FBox2D Bounds = GetNodeBounds();
+		FBox2D ParentBounds = Parent->GetNodeBounds();
+
+		if (ParentBounds.GetSize().IsZero())
+		{
+			return false;
+		}
+
+		if (Bounds.Min.X > ParentBounds.Max.X || Bounds.Min.Y > ParentBounds.Max.Y)
+		{
+			return true;
+		}
+
+		if (Bounds.Max.X < ParentBounds.Min.X || Bounds.Max.Y < ParentBounds.Min.Y)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UDisplayClusterConfiguratorBaseNode::IsOutsideParentBoundary() const
+{
+	if (Parent.IsValid())
+	{
+		FBox2D Bounds = GetNodeBounds();
+		FBox2D ParentBounds = Parent->GetNodeBounds();
+
+		if (ParentBounds.GetSize().IsZero())
+		{
+			return false;
+		}
+
+		if (Bounds.Min.X < ParentBounds.Min.X || Bounds.Min.Y < ParentBounds.Min.Y)
+		{
+			return true;
+		}
+
+		if (Bounds.Max.X > ParentBounds.Max.X || Bounds.Max.Y > ParentBounds.Max.Y)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void UDisplayClusterConfiguratorBaseNode::UpdateChildNodes()
+{
+	for (UDisplayClusterConfiguratorBaseNode* ChildNode : Children)
+	{
+		ChildNode->UpdateNode();
+	}
+}
+
+bool UDisplayClusterConfiguratorBaseNode::IsUserInteractingWithNode(bool bCheckDescendents) const
+{
+	if (!bCheckDescendents)
+	{
+		return bIsUserInteractingWithNode;
+	}
+
+	bool bIsInteractingWithDescendents = false;
+	for (UDisplayClusterConfiguratorBaseNode* ChildNode : Children)
+	{
+		if (ChildNode->IsUserInteractingWithNode(bCheckDescendents))
+		{
+			bIsInteractingWithDescendents = true;
+			break;
+		}
+	}
+
+	return bIsUserInteractingWithNode || bIsInteractingWithDescendents;
+}
+
+void UDisplayClusterConfiguratorBaseNode::UpdateNode()
+{
+	if (!IsPendingKill())
+	{
+		ReadNodeStateFromObject();
+
+		UpdateChildNodes();
+	}
+}
+
+void UDisplayClusterConfiguratorBaseNode::UpdateObject()
+{
+	if (!IsPendingKill())
+	{
+		WriteNodeStateToObject();
+
+		if (ObjectToEdit.IsValid())
+		{
+			ObjectToEdit->MarkPackageDirty();
+		}
+	}
+}
+
+void UDisplayClusterConfiguratorBaseNode::OnNodeAligned(bool bUpdateChildren)
 {
 	UpdateObject();
+
+	if (bUpdateChildren)
+	{
+		UpdateChildNodes();
+	}
 }
 
 namespace
@@ -104,12 +416,25 @@ namespace
 
 		return true;
 	}
+
+	bool IsOutside(FVector2D Point, FBox2D Box)
+	{
+		return (Point.X < Box.Min.X) || (Point.X > Box.Max.X) || (Point.Y < Box.Min.Y) || (Point.Y > Box.Min.Y);
+	}
+
+	bool IsOutside(FBox2D BoxA, FBox2D BoxB)
+	{
+		return IsOutside(BoxA.Min, BoxB) || IsOutside(BoxA.Max, BoxB);
+	}
 }
 
 bool UDisplayClusterConfiguratorBaseNode::WillOverlap(UDisplayClusterConfiguratorBaseNode* InNode, const FVector2D& InDesiredOffset, const FVector2D& InDesiredSizeChange) const
 {
-	const FBox2D NodeBounds = FBox2D(InNode->GetNodePosition() + InDesiredOffset, InNode->GetNodePosition() + InNode->GetNodeSize() + InDesiredOffset + InDesiredSizeChange);
 	const FBox2D Bounds = GetNodeBounds();
+
+	FBox2D NodeBounds = InNode->GetNodeBounds();
+	NodeBounds.Min += InDesiredOffset;
+	NodeBounds.Max += InDesiredOffset + InDesiredSizeChange;
 
 	return Intrudes(NodeBounds, Bounds);
 }
@@ -157,8 +482,9 @@ FVector2D UDisplayClusterConfiguratorBaseNode::FindNonOverlappingSize(UDisplayCl
 		return BestSize;
 	}
 
-	const FBox2D NodeBounds = FBox2D(InNode->GetNodePosition(), InNode->GetNodePosition() + InDesiredSize);
 	const FBox2D Bounds = GetNodeBounds();
+	FBox2D NodeBounds = InNode->GetNodeBounds();
+	NodeBounds.Max += SizeChange;
 
 	if (Intrudes(NodeBounds, Bounds))
 	{
@@ -177,4 +503,376 @@ FVector2D UDisplayClusterConfiguratorBaseNode::FindNonOverlappingSize(UDisplayCl
 	}
 
 	return BestSize;
+}
+
+FVector2D UDisplayClusterConfiguratorBaseNode::FindNonOverlappingOffsetFromParent(const FVector2D& InDesiredOffset)
+{
+	FVector2D BestOffset = InDesiredOffset;
+
+	if (!Parent.IsValid())
+	{
+		return BestOffset;
+	}
+
+	for (const UDisplayClusterConfiguratorBaseNode* SiblingNode : Parent->GetChildren())
+	{
+		if (SiblingNode == this)
+		{
+			continue;
+		}
+
+		// Skip siblings that are not visible or enabled, as they are not visible in the graph editor and is confusing when a node is blocked by something invisible.
+		if (!SiblingNode->IsNodeEnabled() || !SiblingNode->IsNodeVisible())
+		{
+			continue;
+		}
+
+		BestOffset = SiblingNode->FindNonOverlappingOffset(this, BestOffset);
+
+		// Break if we have hit a best offset of zero; there is no offset that can be performed that doesn't cause intersection.
+		if (BestOffset.IsNearlyZero())
+		{
+			return FVector2D::ZeroVector;
+		}
+	}
+
+	// In some cases, the node may still be intersecting with other nodes if its offset change pushed it into another node that it previously
+	// checked. Do a final intersection check over all nodes and return zero offset if the calculated best offset still causes intersection.
+	for (const UDisplayClusterConfiguratorBaseNode* SiblingNode : Parent->GetChildren())
+	{
+		if (SiblingNode == this)
+		{
+			continue;
+		}
+
+		// Skip siblings that are not visible or enabled, as they are not visible in the graph editor and is confusing when a node is blocked by something invisible.
+		if (!SiblingNode->IsNodeEnabled() || !SiblingNode->IsNodeVisible())
+		{
+			continue;
+		}
+
+		if (SiblingNode->WillOverlap(this, BestOffset))
+		{
+			return FVector2D::ZeroVector;
+		}
+	}
+
+	return BestOffset;
+}
+
+FVector2D UDisplayClusterConfiguratorBaseNode::FindBoundedOffsetFromParent(const FVector2D& InDesiredOffset)
+{
+	FVector2D BestOffset = InDesiredOffset;
+
+	if (!Parent.IsValid())
+	{
+		return BestOffset;
+	}
+
+	const FBox2D ParentBounds = Parent->GetNodeBounds(true);
+	const FVector2D NodeCenter = ParentBounds.GetCenter();
+
+	const FBox2D Bounds = GetNodeBounds().ShiftBy(BestOffset);
+	const FVector2D Center = Bounds.GetCenter();
+	
+	const bool bIsParentAutosized = Parent->IsNodeAutosized();
+
+	if (IsOutside(Bounds, ParentBounds))
+	{
+		// We ignore bounding violations on the max (right/bottom) sides if the parent node is being autosized
+		// because presumably the parent will resize to bound this node when its position is changed.
+
+		// If the parent is autosized, keep track of the size change it would need to accommodate the translation, so that it can be tested for overlap later
+		FVector2D DesiredParentSizeChange = FVector2D::ZeroVector;
+
+		float XShift = 0;
+		if (Bounds.Min.X < ParentBounds.Min.X)
+		{
+			XShift = ParentBounds.Min.X - Bounds.Min.X;
+		}
+		else if (Bounds.Max.X > ParentBounds.Max.X)
+		{
+			if (bIsParentAutosized)
+			{
+				DesiredParentSizeChange.X = Bounds.Max.X - ParentBounds.Max.X;
+			}
+			else
+			{
+				XShift = ParentBounds.Max.X - Bounds.Max.X;
+			}
+		}
+
+		float YShift = 0;
+		if (Bounds.Min.Y < ParentBounds.Min.Y)
+		{
+			YShift = ParentBounds.Min.Y - Bounds.Min.Y;
+		}
+		else if (Bounds.Max.Y > ParentBounds.Max.Y)
+		{
+			if (bIsParentAutosized)
+			{
+				DesiredParentSizeChange.Y = Bounds.Max.Y - ParentBounds.Max.Y;
+			}
+			else
+			{
+				YShift = ParentBounds.Max.Y - Bounds.Max.Y;
+			}
+		}
+
+		if (!DesiredParentSizeChange.IsZero())
+		{
+			// If the parent is autosized and will change size to accommodate the translation of this node, make sure that doing so 
+			// would not cause the parent to overlap its siblings.
+			const FVector2D ParentCurrentSize = Parent->GetNodeSize();
+			const FVector2D ParentMaxSize = Parent->FindNonOverlappingSizeFromParent(ParentCurrentSize + DesiredParentSizeChange, false);
+			const FVector2D AllowedParentSizeChange = ParentMaxSize - ParentCurrentSize;
+			XShift -= DesiredParentSizeChange.X - AllowedParentSizeChange.X;
+			YShift -= DesiredParentSizeChange.Y - AllowedParentSizeChange.Y;
+		}
+
+		BestOffset += FVector2D(XShift, YShift);
+	}
+
+	return BestOffset;
+}
+
+FVector2D UDisplayClusterConfiguratorBaseNode::FindNonOverlappingSizeFromParent(const FVector2D& InDesiredSize, const bool bFixedApsectRatio)
+{
+	FVector2D BestSize = InDesiredSize;
+	const FVector2D NodeSize = GetNodeSize();
+
+	// If desired size is smaller in both dimensions to the slot's current size, can return it immediately, as shrinking a slot can't cause any new intersections.
+	if (BestSize - NodeSize < FVector2D::ZeroVector)
+	{
+		return BestSize;
+	}
+
+	for (const UDisplayClusterConfiguratorBaseNode* SiblingNode : Parent->GetChildren())
+	{
+		if (SiblingNode == this)
+		{
+			continue;
+		}
+
+		// Skip siblings that are not visible or enabled, as they are not visible in the graph editor and is confusing when a node is blocked by something invisible.
+		// Also skip siblings that are auto-positioned because their position could be automatically updated to avoid overlap
+		if (!SiblingNode->IsNodeEnabled() || !SiblingNode->IsNodeVisible() || SiblingNode->IsNodeAutoPositioned())
+		{
+			continue;
+		}
+
+		BestSize = SiblingNode->FindNonOverlappingSize(this, BestSize, bFixedApsectRatio);
+
+		// If the best size has shrunk to be equal to current size, simply return the current size, as there is no larger size
+		// that doesn't cause intersection.
+		if (BestSize.Equals(NodeSize))
+		{
+			break;
+		}
+	}
+
+	return BestSize;
+}
+
+FVector2D UDisplayClusterConfiguratorBaseNode::FindBoundedSizeFromParent(const FVector2D& InDesiredSize, const bool bFixedApsectRatio)
+{
+	FVector2D BestSize = InDesiredSize;
+	const FVector2D NodeSize = GetNodeSize();
+	const float AspectRatio = NodeSize.X / NodeSize.Y;
+	FVector2D SizeChange = BestSize - NodeSize;
+
+	// If desired size is smaller in both dimensions to the slot's current size, can return it immediately, as shrinking a slot can't cause any bound exceeding.
+	if (SizeChange < FVector2D::ZeroVector)
+	{
+		return BestSize;
+	}
+
+	if (!Parent.IsValid())
+	{
+		// If the parent is autosized, don't adjust the desired size, as the parent node will presumably resize to bound the node's new size
+		return BestSize;
+	}
+
+	const FBox2D ParentBounds = Parent->GetNodeBounds(true);
+	FBox2D Bounds = GetNodeBounds();
+	Bounds.Max += SizeChange;
+
+	const bool bIsParentAutosized = Parent->IsNodeAutosized();
+
+	if (IsOutside(Bounds, ParentBounds))
+	{
+		// If the parent is autosized, keep track of the size change it would need to accommodate this node's size change, so that it can be tested for overlap later
+		FVector2D DesiredParentSizeChange = FVector2D::ZeroVector;
+
+		float XShift = 0;
+		if (Bounds.Max.X > ParentBounds.Max.X)
+		{
+			if (bIsParentAutosized)
+			{
+				DesiredParentSizeChange.X = Bounds.Max.X - ParentBounds.Max.X;
+			}
+			else
+			{
+				XShift = ParentBounds.Max.X - Bounds.Max.X;
+			}
+		}
+
+		float YShift = 0;
+		if (Bounds.Max.Y > ParentBounds.Max.Y)
+		{
+			if (bIsParentAutosized)
+			{
+				DesiredParentSizeChange.Y = Bounds.Max.Y - ParentBounds.Max.Y;
+			}
+			else
+			{
+				YShift = ParentBounds.Max.Y - Bounds.Max.Y;
+			}
+		}
+
+		if (!DesiredParentSizeChange.IsZero())
+		{
+			// If the parent is autosized and will change size to accommodate the translation of this node, make sure that doing so 
+			// would not cause the parent to overlap its siblings.
+			const FVector2D ParentCurrentSize = Parent->GetNodeSize();
+			const FVector2D ParentMaxSize = Parent->FindNonOverlappingSizeFromParent(ParentCurrentSize + DesiredParentSizeChange, false);
+			const FVector2D AllowedParentSizeChange = ParentMaxSize - ParentCurrentSize;
+			XShift -= DesiredParentSizeChange.X - AllowedParentSizeChange.X;
+			YShift -= DesiredParentSizeChange.Y - AllowedParentSizeChange.Y;
+		}
+
+		if (bFixedApsectRatio)
+		{
+			if (YShift * AspectRatio < XShift)
+			{
+				SizeChange = FVector2D(YShift * AspectRatio, YShift);
+			}
+			else
+			{
+				SizeChange = FVector2D(XShift, XShift / AspectRatio);
+			}
+		}
+		else
+		{
+			SizeChange = FVector2D(XShift, YShift);
+		}
+
+		BestSize += SizeChange;
+	}
+
+	return BestSize;
+}
+
+FVector2D UDisplayClusterConfiguratorBaseNode::FindBoundedSizeFromChildren(const FVector2D& InDesiredSize, const bool bFixedApsectRatio)
+{
+	FVector2D BestSize = InDesiredSize;
+	const FVector2D NodeSize = GetNodeSize();
+	const float AspectRatio = NodeSize.X / NodeSize.Y;
+	FVector2D SizeChange = BestSize - NodeSize;
+
+	// If desired size is bigger in both dimensions to the slot's current size, can return it immediately, as growing a slot can't cause any bound exceeding.
+	if (SizeChange > FVector2D::ZeroVector)
+	{
+		return BestSize;
+	}
+
+	const FBox2D ChildBounds = GetChildBounds();
+	FBox2D Bounds = GetNodeBounds(true);
+	Bounds.Max += SizeChange;
+
+	const bool bIsParentAutosized = Parent->IsNodeAutosized();
+
+	if (Bounds.Max.X < ChildBounds.Max.X || Bounds.Max.Y < ChildBounds.Max.Y)
+	{
+		float XShift = 0;
+		if (Bounds.Max.X < ChildBounds.Max.X)
+		{
+			XShift = ChildBounds.Max.X - Bounds.Max.X;
+		}
+
+		float YShift = 0;
+		if (Bounds.Max.Y < ChildBounds.Max.Y)
+		{
+			YShift = ChildBounds.Max.Y - Bounds.Max.Y;
+		}
+
+		if (bFixedApsectRatio)
+		{
+			if (YShift * AspectRatio < XShift)
+			{
+				SizeChange = FVector2D(YShift * AspectRatio, YShift);
+			}
+			else
+			{
+				SizeChange = FVector2D(XShift, XShift / AspectRatio);
+			}
+		}
+		else
+		{
+			SizeChange = FVector2D(XShift, YShift);
+		}
+
+		BestSize += SizeChange;
+	}
+
+	return BestSize;
+}
+
+FNodeAlignmentPair UDisplayClusterConfiguratorBaseNode::GetTranslationAlignments(const FVector2D& InOffset, const FNodeAlignmentParams& AlignmentParams) const
+{
+	const FNodeAlignmentAnchors ShiftedAnchors = GetNodeAlignmentAnchors().ShiftBy(InOffset);
+	return GetAlignments(ShiftedAnchors, AlignmentParams);
+}
+
+FNodeAlignmentPair UDisplayClusterConfiguratorBaseNode::GetResizeAlignments(const FVector2D& InSizeChange, const FNodeAlignmentParams& AlignmentParams) const
+{
+	const FNodeAlignmentAnchors ExpandedAnchors = GetNodeAlignmentAnchors().ExpandBy(InSizeChange);
+
+	// When resizing, we want to exclude top, left, and center anchors from being aligned.
+	FNodeAlignmentParams NewParams(AlignmentParams);
+
+	NewParams.AnchorsToIgnore.Add(EAlignmentAnchor::Center);
+	NewParams.AnchorsToIgnore.Add(EAlignmentAnchor::Top);
+	NewParams.AnchorsToIgnore.Add(EAlignmentAnchor::Left);
+
+	return GetAlignments(ExpandedAnchors, NewParams);
+}
+
+FNodeAlignmentPair UDisplayClusterConfiguratorBaseNode::GetAlignments(const FNodeAlignmentAnchors& TransformedAnchors, const FNodeAlignmentParams& AlignmentParams) const
+{
+	FDisplayClusterConfiguratorNodeAlignmentHelper AlignmentHelper(this, TransformedAnchors, AlignmentParams);
+
+	// Align to parent, but only with equivalent edges, not with adjacent edges.
+	if (CanAlignWithParent() && Parent.IsValid())
+	{
+		AlignmentHelper.AddAlignmentsToParent(Parent.Get());
+	}
+
+	for (const UDisplayClusterConfiguratorBaseNode* SiblingNode : Parent->GetChildren())
+	{
+		if (SiblingNode == this)
+		{
+			continue;
+		}
+
+		// Skip siblings that are not visible or enabled, as they are not visible in the graph editor and is confusing when a node snap aligns to an invisible node.
+		if (!SiblingNode->IsNodeEnabled() || !SiblingNode->IsNodeVisible())
+		{
+			continue;
+		}
+
+		AlignmentHelper.AddAlignmentsToNode(SiblingNode);
+	}
+
+	return AlignmentHelper.GetAlignments();
+}
+
+float UDisplayClusterConfiguratorBaseNode::GetViewScale() const
+{
+	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
+	check(Toolkit.IsValid());
+
+	TSharedRef<IDisplayClusterConfiguratorViewOutputMapping> OutputMapping = Toolkit->GetViewOutputMapping();
+
+	return OutputMapping->GetOutputMappingSettings().ViewScale;
 }

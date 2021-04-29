@@ -66,19 +66,45 @@ public:
 	{
 #define SKETCHUP_HOST_NAME       TEXT("SketchUp")
 #define SKETCHUP_VENDOR_NAME     TEXT("Trimble Inc.")
-#define SKETCHUP_PRODUCT_NAME    TEXT("SketchUp Pro")
-#define SKETCHUP_PRODUCT_VERSION TEXT("Version Unknown")
 
 		DatasmithSceneRef->SetHost(SKETCHUP_HOST_NAME);
 
 		// Set the vendor name of the application used to build the scene.
 		DatasmithSceneRef->SetVendor(SKETCHUP_VENDOR_NAME);
 
+		SUEdition Edition;
+		SUGetEdition(&Edition);
+		FString ProductName = TEXT("SketchUp Pro");
+		switch (Edition)
+		{
+		case SUEdition_Make: 
+			ProductName = TEXT("SketchUp Make"); 
+			break;
+		case SUEdition_Pro: 
+			ProductName = TEXT("SketchUp Pro"); 
+			break;
+		default:
+			ProductName = TEXT("SketchUp Unknown"); 
+			break;
+		};
+
 		// Set the product name of the application used to build the scene.
-		DatasmithSceneRef->SetProductName(SKETCHUP_PRODUCT_NAME);
+		DatasmithSceneRef->SetProductName(*ProductName);
+
+		TArray<char> VersionArr;
+		VersionArr.SetNum(32);
+
+		while (SUGetVersionStringUtf8(VersionArr.Num(), VersionArr.GetData()) == SU_ERROR_INSUFFICIENT_SIZE)
+		{
+			VersionArr.SetNum(VersionArr.Num());
+		}
+
+		FUTF8ToTCHAR Converter(VersionArr.GetData(), VersionArr.Num());
+		FString VersionStr(Converter.Length(), Converter.Get());
+
 
 		// Set the product version of the application used to build the scene.
-		DatasmithSceneRef->SetProductVersion(SKETCHUP_PRODUCT_VERSION);
+		DatasmithSceneRef->SetProductVersion(*VersionStr);
 
 		// XXX: PreExport needs to be called before DirectLink instance is constructed - 
 		// Reason - it calls initialization of FTaskGraphInterface. Callstack:
@@ -383,12 +409,12 @@ public:
 		return false;
 	}
 
-	FORCENOINLINE bool OnEntityRemoved(DatasmithSketchUp::FEntityIDType EntityId)
+	FORCENOINLINE bool OnEntityRemoved(DatasmithSketchUp::FEntityIDType ParentEntityId, DatasmithSketchUp::FEntityIDType EntityId)
 	{
 		// todo: map each existing entity id to its type so don't need to check every collection?
 
 		//Try ComponentInstance/Group
-		if (Context.ComponentInstances.RemoveComponentInstance(EntityId))
+		if (Context.ComponentInstances.RemoveComponentInstance(ParentEntityId, EntityId))
 		{
 			return true;
 		}
@@ -464,7 +490,7 @@ public:
 
 	bool OnGeometryModified(DatasmithSketchUp::FEntityIDType EntityId)
 	{
-		DatasmithSketchUp::FDefinition* DefinitionPtr = GetDefinition(EntityId);
+		DatasmithSketchUp::FDefinition* DefinitionPtr = Context.GetDefinition(EntityId);
 
 		if (!DefinitionPtr)
 		{
@@ -477,28 +503,10 @@ public:
 		return false;
 	}
 
-	DatasmithSketchUp::FDefinition* GetDefinition(DatasmithSketchUp::FEntityIDType DefinitionEntityId)
-	{
-		DatasmithSketchUp::FDefinition* DefinitionPtr = nullptr;
-
-		if (DefinitionEntityId.EntityID == 0)
-		{
-			return Context.ModelDefinition.Get();
-		}
-		else
-		{
-			if (TSharedPtr<DatasmithSketchUp::FComponentDefinition>* Ptr = Context.ComponentDefinitions.FindComponentDefinition(DefinitionEntityId))
-			{
-				return Ptr->Get();
-			}
-		}
-		return nullptr;
-	}
-
 
 	bool OnEntityAdded(DatasmithSketchUp::FEntityIDType ParentEntityId, DatasmithSketchUp::FEntityIDType EntityId)
 	{
-		DatasmithSketchUp::FDefinition* DefinitionPtr = GetDefinition(ParentEntityId);
+		DatasmithSketchUp::FDefinition* DefinitionPtr = Context.GetDefinition(ParentEntityId);
 		
 		if (!DefinitionPtr)
 		{
@@ -508,14 +516,17 @@ public:
 
 		DatasmithSketchUp::FEntities& Entities = DefinitionPtr->GetEntities();
 
-		if (SUGroupRef* GroupRefPtr = Entities.GetGroups().FindByPredicate([EntityId](const SUGroupRef& GroupRef) { return DatasmithSketchUpUtils::GetGroupID(GroupRef) == EntityId; }))
+		TArray<SUGroupRef> Groups = Entities.GetGroups();
+		if (SUGroupRef* GroupRefPtr = Groups.FindByPredicate([EntityId](const SUGroupRef& GroupRef) { return DatasmithSketchUpUtils::GetGroupID(GroupRef) == EntityId; }))
 		{
 			SUGroupRef GroupRef = *GroupRefPtr;
 
 			SUEntityRef Entity = SUGroupToEntity(GroupRef);
+
+			SUComponentInstanceRef Ref = SUComponentInstanceFromEntity(Entity);
+
 			// todo: remove dup
-			TSharedPtr<DatasmithSketchUp::FComponentInstance> ComponentInstance = Context.ComponentInstances.AddComponentInstance(SUComponentInstanceFromEntity(Entity));
-			DefinitionPtr->AddInstance(Context, ComponentInstance);
+			DefinitionPtr->AddInstance(Context, Context.ComponentInstances.AddComponentInstance(*DefinitionPtr, Ref));
 			return true;
 		}
 
@@ -529,8 +540,7 @@ public:
 			// todo: remove dup
 
 			SUComponentInstanceRef Ref = SUComponentInstanceFromEntity(Entity);
-			TSharedPtr<DatasmithSketchUp::FComponentInstance> ComponentInstance = Context.ComponentInstances.AddComponentInstance(Ref);
-			DefinitionPtr->AddInstance(Context, ComponentInstance);
+			DefinitionPtr->AddInstance(Context, Context.ComponentInstances.AddComponentInstance(*DefinitionPtr, Ref));
 			return true;
 		}
 
@@ -545,13 +555,17 @@ public:
 		case SURefType_Group:
 		case SURefType_ComponentInstance:
 		{
-			TSharedPtr<DatasmithSketchUp::FComponentInstance> ComponentInstance = Context.ComponentInstances.AddComponentInstance(SUComponentInstanceFromEntity(Entity));
-			Context.GetEntityDefinition(EntityParent)->AddInstance(Context, ComponentInstance);
+			DatasmithSketchUp::FDefinition* DefinitionPtr = Context.GetDefinition(EntityParent);
+			if (ensure(DefinitionPtr)) // Parent definition expected to already exist when new entity being added
+			{
+				DefinitionPtr->AddInstance(Context, Context.ComponentInstances.AddComponentInstance(*DefinitionPtr, SUComponentInstanceFromEntity(Entity)));
+			}
+
 			break;
 		}
 		case SURefType_Face:
 		{
-			Context.GetEntityDefinition(EntityParent)->InvalidateDefinitionGeometry();
+			Context.GetDefinition(EntityParent)->InvalidateDefinitionGeometry();
 			break;
 		}
 		case SURefType_Material:
@@ -587,6 +601,13 @@ FString RubyStringToUnreal(VALUE path)
 	// todo: check that Ruby has utf-8 internally
 	// todo: test that non-null term doesn't fail
 	return FString(Converter.Length(), Converter.Get());
+}
+
+VALUE UnrealStringToRuby(const FString& InStr)
+{
+	FTCHARToUTF8 Converter(*InStr, InStr.Len());
+
+	return rb_str_new(Converter.Get(), Converter.Length());
 }
 
 typedef VALUE(*RubyFunctionType)(ANYARGS);
@@ -810,18 +831,20 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_material_added_by_id(VALUE self, VA
 }
 
 
-VALUE DatasmithSketchUpDirectLinkExporter_on_entity_removed(VALUE self, VALUE ruby_entity_id)
+VALUE DatasmithSketchUpDirectLinkExporter_on_entity_removed(VALUE self, VALUE ruby_parent_entity_id, VALUE ruby_entity_id)
 {
 	// Converting args
 	FDatasmithSketchUpDirectLinkExporter* Ptr;
 	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, Ptr);
 
-	Check_Type(ruby_entity_id, T_FIXNUM);
+	Check_Type(ruby_parent_entity_id, T_FIXNUM);
+	int32 ParentEntityId = FIX2LONG(ruby_parent_entity_id);
 
+	Check_Type(ruby_entity_id, T_FIXNUM);
 	int32 EntityId = FIX2LONG(ruby_entity_id);
 	// Done converting args
 	
-	Ptr->OnEntityRemoved(DatasmithSketchUp::FEntityIDType(EntityId));
+	Ptr->OnEntityRemoved(DatasmithSketchUp::FEntityIDType(ParentEntityId), DatasmithSketchUp::FEntityIDType(EntityId));
 
 	return Qtrue;
 }
@@ -855,6 +878,17 @@ VALUE open_directlink_ui() {
 	return Qfalse;
 }
 
+VALUE get_directlink_cache_directory() {
+	if (IDatasmithExporterUIModule* Module = IDatasmithExporterUIModule::Get())
+	{
+		if (IDirectLinkUI* UI = Module->GetDirectLinkExporterUI())
+		{
+			return UnrealStringToRuby(UI->GetDirectLinkCacheDirectory());
+		}
+	}
+	return Qnil;
+}
+
 
 // todo: hardcoded init module function name
 extern "C" __declspec(dllexport) void Init_DatasmithSketchUpRuby()
@@ -867,6 +901,7 @@ extern "C" __declspec(dllexport) void Init_DatasmithSketchUpRuby()
 	rb_define_module_function(Datasmith, "on_unload", ToRuby(on_unload), 0);
 
 	rb_define_module_function(Datasmith, "open_directlink_ui", ToRuby(open_directlink_ui), 0);
+	rb_define_module_function(Datasmith, "get_directlink_cache_directory", ToRuby(get_directlink_cache_directory), 0);
 
 	DatasmithSketchUpDirectLinkExporterCRubyClass = rb_define_class_under(Datasmith, "DatasmithSketchUpDirectLinkExporter", rb_cObject);
 
@@ -884,7 +919,7 @@ extern "C" __declspec(dllexport) void Init_DatasmithSketchUpRuby()
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_added_by_id", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_added_by_id), 2);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_material_added_by_id", ToRuby(DatasmithSketchUpDirectLinkExporter_on_material_added_by_id), 1);
 
-	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_removed", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_removed), 1);
+	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_removed", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_removed), 2);
 
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "update", ToRuby(DatasmithSketchUpDirectLinkExporter_update), 0);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "send_update", ToRuby(DatasmithSketchUpDirectLinkExporter_send_update), 0);

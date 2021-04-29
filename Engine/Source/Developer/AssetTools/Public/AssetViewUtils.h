@@ -115,21 +115,16 @@ namespace AssetViewUtils
 	ASSETTOOLS_API bool AssetHasCustomThumbnail( const FAssetData& AssetData );
 
 	/** Returns true if the passed-in path is a project folder */
-	ASSETTOOLS_API bool IsProjectFolder(const FString& InPath, const bool bIncludePlugins = false);
+	ASSETTOOLS_API bool IsProjectFolder(const FStringView InPath, const bool bIncludePlugins = false);
 
 	/** Returns true if the passed-in path is a engine folder */
-	ASSETTOOLS_API bool IsEngineFolder(const FString& InPath, const bool bIncludePlugins = false);
+	ASSETTOOLS_API bool IsEngineFolder(const FStringView InPath, const bool bIncludePlugins = false);
 
 	/** Returns true if the passed-in path is a developers folder */
-	ASSETTOOLS_API bool IsDevelopersFolder( const FString& InPath );
+	ASSETTOOLS_API bool IsDevelopersFolder( const FStringView InPath );
 
 	/** Returns true if the passed-in path is a plugin folder, optionally reporting where the plugin was loaded from */
-	ASSETTOOLS_API bool IsPluginFolder(const FString& InPath, EPluginLoadedFrom* OutPluginSource = nullptr);
-
-	/** Returns true if the passed-in path is a plugin folder, optionally reporting where the plugin was loaded from.
-	 *  Pass in a prefiltered list of plugins to consider -- more efficient when called many times.
-	 */
-	ASSETTOOLS_API bool IsPluginFolder(const FString& InPath, const TArray<TSharedRef<IPlugin>>& InPlugins, EPluginLoadedFrom* OutPluginSource = nullptr);
+	ASSETTOOLS_API bool IsPluginFolder(const FStringView InPath, EPluginLoadedFrom* OutPluginSource = nullptr);
 
 	/** Get all the objects in a list of asset data */
 	ASSETTOOLS_API void GetObjectsInAssetData(const TArray<FAssetData>& AssetList, TArray<UObject*>& OutDroppedObjects);

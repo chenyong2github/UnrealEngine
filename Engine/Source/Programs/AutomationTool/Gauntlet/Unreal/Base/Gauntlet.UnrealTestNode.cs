@@ -670,6 +670,7 @@ namespace Gauntlet
 
 			// We need to create this directory at the start of the test rather than the end of the test - we are running into instances where multiple A/B tests
 			// on the same build are seeing the directory as non-existent and thinking it is safe to write to.
+			Log.Info("UnrealTestNode.StartTest Calling CreateDirectory for artifacts at {0}", ArtifactPath);
 			Directory.CreateDirectory(ArtifactPath);
 
 			// Launch the test

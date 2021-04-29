@@ -1681,6 +1681,11 @@ void APlayerController::PushClientInput(int32 InRecvClientInputFrame, TArray<uin
 
 void APlayerController::ServerRecvClientInputFrame_Implementation(int32 InRecvClientInputFrame, const TArray<uint8>& Data)
 {
+	if (InRecvClientInputFrame < 0)
+	{
+		return;
+	}
+
 	for (int32 DroppedFrame = InputBuffer.HeadFrame()+1; DroppedFrame < InRecvClientInputFrame && DroppedFrame > 0; ++DroppedFrame)
 	{
 		InputBuffer.Write(DroppedFrame) = InputBuffer.Get(DroppedFrame-1);

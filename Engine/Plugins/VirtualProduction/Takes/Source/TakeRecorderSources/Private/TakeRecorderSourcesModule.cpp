@@ -6,12 +6,15 @@
 #include "TakeRecorderLevelSequenceSource.h"
 #include "Input/DragAndDrop.h"
 #include "Recorder/TakeRecorder.h"
+#include "Recorder/TakeRecorderBlueprintLibrary.h"
+#include "Recorder/TakeRecorderPanel.h"
 #include "Recorder/TakeRecorderParameters.h"
 #include "TakesCoreBlueprintLibrary.h"
 #include "TakesCoreLog.h"
 #include "TakeMetaData.h"
 #include "TakeRecorderActorSource.h"
 #include "TakeRecorderSources.h"
+#include "TakeRecorderSourcesCommands.h"
 #include "TakeRecorderSettings.h"
 #include "TakeRecorderSourcesUtils.h"
 #include "Features/IModularFeatures.h"
@@ -22,6 +25,7 @@
 #include "Algo/Sort.h"
 #include "ScopedTransaction.h"
 #include "LevelSequenceActor.h"
+#include "LevelSequenceEditorBlueprintLibrary.h"
 
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -31,8 +35,11 @@
 #include "Engine/LevelScriptActor.h"
 #include "Engine/Selection.h"
 #include "Editor.h"
+#include "LevelEditor.h"
 #include "SceneOutlinerModule.h"
 #include "SceneOutlinerPublicTypes.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "ActorTreeItem.h"
 #include "EditorActorFolders.h"
@@ -41,13 +48,17 @@
 #include "TakeRecorderWorldSource.h"
 #include "TrackRecorders/MovieSceneAnimationTrackRecorderSettings.h"
 
+#include "ISequencer.h"
+#include "ISequencerModule.h"
+#include "ILevelSequenceEditorToolkit.h"
+
 #define LOCTEXT_NAMESPACE "TakeRecorderSources"
 
 static void AddActorSources(UTakeRecorderSources* Sources, TArrayView<AActor* const> InActors)
 {
 	if (InActors.Num() > 0)
 	{
-		FScopedTransaction Transaction(FText::Format(NSLOCTEXT("TakeRecorderSources", "AddSources", "Add Recording {0}|plural(one=Source, other=Sources)"), InActors.Num()));
+		FScopedTransaction Transaction(FText::Format(LOCTEXT("AddSources", "Add Recording {0}|plural(one=Source, other=Sources)"), InActors.Num()));
 		Sources->Modify();
 
 		for (AActor* Actor : InActors)
@@ -346,6 +357,12 @@ public:
 
 	virtual void StartupModule() override
 	{
+		FTakeRecorderSourcesCommands::Register();
+		
+		BindCommands();
+
+		RegisterMenuExtensions();
+	
 		IModularFeatures::Get().RegisterModularFeature(ITakeRecorderDropHandler::ModularFeatureName, &ActorDropHandler);
 
 		ITakeRecorderModule& TakeRecorderModule = FModuleManager::Get().LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
@@ -355,18 +372,98 @@ public:
 		TakeRecorderModule.RegisterSettingsObject(GetMutableDefault<UTakeRecorderMicrophoneAudioSourceSettings>());
 		TakeRecorderModule.RegisterSettingsObject(GetMutableDefault<UMovieSceneAnimationTrackRecorderEditorSettings>());
 		TakeRecorderModule.RegisterSettingsObject(GetMutableDefault<UTakeRecorderWorldSourceSettings>());
+
+		ISequencerModule& SequencerModule = FModuleManager::Get().LoadModuleChecked<ISequencerModule>("Sequencer");
+		OnSequencerCreatedHandle = SequencerModule.RegisterOnSequencerCreated(FOnSequencerCreated::FDelegate::CreateRaw(this, &FTakeRecorderSourcesModule::OnSequencerCreated));
 	}
 
 	virtual void ShutdownModule() override
 	{
 		IModularFeatures::Get().UnregisterModularFeature(ITakeRecorderDropHandler::ModularFeatureName, &ActorDropHandler);
 
+		ISequencerModule* SequencerModule = FModuleManager::GetModulePtr<ISequencerModule>("Sequencer");
+		if (SequencerModule)
+		{
+			SequencerModule->UnregisterOnSequencerCreated(OnSequencerCreatedHandle);
+		}
+		
 		ITakeRecorderModule* TakeRecorderModule = FModuleManager::Get().GetModulePtr<ITakeRecorderModule>("TakeRecorder");
 		if (TakeRecorderModule)
 		{
 			TakeRecorderModule->UnregisterSourcesMenuExtension(SourcesMenuExtension);
 		}
+
+		FTakeRecorderSourcesCommands::Unregister();
+
+		UnregisterMenuExtensions();
 	}
+
+	void RegisterMenuExtensions()
+	{
+#if WITH_EDITOR
+		if (GEditor)
+		{
+			// Register level editor menu extender
+			LevelEditorMenuExtenderDelegate = FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors::CreateRaw(this, &FTakeRecorderSourcesModule::ExtendLevelViewportContextMenu);
+			FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+			auto& MenuExtenders = LevelEditorModule.GetAllLevelViewportContextMenuExtenders();
+			MenuExtenders.Add(LevelEditorMenuExtenderDelegate);
+			LevelEditorExtenderDelegateHandle = MenuExtenders.Last().GetHandle();
+		}
+#endif
+	}
+
+	void UnregisterMenuExtensions()
+	{
+		// Unregister level editor menu extender
+		if (FModuleManager::Get().IsModuleLoaded(TEXT("LevelEditor")))
+		{
+			FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+			LevelEditorModule.GetAllLevelViewportContextMenuExtenders().RemoveAll([&](const FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors& Delegate) {
+				return Delegate.GetHandle() == LevelEditorExtenderDelegateHandle;
+			});
+		}
+	}
+
+	void BindCommands()
+	{
+		CommandList = MakeShareable(new FUICommandList);
+		
+		CommandList->MapAction(
+			FTakeRecorderSourcesCommands::Get().RecordSelectedActors,
+			FExecuteAction::CreateLambda( [this] { RecordSelectedActors(); } ) );
+	}
+
+	TSharedRef<FExtender> ExtendLevelViewportContextMenu(const TSharedRef<FUICommandList> InCommandList, const TArray<AActor*> SelectedActors)
+	{
+		TSharedRef<FExtender> Extender(new FExtender());
+
+		if (SelectedActors.Num() > 0)
+		{
+			Extender->AddMenuExtension("ActorControl", EExtensionHook::After, CommandList, FMenuExtensionDelegate::CreateLambda(
+				[this, SelectedActors](FMenuBuilder& MenuBuilder) 
+			{
+				FText RecordText;
+				if (SelectedActors.Num() == 1)
+				{
+					RecordText = FText::Format(LOCTEXT("RecordSelectedActorsText", "Record {0} with Take Recorder"), FText::FromString(SelectedActors[0]->GetActorLabel()));
+				}
+				else
+				{
+					RecordText = FText::Format(LOCTEXT("RecordSelectedActorsText", "Record {0} actors with Take Recorder"), SelectedActors.Num());
+				}
+
+				MenuBuilder.BeginSection("TakeRecorder", LOCTEXT("TakeRecorderSection", "Take Recorder"));
+				MenuBuilder.AddMenuEntry(FTakeRecorderSourcesCommands::Get().RecordSelectedActors, NAME_None, RecordText);
+				MenuBuilder.EndSection();
+			}
+			
+			));
+		}
+
+		return Extender;
+	}
+
 
 	static void ExtendSourcesMenu(TSharedRef<FExtender> Extender, UTakeRecorderSources* Sources)
 	{
@@ -377,8 +474,8 @@ public:
 	{
 		FName ExtensionName = "ActorSourceSubMenu";
 		MenuBuilder.AddSubMenu(
-			NSLOCTEXT("TakeRecorderSources", "ActorList_Label", "From Actor"),
-			NSLOCTEXT("TakeRecorderSources", "ActorList_Tip", "Add a new recording source from an actor in the current world"),
+			LOCTEXT("ActorList_Label", "From Actor"),
+			LOCTEXT("ActorList_Tip", "Add a new recording source from an actor in the current world"),
 			FNewMenuDelegate::CreateStatic(PopulateActorSubMenu, Sources),
 			FUIAction(),
 			ExtensionName,
@@ -486,6 +583,7 @@ public:
 			Class
 		};
 
+		bool bShowUsage = false;
 		const TCHAR* Str = InStr;
 		EFilterType FilterType = EFilterType::None;
 		TCHAR Filter[128];
@@ -506,7 +604,8 @@ public:
 			}
 			else
 			{
-				UE_LOG(LogTakesCore, Warning, TEXT("Couldn't parse recording filter, using actor filters from settings."));
+				Ar.Log(ELogVerbosity::Error, TEXT("Couldn't parse recording filter, using actor filters from settings."));
+				bShowUsage = true;
 			}
 		}
 
@@ -541,7 +640,8 @@ public:
 						}
 						else
 						{
-							UE_LOG(LogTakesCore, Warning, TEXT("Couldn't parse class filter, aborting recording."));
+							Ar.Log(ELogVerbosity::Error, TEXT("Couldn't parse class filter, aborting recording."));
+							bShowUsage = true;
 						}
 					}
 				}
@@ -552,44 +652,64 @@ public:
 			FindActorsOfClass(AActor::StaticClass(), InWorld, ActorsToRecord);
 		}
 
-		if (ActorsToRecord.Num())
+		TOptional<ULevelSequence*> LevelSequence;
+		TOptional<ULevelSequence*> RootLevelSequence;
+
+		TCHAR SequenceAsset[128];
+		if (FParse::Token(Str, SequenceAsset, UE_ARRAY_COUNT(SequenceAsset), 0))
 		{
-			FTakeRecorderParameters Parameters;
-			Parameters.User = GetDefault<UTakeRecorderUserSettings>()->Settings;
-			Parameters.Project = GetDefault<UTakeRecorderProjectSettings>()->Settings;
-
-			FText ErrorText = NSLOCTEXT("TakeRecorderModule", "UnknownError", "An unknown error occurred when trying to start recording");
-
-			UTakeMetaData* MetaData = UTakeMetaData::CreateFromDefaults(GetTransientPackage(), NAME_None);
-			MetaData->SetFlags(RF_Transactional | RF_Transient);
-
-			MetaData->SetSlate(GetDefault<UTakeRecorderProjectSettings>()->Settings.DefaultSlate);
-
-			// Compute the correct starting take number
-			int32 NextTakeNumber = UTakesCoreBlueprintLibrary::ComputeNextTakeNumber(MetaData->GetSlate());
-			MetaData->SetTakeNumber(NextTakeNumber);
-
-			UTakeRecorderSources* Sources = NewObject<UTakeRecorderSources>(GetTransientPackage(), NAME_None, RF_Transient);
-
-			for (AActor* ActorToRecord : ActorsToRecord)
+			FString const SequenceAssetStr = SequenceAsset;
+			FString LeftS, RightS;
+			if (SequenceAssetStr.Split(TEXT("sequence="), &LeftS, &RightS))
 			{
-				UTakeRecorderActorSource::AddSourceForActor(ActorToRecord, Sources);
-			}
+				LevelSequence = LoadObject<ULevelSequence>(nullptr, *RightS);
 
-			ULevelSequence* LevelSequence = NewObject<ULevelSequence>(GetTransientPackage(), NAME_None, RF_Transient);
-			LevelSequence->Initialize();
-
-			UTakeRecorder* NewRecorder = NewObject<UTakeRecorder>(GetTransientPackage(), NAME_None, RF_Transient);
-			if (NewRecorder->Initialize(LevelSequence, Sources, MetaData, Parameters, &ErrorText))
-			{
-				return true;
+				if (LevelSequence.IsSet() && !LevelSequence.GetValue())
+				{
+					Ar.Log(ELogVerbosity::Error, FString::Printf(TEXT("Couldn't find level sequence with path: %s, aborting recording."), *RightS));
+					bShowUsage = true;
+				}
 			}
 		}
-		else
+
+		TCHAR RootSequenceAsset[128];
+		if (FParse::Token(Str, SequenceAsset, UE_ARRAY_COUNT(RootSequenceAsset), 0))
 		{
-			UE_LOG(LogTakesCore, Warning, TEXT("Couldn't find any actors to record, aborting recording."));
+			FString const RootSequenceAssetStr = RootSequenceAsset;
+			FString LeftS, RightS;
+			if (RootSequenceAssetStr.Split(TEXT("root_sequence="), &LeftS, &RightS))
+			{
+				RootLevelSequence = LoadObject<ULevelSequence>(nullptr, *RightS);
+
+				if (RootLevelSequence.IsSet() && !RootLevelSequence.GetValue())
+				{
+					Ar.Log(ELogVerbosity::Error, FString::Printf(TEXT("Couldn't find root level sequence with path: %s, aborting recording."), *RightS));
+					bShowUsage = true;
+				}
+			}
 		}
 
+		if (ActorsToRecord.Num() == 0)
+		{
+			Ar.Log(ELogVerbosity::Error, TEXT("Couldn't find any actors to record, aborting recording."));
+			bShowUsage = true;
+		}
+
+		// show usage if any errors
+		if (bShowUsage)
+		{
+			Ar.Log(TEXT("Usage: RecordTake filterType options sequence="));
+			Ar.Log(TEXT("         filterType = all, actor, class"));
+			Ar.Log(TEXT("         options = comma separated options for filterType"));
+			Ar.Log(TEXT("         sequence (optional) = path to sequence to record into"));
+			Ar.Log(TEXT("         root sequence (optional) = path to root of the sequence being recorded into"));
+			Ar.Log(TEXT("         example: RecordTake actor cube,sphere sequence=/Game/RecordSequence"));
+			return false;
+		}
+
+		RecordActors(ActorsToRecord, LevelSequence, RootLevelSequence);
+		return true;
+		
 #endif
 		return false;
 	}
@@ -628,9 +748,178 @@ public:
 		return false;
 	}
 
+	void RecordActors(const TArray<AActor*>& ActorsToRecord, TOptional<ULevelSequence*> LevelSequence, TOptional<ULevelSequence*> RootLevelSequence)
+	{
+		ETakeRecorderMode TakeRecorderMode = LevelSequence.IsSet() && LevelSequence.GetValue() != nullptr ? ETakeRecorderMode::RecordIntoSequence : ETakeRecorderMode::RecordNewSequence;
+				
+		FString Slate = GetDefault<UTakeRecorderProjectSettings>()->Settings.DefaultSlate;
+
+		ULevelSequence* RecordLevelSequence = nullptr;
+
+		if (!LevelSequence.IsSet() || LevelSequence.GetValue() == nullptr)
+		{
+			RecordLevelSequence = NewObject<ULevelSequence>(GetTransientPackage(), NAME_None, RF_Transient);
+			RecordLevelSequence->Initialize();
+		}
+		else
+		{
+			Slate = LevelSequence.GetValue()->GetName();
+			
+			if (RootLevelSequence.IsSet() && RootLevelSequence.GetValue() != nullptr)
+			{
+				RecordLevelSequence = RootLevelSequence.GetValue();
+			}
+			else
+			{
+				RecordLevelSequence = LevelSequence.GetValue();
+			}
+		}
+		
+		FText ErrorText = LOCTEXT("UnknownError", "An unknown error occurred when trying to start recording");
+
+		if (!RecordLevelSequence)
+		{
+			return;
+		}
+
+		FTakeRecorderParameters Parameters;
+		Parameters.User = GetDefault<UTakeRecorderUserSettings>()->Settings;
+		Parameters.Project = GetDefault<UTakeRecorderProjectSettings>()->Settings;
+		Parameters.TakeRecorderMode = TakeRecorderMode;
+
+		// Overrides for what makes sense when recording into a level sequence with Sequencer and no Take Recorder panel
+		Parameters.Project.bRecordToPossessable = true;
+		Parameters.Project.bRecordSourcesIntoSubSequences = false;
+
+		UTakeMetaData* MetaData = UTakeMetaData::CreateFromDefaults(GetTransientPackage(), NAME_None);
+		MetaData->SetFlags(RF_Transactional | RF_Transient);
+
+		MetaData->SetSlate(Slate);
+
+		// Compute the correct starting take number
+		int32 NextTakeNumber = UTakesCoreBlueprintLibrary::ComputeNextTakeNumber(MetaData->GetSlate());
+		MetaData->SetTakeNumber(NextTakeNumber);
+
+		UTakeRecorderSources* Sources = NewObject<UTakeRecorderSources>(GetTransientPackage(), NAME_None, RF_Transient);
+
+		for (AActor* ActorToRecord : ActorsToRecord)
+		{
+			UTakeRecorderActorSource::AddSourceForActor(ActorToRecord, Sources);
+		}
+
+		UTakeRecorder* NewRecorder = NewObject<UTakeRecorder>(GetTransientPackage(), NAME_None, RF_Transient);
+		if (!NewRecorder->Initialize(RecordLevelSequence, Sources, MetaData, Parameters, &ErrorText))
+		{
+			FNotificationInfo Info(ErrorText);
+			Info.bUseLargeFont = false;
+			FSlateNotificationManager::Get().AddNotification(Info);
+		}
+	}
+
+	void RecordSelectedActors()
+	{
+		TArray<AActor*> SelectedActors;
+		GEditor->GetSelectedActors()->GetSelectedObjects(SelectedActors);
+
+		if (SelectedActors.Num() == 0)
+		{
+			return;
+		}
+
+		ULevelSequence* TempLevelSequence = NewObject<ULevelSequence>(GetTransientPackage(), NAME_None, RF_Transient);
+		TempLevelSequence->Initialize();
+
+		ULevelSequence* RootLevelSequence = ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence();
+		ULevelSequence* LevelSequence = ULevelSequenceEditorBlueprintLibrary::GetFocusedLevelSequence();
+
+		RecordActors(SelectedActors, LevelSequence, RootLevelSequence);
+	}
+
+	void OnSequencerCreated(TSharedRef<ISequencer> Sequencer)
+	{
+		Sequencer->OnGetCanRecord().BindLambda([this] (FText& OutInfoText)
+		{
+			if (UTakeRecorderBlueprintLibrary::IsRecording())
+			{
+				return true; // can toggle record button to stop 
+			}
+			else
+			{
+				// If take recorder panel is open, the record button diverts to there. Any errors should be reported through the tooltip
+				if (UTakeRecorderPanel* TakeRecorderPanel = UTakeRecorderBlueprintLibrary::GetTakeRecorderPanel())
+				{
+					bool bRetVal = TakeRecorderPanel->CanStartRecording(OutInfoText);
+					if (!bRetVal && TakeRecorderPanel->GetLevelSequence() && TakeRecorderPanel->GetLevelSequence()->HasAnyFlags(RF_Transient)) 
+					{
+						OutInfoText = FText::Join(FText::FromString(" "), OutInfoText, LOCTEXT("CloseTakeRecorderToRecordIntoSequence", "If you want to record directly into the current sequence, please close Take Recorder."));
+					}
+
+					return bRetVal;
+				}
+				else
+				{
+					TArray<AActor*> SelectedActors;
+					GEditor->GetSelectedActors()->GetSelectedObjects(SelectedActors);
+					
+					if (SelectedActors.Num() > 0)
+					{
+						OutInfoText = LOCTEXT("StartRecordingIntoSequence", "Start recording into the current sequence");
+						return true;
+					}
+					else
+					{
+						OutInfoText = LOCTEXT("SelectActorsToRecord", "Select actors to record into the current sequence");
+					}
+				}
+			}
+			return false;
+		} );
+
+		Sequencer->OnGetIsRecording().BindLambda([this] 
+		{
+			return UTakeRecorderBlueprintLibrary::GetActiveRecorder() || UTakeRecorderBlueprintLibrary::IsRecording();
+		} );
+
+		Sequencer->OnRecordEvent().AddLambda([this] 
+		{ 
+			if (UTakeRecorderBlueprintLibrary::GetActiveRecorder() != nullptr || UTakeRecorderBlueprintLibrary::IsRecording())
+			{
+				UTakeRecorderBlueprintLibrary::StopRecording();
+			}
+			else
+			{
+				if (UTakeRecorderPanel* TakeRecorderPanel = UTakeRecorderBlueprintLibrary::GetTakeRecorderPanel())
+				{
+					FText ErrorText;
+					if (TakeRecorderPanel->CanStartRecording(ErrorText))
+					{
+						ULevelSequence* LevelSequence = TakeRecorderPanel->GetLevelSequence();
+						UTakeRecorderSources* Sources = TakeRecorderPanel->GetSources();
+						UTakeMetaData* MetaData = TakeRecorderPanel->GetTakeMetaData();
+		
+						FTakeRecorderParameters Parameters;
+						Parameters.User    = GetDefault<UTakeRecorderUserSettings>()->Settings;
+						Parameters.Project = GetDefault<UTakeRecorderProjectSettings>()->Settings;
+						Parameters.TakeRecorderMode = TakeRecorderPanel->GetMode() == ETakeRecorderPanelMode::RecordingInto ? ETakeRecorderMode::RecordIntoSequence : ETakeRecorderMode::RecordNewSequence;
+
+						UTakeRecorderBlueprintLibrary::StartRecording(LevelSequence, Sources, MetaData, Parameters);
+						return;
+					}
+				}
+					
+				RecordSelectedActors(); 
+			}
+		} );
+	};
+
+	FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors LevelEditorMenuExtenderDelegate;
 
 	FActorTakeRecorderDropHandler ActorDropHandler;
 	FDelegateHandle SourcesMenuExtension;
+	FDelegateHandle LevelEditorExtenderDelegateHandle;
+	FDelegateHandle OnSequencerCreatedHandle;
+
+	TSharedPtr<FUICommandList> CommandList;
 };
 
 

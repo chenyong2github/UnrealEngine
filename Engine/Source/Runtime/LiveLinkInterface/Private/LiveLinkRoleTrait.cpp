@@ -54,7 +54,6 @@ namespace LiveLinkRoleTemplate
 	template <class T>
 	TSubclassOf<T> GetTClasses(TSubclassOf<ULiveLinkRole> Role)
 	{
-		TArray<TSubclassOf<T>> Results;
 		if (Role.Get())
 		{
 			for (TObjectIterator<UClass> Itt; Itt; ++Itt)
@@ -70,7 +69,7 @@ namespace LiveLinkRoleTemplate
 				}
 			}
 		}
-		return nullptr;;
+		return nullptr;
 	}
 }
 

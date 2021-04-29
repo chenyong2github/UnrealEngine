@@ -50,6 +50,10 @@ public:
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FFontEditor");
+	}
 
 	/** Called to determine if the user should be prompted for a new file if one is missing during an asset reload*/
 	virtual bool ShouldPromptForNewFilesOnReload(const UObject& object) const override;

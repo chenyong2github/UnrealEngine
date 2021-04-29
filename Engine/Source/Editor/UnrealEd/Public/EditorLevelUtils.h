@@ -263,6 +263,15 @@ public:
 	 */
 	static UNREALED_API void GetWorlds(UWorld* InWorld, TArray<UWorld*>& OutWorlds, bool bIncludeInWorld, bool bOnlyEditorVisible = false);
 
+	/**
+	 * Returns all levels for a world.
+	 *
+	 * @param	World				World containing levels
+	 * @return						Set of all levels
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	static const TArray<ULevel*> GetLevels(UWorld* World);
+
 	UE_DEPRECATED(4.17, "The CreateNewLevel method to create streaming levels has been deprecated. Use CreateNewStreamingLevelForWorld instead")
 	static UNREALED_API ULevel* CreateNewLevel(UWorld* InWorld, bool bMoveSelectedActorsIntoNewLevel, TSubclassOf<ULevelStreaming> LevelStreamingClass, const FString& DefaultFilename = TEXT(""));
 

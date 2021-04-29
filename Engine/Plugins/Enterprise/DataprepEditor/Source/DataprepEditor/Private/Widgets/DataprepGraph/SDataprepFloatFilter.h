@@ -62,6 +62,10 @@ private:
 
 	//~ FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SDataprepFloatFilter");
+	}
 	//~ End FGCObject interface
 
 	float OldEqualValue;

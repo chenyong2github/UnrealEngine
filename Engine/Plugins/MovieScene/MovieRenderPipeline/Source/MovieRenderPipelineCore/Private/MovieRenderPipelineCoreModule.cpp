@@ -7,12 +7,29 @@
 #include "MovieRenderPipelineDataTypes.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
+#include "MoviePipeline.h"
 
 void FMovieRenderPipelineCoreModule::StartupModule()
 {
+#if WITH_EDITOR
+	// Hack to ensure these assets (which are referenced only by code) get packaged
+	{
+		TArray<FString> Assets;
+		Assets.Add(UMoviePipeline::DefaultDebugWidgetAsset);
+
+		for (const FString& Asset : Assets)
+		{
+			TSoftObjectPtr<UObject> AssetRef = TSoftObjectPtr<UObject>(FSoftObjectPath(Asset));
+			AssetRef.LoadSynchronous();
+		}
+
+	}
+#endif
+
 	// Look to see if they supplied arguments on the command line indicating they wish to render a movie.
 	if (IsTryingToRenderMovieFromCommandLine(SequenceAssetValue, SettingsAssetValue, MoviePipelineLocalExecutorClassType, MoviePipelineClassType))
 	{
+
 		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Detected that the user intends to render a movie. Waiting until engine loop init is complete to ensure "));
 
 		// Register a hook to wait until the engine has finished loading to increase the likelihood that the desired classes are loaded.
@@ -45,3 +62,4 @@ void FMovieRenderPipelineCoreModule::ShutdownModule()
 
 IMPLEMENT_MODULE(FMovieRenderPipelineCoreModule, MovieRenderPipelineCore);
 DEFINE_LOG_CATEGORY(LogMovieRenderPipeline); 
+DEFINE_LOG_CATEGORY(LogMovieRenderPipelineIO);

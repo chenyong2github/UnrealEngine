@@ -16,9 +16,6 @@ UDisplayClusterCameraComponent::UDisplayClusterCameraComponent(const FObjectInit
 	, bSwapEyes(false)
 	, StereoOffset(EDisplayClusterEyeStereoOffset::None)
 {
-	// Children of UDisplayClusterSceneComponent must always Tick to be able to process VRPN tracking
-	PrimaryComponentTick.bCanEverTick = true;
-
 #if WITH_EDITOR
 	if (GIsEditor)
 	{
@@ -26,9 +23,8 @@ UDisplayClusterCameraComponent::UDisplayClusterCameraComponent(const FObjectInit
 		VisCameraComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(GetName() + FString("_impl"))));
 		if (VisCameraComponent)
 		{
-			static ConstructorHelpers::FObjectFinder<UStaticMesh> ScreenMesh(TEXT("/Engine/EditorMeshes/Camera/SM_CineCam"));
+			static ConstructorHelpers::FObjectFinder<UStaticMesh> ScreenMesh(TEXT("/nDisplay/Meshes/SM_DCCineCam"));
 
-			VisCameraComponent->SetFlags(EObjectFlags::RF_DuplicateTransient | RF_Transient | RF_TextExportTransient);
 			VisCameraComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
 			VisCameraComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator(0.f, 90.f, 0.f));
 			VisCameraComponent->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
@@ -36,6 +32,7 @@ UDisplayClusterCameraComponent::UDisplayClusterCameraComponent(const FObjectInit
 			VisCameraComponent->SetMobility(EComponentMobility::Movable);
 			VisCameraComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			VisCameraComponent->SetVisibility(true);
+			VisCameraComponent->SetIsVisualizationComponent(true);
 		}
 	}
 #endif

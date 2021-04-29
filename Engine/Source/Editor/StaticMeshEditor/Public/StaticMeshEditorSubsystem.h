@@ -91,7 +91,7 @@ public:
 
 	/**
 	 * Import or re-import a LOD into the specified base mesh. If the LOD do not exist it will import it and add it to the base static mesh. If the LOD already exist it will re-import the specified LOD.
-	 * 
+	 *
 	 * @param BaseStaticMesh: The static mesh we import or re-import a LOD.
 	 * @param LODIndex: The index of the LOD to import or re-import. Valid value should be between 0 and the base static mesh LOD number. Invalid value will return INDEX_NONE
 	 * @param SourceFilename: The fbx source filename. If we are re-importing an existing LOD, it can be empty in this case it will use the last import file. Otherwise it must be an existing fbx file.
@@ -304,6 +304,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
 	void SetLODMaterialSlot(UStaticMesh* StaticMesh, int32 MaterialSlotIndex, int32 LODIndex, int32 SectionIndex);
 
+	/**
+	 * Gets the material slot used for a specific LOD section.
+	 * @param	StaticMesh			Static mesh to get the material index from.
+	 * @param	LODIndex			Index of the StaticMesh LOD.
+	 * @param	SectionIndex		Index of the StaticMesh Section.
+	 * @return  MaterialSlotIndex	Index of the material slot used by the section or INDEX_NONE in case of error.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
+	int32 GetLODMaterialSlot(UStaticMesh* StaticMesh, int32 LODIndex, int32 SectionIndex);
 
 	/** Check whether a static mesh has vertex colors */
 	UFUNCTION(BlueprintPure, Category = "Static Mesh Utilities")

@@ -346,6 +346,8 @@ class ENGINE_API FParticlePerfStatsListener_CSVProfiler : public FParticlePerfSt
 public:
 	FParticlePerfStatsListener_CSVProfiler() : FParticlePerfStatsListener_GatherAll(false, true, false) {}
 
+	virtual bool Tick();
+	virtual void TickRT();
 	virtual void End();
 
 #if CSV_PROFILER

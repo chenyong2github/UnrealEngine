@@ -8,12 +8,21 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectHash.h"
 
-TArray<TSharedPtr<FDataprepSchemaAction>> DataprepMenuActionCollectorUtils::GatherMenuActionForDataprepClass(UClass& Class, FOnCreateMenuAction OnValidClassFound)
+TArray<TSharedPtr<FDataprepSchemaAction>> DataprepMenuActionCollectorUtils::GatherMenuActionForDataprepClass(UClass& Class, FOnCreateMenuAction OnValidClassFound, bool bIncludeBaseClass)
 {
 	TArray< TSharedPtr< FDataprepSchemaAction > > Actions;
 
 	// Get the native Classes
 	TArray< UClass* > NativeClasses = GetNativeChildClasses( Class );
+	
+	if ( bIncludeBaseClass 
+		 && OnValidClassFound.IsBound()
+		 && !Class.HasAnyClassFlags( CLASS_CompiledFromBlueprint | NonDesiredClassFlags ) 
+		 && Class.HasAllClassFlags( CLASS_Native ) )
+	{
+		NativeClasses.Add( &Class );
+	}
+	
 	Actions.Reserve( NativeClasses.Num() );
 
 	for ( UClass* ChildClass : NativeClasses )

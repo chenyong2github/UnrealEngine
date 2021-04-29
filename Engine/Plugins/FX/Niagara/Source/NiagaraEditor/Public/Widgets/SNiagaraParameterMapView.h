@@ -14,7 +14,6 @@
 #include "NiagaraGraph.h"
 #include "NiagaraActions.h"
 #include "EditorStyleSet.h"
-#include "NiagaraEditorSettings.h"
 
 class SGraphActionMenu;
 class SEditableTextBox;
@@ -28,7 +27,6 @@ struct FSlateBrush;
 class UNiagaraSystem;
 struct FNiagaraNamespaceMetadata;
 class IToolTip;
-class UNiagaraEditorSettings;
 class FMenuBuilder;
 
 /* Enums to use when grouping the blueprint members in the list panel. The order here will determine the order in the list */
@@ -61,8 +59,6 @@ namespace NiagaraParameterMapSectionID
 	static FText OnGetSectionTitle(const NiagaraParameterMapSectionID::Type InSection);
 	void OnGetSectionNamespaces(const NiagaraParameterMapSectionID::Type InSection, TArray<FName>& OutSectionNamespaces);
 	static NiagaraParameterMapSectionID::Type OnGetSectionFromVariable(const FNiagaraVariable& InVar, bool IsStaticSwitchVariable, FNiagaraParameterHandle& OutParameterHandle, const NiagaraParameterMapSectionID::Type DefaultType = NiagaraParameterMapSectionID::Type::NONE);
-	static bool GetSectionIsAdvancedForScript(const NiagaraParameterMapSectionID::Type InSection);
-	static bool GetSectionIsAdvancedForSystem(const NiagaraParameterMapSectionID::Type InSection);
 };
 
 /** A widget for viewing and editing a set of selected objects with a details panel. */
@@ -100,11 +96,6 @@ public:
 	static bool IsStaticSwitchParameter(const FNiagaraVariable& Variable, const TArray<TWeakObjectPtr<UNiagaraGraph>>& Graphs);
 
 private:
-	void NiagaraEditorSettingsChanged(const FString& PropertyName, const UNiagaraEditorSettings* NiagaraEditorSettings);
-	
-	TSharedRef<SWidget> GetViewOptionsMenu();
-	static const FSlateBrush* GetViewOptionsBorderBrush();
-
 	/** Function to bind to SNiagaraAddParameterMenus to filter types we allow creating in generic parameters*/
 	bool AllowMakeTypeGeneric(const FNiagaraTypeDefinition& InType) const;
 

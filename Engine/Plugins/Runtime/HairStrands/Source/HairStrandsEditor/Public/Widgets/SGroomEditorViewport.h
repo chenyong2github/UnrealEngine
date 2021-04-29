@@ -29,7 +29,11 @@ public:
 	~SGroomEditorViewport();
 	
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
-	
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SGroomEditorViewport");
+	}
+
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 										
 	/** Event handlers */

@@ -60,8 +60,7 @@ FAssetData::FAssetData(FName InPackageName, FName InPackagePath, FName InAssetNa
 {
 	SetTagsAndAssetBundles(MoveTemp(InTags));
 
-	TStringBuilder<FName::StringBufferSize> ObjectPathStr;
-	PackageName.AppendString(ObjectPathStr);
+	FNameBuilder ObjectPathStr(PackageName);
 	ObjectPathStr << TEXT('.');
 	AssetName.AppendString(ObjectPathStr);
 	ObjectPath = FName(FStringView(ObjectPathStr));

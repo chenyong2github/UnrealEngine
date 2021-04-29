@@ -228,7 +228,7 @@ namespace Generator
 			    NewMaterialExpressionFunctionInput(Function, TEXT("anisotropy_rotation"), EFunctionInputType::FunctionInput_Scalar, 0.0f);
 			UMaterialExpressionFunctionInput* TangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* MiaAnisotropySemantic =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("mia_anisotropy_semantic"), EFunctionInputType::FunctionInput_StaticBool,
 			                                       NewMaterialExpressionStaticBool(Function, false));
@@ -365,10 +365,10 @@ namespace Generator
 			                                       NewMaterialExpressionFunctionCall(Function, StateTextureCoordinate, {}));
 			UMaterialExpressionFunctionInput* UVWTangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* UVWTangentV =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_v"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, { 0 }));
 			UMaterialExpressionFunctionInput* Factor =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("factor"), EFunctionInputType::FunctionInput_Scalar, 1.0f);
 			UMaterialExpressionFunctionInput* Blur =
@@ -427,10 +427,10 @@ namespace Generator
 			                                       NewMaterialExpressionFunctionCall(Function, StateTextureCoordinate, {}));
 			UMaterialExpressionFunctionInput* UVWTangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* UVWTangentV =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_v"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, { 0 }));
 			UMaterialExpressionFunctionInput* Color1 =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("color1"), EFunctionInputType::FunctionInput_Vector3, {0.0f, 0.0f, 0.0f});
 			UMaterialExpressionFunctionInput* Color2 =
@@ -676,10 +676,10 @@ namespace Generator
 			                                       NewMaterialExpressionFunctionCall(Function, StateTextureCoordinate, {}));
 			UMaterialExpressionFunctionInput* UVWTangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* UVWTangentV =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_v"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, { 0 }));
 			UMaterialExpressionFunctionInput* CropU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("crop_u"), EFunctionInputType::FunctionInput_Vector2, {0.0f, 1.0f});
 			UMaterialExpressionFunctionInput* CropV =
@@ -937,10 +937,10 @@ namespace Generator
 			                                       NewMaterialExpressionFunctionCall(Function, StateTextureCoordinate, {}));
 			UMaterialExpressionFunctionInput* UVWTangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* UVWTangentV =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_v"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, { 0 }));
 			UMaterialExpressionFunctionInput* CropU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("crop_u"), EFunctionInputType::FunctionInput_Vector2, {0.0f, 1.0f});
 			UMaterialExpressionFunctionInput* CropV =
@@ -1064,10 +1064,10 @@ namespace Generator
 			                                       NewMaterialExpressionFunctionCall(Function, StateTextureCoordinate, {}));
 			UMaterialExpressionFunctionInput* UVWTangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* UVWTangentV =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_v"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, { 0 }));
 			UMaterialExpressionFunctionInput* Scale =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("scale"), EFunctionInputType::FunctionInput_Scalar, 1.0f);
 			UMaterialExpressionFunctionInput* Strength =
@@ -1137,10 +1137,10 @@ namespace Generator
 			                                       NewMaterialExpressionFunctionCall(Function, StateTextureCoordinate, {}));
 			UMaterialExpressionFunctionInput* UVWTangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* UVWTangentV =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_v"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, { 0 }));
 			UMaterialExpressionFunctionInput* Intensity =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("intensity"), EFunctionInputType::FunctionInput_Scalar, 1.0f);
 			UMaterialExpressionFunctionInput* Scale =
@@ -1195,10 +1195,10 @@ namespace Generator
 			                                       NewMaterialExpressionFunctionCall(Function, StateTextureCoordinate, {}));
 			UMaterialExpressionFunctionInput* UVWTangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* UVWTangentV =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_v"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, { 0 }));
 			UMaterialExpressionFunctionInput* Factor =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("factor"), EFunctionInputType::FunctionInput_Scalar, 1.0f);
 			UMaterialExpressionFunctionInput* Size =
@@ -1289,10 +1289,10 @@ namespace Generator
 			                                       NewMaterialExpressionFunctionCall(Function, StateTextureCoordinate, {}));
 			UMaterialExpressionFunctionInput* UVWTangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* UVWTangentV =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_v"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, { 0 }));
 			UMaterialExpressionFunctionInput* Color1 =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("color1"), EFunctionInputType::FunctionInput_Vector3, {0.0f, 0.0f, 0.0f});
 			UMaterialExpressionFunctionInput* Color2 =
@@ -1356,10 +1356,10 @@ namespace Generator
 			                                       NewMaterialExpressionFunctionCall(Function, StateTextureCoordinate, {}));
 			UMaterialExpressionFunctionInput* UVWTangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* UVWTangentV =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_v"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, { 0 }));
 			UMaterialExpressionFunctionInput* Factor =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("factor"), EFunctionInputType::FunctionInput_Scalar, 1.0f);
 			UMaterialExpressionFunctionInput* Size =
@@ -1470,10 +1470,10 @@ namespace Generator
 			                                       NewMaterialExpressionFunctionCall(Function, StateTextureCoordinate, {}));
 			UMaterialExpressionFunctionInput* UVWTangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* UVWTangentV =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_v"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, { 0 }));
 			UMaterialExpressionFunctionInput* Color1 =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("color1"), EFunctionInputType::FunctionInput_Vector3, {0.0f, 0.0f, 0.0f});
 			UMaterialExpressionFunctionInput* Color2 =
@@ -1654,10 +1654,10 @@ namespace Generator
 			                                       NewMaterialExpressionFunctionCall(Function, StateTextureCoordinate, {}));
 			UMaterialExpressionFunctionInput* UVWTangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* UVWTangentV =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_v"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, { 0 }));
 			UMaterialExpressionFunctionInput* CropU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("crop_u"), EFunctionInputType::FunctionInput_Vector2, {0.0f, 1.0f});
 			UMaterialExpressionFunctionInput* CropV =
@@ -1811,10 +1811,10 @@ namespace Generator
 			                                       NewMaterialExpressionFunctionCall(Function, StateTextureCoordinate, {}));
 			UMaterialExpressionFunctionInput* TangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* TangentV =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("tangent_v"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, { 0 }));
 #if defined(USE_WORLD_ALIGNED_TEXTURES)
 #if defined(USE_WAT_AS_SCALAR)
 			UMaterialExpressionFunctionInput* UseWorldAlignedTexture =
@@ -1863,10 +1863,10 @@ namespace Generator
 			                                       NewMaterialExpressionFunctionCall(Function, StateTextureCoordinate, {}));
 			UMaterialExpressionFunctionInput* UVWTangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* UVWTangentV =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_v"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, { 0 }));
 			UMaterialExpressionFunctionInput* Factor =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("factor"), EFunctionInputType::FunctionInput_Scalar, 1.0f);
 			UMaterialExpressionFunctionInput* NumberOfRows =
@@ -1966,10 +1966,10 @@ namespace Generator
 			                                       NewMaterialExpressionFunctionCall(Function, StateTextureCoordinate, {}));
 			UMaterialExpressionFunctionInput* CoordinateTangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("coordinate.tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* CoordinateTangentV =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("coordinate.tangent_v"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, { 0 }));
 
 			UMaterialExpressionAppendVector*  ExtendedPosition = NewMaterialExpressionAppendVector(Function, CoordinatePosition, 1.0f);
 			UMaterialExpressionComponentMask* Position         = NewMaterialExpressionComponentMask(
@@ -2021,10 +2021,10 @@ namespace Generator
 			                                       NewMaterialExpressionFunctionCall(Function, StateTextureCoordinate, {}));
 			UMaterialExpressionFunctionInput* UVWTangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* UVWTangentV =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_v"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, { 0 }));
 			UMaterialExpressionFunctionInput* Factor =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("factor"), EFunctionInputType::FunctionInput_Scalar, 1.0f);
 			UMaterialExpressionFunctionInput* Size =
@@ -2135,10 +2135,10 @@ namespace Generator
 			                                       NewMaterialExpressionFunctionCall(Function, StateTextureCoordinate, {}));
 			UMaterialExpressionFunctionInput* UVWTangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* UVWTangentV =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("uvw.tangent_v"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, { 0 }));
 			UMaterialExpressionFunctionInput* Color1 =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("color1"), EFunctionInputType::FunctionInput_Vector3, {0.0f, 0.0f, 0.0f});
 			UMaterialExpressionFunctionInput* Color2 =
@@ -2217,7 +2217,7 @@ namespace Generator
 			    NewMaterialExpressionFunctionInput(Function, TEXT("tint"), EFunctionInputType::FunctionInput_Vector3, {1.0f, 1.0f, 1.0f});
 			UMaterialExpressionFunctionInput* TangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* Normal = NewMaterialExpressionFunctionInput(
 			    Function, TEXT("normal"), EFunctionInputType::FunctionInput_Vector3, NewMaterialExpressionFunctionCall(Function, StateNormal, {}));
 
@@ -2470,7 +2470,7 @@ namespace Generator
 			    NewMaterialExpressionFunctionInput(Function, TEXT("global_frame_2"), EFunctionInputType::FunctionInput_Vector3, {0.0f, 0.0f, 1.0f});
 			UMaterialExpressionFunctionInput* TangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 
 			UMaterialExpressionMakeMaterialAttributes* EDF =
 			    NewMaterialExpressionMakeMaterialAttributes(Function, {}, {}, 0.0f, {}, {1.0f, 1.0f, 1.0f});
@@ -2557,7 +2557,7 @@ namespace Generator
 			    NewMaterialExpressionFunctionInput(Function, TEXT("tint"), EFunctionInputType::FunctionInput_Vector3, {1.0f, 1.0f, 1.0f});
 			UMaterialExpressionFunctionInput* TangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* Mode =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("mode"), EFunctionInputType::FunctionInput_Scalar, (int)EScatterMode::Reflect);
 			UMaterialExpressionFunctionInput* Normal = NewMaterialExpressionFunctionInput(
@@ -2586,7 +2586,7 @@ namespace Generator
 			    NewMaterialExpressionFunctionInput(Function, TEXT("tint"), EFunctionInputType::FunctionInput_Vector3, {1.0f, 1.0f, 1.0f});
 			UMaterialExpressionFunctionInput* TangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* Mode =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("mode"), EFunctionInputType::FunctionInput_Scalar, (int)EScatterMode::Reflect);
 			UMaterialExpressionFunctionInput* Normal = NewMaterialExpressionFunctionInput(
@@ -2615,7 +2615,7 @@ namespace Generator
 			    NewMaterialExpressionFunctionInput(Function, TEXT("tint"), EFunctionInputType::FunctionInput_Vector3, {1.0f, 1.0f, 1.0f});
 			UMaterialExpressionFunctionInput* TangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* Mode =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("mode"), EFunctionInputType::FunctionInput_Scalar, (int)EScatterMode::Reflect);
 			UMaterialExpressionFunctionInput* Normal = NewMaterialExpressionFunctionInput(
@@ -2644,7 +2644,7 @@ namespace Generator
 			    NewMaterialExpressionFunctionInput(Function, TEXT("tint"), EFunctionInputType::FunctionInput_Vector3, {1.0f, 1.0f, 1.0f});
 			UMaterialExpressionFunctionInput* TangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* Mode =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("mode"), EFunctionInputType::FunctionInput_Scalar, (int)EScatterMode::Reflect);
 			UMaterialExpressionFunctionInput* Normal = NewMaterialExpressionFunctionInput(
@@ -2720,7 +2720,7 @@ namespace Generator
 			    NewMaterialExpressionFunctionInput(Function, TEXT("tint"), EFunctionInputType::FunctionInput_Vector3, {1.0f, 1.0f, 1.0f});
 			UMaterialExpressionFunctionInput* TangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* Mode =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("mode"), EFunctionInputType::FunctionInput_Scalar, (int)EScatterMode::Reflect);
 			UMaterialExpressionFunctionInput* Normal = NewMaterialExpressionFunctionInput(
@@ -2893,7 +2893,7 @@ namespace Generator
 			    NewMaterialExpressionFunctionInput(Function, TEXT("tint"), EFunctionInputType::FunctionInput_Vector3, {1.0f, 1.0f, 1.0f});
 			UMaterialExpressionFunctionInput* TangentU =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("tangent_u"), EFunctionInputType::FunctionInput_Vector3,
-			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {}));
+			                                       NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
 			UMaterialExpressionFunctionInput* Normal = NewMaterialExpressionFunctionInput(
 			    Function, TEXT("normal"), EFunctionInputType::FunctionInput_Vector3, NewMaterialExpressionFunctionCall(Function, StateNormal, {}));
 
@@ -3361,8 +3361,8 @@ namespace Generator
 			UMaterialExpressionFunctionInput* Index =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("index"), EFunctionInputType::FunctionInput_Scalar);
 
-			UMaterialExpressionMaterialFunctionCall* X = NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, {});
-			UMaterialExpressionMaterialFunctionCall* Y = NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, {});
+			UMaterialExpressionMaterialFunctionCall* X = NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { Index });
+			UMaterialExpressionMaterialFunctionCall* Y = NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, { Index });
 			UMaterialExpressionMaterialFunctionCall* Z = NewMaterialExpressionFunctionCall(Function, StateNormal, {});
 
 			NewMaterialExpressionFunctionOutput(Function, TEXT("texture_tangent_u"), X);
@@ -3401,21 +3401,24 @@ namespace Generator
 			NewMaterialExpressionFunctionOutput(Function, TEXT("texture_space_max"), 1.0f);
 		}
 
-		/*static*/ void StateTextureTangentU(UMaterialFunction* Function, int32 ArraySize)
+		void StateTextureTangentU(UMaterialFunction* Function, int32 ArraySize)
 		{
 			check(0 == ArraySize);
 			Function->Description = TEXT("The array of tangent vectors for each texture space.");
 
-			NewMaterialExpressionFunctionOutput(Function, TEXT("texture_tangent_u"), {1.0f, 0.0f, 0.0f});
+			UMaterialExpressionFunctionInput* Index = NewMaterialExpressionFunctionInput(Function, TEXT("index"), EFunctionInputType::FunctionInput_Scalar);
+
+			NewMaterialExpressionFunctionOutput(Function, TEXT("texture_tangent_u"), { 1.0f, 0.0f, 0.0f });
 		}
 
-		/*static*/ void StateTextureTangentV(UMaterialFunction* Function, int32 ArraySize)
+		void StateTextureTangentV(UMaterialFunction* Function, int32 ArraySize)
 		{
 			check(0 == ArraySize);
 			Function->Description = TEXT("The array of bitangent vectors for each texture space.");
 
-			// As Unreal is left handed, the v-tangent is (0, -1, 0) !
-			NewMaterialExpressionFunctionOutput(Function, TEXT("texture_tangent_v"), {0.0f, -1.0f, 0.0f});
+			UMaterialExpressionFunctionInput* Index = NewMaterialExpressionFunctionInput(Function, TEXT("index"), EFunctionInputType::FunctionInput_Scalar);
+
+			NewMaterialExpressionFunctionOutput(Function, TEXT("texture_tangent_v"), { 0.0f, 1.0f, 0.0f });
 		}
 
 		/*static*/ void StateTransformPoint(UMaterialFunction* Function, int32 ArraySize)
@@ -5792,11 +5795,33 @@ namespace Generator
 			NewMaterialExpressionFunctionOutput(Function, TEXT("normal"), UnclippedNormal);
 		}
 
+		void UnrealEmissiveMultiplier(UMaterialFunction* Function, int32 ArraySize)
+		{
+			// Emissive multiplier is always 1.0 in UE
+			NewMaterialExpressionFunctionOutput(Function, TEXT("result"), NewMaterialExpressionConstant(Function, 1.0f));
+		}
+
 		void UnrealOpacityWeight(UMaterialFunction* Function, int32 ArraySize)
 		{
 			// always return 1
 			UMaterialExpressionFunctionInput* Opacity = NewMaterialExpressionFunctionInput(Function, TEXT("opacity"), EFunctionInputType::FunctionInput_Scalar, 1.0f);
 			NewMaterialExpressionFunctionOutput(Function, TEXT("weight"), 1.0f);
+		}
+
+		void UnrealTextureLookup(UMaterialFunction* Function, int32 ArraySize)
+		{
+			// Do nothing for this function, because UE did in Common.ush
+			UMaterialExpressionFunctionInput* TextureSample = NewMaterialExpressionFunctionInput(Function, TEXT("texture_sample"), EFunctionInputType::FunctionInput_Vector4, { 0.0f, 0.0f, 0.0f, 1.0f });
+
+			NewMaterialExpressionFunctionOutput(Function, TEXT("result"), TextureSample);
+		}
+
+		void UnrealTranslucentGetTint(UMaterialFunction* Function, int32 ArraySize)
+		{
+			UMaterialExpressionFunctionInput* BaseColor = NewMaterialExpressionFunctionInput(Function, TEXT("base_color"), EFunctionInputType::FunctionInput_Vector3, { 0.0f, 0.0f, 0.0f });
+			UMaterialExpressionFunctionInput* Opacity = NewMaterialExpressionFunctionInput(Function, TEXT("opacity"), EFunctionInputType::FunctionInput_Scalar, 1.0f);
+
+			NewMaterialExpressionFunctionOutput(Function, TEXT("tint"), BaseColor);
 		}
 
 	private:

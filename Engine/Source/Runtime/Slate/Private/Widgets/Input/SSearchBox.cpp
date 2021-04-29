@@ -152,7 +152,7 @@ void SSearchBox::Construct( const FArguments& InArgs )
 	];
 }
 
-EActiveTimerReturnType SSearchBox::TriggerOnTextChanged( double InCurrentTime, float InDeltaTime, FText NewText )
+EActiveTimerReturnType SSearchBox::TriggerOnTextChanged( double, float, FText NewText )
 {
 	// Reset the flag first in case the delegate winds up triggering HandleTextChanged
 	ActiveTimerHandle.Reset();
@@ -184,6 +184,10 @@ void SSearchBox::HandleTextCommitted(const FText& NewText, ETextCommit::Type Com
 	if ( ActiveTimerHandle.IsValid() )
 	{
 		UnRegisterActiveTimer( ActiveTimerHandle.Pin().ToSharedRef() );
+		
+		// If there was a pending text change we need to fire it in case someone was cache the last value and
+		// ignoring changes during commit, or if they expected a change always before the commit.
+		OnTextChangedDelegate.ExecuteIfBound(NewText);
 	}
 
 	OnTextCommittedDelegate.ExecuteIfBound( NewText, CommitType );

@@ -2,7 +2,7 @@
 
 #include "Menus.h"
 #include "ResourcesIDs.h"
-#include "Error.h"
+#include "Utils/Error.h"
 #include "Commander.h"
 
 BEGIN_NAMESPACE_UE_AC
@@ -34,6 +34,7 @@ GSErrCode FMenus::Register()
 	RegisterMenuAndHelp(&GSErr, kStrListMenuDatasmith, MenuCode_Palettes, MenuFlag_Default);
 
 	RegisterMenuAndHelp(&GSErr, kStrListMenuItemSnapshot, MenuCode_UserDef, MenuFlag_Default);
+	RegisterMenuAndHelp(&GSErr, kStrListMenuItemLiveLink, MenuCode_UserDef, MenuFlag_Default);
 	RegisterMenuAndHelp(&GSErr, kStrListMenuItemConnections, MenuCode_UserDef, MenuFlag_Default);
 	RegisterMenuAndHelp(&GSErr, kStrListMenuItemExport, MenuCode_UserDef, MenuFlag_Default);
 	RegisterMenuAndHelp(&GSErr, kStrListMenuItemMessages, MenuCode_UserDef, MenuFlag_Default);
@@ -59,23 +60,23 @@ GSErrCode FMenus::Initialize()
 	}
 	if (GSErr != NoError)
 	{
-		UE_AC_DebugF("FMenus::Initialize - ACAPI_Install_MenuHandler error=%d\n", GSErr);
+		UE_AC_DebugF("FMenus::Initialize - ACAPI_Install_MenuHandler error=%s\n", GetErrorName(GSErr));
 	}
 	GSErr = ACAPI_Install_MenuHandler(LocalizeResId(kStrListMenuDatasmith), MenuCommandHandler);
 	if (GSErr != NoError)
 	{
-		UE_AC_DebugF("FMenus::Initialize - ACAPI_Install_MenuHandler error=%d\n", GSErr);
+		UE_AC_DebugF("FMenus::Initialize - ACAPI_Install_MenuHandler error=%s\n", GetErrorName(GSErr));
 	}
 	GSErr = ACAPI_Install_ModulCommandHandler(DatasmithDynamicLink, 1L, SyncCommandHandler);
 	if (GSErr != NoError)
 	{
-		UE_AC_DebugF("FMenus::Initialize - ACAPI_Install_ModulCommandHandler error=%d\n", GSErr);
+		UE_AC_DebugF("FMenus::Initialize - ACAPI_Install_ModulCommandHandler error=%s\n", GetErrorName(GSErr));
 	}
 	return GSErr;
 }
 
 // Ename or disable menu item
-void FMenus::SetMenuItemStatus(short InMenu, short InItem, bool InEnabled)
+void FMenus::SetMenuItemStatus(short InMenu, short InItem, bool InSet, GSFlags InFlag)
 {
 	API_MenuItemRef ItemRef;
 	Zap(&ItemRef);
@@ -85,23 +86,23 @@ void FMenus::SetMenuItemStatus(short InMenu, short InItem, bool InEnabled)
 	GSErrCode GSErr = ACAPI_Interface(APIIo_GetMenuItemFlagsID, &ItemRef, &ItemFlags);
 	if (GSErr == NoError)
 	{
-		if (InEnabled)
+		if (InSet)
 		{
-			ItemFlags &= ~API_MenuItemDisabled;
+			ItemFlags |= InFlag;
 		}
 		else
 		{
-			ItemFlags |= API_MenuItemDisabled;
+			ItemFlags &= ~InFlag;
 		}
 		GSErr = ACAPI_Interface(APIIo_SetMenuItemFlagsID, &ItemRef, &ItemFlags);
 		if (GSErr != NoError)
 		{
-			UE_AC_TraceF("FMenus::SetMenuItemStatus - APIIo_SetMenuItemFlagsID error=%d\n", GSErr);
+			UE_AC_TraceF("FMenus::SetMenuItemStatus - APIIo_SetMenuItemFlagsID error=%s\n", GetErrorName(GSErr));
 		}
 	}
 	else
 	{
-		UE_AC_TraceF("FMenus::SetMenuItemStatus - APIIo_GetMenuItemFlagsID error=%d\n", GSErr);
+		UE_AC_TraceF("FMenus::SetMenuItemStatus - APIIo_GetMenuItemFlagsID error=%s\n", GetErrorName(GSErr));
 	}
 }
 
@@ -116,8 +117,17 @@ void FMenus::SetMenuItemText(short InMenu, short InItem, const GS::UniString& It
 		ACAPI_Interface(APIIo_SetMenuItemTextID, &ItemRef, nullptr, const_cast< GS::UniString* >(&ItemStr));
 	if (GSErr != NoError)
 	{
-		UE_AC_TraceF("FMenus::SetMenuItemText - APIIo_SetMenuItemTextID error=%d\n", GSErr);
+		UE_AC_TraceF("FMenus::SetMenuItemText - APIIo_SetMenuItemTextID error=%s\n", GetErrorName(GSErr));
 	}
+}
+
+// LiveLink status changed
+void FMenus::LiveLinkChanged()
+{
+	GS::UniString StartLiveLink("Start Live Link");
+	GS::UniString PauseLiveLink("Pause Live Link");
+	SetMenuItemText(kStrListMenuItemLiveLink, 1, FCommander::IsLiveLinkEnabled() ? PauseLiveLink : StartLiveLink);
+	SetMenuItemStatus(kStrListMenuItemLiveLink, 1, FCommander::IsLiveLinkEnabled(), API_MenuItemChecked);
 }
 
 // Menu command handler
@@ -141,6 +151,9 @@ GSErrCode FMenus::DoMenuCommand(void* InMenuParams, void*)
 	{
 		case kStrListMenuItemSnapshot:
 			FCommander::DoSnapshot();
+			break;
+		case kStrListMenuItemLiveLink:
+			FCommander::ToggleLiveLink();
 			break;
 		case kStrListMenuItemConnections:
 			FCommander::ShowConnectionsDialog();
@@ -171,11 +184,42 @@ GSErrCode __ACENV_CALL FMenus::SyncCommandHandler(GSHandle /* ParHdl */, GSPtr /
 	return TryFunction("FMenus::DoSyncCommand", FMenus::DoSyncCommand);
 }
 
+static bool bPostSent = false;
+
 // Process intra add-ons command
 GSErrCode FMenus::DoSyncCommand(void*, void*)
 {
-	FCommander::DoSnapshot();
+	bPostSent = false;
+	if (Is3DCurrenWindow())
+	{
+		FCommander::DoSnapshot();
+	}
+	else
+	{
+		PostDoSnapshot();
+	}
 	return GS::NoError;
+}
+
+// Schedule a Live Link snapshot to be executed from the main thread event loop.
+void FMenus::PostDoSnapshot()
+{
+	if (bPostSent == false && FCommander::IsLiveLinkEnabled())
+	{
+		API_ModulID mdid;
+		Zap(&mdid);
+		mdid.developerID = kEpicGamesDevId;
+		mdid.localID = kDatasmithExporterId;
+		GSErrCode err = ACAPI_Command_CallFromEventLoop(&mdid, DatasmithDynamicLink, 1, nullptr, false, nullptr);
+		if (err == NoError)
+		{
+			bPostSent = true; // Only one post at a time
+		}
+		else
+		{
+			printf("FCommander::PostDoSnapshot - ACAPI_Command_CallFromEventLoop error %d\n", err);
+		}
+	}
 }
 
 END_NAMESPACE_UE_AC

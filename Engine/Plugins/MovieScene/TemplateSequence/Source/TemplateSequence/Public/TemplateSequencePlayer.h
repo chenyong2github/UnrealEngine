@@ -19,7 +19,7 @@ public:
 
 public:
 
-	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic", meta = (WorldContext = "WorldContextObject", DynamicOutputParam = "OutActor"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player", meta = (WorldContext = "WorldContextObject", DynamicOutputParam = "OutActor"))
 	static UTemplateSequencePlayer* CreateTemplateSequencePlayer(UObject* WorldContextObject, UTemplateSequence* TemplateSequence, FMovieSceneSequencePlaybackSettings Settings, ATemplateSequenceActor*& OutActor);
 
 public:

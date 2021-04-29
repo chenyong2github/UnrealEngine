@@ -31,7 +31,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool Init(EDisplayClusterOperationMode OperationMode) override;
 	virtual void Release() override;
-	virtual bool StartSession(const UDisplayClusterConfigurationData* InConfigData, const FString& InNodeId) override;
+	virtual bool StartSession(UDisplayClusterConfigurationData* InConfigData, const FString& InNodeId) override;
 	virtual void EndSession() override;
 	virtual bool StartScene(UWorld* InWorld) override;
 	virtual void EndScene() override;
@@ -55,10 +55,12 @@ public:
 	virtual TSharedPtr<IDisplayClusterProjectionPolicyFactory> GetProjectionPolicyFactory(const FString& InProjectionType) override;
 	virtual void GetRegisteredProjectionPolicies(TArray<FString>& OutPolicyIDs) const override;
 	// Post-process
-	virtual bool RegisterPostprocessOperation(const FString& InName, TSharedPtr<IDisplayClusterPostProcess>& InOperation, int InPriority = 0) override;
+	virtual bool RegisterPostprocessOperation(const FString& InName, TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& InOperation, int InPriority = 0) override;
 	virtual bool RegisterPostprocessOperation(const FString& InName, IPDisplayClusterRenderManager::FDisplayClusterPPInfo& InPPInfo) override;
 	virtual bool UnregisterPostprocessOperation(const FString& InName) override;
 	virtual TMap<FString, IPDisplayClusterRenderManager::FDisplayClusterPPInfo> GetRegisteredPostprocessOperations() const override;
+
+	virtual IDisplayClusterViewportManager* GetViewportManager() const override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////

@@ -545,7 +545,7 @@ namespace MovementComponentCVars
 // Typically we want to depenetrate regardless of direction, so we can get all the way out of penetration quickly.
 // Our rules for "moving with depenetration normal" only get us so far out of the object. We'd prefer to pop out by the full MTD amount.
 // Depenetration moves (in ResolvePenetration) then ignore blocking overlaps to be able to move out by the MTD amount.
-static int32 MoveIgnoreFirstBlockingOverlap = 0;
+int32 MoveIgnoreFirstBlockingOverlap = 0;
 static FAutoConsoleVariableRef CVarMoveIgnoreFirstBlockingOverlap(
 	TEXT("p.MoveIgnoreFirstBlockingOverlap"),
 	MoveIgnoreFirstBlockingOverlap,
@@ -590,14 +590,14 @@ bool UMovementComponent::SafeMoveUpdatedComponent(const FVector& Delta, const FQ
 
 namespace MovementComponentCVars
 {
-static float PenetrationPullbackDistance = 0.125f;
+float PenetrationPullbackDistance = 0.125f;
 static FAutoConsoleVariableRef CVarPenetrationPullbackDistance(TEXT("p.PenetrationPullbackDistance"),
 	PenetrationPullbackDistance,
 	TEXT("Pull out from penetration of an object by this extra distance.\n")
 	TEXT("Distance added to penetration fix-ups."),
 	ECVF_Default);
 
-static float PenetrationOverlapCheckInflation = 0.100f;
+float PenetrationOverlapCheckInflation = 0.100f;
 static FAutoConsoleVariableRef CVarPenetrationOverlapCheckInflation(TEXT("p.PenetrationOverlapCheckInflation"),
 	PenetrationOverlapCheckInflation,
 	TEXT("Inflation added to object when checking if a location is free of blocking collision.\n")

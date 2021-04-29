@@ -75,6 +75,7 @@ void FGeometryParticleStateBase::SyncSimWritablePropsFromSim(FDirtyPropData Mana
 	FParticleDirtyFlags Flags;
 	Flags.MarkDirty(EParticleFlags::XR);
 	Flags.MarkDirty(EParticleFlags::Velocities);
+	Flags.MarkDirty(EParticleFlags::DynamicMisc);
 	FParticleDirtyData Dirty;
 	Dirty.SetFlags(Flags);
 
@@ -92,6 +93,12 @@ void FGeometryParticleStateBase::SyncSimWritablePropsFromSim(FDirtyPropData Mana
 	KinematicTarget.SyncRemoteData(Manager, Dirty, [&Rigid](auto& Data)
 	{
 		Data = Rigid.KinematicTarget();
+	});
+
+	DynamicsMisc.SyncRemoteData(Manager, Dirty, [&Rigid](auto& Data)
+	{
+		Data.CopyFrom(Rigid);
+		Data.SetObjectState(Rigid.PreObjectState());	//everything else is not writable by sim so must be the same
 	});
 }
 

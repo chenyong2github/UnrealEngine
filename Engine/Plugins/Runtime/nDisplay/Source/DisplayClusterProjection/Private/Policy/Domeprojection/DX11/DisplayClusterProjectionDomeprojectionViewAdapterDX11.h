@@ -20,36 +20,33 @@ public:
 	virtual bool Initialize(const FString& File) override;
 
 public:
-	virtual bool CalculateView(const uint32 ViewIdx, const uint32 Channel, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) override;
-	virtual bool GetProjectionMatrix(const uint32 ViewIdx, const uint32 Channel, FMatrix& OutPrjMatrix) override;
-	virtual bool ApplyWarpBlend_RenderThread(const uint32 ViewIdx, const uint32 Channel, FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewportRect) override;
+	virtual bool CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, const uint32 Channel, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) override;
+	virtual bool GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, const uint32 Channel, FMatrix& OutPrjMatrix) override;
+	virtual bool ApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy, const uint32 Channel) override;
 
-private:
-	bool InitializeResources_RenderThread();
-	void LoadViewportTexture_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewportRect);
-	void SaveViewportTexture_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* DstTexture, const FIntRect& ViewportRect);
+protected:
+	bool ImplApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, int ContextNum, FRHITexture2D* InputTextures, FRHITexture2D* OutputTextures);
 
 private:
 	float ZNear;
 	float ZFar;
 
-	struct ViewData
+	class FViewData
 	{
-		ViewData() = default;
-		~ViewData() = default;
+	public:
+		FViewData() = default;
+		~FViewData()
+		{ Release(); }
 
-		FTexture2DRHIRef TargetableTexture;
-		FTexture2DRHIRef ShaderResourceTexture;
-
-		FIntPoint ViewportSize;
-		dpCamera Camera;
+		bool Initialize(const FString& InFile);
+		void Release();
+	public:
+		dpCamera   Camera;
+		// unique context for each eye (hold warp settings, different for each eye)
+		dpContext* Context = nullptr;
 	};
 
-	TArray<ViewData> Views;
+	TArray<FViewData> Views;
 
-	bool bIsRenderResourcesInitialized = false;
-	FCriticalSection RenderingResourcesInitializationCS;
 	FCriticalSection DllAccessCS;
-
-	dpContext* Context;
 };

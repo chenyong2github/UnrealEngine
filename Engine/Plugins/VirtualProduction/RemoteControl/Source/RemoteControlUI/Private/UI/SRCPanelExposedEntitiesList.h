@@ -59,16 +59,19 @@ public:
 
 	/** Get the currently selected group or exposed entity. */
 	TSharedPtr<SRCPanelTreeNode> GetSelection() const;
+	
 	/** Set the currently selected group or exposed entity. */
 	void SetSelection(const TSharedPtr<SRCPanelTreeNode>& Node);
+
+	/** Recreate everything in the panel. */
+	void Refresh();
+	
 	/** Returns delegate called on selection change. */
 	FOnSelectionChange& OnSelectionChange() { return OnSelectionChangeDelegate; }
 
 private:
 	/** Handles object property changes, used to update arrays correctly.  */
 	void OnObjectPropertyChange(UObject* InObject, FPropertyChangedEvent& InChangeEvent);
-	/** Recreate everything in the panel. */
-	void Refresh();
 	/** Create exposed entity widgets. */
 	void GenerateListWidgets();
 	/** Generate the groups using the preset's layout data. */

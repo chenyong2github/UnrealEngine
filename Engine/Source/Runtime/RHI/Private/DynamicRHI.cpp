@@ -144,6 +144,8 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 	{
 		FBlackListEntry BlackListEntry = DetectedGPUHardware.FindDriverBlacklistEntry();
 
+		FGenericCrashContext::SetEngineData(TEXT("RHI.DriverBlacklisted"), BlackListEntry.IsValid() ? TEXT("true") : TEXT("false"));
+
 		if (BlackListEntry.IsValid())
 		{
 			bool bLatestBlacklisted = DetectedGPUHardware.IsLatestBlacklisted();
@@ -262,6 +264,7 @@ void RHIInit(bool bHasEditorToken)
 				FGenericCrashContext::SetEngineData(TEXT("RHI.InternalDriverVersion"), GRHIAdapterInternalDriverVersion);
 				FGenericCrashContext::SetEngineData(TEXT("RHI.DriverDate"), GRHIAdapterDriverDate);
 				FGenericCrashContext::SetEngineData(TEXT("RHI.FeatureLevel"), FeatureLevelString);
+				FGenericCrashContext::SetEngineData(TEXT("RHI.GPUVendor"), RHIVendorIdToString());
 			}
 #if PLATFORM_ALLOW_NULL_RHI
 			else
@@ -293,6 +296,11 @@ void RHIInit(bool bHasEditorToken)
 
 		// Don't pop up a driver version warning window when running on a cloud machine
 		bDetectAndWarnBadDrivers = !bGfnRuntimeSDKInitialized || !GeForceNOWWrapper::Get().IsRunningInCloud();
+
+		if (GeForceNOWWrapper::Get().IsRunningInGFN())
+		{
+			FGenericCrashContext::SetEngineData(TEXT("RHI.CloudInstance"), TEXT("GeForceNow"));
+		}
 	}
 
 	if (bDetectAndWarnBadDrivers)

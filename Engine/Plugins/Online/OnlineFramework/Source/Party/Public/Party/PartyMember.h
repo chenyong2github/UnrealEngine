@@ -14,6 +14,32 @@ class FOnlinePartyData;
 enum class EMemberExitedReason : uint8;
 enum class EMemberConnectionStatus : uint8;
 
+/** Platform data fields for party replication */
+USTRUCT()
+struct FPartyMemberPlatformData
+{
+	GENERATED_BODY()
+
+public:
+	bool operator==(const FPartyMemberPlatformData& Other) const { return Platform == Other.Platform && UniqueId == Other.UniqueId && SessionId == Other.SessionId; }
+	bool operator!=(const FPartyMemberPlatformData& Other) const { return !operator==(Other); }
+
+	/** Native platform on which this party member is playing. */
+	UPROPERTY()
+	FUserPlatform Platform;
+
+	/** Net ID for this party member on their native platform. Blank if this member has no Platform SocialSubsystem. */
+	UPROPERTY()
+	FUniqueNetIdRepl UniqueId;
+
+	/**
+	 * The platform session this member is in. Can be blank for a bit while creating/joining.
+	 * Only relevant when this member is on a platform that requires a session backing the party.
+	 */
+	UPROPERTY()
+	FString SessionId;
+};
+
 /** Base struct used to replicate data about the state of a single party member to all members. */
 USTRUCT()
 struct PARTY_API FPartyMemberRepData : public FOnlinePartyRepDataBase
@@ -33,23 +59,12 @@ protected:
 private:
 	TWeakObjectPtr<const UPartyMember> OwnerMember;
 
-	/** Native platform on which this party member is playing. */
+	/** Platform data fields for party replication */
 	UPROPERTY()
-	FUserPlatform Platform;
-	EXPOSE_REP_DATA_PROPERTY(FPartyMemberRepData, FUserPlatform, Platform);
-
-	/** Net ID for this party member on their native platform. Blank if this member has no Platform SocialSubsystem. */
-	UPROPERTY()
-	FUniqueNetIdRepl PlatformUniqueId;
-	EXPOSE_REP_DATA_PROPERTY(FPartyMemberRepData, FUniqueNetIdRepl, PlatformUniqueId);
-
-	/**
-	 * The platform session this member is in. Can be blank for a bit while creating/joining.
-	 * Only relevant when this member is on a platform that requires a session backing the party.
-	 */
-	UPROPERTY()
-	FString PlatformSessionId;
-	EXPOSE_REP_DATA_PROPERTY(FPartyMemberRepData, FSessionId, PlatformSessionId);
+	FPartyMemberPlatformData PlatformData;
+	EXPOSE_REVISED_USTRUCT_REP_DATA_PROPERTY(FPartyMemberRepData, FUserPlatform, PlatformData, Platform, Platform, 4.27);
+	EXPOSE_REVISED_USTRUCT_REP_DATA_PROPERTY(FPartyMemberRepData, FUniqueNetIdRepl, PlatformData, UniqueId, PlatformUniqueId, 4.27);
+	EXPOSE_REVISED_USTRUCT_REP_DATA_PROPERTY(FPartyMemberRepData, FSessionId, PlatformData, SessionId, PlatformSessionId, 4.27);
 
 	/** The crossplay preference of this user. Only relevant to crossplay party scenarios. */
 	UPROPERTY()

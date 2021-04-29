@@ -196,7 +196,7 @@ void FHttpManager::Flush(bool bShutdown)
 				FScopedEnterBackgroundEvent(*Request->GetURL());
 				if (IsEngineExitRequested())
 				{
-					ensureMsgf(Request.IsUnique(), TEXT("Dangling HTTP request! This may cause undefined behaviour or crash during module shutdown!"));
+					ensureMsgf(Request.IsUnique(), TEXT("Dangling HTTP request! Url=[%s] This may cause undefined behaviour or crash during module shutdown!"), *Request->GetURL());
 				}
 				Request->CancelRequest();
 			}

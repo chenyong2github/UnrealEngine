@@ -4,12 +4,12 @@
 
 #include "Render/PostProcess/IDisplayClusterPostProcess.h"
 
-#include "IOutputRemap.h"
-
 #include "RHI.h"
 #include "RHICommandList.h"
 #include "RHIResources.h"
 #include "RHIUtilities.h"
+
+#include "Render/Containers/DisplayClusterRender_MeshComponentProxy.h"
 
 /**
  * MPCDI projection policy
@@ -25,23 +25,17 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// FDisplayClusterPostprocessOutputRemap
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual bool IsPostProcessRenderTargetAfterWarpBlendRequired() override;
+	virtual bool IsPostProcessFrameAfterWarpBlendRequired() const override;
+	virtual void PerformPostProcessFrameAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const TArray<FRHITexture2D*>* InFrameTargets = nullptr, const TArray<FRHITexture2D*>* InAdditionalFrameTargets = nullptr) const override;
+	virtual void InitializePostProcess(class IDisplayClusterViewportManager& InViewportManager, const TMap<FString, FString>& Parameters) override;
 
-	virtual void PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InOutTexture, const TArray<FDisplayClusterRenderViewport>& RenderViewports) const override;
-
-	virtual void InitializePostProcess(const TMap<FString, FString>& Parameters) override;
+	virtual bool ShouldUseAdditionalFrameTargetableResource() const
+	{ return true; }
 
 protected:
-	bool InitializeResources_RenderThread(const FIntPoint& ScreenSize) const;
+	bool bIsInitialized = false;
 
 private:
-	IOutputRemap& OutputRemapAPI;
-
-	int MeshRef;
-
-	//@todo: remove, use ext paired texture
-	mutable FTexture2DRHIRef RTTexture;
-
-	mutable bool bIsRenderResourcesInitialized = false;
-	mutable FCriticalSection RenderingResourcesInitializationCS;
+	FDisplayClusterRender_MeshComponentProxy& MeshComponentProxy;
+	class IDisplayClusterShaders& ShadersAPI;
 };

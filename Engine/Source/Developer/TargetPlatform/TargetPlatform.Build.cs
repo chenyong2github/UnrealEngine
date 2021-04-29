@@ -44,16 +44,12 @@ public class TargetPlatform : ModuleRules
 
 				// these are needed by multiple platform specific target platforms, so we make sure they are built with the base editor
 				DynamicallyLoadedModuleNames.Add("ShaderFormatD3D");
-				DynamicallyLoadedModuleNames.Add("MetalShaderFormat");
 
 				DynamicallyLoadedModuleNames.Add("TextureFormatDXT");
-				DynamicallyLoadedModuleNames.Add("TextureFormatASTC");
-
 				DynamicallyLoadedModuleNames.Add("TextureFormatUncompressed");
 
 				if (Target.bCompileAgainstEngine)
 				{
-					DynamicallyLoadedModuleNames.Add("AudioFormatADPCM"); // For IOS cooking
 					DynamicallyLoadedModuleNames.Add("AudioFormatOgg");
 					DynamicallyLoadedModuleNames.Add("AudioFormatOpus");
 				}
@@ -69,28 +65,18 @@ public class TargetPlatform : ModuleRules
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
 				DynamicallyLoadedModuleNames.Add("TextureFormatDXT");
-				DynamicallyLoadedModuleNames.Add("TextureFormatASTC");
-
 				DynamicallyLoadedModuleNames.Add("TextureFormatUncompressed");
 
 				if (Target.bCompileAgainstEngine)
 				{
 					DynamicallyLoadedModuleNames.Add("AudioFormatOgg");
 					DynamicallyLoadedModuleNames.Add("AudioFormatOpus");
-					DynamicallyLoadedModuleNames.Add("AudioFormatADPCM");
 				}
 
-				if (Target.Type == TargetType.Editor || Target.Type == TargetType.Program)
-				{
-					DynamicallyLoadedModuleNames.Add("AndroidTargetPlatform");
-					DynamicallyLoadedModuleNames.Add("IOSTargetPlatform");
-					DynamicallyLoadedModuleNames.Add("TVOSTargetPlatform");
-				}
 			}
 			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
 			{
 				DynamicallyLoadedModuleNames.Add("TextureFormatDXT");
-				DynamicallyLoadedModuleNames.Add("TextureFormatASTC");
 
 				DynamicallyLoadedModuleNames.Add("TextureFormatUncompressed");
 
@@ -98,12 +84,6 @@ public class TargetPlatform : ModuleRules
 				{
 					DynamicallyLoadedModuleNames.Add("AudioFormatOgg");
 					DynamicallyLoadedModuleNames.Add("AudioFormatOpus");
-					DynamicallyLoadedModuleNames.Add("AudioFormatADPCM");
-				}
-
-				if (Target.Type == TargetType.Editor || Target.Type == TargetType.Program)
-				{
-					DynamicallyLoadedModuleNames.Add("AndroidTargetPlatform");
 				}
 			}
 		}

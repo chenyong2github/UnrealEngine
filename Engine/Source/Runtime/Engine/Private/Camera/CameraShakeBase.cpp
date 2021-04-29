@@ -304,26 +304,27 @@ bool UCameraShakeBase::IsFinished() const
 {
 	if (State.IsActive())
 	{
-		if (State.IsInfinite())
+		switch (State.GetShakeInfo().Duration.GetDurationType())
 		{
-			// Since the state is infinite, it's not considered "finished" as long as it is active
-			return false;
-		}		
-		else if (State.HasDuration())
-		{
-			// If we have duration information, we can simply figure out ourselves if
-			// we are finished.
-			return State.GetElapsedTime() >= State.GetDuration();
-		}
-		else if (RootShakePattern)
-		{
-			// Ask the root pattern whether it's finished.
-			return RootShakePattern->IsFinished();
-		}
-		else
-		{
-			// We have no root pattern, we don't have anything to do.
-			return true;
+			case ECameraShakeDurationType::Fixed:
+				// If we have duration information, we can simply figure out ourselves if
+				// we are finished.
+				return State.GetElapsedTime() >= State.GetDuration();
+
+			case ECameraShakeDurationType::Infinite:
+				return false;
+
+			case ECameraShakeDurationType::Custom:
+				if (RootShakePattern)
+				{
+					// Ask the root pattern whether it's finished.
+					return RootShakePattern->IsFinished();
+				}
+				else
+				{
+					// We have no root pattern, we don't have anything to do.
+					return true;
+				}
 		}
 	}
 	// We're not active, so we're finished.

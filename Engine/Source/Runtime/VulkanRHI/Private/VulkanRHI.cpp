@@ -21,6 +21,7 @@
 #include "Misc/EngineVersion.h"
 #include "GlobalShader.h"
 #include "RHIValidation.h"
+#include "IHeadMountedDisplayModule.h"
 
 static_assert(sizeof(VkStructureType) == sizeof(int32), "ZeroVulkanStruct() assumes VkStructureType is int32!");
 
@@ -251,6 +252,7 @@ void FVulkanDynamicRHI::Init()
 	LLM(VulkanLLM::Initialize());
 #endif
 
+	bIsStandaloneStereoDevice = IHeadMountedDisplayModule::IsAvailable() && IHeadMountedDisplayModule::Get().IsStandaloneStereoOnlyDevice();
 
 	static const auto CVarStreamingTexturePoolSize = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Streaming.PoolSize"));
 	int32 StreamingPoolSizeValue = CVarStreamingTexturePoolSize->GetValueOnAnyThread();
@@ -1086,6 +1088,21 @@ void FVulkanDynamicRHI::RHIReleaseThreadOwnership()
 void* FVulkanDynamicRHI::RHIGetNativeDevice()
 {
 	return (void*)Device->GetInstanceHandle();
+}
+
+void* FVulkanDynamicRHI::RHIGetNativePhysicalDevice()
+{
+	return (void*)Device->GetPhysicalHandle();
+}
+
+void* FVulkanDynamicRHI::RHIGetNativeGraphicsQueue()
+{
+	return (void*)Device->GetGraphicsQueue()->GetHandle();
+}
+
+void* FVulkanDynamicRHI::RHIGetNativeComputeQueue()
+{
+	return (void*)Device->GetComputeQueue()->GetHandle();
 }
 
 void* FVulkanDynamicRHI::RHIGetNativeInstance()

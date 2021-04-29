@@ -605,10 +605,6 @@ public:
 	{
 	}
 
-	void SetCurrentObject(UObject* InObject)
-	{
-	}
-
 	FORCEINLINE int32 GetMinDesiredObjectsPerSubTask() const
 	{
 		return GMinDesiredObjectsPerSubTask;
@@ -802,12 +798,14 @@ public:
 	 * @param ReferencingObject UObject which owns the reference (can be NULL)
 	 * @param bAllowReferenceElimination	Whether to allow NULL'ing the reference if RF_PendingKill is set
 	*/
-	FORCEINLINE void HandleObjectReference(TArray<UObject*>& ObjectsToSerialize, const UObject * const ReferencingObject, UObject*& Object, const bool bAllowReferenceElimination)
+	FORCEINLINE void HandleObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, const UObject * const ReferencingObject, UObject*& Object, const bool bAllowReferenceElimination)
 	{
 		if (Object == nullptr)
 		{
 			return;
 		}
+
+		TArray<UObject*>& ObjectsToSerialize = ObjectsToSerializeStruct.ObjectsToSerialize;
 
 		// Disregard NULL objects and perform very fast check to see whether object is part of permanent
 		// object pool and should therefore be disregarded. The check doesn't touch the object and is
@@ -826,7 +824,7 @@ public:
 		if (ObjectItem->IsPendingKill() && bAllowReferenceElimination)
 		{
 			//checkSlow(ObjectItem->HasAnyFlags(EInternalObjectFlags::ClusterRoot) == false);
-			checkSlow(ObjectItem->GetOwnerIndex() <= 0)
+			checkSlow(ObjectItem->GetOwnerIndex() <= 0);
 
 			// Null out reference.
 			Object = NULL;
@@ -858,7 +856,7 @@ public:
 			{
 #if ENABLE_GC_DEBUG_OUTPUT
 				// this message is to help track down culprits behind "Object in PIE world still referenced" errors
-				if (GIsEditor && !GIsPlayInEditorWorld && ReferencingObject != nullptr && !ReferencingObject->HasAnyFlags(RF_Transient) && Object->RootPackageHasAnyFlags(PKG_PlayInEditor))
+				if (GIsEditor && !GIsPlayInEditorWorld && ReferencingObject != nullptr && Object != nullptr && !ReferencingObject->HasAnyFlags(RF_Transient) && Object->RootPackageHasAnyFlags(PKG_PlayInEditor))
 				{
 					UPackage* ReferencingPackage = ReferencingObject->GetOutermost();
 					if (!ReferencingPackage->HasAnyPackageFlags(PKG_PlayInEditor) && !ReferencingPackage->HasAnyFlags(RF_Transient))
@@ -935,7 +933,7 @@ public:
 	* @param TokenIndex Index to the token stream where the reference was found.
 	* @param bAllowReferenceElimination True if reference elimination is allowed.
 	*/
-	FORCEINLINE void HandleTokenStreamObjectReference(TArray<UObject*>& ObjectsToSerialize, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, bool bAllowReferenceElimination)
+	FORCEINLINE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, bool bAllowReferenceElimination)
 	{
 #if ENABLE_GC_OBJECT_CHECKS
 		if (Object && IsObjectHandleResolved(*reinterpret_cast<FObjectHandle*>(&Object)))
@@ -966,7 +964,7 @@ public:
 			}
 		}
 #endif // ENABLE_GC_OBJECT_CHECKS
-		HandleObjectReference(ObjectsToSerialize, ReferencingObject, Object, bAllowReferenceElimination);
+		HandleObjectReference(ObjectsToSerializeStruct, ReferencingObject, Object, bAllowReferenceElimination);
 	}
 };
 
@@ -990,7 +988,7 @@ FORCEINLINE void FGCCollector<Options>::InternalHandleObjectReference(UObject*& 
 				ReferencingProperty ? *ReferencingProperty->GetFullName() : TEXT("NULL"));
 		}
 #endif // ENABLE_GC_OBJECT_CHECKS
-		ReferenceProcessor.HandleObjectReference(ObjectArrayStruct.ObjectsToSerialize, const_cast<UObject*>(ReferencingObject), Object, bAllowEliminatingReferences);
+		ReferenceProcessor.HandleObjectReference(ObjectArrayStruct, const_cast<UObject*>(ReferencingObject), Object, bAllowEliminatingReferences);
 }
 
 template <EFastReferenceCollectorOptions Options>
@@ -2061,11 +2059,12 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 		// Fire post-reachability analysis hooks
 		FCoreUObjectDelegates::PostReachabilityAnalysis.Broadcast();
 
-		{			
-			FGCArrayPool::Get().ClearWeakReferences(bPerformFullPurge);
-
+		{
 			GatherUnreachableObjects(bForceSingleThreadedGC);
 			NotifyUnreachableObjects(GUnreachableObjects);
+
+			// This needs to happen after GatherUnreachableObjects since GatherUnreachableObjects can mark more (clustered) objects as unreachable
+			FGCArrayPool::Get().ClearWeakReferences(bPerformFullPurge);
 
 			if (bPerformFullPurge || !GIncrementalBeginDestroyEnabled)
 			{

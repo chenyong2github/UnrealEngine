@@ -1860,7 +1860,8 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 					if (Force >= 0)
 					{
 						Force = FMath::Clamp(Force, 0, NumLODs - 1);
-						InstanceParams.AddRun(Force, Force, FirstUnbuiltIndex, FirstUnbuiltIndex + UnbuiltInstanceCount);
+						int32 LastInstanceIndex = FirstUnbuiltIndex + UnbuiltInstanceCount - 1;
+						InstanceParams.AddRun(Force, Force, FirstUnbuiltIndex, LastInstanceIndex);
 					}
 					else
 					{
@@ -2506,7 +2507,12 @@ int32 UHierarchicalInstancedStaticMeshComponent::AddInstance(const FTransform& I
 	
 		int32 InitialBufferOffset = InstanceCountToRender - InstanceReorderTable.Num(); // Until the build is done, we need to always add at the end of the buffer/reorder table
 		InstanceReorderTable.Add(InitialBufferOffset + InstanceIndex); // add to the end until the build is completed
-		++InstanceCountToRender;
+
+		// CPU access is required for in-place render data modifications
+		if (PerInstanceRenderData.IsValid() && PerInstanceRenderData->InstanceBuffer.RequireCPUAccess)
+		{
+			++InstanceCountToRender;
+		}
 
 		InstanceUpdateCmdBuffer.AddInstance(InstanceTransform.ToMatrixWithScale());
 

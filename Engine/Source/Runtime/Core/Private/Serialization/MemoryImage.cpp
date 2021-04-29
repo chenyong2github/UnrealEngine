@@ -626,7 +626,7 @@ uint32 Freeze::DefaultAppendHash(const FTypeLayoutDesc& TypeLayout, const FPlatf
 				}
 
 				Hasher.Update((uint8*)&Field->BitFieldSize, sizeof(Field->BitFieldSize));
-			}
+			}			
 		}
 
 		++FieldIndex;
@@ -1689,7 +1689,6 @@ uint32 FMemoryImageSection::WriteRawPointerSizedBytes(uint64 PointerValue)
 		return WriteBytes(PointerValue);
 	}
 }
-
 
 uint32 FMemoryImageSection::WriteVTable(const FTypeLayoutDesc& TypeDesc, const FTypeLayoutDesc& DerivedTypeDesc)
 {

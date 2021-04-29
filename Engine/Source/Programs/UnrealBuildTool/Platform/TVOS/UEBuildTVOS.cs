@@ -86,7 +86,7 @@ namespace UnrealBuildTool
 			base.ModifyModuleRulesForOtherPlatform(ModuleName, Rules, Target);
 
 			// don't do any target platform stuff if SDK is not available
-			if (!UEBuildPlatform.IsPlatformAvailable(Platform))
+			if (!UEBuildPlatform.IsPlatformAvailableForTarget(Platform, Target))
 			{
 				return;
 			}

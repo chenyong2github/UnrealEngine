@@ -8,178 +8,10 @@
 #include "IContentBrowserDataModule.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "Misc/PackageName.h"
+#include "Misc/BlacklistNames.h"
+#include "IContentBrowserSingleton.h"
 
-struct FVirtualPathConverterBase
-{
-	FString ClassesPrefix;
-	FString AllFolderPrefix;
-
-	TArray<FString> MountsToIgnore;
-	TMap<FName, FName> VirtualToInternal;
-
-	FVirtualPathConverterBase()
-	{
-		AllFolderPrefix = TEXT("/All");
-		ClassesPrefix = TEXT("Classes_");
-
-		MountsToIgnore = {
-			TEXT("Game"),
-			TEXT("Engine"),
-			TEXT("Classes_Game"),
-			TEXT("Classes_Engine")
-		};
-	}
-
-	void ResetCache()
-	{
-		VirtualToInternal.Reset();
-	}
-
-	bool EndConvertingToVirtualPath(const FStringView InPath, FName& OutPath)
-	{
-		const TCHAR* InPathData = InPath.GetData();
-
-		TStringBuilder<FName::StringBufferSize> OutPathStr;
-
-		const UContentBrowserSettings* ContentBrowserSettings = GetDefault<UContentBrowserSettings>();
-		if (ContentBrowserSettings->ShowAllFolder)
-		{
-			OutPathStr.Append(AllFolderPrefix);
-		}
-
-		if (ContentBrowserSettings->OrganizeFolders && InPath.Len() > 0)
-		{
-			FStringView MountPointStringView;
-
-			int32 SecondForwardSlash = INDEX_NONE;
-			if (FStringView(InPath.GetData() + 1, InPath.Len() - 1).FindChar(TEXT('/'), SecondForwardSlash))
-			{
-				MountPointStringView = FStringView(InPathData + 1, SecondForwardSlash);
-			}
-			else
-			{
-				MountPointStringView = FStringView(InPathData + 1, InPath.Len() - 1);
-			}
-
-			const bool bHasClassesPrefix = MountPointStringView.StartsWith(ClassesPrefix);
-			if (bHasClassesPrefix)
-			{
-				MountPointStringView.RightInline(MountPointStringView.Len() - ClassesPrefix.Len());
-			}
-
-			if (!MountsToIgnore.Contains(MountPointStringView))
-			{
-				FString MountPointName = FString(MountPointStringView.Len(), MountPointStringView.GetData());
-				TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(MountPointName);
-				if (Plugin.IsValid())
-				{
-					if (Plugin->GetLoadedFrom() == EPluginLoadedFrom::Engine)
-					{
-						OutPathStr.Append(TEXT("/Engine Plugins"));
-					}
-					else
-					{
-						OutPathStr.Append(TEXT("/Plugins"));
-					}
-
-					const FPluginDescriptor& PluginDescriptor = Plugin->GetDescriptor();
-					if (!PluginDescriptor.EditorCustomVirtualPath.IsEmpty())
-					{
-						int32 NumChars = PluginDescriptor.EditorCustomVirtualPath.Len();
-						if (PluginDescriptor.EditorCustomVirtualPath.EndsWith(TEXT("/")))
-						{
-							--NumChars;
-						}
-
-						if (NumChars > 0)
-						{
-							if (!PluginDescriptor.EditorCustomVirtualPath.StartsWith(TEXT("/")))
-							{
-								OutPathStr.Append(TEXT("/"));
-							}
-
-							OutPathStr.Append(*PluginDescriptor.EditorCustomVirtualPath, NumChars);
-						}
-					}
-				}
-				else
-				{
-					OutPathStr.Append(TEXT("/Other"));
-				}
-			}
-		}
-
-		OutPathStr.Append(InPath.GetData(), InPath.Len());
-		OutPath = *OutPathStr;
-		VirtualToInternal.Add(OutPath, FName(InPath));
-		return true;
-	}
-
-	bool EndConvertingToVirtualPath(const FName InPath, FName& OutPath)
-	{
-		TStringBuilder<FName::StringBufferSize> PathStr;
-		InPath.ToString(PathStr);
-		return EndConvertingToVirtualPath(FStringView(PathStr.GetData(), PathStr.Len()), OutPath);
-	}
-
-	bool BeginConvertingFromVirtualPath(const FStringView InPath, FName& OutPath)
-	{
-		if (const FName* Found = VirtualToInternal.Find(FName(InPath)))
-		{
-			OutPath = *Found;
-			return true;
-		}
-		else 
-		{
-			const UContentBrowserSettings* ContentBrowserSettings = GetDefault<UContentBrowserSettings>();
-			if (ContentBrowserSettings->ShowAllFolder)
-			{
-				if (InPath.StartsWith(AllFolderPrefix))
-				{
-					return false;
-				}
-			}
-			else if (ContentBrowserSettings->OrganizeFolders)
-			{
-				// Confirm it is a valid mount point
-				FString MountPointName;
-				const TCHAR* InPathData = InPath.GetData();
-				if (const TCHAR* FoundChar = FCString::Strchr(InPathData + 1, TEXT('/')))
-				{
-					MountPointName = FString((int32)(FoundChar - InPathData), InPathData);
-				}
-				else
-				{
-					MountPointName = FString(InPath.Len(), InPathData);
-				}
-
-				if (MountPointName.StartsWith(TEXT("/Classes_")))
-				{
-					MountPointName.RemoveAt(1, MountPointName.Len() - 8, false);
-				}
-
-				MountPointName.Append(TEXT("/"));
-
-				if (!FPackageName::MountPointExists(MountPointName))
-				{
-					return false;
-				}
-			}
-		}
-
-		OutPath = FName(InPath);
-		return true;
-	}
-
-	bool BeginConvertingFromVirtualPath(const FName InPath, FName& OutPath)
-	{
-		TStringBuilder<FName::StringBufferSize> PathStr;
-		InPath.ToString(PathStr);
-		return BeginConvertingFromVirtualPath(FStringView(PathStr.GetData(), PathStr.Len()), OutPath);
-	}
-};
-
-FVirtualPathConverterBase VirtualPathConverterBase;
+#define LOCTEXT_NAMESPACE "ContentBrowserDataSource"
 
 FName UContentBrowserDataSource::GetModularFeatureTypeName()
 {
@@ -197,34 +29,8 @@ void UContentBrowserDataSource::UnregisterDataSource()
 	IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureTypeName(), this);
 }
 
-void UContentBrowserDataSource::Initialize(const FName InMountRoot, const bool InAutoRegister)
+void UContentBrowserDataSource::Initialize(const bool InAutoRegister)
 {
-	MountRoot = InMountRoot;
-
-	// Explode the mount root into its hierarchy (eg, "/One/Two" becomes ["/", "/One", "/One/Two"])
-	{
-		static const FName Slash = "/";
-
-		TCHAR MountRootStr[FName::StringBufferSize];
-		const int32 MountRootLen = MountRoot.ToString(MountRootStr);
-		checkf(MountRootLen > 0 && MountRootStr[0] == TEXT('/'), TEXT("Mount roots must not be empty and must start with a slash!"));
-
-		MountRootHierarchy.Add(Slash);
-		if (MountRootLen > 1)
-		{
-			for (TCHAR* PathEndPtr = FCString::Strchr(MountRootStr + 1, TEXT('/'));
-				PathEndPtr;
-				PathEndPtr = FCString::Strchr(PathEndPtr + 1, TEXT('/'))
-				)
-			{
-				*PathEndPtr = 0;
-				MountRootHierarchy.Add(MountRootStr);
-				*PathEndPtr = TEXT('/');
-			}
-			MountRootHierarchy.Add(MountRoot);
-		}
-	}
-
 	bIsInitialized = true;
 
 	if (InAutoRegister)
@@ -249,7 +55,14 @@ void UContentBrowserDataSource::BeginDestroy()
 
 void UContentBrowserDataSource::SetDataSink(IContentBrowserItemDataSink* InDataSink)
 {
+	if (InDataSink && (InDataSink != DataSink))
+	{
+		SetVirtualPathTreeNeedsRebuild();
+	}
+
 	DataSink = InDataSink;
+
+	RefreshVirtualPathTreeIfNeeded();
 }
 
 bool UContentBrowserDataSource::IsInitialized() const
@@ -261,121 +74,49 @@ void UContentBrowserDataSource::Tick(const float InDeltaTime)
 {
 }
 
-FName UContentBrowserDataSource::GetVirtualMountRoot() const
+void UContentBrowserDataSource::BuildRootPathVirtualTree()
 {
-	return MountRoot;
+	RootPathVirtualTree.Reset();
+	VirtualPathTreeRulesCachedState.bShowAllFolder = GetDefault<UContentBrowserSettings>()->bShowAllFolder;
+	VirtualPathTreeRulesCachedState.bOrganizeFolders = GetDefault<UContentBrowserSettings>()->bOrganizeFolders;
+	bVirtualPathTreeNeedsRebuild = false;
 }
 
-TArrayView<const FName> UContentBrowserDataSource::GetVirtualMountRootHierarchy() const
+void UContentBrowserDataSource::SetVirtualPathTreeNeedsRebuild()
 {
-	return MakeArrayView(MountRootHierarchy);
+	bVirtualPathTreeNeedsRebuild = true;
+}
+
+void UContentBrowserDataSource::RefreshVirtualPathTreeIfNeeded()
+{
+	if (bVirtualPathTreeNeedsRebuild ||
+		GetDefault<UContentBrowserSettings>()->bShowAllFolder != VirtualPathTreeRulesCachedState.bShowAllFolder ||
+		GetDefault<UContentBrowserSettings>()->bOrganizeFolders != VirtualPathTreeRulesCachedState.bOrganizeFolders)
+	{
+		BuildRootPathVirtualTree();
+	}
 }
 
 bool UContentBrowserDataSource::IsVirtualPathUnderMountRoot(const FName InPath) const
 {
-	static const FName RootPath = "/";
-	if (MountRoot == RootPath)
-	{
-		// If we're mounted at the virtual root then everything is under us
-		return true;
-	}
+	FName ConvertedPath;
+	return TryConvertVirtualPath(InPath, ConvertedPath) != EContentBrowserPathType::None;
+}
 
-	FName AdjustedPath;
-	VirtualPathConverterBase.BeginConvertingFromVirtualPath(InPath, AdjustedPath);
-
-	TCHAR PathStr[FName::StringBufferSize];
-	const int32 PathLen = AdjustedPath.ToString(PathStr);
-
-	TCHAR MountRootStr[FName::StringBufferSize];
-	int32 MountRootLen = MountRoot.ToString(MountRootStr);
-
-	// If the path length is shorter than the mount root, then the path cannot be under the mount root
-	if (PathLen < MountRootLen)
-	{
-		return false;
-	}
-
-	if (PathLen == MountRootLen)
-	{
-		// "Equals" comparison on the local string buffers
-		return FCString::Strnicmp(PathStr, MountRootStr, MountRootLen) == 0;
-	}
-
-	// Ensure the mount root ends with a / to avoid matching "/Root" against "/Root2/MyFile"
-	if (MountRootLen > 0 && MountRootStr[MountRootLen - 1] != TEXT('/'))
-	{
-		MountRootStr[MountRootLen++] = TEXT('/');
-		MountRootStr[MountRootLen] = 0;
-	}
-
-	// "StartsWith" comparison on the local string buffers
-	return FCString::Strnicmp(PathStr, MountRootStr, MountRootLen) == 0;
+EContentBrowserPathType UContentBrowserDataSource::TryConvertVirtualPath(const FName InPath, FName& OutPath) const
+{
+	return RootPathVirtualTree.TryConvertVirtualPathToInternal(InPath, OutPath);
 }
 
 bool UContentBrowserDataSource::TryConvertVirtualPathToInternal(const FName InPath, FName& OutInternalPath)
 {
-	static const FName RootPath = "/";
-
-	// Special case "/" cannot be converted or remapped
-	if (InPath == RootPath)
+	if (TryConvertVirtualPath(InPath, OutInternalPath) == EContentBrowserPathType::Internal)
 	{
-		OutInternalPath = InPath;
 		return true;
 	}
 
-	if (MountRoot == RootPath)
-	{
-		// If we're mounted at the virtual root then no re-mapping needs to happen
-		return VirtualPathConverterBase.BeginConvertingFromVirtualPath(InPath, OutInternalPath);
-	}
-
-	FName AdjustedPath;
-	VirtualPathConverterBase.BeginConvertingFromVirtualPath(InPath, AdjustedPath);
-
-	TCHAR PathStr[FName::StringBufferSize];
-	const int32 PathLen = AdjustedPath.ToString(PathStr);
-
-	TCHAR MountRootStr[FName::StringBufferSize];
-	const int32 MountRootLen = MountRoot.ToString(MountRootStr);
-
-	// If the path length is shorter than the mount root, then the path cannot be under the mount root
-	if (PathLen < MountRootLen)
-	{
-		return false;
-	}
-
-	// "StartsWith" comparison on the local string buffers
-	// This doesn't add the slash to mount root as IsVirtualPathUnderMountRoot 
-	// does because we will check that the remaining path starts with a slash
-	if (FCString::Strnicmp(PathStr, MountRootStr, MountRootLen) != 0)
-	{
-		return false;
-	}
-
-	// If the mount root ended in a slash then we need to consider this as part of the internal path, 
-	// as we wouldn't have allowed the duplicate slash in TryConvertInternalPathToVirtual
-	int32 InternalPathStartIndex = MountRootLen;
-	if (InternalPathStartIndex > 0 && MountRootStr[InternalPathStartIndex - 1] == TEXT('/'))
-	{
-		--InternalPathStartIndex;
-	}
-
-	const TCHAR* InternalPathStr = PathStr + InternalPathStartIndex;
-	if (InternalPathStr[0] == 0)
-	{
-		// If the given path was the mount root itself, then we just return a slash as the internal path
-		static const FName Slash = "/";
-		OutInternalPath = Slash;
-		return true;
-	}
-	
-	if (InternalPathStr[0] != TEXT('/'))
-	{
-		return false;
-	}
-
-	OutInternalPath = InternalPathStr;
-	return true;
+	OutInternalPath = NAME_None;
+	return false;
 }
 
 bool UContentBrowserDataSource::TryConvertInternalPathToVirtual(const FName InInternalPath, FName& OutPath)
@@ -383,36 +124,46 @@ bool UContentBrowserDataSource::TryConvertInternalPathToVirtual(const FName InIn
 	static const FName RootPath = "/";
 
 	// Special case "/" cannot be converted or remapped
-	if (InInternalPath == RootPath)
+	if (InInternalPath.IsNone() || InInternalPath == RootPath || !DataSink)
 	{
 		OutPath = InInternalPath;
 		return true;
 	}
 
-	if (MountRoot == RootPath)
-	{
-		VirtualPathConverterBase.EndConvertingToVirtualPath(InInternalPath, OutPath);
-		return true;
-	}
+	FNameBuilder OutPathBuffer;
+	DataSink->ConvertInternalPathToVirtual(FNameBuilder(InInternalPath), OutPathBuffer);
+	OutPath = FName(OutPathBuffer);
 
-	int32 PathLen = 0;
-	TCHAR PathStr[FName::StringBufferSize] = {0};
-
-	// Append the mount root
-	PathLen += MountRoot.ToString(PathStr + PathLen, FName::StringBufferSize - PathLen);
-
-	// If the mount root ended in a slash then remove this as appending the internal path would cause a duplicate slash
-	// Note: This assumes that the internal path starts with a slash, which is stated in the contract of this function
-	if (PathLen > 0 && PathStr[PathLen - 1] == TEXT('/'))
-	{
-		PathStr[--PathLen] = 0;
-	}
-
-	// Append the internal path
-	PathLen += InInternalPath.ToString(PathStr + PathLen, FName::StringBufferSize - PathLen);
-
-	VirtualPathConverterBase.EndConvertingToVirtualPath(FStringView(PathStr, PathLen), OutPath);
 	return true;
+}
+
+void UContentBrowserDataSource::RootPathAdded(const FStringView InInternalPath)
+{
+	// Trim trailing slash
+	FStringView Path(InInternalPath);
+	if (Path.Len() > 1 && Path[Path.Len() - 1] == TEXT('/'))
+	{
+		Path.LeftChopInline(1);
+	}
+
+	FName VirtualPath;
+	FName PathFName(Path);
+	TryConvertInternalPathToVirtual(PathFName, VirtualPath);
+	RootPathVirtualTree.CachePath(VirtualPath, PathFName, [](FName AddedPath){});
+}
+
+void UContentBrowserDataSource::RootPathRemoved(const FStringView InInternalPath)
+{
+	// Trim trailing slash
+	FStringView Path(InInternalPath);
+	if (Path.Len() > 1 && Path[Path.Len() - 1] == TEXT('/'))
+	{
+		Path.LeftChopInline(1);
+	}
+
+	FName VirtualPath;
+	TryConvertInternalPathToVirtual(FName(Path), VirtualPath);
+	RootPathVirtualTree.RemovePath(VirtualPath, [](FName RemovedPath){});
 }
 
 void UContentBrowserDataSource::CompileFilter(const FName InPath, const FContentBrowserDataFilter& InFilter, FContentBrowserDataCompiledFilter& OutCompiledFilter)
@@ -698,68 +449,21 @@ void UContentBrowserDataSource::NotifyItemDataRefreshed()
 	}
 }
 
-void UContentBrowserDataSource::EnumerateRootPaths(const FContentBrowserDataFilter& InFilter, TFunctionRef<void(FName)> InCallback)
+FContentBrowserItemData UContentBrowserDataSource::CreateVirtualFolderItem(const FName InFolderPath)
 {
-	checkf(false, TEXT("Must implement EnumerateRootPaths"));
-}
+	const FString FolderItemName = FPackageName::GetShortName(InFolderPath);
 
-void UContentBrowserDataSource::ExpandVirtualPath(const FName InPath, const FContentBrowserDataFilter& InFilter, FName& OutInternalPath, TSet<FName>& OutInternalPaths, TMap<FName, TArray<FName>>& OutVirtualPaths)
-{
-	static const FName RootPath = "/";
-	if (InPath == RootPath)
+	FText FolderDisplayNameOverride;
+	if (FolderItemName == TEXT("GameData"))
 	{
-		OutInternalPath = InPath;
-		OutInternalPaths.Add(OutInternalPath);
-		return;
+		FolderDisplayNameOverride = LOCTEXT("GameDataFolderDisplayName", "Game Data");
+	}
+	else if (FolderItemName == TEXT("EngineData"))
+	{
+		FolderDisplayNameOverride = LOCTEXT("EngineDataFolderDisplayName", "Engine");
 	}
 
-	if (TryConvertVirtualPathToInternal(InPath, OutInternalPath))
-	{
-		OutInternalPaths.Add(OutInternalPath);
-		return;
-	}
-
-	TStringBuilder<FName::StringBufferSize> PathString;
-	InPath.ToString(PathString);
-	PathString.Append(TEXT('/'));
-
-	EnumerateRootPaths(InFilter, [this, &InFilter, &PathString, &OutInternalPaths, &OutVirtualPaths](const FName InternalRootPath)
-	{
-		FName VirtualRootPath;
-		if (!TryConvertInternalPathToVirtual(InternalRootPath, VirtualRootPath))
-		{
-			return;
-		}
-
-		TStringBuilder<FName::StringBufferSize> VirtualRootPathString;
-		VirtualRootPath.ToString(VirtualRootPathString);
-
-		const FStringView VirtualRootPathStringView = VirtualRootPathString;
-		if (!VirtualRootPathStringView.StartsWith(PathString, ESearchCase::IgnoreCase))
-		{
-			return;
-		}
-
-		if (InFilter.bRecursivePaths)
-		{
-			OutInternalPaths.Add(InternalRootPath);
-			return;
-		}
-
-		// Add immediate subfolder virtual or otherwise
-		const FStringView RightSide(VirtualRootPathStringView.GetData() + PathString.Len(), VirtualRootPathStringView.Len() - PathString.Len());
-		int32 FoundIndex;
-		if (RightSide.FindChar(TEXT('/'), FoundIndex))
-		{
-			const FName VirtualSubPath = FName(PathString.Len() + FoundIndex, VirtualRootPathStringView.GetData());
-			TArray<FName>& InternalSubPaths = OutVirtualPaths.FindOrAdd(VirtualSubPath);
-			InternalSubPaths.Add(InternalRootPath);
-		}
-		else
-		{
-			TArray<FName>& InternalSubPaths = OutVirtualPaths.FindOrAdd(VirtualRootPath);
-			InternalSubPaths.Add(InternalRootPath);
-		}
-	});
+	return FContentBrowserItemData(this, EContentBrowserItemFlags::Type_Folder, InFolderPath, *FolderItemName, MoveTemp(FolderDisplayNameOverride), nullptr);
 }
 
+#undef LOCTEXT_NAMESPACE

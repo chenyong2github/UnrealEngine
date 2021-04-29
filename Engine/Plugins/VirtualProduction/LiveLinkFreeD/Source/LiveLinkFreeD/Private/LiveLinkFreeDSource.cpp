@@ -143,9 +143,6 @@ void FLiveLinkFreeDSource::OnSettingsChanged(ULiveLinkSourceSettings* Settings, 
 		if (SourceSettings != nullptr)
 		{
 			static FName NAME_DefaultConfig = GET_MEMBER_NAME_CHECKED(ULiveLinkFreeDSourceSettings, DefaultConfig);
-			static FName NAME_RemapXAxis = GET_MEMBER_NAME_CHECKED(ULiveLinkFreeDSourceSettings, RemapXAxis);
-			static FName NAME_RemapYAxis = GET_MEMBER_NAME_CHECKED(ULiveLinkFreeDSourceSettings, RemapYAxis);
-			static FName NAME_RemapZAxis = GET_MEMBER_NAME_CHECKED(ULiveLinkFreeDSourceSettings, RemapZAxis);
 			static FName NAME_FocusDistanceEncoderData = GET_MEMBER_NAME_CHECKED(ULiveLinkFreeDSourceSettings, FocusDistanceEncoderData);
 			static FName NAME_FocalLengthEncoderData = GET_MEMBER_NAME_CHECKED(ULiveLinkFreeDSourceSettings, FocalLengthEncoderData);
 			static FName NAME_UserDefinedEncoderData = GET_MEMBER_NAME_CHECKED(ULiveLinkFreeDSourceSettings, UserDefinedEncoderData);
@@ -160,33 +157,33 @@ void FLiveLinkFreeDSource::OnSettingsChanged(ULiveLinkSourceSettings* Settings, 
 			{
 				switch (SourceSettings->DefaultConfig)
 				{
-					case EFreeDDefaultConfigs::Generic:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 10000.0f, false, false, 0, 0xffff, 0x0000ffff });
-															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 100.0f, false, false, 0, 0xffff, 0x0000ffff });
+					case EFreeDDefaultConfigs::Generic:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, false, false, 0, 0xffff, 0x0000ffff });
+															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, false, false, 0, 0xffff, 0x0000ffff });
 															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ false });
 															break;
 
-					case EFreeDDefaultConfigs::Panasonic:	SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 1000.0f, false, false, 0x0555, 0x0fff, 0x0000ffff });
-															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 176.0f, false, false, 0x0555, 0x0fff, 0x0000ffff });
-															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ true, 25.5f, true, false, 0x0555, 0x0fff, 0x0000ffff });
+					case EFreeDDefaultConfigs::Panasonic:	SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, false, false, 0x0555, 0x0fff, 0x0000ffff });
+															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, false, false, 0x0555, 0x0fff, 0x0000ffff });
+															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ true, true, false, 0x0555, 0x0fff, 0x0000ffff });
 															break;
 
-					case EFreeDDefaultConfigs::Sony:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 1000.0f, false, false, 0x1000, 0xf000, 0x0000ffff });
-															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 111.6f, false, false, 0, 0x7ac0, 0x0000ffff });
-															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ true, 11.0f, false, false, 0, 0x0fff, 0x00000fff });
+					case EFreeDDefaultConfigs::Sony:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, false, false, 0x1000, 0xf000, 0x0000ffff });
+															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, false, false, 0, 0x7ac0, 0x0000ffff });
+															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ true, false, false, 0, 0x0fff, 0x00000fff });
 															break;
 
-					case EFreeDDefaultConfigs::Mosys:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 10000.0f, false, false, 0, 0xffff, 0x0000ffff });
-															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 100.0f, false, false, 0, 0xffff, 0x0000ffff });
+					case EFreeDDefaultConfigs::Mosys:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, false, false, 0, 0xffff, 0x0000ffff });
+															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, false, false, 0, 0xffff, 0x0000ffff });
 															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ false });
 															break;
 
-					case EFreeDDefaultConfigs::Stype:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 10000.0f, false, false, 0, 0xffffff, 0x00ffffff });
-															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 100.0f, false, false, 0, 0xffffff, 0x00ffffff });
+					case EFreeDDefaultConfigs::Stype:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, false, false, 0, 0xffffff, 0x00ffffff });
+															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, false, false, 0, 0xffffff, 0x00ffffff });
 															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ false });
 															break;
 
-					case EFreeDDefaultConfigs::Ncam:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 10000.0f, false, false, 0, 0xffffff, 0x00ffffff });
-															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 100.0f, false, false, 0, 0xffffff, 0x00ffffff });
+					case EFreeDDefaultConfigs::Ncam:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, false, false, 0, 0xffffff, 0x00ffffff });
+															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, false, false, 0, 0xffffff, 0x00ffffff });
 															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ false });
 															break;
 				}
@@ -194,42 +191,6 @@ void FLiveLinkFreeDSource::OnSettingsChanged(ULiveLinkSourceSettings* Settings, 
 				bFocusDistanceEncoderDataChanged = true;
 				bFocalLengthEncoderDataChanged = true;
 				bUserDefinedEncoderDataChanged = true;
-			}
-			else if (PropertyName == NAME_RemapXAxis)
-			{
-				switch (SourceSettings->RemapXAxis)
-				{
-					case EFreeDAxisRemap::PositiveX:	RemapOffsetAxis.X = DefaultOffsetAxis.X; FlipAxis.X = 1.0f; break;
-					case EFreeDAxisRemap::NegativeX:	RemapOffsetAxis.X = DefaultOffsetAxis.X; FlipAxis.X = -1.0f; break;
-					case EFreeDAxisRemap::PositiveY:	RemapOffsetAxis.X = DefaultOffsetAxis.Y; FlipAxis.X = 1.0f; break;
-					case EFreeDAxisRemap::NegativeY:	RemapOffsetAxis.X = DefaultOffsetAxis.Y; FlipAxis.X = -1.0f; break;
-					case EFreeDAxisRemap::PositiveZ:	RemapOffsetAxis.X = DefaultOffsetAxis.Z; FlipAxis.X = 1.0f; break;
-					case EFreeDAxisRemap::NegativeZ:	RemapOffsetAxis.X = DefaultOffsetAxis.Z; FlipAxis.X = -1.0f; break;
-				}
-			}
-			else if (PropertyName == NAME_RemapYAxis)
-			{
-				switch (SourceSettings->RemapYAxis)
-				{
-					case EFreeDAxisRemap::PositiveX:	RemapOffsetAxis.Y = DefaultOffsetAxis.X; FlipAxis.Y = 1.0f; break;
-					case EFreeDAxisRemap::NegativeX:	RemapOffsetAxis.Y = DefaultOffsetAxis.X; FlipAxis.Y = -1.0f; break;
-					case EFreeDAxisRemap::PositiveY:	RemapOffsetAxis.Y = DefaultOffsetAxis.Y; FlipAxis.Y = 1.0f; break;
-					case EFreeDAxisRemap::NegativeY:	RemapOffsetAxis.Y = DefaultOffsetAxis.Y; FlipAxis.Y = -1.0f; break;
-					case EFreeDAxisRemap::PositiveZ:	RemapOffsetAxis.Y = DefaultOffsetAxis.Z; FlipAxis.Y = 1.0f; break;
-					case EFreeDAxisRemap::NegativeZ:	RemapOffsetAxis.Y = DefaultOffsetAxis.Z; FlipAxis.Y = -1.0f; break;
-				}
-			}
-			else if (PropertyName == NAME_RemapZAxis)
-			{
-				switch (SourceSettings->RemapZAxis)
-				{
-					case EFreeDAxisRemap::PositiveX:	RemapOffsetAxis.Z = DefaultOffsetAxis.X; FlipAxis.Z = 1.0f; break;
-					case EFreeDAxisRemap::NegativeX:	RemapOffsetAxis.Z = DefaultOffsetAxis.X; FlipAxis.Z = -1.0f; break;
-					case EFreeDAxisRemap::PositiveY:	RemapOffsetAxis.Z = DefaultOffsetAxis.Y; FlipAxis.Z = 1.0f; break;
-					case EFreeDAxisRemap::NegativeY:	RemapOffsetAxis.Z = DefaultOffsetAxis.Y; FlipAxis.Z = -1.0f; break;
-					case EFreeDAxisRemap::PositiveZ:	RemapOffsetAxis.Z = DefaultOffsetAxis.Z; FlipAxis.Z = 1.0f; break;
-					case EFreeDAxisRemap::NegativeZ:	RemapOffsetAxis.Z = DefaultOffsetAxis.Z; FlipAxis.Z = -1.0f; break;
-				}
 			}
 
 			if (MemberPropertyName == NAME_FocusDistanceEncoderData)
@@ -332,10 +293,11 @@ uint32 FLiveLinkFreeDSource::Run()
 							Orientation.Pitch = Decode_Signed_8_15(&ReceiveBuffer[FreeDPacketDefinition::Pitch]);
 							Orientation.Roll = Decode_Signed_8_15(&ReceiveBuffer[FreeDPacketDefinition::Roll]);
 
+							// FreeD has the X and Y axes flipped from Unreal
 							FVector Position;
-							Position.X = Decode_Signed_17_6(&ReceiveBuffer[RemapOffsetAxis.X]) * FlipAxis.X;
-							Position.Y = Decode_Signed_17_6(&ReceiveBuffer[RemapOffsetAxis.Y]) * FlipAxis.Y;
-							Position.Z = Decode_Signed_17_6(&ReceiveBuffer[RemapOffsetAxis.Z]) * FlipAxis.Z;
+							Position.X = Decode_Signed_17_6(&ReceiveBuffer[FreeDPacketDefinition::Y]);
+							Position.Y = Decode_Signed_17_6(&ReceiveBuffer[FreeDPacketDefinition::X]);
+							Position.Z = Decode_Signed_17_6(&ReceiveBuffer[FreeDPacketDefinition::Z]);
 
 							int32 FocalLengthInt = Decode_Unsigned_24(&ReceiveBuffer[FreeDPacketDefinition::FocalLength]);
 							int32 FocusDistanceInt = Decode_Unsigned_24(&ReceiveBuffer[FreeDPacketDefinition::FocusDistance]);
@@ -449,7 +411,6 @@ float FLiveLinkFreeDSource::ProcessEncoderData(FFreeDEncoderData& EncoderData, i
 			{
 				FinalEncoderValue = 1.0f - FinalEncoderValue;
 			}
-			FinalEncoderValue *= EncoderData.Scale;
 		}
 	}
 

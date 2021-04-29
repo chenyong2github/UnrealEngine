@@ -8,11 +8,15 @@
 #include "ObjectTools.h"
 #include "PackageTools.h"
 #include "MoviePipelineQueue.h"
+#include "MoviePipelineQueueSubsystem.h"
+#include "MovieRenderPipelineSettings.h"
 #include "Misc/MessageDialog.h"
 #include "PackageHelperFunctions.h"
 #include "FileHelpers.h"
 #include "Misc/FileHelper.h"
 #include "Settings/EditorLoadingSavingSettings.h"
+#include "Editor.h"
+#include "GenericPlatform/GenericPlatformProcess.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineEditorBlueprintLibrary"
 
@@ -133,5 +137,31 @@ FString UMoviePipelineEditorBlueprintLibrary::ConvertManifestFileToString(const 
 
 	return OutString;
 }
+
+UMoviePipelineExecutorJob* UMoviePipelineEditorBlueprintLibrary::CreateJobFromSequence(UMoviePipelineQueue* InPipelineQueue, const ULevelSequence* InSequence)
+{
+	const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
+
+	InPipelineQueue->Modify();
+
+	UMoviePipelineExecutorJob* NewJob = InPipelineQueue->AllocateNewJob(ProjectSettings->DefaultExecutorJob);
+	if (!ensureAlwaysMsgf(NewJob, TEXT("Failed to allocate new job! Check the DefaultExecutorJob is not null in Project Settings!")))
+	{
+		return nullptr;
+	}
+
+	NewJob->Modify();
+
+	// We'll assume they went to render from the current world - they can always override it later.
+	FSoftObjectPath CurrentWorld = GEditor ? FSoftObjectPath(GEditor->GetEditorWorldContext().World()) : FSoftObjectPath();
+	FSoftObjectPath Sequence(InSequence);
+	NewJob->Map = CurrentWorld;
+	NewJob->Author = FPlatformProcess::UserName(false);
+	NewJob->SetSequence(Sequence);
+	NewJob->JobName = NewJob->Sequence.GetAssetName();
+
+	return NewJob;
+}
+
 
 #undef LOCTEXT_NAMESPACE // "MoviePipelineEditorBlueprintLibrary"

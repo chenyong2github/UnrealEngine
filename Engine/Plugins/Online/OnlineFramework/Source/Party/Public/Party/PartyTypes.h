@@ -224,6 +224,14 @@ enum class EApprovalAction : uint8
 	Deny
 };
 
+UENUM()
+enum class ESocialPartyInviteMethod : uint8 {
+	/** Default value for try invite */
+	Other = 0,
+	/** Invite was sent from a toast */
+	Notification
+};
+
 // Gives a smidge more meaning to the intended use for the string. These should just be UniqueId's (and are), but not reliably allocated as shared ptrs, so they cannot be replicated via FUniqueNetIdRepl.
 using FSessionId = FString;
 
@@ -427,68 +435,110 @@ protected:
 //////////////////////////////////////////////////////////////////////////
 
 /** Simplest option - exposes getter and events, but no default setter */
-#define EXPOSE_REP_DATA_PROPERTY_NO_SETTER(Owner, PropertyType, Property)	\
+#define EXPOSE_REP_DATA_PROPERTY_NO_SETTER(Owner, PropertyType, PropertyName, PropertyAccess)	\
 public:	\
 	/** If the property is a POD or ptr type, we'll work with it by copy. Otherwise, by const ref */	\
-	using Mutable##Property##Type = typename TRemoveConst<PropertyType>::Type;	\
-	using Property##ArgType = typename TChooseClass<TOr<TIsPODType<PropertyType>, TIsPointer<PropertyType>>::Value, PropertyType, const Mutable##Property##Type&>::Result;	\
+	using Mutable##PropertyName##Type = typename TRemoveConst<PropertyType>::Type;	\
+	using PropertyName##ArgType = typename TChooseClass<TOr<TIsPODType<PropertyType>, TIsPointer<PropertyType>>::Value, PropertyType, const Mutable##PropertyName##Type&>::Result;	\
 	\
 private:	\
 	/** Bummer to have two signatures, but cases that want both the old and new values are much rarer, so most don't want to bother with a handler that takes an extra unused param */	\
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOn##Property##Changed, Property##ArgType /*NewValue*/);	\
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOn##Property##ChangedDif, Property##ArgType /*NewValue*/, Property##ArgType /*OldValue*/);	\
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOn##PropertyName##Changed, PropertyName##ArgType /*NewValue*/);	\
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOn##PropertyName##ChangedDif, PropertyName##ArgType /*NewValue*/, PropertyName##ArgType /*OldValue*/);	\
 public:	\
 	/** Bind to receive the new property value only on changes */	\
-	FOn##Property##Changed& On##Property##Changed() const { return On##Property##ChangedEvent; }	\
+	FOn##PropertyName##Changed& On##PropertyName##Changed() const { return On##PropertyName##ChangedEvent; }	\
 	/** Bind to receive both the new and old property value on changes */	\
-	FOn##Property##ChangedDif& On##Property##ChangedDif() const { return On##Property##ChangedDifEvent; }	\
+	FOn##PropertyName##ChangedDif& On##PropertyName##ChangedDif() const { return On##PropertyName##ChangedDifEvent; }	\
 	\
-	Property##ArgType Get##Property() const { return Property; }	\
+	PropertyName##ArgType Get##PropertyName() const { return PropertyAccess; }	\
 private:	\
-	void Compare##Property(const Owner& OldData) const	\
+	void Compare##PropertyName(const Owner& OldData) const	\
 	{	\
-		if (Property != OldData.Property)	\
+		if (PropertyAccess != OldData.PropertyAccess)	\
 		{	\
-			LogPropertyChanged(TEXT(#Owner), TEXT(#Property), true);	\
-			On##Property##ChangedDif().Broadcast(Property, OldData.Property);	\
-			On##Property##Changed().Broadcast(Property);	\
+			LogPropertyChanged(TEXT(#Owner), TEXT(#PropertyName), true);	\
+			On##PropertyName##ChangedDif().Broadcast(PropertyAccess, OldData.PropertyAccess);	\
+			On##PropertyName##Changed().Broadcast(PropertyAccess);	\
 		}	\
 	}	\
-	mutable FOn##Property##Changed On##Property##ChangedEvent;	\
-	mutable FOn##Property##ChangedDif On##Property##ChangedDifEvent
+	mutable FOn##PropertyName##Changed On##PropertyName##ChangedEvent;	\
+	mutable FOn##PropertyName##ChangedDif On##PropertyName##ChangedDifEvent
 
-/**
- * Exposes a rep data property and provides a default property setter.
- * Awkwardly named util - don't bother using directly. Opt for EXPOSE_PRIVATE_REP_DATA_PROPERTY or EXPOSE_REP_DATA_PROPERTY
- */
-#define EXPOSE_REP_DATA_PROPERTY_SETTER_ACCESS(Owner, PropertyType, Property, SetterPrivacy)	\
-EXPOSE_REP_DATA_PROPERTY_NO_SETTER(Owner, PropertyType, Property);	\
+#define EXPOSE_REP_DATA_PROPERTY_SETTER_ONLY(Owner, PropertyType, PropertyName, PropertyAccess, SetterPrivacy)	\
 SetterPrivacy:	\
-	void Set##Property(Property##ArgType New##Property)	\
+	void Set##PropertyName(PropertyName##ArgType New##PropertyName)	\
 	{	\
 		if (CanEditData())	\
 		{	\
-			if (Property != New##Property)	\
+			if (PropertyAccess != New##PropertyName)	\
 			{	\
-				LogPropertyChanged(TEXT(#Owner), TEXT(#Property), false);	\
-				if (On##Property##ChangedDif().IsBound())	\
+				LogPropertyChanged(TEXT(#Owner), TEXT(#PropertyName), false);	\
+				if (On##PropertyName##ChangedDif().IsBound())	\
 				{	\
-					PropertyType OldValue = Property;	\
-					Property = New##Property;	\
-					On##Property##ChangedDif().Broadcast(Property, OldValue);	\
+					PropertyType OldValue = PropertyAccess;	\
+					PropertyAccess = New##PropertyName;	\
+					On##PropertyName##ChangedDif().Broadcast(PropertyAccess, OldValue);	\
 				}	\
 				else	\
 				{	\
-					Property = New##Property;	\
+					PropertyAccess = New##PropertyName;	\
 				}	\
-				On##Property##Changed().Broadcast(Property);	\
+				On##PropertyName##Changed().Broadcast(PropertyAccess);	\
 				OnDataChanged.ExecuteIfBound();	\
 			}	\
 		}	\
 		else	\
 		{	\
-			LogSetPropertyFailure(TEXT(#Owner), TEXT(#Property));	\
+			LogSetPropertyFailure(TEXT(#Owner), TEXT(#PropertyName));	\
 		}	\
+	}	\
+private: //
+
+/* Helpers for printing a user-friendly field deprecation warning for replicated data. */
+#define STRINGIFY_REP_DATA_PROPERTY_REVISION_WARNING_TEXT(WarningText) #WarningText
+#define REP_DATA_PROPERTY_REVISION_WARNING(DeprecatedName, RevisedName, DeprecatedVersion) UE_DEPRECATED(DeprecatedVersion, STRINGIFY_REP_DATA_PROPERTY_REVISION_WARNING_TEXT(DeprecatedName) " has been replaced by " STRINGIFY_REP_DATA_PROPERTY_REVISION_WARNING_TEXT(RevisedName) ".")
+
+/**
+ * Exposes a rep data property and provides a default property setter.
+ * Awkwardly named util - don't bother using directly. Opt for EXPOSE_PRIVATE_REP_DATA_PROPERTY or EXPOSE_REP_DATA_PROPERTY
+ */
+#define EXPOSE_REP_DATA_PROPERTY_SETTER_ACCESS(Owner, PropertyType, PropertyName, PropertyAccess, SetterPrivacy)	\
+EXPOSE_REP_DATA_PROPERTY_NO_SETTER(Owner, PropertyType, PropertyName, PropertyAccess);	\
+EXPOSE_REP_DATA_PROPERTY_SETTER_ONLY(Owner, PropertyType, PropertyName, PropertyAccess, SetterPrivacy)
+
+ /** 
+ * Simplest option - exposes getter and events, but no default setter
+ * Revised version - allows the preservation of a previous property name for making delegates and accessors which will work along-side the new names.
+ *                   A compile-time deprecation warning will be printed when the old fields are accessed.
+ */
+#define EXPOSE_REVISED_REP_DATA_PROPERTY_NO_SETTER(Owner, PropertyType, PropertyName, PropertyAccess, DeprecatedPropertyName, DeprecatedVersion)	\
+EXPOSE_REP_DATA_PROPERTY_NO_SETTER(Owner, PropertyType, PropertyName, PropertyAccess); \
+public:	\
+	/** Bind to receive the new property value only on changes */	\
+	REP_DATA_PROPERTY_REVISION_WARNING(On##DeprecatedPropertyName##Changed, On##PropertyName##Changed, DeprecatedVersion)	\
+	FOn##PropertyName##Changed& On##DeprecatedPropertyName##Changed() const	{ return On##PropertyName##ChangedEvent; }	\
+	/** Bind to receive both the new and old property value on changes */	\
+	REP_DATA_PROPERTY_REVISION_WARNING(On##DeprecatedPropertyName##ChangedDif, On##PropertyName##ChangedDif, DeprecatedVersion)	\
+	FOn##PropertyName##ChangedDif& On##DeprecatedPropertyName##ChangedDif() const { return On##PropertyName##ChangedDifEvent; }	\
+	\
+	REP_DATA_PROPERTY_REVISION_WARNING(Get##DeprecatedPropertyName, Get##PropertyName, DeprecatedVersion)	\
+	PropertyName##ArgType Get##DeprecatedPropertyName() const { return PropertyAccess; }
+
+/**
+ * Exposes a rep data property and provides a default property setter.
+ * Awkwardly named util - don't bother using directly. Opt for EXPOSE_PRIVATE_REP_DATA_PROPERTY or EXPOSE_REP_DATA_PROPERTY
+ * Revised version - allows the preservation of a previous property name for making delegates and accessors which will work along-side the new names.
+ *                   A compile-time deprecation warning will be printed when the old fields are accessed.
+ */
+#define EXPOSE_REVISED_REP_DATA_PROPERTY_SETTER_ACCESS(Owner, PropertyType, PropertyName, PropertyAccess, SetterPrivacy, DeprecatedPropertyName, DeprecatedVersion)	\
+EXPOSE_REVISED_REP_DATA_PROPERTY_NO_SETTER(Owner, PropertyType, PropertyName, PropertyAccess, DeprecatedPropertyName, DeprecatedVersion);	\
+EXPOSE_REP_DATA_PROPERTY_SETTER_ONLY(Owner, PropertyType, PropertyName, PropertyAccess, SetterPrivacy)	\
+SetterPrivacy:	\
+	REP_DATA_PROPERTY_REVISION_WARNING(Set##DeprecatedPropertyName, Set##PropertyName, DeprecatedVersion)	\
+	void Set##DeprecatedPropertyName(PropertyName##ArgType New##PropertyName)	\
+	{	\
+		Set##PropertyName(New##PropertyName);	\
 	}	\
 private: //
 
@@ -497,14 +547,44 @@ private: //
  * The setter only allows modification if the local user has authority to alter the property and will automatically trigger delegates appropriately.
  */
 #define EXPOSE_PRIVATE_REP_DATA_PROPERTY(Owner, PropertyType, Property)	\
-EXPOSE_REP_DATA_PROPERTY_SETTER_ACCESS(Owner, PropertyType, Property, private);
+EXPOSE_REP_DATA_PROPERTY_SETTER_ACCESS(Owner, PropertyType, Property, Property, private);
 
 /**
  * Fully exposes the rep data property with a public setter.
  * The setter only allows modification if the local user has authority to alter the property and will automatically trigger delegates appropriately
  */
 #define EXPOSE_REP_DATA_PROPERTY(Owner, PropertyType, Property)	\
-EXPOSE_REP_DATA_PROPERTY_SETTER_ACCESS(Owner, PropertyType, Property, public);
+EXPOSE_REP_DATA_PROPERTY_SETTER_ACCESS(Owner, PropertyType, Property, Property, public);
+
+/**
+* Exposes a rep data property with a private setter for a member within a USTRUCT parameter.
+* The setter only allows modification if the local user has authority to alter the property and will automatically trigger delegates appropriately.
+*/
+#define EXPOSE_PRIVATE_USTRUCT_REP_DATA_PROPERTY(Owner, PropertyType, StructProperty, ChildProperty)	\
+EXPOSE_REP_DATA_PROPERTY_SETTER_ACCESS(Owner, PropertyType, StructProperty##ChildProperty, StructProperty.ChildProperty, private);
+
+/**
+* Fully exposes the rep data property with a public setter for a member within a USTRUCT parameter.
+* The setter only allows modification if the local user has authority to alter the property and will automatically trigger delegates appropriately
+*/
+#define EXPOSE_USTRUCT_REP_DATA_PROPERTY(Owner, PropertyType, StructProperty, ChildProperty)	\
+EXPOSE_REP_DATA_PROPERTY_SETTER_ACCESS(Owner, PropertyType, StructProperty##ChildProperty, StructProperty.ChildProperty, public);
+
+/**
+* Exposes a rep data property with a private setter for a member within a USTRUCT parameter.
+* The setter only allows modification if the local user has authority to alter the property and will automatically trigger delegates appropriately.
+* The deprecated name is used to preserve existing delegates and accessors until a later time.
+*/
+#define EXPOSE_REVISED_PRIVATE_USTRUCT_REP_DATA_PROPERTY(Owner, PropertyType, StructProperty, ChildProperty, DeprecatedPropertyName, DeprecatedVersion)	\
+EXPOSE_REVISED_REP_DATA_PROPERTY_SETTER_ACCESS(Owner, PropertyType, StructProperty##ChildProperty, StructProperty.ChildProperty, private, DeprecatedPropertyName, DeprecatedVersion);
+
+/**
+* Fully exposes the rep data property with a public setter for a member within a USTRUCT parameter.
+* The setter only allows modification if the local user has authority to alter the property and will automatically trigger delegates appropriately
+* The deprecated name is used to preserve existing delegates and accessors until a later time.
+*/
+#define EXPOSE_REVISED_USTRUCT_REP_DATA_PROPERTY(Owner, PropertyType, StructProperty, ChildProperty, DeprecatedPropertyName, DeprecatedVersion)	\
+EXPOSE_REVISED_REP_DATA_PROPERTY_SETTER_ACCESS(Owner, PropertyType, StructProperty##ChildProperty, StructProperty.ChildProperty, public, DeprecatedPropertyName, DeprecatedVersion);
 
 inline const TCHAR* ToString(EPartyType Type)
 {

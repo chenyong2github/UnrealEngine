@@ -32,6 +32,10 @@ class SLiveLinkClientPanelToolbar : public SCompoundWidget, public FGCObject
 
 	//~ FEditorUndoClient interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SLiveLinkClientPanelToolbar");
+	}
 
 private:
 	TSharedRef<SWidget> OnGenerateSourceMenu();

@@ -89,6 +89,10 @@ class STranslationPickerEditWidget : public SCompoundWidget, public FGCObject
 	void Construct(const FArguments& InArgs);
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("STranslationPickerEditWidget");
+	}
 
 	/** Return the translation unit for this text, with any modifications */
 	UTranslationUnit* GetTranslationUnitWithAnyChanges();

@@ -5,8 +5,9 @@
 #include "WmfPrivate.h"
 
 #include "Math/NumericLimits.h"
-#include "AVEncoder.h"
+#include "MediaPacket.h"
 #include "Misc/Optional.h"
+#include "Templates/RefCounting.h"
 
 class FWmfMp4Writer final
 {
@@ -16,15 +17,15 @@ public:
 	/**
 	 * Create an audio stream and return the its index on success
 	 */
-	TOptional<DWORD> CreateAudioStream(const FString& Codec, const AVEncoder::FAudioEncoderConfig& Config);
+	TOptional<DWORD> CreateAudioStream(const FString& Codec, const AVEncoder::FAudioConfig& Config);
 
 	/**
 	 * Create a video stream and return the its index on success
 	 */
-	TOptional<DWORD> CreateVideoStream(const FString& Codec, const AVEncoder::FVideoEncoderConfig& Config);
+	TOptional<DWORD> CreateVideoStream(const FString& Codec, const AVEncoder::FVideoConfig& Config);
 
 	bool Start();
-	bool Write(const AVEncoder::FAVPacket& InSample, DWORD StreamIndex);
+	bool Write(const AVEncoder::FMediaPacket& InSample, DWORD StreamIndex);
 	bool Finalize();
 
 private:

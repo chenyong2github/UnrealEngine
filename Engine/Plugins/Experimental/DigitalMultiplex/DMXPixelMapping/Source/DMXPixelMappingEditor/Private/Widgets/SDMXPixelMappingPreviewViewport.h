@@ -50,13 +50,6 @@ public:
 	FOptionalSize GetPreviewAreaHeight() const;
 
 private:
-	TArray<UTexture*> GetOutputTextures() const;
-
-	TArray<const FTextureResource*> GetOutputTextureResources() const;
-
-	TArray<UDMXPixelMappingOutputComponent*> GetActiveOutputComponents() const;
-
-private:
 
 	/** Viewport client. */
 	TSharedPtr<FDMXPixelMappingPreviewViewportClient> ViewportClient;

@@ -81,10 +81,6 @@ public:
 	void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials);
 	UMaterialInterface* GetMaterialOverride(const UNiagaraRendererProperties* InProps, int32 InMaterialSubIndex) const;
 	void SetOnMaterialsUpdated(const FOnMaterialsUpdated& Delegate) { OnMaterialsUpdatedDelegate = Delegate; }
-	//////////////////////////////////////////////////////////////////////////
-	//-TOFIX: Workaround FORT-315375 GT / RT Race
-	bool HandleMaterialRecache();
-	//////////////////////////////////////////////////////////////////////////
 
 	bool GetParticleValueVec3_DebugOnly(TArray<FVector>& OutValues, FName EmitterName, FName ValueName) const;
 	bool GetParticleValues_DebugOnly(TArray<float>& OutValues, FName EmitterName, FName ValueName) const;

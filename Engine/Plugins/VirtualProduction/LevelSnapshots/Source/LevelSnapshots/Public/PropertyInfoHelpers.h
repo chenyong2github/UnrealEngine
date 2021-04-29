@@ -17,12 +17,13 @@ public:
 
 	/* Returns true if the property is a struct, map, array, set, etc */
 	static bool IsPropertyContainer(const FProperty* Property);
-
 	/* Returns true if the property is a set, array, map, etc but NOT a struct */
 	static bool IsPropertyCollection(const FProperty* Property);
 
 	/* Is the property an element of a struct, set, array, map, etc */
 	static bool IsPropertyInContainer(const FProperty* Property);
+	/* Is the property an element of a set, array, map, etc */
+	static bool IsPropertyInCollection(const FProperty* Property);
 
 	static bool IsPropertyInStruct(const FProperty* Property);
 

@@ -17,6 +17,10 @@
 		{
 			"Name": "WebSocketNetworking",
 			"Enabled": true
+		},
+		{
+			"Name": "RemoteControlInterception",
+			"Enabled": true
 		}
 	],
 	"Modules": [
@@ -36,18 +40,23 @@
 			]
 		},
 		{
-			"Name": "RemoteControlUI",
+			"Name": "RemoteControlCommon",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "RemoteControlEditor",
+			"Name": "RemoteControlUI",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "RemoteControlProtocol",
 			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "RemoteControlProtocolWidgets",
+			"Type": "Editor",
 			"LoadingPhase": "Default"
 		}
 	]

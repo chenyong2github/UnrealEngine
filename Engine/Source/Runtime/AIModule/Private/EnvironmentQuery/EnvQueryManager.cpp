@@ -308,6 +308,9 @@ TSharedPtr<FEnvQueryInstance> UEnvQueryManager::PrepareQueryInstance(const FEnvQ
 	QueryInstance->World = GetWorldFast();
 	QueryInstance->Owner = Request.Owner;
 	QueryInstance->StartTime = FPlatformTime::Seconds();
+#if !UE_BUILD_SHIPPING
+	QueryInstance->GenerationTimeWarningSeconds = GenerationTimeWarningSeconds;
+#endif // UE_BUILD_SHIPPING
 
 	DEC_MEMORY_STAT_BY(STAT_AI_EQS_InstanceMemory, QueryInstance->NamedParams.GetAllocatedSize());
 
@@ -355,9 +358,6 @@ void UEnvQueryManager::Tick(float DeltaTime)
 #if !(UE_BUILD_SHIPPING)
 	CheckQueryCount();
 #endif
-
-	const float ExecutionTimeWarningSeconds = 0.025f;
-	const float HandlingResultTimeWarningSeconds = 0.025f;
 
 	float TimeLeft = MaxAllowedTestingTime;
 	int32 QueriesFinishedDuringUpdate = 0;

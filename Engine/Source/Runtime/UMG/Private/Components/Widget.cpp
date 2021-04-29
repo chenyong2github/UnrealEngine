@@ -1353,7 +1353,7 @@ UObject* UWidget::GetSourceAssetOrClass() const
 	// where it comes from, what blueprint, what the name of the widget was...etc.
 	SourceAsset = WidgetGeneratedBy.Get();
 #else
-	#if !UE_BUILD_SHIPPING
+	#if UE_HAS_WIDGET_GENERATED_BY_CLASS
 		SourceAsset = WidgetGeneratedByClass.Get();
 	#endif
 #endif

@@ -105,7 +105,7 @@ public:
 	virtual TSet<FName> GetCachedEmptyPackagesCopy() const override;
 	virtual const TSet<FName>& GetCachedEmptyPackages() const override;
 	virtual bool ContainsTag(FName TagName) const override;
-	virtual void InitializeSerializationOptions(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName = FString()) const override;
+	virtual void InitializeSerializationOptions(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName = FString(), UE::AssetRegistry::ESerializationTarget Target = UE::AssetRegistry::ESerializationTarget::ForGame) const override;
 
 	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FPathAddedEvent, FPathAddedEvent);
 	virtual FPathAddedEvent& OnPathAdded() override;

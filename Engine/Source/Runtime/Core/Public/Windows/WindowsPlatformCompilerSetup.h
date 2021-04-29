@@ -230,7 +230,7 @@ static_assert(_MSC_VER >= 1924, "Visual Studio 2019 v16.4 or greater is required
 #pragma warning(default: 5038) // data member 'A::y' will be initialized after data member 'A::x'									https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/c5038
 #pragma warning(disable: 4984) // 'if constexpr' is a C++17 language extension
 
-#pragma warning(default: 4996)
+// #pragma warning(default: 4996) // Deprecation: controlled via command line
 
 // interesting ones to turn on and off at times
 //#pragma warning(disable : 4266) // '' : no override available for virtual member function from base ''; function is hidden

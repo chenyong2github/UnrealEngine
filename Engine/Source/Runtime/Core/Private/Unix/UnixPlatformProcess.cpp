@@ -1734,7 +1734,7 @@ bool FUnixPlatformProcess::ExecProcess(const TCHAR* URL, const TCHAR* Params, in
 	return bInvoked;
 }
 
-void FUnixPlatformProcess::LaunchFileInDefaultExternalApplication( const TCHAR* FileName, const TCHAR* Parms, ELaunchVerb::Type Verb )
+bool FUnixPlatformProcess::LaunchFileInDefaultExternalApplication( const TCHAR* FileName, const TCHAR* Parms, ELaunchVerb::Type Verb, bool bPromptToOpenOnFailure)
 {
 	// TODO This ignores parms and verb
 	pid_t pid = fork();
@@ -1742,6 +1742,8 @@ void FUnixPlatformProcess::LaunchFileInDefaultExternalApplication( const TCHAR* 
 	{
 		exit(execl("/usr/bin/xdg-open", "xdg-open", TCHAR_TO_UTF8(FileName), (char *)0));
 	}
+
+	return pid != -1;
 }
 
 void FUnixPlatformProcess::ExploreFolder( const TCHAR* FilePath )

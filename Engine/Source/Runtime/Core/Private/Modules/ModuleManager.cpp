@@ -146,13 +146,42 @@ void FModuleManager::FindModules(const TCHAR* WildcardWithoutExtension, TArray<F
 	}
 
 #else
-	FString Wildcard(WildcardWithoutExtension);
-	ProcessPendingStaticallyLinkedModuleInitializers();
-	for (const TPair<FName, FInitializeStaticallyLinkedModule>& It : StaticallyLinkedModuleInitializers)
+	// Check if the wildcard actually contains any wildcard characters. If not, we can do a map lookup instead of iterating.
+	bool bContainsWildcardCharacter = false;
+	if (WildcardWithoutExtension)
 	{
-		if (It.Key.ToString().MatchesWildcard(Wildcard))
+		const TCHAR* WCh = WildcardWithoutExtension;
+		while (*WCh)
 		{
-			OutModules.Add(It.Key);
+			if (*WCh == '*' || *WCh == '?')
+			{
+				bContainsWildcardCharacter = true;
+				break;
+			}
+			WCh++;
+		}
+	}
+
+	ProcessPendingStaticallyLinkedModuleInitializers();
+	if (bContainsWildcardCharacter)
+	{
+		// There is a wildcard character. Use MatchesWildcard on every key.
+		FString Wildcard(WildcardWithoutExtension);
+		for (const TPair<FName, FInitializeStaticallyLinkedModule>& It : StaticallyLinkedModuleInitializers)
+		{
+			if (It.Key.ToString().MatchesWildcard(Wildcard))
+			{
+				OutModules.Add(It.Key);
+			}
+		}
+	}
+	else
+	{
+		// There is no wildcard, this could only match one entry matching the name exactly, so do a map lookup instead, which is much faster.
+		FName WildcardName(WildcardWithoutExtension);
+		if (StaticallyLinkedModuleInitializers.Contains(WildcardName))
+		{
+			OutModules.Add(WildcardName);
 		}
 	}
 #endif

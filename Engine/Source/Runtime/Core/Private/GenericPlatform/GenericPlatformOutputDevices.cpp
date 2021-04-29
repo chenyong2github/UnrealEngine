@@ -94,6 +94,17 @@ FString FGenericPlatformOutputDevices::GetAbsoluteLogFilename()
 			LogFilename.Empty();
 		}
 
+#if defined(UE_CUSTOM_LOG_FILENAME)
+		if (LogFilename.Len() == 0)
+		{
+			LogFilename = UE_CUSTOM_LOG_FILENAME;
+			if (LogFilename.Len() != 0)
+			{
+				LogFilename += TEXT(".log");
+			}
+		}
+#endif
+
 		if (LogFilename.Len() == 0)
 		{
 			if (FCString::Strlen(FApp::GetProjectName()) != 0)

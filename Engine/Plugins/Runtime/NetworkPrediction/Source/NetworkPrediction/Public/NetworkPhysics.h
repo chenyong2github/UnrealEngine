@@ -15,6 +15,15 @@ NETWORKPREDICTION_API DECLARE_LOG_CATEGORY_EXTERN(LogNetworkPhysics, Log, All);
 struct FNetworkPhysicsRewindCallback;
 class FMockObjectManager;
 
+struct FBasePhysicsState
+{
+	Chaos::EObjectStateType ObjectState = Chaos::EObjectStateType::Uninitialized;
+	Chaos::FVec3 Location;
+	Chaos::FRotation3 Rotation;
+	Chaos::FVec3 LinearVelocity;
+	Chaos::FVec3 AngularVelocity;
+};
+
 // PhysicsState that is networked and marshelled between GT and PT
 USTRUCT()
 struct FNetworkPhysicsState
@@ -27,12 +36,8 @@ struct FNetworkPhysicsState
 	// Local handle used by UNetworkPhysicsManager for registering/unregistering
 	int32 LocalManagedHandle;
 
-	// Physics State
-	Chaos::EObjectStateType ObjectState = Chaos::EObjectStateType::Uninitialized;
-	Chaos::FVec3 Location;
-	Chaos::FRotation3 Rotation;
-	Chaos::FVec3 LinearVelocity;
-	Chaos::FVec3 AngularVelocity;
+	// The actual physics properties
+	FBasePhysicsState Physics;
 
 	// Frame number associated with this data
 	//				GT		PT
@@ -48,16 +53,16 @@ struct FNetworkPhysicsState
 
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
-		uint8 ObjStateByte = (uint8)ObjectState;
+		uint8 ObjStateByte = (uint8)Physics.ObjectState;
 		Ar << ObjStateByte;
-		ObjectState = (Chaos::EObjectStateType)ObjStateByte;
+		Physics.ObjectState = (Chaos::EObjectStateType)ObjStateByte;
 
 		// Fixme: quantize
 		Ar << Frame;
-		Ar << Location;
-		Ar << Rotation;
-		Ar << LinearVelocity;
-		Ar << AngularVelocity;
+		Ar << Physics.Location;
+		Ar << Physics.Rotation;
+		Ar << Physics.LinearVelocity;
+		Ar << Physics.AngularVelocity;
 		return true;
 	}
 };
@@ -69,6 +74,7 @@ struct TStructOpsTypeTraits<FNetworkPhysicsState> : public TStructOpsTypeTraitsB
 	{
 		WithNetSerializer = true,
 		WithIdentical = true,
+		WithNetSharedSerialization = true
 	};
 };
 
@@ -112,20 +118,36 @@ public:
 		return Pair ? (T*)Pair->Value.Get() : nullptr;
 	};
 
+	struct FDrawDebugParams
+	{
+		UWorld* DrawWorld;
+		Chaos::FVec3 Loc;
+		Chaos::FRotation3 Rot;
+		FColor Color;
+		float Lifetime = -1.f;
+	};
+
+	void RegisterPhysicsProxyDebugDraw(FNetworkPhysicsState* State, TUniqueFunction<void(const FDrawDebugParams&)>&& Func);
+
 private:
+
+	void TickDrawDebug();
 
 	FNetworkPhysicsRewindCallback* RewindCallback;
 
 	FDelegateHandle PostTickDispatchHandle; // NetRecv
 	FDelegateHandle TickFlushHandle; // NetSend
 
-	int32 LastProcessedFrame = INDEX_NONE;
-	int32 LocalOffset = 0;
+	int32 LatestConfirmedFrame = INDEX_NONE;	// Latest frame the client has heard about from the server.
+	int32 LatestSimulatedFrame = INDEX_NONE;	// Latest frame we have sent off to PT for simulation. Doesn't mean its been completed and marshalled back.
+	int32 LocalOffset = 0; // Calculated client/server frame offset. ClientFrame = ServerFrame + LocalOffset
 
 	TSortedMap<int32, int32> ManagedHandleToIndexMap;
 	TSparseArray<FNetworkPhysicsState*> ManagedPhysicsStates;
 	int32 LastFreeIndex = 0;
 	int32 UniqueHandleCounter = 0;
+
+	TMap<FSingleParticlePhysicsProxy*, TUniqueFunction<void(const FDrawDebugParams&)>> DrawDebugMap;
 	
 	TArray<TPair<FName, TUniquePtr<INetworkPhysicsSubsystem>>> SubSystems;
 };

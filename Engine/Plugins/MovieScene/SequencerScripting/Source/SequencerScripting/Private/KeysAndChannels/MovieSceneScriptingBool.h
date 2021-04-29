@@ -29,7 +29,7 @@ public:
 	* @param TimeUnit	Should the time be returned in Display Rate frames (possibly with a sub-frame value) or in Tick Resolution with no sub-frame values?
 	* @return			The time of this key which combines both the frame number and the sub-frame it is on. Sub-frame will be zero if you request Tick Resolution.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Get Time (Bool)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Get Time (Bool)"))
 	virtual FFrameTime GetTime(ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate) const override { return GetTimeFromChannel(KeyHandle, OwningSequence, TimeUnit); }
 	
 	/**
@@ -38,14 +38,14 @@ public:
 	* @param SubFrame		If using Display Rate time, what is the sub-frame this should go to? Clamped [0-1), and ignored with when TimeUnit is set to Tick Resolution.
 	* @param TimeUnit		Should the NewFrameNumber be interpreted as Display Rate frames or in Tick Resolution?
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Set Time (Bool)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Set Time (Bool)"))
 	void SetTime(const FFrameNumber& NewFrameNumber, float SubFrame = 0.f, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate) { SetTimeInChannel(KeyHandle, OwningSequence, NewFrameNumber, TimeUnit, SubFrame); }
 
 	/**
 	* Gets the value for this key from the owning channel.
 	* @return	The value for this key.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Get Value (Bool)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Get Value (Bool)"))
 	bool GetValue() const
 	{
 		return GetValueFromChannel(KeyHandle);
@@ -55,7 +55,7 @@ public:
 	* Sets the value for this key, reflecting it in the owning channel.
 	* @param InNewValue	The new value for this key.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Set Value (Bool)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Set Value (Bool)"))
 	void SetValue(bool InNewValue)
 	{
 		SetValueInChannel(KeyHandle, InNewValue);
@@ -75,7 +75,7 @@ public:
 	* @param	TimeUnit 		Is the specified InTime in Display Rate frames or Tick Resolution.
 	* @return	The key that was created with the specified values at the specified time.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta=(DisplayName = "Add Key (Bool)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta=(DisplayName = "Add Key (Bool)"))
 	UMovieSceneScriptingBoolKey* AddKey(const FFrameNumber& InTime, bool NewValue, float SubFrame = 0.f, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate)
 	{
 		return AddKeyInChannel(ChannelHandle, OwningSequence, OwningSection, InTime, NewValue, SubFrame, TimeUnit, EMovieSceneKeyInterpolation::Auto);
@@ -84,7 +84,7 @@ public:
 	/**
 	* Removes the specified key. Does nothing if the key is not specified or the key belongs to another channel.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta=(DisplayName = "Remove Key (Bool)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta=(DisplayName = "Remove Key (Bool)"))
 	virtual void RemoveKey(UMovieSceneScriptingKey* Key)
 	{
 		RemoveKeyFromChannel(ChannelHandle, Key);
@@ -95,7 +95,7 @@ public:
 	* @return	An array of UMovieSceneScriptingBoolKey's contained by this channel.
 	*			Returns all keys even if clipped by the owning section's boundaries or outside of the current sequence play range.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Get Keys (Bool)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Get Keys (Bool)"))
 	virtual TArray<UMovieSceneScriptingKey*> GetKeys() const override
 	{
 		return GetKeysInChannel(ChannelHandle, OwningSequence, OwningSection);
@@ -104,7 +104,7 @@ public:
 	/**
 	* Returns number of keys in this channel.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Get Num Keys (Bool)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Get Num Keys (Bool)"))
 	int32 GetNumKeys() const
 	{
 		return ChannelHandle.Get() ? ChannelHandle.Get()->GetNumKeys() : 0;
@@ -115,7 +115,7 @@ public:
 	* @return	An array of values contained by this channel.
 	*			Returns baked keys in the specified range.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Evaluate Keys (Bool)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Evaluate Keys (Bool)"))
 	TArray<bool> EvaluateKeys(FSequencerScriptingRange Range, FFrameRate FrameRate) const
 	{
 		return EvaluateKeysInChannel(ChannelHandle, OwningSequence, Range, FrameRate);
@@ -126,7 +126,7 @@ public:
 	*
 	* @return A range that represents the greatest range of times occupied by this channel, in the sequence's frame resolution
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Compute Effective Range (Bool)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Compute Effective Range (Bool)"))
 	FSequencerScriptingRange ComputeEffectiveRange() const
 	{
 		return ComputeEffectiveRangeInChannel(ChannelHandle, OwningSequence);
@@ -136,7 +136,7 @@ public:
 	* Set this channel's default value that should be used when no keys are present.
 	* Sets bHasDefaultValue to true automatically.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Set Default (Bool)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Set Default (Bool)"))
 	void SetDefault(bool InDefaultValue)
 	{
 		SetDefaultInChannel(ChannelHandle, OwningSequence, OwningSection, InDefaultValue);
@@ -146,7 +146,7 @@ public:
 	* Get this channel's default value that will be used when no keys are present. Only a valid
 	* value when HasDefault() returns true.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Get Default (Bool)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Get Default (Bool)"))
 	bool GetDefault() const
 	{
 		TOptional<bool> DefaultValue = GetDefaultFromChannel(ChannelHandle);
@@ -156,7 +156,7 @@ public:
 	/**
 	* Remove this channel's default value causing the channel to have no effect where no keys are present
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Remove Default (Bool)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Remove Default (Bool)"))
 	void RemoveDefault()
 	{
 		RemoveDefaultFromChannel(ChannelHandle);
@@ -165,7 +165,7 @@ public:
 	/**
 	* @return Does this channel have a default value set?
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Has Default (Bool)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Has Default (Bool)"))
 	bool HasDefault() const
 	{
 		return GetDefaultFromChannel(ChannelHandle).IsSet();

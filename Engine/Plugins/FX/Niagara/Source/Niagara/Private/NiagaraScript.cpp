@@ -96,6 +96,7 @@ FNiagaraVMExecutableData::FNiagaraVMExecutableData()
 	, CompileTime(0.0f)
 #endif
 	, bReadsSignificanceIndex(false)
+	, bNeedsGPUContextInit(false)
 {
 }
 
@@ -320,6 +321,28 @@ void UNiagaraScript::EnableVersioning()
 	ensure(VersionData.Num() == 1);
 	bVersioningEnabled = true;	
 	ExposedVersion = VersionData[0].Version.VersionGuid;
+}
+
+void UNiagaraScript::DisableVersioning(const FGuid& VersionGuidToUse)
+{
+	CheckVersionDataAvailable();
+	bVersioningEnabled = false;
+
+	FVersionedNiagaraScriptData DataToUse = VersionData[0];
+	if (VersionGuidToUse.IsValid())
+	{
+		for (const FVersionedNiagaraScriptData& Data : VersionData)
+		{
+			if (Data.Version.VersionGuid == VersionGuidToUse)
+			{
+				DataToUse = Data;
+				break;
+			}
+		}
+	}
+	DataToUse.Version = FNiagaraAssetVersion(); // reset and create new guid
+	VersionData.Empty();
+	VersionData.Add(DataToUse);
 }
 
 void UNiagaraScript::CheckVersionDataAvailable()
@@ -1661,8 +1684,7 @@ void UNiagaraScript::SetSource(UNiagaraScriptSourceBase* InSource, const FGuid& 
 
 bool UNiagaraScript::AreScriptAndSourceSynchronized(const FGuid& VersionGuid) const
 {
-	static const bool bNoShaderCompile = FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
-	if (bNoShaderCompile)
+	if (!AllowShaderCompiling())
 	{
 		return false;
 	}
@@ -2247,6 +2269,13 @@ void UNiagaraScript::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 	DeprecatedTag = FString::FromInt(bDeprecated);
 	OutTags.Add(FAssetRegistryTag(DeprecatedName, DeprecatedTag, FAssetRegistryTag::TT_Hidden));
 
+	// Suggested
+	bool bSuggested = ScriptData ? ScriptData->bSuggested : false;
+	FName SuggestedName = GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, bSuggested);
+	FString& SuggestedTag = CustomAssetRegistryTagCache->FindOrAdd(SuggestedName);
+	SuggestedTag = FString::FromInt(bSuggested);
+	OutTags.Add(FAssetRegistryTag(SuggestedName, SuggestedTag, FAssetRegistryTag::TT_Hidden));
+
 	// Add the current custom version to the tags so that tags can be fixed up in the future without having to load
 	// the whole asset.
 	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
@@ -2548,6 +2577,20 @@ void UNiagaraScript::SyncAliases(const TMap<FString, FString>& RenameMap)
 			if (NewVar.GetName() != Var.GetName())
 			{
 				RapidIterationParameters.RenameParameter(Var, NewVar.GetName());
+			}
+		}
+	}
+
+	// Now handle any compile tags overall..
+	{
+		for (int32 i = 0; i < GetVMExecutableData().CompileTags.Num(); i++)
+		{
+			const FString& Name = GetVMExecutableData().CompileTags[i].StringValue;
+			if (Name.Len())
+			{
+				FNiagaraVariable NewVar = FNiagaraVariable::ResolveAliases(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), *Name), RenameMap);
+				if (NewVar.GetName() != *Name)
+					GetVMExecutableData().CompileTags[i].StringValue = NewVar.GetName().ToString();
 			}
 		}
 	}

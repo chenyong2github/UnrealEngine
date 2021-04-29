@@ -14,7 +14,12 @@
 #include "Components/LightComponent.h"
 #include "Components/MeshComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/SkinnedMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
+#include "InstancedFoliageActor.h"
 #include "MovieSceneTimeHelpers.h"
+#include "Rendering/SkeletalMeshRenderData.h"
 #include "Sections/MovieScene3DTransformSection.h"
 #include "Sections/MovieSceneFloatSection.h"
 #include "Sections/MovieSceneVectorSection.h"
@@ -30,10 +35,13 @@
 #include "pxr/usd/usd/stage.h"
 #include "pxr/usd/usd/timeCode.h"
 #include "pxr/usd/usdGeom/camera.h"
+#include "pxr/usd/usdGeom/mesh.h"
+#include "pxr/usd/usdGeom/pointInstancer.h"
 #include "pxr/usd/usdGeom/xform.h"
 #include "pxr/usd/usdGeom/xformable.h"
 #include "pxr/usd/usdGeom/xformCommonAPI.h"
 #include "pxr/usd/usdLux/light.h"
+#include "pxr/usd/usdSkel/root.h"
 
 #include "USDIncludesEnd.h"
 
@@ -277,28 +285,40 @@ bool UnrealToUsd::ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const
 
 	FTransform RelativeTransform = SceneComponent->GetRelativeTransform();
 
-	FTransform AdditionalRotation;
-	if ( ACineCameraActor* CineCameraActor = Cast< ACineCameraActor >( SceneComponent->GetOwner() ) )
+	// Compensate different orientation for light or camera components :
+	// In USD cameras shoot towards local - Z, with + Y up.Lights also emit towards local - Z, with + Y up
+	// In UE cameras shoot towards local + X, with + Z up.Lights also emit towards local + X, with + Z up
+	if ( SceneComponent->IsA( UCineCameraComponent::StaticClass() ) ||
+		 SceneComponent->IsA( ULightComponent::StaticClass() ) )
 	{
-		AdditionalRotation = FTransform( FRotator( 0.0f, 90.f, 0.0f ) );
+		FTransform AdditionalRotation = FTransform( FRotator( 0.0f, 90.f, 0.0f ) );
 
 		if ( UsdUtils::GetUsdStageUpAxis( Stage ) == pxr::UsdGeomTokens->z )
 		{
 			AdditionalRotation *= FTransform( FRotator( 90.0f, 0.f, 0.0f ) );
 		}
-	}
-	else if ( const ULightComponent* LightComponent = Cast< ULightComponent >( SceneComponent ) )
-	{
-		AdditionalRotation = FTransform( FRotator( 0.0f, 90.f, 0.0f ) );
 
-		if ( UsdUtils::GetUsdStageUpAxis( Stage ) == pxr::UsdGeomTokens->z )
+		RelativeTransform = AdditionalRotation * RelativeTransform;
+	}
+
+	// Invert compensation applied to parent if it's a light or camera component
+	if ( USceneComponent* AttachParent = SceneComponent->GetAttachParent() )
+	{
+		if ( AttachParent->IsA( UCineCameraComponent::StaticClass() ) ||
+			 AttachParent->IsA( ULightComponent::StaticClass() ) )
 		{
-			AdditionalRotation *= FTransform( FRotator( 90.0f, 0.f, 0.0f ) );
+			FTransform AdditionalRotation = FTransform( FRotator( 0.0f, 90.f, 0.0f ) );
+
+			if ( UsdUtils::GetUsdStageUpAxis( Stage ) == pxr::UsdGeomTokens->z )
+			{
+				AdditionalRotation *= FTransform( FRotator( 90.0f, 0.f, 0.0f ) );
+			}
+
+			RelativeTransform = RelativeTransform * AdditionalRotation.Inverse();
 		}
 	}
 
-	RelativeTransform = AdditionalRotation * RelativeTransform;
-
+	// Transform
 	ConvertXformable( RelativeTransform, UsdPrim, UsdUtils::GetDefaultTimeCode() );
 
 	// Visibility
@@ -322,41 +342,173 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 		return false;
 	}
 
-	const bool bHasMaterialAttribute = UsdPrim.HasAttribute( UnrealIdentifiers::MaterialAssignments );
+	FScopedUsdAllocs Allocs;
 
-	if ( MeshComponent->GetNumMaterials() > 0 || bHasMaterialAttribute )
+	if ( const UStaticMeshComponent* StaticMeshComponent = Cast<const UStaticMeshComponent>( MeshComponent ) )
 	{
-		FScopedUsdAllocs UsdAllocs;
-
-		pxr::VtArray< std::string > UEMaterials;
-
-		bool bHasUEMaterialAssignements = false;
-
-		for ( int32 MaterialIndex = 0; MaterialIndex < MeshComponent->GetNumMaterials(); ++MaterialIndex )
+#if WITH_EDITOR
+		if ( UStaticMesh* Mesh = StaticMeshComponent->GetStaticMesh() )
 		{
-			if ( UMaterialInterface* AssignedMaterial = MeshComponent->GetMaterial( MaterialIndex ) )
+			int32 NumLODs = Mesh->GetNumLODs();
+			const bool bHasLODs = NumLODs > 1;
+
+			const TArray<UMaterialInterface*>& Overrides = MeshComponent->OverrideMaterials;
+			for ( int32 MatIndex = 0; MatIndex < Overrides.Num(); ++MatIndex )
 			{
-				FString AssignedMaterialPathName;
-				if ( AssignedMaterial->GetOutermost() != GetTransientPackage() )
+				UMaterialInterface* Override = Overrides[MatIndex];
+				if ( !Override )
 				{
-					AssignedMaterialPathName = AssignedMaterial->GetPathName();
-					bHasUEMaterialAssignements = true;
+					continue;
 				}
 
-				UEMaterials.push_back( UnrealToUsd::ConvertString( *AssignedMaterialPathName ).Get() );
+				for ( int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex )
+				{
+					int32 NumSections = Mesh->GetNumSections( LODIndex );
+					const bool bHasSubsets = NumSections > 1;
+
+					for ( int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex )
+					{
+						int32 SectionMatIndex = Mesh->GetSectionInfoMap().Get( LODIndex, SectionIndex ).MaterialIndex;
+						if ( SectionMatIndex != MatIndex )
+						{
+							continue;
+						}
+
+						pxr::SdfPath OverridePrimPath = UsdPrim.GetPath();
+
+						// If we have only 1 LOD, the asset's DefaultPrim will be the Mesh prim directly.
+						// If we have multiple, the default prim won't have any schema, but will contain separate
+						// Mesh prims for each LOD named "LOD0", "LOD1", etc., switched via a "LOD" variant set
+						if ( bHasLODs )
+						{
+							OverridePrimPath = OverridePrimPath.AppendPath( UnrealToUsd::ConvertPath( *FString::Printf( TEXT( "LOD%d" ), LODIndex ) ).Get() );
+						}
+
+						// If our LOD has only one section, its material assignment will be authored directly on the Mesh prim.
+						// If it has more than one material slot, we'll author UsdGeomSubset for each LOD Section, and author the material
+						// assignment there
+						if ( bHasSubsets )
+						{
+							OverridePrimPath = OverridePrimPath.AppendPath( UnrealToUsd::ConvertPath( *FString::Printf( TEXT( "Section%d" ), SectionIndex ) ).Get() );
+						}
+
+						pxr::UsdPrim OverridePrim = Stage->OverridePrim( OverridePrimPath );
+						if ( pxr::UsdAttribute UnrealMaterialAttr = OverridePrim.CreateAttribute( UnrealIdentifiers::MaterialAssignment, pxr::SdfValueTypeNames->String ) )
+						{
+							UnrealMaterialAttr.Set( UnrealToUsd::ConvertString( *Override->GetPathName() ).Get() );
+						}
+					}
+				}
 			}
+		}
+#endif // WITH_EDITOR
+	}
+	else if ( const USkinnedMeshComponent* SkinnedMeshComponent = Cast<const USkinnedMeshComponent>( MeshComponent ) )
+	{
+		pxr::UsdSkelRoot SkelRoot{ UsdPrim };
+		if ( !SkelRoot )
+		{
+			return false;
 		}
 
-		if ( bHasUEMaterialAssignements )
+		if ( const USkeletalMesh* SkeletalMesh = SkinnedMeshComponent->SkeletalMesh )
 		{
-			if ( pxr::UsdAttribute UEMaterialsAttribute = UsdPrim.CreateAttribute( UnrealIdentifiers::MaterialAssignments, pxr::SdfValueTypeNames->StringArray ) )
+			FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
+			if ( !RenderData )
 			{
-				UEMaterialsAttribute.Set( UEMaterials );
+				return false;
 			}
-		}
-		else if ( bHasMaterialAttribute )
-		{
-			UsdPrim.GetAttribute( UnrealIdentifiers::MaterialAssignments ).Clear();
+
+			TIndirectArray<FSkeletalMeshLODRenderData>& LodRenderData = RenderData->LODRenderData;
+			if ( LodRenderData.Num() == 0 )
+			{
+				return false;
+			}
+
+			int32 NumLODs = SkeletalMesh->GetLODNum();
+			const bool bHasLODs = NumLODs > 1;
+
+			FString MeshName;
+			if ( !bHasLODs )
+			{
+				for ( const pxr::UsdPrim& Child : UsdPrim.GetChildren() )
+				{
+					if ( pxr::UsdGeomMesh Mesh{ Child } )
+					{
+						MeshName = UsdToUnreal::ConvertToken( Child.GetName() );
+					}
+				}
+			}
+
+			const TArray<UMaterialInterface*>& Overrides = MeshComponent->OverrideMaterials;
+			for ( int32 MatIndex = 0; MatIndex < Overrides.Num(); ++MatIndex )
+			{
+				UMaterialInterface* Override = Overrides[ MatIndex ];
+				if ( !Override )
+				{
+					continue;
+				}
+
+				for ( int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex )
+				{
+					if ( !LodRenderData.IsValidIndex( LODIndex ) )
+					{
+						continue;
+					}
+
+					const FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo( LODIndex );
+
+					const TArray<FSkelMeshRenderSection>& Sections = LodRenderData[ LODIndex ].RenderSections;
+					int32 NumSections = Sections.Num();
+					const bool bHasSubsets = NumSections > 1;
+
+					for ( int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex )
+					{
+						int32 SectionMatIndex = Sections[ SectionIndex ].MaterialIndex;
+
+						// If we have a LODInfo map, we need to reroute the material index through it
+						if ( LODInfo && LODInfo->LODMaterialMap.IsValidIndex( SectionIndex ) )
+						{
+							SectionMatIndex = LODInfo->LODMaterialMap[ SectionIndex ];
+						}
+
+						if ( SectionMatIndex != MatIndex )
+						{
+							continue;
+						}
+
+						pxr::SdfPath OverridePrimPath = UsdPrim.GetPath();
+
+						// If we have only 1 LOD, the asset's DefaultPrim will be a SkelRoot, and the Mesh will be a subprim
+						// with the same name.If we have the default prim is also the SkelRoot, but will contain separate
+						// Mesh prims for each LOD named "LOD0", "LOD1", etc., switched via a "LOD" variant set
+						if ( bHasLODs )
+						{
+							OverridePrimPath = OverridePrimPath.AppendPath( UnrealToUsd::ConvertPath( *FString::Printf( TEXT( "LOD%d" ), LODIndex ) ).Get() );
+						}
+						else
+						{
+							OverridePrimPath = OverridePrimPath.AppendElementString( UnrealToUsd::ConvertString( *MeshName ).Get() );
+						}
+
+						// If our LOD has only one section, its material assignment will be authored directly on the Mesh prim.
+						// If it has more than one material slot, we'll author UsdGeomSubset for each LOD Section, and author the material
+						// assignment there
+						if ( bHasSubsets )
+						{
+							OverridePrimPath = OverridePrimPath.AppendPath( UnrealToUsd::ConvertPath( *FString::Printf( TEXT( "Section%d" ), SectionIndex ) ).Get() );
+						}
+
+						if ( pxr::UsdPrim OverridePrim = Stage->OverridePrim( OverridePrimPath ) )
+						{
+							if ( pxr::UsdAttribute UnrealMaterialAttr = OverridePrim.CreateAttribute( UnrealIdentifiers::MaterialAssignment, pxr::SdfValueTypeNames->String ) )
+							{
+								UnrealMaterialAttr.Set( UnrealToUsd::ConvertString( *Override->GetPathName() ).Get() );
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -462,6 +614,114 @@ bool UnrealToUsd::ConvertXformable( const FTransform& RelativeTransform, pxr::Us
 	}
 
 	return true;
+}
+
+bool UnrealToUsd::ConvertInstancedFoliageActor( const AInstancedFoliageActor& Actor, pxr::UsdPrim& UsdPrim, double TimeCode, ULevel* InstancesLevel )
+{
+#if WITH_EDITOR
+	using namespace pxr;
+
+	FScopedUsdAllocs Allocs;
+
+	UsdGeomPointInstancer PointInstancer{ UsdPrim };
+	if ( !PointInstancer )
+	{
+		return false;
+	}
+
+	if ( InstancesLevel == nullptr )
+	{
+		InstancesLevel = Actor.GetLevel();
+	}
+
+	UsdStageRefPtr Stage = UsdPrim.GetStage();
+	FUsdStageInfo StageInfo{ Stage };
+
+	VtArray<int> ProtoIndices;
+	VtArray<GfVec3f> Positions;
+	VtArray<GfQuath> Orientations;
+	VtArray<GfVec3f> Scales;
+
+	int PrototypeIndex = 0;
+	for ( const TPair<UFoliageType*, TUniqueObj<FFoliageInfo>>& FoliagePair : Actor.GetFoliageInfos() )
+	{
+		const UFoliageType* FoliageType = FoliagePair.Key;
+		const FFoliageInfo& Info = FoliagePair.Value.Get();
+
+		// Collect IDs of components that are on the same level as the actor's level. This because later on we'll have level-by-level
+		// export, and we'd want one point instancer per level
+		for ( const TPair<FFoliageInstanceBaseId, FFoliageInstanceBaseInfo>& FoliageInstancePair : Actor.InstanceBaseCache.InstanceBaseMap )
+		{
+			UActorComponent* Comp = FoliageInstancePair.Value.BasePtr.Get();
+			if ( !Comp || Comp->GetComponentLevel() != InstancesLevel )
+			{
+				continue;
+			}
+
+			if ( const TSet<int32>* InstanceSet = Info.ComponentHash.Find( FoliageInstancePair.Key ) )
+			{
+				const int32 NumInstances = InstanceSet->Num();
+				ProtoIndices.reserve( ProtoIndices.size() + NumInstances );
+				Positions.reserve( Positions.size() + NumInstances );
+				Orientations.reserve( Orientations.size() + NumInstances );
+				Scales.reserve( Scales.size() + NumInstances );
+
+				for ( int32 InstanceIndex : *InstanceSet )
+				{
+					const FFoliageInstancePlacementInfo* Instance = &Info.Instances[ InstanceIndex ];
+
+					// Convert axes
+					FTransform UETransform{ Instance->Rotation, Instance->Location, Instance->DrawScale3D };
+					FTransform USDTransform = UsdUtils::ConvertAxes( StageInfo.UpAxis == EUsdUpAxis::ZAxis, UETransform );
+
+					FVector Translation = USDTransform.GetTranslation();
+					FQuat Rotation = USDTransform.GetRotation();
+					FVector Scale = USDTransform.GetScale3D();
+
+					// Compensate metersPerUnit
+					const float UEMetersPerUnit = 0.01f;
+					if ( !FMath::IsNearlyEqual( UEMetersPerUnit, StageInfo.MetersPerUnit ) )
+					{
+						Translation *= ( UEMetersPerUnit / StageInfo.MetersPerUnit );
+					}
+
+					ProtoIndices.push_back( PrototypeIndex );
+					Positions.push_back( GfVec3f( Translation.X, Translation.Y, Translation.Z ) );
+					Orientations.push_back( GfQuath( Rotation.W, Rotation.X, Rotation.Y, Rotation.Z ) );
+					Scales.push_back( GfVec3f( Scale.X, Scale.Y, Scale.Z ) );
+				}
+			}
+		}
+
+		++PrototypeIndex;
+	}
+
+	const pxr::UsdTimeCode UsdTimeCode( TimeCode );
+
+	if ( UsdAttribute Attr = PointInstancer.CreateProtoIndicesAttr() )
+	{
+		Attr.Set( ProtoIndices, UsdTimeCode );
+	}
+
+	if ( UsdAttribute Attr = PointInstancer.CreatePositionsAttr() )
+	{
+		Attr.Set( Positions, UsdTimeCode );
+	}
+
+	if ( UsdAttribute Attr = PointInstancer.CreateOrientationsAttr() )
+	{
+		Attr.Set( Orientations, UsdTimeCode );
+	}
+
+	if ( UsdAttribute Attr = PointInstancer.CreateScalesAttr() )
+	{
+		Attr.Set( Scales, UsdTimeCode );
+	}
+
+	return true;
+#else
+	return false;
+#endif // WITH_EDITOR
 }
 
 bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieSceneTrack, pxr::UsdPrim& UsdPrim, const FMovieSceneSequenceTransform& SequenceTransform )

@@ -17,25 +17,19 @@ class IDisplayClusterProtocolClusterSync
 {
 public:
 	// Game start barrier
-	virtual void WaitForGameStart(double* ThreadWaitTime, double* BarrierWaitTime) = 0;
+	virtual void WaitForGameStart() = 0;
 
 	// Frame start barrier
-	virtual void WaitForFrameStart(double* ThreadWaitTime, double* BarrierWaitTime) = 0;
+	virtual void WaitForFrameStart() = 0;
 
 	// Frame end barrier
-	virtual void WaitForFrameEnd(double* ThreadWaitTime, double* BarrierWaitTime) = 0;
+	virtual void WaitForFrameEnd() = 0;
 
-	// Provides with time delta for current frame
-	virtual void GetDeltaTime(float& DeltaSeconds) = 0;
-
-	// Get the Timecode value for the current frame.
-	virtual void GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime) = 0;
+	// Engine time
+	virtual void GetTimeData(float& InOutDeltaTime, double& InOutGameTime, TOptional<FQualifiedFrameTime>& InOutFrameTime) = 0;
 
 	// Sync objects
 	virtual void GetSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) = 0;
-
-	// Sync input
-	virtual void GetInputData(TMap<FString, FString>& InputData) = 0;
 
 	// Sync events
 	virtual void GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) = 0;

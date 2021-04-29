@@ -99,7 +99,7 @@ bool FPerforceSourceControlLabel::Sync( const TArray<FString>& InFilenames ) con
 			// output errors if any
 			for (int32 ErrorIndex = 0; ErrorIndex < ErrorMessages.Num(); ++ErrorIndex)
 			{
-				FMessageLog("SourceControl").Error(FText::Format(LOCTEXT("GetFileRevisionsErrorFormat", "Sync Error: {0}"), ErrorMessages[ErrorIndex]));
+				FMessageLog("SourceControl").Error(FText::Format(LOCTEXT("GetFileRevisionsSyncErrorFormat", "Sync Error: {0}"), ErrorMessages[ErrorIndex]));
 			}
 		}
 	}

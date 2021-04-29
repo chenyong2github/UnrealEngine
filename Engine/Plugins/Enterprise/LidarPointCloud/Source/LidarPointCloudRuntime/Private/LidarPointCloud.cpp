@@ -418,9 +418,20 @@ int32 ULidarPointCloud::GetDataSize() const
 	return (OctreeSize + CollisionSize) >> 20;
 }
 
+void ULidarPointCloud::RefreshBounds()
+{
+	Octree.RefreshBounds();
+}
+
 bool ULidarPointCloud::HasCollisionData() const
 {
 	return Octree.HasCollisionData();
+}
+
+void ULidarPointCloud::RefreshRendering()
+{
+	Octree.MarkRenderDataDirty();
+	OnPointCloudRebuiltEvent.Broadcast();
 }
 
 void ULidarPointCloud::GetPoints(TArray64<FLidarPointCloudPoint*>& Points, int64 StartIndex /*= 0*/, int64 Count /*= -1*/)

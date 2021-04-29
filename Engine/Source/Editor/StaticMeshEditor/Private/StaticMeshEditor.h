@@ -87,6 +87,10 @@ public:
 
 	//~ Begin FGCObject Interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FStaticMeshEditor");
+	}
 	//~ End FGCObject Interface
 
 	/** IToolkit interface */

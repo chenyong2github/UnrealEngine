@@ -98,6 +98,7 @@ void FClassViewerNode::AddUniqueChild(TSharedPtr<FClassViewerNode> NewChild)
 					}
 
 					// replace child
+					NewChild->ParentNode = AsShared();
 					ChildrenList[ChildIndex] = NewChild;
 				}
 				return;
@@ -175,4 +176,9 @@ bool FClassViewerNode::IsBlueprintClass() const
 bool FClassViewerNode::IsEditorOnlyClass() const
 {
 	return Class.IsValid() && IsEditorOnlyObject(Class.Get());
+}
+
+TSharedPtr< FClassViewerNode > FClassViewerNode::GetParentNode() const
+{
+	return ParentNode.Pin();
 }

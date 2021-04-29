@@ -8,7 +8,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 class IDisplayClusterConfiguratorOutputMappingSlot;
-class FDisplayClusterConfiguratorToolkit;
+class FDisplayClusterConfiguratorBlueprintEditor;
 class FDisplayClusterConfiguratorOutputMappingBuilder;
 class UDisplayClusterConfiguratorCanvasNode;
 class UDisplayClusterConfigurationCluster;
@@ -21,11 +21,10 @@ public:
 	{}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, UDisplayClusterConfiguratorCanvasNode* InNode, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit);
+	void Construct(const FArguments& InArgs, UDisplayClusterConfiguratorCanvasNode* InNode, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit);
 
 	//~ SGraphNode interface
 	virtual void UpdateGraphNode() override;
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter) override;
 	virtual FVector2D ComputeDesiredSize(float) const override;
 	virtual FVector2D GetPosition() const override;
@@ -33,8 +32,6 @@ public:
 	//~ End SGraphNode interface
 
 	//~ Begin SDisplayClusterConfiguratorBaseNode interface
-	virtual UObject* GetEditingObject() const override;
-	virtual void OnSelectedItemSet(const TSharedRef<IDisplayClusterConfiguratorTreeItem>& InTreeItem) override;
 	virtual int32 GetNodeLayerIndex() const override { return DefaultZOrder; }
 	//~ End of SDisplayClusterConfiguratorBaseNode interface
 
@@ -46,8 +43,8 @@ private:
 private:
 	TSharedPtr<SWidget> CanvasSizeTextWidget;
 
-	float CanvasScaleFactor;
+	FMargin CanvasPadding;
 
-private:
+public:
 	static int32 const DefaultZOrder;
 };

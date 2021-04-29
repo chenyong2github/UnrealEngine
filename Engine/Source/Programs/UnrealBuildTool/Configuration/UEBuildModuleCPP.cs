@@ -1432,38 +1432,6 @@ namespace UnrealBuildTool
 			return CompileEnvironment;
 		}
 
-		public override void GetAllDependencyModules(List<UEBuildModule> ReferencedModules, HashSet<UEBuildModule> IgnoreReferencedModules, bool bIncludeDynamicallyLoaded, bool bForceCircular, bool bOnlyDirectDependencies)
-		{
-			List<UEBuildModule> AllDependencyModules = new List<UEBuildModule>();
-			AllDependencyModules.AddRange(PrivateDependencyModules!);
-			AllDependencyModules.AddRange(PublicDependencyModules!);
-			if (bIncludeDynamicallyLoaded)
-			{
-				AllDependencyModules.AddRange(DynamicallyLoadedModules!);
-			}
-
-			foreach (UEBuildModule DependencyModule in AllDependencyModules)
-			{
-				if (!IgnoreReferencedModules.Contains(DependencyModule))
-				{
-					// Don't follow circular back-references!
-					bool bIsCircular = HasCircularDependencyOn(DependencyModule.Name);
-					if (bForceCircular || !bIsCircular)
-					{
-						IgnoreReferencedModules.Add(DependencyModule);
-
-						if (!bOnlyDirectDependencies)
-						{
-							// Recurse into dependent modules first
-							DependencyModule.GetAllDependencyModules(ReferencedModules, IgnoreReferencedModules, bIncludeDynamicallyLoaded, bForceCircular, bOnlyDirectDependencies);
-						}
-
-						ReferencedModules.Add(DependencyModule);
-					}
-				}
-			}
-		}
-
 		/// <summary>
 		/// Finds all the source files that should be built for this module
 		/// </summary>

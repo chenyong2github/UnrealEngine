@@ -1684,6 +1684,10 @@ public:
 	{
 		TListTypeTraits<ItemType>::AddReferencedObjects( Collector, WidgetGenerator.ItemsWithGeneratedWidgets, SelectedItems, WidgetGenerator.WidgetMapToItem );
 	}
+	virtual FString GetReferencerName() const
+	{
+		return TEXT("SListView");
+	}
 
 	/**
 	* Will determine the max row size for the specified column id

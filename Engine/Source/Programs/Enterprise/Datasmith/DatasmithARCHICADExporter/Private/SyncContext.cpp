@@ -55,11 +55,13 @@ void FSyncContext::FStats::Print()
 #endif
 }
 
-FSyncContext::FSyncContext(const ModelerAPI::Model& InModel, FSyncDatabase& InSyncDatabase, FProgression* InProgression)
+FSyncContext::FSyncContext(bool bInIsSynchronizer, const ModelerAPI::Model& InModel, FSyncDatabase& InSyncDatabase,
+						   FProgression* InProgression)
 	: Model(InModel)
 	, Progression(InProgression)
 	, SyncDatabase(InSyncDatabase)
 	, Stats(*new FStats)
+	, bIsSynchronizer(bInIsSynchronizer)
 {
 }
 

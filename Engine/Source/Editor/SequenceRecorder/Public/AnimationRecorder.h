@@ -66,6 +66,10 @@ public:
 
 	// FGCObject interface start
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FAnimationRecorder");
+	}
 	// FGCObject interface end
 
 	/** Starts recording an animation. Prompts for asset path and name via dialog if none provided */

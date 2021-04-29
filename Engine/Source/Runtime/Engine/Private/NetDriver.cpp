@@ -1871,14 +1871,20 @@ void UNetDriver::TickDispatch( float DeltaTime )
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(UNetDriver_TickDispatch_CheckClientConnectionCleanup)
 
-			for (int32 i=ClientConnections.Num()-1; i>=0; i--)
-		{
-				if (ClientConnections[i]->State == USOCK_Closed)
+			for (int32 ConnIdx=ClientConnections.Num()-1; ConnIdx>=0; ConnIdx--)
 			{
-				ClientConnections[i]->CleanUp();
+				UNetConnection* CurConn = ClientConnections[ConnIdx];
+
+				if (CurConn->State == USOCK_Closed)
+				{
+					CurConn->CleanUp();
+				}
+				else if (!CurConn->IsPendingKill())
+				{
+					CurConn->PreTickDispatch();
+				}
 			}
 		}
-	}
 
 		// Clean up recently disconnected client tracking
 		if (RecentlyDisconnectedClients.Num() > 0)
@@ -1904,6 +1910,10 @@ void UNetDriver::TickDispatch( float DeltaTime )
 				RecentlyDisconnectedClients.RemoveAt(0, NumToRemove);
 			}
 		}
+	}
+	else if (!ServerConnection->IsPendingKill())
+	{
+		ServerConnection->PreTickDispatch();
 	}
 
 #if RPC_CSV_TRACKER
@@ -3582,6 +3592,8 @@ void UNetDriver::OnPacketSimulationSettingsChanged()
 #endif
 }
 
+#endif
+
 class FPacketSimulationConsoleCommandVisitor 
 {
 public:
@@ -3596,6 +3608,7 @@ public:
  */
 void FPacketSimulationSettings::LoadConfig(const TCHAR* OptionalQualifier)
 {
+#if DO_ENABLE_NET_TEST
 	ConfigHelperInt(TEXT("PktLoss"), PktLoss, OptionalQualifier);
 	
 	ConfigHelperInt(TEXT("PktLossMinSize"), PktLossMinSize, OptionalQualifier);
@@ -3620,10 +3633,12 @@ void FPacketSimulationSettings::LoadConfig(const TCHAR* OptionalQualifier)
 	ConfigHelperInt(TEXT("PktJitter"), PktJitter, OptionalQualifier);
 
 	ValidateSettings();
+#endif
 }
 
 bool FPacketSimulationSettings::LoadEmulationProfile(const TCHAR* ProfileName)
 {
+#if DO_ENABLE_NET_TEST
 	const FString SectionName = FString::Printf(TEXT("%s.%s"), TEXT("PacketSimulationProfile"), ProfileName);
 
 	TArray<FString> SectionConfigs;
@@ -3661,17 +3676,21 @@ bool FPacketSimulationSettings::LoadEmulationProfile(const TCHAR* ProfileName)
 	}
 	
 	ValidateSettings();
-
+#endif
 	return true;
 }
 
 void FPacketSimulationSettings::ResetSettings()
 {
+#if DO_ENABLE_NET_TEST
 	*this = FPacketSimulationSettings();
+#endif
 }
 
 void FPacketSimulationSettings::ValidateSettings()
 {
+#if DO_ENABLE_NET_TEST
+
 	PktLoss = FMath::Clamp<int32>(PktLoss, 0, 100);
 
 	PktOrder = FMath::Clamp<int32>(PktOrder, 0, 1);
@@ -3684,10 +3703,13 @@ void FPacketSimulationSettings::ValidateSettings()
 	PktIncomingLagMin = FMath::Max(PktIncomingLagMin, 0);
 	PktIncomingLagMax = FMath::Max(PktIncomingLagMin, PktIncomingLagMax);
 	PktIncomingLoss = FMath::Clamp<int32>(PktIncomingLoss, 0, 100);
+#endif
 }
 
 bool FPacketSimulationSettings::ConfigHelperInt(const TCHAR* Name, int32& Value, const TCHAR* OptionalQualifier)
 {
+#if DO_ENABLE_NET_TEST
+
 	if (OptionalQualifier)
 	{
 		if (GConfig->GetInt(TEXT("PacketSimulationSettings"), *FString::Printf(TEXT("%s%s"), OptionalQualifier, Name), Value, GEngineIni))
@@ -3700,12 +3722,13 @@ bool FPacketSimulationSettings::ConfigHelperInt(const TCHAR* Name, int32& Value,
 	{
 		return true;
 	}
-
+#endif
 	return false;
 }
 
 bool FPacketSimulationSettings::ConfigHelperBool(const TCHAR* Name, bool& Value, const TCHAR* OptionalQualifier)
 {
+#if DO_ENABLE_NET_TEST
 	if (OptionalQualifier)
 	{
 		if (GConfig->GetBool(TEXT("PacketSimulationSettings"), *FString::Printf(TEXT("%s%s"), OptionalQualifier, Name), Value, GEngineIni))
@@ -3718,7 +3741,7 @@ bool FPacketSimulationSettings::ConfigHelperBool(const TCHAR* Name, bool& Value,
 	{
 		return true;
 	}
-
+#endif
 	return false;
 }
 
@@ -3733,6 +3756,7 @@ bool FPacketSimulationSettings::ParseSettings(const TCHAR* Cmd, const TCHAR* Opt
 	// this is because the same function will be used to parse the command line as well
 	bool bParsed = false;
 
+#if DO_ENABLE_NET_TEST
 	FString EmulationProfileName;
 	if (FParse::Value(Cmd, TEXT("PktEmulationProfile="), EmulationProfileName))
 	{
@@ -3806,11 +3830,13 @@ bool FPacketSimulationSettings::ParseSettings(const TCHAR* Cmd, const TCHAR* Opt
 	}
 
 	ValidateSettings();
+#endif
 	return bParsed;
 }
 
 bool FPacketSimulationSettings::ParseHelper(const TCHAR* Cmd, const TCHAR* Name, int32& Value, const TCHAR* OptionalQualifier)
 {
+#if DO_ENABLE_NET_TEST
 	if (OptionalQualifier)
 	{
 		if (FParse::Value(Cmd, *FString::Printf(TEXT("%s%s"), OptionalQualifier, Name), Value))
@@ -3823,10 +3849,9 @@ bool FPacketSimulationSettings::ParseHelper(const TCHAR* Cmd, const TCHAR* Name,
 	{
 		return true;
 	}
+#endif
 	return false;
 }
-
-#endif //#if DO_ENABLE_NET_TEST
 
 FNetViewer::FNetViewer(UNetConnection* InConnection, float DeltaSeconds) :
 	Connection(InConnection),

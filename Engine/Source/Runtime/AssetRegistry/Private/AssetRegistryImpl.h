@@ -3,14 +3,14 @@
 #pragma once
 
 #include "AssetRegistry/AssetData.h"
-#include "AssetRegistry/IAssetRegistry.h"
 #include "AssetRegistry/AssetRegistryState.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "AssetRegistry/PathTree.h"
 #include "Containers/RingBuffer.h"
 #include "HAL/CriticalSection.h"
 #include "Math/NumericLimits.h"
 #include "ModuleDescriptor.h"
 #include "PackageDependencyData.h"
-#include "PathTree.h"
 #include "Templates/Function.h"
 #include "Templates/UniquePtr.h"
 
@@ -159,7 +159,7 @@ public:
 	Impl::FClassInheritanceBuffer& GetTempCachedInheritanceBuffer() { return TempCachedInheritanceBuffer; }
 	uint64 GetClassGeneratorNamesRegisteredClassesVersionNumber() const { return ClassGeneratorNamesRegisteredClassesVersionNumber; }
 	/** Get a copy of the cached serialization options that were parsed from ini */
-	void CopySerializationOptions(FAssetRegistrySerializationOptions& OutOptions) const;
+	void CopySerializationOptions(FAssetRegistrySerializationOptions& OutOptions, ESerializationTarget Target) const;
 
 	const FAssetRegistryState& GetState() const;
 	const FPathTree& GetCachedPathTree() const;
@@ -239,6 +239,7 @@ private:
 
 	/** Default options used for serialization */
 	FAssetRegistrySerializationOptions SerializationOptions;
+	FAssetRegistrySerializationOptions DevelopmentSerializationOptions;
 
 	/** The set of empty package names (packages which contain no assets but have not yet been saved) */
 	TSet<FName> CachedEmptyPackages;
@@ -430,7 +431,8 @@ bool RunAssetThroughFilter_Unchecked(const FAssetData& AssetData, const FARCompi
 void RunAssetsThroughFilter(TArray<FAssetData>& AssetDataList, const FARCompiledFilter& Filter, const EFilterMode FilterMode);
 
 /** This will always read the ini, public version may return cache */
-void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName);
+void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName,
+	ESerializationTarget Target = ESerializationTarget::ForGame);
 
 /** Load via -Serialize the Out state from file at the given path */
 bool LoadAssetRegistry(const TCHAR* Path, const FAssetRegistryLoadOptions& Options, FAssetRegistryState& Out);

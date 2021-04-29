@@ -76,7 +76,7 @@ namespace
 
 void FPlatformFileTrace::BeginOpen(const TCHAR* Path)
 {
-	uint16 PathSize = (FCString::Strlen(Path) + 1) * sizeof(TCHAR);
+	uint32 PathSize = (FCString::Strlen(Path) + 1) * sizeof(TCHAR);
 	UE_TRACE_LOG(PlatformFile, BeginOpen, FileChannel, PathSize)
 		<< BeginOpen.Cycle(FPlatformTime::Cycles64())
 		<< BeginOpen.Attachment(Path, PathSize);

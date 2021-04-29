@@ -204,6 +204,10 @@ public:
 
 	//~ FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FNiagaraSystemViewModel");
+	}
 
 	//~ FEditorUndoClient interface
 	virtual void PostUndo(bool bSuccess) override;

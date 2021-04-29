@@ -917,7 +917,6 @@ private:
 };
 
 
-
 /**  
  * Manager of asynchronous and parallel shader compilation.
  * This class contains an interface to enqueue and retreive asynchronous shader jobs, and manages a FShaderCompileThreadRunnable.
@@ -1147,7 +1146,10 @@ public:
 
 	void SkipShaderCompilation(bool toggle)
 	{
-		bNoShaderCompilation = toggle;
+		if (AllowShaderCompiling())
+		{
+			bNoShaderCompilation = toggle;
+		}
 	}
 
 	ENGINE_API bool IsCompilingShaderMap(uint32 Id);

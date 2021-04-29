@@ -115,6 +115,10 @@ public:
 
 	// FGCObject interface start
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SSkeletonSlotNames");
+	}
 	// FGCObject interface end
 
 private:

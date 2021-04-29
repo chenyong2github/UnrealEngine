@@ -29,6 +29,10 @@ UDMXEntityFixturePatch::UDMXEntityFixturePatch()
 	, ManualStartingAddress(1)
 	, AutoStartingAddress(1)
 	, ActiveMode(0)
+#if WITH_EDITORONLY_DATA
+	, EditorColor(FLinearColor(1.0f, 0.0f, 1.0f))
+	, bReceiveDMXInEditor(false)
+#endif // WITH_EDITORONLY_DATA
 {
 	CachedDMXValues.Reserve(DMX_UNIVERSE_SIZE);
 }
@@ -59,6 +63,16 @@ void UDMXEntityFixturePatch::Tick(float DeltaTime)
 bool UDMXEntityFixturePatch::IsTickable() const
 {
 	return OnFixturePatchReceivedDMX.IsBound();
+}	
+
+bool UDMXEntityFixturePatch::IsTickableInEditor() const
+{
+	const bool bHasListener = OnFixturePatchReceivedDMX.IsBound();
+
+#if WITH_EDITORONLY_DATA
+	return bHasListener && bReceiveDMXInEditor;
+#endif
+	return bHasListener; 
 }
 
 ETickableTickType UDMXEntityFixturePatch::GetTickableTickType() const
@@ -725,6 +739,14 @@ void UDMXEntityFixturePatch::GetNormalizedAttributesValues(FDMXNormalizedAttribu
 
 bool UDMXEntityFixturePatch::SendMatrixCellValue(const FIntPoint& CellCoordinate, const FDMXAttributeName& Attribute, int32 Value)
 {
+	TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
+	GetMatrixCellChannelsAbsolute(CellCoordinate, AttributeNameChannelMap);
+
+	return SendMatrixCellValueWithAttributeMap(CellCoordinate, Attribute, Value, AttributeNameChannelMap);
+}
+
+bool UDMXEntityFixturePatch::SendMatrixCellValueWithAttributeMap(const FIntPoint& CellCoordinate, const FDMXAttributeName& Attribute, int32 Value, const TMap<FDMXAttributeName, int32>& InAttributeNameChannelMap)
+{
 	const FDMXFixtureMatrix* const FixtureMatrixPtr = GetFixtureMatrixValidated();
 
 	if (!FixtureMatrixPtr)
@@ -739,19 +761,21 @@ bool UDMXEntityFixturePatch::SendMatrixCellValue(const FIntPoint& CellCoordinate
 		return false;
 	}
 
-	TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
-	GetMatrixCellChannelsAbsolute(CellCoordinate, AttributeNameChannelMap);
+	if (!ensure(InAttributeNameChannelMap.Num()))
+	{
+		return false;
+	}
 
 	TMap<int32, uint8> DMXChannelToValueMap;
 	for (const FDMXFixtureCellAttribute& CellAttribute : FixtureMatrix.CellAttributes)
 	{
-		if (!AttributeNameChannelMap.Contains(Attribute))
+		if (!InAttributeNameChannelMap.Contains(Attribute))
 		{
 			continue;
 		}
 
-		int32 FirstChannel = AttributeNameChannelMap[Attribute];
-		int32 LastChannel = FirstChannel + UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType) - 1;
+		const int32 FirstChannel = InAttributeNameChannelMap[Attribute];
+		const int32 LastChannel = FirstChannel + UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType) - 1;
 
 		TArray<uint8> ByteArr;
 		ByteArr.AddZeroed(4);
@@ -966,6 +990,24 @@ bool UDMXEntityFixturePatch::GetMatrixCellChannelsAbsolute(const FIntPoint& Cell
 		}
 
 		return true;
+	}
+
+	return false;
+}
+
+bool UDMXEntityFixturePatch::GetMatrixCellChannelsAbsoluteWithValidation(const FIntPoint& InCellCoordinate, TMap<FDMXAttributeName, int32>& OutAttributeChannelMap)
+{
+	const FDMXFixtureMatrix* const FixtureMatrixPtr = GetFixtureMatrixValidated();
+
+	if (!FixtureMatrixPtr)
+	{
+		return false;
+	}
+
+	const FDMXFixtureMatrix& FixtureMatrix = *FixtureMatrixPtr;
+	if (AreCoordinatesValid(FixtureMatrix, InCellCoordinate))
+	{
+		return GetMatrixCellChannelsAbsolute(InCellCoordinate, OutAttributeChannelMap);
 	}
 
 	return false;

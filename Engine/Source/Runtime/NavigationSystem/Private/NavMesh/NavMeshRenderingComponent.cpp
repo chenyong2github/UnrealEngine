@@ -1131,7 +1131,7 @@ FNavMeshSceneProxy::~FNavMeshSceneProxy()
 	VertexFactory.ReleaseResource();
 }
 
-#if WITH_RECAST && !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if WITH_RECAST && UE_ENABLE_DEBUG_DRAWING
 void FNavMeshDebugDrawDelegateHelper::RegisterDebugDrawDelgate()
 {
 	ensureMsgf(State != RegisteredState, TEXT("RegisterDebugDrawDelgate is already Registered!"));
@@ -1349,7 +1349,7 @@ void FNavMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 	}
 }
 
-#if WITH_RECAST && !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if WITH_RECAST && UE_ENABLE_DEBUG_DRAWING
 void FNavMeshDebugDrawDelegateHelper::DrawDebugLabels(UCanvas* Canvas, APlayerController*)
 {
 	if (!Canvas)

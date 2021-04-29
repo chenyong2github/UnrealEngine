@@ -11,6 +11,8 @@
 #include "AnalyticsEventAttribute.h"
 #include "IAnalyticsProviderET.h"
 #include "Misc/EngineBuildSettings.h"
+#include "Policies/CondensedJsonPrintPolicy.h"
+#include "Serialization/JsonWriter.h"
 
 // #CrashReport: 2015-07-23 Move crashes from C:\Users\[USER]\AppData\Local\Microsoft\Windows\WER\ReportQueue to C:\Users\[USER]\AppData\Local\CrashReportClient\Saved
 
@@ -225,7 +227,7 @@ FString FPrimaryCrashProperties::EncodeArrayStringAsXMLString( const TArray<FStr
  * @Trigger Sends just before the CrashReportClient attempts to upload an ensure (a non-fatal error NOT a crash) report
  *
  * @Type Client
- * @Owner Chris.Wood
+ * @Owner Wes.Hunt
  *
  * @EventParam bHasPrimaryData - Whether the crash loaded data successfully from a crash context or legacy metadata file that was saved by the crashed process ("true" or "false")
  * @EventParam CrashVersion" - Describes the version of the crash data pipeline we used on the client side (1 = Legacy metadata based, 2 = unused, 3 = New crash context based)
@@ -247,6 +249,8 @@ FString FPrimaryCrashProperties::EncodeArrayStringAsXMLString( const TArray<FStr
  * @EventParam PCallStackHash - The hash of the portable callstack
  * @EventParam CrashSignal - The signal that was raised to enter the crash handler
  * @EventParam DeploymentName - Deployment name, also known as EpicApp. (e.g. "DevPlaytest", "PublicTest", "Live", etc)
+ * @EventParam EngineData - Json object containing any context that had been added to the crash context using FGenericCrashContext::SetEngineData.
+ * @EventParam GameData - Json object containing any context that had been added to the crash context using FGenericCrashContext::SetGameData.
  */
 void SendPreUploadEnsureAnalytics(const TArray<FAnalyticsEventAttribute>& InCrashAttributes)
 {
@@ -259,7 +263,7 @@ void SendPreUploadEnsureAnalytics(const TArray<FAnalyticsEventAttribute>& InCras
  * @Trigger Sends just before the CrashReportClient attempts to upload a crash report
  *
  * @Type Client
- * @Owner Chris.Wood
+ * @Owner Wes.Hunt
  *
  * @EventParam bHasPrimaryData - Whether the crash loaded data successfully from a crash context or legacy metadata file that was saved by the crashed process ("true" or "false")
  * @EventParam CrashVersion" - Describes the version of the crash data pipeline we used on the client side (1 = Legacy metadata based, 2 = unused, 3 = New crash context based)
@@ -281,6 +285,8 @@ void SendPreUploadEnsureAnalytics(const TArray<FAnalyticsEventAttribute>& InCras
  * @EventParam PCallStackHash - The hash of the portable callstack
  * @EventParam CrashSignal - The signal that was raised to enter the crash handler
  * @EventParam DeploymentName - Deployment name, also known as EpicApp. (e.g. "DevPlaytest", "PublicTest", "Live", etc)
+ * @EventParam EngineData - Json object containing any context that had been added to the crash context using FGenericCrashContext::SetEngineData.
+ * @EventParam GameData - Json object containing any context that had been added to the crash context using FGenericCrashContext::SetGameData.
  */
 void SendPreUploadCrashAnalytics(const TArray<FAnalyticsEventAttribute>& InCrashAttributes)
 {
@@ -311,7 +317,7 @@ void FPrimaryCrashProperties::SendPreUploadAnalytics()
   * @Trigger Sends after the CrashReportClient successfully uploads an ensure (a non-fatal error NOT a crash) report.
   *
   * @Type Client
-  * @Owner Chris.Wood
+  * @Owner Wes.Hunt
   *
   * @EventParam bHasPrimaryData - Whether the crash loaded data successfully from a crash context or legacy metadata file that was saved by the crashed process ("true" or "false")
   * @EventParam CrashVersion" - Describes the version of the crash data pipeline we used on the client side (1 = Legacy metadata based, 2 = unused, 3 = New crash context based)
@@ -332,7 +338,9 @@ void FPrimaryCrashProperties::SendPreUploadAnalytics()
   * @EventParam UserActivityHint - Application-specific user activity string, if set in the crashed process. The meaning is game/app-specific.
   * @EventParam GameSessionID - Application-specific session Id, if set in the crashed process.
   * @EventParam DeploymentName - Deployment name, also known as EpicApp. (e.g. "DevPlaytest", "PublicTest", "Live", etc)
-  *
+   * @EventParam EngineData - Json object containing any context that had been added to the crash context using FGenericCrashContext::SetEngineData.
+ * @EventParam GameData - Json object containing any context that had been added to the crash context using FGenericCrashContext::SetGameData.
+*
   * @Comments These events should exactly match corresponding CrashReportClient.ReportEnsure events that the CRC sent before the upload started.
   * This event will be missing if the upload failed for any reason so the difference between the event counts should tell you the success rate.
   */
@@ -347,7 +355,7 @@ void SendPostUploadEnsureAnalytics(const TArray<FAnalyticsEventAttribute>& InCra
  * @Trigger Sends after the CrashReportClient successfully uploads a crash report.
  *
  * @Type Client
- * @Owner Chris.Wood
+ * @Owner Wes.Hunt
  *
  * @EventParam bHasPrimaryData - Whether the crash loaded data successfully from a crash context or legacy metadata file that was saved by the crashed process ("true" or "false")
  * @EventParam CrashVersion" - Describes the version of the crash data pipeline we used on the client side (1 = Legacy metadata based, 2 = unused, 3 = New crash context based)
@@ -368,6 +376,8 @@ void SendPostUploadEnsureAnalytics(const TArray<FAnalyticsEventAttribute>& InCra
  * @EventParam UserActivityHint - Application-specific user activity string, if set in the crashed process. The meaning is game/app-specific.
  * @EventParam GameSessionID - Application-specific session Id, if set in the crashed process.
  * @EventParam DeploymentName - Deployment name, also known as EpicApp. (e.g. "DevPlaytest", "PublicTest", "Live", etc)
+ * @EventParam EngineData - Json object containing any context that had been added to the crash context using FGenericCrashContext::SetEngineData.
+ * @EventParam GameData - Json object containing any context that had been added to the crash context using FGenericCrashContext::SetGameData.
  *
  * @Comments These events should exactly match corresponding CrashReportClient.ReportCrash events that the CRC sent before the upload started.
  * This event will be missing if the upload failed for any reason so the difference between the event counts should tell you the success rate.
@@ -393,6 +403,19 @@ void FPrimaryCrashProperties::SendPostUploadAnalytics()
 			SendPostUploadCrashAnalytics(CrashAttributes);
 		}
 	}
+}
+
+namespace CrashDescriptionInternal
+{
+	// Json writer subclass to allow us to avoid using a SharedPtr to write basic Json.
+	typedef TCondensedJsonPrintPolicy<TCHAR> FPrintPolicy;
+	class FAnalyticsJsonWriter : public TJsonStringWriter<FPrintPolicy>
+	{
+	public:
+		explicit FAnalyticsJsonWriter(FString* Out) : TJsonStringWriter<FPrintPolicy>(Out, 0)
+		{
+		}
+	};
 }
 
 void FPrimaryCrashProperties::MakeCrashEventAttributes(TArray<FAnalyticsEventAttribute>& OutCrashAttributes)
@@ -439,22 +462,32 @@ void FPrimaryCrashProperties::MakeCrashEventAttributes(TArray<FAnalyticsEventAtt
 		const FXmlNode* EngineNode = XmlFile->GetRootNode()->FindChildNode( FGenericCrashContext::EngineDataTag );
 		if (EngineNode)
 		{
+			FString EngineDataAttributes;
+			CrashDescriptionInternal::FAnalyticsJsonWriter JsonWriter(&EngineDataAttributes);
+			JsonWriter.WriteObjectStart();
 			for (const FXmlNode* ChildNode : EngineNode->GetChildrenNodes())
 			{
-				FString KeyName = FString(TEXT("EngineData.")) + ChildNode->GetTag();
-				OutCrashAttributes.Add(FAnalyticsEventAttribute(*KeyName, ChildNode->GetContent()));
+				JsonWriter.WriteValue(ChildNode->GetTag(), ChildNode->GetContent());
 			}
+			JsonWriter.WriteObjectEnd();
+			JsonWriter.Close();
+			OutCrashAttributes.Add(FAnalyticsEventAttribute(TEXT("EngineData"), FJsonFragment(MoveTemp(EngineDataAttributes))));
 		}
 
 		// Add arbitrary game data
 		const FXmlNode* GameNode = XmlFile->GetRootNode()->FindChildNode( FGenericCrashContext::GameDataTag );
 		if (GameNode)
 		{
+			FString GameDataAttributes;
+			CrashDescriptionInternal::FAnalyticsJsonWriter JsonWriter(&GameDataAttributes);
+			JsonWriter.WriteObjectStart();
 			for (const FXmlNode* ChildNode : GameNode->GetChildrenNodes())
 			{
-				FString KeyName = FString(TEXT("GameData.")) + ChildNode->GetTag();
-				OutCrashAttributes.Add(FAnalyticsEventAttribute(*KeyName, ChildNode->GetContent()));
+				JsonWriter.WriteValue(ChildNode->GetTag(), ChildNode->GetContent());
 			}
+			JsonWriter.WriteObjectEnd();
+			JsonWriter.Close();
+			OutCrashAttributes.Add(FAnalyticsEventAttribute(TEXT("GameData"), FJsonFragment(MoveTemp(GameDataAttributes))));
 		}
 	}
 	else

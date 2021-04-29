@@ -13,10 +13,21 @@
 			"Enabled": true
 		},
 		{
+			"Name": "OculusVR",
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win32",
+				"Win64",
+				"Android"
+			]
+		},
+		{
 			"Name": "OpenXR",
 			"Enabled": true,
 			"SupportedTargetPlatforms": [
+				"Win32",
 				"Win64",
+				"Linux",
 				"Android",
 				"HoloLens"
 			]

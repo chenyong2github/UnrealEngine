@@ -603,9 +603,9 @@ public:
 	static FString ObjectPathToObjectName(const FString& InObjectPath);
 
 	/**
-	 * Checks the root of the package's path to see if it's an extra package
+	 * Checks the package's path to see if it's a Verse package
 	 */
-	static bool IsExtraPackage(FStringView InPackageName);
+	static bool IsVersePackage(FStringView InPackageName);
 
 	/**
 	 * Checks the root of the package's path to see if it is a script package

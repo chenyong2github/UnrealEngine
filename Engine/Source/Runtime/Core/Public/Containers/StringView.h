@@ -278,6 +278,26 @@ public:
 	// Searching/Finding
 
 	/**
+	 * Searches the view for a substring, and returns index into this view
+	 * of the first found instance, or INDEX_NONE if not found.
+	 *
+	 * @param SubStr			The text to search for
+	 * @param StartPosition		The start character position to search from
+	 */
+	CORE_API int32 Find(ViewType SubStr, SizeType StartPosition = 0) const;
+
+	/**
+	 * Returns whether this view contains the specified substring.
+	 *
+	 * @param SubStr			Text to search for
+	 * @return					Returns whether the view contains the substring
+	 **/
+	UE_NODISCARD FORCEINLINE bool Contains(ViewType SubStr) const
+	{
+		return Find(SubStr) != INDEX_NONE;
+	}
+
+	/**
 	 * Search the view for the first occurrence of a character.
 	 *
 	 * @param InChar The character to search for. Comparison is lexicographic.

@@ -25,6 +25,7 @@ public class GameplayMediaEncoder : ModuleRules
 			"HTTP",
 			"Json",
 			"AVEncoder",
+			"WebRTC",
 			//"IBMRTMPIngest"
         });
 

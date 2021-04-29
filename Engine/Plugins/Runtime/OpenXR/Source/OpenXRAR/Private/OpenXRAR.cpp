@@ -468,7 +468,7 @@ void FOpenXRARSystem::EndMeshUpdates()
 	{
 		FScopeLock sl(&SUPlaneUpdateListSync);
 		SUPlaneUpdateList.Add(SUCurrentPlaneUpdate);
-		bNeedsThreadQueueing = MeshUpdateList.Num() == 1;
+		bNeedsThreadQueueing = SUPlaneUpdateList.Num() == 1;
 	}
 	SUCurrentPlaneUpdate = nullptr;
 
@@ -574,7 +574,10 @@ void FOpenXRARSystem::AddOrUpdateMesh_GameThread(FOpenXRMeshUpdate* CurrentMesh)
 
 		bIsAdd = true;
 
-		AARActor::RequestSpawnARActor(CurrentMesh->Id, SessionConfig->GetMeshComponentClass());
+		if (SessionConfig != nullptr)
+		{
+			AARActor::RequestSpawnARActor(CurrentMesh->Id, SessionConfig->GetMeshComponentClass());
+		}
 	}
 
 	UARTrackedGeometry* NewUpdatedGeometry = FoundTrackedGeometryGroup->TrackedGeometry;
@@ -646,7 +649,10 @@ void FOpenXRARSystem::AddOrUpdatePlane_GameThread(FOpenXRPlaneUpdate* CurrentPla
 
 		bIsAdd = true;
 
-		AARActor::RequestSpawnARActor(CurrentPlaneUpdate->Id, SessionConfig->GetPlaneComponentClass());
+		if (SessionConfig != nullptr)
+		{
+			AARActor::RequestSpawnARActor(CurrentPlaneUpdate->Id, SessionConfig->GetPlaneComponentClass());
+		}
 	}
 
 	UARTrackedGeometry* NewUpdatedGeometry = FoundTrackedGeometryGroup->TrackedGeometry;
@@ -775,7 +781,10 @@ void FOpenXRARSystem::ARTrackedGeometryAdded_GameThread(FOpenXRARTrackedGeometry
 
 	InData->UpdateTrackedGeometry(TrackedGeometryGroup.TrackedGeometry, TrackingSystem->GetARCompositionComponent());
 
-	AARActor::RequestSpawnARActor(InData->Id, SessionConfig->GetQRCodeComponentClass());
+	if (SessionConfig != nullptr)
+	{
+		AARActor::RequestSpawnARActor(InData->Id, SessionConfig->GetQRCodeComponentClass());
+	}
 	delete InData;
 }
 

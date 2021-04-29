@@ -2724,6 +2724,12 @@ FShaderCompilingManager* GShaderCompilingManager = NULL;
 
 bool FShaderCompilingManager::AllTargetPlatformSupportsRemoteShaderCompiling()
 {
+	// no compiling support
+	if (!AllowShaderCompiling())
+	{
+		return false;
+	}
+
 	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();	
 	if (!TPM)
 	{
@@ -2744,6 +2750,12 @@ bool FShaderCompilingManager::AllTargetPlatformSupportsRemoteShaderCompiling()
 
 IDistributedBuildController* FShaderCompilingManager::FindRemoteCompilerController() const
 {
+	// no controllers needed if not compiling
+	if (!AllowShaderCompiling())
+	{
+		return nullptr;
+	}
+
 	TArray<IDistributedBuildController*> AvailableControllers = IModularFeatures::Get().GetModularFeatureImplementations<IDistributedBuildController>(IDistributedBuildController::GetModularFeatureType());
 
 	auto FindXGE = [](IDistributedBuildController* Controller)
@@ -2790,6 +2802,14 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	SuppressedShaderPlatforms(0),
 	bNoShaderCompilation(false)
 {
+	// don't perform any initialization if compiling is not allowed
+	if (!AllowShaderCompiling())
+	{
+		// use existing flag to disable compiling
+		bNoShaderCompilation = true;
+		return;
+	}
+
 	bool bForceUseSCWMemoryPressureLimits = false;
 	
 	BuildDistributionController = nullptr;
@@ -3026,6 +3046,12 @@ FShaderCompilingManager::FShaderCompilingManager() :
 
 FShaderCompilingManager::~FShaderCompilingManager()
 {
+	// we never initialized, so nothbing to do
+	if (!AllowShaderCompiling())
+	{
+		return;
+	}
+
 	PrintStats();
 
 	for (const auto& Thread : Threads)
@@ -3157,6 +3183,12 @@ void FShaderCompilingManager::ReleaseJob(FShaderCommonCompileJob* Job)
 
 void FShaderCompilingManager::SubmitJobs(TArray<FShaderCommonCompileJobPtr>& NewJobs, const FString MaterialBasePath, const FString PermutationString)
 {
+	// make sure no compiling can start if not allowed
+	if (!AllowShaderCompiling())
+	{
+		return;
+	}
+
 	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompilingManager::SubmitJobs);
 	check(!FPlatformProperties::RequiresCookedData());
 
@@ -3214,11 +3246,23 @@ bool FShaderCompilingManager::IsCompilingShaderMap(uint32 Id)
 
 FShaderCompileJob* FShaderCompilingManager::PrepareShaderCompileJob(uint32 Id, const FShaderCompileJobKey& Key, EShaderCompileJobPriority Priority)
 {
+	// don't allow any jobs if not allowed
+	if (!AllowShaderCompiling())
+	{
+		return nullptr;
+	}
+
 	return AllJobs.PrepareJob(Id, Key, Priority);
 }
 
 FShaderPipelineCompileJob* FShaderCompilingManager::PreparePipelineCompileJob(uint32 Id, const FShaderPipelineCompileJobKey& Key, EShaderCompileJobPriority Priority)
 {
+	// don't allow any jobs if not allowed
+	if (!AllowShaderCompiling())
+	{
+		return nullptr;
+	}
+
 	return AllJobs.PrepareJob(Id, Key, Priority);
 }
 
@@ -3230,6 +3274,12 @@ void FShaderCompilingManager::ProcessFinishedJob(FShaderCommonCompileJob* Finish
 /** Launches the worker, returns the launched process handle. */
 FProcHandle FShaderCompilingManager::LaunchWorker(const FString& WorkingDirectory, uint32 InProcessId, uint32 ThreadId, const FString& WorkerInputFile, const FString& WorkerOutputFile)
 {
+	// don't allow any jobs if not allowed
+	if (!AllowShaderCompiling())
+	{
+		return FProcHandle();
+	}
+
 	// Setup the parameters that the worker application needs
 	// Surround the working directory with double quotes because it may contain a space 
 	// WorkingDirectory ends with a '\', so we have to insert another to meet the Windows commandline parsing rules 
@@ -3340,6 +3390,12 @@ void FShaderCompilingManager::AddCompiledResults(TMap<int32, FShaderMapFinalizeR
 /** Flushes all pending jobs for the given shader maps. */
 void FShaderCompilingManager::BlockOnShaderMapCompletion(const TArray<int32>& ShaderMapIdsToFinishCompiling, TMap<int32, FShaderMapFinalizeResults>& CompiledShaderMaps)
 {
+	// never block if no compiling, just in case
+	if (!AllowShaderCompiling())
+	{
+		return;
+	}
+
 	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompilingManager::BlockOnShaderMapCompletion);
 	SCOPE_STALL_REPORTER(FShaderCompilingManager::BlockOnShaderMapCompletion, 2.0);
 
@@ -3462,6 +3518,12 @@ void FShaderCompilingManager::BlockOnShaderMapCompletion(const TArray<int32>& Sh
 
 void FShaderCompilingManager::BlockOnAllShaderMapCompletion(TMap<int32, FShaderMapFinalizeResults>& CompiledShaderMaps)
 {
+	// never block if no compiling, just in case
+	if (!AllowShaderCompiling())
+	{
+		return;
+	}
+
 	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompilingManager::BlockOnAllShaderMapCompletion);
 	SCOPE_STALL_REPORTER(FShaderCompilingManager::BlockOnAllShaderMapCompletion, 2.0);
 
@@ -3602,6 +3664,12 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 	TMap<int32, FShaderMapFinalizeResults>& CompiledShaderMaps, 
 	float TimeBudget)
 {
+	// never process anything if not allowed, just in case
+	if (!AllowShaderCompiling())
+	{
+		return;
+	}
+
 #if WITH_EDITOR
 	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompilingManager::ProcessCompiledShaderMaps);
 
@@ -3859,6 +3927,12 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 
 void FShaderCompilingManager::PropagateMaterialChangesToPrimitives(const TMap<TRefCountPtr<FMaterial>, TRefCountPtr<FMaterialShaderMap>>& MaterialsToUpdate)
 {
+	// don't perform any work if no compiling
+	if (!AllowShaderCompiling())
+	{
+		return;
+	}
+
 	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompilingManager::PropagateMaterialChangesToPrimitives);
 
 	TSet<FSceneInterface*> ScenesToUpdate;
@@ -4178,6 +4252,12 @@ void FShaderMapCompileResults::CheckIfHung()
 
 void FShaderCompilingManager::CancelCompilation(const TCHAR* MaterialName, const TArray<int32>& ShaderMapIdsToCancel)
 {
+	// nothing to cancel here, just in case
+	if (!AllowShaderCompiling())
+	{
+		return;
+	}
+
 	check(IsInGameThread());
 	check(!FPlatformProperties::RequiresCookedData());
 
@@ -4221,6 +4301,12 @@ void FShaderCompilingManager::CancelCompilation(const TCHAR* MaterialName, const
 
 void FShaderCompilingManager::FinishCompilation(const TCHAR* MaterialName, const TArray<int32>& ShaderMapIdsToFinishCompiling)
 {
+	// nothing to do
+	if (!AllowShaderCompiling())
+	{
+		return;
+	}
+
 	check(IsInGameThread());
 	check(!FPlatformProperties::RequiresCookedData());
 	const double StartTime = FPlatformTime::Seconds();
@@ -5780,6 +5866,7 @@ void VerifyGlobalShaders(EShaderPlatform Platform, const ITargetPlatform* Target
 			// Metal also needs this when using RHI thread because it uses TOneColorVS very early in RHIPostInit()
 			!IsOpenGLPlatform(GMaxRHIShaderPlatform) && !IsVulkanPlatform(GMaxRHIShaderPlatform) &&
 			!IsMetalPlatform(GMaxRHIShaderPlatform) && !IsSwitchPlatform(GMaxRHIShaderPlatform) &&
+			FDataDrivenShaderPlatformInfo::GetSupportsAsyncPipelineCompilation(GMaxRHIShaderPlatform) &&
 			GShaderCompilingManager->AllowAsynchronousShaderCompiling();
 
 		if (!bAllowAsynchronousGlobalShaderCompiling)
@@ -6018,7 +6105,8 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 
 		// Try to load the global shaders from a local cache file if it exists
 		// This method is used exclusively with cooked content, since the DDC is not present
-		if (FPlatformProperties::RequiresCookedData())
+		// If shader compiling is disabled, go down the cooked path
+		if (FPlatformProperties::RequiresCookedData() || !AllowShaderCompiling())
 		{
 			SlowTask.EnterProgressFrame(50);
 

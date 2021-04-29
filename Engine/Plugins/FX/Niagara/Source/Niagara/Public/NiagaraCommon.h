@@ -367,6 +367,10 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	UPROPERTY()
 	uint32 bSoftDeprecatedFunction : 1;
 
+	/** Whether or not this function should be treated as a compile tag. */
+	UPROPERTY()
+	uint32 bIsCompileTagGenerator : 1;
+
 	/** Hidden functions can not be placed but may be bound and used.  This is useful to hide functionality while developing. */
 	UPROPERTY(transient)
 	uint32 bHidden : 1;
@@ -407,6 +411,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
 		, bSoftDeprecatedFunction(false)
+		, bIsCompileTagGenerator(false)
 		, bHidden(false)
 		, ModuleUsageBitmask(0)
 		, ContextStageMinIndex(INDEX_NONE)
@@ -424,6 +429,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
 		, bSoftDeprecatedFunction(false)
+		, bIsCompileTagGenerator(false)
 		, bHidden(false)
 		, ModuleUsageBitmask(0)
 		, ContextStageMinIndex(INDEX_NONE)
@@ -473,6 +479,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		bMatches &= OwnerName == Other.OwnerName;
 		bMatches &= ContextStageMinIndex == Other.ContextStageMinIndex;
 		bMatches &= ContextStageMaxIndex == Other.ContextStageMaxIndex;
+		bMatches &= bIsCompileTagGenerator == Other.bIsCompileTagGenerator;
 		return bMatches;
 	}
 
@@ -1375,4 +1382,11 @@ enum class ENCPoolMethod : uint8
 	Special entry that marks a NC as having been returned to the pool. All NCs currently in the pool are marked this way.
 	*/
 	FreeInPool UMETA(Hidden),
+};
+
+UENUM()
+enum class ENiagaraFunctionDebugState : uint8
+{
+	NoDebug,
+	Basic,
 };

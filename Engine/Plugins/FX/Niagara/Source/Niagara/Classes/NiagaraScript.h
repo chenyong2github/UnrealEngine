@@ -397,6 +397,9 @@ public:
 	UPROPERTY()
 	uint32 bReadsSignificanceIndex : 1;
 
+	UPROPERTY()
+	uint32 bNeedsGPUContextInit : 1;
+
 	void SerializeData(FArchive& Ar, bool bDDCData);
 	
 	bool IsValid() const;
@@ -432,6 +435,10 @@ public:
 	/** Used to break up scripts of the same Usage type in UI display.*/
 	UPROPERTY(EditAnywhere, Category = Script)
 	FText Category;
+
+	/** If true, this script will be added to a 'Suggested' category at the top of menus during searches */
+	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
+	bool bSuggested = false;
 	
 	/** Array of Ids of dependencies provided by this module to other modules on the stack (e.g. 'ProvidesNormalizedAge') */
 	UPROPERTY(EditAnywhere, Category = Script)
@@ -499,6 +506,18 @@ public:
 	UPROPERTY()
 	mutable FNiagaraVMExecutableDataId LastGeneratedVMId;
 
+	/** Reference to a python script that is executed when the user updates from a previous version to this version. */
+	UPROPERTY()
+	ENiagaraPythonUpdateScriptReference UpdateScriptExecution = ENiagaraPythonUpdateScriptReference::None;
+
+	/** Python script to run when updating to this script version. */
+	UPROPERTY()
+	FString PythonUpdateScript;
+
+	/** Asset reference to a python script to run when updating to this script version. */
+	UPROPERTY()
+	FFilePath ScriptAsset;
+
 	TArray<ENiagaraParameterScope> GetUnsupportedParameterScopes() const;
 	TArray<ENiagaraScriptUsage> GetSupportedUsageContexts() const;
 	
@@ -549,12 +568,15 @@ public:
 
 	/** Deletes the version data for an existing version. The exposed version cannot be deleted and will result in an error. Does nothing if the guid does not exist in the script's version data. */
 	NIAGARA_API void DeleteVersion(const FGuid& VersionGuid);
-	
+
 	/** Changes the exposed version. Does nothing if the guid does not exist in the script's version data. */
 	NIAGARA_API void ExposeVersion(const FGuid& VersionGuid);
 
 	/** Enables versioning for this script asset. */
 	NIAGARA_API void EnableVersioning();
+
+	/** Disables versioning and keeps only the data from the given version guid. Note that this breaks ALL references from existing assets and should only be used when creating a copy of a script, as the effect is very destructive.  */
+	NIAGARA_API void DisableVersioning(const FGuid& VersionGuidToUse);
 
 	/** Makes sure that the default version data is available and fixes old script assets. */
 	NIAGARA_API void CheckVersionDataAvailable();
@@ -833,7 +855,7 @@ public:
 	NIAGARA_API bool DidScriptCompilationSucceed(bool bGPUScript) const;
 
 	template<typename T>
-	TOptional<T> GetCompilerTag(const FNiagaraVariableBase& InVar) const
+	TOptional<T> GetCompilerTag(const FNiagaraVariableBase& InVar, const FNiagaraParameterStore* FallbackParameterStore = nullptr) const
 	{
 		for (const FNiagaraCompilerTag& Tag : CachedScriptVM.CompileTags)
 		{
@@ -846,6 +868,11 @@ public:
 				else if (const int32* Offset = RapidIterationParameters.FindParameterOffset(FNiagaraVariableBase(Tag.Variable.GetType(), *Tag.StringValue)))
 				{
 					return TOptional<T>(*(T*)RapidIterationParameters.GetParameterData(*Offset));
+				}
+				else if (FallbackParameterStore)
+				{
+					if (const int32* OffsetAlternate = FallbackParameterStore->FindParameterOffset(FNiagaraVariableBase(Tag.Variable.GetType(), *Tag.StringValue)))
+						return TOptional<T>(*(T*)FallbackParameterStore->GetParameterData(*OffsetAlternate));
 				}
 			}
 		}

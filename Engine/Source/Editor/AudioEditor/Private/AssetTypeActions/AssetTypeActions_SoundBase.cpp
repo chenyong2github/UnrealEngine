@@ -251,6 +251,7 @@ bool FAssetTypeActions_SoundBase::CanExecutePlayCommand(TArray<TWeakObjectPtr<US
 
 void FAssetTypeActions_SoundBase::ExecuteMuteSound(TArray<TWeakObjectPtr<USoundBase>> Objects) const
 {	
+#if ENABLE_AUDIO_DEBUG
 	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
 		Audio::FAudioDebugger& Debugger = ADM->GetDebugger();
@@ -271,10 +272,12 @@ void FAssetTypeActions_SoundBase::ExecuteMuteSound(TArray<TWeakObjectPtr<USoundB
 			}
 		}
 	}
+#endif
 }
 
 void FAssetTypeActions_SoundBase::ExecuteSoloSound(TArray<TWeakObjectPtr<USoundBase>> Objects) const
 {
+#if ENABLE_AUDIO_DEBUG
 	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
 		Audio::FAudioDebugger& Debugger = ADM->GetDebugger();
@@ -295,10 +298,12 @@ void FAssetTypeActions_SoundBase::ExecuteSoloSound(TArray<TWeakObjectPtr<USoundB
 			}
 		}
 	}
+	#endif
 }
 
 bool FAssetTypeActions_SoundBase::IsActionCheckedMute(TArray<TWeakObjectPtr<USoundBase>> Objects) const
 {
+#if ENABLE_AUDIO_DEBUG
 	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
 		// If *any* of the selection are muted, show the tick box as ticked.
@@ -321,11 +326,13 @@ bool FAssetTypeActions_SoundBase::IsActionCheckedMute(TArray<TWeakObjectPtr<USou
 			}
 		}
 	}
+#endif
 	return false;
 }
 
 bool FAssetTypeActions_SoundBase::IsActionCheckedSolo(TArray<TWeakObjectPtr<USoundBase>> Objects) const
 {
+#if ENABLE_AUDIO_DEBUG
 	// If *any* of the selection are solod, show the tick box as ticked.
 	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
@@ -348,11 +355,13 @@ bool FAssetTypeActions_SoundBase::IsActionCheckedSolo(TArray<TWeakObjectPtr<USou
 			}
 		}
 	}
+#endif
 	return false;
 }
 
 bool FAssetTypeActions_SoundBase::CanExecuteMuteCommand(TArray<TWeakObjectPtr<USoundBase>> Objects) const
 {
+#if ENABLE_AUDIO_DEBUG
 	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
 		// Allow muting if we're not Soloing.
@@ -378,11 +387,13 @@ bool FAssetTypeActions_SoundBase::CanExecuteMuteCommand(TArray<TWeakObjectPtr<US
 		// Ok.
 		return true;
 	}
+#endif
 	return false;
 }
 
 bool FAssetTypeActions_SoundBase::CanExecuteSoloCommand(TArray<TWeakObjectPtr<USoundBase>> Objects) const
 {	
+#if ENABLE_AUDIO_DEBUG
 	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
 		// Allow Soloing if we're not Muting.
@@ -408,6 +419,7 @@ bool FAssetTypeActions_SoundBase::CanExecuteSoloCommand(TArray<TWeakObjectPtr<US
 		// Ok.
 		return true;
 	}
+#endif
 	return false;
 }
 

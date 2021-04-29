@@ -1129,6 +1129,11 @@ void UMovieSceneCompiledDataManager::GatherTrack(const FMovieSceneBinding* Objec
 			TRange<FFrameNumber>         ClampedRangeRoot         = Params.ClampRoot(SequenceToRootTransform.TransformRangeUnwarped(Entry.Range));
 			UMovieSceneSection*          Section                  = Entry.Section;
 
+			if (Section && Track->IsRowEvalDisabled(Section->GetRowIndex()))
+			{
+				continue;
+			}
+
 			if (ClampedRangeRoot.IsEmpty())
 			{
 				continue;
@@ -1234,6 +1239,11 @@ bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrac
 	// Step 1 - Add structural information for the sequence
 	for (UMovieSceneSection* Section : SubTrack->GetAllSections())
 	{
+		if (SubTrack->IsRowEvalDisabled(Section->GetRowIndex()))
+		{
+			continue;
+		}
+
 		UMovieSceneSubSection* SubSection  = Cast<UMovieSceneSubSection>(Section);
 		if (!SubSection)
 		{
@@ -1287,11 +1297,17 @@ bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrac
 				continue;
 			}
 
+			if (SubTrack->IsRowEvalDisabled(SubSection->GetRowIndex()))
+			{
+				continue;
+			}
+
 			EMovieSceneServerClientMask NewMask = Params.NetworkMask & SubSection->GetNetworkMask();
 			if (NewMask == EMovieSceneServerClientMask::None)
 			{
 				continue;
 			}
+
 
 			TRange<FFrameNumber> EffectiveRange = Params.ClampRoot(Entry.Range * Params.RootToSequenceTransform.InverseLinearOnly());
 			if (EffectiveRange.IsEmpty())

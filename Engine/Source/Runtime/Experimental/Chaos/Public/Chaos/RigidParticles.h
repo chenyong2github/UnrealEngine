@@ -90,6 +90,7 @@ public:
 		TArrayCollection::AddArray(&MCollisionConstraintFlags);
 		TArrayCollection::AddArray(&MDisabled);
 		TArrayCollection::AddArray(&MObjectState);
+		TArrayCollection::AddArray(&MPreObjectState);
 		TArrayCollection::AddArray(&MIsland);
 		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
 		TArrayCollection::AddArray(&MGravityEnabled);
@@ -117,6 +118,7 @@ public:
 		, MCollisionGroup(MoveTemp(Other.MCollisionGroup))
 		, MCollisionConstraintFlags(MoveTemp(Other.MCollisionConstraintFlags))
 		, MObjectState(MoveTemp(Other.MObjectState))
+		, MPreObjectState(MoveTemp(Other.MPreObjectState))
 		, MGravityEnabled(MoveTemp(Other.MGravityEnabled))
 		, MOneWayInteraction(MoveTemp(Other.MOneWayInteraction))
 		, MResimType(MoveTemp(Other.MResimType))
@@ -143,6 +145,7 @@ public:
 		TArrayCollection::AddArray(&MCollisionConstraintFlags);
 		TArrayCollection::AddArray(&MDisabled);
 		TArrayCollection::AddArray(&MObjectState);
+		TArrayCollection::AddArray(&MPreObjectState);
 		TArrayCollection::AddArray(&MIsland);
 		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
 		TArrayCollection::AddArray(&MGravityEnabled);
@@ -265,6 +268,9 @@ public:
 	FORCEINLINE const EObjectStateType ObjectState(const int32 Index) const { return MObjectState[Index]; }
 	FORCEINLINE EObjectStateType& ObjectState(const int32 Index) { return MObjectState[Index]; }
 
+	FORCEINLINE const EObjectStateType PreObjectState(const int32 Index) const { return MPreObjectState[Index]; }
+	FORCEINLINE EObjectStateType& PreObjectState(const int32 Index) { return MPreObjectState[Index]; }
+
 	FORCEINLINE const bool Dynamic(const int32 Index) const { return ObjectState(Index) == EObjectStateType::Dynamic; }
 
 	FORCEINLINE const bool Sleeping(const int32 Index) const { return ObjectState(Index) == EObjectStateType::Sleeping; }
@@ -349,6 +355,7 @@ private:
 	TArrayCollectionArray<bool> MDisabled;
 	TArrayCollectionArray<bool> MToBeRemovedOnFracture;
 	TArrayCollectionArray<EObjectStateType> MObjectState;
+	TArrayCollectionArray<EObjectStateType> MPreObjectState;
 	TArrayCollectionArray<bool> MGravityEnabled;
 	TArrayCollectionArray<bool> MOneWayInteraction;
 	TArrayCollectionArray<EResimType> MResimType;

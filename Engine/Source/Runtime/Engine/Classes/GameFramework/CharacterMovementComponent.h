@@ -28,8 +28,33 @@ class FSavedMove_Character;
 class UPrimitiveComponent;
 class INavigationData;
 class UCharacterMovementComponent;
+class FCharacterMovementAsyncCallback;
+struct FCharacterMovementAsyncInput;
+struct FCharacterMovementAsyncOutput;
+
+// Enum used to control GetPawnCapsuleExtent behavior
+enum EShrinkCapsuleExtent
+{
+	SHRINK_None,			// Don't change the size of the capsule
+	SHRINK_RadiusCustom,	// Change only the radius, based on a supplied param
+	SHRINK_HeightCustom,	// Change only the height, based on a supplied param
+	SHRINK_AllCustom,		// Change both radius and height, based on a supplied param
+};
 
 DECLARE_DELEGATE_RetVal_ThreeParams(FTransform, FOnProcessRootMotion, const FTransform&, UCharacterMovementComponent*, float)
+
+namespace CharacterMovementConstants
+{
+	extern const float MAX_STEP_SIDE_Z;
+	extern const float VERTICAL_SLOPE_NORMAL_Z;
+}
+
+namespace CharacterMovementCVars
+{
+	// Is Async Character Movement enabled?
+	extern ENGINE_API int32 AsyncCharacterMovement;
+	extern int32 ForceJumpPeakSubstep;
+}
 
 /** Data about the floor for walking movement, used by CharacterMovementComponent. */
 USTRUCT(BlueprintType)
@@ -104,6 +129,19 @@ public:
 	void SetFromLineTrace(const FHitResult& InHit, const float InSweepFloorDist, const float InLineDist, const bool bIsWalkableFloor);
 };
 
+
+/** Struct updated by StepUp() to return result of final step down, if applicable. */
+struct FStepDownResult
+{
+	uint32 bComputedFloor : 1;		// True if the floor was computed as a result of the step down.
+	FFindFloorResult FloorResult;	// The result of the floor test if the floor was updated.
+
+	FStepDownResult()
+		: bComputedFloor(false)
+	{
+	}
+};
+
 /** 
  * Tick function that calls UCharacterMovementComponent::PostPhysicsTickComponent
  **/
@@ -132,6 +170,39 @@ struct FCharacterMovementComponentPostPhysicsTickFunction : public FTickFunction
 
 template<>
 struct TStructOpsTypeTraits<FCharacterMovementComponentPostPhysicsTickFunction> : public TStructOpsTypeTraitsBase2<FCharacterMovementComponentPostPhysicsTickFunction>
+{
+	enum
+	{
+		WithCopy = false
+	};
+};
+
+USTRUCT()
+struct FCharacterMovementComponentPrePhysicsTickFunction : public FTickFunction
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** CharacterMovementComponent that is the target of this tick **/
+	class UCharacterMovementComponent* Target;
+
+	/**
+	 * Abstract function actually execute the tick.
+	 * @param DeltaTime - frame time to advance, in seconds
+	 * @param TickType - kind of tick for this frame
+	 * @param CurrentThread - thread we are executing on, useful to pass along as new tasks are created
+	 * @param MyCompletionGraphEvent - completion event for this task. Useful for holding the completion of this task until certain child tasks are complete.
+	 **/
+	virtual void ExecuteTick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent) override;
+
+	/** Abstract function to describe this tick. Used to print messages about illegal cycles in the dependency graph **/
+	virtual FString DiagnosticMessage() override;
+	
+	/** Function used to describe this tick for active tick reporting. **/
+	virtual FName DiagnosticContext(bool bDetailed) override;
+};
+
+template<>
+struct TStructOpsTypeTraits<FCharacterMovementComponentPrePhysicsTickFunction> : public TStructOpsTypeTraitsBase2<FCharacterMovementComponentPrePhysicsTickFunction>
 {
 	enum
 	{
@@ -191,6 +262,8 @@ public:
 	/** Fraction of JumpZVelocity to use when automatically "jumping off" of a base actor that's not allowed to be a base for a character. (For example, if you're not allowed to stand on other players.) */
 	UPROPERTY(Category="Character Movement: Jumping / Falling", EditAnywhere, BlueprintReadWrite, AdvancedDisplay, meta=(ClampMin="0", UIMin="0"))
 	float JumpOffJumpZFactor;
+
+	FCharacterMovementAsyncCallback* AsyncCallback;
 
 private:
 
@@ -1203,6 +1276,7 @@ public:
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	virtual void OnRegister() override;
 	virtual void BeginDestroy() override;
+	virtual void BeginPlay() override;
 	virtual void PostLoad() override;
 	virtual void Deactivate() override;
 	virtual void RegisterComponentTickFunctions(bool bRegister) override;
@@ -1444,18 +1518,6 @@ public:
 	/** Returns true if we can step up on the actor in the given FHitResult. */
 	virtual bool CanStepUp(const FHitResult& Hit) const;
 
-	/** Struct updated by StepUp() to return result of final step down, if applicable. */
-	struct FStepDownResult
-	{
-		uint32 bComputedFloor:1;		// True if the floor was computed as a result of the step down.
-		FFindFloorResult FloorResult;	// The result of the floor test if the floor was updated.
-
-		FStepDownResult()
-			: bComputedFloor(false)
-		{
-		}
-	};
-
 	/** 
 	 * Move up steps or slope. Does nothing and returns false if CanStepUp(Hit) returns false.
 	 *
@@ -1465,7 +1527,7 @@ public:
 	 * @param OutStepDownResult	[Out] If non-null, a floor check will be performed if possible as part of the final step down, and it will be updated to reflect this result.
 	 * @return true if the step up was successful.
 	 */
-	virtual bool StepUp(const FVector& GravDir, const FVector& Delta, const FHitResult &Hit, struct UCharacterMovementComponent::FStepDownResult* OutStepDownResult = NULL);
+	virtual bool StepUp(const FVector& GravDir, const FVector& Delta, const FHitResult &Hit, FStepDownResult* OutStepDownResult = NULL);
 
 	/** Update the base of the character, which is the PrimitiveComponent we are standing on. */
 	virtual void SetBase(UPrimitiveComponent* NewBase, const FName BoneName = NAME_None, bool bNotifyActor=true);
@@ -1773,6 +1835,12 @@ public:
 	/** Set the Z component of the normal of the steepest walkable surface for the character. Also computes WalkableFloorAngle. */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
 	void SetWalkableFloorZ(float InWalkableFloorZ);
+	
+	/** Pre-physics tick function for this character */
+	struct FCharacterMovementComponentPrePhysicsTickFunction PrePhysicsTickFunction;
+
+	/** Tick function called before physics */
+	virtual void PrePhysicsTickComponent(float DeltaTime, FCharacterMovementComponentPrePhysicsTickFunction& ThisTickFunction);
 
 	/** Post-physics tick function for this character */
 	UPROPERTY()
@@ -2001,14 +2069,6 @@ protected:
 	UFUNCTION()
 	virtual void CapsuleTouched(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
-	// Enum used to control GetPawnCapsuleExtent behavior
-	enum EShrinkCapsuleExtent
-	{
-		SHRINK_None,			// Don't change the size of the capsule
-		SHRINK_RadiusCustom,	// Change only the radius, based on a supplied param
-		SHRINK_HeightCustom,	// Change only the height, based on a supplied param
-		SHRINK_AllCustom,		// Change both radius and height, based on a supplied param
-	};
 
 	/** Get the capsule extent for the Pawn owner, possibly reduced in size depending on ShrinkMode.
 	 * @param ShrinkMode			Controls the way the capsule is resized.
@@ -2053,6 +2113,13 @@ protected:
 	 */
 	virtual void OnUnableToFollowBaseMove(const FVector& DeltaPosition, const FVector& OldLocation, const FHitResult& MoveOnBaseHit);
 
+
+private:
+	/* Prepare inputs for asynchronous simulation on physics thread */ 
+	virtual void FillAsyncInput(const FVector& InputVector, FCharacterMovementAsyncInput& AsyncInput) const;
+	/* Apply outputs from async sim. */
+	virtual void ApplyAsyncOutput(FCharacterMovementAsyncOutput& Output);
+	
 public:
 
 	/**

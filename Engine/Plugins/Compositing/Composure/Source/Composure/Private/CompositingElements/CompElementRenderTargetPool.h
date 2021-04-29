@@ -53,6 +53,10 @@ public:
 public:
 	//~ Begin FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FCompElementRenderTargetPool");
+	}
 	//~ End FGCObject interface
 
 	//~ Begin FTickableEditorObject interface

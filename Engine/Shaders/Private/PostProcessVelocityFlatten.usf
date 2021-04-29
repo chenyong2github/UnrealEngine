@@ -8,6 +8,15 @@
 #define THREADGROUP_SIZEY		16
 #define THREADGROUP_TOTALSIZE	(THREADGROUP_SIZEX * THREADGROUP_SIZEY)
 
+#ifndef CAMERA_MOTION_BLUR_MODE
+// 0-off; 1-on; 2-override
+#define CAMERA_MOTION_BLUR_MODE 1
+#endif
+
+#if CAMERA_MOTION_BLUR_MODE == 2
+float4x4 ClipToPrevClipOverride;
+#endif
+
 float MotionBlur_AspectRatio;
 float MotionBlur_VelocityScale;
 float MotionBlur_VelocityScaleForTiles;
@@ -52,6 +61,17 @@ float2 PolarToCartesian(float2 Velocity)
 	float Angle = Velocity.y;
 	sincos(Angle, Velocity.y, Velocity.x);
 	return Velocity * Length;
+}
+
+float2 GetCameraMotionVelocity(uint3 DispatchThreadId, float Depth, float4x4 ClipToPrevClip)
+{
+	// Compute velocity due to camera motion.
+	float2 ViewportUV = ((float2)DispatchThreadId.xy + 0.5) / Velocity_ViewportSize;
+	float2 ScreenPos = 2 * float2(ViewportUV.x, 1 - ViewportUV.y) - 1;
+	float4 ThisClip = float4(ScreenPos, Depth, 1);
+	float4 PrevClip = mul(ThisClip, ClipToPrevClip);
+	float2 PrevScreen = PrevClip.xy / PrevClip.w;
+	return ScreenPos - PrevScreen;
 }
 
 [numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
@@ -99,21 +119,31 @@ void VelocityFlattenMain(
 	float4 EncodedVelocity = VelocityTexture[ PixelPos + DepthOffset ];
 	float Depth = DepthTexture[ PixelPos + DepthOffset ].x;
 
-	float2 Velocity;
+	float2 Velocity = 0.0f;
 	if (EncodedVelocity.x > 0.0)
 	{
 		Velocity = DecodeVelocityFromTexture(EncodedVelocity).xy;
+#if CAMERA_MOTION_BLUR_MODE != 1
+		// Cancel motion blur caused by the current camera movements
+		Velocity -= GetCameraMotionVelocity(DispatchThreadId, Depth, View.ClipToPrevClip);
+#endif
+#if CAMERA_MOTION_BLUR_MODE == 2
+		// Apply motion blur caused by the custom camera movements
+		Velocity += GetCameraMotionVelocity(DispatchThreadId, Depth, ClipToPrevClipOverride);
+#endif
 	}
+#if CAMERA_MOTION_BLUR_MODE > 0
 	else
 	{
-		// Compute velocity due to camera motion.
-		float2 ViewportUV = ((float2)DispatchThreadId.xy + 0.5) / Velocity_ViewportSize;
-		float2 ScreenPos = 2 * float2(ViewportUV.x, 1 - ViewportUV.y) - 1;
-		float4 ThisClip = float4(ScreenPos, Depth, 1);
-		float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
-		float2 PrevScreen = PrevClip.xy / PrevClip.w;
-		Velocity = ScreenPos - PrevScreen;
+#if CAMERA_MOTION_BLUR_MODE == 2
+		// Apply motion blur caused by the custom camera movements
+		Velocity = GetCameraMotionVelocity(DispatchThreadId, Depth, ClipToPrevClipOverride);
+#else
+		// Apply motion blur caused by the current camera movements
+		Velocity = GetCameraMotionVelocity(DispatchThreadId, Depth, View.ClipToPrevClip);
+#endif
 	}
+#endif
 
 	Velocity.y *= -MotionBlur_AspectRatio;
 

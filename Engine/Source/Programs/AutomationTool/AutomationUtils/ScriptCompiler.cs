@@ -29,6 +29,7 @@ namespace AutomationTool
 	public static class ScriptCompiler
 	{
 		private static Dictionary<string, Type> ScriptCommands;
+		private static HashSet<Assembly> AllCompiledAssemblies;
 #if DEBUG
 		const string BuildConfig = "Debug";
 #else
@@ -94,6 +95,7 @@ namespace AutomationTool
 			// Load everything
 			Stopwatch LoadTimer = Stopwatch.StartNew();
 			List<Assembly> Assemblies = LoadAutomationAssemblies(Projects);
+			AllCompiledAssemblies = new HashSet<Assembly>(Assemblies);
 			Log.TraceLog("Loaded assemblies in {0:0.000}s", LoadTimer.Elapsed.TotalSeconds);
 
 			// Setup platforms
@@ -223,6 +225,18 @@ namespace AutomationTool
 				}
 			}
 			return Assemblies;
+		}
+
+		public static HashSet<Assembly> GetCompiledAssemblies()
+		{
+			if (AllCompiledAssemblies == null)
+			{
+				return new HashSet<Assembly>();
+			}
+			else
+			{
+				return AllCompiledAssemblies;
+			}
 		}
 
 		public static Dictionary<string, Type> Commands

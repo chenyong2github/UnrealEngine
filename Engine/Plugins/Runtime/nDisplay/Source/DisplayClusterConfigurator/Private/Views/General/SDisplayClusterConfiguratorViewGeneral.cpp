@@ -2,7 +2,7 @@
 
 #include "Views/General/SDisplayClusterConfiguratorViewGeneral.h"
 
-#include "DisplayClusterConfiguratorToolkit.h"
+#include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "DisplayClusterConfigurationTypes.h"
 
 #include "IDetailsView.h"
@@ -21,12 +21,12 @@ SDisplayClusterConfiguratorViewGeneral::~SDisplayClusterConfiguratorViewGeneral(
 {
 }
 
-void SDisplayClusterConfiguratorViewGeneral::Construct(const FArguments& InArgs, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit)
+void SDisplayClusterConfiguratorViewGeneral::Construct(const FArguments& InArgs, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
 {
 	ToolkitPtr = InToolkit;
 
 	// Delegates
-	InToolkit->RegisterOnConfigReloaded(IDisplayClusterConfiguratorToolkit::FOnConfigReloadedDelegate::CreateSP(this, &SDisplayClusterConfiguratorViewGeneral::OnConfigReloaded));
+	InToolkit->RegisterOnConfigReloaded(IDisplayClusterConfiguratorBlueprintEditor::FOnConfigReloadedDelegate::CreateSP(this, &SDisplayClusterConfiguratorViewGeneral::OnConfigReloaded));
 
 	// Create a property view
 	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");

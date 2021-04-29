@@ -226,6 +226,8 @@ void DatasmithSketchUpUtils::SetActorTransform(
 	Imath::Vec3<float> Axis = Quaternion.axis();
 	FQuat Rotation(FVector(Axis.x, Axis.y, Axis.z), Angle);
 
+	check(Rotation.IsNormalized());
+
 	// Convert the SketchUp right-handed Z-up coordinate translation into an Unreal left-handed Z-up coordinate translation.
 	// To avoid perturbating X, which is forward in Unreal, the handedness conversion is done by flipping the side vector Y.
 	// SketchUp uses inches as internal system unit for all 3D coordinates in the model while Unreal uses centimeters.
@@ -233,9 +235,9 @@ void DatasmithSketchUpUtils::SetActorTransform(
 	FVector Translation = DatasmithSketchUpUtils::FromSketchUp::ConvertPosition(SMatrix[12], SMatrix[13], SMatrix[14]);
 
 	// Set the world transform of the Datasmith actor.
-	InActorElement->SetScale(Scale.x, Scale.y, Scale.z);
-	InActorElement->SetRotation(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W);
-	InActorElement->SetTranslation(Translation.X, Translation.Y, Translation.Z);
+	InActorElement->SetScale(Scale.x, Scale.y, Scale.z, false);
+	InActorElement->SetRotation(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W, false);
+	InActorElement->SetTranslation(Translation.X, Translation.Y, Translation.Z, false);
 }
 
 SUTransformation DatasmithSketchUpUtils::GetComponentInstanceTransform(SUComponentInstanceRef InComponentInstanceRef, SUTransformation const& InWorldTransform)

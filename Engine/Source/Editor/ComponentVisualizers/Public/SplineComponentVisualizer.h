@@ -385,6 +385,10 @@ protected:
 
 	// FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector);
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FSplineComponentVisualizer");
+	}
 	// End of FGCObject interface
 
 	/** Output log commands */

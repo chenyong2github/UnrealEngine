@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "SnapshotArchives.h"
 
-
 /* For writing data into an object */
 class FApplySnapshotDataArchive : public FObjectSnapshotArchive
 {
@@ -22,8 +21,6 @@ public:
 private:
 	
 	FApplySnapshotDataArchive(const FBaseObjectInfo& InObjectInfo, const FPropertySelection* InSelectedProperties = nullptr);
-
-	void HandleHiddenCustomSerializedProperty(const FProperty* InProperty, bool& bShouldSkipProperty) const;
 
 	/* Valid when serializing into world actor. */
 	TOptional<const FPropertySelection*> SelectedProperties;	

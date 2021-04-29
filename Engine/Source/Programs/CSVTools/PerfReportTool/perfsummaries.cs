@@ -1281,7 +1281,7 @@ namespace PerfSummaries
                     else if (graph.settings.statString.isSet)
                     {
                         string statString = graph.settings.statString.value;
-                        string[] statNames = statString.Split(' ');
+                        string[] statNames = statString.Split(',');
                         foreach (string stat in statNames)
                         {
                             AddStat(stat, graph.budget, graph.settings.statMultiplier.isSet ? graph.settings.statMultiplier.value : 1.0, graph.isInMainSummary);
@@ -1509,6 +1509,18 @@ namespace PerfSummaries
 							totalFrameWeight += frameTimes[i];
 						}
 					}
+				}
+				else if (col.formula == "maximum")
+				{
+					for (int i = startFrame; i < colEndFrame; i++)
+					{
+						if (col.filterOutZeros == false || statValues[i] > 0)
+						{
+							value = statValues[i] > value ? statValues[i] : value;
+						}
+					}
+
+					totalFrameWeight = 1.0;
 				}
 				else if (col.formula == "percentoverthreshold")
 				{

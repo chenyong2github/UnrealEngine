@@ -213,7 +213,7 @@ static FAutoConsoleCommand CCmdNiagaraDumpPriorities(
 //////////////////////////////////////////////////////////////////////////
 
 #if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
-FORCEINLINE FParticlePerfStats* GetInstancePerfStats(FNiagaraSystemInstance* Inst) { return CastChecked<UNiagaraComponent>(Inst->GetAttachComponent())->ParticlePerfStats; }
+FORCEINLINE FParticlePerfStats* GetInstancePerfStats(FNiagaraSystemInstance* Inst) { UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(Inst->GetAttachComponent()); return NiagaraComponent ? NiagaraComponent->ParticlePerfStats : nullptr; }
 #else
 FORCEINLINE FParticlePerfStats* GetInstancePerfStats(FNiagaraSystemInstance* Inst) { return nullptr; }
 #endif

@@ -8,7 +8,7 @@
 #include "Templates/SharedPointer.h"
 #include "Containers/UnrealString.h"
 #include "Containers/Map.h"
-#include "DOM/JsonObject.h"
+#include "Dom/JsonObject.h"
 #include "Delegates/IDelegateInstance.h"
 
 class IWebSocket;

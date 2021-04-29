@@ -6,6 +6,7 @@
 		<log text="Firebase init"/>
 
 		<setBoolFromProperty result="bEnabled" ini="Engine" section="Firebase" property="FirebaseEnabled" default="false"/>
+		<setStringFromProperty result="FirebaseService" ini="Engine" section="Firebase" property="FirebaseService" default="com.epicgames.unreal.notifications.EpicFirebaseMessagingService"/>
 		<if condition="bEnabled">
 			<true>
 				<log text="Firebase enabled!"/>
@@ -27,14 +28,16 @@
 							<action android:name="com.google.firebase.INSTANCE_ID_EVENT"/>
 						</intent-filter>
 					</service>
-					<service
-					  android:name="com.epicgames.unreal.notifications.EpicFirebaseMessagingService"
-					  android:exported="false">
-						<intent-filter>
+				</addElements>
+				<setElement result="ServiceElement" value="service" />
+				<addAttribute tag="$ServiceElement" name="android:name" value="$S(FirebaseService)" />
+				<addAttribute tag="$ServiceElement" name="android:exported" value="false" />
+				<addElements tag="$ServiceElement">
+					  	<intent-filter>
 							<action android:name="com.google.firebase.MESSAGING_EVENT"/>
 						</intent-filter>
-					</service>
 				</addElements>
+				<addElement tag="application" name="ServiceElement" />
 			</true>
 		</if>
 	</androidManifestUpdates>
@@ -92,5 +95,4 @@ apply plugin: 'com.google.gms.google-services'
 			</true>
 		</if>
 	</gameActivityAllowedRemoteNotificationsAdditions>
-
 </root>

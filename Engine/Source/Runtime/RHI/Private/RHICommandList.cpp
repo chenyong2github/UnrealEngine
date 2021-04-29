@@ -9,9 +9,11 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "RHI.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/ScopeExit.h"
 #include "PipelineStateCache.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Trace/Trace.inl"
+#include "GenericPlatform/GenericPlatformCrashContext.h"
 
 CSV_DEFINE_CATEGORY_MODULE(RHI_API, RHITStalls, false);
 CSV_DEFINE_CATEGORY_MODULE(RHI_API, RHITFlushes, false);
@@ -204,6 +206,61 @@ void GetRenderThreadSublistDispatchTaskDebugInfo(bool& bIsNull, bool& bIsComplet
 }
 #endif
 
+#if RHI_WANT_BREADCRUMB_EVENTS
+struct FRHIBreadcrumbState
+{
+	TArray<TCHAR, TInlineAllocator<1024>> NameBuffer;
+	TArray<int32, TInlineAllocator<8>> NameOffsets;
+};
+
+void FRHIComputeCommandList::ExportBreadcrumbState(FRHIBreadcrumbState& State)
+{
+	FRHIBreadcrumb* Breadcrumb = BreadcrumbStackTop;
+	while (Breadcrumb)
+	{
+		const int32 NameLen = FCString::Strlen(Breadcrumb->Name);
+
+		const int32 NameOffset = State.NameBuffer.Num();
+
+		State.NameBuffer.Append(Breadcrumb->Name, NameLen + 1);
+		State.NameOffsets.Add(NameOffset);
+
+		Breadcrumb = Breadcrumb->Parent;
+		PopBreadcrumb_Internal();
+	}
+	check(BreadcrumbStackTop == nullptr);
+}
+
+void FRHIComputeCommandList::ImportBreadcrumbState(const FRHIBreadcrumbState& State)
+{
+	const int32 NameCount = State.NameOffsets.Num();
+	for (int32 i = 0; i < NameCount; ++i)
+	{
+		const int32 NameOffset = State.NameOffsets[NameCount - 1 - i];
+		const TCHAR* BreadcrumbName = &State.NameBuffer[NameOffset];
+		PushBreadcrumb_Internal(BreadcrumbName);
+	}
+}
+
+void FRHIComputeCommandList::InheritBreadcrumbs(const FRHIComputeCommandList& Parent)
+{
+	// We have to do a deep copy of each breadcrumb since their data lives inside each command list.
+	FRHIBreadcrumb* Breadcrumb = Parent.BreadcrumbStackTop;
+	TArray<const TCHAR*, TInlineAllocator<8>> BreadcrumbStack;
+	while (Breadcrumb)
+	{
+		BreadcrumbStack.Add(Breadcrumb->Name);
+		Breadcrumb = Breadcrumb->Parent;
+	}
+
+	int32 Size = BreadcrumbStack.Num();
+	for (int32 i = 0; i < Size; ++i)
+	{
+		PushBreadcrumb(BreadcrumbStack[Size - 1 - i]);
+	}
+}
+#endif // RHI_WANT_BREADCRUMB_EVENTS
+
 FRHICOMMAND_MACRO(FRHICommandStat)
 {
 	TStatId CurrentExecuteStat;
@@ -305,13 +362,90 @@ DECLARE_CYCLE_STAT(TEXT("BigList"), STAT_BigList, STATGROUP_RHICMDLIST);
 DECLARE_CYCLE_STAT(TEXT("SmallList"), STAT_SmallList, STATGROUP_RHICMDLIST);
 DECLARE_CYCLE_STAT(TEXT("PTrans"), STAT_PTrans, STATGROUP_RHICMDLIST);
 
+#if WITH_ADDITIONAL_CRASH_CONTEXTS && RHI_WANT_BREADCRUMB_EVENTS
+static void WriteRenderBreadcrumbs(FCrashContextExtendedWriter& Writer, FRHIBreadcrumb const* const* BreadcrumbPtr, const TCHAR* ThreadName)
+{
+	enum
+	{
+		MAX_BREADCRUMBS = 128,
+		MAX_BREADCRUMB_STRING = 2048,
+		MAX_BREADCRUMB_NAME_STRING = 128,
+	};
+	static int BreadcrumbId = 0;
+	const TCHAR* BreadcrumbNames[MAX_BREADCRUMBS];
+
+	TCHAR StaticBreadcrumbStackString[MAX_BREADCRUMB_STRING];
+	TCHAR StaticBreadcrumbName[MAX_BREADCRUMB_NAME_STRING];
+	TCHAR* BreadcrumbStackString = &StaticBreadcrumbStackString[0];
+	size_t BreadcrumbStackStringSize = 0;
+	BreadcrumbStackStringSize += FCString::Snprintf(&StaticBreadcrumbStackString[BreadcrumbStackStringSize], MAX_BREADCRUMB_STRING, TEXT("Breadcrumbs '%s'\n"), ThreadName);
+	if (BreadcrumbPtr && *BreadcrumbPtr)
+	{
+		FRHIBreadcrumb const* Breadcrumb = *BreadcrumbPtr;
+		int32 Index = 0;
+		while (Breadcrumb && Index < MAX_BREADCRUMBS)
+		{
+			BreadcrumbNames[Index] = Breadcrumb->Name;
+			Breadcrumb = Breadcrumb->Parent;
+			Index++;
+		}
+		uint32 StackPos = 0;
+		if (BreadcrumbStackStringSize < MAX_BREADCRUMB_STRING)
+		{
+			BreadcrumbStackStringSize += FCString::Snprintf(&StaticBreadcrumbStackString[BreadcrumbStackStringSize], MAX_BREADCRUMB_STRING - BreadcrumbStackStringSize, TEXT("RHI\n"));
+		}
+		for (int32 i = Index - 1; i >= 0; --i)
+		{
+			if (BreadcrumbStackStringSize < MAX_BREADCRUMB_STRING)
+			{
+				BreadcrumbStackStringSize += FCString::Snprintf(&StaticBreadcrumbStackString[BreadcrumbStackStringSize], MAX_BREADCRUMB_STRING - BreadcrumbStackStringSize, TEXT("\t%02d %s\n"), StackPos, BreadcrumbNames[i]);
+			}
+			StackPos++;
+		}
+	}
+
+	FCString::Snprintf(StaticBreadcrumbName, MAX_BREADCRUMB_NAME_STRING, TEXT("Breadcrumbs_%s_%d"), ThreadName, BreadcrumbId++);
+	Writer.AddString(StaticBreadcrumbName, StaticBreadcrumbStackString);
+	UE_LOG(LogRHI, Error, StaticBreadcrumbStackString);
+}
+#endif
+
 void FRHICommandListExecutor::ExecuteInner_DoExecute(FRHICommandListBase& CmdList)
 {
 	FScopeCycleCounter ScopeOuter(CmdList.ExecuteStat);
 
 	CmdList.bExecuting = true;
 	check(CmdList.Context || CmdList.ComputeContext);
+
 	FMemMark Mark(FMemStack::Get());
+
+#if WITH_ADDITIONAL_CRASH_CONTEXTS && RHI_WANT_BREADCRUMB_EVENTS
+	const FRHIBreadcrumb* OriginalTop = CmdList.Context ? *CmdList.Context->GetBreadcrumbStackTopRef() : nullptr;
+
+	// Need a struct because Crash context scope only allows 1 argument
+	struct
+	{
+		const TCHAR* ThreadName;
+		FRHIBreadcrumb const* const* BreadcrumbPointer;
+	} CrashState;
+	CrashState.ThreadName = TEXT("Parallel");
+	CrashState.BreadcrumbPointer = CmdList.Context ? CmdList.Context->GetBreadcrumbStackTopRef() : nullptr;
+	if (IsInRenderingThread())
+	{
+		CrashState.ThreadName = TEXT("RenderingThread");
+	}
+	else if (IsInRHIThread())
+	{
+		CrashState.ThreadName = TEXT("RHIThread");
+	}
+
+	UE_ADD_CRASH_CONTEXT_SCOPE([&CrashState](FCrashContextExtendedWriter& Writer) {  WriteRenderBreadcrumbs(Writer, CrashState.BreadcrumbPointer, CrashState.ThreadName); });
+
+	if (CmdList.Context)
+	{
+		CmdList.Context->RHISetBreadcrumbStackTop(CmdList.PopFirstUnsubmittedBreadcrumb());
+	}
+#endif
 
 #if WITH_MGPU
 	// Set the initial GPU mask on the contexts before executing any commands.
@@ -483,7 +617,21 @@ public:
 
 void FRHICommandListExecutor::ExecuteInner(FRHICommandListBase& CmdList)
 {
-	check(CmdList.HasCommands()); 
+	check(CmdList.HasCommands());
+
+	FRHIComputeCommandList& ComputeCommandList = (FRHIComputeCommandList&)CmdList;
+
+#if RHI_WANT_BREADCRUMB_EVENTS
+	FRHIBreadcrumbState BreadcrumbState;
+	// Once executed, the memory containing the breadcrumbs will be freed, so any open markers are popped and stored into BreadcrumbState
+	ComputeCommandList.ExportBreadcrumbState(BreadcrumbState);
+
+	ON_SCOPE_EXIT
+	{
+		// And then pushed into the newly opened list.
+		ComputeCommandList.ImportBreadcrumbState(BreadcrumbState);
+	};
+#endif // RHI_WANT_BREADCRUMB_EVENTS
 
 	bool bIsInRenderingThread = IsInRenderingThread();
 	bool bIsInGameThread = IsInGameThread();
@@ -942,6 +1090,14 @@ void FRHICommandListBase::Reset()
 	ExecuteStat = TStatId();
 
 	InitialGPUMask = GPUMask;
+
+#if RHI_WANT_BREADCRUMB_EVENTS
+	check(BreadcrumbStackTop == nullptr);
+	BreadcrumbStackTop = nullptr;
+	// Should be null if we submitted
+	check(FirstUnsubmittedBreadcrumb == nullptr);
+	FirstUnsubmittedBreadcrumb = nullptr;
+#endif
 }
 
 void FRHICommandListBase::MaybeDispatchToRHIThreadInner()
@@ -1978,7 +2134,7 @@ void* FRHICommandListBase::operator new(size_t Size)
 void FRHICommandListBase::operator delete(void *RawMemory)
 {
 	FMemory::Free(RawMemory);
-}	
+}
 
 
 FBufferRHIRef FDynamicRHI::CreateBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)

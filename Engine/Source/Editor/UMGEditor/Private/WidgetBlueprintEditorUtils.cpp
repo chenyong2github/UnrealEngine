@@ -238,6 +238,7 @@ bool FWidgetBlueprintEditorUtils::RenameWidget(TSharedRef<FWidgetBlueprintEditor
 			Widget->Rename(*NewNameStr);
 		}
 
+#if UE_HAS_WIDGET_GENERATED_BY_CLASS
 		// When a widget gets renamed we need to check any existing blueprint getters that may be placed
 		// in the graphs to fix up their state
 		if(Widget->bIsVariable)
@@ -280,6 +281,7 @@ bool FWidgetBlueprintEditorUtils::RenameWidget(TSharedRef<FWidgetBlueprintEditor
 				}
 			}
 		}
+#endif
 
 		// Update Variable References and
 		// Update Event References to member variables
@@ -949,10 +951,16 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgetWithSelectedTemplate(TSharedRef<F
 	}
 	ThisWidget->SetFlags(RF_Transactional);
 	ThisWidget->Modify();
+
 	BP->WidgetTree->SetFlags(RF_Transactional);
 	BP->WidgetTree->Modify();
 
-	if (UPanelWidget* CurrentParent = ThisWidget->GetParent())
+	// Look if the Widget to replace is a NamedSlot.
+	if (TScriptInterface<INamedSlotInterface> NamedSlotHost = FindNamedSlotHostForContent(ThisWidget, BP->WidgetTree))
+	{
+		ReplaceNamedSlotHostContent(ThisWidget, NamedSlotHost, NewReplacementWidget);
+	}
+	else if (UPanelWidget* CurrentParent = ThisWidget->GetParent())
 	{
 		CurrentParent->SetFlags(RF_Transactional);
 		CurrentParent->Modify();
@@ -1066,10 +1074,18 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgetWithChildren(TSharedRef<FWidgetBl
 	{
 		UWidget* FirstChildTemplate = ExistingPanelTemplate->GetChildAt(0);
 
+		ExistingPanelTemplate->SetFlags(RF_Transactional);
 		ExistingPanelTemplate->Modify();
+
+		FirstChildTemplate->SetFlags(RF_Transactional);
 		FirstChildTemplate->Modify();
 
-		if ( UPanelWidget* PanelParentTemplate = ExistingPanelTemplate->GetParent() )
+		// Look if the Widget to replace is a NamedSlot.
+		if (TScriptInterface<INamedSlotInterface> NamedSlotHost = FindNamedSlotHostForContent(ExistingPanelTemplate, BP->WidgetTree))
+		{
+			ReplaceNamedSlotHostContent(ExistingPanelTemplate, NamedSlotHost, FirstChildTemplate);
+		}
+		else if (UPanelWidget* PanelParentTemplate = ExistingPanelTemplate->GetParent())
 		{
 			PanelParentTemplate->Modify();
 
@@ -1082,10 +1098,6 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgetWithChildren(TSharedRef<FWidgetBl
 
 			BP->WidgetTree->Modify();
 			BP->WidgetTree->RootWidget = FirstChildTemplate;
-		}
-		else if (TScriptInterface<INamedSlotInterface> NamedSlotHost = FindNamedSlotHostForContent(ExistingPanelTemplate, BP->WidgetTree))
-		{
-			ReplaceNamedSlotHostContent(ExistingPanelTemplate, NamedSlotHost, FirstChildTemplate);
 		}
 		else
 		{
@@ -1110,14 +1122,26 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgetWithNamedSlot(TSharedRef<FWidgetB
 
 		FScopedTransaction Transaction(LOCTEXT("ReplaceWidgets", "Replace Widgets"));
 
+		WidgetTemplate->SetFlags(RF_Transactional);
 		WidgetTemplate->Modify();
+
+		NamedSlotContentTemplate->SetFlags(RF_Transactional);
 		NamedSlotContentTemplate->Modify();
 
-		if (UPanelWidget* PanelParentTemplate = WidgetTemplate->GetParent())
+		// Look if the Widget to replace is a NamedSlot.
+		if (TScriptInterface<INamedSlotInterface> NamedSlotHost = FindNamedSlotHostForContent(WidgetTemplate, BP->WidgetTree))
+		{
+			ReplaceNamedSlotHostContent(WidgetTemplate, NamedSlotHost, NamedSlotContentTemplate);
+		}
+		else if (UPanelWidget* PanelParentTemplate = WidgetTemplate->GetParent())
 		{
 			PanelParentTemplate->Modify();
 
-			NamedSlotContentTemplate->RemoveFromParent();
+			if (TScriptInterface<INamedSlotInterface> ContentNamedSlotHost = FindNamedSlotHostForContent(NamedSlotContentTemplate, BP->WidgetTree))
+			{
+				FWidgetBlueprintEditorUtils::RemoveNamedSlotHostContent(NamedSlotContentTemplate, ContentNamedSlotHost);
+			}
+
 			PanelParentTemplate->ReplaceChild(WidgetTemplate, NamedSlotContentTemplate);
 		}
 		else if (WidgetTemplate == BP->WidgetTree->RootWidget)
@@ -1126,10 +1150,6 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgetWithNamedSlot(TSharedRef<FWidgetB
 
 			BP->WidgetTree->Modify();
 			BP->WidgetTree->RootWidget = NamedSlotContentTemplate;
-		}
-		else if (TScriptInterface<INamedSlotInterface> NamedSlotHost = FindNamedSlotHostForContent(WidgetTemplate, BP->WidgetTree))
-		{
-			ReplaceNamedSlotHostContent(WidgetTemplate, NamedSlotHost, NamedSlotContentTemplate);
 		}
 		else
 		{
@@ -1172,7 +1192,12 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgets(TSharedRef<FWidgetBlueprintEdit
 		ThisWidget->SetFlags(RF_Transactional);
 		ThisWidget->Modify();
 
-		if (UPanelWidget* CurrentParent = ThisWidget->GetParent())
+		// Look if the Widget to replace is a NamedSlot.
+		if (TScriptInterface<INamedSlotInterface> NamedSlotHost = FindNamedSlotHostForContent(ThisWidget, BP->WidgetTree))
+		{
+			ReplaceNamedSlotHostContent(ThisWidget, NamedSlotHost, NewReplacementWidget);
+		}
+		else if (UPanelWidget* CurrentParent = ThisWidget->GetParent())
 		{
 			CurrentParent->SetFlags(RF_Transactional);
 			CurrentParent->Modify();

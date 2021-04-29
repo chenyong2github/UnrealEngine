@@ -95,11 +95,14 @@ int32 GuardedMain( const TCHAR* CmdLine )
 	FTaskTagScope Scope(ETaskTag::EGameThread);
 
 #if !(UE_BUILD_SHIPPING)
-	if (FParse::Param(CmdLine, TEXT("waitforattach")))
+
+	// If "-waitforattach" or "-WaitForDebugger" was specified, halt startup and wait for a debugger to attach before continuing
+	if (FParse::Param(CmdLine, TEXT("waitforattach")) || FParse::Param(CmdLine, TEXT("WaitForDebugger")))
 	{
 		while (!FPlatformMisc::IsDebuggerPresent());
 		UE_DEBUG_BREAK();
 	}
+
 #endif
 
 	BootTimingPoint("DefaultMain");

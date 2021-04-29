@@ -140,12 +140,12 @@ public:
 
 	virtual bool IsAsyncLoadingSuspended() override
 	{
-		return CookedPackageLoader->IsAsyncLoadingSuspended() | UncookedPackageLoader->IsAsyncLoadingSuspended();
+		return CookedPackageLoader->IsAsyncLoadingSuspended() || UncookedPackageLoader->IsAsyncLoadingSuspended();
 	}
 
 	virtual bool IsInAsyncLoadThread() override
 	{
-		return CookedPackageLoader->IsInAsyncLoadThread() | UncookedPackageLoader->IsInAsyncLoadThread();
+		return CookedPackageLoader->IsInAsyncLoadThread() || UncookedPackageLoader->IsInAsyncLoadThread();
 	}
 
 	virtual bool IsMultithreaded() override
@@ -156,10 +156,7 @@ public:
 
 	virtual bool IsAsyncLoadingPackages() override
 	{
-		const bool bIsAsyncLoadingCookedPackages = CookedPackageLoader->IsAsyncLoadingPackages();
-		const bool bIsAsyncLoadingUncookedPackages = UncookedPackageLoader->IsAsyncLoadingPackages();
-
-		return bIsAsyncLoadingCookedPackages | bIsAsyncLoadingUncookedPackages;
+		return CookedPackageLoader->IsAsyncLoadingPackages() || UncookedPackageLoader->IsAsyncLoadingPackages();
 	}
 
 	virtual void NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject) override

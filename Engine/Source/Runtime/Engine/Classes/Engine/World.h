@@ -1149,7 +1149,7 @@ public:
 	*  You need Physics Scene if you'd like to trace. This flag changed ticking */
 	uint8 bShouldSimulatePhysics:1;
 
-#if !UE_BUILD_SHIPPING
+#if !UE_BUILD_SHIPPING || WITH_EDITOR
 	/** If TRUE, 'hidden' components will still create render proxy, so can draw info (see USceneComponent::ShouldRender) */
 	uint8 bCreateRenderStateForHiddenComponentsWithCollsion:1;
 #endif // !UE_BUILD_SHIPPING
@@ -1673,7 +1673,7 @@ public:
 	/** Name of persistent level if we've loaded levels via CommitMapChange() that aren't normally in the StreamingLevels array (to inform newly joining clients) */
 	FName CommittedPersistentLevelName;
 
-#if !UE_BUILD_SHIPPING
+#if !UE_BUILD_SHIPPING || WITH_EDITOR
 	/**
 	 * This is a int on the level which is set when a light that needs to have lighting rebuilt
 	 * is moved.  This is then checked in CheckMap for errors to let you know that this level should

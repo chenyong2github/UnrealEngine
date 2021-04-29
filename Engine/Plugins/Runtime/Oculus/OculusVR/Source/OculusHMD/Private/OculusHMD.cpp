@@ -2181,13 +2181,21 @@ namespace OculusHMD
 			UE_LOG(LogHMD, Log, TEXT("OculusHMD plugin supports multiview!"));
 		}
 #endif
-		ovrpDistortionWindowFlag flag = ovrpDistortionWindowFlag_None;
+		int flag = ovrpDistortionWindowFlag_None;
 #if PLATFORM_ANDROID && USE_ANDROID_EGL_NO_ERROR_CONTEXT
 		if (AndroidEGL::GetInstance()->GetSupportsNoErrorContext())
 		{
 			flag = ovrpDistortionWindowFlag_NoErrorContext;
 		}
 #endif // PLATFORM_ANDROID && USE_ANDROID_EGL_NO_ERROR_CONTEXT
+
+#if PLATFORM_ANDROID
+		if (Settings->bPhaseSync)
+		{
+			flag |= ovrpDistortionWindowFlag_PhaseSync;
+		}
+#endif // PLATFORM_ANDROID
+
 		FOculusHMDModule::GetPluginWrapper().SetupDistortionWindow3(flag);
 		FOculusHMDModule::GetPluginWrapper().SetSystemCpuLevel2(Settings->CPULevel);
 		FOculusHMDModule::GetPluginWrapper().SetSystemGpuLevel2(Settings->GPULevel);
@@ -3560,6 +3568,7 @@ namespace OculusHMD
 		Settings->GPULevel = HMDSettings->GPULevel;
 		Settings->PixelDensityMin = HMDSettings->PixelDensityMin;
 		Settings->PixelDensityMax = HMDSettings->PixelDensityMax;
+		Settings->bPhaseSync = HMDSettings->bPhaseSync;
 	}
 
 	/// @endcond

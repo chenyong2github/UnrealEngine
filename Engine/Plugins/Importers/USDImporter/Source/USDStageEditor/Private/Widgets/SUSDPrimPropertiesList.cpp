@@ -686,12 +686,16 @@ void SUsdPrimPropertiesList::GeneratePropertiesList( const TCHAR* InPrimPath )
 	float TimeCode = 0.f;
 
 	IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
-	AUsdStageActor* UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
 
-	if ( UsdStageActor )
+	if ( AUsdStageActor* UsdStageActor = UsdStageModule.FindUsdStageActor( GWorld ) )
 	{
 		TimeCode = UsdStageActor->GetTime();
-		ViewModel.UsdStage = UsdStageActor->GetUsdStage();
+		ViewModel.UsdStage = const_cast< const AUsdStageActor* >( UsdStageActor )->GetUsdStage();
+	}
+	else
+	{
+		// If we have no actor, reset our stage. Or else we may keep a reference to the existing stage even if all actors are gone
+		ViewModel.UsdStage = UE::FUsdStage();
 	}
 
 	ViewModel.Refresh( InPrimPath, TimeCode );

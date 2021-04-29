@@ -20,6 +20,15 @@ namespace UsdUtils
 	using FObjectChangesByPath = TMap<FString, TArray<FObjectChangeNotice>>;
 }
 
+namespace UE
+{
+	namespace UsdTransactor
+	{
+		/** Actors and components cleared to be transacted by ConcertSync even if they are transient will receive this tag */
+		extern USDSTAGE_API const FName ConcertSyncEnableTag;
+	}
+}
+
 /**
  * Class that allows us to log prim attribute changes into the unreal transaction buffer.
  * The AUsdStageActor owns one of these, and whenever a USD notice is fired this class transacts and serializes

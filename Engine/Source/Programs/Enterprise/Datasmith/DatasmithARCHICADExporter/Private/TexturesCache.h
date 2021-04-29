@@ -2,13 +2,15 @@
 
 #pragma once
 
-#include "AddonTools.h"
+#include "Utils/AddonTools.h"
 #include "SyncContext.h"
 
 #include "Model.hpp"
 
 #include <map>
 #include <set>
+
+class FString;
 
 BEGIN_NAMESPACE_UE_AC
 
@@ -32,7 +34,6 @@ class FTexturesCache
 		bool bAlphaIsTransparence = false; // Texture use alpha channel for transparency
 		bool bIsAvailable = false; // Texture can be loaded
 		bool bUsed = false; // True if this texture is used
-		TSharedPtr< IDatasmithTextureElement > Element;
 	};
 
 	FTexturesCache();
@@ -45,11 +46,13 @@ class FTexturesCache
 	size_t GetCount() const { return Textures.size(); }
 
   private:
-	typedef std::map< GS::Int32, FTexturesCacheElem > MapTextureCacheElem;
-	MapTextureCacheElem								  Textures;
-	GS::UniString									  AbsolutePath;
-	GS::UniString									  RelativePath;
-	bool											  bUseRelative;
+	typedef std::map< GS::Int32, FTexturesCacheElem > MapTextureIndex2CacheElem;
+
+	typedef std::set< FString > SetTexturesIds;
+	MapTextureIndex2CacheElem	Textures;
+	GS::UniString				AbsolutePath;
+	GS::UniString				RelativePath;
+	bool						bUseRelative;
 
 	class LessUniStringPtr
 	{
@@ -59,7 +62,8 @@ class FTexturesCache
 
 	typedef std::set< const GS::UniString*, LessUniStringPtr > SetStrings;
 
-	SetStrings TexturesNameSet;
+	SetStrings	   TexturesNameSet;
+	SetTexturesIds TexturesIdsSet;
 };
 
 END_NAMESPACE_UE_AC

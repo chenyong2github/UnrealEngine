@@ -36,7 +36,8 @@ public:
 			IDisplayClusterSessionStatusListener* InStatusListener,
 			IDisplayClusterSessionPacketHandler<TPacketType, bIsBidirectional>* InPacketHandler,
 			uint64 InSessionId,
-			const FString& InName = FString("DisplayClusterSession"))
+			const FString& InName = FString("DisplayClusterSession"),
+			EThreadPriority InThreadPriority = EThreadPriority::TPri_Normal)
 
 		: FDisplayClusterSocketOperations(Socket, DisplayClusterConstants::net::PacketBufferSize, InName)
 		, FDisplayClusterSocketOperationsHelper<TPacketType, bExitOnCommError>(*this, InName)
@@ -44,6 +45,7 @@ public:
 		, SessionId(InSessionId)
 		, StatusListener(InStatusListener)
 		, PacketHandler(InPacketHandler)
+		, ThreadPriority(InThreadPriority)
 	{
 		static_assert(std::is_base_of<IDisplayClusterPacket, TPacketType>::value, "TPacketType is not derived from IDisplayClusterPacket");
 
@@ -74,7 +76,7 @@ public:
 	{
 		StatusListener->NotifySessionOpen(SessionId);
 
-		ThreadObj.Reset(FRunnableThread::Create(this, *(Name + FString("_thread")), 1024 * 1024, TPri_Normal, FPlatformAffinity::GetMainGameMask()));
+		ThreadObj.Reset(FRunnableThread::Create(this, *(Name + FString("_thread")), 1024 * 1024, ThreadPriority, FPlatformAffinity::GetMainGameMask()));
 		ensure(ThreadObj);
 
 		UE_LOG(LogDisplayClusterNetwork, Log, TEXT("Session %s started"), *GetName());
@@ -94,6 +96,9 @@ protected:
 	virtual uint32 Run() override
 	{
 		UE_LOG(LogDisplayClusterNetwork, Log, TEXT("Session thread %s has started"), *GetName());
+
+		// Using TLS dramatically speeds up clusters with large numbers of nodes
+		FMemory::SetupTLSCachesOnCurrentThread();
 
 		while (FDisplayClusterSocketOperations::IsOpen())
 		{
@@ -173,11 +178,14 @@ private:
 	const FString Name;
 	// Session ID
 	const uint64 SessionId;
-	
+
 	// Session status listener
 	IDisplayClusterSessionStatusListener* StatusListener = nullptr;
 	// Session packets processor
 	IDisplayClusterSessionPacketHandler<TPacketType, bIsBidirectional>* PacketHandler = nullptr;
+
+	// Working thread priority
+	const EThreadPriority ThreadPriority;
 
 	// Session working thread
 	TUniquePtr<FRunnableThread> ThreadObj;

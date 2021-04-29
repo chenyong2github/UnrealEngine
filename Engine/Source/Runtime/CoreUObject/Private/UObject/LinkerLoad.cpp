@@ -4181,13 +4181,14 @@ void FLinkerLoad::Preload( UObject* Object )
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FLinkerLoad::Preload);
 
+			UClass* Cls = Cast<UClass>(Object);
 			check(!GEventDrivenLoaderEnabled || !bLockoutLegacyOperations || !EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME);
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 			bool const bIsNonNativeObject = !Object->GetOutermost()->HasAnyPackageFlags(PKG_CompiledIn);
 			// we can determine that this is a blueprint class/struct by checking if it 
 			// is a class/struct object AND if it is not native (blueprint 
 			// structs/classes are the only asset package structs/classes we have)
-			bool const bIsBlueprintClass = (Cast<UClass>(Object) != nullptr) && bIsNonNativeObject;
+			bool const bIsBlueprintClass = (Cls != nullptr) && bIsNonNativeObject && Cls->GetClass()->HasAnyClassFlags(CLASS_NeedsDeferredDependencyLoading);
 			bool const bIsBlueprintStruct = (Cast<UScriptStruct>(Object) != nullptr) && bIsNonNativeObject;
 			// to avoid cyclic dependency issues, we want to defer all external loads 
 			// that MAY rely on this class/struct (meaning all other blueprint packages)  
@@ -4223,12 +4224,10 @@ void FLinkerLoad::Preload( UObject* Object )
 
 			SCOPE_CYCLE_COUNTER(STAT_LinkerPreload);
 			FScopeCycleCounterUObject PreloadScope(Object, GET_STATID(STAT_LinkerPreload));
-			UClass* Cls = NULL;
 			
 			// If this is a struct, make sure that its parent struct is completely loaded
 			if( UStruct* Struct = dynamic_cast<UStruct*>(Object) )
 			{
-				Cls = dynamic_cast<UClass*>(Object);
 				if( Struct->GetSuperStruct() )
 				{
 					Preload( Struct->GetSuperStruct() );
@@ -4500,7 +4499,7 @@ void FLinkerLoad::Preload( UObject* Object )
 					// Handle blueprints. This is slightly different from the other cases as we're looking for the first 
 					// native super of the blueprint class (first import).
 					const FObjectExport* ClassExport = NULL;
-					for (ClassExport = &Exp(Export.ClassIndex); ClassExport->SuperIndex.IsExport(); ClassExport = &Exp(Export.SuperIndex));
+					for (ClassExport = &Exp(Export.ClassIndex); ClassExport->SuperIndex.IsExport(); ClassExport = &Exp(ClassExport->SuperIndex));
 					if (ClassExport->SuperIndex.IsImport())
 					{
 						const FObjectImport& ClassImport = Imp(ClassExport->SuperIndex);
@@ -5050,7 +5049,8 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 		
 		if( Export.Object )
 		{
-			bool const bIsBlueprintCDO = ((Export.ObjectFlags & RF_ClassDefaultObject) != 0) && LoadClass->HasAnyClassFlags(CLASS_CompiledFromBlueprint);
+			bool const bIsBlueprintCDO = ((Export.ObjectFlags & RF_ClassDefaultObject) != 0) && LoadClass->HasAnyClassFlags(CLASS_CompiledFromBlueprint) &&
+				LoadClass->GetClass()->HasAnyClassFlags(CLASS_NeedsDeferredDependencyLoading);
 
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 			const bool bDeferCDOSerialization = bIsBlueprintCDO && ((LoadFlags & LOAD_DeferDependencyLoads) != 0);
@@ -5122,29 +5122,36 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 				}
 
 				// If it's a class, bind it to C++.
-				if( UClass* ClassObject = dynamic_cast<UClass*>(Export.Object) )
+				if (UClass* ClassObject = Cast<UClass>(Export.Object))
 				{
+					if (ClassObject->GetClass()->HasAnyClassFlags(CLASS_NeedsDeferredDependencyLoading))
+					{
 #if WITH_EDITOR
-					// Before we serialize the class, begin a scoped class 
-					// dependency gather to create a list of other classes that 
-					// may need to be recompiled
-					//
-					// Even with "deferred dependency loading" turned on, we 
-					// still need this... one class/blueprint will always be 
-					// fully regenerated before another (there is no changing 
-					// that); so dependencies need to be recompiled later (with
-					// all the regenerated classes in place)
-					FScopedClassDependencyGather DependencyHelper(ClassObject, GetSerializeContext());
+						// Before we serialize the class, begin a scoped class 
+						// dependency gather to create a list of other classes that 
+						// may need to be recompiled
+						//
+						// Even with "deferred dependency loading" turned on, we 
+						// still need this... one class/blueprint will always be 
+						// fully regenerated before another (there is no changing 
+						// that); so dependencies need to be recompiled later (with
+						// all the regenerated classes in place)
+						FScopedClassDependencyGather DependencyHelper(ClassObject, GetSerializeContext());
 #endif //WITH_EDITOR
 
-					ClassObject->Bind();
+						ClassObject->Bind();
 
-					// Preload classes on first access.  Note that this may update the Export.Object, so ClassObject is not guaranteed to be valid after this point
-					// If we're async loading on a cooked build we can skip this as there's no chance we will need to recompile the class. 
-					// Preload will be called during async package tick when the data has been precached
-					if( !FPlatformProperties::RequiresCookedData() )
+						// Preload classes on first access.  Note that this may update the Export.Object, so ClassObject is not guaranteed to be valid after this point
+						// If we're async loading on a cooked build we can skip this as there's no chance we will need to recompile the class. 
+						// Preload will be called during async package tick when the data has been precached
+						if (!FPlatformProperties::RequiresCookedData())
+						{
+							Preload(Export.Object);
+						}
+					}
+					else
 					{
-						Preload( Export.Object );
+						ClassObject->Bind();
 					}
 				}
 			}

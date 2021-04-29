@@ -97,7 +97,7 @@ public class SplashActivity extends Activity
 		}
 		
 		// allow certain models for now to use full area around cutout
-		boolean BlockDisplayCutout = true;
+		boolean BlockDisplayCutout = android.os.Build.VERSION.SDK_INT < 30;
 		if (android.os.Build.MANUFACTURER.equals("HUAWEI"))
 		{
 			BlockDisplayCutout = false;
@@ -134,7 +134,13 @@ public class SplashActivity extends Activity
 		else if (android.os.Build.MANUFACTURER.equals("OnePlus"))
 		{
 			String model = android.os.Build.MODEL;
-			if (model.startsWith("IN2020") || model.startsWith("IN2021") || model.startsWith("IN2023") ||
+			if (model.startsWith("KB2000") || model.startsWith("KB2001") || model.startsWith("KB2003") ||
+				model.startsWith("KB2005") || model.startsWith("KB2007") || model.startsWith("LE2110") ||
+				model.startsWith("LE2111") || model.startsWith("LE2113") || model.startsWith("LE2115") ||
+				model.startsWith("LE2117") || model.startsWith("LE2119") || model.startsWith("LE2100") ||
+				model.startsWith("LE2101") || model.startsWith("LE2120") || model.startsWith("LE2121") ||
+				model.startsWith("LE2123") || model.startsWith("LE2125") || model.startsWith("LE2127") ||
+				model.startsWith("IN2020") || model.startsWith("IN2021") || model.startsWith("IN2023") ||
 				model.startsWith("IN2025") || model.startsWith("IN2010") || model.startsWith("IN2011") ||
 				model.startsWith("IN2013") || model.startsWith("IN2015") || model.startsWith("IN2017") ||
 				model.startsWith("IN2019") || model.startsWith("AC2001") || model.startsWith("AC2003") ||

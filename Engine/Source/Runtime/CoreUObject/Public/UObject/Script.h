@@ -463,6 +463,7 @@ public:
 	static void ThrowScriptException(const UObject* ActiveObject, const struct FFrame& StackFrame, const FBlueprintExceptionInfo& Info);
 	static void InstrumentScriptEvent(const FScriptInstrumentationSignal& Info);
 	static void SetScriptMaximumLoopIterations( const int32 MaximumLoopIterations );
+	static bool IsDebuggingEnabled();
 };
 
 #if DO_BLUEPRINT_GUARD

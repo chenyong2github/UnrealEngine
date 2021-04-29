@@ -28,6 +28,8 @@
 
 #define LOCTEXT_NAMESPACE "USDTransactor"
 
+const FName UE::UsdTransactor::ConcertSyncEnableTag = TEXT( "EnableConcertSync" );
+
 namespace UsdUtils
 {
 	// Objects adapted from USDListener, since we use slightly different data here
@@ -48,6 +50,7 @@ namespace UsdUtils
 		FPrimChangeFlags Flags;
 		FString PrimTypeName;
 		TArray<FString> PrimAppliedSchemas;
+		FString OldPath;
 	};
 
 	struct FTransactorRecordedEdit
@@ -110,6 +113,7 @@ FArchive& operator<<( FArchive& Ar, UsdUtils::FTransactorObjectChange& Change )
 	Ar << Change.Flags;
 	Ar << Change.PrimTypeName;
 	Ar << Change.PrimAppliedSchemas;
+	Ar << Change.OldPath;
 	return Ar;
 }
 
@@ -149,6 +153,7 @@ namespace UsdUtils
 			{
 				FTransactorObjectChange& ConvertedChange = Edit.ObjectChanges.Emplace_GetRef();
 				ConvertedChange.Flags = Change.Flags;
+				ConvertedChange.OldPath = Change.OldPath;
 
 				UE::FUsdPrim Prim = InStage.GetPrimAtPath( UE::FSdfPath{ *PrimPath } );
 
@@ -167,7 +172,7 @@ namespace UsdUtils
 						ConvertedChange.PrimAppliedSchemas.Add( SchemaName.ToString() );
 					}
 
-					UE_LOG( LogUsd, Log, TEXT( "Recorded the creation of prim '%s' with TypeName '%s', SchemaTypeName '%s' and PrimAppliedSchemas [%s]" ),
+					UE_LOG( LogUsd, Log, TEXT( "Recorded the creation of prim '%s' with TypeName '%s' and PrimAppliedSchemas [%s]" ),
 						*PrimPath,
 						*ConvertedChange.PrimTypeName,
 						*FString::Join( ConvertedChange.PrimAppliedSchemas, TEXT( ", " ) )
@@ -257,6 +262,7 @@ namespace UsdUtils
 	{
 		const bool bAdd = PrimChange.Flags.bDidAddInertPrim || PrimChange.Flags.bDidAddNonInertPrim;
 		const bool bRemove = PrimChange.Flags.bDidRemoveInertPrim || PrimChange.Flags.bDidRemoveNonInertPrim;
+		const bool bRename = PrimChange.Flags.bDidRename;
 
 		if ( ( bAdd && Direction == EApplicationDirection::Forward ) || ( bRemove && Direction == EApplicationDirection::Reverse ) )
 		{
@@ -281,6 +287,42 @@ namespace UsdUtils
 			);
 
 			return Stage.RemovePrim( PrimPath );
+		}
+		else if ( bRename )
+		{
+			FString NewName;
+			FString CurrentPath;
+
+			if ( Direction == EApplicationDirection::Forward )
+			{
+				// It hasn't been renamed yet, so it's still at the old path
+				CurrentPath = PrimChange.OldPath;
+				NewName = PrimPath.GetElementString();
+			}
+			else
+			{
+				CurrentPath = PrimPath.GetString();
+				NewName = UE::FSdfPath( *PrimChange.OldPath ).GetElementString();
+			}
+
+			if ( UE::FUsdPrim Prim = Stage.GetPrimAtPath( UE::FSdfPath( *CurrentPath ) ) )
+			{
+				UE_LOG( LogUsd, Log, TEXT( "Renaming prim '%s' to '%s'" ),
+					*Prim.GetPrimPath().GetString(),
+					*NewName
+				);
+
+				const bool bDidRename = UsdUtils::RenamePrim( Prim, *NewName );
+				if ( bDidRename )
+				{
+					return true;
+				}
+			}
+
+			UE_LOG( LogUsd, Warning, TEXT( "Failed to rename prim at path '%s' to name '%s'" ),
+				*CurrentPath,
+				*NewName
+			);
 		}
 
 		return false;
@@ -511,6 +553,11 @@ namespace UsdUtils
 	/** Applies the field value pairs to all prims on the stage, and returns a list of prim paths for modified prims */
 	TArray<FString> ApplyFieldMapToStage( const FTransactorEditStorage& EditStorage, EApplicationDirection Direction, UE::FUsdStage& Stage, double Time )
 	{
+		if ( !Stage )
+		{
+			return {};
+		}
+
 		TArray<FString> PrimsChanged;
 
 		int32 Start = 0;
@@ -771,7 +818,7 @@ namespace UsdUtils
 			// will already be accounted for by those actors/components/assets undoing/redoing by themselves via the UE transaction buffer.
 			FScopedBlockNotices BlockNotices( StageActor->GetUsdListener() );
 
-			UE::FUsdStage& Stage = StageActor->GetUsdStage();
+			UE::FUsdStage& Stage = StageActor->GetOrLoadUsdStage();
 
 			TArray<FString> PrimsChanged = UsdUtils::ApplyFieldMapToStage(
 				Values,
@@ -822,7 +869,7 @@ namespace UsdUtils
 				BlockNotices.Emplace( StageActor->GetUsdListener() );
 			}
 
-			UE::FUsdStage& Stage = StageActor->GetUsdStage();
+			UE::FUsdStage& Stage = StageActor->GetOrLoadUsdStage();
 
 			TArray<FString> PrimsChanged;
 			if ( bIsApplyingConcertSync && ReceivedValuesBeforeUndo.IsSet() )
@@ -974,7 +1021,7 @@ void UUsdTransactor::Update( const UsdUtils::FObjectChangesByPath& NewInfoChange
 
 	Modify();
 
-	const UE::FUsdStage& Stage = StageActorPtr->GetUsdStage();
+	const UE::FUsdStage& Stage = StageActorPtr->GetOrLoadUsdStage();
 	const UE::FSdfLayer& EditTarget = Stage.GetEditTarget();
 
 	UsdUtils::FTransactorRecordedEdits NewEdits;

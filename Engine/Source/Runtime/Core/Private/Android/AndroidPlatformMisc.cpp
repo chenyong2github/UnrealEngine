@@ -135,6 +135,9 @@ bool FAndroidMisc::bNeedsRestartAfterPSOPrecompile = false;
 // Key/Value pair variables from the optional configuration.txt
 TMap<FString, FString> FAndroidMisc::ConfigRulesVariables;
 
+static FCriticalSection AndroidThreadNamesLock;
+static TMap<uint32, const char*, TFixedSetAllocator<16>> AndroidThreadNames;
+
 EDeviceScreenOrientation FAndroidMisc::DeviceOrientation = EDeviceScreenOrientation::Unknown;
 
 extern void AndroidThunkCpp_ForceQuit();
@@ -1548,8 +1551,8 @@ bool FAndroidMisc::GetUseVirtualJoysticks()
 		}
 	}
 
-	// Stereo-only HMDs don't require virtual joysticks
-	if (IsStandaloneStereoOnlyDevice())
+	// Oculus HMDs don't require virtual joysticks
+	if (FAndroidMisc::GetDeviceMake() == FString("Oculus"))
 	{
 		return false;
 	}
@@ -1568,24 +1571,13 @@ bool FAndroidMisc::SupportsTouchInput()
 		}
 	}
 
-	// Stereo-only HMDs don't support touch input
-	if (IsStandaloneStereoOnlyDevice())
+	// Oculus HMDs don't support touch input
+	if (FAndroidMisc::GetDeviceMake() == FString("Oculus"))
 	{
 		return false;
 	}
 
 	return true;
-}
-
-bool FAndroidMisc::IsStandaloneStereoOnlyDevice()
-{
-	// Oculus HMDs are always in stereo mode
-	if (FAndroidMisc::GetDeviceMake() == FString("Oculus"))
-	{
-		return true;
-	}
-
-	return false;
 }
 
 extern void AndroidThunkCpp_RegisterForRemoteNotifications();
@@ -1870,11 +1862,6 @@ bool FAndroidMisc::ShouldDisablePluginAtRuntime(const FString& PluginName)
 	}
 #endif
 	return false;
-}
-
-void FAndroidMisc::SetThreadName(const char* name)
-{
-	pthread_setname_np(pthread_self(), name);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2426,7 +2413,7 @@ bool FAndroidMisc::ShouldUseVulkan()
 
 		const bool bVulkanAvailable = IsVulkanAvailable();
 
-		const bool bVulkanDisabledCVar = !IsStandaloneStereoOnlyDevice() && CVarDisableVulkan->GetValueOnAnyThread() == 1;
+		const bool bVulkanDisabledCVar = CVarDisableVulkan->GetValueOnAnyThread() == 1;
 
 		if (bVulkanAvailable && !bVulkanDisabledCVar)
 		{
@@ -3151,6 +3138,22 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	GIsRequestingExit = true;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // UE_SET_REQUEST_EXIT_ON_TICK_ONLY
+}
+
+void FAndroidMisc::RegisterThreadName(const char* Name, uint32 ThreadId)
+{
+	FScopeLock Lock(&AndroidThreadNamesLock);
+	if (!AndroidThreadNames.Contains(ThreadId))
+	{
+		AndroidThreadNames.Add(ThreadId, Name);
+	}
+}
+
+const char* FAndroidMisc::GetThreadName(uint32 ThreadId)
+{
+	FScopeLock Lock(&AndroidThreadNamesLock);
+	const char** ThreadName = AndroidThreadNames.Find(ThreadId);
+	return ThreadName ? *ThreadName : nullptr;
 }
 
 void FAndroidMisc::SetDeviceOrientation(EDeviceScreenOrientation NewDeviceOrentation)

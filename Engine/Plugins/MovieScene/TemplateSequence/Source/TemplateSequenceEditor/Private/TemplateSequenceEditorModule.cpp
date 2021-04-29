@@ -113,6 +113,10 @@ public:
 			Collector.AddReferencedObject(Settings);
 		}
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FTemplateSequenceEditorModule");
+	}
 
 private:
 	void RegisterSettings()

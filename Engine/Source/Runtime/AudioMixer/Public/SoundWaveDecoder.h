@@ -215,6 +215,10 @@ namespace Audio
 
 		//~ Begin FGCObject
 		virtual void AddReferencedObjects(FReferenceCollector & Collector) override;
+		virtual FString GetReferencerName() const override
+		{
+			return TEXT("Audio::FSoundSourceDecoder");
+		}
 		//~ End FGCObject
 
 		// Initialize the source decoder at the given output sample rate

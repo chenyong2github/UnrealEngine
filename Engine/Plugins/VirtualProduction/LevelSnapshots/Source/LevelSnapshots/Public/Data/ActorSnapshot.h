@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "BaseObjectInfo.h"
-
+#include "Data/BaseObjectInfo.h"
 #include "ActorSnapshot.generated.h"
 
 class UActorComponent;
@@ -53,7 +52,7 @@ struct LEVELSNAPSHOTS_API FLevelSnapshot_Actor
 	bool CorrespondsToActorInWorld(const AActor* WorldActor) const;
 	
 	AActor* GetDeserializedActor(UWorld* TempWorld);
-	void DeserializeIntoWorldActor(AActor* InTargetActor, TOptional<const ULevelSnapshotSelectionSet*> InPropertiesToDeserializeInto = TOptional<const ULevelSnapshotSelectionSet*>()) const;
+	void DeserializeIntoWorldActor(AActor* InTargetActor, const ULevelSnapshotSelectionSet* InPropertiesToDeserializeInto) const;
 
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
 	FBaseObjectInfo Base;
@@ -76,6 +75,4 @@ private:
 	
 	void DeserializeTransientActorProperties(AActor* InTargetActor) const;
 	void DeserializeWorldActorProperties(AActor* InTargetActor, const ULevelSnapshotSelectionSet* InSelectedProperties) const;
-	
-	void GenerateSelectionSetFromDiff(AActor* TargetActor, ULevelSnapshotSelectionSet* SelectionSet, EActorType TargetActorType) const;
 };

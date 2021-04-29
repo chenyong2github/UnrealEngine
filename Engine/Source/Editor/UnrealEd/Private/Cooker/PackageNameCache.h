@@ -122,12 +122,12 @@ inline bool FPackageNameCache::DoesPackageExist(const FName& PackageName, FStrin
 {
 	FString PackageNameStr = PackageName.ToString();
 
-	// "/Extra/" packages are editor-generated in-memory packages which don't have a corresponding 
+	// Verse packages are editor-generated in-memory packages which don't have a corresponding 
 	// asset file (yet). However, we still want to cook these packages out, producing cooked 
 	// asset files for packaged projects.
-	if (FPackageName::IsExtraPackage(PackageNameStr))
+	if (FPackageName::IsVersePackage(PackageNameStr))
 	{
-		if (UPackage* ExtraPackage = FindPackage(/*Outer =*/nullptr, *PackageNameStr))
+		if (FindPackage(/*Outer =*/nullptr, *PackageNameStr))
 		{
 			if (OutFilename)
 			{

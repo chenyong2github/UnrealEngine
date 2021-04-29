@@ -7,6 +7,7 @@
 
 
 FDisplayClusterDeviceTopBottomDX11::FDisplayClusterDeviceTopBottomDX11()
+	: FDisplayClusterDeviceBase(EDisplayClusterRenderFrameMode::TopBottom)
 {
 }
 

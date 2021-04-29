@@ -10,5 +10,9 @@ UIoStoreCommandlet::UIoStoreCommandlet(const FObjectInitializer& ObjectInitializ
 
 int32 UIoStoreCommandlet::Main(const FString& Params)
 {
+#if UE_BUILD_SHIPPING
+	return 0;
+#else
 	return CreateIoStoreContainerFiles(*Params);
+#endif
 }

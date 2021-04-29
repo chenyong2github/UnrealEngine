@@ -12,7 +12,7 @@
 #include "NiagaraDataSetAccessor.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraEmitterHandle.h"
-#include "NiagaraFlipbookSettings.h"
+#include "NiagaraBakerSettings.h"
 #include "NiagaraParameterCollection.h"
 #include "NiagaraUserRedirectionParameterStore.h"
 #include "NiagaraEffectType.h"
@@ -419,6 +419,9 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta = (SkipSystemResetOnChange = "true"))
 	uint32 bTrimAttributesOnCook : 1;
 
+	/** If true, forcefully disables all debug switches */
+	UPROPERTY(meta = (SkipSystemResetOnChange = "true"))
+	uint32 bDisableAllDebugSwitches : 1;
 #endif
 
 	/** Computes emitter priorities based on the dependency information. */
@@ -474,6 +477,7 @@ public:
 	bool HasSystemScriptDIsWithPerInstanceData() const;
 	FORCEINLINE bool HasDIsWithPostSimulateTick()const{ return bHasDIsWithPostSimulateTick; }
 	FORCEINLINE bool HasAnyGPUEmitters()const{ return bHasAnyGPUEmitters; }
+	FORCEINLINE bool NeedsGPUContextInitForDataInterfaces() const { return bNeedsGPUContextInitForDataInterfaces; }
 
 	const TArray<FName>& GetUserDINamesReadInSystemScripts() const;
 
@@ -516,9 +520,9 @@ public:
 	FORCEINLINE int32& GetActiveInstancesCount() { return ActiveInstances; }
 
 #if WITH_EDITORONLY_DATA
-	UNiagaraFlipbookSettings* GetFlipbookSettings();
-	const UNiagaraFlipbookSettings* GetFlipbookGeneratedSettings() const { return FlipbookGeneratedSettings; }
-	void SetFlipbookGeneratedSettings(UNiagaraFlipbookSettings* Settings) { FlipbookGeneratedSettings = Settings; }
+	UNiagaraBakerSettings* GetBakerSettings();
+	const UNiagaraBakerSettings* GetBakerGeneratedSettings() const { return BakerGeneratedSettings; }
+	void SetBakerGeneratedSettings(UNiagaraBakerSettings* Settings) { BakerGeneratedSettings = Settings; }
 #endif
 
 private:
@@ -638,17 +642,21 @@ protected:
 	float WarmupTickDelta;
 
 #if WITH_EDITORONLY_DATA
-	/** Settings used when generating the flipbook */
+	/** Settings used inside the baker */
 	UPROPERTY(Export)
-	UNiagaraFlipbookSettings* FlipbookSettings;
+	UNiagaraBakerSettings* BakerSettings;
 
-	/** Generated flipbook settings, will be null until we have generated at least once. */
+	/** Generated data baker settings, will be null until we have generated at least once. */
 	UPROPERTY(Export)
-	UNiagaraFlipbookSettings* FlipbookGeneratedSettings;
+	UNiagaraBakerSettings* BakerGeneratedSettings;
 #endif
 
 	UPROPERTY()
 	bool bHasSystemScriptDIsWithPerInstanceData;
+
+	UPROPERTY()
+	bool bNeedsGPUContextInitForDataInterfaces;
+
 
 	UPROPERTY()
 	TArray<FName> UserDINamesReadInSystemScripts;

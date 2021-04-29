@@ -22,6 +22,10 @@ struct FCurveEditorEditObjectContainer : FGCObject
 			Collector.AddReferencedObjects(Pair.Value);
 		}
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FCurveEditorEditObjectContainer");
+	}
 
 	/**  */
 	TMap<FCurveModelID, TMap<FKeyHandle, UObject*> > CurveIDToKeyProxies;

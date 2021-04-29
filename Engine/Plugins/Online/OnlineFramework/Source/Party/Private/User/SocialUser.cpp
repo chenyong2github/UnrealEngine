@@ -631,7 +631,7 @@ FUserPlatform USocialUser::GetCurrentPlatform() const
 			{
 				if (UPartyMember* PartyMember = Party->GetPartyMember(GetUserId(ESocialSubsystem::Primary)))
 				{
-					const FUserPlatform& PartyMemberPlatform = PartyMember->GetRepData().GetPlatform();
+					const FUserPlatform& PartyMemberPlatform = PartyMember->GetRepData().GetPlatformDataPlatform();
 					UE_LOG(LogOnline, VeryVerbose, TEXT("%s - Party Member Found for user! RepDataPlatform: %s"), ANSI_TO_TCHAR(__FUNCTION__), *PartyMemberPlatform.ToString());
 					if (PartyMemberPlatform.IsValid())
 					{
@@ -921,11 +921,11 @@ bool USocialUser::CanInviteToParty(const FOnlinePartyTypeId& PartyTypeId) const
 	return false;
 }
 
-bool USocialUser::InviteToParty(const FOnlinePartyTypeId& PartyTypeId) const
+bool USocialUser::InviteToParty(const FOnlinePartyTypeId& PartyTypeId, const ESocialPartyInviteMethod InviteMethod) const
 {
 	if (USocialParty* Party = GetOwningToolkit().GetSocialManager().GetParty(PartyTypeId))
 	{
-		return Party->TryInviteUser(*this);
+		return Party->TryInviteUser(*this, InviteMethod);
 	}
 	return false;
 }
@@ -1042,13 +1042,47 @@ bool USocialUser::ShowPlatformProfile()
 void USocialUser::HandlePartyInviteReceived(const IOnlinePartyJoinInfo& Invite)
 {
 	ReceivedPartyInvites.Emplace(Invite.AsShared());
-	GetOwningToolkit().OnPartyInviteReceived().Broadcast(*this);
+	GetOwningToolkit().NotifyPartyInviteReceived(*this, Invite);
 }
 
 void USocialUser::HandlePartyInviteRemoved(const IOnlinePartyJoinInfo& Invite, EPartyInvitationRemovedReason Reason)
 {
 	ReceivedPartyInvites.Remove(Invite.AsShared());
 	// TODO? GetOwningToolkit().OnPartyInviteRemoved().Broadcast(*this);
+}
+
+void USocialUser::HandleRequestToJoinSent(const FDateTime& ExpiresAt)
+{
+	NotifyRequestToJoinSent(ExpiresAt);
+}
+
+void USocialUser::HandleRequestToJoinReceived(const IOnlinePartyRequestToJoinInfo& Request)
+{
+	NotifyRequestToJoinReceived(Request);
+}
+
+void USocialUser::HandleRequestToJoinRemoved(const IOnlinePartyRequestToJoinInfo& Request, EPartyRequestToJoinRemovedReason Reason)
+{
+	NotifyRequestToJoinRemoved(Request, Reason);
+}
+
+void USocialUser::AcceptRequestToJoinParty() const
+{
+	if (USocialParty* Party = GetOwningToolkit().GetSocialManager().GetParty(IOnlinePartySystem::GetPrimaryPartyTypeId()))
+	{
+		Party->TryInviteUser(*this);
+		IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
+		PartyInterface->ClearRequestToJoinParty(*GetOwningToolkit().GetLocalUserNetId(ESocialSubsystem::Primary), Party->GetPartyId(), *GetUserId(ESocialSubsystem::Primary), EPartyRequestToJoinRemovedReason::Accepted);
+	}
+}
+
+void USocialUser::DismissRequestToJoinParty() const
+{
+	if (USocialParty* Party = GetOwningToolkit().GetSocialManager().GetParty(IOnlinePartySystem::GetPrimaryPartyTypeId()))
+	{
+		IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
+		PartyInterface->ClearRequestToJoinParty(*GetOwningToolkit().GetLocalUserNetId(ESocialSubsystem::Primary), Party->GetPartyId(), *GetUserId(ESocialSubsystem::Primary), EPartyRequestToJoinRemovedReason::Dismissed);
+	}
 }
 
 TSharedPtr<const IOnlinePartyJoinInfo> USocialUser::GetPartyJoinInfo(const FOnlinePartyTypeId& PartyTypeId) const

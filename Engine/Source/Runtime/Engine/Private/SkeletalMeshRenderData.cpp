@@ -582,7 +582,8 @@ void FSkeletalMeshRenderData::Serialize(FArchive& Ar, USkeletalMesh* Owner)
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FSkeletalMeshRenderData::Serialize"), STAT_SkeletalMeshRenderData_Serialize, STATGROUP_LoadTime);
 
 #if PLATFORM_DESKTOP
-	if (Ar.IsCooking() || FPlatformProperties::RequiresCookedData())
+
+	if (Ar.IsFilterEditorOnly())
 	{
 		int32 MinMobileLODIdx = 0;
 		bool bShouldSerialize = CVarSkeletalMeshKeepMobileMinLODSettingOnDesktop.GetValueOnAnyThread() != 0;
@@ -698,7 +699,7 @@ uint32 FSkeletalMeshRenderData::GetNumBoneInfluences() const
 
 bool FSkeletalMeshRenderData::RequiresCPUSkinning(ERHIFeatureLevel::Type FeatureLevel, int32 MinLODIndex) const
 {
-	const int32 MaxGPUSkinBones = FMath::Min(GetFeatureLevelMaxNumberOfBones(FeatureLevel), FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones());
+	const int32 MaxGPUSkinBones = FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones();
 	const int32 MaxBonesPerChunk = GetMaxBonesPerSection(MinLODIndex);
 	// Do CPU skinning if we need too many bones per chunk
 	return (MaxBonesPerChunk > MaxGPUSkinBones);

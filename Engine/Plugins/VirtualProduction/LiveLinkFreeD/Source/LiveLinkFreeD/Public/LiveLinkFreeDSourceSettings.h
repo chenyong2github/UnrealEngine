@@ -15,10 +15,6 @@ struct FFreeDEncoderData
 	UPROPERTY(EditAnywhere, Category = "Encoder Data")
 	bool bIsValid;
 
-	/** Multiply this by the normalized encoder value */
-	UPROPERTY(EditAnywhere, Category = "Encoder Data", meta = (EditCondition = "bIsValid"))
-	float Scale;
-
 	/** Invert the encoder input direction */
 	UPROPERTY(EditAnywhere, Category = "Encoder Data", meta = (EditCondition = "bIsValid"))
 	bool bInvertEncoder;
@@ -51,17 +47,6 @@ enum class EFreeDDefaultConfigs : uint8
 	Ncam
 };
 
-UENUM(BlueprintType)
-enum class EFreeDAxisRemap : uint8
-{
-	PositiveX,
-	NegativeX,
-	PositiveY,
-	NegativeY,
-	PositiveZ,
-	NegativeZ
-};
-
 UCLASS()
 class LIVELINKFREED_API ULiveLinkFreeDSourceSettings : public ULiveLinkSourceSettings
 {
@@ -76,27 +61,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Source")
 	EFreeDDefaultConfigs DefaultConfig = EFreeDDefaultConfigs::Generic;
 
-	/** X axis remap settings*/
-	UPROPERTY(EditAnywhere, Category = "Source")
-	EFreeDAxisRemap RemapXAxis = EFreeDAxisRemap::PositiveY;
-
-	/** Y axis remap settings*/
-	UPROPERTY(EditAnywhere, Category = "Source")
-	EFreeDAxisRemap RemapYAxis = EFreeDAxisRemap::PositiveX;
-
-	/** Z axis remap settings*/
-	UPROPERTY(EditAnywhere, Category = "Source")
-	EFreeDAxisRemap RemapZAxis = EFreeDAxisRemap::PositiveZ;
-
 	/** Raw focus distance (in cm) encoder parameters for this camera - 24 bits max */
 	UPROPERTY(EditAnywhere, Category = "Source")
-	FFreeDEncoderData FocusDistanceEncoderData = { true, 10000.0f, false, false, 0x00ffffff, 0, 0x00ffffff };
+	FFreeDEncoderData FocusDistanceEncoderData = { true, false, false, 0x00ffffff, 0, 0x00ffffff };
 
 	/** Raw focal length/zoom (in mm) encoder parameters for this camera - 24 bits max */
 	UPROPERTY(EditAnywhere, Category = "Source")
-	FFreeDEncoderData FocalLengthEncoderData = { true, 100.0f, false, false, 0x00ffffff, 0, 0x00ffffff };
+	FFreeDEncoderData FocalLengthEncoderData = { true, false, false, 0x00ffffff, 0, 0x00ffffff };
 
 	/** Raw user defined/spare data encoder (normally used for Aperture) parameters for this camera - 16 bits max */
 	UPROPERTY(EditAnywhere, Category = "Source")
-	FFreeDEncoderData UserDefinedEncoderData = { false, 1.0f, false, false, 0x0000ffff, 0, 0x0000ffff };
+	FFreeDEncoderData UserDefinedEncoderData = { false, false, false, 0x0000ffff, 0, 0x0000ffff };
 };

@@ -955,7 +955,8 @@ bool FCoreRedirects::AddRedirectList(TArrayView<const FCoreRedirect> Redirects, 
 			continue;
 		}
 
-		if (!NewRedirect.OldName.HasValidCharacters() || !NewRedirect.NewName.HasValidCharacters())
+		if ((!NewRedirect.OldName.HasValidCharacters() && !FPackageName::IsVersePackage(NewRedirect.OldName.PackageName.ToString()))
+			|| (!NewRedirect.NewName.HasValidCharacters() && !FPackageName::IsVersePackage(NewRedirect.NewName.PackageName.ToString())))
 		{
 			UE_LOG(LogLinker, Error, TEXT("AddRedirectList(%s) failed to add redirector from %s to %s with invalid characters!"), *SourceString, *NewRedirect.OldName.ToString(), *NewRedirect.NewName.ToString());
 			continue;

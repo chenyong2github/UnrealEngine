@@ -13,8 +13,7 @@ namespace ContentBrowserClassData
 
 bool IsTopLevelFolder(const FName InFolderPath)
 {
-	TStringBuilder<FName::StringBufferSize> FolderPathStr;
-	InFolderPath.ToString(FolderPathStr);
+	FNameBuilder FolderPathStr(InFolderPath);
 
 	int32 SlashCount = 0;
 	for (const TCHAR PathChar : FStringView(FolderPathStr))
@@ -35,11 +34,9 @@ bool GetUnrealContentRootFromInternalClassPath(const FName InPath, FString& OutU
 {
 	const FStringView ClassesRootPath = TEXT("/Classes_");
 
-	TStringBuilder<FName::StringBufferSize> PathStr;
-	InPath.ToString(PathStr);
-
 	// Internal class paths are all expected to start with "/Classes_" 
 	// where the component after the underscore is the Unreal content root
+	FNameBuilder PathStr(InPath);
 	const FStringView PathStrView = PathStr;
 	if (!PathStrView.StartsWith(ClassesRootPath))
 	{

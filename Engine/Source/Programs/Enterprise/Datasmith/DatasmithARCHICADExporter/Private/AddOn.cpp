@@ -4,7 +4,7 @@
 
 #include <stddef.h>
 
-#include "WarningsDisabler.h"
+#include "Utils/WarningsDisabler.h"
 
 DISABLE_SDK_WARNINGS_START
 
@@ -19,15 +19,17 @@ DISABLE_SDK_WARNINGS_START
 
 DISABLE_SDK_WARNINGS_END
 
-#include "DebugTools.h"
+#include "Utils/DebugTools.h"
 #include "LoadDatasmithDlls.h"
 #include "Export.h"
 #include "Menus.h"
 #include "Palette.h"
 #include "ProjectEvent.h"
+#include "Utils/ViewEvent.h"
 #include "ElementEvent.h"
 #include "ResourcesIDs.h"
 #include "Synchronizer.h"
+#include "ReportWindow.h"
 
 using namespace UE_AC;
 
@@ -65,7 +67,14 @@ GSErrCode __ACENV_CALL RegisterInterface(void)
 	UE_AC_TraceF("--- UE_AC RegisterInterface\n");
 
 	GSErrCode GSErr = FExport::Register();
-	GSErr = FMenus::Register();
+	if (GSErr == NoError)
+	{
+		GSErr = FMenus::Register();
+	}
+	if (GSErr == NoError)
+	{
+		GSErr = FTraceListener::Register();
+	}
 
 	ACAPI_KeepInMemory(true);
 
@@ -82,6 +91,7 @@ GSErrCode __ACENV_CALL Initialize(void)
 	UE_AC_TraceF("--- UE_AC Initialize\n");
 
 	LoadDatasmithDlls();
+	FTraceListener::Get();
 
 	GSErrCode GSErr = FExport::Initialize();
 	if (GSErr == NoError)
@@ -91,6 +101,10 @@ GSErrCode __ACENV_CALL Initialize(void)
 	if (GSErr == NoError)
 	{
 		GSErr = FProjectEvent::Initialize();
+	}
+	if (GSErr == NoError)
+	{
+		GSErr = FViewEvent::Initialize();
 	}
 	if (GSErr == NoError)
 	{
@@ -116,6 +130,8 @@ GSErrCode __ACENV_CALL FreeData(void)
 	FPalette::Unregister();
 	FSynchronizer::DeleteSingleton();
 	UnloadDatasmithDlls(true);
+	FReportWindow::Delete();
+	FTraceListener::Delete();
 
 	return NoError;
 }

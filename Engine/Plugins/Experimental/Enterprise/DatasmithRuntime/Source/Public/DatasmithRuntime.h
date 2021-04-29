@@ -122,10 +122,10 @@ struct FDatasmithRuntimeImportOptions
 
 	/**
 	 * Indicates the type of collision for components
-	 * Set to ECollisionEnabled::NoCollision (no collision) by default
+	 * Set to ECollisionEnabled::QueryOnly (spatial queries, no physics) by default
 	 */
 	UPROPERTY(Category = "DatasmithRuntime", EditDefaultsOnly, BlueprintReadWrite)
-	TEnumAsByte<ECollisionEnabled::Type> BuildCollisions = ECollisionEnabled::NoCollision;
+	TEnumAsByte<ECollisionEnabled::Type> BuildCollisions = ECollisionEnabled::QueryOnly;
 
 	/**
 	 * Indicates whether meta-data should be imported or not
@@ -133,6 +133,13 @@ struct FDatasmithRuntimeImportOptions
 	 */
 	UPROPERTY(Category = "DatasmithRuntime", EditDefaultsOnly, BlueprintReadWrite)
 	bool bImportMetaData = false;
+
+	/**
+	* Indicates whether the viewpoint should be modified to match the one of the first imported camera element
+	* By default, the viewpoint is not modified
+	*/
+	UPROPERTY(Category = "DatasmithRuntime", EditDefaultsOnly, BlueprintReadWrite)
+	bool bModifyViewpoint = false;
 };
 
 UCLASS(meta = (DisplayName = "Datasmith Destination"))
@@ -212,9 +219,6 @@ public:
 	static void OnStartupModule(bool bCADRuntimeSupported);
 
 private:
-	void EnableSelector(bool bEnable);
-
-private:
 	TSharedPtr< DatasmithRuntime::FSceneImporter > SceneImporter;
 
 	TSharedPtr<DatasmithRuntime::FDestinationProxy> DirectLinkHelper;
@@ -235,9 +239,6 @@ private:
 	int32 EnableThreadedImport = MAX_int32;
 	int32 EnableCADCache = MAX_int32;
 #endif
-
-	static TSharedPtr< FDatasmithMasterMaterialSelector > ExistingRevitSelector;
-	static TSharedPtr< FDatasmithMasterMaterialSelector > RuntimeRevitSelector;
 
 	static TUniquePtr<DatasmithRuntime::FTranslationThread> TranslationThread;
 

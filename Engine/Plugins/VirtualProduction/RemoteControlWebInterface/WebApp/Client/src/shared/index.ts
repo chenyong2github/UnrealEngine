@@ -68,6 +68,7 @@ export interface IFunction {
 }
 
 export interface IExposedFunction {
+  Id: string;
   DisplayName: string;
   UnderlyingFunction: IFunction;
   Metadata: { [key: string]: string };
@@ -81,7 +82,10 @@ export interface IProperty {
 }
 
 export interface IExposedProperty {
+  Id: string;
   DisplayName: string;
+  Metadata: Record<string, string>;
+  Widget: WidgetType;
   UnderlyingProperty: IProperty;
 }
 
@@ -100,7 +104,6 @@ export interface IGroup {
   Name: string;
   ExposedProperties: IExposedProperty[];
   ExposedFunctions: IExposedFunction[];
-  ExposedActors: IExposedActor[];
 }
 
 export interface IPreset {
@@ -110,7 +113,7 @@ export interface IPreset {
   
   ExposedProperties?: IExposedProperty[];
   ExposedFunctions?: IExposedFunction[];
-  ExposedActors?: IExposedActor[];
+  Exposed: Record<string, IExposedProperty | IExposedFunction>;
 }
 
 export interface IAsset {
@@ -160,11 +163,20 @@ export interface IWidget {
   order?: number;
 }
 
-export interface IPanel {
-  name: string;
-  stack?: boolean;
-  widgets: IWidget[];
+export enum IPanelType {
+  Panel = 'PANEL',
+  List  = 'LIST',
+}
 
+export interface IPanel {
+  id?: string;
+  title?: string;
+  type: IPanelType;
+  widgets?: ICustomStackWidget[];
+  
+  items?: ICustomStackListItem[];
+  addFunction?: ICustomStackFunction;
+  removeFunction?: ICustomStackFunction;
 }
 
 export enum TabLayout {
@@ -188,6 +200,7 @@ export interface IDropdownOption {
 }
 
 export interface ICustomStackProperty {
+  id?: string;
   actor?: string;
   property: string;
   propertyType: PropertyType;
@@ -216,27 +229,25 @@ export interface ICustomStackFunction {
 }
 
 export interface ICustomStackItem {
+  id?: string;
   label: string;
   widgets: ICustomStackWidget[];
 }
 
 export interface ICustomStackTabs {
+  id?: string;
   widget: 'Tabs';
   tabs: ICustomStackItem[];
 }
 
-export interface ICustomStackListItem extends ICustomStackItem {
-  check?: { actor: string;  property: string; };
+export interface ICustomStackListItem {
+  id?: string;
+  label: string;
+  check?: { actor: string; property: string; };
+  panels: IPanel[];
 }
 
-export interface ICustomStackList {
-  widget: 'List';
-  items: ICustomStackListItem[];
-  addFunction?: ICustomStackFunction;
-  removeFunction?: ICustomStackFunction;
-}
-
-export type ICustomStackWidget = ICustomStackProperty | ICustomStackTabs | ICustomStackList;
+export type ICustomStackWidget = ICustomStackProperty | ICustomStackTabs;
 
 export interface ITab {
   name: string;

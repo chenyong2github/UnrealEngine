@@ -16,6 +16,7 @@
 #include "Runtime/Launch/Resources/Version.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "SceneTypes.h"
+#include "DrawDebugHelpers.h"
 #include "StaticMeshComponent.generated.h"
 
 class FColorVertexBuffer;
@@ -31,6 +32,10 @@ struct FEngineShowFlags;
 struct FNavigableGeometryExport;
 struct FNavigationRelevantData;
 struct FStaticLightingPrimitiveInfo;
+
+/** Whether FStaticMeshSceneProxy should to store data and enable codepaths needed for debug rendering */
+#define STATICMESH_ENABLE_DEBUG_RENDERING			ENABLE_DRAW_DEBUG
+
 
 /** Cached vertex information at the time the mesh was painted. */
 USTRUCT()
@@ -265,7 +270,7 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category=Rendering)
 	uint8 bDisallowMeshPaintPerInstance : 1;
 
-#if !(UE_BUILD_SHIPPING)
+#if STATICMESH_ENABLE_DEBUG_RENDERING
 	/** Draw mesh collision if used for complex collision */
 	uint8 bDrawMeshCollisionIfComplex : 1;
 	/** Draw mesh collision if used for simple collision */

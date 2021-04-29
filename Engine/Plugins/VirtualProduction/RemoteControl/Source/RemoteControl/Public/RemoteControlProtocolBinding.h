@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "UObject/Class.h"
 #include "UObject/StructOnScope.h"
-#include "UObject/WeakObjectPtr.h"
 
 #include "RemoteControlProtocolBinding.generated.h"
 
@@ -47,18 +46,26 @@ private:
 		enum { Value = false };
 	};
 
-	template <> struct TIsSupportedRangeValueType<int8>		{ enum { Value = true }; };
-	template <> struct TIsSupportedRangeValueType<int16>	{ enum { Value = true }; };
-	template <> struct TIsSupportedRangeValueType<int32>	{ enum { Value = true }; };
-	template <> struct TIsSupportedRangeValueType<int64>	{ enum { Value = true }; };
-	template <> struct TIsSupportedRangeValueType<uint8>	{ enum { Value = true }; };
-	template <> struct TIsSupportedRangeValueType<uint16>	{ enum { Value = true }; };
-	template <> struct TIsSupportedRangeValueType<uint32>	{ enum { Value = true }; };
-	template <> struct TIsSupportedRangeValueType<uint64>	{ enum { Value = true }; };
-	template <> struct TIsSupportedRangeValueType<float>	{ enum { Value = true }; };
-	template <> struct TIsSupportedRangeValueType<double>	{ enum { Value = true }; };
-	template <> struct TIsSupportedRangeValueType<bool>		{ enum { Value = true }; };
+	template <typename PropertyType>
+	struct TIsSupportedRangePropertyTypeBase
+	{
+		enum { Value = false };
+	};
 
+	template <typename PropertyType, typename Enable = void>
+	struct TIsSupportedRangePropertyType : TIsSupportedRangePropertyType<PropertyType> {};
+
+	template <typename PropertyType>
+    struct TIsSupportedRangePropertyType<
+            PropertyType,
+            typename TEnableIf<TIsDerivedFrom<PropertyType, FNumericProperty>::Value>::Type>
+        : TIsSupportedRangePropertyTypeBase<PropertyType>
+	{
+		enum
+		{
+			Value = true
+        };
+	};
 
 public:
 	FRemoteControlProtocolMapping() = default;
@@ -72,43 +79,168 @@ public:
 	const FGuid& GetId() const { return Id; }
 
 	/** Get Binding Range Value */
-	template<typename T>
-	T GetRangeValue()
+	template<typename ValueType>
+	ValueType GetRangeValue()
 	{
-		check(TIsSupportedRangeValueType<T>::Value);
-		check(InterpolationRangePropertyData.Num() && InterpolationRangePropertyData.Num() == sizeof(T));
-		return *reinterpret_cast<T*>(InterpolationRangePropertyData.GetData());
+		check(TIsSupportedRangeValueType<ValueType>::Value);
+		check(InterpolationRangePropertyData.Num() && InterpolationRangePropertyData.Num() == sizeof(ValueType));
+		return *reinterpret_cast<ValueType*>(InterpolationRangePropertyData.GetData());
 	}
 
-	/** Set Binding Range Value based on template value input */
-	template<typename T>
-	void SetRangeValue(T InRangeValue)
+	/** Get Binding Range Struct Value */
+	template <typename ValueType, typename PropertyType>
+	typename TEnableIf<TIsSame<FStructProperty, PropertyType>::Value, ValueType>::Type
+	GetRangeValue()
 	{
-		check(TIsSupportedRangeValueType<T>::Value);
-		check(InterpolationRangePropertyData.Num() && InterpolationRangePropertyData.Num() == sizeof(T));
-		*reinterpret_cast<T*>(InterpolationRangePropertyData.GetData()) = InRangeValue;
+		check(InterpolationRangePropertyData.Num() && InterpolationRangePropertyData.Num() == sizeof(ValueType))
+		return *reinterpret_cast<ValueType*>(InterpolationRangePropertyData.GetData());
+	}
+	
+	/** Set Binding Range Value based on template value input */
+	template<typename ValueType>
+	void SetRangeValue(ValueType InRangeValue)
+	{
+		check(TIsSupportedRangeValueType<ValueType>::Value);
+		check(InterpolationRangePropertyData.Num() && InterpolationRangePropertyData.Num() == sizeof(ValueType));
+		*reinterpret_cast<ValueType*>(InterpolationRangePropertyData.GetData()) = InRangeValue;
+	}
+
+	/** Set Binding Range Struct Value based on templated value input */
+	template<typename ValueType, typename PropertyType>
+	typename TEnableIf<TIsSame<FStructProperty, PropertyType>::Value, void>::Type
+	SetRangeValue(ValueType InRangeValue)
+	{
+		check(InterpolationRangePropertyData.Num() && InterpolationRangePropertyData.Num() == sizeof(ValueType));
+		*reinterpret_cast<ValueType*>(InterpolationRangePropertyData.GetData()) = InRangeValue;
 	}
 
 	/** Get Mapping Property Value as a primitive type */
-	template<typename T>
-	T GetMappingValueAsPrimitive()
+	template<typename ValueType>
+	ValueType GetMappingValueAsPrimitive()
 	{
-		check(TIsSupportedRangeValueType<T>::Value);
-		check(InterpolationMappingPropertyData.Num() && InterpolationMappingPropertyData.Num() == sizeof(T));
-		return *reinterpret_cast<T*>(InterpolationMappingPropertyData.GetData());
+		check(TIsSupportedRangeValueType<ValueType>::Value);
+		check(InterpolationMappingPropertyData.Num() && InterpolationMappingPropertyData.Num() == sizeof(ValueType));
+		return *reinterpret_cast<ValueType*>(InterpolationMappingPropertyData.GetData());
+	}
+
+	/** Get Mapping Property Struct Value as a primitive type */
+	template<typename ValueType, typename PropertyType>
+	typename TEnableIf<TIsSame<FStructProperty, PropertyType>::Value, ValueType>::Type
+    GetMappingValueAsPrimitive()
+	{
+		check(InterpolationMappingPropertyData.Num() && InterpolationMappingPropertyData.Num() == sizeof(ValueType));
+		return *reinterpret_cast<ValueType*>(InterpolationMappingPropertyData.GetData());
 	}
 
 	/** Set primitive Mapping Property Value based on template value input */
-	template<typename T>
-	void SetRangeValueAsPrimitive(T InMappingPropertyValue)
+	template<typename ValueType>
+	void SetRangeValueAsPrimitive(ValueType InMappingPropertyValue)
 	{
-		check(TIsSupportedRangeValueType<T>::Value);
-		check(InterpolationMappingPropertyData.Num() && InterpolationMappingPropertyData.Num() == sizeof(T));
-		*reinterpret_cast<T*>(InterpolationMappingPropertyData.GetData()) = InMappingPropertyValue;
+		check(TIsSupportedRangeValueType<ValueType>::Value);
+		check(InterpolationMappingPropertyData.Num() && InterpolationMappingPropertyData.Num() == sizeof(ValueType));
+		*reinterpret_cast<ValueType*>(InterpolationMappingPropertyData.GetData()) = InMappingPropertyValue;
 	}
 
+	/** Set primitive Mapping Property Struct Value based on template value input */
+	template<typename ValueType, typename PropertyType>
+	typename TEnableIf<TIsSame<FStructProperty, PropertyType>::Value, void>::Type
+    SetRangeValueAsPrimitive(ValueType InMappingPropertyValue)
+	{
+		check(InterpolationMappingPropertyData.Num() && InterpolationMappingPropertyData.Num() == sizeof(ValueType));
+		*reinterpret_cast<ValueType*>(InterpolationMappingPropertyData.GetData()) = InMappingPropertyValue;
+	}
+
+	/** Copies the underlying InterpolationRangePropertyData to the given destination, using the input property for type information */
+	template <typename PropertyType>
+	bool CopyRawRangeData(const PropertyType* InProperty, void* OutDestination)
+	{
+		return CopyRawData(InterpolationRangePropertyData, InProperty, OutDestination);
+	}
+
+	/** Copies the underlying InterpolationRangePropertyData to the given destination, using the input property for type information */
+	bool CopyRawRangeData(const FProperty* InProperty, void* OutDestination);
+
+	/** Sets the underlying InterpolationRangePropertyData to the given source, using the input property for type information */
+	template <typename PropertyType>
+    bool SetRawRangeData(URemoteControlPreset* InOwningPreset, const PropertyType* InProperty, const void* InSource)
+	{
+		return SetRawData(InOwningPreset, InterpolationRangePropertyData, InProperty, InSource);
+	}
+
+	/** Sets the underlying InterpolationRangePropertyData to the given source, using the input property for type information */
+	bool SetRawRangeData(URemoteControlPreset* InOwningPreset, const FProperty* InProperty, const void* InSource);
+
+	/** Copies the underlying InterpolationMappingPropertyData to the given destination, using the input property for type information */
+	template <typename PropertyType>
+    bool CopyRawMappingData(const PropertyType* InProperty, void* OutDestination)
+	{
+		return CopyRawData(InterpolationMappingPropertyData, InProperty, OutDestination);
+	}
+
+	/** Copies the underlying InterpolationMappingPropertyData to the given destination, using the input property for type information */
+	bool CopyRawMappingData(const FProperty* InProperty, void* OutDestination);
+
+	/** Sets the underlying InterpolationMappingPropertyData to the given source, using the input property for type information */
+	template <typename PropertyType>
+	bool SetRawMappingData(URemoteControlPreset* InOwningPreset, const PropertyType* InProperty, const void* InSource)
+	{
+		return SetRawData(InterpolationMappingPropertyData, InProperty, InSource);
+	}
+
+	/** Sets the underlying InterpolationMappingPropertyData to the given source, using the input property for type information */
+	bool SetRawMappingData(URemoteControlPreset* InOwningPreset, const FProperty* InProperty, const void* InSource);
+	
 	/** Get Mapping value as a Struct on Scope, only in case BoundProperty is FStructProperty */
 	TSharedPtr<FStructOnScope> GetMappingPropertyAsStructOnScope();
+
+private:
+	/** Checks that the source data matches the expected size of the property */
+	template <typename PropertyType>
+    bool PropertySizeMatchesData(const TArray<uint8>& InSource, const PropertyType* InProperty);
+	
+	/** Shared code between ranges/mapping data */
+	template <typename PropertyType>
+	bool CopyRawData(const TArray<uint8>& InSource, const PropertyType* InProperty, void* OutDestination)
+	{
+		static_assert(TIsDerivedFrom<PropertyType, FProperty>::Value, "PropertyType must derive from FProperty");
+
+		check(InProperty);
+		check(OutDestination);
+
+		bool bCanCopy = ensureMsgf(TIsSupportedRangePropertyType<PropertyType>::Value, TEXT("PropertyType %s is unsupported."), *PropertyType::StaticClass()->GetName());
+		bCanCopy &= ensureMsgf(PropertySizeMatchesData(InSource, InProperty), TEXT("PropertyType %s didn't match data size."), *PropertyType::StaticClass()->GetName());
+
+		if(bCanCopy)
+		{
+			FMemory::Memcpy((uint8*)OutDestination, InSource.GetData(), InSource.Num());
+		}
+
+		return bCanCopy;
+	}
+
+	bool CopyRawData(const TArray<uint8>& InSource, const FProperty* InProperty, void* OutDestination);
+
+	/** Shared code between ranges/mapping data */
+	template <typename PropertyType>
+	bool SetRawData(URemoteControlPreset* InOwningPreset, TArray<uint8>& OutDestination, const PropertyType* InProperty, const void* InSource)
+	{
+		static_assert(TIsDerivedFrom<PropertyType, FProperty>::Value, "PropertyType must derive from FProperty");
+
+		check(InProperty);
+		check(InSource);
+
+		bool bCanCopy = ensureMsgf(TIsSupportedRangePropertyType<PropertyType>::Value, TEXT("PropertyType %s is unsupported."), *PropertyType::StaticClass()->GetName());
+		bCanCopy &= ensureMsgf(PropertySizeMatchesData(OutDestination, InProperty), TEXT("PropertyType %s didn't match data size."), *PropertyType::StaticClass()->GetName());
+
+		if(bCanCopy)
+		{
+			FMemory::Memcpy(OutDestination.GetData(), (uint8*)InSource, OutDestination.Num());
+		}
+
+		return bCanCopy;
+	}
+
+	bool SetRawData(URemoteControlPreset* InOwningPreset, TArray<uint8>& OutDestination, const FProperty* InProperty, const void* InSource);
 
 private:
 	/** Unique Id of the current binding */
@@ -135,6 +267,50 @@ private:
 	UPROPERTY()
 	TFieldPath<FProperty> BoundPropertyPath;
 };
+
+template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<int8>		{ enum { Value = true }; };
+template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<int16>		{ enum { Value = true }; };
+template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<int32>		{ enum { Value = true }; };
+template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<int64>		{ enum { Value = true }; };
+template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<uint8>		{ enum { Value = true }; };
+template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<uint16>	{ enum { Value = true }; };
+template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<uint32>	{ enum { Value = true }; };
+template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<uint64>	{ enum { Value = true }; };
+template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<float>		{ enum { Value = true }; };
+template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<double>	{ enum { Value = true }; };
+template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<bool>		{ enum { Value = true }; };
+
+template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<FVector>		{ enum { Value = true }; };
+template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<FRotator>		{ enum { Value = true }; };
+template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<FLinearColor>	{ enum { Value = true }; };
+
+/** Currently all numeric types are supported so we can shortcut the above (rather than doing a series of CastField's) */
+template <> struct FRemoteControlProtocolMapping::TIsSupportedRangePropertyType<FNumericProperty> : TIsSupportedRangePropertyTypeBase<FNumericProperty> { enum { Value = true }; };
+
+template <> struct FRemoteControlProtocolMapping::TIsSupportedRangePropertyType<FEnumProperty> : TIsSupportedRangePropertyTypeBase<FEnumProperty> { enum { Value = false }; };
+
+template <> struct FRemoteControlProtocolMapping::TIsSupportedRangePropertyType<FBoolProperty> : TIsSupportedRangePropertyTypeBase<FBoolProperty> { enum { Value = TIsSupportedRangeValueType<bool>::Value }; };
+
+template <> struct FRemoteControlProtocolMapping::TIsSupportedRangePropertyType<FStructProperty> : TIsSupportedRangePropertyTypeBase<FStructProperty> { enum { Value = true }; };
+
+template <>
+inline bool FRemoteControlProtocolMapping::PropertySizeMatchesData<FBoolProperty>(const TArray<uint8>& InSource, const FBoolProperty* InProperty)
+{
+	return ensure(sizeof(bool) == InSource.Num());
+}
+
+template <>
+inline bool FRemoteControlProtocolMapping::PropertySizeMatchesData<FNumericProperty>(const TArray<uint8>& InSource, const FNumericProperty* InProperty)
+{
+	return ensure(InProperty->ElementSize == InSource.Num());
+}
+
+template <>
+inline bool FRemoteControlProtocolMapping::PropertySizeMatchesData<FStructProperty>(const TArray<uint8>& InSource, const FStructProperty* InProperty)
+{
+	UScriptStruct* ScriptStruct = InProperty->Struct;
+	return ensure(ScriptStruct->GetStructureSize() == InSource.Num());
+}
 
 /**
  * These structures serve both as properties mapping as well as UI generation
@@ -309,6 +485,14 @@ public:
 	 * @return true if it was set successfully
 	 */
 	bool SetPropertyDataToMapping(const FGuid& InMappingId, const void* InPropertyValuePtr);
+
+	/** Checks if the given ValueType is supported */
+	template <typename ValueType>
+	static bool IsRangeTypeSupported() { return FRemoteControlProtocolMapping::TIsSupportedRangeValueType<ValueType>::Value; }
+
+	/** Checks if the given PropertyType (FProperty) is supported */
+	template <typename PropertyType>
+    static bool IsRangePropertyTypeSupported() { return FRemoteControlProtocolMapping::TIsSupportedRangeValueType<PropertyType>::Value; }
 
 	/** Custom struct serialize */
 	bool Serialize(FArchive& Ar);

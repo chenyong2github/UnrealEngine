@@ -79,9 +79,10 @@ bool FRCFieldPathInfo::ResolveInternalRecursive(UStruct* OwnerType, void* Contai
 				if (FStructProperty* MapInnerStructureProperty = CastField<FStructProperty>(MapProperty->ValueProp))
 				{
 					FScriptMapHelper_InContainer MapHelper(MapProperty, ContainerAddress);
-					if (MapHelper.IsValidIndex(Segment.ResolvedData.MapIndex))
+					int32 MapIndex = Segment.ResolvedData.MapIndex != INDEX_NONE ? Segment.ResolvedData.MapIndex : ArrayIndex;
+					if (MapHelper.IsValidIndex(MapIndex))
 					{
-						return ResolveInternalRecursive(MapInnerStructureProperty->Struct, reinterpret_cast<void*>(MapHelper.GetValuePtr(Segment.ResolvedData.MapIndex)), SegmentIndex + 1);
+						return ResolveInternalRecursive(MapInnerStructureProperty->Struct, reinterpret_cast<void*>(MapHelper.GetValuePtr(MapIndex)), SegmentIndex + 1);
 					}
 				}
 			}
@@ -326,7 +327,7 @@ FString FRCFieldPathSegment::ToString(bool bDuplicateContainer) const
 		}
 		else
 		{
-			Output = FString::Printf(TEXT("%s[%s]"), *Name.ToString(), ArrayIndex == INDEX_NONE ? *FString::FromInt(ArrayIndex) : *MapKey);
+			Output = FString::Printf(TEXT("%s[%s]"), *Name.ToString(), *(ArrayIndex != INDEX_NONE ? FString::FromInt(ArrayIndex) : MapKey));
 		}
 	}
 	return Output;

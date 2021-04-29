@@ -612,6 +612,7 @@ static FString GetNiagaraShaderMapKeyString(const FNiagaraShaderMapId& ShaderMap
 	FName Format = LegacyShaderPlatformToShaderFormat(Platform);
 	FString ShaderMapKeyString = Format.ToString() + TEXT("_") + FString(FString::FromInt(GetTargetPlatformManagerRef().ShaderFormatVersion(Format))) + TEXT("_");
 	NiagaraShaderMapAppendKeyString(Platform, ShaderMapKeyString);
+	ShaderMapAppendKeyString(Platform, ShaderMapKeyString);
 	ShaderMapId.AppendKeyString(ShaderMapKeyString);
 	return FDerivedDataCacheInterface::BuildCacheKey(TEXT("NIAGARASM"), NIAGARASHADERMAP_DERIVEDDATA_VER, *ShaderMapKeyString);
 }
@@ -644,13 +645,19 @@ void FNiagaraShaderMap::LoadFromDerivedDataCache(const FNiagaraShaderScript* Scr
 				FMemoryReader Ar(CachedData, true);
 
 				// Deserialize from the cached data
-				InOutShaderMap->Serialize(Ar);
-				//InOutShaderMap->RegisterSerializedShaders(false);
+				if (InOutShaderMap->Serialize(Ar))
+				{
+					checkSlow(InOutShaderMap->GetShaderMapId() == ShaderMapId);
 
-				checkSlow(InOutShaderMap->GetShaderMapId() == ShaderMapId);
-
-				// Register in the global map
-				InOutShaderMap->Register(Platform);
+					// Register in the global map
+					InOutShaderMap->Register(Platform);
+				}
+				else
+				{
+					// if the serialization failed it's likely because the resource is out of date now (i.e. shader parameters changed)
+					COOK_STAT(Timer.TrackCyclesOnly());
+					InOutShaderMap = nullptr;
+				}
 			}
 			else
 			{

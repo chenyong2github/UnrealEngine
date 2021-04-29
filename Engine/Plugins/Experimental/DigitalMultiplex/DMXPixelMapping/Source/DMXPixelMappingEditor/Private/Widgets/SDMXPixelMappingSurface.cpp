@@ -1,10 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SDMXPixelMappingSurface.h"
-#include "Rendering/DrawElements.h"
-#include "Framework/Application/SlateApplication.h"
 
+#include "Components/DMXPixelMappingRendererComponent.h"
+#include "Toolkits/DMXPixelMappingToolkit.h"
+
+#include "Framework/Application/SlateApplication.h"
+#include "Rendering/DrawElements.h"
 #include "Settings/LevelEditorViewportSettings.h"
+
 
 #define LOCTEXT_NAMESPACE "SDMXPixelMappingSurface"
 
@@ -108,8 +112,10 @@ struct FFixedZoomLevelsContainerDesignSurface : public FZoomLevelsContainer
 /////////////////////////////////////////////////////
 // SDMXPixelMappingSurface
 
-void SDMXPixelMappingSurface::Construct(const FArguments& InArgs)
+void SDMXPixelMappingSurface::Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit)
 {
+	ToolkitWeakPtr = InToolkit;
+	
 	if ( !ZoomLevels )
 	{
 		ZoomLevels = MakeUnique<FFixedZoomLevelsContainerDesignSurface>();
@@ -120,6 +126,7 @@ void SDMXPixelMappingSurface::Construct(const FArguments& InArgs)
 	AllowContinousZoomInterpolation = InArgs._AllowContinousZoomInterpolation;
 	bIsPanning = false;
 	bIsZooming = false;
+	bRecenteredOnFirstTick = false;
 
 	ViewOffset = FVector2D::ZeroVector;
 	bDrawGridLines = true;
@@ -175,9 +182,16 @@ EActiveTimerReturnType SDMXPixelMappingSurface::HandleZoomToFit( double InCurren
 void SDMXPixelMappingSurface::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 {
 	// Zoom to extents
-	FSlateRect Bounds = ComputeAreaBounds();
 	if ( bDeferredZoomToExtents )
 	{
+		const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = ToolkitWeakPtr.Pin();
+		check(Toolkit.IsValid());
+		if (UDMXPixelMappingRendererComponent* RendererComponent = Toolkit->GetActiveRendererComponent())
+		{
+			RendererComponent->RendererInputTexture();
+		}
+
+		const FSlateRect Bounds = ComputeAreaBounds();
 		bDeferredZoomToExtents = false;
 		ZoomTargetTopLeft = FVector2D(Bounds.Left, Bounds.Top);
 		ZoomTargetBottomRight = FVector2D(Bounds.Right, Bounds.Bottom);
@@ -186,6 +200,12 @@ void SDMXPixelMappingSurface::Tick( const FGeometry& AllottedGeometry, const dou
 		{
 			RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &SDMXPixelMappingSurface::HandleZoomToFit));
 		}
+	}
+
+	if (!bRecenteredOnFirstTick)
+	{		
+		ZoomToFit(true);
+		bRecenteredOnFirstTick = true;
 	}
 }
 

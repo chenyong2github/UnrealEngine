@@ -121,6 +121,7 @@ public:
     // ISequencerSection interface
     virtual UMovieSceneSection* GetSectionObject() override;
     virtual FText GetSectionTitle() const override;
+	virtual float GetSectionHeight() const override;
     virtual bool IsReadOnly() const override;
     virtual int32 OnPaintSection( FSequencerSectionPainter& InPainter ) const override;
     virtual FReply OnSectionDoubleClicked(const FGeometry& SectionGeometry, const FPointerEvent& MouseEvent) override;
@@ -130,6 +131,7 @@ public:
     virtual void SlipSection(FFrameNumber SlipTime) override;
 
 protected:
+	static const float TrackHeight;
     TSharedPtr<ISequencer> GetSequencer() const { return SequencerPtr.Pin(); }
     UMovieSceneSubSection& GetSubSectionObject() { return SubSectionObject; }
     const UMovieSceneSubSection& GetSubSectionObject() const { return SubSectionObject; }
@@ -150,6 +152,9 @@ private:
     /** Utility class for resizing/slipping sub-sequence sections */
     FSubSectionEditorUtil EditorUtil;
 };
+
+template<typename ParentSectionClass>
+const float TSubSectionMixin<ParentSectionClass>::TrackHeight = 50.f;
 
 template<typename ParentSectionClass>
 template<typename... ParentCtorParams>
@@ -180,6 +185,12 @@ FText TSubSectionMixin<ParentSectionClass>::GetSectionTitle() const
     }
 }
 #undef LOCTEXT_NAMESPACE
+
+template<typename ParentSectionClass>
+float TSubSectionMixin<ParentSectionClass>::GetSectionHeight() const
+{
+	return TSubSectionMixin<ParentSectionClass>::TrackHeight;
+}
 
 template<typename ParentSectionClass>
 bool TSubSectionMixin<ParentSectionClass>::IsReadOnly() const

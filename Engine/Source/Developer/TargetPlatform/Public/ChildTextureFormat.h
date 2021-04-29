@@ -29,11 +29,13 @@ protected:
 
 		for (FName ModuleName : Modules)
 		{
-			// if this fails to load, there's a logic error, so use Checked
-			ITextureFormat* BaseFormat = FModuleManager::LoadModuleChecked<ITextureFormatModule>(ModuleName).GetTextureFormat();
-			BaseFormat->GetSupportedFormats(BaseFormats);
+			ITextureFormatModule * TFModule = FModuleManager::LoadModulePtr<ITextureFormatModule>(ModuleName);
+			if ( TFModule != nullptr )
+			{
+				ITextureFormat* BaseFormat = TFModule->GetTextureFormat();
+				BaseFormat->GetSupportedFormats(BaseFormats);
+			}
 		}
-
 	}
 
 	FName GetBaseFormatName(FName PlatformName) const

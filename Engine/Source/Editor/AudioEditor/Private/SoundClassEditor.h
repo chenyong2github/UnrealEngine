@@ -48,6 +48,10 @@ public:
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FSoundClassEditor");
+	}
 
 	/** IToolkit interface */
 	virtual FName GetToolkitFName() const override;
@@ -119,8 +123,10 @@ private:
 	/** Command list for this editor */
 	TSharedPtr<FUICommandList> GraphEditorCommands;
 
+#if ENABLE_AUDIO_DEBUG
 	/** Cache the audio debugger instance */
 	Audio::FAudioDebugger* Debugger;
+#endif
 
 	/**	The tab ids for all the tabs used */
 	static const FName GraphCanvasTabId;

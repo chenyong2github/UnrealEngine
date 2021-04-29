@@ -2037,6 +2037,21 @@ namespace Audio
 								const float Angle = FMath::DegreesToRadians(ShapeDetails.Extents.Y);
 								DrawDebugCone(World, Origin, SoundTransform.GetUnitAxis(EAxis::X), ShapeDetails.Extents.X + ShapeDetails.ConeOffset, Angle, Angle, 10, FColor(155, 155, 255));
 							}
+
+							if (!FMath::IsNearlyZero(ShapeDetails.ConeSphereRadius, KINDA_SMALL_NUMBER))
+							{
+								if (ShapeDetails.ConeSphereFalloff > 0.f)
+								{
+
+									DrawDebugSphere(World, Origin, ShapeDetails.ConeSphereRadius + ShapeDetails.ConeSphereFalloff, 10, FColor(155, 155, 255));
+									DrawDebugSphere(World, Origin, ShapeDetails.ConeSphereRadius, 10, FColor(55, 55, 255));
+								}
+								else
+								{
+									DrawDebugSphere(World, Origin, ShapeDetails.ConeSphereRadius, 10, FColor(155, 155, 255));
+								}
+							}
+
 							break;
 						}
 

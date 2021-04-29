@@ -16,6 +16,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "IDetailsView.h"
 #include "ISequencer.h"
+#include "ISequencerTrackEditor.h"
 #include "KeyPropertyParams.h"
 #include "Engine/Selection.h"
 #include "Sequencer.h"
@@ -224,7 +225,6 @@ void FLevelEditorSequencerIntegration::Initialize(const FLevelEditorSequencerInt
 	AddLevelViewportMenuExtender();
 	ActivateDetailHandler(Options);
 	ActivateSequencerEditorMode();
-	BindLevelEditorCommands();
 
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::Get().GetModuleChecked<FLevelEditorModule>("LevelEditor");
@@ -315,10 +315,14 @@ void FLevelEditorSequencerIntegration::OnPreSaveWorld(class UWorld* World, FObje
 {
 	// Restore the saved state so that the level save can save that instead of the animated state.
 	IterateAllSequencers(
-		[](FSequencer& In, const FLevelEditorSequencerIntegrationOptions& Options)
+		[World](FSequencer& In, const FLevelEditorSequencerIntegrationOptions& Options)
 		{
 			if (Options.bRequiresLevelEvents)
 			{
+				for (const TSharedPtr<ISequencerTrackEditor>& TrackEditor : In.GetTrackEditors())
+				{
+					TrackEditor->OnPreSaveWorld(World);
+				}
 				In.RestorePreAnimatedState();
 			}
 		}
@@ -329,12 +333,17 @@ void FLevelEditorSequencerIntegration::OnPostSaveWorld(class UWorld* World, FObj
 {
 	// Reset the time after saving so that an update will be triggered to put objects back to their animated state.
 	IterateAllSequencers(
-		[](FSequencer& In, const FLevelEditorSequencerIntegrationOptions& Options)
+		[World](FSequencer& In, const FLevelEditorSequencerIntegrationOptions& Options)
 		{
 			if (Options.bRequiresLevelEvents)
 			{
 				In.InvalidateCachedData();
 				In.ForceEvaluate();
+
+				for (const TSharedPtr<ISequencerTrackEditor>& TrackEditor : In.GetTrackEditors())
+				{
+					TrackEditor->OnPostSaveWorld(World);
+				}
 			}
 		}
 	);
@@ -740,7 +749,6 @@ TSharedRef<FExtender> FLevelEditorSequencerIntegration::GetLevelViewportExtender
 	Extender->AddMenuExtension("ActorControl", EExtensionHook::After, LevelEditorCommandBindings, FMenuExtensionDelegate::CreateLambda(
 		[this, ActorName, Actor = InActors[0], FoundInSequences](FMenuBuilder& MenuBuilder) {
 		MenuBuilder.BeginSection("Sequencer", LOCTEXT("Sequencer", "Sequencer"));
-		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().RecordSelectedActors, NAME_None, FText::Format(LOCTEXT("RecordSelectedActorsText", "Record {0} In Sequencer"), ActorName));
 
 		if (FoundInSequences.Num() > 0)
 		{
@@ -948,38 +956,6 @@ void FLevelEditorSequencerIntegration::OnPropertyEditorOpened()
 {
 	FLevelEditorSequencerIntegrationOptions Options;
 	ActivateDetailHandler(Options);
-}
-
-void FLevelEditorSequencerIntegration::BindLevelEditorCommands()
-{
-	FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-	LevelEditor.GetGlobalLevelEditorActions()->MapAction(
-		FSequencerCommands::Get().RecordSelectedActors,
-		FExecuteAction::CreateRaw(this, &FLevelEditorSequencerIntegration::RecordSelectedActors));
-
-	AcquiredResources.Add(
-		[]
-		{
-			FLevelEditorModule* LevelEditorPtr = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor"));
-			if (LevelEditorPtr)
-			{
-				LevelEditorPtr->GetGlobalLevelEditorActions()->UnmapAction(FSequencerCommands::Get().RecordSelectedActors);
-			}
-		}
-	);
-}
-
-void FLevelEditorSequencerIntegration::RecordSelectedActors()
-{
-	IterateAllSequencers(
-		[&](FSequencer& In, const FLevelEditorSequencerIntegrationOptions& Options)
-		{
-			if (Options.bCanRecord)
-			{
-				In.RecordSelectedActors();
-			}
-		}
-	);
 }
 
 void FLevelEditorSequencerIntegration::BrowseToSelectedActor(AActor* Actor, FSequencer* Sequencer, FMovieSceneSequenceID SequenceID)

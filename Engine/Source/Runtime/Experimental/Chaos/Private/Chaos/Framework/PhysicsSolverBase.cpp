@@ -129,14 +129,13 @@ namespace Chaos
 	FPhysicsSolverBase::FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner)
 		: BufferMode(BufferingModeIn)
 		, ThreadingMode(InThreadingMode)
-		, PullResultsManager(MakeUnique<FChaosResultsManager>())
+		, PullResultsManager(MakeUnique<FChaosResultsManager>(MarshallingManager))
 		, PendingSpatialOperations_External(MakeUnique<FPendingSpatialDataQueue>())
 		, bUseCollisionResimCache(false)
 		, bPaused_External(false)
 		, Owner(InOwner)
 		, ExternalDataLock_External(new FPhysicsSceneGuard())
 		, bIsShuttingDown(false)
-		, bSolverSubstep_External(false)
 		, AsyncDt(-1)
 		, AccumulatedTime(0)
 		, MMaxDeltaTime(0.0)
@@ -151,6 +150,8 @@ namespace Chaos
 
 	FPhysicsSolverBase::~FPhysicsSolverBase()
 	{
+		//free pull results before MarshallingManager is destroyed (technically should be safe because constructed after, but this makes it more explicit)
+		PullResultsManager->SetHistoryLength_External(0);	//ok to use _External because solver going away means external thread released it
 		//reset history buffer before freeing any unremoved callback objects
 		MarshallingManager.SetHistoryLength_Internal(0);
 
@@ -272,10 +273,12 @@ namespace Chaos
 	
 	void FPhysicsSolverBase::EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache, TUniquePtr<IRewindCallback>&& RewindCallback)
 	{
+		//TODO: this function calls both internal and extrnal - sort of assumed during initialization. Should decide what thread it's called on and mark it as either external or internal
 		MRewindData = MakeUnique<FRewindData>(((FPBDRigidsSolver*)this), NumFrames, InUseCollisionResimCache, ((FPBDRigidsSolver*)this)->GetCurrentFrame()); // FIXME
 		bUseCollisionResimCache = InUseCollisionResimCache;
 		MRewindCallback = MoveTemp(RewindCallback);
 		MarshallingManager.SetHistoryLength_Internal(NumFrames);
+		PullResultsManager->SetHistoryLength_External(NumFrames);	
 	}
 
 	void FPhysicsSolverBase::SetRewindCallback(TUniquePtr<IRewindCallback>&& RewindCallback)
@@ -289,6 +292,7 @@ namespace Chaos
 		const bool bSubstepping = MMaxSubSteps > 1;
 		SetSolverSubstep_External(bSubstepping);
 		const FReal DtWithPause = bPaused_External ? 0.0f : InDt;
+		PullResultsManager->SetLastExternalDt_External(DtWithPause);
 		FReal InternalDt = DtWithPause;
 		int32 NumSteps = 1;
 
@@ -310,10 +314,10 @@ namespace Chaos
 				AccumulatedTime -= InternalDt * NumSteps;
 			}
 		}
-		else if(bSubstepping && InDt > 0)
+		else if (bSubstepping && InDt > 0)
 		{
 			NumSteps = FMath::CeilToInt(DtWithPause / MMaxDeltaTime);
-			if(NumSteps > MMaxSubSteps)
+			if (NumSteps > MMaxSubSteps)
 			{
 				// Hitting this case means we're losing time, given the constraints of MaxSteps and MaxDt we can't
 				// fully handle the Dt requested, the simulation will appear to the viewer to run slower than realtime
@@ -388,7 +392,7 @@ namespace Chaos
 
 			// This break is mainly here to satisfy unit testing. The call to StepInternalTime_External will decrement the
 			// delay in the marshaling manager and throw of tests that are explicitly testing for propagation delays
-			if(IsUsingAsyncResults() == false && !bSubstepping)
+			if (IsUsingAsyncResults() == false && !bSubstepping)
 			{
 				break;
 			}

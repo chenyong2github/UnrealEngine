@@ -30,7 +30,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraSystemEditorData.h"
 #include "NiagaraScriptStatsViewModel.h"
-#include "NiagaraFlipbookViewModel.h"
+#include "NiagaraBakerViewModel.h"
 
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
@@ -80,7 +80,7 @@ const FName FNiagaraSystemToolkit::MessageLogTabID(TEXT("NiagaraSystemEditor_Mes
 const FName FNiagaraSystemToolkit::SystemOverviewTabID(TEXT("NiagaraSystemEditor_SystemOverview"));
 const FName FNiagaraSystemToolkit::ScratchPadTabID(TEXT("NiagaraSystemEditor_ScratchPad"));
 const FName FNiagaraSystemToolkit::ScriptStatsTabID(TEXT("NiagaraSystemEditor_ScriptStats"));
-const FName FNiagaraSystemToolkit::FlipbookTabID(TEXT("NiagaraSystemEditor_Flipbook"));
+const FName FNiagaraSystemToolkit::BakerTabID(TEXT("NiagaraSystemEditor_Baker"));
 IConsoleVariable* FNiagaraSystemToolkit::VmStatEnabledVar = IConsoleManager::Get().FindConsoleVariable(TEXT("vm.DetailedVMScriptStats"));
 IConsoleVariable* FNiagaraSystemToolkit::GpuStatEnabledVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.NiagaraGpuProfilingEnabled"));
 
@@ -166,9 +166,12 @@ void FNiagaraSystemToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 		.SetDisplayName(LOCTEXT("NiagaraScriptsStatsTab", "Script Stats"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
 
-	InTabManager->RegisterTabSpawner(FlipbookTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_Flipbook))
-		.SetDisplayName(LOCTEXT("NiagaraFlipbookTab", "Flipbook"))
-		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
+	if (GetDefault<UNiagaraEditorSettings>()->bEnableBaker)
+	{
+		InTabManager->RegisterTabSpawner(BakerTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_Baker))
+			.SetDisplayName(LOCTEXT("NiagaraBakerTab", "Baker"))
+			.SetGroup(WorkspaceMenuCategory.ToSharedRef());
+	}
 }
 
 void FNiagaraSystemToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -189,7 +192,7 @@ void FNiagaraSystemToolkit::UnregisterTabSpawners(const TSharedRef<class FTabMan
 	InTabManager->UnregisterTabSpawner(SystemOverviewTabID);
 	InTabManager->UnregisterTabSpawner(ScratchPadTabID);
 	InTabManager->UnregisterTabSpawner(ScriptStatsTabID);
-	InTabManager->UnregisterTabSpawner(FlipbookTabID);
+	InTabManager->UnregisterTabSpawner(BakerTabID);
 }
 
 FNiagaraSystemToolkit::~FNiagaraSystemToolkit()
@@ -326,8 +329,8 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 	ObjectSelectionForParameterMapView = MakeShared<FNiagaraObjectSelection>();
 	ScriptStats = MakeShared<FNiagaraScriptStatsViewModel>();
 	ScriptStats->Initialize(SystemViewModel);
-	FlipbookViewModel = MakeShared<FNiagaraFlipbookViewModel>();
-	FlipbookViewModel->Initialize(SystemViewModel);
+	BakerViewModel = MakeShared<FNiagaraBakerViewModel>();
+	BakerViewModel->Initialize(SystemViewModel);
 
 	SystemViewModel->OnEmitterHandleViewModelsChanged().AddSP(this, &FNiagaraSystemToolkit::RefreshParameters);
 	SystemViewModel->GetSelectionViewModel()->OnSystemIsSelectedChanged().AddSP(this, &FNiagaraSystemToolkit::OnSystemSelectionChanged);
@@ -373,7 +376,7 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 							->SetSizeCoefficient(0.6f)
 							->AddTab(SystemOverviewTabID, ETabState::OpenedTab)
 							->AddTab(ScratchPadTabID, ETabState::OpenedTab)
-							->AddTab(FlipbookTabID, ETabState::ClosedTab)
+							->AddTab(BakerTabID, ETabState::ClosedTab)
 							->SetForegroundTab(SystemOverviewTabID)
 						)
 					)
@@ -789,17 +792,17 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_ScriptStats(const FSpawnTab
 	return SpawnedTab;
 }
 
-TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_Flipbook(const FSpawnTabArgs& Args)
+TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_Baker(const FSpawnTabArgs& Args)
 {
-	check(Args.GetTabId().TabType == FlipbookTabID);
+	check(Args.GetTabId().TabType == BakerTabID);
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Label(LOCTEXT("NiagaraFlipbookTitle", "Flipbook"))
+		.Label(LOCTEXT("NiagaraBakerTitle", "Baker"))
 		[
 			SNew(SBox)
-			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Flipbook")))
+			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Baker")))
 			[
-				FlipbookViewModel->GetWidget().ToSharedRef()
+				BakerViewModel->GetWidget().ToSharedRef()
 			]
 		];
 
@@ -983,22 +986,22 @@ void FNiagaraSystemToolkit::ExtendToolbar()
 			return MenuBuilder.MakeWidget();
 		}
 
-		static TSharedRef<SWidget> GenerateFlipbookMenu(FNiagaraSystemToolkit* Toolkit)
+		static TSharedRef<SWidget> GenerateBakerMenu(FNiagaraSystemToolkit* Toolkit)
 		{
 			FMenuBuilder MenuBuilder(true, Toolkit->GetToolkitCommands());
 
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("FlipbookTab", "Open Flipbook Tab"),
-				LOCTEXT("FlipbookTabTooltip", "Opens the flip book tab."),
+				LOCTEXT("BakerTab", "Open Baker Tab"),
+				LOCTEXT("BakerTabTooltip", "Opens the flip book tab."),
 				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateLambda([TabManager=Toolkit->TabManager]() { TabManager->TryInvokeTab(FlipbookTabID); }))
+				FUIAction(FExecuteAction::CreateLambda([TabManager=Toolkit->TabManager]() { TabManager->TryInvokeTab(BakerTabID); }))
 			);
 
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("RenderFlipbook", "Render Flipbook"),
-				LOCTEXT("RenderFlipbookTooltip", "Renders the flipbook using the current settings."),
+				LOCTEXT("RenderBaker", "Render Baker"),
+				LOCTEXT("RenderBakerTooltip", "Renders the Baker using the current settings."),
 				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(Toolkit, &FNiagaraSystemToolkit::RenderFlipbook))
+				FUIAction(FExecuteAction::CreateSP(Toolkit, &FNiagaraSystemToolkit::RenderBaker))
 			);
 
 			return MenuBuilder.MakeWidget();
@@ -1086,17 +1089,20 @@ void FNiagaraSystemToolkit::ExtendToolbar()
 			}
 			ToolbarBuilder.EndSection();
 
-			ToolbarBuilder.BeginSection("Flipbook");
+			if ( GetDefault<UNiagaraEditorSettings>()->bEnableBaker )
 			{
-				ToolbarBuilder.AddComboButton(
-					FUIAction(),
-					FOnGetContent::CreateStatic(Local::GenerateFlipbookMenu, Toolkit),
-					LOCTEXT("Flipbook", "Flipbook"),
-					LOCTEXT("FlipbookTooltip", "Options for flipbook rendering."),
-					FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.Flipbook")
-				);
+				ToolbarBuilder.BeginSection("Baker");
+				{
+					ToolbarBuilder.AddComboButton(
+						FUIAction(),
+						FOnGetContent::CreateStatic(Local::GenerateBakerMenu, Toolkit),
+						LOCTEXT("Baker", "Baker"),
+						LOCTEXT("BakerTooltip", "Options for Baker rendering."),
+						FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.Baker")
+					);
+				}
+				ToolbarBuilder.EndSection();
 			}
-			ToolbarBuilder.EndSection();
 		}
 	};
 
@@ -1836,9 +1842,9 @@ void FNiagaraSystemToolkit::OnViewModelRequestFocusTab(FName TabName)
 	GetTabManager()->TryInvokeTab(TabName);
 }
 
-void FNiagaraSystemToolkit::RenderFlipbook()
+void FNiagaraSystemToolkit::RenderBaker()
 {
-	FlipbookViewModel->RenderFlipbook();
+	BakerViewModel->RenderBaker();
 }
 
 #undef LOCTEXT_NAMESPACE

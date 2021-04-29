@@ -66,14 +66,17 @@ struct FSavePackageResultStruct
 	/** MD5 hash of the cooked data */
 	TFuture<FMD5Hash> CookedHash;
 
+	/** Serialized package flags */
+	uint32 SerializedPackageFlags;
+
 	/** Linker for linker comparison after save. */
 	TUniquePtr<FLinkerSave> LinkerSave;
 
 	/** Constructors, it will implicitly construct from the result enum */
-	FSavePackageResultStruct() : Result(ESavePackageResult::Error), TotalFileSize(0) {}
-	FSavePackageResultStruct(ESavePackageResult InResult) : Result(InResult), TotalFileSize(0) {}
-	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize) : Result(InResult), TotalFileSize(InTotalFileSize) {}
-	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize, TFuture<FMD5Hash>&& InHash, TUniquePtr<FLinkerSave> Linker = nullptr) : Result(InResult), TotalFileSize(InTotalFileSize), CookedHash(MoveTemp(InHash)), LinkerSave(MoveTemp(Linker)) {}
+	FSavePackageResultStruct() : Result(ESavePackageResult::Error), TotalFileSize(0), SerializedPackageFlags(0) {}
+	FSavePackageResultStruct(ESavePackageResult InResult) : Result(InResult), TotalFileSize(0), SerializedPackageFlags(0) {}
+	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize) : Result(InResult), TotalFileSize(InTotalFileSize), SerializedPackageFlags(0) {}
+	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize, TFuture<FMD5Hash>&& InHash, uint32 InSerializedPackageFlags, TUniquePtr<FLinkerSave> Linker = nullptr) : Result(InResult), TotalFileSize(InTotalFileSize), CookedHash(MoveTemp(InHash)), SerializedPackageFlags(InSerializedPackageFlags), LinkerSave(MoveTemp(Linker)) {}
 
 	bool operator==(const FSavePackageResultStruct& Other) const
 	{
@@ -85,6 +88,14 @@ struct FSavePackageResultStruct
 		return Result != Other.Result;
 	}
 
+	/** Returns whether the package save was successful */
+	bool IsSuccessful() const
+	{
+		return
+			Result == ESavePackageResult::Success ||
+			Result == ESavePackageResult::GenerateStub ||
+			Result == ESavePackageResult::ReplaceCompletely;
+	}
 };
 
 COREUOBJECT_API void StartSavingEDLCookInfoForVerification();

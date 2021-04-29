@@ -156,7 +156,14 @@ private:
 		TArray<ItemType> UnfilteredChildren;
 		OnGetChildrenDelegate.ExecuteIfBound(Item, UnfilteredChildren);
 		TArrayView<ItemType> FilteredChildren(UnfilteredChildren);
-		OutChildren.Append(FilteredChildren.FilterByPredicate([this](const ItemType& Item){ return SearchBoxFilter->PassesFilter(Item); }));
+		if (SearchBoxFilter->PassesFilter(Item))
+		{
+			OutChildren.Append(UnfilteredChildren);
+		}
+		else
+		{
+			OutChildren.Append(FilteredChildren.FilterByPredicate([this](const ItemType& ChildItem){ return SearchBoxFilter->PassesFilter(ChildItem); }));
+		}
 	}
 
 	/** Filter text changed handler. */
@@ -178,19 +185,20 @@ private:
 		{
 			ChildPassesFilter = Children.ContainsByPredicate([this](const ItemType& InItem)
 				{
-					return  SearchBoxFilter->PassesFilter(InItem);
+					return SearchBoxFilter->PassesFilter(InItem);
 				});
 		}
-	
-		// First check if a child passes the filter to expand the parent.
+
+		if (SearchBoxFilter->PassesFilter(Object))
+		{
+			FilteredItems.Add(Object);
+		}
+
 		if (ChildPassesFilter)
 		{
-			FilteredItems.Add(Object);
-			TreeView->SetItemExpansion(Object, true);
-		}
-		else if (SearchBoxFilter->PassesFilter(Object))
-		{
-			FilteredItems.Add(Object);
+			FilteredItems.AddUnique(Object);
+			constexpr bool bInShouldExpandItem = true;
+			TreeView->SetItemExpansion(Object, bInShouldExpandItem);
 		}
 	}
 
@@ -239,7 +247,7 @@ private:
 	}
 
 	/** Handler for key down events. */
-	FReply OnKeyDown(const FGeometry&, const FKeyEvent& KeyEvent)
+	virtual FReply OnKeyDown(const FGeometry&, const FKeyEvent& KeyEvent) override
 	{
 		if (KeyEvent.GetKey() == EKeys::Escape)
 		{
@@ -250,7 +258,12 @@ private:
 		{
 			if (FilteredItems.Num() > 0)
 			{
-				OnSelectionChanged(FilteredItems[0], ESelectInfo::Type::OnNavigation);
+				TArray<ItemType> SelectedObjects;
+				TreeView->GetSelectedItems(SelectedObjects);
+				if (SelectedObjects.Num() == 1)
+				{
+					OnSelectionChanged(SelectedObjects[0], ESelectInfo::Type::Direct);
+				}
 			}
 			return FReply::Handled();
 		}

@@ -1049,12 +1049,15 @@ struct FD3D11Adapter
 	D3D_FEATURE_LEVEL MaxSupportedFeatureLevel;
 	/** Whether this is a software adapter */
 	bool bSoftwareAdapter;
+	/** Whether the GPU is integrated or discrete. */
+	bool bIsIntegrated;
 
 	// constructor
-	FD3D11Adapter(int32 InAdapterIndex = -1, D3D_FEATURE_LEVEL InMaxSupportedFeatureLevel = (D3D_FEATURE_LEVEL)0, bool bInSoftwareAdatper = false)
+	FD3D11Adapter(int32 InAdapterIndex = -1, D3D_FEATURE_LEVEL InMaxSupportedFeatureLevel = (D3D_FEATURE_LEVEL)0, bool bInSoftwareAdatper = false, bool InIsIntegrated = false)
 		: AdapterIndex(InAdapterIndex)
 		, MaxSupportedFeatureLevel(InMaxSupportedFeatureLevel)
 		, bSoftwareAdapter(bInSoftwareAdatper)
+		, bIsIntegrated(InIsIntegrated)
 	{
 	}
 

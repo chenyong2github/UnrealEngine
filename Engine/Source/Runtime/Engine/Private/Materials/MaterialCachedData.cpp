@@ -704,6 +704,12 @@ bool FMaterialCachedParameters::IsParameterValid(EMaterialParameterType Type, in
 	return !bOveriddenOnly || Entry.Overrides[Index];
 }
 
+const FGuid& FMaterialCachedParameters::GetExpressionGuid(EMaterialParameterType Type, int32 Index) const
+{
+	const FMaterialCachedParameterEntry& Entry = GetParameterTypeEntry(Type);
+	return Entry.ExpressionGuids[Index];
+}
+
 bool FMaterialCachedParameters::IsDefaultParameterValid(EMaterialParameterType Type, int32 Index, bool bOveriddenOnly, bool bCheckOwnedGlobalOverrides) const
 {
 	const FMaterialCachedParameterEntry& Entry = GetParameterTypeEntry(Type);

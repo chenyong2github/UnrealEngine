@@ -9,7 +9,8 @@ public class DisplayClusterProjection : ModuleRules
 	{
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
-				"DisplayClusterConfiguration"
+				"DisplayClusterConfiguration",
+				"DisplayClusterShaders",
 			});
 
 		PublicDependencyModuleNames.AddRange(
@@ -17,14 +18,14 @@ public class DisplayClusterProjection : ModuleRules
 				"Core",
 				"CoreUObject",
 				"DisplayCluster",
-				"Engine"
+				"Engine",
+				"Projects"
 			});
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Composure",
 				"DisplayCluster",
-				"MPCDI",
 				"Projects",
 				"RenderCore",
 				"RHI",
@@ -33,7 +34,6 @@ public class DisplayClusterProjection : ModuleRules
 
 		if (Target.bBuildEditor == true)
 		{
-			PrivateDependencyModuleNames.Add("DisplayClusterRendering");
 			PrivateDependencyModuleNames.Add("ProceduralMeshComponent");
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
@@ -41,19 +41,19 @@ public class DisplayClusterProjection : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PrivateDependencyModuleNames.AddRange(
-			new string[] {
-				"D3D11RHI",
-				"D3D12RHI"
+				new string[] {
+					"D3D11RHI",
+					"D3D12RHI"
 			});
 
 			// Required for some private headers needed for the rendering support.
 			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 			PrivateIncludePaths.AddRange(
-			new string[] {
-				Path.Combine(EngineDir, @"Source\Runtime\Windows\D3D11RHI\Private"),
-				Path.Combine(EngineDir, @"Source\Runtime\Windows\D3D11RHI\Private\Windows"),
-				Path.Combine(EngineDir, @"Source\Runtime\D3D12RHI\Private"),
-				Path.Combine(EngineDir, @"Source\Runtime\D3D12RHI\Private\Windows")
+				new string[] {
+					Path.Combine(EngineDir, @"Source\Runtime\Windows\D3D11RHI\Private"),
+					Path.Combine(EngineDir, @"Source\Runtime\Windows\D3D11RHI\Private\Windows"),
+					Path.Combine(EngineDir, @"Source\Runtime\D3D12RHI\Private"),
+					Path.Combine(EngineDir, @"Source\Runtime\D3D12RHI\Private\Windows")
 			});
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");

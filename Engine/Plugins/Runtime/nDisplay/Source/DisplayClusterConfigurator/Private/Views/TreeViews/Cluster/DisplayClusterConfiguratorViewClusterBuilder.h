@@ -10,7 +10,7 @@ class FDisplayClusterConfiguratorViewClusterBuilder
 	: public FDisplayClusterConfiguratorTreeBuilder
 {
 public:
-	FDisplayClusterConfiguratorViewClusterBuilder(const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit);
+	FDisplayClusterConfiguratorViewClusterBuilder(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit);
 
 	//~ Begin IDisplayClusterConfiguratorTreeBuilder Interface
 	virtual void Build(FDisplayClusterConfiguratorTreeBuilderOutput& Output) override;

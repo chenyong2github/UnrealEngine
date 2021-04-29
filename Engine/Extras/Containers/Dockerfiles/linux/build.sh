@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Determine which release of the Unreal Engine we will be building container images for
-UNREAL_ENGINE_RELEASE=master
+UNREAL_ENGINE_RELEASE="4.27"
 if [[ ! -z "$1" ]]; then
 	UNREAL_ENGINE_RELEASE="$1"
 fi
@@ -73,7 +73,7 @@ docker buildx build \
 # Build a "slim" version of the container image that excludes debug symbols and templates
 echo '[build.sh] Building the `unreal-engine` image for Unreal Engine release' "${UNREAL_ENGINE_RELEASE}..."
 docker buildx build \
-	-t "ghcr.io/epicgames/unreal-engine:dev-${UNREAL_ENGINE_RELEASE}-slim" \
+	-t "ghcr.io/epicgames/unreal-engine:dev-slim-${UNREAL_ENGINE_RELEASE}" \
 	--build-arg 'EXCLUDE_DEBUG=1' \
 	--build-arg 'EXCLUDE_TEMPLATES=1' \
 	"${args[@]}" \
@@ -84,3 +84,9 @@ docker build \
 	-t "ghcr.io/epicgames/pixel-streaming-signalling-server:${UNREAL_ENGINE_RELEASE}" \
 	--build-arg "UNREAL_ENGINE_RELEASE=${UNREAL_ENGINE_RELEASE}" \
 	./signalling-server
+
+# Build the container image for the Multi-User Editing server, which pulls files from our other images
+docker build \
+	-t "ghcr.io/epicgames/multi-user-server:${UNREAL_ENGINE_RELEASE}" \
+	--build-arg "UNREAL_ENGINE_RELEASE=${UNREAL_ENGINE_RELEASE}" \
+	./multi-user-server

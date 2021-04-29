@@ -377,9 +377,11 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, bIsSeeking(false)
 	, bAutoDestroy(false)
 	, MaxTimeBeforeForceUpdateTransform(5.0f)
-#if WITH_EDITOR
+#if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
 	, PreviewLODDistance(0.0f)
 	, bEnablePreviewLODDistance(false)
+#endif
+#if WITH_EDITORONLY_DATA
 	, bWaitForCompilationOnActivate(false)
 #endif
 	, bAwaitingActivationDueToNotReady(false)
@@ -576,7 +578,7 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 
 		if (AgeUpdateMode == ENiagaraAgeUpdateMode::TickDeltaTime)
 		{
-			SystemInstanceController->ManualTick(DeltaSeconds, (ThisTickFunction && ThisTickFunction->IsCompletionHandleValid()) ? ThisTickFunction->GetCompletionHandle() : nullptr);
+			SystemInstanceController->ManualTick(DeltaSeconds * CustomTimeDilation, (ThisTickFunction && ThisTickFunction->IsCompletionHandleValid()) ? ThisTickFunction->GetCompletionHandle() : nullptr);
 		}
 		else if(AgeUpdateMode == ENiagaraAgeUpdateMode::DesiredAge)
 		{
@@ -807,6 +809,16 @@ void UNiagaraComponent::Activate(bool bReset /* = false */)
 
 void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScalabilityCull)
 {
+	// Handle component ticking correct
+	struct FScopedComponentTickEnabled
+	{
+		FScopedComponentTickEnabled(UNiagaraComponent* InComponent) : Component(InComponent) {}
+		~FScopedComponentTickEnabled() { Component->SetComponentTickEnabled(bTickEnabled); }
+		UNiagaraComponent* Component = nullptr;
+		bool bTickEnabled = false;
+	};
+	FScopedComponentTickEnabled ScopedComponentTickEnabled(this);
+
 	bAwaitingActivationDueToNotReady = false;
 
 	// Reset our local bounds on reset
@@ -830,7 +842,6 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		{
 			UE_LOG(LogNiagara, Warning, TEXT("Failed to activate Niagara Component due to missing or invalid asset! (%s)"), *GetFullName());
 		}
-		SetComponentTickEnabled(false);
 		return;
 	}
 
@@ -876,7 +887,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	{
 		bAwaitingActivationDueToNotReady = true;
 		bActivateShouldResetWhenReady = bReset;
-		SetComponentTickEnabled(true);
+		ScopedComponentTickEnabled.bTickEnabled = true;
 		return;
 	}
 
@@ -910,9 +921,12 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		return;
 	}
 
-	Super::Activate(bReset);
-
-	//UE_LOG(LogNiagara, Log, TEXT("Activate: %p - %s - %s"), this, *Asset->GetName(), bIsScalabilityCull ? TEXT("Scalability") : TEXT(""));
+	// We can't call 'Super::Activate(bReset);' as this will enable the component tick
+	if (bReset || ShouldActivate() == true)
+	{
+		SetActiveFlag(true);
+		OnComponentActivated.Broadcast(this, bReset);
+	}
 	
 	// Auto attach if requested
 	const bool bWasAutoAttached = bDidAutoAttach;
@@ -981,12 +995,8 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		PrimaryComponentTick.TickGroup = FMath::Max(GNiagaraSoloTickEarly ? TG_PrePhysics : TG_DuringPhysics, SoloTickGroup);
 		PrimaryComponentTick.EndTickGroup = GNiagaraSoloAllowAsyncWorkToEndOfFrame ? TG_LastDemotable : ETickingGroup(PrimaryComponentTick.TickGroup);
 
-		/** We only need to tick the component if we require solo mode. */
-		SetComponentTickEnabled(true);
-	}
-	else
-	{
-		SetComponentTickEnabled(false);
+		// Solo instances require the component tick to be enabled
+		ScopedComponentTickEnabled.bTickEnabled = true;
 	}
 }
 
@@ -1257,11 +1267,14 @@ void UNiagaraComponent::OnSystemComplete(bool bExternalCompletion)
 	}
 
 	// Give renderers a chance to handle completion
-	if (auto NiagaraProxy = static_cast<FNiagaraSceneProxy*>(SceneProxy))
+	if (SystemInstanceController)
 	{
-		if (auto RenderData = NiagaraProxy->GetSystemRenderData())
+		if (auto NiagaraProxy = static_cast<FNiagaraSceneProxy*>(SceneProxy))
 		{
-			SystemInstanceController->NotifyRenderersComplete(*RenderData);
+			if (auto RenderData = NiagaraProxy->GetSystemRenderData())
+			{
+				SystemInstanceController->NotifyRenderersComplete(*RenderData);
+			}
 		}
 	}
 }
@@ -2496,7 +2509,7 @@ void UNiagaraComponent::FixDataInterfaceOuters()
 
 #endif
 
-void UNiagaraComponent::CopyParametersFromAsset()
+void UNiagaraComponent::CopyParametersFromAsset(bool bResetExistingOverrideParameters)
 {
 	TArray<FNiagaraVariable> SourceVars;
 	Asset->GetExposedParameters().GetParameters(SourceVars);
@@ -2512,7 +2525,10 @@ void UNiagaraComponent::CopyParametersFromAsset()
 	{
 		if (SourceVars.Contains(ExistingVar))
 		{
-			Asset->GetExposedParameters().CopyParameterData(OverrideParameters, ExistingVar);
+			if (bResetExistingOverrideParameters)
+			{
+				Asset->GetExposedParameters().CopyParameterData(OverrideParameters, ExistingVar);
+			}
 		}
 		else
 		{
@@ -2875,7 +2891,7 @@ void UNiagaraComponent::PostLoadNormalizeOverrideNames()
 
 #endif // WITH_EDITOR
 
-void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
+void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset, bool bResetExistingOverrideParameters)
 {
 	if (Asset == InAsset)
 	{
@@ -2917,7 +2933,7 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
 #else
 	if (Asset != nullptr)
 	{
-		CopyParametersFromAsset();
+		CopyParametersFromAsset(bResetExistingOverrideParameters);
 		OverrideParameters.Rebind();
 	}
 #endif
@@ -2951,6 +2967,16 @@ void UNiagaraComponent::SetGpuComputeDebug(bool bEnableDebug)
 			SystemInstanceController->SetGpuComputeDebug(bEnableGpuComputeDebug != 0);
 		}
 	}
+}
+
+void UNiagaraComponent::SetCustomTimeDilation(float Dilation)
+{
+	if ( !bForceSolo )
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Attempting to set custom time dilation on a NiagaraComponent(%s) that is not in solo mode, value will be ignored."), *GetNameSafe(this));
+		return;
+	}
+	CustomTimeDilation = Dilation;
 }
 
 void UNiagaraComponent::SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule)

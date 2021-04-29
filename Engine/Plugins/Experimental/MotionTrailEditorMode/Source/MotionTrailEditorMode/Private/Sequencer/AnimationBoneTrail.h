@@ -40,6 +40,10 @@ public:
 	bool IsDirty() const { return bDirty; }
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("UE::MotionTrailEditor::FAnimTrajectoryCache");
+	}
 
 private:
 

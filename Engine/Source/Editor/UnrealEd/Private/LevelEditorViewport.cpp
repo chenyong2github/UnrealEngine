@@ -3659,6 +3659,10 @@ void FLevelEditorViewportClient::SetActorLock(const FLevelViewportActorLock& InA
 	{
 		SetIsCameraCut();
 	}
+	if (ActorLocks.ActorLock.LockedActor.IsValid())
+	{
+		PreviousActorLocks.ActorLock = ActorLocks.ActorLock;
+	}
 	ActorLocks.ActorLock = InActorLock;
 }
 
@@ -3672,6 +3676,10 @@ void FLevelEditorViewportClient::SetCinematicActorLock(const FLevelViewportActor
 	if (ActorLocks.CinematicActorLock.LockedActor != InActorLock.LockedActor)
 	{
 		SetIsCameraCut();
+	}
+	if (ActorLocks.CinematicActorLock.LockedActor.IsValid())
+	{
+		PreviousActorLocks.CinematicActorLock = ActorLocks.CinematicActorLock;
 	}
 	ActorLocks.CinematicActorLock = InActorLock;
 }

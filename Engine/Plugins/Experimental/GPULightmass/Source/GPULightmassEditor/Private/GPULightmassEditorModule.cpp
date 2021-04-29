@@ -21,6 +21,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "ToolMenus.h"
 
 extern ENGINE_API void ToggleLightmapPreview_GameThread(UWorld* InWorld);
@@ -52,26 +53,7 @@ void FGPULightmassEditorModule::StartupModule()
 		LOCTEXT("OpensGPULightmassSettings", "Opens GPU Lightmass settings tab."), FSlateIcon(FEditorStyle::GetStyleSetName(), "Level.LightingScenarioIcon16x"), ActionOpenGPULightmassSettingsTab,
 		EUserInterfaceActionType::Button);
 
-	FGPULightmassModule& GPULightmassModule = FModuleManager::LoadModuleChecked<FGPULightmassModule>(TEXT("GPULightmass"));
-	GPULightmassModule.OnStaticLightingSystemsChanged.AddLambda([&SettingsView = SettingsView, &StartStopButtonText = StartStopButtonText]()
-	{ 
-		if (SettingsView.IsValid())
-		{
-			SettingsView->ForceRefresh();
-		}
 
-		if (StartStopButtonText.IsValid())
-		{
-			if (GEditor)
-			{
-				UWorld* World = GEditor->GetEditorWorldContext().World();
-				if (World)
-				{
-					StartStopButtonText->SetText(World->GetSubsystem<UGPULightmassSubsystem>()->IsRunning() ? LOCTEXT("GPULightmassSettingsStop", "Stop") : LOCTEXT("GPULightmassSettingsStart", "Build Lighting"));
-				}
-			}
-		}
-	});
 }
 
 void FGPULightmassEditorModule::ShutdownModule()
@@ -99,8 +81,7 @@ TSharedRef<SDockTab> FGPULightmassEditorModule::SpawnSettingsTab(const FSpawnTab
 
 	SettingsView = PropPlugin.CreateDetailView(DetailsViewArgs);
 
-	UWorld* World = GEditor->GetEditorWorldContext().World();
-	if (World)
+	if (UWorld* World = GEditor->GetEditorWorldContext().World())
 	{
 		if (World->GetSubsystem<UGPULightmassSubsystem>())
 		{
@@ -117,41 +98,184 @@ TSharedRef<SDockTab> FGPULightmassEditorModule::SpawnSettingsTab(const FSpawnTab
 			.AutoHeight()
 			.Padding(2)
 			[
-				SNew(SButton)
-				.HAlign(HAlign_Center)
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-				.IsEnabled(IsRayTracingEnabled())
-				.OnClicked(FOnClicked::CreateRaw(this, &FGPULightmassEditorModule::OnStartStopClicked))
+
+				// Start Build
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(0.0f, 0.0f, 8.f, 0.0f)
 				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.AutoWidth()
+					SNew(SButton)
+					.HAlign(HAlign_Center)
+					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+					.IsEnabled(IsRayTracingEnabled())
+					.Visibility_Lambda([](){ return IsRunning() ? EVisibility::Collapsed : EVisibility::Visible; })
+					.OnClicked_Raw(this, &FGPULightmassEditorModule::OnStartClicked)
 					[
-						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
-						.Text(FEditorFontGlyphs::Lightbulb_O)
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.AutoWidth()
+						[
+							SNew(STextBlock)
+							.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+							.Text(FEditorFontGlyphs::Lightbulb_O)
+						]
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(4, 0, 0, 0)
+						[
+							SNew(STextBlock)
+							.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+							.Text_Lambda( []()
+							{ 
+								return FGPULightmassEditorModule::IsBakeWhatYouSeeMode() ? 
+										LOCTEXT("GPULightmassSettingsStartInteractive", "Start Building Lighting") : 
+										LOCTEXT("GPULightmassSettingsStartFull", "Build Lighting");
+							})
+
+						]
 					]
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.Padding(4, 0, 0, 0)
+				]
+
+				// Save and Stop Building
+				+SHorizontalBox::Slot()
+				.Padding(0.0f, 0.0f, 8.f, 0.0f)
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.HAlign(HAlign_Center)
+					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+					.Visibility_Lambda([](){ return IsRunning() && IsBakeWhatYouSeeMode() ? EVisibility::Visible : EVisibility::Collapsed; })
+					.OnClicked_Raw(this, &FGPULightmassEditorModule::OnSaveAndStopClicked)
 					[
-						SAssignNew(StartStopButtonText, STextBlock)
-						.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-						.Text(LOCTEXT("GPULightmassSettingsStart", "Build Lighting"))
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.AutoWidth()
+						[
+							SNew(STextBlock)
+							.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+							.Text(FEditorFontGlyphs::Lightbulb_O)
+						]
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(4, 0, 0, 0)
+						[
+							SNew(STextBlock)
+							.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+							.Text(LOCTEXT("GPULightmassSettingsSaveAndStop", "Save And Stop Building"))
+						]
+					]
+				]
+
+				// Cancel Build
+				+SHorizontalBox::Slot()
+				.Padding(0.0f, 0.0f, 8.f, 0.0f)
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.HAlign(HAlign_Center)
+					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Danger")
+					.Visibility_Lambda([](){ return IsRunning() ? EVisibility::Visible: EVisibility::Collapsed; })
+					.OnClicked_Raw(this, &FGPULightmassEditorModule::OnCancelClicked)
+					.Text(LOCTEXT("GPULightmassSettingsCancel", "Cancel Build"))
+					.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+				]
+				
+
+				+SHorizontalBox::Slot()
+				.FillWidth(1.0)
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SCheckBox)
+					.IsChecked_Lambda( [] () { return FGPULightmassEditorModule::IsRealtimeOn() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+					.OnCheckStateChanged_Lambda( [] (ECheckBoxState NewState) 
+					{
+						if (GCurrentLevelEditingViewportClient)
+						{
+							GCurrentLevelEditingViewportClient->SetRealtime( NewState == ECheckBoxState::Checked );
+						}	
+					})
+				]
+         
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SBox)
+					.WidthOverride(140)
+					[	
+						SNew(STextBlock)
+						.Text_Lambda( [](){ return FGPULightmassEditorModule::IsRealtimeOn() ? LOCTEXT("GPULightmassRealtimeEnabled", "Viewport Realtime is ON ") : LOCTEXT("GPULightmassRealtimeDisabled", "Viewport Realtime is OFF");})
 					]
 				]
 			]
 			+ SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(2)
+			.Padding(2.f, 4.f)
 			[
 				SAssignNew(Messages, STextBlock)
 				.AutoWrapText(true)
-				.Text(IsRayTracingEnabled() ? LOCTEXT("GPULightmassReady", "GPU Lightmass is ready.") : LOCTEXT("GPULightmassRayTracingDisabled", "GPU Lightmass requires ray tracing support which is disabled."))
+				.Text_Lambda( []() -> FText
+				{
+
+					bool bIsRayTracingEnabled = IsRayTracingEnabled();
+					FText RTDisabledMsg = LOCTEXT("GPULightmassRayTracingDisabled", "GPU Lightmass requires ray tracing support which is disabled.");
+					if (!bIsRayTracingEnabled)
+					{
+						return LOCTEXT("GPULightmassRayTracingDisabled", "GPU Lightmass requires ray tracing support which is disabled.");
+					}
+
+					// Ready
+					static FText ReadyMsg = FText(LOCTEXT("GPULightmassReady", "GPU Lightmass is ready."));
+
+					// Ready, BWYS
+					static FText BWYSReadyMsg = FText(LOCTEXT("GPULightmassReadyBWYS", "GPU Lightmass is ready. Lighting will rebuild continuously in Bake What You See mode until saved or canceled."));
+
+					// Ready, BWYS+RT OFF Warning 
+					static FText RtOffBWYSWarningMsg = LOCTEXT("GPULightmassSpeedReadyRTWarning", "Building Lighting when using Bake What You See Mode will automatically enable Viewport Realtime to start building. Lighting will rebuild continuously in Bake What You See mode until saved or canceled.");
+
+					// Building FULL + RT Off Warning
+					UWorld* World = GEditor->GetEditorWorldContext().World();
+					FText BuildingMsg = FText::Format(LOCTEXT("GPULightmassBuildingLighting", "GPU Lightmass is building lighting for {0}."), FText::FromString(World->GetActiveLightingScenario() ? World->GetActiveLightingScenario()->GetOuter()->GetName() : World->GetName()));
+
+					// Building FULL + RT ON Warning 
+					static FText BuildingFullRTOnMsg = LOCTEXT("GPULightmassBuildingFullRTOn", "GPU Lightmass runs in slow mode when the viewport is realtime to avoid freezing. Uncheck Viewport Realtime to get full speed.");
+
+					// Building BWYS + RT ON Warning 
+					static FText BuildingRTOnMsg = LOCTEXT("GPULightmassBuildingInteractiveRTOn", "Disable Viewport Realtime to speed up building.");
+
+					// Building BWYS + RT OFF Warning 
+					static FText BuidlingRTOffMsg = LOCTEXT("GPULightmassBuildingInteractiveRTOff", "Re-enable Viewport Realtime to preview lighting.  Enabling Viewport Realtime will slow down building, to avoid freezing.");
+
+					bool bIsRunning = IsRunning();
+					bool bIsInteractive = IsBakeWhatYouSeeMode();
+					bool bIsRealtime = IsRealtimeOn();
+					if (bIsRunning)
+					{
+						if (bIsInteractive)
+						{
+							return bIsRealtime ? BuildingRTOnMsg : BuidlingRTOffMsg;
+						}
+
+						return bIsRealtime ? BuildingFullRTOnMsg : BuildingMsg;
+					}
+					else if (bIsInteractive)
+					{
+						return bIsRealtime ?  BWYSReadyMsg : RtOffBWYSWarningMsg;
+					}
+
+					return bIsRealtime ? BuildingFullRTOnMsg : ReadyMsg;
+				})	
 			]
+
 			+ SVerticalBox::Slot()
 			[
 				SettingsView.ToSharedRef()
@@ -159,17 +283,76 @@ TSharedRef<SDockTab> FGPULightmassEditorModule::SpawnSettingsTab(const FSpawnTab
 		];
 }
 
-FReply FGPULightmassEditorModule::OnStartStopClicked()
+bool FGPULightmassEditorModule::IsBakeWhatYouSeeMode()
 {
-	UWorld* World = GEditor->GetEditorWorldContext().World();
-	
-	if (!World->GetSubsystem<UGPULightmassSubsystem>()->IsRunning())
+	if (UWorld* World = GEditor->GetEditorWorldContext().World())
 	{
-		World->GetSubsystem<UGPULightmassSubsystem>()->Launch();
+		if (UGPULightmassSubsystem* LMSubsystem = World->GetSubsystem<UGPULightmassSubsystem>())
+		{
+			return LMSubsystem->GetSettings()->Mode == EGPULightmassMode::BakeWhatYouSee;
+		}
 	}
-	else
+
+	return false;
+}
+
+bool FGPULightmassEditorModule::IsRealtimeOn() 
+{
+	return GCurrentLevelEditingViewportClient && GCurrentLevelEditingViewportClient->IsRealtime();
+}
+
+bool FGPULightmassEditorModule::IsRunning() 
+{
+	if (UWorld* World = GEditor->GetEditorWorldContext().World())
 	{
-		World->GetSubsystem<UGPULightmassSubsystem>()->Stop();
+		return World->GetSubsystem<UGPULightmassSubsystem>()->IsRunning();
+	}
+
+	return false;
+}
+
+FReply FGPULightmassEditorModule::OnStartClicked()
+{
+	if (UWorld* World = GEditor->GetEditorWorldContext().World())
+	{
+		if (!World->GetSubsystem<UGPULightmassSubsystem>()->IsRunning())
+		{
+			if (IsBakeWhatYouSeeMode() && !IsRealtimeOn() && GCurrentLevelEditingViewportClient != nullptr)
+			{
+				GCurrentLevelEditingViewportClient->SetRealtime(true);
+			}
+
+			World->GetSubsystem<UGPULightmassSubsystem>()->Launch();
+		}
+	}
+
+	return FReply::Handled();
+}
+
+
+FReply FGPULightmassEditorModule::OnSaveAndStopClicked()
+{
+	if (UWorld* World = GEditor->GetEditorWorldContext().World())
+	{
+		if (World->GetSubsystem<UGPULightmassSubsystem>()->IsRunning())
+		{
+			World->GetSubsystem<UGPULightmassSubsystem>()->Save();
+			World->GetSubsystem<UGPULightmassSubsystem>()->Stop();
+		}
+	}
+
+	return FReply::Handled();
+}
+
+FReply FGPULightmassEditorModule::OnCancelClicked()
+{
+
+	if (UWorld* World = GEditor->GetEditorWorldContext().World())
+	{
+		if (World->GetSubsystem<UGPULightmassSubsystem>()->IsRunning())
+		{
+			World->GetSubsystem<UGPULightmassSubsystem>()->Stop();
+		}
 	}
 
 	return FReply::Handled();
@@ -208,48 +391,6 @@ void FGPULightmassEditorModule::CreateBuildMenu(FMenuBuilder& Builder)
 	Builder.AddMenuEntry(LOCTEXT("GPULightmassSettingsTitle", "GPU Lightmass"),
 		LOCTEXT("OpensGPULightmassSettings", "Opens GPU Lightmass settings tab."), FSlateIcon(FEditorStyle::GetStyleSetName(), "Level.LightingScenarioIcon16x"), ActionOpenGPULightmassSettingsTab,
 		NAME_None, EUserInterfaceActionType::Button);
-}
-
-void FGPULightmassEditorModule::Tick(float DeltaTime)
-{
-	if (Messages.IsValid())
-	{
-		if (!IsRayTracingEnabled())
-		{
-			Messages->SetText(LOCTEXT("GPULightmassRayTracingDsiabled", "GPU Lightmass requires ray tracing support which is disabled."));
-			return;
-		}
-
-		bool bIsViewportNonRealtime = GCurrentLevelEditingViewportClient && !GCurrentLevelEditingViewportClient->IsRealtime();
-
-		if (bIsViewportNonRealtime)
-		{
-			UWorld* World = GEditor->GetEditorWorldContext().World();
-			if (World->GetSubsystem<UGPULightmassSubsystem>()->IsRunning())
-			{
-				FText Text = FText::Format(LOCTEXT("GPULightmassBuildingLighting", "GPU Lightmass is building lighting for {0}."), FText::FromString(World->GetActiveLightingScenario() ? World->GetActiveLightingScenario()->GetOuter()->GetName() : World->GetName()));
-				Messages->SetText(Text);
-			}
-			else
-			{
-				Messages->SetText(FText(LOCTEXT("GPULightmassReady", "GPU Lightmass is ready.")));
-			}
-		}
-		else
-		{
-			Messages->SetText(LOCTEXT("GPULightmassSpeedModes", "GPU Lightmass runs in slow mode when the viewport is realtime to avoid freezing. Uncheck realtime on the viewport (or press Ctrl+R) to get full speed."));
-		}
-	}
-}
-
-bool FGPULightmassEditorModule::IsTickable() const
-{
-	return true;
-}
-
-TStatId FGPULightmassEditorModule::GetStatId() const
-{
-	RETURN_QUICK_DECLARE_CYCLE_STAT(FGPULightmassEditorModule, STATGROUP_Tickables);
 }
 
 #undef LOCTEXT_NAMESPACE

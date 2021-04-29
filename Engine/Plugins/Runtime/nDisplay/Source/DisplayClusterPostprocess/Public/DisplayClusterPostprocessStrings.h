@@ -9,7 +9,8 @@ namespace DisplayClusterPostprocessStrings
 {
 	namespace output_remap
 	{
-		static constexpr auto File = TEXT("file");
+		static constexpr auto File = TEXT("file"); // Load from external OBJ file
+		static constexpr auto Mesh = TEXT("mesh"); // Load from RootActorMeshComponentName
 	}
 
 	namespace texture_share

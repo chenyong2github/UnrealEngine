@@ -22,6 +22,8 @@ class IStructureDetailsView;
 
 template<typename ItemType> class STreeView;
 
+#if WITH_NIAGARA_DEBUGGER
+
 //////////////////////////////////////////////////////////////////////////
 
 enum class ENiagaraOutlinerSystemExpansionState
@@ -278,6 +280,8 @@ public:
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 	/** IPropertyTypeCustomization interface end */
 };
+
+#endif // WITH_NIAGARA_DEBUGGER
 
 /** Due to limitations of the structure details view, we need to wrap up structs we wish to customize. */
 USTRUCT()

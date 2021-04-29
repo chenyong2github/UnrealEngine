@@ -50,7 +50,7 @@ class USkyAtmosphereComponent : public USceneComponent
 	~USkyAtmosphereComponent();
 
 
-	/** The ground albedo that will tint the astmophere when the sun light will bounce on it. Only taken into account when MultiScattering>0.0. */
+	/** The ground albedo that will tint the atmosphere when the sun light will bounce on it. Only taken into account when MultiScattering>0.0. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Planet", meta = (HideAlphaChannel))
 	ESkyAtmosphereTransformMode TransformMode;
 
@@ -58,7 +58,7 @@ class USkyAtmosphereComponent : public USceneComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Planet", meta = (DisplayName = "Ground Radius", UIMin = 1.0, UIMax = 7000.0, ClampMin = 0.1, ClampMax = 10000.0, SliderExponent = 5.0))
 	float BottomRadius;
 
-	/** The ground albedo that will tint the astmophere when the sun light will bounce on it. Only taken into account when MultiScattering>0.0. */
+	/** The ground albedo that will tint the atmosphere when the sun light will bounce on it. Only taken into account when MultiScattering>0.0. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Planet", meta = (HideAlphaChannel))
 	FColor GroundAlbedo;
 
@@ -153,8 +153,7 @@ class USkyAtmosphereComponent : public USceneComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Art Direction", meta = (UIMin = -90.0, UIMax = 90.0, ClampMin = -90.0f, ClampMax = 90.0f))
 	float TransmittanceMinLightElevationAngle;
 
-	/** The distance (kiloneters) at which we start evaluating the aerial pespective. 
-	Keeping this value a little away from the camera can help with performance: pixels not affected by the aerial perspective will have their computation skipped using early depth test.*/
+	/** The distance (kilometers) at which we start evaluating the aerial perspective. Having the aerial perspective starts away from the camera can help with performance: pixels not affected by the aerial perspective will have their computation skipped using early depth test.*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Art Direction", meta = (UIMin = 0.001f, UIMax = 10.0f, ClampMin = 0.001f))
 	float AerialPerspectiveStartDepth;
 

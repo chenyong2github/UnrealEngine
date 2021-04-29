@@ -142,6 +142,9 @@ namespace UnrealBuildTool
 		VisualStudioMac,
 		CLion,
 		Rider
+		#if __VPROJECT_AVAILABLE__
+					, VProject
+		#endif
 	}
 
 	/// <summary>
@@ -499,28 +502,42 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Finds all csproj within Engine/Source/Programs, and add them if their UE4CSharp.prog file exists.
 		/// </summary>
-		void DiscoverCSharpProgramProjects(MasterProjectFolder ProgramsFolder)
+		void DiscoverCSharpProgramProjects(List<FileReference> AllGameProjects, MasterProjectFolder ProgramsFolder)
 		{
-			string[] UnsupportedPlatformNames = Utils.MakeListOfUnsupportedPlatforms(SupportedPlatforms, bIncludeUnbuildablePlatforms:true).ToArray();
+			string[] UnsupportedPlatformNames = Utils.MakeListOfUnsupportedPlatforms(SupportedPlatforms, bIncludeUnbuildablePlatforms: true).ToArray();
 
 			List<FileReference> FoundProjects = new List<FileReference>();
+			List<DirectoryReference> ProjectDirs = new List<DirectoryReference>();
 
 			DirectoryReference EngineExtras = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Extras");
+			ProjectDirs.Add(EngineExtras);
 			DiscoverCSharpProgramProjectsRecursively(EngineExtras, FoundProjects);
 
 			List<DirectoryReference> AllEngineDirectories = UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory, "Source/Programs");
+			ProjectDirs = ProjectDirs.Union(AllEngineDirectories).ToList();
 			foreach (DirectoryReference EngineDir in AllEngineDirectories)
 			{
 				DiscoverCSharpProgramProjectsRecursively(EngineDir, FoundProjects);
 			}
 
+			foreach(FileReference GameProjectFile in AllGameProjects)
+			{
+				DirectoryReference GameRootFolder = GameProjectFile.Directory;
+				List<DirectoryReference> AllGameDirectories = UnrealBuildTool.GetExtensionDirs(GameRootFolder, "Source/Programs");
+				ProjectDirs = ProjectDirs.Union(AllGameDirectories).ToList();
+				foreach (DirectoryReference GameDir in AllGameDirectories)
+				{
+					DiscoverCSharpProgramProjectsRecursively(GameDir, FoundProjects);
+				}
+			}
+
 			foreach (FileReference FoundProject in FoundProjects)
 			{
-				foreach (DirectoryReference EngineDir in AllEngineDirectories)
+				foreach (DirectoryReference ProjectDir in ProjectDirs)
 				{
-					if (FoundProject.IsUnderDirectory(EngineDir))
+					if (FoundProject.IsUnderDirectory(ProjectDir))
 					{
-						if (!FoundProject.ContainsAnyNames(UnsupportedPlatformNames, EngineDir))
+						if (!FoundProject.ContainsAnyNames(UnsupportedPlatformNames, ProjectDir))
 						{
 							VCSharpProjectFile Project = new VCSharpProjectFile(FoundProject);
 
@@ -963,8 +980,8 @@ namespace UnrealBuildTool
 					AddSharedDotNetModules(ProgramsFolder);
 
 					// Discover C# programs which should additionally be included in the solution.
-					DiscoverCSharpProgramProjects(ProgramsFolder);
-                }
+					DiscoverCSharpProgramProjects(AllGameProjects, ProgramsFolder);
+				}
 
 
 				// Eliminate all redundant master project folders.  E.g., folders which contain only one project and that project

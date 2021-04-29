@@ -71,23 +71,23 @@ FAutoConsoleVariableRef CVarChaosSolverDrawShapesShapesKinematic(TEXT("p.Chaos.S
 FAutoConsoleVariableRef CVarChaosSolverDrawShapesShapesDynamic(TEXT("p.Chaos.Solver.DebugDraw.ShowDynamics"), ChaosSolverDrawShapesShowDynamic, TEXT("If DebugDrawShapes is enabled, whether to show dynamic objects"));
 
 Chaos::DebugDraw::FChaosDebugDrawSettings ChaosSolverDebugDebugDrawSettings(
-	/* ArrowSize =					*/ 10.0f,
-	/* BodyAxisLen =				*/ 30.0f,
-	/* ContactLen =					*/ 30.0f,
-	/* ContactWidth =				*/ 6.0f,
-	/* ContactPhiWidth =			*/ 0.0f,
-	/* ContactOwnerWidth =			*/ 0.0f,
-	/* ConstraintAxisLen =			*/ 30.0f,
-	/* JointComSize =				*/ 2.0f,
-	/* LineThickness =				*/ 1.0f,
-	/* DrawScale =					*/ 1.0f,
-	/* FontHeight =					*/ 10.0f,
-	/* FontScale =					*/ 1.5f,
-	/* ShapeThicknesScale =			*/ 1.0f,
-	/* PointSize =					*/ 5.0f,
-	/* VelScale =					*/ 0.0f,
-	/* AngVelScale =				*/ 0.0f,
-	/* ImpulseScale =				*/ 0.0f,
+	/* ArrowSize =			*/ 10.0f,
+	/* BodyAxisLen =		*/ 30.0f,
+	/* ContactLen =			*/ 30.0f,
+	/* ContactWidth =		*/ 6.0f,
+	/* ContactPhiWidth =	*/ 0.0f,
+	/* ContactOwnerWidth =	*/ 0.0f,
+	/* ConstraintAxisLen =	*/ 30.0f,
+	/* JointComSize =		*/ 2.0f,
+	/* LineThickness =		*/ 1.0f,
+	/* DrawScale =			*/ 1.0f,
+	/* FontHeight =			*/ 10.0f,
+	/* FontScale =			*/ 1.5f,
+	/* ShapeThicknesScale = */ 1.0f,
+	/* PointSize =			*/ 5.0f,
+	/* VelScale =			*/ 0.0f,
+	/* AngVelScale =		*/ 0.0f,
+	/* ImpulseScale =		*/ 0.0f,
 	/* InertiaScale =				*/ 1.0f,
 	/* DrawPriority =				*/ 10.0f,
 	/* bShowSimple =				*/ true,
@@ -371,10 +371,10 @@ namespace Chaos
 
 		MEvolution->SetInternalParticleInitilizationFunction(
 			[this](const Chaos::FGeometryParticleHandle* OldParticle, Chaos::FGeometryParticleHandle* NewParticle) 
-			{
+				{
 				IPhysicsProxyBase* Proxy = const_cast<IPhysicsProxyBase*>(OldParticle->PhysicsProxy());
 				if (Chaos::FPBDRigidClusteredParticleHandle* NewClusteredParticle = NewParticle->CastToClustered())
-				{
+					{
 					NewClusteredParticle->AddPhysicsProxy(Proxy);
 				}
 				NewParticle->SetPhysicsProxy(Proxy);
@@ -431,6 +431,8 @@ namespace Chaos
 	{
 		UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("FPBDRigidsSolver::UnregisterObject()"));
 
+		PullResultsManager->RemoveProxy_External(Proxy);
+
 		ClearGTParticle_External(*Proxy->GetParticle_LowLevel());	//todo: remove this
 
 		UpdateParticleInAccelerationStructure_External(Proxy->GetParticle_LowLevel(), /*bDelete=*/true);
@@ -459,22 +461,22 @@ namespace Chaos
 		{
 			UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("FPBDRigidsSolver::UnregisterObject() ~ Dequeue"));
 
-			// Generally need to remove stale events for particles that no longer exist
-			GetEventManager()->template ClearEvents<FCollisionEventData>(EEventType::Collision, [Proxy]
-			(FCollisionEventData& EventDataInOut)
-			{
-				Chaos::FCollisionDataArray const& CollisionData = EventDataInOut.CollisionData.AllCollisionsArray;
-				if (CollisionData.Num() > 0)
+				// Generally need to remove stale events for particles that no longer exist
+				GetEventManager()->template ClearEvents<FCollisionEventData>(EEventType::Collision, [Proxy]
+				(FCollisionEventData& EventDataInOut)
 				{
-					check(Proxy);
-					TArray<int32> const* const CollisionIndices = EventDataInOut.PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap.Find(Proxy);
-					if (CollisionIndices)
+					Chaos::FCollisionDataArray const& CollisionData = EventDataInOut.CollisionData.AllCollisionsArray;
+					if (CollisionData.Num() > 0)
 					{
-						EventDataInOut.PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap.Remove(Proxy);
+						check(Proxy);
+						TArray<int32> const* const CollisionIndices = EventDataInOut.PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap.Find(Proxy);
+						if (CollisionIndices)
+						{
+							EventDataInOut.PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap.Remove(Proxy);
+						}
 					}
-				}
 
-			});
+				});
 
 			FGeometryParticleHandle* Handle = Proxy->GetHandle_LowLevel();
 			Proxy->SetHandle(nullptr);
@@ -660,6 +662,7 @@ namespace Chaos
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_StartedSceneSimulation);
 
 		GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager().PopStorageData_Internal(GetEvolution()->LatestExternalTimestampConsumed_Internal);
+		GetEvolution()->WakeIslands();
 	}
 
 	void FPBDRigidsSolver::DestroyPendingProxies_Internal()
@@ -872,6 +875,10 @@ namespace Chaos
 			if(bIsNew)
 			{
 				auto Handle = Proxy->GetHandle_LowLevel();
+				if(auto Rigid = Handle->CastToRigidParticle())
+				{
+					Rigid->SetPreObjectStateLowLevel(Rigid->ObjectState());	//created this frame so pre is the initial value
+				}
 				Handle->SetPhysicsProxy(Proxy);
 				GetEvolution()->CreateParticle(Handle);
 				Proxy->SetInitialized(GetCurrentFrame());
@@ -963,10 +970,6 @@ namespace Chaos
 
 			}
 		});
-
-		{
-			GetEvolution()->WakeIslands();
-		}
 
 		//MarshallingManager.FreeData_Internal(&PushData);
 	}
@@ -1101,24 +1104,24 @@ namespace Chaos
 			for (Chaos::TPBDRigidParticleHandleImp<FReal, 3, false>& DirtyParticle : DirtyParticles)
 			{
 				IPhysicsProxyBase* Proxy = DirtyParticle.Handle()->PhysicsProxy();
-				if(Proxy != nullptr)
-				{
-					switch(DirtyParticle.GetParticleType())
-					{
-						case Chaos::EParticleType::Rigid:
+							if(Proxy != nullptr)
+						{
+								switch(DirtyParticle.GetParticleType())
 							{
-								PullData->DirtyRigids.AddDefaulted();
-								((FSingleParticlePhysicsProxy*)(Proxy))->BufferPhysicsResults(PullData->DirtyRigids.Last());
+							case Chaos::EParticleType::Rigid:
+								{
+									PullData->DirtyRigids.AddDefaulted();
+									((FSingleParticlePhysicsProxy*)(Proxy))->BufferPhysicsResults(PullData->DirtyRigids.Last());
+									break;
+								}
+							case Chaos::EParticleType::Kinematic:
+							case Chaos::EParticleType::Static:
+								ensure(false);
 								break;
-							}
-						case Chaos::EParticleType::Kinematic:
-						case Chaos::EParticleType::Static:
-							ensure(false);
-							break;
-						case Chaos::EParticleType::GeometryCollection:
-							ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(Proxy));
-							break;
-						case Chaos::EParticleType::Clustered:
+							case Chaos::EParticleType::GeometryCollection:
+								ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(Proxy));
+								break;
+							case Chaos::EParticleType::Clustered:
 							if (auto ClusterParticle = DirtyParticle.CastToClustered())
 							{
 								if (ClusterParticle->InternalCluster())
@@ -1131,13 +1134,13 @@ namespace Chaos
 								}
 								else
 								{
-									ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(Proxy));
+								ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(Proxy));
 								}
 							}
-							break;
-						default:
-							check(false);
-					}
+								break;
+							default:
+								check(false);
+							}
 				}	
 			}
 		}
@@ -1239,16 +1242,16 @@ namespace Chaos
 		{
 			if (ChaosSolverDrawShapesShowStatic)
 			{
-				DebugDraw::DrawParticleShapes(FRigidTransform3(), Particles.GetActiveStaticParticlesView(), FColor(128, 0, 0), &ChaosSolverDebugDebugDrawSettings);
+			DebugDraw::DrawParticleShapes(FRigidTransform3(), Particles.GetActiveStaticParticlesView(), FColor(128, 0, 0), &ChaosSolverDebugDebugDrawSettings);
 			}
 			if (ChaosSolverDrawShapesShowKinematic)
 			{
-				DebugDraw::DrawParticleShapes(FRigidTransform3(), Particles.GetActiveKinematicParticlesView(), FColor(64, 32, 0), &ChaosSolverDebugDebugDrawSettings);
+			DebugDraw::DrawParticleShapes(FRigidTransform3(), Particles.GetActiveKinematicParticlesView(), FColor(64, 32, 0), &ChaosSolverDebugDebugDrawSettings);
 			}
 			if (ChaosSolverDrawShapesShowDynamic)
 			{
-				DebugDraw::DrawParticleShapes(FRigidTransform3(), Particles.GetNonDisabledDynamicView(), FColor(255, 255, 0), &ChaosSolverDebugDebugDrawSettings);
-			}
+			DebugDraw::DrawParticleShapes(FRigidTransform3(), Particles.GetNonDisabledDynamicView(), FColor(255, 255, 0), &ChaosSolverDebugDebugDrawSettings);
+		}
 		}
 		if (ChaosSolverDebugDrawCollisions == 1) 
 		{

@@ -6165,7 +6165,7 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasks(const int32 NumTasksToP
 	return UpdatedTiles;
 }
 
-#if !UE_BUILD_SHIPPING
+#if UE_ENABLE_DEBUG_DRAWING
 void FRecastNavMeshGenerator::GetDebugGeometry(const FNavigationRelevantData& EncodedData, FNavDebugMeshData& DebugMeshData)
 {
 	const uint8* RawMemory = EncodedData.CollisionData.GetData();
@@ -6737,7 +6737,7 @@ public:
 	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override
 	{
 		bool bExported = false;
-#if ALLOW_DEBUG_FILES && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if ALLOW_DEBUG_FILES && ENABLE_VISUAL_LOG
 		if (FParse::Command(&Cmd, TEXT("ExportNavigation")))
 		{
 			if (InWorld == nullptr)

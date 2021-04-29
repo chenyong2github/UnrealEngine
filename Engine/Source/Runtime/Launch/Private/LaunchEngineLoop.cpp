@@ -939,60 +939,55 @@ bool LaunchCheckForFileOverride(const TCHAR* CmdLine, bool& OutFileOverrideFound
 	return true;
 }
 
-#if !UE_BUILD_SHIPPING && WITH_EDITORONLY_DATA
+#if !UE_BUILD_SHIPPING
 /**
  * Process command line aliases
  *
  */
-void LaunchCheckForCommandLineAliases(bool& bChanged)
+void LaunchCheckForCommandLineAliases(const FConfigFile& Config, TArray<FString>& PrevExpansions, bool& bChanged)
 {
 	bChanged = false;
-	if (FPaths::ProjectDir().Len() > 0)
+
+	if (const FConfigSection* Section = Config.Find(TEXT("CommandLineAliases")))
 	{
-		// Pass GeneratedConfigDir as nullptr instead of FPaths::GeneratedConfigDir() so that saved directory is not cached before -saveddir argument can be added
-		const TCHAR* GeneratedConfigDir = nullptr;
-
-		FConfigFile Config;
-		if (FConfigCacheIni::LoadExternalIniFile(Config, TEXT("CommandLineAliases"), nullptr, *FPaths::Combine(FPaths::ProjectDir(), TEXT("Config")),
-			/*bIsBaseIniName=*/ false,
-			/*Platform=*/ nullptr,
-			/*bForceReload=*/ false,
-			/*bWriteDestIni=*/ false,
-			/*bAllowGeneratedIniWhenCooked=*/ true,
-			GeneratedConfigDir
-			))
+		TArray<FString> Tokens;
 		{
-			if (FConfigSection* Section = Config.Find(TEXT("CommandLineAliases")))
+			const TCHAR* Stream = FCommandLine::Get();
+			FString NextToken;
+			while (FParse::Token(Stream, NextToken, false))
 			{
-				TArray<FString> Tokens;
-				{
-					const TCHAR* Stream = FCommandLine::Get();
-					FString NextToken;
-					while (FParse::Token(Stream, NextToken, false))
-					{
-						Tokens.Add(NextToken);
-					}
-				}
-
-				for (FConfigSection::TIterator It(*Section); It; ++It)
-				{
-					FString Key = FString(TEXT("-")) + It.Key().ToString();
-					for (FString& Token : Tokens)
-					{
-						if (Token == Key)
-						{
-							Token = It.Value().GetValue();
-							bChanged = true;
-						}
-					}
-				}
-
-				if (bChanged)
-				{
-					FString NewCommandLine = FString::Join(Tokens, TEXT(" "));
-					FCommandLine::Set(*NewCommandLine);
-				}
+				Tokens.Add(NextToken);
 			}
+		}
+
+		for (FConfigSection::TConstIterator ConfigIt(*Section); ConfigIt; ++ConfigIt)
+		{
+			FString Key = FString(TEXT("-")) + ConfigIt.Key().ToString();
+			TArray<FString>::TIterator TokenIt(Tokens);
+			while (TokenIt)
+			{
+				if (PrevExpansions.Contains(*TokenIt))
+				{
+					TokenIt.RemoveCurrent();
+					bChanged = true;
+					continue;
+				}
+
+				if (*TokenIt == Key)
+				{
+					PrevExpansions.Add(MoveTemp(*TokenIt));
+					*TokenIt = ConfigIt.Value().GetValue();
+					bChanged = true;
+				}
+
+				++TokenIt;
+			}
+		}
+
+		if (bChanged)
+		{
+			FString NewCommandLine = FString::Join(Tokens, TEXT(" "));
+			FCommandLine::Set(*NewCommandLine);
 		}
 	}
 }
@@ -1001,78 +996,114 @@ void LaunchCheckForCommandLineAliases(bool& bChanged)
  * Look for command line file
  *
  */
-void LaunchCheckForCmdLineFile(const TCHAR* CmdLine, bool& bChanged)
+void LaunchCheckForCmdLineFile(TArray<FString>& PrevExpansions, bool& bChanged)
 {
 	bChanged = false;
 
-	FString CmdLineFile;
-	if (FParse::Value(FCommandLine::Get(), TEXT("-CmdLineFile="), CmdLineFile))
+	auto RemoveExpansion = [&bChanged]()
 	{
-		if (CmdLineFile.EndsWith(TEXT(".txt")))
+		FString NewCommandLine = FCommandLine::Get();
+		FString Left;
+		FString Right;
+		if (NewCommandLine.Split(TEXT("-CmdLineFile="), &Left, &Right))
 		{
-			auto TryProcessFile = [&bChanged](const FString& InFilePath)
+			FString NextToken;
+			const TCHAR* Stream = *Right;
+			if (FParse::Token(Stream, NextToken, /*bUseEscape=*/ false))
 			{
-				FString FileCmds;
-				if (FFileHelper::LoadFileToString(FileCmds, *InFilePath))
-				{
-					FileCmds = FileCmds.TrimStartAndEnd();
-					if (FileCmds.Len() > 0)
-					{
-						UE_LOG(LogInit, Log, TEXT("Inserting commandline from file: %s, %s"), *InFilePath, *FileCmds);
-						FString NewCommandLine = FCommandLine::Get();
-						FString Left;
-						FString Right;
-						if (NewCommandLine.Split(TEXT("-CmdLineFile="), &Left, &Right))
-						{
-							FString NextToken;
-							const TCHAR* Stream = *Right;
-							if (FParse::Token(Stream, NextToken, /*bUseEscape=*/ false))
-							{
-								Right = FString(Stream);
-							}
-
-							NewCommandLine = Left + TEXT(" ") + FileCmds + TEXT(" ") + Right;
-							FCommandLine::Set(*NewCommandLine);
-							bChanged = true;
-						}
-					}
-
-					return true;
-				}
-
-				return false;
-			};
-
-			bool bFoundFile = TryProcessFile(CmdLineFile);
-			if (!bFoundFile && FPaths::ProjectDir().Len() > 0)
-			{
-				const FString ProjectDir = FPaths::ProjectDir();
-				bFoundFile = TryProcessFile(ProjectDir + CmdLineFile);
-				if (!bFoundFile)
-				{
-					const FString ProjectPluginsDir = ProjectDir + TEXT("Plugins/");
-					TArray<FString> DirectoryNames;
-					IFileManager::Get().IterateDirectory(*ProjectPluginsDir, [&](const TCHAR* FilenameOrDirectory, bool bIsDirectory) -> bool
-					{
-						if (bIsDirectory && TryProcessFile(FString(FilenameOrDirectory) + TEXT("/") + CmdLineFile))
-						{
-							bFoundFile = true;
-							return false;
-						}
-						return true;
-					});
-				}
+				Right = FString(Stream);
 			}
 
-			if (!bFoundFile)
+			NewCommandLine = Left + TEXT(" ") + Right;
+			NewCommandLine.TrimStartAndEndInline();
+			FCommandLine::Set(*NewCommandLine);
+			bChanged = true;
+		}
+	};
+
+	auto TryProcessFile = [&RemoveExpansion, &bChanged](const FString& InFilePath)
+	{
+		FString FileCmds;
+		if (FFileHelper::LoadFileToString(FileCmds, *InFilePath))
+		{
+			UE_LOG(LogInit, Log, TEXT("Inserting commandline from file: %s, %s"), *InFilePath, *FileCmds);
+
+			FileCmds = FileCmds.TrimStartAndEnd();
+			if (FileCmds.Len() == 0)
 			{
-				UE_LOG(LogInit, Warning, TEXT("Failed to load commandline file '%s'."), *CmdLineFile);
+				RemoveExpansion();
+				return true;
+			}
+
+			FString NewCommandLine = FCommandLine::Get();
+			FString Left;
+			FString Right;
+			if (NewCommandLine.Split(TEXT("-CmdLineFile="), &Left, &Right))
+			{
+				FString NextToken;
+				const TCHAR* Stream = *Right;
+				if (FParse::Token(Stream, NextToken, /*bUseEscape=*/ false))
+				{
+					Right = FString(Stream);
+				}
+
+				NewCommandLine = Left + TEXT(" ") + FileCmds + TEXT(" ") + Right;
+				NewCommandLine.TrimStartAndEndInline();
+				FCommandLine::Set(*NewCommandLine);
+				bChanged = true;
+				return true;
 			}
 		}
-		else
+
+		return false;
+	};
+
+	FString CmdLineFile;
+	while (FParse::Value(FCommandLine::Get(), TEXT("-CmdLineFile="), CmdLineFile))
+	{
+		if (!CmdLineFile.EndsWith(TEXT(".txt")))
 		{
 			UE_LOG(LogInit, Warning, TEXT("Can only load commandline files ending with .txt, can't load: %s"), *CmdLineFile);
+			RemoveExpansion();
+			continue;
 		}
+
+		if (PrevExpansions.Contains(CmdLineFile))
+		{
+			// If already expanded, just remove it
+			RemoveExpansion();
+			continue;
+		}
+
+		bool bFoundFile = TryProcessFile(CmdLineFile);
+		if (!bFoundFile && FPaths::ProjectDir().Len() > 0)
+		{
+			const FString ProjectDir = FPaths::ProjectDir();
+			bFoundFile = TryProcessFile(ProjectDir + CmdLineFile);
+			if (!bFoundFile)
+			{
+				const FString ProjectPluginsDir = ProjectDir + TEXT("Plugins/");
+				TArray<FString> DirectoryNames;
+				IFileManager::Get().IterateDirectory(*ProjectPluginsDir, [&](const TCHAR* FilenameOrDirectory, bool bIsDirectory) -> bool
+				{
+					if (bIsDirectory && TryProcessFile(FString(FilenameOrDirectory) + TEXT("/") + CmdLineFile))
+					{
+						bFoundFile = true;
+						return false;
+					}
+					return true;
+				});
+			}
+		}
+
+		if (!bFoundFile)
+		{
+			UE_LOG(LogInit, Warning, TEXT("Failed to load commandline file '%s'."), *CmdLineFile);
+			RemoveExpansion();
+			continue;
+		}
+
+		PrevExpansions.Add(MoveTemp(CmdLineFile));
 	}
 }
 #endif
@@ -1675,19 +1706,47 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	}
 
 	// Avoiding potential exploits by not exposing command line overrides in the shipping games.
-#if !UE_BUILD_SHIPPING && WITH_EDITORONLY_DATA
+#if !UE_BUILD_SHIPPING
 	{
 		SCOPED_BOOT_TIMING("Command Line Adjustments");
 
-		bool bChanged = false;
-		LaunchCheckForCommandLineAliases(bChanged);
-		if (bChanged)
+		FConfigFile CommandLineAliasesConfigFile;
+		if (FPaths::ProjectDir().Len() > 0)
 		{
-			CmdLine = FCommandLine::Get();
+			// Pass GeneratedConfigDir as nullptr instead of FPaths::GeneratedConfigDir() so that saved directory is not cached before -saveddir argument can be added
+			const TCHAR* GeneratedConfigDir = nullptr;
+
+			FConfigCacheIni::LoadExternalIniFile(CommandLineAliasesConfigFile, TEXT("CommandLineAliases"), nullptr, *FPaths::Combine(FPaths::ProjectDir(), TEXT("Config")),
+												 /*bIsBaseIniName=*/ false,
+												 /*Platform=*/ nullptr,
+												 /*bForceReload=*/ false,
+												 /*bWriteDestIni=*/ false,
+												 /*bAllowGeneratedIniWhenCooked=*/ true,
+												 GeneratedConfigDir);
 		}
 
-		bChanged = false;
-		LaunchCheckForCmdLineFile(CmdLine, bChanged);
+		TArray<FString> PrevAliasExpansions;
+		TArray<FString> PrevCmdLineFileExpansions;
+
+		bool bChanged = false;
+		for(;;)
+		{
+			bool bExpandedAliases = false;
+			LaunchCheckForCommandLineAliases(CommandLineAliasesConfigFile, PrevAliasExpansions, bExpandedAliases);
+
+			bool bExpandedCmdLineFile = false;
+			LaunchCheckForCmdLineFile(PrevCmdLineFileExpansions, bExpandedCmdLineFile);
+
+			if(bExpandedAliases || bExpandedCmdLineFile)
+			{
+				bChanged = true;
+			}
+			else
+			{
+				break;
+			}
+		}
+
 		if (bChanged)
 		{
 			CmdLine = FCommandLine::Get();
@@ -2633,7 +2692,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// Init platform application
 		SCOPED_BOOT_TIMING("FSlateApplication::Create()");
-		FSlateApplication::Create();		
+		FSlateApplication::Create();
 	}
 	else
 	{
@@ -2716,8 +2775,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	GODSCManager = new FODSCManager();
 #endif
 
-	bool bEnableShaderCompile = !FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
-
 	if (!FPlatformProperties::RequiresCookedData())
 	{
 		// Ensure that DDC is initialized from the game thread.
@@ -2729,7 +2786,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		check(!GCardRepresentationAsyncQueue);
 		GCardRepresentationAsyncQueue = new FCardRepresentationAsyncQueue();
 
-		if (bEnableShaderCompile)
+		if (AllowShaderCompiling())
 		{
 			check(!GShaderCompilerStats);
 			GShaderCompilerStats = new FShaderCompilerStats();
@@ -2740,6 +2797,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			// Shader hash cache is required only for shader compilation.
 			InitializeShaderHashCache();
 		}
+		else
+		{
+			// create a manager, but it won't do anything internally
+			GShaderCompilingManager = new FShaderCompilingManager();
+		}
 	}
 
 	{
@@ -2749,7 +2811,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	{
-		if (bEnableShaderCompile)
+		if (AllowShaderCompiling())
 		{
 			SCOPED_BOOT_TIMING("InitializeShaderTypes");
 			// Initialize shader types before loading any shaders
@@ -2761,10 +2823,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		SlowTask.EnterProgressFrame(25, LOCTEXT("CompileGlobalShaderMap", "Compiling Global Shaders..."));
 
 		// Load the global shaders
-		// Commandlets and dedicated servers don't load global shaders (the cook commandlet will load for the necessary target platform(s) later).
-		if (bEnableShaderCompile &&
-			!IsRunningDedicatedServer() &&
-			(!IsRunningCommandlet() || IsAllowCommandletRendering()))
+		if (AllowGlobalShaderLoad())
 		{
 			LLM_SCOPE(ELLMTag::Shaders);
 			SCOPED_BOOT_TIMING("CompileGlobalShaderMap");
@@ -5507,15 +5566,6 @@ bool FEngineLoop::AppInit( )
 		GIsBuildMachine = true;
 		// propagate to subprocesses, especially because some - like ShaderCompileWorker - use DDC, for which this switch matters
 		FCommandLine::AddToSubprocessCommandline(TEXT(" -buildmachine"));
-	}
-
-	// If "-WaitForDebugger" was specified, halt startup and wait for a debugger to attach before continuing
-	if( FParse::Param( FCommandLine::Get(), TEXT( "WaitForDebugger" ) ) )
-	{
-		while( !FPlatformMisc::IsDebuggerPresent() )
-		{
-			FPlatformProcess::Sleep( 0.1f );
-		}
 	}
 #endif // !UE_BUILD_SHIPPING
 

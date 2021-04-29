@@ -422,6 +422,12 @@ public:
 	virtual void SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad = nullptr) const;
 
 	/**
+	 * Preloads all fields that belong to this struct
+	 * @param Ar Archive used for loading this struct
+	 */
+	virtual void PreloadChildren(FArchive& Ar);
+
+	/**
 	 * Initialize a struct over uninitialized memory. This may be done by calling the native constructor or individually initializing properties
 	 *
 	 * @param	Dest		Pointer to memory to initialize
@@ -578,6 +584,10 @@ public:
 	 * Collects UObjects referenced by bytecode and properties for faster GC access
 	 */
 	void CollectBytecodeAndPropertyReferencedObjects();
+	/**
+	 * Collects UObjects referenced by bytecode and properties for this class and its child fields and their children...
+	 */
+	void CollectBytecodeAndPropertyReferencedObjectsRecursively();
 
 protected:
 
@@ -2659,6 +2669,9 @@ public:
 	/** Used to check if the class was cooked or not */
 	uint32 bCooked:1;
 
+	/** Used to check if the class layout is currently changing and therefore is not ready for a CDO to be created */
+	uint32 bLayoutChanging : 1;
+
 	/** Class flags; See EClassFlags for more information */
 	EClassFlags ClassFlags;
 
@@ -3561,8 +3574,6 @@ public:
 		bLoadingObject = bIsLoading;
 	}
 
-	const TMap<UObject*, UObject*> GetReplaceMap() const { return ReplaceMap; }
-
 private:
 	/**
 	 * Returns whether this instancing graph has a valid destination root.
@@ -3650,11 +3661,6 @@ private:
 	 * Maps the source (think archetype) to the destination (think instance)
 	 */
 	TMap<class UObject*,class UObject*>			SourceToDestinationMap;
-
-	/**
-	* Maps instanced objects that need to have references updated
-	*/
-	TMap<UObject*, UObject*> ReplaceMap;
 };
 
 // UFunction interface.

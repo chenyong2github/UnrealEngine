@@ -251,6 +251,7 @@ namespace ChaosTest {
 		FSingleParticlePhysicsProxy* Proxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<FReal, 3>::CreateParticle());
 		Chaos::FRigidBodyHandle_External& Particle = Proxy->GetGameThreadAPI();
 		Particle.SetGeometry(Sphere);
+		Particle.SetV(FVec3(0, 0, -1));
 
 		Solver->RegisterObject(Proxy);
 

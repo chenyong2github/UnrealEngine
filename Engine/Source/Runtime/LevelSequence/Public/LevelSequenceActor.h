@@ -78,7 +78,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Playback", meta=(ShowOnlyInnerProperties))
 	FMovieSceneSequencePlaybackSettings PlaybackSettings;
 
-	UPROPERTY(Instanced, transient, replicated, BlueprintReadOnly, BlueprintGetter=GetSequencePlayer, Category="Playback", meta=(ExposeFunctionCategories="Game|Cinematic"))
+	UPROPERTY(Instanced, transient, replicated, BlueprintReadOnly, BlueprintGetter=GetSequencePlayer, Category="Playback", meta=(ExposeFunctionCategories="Sequencer|Player"))
 	TObjectPtr<ULevelSequencePlayer> SequencePlayer;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="General", meta=(AllowedClasses="LevelSequence"))
@@ -117,7 +117,7 @@ public:
 	 * @return Level sequence, or nullptr if not assigned or if it cannot be loaded.
 	 * @see SetSequence
 	 */
-	UFUNCTION(BlueprintCallable, Category="Game|Cinematic")
+	UFUNCTION(BlueprintCallable, Category="Sequencer|Player")
 	ULevelSequence* GetSequence() const;
 
 	/**
@@ -126,7 +126,7 @@ public:
 	 * @return Level sequence, or nullptr if not assigned or if it cannot be loaded.
 	 * @see SetSequence
 	 */
-	UFUNCTION(BlueprintCallable, Category="Game|Cinematic")
+	UFUNCTION(BlueprintCallable, Category="Sequencer|Player")
 	ULevelSequence* LoadSequence() const;
 
 	/**
@@ -135,7 +135,7 @@ public:
 	 * @param InSequence The sequence object to set.
 	 * @see GetSequence
 	 */
-	UFUNCTION(BlueprintCallable, Category="Game|Cinematic")
+	UFUNCTION(BlueprintCallable, Category="Sequencer|Player")
 	void SetSequence(ULevelSequence* InSequence);
 
 	/**
@@ -151,11 +151,11 @@ public:
 	ULevelSequencePlayer* GetSequencePlayer() const;
 
 	/* Hide burnin */
-	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
 	void HideBurnin();
 
 	/* Show burnin */
-	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
 	void ShowBurnin();
 
 	/** Refresh this actor's burn in */
@@ -168,9 +168,11 @@ public:
 	 *
 	 * @param Binding Binding to modify
 	 * @param Actors Actors to bind
-	 * @param bAllowBindingsFromAsset Allow bindings from the level sequence asset
+	 * @param bAllowBindingsFromAsset If false the new bindings being supplied here will replace the bindings set in the level sequence asset, meaning the original object animated by 
+	 *								  Sequencer will no longer be animated. Bindings set to spawnables will not spawn if false. If true, new bindings will be in addition to ones set
+	 *								  set in Sequencer UI. This function will not modify the original asset.
 	 */
-	UFUNCTION(BlueprintCallable, Category="Game|Cinematic|Bindings")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings")
 	void SetBinding(FMovieSceneObjectBindingID Binding, const TArray<AActor*>& Actors, bool bAllowBindingsFromAsset = false);
 
 	/**
@@ -178,9 +180,11 @@ public:
 	 *
 	 * @param BindingTag   The unique tag name to lookup bindings with
 	 * @param Actors       The actors to assign to all the tagged bindings
-	 * @param bAllowBindingsFromAsset Whether to continue to allow bindings from the level sequence asset (true) or not (false)
+	 * @param bAllowBindingsFromAsset If false the new bindings being supplied here will replace the bindings set in the level sequence asset, meaning the original object animated by 
+	 *								  Sequencer will no longer be animated. Bindings set to spawnables will not spawn if false. If true, new bindings will be in addition to ones set
+	 *								  set in Sequencer UI. This function will not modify the original asset.
 	 */
-	UFUNCTION(BlueprintCallable, Category="Game|Cinematic|Bindings")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings")
 	void SetBindingByTag(FName BindingTag, const TArray<AActor*>& Actors, bool bAllowBindingsFromAsset = false);
 
 	/**
@@ -188,9 +192,11 @@ public:
 	 *
 	 * @param Binding Binding to modify
 	 * @param Actor Actor to bind
-	 * @param bAllowBindingsFromAsset Allow bindings from the level sequence asset
+	 * @param bAllowBindingsFromAsset If false the new bindings being supplied here will replace the bindings set in the level sequence asset, meaning the original object animated by 
+	 *								  Sequencer will no longer be animated. Bindings set to spawnables will not spawn if false. If true, new bindings will be in addition to ones set
+	 *								  set in Sequencer UI. This function will not modify the original asset.
 	 */
-	UFUNCTION(BlueprintCallable, Category="Game|Cinematic|Bindings")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings")
 	void AddBinding(FMovieSceneObjectBindingID Binding, AActor* Actor, bool bAllowBindingsFromAsset = false);
 
 	/**
@@ -198,39 +204,41 @@ public:
 	 *
 	 * @param BindingTag   The unique tag name to lookup bindings with
 	 * @param Actor        The actor to assign to all the tagged bindings
-	 * @param bAllowBindingsFromAsset Whether to continue to allow bindings from the level sequence asset (true) or not (false)
+	 * @param bAllowBindingsFromAsset If false the new bindings being supplied here will replace the bindings set in the level sequence asset, meaning the original object animated by 
+	 *								  Sequencer will no longer be animated. Bindings set to spawnables will not spawn if false. If true, new bindings will be in addition to ones set
+	 *								  set in Sequencer UI. This function will not modify the original asset.
 	 */
-	UFUNCTION(BlueprintCallable, Category="Game|Cinematic|Bindings")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings")
 	void AddBindingByTag(FName BindingTag, AActor* Actor, bool bAllowBindingsFromAsset = false);
 
 	/**
 	 * Removes the specified actor from the specified binding's actor array
 	 */
-	UFUNCTION(BlueprintCallable, Category="Game|Cinematic|Bindings")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings")
 	void RemoveBinding(FMovieSceneObjectBindingID Binding, AActor* Actor);
 
 	/**
 	 * Removes the specified actor from the specified binding's actor array
 	 */
-	UFUNCTION(BlueprintCallable, Category="Game|Cinematic|Bindings")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings")
 	void RemoveBindingByTag(FName Tag, AActor* Actor);
 
 	/**
 	 * Resets the specified binding back to the defaults defined by the Level Sequence asset
 	 */
-	UFUNCTION(BlueprintCallable, Category="Game|Cinematic|Bindings")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings")
 	void ResetBinding(FMovieSceneObjectBindingID Binding);
 
 	/**
 	 * Resets all overridden bindings back to the defaults defined by the Level Sequence asset
 	 */
-	UFUNCTION(BlueprintCallable, Category="Game|Cinematic|Bindings")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings")
 	void ResetBindings();
 
 	/**
 	 * Retrieve the first object binding that has been tagged with the specified name
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic|Bindings", DisplayName="Find Binding by Tag")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings", DisplayName="Find Binding by Tag")
 	FMovieSceneObjectBindingID FindNamedBinding(FName Tag) const;
 
 	/**
@@ -239,7 +247,7 @@ public:
 	 * @param Tag  The unique tag name to lookup bindings with. Object Bindings can be tagged within the sequence UI by RMB -> Tags... on the object binding in the tree.
 	 * @return An array containing all the bindings that are tagged with this name, potentially empty.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic|Bindings", DisplayName="Find Bindings by Tag")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings", DisplayName="Find Bindings by Tag")
 	const TArray<FMovieSceneObjectBindingID>& FindNamedBindings(FName Tag) const;
 
 protected:

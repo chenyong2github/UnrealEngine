@@ -213,7 +213,7 @@ void FSingleParticlePhysicsProxy::BufferPhysicsResults_External(Chaos::FDirtyRig
 	}
 }
 
-bool FSingleParticlePhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData,int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData, const Chaos::FRealSingle* Alpha)
+bool FSingleParticlePhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData,int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData, const Chaos::FRealSingle* Alpha, const Chaos::FRealSingle* LeashAlpha)
 {
 	using namespace Chaos;
 	// Move buffered data into the TPBDRigidParticle without triggering invalidation of the physics state.
@@ -236,22 +236,42 @@ bool FSingleParticlePhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyRigidP
 
 			if(const FVec3* Prev = LerpHelper(ProxyTimestamp->XTimestamp, PullData.X, ProxyTimestamp->OverWriteX))
 			{
-				Rigid->SetX(FMath::Lerp(*Prev, NextPullData->X, *Alpha), false);
+				FVec3 Target = FMath::Lerp(*Prev, NextPullData->X, *Alpha);
+				if(LeashAlpha)
+				{
+					Target = FMath::Lerp(Rigid->X(), Target, *LeashAlpha);
+				}
+				Rigid->SetX(Target, false);
 			}
 
 			if (const FQuat* Prev = LerpHelper(ProxyTimestamp->RTimestamp, PullData.R, ProxyTimestamp->OverWriteR))
 			{
-				Rigid->SetR(FMath::Lerp(*Prev, NextPullData->R, *Alpha), false);
+				FQuat Target = FMath::Lerp(*Prev, NextPullData->R, *Alpha);
+				if (LeashAlpha)
+				{
+					Target = FMath::Lerp(Rigid->R(), Target, *LeashAlpha);
+				}
+				Rigid->SetR(Target, false);
 			}
 
 			if (const FVec3* Prev = LerpHelper(ProxyTimestamp->VTimestamp, PullData.V, ProxyTimestamp->OverWriteV))
 			{
-				Rigid->SetV(FMath::Lerp(*Prev, NextPullData->V, *Alpha), false);
+				FVec3 Target = FMath::Lerp(*Prev, NextPullData->V, *Alpha);
+				if (LeashAlpha)
+				{
+					Target = FMath::Lerp(Rigid->V(), Target, *LeashAlpha);
+				}
+				Rigid->SetV(Target, false);
 			}
 
 			if (const FVec3* Prev = LerpHelper(ProxyTimestamp->WTimestamp, PullData.W, ProxyTimestamp->OverWriteW))
 			{
-				Rigid->SetW(FMath::Lerp(*Prev, NextPullData->W, *Alpha), false);
+				FVec3 Target = FMath::Lerp(*Prev, NextPullData->W, *Alpha);
+				if (LeashAlpha)
+				{
+					Target = FMath::Lerp(Rigid->W(), Target, *LeashAlpha);
+				}
+				Rigid->SetW(Target, false);
 			}
 
 			//we are interpolating from PullData to Next, but the timestamp is associated with Next

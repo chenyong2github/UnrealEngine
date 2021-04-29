@@ -25,10 +25,8 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProtocolClusterSync
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void GetDeltaTime(float& DeltaSeconds) override;
-	virtual void GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime) override;
+	virtual void GetTimeData(float& InOutDeltaTime, double& InOutGameTime, TOptional<FQualifiedFrameTime>& InOutFrameTime) override;
 	virtual void GetSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) override;
-	virtual void GetInputData(TMap<FString, FString>& InputData) override;
 	virtual void GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) override;
 	virtual void GetNativeInputData(TMap<FString, FString>& EventsData) override;
 
@@ -63,21 +61,15 @@ private:
 	TUniquePtr<FDisplayClusterClusterEventsBinaryService> ClusterEventsBinaryServer;
 
 private:
-	// GetDeltaTime internals
+	// GetTimeData internals
 	FEventRef CachedDeltaTimeEvent{ EEventMode::ManualReset };
 	float   CachedDeltaTime = 0.f;
-
-	// GetTimecode internals
-	FEventRef CachedFrameTimeEvent{ EEventMode::ManualReset };
+	double  CachedGameTime = 0.f;
 	TOptional<FQualifiedFrameTime>  CachedFrameTime;
 
 	// GetSyncData internals
 	TMap<EDisplayClusterSyncGroup, FEvent*> CachedSyncDataEvents;
 	TMap<EDisplayClusterSyncGroup, TMap<FString, FString>> CachedSyncData;
-
-	// GetInputData internals
-	FEventRef CachedInputDataEvent{ EEventMode::ManualReset };
-	TMap<FString, FString> CachedInputData;
 
 	// GetEventsData internals
 	FEventRef CachedEventsDataEvent{ EEventMode::ManualReset };

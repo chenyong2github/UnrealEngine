@@ -5,6 +5,11 @@
 #include "CoreMinimal.h"
 #include "ContentBrowserItem.h"
 
+class FTreeItem;
+
+// Sorts array of tree items
+DECLARE_DELEGATE_TwoParams(FSortTreeItemChildrenDelegate, const FTreeItem* /* OptionalOwner */, TArray<TSharedPtr<FTreeItem>>& /* Items to sort */);
+
 /** A folder item shown in the asset tree */
 class FTreeItem : public TSharedFromThis<FTreeItem>
 {
@@ -55,8 +60,8 @@ public:
 	/** Represents a folder that does not correspond to a mounted location */
 	bool IsDisplayOnlyFolder() const;
 
-	/** Follows tree until it finds folders that are not display only*/
-	void ExpandToNonDisplayOnlyFolders(TArray<TSharedPtr<FTreeItem>>& OutTreeItems);
+	/** Set delegate to use during sort */
+	void SetSortOverride(FSortTreeItemChildrenDelegate& InSortOverride);
 
 public:
 	/** The children of this tree item */
@@ -71,6 +76,9 @@ private:
 
 	/** Broadcasts whenever a rename is requested */
 	FSimpleMulticastDelegate RenameRequestedEvent;
+
+	/** Delegate used to control sort */
+	FSortTreeItemChildrenDelegate SortOverride;
 
 	/** If true, this folder is in the process of being named */
 	bool bNamingFolder = false;

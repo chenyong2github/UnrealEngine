@@ -117,7 +117,12 @@ static FString DescribeTaskHelper(const UGameplayTask& TaskOb)
 		*TaskOb.GetName(),
 		TaskOb.GetInstanceName() != NAME_None ? *FString::Printf(TEXT(" {yellow}[%s]"), *TaskOb.GetInstanceName().ToString()) : TEXT(""),
 		TaskOb.IsActive() ? TEXT("green") : TEXT("orange"),
-		*TaskOb.GetTaskStateName(), TaskOb.GetPriority(),
+#if ENABLE_VISUAL_LOG 
+		*TaskOb.GetTaskStateName(),
+#else
+		TEXT("UnknownTaskStateName"),
+#endif
+		TaskOb.GetPriority(),
 		*GetNameSafe(OwnerOb),
 		TaskOb.GetRequiredResources().IsEmpty() ? TEXT("None") : *TaskOb.GetRequiredResources().GetDebugDescription());
 }

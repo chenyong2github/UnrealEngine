@@ -47,7 +47,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Playback", meta = (ShowOnlyInnerProperties))
 	FMovieSceneSequencePlaybackSettings PlaybackSettings;
 
-	UPROPERTY(Instanced, Transient, Replicated, BlueprintReadOnly, BlueprintGetter = GetSequencePlayer, Category = "Playback", meta = (ExposeFunctionCategories = "Game|Cinematic"))
+	UPROPERTY(Instanced, Transient, Replicated, BlueprintReadOnly, BlueprintGetter = GetSequencePlayer, Category = "Playback", meta = (ExposeFunctionCategories = "Sequencer|Player"))
 	TObjectPtr<UTemplateSequencePlayer> SequencePlayer;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "General", meta = (AllowedClasses = "TemplateSequence"))
@@ -58,19 +58,19 @@ public:
 
 public:
 
-	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
 	UTemplateSequence* GetSequence() const;
 
-	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
 	UTemplateSequence* LoadSequence() const;
 
-	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
 	void SetSequence(UTemplateSequence* InSequence);
 
 	UFUNCTION(BlueprintGetter)
 	UTemplateSequencePlayer* GetSequencePlayer() const;
 
-	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic|Bindings")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings")
 	void SetBinding(AActor* Actor);
 
 protected:

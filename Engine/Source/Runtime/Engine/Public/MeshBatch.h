@@ -9,6 +9,7 @@
 #include "Engine/Scene.h"
 #include "PrimitiveUniformShaderParameters.h"
 #include "VT/RuntimeVirtualTextureEnum.h"
+#include "EngineDefines.h"
 
 #define USE_MESH_BATCH_VALIDATION !UE_BUILD_SHIPPING
 
@@ -100,7 +101,7 @@ struct FMeshBatchElement
 	uint32 bIsSplineProxy : 1;
 	uint32 bIsInstanceRuns : 1;
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_ENABLE_DEBUG_DRAWING
 	/** Conceptual element index used for debug viewmodes. */
 	int32 VisualizeElementIndex : 8;
 #endif
@@ -232,12 +233,10 @@ struct FMeshBatch
 	uint32 CastRayTracedShadow : 1;	// Whether it casts ray traced shadow.
 #endif
 
-#if (!(UE_BUILD_SHIPPING || UE_BUILD_TEST) || WITH_EDITOR)
+#if UE_ENABLE_DEBUG_DRAWING
 	/** Conceptual HLOD index used for the HLOD Coloration visualization. */
 	int8 VisualizeHLODIndex;
-#endif
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	/** Conceptual LOD index used for the LOD Coloration visualization. */
 	int8 VisualizeLODIndex;
 #endif

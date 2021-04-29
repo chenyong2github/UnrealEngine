@@ -288,6 +288,11 @@ namespace FbxAutomationBuilder
 						}
 					}
 				}
+				if (FileBaseName.Len() > 4 && FileBaseName.EndsWith(TEXT("_alt"), ESearchCase::IgnoreCase))
+				{
+					//Dont add alternate skinning file has test
+					continue;
+				}
 				ComboBoxExistingFbx.Add(MakeShareable(new FString(FileString)));
 			}
 		}

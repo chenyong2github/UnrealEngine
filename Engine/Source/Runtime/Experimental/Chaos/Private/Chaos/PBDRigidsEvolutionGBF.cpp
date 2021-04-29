@@ -444,6 +444,9 @@ FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles,THand
 
 			Particle.X() = Particle.P();
 			Particle.R() = Particle.Q();
+
+			//TODO: rename this function since it's not just updating position
+			Particle.SetPreObjectStateLowLevel(Particle.ObjectState());
 		});
 	});
 

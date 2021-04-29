@@ -23,6 +23,7 @@ UPTRINT ThreadCreate(const ANSICHAR* Name, void (*Entry)())
 {
 	void* (*PthreadThunk)(void*) = [] (void* Param) -> void * {
 		typedef void (*EntryType)(void);
+		pthread_setname_np(pthread_self(), "Trace");
 		(EntryType(Param))();
 		return nullptr;
 	};

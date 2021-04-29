@@ -393,8 +393,14 @@ function generateRobomergeHeader(createSignedInUserDiv = true) {
 		topright.append('<div id="uptime"></div>')
 		topright.append('<div id="version"></div>')
 	}
-    
-    // Show Robomerge logo
+
+	const bigHelpButton = $('<button>')
+		.addClass('btn btn-outline-dark big-help')
+		.click(function() { window.location.href='/help' })
+		.html('<strong>Help Page</strong>')
+	topright.append(bigHelpButton)
+
+	// Show Robomerge logo
 	let logo = $('<img id="logoimg" src="/img/logo.png">')
 		.click(function() {
 			// Provide some secret functionality to the homepage

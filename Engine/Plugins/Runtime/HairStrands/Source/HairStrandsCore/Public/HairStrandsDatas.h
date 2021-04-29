@@ -487,7 +487,7 @@ struct FHairStrandsRootData
 	TArray<FMeshProjectionLOD> MeshProjectionLODs;
 };
 
-struct FHairStrandsClusterCullingData
+struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingData
 {
 	FHairStrandsClusterCullingData();
 	void Reset();

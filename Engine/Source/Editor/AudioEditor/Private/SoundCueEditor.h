@@ -60,6 +60,10 @@ public:
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FSoundCueEditor");
+	}
 
 	//~ Begin FEditorUndoClient Interface
 	virtual void PostUndo(bool bSuccess) override;
@@ -211,8 +215,10 @@ private:
 	/** Command list for this editor */
 	TSharedPtr<FUICommandList> GraphEditorCommands;
 
+#if ENABLE_AUDIO_DEBUG
 	/** Cache of the Audio debugger instance */
 	Audio::FAudioDebugger* Debugger;
+#endif
 
 	/**	The tab ids for all the tabs used */
 	static const FName GraphCanvasTabId;

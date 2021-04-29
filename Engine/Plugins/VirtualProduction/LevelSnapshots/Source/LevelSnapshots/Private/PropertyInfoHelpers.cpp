@@ -22,14 +22,22 @@ bool FPropertyInfoHelpers::IsPropertyCollection(const FProperty* Property)
 
 bool FPropertyInfoHelpers::IsPropertyInContainer(const FProperty* Property)
 {
-	if (!ensure(Property))
+	if (ensure(Property))
 	{
-		return false;
+		const FProperty* ParentProperty = GetParentProperty(Property);
+		return ParentProperty && IsPropertyContainer(ParentProperty);
 	}
-	
-	const FProperty* ParentProperty = GetParentProperty(Property);
+	return false;
+}
 
-	return ParentProperty && IsPropertyContainer(ParentProperty);
+bool FPropertyInfoHelpers::IsPropertyInCollection(const FProperty* Property)
+{
+	if (ensure(Property))
+	{
+		const FProperty* ParentProperty = GetParentProperty(Property);
+		return ParentProperty && IsPropertyCollection(ParentProperty);
+	}
+	return false;
 }
 
 bool FPropertyInfoHelpers::IsPropertyInStruct(const FProperty* Property)

@@ -7,7 +7,7 @@
 #include "EditorUndoClient.h"
 #include "Misc/NotifyHook.h"
 
-class FDisplayClusterConfiguratorToolkit;
+class FDisplayClusterConfiguratorBlueprintEditor;
 class IDetailsView;
 
 
@@ -28,7 +28,7 @@ public:
 	~SDisplayClusterConfiguratorViewGeneral();
 
 public:
-	void Construct(const FArguments& InArgs, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit);
+	void Construct(const FArguments& InArgs, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit);
 
 	//~ Begin SWidget interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
@@ -60,5 +60,5 @@ private:
 	/** Holds the property objects that need to be displayed by the inspector starting on the next tick */
 	TArray<UObject*> RefreshPropertyObjects;
 
-	TWeakPtr<FDisplayClusterConfiguratorToolkit> ToolkitPtr;
+	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
 };

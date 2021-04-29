@@ -277,8 +277,14 @@ private:
 	/** Non-recursively scan a single directory for its contents. Adds results to Pending arrays. */
 	void ScanDirectory(const FString& InDirectory);
 
+	/** Returns version of path to store */
+	FString GetPathToStore(const FString& InPath) const;
+
 	/** Path to the root directory we want to scan */
 	FString RootPath;
+
+	/** Standardized path to the root directory we want to scan */
+	FString StandardRootPath;
 
 	/** Whether we should return relative or absolute paths */
 	EPathType PathType;
@@ -488,6 +494,9 @@ private:
 	/** Update our cache of pending transactions (to prevent diffing against the directory unnecessarily) */
 	void UpdatePendingTransactions();
 
+	/** Returns version of path to store */
+	FString GetPathToStore(const FFilenameAndHash& InData) const;
+
 private:
 
 	/** Configuration settings applied on construction */
@@ -518,6 +527,8 @@ private:
 	/** List of cached pending transactions */
 	bool bPendingTransactionsDirty;
 	TArray<FUpdateCacheTransaction> PendingTransactions;
+
+	FString ConfigDirectoryStandardized;
 };
 
 } // namespace DirectoryWatcher

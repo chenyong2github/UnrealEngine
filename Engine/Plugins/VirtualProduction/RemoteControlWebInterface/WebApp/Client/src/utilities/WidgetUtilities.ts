@@ -91,10 +91,9 @@ export class WidgetUtilities {
     const limits = WidgetUtilities.getPropertyLimits(property);
 
     // Get range from UE meta data fields
-    const metadata = property.UnderlyingProperty?.Metadata;
     const prop = WidgetUtilities.verifyInRange({
-                    min: parseFloat(metadata?.UIMin ?? metadata.ClampMin),
-                    max: parseFloat(metadata?.UIMax ?? metadata.ClampMax),
+                    min: parseFloat(property.Metadata?.Min),
+                    max: parseFloat(property.Metadata?.Max),
                   },
                   limits);
 
@@ -127,11 +126,7 @@ export class WidgetUtilities {
     if (!preset || !widget?.property)
       return;
 
-    const property = _.find(preset.ExposedProperties, p => p.DisplayName === widget.property);
-    if (property)
-      return property;
-
-    return _.find(preset.ExposedFunctions, f => f.DisplayName === widget.property);
+    return preset.Exposed[widget.property];
   }
 
   static getPropertyType(preset: IPreset, widget: IWidget): PropertyType {

@@ -1493,9 +1493,8 @@ void FAssetManagerEditorModule::SetCurrentRegistrySource(const FString& SourceNa
 			if (FFileHelper::LoadFileToArray(SerializedAssetData, *CurrentRegistrySource->SourceFilename))
 			{
 				FAssetRegistryState* NewState = new FAssetRegistryState();
-				FAssetRegistrySerializationOptions Options;
+				FAssetRegistrySerializationOptions Options(UE::AssetRegistry::ESerializationTarget::ForDevelopment);
 
-				Options.ModifyForDevelopment();
 				NewState->Serialize(SerializedAssetData, Options);
 
 				if (NewState->GetObjectPathToAssetDataMap().Num() > 0)

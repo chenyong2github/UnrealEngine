@@ -2,7 +2,7 @@
 
 #include "Views/Log/DisplayClusterConfiguratorViewLog.h"
 #include "Views/Log/SDisplayClusterConfiguratorViewLog.h"
-#include "DisplayClusterConfiguratorToolkit.h"
+#include "DisplayClusterConfiguratorBlueprintEditor.h"
 
 #include "IMessageLogListing.h"
 #include "MessageLogModule.h"
@@ -10,7 +10,7 @@
 
 #define LOCTEXT_NAMESPACE "FDisplayClusterConfiguratorViewLog"
 
-FDisplayClusterConfiguratorViewLog::FDisplayClusterConfiguratorViewLog(const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit)
+FDisplayClusterConfiguratorViewLog::FDisplayClusterConfiguratorViewLog(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
 	: ToolkitPtr(InToolkit)
 {
 }
@@ -25,6 +25,11 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorViewLog::CreateWidget()
 		SAssignNew(ViewLog, SDisplayClusterConfiguratorViewLog, ToolkitPtr.Pin().ToSharedRef(), LogListingWidget.ToSharedRef());
 	}
 
+	return ViewLog.ToSharedRef();
+}
+
+TSharedRef<SWidget> FDisplayClusterConfiguratorViewLog::GetWidget()
+{
 	return ViewLog.ToSharedRef();
 }
 

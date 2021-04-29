@@ -8,12 +8,16 @@
 #include "NiagaraCommon.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "Layout/Visibility.h"
+#include "NiagaraDebuggerCommon.h"
 
 class FDetailWidgetRow;
 class IPropertyHandle;
 class IPropertyHandleArray;
 enum class ECheckBoxState : uint8;
 class FNiagaraDebugger;
+class UNiagaraDebugHUDSettings;
+
+#if WITH_NIAGARA_DEBUGGER
 
 class FNiagaraDebugHUDVariableCustomization : public IPropertyTypeCustomization
 {
@@ -42,22 +46,23 @@ public:
 
 //////////////////////////////////////////////////////////////////////////
 
-class FNiagaraDebugHUDSettingsDetailsCustomization : public IPropertyTypeCustomization
+class FNiagaraDebugHUDSettingsDetailsCustomization : public IDetailCustomization
 {
 public:
-	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	FNiagaraDebugHUDSettingsDetailsCustomization(UNiagaraDebugHUDSettings* InSettings);
+
+	static TSharedRef<IDetailCustomization> MakeInstance(UNiagaraDebugHUDSettings* Settings)
 	{
-		return MakeShared<FNiagaraDebugHUDSettingsDetailsCustomization>();
+		return MakeShared<FNiagaraDebugHUDSettingsDetailsCustomization>(Settings);
 	}
 
-	/** IPropertyTypeCustomization interface begin */
-	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
-	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
-	/** IPropertyTypeCustomization interface end */
-private:
+	// Begin IDetailCustomization interface
+	virtual void CustomizeDetails(class IDetailLayoutBuilder& DetailBuilder) override;
+	// End IDetailCustomization interface
 
-	/** State */
-	TSharedPtr<IPropertyHandle> PropertyHandle;
+private:
+	TWeakObjectPtr<UNiagaraDebugHUDSettings> WeakSettings = nullptr;
 };
 
 //////////////////////////////////////////////////////////////////////////
+#endif

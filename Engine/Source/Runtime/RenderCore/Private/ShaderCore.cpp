@@ -355,6 +355,29 @@ bool ShouldExportShaderDebugInfo(EShaderPlatform ShaderPlatform)
 	return ShouldExportShaderDebugInfo(LegacyShaderPlatformToShaderFormat(ShaderPlatform));
 }
 
+#ifndef UE_ALLOW_SHADER_COMPILING
+// is shader compiling allowed at all? (set to 0 in a cooked editor .Target.cs if the target has no shaders available)
+#define UE_ALLOW_SHADER_COMPILING 1
+#endif
+
+bool AllowShaderCompiling()
+{
+	static const bool bNoShaderCompile = FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
+
+	return UE_ALLOW_SHADER_COMPILING && !bNoShaderCompile;
+}
+
+// note that when UE_ALLOW_SHADER_COMPILING is false, we still need to load the global shaders, so that is the difference in these two functions
+bool AllowGlobalShaderLoad()
+{
+	static const bool bNoShaderCompile = FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
+
+	// Commandlets and dedicated servers don't load global shaders (the cook commandlet will load for the necessary target platform(s) later).
+	return !bNoShaderCompile && !IsRunningDedicatedServer() && (!IsRunningCommandlet() || IsAllowCommandletRendering());
+
+}
+
+
 bool ShouldAllowUniqueDebugInfo(FName ShaderFormat)
 {
 	static const TCHAR* const VariableName = TEXT("r.Shaders.AllowUniqueDebugInfo");
@@ -565,7 +588,7 @@ void GetAllVirtualShaderSourcePaths(TArray<FString>& OutVirtualFilePaths, EShade
 */
 void VerifyShaderSourceFiles(EShaderPlatform ShaderPlatform)
 {
-	if (!FPlatformProperties::RequiresCookedData())
+	if (!FPlatformProperties::RequiresCookedData() && AllowShaderCompiling())
 	{
 		// get the list of shader files that can be used
 		TArray<FString> VirtualShaderSourcePaths;
@@ -1342,9 +1365,7 @@ void AddShaderSourceDirectoryMapping(const FString& VirtualShaderDirectory, cons
 {
 	check(IsInGameThread());
 
-	static const bool bNoShaderCompile = FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
-
-	if (FPlatformProperties::RequiresCookedData() || bNoShaderCompile)
+	if (FPlatformProperties::RequiresCookedData() || !AllowShaderCompiling())
 	{
 		return;
 	}

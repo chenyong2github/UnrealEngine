@@ -26,6 +26,10 @@ public:
 	void Finalize();
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FNiagaraScratchPadScriptViewModel");
+	}
 
 	UNiagaraScript* GetOriginalScript() const;
 

@@ -171,6 +171,7 @@ FNiagaraVariable INiagaraModule::Particles_MeshIndex;
 FNiagaraVariable INiagaraModule::Particles_ComponentsEnabled;
 FNiagaraVariable INiagaraModule::ScriptUsage;
 FNiagaraVariable INiagaraModule::ScriptContext;
+FNiagaraVariable INiagaraModule::FunctionDebugState;
 FNiagaraVariable INiagaraModule::DataInstance_Alive;
 FNiagaraVariable INiagaraModule::Translator_BeginDefaults;
 FNiagaraVariable INiagaraModule::Translator_CallID;
@@ -293,6 +294,8 @@ void INiagaraModule::StartupModule()
 	ScriptUsage = FNiagaraVariable(FNiagaraTypeDefinition::GetScriptUsageEnum(), TEXT("Script.Usage"));
 	ScriptContext = FNiagaraVariable(FNiagaraTypeDefinition::GetScriptContextEnum(), TEXT("Script.Context"));
 	DataInstance_Alive = FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("DataInstance.Alive"));
+
+	FunctionDebugState = FNiagaraVariable(FNiagaraTypeDefinition::GetFunctionDebugStateEnum(), TEXT("Function.DebugState"));
 
 	Translator_BeginDefaults = FNiagaraVariable(FNiagaraTypeDefinition::GetParameterMapDef(), TEXT("Begin Defaults"));
 	Translator_CallID = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Translator.CallID"));
@@ -538,6 +541,7 @@ UClass* FNiagaraTypeDefinition::UTextureClass;
 UClass* FNiagaraTypeDefinition::UTextureRenderTargetClass;
 
 UEnum* FNiagaraTypeDefinition::ExecutionStateEnum;
+UEnum* FNiagaraTypeDefinition::CoordinateSpaceEnum;
 UEnum* FNiagaraTypeDefinition::SimulationTargetEnum;
 UEnum* FNiagaraTypeDefinition::ExecutionStateSourceEnum;
 UEnum* FNiagaraTypeDefinition::ScriptUsageEnum;
@@ -545,6 +549,8 @@ UEnum* FNiagaraTypeDefinition::ScriptContextEnum;
 
 UEnum* FNiagaraTypeDefinition::ParameterScopeEnum;
 UEnum* FNiagaraTypeDefinition::ParameterPanelCategoryEnum;
+
+UEnum* FNiagaraTypeDefinition::FunctionDebugStateEnum;
 
 FNiagaraTypeDefinition FNiagaraTypeDefinition::ParameterMapDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::IDDef;
@@ -678,6 +684,7 @@ void FNiagaraTypeDefinition::Init()
 	ScalarStructs.Add(FloatStruct);
 	ScalarStructs.Add(HalfStruct);
 
+	CoordinateSpaceEnum = StaticEnum<ENiagaraCoordinateSpace>();
 	ExecutionStateEnum = StaticEnum<ENiagaraExecutionState>();
 	ExecutionStateSourceEnum = StaticEnum<ENiagaraExecutionStateSource>();
 	SimulationTargetEnum = StaticEnum<ENiagaraSimTarget>();
@@ -686,6 +693,8 @@ void FNiagaraTypeDefinition::Init()
 
 	ParameterScopeEnum = StaticEnum<ENiagaraParameterScope>();
 	ParameterPanelCategoryEnum = StaticEnum<ENiagaraParameterPanelCategory>();
+
+	FunctionDebugStateEnum = StaticEnum<ENiagaraFunctionDebugState>();
 	
 #if WITH_EDITOR
 	RecreateUserDefinedTypeRegistry();
@@ -825,6 +834,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	//FNiagaraTypeRegistry::Register(WildcardDef, VarFlags);
 
 	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(ExecutionStateEnum), ParamFlags | PayloadFlags);
+	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(CoordinateSpaceEnum), ParamFlags | PayloadFlags);
 	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(ExecutionStateSourceEnum), ParamFlags | PayloadFlags);
 
 	UScriptStruct* SpawnInfoStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraSpawnInfo"));
@@ -838,8 +848,12 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	FNiagaraTypeRegistry::Register(FNiagaraRandInfo::StaticStruct(), ParamFlags | PayloadFlags);
 	FNiagaraTypeRegistry::Register(StaticEnum<ENiagaraLegacyTrailWidthMode>(), ParamFlags | PayloadFlags);
 
+	
 	if (!IsRunningCommandlet())
 	{
+		TArray<FString> Blacklist;
+		Blacklist.Emplace(TEXT("/Niagara/Enums/ENiagaraCoordinateSpace.ENiagaraCoordinateSpace"));
+		
 		const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
 		check(Settings);
 		TArray<FSoftObjectPath> TotalStructAssets;
@@ -856,6 +870,9 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 		for (FSoftObjectPath AssetRef : TotalStructAssets)
 		{
 			FName AssetRefPathNamePreResolve = AssetRef.GetAssetPathName();
+
+			if (Blacklist.Contains(AssetRefPathNamePreResolve.ToString()))
+				continue;
 
 			UObject* Obj = AssetRef.ResolveObject();
 			if (Obj == nullptr)
@@ -901,6 +918,10 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 		{
 			FName AssetRefPathNamePreResolve = AssetRef.GetAssetPathName();
 			UObject* Obj = AssetRef.ResolveObject();
+
+			if (Blacklist.Contains(AssetRefPathNamePreResolve.ToString()))
+				continue;
+
 			if (Obj == nullptr)
 			{
 				Obj = AssetRef.TryLoad();

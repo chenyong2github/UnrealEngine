@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WmfMp4Writer.h"
-#include "Microsoft/AVEncoderIMFSampleWrapper.h"
+
+#include "IMFSampleWrapper.h"
 
 #if WMFMEDIA_SUPPORTED_PLATFORM
 	#pragma comment(lib, "mfplat")
@@ -22,7 +23,7 @@ bool FWmfMp4Writer::Initialize(const TCHAR* Filename)
 	return true;
 }
 
-TOptional<DWORD> FWmfMp4Writer::CreateAudioStream(const FString& Codec, const AVEncoder::FAudioEncoderConfig& Config)
+TOptional<DWORD> FWmfMp4Writer::CreateAudioStream(const FString& Codec, const AVEncoder::FAudioConfig& Config)
 {
 	GUID Format;
 	int AudioBitsPerSample = 0;
@@ -60,7 +61,7 @@ TOptional<DWORD> FWmfMp4Writer::CreateAudioStream(const FString& Codec, const AV
 	return TOptional<DWORD>(StreamIndex);
 }
 
-TOptional<DWORD> FWmfMp4Writer::CreateVideoStream(const FString& Codec, const AVEncoder::FVideoEncoderConfig& Config)
+TOptional<DWORD> FWmfMp4Writer::CreateVideoStream(const FString& Codec, const AVEncoder::FVideoConfig& Config)
 {
 	GUID Format;
 	if (Codec == "h264")
@@ -102,7 +103,7 @@ bool FWmfMp4Writer::Start()
 	return true;
 }
 
-bool FWmfMp4Writer::Write(const AVEncoder::FAVPacket& InSample, DWORD StreamIndex)
+bool FWmfMp4Writer::Write(const AVEncoder::FMediaPacket& InSample, DWORD StreamIndex)
 {
 	AVEncoder::FIMFSampleWrapper Sample { InSample.Type };
 

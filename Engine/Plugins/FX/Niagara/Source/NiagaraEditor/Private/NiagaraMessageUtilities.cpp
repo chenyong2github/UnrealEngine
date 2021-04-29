@@ -177,13 +177,16 @@ void FNiagaraMessageUtilities::GetCompileMessageData(TSharedRef<const FNiagaraMe
 
 	const FName& MessageTopic = InMessage->GetMessageTopic();
 
-	if(!InMessage->GetCompileEvent().ShortDescription.IsEmpty())
+	if ((int32)EStackIssueSeverity::None >= (int32)InMessage->GetCompileEvent().Severity)
 	{
-		OutShortDescription = FText::FromString(InMessage->GetCompileEvent().ShortDescription);
-	}
-	else if(MessageTopic == FNiagaraMessageTopics::CompilerTopicName)
-	{
-		OutShortDescription = GetShortDescriptionFromSeverity(StackIssueSeverity);
+		if (!InMessage->GetCompileEvent().ShortDescription.IsEmpty())
+		{
+			OutShortDescription = FText::FromString(InMessage->GetCompileEvent().ShortDescription);
+		}
+		else if (MessageTopic == FNiagaraMessageTopics::CompilerTopicName)
+		{
+			OutShortDescription = GetShortDescriptionFromSeverity(StackIssueSeverity);
+		}
 	}
 
 	bOutDismissable = InMessage->GetCompileEvent().bDismissable;

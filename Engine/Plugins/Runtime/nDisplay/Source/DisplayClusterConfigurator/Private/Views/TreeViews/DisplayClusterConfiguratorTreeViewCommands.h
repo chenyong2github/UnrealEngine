@@ -26,6 +26,10 @@ public:
 	/** Initialize commands */
 	virtual void RegisterCommands() override;
 
-	/** Show all nodes in the tree */
-	TSharedPtr< FUICommandInfo > ShowAllNodes;
+	TSharedPtr<FUICommandInfo> ShowAll;
+	TSharedPtr<FUICommandInfo> ShowSelectedOnly;
+	TSharedPtr<FUICommandInfo> ShowSelected;
+	TSharedPtr<FUICommandInfo> HideSelected;
+
+	TSharedPtr<FUICommandInfo> SetAsMaster;
 };

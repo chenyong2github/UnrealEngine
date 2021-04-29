@@ -845,7 +845,7 @@ void CopyTextureData2D(const void* Source,void* Dest,uint32 SizeY,EPixelFormat F
 					(uint8*)Source + SourceStride * BlockY,
 					NumBytesPerRow,
 					EMemcpyCachePolicy::StoreUncached
-				);
+					);
 			}
 			else
 			{
@@ -1623,6 +1623,12 @@ RENDERCORE_API bool UseVirtualTexturing(const FStaticFeatureLevel InFeatureLevel
 	}
 }
 
+RENDERCORE_API bool UseVirtualTextureLightmap(const FStaticFeatureLevel InFeatureLevel, const ITargetPlatform* TargetPlatform)
+{
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
+	const bool bUseVirtualTextureLightmap = (CVar->GetValueOnAnyThread() != 0) && UseVirtualTexturing(InFeatureLevel, TargetPlatform);
+	return bUseVirtualTextureLightmap;
+}
 
 RENDERCORE_API bool DoesPlatformSupportNanite(EShaderPlatform Platform)
 {
@@ -1637,4 +1643,10 @@ RENDERCORE_API bool DoesPlatformSupportNanite(EShaderPlatform Platform)
 
 	const bool bFullCheck = bValidPlatform && bSupportGPUScene && bSupportNanite;
 	return bFullCheck;
+}
+/** Returns whether DBuffer decals are enabled for a given shader platform */
+RENDERCORE_API bool IsUsingDBuffers(const FStaticShaderPlatform Platform)
+{
+	extern RENDERCORE_API uint64 GDBufferPlatformMask;
+	return !!(GDBufferPlatformMask & (1ull << Platform));
 }

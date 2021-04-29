@@ -677,7 +677,7 @@ ERefractionMode FMaterial::GetRefractionMode() const
 }
 
 bool FMaterial::IsRequiredComplete() const
-{
+{ 
 	return IsDefaultMaterial() || IsSpecialEngineMaterial();
 }
 
@@ -815,7 +815,8 @@ bool FMaterial::NeedsGBuffer() const
 {
 	check(IsInParallelRenderingThread());
 
-	if ((IsOpenGLPlatform(GMaxRHIShaderPlatform) || IsSwitchPlatform(GMaxRHIShaderPlatform)) // @todo: TTP #341211
+	if ((IsOpenGLPlatform(GMaxRHIShaderPlatform) || IsSwitchPlatform(GMaxRHIShaderPlatform) // @todo: TTP #341211
+		|| FDataDrivenShaderPlatformInfo::GetOverrideFMaterial_NeedsGBufferEnabled(GMaxRHIShaderPlatform)) 
 		&& !IsMobilePlatform(GMaxRHIShaderPlatform)) 
 	{
 		return true;
@@ -2121,31 +2122,34 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 	else
 	{
 #if WITH_EDITOR
-		TRefCountPtr<FMaterialShaderMap> ShaderMap = FMaterialShaderMap::FindId(ShaderMapId, Platform);
-		if (ShaderMap)
+		if (AllowShaderCompiling())
 		{
-			if (ShaderMap->GetCompilingId() != 0u)
+			TRefCountPtr<FMaterialShaderMap> ShaderMap = FMaterialShaderMap::FindId(ShaderMapId, Platform);
+			if (ShaderMap)
 			{
-				SetCompilingShaderMap(ShaderMap);
-				ShaderMap = ShaderMap->GetFinalizedClone();
+				if (ShaderMap->GetCompilingId() != 0u)
+				{
+					SetCompilingShaderMap(ShaderMap);
+					ShaderMap = ShaderMap->GetFinalizedClone();
+				}
 			}
-		}
 
-		// Attempt to load from the derived data cache if we are uncooked and don't have any shadermap.
-		// If we have an incomplete shadermap, continue with it to prevent creation of duplicate shadermaps for the same ShaderMapId
-		if (!ShaderMap && !FPlatformProperties::RequiresCookedData())
-		{
-			TRefCountPtr<FMaterialShaderMap> LoadedShaderMap;
-			FMaterialShaderMap::LoadFromDerivedDataCache(this, ShaderMapId, Platform, TargetPlatform, LoadedShaderMap, DDCKeyHash);
-			ShaderMap = LoadedShaderMap;
-			if (LoadedShaderMap)
+			// Attempt to load from the derived data cache if we are uncooked and don't have any shadermap.
+			// If we have an incomplete shadermap, continue with it to prevent creation of duplicate shadermaps for the same ShaderMapId
+			if (!ShaderMap && !FPlatformProperties::RequiresCookedData())
 			{
-				UE_LOG(LogMaterial, Verbose, TEXT("Loaded shaders for %s from DDC (key hash: %s)"), *GetAssetName(), *DDCKeyHash);
+				TRefCountPtr<FMaterialShaderMap> LoadedShaderMap;
+				FMaterialShaderMap::LoadFromDerivedDataCache(this, ShaderMapId, Platform, TargetPlatform, LoadedShaderMap, DDCKeyHash);
+				ShaderMap = LoadedShaderMap;
+				if (LoadedShaderMap)
+				{
+					UE_LOG(LogMaterial, Verbose, TEXT("Loaded shaders for %s from DDC (key hash: %s)"), *GetAssetName(), *DDCKeyHash);
+				}
 			}
-		}
 
-		check(!ShaderMap || ShaderMap->GetFrozenContentSize() > 0u);
-		SetGameThreadShaderMap(ShaderMap);
+			check(!ShaderMap || ShaderMap->GetFrozenContentSize() > 0u);
+			SetGameThreadShaderMap(ShaderMap);
+		}
 #endif // WITH_EDITOR
 	}
 
@@ -2170,7 +2174,8 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 
 	if (!bShaderMapValid)
 	{
-		if (bContainsInlineShaders || FPlatformProperties::RequiresCookedData())
+		// if we can't compile shaders, fall into the requires cooked path
+		if (bContainsInlineShaders || FPlatformProperties::RequiresCookedData() || !AllowShaderCompiling())
 		{
 			if (bRequiredComplete)
 			{
@@ -4323,7 +4328,7 @@ void FMaterialAttributeDefinitionMap::InitializeAttributeMap()
 
 	// Used when compiling material with execution pins, which are compiling all attributes together
 	Add(FGuid(0xE0ED040B, 0x82794D93, 0xBD2D59B2, 0xA5BBF41C), TEXT("MaterialAttributes"),		MP_MaterialAttributes,		MCT_MaterialAttributes, FVector4(0,0,0,0), SF_Pixel, INDEX_NONE, bHideAttribute);
-	   
+
 	// Texture coordinates
 	Add(FGuid(0xD30EC284, 0xE13A4160, 0x87BB5230, 0x2ED115DC), TEXT("CustomizedUV0"), MP_CustomizedUVs0, MCT_Float2, FVector4(0,0,0,0), SF_Vertex, 0);
 	Add(FGuid(0xC67B093C, 0x2A5249AA, 0xABC97ADE, 0x4A1F49C5), TEXT("CustomizedUV1"), MP_CustomizedUVs1, MCT_Float2, FVector4(0,0,0,0), SF_Vertex, 1);

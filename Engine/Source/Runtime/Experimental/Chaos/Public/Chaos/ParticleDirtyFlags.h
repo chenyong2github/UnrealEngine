@@ -367,6 +367,9 @@ public:
 	void SetOneWayInteraction(bool InOneWayInteraction) { MOneWayInteraction = InOneWayInteraction; }
 
 private:
+	//NOTE: MObjectState is the only sim-writable data in this struct
+	//If you add any more, make sure to update SyncSimWritablePropsFromSim
+	//Or consider breaking it (and object state) out of this struct entirely
 	FReal MLinearEtherDrag;
 	FReal MAngularEtherDrag;
 	FReal MMaxLinearSpeedSq;

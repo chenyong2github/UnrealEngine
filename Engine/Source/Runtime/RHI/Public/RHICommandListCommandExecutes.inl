@@ -509,6 +509,12 @@ void FRHICommandSubmitCommandsHint::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR_COMPUTE(RHISubmitCommandsHint)();
 }
 
+void FRHICommandPostExternalCommandsReset::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(PostExternalCommandsReset);
+	INTERNAL_DECORATOR_COMPUTE(RHIPostExternalCommandsReset)();
+}
+
 void FRHICommandPollOcclusionQueries::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(PollOcclusionQueries);
@@ -729,6 +735,14 @@ void FRHICommandPopEvent::Execute(FRHICommandListBase& CmdList)
 	RHISTAT(PopEvent);
 	INTERNAL_DECORATOR_COMPUTE(RHIPopEvent)();
 }
+
+#if RHI_WANT_BREADCRUMB_EVENTS
+void FRHICommandSetBreadcrumbStackTop::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(RHISetBreadcrumbStackTop);
+	INTERNAL_DECORATOR_COMPUTE(RHISetBreadcrumbStackTop)(Breadcrumb);
+}
+#endif
 
 void FRHICommandInvalidateCachedState::Execute(FRHICommandListBase& CmdList)
 {

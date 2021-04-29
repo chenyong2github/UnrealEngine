@@ -300,6 +300,7 @@ struct FHairStrandsDeformedResource : public FHairCommonResource
 	inline FVector& GetPositionOffset(EFrameType T)				{ return PositionOffset[GetIndex(T)]; }
 	inline FRDGExternalBuffer& GetPositionOffsetBuffer(EFrameType T) { return DeformedOffsetBuffer[GetIndex(T)]; }
 	inline const FVector& GetPositionOffset(EFrameType T) const { return PositionOffset[GetIndex(T)]; }
+	inline void SetPositionOffset(EFrameType T, const FVector& Offset)  { PositionOffset[GetIndex(T)] = Offset; }
 	inline void SwapBuffer()									{ CurrentIndex = 1u - CurrentIndex; }
 	//bool NeedsToUpdateTangent();
 };

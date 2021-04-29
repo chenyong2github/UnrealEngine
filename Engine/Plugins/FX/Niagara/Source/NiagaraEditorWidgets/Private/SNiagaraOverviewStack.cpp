@@ -25,17 +25,19 @@
 #include "NiagaraEditorModule.h"
 #include "NiagaraNodeAssignment.h"
 #include "Widgets/SNiagaraParameterName.h"
-
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/SToolTip.h"
 #include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Widgets/Colors/SColorBlock.h"
+#include "NiagaraEditorStyle.h"
 #include "Styling/StyleColors.h"
 #include "Widgets/Input/SCheckBox.h"
 
@@ -722,7 +724,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 				.HeightOverride(IconSize.Y);
 		}
 
-		Content = SNew(SHorizontalBox)
+		TSharedRef<SHorizontalBox> ContentBox = SNew(SHorizontalBox)
 			// Indent content
 			+ SHorizontalBox::Slot()
 			.Padding(0, 1, 2, 1)
@@ -743,9 +745,31 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
             .Padding(6, 0, 9, 0)
             [
                 SNew(SNiagaraStackRowPerfWidget, Item)
-            ]
-			// Enabled checkbox
-			+ SHorizontalBox::Slot()
+            ];
+
+		// Debug draw 
+		UNiagaraStackModuleItem* StackModuleItem = Cast<UNiagaraStackModuleItem>(StackItem);
+			
+		if (StackModuleItem && StackModuleItem->GetModuleNode().ContainsDebugSwitch())
+		{
+			ContentBox->AddSlot()
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.ButtonColorAndOpacity(FLinearColor::Transparent)
+				.ForegroundColor(FLinearColor::Transparent)
+				.ToolTipText(LOCTEXT("EnableDebugDrawCheckBoxToolTip", "Enable or disable debug drawing for this item."))
+				.OnClicked(this, &SNiagaraOverviewStack::ToggleModuleDebugDraw, StackItem)
+				[
+					SNew(SImage)
+					.Image(this, &SNiagaraOverviewStack::GetDebugIconBrush, StackItem)
+				]
+				];
+		}
+
+
+		// Enabled checkbox
+		ContentBox->AddSlot()
 			.VAlign(VAlign_Center)
 			.AutoWidth()
 			.Padding(0)
@@ -756,6 +780,8 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 				.IsChecked_UObject(StackItem, &UNiagaraStackEntry::GetIsEnabled)
 				.OnCheckedChanged_UObject(StackItem, &UNiagaraStackItem::SetIsEnabled)
 			];
+
+		Content = ContentBox;
 	}
 	else if (Item->IsA<UNiagaraStackItemGroup>())
 	{
@@ -797,6 +823,47 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
                 SNew(SNiagaraStackRowPerfWidget, Item)
             ];
 
+		// Delete button
+		if (StackItemGroup->SupportsDelete())
+		{
+			ContentBox->AddSlot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(0, 0, 0, 0)
+				[
+					SNew(SButton)
+					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.IsFocusable(false)
+					.ForegroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.ForegroundColor"))
+					.ToolTipText(this, &SNiagaraOverviewStack::GetItemGroupDeleteButtonToolTip, StackItemGroup)
+					.OnClicked(this, &SNiagaraOverviewStack::OnItemGroupDeleteClicked, StackItemGroup)
+					.IsEnabled(this, &SNiagaraOverviewStack::GetItemGroupDeleteButtonIsEnabled, StackItemGroup)
+					.Visibility(this, &SNiagaraOverviewStack::GetItemGroupDeleteButtonVisibility, StackItemGroup)
+					.Content()
+					[
+						SNew(STextBlock)
+						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+						.Text(FText::FromString(FString(TEXT("\xf1f8"))))
+					]
+				];
+		}
+
+		// Enabled checkbox
+		if (StackItemGroup->SupportsChangeEnabled())
+		{
+			ContentBox->AddSlot()
+				.AutoWidth()
+				.Padding(3, 3, 3, 3)
+				[
+					SNew(SCheckBox)
+					.ForegroundColor(FSlateColor::UseSubduedForeground())
+					.ToolTipText(LOCTEXT("StackItemGroupEnableDisableTooltip", "Enable or disable this item."))
+					.IsChecked(this, &SNiagaraOverviewStack::ItemGroupCheckEnabledStatus, StackItemGroup)
+					.OnCheckStateChanged(this, &SNiagaraOverviewStack::OnItemGroupEnabledStateChanged, StackItemGroup)
+					.IsEnabled(this, &SNiagaraOverviewStack::GetItemGroupEnabledCheckboxEnabled, StackItemGroup)
+				];
+		}
+
 		if (StackItemGroup->GetAddUtilities() != nullptr)
 		{
 			ContentBox->AddSlot()
@@ -830,6 +897,35 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 EVisibility SNiagaraOverviewStack::GetEnabledCheckBoxVisibility(UNiagaraStackItem* Item) const
 {
 	return Item->SupportsChangeEnabled() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility SNiagaraOverviewStack::GetShouldDebugDrawStatusVisibility(UNiagaraStackItem* Item) const
+{
+	return IsModuleDebugDrawEnabled(Item) ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+bool SNiagaraOverviewStack::IsModuleDebugDrawEnabled(UNiagaraStackItem* Item) const
+{
+	UNiagaraStackModuleItem* ModuleItem = Cast<UNiagaraStackModuleItem>(Item);
+	return ModuleItem && ModuleItem->GetIsEnabled() && ModuleItem->IsDebugDrawEnabled();
+}
+
+const FSlateBrush* SNiagaraOverviewStack::GetDebugIconBrush(UNiagaraStackItem* Item) const
+{
+	return IsModuleDebugDrawEnabled(Item)? 
+		FNiagaraEditorStyle::Get().GetBrush(TEXT("NiagaraEditor.Overview.DebugActive")) :
+		FNiagaraEditorStyle::Get().GetBrush(TEXT("NiagaraEditor.Overview.DebugInactive"));
+}
+
+FReply SNiagaraOverviewStack::ToggleModuleDebugDraw(UNiagaraStackItem* Item)
+{
+	UNiagaraStackModuleItem* ModuleItem = Cast<UNiagaraStackModuleItem>(Item);
+	if (ModuleItem != nullptr)
+	{
+		ModuleItem->SetDebugDrawEnabled(!ModuleItem->IsDebugDrawEnabled());
+	}
+
+	return FReply::Handled();
 }
 
 void SNiagaraOverviewStack::OnSelectionChanged(UNiagaraStackEntry* InNewSelection, ESelectInfo::Type SelectInfo)
@@ -946,6 +1042,45 @@ FReply SNiagaraOverviewStack::OnRowAcceptDrop(const FDragDropEvent& InDragDropEv
 EVisibility SNiagaraOverviewStack::GetIssueIconVisibility() const
 {
 	return StackViewModel->HasIssues() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+void SNiagaraOverviewStack::OnItemGroupEnabledStateChanged(ECheckBoxState InCheckState, UNiagaraStackItemGroup* Group)
+{
+	Group->SetIsEnabled(InCheckState == ECheckBoxState::Checked);
+}
+
+ECheckBoxState SNiagaraOverviewStack::ItemGroupCheckEnabledStatus(UNiagaraStackItemGroup* Group) const
+{
+	return Group->GetIsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+bool SNiagaraOverviewStack::GetItemGroupEnabledCheckboxEnabled(UNiagaraStackItemGroup* Group) const
+{
+	return Group->GetOwnerIsEnabled();
+}
+
+FText SNiagaraOverviewStack::GetItemGroupDeleteButtonToolTip(UNiagaraStackItemGroup* Group) const
+{
+	FText Message;
+	Group->TestCanDeleteWithMessage(Message);
+	return Message;
+}
+
+bool SNiagaraOverviewStack::GetItemGroupDeleteButtonIsEnabled(UNiagaraStackItemGroup* Group) const
+{
+	FText UnusedMessage;
+	return Group->TestCanDeleteWithMessage(UnusedMessage);
+}
+
+EVisibility SNiagaraOverviewStack::GetItemGroupDeleteButtonVisibility(UNiagaraStackItemGroup* Group) const
+{
+	return Group->SupportsDelete() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+FReply SNiagaraOverviewStack::OnItemGroupDeleteClicked(UNiagaraStackItemGroup* Group)
+{
+	Group->Delete();
+	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE

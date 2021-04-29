@@ -47,12 +47,13 @@ struct FD3D12AdapterDesc
 {
 	FD3D12AdapterDesc() = default;
 
-	FD3D12AdapterDesc(const DXGI_ADAPTER_DESC& DescIn , int32 InAdapterIndex, D3D_FEATURE_LEVEL InMaxSupportedFeatureLevel, D3D_SHADER_MODEL InMaxSupportedShaderModel, uint32 NumNodes)
+	FD3D12AdapterDesc(const DXGI_ADAPTER_DESC& DescIn , int32 InAdapterIndex, D3D_FEATURE_LEVEL InMaxSupportedFeatureLevel, D3D_SHADER_MODEL InMaxSupportedShaderModel, uint32 NumNodes, bool InIsIntegrated)
 		: AdapterIndex(InAdapterIndex)
 		, MaxSupportedFeatureLevel(InMaxSupportedFeatureLevel)
 		, MaxSupportedShaderModel(InMaxSupportedShaderModel)
 		, Desc(DescIn)
 		, NumDeviceNodes(NumNodes)
+		, bIsIntegrated(InIsIntegrated)
 	{
 	}
 
@@ -69,6 +70,9 @@ struct FD3D12AdapterDesc
 	DXGI_ADAPTER_DESC Desc{};
 
 	uint32 NumDeviceNodes{ 0 };
+
+	/** Whether the GPU is integrated or discrete. */
+	bool bIsIntegrated = false;
 };
 
 struct FD3D12MemoryInfo

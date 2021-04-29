@@ -1,55 +1,99 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayClusterConfiguratorEditorSubsystem.h"
+#include "DisplayClusterConfiguratorUtils.h"
+#include "DisplayClusterConfiguratorVersionUtils.h"
+#include "DisplayClusterConfiguratorBlueprintEditor.h"
 
-#include "DisplayClusterConfiguratorEditorData.h"
+#include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterConfigurationStrings.h"
 #include "IDisplayClusterConfiguration.h"
 
+#include "Blueprints/DisplayClusterBlueprint.h"
+#include "DisplayClusterRootActor.h"
+
 #include "AssetToolsModule.h"
+#include "Kismet2/KismetEditorUtilities.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/Paths.h"
-#include "Misc/PackageName.h"
-#include "UObject/WeakObjectPtr.h"
 
-bool UDisplayClusterConfiguratorEditorSubsystem::ReimportAsset(UDisplayClusterConfiguratorEditorData* InConfiguratorEditorData)
+UDisplayClusterBlueprint* UDisplayClusterConfiguratorEditorSubsystem::ImportAsset(UObject* InParent,
+	const FName& InName, const FString& InFilename)
 {
-	if (InConfiguratorEditorData != nullptr)
+	ADisplayClusterRootActor* RootActor = FDisplayClusterConfiguratorUtils::GenerateRootActorFromConfigFile(InFilename);
+	if (!RootActor)
 	{
-		FString NewFileName = FPaths::GetBaseFilename(InConfiguratorEditorData->PathToConfig);
-		const FString PackagePath = FPackageName::GetLongPackagePath(InConfiguratorEditorData->GetOutermost()->GetName());
-		RenameAssets(InConfiguratorEditorData, PackagePath, NewFileName);
+		return nullptr;
+	}
+	RootActor->PreviewNodeId = DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll;
 
-		return ReloadConfig(InConfiguratorEditorData, InConfiguratorEditorData->PathToConfig);
+	UDisplayClusterBlueprint* NewBlueprint = FDisplayClusterConfiguratorUtils::CreateBlueprintFromRootActor(RootActor, InName, InParent);
+	NewBlueprint->LastEditedDocuments.Reset();
+
+	const UDisplayClusterConfigurationData* OriginalConfigData = RootActor->GetConfigData();
+	check(OriginalConfigData);
+
+	UDisplayClusterConfigurationData* ConfigData = CastChecked<UDisplayClusterConfigurationData>(StaticDuplicateObject(OriginalConfigData, NewBlueprint));
+	NewBlueprint->SetConfigData(ConfigData, true);
+
+	FDisplayClusterConfiguratorVersionUtils::SetToLatestVersion(NewBlueprint);
+	FKismetEditorUtilities::CompileBlueprint(NewBlueprint);
+
+	return NewBlueprint;
+}
+
+bool UDisplayClusterConfiguratorEditorSubsystem::ReimportAsset(UDisplayClusterBlueprint* InBlueprint)
+{
+	if (InBlueprint != nullptr)
+	{
+		return ReloadConfig(InBlueprint, InBlueprint->GetConfigPath()) != nullptr;
 	}
 	
 	return false;
 }
 
-bool UDisplayClusterConfiguratorEditorSubsystem::ReloadConfig(UDisplayClusterConfiguratorEditorData* InConfiguratorEditorData, const FString& InConfigPath)
+UDisplayClusterConfigurationData* UDisplayClusterConfiguratorEditorSubsystem::ReloadConfig(UDisplayClusterBlueprint* InBlueprint, const FString& InConfigPath)
 {
-	if (InConfiguratorEditorData != nullptr)
+	if (InBlueprint != nullptr)
 	{
+		FString ReimportPath = InConfigPath;
+		
 		UDisplayClusterConfigurationData* NewConfig = IDisplayClusterConfiguration::Get().LoadConfig(InConfigPath);
 		if (NewConfig)
 		{
-			InConfiguratorEditorData->PathToConfig = InConfigPath;
-			InConfiguratorEditorData->nDisplayConfig = NewConfig;
+			bool bIsAssetBeingEdited = false;
+			if (FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(InBlueprint))
+			{
+				// Close open editor.
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(InBlueprint);
+				bIsAssetBeingEdited = true;
+			}
+			
+			NewConfig->PathToConfig = ReimportPath;
+			InBlueprint->SetConfigData(Cast<UDisplayClusterConfigurationData>(StaticDuplicateObject(NewConfig, InBlueprint)), true);
 
-			return true;
+			// Compile is necessary to update the CDO with the new config data. Otherwise manipulating the data in the editor won't work correctly.
+			FKismetEditorUtilities::CompileBlueprint(InBlueprint);
+			
+			if (bIsAssetBeingEdited)
+			{
+				// Open editor if it was previously open.
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(InBlueprint);
+			}
+			
+			return NewConfig;
 		}
 	}
 
-	return false;
+	return nullptr;
 }
 
-bool UDisplayClusterConfiguratorEditorSubsystem::SaveConfig(UDisplayClusterConfiguratorEditorData* InConfiguratorEditorData, const FString& InConfigPath)
+bool UDisplayClusterConfiguratorEditorSubsystem::SaveConfig(UDisplayClusterConfigurationData* InConfiguratorEditorData, const FString& InConfigPath)
 {
 	if (InConfiguratorEditorData)
 	{
 		FString ConfigFileExtension = FPaths::GetExtension(InConfigPath, true);
 		FString FilePathToSave = InConfigPath;
-		bool bIsCFGFile = false;
 
 		FString JsonExtension = FString(".") + FString(DisplayClusterConfigurationStrings::file::FileExtJson);
 		FString CfgExtension = FString(".") + FString(DisplayClusterConfigurationStrings::file::FileExtCfg);
@@ -58,24 +102,21 @@ bool UDisplayClusterConfiguratorEditorSubsystem::SaveConfig(UDisplayClusterConfi
 		if (ConfigFileExtension.Equals(CfgExtension))
 		{
 			FilePathToSave = FPaths::ChangeExtension(InConfigPath, JsonExtension);
-			bIsCFGFile = true;
 		}
 
-		if (InConfiguratorEditorData->nDisplayConfig != nullptr)
+		if (InConfiguratorEditorData != nullptr)
 		{
-			if (!InConfiguratorEditorData->PathToConfig.Equals(FilePathToSave))
-			{
-				FString NewFileName = FPaths::GetBaseFilename(FilePathToSave);
-				const FString PackagePath = FPackageName::GetLongPackagePath(InConfiguratorEditorData->GetOutermost()->GetName());
-				RenameAssets(InConfiguratorEditorData, PackagePath, NewFileName);
-			}
-
 			InConfiguratorEditorData->PathToConfig = FilePathToSave;
-			return IDisplayClusterConfiguration::Get().SaveConfig(InConfiguratorEditorData->nDisplayConfig, FilePathToSave);
+			return IDisplayClusterConfiguration::Get().SaveConfig(InConfiguratorEditorData, FilePathToSave);
 		}
 	}
 
 	return false;
+}
+
+bool UDisplayClusterConfiguratorEditorSubsystem::ConfigAsString(UDisplayClusterConfigurationData* InConfiguratorEditorData, FString& OutString) const
+{
+	return IDisplayClusterConfiguration::Get().ConfigAsString(InConfiguratorEditorData, OutString);
 }
 
 bool UDisplayClusterConfiguratorEditorSubsystem::RenameAssets(const TWeakObjectPtr<UObject>& InAsset, const FString& InNewPackagePath, const FString& InNewName)

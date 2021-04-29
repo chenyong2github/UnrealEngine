@@ -56,22 +56,21 @@ public:
 				}
 			}
 
-			if (UtilAssets.Num() + AssetClasses.Num() > 0)
+			auto ProcessAssetAction = [&SupportedAssets, &UtilityAndSelectionIndices, &SelectedAssets](UAssetActionUtility* InAction)
 			{
-				for (const FAssetData& Asset : SelectedAssets)
+				if (UClass* SupportedClass = InAction->GetSupportedClass())
 				{
-					auto ProcessAssetAction = [&SupportedUtils, &SupportedAssets, &UtilityAndSelectionIndices, Asset](UAssetActionUtility* InAction)
-					{
-						bool bIsActionForBlueprints = InAction->IsActionForBlueprints();
-						UClass* SupportedClass = InAction->GetSupportedClass();
+					const bool bIsActionForBlueprints = InAction->IsActionForBlueprints();
 
+					for (const FAssetData& Asset : SelectedAssets)
+					{
 						bool bPassesClassFilter = false;
 						if (bIsActionForBlueprints)
 						{
 							if (UBlueprint* AssetAsBlueprint = Cast<UBlueprint>(Asset.GetAsset()))
 							{
 								// It's a blueprint, but is it the right kind?
-								bPassesClassFilter = (SupportedClass == nullptr || (SupportedClass && AssetAsBlueprint->ParentClass && AssetAsBlueprint->ParentClass->IsChildOf(SupportedClass)));
+								bPassesClassFilter = AssetAsBlueprint->ParentClass && AssetAsBlueprint->ParentClass->IsChildOf(SupportedClass);
 							}
 							else
 							{
@@ -82,49 +81,57 @@ public:
 						else
 						{
 							// Is the asset the right kind?
-							bPassesClassFilter = (SupportedClass == nullptr || (SupportedClass && Asset.GetClass()->IsChildOf(SupportedClass)));
+							bPassesClassFilter = Asset.GetClass()->IsChildOf(SupportedClass);
 						}
 
 						if (bPassesClassFilter)
 						{
-							SupportedUtils.AddUnique(InAction);
 							const int32 Index = SupportedAssets.AddUnique(Asset);
 							UtilityAndSelectionIndices.FindOrAdd(InAction).Add(Index);
 						}
-					};
-
-					// Process asset based utilities
-					for (const FAssetData& UtilAsset : UtilAssets)
-					{
-						if(UEditorUtilityBlueprint* Blueprint = Cast<UEditorUtilityBlueprint>(UtilAsset.GetAsset()))
-						{
-							if(UClass* BPClass = Blueprint->GeneratedClass.Get())
-							{
-								if(UAssetActionUtility* DefaultObject = Cast<UAssetActionUtility>(BPClass->GetDefaultObject()))
-								{
-									ProcessAssetAction(DefaultObject);
-								}
-							}
-						}
 					}
+				}
+				else
+				{
+					TSet<int32>& ActionIndices = UtilityAndSelectionIndices.FindOrAdd(InAction);
+					for (const FAssetData& Asset : SelectedAssets)
+					{ 
+						const int32 Index = SupportedAssets.AddUnique(Asset);
+						ActionIndices.Add(Index);
+					}
+				}
+			};
 
-					// Process non-asset based utilities
-					for (UAssetActionUtility* Action : AssetClasses)
+			// Process asset based utilities
+			for (const FAssetData& UtilAsset : UtilAssets)
+			{
+				if (UEditorUtilityBlueprint* Blueprint = Cast<UEditorUtilityBlueprint>(UtilAsset.GetAsset()))
+				{
+					if (UClass* BPClass = Blueprint->GeneratedClass.Get())
 					{
-						ProcessAssetAction(Action);
+						if (UAssetActionUtility* DefaultObject = Cast<UAssetActionUtility>(BPClass->GetDefaultObject()))
+						{
+							ProcessAssetAction(DefaultObject);
+						}
 					}
 				}
 			}
+
+			// Process non-asset based utilities
+			for (UAssetActionUtility* Action : AssetClasses)
+			{
+				ProcessAssetAction(Action);
+			}
 		}
 
-		if (SupportedUtils.Num() > 0)
+		if (UtilityAndSelectionIndices.Num() > 0)
 		{
 			// Add asset actions extender
 			Extender->AddMenuExtension(
 				"CommonAssetActions",
 				EExtensionHook::After,
 				nullptr,
-				FMenuExtensionDelegate::CreateStatic(&FBlutilityMenuExtensions::CreateAssetBlutilityActionsMenu, UtilityAndSelectionIndices, MoveTemp(SupportedAssets)));
+				FMenuExtensionDelegate::CreateStatic(&FBlutilityMenuExtensions::CreateAssetBlutilityActionsMenu, MoveTemp(UtilityAndSelectionIndices), MoveTemp(SupportedAssets)));
 		}
 
 		return Extender;

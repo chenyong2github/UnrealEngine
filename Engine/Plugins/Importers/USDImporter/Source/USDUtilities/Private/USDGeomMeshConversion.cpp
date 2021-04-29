@@ -12,6 +12,9 @@
 #include "USDMemory.h"
 #include "USDTypesConversion.h"
 
+#include "UsdWrappers/UsdPrim.h"
+#include "UsdWrappers/UsdStage.h"
+
 #include "AssetRegistryModule.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstanceConstant.h"
@@ -45,299 +48,457 @@
 
 #define LOCTEXT_NAMESPACE "USDGeomMeshConversion"
 
-namespace UsdToUnrealImpl
+namespace UE
 {
-	int32 GetPrimValueIndex( const pxr::TfToken& InterpType, const int32 VertexIndex, const int32 VertexInstanceIndex, const int32 PolygonIndex )
+	namespace UsdGeomMeshConversion
 	{
-		if ( InterpType == pxr::UsdGeomTokens->vertex )
+		namespace Private
 		{
-			return VertexIndex;
-		}
-		else if ( InterpType == pxr::UsdGeomTokens->varying )
-		{
-			return VertexIndex;
-		}
-		else if ( InterpType == pxr::UsdGeomTokens->faceVarying )
-		{
-			return VertexInstanceIndex;
-		}
-		else if ( InterpType == pxr::UsdGeomTokens->uniform )
-		{
-			return PolygonIndex;
-		}
-		else /* if ( InterpType == pxr::UsdGeomTokens->constant ) */
-		{
-			return 0; // return index 0 for constant or any other unsupported cases
-		}
-	}
+			static const FString DisplayColorID = TEXT( "!DisplayColor" );
 
-	int32 GetLODIndexFromName( const std::string& Name )
-	{
-		const std::string LODString = UnrealIdentifiers::LOD.GetString();
-
-		// True if Name does not start with "LOD"
-		if ( Name.rfind( LODString, 0 ) != 0 )
-		{
-			return INDEX_NONE;
-		}
-
-		// After LODString there should be only numbers
-		if ( Name.find_first_not_of( "0123456789", LODString.size() ) != std::string::npos )
-		{
-			return INDEX_NONE;
-		}
-
-		const int Base = 10;
-		char** EndPtr = nullptr;
-		return std::strtol( Name.c_str() + LODString.size(), EndPtr, Base );
-	}
-}
-
-namespace UnrealToUsdImpl
-{
-	void ConvertStaticMeshLOD(int32 LODIndex, const FStaticMeshLODResources& LODRenderMesh, pxr::UsdGeomMesh& UsdMesh, const pxr::VtArray< std::string >& MaterialAssignments, const pxr::UsdTimeCode TimeCode)
-	{
-		pxr::UsdPrim MeshPrim = UsdMesh.GetPrim();
-		pxr::UsdStageRefPtr Stage = MeshPrim.GetStage();
-		if ( !Stage )
-		{
-			return;
-		}
-		const FUsdStageInfo StageInfo{ Stage };
-
-		// Vertices
-		{
-			const int32 VertexCount = LODRenderMesh.VertexBuffers.StaticMeshVertexBuffer.GetNumVertices();
-
-			// Points
+			int32 GetPrimValueIndex( const pxr::TfToken& InterpType, const int32 VertexIndex, const int32 VertexInstanceIndex, const int32 PolygonIndex )
 			{
-				pxr::UsdAttribute Points = UsdMesh.CreatePointsAttr();
-				if (Points)
+				if ( InterpType == pxr::UsdGeomTokens->vertex )
 				{
-					pxr::VtArray< pxr::GfVec3f > PointsArray;
-					PointsArray.reserve(VertexCount);
-
-					for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
-					{
-						FVector VertexPosition = LODRenderMesh.VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
-						PointsArray.push_back(UnrealToUsd::ConvertVector(StageInfo, VertexPosition));
-					}
-
-					Points.Set(PointsArray, TimeCode);
+					return VertexIndex;
+				}
+				else if ( InterpType == pxr::UsdGeomTokens->varying )
+				{
+					return VertexIndex;
+				}
+				else if ( InterpType == pxr::UsdGeomTokens->faceVarying )
+				{
+					return VertexInstanceIndex;
+				}
+				else if ( InterpType == pxr::UsdGeomTokens->uniform )
+				{
+					return PolygonIndex;
+				}
+				else /* if ( InterpType == pxr::UsdGeomTokens->constant ) */
+				{
+					return 0; // return index 0 for constant or any other unsupported cases
 				}
 			}
 
-			// Normals
+			int32 GetLODIndexFromName( const std::string& Name )
 			{
-				pxr::UsdAttribute NormalsAttribute = UsdMesh.CreateNormalsAttr();
-				if (NormalsAttribute)
+				const std::string LODString = UnrealIdentifiers::LOD.GetString();
+
+				// True if Name does not start with "LOD"
+				if ( Name.rfind( LODString, 0 ) != 0 )
 				{
-					pxr::VtArray< pxr::GfVec3f > Normals;
-					Normals.reserve(VertexCount);
-
-					for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
-					{
-						FVector VertexNormal = LODRenderMesh.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertexIndex);
-						Normals.push_back(UnrealToUsd::ConvertVector(StageInfo, VertexNormal));
-					}
-
-					NormalsAttribute.Set(Normals, TimeCode);
+					return INDEX_NONE;
 				}
+
+				// After LODString there should be only numbers
+				if ( Name.find_first_not_of( "0123456789", LODString.size() ) != std::string::npos )
+				{
+					return INDEX_NONE;
+				}
+
+				const int Base = 10;
+				char** EndPtr = nullptr;
+				return std::strtol( Name.c_str() + LODString.size(), EndPtr, Base );
 			}
 
-			// UVs
+			void ConvertStaticMeshLOD(
+				int32 LODIndex,
+				const FStaticMeshLODResources& LODRenderMesh,
+				pxr::UsdGeomMesh& UsdMesh,
+				const pxr::VtArray< std::string >& MaterialAssignments,
+				const pxr::UsdTimeCode TimeCode,
+				pxr::UsdPrim MaterialPrim
+			)
 			{
-				const int32 TexCoordSourceCount = LODRenderMesh.VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
-
-				for (int32 TexCoordSourceIndex = 0; TexCoordSourceIndex < TexCoordSourceCount; ++TexCoordSourceIndex)
+				pxr::UsdPrim MeshPrim = UsdMesh.GetPrim();
+				pxr::UsdStageRefPtr Stage = MeshPrim.GetStage();
+				if ( !Stage )
 				{
-					pxr::TfToken UsdUVSetName = UsdUtils::GetUVSetName(TexCoordSourceIndex).Get();
+					return;
+				}
+				const FUsdStageInfo StageInfo{ Stage };
 
-					pxr::UsdGeomPrimvar PrimvarST = UsdMesh.CreatePrimvar(UsdUVSetName, pxr::SdfValueTypeNames->TexCoord2fArray, pxr::UsdGeomTokens->vertex);
+				// Vertices
+				{
+					const int32 VertexCount = LODRenderMesh.VertexBuffers.StaticMeshVertexBuffer.GetNumVertices();
 
-					if (PrimvarST)
+					// Points
 					{
-						pxr::VtVec2fArray UVs;
-
-						for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
+						pxr::UsdAttribute Points = UsdMesh.CreatePointsAttr();
+						if ( Points )
 						{
-							FVector2D TexCoord = LODRenderMesh.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndex, TexCoordSourceIndex);
-							TexCoord[1] = 1.f - TexCoord[1];
+							pxr::VtArray< pxr::GfVec3f > PointsArray;
+							PointsArray.reserve( VertexCount );
 
-							UVs.push_back(UnrealToUsd::ConvertVector(TexCoord));
+							for ( int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex )
+							{
+								FVector VertexPosition = LODRenderMesh.VertexBuffers.PositionVertexBuffer.VertexPosition( VertexIndex );
+								PointsArray.push_back( UnrealToUsd::ConvertVector( StageInfo, VertexPosition ) );
+							}
+
+							Points.Set( PointsArray, TimeCode );
+						}
+					}
+
+					// Normals
+					{
+						pxr::UsdAttribute NormalsAttribute = UsdMesh.CreateNormalsAttr();
+						if ( NormalsAttribute )
+						{
+							pxr::VtArray< pxr::GfVec3f > Normals;
+							Normals.reserve( VertexCount );
+
+							for ( int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex )
+							{
+								FVector VertexNormal = LODRenderMesh.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ( VertexIndex );
+								Normals.push_back( UnrealToUsd::ConvertVector( StageInfo, VertexNormal ) );
+							}
+
+							NormalsAttribute.Set( Normals, TimeCode );
+						}
+					}
+
+					// UVs
+					{
+						const int32 TexCoordSourceCount = LODRenderMesh.VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
+
+						for ( int32 TexCoordSourceIndex = 0; TexCoordSourceIndex < TexCoordSourceCount; ++TexCoordSourceIndex )
+						{
+							pxr::TfToken UsdUVSetName = UsdUtils::GetUVSetName( TexCoordSourceIndex ).Get();
+
+							pxr::UsdGeomPrimvar PrimvarST = UsdMesh.CreatePrimvar( UsdUVSetName, pxr::SdfValueTypeNames->TexCoord2fArray, pxr::UsdGeomTokens->vertex );
+
+							if ( PrimvarST )
+							{
+								pxr::VtVec2fArray UVs;
+
+								for ( int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex )
+								{
+									FVector2D TexCoord = LODRenderMesh.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV( VertexIndex, TexCoordSourceIndex );
+									TexCoord[ 1 ] = 1.f - TexCoord[ 1 ];
+
+									UVs.push_back( UnrealToUsd::ConvertVector( TexCoord ) );
+								}
+
+								PrimvarST.Set( UVs, TimeCode );
+							}
+						}
+					}
+
+					// Vertex colors
+					if ( LODRenderMesh.bHasColorVertexData )
+					{
+						pxr::UsdAttribute DisplayColorAttribute = UsdMesh.CreateDisplayColorAttr();
+						pxr::UsdAttribute DisplayOpacityAttribute = UsdMesh.CreateDisplayOpacityAttr();
+
+						if ( DisplayColorAttribute )
+						{
+							pxr::VtArray< pxr::GfVec3f > DisplayColors;
+							DisplayColors.reserve( VertexCount );
+
+							pxr::VtArray< float > DisplayOpacities;
+							DisplayOpacities.reserve( VertexCount );
+
+							for ( int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex )
+							{
+								const FColor& VertexColor = LODRenderMesh.VertexBuffers.ColorVertexBuffer.VertexColor( VertexIndex );
+
+								pxr::GfVec4f Color = UnrealToUsd::ConvertColor( VertexColor );
+								DisplayColors.push_back( pxr::GfVec3f( Color[ 0 ], Color[ 1 ], Color[ 2 ] ) );
+								DisplayOpacities.push_back( Color[ 3 ] );
+							}
+
+							DisplayColorAttribute.Set( DisplayColors, TimeCode );
+							DisplayOpacityAttribute.Set( DisplayOpacities, TimeCode );
+						}
+					}
+				}
+
+				// Faces
+				{
+					const int32 FaceCount = LODRenderMesh.GetNumTriangles();
+
+					// Face Vertex Counts
+					{
+						pxr::UsdAttribute FaceCountsAttribute = UsdMesh.CreateFaceVertexCountsAttr();
+
+						if ( FaceCountsAttribute )
+						{
+							pxr::VtArray< int > FaceVertexCounts;
+							FaceVertexCounts.reserve( FaceCount );
+
+							for ( int32 FaceIndex = 0; FaceIndex < FaceCount; ++FaceIndex )
+							{
+								FaceVertexCounts.push_back( 3 );
+							}
+
+							FaceCountsAttribute.Set( FaceVertexCounts, TimeCode );
+						}
+					}
+
+					// Face Vertex Indices
+					{
+						pxr::UsdAttribute FaceVertexIndicesAttribute = UsdMesh.GetFaceVertexIndicesAttr();
+
+						if ( FaceVertexIndicesAttribute )
+						{
+							FIndexArrayView Indices = LODRenderMesh.IndexBuffer.GetArrayView();
+							ensure( Indices.Num() == FaceCount * 3 );
+
+							pxr::VtArray< int > FaceVertexIndices;
+							FaceVertexIndices.reserve( FaceCount * 3 );
+
+							for ( int32 Index = 0; Index < FaceCount * 3; ++Index )
+							{
+								FaceVertexIndices.push_back( Indices[ Index ] );
+							}
+
+							FaceVertexIndicesAttribute.Set( FaceVertexIndices, TimeCode );
+						}
+					}
+				}
+
+				// Material assignments
+				{
+					bool bHasUEMaterialAssignements = false;
+
+					pxr::VtArray< std::string > UnrealMaterialsForLOD;
+					for ( const FStaticMeshSection& Section : LODRenderMesh.Sections )
+					{
+						if ( Section.MaterialIndex >= 0 && Section.MaterialIndex < MaterialAssignments.size() )
+						{
+							UnrealMaterialsForLOD.push_back( MaterialAssignments[ Section.MaterialIndex ] );
+							bHasUEMaterialAssignements = true;
+						}
+						else
+						{
+							// Keep unrealMaterials with the same number of elements as our MaterialIndices expect
+							UnrealMaterialsForLOD.push_back( "" );
+						}
+					}
+
+					// This LOD has a single material assignment, just add an unrealMaterials attribute to the mesh prim
+					if ( bHasUEMaterialAssignements && UnrealMaterialsForLOD.size() == 1 )
+					{
+						const bool bHasMaterialAttribute = MaterialPrim.HasAttribute( UnrealIdentifiers::MaterialAssignments );
+						if ( bHasUEMaterialAssignements )
+						{
+							if ( pxr::UsdAttribute UEMaterialsAttribute = MaterialPrim.CreateAttribute( UnrealIdentifiers::MaterialAssignment, pxr::SdfValueTypeNames->String ) )
+							{
+								UEMaterialsAttribute.Set( UnrealMaterialsForLOD[ 0 ] );
+							}
+						}
+						else if ( bHasMaterialAttribute )
+						{
+							MaterialPrim.GetAttribute( UnrealIdentifiers::MaterialAssignments ).Clear();
+						}
+					}
+					// Multiple material assignments to the same LOD (and so the same mesh prim). Need to create a GeomSubset for each UE mesh section
+					else if ( UnrealMaterialsForLOD.size() > 1 )
+					{
+						// Need to fetch all triangles of a section, and add their indices
+						for ( int32 SectionIndex = 0; SectionIndex < LODRenderMesh.Sections.Num(); ++SectionIndex )
+						{
+							const FStaticMeshSection& Section = LODRenderMesh.Sections[ SectionIndex ];
+
+							// Note that we will continue on even if we have no material assignment, so as to satisfy the "partition" family condition (below)
+							std::string SectionMaterial;
+							if ( Section.MaterialIndex >= 0 && Section.MaterialIndex < MaterialAssignments.size() )
+							{
+								SectionMaterial = MaterialAssignments[ Section.MaterialIndex ];
+							}
+
+							pxr::UsdPrim GeomSubsetPrim = Stage->DefinePrim(
+								MeshPrim.GetPath().AppendPath( pxr::SdfPath( "Section" + std::to_string( SectionIndex ) ) ),
+								UnrealToUsd::ConvertToken( TEXT( "GeomSubset" ) ).Get()
+							);
+
+							// MaterialPrim may be in another stage, so we may need another GeomSubset there
+							pxr::UsdPrim MaterialGeomSubsetPrim = GeomSubsetPrim;
+							if ( MaterialPrim.GetStage() != MeshPrim.GetStage() )
+							{
+								MaterialGeomSubsetPrim = MaterialPrim.GetStage()->OverridePrim(
+									MaterialPrim.GetPath().AppendPath( pxr::SdfPath( "Section" + std::to_string( SectionIndex ) ) )
+								);
+							}
+
+							pxr::UsdGeomSubset GeomSubsetSchema{ GeomSubsetPrim };
+
+							// Element type attribute
+							pxr::UsdAttribute ElementTypeAttr = GeomSubsetSchema.CreateElementTypeAttr();
+							ElementTypeAttr.Set( pxr::UsdGeomTokens->face, TimeCode );
+
+							// Indices attribute
+							const uint32 TriangleCount = Section.NumTriangles;
+							const uint32 FirstTriangleIndex = Section.FirstIndex / 3; // FirstIndex is the first *vertex* instance index
+							FIndexArrayView VertexInstances = LODRenderMesh.IndexBuffer.GetArrayView();
+							pxr::VtArray<int> IndicesAttrValue;
+							for ( uint32 TriangleIndex = FirstTriangleIndex; TriangleIndex - FirstTriangleIndex < TriangleCount; ++TriangleIndex )
+							{
+								// Note that we add VertexInstances in sequence to the usda file for the faceVertexInstances attribute, which
+								// also constitutes our triangle order
+								IndicesAttrValue.push_back( static_cast< int >( TriangleIndex ) );
+							}
+
+							pxr::UsdAttribute IndicesAttr = GeomSubsetSchema.CreateIndicesAttr();
+							IndicesAttr.Set( IndicesAttrValue, TimeCode );
+
+							// Family name attribute
+							pxr::UsdAttribute FamilyNameAttr = GeomSubsetSchema.CreateFamilyNameAttr();
+							FamilyNameAttr.Set( pxr::UsdShadeTokens->materialBind, TimeCode );
+
+							// Family type
+							pxr::UsdGeomSubset::SetFamilyType( UsdMesh, pxr::UsdShadeTokens->materialBind, pxr::UsdGeomTokens->partition );
+
+							// unrealMaterial attribute
+							if ( pxr::UsdAttribute UEMaterialsAttribute = MaterialGeomSubsetPrim.CreateAttribute( UnrealIdentifiers::MaterialAssignment, pxr::SdfValueTypeNames->String ) )
+							{
+								UEMaterialsAttribute.Set( UnrealMaterialsForLOD[ SectionIndex ] );
+							}
+						}
+					}
+				}
+			}
+
+			bool ConvertMeshDescription( const FMeshDescription& MeshDescription, pxr::UsdGeomMesh& UsdMesh, const FMatrix& AdditionalTransform, const pxr::UsdTimeCode TimeCode )
+			{
+				pxr::UsdPrim MeshPrim = UsdMesh.GetPrim();
+				pxr::UsdStageRefPtr Stage = MeshPrim.GetStage();
+				if ( !Stage )
+				{
+					return false;
+				}
+				const FUsdStageInfo StageInfo{ Stage };
+
+				FStaticMeshConstAttributes Attributes(MeshDescription);
+				TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+				TPolygonGroupAttributesConstRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
+				TVertexInstanceAttributesConstRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+				TVertexInstanceAttributesConstRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
+				TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+
+				const int32 VertexCount = VertexPositions.GetNumElements();
+				const int32 VertexInstanceCount = VertexInstanceNormals.GetNumElements();
+				const int32 FaceCount = MeshDescription.Polygons().Num();
+
+				// Points
+				{
+					if ( pxr::UsdAttribute Points = UsdMesh.CreatePointsAttr() )
+					{
+						pxr::VtArray< pxr::GfVec3f > PointsArray;
+						PointsArray.reserve( VertexCount );
+
+						for ( const FVertexID VertexID : MeshDescription.Vertices().GetElementIDs() )
+						{
+							FVector UEPosition = AdditionalTransform.TransformPosition( VertexPositions[ VertexID ] );
+							PointsArray.push_back( UnrealToUsd::ConvertVector( StageInfo, UEPosition ) );
 						}
 
-						PrimvarST.Set(UVs, TimeCode);
+						Points.Set( PointsArray, TimeCode );
 					}
 				}
-			}
 
-			// Vertex colors
-			if (LODRenderMesh.bHasColorVertexData)
-			{
-				pxr::UsdAttribute DisplayColorAttribute = UsdMesh.CreateDisplayColorAttr();
-				pxr::UsdAttribute DisplayOpacityAttribute = UsdMesh.CreateDisplayOpacityAttr();
-
-				if (DisplayColorAttribute)
+				// Normals
 				{
-					pxr::VtArray< pxr::GfVec3f > DisplayColors;
-					DisplayColors.reserve(VertexCount);
-
-					pxr::VtArray< float > DisplayOpacities;
-					DisplayOpacities.reserve(VertexCount);
-
-					for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
+					if ( pxr::UsdAttribute NormalsAttribute = UsdMesh.CreateNormalsAttr() )
 					{
-						const FColor& VertexColor = LODRenderMesh.VertexBuffers.ColorVertexBuffer.VertexColor(VertexIndex);
+						pxr::VtArray< pxr::GfVec3f > Normals;
+						Normals.reserve( VertexInstanceCount );
 
-						pxr::GfVec4f Color = UnrealToUsd::ConvertColor(VertexColor);
-						DisplayColors.push_back(pxr::GfVec3f(Color[0], Color[1], Color[2]));
-						DisplayOpacities.push_back(Color[3]);
+						for ( const FVertexInstanceID InstanceID : MeshDescription.VertexInstances().GetElementIDs() )
+						{
+							FVector UENormal = VertexInstanceNormals[ InstanceID ].GetSafeNormal();
+							Normals.push_back( UnrealToUsd::ConvertVector( StageInfo, UENormal ) );
+						}
+
+						NormalsAttribute.Set( Normals, TimeCode );
+						UsdMesh.SetNormalsInterpolation( pxr::UsdGeomTokens->faceVarying );
 					}
-
-					DisplayColorAttribute.Set(DisplayColors, TimeCode);
-					DisplayOpacityAttribute.Set(DisplayOpacities, TimeCode);
 				}
-			}
-		}
 
-		// Faces
-		{
-			const int32 FaceCount = LODRenderMesh.GetNumTriangles();
-
-			// Face Vertex Counts
-			{
-				pxr::UsdAttribute FaceCountsAttribute = UsdMesh.CreateFaceVertexCountsAttr();
-
-				if (FaceCountsAttribute)
+				// UVs
 				{
+					int32 NumUVs = VertexInstanceUVs.GetNumChannels();
+
+					for ( int32 UVIndex = 0; UVIndex < NumUVs; ++UVIndex )
+					{
+						pxr::TfToken UsdUVSetName = UsdUtils::GetUVSetName( UVIndex ).Get();
+
+						pxr::UsdGeomPrimvar PrimvarST = UsdMesh.CreatePrimvar( UsdUVSetName, pxr::SdfValueTypeNames->TexCoord2fArray, pxr::UsdGeomTokens->vertex );
+						if ( PrimvarST )
+						{
+							pxr::VtVec2fArray UVs;
+
+							for ( const FVertexInstanceID InstanceID : MeshDescription.VertexInstances().GetElementIDs() )
+							{
+								FVector2D UV = VertexInstanceUVs.Get( InstanceID, UVIndex );
+								UV[ 1 ] = 1.f - UV[ 1 ];
+								UVs.push_back( UnrealToUsd::ConvertVector( UV ) );
+							}
+
+							PrimvarST.Set( UVs, TimeCode );
+							PrimvarST.SetInterpolation( pxr::UsdGeomTokens->faceVarying );
+						}
+					}
+				}
+
+				// Vertex colors
+				if ( VertexInstanceColors.GetNumElements() > 0 )
+				{
+					pxr::UsdGeomPrimvar DisplayColorPrimvar = UsdMesh.CreateDisplayColorPrimvar( pxr::UsdGeomTokens->faceVarying );
+					pxr::UsdGeomPrimvar DisplayOpacityPrimvar = UsdMesh.CreateDisplayOpacityPrimvar( pxr::UsdGeomTokens->faceVarying );
+					if ( DisplayColorPrimvar && DisplayOpacityPrimvar )
+					{
+						pxr::VtArray< pxr::GfVec3f > DisplayColors;
+						DisplayColors.reserve( VertexInstanceCount );
+
+						pxr::VtArray< float > DisplayOpacities;
+						DisplayOpacities.reserve( VertexInstanceCount );
+
+						for ( const FVertexInstanceID InstanceID : MeshDescription.VertexInstances().GetElementIDs() )
+						{
+							pxr::GfVec4f Color = UnrealToUsd::ConvertColor( FLinearColor( VertexInstanceColors[ InstanceID ] ) );
+							DisplayColors.push_back( pxr::GfVec3f( Color[ 0 ], Color[ 1 ], Color[ 2 ] ) );
+							DisplayOpacities.push_back( Color[ 3 ] );
+						}
+
+						DisplayColorPrimvar.Set( DisplayColors, TimeCode );
+						DisplayOpacityPrimvar.Set( DisplayOpacities, TimeCode );
+					}
+				}
+
+				// Faces
+				{
+					pxr::UsdAttribute FaceCountsAttribute = UsdMesh.CreateFaceVertexCountsAttr();
+					pxr::UsdAttribute FaceVertexIndicesAttribute = UsdMesh.GetFaceVertexIndicesAttr();
+
 					pxr::VtArray< int > FaceVertexCounts;
-					FaceVertexCounts.reserve(FaceCount);
-
-					for (int32 FaceIndex = 0; FaceIndex < FaceCount; ++FaceIndex)
-					{
-						FaceVertexCounts.push_back(3);
-					}
-
-					FaceCountsAttribute.Set(FaceVertexCounts, TimeCode);
-				}
-			}
-
-			// Face Vertex Indices
-			{
-				pxr::UsdAttribute FaceVertexIndicesAttribute = UsdMesh.GetFaceVertexIndicesAttr();
-
-				if (FaceVertexIndicesAttribute)
-				{
-					FIndexArrayView Indices = LODRenderMesh.IndexBuffer.GetArrayView();
-					ensure(Indices.Num() == FaceCount * 3);
+					FaceVertexCounts.reserve( FaceCount );
 
 					pxr::VtArray< int > FaceVertexIndices;
-					FaceVertexIndices.reserve(FaceCount * 3);
 
-					for (int32 Index = 0; Index < FaceCount * 3; ++Index)
+					for ( FPolygonID PolygonID : MeshDescription.Polygons().GetElementIDs() )
 					{
-						FaceVertexIndices.push_back(Indices[Index]);
+						const TArray<FVertexInstanceID>& PolygonVertexInstances = MeshDescription.GetPolygonVertexInstances( PolygonID );
+						FaceVertexCounts.push_back( static_cast< int >( PolygonVertexInstances.Num() ) );
+
+						for ( FVertexInstanceID VertexInstanceID : PolygonVertexInstances )
+						{
+							int32 VertexIndex = MeshDescription.GetVertexInstanceVertex( VertexInstanceID ).GetValue();
+							FaceVertexIndices.push_back( static_cast< int >( VertexIndex ) );
+						}
 					}
 
-					FaceVertexIndicesAttribute.Set(FaceVertexIndices, TimeCode);
+					FaceCountsAttribute.Set( FaceVertexCounts, TimeCode );
+					FaceVertexIndicesAttribute.Set( FaceVertexIndices, TimeCode );
 				}
-			}
-		}
 
-		// Material assignments
-		{
-			bool bHasUEMaterialAssignements = false;
-
-			pxr::VtArray< std::string > UnrealMaterialsForLOD;
-			for ( const FStaticMeshSection& Section : LODRenderMesh.Sections )
-			{
-				if ( Section.MaterialIndex >= 0 && Section.MaterialIndex < MaterialAssignments.size())
-				{
-					UnrealMaterialsForLOD.push_back( MaterialAssignments[ Section.MaterialIndex ] );
-					bHasUEMaterialAssignements = true;
-				}
-				else
-				{
-					// Keep unrealMaterials with the same number of elements as our MaterialIndices expect
-					UnrealMaterialsForLOD.push_back("");
-				}
-			}
-
-			// This LOD has a single material assignment, just add an unrealMaterials attribute to the mesh prim
-			if ( bHasUEMaterialAssignements && UnrealMaterialsForLOD.size() == 1 )
-			{
-				const bool bHasMaterialAttribute = MeshPrim.HasAttribute( UnrealIdentifiers::MaterialAssignments );
-				if ( bHasUEMaterialAssignements )
-				{
-					if ( pxr::UsdAttribute UEMaterialsAttribute = MeshPrim.CreateAttribute( UnrealIdentifiers::MaterialAssignment, pxr::SdfValueTypeNames->String ) )
-					{
-						UEMaterialsAttribute.Set( UnrealMaterialsForLOD[0] );
-					}
-				}
-				else if ( bHasMaterialAttribute )
-				{
-					MeshPrim.GetAttribute( UnrealIdentifiers::MaterialAssignments ).Clear();
-				}
-			}
-			// Multiple material assignments to the same LOD (and so the same mesh prim). Need to create a GeomSubset for each UE mesh section
-			else if ( UnrealMaterialsForLOD.size() > 1 )
-			{
-				// Need to fetch all triangles of a section, and add their indices
-				for ( int32 SectionIndex = 0; SectionIndex < LODRenderMesh.Sections.Num(); ++SectionIndex )
-				{
-					const FStaticMeshSection& Section = LODRenderMesh.Sections[SectionIndex];
-
-					// Note that we will continue on even if we have no material assignment, so as to satisfy the "partition" family condition (below)
-					std::string SectionMaterial;
-					if ( Section.MaterialIndex >= 0 && Section.MaterialIndex < MaterialAssignments.size() )
-					{
-						SectionMaterial = MaterialAssignments[ Section.MaterialIndex ];
-					}
-
-					pxr::UsdPrim GeomSubsetPrim = Stage->DefinePrim(
-							MeshPrim.GetPath().AppendPath(pxr::SdfPath("Section" + std::to_string( SectionIndex ))),
-							UnrealToUsd::ConvertToken(TEXT("GeomSubset")).Get()
-						);
-
-					pxr::UsdGeomSubset GeomSubsetSchema{ GeomSubsetPrim };
-
-					// Element type attribute
-					pxr::UsdAttribute ElementTypeAttr = GeomSubsetSchema.CreateElementTypeAttr();
-					ElementTypeAttr.Set(pxr::UsdGeomTokens->face, TimeCode);
-
-					// Indices attribute
-					const uint32 TriangleCount = Section.NumTriangles;
-					const uint32 FirstTriangleIndex = Section.FirstIndex / 3; // FirstIndex is the first *vertex* instance index
-					FIndexArrayView VertexInstances = LODRenderMesh.IndexBuffer.GetArrayView();
-					pxr::VtArray<int> IndicesAttrValue;
-					for ( uint32 TriangleIndex = FirstTriangleIndex; TriangleIndex - FirstTriangleIndex < TriangleCount; ++TriangleIndex)
-					{
-						// Note that we add VertexInstances in sequence to the usda file for the faceVertexInstances attribute, which
-						// also constitutes our triangle order
-						IndicesAttrValue.push_back( static_cast< int >( TriangleIndex ) );
-					}
-
-					pxr::UsdAttribute IndicesAttr = GeomSubsetSchema.CreateIndicesAttr();
-					IndicesAttr.Set( IndicesAttrValue, TimeCode);
-
-					// Family name attribute
-					pxr::UsdAttribute FamilyNameAttr = GeomSubsetSchema.CreateFamilyNameAttr();
-					FamilyNameAttr.Set(pxr::UsdShadeTokens->materialBind, TimeCode);
-
-					// Family type
-					pxr::UsdGeomSubset::SetFamilyType( UsdMesh, pxr::UsdShadeTokens->materialBind, pxr::UsdGeomTokens->partition );
-
-					// unrealMaterials attribute
-					if ( pxr::UsdAttribute UEMaterialsAttribute = GeomSubsetPrim.CreateAttribute( UnrealIdentifiers::MaterialAssignment, pxr::SdfValueTypeNames->String ) )
-					{
-						UEMaterialsAttribute.Set( UnrealMaterialsForLOD[ SectionIndex ] );
-					}
-				}
+				return true;
 			}
 		}
 	}
 }
+namespace UsdGeomMeshImpl = UE::UsdGeomMeshConversion::Private;
 
 bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescription& MeshDescription, const pxr::UsdTimeCode TimeCode )
 {
@@ -371,7 +532,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 	return ConvertGeomMesh( UsdSchema, MeshDescription, MaterialAssignments, AdditionalTransform, MaterialToPrimvarsUVSetNames, TimeCode, RenderContext );
 }
 
-bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescription& MeshDescription, UsdUtils::FUsdPrimMaterialAssignmentInfo& MaterialAssignments, const FTransform& AdditionalTransform, 
+bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescription& MeshDescription, UsdUtils::FUsdPrimMaterialAssignmentInfo& MaterialAssignments, const FTransform& AdditionalTransform,
 	const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames, const pxr::UsdTimeCode TimeCode, const pxr::TfToken& RenderContext )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( UsdToUnreal::ConvertGeomMesh );
@@ -608,7 +769,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 
 				if ( Normals.size() > 0 )
 				{
-					const int32 NormalIndex = UsdToUnrealImpl::GetPrimValueIndex( NormalsInterpType, ControlPointIndex, CurrentVertexInstanceIndex, PolygonIndex );
+					const int32 NormalIndex = UsdGeomMeshImpl::GetPrimValueIndex( NormalsInterpType, ControlPointIndex, CurrentVertexInstanceIndex, PolygonIndex );
 
 					if ( NormalIndex < Normals.size() )
 					{
@@ -621,7 +782,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 
 				for ( const FUVSet& UVSet : UVSets )
 				{
-					const int32 ValueIndex = UsdToUnrealImpl::GetPrimValueIndex( UVSet.InterpType, ControlPointIndex, CurrentVertexInstanceIndex, PolygonIndex );
+					const int32 ValueIndex = UsdGeomMeshImpl::GetPrimValueIndex( UVSet.InterpType, ControlPointIndex, CurrentVertexInstanceIndex, PolygonIndex );
 
 					GfVec2f UV( 0.f, 0.f );
 
@@ -649,7 +810,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 						return FLinearColor( FLinearColor( UsdToUnreal::ConvertColor( UsdColor ) ).ToFColor( false ) );
 					};
 
-					const int32 ValueIndex = UsdToUnrealImpl::GetPrimValueIndex( ColorInterpolation, ControlPointIndex, CurrentVertexInstanceIndex, PolygonIndex );
+					const int32 ValueIndex = UsdGeomMeshImpl::GetPrimValueIndex( ColorInterpolation, ControlPointIndex, CurrentVertexInstanceIndex, PolygonIndex );
 
 					GfVec3f UsdColor( 1.f, 1.f, 1.f );
 
@@ -663,7 +824,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 
 				// Vertex opacity
 				{
-					const int32 ValueIndex = UsdToUnrealImpl::GetPrimValueIndex( OpacityInterpolation, ControlPointIndex, CurrentVertexInstanceIndex, PolygonIndex );
+					const int32 ValueIndex = UsdGeomMeshImpl::GetPrimValueIndex( OpacityInterpolation, ControlPointIndex, CurrentVertexInstanceIndex, PolygonIndex );
 
 					if ( !UsdOpacities.empty() && ensure( UsdOpacities.size() > ValueIndex ) )
 					{
@@ -1148,12 +1309,11 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 	return Result;
 }
 
-bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim& UsdPrim, const pxr::UsdTimeCode TimeCode )
+bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim& UsdPrim, const pxr::UsdTimeCode TimeCode, UE::FUsdStage* StageForMaterialAssignments )
 {
 	FScopedUsdAllocs UsdAllocs;
 
 	pxr::UsdStageRefPtr Stage = UsdPrim.GetStage();
-
 	if ( !Stage )
 	{
 		return false;
@@ -1241,21 +1401,37 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 			EditContext.Emplace( VariantSet.GetVariantEditContext() );
 		}
 
+		// Author material bindings on the dedicated stage if we have one
+		pxr::UsdStageRefPtr MaterialStage;
+		if ( StageForMaterialAssignments )
+		{
+			MaterialStage = *StageForMaterialAssignments;
+		}
+		else
+		{
+			MaterialStage = Stage;
+		}
+
 		pxr::UsdGeomMesh TargetMesh;
+		pxr::UsdPrim MaterialPrim = UsdPrim;
 		if ( bExportMultipleLODs )
 		{
 			// Add the mesh data to a child prim with the Mesh schema
 			pxr::UsdPrim UsdLODPrim = Stage->DefinePrim( LODPrimPath, UnrealToUsd::ConvertToken( TEXT("Mesh") ).Get() );
 			TargetMesh = pxr::UsdGeomMesh{ UsdLODPrim };
+
+			MaterialPrim = MaterialStage->OverridePrim( LODPrimPath );
 		}
 		else
 		{
 			// Make sure the parent prim has the Mesh schema and add the mesh data directly to it
 			UsdPrim = Stage->DefinePrim( UsdPrim.GetPath(), UnrealToUsd::ConvertToken( TEXT("Mesh") ).Get() );
 			TargetMesh = pxr::UsdGeomMesh{ UsdPrim };
+
+			MaterialPrim = MaterialStage->OverridePrim( UsdPrim.GetPath() );
 		}
 
-		UnrealToUsdImpl::ConvertStaticMeshLOD( LODIndex, RenderMesh, TargetMesh, MaterialAssignments, TimeCode );
+		UsdGeomMeshImpl::ConvertStaticMeshLOD( LODIndex, RenderMesh, TargetMesh, MaterialAssignments, TimeCode, MaterialPrim );
 	}
 
 	// Reset variant set to start with the lowest lod selected
@@ -1267,14 +1443,98 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 	return true;
 }
 
-namespace UsdToUnrealImpl
+bool UnrealToUsd::ConvertMeshDescriptions( const TArray<FMeshDescription>& LODIndexToMeshDescription, pxr::UsdPrim& UsdPrim, const FMatrix& AdditionalTransform, const pxr::UsdTimeCode TimeCode )
 {
-	static const FString DisplayColorID = TEXT("!DisplayColor");
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdStageRefPtr Stage = UsdPrim.GetStage();
+	if ( !Stage )
+	{
+		return false;
+	}
+
+	const FUsdStageInfo StageInfo( Stage );
+
+	int32 NumLODs = LODIndexToMeshDescription.Num();
+	if ( NumLODs < 1 )
+	{
+		return false;
+	}
+
+	pxr::UsdVariantSets VariantSets = UsdPrim.GetVariantSets();
+	if ( NumLODs > 1 && VariantSets.HasVariantSet( UnrealIdentifiers::LOD ) )
+	{
+		UE_LOG( LogUsd, Error, TEXT( "Failed to convert higher mesh description LODs for prim '%s', as the target prim already has a variant set named '%s'!" ),
+			*UsdToUnreal::ConvertPath( UsdPrim.GetPath() ),
+			*UsdToUnreal::ConvertToken( UnrealIdentifiers::LOD )
+		);
+		NumLODs = 1;
+	}
+
+	bool bExportMultipleLODs = NumLODs > 1;
+
+	pxr::SdfPath ParentPrimPath = UsdPrim.GetPath();
+	std::string LowestLODAdded = "";
+
+	for ( int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex )
+	{
+		const FMeshDescription& MeshDescription = LODIndexToMeshDescription[ LODIndex ];
+
+		// LOD0, LOD1, etc
+		std::string VariantName = UnrealIdentifiers::LOD.GetString() + UnrealToUsd::ConvertString( *LexToString( LODIndex ) ).Get();
+		if ( LowestLODAdded.size() == 0 )
+		{
+			LowestLODAdded = VariantName;
+		}
+
+		pxr::SdfPath LODPrimPath = ParentPrimPath.AppendPath( pxr::SdfPath( VariantName ) );
+
+		// Enable the variant edit context, if we are creating variant LODs
+		TOptional< pxr::UsdEditContext > EditContext;
+		if ( bExportMultipleLODs )
+		{
+			pxr::UsdVariantSet VariantSet = VariantSets.GetVariantSet( UnrealIdentifiers::LOD );
+			if ( !VariantSet.AddVariant( VariantName ) )
+			{
+				continue;
+			}
+
+			VariantSet.SetVariantSelection( VariantName );
+			EditContext.Emplace( VariantSet.GetVariantEditContext() );
+		}
+
+		pxr::UsdGeomMesh TargetMesh;
+		if ( bExportMultipleLODs )
+		{
+			// Add the mesh data to a child prim with the Mesh schema
+			pxr::UsdPrim UsdLODPrim = Stage->DefinePrim( LODPrimPath, UnrealToUsd::ConvertToken( TEXT( "Mesh" ) ).Get() );
+			TargetMesh = pxr::UsdGeomMesh{ UsdLODPrim };
+		}
+		else
+		{
+			// Make sure the parent prim has the Mesh schema and add the mesh data directly to it
+			UsdPrim = Stage->DefinePrim( UsdPrim.GetPath(), UnrealToUsd::ConvertToken( TEXT( "Mesh" ) ).Get() );
+			TargetMesh = pxr::UsdGeomMesh{ UsdPrim };
+		}
+
+		if ( !UsdGeomMeshImpl::ConvertMeshDescription( MeshDescription, TargetMesh, AdditionalTransform, TimeCode ) )
+		{
+			return false;
+		}
+	}
+
+	// Reset variant set to start with the lowest lod selected
+	if ( bExportMultipleLODs )
+	{
+		VariantSets.GetVariantSet( UnrealIdentifiers::LOD ).SetVariantSelection( LowestLODAdded );
+	}
+
+	return true;
 }
 
 FString UsdUtils::FDisplayColorMaterial::ToString()
 {
-	return FString::Printf( TEXT("%s_%d_%d"), *UsdToUnrealImpl::DisplayColorID, bHasOpacity, bIsDoubleSided );
+	return FString::Printf( TEXT("%s_%d_%d"), *UsdGeomMeshImpl::DisplayColorID, bHasOpacity, bIsDoubleSided );
 }
 
 TOptional<UsdUtils::FDisplayColorMaterial> UsdUtils::FDisplayColorMaterial::FromString( const FString& DisplayColorString )
@@ -1282,7 +1542,7 @@ TOptional<UsdUtils::FDisplayColorMaterial> UsdUtils::FDisplayColorMaterial::From
 	TArray<FString> Tokens;
 	DisplayColorString.ParseIntoArray( Tokens, TEXT( "_" ) );
 
-	if ( Tokens.Num() != 3 || Tokens[ 0 ] != UsdToUnrealImpl::DisplayColorID )
+	if ( Tokens.Num() != 3 || Tokens[ 0 ] != UsdGeomMeshImpl::DisplayColorID )
 	{
 		return {};
 	}
@@ -1405,7 +1665,7 @@ bool UsdUtils::IterateLODMeshes( const pxr::UsdPrim& ParentPrim, TFunction<bool(
 	bool bHasValidVariant = false;
 	for ( const std::string& LODVariantName : VariantSets.GetVariantSet( LODString ).GetVariantNames() )
 	{
-		int32 LODIndex = UsdToUnrealImpl::GetLODIndexFromName( LODVariantName );
+		int32 LODIndex = UsdGeomMeshImpl::GetLODIndexFromName( LODVariantName );
 		if ( LODIndex == INDEX_NONE )
 		{
 			continue;

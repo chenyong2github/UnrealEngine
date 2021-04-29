@@ -90,7 +90,11 @@ void UNiagaraStackModuleItem::Initialize(FRequiredEntryData InRequiredEntryData,
 
 FText UNiagaraStackModuleItem::GetDisplayName() const
 {
-	return FunctionCallNode->GetNodeTitle(ENodeTitleType::ListView);
+	if (DisplayNameCache.IsSet() == false)
+	{
+		DisplayNameCache = FunctionCallNode->GetNodeTitle(ENodeTitleType::ListView);
+	}
+	return DisplayNameCache.GetValue();
 }
 
 UObject* UNiagaraStackModuleItem::GetDisplayedObject() const
@@ -129,6 +133,7 @@ void UNiagaraStackModuleItem::RefreshChildrenInternal(const TArray<UNiagaraStack
 	bCanRefresh = false;
 	bCanMoveAndDeleteCache.Reset();
 	bIsScratchModuleCache.Reset();
+	DisplayNameCache.Reset();
 
 	if (FunctionCallNode != nullptr && FunctionCallNode->ScriptIsValid())
 	{
@@ -663,6 +668,39 @@ void GenerateDependencyIssues(
 	}
 }
 
+UNiagaraStackEntry::FStackIssueFixDelegate UNiagaraStackModuleItem::GetUpgradeVersionFix()
+{
+	if (!CanMoveAndDelete())
+	{
+		return FStackIssueFixDelegate();
+	}
+	return FStackIssueFixDelegate::CreateLambda([=]()
+    {
+        FScopedTransaction ScopedTransaction(LOCTEXT("UpgradeVersionFix", "Change module version"));
+        FNiagaraScriptVersionUpgradeContext UpgradeContext;
+		UpgradeContext.CreateClipboardCallback = [this](UNiagaraClipboardContent* ClipboardContent)
+	    {
+	        RefreshChildren();
+	        Copy(ClipboardContent);
+	        if (ClipboardContent->Functions.Num() > 0)
+	        {
+	            ClipboardContent->FunctionInputs = ClipboardContent->Functions[0]->Inputs;
+	            ClipboardContent->Functions.Empty();
+	        }
+	    };
+        UpgradeContext.ApplyClipboardCallback = [this](UNiagaraClipboardContent* ClipboardContent, FText& OutWarning) { Paste(ClipboardContent, OutWarning); };
+		UpgradeContext.ConstantResolver = GetEmitterViewModel().IsValid() ?
+	        FCompileConstantResolver(GetEmitterViewModel()->GetEmitter(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*FunctionCallNode)) :
+	        FCompileConstantResolver(&GetSystemViewModel()->GetSystem(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*FunctionCallNode));
+        FunctionCallNode->ChangeScriptVersion(FunctionCallNode->FunctionScript->GetExposedVersion().VersionGuid, UpgradeContext, true);
+        if (FunctionCallNode->RefreshFromExternalChanges())
+        {
+            FunctionCallNode->GetNiagaraGraph()->NotifyGraphNeedsRecompile();
+            GetSystemViewModel()->ResetSystem();
+        }
+    });
+}
+
 void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 {
 	if (!GetIsEnabled())
@@ -675,6 +713,8 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 	{
 		return;
 	}
+
+	FNiagaraStackGraphUtilities::CheckForDeprecatedScriptVersion(FunctionCallNode, GetStackEditorDataKey(), GetUpgradeVersionFix(), NewIssues);
 
 	FVersionedNiagaraScriptData* ScriptData = FunctionCallNode->GetScriptData();
 	if (ScriptData != nullptr)
@@ -1050,6 +1090,19 @@ void UNiagaraStackModuleItem::SetIsEnabledInternal(bool bInIsEnabled)
 	OnRequestFullRefreshDeferred().Broadcast();
 }
 
+bool UNiagaraStackModuleItem::IsDebugDrawEnabled() const
+{
+	return FunctionCallNode->DebugState != ENiagaraFunctionDebugState::NoDebug;
+}
+
+void UNiagaraStackModuleItem::SetDebugDrawEnabled(bool bInEnabled)
+{
+	FScopedTransaction ScopedTransaction(LOCTEXT("EnableDisableModule", "Enable/Disable Debug for Module"));
+	FunctionCallNode->DebugState = bInEnabled ? ENiagaraFunctionDebugState::Basic : ENiagaraFunctionDebugState::NoDebug;
+	FunctionCallNode->MarkNodeRequiresSynchronization(__FUNCTION__, true);
+	OnRequestFullRefreshDeferred().Broadcast();
+}
+
 bool UNiagaraStackModuleItem::SupportsHighlights() const
 {
 	return FunctionCallNode != nullptr && FunctionCallNode->FunctionScript != nullptr;
@@ -1175,6 +1228,28 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 			}
 		}
 	}
+}
+
+void UNiagaraStackModuleItem::ChangeScriptVersion(FGuid NewScriptVersion)
+{
+	FScopedTransaction ScopedTransaction(LOCTEXT("NiagaraChangeVersion_Transaction", "Changing module version"));
+	FNiagaraScriptVersionUpgradeContext UpgradeContext;
+	UpgradeContext.CreateClipboardCallback = [this](UNiagaraClipboardContent* ClipboardContent)
+	{
+		RefreshChildren();
+		Copy(ClipboardContent);
+		if (ClipboardContent->Functions.Num() > 0)
+		{
+			ClipboardContent->FunctionInputs = ClipboardContent->Functions[0]->Inputs;
+			ClipboardContent->Functions.Empty();
+		}
+	};
+	UpgradeContext.ApplyClipboardCallback = [this](UNiagaraClipboardContent* ClipboardContent, FText& OutWarning) { Paste(ClipboardContent, OutWarning); };
+	UpgradeContext.ConstantResolver = GetEmitterViewModel().IsValid() ?
+	    FCompileConstantResolver(GetEmitterViewModel()->GetEmitter(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*FunctionCallNode)) :
+	    FCompileConstantResolver(&GetSystemViewModel()->GetSystem(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*FunctionCallNode));
+	GetModuleNode().ChangeScriptVersion(NewScriptVersion, UpgradeContext, true);
+	Refresh();
 }
 
 void UNiagaraStackModuleItem::SetInputValuesFromClipboardFunctionInputs(const TArray<const UNiagaraClipboardFunctionInput*>& ClipboardFunctionInputs)

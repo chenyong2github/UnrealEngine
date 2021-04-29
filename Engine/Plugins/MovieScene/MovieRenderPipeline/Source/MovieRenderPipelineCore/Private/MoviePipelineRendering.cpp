@@ -25,6 +25,7 @@
 #include "Engine/GameViewportClient.h"
 #include "LegacyScreenPercentageDriver.h"
 #include "RenderCaptureInterface.h"
+#include "MoviePipelineGameOverrideSetting.h"
 
 // For flushing async systems
 #include "RendererInterface.h"
@@ -434,9 +435,11 @@ void UMoviePipeline::AddFrameToOutputMetadata(const FString& ClipName, const FSt
 }
 #endif
 
-void UMoviePipeline::AddOutputFuture(TFuture<bool>&& OutputFuture)
+void UMoviePipeline::AddOutputFuture(TFuture<bool>&& OutputFuture, const MoviePipeline::FMoviePipelineOutputFutureData& InOutputData)
 {
-	OutputFutures.Add(MoveTemp(OutputFuture));
+	OutputFutures.Add(
+		TTuple<TFuture<bool>, MoviePipeline::FMoviePipelineOutputFutureData>(MoveTemp(OutputFuture), InOutputData)
+	);
 }
 
 void UMoviePipeline::ProcessOutstandingFinishedFrames()
@@ -497,14 +500,19 @@ void UMoviePipeline::FlushAsyncEngineSystems()
 	FAssetCompilingManager::Get().FinishAllCompilation();
 
 	// Flush grass
+	if (CurrentShotIndex < ActiveShotList.Num())
 	{
-		for (TActorIterator<ALandscapeProxy> It(GetWorld()); It; ++It)
+		UMoviePipelineGameOverrideSetting* GameOverrides = FindOrAddSettingForShot<UMoviePipelineGameOverrideSetting>(ActiveShotList[CurrentShotIndex]);
+		if (GameOverrides && GameOverrides->bFlushGrassStreaming)
 		{
-			ALandscapeProxy* LandscapeProxy = (*It);
-			if (LandscapeProxy)
+			for (TActorIterator<ALandscapeProxy> It(GetWorld()); It; ++It)
 			{
-				TArray<FVector> CameraList;
-				LandscapeProxy->UpdateGrass(CameraList, true);
+				ALandscapeProxy* LandscapeProxy = (*It);
+				if (LandscapeProxy)
+				{
+					TArray<FVector> CameraList;
+					LandscapeProxy->UpdateGrass(CameraList, true);
+				}
 			}
 		}
 	}

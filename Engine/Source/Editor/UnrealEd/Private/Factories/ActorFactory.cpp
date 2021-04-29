@@ -130,7 +130,7 @@ ActorFactory.cpp:
 
 #include "LevelSequence.h"
 #include "LevelSequenceActor.h"
-#include "Factories/ActorFactoryMovieScene.h"
+#include "Factories/ActorFactoryLevelSequence.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Interfaces/TypedElementAssetDataInterface.h"
@@ -2048,16 +2048,16 @@ void UActorFactoryCylinderVolume::PostSpawnActor( UObject* Asset, AActor* NewAct
 }
 
 /*-----------------------------------------------------------------------------
-UActorFactoryMovieScene
+UActorFactoryLevelSequence
 -----------------------------------------------------------------------------*/
-UActorFactoryMovieScene::UActorFactoryMovieScene(const FObjectInitializer& ObjectInitializer)
+UActorFactoryLevelSequence::UActorFactoryLevelSequence(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	DisplayName = LOCTEXT("MovieSceneDisplayName", "MovieScene");
+	DisplayName = LOCTEXT("LevelSequenceDisplayName", "Level Sequence");
 	NewActorClass = ALevelSequenceActor::StaticClass();
 }
 
-bool UActorFactoryMovieScene::CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg )
+bool UActorFactoryLevelSequence::CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg )
 {
 	if ( UActorFactory::CanCreateActorFrom( AssetData, OutErrorMsg ) )
 	{
@@ -2073,7 +2073,7 @@ bool UActorFactoryMovieScene::CanCreateActorFrom( const FAssetData& AssetData, F
 	return true;
 }
 
-AActor* UActorFactoryMovieScene::SpawnActor( UObject* Asset, ULevel* InLevel, const FTransform& Transform, EObjectFlags InObjectFlags, const FName Name )
+AActor* UActorFactoryLevelSequence::SpawnActor( UObject* Asset, ULevel* InLevel, const FTransform& Transform, EObjectFlags InObjectFlags, const FName Name )
 {
 	ALevelSequenceActor* NewActor = Cast<ALevelSequenceActor>(Super::SpawnActor(Asset, InLevel, Transform, InObjectFlags, Name));
 
@@ -2088,7 +2088,7 @@ AActor* UActorFactoryMovieScene::SpawnActor( UObject* Asset, ULevel* InLevel, co
 	return NewActor;
 }
 
-UObject* UActorFactoryMovieScene::GetAssetFromActorInstance(AActor* Instance)
+UObject* UActorFactoryLevelSequence::GetAssetFromActorInstance(AActor* Instance)
 {
 	if (ALevelSequenceActor* LevelSequenceActor = Cast<ALevelSequenceActor>(Instance))
 	{

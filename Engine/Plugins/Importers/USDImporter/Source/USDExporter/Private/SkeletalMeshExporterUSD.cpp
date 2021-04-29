@@ -64,7 +64,21 @@ bool USkeletalMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type,
 		}
 	}
 
-	UE::FUsdStage UsdStage = UnrealUSDWrapper::NewStage( *UExporter::CurrentFilename );
+	// If bUsePayload is true, we'll intercept the filename so that we write the mesh data to
+	// "C:/MyFolder/file_payload.usda" and create an "asset" file "C:/MyFolder/file.usda" that uses it
+	// as a payload, pointing at the default prim
+	FString PayloadFilename = UExporter::CurrentFilename;
+	if ( Options && Options->Inner.bUsePayload )
+	{
+		FString PathPart;
+		FString FilenamePart;
+		FString ExtensionPart;
+		FPaths::Split( PayloadFilename, PathPart, FilenamePart, ExtensionPart );
+
+		PayloadFilename = FPaths::Combine( PathPart, FilenamePart + TEXT( "_payload." ) + ExtensionPart );
+	}
+
+	UE::FUsdStage UsdStage = UnrealUSDWrapper::NewStage( *PayloadFilename );
 	if ( !UsdStage )
 	{
 		return false;
@@ -72,8 +86,8 @@ bool USkeletalMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type,
 
 	if ( Options )
 	{
-		UsdUtils::SetUsdStageMetersPerUnit( UsdStage, Options->StageOptions.MetersPerUnit );
-		UsdUtils::SetUsdStageUpAxis( UsdStage, Options->StageOptions.UpAxis );
+		UsdUtils::SetUsdStageMetersPerUnit( UsdStage, Options->Inner.StageOptions.MetersPerUnit );
+		UsdUtils::SetUsdStageUpAxis( UsdStage, Options->Inner.StageOptions.UpAxis );
 	}
 
 	FString RootPrimPath = ( TEXT( "/" ) + SkeletalMesh->GetName() );
@@ -88,7 +102,32 @@ bool USkeletalMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type,
 
 	UsdStage.SetDefaultPrim( RootPrim );
 
-	UnrealToUsd::ConvertSkeletalMesh( SkeletalMesh, RootPrim );
+	// Using payload: Convert mesh data through the asset stage (that references the payload) so that we can
+	// author mesh data on the payload layer and material data on the asset layer
+	if ( Options && Options->Inner.bUsePayload )
+	{
+		if ( UE::FUsdStage AssetStage = UnrealUSDWrapper::NewStage( *UExporter::CurrentFilename ) )
+		{
+			UsdUtils::SetUsdStageMetersPerUnit( AssetStage, Options->Inner.StageOptions.MetersPerUnit );
+			UsdUtils::SetUsdStageUpAxis( AssetStage, Options->Inner.StageOptions.UpAxis );
+
+			if ( UE::FUsdPrim AssetRootPrim = AssetStage.DefinePrim( UE::FSdfPath( *RootPrimPath ) ) )
+			{
+				AssetStage.SetDefaultPrim( AssetRootPrim );
+
+				UsdUtils::AddPayload( AssetRootPrim, *PayloadFilename );
+			}
+
+			UnrealToUsd::ConvertSkeletalMesh( SkeletalMesh, RootPrim, UsdUtils::GetDefaultTimeCode(), &AssetStage );
+
+			AssetStage.GetRootLayer().Save();
+		}
+	}
+	// Not using payload: Just author everything on the current edit target of the payload (== asset) layer
+	else
+	{
+		UnrealToUsd::ConvertSkeletalMesh( SkeletalMesh, RootPrim );
+	}
 
 	UsdStage.GetRootLayer().Save();
 

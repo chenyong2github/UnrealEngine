@@ -746,7 +746,7 @@ void FSkeletalMeshLODRenderData::Serialize(FArchive& Ar, UObject* Owner, int32 I
 		bNeedsCPUAccess = ShouldKeepCPUResources(OwnerMesh, Idx, bForceKeepCPUResources);
 	}
 
-	if (FPlatformProperties::RequiresCookedData())
+	if (Ar.IsFilterEditorOnly())
 	{
 		if (bNeedsCPUAccess)
 		{
@@ -778,7 +778,7 @@ void FSkeletalMeshLODRenderData::Serialize(FArchive& Ar, UObject* Owner, int32 I
 			SerializeStreamedData(Ar, OwnerMesh, Idx, ClassDataStripFlags, bNeedsCPUAccess, bForceKeepCPUResources);
 			bIsLODOptional = false;
 		}
-		else if (Ar.IsCooking() || FPlatformProperties::RequiresCookedData())
+		else if (Ar.IsFilterEditorOnly())
 		{
 			bool bDiscardBulkData = false;
 

@@ -21,37 +21,33 @@ public:
 	virtual bool Initialize(const FString& File) override;
 
 public:
-	virtual bool CalculateView(const uint32 ViewIdx, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) override;
-	virtual bool GetProjectionMatrix(const uint32 ViewIdx, FMatrix& OutPrjMatrix) override;
-	virtual bool ApplyWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewportRect) override;
+	virtual bool CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) override;
+	virtual bool GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix) override;
+	virtual bool ApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy) override;
 
-private:
-	bool InitializeResources_RenderThread();
-	void LoadViewportTexture_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewportRect);
-	void SaveViewportTexture_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* DstTexture, const FIntRect& ViewportRect);
+
+protected:
+	void ImplInitializeResources_RenderThread();
+	bool ImplApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, int ContextNum, FRHITexture2D* InputTextures, FRHITexture2D* OutputTextures);
 
 private:
 	float ZNear;
 	float ZFar;
 
-	struct ViewData
+	struct FViewData
 	{
 		TUniquePtr<EasyBlendSDKDX_Mesh> EasyBlendMeshData;
-
-		FTexture2DRHIRef TargetableTexture;
-		FTexture2DRHIRef ShaderResourceTexture;
-
 		bool bIsMeshInitialized = false;
 		
-		ViewData()
+		FViewData()
 		{
 			EasyBlendMeshData.Reset(new EasyBlendSDKDX_Mesh);
 		}
 
-		~ViewData() = default;
+		~FViewData() = default;
 	};
 
-	TArray<ViewData> Views;
+	TArray<FViewData> Views;
 
 	bool bIsRenderResourcesInitialized = false;
 	FCriticalSection RenderingResourcesInitializationCS;

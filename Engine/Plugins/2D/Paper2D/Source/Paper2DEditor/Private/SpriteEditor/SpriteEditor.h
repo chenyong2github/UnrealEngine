@@ -54,6 +54,10 @@ public:
 
 	// FSerializableObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FSpriteEditor");
+	}
 	// End of FSerializableObject interface
 
 	// Get the source texture for the current sprite being edited

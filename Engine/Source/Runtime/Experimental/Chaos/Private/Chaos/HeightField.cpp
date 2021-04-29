@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "Chaos/HeightField.h"
+#include "Chaos/Core.h"
 #include "Chaos/Convex.h"
 #include "Chaos/Box.h"
 #include "Chaos/GJK.h"
@@ -907,21 +909,24 @@ namespace Chaos
 	};
 
 	template<typename SQVisitor>
-	bool FHeightField::GridSweep(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FVec2 InHalfExtents, SQVisitor& Visitor) const
+	bool FHeightField::GridSweep(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FVec3 InHalfExtents, SQVisitor& Visitor) const
 	{
-		FReal CurrentLength = Length;
-
+		// Take the 2D portion of the extent and inflate the grid query bounds for checking against the 2D height field grid
+		// to account for the thickness when querying outside but near to the edge of the grid.
+		const FVec2 Inflation2D(InHalfExtents[0], InHalfExtents[1]);
+		
 		FBounds2D InflatedBounds = GetFlatBounds();
-		InflatedBounds.Min -= InHalfExtents;
-		InflatedBounds.Max += InHalfExtents;
+		InflatedBounds.Min -= Inflation2D;
+		InflatedBounds.Max += Inflation2D;
 
-		FVec3 HalfExtents3D(InHalfExtents[0], InHalfExtents[1], InHalfExtents[1]);
+		// Full extents required when querying against the actual cell geometry bounds
+		const FVec3 HalfExtents3D(InHalfExtents[0], InHalfExtents[1], InHalfExtents[2]);
 
 		const FVec3 EndPoint = StartPoint + Dir * Length;
 		const FVec2 Start2D(StartPoint[0], StartPoint[1]);
 		const FVec2 End2D(EndPoint[0], EndPoint[1]);
 		const FVec2 Scale2D(GeomData.Scale[0], GeomData.Scale[1]);
-
+		
 		FVec2 ClippedStart;
 		FVec2 ClippedEnd;
 
@@ -962,7 +967,9 @@ namespace Chaos
 			bool bParallel[3];
 			FVec3 InvDir;
 
+			FReal CurrentLength = Length;
 			FReal InvCurrentLength = 1 / CurrentLength;
+
 			for(int Axis = 0; Axis < 3; ++Axis)
 			{
 				bParallel[Axis] = FMath::IsNearlyZero(Dir[Axis], 1.e-8f);
@@ -1062,17 +1069,9 @@ namespace Chaos
 					if(CellCoord.ToI < 0)
 					{
 						// Perform expansion for thickness
-						int32 ExpandAxis;
-						if(ThickenDir[0] == 0)
-						{
-							ExpandAxis = 1;
-						}
-						else
-						{
-							ExpandAxis = 0;
-						}
-						FReal ExpandSize = HalfExtents3D[ExpandAxis];
-						int32 Steps = FMath::RoundFromZero(ExpandSize / GeomData.Scale[ExpandAxis]);
+						const int32 ExpandAxis = ThickenDir[0] == 0 ? 1 : 0;
+						const FReal ExpandSize = HalfExtents3D[ExpandAxis];
+						const int32 Steps = FMath::RoundFromZero(ExpandSize / GeomData.Scale[ExpandAxis]);
 
 						Expand(Coord, ThickenDir, Steps);
 						Expand(Coord, -ThickenDir, Steps);
@@ -1116,7 +1115,7 @@ namespace Chaos
 
 		if(Thickness > 0)
 		{
-			GridSweep(StartPoint, Dir, Length, FVec2(Thickness), Visitor);
+			GridSweep(StartPoint, Dir, Length, FVec3(Thickness), Visitor);
 		}
 		else
 		{
@@ -1515,7 +1514,7 @@ namespace Chaos
 		const FVec3 StartPoint = StartTM.TransformPositionNoScale(QueryBounds.Center());
 
 		const FVec3 Inflation3D = QueryBounds.Extents() * 0.5 + FVec3(Thickness);
-		GridSweep(StartPoint, Dir, Length, FVec2(Inflation3D[0], Inflation3D[1]), SQVisitor);
+		GridSweep(StartPoint, Dir, Length, FVec3(Inflation3D[0], Inflation3D[1], Inflation3D[2]), SQVisitor);
 
 		if(SQVisitor.OutTime <= Length)
 		{

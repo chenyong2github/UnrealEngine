@@ -1264,10 +1264,6 @@ void FConfigFile::OverrideFromCommandline(FConfigFile* File, const FString& File
 
 void FConfigFile::AddDynamicLayerToHeirarchy(const FString& Filename)
 {
-	// Don't allow dynamic layers in editor
-	if (GIsEditor)
-		return;
-
 	FString ConfigContent;
 	if (!FFileHelper::LoadFileToString(ConfigContent, *Filename))
 		return;

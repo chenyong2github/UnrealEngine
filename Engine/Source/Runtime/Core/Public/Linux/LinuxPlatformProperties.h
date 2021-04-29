@@ -163,5 +163,5 @@ struct FLinuxPlatformProperties
 };
 
 #ifdef PROPERTY_HEADER_SHOULD_DEFINE_TYPE
-typedef FLinuxPlatformProperties<WITH_EDITORONLY_DATA, UE_SERVER, !WITH_SERVER_CODE, !!PLATFORM_CPU_ARM_FAMILY> FPlatformProperties;
+typedef FLinuxPlatformProperties<WITH_EDITORONLY_DATA, UE_SERVER, !WITH_SERVER_CODE && !WITH_EDITOR, !!PLATFORM_CPU_ARM_FAMILY> FPlatformProperties;
 #endif

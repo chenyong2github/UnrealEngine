@@ -6,6 +6,72 @@
 
 class UTexture;
 
+struct FOutputMappingSettings
+{
+	bool bShowRuler;
+	bool bShowWindowInfo;
+	bool bShowWindowCornerImage;
+	bool bShowOutsideViewports;
+	bool bAllowClusterItemOverlap;
+	bool bKeepClusterNodesInHosts;
+	bool bLockViewports;
+	bool bLockClusterNodes;
+	bool bZoomToSelectedClusterItems;
+	bool bTintSelectedViewports;
+	float ViewScale;
+
+	FOutputMappingSettings() :
+		bShowRuler(true),
+		bShowWindowInfo(true),
+		bShowWindowCornerImage(true),
+		bShowOutsideViewports(false),
+		bAllowClusterItemOverlap(false),
+		bKeepClusterNodesInHosts(true),
+		bLockViewports(false),
+		bLockClusterNodes(false),
+		bZoomToSelectedClusterItems(true),
+		bTintSelectedViewports(true),
+		ViewScale(1.0f)
+	{ }
+};
+
+enum class EHostArrangementType : uint8
+{
+	Horizontal,
+	Vertical,
+	Wrap,
+	Grid
+};
+
+struct FHostNodeArrangementSettings
+{
+	EHostArrangementType ArrangementType;
+	float WrapThreshold;
+	int GridSize;
+
+	FHostNodeArrangementSettings() :
+		ArrangementType(EHostArrangementType::Wrap),
+		WrapThreshold(5400),
+		GridSize(4)
+	{ }
+};
+
+struct FNodeAlignmentSettings
+{
+	int32 SnapProximity;
+	int32 AdjacentEdgesSnapPadding;
+
+	bool bSnapAdjacentEdges;
+	bool bSnapSameEdges;
+
+	FNodeAlignmentSettings() :
+		SnapProximity(25),
+		AdjacentEdgesSnapPadding(0),
+		bSnapAdjacentEdges(true),
+		bSnapSameEdges(true)
+	{ }
+};
+
 /**
  * The Interface for controll the Output Mapping Мiew
  */
@@ -13,42 +79,23 @@ class IDisplayClusterConfiguratorViewOutputMapping
 	: public IDisplayClusterConfiguratorView
 {
 public:
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnShowWindowInfo, bool);
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnShowWindowCornerImage, bool);
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnShowOutsideViewports, bool);
 	DECLARE_MULTICAST_DELEGATE(FOnOutputMappingBuilt);
 
-	using FOnShowWindowInfoDelegate = FOnShowWindowInfo::FDelegate;
-	using FOnShowWindowCornerImageDelegate = FOnShowWindowCornerImage::FDelegate;
-	using FOnShowOutsideViewportsDelegate = FOnShowOutsideViewports::FDelegate;
 	using FOnOutputMappingBuiltDelegate = FOnOutputMappingBuilt::FDelegate;
 
 public:
-	virtual bool IsRulerVisible() const = 0;
+	virtual const FOutputMappingSettings& GetOutputMappingSettings() const = 0;
+	virtual FOutputMappingSettings& GetOutputMappingSettings() = 0;
 
-	virtual bool IsShowWindowInfo() const = 0;
+	virtual const FHostNodeArrangementSettings& GetHostArrangementSettings() const = 0;
+	virtual FHostNodeArrangementSettings& GetHostArrangementSettings() = 0;
 
-	virtual bool IsShowWindowCornerImage() const = 0;
-
-	virtual bool IsShowOutsideViewports() const = 0;
-
-	virtual FDelegateHandle RegisterOnShowWindowInfo(const FOnShowWindowInfoDelegate& Delegate) = 0;
-
-	virtual void UnregisterOnShowWindowInfo(FDelegateHandle DelegateHandle) = 0;
-
-	virtual FDelegateHandle RegisterOnShowWindowCornerImage(const FOnShowWindowCornerImageDelegate& Delegate) = 0;
-
-	virtual void UnregisterOnShowWindowCornerImage(FDelegateHandle DelegateHandle) = 0;
-
-	virtual FDelegateHandle RegisterOnShowOutsideViewports(const FOnShowOutsideViewportsDelegate& Delegate) = 0;
-
-	virtual void UnregisterOnShowOutsideViewports(FDelegateHandle DelegateHandle) = 0;
+	virtual const FNodeAlignmentSettings& GetNodeAlignmentSettings() const = 0;
+	virtual FNodeAlignmentSettings& GetNodeAlignmentSettings() = 0;
 
 	virtual FOnOutputMappingBuilt& GetOnOutputMappingBuiltDelegate() = 0;
-
 	virtual FDelegateHandle RegisterOnOutputMappingBuilt(const FOnOutputMappingBuiltDelegate& Delegate) = 0;
-
 	virtual void UnregisterOnOutputMappingBuilt(FDelegateHandle DelegateHandle) = 0;
 
-	virtual void SetViewportPreviewTexture(const FString& NodeId, const FString& ViewportId, UTexture* InTexture) = 0;
+	virtual void FindAndSelectObjects(const TArray<UObject*>& ObjectsToSelect) = 0;
 };

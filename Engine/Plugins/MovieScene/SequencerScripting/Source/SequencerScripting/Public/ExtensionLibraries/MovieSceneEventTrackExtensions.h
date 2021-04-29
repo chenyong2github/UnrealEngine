@@ -28,7 +28,7 @@ public:
 	 * @param Track        The event track to add the new event repeater section to
 	 * @return The newly created event repeater section
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Track", meta = (ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Track", meta = (ScriptMethod))
 	static UMovieSceneEventRepeaterSection* AddEventRepeaterSection(UMovieSceneEventTrack* InTrack);
 	
 	/**
@@ -37,7 +37,7 @@ public:
 	 * @param Track        The event track to add the new event trigger section to
 	 * @return The newly created event trigger section
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Track", meta = (ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Track", meta = (ScriptMethod))
 	static UMovieSceneEventTriggerSection* AddEventTriggerSection(UMovieSceneEventTrack* InTrack);
 	
 };

@@ -82,6 +82,38 @@ FName FContentBrowserItemData::GetVirtualPath() const
 	return VirtualPath;
 }
 
+FName FContentBrowserItemData::GetInvariantPath() const
+{
+	if (UContentBrowserDataSource* DataSource = OwnerDataSource.Get())
+	{
+		if (!VirtualPath.IsNone())
+		{
+			FName ConvertedPath;
+			DataSource->TryConvertVirtualPath(VirtualPath, ConvertedPath);
+			return ConvertedPath;
+		}
+	}
+
+	return NAME_None;
+}
+
+FName FContentBrowserItemData::GetInternalPath() const
+{
+	if (UContentBrowserDataSource* DataSource = OwnerDataSource.Get())
+	{
+		if (!VirtualPath.IsNone())
+		{
+			FName ConvertedPath;
+			if (DataSource->TryConvertVirtualPath(VirtualPath, ConvertedPath) == EContentBrowserPathType::Internal)
+			{
+				return ConvertedPath;
+			}
+		}
+	}
+
+	return NAME_None;
+}
+
 FName FContentBrowserItemData::GetItemName() const
 {
 	return ItemName;

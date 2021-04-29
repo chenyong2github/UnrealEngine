@@ -59,7 +59,7 @@ public:
 	 * @param The preset to display the information for.
 	 * @return the input 
 	 */
-	TSharedRef<SRCPanelInputBindings> CreateInputBindingsPanel(URemoteControlPreset* Preset);
+	TSharedRef<SRCPanelInputBindings> CreateInputBindingsWidget(URemoteControlPreset* Preset);
 
 	/**
 	 * Get the map of entity metadata entry customizations.
@@ -123,6 +123,11 @@ private:
 	//~ Handle struct details customizations for common RC types.
 	void RegisterStructCustomizations();
 	void UnregisterStructCustomizations();
+
+	//~ Handle registering settings and reacting to setting changes.
+	void RegisterSettings();
+	void UnregisterSettings();
+	void OnSettingsModified(UObject*, struct FPropertyChangedEvent&);
 private:
 	/** The custom actions added to the actor context menu. */
 	TSharedPtr<class FRemoteControlPresetActions> RemoteControlPresetActions;
@@ -135,6 +140,9 @@ private:
 
 	/** Holds a weak ptr to the active control panel. */
 	TWeakPtr<SRemoteControlPanel> WeakActivePanel;
+
+	/** Holds a weak ptr to the active input bindings panel. */
+	TWeakPtr<SRCPanelInputBindings> WeakActiveInputBindingsWidget;
 
 	/** Delegate called to gather extensions added externally to the panel. */
 	FOnGenerateExtensions ExtensionsGenerator;

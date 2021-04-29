@@ -11,7 +11,7 @@ FFrameNumber FMoviePipelineCameraCutInfo::GetOutputFrameCountEstimate() const
 	FFrameNumber OneFrameInTicks = FFrameRate::TransformTime(FFrameTime(FFrameNumber(1)), CachedFrameRate, CachedTickResolution).FloorToFrame();
 
 	// Find out how many ticks long our total output range is.
-	FFrameNumber TotalOutputRangeTicks = TotalOutputRangeLocal.Size<FFrameNumber>();
+	FFrameNumber TotalOutputRangeTicks = TotalOutputRangeMaster.Size<FFrameNumber>();
 	int32 NumFrames = FMath::CeilToInt(TotalOutputRangeTicks.Value / (double)OneFrameInTicks.Value);
 
 	return FFrameNumber(NumFrames);

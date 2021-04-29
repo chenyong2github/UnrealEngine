@@ -112,6 +112,21 @@ void FGenericCrashContext::Initialize()
 	NCached::Set(NCached::Session.EpicAccountId, *FPlatformMisc::GetEpicAccountId());
 	NCached::Set(NCached::Session.LoginIdStr, *FPlatformMisc::GetLoginId());
 
+	// Unique string specifying the symbols to be used by CrashReporter
+#ifdef UE_SYMBOLS_VERSION
+	FString Symbols = FString(UE_SYMBOLS_VERSION);
+#else
+	FString Symbols = FString::Printf(TEXT("%s"), FApp::GetBuildVersion());
+#endif
+#ifdef UE_APP_FLAVOR
+	Symbols = FString::Printf(TEXT("%s-%s"), *Symbols, *FString(UE_APP_FLAVOR));
+#endif
+	Symbols = FString::Printf(TEXT("%s-%s-%s"), *Symbols, FPlatformMisc::GetUBTPlatform(), NCached::Session.BuildConfigurationName).Replace(TEXT("+"), TEXT("*"));
+#ifdef UE_BUILD_FLAVOR
+	Symbols = FString::Printf(TEXT("%s-%s"), *Symbols, *FString(UE_BUILD_FLAVOR));
+#endif
+	NCached::Set(NCached::Session.SymbolsLabel, *Symbols);
+
 	FString OsVersion, OsSubVersion;
 	FPlatformMisc::GetOSVersions(OsVersion, OsSubVersion);
 	NCached::Set(NCached::Session.OsVersion, *OsVersion);
@@ -273,7 +288,14 @@ void FGenericCrashContext::InitializeFromContext(const FSessionContext& Session,
 	{
 		TArray<FString> Tokens;
 		FString(EnabledPluginsStr).ParseIntoArray(Tokens, TokenDelim, 2, true);
-		NCached::EnabledPluginsList.Append(Tokens);
+
+		for (FString& Token : Tokens)
+		{
+			if (Token.StartsWith(TEXT("{")) && Token.EndsWith(TEXT("}")))
+			{
+				NCached::EnabledPluginsList.Add(Token);
+			}
+		}
 	}
 
 	// Parse engine data, comma delimited key=value pairs.
@@ -507,22 +529,6 @@ void FGenericCrashContext::SerializeSessionContext(FString& Buffer)
 	AddCrashPropertyInternal(Buffer, TEXT("BuildConfiguration"), NCached::Session.BuildConfigurationName);
 	AddCrashPropertyInternal(Buffer, TEXT("GameSessionID"), NCached::Session.GameSessionID);
 
-	// Unique string specifying the symbols to be used by CrashReporter
-#ifdef UE_SYMBOLS_VERSION
-	FString Symbols = FString(UE_SYMBOLS_VERSION);
-#else
-	FString Symbols = FString::Printf(TEXT("%s"), FApp::GetBuildVersion());
-#endif
-#ifdef UE_APP_FLAVOR
-	Symbols = FString::Printf(TEXT("%s-%s"), *Symbols, *FString(UE_APP_FLAVOR));
-#endif
-	Symbols = FString::Printf(TEXT("%s-%s-%s"), *Symbols, FPlatformMisc::GetUBTPlatform(), NCached::Session.BuildConfigurationName).Replace(TEXT("+"), TEXT("*"));
-#ifdef UE_BUILD_FLAVOR
-	Symbols = FString::Printf(TEXT("%s-%s"), *Symbols, *FString(UE_BUILD_FLAVOR));
-#endif
-
-	AddCrashPropertyInternal(Buffer, TEXT("Symbols"), Symbols);
-
 	AddCrashPropertyInternal(Buffer, TEXT("PlatformName"), NCached::Session.PlatformName);
 	AddCrashPropertyInternal(Buffer, TEXT("PlatformNameIni"), NCached::Session.PlatformNameIni);
 	AddCrashPropertyInternal(Buffer, TEXT("EngineMode"), NCached::Session.EngineMode);
@@ -535,6 +541,7 @@ void FGenericCrashContext::SerializeSessionContext(FString& Buffer)
 	AddCrashPropertyInternal(Buffer, TEXT("LanguageLCID"), NCached::Session.LanguageLCID);
 	AddCrashPropertyInternal(Buffer, TEXT("AppDefaultLocale"), NCached::Session.DefaultLocale);
 	AddCrashPropertyInternal(Buffer, TEXT("BuildVersion"), FApp::GetBuildVersion());
+	AddCrashPropertyInternal(Buffer, TEXT("Symbols"), NCached::Session.SymbolsLabel);
 	AddCrashPropertyInternal(Buffer, TEXT("IsUERelease"), NCached::Session.bIsUERelease);
 
 	// Need to set this at the time of the crash to check if requesting exit had been called

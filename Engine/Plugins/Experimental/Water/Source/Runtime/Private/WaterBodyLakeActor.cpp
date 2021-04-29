@@ -112,52 +112,52 @@ void ULakeGenerator::OnUpdateBody(bool bWithExclusionVolumes)
 
 	if (UWaterSplineComponent* WaterSpline = OwnerBody->GetWaterSpline())
 	{
-		UStaticMesh* WaterMesh = OwnerBody->GetWaterMeshOverride() ? OwnerBody->GetWaterMeshOverride() : UWaterSubsystem::StaticClass()->GetDefaultObject<UWaterSubsystem>()->DefaultLakeMesh;
+	UStaticMesh* WaterMesh = OwnerBody->GetWaterMeshOverride() ? OwnerBody->GetWaterMeshOverride() : UWaterSubsystem::StaticClass()->GetDefaultObject<UWaterSubsystem>()->DefaultLakeMesh;
 
-		const FVector SplineExtent = WaterSpline->Bounds.BoxExtent;
+	const FVector SplineExtent = WaterSpline->Bounds.BoxExtent;
 
-		FVector WorldLoc(WaterSpline->Bounds.Origin);
-		WorldLoc.Z = OwnerBody->GetActorLocation().Z;
+	FVector WorldLoc(WaterSpline->Bounds.Origin);
+	WorldLoc.Z = OwnerBody->GetActorLocation().Z;
 
-		if (WaterMesh)
-		{
-			FTransform MeshCompToWorld = WaterSpline->GetComponentToWorld();
-			// Scale the water mesh so that it is the size of the bounds
-			FVector MeshExtent = WaterMesh->GetBounds().BoxExtent;
-			MeshExtent.Z = 1.0f;
+	if (WaterMesh)
+	{
+		FTransform MeshCompToWorld = WaterSpline->GetComponentToWorld();
+		// Scale the water mesh so that it is the size of the bounds
+		FVector MeshExtent = WaterMesh->GetBounds().BoxExtent;
+		MeshExtent.Z = 1.0f;
 
-			const FVector LocalSplineExtent = WaterSpline->Bounds.TransformBy(MeshCompToWorld.Inverse()).BoxExtent;
+		const FVector LocalSplineExtent = WaterSpline->Bounds.TransformBy(MeshCompToWorld.Inverse()).BoxExtent;
 
-			const FVector ScaleRatio = SplineExtent / MeshExtent;
-			LakeMeshComp->SetWorldScale3D(FVector(ScaleRatio.X, ScaleRatio.Y, 1));
-			LakeMeshComp->SetWorldLocation(WorldLoc);
-			LakeMeshComp->SetWorldRotation(FQuat::Identity);
-			LakeMeshComp->SetAbsolute(false, false, true);
-			LakeMeshComp->SetStaticMesh(WaterMesh);
-			LakeMeshComp->SetMaterial(0, OwnerBody->GetWaterMaterial());
-			LakeMeshComp->SetCastShadow(false);
-			LakeMeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		}
+		const FVector ScaleRatio = SplineExtent / MeshExtent;
+		LakeMeshComp->SetWorldScale3D(FVector(ScaleRatio.X, ScaleRatio.Y, 1));
+		LakeMeshComp->SetWorldLocation(WorldLoc);
+		LakeMeshComp->SetWorldRotation(FQuat::Identity);
+		LakeMeshComp->SetAbsolute(false, false, true);
+		LakeMeshComp->SetStaticMesh(WaterMesh);
+		LakeMeshComp->SetMaterial(0, OwnerBody->GetWaterMaterial());
+		LakeMeshComp->SetCastShadow(false);
+		LakeMeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
 
-		LakeMeshComp->SetMobility(OwnerBody->GetRootComponent()->Mobility);
+	LakeMeshComp->SetMobility(OwnerBody->GetRootComponent()->Mobility);
 
-		if (LakeCollision)
-		{
-			check(OwnerBody->bGenerateCollisions);
-			LakeCollision->bFillCollisionUnderneathForNavmesh = OwnerBody->bFillCollisionUnderWaterBodiesForNavmesh;
-			LakeCollision->SetMobility(OwnerBody->GetRootComponent()->Mobility);
-			LakeCollision->SetCollisionProfileName(OwnerBody->GetCollisionProfileName());
-			LakeCollision->SetGenerateOverlapEvents(true);
+	if (LakeCollision)
+	{
+		check(OwnerBody->bGenerateCollisions);
+		LakeCollision->bFillCollisionUnderneathForNavmesh = OwnerBody->bFillCollisionUnderWaterBodiesForNavmesh;
+		LakeCollision->SetMobility(OwnerBody->GetRootComponent()->Mobility);
+		LakeCollision->SetCollisionProfileName(OwnerBody->GetCollisionProfileName());
+		LakeCollision->SetGenerateOverlapEvents(true);
 
-			const float Depth = OwnerBody->GetChannelDepth() / 2;
+		const float Depth = OwnerBody->GetChannelDepth() / 2;
 			FVector Scale = OwnerBody->GetActorScale();
 			// Avoid dividing by 0 but keep the scale's sign :
 			Scale = Scale.GetSignVector() * FVector::Max(Scale.GetAbs(), FVector::OneVector * 0.001f);
 			FVector LakeCollisionExtent = FVector(SplineExtent.X, SplineExtent.Y, Depth) / Scale;
-			LakeCollision->SetWorldLocation(WorldLoc + FVector(0, 0, -Depth));
-			LakeCollision->UpdateCollision(LakeCollisionExtent, true);
-		}
+		LakeCollision->SetWorldLocation(WorldLoc + FVector(0, 0, -Depth));
+		LakeCollision->UpdateCollision(LakeCollisionExtent, true);
 	}
+}
 }
 
 void ULakeGenerator::PostLoad()

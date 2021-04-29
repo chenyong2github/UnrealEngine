@@ -4,13 +4,25 @@
 #include "ContentBrowserDataSource.h"
 #include "Containers/Ticker.h"
 #include "Misc/PackageName.h"
+#include "Misc/Paths.h"
 #include "Features/IModularFeatures.h"
 #include "Stats/Stats.h"
 #include "UObject/UObjectThreadContext.h"
+#include "Settings/ContentBrowserSettings.h"
+#include "Interfaces/IPluginManager.h"
 #include "Framework/Application/SlateApplication.h"
 
 void UContentBrowserDataSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+	AllFolderPrefix = TEXT("/All");
+
+	DefaultPathViewSpecialSortFolders.Reset();
+	DefaultPathViewSpecialSortFolders.Add(TEXT("/Game"));
+	DefaultPathViewSpecialSortFolders.Add(TEXT("/Plugins"));
+	DefaultPathViewSpecialSortFolders.Add(TEXT("/Engine"));
+	DefaultPathViewSpecialSortFolders.Add(TEXT("/EngineData"));
+	SetPathViewSpecialSortFolders(GetDefaultPathViewSpecialSortFolders());
+
 	IModularFeatures& ModularFeatures = IModularFeatures::Get();
 
 	{
@@ -177,52 +189,12 @@ void UContentBrowserDataSubsystem::CompileFilter(const FName InPath, const FCont
 	for (const auto& ActiveDataSourcePair : ActiveDataSources)
 	{
 		UContentBrowserDataSource* DataSource = ActiveDataSourcePair.Value;
-		if (DataSource->IsVirtualPathUnderMountRoot(InPath))
+		FName ConvertedPath;
+		const EContentBrowserPathType ConvertedPathType = DataSource->TryConvertVirtualPath(InPath, ConvertedPath);
+		if (ConvertedPathType != EContentBrowserPathType::None)
 		{
 			// The requested path is managed by this data source, so compile the filter for it
 			DataSource->CompileFilter(InPath, InFilter, OutCompiledFilter);
-		}
-		else
-		{
-			bool bEmitCallback = false;
-
-			// The requested path is not managed by this data source, but we may still need to report part of its mount root as a sub-folder
-			TArrayView<const FName> MountRootHierarchy = DataSource->GetVirtualMountRootHierarchy();
-			for (const FName& MountRootPart : MountRootHierarchy)
-			{
-				if (MountRootPart == InPath)
-				{
-					// Emit the callback for the *next* part of the path
-					bEmitCallback = true;
-					continue;
-				}
-
-				if (bEmitCallback)
-				{
-					if (EnumHasAnyFlags(InFilter.ItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFolders))
-					{
-						FContentBrowserDataFilterList& FilterList = OutCompiledFilter.CompiledFilters.FindOrAdd(DataSource);
-						FContentBrowserCompiledSubsystemFilter& SubsystemFilter = FilterList.FindOrAddFilter<FContentBrowserCompiledSubsystemFilter>();
-						SubsystemFilter.MountRootsToEnumerate.Add(MountRootPart);
-					}
-
-					if (!InFilter.bRecursivePaths)
-					{
-						// Stop emitting and break if we're not doing a recursive search
-						bEmitCallback = false;
-						break;
-					}
-				}
-			}
-
-			if (bEmitCallback)
-			{
-				// This should only happen for recursive queries above the mount root, as queries at or below the mount root should have been caught by IsVirtualPathUnderMountRoot
-				check(InFilter.bRecursivePaths);
-
-				// If we were still emitting callbacks when the loop broke, then we need to query the data source at its mount root
-				DataSource->CompileFilter(DataSource->GetVirtualMountRoot(), InFilter, OutCompiledFilter);
-			}
 		}
 	}
 }
@@ -334,35 +306,23 @@ void UContentBrowserDataSubsystem::EnumerateItemsAtPath(const FName InPath, cons
 
 void UContentBrowserDataSubsystem::EnumerateItemsAtPath(const FName InPath, const EContentBrowserItemTypeFilter InItemTypeFilter, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback) const
 {
+	bool bHandledVirtualFolder = false;
 	for (const auto& ActiveDataSourcePair : ActiveDataSources)
 	{
 		UContentBrowserDataSource* DataSource = ActiveDataSourcePair.Value;
-		if (DataSource->IsVirtualPathUnderMountRoot(InPath))
+		FName InternalPath;
+		const EContentBrowserPathType ConvertedPathType = DataSource->TryConvertVirtualPath(InPath, InternalPath);
+		if (ConvertedPathType == EContentBrowserPathType::Internal)
 		{
-			// The requested path is managed by this data source, so query it for the items
 			DataSource->EnumerateItemsAtPath(InPath, InItemTypeFilter, InCallback);
 		}
-		else if (EnumHasAnyFlags(InItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFolders))
+		else if (ConvertedPathType == EContentBrowserPathType::Virtual)
 		{
-			bool bEmitCallback = false;
-
-			// The requested path is not managed by this data source, but we may still need to report part of its mount root as a sub-folder
-			TArrayView<const FName> MountRootHierarchy = DataSource->GetVirtualMountRootHierarchy();
-			for (const FName& MountRootPart : MountRootHierarchy)
+			if (!bHandledVirtualFolder && EnumHasAnyFlags(InItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFolders))
 			{
-				if (MountRootPart == InPath)
-				{
-					// Emit the callback for the *next* part of the path
-					bEmitCallback = true;
-					continue;
-				}
-
-				if (bEmitCallback)
-				{
-					const FString MountLeafName = FPackageName::GetShortName(MountRootPart);
-					InCallback(FContentBrowserItemData(DataSource, EContentBrowserItemFlags::Type_Folder, MountRootPart, *MountLeafName, FText(), nullptr));
-					break;
-				}
+				const FString LeafName = FPackageName::GetShortName(InPath);
+				InCallback(FContentBrowserItemData(DataSource, EContentBrowserItemFlags::Type_Folder, InPath, *LeafName, FText(), nullptr));
+				bHandledVirtualFolder = true;
 			}
 		}
 	}
@@ -524,6 +484,24 @@ void UContentBrowserDataSubsystem::Legacy_TryConvertAssetDataToVirtualPaths(cons
 	}
 }
 
+void UContentBrowserDataSubsystem::RefreshVirtualPathTreeIfNeeded()
+{
+	for (const auto& ActiveDataSourcePair : ActiveDataSources)
+	{
+		UContentBrowserDataSource* DataSource = ActiveDataSourcePair.Value;
+		DataSource->RefreshVirtualPathTreeIfNeeded();
+	}
+}
+
+void UContentBrowserDataSubsystem::SetVirtualPathTreeNeedsRebuild()
+{
+	for (const auto& ActiveDataSourcePair : ActiveDataSources)
+	{
+		UContentBrowserDataSource* DataSource = ActiveDataSourcePair.Value;
+		DataSource->SetVirtualPathTreeNeedsRebuild();
+	}
+}
+
 void UContentBrowserDataSubsystem::HandleDataSourceRegistered(const FName& Type, IModularFeature* Feature)
 {
 	if (Type == UContentBrowserDataSource::GetModularFeatureTypeName())
@@ -621,4 +599,187 @@ void UContentBrowserDataSubsystem::QueueItemDataUpdate(FContentBrowserItemDataUp
 void UContentBrowserDataSubsystem::NotifyItemDataRefreshed()
 {
 	bPendingItemDataRefreshedNotification = true;
+}
+
+void UContentBrowserDataSubsystem::SetPathViewSpecialSortFolders(const TArray<FName>& InSpecialSortFolders)
+{
+	PathViewSpecialSortFolders = InSpecialSortFolders;
+}
+
+const TArray<FName>& UContentBrowserDataSubsystem::GetDefaultPathViewSpecialSortFolders() const
+{
+	return DefaultPathViewSpecialSortFolders;
+}
+
+const TArray<FName>& UContentBrowserDataSubsystem::GetPathViewSpecialSortFolders() const
+{
+	return PathViewSpecialSortFolders;
+}
+
+void UContentBrowserDataSubsystem::ConvertInternalPathToVirtual(const FStringView InPath, FStringBuilderBase& OutPath)
+{
+	OutPath.Reset();
+
+	if (GetDefault<UContentBrowserSettings>()->bShowAllFolder)
+	{
+		OutPath.Append(AllFolderPrefix);
+		if (InPath.Len() == 1 && InPath.Equals(TEXT("/")))
+		{
+			return;
+		}
+	}
+
+	if (GetDefault<UContentBrowserSettings>()->bOrganizeFolders && InPath.Len() > 1)
+	{
+		if (GenerateVirtualPathPrefixDelegate.IsBound())
+		{
+			GenerateVirtualPathPrefixDelegate.Execute(InPath, OutPath);
+		}
+		else
+		{
+			bool bHadClassesPrefix = false;
+			const FStringView MountPointStringView = FContentBrowserVirtualPathTree::GetMountPointFromPath(InPath, bHadClassesPrefix);
+
+			if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(MountPointStringView))
+			{
+				if (Plugin->GetLoadedFrom() == EPluginLoadedFrom::Engine)
+				{
+					OutPath.Append(TEXT("/EngineData/Plugins"));
+				}
+				else
+				{
+					OutPath.Append(TEXT("/Plugins"));
+				}
+
+				const FPluginDescriptor& PluginDescriptor = Plugin->GetDescriptor();
+				if (!PluginDescriptor.EditorCustomVirtualPath.IsEmpty())
+				{
+					int32 NumChars = PluginDescriptor.EditorCustomVirtualPath.Len();
+					if (PluginDescriptor.EditorCustomVirtualPath.EndsWith(TEXT("/")))
+					{
+						--NumChars;
+					}
+
+					if (NumChars > 0)
+					{
+						if (!PluginDescriptor.EditorCustomVirtualPath.StartsWith(TEXT("/")))
+						{
+							OutPath.Append(TEXT("/"));
+						}
+
+						OutPath.Append(*PluginDescriptor.EditorCustomVirtualPath, NumChars);
+					}
+				}
+			}
+			else if (MountPointStringView.Equals(TEXT("Engine")))
+			{
+				OutPath.Append(TEXT("/EngineData"));
+			}
+		}
+	}
+	
+	OutPath.Append(InPath.GetData(), InPath.Len());
+}
+
+void UContentBrowserDataSubsystem::ConvertInternalPathToVirtual(const FStringView InPath, FName& OutPath)
+{
+	FNameBuilder PathBuffer;
+	ConvertInternalPathToVirtual(InPath, PathBuffer);
+	OutPath = FName(PathBuffer);
+}
+
+void UContentBrowserDataSubsystem::ConvertInternalPathToVirtual(FName InPath, FName& OutPath)
+{
+	ConvertInternalPathToVirtual(FNameBuilder(InPath), OutPath);
+}
+
+FName UContentBrowserDataSubsystem::ConvertInternalPathToVirtual(FName InPath)
+{
+	FName OutPath;
+	ConvertInternalPathToVirtual(InPath, OutPath);
+	return OutPath;
+}
+
+TArray<FString> UContentBrowserDataSubsystem::ConvertInternalPathsToVirtual(const TArray<FString>& InPaths)
+{
+	TArray<FString> VirtualPaths;
+	VirtualPaths.Reserve(InPaths.Num());
+
+	FNameBuilder Builder;
+	for (const FString& It : InPaths)
+	{
+		ConvertInternalPathToVirtual(It, Builder);
+		VirtualPaths.Add(FString(Builder));
+	}
+
+	return VirtualPaths;
+}
+
+void UContentBrowserDataSubsystem::SetGenerateVirtualPathPrefixDelegate(const FContentBrowserGenerateVirtualPathDelegate& InDelegate)
+{
+	GenerateVirtualPathPrefixDelegate = InDelegate;
+	SetVirtualPathTreeNeedsRebuild();
+	RefreshVirtualPathTreeIfNeeded();
+}
+
+FContentBrowserGenerateVirtualPathDelegate& UContentBrowserDataSubsystem::OnGenerateVirtualPathPrefix()
+{
+	return GenerateVirtualPathPrefixDelegate;
+}
+
+const FString& UContentBrowserDataSubsystem::GetAllFolderPrefix() const
+{
+	return AllFolderPrefix;
+}
+
+EContentBrowserPathType UContentBrowserDataSubsystem::TryConvertVirtualPath(const FName InPath, FName& OutPath) const
+{
+	FName FoundVirtualPath;
+	for (const auto& ActiveDataSourcePair : ActiveDataSources)
+	{
+		UContentBrowserDataSource* DataSource = ActiveDataSourcePair.Value;
+		const EContentBrowserPathType PathType = DataSource->TryConvertVirtualPath(InPath, OutPath);
+		if (PathType != EContentBrowserPathType::None)
+		{
+			if (PathType == EContentBrowserPathType::Internal)
+			{
+				return PathType;
+			}
+			else if (PathType == EContentBrowserPathType::Virtual)
+			{
+				// Another data source may be able to convert this to internal so keep checking
+				// Only after all data sources had a chance to claim ownership (internal) do we return 
+				// Example: /Classes_Game is known to classes data source but not to asset data source
+				FoundVirtualPath = OutPath;
+			}
+		}
+	}
+
+	if (!FoundVirtualPath.IsNone())
+	{
+		OutPath = FoundVirtualPath;
+		return EContentBrowserPathType::Virtual;
+	}
+	else
+	{
+		return EContentBrowserPathType::None;
+	}
+}
+
+TArray<FString> UContentBrowserDataSubsystem::TryConvertVirtualPathsToInternal(const TArray<FString>& InPaths) const
+{
+	TArray<FString> InternalPaths;
+	InternalPaths.Reserve(InPaths.Num());
+
+	FNameBuilder Builder;
+	for (const FString& It : InPaths)
+	{
+		FName ConvertedPath;
+		if (TryConvertVirtualPath(*It, ConvertedPath) == EContentBrowserPathType::Internal)
+		{
+			InternalPaths.Add(ConvertedPath.ToString());
+		}
+	}
+
+	return InternalPaths;
 }

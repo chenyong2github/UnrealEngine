@@ -2,17 +2,10 @@
 
 #pragma once
 
-#ifndef GEOMETRYCOLLECTION_DEBUG_DRAW
-#define GEOMETRYCOLLECTION_DEBUG_DRAW !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-#endif
-
 #include "Components/MeshComponent.h"
-
+#include "GeometryCollection/GeometryCollectionParticlesData.h"
 #include "GeometryCollectionDebugDrawComponent.generated.h"
 
-#if GEOMETRYCOLLECTION_DEBUG_DRAW
-#include "GeometryCollection/GeometryCollectionParticlesData.h"
-#endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
 
 class AGeometryCollectionRenderLevelSetActor;
 class UGeometryCollectionComponent;

@@ -73,6 +73,7 @@ public:
 	virtual bool CanDrag() const override;
 	virtual TOptional<EItemDropZone> CanDrop(FSequencerDisplayNodeDragDropOp& DragDropOp, EItemDropZone ItemDropZone) const override;
 	virtual void Drop(const TArray<TSharedRef<FSequencerDisplayNode>>& DraggedNodes, EItemDropZone ItemDropZone) override;
+	virtual void DeleteNode() override;
 	virtual int32 GetSortingOrder() const override;
 	virtual void SetSortingOrder(const int32 InSortingOrder) override;
 	virtual void ModifyAndSetSortingOrder(const int32 InSortingOrder) override;

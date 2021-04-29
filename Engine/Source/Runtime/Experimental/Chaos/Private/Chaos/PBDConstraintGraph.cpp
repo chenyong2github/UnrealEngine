@@ -515,7 +515,7 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<FPBDRigidParticles>
 		{
 			bool bIsSameIsland = true;
 
-			// Objects were removed from the island
+			// Non-kinematic particles were removed from the island
 			int32 OtherIsland = -1;
 
 			for (FGeometryParticleHandle* Particle : IslandToParticles[Island])
@@ -524,7 +524,20 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<FPBDRigidParticles>
 				{
 					FPBDRigidParticleHandle* PBDRigid = Particle->CastToRigidParticle();
 
+					if (PBDRigid && PBDRigid->ObjectState() == EObjectStateType::Kinematic && PBDRigid->V().SizeSquared() > 0)
+					{
+						bIsSameIsland = false;
+						break;
+					}
+
 					const bool bIsDynamic = PBDRigid && PBDRigid->ObjectState() != EObjectStateType::Kinematic;
+
+					if (bIsDynamic && PBDRigid->PreObjectState() == EObjectStateType::Kinematic)
+					{
+						bIsSameIsland = false;
+						break;
+					}
+					
 					int32 TmpIsland = bIsDynamic ? PBDRigid->Island() : INDEX_NONE; //question: should we even store non dynamics in this array?
 
 					if (OtherIsland == INDEX_NONE && TmpIsland >= 0)
@@ -534,6 +547,25 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<FPBDRigidParticles>
 					else
 					{
 						if (TmpIsland >= 0 && OtherIsland != TmpIsland)
+						{
+							bIsSameIsland = false;
+							break;
+						}
+					}
+				}
+			}
+
+			// Kinematic particles were removed from the island. This needs to be called after OtherIsland is available.
+			if (bIsSameIsland && OtherIsland >= 0)
+			{
+				for (FGeometryParticleHandle* Particle : IslandToParticles[Island])
+				{
+					if (CHAOS_ENSURE(Particle))
+					{
+						FPBDRigidParticleHandle* PBDRigid = Particle->CastToRigidParticle();
+
+						// If an island has many kinematic particles, this could be slow.
+						if (PBDRigid && PBDRigid->ObjectState() == EObjectStateType::Kinematic && !NewIslandParticles[OtherIsland].Contains(PBDRigid))
 						{
 							bIsSameIsland = false;
 							break;

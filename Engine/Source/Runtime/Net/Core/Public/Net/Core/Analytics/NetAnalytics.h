@@ -363,6 +363,12 @@ public:
 		return AnalyticsProvider;
 	}
 
+	/** Accessor for NetDriverName */
+	FName GetNetDriverName() const
+	{
+		return NetDriverName;
+	}
+
 
 private:
 	/** The analytics provider we are aggregating data for */

@@ -16,14 +16,21 @@ namespace Audio
 	{
 	public:
 		// ctor
-		FQuartzClockManager(Audio::FMixerDevice* InOwner);
+		FQuartzClockManager(Audio::FMixerDevice* InOwner = nullptr);
 
 		// dtor
 		~FQuartzClockManager();
 
+		int32 GetNumClocks() const { return ActiveClocks.Num(); }
+
 		// Called on AudioRenderThread
 		void Update(int32 NumFramesUntilNextUpdate);
 		void UpdateClock(FName InClockToAdvance, int32 NumFramesToAdvance);
+
+		// can be called from any thread for low-resolution clock updates
+		// (i.e. used when running without an audio device)
+		// not sample-accurate!
+		void LowResoultionUpdate(float DeltaTimeSeconds);
 
 		// add (and take ownership of) a new clock
 		// safe to call from AudioThread (uses critical section)

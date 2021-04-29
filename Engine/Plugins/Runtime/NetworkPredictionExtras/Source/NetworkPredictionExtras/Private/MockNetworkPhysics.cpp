@@ -97,10 +97,27 @@ FMockState_PT
 #include "Chaos/SimCallbackObject.h"
 #include "UObject/UObjectIterator.h"
 #include "GameFramework/PlayerController.h"
+#include "DrawDebugHelpers.h"
 
 // ==================================================
 
-void FMockManagedState::AsyncTick(UWorld* World, Chaos::FPhysicsSolver* Solver, const float DeltaSeconds, const float TotalSeconds, int32 LocalFrame)
+namespace UE_NETWORK_PHYSICS
+{
+	bool bFutureInputs=true;
+	FAutoConsoleVariableRef CVarFutureInputs(TEXT("np2.FutureInputs"), bFutureInputs, TEXT("Enable FutureInputs feature"));
+
+	// not convinced this is actually worth doing yet, so leaving it off. Adds too much noise to tuning the lower level stuff
+	bool bInputDecay=false;
+	FAutoConsoleVariableRef CVarInputDecay(TEXT("np2.InputDecay"), bInputDecay, TEXT("Enable Input Decay Feature"));
+
+	float InputDecayRate=0.99f;
+	FAutoConsoleVariableRef CVarInputDecayRate(TEXT("np2.InputDecayRate"), InputDecayRate, TEXT("Rate of input decay"));
+
+	bool MockDebug=false;
+	FAutoConsoleVariableRef CVarMockDebug(TEXT("np2.Mock.Debug"), MockDebug, TEXT("Enabled spammy log debugging of mock physics object state"));
+}
+
+void FMockManagedState::AsyncTick(UWorld* World, Chaos::FPhysicsSolver* Solver, const float DeltaSeconds, const int32 SimulationFrame, const int32 LocalStorageFrame)
 {
 	// FIXME: PT_State is the only thing that should be writable here
 	// FIXME: DeltaSeconds/TotalSecond are local time and therefor worthless. This needs to be server frame/time
@@ -109,28 +126,55 @@ void FMockManagedState::AsyncTick(UWorld* World, Chaos::FPhysicsSolver* Solver, 
 	{
 		if (auto* PT = Proxy->GetPhysicsThreadAPI())
 		{
-			if (InputCmd.Force.SizeSquared() > 0.001f)
+			if (InputCmd.bBrakesPressed)
 			{
-				//UE_LOG(LogTemp, Warning, TEXT("0x%X ForceMultiplier: %f (Rand: %d)"), (int64)Proxy, GT_State.ForceMultiplier, GT_State.RandValue);
-				//UE_CLOG(PC == nullptr && InputCmd.Force.SizeSquared() > 0.f, LogTemp, Warning, TEXT("0x%X ForceMultiplier: %f (Rand: %d)"), (int64)Proxy, GT_State.ForceMultiplier, GT_State.RandValue);
-				PT->AddForce(InputCmd.Force * GT_State.ForceMultiplier * 0.5f);
+				PT->SetV( Chaos::FVec3(0.f));				
+				PT->SetW( Chaos::FVec3(0.f));
+
+				UE_CLOG(UE_NETWORK_PHYSICS::MockDebug, LogNetworkPhysics, Log, TEXT("[%d/%d] Applied Break. Rot was: %s"), SimulationFrame, LocalStorageFrame, *PT->R().Rotator().ToString());
+				Chaos::FRotation3 NewR = PT->R();
+				FRotator Rot = NewR.Rotator();
+				Rot.Pitch = 0.f;
+				Rot.Roll = 0.f;
+				PT->SetR( FQuat(Rot));
+			}
+			else
+			{
+				if (InputCmd.Force.SizeSquared() > 0.001f)
+				{
+					//UE_LOG(LogTemp, Warning, TEXT("Applied Force. Frame: %d"), LocalFrame);
+					//UE_LOG(LogTemp, Warning, TEXT("0x%X ForceMultiplier: %f (Rand: %d)"), (int64)Proxy, GT_State.ForceMultiplier, GT_State.RandValue);
+					//UE_CLOG(PC == nullptr && InputCmd.Force.SizeSquared() > 0.f, LogTemp, Warning, TEXT("0x%X ForceMultiplier: %f (Rand: %d)"), (int64)Proxy, GT_State.ForceMultiplier, GT_State.RandValue);
+					PT->AddForce(InputCmd.Force * GT_State.ForceMultiplier);
+				}
+				
+				if (FMath::Abs<float>(InputCmd.Turn) > 0.001f)
+				{
+					PT->AddTorque(Chaos::FVec3(0.0f, 0.0f, InputCmd.Turn * GT_State.ForceMultiplier * 10.f));
+				}				
 			}
 
 			if (InputCmd.bJumpedPressed)
 			{
 				PT_State.JumpCount++;
+				UE_CLOG(UE_NETWORK_PHYSICS::MockDebug, LogNetworkPhysics, Log, TEXT("[%d/%d] bJumpedPressed: %d. Count: %d"), SimulationFrame, LocalStorageFrame, InputCmd.bJumpedPressed, PT_State.JumpCount);
 			}
 
 			//UE_CLOG(PC == nullptr, LogTemp, Warning, TEXT("NP [%d] bJumpedPressed: %d. Count: %d"), LocalFrame, InputCmd.bJumpedPressed, PT_State.JumpCount);
 			if (InputCmd.bJumpedPressed && PT_State.JumpCooldownMS == 0)
 			{
 				//UE_LOG(LogTemp, Warning, TEXT("0x%X Jump! Total: %d"), (int64)Proxy, (int32)(TotalSeconds*1000.f));
-				PT->SetLinearImpulse( Chaos::FVec3(0.f, 0.f, 75000.f) );
+				PT->SetLinearImpulse( Chaos::FVec3(0.f, 0.f, 115000.f) );
 				PT_State.JumpCooldownMS = 1000;
+				UE_CLOG(UE_NETWORK_PHYSICS::MockDebug, LogNetworkPhysics, Log, TEXT("[%d/%d] Applied Jump and reset cooldown"), SimulationFrame, LocalStorageFrame);
 			}
 			else
 			{
 				PT_State.JumpCooldownMS = FMath::Max( PT_State.JumpCooldownMS - (int32)(DeltaSeconds* 1000.f), 0);
+				if (PT_State.JumpCooldownMS != 0)
+				{
+					UE_CLOG(UE_NETWORK_PHYSICS::MockDebug, LogNetworkPhysics, Log, TEXT("[%d/%d] JumpCount: %d. JumpCooldown: %d"), SimulationFrame, LocalStorageFrame, PT_State.JumpCount, PT_State.JumpCooldownMS);
+				}
 			}
 		}
 	}
@@ -141,7 +185,6 @@ void FMockManagedState::AsyncTick(UWorld* World, Chaos::FPhysicsSolver* Solver, 
 struct FMockAsyncObjectManagerInput : public Chaos::FSimCallbackInput
 {
 	// One per instance of our physics objects
-	//TArray<TUniquePtr<FMockAsyncObjectInput>> ObjectInputs;
 	TArray<FMockManagedState> ManagedObjects;
 	
 	TWeakObjectPtr<UWorld> World;
@@ -155,13 +198,14 @@ struct FMockAsyncObjectManagerInput : public Chaos::FSimCallbackInput
 
 	bool NetSendInputCmd(FNetBitWriter& Ar) override
 	{
+		bool bNetSuccess = true;
 		for (FMockManagedState& Obj: ManagedObjects)
 		{
 			// Only called on client, find first one with a valid PC 
 			// (but maybe we should pass the PC in just to be safe)
 			if (Obj.PC)
 			{
-				Obj.InputCmd.NetSerialize(Ar);
+				Obj.InputCmd.NetSerialize(Ar, nullptr, bNetSuccess);
 				return true;
 			}			
 		}
@@ -169,12 +213,13 @@ struct FMockAsyncObjectManagerInput : public Chaos::FSimCallbackInput
 	}
 
 	bool NetRecvInputCmd(APlayerController* PC, FNetBitReader& Ar) override
-	{ 
+	{
+		bool bNetSuccess = true;
 		for (FMockManagedState& Obj: ManagedObjects)
 		{
 			if (Obj.PC == PC)
 			{
-				Obj.InputCmd.NetSerialize(Ar);
+				Obj.InputCmd.NetSerialize(Ar, nullptr, bNetSuccess);
 				return true;
 			}			
 		}
@@ -208,9 +253,11 @@ public:
 
 		// Record Inputs for future reconciles
 		const int32 Frame = PhysicsSolver->GetCurrentFrame();
-		UE_CLOG(LastRecordedInputFrame == INDEX_NONE || (Frame+1 == LastRecordedInputFrame), LogNetworkPhysics, Warning, TEXT("Gap in recorded input frame? Last: %d. Now: %d"), LastRecordedInputFrame, Frame);
+		//UE_CLOG(LastRecordedInputFrame != INDEX_NONE && (Frame != LastRecordedInputFrame+1), LogNetworkPhysics, Warning, TEXT("Gap in recorded input frame? Last: %d. Now: %d"), LastRecordedInputFrame, Frame);
+
 		RecordedInputs[Frame % RecordedInputs.Num()] = Input;
 		LastRecordedInputFrame = Frame;
+		const int32 SimulationFrame = Frame - this->LocalFrameOffset;
 
 		// Run AsyncTick for all objects we are managing
 		TArray<FMockManagedState> Old_PT_ManagedObjects = MoveTemp(PT_ManagedObjects);
@@ -226,14 +273,23 @@ public:
 			// Search for existing PT managed state. If we find one, we use its PT_State instead of what was mashalled.
 			// (We will eventually provide a lambda for doing GT -> PT writes to this state. For now, not possible)
 			FMockManagedState& PT_Obj = PT_ManagedObjects.Emplace_GetRef(Obj);
-			for (FMockManagedState& ExistingState : Old_PT_ManagedObjects)
+
+			if (bNextStepIsResim == false)
 			{
-				if (ExistingState.Proxy == Obj.Proxy)
+				for (FMockManagedState& ExistingState : Old_PT_ManagedObjects)
 				{
-					PT_Obj.PT_State = ExistingState.PT_State;
-					Obj.PT_State = ExistingState.PT_State;	// FIXME: We have to copy the official PT_State back into the Input storage
-					break;
+					if (ExistingState.Proxy == Obj.Proxy)
+					{
+						PT_Obj.PT_State = ExistingState.PT_State;
+						Obj.PT_State = ExistingState.PT_State;	// FIXME: We have to copy the official PT_State back into the Input storage too, for corrections
+						break;
+					}
 				}
+			}
+			else
+			{
+				// On first step of resim, we need to use the input state, not the "latest" in PT_ManagedObjects
+				PT_Obj.PT_State = Obj.PT_State;
 			}
 
 			// Marshall data back to GT for networking and gameplay code view
@@ -244,13 +300,15 @@ public:
 			PT_Obj.Frame = Frame;
 			SnapshotForGT.Objects.Add(PT_Obj);
 			
-			PT_Obj.AsyncTick(World, PhysicsSolver, GetDeltaTime_Internal(), GetSimTime_Internal(), Frame);
+			PT_Obj.AsyncTick(World, PhysicsSolver, GetDeltaTime_Internal(), SimulationFrame, Frame);
 		}
 
 		if (SnapshotForGT.Objects.Num() > 0)
 		{
 			DataFromPhysics.Enqueue(SnapshotForGT);
 		}
+
+		bNextStepIsResim = false;
 	}
 
 	virtual void OnContactModification_Internal(const TArrayView<Chaos::FPBDCollisionConstraintHandleModification>& Modifications) override
@@ -267,6 +325,7 @@ public:
 
 		while (DataFromNetwork.Dequeue(Snapshot))
 		{
+			this->LocalFrameOffset = Snapshot.LocalFrameOffset;
 			for (FMockManagedState& Obj : Snapshot.Objects)
 			{
 				if (Obj.Frame <= LastRecordedInputFrame - RecordedInputs.Num())
@@ -293,13 +352,17 @@ public:
 					if (Obj.PC == nullptr && LocalState.InputCmd.ShouldReconcile(Obj.InputCmd))
 					{
 						bInputReconcile = true;
-						//UE_LOG(LogTemp, Warning, TEXT("INPUT Reconcinle. Force: %s    %s. Delta: %s. Equal: %d"), *Obj.InputCmd.Force.ToString(), *LocalState.InputCmd.Force.ToString(), *(Obj.InputCmd.Force - LocalState.InputCmd.Force).ToString(), (Obj.InputCmd.Force == LocalState.InputCmd.Force ? 1 : 0) );
+						UE_CLOG(UE_NETWORK_PHYSICS::MockDebug, LogNetworkPhysics, Warning, TEXT("INPUT reconcile. Force: %s   %s. Delta: %s. Equal: %d"), *Obj.InputCmd.Force.ToString(), *LocalState.InputCmd.Force.ToString(), *(Obj.InputCmd.Force - LocalState.InputCmd.Force).ToString(), (Obj.InputCmd.Force == LocalState.InputCmd.Force ? 1 : 0) );
 					}
 
 					if (LocalState.GT_State.ShouldReconcile(Obj.GT_State) || LocalState.PT_State.ShouldReconcile(Obj.PT_State) || bInputReconcile)
 					{
 						//UE_CLOG(UE_NETWORK_PHYSICS::bLogCorrections, LogNetworkPhysics, Log, TEXT("Rewind Needed for MockPersistState. Obj.Frame: %d. LastCompletedStep: %d."), Obj.Frame, LastCompletedStep);
-						//UE_LOG(LogNetworkPhysics, Log, TEXT("Rewind Needed for MockPersistState. Obj.Frame: %d. LastCompletedStep: %d. JumpCnt: %d (auth) vs %d (pred)"), Obj.Frame, LastCompletedStep, Obj.PT_State.JumpCount, LocalState.PT_State.JumpCount);
+						UE_CLOG(UE_NETWORK_PHYSICS::MockDebug, LogNetworkPhysics, Error, TEXT("[%d] Rewind Needed for MockPersistState. Obj.Frame: %d. LastCompletedStep: %d. JumpCnt: %d (auth) vs %d (pred)"), Obj.Frame - this->LocalFrameOffset, Obj.Frame, LastCompletedStep, Obj.PT_State.JumpCount, LocalState.PT_State.JumpCount);
+ 						UE_CLOG(UE_NETWORK_PHYSICS::MockDebug, LogNetworkPhysics, Error, TEXT("     Server: JumpCnt: %d. JumpCooldownMS: %d"), Obj.PT_State.JumpCount, Obj.PT_State.JumpCooldownMS);
+						UE_CLOG(UE_NETWORK_PHYSICS::MockDebug, LogNetworkPhysics, Error, TEXT("     Local:  JumpCnt: %d. JumpCooldownMS: %d"), LocalState.PT_State.JumpCount, LocalState.PT_State.JumpCooldownMS);
+
+
 						RewindToFrame = RewindToFrame == INDEX_NONE ? Obj.Frame : FMath::Min(RewindToFrame, Obj.Frame);
 						ensure(RewindToFrame >= 0);
 
@@ -312,7 +375,7 @@ public:
 		return RewindToFrame; 
 	}
 	
-	void ApplyCorrections(int32 PhysicsStep, Chaos::FSimCallbackInput* Input) override
+	void ApplyCorrections_Internal(int32 PhysicsStep, Chaos::FSimCallbackInput* Input) override
 	{
 		// Note: this can't work like FNetworkPhysicsRewindCallback::PreResimStep_Internal because even after we apply
 		// a correction on the frame it occured on, we still need to apply GT data to all subsequent frames. This seems
@@ -358,7 +421,38 @@ public:
 					{
 						// SP has to take InputCmd too
 						// (This would cause AP to lose their actual inputcmds which would cause a spiral of corrections)
-						InputState.InputCmd = CorrectionState.InputCmd;
+
+						if (UE_NETWORK_PHYSICS::bFutureInputs)
+						{
+							if (CorrectionState.Frame == PhysicsStep)
+							{
+								InputState.InputCmd = CorrectionState.InputCmd;
+							}
+							else
+							{
+								bool bFound = false;
+								for (FMockFutureClientInput& Future : CorrectionState.FutureInputs)
+								{
+									if (Future.Frame == PhysicsStep)
+									{
+										//UE_LOG(LogNetworkPhysics, Warning, TEXT("Using Future frame in correction!"));
+										InputState.InputCmd = Future.InputCmd;
+										bFound = true;
+										break;
+									}
+								}
+								if (!bFound)
+								{
+									InputState.InputCmd = CorrectionState.FutureInputs.Num() > 0 ? CorrectionState.FutureInputs.Last().InputCmd : CorrectionState.InputCmd;
+								}
+							}
+						}
+						else
+						{
+							InputState.InputCmd = CorrectionState.InputCmd;
+						}
+						
+
 					}
 
 					break;
@@ -367,22 +461,30 @@ public:
 		}
 	}
 
+	void FirstPreResimStep_Internal(int32 PhysicsStep) override
+	{
+		bNextStepIsResim = true;
+	}
+
 	// PT Copies of what we are managing
 	TArray<FMockManagedState> PT_ManagedObjects;
 
 	struct FSnapshot
 	{
+		int32 LocalFrameOffset = 0;
 		TArray<FMockManagedState> Objects;
 	};
 
 	TQueue<FSnapshot> DataFromNetwork;	// Data used to check for corrections
 	TQueue<FSnapshot> DataFromPhysics;	// Data sent back to GT for networking
 
-	// Using proxy to identify the objects, probably not a safe bet
+	int32 LocalFrameOffset = 0; // Latest mapping of local->server frame numbers. Updated via FSnapshot::LocalFrameOffset
+	
 	int32 LastRecordedInputFrame = INDEX_NONE;
 	TStaticArray<const FMockAsyncObjectManagerInput*, 64> RecordedInputs;
 
 	TArray<FMockManagedState> PendingCorrections;
+	bool bNextStepIsResim = false;
 };
 
 // ----------------------------------------------------------------------------------
@@ -419,7 +521,7 @@ FMockObjectManager::FMockObjectManager(UWorld* World)
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning, TEXT("Rewind not enabled on Physics solver. FMockObjectManager will be disabled"));
+					UE_LOG(LogNetworkPhysics, Warning, TEXT("Rewind not enabled on Physics solver. FMockObjectManager will be disabled"));
 				}
 			}
 		}
@@ -460,6 +562,8 @@ void FMockObjectManager::PostNetRecv(UWorld* World, int32 FrameOffset, int32 Las
 	{
 		// Client: marshal data from network for reconciliation
 		FMockAsyncObjectManagerCallback::FSnapshot Snapshot;
+		Snapshot.LocalFrameOffset = FrameOffset;
+
 		for (FMockManagedState* ReplicatedMockState : ReplicatedMockManagedStates)
 		{
 			if (ReplicatedMockState->Frame > LastProcessedFrame)
@@ -469,7 +573,15 @@ void FMockObjectManager::PostNetRecv(UWorld* World, int32 FrameOffset, int32 Las
 				{
 					// Marshal a copy of the new data to PT for reconciliation
 					FMockManagedState& MarshalledCopy = Snapshot.Objects.Emplace_GetRef(*ReplicatedMockState);
+					
+					UE_CLOG(UE_NETWORK_PHYSICS::MockDebug, LogNetworkPhysics, Log, TEXT("[%d/%d] %d.  Client NetRecv Marhsal->PT. JumpCnt: %d JumpCooldown: %d"), MarshalledCopy.Frame, LocalFrame, FrameOffset, MarshalledCopy.PT_State.JumpCount, MarshalledCopy.PT_State.JumpCooldownMS);						
 					MarshalledCopy.Frame = LocalFrame;
+
+					// Convert server->local frame number for future inputs
+					for (FMockFutureClientInput& Future : MarshalledCopy.FutureInputs)
+					{
+						Future.Frame += FrameOffset;
+					}
 				}
 
 				// GT State should immediately be written to InManagedState so that it is used for new frames
@@ -484,7 +596,17 @@ void FMockObjectManager::PostNetRecv(UWorld* World, int32 FrameOffset, int32 Las
 						if (LocalInMockState->PC == nullptr)
 						{
 							// Only copy the InputCmd over if not locally controlled. Otherwise we may be overriting gameplay code's submitted input cmd
-							LocalInMockState->InputCmd = ReplicatedMockState->InputCmd;
+							if (ReplicatedMockState->FutureInputs.Num() > 0)
+							{
+								// Use the latest server recv (but not processed at the time this was sent) for future frames
+								// (note that though this was not processed server side when server sent this to us, we are already 'ahead' of this frame locally 
+								// [under the assumption of relatively equal amounts of server side input buffers. A low buffered client could potentially get ahead of a high buffered client but no reason to optimize for that case)
+								LocalInMockState->InputCmd = ReplicatedMockState->FutureInputs.Last().InputCmd;
+							}
+							else
+							{
+								LocalInMockState->InputCmd = ReplicatedMockState->InputCmd;
+							}
 						}
 					}
 				}
@@ -517,6 +639,17 @@ void FMockObjectManager::PreNetSend(UWorld* World, float DeltaSeconds)
 		
 	for (FMockManagedState* State : InMockManagedStates)
 	{
+		// Should we decay the GT InputCmd or just the marshalled copy?
+		// Probably want non linear decay?
+		if (UE_NETWORK_PHYSICS::bInputDecay && State->PC == nullptr)
+		{
+			if (State->InputDecay > 0.f)
+			{
+				State->InputCmd.Decay(State->InputDecay);
+			}
+			State->InputDecay += DeltaSeconds * UE_NETWORK_PHYSICS::InputDecayRate;
+		}
+
 		AsyncInput->ManagedObjects.Emplace( *State );
 	}
 
@@ -535,6 +668,7 @@ void FMockObjectManager::PreNetSend(UWorld* World, float DeltaSeconds)
 
 	if (bFoundData)
 	{
+		bool bOutSuccess = true;
 		for (FMockManagedState& PTState : Snapshot.Objects)
 		{
 			if (bIsServer)
@@ -550,6 +684,36 @@ void FMockObjectManager::PreNetSend(UWorld* World, float DeltaSeconds)
 						ManagedMockState->PT_State = PTState.PT_State;
 						ManagedMockState->GT_State = PTState.GT_State;
 						ManagedMockState->Frame = PTState.Frame;
+
+						UE_CLOG(UE_NETWORK_PHYSICS::MockDebug, LogNetworkPhysics, Log, TEXT("[%d] Server Marhsal->GT. JumpCnt: %d JumpCooldown: %d"), PTState.Frame, PTState.PT_State.JumpCount, PTState.PT_State.JumpCooldownMS);
+
+						// Send future inputs
+						if (ManagedMockState->PC != nullptr && UE_NETWORK_PHYSICS::bFutureInputs)
+						{
+							// FIXME: this is pretty bad since we are now doubling up on deserialzing everything!
+							APlayerController::FServerFrameInfo& FrameInfo = ManagedMockState->PC->GetServerFrameInfo();
+							APlayerController::FInputCmdBuffer& InputBuffer = ManagedMockState->PC->GetInputBuffer();
+
+							ManagedMockState->FutureInputs.Reset();
+
+							if (FrameInfo.LastProcessedInputFrame > 0)
+							{
+								int32 FutureServerFrame = FrameInfo.LastLocalFrame;
+								for (int32 FutureClientFrame = FrameInfo.LastProcessedInputFrame; FutureClientFrame <= InputBuffer.HeadFrame(); ++FutureClientFrame, ++FutureServerFrame)
+								{
+									const TArray<uint8>& InputCmdData = InputBuffer.Get(FutureClientFrame);
+									if (InputCmdData.Num() > 0)
+									{
+										uint8* RawData = const_cast<uint8*>(InputCmdData.GetData());
+										FNetBitReader Ar(nullptr, RawData, ((int64)InputCmdData.Num()) << 3);
+
+										FMockFutureClientInput& ReplicatedFutureInput = ManagedMockState->FutureInputs.AddDefaulted_GetRef();
+										ReplicatedFutureInput.Frame = FutureServerFrame;
+										ReplicatedFutureInput.InputCmd.NetSerialize(Ar, nullptr, bOutSuccess);
+									}
+								}
+							}
+						}
 					}
 				}
 			}
@@ -616,6 +780,19 @@ void UNetworkPhysicsComponent::InitializeComponent()
 		NetworkPhysicsState.Proxy = PrimitiveComponent->BodyInstance.ActorHandle;
 		Manager->RegisterPhysicsProxy(&NetworkPhysicsState);
 
+		Manager->RegisterPhysicsProxyDebugDraw(&NetworkPhysicsState, [this](const UNetworkPhysicsManager::FDrawDebugParams& P)
+		{
+			AActor* Actor = this->GetOwner();
+			FBox LocalSpaceBox = Actor->CalculateComponentsBoundingBoxInLocalSpace();
+			const float Thickness = 2.f;
+
+			FVector ActorOrigin;
+			FVector ActorExtent;
+			LocalSpaceBox.GetCenterAndExtents(ActorOrigin, ActorExtent);
+			ActorExtent *= Actor->GetActorScale3D();
+			DrawDebugBox(P.DrawWorld, P.Loc, ActorExtent, P.Rot, P.Color, false, P.Lifetime, 0, Thickness);
+		});
+
 		
 		FMockObjectManager* MockManager = FMockObjectManager::Get(World);
 		checkSlow(MockManager);
@@ -631,13 +808,14 @@ void UNetworkPhysicsComponent::InitializeComponent()
 void UNetworkPhysicsComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
+	//UE_LOG(LogTemp, Warning, TEXT("EndPlay %s"), *GetPathNameSafe(this));
 	if (UWorld* World = GetWorld())
 	{
 		if (UNetworkPhysicsManager* Manager = World->GetSubsystem<UNetworkPhysicsManager>())
 		{
-			
 			if (FMockObjectManager* MockManager = FMockObjectManager::Get(World))
 			{
+				//UE_LOG(LogTemp, Warning, TEXT("   Unregistering MockManager. 0x%X"), (int64)&ReplicatedManagedState);
 				MockManager->UnregisterManagedMockObject(&ReplicatedManagedState, &InManagedState, &OutManagedState);				
 			}
 			Manager->UnregisterPhysicsProxy(&NetworkPhysicsState);

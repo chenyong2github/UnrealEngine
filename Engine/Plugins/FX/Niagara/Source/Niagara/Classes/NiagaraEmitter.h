@@ -480,7 +480,9 @@ public:
 	bool CanObtainSystemAttribute(const FNiagaraVariableBase& InVar) const;
 	bool CanObtainUserVariable(const FNiagaraVariableBase& InVar) const;
 
-#if !UE_BUILD_SHIPPING
+#if UE_BUILD_SHIPPING
+	const TCHAR* GetDebugSimName() const { return TEXT(""); }
+#else
 	const TCHAR* GetDebugSimName() const { return *DebugSimName; }
 #endif
 
@@ -652,6 +654,11 @@ private:
 
 	/** Indicates that the GPU script requires the view uniform buffer. */
 	uint32 bRequiresViewUniformBuffer : 1;
+
+#if WITH_EDITORONLY_DATA
+	/* Flag set on load based on whether the serialized data includes editor only data */
+	uint32 IsCooked : 1;
+#endif
 
 	/** Maximum number of instances we can create for this emitter. */
 	uint32 MaxInstanceCount = 0;

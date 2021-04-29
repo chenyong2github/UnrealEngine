@@ -196,7 +196,7 @@ namespace ChaosTest
 	{
 		{
 			FChaosMarshallingManager MarshallingManager;
-			FChaosResultsManager ResultsManager;
+			FChaosResultsManager ResultsManager(MarshallingManager);
 
 			const float ExternalDt = 1 / 30.f;
 			float ExternalTime = 0;
@@ -207,13 +207,13 @@ namespace ChaosTest
 				ExternalTime += ExternalDt;
 				MarshallingManager.FinalizePullData_Internal(Step, StartTime, ExternalDt);
 				//in sync mode the external time we pass in doesn't matter
-				FPullPhysicsData* Next = ResultsManager.PullSyncPhysicsResults_External(MarshallingManager, false);
-				EXPECT_EQ(Next->ExternalStartTime, StartTime);
+				const FChaosInterpolationResults& Results = ResultsManager.PullSyncPhysicsResults_External();
+				EXPECT_EQ(Results.Next->ExternalStartTime, StartTime);
 			}
 		}
 		{
 			FChaosMarshallingManager MarshallingManager;
-			FChaosResultsManager ResultsManager;
+			FChaosResultsManager ResultsManager(MarshallingManager);
 
 			const float ExternalDt = 1 / 30.f;
 			float ExternalTime = 0;
@@ -223,7 +223,7 @@ namespace ChaosTest
 				const float StartTime = ExternalTime;	//external time we would have kicked the sim task off with
 				ExternalTime += ExternalDt;
 				MarshallingManager.FinalizePullData_Internal(Step, StartTime, ExternalDt);
-				const FChaosInterpolationResults& Results = ResultsManager.PullAsyncPhysicsResults_External(MarshallingManager, ExternalTime);
+				const FChaosInterpolationResults& Results = ResultsManager.PullAsyncPhysicsResults_External(ExternalTime);
 				EXPECT_EQ(Results.Alpha, 1);	//async mode but no buffer so no interpolation
 				EXPECT_EQ(Results.Next->ExternalStartTime, StartTime);	//async mode but no buffer so should appear the same as sync
 			}
@@ -231,7 +231,7 @@ namespace ChaosTest
 
 		{
 			FChaosMarshallingManager MarshallingManager;
-			FChaosResultsManager ResultsManager;
+			FChaosResultsManager ResultsManager(MarshallingManager);
 
 			float PreTime;
 			const float ExternalDt = 1 / 30.f;
@@ -244,7 +244,7 @@ namespace ChaosTest
 				ExternalTime += ExternalDt;
 				const float RenderTime = ExternalTime - Delay;
 				MarshallingManager.FinalizePullData_Internal(Step, StartTime, ExternalDt);
-				FChaosInterpolationResults Results = ResultsManager.PullAsyncPhysicsResults_External(MarshallingManager, RenderTime);
+				FChaosInterpolationResults Results = ResultsManager.PullAsyncPhysicsResults_External(RenderTime);
 				if(RenderTime < 0)
 				{
 					EXPECT_LT(Step, 2);	//first two frames treat as sync mode since we don't have enough delay
@@ -264,7 +264,7 @@ namespace ChaosTest
 
 		{
 			FChaosMarshallingManager MarshallingManager;
-			FChaosResultsManager ResultsManager;
+			FChaosResultsManager ResultsManager(MarshallingManager);
 
 			float PreTime;
 			const float ExternalDt = 1 / 30.f;
@@ -285,7 +285,7 @@ namespace ChaosTest
 					MarshallingManager.FinalizePullData_Internal(InnerStepTotal++, StartTime + InnerDt * InnerStep, InnerDt);
 				}
 
-				FChaosInterpolationResults Results = ResultsManager.PullAsyncPhysicsResults_External(MarshallingManager, RenderTime);
+				FChaosInterpolationResults Results = ResultsManager.PullAsyncPhysicsResults_External(RenderTime);
 				if (RenderTime < 0)
 				{
 					EXPECT_LT(Step, 2);	//first two frames treat as sync mode since we don't have enough delay

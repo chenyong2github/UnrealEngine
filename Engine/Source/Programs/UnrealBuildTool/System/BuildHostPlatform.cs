@@ -264,6 +264,9 @@ namespace UnrealBuildTool
 		internal override IEnumerable<ProjectFileFormat> GetDefaultProjectFileFormats()
 		{
 			yield return ProjectFileFormat.VisualStudio;
+			#if __VPROJECT_AVAILABLE__
+				yield return ProjectFileFormat.VProject;
+			#endif
 		}
 	}
 
@@ -303,7 +306,6 @@ namespace UnrealBuildTool
 			try
 			{
 				Proc.Start();
-				Proc.WaitForExit();
 				foreach (string FileLine in File.ReadAllLines(TempFile))
 				{
 					string Line = FileLine.Trim();
@@ -326,7 +328,7 @@ namespace UnrealBuildTool
 					}
 				}
 				File.Delete(TempFile);
-
+				Proc.WaitForExit();
 			}
 			catch { }
 			return Result.ToArray();
@@ -388,6 +390,9 @@ namespace UnrealBuildTool
 		internal override IEnumerable<ProjectFileFormat> GetDefaultProjectFileFormats()
 		{
 			yield return ProjectFileFormat.XCode;
+			#if __VPROJECT_AVAILABLE__
+				yield return ProjectFileFormat.VProject;
+			#endif
 		}
 	}
 
@@ -440,6 +445,9 @@ namespace UnrealBuildTool
 			yield return ProjectFileFormat.QMake;
 			yield return ProjectFileFormat.CMake;
 			yield return ProjectFileFormat.CodeLite;
+			#if __VPROJECT_AVAILABLE__
+				yield return ProjectFileFormat.VProject;
+			#endif
 		}
 	}
 }

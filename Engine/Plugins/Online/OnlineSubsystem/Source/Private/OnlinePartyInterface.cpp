@@ -781,6 +781,46 @@ const TCHAR* ToString(const EJoinRequestAction Value)
 	return TEXT("Unknown");
 }
 
+const TCHAR* ToString(const ERequestToJoinPartyCompletionResult Value)
+{
+	switch (Value)
+	{
+	case ERequestToJoinPartyCompletionResult::ValidationFailure:
+	{
+		return TEXT("ValidationFailure");
+	}
+	case ERequestToJoinPartyCompletionResult::NotAuthorized:
+	{
+		return TEXT("NotAuthorized");
+	}
+	case ERequestToJoinPartyCompletionResult::Forbidden:
+	{
+		return TEXT("Forbidden");
+	}
+	case ERequestToJoinPartyCompletionResult::UserNotFound:
+	{
+		return TEXT("UserNotFound");
+	}
+	case ERequestToJoinPartyCompletionResult::AlreadyExists:
+	{
+		return TEXT("AlreadyExists");
+	}
+	case ERequestToJoinPartyCompletionResult::RateLimited:
+	{
+		return TEXT("RateLimited");
+	}
+	case ERequestToJoinPartyCompletionResult::UnknownInternalFailure:
+	{
+		return TEXT("UnknownInternalFailure");
+	}
+	case ERequestToJoinPartyCompletionResult::Succeeded:
+	{
+		return TEXT("Succeeded");
+	}
+	}
+	return TEXT("Unknown");
+}
+
 EJoinRequestAction JoinRequestActionFromString(const TCHAR* Value)
 {
 	if (FCString::Stricmp(Value, TEXT("AutoApprove")) == 0)

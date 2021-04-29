@@ -754,14 +754,6 @@ void FAutomationControllerManager::ProcessResults()
 			SerializedPassResults.ComparisonExported = ExportResults.Success;
 			SerializedPassResults.ComparisonExportDirectory = ExportResults.ExportPath;
 			SerializedPassResults.ReportCreatedOn = StartTime;
-			if (ReportURLPath.IsEmpty())
-			{
-				SerializedPassResults.ComparisonExportDirectory = ExportResults.ExportPath;
-			}
-			else
-			{
-				SerializedPassResults.ComparisonExportDirectory = ReportURLPath / FString::FromInt(FEngineVersion::Current().GetChangelist());
-			}
 
 			UE_LOG(LogAutomationController, Log, TEXT("Exported results in %.02f Seconds"), (FDateTime::Now() - StepTime).GetTotalSeconds());
 		}

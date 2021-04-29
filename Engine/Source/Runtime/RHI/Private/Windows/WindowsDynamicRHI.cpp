@@ -10,6 +10,10 @@
 
 #include "Windows/WindowsPlatformApplicationMisc.h"
 
+#if NV_GEFORCENOW
+#include "GeForceNOWWrapper.h"
+#endif
+
 static const TCHAR* GLoadedRHIModuleName;
 
 static bool ShouldPreferD3D12()
@@ -84,12 +88,19 @@ static bool ShouldPreferFeatureLevelES31()
 {
 	if (!GIsEditor)
 	{
+		bool bIsRunningInGFN = false;
+#if NV_GEFORCENOW
+		//Prevent ES31 from being forced since we have other ways of setting scalability issues on GFN.
+		GeForceNOWWrapper::Get().Initialize();
+		bIsRunningInGFN = GeForceNOWWrapper::Get().IsRunningInGFN();
+#endif
+
 		bool bPreferFeatureLevelES31 = false;
 		bool bFoundPreference = GConfig->GetBool(TEXT("D3DRHIPreference"), TEXT("bPreferFeatureLevelES31"), bPreferFeatureLevelES31, GGameUserSettingsIni);
 
 		// Force low-spec users into performance mode but respect their choice once they have set a preference
 		bool bForceES31 = false;
-		if (!bFoundPreference)
+		if (!bFoundPreference && !bIsRunningInGFN)
 		{
 			bForceES31 = ShouldForceFeatureLevelES31();
 		}

@@ -34,6 +34,10 @@ public:
 
 	/** FGCObject implementation */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("STutorialRoot");
+	}
 
 	/** Launch the specified tutorial from the specified window */
 	void LaunchTutorial(UEditorTutorial* InTutorial, IIntroTutorials::ETutorialStartType InStartType, TWeakPtr<SWindow> InNavigationWindow, FSimpleDelegate InOnTutorialClosed, FSimpleDelegate InOnTutorialExited);

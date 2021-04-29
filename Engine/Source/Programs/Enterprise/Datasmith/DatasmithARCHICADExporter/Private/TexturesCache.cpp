@@ -22,7 +22,7 @@ FTexturesCache::FTexturesCache()
 const FTexturesCache::FTexturesCacheElem& FTexturesCache::GetTexture(const FSyncContext& InSyncContext,
 																	 GS::Int32			 InTextureIndex)
 {
-	MapTextureCacheElem::iterator ExistingTexture = Textures.find(InTextureIndex);
+	MapTextureIndex2CacheElem::iterator ExistingTexture = Textures.find(InTextureIndex);
 	if (ExistingTexture != Textures.end())
 	{
 		return ExistingTexture->second;
@@ -109,22 +109,26 @@ const FTexturesCache::FTexturesCacheElem& FTexturesCache::GetTexture(const FSync
 					 AcTexture.GetName().ToUtf8(), fp.ToUtf8());
 	}
 
-	GS::UniString						   Fingerprint = APIGuidToString(Texture.Fingerprint);
-	TSharedRef< IDatasmithTextureElement > BaseTexture =
-		FDatasmithSceneFactory::CreateTexture(GSStringToUE(Fingerprint));
-	Texture.Element = BaseTexture;
-	BaseTexture->SetLabel(GSStringToUE(AcTexture.GetName()));
-	BaseTexture->SetFile(GSStringToUE(Texture.TexturePath));
-	if (*BaseTexture->GetFile() != 0)
+	GS::UniString Fingerprint = APIGuidToString(Texture.Fingerprint);
+	FString		  TextureId = GSStringToUE(Fingerprint);
+	if (TexturesIdsSet.find(TextureId) == TexturesIdsSet.end())
 	{
-		FMD5Hash FileHash = FMD5Hash::HashFile(BaseTexture->GetFile());
-		BaseTexture->SetFileHash(FileHash);
+		TSharedRef< IDatasmithTextureElement > BaseTexture =
+			FDatasmithSceneFactory::CreateTexture(GSStringToUE(Fingerprint));
+		BaseTexture->SetLabel(GSStringToUE(AcTexture.GetName()));
+		BaseTexture->SetFile(GSStringToUE(Texture.TexturePath));
+		if (*BaseTexture->GetFile() != 0)
+		{
+			FMD5Hash FileHash = FMD5Hash::HashFile(BaseTexture->GetFile());
+			BaseTexture->SetFileHash(FileHash);
+		}
+		else
+		{
+			BaseTexture->SetFile(TEXT("Missing_Texture_File"));
+		}
+		InSyncContext.GetScene().AddTexture(BaseTexture);
+		TexturesIdsSet.insert(TextureId);
 	}
-	else
-	{
-		BaseTexture->SetFile(TEXT("Missing_Texture_File"));
-	}
-	InSyncContext.GetScene().AddTexture(BaseTexture);
 
 	return Texture;
 }

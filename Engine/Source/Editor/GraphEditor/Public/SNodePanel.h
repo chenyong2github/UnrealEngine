@@ -231,6 +231,10 @@ public:
 	void ClickedOnNode(SelectedItemType Node, const FPointerEvent& MouseEvent);
 
 	void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FGraphSelectionManager");
+	}
 };
 
 /**

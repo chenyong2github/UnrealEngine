@@ -571,7 +571,7 @@ void ALODActor::SetDrawDistance(float InDistance)
 	SetComponentsMinDrawDistance(GetLODDrawDistanceWithOverride(), false);
 }
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) || WITH_EDITOR
 
 const bool ALODActor::IsBuilt(bool bInForce/*=false*/) const
 {
@@ -1100,7 +1100,7 @@ bool ALODActor::UpdateProxyDesc()
 
 #endif // WITH_EDITOR
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if (!(UE_BUILD_SHIPPING || UE_BUILD_TEST)) || WITH_EDITOR
 
 bool ALODActor::ShouldUseInstancing(const UStaticMeshComponent* InComponent)
 {
@@ -1266,7 +1266,7 @@ UStaticMeshComponent* ALODActor::GetOrCreateLODComponentForActor(const AActor* I
 	return LODComponent;
 }
 
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // (!(UE_BUILD_SHIPPING || UE_BUILD_TEST)) || WITH_EDITOR
 
 FBox ALODActor::GetComponentsBoundingBox(bool bNonColliding, bool bIncludeFromChildActors) const
 {

@@ -21,11 +21,7 @@ static FAutoConsoleVariableRef CVarVulkanAllowUniformUpload(
 
 enum
 {
-#if PLATFORM_DESKTOP
-	PackedUniformsRingBufferSize = 16 * 1024 * 1024,
-#else
-	PackedUniformsRingBufferSize = 8 * 1024 * 1024,
-#endif
+	PackedUniformsRingBufferSize = 16 * 1024 * 1024
 };
 
 /*-----------------------------------------------------------------------------

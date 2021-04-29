@@ -37,7 +37,8 @@ public:
 	FBlacklistPaths PackagePathsToExclude;
 	FBlacklistPaths PathBlacklist;
 	TSet<FName> ExcludedPackagePaths;
-	TSet<FString> PathsToScanOnDemand;
+	EContentBrowserItemAttributeFilter ItemAttributeFilter = EContentBrowserItemAttributeFilter::IncludeAll;
+	FString VirtualPathToScanOnDemand;
 	// Cached filtering
 	TSet<FName> CachedSubPaths;
 
@@ -56,9 +57,102 @@ class CONTENTBROWSERASSETDATASOURCE_API UContentBrowserAssetDataSource : public 
 	GENERATED_BODY()
 
 public:
-	void Initialize(const FName InMountRoot, const bool InAutoRegister = true);
+	void Initialize(const bool InAutoRegister = true);
 
 	virtual void Shutdown() override;
+
+	/**
+	 * All of the data necessary to generate a compiled filter for folders and assets
+	 */
+	struct FAssetFilterInputParams
+	{
+		TSet<FName> InternalPaths;
+
+		UContentBrowserDataSource* DataSource = nullptr;
+		ICollectionManager* CollectionManager = nullptr;
+		IAssetRegistry* AssetRegistry = nullptr;
+
+		const FContentBrowserDataObjectFilter* ObjectFilter = nullptr;
+		const FContentBrowserDataPackageFilter* PackageFilter = nullptr;
+		const FContentBrowserDataClassFilter* ClassFilter = nullptr;
+		const FContentBrowserDataCollectionFilter* CollectionFilter = nullptr;
+
+		const FBlacklistPaths* PathBlacklist = nullptr;
+		const FBlacklistNames* ClassBlacklist = nullptr;
+
+		FContentBrowserDataFilterList* FilterList = nullptr;
+		FContentBrowserCompiledAssetDataFilter* AssetDataFilter = nullptr;
+
+		bool bIncludeFolders = false;
+		bool bIncludeFiles = false;
+		bool bIncludeAssets = false;
+	};
+
+	typedef TFunctionRef<void(FName, TFunctionRef<bool(FName)>, bool)> FSubPathEnumerationFunc;
+	typedef TFunctionRef<void(FARFilter&, FARCompiledFilter&)>         FCompileARFilterFunc;
+	typedef TFunctionRef<FContentBrowserItemData(FName)>               FCreateFolderItemFunc;
+
+	/**
+	 * Call in CompileFilter() to populate an FAssetFilterInputParams for use in CreatePathFilter and CreateAssetFilter.
+	 *
+	 * @param Params The FAssetFilterInputParams struct to populate with data
+	 * @param DataSource The DataSource that CompileFilter() is being called on
+	 * @param InAssetRegistry A pointer to the Asset Registry to save time having to find it
+	 * @param InFilter The input filter supplied to CompileFilter()
+	 * @param OutCompiledFilter The output filer supplied to CompileFilter()
+	 * @param CollectionManager If set, this will be used to filter objects when a collection filter is requested. If not set, and a collection filter is requested, the function will return false.
+	 * 
+	 * @return false if it's not possible to display folders or assets, otherwise true
+	 */
+	static bool PopulateAssetFilterInputParams(FAssetFilterInputParams& Params, UContentBrowserDataSource* DataSource, IAssetRegistry* InAssetRegistry, const FContentBrowserDataFilter& InFilter, FContentBrowserDataCompiledFilter& OutCompiledFilter, ICollectionManager* CollectionManager = nullptr);
+	/**
+	 * Call in CompileFilter() after PopulateAssetFilterInputParams() to fill OutCompiledFilter with an FContentBrowserCompiledAssetDataFilter capable of filtering folders
+	 *
+	 * @param Params The params generated from PopulateAssetFilterInputParams()
+	 * @param InPath The input path supplied to CompileFilter()
+	 * @param InFilter The input filter supplied to CompileFilter()
+	 * @param OutCompiledFilter The output filer supplied to CompileFilter()
+	 * @param SubPathEnumeration A function that calls its input function on all subpaths of the given input path, optionally recursive
+	 *
+	 * @return false if it's not possible to display any folders, otherwise true
+	 */
+	static bool CreatePathFilter(FAssetFilterInputParams& Params, FName InPath, const FContentBrowserDataFilter& InFilter, FContentBrowserDataCompiledFilter& OutCompiledFilter, FSubPathEnumerationFunc SubPathEnumeration);
+	/**
+	 * Call in CompileFilter() after CreatePathFilter() to fill OutCompiledFilter with an FContentBrowserCompiledAssetDataFilter capable of filtering assets
+	 *
+	 * @param Params The params generated from PopulateAssetFilterInputParams()
+	 * @param InPath The input path supplied to CompileFilter()
+	 * @param InFilter The input filter supplied to CompileFilter()
+	 * @param OutCompiledFilter The output filer supplied to CompileFilter()
+	 * @param CreateCompiledFilter A function that generates an FARCompiledFilter from an input FARFilter
+	 *
+	 * @return false if it's not possible to display any assets, otherwise true
+	 */
+	static bool CreateAssetFilter(FAssetFilterInputParams& Params, FName InPath, const FContentBrowserDataFilter& InFilter, FContentBrowserDataCompiledFilter& OutCompiledFilter, FCompileARFilterFunc CreateCompiledFilter);
+	/**
+	 * Call in EnumerateItemsMatchingFilter() to generate a list of folders that match the compiled filter.
+	 * It is the caller's responsibility to verify EContentBrowserItemTypeFilter::IncludeFolders is set before enumerating.
+	 *
+	 * @param DataSource The DataSource that EnumerateItemsMatchingFilter is being called on
+	 * @param AssetDataFilter The filter to use when deciding whether a path is a valid folder
+	 * @param InCallback The callback function supplied by EnumerateItemsMatchingFilter()
+	 * @param SubPathEnumeration A function that calls its input function on all subpaths of the given input path, optionally recursive
+	 * @param CreateFolderItem A function that generates an FContentBrowserItemData folder for the given input path
+	 *
+	 * @return 
+	 */
+	static void EnumerateFoldersMatchingFilter(UContentBrowserDataSource* DataSource, const FContentBrowserCompiledAssetDataFilter* AssetDataFilter, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback, FSubPathEnumerationFunc SubPathEnumeration, FCreateFolderItemFunc CreateFolderItem);
+	/**
+	 * Call in DoesItemPassFilter() to check if a folder passes the compiled asset data filter.
+	 * It is the caller's responsibility to verify EContentBrowserItemTypeFilter::IncludeFolders is set before enumerating.
+	 * 
+	 * @param DataSource The DataSource that DoesItemPassFilter() is being called on
+	 * @param InItem The folder item to test against the filter supplied by DoesItemPassFilter()
+	 * @param Filter The compiled filter to test with supplied by DoesItemPassFilter()
+	 *
+	 * @return true if the folder passes the filter
+	 */
+	static bool DoesItemPassFolderFilter(UContentBrowserDataSource* DataSource, const FContentBrowserItemData& InItem, const FContentBrowserCompiledAssetDataFilter& Filter);
 
 	virtual void CompileFilter(const FName InPath, const FContentBrowserDataFilter& InFilter, FContentBrowserDataCompiledFilter& OutCompiledFilter) override;
 
@@ -154,15 +248,17 @@ public:
 
 	virtual bool Legacy_TryConvertAssetDataToVirtualPath(const FAssetData& InAssetData, const bool InUseFolderPaths, FName& OutPath) override;
 
+	static bool PathPassesCompiledDataFilter(const FContentBrowserCompiledAssetDataFilter& InFilter, const FName InPath);
+
 protected:
-	virtual void EnumerateRootPaths(const FContentBrowserDataFilter& InFilter, TFunctionRef<void(FName)> InCallback) override;
+	virtual void BuildRootPathVirtualTree() override;
 
 private:
 	bool IsKnownContentPath(const FName InPackagePath) const;
 
 	bool IsRootContentPath(const FName InPackagePath) const;
 
-	bool GetObjectPathsForCollections(TArrayView<const FCollectionNameType> InCollections, const bool bIncludeChildCollections, TArray<FName>& OutObjectPaths) const;
+	static bool GetObjectPathsForCollections(ICollectionManager* CollectionManager, TArrayView<const FCollectionNameType> InCollections, const bool bIncludeChildCollections, TArray<FName>& OutObjectPaths);
 
 	FContentBrowserItemData CreateAssetFolderItem(const FName InFolderPath);
 

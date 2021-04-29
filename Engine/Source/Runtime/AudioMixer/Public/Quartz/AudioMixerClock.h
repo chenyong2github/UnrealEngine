@@ -65,7 +65,11 @@ namespace Audio
 		// shutdown
 		void Shutdown();
 
-		// tick the clock
+		// low-resolution clock update
+		// (not sample-accurate!, useful when running without an Audio Device)
+		void LowResolutionTick(float InDeltaTimeSeconds);
+
+		// sample accurate clock update
 		void Tick(int32 InNumFramesUntilNextTick);
 
 		// Set the sample rate of the clock

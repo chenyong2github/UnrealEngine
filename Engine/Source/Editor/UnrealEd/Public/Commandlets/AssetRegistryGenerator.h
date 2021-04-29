@@ -179,6 +179,15 @@ public:
 	typedef TArray<const FAssetData*, TInlineAllocator<1>> FCreateOrFindArray;
 	FCreateOrFindArray CreateOrFindAssetDatas(const UPackage& Package);
 
+	/**
+	 * Updates all asset package flags in the specified package
+	 *
+	 * @param PackageName The name of the package
+	 * @param PackageFlags Package flags to set
+	 * @return True if any assets exists in the package
+	 */
+	bool UpdateAssetPackageFlags(const FName& PackageName, const uint32 PackageFlags);
+
 private:
 
 	/** State of the asset registry that is being built for this platform */

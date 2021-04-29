@@ -8,7 +8,7 @@ DebugViewModeInterface.cpp: Contains definitions for rendering debug viewmodes.
 #include "Materials/Material.h"
 #include "RHIStaticStates.h"
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if ENABLE_DRAW_DEBUG
 
 FDebugViewModeInterface* FDebugViewModeInterface::Singletons[DVSM_MAX] = {}; // Init to null.
 
@@ -59,5 +59,5 @@ bool FDebugViewModeInterface::AllowFallbackToDefaultMaterial(const FMaterial* In
 }
 
 
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // ENABLE_DRAW_DEBUG
 

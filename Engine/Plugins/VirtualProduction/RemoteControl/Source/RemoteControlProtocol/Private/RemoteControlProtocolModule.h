@@ -4,6 +4,7 @@
 
 #include "IRemoteControlProtocolModule.h"
 
+REMOTECONTROLPROTOCOL_API DECLARE_LOG_CATEGORY_EXTERN(LogRemoteControlProtocol, Log, All);
 
 class FRemoteControlProtocolModule : public IRemoteControlProtocolModule
 {

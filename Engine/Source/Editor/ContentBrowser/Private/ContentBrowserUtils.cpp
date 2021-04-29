@@ -62,6 +62,17 @@
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
+namespace ContentBrowserUtils
+{
+	/** Converts a virtual path such as /All/Plugins -> /Plugins or /All/Game -> /Game */
+	FString ConvertVirtualPathToInvariantPathString(const FString& VirtualPath)
+	{
+		FName ConvertedPath;
+		IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(FName(VirtualPath), ConvertedPath);
+		return ConvertedPath.ToString();
+	}
+}
+
 class SContentBrowserPopup : public SCompoundWidget
 {
 public:
@@ -631,31 +642,24 @@ bool ContentBrowserUtils::CanRenameFromPathView(TWeakPtr<SPathView> PathView)
 
 bool ContentBrowserUtils::IsFavoriteFolder(const FString& FolderPath)
 {
-	return FContentBrowserSingleton::Get().FavoriteFolderPaths.Contains(FolderPath);
+	return FContentBrowserSingleton::Get().FavoriteFolderPaths.Contains(ConvertVirtualPathToInvariantPathString(FolderPath));
 }
 
 void ContentBrowserUtils::AddFavoriteFolder(const FString& FolderPath, bool bFlushConfig /*= true*/)
 {
-	FContentBrowserSingleton::Get().FavoriteFolderPaths.AddUnique(FolderPath);
+	FContentBrowserSingleton::Get().FavoriteFolderPaths.AddUnique(ConvertVirtualPathToInvariantPathString(FolderPath));
 }
 
 void ContentBrowserUtils::RemoveFavoriteFolder(const FString& FolderPath, bool bFlushConfig /*= true*/)
 {
-	TArray<FString> FoldersToRemove;
-	FoldersToRemove.Add(FolderPath);
-	
+	FString InvariantFolder = ConvertVirtualPathToInvariantPathString(FolderPath);
+
 	// Find and remove any subfolders
-	for (const FString& FavoritePath : FContentBrowserSingleton::Get().FavoriteFolderPaths)
+	FContentBrowserSingleton::Get().FavoriteFolderPaths.RemoveAll([&InvariantFolder](const FString& FavoritePath)
 	{
-		if (FavoritePath.StartsWith(FolderPath + TEXT("/")))
-		{
-			FoldersToRemove.Add(FavoritePath);
-		}
-	}
-	for (const FString& FolderToRemove : FoldersToRemove)
-	{
-		FContentBrowserSingleton::Get().FavoriteFolderPaths.Remove(FolderToRemove);
-	}
+		return FavoritePath.StartsWith(InvariantFolder) && (FavoritePath.Len() <= InvariantFolder.Len() || FavoritePath[InvariantFolder.Len()] == TEXT('/'));
+	});
+
 	if (bFlushConfig)
 	{
 		GConfig->Flush(false, GEditorPerProjectIni);

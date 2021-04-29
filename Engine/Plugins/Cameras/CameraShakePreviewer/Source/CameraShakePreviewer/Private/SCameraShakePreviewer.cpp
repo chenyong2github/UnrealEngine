@@ -63,6 +63,10 @@ struct FCameraShakeData
 	{
 		Collector.AddReferencedObject(ShakeInstance);
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FCameraShakeData");
+	}
 };
 
 FCameraShakePreviewUpdater::FCameraShakePreviewUpdater()

@@ -300,6 +300,7 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 	// build render data for each LOD
 	for (int32 LodIndex = 0; LodIndex < NumSourceModels; ++LodIndex)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("FStaticMeshBuilder::Build LOD");
 		SlowTask.EnterProgressFrame(1);
 		FScopedSlowTask BuildLODSlowTask(3);
 		BuildLODSlowTask.EnterProgressFrame(1);
@@ -369,6 +370,8 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		// TODO: Skip all LOD reduction for Nanite?
 		if (bUseReduction && (!bNaniteBuildEnabled || LodIndex != 0))
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE_STR("FStaticMeshBuilder::Build - Reduce LOD");
+			
 			float OverlappingThreshold = LODBuildSettings.bRemoveDegenerates ? THRESH_POINTS_ARE_SAME : 0.0f;
 			FOverlappingCorners OverlappingCorners;
 			FStaticMeshOperations::FindOverlappingCorners(OverlappingCorners, MeshDescriptions[BaseReduceLodIndex], OverlappingThreshold);
@@ -547,13 +550,17 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 
 	} //End of LOD for loop
 
-	// Calculate the bounding box of LOD0 buffer
-	FPositionVertexBuffer& BasePositionVertexBuffer = StaticMeshRenderData.LODResources[0].VertexBuffers.PositionVertexBuffer;
-	ComputeBoundsFromPositionBuffer(BasePositionVertexBuffer, StaticMeshRenderData.Bounds.Origin, StaticMeshRenderData.Bounds.BoxExtent, StaticMeshRenderData.Bounds.SphereRadius);
-	// combine with high-res bounds if it was computed
-	if (bHaveHiResBounds)
 	{
-		StaticMeshRenderData.Bounds = StaticMeshRenderData.Bounds + HiResBounds;
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("FStaticMeshBuilder::Build - Calculate Bounds");
+
+		// Calculate the bounding box of LOD0 buffer
+		FPositionVertexBuffer& BasePositionVertexBuffer = StaticMeshRenderData.LODResources[0].VertexBuffers.PositionVertexBuffer;
+		ComputeBoundsFromPositionBuffer(BasePositionVertexBuffer, StaticMeshRenderData.Bounds.Origin, StaticMeshRenderData.Bounds.BoxExtent, StaticMeshRenderData.Bounds.SphereRadius);
+		// combine with high-res bounds if it was computed
+		if (bHaveHiResBounds)
+		{
+			StaticMeshRenderData.Bounds = StaticMeshRenderData.Bounds + HiResBounds;
+		}
 	}
 
 

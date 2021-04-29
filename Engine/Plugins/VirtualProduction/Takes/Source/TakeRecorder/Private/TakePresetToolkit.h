@@ -42,6 +42,10 @@ private:
 	virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager) override {}
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FTakePresetToolkit");
+	}
 
 private:
 

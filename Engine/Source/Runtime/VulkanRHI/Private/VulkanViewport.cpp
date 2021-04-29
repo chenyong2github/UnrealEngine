@@ -127,6 +127,7 @@ FVulkanViewport::FVulkanViewport(FVulkanDynamicRHI* InRHI, FVulkanDevice* InDevi
 	, SwapChain(nullptr)
 	, WindowHandle(InWindowHandle)
 	, PresentCount(0)
+	, bRenderOffscreen(false)
 	, LockToVsync(1)
 	, AcquiredSemaphore(nullptr)
 {
@@ -137,9 +138,10 @@ FVulkanViewport::FVulkanViewport(FVulkanDynamicRHI* InRHI, FVulkanDevice* InDevi
 	// Make sure Instance is created
 	RHI->InitInstance();
 
+	bRenderOffscreen = FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen"));
 	CreateSwapchain(nullptr);
 
-	if (FVulkanPlatform::SupportsStandardSwapchain())
+	if (SupportsStandardSwapchain())
 	{
 		for (int32 Index = 0, NumBuffers = RenderingDoneSemaphores.Num(); Index < NumBuffers; ++Index)
 		{
@@ -159,7 +161,7 @@ FVulkanViewport::~FVulkanViewport()
 		RHIBackBuffer = nullptr;
 	}
 	
-	if (FVulkanPlatform::SupportsStandardSwapchain())
+	if (SupportsStandardSwapchain())
 	{
 		for (int32 Index = 0, NumBuffers = RenderingDoneSemaphores.Num(); Index < NumBuffers; ++Index)
 		{
@@ -247,7 +249,7 @@ FTexture2DRHIRef FVulkanViewport::GetBackBuffer(FRHICommandListImmediate& RHICmd
 	// make sure we aren't in the middle of swapchain recreation (which can happen on e.g. RHI thread)
 	FScopeLock LockSwapchain(&RecreatingSwapchain);
 
-	if (FVulkanPlatform::SupportsStandardSwapchain() && GVulkanDelayAcquireImage != EDelayAcquireImageType::DelayAcquire)
+	if (SupportsStandardSwapchain() && GVulkanDelayAcquireImage != EDelayAcquireImageType::DelayAcquire)
 	{
 		check(RHICmdList.IsImmediate());
 		check(RHIBackBuffer);
@@ -267,7 +269,7 @@ void FVulkanViewport::AdvanceBackBufferFrame(FRHICommandListImmediate& RHICmdLis
 {
 	check(IsInRenderingThread());
 
-	if (FVulkanPlatform::SupportsStandardSwapchain() && GVulkanDelayAcquireImage != EDelayAcquireImageType::DelayAcquire)
+	if (SupportsStandardSwapchain() && GVulkanDelayAcquireImage != EDelayAcquireImageType::DelayAcquire)
 	{
 		check(RHIBackBuffer);
 		
@@ -620,7 +622,7 @@ void FVulkanViewport::RecreateSwapchainFromRT(EPixelFormat PreferredPixelFormat)
 
 void FVulkanViewport::CreateSwapchain(FVulkanSwapChainRecreateInfo* RecreateInfo)
 {
-	if (FVulkanPlatform::SupportsStandardSwapchain())
+	if (SupportsStandardSwapchain())
 	{
 		uint32 DesiredNumBackBuffers = NUM_BUFFERS;
 
@@ -672,7 +674,7 @@ void FVulkanViewport::CreateSwapchain(FVulkanSwapChainRecreateInfo* RecreateInfo
 	}
 	else
 	{
-		PixelFormat = FVulkanPlatform::GetPixelFormatForNonDefaultSwapchain();
+		PixelFormat = GetPixelFormatForNonDefaultSwapchain();
 		if (RecreateInfo != nullptr)
 		{
 			if(RecreateInfo->SwapChain)
@@ -688,10 +690,10 @@ void FVulkanViewport::CreateSwapchain(FVulkanSwapChainRecreateInfo* RecreateInfo
 		}
 	}
 
-	if (!FVulkanPlatform::SupportsStandardSwapchain() || GVulkanDelayAcquireImage == EDelayAcquireImageType::DelayAcquire)
+	if (!SupportsStandardSwapchain() || GVulkanDelayAcquireImage == EDelayAcquireImageType::DelayAcquire)
 	{
-		uint32 BackBufferSizeX = FVulkanPlatform::RequiresRenderingBackBuffer() ? SizeX : 1;
-		uint32 BackBufferSizeY = FVulkanPlatform::RequiresRenderingBackBuffer() ? SizeY : 1;
+		uint32 BackBufferSizeX = RequiresRenderingBackBuffer() ? SizeX : 1;
+		uint32 BackBufferSizeY = RequiresRenderingBackBuffer() ? SizeY : 1;
 
 		RenderingBackBuffer = new FVulkanTexture2D(*Device, PixelFormat, BackBufferSizeX, BackBufferSizeY, 1, 1, TexCreate_RenderTargetable | TexCreate_ShaderResource, ERHIAccess::Present, FRHIResourceCreateInfo(TEXT("RenderingBackBuffer")));
 #if VULKAN_ENABLE_DRAW_MARKERS
@@ -719,7 +721,7 @@ void FVulkanViewport::DestroySwapchain(FVulkanSwapChainRecreateInfo* RecreateInf
 		RHIBackBuffer = nullptr;
 	}
 		
-	if (FVulkanPlatform::SupportsStandardSwapchain() && SwapChain)
+	if (SupportsStandardSwapchain() && SwapChain)
 	{
 		for (int32 Index = 0, NumBuffers = BackBufferImages.Num(); Index < NumBuffers; ++Index)
 		{
@@ -817,7 +819,7 @@ bool FVulkanViewport::Present(FVulkanCommandListContext* Context, FVulkanCmdBuff
 	//Transition back buffer to presentable and submit that command
 	check(CmdBuffer->IsOutsideRenderPass());
 
-	if (FVulkanPlatform::SupportsStandardSwapchain())
+	if (SupportsStandardSwapchain())
 	{
 		if (GVulkanDelayAcquireImage == EDelayAcquireImageType::DelayAcquire && RenderingBackBuffer)
 		{
@@ -852,7 +854,7 @@ bool FVulkanViewport::Present(FVulkanCommandListContext* Context, FVulkanCmdBuff
 	FVulkanCommandBufferManager* ImmediateCmdBufMgr = Device->GetImmediateContext().GetCommandBufferManager();
 	ImmediateCmdBufMgr->FlushResetQueryPools();
 	checkf(ImmediateCmdBufMgr->GetActiveCmdBufferDirect() == CmdBuffer, TEXT("Present() is submitting something else than the active command buffer"));
-	if (FVulkanPlatform::SupportsStandardSwapchain())
+	if (SupportsStandardSwapchain())
 	{
 		if (LIKELY(!bFailedToDelayAcquireBackbuffer))
 		{
@@ -904,7 +906,7 @@ bool FVulkanViewport::Present(FVulkanCommandListContext* Context, FVulkanCmdBuff
 	}
 
 	bool bResult = false;
-	if (bNeedNativePresent && (!FVulkanPlatform::SupportsStandardSwapchain() || GVulkanDelayAcquireImage == EDelayAcquireImageType::DelayAcquire || RHIBackBuffer != nullptr))
+	if (bNeedNativePresent && (!SupportsStandardSwapchain() || GVulkanDelayAcquireImage == EDelayAcquireImageType::DelayAcquire || RHIBackBuffer != nullptr))
 	{
 		// Present the back buffer to the viewport window.
 		auto SwapChainJob = [Queue, PresentQueue](FVulkanViewport* Viewport)
@@ -917,7 +919,7 @@ bool FVulkanViewport::Present(FVulkanCommandListContext* Context, FVulkanCmdBuff
 			}
 			return (int32)Viewport->SwapChain->Present(Queue, PresentQueue, Viewport->RenderingDoneSemaphores[Viewport->AcquiredImageIndex]);
 		};
-		if (FVulkanPlatform::SupportsStandardSwapchain() && !DoCheckedSwapChainJob(SwapChainJob))
+		if (SupportsStandardSwapchain() && !DoCheckedSwapChainJob(SwapChainJob))
 		{
 			UE_LOG(LogVulkanRHI, Fatal, TEXT("Swapchain present failed!"));
 			bResult = false;
@@ -972,6 +974,29 @@ VkSurfaceTransformFlagBitsKHR FVulkanViewport::GetSwapchainQCOMRenderPassTransfo
 VkFormat FVulkanViewport::GetSwapchainImageFormat() const
 {
 	return SwapChain->ImageFormat;
+}
+
+bool FVulkanViewport::SupportsStandardSwapchain()
+{
+	return !bRenderOffscreen && !RHI->bIsStandaloneStereoDevice;
+}
+
+bool FVulkanViewport::RequiresRenderingBackBuffer()
+{
+	return !RHI->bIsStandaloneStereoDevice;
+}
+
+EPixelFormat FVulkanViewport::GetPixelFormatForNonDefaultSwapchain()
+{
+	if (bRenderOffscreen || RHI->bIsStandaloneStereoDevice)
+	{
+		return PF_R8G8B8A8;
+	}
+	else
+	{
+		checkf(0, TEXT("Platform Requires Standard Swapchain!"));
+		return PF_Unknown;
+	}
 }
 
 /*=============================================================================

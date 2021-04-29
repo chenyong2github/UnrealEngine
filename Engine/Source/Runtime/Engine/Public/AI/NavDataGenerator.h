@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "AI/Navigation/NavigationTypes.h"
+#include "EngineDefines.h"
 
 class ENGINE_API FNavDataGenerator : public TSharedFromThis<FNavDataGenerator, ESPMode::ThreadSafe>
 {
@@ -53,7 +54,7 @@ public:
 	//----------------------------------------------------------------------//
 	virtual uint32 LogMemUsed() const { return 0; }
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if ENABLE_VISUAL_LOG
 	virtual void ExportNavigationData(const FString& FileName) const {}
 	virtual void GrabDebugSnapshot(struct FVisualLogEntry* Snapshot, const FBox& BoundingBox, const FName& CategoryName, ELogVerbosity::Type Verbosity) const {}
 

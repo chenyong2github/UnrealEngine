@@ -127,9 +127,6 @@ public:
 	/** Toggle constraining the time cursor to the playback range while scrubbing */
 	TSharedPtr< FUICommandInfo > ToggleKeepCursorInPlaybackRangeWhileScrubbing;
 
-	/** Toggle constraining the time cursor to the playback range during playback */
-	TSharedPtr< FUICommandInfo > ToggleKeepCursorInPlaybackRange;
-
 	/** Toggle constraining the playback range to the section bounds */
 	TSharedPtr< FUICommandInfo > ToggleKeepPlaybackRangeInSectionBounds;
 
@@ -155,7 +152,7 @@ public:
 	TSharedPtr< FUICommandInfo > SetSelectionRangeStart;
 
 	/** Clear and reset the selection range */
-	TSharedPtr< FUICommandInfo > ResetSelectionRange;
+	TSharedPtr< FUICommandInfo > ClearSelectionRange;
 
 	/** Select all keys that fall into the selection range*/
 	TSharedPtr< FUICommandInfo > SelectKeysInSelectionRange;
@@ -283,6 +280,12 @@ public:
 	/** Sets the tree search widget as the focused widget in Slate for easy typing. */
 	TSharedPtr< FUICommandInfo > QuickTreeSearch;
 
+	/** Move selected nodes to new folder. */
+	TSharedPtr< FUICommandInfo > MoveToNewFolder;
+
+	/** Remove selected nodes from folder. */
+	TSharedPtr< FUICommandInfo > RemoveFromFolder;
+
 	/** Bake transform. */
 	TSharedPtr< FUICommandInfo > BakeTransform;
 
@@ -382,9 +385,6 @@ public:
 	/** Rebinds all possessable references with their current bindings. */
 	TSharedPtr< FUICommandInfo > RebindPossessableReferences;
 
-	/** Record the selected actors into a sub sequence of the currently active sequence */
-	TSharedPtr< FUICommandInfo > RecordSelectedActors;
-
 	/** Imports animation from fbx. */
 	TSharedPtr< FUICommandInfo > ImportFBX;
 
@@ -409,7 +409,8 @@ public:
 	/** Sets a scale key at the current time for the selected actor */
 	TSharedPtr< FUICommandInfo > AddScaleKey;
 
-
+	/** Toggle piloting the last camera or the camera cut camera */
+	TSharedPtr< FUICommandInfo > TogglePilotCamera;
 
 	/**
 	 * Initialize commands

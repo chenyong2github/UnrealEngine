@@ -12,9 +12,11 @@
 
 #include "Components/DisplayClusterScreenComponent.h"
 
+#include "Render/Viewport/IDisplayClusterViewport.h"
 
-FDisplayClusterProjectionManualPolicy::FDisplayClusterProjectionManualPolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters)
-	: FDisplayClusterProjectionPolicyBase(ViewportId, Parameters)
+
+FDisplayClusterProjectionManualPolicy::FDisplayClusterProjectionManualPolicy(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
+	: FDisplayClusterProjectionPolicyBase(ProjectionPolicyId, InConfigurationProjectionPolicy)
 {
 }
 
@@ -26,27 +28,19 @@ FDisplayClusterProjectionManualPolicy::~FDisplayClusterProjectionManualPolicy()
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicy
 //////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterProjectionManualPolicy::StartScene(UWorld* World)
-{
-	check(IsInGameThread());
-}
-
-void FDisplayClusterProjectionManualPolicy::EndScene()
-{
-	check(IsInGameThread());
-}
-
-bool FDisplayClusterProjectionManualPolicy::HandleAddViewport(const FIntPoint& ViewportSize, const uint32 ViewsAmount)
+bool FDisplayClusterProjectionManualPolicy::HandleStartScene(class IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
 
-	UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Initializing internals for the viewport '%s'"), *GetViewportId());
+	UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Initializing internals for the viewport '%s'"), *InViewport->GetId());
 
 	// Get view rotation
 	if (!DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::Rotation), ViewRotation))
 	{
-		UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("No rotation specified for projection policy of viewport '%s'"), *GetViewportId());
+		UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("No rotation specified for projection policy of viewport '%s'"), *InViewport->GetId());
 	}
+
+	static const int ViewsAmount = 2;
 
 	// Get matrix data
 	bool bDataTypeDetermined = false;
@@ -108,24 +102,22 @@ bool FDisplayClusterProjectionManualPolicy::HandleAddViewport(const FIntPoint& V
 
 	if (!bDataTypeDetermined)
 	{
-		UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("No mandatory data specified for projection policy of viewport '%s'"), *GetViewportId());
+		UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("No mandatory data specified for projection policy of viewport '%s'"), *InViewport->GetId());
 		return false;
 	}
 
 	return true;
 }
 
-void FDisplayClusterProjectionManualPolicy::HandleRemoveViewport()
+void FDisplayClusterProjectionManualPolicy::HandleEndScene(class IDisplayClusterViewport* InViewport)
 {
-	check(IsInGameThread());
-
-	UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Removing viewport '%s'"), *GetViewportId());
+	
 }
 
-bool FDisplayClusterProjectionManualPolicy::CalculateView(const uint32 ViewIdx, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& InViewOffset, const float InWorldToMeters, const float InNCP, const float InFCP)
+bool FDisplayClusterProjectionManualPolicy::CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& InViewOffset, const float InWorldToMeters, const float InNCP, const float InFCP)
 {
 	check(IsInGameThread());
-	check(ViewIdx < 2);
+	check(InContextNum < 2);
 
 	// Add local rotation specified in config
 	InOutViewRotation += ViewRotation;
@@ -137,22 +129,24 @@ bool FDisplayClusterProjectionManualPolicy::CalculateView(const uint32 ViewIdx, 
 	return true;
 }
 
-bool FDisplayClusterProjectionManualPolicy::GetProjectionMatrix(const uint32 ViewIdx, FMatrix& OutPrjMatrix)
+bool FDisplayClusterProjectionManualPolicy::GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix)
 {
 	check(IsInGameThread());
-	check(ViewIdx < 2);
+	check(InContextNum < 2);
 
 	bool bResult = false;
 
 	switch (DataType)
 	{
 	case EManualDataType::Matrix:
-		OutPrjMatrix = ProjectionMatrix[ViewIdx];
+		OutPrjMatrix = ProjectionMatrix[InContextNum];
 		bResult = true;
 		break;
 
 	case EManualDataType::FrustumAngles:
-		OutPrjMatrix = DisplayClusterHelpers::math::GetProjectionMatrixFromAngles(FrustumAngles[ViewIdx].Left, FrustumAngles[ViewIdx].Right, FrustumAngles[ViewIdx].Top, FrustumAngles[ViewIdx].Bottom, NCP, FCP);
+		InViewport->CalculateProjectionMatrix(InContextNum, FrustumAngles[InContextNum].Left, FrustumAngles[InContextNum].Right, FrustumAngles[InContextNum].Top, FrustumAngles[InContextNum].Bottom, NCP, FCP, true);
+		OutPrjMatrix = InViewport->GetContexts()[InContextNum].ProjectionMatrix;
+
 		bResult = true;
 		break;
 

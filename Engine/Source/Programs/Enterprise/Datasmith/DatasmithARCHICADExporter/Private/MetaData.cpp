@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MetaData.h"
-#include "ElementTools.h"
+#include "Utils/ElementTools.h"
 #include "Version.h"
+#include "SyncData.h"
 
 BEGIN_NAMESPACE_UE_AC
 
@@ -51,21 +52,12 @@ inline bool IsEqual(const TSharedPtr< IDatasmithMetaDataElement >& InMetaData1,
 	return true;
 }
 
-FMetaData::FMetaData(const GS::Guid& InElementId)
-	: ElementId(InElementId)
-	, MetaData(FDatasmithSceneFactory::CreateMetaData(TEXT("")))
+FMetaData::FMetaData(const TSharedPtr< IDatasmithElement >& InElement)
+	: MetaData(FDatasmithSceneFactory::CreateMetaData(TEXT("")))
 {
-	MetaData->SetName(*FString::Printf(TEXT("MetaData_%s"), GSStringToUE(ElementId.ToUniString())));
-}
-
-FMetaData::FMetaData(const GS::Guid& InElementId, const TSharedPtr< IDatasmithActorElement >& InActorElement)
-	: ElementId(InElementId)
-	, MetaData(FDatasmithSceneFactory::CreateMetaData(TEXT("")))
-{
-	UE_AC_Assert(InActorElement.IsValid());
-	UE_AC_Assert(FCString::Strcmp(GSStringToUE(ElementId.ToUniString()), InActorElement->GetName()) == 0);
-	MetaData->SetName(*FString::Printf(TEXT("MetaData_%s"), InActorElement->GetName()));
-	MetaData->SetAssociatedElement(InActorElement);
+	UE_AC_Assert(InElement.IsValid());
+	MetaData->SetAssociatedElement(InElement);
+	MetaData->SetName(*FString::Printf(TEXT("MetaData_%s"), InElement->GetName()));
 }
 
 void FMetaData::SetOrUpdate(TSharedPtr< IDatasmithMetaDataElement >* IOPtr, IDatasmithScene* IOScene)
@@ -114,13 +106,15 @@ void FMetaData::AddProperty(const TCHAR* InPropKey, EDatasmithKeyValuePropertyTy
 	MetaData->AddProperty(MetaDataProperty);
 }
 
-void FMetaData::ExportMetaData()
+void FMetaData::ExportMetaData(const GS::Guid& InElementId)
 {
-	ExportElementIDProperty();
-	ExportClassifications();
-	ExportCategories();
-	ExportIFCProperties();
-	ExportIFCAttributes();
+	UE_AC_Assert(FString::Printf(TEXT("MetaData_%s"), GSStringToUE(InElementId.ToUniString())) == MetaData->GetName());
+	const API_Guid& ElementId(GSGuid2APIGuid(InElementId));
+	ExportElementIDProperty(ElementId);
+	ExportClassifications(ElementId);
+	ExportCategories(ElementId);
+	ExportIFCProperties(ElementId);
+	ExportIFCAttributes(ElementId);
 }
 
 void FMetaData::AddMetaDataProperty(API_VariantType variantType, const GS::UniString& PropertyKey,
@@ -163,21 +157,21 @@ void FMetaData::AddMetaDataProperty(API_VariantType variantType, const GS::UniSt
 	MetaData->AddProperty(metaDataProperty);
 }
 
-void FMetaData::ExportElementIDProperty()
+void FMetaData::ExportElementIDProperty(const API_Guid& ElementId)
 {
 	API_ElementMemo Memo;
 	Zap(&Memo);
-	GSErrCode GSErr = ACAPI_Element_GetMemo(GSGuid2APIGuid(ElementId), &Memo, APIMemoMask_ElemInfoString);
+	GSErrCode GSErr = ACAPI_Element_GetMemo(ElementId, &Memo, APIMemoMask_ElemInfoString);
 	if (GSErr == NoError && Memo.elemInfoString != nullptr)
 	{
 		AddMetaDataProperty(API_PropertyStringValueType, "ID", *Memo.elemInfoString);
 	}
 }
 
-void FMetaData::ExportClassifications()
+void FMetaData::ExportClassifications(const API_Guid& ElementId)
 {
 	GS::Array< GS::Pair< API_ClassificationSystem, API_ClassificationItem > > ApiClassifications;
-	GSErrCode GSErr = FElementTools::GetElementClassifications(ApiClassifications, GSGuid2APIGuid(ElementId));
+	GSErrCode GSErr = FElementTools::GetElementClassifications(ApiClassifications, ElementId);
 
 	if (GSErr == NoError)
 	{
@@ -198,7 +192,7 @@ void FMetaData::ExportClassifications()
 	}
 }
 
-void FMetaData::ExportCategories()
+void FMetaData::ExportCategories(const API_Guid& ElementId)
 {
 	static const GS::UniString StringCategory("CAT_");
 
@@ -209,7 +203,7 @@ void FMetaData::ExportCategories()
 		for (const API_ElemCategory& Category : CategoryList)
 		{
 			API_ElemCategoryValue ElemCategoryValue;
-			GSErr = ACAPI_Element_GetCategoryValue(GSGuid2APIGuid(ElementId), Category, &ElemCategoryValue);
+			GSErr = ACAPI_Element_GetCategoryValue(ElementId, Category, &ElemCategoryValue);
 			if (GSErr == NoError)
 			{
 				AddMetaDataProperty(API_PropertyStringValueType,
@@ -232,14 +226,14 @@ void FMetaData::ExportCategories()
 	}
 }
 
-void FMetaData::ExportIFCProperties()
+void FMetaData::ExportIFCProperties(const API_Guid& ElementId)
 {
 	static const GS::UniString StringIFC("IFC_");
 	static const GS::UniString StringLower("_lower");
 	static const GS::UniString StringUpper("_upper");
 
 	GS::Array< API_IFCProperty > IFCProperties;
-	GSErrCode GSErr = ACAPI_Element_GetIFCProperties(GSGuid2APIGuid(ElementId), false, &IFCProperties);
+	GSErrCode					 GSErr = ACAPI_Element_GetIFCProperties(ElementId, false, &IFCProperties);
 	if (GSErr == NoError)
 	{
 		for (const API_IFCProperty& IFCProperty : IFCProperties)
@@ -305,12 +299,12 @@ void FMetaData::ExportIFCProperties()
 	}
 }
 
-void FMetaData::ExportIFCAttributes()
+void FMetaData::ExportIFCAttributes(const API_Guid& ElementId)
 {
 	static const GS::UniString StringIFCAttribute("IFC_Attribute_");
 
 	GS::Array< API_IFCAttribute > IFCAttributes;
-	GSErrCode GSErr = ACAPI_Element_GetIFCAttributes(GSGuid2APIGuid(ElementId), false, &IFCAttributes);
+	GSErrCode					  GSErr = ACAPI_Element_GetIFCAttributes(ElementId, false, &IFCAttributes);
 	if (GSErr == NoError)
 	{
 		for (const API_IFCAttribute& IfcAttribute : IFCAttributes)
@@ -328,13 +322,13 @@ void FMetaData::ExportIFCAttributes()
 	}
 }
 
-void FMetaData::ExportProperties()
+void FMetaData::ExportProperties(const API_Guid& ElementId)
 {
 	static const GS::UniString StringProperty("PROP_");
 
 	GS::Array< API_Property > Properties;
 
-	GSErrCode GSErr = FElementTools::GetElementProperties(Properties, GSGuid2APIGuid(ElementId));
+	GSErrCode GSErr = FElementTools::GetElementProperties(Properties, ElementId);
 	if (GSErr == NoError)
 	{
 		for (const API_Property& Property : Properties)

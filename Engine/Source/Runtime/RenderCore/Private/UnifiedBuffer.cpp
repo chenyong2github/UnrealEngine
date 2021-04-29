@@ -338,7 +338,7 @@ RENDERCORE_API bool ResizeResourceIfNeeded<FTextureRWBuffer2D>(FRHICommandList& 
 	{
 		FTextureRWBuffer2D NewTexture;
 		NewTexture.Initialize(DebugName, BytesPerElement, Float4sPerLine, NumLines, PF_A32B32G32R32F, TexCreate_RenderTargetable | TexCreate_UAV);
-		MemcpyResource(RHICmdList, NewTexture, Texture, 0, 0, NumBytes);
+		MemcpyResource(RHICmdList, NewTexture, Texture, NumBytes, 0, 0);
 		Texture = NewTexture;
 		return true;
 	}

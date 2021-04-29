@@ -91,7 +91,6 @@ public class LevelEditor : ModuleRules
 				"ClassViewer",
 				"DeviceManager",
 				"SettingsEditor",
-				"SessionFrontend",
 				"SlateReflector",
 				"AutomationWindow",
 				"Layers",
@@ -113,7 +112,13 @@ public class LevelEditor : ModuleRules
 			}
 		);
 
-		if(Target.bWithLiveCoding)
+		if (Target.bBuildTargetDeveloperTools)
+		{
+			DynamicallyLoadedModuleNames.Add("SessionFrontend");
+		}
+
+
+		if (Target.bWithLiveCoding)
 		{
 			PrivateIncludePathModuleNames.Add("LiveCoding");
 		}

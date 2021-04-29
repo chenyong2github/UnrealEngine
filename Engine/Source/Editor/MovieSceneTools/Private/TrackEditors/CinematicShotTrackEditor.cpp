@@ -455,10 +455,9 @@ void FCinematicShotTrackEditor::DuplicateShot(UMovieSceneCinematicShotSection* S
 }
 
 
-void FCinematicShotTrackEditor::RenderShot(UMovieSceneCinematicShotSection* Section)
+void FCinematicShotTrackEditor::RenderShots(const TArray<UMovieSceneCinematicShotSection*>& Sections)
 {
-	GetSequencer()->RenderMovie(Section);
-
+	GetSequencer()->RenderMovie(Sections);
 }
 
 

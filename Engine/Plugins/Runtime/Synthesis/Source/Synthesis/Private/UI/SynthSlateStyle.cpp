@@ -17,7 +17,7 @@ void FSynthSlateStyleSet::Initialize()
 	if (!StyleInstance.IsValid())
 	{
 		StyleInstance = MakeShareable(new FSlateStyleSet("SynthesisStyle"));
-		StyleInstance->SetContentRoot(IPluginManager::Get().FindPlugin("Synthesis")->GetBaseDir() / TEXT("Resources"));
+		StyleInstance->SetContentRoot(IPluginManager::Get().FindPlugin(TEXT("Synthesis"))->GetBaseDir() / TEXT("Resources"));
 
 		FSlateStyleRegistry::RegisterSlateStyle(*StyleInstance);
 	}

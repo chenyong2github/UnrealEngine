@@ -3067,7 +3067,14 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 			{
 				FSavePackageResultStruct& SavePackageResult = SavePackageResults[iResultIndex];
 
-				if (SavePackageResult == ESavePackageResult::Success || SavePackageResult == ESavePackageResult::GenerateStub || SavePackageResult == ESavePackageResult::ReplaceCompletely)
+				// Update asset registry
+				if (CookByTheBookOptions)
+				{
+					FAssetRegistryGenerator* Generator = PlatformManager->GetPlatformData(PlatformsForPackage[iResultIndex])->RegistryGenerator.Get();
+					UpdateAssetRegistryPackageData(Generator, *Package, SavePackageResult);
+				}
+
+				if (SavePackageResult.IsSuccessful())
 				{
 					SucceededSavePackage.Add(true);
 					// Update flags used to determine garbage collection.
@@ -3079,13 +3086,6 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 					{
 						++StackData.CookedPackageCount;
 						StackData.ResultFlags |= COSR_CookedPackage;
-					}
-
-					// Update asset registry
-					if (CookByTheBookOptions)
-					{
-						FAssetRegistryGenerator* Generator = PlatformManager->GetPlatformData(PlatformsForPackage[iResultIndex])->RegistryGenerator.Get();
-						UpdateAssetRegistryPackageData(Generator, *Package, SavePackageResult);
 					}
 				}
 				else
@@ -3158,25 +3158,35 @@ void UCookOnTheFlyServer::UpdateAssetRegistryPackageData(FAssetRegistryGenerator
 	if (!Generator)
 		return;
 
-	// Ensure all assets in the package are recorded in the registry
-	Generator->CreateOrFindAssetDatas(Package);
+	const bool bSaveSucceeded = SavePackageResult.IsSuccessful();
 
-	const FName PackageName = Package.GetFName();
-	FAssetPackageData* AssetPackageData = Generator->GetAssetPackageData(PackageName);
-	AssetPackageData->DiskSize = SavePackageResult.TotalFileSize;
-	// If there is no hash (e.g.: when SavePackageResult == ESavePackageResult::ReplaceCompletely), don't attempt to setup a continuation to update
-	// the AssetRegistry entry with it later.  Just leave the asset registry entry with a default constructed FMD5Hash which is marked as invalid.
-	if (SavePackageResult.CookedHash.IsValid())
+	if (bSaveSucceeded)
 	{
-		SavePackageResult.CookedHash.Next([AssetPackageData](const FMD5Hash& CookedHash)
+		// Ensure all assets in the package are recorded in the registry
+		Generator->CreateOrFindAssetDatas(Package);
+
+		const FName PackageName = Package.GetFName();
+		FAssetPackageData* AssetPackageData = Generator->GetAssetPackageData(PackageName);
+		AssetPackageData->DiskSize = SavePackageResult.TotalFileSize;
+		// If there is no hash (e.g.: when SavePackageResult == ESavePackageResult::ReplaceCompletely), don't attempt to setup a continuation to update
+		// the AssetRegistry entry with it later.  Just leave the asset registry entry with a default constructed FMD5Hash which is marked as invalid.
+		if (SavePackageResult.CookedHash.IsValid())
 		{
-			// Store the cooked hash in the Asset Registry when it is done computing in another thread.
-			// NOTE: For this to work, we rely on:
-			// 1) UPackage::WaitForAsyncFileWrites to have been called before any use of the CookedHash - it is called in CookByTheBookFinished before the registry does any work with the registries
-			// 2) AssetPackageData must continue to be a valid pointer - the asset registry allocates the FAssetPackageData individually and doesn't relocate or delete them until pruning, which happens after WaitForAsyncFileWrites
-				AssetPackageData->CookedHash = CookedHash;
-		});
+			SavePackageResult.CookedHash.Next([AssetPackageData](const FMD5Hash& CookedHash)
+			{
+				// Store the cooked hash in the Asset Registry when it is done computing in another thread.
+				// NOTE: For this to work, we rely on:
+				// 1) UPackage::WaitForAsyncFileWrites to have been called before any use of the CookedHash - it is called in CookByTheBookFinished before the registry does any work with the registries
+				// 2) AssetPackageData must continue to be a valid pointer - the asset registry allocates the FAssetPackageData individually and doesn't relocate or delete them until pruning, which happens after WaitForAsyncFileWrites
+					AssetPackageData->CookedHash = CookedHash;
+			});
+		}
 	}
+
+	// Set the package flags to zero to indicate that the package failed to save
+	const uint32 PackageFlags = bSaveSucceeded ? SavePackageResult.SerializedPackageFlags : 0;
+	const bool bUpdated = Generator->UpdateAssetPackageFlags(Package.GetFName(), PackageFlags);
+	UE_CLOG(!bUpdated && bSaveSucceeded, LogCook, Warning, TEXT("Trying to update asset package flags in package '%s' that does not exist"), *Package.GetName());
 }
 
 void UCookOnTheFlyServer::PostLoadPackageFixup(UPackage* Package)
@@ -5785,6 +5795,7 @@ const FString ExtractPackageNameFromObjectPath( const FString ObjectPath )
 	return ObjectPath.Mid(Beginning + 1, End - Beginning - 1);
 }
 
+#if ASSET_REGISTRY_STATE_DUMPING_ENABLED
 void DumpAssetRegistryForCooker(IAssetRegistry* AssetRegistry)
 {
 	FString DumpDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() + TEXT("Reports/AssetRegistryStatePages"));
@@ -5805,6 +5816,8 @@ void DumpAssetRegistryForCooker(IAssetRegistry* AssetRegistry)
 		FFileHelper::SaveStringToFile(PageText, *FileName);
 	}
 }
+#endif
+
 
 void UCookOnTheFlyServer::GenerateAssetRegistry()
 {
@@ -5882,10 +5895,12 @@ void UCookOnTheFlyServer::GenerateAssetRegistry()
 				AssetRegistry->SearchAllAssets(true);
 			}
 
+#if ASSET_REGISTRY_STATE_DUMPING_ENABLED
 			if (FParse::Param(FCommandLine::Get(), TEXT("DumpAssetRegistry")))
 			{
 				DumpAssetRegistryForCooker(AssetRegistry);
 			}
+#endif
 		}
 
 		GetPackageNameCache().SetAssetRegistry(AssetRegistry);
@@ -8773,15 +8788,11 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 							}
 						}
 
-						const bool bSucceededSavePackage = (SaveResult == ESavePackageResult::Success || SaveResult == ESavePackageResult::GenerateStub || SaveResult == ESavePackageResult::ReplaceCompletely);
-						if (bSucceededSavePackage)
-						{
-							{
-								UE::Cook::FPlatformManager::FReadScopeLock PlatformScopeLock(PlatformManager->ReadLockPlatforms());
-								FAssetRegistryGenerator* Generator = PlatformManager->GetPlatformData(Target)->RegistryGenerator.Get();
-								UpdateAssetRegistryPackageData(Generator, *Package, SaveResult);
-							}
+						FAssetRegistryGenerator* Generator = PlatformManager->GetPlatformData(Target)->RegistryGenerator.Get();
+						UpdateAssetRegistryPackageData(Generator, *Package, SaveResult);
 
+						if (SaveResult.IsSuccessful())
+						{
 							FPlatformAtomics::InterlockedIncrement(&ParallelSavedPackages);
 						}
 

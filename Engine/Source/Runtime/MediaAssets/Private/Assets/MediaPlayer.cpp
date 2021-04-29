@@ -772,15 +772,16 @@ void UMediaPlayer::ResumePIE()
 /* UObject overrides
  *****************************************************************************/
 
+static const FName MediaModuleName("Media");
 void UMediaPlayer::BeginDestroy()
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>("Media");
+		IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>(MediaModuleName);
 
 		if (MediaModule != nullptr)
 		{
-			MediaModule->GetClock().RemoveSink(PlayerFacade.ToSharedRef());
+			UnregisterWithMediaModule();
 			MediaModule->GetTicker().RemoveTickable(PlayerFacade.ToSharedRef());
 		}
 
@@ -789,7 +790,6 @@ void UMediaPlayer::BeginDestroy()
 
 	Super::BeginDestroy();
 }
-
 
 FString UMediaPlayer::GetDesc()
 {
@@ -835,7 +835,6 @@ void UMediaPlayer::RegisterWithMediaModule()
 		return;
 	}
 
-	static const FName MediaModuleName("Media");
 	IMediaModule* MediaModule = nullptr;
 	if (IsInGameThread())
 	{
@@ -860,6 +859,14 @@ void UMediaPlayer::RegisterWithMediaModule()
 	}
 }
 
+void UMediaPlayer::UnregisterWithMediaModule()
+{
+	if (IMediaModule* MediaModule = FModuleManager::GetModulePtr<IMediaModule>(MediaModuleName))
+	{
+		MediaModule->GetClock().RemoveSink(PlayerFacade.ToSharedRef());
+		RegisteredWithMediaModule = false;
+	}
+}
 
 void UMediaPlayer::PostLoad()
 {

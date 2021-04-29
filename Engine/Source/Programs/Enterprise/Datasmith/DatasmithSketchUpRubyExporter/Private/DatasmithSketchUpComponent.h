@@ -221,7 +221,6 @@ namespace DatasmithSketchUp
 		FEntities(FDefinition& InDefinition) : Definition(InDefinition) {}
 
 		void UpdateGeometry(FExportContext& Context);
-		void CleanEntitiesGeometry(FExportContext& Context);
 		void AddMeshesToDatasmithScene(FExportContext& Context);
 		void RemoveMeshesFromDatasmithScene(FExportContext& Context);
 
@@ -248,7 +247,7 @@ namespace DatasmithSketchUp
 		}
 
 		const TCHAR* GetMeshElementName(int32 MeshIndex);
-		void AddMesh(FExportContext& Context, TSharedPtr<IDatasmithMeshElement>& DatasmithMesh, const TSet<FEntityIDType>& MaterialsUsed);
+		void UpdateMesh(FExportContext& Context, FDatasmithInstantiatedMesh& Mesh, TSharedPtr<IDatasmithMeshElement>& DatasmithMesh, const TSet<FEntityIDType>& MaterialsUsed);
 		bool IsMeshUsingInheritedMaterial(int32 MeshIndex);
 
 		TArray<TSharedPtr<FDatasmithInstantiatedMesh>> Meshes;
@@ -330,6 +329,12 @@ namespace DatasmithSketchUp
 		void DeleteOccurrence(FExportContext& Context, FNodeOccurence* Node) override;
 		// <<< FEntity
 
+		// Set Definition which Entities contains this entity
+		void SetParentDefinition(FExportContext& Context, FDefinition* InParent);
+		bool IsParentDefinition(FDefinition* InParent)
+		{
+			return Parent == InParent;
+		}
 
 		void RemoveComponentInstance(FExportContext& Context);
 
@@ -345,6 +350,8 @@ namespace DatasmithSketchUp
 		bool bHidden = false; // S
 
 		TArray<FNodeOccurence*> Occurrences;
+
+		FDefinition* Parent = nullptr;
 	};
 
 	class FModel : public FEntity

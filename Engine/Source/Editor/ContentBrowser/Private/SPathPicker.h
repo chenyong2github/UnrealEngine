@@ -68,4 +68,7 @@ private:
 
 	/** The delegate that fires when a path is right clicked and a context menu is requested */
 	FContentBrowserMenuExtender_SelectedPaths OnGetPathContextMenuExtender;
+
+	/** If true, passes virtual paths to OnPathSelected instead of internal asset paths */
+	bool bOnPathSelectedPassesVirtualPaths;
 };

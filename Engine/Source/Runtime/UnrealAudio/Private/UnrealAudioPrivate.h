@@ -156,12 +156,14 @@ namespace UAudio
 		bool LoadSoundFileLib();
 		bool ShutdownSoundFileLib();
 
+#if WITH_DEV_AUTOMATION_TESTS
 		/** Initializes unreal audio tests. */
 		bool DeviceTestCallback(struct FCallbackInfo& CallbackInfo);
 
 		static void InitializeSystemTests(IUnrealAudioModule* Module);
 		static void InitializeDeviceTests(IUnrealAudioModule* Module);
 		static void UpdateSystemTests();
+#endif
 
 		class IUnrealAudioDeviceModule* UnrealAudioDevice;
 

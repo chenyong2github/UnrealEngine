@@ -11,22 +11,36 @@
 #include "DatasmithImportOptions.h"
 #include "IDatasmithSceneElements.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogDatasmithXMLPLMTranslator, Log, All);
+#include "CoreGlobals.h"
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
+
+DEFINE_LOG_CATEGORY_STATIC(LogDatasmithXMLPLMTranslator, Log, All)
 
 
 void FDatasmithPlmXmlTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
-	if (ICADInterfacesModule::GetAvailability() == ECADInterfaceAvailability::Unavailable)
+#if WITH_EDITOR
+	if (GIsEditor && !GEditor->PlayWorld && !GIsPlayInEditorWorld)
 	{
-		UE_LOG(LogDatasmithXMLPLMTranslator, Warning, TEXT("CAD Interface module is unavailable. Most of CAD formats (except to Rhino and Alias formats) cannot be imported."));
+		if (ICADInterfacesModule::GetAvailability() == ECADInterfaceAvailability::Unavailable)
+		{
+			UE_LOG(LogDatasmithXMLPLMTranslator, Warning, TEXT("CAD Interface module is unavailable. Most of CAD formats (except to Rhino and Alias formats) cannot be imported."));
+		}
+
+		OutCapabilities.bIsEnabled = true;
+		OutCapabilities.bParallelLoadStaticMeshSupported = true;
+
+		TArray<FFileFormatInfo>& Formats = OutCapabilities.SupportedFileFormats;
+		Formats.Emplace(TEXT("plmxml"), TEXT("PLMXML"));
+		Formats.Emplace(TEXT("xml"), TEXT("PLMXML"));
+
+		return;
 	}
+#endif
 
-	OutCapabilities.bIsEnabled = true;
-	OutCapabilities.bParallelLoadStaticMeshSupported = true;
-
-	TArray<FFileFormatInfo>& Formats = OutCapabilities.SupportedFileFormats;
-    Formats.Emplace(TEXT("plmxml"), TEXT("PLMXML"));
-    Formats.Emplace(TEXT("xml"), TEXT("PLMXML"));
+	OutCapabilities.bIsEnabled = false;
 }
 
 bool FDatasmithPlmXmlTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)

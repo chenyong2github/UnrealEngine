@@ -517,7 +517,7 @@ bool FPrimitiveSceneProxy::UseSingleSampleShadowFromStationaryLights() const
 		|| LightmapType == ELightmapType::ForceVolumetric; 
 }
 
-#if !UE_BUILD_SHIPPING
+#if ENABLE_DRAW_DEBUG
 void FPrimitiveSceneProxy::SetDebugMassData(const TArray<FDebugMassData>& InDebugMassData)
 {
 	DebugMassData = InDebugMassData;
@@ -673,7 +673,7 @@ void FPrimitiveSceneProxy::SetLightingChannels_GameThread(FLightingChannels Ligh
 	});
 }
 
-#if !UE_BUILD_SHIPPING
+#if ENABLE_DRAW_DEBUG
 void FPrimitiveSceneProxy::FDebugMassData::DrawDebugMass(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM) const
 {
 	const FQuat MassOrientationToWorld = ElemTM.GetRotation() * LocalTensorOrientation;

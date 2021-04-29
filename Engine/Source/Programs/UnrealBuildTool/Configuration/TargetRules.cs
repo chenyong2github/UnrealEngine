@@ -510,6 +510,21 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Manually specified value for bBuildTargetDeveloperTools.
+		/// </summary>
+		bool? bBuildTargetDeveloperToolsOverride;
+
+		/// <summary>
+		/// Whether to compile the developer tools that are for target platforms or connected devices (defaults to bBuildDeveloperTools)
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bBuildTargetDeveloperTools
+		{
+			set { bBuildTargetDeveloperToolsOverride = value; }
+			get { return bBuildTargetDeveloperToolsOverride ?? bBuildDeveloperTools; }
+		}
+
+		/// <summary>
 		/// Whether to force compiling the target platform modules, even if they wouldn't normally be built.
 		/// </summary>
 		public bool bForceBuildTargetPlatforms = false;
@@ -934,6 +949,18 @@ namespace UnrealBuildTool
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public int MinGameModuleSourceFilesForUnityBuild = 32;
+
+		/// <summary>
+		/// Default treatment of uncategorized warnings
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public WarningLevel DefaultWarningLevel = WarningLevel.Warning;
+
+		/// <summary>
+		/// Whether to treat all warnings as errors. UE generally treats most warnings as errors, with the exception of deprecation warnings,
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public WarningLevel DeprecationWarningLevel = WarningLevel.Warning;
 
 		/// <summary>
 		/// Forces shadow variable warnings to be treated as errors on platforms that support it.
@@ -1490,6 +1517,11 @@ namespace UnrealBuildTool
 		/// When generating project files, specifies the name of the project file to use when there are multiple targets of the same type.
 		/// </summary>
 		public string? GeneratedProjectName;
+
+		/// <summary>
+		/// If this is non-null, then any platforms NOT listed will not be allowed to have modules in their directories be created
+		/// </summary>
+		public UnrealTargetPlatform[]? OptedInModulePlatforms = null;
 
 		/// <summary>
 		/// Android-specific target settings.
@@ -2074,6 +2106,11 @@ namespace UnrealBuildTool
 			get { return Inner.bBuildDeveloperTools; }
 		}
 
+		public bool bBuildTargetDeveloperTools
+		{
+			get { return Inner.bBuildTargetDeveloperTools; }
+		}
+
 		public bool bForceBuildTargetPlatforms
 		{
 			get { return Inner.bForceBuildTargetPlatforms; }
@@ -2356,6 +2393,16 @@ namespace UnrealBuildTool
 		public int MinGameModuleSourceFilesForUnityBuild
 		{
 			get { return Inner.MinGameModuleSourceFilesForUnityBuild; }
+		}
+
+		public WarningLevel DefaultWarningLevel
+		{
+			get { return Inner.DefaultWarningLevel; }
+		}
+
+		public WarningLevel DeprecationWarningLevel
+		{
+			get { return Inner.DeprecationWarningLevel; }
 		}
 
 		public WarningLevel ShadowVariableWarningLevel
@@ -2785,6 +2832,11 @@ namespace UnrealBuildTool
 			get { return Inner.DisableOptimizeCodeForModules; }
 		}
 
+		public IReadOnlyList<UnrealTargetPlatform>? OptedInModulePlatforms
+		{
+			get { return Inner.OptedInModulePlatforms; } 
+		}
+
 #if !__MonoCS__
 #pragma warning restore C1591
 #endif
@@ -2831,6 +2883,11 @@ namespace UnrealBuildTool
 		internal void GetBuildSettingsInfo(List<string> Diagnostics)
 		{
 			Inner.GetBuildSettingsInfo(Diagnostics);
+		}
+
+		public bool IsPlatformOptedIn(UnrealTargetPlatform Platform)
+		{
+			return Inner.OptedInModulePlatforms == null || Inner.OptedInModulePlatforms.Contains(Platform);
 		}
 	}
 }

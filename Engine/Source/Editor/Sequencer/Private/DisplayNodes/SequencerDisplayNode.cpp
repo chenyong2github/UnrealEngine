@@ -18,6 +18,7 @@
 #include "DisplayNodes/SequencerSectionCategoryNode.h"
 #include "DisplayNodes/SequencerSectionKeyAreaNode.h"
 #include "IKeyArea.h"
+#include "DisplayNodes/SequencerFolderNode.h"
 #include "DisplayNodes/SequencerTrackNode.h"
 #include "Sequencer.h"
 #include "SAnimationOutlinerTreeNode.h"
@@ -604,6 +605,22 @@ TSharedPtr<FSequencerTrackNode> FSequencerDisplayNode::FindParentTrackNode() con
 }
 
 
+TSharedPtr<FSequencerFolderNode> FSequencerDisplayNode::FindFolderNode() const
+{
+	TSharedPtr<FSequencerDisplayNode> CurrentParentNode = GetParent();
+	while (CurrentParentNode.IsValid())
+	{
+		if (CurrentParentNode->GetType() == ESequencerNode::Folder)
+		{
+			return StaticCastSharedPtr<FSequencerFolderNode>(CurrentParentNode);
+		}
+		CurrentParentNode = CurrentParentNode->GetParent();
+	}
+
+	return nullptr;
+}
+
+
 FGuid FSequencerDisplayNode::GetObjectGuid() const
 {
 	TSharedPtr<FSequencerObjectBindingNode> ObjectBindingNode = FindParentObjectBindingNode();
@@ -774,10 +791,22 @@ bool FSequencerDisplayNode::IsDimmed() const
 		// If the node is a track node, we can use the cached value in UMovieSceneTrack
 		if (GetType() == ESequencerNode::Track)
 		{
-			UMovieSceneTrack* Track = static_cast<const FSequencerTrackNode*>(this)->GetTrack();
-			if (Track && Track->IsEvalDisabled())
+			const FSequencerTrackNode* TrackNode = static_cast<const FSequencerTrackNode*>(this);
+			UMovieSceneTrack* Track = TrackNode->GetTrack();
+
+			if (Track)
 			{
-				bDimLabel = true;
+				if (TrackNode->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::SubTrack)
+				{
+					if (Track->IsRowEvalDisabled(TrackNode->GetRowIndex()))
+					{
+						bDimLabel = true;
+					}
+				}
+				else if (Track->IsEvalDisabled())
+				{
+					bDimLabel = true;
+				}
 			}
 		}
 		else
@@ -1250,6 +1279,14 @@ void FSequencerDisplayNode::BuildOrganizeContextMenu(FMenuBuilder& MenuBuilder)
 			LOCTEXT("MoveToFolder", "Move to Folder"),
 			LOCTEXT("MoveToFolderTooltip", "Move the selected nodes to a folder"),
 			FNewMenuDelegate::CreateSP(&GetSequencer(), &FSequencer::BuildAddSelectedToFolderMenu));
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("RemoveFromFolder", "Remove from Folder"),
+			LOCTEXT("RemoveFromFolderTooltip", "Remove selected nodes from their folders"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(&GetSequencer(), &FSequencer::RemoveSelectedNodesFromFolders),
+				FCanExecuteAction::CreateLambda( [this] { return GetSequencer().GetSelectedNodesInFolders().Num() > 0; } )));
 	}
 }
 

@@ -729,7 +729,7 @@ bool UHLODProxy::SetHLODBakingTransform(const FTransform& InTransform)
 
 #endif // #if WITH_EDITOR
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) || WITH_EDITOR
 
 bool UHLODProxy::ContainsDataForActor(const ALODActor* InLODActor) const
 {

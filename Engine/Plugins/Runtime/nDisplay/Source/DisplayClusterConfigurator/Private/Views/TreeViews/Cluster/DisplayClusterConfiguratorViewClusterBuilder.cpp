@@ -2,23 +2,25 @@
 
 #include "Views/TreeViews/Cluster/DisplayClusterConfiguratorViewClusterBuilder.h"
 
-#include "DisplayClusterConfiguratorEditorData.h"
 #include "DisplayClusterConfigurationTypes.h"
-#include "DisplayClusterConfiguratorToolkit.h"
+#include "DisplayClusterConfiguratorBlueprintEditor.h"
+#include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
 #include "Views/TreeViews/Cluster/TreeItems/DisplayClusterConfiguratorTreeItemCluster.h"
+#include "Views/TreeViews/Cluster/TreeItems/DisplayClusterConfiguratorTreeItemHost.h"
+#include "Views/TreeViews/Cluster/TreeItems/DisplayClusterConfiguratorTreeItemClusterNode.h"
+#include "Views/TreeViews/Cluster/TreeItems/DisplayClusterConfiguratorTreeItemViewport.h"
 
 
-
-FDisplayClusterConfiguratorViewClusterBuilder::FDisplayClusterConfiguratorViewClusterBuilder(const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit)
+FDisplayClusterConfiguratorViewClusterBuilder::FDisplayClusterConfiguratorViewClusterBuilder(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
 	: FDisplayClusterConfiguratorTreeBuilder(InToolkit)
 {
 }
 
 void FDisplayClusterConfiguratorViewClusterBuilder::Build(FDisplayClusterConfiguratorTreeBuilderOutput& Output)
 {
-	if (UDisplayClusterConfiguratorEditorData* EditorDataPtr = ConfiguratorTreePtr.Pin()->GetEditorData())
+	if (UDisplayClusterConfigurationData* EditorDataPtr = ConfiguratorTreePtr.Pin()->GetEditorData())
 	{
 		if (UDisplayClusterConfigurationData* Config = ToolkitPtr.Pin()->GetConfig())
 		{
@@ -42,24 +44,37 @@ void FDisplayClusterConfiguratorViewClusterBuilder::AddCluster(FDisplayClusterCo
 
 void FDisplayClusterConfiguratorViewClusterBuilder::AddClusterNodes(FDisplayClusterConfiguratorTreeBuilderOutput& Output, UDisplayClusterConfigurationData* InConfig, UObject* InObjectToEdit)
 {
-	for (const auto& Node : InConfig->Cluster->Nodes)
-	{
-		FName ParentName = "Cluster";
-		const FName NodeName = *Node.Key;
-		TSharedRef<IDisplayClusterConfiguratorTreeItem> DisplayNode = MakeShared<FDisplayClusterConfiguratorTreeItemCluster>(NodeName, ConfiguratorTreePtr.Pin().ToSharedRef(), ToolkitPtr.Pin().ToSharedRef(), Node.Value, "DisplayClusterConfigurator.TreeItems.ClusterNode");
-		Output.Add(DisplayNode, ParentName, FDisplayClusterConfiguratorTreeItemCluster::GetTypeId());
+	TMap<FString, TMap<FString, UDisplayClusterConfigurationClusterNode*>> SortedClusterNodes;
+	FDisplayClusterConfiguratorClusterUtils::SortClusterNodesByHost(InConfig->Cluster->Nodes, SortedClusterNodes);
 
-		for (const auto& Viewport : Node.Value->Viewports)
+	for (const auto& HostPair : SortedClusterNodes)
+	{
+		UDisplayClusterConfigurationHostDisplayData* DisplayData = FDisplayClusterConfiguratorClusterUtils::FindOrCreateHostDisplayData(InConfig->Cluster, HostPair.Key);
+
+		const FName HostParentName = "Cluster";
+		const FName HostNodeName = *DisplayData->HostName.ToString();
+		TSharedRef<IDisplayClusterConfiguratorTreeItem> HostDisplayNode = MakeShared<FDisplayClusterConfiguratorTreeItemHost>(HostNodeName, ConfiguratorTreePtr.Pin().ToSharedRef(), ToolkitPtr.Pin().ToSharedRef(), DisplayData);
+		Output.Add(HostDisplayNode, HostParentName, FDisplayClusterConfiguratorTreeItemCluster::GetTypeId());
+
+		for (const auto& Node : HostPair.Value)
 		{
-			AddClusterNodeViewport(Output, InConfig, Viewport.Key, Node.Key, Viewport.Value);
+			const FName ParentName = *HostPair.Key;
+			const FName NodeName = *Node.Key;
+			TSharedRef<IDisplayClusterConfiguratorTreeItem> DisplayNode = MakeShared<FDisplayClusterConfiguratorTreeItemClusterNode>(NodeName, ConfiguratorTreePtr.Pin().ToSharedRef(), ToolkitPtr.Pin().ToSharedRef(), Node.Value, DisplayData);
+			Output.Add(DisplayNode, ParentName, FDisplayClusterConfiguratorTreeItemHost::GetTypeId());
+
+			for (const auto& Viewport : Node.Value->Viewports)
+			{
+				AddClusterNodeViewport(Output, InConfig, Viewport.Key, Node.Key, Viewport.Value);
+			}
 		}
 	}
 }
 
 void FDisplayClusterConfiguratorViewClusterBuilder::AddClusterNodeViewport(FDisplayClusterConfiguratorTreeBuilderOutput& Output, UDisplayClusterConfigurationData* InConfig, const FString& NodeId, const FString& ParentNodeId, UObject* InObjectToEdit)
 {
-	FName ParentName = *ParentNodeId;
+	const FName ParentName = *ParentNodeId;
 	const FName NodeName = *NodeId;
-	TSharedRef<IDisplayClusterConfiguratorTreeItem> DisplayNode = MakeShared<FDisplayClusterConfiguratorTreeItemCluster>(NodeName, ConfiguratorTreePtr.Pin().ToSharedRef(), ToolkitPtr.Pin().ToSharedRef(), InObjectToEdit, "DisplayClusterConfigurator.TreeItems.Viewport");
-	Output.Add(DisplayNode, ParentName, FDisplayClusterConfiguratorTreeItemCluster::GetTypeId());
+	TSharedRef<IDisplayClusterConfiguratorTreeItem> DisplayNode = MakeShared<FDisplayClusterConfiguratorTreeItemViewport>(NodeName, ConfiguratorTreePtr.Pin().ToSharedRef(), ToolkitPtr.Pin().ToSharedRef(), InObjectToEdit);
+	Output.Add(DisplayNode, ParentName, FDisplayClusterConfiguratorTreeItemClusterNode::GetTypeId());
 }

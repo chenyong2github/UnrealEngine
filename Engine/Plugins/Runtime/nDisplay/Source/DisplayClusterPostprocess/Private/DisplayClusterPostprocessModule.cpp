@@ -18,19 +18,19 @@
 
 FDisplayClusterPostprocessModule::FDisplayClusterPostprocessModule()
 {
-	TSharedPtr<IDisplayClusterPostProcess> Postprocess;
+	TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe> Postprocess;
 
 	// Output Remap
-	Postprocess = MakeShared<FDisplayClusterPostprocessOutputRemap>();
+	Postprocess = MakeShared<FDisplayClusterPostprocessOutputRemap, ESPMode::ThreadSafe>();
 	PostprocessAssets.Emplace(DisplayClusterPostprocessStrings::postprocess::OutputRemap, Postprocess);
 
 	// Texture Share
-	Postprocess = MakeShared<FDisplayClusterPostprocessTextureShare>();
-	PostprocessAssets.Emplace(DisplayClusterPostprocessStrings::postprocess::TextureShare, Postprocess);
+	//Postprocess = MakeShared<FDisplayClusterPostprocessTextureShare, ESPMode::ThreadSafe>();
+	//PostprocessAssets.Emplace(DisplayClusterPostprocessStrings::postprocess::TextureShare, Postprocess);
 
 	// D3D12 Cross GPU
-	Postprocess = MakeShared<FDisplayClusterPostprocessD3D12CrossGPU>();
-	PostprocessAssets.Emplace(DisplayClusterPostprocessStrings::postprocess::D3D12CrossGPU, Postprocess);
+	//Postprocess = MakeShared<FDisplayClusterPostprocessD3D12CrossGPU, ESPMode::ThreadSafe>();
+	//PostprocessAssets.Emplace(DisplayClusterPostprocessStrings::postprocess::D3D12CrossGPU, Postprocess);
 
 	UE_LOG(LogDisplayClusterPostprocess, Log, TEXT("Postprocess module has been instantiated"));
 }

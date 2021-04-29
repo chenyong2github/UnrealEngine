@@ -302,6 +302,11 @@ void FClassDeclarationMetaData::ParseClassProperties(TArray<FPropertySpecifier>&
 				MetaData.Add(FHeaderParserNames::NAME_IsConversionRoot, TEXT("true"));
 				break;
 
+			case EClassMetadataSpecifier::NeedsDeferredDependencyLoading:
+
+				ClassFlags |= CLASS_NeedsDeferredDependencyLoading;
+				break;
+
 			default:
 				FError::Throwf(TEXT("Unknown class specifier '%s'"), *PropSpecifier.Key);
 		}

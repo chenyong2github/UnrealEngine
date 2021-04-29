@@ -495,6 +495,7 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 
 	if (InputValues.DynamicNode.IsValid())
 	{
+		FNiagaraStackGraphUtilities::CheckForDeprecatedScriptVersion(GetDynamicInputNode(), GetStackEditorDataKey(), FStackIssueFixDelegate(), NewIssues);
 		if (MessageManagerRegistrationKey.IsValid() == false)
 		{
 			FNiagaraMessageManager::Get()->SubscribeToAssetMessagesByObject(
@@ -2006,6 +2007,19 @@ void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* Dyna
 bool UNiagaraStackFunctionInput::GetShouldPassFilterForVisibleCondition() const
 {
 	return GetHasVisibleCondition() == false || GetVisibleConditionEnabled();
+}
+
+void UNiagaraStackFunctionInput::ChangeScriptVersion(FGuid NewScriptVersion)
+{
+	FScopedTransaction ScopedTransaction(LOCTEXT("NiagaraChangeVersion_Transaction", "Changing dynamic input version"));
+	FNiagaraScriptVersionUpgradeContext UpgradeContext;
+	UpgradeContext.CreateClipboardCallback = [this](UNiagaraClipboardContent* ClipboardContent) { Copy(ClipboardContent); };
+	UpgradeContext.ApplyClipboardCallback = [this](UNiagaraClipboardContent* ClipboardContent, FText& OutWarning) { Paste(ClipboardContent, OutWarning); };
+	UpgradeContext.ConstantResolver = GetEmitterViewModel().IsValid() ?
+      FCompileConstantResolver(GetEmitterViewModel()->GetEmitter(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*GetDynamicInputNode())) :
+      FCompileConstantResolver(&GetSystemViewModel()->GetSystem(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*GetDynamicInputNode()));
+	GetDynamicInputNode()->ChangeScriptVersion(NewScriptVersion, UpgradeContext, true);
+	ApplyModuleChanges();
 }
 
 const UNiagaraClipboardFunctionInput* UNiagaraStackFunctionInput::ToClipboardFunctionInput(UObject* InOuter) const

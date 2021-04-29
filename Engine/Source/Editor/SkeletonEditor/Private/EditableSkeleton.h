@@ -86,6 +86,10 @@ public:
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FEditableSkeleton");
+	}
 
 	/** Generates a unique socket name from the input name, by changing the FName's number */
 	FName GenerateUniqueSocketName(FName InName, USkeletalMesh* InSkeletalMesh);

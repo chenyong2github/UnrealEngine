@@ -260,6 +260,7 @@ uint2 GetPixelCoord(uint2 DispatchThreadId, uint UpscaleFactor)
 // These two sets of masks can overlap because they never co-exist
 #define RAY_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE                   (1 << 0) // Indicates that ray has hit front face of a primitive. Set by closest hit shader.
 
+#define RAY_TRACING_PAYLOAD_INPUT_FLAG_NONE								   0	
 #define RAY_TRACING_PAYLOAD_INPUT_FLAG_IGNORE_SKY_MATERIALS          (1 << 0) // Indicates that the AHS/CHS should skip processing if the material is tagged as sky
 #define RAY_TRACING_PAYLOAD_INPUT_FLAG_MINIMAL_PAYLOAD               (1 << 1) // Indicates that closest hit shader should only fill FMinimalPayload (HitT), skipping full material evaluation. Set by RayGen shader, before TraceRay().
 #define RAY_TRACING_PAYLOAD_INPUT_FLAG_ENABLE_SKY_LIGHT_CONTRIBUTION (1 << 2) // Indicates that hit shaders should add in the Sky Light contribution in their output. Set by RayGen shader, before TraceRay().
@@ -643,12 +644,17 @@ void TraceVisibilityRayPacked(
 FMinimalPayload TraceVisibilityRay(
 	in RaytracingAccelerationStructure TLAS,
 	in uint RayFlags,
+	in uint PayloadFlags,
 	in uint InstanceInclusionMask,
 	in uint2 PixelCoord,
 	in RayDesc Ray)
 {
 	FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
-	PackedPayload.SetIgnoreTranslucentMaterials();
+	
+	if ((PayloadFlags & RAY_TRACING_PAYLOAD_INPUT_FLAG_IGNORE_TRANSLUCENT) != 0)
+	{
+		PackedPayload.SetIgnoreTranslucentMaterials();
+	}
 
 	TraceVisibilityRayPacked(PackedPayload, TLAS, RayFlags, InstanceInclusionMask, PixelCoord, Ray);
 
@@ -662,6 +668,22 @@ FMinimalPayload TraceVisibilityRay(
 	MinimalPayload.HitT = PackedPayload.HitT;
 
 	return MinimalPayload;
+}
+
+FMinimalPayload TraceVisibilityRay(
+	in RaytracingAccelerationStructure TLAS,
+	in uint RayFlags,
+	in uint InstanceInclusionMask,
+	in uint2 PixelCoord,
+	in RayDesc Ray)
+{
+	return TraceVisibilityRay(
+		TLAS,
+		RayFlags,
+		RAY_TRACING_PAYLOAD_INPUT_FLAG_NONE,
+		InstanceInclusionMask,
+		PixelCoord,
+		Ray);
 }
 
 void TraceMaterialRayPacked(

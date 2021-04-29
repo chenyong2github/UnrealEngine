@@ -73,6 +73,7 @@ void FAssetTypeActions_SoundClass::GetActions(const TArray<UObject*>& InObjects,
 
 void FAssetTypeActions_SoundClass::ExecuteMute(TArray<TWeakObjectPtr<USoundClass>> Objects) const
 {
+#if ENABLE_AUDIO_DEBUG
 	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
 		for (TWeakObjectPtr<USoundClass> i : Objects)
@@ -83,10 +84,12 @@ void FAssetTypeActions_SoundClass::ExecuteMute(TArray<TWeakObjectPtr<USoundClass
 			}
 		}
 	}
+#endif
 }
 
 void FAssetTypeActions_SoundClass::ExecuteSolo(TArray<TWeakObjectPtr<USoundClass>> Objects) const
 {
+#if ENABLE_AUDIO_DEBUG
 	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
 		for (TWeakObjectPtr<USoundClass> i : Objects)
@@ -97,10 +100,12 @@ void FAssetTypeActions_SoundClass::ExecuteSolo(TArray<TWeakObjectPtr<USoundClass
 			}
 		}
 	}
+#endif
 }
 
 bool FAssetTypeActions_SoundClass::IsActionCheckedMute(TArray<TWeakObjectPtr<USoundClass>> Objects) const
 {
+#if ENABLE_AUDIO_DEBUG
 	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
 		for (TWeakObjectPtr<USoundClass> i : Objects)
@@ -114,11 +119,13 @@ bool FAssetTypeActions_SoundClass::IsActionCheckedMute(TArray<TWeakObjectPtr<USo
 			}
 		}
 	}
+#endif
 	return false;
 }
 
 bool FAssetTypeActions_SoundClass::IsActionCheckedSolo(TArray<TWeakObjectPtr<USoundClass>> Objects) const
 {
+#if ENABLE_AUDIO_DEBUG
 	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{		
 		for (TWeakObjectPtr<USoundClass> i : Objects)
@@ -132,11 +139,13 @@ bool FAssetTypeActions_SoundClass::IsActionCheckedSolo(TArray<TWeakObjectPtr<USo
 			}
 		}
 	}
+#endif
 	return false;
 }
 
 bool FAssetTypeActions_SoundClass::CanExecuteMuteCommand(TArray<TWeakObjectPtr<USoundClass>> Objects) const
 {
+#if ENABLE_AUDIO_DEBUG
 	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
 		// Allow muting if we're not Soloing.
@@ -153,11 +162,13 @@ bool FAssetTypeActions_SoundClass::CanExecuteMuteCommand(TArray<TWeakObjectPtr<U
 		// Ok.
 		return true;
 	}
+#endif
 	return false;
 }
 
 bool FAssetTypeActions_SoundClass::CanExecuteSoloCommand(TArray<TWeakObjectPtr<USoundClass>> Objects) const
 {
+#if ENABLE_AUDIO_DEBUG
 	if (FAudioDeviceManager* ADM = GEditor->GetAudioDeviceManager())
 	{
 		// Allow Soloing if we're not Muting.
@@ -174,6 +185,7 @@ bool FAssetTypeActions_SoundClass::CanExecuteSoloCommand(TArray<TWeakObjectPtr<U
 		// Ok.
 		return true;
 	}
+#endif
 	return false;
 }
 

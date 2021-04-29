@@ -158,7 +158,6 @@ bool FDisplayClusterPacketInternal::RecvPacket(FDisplayClusterSocketOperations& 
 	UE_LOG(LogDisplayClusterNetworkMsg, VeryVerbose, TEXT("%s - packet body received"), *SocketOps.GetConnectionName());
 
 	// Deserialize packet from buffer
-	TSharedPtr<FDisplayClusterPacketInternal> Packet = MakeShared<FDisplayClusterPacketInternal>();
 	FMemoryReader Arch = FMemoryReader(DataBuffer, false);
 	if (!Deserialize(Arch))
 	{

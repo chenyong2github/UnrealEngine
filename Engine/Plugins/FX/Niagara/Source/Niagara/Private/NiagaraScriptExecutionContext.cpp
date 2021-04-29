@@ -980,6 +980,7 @@ void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScr
 
 			
 		}
+
 	}
 
 	
@@ -1090,6 +1091,34 @@ void FNiagaraComputeExecutionContext::DirtyDataInterfaces()
 	CombinedParamStore.MarkInterfacesDirty();
 }
 
+bool FNiagaraComputeExecutionContext::OptionalContexInit(FNiagaraSystemInstance* ParentSystemInstance)
+{
+	if (GPUScript)
+	{
+		FNiagaraVMExecutableData& VMData = GPUScript->GetVMExecutableData();
+
+		if (VMData.IsValid() && VMData.bNeedsGPUContextInit)
+		{
+			const TArray<UNiagaraDataInterface*>& DataInterfaces = CombinedParamStore.GetDataInterfaces();
+			for (int32 i = 0; i < DataInterfaces.Num(); i++)
+			{
+				UNiagaraDataInterface* Interface = DataInterfaces[i];
+
+				int32 UserPtrIdx = VMData.DataInterfaceInfo[i].UserPtrIdx;
+				if (UserPtrIdx != INDEX_NONE)
+				{
+					void* InstData = ParentSystemInstance->FindDataInterfaceInstanceData(Interface);
+					if (Interface->NeedsGPUContextInit())
+					{
+						Interface->GPUContextInit(VMData.DataInterfaceInfo[i], InstData, ParentSystemInstance);
+					}
+				}
+			}
+		}
+	}
+	return true;
+}
+
 bool FNiagaraComputeExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemInstance)
 {
 	if (CombinedParamStore.GetInterfacesDirty())
@@ -1113,6 +1142,8 @@ bool FNiagaraComputeExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemI
 			}
 		}
 #endif
+
+		
 		CombinedParamStore.Tick();
 	}
 

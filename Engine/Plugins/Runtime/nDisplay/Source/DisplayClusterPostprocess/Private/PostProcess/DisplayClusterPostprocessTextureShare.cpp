@@ -13,12 +13,11 @@
 
 #include "Render/IDisplayClusterRenderManager.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
-#include "Render/Device/DisplayClusterRenderViewport.h"
 #include "Render/Device/IDisplayClusterRenderDevice.h"
 
 #include "ITextureShare.h"
 #include "ITextureShareItem.h"
-
+/*
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterPostProcess
@@ -37,7 +36,7 @@ FString GetDisplayClusterViewportShareName(const FString& ShareName)
 	return ShareName;
 }
 
-bool FDisplayClusterPostprocessTextureShare::CreateResource(const FString& ShareName, const FDisplayClusterRenderViewport& ResourceViewport, int ResourceViewportIndex, FRHITexture2D* ResourceTexture) const
+bool FDisplayClusterPostprocessTextureShare::CreateResource(const FString& ShareName, const FDisplayClusterViewport& ResourceViewport, int ResourceViewportIndex, FRHITexture2D* ResourceTexture) const
 {
 	//@todo: add custom sync setup
 	FTextureShareSyncPolicy SyncPolicy;
@@ -145,7 +144,7 @@ bool FDisplayClusterPostprocessTextureShare::ReceiveResource_RenderThread(FRHICo
 	return false;
 }
 
-bool FDisplayClusterPostprocessTextureShare::ImplCreateResource_RenderThread(FRHICommandListImmediate& RHICmdList, const FDisplayClusterRenderViewport& ResourceViewport, int ResourceViewportIndex, FRHITexture2D* ResourceTexture) const
+bool FDisplayClusterPostprocessTextureShare::ImplCreateResource_RenderThread(FRHICommandListImmediate& RHICmdList, const FDisplayClusterViewport& ResourceViewport, int ResourceViewportIndex, FRHITexture2D* ResourceTexture) const
 {
 	FString ShareName = GetDisplayClusterViewportShareName(ResourceViewport.GetId());
 	bool bResult = CreateResource_RenderThread(RHICmdList, ShareName, ResourceViewport, ResourceViewportIndex, ResourceTexture);
@@ -163,7 +162,7 @@ bool FDisplayClusterPostprocessTextureShare::ImplCreateResource_RenderThread(FRH
 	return bResult;
 }
 
-bool FDisplayClusterPostprocessTextureShare::ImplCreateResource(const FDisplayClusterRenderViewport& ResourceViewport, int ResourceViewportIndex, FRHITexture2D* ResourceTexture) const
+bool FDisplayClusterPostprocessTextureShare::ImplCreateResource(const FDisplayClusterViewport& ResourceViewport, int ResourceViewportIndex, FRHITexture2D* ResourceTexture) const
 {
 	FString ShareName = GetDisplayClusterViewportShareName(ResourceViewport.GetId());
 	bool bResult = CreateResource(ShareName, ResourceViewport, ResourceViewportIndex, ResourceTexture);
@@ -247,7 +246,7 @@ bool FDisplayClusterPostprocessTextureShare::ImplReceiveResource_RenderThread(FR
 	return bResult;
 }
 
-void FDisplayClusterPostprocessTextureShare::PerformUpdateViewport(const FViewport& MainViewport, const TArray<FDisplayClusterRenderViewport>& RenderViewports)
+void FDisplayClusterPostprocessTextureShare::PerformUpdateViewport(const FViewport& MainViewport)
 {
 	static bool bResourceInitialized = false;
 	if (!bResourceInitialized)
@@ -262,7 +261,7 @@ bool FDisplayClusterPostprocessTextureShare::IsPostProcessRenderTargetBeforeWarp
 	return bIsEnabled;
 }
 
-void FDisplayClusterPostprocessTextureShare::PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InOutTexture, const TArray<FDisplayClusterRenderViewport>& RenderViewports) const
+void FDisplayClusterPostprocessTextureShare::PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InOutTexture) const
 {
 	static bool bResourceInitialized = false;
 	if (!bResourceInitialized)
@@ -275,12 +274,12 @@ void FDisplayClusterPostprocessTextureShare::PerformPostProcessRenderTargetBefor
 	ReceiveViewports_RenderThread(RHICmdList, InOutTexture);
 }
 
-void FDisplayClusterPostprocessTextureShare::InitializeResources_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InOutTexture, const TArray<FDisplayClusterRenderViewport>& RenderViewports) const
+void FDisplayClusterPostprocessTextureShare::InitializeResources_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InOutTexture) const
 {
 	// Create master share for all render viewports
 	for (int CurrentViewportIndex = 0; CurrentViewportIndex < RenderViewports.Num(); CurrentViewportIndex++)
 	{
-		const FDisplayClusterRenderViewport& CurrentViewport = RenderViewports[CurrentViewportIndex];
+		const FDisplayClusterViewport& CurrentViewport = RenderViewports[CurrentViewportIndex];
 		if (ShareViewportsMap.Contains(CurrentViewport.GetId()))
 		{
 			ImplCreateResource_RenderThread(RHICmdList, CurrentViewport, CurrentViewportIndex, InOutTexture);
@@ -297,14 +296,14 @@ void FDisplayClusterPostprocessTextureShare::InitializeResources_RenderThread(FR
 }
 
 
-void FDisplayClusterPostprocessTextureShare::InitializeResources(const FViewport& MainViewport, const TArray<FDisplayClusterRenderViewport>& RenderViewports)
+void FDisplayClusterPostprocessTextureShare::InitializeResources(const FViewport& MainViewport)
 {
 	const FTexture2DRHIRef& Backbuffer = MainViewport.GetRenderTargetTexture();
 
 	// Create master share for all render viewports
 	for (int CurrentViewportIndex = 0; CurrentViewportIndex < RenderViewports.Num(); CurrentViewportIndex++)
 	{
-		const FDisplayClusterRenderViewport& CurrentViewport = RenderViewports[CurrentViewportIndex];
+		const FDisplayClusterViewport& CurrentViewport = RenderViewports[CurrentViewportIndex];
 		if (ShareViewportsMap.Contains(CurrentViewport.GetId()))
 		{
 			ImplCreateResource(CurrentViewport, CurrentViewportIndex, Backbuffer);
@@ -320,7 +319,7 @@ void FDisplayClusterPostprocessTextureShare::InitializeResources(const FViewport
 	BeginSession();
 }
 
-void FDisplayClusterPostprocessTextureShare::SendViewports_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InOutTexture, const TArray<FDisplayClusterRenderViewport>& RenderViewports) const
+void FDisplayClusterPostprocessTextureShare::SendViewports_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InOutTexture) const
 {
 	// Send all render viewports
 	for (const auto& It : RenderViewports)
@@ -370,7 +369,7 @@ void FDisplayClusterPostprocessTextureShare::Release()
 	}
 }
 
-void FDisplayClusterPostprocessTextureShare::InitializePostProcess(const TMap<FString, FString>& Parameters)
+void FDisplayClusterPostprocessTextureShare::InitializePostProcess(class IDisplayClusterViewportManager& InViewportManager, const TMap<FString, FString>& Parameters)
 {
 	TArray<FString> CfgShareViewports;
 	if(DisplayClusterHelpers::map::template ExtractArrayFromString(Parameters, DisplayClusterPostprocessStrings::texture_share::ShareViewports, CfgShareViewports, DisplayClusterStrings::common::ArrayValSeparator))
@@ -437,3 +436,4 @@ void FDisplayClusterPostprocessTextureShare::InitializePostProcess(const TMap<FS
 		UE_LOG(LogDisplayClusterPostprocessTextureShare, Log, TEXT("Found Argument '%s'=%u"), DisplayClusterPostprocessStrings::texture_share::debug::RepeatCopy, TestRepeatCopy);
 	}
 }
+*/

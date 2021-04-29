@@ -4,7 +4,7 @@
 #include "Synchronizer.h"
 #include "Synchronizer.h"
 #include "Palette.h"
-#include "TAssValueName.h"
+#include "Utils/TAssValueName.h"
 
 BEGIN_NAMESPACE_UE_AC
 
@@ -67,7 +67,7 @@ GSErrCode FProjectEvent::Initialize()
 	GSErrCode GSErr = ACAPI_Notify_CatchProjectEvent(API_AllNotificationMask, ProjectEventNotificationHandler);
 	if (GSErr != NoError)
 	{
-		UE_AC_DebugF("FProjectEvent::Initialize - ACAPI_Notify_CatchProjectEvent error=%d\n", GSErr);
+		UE_AC_DebugF("FProjectEvent::Initialize - ACAPI_Notify_CatchProjectEvent error=%s\n", GetErrorName(GSErr));
 	}
 	return GSErr;
 }

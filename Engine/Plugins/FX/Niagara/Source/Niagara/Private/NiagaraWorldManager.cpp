@@ -737,8 +737,6 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 				Simulation->Spawn_GameThread(DeltaSeconds, true);
 			}
 		}
-
-		SimulationsWithPostActorWork.Reset();
 	}
 
 	// Clear cached player view location list, it should never be used outside of the world tick

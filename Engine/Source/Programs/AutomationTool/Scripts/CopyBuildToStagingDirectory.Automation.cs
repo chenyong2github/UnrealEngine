@@ -87,6 +87,7 @@ public partial class Project : CommandUtils
 	{
 		public string FileNamePattern;
 		public OrderFile.OrderFileType OrderType;
+		public bool Required;
 	};
 
 	/// <returns>The path for the BuildPatchTool executable depending on host platform.</returns>
@@ -620,25 +621,38 @@ public partial class Project : CommandUtils
 		{
 			// Making a plugin
 			DirectoryReference DLCRoot = Params.DLCFile.Directory;
+			string RelativeDLCRootPath = string.IsNullOrEmpty(Params.DLCOverrideCookedSubDir) ? DLCRoot.MakeRelativeTo(SC.LocalRoot) : Params.DLCOverrideCookedSubDir;
 
 			// Put all of the cooked dir into the staged dir
-			SC.PlatformCookDir = String.IsNullOrEmpty(Params.CookOutputDir) ? DirectoryReference.Combine(DLCRoot, "Saved", "Cooked", SC.CookPlatform) : DirectoryReference.Combine(new DirectoryReference(Params.CookOutputDir), SC.CookPlatform);
+			if (String.IsNullOrEmpty(Params.CookOutputDir))
+			{
+				SC.PlatformCookDir = DirectoryReference.Combine(DLCRoot, "Saved", "Cooked", SC.CookPlatform);
+			}
+			else
+			{
+				SC.PlatformCookDir = new DirectoryReference(Params.CookOutputDir);
+				if (!SC.PlatformCookDir.GetDirectoryName().Equals(SC.CookPlatform, StringComparison.InvariantCultureIgnoreCase))
+				{
+					SC.PlatformCookDir = DirectoryReference.Combine(SC.PlatformCookDir, SC.CookPlatform);
+				}
+			}
+
 			DirectoryReference PlatformEngineDir = DirectoryReference.Combine(SC.PlatformCookDir, "Engine");
 			DirectoryReference ProjectMetadataDir = DirectoryReference.Combine(SC.PlatformCookDir, SC.ShortProjectName, "Metadata");
-			string RelativeDLCRootPath = DLCRoot.MakeRelativeTo(SC.LocalRoot);
 			SC.MetadataDir = DirectoryReference.Combine(SC.PlatformCookDir, RelativeDLCRootPath, "Metadata");
 
 			// The .uplugin file is staged differently for different DLC
 			// The .uplugin file doesn't actually exist for mobile DLC
 			if (FileReference.Exists(Params.DLCFile))
 			{
-				if (Params.DLCPakPluginFile)
+				StagedFileType StageType = Params.DLCPakPluginFile ? StagedFileType.UFS : StagedFileType.NonUFS;
+				if (!string.IsNullOrEmpty(Params.DLCOverrideCookedSubDir))
 				{
-					SC.StageFile(StagedFileType.UFS, Params.DLCFile);
+					SC.StageFile(StageType, Params.DLCFile, new StagedFileReference(Path.Combine(Params.DLCOverrideCookedSubDir, Params.DLCFile.GetFileName())));
 				}
 				else
 				{
-					SC.StageFile(StagedFileType.NonUFS, Params.DLCFile);
+					SC.StageFile(StageType, Params.DLCFile);
 				}
 
 				// Stage DLC localization targets
@@ -783,7 +797,11 @@ public partial class Project : CommandUtils
 				DirectoryReference CookOutputDir;
 				if (!String.IsNullOrEmpty(Params.CookOutputDir))
 				{
-					CookOutputDir = DirectoryReference.Combine(new DirectoryReference(Params.CookOutputDir), SC.CookPlatform);
+					CookOutputDir = new DirectoryReference(Params.CookOutputDir);
+					if (!CookOutputDir.GetDirectoryName().Equals(SC.CookPlatform, StringComparison.InvariantCultureIgnoreCase))
+					{
+						CookOutputDir = DirectoryReference.Combine(CookOutputDir, SC.CookPlatform);
+					}
 				}
 				else if (Params.CookInEditor)
 				{
@@ -1584,14 +1602,27 @@ public partial class Project : CommandUtils
 
 	private static void CopyManifestFilesToStageDir(DeploymentContext SC, Dictionary<StagedFileReference, FileReference> Mapping, string ManifestName)
 	{
-		LogInformation("Copying {0} to staging directory: {1}", ManifestName, SC.StageDirectory);
-		foreach (KeyValuePair<StagedFileReference, FileReference> Pair in Mapping)
+		CopyOrWriteManifestFilesToStageDir(true, SC, Mapping, ManifestName);
+	}
+
+	private static void WriteManifestFilesToStageDir(DeploymentContext SC, Dictionary<StagedFileReference, FileReference> Mapping, string ManifestName)
+	{
+		CopyOrWriteManifestFilesToStageDir(false, SC, Mapping, ManifestName);
+	}
+
+	private static void CopyOrWriteManifestFilesToStageDir(bool bPerformCopy, DeploymentContext SC, Dictionary<StagedFileReference, FileReference> Mapping, string ManifestName)
+	{
+		if (bPerformCopy)
 		{
-			FileReference Src = Pair.Value;
-			FileReference Dest = FileReference.Combine(SC.StageDirectory, Pair.Key.Name);
-			if (Src != Dest)  // special case for things created in the staging directory, like the pak file
+			LogInformation("Copying {0} to staging directory: {1}", ManifestName, SC.StageDirectory);
+			foreach (KeyValuePair<StagedFileReference, FileReference> Pair in Mapping)
 			{
-				CopyFileIncremental(Src, Dest, IniKeyBlacklist: SC.IniKeyBlacklist, IniSectionBlacklist: SC.IniSectionBlacklist);
+				FileReference Src = Pair.Value;
+				FileReference Dest = FileReference.Combine(SC.StageDirectory, Pair.Key.Name);
+				if (Src != Dest)  // special case for things created in the staging directory, like the pak file
+				{
+					CopyFileIncremental(Src, Dest, IniKeyBlacklist: SC.IniKeyBlacklist, IniSectionBlacklist: SC.IniSectionBlacklist);
+				}
 			}
 		}
 
@@ -1645,10 +1676,10 @@ public partial class Project : CommandUtils
 	{
 		CopyManifestFilesToStageDir(SC, SC.FilesToStage.NonUFSFiles, "NonUFSFiles");
 
+		Dictionary<StagedFileReference, FileReference> UFSFiles = new Dictionary<StagedFileReference, FileReference>(SC.FilesToStage.UFSFiles);
 		bool bStageUnrealFileSystemFiles = !Params.CookOnTheFly && !Params.UsePak(SC.StageTargetPlatform) && !Params.FileServer;
 		if (bStageUnrealFileSystemFiles)
 		{
-			Dictionary<StagedFileReference, FileReference> UFSFiles = new Dictionary<StagedFileReference, FileReference>(SC.FilesToStage.UFSFiles);
 			foreach (KeyValuePair<StagedFileReference, FileReference> Pair in SC.CrashReporterUFSFiles)
 			{
 				FileReference ExistingLocation;
@@ -1662,6 +1693,11 @@ public partial class Project : CommandUtils
 				}
 			}
 			CopyManifestFilesToStageDir(SC, UFSFiles, "UFSFiles");
+		}
+		else
+		{
+			// write out the manifest file even if we don't copy the files (so we can easily tell what went into the .pak file)
+			WriteManifestFilesToStageDir(SC, UFSFiles, "UFSFiles");
 		}
 
 		// Copy debug files last
@@ -1707,10 +1743,13 @@ public partial class Project : CommandUtils
 	/// <param name="SC"></param>
 	private static List<PakFileRules> GetPakFileRules(ProjectParams Params, DeploymentContext SC)
 	{
+		// if we want to ignore the rules while staging, just don't read any rules in!
+		if (SC.UsePakFileRulesIni == false)
+		{
+			return new List<PakFileRules>();
+		}
+
 		bool bWarnedAboutMultipleTargets = false;
-
-
-
 
 		/*List<ConfigFile> ConfigFiles = new List<ConfigFile>();
 		FileReference BaseConfigFileReference = FileReference.Combine(SC.EngineRoot, "Config", "BasePakFileRules.ini");
@@ -2425,7 +2464,7 @@ public partial class Project : CommandUtils
 		{
 			foreach (string FilePattern in OrderFileConfigValues)
 			{
-				OrderFileSpecs.Add(new OrderFileSpec { FileNamePattern = FilePattern, OrderType = OrderFile.OrderFileType.Custom });
+				OrderFileSpecs.Add(new OrderFileSpec { FileNamePattern = FilePattern, OrderType = OrderFile.OrderFileType.Custom, Required = true });
 			}
 		}
 
@@ -2433,9 +2472,9 @@ public partial class Project : CommandUtils
 		{
 			// Default filespecs
 			OrderFileSpecs.AddRange(new OrderFileSpec[] {
-				new OrderFileSpec{ FileNamePattern = "GameOpenOrder*.log", OrderType = OrderFile.OrderFileType.Game },
-				new OrderFileSpec{ FileNamePattern = "CookerOpenOrder*.log", OrderType = OrderFile.OrderFileType.Cooker },
-				new OrderFileSpec{ FileNamePattern = "EditorOpenOrder.log", OrderType = OrderFile.OrderFileType.Editor }
+				new OrderFileSpec{ FileNamePattern = "GameOpenOrder*.log", OrderType = OrderFile.OrderFileType.Game, Required=false },
+				new OrderFileSpec{ FileNamePattern = "CookerOpenOrder*.log", OrderType = OrderFile.OrderFileType.Cooker, Required=false },
+				new OrderFileSpec{ FileNamePattern = "EditorOpenOrder.log", OrderType = OrderFile.OrderFileType.Editor, Required=false }
 			});
 		}
 
@@ -2460,6 +2499,7 @@ public partial class Project : CommandUtils
 		for (int OrderFileIndex = 0; OrderFileIndex < OrderFileSpecs.Count; OrderFileIndex++)
 		{
 			OrderFileSpec Spec = OrderFileSpecs[OrderFileIndex];
+			bool bAnyFound = false;
 			foreach (DirectoryReference BaseDir in OrderPathsToSearch)
 			{
 				// Add input file to control order of file within the pak
@@ -2469,6 +2509,7 @@ public partial class Project : CommandUtils
 				{
 					foreach (var File in FileLocations)
 					{
+						bAnyFound = true;
 						OrderFile FileOrder = new OrderFile(File, Spec.OrderType, OrderFileIndex);
 
 						//check if the file is alreay in the list
@@ -2478,6 +2519,10 @@ public partial class Project : CommandUtils
 						}
 					}
 				}
+			}
+			if (!bAnyFound && Spec.Required)
+			{
+				throw new AutomationException(String.Format("Did not find any order files from rule {0}", Spec.FileNamePattern));
 			}
 		}
 
@@ -2499,7 +2544,13 @@ public partial class Project : CommandUtils
 
 			// chekc if theres a merging cookopenorder file
 			bUseSecondaryOrder = OrderFiles.Any(x => x.OrderType == OrderFile.OrderFileType.Cooker);
-		}	
+		}
+
+		LogInformation("Using {0} pak order files:", OrderFiles.Count);
+		foreach( OrderFile File in OrderFiles )
+		{
+			LogInformation("    {0}", File.File.ToString());
+		}
 
 		List<Tuple<FileReference, StagedFileReference, string>> Outputs = new List<Tuple<FileReference, StagedFileReference, string>>();
 		foreach (CreatePakParams PakParams in PakParamsList)
@@ -2515,7 +2566,24 @@ public partial class Project : CommandUtils
 			StagedFileReference OutputRelativeLocation;
 			if (Params.HasDLCName)
 			{
-				OutputRelativeLocation = StagedFileReference.Combine(SC.RelativeProjectRootForStage, Params.DLCFile.Directory.MakeRelativeTo(SC.ProjectRoot), "Content", "Paks", SC.FinalCookPlatform, Params.DLCFile.GetFileNameWithoutExtension() + OutputFilename + ".pak");
+				if (Params.DLCOverrideStagedSubDir != null)
+				{
+					OutputRelativeLocation = StagedFileReference.Combine(SC.RelativeProjectRootForStage, Params.DLCOverrideStagedSubDir, "Content", "Paks", Params.DLCFile.GetFileNameWithoutExtension() + OutputFilename + ".pak");
+				}
+				else
+				{
+					string PluginSubdirectory;
+					if (Params.DLCFile.Directory.IsUnderDirectory(SC.ProjectRoot))
+					{
+						PluginSubdirectory = Params.DLCFile.Directory.MakeRelativeTo(SC.ProjectRoot);
+					}
+					else
+					{
+						// if the plugin is external, the MakeRelativeTo above will fail, so just use the plugin name as the directory
+						PluginSubdirectory = Params.DLCFile.GetFileNameWithoutAnyExtensions();
+					}
+					OutputRelativeLocation = StagedFileReference.Combine(SC.RelativeProjectRootForStage, PluginSubdirectory, "Content", "Paks", SC.FinalCookPlatform, Params.DLCFile.GetFileNameWithoutExtension() + OutputFilename + ".pak");
+				}
 			}
 			else
 			{

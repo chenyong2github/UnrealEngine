@@ -33,13 +33,11 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProtocolClusterSync
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void WaitForGameStart(double* ThreadWaitTime, double* BarrierWaitTime) override final;
-	virtual void WaitForFrameStart(double* ThreadWaitTime, double* BarrierWaitTime) override final;
-	virtual void WaitForFrameEnd(double* ThreadWaitTime, double* BarrierWaitTime) override final;
-	virtual void GetDeltaTime(float& DeltaSeconds) override;
-	virtual void GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime) override;
+	virtual void WaitForGameStart() override final;
+	virtual void WaitForFrameStart() override final;
+	virtual void WaitForFrameEnd() override final;
+	virtual void GetTimeData(float& InOutDeltaTime, double& InOutGameTime, TOptional<FQualifiedFrameTime>& InOutFrameTime) override;
 	virtual void GetSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) override;
-	virtual void GetInputData(TMap<FString, FString>& InputData) override;
 	virtual void GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) override;
 	virtual void GetNativeInputData(TMap<FString, FString>& NativeInputData) override;
 
@@ -47,7 +45,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProtocolRenderSync
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void WaitForSwapSync(double* ThreadWaitTime, double* BarrierWaitTime) override final;
+	virtual void WaitForSwapSync() override final;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////

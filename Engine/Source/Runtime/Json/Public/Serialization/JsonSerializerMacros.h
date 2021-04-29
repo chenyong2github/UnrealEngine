@@ -1166,7 +1166,7 @@ struct FJsonDataBag
 	template<typename JSON_TYPE, typename Arg>
 	void SetField(const FString& Key, Arg&& Value)
 	{
-		SetFieldJson(Key, MakeShared<JSON_TYPE>(MoveTempIfPossible(Value)));
+		SetFieldJson(Key, MakeShared<JSON_TYPE>(Forward<Arg>(Value)));
 	}
 
 	void SetFieldJson(const FString& Key, const TSharedPtr<FJsonValue>& Value)

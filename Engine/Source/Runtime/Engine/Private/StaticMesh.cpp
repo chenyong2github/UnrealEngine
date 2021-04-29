@@ -3812,7 +3812,8 @@ bool UStaticMesh::IsReadyForFinishDestroy()
 	}
 #endif
 
-	if (!Super::IsReadyForFinishDestroy())
+	// Match BeginDestroy() by checking for HasPendingInitOrStreaming().
+	if (HasPendingInitOrStreaming() || !Super::IsReadyForFinishDestroy())
 	{
 		return false;
 	}
@@ -5899,7 +5900,11 @@ bool UStaticMesh::HasPendingRenderResourceInitialization() const
 	// Verify we're not compiling before accessing the renderdata to avoid forcing the compilation
 	// to finish during garbage collection. If we're still compiling, the render data has not
 	// yet been created, hence it is not possible we're actively streaming anything from it...
-	return !IsCompiling() && GetRenderData() && !GetRenderData()->bReadyForStreaming;
+
+	// Only check !bReadyForStreaming if the render data is initialized from FStaticMeshRenderData::InitResources(), 
+	// otherwise no render commands are pending and the state will never resolve.
+	// Note that bReadyForStreaming is set on the renderthread.
+	return !IsCompiling() && GetRenderData() && GetRenderData()->IsInitialized() && !GetRenderData()->bReadyForStreaming;
 }
 
 bool UStaticMesh::StreamOut(int32 NewMipCount)

@@ -683,14 +683,15 @@ bool IsInAndroidEventThread()
 
 static void* AndroidEventThreadWorker( void* param )
 {
-	FAndroidMisc::SetThreadName("EventWorker");
+	pthread_setname_np(pthread_self(), "EventWorker");
+	EventThreadID = FPlatformTLS::GetCurrentThreadId();
+	FAndroidMisc::RegisterThreadName("EventWorker", EventThreadID);
 
 	struct android_app* state = (struct android_app*)param;
 
 	FPlatformProcess::SetThreadAffinityMask(FPlatformAffinity::GetMainGameMask());
 
 	FPlatformMisc::LowLevelOutputDebugString(TEXT("Entering event processing thread engine entry point"));
-	EventThreadID = FPlatformTLS::GetCurrentThreadId();
 
 	ALooper* looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
 	ALooper_addFd(looper, state->msgread, LOOPER_ID_MAIN, ALOOPER_EVENT_INPUT, NULL,
@@ -1457,7 +1458,7 @@ static void OnAppCommandCB(struct android_app* app, int32_t cmd)
 
 		// Ignore pause command for Oculus if the window hasn't been initialized to prevent halting initial load
 		// if the headset is not active
-		if (!bHasWindow && FAndroidMisc::IsStandaloneStereoOnlyDevice())
+		if (!bHasWindow && FAndroidMisc::GetDeviceMake() == FString("Oculus"))
 		{
 			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Oculus: Ignoring APP_CMD_PAUSE command before APP_CMD_INIT_WINDOW"));
 			UE_LOG(LogAndroid, Log, TEXT("Oculus: Ignoring APP_CMD_PAUSE command before APP_CMD_INIT_WINDOW"));

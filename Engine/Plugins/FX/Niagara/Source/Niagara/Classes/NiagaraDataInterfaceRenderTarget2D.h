@@ -152,7 +152,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Render Target")
 	uint8 bInheritUserParameterSettings : 1;
 
-	UPROPERTY(EditAnywhere, Category = "Render Target", meta=(PinHiddenByDefault, InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = "Render Target")
 	uint8 bOverrideFormat : 1;
 
 #if WITH_EDITORONLY_DATA

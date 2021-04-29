@@ -3,8 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EngineDefines.h"
 
-#if !UE_BUILD_SHIPPING
+
+#if UE_ENABLE_DEBUG_DRAWING
 #include "DebugRenderSceneProxy.h"
 
 typedef FDebugRenderSceneProxy::FMesh FNavDebugMeshData;

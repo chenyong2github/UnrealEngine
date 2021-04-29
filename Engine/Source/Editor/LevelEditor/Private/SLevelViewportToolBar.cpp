@@ -105,6 +105,7 @@ static void FillShowMenuStatic(UToolMenu* Menu, TArray< FLevelViewportCommands::
 	}
 }
 
+#if STATS
 static void FillShowStatsSubMenus(UToolMenu* Menu, TArray< FLevelViewportCommands::FShowMenuCommand > MenuCommands, TMap< FString, TArray< FLevelViewportCommands::FShowMenuCommand > > StatCatCommands)
 {
 	FillShowMenuStatic(Menu, MenuCommands, 1);
@@ -161,6 +162,7 @@ static void FillShowStatsSubMenus(UToolMenu* Menu, TArray< FLevelViewportCommand
 			FNewToolMenuDelegate::CreateStatic(&FillShowMenuStatic, StatCommands, 0));
 	}
 }
+#endif
 
 void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 {
@@ -662,6 +664,7 @@ void SLevelViewportToolBar::FillOptionsMenu(UToolMenu* Menu)
 
 			Section.AddMenuEntry(FEditorViewportCommands::Get().ToggleFPS);
 
+#if STATS
 			TArray< FLevelViewportCommands::FShowMenuCommand > HideStatsMenu;
 
 			Section.AddMenuEntry(FEditorViewportCommands::Get().ToggleStats);
@@ -680,6 +683,7 @@ void SLevelViewportToolBar::FillOptionsMenu(UToolMenu* Menu)
 		
 			// 'Hide All' button
 			HideStatsMenu.Add(FLevelViewportCommands::FShowMenuCommand(LevelViewportActions.HideAllStats, HideAllLabel));
+#endif
 
 			Section.AddMenuEntry(LevelViewportActions.ToggleViewportToolbar);
 

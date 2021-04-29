@@ -300,6 +300,17 @@ protected:
 	UPROPERTY(config)
 	double QueryCountWarningInterval;
 
+	/** Maximum EQS execution duration (in seconds) before a warning is reported. */
+	UPROPERTY(config)
+	double ExecutionTimeWarningSeconds = 0.025f;
+
+	/** Maximum EQS Query FinishDelegate duration (in seconds) before a warning is reported. */
+	UPROPERTY(config)
+	double HandlingResultTimeWarningSeconds = 0.025f;
+
+	/** Maximum EQS Generator duration (in seconds) before a warning is reported. */
+	UPROPERTY(config)
+	double GenerationTimeWarningSeconds = 0.01f;
 private:
 
 	/** create and bind delegates in instance */

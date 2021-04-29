@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "AddonTools.h"
+#include "Utils/AddonTools.h"
 
 #include "SyncContext.h"
 #include "SyncData.h"
-#include "TAssValueName.h"
+#include "Utils/TAssValueName.h"
 
 #include "ModelElement.hpp"
 
@@ -117,6 +117,7 @@ class FSyncData::FProcessInfo
 	const FSyncContext& SyncContext;
 	int					ProgessValue = 0;
 	FElementID			ElementID;
+	size_t				Index = 0;
 };
 
 END_NAMESPACE_UE_AC

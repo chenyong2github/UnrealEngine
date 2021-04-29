@@ -30,6 +30,10 @@
 #include "Particles/ParticleSystemComponent.h"
 
 
+DECLARE_STATS_GROUP(TEXT("ParticleStats"), STATGROUP_ParticleStats, STATCAT_Advanced);
+DECLARE_CYCLE_STAT(TEXT("Particle Stats Tick [GT]"), STAT_ParticleStats_TickGT, STATGROUP_ParticleStats);
+DECLARE_CYCLE_STAT(TEXT("Particle Stats Tick [RT]"), STAT_ParticleStats_TickRT, STATGROUP_ParticleStats);
+
 TAtomic<bool> FParticlePerfStats::bStatsEnabled(true);
 TAtomic<int32> FParticlePerfStats::WorldStatsReaders(0);
 TAtomic<int32> FParticlePerfStats::SystemStatsReaders(0);
@@ -227,6 +231,8 @@ void FParticlePerfStatsManager::Tick()
 {
 	if (FParticlePerfStats::ShouldGatherStats())
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ParticleStats_TickGT);
+
 		check(Listeners.Num() > 0);
 
 		//Tick our listeners so they can consume the finished frame data.
@@ -244,6 +250,7 @@ void FParticlePerfStatsManager::Tick()
 		(
 			[ListenersRT=TArray<FParticlePerfStatsListenerPtr, TInlineAllocator<8>>(Listeners)](FRHICommandListImmediate& RHICmdList)
 			{
+				SCOPE_CYCLE_COUNTER(STAT_ParticleStats_TickRT);
 				for (FParticlePerfStatsListenerPtr Listener : ListenersRT)
 				{
 					Listener->TickRT();
@@ -485,7 +492,7 @@ int32 FParticlePerfStatsManager::RenderStats(class UWorld* World, class FViewpor
 void FParticlePerfStatsManager::OnStartup()
 {
 	BeginFrameHandle = FCoreDelegates::OnBeginFrame.AddStatic(Tick);
-#if CSV_PROFILER
+#if CSV_PROFILER && !UE_BUILD_SHIPPING
 	if (FCsvProfiler* CSVProfiler = FCsvProfiler::Get())
 	{
 		CSVStartHandle = CSVProfiler->OnCSVProfileStart().AddStatic(FParticlePerfStatsListener_CSVProfiler::OnCSVStart);
@@ -497,7 +504,7 @@ void FParticlePerfStatsManager::OnStartup()
 void FParticlePerfStatsManager::OnShutdown()
 {
 	FCoreDelegates::OnBeginFrame.Remove(BeginFrameHandle);
-#if CSV_PROFILER
+#if CSV_PROFILER && !UE_BUILD_SHIPPING
 	if (FCsvProfiler* CSVProfiler = FCsvProfiler::Get())
 	{
 		CSVProfiler->OnCSVProfileStart().Remove(CSVStartHandle);
@@ -1060,19 +1067,119 @@ bool FParticlePerfStatsListener_TimedTest::Tick()
 
 //////////////////////////////////////////////////////////////////////////
 
-#if CSV_PROFILER
+#if WITH_PARTICLE_PERF_CSV_STATS
+
+CSV_DEFINE_CATEGORY(Particles, true);
+
+static bool bPerFrameCSVStats = false;
+void OnPerSystemCSVStatsEnabledChanged(IConsoleVariable* Variable)
+{	
+	if (bPerFrameCSVStats)
+	{
+		if (FCsvProfiler* CSVProfiler = FCsvProfiler::Get())
+		{
+			if (CSVProfiler->IsCapturing())
+			{
+				FParticlePerfStatsListener_CSVProfiler::OnCSVStart();
+			}
+		}
+	}
+	else
+	{
+		FParticlePerfStatsListener_CSVProfiler::OnCSVEnd();
+	}
+}
+static FAutoConsoleVariableRef CVarWritePerFrameCSVStats(
+	TEXT("fx.ParticlePerfStats.PerFrameCSVStats"),
+	bPerFrameCSVStats,
+	TEXT("If true, we write system particle perf stats to the per frame CSV stats. Allows us to see the overhead of each system over time. \n"),
+	FConsoleVariableDelegate::CreateStatic(&OnPerSystemCSVStatsEnabledChanged),
+	ECVF_Default);
+
 
 FParticlePerfStatsListenerPtr FParticlePerfStatsListener_CSVProfiler::CSVListener;
 void FParticlePerfStatsListener_CSVProfiler::OnCSVStart()
 {
-	CSVListener = MakeShared<FParticlePerfStatsListener_CSVProfiler, ESPMode::ThreadSafe>();
-	FParticlePerfStatsManager::AddListener(CSVListener);
+	if (bPerFrameCSVStats && CSVListener.IsValid() == false)
+	{
+		CSVListener = MakeShared<FParticlePerfStatsListener_CSVProfiler, ESPMode::ThreadSafe>();
+		FParticlePerfStatsManager::AddListener(CSVListener);
+	}
 }
 
 void FParticlePerfStatsListener_CSVProfiler::OnCSVEnd()
 {
-	FParticlePerfStatsManager::RemoveListener(CSVListener.Get());
+	if (CSVListener.IsValid())
+	{
+		FParticlePerfStatsManager::RemoveListener(CSVListener.Get());
+		CSVListener.Reset();
+	}
 }
+
+bool FParticlePerfStatsListener_CSVProfiler::Tick()
+{
+	FParticlePerfStatsListener_GatherAll::Tick();
+
+	if (FCsvProfiler* CSVProfiler = FCsvProfiler::Get())
+	{
+#if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
+		FParticlePerfStatsManager::ForAllSystemStats(
+			[&](TWeakObjectPtr<UFXSystemAsset>& WeakSystem, TUniquePtr<FParticlePerfStats>& Stats)
+			{
+				if (Stats->GetGameThreadStats().NumInstances > 0)
+				{
+					if (UFXSystemAsset* System = WeakSystem.Get())
+					{
+						if (System->CSVStat_Total == NAME_None)
+						{
+							System->CSVStat_Total = *FString::Printf(TEXT("Total/%s"), *System->GetFName().ToString());
+							System->CSVStat_GTOnly = *FString::Printf(TEXT("GTOnly/%s"), *System->GetFName().ToString());
+							System->CSVStat_InstAvg = *FString::Printf(TEXT("InstAvg/%s"), *System->GetFName().ToString());
+							System->CSVStat_RT = *FString::Printf(TEXT("RT/%s"), *System->GetFName().ToString());
+							System->CSVStat_Count = *FString::Printf(TEXT("Count/%s"), *System->GetFName().ToString());
+						}
+
+						float TotalTime = FPlatformTime::ToMilliseconds64(Stats->GetGameThreadStats().GetTotalCycles()) * 1000.0f;
+						float GTTime = FPlatformTime::ToMilliseconds64(Stats->GetGameThreadStats().GetTotalCycles_GTOnly()) * 1000.0f;
+						float AvgTime = FPlatformTime::ToMilliseconds64(Stats->GetGameThreadStats().GetPerInstanceAvgCycles()) * 1000.0f;
+						int32 Count = (int32)Stats->GetGameThreadStats().NumInstances;
+
+						CSVProfiler->RecordCustomStat(System->CSVStat_Total, CSV_CATEGORY_INDEX(Particles), TotalTime, ECsvCustomStatOp::Set);
+						CSVProfiler->RecordCustomStat(System->CSVStat_GTOnly, CSV_CATEGORY_INDEX(Particles), GTTime, ECsvCustomStatOp::Set);
+						CSVProfiler->RecordCustomStat(System->CSVStat_InstAvg, CSV_CATEGORY_INDEX(Particles), AvgTime, ECsvCustomStatOp::Set);
+						CSVProfiler->RecordCustomStat(System->CSVStat_Count, CSV_CATEGORY_INDEX(Particles), Count, ECsvCustomStatOp::Set);
+					}
+				}
+			}
+		);
+#endif
+		return true;
+	}
+
+	return false;
+}
+
+
+void FParticlePerfStatsListener_CSVProfiler::TickRT()
+{
+	FParticlePerfStatsListener_GatherAll::TickRT();
+	if (FCsvProfiler* CSVProfiler = FCsvProfiler::Get())
+	{
+#if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
+		FParticlePerfStatsManager::ForAllSystemStats(
+			[&](TWeakObjectPtr<UFXSystemAsset>& WeakSystem, TUniquePtr<FParticlePerfStats>& Stats)
+			{
+				if (UFXSystemAsset* System = WeakSystem.Get())
+				{
+					float RTTime = FPlatformTime::ToMilliseconds64(Stats->GetRenderThreadStats().GetTotalCycles()) * 1000.0f;
+					CSVProfiler->RecordCustomStat(System->CSVStat_RT, CSV_CATEGORY_INDEX(Particles), RTTime, ECsvCustomStatOp::Set);
+				}
+			}
+		);
+#endif
+	}
+}
+
 
 void FParticlePerfStatsListener_CSVProfiler::End()
 {
@@ -1083,7 +1190,7 @@ void FParticlePerfStatsListener_CSVProfiler::End()
 	DumpStatsToFile();
 }
 
-#endif
+#endif//WITH_PARTICLE_PERF_CSV_STATS
 
 //////////////////////////////////////////////////////////////////////////
 

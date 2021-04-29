@@ -15,8 +15,11 @@ class IOnlinePartyJoinInfo;
 class FOnlineUserPresence;
 class UPartyMember;
 struct FOnlineError;
+class IOnlinePartyRequestToJoinInfo;
 enum class EPartyInvitationRemovedReason : uint8;
 enum class EPlatformIconDisplayRule : uint8;
+enum class ERequestToJoinPartyCompletionResult : int8;
+enum class EPartyRequestToJoinRemovedReason : uint8;
 typedef TSharedRef<const IOnlinePartyJoinInfo> IOnlinePartyJoinInfoConstRef;
 typedef TSharedPtr<const IOnlinePartyJoinInfo> IOnlinePartyJoinInfoConstPtr;
 
@@ -100,6 +103,15 @@ public:
 	void HandlePartyInviteReceived(const IOnlinePartyJoinInfo& Invite);
 	void HandlePartyInviteRemoved(const IOnlinePartyJoinInfo& Invite, EPartyInvitationRemovedReason Reason);
 
+	virtual bool CanRequestToJoin() const { return false; }
+	virtual bool HasRequestedToJoinUs() const { return false; }
+	void HandleRequestToJoinSent(const FDateTime& ExpiresAt);
+	void HandleRequestToJoinReceived(const IOnlinePartyRequestToJoinInfo& Request);
+	void HandleRequestToJoinRemoved(const IOnlinePartyRequestToJoinInfo& Request, EPartyRequestToJoinRemovedReason Reason);
+	void RequestToJoinParty();
+	void AcceptRequestToJoinParty() const;
+	void DismissRequestToJoinParty() const;
+
 	IOnlinePartyJoinInfoConstPtr GetPartyJoinInfo(const FOnlinePartyTypeId& PartyTypeId) const;
 
 	bool HasSentPartyInvite(const FOnlinePartyTypeId& PartyTypeId) const;
@@ -109,7 +121,7 @@ public:
 
 	bool HasBeenInvitedToParty(const FOnlinePartyTypeId& PartyTypeId) const;
 	bool CanInviteToParty(const FOnlinePartyTypeId& PartyTypeId) const;
-	bool InviteToParty(const FOnlinePartyTypeId& PartyTypeId) const;
+	bool InviteToParty(const FOnlinePartyTypeId& PartyTypeId, const ESocialPartyInviteMethod InviteMethod = ESocialPartyInviteMethod::Other) const;
 
 	virtual bool BlockUser(ESocialSubsystem Subsystem) const;
 	virtual bool UnblockUser(ESocialSubsystem Subsystem) const;
@@ -170,6 +182,9 @@ protected:
 	virtual void OnPartyInviteRejectedInternal(const FOnlinePartyTypeId& PartyTypeId) const;
 	virtual void HandleSetNicknameComplete(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName, const FOnlineError& Error);
 	virtual void SetSubsystemId(ESocialSubsystem SubsystemType, const FUniqueNetIdRepl& SubsystemId);
+	virtual void NotifyRequestToJoinSent(const FDateTime& ExpiresAt) {}
+	virtual void NotifyRequestToJoinReceived(const IOnlinePartyRequestToJoinInfo& Request) {}
+	virtual void NotifyRequestToJoinRemoved(const IOnlinePartyRequestToJoinInfo& Request, EPartyRequestToJoinRemovedReason Reason) {}
 	int32 NumPendingQueries = 0;
 
 	void TryBroadcastInitializationComplete();

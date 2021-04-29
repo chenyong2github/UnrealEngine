@@ -64,6 +64,9 @@ FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearVelocityX(TEXT("p.Ri
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearVelocityY(TEXT("p.RigidBodyNode.Space.ExternalLinearVelocity.Y"), RBAN_SimSpaceOverride.ExternalLinearVelocity.Y, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearVelocityZ(TEXT("p.RigidBodyNode.Space.ExternalLinearVelocity.Z"), RBAN_SimSpaceOverride.ExternalLinearVelocity.Z, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 
+bool bRBAN_UseDeferredTask = false;
+FAutoConsoleVariableRef CVarRigidBodyNodeDeferredSimulation(TEXT("p.RigidBodyNode.UseDeferredTask"), bRBAN_UseDeferredTask, TEXT("Whether to defer the simulation results by one frame so that they can run in a task"), ECVF_Default);
+
 #if ENABLE_RBAN_PERF_LOGGING
 static float RBAN_PerfWarningThreshold = 0.f;
 static FAutoConsoleVariableRef CVarRigidBodyNodePerfWarningThreshold(
@@ -80,6 +83,13 @@ static FAutoConsoleVariableRef CVarRigidBodyNodePerfWarningInterval(
 	TEXT("Time (in seconds) between warnings to prevent log spam."),
 	ECVF_Default);
 #endif
+
+FAutoConsoleTaskPriority CPrio_RigidBodyNodeSimulationTask(
+	TEXT("TaskGraph.TaskPriorities.RigidBodyNodeSimulationTask"),
+	TEXT("Task and thread priority for the rigid body anim-node simulation."),
+	ENamedThreads::NormalThreadPriority,
+	ENamedThreads::NormalTaskPriority
+);
 
 FSimSpaceSettings::FSimSpaceSettings()
 	: MasterAlpha(0)
@@ -153,6 +163,7 @@ FAnimNode_RigidBody::FAnimNode_RigidBody():
 
 FAnimNode_RigidBody::~FAnimNode_RigidBody()
 {
+	FlushDeferredSimulationTask();
 	delete PhysicsSimulation;
 }
 
@@ -431,8 +442,33 @@ void FAnimNode_RigidBody::CalculateSimulationSpace(
 
 
 DECLARE_CYCLE_STAT(TEXT("RigidBody_Eval"), STAT_RigidBody_Eval, STATGROUP_Anim);
-
+DECLARE_CYCLE_STAT(TEXT("RigidBodyNode_Simulation"), STAT_RigidBodyNode_Simulation, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("RigidBodyNode_SimulationWait"), STAT_RigidBodyNode_SimulationWait, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread"), STAT_ImmediateEvaluateSkeletalControl, STATGROUP_ImmediatePhysics);
+
+ENamedThreads::Type FAnimNode_RigidBody::FSimulationTask::GetDesiredThread()
+{
+	return CPrio_RigidBodyNodeSimulationTask.Get();
+}
+
+void FAnimNode_RigidBody::FSimulationTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& CompletionGraphEvent)
+{
+	SCOPE_CYCLE_COUNTER(STAT_RigidBodyNode_Simulation);
+	RigidBodyNode->PhysicsSimulation->Simulate_AssumesLocked(DeltaSeconds, MaxDeltaSeconds, MaxSteps, SimSpaceGravity);
+	RigidBodyNode->PhysicsSimulationTask.SafeRelease();
+}
+
+void FAnimNode_RigidBody::FlushDeferredSimulationTask()
+{
+	if (IsValidRef(PhysicsSimulationTask))
+	{
+		SCOPE_CYCLE_COUNTER(STAT_RigidBodyNode_SimulationWait);
+		CSV_SCOPED_SET_WAIT_STAT(RigidBodyNode_Simulation);
+
+		// Reference will be nulled by the task itself
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(PhysicsSimulationTask);
+	}
+}
 
 void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
@@ -460,6 +496,8 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 			StartTime = FPlatformTime::Seconds();
 		}
 #endif
+
+		FlushDeferredSimulationTask();
 
 		const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 		const FTransform CompWorldSpaceTM = Output.AnimInstanceProxy->GetComponentTransform();
@@ -620,8 +658,17 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 			ResetSimulatedTeleportType = ETeleportType::None;
 			PreviousComponentLinearVelocity = FVector::ZeroVector;
 		}
+
+		// Run simulation at a minimum of 30 FPS to prevent system from exploding.
+		// DeltaTime can be higher due to URO, so take multiple iterations in that case.
+		const int32 MaxSteps = RBAN_MaxSubSteps;
+		const float MaxDeltaSeconds = 1.f / 30.f;
+		const bool bUseDeferredSimulationTask = bRBAN_UseDeferredTask;
+		FVector SimSpaceGravity(0.f);
+
 		// Only need to tick physics if we didn't reset and we have some time to simulate
-		if((bSimulateAnimPhysicsAfterReset || !bDynamicsReset) && DeltaSeconds > AnimPhysicsMinDeltaTime)
+		const bool bNeedsSimulationTick = ((bSimulateAnimPhysicsAfterReset || !bDynamicsReset) && DeltaSeconds > AnimPhysicsMinDeltaTime);
+		if (bNeedsSimulationTick)
 		{
 			// Transfer bone velocities previously captured.
 			if (bTransferBoneVelocities && (CapturedBoneVelocityPose.GetPose().GetNumBones() > 0))
@@ -705,12 +752,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 			}
 			
 			UpdateWorldForces(CompWorldSpaceTM, BaseBoneTM, DeltaSeconds);
-			const FVector SimSpaceGravity = WorldVectorToSpaceNoScale(SimulationSpace, WorldSpaceGravity, CompWorldSpaceTM, BaseBoneTM);
-
-			// Run simulation at a minimum of 30 FPS to prevent system from exploding.
-			// DeltaTime can be higher due to URO, so take multiple iterations in that case.
-			const int32 MaxSteps = RBAN_MaxSubSteps;
-			const float MaxDeltaSeconds = 1.f / 30.f;
+			SimSpaceGravity = WorldVectorToSpaceNoScale(SimulationSpace, WorldSpaceGravity, CompWorldSpaceTM, BaseBoneTM);
 
 #if !WITH_CHAOS
 			const int32 NumSteps = FMath::Clamp(FMath::CeilToInt(DeltaSeconds / MaxDeltaSeconds), 1, MaxSteps);
@@ -767,11 +809,16 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 				SolverIterations.JointPushOutIterations,
 				SolverIterations.CollisionPushOutIterations);
 
-			PhysicsSimulation->Simulate_AssumesLocked(DeltaSeconds, MaxDeltaSeconds, MaxSteps, SimSpaceGravity);
+			if (!bUseDeferredSimulationTask)
+			{
+				SCOPE_CYCLE_COUNTER(STAT_RigidBodyNode_Simulation);
+				PhysicsSimulation->Simulate_AssumesLocked(DeltaSeconds, MaxDeltaSeconds, MaxSteps, SimSpaceGravity);
+			}
 #endif
 		}
 		
 		//write back to animation system
+		const FTransform& SimulationWorldSpaceTM = bUseDeferredSimulationTask ? PreviousCompWorldSpaceTM : CompWorldSpaceTM;
 		for (const FOutputBoneData& OutputData : OutputBoneData)
 		{
 			const int32 BodyIndex = OutputData.BodyIndex;
@@ -826,13 +873,19 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 				switch(SimulationSpace)
 				{
 					case ESimulationSpace::ComponentSpace: ComponentSpaceTM = BodyTM; break;
-					case ESimulationSpace::WorldSpace: ComponentSpaceTM = BodyTM.GetRelativeTransform(CompWorldSpaceTM); break;
+					case ESimulationSpace::WorldSpace: ComponentSpaceTM = BodyTM.GetRelativeTransform(SimulationWorldSpaceTM); break;
 					case ESimulationSpace::BaseBoneSpace: ComponentSpaceTM = BodyTM * BaseBoneTM; break;
 					default: ensureMsgf(false, TEXT("Unsupported Simulation Space")); ComponentSpaceTM = BodyTM;
 				}
 					
 				OutBoneTransforms.Add(FBoneTransform(OutputData.CompactPoseBoneIndex, ComponentSpaceTM));
 			}
+		}
+
+		// Deferred task must be started after we read actor poses to avoid a race
+		if (bNeedsSimulationTick && bUseDeferredSimulationTask)
+		{
+			PhysicsSimulationTask = TGraphTask<FSimulationTask>::CreateTask().ConstructAndDispatchWhenReady(this, DeltaSeconds, MaxDeltaSeconds, MaxSteps, SimSpaceGravity);
 		}
 
 		PreviousCompWorldSpaceTM = CompWorldSpaceTM;
@@ -906,6 +959,7 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 {
 	SCOPE_CYCLE_COUNTER(STAT_RigidBodyNodeInitTime);
 
+	FlushDeferredSimulationTask();
 	delete PhysicsSimulation;
 	PhysicsSimulation = nullptr;
 
@@ -1423,6 +1477,9 @@ void FAnimNode_RigidBody::UpdateInternal(const FAnimationUpdateContext& Context)
 	}
 
 	SCOPE_CYCLE_COUNTER(STAT_RigidBody_Update);
+	
+	// Must flush the simulation since we may be making changes to the scene
+	FlushDeferredSimulationTask();
 
 	// Accumulate deltatime elapsed during update. To be used during evaluation.
 	AccumulatedDeltaTime += Context.AnimInstanceProxy->GetDeltaSeconds();

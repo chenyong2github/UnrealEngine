@@ -134,25 +134,46 @@ FString FDMXPixelMappingToolkit::GetWorldCentricTabPrefix() const
 
 void FDMXPixelMappingToolkit::Tick(float DeltaTime)
 {
+	if (!ensure(DMXPixelMapping))
+	{
+		return;
+	}
+
+	UDMXPixelMappingRootComponent* RootComponent =  DMXPixelMapping->RootComponent;
+	if (!ensure(RootComponent))
+	{
+		return;
+	}
+
+	
 	// render selected component
 	if (!bIsPlayingDMX)
 	{
-		for (FDMXPixelMappingComponentReference& SelectedComponentRef : SelectedComponents)
+		for (const FDMXPixelMappingComponentReference& SelectedComponentRef : SelectedComponents)
 		{
-			if (SelectedComponentRef.Component.IsValid())
+			if (UDMXPixelMappingBaseComponent* SelectedComponent = SelectedComponentRef.Component.Get())
 			{
-				UDMXPixelMappingBaseComponent* SelectedComponent = SelectedComponentRef.Component.Get();
-				if (UDMXPixelMappingRendererComponent* RendererComponent = SelectedComponent->GetFirstParentByClass<UDMXPixelMappingRendererComponent>(SelectedComponent))
+				// User select root component
+				if (Cast<UDMXPixelMappingRootComponent>(SelectedComponent))
 				{
-					RendererComponent->RendererInputTexture();
+					break;
 				}
 
-				SelectedComponent->Render();
-
-				if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(SelectedComponent))
+				// Try to get renderer component from selected component
+				UDMXPixelMappingRendererComponent* RendererComponent = SelectedComponent->GetRendererComponent();
+				if (!ensure(RendererComponent))
 				{
-					OutputComponent->RenderEditorPreviewTexture();
+					break;
 				}
+				
+				// Render
+				RendererComponent->Render();
+
+				// Render preview
+				RendererComponent->RenderEditorPreviewTexture();
+
+				// Render only once for all selected components
+				break;
 			}
 		}
 	}
@@ -161,42 +182,48 @@ void FDMXPixelMappingToolkit::Tick(float DeltaTime)
 	{
 		if (bTogglePlayDMXAll) // Send to all
 		{
-			if (DMXPixelMapping != nullptr &&
-				DMXPixelMapping->RootComponent != nullptr)
-			{
-				DMXPixelMapping->RootComponent->RenderAndSendDMX();
+			// Render all components
+			RootComponent->RenderAndSendDMX();
 
-				for (FDMXPixelMappingComponentReference& SelectedComponentRef : SelectedComponents)
+			for (FDMXPixelMappingComponentReference& SelectedComponentRef : SelectedComponents)
+			{
+				if (UDMXPixelMappingBaseComponent* SelectedComponent = SelectedComponentRef.Component.Get())
 				{
-					if (SelectedComponentRef.Component.IsValid())
+					// Try to get renderer component from selected component
+					UDMXPixelMappingRendererComponent* RendererComponent = SelectedComponent->GetRendererComponent();
+					if (RendererComponent)
 					{
-						UDMXPixelMappingBaseComponent* SelectedComponent = SelectedComponentRef.Component.Get();
-						if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(SelectedComponent))
-						{
-							OutputComponent->RenderEditorPreviewTexture();
-						}
+						RendererComponent->RenderEditorPreviewTexture();
 					}
+
+					// Render only once for all selected components
+					break;
 				}
 			}
 		}
 		else // Send to selected component
 		{
+			bool bRenderedOnce = false;
+
 			for (FDMXPixelMappingComponentReference& SelectedComponentRef : SelectedComponents)
 			{
-				if (SelectedComponentRef.Component.IsValid())
+				if (UDMXPixelMappingBaseComponent* SelectedComponent = SelectedComponentRef.Component.Get())
 				{
-					UDMXPixelMappingBaseComponent* SelectedComponent = SelectedComponentRef.Component.Get();
-					if (UDMXPixelMappingRendererComponent* RendererComponent = SelectedComponent->GetFirstParentByClass<UDMXPixelMappingRendererComponent>(SelectedComponent))
+					if (!bRenderedOnce)
 					{
-						RendererComponent->RendererInputTexture();
+						// Try to get renderer component from selected component
+						UDMXPixelMappingRendererComponent* RendererComponent = SelectedComponent->GetRendererComponent();
+						if (RendererComponent)
+						{
+							RendererComponent->Render();
+
+							RendererComponent->RenderEditorPreviewTexture();
+						}
+
+						bRenderedOnce = true;
 					}
 
-					SelectedComponent->RenderAndSendDMX();
-
-					if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(SelectedComponent))
-					{
-						OutputComponent->RenderEditorPreviewTexture();
-					}
+					SelectedComponent->SendDMX();
 				}
 			}
 		}
@@ -209,20 +236,14 @@ void FDMXPixelMappingToolkit::Tick(float DeltaTime)
 			{
 				if (bTogglePlayDMXAll) // Send to all
 				{
-					if (DMXPixelMapping != nullptr &&
-						DMXPixelMapping->RootComponent != nullptr
-						)
-					{
-						DMXPixelMapping->RootComponent->ResetDMX();
-					}
+					RootComponent->ResetDMX();
 				}
 				else // Send to selected component
 				{
 					for (FDMXPixelMappingComponentReference& SelectedComponentRef : SelectedComponents)
 					{
-						if (SelectedComponentRef.Component.IsValid())
+						if (UDMXPixelMappingBaseComponent* SelectedComponent = SelectedComponentRef.Component.Get())
 						{
-							UDMXPixelMappingBaseComponent* SelectedComponent = SelectedComponentRef.Component.Get();
 							SelectedComponent->ResetDMX();
 						}
 					}
@@ -362,12 +383,9 @@ void FDMXPixelMappingToolkit::ExecutebTogglePlayDMXAll()
 
 void FDMXPixelMappingToolkit::OnSaveThumbnailImage()
 {
-	if (GetActiveOutputComponents().Num() > 0)
+	if (ActiveRendererComponent.IsValid())
 	{
-		if (UDMXPixelMappingOutputComponent* OutputComponent = GetActiveOutputComponents()[0])
-		{
-			DMXPixelMapping->ThumbnailImage = OutputComponent->GetOutputTexture();
-		}
+		DMXPixelMapping->ThumbnailImage = ActiveRendererComponent->GetPreviewRenderTarget();
 	}
 }
 

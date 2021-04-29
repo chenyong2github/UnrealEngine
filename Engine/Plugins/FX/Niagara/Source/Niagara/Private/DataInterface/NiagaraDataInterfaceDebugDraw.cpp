@@ -12,8 +12,17 @@
 
 //////////////////////////////////////////////////////////////////////////
 
+FName UNiagaraDataInterfaceDebugDraw::CompileTagKey = TEXT("CompilerTagKey");
+
+
 struct FNDIDebugDrawInstanceData_GameThread
 {
+	FNDIDebugDrawInstanceData_GameThread() 
+	{
+
+	}
+
+	
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 	void AddLine(const FVector& Start, const FVector& End, const FLinearColor& Color)
 	{
@@ -29,8 +38,404 @@ struct FNDIDebugDrawInstanceData_GameThread
 		Line.Color |= uint32(FMath::Clamp(Color.A, 0.0f, 1.0f) * 255.0f) <<  0;
 	}
 
+	void AddSphere(const FVector& Location, float Radius, int32 Segments, const FLinearColor& Color)
+	{
+		const float uinc = 2.0f * PI / float(Segments);
+
+		float ux = 0.0f;
+		float SinX0 = FMath::Sin(ux);
+		float CosX0 = FMath::Cos(ux);
+		for (int x = 0; x < Segments; ++x)
+		{
+			ux += uinc;
+			const float SinX1 = FMath::Sin(ux);
+			const float CosX1 = FMath::Cos(ux);
+
+			float uy = 0.0f;
+			float SinY0 = FMath::Sin(uy);
+			float CosY0 = FMath::Cos(uy);
+			for (int y = 0; y < Segments; ++y)
+			{
+				uy += uinc;
+				const float SinY1 = FMath::Sin(uy);
+				const float CosY1 = FMath::Cos(uy);
+
+				const FVector Point0 = Location + FVector(CosX0 * CosY0, SinY0, SinX0 * CosY0) * Radius;
+				const FVector Point1 = Location + FVector(CosX1 * CosY0, SinY0, SinX1 * CosY0) * Radius;
+				const FVector Point2 = Location + FVector(CosX0 * CosY1, SinY1, SinX0 * CosY1) * Radius;
+				AddLine(Point0, Point1, Color);
+				AddLine(Point0, Point2, Color);
+
+				SinY0 = SinY1;
+				CosY0 = CosY1;
+			}
+
+			SinX0 = SinX1;
+			CosX0 = CosX1;
+		}
+	}
+
+	void AddBox(const FVector& Location, const FQuat& Rotation, const FVector& Extents, const FLinearColor& Color)
+	{
+		const FVector Points[] =
+		{
+			Location + Rotation.RotateVector(FVector(Extents.X,  Extents.Y,  Extents.Z)),
+			Location + Rotation.RotateVector(FVector(-Extents.X,  Extents.Y,  Extents.Z)),
+			Location + Rotation.RotateVector(FVector(-Extents.X, -Extents.Y,  Extents.Z)),
+			Location + Rotation.RotateVector(FVector(Extents.X, -Extents.Y,  Extents.Z)),
+			Location + Rotation.RotateVector(FVector(Extents.X,  Extents.Y, -Extents.Z)),
+			Location + Rotation.RotateVector(FVector(-Extents.X,  Extents.Y, -Extents.Z)),
+			Location + Rotation.RotateVector(FVector(-Extents.X, -Extents.Y, -Extents.Z)),
+			Location + Rotation.RotateVector(FVector(Extents.X, -Extents.Y, -Extents.Z)),
+		};
+		AddLine(Points[0], Points[1], Color);
+		AddLine(Points[1], Points[2], Color);
+		AddLine(Points[2], Points[3], Color);
+		AddLine(Points[3], Points[0], Color);
+
+		AddLine(Points[4], Points[5], Color);
+		AddLine(Points[5], Points[6], Color);
+		AddLine(Points[6], Points[7], Color);
+		AddLine(Points[7], Points[4], Color);
+
+		AddLine(Points[0], Points[4], Color);
+		AddLine(Points[1], Points[5], Color);
+		AddLine(Points[2], Points[6], Color);
+		AddLine(Points[3], Points[7], Color);
+	}
+
+	bool bResolvedPersistentShapes = false;
 	FCriticalSection LineBufferLock;
 	TArray<FNiagaraSimulationDebugDrawData::FGpuLine> LineBuffer;
+
+	struct FDebugPrim_PersistentShape
+	{
+		UNiagaraDataInterfaceDebugDraw::ShapeId ShapeId;
+		const UNiagaraScript* Script = nullptr;
+		bool bSimSpaceIsLocal = false;
+		FName CenterName;
+		FName CenterWorldSpaceName;
+		FName OffsetName;
+		FName OffsetWorldSpaceName;
+		FName RadiusName;
+		FName ColorName;
+		FName SegmentName;
+		FName ExtentsName;
+		FName RotationAxisName;
+		FName RotationNormalizedAngleName;
+		FName RotationWorldSpaceName;
+		FName HalfExtentsName;
+
+		ENiagaraCoordinateSpace GetConcreteSource(bool bVectorWasSet, const TOptional<ENiagaraCoordinateSpace>& SourceSpace)
+		{
+			ENiagaraCoordinateSpace SourceSpaceConcrete = ENiagaraCoordinateSpace::Simulation;
+			if (SourceSpace.IsSet())
+				SourceSpaceConcrete = SourceSpace.GetValue();
+
+			if (SourceSpaceConcrete == ENiagaraCoordinateSpace::Simulation && bSimSpaceIsLocal)
+				SourceSpaceConcrete = ENiagaraCoordinateSpace::Local;
+			else if (SourceSpaceConcrete == ENiagaraCoordinateSpace::Simulation)
+				SourceSpaceConcrete = ENiagaraCoordinateSpace::World;
+
+			// Override it all as local space if the source vector wasn't set...
+			if (bVectorWasSet)
+				return SourceSpaceConcrete;
+			else
+				return ENiagaraCoordinateSpace::Local;
+		}
+
+		void TransformVector(bool bVectorWasSet, FVector& Vector, const TOptional<ENiagaraCoordinateSpace>& SourceSpace, const FNiagaraSystemInstance* SystemInstance)
+		{
+			ENiagaraCoordinateSpace SourceSpaceConcrete = GetConcreteSource(bVectorWasSet, SourceSpace);
+
+			// We are always going to world, so if wer'e already world, just do nothing.
+			if (SourceSpaceConcrete == ENiagaraCoordinateSpace::World)
+				return;
+
+			ensure(SourceSpaceConcrete == ENiagaraCoordinateSpace::Local);
+			Vector = SystemInstance->GetWorldTransform().TransformVector(Vector);
+		}
+
+		void TransformPosition(bool bPointWasSet, FVector& Point, const TOptional<ENiagaraCoordinateSpace>& SourceSpace, const FNiagaraSystemInstance* SystemInstance)
+		{
+			ENiagaraCoordinateSpace SourceSpaceConcrete = GetConcreteSource(bPointWasSet, SourceSpace);
+
+			// We are always going to world, so if wer'e already world, just do nothing.
+			if (SourceSpaceConcrete == ENiagaraCoordinateSpace::World)
+				return;
+
+			ensure(SourceSpaceConcrete == ENiagaraCoordinateSpace::Local);
+			Point = SystemInstance->GetWorldTransform().TransformPosition(Point);
+		}
+
+		void TransformQuat(bool bRotationWasSet, FQuat& Quat, const TOptional<ENiagaraCoordinateSpace>& SourceSpace, const FNiagaraSystemInstance* SystemInstance)
+		{
+			ENiagaraCoordinateSpace SourceSpaceConcrete = GetConcreteSource(bRotationWasSet, SourceSpace);
+
+			// We are always going to world, so if wer'e already world, just do nothing.
+			if (SourceSpaceConcrete == ENiagaraCoordinateSpace::World)
+				return;
+
+			ensure(SourceSpaceConcrete == ENiagaraCoordinateSpace::Local);
+			Quat = SystemInstance->GetWorldTransform().Rotator().Quaternion() * Quat;
+		}
+
+		void Draw(FNDIDebugDrawInstanceData_GameThread* InstanceData, const FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
+		{
+			switch (ShapeId)
+			{
+			case UNiagaraDataInterfaceDebugDraw::Sphere:
+				DrawSphere(InstanceData, SystemInstance, DeltaSeconds);
+				break;
+			case UNiagaraDataInterfaceDebugDraw::Box:
+				DrawBox(InstanceData, SystemInstance, DeltaSeconds);
+				break;
+
+			};
+				
+		}
+
+
+
+		void DrawSphere(FNDIDebugDrawInstanceData_GameThread* InstanceData, const FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
+		{
+			if (Script == nullptr)
+				return;
+			static FNiagaraTypeDefinition CoordTypeDef = FNiagaraTypeDefinition(FNiagaraTypeDefinition::GetCoordinateSpaceEnum());			;
+
+			TOptional<FVector> Center = Script->GetCompilerTag< FVector>(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), CenterName), SystemInstance->GetOverrideParameters());
+			TOptional<ENiagaraCoordinateSpace> CenterWorldSpace = Script->GetCompilerTag<ENiagaraCoordinateSpace>(FNiagaraVariableBase(CoordTypeDef, CenterWorldSpaceName), SystemInstance->GetOverrideParameters());;
+			TOptional<FVector> Offset = Script->GetCompilerTag< FVector>(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), OffsetName), SystemInstance->GetOverrideParameters());
+			TOptional<ENiagaraCoordinateSpace> OffsetWorldSpace = Script->GetCompilerTag<ENiagaraCoordinateSpace>(FNiagaraVariableBase(CoordTypeDef, OffsetWorldSpaceName), SystemInstance->GetOverrideParameters());;
+			TOptional<float> Radius = Script->GetCompilerTag<float>(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), RadiusName), SystemInstance->GetOverrideParameters());
+			TOptional<FLinearColor> Color = Script->GetCompilerTag< FLinearColor>(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), ColorName), SystemInstance->GetOverrideParameters());
+			TOptional<int32> NumSegments = Script->GetCompilerTag<int32>(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), SegmentName), SystemInstance->GetOverrideParameters());
+
+			FVector DrawCenter = Center.IsSet() ? Center.GetValue() : FVector::ZeroVector;
+			FVector DrawOffset = Offset.IsSet() ? Offset.GetValue() : FVector::ZeroVector;
+			float DrawRadius = Radius.IsSet() ? Radius.GetValue() : 1.0f;
+			FLinearColor DrawColor = Color.IsSet() ? Color.GetValue() : FLinearColor::Green;
+			int32 DrawNumSegments = NumSegments.IsSet() ? NumSegments.GetValue() : 6;
+
+			TransformPosition(Center.IsSet(), DrawCenter, CenterWorldSpace, SystemInstance);
+			TransformVector(Offset.IsSet(), DrawOffset, OffsetWorldSpace, SystemInstance);
+
+
+			if (Radius.IsSet())
+				InstanceData->AddSphere(DrawCenter + DrawOffset, DrawRadius, DrawNumSegments, DrawColor);
+		}
+
+		void DrawBox(FNDIDebugDrawInstanceData_GameThread* InstanceData, const FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
+		{
+			if (Script == nullptr)
+				return;
+			static FNiagaraTypeDefinition CoordTypeDef = FNiagaraTypeDefinition(FNiagaraTypeDefinition::GetCoordinateSpaceEnum());
+
+			TOptional<FVector> Center = Script->GetCompilerTag< FVector>(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), CenterName), SystemInstance->GetOverrideParameters());
+			TOptional<FVector> Offset = Script->GetCompilerTag< FVector>(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), OffsetName), SystemInstance->GetOverrideParameters());
+			TOptional<ENiagaraCoordinateSpace> CenterWorldSpace = Script->GetCompilerTag<ENiagaraCoordinateSpace>(FNiagaraVariableBase(CoordTypeDef, CenterWorldSpaceName), SystemInstance->GetOverrideParameters());;
+			TOptional<ENiagaraCoordinateSpace> OffsetWorldSpace = Script->GetCompilerTag<ENiagaraCoordinateSpace>(FNiagaraVariableBase(CoordTypeDef, OffsetWorldSpaceName), SystemInstance->GetOverrideParameters());;
+			TOptional<ENiagaraCoordinateSpace> RotationWorldSpace = Script->GetCompilerTag<ENiagaraCoordinateSpace>(FNiagaraVariableBase(CoordTypeDef, RotationWorldSpaceName), SystemInstance->GetOverrideParameters());;
+			TOptional<FVector> Extents = Script->GetCompilerTag<FVector>(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), ExtentsName), SystemInstance->GetOverrideParameters());
+			TOptional<FNiagaraBool> HalfExtents = Script->GetCompilerTag<FNiagaraBool>(FNiagaraVariableBase(FNiagaraTypeDefinition::GetBoolDef(), HalfExtentsName), SystemInstance->GetOverrideParameters());;
+			TOptional<FVector> RotationAxis = Script->GetCompilerTag<FVector>(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), RotationAxisName), SystemInstance->GetOverrideParameters());
+			TOptional<float> RotationNormalizedAngle = Script->GetCompilerTag<float>(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), RotationNormalizedAngleName), SystemInstance->GetOverrideParameters());
+			TOptional<FLinearColor> Color = Script->GetCompilerTag< FLinearColor>(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), ColorName), SystemInstance->GetOverrideParameters());
+
+
+			FVector DrawCenter = Center.IsSet() ? Center.GetValue() : FVector::ZeroVector;
+			FVector DrawOffset = Offset.IsSet() ? Offset.GetValue() : FVector::ZeroVector;
+			FVector DrawExtents = Extents.IsSet() ? Extents.GetValue() : FVector::ZeroVector*10.0f;
+			FVector DrawRotationAxis = RotationAxis.IsSet() ? RotationAxis.GetValue() : FVector(0.0f, 0.0f, 1.0f);
+			float DrawRotationNormalizedAngle = RotationNormalizedAngle.IsSet() ? RotationNormalizedAngle.GetValue() : 0.0f;
+			FLinearColor DrawColor = Color.IsSet() ? Color.GetValue() : FLinearColor::Green;
+			FQuat DrawRotation = FQuat::Identity;
+
+			TransformPosition(Center.IsSet(), DrawCenter, CenterWorldSpace, SystemInstance);
+			TransformVector(Offset.IsSet(), DrawOffset, OffsetWorldSpace, SystemInstance);
+
+			DrawRotation = FQuat(DrawRotationAxis, FMath::DegreesToRadians(DrawRotationNormalizedAngle * 360.0f));
+			TransformQuat(RotationAxis.IsSet(), DrawRotation, RotationWorldSpace, SystemInstance);
+
+						
+			if ((HalfExtents.IsSet() && HalfExtents.GetValue().GetValue()) || !HalfExtents.IsSet())
+			{
+				DrawExtents /= 2.0f;
+			}
+
+			if (Extents.IsSet())
+				InstanceData->AddBox(DrawCenter + DrawOffset, DrawRotation, DrawExtents,  DrawColor);
+		}
+	};
+
+
+	
+
+	TArray<TPair<FName, UNiagaraDataInterfaceDebugDraw::ShapeId>> PersistentShapeIds;
+	TArray<FDebugPrim_PersistentShape> PersistentShapes;
+
+	void AddNamedPersistentShape(const FName& InName, UNiagaraDataInterfaceDebugDraw::ShapeId InShapeId)
+	{
+		for (const TPair<FName, UNiagaraDataInterfaceDebugDraw::ShapeId>& ExistingShape : PersistentShapeIds)
+		{
+			if (ExistingShape.Key == InName && ExistingShape.Value == InShapeId)
+				return;
+		}
+
+
+		PersistentShapeIds.Add(TPair<FName, UNiagaraDataInterfaceDebugDraw::ShapeId>(InName, InShapeId));
+		bResolvedPersistentShapes = false;
+	}
+
+
+	void HandlePersistentShapes(FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
+	{
+
+		if (!bResolvedPersistentShapes && PersistentShapeIds.Num() != 0)
+		{
+			TArray<UNiagaraScript*> Scripts;
+			TArray<bool> ScriptIsLocal;
+			UNiagaraSystem* System = SystemInstance->GetSystem();
+			if (System)
+			{
+				Scripts.Add(System->GetSystemSpawnScript());
+				Scripts.Add(System->GetSystemUpdateScript());
+				ScriptIsLocal.Add(false);
+				ScriptIsLocal.Add(false);
+
+				for (const FNiagaraEmitterHandle& Handle : System->GetEmitterHandles())
+				{
+					UNiagaraEmitter* Emitter = Handle.GetInstance();
+					if (Emitter)
+					{
+						bool bEmitterIsLocal = Emitter->bLocalSpace;
+						if (Emitter->SimTarget == ENiagaraSimTarget::CPUSim)
+						{
+							int32 ScriptCap = Scripts.Num();
+							Emitter->GetScripts(Scripts, true, true);
+
+							for (int32 i = ScriptCap; i < Scripts.Num(); i++)
+								ScriptIsLocal.Add(bEmitterIsLocal);
+						}
+						else
+						{
+							// It's a little weird to do this, but ultimately all the rapid iteration values are 
+							// referenced by the compile tags from these scripts and we want to get the most up-to-date 
+							// values here. If we reference the GPU script here, it will have stale values for some reason.
+							Scripts.Add(Emitter->SpawnScriptProps.Script);
+							Scripts.Add(Emitter->UpdateScriptProps.Script);
+							ScriptIsLocal.Add(bEmitterIsLocal);
+							ScriptIsLocal.Add(bEmitterIsLocal);
+						}
+					}
+				}
+			}
+
+			ensure(ScriptIsLocal.Num() == Scripts.Num());
+
+			PersistentShapes.Empty();
+			for (const TPair<FName, UNiagaraDataInterfaceDebugDraw::ShapeId>& ExistingShape : PersistentShapeIds)
+			{
+				for (int32 i = 0; i< Scripts.Num(); i++)
+				{
+					UNiagaraScript* Script = Scripts[i];
+					bool bIsLocal = ScriptIsLocal[i];
+					if (Script)
+					{
+						switch (ExistingShape.Value)
+						{
+						case UNiagaraDataInterfaceDebugDraw::Sphere:
+							{
+								FName CenterName = *(ExistingShape.Key.ToString() + TEXT(".Center"));
+								FName CenterWorldSpaceName = *(ExistingShape.Key.ToString() + TEXT(".CenterCoordinateSpace"));
+								FName OffsetName = *(ExistingShape.Key.ToString() + TEXT(".OffsetFromCenter"));
+								FName OffsetWorldSpaceName = *(ExistingShape.Key.ToString() + TEXT(".OffsetCoordinateSpace"));
+								FName RadiusName = *(ExistingShape.Key.ToString() + TEXT(".Radius"));
+								FName ColorName = *(ExistingShape.Key.ToString() + TEXT(".Color"));
+								FName SegmentName = *(ExistingShape.Key.ToString() + TEXT(".Num Segments"));
+
+								TOptional<FVector> Center = Script->GetCompilerTag< FVector>(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), CenterName));
+								TOptional<float> Radius = Script->GetCompilerTag<float>(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), RadiusName));
+								TOptional<FLinearColor> Color = Script->GetCompilerTag< FLinearColor>(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), ColorName));
+								TOptional<int32> NumSegments = Script->GetCompilerTag<int32>(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), SegmentName));
+
+								if (Center.IsSet() || Radius.IsSet() || Color.IsSet() || NumSegments.IsSet())
+								{
+									int32 Index = PersistentShapes.Emplace();
+									PersistentShapes[Index].ShapeId = ExistingShape.Value;
+									PersistentShapes[Index].Script = Script;
+									PersistentShapes[Index].bSimSpaceIsLocal = bIsLocal;
+									PersistentShapes[Index].CenterName = CenterName;
+									PersistentShapes[Index].CenterWorldSpaceName = CenterWorldSpaceName;
+									PersistentShapes[Index].OffsetName = OffsetName;
+									PersistentShapes[Index].OffsetWorldSpaceName = OffsetWorldSpaceName;
+									PersistentShapes[Index].RadiusName = RadiusName;
+									PersistentShapes[Index].ColorName = ColorName;
+									PersistentShapes[Index].SegmentName = SegmentName;
+								}
+							}
+							break;
+
+						case UNiagaraDataInterfaceDebugDraw::Box:
+						{
+							FName CenterName = *(ExistingShape.Key.ToString() + TEXT(".Center"));
+							FName CenterWorldSpaceName = *(ExistingShape.Key.ToString() + TEXT(".CenterCoordinateSpace"));
+							FName ExtentsName = *(ExistingShape.Key.ToString() + TEXT(".Extents"));
+							FName HalfExtentsName = *(ExistingShape.Key.ToString() + TEXT(".HalfExtents"));
+							FName RotationAxisName = *(ExistingShape.Key.ToString() + TEXT(".RotationAxis"));
+
+							FName RotationNormalizedAngleName = *(ExistingShape.Key.ToString() + TEXT(".RotationNormalizedAngle"));
+							FName ColorName = *(ExistingShape.Key.ToString() + TEXT(".Color"));
+
+							FName OffsetName = *(ExistingShape.Key.ToString() + TEXT(".Offset"));
+							FName OffsetWorldSpaceName = *(ExistingShape.Key.ToString() + TEXT(".OffsetCoordinateSpace"));
+
+							TOptional<FVector> Center = Script->GetCompilerTag< FVector>(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), CenterName));
+							TOptional<FVector> Extents = Script->GetCompilerTag<FVector>(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), ExtentsName));
+							TOptional<FLinearColor> Color = Script->GetCompilerTag< FLinearColor>(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), ColorName));
+							TOptional<FVector> RotationAxis = Script->GetCompilerTag<FVector>(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), RotationAxisName));
+							TOptional<float> RotationNormalizedAngle = Script->GetCompilerTag<float>(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), RotationNormalizedAngleName));
+
+
+
+							if (Center.IsSet() || Extents.IsSet() || Color.IsSet() || RotationAxis.IsSet() || RotationNormalizedAngle.IsSet())
+							{
+								int32 Index = PersistentShapes.Emplace();
+								PersistentShapes[Index].ShapeId = ExistingShape.Value;
+								PersistentShapes[Index].bSimSpaceIsLocal = bIsLocal;
+								PersistentShapes[Index].Script = Script;
+								PersistentShapes[Index].CenterName = CenterName;
+								PersistentShapes[Index].CenterWorldSpaceName = CenterWorldSpaceName;
+								PersistentShapes[Index].ExtentsName = ExtentsName;
+								PersistentShapes[Index].HalfExtentsName = HalfExtentsName;
+								PersistentShapes[Index].ColorName = ColorName;
+
+								PersistentShapes[Index].RotationAxisName = RotationAxisName;
+								PersistentShapes[Index].RotationNormalizedAngleName = RotationNormalizedAngleName;
+								PersistentShapes[Index].OffsetName = OffsetName;
+								PersistentShapes[Index].OffsetWorldSpaceName = OffsetWorldSpaceName;
+							}
+						}
+						break;
+						}
+						
+					}
+				}
+			}
+
+
+			bResolvedPersistentShapes = true;
+		}
+
+		if (bResolvedPersistentShapes)
+		{
+			for (FDebugPrim_PersistentShape& Shape : PersistentShapes)
+			{
+				Shape.Draw(this, SystemInstance, DeltaSeconds);
+			}
+		}
+	}
+
 #endif //NIAGARA_COMPUTEDEBUG_ENABLED
 };
 
@@ -62,6 +467,8 @@ namespace NDIDebugDrawLocal
 	static const FName DrawGrid3DName(TEXT("DrawGrid3D"));
 	static const FName DrawLineName(TEXT("DrawLine"));
 	static const FName DrawSphereName(TEXT("DrawSphere"));
+	static const FName DrawSpherePersistentName(TEXT("DrawSpherePersistent"));
+	static const FName DrawBoxPersistentName(TEXT("DrawBoxPersistent"));
 
 	static int32 GNiagaraDebugDrawEnabled = 1;
 	static FAutoConsoleVariableRef CVarNiagaraDebugDrawEnabled(
@@ -89,6 +496,35 @@ namespace NDIDebugDrawLocal
 			FNDIInputParam<FLinearColor> ColorParam;
 		};
 
+		struct PersistentVMBindings
+		{
+			PersistentVMBindings(FVectorVMContext& Context)
+				: LocationParam(Context)
+				, LocationWSParam(Context)
+				, ExtentsParam(Context)
+				, HalfExtentsParam(Context)
+				, RotationAxisParam(Context)
+				, RotationAngleParam(Context)
+				, RotationWSParam(Context)
+				, OffsetParam(Context)
+				, OffsetWSParam(Context)
+				, ColorParam(Context)
+			{
+
+			}
+
+			FNDIInputParam<FVector> LocationParam;
+			FNDIInputParam<FNiagaraBool> LocationWSParam;
+			FNDIInputParam<FVector> ExtentsParam;
+			FNDIInputParam<FNiagaraBool> HalfExtentsParam;
+			FNDIInputParam<FVector> RotationAxisParam;
+			FNDIInputParam<float> RotationAngleParam;
+			FNDIInputParam<FNiagaraBool> RotationWSParam;
+			FNDIInputParam<FVector> OffsetParam;
+			FNDIInputParam<FNiagaraBool> OffsetWSParam;
+			FNDIInputParam<FLinearColor> ColorParam;
+		};
+
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 		static void Draw(FNDIDebugDrawInstanceData_GameThread* InstanceData, VMBindings& Bindings, bool bExecute)
 		{
@@ -99,31 +535,7 @@ namespace NDIDebugDrawLocal
 
 			if (bExecute)
 			{
-				const FVector Points[] =
-				{
-					Location + Rotation.RotateVector(FVector( Extents.X,  Extents.Y,  Extents.Z)),
-					Location + Rotation.RotateVector(FVector(-Extents.X,  Extents.Y,  Extents.Z)),
-					Location + Rotation.RotateVector(FVector(-Extents.X, -Extents.Y,  Extents.Z)),
-					Location + Rotation.RotateVector(FVector( Extents.X, -Extents.Y,  Extents.Z)),
-					Location + Rotation.RotateVector(FVector( Extents.X,  Extents.Y, -Extents.Z)),
-					Location + Rotation.RotateVector(FVector(-Extents.X,  Extents.Y, -Extents.Z)),
-					Location + Rotation.RotateVector(FVector(-Extents.X, -Extents.Y, -Extents.Z)),
-					Location + Rotation.RotateVector(FVector( Extents.X, -Extents.Y, -Extents.Z)),
-				};
-				InstanceData->AddLine(Points[0], Points[1], Color);
-				InstanceData->AddLine(Points[1], Points[2], Color);
-				InstanceData->AddLine(Points[2], Points[3], Color);
-				InstanceData->AddLine(Points[3], Points[0], Color);
-
-				InstanceData->AddLine(Points[4], Points[5], Color);
-				InstanceData->AddLine(Points[5], Points[6], Color);
-				InstanceData->AddLine(Points[6], Points[7], Color);
-				InstanceData->AddLine(Points[7], Points[4], Color);
-
-				InstanceData->AddLine(Points[0], Points[4], Color);
-				InstanceData->AddLine(Points[1], Points[5], Color);
-				InstanceData->AddLine(Points[2], Points[6], Color);
-				InstanceData->AddLine(Points[3], Points[7], Color);
+				InstanceData->AddBox(Location, Rotation, Extents, Color);
 			}
 		}
 #endif
@@ -389,6 +801,28 @@ namespace NDIDebugDrawLocal
 			FNDIInputParam<FLinearColor> ColorParam;
 		};
 
+		struct PersistentVMBindings
+		{
+			PersistentVMBindings(FVectorVMContext& Context)
+				: CenterParam(Context)
+				, CenterWSParam(Context)
+				, OffsetParam(Context)
+				, OffsetWSParam(Context)
+				, RadiusParam(Context)
+				, SegmentsParam(Context)
+				, ColorParam(Context)
+			{
+			}
+
+			FNDIInputParam<FVector> CenterParam;
+			FNDIInputParam<FNiagaraBool> CenterWSParam;
+			FNDIInputParam<FVector> OffsetParam;
+			FNDIInputParam<FNiagaraBool> OffsetWSParam;
+			FNDIInputParam<float> RadiusParam;
+			FNDIInputParam<int32> SegmentsParam;
+			FNDIInputParam<FLinearColor> ColorParam;
+		};
+
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 		static void Draw(FNDIDebugDrawInstanceData_GameThread* InstanceData, VMBindings& Bindings, bool bExecute)
 		{
@@ -399,39 +833,7 @@ namespace NDIDebugDrawLocal
 
 			if (bExecute)
 			{
-				const float uinc = 2.0f * PI / float(Segments);
-
-				float ux = 0.0f;
-				float SinX0 = FMath::Sin(ux);
-				float CosX0 = FMath::Cos(ux);
-				for (int x=0; x < Segments; ++x)
-				{
-					ux += uinc;
-					const float SinX1 = FMath::Sin(ux);
-					const float CosX1 = FMath::Cos(ux);
-
-					float uy = 0.0f;
-					float SinY0 = FMath::Sin(uy);
-					float CosY0 = FMath::Cos(uy);
-					for (int y=0; y < Segments; ++y)
-					{
-						uy += uinc;
-						const float SinY1 = FMath::Sin(uy);
-						const float CosY1 = FMath::Cos(uy);
-
-						const FVector Point0 = Location + FVector(CosX0 * CosY0, SinY0, SinX0 * CosY0) * Radius;
-						const FVector Point1 = Location + FVector(CosX1 * CosY0, SinY0, SinX1 * CosY0) * Radius;
-						const FVector Point2 = Location + FVector(CosX0 * CosY1, SinY1, SinX0 * CosY1) * Radius;
-						InstanceData->AddLine(Point0, Point1, Color);
-						InstanceData->AddLine(Point0, Point2, Color);
-
-						SinY0 = SinY1;
-						CosY0 = CosY1;
-					}
-
-					SinX0 = SinX1;
-					CosX0 = CosX1;
-				}
+				InstanceData->AddSphere(Location, Radius, Segments, Color);				
 			}
 		}
 #endif
@@ -455,6 +857,22 @@ namespace NDIDebugDrawLocal
 			const bool bExecute = ExecuteParam.GetAndAdvance();
 			TPrimType::Draw(InstanceData, Bindings, bExecute);
 		}
+#endif
+	}
+
+	template<typename TPrimType>
+	void DrawDebugPersistent(FVectorVMContext& Context)
+	{
+		VectorVM::FUserPtrHandler<FNDIDebugDrawInstanceData_GameThread> InstanceData(Context);
+		typename TPrimType::PersistentVMBindings Bindings(Context);
+
+#if NIAGARA_COMPUTEDEBUG_ENABLED
+		if (!NDIDebugDrawLocal::GNiagaraDebugDrawEnabled)
+		{
+			return;
+		}
+
+		// Do nothing here... will draw this later on..
 #endif
 	}
 }
@@ -667,6 +1085,40 @@ void UNiagaraDataInterfaceDebugDraw::GetFunctions(TArray<FNiagaraFunctionSignatu
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Num Segments"))).SetValue(6);
 		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), TEXT("Color")));
 	}
+
+	FNiagaraTypeDefinition CoordTypeDef(FNiagaraTypeDefinition::GetCoordinateSpaceEnum());
+	{
+		FNiagaraFunctionSignature& Signature = OutFunctions.Add_GetRef(DefaultSignature);
+		Signature.Name = NDIDebugDrawLocal::DrawSpherePersistentName;
+		Signature.FunctionSpecifiers.Add(TEXT("Identifier"));
+		Signature.bIsCompileTagGenerator = true;
+		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("DebugDrawInterface")));
+		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Center")));
+		Signature.Inputs.Add_GetRef(FNiagaraVariable(CoordTypeDef, TEXT("CenterCoordinateSpace"))).SetValue(ENiagaraCoordinateSpace::Local);
+		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("OffsetFromCenter")));
+		Signature.Inputs.Add_GetRef(FNiagaraVariable(CoordTypeDef, TEXT("OffsetCoordinateSpace"))).SetValue(ENiagaraCoordinateSpace::Local);
+		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Radius"))).SetValue(10.0f);
+		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Num Segments"))).SetValue(36);
+		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), TEXT("Color")));
+	}
+
+	{
+		FNiagaraFunctionSignature& Signature = OutFunctions.Add_GetRef(DefaultSignature);
+		Signature.Name = NDIDebugDrawLocal::DrawBoxPersistentName;
+		Signature.FunctionSpecifiers.Add(TEXT("Identifier"));
+		Signature.bIsCompileTagGenerator = true;
+		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("DebugDrawInterface")));
+		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Center")));
+		Signature.Inputs.Add_GetRef(FNiagaraVariable(CoordTypeDef, TEXT("CenterCoordinateSpace"))).SetValue(ENiagaraCoordinateSpace::Local);
+		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Extents"))).SetValue(FVector(10.0f));
+		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("HalfExtents"))).SetValue(true);
+		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("RotationAxis"))).SetValue(FVector(0.0f, 0.0f, 1.0f));
+		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("RotationNormalizedAngle")));
+		Signature.Inputs.Add_GetRef(FNiagaraVariable(CoordTypeDef, TEXT("RotationCoordinateSpace"))).SetValue(ENiagaraCoordinateSpace::Local);
+		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Offset")));
+		Signature.Inputs.Add_GetRef(FNiagaraVariable(CoordTypeDef, TEXT("OffsetCoordinateSpace"))).SetValue(ENiagaraCoordinateSpace::Local);
+		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), TEXT("Color")));
+	}
 }
 
 void UNiagaraDataInterfaceDebugDraw::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction& OutFunc)
@@ -699,6 +1151,32 @@ void UNiagaraDataInterfaceDebugDraw::GetVMExternalFunction(const FVMExternalFunc
 	{
 		OutFunc = FVMExternalFunction::CreateStatic(&NDIDebugDrawLocal::DrawDebug<NDIDebugDrawLocal::FDebugPrim_Sphere>);
 	}
+	else if (BindingInfo.FunctionSpecifiers.Num() != 0)
+	{
+		// The HLSL translator adds this function specifier in so that we have a unqiue key during compilation.
+		const FVMFunctionSpecifier* Specifier = BindingInfo.FunctionSpecifiers.FindByPredicate([&](const FVMFunctionSpecifier& Info) { return Info.Key == UNiagaraDataInterfaceDebugDraw::CompileTagKey; });
+
+		if (Specifier && !Specifier->Value.IsNone())
+		{
+			FNDIDebugDrawInstanceData_GameThread* PerInstanceData = reinterpret_cast<FNDIDebugDrawInstanceData_GameThread*>(InstanceData);
+			if (BindingInfo.Name == NDIDebugDrawLocal::DrawSpherePersistentName)
+			{
+
+#if NIAGARA_COMPUTEDEBUG_ENABLED
+				PerInstanceData->AddNamedPersistentShape(Specifier->Value, UNiagaraDataInterfaceDebugDraw::Sphere);
+#endif
+				OutFunc = FVMExternalFunction::CreateStatic(&NDIDebugDrawLocal::DrawDebugPersistent<NDIDebugDrawLocal::FDebugPrim_Sphere>);
+			}
+			else if (BindingInfo.Name == NDIDebugDrawLocal::DrawBoxPersistentName)
+			{
+#if NIAGARA_COMPUTEDEBUG_ENABLED
+				PerInstanceData->AddNamedPersistentShape(Specifier->Value, UNiagaraDataInterfaceDebugDraw::Box);
+#endif
+				OutFunc = FVMExternalFunction::CreateStatic(&NDIDebugDrawLocal::DrawDebugPersistent<NDIDebugDrawLocal::FDebugPrim_Box>);
+			}
+		}
+	}
+	
 }
 
 #if WITH_EDITORONLY_DATA
@@ -767,10 +1245,65 @@ bool UNiagaraDataInterfaceDebugDraw::GetFunctionHLSL(const FNiagaraDataInterface
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
+	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawSpherePersistentName)
+	{
+		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(float3 Center, int CenterCoordinateSpace, float3 OffsetFromCenter, int OffsetCoordinateSpace, float Radius, int NumSegments, float4 Color){ }\n");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawBoxPersistentName)
+	{
+		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(float3 Center, int CenterCoordinateSpace, float3 Extents, bool HalfExtents, float3 RotationAxis, float RotationAngle, int RotationCoordinateSpace, float3 Offset, int OffsetCoordinateSpace, float4 Color) { /* Do nothing for now..*/}\n");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		return true;
+	}
 
 	return false;
 }
+
+bool UNiagaraDataInterfaceDebugDraw::GenerateCompilerTagPrefix(const FNiagaraFunctionSignature& InSignature, FString& OutPrefix) const 
+{
+	if (InSignature.bIsCompileTagGenerator && InSignature.FunctionSpecifiers.Num() == 1)
+	{
+		for (auto Specifier : InSignature.FunctionSpecifiers)
+		{
+			if (!Specifier.Value.IsNone())
+			{
+				OutPrefix = Specifier.Value.ToString();
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 #endif
+
+bool UNiagaraDataInterfaceDebugDraw::GPUContextInit(const FNiagaraScriptDataInterfaceCompileInfo& InInfo, void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) const
+{
+
+#if NIAGARA_COMPUTEDEBUG_ENABLED
+	FNDIDebugDrawInstanceData_GameThread* InstanceData = reinterpret_cast<FNDIDebugDrawInstanceData_GameThread*>(PerInstanceData);
+	for (const FNiagaraFunctionSignature& Sig : InInfo.RegisteredFunctions)
+	{
+		if (PerInstanceData && Sig.FunctionSpecifiers.Num() > 0)
+		{
+			// The HLSL translator adds this function specifier in so that we have a unqiue key during compilation.
+			const FName* Specifier = Sig.FunctionSpecifiers.Find(UNiagaraDataInterfaceDebugDraw::CompileTagKey);
+
+			if (Specifier && !Specifier->IsNone())
+			{
+				if (Sig.Name == NDIDebugDrawLocal::DrawSpherePersistentName)
+					InstanceData->AddNamedPersistentShape(*Specifier, UNiagaraDataInterfaceDebugDraw::Sphere);
+				else if (Sig.Name == NDIDebugDrawLocal::DrawBoxPersistentName)
+					InstanceData->AddNamedPersistentShape(*Specifier, UNiagaraDataInterfaceDebugDraw::Box);
+			}
+		}
+	}
+#endif
+	return true;
+}
+
 
 bool UNiagaraDataInterfaceDebugDraw::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {
@@ -783,33 +1316,48 @@ bool UNiagaraDataInterfaceDebugDraw::PerInstanceTick(void* PerInstanceData, FNia
 
 bool UNiagaraDataInterfaceDebugDraw::PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {
+	if (!SystemInstance)
+		return false;
+
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 	FNDIDebugDrawInstanceData_GameThread* InstanceData = reinterpret_cast<FNDIDebugDrawInstanceData_GameThread*>(PerInstanceData);
 
-	// Dispatch information to the RT proxy
-	ENQUEUE_RENDER_COMMAND(NDIDebugDrawUpdate)(
-		[RT_Proxy=GetProxyAs<FNDIDebugDrawProxy>(), RT_InstanceID=SystemInstance->GetId(), RT_TickCount=SystemInstance->GetTickCount(), RT_LineBuffer=MoveTemp(InstanceData->LineBuffer)](FRHICommandListImmediate& RHICmdList) mutable
+	if (InstanceData)
+	{
+		if (NDIDebugDrawLocal::GNiagaraDebugDrawEnabled)
 		{
-			FNDIDebugDrawInstanceData_RenderThread* RT_InstanceData = &RT_Proxy->SystemInstancesToProxyData_RT.FindChecked(RT_InstanceID);
+			InstanceData->HandlePersistentShapes(SystemInstance, DeltaSeconds);
+		}
 
-			if ( RT_InstanceData->GpuComputeDebug )
+
+		// Dispatch information to the RT proxy
+		ENQUEUE_RENDER_COMMAND(NDIDebugDrawUpdate)(
+			[RT_Proxy=GetProxyAs<FNDIDebugDrawProxy>(), RT_InstanceID=SystemInstance->GetId(), RT_TickCount=SystemInstance->GetTickCount(), RT_LineBuffer=MoveTemp(InstanceData->LineBuffer)](FRHICommandListImmediate& RHICmdList) mutable
 			{
-				if ( FNiagaraSimulationDebugDrawData* DebugDraw = RT_InstanceData->GpuComputeDebug->GetSimulationDebugDrawData(RT_InstanceID, false) )
+				if (RT_Proxy)
 				{
-					if (DebugDraw->LastUpdateTickCount != RT_TickCount)
+					FNDIDebugDrawInstanceData_RenderThread* RT_InstanceData = &RT_Proxy->SystemInstancesToProxyData_RT.FindChecked(RT_InstanceID);
+
+					if (RT_InstanceData && RT_InstanceData->GpuComputeDebug)
 					{
-						DebugDraw->LastUpdateTickCount = RT_TickCount;
-						DebugDraw->bRequiresUpdate = true;
-						DebugDraw->StaticLines = MoveTemp(RT_LineBuffer);
-					}
-					else
-					{
-						DebugDraw->StaticLines += MoveTemp(RT_LineBuffer);
+						if (FNiagaraSimulationDebugDrawData* DebugDraw = RT_InstanceData->GpuComputeDebug->GetSimulationDebugDrawData(RT_InstanceID, false))
+						{
+							if (DebugDraw->LastUpdateTickCount != RT_TickCount)
+							{
+								DebugDraw->LastUpdateTickCount = RT_TickCount;
+								DebugDraw->bRequiresUpdate = true;
+								DebugDraw->StaticLines = MoveTemp(RT_LineBuffer);
+							}
+							else
+							{
+								DebugDraw->StaticLines += MoveTemp(RT_LineBuffer);
+							}
+						}
 					}
 				}
 			}
-		}
-	);
+		);
+	}
 #endif
 	return false;
 }

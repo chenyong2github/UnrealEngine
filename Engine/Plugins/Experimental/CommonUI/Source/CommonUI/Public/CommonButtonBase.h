@@ -421,6 +421,8 @@ public:
 	DECLARE_EVENT(UCommonButtonBase, FCommonButtonEvent);
 	FCommonButtonEvent& OnClicked() const { return OnClickedEvent; }
 	FCommonButtonEvent& OnDoubleClicked() const { return OnDoubleClickedEvent; }
+	FCommonButtonEvent& OnPressed() const { return OnPressedEvent; }
+	FCommonButtonEvent& OnReleased() const { return OnReleasedEvent; }
 	FCommonButtonEvent& OnHovered() const { return OnHoveredEvent; }
 	FCommonButtonEvent& OnUnhovered() const { return OnUnhoveredEvent; }
 	FCommonButtonEvent& OnFocusReceived() const { return OnFocusReceivedEvent; }
@@ -727,6 +729,8 @@ private:
 
 	mutable FCommonButtonEvent OnClickedEvent;
 	mutable FCommonButtonEvent OnDoubleClickedEvent;
+	mutable FCommonButtonEvent OnPressedEvent;
+	mutable FCommonButtonEvent OnReleasedEvent;
 	mutable FCommonButtonEvent OnHoveredEvent;
 	mutable FCommonButtonEvent OnUnhoveredEvent;
 	mutable FCommonButtonEvent OnFocusReceivedEvent;

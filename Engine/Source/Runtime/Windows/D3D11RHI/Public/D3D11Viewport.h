@@ -81,12 +81,12 @@ public:
 	FD3D11Texture2D* GetBackBuffer() const { return BackBuffer; }
 	EColorSpaceAndEOTF GetPixelColorSpace() const { return PixelColorSpace; }
 
-	void WaitForFrameEventCompletion()
+	virtual void WaitForFrameEventCompletion() override
 	{
 		FrameSyncEvent.WaitForCompletion();
 	}
 
-	void IssueFrameEvent()
+	virtual void IssueFrameEvent() override
 	{
 		FrameSyncEvent.IssueEvent();
 	}

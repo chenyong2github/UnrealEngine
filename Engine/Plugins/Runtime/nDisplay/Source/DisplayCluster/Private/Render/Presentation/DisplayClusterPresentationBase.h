@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Render/Presentation/IDisplayClusterPresentation.h"
 #include "RHI.h"
 #include "RHIResources.h"
 
@@ -10,7 +11,7 @@ class FViewport;
 class IDisplayClusterRenderSyncPolicy;
 
 
-class FDisplayClusterPresentationBase : public FRHICustomPresent
+class FDisplayClusterPresentationBase : public FRHICustomPresent, public IDisplayClusterPresentation
 {
 public:
 	FDisplayClusterPresentationBase(FViewport* const InViewport, TSharedPtr<IDisplayClusterRenderSyncPolicy>& InSyncPolicy);
@@ -19,6 +20,21 @@ public:
 public:
 	// Returns internal swap interval
 	uint32 GetSwapInt() const;
+
+public:
+
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	// IDisplayClusterPresentation
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual FDisplayClusterPresentationPreSynchronization_RHIThread& OnDisplayClusterPresentationPreSynchronization_RHIThread() override
+	{
+		return DisplayClusterPresentationPreSynchronizationEvent;
+	}
+
+	virtual FDisplayClusterPresentationPostSynchronization_RHIThread& OnDisplayClusterPresentationPostSynchronization_RHIThread() override
+	{
+		return DisplayClusterPresentationPostSynchronizationEvent;
+	}
 
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -42,4 +58,6 @@ protected:
 private:
 	FViewport* const Viewport;
 	TSharedPtr<IDisplayClusterRenderSyncPolicy> SyncPolicy;
+	FDisplayClusterPresentationPreSynchronization_RHIThread DisplayClusterPresentationPreSynchronizationEvent;
+	FDisplayClusterPresentationPostSynchronization_RHIThread DisplayClusterPresentationPostSynchronizationEvent;
 };

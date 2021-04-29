@@ -44,7 +44,7 @@ const FVector2D Icon40x40(40.0f, 40.0f);
 TSharedRef< FSlateStyleSet > FActorPaletteStyle::Create()
 {
 	TSharedRef< FSlateStyleSet > Style = MakeShareable(new FSlateStyleSet("ActorPaletteStyle"));
-	Style->SetContentRoot(IPluginManager::Get().FindPlugin("ActorPalette")->GetBaseDir() / TEXT("Resources"));
+	Style->SetContentRoot(IPluginManager::Get().FindPlugin(TEXT("ActorPalette"))->GetBaseDir() / TEXT("Resources"));
 
 	Style->Set("ActorPalette.OpenPluginWindow", new IMAGE_BRUSH(TEXT("ButtonIcon_40x"), Icon40x40));
 

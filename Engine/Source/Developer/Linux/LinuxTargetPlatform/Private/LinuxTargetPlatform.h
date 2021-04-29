@@ -19,7 +19,6 @@
 #include "Sound/SoundWave.h"
 #include "StaticMeshResources.h"
 #endif // WITH_ENGINE
-#include "Interfaces/IProjectManager.h"
 #include "InstalledPlatformInfo.h"
 #include "LinuxTargetDevice.h"
 #include "Linux/LinuxPlatformProperties.h"

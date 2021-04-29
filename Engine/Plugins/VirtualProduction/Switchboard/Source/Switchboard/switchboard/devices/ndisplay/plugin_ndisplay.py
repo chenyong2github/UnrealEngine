@@ -7,35 +7,60 @@ from switchboard.devices.device_base import Device
 from switchboard.devices.device_widget_base import AddDeviceDialog
 from switchboard.devices.unreal.plugin_unreal import DeviceUnreal, DeviceWidgetUnreal
 from switchboard.switchboard_logging import LOGGER
+from switchboard.devices.unreal.uassetparser import UassetParser
 
 from .ndisplay_monitor_ui import nDisplayMonitorUI
 from .ndisplay_monitor    import nDisplayMonitor
 
-from PySide2 import QtWidgets
+from PySide2 import QtWidgets, QtCore
 
-import os, traceback, json, socket, struct
+import os, traceback, json, socket, struct, fnmatch
 from pathlib import Path
+import concurrent.futures
 
 
 class AddnDisplayDialog(AddDeviceDialog):
     def __init__(self, existing_devices, parent=None):
         super().__init__(device_type="nDisplay", existing_devices=existing_devices, parent=parent)
 
-        self.config_file_field = QtWidgets.QLineEdit(self)
-        self.config_file_button = QtWidgets.QPushButton(self, text="Browse")
-        self.config_file_button.clicked.connect(lambda: self.on_clicked_browse_file())
-        file_selection_layout = QtWidgets.QHBoxLayout()
-        file_selection_layout.addWidget(self.config_file_field)
-        file_selection_layout.addItem(QtWidgets.QSpacerItem(0, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum))
-        file_selection_layout.addWidget(self.config_file_button)
+        # Set enough width for a decent file path length
+        self.setMinimumWidth(640)
 
-        # remove these rows as we don't need them
+        # remove unneded base dialog layout rows
         self.form_layout.removeRow(self.name_field)
         self.form_layout.removeRow(self.ip_field)
         self.name_field = None
         self.ip_field = None
 
+        # Button to browse for supported config files
+        self.btnBrowse = QtWidgets.QPushButton(self, text="Browse")
+        self.btnBrowse.clicked.connect(self.on_clicked_btnBrowse)
+
+        # Button to find and populate config files in the UE project
+        self.btnFindConfigs = QtWidgets.QPushButton(self, text="Populate")
+        self.btnFindConfigs.clicked.connect(self.on_clicked_btnFindConfigs)
+
+        # Combobox with config files
+        self.cbConfigs = QtWidgets.QComboBox(self)
+        self.cbConfigs.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
+        self.cbConfigs.setEditable(True) # to allow the user to type the value
+
+        # Create layout for the config file selection widgets
+        file_selection_layout = QtWidgets.QHBoxLayout()
+        file_selection_layout.addWidget(self.cbConfigs)
+        file_selection_layout.addWidget(self.btnBrowse)
+        file_selection_layout.addWidget(self.btnFindConfigs)
+
+        self.form_layout.addRow("Config File", file_selection_layout)
+
+        # Add a spacer right before the ok/cancel buttons
+        spacer_layout = QtWidgets.QHBoxLayout()
+        spacer_layout.addItem(QtWidgets.QSpacerItem(20, 20, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding))
+        self.form_layout.addRow("", spacer_layout)
+
+        # Find existing nDisplay devices in order to issue a warning about replacing them
         self.existing_ndisplay_devices = []
+
         for device in existing_devices:
             if device.device_type == "nDisplay":
                 self.existing_ndisplay_devices.append(device)
@@ -43,28 +68,150 @@ class AddnDisplayDialog(AddDeviceDialog):
         if self.existing_ndisplay_devices:
             self.layout().addWidget(QtWidgets.QLabel("Warning! All existing nDisplay devices will be replaced."))
 
-        self.form_layout.addRow("nDisplay Config", file_selection_layout)
+        # populate the config combobox with the items last populated.
+        self.recall_config_itemDatas()
+
+    def recall_config_itemDatas(self):
+        ''' Populate the config combobox with the already found configs, avoiding having to re-find every time '''
+        self.cbConfigs.clear()
+
+        itemDatas = DevicenDisplay.csettings['populated_config_itemDatas'].get_value()
+
+        try:
+            for itemData in itemDatas:
+                self.cbConfigs.addItem(itemData['name'], itemData)
+        except:
+            LOGGER.error('Error recalling config itemDatas')
+
+    def current_config_path(self):
+        ''' Get currently selected config path in the combobox '''
+
+        # Detect if this is a manual entry using the itemData
+
+        itemText = self.cbConfigs.currentText()
+        itemData = self.cbConfigs.currentData()
+
+        if (self.cbConfigs.currentData() is None) or (itemData['name'] != itemText):
+            config_path = itemText.replace('"', '').strip()
+        else:
+            config_path = itemData['path'].replace('"', '').strip()
+
+        # normalize the path
+        config_path = os.path.normpath(config_path)
+        return config_path
 
     def result(self):
         res = super().result()
         if res == QtWidgets.QDialog.Accepted:
-            config_path = self.config_file_field.text().replace('"', '').strip()
-            config_path = os.path.normpath(config_path)
+            config_path = self.current_config_path()
             DevicenDisplay.csettings['ndisplay_config_file'].update_value(config_path)
+
         return res
 
-    def on_clicked_browse_file(self):
+    def on_clicked_btnBrowse(self):
+        ''' Opens a file dialog to browse for the config file
+        '''
         start_path = str(Path.home())
+
         if SETTINGS.LAST_BROWSED_PATH and os.path.exists(SETTINGS.LAST_BROWSED_PATH):
             start_path = SETTINGS.LAST_BROWSED_PATH
-        cfg_path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select nDisplay config file", start_path, "nDisplay Config (*.cfg;*.ndisplay)")
+
+        cfg_path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select nDisplay config file", start_path, "nDisplay Config (*.cfg;*.ndisplay;*.uasset)")
+
         if len(cfg_path) > 0 and os.path.exists(cfg_path):
-            self.config_file_field.setText(cfg_path)
+            self.cbConfigs.setCurrentText(cfg_path)
             SETTINGS.LAST_BROWSED_PATH = os.path.dirname(cfg_path)
             SETTINGS.save()
 
+    def on_clicked_btnFindConfigs(self):
+        ''' Finds and populates config combobox '''
+        # We will look for config files in the project's Content folder
+        configs_path = os.path.normpath(os.path.join(os.path.dirname(CONFIG.UPROJECT_PATH.get_value().replace('"','')), 'Content'))
+
+        config_names = []
+        config_paths = []
+
+        assets = []
+
+        for dirpath, _, files in os.walk(configs_path):
+            for name in files:
+                if not name.lower().endswith(('.uasset','.cfg','.ndisplay')):
+                    continue
+
+                if name not in config_names:
+                    config_path = os.path.join(dirpath, name)
+                    ext = os.path.splitext(name)[1]
+
+                    # Since .uasset is generic a asset container, only add assets of the right config class
+                    if ext.lower() == '.uasset':
+                        assets.append({'name': name, 'path': config_path})
+                    else:
+                        config_names.append(name)
+                        config_paths.append(config_path)     
+
+        # process the assets in a multi-threaded fashion
+
+        # show a progress bar if it is taking more a trivial amount of time
+        progressDiag = QtWidgets.QProgressDialog('Parsing assets...','Cancel', 0, 0, parent=self)
+        progressDiag.setWindowTitle('nDisplay Config Finder')
+        progressDiag.setModal(True)
+        progressDiag.setMinimumDuration(1000) # time before it shows up
+        progressDiag.setRange(0,len(assets))
+        progressDiag.setCancelButton(None)
+        progressDiag.setWindowFlag(QtCore.Qt.FramelessWindowHint) # Looks much better without the window frame
+
+        def validateConfigAsset(asset):
+            ''' Returns the asset if it is an nDisplay config '''
+            aparser = UassetParser(asset['path'], allowUnversioned=True)
+            for assetdata in aparser.aregdata:
+                if assetdata.ObjectClassName == 'DisplayClusterBlueprint':
+                    return asset
+            raise ValueError
+
+        numThreads = 8
+        doneAssetCount = 0
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=numThreads) as executor:
+            futures = [executor.submit(validateConfigAsset, asset) for asset in assets]
+
+            for future in concurrent.futures.as_completed(futures):
+
+                #update progress bar
+                doneAssetCount += 1
+                progressDiag.setValue(doneAssetCount)
+
+                # get the future result and add to list of config names and paths
+                try:
+                    asset = future.result()
+                    if asset['name'] not in config_names:
+                        config_names.append(asset['name'])
+                        config_paths.append(asset['path'])
+                except:
+                    pass
+
+        # close progress bar window
+        progressDiag.close()
+
+        # collect the found config files into the itemDatas list
+
+        itemDatas = []
+
+        for idx, config_name in enumerate(config_names):
+            itemData = {'name': config_name, 'path':config_paths[idx]}
+            itemDatas.append(itemData)
+
+        # sort by name
+        itemDatas.sort(key=lambda itemData: itemData['name'])
+
+        # update settings that should survive device removal and addition
+        DevicenDisplay.csettings['populated_config_itemDatas'].update_value(itemDatas)
+
+        # update the combo box with the items.
+        self.recall_config_itemDatas()
+
+
     def devices_to_add(self):
-        cfg_file = self.config_file_field.text().replace('"', '')
+        cfg_file = self.current_config_path()
         try:
             devices = DevicenDisplay.parse_config(cfg_file)
             if len(devices) == 0:
@@ -133,7 +280,7 @@ class DevicenDisplay(DeviceUnreal):
         'max_gpu_count': Setting(
             attr_name="max_gpu_count", 
             nice_name="Number of GPUs",
-            value=1,
+            value=2,
             possible_values=list(range(1, 17)),
             tool_tip="If you have multiple GPUs in the PC, you can specify how many to use.",
         ),
@@ -143,7 +290,14 @@ class DevicenDisplay(DeviceUnreal):
             value=sb_utils.PriorityModifier.Normal.name,
             possible_values=[p.name for p in sb_utils.PriorityModifier],
             tool_tip="Used to override the priority of the process.",
-        )
+        ),
+        'populated_config_itemDatas': Setting(
+            attr_name='populated_config_itemDatas',
+            nice_name="Populated Config Files",
+            value=[], # populated by AddnDisplayDialog
+            tool_tip="Remember the last populated list of config files",
+            show_ui=False,
+        ),
     }
 
     ndisplay_monitor_ui = None
@@ -297,7 +451,8 @@ class DevicenDisplay(DeviceUnreal):
         # Overridden classes at runtime
         ini_engine = "-ini:Engine"\
             ":[/Script/Engine.Engine]:GameEngine=/Script/DisplayCluster.DisplayClusterGameEngine"\
-            ",[/Script/Engine.Engine]:GameViewportClientClassName=/Script/DisplayCluster.DisplayClusterViewportClient"
+            ",[/Script/Engine.Engine]:GameViewportClientClassName=/Script/DisplayCluster.DisplayClusterViewportClient"\
+            ",[/Script/Engine.UserInterfaceSettings]:bAllowHighDPIInGameMode=True"
 
         ini_game = "-ini:Game:[/Script/EngineSettings.GeneralProjectSettings]:bUseBorderlessWindow=True"
 
@@ -400,10 +555,30 @@ class DevicenDisplay(DeviceUnreal):
         self.__class__.ndisplay_monitor.on_get_sync_status(device=self, message=message)
 
     @classmethod
-    def parse_config_json(cls, cfg_file):
-        ''' Parses nDisplay config file of type json '''
+    def extract_configexport_from_uasset(cls, cfg_file):
+        ''' Extract the configexport from the config uasset '''
 
-        js = json.loads(open(cfg_file, 'r').read())
+        # Initialize uasset parser
+        aparser = UassetParser(cfg_file)
+
+        # Check that the asset is of the right class, then find its ConfigExport tag and parse it.
+        for assetdata in aparser.aregdata:
+            if assetdata.ObjectClassName == 'DisplayClusterBlueprint':
+                return assetdata.tags['ConfigExport']
+
+        raise ValueError('Invalid nDisplay config .uasset')
+
+    @classmethod
+    def parse_config_uasset(cls, cfg_file):
+        ''' Parses nDisplay config file of type uasset '''
+        jsstr = cls.extract_configexport_from_uasset(cfg_file)
+        return cls.parse_config_json_string(jsstr)
+
+    @classmethod
+    def parse_config_json_string(cls, jsstr):
+        ''' Parses nDisplay config file of type json string '''
+
+        js = json.loads(jsstr)
 
         nodes = []
         cnodes = js['nDisplay']['cluster']['nodes']
@@ -433,6 +608,12 @@ class DevicenDisplay(DeviceUnreal):
             })
 
         return nodes
+
+    @classmethod
+    def parse_config_json(cls, cfg_file):
+        ''' Parses nDisplay config file of type json '''
+        jsstr = open(cfg_file, 'r').read()
+        return cls.parse_config_json_string(jsstr)
 
     @classmethod
     def parse_config_cfg(cls, cfg_file):
@@ -537,6 +718,9 @@ class DevicenDisplay(DeviceUnreal):
             if ext == '.cfg':
                 return cls.parse_config_cfg(cfg_file)
 
+            if ext == '.uasset':
+                return cls.parse_config_uasset(cfg_file)
+
         except Exception as e:
             LOGGER.error(f'Error while parsing nDisplay config file "{cfg_file}": {e}')
             return []
@@ -575,16 +759,25 @@ class DevicenDisplay(DeviceUnreal):
 
         # Transfer config file
 
-        source = cfg_file
-        ext = os.path.splitext(cfg_file)[1]
-        destination = f"%TEMP%/ndisplay/%RANDOM%.{ext}"
-
-        if os.path.exists(source):
-            self._last_issued_command_id, msg = message_protocol.create_send_file_message(source, destination)
-            self.unreal_client.send_message(msg)
-        else:
-            LOGGER.error(f"{self.name}: Could not find nDisplay config file at {source}")
+        if not os.path.exists(cfg_file):
+            LOGGER.error(f"{self.name}: Could not find nDisplay config file at {cfg_file}")
             self.widget._close()
+            return
+
+        ext = os.path.splitext(cfg_file)[1]
+
+        # If the config file is a uasset, we send a .ndisplay instead to save bandwidth.
+        if ext.lower() == '.uasset':
+            ext = '.ndisplay'
+            file_content = self.__class__.extract_configexport_from_uasset(cfg_file).encode('utf-8')
+        else:
+            with open(cfg_file, 'rb') as f:
+                file_content = f.read()
+
+        destination = f"%TEMP%/ndisplay/%RANDOM%{ext}"
+
+        self._last_issued_command_id, msg = message_protocol.create_send_filecontent_message(file_content, destination)
+        self.unreal_client.send_message(msg)
 
     @classmethod
     def plug_into_ui(cls, menubar, tabs):

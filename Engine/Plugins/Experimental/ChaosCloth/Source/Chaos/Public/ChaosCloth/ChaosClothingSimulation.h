@@ -88,6 +88,10 @@ namespace Chaos
 #if WITH_EDITOR
 		// FGCObject interface
 		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+		virtual FString GetReferencerName() const override
+		{
+			return TEXT("Chaos::FClothingSimulation");
+		}
 		// End of FGCObject interface
 
 		// Editor only debug draw function

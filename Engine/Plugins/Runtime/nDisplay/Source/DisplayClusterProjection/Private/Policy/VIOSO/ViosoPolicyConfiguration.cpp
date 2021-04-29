@@ -11,7 +11,7 @@
 //////////////////////////////////////////////////////////////////////////////////////////////
 FString FViosoPolicyConfiguration::ToString() const
 {
-	if (INIFile.IsEmpty())
+	if (!INIFile.IsEmpty())
 	{
 		// Initialize from ini file
 		return FString::Printf(TEXT("%s='%s',  %s='%s', %s='%s'"),

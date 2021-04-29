@@ -28,10 +28,19 @@ public class MTLPP : ModuleRules
 			PublicIncludePaths.Add(MTLPPPath + "src");
 			PublicSystemIncludePaths.Add(MTLPPPath + "interpose");
 			
-			// A full debug build without any optimisation
-			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
+			// A full debug build without any optimisation and validation code enabled
+			if (Target.Configuration == UnrealTargetConfiguration.Debug)
 			{
-				PublicAdditionalLibraries.Add(MTLPPPath + "lib/" + PlatformName + "/libmtlppd.a");
+				if (Target.bDebugBuildsActuallyUseDebugCRT)
+				{
+					// Use debug mtlpp library
+					PublicAdditionalLibraries.Add(MTLPPPath + "lib/" + PlatformName + "/libmtlppd.a");
+				}
+				else
+				{
+					// Use development mtlpp library
+					PublicAdditionalLibraries.Add(MTLPPPath + "lib/" + PlatformName + "/libmtlpp.a");
+				}
 			}
 			// A development build that uses mtlpp compiled for release but with validation code enabled 
 			else if (Target.Configuration == UnrealTargetConfiguration.Development || Target.Configuration == UnrealTargetConfiguration.DebugGame)

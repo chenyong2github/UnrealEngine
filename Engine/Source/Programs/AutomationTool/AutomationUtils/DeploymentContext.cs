@@ -337,6 +337,11 @@ public class DeploymentContext //: ProjectParams
 	/// </summary>	
 	public bool OnlyAllowPackagesFromStdCookPathInIoStore = false;
 
+	/// <summary>
+	/// Allows a target to ignore PakFileRules.ini when the project rules are still needed for most cases
+	/// </summary>
+	public bool UsePakFileRulesIni = true;
+
 	public DeploymentContext(
 		FileReference RawProjectPathOrName,
 		DirectoryReference InLocalRoot,

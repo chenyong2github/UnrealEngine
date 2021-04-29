@@ -12,7 +12,7 @@ namespace ShaderDrawDebug
 {
 	// Console variables
 	static int32 GShaderDrawDebug_Enable = 1;
-	static TAutoConsoleVariable<int32> CVarShaderDrawEnable(
+	static FAutoConsoleVariableRef CVarShaderDrawEnable(
 		TEXT("r.ShaderDrawDebug"),
 		GShaderDrawDebug_Enable,
 		TEXT("ShaderDrawDebug debugging toggle.\n"),
@@ -208,7 +208,7 @@ namespace ShaderDrawDebug
 			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
 			SHADER_PARAMETER(FIntPoint, DepthTextureResolution)
 			SHADER_PARAMETER(FVector2D, DepthTextureInvResolution)
-			SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
+			SHADER_PARAMETER_SAMPLER(SamplerState, DepthSampler)
 			RENDER_TARGET_BINDING_SLOTS()
 		END_SHADER_PARAMETER_STRUCT()
 
@@ -300,7 +300,7 @@ namespace ShaderDrawDebug
 			PassParameters->ShaderDrawPSParameters.DepthTexture = DepthTexture;
 			PassParameters->ShaderDrawPSParameters.DepthTextureResolution    = FIntPoint(DepthTexture->Desc.Extent.X, DepthTexture->Desc.Extent.Y);
 			PassParameters->ShaderDrawPSParameters.DepthTextureInvResolution = FVector2D(1.f/DepthTexture->Desc.Extent.X, 1.f / DepthTexture->Desc.Extent.Y);
-			PassParameters->ShaderDrawPSParameters.LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			PassParameters->ShaderDrawPSParameters.DepthSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			PassParameters->ShaderDrawVSParameters.View = View.ViewUniformBuffer;
 			if (bUseRdgInput)
 			{

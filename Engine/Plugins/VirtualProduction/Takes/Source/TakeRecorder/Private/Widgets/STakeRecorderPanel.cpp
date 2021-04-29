@@ -124,6 +124,10 @@ void STakeRecorderPanel::Construct(const FArguments& InArgs)
 			TakeMetaData->SetTimestamp(FDateTime(0));
 		}
 	}
+	else if (InArgs._RecordIntoSequence)
+	{
+		SetRecordIntoLevelSequence(InArgs._RecordIntoSequence);
+	}
 	else if (InArgs._SequenceToView)
 	{
 		SuppliedLevelSequence  = InArgs._SequenceToView;
@@ -134,7 +138,8 @@ void STakeRecorderPanel::Construct(const FArguments& InArgs)
 
 	// Create the child widgets that need to know about our level sequence
 	CockpitWidget = SNew(STakeRecorderCockpit)
-	.LevelSequence(this, &STakeRecorderPanel::GetLevelSequence);
+	.LevelSequence(this, &STakeRecorderPanel::GetLevelSequence)
+	.TakeRecorderMode(this, &STakeRecorderPanel::GetTakeRecorderMode);
 
 	LevelSequenceTakeWidget = SNew(SLevelSequenceTakeEditor)
 	.LevelSequence(this, &STakeRecorderPanel::GetLevelSequence);
@@ -280,7 +285,7 @@ void STakeRecorderPanel::Construct(const FArguments& InArgs)
 
 TSharedRef<SWidget> STakeRecorderPanel::MakeToolBar()
 {
-	int ButtonBoxSize = 28;
+	int32 ButtonBoxSize = 28;
 	TSharedPtr<SHorizontalBox> ButtonHolder;
 
 	TSharedRef<SBorder> Border = SNew(SBorder)
@@ -302,7 +307,7 @@ TSharedRef<SWidget> STakeRecorderPanel::MakeToolBar()
 				SNew(SButton)
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
-				.ToolTipText(LOCTEXT("ClearPendingTake", "Clear Pending Take"))
+				.ToolTipText(LOCTEXT("ClearPendingTake", "Clear pending take"))
 				.ForegroundColor(FSlateColor::UseForeground())
 				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 				.OnClicked(this, &STakeRecorderPanel::OnClearPendingTake)
@@ -329,10 +334,10 @@ TSharedRef<SWidget> STakeRecorderPanel::MakeToolBar()
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.ContentPadding(TakeRecorder::ButtonPadding)
-				.ToolTipText(LOCTEXT("ReviewLastRecording", "Review the Last Recording"))
+				.ToolTipText(LOCTEXT("ReviewLastRecording", "Review the last recording"))
 				.ForegroundColor(FSlateColor::UseForeground())
 				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.IsEnabled_Lambda([this]() { return (LastRecordedLevelSequence != nullptr); })
+				.IsEnabled_Lambda([this]() { return (LastRecordedLevelSequence != nullptr && GetTakeRecorderMode() == ETakeRecorderMode::RecordNewSequence); })
 				.OnClicked(this, &STakeRecorderPanel::OnReviewLastRecording)
 				[
 					SNew(SImage)
@@ -355,7 +360,7 @@ TSharedRef<SWidget> STakeRecorderPanel::MakeToolBar()
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.ContentPadding(TakeRecorder::ButtonPadding)
-				.ToolTipText(LOCTEXT("Back", "Return Back to the Pending Take"))
+				.ToolTipText(LOCTEXT("Back", "Return back to the pending take"))
 				.ForegroundColor(FSlateColor::UseForeground())
 				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 				.OnClicked(this, &STakeRecorderPanel::OnBackToPendingTake)
@@ -363,6 +368,58 @@ TSharedRef<SWidget> STakeRecorderPanel::MakeToolBar()
 					SNew(STextBlock)
 					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
 					.Text(FEditorFontGlyphs::Arrow_Left)
+				]
+			]
+		]
+
+		+ SHorizontalBox::Slot()
+		.Padding(TakeRecorder::ButtonOffset)
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SNew(SBox)
+			.WidthOverride(ButtonBoxSize)
+			.HeightOverride(ButtonBoxSize)
+			.Visibility_Lambda([this]() { return !CockpitWidget->Reviewing() ? EVisibility::Visible : EVisibility::Collapsed; })
+			[
+				SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SBox)
+					.WidthOverride(ButtonBoxSize)
+					.HeightOverride(ButtonBoxSize)
+					[
+						SNew(SCheckBox)
+						.ToolTipText_Lambda([this]() { return GetTakeRecorderMode() == ETakeRecorderMode::RecordIntoSequence ? LOCTEXT("RecordIntoSequenceTooltip", "Recording directly into chosen sequence") : LOCTEXT("RecordFromPendingTakeTooltip", "Recording from pending take. To record into an existing sequence, choose a sequence to record into"); })
+						.Style(FTakeRecorderStyle::Get(), "ToggleButtonIndicatorCheckbox")
+						.IsChecked_Lambda([this]() { return GetTakeRecorderMode() == ETakeRecorderMode::RecordIntoSequence ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+						[
+							SNew(SImage)
+							.Image(FTakeRecorderStyle::Get().GetBrush("TakeRecorder.SequenceToRecordIntoButton"))
+						]
+					]
+				]
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2)
+				[
+					SNew(SComboButton)
+					.ContentPadding(2)
+					.ForegroundColor(FSlateColor::UseForeground())
+					.ComboButtonStyle(FTakeRecorderStyle::Get(), "ComboButton")
+					.ToolTipText(LOCTEXT("OpenSequenceToRecordIntoTooltip", "Open sequence to record into"))
+					.OnGetMenuContent(this, &STakeRecorderPanel::OnOpenSequenceToRecordIntoMenu)
+					.HasDownArrow(false)
+					.ButtonContent()
+					[
+						SNew(STextBlock)
+						.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+						.Text(FEditorFontGlyphs::Caret_Down)
+					]
 				]
 			]
 		]
@@ -434,7 +491,7 @@ TSharedRef<SWidget> STakeRecorderPanel::MakeToolBar()
 			[
 				SNew(SCheckBox)
 				.Padding(TakeRecorder::ButtonPadding)
-				.ToolTipText(LOCTEXT("ShowSettings_Tip", "Show/Hide the general user/project settings for take recorder"))
+				.ToolTipText(LOCTEXT("ShowSettings_Tip", "Show/Hide the general user/project settings for Take Recorder"))
 				.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
 				.ForegroundColor(FSlateColor::UseForeground())
 				.IsChecked(this, &STakeRecorderPanel::GetSettingsCheckState)
@@ -478,6 +535,10 @@ ULevelSequence* STakeRecorderPanel::GetLevelSequence() const
 	{
 		return SuppliedLevelSequence;
 	}
+	else if (RecordIntoLevelSequence)
+	{
+		return RecordIntoLevelSequence;
+	}
 	else if (RecordingLevelSequence)
 	{
 		return RecordingLevelSequence;
@@ -486,6 +547,16 @@ ULevelSequence* STakeRecorderPanel::GetLevelSequence() const
 	{
 		return TransientPreset->GetLevelSequence();
 	}
+}
+
+ETakeRecorderMode STakeRecorderPanel::GetTakeRecorderMode() const
+{
+	if (RecordIntoLevelSequence != nullptr)
+	{
+		return ETakeRecorderMode::RecordIntoSequence;
+	}
+
+	return ETakeRecorderMode::RecordNewSequence;
 }
 
 UTakeMetaData* STakeRecorderPanel::GetTakeMetaData() const
@@ -508,6 +579,7 @@ void STakeRecorderPanel::ClearPendingTake()
 	}
 
 	SuppliedLevelSequence = nullptr;
+	RecordIntoLevelSequence = nullptr;
 
 	FScopedTransaction Transaction(LOCTEXT("ClearPendingTake_Transaction", "Clear Pending Take"));
 
@@ -523,43 +595,14 @@ void STakeRecorderPanel::ClearPendingTake()
 
 UTakePreset* STakeRecorderPanel::AllocateTransientPreset()
 {
-	static const TCHAR* PackageName = TEXT("/Temp/TakeRecorder/PendingTake");
-
-	UTakePreset* ExistingPreset = FindObject<UTakePreset>(nullptr, TEXT("/Temp/TakeRecorder/PendingTake.PendingTake"));
-	if (ExistingPreset)
-	{
-		return ExistingPreset;
-	}
-
-	UTakePreset* TemplatePreset = GetDefault<UTakeRecorderUserSettings>()->LastOpenedPreset.Get();
-
-	static FName DesiredName = "PendingTake";
-
-	UPackage* NewPackage = CreatePackage(PackageName);
-	NewPackage->SetFlags(RF_Transient);
-	NewPackage->AddToRoot();
-
-	UTakePreset* NewPreset = nullptr;
-
-	if (TemplatePreset)
-	{
-		NewPreset = DuplicateObject<UTakePreset>(TemplatePreset, NewPackage, DesiredName);
-		NewPreset->SetFlags(RF_Transient | RF_Transactional | RF_Standalone);
-	}
-	else
-	{
-		NewPreset = NewObject<UTakePreset>(NewPackage, DesiredName, RF_Transient | RF_Transactional | RF_Standalone);
-	}
-
-	NewPreset->GetOrCreateLevelSequence();
-
-	return NewPreset;
+	return UTakePreset::AllocateTransientPreset(GetDefault<UTakeRecorderUserSettings>()->LastOpenedPreset.Get());
 }
 
 
 void STakeRecorderPanel::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject(TransientPreset);
+	Collector.AddReferencedObject(RecordIntoLevelSequence);
 	Collector.AddReferencedObject(SuppliedLevelSequence);
 	Collector.AddReferencedObject(RecordingLevelSequence);
 }
@@ -621,6 +664,7 @@ void STakeRecorderPanel::OnImportPreset(const FAssetData& InPreset)
 	FSlateApplication::Get().DismissAllMenus();
 
 	SuppliedLevelSequence = nullptr;
+	RecordIntoLevelSequence = nullptr;
 
 	UTakePreset* Take = CastChecked<UTakePreset>(InPreset.GetAsset());
 	if (Take)
@@ -761,6 +805,7 @@ FReply STakeRecorderPanel::OnBackToPendingTake()
 	}
 
 	SuppliedLevelSequence = nullptr;
+	RecordIntoLevelSequence = nullptr;
 	
 	TransientPreset = AllocateTransientPreset();
 	RefreshPanel();
@@ -811,6 +856,61 @@ FReply STakeRecorderPanel::OnRevertChanges()
 	return FReply::Handled();
 }
 
+TSharedRef<SWidget> STakeRecorderPanel::OnOpenSequenceToRecordIntoMenu()
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
+	IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
+
+	FAssetPickerConfig AssetPickerConfig;
+	{
+		AssetPickerConfig.SelectionMode = ESelectionMode::Single;
+		AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
+		AssetPickerConfig.bFocusSearchBoxWhenOpened = true;
+		AssetPickerConfig.bAllowNullSelection = false;
+		AssetPickerConfig.bShowBottomToolbar = true;
+		AssetPickerConfig.bAutohideSearchBar = false;
+		AssetPickerConfig.bAllowDragging = false;
+		AssetPickerConfig.bCanShowClasses = false;
+		AssetPickerConfig.bShowPathInColumnView = true;
+		AssetPickerConfig.bShowTypeInColumnView = false;
+		AssetPickerConfig.bSortByPathInColumnView = false;
+		AssetPickerConfig.ThumbnailScale = 0.3f;
+		AssetPickerConfig.SaveSettingsName = TEXT("TakeRecorderOpenSequenceToRecordInto");
+
+		AssetPickerConfig.AssetShowWarningText = LOCTEXT("NoSequences_Warning", "No Level Sequences Found");
+		AssetPickerConfig.Filter.ClassNames.Add(ULevelSequence::StaticClass()->GetFName());
+		AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &STakeRecorderPanel::OnOpenSequenceToRecordInto);
+	}
+
+	MenuBuilder.BeginSection(NAME_None, LOCTEXT("OpenSequenceToRecordInto", "Open Sequence to Record Into"));
+	{
+		TSharedRef<SWidget> PresetPicker = SNew(SBox)
+			.WidthOverride(300.f)
+			.HeightOverride(300.f)
+			[
+				ContentBrowser.CreateAssetPicker(AssetPickerConfig)
+			];
+
+		MenuBuilder.AddWidget(PresetPicker, FText(), true, false);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+void STakeRecorderPanel::OnOpenSequenceToRecordInto(const FAssetData& InAsset)
+{
+	// Close the dropdown menu that showed them the assets to pick from.
+	FSlateApplication::Get().DismissAllMenus();
+
+	// Only try to initialize level sequences, in the event they had more than a level sequence selected when drag/dropping.
+	ULevelSequence* LevelSequence = Cast<ULevelSequence>(InAsset.GetAsset());
+	if (LevelSequence)
+	{
+		SetRecordIntoLevelSequence(LevelSequence);
+		RefreshPanel();
+	}
+}
 
 void STakeRecorderPanel::RefreshPanel()
 {
@@ -820,7 +920,6 @@ void STakeRecorderPanel::RefreshPanel()
 		SequencerPanel->Open();
 	}
 }
-
 
 ECheckBoxState STakeRecorderPanel::GetSettingsCheckState() const
 {
@@ -848,10 +947,32 @@ void STakeRecorderPanel::ToggleSettings(ECheckBoxState CheckState)
 	UserSettings->SaveConfig();
 }
 
-
 void STakeRecorderPanel::OnLevelSequenceChanged()
 {
 	RefreshPanel();
+}
+
+void STakeRecorderPanel::SetRecordIntoLevelSequence(ULevelSequence* LevelSequence)
+{
+	SuppliedLevelSequence = nullptr;
+	RecordIntoLevelSequence = LevelSequence;
+
+	if (RecordIntoLevelSequence)
+	{
+		RecordIntoLevelSequence->GetMovieScene()->SetReadOnly(false);
+	}
+
+	UTakeMetaData*  TakeMetaData = RecordIntoLevelSequence ? RecordIntoLevelSequence->FindOrAddMetaData<UTakeMetaData>() : nullptr;
+	if (TakeMetaData)
+	{
+		// Set up take metadata to match this level sequence's info, ie. match the frame rate, use the level sequence name as the slate
+		TakeMetaData->Unlock();
+		TakeMetaData->SetTimestamp(FDateTime(0));
+		TakeMetaData->SetSlate(LevelSequence->GetName());
+		TakeMetaData->SetTakeNumber(0);
+		TakeMetaData->SetFrameRate(LevelSequence->GetMovieScene()->GetDisplayRate());
+		TakeMetaData->SetFrameRateFromTimecode(false);
+	}
 }
 
 void STakeRecorderPanel::OnRecordingInitialized(UTakeRecorder* Recorder)

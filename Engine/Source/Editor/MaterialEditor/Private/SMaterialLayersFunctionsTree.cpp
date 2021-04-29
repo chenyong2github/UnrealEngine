@@ -939,9 +939,12 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 		RightSideWidget = NodeWidgets.ValueWidget.ToSharedRef();
 
 		const int32 LayerStateIndex = StackParameterData->ParameterInfo.Association == EMaterialParameterAssociation::BlendParameter ? StackParameterData->ParameterInfo.Index + 1 : StackParameterData->ParameterInfo.Index;
-		const bool bEnabled = FMaterialPropertyHelpers::IsOverriddenExpression(StackParameterData->Parameter) && Tree->FunctionInstance->LayerStates[LayerStateIndex];
 		LeftSideWidget->SetEnabled(InArgs._InTree->FunctionInstance->LayerStates[LayerStateIndex]);
-		RightSideWidget->SetEnabled(bEnabled);
+		TAttribute<bool> EnabledAttribute = TAttribute<bool>::Create([this, LayerStateIndex]() -> bool
+			{
+				return FMaterialPropertyHelpers::IsOverriddenExpression(StackParameterData->Parameter) && Tree->FunctionInstance->LayerStates[LayerStateIndex];
+			});
+		RightSideWidget->SetEnabled(EnabledAttribute);
 	}
 // END PROPERTY CHILD
 
@@ -1262,6 +1265,7 @@ void SMaterialLayersFunctionsInstanceTree::RemoveLayer(int32 Index)
 	const FScopedTransaction Transaction(LOCTEXT("RemoveLayerAndBlend", "Remove a Layer and the attached Blend"));
 	FunctionInstanceHandle->NotifyPreChange();
 	FunctionInstance->RemoveBlendedLayerAt(Index);
+	MaterialEditorInstance->SourceInstance->RemoveLayerParameterIndex(Index);
 	FunctionInstanceHandle->NotifyPostChange(EPropertyChangeType::ArrayRemove);
 	CreateGroupsWidget();
 	RequestTreeRefresh();

@@ -13,20 +13,25 @@
 UDisplayClusterMeshComponent::UDisplayClusterMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// Children of UDisplayClusterSceneComponent must always Tick to be able to process VRPN tracking
-	PrimaryComponentTick.bCanEverTick = true;
-
 	// Create visual mesh component as a child
 	WarpMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(GetName() + FString("_impl"))));
 	if (WarpMeshComponent)
 	{
+#if !WITH_EDITOR
 		WarpMeshComponent->SetFlags(EObjectFlags::RF_DuplicateTransient | RF_Transient | RF_TextExportTransient);
+		WarpMeshComponent->SetVisibility(false);
+#endif
+
 		WarpMeshComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
 		WarpMeshComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
 		WarpMeshComponent->SetRelativeScale3D(FVector::OneVector);
 		WarpMeshComponent->SetMobility(EComponentMobility::Movable);
 		WarpMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+#if WITH_EDITOR
 		WarpMeshComponent->SetVisibility(true);
+		WarpMeshComponent->SetIsVisualizationComponent(true);
+#endif /*WITH_EDITOR*/
 	}
 }
 

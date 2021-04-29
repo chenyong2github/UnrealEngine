@@ -4,6 +4,7 @@
 #include "Misc/LevelSequenceEditorSettings.h"
 #include "LevelSequenceActor.h"
 #include "LevelSequencePlayer.h"
+#include "Engine/NetDriver.h"
 #include "Engine/World.h"
 
 #include "Delegates/Delegate.h"
@@ -166,6 +167,12 @@ FLevelSequencePlaybackContext::FLevelSequencePlaybackContext(ULevelSequence* InL
 	FEditorDelegates::PostPIEStarted.AddRaw(this, &FLevelSequencePlaybackContext::OnPieEvent);
 	FEditorDelegates::PrePIEEnded.AddRaw(this, &FLevelSequencePlaybackContext::OnPieEvent);
 	FEditorDelegates::EndPIE.AddRaw(this, &FLevelSequencePlaybackContext::OnPieEvent);
+
+	if (GEngine)
+	{
+		GEngine->OnWorldAdded().AddRaw(this, &FLevelSequencePlaybackContext::OnWorldListChanged);
+		GEngine->OnWorldDestroyed().AddRaw(this, &FLevelSequencePlaybackContext::OnWorldListChanged);
+	}
 }
 
 FLevelSequencePlaybackContext::~FLevelSequencePlaybackContext()
@@ -176,6 +183,12 @@ FLevelSequencePlaybackContext::~FLevelSequencePlaybackContext()
 	FEditorDelegates::PostPIEStarted.RemoveAll(this);
 	FEditorDelegates::PrePIEEnded.RemoveAll(this);
 	FEditorDelegates::EndPIE.RemoveAll(this);
+
+	if (GEngine)
+	{
+		GEngine->OnWorldAdded().RemoveAll(this);
+		GEngine->OnWorldDestroyed().RemoveAll(this);
+	}
 }
 
 void FLevelSequencePlaybackContext::OnPieEvent(bool)
@@ -184,6 +197,11 @@ void FLevelSequencePlaybackContext::OnPieEvent(bool)
 }
 
 void FLevelSequencePlaybackContext::OnMapChange(uint32)
+{
+	WeakCurrentContext = nullptr;
+}
+
+void FLevelSequencePlaybackContext::OnWorldListChanged(UWorld*)
 {
 	WeakCurrentContext = nullptr;
 }
@@ -266,7 +284,8 @@ FLevelSequencePlaybackContext::FContextAndClient FLevelSequencePlaybackContext::
 		if (Context.WorldType == EWorldType::PIE)
 		{
 			UWorld* ThisWorld = Context.World();
-			if (bIsPIEValid && bAllowPlaybackContextBinding && RecordingWorld != ThisWorld)
+			const bool bIsServerWorld = (ThisWorld && ThisWorld->GetNetDriver() && ThisWorld->GetNetDriver()->IsServer());
+			if (bIsPIEValid && bAllowPlaybackContextBinding && RecordingWorld != ThisWorld && !bIsServerWorld)
 			{
 				TArray<ALevelSequenceActor*> LevelSequenceActors;
 				UE::MovieScene::FindLevelSequenceActors(ThisWorld, InLevelSequence, LevelSequenceActors);

@@ -2,4 +2,5 @@
 // Each time the console command is executed it generates a new GUID. As this file is included
 // in Platform.ush (which should be included in any shader) it allows to invalidate the shader DDC.
 // 
-// GUID = 5BFC29C6A26348CCBC8D001186A1272A
+// If you are merging streams and there is a conflict with this GUID you should make a new GUID rather than taking one or the other.
+// GUID = 14D3C2851B1D43B385782BB210BC73EF

@@ -205,8 +205,8 @@ enum EClassFlags
 	/** all properties and functions in this class are const and should be exported as const */
 	CLASS_Const			      = 0x00010000u,
 
-	/** Class flag indicating the class is having its layout changed, and therefore is not ready for a CDO to be created */
-	CLASS_LayoutChanging	  = 0x00020000u,
+	/** Class flag indicating objects of this class need deferred dependency loading */
+	CLASS_NeedsDeferredDependencyLoading = 0x00020000u,
 	
 	/** Indicates that the class was created from blueprint source material */
 	CLASS_CompiledFromBlueprint  = 0x00040000u,
@@ -247,7 +247,7 @@ ENUM_CLASS_FLAGS(EClassFlags);
 
 /** Flags to inherit from base class */
 #define CLASS_Inherit ((EClassFlags)(CLASS_Transient | CLASS_DefaultConfig | CLASS_Config | CLASS_PerObjectConfig | CLASS_ConfigDoNotCheckDefaults | CLASS_NotPlaceable \
-						| CLASS_Const | CLASS_HasInstancedReference | CLASS_Deprecated | CLASS_DefaultToInstanced | CLASS_GlobalUserConfig | CLASS_ProjectUserConfig))
+						| CLASS_Const | CLASS_HasInstancedReference | CLASS_Deprecated | CLASS_DefaultToInstanced | CLASS_GlobalUserConfig | CLASS_ProjectUserConfig | CLASS_NeedsDeferredDependencyLoading))
 
 /** These flags will be cleared by the compiler when the class is parsed during script compilation */
 #define CLASS_RecompilerClear ((EClassFlags)(CLASS_Inherit | CLASS_Abstract | CLASS_NoExport | CLASS_Native | CLASS_Intrinsic | CLASS_TokenStreamAssembled))
@@ -282,7 +282,8 @@ ENUM_CLASS_FLAGS(EClassFlags);
 	CLASS_Const | \
 	CLASS_MinimalAPI | \
 	CLASS_RequiredAPI | \
-	CLASS_MatchedSerializers))
+	CLASS_MatchedSerializers | \
+	CLASS_NeedsDeferredDependencyLoading))
 
 #define CLASS_AllFlags ((EClassFlags)0xFFFFFFFFu)
 
@@ -1317,7 +1318,7 @@ namespace UM
 		/// [PropertyMetadata] (Internal use only) Used for the latent action manager to track where it's re-entry should be
 		LatentCallbackTarget,
 
-		/// [PropertyMetadata] Causes FString and FName properties to have a limited set of options generated dynamically, e.g. meta=(GetOptions="FuncName")
+		/// [PropertyMetadata] Causes FString and FName properties to have a limited set of options generated dynamically, e.g. meta=(GetOptions="FuncName"). Supports external static function references via "Module.Class.Function" syntax.
 		///
 		/// UFUNCTION()
 		/// TArray<FString> FuncName() const; // Always return string array even if FName property.

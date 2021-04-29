@@ -23,6 +23,8 @@ namespace Audio
 
 		virtual void CancelCustom() override;
 
+		virtual bool RequiresAudioDevice() const override { return true; }
+
 		virtual FName GetCommandName() const override;
 
 	private:

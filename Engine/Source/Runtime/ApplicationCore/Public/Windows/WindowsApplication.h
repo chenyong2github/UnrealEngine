@@ -408,9 +408,13 @@ protected:
 	/** Hidden constructor. */
 	FWindowsApplication( const HINSTANCE HInstance, const HICON IconHandle );
 
+	void ApplyLowLevelMouseFilter();
+	void RemoveLowLevelMouseFilter();
+
 	static LRESULT CALLBACK HandleLowLevelMouseFilterHook(int nCode, WPARAM wParam, LPARAM lParam);
 
 	HHOOK LowLevelMouseFilterHook;
+	bool bLowLevelMouseFilterIsApplied = false;
 
 private:
 

@@ -400,6 +400,9 @@ namespace UnrealBuildTool
 	 * 	<!-- optional additions to GameActivity onDestroy in GameActivity.java -->
 	 * 	<gameActivityOnDestroyAdditions> </gameActivityOnDestroyAdditions>
 	 * 	
+	 * 	<!-- optional additions to GameActivity onConfigurationChanged in GameActivity.java -->
+	 * 	<gameActivityonConfigurationChangedAdditions> </gameActivityonConfigurationChangedAdditions>
+	 * 	
 	 * 	<!-- optional additions to GameActivity onStart in GameActivity.java -->
 	 * 	<gameActivityOnStartAdditions> </gameActivityOnStartAdditions>
 	 * 	

@@ -143,11 +143,14 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 	LocalLightFunctionData.Reset();
 	TArray<FLightSceneInfo*> LocalLightsToEvaluate;
 
+	// The only directional light we can accept in the volumetric fog because we use the forward lighting data in the Scattering compute shader.
+	const FLightSceneProxy* SelectedForwardDirectionalLightProxy = View.ForwardLightingResources ? View.ForwardLightingResources->SelectedForwardDirectionalLightProxy : NULL;
+	// Default directional light properties
 	OutDirectionalLightFunctionWorldToShadow = FMatrix::Identity;
 	bOutUseDirectionalLightShadowing = false;
-
-	// Gather light that needs to evaluate light 
 	FLightSceneInfo* DirectionalLightSceneInfo = NULL;
+
+	// Gather lights that need to evaluate light functions
 	for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
 	{
 		const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
@@ -155,12 +158,14 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 
 		if (ViewFamily.EngineShowFlags.LightFunctions
 			&& LightSceneInfo
+			&& LightSceneInfo->Proxy
 			// Band-aid fix for extremely rare case that light scene proxy contains NaNs.
 			&& !LightSceneInfo->Proxy->GetDirection().ContainsNaN()
 			&& LightSceneInfo->ShouldRenderLightViewIndependent()
 			&& LightSceneInfo->ShouldRenderLight(View))
 		{
-			if (DirectionalLightSceneInfo == NULL && LightSceneInfo->Proxy->GetLightType() == LightType_Directional)
+			if (DirectionalLightSceneInfo == NULL && LightSceneInfo->Proxy == SelectedForwardDirectionalLightProxy &&
+				LightSceneInfo->Proxy->GetLightType() == LightType_Directional)
 			{
 				// We only take the first directional light into account
 				bOutUseDirectionalLightShadowing = LightSceneInfo->Proxy->CastsVolumetricShadow();

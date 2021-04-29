@@ -106,6 +106,7 @@ public:
 
 		// supported platforms
 		SupportedPlatforms.Add(TEXT("Windows"));
+		SupportedPlatforms.Add(TEXT("Linux"));
 
 		// supported schemes
 		SupportedUriSchemes.Add(TEXT("webrtc"));

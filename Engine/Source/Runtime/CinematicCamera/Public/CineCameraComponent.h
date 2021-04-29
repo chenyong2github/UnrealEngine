@@ -332,6 +332,9 @@ public:
 	void UpdateDebugFocusPlane();
 #endif
 
+	/** Returns the world to meters scale for the current UWorld */
+	float GetWorldToMetersScale() const;
+
 protected:
 
 	/** Most recent calculated focus distance. Used for interpolation. */
@@ -412,7 +415,6 @@ protected:
 
 private:
 	float GetDesiredFocusDistance(const FVector& InLocation) const;
-	float GetWorldToMetersScale() const;
 	void SetLensPresetByNameInternal(const FString& InPresetName);
 	void SetFilmbackPresetByNameInternal(const FString& InPresetName, FCameraFilmbackSettings& InOutFilmbackSettings);
 

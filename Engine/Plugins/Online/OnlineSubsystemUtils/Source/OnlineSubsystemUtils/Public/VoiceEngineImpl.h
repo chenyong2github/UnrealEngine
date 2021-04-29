@@ -164,6 +164,10 @@ class ONLINESUBSYSTEMUTILS_API FVoiceEngineImpl : public IVoiceEngine, public FS
 				}
 			}
 		}
+		virtual FString GetReferencerName() const override
+		{
+			return TEXT("FVoiceEngineImpl::FVoiceSerializeHelper");
+		}
 	};
 
 	friend class FVoiceSerializeHelper;

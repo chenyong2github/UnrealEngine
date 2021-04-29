@@ -219,13 +219,14 @@ FToolMenuEntry FToolMenuEntry::InitSeparator(const FName InName)
 }
 
 
-FToolMenuEntry FToolMenuEntry::InitWidget(const FName InName, const TSharedRef<SWidget>& InWidget, const FText& Label, bool bNoIndent, bool bSearchable)
+FToolMenuEntry FToolMenuEntry::InitWidget(const FName InName, const TSharedRef<SWidget>& InWidget, const FText& Label, bool bNoIndent, bool bSearchable, bool bNoPadding)
 {
 	FToolMenuEntry Entry(UToolMenus::Get()->CurrentOwner(), InName, EMultiBlockType::Widget);
 	Entry.Label = Label;
 	Entry.MakeWidget.BindLambda([=](const FToolMenuContext&) { return InWidget; });
 	Entry.WidgetData.bNoIndent = bNoIndent;
 	Entry.WidgetData.bSearchable = bSearchable;
+	Entry.WidgetData.bNoPadding = bNoPadding;
 	return Entry;
 }
 

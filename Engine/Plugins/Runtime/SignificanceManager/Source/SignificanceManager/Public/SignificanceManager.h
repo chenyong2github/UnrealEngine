@@ -32,6 +32,10 @@ public:
 
 	// Begin FGCObject overrides
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FSignificanceManagerModule");
+	}
 	// End FGCObject overrides
 
 	// Returns the significance manager for the specified World

@@ -547,8 +547,21 @@ const FSourcesData& SAssetView::GetSourcesData() const
 
 bool SAssetView::IsAssetPathSelected() const
 {
+	UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
+
+	TArray<FName> InternalPaths;
+	InternalPaths.Reserve(SourcesData.VirtualPaths.Num());
+	for (const FName& VirtualPath : SourcesData.VirtualPaths)
+	{
+		FName ConvertedPath;
+		if (ContentBrowserData->TryConvertVirtualPath(VirtualPath, ConvertedPath) == EContentBrowserPathType::Internal)
+		{
+			InternalPaths.Add(ConvertedPath);
+		}
+	}
+
 	int32 NumAssetPaths, NumClassPaths;
-	ContentBrowserUtils::CountPathTypes(SourcesData.VirtualPaths, NumAssetPaths, NumClassPaths);
+	ContentBrowserUtils::CountPathTypes(InternalPaths, NumAssetPaths, NumClassPaths);
 
 	// Check that only asset paths are selected
 	return NumAssetPaths > 0 && NumClassPaths == 0;
@@ -1549,7 +1562,23 @@ FReply SAssetView::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKe
 
 			if (AssetsToCopy.Num())
 			{
-				ContentBrowserUtils::CopyAssets(AssetsToCopy, SourcesData.VirtualPaths[0].ToString());
+				UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
+				if (ensure(ContentBrowserData))
+				{
+					for (const FName& SelectedVirtualPath : SourcesData.VirtualPaths)
+					{
+						const FContentBrowserItem SelectedItem = ContentBrowserData->GetItemAtPath(SelectedVirtualPath, EContentBrowserItemTypeFilter::IncludeFolders);
+						if (SelectedItem.IsValid())
+						{
+							FName PackagePath;
+							if (SelectedItem.Legacy_TryGetPackagePath(PackagePath))
+							{
+								ContentBrowserUtils::CopyAssets(AssetsToCopy, PackagePath.ToString());
+								break;
+							}
+						}
+					}
+				}
 			}
 		}
 
@@ -1953,24 +1982,24 @@ void SAssetView::RefreshFilteredItems()
 
 void SAssetView::ToggleShowAllFolder()
 {
-	GetMutableDefault<UContentBrowserSettings>()->ShowAllFolder = !GetDefault<UContentBrowserSettings>()->ShowAllFolder;
+	GetMutableDefault<UContentBrowserSettings>()->bShowAllFolder = !GetDefault<UContentBrowserSettings>()->bShowAllFolder;
 	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
 }
 
 bool SAssetView::IsShowingAllFolder() const
 {
-	return GetDefault<UContentBrowserSettings>()->ShowAllFolder;
+	return GetDefault<UContentBrowserSettings>()->bShowAllFolder;
 }
 
 void SAssetView::ToggleOrganizeFolders()
 {
-	GetMutableDefault<UContentBrowserSettings>()->OrganizeFolders = !GetDefault<UContentBrowserSettings>()->OrganizeFolders;
+	GetMutableDefault<UContentBrowserSettings>()->bOrganizeFolders = !GetDefault<UContentBrowserSettings>()->bOrganizeFolders;
 	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
 }
 
 bool SAssetView::IsOrganizingFolders() const
 {
-	return GetDefault<UContentBrowserSettings>()->OrganizeFolders;
+	return GetDefault<UContentBrowserSettings>()->bOrganizeFolders;
 }
 
 void SAssetView::SetMajorityAssetType(FName NewMajorityAssetType)
@@ -2432,31 +2461,31 @@ void SAssetView::PopulateViewButtonMenu(UToolMenu* Menu)
 			EUserInterfaceActionType::ToggleButton
 		);
 
-		//Section.AddMenuEntry(
-		//	"ShowAllFolder",
-		//	LOCTEXT("ShowAllFolderOption", "Show All Folder"),
-		//	LOCTEXT("ShowAllFolderOptionToolTip", "Show the all folder in the view?"),
-		//	FSlateIcon(),
-		//	FUIAction(
-		//		FExecuteAction::CreateSP(this, &SAssetView::ToggleShowAllFolder),
-		//		FCanExecuteAction(),
-		//		FIsActionChecked::CreateSP(this, &SAssetView::IsShowingAllFolder)
-		//	),
-		//	EUserInterfaceActionType::ToggleButton
-		//);
+		Section.AddMenuEntry(
+			"ShowAllFolder",
+			LOCTEXT("ShowAllFolderOption", "Show All Folder"),
+			LOCTEXT("ShowAllFolderOptionToolTip", "Show the all folder in the view?"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SAssetView::ToggleShowAllFolder),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &SAssetView::IsShowingAllFolder)
+			),
+			EUserInterfaceActionType::ToggleButton
+		);
 
-		//Section.AddMenuEntry(
-		//	"OrganizeFolders",
-		//	LOCTEXT("OrganizeFoldersOption", "Organize Folders"),
-		//	LOCTEXT("OrganizeFoldersOptionToolTip", "Organize folders in the view?"),
-		//	FSlateIcon(),
-		//	FUIAction(
-		//		FExecuteAction::CreateSP(this, &SAssetView::ToggleOrganizeFolders),
-		//		FCanExecuteAction(),
-		//		FIsActionChecked::CreateSP(this, &SAssetView::IsOrganizingFolders)
-		//	),
-		//	EUserInterfaceActionType::ToggleButton
-		//);
+		Section.AddMenuEntry(
+			"OrganizeFolders",
+			LOCTEXT("OrganizeFoldersOption", "Organize Folders"),
+			LOCTEXT("OrganizeFoldersOptionToolTip", "Organize folders in the view?"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SAssetView::ToggleOrganizeFolders),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &SAssetView::IsOrganizingFolders)
+			),
+			EUserInterfaceActionType::ToggleButton
+		);
 
 		if (bShowPathViewFilters)
 		{

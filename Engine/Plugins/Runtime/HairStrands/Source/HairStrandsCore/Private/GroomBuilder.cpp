@@ -1498,10 +1498,9 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 			{
 				VertexWidth = VertexWidths[VertexID];
 			}
-
-			// Fall back to strand width if there was no vertex width
-			if (VertexWidth == 0.f && StrandWidth != 0.f)
+			else if (StrandWidth != 0.f)
 			{
+				// Fall back to strand width if there was no vertex width
 				VertexWidth = StrandWidth;
 			}
 

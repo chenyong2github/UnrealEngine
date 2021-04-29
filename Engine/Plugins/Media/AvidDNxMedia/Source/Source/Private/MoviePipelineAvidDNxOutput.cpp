@@ -40,13 +40,15 @@ TUniquePtr<MovieRenderPipeline::IVideoCodecWriter> UMoviePipelineAvidDNxOutput::
 	return OutWriter;
 }
 
-void UMoviePipelineAvidDNxOutput::Initialize_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter)
+bool UMoviePipelineAvidDNxOutput::Initialize_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter)
 {
 	FAvidWriter* CodecWriter = static_cast<FAvidWriter*>(InWriter);
 	if(!CodecWriter->Writer->Initialize())
 	{
-		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Failed to initialize Apple Pro Res Writer."));
+		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Failed to initialize Avid DNxHD/Avid DNxHR Writer."));
+		return false;
 	}
+	return true;
 }
 
 void UMoviePipelineAvidDNxOutput::WriteFrame_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter, FImagePixelData* InPixelData, TArray<MoviePipeline::FCompositePassInfo>&& InCompositePasses)

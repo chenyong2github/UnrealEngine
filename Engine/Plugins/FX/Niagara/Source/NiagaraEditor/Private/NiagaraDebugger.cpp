@@ -5,7 +5,9 @@
 #include "MessageEndpoint.h"
 #include "MessageEndpointBuilder.h"
 #include "NiagaraDebuggerCommon.h"
+#if WITH_UNREAL_TARGET_DEVELOPER_TOOLS
 #include "ISessionServicesModule.h"
+#endif
 
 #if WITH_NIAGARA_DEBUGGER
 
@@ -19,11 +21,13 @@ FNiagaraDebugger::FNiagaraDebugger()
 
 FNiagaraDebugger::~FNiagaraDebugger()
 {
+#if WITH_UNREAL_TARGET_DEVELOPER_TOOLS
 	if (SessionManager.IsValid())
 	{
 		SessionManager->OnSelectedSessionChanged().RemoveAll(this);
 		SessionManager->OnInstanceSelectionChanged().RemoveAll(this);
 	}
+#endif
 
 	GetMutableDefault<UNiagaraDebugHUDSettings>()->OnChangedDelegate.RemoveAll(this);
 	GetMutableDefault<UNiagaraOutliner>()->OnChangedDelegate.RemoveAll(this);
@@ -37,6 +41,7 @@ void FNiagaraDebugger::Init()
 		.Handling<FNiagaraDebuggerOutlinerUpdate>(this, &FNiagaraDebugger::HandleOutlinerUpdateMessage)
 		.Handling<FNiagaraSimpleClientInfo>(this, &FNiagaraDebugger::UpdateSimpleClientInfo);
 
+#if WITH_UNREAL_TARGET_DEVELOPER_TOOLS
 	ISessionServicesModule& SessionServicesModule = FModuleManager::LoadModuleChecked<ISessionServicesModule>("SessionServices");
 	SessionManager = SessionServicesModule.GetSessionManager();
 
@@ -45,6 +50,7 @@ void FNiagaraDebugger::Init()
 		SessionManager->OnSelectedSessionChanged().AddSP(this, &FNiagaraDebugger::SessionManager_OnSessionSelectionChanged);
 		SessionManager->OnInstanceSelectionChanged().AddSP(this, &FNiagaraDebugger::SessionManager_OnInstanceSelectionChanged);
 	}
+#endif
 
 	GetMutableDefault<UNiagaraDebugHUDSettings>()->OnChangedDelegate.AddSP(this, &FNiagaraDebugger::UpdateDebugHUDSettings);
 	GetMutableDefault<UNiagaraOutliner>()->OnChangedDelegate.AddSP(this, &FNiagaraDebugger::TriggerOutlinerCapture);
@@ -118,9 +124,9 @@ void FNiagaraDebugger::TriggerOutlinerCapture()
 			{
 				if (UNiagaraDebugHUDSettings* Settings = GetMutableDefault<UNiagaraDebugHUDSettings>())
 				{
-					if (Settings->Data.HudVerbosity < ENiagaraDebugHudSystemVerbosity::Minimal)
+					if (!Settings->Data.bEnabled)
 					{
-						Settings->Data.HudVerbosity = ENiagaraDebugHudSystemVerbosity::Minimal;
+						Settings->Data.bEnabled = true;
 						Settings->PostEditChange();
 					}
 				}
@@ -131,6 +137,7 @@ void FNiagaraDebugger::TriggerOutlinerCapture()
 
 void FNiagaraDebugger::SessionManager_OnSessionSelectionChanged(const TSharedPtr<ISessionInfo>& Session)
 {
+#if WITH_UNREAL_TARGET_DEVELOPER_TOOLS
 	//Drop all existing and pending connections when the session selection changes.
 	TArray<FClientInfo> ToClose;
 	if (Session.IsValid())
@@ -162,10 +169,12 @@ void FNiagaraDebugger::SessionManager_OnSessionSelectionChanged(const TSharedPtr
 	{
 		CloseConnection(Client.SessionId, Client.InstanceId);
 	}
+#endif
 }
 
 void FNiagaraDebugger::SessionManager_OnInstanceSelectionChanged(const TSharedPtr<ISessionInstanceInfo>& Instance, bool Selected)
 {
+#if WITH_UNREAL_TARGET_DEVELOPER_TOOLS
 	if (MessageEndpoint.IsValid())
 	{
 		if (Selected)
@@ -201,6 +210,7 @@ void FNiagaraDebugger::SessionManager_OnInstanceSelectionChanged(const TSharedPt
 			CloseConnection(Instance->GetOwnerSession()->GetSessionId(), Instance->GetInstanceId());
 		}
 	}
+#endif
 }
 
 int32 FNiagaraDebugger::FindPendingConnection(FGuid SessionId, FGuid InstanceId)const

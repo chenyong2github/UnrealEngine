@@ -44,25 +44,19 @@ namespace UsdUtils
 	}
 }
 
-bool UsdUtils::InsertSubLayer( const TUsdStore< pxr::SdfLayerRefPtr >& ParentLayer, const TCHAR* SubLayerFile, int32 Index )
+bool UsdUtils::InsertSubLayer( const pxr::SdfLayerRefPtr& ParentLayer, const TCHAR* SubLayerFile, int32 Index )
 {
-	if ( !ParentLayer.Get() )
+	if ( !ParentLayer )
 	{
 		return false;
 	}
 
+	FString RelativeSubLayerPath = SubLayerFile;
+	MakePathRelativeToLayer( UE::FSdfLayer{ ParentLayer }, RelativeSubLayerPath );
+
 	FScopedUsdAllocs UsdAllocs;
 
-	std::string UsdLayerFilePath = ParentLayer.Get()->GetRealPath();
-	FString LayerFilePath = UsdToUnreal::ConvertString( UsdLayerFilePath );
-
-	FString SubLayerFilePath = FPaths::ConvertRelativePathToFull( SubLayerFile );
-	if ( !LayerFilePath.IsEmpty() )
-	{
-		FPaths::MakePathRelativeTo( SubLayerFilePath, *LayerFilePath );
-	}
-
-	ParentLayer.Get()->InsertSubLayerPath( UnrealToUsd::ConvertString( *SubLayerFilePath ).Get(), Index );
+	ParentLayer->InsertSubLayerPath( UnrealToUsd::ConvertString( *RelativeSubLayerPath ).Get(), Index );
 
 	return true;
 }
@@ -144,7 +138,7 @@ TUsdStore< pxr::SdfLayerRefPtr > UsdUtils::CreateNewLayer( TUsdStore< pxr::UsdSt
 	}
 
 	// New layer needs to be created and in the stage layer stack before we can edit it
-	UsdUtils::InsertSubLayer( ParentLayer, LayerFilePath );
+	UsdUtils::InsertSubLayer( ParentLayer.Get(), LayerFilePath );
 
 	UsdUtils::StartMonitoringErrors();
 	pxr::UsdEditContext UsdEditContext( UsdStage.Get(), LayerRef );
@@ -310,12 +304,13 @@ void UsdUtils::AddTimeCodeRangeToLayer( const pxr::SdfLayerRefPtr& Layer, double
 		return;
 	}
 
-	if ( StartTimeCode < Layer->GetStartTimeCode() )
+	// The HasTimeCode check is needed or else we can't author anything with a StartTimeCode lower than the default of 0
+	if ( StartTimeCode < Layer->GetStartTimeCode() || !Layer->HasStartTimeCode() )
 	{
 		Layer->SetStartTimeCode( StartTimeCode );
 	}
 
-	if ( EndTimeCode > Layer->GetEndTimeCode() )
+	if ( EndTimeCode > Layer->GetEndTimeCode() || !Layer->HasEndTimeCode() )
 	{
 		Layer->SetEndTimeCode( StartTimeCode );
 	}
@@ -330,7 +325,10 @@ void UsdUtils::MakePathRelativeToLayer( const UE::FSdfLayer& Layer, FString& Pat
 	{
 		std::string RepositoryPath = UsdLayer->GetRepositoryPath().empty() ? UsdLayer->GetRealPath() : UsdLayer->GetRepositoryPath();
 		FString LayerAbsolutePath = UsdToUnreal::ConvertString( RepositoryPath );
-		FPaths::MakePathRelativeTo( Path, *LayerAbsolutePath );
+		if ( !LayerAbsolutePath.IsEmpty() )
+		{
+			FPaths::MakePathRelativeTo( Path, *LayerAbsolutePath );
+		}
 	}
 #endif // #if USE_USD_SDK
 }

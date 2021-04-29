@@ -55,7 +55,7 @@ void UNiagaraNodeOutputTag::Compile(class FHlslNiagaraTranslator* Translator, TA
 		}
 		else
 		{
-			Translator->WriteCompilerTag(CompiledInput, InputPin);
+			Translator->WriteCompilerTag(CompiledInput, InputPin, bEmitMessageOnFailure, FailureSeverity);
 		}
 	}
 

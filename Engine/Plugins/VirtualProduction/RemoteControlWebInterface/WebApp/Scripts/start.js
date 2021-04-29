@@ -6,12 +6,19 @@ const cp = require('child_process');
 const root = path.resolve(__dirname, '..');
 const server = path.join(root, 'Server');
 
-function execute(command, cwd, print) {
+function execute(command, cwd, description, output) {
   return new Promise((resolve, reject) => {
     const child = cp.exec(command, { encoding: 'utf8', cwd });
     child.addListener('error', reject);
-    child.addListener('exit', resolve);
-    if (print)
+    child.addListener('exit', code => {
+      if (code === 0)
+        resolve();
+      else
+        reject(new Error(`Failed To ${description}`));
+    });
+
+    // Print to console only if stage is announced
+    if (output)
       child.stdout.on('data', console.log);
   });
 }
@@ -28,7 +35,8 @@ function printError(err) {
 
 async function build() {
   try {
-    const installed = path.join(server, 'build/version.txt');
+    const build = path.join(server, 'build');
+    const installed = path.join(build, 'version.txt');
     const pkgPath = path.join(root, 'package.json');
 
     if (!fs.existsSync(pkgPath)) {
@@ -50,10 +58,13 @@ async function build() {
     }
 
     console.log('Installing dependencies');
-    await execute('npm install', root, false);
+    await execute('npm install', root, 'Install dependencies');
 	
     console.log('Building WebApp');
-    await execute('npm run build', root, true);
+    await execute('npm run build', root, 'Build WebApp', true);
+    if (!fs.existsSync(build))
+      return false;
+      
     fs.writeFileSync(installed, pkg.version, 'utf8');
     return true;
 
@@ -68,7 +79,7 @@ async function start() {
     console.log('Starting WebApp...');
     const args = process.argv.slice(2).map(arg => `"${arg}"`).join(' ');
     const compiled = path.join(server, 'build/Server');
-    await execute(`node "${compiled}" ${args}`, server, true);
+    await execute(`node "${compiled}" ${args}`, server, 'Run WebApp', true);
   
   } catch (err) {
     printError(err);

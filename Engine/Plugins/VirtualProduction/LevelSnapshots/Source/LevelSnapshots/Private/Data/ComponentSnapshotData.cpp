@@ -63,7 +63,12 @@ void FComponentSnapshotData::DeserializeIntoTransient(FObjectSnapshotData& Seria
 	ComponentToDeserializeInto->Serialize(Serializer);
 }
 
-void FComponentSnapshotData::DeserializeIntoWorld(FObjectSnapshotData& SerializedComponentData, UActorComponent* OriginalComponentToDeserializeInto, UActorComponent* DeserializedComponentCounterpart, FWorldSnapshotData& WorldData, const FPropertySelection& PropertySelection)
+void FComponentSnapshotData::DeserializeIntoExistingWorldActor(FObjectSnapshotData& SerializedComponentData, UActorComponent* OriginalComponentToDeserializeInto, UActorComponent* DeserializedComponentCounterpart, FWorldSnapshotData& WorldData, const FPropertySelection& PropertySelection)
 {
-	FApplySnapshotDataArchiveV2::ApplyToWorldObject(SerializedComponentData, WorldData, OriginalComponentToDeserializeInto, DeserializedComponentCounterpart, PropertySelection);
+	FApplySnapshotDataArchiveV2::ApplyToExistingWorldObject(SerializedComponentData, WorldData, OriginalComponentToDeserializeInto, DeserializedComponentCounterpart, PropertySelection);
+}
+
+void FComponentSnapshotData::DeserializeIntoRecreatedWorldActor(FObjectSnapshotData& SerializedComponentData, UActorComponent* OriginalComponentToDeserializeInto, UActorComponent* DeserializedComponentCounterpart, FWorldSnapshotData& WorldData)
+{
+	FApplySnapshotDataArchiveV2::ApplyToRecreatedWorldObject(SerializedComponentData, WorldData, OriginalComponentToDeserializeInto, DeserializedComponentCounterpart);
 }

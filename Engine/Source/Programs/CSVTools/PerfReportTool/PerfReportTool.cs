@@ -1133,7 +1133,7 @@ namespace PerfReportTool
 						continue;
 					}
 					bool bFoundStat = false;
-					foreach (string statString in graph.settings.statString.value.Split(' '))
+					foreach (string statString in graph.settings.statString.value.Split(','))
                     {
                         List<StatSamples> matchingStats = csvFile.dummyCsvStats.GetStatsMatchingString(statString);
                         if (matchingStats.Count > 0)
@@ -1141,7 +1141,6 @@ namespace PerfReportTool
                             bFoundStat = true;
                             break;
                         }
-
                     }
 					if (bFoundStat)
 					{
@@ -1610,7 +1609,9 @@ namespace PerfReportTool
 			string title = graph.title;
 
 			GraphSettings graphSettings = graph.settings;
-			string statString = graphSettings.statString.value;
+			string[] statStringTokens = graphSettings.statString.value.Split(',');
+			IEnumerable<string> quoteWrappedStatStrings = statStringTokens.Select(token => '"' + token + '"');
+			string statString = String.Join(" ", quoteWrappedStatStrings);
 			double thickness = graphSettings.thickness.value * thicknessMultiplier;
 			float maxy = GetFloatArg("maxy", (float)graphSettings.maxy.value);
 			bool smooth = graphSettings.smooth.value;

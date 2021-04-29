@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AddonTools.h"
+#include "Utils/AddonTools.h"
 
 #include "Light.hpp"
 
@@ -122,6 +122,9 @@ class FSyncData
 	// Remove a child from this sync data
 	void RemoveChild(FSyncData* InChild);
 
+	// Return true if this element and all it's childs have been cut out
+	virtual bool CheckAllCutOut();
+
 	// Permanent id of the element (Synthethized elements, like layers, have synthetized guid).
 	GS::Guid ElementId = GS::NULLGuid;
 
@@ -211,7 +214,10 @@ class FSyncData::FActor : public FSyncData
 	// Return Element as an actor
 	virtual const TSharedPtr< IDatasmithActorElement >& GetActorElement() const override { return ActorElement; }
 
-	// Add meta data
+	// Update tags data
+	void UpdateTags(const std::vector< FString >& InTags);
+
+	// Add tags data
 	void AddTags(const FElementID& InElementID);
 
 	void ReplaceMetaData(IDatasmithScene& IOScene, const TSharedPtr< IDatasmithMetaDataElement >& InNewMetaData);
@@ -246,7 +252,13 @@ class FSyncData::FLayer : public FSyncData::FActor
 class FSyncData::FElement : public FSyncData::FActor
 {
   public:
-	FElement(const GS::Guid& InGuid);
+	FElement(const GS::Guid& InGuid, const FSyncContext& InSyncContext);
+
+	// Mesh has changed, update the actor accordingly
+	void MeshElementChanged();
+
+	// Access to the element mesh handle
+	TSharedPtr< IDatasmithMeshElement >& GetMeshElementRef() { return MeshElement; }
 
   protected:
 	virtual void Process(FProcessInfo* IOProcessInfo) override;
@@ -254,14 +266,17 @@ class FSyncData::FElement : public FSyncData::FActor
 	// Delete this sync data
 	virtual void DeleteMe(FSyncDatabase* IOSyncDatabase) override;
 
-	// Create/Update mesh of this element
-	bool CreateMesh(FElementID* IOElementID, const ModelerAPI::Transformation& InLocalToWorld);
-
 	// Rebuild the meta data of this element
 	void UpdateMetaData(IDatasmithScene& IOScene);
 
+	// Return true if this element and all it's childs have been cut out
+	bool CheckAllCutOut() override;
+
 	// The mesh element if this element is a mesh actor
 	TSharedPtr< IDatasmithMeshElement > MeshElement;
+
+	// True if we observe this element
+	bool bIsObserved = false;
 };
 
 class FSyncData::FCameraSet : public FSyncData::FActor

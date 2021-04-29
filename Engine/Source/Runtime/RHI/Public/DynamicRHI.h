@@ -1251,10 +1251,47 @@ public:
 	virtual void* RHIGetNativeDevice() = 0;
 
 	/**
+	* Provides access to the native device. Generally this should be avoided but is useful for third party plugins.
+	*/
+	// FlushType: Flush RHI Thread
+	virtual void* RHIGetNativePhysicalDevice() 
+	{
+		// Currently only exists on Vulkan, so no need to force every backend to implement this.
+		return nullptr;
+	}
+
+	/**
+	* Provides access to the native graphics command queue. Generally this should be avoided but is useful for third party plugins.
+	*/
+	// FlushType: Flush RHI Thread
+	virtual void* RHIGetNativeGraphicsQueue() 
+	{
+		return nullptr;
+	}
+
+	/**
+	* Provides access to the native compute command queue. Generally this should be avoided but is useful for third party plugins.
+	*/
+	// FlushType: Flush RHI Thread
+	virtual void* RHIGetNativeComputeQueue() 
+	{
+		return nullptr;
+	}
+
+	/**
 	* Provides access to the native instance. Generally this should be avoided but is useful for third party plugins.
 	*/
 	// FlushType: Flush RHI Thread
 	virtual void* RHIGetNativeInstance() = 0;
+
+	/**
+	* Provides access to the native command buffer. Generally this should be avoided but is useful for third party plugins.
+	*/
+	// FlushType: Not Thread Safe!
+	virtual void* RHIGetNativeCommandBuffer() 
+	{
+		return nullptr;
+	}
 
 
 	// FlushType: Thread safe

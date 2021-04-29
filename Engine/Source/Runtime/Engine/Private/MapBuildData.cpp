@@ -841,6 +841,21 @@ void UMapBuildDataRegistry::InvalidateSurfaceLightmaps(UWorld* World, bool bRecr
 			}
 		}
 
+		// Invalidate the LightmapResourceClusters
+		{
+			// LightmapResourceClusters needs to be cleared at RT to avoid a flush in GT because the RenderResource in a ResourceCluster needs to be released before the destructor of FLightmapResourceCluster
+			ENQUEUE_RENDER_COMMAND(FReleaseLightmapResourceClustersCmd)(
+				[LocalLightmapResourceClusters = MoveTemp(LightmapResourceClusters)](FRHICommandListImmediate& RHICmdList) mutable
+			{
+				for (auto& ResourceCluster : LocalLightmapResourceClusters)
+				{
+					ResourceCluster.ReleaseResource();
+				}
+			});
+
+			LightmapResourceClusters.Empty();
+		}
+
 		MarkPackageDirty();
 	}
 }
@@ -872,8 +887,10 @@ bool UMapBuildDataRegistry::IsLegacyBuildData() const
 	return GetOutermost()->ContainsMap();
 }
 
-bool UMapBuildDataRegistry::IsVTLightingValid() const
+bool UMapBuildDataRegistry::IsLightingValid(ERHIFeatureLevel::Type InFeatureLevel) const
 {
+	const bool bUsingVTLightmaps = UseVirtualTextureLightmap(InFeatureLevel);
+
 	// this code checks if AT LEAST 1 virtual textures is valid. 
 	for (auto MeshBuildDataPair : MeshBuildData)
 	{
@@ -883,7 +900,7 @@ bool UMapBuildDataRegistry::IsVTLightingValid() const
 			const FLightMap2D* Lightmap2D = Data.LightMap->GetLightMap2D();
 			if (Lightmap2D)
 			{
-				if (Lightmap2D->IsVirtualTextureValid())
+				if ((bUsingVTLightmaps && Lightmap2D->IsVirtualTextureValid()) || (!bUsingVTLightmaps && (Lightmap2D->IsValid(0) || Lightmap2D->IsValid(1))))
 				{
 					return true;
 				}

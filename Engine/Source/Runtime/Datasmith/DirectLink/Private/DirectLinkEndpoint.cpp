@@ -2,16 +2,16 @@
 
 #include "DirectLinkEndpoint.h"
 
-#include "DirectLinkLog.h"
 #include "DirectLinkConnectionRequestHandler.h"
+#include "DirectLinkLog.h"
 #include "DirectLinkMessages.h"
+#include "DirectLinkSceneGraphNode.h"
 #include "DirectLinkStreamConnectionPoint.h"
 #include "DirectLinkStreamDescription.h"
 #include "DirectLinkStreamDestination.h"
 #include "DirectLinkStreamReceiver.h"
 #include "DirectLinkStreamSender.h"
 #include "DirectLinkStreamSource.h"
-#include "DirectLinkSceneGraphNode.h"
 
 #include "Async/Async.h"
 #include "MessageEndpointBuilder.h"
@@ -42,12 +42,9 @@ ECommunicationStatus ValidateCommunicationStatus()
 	{
 		gUdpMessagingInitializationTime = FPlatformTime::Seconds();
 	}
-
-	return ECommunicationStatus(
-		   (FModuleManager::Get().LoadModule("Messaging")         ? ECS_NoIssue : ECS_ModuleNotLoaded_Messaging)
-		 | (FModuleManager::Get().LoadModule("UdpMessaging")      ? ECS_NoIssue : ECS_ModuleNotLoaded_UdpMessaging)
-		 | (FModuleManager::Get().LoadModule("Networking")        ? ECS_NoIssue : ECS_ModuleNotLoaded_Networking)
-	);
+	return (FModuleManager::Get().LoadModule("Messaging")    ? ECommunicationStatus::NoIssue : ECommunicationStatus::ModuleNotLoaded_Messaging)
+		 | (FModuleManager::Get().LoadModule("UdpMessaging") ? ECommunicationStatus::NoIssue : ECommunicationStatus::ModuleNotLoaded_UdpMessaging)
+		 | (FModuleManager::Get().LoadModule("Networking")   ? ECommunicationStatus::NoIssue : ECommunicationStatus::ModuleNotLoaded_Networking);
 }
 
 
@@ -162,7 +159,7 @@ FEndpoint::FEndpoint(const FString& InName)
 	, Internal(*InternalPtr)
 {
 	ECommunicationStatus ComStatus = ValidateCommunicationStatus();
-	if (ComStatus != ECS_NoIssue)
+	if (ComStatus != ECommunicationStatus::NoIssue)
 	{
 		UE_LOG(LogDirectLinkNet, Error, TEXT("Endpoint '%s': Unable to start communication (error code:%d):"), *SharedState.NiceName, ComStatus);
 		return;
@@ -295,9 +292,9 @@ FDestinationHandle FEndpoint::AddDestination(const FString& Name, EVisibility Vi
 		FRWScopeLock _(SharedState.DestinationsLock, SLT_Write);
 		TSharedPtr<FStreamDestination>& NewDest = SharedState.Destinations.Add_GetRef(MakeShared<FStreamDestination>(Name, Visibility, Provider));
 		Id = NewDest->GetId();
+		SharedState.bDirtyDestinations = true;
 	}
 
-	SharedState.bDirtyDestinations = true;
 	return Id;
 }
 
@@ -1019,6 +1016,7 @@ FRawInfo::FEndpointInfo FromMsg(const FDirectLinkMsg_EndpointState& Msg)
 {
 	FRawInfo::FEndpointInfo Info;
 	Info.Name = Msg.NiceName;
+	FEngineVersion::Parse(Msg.UEVersion, Info.Version);
 
 	for (const auto& S : Msg.Sources)
 	{

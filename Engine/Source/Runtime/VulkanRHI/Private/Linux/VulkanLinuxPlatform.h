@@ -49,9 +49,6 @@ public:
 
 	static void CreateSurface(void* WindowHandle, VkInstance Instance, VkSurfaceKHR* OutSurface);
 
-	static bool SupportsStandardSwapchain();
-	static EPixelFormat GetPixelFormatForNonDefaultSwapchain();
-
 	// Some platforms only support real or non-real UBs, so this function can optimize it out
 	static bool UseRealUBsOptimization(bool bCodeHeaderUseRealUBs)
 	{

@@ -37,7 +37,6 @@ public class UnrealEd : ModuleRules
 				"DesktopPlatform",
 				"LauncherPlatform",
 				"GameProjectGeneration",
-				"ProjectTargetPlatformEditor",
 				"ImageWrapper",
 				"MainFrame",
 				"TurnkeySupport",
@@ -227,10 +226,7 @@ public class UnrealEd : ModuleRules
 				"PackagesDialog",
 				"Persona",
 				"PhysicsAssetEditor",
-				"ProjectLauncher",
-				"DeviceManager",
 				"SettingsEditor",
-				"SessionFrontend",
 				"StringTableEditor",
 				"FoliageEdit",
 				"ImageWrapper",
@@ -241,8 +237,6 @@ public class UnrealEd : ModuleRules
 				"MeshUtilities",
 				"MergeActors",
 				"ProjectSettingsViewer",
-				"ProjectTargetPlatformEditor",
-				"PListEditor",
 				"BehaviorTreeEditor",
 				"ViewportSnapping",
 				"GameplayTasksEditor",
@@ -256,9 +250,28 @@ public class UnrealEd : ModuleRules
 				"ClothPainter",
 				"Media",
 				"VirtualTexturingEditor",
-				"TraceInsights",
 			}
 		);
+
+		if (Target.bBuildTargetDeveloperTools)
+		{
+			PrivateIncludePathModuleNames.AddRange(
+				new string[] {
+					"ProjectTargetPlatformEditor",
+				}
+			);
+
+			DynamicallyLoadedModuleNames.AddRange(
+				new string[] {
+					"SessionFrontend",
+					"ProjectLauncher",
+					"DeviceManager",
+					"ProjectTargetPlatformEditor",
+					"PListEditor",
+					"TraceInsights",
+				}
+			);
+		}
 
 		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Mac)
 		{
@@ -297,8 +310,6 @@ public class UnrealEd : ModuleRules
 
 		// Add include directory for Lightmass
 		PublicIncludePaths.Add("Programs/UnrealLightmass/Public");
-
-		PublicIncludePaths.Add("Developer/Android/AndroidDeviceDetection/Public/Interfaces");
 
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {

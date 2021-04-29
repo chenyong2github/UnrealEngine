@@ -28,6 +28,7 @@ class FUICommandList;
 class FSequencerKeyCollection;
 class UMovieSceneSequence;
 class UMovieSceneSubSection;
+class UMovieSceneCinematicShotSection;
 class IDetailsView;
 class IKeyArea;
 enum class EMapChangeType : uint8;
@@ -158,6 +159,7 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnGlobalTimeChanged);
 	DECLARE_MULTICAST_DELEGATE(FOnPlayEvent);
 	DECLARE_MULTICAST_DELEGATE(FOnStopEvent);
+	DECLARE_MULTICAST_DELEGATE(FOnRecordEvent);
 	DECLARE_MULTICAST_DELEGATE(FOnBeginScrubbingEvent);
 	DECLARE_MULTICAST_DELEGATE(FOnEndScrubbingEvent);
 	DECLARE_DELEGATE_RetVal(TArray<float>, FOnGetPlaybackSpeeds);
@@ -414,12 +416,19 @@ public:
 	 */ 
 	virtual bool IsPerspectiveViewportCameraCutEnabled() const { return true; }
 
+	/**
+	 * Gets the list of bindings for camera objects.
+	 *
+	 * @param OutBindingIDs  The list of binding IDs for cameras
+	 */
+	virtual void GetCameraObjectBindings(TArray<FGuid>& OutBindingIDs) {}
+
 	/*
 	 * Render movie for a section.
 	 * 
-	 * @param InSection The given section to render.
+	 * @param InSections The given sections to render.
 	 */
-	virtual void RenderMovie(UMovieSceneSection* InSection) const = 0;
+	virtual void RenderMovie(const TArray<UMovieSceneCinematicShotSection*>& InSections) const = 0;
 
 	/*
 	 * Puts sequencer in a silent state (whereby it will not redraw viewports, or attempt to update external state besides the sequence itself)
@@ -460,6 +469,14 @@ public:
 	/** A delegate which will determine whether a track should be visible in the tree. */
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnGetIsTrackVisible, const UMovieSceneTrack*)
 	FOnGetIsTrackVisible& OnGetIsTrackVisible() { return GetIsTrackVisible; }
+
+	/** A delegate which will determine whether a recording is possible */
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnGetCanRecord, FText& OutInfoText)
+	FOnGetCanRecord& OnGetCanRecord() { return GetCanRecord; }
+
+	/** A delegate which will determine whether there is a recording in progress */
+	DECLARE_DELEGATE_RetVal(bool, FOnGetIsRecording)
+	FOnGetIsRecording& OnGetIsRecording() { return GetIsRecording; }
 
 	/**
 	 * Gets a handle to runtime information about the object being manipulated by a movie scene
@@ -565,6 +582,9 @@ public:
 
 	/** Gets a multicast delegate which is executed whenever the user stops playing the sequence. */
 	virtual FOnStopEvent& OnStopEvent() = 0;
+
+	/** Gets a multicast delegate which is executed whenever the user toggles recording. */
+	virtual FOnRecordEvent& OnRecordEvent() = 0;
 
 	/** Gets a multicast delegate which is executed whenever the user begins scrubbing. */
 	virtual FOnBeginScrubbingEvent& OnBeginScrubbingEvent() = 0;
@@ -727,4 +747,6 @@ protected:
 	FOnGetIsBindingVisible GetIsBindingVisible;
 	FOnGetIsTrackVisible GetIsTrackVisible;
 	FOnGetPlaybackSpeeds GetPlaybackSpeeds;
+	FOnGetIsRecording GetIsRecording;
+	FOnGetCanRecord GetCanRecord;
 };

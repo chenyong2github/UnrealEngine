@@ -297,6 +297,11 @@ public:
 
 private:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FGoogleARCoreSession");
+	}
+
 	EGoogleARCoreAPIStatus SessionCreateStatus;
 	const UARSessionConfig* SessionConfig;
 	FGoogleARCoreFrame* LatestFrame;

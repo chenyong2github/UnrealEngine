@@ -25,7 +25,7 @@ UScriptStruct* UK2Node_UpdateVirtualSubjectDataBase::GetStructTypeFromBlueprint(
 		UBlueprint* Blueprint = GetBlueprint();
 		if (Blueprint->GeneratedClass.Get()->IsChildOf(ULiveLinkBlueprintVirtualSubject::StaticClass()))
 		{
-			if (Blueprint->GeneratedClass->HasAllClassFlags(EClassFlags::CLASS_LayoutChanging))
+			if (Blueprint->GeneratedClass->bLayoutChanging)
 			{
 				// Early out if the layout is changing as it's not valid to get the CDO
 				return nullptr;

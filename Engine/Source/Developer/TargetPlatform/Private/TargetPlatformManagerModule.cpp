@@ -1021,7 +1021,7 @@ protected:
 		FString CommandLine = TEXT("-Mode=ValidatePlatforms");
 		// Allow for only a subset of platforms to be reparsed - needed when kicking a change from the UI
 		CommandLine += TargetPlatforms.IsEmpty() ? TEXT(" -allplatforms") : (TEXT(" -platforms=") + TargetPlatforms);
-
+		
 		// convert into appropriate calls for the current platform
 		FPlatformProcess::ModifyCreateProcParams(CmdExe, CommandLine, FGenericPlatformProcess::ECreateProcHelperFlags::None);
 

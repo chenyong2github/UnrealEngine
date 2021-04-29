@@ -109,7 +109,7 @@ private:
 
 	TArray<FConstraintData>	ConstraintData;
 
-#if !UE_BUILD_SHIPPING
+#if UE_ENABLE_DEBUG_DRAWING
 	/** Debug draw cached data */
 	FTransform CachedOriginalTransform;
 	FTransform CachedConstrainedTransform;

@@ -571,6 +571,26 @@ public:
 	}
 
 	/**
+	 * Gets overall game time in seconds.
+	 *
+	 * @return Overall game time in seconds.
+	 */
+	FORCEINLINE static double GetGameTime()
+	{
+		return GameTime;
+	}
+
+	/**
+	 * Sets overall game time in seconds.
+	 *
+	* @param seconds - Overall game time in seconds.
+	 */
+	static void SetGameTime(double Seconds)
+	{
+		GameTime = Seconds;
+	}
+
+	/**
 	 * Gets idle time overshoot in seconds (the time beyond the wait time we requested for the frame). Only valid when IdleTime is > 0.
 	 *
 	 * @return Idle time in seconds.
@@ -766,6 +786,9 @@ private:
 
 	/** Holds the amount of IdleTime that was LONGER than we tried to sleep. The OS can't sleep the exact amount of time, so this measures that overshoot. */
 	static double IdleTimeOvershoot;
+
+	/** Holds overall game time. */
+	static double GameTime;
 
 	/** Holds the current frame time and framerate. */
 	static TOptional<FQualifiedFrameTime> CurrentFrameTime;

@@ -61,6 +61,10 @@ namespace Chaos
 	const int Chaos_MinEvolution_IntegrateMode = 0;
 #endif
 
+	// Forced iteration count to evaluate worst-case behaviour for a given simulation
+	bool Chaos_MinEvolution_ForceMaxConstraintIterations = false;
+	FAutoConsoleVariableRef CVarChaosMinEvolutionForceMaxConstraintIterations(TEXT("p.Chaos.MinEvolution.ForceMaxConstraintIterations"), Chaos_MinEvolution_ForceMaxConstraintIterations, TEXT("Whether to force constraints to always use the worst-case maximum number of iterations"));
+
 	//
 	//
 	//
@@ -675,7 +679,7 @@ namespace Chaos
 
 		for (int32 i = 0; i < NumApplyIterations; ++i)
 		{
-			bool bNeedsAnotherIteration = false;
+			bool bNeedsAnotherIteration = Chaos_MinEvolution_ForceMaxConstraintIterations;
 			for (FSimpleConstraintRule* ConstraintRule : PrioritizedConstraintRules)
 			{
 				bNeedsAnotherIteration |= ConstraintRule->ApplyConstraints(Dt, i, NumApplyIterations);

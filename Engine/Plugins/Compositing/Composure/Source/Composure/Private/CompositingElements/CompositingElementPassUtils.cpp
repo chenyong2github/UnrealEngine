@@ -39,6 +39,10 @@ struct FCompositingElementAssets : public FGCObject
 			Collector.AddReferencedObject(CopyMID);
 		}
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FCompositingElementAssets");
+	}
 
 private:
 	FCompositingElementAssets()

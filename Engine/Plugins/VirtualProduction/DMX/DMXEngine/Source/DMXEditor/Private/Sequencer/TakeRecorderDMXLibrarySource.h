@@ -51,6 +51,15 @@ public:
 	/** The Fixture Patches to record from the selected Library */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Source", meta = (DisplayName = "Fixture Patches"))
 	TArray<FDMXEntityFixturePatchRef> FixturePatchRefs;
+		
+	/** 
+	 * If true, all values are recorded as normalized values (0.0 to 1.0).
+	 * 
+	 * If false, values are recorded as absolute values, depending on the data type of a patch:
+	 * 0-255 for 8bit, 0-65'536 for 16bit, 0-16'777'215 for 24bit. 32bit is not fully supported in this mode.
+	 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Scene")
+	bool bRecordNormalizedValues;
 
 	/** Eliminate repeated keyframe values after recording is done */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Source")

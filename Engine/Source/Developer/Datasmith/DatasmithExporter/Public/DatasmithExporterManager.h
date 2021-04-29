@@ -46,7 +46,7 @@ public:
 
 	/**
 	 * Initializes the Datasmith Exporter module.
-	 * @param FInitOptions The options to select the features of the datasmith sdk that should be activated
+	 * @param InitOptions The options to select the features of the datasmith sdk that should be activated
 	 *
 	 * Needs to be called before starting any export or using any other features of the datasmith export module.
 	 * Must be called once

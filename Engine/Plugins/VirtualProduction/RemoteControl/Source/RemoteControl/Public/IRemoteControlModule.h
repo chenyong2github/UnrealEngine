@@ -11,7 +11,6 @@
 
 REMOTECONTROL_API DECLARE_LOG_CATEGORY_EXTERN(LogRemoteControl, Log, All);
 
-class IRemoteControlReplicator;
 class IStructDeserializerBackend;
 class IStructSerializerBackend;
 class URemoteControlPreset;
@@ -25,8 +24,9 @@ struct FRemoteControlProperty;
  */
 DECLARE_DELEGATE_RetVal_TwoParams(FString /*Value*/, FEntityMetadataInitializer, URemoteControlPreset* /*Preset*/, const FGuid& /*EntityId*/);
 
+
 /**
- * Deserialize payload type. It using for replication
+ * Deserialize payload type for interception purposes
  */
 enum class ERCPayloadType : uint8
 {
@@ -227,18 +227,6 @@ public:
 	virtual bool ResolveObjectProperty(ERCAccess AccessType, UObject* Object, FRCFieldPathInfo PropertyPath, FRCObjectReference& OutObjectRef, FString* OutErrorText = nullptr) = 0;
 
 	/**
-	 * Registers a remote control replicator for bypassing the payload to replicator instead applying directly
-	 * @param InReplicator Instance of the replicator class.
-	 */
-	virtual void RegisterReplicator(TSharedRef<IRemoteControlReplicator> InReplicator) = 0;
-
-	/**
-	 * remove replicator by given name
-	 * @param ReplicatorName replicator name.
-	 */
-	virtual void UnregisterReplicator(FName ReplicatorName) = 0;
-
-	/**
 	 * Serialize the Object Reference into the specified backend.
 	 * @param ObjectAccess the object reference to serialize, it should be a read access reference.
 	 * @param Backend the struct serializer backend to use to serialize the object properties.
@@ -251,18 +239,18 @@ public:
 	 * @param ObjectAccess the object reference to deserialize into, it should be a write access reference. if the object is WRITE_TRANSACTION_ACCESS, the setting will be wrapped in a transaction.
 	 * @param Backend the struct deserializer backend to use to deserialize the object properties.
 	 * @param InPayloadType the payload type archive.
-	 * @param InReplicatePayload the payload reference archive for the replication.
+	 * @param InInterceptPayload the payload reference archive for the interception.
 	 * @return true if the deserialization succeeded
 	 */
-	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType = ERCPayloadType::Json, const TArray<uint8>& InReplicatePayload = TArray<uint8>()) = 0;
+	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType = ERCPayloadType::Json, const TArray<uint8>& InInterceptPayload = TArray<uint8>()) = 0;
 
 	/**
 	 * Reset the property or the object the Object Reference is pointing to
 	 * @param ObjectAccess the object reference to reset, it should be a write access reference
-	 * @param bReplicate replication flag, if that is set to true it should follow the replication path
+	 * @param bAllowIntercept interception flag, if that is set to true it should follow the interception path
 	 * @return true if the reset succeeded.
 	 */
-	virtual bool ResetObjectProperties(const FRCObjectReference& ObjectAccess, const bool bReplicate = false) = 0;
+	virtual bool ResetObjectProperties(const FRCObjectReference& ObjectAccess, const bool bAllowIntercept = false) = 0;
 
 	/**
 	 * Resolve the underlying function from a preset.
@@ -277,17 +265,29 @@ public:
 	virtual TOptional<struct FExposedProperty> ResolvePresetProperty(const FResolvePresetFieldArgs& Args) const = 0;
 
 	/**
-	 * Get a preset that's in the current level using its name.
+	 * Get a preset using its name.
 	 * @arg PresetName name of the preset to resolve.
 	 * @return the preset if found.
 	 */
 	virtual URemoteControlPreset* ResolvePreset(FName PresetName) const = 0;
 
 	/**
+     * Get a preset using its id.
+     * @arg PresetId id of the preset to resolve.
+     * @return the preset if found.
+     */
+	virtual URemoteControlPreset* ResolvePreset(const FGuid& PresetId) const = 0;
+
+	/**
 	 * Get all the presets currently registered with the module.
 	 */
-	virtual void GetPresets(TArray<TSoftObjectPtr<URemoteControlPreset>>& OutPresets) = 0;
+	virtual void GetPresets(TArray<TSoftObjectPtr<URemoteControlPreset>>& OutPresets) const = 0;
 
+	/**
+	 * Get all the preset asset currently registered with the module.
+	 */
+	virtual void GetPresetAssets(TArray<FAssetData>& OutPresetAssets) const = 0;
+	
 	/**
 	 * Get the map of registered default entity metadata initializers. 
 	 */

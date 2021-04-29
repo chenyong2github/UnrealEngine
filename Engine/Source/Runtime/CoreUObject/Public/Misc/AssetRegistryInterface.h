@@ -116,6 +116,13 @@ namespace UE::AssetRegistry
 	};
 	ENUM_CLASS_FLAGS(EDependencyQuery);
 
+	/** Options used to read/write the DevelopmentAssetRegistry when serializing, which includes all data */
+	enum class ESerializationTarget : uint8
+	{
+		ForGame,
+		ForDevelopment
+	};
+
 	/**
 	 * A struct that is equivalent to EDependencyQuery, but is more useful for performance in filtering operations.
 	 * This is used by the filter implementations inside of GetDependency/GetReferencer calls; callers of those functions can instead use the more convenient values in EDependencyQuery.

@@ -72,15 +72,6 @@ enum class EAnimCurveType : uint8
 
 ENUM_RANGE_BY_COUNT(EAnimCurveType, EAnimCurveType::MaxAnimCurveType);
 
-UENUM()
-enum class EClothMassMode : uint8
-{
-	UniformMass,
-	TotalMass,
-	Density,
-	MaxClothMassMode UMETA(Hidden)
-};
-
 /** Method used when retrieving a attribute value*/
 UENUM()
 enum class ECustomBoneAttributeLookup : uint8
@@ -731,21 +722,6 @@ public:
 	UPROPERTY()
 	uint8 bEnableLineCheckWithBounds:1;
 
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
-	uint8 bUseBendingElements_DEPRECATED :1;
-	
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
-	uint8 bUseTetrahedralConstraints_DEPRECATED :1;
-	
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
-	uint8 bUseThinShellVolumeConstraints_DEPRECATED :1;
-	
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
-	uint8 bUseSelfCollisions_DEPRECATED :1;
-	
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
-	uint8 bUseContinuousCollisionDetection_DEPRECATED :1;
-
 	/** If true, propagates calls to ApplyAnimationCurvesToComponent for slave components, only needed if slave components do not tick themselves */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MasterPoseComponent)
 	uint8 bPropagateCurvesToSlaves : 1;
@@ -793,52 +769,12 @@ public:
 	UPROPERTY(transient)
 	uint16 CachedAnimCurveUidVersion;
 
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
-	EClothMassMode MassMode_DEPRECATED;
-
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
-	float UniformMass_DEPRECATED;
-
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
-	float TotalMass_DEPRECATED;
-	
-	/**
-	 * Water: 1.0
-	 * Cotton: 0.155
-	 * Wool: 0.13
-	 * Silk: 0.133
-	 */
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
-	float Density_DEPRECATED;
-
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
-	float MinPerParticleMass_DEPRECATED;
-
-
 	/**
 	 * weight to blend between simulated results and key-framed positions
 	 * if weight is 1.0, shows only cloth simulation results and 0.0 will show only skinned results
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = Clothing)
 	float ClothBlendWeight;
-
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
-	float EdgeStiffness_DEPRECATED;
-	
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
-	float BendingStiffness_DEPRECATED;
-	
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
-	float AreaStiffness_DEPRECATED;
-	
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
-	float VolumeStiffness_DEPRECATED;
-	
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
-	float StrainLimitingStiffness_DEPRECATED;
-	
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
-	float ShapeTargetStiffness_DEPRECATED;
 
 	/** Whether we should stall the Cloth tick task until the cloth simulation is complete. This is required if we want up-to-date
 	 * cloth data on the game thread, for example if we want to generate particles at cloth vertices.
@@ -863,7 +799,7 @@ public:
 
 	void CreateBodySetup();
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_ENABLE_DEBUG_DRAWING
 	virtual void SendRenderDebugPhysics(FPrimitiveSceneProxy* OverrideSceneProxy = nullptr) override;
 #endif
 

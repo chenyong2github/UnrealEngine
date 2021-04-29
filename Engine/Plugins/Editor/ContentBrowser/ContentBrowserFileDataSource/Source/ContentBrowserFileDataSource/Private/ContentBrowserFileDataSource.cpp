@@ -7,14 +7,34 @@
 #include "Misc/PathViews.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/FileHelper.h"
+#include "Misc/PackageName.h"
 #include "HAL/Runnable.h"
 #include "HAL/FileManager.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "IDirectoryWatcher.h"
 #include "DirectoryWatcherModule.h"
+#include "ContentBrowserDataSubsystem.h"
+#include "ContentBrowserDataUtils.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserFileDataSource"
+
+namespace ContentBrowserFileDataSource
+{
+	FStringView GetRootOfPath(FStringView InPath)
+	{
+		const TCHAR* DataPtr = InPath.GetData();
+		for (int32 i=1; i < InPath.Len(); ++i)
+		{
+			if (DataPtr[i] == TEXT('/'))
+			{
+				return InPath.Left(i);
+			}
+		}
+
+		return InPath;
+	}
+}
 
 class FContentBrowserFileDataDiscovery : public FRunnable
 {
@@ -271,9 +291,9 @@ bool FContentBrowserFileDataDiscovery::IsDiscoveringFiles() const
 }
 
 
-void UContentBrowserFileDataSource::Initialize(const FName InMountRoot, const ContentBrowserFileData::FFileConfigData& InConfig, const bool InAutoRegister)
+void UContentBrowserFileDataSource::Initialize(const ContentBrowserFileData::FFileConfigData& InConfig, const bool InAutoRegister)
 {
-	Super::Initialize(InMountRoot, InAutoRegister);
+	Super::Initialize(InAutoRegister);
 
 	Config = InConfig;
 	BackgroundDiscovery = MakeShared<FContentBrowserFileDataDiscovery>(&Config);
@@ -312,12 +332,27 @@ void UContentBrowserFileDataSource::AddFileMount(const FName InFileMountPath, co
 	FString FileMountDiskPath = FPaths::ConvertRelativePathToFull(InFileMountDiskPath);
 	checkf(FileMountDiskPath.Len() > 0 && FileMountDiskPath[FileMountDiskPath.Len() - 1] != TEXT('/'), TEXT("File mount disk path '%s' should not be empty or have a trailing slash!"), *FileMountDiskPath);
 
-	checkf(!RegisteredFileMounts.Contains(InFileMountPath), TEXT("File mount '%s' already registered!"), *FileMountPath);
+	if (!ensureMsgf(!RegisteredFileMounts.Contains(InFileMountPath), TEXT("File mount '%s' already registered!"), *FileMountPath))
+	{
+		return;
+	}
+
 	FFileMount& RegisteredFileMount = RegisteredFileMounts.Add(InFileMountPath);
 	RegisteredFileMount.DiskPath = FileMountDiskPath;
 
 	// Add a directory item for this root
 	AddDiscoveredItem(FDiscoveredItem::EType::Directory, FileMountPath, FileMountDiskPath, /*bIsRootPath*/true);
+
+	// Add to virtual path tree
+	{
+		// Track subdirectories that share a common root
+		const FStringView FileMountPathRoot = ContentBrowserFileDataSource::GetRootOfPath(FileMountPath);
+		const FName FileMountPathRootName(FileMountPathRoot);
+		TArray<FName>& Children = RegisteredFileMountRoots.FindOrAdd(FileMountPathRootName);
+		Children.AddUnique(*FileMountPath);
+
+		RootPathAdded(FileMountPathRoot);
+	}
 
 	// File mounts are always visible, even if empty
 	OnAlwaysShowPath(FileMountPath);
@@ -348,6 +383,35 @@ void UContentBrowserFileDataSource::AddFileMount(const FName InFileMountPath, co
 
 void UContentBrowserFileDataSource::RemoveFileMount(const FName InFileMountPath)
 {
+	// Remove from virtual path tree
+	{
+		FNameBuilder FileMountPathBuilder(InFileMountPath);
+		const FStringView FileMountPathRoot = ContentBrowserFileDataSource::GetRootOfPath(FileMountPathBuilder);
+		const FName FileMountPathRootName(FileMountPathRoot);
+
+		bool bRemoveRoot = true;
+
+		// Root path cannot be removed still has subdirectories
+		if (TArray<FName>* Children = RegisteredFileMountRoots.Find(FileMountPathRootName))
+		{
+			Children->Remove(InFileMountPath);
+
+			if (Children->Num() > 0)
+			{
+				bRemoveRoot = false;
+			}
+			else
+			{
+				RegisteredFileMountRoots.Remove(FileMountPathRootName);
+			}
+		}
+
+		if (bRemoveRoot)
+		{
+			RootPathRemoved(FileMountPathRoot);
+		}
+	}
+
 	FFileMount RegisteredFileMount;
 	if (RegisteredFileMounts.RemoveAndCopyValue(InFileMountPath, RegisteredFileMount))
 	{
@@ -393,11 +457,13 @@ void UContentBrowserFileDataSource::Tick(const float InDeltaTime)
 	}
 }
 
-void UContentBrowserFileDataSource::EnumerateRootPaths(const FContentBrowserDataFilter& InFilter, TFunctionRef<void(FName)> InCallback)
+void UContentBrowserFileDataSource::BuildRootPathVirtualTree()
 {
+	Super::BuildRootPathVirtualTree();
+
 	for (const auto& RegisteredFileMount : RegisteredFileMounts)
 	{
-		InCallback(RegisteredFileMount.Key);
+		RootPathAdded(ContentBrowserFileDataSource::GetRootOfPath(FNameBuilder(RegisteredFileMount.Key)));
 	}
 }
 
@@ -438,99 +504,14 @@ void UContentBrowserFileDataSource::CompileFilter(const FName InPath, const FCon
 		return;
 	}
 
-	// Convert the virtual path - if it doesn't exist in this data source then the filter won't include anything
-	TSet<FName> InternalPaths;
-	TMap<FName, TArray<FName>> VirtualPaths;
-	FName SingleInternalPath;
-	ExpandVirtualPath(InPath, InFilter, SingleInternalPath, InternalPaths, VirtualPaths);
-
-	auto PassesExternalFilters = [&InFilter](const FName InDiscoveredItemMountPath, const FDiscoveredItem& InDiscoveredItem, const TSharedPtr<const ContentBrowserFileData::FCommonActions>& InCommonActions)
+	// Cache information necessary to recurse
+	FileDataFilter.VirtualPathName = InPath;
+	FileDataFilter.VirtualPath = InPath.ToString();
+	FileDataFilter.bRecursivePaths = InFilter.bRecursivePaths;
+	FileDataFilter.ItemAttributeFilter = InFilter.ItemAttributeFilter;
+	if (PackageFilter && PackageFilter->PathBlacklist && PackageFilter->PathBlacklist->HasFiltering())
 	{
-		if (InCommonActions)
-		{
-			if (InCommonActions->PassesFilter.IsBound() && !InCommonActions->PassesFilter.Execute(InDiscoveredItemMountPath, InDiscoveredItem.DiskPath, InFilter))
-			{
-				return false;
-			}
-
-			FContentBrowserItemDataAttributeValue ScratchAttributeValue;
-			auto PassesAttributeFilter = [&](const EContentBrowserItemAttributeFilter InAttributeFlag, const FName InAttributeKey)
-			{
-				if (!EnumHasAnyFlags(InFilter.ItemAttributeFilter, InAttributeFlag) && InCommonActions->GetAttribute.IsBound())
-				{
-					ScratchAttributeValue.Reset();
-					if (InCommonActions->GetAttribute.Execute(InDiscoveredItemMountPath, InDiscoveredItem.DiskPath, /*bIncludeMetaData*/false, InAttributeKey, ScratchAttributeValue))
-					{
-						return !ScratchAttributeValue.GetValue<bool>();
-					}
-				}
-
-				return true;
-			};
-
-			return PassesAttributeFilter(EContentBrowserItemAttributeFilter::IncludeProject, ContentBrowserItemAttributes::ItemIsProjectContent)
-				&& PassesAttributeFilter(EContentBrowserItemAttributeFilter::IncludeEngine, ContentBrowserItemAttributes::ItemIsEngineContent)
-				&& PassesAttributeFilter(EContentBrowserItemAttributeFilter::IncludePlugins, ContentBrowserItemAttributes::ItemIsPluginContent)
-				&& PassesAttributeFilter(EContentBrowserItemAttributeFilter::IncludeDeveloper, ContentBrowserItemAttributes::ItemIsDeveloperContent)
-				&& PassesAttributeFilter(EContentBrowserItemAttributeFilter::IncludeLocalized, ContentBrowserItemAttributes::ItemIsLocalizedContent);
-		}
-
-		return true;
-	};
-
-	TFunction<void(const FDiscoveredItem&)> PopulateMatchingChildItems;
-	PopulateMatchingChildItems = [this, &PopulateMatchingChildItems, &PassesExternalFilters, &InFilter, &FileDataFilter, bIncludeFolders, bIncludeFiles](const FDiscoveredItem& InDiscoveredItem)
-	{
-		for (const FName& ChildItemName : InDiscoveredItem.ChildItems)
-		{
-			if (const FDiscoveredItem* DiscoveredChildItem = DiscoveredItems.Find(ChildItemName))
-			{
-				switch (DiscoveredChildItem->Type)
-				{
-				case FDiscoveredItem::EType::Directory:
-					if (bIncludeFolders)
-					{
-						TSharedPtr<const ContentBrowserFileData::FDirectoryActions> DirectoryActions = Config.GetDirectoryActions();
-						if (!PassesExternalFilters(ChildItemName, *DiscoveredChildItem, DirectoryActions))
-						{
-							continue;
-						}
-
-						FileDataFilter.MatchingFolderItems.Add(ChildItemName);
-					}
-					break;
-
-				case FDiscoveredItem::EType::File:
-					if (bIncludeFiles)
-					{
-						TSharedPtr<const ContentBrowserFileData::FFileActions> FileActions = Config.FindFileActionsForFilename(DiscoveredChildItem->DiskPath);
-						if (!PassesExternalFilters(ChildItemName, *DiscoveredChildItem, FileActions))
-						{
-							continue;
-						}
-
-						FileDataFilter.MatchingFileItems.Add(ChildItemName);
-					}
-					break;
-
-				default:
-					break;
-				}
-
-				if (InFilter.bRecursivePaths && DiscoveredChildItem->ChildItems.Num() > 0)
-				{
-					PopulateMatchingChildItems(*DiscoveredChildItem);
-				}
-			}
-		}
-	};
-
-	for (const FName InternalPath : InternalPaths)
-	{
-		if (const FDiscoveredItem* DiscoveredItem = DiscoveredItems.Find(InternalPath))
-		{
-			PopulateMatchingChildItems(*DiscoveredItem);
-		}
+		FileDataFilter.Blacklist = PackageFilter->PathBlacklist;
 	}
 }
 
@@ -548,31 +529,266 @@ void UContentBrowserFileDataSource::EnumerateItemsMatchingFilter(const FContentB
 		return;
 	}
 
-	if (EnumHasAnyFlags(InFilter.ItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFolders))
+	if (FileDataFilter->VirtualPath.Len() == 0)
 	{
-		for (const FName& ItemMountPath : FileDataFilter->MatchingFolderItems)
-		{
-			if (const FDiscoveredItem* DiscoveredItem = DiscoveredItems.Find(ItemMountPath))
-			{
-				if (!InCallback(CreateFolderItem(ItemMountPath, DiscoveredItem->DiskPath)))
-				{
-					return;
-				}
-			}
-		}
+		return;
 	}
 
-	if (EnumHasAnyFlags(InFilter.ItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFiles))
+	struct FLocalVisitor
 	{
-		for (const FName& ItemMountPath : FileDataFilter->MatchingFileItems)
+		FLocalVisitor(UContentBrowserFileDataSource* InDataSource, const FContentBrowserDataCompiledFilter& InFilter, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback, const FContentBrowserCompiledFileDataFilter& InFileDataFilter) :
+			DataSource(InDataSource),
+			Filter(InFilter),
+			Callback(InCallback),
+			FileDataFilter(InFileDataFilter)
 		{
-			if (const FDiscoveredItem* DiscoveredItem = DiscoveredItems.Find(ItemMountPath))
+			bIncludeFolders = EnumHasAnyFlags(Filter.ItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFolders);
+			bIncludeFiles = EnumHasAnyFlags(Filter.ItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFiles);
+			bRecursivePaths = FileDataFilter.bRecursivePaths;
+		}
+
+	public:
+
+		bool OnReachedInternalPath(const FName InPath, bool bCreateFolderItemForThisFolder, bool bNeedsFilterCheck)
+		{
+			const FDiscoveredItem* DiscoveredItem = DataSource->DiscoveredItems.Find(InPath);
+			if (DiscoveredItem && DiscoveredItem->Type == UContentBrowserFileDataSource::FDiscoveredItem::EType::Directory)
 			{
-				if (!InCallback(CreateFileItem(ItemMountPath, DiscoveredItem->DiskPath)))
+				int32 FolderDepth = 0;
 				{
-					return;
+					FNameBuilder PathBuilder(InPath);
+					if (bNeedsFilterCheck && !UContentBrowserFileDataSource::PassesFilters(PathBuilder, *DiscoveredItem, 0, FileDataFilter))
+					{
+						return true;
+					}
+
+					FolderDepth = ContentBrowserDataUtils::CalculateFolderDepthOfPath(PathBuilder);
+				}
+
+				if (bIncludeFolders && bCreateFolderItemForThisFolder)
+				{
+					if (!Callback(DataSource->CreateFolderItem(InPath, DiscoveredItem->DiskPath)))
+					{
+						return false;
+					}
+
+					if (!bRecursivePaths)
+					{
+						return true;
+					}
+				}
+
+				return EnumerateSubPaths(InPath, *DiscoveredItem, FolderDepth);
+			}
+
+			return true;
+		}
+
+		static int32 CalculateFolderDepthOfPath(const FName InPath)
+		{
+			return ContentBrowserDataUtils::CalculateFolderDepthOfPath(FNameBuilder(InPath));
+		}
+	
+		bool PassesFilters(const FName InPath) const
+		{
+			return DataSource->PassesFilters(InPath, 0, FileDataFilter);
+		}
+
+		/** Returns true if any internal root path under the given virtual path passes filters */
+		bool FullyVirtualPathPassesFilters(const FName FullyVirtualPath) const
+		{
+			bool bAnyChildPassesFilters = false;
+
+			DataSource->RootPathVirtualTree.EnumerateSubPaths(FullyVirtualPath, [this, &bAnyChildPassesFilters](FName VirtualSubPath, FName InternalSubPath)
+			{
+				if (bAnyChildPassesFilters == true)
+				{
+					// Stop enumeration
+					return false;
+				}
+				else if (!InternalSubPath.IsNone() && PassesFilters(InternalSubPath))
+				{
+					// Stop enumeration
+					bAnyChildPassesFilters = true;
+					return false;
+				}
+
+				return true;
+			}, true);
+
+			return bAnyChildPassesFilters;
+		}
+
+		/**
+		 * Enumerate and call function on each child item of a folder that passes filter
+		 * 
+		 * @param ItemMountPath	Mount path of folder item (eg, /Game/Scripts)
+		 * @param InDiscoveredItem Folder from DataSource->DiscoveredItems TMap 
+		 * @param InFolderDepthChecked Number of folders deep of ItemMountPath that have already been checked by PassesFilter (eg, 0 if none, 1 if /A, 2 if /A/B, etc..)
+		 * @return True if enumerate was not stopped, False if enumerate should stop
+		 */
+		bool EnumerateSubPaths(const FName ItemMountPath, const FDiscoveredItem& InDiscoveredItem, const int32 InFolderDepthChecked)
+		{
+			for (const FName ChildItemName : InDiscoveredItem.ChildItems)
+			{
+				if (const FDiscoveredItem* DiscoveredChildItem = DataSource->DiscoveredItems.Find(ChildItemName))
+				{
+					if (DiscoveredChildItem->Type == FDiscoveredItem::EType::Directory)
+					{
+						if (!UContentBrowserFileDataSource::PassesFilters(FNameBuilder(ChildItemName), *DiscoveredChildItem, InFolderDepthChecked, FileDataFilter))
+						{
+							continue;
+						}
+
+						if (bIncludeFolders)
+						{
+							if (!Callback(DataSource->CreateFolderItem(ChildItemName, DiscoveredChildItem->DiskPath)))
+							{
+								return false;
+							}
+						}
+
+						if (FileDataFilter.bRecursivePaths)
+						{
+							if (!EnumerateSubPaths(ChildItemName, *DiscoveredChildItem, InFolderDepthChecked + 1))
+							{
+								return false;
+							}
+						}
+					}
+					else if (DiscoveredChildItem->Type == FDiscoveredItem::EType::File)
+					{
+						if (bIncludeFiles)
+						{
+							if (!Callback(DataSource->CreateFileItem(ChildItemName, DiscoveredChildItem->DiskPath)))
+							{
+								return false;
+							}
+						}
+					}
 				}
 			}
+
+			return true;
+		};
+
+		bool IncludeFolders() const
+		{
+			return bIncludeFolders;
+		}
+
+		bool IncludeFiles() const
+		{
+			return bIncludeFiles;
+		}
+
+	private:
+		UContentBrowserFileDataSource* DataSource;
+		const FContentBrowserDataCompiledFilter& Filter;
+		TFunctionRef<bool(FContentBrowserItemData&&)> Callback;
+		const FContentBrowserCompiledFileDataFilter& FileDataFilter;
+		bool bIncludeFolders = false;
+		bool bIncludeFiles = false;
+		bool bRecursivePaths = false;
+	};
+
+	FLocalVisitor Visitor(this, InFilter, InCallback, *FileDataFilter);
+	if (!Visitor.IncludeFolders() && !Visitor.IncludeFiles())
+	{
+		return;
+	}
+
+	RefreshVirtualPathTreeIfNeeded();
+
+	FName ConvertedPath;
+	const FName StartingVirtualPath = FileDataFilter->VirtualPathName;
+	const EContentBrowserPathType ConvertedPathType = TryConvertVirtualPath(StartingVirtualPath, ConvertedPath);
+	if (ConvertedPathType == EContentBrowserPathType::Internal)
+	{
+		Visitor.OnReachedInternalPath(ConvertedPath, /*bCreateFolderItemForThisFolder*/false, /*bNeedsFilterCheck*/true);
+	}
+	else if (ConvertedPathType == EContentBrowserPathType::Virtual)
+	{
+		if (FileDataFilter->bRecursivePaths)
+		{
+			// Virtual paths not supported by PassesFilters, enumerate internal paths in hierarchy and propagate results to virtual parents
+			TSet<FName> VirtualPathsPassedFilter;
+			VirtualPathsPassedFilter.Reserve(RootPathVirtualTree.NumPaths());
+			RootPathVirtualTree.EnumerateSubPaths(StartingVirtualPath, [this, &Visitor, &VirtualPathsPassedFilter](FName VirtualSubPath, FName InternalSubPath)
+			{
+				if (!InternalSubPath.IsNone())
+				{
+					if (Visitor.PassesFilters(InternalSubPath))
+					{
+						// Propagate result to parents
+						for (FName It = VirtualSubPath; !It.IsNone(); It = RootPathVirtualTree.GetParentPath(It))
+						{
+							bool bIsAlreadySet = false;
+							VirtualPathsPassedFilter.Add(It, &bIsAlreadySet);
+							if (bIsAlreadySet)
+							{
+								break;
+							}
+						}
+					}
+				}
+
+				return true;
+			}, /*recurse*/true);
+
+			RootPathVirtualTree.EnumerateSubPaths(StartingVirtualPath, [this, &Visitor, &InCallback, &VirtualPathsPassedFilter](const FName VirtualSubPath, const FName InternalSubPath) 
+			{
+				if (VirtualPathsPassedFilter.Contains(VirtualSubPath))
+				{
+					if (!InternalSubPath.IsNone())
+					{
+						if (!Visitor.OnReachedInternalPath(InternalSubPath, /*bCreateFolderItemForThisFolder*/true, /*bNeedsFilterCheck*/false))
+						{
+							return false;
+						}
+					}
+					else
+					{
+						if (Visitor.IncludeFolders())
+						{
+							if (!InCallback(CreateVirtualFolderItem(VirtualSubPath)))
+							{
+								return false;
+							}
+						}
+					}
+				}
+
+				return true;
+			}, /*recurse*/true);	
+		}
+		else
+		{
+			RootPathVirtualTree.EnumerateSubPaths(StartingVirtualPath, [this, &Visitor, &InCallback](const FName VirtualSubPath, const FName InternalSubPath) 
+			{
+				if (!InternalSubPath.IsNone())
+				{
+					if (!Visitor.OnReachedInternalPath(InternalSubPath, /*bCreateFolderItemForThisFolder*/true, /*bNeedsFilterCheck*/true))
+					{
+						return false;
+					}
+				}
+				else
+				{
+					if (Visitor.IncludeFolders())
+					{
+						if (Visitor.FullyVirtualPathPassesFilters(VirtualSubPath))
+						{
+							if (!InCallback(CreateVirtualFolderItem(VirtualSubPath)))
+							{
+								return false;
+							}
+						}
+					}
+				}
+
+				return true;
+			}, /*recurse*/false);
 		}
 	}
 }
@@ -686,20 +902,25 @@ bool UContentBrowserFileDataSource::PrioritizeSearchPath(const FName InPath)
 
 bool UContentBrowserFileDataSource::IsFolderVisibleIfHidingEmpty(const FName InPath)
 {
-	FName InternalPath;
-	if (!TryConvertVirtualPathToInternal(InPath, InternalPath))
+	FName ConvertedPath;
+	const EContentBrowserPathType ConvertedPathType = TryConvertVirtualPath(InPath, ConvertedPath);
+	if (ConvertedPathType == EContentBrowserPathType::Internal)
+	{
+		if (!IsKnownFileMount(ConvertedPath))
+		{
+			return false;
+		}
+	}
+	else if (ConvertedPathType == EContentBrowserPathType::Virtual)
+	{
+		return true;
+	}
+	else
 	{
 		return false;
 	}
 
-	if (!IsKnownFileMount(InternalPath))
-	{
-		return false;
-	}
-
-	TStringBuilder<FName::StringBufferSize> InternalPathStr;
-	InternalPath.ToString(InternalPathStr);
-
+	FNameBuilder InternalPathStr(ConvertedPath);
 	const FStringView InternalPathStrView = InternalPathStr;
 	const uint32 InternalPathHash = GetTypeHash(InternalPathStrView);
 
@@ -721,24 +942,25 @@ bool UContentBrowserFileDataSource::DoesItemPassFilter(const FContentBrowserItem
 		return false;
 	}
 
+	FName InternalPath;
 	switch (InItem.GetItemType())
 	{
 	case EContentBrowserItemFlags::Type_Folder:
-		if (EnumHasAnyFlags(InFilter.ItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFolders) && FileDataFilter->MatchingFolderItems.Num() > 0)
+		if (EnumHasAnyFlags(InFilter.ItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFolders))
 		{
 			if (TSharedPtr<const FContentBrowserFolderItemDataPayload> FolderPayload = GetFolderItemPayload(InItem))
 			{
-				return FileDataFilter->MatchingFolderItems.Contains(FolderPayload->GetInternalPath());
+				InternalPath = FolderPayload->GetInternalPath();
 			}
 		}
 		break;
 
 	case EContentBrowserItemFlags::Type_File:
-		if (EnumHasAnyFlags(InFilter.ItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFiles) && FileDataFilter->MatchingFileItems.Num() > 0)
+		if (EnumHasAnyFlags(InFilter.ItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFiles))
 		{
 			if (TSharedPtr<const FContentBrowserFileItemDataPayload> FilePayload = GetFileItemPayload(InItem))
 			{
-				return FileDataFilter->MatchingFileItems.Contains(FilePayload->GetInternalPath());
+				InternalPath = FilePayload->GetInternalPath();
 			}
 		}
 		break;
@@ -746,7 +968,83 @@ bool UContentBrowserFileDataSource::DoesItemPassFilter(const FContentBrowserItem
 	default:
 		break;
 	}
-	
+
+	if (!InternalPath.IsNone())
+	{
+		const FName VirtualPath = InItem.GetVirtualPath();
+		FNameBuilder VirtualPathBuilder(VirtualPath);
+		const FStringView VirtualPathView(VirtualPathBuilder);
+
+		if (VirtualPathView.StartsWith(FileDataFilter->VirtualPath))
+		{
+			const bool bIsExactMatch = VirtualPathView.Len() <= FileDataFilter->VirtualPath.Len();
+
+			// Do not include the filter's folder itself
+			if (bIsExactMatch)
+			{
+				return false;
+			}
+
+			if (VirtualPathView[FileDataFilter->VirtualPath.Len()] == TEXT('/'))
+			{
+				bool bIsUnderSearchPath = false;
+				if (FileDataFilter->bRecursivePaths)
+				{
+					bIsUnderSearchPath = true;
+				}
+				else
+				{
+					const FStringView RemainingView = VirtualPathView.RightChop(FileDataFilter->VirtualPath.Len() + 1);
+					int32 FoundIndex = INDEX_NONE;
+					if (!RemainingView.FindChar(TEXT('/'), FoundIndex))
+					{
+						bIsUnderSearchPath = true;
+					}
+				}
+
+				if (bIsUnderSearchPath)
+				{
+					if (InItem.GetItemType() == EContentBrowserItemFlags::Type_Folder)
+					{
+						return PassesFilters(InternalPath, 0, *FileDataFilter);
+					}
+					else if (InItem.GetItemType() == EContentBrowserItemFlags::Type_File)
+					{
+						return PassesFilters(InternalPath, 0, *FileDataFilter);
+					}
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+bool UContentBrowserFileDataSource::PassesFilters(const FStringView InPath, const FDiscoveredItem& InDiscoveredItem, const int32 InFolderDepthChecked, const FContentBrowserCompiledFileDataFilter& InFileDataFilter)
+{
+	if (InFileDataFilter.Blacklist.IsValid())
+	{
+		if (!InFileDataFilter.Blacklist->PassesStartsWithFilter(InPath, /*bAllowParentPaths*/ InDiscoveredItem.Type == UContentBrowserFileDataSource::FDiscoveredItem::EType::File))
+		{
+			return false;
+		}
+	}
+
+	if (!ContentBrowserDataUtils::PathPassesAttributeFilter(InPath, InFolderDepthChecked, InFileDataFilter.ItemAttributeFilter))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool UContentBrowserFileDataSource::PassesFilters(const FName InPath, const int32 InFolderDepthChecked, const FContentBrowserCompiledFileDataFilter& InFileDataFilter) const
+{
+	if (const FDiscoveredItem* DiscoveredItem = DiscoveredItems.Find(InPath))
+	{
+		return PassesFilters(FNameBuilder(InPath), *DiscoveredItem, InFolderDepthChecked, InFileDataFilter);
+	}
+
 	return false;
 }
 
@@ -927,7 +1225,7 @@ bool UContentBrowserFileDataSource::CanCopyItem(const FContentBrowserItemData& I
 	FName InternalDestPath;
 	if (!TryConvertVirtualPathToInternal(InDestPath, InternalDestPath))
 	{
-		ContentBrowserFileData::SetOptionalErrorMessage(OutErrorMsg, FText::Format(LOCTEXT("Error_FolderIsUnknown", "Folder '{0}' is outside the mount root of this data source ({1})"), FText::FromName(InDestPath), FText::FromName(GetVirtualMountRoot())));
+		ContentBrowserFileData::SetOptionalErrorMessage(OutErrorMsg, FText::Format(LOCTEXT("Error_FolderIsUnknown", "Folder '{0}' is outside the mount roots of this data source"), FText::FromName(InDestPath)));
 		return false;
 	}
 
@@ -988,7 +1286,7 @@ bool UContentBrowserFileDataSource::CanMoveItem(const FContentBrowserItemData& I
 	FName InternalDestPath;
 	if (!TryConvertVirtualPathToInternal(InDestPath, InternalDestPath))
 	{
-		ContentBrowserFileData::SetOptionalErrorMessage(OutErrorMsg, FText::Format(LOCTEXT("Error_FolderIsUnknown", "Folder '{0}' is outside the mount root of this data source ({1})"), FText::FromName(InDestPath), FText::FromName(GetVirtualMountRoot())));
+		ContentBrowserFileData::SetOptionalErrorMessage(OutErrorMsg, FText::Format(LOCTEXT("Error_FolderIsUnknown", "Folder '{0}' is outside the mount roots of this data source"), FText::FromName(InDestPath)));
 		return false;
 	}
 
@@ -1059,7 +1357,13 @@ FContentBrowserItemData UContentBrowserFileDataSource::CreateFolderItem(const FN
 	FName VirtualizedPath;
 	TryConvertInternalPathToVirtual(InInternalPath, VirtualizedPath);
 
-	return ContentBrowserFileData::CreateFolderItem(this, VirtualizedPath, InInternalPath, InFilename, Config.GetDirectoryActions());
+	FString AlternativeName;
+	if (InFilename.IsEmpty())
+	{
+		AlternativeName = FPackageName::GetShortName(VirtualizedPath);
+	}
+
+	return ContentBrowserFileData::CreateFolderItem(this, VirtualizedPath, InInternalPath, InFilename.IsEmpty() ? AlternativeName : InFilename, Config.GetDirectoryActions());
 }
 
 FContentBrowserItemData UContentBrowserFileDataSource::CreateFileItem(const FName InInternalPath, const FString& InFilename)
@@ -1091,14 +1395,12 @@ TSharedPtr<const FContentBrowserFileItemDataPayload> UContentBrowserFileDataSour
 
 bool UContentBrowserFileDataSource::IsKnownFileMount(const FName InMountPath, FString* OutDiskPath) const
 {
-	TStringBuilder<FName::StringBufferSize> MountPathStr;
-	InMountPath.ToString(MountPathStr);
+	FNameBuilder MountPathStr(InMountPath);
 
 	const FStringView MountPathStrView = MountPathStr;
 	for (const auto& RegisteredFileMount : RegisteredFileMounts)
 	{
-		TStringBuilder<FName::StringBufferSize> FileMountMountRootStr;
-		RegisteredFileMount.Key.ToString(FileMountMountRootStr);
+		FNameBuilder FileMountMountRootStr(RegisteredFileMount.Key);
 
 		const FStringView FileMountMountRootStrView = FileMountMountRootStr;
 		if (MountPathStrView.StartsWith(FileMountMountRootStrView, ESearchCase::IgnoreCase) 
@@ -1247,9 +1549,7 @@ void UContentBrowserFileDataSource::RemoveDiscoveredItemImpl(const FName InMount
 
 	if (DiscoveredItem.Type == FDiscoveredItem::EType::Directory)
 	{
-		TStringBuilder<FName::StringBufferSize> MountPathStr;
-		InMountPath.ToString(MountPathStr);
-
+		FNameBuilder MountPathStr(InMountPath);
 		const FStringView MountPathStrView = MountPathStr;
 		const uint32 MountPathStrHash = GetTypeHash(MountPathStrView);
 
@@ -1265,9 +1565,7 @@ void UContentBrowserFileDataSource::RemoveDiscoveredItemImpl(const FName InMount
 
 void UContentBrowserFileDataSource::OnPathPopulated(const FName InPath)
 {
-	TStringBuilder<FName::StringBufferSize> PathStr;
-	InPath.ToString(PathStr);
-	OnPathPopulated(FStringView(PathStr));
+	OnPathPopulated(FNameBuilder(InPath));
 }
 
 void UContentBrowserFileDataSource::OnPathPopulated(const FStringView InPath)
@@ -1307,9 +1605,7 @@ void UContentBrowserFileDataSource::OnPathPopulated(const FStringView InPath)
 
 void UContentBrowserFileDataSource::OnAlwaysShowPath(const FName InPath)
 {
-	TStringBuilder<FName::StringBufferSize> PathStr;
-	InPath.ToString(PathStr);
-	OnAlwaysShowPath(FStringView(PathStr));
+	OnAlwaysShowPath(FNameBuilder(InPath));
 }
 
 void UContentBrowserFileDataSource::OnAlwaysShowPath(const FStringView InPath)

@@ -11,6 +11,7 @@
 
 class SButton;
 class UGroomImportOptions;
+class UGroomCacheImportOptions;
 class UGroomHairGroupsPreview;
 struct FHairGroupInfo;
 
@@ -19,6 +20,7 @@ class SGroomImportOptionsWindow : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS(SGroomImportOptionsWindow)
 		: _ImportOptions(nullptr)
+		, _GroomCacheImportOptions(nullptr)
 		, _GroupsPreview(nullptr)
 		, _WidgetWindow()
 		, _FullPath()
@@ -26,6 +28,7 @@ public:
 	{}
 
 	SLATE_ARGUMENT(UGroomImportOptions*, ImportOptions)
+	SLATE_ARGUMENT(UGroomCacheImportOptions*, GroomCacheImportOptions)
 	SLATE_ARGUMENT(UGroomHairGroupsPreview*, GroupsPreview)
 	SLATE_ARGUMENT(TSharedPtr<SWindow>, WidgetWindow)
 	SLATE_ARGUMENT(FText, FullPath)
@@ -38,6 +41,7 @@ public:
 
 	static TSharedPtr<SGroomImportOptionsWindow> DisplayImportOptions(
 		UGroomImportOptions* ImportOptions, 
+		UGroomCacheImportOptions* GroomCacheImportOptions, 
 		UGroomHairGroupsPreview* GroupsPreview,
 		const FString& FilePath);
 
@@ -83,6 +87,7 @@ public:
 
 	SGroomImportOptionsWindow() 
 		: ImportOptions(nullptr)
+		, GroomCacheImportOptions(nullptr)
 		, bShouldImport(false)
 		, GroupsPreview(nullptr)
 	{}
@@ -93,7 +98,9 @@ private:
 
 private:
 	UGroomImportOptions* ImportOptions;
+	UGroomCacheImportOptions* GroomCacheImportOptions;
 	TSharedPtr<class IDetailsView> DetailsView;
+	TSharedPtr<class IDetailsView> GroomCacheDetailsView;
 	TSharedPtr<class IDetailsView> DetailsView2;
 	TWeakPtr<SWindow> WidgetWindow;
 	TSharedPtr<SButton> ImportButton;

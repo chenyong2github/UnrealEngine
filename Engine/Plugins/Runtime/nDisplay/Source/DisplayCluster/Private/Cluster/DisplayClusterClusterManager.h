@@ -25,7 +25,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool Init(EDisplayClusterOperationMode OperationMode) override;
 	virtual void Release() override;
-	virtual bool StartSession(const UDisplayClusterConfigurationData* InConfigData, const FString& NodeID) override;
+	virtual bool StartSession(UDisplayClusterConfigurationData* InConfigData, const FString& NodeID) override;
 	virtual void EndSession() override;
 	virtual bool StartScene(UWorld* World) override;
 	virtual void EndScene() override;
@@ -66,6 +66,9 @@ public:
 	virtual void EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event, bool MasterOnly) override;
 	virtual void EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly) override;
 
+	virtual void SendClusterEventTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventJson& Event,   bool bMasterOnly) override;
+	virtual void SendClusterEventTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly) override;
+
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IPDisplayClusterClusterManager
@@ -79,7 +82,6 @@ public:
 	virtual void ImportEventsData(const TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, const TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) override;
 
 	virtual void SyncObjects(EDisplayClusterSyncGroup SyncGroup) override;
-	virtual void SyncInput()   override;
 	virtual void SyncEvents()  override;
 
 	virtual void ProvideNativeInputData(const TMap<FString, FString>& NativeInputData) override;

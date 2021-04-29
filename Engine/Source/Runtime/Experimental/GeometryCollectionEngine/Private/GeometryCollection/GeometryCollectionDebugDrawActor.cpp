@@ -311,7 +311,7 @@ void AGeometryCollectionDebugDrawActor::Tick(float DeltaSeconds)
 	Flush();
 
 	UWorld* const World = GetWorld();
-#if WITH_EDITOR
+#if WITH_EDITOR && ENABLE_DRAW_DEBUG
 	// Check editor pause status and force a dynamic update on all components to catchup with the physics thread
 	// This can't be done in the GeometryCollectionDebugDrawComponent since it doesn't tick at every frame,
 	// and can't be done in GeometryCollectionComponent either since it doesn't usually tick while paused.
@@ -331,7 +331,7 @@ void AGeometryCollectionDebugDrawActor::Tick(float DeltaSeconds)
 		}
 	}
 	bWasEditorPaused = bIsEditorPaused;
-#endif  // #if WITH_EDITOR
+#endif  // #if WITH_EDITOR && ENABLE_DRAW_DEBUG
 
 #if GEOMETRYCOLLECTION_DEBUG_DRAW
 	// Check badly synced collections in case it is still looking for an id match

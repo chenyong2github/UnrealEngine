@@ -161,6 +161,16 @@ public:
 	FName GetVirtualPath() const;
 
 	/**
+	 * Gets the path that will not change based on toggling "Show All Folder", "Organize Folders" or other rules (eg,. "/Plugins").
+	 */
+	FName GetInvariantPath() const;
+
+	/**
+	 * Gets the internal path if it has one (eg,. "/Game").
+	 */
+	FName GetInternalPath() const;
+
+	/**
 	 * Get the leaf-name of this item (eg, "MyFile").
 	 */
 	FName GetItemName() const;

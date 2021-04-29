@@ -66,6 +66,13 @@ bool FGenericFileIoStoreImpl::OpenContainer(const TCHAR* ContainerFilePath, uint
 	return true;
 }
 
+void FGenericFileIoStoreImpl::CloseContainer(uint64 ContainerFileHandle)
+{
+	check(ContainerFileHandle);
+	IFileHandle* FileHandle = reinterpret_cast<IFileHandle*>(ContainerFileHandle);
+	delete FileHandle;
+}
+
 bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQueue)
 {
 	FFileIoStoreReadRequest* NextRequest = RequestQueue.Pop();

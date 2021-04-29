@@ -346,7 +346,7 @@ namespace Audio
 	};
 
 	/** Abstract interface for receiving audio device changed notifications */
-	class AUDIOMIXERCORE_API IAudioMixerDeviceChangedLister
+	class AUDIOMIXERCORE_API IAudioMixerDeviceChangedListener
 	{
 	public:
 		virtual void RegisterDeviceChangedListener() {}
@@ -363,7 +363,7 @@ namespace Audio
 	/** Abstract interface for mixer platform. */
 	class AUDIOMIXERCORE_API IAudioMixerPlatformInterface : public FRunnable,
 														public FSingleThreadRunnable,
-														public IAudioMixerDeviceChangedLister
+														public IAudioMixerDeviceChangedListener
 	{
 
 	public: // Virtual functions

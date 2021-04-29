@@ -132,6 +132,8 @@ void STakeRecorderCockpit::Construct(const FArguments& InArgs)
 
 	LevelSequenceAttribute = InArgs._LevelSequence;
 
+	TakeRecorderModeAttribute = InArgs._TakeRecorderMode;
+
 	CacheMetaData();
 
 	if (TakeMetaData && !TakeMetaData->IsLocked())
@@ -459,12 +461,12 @@ void STakeRecorderCockpit::Construct(const FArguments& InArgs)
 	}
 }
 
-bool STakeRecorderCockpit::CanStartRecording(FText* OutErrorText) const
+bool STakeRecorderCockpit::CanStartRecording(FText& OutErrorText) const
 {
 	bool bCanRecord = CanRecord();
-	if (!bCanRecord && OutErrorText)
+	if (!bCanRecord)
 	{
-		*OutErrorText = RecordErrorText;
+		OutErrorText = RecordErrorText;
 	}
 	return bCanRecord;
 }
@@ -506,7 +508,7 @@ void STakeRecorderCockpit::UpdateRecordError()
 		return;
 	}
 
-	if (!Sequence->HasAnyFlags(RF_Transient))
+	if (!Sequence->HasAnyFlags(RF_Transient) && TakeRecorderModeAttribute.Get() != ETakeRecorderMode::RecordIntoSequence)
 	{
 		RecordErrorText = FText();
 		return;
@@ -883,7 +885,7 @@ FReply STakeRecorderCockpit::OnAddMarkedFrame()
 
 bool STakeRecorderCockpit::Reviewing() const 
 {
-	return bool(!Recording() && (TakeMetaData->Recorded()));
+	return bool(!Recording() && (TakeMetaData->Recorded() && TakeRecorderModeAttribute.Get() != ETakeRecorderMode::RecordIntoSequence));
 }
 
 bool STakeRecorderCockpit::Recording() const
@@ -954,6 +956,7 @@ void STakeRecorderCockpit::StartRecording()
 		FTakeRecorderParameters Parameters;
 		Parameters.User    = GetDefault<UTakeRecorderUserSettings>()->Settings;
 		Parameters.Project = GetDefault<UTakeRecorderProjectSettings>()->Settings;
+		Parameters.TakeRecorderMode = TakeRecorderModeAttribute.Get();
 
 		FText ErrorText = LOCTEXT("UnknownError", "An unknown error occurred when trying to start recording");
 

@@ -251,7 +251,9 @@ namespace AutomationTool
             this.DLCIncludeEngineContent = InParams.DLCIncludeEngineContent;
 			this.DLCActLikePatch = InParams.DLCActLikePatch;
 			this.DLCPakPluginFile = InParams.DLCPakPluginFile;
-            this.DiffCookedContentPath = InParams.DiffCookedContentPath;
+			this.DLCOverrideCookedSubDir = InParams.DLCOverrideCookedSubDir;
+			this.DLCOverrideStagedSubDir = InParams.DLCOverrideStagedSubDir;
+			this.DiffCookedContentPath = InParams.DiffCookedContentPath;
             this.AdditionalCookerOptions = InParams.AdditionalCookerOptions;
 			this.ClientCookedTargets = InParams.ClientCookedTargets;
 			this.ServerCookedTargets = InParams.ServerCookedTargets;
@@ -442,7 +444,9 @@ namespace AutomationTool
 			bool? StageBaseReleasePaks = null,
             string DiscVersion = null,
             string DLCName = null,
-            string DiffCookedContentPath = null,
+			string DLCOverrideCookedSubDir = null,
+			string DLCOverrideStagedSubDir = null,
+			string DiffCookedContentPath = null,
             bool? DLCIncludeEngineContent = null,
 			bool? DLCPakPluginFile = null,
 			bool? DLCActLikePatch = null,
@@ -602,28 +606,37 @@ namespace AutomationTool
 			this.StageBaseReleasePaks = GetParamValueIfNotSpecified(Command, StageBaseReleasePaks, this.StageBaseReleasePaks, "StageBaseReleasePaks");
 			this.DiscVersion = ParseParamValueIfNotSpecified(Command, DiscVersion, "DiscVersion", String.Empty);
 			this.AdditionalCookerOptions = ParseParamValueIfNotSpecified(Command, AdditionalCookerOptions, "AdditionalCookerOptions", String.Empty);
-
+			
 			DLCName = ParseParamValueIfNotSpecified(Command, DLCName, "DLCName", String.Empty);
-			if(!String.IsNullOrEmpty(DLCName))
+			if (!String.IsNullOrEmpty(DLCName))
 			{
-				List<PluginInfo> CandidatePlugins = Plugins.ReadAvailablePlugins(CommandUtils.EngineDirectory, DirectoryReference.FromFile(RawProjectPath), null);
-				PluginInfo DLCPlugin = CandidatePlugins.FirstOrDefault(x => String.Equals(x.Name, DLCName, StringComparison.InvariantCultureIgnoreCase));
-				if(DLCPlugin == null)
+				// is it fully specified already (look for having a uplugin extension)
+				if (string.Equals(Path.GetExtension(DLCName), ".uplugin", StringComparison.InvariantCultureIgnoreCase))
 				{
-					DLCFile = FileReference.Combine(RawProjectPath.Directory, "Plugins", DLCName, DLCName + ".uplugin");
+					this.DLCFile = new FileReference(DLCName);
 				}
 				else
 				{
-					DLCFile = DLCPlugin.File;
+					List<PluginInfo> CandidatePlugins = Plugins.ReadAvailablePlugins(CommandUtils.EngineDirectory, DirectoryReference.FromFile(RawProjectPath), null);
+					PluginInfo DLCPlugin = CandidatePlugins.FirstOrDefault(x => String.Equals(x.Name, DLCName, StringComparison.InvariantCultureIgnoreCase));
+					if (DLCPlugin == null)
+					{
+						this.DLCFile = FileReference.Combine(RawProjectPath.Directory, "Plugins", DLCName, DLCName + ".uplugin");
+					}
+					else
+					{
+						this.DLCFile = DLCPlugin.File;
+					}
 				}
 			}
 
-            //this.DLCName = 
-            this.DiffCookedContentPath = ParseParamValueIfNotSpecified(Command, DiffCookedContentPath, "DiffCookedContentPath", String.Empty);
+			this.DiffCookedContentPath = ParseParamValueIfNotSpecified(Command, DiffCookedContentPath, "DiffCookedContentPath", String.Empty);
             this.DLCIncludeEngineContent = GetParamValueIfNotSpecified(Command, DLCIncludeEngineContent, this.DLCIncludeEngineContent, "DLCIncludeEngineContent");
 			this.DLCPakPluginFile = GetParamValueIfNotSpecified(Command, DLCPakPluginFile, this.DLCPakPluginFile, "DLCPakPluginFile");
 			this.DLCActLikePatch = GetParamValueIfNotSpecified(Command, DLCActLikePatch, this.DLCActLikePatch, "DLCActLikePatch");
-			
+			this.DLCOverrideCookedSubDir = ParseParamValueIfNotSpecified(Command, DLCOverrideCookedSubDir, "DLCOverrideCookedSubDir", String.Empty);
+			this.DLCOverrideStagedSubDir = ParseParamValueIfNotSpecified(Command, DLCOverrideCookedSubDir, "DLCOverrideStagedSubDir", String.Empty);
+
 			this.SkipCook = GetParamValueIfNotSpecified(Command, SkipCook, this.SkipCook, "skipcook");
 			if (this.SkipCook)
 			{
@@ -1620,6 +1633,17 @@ namespace AutomationTool
 		public bool DLCActLikePatch;
 
 		/// <summary>
+		/// Sometimes a DLC may get cooked to a subdirectory of where is expected, so this can tell the staging what the subdirectory of the cooked out
+		/// to find the DLC files (for instance Metadata)
+		/// </summary>
+		public string DLCOverrideCookedSubDir;
+
+		/// <summary>
+		/// Controls where under the staged directory to output to (in case the plugin subdirectory is not desired under the StagingDirectory location)
+		/// </summary>
+		public string DLCOverrideStagedSubDir;
+
+		/// <summary>
 		/// After cook completes diff the cooked content against another cooked content directory.
 		///  report all errors to the log
 		/// </summary>
@@ -2054,6 +2078,33 @@ namespace AutomationTool
 			}
 		}
 
+		private void SelectDefaultEditorTarget(List<string> AvailableEditorTargets, ref string EditorTarget)
+		{
+			string DefaultEditorTarget;
+
+			if (EngineConfigs[BuildHostPlatform.Current.Platform].GetString("/Script/BuildSettings.BuildSettings", "DefaultEditorTarget", out DefaultEditorTarget))
+			{
+				if (!AvailableEditorTargets.Contains(DefaultEditorTarget))
+				{
+					throw new AutomationException(string.Format("A default editor target '{0}' was specified in engine.ini but does not exist", DefaultEditorTarget));
+				}
+
+				EditorTarget = DefaultEditorTarget;
+			}
+			else
+			{
+				if (AvailableEditorTargets.Count > 1)
+				{
+					throw new AutomationException("Project contains multiple editor targets but no DefaultEditorTarget is set in the [/Script/BuildSettings.BuildSettings] section of DefaultEngine.ini");
+				}
+
+				if (AvailableEditorTargets.Count > 0)
+				{
+					EditorTarget = AvailableEditorTargets.First();
+				}
+			}
+		}
+
 		private void AutodetectSettings(bool bReset)
 		{
 			if (bReset)
@@ -2166,15 +2217,7 @@ namespace AutomationTool
 				}
 
 				// Find the editor target name
-				List<SingleTargetProperties> EditorTargets = Properties.Targets.Where(x => x.Rules.Type == TargetType.Editor).ToList();
-				if (EditorTargets.Count == 1)
-				{
-					EditorTarget = EditorTargets[0].TargetName;
-				}
-				else if (EditorTargets.Count > 1)
-				{
-					throw new AutomationException("There can be only one Editor target per project.");
-				}
+				SelectDefaultEditorTarget(TargetNamesOfType(TargetType.Editor), ref EditorTarget);
 			}
 			else if (!CommandUtils.IsNullOrEmpty(Properties.Targets))
 			{
@@ -2201,29 +2244,7 @@ namespace AutomationTool
 					GameTarget = AvailableGameTargets.First();
 				}
 
-				if (AvailableEditorTargets.Count > 0)
-				{
-					string DefaultEditorTarget;
-
-					if (EngineConfigs[BuildHostPlatform.Current.Platform].GetString("/Script/BuildSettings.BuildSettings", "DefaultEditorTarget", out DefaultEditorTarget))
-					{
-						if (!AvailableEditorTargets.Contains(DefaultEditorTarget))
-						{
-							throw new AutomationException(string.Format("A default editor target '{0}' was specified in engine.ini but does not exist", DefaultEditorTarget));
-						}
-
-						EditorTarget = DefaultEditorTarget;
-					}
-					else
-					{
-						if (AvailableEditorTargets.Count > 1)
-						{
-							throw new AutomationException("Project contains multiple editor targets but no DefaultEditorTarget is set in the [/Script/BuildSettings.BuildSettings] section of DefaultEngine.ini");
-						}
-
-						EditorTarget = AvailableEditorTargets.First();
-					}
-				}
+				SelectDefaultEditorTarget(AvailableEditorTargets, ref EditorTarget);
 
 				if (AvailableServerTargets.Count > 0 && (DedicatedServer || Cook || CookOnTheFly)) // only if server is needed
 				{
@@ -2856,7 +2877,9 @@ namespace AutomationTool
 				CommandUtils.LogLog("DLCFile={0}", DLCFile);
                 CommandUtils.LogLog("DLCIncludeEngineContent={0}", DLCIncludeEngineContent);
 				CommandUtils.LogLog("DLCPakPluginFile={0}", DLCPakPluginFile);
-                CommandUtils.LogLog("DiffCookedContentPath={0}", DiffCookedContentPath);
+				CommandUtils.LogLog("DLCOverrideCookedSubDir={0}", DLCOverrideCookedSubDir);
+				CommandUtils.LogLog("DLCOverrideStagedSubDir={0}", DLCOverrideStagedSubDir);
+				CommandUtils.LogLog("DiffCookedContentPath={0}", DiffCookedContentPath);
                 CommandUtils.LogLog("AdditionalCookerOptions={0}", AdditionalCookerOptions);
 				CommandUtils.LogLog("DedicatedServer={0}", DedicatedServer);
 				CommandUtils.LogLog("DirectoriesToCook={0}", DirectoriesToCook.ToString());

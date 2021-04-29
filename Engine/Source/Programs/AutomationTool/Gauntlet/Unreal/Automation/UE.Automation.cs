@@ -303,7 +303,7 @@ namespace UE
 	}
 
 	/// <summary>
-	/// Base class for automatinon tests. Most of the magic is in here with the Editor/Target forms simply defining the roles
+	/// Base class for automation tests. Most of the magic is in here with the Editor/Target forms simply defining the roles
 	/// </summary>
 	public abstract class AutomationNodeBase : UnrealTestNode<AutomationTestConfig>
 	{

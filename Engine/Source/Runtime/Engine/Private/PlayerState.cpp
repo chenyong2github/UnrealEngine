@@ -14,6 +14,7 @@
 #include "GameFramework/GameStateBase.h"
 #include "Net/Core/PushModel/PushModel.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 APlayerState::APlayerState(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer
 		.DoNotCreateDefaultSubobject(TEXT("Sprite")) )
@@ -36,6 +37,7 @@ APlayerState::APlayerState(const FObjectInitializer& ObjectInitializer)
 	bShouldUpdateReplicatedPing = true; // Preserved behavior before bShouldUpdateReplicatedPing was added
 	bUseCustomPlayerNames = false;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 APlayerState::~APlayerState()
@@ -67,7 +69,9 @@ void APlayerState::UpdatePing(float InPing)
 		PingBucket[CurPingBucket].PingSum = FMath::FloorToInt(InPingInMs);
 		PingBucket[CurPingBucket].PingCount = 1;
 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		PingBucketV2[CurPingBucket] = PingAvgDataV2();
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	// Limit the number of pings we accept per-bucket, to avoid overflowing PingBucket values
 	else if (PingBucket[CurPingBucket].PingCount < 7)
@@ -76,6 +80,7 @@ void APlayerState::UpdatePing(float InPing)
 		PingBucket[CurPingBucket].PingCount++;
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TArray<uint16>& CurrentBucketPingValues = PingBucketV2[CurPingBucket].PingValues;
 
 	// This makes sure we will actually add the ping value to the list, since much of the time the new ping value will be higher than
@@ -94,6 +99,7 @@ void APlayerState::UpdatePing(float InPing)
 			}
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void APlayerState::RecalculateAvgPing()
@@ -107,6 +113,7 @@ void APlayerState::RecalculateAvgPing()
 		Count += PingBucket[i].PingCount;
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	int32 SumV2 = 0;
 	int32 NumValidValues = 0;
 	for (; NumValidValues < PingAvgDataV2::MAX_PING_VALUES_SIZE; NumValidValues++)
@@ -127,6 +134,7 @@ void APlayerState::RecalculateAvgPing()
 	}
 
 	ExactPingV2 = AvgSumV2 / UE_ARRAY_COUNT(PingBucketV2);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Calculate the average, and divide it by 4 to optimize replication
 	ExactPing = (Count > 0 ? ((float)Sum / (float)Count) : 0.f);

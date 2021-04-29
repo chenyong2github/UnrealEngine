@@ -170,6 +170,10 @@ $ bAdaptiveUnityCompilesHeaderFiles (Boolean): Creates a dedicated source file f
 
 $ MinGameModuleSourceFilesForUnityBuild (Int32): The number of source files in a game module before unity build will be activated for that module.  This allows small game modules to have faster iterative compile times for single files, at the expense of slower full rebuild times.  This setting can be overridden by the bFasterWithoutUnity option in a module's Build.cs file.
 
+$ DefaultWarningLevel (WarningLevel): Default treatment of uncategorized warnings
+
+$ DeprecationWarningLevel (WarningLevel): Whether to treat all warnings as errors. UE generally treats most warnings as errors, with the exception of deprecation warnings,
+
 $ ShadowVariableWarningLevel (WarningLevel): Forces shadow variable warnings to be treated as errors on platforms that support it.
 
 $ bWarningsAsErrors (Boolean): Whether to enable all warnings as errors. UE enables most warnings as errors already, but disables a few (such as deprecation warnings).

@@ -502,6 +502,8 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 	DataprepAssetInterfacePtr = TWeakObjectPtr<UDataprepAssetInterface>(InDataprepAssetInterface);
 	check( DataprepAssetInterfacePtr.IsValid() );
 
+	DataprepCorePrivateUtils::Analytics::DataprepEditorOpened( InDataprepAssetInterface );
+
 	bIsDataprepInstance = InDataprepAssetInterface->IsA<UDataprepAssetInstance>();
 
 	DataprepAssetInterfacePtr->GetOnChanged().AddSP( this, &FDataprepEditor::OnDataprepAssetChanged );
@@ -696,6 +698,8 @@ void FDataprepEditor::OnBuildWorld()
 		return;
 	}
 
+	DataprepCorePrivateUtils::Analytics::ImportTriggered( DataprepAssetInterfacePtr.Get() );
+
 	CleanPreviewWorld();
 
 	AssetsTransientPackage = NewObject< UPackage >( nullptr, *GetTransientContentFolder(), RF_Transient );
@@ -852,6 +856,8 @@ void FDataprepEditor::OnExecutePipeline()
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDataprepEditor::OnExecutePipeline);
 
+	DataprepCorePrivateUtils::Analytics::ExecuteTriggered( DataprepAssetInterfacePtr.Get() );
+
 	// Clear selection in details tab since selected objects may be gone
 	DetailsView->ShowDetailsObjects(TArray<UObject*>());
 
@@ -944,6 +950,8 @@ void FDataprepEditor::OnCommitWorld()
 			return;
 		}
 	}
+
+	DataprepCorePrivateUtils::Analytics::CommitTriggered( DataprepAssetInterfacePtr.Get() );
 
 	// Remove references to assets in 3D viewport before commit
 	SceneViewportView->ClearScene();

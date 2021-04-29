@@ -54,6 +54,7 @@ struct FFBXInOutParameters
 	bool bConvertSceneBackup;
 	bool bConvertSceneUnitBackup;
 	bool bForceFrontXAxisBackup;
+	float ImportUniformScaleBackup;
 };
 
 //callback's used by skel mesh recorders

@@ -323,22 +323,22 @@ void AActor::RerunConstructionScripts()
 			CurrentTransactionAnnotation = FActorTransactionAnnotation::Create(this, false);
 		}
 		FActorTransactionAnnotation* ActorTransactionAnnotation = CurrentTransactionAnnotation.Get();
-		InstanceDataCache = &ActorTransactionAnnotation->ComponentInstanceData;
+		InstanceDataCache = &ActorTransactionAnnotation->ActorTransactionAnnotationData.ComponentInstanceData;
 
-		if (ActorTransactionAnnotation->bRootComponentDataCached)
+		if (ActorTransactionAnnotation->ActorTransactionAnnotationData.bRootComponentDataCached)
 		{
-			OldTransform = ActorTransactionAnnotation->RootComponentData.Transform;
-			OldTransformRotationCache = ActorTransactionAnnotation->RootComponentData.TransformRotationCache;
-			Parent = ActorTransactionAnnotation->RootComponentData.AttachedParentInfo.Actor.Get();
+			OldTransform = ActorTransactionAnnotation->ActorTransactionAnnotationData.RootComponentData.Transform;
+			OldTransformRotationCache = ActorTransactionAnnotation->ActorTransactionAnnotationData.RootComponentData.TransformRotationCache;
+			Parent = ActorTransactionAnnotation->ActorTransactionAnnotationData.RootComponentData.AttachedParentInfo.Actor.Get();
 			if (Parent)
 			{
-				USceneComponent* AttachParent = ActorTransactionAnnotation->RootComponentData.AttachedParentInfo.AttachParent.Get();
-				AttachParentComponent = (AttachParent ? AttachParent : FindObjectFast<USceneComponent>(Parent, ActorTransactionAnnotation->RootComponentData.AttachedParentInfo.AttachParentName));
-				SocketName = ActorTransactionAnnotation->RootComponentData.AttachedParentInfo.SocketName;
+				USceneComponent* AttachParent = ActorTransactionAnnotation->ActorTransactionAnnotationData.RootComponentData.AttachedParentInfo.AttachParent.Get();
+				AttachParentComponent = (AttachParent ? AttachParent : FindObjectFast<USceneComponent>(Parent, ActorTransactionAnnotation->ActorTransactionAnnotationData.RootComponentData.AttachedParentInfo.AttachParentName));
+				SocketName = ActorTransactionAnnotation->ActorTransactionAnnotationData.RootComponentData.AttachedParentInfo.SocketName;
 				DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 			}
 
-			for (const FActorRootComponentReconstructionData::FAttachedActorInfo& CachedAttachInfo : ActorTransactionAnnotation->RootComponentData.AttachedToInfo)
+			for (const FActorRootComponentReconstructionData::FAttachedActorInfo& CachedAttachInfo : ActorTransactionAnnotation->ActorTransactionAnnotationData.RootComponentData.AttachedToInfo)
 			{
 				AActor* AttachedActor = CachedAttachInfo.Actor.Get();
 				if (AttachedActor)

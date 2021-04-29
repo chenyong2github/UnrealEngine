@@ -426,7 +426,9 @@ float ComputeWaveDepthAttenuationFactorNew(int InWaterBodyIndex, float InWaterDe
 {
 	const FWaterBodyHeader WaterBodyHeader = DecodeWaterBodyHeader(View.WaterIndirection[InWaterBodyIndex]);
 
+	// Completely erase waves when there are no waves at all (in case waves are computed on a water body with no waves, like a swimming pool) :
+	const float TotalErasureFactor = saturate((float) WaterBodyHeader.NumWaves);
 	const float StrengthCoefficient = exp(-max(InWaterDepth, 0.0f) / (WaterBodyHeader.TargetWaveMaskDepth / 2.0f));
-	return saturate(1.0f - StrengthCoefficient);
+	return saturate(1.0f - StrengthCoefficient) * TotalErasureFactor;
 }
 

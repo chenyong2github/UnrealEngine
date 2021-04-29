@@ -19,6 +19,7 @@
 #include "Templates/UniquePtr.h"
 #include "Windows/WindowsPlatformApplicationMisc.h"
 #include "Stats/Stats.h"
+#include "HAL/IConsoleManager.h"
 
 #if WITH_EDITOR
 #include "Modules/ModuleManager.h"
@@ -215,11 +216,28 @@ FWindowsApplication::FWindowsApplication( const HINSTANCE HInstance, const HICON
 
 	if (FParse::Param(FCommandLine::Get(), TEXT("FilterLowLevelMouse")))
 	{
-		//Only check fake mouse inputs in game or digitizer devices will not work in the editor.
-		if (FApp::IsGame())
-		{
-			LowLevelMouseFilterHook = ::SetWindowsHookEx(WH_MOUSE_LL, HandleLowLevelMouseFilterHook, NULL, 0);
-		}
+		ApplyLowLevelMouseFilter();
+	}	
+	IConsoleManager::Get().RegisterConsoleCommand(TEXT("WindowsApplication.ApplyLowLevelMouseFilter"), TEXT("Applies Low Level mouse filter that filters out mouse inputs that act like touch inputs"), FConsoleCommandDelegate::CreateRaw(this, &FWindowsApplication::ApplyLowLevelMouseFilter));
+	IConsoleManager::Get().RegisterConsoleCommand(TEXT("WindowsApplication.RemoveLowLevelMouseFilter"), TEXT("Removes Low Level mouse filter that filters out mouse inputs that act like touch inputs"), FConsoleCommandDelegate::CreateRaw(this, &FWindowsApplication::RemoveLowLevelMouseFilter));
+}
+
+void FWindowsApplication::ApplyLowLevelMouseFilter()
+{
+	//Only check fake mouse inputs in game or digitizer devices will not work in the editor.
+	if (FApp::IsGame() && !bLowLevelMouseFilterIsApplied)
+	{
+		LowLevelMouseFilterHook = ::SetWindowsHookEx(WH_MOUSE_LL, HandleLowLevelMouseFilterHook, NULL, 0);
+		bLowLevelMouseFilterIsApplied = true;
+	}
+}
+
+void FWindowsApplication::RemoveLowLevelMouseFilter()
+{
+	if (FApp::IsGame() && bLowLevelMouseFilterIsApplied)
+	{
+		::UnhookWindowsHookEx(LowLevelMouseFilterHook);
+		bLowLevelMouseFilterIsApplied = false;
 	}
 }
 
@@ -277,7 +295,9 @@ void FWindowsApplication::DestroyApplication()
 
 	TaskbarList = nullptr;
 
-	::UnhookWindowsHookEx(LowLevelMouseFilterHook);
+	RemoveLowLevelMouseFilter();
+	IConsoleManager::Get().UnregisterConsoleObject(TEXT("WindowsApplication.ApplyLowLevelMouseFilter"));
+	IConsoleManager::Get().UnregisterConsoleObject(TEXT("WindowsApplication.RemoveLowLevelMouseFilter"));
 }
 
 void FWindowsApplication::ShutDownAfterError()
@@ -288,7 +308,9 @@ void FWindowsApplication::ShutDownAfterError()
 
 	TaskbarList = nullptr;
 
-	::UnhookWindowsHookEx(LowLevelMouseFilterHook);
+	RemoveLowLevelMouseFilter();
+	IConsoleManager::Get().UnregisterConsoleObject(TEXT("WindowsApplication.ApplyLowLevelMouseFilter"));
+	IConsoleManager::Get().UnregisterConsoleObject(TEXT("WindowsApplication.RemoveLowLevelMouseFilter"));
 }
 
 bool FWindowsApplication::RegisterClass( const HINSTANCE HInstance, const HICON HIcon )
@@ -1677,7 +1699,6 @@ int32 FWindowsApplication::ProcessMessage( HWND hwnd, uint32 msg, WPARAM wParam,
 			}
 			break;
 
-#if WITH_EDITOR // WM_ENDSESSION was added for Editor analytics purpose to detect when the Editor dies unexpectedly because it gets killed by a logoff/shutdown.
 		case WM_ENDSESSION:
 			{
 				// wParam is true if the user session is going away. Note that WM_SESSION is a follow up for WM_QUERYENDSESSION, so wParam can be false if the user (from UI)
@@ -1688,7 +1709,8 @@ int32 FWindowsApplication::ProcessMessage( HWND hwnd, uint32 msg, WPARAM wParam,
 				}
 				return DefWindowProc(hwnd, msg, wParam, lParam);
 			}
-#endif
+			break;
+
 		case WM_SYSCOMMAND:
 			{
 				switch( wParam & 0xfff0 )

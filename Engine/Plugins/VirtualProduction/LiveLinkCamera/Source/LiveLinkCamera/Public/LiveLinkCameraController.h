@@ -7,7 +7,7 @@
 #include "CineCameraComponent.h"
 #include "Controllers/LiveLinkTransformController.h"
 #include "Engine/EngineTypes.h"
-#include "LensDistortionDataHandler.h"
+#include "LensDistortionModelHandlerBase.h"
 #include "LensFile.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
@@ -48,15 +48,15 @@ protected:
 
 	/** Cached distortion handler associated with attached camera component */
 	UPROPERTY(EditAnywhere, Category = "Lens Distortion", Transient)
-	ULensDistortionDataHandler* LensDistortionHandler = nullptr;
+	ULensDistortionModelHandlerBase* LensDistortionHandler = nullptr;
 
 	/** Cached distortion MID the handler produced. Used to clean up old one in case it changes */
 	UPROPERTY(Transient)
 	UMaterialInstanceDynamic* LastDistortionMID = nullptr;
 
-	/** Original filmback settings of the attached cinecamera component to reapply when distortion isn't applied anymore */
+	/** Original focal length settings of the attached cinecamera component to reapply when distortion isn't applied anymore */
 	UPROPERTY()
-	FCameraFilmbackSettings OriginalCameraFilmback;
+	float UndistortedFocalLength = 50.0f;
 
 	/** Original cinecamera component rotation that we set back on when nodal offset isn't applied anymore */
 	UPROPERTY()
@@ -76,10 +76,10 @@ private:
 
 	/** Timestamp when we made the last warning log. Intervals to avoid log spamming */
 	double LastInvalidLoggingLoggedTimestamp = 0.0f;
-	static constexpr float TimeBetweenLoggingSeconds = 2.0f;
+	static constexpr float TimeBetweenLoggingSeconds = 10.0f;
 
 	//Last values used to detect changes made by the user and update our original caches
-	FCameraFilmbackSettings LastCameraFilmback;
+	float LastFocalLength = -1.0f;
 	FRotator LastRotation;
 	FVector LastLocation;
 
@@ -123,8 +123,8 @@ protected:
 	/** Refresh distortion handler's, in case user deletes it  */
 	void UpdateDistortionHandler(UCineCameraComponent* CineCameraComponent);
 
-	/** Update cached filmback in case it was changed */
-	void UpdateCachedFilmback(UCineCameraComponent* CineCameraComponent);
+	/** Update cached focal length in case it was changed */
+	void UpdateCachedFocalLength(UCineCameraComponent* CineCameraComponent);
 
 	/** Cleanup distortion objects we could have added to camera */
 	void CleanupDistortion();

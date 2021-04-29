@@ -9,9 +9,9 @@ public class OpenSSL : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		string OpenSSL101sPath = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1_0_1s");
 		string OpenSSL111Path = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1.1.1");
 		string OpenSSL111cPath = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1.1.1c");
+		string OpenSSL111kPath = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1.1.1k");
 
 		string PlatformSubdir = Target.Platform.ToString();
 		string ConfigFolder = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "Debug" : "Release";
@@ -25,8 +25,21 @@ public class OpenSSL : ModuleRules
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libssl.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libcrypto.a"));
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win64 || 
-				Target.Platform == UnrealTargetPlatform.HoloLens)
+		else if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			string VSVersion = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
+
+			// Add includes
+			PublicIncludePaths.Add(Path.Combine(OpenSSL111kPath, "include", PlatformSubdir, VSVersion));
+
+			// Add Libs
+			string LibPath = Path.Combine(OpenSSL111kPath, "lib", PlatformSubdir, VSVersion, ConfigFolder);
+
+			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libssl.lib"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libcrypto.lib"));
+			PublicSystemLibraries.Add("crypt32.lib");
+		}
+		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			// Our OpenSSL 1.1.1 libraries are built with zlib compression support
 			PrivateDependencyModuleNames.Add("zlib");
@@ -58,12 +71,19 @@ public class OpenSSL : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Android || Target.Platform == UnrealTargetPlatform.Lumin)
 		{
-			string IncludePath = OpenSSL101sPath + "/include/Android";
-			PublicIncludePaths.Add(IncludePath);
+			string[] Architectures = new string[] {
+				"ARM64",
+				"x86",
+				"x64",
+			};
 
-			// unneeded since included in libcurl
-			// string LibPath = Path.Combine(OpenSSL101sPath, "lib", PlatformSubdir);
-			//PublicLibraryPaths.Add(LibPath);
+			PublicIncludePaths.Add(OpenSSL111kPath + "/include/Android/");
+
+			foreach(var Architecture in Architectures)
+			{
+				PublicAdditionalLibraries.Add(OpenSSL111kPath + "/lib/Android/" + Architecture + "/libcrypto.a");
+				PublicAdditionalLibraries.Add(OpenSSL111kPath + "/lib/Android/" + Architecture + "/libssl.a");
+			}
 		}
 	}
 }

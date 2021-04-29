@@ -33,9 +33,11 @@ namespace Audio
 		}
 		else
 		{
-			// cancel ourselves (no source manager is bad news)
-			check(SourceManager);
-			OwningClockPtr->CancelQuantizedCommand(TSharedPtr<IQuartzQuantizedCommand>(this));
+			// cancel ourselves (no source manager may mean we are running without an audio device)
+			if (ensure(OwningClockPtr))
+			{
+				OwningClockPtr->CancelQuantizedCommand(TSharedPtr<IQuartzQuantizedCommand>(this));
+			}
 		}
 		
 	}
@@ -45,7 +47,7 @@ namespace Audio
 	void FQuantizedPlayCommand::OnFinalCallbackCustom(int32 InNumFramesLeft)
 	{
 		// Access source manager through owning clock (via clock manager)
-		check(OwningClockPtr && OwningClockPtr->GetMixerDevice() && OwningClockPtr->GetMixerDevice()->GetSourceManager());
+		check(OwningClockPtr && OwningClockPtr->GetSourceManager());
 
 		// access source manager through owning clock (via clock manager)
 		// Owning Clock Ptr may be nullptr if this command was canceled.
@@ -59,8 +61,7 @@ namespace Audio
 			}
 			else
 			{
-				// cancel ourselves (no source manager is bad news)
-				check(SourceManager);
+				// cancel ourselves (no source manager may mean we are running without an audio device)
 				OwningClockPtr->CancelQuantizedCommand(TSharedPtr<IQuartzQuantizedCommand>(this));
 			}
 		}
@@ -69,8 +70,11 @@ namespace Audio
 
 	void FQuantizedPlayCommand::CancelCustom()
 	{
-		// release hold on pending source
-		OnFinalCallbackCustom(0);
+		if (OwningClockPtr && OwningClockPtr->GetSourceManager())
+		{
+			// release hold on pending source
+			OnFinalCallbackCustom(0);
+		}
 	}
 
 	static const FName PlayCommandName("Play Command");
@@ -158,14 +162,15 @@ namespace Audio
 
 	void FQuantizedOtherClockStart::OnFinalCallbackCustom(int32 InNumFramesLeft)
 	{
-		// get access to the source & clock manager
-		// access source manager through owning clock (via clock manager)
-		FMixerSourceManager* SourceManager = OwningClockPtr->GetSourceManager();
+		if (!ensureMsgf(OwningClockPtr.IsValid(), TEXT("Quantized Other Clock Start is early exiting (invalid/missing Owning Clock Pointer)")))
+		{
+			return;
+		}
+
+		// get access to the clock manager
 		FQuartzClockManager* ClockManager = OwningClockPtr->GetClockManager();
 
-		check(SourceManager && ClockManager && OwningClockPtr.IsValid());
-		bool bShouldStart = SourceManager && ClockManager && OwningClockPtr.IsValid();
-		bShouldStart |= !ClockManager->IsClockRunning(NameOfClockToStart);
+		bool bShouldStart = ClockManager && !ClockManager->IsClockRunning(NameOfClockToStart);
 
 		if (bShouldStart)
 		{

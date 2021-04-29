@@ -3,10 +3,22 @@
 #include "Policy/Mesh/DisplayClusterProjectionMeshPolicy.h"
 #include "DisplayClusterProjectionLog.h"
 #include "DisplayClusterProjectionStrings.h"
+#include "DisplayClusterRootActor.h"
+
+#include "Misc/DisplayClusterHelpers.h"
+
+#include "Render/Viewport/IDisplayClusterViewportManager.h"
+#include "Render/Viewport/IDisplayClusterViewport.h"
+
+#include "IDisplayClusterShaders.h"
+#include "WarpBlend/IDisplayClusterWarpBlend.h"
+#include "WarpBlend/IDisplayClusterWarpBlendManager.h"
+
+#include "Components/StaticMeshComponent.h"
 
 
-FDisplayClusterProjectionMeshPolicy::FDisplayClusterProjectionMeshPolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters)
-	: FDisplayClusterProjectionMPCDIPolicy(ViewportId, Parameters)
+FDisplayClusterProjectionMeshPolicy::FDisplayClusterProjectionMeshPolicy(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
+	: FDisplayClusterProjectionMPCDIPolicy(ProjectionPolicyId, InConfigurationProjectionPolicy)
 {
 }
 
@@ -14,48 +26,105 @@ FDisplayClusterProjectionMeshPolicy::~FDisplayClusterProjectionMeshPolicy()
 {
 }
 
-bool FDisplayClusterProjectionMeshPolicy::HandleAddViewport(const FIntPoint& InViewportSize, const uint32 InViewsAmount)
+bool FDisplayClusterProjectionMeshPolicy::CreateWarpMeshInterface(class IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
-	check(InViewsAmount > 0);
 
-	// policy wait for link to mesh data from BP
-	// check this later, on render pass
+	if (WarpBlendInterface == nullptr)
+	{
+		FDisplayClusterWarpBlendConstruct::FAssignWarpMesh CreateParameters;
+		if (GetWarpMeshAndOrigin(InViewport, CreateParameters.MeshComponent, CreateParameters.OriginComponent))
+		{
+			if (!ShadersAPI.GetWarpBlendManager().Create(CreateParameters, WarpBlendInterface))
+			{
+				UE_LOG(LogDisplayClusterProjectionMesh, Warning, TEXT("Couldn't create mesh warpblend interface"));
+				return false;
+			}
 
-	UE_LOG(LogDisplayClusterProjectionMesh, Log, TEXT("Mesh policy has been initialized. Wait for BP setup for viewport '%s'"), *GetViewportId());
+			return true;
+		}
+	}
 
-	// Finally, initialize internal views data container
-	Views.AddDefaulted(InViewsAmount);
-	ViewportSize = InViewportSize;
-
-	return true;
+	return false;
 }
 
-bool FDisplayClusterProjectionMeshPolicy::AssignWarpMesh(UStaticMeshComponent* MeshComponent, USceneComponent* OriginComponent)
+bool FDisplayClusterProjectionMeshPolicy::HandleStartScene(class IDisplayClusterViewport* InViewport)
 {
-	bool bResult = false;
+	check(IsInGameThread());
 
-	IMPCDI& MpcdiModule = IMPCDI::Get();
+	// The game side of the nDisplay has been initialized by the nDisplay Game Manager already
+	// so we can extend it by our projection related functionality/components/etc.
 
-	FScopeLock lock(&WarpRefCS);
-	if (MpcdiModule.CreateCustomRegion(DisplayClusterProjectionStrings::cfg::mesh::FileID, DisplayClusterProjectionStrings::cfg::mesh::BufferID, GetViewportId(), WarpRef))
+	// Find origin component if it exists
+	InitializeOriginComponent(InViewport, OriginCompId);
+
+	if (CreateWarpMeshInterface(InViewport))
 	{
-		// Always use advanced 3d profile from ext mesh as warp source
-		MpcdiModule.SetMPCDIProfileType(WarpRef, IMPCDI::EMPCDIProfileType::mpcdi_A3D);
-		bResult = true;
+
+		// Finally, initialize internal views data container
+		WarpBlendContexts.Empty();
+		WarpBlendContexts.AddDefaulted(2);
+
+		return true;
 	}
 
-	if (bResult)
-	{
-		bResult = MpcdiModule.SetStaticMeshWarp(WarpRef, MeshComponent, OriginComponent);
-	}
+	return false;
+}
 
-	if (!bResult)
+bool FDisplayClusterProjectionMeshPolicy::GetWarpMeshAndOrigin(class IDisplayClusterViewport* InViewport, class UStaticMeshComponent*& OutMeshComponent, class USceneComponent*& OutOriginComponent)
+{
+	check(InViewport);
+
+	// Get our VR root
+	ADisplayClusterRootActor* const Root = InViewport->GetOwner().GetRootActor();
+	if (!Root)
 	{
-		UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("Couldn't assign warp mesh"));
+		UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("Couldn't get a VR root object"));
 		return false;
 	}
 
-	UE_LOG(LogDisplayClusterProjectionMesh, Log, TEXT("Mesh policy BP setup for viewport '%s' has been initialized."), *GetViewportId());
+	FString ComponentId;
+	// Get assigned mesh ID
+	if (!DisplayClusterHelpers::map::template ExtractValue(GetParameters(), DisplayClusterProjectionStrings::cfg::mesh::Component, ComponentId))
+	{
+
+#if WITH_EDITOR
+		if (ComponentId.IsEmpty())
+		{
+			return false;
+		}
+#endif
+
+		UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("No component ID '%s' specified for projection policy '%s'"), *ComponentId, *GetId());
+		return false;
+	}
+
+	// Get mesh component
+	UStaticMeshComponent* MeshComponent = Root->GetMeshById(ComponentId);
+	if (!MeshComponent)
+	{
+		UE_LOG(LogDisplayClusterProjectionMesh, Warning, TEXT("Couldn't initialize mesh component '%s'"), *ComponentId);
+		return false;
+	}
+
+	OutMeshComponent = MeshComponent;
+	OutOriginComponent = Root->GetRootComponent();
+
 	return true;
 }
+
+#if WITH_EDITOR
+//////////////////////////////////////////////////////////////////////////////////////////////
+// IDisplayClusterProjectionPolicyPreview
+//////////////////////////////////////////////////////////////////////////////////////////////
+UMeshComponent* FDisplayClusterProjectionMeshPolicy::GetOrCreatePreviewMeshComponent(IDisplayClusterViewport* InViewport)
+{
+	UStaticMeshComponent* MeshComponent = nullptr;
+	USceneComponent* OriginComponent = nullptr;
+
+	GetWarpMeshAndOrigin(InViewport, MeshComponent, OriginComponent);
+
+	return MeshComponent;
+}
+#endif
+

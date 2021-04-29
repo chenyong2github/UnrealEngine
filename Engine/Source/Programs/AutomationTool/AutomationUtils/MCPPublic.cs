@@ -1008,6 +1008,68 @@ namespace EpicGames.MCP.Automation
 			public string CommandLineFile;
 		}
 
+		public class BuildPatchToolException : AutomationTool.AutomationException
+		{
+			public enum BPTErrorCode
+			{
+				Success,
+				Unknown,
+				Copy_Failed,
+				Num
+			};
+			public BPTErrorCode ResolvedErrorCode;
+			public string[] LogFileLines;
+			public BuildPatchToolException(string StdOutLogFileName, AutomationTool.AutomationException Exception) : base(Exception.ErrorCode, Exception.Message)
+			{
+				ResolvedErrorCode = BPTErrorCode.Success;
+				LogFileLines = null;
+				// try to classify the type of error
+				if (File.Exists(StdOutLogFileName))
+				{
+					LogFileLines = CommandUtils.ReadAllLines(StdOutLogFileName);
+					System.Text.RegularExpressions.Regex ErrorCodeRegex = new System.Text.RegularExpressions.Regex(@".*errors\.com\.epicgames\.artifact\.(?<errorCode>[A-Za-z_]*);");
+
+					foreach (string Line in LogFileLines)
+					{
+						System.Text.RegularExpressions.Match Match = ErrorCodeRegex.Match(Line);
+						if (Match.Success)
+						{
+							// found an error code
+							if (ResolvedErrorCode == BPTErrorCode.Success)
+							{
+								ResolvedErrorCode = BPTErrorCode.Unknown;
+							}
+							string ErrorCodeString = Match.Groups[@"errorCode"].Value;
+							if (string.IsNullOrEmpty(ErrorCodeString) == false)
+							{
+								if (Enum.TryParse<BPTErrorCode>(ErrorCodeString, true, out ResolvedErrorCode))
+								{
+									break;
+								}
+							}
+						}
+					}
+				}
+			}
+
+			public void DumpLogFile()
+			{
+				Log.WriteLine(1, LogEventType.Console, "Dumping log file from last exception {0}", ToString());
+				// do the same as Process.StdOut
+				foreach (string LogFileLine in LogFileLines)
+				{
+					Log.WriteLine(1, LogEventType.Console, LogFileLine);
+				}
+}
+			public override string ToString()
+			{
+				return string.Format("{0}, ResolvedErrorCode: {1}", base.ToString(), ResolvedErrorCode.ToString());
+			}
+
+		}
+
+		
+
 
 
 		/// <summary>

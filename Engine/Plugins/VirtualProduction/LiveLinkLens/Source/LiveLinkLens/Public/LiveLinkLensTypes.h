@@ -5,6 +5,7 @@
 #include "Roles/LiveLinkCameraTypes.h"
 
 #include "LensData.h"
+#include "Models/LensModel.h"
 
 #include "LiveLinkLensTypes.generated.h"
 
@@ -17,8 +18,8 @@ struct LIVELINKLENS_API FLiveLinkLensStaticData : public FLiveLinkCameraStaticDa
 	GENERATED_BODY()
 
 	/** Specifies the type/character of the lens (spherical, anamorphic, etc.) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink", Interp)
-	ELensModel LensModel;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink")
+	FName LensModel;
 };
 
 /**
@@ -29,13 +30,17 @@ struct LIVELINKLENS_API FLiveLinkLensFrameData : public FLiveLinkCameraFrameData
 {
 	GENERATED_BODY()
 
-	/** Coefficients of the distortion model */
+	/** Parameters used by the distortion model */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink", Interp)
-	FDistortionParameters DistortionParameters;
+	FDistortionInfo DistortionInfo;
+
+	/** Normalized distance from the center of projection to the image plane */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink", Interp)
+	FVector2D FxFy = FVector2D(1.0f, (16.0f / 9.0f));
 
 	/** Normalized center of the image, in the range [0.0f, 1.0f] */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink", Interp)
-	FVector2D PrincipalPoint;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink", Interp, meta = (DisplayName = "Image Center"))
+	FVector2D PrincipalPoint = FVector2D(0.5f, 0.5f);
 };
 
 /**

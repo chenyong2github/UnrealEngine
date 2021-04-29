@@ -27,7 +27,7 @@ class NiagaraEmitterInstanceBatcher;
 // Called when the particle system is done
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNiagaraSystemFinished, class UNiagaraComponent*, PSystem);
 
-#define WITH_NIAGARA_COMPONENT_PREVIEW_DATA (!UE_BUILD_SHIPPING) || NIAGARA_PERF_BASELINES
+#define WITH_NIAGARA_COMPONENT_PREVIEW_DATA (ENABLE_DRAW_DEBUG || NIAGARA_PERF_BASELINES)
 
 /**
 * UNiagaraComponent is the primitive component for a Niagara System.
@@ -76,7 +76,7 @@ private:
 	 * - If this value is set in a non-deterministic way, it has the potential to break determinism of the entire system.
 	 * - This value is applied when emitters are activated/reset, and changing them while the emitter is active has no effect.
 	 */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Randomness")
+	UPROPERTY(EditAnywhere, Category = "Randomness")
 	int32 RandomSeedOffset;
 
 	UPROPERTY()
@@ -234,8 +234,13 @@ public:
 
 	void OnPooledReuse(UWorld* NewWorld);
 
+	/*
+	Switch which asset the component is using.
+	This requires Niagara to wait for concurrent execution and the override parameter store to be synchronized with the new asset.
+	By default existing parameters are reset when we call SetAsset, modify bResetExistingOverrideParameters to leave existing parameter data as is.
+	*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara System Asset"))
-	void SetAsset(UNiagaraSystem* InAsset);
+	void SetAsset(UNiagaraSystem* InAsset, bool bResetExistingOverrideParameters = true);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Niagara System Asset"))
 	UNiagaraSystem* GetAsset() const { return Asset; }
@@ -248,6 +253,16 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = Niagara)
 	void SetGpuComputeDebug(bool bEnableDebug);
+
+	/**
+	Sets the custom time dilation value for the component.
+	Note: This is only available on components that are in solo mode currently.
+	*/
+	UFUNCTION(BlueprintCallable, Category=Niagara)
+	void SetCustomTimeDilation(float Dilation = 1.0f);
+
+	UFUNCTION(BlueprintCallable, Category = Niagara)
+	float GetCustomTimeDilation() const { return CustomTimeDilation; }
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Age Update Mode"))
 	ENiagaraAgeUpdateMode GetAgeUpdateMode() const;
@@ -540,7 +555,7 @@ private:
 
 	void AssetExposedParametersChanged();
 
-	void CopyParametersFromAsset();
+	void CopyParametersFromAsset(bool bResetExistingOverrideParameters = true);
 
 #if WITH_EDITOR
 	void SetOverrideParameterStoreValue(const FNiagaraVariableBase& InKey, const FNiagaraVariant& InValue);
@@ -667,6 +682,7 @@ private:
 	float ForceUpdateTransformTime;
 	FBox CurrLocalBounds;
 
+	float CustomTimeDilation = 1.0f;
 
 public:
 	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext(){ return FParticlePerfStatsContext(GetWorld(), Asset, this); }

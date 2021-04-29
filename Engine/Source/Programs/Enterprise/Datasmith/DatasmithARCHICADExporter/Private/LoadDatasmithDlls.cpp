@@ -3,7 +3,7 @@
 #include "LoadDatasmithDlls.h"
 
 #include <stddef.h>
-#include "WarningsDisabler.h"
+#include "Utils/WarningsDisabler.h"
 
 DISABLE_SDK_WARNINGS_START
 
@@ -15,7 +15,7 @@ DISABLE_SDK_WARNINGS_END
 #include "DatasmithExporterManager.h"
 #include "DatasmithDirectLink.h"
 
-#include "DebugTools.h"
+#include "Utils/DebugTools.h"
 
 #if defined(WIN32)
 	#pragma warning(push)
@@ -30,14 +30,14 @@ DISABLE_SDK_WARNINGS_END
 	#pragma warning(pop)
 #endif
 
-#include "APIEnvir.h"
+#include "Utils/APIEnvir.h"
 #include "ACAPinc.h"
 //#include "ModelColor.hpp"
 #include "Md5.hpp"
 #include "Lock.hpp"
 
-#include "LocalizeTools.h"
-#include "AddonTools.h"
+#include "Utils/LocalizeTools.h"
+#include "Utils/AddonTools.h"
 
 BEGIN_NAMESPACE_UE_AC
 
@@ -77,12 +77,13 @@ bool LoadDatasmithDlls()
 			// 0
 			FDatasmithExporterManager::FInitOptions Options;
 			Options.bEnableMessaging = true; // DirectLink requires the Messaging service.
-			Options.bSuppressLogs = UE_AC_VERBOSEF_ON == 0; // Log are useful, don't suppress them
-			Options.bUseDatasmithExporterUI = false;
+			Options.bSuppressLogs = UE_AC_VERBOSEF_ON == 0; // Log are useful, Unhapily there no Log level
 #ifdef WIN32
-			Options.RemoteEngineDirPath = TEXT("C:\\ProgramData\\Epic\\Exporter\\RevitEngine\\");
+			Options.bUseDatasmithExporterUI = true;
+			Options.RemoteEngineDirPath = TEXT("C:\\ProgramData\\Epic\\Exporter\\ArchicadEngine\\");
 #else
-			Options.RemoteEngineDirPath = TEXT("/Volumes/MacDev/GitEpicGames/UE426/Engine/");
+			Options.bUseDatasmithExporterUI = false; // Currently DatasmithExporter Slate UI is not supported on macOS
+			Options.RemoteEngineDirPath = TEXT("/Library/Application Support/Epic/Exporter/ArchicadEngine/");
 #endif
 			if (!FDatasmithExporterManager::Initialize(Options))
 			{

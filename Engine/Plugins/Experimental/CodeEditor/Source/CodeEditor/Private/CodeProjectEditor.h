@@ -34,6 +34,10 @@ public:
 
 	// FSerializableObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FCodeProjectEditor");
+	}
 	// End of FSerializableObject interface
 
 	static TSharedPtr<FCodeProjectEditor> Get()

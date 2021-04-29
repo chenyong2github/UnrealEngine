@@ -29,6 +29,13 @@ public:
 	virtual bool CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj, bool bSuppressEvents = false)  override;
 	virtual bool CancelEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj) override;
 	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
+
+	UPROPERTY(EditAnywhere, Category=Tag)
+	bool bEmitMessageOnFailure = true;
+
+	UPROPERTY(EditAnywhere, Category = Tag)
+	FNiagaraCompileEventSeverity FailureSeverity = FNiagaraCompileEventSeverity::Log;
+
 protected:
 
 	//~ Begin EdGraphNode Interface

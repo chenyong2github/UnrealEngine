@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AddonTools.h"
+#include "Utils/AddonTools.h"
 
 BEGIN_NAMESPACE_UE_AC
 
@@ -11,6 +11,7 @@ class FCommander
 {
   public:
 	static void DoSnapshot();
+	static void ToggleLiveLink();
 	static void ShowConnectionsDialog();
 	static void Export3DToFile();
 	static void ShowMessagesDialog();
@@ -18,6 +19,8 @@ class FCommander
 	static void ShowHidePalette();
 	static void ShowAboutOf();
 	static void ZapDB();
+
+	static bool IsLiveLinkEnabled();
 
   private:
 	static void DoSnapshotOrExport(const IO::Location* InExportedFile);

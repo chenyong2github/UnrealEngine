@@ -805,6 +805,10 @@ private:
 private:
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override {};
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SceneOutliner::SSceneOutliner");
+	}
 
 	/** Functions relating to sorting */
 

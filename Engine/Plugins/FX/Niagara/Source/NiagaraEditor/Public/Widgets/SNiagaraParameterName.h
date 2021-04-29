@@ -62,6 +62,8 @@ public:
 
 	void EnterNamespaceModifierEditingMode();
 
+	void UpdateDecorator(TSharedRef<SWidget> InDecorator);
+	
 private:
 	TSharedRef<SBorder> CreateNamespaceWidget(FText NamespaceDisplayName, FText NamespaceDescription, FLinearColor NamespaceBorderColor, FName NamespaceForegroundStyle);
 

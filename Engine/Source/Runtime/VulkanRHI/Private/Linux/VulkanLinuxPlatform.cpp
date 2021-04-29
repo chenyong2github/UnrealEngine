@@ -85,8 +85,6 @@ bool FVulkanLinuxPlatform::LoadVulkanLibrary()
 
 	// Check for force enabling debug markers
 	GForceEnableDebugMarkers = FParse::Param(FCommandLine::Get(), TEXT("vulkandebugmarkers"));
-
-	GRenderOffScreen = FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen"));
 	return true;
 }
 
@@ -106,7 +104,7 @@ bool FVulkanLinuxPlatform::LoadVulkanInstanceFunctions(VkInstance inInstance)
 	ENUM_VK_ENTRYPOINTS_SURFACE_INSTANCE(GETINSTANCE_VK_ENTRYPOINTS);
 	ENUM_VK_ENTRYPOINTS_SURFACE_INSTANCE(CHECK_VK_ENTRYPOINTS);
 
-	if (!bFoundAllEntryPoints && !GRenderOffScreen)
+	if (!bFoundAllEntryPoints && !FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen")))
 	{
 		return false;
 	}
@@ -208,18 +206,6 @@ void FVulkanLinuxPlatform::CreateSurface(void* WindowHandle, VkInstance Instance
 		UE_LOG(LogInit, Error, TEXT("Error initializing SDL Vulkan Surface: %s"), SDL_GetError());
 		check(0);
 	}
-}
-
-bool FVulkanLinuxPlatform::SupportsStandardSwapchain()
-{
-	return GRenderOffScreen ?
-		false : FVulkanGenericPlatform::SupportsStandardSwapchain();
-}
-
-EPixelFormat FVulkanLinuxPlatform::GetPixelFormatForNonDefaultSwapchain()
-{
-	return GRenderOffScreen ?
-		PF_R8G8B8A8 : FVulkanGenericPlatform::GetPixelFormatForNonDefaultSwapchain();
 }
 
 void FVulkanLinuxPlatform::WriteCrashMarker(const FOptionalVulkanDeviceExtensions& OptionalExtensions, VkCommandBuffer CmdBuffer, VkBuffer DestBuffer, const TArrayView<uint32>& Entries, bool bAdding)

@@ -20,6 +20,10 @@ class DATASMITHIMPORTER_API UDatasmithSceneElementBase : public UObject
 		FDatasmithSceneCollector();
 		UDatasmithSceneElementBase* DatasmithSceneElement;
 		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+		virtual FString GetReferencerName() const override
+		{
+			return TEXT("UDatasmithSceneElementBase::FDatasmithSceneCollector");
+		}
 	};
 	friend FDatasmithSceneCollector;
 

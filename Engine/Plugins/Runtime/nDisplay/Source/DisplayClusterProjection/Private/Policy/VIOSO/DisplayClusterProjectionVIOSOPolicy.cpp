@@ -11,7 +11,10 @@
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
 #include "Engine/RendererSettings.h"
-#include "RenderTargetPool.h"
+
+#include "Render/Viewport/IDisplayClusterViewportManager.h"
+#include "Render/Viewport/IDisplayClusterViewport.h"
+#include "Render/Viewport/IDisplayClusterViewportProxy.h"
 
 #if PLATFORM_WINDOWS
 #define VIOSO_USE_GRAPHICS_API_D3D11	1
@@ -33,13 +36,6 @@
 #include "D3D12RHIPrivate.h"
 #include "D3D12Util.h"
 #endif // VIOSO_USE_GRAPHICS_API_D3D12
-
-static bool GetPooledTempRTT_RenderThread(FRHICommandListImmediate& RHICmdList, FIntPoint Size, EPixelFormat Format, bool bRTT, TRefCountPtr<IPooledRenderTarget>& OutPooledTempRTT)
-{
-	FPooledRenderTargetDesc OutputDesc(FPooledRenderTargetDesc::Create2DDesc(Size, Format, FClearValueBinding::None, TexCreate_None, bRTT ? TexCreate_RenderTargetable : TexCreate_ShaderResource, false));
-	GRenderTargetPool.FindFreeElement(RHICmdList, OutputDesc, OutPooledTempRTT, TEXT("DisplayClusterWarpRTT")) && OutPooledTempRTT.IsValid();
-	return OutPooledTempRTT.IsValid();
-}
 
 #if VIOSO_USE_GRAPHICS_API_D3D11
 /**
@@ -140,9 +136,11 @@ private:
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterProjectionVIOSOPolicy
 //////////////////////////////////////////////////////////////////////////////////////////////
-FDisplayClusterProjectionVIOSOPolicy::FDisplayClusterProjectionVIOSOPolicy(const FString& ViewportId, const FString& RHIName, const TMap<FString, FString>& Parameters)
-	: FDisplayClusterProjectionPolicyBase(ViewportId, Parameters)
+FDisplayClusterProjectionVIOSOPolicy::FDisplayClusterProjectionVIOSOPolicy(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
+	: FDisplayClusterProjectionPolicyBase(ProjectionPolicyId, InConfigurationProjectionPolicy)
 {
+	FString RHIName = GDynamicRHI->GetName();
+
 	// Create warper for view
 	if (RHIName == DisplayClusterProjectionStrings::rhi::D3D11)
 	{
@@ -163,41 +161,28 @@ FDisplayClusterProjectionVIOSOPolicy::~FDisplayClusterProjectionVIOSOPolicy()
 {
 }
 
-void FDisplayClusterProjectionVIOSOPolicy::StartScene(UWorld* World)
+bool FDisplayClusterProjectionVIOSOPolicy::HandleStartScene(class IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
 
 	// Find origin component if it exists
-	InitializeOriginComponent(ViosoConfigData.OriginCompId);
-}
-
-void FDisplayClusterProjectionVIOSOPolicy::EndScene()
-{
-	check(IsInGameThread());
-
-	ReleaseOriginComponent();
-}
-
-bool FDisplayClusterProjectionVIOSOPolicy::HandleAddViewport(const FIntPoint& InViewportSize, const uint32 InViewsAmount)
-{
-	check(IsInGameThread());
-	check(InViewsAmount > 0);
+	InitializeOriginComponent(InViewport, ViosoConfigData.OriginCompId);
 
 	// Read VIOSO config data from nDisplay config file
-	if (!ViosoConfigData.Initialize(GetParameters(), GetViewportId()))
+	if (!ViosoConfigData.Initialize(GetParameters(), InViewport->GetId()))
 	{
-		UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Couldn't read VIOSO configuration from the config file for viewport -'%s'"),*GetViewportId());
+		UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Couldn't read VIOSO configuration from the config file for viewport -'%s'"), *InViewport->GetId());
 		return false;
 	}
 
-	Views.AddDefaulted(InViewsAmount);
-	ViewportSize = InViewportSize;
+	Views.AddDefaulted(2);
+	//ViewportSize = InViewportSize;
 
 	// Initialize data for all views
 	FScopeLock lock(&DllAccessCS);
-	for (auto& It : Views)
+	for (FViewData& ViewIt : Views)
 	{
-		if (!It.Initialize(RenderDevice, ViosoConfigData))
+		if (!ViewIt.Initialize(RenderDevice, ViosoConfigData))
 		{
 			UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("VIOSO not initialized"));
 			return false;
@@ -205,27 +190,27 @@ bool FDisplayClusterProjectionVIOSOPolicy::HandleAddViewport(const FIntPoint& In
 	}
 
 	UE_LOG(LogDisplayClusterProjectionVIOSO, Log, TEXT("VIOSO policy has been initialized: %s"), *ViosoConfigData.ToString());
-		
+
 	return true;
 }
 
-void FDisplayClusterProjectionVIOSOPolicy::HandleRemoveViewport()
+void FDisplayClusterProjectionVIOSOPolicy::HandleEndScene(class IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
 
+	ReleaseOriginComponent(InViewport);
+
+	// Destroy VIOSO for all views
+	FScopeLock lock(&DllAccessCS);
+	for (FViewData& ViewIt : Views)
 	{
-		// Destroy VIOSO for all views
-		FScopeLock lock(&DllAccessCS);
-		for (auto& It : Views)
-		{
-			It.DestroyVIOSO();
-		}
+		ViewIt.DestroyVIOSO();
 	}
 }
 
-bool FDisplayClusterProjectionVIOSOPolicy::CalculateView(const uint32 ViewIdx, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
+bool FDisplayClusterProjectionVIOSOPolicy::CalculateView(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
 {
-	check(Views.Num() > (int)ViewIdx);
+	check(Views.Num() > (int)InContextNum);
 
 	// Get view location in local space
 	const USceneComponent* const OriginComp = GetOriginComp();
@@ -238,29 +223,29 @@ bool FDisplayClusterProjectionVIOSOPolicy::CalculateView(const uint32 ViewIdx, F
 
 	// Get view prj data from VIOSO
 	FScopeLock lock(&DllAccessCS);
-	if (!Views[ViewIdx].UpdateVIOSO(LocalEyeOrigin, LocalRotator, WorldToMeters, NCP, FCP))
+	if (!Views[InContextNum].UpdateVIOSO(InViewport, InContextNum, LocalEyeOrigin, LocalRotator, WorldToMeters, NCP, FCP))
 	{
-		if (Views[ViewIdx].IsValid())
+		if (Views[InContextNum].IsValid())
 		{
 			// Vioso api used, but failed inside math. The config base matrix or vioso geometry is invalid
-			UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Couldn't Calculate View for VIOSO viewport '%s'"), *GetViewportId());
+			UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Couldn't Calculate View for VIOSO viewport '%s'"), *InViewport->GetId());
 		}
 
 		return false;
 	}
 
 	// Transform rotation to world space
-	InOutViewRotation = World2LocalTransform.TransformRotation(Views[ViewIdx].ViewRotation.Quaternion()).Rotator();
-	InOutViewLocation = World2LocalTransform.TransformPosition(Views[ViewIdx].ViewLocation);
+	InOutViewRotation = World2LocalTransform.TransformRotation(Views[InContextNum].ViewRotation.Quaternion()).Rotator();
+	InOutViewLocation = World2LocalTransform.TransformPosition(Views[InContextNum].ViewLocation);
 
 	return true;
 }
 
-bool FDisplayClusterProjectionVIOSOPolicy::GetProjectionMatrix(const uint32 ViewIdx, FMatrix& OutPrjMatrix)
+bool FDisplayClusterProjectionVIOSOPolicy::GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix)
 {
 	check(IsInGameThread());
 
-	OutPrjMatrix = Views[ViewIdx].ProjectionMatrix;
+	OutPrjMatrix = Views[InContextNum].ProjectionMatrix;
 	
 	return true;
 }
@@ -270,70 +255,59 @@ bool FDisplayClusterProjectionVIOSOPolicy::IsWarpBlendSupported()
 	return true;
 }
 
-void FDisplayClusterProjectionVIOSOPolicy::ApplyWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewportRect)
+void FDisplayClusterProjectionVIOSOPolicy::ApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy)
 {
-	check(IsInRenderingThread());
-
-	// update viewport size (support runtime resize)
-	ViewportSize = ViewportRect.Size();
-
-	TRefCountPtr<IPooledRenderTarget> WarpShaderTexturePool;
-	TRefCountPtr<IPooledRenderTarget> WarpRenderTargetPool;
-
-	if (GetPooledTempRTT_RenderThread(RHICmdList, ViewportSize, SrcTexture->GetFormat(), true, WarpRenderTargetPool) && 
-		GetPooledTempRTT_RenderThread(RHICmdList, ViewportSize, SrcTexture->GetFormat(), false, WarpShaderTexturePool))
+	if (!ImplApplyWarpBlend_RenderThread(RHICmdList, InViewportProxy))
 	{
-		FTexture2DRHIRef RHIWarpShaderResource = (const FTexture2DRHIRef&)WarpShaderTexturePool->GetRenderTargetItem().ShaderResourceTexture;
-		FTexture2DRHIRef RHIWarpRenderTarget = (const FTexture2DRHIRef&)WarpRenderTargetPool->GetRenderTargetItem().TargetableTexture;
+		// warp failed, just resolve texture to frame
+		InViewportProxy->ResolveResources(RHICmdList, EDisplayClusterViewportResourceType::InputShaderResource, InViewportProxy->GetOutputResourceType());
+	}
+}
 
-		if (RHIWarpRenderTarget.IsValid() && RHIWarpShaderResource.IsValid())
+bool FDisplayClusterProjectionVIOSOPolicy::ImplApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy)
+{
+	// Get in\out remp resources ref from viewport
+	TArray<FRHITexture2D*> InputTextures, OutputTextures;
+
+	// Use for input first MipsShader texture if enabled in viewport render settings
+	//@todo: test if domeprojection support mips textures as warp input
+	//if (!InViewportProxy->GetResources_RenderThread(EDisplayClusterViewportResourceType::MipsShaderResource, InputTextures))
+	{
+		// otherwise inputshader texture
+		if (!InViewportProxy->GetResources_RenderThread(EDisplayClusterViewportResourceType::InputShaderResource, InputTextures))
 		{
+			// no source textures
+			return false;
+		}
+	}
+
+	if (!InViewportProxy->GetResources_RenderThread(EDisplayClusterViewportResourceType::AdditionalTargetableResource, OutputTextures))
+	{
+		return false;
+	}
+
+	check(InputTextures.Num() == OutputTextures.Num());
+	check(InViewportProxy->GetContexts_RenderThread().Num() == InputTextures.Num());
+
+	// External SDK not use our RHI flow, call flush to finish resolve context image to input resource
+	RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay VIOSO::Render);
+	{
+		FScopeLock lock(&DllAccessCS);
+
+		for (int ContextNum = 0; ContextNum < InputTextures.Num(); ContextNum++)
+		{
+			if (!Views[ContextNum].RenderVIOSO_RenderThread(RHICmdList, InputTextures[ContextNum], OutputTextures[ContextNum], ViosoConfigData))
 			{
-				// Copy viewport to shader resource texture
-				FResolveParams copyParams;
-				copyParams.DestArrayIndex = 0;
-				copyParams.SourceArrayIndex = 0;
-
-				copyParams.DestRect.X1 = 0;
-				copyParams.DestRect.X2 = ViewportSize.X;
-				copyParams.DestRect.Y1 = 0;
-				copyParams.DestRect.Y2 = ViewportSize.Y;
-
-				copyParams.Rect.X1 = ViewportRect.Min.X;
-				copyParams.Rect.Y1 = ViewportRect.Min.Y;
-				copyParams.Rect.X2 = ViewportRect.Max.X;
-				copyParams.Rect.Y2 = ViewportRect.Max.Y;
-
-				RHICmdList.CopyToResolveTarget(SrcTexture, RHIWarpShaderResource, copyParams);
-			}
-
-			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
-
-			FScopeLock lock(&DllAccessCS);
-
-			// render VIOSO warp from RHIWarpShaderResource to RHIWarpRenderTarget
-			if (Views[ViewIdx].RenderVIOSO_RenderThread(RHICmdList, RHIWarpShaderResource, RHIWarpRenderTarget, ViosoConfigData))
-			{
-				// Copy result back to the render target texture
-				FResolveParams copyParams;
-				copyParams.DestArrayIndex = 0;
-				copyParams.SourceArrayIndex = 0;
-
-				copyParams.Rect.X1 = 0;
-				copyParams.Rect.X2 = ViewportSize.X;
-				copyParams.Rect.Y1 = 0;
-				copyParams.Rect.Y2 = ViewportSize.Y;
-
-				copyParams.DestRect.X1 = ViewportRect.Min.X;
-				copyParams.DestRect.Y1 = ViewportRect.Min.Y;
-				copyParams.DestRect.X2 = ViewportRect.Max.X;
-				copyParams.DestRect.Y2 = ViewportRect.Max.Y;
-
-				RHICmdList.CopyToResolveTarget(RHIWarpRenderTarget, SrcTexture, copyParams);
-				RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+				return false;
 			}
 		}
 	}
+
+	// resolve warp result images from temp targetable to FrameTarget
+	return InViewportProxy->ResolveResources(RHICmdList, EDisplayClusterViewportResourceType::AdditionalTargetableResource, InViewportProxy->GetOutputResourceType());
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -358,14 +332,14 @@ bool FDisplayClusterProjectionVIOSOPolicy::FViewData::Initialize(ERenderDevice I
 	return true;
 }
 
-bool FDisplayClusterProjectionVIOSOPolicy::FViewData::UpdateVIOSO(const FVector& LocalLocation, const FRotator& LocalRotator, const float WorldToMeters, const float NCP, const float FCP)
+bool FDisplayClusterProjectionVIOSOPolicy::FViewData::UpdateVIOSO(IDisplayClusterViewport* InViewport, const uint32 InContextNum, const FVector& LocalLocation, const FRotator& LocalRotator, const float WorldToMeters, const float NCP, const float FCP)
 {
 	if (IsValid())
 	{
 		ViewLocation = LocalLocation;
 		ViewRotation = LocalRotator;
 
-		return Warper.CalculateViewProjection(ViewLocation, ViewRotation, ProjectionMatrix, WorldToMeters, NCP, FCP);
+		return Warper.CalculateViewProjection(InViewport, InContextNum, ViewLocation, ViewRotation, ProjectionMatrix, WorldToMeters, NCP, FCP);
 	}
 
 	return false;

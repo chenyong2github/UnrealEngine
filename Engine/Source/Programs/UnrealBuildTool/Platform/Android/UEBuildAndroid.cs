@@ -218,7 +218,7 @@ namespace UnrealBuildTool
 		public override void ModifyModuleRulesForOtherPlatform(string ModuleName, ModuleRules Rules, ReadOnlyTargetRules Target)
 		{
 			// don't do any target platform stuff if SDK is not available
-			if (!UEBuildPlatform.IsPlatformAvailable(Platform))
+			if (!UEBuildPlatform.IsPlatformAvailableForTarget(Platform, Target))
 			{
 				return;
 			}
@@ -394,7 +394,7 @@ namespace UnrealBuildTool
 				if(Target.bPGOOptimize)
 				{
 					CompileEnvironment.PGODirectory = Path.Combine(DirectoryReference.FromFile(Target.ProjectFile).FullName, "Platforms", "Android", "Build", "PGO");
-					CompileEnvironment.PGOFilenamePrefix = string.Format("{0}-Android-{1}", Target.Name, Target.Configuration);
+					CompileEnvironment.PGOFilenamePrefix = string.Format("{0}-Android", Target.Name);
 
 					LinkEnvironment.PGODirectory = CompileEnvironment.PGODirectory;
 					LinkEnvironment.PGOFilenamePrefix = CompileEnvironment.PGOFilenamePrefix;

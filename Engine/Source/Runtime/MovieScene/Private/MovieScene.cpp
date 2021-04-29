@@ -168,8 +168,6 @@ void UMovieScene::Serialize( FArchive& Ar )
 #endif
 }
 
-#if WITH_EDITOR
-
 // @todo sequencer: Some of these methods should only be used by tools, and should probably move out of MovieScene!
 FGuid UMovieScene::AddSpawnable( const FString& Name, UObject& ObjectTemplate )
 {
@@ -225,8 +223,6 @@ bool UMovieScene::RemoveSpawnable( const FGuid& Guid )
 
 	return bAnythingRemoved;
 }
-
-#endif //WITH_EDITOR
 
 FMovieSceneSpawnable* UMovieScene::FindSpawnable( const TFunctionRef<bool(FMovieSceneSpawnable&)>& InPredicate )
 {

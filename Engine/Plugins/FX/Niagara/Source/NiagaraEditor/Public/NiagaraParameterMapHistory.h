@@ -16,17 +16,21 @@ class FHlslNiagaraTranslator;
 class FCompileConstantResolver
 {
 public:
-	FCompileConstantResolver() : Emitter(nullptr), System(nullptr), Translator(nullptr), Usage(ENiagaraScriptUsage::Function) {}
-	FCompileConstantResolver(const UNiagaraEmitter* Emitter, ENiagaraScriptUsage Usage) : Emitter(Emitter), System(nullptr), Translator(nullptr), Usage(Usage) {}
-	FCompileConstantResolver(const UNiagaraSystem* System, ENiagaraScriptUsage Usage) : Emitter(nullptr), System(System), Translator(nullptr), Usage(Usage) {}
-	FCompileConstantResolver(const FHlslNiagaraTranslator* Translator) : Emitter(nullptr), System(nullptr), Translator(Translator), Usage(ENiagaraScriptUsage::Function) {}
+	FCompileConstantResolver() : Emitter(nullptr), System(nullptr), Translator(nullptr), Usage(ENiagaraScriptUsage::Function), DebugState(ENiagaraFunctionDebugState::NoDebug) {}
+	FCompileConstantResolver(const UNiagaraEmitter* Emitter, ENiagaraScriptUsage Usage, ENiagaraFunctionDebugState DebugState = ENiagaraFunctionDebugState::NoDebug) : Emitter(Emitter), System(nullptr), Translator(nullptr), Usage(Usage), DebugState(DebugState) {}
+	FCompileConstantResolver(const UNiagaraSystem* System, ENiagaraScriptUsage Usage, ENiagaraFunctionDebugState DebugState = ENiagaraFunctionDebugState::NoDebug) : Emitter(nullptr), System(System), Translator(nullptr), Usage(Usage), DebugState(DebugState) {}
+	FCompileConstantResolver(const FHlslNiagaraTranslator* Translator, ENiagaraFunctionDebugState DebugState = ENiagaraFunctionDebugState::NoDebug) : Emitter(nullptr), System(nullptr), Translator(Translator), Usage(ENiagaraScriptUsage::Function), DebugState(DebugState) {}
 
 	bool ResolveConstant(FNiagaraVariable& OutConstant) const;
+
+	ENiagaraFunctionDebugState GetDebugState() const;
+	ENiagaraFunctionDebugState SetDebugState(ENiagaraFunctionDebugState InDebugState);
 private:
 	const UNiagaraEmitter* Emitter;
 	const UNiagaraSystem* System;
 	const FHlslNiagaraTranslator* Translator;
 	ENiagaraScriptUsage Usage;
+	ENiagaraFunctionDebugState DebugState;
 };
 
 /** Traverses a Niagara node graph to identify the variables that have been written and read from a parameter map. 

@@ -2,6 +2,8 @@
 
 #include "ContentBrowserItem.h"
 #include "ContentBrowserDataSource.h"
+#include "IContentBrowserDataModule.h"
+#include "ContentBrowserDataSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserData"
 
@@ -340,6 +342,22 @@ FName FContentBrowserItem::GetVirtualPath() const
 		: FName();
 }
 
+FName FContentBrowserItem::GetInvariantPath() const
+{
+	const FContentBrowserItemData* PrimaryItemData = GetPrimaryInternalItem();
+	return PrimaryItemData
+		? PrimaryItemData->GetInvariantPath()
+		: FName();
+}
+
+FName FContentBrowserItem::GetInternalPath() const
+{
+	const FContentBrowserItemData* PrimaryItemData = GetPrimaryInternalItem();
+	return PrimaryItemData
+		? PrimaryItemData->GetInternalPath()
+		: FName();
+}
+
 FName FContentBrowserItem::GetItemName() const
 {
 	const FContentBrowserItemData* PrimaryItemData = GetPrimaryInternalItem();
@@ -363,6 +381,7 @@ public:
 	static bool CallDataSourceImpl(const FContentBrowserItem& Item, FuncType Func, ArgTypes&&... Args)
 	{
 		bool bResult = false;
+		static const FName RootPath = "/";
 
 		FContentBrowserItem::FItemDataArrayView ItemDataArray = Item.GetInternalItems();
 		for (const FContentBrowserItemData& ItemData : ItemDataArray)
@@ -370,7 +389,7 @@ public:
 			if (UContentBrowserDataSource* ItemDataSource = ItemData.GetOwnerDataSource())
 			{
 				// Test the mount point again, as dummy items may have been emitted to represent the mount point itself
-				if (ItemDataSource->IsVirtualPathUnderMountRoot(ItemData.GetVirtualPath()) && ItemDataSource->GetVirtualMountRoot() != ItemData.GetVirtualPath())
+				if (/*ItemDataSource->IsVirtualPathUnderMountRoot(ItemData.GetVirtualPath()) && */(RootPath != ItemData.GetVirtualPath()))
 				{
 					if (ObjectType* CastItemDataSource = Cast<ObjectType>(ItemDataSource))
 					{
@@ -467,6 +486,8 @@ bool FContentBrowserItem::CanRename(const FString* InNewName, FText* OutErrorMsg
 
 bool FContentBrowserItem::Rename(const FString& InNewName, FContentBrowserItem* OutNewItem) const
 {
+	static const FName RootPath = "/";
+
 	FContentBrowserItem NewItem;
 
 	for (const FContentBrowserItemData& ItemData : ItemDataArray)
@@ -474,7 +495,7 @@ bool FContentBrowserItem::Rename(const FString& InNewName, FContentBrowserItem* 
 		if (UContentBrowserDataSource* ItemDataSource = ItemData.GetOwnerDataSource())
 		{
 			// Test the mount point again, as dummy items may have been emitted to represent the mount point itself
-			if (ItemDataSource->IsVirtualPathUnderMountRoot(ItemData.GetVirtualPath()) && ItemDataSource->GetVirtualMountRoot() != ItemData.GetVirtualPath())
+			if (ItemDataSource->IsVirtualPathUnderMountRoot(ItemData.GetVirtualPath()) && (ItemData.GetVirtualPath() != RootPath))
 			{
 				FContentBrowserItemData NewItemData;
 				if (ItemDataSource->RenameItem(ItemData, InNewName, NewItemData))

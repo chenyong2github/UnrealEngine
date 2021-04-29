@@ -36,8 +36,22 @@ public class AndroidDeviceDetection : ModuleRules
 		{
 			PrivateDependencyModuleNames.Add("Engine");
 		}
+		
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"PIEPreviewDeviceProfileSelector",
+					"DesktopPlatform",
+					"SlateCore",
+					"Slate",
+					"EditorStyle"
+				}
+			);
+		}
 
-        DynamicallyLoadedModuleNames.AddRange(
+		DynamicallyLoadedModuleNames.AddRange(
             new string[]
             {
                 "TcpMessaging"

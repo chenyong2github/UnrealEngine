@@ -22,6 +22,7 @@ void SetupPathTracingLightParameters(
 		DestLight.Color = FVector(LightScene.SkyLight->Color);
 		DestLight.Flags = PATHTRACER_FLAG_TRANSMISSION_MASK;
 		DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+		DestLight.Flags |= PATHTRACER_FLAG_CAST_SHADOW_MASK;
 		bool SkyLightIsStationary = LightScene.SkyLight->bStationary;
 		DestLight.Flags |= SkyLightIsStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
 		DestLight.Flags |= PATHTRACING_LIGHT_SKY;
@@ -59,6 +60,7 @@ void SetupPathTracingLightParameters(
 
 			DestLight.Flags = PATHTRACER_FLAG_TRANSMISSION_MASK;
 			DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+			DestLight.Flags |= PATHTRACER_FLAG_CAST_SHADOW_MASK;
 			DestLight.Flags |= Light.bStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
 			DestLight.Flags |= PATHTRACING_LIGHT_DIRECTIONAL;
 		}
@@ -83,6 +85,7 @@ void SetupPathTracingLightParameters(
 
 			DestLight.Flags = PATHTRACER_FLAG_TRANSMISSION_MASK;
 			DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+			DestLight.Flags |= PATHTRACER_FLAG_CAST_SHADOW_MASK;
 			DestLight.Flags |= Light.IsInverseSquared ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
 			DestLight.Flags |= Light.bStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
 			DestLight.Flags |= PATHTRACING_LIGHT_POINT;
@@ -108,6 +111,7 @@ void SetupPathTracingLightParameters(
 
 			DestLight.Flags = PATHTRACER_FLAG_TRANSMISSION_MASK;
 			DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+			DestLight.Flags |= PATHTRACER_FLAG_CAST_SHADOW_MASK;
 			DestLight.Flags |= Light.IsInverseSquared ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
 			DestLight.Flags |= Light.bStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
 			DestLight.Flags |= PATHTRACING_LIGHT_SPOT;
@@ -137,6 +141,7 @@ void SetupPathTracingLightParameters(
 
 			DestLight.Flags = PATHTRACER_FLAG_TRANSMISSION_MASK;
 			DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+			DestLight.Flags |= PATHTRACER_FLAG_CAST_SHADOW_MASK;
 			DestLight.Flags |= Light.bStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
 			DestLight.Flags |= PATHTRACING_LIGHT_RECT;
 		}

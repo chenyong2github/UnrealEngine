@@ -20,4 +20,19 @@ public:
 
 	/** Return the file format supported by the translator in the form "ext;file format description" */
 	virtual FString GetSupportedFormat() const = 0;
+
+	/** Translate a given file into a HairDescription with info about Groom animation if OutAnimInfo is not null; return true if successful */
+	virtual bool Translate(const FString& FilePath, FHairDescription& OutHairDescription, const struct FGroomConversionSettings& ConversionSettings, struct FGroomAnimationInfo* OutAnimInfo)
+	{
+		return Translate(FilePath, OutHairDescription, ConversionSettings);
+	}
+
+	/** Open a file for multiple translations at different frame indices */
+	virtual bool BeginTranslation(const FString& FilePath) { return false; }
+
+	/** Translate a given file into a HairDescription at the requested frame index; return true if successful */
+	virtual bool Translate(uint32 FrameIndex, FHairDescription& OutHairDescription, const struct FGroomConversionSettings& ConversionSettings) { return false; }
+
+	/** Clean up after finishing translations */
+	virtual void EndTranslation() { }
 };

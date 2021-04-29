@@ -31,6 +31,10 @@ public:
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FTextureEditorViewportClient");
+	}
 
 	/** Modifies the checkerboard texture's data */
 	void ModifyCheckerboardTextureColors();

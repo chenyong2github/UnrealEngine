@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ActorSnapshot.h"
+#include "Data/ActorSnapshot.h"
 
-#include "ApplySnapshotDataArchive.h"
+#include "Archive/ApplySnapshotDataArchive.h"
+#include "Archive/TakeSnapshotArchive.h"
 #include "LevelSnapshotSelections.h"
 #include "LevelSnapshotsLog.h"
-#include "LevelSnapshotsModule.h"
 #include "LevelSnapshotsStats.h"
-#include "TakeSnapshotArchive.h"
 
 #include "Algo/Compare.h"
+#include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "HAL/UnrealMemory.h"
 
@@ -20,7 +20,7 @@ namespace
 #if WITH_EDITOR
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("PreEditChange"), STAT_PreEditChange, STATGROUP_LevelSnapshots);
 		
-		for (const TFieldPath<FProperty>& PropertyPath : SelectedProperties.SelectedPropertyPaths)
+		for (const TFieldPath<FProperty>& PropertyPath : SelectedProperties.GetSelectedLeafProperties())
 		{
 			FProperty* SelectedProperty = PropertyPath.Get(Object->StaticClass());
 			if (SelectedProperty)
@@ -37,7 +37,7 @@ namespace
 #if WITH_EDITOR
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("PostEditChange"), STAT_PostEditChange, STATGROUP_LevelSnapshots);
 		
-		for (const TFieldPath<FProperty>& PropertyPath : SelectedProperties.SelectedPropertyPaths)
+		for (const TFieldPath<FProperty>& PropertyPath : SelectedProperties.GetSelectedLeafProperties())
 		{
 			FProperty* SelectedProperty = PropertyPath.Get(Object->StaticClass());
 			if (SelectedProperty)
@@ -49,113 +49,6 @@ namespace
 #endif
 	}
 
-	struct GenerateSelectionSetFromDiffImpl
-	{
-		static bool AreReferencedNamesEqual(
-			const FBaseObjectInfo& SavedSnapshotObjectInfo,
-			const FLevelSnapshot_Property& SavedProperty,
-			const FBaseObjectInfo& ComparisonObjectInfo,
-			const FLevelSnapshot_Property& ComparisonProperty)
-		{
-			if (SavedProperty.ReferencedNamesOffsetToIndex.Num())
-			{
-				const bool bHaveSameNum = SavedProperty.ReferencedNamesOffsetToIndex.Num() == ComparisonProperty.ReferencedNamesOffsetToIndex.Num();
-				if (bHaveSameNum)
-				{
-					bool bAreIdentical = true;
-					auto CurrentIt = SavedProperty.ReferencedNamesOffsetToIndex.CreateConstIterator();
-					auto ComparisonIt = ComparisonProperty.ReferencedNamesOffsetToIndex.CreateConstIterator();
-					while (bAreIdentical && CurrentIt && ComparisonIt)
-					{
-						const FName& CurrentName = SavedSnapshotObjectInfo.ReferencedNames.IsValidIndex(CurrentIt->Value) ? SavedSnapshotObjectInfo.ReferencedNames[CurrentIt->Value] : FName();
-						const FName& ComparisonName = ComparisonObjectInfo.ReferencedNames.IsValidIndex(ComparisonIt->Value) ? ComparisonObjectInfo.ReferencedNames[ComparisonIt->Value] : FName();
-						bAreIdentical &= CurrentName == ComparisonName;
-						++CurrentIt;
-						++ComparisonIt;
-					}
-					return bAreIdentical;
-				}
-				return false;
-			}
-			return true;
-		}
-
-		static bool AreReferencedObjectsEqual(
-            const FBaseObjectInfo& SavedSnapshotObjectInfo,
-            const FLevelSnapshot_Property& SavedProperty,
-            const FBaseObjectInfo& ComparisonObjectInfo,
-            const FLevelSnapshot_Property& ComparisonProperty)
-		{
-			if (SavedProperty.ReferencedObjectOffsetToIndex.Num())
-			{
-				const bool bHaveSameNum = SavedProperty.ReferencedObjectOffsetToIndex.Num() == ComparisonProperty.ReferencedObjectOffsetToIndex.Num();
-				if (bHaveSameNum)
-				{
-					bool bAreIdentical = true;
-					auto CurrentIt = SavedProperty.ReferencedObjectOffsetToIndex.CreateConstIterator();
-					auto ComparisonIt = ComparisonProperty.ReferencedObjectOffsetToIndex.CreateConstIterator();
-					while (bAreIdentical && CurrentIt && ComparisonIt)
-					{
-						const FSoftObjectPath& CurrentPath = SavedSnapshotObjectInfo.ReferencedObjects.IsValidIndex(CurrentIt->Value) ? SavedSnapshotObjectInfo.ReferencedObjects[CurrentIt->Value] : FSoftObjectPath();
-						const FSoftObjectPath& ComparisonPath = ComparisonObjectInfo.ReferencedObjects.IsValidIndex(ComparisonIt->Value) ? ComparisonObjectInfo.ReferencedObjects[ComparisonIt->Value] : FSoftObjectPath();
-						bAreIdentical &= CurrentPath == ComparisonPath;
-						++CurrentIt;
-						++ComparisonIt;
-					}
-					return bAreIdentical;
-				}
-				return false;
-			}
-			return true;
-		}
-		
-		static void FindPropertiesWithDifferentValues(const FBaseObjectInfo& SavedSnapshotObjectInfo, const FBaseObjectInfo& ComparisonObjectInfo, TArray<TFieldPath<FProperty>>& ModifiedProperties)
-		{
-			for (const TPair<FName, FLevelSnapshot_Property>& ComparisonPropertyPair : ComparisonObjectInfo.Properties)
-			{
-				const FLevelSnapshot_Property* CurrentProperty = SavedSnapshotObjectInfo.Properties.Find(ComparisonPropertyPair.Key);
-				const bool bIsPropertyAddedAfterSnapshotWasSaved = CurrentProperty == nullptr;
-				if (bIsPropertyAddedAfterSnapshotWasSaved)
-				{
-					// New property
-					continue;
-				}
-
-				const FLevelSnapshot_Property& ComparisonProperty = ComparisonPropertyPair.Value;
-				
-				bool bIsIdentical = ComparisonProperty.DataSize == CurrentProperty->DataSize;
-				bIsIdentical &= FMemory::Memcmp(&SavedSnapshotObjectInfo.SerializedData.Data[CurrentProperty->DataOffset], &ComparisonObjectInfo.SerializedData.Data[ComparisonPropertyPair.Value.DataOffset], ComparisonPropertyPair.Value.DataSize) == 0;
-
-				// Referenced Names Comparison
-				bIsIdentical &= AreReferencedNamesEqual(SavedSnapshotObjectInfo, *CurrentProperty, ComparisonObjectInfo, ComparisonProperty);
-				// Referenced Objects Comparison
-				bIsIdentical &= AreReferencedObjectsEqual(SavedSnapshotObjectInfo, *CurrentProperty, ComparisonObjectInfo, ComparisonProperty);
-				
-				if (!bIsIdentical)
-				{
-					ModifiedProperties.Add(ComparisonPropertyPair.Value.PropertyPath);
-				}
-			}
-		}
-		
-		static bool DoComponentNamesMatchAtEndOfPaths(const FSoftObjectPath& SnapshotComponentPath, const FSoftObjectPath& TargetComponentPath)
-		{
-			// Example: PersistentLevel.StaticMeshActor_42.StaticMeshComponent
-			const FString& SnapshotObjectSubPath = SnapshotComponentPath.GetSubPathString();
-			const FString& TargetObjectSubPath = TargetComponentPath.GetSubPathString();
-
-			FString SnapshotComponentName;
-			const bool bFoundPointInSnapshot = SnapshotObjectSubPath.Split(TEXT("."), nullptr, &SnapshotComponentName, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
-			checkf(bFoundPointInSnapshot, TEXT("Failed to find component name in component path %s"), *SnapshotObjectSubPath);
-
-			FString TargetComponentName;
-			const bool bFoundPointInTargetComponent = TargetObjectSubPath.Split(TEXT("."), nullptr, &TargetComponentName, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
-			checkf(bFoundPointInTargetComponent, TEXT("Failed to find component name in component path %s"), *TargetObjectSubPath);
-
-			return bFoundPointInSnapshot && bFoundPointInTargetComponent && SnapshotComponentName.Equals(TargetComponentName);
-		}
-	};
-	
 	struct DeserializeSelectPropertiesImpl
 	{
 		static UActorComponent* FindComponentMatchingToSavedComponentPath(AActor* InTargetActor, const FSoftObjectPath& SavedComponentPath)
@@ -231,7 +124,7 @@ namespace
 			for (const FLevelSnapshot_Component& ComponentSnapshot : InComponentSnapshots)
 			{
 				const FPropertySelection* ComponentProperties =  InSelectedProperties->GetSelectedProperties(ComponentSnapshot.Base.SoftObjectPath);
-				const bool bShouldSerializeAtLeastOneProperty = ComponentProperties != nullptr && ComponentProperties->SelectedPropertyPaths.Num() > 0;
+				const bool bShouldSerializeAtLeastOneProperty = ComponentProperties != nullptr && !ComponentProperties->IsEmpty();
 				if (!bShouldSerializeAtLeastOneProperty)
 				{
 					continue;
@@ -356,24 +249,14 @@ AActor* FLevelSnapshot_Actor::GetDeserializedActor(UWorld* TempWorld)
 	return CachedDeserialisedActor.Get();
 }
 
-void FLevelSnapshot_Actor::DeserializeIntoWorldActor(AActor* InTargetActor, TOptional<const ULevelSnapshotSelectionSet*> InPropertiesToDeserializeInto) const
+void FLevelSnapshot_Actor::DeserializeIntoWorldActor(AActor* InTargetActor, const ULevelSnapshotSelectionSet* InPropertiesToDeserializeInto) const
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("DeserializeIntoWorldActor"), STAT_DeserializeIntoWorldActor, STATGROUP_LevelSnapshots);
 	
-	if (!ensureAlways(InTargetActor && CorrespondsToActorInWorld(InTargetActor)))
+	if (ensureAlways(InTargetActor && InPropertiesToDeserializeInto && CorrespondsToActorInWorld(InTargetActor)))
 	{
-		return;
+		DeserializeWorldActorProperties(InTargetActor, InPropertiesToDeserializeInto);
 	}
-
-	const ULevelSnapshotSelectionSet* PropertiesToDeserializeInto = InPropertiesToDeserializeInto.Get(nullptr);
-	if (PropertiesToDeserializeInto == nullptr)
-	{
-		ULevelSnapshotSelectionSet* SavedPropertiesDifferentFromClassDefaults = NewObject<ULevelSnapshotSelectionSet>(GetTransientPackage(), ULevelSnapshotSelectionSet::StaticClass(), NAME_None, EObjectFlags::RF_Transient);
-		GenerateSelectionSetFromDiff(InTargetActor, SavedPropertiesDifferentFromClassDefaults, WorldActor);
-		PropertiesToDeserializeInto = SavedPropertiesDifferentFromClassDefaults;
-	}
-
-	DeserializeWorldActorProperties(InTargetActor, PropertiesToDeserializeInto);
 }
 
 void FLevelSnapshot_Actor::DeserializeTransientActorProperties(AActor* InTargetActor) const
@@ -405,7 +288,7 @@ void FLevelSnapshot_Actor::DeserializeWorldActorProperties(AActor* InTargetActor
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("DeserializeActor (world actor)"), STAT_DeserializeActor_WorldActor, STATGROUP_LevelSnapshots);
 			
 		const FPropertySelection* SelectedProperties = InSelectedProperties->GetSelectedProperties(FSoftObjectPath(InTargetActor));
-		const bool bNeedToDeserializeActor = SelectedProperties && SelectedProperties->SelectedPropertyPaths.Num() > 0;
+		const bool bNeedToDeserializeActor = SelectedProperties && !SelectedProperties->IsEmpty();
 		if (bNeedToDeserializeActor)
 		{
 #if WITH_EDITOR
@@ -430,67 +313,5 @@ void FLevelSnapshot_Actor::DeserializeWorldActorProperties(AActor* InTargetActor
 	{
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("PostDeserializeWork (world actor)"), STAT_PostDeserializeWork_WorldActor, STATGROUP_LevelSnapshots);
 		InTargetActor->UpdateComponentTransforms();
-	}
-}
-
-void FLevelSnapshot_Actor::GenerateSelectionSetFromDiff(AActor* TargetActor, ULevelSnapshotSelectionSet* SelectionSet, EActorType TargetActorType) const
-{
-	struct Local
-	{
-		static bool DoesSnapshotComponentMatchComparisonComponent(const FLevelSnapshot_Component& ComponentFromSnapshot, const FLevelSnapshot_Component& ComparisonComponent, EActorType TargetActorType)
-		{	
-			switch (TargetActorType)
-			{
-			case TransientActor:
-				// Example path for ComponentFromSnapshot actor /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42.StaticMeshComponent
-				// Example path for ComparisonComponent actor /Engine/Transient.LevelSnapshotsDeserialisedActorWorld:PersistentLevel.StaticMeshActor_C_21:StaticMeshComponent
-				// Pay special attention to the ":" above; it separates AssetPathName and SubPathString in FSoftObjectPath.
-
-				// Comparing with FBaseObjectInfo::ObjectName works in most cases but not always: soft path is updated by Unreal when user changes a component's name while ObjectName is not.
-				return GenerateSelectionSetFromDiffImpl::DoComponentNamesMatchAtEndOfPaths(ComponentFromSnapshot.Base.SoftObjectPath, ComparisonComponent.Base.SoftObjectPath);
-
-			case WorldActor:
-				// Example path /Game/MapName.MapName:PersistentLevel.StaticMeshActorName.StaticMeshComponent
-				return ComponentFromSnapshot.Base.SoftObjectPath == ComparisonComponent.Base.SoftObjectPath;
-	
-			default:
-				checkNoEntry();
-			}
-
-			return false;
-		}
-	};
-	
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("GenerateSelectionSetFromDiff"), STAT_GenerateSelectionSetFromDiff, STATGROUP_LevelSnapshots);
-	
-	if (!ensure(SelectionSet))
-	{
-		return;
-	}
-	const FLevelSnapshot_Actor ComparisonSnapshot(TargetActor);
-
-	TArray<TFieldPath<FProperty>> ModifiedProperties;
-	const int32 MaxNumPossibilyModifiedProperties = Base.Properties.Num();
-	ModifiedProperties.Reserve(MaxNumPossibilyModifiedProperties);
-	
-	GenerateSelectionSetFromDiffImpl::FindPropertiesWithDifferentValues(Base, ComparisonSnapshot.Base, ModifiedProperties);
-	SelectionSet->AddObjectProperties(TargetActor, ModifiedProperties);
-
-	for (const FLevelSnapshot_Component& ComparisonComponentSnapshot : ComparisonSnapshot.ComponentSnapshots)
-	{
-		const FLevelSnapshot_Component* CurrentComponentSnapshot = ComponentSnapshots.FindByPredicate([TargetActorType, &ComparisonComponentSnapshot](const FLevelSnapshot_Component& Snapshot)
-			{
-				return Local::DoesSnapshotComponentMatchComparisonComponent(Snapshot, ComparisonComponentSnapshot, TargetActorType);
-			});
-
-		const bool bComponentWasAddedOrRenamedAfterSnapshotWasSaved = CurrentComponentSnapshot == nullptr;
-		if (bComponentWasAddedOrRenamedAfterSnapshotWasSaved)
-		{
-			continue;
-		}
-		
-		ModifiedProperties.Empty(false);
-		GenerateSelectionSetFromDiffImpl::FindPropertiesWithDifferentValues(CurrentComponentSnapshot->Base, ComparisonComponentSnapshot.Base, ModifiedProperties);
-		SelectionSet->AddObjectProperties(CurrentComponentSnapshot->Base.SoftObjectPath, ModifiedProperties);
 	}
 }

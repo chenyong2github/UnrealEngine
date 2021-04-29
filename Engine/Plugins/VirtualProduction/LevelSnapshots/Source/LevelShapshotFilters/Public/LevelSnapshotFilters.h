@@ -20,7 +20,7 @@ namespace EFilterResult
 		Exclude,
 
 		/* The filter does not care what happens to this actor / property.
-		 * Another filter will decide. If all filters don't care, actor / property is excluded.
+		 * Another filter will decide. If all filters don't care, actor / property is included.
 		 *
 		 * Use this for filters that only implement one function: IsActorValid or IsPropertyValid.
 		 */
@@ -64,12 +64,23 @@ class LEVELSNAPSHOTFILTERS_API ULevelSnapshotFilter : public UObject
 	GENERATED_BODY()
 public:
 
-	/* Returns whether this actor should be considered when applying a snapshot to the world. */
+	/* @return Whether this actor should be considered when applying a snapshot to the world. */
 	virtual EFilterResult::Type IsActorValid(const FIsActorValidParams& Params) const;
 	
-	/* Returns whether the property in LevelActor should be overriden with the value in SnapshotActor.*/
+	/* @return Whether the property in LevelActor should be overriden with the value in SnapshotActor.*/
 	virtual EFilterResult::Type IsPropertyValid(const FIsPropertyValidParams& Params) const;
-	
+
+	/**
+	 * This is called when an actor was removed from the world since the snapshot had been taken.
+	 * @return Whether to track the removed actor
+	 */
+	virtual EFilterResult::Type IsDeletedActorValid(const FIsDeletedActorValidParams& Params);
+
+	/**
+	 * This is called when an actor was added to the world since the snapshot had been taken. 
+	 * @return Whether to track the added actor
+	 */
+	virtual EFilterResult::Type IsAddedActorValid(const FIsAddedActorValidParams& Params);
 };
 
 /**
@@ -85,12 +96,26 @@ public:
 	/**
 	 * @return Whether the actor should be considered for the level snapshot.
 	 */
-	UFUNCTION(BlueprintNativeEvent, Category = "Snapshots")
+	UFUNCTION(BlueprintNativeEvent, Category = "Level Snapshots")
 	EFilterResult::Type IsActorValid(const FIsActorValidParams& Params) const override;
 
 	/**
 	 * @return Whether this property should be considered for rolling back to the version in the snapshot. 
 	 */
-	UFUNCTION(BlueprintNativeEvent, Category = "Snapshots")
+	UFUNCTION(BlueprintNativeEvent, Category = "Level Snapshots")
 	EFilterResult::Type IsPropertyValid(const FIsPropertyValidParams& Params) const override;
+
+	/**
+	* This is called when an actor was removed from the world since the snapshot had been taken.
+	* @return Whether to track the removed actor
+	*/
+	UFUNCTION(BlueprintNativeEvent, Category = "Level Snapshots")
+	EFilterResult::Type IsDeletedActorValid(const FIsDeletedActorValidParams& Params) override;
+
+	/**
+	* This is called when an actor was added to the world since the snapshot had been taken. 
+	* @return Whether to track the added actor
+	*/
+	UFUNCTION(BlueprintNativeEvent, Category = "Level Snapshots")
+	EFilterResult::Type IsAddedActorValid(const FIsAddedActorValidParams& Params) override;
 };

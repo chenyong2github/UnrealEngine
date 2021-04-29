@@ -7,6 +7,7 @@
 
 
 FDisplayClusterDeviceMonoscopicDX11::FDisplayClusterDeviceMonoscopicDX11()
+	: FDisplayClusterDeviceBase(EDisplayClusterRenderFrameMode::Mono)
 {
 }
 

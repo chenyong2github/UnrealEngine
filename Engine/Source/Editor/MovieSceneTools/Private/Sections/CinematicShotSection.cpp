@@ -338,7 +338,26 @@ void FCinematicShotSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilder, c
 			LOCTEXT("RenderShot", "Render Shot"),
 			FText::Format(LOCTEXT("RenderShotTooltip", "Render shot movie"), FText::FromString(SectionObject.GetShotDisplayName())),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(CinematicShotTrackEditor.Pin().ToSharedRef(), &FCinematicShotTrackEditor::RenderShot, &SectionObject))
+			FUIAction(FExecuteAction::CreateLambda([this, &SectionObject]() 
+				{
+					TArray<UMovieSceneCinematicShotSection*> ShotSections;
+					TArray<UMovieSceneSection*> Sections;
+					GetSequencer()->GetSelectedSections(Sections);
+					for (UMovieSceneSection* Section : Sections)
+					{
+						if (UMovieSceneCinematicShotSection* ShotSection = Cast<UMovieSceneCinematicShotSection>(Section))
+						{
+							ShotSections.Add(ShotSection);
+						}
+					}
+
+					if (!ShotSections.Contains(&SectionObject))
+					{
+						ShotSections.Add(&SectionObject);
+					}
+
+					CinematicShotTrackEditor.Pin()->RenderShots(ShotSections);
+				}))
 		);
 
 		MenuBuilder.AddMenuEntry(

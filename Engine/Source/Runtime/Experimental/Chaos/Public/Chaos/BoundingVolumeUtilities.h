@@ -16,7 +16,7 @@
 
 namespace Chaos
 {
-extern FRealSingle Chaos_Bounds_MaxInflationScale;
+extern float Chaos_Bounds_MaxInflationScale;
 
 inline FVec3 ComputeBoundsThickness(FVec3 Vel, FReal Dt, FReal MinBoundsThickness, FReal MaxBoundsThickness, FReal BoundsVelocityInflation)
 {

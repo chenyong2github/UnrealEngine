@@ -342,10 +342,35 @@ void F3DTransformTrackEditor::OnPostPropertyChanged(UObject* InObject, FProperty
 	}
 }
 
+void F3DTransformTrackEditor::OnPreSaveWorld(UWorld* World)
+{
+	LockedCameraBindings.Reset();
+
+	TArray<FGuid> CameraBindingIDs;
+	GetSequencer()->GetCameraObjectBindings(CameraBindingIDs);
+	for (const FGuid& CameraBindingID : CameraBindingIDs)
+	{
+		if (IsCameraBindingLocked(CameraBindingID))
+		{
+			LockedCameraBindings.Add(CameraBindingID);
+		}
+	}
+}
+
+void F3DTransformTrackEditor::OnPostSaveWorld(UWorld* World)
+{
+	for (const FGuid& CameraBindingID : LockedCameraBindings)
+	{
+		LockCameraBinding(true, CameraBindingID);
+	}
+
+	LockedCameraBindings.Reset();
+}
+
 bool F3DTransformTrackEditor::CanAddTransformKeysForSelectedObjects() const
 {
 	// WASD hotkeys to fly the viewport can conflict with hotkeys for setting keyframes (ie. s). 
-// If the viewport is moving, disregard setting keyframes.
+	// If the viewport is moving, disregard setting keyframes.
 	for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
 	{
 		if (LevelVC && LevelVC->IsMovingCamera())
@@ -476,6 +501,11 @@ EVisibility F3DTransformTrackEditor::IsCameraVisible(FGuid ObjectGuid) const
 
 ECheckBoxState F3DTransformTrackEditor::IsCameraLocked(FGuid ObjectGuid) const
 {
+	return IsCameraBindingLocked(ObjectGuid) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+bool F3DTransformTrackEditor::IsCameraBindingLocked(FGuid ObjectGuid) const
+{
 	TWeakObjectPtr<AActor> CameraActor;
 
 	for (auto Object : GetSequencer()->FindObjectsInCurrentSequence(ObjectGuid))
@@ -500,14 +530,7 @@ ECheckBoxState F3DTransformTrackEditor::IsCameraLocked(FGuid ObjectGuid) const
 			{
 				if (LevelVC->Viewport == ActiveViewport)
 				{
-					if (CameraActor.IsValid() && LevelVC->IsActorLocked(CameraActor.Get()))
-					{
-						return ECheckBoxState::Checked;
-					}
-					else
-					{
-						return ECheckBoxState::Unchecked;
-					}
+					return (CameraActor.IsValid() && LevelVC->IsActorLocked(CameraActor.Get()));
 				}
 			}
 		}
@@ -517,16 +540,20 @@ ECheckBoxState F3DTransformTrackEditor::IsCameraLocked(FGuid ObjectGuid) const
 		{
 			if (LevelVC && LevelVC->GetViewMode() != VMI_Unknown && CameraActor.IsValid() && LevelVC->IsActorLocked(CameraActor.Get()))
 			{
-				return ECheckBoxState::Checked;
+				return true;
 			}
 		}
 	}
 
-	return ECheckBoxState::Unchecked;
+	return false;
 }
 
-
 void F3DTransformTrackEditor::OnLockCameraClicked(ECheckBoxState CheckBoxState, FGuid ObjectGuid)
+{
+	LockCameraBinding((CheckBoxState == ECheckBoxState::Checked), ObjectGuid);
+}
+
+void F3DTransformTrackEditor::LockCameraBinding(bool bLock, FGuid ObjectGuid)
 {
 	TWeakObjectPtr<AActor> CameraActor;
 
@@ -541,8 +568,8 @@ void F3DTransformTrackEditor::OnLockCameraClicked(ECheckBoxState CheckBoxState, 
 		}
 	}
 
-	// If toggle is on, lock the active viewport to the camera
-	if (CheckBoxState == ECheckBoxState::Checked)
+	// Lock the active viewport to the camera
+	if (bLock)
 	{
 		// Set the active viewport or any viewport if there is no active viewport
 		FViewport* ActiveViewport = GEditor->GetActiveViewport();

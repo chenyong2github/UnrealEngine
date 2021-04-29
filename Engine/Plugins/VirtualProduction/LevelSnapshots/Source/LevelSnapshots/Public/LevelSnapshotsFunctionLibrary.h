@@ -19,7 +19,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "LevelSnapshots", meta = (WorldContext = "WorldContextObject"))
 	static ULevelSnapshot* TakeLevelSnapshot(const UObject* WorldContextObject, const FName NewSnapshotName = "NewLevelSnapshot", const FString Description = "");
+	static ULevelSnapshot* TakeLevelSnapshot_Internal(const UObject* WorldContextObject, const FName NewSnapshotName = "NewLevelSnapshot", UPackage* InPackage = nullptr, const FString Description = "");
 
+	// TODO: Add ApplySnapshotToWorldWithFilter UFUNCTION for Blueprints here
+	
 	/**
 	 * Goes through the properties of the actors and their components calling IsPropertyValid on them.
 	 * This function does not recursively check object references, e.g. 'Instanced' uproperties. These properties are currently unsupported by the snapshot framework.
@@ -33,7 +36,4 @@ public:
 		bool bAllowUnchangedProperties = false,
 		bool bAllowNonEditableProperties = false
 		);
-
-	// Use a selection set when recovering the snapshot
-	static void ApplySnapshotToWorld(UWorld* TargetWorld, ULevelSnapshot* Snapshot, ULevelSnapshotSelectionSet* SelectionSet);
 };

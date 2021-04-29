@@ -7,6 +7,7 @@
 #include "Styling/SlateTypes.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SButton.h"
 #include "Engine/SceneCapture2D.h"
 #include "Engine/SceneCaptureCube.h"
 #include "PropertyHandle.h"
@@ -20,6 +21,8 @@
 #include "Components/SceneCaptureComponentCube.h"
 #include "Components/PlanarReflectionComponent.h"
 #include "Kismet2/ComponentEditorUtils.h"
+#include "IRenderCaptureProvider.h"
+#include "RenderCaptureInterface.h"
 
 #define LOCTEXT_NAMESPACE "SceneCaptureDetails"
 
@@ -43,7 +46,7 @@ inline static bool SortAlphabeticallyByLocalizedText(const FString& ip1, const F
 void FSceneCaptureDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout )
 {
 	IDetailCategoryBuilder& SceneCaptureCategoryBuilder = DetailLayout.EditCategory("SceneCapture");
-	
+
 	ShowFlagSettingsProperty = DetailLayout.GetProperty("ShowFlagSettings", USceneCaptureComponent::StaticClass());
 	check(ShowFlagSettingsProperty->IsValidHandle());
 	ShowFlagSettingsProperty->MarkHiddenByCustomization();
@@ -198,6 +201,67 @@ void FSceneCaptureDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout 
 				.FilterString(LocalizedText);
 			}
 		}
+	}
+
+	if (IRenderCaptureProvider::IsAvailable())
+	{
+		IDetailCategoryBuilder& DebugCategoryBuilder = DetailLayout.EditCategory("Debug");
+		TArray<TWeakObjectPtr<UObject>> Objects;
+		DetailLayout.GetObjectsBeingCustomized(Objects);
+
+		const FText RenderCaptureText = LOCTEXT("RenderCaptureText", "Render Capture");
+		const FText RenderCaptureTooltip = LOCTEXT("RenderCaptureTooltip", "Triggers a render capture and opens it in the enabled render capture software (e.g. Render Doc, if RenderDocPlugin is enabled)");
+		DebugCategoryBuilder.AddCustomRow(RenderCaptureText).WholeRowContent()
+			[
+				SNew(SHorizontalBox)
+
+				+SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				.Padding(5.0f, 0.0f, 0.0f, 0.0f)
+				[
+					SNew(SButton)
+					.ToolTipText(RenderCaptureTooltip)
+					.IsEnabled_Lambda([Objects]() -> bool
+					{
+						for (TWeakObjectPtr<UObject> Object : Objects)
+						{
+							if (Object.IsValid() &&
+								(Object->IsA<USceneCaptureComponent2D>() || Object->IsA<USceneCaptureComponentCube>()))
+							{
+								return true;
+							}
+						}
+
+						return false;
+					})
+					.OnClicked_Lambda([Objects]() -> FReply
+					{
+						for (TWeakObjectPtr<UObject> Object : Objects)
+						{
+							if (USceneCaptureComponent* SceneCaptureComponent = Cast<USceneCaptureComponent>(Object.Get()))
+							{
+								RenderCaptureInterface::FScopedCapture RenderCapture(/*bEnable = */true, *FString::Format(TEXT("Scene Capture : {0}"), { SceneCaptureComponent->GetOwner()->GetActorLabel() }));
+								if (USceneCaptureComponent2D* SceneCaptureComponent2D = Cast<USceneCaptureComponent2D>(SceneCaptureComponent))
+								{
+									SceneCaptureComponent2D->CaptureScene();
+								}
+								else if (USceneCaptureComponentCube* SceneCaptureComponentCube = Cast<USceneCaptureComponentCube>(SceneCaptureComponent))
+								{
+									SceneCaptureComponentCube->CaptureScene();
+								}
+							}
+						}
+				
+						return FReply::Handled();
+					})
+					[
+						SNew(STextBlock)
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+						.Text(RenderCaptureText)
+					]
+				]
+			];
 	}
 }
 

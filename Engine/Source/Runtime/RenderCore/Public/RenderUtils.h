@@ -465,7 +465,7 @@ RENDERCORE_API const TCHAR* GetPixelFormatString(EPixelFormat InPixelFormat);
  */
 RENDERCORE_API EPixelFormat GetPixelFormatFromString(const TCHAR* InPixelFormatStr);
 
-/** 
+/**
  *  Returns the valid channels for this pixel format
  * 
  * @return e.g. EPixelFormatChannelFlags::G for PF_G8
@@ -514,6 +514,8 @@ RENDERCORE_API bool UseMobileAmbientOcclusion(const FStaticShaderPlatform Platfo
 RENDERCORE_API bool IsMobileDistanceFieldEnabled(const FStaticShaderPlatform Platform);
 
 RENDERCORE_API bool IsMobileDistanceFieldShadowingEnabled(const FStaticShaderPlatform Platform);
+
+RENDERCORE_API bool IsUsingDBuffers(const FStaticShaderPlatform Platform);
 
 
 /* Simple cache for RendererSettings ini lookup per shader platform. */
@@ -565,13 +567,6 @@ inline bool IsUsingGBuffers(const FStaticShaderPlatform Platform)
 	}
 }
 
-/** Returns whether DBuffer decals are enabled for a given shader platform */
-inline bool IsUsingDBuffers(const FStaticShaderPlatform Platform)
-{
-	extern RENDERCORE_API uint64 GDBufferPlatformMask;
-	return !!(GDBufferPlatformMask & (1ull << Platform));
-}
-
 /** Returns whether the base pass should output to the velocity buffer is enabled for a given shader platform */
 inline bool IsUsingBasePassVelocity(const FStaticShaderPlatform Platform)
 {
@@ -602,7 +597,7 @@ inline bool IsUsingPerPixelDBufferMask(const FStaticShaderPlatform Platform)
 		// Per-pixel DBufferMask optimization is currently only tested and supported on Switch.
 		return true;
 	default:
-		return false;
+		return FDataDrivenShaderPlatformInfo::GetSupportsPerPixelDBufferMask(Platform);
 	}
 }
 
@@ -699,3 +694,8 @@ inline bool UseNonNaniteVirtualShadowMaps(EShaderPlatform ShaderPlatform, const 
 	return false;
 #endif // GPUCULL_TODO
 }
+
+/**
+*	Checks if virtual texturing lightmap enabled and supported
+*/
+RENDERCORE_API bool UseVirtualTextureLightmap(const FStaticFeatureLevel InFeatureLevel, const class ITargetPlatform* TargetPlatform = nullptr);

@@ -3,14 +3,16 @@
 #include "Views/TreeViews/DisplayClusterConfiguratorTreeItem.h"
 
 #include "DisplayClusterConfiguratorStyle.h"
-#include "DisplayClusterConfiguratorToolkit.h"
+#include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
 #include "Views/TreeViews/SDisplayClusterConfiguratorTreeItemRow.h"
 
+#include "Misc/TextFilterExpressionEvaluator.h"
 #include "UObject/Object.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/SToolTip.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Views/STableViewBase.h"
 
 TSharedRef<ITableRow> FDisplayClusterConfiguratorTreeItem::MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, const TAttribute<FText>& InFilterText)
@@ -20,28 +22,32 @@ TSharedRef<ITableRow> FDisplayClusterConfiguratorTreeItem::MakeTreeRowWidget(con
 		.Item(SharedThis(this));
 }
 
-void FDisplayClusterConfiguratorTreeItem::GenerateWidgetForItemColumn(TSharedPtr<SHorizontalBox> Box, const TAttribute<FText>& FilterText, FIsSelected InIsSelected)
+TSharedRef<SWidget> FDisplayClusterConfiguratorTreeItem::GenerateWidgetForColumn(const FName& ColumnName, TSharedPtr<ITableRow> TableRow, const TAttribute<FText>& FilterText, FIsSelected InIsSelected)
 {
-	Box->AddSlot()
-		.AutoWidth()
-		.Padding(FMargin(0.0f, 1.0f))
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Center)
-		[
-			SNew(SImage)
-			.ColorAndOpacity(FSlateColor::UseForeground())
-			.Image(FDisplayClusterConfiguratorStyle::GetBrush(*GetIconStyle()))
-		];
+	if (ColumnName == IDisplayClusterConfiguratorViewTree::Columns::Item)
+	{
+		TSharedPtr<SHorizontalBox> RowBox = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SExpanderArrow, TableRow)
+			];
 
-	Box->AddSlot()
-		.AutoWidth()
-		.Padding(2, 0, 0, 0)
-		.VAlign(VAlign_Center)
-		[
-			SNew( STextBlock )
-			.Text( FText::FromName(GetRowItemName()) )
-			.HighlightText( FilterText )
-		];
+		FillItemColumn(RowBox, FilterText, InIsSelected);
+
+		return RowBox.ToSharedRef();
+	}
+
+	return SNullWidget::NullWidget;
+}
+
+void FDisplayClusterConfiguratorTreeItem::GetParentObjectsRecursive(TArray<UObject*>& OutObjects) const
+{
+	if (TSharedPtr<IDisplayClusterConfiguratorTreeItem> ParentItem = GetParent())
+	{
+		OutObjects.Add(ParentItem->GetObject());
+		ParentItem->GetParentObjectsRecursive(OutObjects);
+	}
 }
 
 void FDisplayClusterConfiguratorTreeItem::GetChildrenObjectsRecursive(TArray<UObject*>& OutObjects) const
@@ -51,6 +57,29 @@ void FDisplayClusterConfiguratorTreeItem::GetChildrenObjectsRecursive(TArray<UOb
 	{
 		OutObjects.Add(TreeItem->GetObject());
 		TreeItem->GetChildrenObjectsRecursive(OutObjects);
+	}
+}
+
+bool FDisplayClusterConfiguratorTreeItem::CanRenameItem() const
+{
+	return !bRoot;
+}
+
+bool FDisplayClusterConfiguratorTreeItem::CanDeleteItem() const
+{
+	return !bRoot;
+}
+
+bool FDisplayClusterConfiguratorTreeItem::CanDuplicateItem() const
+{
+	return !bRoot;
+}
+
+void FDisplayClusterConfiguratorTreeItem::RequestRename()
+{
+	if (CanRenameItem())
+	{
+		DisplayNameTextBlock->EnterEditingMode();
 	}
 }
 
@@ -66,14 +95,6 @@ bool FDisplayClusterConfiguratorTreeItem::IsChildOfRecursive(const TSharedRef<ID
 	}
 
 	return false;
-}
-
-void FDisplayClusterConfiguratorTreeItem::OnSelection()
-{
-	TArray<UObject*> SelectedObjects;
-	SelectedObjects.Add(GetObject());
-
-	ToolkitPtr.Pin()->SelectObjects(SelectedObjects);
 }
 
 bool FDisplayClusterConfiguratorTreeItem::IsSelected()
@@ -93,4 +114,61 @@ bool FDisplayClusterConfiguratorTreeItem::IsSelected()
 	}
 
 	return false;
+}
+
+EDisplayClusterConfiguratorTreeFilterResult FDisplayClusterConfiguratorTreeItem::ApplyFilter(const TSharedPtr<FTextFilterExpressionEvaluator>& TextFilter)
+{
+	EDisplayClusterConfiguratorTreeFilterResult Result = EDisplayClusterConfiguratorTreeFilterResult::Shown;
+
+	if (TextFilter.IsValid())
+	{
+		if (TextFilter->TestTextFilter(FBasicStringFilterExpressionContext(GetRowItemName().ToString())))
+		{
+			Result = EDisplayClusterConfiguratorTreeFilterResult::ShownHighlighted;
+		}
+		else
+		{
+			Result = EDisplayClusterConfiguratorTreeFilterResult::Hidden;
+		}
+	}
+
+	SetFilterResult(Result);
+
+	return Result;
+}
+
+void FDisplayClusterConfiguratorTreeItem::FillItemColumn(TSharedPtr<SHorizontalBox> Box, const TAttribute<FText>& FilterText, FIsSelected InIsSelected)
+{
+	Box->AddSlot()
+		.AutoWidth()
+		.Padding(FMargin(0.0f, 1.0f))
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Center)
+		[
+			SNew(SImage)
+			.ColorAndOpacity(FSlateColor::UseForeground())
+			.Image(FDisplayClusterConfiguratorStyle::GetBrush(*GetIconStyle()))
+		];
+
+	Box->AddSlot()
+		.AutoWidth()
+		.Padding(2, 0, 0, 0)
+		.VAlign(VAlign_Center)
+		[
+			SAssignNew(DisplayNameTextBlock, SInlineEditableTextBlock)
+			.Text(this, &FDisplayClusterConfiguratorTreeItem::GetRowItemText)
+			.HighlightText( FilterText )
+			.IsReadOnly(this, &FDisplayClusterConfiguratorTreeItem::IsReadOnly)
+			.OnTextCommitted(this, &FDisplayClusterConfiguratorTreeItem::OnDisplayNameCommitted)
+		];
+}
+
+bool FDisplayClusterConfiguratorTreeItem::IsReadOnly() const
+{
+	return !CanRenameItem();
+}
+
+FText FDisplayClusterConfiguratorTreeItem::GetRowItemText() const
+{
+	return FText::FromName(GetRowItemName());
 }

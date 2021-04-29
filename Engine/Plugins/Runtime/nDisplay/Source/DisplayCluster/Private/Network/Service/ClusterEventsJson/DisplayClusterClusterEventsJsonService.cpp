@@ -29,7 +29,13 @@ FDisplayClusterClusterEventsJsonService::~FDisplayClusterClusterEventsJsonServic
 
 TUniquePtr<IDisplayClusterSession> FDisplayClusterClusterEventsJsonService::CreateSession(FSocket* Socket, const FIPv4Endpoint& Endpoint, uint64 SessionId)
 {
-	return MakeUnique<FDisplayClusterSession<FDisplayClusterPacketJson, false, false>>(Socket, this, this, SessionId, FString::Printf(TEXT("%s_session_%lu_%s"), *GetName(), SessionId, *Endpoint.ToString()));
+	return MakeUnique<FDisplayClusterSession<FDisplayClusterPacketJson, false, false>>(
+		Socket,
+		this,
+		this,
+		SessionId,
+		FString::Printf(TEXT("%s_session_%lu_%s"), *GetName(), SessionId, *Endpoint.ToString()),
+		FDisplayClusterService::GetThreadPriority());
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////

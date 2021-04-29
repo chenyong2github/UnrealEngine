@@ -49,7 +49,7 @@ void FDisplayClusterGameManager::Release()
 {
 }
 
-bool FDisplayClusterGameManager::StartSession(const UDisplayClusterConfigurationData* InConfigData, const FString& InNodeId)
+bool FDisplayClusterGameManager::StartSession(UDisplayClusterConfigurationData* InConfigData, const FString& InNodeId)
 {
 	ClusterNodeId = InNodeId;
 	return true;

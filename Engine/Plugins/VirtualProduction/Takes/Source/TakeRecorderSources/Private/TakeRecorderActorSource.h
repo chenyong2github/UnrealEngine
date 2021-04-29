@@ -180,7 +180,6 @@ protected:
 
 	/** Update our cached properties for what will be recorded. Done here so the UI doesn't have to iterate through map every frame. */
 	void UpdateCachedNumberOfRecordedProperties();
-	void UpdateCachedNumberOfRecordedPropertiesRecursive(UActorRecorderPropertyMap* PropertyMap, int32& NumRecordedProperties, int32& NumRecordedComponents);
 
 	/** Returns the Guid of the Spawnable/Possessable in the specified sequence that represents the given actor, or an invalid Guid if the actor has no object binding in the sequence. */
 	FGuid ResolveActorFromSequence(AActor* InActor, ULevelSequence* CurrentSequence) const;
@@ -268,8 +267,8 @@ protected:
 public:
 	// UObject Interface
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
+	virtual void PostEditUndo() override;
 	// ~UObject Interface
 private:
 
@@ -283,10 +282,7 @@ private:
 private:
 	/** Object Binding guid that is created in the Level Sequence when recording starts.*/
 	FGuid CachedObjectBindingGuid;
-	/** The number of properties (both on actor + components) that we are recording. */
-	int32 CachedNumberOfRecordedProperties;
-	/** The number of components that belong to the target actor that we are recording. */
-	int32 CachedNumberOfRecordedComponents;
+
 	/** Array of actors that have some sort of referenced link to our actor (such as an object attached to our hierarchy) that need Actor Source recorders initialized for them. List is emptied after sources are created. */
 	TSet<class AActor*> NewReferencedActors;
 	/** Array of Actor Sources that we ended up creating that we need to clean up when we stop recording. */

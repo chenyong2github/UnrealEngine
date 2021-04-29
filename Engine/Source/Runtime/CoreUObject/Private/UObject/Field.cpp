@@ -478,10 +478,10 @@ void FField::BeginDestroy()
 
 void FField::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	UObject* UObjectOwner = GetOwnerUObject();
-	if (UObjectOwner)
+	UObject* OwnerUObject = Owner.ToUObject();
+	if (OwnerUObject)
 	{
-		Collector.AddReferencedObject(UObjectOwner);
+		Collector.AddReferencedObject(OwnerUObject);
 	}
 }
 

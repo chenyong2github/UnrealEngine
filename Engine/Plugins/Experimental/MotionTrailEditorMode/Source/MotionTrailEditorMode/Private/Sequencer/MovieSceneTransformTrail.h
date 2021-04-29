@@ -36,6 +36,10 @@ public:
 
 	// Begin FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("UE::MotionTrailEditor::FMovieSceneTransformTrail");
+	}
 	// End FGCObject interface
 
 	TSharedPtr<ISequencer> GetSequencer() const { return WeakSequencer.Pin(); }

@@ -2,16 +2,20 @@
 
 #include "AnimSequenceExporterUSD.h"
 
+#include "AnimSequenceExporterUSDOptions.h"
 #include "UnrealUSDWrapper.h"
 #include "USDErrorUtils.h"
 #include "USDLayerUtils.h"
+#include "USDOptionsWindow.h"
 #include "USDSkeletalDataConversion.h"
+
 #include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/SdfPath.h"
 #include "UsdWrappers/UsdPrim.h"
 #include "UsdWrappers/UsdStage.h"
 
 #include "Animation/AnimSequence.h"
+#include "AssetExportTask.h"
 
 UAnimSequenceExporterUSD::UAnimSequenceExporterUSD()
 {
@@ -36,47 +40,101 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 {
 #if USE_USD_SDK
 	UAnimSequence* AnimSequence = CastChecked< UAnimSequence >( Object );
-
 	if ( !AnimSequence )
 	{
 		return false;
 	}
 
 	FScopedUsdMessageLog UsdMessageLog;
-	
-	UE::FUsdStage UsdStage = UnrealUSDWrapper::NewStage( *UExporter::CurrentFilename );
-	if ( !UsdStage )
+
+	UAnimSequenceExporterUSDOptions* Options = nullptr;
+	if ( ExportTask )
+	{
+		Options = Cast<UAnimSequenceExporterUSDOptions>( ExportTask->Options );
+	}
+	if ( !Options && ( !ExportTask || !ExportTask->bAutomated ) )
+	{
+		Options = GetMutableDefault<UAnimSequenceExporterUSDOptions>();
+		if ( Options )
+		{
+			const bool bIsImport = false;
+			const bool bContinue = SUsdOptionsWindow::ShowOptions( *Options, bIsImport );
+			if ( !bContinue )
+			{
+				return false;
+			}
+		}
+	}
+
+	// If bUsePayload is true, we'll intercept the filename so that we write the mesh data to
+	// "C:/MyFolder/file_payload.usda" and create an "asset" file "C:/MyFolder/file.usda" that uses it
+	// as a payload, pointing at the default prim
+	FString PayloadFilename = UExporter::CurrentFilename;
+	const FString& AssetFilename = UExporter::CurrentFilename;
+	if ( Options && Options->PreviewMeshOptions.bUsePayload )
+	{
+		FString PathPart;
+		FString FilenamePart;
+		FString ExtensionPart;
+		FPaths::Split( PayloadFilename, PathPart, FilenamePart, ExtensionPart );
+
+		PayloadFilename = FPaths::Combine( PathPart, FilenamePart + TEXT( "_payload." ) + ExtensionPart );
+	}
+
+	UE::FUsdStage AssetStage = UnrealUSDWrapper::NewStage( *AssetFilename );
+	if ( !AssetStage )
 	{
 		return false;
+	}
+
+	if ( Options )
+	{
+		UsdUtils::SetUsdStageMetersPerUnit( AssetStage, Options->StageOptions.MetersPerUnit );
+		UsdUtils::SetUsdStageUpAxis( AssetStage, Options->StageOptions.UpAxis );
 	}
 
 	FString PrimPath;
 	UE::FUsdPrim SkelRootPrim;
 
-	const bool bExportPreviewMesh = true; // Will be moved to an option window in the future
-	if ( bExportPreviewMesh )
+	if ( Options && Options->bExportPreviewMesh )
 	{
 		USkeleton* AnimSkeleton = AnimSequence->GetSkeleton();
-		USkeletalMesh* SkeletalMesh = AnimSkeleton ? AnimSkeleton->GetAssetPreviewMesh(AnimSequence) : nullptr;
+		USkeletalMesh* SkeletalMesh = AnimSkeleton ? AnimSkeleton->GetAssetPreviewMesh( AnimSequence ) : nullptr;
 
 		if ( SkeletalMesh )
 		{
 			PrimPath = TEXT( "/" ) + SkeletalMesh->GetName();
+			SkelRootPrim = AssetStage.DefinePrim( UE::FSdfPath( *PrimPath ), TEXT( "SkelRoot" ) );
 
-			FScopedUsdAllocs Allocs;
-
-			SkelRootPrim = UsdStage.DefinePrim( UE::FSdfPath( *PrimPath ), TEXT("SkelRoot") );
-			if ( !SkelRootPrim )
+			// Using payload: Convert mesh data through the asset stage (that references the payload) so that we can
+			// author mesh data on the payload layer and material data on the asset layer
+			if ( Options->PreviewMeshOptions.bUsePayload )
 			{
-				return false;
-			}
+				if ( UE::FUsdStage PayloadStage = UnrealUSDWrapper::NewStage( *PayloadFilename ) )
+				{
+					UsdUtils::SetUsdStageMetersPerUnit( PayloadStage, Options->PreviewMeshOptions.StageOptions.MetersPerUnit );
+					UsdUtils::SetUsdStageUpAxis( PayloadStage, Options->PreviewMeshOptions.StageOptions.UpAxis );
 
-			if ( !UsdStage.GetDefaultPrim() )
+					if ( UE::FUsdPrim PayloadSkelRootPrim = PayloadStage.DefinePrim( UE::FSdfPath( *PrimPath ), TEXT( "SkelRoot" ) ) )
+					{
+						UnrealToUsd::ConvertSkeletalMesh( SkeletalMesh, PayloadSkelRootPrim, UsdUtils::GetDefaultTimeCode(), &AssetStage );
+						PayloadStage.SetDefaultPrim( PayloadSkelRootPrim );
+					}
+
+					PayloadStage.GetRootLayer().Save();
+
+					if ( SkelRootPrim )
+					{
+						AssetStage.SetDefaultPrim( SkelRootPrim );
+						UsdUtils::AddPayload( SkelRootPrim, *PayloadFilename );
+					}
+				}
+			}
+			// Not using payload: Just author everything on the current edit target of the payload (== asset) layer
+			else
 			{
-				UsdStage.SetDefaultPrim( SkelRootPrim );
+				UnrealToUsd::ConvertSkeletalMesh( SkeletalMesh, SkelRootPrim );
 			}
-
-			UnrealToUsd::ConvertSkeletalMesh( SkeletalMesh, SkelRootPrim );
 		}
 		else
 		{
@@ -87,19 +145,23 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 	}
 
 	PrimPath += TEXT( "/" ) + AnimSequence->GetName();
-
-	UE::FUsdPrim SkelAnimPrim = UsdStage.DefinePrim( UE::FSdfPath( *PrimPath ), TEXT("SkelAnimation") );
+	UE::FUsdPrim SkelAnimPrim = AssetStage.DefinePrim( UE::FSdfPath( *PrimPath ), TEXT("SkelAnimation") );
 	if ( !SkelAnimPrim )
 	{
 		return false;
 	}
 
+	if ( !AssetStage.GetDefaultPrim() )
+	{
+		AssetStage.SetDefaultPrim( SkelAnimPrim );
+	}
+
 	const double StartTimeCode = 0.0;
 	const double EndTimeCode = AnimSequence->GetNumberOfSampledKeys() - 1;
-	UsdUtils::AddTimeCodeRangeToLayer( UsdStage.GetRootLayer(), StartTimeCode, EndTimeCode );
+	UsdUtils::AddTimeCodeRangeToLayer( AssetStage.GetRootLayer(), StartTimeCode, EndTimeCode );
 
-	UsdStage.SetTimeCodesPerSecond( AnimSequence->GetSamplingFrameRate().AsDecimal() );
-		
+	AssetStage.SetTimeCodesPerSecond( AnimSequence->GetSamplingFrameRate().AsDecimal() );
+
 	UnrealToUsd::ConvertAnimSequence( AnimSequence, SkelAnimPrim );
 
 	if ( SkelRootPrim )
@@ -107,12 +169,7 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 		UsdUtils::BindAnimationSource( SkelRootPrim, SkelAnimPrim );
 	}
 
-	if ( !UsdStage.GetDefaultPrim() )
-	{
-		UsdStage.SetDefaultPrim( SkelAnimPrim );
-	}
-
-	UsdStage.GetRootLayer().Save();
+	AssetStage.GetRootLayer().Save();
 
 	return true;
 #else

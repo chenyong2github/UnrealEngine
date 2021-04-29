@@ -21,7 +21,11 @@ public:
 	virtual ~FDisplayClusterRenderSyncPolicySoftwareBase()
 	{ }
 
-protected:
+public:
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	// IDisplayClusterRenderSyncPolicy
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual FName GetName() const override;
 	virtual bool SynchronizeClusterRendering(int32& InOutSyncInterval) override;
 
 protected:

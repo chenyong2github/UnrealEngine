@@ -56,6 +56,10 @@ public:
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FNiagaraScriptToolkit");
+	}
 
 	/**
 	* Updates list of module info used to show stats

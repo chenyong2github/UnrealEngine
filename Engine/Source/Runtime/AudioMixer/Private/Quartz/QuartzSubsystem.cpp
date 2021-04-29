@@ -18,12 +18,12 @@ FAutoConsoleVariableRef CVarMaxQuartzSubscribersToUpdatePerTick(
 	TEXT("<= 0: No Limit, >= 1: Limit"),
 	ECVF_Default);
 
-static int32 DisableQuartzCvar = 0;
-FAutoConsoleVariableRef CVarDisableQuartz(
-	TEXT("au.Quartz.DisableQuartz"),
-	DisableQuartzCvar,
-	TEXT("Disables Quartz.\n")
-	TEXT("0 (default): Enabled, 1: Disabled"),
+static int32 SimulateNoAudioDeviceCvar = 0;
+FAutoConsoleVariableRef CVarSimulateNoAudioDevice(
+	TEXT("au.Quartz.SimulateNoAudioDevice"),
+	SimulateNoAudioDeviceCvar,
+	TEXT("If enabled, the QuartzSubsystem will assume no audio device, and will run new clocks in headless mode.\n")
+	TEXT("0: Not Enabled, 1: Enabled"),
 	ECVF_Default);
 
 
@@ -62,25 +62,22 @@ UQuartzSubsystem::UQuartzSubsystem()
 
 UQuartzSubsystem::~UQuartzSubsystem()
 {
+	SubsystemClockManager.Shutdown();
+	SubsystemClockManager.Flush();
+}
+
+bool UQuartzSubsystem::DoesSupportWorldType(EWorldType::Type WorldType) const
+{
+	return Super::DoesSupportWorldType(WorldType) || WorldType == EWorldType::EditorPreview;
 }
 
 
 void UQuartzSubsystem::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	SubsystemClockManager.LowResoultionUpdate(DeltaTime);
 
 	const int32 NumSubscribers = QuartzTickSubscribers.Num();
-
-	if (DisableQuartzCvar)
-	{
-		if (NumSubscribers != 0)
-		{
-			QuartzTickSubscribers.Reset();
-		}
-
-		return;
-	}
-
 
 	if (MaxQuartzSubscribersToUpdatePerTickCvar <= 0 || NumSubscribers <= MaxQuartzSubscribersToUpdatePerTickCvar)
 	{
@@ -102,9 +99,15 @@ void UQuartzSubsystem::Tick(float DeltaTime)
 		// only update up to our limit
 		for (int i = 0; i < MaxQuartzSubscribersToUpdatePerTickCvar; ++i)
 		{
-			if (QuartzTickSubscribers[UpdateIndex]->QuartzIsTickable())
+			UQuartzClockHandle* CurrentSubscriber = QuartzTickSubscribers[UpdateIndex];
+			if (!ensure(CurrentSubscriber))
 			{
-				QuartzTickSubscribers[UpdateIndex]->QuartzTick(DeltaTime);
+				continue;
+			}
+
+			if (CurrentSubscriber->QuartzIsTickable())
+			{
+				CurrentSubscriber->QuartzTick(DeltaTime);
 			}
 
 			if (++UpdateIndex == NumSubscribers)
@@ -117,16 +120,21 @@ void UQuartzSubsystem::Tick(float DeltaTime)
 
 bool UQuartzSubsystem::IsTickable() const
 {
-	if (DisableQuartzCvar)
+	const bool bHasTickSubscribers = QuartzTickSubscribers.Num() > 0;
+	const bool bIsManagingClocks = SubsystemClockManager.GetNumClocks() > 0;
+
+	// if our manager has clocks, we need to tick
+	if (bIsManagingClocks)
+	{
+		return true;
+	}
+	// if our manager has no clocks, and we have no ClockHandle subscribers, we don't need to tick
+	else if (!bHasTickSubscribers)
 	{
 		return false;
 	}
 
-	if (!QuartzTickSubscribers.Num())
-	{
-		return false;
-	}
-
+	// if our manager has no clocks, and none of our subscribers are tickable, we don't need to tick
 	for (const UQuartzClockHandle* Entry : QuartzTickSubscribers)
 	{
 		if (Entry && Entry->QuartzIsTickable())
@@ -146,7 +154,7 @@ TStatId UQuartzSubsystem::GetStatId() const
 
 void UQuartzSubsystem::SubscribeToQuartzTick(UQuartzClockHandle* InObjectToTick)
 {
-	if (DisableQuartzCvar || !InObjectToTick)
+	if (!InObjectToTick)
 	{
 		return;
 	}
@@ -157,7 +165,7 @@ void UQuartzSubsystem::SubscribeToQuartzTick(UQuartzClockHandle* InObjectToTick)
 
 void UQuartzSubsystem::UnsubscribeFromQuartzTick(UQuartzClockHandle* InObjectToTick)
 {
-	if (DisableQuartzCvar || !InObjectToTick)
+	if (!InObjectToTick)
 	{
 		return;
 	}
@@ -168,12 +176,12 @@ void UQuartzSubsystem::UnsubscribeFromQuartzTick(UQuartzClockHandle* InObjectToT
 
 UQuartzSubsystem* UQuartzSubsystem::Get(UWorld* World)
 {
-	if (DisableQuartzCvar)
+	if (World)
 	{
-		return nullptr;
+		return World->GetSubsystem<UQuartzSubsystem>();
 	}
 
-	return World->GetSubsystem<UQuartzSubsystem>();
+	return nullptr;
 }
 
 
@@ -188,7 +196,7 @@ Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateDataDataForSchedulePl
 {
 	Audio::FQuartzQuantizedRequestData CommandInitInfo;
 
-	if (DisableQuartzCvar || !InClockHandle)
+	if (!InClockHandle)
 	{
 		return {};
 	}
@@ -197,6 +205,15 @@ Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateDataDataForSchedulePl
 	CommandInitInfo.ClockHandleName = InClockHandle->GetHandleName();
 	CommandInitInfo.QuantizationBoundary = InQuantizationBoundary;
 	CommandInitInfo.QuantizedCommandPtr = MakeShared<Audio::FQuantizedPlayCommand>();
+
+	const bool bRequiresAudioDevice = CommandInitInfo.QuantizedCommandPtr->RequiresAudioDevice();
+	const bool bClockManagedByAudioDevice = ClockManagerTypeMap.Contains(CommandInitInfo.ClockName)
+		&& ClockManagerTypeMap[CommandInitInfo.ClockName] == EQuarztClockManagerType::AudioEngine;
+
+	if (!(bRequiresAudioDevice && bClockManagedByAudioDevice))
+	{
+		return {};
+	}
 
 	if (InDelegate.IsBound())
 	{
@@ -208,12 +225,17 @@ Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateDataDataForSchedulePl
 
 bool UQuartzSubsystem::IsQuartzEnabled()
 {
-	return DisableQuartzCvar == 0;
+	return true;
 }
 
 
 Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateDataForTickRateChange(UQuartzClockHandle* InClockHandle, const FOnQuartzCommandEventBP& InDelegate, const Audio::FQuartzClockTickRate& InNewTickRate, const FQuartzQuantizationBoundary& InQuantizationBoundary)
 {
+	if (!ensure(InClockHandle))
+	{
+		return { };
+	}
+
 	TSharedPtr<Audio::FQuantizedTickRateChange> TickRateChangeCommandPtr = MakeShared<Audio::FQuantizedTickRateChange>();
 	TickRateChangeCommandPtr->SetTickRate(InNewTickRate);
 
@@ -234,6 +256,11 @@ Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateDataForTickRateChange
 
 Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateDataForTransportReset(UQuartzClockHandle* InClockHandle, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
 {
+	if (!ensure(InClockHandle))
+	{
+		return { };
+	}
+
 	TSharedPtr<Audio::FQuantizedTransportReset> TransportResetCommandPtr = MakeShared<Audio::FQuantizedTransportReset>();
 
 	Audio::FQuartzQuantizedRequestData CommandInitInfo;
@@ -253,6 +280,11 @@ Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateDataForTransportReset
 
 Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateDataForStartOtherClock(UQuartzClockHandle* InClockHandle, FName InClockToStart, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
 {
+	if (!ensure(InClockHandle))
+	{
+		return { };
+	}
+
 	TSharedPtr<Audio::FQuantizedOtherClockStart> TransportResetCommandPtr = MakeShared<Audio::FQuantizedOtherClockStart>();
 
 	Audio::FQuartzQuantizedRequestData CommandInitInfo;
@@ -271,20 +303,20 @@ Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateDataForStartOtherCloc
 	return CommandInitInfo;
 }
 
-UQuartzClockHandle* UQuartzSubsystem::CreateNewClock(const UObject* WorldContextObject, FName ClockName, FQuartzClockSettings InSettings, bool bOverrideSettingsIfClockExists)
+UQuartzClockHandle* UQuartzSubsystem::CreateNewClock(const UObject* WorldContextObject, FName ClockName, FQuartzClockSettings InSettings, bool bOverrideSettingsIfClockExists, bool bUseAudioEngineClockManager)
 {
-	if (DisableQuartzCvar)
+	if (ClockName.IsNone())
 	{
 		return nullptr;
 	}
 
-	if (ClockName.IsNone())
+	if (!bUseAudioEngineClockManager)
 	{
-		return nullptr; // TODO: Create a unique name
+		ClockManagerTypeMap.Add(ClockName, EQuarztClockManagerType::QuartzSubsystem);
 	}
 
 	// add or create clock
-	Audio::FQuartzClockManager* ClockManager = GetClockManager(WorldContextObject);
+	Audio::FQuartzClockManager* ClockManager = GetManagerForClock(WorldContextObject, ClockName);
 	if (!ClockManager)
 	{
 		return nullptr;
@@ -299,12 +331,7 @@ UQuartzClockHandle* UQuartzSubsystem::CreateNewClock(const UObject* WorldContext
 
 void UQuartzSubsystem::DeleteClockByName(const UObject* WorldContextObject, FName ClockName)
 {
-	if (DisableQuartzCvar)
-	{
-		return;
-	}
-
-	Audio::FQuartzClockManager* ClockManager = GetClockManager(WorldContextObject);
+	Audio::FQuartzClockManager* ClockManager = GetManagerForClock(WorldContextObject, ClockName);
 	if (!ClockManager)
 	{
 		return;
@@ -315,11 +342,6 @@ void UQuartzSubsystem::DeleteClockByName(const UObject* WorldContextObject, FNam
 
 void UQuartzSubsystem::DeleteClockByHandle(const UObject* WorldContextObject, UQuartzClockHandle*& InClockHandle)
 {
-	if (DisableQuartzCvar)
-	{
-		return;
-	}
-
 	if (InClockHandle)
 	{
 		DeleteClockByName(WorldContextObject, InClockHandle->GetClockName());
@@ -328,12 +350,7 @@ void UQuartzSubsystem::DeleteClockByHandle(const UObject* WorldContextObject, UQ
 
 UQuartzClockHandle* UQuartzSubsystem::GetHandleForClock(const UObject* WorldContextObject, FName ClockName)
 {
-	if (DisableQuartzCvar)
-	{
-		return nullptr;
-	}
-
-	Audio::FQuartzClockManager* ClockManager = GetClockManager(WorldContextObject);
+	Audio::FQuartzClockManager* ClockManager = GetManagerForClock(WorldContextObject, ClockName);
 	if (!ClockManager)
 	{
 		return nullptr;
@@ -350,12 +367,7 @@ UQuartzClockHandle* UQuartzSubsystem::GetHandleForClock(const UObject* WorldCont
 
 bool UQuartzSubsystem::DoesClockExist(const UObject* WorldContextObject, FName ClockName)
 {
-	if (DisableQuartzCvar)
-	{
-		return false;
-	}
-
-	Audio::FQuartzClockManager* ClockManager = GetClockManager(WorldContextObject);
+	Audio::FQuartzClockManager* ClockManager = GetManagerForClock(WorldContextObject, ClockName);
 	if (!ClockManager)
 	{
 		return false;
@@ -366,12 +378,7 @@ bool UQuartzSubsystem::DoesClockExist(const UObject* WorldContextObject, FName C
 
 bool UQuartzSubsystem::IsClockRunning(const UObject* WorldContextObject, FName ClockName)
 {
-	if (DisableQuartzCvar)
-	{
-		return false;
-	}
-
-	Audio::FQuartzClockManager* ClockManager = GetClockManager(WorldContextObject);
+	Audio::FQuartzClockManager* ClockManager = GetManagerForClock(WorldContextObject, ClockName);
 	if (!ClockManager)
 	{
 		return false;
@@ -383,7 +390,7 @@ bool UQuartzSubsystem::IsClockRunning(const UObject* WorldContextObject, FName C
 
 float UQuartzSubsystem::GetGameThreadToAudioRenderThreadAverageLatency(const UObject* WorldContextObject)
 {
-	Audio::FQuartzClockManager* ClockManager = GetClockManager(WorldContextObject);
+	Audio::FQuartzClockManager* ClockManager = GetManagerForClock(WorldContextObject);
 	if (!ClockManager)
 	{
 		return { };
@@ -394,7 +401,7 @@ float UQuartzSubsystem::GetGameThreadToAudioRenderThreadAverageLatency(const UOb
 
 float UQuartzSubsystem::GetGameThreadToAudioRenderThreadMinLatency(const UObject* WorldContextObject)
 {
-	Audio::FQuartzClockManager* ClockManager = GetClockManager(WorldContextObject);
+	Audio::FQuartzClockManager* ClockManager = GetManagerForClock(WorldContextObject);
 	if (!ClockManager)
 	{
 		return { };
@@ -405,7 +412,7 @@ float UQuartzSubsystem::GetGameThreadToAudioRenderThreadMinLatency(const UObject
 
 float UQuartzSubsystem::GetGameThreadToAudioRenderThreadMaxLatency(const UObject* WorldContextObject)
 {
-	Audio::FQuartzClockManager* ClockManager = GetClockManager(WorldContextObject);
+	Audio::FQuartzClockManager* ClockManager = GetManagerForClock(WorldContextObject);
 	if (!ClockManager)
 	{
 		return { };
@@ -451,14 +458,9 @@ float UQuartzSubsystem::GetRoundTripMaxLatency(const UObject* WorldContextObject
 }
 
 
-void UQuartzSubsystem::AddCommandToClock(const UObject* WorldContextObject, Audio::FQuartzQuantizedCommandInitInfo& InQuantizationCommandInitInfo)
+void UQuartzSubsystem::AddCommandToClock(const UObject* WorldContextObject, Audio::FQuartzQuantizedCommandInitInfo& InQuantizationCommandInitInfo, FName ClockName)
 {
-	if (DisableQuartzCvar)
-	{
-		return;
-	}
-
-	Audio::FQuartzClockManager* ClockManager = GetClockManager(WorldContextObject);
+	Audio::FQuartzClockManager* ClockManager = GetManagerForClock(WorldContextObject, ClockName);
 	if (!ClockManager)
 	{
 		return;
@@ -468,18 +470,34 @@ void UQuartzSubsystem::AddCommandToClock(const UObject* WorldContextObject, Audi
 }
 
 
-Audio::FQuartzClockManager* UQuartzSubsystem::GetClockManager(const UObject* WorldContextObject) const
+Audio::FQuartzClockManager* UQuartzSubsystem::GetManagerForClock(const UObject* WorldContextObject, FName ExistingClockName)
 {
-	if (DisableQuartzCvar)
+	// if the enum has changed, the logic in this function needs to be updated
+	ensure((int32)EQuarztClockManagerType::Count == 2);
+
+	Audio::FMixerDevice* MixerDevice = nullptr;
+	if (!SimulateNoAudioDeviceCvar)
 	{
-		return nullptr;
+		MixerDevice = GetAudioMixerDeviceUsingWorldContext(WorldContextObject);
 	}
 
-	Audio::FMixerDevice* MixerDevice = GetAudioMixerDeviceUsingWorldContext(WorldContextObject);
-
-	if (MixerDevice)
+	// see if this clock prefers the subsystem clock be used
+	if (ClockManagerTypeMap.Contains(ExistingClockName) && (ClockManagerTypeMap[ExistingClockName] == EQuarztClockManagerType::QuartzSubsystem))
 	{
-		return &MixerDevice->QuantizedEventClockManager;
+		return &SubsystemClockManager;
+	}
+	else // otherwise 
+	{
+		// if the clock doesn't exist in our type map, try to use the mixer device's manager
+		if (MixerDevice)
+		{
+			ClockManagerTypeMap.Add(ExistingClockName, EQuarztClockManagerType::AudioEngine);
+			return &MixerDevice->QuantizedEventClockManager;
+		}
+
+		// no mixer device, use the subsystem's manager
+		ClockManagerTypeMap.Add(ExistingClockName, EQuarztClockManagerType::QuartzSubsystem);
+		return &SubsystemClockManager;
 	}
 
 	return nullptr;

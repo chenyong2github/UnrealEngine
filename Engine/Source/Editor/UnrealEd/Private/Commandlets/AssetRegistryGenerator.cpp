@@ -1111,8 +1111,7 @@ void FAssetRegistryGenerator::BuildChunkManifest(const TSet<FName>& InCookedPack
 
 	// Prune our asset registry to cooked + dev only list
 	FAssetRegistrySerializationOptions DevelopmentSaveOptions;
-	AssetRegistry.InitializeSerializationOptions(DevelopmentSaveOptions, TargetPlatform->IniPlatformName());
-	DevelopmentSaveOptions.ModifyForDevelopment();
+	AssetRegistry.InitializeSerializationOptions(DevelopmentSaveOptions, TargetPlatform->IniPlatformName(), UE::AssetRegistry::ESerializationTarget::ForDevelopment);
 	State.PruneAssetData(AllPackages, TSet<FName>(), DevelopmentSaveOptions);
 
 	// Mark development only packages as explicitly -1 size to indicate it was not cooked
@@ -1291,8 +1290,7 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 	
 	// Write development first, this will always write
 	FAssetRegistrySerializationOptions DevelopmentSaveOptions;
-	AssetRegistry.InitializeSerializationOptions(DevelopmentSaveOptions, TargetPlatform->IniPlatformName());
-	DevelopmentSaveOptions.ModifyForDevelopment();
+	AssetRegistry.InitializeSerializationOptions(DevelopmentSaveOptions, TargetPlatform->IniPlatformName(), UE::AssetRegistry::ESerializationTarget::ForDevelopment);
 
 	// Write runtime registry, this can be excluded per game/platform
 	FAssetRegistrySerializationOptions SaveOptions;
@@ -2241,6 +2239,11 @@ const FAssetData* FAssetRegistryGenerator::CreateOrFindAssetData(UObject& Object
 		return NewAssetData;
 	}
 	return AssetData;
+}
+
+bool FAssetRegistryGenerator::UpdateAssetPackageFlags(const FName& PackageName, const uint32 PackageFlags)
+{
+	return State.UpdateAssetDataPackageFlags(PackageName, PackageFlags);
 }
 
 void FAssetRegistryGenerator::InitializeChunkIdPakchunkIndexMapping()

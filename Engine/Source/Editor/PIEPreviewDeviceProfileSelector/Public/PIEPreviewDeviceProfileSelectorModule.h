@@ -58,6 +58,9 @@ public:
 	/** we need the game layer manager to control the DPI scaling behavior and this function can be called should be called when the manager is available */
 	virtual void SetGameLayerManagerWidget(TSharedPtr<class SGameLayerManager> GameLayerManager) override;
 
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FAddToDevicePreviewMenu, const FText& DeviceCategoryName, class FMenuBuilder& MenuBuilder);
+	FAddToDevicePreviewMenu AddToDevicePreviewMenuDelegates;
+
 private:
 	static const TCHAR* GetPreviewDeviceCommandSwitch()
 	{

@@ -43,19 +43,19 @@ struct FLevelSnapshot_Property
 
 	/** Property flags ie. Transient, NonTransactional, etc. */
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	uint64 PropertyFlags;
+	uint64 PropertyFlags = 0;
 
 	/** Property depth from the recorded snapshot (i.e. 0 -> Root Property) */
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	uint32 PropertyDepth;
+	uint32 PropertyDepth = 0;
 
 	/** Recorded DataOffset of this property scope in the FObjectSnapshot data buffer. */
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	uint32 DataOffset;
+	uint32 DataOffset = 0;
 
 	/** Recorded DataSize of this property scope in the FObjectSnapshot data buffer. */
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	uint32 DataSize;
+	uint32 DataSize = 0;
 
 	/** Referenced Names Offset to their NameIndex in the FObjectSnapshot::ReferencedNames array. */
 	UPROPERTY()

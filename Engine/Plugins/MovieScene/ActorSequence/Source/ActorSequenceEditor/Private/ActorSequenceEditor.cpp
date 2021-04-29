@@ -206,6 +206,10 @@ public:
 			Collector.AddReferencedObject(Settings);
 		}
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FActorSequenceEditorModule");
+	}
 
 	FDelegateHandle SequenceEditorHandle;
 	FDelegateHandle OnInitializeSequenceHandle;

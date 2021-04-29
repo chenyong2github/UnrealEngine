@@ -15,7 +15,9 @@ public class USDMultiUser : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"ConcertSyncClient",
 				"ConcertSyncCore",
+				"Engine",
 				"UnrealUSDWrapper",
 				"UsdStage",
 				"UsdUtilities",

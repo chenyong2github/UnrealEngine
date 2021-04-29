@@ -178,10 +178,11 @@ struct FLongPackagePathsSingleton
 	FString EngineRootPath;
 	FString GameRootPath;
 	FString ScriptRootPath;
-	FString ExtraRootPath;
 	FString MemoryRootPath;
 	FString TempRootPath;
 	TArray<FString> MountPointRootPaths;
+
+	FString VerseSubPath;
 
 	FString EngineContentPath;
 	FString ContentPathShort;
@@ -190,12 +191,10 @@ struct FLongPackagePathsSingleton
 	FString GameContentPath;
 	FString GameConfigPath;
 	FString GameScriptPath;
-	FString GameExtraPath;
 	FString GameSavedPath;
 	FString GameContentPathRebased;
 	FString GameConfigPathRebased;
 	FString GameScriptPathRebased;
-	FString GameExtraPathRebased;
 	FString GameSavedPathRebased;
 
 	//@TODO: Can probably consolidate these into a single array, if it weren't for EngineContentPathShort
@@ -223,7 +222,6 @@ struct FLongPackagePathsSingleton
 		{
 			OutRoots.Add(ConfigRootPath);
 			OutRoots.Add(ScriptRootPath);
-			OutRoots.Add(ExtraRootPath);
 			OutRoots.Add(MemoryRootPath);
 			OutRoots.Add(TempRootPath);
 		}
@@ -323,9 +321,10 @@ private:
 		EngineRootPath = TEXT("/Engine/");
 		GameRootPath   = TEXT("/Game/");
 		ScriptRootPath = TEXT("/Script/");
-		ExtraRootPath  = TEXT("/Extra/");
 		MemoryRootPath = TEXT("/Memory/");
 		TempRootPath   = TEXT("/Temp/");
+
+		VerseSubPath = TEXT("/_Verse/");
 
 		EngineContentPath      = FPaths::EngineContentDir();
 		ContentPathShort       = TEXT("../../Content/");
@@ -334,7 +333,6 @@ private:
 		GameContentPath        = FPaths::ProjectContentDir();
 		GameConfigPath         = FPaths::ProjectConfigDir();
 		GameScriptPath         = FPaths::ProjectDir() / TEXT("Script/");
-		GameExtraPath          = FPaths::ProjectDir() / TEXT("Extra/");
 		GameSavedPath          = FPaths::ProjectSavedDir();
 
 		FString RebasedGameDir = FString::Printf(TEXT("../../../%s/"), FApp::GetProjectName());
@@ -342,7 +340,6 @@ private:
 		GameContentPathRebased = RebasedGameDir / TEXT("Content/");
 		GameConfigPathRebased  = RebasedGameDir / TEXT("Config/");
 		GameScriptPathRebased  = RebasedGameDir / TEXT("Script/");
-		GameExtraPathRebased   = RebasedGameDir / TEXT("Extra/");
 		GameSavedPathRebased   = RebasedGameDir / TEXT("Saved/");
 		
 		FWriteScopeLock ScopeLock(ContentMountPointCriticalSection);
@@ -366,8 +363,6 @@ private:
 		ContentPathToRoot.Emplace(ScriptRootPath, GameScriptPathRebased);
 		ContentPathToRoot.Emplace(TempRootPath,   GameSavedPathRebased);
 		ContentPathToRoot.Emplace(ConfigRootPath, GameConfigPath);
-		ContentPathToRoot.Emplace(ExtraRootPath,  GameExtraPath);
-		ContentPathToRoot.Emplace(ExtraRootPath,  GameExtraPathRebased);
 
 		ContentRootToPath.Empty(11);
 		ContentRootToPath.Emplace(EngineRootPath, EngineContentPath);
@@ -377,8 +372,6 @@ private:
 		ContentRootToPath.Emplace(TempRootPath,   GameSavedPath);
 		ContentRootToPath.Emplace(GameRootPath,   GameContentPathRebased);
 		ContentRootToPath.Emplace(ScriptRootPath, GameScriptPathRebased);
-		ContentRootToPath.Emplace(ExtraRootPath,  GameExtraPath);
-		ContentRootToPath.Emplace(ExtraRootPath,  GameExtraPathRebased);
 		ContentRootToPath.Emplace(TempRootPath,   GameSavedPathRebased);
 		ContentRootToPath.Emplace(ConfigRootPath, GameConfigPathRebased);
 
@@ -2027,9 +2020,9 @@ FWideStringView FPackageName::ObjectPathToObjectName(FWideStringView InObjectPat
 	return ObjectPathToObjectNameImpl(InObjectPath);
 }
 
-bool FPackageName::IsExtraPackage(FStringView InPackageName)
+bool FPackageName::IsVersePackage(FStringView InPackageName)
 {
-	return FPathViews::IsParentPathOf(FLongPackagePathsSingleton::Get().ExtraRootPath, InPackageName);
+	return InPackageName.Contains(FLongPackagePathsSingleton::Get().VerseSubPath);
 }
 
 bool FPackageName::IsScriptPackage(FStringView InPackageName)

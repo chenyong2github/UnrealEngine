@@ -34,8 +34,9 @@ struct PingAvgData
 /**
  * Struct keeping track of the lowest ping values over a given second.
  */
-struct PingAvgDataV2
+struct UE_DEPRECATED(4.27, "ExactPingV2 is no longer used. Please use ExactPing instead.") PingAvgDataV2
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** List of ping values */
 	TArray<uint16> PingValues;
 
@@ -51,9 +52,10 @@ struct PingAvgDataV2
 			PingValues.Add(MAX_uint16);
 		}
 	}
-
+	
 	/** The average of the values in PingValues, calculated after 1s. */
 	float AvgPingV2;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };
 
 /**
@@ -142,6 +144,8 @@ public:
 
 	/** Exact ping as float (rounded and compressed in replicated Ping) */
 	float ExactPing;
+
+	UE_DEPRECATED(4.27, "Please use ExactPing instead.")
 	float ExactPingV2;
 
 	/** Used to match up InactivePlayerState with rejoining playercontroller. */
@@ -173,7 +177,10 @@ private:
 	 * without using up a lot of space, while also being tolerant of changes in ping update frequency
 	 */
 	PingAvgData		PingBucket[4];
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	PingAvgDataV2	PingBucketV2[4];
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** The timestamp for when the current PingBucket began filling */
 	float			CurPingBucketTimestamp;

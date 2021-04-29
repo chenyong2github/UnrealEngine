@@ -50,18 +50,6 @@ void FDisplayClusterAppExit::ExitApplication(EExitType ExitType, const FString& 
 
 			GLog->Flush();
 
-#if 0
-			if (IsInGameThread())
-			{
-				GLog->FlushThreadedLogs();
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-				TGuardValue<bool> GuardMainThreadBlockedOnRenderThread(GMainThreadBlockedOnRenderThread, true);
-#endif
-				//QUICK_SCOPE_CYCLE_COUNTER(STAT_PumpMessages);
-				FPlatformMisc::PumpMessages(false);
-			}
-#endif
-
 			switch (ExitType)
 			{
 				case EExitType::KillImmediately:

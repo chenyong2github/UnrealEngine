@@ -9,6 +9,7 @@
 #include "NiagaraNodeFunctionCall.h"
 #include "ScopedTransaction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EdGraphSchema_Niagara.h"
 #include "Layout/Margin.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -27,6 +28,9 @@ void FNiagaraFunctionCallNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Det
 {
 	static const FName SwitchCategoryName = TEXT("Propagated Static Switch Values");
 	static const FName VersionCategoryName = TEXT("Version Details");
+	static const FName FunctionCategoryName = TEXT("Function");
+	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
+    
 
 	TArray<TWeakObjectPtr<UObject>> ObjectsCustomized;
 	DetailBuilder.GetObjectsBeingCustomized(ObjectsCustomized);
@@ -36,6 +40,16 @@ void FNiagaraFunctionCallNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Det
 	}
 	
 	Node = CastChecked<UNiagaraNodeFunctionCall>(ObjectsCustomized[0].Get());
+	FPinCollectorArray InputPins;
+	Node->GetInputPins(InputPins);
+	bool IsDIFunction = Node->FunctionScript == nullptr && InputPins.Num() > 0 && UNiagaraDataInterface::IsDataInterfaceType(NiagaraSchema->PinToTypeDefinition(InputPins[0]));
+	if (IsDIFunction)
+	{
+		DetailBuilder.EditCategory(FunctionCategoryName).SetCategoryVisibility(false);
+		DetailBuilder.EditCategory(VersionCategoryName).SetCategoryVisibility(false);
+		DetailBuilder.EditCategory(SwitchCategoryName).SetCategoryVisibility(false);
+	}
+
 	UNiagaraGraph* CalledGraph = Node->GetCalledGraph();
 	if (!CalledGraph)
 	{
@@ -222,7 +236,10 @@ TSharedRef<SWidget> FNiagaraFunctionCallNodeDetails::OnGetVersionMenuContent()
 void FNiagaraFunctionCallNodeDetails::SwitchToVersion(FNiagaraAssetVersion Version)
 {
 	FScopedTransaction ScopedTransaction(LOCTEXT("NiagaraChangeVersion_Transaction", "Changing script version"));
-	Node->ChangeScriptVersion(Version.VersionGuid);
+	FNiagaraScriptVersionUpgradeContext UpgradeContext = FNiagaraScriptVersionUpgradeContext();
+	// we skip the python script here because this version change is done directly in the graph and not in the stack, so we don't need to remap any inputs 
+	UpgradeContext.bSkipPythonScript = true;
+	Node->ChangeScriptVersion(Version.VersionGuid, UpgradeContext);
 	Node->RefreshFromExternalChanges();
 }
 

@@ -250,29 +250,36 @@ struct FOpenGLCachedAttr
 	GLuint StreamOffset;
 	GLuint StreamIndex;
 	GLboolean bNormalized;
+	GLboolean bShouldConvertToFloat;
 
 	FOpenGLCachedAttr() : 
 		Pointer(FOpenGLCachedAttr_Invalid), 
 		Stride(-1), 
+		Buffer(),
+		Size(),
 		Divisor(0xFFFFFFFF), 
 		Type(0), 
-		StreamIndex(0xFFFFFFFF)
+		StreamOffset(),
+		StreamIndex(0xFFFFFFFF),
+		bNormalized(),
+		bShouldConvertToFloat()
 	{
 	}
 };
 
 struct FOpenGLStream
 {
+	FOpenGLBuffer *VertexBuffer;
+	uint32 Stride;
+	uint32 Offset;
+	uint32 Divisor;
+	
 	FOpenGLStream()
 		: VertexBuffer(0)
 		, Stride(0)
 		, Offset(0)
 		, Divisor(0)
 	{}
-	FOpenGLBuffer *VertexBuffer;
-	uint32 Stride;
-	uint32 Offset;
-	uint32 Divisor;
 };
 
 #define NUM_OPENGL_VERTEX_STREAMS 16
@@ -394,6 +401,8 @@ struct FOpenGLContextState : public FOpenGLCommonState
 	,	FirstNonzeroRenderTarget(0)
 	,	bAlphaToCoverageEnabled(false)
 	,	VertexDecl(0)
+	,   VertexAttrs()
+	,	VertexStreams()
 	,	ActiveStreamMask(0)
 	,	VertexAttrs_EnabledBits(0)
 	,	ActiveUAVMask(0)

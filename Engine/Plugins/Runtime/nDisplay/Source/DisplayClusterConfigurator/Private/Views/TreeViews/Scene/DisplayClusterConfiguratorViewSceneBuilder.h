@@ -4,7 +4,7 @@
 
 #include "Views/TreeViews/DisplayClusterConfiguratorTreeBuilder.h"
 
-class FDisplayClusterConfiguratorToolkit;
+class FDisplayClusterConfiguratorBlueprintEditor;
 class UDisplayClusterConfigurationData;
 class UDisplayClusterConfigurationScene;
 
@@ -12,7 +12,7 @@ class FDisplayClusterConfiguratorViewSceneBuilder
 	: public FDisplayClusterConfiguratorTreeBuilder
 {
 public:
-	FDisplayClusterConfiguratorViewSceneBuilder(const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit);
+	FDisplayClusterConfiguratorViewSceneBuilder(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit);
 
 	//~ Begin IDisplayClusterConfiguratorTreeBuilder Interface
 	virtual void Build(FDisplayClusterConfiguratorTreeBuilderOutput& Output) override;

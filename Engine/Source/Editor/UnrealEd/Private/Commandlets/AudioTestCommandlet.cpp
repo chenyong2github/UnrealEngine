@@ -42,6 +42,8 @@ static bool UnrealAudioUnload()
 	return false;
 }
 
+#if WITH_DEV_AUTOMATION_TESTS
+
 /**
 * Test static functions which call into module test code
 */
@@ -174,9 +176,12 @@ static AudioTestInfo AudioTestInfoList[] =
 };
 static_assert(UE_ARRAY_COUNT(AudioTestInfoList) == AUDIO_TESTS, "Mismatched info list and test enumeration");
 
+#endif // WITH_DEV_AUTOMATION_TESTS
+
 void UAudioTestCommandlet::PrintUsage()
 {
 	UE_LOG(AudioTestCommandlet, Display, TEXT("AudioTestCommandlet Usage: {Editor}.exe UnrealEd.AudioTestCommandlet {testcategory} {test} {arglist}"));
+#if ENABLE_UNREAL_AUDIO && WITH_DEV_AUTOMATION_TESTS
 	UE_LOG(AudioTestCommandlet, Display, TEXT("Possible Tests:"));
 	UE_LOG(AudioTestCommandlet, Display, TEXT("CategoryName | TestName | Arguments"));
 	for (uint32 Index = 0; Index < AUDIO_TESTS; ++Index)
@@ -184,6 +189,7 @@ void UAudioTestCommandlet::PrintUsage()
 		AudioTestInfo& Info = AudioTestInfoList[Index];
 		UE_LOG(AudioTestCommandlet, Display, TEXT("%s, %s, %s"), *Info.CategoryName, *Info.TestName, *Info.ArgDescription);
 	}
+#endif
 }
 
 #endif // #if ENABLE_UNREAL_AUDIO
@@ -197,7 +203,7 @@ UAudioTestCommandlet::UAudioTestCommandlet(const FObjectInitializer& ObjectIniti
 
 int32 UAudioTestCommandlet::Main(const FString& InParams)
 {
-#if ENABLE_UNREAL_AUDIO
+#if ENABLE_UNREAL_AUDIO && WITH_DEV_AUTOMATION_TESTS
     
     // Mac stupidly is adds "-NSDocumentRevisionsDebugMode YES" to command line args so lets remove that
     FString Params;

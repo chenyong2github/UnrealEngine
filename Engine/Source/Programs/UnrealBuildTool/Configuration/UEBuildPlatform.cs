@@ -381,6 +381,17 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Determines whether a given platform is available in the context of a particular Taget
+		/// </summary>
+		/// <param name="Platform">The platform to check for</param>
+		/// <param name="Target">A Target object that may further restrict available platforms</param>
+		/// <returns>True if it's available, false otherwise</returns>
+		public static bool IsPlatformAvailableForTarget(UnrealTargetPlatform Platform, ReadOnlyTargetRules Target)
+		{
+			return IsPlatformAvailable(Platform) && Target.IsPlatformOptedIn(Platform);
+		}
+
+		/// <summary>
 		/// Register the given platforms UEBuildPlatform instance
 		/// </summary>
 		/// <param name="InBuildPlatform"> The UEBuildPlatform instance to use for the InPlatform</param>

@@ -2460,7 +2460,7 @@ void SClassViewer::Populate()
 		if (PreviousSelection.Num() > 0)
 		{
 			ClassNode = ClassViewer::Helpers::ClassHierarchy->FindNodeByGeneratedClassPath(RootNode, PreviousSelection[0]);
-			ExpandNode = ClassNode ? ClassNode->ParentNode.Pin() : nullptr;
+			ExpandNode = ClassNode ? ClassNode->GetParentNode() : nullptr;
 		}
 		else if (InitOptions.InitiallySelectedClass)
 		{
@@ -2490,7 +2490,7 @@ void SClassViewer::Populate()
 			ExpandNode = ClassNode;
 		}
 
-		for (; ExpandNode; ExpandNode = ExpandNode->ParentNode.Pin())
+		for (; ExpandNode; ExpandNode = ExpandNode->GetParentNode())
 		{
 			ClassTree->SetItemExpansion(ExpandNode, true);
 		}

@@ -2,9 +2,9 @@
 
 #include "Progression.h"
 
-#include "Error.h"
+#include "Utils/Error.h"
 
-#include "CurrentOS.h"
+#include "Utils/CurrentOS.h"
 
 #include "Guard.hpp"
 

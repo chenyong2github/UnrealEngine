@@ -1,42 +1,30 @@
 /*
-	This software is provided 'as-is', without any express or implied warranty.
-	In no event will the author(s) be held liable for any damages arising from
-	the use of this software.
+Copyright 2019 PureDev Software Limited
 
-	Permission is granted to anyone to use this software for any purpose, including
-	commercial applications, and to alter it and redistribute it freely, subject to
-	the following restrictions:
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
 
-	1. The origin of this software must not be misrepresented; you must not
-	claim that you wrote the original software. If you use this software
-	in a product, an acknowledgment in the product documentation would be
-	appreciated but is not required.
-	2. Altered source versions must be plainly marked as such, and must not be
-	misrepresented as being the original software.
-	3. This notice may not be removed or altered from any source distribution.
-
-	Author: Stewart Lynch
-	www.puredevsoftware.com
-	slynch@puredevsoftware.com
-
-	This code is released to the public domain, as explained at
-	http://creativecommons.org/publicdomain/zero/1.0/
-
-	MemProLib is the library that allows the MemPro application to communicate
-	with your application.
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
 
 #if defined(__UNREAL__)
 	#include "MemPro/MemPro.h"
 #else
-	#include "MemPro.hpp"
+	#include "MemPro.h"
 #endif
 
 
 //------------------------------------------------------------------------
 //
-// MemProLib.hpp
+// MemProLib.h
 //
 #ifdef __UNREAL__
 	#include "HAL/LowLevelMemTracker.h"
@@ -85,7 +73,7 @@ namespace MemPro
 
 //------------------------------------------------------------------------
 //
-// CallstackSet.hpp
+// CallstackSet.h
 //
 //------------------------------------------------------------------------
 #if MEMPRO_ENABLED
@@ -361,7 +349,7 @@ void MemPro::CallstackSet::Clear()
 
 //------------------------------------------------------------------------
 //
-// CriticalSection.hpp
+// CriticalSection.h
 //
 //------------------------------------------------------------------------
 #if MEMPRO_ENABLED
@@ -397,7 +385,7 @@ namespace MemPro
 		//------------------------------------------------------------------------
 		// data
 	private:
-		static const int m_OSLockMaxSize = 40;
+		static const int m_OSLockMaxSize = 64;
 		char m_OSLockMem[m_OSLockMaxSize];
 	} MEMPRO_ALIGN_SUFFIX(16);
 
@@ -419,7 +407,7 @@ namespace MemPro
 
 //------------------------------------------------------------------------
 //
-// RingBuffer.hpp
+// RingBuffer.h
 //
 //------------------------------------------------------------------------
 #if MEMPRO_ENABLED
@@ -428,7 +416,7 @@ namespace MemPro
 
 //------------------------------------------------------------------------
 //
-// Event.hpp
+// Event.h
 //
 //------------------------------------------------------------------------
 #if MEMPRO_ENABLED
@@ -477,7 +465,7 @@ namespace MemPro
 		//------------------------------------------------------------------------
 		// data
 	private:
-		static const int m_OSEventMemMaxSize = 96;
+		static const int m_OSEventMemMaxSize = 144;
 		mutable char m_OSEventMem[m_OSEventMemMaxSize];
 	} MEMPRO_ALIGN_SUFFIX(16);
 }
@@ -713,7 +701,7 @@ namespace MemPro
 
 //------------------------------------------------------------------------
 //
-// MemProMisc.hpp
+// MemProMisc.h
 //
 #include <stdlib.h>
 
@@ -819,7 +807,7 @@ namespace MemPro
 
 //------------------------------------------------------------------------
 //
-// Packets.hpp
+// Packets.h
 //
 //------------------------------------------------------------------------
 #if MEMPRO_ENABLED
@@ -852,7 +840,7 @@ namespace MemPro
 	//------------------------------------------------------------------------
 	enum MemProVersion
 	{
-		Version = 12
+		Version = 14
 	};
 
 	//------------------------------------------------------------------------
@@ -869,6 +857,20 @@ namespace MemPro
 	{
 		EndianKey = 0xabcdef01
 	};
+
+	//------------------------------------------------------------------------
+	inline uint64 ObfuscateAddress(uint64 addr)
+	{
+		const uint64 mask = 0x12345678abcdef12LL;
+
+		return addr ^ mask;
+	}
+
+	//------------------------------------------------------------------------
+	inline uint64 UnobfuscateAddress(uint64 addr)
+	{
+		return ObfuscateAddress(addr);
+	}
 
 	//------------------------------------------------------------------------
 	struct PacketHeader
@@ -998,7 +1000,7 @@ namespace MemPro
 
 //------------------------------------------------------------------------
 //
-// Socket.hpp
+// Socket.h
 //
 //------------------------------------------------------------------------
 #if MEMPRO_ENABLED && !defined(MEMPRO_WRITE_DUMP)
@@ -1047,7 +1049,7 @@ namespace MemPro
 
 //------------------------------------------------------------------------
 //
-// Thread.hpp
+// Thread.h
 //
 #if MEMPRO_ENABLED
 
@@ -1081,7 +1083,7 @@ namespace MemPro
 
 //------------------------------------------------------------------------
 //
-// MemProFile.hpp
+// MemProFile.h
 //
 //------------------------------------------------------------------------
 #if MEMPRO_ENABLED
@@ -1177,7 +1179,7 @@ namespace MemPro
 #endif
 
 //------------------------------------------------------------------------
-#ifdef VMEM_STATS
+#ifdef VMEM_ENABLE_STATS
 namespace VMem { void SendStatsToMemPro(void (*send_fn)(void*, int, void*), void* p_context); }
 #endif
 
@@ -1290,6 +1292,8 @@ namespace MemPro
 		void SendPageState(void* p, size_t size, PageState page_state, PageType page_type, unsigned int page_protection, bool send_page_mem, int page_size);
 
 		void TakeSnapshot(bool send_memory);
+
+		void FlushDumpFile();
 
 		int SendThreadMain(void* p_param);
 
@@ -1748,11 +1752,21 @@ namespace MemPro
 	//------------------------------------------------------------------------
 	void CMemPro::SendVMemStats()
 	{
-#ifdef VMEM_STATS
-		Send(EVMemStats);
+#ifdef VMEM_ENABLE_STATS
+		struct MemProPacketHeader
+		{
+			PacketType m_PacketType;
+			int m_Padding;
+			int64 m_Time;
+		};
+		MemProPacketHeader header;
+		header.m_PacketType = EVMemStats;
+		header.m_Padding = 0;
+		header.m_Time = GetTime();
 
-		int64 time = GetTime();
-		Send(time);
+		Send(header);
+
+		Send(header.m_Time);
 
 		VMem::SendStatsToMemPro(StaticSendVMemStatsData, this);
 #endif
@@ -1871,6 +1885,16 @@ namespace MemPro
 			ENDIAN_TEST(packet.SwapEndian());
 			Send(packet);
 		}
+	}
+
+	//------------------------------------------------------------------------
+	void CMemPro::FlushDumpFile()
+	{
+#ifdef MEMPRO_WRITE_DUMP
+		CriticalSectionScope lock(m_CriticalSection);
+
+		g_DumpFile.Flush();
+#endif
 	}
 
 	//------------------------------------------------------------------------
@@ -2391,6 +2415,7 @@ namespace MemPro
 
 #ifndef MEMPRO_WRITE_DUMP
 		if(m_ListenSocket.IsValid())
+#endif
 		{
 			int now = (int)((Platform::GetHiResTimer() * 1000) / Platform::GetHiResTimerFrequency());
 			if(now - m_LastPageStateSend > m_PageStateInterval)
@@ -2405,7 +2430,6 @@ namespace MemPro
 				m_LastVMemStatsSend = now;
 			}
 		}
-#endif
 
 		if(m_InEvent)
 			return;
@@ -2416,7 +2440,7 @@ namespace MemPro
 		SendPacketHeader(EAllocPacket);
 
 		AllocPacket packet;
-		packet.m_Addr = ToUInt64(p);
+		packet.m_Addr = ObfuscateAddress(ToUInt64(p));
 		packet.m_Size = size;
 		packet.m_CallstackID = callstack_id;
 		packet.m_Padding = 0xef12ef12;
@@ -2448,7 +2472,7 @@ namespace MemPro
 		SendPacketHeader(EFreePacket);
 
 		FreePacket packet;
-		packet.m_Addr = ToUInt64(p);
+		packet.m_Addr = ObfuscateAddress(ToUInt64(p));
 		ENDIAN_TEST(packet.SwapEndian());
 		Send(packet);
 
@@ -2623,6 +2647,12 @@ bool MemPro::IsPaused()
 void MemPro::TakeSnapshot(bool send_memory)
 {
 	if(gp_MemPro) gp_MemPro->TakeSnapshot(send_memory);
+}
+
+//------------------------------------------------------------------------
+void MemPro::FlushDumpFile()
+{
+	if (gp_MemPro) gp_MemPro->FlushDumpFile();
 }
 
 //------------------------------------------------------------------------
@@ -2854,12 +2884,12 @@ namespace MemPro
 			memset(p_buffer, 0, buffer_size * sizeof(TCHAR));
 
 			va_list args;
-			FormatMessage(
+			DWORD result = FormatMessage(
 				FORMAT_MESSAGE_FROM_SYSTEM,
 				NULL,
 				WSAGetLastError(),
 				0,
-				(TCHAR*)&p_buffer,
+				p_buffer,
 				4 * 1024,
 				&args);
 
@@ -3187,7 +3217,7 @@ namespace MemPro
 
 			platform_thread.m_Handle = ::CreateThread(NULL, 0, PlatformThreadMain, p_os_thread_mem, 0, NULL);
 
-			return (platform_thread.m_Handle == NULL) ? 0 : GetThreadId(platform_thread.m_Handle);
+			return platform_thread.m_Handle ? GetThreadId(platform_thread.m_Handle) : 0;
 		}
 
 		//------------------------------------------------------------------------
@@ -3439,7 +3469,9 @@ namespace MemPro
 		BOOL CALLBACK EnumerateLoadedModulesCallback(__in PCSTR ModuleName,__in ULONG ModuleBase,__in ULONG ModuleSize,__in_opt PVOID UserContext)
 		#endif
 		{
-			if(UserContext == nullptr) return false;
+			if(!UserContext)
+				return false;
+
 			EnumModulesContext* p_context = (EnumModulesContext*)UserContext;
 
 			p_context->mp_CallbackFunction(ModuleBase, ModuleName, p_context->mp_Context);
@@ -3594,8 +3626,11 @@ namespace MemPro
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#include <link.h>
 #include <stdio.h>
+
+#ifndef MEMPRO_PLATFORM_APPLE
+	#include <link.h>
+#endif
 
 //------------------------------------------------------------------------
 #include <pthread.h>
@@ -4045,13 +4080,21 @@ namespace MemPro
 		//------------------------------------------------------------------------
 		void SwapEndian(unsigned int& value)
 		{
+#ifdef MEMPRO_PLATFORM_APPLE
+			value = __builtin_bswap32(value);
+#else
 			value = __bswap_32(value);
+#endif
 		}
 
 		//------------------------------------------------------------------------
 		void SwapEndian(uint64& value)
 		{
+#ifdef MEMPRO_PLATFORM_APPLE
+			value = __builtin_bswap64(value);
+#else
 			value = __bswap_64(value);
+#endif
 		}
 
 		//------------------------------------------------------------------------
@@ -4664,6 +4707,7 @@ namespace MemPro
 			#elif defined(USE_RTLCAPTURESTACKBACKTRACE)
 				MemPro::RTLCaptureStackBackTrace(stack, g_StackTraceSize, hash, stack_size);
 			#else
+				memset(stack, 0, g_StackTraceSize * sizeof(void*));
 				CaptureStackBackTrace(0, g_StackTraceSize, stack, (PDWORD)&hash);
 				for(stack_size = 0; stack_size<g_StackTraceSize; ++stack_size)
 					if(!stack[stack_size])

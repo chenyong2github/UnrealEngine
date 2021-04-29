@@ -1024,17 +1024,18 @@ bool FPluginManager::ConfigureEnabledPlugins()
 					}
 				}
 
-				//@note: This function is called too early for `GIsEditor` to be true and hence not go through this scope
-				if (!GIsEditor)
+				// override config cache entries with plugin configs (Engine.ini, Game.ini, etc in <PluginDir>\Config\)
+				TArray<FString> PluginConfigs;
+				IFileManager::Get().FindFiles(PluginConfigs, *PluginConfigDir, TEXT("ini"));
+				for (const FString& ConfigFile : PluginConfigs)
 				{
-					// override config cache entries with plugin configs (Engine.ini, Game.ini, etc in <PluginDir>\Config\)
-					TArray<FString> PluginConfigs;
-					IFileManager::Get().FindFiles(PluginConfigs, *PluginConfigDir, TEXT("ini"));
-					for (const FString& ConfigFile : PluginConfigs)
+					// Use GetDestIniFilename to find the proper config file to combine into, since it manages command line overrides and path sanitization
+					PluginConfigFilename = FConfigCacheIni::GetDestIniFilename(*FPaths::GetBaseFilename(ConfigFile), *PlatformName, *FPaths::GeneratedConfigDir());
 					{
-						FConfigFile* FoundConfig;
+						FScopeLock Locker(&ConfigCS);
+						FConfigFile* FoundConfig = GConfig->Find(PluginConfigFilename);
+						if (FoundConfig != nullptr)
 						{
-							FScopeLock Locker(&ConfigCS);
 						    if (GConfig->IsKnownConfigName(*PluginConfigFilename))
 						    {
 							    FoundConfig = GConfig->FindConfigFile(PluginConfigFilename);
@@ -1356,6 +1357,28 @@ bool FPluginManager::ConfigureEnabledPluginForTarget(const FPluginReferenceDescr
 				continue;
 			}
 
+#if IS_MONOLITHIC
+			// In monolithic builds, if the plugin is optional, and any modules are not compiled in this build, do not load it. This makes content compiled with plugins enabled compatible with builds where they are disabled.
+			if (Reference.bOptional)
+			{
+				bool bAllModulesAvailable = true;
+				for (const FModuleDescriptor& ModuleDescriptor : Plugin.Descriptor.Modules)
+				{
+					if (ModuleDescriptor.IsLoadedInCurrentConfiguration() && !FModuleManager::Get().ModuleExists(*ModuleDescriptor.Name.ToString()))
+					{
+						bAllModulesAvailable = false;
+						break;
+					}
+				}
+
+				if (!bAllModulesAvailable)
+				{
+					UE_LOG(LogPluginManager, Verbose, TEXT("Ignored optional reference to '%s' plugin; plugin's modules were not found."), *Reference.Name);
+					continue;
+				}
+			}
+#endif // IS_MONOLITHIC
+
 			// Add references to all its dependencies
 			for (const FPluginReferenceDescriptor& NextReference : Plugin.Descriptor.Plugins)
 			{
@@ -1676,9 +1699,10 @@ IPluginManager& IPluginManager::Get()
 	return PluginManager;
 }
 
-TSharedPtr<IPlugin> FPluginManager::FindPlugin(const FString& Name)
+TSharedPtr<IPlugin> FPluginManager::FindPlugin(const FStringView Name)
 {
-	const TSharedRef<FPlugin>* Instance = AllPlugins.Find(Name);
+	const uint32 NameHash = GetTypeHash(Name);
+	const TSharedRef<FPlugin>* Instance = AllPlugins.FindByHash(NameHash, Name);
 	if (Instance == nullptr)
 	{
 		return TSharedPtr<IPlugin>();

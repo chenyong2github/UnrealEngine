@@ -20,11 +20,6 @@
 			"Name": "LensDistortion",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit"
-		},
-		{
-			"Name": "LensDistortionEditor",
-			"Type": "Editor",
-			"LoadingPhase": "Default"
 		}
 	]
 }

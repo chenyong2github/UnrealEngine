@@ -28,7 +28,7 @@ void UQuartzClockHandle::BeginDestroy()
 
 		if (WorldPtr)
 		{
-			Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetClockManager(WorldPtr);
+			Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetManagerForClock(WorldPtr, GetClockName());
 
 			if (ClockManager)
 			{
@@ -60,16 +60,18 @@ UQuartzClockHandle* UQuartzClockHandle::Init(UWorld* InWorldPtr)
 	return this;
 }
 
-void UQuartzClockHandle::StartClock(const UObject* WorldContextObject)
+void UQuartzClockHandle::StartClock(const UObject* WorldContextObject, UQuartzClockHandle*& ClockHandle)
 {
-	ResumeClock(WorldContextObject);
+	ClockHandle = this;
+	ResumeClock(WorldContextObject, ClockHandle);
 }
 
-void UQuartzClockHandle::StopClock(const UObject* WorldContextObject, bool CancelPendingEvents)
+void UQuartzClockHandle::StopClock(const UObject* WorldContextObject, bool CancelPendingEvents, UQuartzClockHandle*& ClockHandle)
 {
+	ClockHandle = this;
 	if (QuartzSubsystem)
 	{
-		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetClockManager(WorldContextObject);
+		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetManagerForClock(WorldContextObject, GetClockName());
 
 		if (ClockManager)
 		{
@@ -78,11 +80,12 @@ void UQuartzClockHandle::StopClock(const UObject* WorldContextObject, bool Cance
 	}
 }
 
-void UQuartzClockHandle::PauseClock(const UObject* WorldContextObject)
+void UQuartzClockHandle::PauseClock(const UObject* WorldContextObject, UQuartzClockHandle*& ClockHandle)
 {
+	ClockHandle = this;
 	if (QuartzSubsystem)
 	{
-		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetClockManager(WorldContextObject);
+		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetManagerForClock(WorldContextObject, GetClockName());
 		if (ClockManager)
 		{
 			ClockManager->PauseClock(CurrentClockId);
@@ -91,11 +94,12 @@ void UQuartzClockHandle::PauseClock(const UObject* WorldContextObject)
 }
 
 // Begin BP interface
-void UQuartzClockHandle::ResumeClock(const UObject* WorldContextObject)
+void UQuartzClockHandle::ResumeClock(const UObject* WorldContextObject, UQuartzClockHandle*& ClockHandle)
 {
+	ClockHandle = this;
 	if (QuartzSubsystem)
 	{
-		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetClockManager(WorldContextObject);
+		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetManagerForClock(WorldContextObject, GetClockName());
 
 		if (ClockManager)
 		{
@@ -104,12 +108,23 @@ void UQuartzClockHandle::ResumeClock(const UObject* WorldContextObject)
 	}
 }
 
-void UQuartzClockHandle::ResetTransport(const UObject* WorldContextObject, FQuartzQuantizationBoundary InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
+// deprecated: use ResetTransportQuantized
+void UQuartzClockHandle::ResetTransport(const UObject* WorldContextObject, const FOnQuartzCommandEventBP& InDelegate)
 {
 	if (QuartzSubsystem != nullptr)
 	{
+		Audio::FQuartzQuantizedCommandInitInfo Data(QuartzSubsystem->CreateDataForTransportReset(this, FQuartzQuantizationBoundary(EQuartzCommandQuantization::Bar), InDelegate));
+		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data, GetClockName());
+	}
+}
+
+void UQuartzClockHandle::ResetTransportQuantized(const UObject* WorldContextObject, FQuartzQuantizationBoundary InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, UQuartzClockHandle*& ClockHandle)
+{
+	ClockHandle = this;
+	if (QuartzSubsystem != nullptr)
+	{
 		Audio::FQuartzQuantizedCommandInitInfo Data(QuartzSubsystem->CreateDataForTransportReset(this, InQuantizationBoundary, InDelegate));
-		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data);
+		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data, GetClockName());
 	}
 }
 
@@ -128,15 +143,16 @@ void UQuartzClockHandle::StartOtherClock(const UObject* WorldContextObject, FNam
 	if (QuartzSubsystem)
 	{
 		Audio::FQuartzQuantizedCommandInitInfo Data(QuartzSubsystem->CreateDataForStartOtherClock(this, OtherClockName, InQuantizationBoundary, InDelegate));
-		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data);
+		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data, GetClockName());
 	}
 }
 
-void UQuartzClockHandle::SubscribeToQuantizationEvent(const UObject* WorldContextObject, EQuartzCommandQuantization InQuantizationBoundary, const FOnQuartzMetronomeEventBP& OnQuantizationEvent)
+void UQuartzClockHandle::SubscribeToQuantizationEvent(const UObject* WorldContextObject, EQuartzCommandQuantization InQuantizationBoundary, const FOnQuartzMetronomeEventBP& OnQuantizationEvent, UQuartzClockHandle*& ClockHandle)
 {
+	ClockHandle = this;
 	if (QuartzSubsystem)
 	{
-		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetClockManager(WorldContextObject);
+		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetManagerForClock(WorldContextObject, GetClockName());
 		if (ClockManager && ClockManager->DoesClockExist(CurrentClockId) && OnQuantizationEvent.IsBound())
 		{
 			MetronomeDelegates[static_cast<int32>(InQuantizationBoundary)].MulticastDelegate.AddUnique(OnQuantizationEvent);
@@ -145,11 +161,12 @@ void UQuartzClockHandle::SubscribeToQuantizationEvent(const UObject* WorldContex
 	}
 }
 
-void UQuartzClockHandle::SubscribeToAllQuantizationEvents(const UObject* WorldContextObject, const FOnQuartzMetronomeEventBP& OnQuantizationEvent)
+void UQuartzClockHandle::SubscribeToAllQuantizationEvents(const UObject* WorldContextObject, const FOnQuartzMetronomeEventBP& OnQuantizationEvent, UQuartzClockHandle*& ClockHandle)
 {
+	ClockHandle = this;
 	if (QuartzSubsystem)
 	{
-		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetClockManager(WorldContextObject);
+		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetManagerForClock(WorldContextObject, GetClockName());
 		if (ClockManager && ClockManager->DoesClockExist(CurrentClockId) && OnQuantizationEvent.IsBound())
 		{
 			for (int32 i = 0; i < static_cast<int32>(EQuartzCommandQuantization::Count) - 1; ++i)
@@ -162,11 +179,12 @@ void UQuartzClockHandle::SubscribeToAllQuantizationEvents(const UObject* WorldCo
 	}
 }
 
-void UQuartzClockHandle::UnsubscribeFromTimeDivision(const UObject* WorldContextObject, EQuartzCommandQuantization InQuantizationBoundary)
+void UQuartzClockHandle::UnsubscribeFromTimeDivision(const UObject* WorldContextObject, EQuartzCommandQuantization InQuantizationBoundary, UQuartzClockHandle*& ClockHandle)
 {
+	ClockHandle = this;
 	if (QuartzSubsystem)
 	{
-		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetClockManager(WorldContextObject);
+		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetManagerForClock(WorldContextObject, GetClockName());
 		if (ClockManager && ClockManager->DoesClockExist(CurrentClockId))
 		{
 			ClockManager->UnsubscribeFromTimeDivision(CurrentClockId, GetCommandQueue(), InQuantizationBoundary);
@@ -174,11 +192,12 @@ void UQuartzClockHandle::UnsubscribeFromTimeDivision(const UObject* WorldContext
 	}
 }
 
-void UQuartzClockHandle::UnsubscribeFromAllTimeDivisions(const UObject* WorldContextObject)
+void UQuartzClockHandle::UnsubscribeFromAllTimeDivisions(const UObject* WorldContextObject, UQuartzClockHandle*& ClockHandle)
 {
+	ClockHandle = this;
 	if (QuartzSubsystem)
 	{
-		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetClockManager(WorldContextObject);
+		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetManagerForClock(WorldContextObject, GetClockName());
 		if (ClockManager && ClockManager->DoesClockExist(CurrentClockId))
 		{
 			ClockManager->UnsubscribeFromAllTimeDivisions(CurrentClockId, GetCommandQueue());
@@ -202,7 +221,7 @@ void UQuartzClockHandle::SetMillisecondsPerTick(const UObject* WorldContextObjec
 		TickRate.SetMillisecondsPerTick(MillisecondsPerTick);
 
 		Audio::FQuartzQuantizedCommandInitInfo Data(QuartzSubsystem->CreateDataForTickRateChange(this, InDelegate, TickRate, InQuantizationBoundary));
-		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data);
+		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data, GetClockName());
 	}
 }
 
@@ -221,7 +240,7 @@ void UQuartzClockHandle::SetTicksPerSecond(const UObject* WorldContextObject, co
 		TickRate.SetSecondsPerTick(1.f / TicksPerSecond);
 
 		Audio::FQuartzQuantizedCommandInitInfo Data(QuartzSubsystem->CreateDataForTickRateChange(this, InDelegate, TickRate, InQuantizationBoundary));
-		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data);
+		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data, GetClockName());
 	}
 }
 
@@ -240,7 +259,7 @@ void UQuartzClockHandle::SetSecondsPerTick(const UObject* WorldContextObject, co
 		TickRate.SetSecondsPerTick(SecondsPerTick);
 
 		Audio::FQuartzQuantizedCommandInitInfo Data(QuartzSubsystem->CreateDataForTickRateChange(this, InDelegate, TickRate, InQuantizationBoundary));
-		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data);
+		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data, GetClockName());
 	}
 }
 
@@ -259,7 +278,7 @@ void UQuartzClockHandle::SetThirtySecondNotesPerMinute(const UObject* WorldConte
 		TickRate.SetThirtySecondNotesPerMinute(ThirtySecondsNotesPerMinute);
 
 		Audio::FQuartzQuantizedCommandInitInfo Data(QuartzSubsystem->CreateDataForTickRateChange(this, InDelegate, TickRate, InQuantizationBoundary));
-		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data);
+		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data, GetClockName());
 	}
 }
 
@@ -278,7 +297,7 @@ void UQuartzClockHandle::SetBeatsPerMinute(const UObject* WorldContextObject, co
 		TickRate.SetBeatsPerMinute(BeatsPerMinute);
 
 		Audio::FQuartzQuantizedCommandInitInfo Data(QuartzSubsystem->CreateDataForTickRateChange(this, InDelegate, TickRate, InQuantizationBoundary));
-		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data);
+		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data, GetClockName());
 	}
 }
 
@@ -415,7 +434,7 @@ bool UQuartzClockHandle::GetCurrentTickRate(const UObject* WorldContextObject, A
 {
 	if (QuartzSubsystem)
 	{
-		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetClockManager(WorldContextObject);
+		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetManagerForClock(WorldContextObject, GetClockName());
 
 		if (ClockManager)
 		{

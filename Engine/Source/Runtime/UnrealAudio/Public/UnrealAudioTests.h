@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "UnrealAudioSoundFile.h"
 
+#if ENABLE_UNREAL_AUDIO && WITH_DEV_AUTOMATION_TESTS
+
 namespace UAudio
 {
 	/**
@@ -75,3 +77,4 @@ namespace UAudio
 	bool UNREALAUDIO_API TestSoundFileManager(const FString& FolderOrPath);
 }
 
+#endif

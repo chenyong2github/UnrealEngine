@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "WebRtcLogging.h"
+#include "WebRTCLogging.h"
 
 #include "Utils.h"
 
@@ -70,9 +70,6 @@ private:
 
 		switch (severity)
 		{
-		case rtc::LS_SENSITIVE:
-			UE_LOG(PixelStreamingWebRTC, VeryVerbose, TEXT("%s"), *Msg);
-			break;
 		case rtc::LS_VERBOSE:
 			UE_LOG(PixelStreamingWebRTC, Verbose, TEXT("%s"), *Msg);
 			break;
@@ -91,7 +88,8 @@ private:
 
 	void OnLogMessage(const std::string& message) override
 	{
-		unimplemented();
+		//unimplemented();
+		UE_LOG(PixelStreamingWebRTC, Verbose, TEXT("%s"), *FString(message.c_str()));
 	}
 };
 

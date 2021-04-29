@@ -23,9 +23,9 @@ public:
 	{
 	}
 
-	virtual FText GetCategory() const override
+	virtual TArray<FString> GetCategories() const override
 	{
-		return LOCTEXT("AddSimulationStageCategory", "Add Simulation Stage");
+		return {LOCTEXT("AddSimulationStageCategory", "Add Simulation Stage").ToString()};
 	}
 
 	virtual FText GetDisplayName() const override

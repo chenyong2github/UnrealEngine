@@ -10,6 +10,7 @@
 #include "Interfaces/IPluginManager.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
+#include "Containers/Ticker.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Engine/AssetManager.h"
@@ -194,53 +195,47 @@ TSharedPtr<FStreamableHandle> UGameFeaturesSubsystem::LoadGameFeatureData(const 
 	return nullptr;
 }
 
-void UGameFeaturesSubsystem::AddGameFeatureToAssetManager(const UGameFeatureData* GameFeatureToAdd)
+void UGameFeaturesSubsystem::AddGameFeatureToAssetManager(const UGameFeatureData* GameFeatureToAdd, const FString& PluginName)
 {
 	check(GameFeatureToAdd);
 	UAssetManager& LocalAssetManager = UAssetManager::Get();
 
-	const FString GameFeaturePath = GameFeatureToAdd->GetOutermost()->GetName();
-	FString PluginRootPath;
-	if (ensureMsgf(UAssetManager::GetContentRootPathFromPackageName(GameFeaturePath, PluginRootPath), TEXT("Must be a valid package path with a root. GameFeaturePath: %s"), *GameFeaturePath))
+	LocalAssetManager.StartBulkScanning();
+
+	for (FPrimaryAssetTypeInfo TypeInfo : GameFeatureToAdd->GetPrimaryAssetTypesToScan())
 	{
-		LocalAssetManager.StartBulkScanning();
-
-		for (FPrimaryAssetTypeInfo TypeInfo : GameFeatureToAdd->GetPrimaryAssetTypesToScan())
+		// This function also fills out runtime data on the copy
+		if (!LocalAssetManager.ShouldScanPrimaryAssetType(TypeInfo))
 		{
-			// This function also fills out runtime data on the copy
-			if (!LocalAssetManager.ShouldScanPrimaryAssetType(TypeInfo))
-			{
-				continue;
-			}
-
-			for (FString& Path : TypeInfo.AssetScanPaths)
-			{
-				// Convert plugin-relative paths to full package paths
-				FixPluginPackagePath(Path, PluginRootPath, false);
-			}
-
-			FPrimaryAssetTypeInfo ExistingAssetTypeInfo;
-			const bool bAlreadyExisted = LocalAssetManager.GetPrimaryAssetTypeInfo(FPrimaryAssetType(TypeInfo.PrimaryAssetType), /*out*/ ExistingAssetTypeInfo);
-			const bool bForceSynchronousScan = false; // We just mounted the folder that contains these primary assets and the editor background scan is not going to be finished by the time this is called, but a rescan will happen later in OnAssetRegistryFilesLoaded
-			LocalAssetManager.ScanPathsForPrimaryAssets(TypeInfo.PrimaryAssetType, TypeInfo.AssetScanPaths, TypeInfo.AssetBaseClassLoaded, TypeInfo.bHasBlueprintClasses, TypeInfo.bIsEditorOnly, bForceSynchronousScan);
-
-			if (!bAlreadyExisted)
-			{
-				// If we did not previously scan anything for a primary asset type that is in our config, try to reuse the cook rules from the config instead of the one in the gamefeaturedata, which should not be modifying cook rules
-				const FPrimaryAssetTypeInfo* ConfigTypeInfo = LocalAssetManager.GetSettings().PrimaryAssetTypesToScan.FindByPredicate([&TypeInfo](const FPrimaryAssetTypeInfo& PATI) -> bool { return PATI.PrimaryAssetType == TypeInfo.PrimaryAssetType; });
-				if (ConfigTypeInfo)
-				{
-					LocalAssetManager.SetPrimaryAssetTypeRules(TypeInfo.PrimaryAssetType, ConfigTypeInfo->Rules);
-				}
-				else
-				{
-					LocalAssetManager.SetPrimaryAssetTypeRules(TypeInfo.PrimaryAssetType, TypeInfo.Rules);
-				}
-			}
+			continue;
 		}
 
-		LocalAssetManager.StopBulkScanning();
+		for (FString& Path : TypeInfo.AssetScanPaths)
+		{
+			Path = TEXT("/") + PluginName + TEXT("/") + Path;
+		}
+
+		FPrimaryAssetTypeInfo ExistingAssetTypeInfo;
+		const bool bAlreadyExisted = LocalAssetManager.GetPrimaryAssetTypeInfo(FPrimaryAssetType(TypeInfo.PrimaryAssetType), /*out*/ ExistingAssetTypeInfo);
+		const bool bForceSynchronousScan = false; // We just mounted the folder that contains these primary assets and the editor background scan is not going to be finished by the time this is called, but a rescan will happen later in OnAssetRegistryFilesLoaded
+		LocalAssetManager.ScanPathsForPrimaryAssets(TypeInfo.PrimaryAssetType, TypeInfo.AssetScanPaths, TypeInfo.AssetBaseClassLoaded, TypeInfo.bHasBlueprintClasses, TypeInfo.bIsEditorOnly, bForceSynchronousScan);
+
+		if (!bAlreadyExisted)
+		{
+			// If we did not previously scan anything for a primary asset type that is in our config, try to reuse the cook rules from the config instead of the one in the gamefeaturedata, which should not be modifying cook rules
+			const FPrimaryAssetTypeInfo* ConfigTypeInfo = LocalAssetManager.GetSettings().PrimaryAssetTypesToScan.FindByPredicate([&TypeInfo](const FPrimaryAssetTypeInfo& PATI) -> bool { return PATI.PrimaryAssetType == TypeInfo.PrimaryAssetType; });
+			if (ConfigTypeInfo)
+			{
+				LocalAssetManager.SetPrimaryAssetTypeRules(TypeInfo.PrimaryAssetType, ConfigTypeInfo->Rules);
+			}
+			else
+			{
+				LocalAssetManager.SetPrimaryAssetTypeRules(TypeInfo.PrimaryAssetType, TypeInfo.Rules);
+			}
+		}
 	}
+
+	LocalAssetManager.StopBulkScanning();
 }
 
 void UGameFeaturesSubsystem::RemoveGameFeatureFromAssetManager(const UGameFeatureData* GameFeatureToRemove)
@@ -261,10 +256,51 @@ void UGameFeaturesSubsystem::RemoveObserver(UGameFeatureStateChangeObserver* Obs
 	Observers.Remove(Observer);
 }
 
+FString UGameFeaturesSubsystem::GetPluginURL_FileProtocol(const FString& PluginDescriptorPath)
+{
+	return TEXT("file:") + PluginDescriptorPath;
+}
+
+FString UGameFeaturesSubsystem::GetPluginURL_InstallBundleProtocol(const FString& PluginName, TArrayView<const FString> BundleNames)
+{
+	ensure(BundleNames.Num() > 0);
+
+	FString Path;
+	Path += TEXT("installbundle:");
+	Path += PluginName;
+	Path += TEXT("?");
+	Path += FString::Join(BundleNames, TEXT(","));
+
+	return Path;
+}
+
+FString UGameFeaturesSubsystem::GetPluginURL_InstallBundleProtocol(const FString& PluginName, const FString& BundleName)
+{
+	return GetPluginURL_InstallBundleProtocol(PluginName, MakeArrayView(&BundleName, 1));
+}
+
+FString UGameFeaturesSubsystem::GetPluginURL_InstallBundleProtocol(const FString& PluginName, const TArrayView<const FName> BundleNames)
+{
+	ensure(BundleNames.Num() > 0);
+
+	FString Path;
+	Path += TEXT("installbundle:");
+	Path += PluginName;
+	Path += TEXT("?");
+	Path += FString::JoinBy(BundleNames, TEXT(","), UE_PROJECTION_MEMBER(FName, ToString));
+
+	return Path;
+}
+
+FString UGameFeaturesSubsystem::GetPluginURL_InstallBundleProtocol(const FString& PluginName, FName BundleName)
+{
+	return GetPluginURL_InstallBundleProtocol(PluginName, MakeArrayView(&BundleName, 1));
+}
+
 void UGameFeaturesSubsystem::OnGameFeatureRegistering(const UGameFeatureData* GameFeatureData, const FString& PluginName)
 {
 	check(GameFeatureData);
-	AddGameFeatureToAssetManager(GameFeatureData);
+	AddGameFeatureToAssetManager(GameFeatureData, PluginName);
 
 	for (UGameFeatureStateChangeObserver* Observer : Observers)
 	{
@@ -401,6 +437,9 @@ bool UGameFeaturesSubsystem::GetGameFeaturePluginInstallPercent(const FString& P
 {
 	if (UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, false))
 	{
+		// JMarcus TODO: The download state should track progress and this should just return that.
+		// This shouldn't be calling InstallBundleManager directly :(
+
 		TSharedPtr<IInstallBundleManager> InstallBundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
 
 		const FName BundleName = FName(PluginURL);
@@ -412,6 +451,16 @@ bool UGameFeaturesSubsystem::GetGameFeaturePluginInstallPercent(const FString& P
 			return true;
 		}
 	}
+	return false;
+}
+
+bool UGameFeaturesSubsystem::IsGameFeaturePluginActive(const FString& PluginURL)
+{
+	if (UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, false))
+	{
+		return StateMachine->GetCurrentState() == EGameFeaturePluginState::Active;
+	}
+
 	return false;
 }
 
@@ -428,6 +477,16 @@ void UGameFeaturesSubsystem::DeactivateGameFeaturePlugin(const FString& PluginUR
 		if (StateMachine->GetCurrentState() > EGameFeaturePluginState::Loaded)
 		{
 			StateMachine->SetDestinationState(EGameFeaturePluginState::Loaded, FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::DeactivateGameFeaturePluginComplete, CompleteDelegate));
+		}
+		else if (StateMachine->GetCurrentState() == EGameFeaturePluginState::Loaded)
+		{
+			FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, CompleteDelegate](float dts)
+				{
+					QUICK_SCOPE_CYCLE_COUNTER(STAT_AContentBeaconHostObject_UnloadResolvedContent_FinishedUnloadingContent);
+
+					CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeValue()));
+					return false;
+				}));
 		}
 	}
 }
@@ -446,6 +505,16 @@ void UGameFeaturesSubsystem::UnloadGameFeaturePlugin(const FString& PluginURL, c
 		if (StateMachine->GetCurrentState() > DestinationState)
 		{
 			StateMachine->SetDestinationState(DestinationState, FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::UnloadGameFeaturePluginComplete, CompleteDelegate));
+		}
+		else if (StateMachine->GetCurrentState() == DestinationState)
+		{
+			FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, CompleteDelegate](float dts)
+				{
+					QUICK_SCOPE_CYCLE_COUNTER(STAT_AContentBeaconHostObject_UnloadResolvedContent_FinishedUnloadingContent);
+
+					CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeValue()));
+					return false;
+				}));
 		}
 	}
 }
@@ -475,7 +544,7 @@ void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlug
 	//@TODO: GameFeaturePluginEnginePush: Comments elsewhere allow plugins outside of the folder as long as they explicitly opt in, either those are wrong or this check is wrong
 	if (!PluginDescriptorFilename.IsEmpty() && FPaths::ConvertRelativePathToFull(PluginDescriptorFilename).StartsWith(GetDefault<UGameFeaturesSubsystemSettings>()->BuiltInGameFeaturePluginsFolder) && FPaths::FileExists(PluginDescriptorFilename))
 	{
-		const FString PluginURL = TEXT("file:") + PluginDescriptorFilename;
+		const FString PluginURL = GetPluginURL_FileProtocol(PluginDescriptorFilename);
 		if (GameSpecificPolicies->IsPluginAllowed(PluginURL))
 		{
 			FGameFeaturePluginDetails PluginDetails;
@@ -662,7 +731,7 @@ bool UGameFeaturesSubsystem::GetGameFeaturePluginDetails(const FString& PluginDe
 									FPaths::ConvertRelativePathToFull(PluginDependencyDescriptorFilename).StartsWith(GetDefault<UGameFeaturesSubsystemSettings>()->BuiltInGameFeaturePluginsFolder) &&
 									FPaths::FileExists(PluginDependencyDescriptorFilename))
 								{
-									OutPluginDetails.PluginDependencies.Add(TEXT("file:") + DependencyPlugin->GetDescriptorFileName());
+									OutPluginDetails.PluginDependencies.Add(GetPluginURL_FileProtocol(DependencyPlugin->GetDescriptorFileName()));
 								}
 							}
 							else

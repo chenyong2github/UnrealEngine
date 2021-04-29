@@ -166,10 +166,8 @@ public:
 	/** Get the shared SortManager, used in the rendering loop to call FGPUSortManager::OnPreRender() and FGPUSortManager::OnPostRenderOpaque() */
 	virtual FGPUSortManager* GetGPUSortManager() const override;
 
-#if !UE_BUILD_SHIPPING
 	/** Debug only function to readback data. */
 	void AddDebugReadback(FNiagaraSystemInstanceID InstanceID, TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo, FNiagaraComputeExecutionContext* Context);
-#endif
 
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 	/** Get the Gpu Compute Debug class, useful for visualizing textures, etc. */
@@ -341,7 +339,6 @@ private:
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 	TUniquePtr<FNiagaraGpuComputeDebug> GpuComputeDebugPtr;
 #endif
-#if !UE_BUILD_SHIPPING
 	struct FDebugReadbackInfo
 	{
 		FNiagaraSystemInstanceID InstanceID;
@@ -349,6 +346,5 @@ private:
 		FNiagaraComputeExecutionContext* Context;
 	};
 	TArray<FDebugReadbackInfo> GpuDebugReadbackInfos;
-#endif
 	TUniquePtr<FNiagaraGpuReadbackManager> GpuReadbackManagerPtr;
 };

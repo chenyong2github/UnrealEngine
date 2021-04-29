@@ -38,9 +38,9 @@ namespace DatasmithRuntime
 		NextPowerOfTwo
 	};
 
-	FORCEINLINE uint32 GetTypeHash(const FMD5Hash& Hash)
+	FORCEINLINE uint32 GetTypeHash(const FMD5Hash& Hash, EDataType Type = EDataType::None)
 	{
-		return FCrc::MemCrc32(Hash.GetBytes(),Hash.GetSize());
+		return HashCombine(FCrc::MemCrc32(Hash.GetBytes(),Hash.GetSize()), 1u << (uint8)Type);
 	}
 
 	extern void CalculateMeshesLightmapWeights(const TArray< FSceneGraphId >& MeshElementArray, const TMap< FSceneGraphId, TSharedPtr< IDatasmithElement > >& Elements, TMap< FSceneGraphId, float >& LightmapWeights);

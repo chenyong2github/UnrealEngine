@@ -869,7 +869,7 @@ bool AssetViewUtils::AssetHasCustomThumbnail( const FAssetData& AssetData )
 	return false;
 }
 
-bool AssetViewUtils::IsProjectFolder(const FString& InPath, const bool bIncludePlugins)
+bool AssetViewUtils::IsProjectFolder(const FStringView InPath, const bool bIncludePlugins)
 {
 	static const FString ProjectPathWithSlash = TEXT("/Game");
 	static const FString ProjectPathWithoutSlash = TEXT("Game");
@@ -891,7 +891,7 @@ bool AssetViewUtils::IsProjectFolder(const FString& InPath, const bool bIncludeP
 	return false;
 }
 
-bool AssetViewUtils::IsEngineFolder(const FString& InPath, const bool bIncludePlugins)
+bool AssetViewUtils::IsEngineFolder(const FStringView InPath, const bool bIncludePlugins)
 {
 	static const FString EnginePathWithSlash = TEXT("/Engine");
 	static const FString EnginePathWithoutSlash = TEXT("Engine");
@@ -913,54 +913,40 @@ bool AssetViewUtils::IsEngineFolder(const FString& InPath, const bool bIncludePl
 	return false;
 }
 
-bool AssetViewUtils::IsDevelopersFolder( const FString& InPath )
+bool AssetViewUtils::IsDevelopersFolder( const FStringView InPath )
 {
-	static const FString DeveloperPathWithSlash = FPackageName::FilenameToLongPackageName(FPaths::GameDevelopersDir());
-	static const FString DeveloperPathWithoutSlash = DeveloperPathWithSlash.LeftChop(1);
-		
-	return InPath.StartsWith(DeveloperPathWithSlash) || InPath == DeveloperPathWithoutSlash;
+	static const FString DeveloperPathWithoutSlash = FPackageName::FilenameToLongPackageName(FPaths::GameDevelopersDir()).LeftChop(1);
+	return InPath.StartsWith(DeveloperPathWithoutSlash) && (InPath.Len() == DeveloperPathWithoutSlash.Len() || InPath[DeveloperPathWithoutSlash.Len()] == TEXT('/'));
 }
 
-static bool PathStartsWithPluginAssetPath(const FString& Path, const FString& PluginName)
+bool AssetViewUtils::IsPluginFolder(const FStringView InPath, EPluginLoadedFrom* OutPluginSource)
 {
-	// accepted path examples for a plugin named "Plugin":
-	// "/Plugin"
-	// "/Plugin/"
-	// "/Plugin/More/Stuff"
-	const int32 PluginNameLength = PluginName.Len();
-	const int32 PathLength = Path.Len();
-	if (PathLength <= PluginNameLength)
+	FStringView PluginName(InPath);
+	if (PluginName.StartsWith(TEXT('/')))
 	{
-		return false;
+		PluginName.RightChopInline(1);
 	}
-	else
-	{
-		const TCHAR* PathCh = *Path;
-		return PathCh[0] == '/' && (PathCh[PluginNameLength + 1] == '/' || PathCh[PluginNameLength + 1] == 0) && FCString::Strnicmp(PathCh + 1, *PluginName, PluginNameLength) == 0;
-	}
-}
 
-bool AssetViewUtils::IsPluginFolder(const FString& InPath, const TArray<TSharedRef<IPlugin>>& InPlugins, EPluginLoadedFrom* OutPluginSource)
-{
-	for (const TSharedRef<IPlugin>& PluginRef : InPlugins)
+	int32 FoundIndex = INDEX_NONE;
+	if (PluginName.FindChar(TEXT('/'), FoundIndex))
 	{
-		const IPlugin& Plugin = *PluginRef;
-		const FString& PluginName = Plugin.GetName();
-		if (PathStartsWithPluginAssetPath(InPath, PluginName) || InPath == PluginName)
+		PluginName.LeftInline(FoundIndex);
+	}
+
+	if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(PluginName))
+	{
+		if (Plugin->IsEnabled() && Plugin->CanContainContent())
 		{
 			if (OutPluginSource != nullptr)
 			{
-				*OutPluginSource = Plugin.GetLoadedFrom();
+				*OutPluginSource = Plugin->GetLoadedFrom();
 			}
+
 			return true;
 		}
 	}
-	return false;
-}
 
-bool AssetViewUtils::IsPluginFolder(const FString& InPath, EPluginLoadedFrom* OutPluginSource)
-{
-	return IsPluginFolder(InPath, IPluginManager::Get().GetEnabledPluginsWithContent(), OutPluginSource);
+	return false;
 }
 
 void AssetViewUtils::GetObjectsInAssetData(const TArray<FAssetData>& AssetList, TArray<UObject*>& OutDroppedObjects)

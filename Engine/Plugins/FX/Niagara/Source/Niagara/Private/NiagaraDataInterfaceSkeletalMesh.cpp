@@ -1413,7 +1413,7 @@ public:
 			}
 			else
 			{
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
+				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
 			}
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshTriangleCount, StaticBuffers->GetTriangleCount());
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshVertexCount, StaticBuffers->GetVertexCount());
@@ -1868,22 +1868,6 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 		CachedAttachParent = AttachComponent->GetAttachParent();
 	}
 
-#if WITH_EDITOR
-	if (Mesh != nullptr)
-	{
-		// HACK! This only works on systems created by a Niagara component...should maybe move somewhere else to cover non-component systems
-		if (UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(AttachComponent))
-		{
-			Mesh->GetOnMeshChanged().AddUObject(NiagaraComponent, &UNiagaraComponent::ReinitializeSystem);
-			if (USkeleton* Skeleton = Mesh->GetSkeleton())
-			{
-				Skeleton->RegisterOnSkeletonHierarchyChanged(USkeleton::FOnSkeletonHierarchyChanged::CreateUObject(NiagaraComponent, &UNiagaraComponent::ReinitializeSystem));
-			}
-		}
-	}
-#endif
-
-	MinLODIdx = 0;
 	bResetOnLODStreamedIn = false;
 	CachedLODIdx = 0;
 	CachedLODData.SafeRelease();
@@ -1894,40 +1878,79 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 
 	if (Mesh)
 	{
-		FSkeletalMeshRenderData* RenderData = Mesh->GetResourceForRendering();
-		if (!RenderData)
+		// Determine the LOD index and sampling region indices
+		const FStreamableRenderResourceState& SRRState = Mesh->GetStreamableResourceState();		
+		const int32 NumValidLODs = FMath::Min(SRRState.NumRequestedLODs, SRRState.NumResidentLODs);
+		if (NumValidLODs > 0)
 		{
-			UE_LOG(LogNiagara, Log, TEXT("SkeletalMesh data interface trying to use a mesh with no render data. Failed InitPerInstanceData - %s"), *Interface->GetFullName());
-			return false;
-		}
-
-		MinLODIdx = Mesh->GetMinLod().GetValue();
-		const int32 PendingFirstLODIndex = RenderData->GetPendingFirstLODIdx(MinLODIdx);
-		if (PendingFirstLODIndex == INDEX_NONE)
-		{
-			UE_LOG(LogNiagara, Log, TEXT("SkeletalMesh data interface trying to use a mesh with no valid render data for any LOD. Failed InitPerInstanceData - %s"), *Interface->GetFullName());
-			return false;
-		}
-
-		const int32 DesiredLODIndex = Interface->CalculateLODIndexAndSamplingRegions(Mesh, SamplingRegionIndices, bAllRegionsAreAreaWeighting);
-		if (DesiredLODIndex != INDEX_NONE)
-		{
-			if (DesiredLODIndex >= PendingFirstLODIndex)
+			const int32 CurrentFirstLOD = SRRState.LODCountToAssetFirstLODIdx(NumValidLODs);
+			const int32 DesiredLODIndex = Interface->CalculateLODIndexAndSamplingRegions(Mesh, SamplingRegionIndices, bAllRegionsAreAreaWeighting);
+			if (DesiredLODIndex != INDEX_NONE)
 			{
-				CachedLODIdx = DesiredLODIndex;
+				if (DesiredLODIndex >= CurrentFirstLOD)
+				{
+					CachedLODIdx = DesiredLODIndex;
+				}
+				else
+				{
+					CachedLODIdx = CurrentFirstLOD;
+					bResetOnLODStreamedIn = true;
+				}
+
+				// Attempt to cache the LOD
+				if (FSkeletalMeshRenderData* RenderData = Mesh->GetResourceForRendering())
+				{
+					if (RenderData->LODRenderData.IsValidIndex(CachedLODIdx))
+					{
+						CachedLODData = &RenderData->LODRenderData[CachedLODIdx];
+					}
+					
+					if (!ensure(CachedLODData.IsValid()))
+					{
+						// NOTE: Assumption here is that the LOD render data is cacheable from GameThread as long as it's considered resident by
+						// the StreamableRenderResourceState on GameThread. If this warning gets hit, that assumption has become incorrect.
+						UE_LOG(LogNiagara, Log, TEXT("SkeletalMesh data interface failed to cache LOD %d. Sampling will fail. %s"), CachedLODIdx, *Interface->GetFullName());
+						Mesh = nullptr;
+					}
+				}
+				else
+				{
+					// Warn and continue as if the component has no mesh
+					UE_LOG(LogNiagara, Log, TEXT("SkeletalMesh data interface with no Render data. Sampling will fail. %s"), *Interface->GetFullName());
+					Mesh = nullptr;
+				}
 			}
 			else
 			{
-				CachedLODIdx = PendingFirstLODIndex;
-				bResetOnLODStreamedIn = true;
+				return false;
 			}
-
-			CachedLODData = &RenderData->LODRenderData[CachedLODIdx];
 		}
 		else
 		{
-			return false;
+			// Warn and continue as if the component has no mesh
+			UE_LOG(LogNiagara, Log, TEXT("SkeletalMesh data interface with no resident LODs. Sampling will fail. %s"), *Interface->GetFullName());
+			Mesh = nullptr;
 		}
+
+		if (Mesh == nullptr)
+		{
+			CachedLODIdx = 0;
+			bResetOnLODStreamedIn = false;
+		}
+#if WITH_EDITOR
+		else
+		{
+			// HACK! This only works on systems created by a Niagara component...should maybe move somewhere else to cover non-component systems
+			if (UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(AttachComponent))
+			{
+				Mesh->GetOnMeshChanged().AddUObject(NiagaraComponent, &UNiagaraComponent::ReinitializeSystem);
+				if (USkeleton* Skeleton = Mesh->GetSkeleton())
+				{
+					Skeleton->RegisterOnSkeletonHierarchyChanged(USkeleton::FOnSkeletonHierarchyChanged::CreateUObject(NiagaraComponent, &UNiagaraComponent::ReinitializeSystem));
+				}
+			}
+		}
+#endif
 	}
 
 	check(CachedLODIdx >= 0);
@@ -2289,8 +2312,15 @@ bool FNDISkeletalMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceSkeletalM
 	// Reset if the LOD we relied on was streamed out, or if the LOD we need could now be available.
 	if (SkelMesh != nullptr)
 	{
-		const int32 PendingFirstLODIndex = SkelMesh->GetResourceForRendering()->GetPendingFirstLODIdx(MinLODIdx);
-		if (PendingFirstLODIndex == INDEX_NONE || PendingFirstLODIndex > CachedLODIdx || (PendingFirstLODIndex < CachedLODIdx && bResetOnLODStreamedIn))
+		const FStreamableRenderResourceState& SRRState = SkelMesh->GetStreamableResourceState();
+		const int32 NumValidLODs = FMath::Min(SRRState.NumRequestedLODs, SRRState.NumResidentLODs);
+		if (NumValidLODs == 0)
+		{
+			return true;
+		}
+
+		const int32 CurrentFirstLOD = SRRState.LODCountToAssetFirstLODIdx(NumValidLODs);
+		if (CurrentFirstLOD > CachedLODIdx || (CurrentFirstLOD < CachedLODIdx && bResetOnLODStreamedIn))
 		{
 			return true;
 		}

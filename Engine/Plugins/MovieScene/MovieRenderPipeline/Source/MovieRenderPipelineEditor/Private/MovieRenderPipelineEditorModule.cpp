@@ -8,18 +8,27 @@
 #include "Widgets/SMoviePipelineConfigTabContent.h"
 #include "Widgets/SMoviePipelineQueueTabContent.h"
 #include "ISettingsModule.h"
+#include "ISequencerModule.h"
+#include "IMovieRendererInterface.h"
 #include "MovieRenderPipelineSettings.h"
 #include "HAL/IConsoleManager.h"
 #include "MoviePipelineExecutor.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Docking/TabManager.h"
+#include "Editor.h"
 #include "EditorStyleSet.h"
+#include "ScopedTransaction.h"
 #include "Misc/PackageName.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
 #include "Templates/SubclassOf.h"
 #include "MovieRenderPipelineStyle.h"
 #include "MoviePipelineCommands.h"
+#include "MoviePipelineQueue.h"
+#include "MoviePipelineQueueSubsystem.h"
+#include "MoviePipelineEditorBlueprintLibrary.h"
+#include "MovieSceneSection.h"
+#include "Sections/MovieSceneCinematicShotSection.h"
 
 #define LOCTEXT_NAMESPACE "FMovieRenderPipelineEditorModule"
 
@@ -95,6 +104,87 @@ void FMovieRenderPipelineEditorModule::UnregisterSettings()
 	IConsoleManager::Get().UnregisterConsoleObject(TEXT("MovieRenderPipeline.TestRenderSequence"));
 }
 
+class FMovieRenderPipelineRenderer : public IMovieRendererInterface
+{
+	virtual void RenderMovie(UMovieSceneSequence* InSequence, const TArray<UMovieSceneCinematicShotSection*>& InSections) override
+	{
+		UMoviePipelineQueue* ActiveQueue = GEditor->GetEditorSubsystem<UMoviePipelineQueueSubsystem>()->GetQueue();
+		check(ActiveQueue);
+
+		UMoviePipelineExecutorJob* ActiveJob = nullptr;
+		for (UMoviePipelineExecutorJob* Job : ActiveQueue->GetJobs())
+		{
+			if (Job->Sequence == FSoftObjectPath(InSequence))
+			{
+				ActiveJob = Job;
+				break;
+			}
+		}
+
+		if (!ActiveJob)
+		{
+			GEditor->BeginTransaction(FText::Format(LOCTEXT("CreateJob_Transaction", "Add {0}|plural(one=Job, other=Jobs)"), 1));
+				
+			ActiveJob = UMoviePipelineEditorBlueprintLibrary::CreateJobFromSequence(ActiveQueue, Cast<ULevelSequence>(InSequence));
+
+			// The job configuration is already set up with an empty configuration, but we'll try and use their last used preset 
+			// (or a engine supplied default) for better user experience. 
+			const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
+			if (ProjectSettings->LastPresetOrigin.IsValid())
+			{
+				ActiveJob->SetPresetOrigin(ProjectSettings->LastPresetOrigin.Get());
+			}
+		}
+
+		TArray<FString> ShotNames;
+		for (UMovieSceneCinematicShotSection* ShotSection : InSections)
+		{
+			ShotNames.Add(ShotSection->GetShotDisplayName());
+		}
+
+		if (!GEditor->IsTransactionActive())
+		{
+			GEditor->BeginTransaction(LOCTEXT("ModifyJob_Transaction", "Modifying shots in existing job"));
+		}
+
+		ActiveJob->Modify();
+
+		for (UMoviePipelineExecutorShot* Shot : ActiveJob->ShotInfo)
+		{
+			// If no specified shots, enabled them all
+			if (Shot)
+			{
+				Shot->bEnabled = ShotNames.Num() == 0 ? true : ShotNames.Contains(Shot->OuterName);
+			}
+		}
+
+		if (GEditor->IsTransactionActive())
+		{
+			GEditor->EndTransaction();
+		}
+
+		FGlobalTabmanager::Get()->TryInvokeTab(IMovieRenderPipelineEditorModule::MoviePipelineQueueTabName);
+	};
+
+	virtual FString GetDisplayName() const override { return IMovieRenderPipelineEditorModule::MoviePipelineQueueTabLabel.ToString(); }
+};
+
+void FMovieRenderPipelineEditorModule::RegisterMovieRenderer()
+{
+	ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
+
+	MovieRendererDelegate = SequencerModule.RegisterMovieRenderer(TUniquePtr<IMovieRendererInterface>(new FMovieRenderPipelineRenderer));
+}
+
+void FMovieRenderPipelineEditorModule::UnregisterMovieRenderer()
+{
+	ISequencerModule* SequencerModule = FModuleManager::GetModulePtr<ISequencerModule>("Sequencer");
+	if (SequencerModule)
+	{
+		SequencerModule->UnregisterMovieRenderer(MovieRendererDelegate);
+	}
+}
+
 void FMovieRenderPipelineEditorModule::StartupModule()
 {
 	// Initialize our custom style
@@ -103,10 +193,12 @@ void FMovieRenderPipelineEditorModule::StartupModule()
 
 	RegisterTabImpl();
 	RegisterSettings();
+	RegisterMovieRenderer();
 }
 
 void FMovieRenderPipelineEditorModule::ShutdownModule()
 {
+	UnregisterMovieRenderer();
 	UnregisterSettings();
 	FMoviePipelineCommands::Unregister();
 }

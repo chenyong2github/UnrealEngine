@@ -5,6 +5,7 @@
 #include "DirectLinkCommon.h"
 
 #include "CoreMinimal.h"
+#include "Misc/EngineVersion.h"
 
 #include "DirectLinkMessages.generated.h"
 
@@ -85,6 +86,7 @@ struct FDirectLinkMsg_EndpointState
 		: StateRevision(StateRevision)
 		, MinProtocolVersion(MinProtocolVersion)
 		, ProtocolVersion(MaxProtocolVersion)
+		, UEVersion(FEngineVersion::Current().ToString())
 	{}
 
 	UPROPERTY()
@@ -95,6 +97,9 @@ struct FDirectLinkMsg_EndpointState
 
 	UPROPERTY()
 	uint32 ProtocolVersion = 0;
+
+	UPROPERTY()
+	FString UEVersion;
 
 	UPROPERTY()
 	FString ComputerName;
@@ -271,5 +276,4 @@ struct FDirectLinkMsg_HaveListMessage
 	UPROPERTY()
 	TArray<int32> Hashes;
 };
-
 

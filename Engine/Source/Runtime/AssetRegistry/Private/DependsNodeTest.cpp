@@ -1114,8 +1114,7 @@ bool FDependsNodeTest::RunTest(const FString& Parameters)
 					return nullptr;
 				};
 
-				FAssetRegistrySerializationOptions Options;
-				Options.ModifyForDevelopment();
+				FAssetRegistrySerializationOptions Options(UE::AssetRegistry::ESerializationTarget::ForDevelopment);
 				Options.bSerializeSearchableNameDependencies = bKeepNameDependencies;
 				Options.bSerializeManageDependencies = bKeepManageDependencies;
 

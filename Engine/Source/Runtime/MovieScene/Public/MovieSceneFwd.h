@@ -16,7 +16,6 @@ namespace EMovieScenePlayerStatus
 	{
 		Stopped,
 		Playing,
-		Recording,
 		Scrubbing,
 		Jumping,
 		Stepping,

@@ -370,6 +370,10 @@ private:
 
 		//~ FGCObject interface
 		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+		virtual FString GetReferencerName() const override
+		{
+			return TEXT("FDatasmithImportContext::FInternalReferenceCollector");
+		}
 	private:
 		FDatasmithImportContext* ImportContext;
 	};

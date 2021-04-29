@@ -51,6 +51,10 @@ public:
 
 	// FGCObject
 	virtual void AddReferencedObjects( FReferenceCollector& Collector );
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FVREditorModeManager");
+	}
 	// End FGCObject
 
 	/** Return a multicast delegate which is executed when VR mode starts. */

@@ -31,6 +31,10 @@ public:
 	{
 		Collector.AddReferencedObject(LevelVariantSets);
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FLevelVariantSetsEditorToolkit");
+	}
 	virtual bool OnRequestClose() override;
 	virtual bool CanFindInContentBrowser() const override;
 	virtual void FocusWindow(UObject* ObjectToFocusOn = nullptr) override;

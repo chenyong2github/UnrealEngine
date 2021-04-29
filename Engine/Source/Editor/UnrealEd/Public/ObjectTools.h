@@ -174,6 +174,10 @@ namespace ObjectTools
 			Collector.AddReferencedObjects( InvalidConsolidationObjs );
 			Collector.AddReferencedObjects( FailedConsolidationObjs );
 		}
+		virtual FString GetReferencerName() const override
+		{
+			return TEXT("ObjectTools::FConsolidationResults");
+		}
 
 		/** Packages dirtied by a consolidation operation */
 		TArray<UPackage*>	DirtiedPackages;

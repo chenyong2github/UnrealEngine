@@ -353,12 +353,13 @@ FD3D12CommandListHandle FD3D12CommandContext::FlushCommands(bool WaitForCompleti
 		if (ExtraAction == FCEA_StartProfilingGPU)
 		{
 			GetCommandListManager().StartTrackingCommandListTime();
+			bHasProfileGPUAction = true;
 		}
 		else if (ExtraAction == FCEA_EndProfilingGPU)
 		{
 			GetCommandListManager().EndTrackingCommandListTime();
+			bHasProfileGPUAction = true;
 		}
-		bHasProfileGPUAction = true;
 	}
 #endif
 

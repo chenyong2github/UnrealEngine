@@ -236,6 +236,10 @@ FAsyncDirectoryReader::FAsyncDirectoryReader(const FString& InDirectory, EPathTy
 {
 	PendingDirectories.Add(InDirectory);
 	LiveState.Emplace();
+
+	StandardRootPath = RootPath;
+	FPaths::MakeStandardFilename(StandardRootPath);
+	StandardRootPath /= TEXT("");
 }
 
 TOptional<FDirectoryState> FAsyncDirectoryReader::GetLiveState()
@@ -276,7 +280,6 @@ FAsyncDirectoryReader::EProgressResult FAsyncDirectoryReader::Tick(const FTimeLi
 	}
 
 	auto& FileManager = IFileManager::Get();
-	const int32 RootPathLen = RootPath.Len();
 
 	// Discover files
 	for (int32 Index = 0; Index < PendingDirectories.Num(); ++Index)
@@ -297,7 +300,7 @@ FAsyncDirectoryReader::EProgressResult FAsyncDirectoryReader::Tick(const FTimeLi
 		const auto& File = PendingFiles[Index];
 
 		// Store the file relative or absolute
-		FString Filename = (PathType == EPathType::Relative ? *File + RootPathLen : *File);
+		FString Filename = GetPathToStore(File);
 
 		const auto Timestamp = FileManager.GetTimeStamp(*File);
 	
@@ -342,6 +345,7 @@ void FAsyncDirectoryReader::ScanDirectory(const FString& InDirectory)
 		TArray<FString>* PendingDirectories;
 		FMatchRules* Rules;
 		int32 RootPathLength;
+		int32 StandardRootPathLength;
 
 		virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory)
 		{
@@ -350,9 +354,14 @@ void FAsyncDirectoryReader::ScanDirectory(const FString& InDirectory)
 			{
 				PendingDirectories->Add(MoveTemp(FileStr));
 			}
-			else if (Rules->IsFileApplicable(FilenameOrDirectory + RootPathLength))
+			else
 			{
-				PendingFiles->Add(MoveTemp(FileStr));
+				const int32 Offset = FPaths::IsRelative(FileStr) ? StandardRootPathLength : RootPathLength;
+				check(Offset <= FileStr.Len());
+				if (Rules->IsFileApplicable(FilenameOrDirectory + Offset))
+				{
+					PendingFiles->Add(MoveTemp(FileStr));
+				}
 			}
 			return true;
 		}
@@ -363,8 +372,29 @@ void FAsyncDirectoryReader::ScanDirectory(const FString& InDirectory)
 	Visitor.PendingDirectories = &PendingDirectories;
 	Visitor.Rules = &LiveState->Rules;
 	Visitor.RootPathLength = RootPath.Len();
+	Visitor.StandardRootPathLength = StandardRootPath.Len();
 
 	IFileManager::Get().IterateDirectory(*InDirectory, Visitor);
+}
+
+FString FAsyncDirectoryReader::GetPathToStore(const FString& InPath) const
+{
+	if (PathType == EPathType::Relative)
+	{
+		if (FPaths::IsRelative(InPath))
+		{
+			return InPath.RightChop(StandardRootPath.Len());
+		}
+		else
+		{
+			return InPath.RightChop(RootPath.Len());
+		}
+	}
+	else
+	{
+		// TODO: Convert to absolute if not already absolute
+		return InPath;
+	}
 }
 
 FFileCache::FFileCache(const FFileCacheConfig& InConfig)
@@ -376,6 +406,11 @@ FFileCache::FFileCache(const FFileCacheConfig& InConfig)
 
 	// Ensure the directory has a trailing /
 	Config.Directory /= TEXT("");
+
+	// Store standardized copy of the directory
+	ConfigDirectoryStandardized = Config.Directory;
+	FPaths::MakeStandardFilename(ConfigDirectoryStandardized);
+	ConfigDirectoryStandardized /= TEXT("");
 
 	// bDetectMoves implies bRequireFileHashes
 	Config.bRequireFileHashes = Config.bRequireFileHashes || Config.bDetectMoves;
@@ -968,7 +1003,7 @@ void FFileCache::Tick()
 				bSavedCacheDirty = true;
 				for (const auto& Data : Hashes)
 				{
-					FImmutableString CachePath = (Config.PathType == EPathType::Relative) ? *Data.AbsoluteFilename + Config.Directory.Len() : *Data.AbsoluteFilename;
+					FImmutableString CachePath = *GetPathToStore(Data);
 
 					auto* FileData = CachedDirectoryState.Files.Find(CachePath);
 					if (FileData && !FileData->FileHash.IsValid())
@@ -984,6 +1019,26 @@ void FFileCache::Tick()
 				AsyncFileHasher = nullptr;
 			}
 		}
+	}
+}
+
+FString FFileCache::GetPathToStore(const FFilenameAndHash& InData) const
+{
+	if (Config.PathType == EPathType::Relative)
+	{
+		if (FPaths::IsRelative(InData.AbsoluteFilename))
+		{
+			return InData.AbsoluteFilename.RightChop(ConfigDirectoryStandardized.Len());
+		}
+		else
+		{
+			return InData.AbsoluteFilename.RightChop(Config.Directory.Len());
+		}
+	}
+	else
+	{
+		// TODO: Convert to absolute if not already absolute
+		return InData.AbsoluteFilename;
 	}
 }
 
@@ -1057,7 +1112,7 @@ void FFileCache::HarvestDirtyFileHashes()
 	}
 	else for (FFilenameAndHash& Data : DirtyFileHasher->GetCompletedData())
 	{
-		FImmutableString CachePath = (Config.PathType == EPathType::Relative) ? *Data.AbsoluteFilename + Config.Directory.Len() : *Data.AbsoluteFilename;
+		FImmutableString CachePath = *GetPathToStore(Data);
 
 		if (auto* FileData = DirtyFiles.Find(CachePath))
 		{

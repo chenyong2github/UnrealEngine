@@ -57,6 +57,10 @@ public:
 	{
 		Collector.AddReferencedObject(SourceImage);
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FAppleVisionDetectFacesAsyncTask");
+	}
 	//~ FGCObject
 
 	void SetErrorReason(const FString& InError)

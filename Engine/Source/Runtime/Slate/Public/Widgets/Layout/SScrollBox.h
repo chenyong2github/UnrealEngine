@@ -304,9 +304,6 @@ private:
 	/** Scroll offset that the user asked for. We will clamp it before actually scrolling there. */
 	float DesiredScrollOffset;
 
-	/** Scrolls or begins scrolling a widget into view, only valid to call when we have layout geometry. */
-	bool InternalScrollDescendantIntoView(const FGeometry& MyGeometry, const TSharedPtr<SWidget>& WidgetToFind, bool InAnimateScroll = true, EDescendantScrollDestination InDestination = EDescendantScrollDestination::IntoView, float Padding = 0);
-
 	/**
 	 * Scroll the view by ScrollAmount given its currently AllottedGeometry.
 	 *
@@ -334,9 +331,12 @@ private:
 
 	void BeginInertialScrolling();
 
-	TSharedPtr<SWidget> GetKeyboardFocusableWidget(TSharedPtr<SWidget> InWidget);
-
 protected:
+	/** Scrolls or begins scrolling a widget into view, only valid to call when we have layout geometry. */
+	bool InternalScrollDescendantIntoView(const FGeometry& MyGeometry, const TSharedPtr<SWidget>& WidgetToFind, bool InAnimateScroll = true, EDescendantScrollDestination InDestination = EDescendantScrollDestination::IntoView, float Padding = 0);
+
+	/** returns widget that can receive keyboard focus or nullprt **/
+	TSharedPtr<SWidget> GetKeyboardFocusableWidget(TSharedPtr<SWidget> InWidget);
 
 	/** The panel which stacks the child slots */
 	TSharedPtr<class SScrollPanel> ScrollPanel;

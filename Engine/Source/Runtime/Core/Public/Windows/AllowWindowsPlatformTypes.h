@@ -1,5 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+// #TODO: redirect to platform-agnostic version for the time being. Eventually this will become an error
+#include "HAL/Platform.h"
+#if !PLATFORM_WINDOWS && !PLATFORM_HOLOLENS
+	#include "Microsoft/AllowMicrosoftPlatformTypes.h"
+#else
+
+
 #include "Windows/WindowsHWrapper.h"
 
 #ifndef WINDOWS_PLATFORM_TYPES_GUARD
@@ -18,3 +25,5 @@
 
 #define TRUE 1
 #define FALSE 0
+
+#endif //PLATFORM_*

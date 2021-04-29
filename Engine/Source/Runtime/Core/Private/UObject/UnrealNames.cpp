@@ -2334,9 +2334,7 @@ FString FName::SafeString(FNameEntryId InDisplayIndex, int32 InstanceNumber)
 
 bool FName::IsValidXName(const FName InName, const FString& InInvalidChars, FText* OutReason, const FText* InErrorCtx)
 {
-	TStringBuilder<FName::StringBufferSize> NameStr;
-	InName.ToString(NameStr);
-	return IsValidXName(FStringView(NameStr), InInvalidChars, OutReason, InErrorCtx);
+	return IsValidXName(FNameBuilder(InName), InInvalidChars, OutReason, InErrorCtx);
 }
 
 bool FName::IsValidXName(const TCHAR* InName, const FString& InInvalidChars, FText* OutReason, const FText* InErrorCtx)
@@ -3928,6 +3926,20 @@ void Freeze::IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FMinima
 void Freeze::IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FScriptName& Object, const FTypeLayoutDesc&)
 {
 	Writer.WriteFScriptName(Object);
+}
+
+uint32 Freeze::IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const FName& Object, void* OutDst)
+{
+	if (Context.FrozenLayoutParameters.WithEditorOnly())
+	{
+		new(OutDst) FName(ScriptNameToName((FScriptName&)Object));
+		return sizeof(FScriptName);
+	}
+	else
+	{
+		new(OutDst) FName(MinimalNameToName((FMinimalName&)Object));
+		return sizeof(FMinimalName);
+	}
 }
 
 PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

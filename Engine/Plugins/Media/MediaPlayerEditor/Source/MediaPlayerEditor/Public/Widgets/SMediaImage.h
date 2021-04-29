@@ -58,6 +58,10 @@ private:
 			InCollector.AddReferencedObject(Object->Material);
 			InCollector.AddReferencedObject(Object->TextureSampler);
 		}
+		virtual FString GetReferencerName() const override
+		{
+			return TEXT("SMediaImage::FInternalReferenceCollector");
+		}
 
 	private:
 		SMediaImage* Object;

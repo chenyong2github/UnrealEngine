@@ -13,16 +13,36 @@ class FDisplayClusterProjectionMeshPolicy
 	: public FDisplayClusterProjectionMPCDIPolicy
 {
 public:
-	FDisplayClusterProjectionMeshPolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters);
+	FDisplayClusterProjectionMeshPolicy(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
 	virtual ~FDisplayClusterProjectionMeshPolicy();
+
+	virtual const FString GetTypeId() const
+	{ return DisplayClusterProjectionStrings::projection::Mesh; }
 
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProjectionPolicy
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual bool HandleAddViewport(const FIntPoint& ViewportSize, const uint32 ViewsAmount) override;
-
+	virtual bool HandleStartScene(class IDisplayClusterViewport* InViewport) override;
+	
 	virtual EWarpType GetWarpType() const override
 	{ return EWarpType::mesh; }
 
-	bool AssignWarpMesh(UStaticMeshComponent* MeshComponent, USceneComponent* OriginComponent);
+	/** Parse the config data for a mesh id and try to retrieve it from the root actor. */
+	bool CreateWarpMeshInterface(class IDisplayClusterViewport* InViewport);
+
+private:
+	bool GetWarpMeshAndOrigin(class IDisplayClusterViewport* InViewport, class UStaticMeshComponent* &OutMeshComponent, class USceneComponent* & OutOriginComponent);
+
+#if WITH_EDITOR
+protected:
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	// IDisplayClusterProjectionPolicyPreview
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual bool HasPreviewMesh() override
+	{
+		return true;
+	}
+
+	virtual class UMeshComponent* GetOrCreatePreviewMeshComponent(class IDisplayClusterViewport* InViewport) override;
+#endif
 };

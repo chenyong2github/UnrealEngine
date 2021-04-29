@@ -24,6 +24,9 @@
 #include "Factories/FbxTextureImportData.h"
 #include "Factories/FbxImportUI.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "SkinWeightsUtilities.h"
+#include "Animation/DebugSkelMeshComponent.h"
+#include "Rendering/SkeletalMeshModel.h"
 
 #include "Animation/AnimCurveTypes.h"
 #include "Animation/AnimSequence.h"
@@ -157,6 +160,11 @@ void FFbxImportAssetsAutomationTest::GetTests(TArray<FString>& OutBeautifiedName
 					}
 				}
 			}
+			if (FileTestName.Len() > 4 && FileTestName.EndsWith(TEXT("_alt"), ESearchCase::IgnoreCase))
+			{
+				//Dont add alternate skinning has test
+				continue;
+			}
 			OutBeautifiedNames.Add(FileTestName);
 			OutTestCommands.Add(FileString);
 		}
@@ -203,6 +211,8 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 		ExecutionInfo.AddEvent(FAutomationEvent(EAutomationEventType::Error, FString::Printf(TEXT("%s: Cannot find the information file (.json)."), *CleanFilename)));
 		return false;
 	}
+
+	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 
 	FString PackagePath;
 	check(GConfig);
@@ -307,9 +317,10 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 						GEditor->Trans->Reset(FText::FromString("Discard undo history during FBX Automation testing."));
 					}
 
-					CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-					
+
 					ImportedObjects.Empty();
+
+					CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 
 					for (const FAssetData& AssetData : ImportedAssets)
 					{
@@ -521,6 +532,50 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 					ImportData->bImportAsScene = TestPlan->ImportUI->SkeletalMeshImportData->bImportAsScene;
 
 					FbxMeshUtils::ImportSkeletalMeshLOD(ExistingSkeletalMesh, LodFile, TestPlan->LodIndex);
+				}
+			}
+			break;
+			case EFBXTestPlanActionType::AddAlternateSkinnig:
+			{
+				if (GlobalImportedObjects.Num() < 1)
+				{
+					ExecutionInfo.AddError(FString::Printf(TEXT("%s: Cannot add alternate skinning when there is no previously imported object"), *CleanFilename));
+					CurTestSuccessful = false;
+					continue;
+				}
+
+				//Test expected result against the object we just import
+				ImportedObjects.Add(GlobalImportedObjects[0]);
+
+				FString ImportFilename = CurFileToImport[0];
+				FString AltFile = ImportFilename.Replace(TEXT(".fbx"), TEXT("_alt.fbx"), ESearchCase::IgnoreCase);
+				if (!FPaths::FileExists(AltFile))
+				{
+					ExecutionInfo.AddError(FString::Printf(TEXT("Cannot add alternate skinning because file %s do not exist on disk!"), *AltFile));
+					CurTestSuccessful = false;
+					continue;
+				}
+
+				USkeletalMesh* ExistingSkeletalMesh = Cast<USkeletalMesh>(GlobalImportedObjects[0]);
+				if (!ExistingSkeletalMesh)
+				{
+					ExecutionInfo.AddError(FString::Printf(TEXT("%s: Cannot add alternate skinning when there is no previously imported skeletal mesh."), *CleanFilename));
+					CurTestSuccessful = false;
+					continue;
+				}
+
+				{
+					FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(ExistingSkeletalMesh);
+					FScopedSkeletalMeshPostEditChange ScopedPostEditChange(ExistingSkeletalMesh);
+					const FName ProfileName(TEXT("Alternate"));
+					const int32 LodIndexZero = 0;
+					const bool bResult = FSkinWeightsUtilities::ImportAlternateSkinWeight(ExistingSkeletalMesh, AltFile, LodIndexZero, ProfileName);
+					if (!bResult)
+					{
+						ExecutionInfo.AddError(FString::Printf(TEXT("%s: Error adding alternate skinning file %s."), *CleanFilename, *AltFile));
+						CurTestSuccessful = false;
+						continue;
+					}
 				}
 			}
 			break;
@@ -1698,7 +1753,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 					if (!FMath::IsNearlyEqual(ArriveTangent, ExpectedResult.ExpectedPresetsDataFloat[0], 0.001f))
 					{
 						ExecutionInfo.AddError(FString::Printf(TEXT("%s the value for the specified arriving tangent [%f] does not match the expected value [%f]"),
-							*GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_CustomCurve_KeyValue"), ExpectedResultIndex), ArriveTangent, ExpectedResult.ExpectedPresetsDataFloat[0]));
+							*GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_CustomCurve_KeyArriveTangent"), ExpectedResultIndex), ArriveTangent, ExpectedResult.ExpectedPresetsDataFloat[0]));
 
 						break;
 					}
@@ -1722,10 +1777,130 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 					if (!FMath::IsNearlyEqual(LeaveTangent, ExpectedResult.ExpectedPresetsDataFloat[0], 0.001f))
 					{
 						ExecutionInfo.AddError(FString::Printf(TEXT("%s the value for the specified leaving tangent [%f] does not match the expected value [%f]"),
-							*GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_CustomCurve_KeyValue"), ExpectedResultIndex), LeaveTangent, ExpectedResult.ExpectedPresetsDataFloat[0]));
+							*GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_CustomCurve_KeyLeaveTangent"), ExpectedResultIndex), LeaveTangent, ExpectedResult.ExpectedPresetsDataFloat[0]));
 
 						break;
 					}
+				}
+				break;
+			}
+			case Skin_By_Bone_Vertex_Number:
+			{
+				if (ExpectedResult.ExpectedPresetsDataString.Num() < 1)
+				{
+					ExecutionInfo.AddError(FString::Printf(TEXT("%s expected result need 1 string data for the bone name"),
+										   *GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Skin_By_Bone_Vertex_Number"), ExpectedResultIndex)));
+					break;
+				}
+				if (ExpectedResult.ExpectedPresetsDataInteger.Num() < 2)
+				{
+					ExecutionInfo.AddError(FString::Printf(TEXT("%s expected result need 2 integer data: [0] specify if we test alternate profile (0 no, 1 yes). [1] is the expected vertex number skin by the specified bone)"),
+										   *GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Skin_By_Bone_Vertex_Number"), ExpectedResultIndex)));
+					break;
+				}
+				bool bInspectProfile = ExpectedResult.ExpectedPresetsDataInteger[0] != 0;
+				FString BoneName = ExpectedResult.ExpectedPresetsDataString[0];
+				int32 ExpectedVertexSkinByBoneNumber = ExpectedResult.ExpectedPresetsDataInteger[1];
+				int32 VertexSkinByBoneNumber = 0;
+				bool FoundSkeletalMesh = false;
+				bool FoundBoneIndex = false;
+				bool bFoundVertexCount = false;
+				bool bFoundProfile = false;
+				if (ImportedObjects.Num() > 0)
+				{
+					UObject* Object = ImportedObjects[0];
+					if (Object->IsA(USkeletalMesh::StaticClass()))
+					{
+						FoundSkeletalMesh = true;
+						USkeletalMesh* Mesh = Cast<USkeletalMesh>(Object);
+						int32 BoneIndex = Mesh->GetRefSkeleton().FindBoneIndex(*BoneName);
+						if (Mesh->GetRefSkeleton().IsValidIndex(BoneIndex))
+						{
+							FoundBoneIndex = true;
+							if (Mesh->GetImportedModel() && Mesh->GetImportedModel()->LODModels.IsValidIndex(0))
+							{
+								auto IncrementInfluence = [&VertexSkinByBoneNumber, &BoneIndex](const FSkelMeshSection& Section, const FBoneIndexType (&InfluenceBones)[MAX_TOTAL_INFLUENCES], const uint8 (&InfluenceWeights)[MAX_TOTAL_INFLUENCES])
+								{
+									for (int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; ++InfluenceIndex)
+									{
+										if (InfluenceWeights[InfluenceIndex] == 0)
+										{
+											//Influence are sorted by weight so no need to go further then a zero weight
+											break;
+										}
+										if (Section.BoneMap[InfluenceBones[InfluenceIndex]] == BoneIndex)
+										{
+											VertexSkinByBoneNumber++;
+											break;
+										}
+									}
+								};
+
+								if (!bInspectProfile) //Inspect the base skinning
+								{
+									for (const FSkelMeshSection& Section : Mesh->GetImportedModel()->LODModels[0].Sections)
+									{
+										const int32 SectionVertexCount = Section.SoftVertices.Num();
+										//Find the number of vertex skin by this bone
+										for (int32 SectionVertexIndex = 0; SectionVertexIndex < SectionVertexCount; ++SectionVertexIndex)
+										{
+											const FSoftSkinVertex& Vertex = Section.SoftVertices[SectionVertexIndex];
+											IncrementInfluence(Section, Vertex.InfluenceBones, Vertex.InfluenceWeights);
+										}
+									}
+								}
+								else //Inspect the first alternate profile
+								{
+									if (Mesh->GetSkinWeightProfiles().Num() > 0)
+									{
+										const int32 TotalVertexCount = Mesh->GetImportedModel()->LODModels[0].NumVertices;
+										const FSkinWeightProfileInfo& SkinWeightProfile = Mesh->GetSkinWeightProfiles()[0];
+										const FImportedSkinWeightProfileData& SkinWeightData = Mesh->GetImportedModel()->LODModels[0].SkinWeightProfiles.FindChecked(SkinWeightProfile.Name);
+										bFoundProfile = SkinWeightData.SkinWeights.Num() == TotalVertexCount;
+										int32 TotalVertexIndex = 0;
+										for (const FSkelMeshSection& Section : Mesh->GetImportedModel()->LODModels[0].Sections)
+										{
+											const int32 SectionVertexCount = Section.SoftVertices.Num();
+											//Find the number of vertex skin by this bone
+											for (int32 SectionVertexIndex = 0; SectionVertexIndex < SectionVertexCount; ++SectionVertexIndex, ++TotalVertexIndex)
+											{
+												const FRawSkinWeight& SkinWeight = SkinWeightData.SkinWeights[TotalVertexIndex];
+												IncrementInfluence(Section, SkinWeight.InfluenceBones, SkinWeight.InfluenceWeights);
+											}
+										}
+									}
+								}
+								bFoundVertexCount = true;
+							}
+						}
+					}
+				}
+				if (!FoundSkeletalMesh)
+				{
+					ExecutionInfo.AddError(FString::Printf(TEXT("%s->%s: Wrong Expected Result, there is no skeletal mesh imported"),
+										   *CleanFilename, *(TestPlan->TestPlanName)));
+				}
+				else if (!FoundBoneIndex)
+				{
+					ExecutionInfo.AddError(FString::Printf(TEXT("%s->%s: Wrong Expected Result, the bone name is not an existing (bone name [%s])"),
+										   *CleanFilename, *(TestPlan->TestPlanName), *BoneName));
+				}
+				else if (bInspectProfile && !bFoundProfile)
+				{
+					ExecutionInfo.AddError(FString::Printf(TEXT("%s Cannot find alternate skinning profile, data argument specify to inspect skinning profile."),
+										   *GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Skin_By_Bone_Vertex_Number"), ExpectedResultIndex)));
+					break;
+				}
+				else if (!bFoundVertexCount)
+				{
+					ExecutionInfo.AddError(FString::Printf(TEXT("%s->%s: Wrong Expected Result, there is no valid mesh geometry to find the vertex count."),
+										   *CleanFilename, *(TestPlan->TestPlanName)));
+				}
+				if (VertexSkinByBoneNumber != ExpectedVertexSkinByBoneNumber)
+				{
+					ExecutionInfo.AddError(FString::Printf(TEXT("%s [%d vertex skin by bone %s, but expected %d]"),
+										   *GetFormatedMessageErrorInExpectedResult(*CleanFilename, *(TestPlan->TestPlanName), TEXT("Skin_By_Bone_Vertex_Number"), ExpectedResultIndex)
+										   , VertexSkinByBoneNumber, *BoneName, ExpectedVertexSkinByBoneNumber));
 				}
 				break;
 			}
@@ -1752,7 +1927,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 			{
 				for (const FAssetData& AssetData : ImportedAssets)
 				{
-					UPackage *Package = AssetData.GetPackage();
+					UPackage* Package = AssetData.GetPackage();
 					if (Package != nullptr)
 					{
 						for (FThreadSafeObjectIterator It; It; ++It)
@@ -1775,6 +1950,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 			GlobalImportedObjects.Empty();
 			TArray<FAssetData> AssetsToDelete;
 			AssetRegistryModule.Get().GetAssetsByPath(FName(*PackagePath), AssetsToDelete, true);
+			const bool bShowConfirmation = false;
 			TArray<UObject*> ObjectToDelete;
 			for (const FAssetData& AssetData : AssetsToDelete)
 			{
@@ -1782,7 +1958,8 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 				if (Asset != nullptr)
 					ObjectToDelete.Add(Asset);
 			}
-			ObjectTools::ForceDeleteObjects(ObjectToDelete, false);
+			ObjectTools::ForceDeleteObjects(ObjectToDelete, bShowConfirmation);
+			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 		}
 	}
 	

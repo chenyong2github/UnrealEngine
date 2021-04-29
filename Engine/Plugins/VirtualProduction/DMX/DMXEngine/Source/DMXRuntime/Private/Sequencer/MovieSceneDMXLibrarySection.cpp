@@ -4,6 +4,7 @@
 
 #include "DMXProtocolCommon.h"
 #include "DMXRuntimeLog.h"
+#include "DMXRuntimeObjectVersion.h"
 #include "DMXSubsystem.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "IO/DMXInputPort.h"
@@ -15,6 +16,7 @@
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Channels/MovieSceneChannelEditorData.h"
 #include "Evaluation/Blending/MovieSceneBlendType.h"
+
 
 DECLARE_LOG_CATEGORY_CLASS(MovieSceneDMXLibrarySectionLog, Log, All);
 
@@ -319,7 +321,9 @@ void FDMXCachedFunctionChannelInfo::GetMatrixCellChannelsAbsoluteNoSorting(UDMXE
 }
 
 UMovieSceneDMXLibrarySection::UMovieSceneDMXLibrarySection()
-	: bIsRecording(false)
+	: bUseNormalizedValues(true)
+	, bIsRecording(false)
+	, bNeedsInitialization(true)
 {
 	BlendType = EMovieSceneBlendType::Absolute;
 	UpdateChannelProxy();
@@ -328,10 +332,15 @@ UMovieSceneDMXLibrarySection::UMovieSceneDMXLibrarySection()
 void UMovieSceneDMXLibrarySection::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
-
 	if (Ar.IsLoading())
 	{
 		UpdateChannelProxy();
+
+		if (Ar.CustomVer(FDMXRuntimeObjectVersion::GUID) < FDMXRuntimeObjectVersion::DefaultToNormalizedValuesInDMXLibrarySection)
+		{
+			// For assets created before normalized values were supported, use absolute values
+			bUseNormalizedValues = false;
+		}
 	}
 }
 
@@ -626,6 +635,108 @@ void UMovieSceneDMXLibrarySection::RebuildPlaybackCache() const
 	}
 }
 
+void UMovieSceneDMXLibrarySection::EvaluateAndSendDMX(const FFrameTime& FrameTime) const
+{
+	if (bNeedsInitialization)
+	{
+		bNeedsInitialization = false;
+		SendDMXForChannelsToInitialize();
+	}
+
+	UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
+	check(DMXSubsystem);
+
+	TMap<int32 /** Universe */, TMap<int32, uint8> /** ChannelToValueMap */> UniverseToChannelToValueMap;
+
+	for (const FDMXCachedFunctionChannelInfo& InfoForChannelToEvaluate : CachedChannelsToEvaluate)
+	{
+		bool bIsCacheValid = true;
+		if (const FDMXFixtureFunctionChannel* FixtureFunctionChannelPtr = InfoForChannelToEvaluate.TryGetFunctionChannel(GetFixturePatchChannels()))
+		{
+			float ChannelValue = 0.0f;
+			if (FixtureFunctionChannelPtr->Channel.Evaluate(FrameTime, ChannelValue))
+			{
+				TArray<uint8> ByteArr;
+
+				if (bUseNormalizedValues)
+				{
+					DMXSubsystem->NormalizedValueToBytes(ChannelValue, InfoForChannelToEvaluate.GetSignalFormat(), ByteArr, InfoForChannelToEvaluate.ShouldUseLSBMode());
+				}
+				else
+				{
+					// Round to int so if the user draws into the tracks, values are assigned to int accurately
+					const int32 RoundedAbsoluteValue = FMath::RoundToInt(ChannelValue);
+					DMXSubsystem->IntValueToBytes(RoundedAbsoluteValue, InfoForChannelToEvaluate.GetSignalFormat(), ByteArr, InfoForChannelToEvaluate.ShouldUseLSBMode());
+				}
+
+				TMap<int32, uint8>& ChannelToValueMap = UniverseToChannelToValueMap.FindOrAdd(InfoForChannelToEvaluate.GetUniverseID());
+				for (int32 ByteIdx = 0; ByteIdx < ByteArr.Num(); ByteIdx++)
+				{
+					uint8& Value = ChannelToValueMap.FindOrAdd(InfoForChannelToEvaluate.GetStartingChannel() + ByteIdx);
+					Value = ByteArr[ByteIdx];
+				}
+			}
+		}
+	}
+
+	for (const TPair<int32, TMap<int32, uint8>>& UniverseToChannelToValueMapKvp : UniverseToChannelToValueMap)
+	{
+		for (const FDMXOutputPortSharedRef& OutputPort : CachedOutputPorts)
+		{
+			OutputPort->SendDMX(UniverseToChannelToValueMapKvp.Key, UniverseToChannelToValueMapKvp.Value);
+		}
+	}
+}
+
+void UMovieSceneDMXLibrarySection::SendDMXForChannelsToInitialize() const
+{
+	UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
+	check(DMXSubsystem);
+
+	TMap<int32 /** Universe */, TMap<int32, uint8> /** ChannelToValueMap */> UniverseToChannelToValueMap;
+
+	for (const FDMXCachedFunctionChannelInfo& InfoForChannelToInitialize : CachedChannelsToInitialize)
+	{
+		if (const FDMXFixtureFunctionChannel* FixtureFunctionChannelPtr = InfoForChannelToInitialize.TryGetFunctionChannel(GetFixturePatchChannels()))
+		{
+			TArrayView<const FMovieSceneFloatValue> ValueArr = FixtureFunctionChannelPtr->Channel.GetValues();
+
+			if (ensureMsgf(ValueArr.Num() == 1, TEXT("Error in CachedChannelsToInitialize. Contains channel with more or less than one value. Cannot be 'initialized only' alike.")))
+			{
+				const float ChannelValue = ValueArr[0].Value;
+
+				TArray<uint8> ByteArr;
+				if (bUseNormalizedValues)
+				{
+					DMXSubsystem->NormalizedValueToBytes(ChannelValue, InfoForChannelToInitialize.GetSignalFormat(), ByteArr, InfoForChannelToInitialize.ShouldUseLSBMode());
+				}
+				else
+				{
+					// Round to int so if the user draws into the tracks, values are assigned to int accurately
+					const uint32 RoundedAbsoluteValue = FMath::RoundToInt(ChannelValue);
+
+					DMXSubsystem->IntValueToBytes(RoundedAbsoluteValue, InfoForChannelToInitialize.GetSignalFormat(), ByteArr, InfoForChannelToInitialize.ShouldUseLSBMode());
+				}
+
+				TMap<int32, uint8>& ChannelToValueMap = UniverseToChannelToValueMap.FindOrAdd(InfoForChannelToInitialize.GetUniverseID());
+
+				for (int32 ByteIdx = 0; ByteIdx < ByteArr.Num(); ByteIdx++)
+				{
+					uint8& Value = ChannelToValueMap.FindOrAdd(InfoForChannelToInitialize.GetStartingChannel() + ByteIdx);
+					Value = ByteArr[ByteIdx];
+				}
+			}
+		}
+	}
+
+	for (const TPair<int32, TMap<int32, uint8>>& UniverseToChannelToValueMapKvp : UniverseToChannelToValueMap)
+	{
+		for (const FDMXOutputPortSharedRef& OutputPort : CachedOutputPorts)
+		{
+			OutputPort->SendDMX(UniverseToChannelToValueMapKvp.Key, UniverseToChannelToValueMapKvp.Value);
+		}
+	}
+}
 
 void UMovieSceneDMXLibrarySection::UpdateChannelProxy(bool bResetDefaultChannelValues /*= false*/)
 {
@@ -737,7 +848,7 @@ void UMovieSceneDMXLibrarySection::UpdateChannelProxy(bool bResetDefaultChannelV
 
 		++PatchChannelIndex;
 	}
-
+	
 	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(MoveTemp(ChannelProxyData));
 
 	// Remove Patches that can't be seen by users because they don't have any functions
@@ -749,4 +860,6 @@ void UMovieSceneDMXLibrarySection::UpdateChannelProxy(bool bResetDefaultChannelV
 
 	/** Rebuild the playback cache */
 	RebuildPlaybackCache();
+
+	bNeedsInitialization = true;
 }

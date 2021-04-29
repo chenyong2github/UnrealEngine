@@ -1235,7 +1235,7 @@ const FString FWindowsPlatformProcess::GetModulesDirectory()
 	return Result;
 }
 
-void FWindowsPlatformProcess::LaunchFileInDefaultExternalApplication( const TCHAR* FileName, const TCHAR* Parms /*= NULL*/, ELaunchVerb::Type Verb /*= ELaunchVerb::Open*/ )
+bool FWindowsPlatformProcess::LaunchFileInDefaultExternalApplication( const TCHAR* FileName, const TCHAR* Parms /*= NULL*/, ELaunchVerb::Type Verb /*= ELaunchVerb::Open*/, bool bPromptToOpenOnFailure /*= true */ )
 {
 	const TCHAR* VerbString = Verb == ELaunchVerb::Edit ? TEXT("edit") : TEXT("open");
 
@@ -1254,11 +1254,15 @@ void FWindowsPlatformProcess::LaunchFileInDefaultExternalApplication( const TCHA
 	// If opening the file in the default application failed, check to see if it's because the file's extension does not have
 	// a default application associated with it. If so, prompt the user with the Windows "Open With..." dialog to allow them to specify
 	// an application to use.
-	if ( (PTRINT)Code == SE_ERR_NOASSOC || (PTRINT)Code == SE_ERR_ASSOCINCOMPLETE )
+	if (bPromptToOpenOnFailure && ((PTRINT)Code == SE_ERR_NOASSOC || (PTRINT)Code == SE_ERR_ASSOCINCOMPLETE))
 	{
-		::ShellExecuteW( NULL, VerbString, TEXT("RUNDLL32.EXE"), *FString::Printf( TEXT("shell32.dll,OpenAs_RunDLL %s"), FileName ), TEXT(""), SW_SHOWNORMAL );
+		Code = ::ShellExecuteW( NULL, VerbString, TEXT("RUNDLL32.EXE"), *FString::Printf( TEXT("shell32.dll,OpenAs_RunDLL %s"), FileName ), TEXT(""), SW_SHOWNORMAL );
 	}
+
+	// If code is > 32, it's a valid handle, return true. Otherwise opening the file failed, return false.
+	return ((PTRINT)Code > 32);
 }
+
 
 void FWindowsPlatformProcess::ExploreFolder( const TCHAR* FilePath )
 {

@@ -18,18 +18,18 @@ public:
 public:
 
 	/** Whether web server is started automatically. */
-	UPROPERTY(config, EditAnywhere, Category = "Web Remote Control")
+	UPROPERTY(config, EditAnywhere, Category = "Remote Control Web Server")
 	bool bAutoStartWebServer = true;
 	
 	/** Whether web socket server is started automatically. */
-	UPROPERTY(config, EditAnywhere, Category = "Web Remote Control")
+	UPROPERTY(config, EditAnywhere, Category = "Remote Control Web Server")
 	bool bAutoStartWebSocketServer = true;
 
 	/** The web remote control HTTP server's port. */
-	UPROPERTY(config, EditAnywhere, Category = "Web Remote Control", DisplayName = "Remote Control HTTP Server Port")
+	UPROPERTY(config, EditAnywhere, Category = "Remote Control Web Server", DisplayName = "Remote Control HTTP Server Port")
 	uint32 RemoteControlHttpServerPort;
 
 	/** The web remote control WebSocket server's port. */
-	UPROPERTY(config, EditAnywhere, Category = "Web Remote Control", DisplayName = "Remote Control WebSocket Server Port")
+	UPROPERTY(config, EditAnywhere, Category = "Remote Control Web Server", DisplayName = "Remote Control WebSocket Server Port")
 	uint32 RemoteControlWebSocketServerPort;
 };

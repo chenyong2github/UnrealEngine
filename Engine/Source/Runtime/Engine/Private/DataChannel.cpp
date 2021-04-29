@@ -3468,6 +3468,16 @@ void UActorChannel::WriteContentBlockHeader( UObject* Obj, FNetBitWriter &Bunch,
 			Bunch.WriteBit( 0 );
 			UClass *ObjClass = Obj->GetClass();
 			Bunch << ObjClass;
+
+			UObject* ObjOuter = Obj->GetOuter();
+			// If the subobject's outer is the not the actor (and the outer is supported for networking),
+			// then serialize the object's outer to rebuild the outer chain on the client.
+			const bool bActorIsOuter = (ObjOuter == Actor) || (!Obj->IsSupportedForNetworking());
+			Bunch.WriteBit(bActorIsOuter ? 1 : 0);
+			if (!bActorIsOuter)
+			{
+				Bunch << ObjOuter;
+			}
 		}
 	}
 
@@ -3604,9 +3614,10 @@ UObject* UActorChannel::ReadContentBlockHeader( FInBunch & Bunch, bool& bObjectD
 		}
 
 		// Sub-objects must reside within their actor parents
-		if ( !SubObj->IsIn( Actor ) )
+		UActorComponent* Component = Cast<UActorComponent>(SubObj);
+		if (Component && !SubObj->IsIn(Actor))
 		{
-			UE_LOG( LogNetTraffic, Error, TEXT( "UActorChannel::ReadContentBlockHeader: Sub-object not in parent actor. SubObj: %s, Actor: %s" ), *SubObj->GetFullName(), *Actor->GetFullName() );
+			UE_LOG( LogNetTraffic, Error, TEXT( "UActorChannel::ReadContentBlockHeader: Actor component not in parent actor. SubObj: %s, Actor: %s" ), *SubObj->GetFullName(), *Actor->GetFullName() );
 
 			if ( IsServer )
 			{
@@ -3721,19 +3732,48 @@ UObject* UActorChannel::ReadContentBlockHeader( FInBunch & Bunch, bool& bObjectD
 		}
 	}
 
+	UObject* ObjOuter = Actor;
+	if (Connection->EngineNetworkProtocolVersion >= HISTORY_SUBOBJECT_OUTER_CHAIN)
+	{ 
+		const bool bActorIsOuter = Bunch.ReadBit() != 0;
+	
+		if (Bunch.IsError())
+		{
+			UE_LOG(LogNetTraffic, Error, TEXT("UActorChannel::ReadContentBlockHeader: Bunch.IsError() == true after reading actor is outer bit. Actor: %s"), *Actor->GetName());
+			return nullptr;
+		}
+
+		if (!bActorIsOuter)
+		{
+			// If the channel's actor isn't the object's outer, serialize the object's outer here
+			Bunch << ObjOuter;
+
+			if (Bunch.IsError())
+			{
+				UE_LOG(LogNetTraffic, Error, TEXT("UActorChannel::ReadContentBlockHeader: Bunch.IsError() == true after serializing the subobject's outer. Actor: %s"), *Actor->GetName());
+				return nullptr;
+			}
+
+			if (!ensureMsgf(ObjOuter != nullptr, TEXT("UActorChannel::ReadContentBlockHeader: Unable to serialize subobject's outer. Ensure that subobjects are replicated top-down, so outers are received first. Class: %s, Actor: %s"), *GetNameSafe(SubObjClass), *GetNameSafe(Actor)))
+			{
+				return nullptr;
+			}
+		}
+	}
+
 	if ( SubObj == NULL )
 	{
 		check( !IsServer );
 
 		// Construct the sub-object
-		UE_LOG( LogNetTraffic, Log, TEXT( "UActorChannel::ReadContentBlockHeader: Instantiating sub-object. Class: %s, Actor: %s" ), *SubObjClass->GetName(), *Actor->GetName() );
-
-		SubObj = NewObject< UObject >(Actor, SubObjClass);
+		UE_LOG( LogNetTraffic, Log, TEXT( "UActorChannel::ReadContentBlockHeader: Instantiating sub-object. Class: %s, Actor: %s, Outer: %s" ), *SubObjClass->GetName(), *Actor->GetName(), *ObjOuter->GetName() );
+		
+		SubObj = NewObject< UObject >(ObjOuter, SubObjClass);
 
 		// Sanity check some things
-		check( SubObj != NULL );
-		check( SubObj->IsIn( Actor ) );
-		check( Cast< AActor >( SubObj ) == NULL );
+		checkf(SubObj != NULL, TEXT("UActorChannel::ReadContentBlockHeader: Subobject is NULL after instantiating. Class: %s, Actor %s"), *SubObjClass->GetName(), *Actor->GetName());
+		checkf(SubObj->IsIn(ObjOuter), TEXT("UActorChannel::ReadContentBlockHeader: Subobject is not in Outer. SubObject: %s, Actor: %s, Outer: %s"), *SubObj->GetName(), *Actor->GetName(), *ObjOuter->GetName());
+		checkf(Cast< AActor >(SubObj) == NULL, TEXT("UActorChannel::ReadContentBlockHeader: Subobject is an Actor. SubObject: %s, Actor: %s"), *SubObj->GetName(), *Actor->GetName());
 
 		// Notify actor that we created a component from replication
 		Actor->OnSubobjectCreatedFromReplication( SubObj );

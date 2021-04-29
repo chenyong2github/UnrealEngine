@@ -77,28 +77,28 @@ public:
 	virtual FVector GetTranslation() const = 0;
 
 	/** Set absolute translation of this entity */
-	virtual void SetTranslation(float InX, float InY, float InZ) = 0;
+	virtual void SetTranslation(float InX, float InY, float InZ, bool bKeepChildrenRelative = true) = 0;
 
 	/** Set absolute translation of this entity */
-	virtual void SetTranslation(const FVector& Value) = 0;
+	virtual void SetTranslation(const FVector& Value, bool bKeepChildrenRelative = true) = 0;
 
 	/** Get absolute scale of this entity */
 	virtual FVector GetScale() const = 0;
 
 	/** Set absolute scale of this entity */
-	virtual void SetScale(float InX, float InY, float InZ) = 0;
+	virtual void SetScale(float InX, float InY, float InZ, bool bKeepChildrenRelative = true) = 0;
 
 	/** Set absolute scale of this entity */
-	virtual void SetScale(const FVector& Value) = 0;
+	virtual void SetScale(const FVector& Value, bool bKeepChildrenRelative = true) = 0;
 
 	/** Get rotation (in quaternion format) of this entity */
 	virtual FQuat GetRotation() const = 0;
 
 	/** Set rotation (in quaternion format) of this entity */
-	virtual void SetRotation(float InX, float InY, float InZ, float InW) = 0;
+	virtual void SetRotation(float InX, float InY, float InZ, float InW, bool bKeepChildrenRelative = true) = 0;
 
 	/** Set rotation (in quaternion format) of this entity */
-	virtual void SetRotation(const FQuat& Value) = 0;
+	virtual void SetRotation(const FQuat& Value, bool bKeepChildrenRelative = true) = 0;
 
 	/** Returns the relative transform for this element */
 	virtual FTransform GetRelativeTransform() const = 0;

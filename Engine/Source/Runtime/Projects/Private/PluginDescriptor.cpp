@@ -60,6 +60,11 @@ enum class EPluginDescriptorVersion : uint8
 	Latest = LatestPlusOne - 1
 };
 
+const FString& FPluginDescriptor::GetFileExtension()
+{
+	static const FString Extension(TEXT(".uplugin"));
+	return Extension;
+}
 
 FPluginDescriptor::FPluginDescriptor()
 	: Version(0)

@@ -68,6 +68,8 @@ private:
 	/** Called whenever a user left-clicks on the graph with a chord pressed.*/
 	FReply OnSpawnGraphNodeByShortcut(FInputChord InChord, const FVector2D& InPosition);
 
+	FActionMenuContent OnCreateActionMenu(UEdGraph* Graph, const FVector2D& Position, const TArray<UEdGraphPin*>& DraggedPins, bool bAutoExpandActionMenu, SGraphEditor::FActionMenuClosed OnClosed);	
+	
 	/** Called whenever a user is trying to edit the name inline of a node and we want to make sure that it is valid.*/
 	bool OnVerifyNodeTextCommit(const FText& NewText, UEdGraphNode* NodeBeingChanged, FText& OutErrorMessage);
 
@@ -127,4 +129,13 @@ private:
 	int CurrentFocusedSearchMatchIndex;
 	TArray<TSharedPtr<INiagaraScriptGraphFocusInfo>> CurrentSearchResults;
 	bool bGraphSearchBoxActive;
+
+private:
+	// action menu data
+	UEdGraph* GraphObj;
+	TArray<UEdGraphPin*> DraggedFromPins;
+	FVector2D NewNodePosition;
+	bool AutoExpandActionMenu;
+
+	SGraphEditor::FActionMenuClosed OnClosedCallback;
 };

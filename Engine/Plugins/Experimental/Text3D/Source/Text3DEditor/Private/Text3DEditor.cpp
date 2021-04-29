@@ -11,7 +11,7 @@ IMPLEMENT_MODULE(FText3DEditorModule, Text3DEditor)
 
 void FText3DEditorModule::StartupModule()
 {
-	FString RootDir = IPluginManager::Get().FindPlugin("Text3D")->GetBaseDir() / TEXT("Resources");
+	FString RootDir = IPluginManager::Get().FindPlugin(TEXT("Text3D"))->GetBaseDir() / TEXT("Resources");
 
 	StyleSet = MakeUnique<FSlateStyleSet>(FName(TEXT("Text3DStyle")));
 	StyleSet->SetContentRoot(RootDir);

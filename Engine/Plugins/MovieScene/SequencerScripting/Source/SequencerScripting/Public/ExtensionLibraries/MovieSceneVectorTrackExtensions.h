@@ -27,7 +27,7 @@ public:
 	 * @param Track        The track to set
 	 * @param InNumChannelsUsed The number of channels to use for this track
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Track", meta = (ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Track", meta = (ScriptMethod))
 	static void SetNumChannelsUsed(UMovieSceneVectorTrack* Track, int32 InNumChannelsUsed);
 
 	/**
@@ -36,7 +36,7 @@ public:
 	 * @param Track        The track to query for the number of channels used
 	 * @return The number of channels used for this track
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Track", meta = (ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Track", meta = (ScriptMethod))
 	static int32 GetNumChannelsUsed(UMovieSceneVectorTrack* Track);
 
 

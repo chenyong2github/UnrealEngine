@@ -5,7 +5,7 @@
 #include "LiveLinkControllerBase.h"
 
 #include "CineCameraComponent.h"
-#include "LensDistortionDataHandler.h"
+#include "LensDistortionModelHandlerBase.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 #include "LiveLinkLensController.generated.h"
@@ -40,33 +40,32 @@ protected:
 	/** Refresh distortion handler's, in case user deletes it  */
 	void UpdateDistortionHandler(UCineCameraComponent* CineCameraComponent);
 
-	/** Update cached filmback in case it was changed */
-	void UpdateCachedFilmback(UCineCameraComponent* CineCameraComponent);
+	/** Update cached focal length in case it was changed */
+	void UpdateCachedFocalLength(UCineCameraComponent* CineCameraComponent);
 
 	/** Cleanup distortion objects we could have added to camera */
 	void CleanupDistortion();
 
 protected:
-
 	/** Whether or not to apply a post-process distortion effect directly to the attached CineCamera */
 	UPROPERTY(EditAnywhere, Category = "Lens Distortion")
 	bool bApplyDistortion = false;
 
 	/** Cached distortion handler associated with attached camera component */
 	UPROPERTY(EditAnywhere, Category = "Lens Distortion", Transient)
-	ULensDistortionDataHandler* LensDistortionHandler = nullptr;
+	ULensDistortionModelHandlerBase* LensDistortionHandler = nullptr;
 
 	/** Cached distortion MID the handler produced. Used to clean up old one in case it changes */
 	UPROPERTY(Transient)
 	UMaterialInstanceDynamic* LastDistortionMID = nullptr;
 
-	/** Original filmback settings of the attached cinecamera component to reapply when distortion isn't applied anymore */
-	UPROPERTY()
-	FCameraFilmbackSettings OriginalCameraFilmback;
+	/** Original focal length of the attached cinecamera component to reapply when distortion isn't applied anymore */
+ 	UPROPERTY()
+	float UndistortedFocalLength = 50.0f;
 
 	/** Keep track of what needs to be setup to apply distortion */
 	bool bIsDistortionSetup = false;
 
-	//Last values used to detect changes made by the user and update our original caches
-	FCameraFilmbackSettings LastCameraFilmback;
+	//Last value used to detect changes made by the user and update our original caches
+	float LastFocalLength = -1.0f;
 };

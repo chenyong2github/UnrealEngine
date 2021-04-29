@@ -384,8 +384,20 @@ void FEnvQueryInstance::ExecuteOneStep(float TimeLimit)
 
 		if (bRunGenerator)
 		{
+#if !UE_BUILD_SHIPPING
+			const double BeforeGenTime = FPlatformTime::Seconds();
+#endif // UE_BUILD_SHIPPING
+
 			FScopeCycleCounterUObject GeneratorScope(OptionItem.Generator);
 			OptionItem.Generator->GenerateItems(*this);
+
+#if !UE_BUILD_SHIPPING
+			const double GenTime = FPlatformTime::Seconds() - BeforeGenTime;
+			if (GenTime >= GenerationTimeWarningSeconds)
+			{				
+				UE_LOG(LogEQS, Warning, TEXT("Query %s is over generation time warning. %f second (limit is %f second)"), *QueryName, GenTime, GenerationTimeWarningSeconds);
+			}
+#endif // UE_BUILD_SHIPPING
 		}
 
 		FinalizeGeneration();

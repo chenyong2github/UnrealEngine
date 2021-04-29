@@ -2,6 +2,7 @@
 
 #include "Groups/CommonButtonGroupBase.h"
 #include "CommonUIPrivatePCH.h"
+#include <functional>
 
 UCommonButtonGroupBase::UCommonButtonGroupBase()
 	: bSelectionRequired(false)
@@ -51,11 +52,91 @@ void UCommonButtonGroupBase::DeselectAll()
 
 void UCommonButtonGroupBase::SelectNextButton(bool bAllowWrap /*= true*/)
 {
+	const int32 NumButtons = Buttons.Num();
+	int32 NumRecursiveSelections = 0;
+
+	std::function<void(int32, bool)> SelectNextButtonRecursive = [&](int32 SelectionIndex, bool bAllowWrap)
+	{
+		// We have recursively gone through every button in the group. Stop.
+		if (NumRecursiveSelections > NumButtons)
+		{
+			return;
+		}
+
+		if (SelectionIndex < (NumButtons - 1))
+		{
+			++SelectionIndex;
+		}
+		else if (bAllowWrap)
+		{
+			SelectionIndex = 0;
+		}
+		else
+		{
+			// We are at the last button and aren't wrapping, so there isn't a next button. Stop.
+			return;
+		}
+
+		if (Buttons.IsValidIndex(SelectionIndex))
+		{
+			UCommonButtonBase* NextButton = GetButtonBaseAtIndex(SelectionIndex);
+			if (NextButton && NextButton->IsInteractionEnabled())
+			{
+				SelectButtonAtIndex(SelectionIndex);
+			}
+			else
+			{
+				NumRecursiveSelections++;
+				SelectNextButtonRecursive(SelectionIndex, bAllowWrap);
+			}
+		}
+	};
+
 	SelectNextButtonRecursive(SelectedButtonIndex, bAllowWrap);
 }
 
 void UCommonButtonGroupBase::SelectPreviousButton(bool bAllowWrap /*= true*/)
 {
+	const int32 NumButtons = Buttons.Num();
+	int32 NumRecursiveSelections = 0;
+
+	std::function<void(int32, bool)> SelectPrevButtonRecursive = [&](int32 SelectionIndex, bool bAllowWrap)
+	{
+		// We have recursively gone through every button in the group. Stop.
+		if (NumRecursiveSelections > NumButtons)
+		{
+			return;
+		}
+
+		if (SelectionIndex > 0)
+		{
+			--SelectionIndex;
+		}
+		else if (bAllowWrap)
+		{
+			SelectionIndex = NumButtons - 1;
+		}
+		else
+		{
+			// We are at the last button and aren't wrapping, so there isn't a next button. Stop.
+			return;
+		}
+
+		if (Buttons.IsValidIndex(SelectionIndex))
+		{
+			UCommonButtonBase* PrevButton = GetButtonBaseAtIndex(SelectionIndex);
+			if (PrevButton && PrevButton->IsInteractionEnabled())
+			{
+				SelectButtonAtIndex(SelectionIndex);
+			}
+			else
+			{
+				NumRecursiveSelections++;
+				SelectPrevButtonRecursive(SelectionIndex, bAllowWrap);
+			}
+		}
+	};
+
 	SelectPrevButtonRecursive(SelectedButtonIndex, bAllowWrap);
 }
 
@@ -273,68 +354,6 @@ void UCommonButtonGroupBase::OnHandleButtonBaseDoubleClicked(UCommonButtonBase* 
 	{
 		NativeOnButtonBaseDoubleClicked.Broadcast(BaseButton, ClickedIdx);
 		OnButtonBaseDoubleClicked.Broadcast(BaseButton, ClickedIdx);
-	}
-}
-
-void UCommonButtonGroupBase::SelectNextButtonRecursive(int32 SelectionIndex, bool bAllowWrap)
-{
-	if (SelectionIndex < (Buttons.Num() - 1))
-	{
-		++SelectionIndex;
-	}
-	else if (bAllowWrap)
-	{
-		SelectionIndex = 0;
-	}
-	else
-	{
-		// we have reached the condition where we are at (Buttons.Num() - 1), but were got bAllowWrap == false, 
-		// if (Buttons.Num() - 1) index button->IsInteractionEnabled() == false we will get stuck in an infinate for loop. this stops that from happening.
-		return;
-	}
-
-	if (Buttons.IsValidIndex(SelectionIndex))
-	{
-		UCommonButtonBase* NextButton = GetButtonBaseAtIndex(SelectionIndex);
-		if (NextButton && NextButton->IsInteractionEnabled())
-		{
-			SelectButtonAtIndex(SelectionIndex);
-		}
-		else
-		{
-			SelectNextButtonRecursive(SelectionIndex, bAllowWrap);
-		}
-	}
-}
-
-void UCommonButtonGroupBase::SelectPrevButtonRecursive(int32 SelectionIndex, bool bAllowWrap)
-{
-	if (SelectionIndex > 0)
-	{
-		--SelectionIndex;
-	}
-	else if (bAllowWrap)
-	{
-		SelectionIndex = Buttons.Num() - 1;
-	}
-	else
-	{
-		// we have reached the condition where we are at 0, but were got bAllowWrap == false, 
-		// if 0 index button->IsInteractionEnabled() == false we will get stuck in an infinate for loop. this stops that from happening.
-		return;
-	}
-
-	if (Buttons.IsValidIndex(SelectionIndex))
-	{
-		UCommonButtonBase* PrevButton = GetButtonBaseAtIndex(SelectionIndex);
-		if (PrevButton && PrevButton->IsInteractionEnabled())
-		{
-			SelectButtonAtIndex(SelectionIndex);
-		}
-		else
-		{
-			SelectPrevButtonRecursive(SelectionIndex, bAllowWrap);
-		}
 	}
 }
 

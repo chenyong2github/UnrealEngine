@@ -57,6 +57,12 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam( FOnAssetPathChanged, const FString& /*NewPath*/ );
 	/** */
 	DECLARE_DELEGATE_OneParam( FAddPathViewPluginFilters, TArray<TSharedRef<FContentBrowserPluginFilter>>& /*Filters*/ );
+	/** */
+	DECLARE_MULTICAST_DELEGATE_OneParam( FOnContentBrowserSettingChanged, FName /*PropertyName*/);
+	/** */
+	DECLARE_DELEGATE_OneParam( FDefaultSelectedPathsDelegate, TArray<FName>& /*VirtualPaths*/ );
+	/** */
+	DECLARE_DELEGATE_OneParam( FDefaultPathsToExpandDelegate, TArray<FName>& /*VirtualPaths*/ );
 
 	/**
 	 * Called right after the plugin DLL has been loaded and the plugin object has been created
@@ -110,6 +116,13 @@ public:
 	FOnAssetSelectionChanged& GetOnAssetSelectionChanged() { return OnAssetSelectionChanged; } 
 	FOnSourcesViewChanged& GetOnSourcesViewChanged() { return OnSourcesViewChanged; }
 	FOnAssetPathChanged& GetOnAssetPathChanged() { return OnAssetPathChanged; }
+	FOnContentBrowserSettingChanged& GetOnContentBrowserSettingChanged() { return OnContentBrowserSettingChanged; }
+
+	/** Override list of paths to select by default */
+	FDefaultSelectedPathsDelegate& GetDefaultSelectedPathsDelegate() { return DefaultSelectedPathsDelegate; }
+
+	/** Override list of paths to expand by default */
+	FDefaultPathsToExpandDelegate& GetDefaultPathsToExpandDelegate() { return DefaultPathsToExpandDelegate; }
 
 	FMainMRUFavoritesList* GetRecentlyOpenedAssets() const
 	{
@@ -137,8 +150,8 @@ public:
 	
 
 private:
-	/** Resize the recently opened asset list */
-	void ResizeRecentAssetList(FName InName);
+	/** Handle changes to content browser settings */
+	void ContentBrowserSettingChanged(FName InName);
 	
 	/** List of asset classes whose tags are dynamic and therefore we should union all asset's tags rather than grabbing the first available. */
 	TArray<FName> AssetClassesRequiringDynamicTags;
@@ -172,4 +185,8 @@ private:
 	FOnAssetSelectionChanged OnAssetSelectionChanged;
 	FOnSourcesViewChanged OnSourcesViewChanged;
 	FOnAssetPathChanged OnAssetPathChanged;
+	FOnContentBrowserSettingChanged OnContentBrowserSettingChanged;
+
+	FDefaultSelectedPathsDelegate DefaultSelectedPathsDelegate;
+	FDefaultPathsToExpandDelegate DefaultPathsToExpandDelegate;
 };

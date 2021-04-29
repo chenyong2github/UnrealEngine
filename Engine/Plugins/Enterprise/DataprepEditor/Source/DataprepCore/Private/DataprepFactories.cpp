@@ -6,6 +6,7 @@
 #include "DataprepAssetInstance.h"
 #include "DataprepContentConsumer.h"
 #include "DataprepCoreLogCategory.h"
+#include "Shared/DataprepCorePrivateUtils.h"
 
 #include "AssetRegistryModule.h"
 #include "AssetTypeCategories.h"
@@ -80,6 +81,8 @@ UObject * UDataprepAssetFactory::FactoryCreateNew(UClass* InClass, UObject* InPa
 	FAssetRegistryModule::AssetCreated( DataprepAsset );
 	DataprepAsset->MarkPackageDirty();
 
+	DataprepCorePrivateUtils::Analytics::DataprepAssetCreated( DataprepAsset );
+	
 	return DataprepAsset;
 }
 
@@ -109,6 +112,8 @@ UObject* UDataprepAssetInstanceFactory::FactoryCreateNew(UClass* InClass, UObjec
 			{
 				FAssetRegistryModule::AssetCreated( DataprepAssetInstance );
 				DataprepAssetInstance->MarkPackageDirty();
+
+				DataprepCorePrivateUtils::Analytics::DataprepAssetCreated( DataprepAssetInstance );
 
 				return DataprepAssetInstance;
 			}

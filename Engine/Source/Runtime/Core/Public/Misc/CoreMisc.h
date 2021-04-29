@@ -262,7 +262,7 @@ struct CORE_API FScopedScriptExceptionHandler
  * If this is true, it will create a FBlueprintContextTracker (previously FBlueprintExceptionTracker) which is defined in Script.h
  */
 #ifndef DO_BLUEPRINT_GUARD
-	#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	#if (!(UE_BUILD_SHIPPING || UE_BUILD_TEST) || WITH_EDITOR)
 		#define DO_BLUEPRINT_GUARD 1
 	#else
 		#define DO_BLUEPRINT_GUARD 0

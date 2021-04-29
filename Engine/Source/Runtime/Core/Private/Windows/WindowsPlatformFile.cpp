@@ -26,22 +26,22 @@
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 
-#include "WindowsAsyncIO.h"
+#include "Microsoft/MicrosoftAsyncIO.h"
 #include "Async/MappedFileHandle.h"
 
-TLockFreePointerListUnordered<void, PLATFORM_CACHE_LINE_SIZE> WindowsAsyncIOEventPool;
-bool GTriggerFailedWindowsRead = false;
+TLockFreePointerListUnordered<void, PLATFORM_CACHE_LINE_SIZE> MicrosoftAsyncIOEventPool;
+bool GTriggerFailedMicrosoftRead = false;
 
 #if !UE_BUILD_SHIPPING
-static void TriggerFailedWindowsRead(const TArray<FString>& Args)
+static void TriggerFailedMicrosoftRead(const TArray<FString>& Args)
 {
-	GTriggerFailedWindowsRead = true;
+	GTriggerFailedMicrosoftRead = true;
 }
 
-static FAutoConsoleCommand TriggerFailedWindowsReadCmd(
+static FAutoConsoleCommand TriggerFailedMicrosoftReadCmd(
 	TEXT("TriggerFailedWindowsRead"),
-	TEXT("Tests low level IO errors on XB and Windows"),
-	FConsoleCommandWithArgsDelegate::CreateStatic(&TriggerFailedWindowsRead)
+	TEXT("Tests low level IO errors on Windows"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(&TriggerFailedMicrosoftRead)
 );
 #endif
 
@@ -1136,7 +1136,7 @@ public:
 #endif
 
 		// we can't really fail here because this is intended to be an async open
-		return new FWindowsAsyncReadFileHandle(Handle, *NormalizedFilename);
+		return new FMicrosoftAsyncReadFileHandle(Handle, *NormalizedFilename);
 
 	}
 #endif

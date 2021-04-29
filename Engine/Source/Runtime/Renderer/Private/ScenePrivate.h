@@ -2672,6 +2672,9 @@ public:
 	/** The current progress of the real time reflection capture when time sliced. */
 	int32 RealTimeSlicedReflectionCaptureState;
 
+	/** Cache of Frame Number, used to detect first viewfamily */
+	uint64 RealTimeSlicedReflectionCaptureFrameNumber;
+
 	/**
 	 * The path tracer uses its own representation of the skylight. These textures
 	 * are updated lazily by the path tracer when missing. Any code that modifies

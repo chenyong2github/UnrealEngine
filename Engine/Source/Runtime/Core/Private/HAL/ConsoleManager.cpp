@@ -12,6 +12,7 @@ ConsoleManager.cpp: console command handling
 #include "Modules/ModuleManager.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/RemoteConfigIni.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 DEFINE_LOG_CATEGORY(LogConsoleResponse);
 DEFINE_LOG_CATEGORY_STATIC(LogConsoleManager, Log, All);
@@ -1352,6 +1353,7 @@ void FConsoleManager::ForEachConsoleObjectThatContains(const FConsoleObjectVisit
 bool FConsoleManager::ProcessUserConsoleInput(const TCHAR* InInput, FOutputDevice& Ar, UWorld* InWorld)
 {
 	check(InInput);
+	CSV_EVENT_GLOBAL(TEXT("Cmd: %s"), InInput);
 
 	const TCHAR* It = InInput;
 

@@ -97,7 +97,8 @@ TSharedPtr<FDMXProtocolSACNSender> FDMXProtocolSACNSender::TryCreateUnicastSende
 		FUdpSocketBuilder(TEXT("UDPSACNUnicastSocket"))
 		.AsBlocking()
 		.AsReusable()
-		.BoundToEndpoint(NewNetworkInterfaceEndpoint);
+		.BoundToEndpoint(NewNetworkInterfaceEndpoint)
+		.WithMulticastLoopback();
 
 	if(!NewSocket)
 	{

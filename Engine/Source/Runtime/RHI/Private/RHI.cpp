@@ -1720,6 +1720,13 @@ void FGenericDataDrivenShaderPlatformInfo::SetDefaultValues()
 {
 	MaxFeatureLevel = ERHIFeatureLevel::Num;
 	bSupportsMSAA = true;
+
+	bNeedsToSwitchVerticalAxisOnMobileOpenGL = true;
+	bSupportsHairStrandGeometry = true;
+	bSupportsDOFHybridScattering = true;
+	bSupportsHZBOcclusion = true;
+	bSupportsWaterIndirectDraw = true;
+	bSupportsAsyncPipelineCompilation = true;
 }
 
 void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConfigSection& Section, FGenericDataDrivenShaderPlatformInfo& Info)
@@ -1781,8 +1788,21 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	GET_SECTION_BOOL_HELPER(bSupportsMeshShaders);
 	GET_SECTION_BOOL_HELPER(bSupportsPerPixelDBufferMask);
 	GET_SECTION_BOOL_HELPER(bIsHlslcc);
+	GET_SECTION_BOOL_HELPER(bSupportsVariableRateShading);
 	GET_SECTION_INT_HELPER(NumberOfComputeThreads);
 
+	GET_SECTION_BOOL_HELPER(bWaterUsesSimpleForwardShading);
+	GET_SECTION_BOOL_HELPER(bNeedsToSwitchVerticalAxisOnMobileOpenGL);
+	GET_SECTION_BOOL_HELPER(bSupportsHairStrandGeometry);
+	GET_SECTION_BOOL_HELPER(bSupportsDOFHybridScattering);
+	GET_SECTION_BOOL_HELPER(bNeedsExtraMobileFrames);
+	GET_SECTION_BOOL_HELPER(bSupportsHZBOcclusion);
+	GET_SECTION_BOOL_HELPER(bSupportsWaterIndirectDraw);
+	GET_SECTION_BOOL_HELPER(bSupportsAsyncPipelineCompilation);
+	GET_SECTION_BOOL_HELPER(bSupportsManualVertexFetch);
+	GET_SECTION_BOOL_HELPER(bRequiresReverseCullingOnMobile);
+	GET_SECTION_BOOL_HELPER(bOverrideFMaterial_NeedsGBufferEnabled);
+	GET_SECTION_BOOL_HELPER(bSupportsMobileDistanceField);
 #undef GET_SECTION_BOOL_HELPER
 #undef GET_SECTION_INT_HELPER
 

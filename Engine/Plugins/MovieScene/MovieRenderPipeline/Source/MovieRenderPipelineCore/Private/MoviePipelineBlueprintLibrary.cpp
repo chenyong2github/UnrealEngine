@@ -23,6 +23,10 @@
 #include "MoviePipelineCameraSetting.h"
 #include "HAL/FileManager.h"
 #include "Internationalization/Regex.h"
+#include "Compilation/MovieSceneCompiledDataManager.h"
+#include "Misc/StringBuilder.h"
+#include "MovieSceneSequenceVisitor.h"
+#include "MovieSceneSequenceID.h"
 #include "MoviePipelineUtils.h"
 
 // For camera settings
@@ -340,192 +344,6 @@ FString UMoviePipelineBlueprintLibrary::GetMapPackageName(UMoviePipelineExecutor
 	return InJob->Map.GetLongPackageName();
 }
 
-static void CreateExecutorShotsFromMovieScene(UMovieScene* InMovieScene, const TRange<FFrameNumber>& InIntersectionRange, const FMovieSceneSequenceTransform& InOuterToInnerTransform, UMoviePipelineExecutorJob* InJob, UMovieSceneCinematicShotSection* InSection, const bool bForceDisable, TArray<UMoviePipelineExecutorShot*>& OutShots)
-{
-	check(InMovieScene && InJob);
-	bool bAddedShot = false;
-	
-	// We're going to search for Camera Cut tracks within this shot. If none are found, we'll use the whole range of the shot.
-	const UMovieSceneCameraCutTrack* CameraCutTrack = Cast<UMovieSceneCameraCutTrack>(InMovieScene->GetCameraCutTrack());
-	if (CameraCutTrack)
-	{
-		TArray<UMovieSceneSection*> SortedSections = CameraCutTrack->GetAllSections();
-		// Sort the camera cuts within a shot. The correct render order is required for relative frame counts to work.
-		SortedSections.Sort([](const UMovieSceneSection& A, const UMovieSceneSection& B)
-			{
-				if (A.GetRange().HasLowerBound() && B.GetRange().HasLowerBound())
-				{
-					return A.GetRange().GetLowerBoundValue() < B.GetRange().GetLowerBoundValue();
-				}
-				return false;
-			});
-
-		for (UMovieSceneSection* Section : SortedSections)
-		{
-			UMovieSceneCameraCutSection* CameraCutSection = CastChecked<UMovieSceneCameraCutSection>(Section);
-			bool bLocalForceDisable = bForceDisable;
-			if (Section->GetRange().IsEmpty())
-			{
-				UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Found zero-length section in CameraCutTrack: %s Skipping..."), *CameraCutSection->GetPathName());
-				bLocalForceDisable = true;
-			}
-
-			// The inner shot track may extend past the outmost Playback Range. We want to respect the outmost playback range, which is passed in in global space 
-			// as InIntersectionRange. We will convert that to local space and intersect it with our section range.
-			TRange<FFrameNumber> PlaybackBoundsInLocal = InIntersectionRange * InOuterToInnerTransform.LinearTransform;
-			if (!Section->GetRange().Overlaps(PlaybackBoundsInLocal))
-			{
-				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Skipping camera cut section due to no overlap with playback range. CameraCutTrack: %s"), *CameraCutSection->GetPathName());
-				bLocalForceDisable = true;
-			}
-
-			// Search the job to see if we have this already in the mask and disabled.
-			UMoviePipelineExecutorShot* ExistingShot = nullptr;
-			for (UMoviePipelineExecutorShot* Shot : InJob->ShotInfo)
-			{
-				if (Shot == nullptr)
-				{
-					UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Null ShotInfo in job, ignoring..."));
-					continue;
-				}
-				if (Shot->InnerPathKey == FSoftObjectPath(CameraCutSection) && Shot->OuterPathKey == FSoftObjectPath(InSection))
-				{
-					ExistingShot = Shot;
-					break;
-				}
-			}
-
-			if (ExistingShot && !ExistingShot->bEnabled)
-			{
-				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Skipped adding Camera Cut %s to Shot List due to a shot render mask."), *CameraCutSection->GetPathName());
-				bLocalForceDisable = true;
-			}
-
-			if (!ExistingShot)
-			{
-				ExistingShot = NewObject<UMoviePipelineExecutorShot>(InJob);
-
-				if (InSection)
-				{
-					UE_LOG(LogMovieRenderPipeline, Log, TEXT("Generated new ShotInfo for Inner: %s Outer: %s (No existing shot found in the job)."), *CameraCutSection->GetPathName(), *InSection->GetPathName());
-				}
-			}
-			else if (InSection)
-			{
-				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Reusing existing ShotInfo for Inner: %s Outer: %s."), *CameraCutSection->GetPathName(), *InSection->GetPathName());
-			}
-
-			// It shouldn't be a duplicate but if it is then the rendering fails later so 
-			// we will ensure it's not a duplicate now for less crashes.
-			OutShots.AddUnique(ExistingShot);			
-			ExistingShot->InnerPathKey = FSoftObjectPath(CameraCutSection);
-			ExistingShot->OuterPathKey = InSection;
-			if (InSection)
-			{
-				ExistingShot->OuterName = InSection->GetShotDisplayName();
-			}
-
-			const FMovieSceneObjectBindingID& CameraObjectBindingId = CameraCutSection->GetCameraBindingID();
-			if (CameraObjectBindingId.IsValid())
-			{
-				const FMovieSceneBinding* Binding = InMovieScene->FindBinding(CameraObjectBindingId.GetGuid());
-				if (Binding)
-				{
-					if (FMovieSceneSpawnable* Spawnable = InMovieScene->FindSpawnable(Binding->GetObjectGuid()))
-					{
-						ExistingShot->InnerName = Spawnable->GetName();
-					}
-					else if (FMovieScenePossessable* Posssessable = InMovieScene->FindPossessable(Binding->GetObjectGuid()))
-					{
-						ExistingShot->InnerName = Posssessable->GetName();
-					}
-					else
-					{
-						ExistingShot->InnerName = Binding->GetName();
-					}
-				}
-			}
-
-			// We need to generate a UMoviePipelineExecutorShot for each thing in a sequence regardless of if it should
-			// be rendered so that we can appropriately disable everything else that is masked off. 
-			ExistingShot->bForceDisable = bLocalForceDisable;
-			bAddedShot = true;
-
-			// The section range in local space as clipped by the outmost playback bounds.
-			TRange<FFrameNumber> ClippedSectionRange = TRange<FFrameNumber>::Intersection(PlaybackBoundsInLocal, Section->GetRange());
-
-			// We also want to know how much the camera cut track extended outside of the playback range to calculate
-			// how many warmup frames we can do for real warmups. 
-			TRange<FFrameNumber> CameraCutRange = TRange<FFrameNumber>::Empty();
-
-			// If the camera cut sticks past our playback range (on the left side) then keep track of that.
-			if (CameraCutSection->GetRange().GetLowerBoundValue() < ClippedSectionRange.GetLowerBoundValue())
-			{
-				CameraCutRange = TRange<FFrameNumber>(CameraCutSection->GetRange().GetLowerBoundValue(), ClippedSectionRange.GetLowerBoundValue());
-			}
-
-			// Reset the shot info (as it is all transient data) so it doesn't get re-used between runs.
-			ExistingShot->ShotInfo = FMoviePipelineCameraCutInfo();
-			ExistingShot->ShotInfo.CameraCutSection = CameraCutSection;
-			ExistingShot->ShotInfo.OriginalRangeLocal = ClippedSectionRange;
-			ExistingShot->ShotInfo.TotalOutputRangeLocal = ClippedSectionRange;
-			ExistingShot->ShotInfo.WarmUpRangeLocal = CameraCutRange;
-			ExistingShot->ShotInfo.InnerToOuterTransform = InOuterToInnerTransform.InverseLinearOnly();
-		}
-	}
-
-	// If we didn't detect any valid camera cuts within this movie scene, we will just add the whole movie scene as a new shot.
-	if (!bAddedShot)
-	{
-		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("No Cinematic Shot Sections found in range, and no Camera Cut Tracks found. Playback Range will be used but camera will render from Pawns perspective."));
-
-		// Search the job to see if we have this already in the mask and disabled.
-		UMoviePipelineExecutorShot* ExistingShot = nullptr;
-		FString InnerName;
-		FString OuterName;
-
-		// Because we didn't have any camera cuts inside of our movie scene, then, if possible, the owning section is
-		// our reference. If we don't have an owning section then this is a root level movie scene being rendered and
-		// we just use the outer Movie Scene.
-		UObject const* OwningObject = InSection;
-		if (InSection)
-		{
-			OuterName = InSection->GetShotDisplayName();
-		}
-		if(!OwningObject)
-		{
-			OwningObject = InMovieScene;
-			InnerName = FPaths::GetBaseFilename(InMovieScene->GetPathName());
-		}
-
-		for (UMoviePipelineExecutorShot* Shot : InJob->ShotInfo)
-		{
-			if (Shot->InnerPathKey == nullptr && Shot->OuterPathKey == FSoftObjectPath(OwningObject))
-			{
-				ExistingShot = Shot;
-				break;
-			}
-		}
-
-		if (!ExistingShot)
-		{
-			ExistingShot = NewObject<UMoviePipelineExecutorShot>(InJob);
-		}
-
-		OutShots.AddUnique(ExistingShot);
-		// Reset the shot info (as it is all transient data) so it doesn't get re-used between runs.
-		ExistingShot->ShotInfo = FMoviePipelineCameraCutInfo();
-		ExistingShot->InnerPathKey = nullptr;
-		ExistingShot->OuterPathKey = FSoftObjectPath(OwningObject);
-		ExistingShot->ShotInfo.CameraCutSection = nullptr;
-		ExistingShot->ShotInfo.OriginalRangeLocal = InIntersectionRange * InOuterToInnerTransform.LinearTransform;
-		ExistingShot->ShotInfo.TotalOutputRangeLocal = InIntersectionRange * InOuterToInnerTransform.LinearTransform;
-		ExistingShot->ShotInfo.WarmUpRangeLocal = TRange<FFrameNumber>::Empty();;
-		ExistingShot->ShotInfo.InnerToOuterTransform = InOuterToInnerTransform.InverseLinearOnly();
-		ExistingShot->InnerName = InnerName;
-		ExistingShot->OuterName = OuterName;
-	}
-}
 
 void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequence* InSequence, UMoviePipelineExecutorJob* InJob, bool& bShotsChanged)
 {
@@ -533,64 +351,229 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 	{
 		return;
 	}
-	TArray<UMoviePipelineExecutorShot*> NewShots;
 
-	// Shot Tracks take precedent over camera cuts, as settings can only be applied as granular as a shot.
-	UMovieSceneCinematicShotTrack* CinematicShotTrack = InSequence->GetMovieScene()->FindMasterTrack<UMovieSceneCinematicShotTrack>();
-
-	if (CinematicShotTrack)
+	using FCameraCutInfo = TTuple<UMovieSceneCameraCutSection*, FMovieSceneSequenceID, int16>;
+	struct FCameraCutVisitor : UE::MovieScene::ISequenceVisitor
 	{
-		// Sort the sections by their actual location on the timeline.
-		CinematicShotTrack->SortSections();
-		TArray<UMovieSceneSection*> SortedSections = CinematicShotTrack->GetAllSections();
-
-		for (UMovieSceneSection* Section : SortedSections)
+		virtual void VisitTrack(UMovieSceneTrack* InTrack, const FGuid&, const UE::MovieScene::FSubSequenceSpace& LocalSpace)
 		{
-			UMovieSceneCinematicShotSection* ShotSection = CastChecked<UMovieSceneCinematicShotSection>(Section);
-			bool bForceDisable = false;
-			
-			// If the user has manually marked a section as inactive we don't produce a shot for it.
-			if (!Section->IsActive())
+			if (UMovieSceneCameraCutTrack* CameraCutTrack = Cast<UMovieSceneCameraCutTrack>(InTrack))
 			{
-				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Skipped adding Shot %s to Shot List due to being inactive."), *ShotSection->GetShotDisplayName());
-				bForceDisable = true;
+				for (UMovieSceneSection* Section : CameraCutTrack->GetAllSections())
+				{
+					if (!Section->IsActive())
+					{
+						continue;
+					}
+
+					UMovieSceneCameraCutSection* CameraCutSection = CastChecked<UMovieSceneCameraCutSection>(Section);
+					
+					// Intersect it with our local range so that any sections that fall outside our playback bounds gets discarded
+					UMovieScene* OwningScene = CameraCutSection->GetTypedOuter<UMovieScene>();
+					TRange<FFrameNumber> LocalCameraRange = TRange<FFrameNumber>::Intersection(OwningScene->GetPlaybackRange(), CameraCutSection->GetRange());
+					if (LocalCameraRange.IsEmpty())
+					{
+						continue;
+					}
+
+					// Intersect it with the root range so that if the parent has trimmed down the sub-section we don't render outside that.
+					TRange<FFrameNumber> RootCameraRange = TRange<FFrameNumber>::Intersection(LocalSpace.RootClampRange, LocalCameraRange * LocalSpace.RootToSequenceTransform.InverseLinearOnly());
+					if (!RootCameraRange.IsEmpty())
+					{
+						CameraCutTree.Add(RootCameraRange, MakeTuple(CameraCutSection, LocalSpace.SequenceID, LocalSpace.HierarchicalBias));
+					}
+				}
 			}
-
-			// If the shot section points to a sequence that no longer exists...
-			if (!ShotSection->GetSequence())
-			{
-				UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Skipped adding Shot %s to Shot List due to no inner sequence."), *ShotSection->GetShotDisplayName());
-				bForceDisable = true;
-			}
-
-			// Skip this section if it falls entirely outside of our playback bounds.
-			TRange<FFrameNumber> MasterPlaybackBounds = InJob->GetConfiguration()->GetEffectivePlaybackRange(InSequence);
-			if (!ShotSection->GetRange().Overlaps(MasterPlaybackBounds))
-			{
-				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Skipped adding Shot %s to Shot List due to not overlapping playback bounds."), *ShotSection->GetShotDisplayName());
-				bForceDisable = true;
-			}
-
-			// The Shot Section may extend past our Sequence's Playback Bounds. We intersect the two bounds to ensure that the Playback Start/Playback End of the overall sequence is respected.
-			TRange<FFrameNumber> CinematicShotSectionRange = TRange<FFrameNumber>::Intersection(ShotSection->GetRange(), InSequence->GetMovieScene()->GetPlaybackRange());
-
-			CreateExecutorShotsFromMovieScene(ShotSection->GetSequence()->GetMovieScene(), CinematicShotSectionRange, ShotSection->OuterToInnerTransform(), InJob, ShotSection, bForceDisable, /*Out*/ NewShots);
 		}
-	}
+		TMovieSceneEvaluationTree<FCameraCutInfo> CameraCutTree;
+	};
 
-	if (NewShots.Num() == 0)
 	{
-		// They either didn't have a cinematic shot track, or it didn't have any valid sections. We will try to build sections from a camera cut at the top level,
-		// or the entire top level if there is no camera cut track.
-		CreateExecutorShotsFromMovieScene(InSequence->GetMovieScene(), InSequence->GetMovieScene()->GetPlaybackRange(), FMovieSceneSequenceTransform(), InJob, nullptr, false, /*Out*/ NewShots);
-	}
+		UE::MovieScene::FSequenceVisitParams Params;
+		Params.bVisitMasterTracks = true;
+		Params.bVisitSubSequences = true;
+		FCameraCutVisitor CameraCutVisitor;
 
-	// Now that we've read the job's shot mask we will clear it and replace it with only things still valid.
-	if (InJob->ShotInfo != NewShots)
-	{
-		InJob->ShotInfo.Reset();
-		InJob->ShotInfo = NewShots;
-		bShotsChanged = true;
+		// Visit all camera cuts
+		VisitSequence(InSequence, Params, CameraCutVisitor);
+
+		struct FLinearizedEntity
+		{
+			TRange<FFrameNumber> Range;
+			UMovieSceneCameraCutSection* CameraCut;
+			FMovieSceneSequenceID SequenceID;
+
+			// These are only updated after the final linearized entities are chosen
+			TTuple<FString, FString> Name;
+			TSharedPtr<MoviePipeline::FCameraCutSubSectionHierarchyNode> LeafNode;
+			TRange<FFrameNumber> CameraCutWarmUpRange;
+		};
+
+		TArray<FLinearizedEntity> Entities;
+
+		// Walk the camera cut tree, linearizing the results
+		FMovieSceneEvaluationTreeRangeIterator RangeIt(CameraCutVisitor.CameraCutTree);
+		for (; RangeIt; ++RangeIt)
+		{
+			// Look up the camera cuts for this range
+			TMovieSceneEvaluationTreeDataIterator<FCameraCutInfo> DataIt = CameraCutVisitor.CameraCutTree.GetAllData(RangeIt.Node());
+			if (!DataIt)
+			{
+				continue;
+			}
+
+			// Find the best Camera Cut based on HBias
+			FCameraCutInfo BestInfo = *DataIt;
+			++DataIt;
+			for (; DataIt; ++DataIt)
+			{
+				int16 DataHBias = DataIt->Get<2>();
+				int16 BestHBias = BestInfo.Get<2>();
+				if (DataHBias > BestHBias)
+				{
+					BestInfo = *DataIt;
+				}
+			}
+
+			TRange<FFrameNumber> IntersectedWithPlaybackBounds = TRange<FFrameNumber>::Intersection(RangeIt.Range(), InSequence->GetMovieScene()->GetPlaybackRange());
+
+			// If it falls completely outside the playback bounds, no need to include it.
+			if (IntersectedWithPlaybackBounds.IsEmpty())
+			{
+				continue;
+			}
+
+			// Use our intersected range to trim by the outmost Playback Range.
+			FLinearizedEntity NewEntry{ IntersectedWithPlaybackBounds, BestInfo.Get<0>(), BestInfo.Get<1>() };
+			
+			bool bMerged = false;
+			if (Entities.Num())
+			{
+				FLinearizedEntity& LastEntity = Entities.Last();
+				// Check whether we should combine with the last one
+				const bool bShotMatches = LastEntity.SequenceID == NewEntry.SequenceID;
+				const bool bCameraCutMatches = LastEntity.CameraCut == NewEntry.CameraCut;
+				if (LastEntity.Range.Adjoins(NewEntry.Range) && bShotMatches && bCameraCutMatches)
+				{
+					LastEntity.Range.SetUpperBound(NewEntry.Range.GetUpperBound());
+					bMerged = true;
+				}
+			}
+
+			if(!bMerged)
+			{
+				Entities.Add(NewEntry);
+			}
+		}
+
+		FMovieSceneSequenceHierarchy SequenceHierarchyCache = FMovieSceneSequenceHierarchy();
+		UMovieSceneCompiledDataManager::CompileHierarchy(InSequence, &SequenceHierarchyCache, EMovieSceneServerClientMask::All);
+
+		// We now have the ranges we want to render (for camera cuts), 
+		for (FLinearizedEntity& Entity : Entities)
+		{
+			// Let's build a sub-section hierarchy for this node
+			TSharedPtr<MoviePipeline::FCameraCutSubSectionHierarchyNode> LeafNode = MakeShared<MoviePipeline::FCameraCutSubSectionHierarchyNode>();
+			
+			LeafNode->CameraCutSection = Entity.CameraCut;
+			MoviePipeline::BuildSectionHierarchyRecursive(SequenceHierarchyCache, InSequence, Entity.SequenceID, MovieSceneSequenceID::Invalid, LeafNode);
+
+			FMovieSceneTimeTransform InnerToOuterTransform = FMovieSceneTimeTransform();
+			FMovieSceneSubSequenceData* SubSequenceData = SequenceHierarchyCache.FindSubData(Entity.SequenceID);
+			if (SubSequenceData)
+			{
+				InnerToOuterTransform = SubSequenceData->RootToSequenceTransform.InverseFromAllFirstWarps();
+			}
+			Entity.CameraCutWarmUpRange = MoviePipeline::GetCameraWarmUpRangeFromSequence(InSequence, LeafNode->MovieScene->GetPlaybackRange().GetLowerBoundValue(), InnerToOuterTransform);
+			Entity.LeafNode = LeafNode;
+			Entity.Name = MoviePipeline::GetNameForShot(SequenceHierarchyCache, InSequence, LeafNode);
+		}
+
+		// We need to generate all of the linearized segments first so that we have all of the names available.
+		// We need all of the names available because we need to ensure unique shot names (for XMLs), and they 
+		// expect to be consistent (ie: if duplicates are found, the first one is retroactively changed to (1)).
+		TMap<FString, int32> ShotNameUseCount;
+		for (FLinearizedEntity& Entity : Entities)
+		{
+			int32& Count = ShotNameUseCount.FindOrAdd(Entity.Name.Get<1>(), 0);
+			if (++Count > 1)
+			{
+				FString& ShotName = Entity.Name.Get<1>();
+				ShotName.Append(FString::Format(TEXT("({0})"), { ShotNameUseCount[Entity.Name.Get<1>()] }));
+			}
+		}
+
+		// For any shot names we found duplicates, append 1 to the first to keep naming consistent
+		for (TPair<FString, int32>& Pair : ShotNameUseCount)
+		{
+			if (Pair.Value > 1)
+			{
+				for (FLinearizedEntity& Entity : Entities)
+				{
+					if (Entity.Name.Get<1>().Equals(Pair.Key))
+					{
+						Entity.Name.Get<1>().Append(TEXT("(1)"));
+						break;
+					}
+				}
+			}
+		}
+
+		// Finally, we can take the entities and turn them into shots. We have to do all of the name
+		// manipulation all upfront before looking for matching shots that already exist.
+		TArray<UMoviePipelineExecutorShot*> NewShots;
+		for (FLinearizedEntity& Entity : Entities)
+		{
+			// Try to find an existing shot to update - this way we respect the toggled UI state.
+			UMoviePipelineExecutorShot* NewShot = nullptr;
+			for (UMoviePipelineExecutorShot* Shot : InJob->ShotInfo)
+			{
+				if (!Shot)
+				{
+					UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Null ShotInfo in job, ignoring..."));
+					continue;
+				}
+
+				// For now we just compare the inner and outer names to decide if they match
+				if (Shot->InnerName == Entity.Name.Get<0>() && Shot->OuterName == Entity.Name.Get<1>())
+				{
+					NewShot = Shot;
+					break;
+				}
+			}
+
+			// We can run into certain situations where the shots look the same ie: a master with a sub-scene and a camera being used multiple times
+			// have the same inner and outer name. We don't want to re-use the same shot multiple times
+
+			if (!NewShot)
+			{
+				NewShot = NewObject<UMoviePipelineExecutorShot>(InJob);
+				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Generated new ShotInfo for Inner: %s Outer: %s (No existing shot found in the job)."), *Entity.Name.Get<0>(), *Entity.Name.Get<1>());
+			}
+			else
+			{
+				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Reusing existing ShotInfo for Inner: %s Outer: %s."), *Entity.Name.Get<0>(), *Entity.Name.Get<1>());
+
+			}
+			NewShots.Add(NewShot);
+
+			// Reset the shot info (as it is all transient data) so it doesn't get re-used between runs.
+			NewShot->ShotInfo = FMoviePipelineCameraCutInfo();
+			NewShot->InnerName = Entity.Name.Get<0>();
+			NewShot->OuterName = Entity.Name.Get<1>();
+			NewShot->ShotInfo.SubSectionHierarchy = Entity.LeafNode;
+			NewShot->ShotInfo.TotalOutputRangeMaster = Entity.Range;
+			NewShot->ShotInfo.WarmupRangeMaster = Entity.CameraCutWarmUpRange;
+			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Registering range: %s (InnerName: %s OuterName: %s)"), *LexToString(NewShot->ShotInfo.TotalOutputRangeMaster), *NewShot->InnerName, *NewShot->OuterName);
+		}
+
+		// Now that we've read the job's shot mask we will clear it and replace it with only things still valid.
+		if (InJob->ShotInfo != NewShots)
+		{
+			InJob->ShotInfo.Reset();
+			InJob->ShotInfo = NewShots;
+			bShotsChanged = true;
+		}
 	}
 }
 
@@ -787,9 +770,17 @@ void UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(const FStrin
 		}
 		FString CameraName = InParams.ShotOverride ? InParams.ShotOverride->InnerName : FString();
 		CameraName = CameraName.Len() > 0 ? CameraName : TEXT("NoCamera");
+		if(InParams.CameraNameOverride.Len() > 0)
+		{
+			CameraName = InParams.CameraNameOverride;
+		}
 
 		FString ShotName = InParams.ShotOverride ? InParams.ShotOverride->OuterName : FString();
 		ShotName = ShotName.Len() > 0 ? ShotName : TEXT("NoShot");
+		if(InParams.ShotNameOverride.Len() > 0)
+		{
+			ShotName = InParams.ShotNameOverride;
+		}
 
 		MoviePipeline::GetOutputStateFormatArgs(OutMergedFormatArgs, FrameNumber, FrameNumberShot, FrameNumberRel, FrameNumberShotRel, CameraName, ShotName);
 	}

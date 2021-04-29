@@ -4,22 +4,18 @@
 #include "OpenXRHMD.h"
 #include "OpenXRHMD_Swapchain.h"
 #include "OpenXRCore.h"
-#include "OpenXRPlatformRHI.h"
 
 bool FOpenXRRenderBridge::Present(int32& InOutSyncInterval)
 {
+	bool bNeedsNativePresent = true;
+
 	if (OpenXRHMD)
 	{
 		OpenXRHMD->OnFinishRendering_RHIThread();
+		bNeedsNativePresent = !OpenXRHMD->IsStandaloneStereoOnlyDevice();
 	}
 
 	InOutSyncInterval = 0; // VSync off
-
-#if PLATFORM_HOLOLENS
-	bool bNeedsNativePresent = false;
-#else
-	bool bNeedsNativePresent = !FPlatformMisc::IsStandaloneStereoOnlyDevice();
-#endif
 
 	return bNeedsNativePresent;
 }

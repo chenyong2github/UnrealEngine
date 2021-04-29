@@ -16,6 +16,7 @@
 #include "ToolMenus.h"
 #include "AssetFolderContextMenu.h"
 #include "AssetFileContextMenu.h"
+#include "Settings/ContentBrowserSettings.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserAssetDataSource"
 
@@ -24,8 +25,7 @@ namespace ContentBrowserAssetData
 
 bool IsTopLevelFolder(const FName InFolderPath)
 {
-	TStringBuilder<FName::StringBufferSize> FolderPathStr;
-	InFolderPath.ToString(FolderPathStr);
+	FNameBuilder FolderPathStr(InFolderPath);
 
 	int32 SlashCount = 0;
 	for (const TCHAR PathChar : FStringView(FolderPathStr))
@@ -56,7 +56,14 @@ FContentBrowserItemData CreateAssetFolderItem(UContentBrowserDataSource* InOwner
 	}
 	else if (InFolderPath == EngineRootPath)
 	{
-		FolderDisplayNameOverride = LOCTEXT("EngineFolderDisplayName", "Engine Content");
+		if (GetDefault<UContentBrowserSettings>()->bOrganizeFolders)
+		{
+			FolderDisplayNameOverride = LOCTEXT("EngineOrganizedFolderDisplayName", "Content");
+		}
+		else
+		{
+			FolderDisplayNameOverride = LOCTEXT("EngineFolderDisplayName", "Engine Content");
+		}
 	}
 	else if (IsTopLevelFolder(InFolderPath))
 	{

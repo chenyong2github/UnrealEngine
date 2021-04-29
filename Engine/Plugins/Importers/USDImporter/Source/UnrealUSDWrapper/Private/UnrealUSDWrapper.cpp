@@ -113,6 +113,8 @@ namespace UnrealIdentifiers
 	const TfToken UsdPreviewSurface = TfToken( "UsdPreviewSurface" );
 	const TfToken UsdPrimvarReader_float2 = TfToken( "UsdPrimvarReader_float2" );
 	const TfToken UsdUVTexture = TfToken( "UsdUVTexture" );
+
+	const TfToken WorldSpaceNormals = TfToken( "worldSpaceNormals" );
 }
 
 std::string FUsdAttribute::GetUnrealPropertyPath( const pxr::UsdAttribute& Attribute )

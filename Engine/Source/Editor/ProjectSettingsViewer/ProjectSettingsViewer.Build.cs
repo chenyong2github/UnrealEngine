@@ -27,7 +27,6 @@ namespace UnrealBuildTool.Rules
 					"MoviePlayer",
 					"NavigationSystem",
 					"AIModule",
-					"ProjectTargetPlatformEditor",
 					"EditorStyle",
 					"DeveloperToolSettings",
 				}
@@ -39,6 +38,11 @@ namespace UnrealBuildTool.Rules
 					"Editor/ProjectSettingsViewer/Private",
 				}
 			);
+
+			if (Target.bBuildTargetDeveloperTools)
+			{
+				PrivateDependencyModuleNames.Add("ProjectTargetPlatformEditor");
+			}
 		}
 	}
 }

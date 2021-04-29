@@ -40,6 +40,15 @@ ULevelSequence* ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence()
 	return nullptr;
 }
 
+ULevelSequence* ULevelSequenceEditorBlueprintLibrary::GetFocusedLevelSequence()
+{
+	if (CurrentSequencer.IsValid())
+	{
+		return Cast<ULevelSequence>(CurrentSequencer.Pin()->GetFocusedMovieSceneSequence());
+	}
+	return nullptr;
+}
+
 void ULevelSequenceEditorBlueprintLibrary::CloseLevelSequence()
 {
 	if (CurrentSequencer.IsValid())
@@ -84,6 +93,29 @@ int32 ULevelSequenceEditorBlueprintLibrary::GetCurrentTime()
 		FFrameRate TickResolution = CurrentSequencer.Pin()->GetFocusedTickResolution();
 
 		return ConvertFrameTime(CurrentSequencer.Pin()->GetGlobalTime().Time, TickResolution, DisplayRate).FloorToFrame().Value;
+	}
+	return 0;
+}
+
+void ULevelSequenceEditorBlueprintLibrary::SetCurrentLocalTime(int32 NewFrame)
+{
+	if (CurrentSequencer.IsValid())
+	{
+		FFrameRate DisplayRate = CurrentSequencer.Pin()->GetFocusedDisplayRate();
+		FFrameRate TickResolution = CurrentSequencer.Pin()->GetFocusedTickResolution();
+
+		CurrentSequencer.Pin()->SetLocalTime(ConvertFrameTime(NewFrame, DisplayRate, TickResolution));
+	}
+}
+
+int32 ULevelSequenceEditorBlueprintLibrary::GetCurrentLocalTime()
+{
+	if (CurrentSequencer.IsValid())
+	{
+		FFrameRate DisplayRate = CurrentSequencer.Pin()->GetFocusedDisplayRate();
+		FFrameRate TickResolution = CurrentSequencer.Pin()->GetFocusedTickResolution();
+
+		return ConvertFrameTime(CurrentSequencer.Pin()->GetLocalTime().Time, TickResolution, DisplayRate).FloorToFrame().Value;
 	}
 	return 0;
 }

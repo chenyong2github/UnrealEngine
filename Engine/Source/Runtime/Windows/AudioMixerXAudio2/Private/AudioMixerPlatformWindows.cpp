@@ -77,21 +77,21 @@ public:
 
 		if (InFlow == eRender)
 		{
-			for (Audio::IAudioMixerDeviceChangedLister* Listener : Listeners)
+			for (Audio::IAudioMixerDeviceChangedListener* Listener : Listeners)
 			{
 				Listener->OnDefaultRenderDeviceChanged(AudioDeviceRole, FString(pwstrDeviceId));
 			}
 		}
 		else if (InFlow == eCapture)
 		{
-			for (Audio::IAudioMixerDeviceChangedLister* Listener : Listeners)
+			for (Audio::IAudioMixerDeviceChangedListener* Listener : Listeners)
 			{
 				Listener->OnDefaultCaptureDeviceChanged(AudioDeviceRole, FString(pwstrDeviceId));
 			}
 		}
 		else
 		{
-			for (Audio::IAudioMixerDeviceChangedLister* Listener : Listeners)
+			for (Audio::IAudioMixerDeviceChangedListener* Listener : Listeners)
 			{
 				Listener->OnDefaultCaptureDeviceChanged(AudioDeviceRole, FString(pwstrDeviceId));
 				Listener->OnDefaultRenderDeviceChanged(AudioDeviceRole, FString(pwstrDeviceId));
@@ -116,7 +116,7 @@ public:
 			return S_OK;
 		}
 
-		for (Audio::IAudioMixerDeviceChangedLister* Listener : Listeners)
+		for (Audio::IAudioMixerDeviceChangedListener* Listener : Listeners)
 		{
 			Listener->OnDeviceAdded(FString(pwstrDeviceId));
 		}
@@ -137,7 +137,7 @@ public:
 			return S_OK;
 		}
 
-		for (Audio::IAudioMixerDeviceChangedLister* Listener : Listeners)
+		for (Audio::IAudioMixerDeviceChangedListener* Listener : Listeners)
 		{
 			Listener->OnDeviceRemoved(FString(pwstrDeviceId));
 		}
@@ -160,7 +160,7 @@ public:
 
 		if (dwNewState == DEVICE_STATE_DISABLED || dwNewState == DEVICE_STATE_UNPLUGGED || dwNewState == DEVICE_STATE_NOTPRESENT)
 		{
-			for (Audio::IAudioMixerDeviceChangedLister* Listener : Listeners)
+			for (Audio::IAudioMixerDeviceChangedListener* Listener : Listeners)
 			{
 				switch (dwNewState)
 				{
@@ -203,7 +203,7 @@ public:
 			key.fmtid == PKEY_AudioEngine_DeviceFormat.fmtid ||
 			key.fmtid == PKEY_AudioEngine_OEMFormat.fmtid)
 		{
-			for (Audio::IAudioMixerDeviceChangedLister* Listener : Listeners)
+			for (Audio::IAudioMixerDeviceChangedListener* Listener : Listeners)
 			{
 				Listener->OnDeviceRemoved(ChangedId);
 			}
@@ -232,13 +232,13 @@ public:
 		return ulRef;
 	}
 
-	void RegisterDeviceChangedListener(Audio::IAudioMixerDeviceChangedLister* DeviceChangedListener)
+	void RegisterDeviceChangedListener(Audio::IAudioMixerDeviceChangedListener* DeviceChangedListener)
 	{
 		FScopeLock ScopeLock(&ListenerArrayMutationLock);
 		Listeners.Add(DeviceChangedListener);
 	}
 
-	void UnRegisterDeviceDeviceChangedListener(Audio::IAudioMixerDeviceChangedLister* DeviceChangedListener)
+	void UnRegisterDeviceDeviceChangedListener(Audio::IAudioMixerDeviceChangedListener* DeviceChangedListener)
 	{
 		FScopeLock ScopeLock(&ListenerArrayMutationLock);
 		Listeners.Remove(DeviceChangedListener);
@@ -246,7 +246,7 @@ public:
 
 private:
 	LONG Ref;
-	TSet<Audio::IAudioMixerDeviceChangedLister*> Listeners;
+	TSet<Audio::IAudioMixerDeviceChangedListener*> Listeners;
 	FCriticalSection ListenerArrayMutationLock;
 	IMMDeviceEnumerator* DeviceEnumerator;
 	bool bComInitialized;

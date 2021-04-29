@@ -129,7 +129,7 @@ public:
 	void BufferPhysicsResults_External(Chaos::FDirtyRigidParticleData&);
 
 	/**/
-	bool PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData = nullptr, const Chaos::FRealSingle* Alpha = nullptr);
+	bool PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData = nullptr, const Chaos::FRealSingle* Alpha = nullptr, const Chaos::FRealSingle* LeashAlpha = nullptr);
 
 	/**/
 	bool IsDirty();

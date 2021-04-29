@@ -985,7 +985,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 
 
 			// Compute the weighted average of t for the aerial perspective evaluation.
-			if (any(PMC.ExtinctionCoefficients[0]) > 0.0)
+			if (any(PMC.ExtinctionCoefficients[0] > 0.0))
 			{
 				float tAPWeight = min(TransmittanceToView.MATSUF.r, min(TransmittanceToView.MATSUF.g, TransmittanceToView.MATSUF.b));
 				tAPWeightedSum += t * tAPWeight;

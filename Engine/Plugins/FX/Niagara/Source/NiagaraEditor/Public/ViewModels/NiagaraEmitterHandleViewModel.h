@@ -41,6 +41,10 @@ public:
 
 	//~ FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FNiagaraEmitterHandleViewModel");
+	}
 
 	/** Sets the simulation for the emitter this handle references. */
 	void SetSimulation(TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation);

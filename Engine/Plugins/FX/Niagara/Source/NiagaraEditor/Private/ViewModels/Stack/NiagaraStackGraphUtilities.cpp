@@ -31,7 +31,6 @@
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
-#include "AssetRegistryModule.h"
 #include "EdGraphUtilities.h"
 #include "ObjectTools.h"
 #include "NiagaraMessageManager.h"
@@ -446,6 +445,92 @@ UNiagaraNodeInput* FNiagaraStackGraphUtilities::GetEmitterInputNodeForStackNode(
 	return nullptr;
 }
 
+FText GetChangelistText(UNiagaraScript* NiagaraScript, const FNiagaraAssetVersion& FromVersion, const FNiagaraAssetVersion& ToVersion)
+{
+	FText Result;
+	for (FNiagaraAssetVersion Version : NiagaraScript->GetAllAvailableVersions())
+	{
+		if (Version <= FromVersion)
+		{
+			continue;
+		}
+		if (ToVersion < Version)
+		{
+			break;
+		}
+		FText ChangeDescription = NiagaraScript->GetScriptData(Version.VersionGuid)->VersionChangeDescription;
+		if (!ChangeDescription.IsEmpty())
+		{
+			Result = FText::Format(FText::FromString("{0}{1}.{2}: {3}\n"), Result, Version.MajorVersion, Version.MinorVersion, ChangeDescription);
+		}
+	}
+	return Result;
+}
+
+void FNiagaraStackGraphUtilities::CheckForDeprecatedScriptVersion(UNiagaraNodeFunctionCall* InputFunctionCallNode, const FString& StackEditorDataKey, UNiagaraStackEntry::FStackIssueFixDelegate VersionUpgradeFix, TArray<UNiagaraStackEntry::FStackIssue>& OutIssues)
+{
+	// Generate an issue if the script version is out of date
+	if (InputFunctionCallNode->FunctionScript && InputFunctionCallNode->FunctionScript->IsVersioningEnabled() && VersionUpgradeFix.IsBound())
+	{
+		FNiagaraAssetVersion ExposedVersion = InputFunctionCallNode->FunctionScript->GetExposedVersion();
+		FNiagaraAssetVersion ReferencedVersion = InputFunctionCallNode->FunctionScript->GetScriptData(InputFunctionCallNode->SelectedScriptVersion)->Version;
+		if (ReferencedVersion.MajorVersion < ExposedVersion.MajorVersion)
+		{
+			TArray<UNiagaraStackEntry::FStackIssueFix> Fixes;
+			Fixes.Add(UNiagaraStackEntry::FStackIssueFix(LOCTEXT("UpgradeVersionFix", "Upgrade to newest version."), VersionUpgradeFix));
+			//TODO MV: add "fix all" and "copy and fix" actions
+						
+			FText ChangelistDescriptions = GetChangelistText(InputFunctionCallNode->FunctionScript, ReferencedVersion, ExposedVersion);
+			FText LongDescription = FText::Format(LOCTEXT("DeprecatedVersionFormat", "This script has a newer version available.\nYou can upgrade now, but major version upgrades can sometimes come with breaking changes! So check that everything is still working as expected afterwards.{0}"),
+				ChangelistDescriptions.IsEmpty() ? FText() : FText::Format(LOCTEXT("DeprecatedVersionFormatChanges", "\n\nVersion change description:\n{0}"), ChangelistDescriptions));
+			UNiagaraStackEntry::FStackIssue UpgradeVersion(
+                EStackIssueSeverity::Warning,
+                FText::Format(LOCTEXT("DeprecatedVersionSummaryFormat", "Deprecated script version: {0}.{1} -> {2}.{3}"),
+                	FText::AsNumber(ReferencedVersion.MajorVersion), FText::AsNumber(ReferencedVersion.MinorVersion), FText::AsNumber(ExposedVersion.MajorVersion), FText::AsNumber(ExposedVersion.MinorVersion)),
+                LongDescription,
+                StackEditorDataKey,
+                true,
+                Fixes);
+			OutIssues.Add(UpgradeVersion);
+		}
+	}
+
+	// Generate a note of the changelist when the script version was manually changed
+	if (InputFunctionCallNode->FunctionScript && InputFunctionCallNode->FunctionScript->IsVersioningEnabled())
+	{
+		FGuid SelectedVersionGuid = InputFunctionCallNode->SelectedScriptVersion;
+		FGuid PreviousVersionGuid = InputFunctionCallNode->PreviousScriptVersion;
+		FVersionedNiagaraScriptData* SelectedVersion = InputFunctionCallNode->FunctionScript->GetScriptData(SelectedVersionGuid);
+		FVersionedNiagaraScriptData* PreviousVersion = InputFunctionCallNode->FunctionScript->GetScriptData(PreviousVersionGuid);
+		if (PreviousVersionGuid.IsValid() && PreviousVersionGuid != SelectedVersionGuid && SelectedVersion && PreviousVersion)
+		{
+			FText ChangelistDescriptions = GetChangelistText(InputFunctionCallNode->FunctionScript, PreviousVersion->Version, SelectedVersion->Version);
+			if (!ChangelistDescriptions.IsEmpty())
+			{
+				UNiagaraStackEntry::FStackIssue UpgradeInfo(
+	                EStackIssueSeverity::Info,
+	                LOCTEXT("VersionUpgradeInfoSummary", "Version upgrade note"),
+	                FText::Format(LOCTEXT("VersionUpgradeFormatChanges", "The version of this script was recently upgraded; here is a list of changes:\n{0}"), ChangelistDescriptions),
+	                StackEditorDataKey,
+	                true);
+				OutIssues.Add(UpgradeInfo);
+			}
+		}
+	}
+
+	// Generate a note if the last version upgrade generated warnings
+	if (InputFunctionCallNode->FunctionScript && InputFunctionCallNode->FunctionScript->IsVersioningEnabled() && InputFunctionCallNode->PythonUpgradeScriptWarnings.IsEmpty() == false)
+	{
+		UNiagaraStackEntry::FStackIssue PythonLog(
+                    EStackIssueSeverity::Warning,
+                    LOCTEXT("PythonLogSummary", "Python upgrade script log"),
+                    FText::Format(LOCTEXT("VersionUpgradePythonLog", "Upgrading the version generated some warnings from the python script:\n{0}"), FText::FromString(InputFunctionCallNode->PythonUpgradeScriptWarnings)),
+                    StackEditorDataKey,
+                    true);
+		OutIssues.Add(PythonLog);
+	}
+}
+
 void GetGroupNodesRecursive(const TArray<UNiagaraNode*>& CurrentStartNodes, UNiagaraNode* EndNode, TArray<UNiagaraNode*>& OutAllNodes)
 {
 	FPinCollectorArray InputPins;
@@ -716,6 +801,7 @@ TArray<UEdGraphPin*> FNiagaraStackGraphUtilities::GetUnusedFunctionInputPins(UNi
 	// Set the static switch values so we traverse the correct node paths
 	FPinCollectorArray InputPins;
 	FunctionCallNode.GetInputPins(InputPins);
+
 	FNiagaraEditorUtilities::SetStaticSwitchConstants(FunctionGraph, InputPins, ConstantResolver);
 
 	// Find the start node for the traversal
@@ -1446,7 +1532,7 @@ UNiagaraNodeFunctionCall* FNiagaraStackGraphUtilities::AddScriptModuleToStack(FA
 	return NewModuleNode;
 }
 
-UNiagaraNodeFunctionCall* FNiagaraStackGraphUtilities::AddScriptModuleToStack(UNiagaraScript* ModuleScript, UNiagaraNodeOutput& TargetOutputNode, int32 TargetIndex, FString SuggestedName)
+UNiagaraNodeFunctionCall* FNiagaraStackGraphUtilities::AddScriptModuleToStack(UNiagaraScript* ModuleScript, UNiagaraNodeOutput& TargetOutputNode, int32 TargetIndex, FString SuggestedName, const FGuid& VersionGuid)
 {
 	UEdGraph* Graph = TargetOutputNode.GetGraph();
 	Graph->Modify();
@@ -1454,7 +1540,14 @@ UNiagaraNodeFunctionCall* FNiagaraStackGraphUtilities::AddScriptModuleToStack(UN
 	FGraphNodeCreator<UNiagaraNodeFunctionCall> ModuleNodeCreator(*Graph);
 	UNiagaraNodeFunctionCall* NewModuleNode = ModuleNodeCreator.CreateNode();
 	NewModuleNode->FunctionScript = ModuleScript;
-	NewModuleNode->SelectedScriptVersion = ModuleScript && ModuleScript->IsVersioningEnabled() ? ModuleScript->GetExposedVersion().VersionGuid : FGuid();
+	if (ModuleScript && ModuleScript->IsVersioningEnabled())
+	{
+		NewModuleNode->SelectedScriptVersion = VersionGuid.IsValid() ? VersionGuid : ModuleScript->GetExposedVersion().VersionGuid;
+	}
+	else
+	{
+		NewModuleNode->SelectedScriptVersion = FGuid();
+	}
 	ModuleNodeCreator.Finalize();
 
 	if (NewModuleNode->FunctionScript == nullptr)
@@ -2188,7 +2281,7 @@ void SetInputValue(
 		bool bRapidIterationParameterSet = false;
 		if (FNiagaraStackGraphUtilities::IsRapidIterationType(Value.Type))
 		{
-			FCompileConstantResolver ConstantResolver = EmitterViewModel ? FCompileConstantResolver(EmitterViewModel->GetEmitter(), FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(InputFunctionCallNode)->GetUsage()) : FCompileConstantResolver();
+			FCompileConstantResolver ConstantResolver = EmitterViewModel ? FCompileConstantResolver(EmitterViewModel->GetEmitter(), FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(InputFunctionCallNode)->GetUsage(), InputFunctionCallNode.DebugState) : FCompileConstantResolver();
 			UEdGraphPin* DefaultPin = InputFunctionCallNode.FindParameterMapDefaultValuePin(ModuleHandle.GetParameterHandleString(), SourceScript.GetUsage(), ConstantResolver);
 			if (DefaultPin->LinkedTo.Num() == 0)
 			{
@@ -2714,7 +2807,7 @@ void FNiagaraStackGraphUtilities::GatherRenamedStackFunctionOutputVariableNames(
 
 	TArray<FNiagaraVariable> OutputVariables;
 	TArray<FNiagaraVariable> OutputVariablesWithOriginalAliasesIntact;
-	FCompileConstantResolver ConstantResolver(Emitter, ENiagaraScriptUsage::Function);
+	FCompileConstantResolver ConstantResolver(Emitter, ENiagaraScriptUsage::Function, FunctionCallNode.DebugState);
 	FNiagaraStackGraphUtilities::GetStackFunctionOutputVariables(FunctionCallNode, ConstantResolver, OutputVariables, OutputVariablesWithOriginalAliasesIntact);
 
 	for (FNiagaraVariable& OutputVariableWithOriginalAliasesIntact : OutputVariablesWithOriginalAliasesIntact)
@@ -2748,7 +2841,7 @@ void FNiagaraStackGraphUtilities::GatherRenamedStackFunctionInputAndOutputVariab
 
 	TArray<FNiagaraVariable> Variables;
 	TArray<FNiagaraVariable> VariablesWithOriginalAliasesIntact;
-	FCompileConstantResolver ConstantResolver(Emitter, ENiagaraScriptUsage::Function);
+	FCompileConstantResolver ConstantResolver(Emitter, ENiagaraScriptUsage::Function, FunctionCallNode.DebugState);
 	FNiagaraStackGraphUtilities::GetStackFunctionInputAndOutputVariables(FunctionCallNode, ConstantResolver, Variables, VariablesWithOriginalAliasesIntact);
 
 	for (FNiagaraVariable& Variable : VariablesWithOriginalAliasesIntact)

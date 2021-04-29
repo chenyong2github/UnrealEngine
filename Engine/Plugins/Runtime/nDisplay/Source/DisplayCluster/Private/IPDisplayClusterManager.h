@@ -28,7 +28,7 @@ public:
 	{ }
 
 	// Called on each session start before first level start (before the first tick)
-	virtual bool StartSession(const UDisplayClusterConfigurationData* InConfigData, const FString& InNodeId)
+	virtual bool StartSession(UDisplayClusterConfigurationData* InConfigData, const FString& InNodeId)
 	{ return true; }
 
 	// Called on each session end at early step before exit (before UGameEngine::Preexit)

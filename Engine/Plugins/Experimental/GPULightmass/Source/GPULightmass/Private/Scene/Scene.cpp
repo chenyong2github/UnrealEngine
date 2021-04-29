@@ -1630,14 +1630,13 @@ void FScene::BackgroundTick()
 
 void FSceneRenderState::BackgroundTick()
 {
-	LightmapRenderer->BackgroundTick();
-	VolumetricLightmapRenderer->BackgroundTick();
-
 	if (IrradianceCache->CurrentRevision != LightmapRenderer->GetCurrentRevision())
 	{
 		IrradianceCache = MakeUnique<FIrradianceCache>(Settings->IrradianceCacheQuality, Settings->IrradianceCacheSpacing, Settings->IrradianceCacheCornerRejection);
 		IrradianceCache->CurrentRevision = LightmapRenderer->GetCurrentRevision();
 	}
+
+	bool bHaveFinishedSurfaceLightmaps = false;
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(GPULightmassCountProgress);
@@ -1645,10 +1644,11 @@ void FSceneRenderState::BackgroundTick()
 		uint64 SamplesTaken = 0;
 		uint64 TotalSamples = 0;
 
-		// Count work has been done
-		for (FLightmapRenderState& Lightmap : LightmapRenderStates.Elements)
+		// Count surface lightmap work
+		if (!LightmapRenderer->bOnlyBakeWhatYouSee)
 		{
-			if (!LightmapRenderer->bOnlyBakeWhatYouSee)
+			// Count work has been done
+			for (FLightmapRenderState& Lightmap : LightmapRenderStates.Elements)
 			{
 				for (int32 Y = 0; Y < Lightmap.GetPaddedSizeInTiles().Y; Y++)
 				{
@@ -1664,14 +1664,7 @@ void FSceneRenderState::BackgroundTick()
 				}
 			}
 		}
-
-		{
-			int32 NumCellsPerBrick = 5 * 5 * 5;
-			SamplesTaken += VolumetricLightmapRenderer->SamplesTaken;
-			TotalSamples += (uint64)VolumetricLightmapRenderer->NumTotalBricks * NumCellsPerBrick * Settings->GISamples * VolumetricLightmapRenderer->GetGISamplesMultiplier();
-		}
-
-		if (LightmapRenderer->bOnlyBakeWhatYouSee)
+		else // LightmapRenderer->bOnlyBakeWhatYouSee == true
 		{
 			if (LightmapRenderer->RecordedTileRequests.Num() > 0)
 			{
@@ -1700,12 +1693,29 @@ void FSceneRenderState::BackgroundTick()
 			}
 		}
 
+		bHaveFinishedSurfaceLightmaps = SamplesTaken == TotalSamples;
+
+		{
+			int32 NumCellsPerBrick = 5 * 5 * 5;
+			SamplesTaken += VolumetricLightmapRenderer->SamplesTaken;
+			TotalSamples += (uint64)VolumetricLightmapRenderer->NumTotalBricks * NumCellsPerBrick * Settings->GISamples * VolumetricLightmapRenderer->GetGISamplesMultiplier();
+		}
+
 		int32 IntPercentage = FMath::FloorToInt(SamplesTaken * 100.0 / TotalSamples);
 		IntPercentage = FMath::Max(IntPercentage, 0);
 		// With high number of samples (like 8192) double precision isn't enough to prevent fake 100%s
 		IntPercentage = FMath::Min(IntPercentage, SamplesTaken < TotalSamples ? 99 : 100);
 
 		FPlatformAtomics::InterlockedExchange(&Percentage, IntPercentage);
+	}
+
+	LightmapRenderer->BackgroundTick();
+
+	// If we're in background baking mode, schedule VLM work to be after surface lightmaps
+	bool bIsViewportNonRealtime = GCurrentLevelEditingViewportClient && !GCurrentLevelEditingViewportClient->IsRealtime();
+	if (!bIsViewportNonRealtime || (bIsViewportNonRealtime && bHaveFinishedSurfaceLightmaps))
+	{
+		VolumetricLightmapRenderer->BackgroundTick();
 	}
 }
 
@@ -2903,6 +2913,12 @@ void FScene::ApplyFinishedLightmapsToWorld()
 			}
 		}
 	}
+
+	// Always turn Realtime back on after baking lighting
+	if (GCurrentLevelEditingViewportClient)
+	{
+		GCurrentLevelEditingViewportClient->SetRealtime(true);
+	} 
 }
 
 void FScene::RemoveAllComponents()

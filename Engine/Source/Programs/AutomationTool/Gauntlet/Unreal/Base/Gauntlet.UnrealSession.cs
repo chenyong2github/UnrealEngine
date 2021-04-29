@@ -850,15 +850,62 @@ namespace Gauntlet
 					UnrealAppConfig AppConfig = BuildSource.CreateConfiguration(Role, OtherRoles);
 
 					//Verify the device's OS version, and update if necessary
-					if(Device.IsOSOutOfDate())
+					if(Globals.Params.ParseParam("TryFirmwareUpdate") && AppConfig.Platform != null)
 					{
-						Log.Info("OS of target device {0} for role {1} out of date, updating...", Device, Role);
-						if(!Device.UpdateOS())
+						List<IPlatformFirmwareHandler> PlatformFirmwareHandlers = Gauntlet.Utils.InterfaceHelpers.FindImplementations<IPlatformFirmwareHandler>(true).ToList();
+
+						PlatformFirmwareHandlers = PlatformFirmwareHandlers.Where(FC => FC.CanSupportPlatform((UnrealTargetPlatform)AppConfig.Platform)
+							&& FC.CanSupportProject(AppConfig.ProjectName)).ToList();
+						if (PlatformFirmwareHandlers.Count > 0)
 						{
-							Log.Info("Failed to update os of device {0} for role {1}.  Will retry with new device", Device, Role);
-							MarkProblemDevice(Device);
-							InstallSuccess = false;
-							break;
+							IPlatformFirmwareHandler SelectedFirmwareHandler = PlatformFirmwareHandlers.First();
+							Log.Verbose("Found IPlatformFirmwareHandler {0}", SelectedFirmwareHandler.GetType().Name);
+							string DesiredFirmware = string.Empty;
+							if (!SelectedFirmwareHandler.GetDesiredVersion((UnrealTargetPlatform)AppConfig.Platform, AppConfig.ProjectName, out DesiredFirmware))
+							{
+								Log.Info("Failed to get desired os version for project {0} for platform {1}, skipping firmware check",
+									AppConfig.ProjectName, AppConfig.Platform);
+							}
+							else
+							{
+								Log.Info("Desired Firmware for project {0} and platform {1}: {2}", AppConfig.ProjectName, AppConfig.Platform, DesiredFirmware);
+
+								string CurrentFirmware = string.Empty;
+								if (!SelectedFirmwareHandler.GetCurrentVersion(Device, out CurrentFirmware))
+								{
+									Log.Info("Failed to get current os version for device {0} for role {1}, skipping firmware check", Device, Role);
+								}
+								else
+								{
+									Log.Info("Current Firmware for device {0}: {1}", Device, CurrentFirmware);
+
+									if(CurrentFirmware.Equals(DesiredFirmware))
+									{
+										Log.Info("Device {0} os version match!  No need to update", Device);
+									}
+									else
+									{
+										Log.Info("Device {0} os version out of date!  Updating to version {1}", Device, DesiredFirmware);
+
+										if(SelectedFirmwareHandler.UpdateDeviceFirmware(Device, DesiredFirmware))
+										{
+											Log.Info("Successfully updated device {0} to os version {1}", Device, DesiredFirmware);
+										}
+										else
+										{
+											Log.Info("Failed to update os of device {0} for role {1}.  Will retry with new device", Device, Role);
+											MarkProblemDevice(Device);
+											InstallSuccess = false;
+											break;
+										}
+									}
+								}
+							}
+						}
+						else
+						{
+							Log.Info("Unable to locate any IPlatformFirmwareCheckers that support Project {0} and platform {1}, skipping firmware check",
+								AppConfig.ProjectName, AppConfig.Platform);
 						}
 					}
 
@@ -1115,8 +1162,8 @@ namespace Gauntlet
 
 				if (Directory.Exists(SourceSavedDir))
 				{
-					Utils.SystemHelpers.CopyDirectory(SourceSavedDir, Globals.LongPathPrefix + DestSavedDir);
-					Log.Info("Archived artifacts to {0}", DestSavedDir);
+					Utils.SystemHelpers.CopyDirectory(SourceSavedDir, Utils.SystemHelpers.GetFullyQualifiedPath(DestSavedDir), Utils.SystemHelpers.CopyOptions.Default, TruncateLongPathFilter);
+					Log.Info("Archived artifacts to to {0}", DestSavedDir);
 				}
 				else
 				{
@@ -1147,7 +1194,7 @@ namespace Gauntlet
 					{
 						// Grab the final dir name to copy everything into so everything's not just going into root artifact dir.
 						string IntendedCopyLocation = Path.Combine(InDestArtifactPath, DirToCopy.Name);
-						Utils.SystemHelpers.CopyDirectory(SourcePath, Globals.LongPathPrefix + IntendedCopyLocation);
+						Utils.SystemHelpers.CopyDirectory(SourcePath, Utils.SystemHelpers.GetFullyQualifiedPath(IntendedCopyLocation), Utils.SystemHelpers.CopyOptions.Default, TruncateLongPathFilter);
 					}
 				}
 			}

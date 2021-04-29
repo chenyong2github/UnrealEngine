@@ -97,6 +97,10 @@ private:
 
 	// FGCObject interface
 	void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FAsyncCompressedAnimationsManagement");
+	}
 	// End of FGCObject interface
 };
 

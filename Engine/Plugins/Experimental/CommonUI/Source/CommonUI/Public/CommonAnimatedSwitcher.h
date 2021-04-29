@@ -43,6 +43,8 @@ public:
 protected:
 	virtual void HandleSlateActiveIndexChanged(int32 ActiveIndex);
 
+	virtual void HandleSlateIsTransitioningChanged(bool bIsTransitioning);
+
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 
 	virtual void HandleOutgoingWidget() {};
@@ -75,6 +77,5 @@ protected:
 	bool bSetOnce = false;
 
 private:
-	void HandleSlateIsTransitioningChanged(bool bIsTransitioning);
 	void SetActiveWidgetIndex_Internal(int32 Index);
 };

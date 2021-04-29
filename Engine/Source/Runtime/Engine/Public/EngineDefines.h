@@ -10,8 +10,13 @@
 	Configuration defines
 -----------------------------------------------------------------------------*/
 
+#ifndef UE_ENABLE_DEBUG_DRAWING
+	// we can debug render data in Debug/Development builds, or the Editor in Shipping or Test builds (not a common situation, but it is possible)
+	#define UE_ENABLE_DEBUG_DRAWING (!(UE_BUILD_SHIPPING || UE_BUILD_TEST) || WITH_EDITOR)
+#endif
+
 #ifndef ENABLE_VISUAL_LOG
-	#define ENABLE_VISUAL_LOG (PLATFORM_DESKTOP && !NO_LOGGING && !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
+	#define ENABLE_VISUAL_LOG (PLATFORM_DESKTOP && !NO_LOGGING && UE_ENABLE_DEBUG_DRAWING)
 #endif
 
 // Whether lightmass generates FSHVector2 or FSHVector3. Linked with VER_UE4_INDIRECT_LIGHTING_SH3

@@ -72,6 +72,10 @@ public:
 
 	//~ FGCObject
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FARSystemProxy");
+	}
 	//~ FGCObject
 
 	// Methods called by the message handlers

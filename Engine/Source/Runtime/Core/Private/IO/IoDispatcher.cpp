@@ -262,6 +262,29 @@ public:
 		}
 	}
 
+	FIoStatus Unmount(const TCHAR* ContainerPath)
+	{
+		/*
+		TODO: @Per.Larsson to fixup after unbackported UE5 ioStore changes.
+		TIoStatusOr<FIoContainerId> UnmountedContainerId = FileIoStore.Unmount(ContainerPath);
+
+		if (UnmountedContainerId.IsOk())
+		{
+			if (ContainerUnmountedEvent.IsBound())
+			{
+				FIoDispatcherMountedContainer UnmountedContainer;
+				UnmountedContainer.ContainerId = UnmountedContainerId.ValueOrDie();
+				UnmountedContainer.Environment.InitializeFileEnvironment(ContainerPath);
+
+				ContainerUnmountedEvent.Broadcast(UnmountedContainer);
+			}
+		}
+		*/
+
+		TIoStatusOr<FIoContainerId> UnmountedContainerId;
+		return UnmountedContainerId.Status();
+	}
+
 	bool DoesChunkExist(const FIoChunkId& ChunkId) const
 	{
 		for (const TSharedRef<IIoDispatcherBackend>& Backend : Backends)
@@ -308,6 +331,11 @@ public:
 	FIoContainerMountedDelegate& OnContainerMounted()
 	{
 		return BackendContext->ContainerMountedDelegate;
+	}
+
+	FIoDispatcher::FIoContainerUnmountedEvent& OnContainerUnmounted()
+	{
+		return ContainerUnmountedEvent;
 	}
 
 	FIoSignatureErrorDelegate& OnSignatureError()
@@ -627,6 +655,7 @@ private:
 	TArray<FIoRequestImpl*> RequestsToCancel;
 	TArray<FIoRequestImpl*> RequestsToReprioritize;
 	TAtomic<bool> bStopRequested { false };
+	FIoDispatcher::FIoContainerUnmountedEvent ContainerUnmountedEvent;
 	uint64 PendingIoRequestsCount = 0;
 	int64 TotalLoaded = 0;
 };
@@ -645,6 +674,11 @@ void
 FIoDispatcher::Mount(TSharedRef<IIoDispatcherBackend> Backend)
 {
 	Impl->Mount(Backend);
+}
+
+FIoStatus FIoDispatcher::Unmount(const TCHAR* ContainerPath)
+{
+	return Impl->Unmount(ContainerPath);
 }
 
 FIoBatch
@@ -688,6 +722,12 @@ FIoContainerMountedDelegate&
 FIoDispatcher::OnContainerMounted()
 {
 	return Impl->OnContainerMounted();
+}
+
+FIoDispatcher::FIoContainerUnmountedEvent&
+FIoDispatcher::OnContainerUnmounted()
+{
+	return Impl->OnContainerUnmounted();
 }
 
 FIoSignatureErrorDelegate&

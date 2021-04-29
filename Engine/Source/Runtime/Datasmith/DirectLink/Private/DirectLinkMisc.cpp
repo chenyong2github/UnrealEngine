@@ -37,6 +37,7 @@ const FString& GetDumpPath()
 
 void DumpSceneSnapshot(FSceneSnapshot& SceneSnapshot, const FString& BaseFileName)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(DirectLink::DumpSceneSnapshot);
 	const FString& DumpPath = GetDumpPath();
 	if (DumpPath.IsEmpty())
 	{

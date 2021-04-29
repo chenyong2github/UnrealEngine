@@ -436,9 +436,9 @@ FOnlineSessionEOS::~FOnlineSessionEOS()
 	delete LobbyInviteAcceptedCallback;
 }
 
-void FOnlineSessionEOS::Init(const char* InBucketId)
+void FOnlineSessionEOS::Init(const FString& InBucketId)
 {
-	FCStringAnsi::Strncpy(BucketIdAnsi, InBucketId, EOS_OSS_STRING_BUFFER_LENGTH);
+	FCStringAnsi::Strncpy(BucketIdAnsi, TCHAR_TO_UTF8(*InBucketId), EOS_OSS_STRING_BUFFER_LENGTH);
 
 	// Register for session invite notifications
 	FSessionInviteAcceptedCallback* SessionInviteAcceptedCallbackObj = new FSessionInviteAcceptedCallback();
@@ -1011,13 +1011,6 @@ void FOnlineSessionEOS::SetAttributes(EOS_HSessionModification SessionModHandle,
 		}
 		Session->OwningUserName = OwningPlayerName;
 	}
-
-	FAttributeOptions Opt3("OwningPlayerName", TCHAR_TO_UTF8(*Session->OwningUserName));
-	AddAttribute(SessionModHandle, &Opt3);
-
-	FString NetId = Session->OwningUserId->ToString();
-	FAttributeOptions Opt4("OwningNetId", TCHAR_TO_UTF8(*NetId));
-	AddAttribute(SessionModHandle, &Opt4);
 
 	FAttributeOptions Opt5("bAntiCheatProtected", Session->SessionSettings.bAntiCheatProtected);
 	AddAttribute(SessionModHandle, &Opt5);
@@ -1824,14 +1817,6 @@ void FOnlineSessionEOS::CopyAttributes(EOS_HSessionDetails SessionHandle, FOnlin
 			else if (Key == TEXT("BuildUniqueId"))
 			{
 				OutSession.SessionSettings.BuildUniqueId = Attribute->Data->Value.AsInt64;
-			}
-			else if (Key == TEXT("OwningPlayerName"))
-			{
-				OutSession.OwningUserName = ANSI_TO_TCHAR(Attribute->Data->Value.AsUtf8);
-			}
-			else if (Key == TEXT("OwningNetId"))
-			{
-				OutSession.OwningUserId = FUniqueNetIdEOS::Create(ANSI_TO_TCHAR(Attribute->Data->Value.AsUtf8));
 			}
 			// Handle FOnlineSessionSetting settings
 			else
@@ -3234,13 +3219,6 @@ void FOnlineSessionEOS::SetLobbyAttributes(EOS_HLobbyModification LobbyModificat
 	FLobbyAttributeOptions Opt2("NumPublicConnections", Session->SessionSettings.NumPublicConnections);
 	AddLobbyAttribute(LobbyModificationHandle, &Opt2);
 
-	FLobbyAttributeOptions Opt3("OwningPlayerName", TCHAR_TO_UTF8(*Session->OwningUserName));
-	AddLobbyAttribute(LobbyModificationHandle, &Opt3);
-
-	FString NetId = Session->OwningUserId->ToString();
-	FLobbyAttributeOptions Opt4("OwningNetId", TCHAR_TO_UTF8(*NetId));
-	AddLobbyAttribute(LobbyModificationHandle, &Opt4);
-
 	FLobbyAttributeOptions Opt5("bAntiCheatProtected", Session->SessionSettings.bAntiCheatProtected);
 	AddLobbyAttribute(LobbyModificationHandle, &Opt5);
 
@@ -3722,14 +3700,6 @@ void FOnlineSessionEOS::CopyLobbyAttributes(EOS_HLobbyDetails LobbyDetailsHandle
 			else if (Key == TEXT("BuildUniqueId"))
 			{
 				OutSession.SessionSettings.BuildUniqueId = Attribute->Data->Value.AsInt64;
-			}
-			else if (Key == TEXT("OwningPlayerName"))
-			{
-				OutSession.OwningUserName = ANSI_TO_TCHAR(Attribute->Data->Value.AsUtf8);
-			}
-			else if (Key == TEXT("OwningNetId"))
-			{
-				OutSession.OwningUserId = FUniqueNetIdEOS::Create(ANSI_TO_TCHAR(Attribute->Data->Value.AsUtf8));
 			}
 			// Handle FSessionSettings
 			else

@@ -4,6 +4,7 @@
 
 #include "Algo/ForEach.h"
 #include "Editor.h"
+#include "ISettingsModule.h"
 #include "GameFramework/Actor.h"
 #include "Input/DragAndDrop.h"
 #include "Engine/Selection.h"
@@ -12,11 +13,13 @@
 #include "Misc/Guid.h"
 #include "RemoteControlActor.h"
 #include "RemoteControlPreset.h"
+#include "RemoteControlUISettings.h"
 #include "ScopedTransaction.h"
 #include "SRCPanelFieldGroup.h"
 #include "SRCPanelExposedActor.h"
 #include "SRCPanelExposedField.h"
 #include "SRCPanelTreeNode.h"
+#include "Modules/ModuleManager.h"
 #include "UObject/Object.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STableRow.h"
@@ -353,7 +356,11 @@ void SRCPanelExposedEntitiesList::SelectActorsInlevel(const TArray<UObject*>& Ob
 	{
 		// Don't change selection if the target's component is already selected
 		USelection* Selection = GEditor->GetSelectedComponents();
-		if (Selection->Num() == 1 && Objects.Num() == 1 && Selection->GetSelectedObject(0)->GetTypedOuter<AActor>() == Objects[0])
+		
+		if (Selection->Num() == 1
+			&& Objects.Num() == 1
+			&& Selection->GetSelectedObject(0) != nullptr
+			&& Selection->GetSelectedObject(0)->GetTypedOuter<AActor>() == Objects[0])
 		{
 			return;
 		}

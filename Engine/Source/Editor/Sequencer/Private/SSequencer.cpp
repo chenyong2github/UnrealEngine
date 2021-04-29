@@ -73,6 +73,7 @@
 #include "SSequencerDebugVisualizer.h"
 #include "SSequencerTreeFilterStatusBar.h"
 #include "ISequencerModule.h"
+#include "IMovieRendererInterface.h"
 #include "IVREditorModule.h"
 #include "EditorFontGlyphs.h"
 #include "HAL/PlatformApplicationMisc.h"
@@ -94,6 +95,7 @@
 #include "SSequencerGroupManager.h"
 #include "SSequencerHierarchyBrowser.h"
 #include "MovieSceneCopyableTrack.h"
+#include "Tracks/MovieSceneSubTrack.h"
 #include "IPropertyRowGenerator.h"
 #include "Fonts/FontMeasure.h"
 #include "Compilation/MovieSceneCompiledDataManager.h"
@@ -620,7 +622,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 									.FillHeight(1.0f)
 									[
 										SNew(SButton)
-										.Visibility(this, &SSequencer::GetBreadcrumbTrailVisibility)
+										.Visibility_Lambda([this] { return CanNavigateBreadcrumbs() ? EVisibility::Visible : EVisibility::Collapsed; } )
 										.VAlign(EVerticalAlignment::VAlign_Center)
 										.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
 										.ToolTipText_Lambda([this] { return SequencerPtr.Pin()->GetNavigateBackwardTooltip(); })
@@ -652,7 +654,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 									.FillHeight(1.0f)
 									[
 										SNew(SButton)
-										.Visibility(this, &SSequencer::GetBreadcrumbTrailVisibility)
+										.Visibility_Lambda([this] { return CanNavigateBreadcrumbs() ? EVisibility::Visible : EVisibility::Collapsed; } )
 										.VAlign(EVerticalAlignment::VAlign_Center)
 										.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
 										.ToolTipText_Lambda([this] { return SequencerPtr.Pin()->GetNavigateForwardTooltip(); })
@@ -678,7 +680,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 								.Padding(3, 0)
 								[
 									SNew(SSeparator)
-									.Visibility(this, &SSequencer::GetBreadcrumbTrailVisibility)
+									.Visibility_Lambda([this] { return CanNavigateBreadcrumbs() ? EVisibility::Visible : EVisibility::Collapsed; } )
 									.Orientation(Orient_Vertical)
 								]
 							
@@ -688,7 +690,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 								.AutoWidth()
 								[
 									SAssignNew(BreadcrumbPickerButton, SComboButton)
-									.Visibility(this, &SSequencer::GetBreadcrumbTrailVisibility)
+									.Visibility_Lambda([this] { return CanNavigateBreadcrumbs() ? EVisibility::Visible : EVisibility::Collapsed; } )
 									.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 									.OnGetMenuContent_Lambda([this] { return SNew(SSequencerHierarchyBrowser, SequencerPtr); })
 									.HasDownArrow(false)
@@ -1398,6 +1400,15 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().FindInContentBrowser );
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().CreateCamera );
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().RenderMovie );
+
+			ToolBarBuilder.AddComboButton(
+				FUIAction(),
+				FOnGetContent::CreateSP( this, &SSequencer::MakeRenderMovieMenu ),
+				LOCTEXT( "RenderMovieOptions", "Render Movie Options" ),
+				LOCTEXT( "RenderMovieOptionsToolTip", "Render Movie Options" ),
+				TAttribute<FSlateIcon>(),
+				true );
+
 			UMovieSceneSequence* RootSequence = SequencerPtr.Pin()->GetRootMovieSceneSequence();
 			if (RootSequence->GetTypedOuter<UBlueprint>() == nullptr)
 			{
@@ -1998,7 +2009,7 @@ TSharedRef<SWidget> SSequencer::MakeActionsMenu()
 	{
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SetSelectionRangeStart);
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SetSelectionRangeEnd);
-		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ResetSelectionRange);
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ClearSelectionRange);
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SelectKeysInSelectionRange);
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SelectSectionsInSelectionRange);
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SelectAllInSelectionRange);
@@ -2149,6 +2160,11 @@ TSharedRef<SWidget> SSequencer::MakeViewMenu()
 {
 	FMenuBuilder MenuBuilder( true, SequencerPtr.Pin()->GetCommandBindings() );
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+
+	if (Sequencer->IsLevelEditorSequencer())
+	{
+		MenuBuilder.AddMenuEntry( FSequencerCommands::Get().TogglePilotCamera );
+	}
 
 	MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleAutoScroll );
 	MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleShowRangeSlider );
@@ -2519,7 +2535,6 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 		}
 
 		MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleKeepCursorInPlaybackRangeWhileScrubbing );
-		MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleKeepCursorInPlaybackRange );
 
 		if (!SequencerPtr.Pin()->IsLevelEditorSequencer())
 		{
@@ -2565,6 +2580,58 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 					.LinearDeltaSensitivity(25)
 			],
 		LOCTEXT("JumpFrameIncrement", "Jump Frame Increment"));
+
+	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> SSequencer::MakeRenderMovieMenu()
+{
+	FMenuBuilder MenuBuilder( false, SequencerPtr.Pin()->GetCommandBindings() );
+
+	MenuBuilder.BeginSection( "RenderMovie", LOCTEXT( "RenderMovieMenuHeader", "Render Movie" ) );
+	{
+		ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
+		TArray<FString> MovieRendererNames = SequencerModule.GetMovieRendererNames();
+
+		for (FString MovieRendererName : MovieRendererNames)
+		{
+			MenuBuilder.AddMenuEntry(
+				FText::FromString(MovieRendererName),
+				FText::FromString(MovieRendererName),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateLambda([this, MovieRendererName] { SequencerPtr.Pin()->GetSequencerSettings()->SetMovieRendererName(MovieRendererName); }),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateLambda([this] 
+					{ 
+						ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
+						IMovieRendererInterface* MovieRender = SequencerModule.GetMovieRenderer(SequencerPtr.Pin()->GetMovieRendererName());
+						return MovieRender != nullptr;
+					})),
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
+			);
+		}		
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("RenderMovieLegacy", "Movie Scene Capture (Legacy)"),
+			LOCTEXT("RenderMovieTooltip", "Movie Scene Capture (Legacy)"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this] { SequencerPtr.Pin()->GetSequencerSettings()->SetMovieRendererName(TEXT("MovieSceneCapture")); }),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]
+				{
+					ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
+					IMovieRendererInterface* MovieRender = SequencerModule.GetMovieRenderer(SequencerPtr.Pin()->GetMovieRendererName());
+					return MovieRender == nullptr;
+				})),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+	}
+
+	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
 }
@@ -2806,7 +2873,7 @@ EActiveTimerReturnType SSequencer::EnsureSlateTickDuringPlayback(double InCurren
 	if (SequencerPtr.IsValid())
 	{
 		auto PlaybackStatus = SequencerPtr.Pin()->GetPlaybackStatus();
-		if (PlaybackStatus == EMovieScenePlayerStatus::Playing || PlaybackStatus == EMovieScenePlayerStatus::Recording || PlaybackStatus == EMovieScenePlayerStatus::Scrubbing)
+		if (PlaybackStatus == EMovieScenePlayerStatus::Playing || PlaybackStatus == EMovieScenePlayerStatus::Scrubbing)
 		{
 			return EActiveTimerReturnType::Continue;
 		}
@@ -2906,15 +2973,27 @@ void SSequencer::UpdateLayoutTree()
 			{
 				if (Node->GetType() == ESequencerNode::Track)
 				{
-					UMovieSceneTrack* Track = static_cast<FSequencerTrackNode&>(Node.Get()).GetTrack();
+					FSequencerTrackNode& TrackNode = static_cast<FSequencerTrackNode&>(Node.Get());
+					UMovieSceneTrack* Track = TrackNode.GetTrack();
 					bool bDisableEval = NodeTree->IsNodeMute(&Node.Get()) || (bHasSoloNodes && !NodeTree->IsNodeSolo(&Node.Get()));
-					if (bDisableEval != Track->IsEvalDisabled())
+					if (TrackNode.GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::SubTrack)
 					{
-						Track->Modify();
-						Track->SetEvalDisabled(bDisableEval);
-						bAnyChanged = true;
+						if (bDisableEval != Track->IsRowEvalDisabled(TrackNode.GetRowIndex()))
+						{
+							Track->Modify();
+							Track->SetRowEvalDisabled(bDisableEval, TrackNode.GetRowIndex());
+							bAnyChanged = true;
+						}
 					}
-					
+					else
+					{
+						if (bDisableEval != Track->IsEvalDisabled())
+						{
+							Track->Modify();
+							Track->SetEvalDisabled(bDisableEval);
+							bAnyChanged = true;
+						}	
+					}
 				}
 			}
 			if (bAnyChanged)
@@ -3502,14 +3581,7 @@ void SSequencer::StepToKey(bool bStepToNextKey, bool bCameraOnly)
 				{
 					if (Section.IsValid())
 					{
-						if (Section->HasStartFrame())
-						{
-							AllTimes.Add(Section->GetInclusiveStartFrame());
-						}
-						if (Section->HasEndFrame())
-						{
-							AllTimes.Add(Section->GetExclusiveEndFrame());
-						}
+						Section->GetSnapTimes(AllTimes, true);
 					}
 				}
 
@@ -3619,6 +3691,27 @@ FText SSequencer::GetBreadcrumbTextForSequence(TWeakObjectPtr<UMovieSceneSequenc
 EVisibility SSequencer::GetBreadcrumbTrailVisibility() const
 {
 	return SequencerPtr.Pin()->IsLevelEditorSequencer() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+bool SSequencer::CanNavigateBreadcrumbs() const
+{
+	if (SequencerPtr.Pin()->IsLevelEditorSequencer())
+	{
+		UMovieSceneSequence* RootSequence = SequencerPtr.Pin()->GetRootMovieSceneSequence();
+		UMovieScene* MovieScene = RootSequence ? RootSequence->GetMovieScene() : nullptr;
+		if (RootSequence)
+		{
+			for (UMovieSceneTrack* MasterTrack : MovieScene->GetMasterTracks())
+			{
+				if (MasterTrack && MasterTrack->IsA<UMovieSceneSubTrack>())
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
 }
 
 

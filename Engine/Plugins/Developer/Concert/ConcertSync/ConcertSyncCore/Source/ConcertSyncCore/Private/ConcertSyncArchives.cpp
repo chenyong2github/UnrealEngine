@@ -71,7 +71,7 @@ FConcertSyncObjectWriter::FConcertSyncObjectWriter(FConcertLocalIdentifierTable*
 	ArNoDelta = true;
 	//SetWantBinaryPropertySerialization(true);
 
-	SetIsTransacting(true);
+	SetIsTransacting(InIncludeEditorOnlyData);
 	SetFilterEditorOnly(!InIncludeEditorOnlyData);
 
 #if USE_STABLE_LOCALIZATION_KEYS
@@ -192,7 +192,9 @@ FConcertSyncObjectReader::FConcertSyncObjectReader(const FConcertLocalIdentifier
 		SetCustomVersions(EngineCustomVersions);
 	}
 
-	SetIsTransacting(true);
+	// This is conditional on WITH_EDITORONLY_DATA because the transaction flag is ignored in builds without it and IsTransacting always returns false. So
+	// the writer should only be sending non-editor only properties if the reader does not use editor oly data.
+	SetIsTransacting(WITH_EDITORONLY_DATA);
 	SetFilterEditorOnly(!WITH_EDITORONLY_DATA);
 
 #if USE_STABLE_LOCALIZATION_KEYS

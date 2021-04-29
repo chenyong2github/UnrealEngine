@@ -58,6 +58,21 @@ void UColorCorrectRegionsSubsystem::Deinitialize()
 		Region->Cleanup();
 	}
 	Regions.Reset();
+
+	// Prevent this SVE from being gathered, in case it is kept alive by a strong reference somewhere else.
+	{
+		PostProcessSceneViewExtension->IsActiveThisFrameFunctions.Empty();
+
+		FSceneViewExtensionIsActiveFunctor IsActiveFunctor;
+
+		IsActiveFunctor.IsActiveFunction = [](const ISceneViewExtension* SceneViewExtension, const FSceneViewExtensionContext& Context)
+		{
+			return TOptional<bool>(false);
+		};
+
+		PostProcessSceneViewExtension->IsActiveThisFrameFunctions.Add(IsActiveFunctor);
+	}
+
 	PostProcessSceneViewExtension.Reset();
 	PostProcessSceneViewExtension = nullptr;
 }

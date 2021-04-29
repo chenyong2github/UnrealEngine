@@ -73,10 +73,10 @@ template <typename TScopeType>
 class TRDGScopeStack final
 {
 public:
-	using FPushFunction = void(*)(FRHIComputeCommandList&, const TScopeType*);
-	using FPopFunction = void(*)(FRHIComputeCommandList&, const TScopeType*);
+	using FPushFunction = void(*)(FRHIComputeCommandList&, const TScopeType*, bool bRDGEvents);
+	using FPopFunction = void(*)(FRHIComputeCommandList&, const TScopeType*, bool bRDGEvents);
 
-	TRDGScopeStack(FRHIComputeCommandList& InRHICmdList, FRDGAllocator& Allocator, FPushFunction InPushFunction, FPopFunction InPopFunction);
+	TRDGScopeStack(FRHIComputeCommandList& InRHICmdList, FRDGAllocator& InAllocator, FPushFunction InPushFunction, FPopFunction InPopFunction, bool bInRDGEvents);
 	~TRDGScopeStack();
 
 	//////////////////////////////////////////////////////////////////////////
@@ -125,6 +125,9 @@ private:
 	TArray<TScopeType*, FRDGArrayAllocator> Scopes;
 
 	TRDGScopeStackHelper<TScopeType> Helper;
+
+	/** Are RDG Events enabled for these scopes */
+	bool bRDGEvents;
 };
 
 class FRDGPass;

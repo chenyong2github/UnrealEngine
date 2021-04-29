@@ -86,7 +86,7 @@ const FCommonInputTypeInfo& FCommonInputActionDataBase::GetInputTypeInfo(ECommon
 		}
 
 		//ensureAlways(NewGamepadTypeInfo->GetKey().IsValid());
-		UE_CLOG(!GamepadTypeInfo->GetKey().IsValid(), LogCommonUI, Warning, TEXT("Invalid default common action key for action \"%s\""), *DisplayName.ToString());
+		UE_CLOG(!GamepadTypeInfo->GetKey().IsValid(), LogCommonUI, Verbose, TEXT("Invalid default common action key for action \"%s\""), *DisplayName.ToString());
 		return *GamepadTypeInfo;
 	}
 	else if (InputType == ECommonInputType::Touch)

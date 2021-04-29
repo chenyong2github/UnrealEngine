@@ -129,6 +129,9 @@ public:
 	/** @returns The command queue's native device. */
 	mtlpp::Device& GetDevice(void);
 	
+	/** @returns The command queue's native device. */
+	mtlpp::CommandQueue& GetQueue(void) { return CommandQueue; }
+
 	/** Converts a Metal v1.1+ resource option to something valid on the current version. */
 	static mtlpp::ResourceOptions GetCompatibleResourceOptions(mtlpp::ResourceOptions Options);
 	

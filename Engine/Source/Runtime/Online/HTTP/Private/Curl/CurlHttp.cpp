@@ -505,9 +505,7 @@ size_t FCurlHttpRequest::ReceiveResponseHeaderCallback(void* Ptr, size_t SizeInB
 					{
 						Response->ContentLength = FCString::Atoi(*HeaderValue);
 					}
-					//Response->NewlyReceivedHeaders.Enqueue(TPair<FString, FString>(MoveTemp(HeaderKey), MoveTemp(HeaderValue)));
-					const FScopeLock HeadersLock(&Response->NewlyReceivedHeadersCS);
-					Response->NewlyReceivedHeaders.Emplace(TPair<FString, FString>(MoveTemp(HeaderKey), MoveTemp(HeaderValue)));
+					Response->NewlyReceivedHeaders.Enqueue(TPair<FString, FString>(MoveTemp(HeaderKey), MoveTemp(HeaderValue)));
 				}
 			}
 			else
@@ -1157,22 +1155,13 @@ void FCurlHttpRequest::BroadcastNewlyReceivedHeaders()
 	check(IsInGameThread());
 	if (Response.IsValid())
 	{
-		auto DequeueHeader = [this](TPair<FString, FString>& NewHeader) -> bool
-		{
-			const FScopeLock HeadersLock(&Response->NewlyReceivedHeadersCS);
-			if (Response->NewlyReceivedHeaders.Num())
-			{
-				NewHeader = MoveTemp(Response->NewlyReceivedHeaders[0]);
-				Response->NewlyReceivedHeaders.RemoveAt(0);
-				return true;
-			}
-			return false;
-		};
+		// temporary to help debugging of crashes due to memory corruption issues
+		TCHAR RequestUrl[256];
+		FCString::Strncpy(RequestUrl, *URL, 256);
 
 		// Process the headers received on the HTTP thread and merge them into our master list and then broadcast the new headers
 		TPair<FString, FString> NewHeader;
-		//while (Response->NewlyReceivedHeaders.Dequeue(NewHeader))
-		while (DequeueHeader(NewHeader))
+		while (Response->NewlyReceivedHeaders.Dequeue(NewHeader))
 		{
 			const FString& HeaderKey = NewHeader.Key;
 			const FString& HeaderValue = NewHeader.Value;

@@ -10,7 +10,7 @@ public:
 	virtual void StartupModule() override
 	{
 		AssetDataSource.Reset(NewObject<UContentBrowserAssetDataSource>(GetTransientPackage(), "AssetData"));
-		AssetDataSource->Initialize("/");
+		AssetDataSource->Initialize();
 	}
 
 	virtual void ShutdownModule() override

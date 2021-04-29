@@ -183,6 +183,22 @@ public:
 
 	/** Replaces the value of the union with a value of the given subtype. */
 	template<typename Subtype>
+	Subtype* SetSubtype()
+	{
+		int32 SubtypeIndex;
+		Subtype* SubtypeValuePointer;
+		GetSubtypeIndexAndReference<Subtype, Subtype*>(*this, SubtypeIndex, SubtypeValuePointer);
+
+		Reset();
+
+		new(SubtypeValuePointer) Subtype();
+
+		CurrentSubtypeIndex = SubtypeIndex;
+		return SubtypeValuePointer;
+	}
+
+	/** Replaces the value of the union with a value of the given subtype. */
+	template<typename Subtype>
 	Subtype* SetSubtype(typename TCallTraits<Subtype>::ParamType NewValue)
 	{
 		int32 SubtypeIndex;

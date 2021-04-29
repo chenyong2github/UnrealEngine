@@ -374,6 +374,11 @@ void USocialToolkit::NotifyPSNFriendsListRebuilt()
 }
 #endif
 
+void USocialToolkit::NotifyPartyInviteReceived(USocialUser& SocialUser, const IOnlinePartyJoinInfo& Invite)
+{
+	OnPartyInviteReceived().Broadcast(SocialUser);
+}
+
 void USocialToolkit::QueueUserDependentAction(const FUniqueNetIdRepl& UserId, TFunction<void(USocialUser&)>&& UserActionFunc, bool bExecutePostInit)
 {
 	ESocialSubsystem CompatibleSubsystem = ESocialSubsystem::MAX;
@@ -572,6 +577,8 @@ void USocialToolkit::OnOwnerLoggedIn()
 			{
 				PartyInterface->AddOnPartyInviteReceivedExDelegate_Handle(FOnPartyInviteReceivedExDelegate::CreateUObject(this, &USocialToolkit::HandlePartyInviteReceived));
 				PartyInterface->AddOnPartyInviteRemovedExDelegate_Handle(FOnPartyInviteRemovedExDelegate::CreateUObject(this, &USocialToolkit::HandlePartyInviteRemoved));
+				PartyInterface->AddOnPartyRequestToJoinReceivedDelegate_Handle(FOnPartyRequestToJoinReceivedDelegate::CreateUObject(this, &USocialToolkit::HandlePartyRequestToJoinReceived));
+				PartyInterface->AddOnPartyRequestToJoinRemovedDelegate_Handle(FOnPartyRequestToJoinRemovedDelegate::CreateUObject(this, &USocialToolkit::HandlePartyRequestToJoinRemoved));
 			}
 
 			if (IOnlinePresencePtr PresenceInterface = OSS->GetPresenceInterface())
@@ -629,6 +636,8 @@ void USocialToolkit::OnOwnerLoggedOut()
 			if (PartyInterface.IsValid())
 			{
 				PartyInterface->ClearOnPartyInviteReceivedDelegates(this);
+				PartyInterface->ClearOnPartyRequestToJoinReceivedDelegates(this);
+				PartyInterface->ClearOnPartyRequestToJoinRemovedDelegates(this);
 			}
 
 			IOnlineUserPtr UserInterface = OSS->GetUserInterface();
@@ -1137,6 +1146,55 @@ void USocialToolkit::HandleExistingPartyInvites(ESocialSubsystem SubsystemType)
 				}
 			}
 		}
+	}
+}
+
+void USocialToolkit::RequestToJoinParty(USocialUser& SocialUser)
+{
+	IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
+	PartyInterface->RequestToJoinParty(*GetLocalUserNetId(ESocialSubsystem::Primary), IOnlinePartySystem::GetPrimaryPartyTypeId(), *SocialUser.GetUserId(ESocialSubsystem::Primary), FOnRequestToJoinPartyComplete::CreateUObject(this, &USocialToolkit::HandlePartyRequestToJoinSent));
+}
+
+void USocialToolkit::HandlePartyRequestToJoinSent(const FUniqueNetId& LocalUserId, const FUniqueNetId& PartyLeaderId, const FDateTime& ExpiresAt, const ERequestToJoinPartyCompletionResult Result)
+{
+	UE_LOG(LogParty, VeryVerbose, TEXT("%s - User [%s] sent a join request to [%s] with result[%s]"), ANSI_TO_TCHAR(__FUNCTION__), *LocalUserId.ToDebugString(), *PartyLeaderId.ToDebugString(), *ToString(Result));
+
+	if (Result == ERequestToJoinPartyCompletionResult::Succeeded)
+	{
+		QueueUserDependentActionInternal(PartyLeaderId.AsShared(), ESocialSubsystem::Primary,
+			[this, ExpiresAt](USocialUser& SocialUser)
+			{
+				SocialUser.HandleRequestToJoinSent(ExpiresAt);
+				OnPartyRequestToJoinSent().Broadcast(SocialUser);
+			});
+	}
+
+	OnRequestToJoinPartyComplete(PartyLeaderId, Result);
+}
+
+void USocialToolkit::HandlePartyRequestToJoinReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& RequesterId, const IOnlinePartyRequestToJoinInfo& Request)
+{
+	if (LocalUserId == GetLocalUserNetId(ESocialSubsystem::Primary))
+	{
+		QueueUserDependentActionInternal(RequesterId.AsShared(), ESocialSubsystem::Primary,
+			[this, RequestRef = Request.AsShared()](USocialUser& User)
+			{
+				User.HandleRequestToJoinReceived(*RequestRef);
+				OnPartyRequestToJoinReceived().Broadcast(User, RequestRef);
+			});
+	}
+}
+
+void USocialToolkit::HandlePartyRequestToJoinRemoved(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& RequesterId, const IOnlinePartyRequestToJoinInfo& Request, EPartyRequestToJoinRemovedReason Reason)
+{
+	if (LocalUserId == GetLocalUserNetId(ESocialSubsystem::Primary))
+	{
+		QueueUserDependentActionInternal(RequesterId.AsShared(), ESocialSubsystem::Primary,
+			[this, RequestRef = Request.AsShared(), Reason](USocialUser& User)
+			{
+				User.HandleRequestToJoinRemoved(*RequestRef, Reason);
+				OnPartyRequestToJoinRemoved().Broadcast(User, RequestRef, Reason);
+			});
 	}
 }
 

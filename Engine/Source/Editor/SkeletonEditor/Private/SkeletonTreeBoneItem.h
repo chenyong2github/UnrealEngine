@@ -38,6 +38,10 @@ public:
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FSkeletonTreeBoneItem");
+	}
 
 	/** Check to see if the specified bone is weighted in the specified component */
 	bool IsBoneWeighted(int32 MeshBoneIndex, UDebugSkelMeshComponent* PreviewComponent);

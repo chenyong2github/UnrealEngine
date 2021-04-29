@@ -3,6 +3,7 @@
 #include "LiveLinkCameraController.h"
 
 #include "Camera/CameraComponent.h"
+#include "CameraCalibrationSubsystem.h"
 #include "CineCameraComponent.h"
 #include "Controllers/LiveLinkTransformController.h"
 #include "Features/IModularFeatures.h"
@@ -11,6 +12,7 @@
 #include "LensFile.h"
 #include "LiveLinkComponentController.h"
 #include "Logging/LogMacros.h"
+#include "LiveLinkLog.h"
 #include "Roles/LiveLinkCameraRole.h"
 #include "Roles/LiveLinkCameraTypes.h"
 #include "UObject/EnterpriseObjectVersion.h"
@@ -72,28 +74,39 @@ TSubclassOf<UActorComponent> ULiveLinkCameraController::GetDesiredComponentClass
 
 void ULiveLinkCameraController::SetAttachedComponent(UActorComponent* ActorComponent)
 {
-	const bool bHasChangedComponent = ActorComponent != AttachedComponent;
+	const bool bHasChangedComponent = (ActorComponent != AttachedComponent);
 	if (bHasChangedComponent)
 	{
 		//Remove MID we could have added to the old component
 		CleanupDistortion();
+
+		// If the component is changing from one camera actor to another camera actor, update the undistorted focal length to the focal length of the new component
+		if (AttachedComponent != nullptr)
+		{
+			if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(ActorComponent))
+			{
+				UndistortedFocalLength = CineCameraComponent->CurrentFocalLength;
+			}
+		}
 	}
 
 	Super::SetAttachedComponent(ActorComponent);
 
 	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(AttachedComponent))
 	{	
+		// Initialize the most recent focal length to the current focal length of the camera to properly detect changes to this property
+		LastFocalLength = CineCameraComponent->CurrentFocalLength;
+
 		//When our component has changed, make sure we update our 
 		//cached/original filmback to restore it correctly
 		//PIE case is odd because the camera is duplicated from editor and its filmback will already be distorted
 		if (bApplyDistortion == false 
 			|| (GetWorld() && GetWorld()->WorldType != EWorldType::PIE))
 		{
-			UpdateCachedFilmback(CineCameraComponent);
+			UpdateCachedFocalLength(CineCameraComponent);
 		}
 
 		UpdateDistortionHandler(CineCameraComponent);
-		LastCameraFilmback = CineCameraComponent->Filmback;
 	}
 }
 
@@ -126,15 +139,22 @@ void ULiveLinkCameraController::PostEditChangeProperty(struct FPropertyChangedEv
 				 * not part of the distortion setup since entering PIE will duplicate actor / components
 				 * and the duplicated one will already have modified filmback applied.
 				 */
-				OriginalCameraFilmback = CineCameraComponent->Filmback;
-				UE_LOG(LogLiveLinkCameraController, Verbose, TEXT("Enabling distortion. Cached Filmback is %0.3fmm x %0.3fmm"), OriginalCameraFilmback.SensorWidth, OriginalCameraFilmback.SensorHeight);
+				UndistortedFocalLength = CineCameraComponent->CurrentFocalLength;
+				UE_LOG(LogLiveLinkCameraController, Verbose, TEXT("Enabling distortion. Cached focal length is %0.3fmm"), UndistortedFocalLength);
 
 				UpdateDistortionHandler(CineCameraComponent);
 			}
 			else
 			{
-				CineCameraComponent->Filmback = OriginalCameraFilmback;
-				LensDistortionHandler = nullptr;
+				// Static lens model data may not be available because the controller may not be ticking, so query the subsystem for any distortion handler
+				UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
+				ULensDistortionModelHandlerBase* Handler = SubSystem->GetDistortionModelHandler(CineCameraComponent);
+
+				// Try to remove the post-process material from the cine camera's blendables. 
+				CineCameraComponent->RemoveBlendable(Handler->GetDistortionMID());
+
+				const float OriginalFOV = FMath::RadiansToDegrees(2.0f * FMath::Atan(CineCameraComponent->Filmback.SensorWidth / (2.0f * UndistortedFocalLength)));
+				CineCameraComponent->SetFieldOfView(OriginalFOV);
 			}
 		}
 	}
@@ -213,9 +233,26 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 			if ((CurrentTime - LastInvalidLoggingLoggedTimestamp) > TimeBetweenLoggingSeconds)
 			{
 				LastInvalidLoggingLoggedTimestamp = CurrentTime;
-				UE_LOG(LogLiveLinkCameraController, Warning, TEXT("'%s' needs encoder mapping but lens file is invalid"), *GetName())
+				FLiveLinkLog::Warning(TEXT("'%s' needs encoder mapping but lens file is invalid. Falling back to default CineCamera parameters - is this intentional?"), *GetName());
 			}
 
+			// If no LensFile is found, then use the existing min/max parameters in the current camera
+			if (StaticData->bIsFocusDistanceSupported)
+			{
+				const float MinFocusDistInWorldUnits = CineCameraComponent->LensSettings.MinimumFocusDistance * (CineCameraComponent->GetWorldToMetersScale() / 1000.f);	// convert mm to uu
+				float NewFocusDistance = FMath::Lerp(MinFocusDistInWorldUnits, 100000.0f, FrameData->FocusDistance);
+				CineCameraComponent->FocusSettings.ManualFocusDistance = NewFocusDistance;
+			}
+			if (StaticData->bIsApertureSupported)
+			{
+				float NewAperture = FMath::Lerp(CineCameraComponent->LensSettings.MinFStop, CineCameraComponent->LensSettings.MaxFStop, FrameData->Aperture);
+				CineCameraComponent->CurrentAperture = NewAperture;
+			}
+			if (StaticData->bIsFocalLengthSupported)
+			{
+				float NewZoom = FMath::Lerp(CineCameraComponent->LensSettings.MinFocalLength, CineCameraComponent->LensSettings.MaxFocalLength, FrameData->FocalLength);
+				CineCameraComponent->SetCurrentFocalLength(NewZoom);
+			}
 		}
 	}
 	else
@@ -294,56 +331,33 @@ void ULiveLinkCameraController::ApplyDistortion(ULensFile* LensFile, UCineCamera
 {
 	UMaterialInstanceDynamic* NewDistortionMID = nullptr;
 
-	UpdateCachedFilmback(CineCameraComponent);
+	UpdateCachedFocalLength(CineCameraComponent);
 
-	// Update DistortionHandler's state based on the lens file data
+	if (LensFile)
+	{
+		UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
+		LensDistortionHandler = SubSystem->FindOrCreateDistortionModelHandler(CineCameraComponent, LensFile->LensInfo.LensModel);
+	}
+
 	if (LensDistortionHandler)
 	{
 		if (LensFile != nullptr)
 		{
-			/** Update the lens distortion handler with the evaluated data from the lens file */
-			FLensDistortionState DistortionState;
-			DistortionState.LensModel = LensFile->LensInfo.LensModel;
-
-			/** The sensor dimensions must be the original dimensions of the source camera (with no overscan applied) */
-			DistortionState.SensorDimensions = FVector2D(OriginalCameraFilmback.SensorWidth, OriginalCameraFilmback.SensorHeight);
-			DistortionState.FocalLength = CineCameraComponent->CurrentFocalLength;
-			
-			if (LensFile->DataMode == ELensDataMode::Coefficients)
-			{
-				FDistortionParameters DistortionParams;
-				FIntrinsicParameters IntrinsicParams;
-				LensFile->EvaluateDistortionParameters(CineCameraComponent->CurrentFocusDistance, CineCameraComponent->CurrentFocalLength, DistortionParams);
-				LensFile->EvaluateIntrinsicParameters(CineCameraComponent->CurrentFocusDistance, CineCameraComponent->CurrentFocalLength, IntrinsicParams);
-
-				DistortionState.DistortionParameters = MoveTemp(DistortionParams);
-				DistortionState.PrincipalPoint = MoveTemp(IntrinsicParams.CenterShift);
-
-				LensDistortionHandler->Update(DistortionState);
-			}
-			else
-			{
-				FDistortionData DistortionData;
-				LensFile->EvaluateDistortionData(CineCameraComponent->CurrentFocusDistance, CineCameraComponent->CurrentFocalLength, LensDistortionHandler->GetUVDisplacementMap(), DistortionData);
-
-				//Todo : Add basic Handler that givesSetter for overscan, MID that just use the displacement map
-				LensDistortionHandler->UpdateOverscanFactor(DistortionData.OverscanFactor);
-			}
-		}
-		else
-		{
-			const FVector2D SensorDimensions(OriginalCameraFilmback.SensorWidth, OriginalCameraFilmback.SensorHeight);
-			LensDistortionHandler->UpdateCameraSettings(SensorDimensions, CineCameraComponent->CurrentFocalLength);
+			//Go through the lens file to get distortion data based on FIZ
+			//Our handler's displacement map will get updated
+			FDistortionData DistortionData;
+			LensFile->EvaluateDistortionData(CineCameraComponent->CurrentFocusDistance, UndistortedFocalLength, LensDistortionHandler, DistortionData);
 		}
 
 		NewDistortionMID = LensDistortionHandler->GetDistortionMID();
 
-		/** Get the computed overscan factor and scale the camera's sensor dimensions to simulate a wider FOV */
 		if (bApplyDistortion)
 		{
+			// Scale the camera's FOV by an overscan factor
 			const float OverscanFactor = LensDistortionHandler->GetOverscanFactor();
-			CineCameraComponent->Filmback.SensorWidth = OriginalCameraFilmback.SensorWidth * OverscanFactor;
-			CineCameraComponent->Filmback.SensorHeight = OriginalCameraFilmback.SensorHeight * OverscanFactor;
+			const float OverscanSensorWidth = CineCameraComponent->Filmback.SensorWidth * OverscanFactor;
+			const float OverscanFOV = FMath::RadiansToDegrees(2.0f * FMath::Atan(OverscanSensorWidth / (2.0f * UndistortedFocalLength)));
+			CineCameraComponent->SetFieldOfView(OverscanFOV);
 		}
 	}
 
@@ -356,52 +370,39 @@ void ULiveLinkCameraController::ApplyDistortion(ULensFile* LensFile, UCineCamera
 	//Stamp last MID used for distortion
 	LastDistortionMID = NewDistortionMID;
 
-	/** If distortion should be applied to the attached cinecamera, fetch the distortion MID from the Lens Distortion Handler and add it to the camera's post-process materials */
+	// If distortion should be applied to the attached cinecamera, fetch the distortion MID from the Lens Distortion Handler and add it to the camera's post-process materials
 	if (bApplyDistortion && (bIsDistortionSetup == false))
 	{
 		CineCameraComponent->AddOrUpdateBlendable(LastDistortionMID);
 		bIsDistortionSetup = true;
 	}
-	/** If distortion should not be applied, remove the distortion MID from the camera's post process materials */
+	// If distortion should not be applied, remove the distortion MID from the camera's post process materials
 	else if (bIsDistortionSetup && (bApplyDistortion == false))
 	{
 		CleanupDistortion();
 	}
 
-	//Stamp last applied filmback to detect if user has changed it
-	LastCameraFilmback = CineCameraComponent->Filmback;
+	//Stamp last applied focal length to detect if user has changed it
+	LastFocalLength = CineCameraComponent->CurrentFocalLength;
 }
 
 void ULiveLinkCameraController::UpdateDistortionHandler(UCineCameraComponent* CineCameraComponent)
 {
-	check(CineCameraComponent);
-	LensDistortionHandler = ULensDistortionDataHandler::GetLensDistortionDataHandler(CineCameraComponent);
-	if (LensDistortionHandler == nullptr)
-	{
-		LensDistortionHandler = NewObject<ULensDistortionDataHandler>(CineCameraComponent);
-		CineCameraComponent->AddAssetUserData(LensDistortionHandler);
-	}
-	
-	//Cache MID when changing handler to start with something valid. i.e. Cleaning MID from blendables if LL was never valid
-	LastDistortionMID = LensDistortionHandler->GetDistortionMID();
+ 	if (LensDistortionHandler)
+ 	{
+ 		//Cache MID when changing handler to start with something valid. i.e. Cleaning MID from blendables if LL was never valid
+ 		LastDistortionMID = LensDistortionHandler->GetDistortionMID();
+ 	}
 }
 
-void ULiveLinkCameraController::UpdateCachedFilmback(UCineCameraComponent* CineCameraComponent)
+void ULiveLinkCameraController::UpdateCachedFocalLength(UCineCameraComponent* CineCameraComponent)
 {
-	//Verify if filmback was changed by the user. If that's the case, take the current value and update the cached one
-	if (CineCameraComponent->Filmback != LastCameraFilmback)
+	//Verify if focal length was changed by the user. If that's the case, take the current value and update the cached one
+	if (CineCameraComponent->CurrentFocalLength != LastFocalLength)
 	{
-		if (CineCameraComponent->Filmback.SensorWidth != LastCameraFilmback.SensorWidth)
-		{
-			OriginalCameraFilmback.SensorWidth = CineCameraComponent->Filmback.SensorWidth;
-		}
+		UndistortedFocalLength = CineCameraComponent->CurrentFocalLength;
 
-		if (CineCameraComponent->Filmback.SensorHeight != LastCameraFilmback.SensorHeight)
-		{
-			OriginalCameraFilmback.SensorHeight = CineCameraComponent->Filmback.SensorHeight;
-		}
-
-		UE_LOG(LogLiveLinkCameraController, Verbose, TEXT("Updating cached Filmback to %0.3fmm x %0.3fmm"), OriginalCameraFilmback.SensorWidth, OriginalCameraFilmback.SensorHeight);
+		UE_LOG(LogLiveLinkCameraController, Verbose, TEXT("Updating cached focal length to %0.3fmm"), UndistortedFocalLength);
 	}
 }
 
@@ -416,8 +417,10 @@ void ULiveLinkCameraController::CleanupDistortion()
 			
 			//Update cached filmback before resetting it. We could have stopped ticking because the LiveLink component was stopped
 			//In the meantime, filmback could have been manually changed and our cache is out of date.
-			UpdateCachedFilmback(CineCameraComponent);
-			CineCameraComponent->Filmback = OriginalCameraFilmback;
+			UpdateCachedFocalLength(CineCameraComponent);
+
+			const float OriginalFOV = FMath::RadiansToDegrees(2.0f * FMath::Atan(CineCameraComponent->Filmback.SensorWidth / (2.0f * UndistortedFocalLength)));
+			CineCameraComponent->SetFieldOfView(OriginalFOV);
 		}
 	}
 
@@ -478,4 +481,3 @@ void ULiveLinkCameraController::PostLoad()
 	}
 #endif //WITH_EDITOR
 }
-

@@ -5,96 +5,109 @@
 #include "Misc/DisplayClusterHelpers.h"
 #include "DisplayClusterPostprocessLog.h"
 #include "DisplayClusterPostprocessStrings.h"
+#include "DisplayClusterRootActor.h"
+
+#include "Render/Containers/DisplayClusterRender_MeshComponentProxy.h"
+#include "Render/Containers/DisplayClusterRender_MeshGeometry.h"
+
+#include "Render/Viewport/IDisplayClusterViewportManager.h"
+
+#include "IDisplayClusterShaders.h"
+
+#include "DisplayClusterRootActor.h"
 
 #include "Engine/RendererSettings.h"
 #include "Misc/Paths.h"
 
-
 FDisplayClusterPostprocessOutputRemap::FDisplayClusterPostprocessOutputRemap()
-	: OutputRemapAPI(IOutputRemap::Get())
-	, MeshRef(-1)
+	: MeshComponentProxy(*(new FDisplayClusterRender_MeshComponentProxy()))
+	, ShadersAPI(IDisplayClusterShaders::Get())
 {
-
 }
 
 FDisplayClusterPostprocessOutputRemap::~FDisplayClusterPostprocessOutputRemap()
 {
+	delete (&MeshComponentProxy);
 }
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterPostProcess
 //////////////////////////////////////////////////////////////////////////////////////////////
-bool FDisplayClusterPostprocessOutputRemap::IsPostProcessRenderTargetAfterWarpBlendRequired()
+bool FDisplayClusterPostprocessOutputRemap::IsPostProcessFrameAfterWarpBlendRequired() const
 {
-	return MeshRef >= 0;
+	return bIsInitialized;
 }
 
-void FDisplayClusterPostprocessOutputRemap::InitializePostProcess(const TMap<FString, FString>& Parameters)
+void FDisplayClusterPostprocessOutputRemap::InitializePostProcess(class IDisplayClusterViewportManager& InViewportManager, const TMap<FString, FString>& Parameters)
 {
-	// PFM file (optional)
+	// OBJ file (optional)
 	FString ExtMeshFile;
 	if (DisplayClusterHelpers::map::template ExtractValue(Parameters, DisplayClusterPostprocessStrings::output_remap::File, ExtMeshFile))
 	{
 		UE_LOG(LogDisplayClusterPostprocessOutputRemap, Log, TEXT("Found Argument '%s'='%s'"), DisplayClusterPostprocessStrings::output_remap::File, *ExtMeshFile);
-	}
 
-	// Load ext mesh:
-	uint32 OutMeshRef;
-	if (!OutputRemapAPI.Load(ExtMeshFile, OutMeshRef))
-	{
-		UE_LOG(LogDisplayClusterPostprocessOutputRemap, Error, TEXT("Failed to load ext mesh from file '%s'"), *ExtMeshFile);
-		MeshRef = -1;
-	}
-	else
-	{
-		MeshRef = (int)OutMeshRef;
-	}
-}
+		FDisplayClusterRender_MeshGeometry MeshGeometry;
+		if (!MeshGeometry.LoadFromFile(ExtMeshFile))
+		{
+			UE_LOG(LogDisplayClusterPostprocessOutputRemap, Error, TEXT("Failed to load ext mesh from file '%s'"), *ExtMeshFile);
+			return;
+		}
 
-void FDisplayClusterPostprocessOutputRemap::PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InOutTexture, const TArray<FDisplayClusterRenderViewport>& RenderViewports) const
-{
-	check(MeshRef >= 0);
-	FIntPoint ScreenSize = InOutTexture->GetSizeXY();
-
-	InitializeResources_RenderThread(ScreenSize);
-
-	if (!RTTexture || !RTTexture->IsValid())
-	{
-		UE_LOG(LogDisplayClusterPostprocessOutputRemap, Error, TEXT("RT not allocated"));
+		MeshComponentProxy.UpdateDeffered(MeshGeometry);
+		bIsInitialized = true;
 		return;
 	}
 
-	uint32 InMeshRef = (uint32)MeshRef;
-	if (OutputRemapAPI.ApplyOutputRemap_RenderThread(RHICmdList, InOutTexture, RTTexture, InMeshRef))
+	// Mesh from RootActor
+	FString RootActorMeshComponentName;
+	if (DisplayClusterHelpers::map::template ExtractValue(Parameters, DisplayClusterPostprocessStrings::output_remap::Mesh, RootActorMeshComponentName))
 	{
-		//Copy remapped result back
-		RHICmdList.CopyToResolveTarget(RTTexture, InOutTexture, FResolveParams());
+		UE_LOG(LogDisplayClusterPostprocessOutputRemap, Log, TEXT("Found Argument '%s'='%s'"), DisplayClusterPostprocessStrings::output_remap::Mesh, *RootActorMeshComponentName);
+
+		ADisplayClusterRootActor* RootActor = InViewportManager.GetRootActor();
+		if (RootActor == nullptr)
+		{
+			UE_LOG(LogDisplayClusterPostprocessOutputRemap, Error, TEXT("RootActor not found: Can't load static mesh component '%s'"), *RootActorMeshComponentName);
+			return;
+		}
+
+		// Get mesh component
+		UStaticMeshComponent* MeshComponent = RootActor->GetMeshById(RootActorMeshComponentName);
+		if (MeshComponent == nullptr)
+		{
+			UE_LOG(LogDisplayClusterPostprocessOutputRemap, Error, TEXT("Static mesh component '%s' not found in RootActor"), *RootActorMeshComponentName);
+			return;
+		}
+
+		MeshComponentProxy.AssignMeshRefs(MeshComponent);
+		MeshComponentProxy.UpdateDefferedRef();
+		bIsInitialized = true;
+		return;
 	}
+
+	UE_LOG(LogDisplayClusterPostprocessOutputRemap, Error, TEXT("OutputRemap parameters is undefined"));
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-// FDisplayClusterPostprocessOutputRemap
-//////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FDisplayClusterPostprocessOutputRemap::InitializeResources_RenderThread(const FIntPoint& ScreenSize) const
+void FDisplayClusterPostprocessOutputRemap::PerformPostProcessFrameAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const TArray<FRHITexture2D*>* InFrameTargets, const TArray<FRHITexture2D*>* InAdditionalFrameTargets) const
 {
-	check(IsInRenderingThread());
-
-	if (!bIsRenderResourcesInitialized)
+	if (InFrameTargets && InAdditionalFrameTargets)
 	{
-		FScopeLock lock(&RenderingResourcesInitializationCS);
-		if (!bIsRenderResourcesInitialized)
+		// Support mesh refresh:
+		if(MeshComponentProxy.MeshComponentRef.IsMeshComponentChanged())
+		{ 
+			MeshComponentProxy.UpdateDefferedRef();
+		}
+
+		for (int Index = 0; Index < InFrameTargets->Num(); Index++)
 		{
-			static const TConsoleVariableData<int32>* CVarDefaultBackBufferPixelFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultBackBufferPixelFormat"));
-			static const EPixelFormat SceneTargetFormat = EDefaultBackBufferPixelFormat::Convert2PixelFormat(EDefaultBackBufferPixelFormat::FromInt(CVarDefaultBackBufferPixelFormat->GetValueOnRenderThread()));
+			FRHITexture2D* InOutTexture = (*InFrameTargets)[Index];
+			FRHITexture2D* TempTargetableTexture = (*InAdditionalFrameTargets)[Index];
 
-			FRHIResourceCreateInfo CreateInfo(TEXT("DummyTexRef"));
-			FTexture2DRHIRef DummyTexRef;
-			RHICreateTargetableShaderResource2D(ScreenSize.X, ScreenSize.Y, SceneTargetFormat, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, RTTexture, DummyTexRef);
-
-			bIsRenderResourcesInitialized = true;
+			if (ShadersAPI.RenderPostprocess_OutputRemap(RHICmdList, InOutTexture, TempTargetableTexture, MeshComponentProxy))
+			{
+				//Copy remapped result back
+				RHICmdList.CopyToResolveTarget(TempTargetableTexture, InOutTexture, FResolveParams());
+			}
 		}
 	}
-	return true;
 }

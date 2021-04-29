@@ -13,6 +13,8 @@ void SDisplayClusterConfigurationSearchableComboBox::Construct(const FArguments&
 			.ColorAndOpacity(FLinearColor::Red);
 	}
 
+	DisplayClusterOptionsSource = InArgs._OptionsSource;
+
 	SSearchableComboBox::Construct(SSearchableComboBox::FArguments()
 			.ComboBoxStyle(InArgs._ComboBoxStyle)
 			.ButtonStyle(InArgs._ButtonStyle)
@@ -38,7 +40,25 @@ void SDisplayClusterConfigurationSearchableComboBox::Construct(const FArguments&
 
 void SDisplayClusterConfigurationSearchableComboBox::ResetOptionsSource(const TArray<TSharedPtr<FString>>* NewOptionsSource)
 {
-	SetOptionsSource(NewOptionsSource);
-
+	if (NewOptionsSource && NewOptionsSource != DisplayClusterOptionsSource)
+	{
+		DisplayClusterOptionsSource = NewOptionsSource;
+		SetOptionsSource(NewOptionsSource);
+	}
+	
 	RefreshOptions();
+	
+	{
+		// Without this the selection is cleared and dropdown auto closed when clicking on the combo button next. Combo box bug?
+		
+		const TSharedPtr<FString> CurrentSelectedItem = GetSelectedItem();
+		if (CurrentSelectedItem.IsValid() && DisplayClusterOptionsSource && DisplayClusterOptionsSource->Contains(CurrentSelectedItem))
+		{
+			SetSelectedItem(CurrentSelectedItem);
+		}
+		else
+		{
+			ClearSelection();
+		}
+	}
 }

@@ -149,7 +149,7 @@ private:
 	uint32 bUseThickLines : 1;
 };
 
-#if WITH_RECAST && !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if WITH_RECAST && UE_ENABLE_DEBUG_DRAWING
 class FNavMeshDebugDrawDelegateHelper : public FDebugDrawDelegateHelper
 {
 	typedef FDebugDrawDelegateHelper Super;
@@ -229,7 +229,7 @@ protected:
 	FTimerHandle TimerHandle;
 
 protected:
-#if WITH_RECAST && !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if WITH_RECAST && UE_ENABLE_DEBUG_DRAWING
 	FNavMeshDebugDrawDelegateHelper NavMeshDebugDrawDelgateManager;
 #endif
 };

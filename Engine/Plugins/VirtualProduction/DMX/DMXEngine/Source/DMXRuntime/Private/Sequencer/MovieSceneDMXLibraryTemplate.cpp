@@ -147,7 +147,6 @@ namespace
 				}
 			}
 
-			// TODO
 			for (const FDMXOutputPortSharedRef& OutputPort : DMXLibrary->GetOutputPorts())
 			{
 				OutputPort->SendDMX(FixturePatch->UniverseID, ChannelToValueMap);
@@ -191,114 +190,15 @@ struct FDMXLibraryExecutionToken
 	FDMXLibraryExecutionToken& operator=(const FDMXLibraryExecutionToken&) = delete;
 
 private:
-	// Keeps all values from Fixture Functions that will be sent using the ports.
-	// A Protocol points to Universe IDs. Each Universe ID points to a FragmentMap.
-	TMap<int32 /** Universe */, TMap<int32, uint8> /** ChannelToValueMap */> UniverseToChannelToValueMap;
-
 	const UMovieSceneDMXLibrarySection* Section;
-
-	bool bInitialized = false;
-
 
 public:
 	virtual void Execute(const FMovieSceneContext& Context, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) override
 	{
 		SCOPE_CYCLE_COUNTER(STAT_DMXSequencerExecuteExecutionToken);
 
-		const FFrameTime Time = Context.GetTime();
-
-		UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
-		check(DMXSubsystem);
-
-		if (!bInitialized)
-		{
-			bInitialized = true;
-
-			bool bIsCacheValid = true;
-			for (const FDMXCachedFunctionChannelInfo& InfoForChannelToInitialize : Section->GetChannelsToInitializeOnly())
-			{
-				if (const FDMXFixtureFunctionChannel* FixtureFunctionChannelPtr = InfoForChannelToInitialize.TryGetFunctionChannel(Section->GetFixturePatchChannels()))
-				{
-					float ChannelValue = 0.0f;
-					if (FixtureFunctionChannelPtr->Channel.Evaluate(Time, ChannelValue))
-					{
-						// Round to int so if the user draws into the tracks, values are assigned to int accurately
-						const uint32 FunctionValue = FMath::RoundToInt(ChannelValue);
-
-						// Round to int so if the user draws into the tracks, values are assigned to int accurately
-						TArray<uint8> ByteArr;
-						DMXSubsystem->IntValueToBytes(FunctionValue, InfoForChannelToInitialize.GetSignalFormat(), ByteArr, InfoForChannelToInitialize.ShouldUseLSBMode());
-
-						TMap<int32, uint8>& ChannelToValueMap = UniverseToChannelToValueMap.FindOrAdd(InfoForChannelToInitialize.GetUniverseID());
-
-						for (int32 ByteIdx = 0; ByteIdx < ByteArr.Num(); ByteIdx++)
-						{
-							uint8& Value = ChannelToValueMap.FindOrAdd(InfoForChannelToInitialize.GetStartingChannel() + ByteIdx);
-							Value = ByteArr[ByteIdx];
-						}
-					}
-				}
-				else
-				{
-					bIsCacheValid = false;
-					break;
-				}
-			}
-
-			if(!bIsCacheValid)
-			{
-				Section->RebuildPlaybackCache();
-			}
-		}
-		else
-		{
-			// Reset previous values
-			UniverseToChannelToValueMap.Reset();
-		}
-		
-		for (const FDMXCachedFunctionChannelInfo& InfoForChannelToEvaluate : Section->GetChannelsToEvaluate())
-		{
-			bool bIsCacheValid = true;
-			if (const FDMXFixtureFunctionChannel* FixtureFunctionChannelPtr = InfoForChannelToEvaluate.TryGetFunctionChannel(Section->GetFixturePatchChannels()))
-			{
-				float ChannelValue = 0.0f;
-				if (FixtureFunctionChannelPtr->Channel.Evaluate(Time, ChannelValue))
-				{
-					// Round to int so if the user draws into the tracks, values are assigned to int accurately
-					const uint32 FunctionValue = FMath::RoundToInt(ChannelValue);
-
-					TMap<int32, uint8>& ChannelToValueMap = UniverseToChannelToValueMap.FindOrAdd(InfoForChannelToEvaluate.GetUniverseID());
-
-					// Round to int so if the user draws into the tracks, values are assigned to int accurately
-					TArray<uint8> ByteArr;
-					DMXSubsystem->IntValueToBytes(FunctionValue, InfoForChannelToEvaluate.GetSignalFormat(), ByteArr, InfoForChannelToEvaluate.ShouldUseLSBMode());
-
-					for (int32 ByteIdx = 0; ByteIdx < ByteArr.Num(); ByteIdx++)
-					{
-						uint8& Value = ChannelToValueMap.FindOrAdd(InfoForChannelToEvaluate.GetStartingChannel() + ByteIdx);
-						Value = ByteArr[ByteIdx];
-					}
-				}
-				else
-				{
-					bIsCacheValid = false;
-					break;
-				}
-			}
-
-			if (!bIsCacheValid)
-			{
-				Section->RebuildPlaybackCache();
-			}
-		}
-
-		for(const TPair<int32, TMap<int32, uint8>>& UniverseToChannelToValueMapKvp : UniverseToChannelToValueMap)
-		{
-			for (const FDMXOutputPortSharedRef& OutputPort : Section->GetCachedOutputPorts())
-			{
-				OutputPort->SendDMX(UniverseToChannelToValueMapKvp.Key, UniverseToChannelToValueMapKvp.Value);
-			}
-		}
+		check(Section);
+		Section->EvaluateAndSendDMX(Context.GetTime());
 	}
 };
 

@@ -151,6 +151,7 @@ private:
 class FAssetThumbnailPool : public FTickableEditorObject
 {
 public:
+	UNREALED_API static FName CustomThumbnailTagName;
 
 	/**
 	 * Constructor 
@@ -271,6 +272,15 @@ private:
 		uint32 Height;
 		~FThumbnailInfo();
 	};
+	/**
+	 * Assign a thumbnail from its render target and re-render it if necessary.
+	 *
+	 * @param ThumbnailInfo The thumbnail info to assign a texture to
+	 * @param CustomAssetToRender The asset to render when generating the texture
+	 *
+	 * @return true if the thumbnail was assigned to a valid texture
+	 */
+	bool LoadThumbnail(TSharedRef<FThumbnailInfo> ThumbnailInfo, const FAssetData& CustomAssetToRender = FAssetData());
 
 	struct FThumbnailInfo_RenderThread
 	{

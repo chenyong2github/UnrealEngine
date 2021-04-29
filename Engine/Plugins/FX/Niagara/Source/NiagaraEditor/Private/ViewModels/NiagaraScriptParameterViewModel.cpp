@@ -90,7 +90,7 @@ void FNiagaraScriptParameterViewModel::NameTextComitted(const FText& Name, EText
 bool FNiagaraScriptParameterViewModel::VerifyNodeNameTextChanged(const FText& NewText, FText& OutErrorMessage)
 {
 	UNiagaraNode* OwningNode = Cast<UNiagaraNode>(GraphVariableOwner);
-	return OwningNode == nullptr || FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(*OwningNode, GraphVariable->GetName(), *NewText.ToString(), OutErrorMessage);
+	return OwningNode == nullptr || FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(*OwningNode, GraphVariable->GetName(), NewText.ToString(), OutErrorMessage);
 }
 
 TSharedPtr<FNiagaraTypeDefinition> FNiagaraScriptParameterViewModel::GetType() const

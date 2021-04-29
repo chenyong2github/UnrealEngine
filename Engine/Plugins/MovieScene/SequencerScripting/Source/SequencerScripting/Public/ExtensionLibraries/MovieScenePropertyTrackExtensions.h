@@ -29,7 +29,7 @@ public:
 	 * @param InPropertyName The property name
 	 * @param InPropertyPath The property path
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Track", meta = (ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Track", meta = (ScriptMethod))
 	static void SetPropertyNameAndPath(UMovieScenePropertyTrack* Track, const FName& InPropertyName, const FString& InPropertyPath);
 
 	/**
@@ -38,7 +38,7 @@ public:
 	 * @param Track        The track to use
 	 * @return This track's property name
 	 */
-	UFUNCTION(BlueprintCallable, Category="Track", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Track", meta=(ScriptMethod))
 	static FName GetPropertyName(UMovieScenePropertyTrack* Track);
 
 	/**
@@ -47,7 +47,7 @@ public:
 	 * @param Track        The track to use
 	 * @return This track's property path
 	 */
-	UFUNCTION(BlueprintCallable, Category="Track", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Track", meta=(ScriptMethod))
 	static FString GetPropertyPath(UMovieScenePropertyTrack* Track);
 
 	/**
@@ -56,7 +56,7 @@ public:
 	 * @param Track        The track to use
 	 * @return This track's unique name
 	 */
-	UFUNCTION(BlueprintCallable, Category="Track", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Track", meta=(ScriptMethod))
 	static FName GetUniqueTrackName(UMovieScenePropertyTrack* Track);
 
 	/**
@@ -65,7 +65,7 @@ public:
 	 * @param Track        The track to use
 	 * @param PropertyClass The property class to set
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Track", meta = (ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Track", meta = (ScriptMethod))
 	static void SetObjectPropertyClass(UMovieSceneObjectPropertyTrack* Track, UClass* PropertyClass);
 
 	/**
@@ -74,6 +74,6 @@ public:
 	 * @param Track        The track to use
 	 * @return The property class for this object property track
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Track", meta = (ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Track", meta = (ScriptMethod))
 	static UClass* GetObjectPropertyClass(UMovieSceneObjectPropertyTrack* Track);
 };

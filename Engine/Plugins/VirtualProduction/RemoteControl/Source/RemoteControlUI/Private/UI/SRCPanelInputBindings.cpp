@@ -2,14 +2,13 @@
 
 #include "SRCPanelInputBindings.h"
 
-#include "Customizations/RemoteControlEntityCustomization.h"
-#include "EditorStyleSet.h"
 #include "IStructureDetailsView.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "RemoteControlActor.h"
 #include "RemoteControlEntity.h"
 #include "RemoteControlPreset.h"
+#include "IRemoteControlProtocolWidgetsModule.h"
 #include "SRCPanelExposedActor.h"
 #include "SRCPanelExposedEntitiesList.h"
 #include "SRCPanelExposedField.h"
@@ -36,10 +35,14 @@ namespace RCPanelInputBindings
 
 void SRCPanelInputBindings::Construct(const FArguments& InArgs, URemoteControlPreset* InPreset)
 {
+	Preset = InPreset;
+	
 	EntityList = SNew(SRCPanelExposedEntitiesList, InPreset)
 		.DisplayValues(false);
 
 	EntityList->OnSelectionChange().AddSP(this, &SRCPanelInputBindings::UpdateEntityDetailsView);
+
+	EntityProtocolDetails = SNew(SBox);
 
 	ChildSlot
 	[
@@ -48,45 +51,44 @@ void SRCPanelInputBindings::Construct(const FArguments& InArgs, URemoteControlPr
 		.AutoHeight()
 		[
 			// Status, Protocol picker
-			SNew(SBox)
+			SNew(SBorder)
 			.Padding(10.f)
+			[
+				SNew(STextBlock)
+				.Text(INVTEXT("Top bar"))
+			]
 		]
 		+ SVerticalBox::Slot()
+		.Padding(0.f)
 		.FillHeight(1.0f)
 		[
-			SNew(SBorder)
-			.Padding(FMargin(0.f, 5.f, 0.f, 0.f))
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+			SNew(SSplitter)
+			+ SSplitter::Slot()
+			.Value(0.3f)
 			[
-				SNew(SSplitter)
-				+ SSplitter::Slot()
-				.Value(0.3f)
+				// Exposed entities List
+				SNew(SBorder)
 				[
-					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-					.Padding(5.f)
-					[
-						// Exposed entities List
-						EntityList.ToSharedRef()
-					]
+					EntityList.ToSharedRef()
 				]
-				+ SSplitter::Slot()
-				.Value(0.7f)
+			]
+			+ SSplitter::Slot()
+			.Value(0.7f)
+			[
+				SNew(SBorder)
+				.Padding(0.f)
 				[
-					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-					.Padding(5.f)
+					SNew(SSplitter)
+					.Orientation(Orient_Vertical)
+					+ SSplitter::Slot()
+					.Value(0.2f)
 					[
-						SNew(SVerticalBox)
-						// Exposed Entity details view.
-						+ SVerticalBox::Slot()
-						.FillHeight(0.6f)
-						[
-							CreateEntityDetailsView()
-						]
-						// Protocol settings should go here
-						+ SVerticalBox::Slot()
-						.FillHeight(0.4f)
+						CreateEntityDetailsView()
+					]
+					+ SSplitter::Slot()
+					.Value(0.8f)
+					[
+						EntityProtocolDetails.ToSharedRef()
 					]
 				]
 			]
@@ -105,7 +107,6 @@ TSharedRef<SWidget> SRCPanelInputBindings::CreateEntityDetailsView()
 	EntityDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateStructureDetailView(MoveTemp(Args), FStructureDetailsViewArgs(), nullptr);
 
 	UpdateEntityDetailsView(EntityList->GetSelection());
-	
 	if (ensure(EntityDetailsView && EntityDetailsView->GetWidget()))
 	{
 		return EntityDetailsView->GetWidget().ToSharedRef();
@@ -116,39 +117,51 @@ TSharedRef<SWidget> SRCPanelInputBindings::CreateEntityDetailsView()
 void SRCPanelInputBindings::UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeNode>& SelectedNode)
 {
 	TSharedPtr<FStructOnScope> SelectedEntityPtr;
+	EExposedFieldType FieldType = EExposedFieldType::Invalid;
 	if (SelectedNode)
 	{
-		if (TSharedPtr<SRCPanelExposedField> FieldWidget = SelectedNode->AsField())
+		if (const TSharedPtr<SRCPanelExposedField> FieldWidget = SelectedNode->AsField())
 		{
-			if (TSharedPtr<FRemoteControlField> Field = FieldWidget->GetRemoteControlField().Pin())
+			if (const TSharedPtr<FRemoteControlField> Field = FieldWidget->GetRemoteControlField().Pin())
 			{
-				if (Field->FieldType == EExposedFieldType::Property)
+				if(Field->FieldType == (FieldType = EExposedFieldType::Property))
 				{
 					SelectedEntityPtr = RCPanelInputBindings::GetEntityOnScope(StaticCastSharedPtr<FRemoteControlProperty>(Field));
 				}
-				else if(Field->FieldType == EExposedFieldType::Function)
+				else if(Field->FieldType == (FieldType = EExposedFieldType::Function))
 				{
-					SelectedEntityPtr = RCPanelInputBindings::GetEntityOnScope(StaticCastSharedPtr<FRemoteControlFunction>(Field));
+					SelectedEntityPtr = RCPanelInputBindings::GetEntityOnScope(StaticCastSharedPtr<FRemoteControlField>(Field));
 				}
 				else
 				{
 					checkNoEntry();
 				}
 				
-				SelectedEntity = Field;
+				SelectedEntity = Field;			
 			}
 		}
-		else if (TSharedPtr<SRCPanelExposedActor> ActorWidget = SelectedNode->AsActor())
+		else if (const TSharedPtr<SRCPanelExposedActor> ActorWidget = SelectedNode->AsActor())
 		{
-			if (TSharedPtr<FRemoteControlActor> Actor = ActorWidget->GetRemoteControlActor().Pin())
+			if (const TSharedPtr<FRemoteControlActor> Actor = ActorWidget->GetRemoteControlActor().Pin())
 			{
 				SelectedEntity = Actor;
-				SelectedEntityPtr = RCPanelInputBindings::GetEntityOnScope(Actor);
+				SelectedEntityPtr = RCPanelInputBindings::GetEntityOnScope<FRemoteControlActor>(Actor);
 			}
 		}
 	}
 	if (ensure(EntityDetailsView))
 	{
 		EntityDetailsView->SetStructureData(SelectedEntityPtr);
+	}
+
+	static const FName ProtocolWidgetsModuleName = "RemoteControlProtocolWidgets";	
+	if(SelectedEntity && SelectedNode.IsValid() && FModuleManager::Get().IsModuleLoaded(ProtocolWidgetsModuleName))
+	{
+		// If the SelectedNode is valid, the Preset should be too.
+		if(ensure(Preset.IsValid()))
+		{
+			IRemoteControlProtocolWidgetsModule& ProtocolWidgetsModule = FModuleManager::LoadModuleChecked<IRemoteControlProtocolWidgetsModule>(ProtocolWidgetsModuleName);
+			EntityProtocolDetails->SetContent(ProtocolWidgetsModule.GenerateDetailsForEntity(Preset.Get(), SelectedEntity->GetId(), FieldType));	
+		}
 	}
 }

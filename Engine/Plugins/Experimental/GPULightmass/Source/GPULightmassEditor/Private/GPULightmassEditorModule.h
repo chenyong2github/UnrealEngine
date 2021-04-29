@@ -17,28 +17,28 @@ class STextBlock;
 
 enum class EMapChangeType : uint8;
 
-class FGPULightmassEditorModule : public IModuleInterface, public FTickableEditorObject
+class FGPULightmassEditorModule : public IModuleInterface
 {
 public:
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
-	// Begin FTickableObjectBase interface
-	virtual void Tick(float DeltaTime) override;
-	virtual bool IsTickable() const override;
-	virtual TStatId GetStatId() const override;
-	// End FTickableObjectBase interface
-
 	TSharedPtr<IDetailsView> SettingsView;
 	TSharedRef<SDockTab> SpawnSettingsTab(const FSpawnTabArgs& Args);
 	void RegisterTabSpawner();
-	FReply OnStartStopClicked();
 	void OnMapChanged(UWorld* InWorld, EMapChangeType MapChangeType);
 
 	TSharedRef<FExtender> OnExtendLevelEditorBuildMenu(const TSharedRef<FUICommandList> CommandList);
 	void CreateBuildMenu(FMenuBuilder& Builder);
 
-	TSharedPtr<STextBlock> StartStopButtonText;
+	static bool IsRealtimeOn();
+	static bool IsRunning();
+	static bool IsBakeWhatYouSeeMode();
+
+	FReply OnStartClicked();
+	FReply OnSaveAndStopClicked();
+	FReply OnCancelClicked();
+
 	TSharedPtr<STextBlock> Messages;
 };

@@ -29,10 +29,10 @@
 
 #define LOCTEXT_NAMESPACE "SOutputLog"
 /** Expression context to test the given messages against the current text filter */
-class FLogFilter_TextFilterExpressionContext : public ITextFilterExpressionContext
+class FLogFilter_TextFilterExpressionContextOutputLog : public ITextFilterExpressionContext
 {
 public:
-	explicit FLogFilter_TextFilterExpressionContext(const FOutputLogMessage& InMessage) : Message(&InMessage) {}
+	explicit FLogFilter_TextFilterExpressionContextOutputLog(const FOutputLogMessage& InMessage) : Message(&InMessage) {}
 
 	/** Test the given value against the strings extracted from the current item */
 	virtual bool TestBasicStringExpression(const FTextFilterString& InValue, const ETextFilterTextComparisonMode InTextComparisonMode) const override { return TextFilterUtils::TestBasicStringExpression(*Message->Message, InValue, InTextComparisonMode); }
@@ -1518,7 +1518,7 @@ bool FOutputLogFilter::IsMessageAllowed(const TSharedPtr<FOutputLogMessage>& Mes
 
 	// Filter search phrase
 	{
-		if (!TextFilterExpressionEvaluator.TestTextFilter(FLogFilter_TextFilterExpressionContext(*Message)))
+		if (!TextFilterExpressionEvaluator.TestTextFilter(FLogFilter_TextFilterExpressionContextOutputLog(*Message)))
 		{
 			return false;
 		}

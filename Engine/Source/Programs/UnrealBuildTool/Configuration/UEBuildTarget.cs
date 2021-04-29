@@ -3398,6 +3398,8 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.bUseSharedBuildEnvironment = (Rules.BuildEnvironment == TargetBuildEnvironment.Shared);
 			GlobalCompileEnvironment.bEnableExceptions = Rules.bForceEnableExceptions || Rules.bBuildEditor;
 			GlobalCompileEnvironment.bEnableObjCExceptions = Rules.bForceEnableObjCExceptions || Rules.bBuildEditor;
+			GlobalCompileEnvironment.DefaultWarningLevel = Rules.DefaultWarningLevel;
+			GlobalCompileEnvironment.DeprecationWarningLevel = Rules.DeprecationWarningLevel;
 			GlobalCompileEnvironment.ShadowVariableWarningLevel = Rules.ShadowVariableWarningLevel;
 			GlobalCompileEnvironment.UnsafeTypeCastWarningLevel = Rules.UnsafeTypeCastWarningLevel;
 			GlobalCompileEnvironment.bUndefinedIdentifierWarningsAsErrors = Rules.bUndefinedIdentifierErrors;
@@ -3546,6 +3548,7 @@ namespace UnrealBuildTool
 
 			GlobalCompileEnvironment.Definitions.Add(String.Format("WITH_ENGINE={0}", Rules.bCompileAgainstEngine ? "1" : "0"));
 			GlobalCompileEnvironment.Definitions.Add(String.Format("WITH_UNREAL_DEVELOPER_TOOLS={0}", Rules.bBuildDeveloperTools ? "1" : "0"));
+			GlobalCompileEnvironment.Definitions.Add(String.Format("WITH_UNREAL_TARGET_DEVELOPER_TOOLS={0}", Rules.bBuildTargetDeveloperTools ? "1" : "0"));
 
 			// Set a macro to control whether to initialize ApplicationCore. Command line utilities should not generally need this.
 			if (Rules.bCompileAgainstApplicationCore)
@@ -3651,6 +3654,7 @@ namespace UnrealBuildTool
 			if (Rules.bBuildEditor)
 			{
 				GlobalCompileEnvironment.Definitions.Add("WITH_EDITOR=1");
+				GlobalCompileEnvironment.Definitions.Add("WITH_IOSTORE_IN_EDITOR=1");
 			}
 			else if (!GlobalCompileEnvironment.Definitions.Contains("WITH_EDITOR=0"))
 			{

@@ -666,6 +666,9 @@ public:
 	// Checks ToValidate to make sure that its associated sparse class data struct, if one exists, is a valid structure to use for storing sparse class data.
 	static void CheckSparseClassData(const UStruct* ToValidate);
 
+	// Validates that ClassFlags are set appropriately 
+	static void ValidateClassFlags(const UClass* ToValidate);
+
 protected:
 
 	//@TODO: Remove this method

@@ -180,6 +180,10 @@ namespace Audio
 
 		//~ Begin FGCObject
 		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+		virtual FString GetReferencerName() const override
+		{
+			return TEXT("Audio::FMixerDevice");
+		}
 		//~End FGCObject
 
 		FMixerSubmixPtr FindSubmixInstanceByObjectId(uint32 InObjectId);

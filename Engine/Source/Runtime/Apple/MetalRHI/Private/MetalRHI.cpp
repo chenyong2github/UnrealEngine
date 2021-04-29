@@ -1228,6 +1228,16 @@ void* FMetalDynamicRHI::RHIGetNativeDevice()
 	return (void*)ImmediateContext.Context->GetDevice().GetPtr();
 }
 
+void* FMetalDynamicRHI::RHIGetNativeGraphicsQueue()
+{
+	return ImmediateContext.GetInternalContext().GetCommandQueue().GetQueue();
+}
+
+void* FMetalDynamicRHI::RHIGetNativeComputeQueue()
+{
+	return ImmediateContext.GetInternalContext().GetCommandQueue().GetQueue();
+}
+
 void* FMetalDynamicRHI::RHIGetNativeInstance()
 {
 	return nullptr;

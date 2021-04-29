@@ -40,7 +40,7 @@ namespace UsdUtils
 	};
 
 	/** Inserts the SubLayerFile path into ParentLayer as a sublayer */
-	USDUTILITIES_API bool InsertSubLayer( const TUsdStore< pxr::SdfLayerRefPtr >& ParentLayer, const TCHAR* SubLayerFile, int32 Index = -1 );
+	USDUTILITIES_API bool InsertSubLayer( const pxr::SdfLayerRefPtr& ParentLayer, const TCHAR* SubLayerFile, int32 Index = -1 );
 
 #if WITH_EDITOR
 	/** Opens a file dialog to open or save a USD file */

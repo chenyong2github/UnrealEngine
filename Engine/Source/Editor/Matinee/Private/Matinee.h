@@ -107,7 +107,11 @@ public:
 	void OnCurveLabelClicked( UObject* CurveObject ) override;
 
 	/** FGCObject interface */
-	void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FMatinee");
+	}
 
 	/** 
 	 * Starts playing the current sequence. 

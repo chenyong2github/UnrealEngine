@@ -267,6 +267,14 @@ namespace Gauntlet
 
 			return DiscoveredBuilds;
 		}
+
+		public static void CleanupInstalls()
+		{
+			lock (Globals.MainLock)
+			{
+				LocalInstalls.Clear();
+			}
+		}
 	}
 
 

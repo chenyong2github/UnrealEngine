@@ -127,6 +127,11 @@ public:
 	
 	/** FGCObject interface */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FReimportManager");
+	}
+
 private:
 	/** Sort Reimport handlers by priority if they are unsorted */
 	void SortHandlersIfNeeded();

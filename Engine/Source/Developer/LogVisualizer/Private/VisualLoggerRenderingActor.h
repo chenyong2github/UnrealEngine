@@ -58,7 +58,9 @@ public:
 
 private:
 	void AddDebugRendering();
+#if ENABLE_VISUAL_LOG
 	void GetDebugShapes(const FVisualLogDevice::FVisualLogEntryItem& EntryItem, FTimelineDebugShapes& DebugShapes);
+#endif
 	void OnFiltersChanged();
 
 public:

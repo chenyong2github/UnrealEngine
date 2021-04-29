@@ -24,7 +24,7 @@ struct TAKESCORE_API FActorRecordedProperty
 		bEnabled = bInEnabled;
 		RecorderName = InRecorderName;
 	}
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Property")
 	FName PropertyName;
 
@@ -45,7 +45,11 @@ UCLASS(BlueprintType)
 class TAKESCORE_API UActorRecorderPropertyMap : public UObject
 {
 	GENERATED_BODY()
+
 public:
+	virtual void PostEditUndo() override;
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+
 	UPROPERTY(VisibleAnywhere, Category = "Property")
 	TSoftObjectPtr<UObject> RecordedObject;
 
@@ -55,4 +59,38 @@ public:
 
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, meta=(ShowInnerProperties, EditFixedOrder), Category = "Property")
 	TArray<UActorRecorderPropertyMap*> Children;
+
+public:
+	struct Cache
+	{
+		Cache& operator+=(const Cache& InOther)
+		{
+			Properties += InOther.Properties;
+			Components += InOther.Components;
+			return *this;
+		}
+		/** The number of properties (both on actor + components) that we are recording. This includes child maps.*/
+		int32 Properties = 0;
+		/** The number of components that belong to the target actor that we are recording. This include child maps.*/
+		int32 Components = 0;
+	};
+
+	/** Return the number of properties and components participating in recording.*/
+	Cache CachedPropertyComponentCount() const
+	{
+		return RecordingInfo;
+	}
+
+	/** Visit all properties recursively and cache the record state. */
+	void UpdateCachedValues();
+private:
+	int32 NumberOfPropertiesRecordedOnThis() const;
+	int32 NumberOfComponentsRecordedOnThis() const;
+
+	/** This is called by the children to let the parent know that the number of recorded properties has changed*/
+	void ChildChanged();
+
+	TWeakObjectPtr<UActorRecorderPropertyMap> Parent;
+
+	Cache RecordingInfo;
 };

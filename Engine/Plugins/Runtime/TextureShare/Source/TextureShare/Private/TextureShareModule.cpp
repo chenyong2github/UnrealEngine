@@ -268,7 +268,6 @@ bool FTextureShareModule::SendSceneContext_RenderThread(FRDGBuilder& GraphBuilde
 			AddSendTexturePass(TextureShareStrings::texture_name::GBufferD, SceneTextures.GBufferD);
 			AddSendTexturePass(TextureShareStrings::texture_name::GBufferE, SceneTextures.GBufferE);
 			AddSendTexturePass(TextureShareStrings::texture_name::GBufferF, SceneTextures.GBufferF);
-			AddSendTexturePass(TextureShareStrings::texture_name::ShadingRate, SceneTextures.ShadingRate);
 
 			//@todo: Add more textures
 

@@ -130,6 +130,16 @@ public:
 	}
 
 public:
+	/** Construct a 'file:' Plugin URL using from the PluginDescriptorPath */
+	static FString GetPluginURL_FileProtocol(const FString& PluginDescriptorPath);
+
+	/** Construct a 'installbundle:' Plugin URL using from the PluginName and required install bundles */
+	static FString GetPluginURL_InstallBundleProtocol(const FString& PluginName, TArrayView<const FString> BundleNames);
+	static FString GetPluginURL_InstallBundleProtocol(const FString& PluginName, const FString& BundleName);
+	static FString GetPluginURL_InstallBundleProtocol(const FString& PluginName, TArrayView<const FName> BundleNames);
+	static FString GetPluginURL_InstallBundleProtocol(const FString& PluginName, FName BundleName);
+
+public:
 	/** Returns all the active plugins GameFeatureDatas */
 	void GetGameFeatureDataForActivePlugins(TArray<const UGameFeatureData*>& OutActivePluginFeatureDatas);
 
@@ -144,6 +154,9 @@ public:
 
 	/** Gets the Install_Percent for single game feature plugin if it is active. */
 	bool GetGameFeaturePluginInstallPercent(const FString& PluginURL, float& Install_Percent);
+
+	/** Determines if a plugin is in the Active state.*/
+	bool IsGameFeaturePluginActive(const FString& PluginURL);
 
 	/** Deactivates the specified plugin */
 	void DeactivateGameFeaturePlugin(const FString& PluginURL);
@@ -215,7 +228,7 @@ private:
 	void OnAssetManagerCreated();
 
 	/** Scans for assets specified in the game feature data */
-	static void AddGameFeatureToAssetManager(const UGameFeatureData* GameFeatureToAdd);
+	static void AddGameFeatureToAssetManager(const UGameFeatureData* GameFeatureToAdd, const FString& PluginName);
 
 	static void RemoveGameFeatureFromAssetManager(const UGameFeatureData* GameFeatureToRemove);
 

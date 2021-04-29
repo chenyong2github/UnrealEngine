@@ -12,8 +12,9 @@ DebugViewModeInterface.h: Contains definitions for rendering debug viewmodes.
 #include "RHI.h"
 #include "RHIResources.h"
 #include "Shader.h"
+#include "DrawDebugHelpers.h"
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if ENABLE_DRAW_DEBUG
 
 class FDebugViewModePS;
 class FMaterial;
@@ -104,4 +105,4 @@ private:
 	static FDebugViewModeInterface* Singletons[DVSM_MAX];
 };
 
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // ENABLE_DRAW_DEBUG

@@ -35,7 +35,7 @@
 		},
 		{
 			"Name": "DatasmithOpenNurbsTranslator",
-			"Type": "Runtime",
+			"Type": "Editor",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Win64"
@@ -67,7 +67,7 @@
 		},
 		{
 			"Name": "DatasmithWireTranslator",
-			"Type": "Runtime",
+			"Type": "Editor",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Win64"
@@ -91,7 +91,7 @@
 		},
     	{
 			"Name": "DatasmithPLMXMLTranslator",
-    		"Type": "Runtime",
+    		"Type": "Editor",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Win64"

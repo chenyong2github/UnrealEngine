@@ -6,10 +6,6 @@
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Misc/Build.h"
 
-#ifndef CHAOS_DEBUG_DRAW
-#define CHAOS_DEBUG_DRAW !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-#endif
-
 namespace Chaos
 {
 	class FConstraintHandle;

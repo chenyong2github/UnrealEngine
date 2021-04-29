@@ -23,6 +23,7 @@ public:
 public:
 	UDisplayClusterConfigurationData* LoadConfig(const FString& FilePath, UObject* Owner = nullptr);
 	bool SaveConfig(const UDisplayClusterConfigurationData* Config, const FString& FilePath);
+	bool ConfigAsString(const UDisplayClusterConfigurationData* Config, FString& OutString);
 	UDisplayClusterConfigurationData* CreateDefaultStandaloneConfigData();
 
 protected:

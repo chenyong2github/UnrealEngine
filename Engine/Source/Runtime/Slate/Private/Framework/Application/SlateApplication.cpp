@@ -6353,6 +6353,7 @@ void FSlateApplication::ProcessApplicationActivationEvent(bool InAppActivated)
 	}
 
 	const bool UserSwitchedAway = bAppIsActive && !InAppActivated;
+	const bool StateChanged = bAppIsActive != InAppActivated;
 
 	bAppIsActive = InAppActivated;
 
@@ -6384,7 +6385,11 @@ void FSlateApplication::ProcessApplicationActivationEvent(bool InAppActivated)
 		PressedMouseButtons.Reset();
 	}
 	
-	OnApplicationActivationStateChanged().Broadcast(InAppActivated);
+	// Only broadcast when state has changed
+	if (StateChanged)
+	{
+		OnApplicationActivationStateChanged().Broadcast(InAppActivated);
+	}
 }
 
 void FSlateApplication::SetNavigationConfig(TSharedRef<FNavigationConfig> InNavigationConfig)

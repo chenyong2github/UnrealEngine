@@ -1038,7 +1038,7 @@ bool FLinkerLoad::DeferPotentialCircularImport(const int32 Index)
 		{
 			if (const UClass* ImportClass = FindObject<UClass>(ClassPackage, *Import.ClassName.ToString()))
 			{
-				if (ImportClass->IsChildOf<UClass>())
+				if (ImportClass->HasAnyClassFlags(CLASS_NeedsDeferredDependencyLoading))
 				{
 					Import.XObject = MakeImportPlaceholder<ULinkerPlaceholderClass>(LinkerRoot, *Import.ObjectName.ToString(), Index);
 				}
@@ -2292,9 +2292,9 @@ UObject* FLinkerLoad::RequestPlaceholderValue(UClass* ObjectType, const TCHAR* O
 		else if (ObjectType->IsChildOf<UClass>())
 		{
 			const FString ObjectPathStr(ObjectPath);
-			// we don't need placeholders for native object references (the 
+			// we don't need placeholders for native object references and for non-BP class objects (the 
 			// calling code should properly handle null return values)
-			if (!FPackageName::IsScriptPackage(ObjectPathStr))
+			if (!FPackageName::IsScriptPackage(ObjectPathStr) && ObjectType->HasAnyClassFlags(CLASS_NeedsDeferredDependencyLoading))
 			{
 				const FString ObjectName = FPackageName::ObjectPathToObjectName(ObjectPathStr);
 				Placeholder = MakeImportPlaceholder<ULinkerPlaceholderClass>(LinkerRoot, *ObjectName);

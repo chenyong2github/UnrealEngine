@@ -142,7 +142,7 @@ public:
 	virtual void SetSelectionRangeStart() override;
 
 	/** Clear and reset the selection range. */
-	void ResetSelectionRange();
+	void ClearSelectionRange();
 
 	/** Select all keys that fall into the current selection range. */
 	void SelectInSelectionRange(bool bSelectKeys, bool bSelectSections);
@@ -225,6 +225,9 @@ public:
 	{
 		return bPerspectiveViewportCameraCutEnabled;
 	}
+
+	/** Gets the list of bindings for camera objects. */
+	virtual void GetCameraObjectBindings(TArray<FGuid>& OutBindingIDs) override;
 
 	/**
 	 * Pops the current focused movie scene from the stack.  The parent of this movie scene will be come the focused one
@@ -468,8 +471,6 @@ public:
 	/** Called when an actor is dropped into Sequencer */
 	void OnActorsDropped( const TArray<TWeakObjectPtr<AActor> >& Actors );
 
-	void RecordSelectedActors();
-
 	/** Functions to push on to the transport controls we use */
 	FReply OnRecord();
 	FReply OnPlayForward(bool bTogglePlay);
@@ -487,14 +488,8 @@ public:
 	bool CanAddTransformKeysForSelectedObjects() const;
 	void OnAddTransformKeysForSelectedObjects(EMovieSceneTransformChannel Channel);
 
-	/** Get the visibility of the record button */
-	EVisibility GetRecordButtonVisibility() const;
-
-	/** Delegate handler for recording starting */
-	void HandleRecordingStarted(UMovieSceneSequence* Sequence);
-
-	/** Delegate handler for recording finishing */
-	void HandleRecordingFinished(UMovieSceneSequence* Sequence);
+	void OnTogglePilotCamera();
+	bool IsPilotCamera() const;
 
 	/** Set the new global time, accounting for looping options */
 	void SetLocalTimeLooped(FFrameTime InTime);
@@ -546,16 +541,19 @@ public:
 
 	/** @return The list of nodes which must be moved to move the current selected nodes */
 	TArray<TSharedRef<FSequencerDisplayNode> > GetSelectedNodesToMove();
+	TArray<TSharedRef<FSequencerDisplayNode> > GetSelectedNodesInFolders();
 
 	/** Called when a user executes the move to new folder menu item */
 	void MoveSelectedNodesToNewFolder();
+	void RemoveSelectedNodesFromFolders();
 	void MoveNodeToFolder(TSharedRef<FSequencerDisplayNode> NodeToMove, UMovieSceneFolder* DestinationFolder);
 	void MoveSelectedNodesToFolder(UMovieSceneFolder* DestinationFolder);
 
 	/** Called when a user executes the copy track menu item */
-	void CopySelectedObjects(TArray<TSharedPtr<FSequencerObjectBindingNode>>& ObjectNodes, /*out*/ FString& ExportedText);
-	void CopySelectedTracks(TArray<TSharedPtr<FSequencerTrackNode>>& TrackNodes, /*out*/ FString& ExportedText);
-	void ExportObjectsToText(TArray<UObject*> ObjectsToExport, /*out*/ FString& ExportedText);
+	void CopySelectedObjects(TArray<TSharedPtr<FSequencerObjectBindingNode>>& ObjectNodes, const TArray<UMovieSceneFolder*>& Folders, /*out*/ FString& ExportedText);
+	void CopySelectedTracks(TArray<TSharedPtr<FSequencerTrackNode>>& TrackNodes, const TArray<UMovieSceneFolder*>& Folders, /*out*/ FString& ExportedText);
+	void CopySelectedFolders(const TArray<UMovieSceneFolder*>& Folders, /*out*/ FString& ExportedText);
+	void ExportObjectsToText(const TArray<UObject*>& ObjectsToExport, /*out*/ FString& ExportedText);
 
 	/** Called when a user executes the paste track menu item */
 	bool CanPaste(const FString& TextToImport);
@@ -564,12 +562,14 @@ public:
 	 * @return Whether the paste event was handled
 	 */
 	bool DoPaste(bool bClearSelection = false);
-	bool PasteTracks(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection = false);
+	bool PasteTracks(const FString& TextToImport, UMovieSceneFolder* ParentFolder, const TArray<UMovieSceneFolder*>& InFolders, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection = false);
 	bool PasteSections(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors);
-	bool PasteObjectBindings(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection = false);
+	bool PasteFolders(const FString& TextToImport, UMovieSceneFolder* ParentFolder, TArray<UMovieSceneFolder*>& OutFolders, TArray<FNotificationInfo>& PasteErrors);
+	bool PasteObjectBindings(const FString& TextToImport, UMovieSceneFolder* ParentFolder, const TArray<UMovieSceneFolder*>& InFolders, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection = false);
 
 	void ImportTracksFromText(const FString& TextToImport, /*out*/ TArray<UMovieSceneCopyableTrack*>& ImportedTracks);
 	void ImportSectionsFromText(const FString& TextToImport, /*out*/ TArray<UMovieSceneSection*>& ImportedSections);
+	void ImportFoldersFromText(const FString& TextToImport, /*out*/ TArray<UMovieSceneFolder*>& ImportedFolders);
 	void ImportObjectBindingsFromText(const FString& TextToImport, /*out*/ TArray<UMovieSceneCopyableBinding*>& ImportedObjects);
 
 	/** Called when a user executes the active node menu item */
@@ -773,7 +773,7 @@ public:
 	virtual void ForceEvaluate() override;
 	virtual void SetPerspectiveViewportPossessionEnabled(bool bEnabled) override;
 	virtual void SetPerspectiveViewportCameraCutEnabled(bool bEnabled) override;
-	virtual void RenderMovie(UMovieSceneSection* InSection) const override;
+	virtual void RenderMovie(const TArray<UMovieSceneCinematicShotSection*>& InSections) const override;
 	virtual void EnterSilentMode() override;
 	virtual void ExitSilentMode() override;
 	virtual bool IsInSilentMode() const override { return SilentModeCount != 0; }
@@ -815,6 +815,7 @@ public:
 	virtual FOnGlobalTimeChanged& OnGlobalTimeChanged() override { return OnGlobalTimeChangedDelegate; }
 	virtual FOnPlayEvent& OnPlayEvent() override { return OnPlayDelegate; }
 	virtual FOnStopEvent& OnStopEvent() override { return OnStopDelegate; }
+	virtual FOnRecordEvent& OnRecordEvent() override { return OnRecordDelegate; }
 	virtual FOnBeginScrubbingEvent& OnBeginScrubbingEvent() override { return OnBeginScrubbingDelegate; }
 	virtual FOnEndScrubbingEvent& OnEndScrubbingEvent() override { return OnEndScrubbingDelegate; }
 	virtual FOnMovieSceneDataChanged& OnMovieSceneDataChanged() override { return OnMovieSceneDataChangedDelegate; }
@@ -1111,7 +1112,7 @@ private:
 	void CalculateSelectedFolderAndPath(TArray<UMovieSceneFolder*>& OutSelectedParentFolders, FString& OutNewNodePath);
 
 	/** Returns the tail folder from the given Folder Path, creating each folder if needed. */
-	UMovieSceneFolder* CreateFoldersRecursively(const TArray<FString>& FolderPaths, int32 FolderPathIndex, UMovieScene* OwningMovieScene, UMovieSceneFolder* ParentFolder, const TArray<UMovieSceneFolder*>& FoldersToSearch);
+	UMovieSceneFolder* CreateFoldersRecursively(const TArray<FName>& FolderPath, int32 FolderPathIndex, UMovieScene* OwningMovieScene, UMovieSceneFolder* ParentFolder, const TArray<UMovieSceneFolder*>& FoldersToSearch);
 
 	/** Create set playback start transport control */
 	TSharedRef<SWidget> OnCreateTransportSetPlaybackStart();
@@ -1167,7 +1168,6 @@ private:
 
 public:
 
-
 	/** Helper function which returns how many frames (in tick resolution) one display rate frame represents. */
 	double GetDisplayRateDeltaFrameCount() const;
 
@@ -1177,6 +1177,8 @@ public:
 		return ScrubStyle;
 	}
 
+	/** Get the name of the movie renderer to use, defaults to the first available if the setting is empty */
+	FString GetMovieRendererName() const;
 
 private:
 
@@ -1283,6 +1285,8 @@ private:
 	FCurveSequence OverlayAnimation;
 	FCurveHandle OverlayCurve;
 
+	FCurveSequence RecordingAnimation;
+
 	/** Whether we are playing, recording, etc. */
 	EMovieScenePlayerStatus::Type PlaybackState;
 
@@ -1338,6 +1342,9 @@ private:
 
 	/** A delegate which is called whenever the user stops playing the sequence. */
 	FOnStopEvent OnStopDelegate;
+
+	/** A delegate which is called whenever the user toggles recording. */
+	FOnRecordEvent OnRecordDelegate;
 
 	/** A delegate which is called whenever the treeview changes. */
 	FOnTreeViewChanged OnTreeViewChangedDelegate;
@@ -1495,6 +1502,6 @@ private:
 
 	TOptional<FMovieSceneSequenceID> ScrubPositionParent;
 	/** Cache of all bound cameras in the sequence hierarchy */
-	TSet<AActor*> CachedCameraActors;
+	TMap<AActor*, FGuid> CachedCameraActors;
 	uint32 LastKnownStateSerial = 0;
 };

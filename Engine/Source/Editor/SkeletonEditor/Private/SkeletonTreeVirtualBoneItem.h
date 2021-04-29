@@ -35,6 +35,10 @@ public:
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FSkeletonTreeVirtualBoneItem");
+	}
 
 	/** Return socket name as FText for display in skeleton tree */
 	FText GetVirtualBoneNameAsText() const { return FText::FromName(BoneName); }

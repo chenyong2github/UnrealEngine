@@ -138,6 +138,15 @@ void SDataprepGraphActionStepNode::UpdateGraphNode()
 						.IsPreviewed( bIsPreviewed )
 					);
 			}
+			else if ( StepType == UDataprepFilterNoFetcher::StaticClass() )
+			{
+				UDataprepFilterNoFetcher* Filter = static_cast<UDataprepFilterNoFetcher*>( StepObject );
+
+				ActionStepBlockPtr = StaticCastSharedRef<SDataprepActionBlock>( 
+					SNew( SDataprepFilterNoFetcher, *Filter, StepData )
+						.IsPreviewed( bIsPreviewed )
+					);
+			}
 			else if (StepType == UDataprepSelectionTransform::StaticClass())
 			{
 				UDataprepSelectionTransform* SelectionTransform = static_cast<UDataprepSelectionTransform*>( StepObject );

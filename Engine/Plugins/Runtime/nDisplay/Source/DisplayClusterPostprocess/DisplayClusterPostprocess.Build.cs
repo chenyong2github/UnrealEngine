@@ -10,13 +10,14 @@ public class DisplayClusterPostprocess : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"Engine"
+				"Engine",
+				"DisplayCluster",
 			});
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"DisplayCluster",
-				"OutputRemap",
+				"DisplayClusterShaders",
 				"RHI",
 				"TextureShare",
 				"TextureShareCore",

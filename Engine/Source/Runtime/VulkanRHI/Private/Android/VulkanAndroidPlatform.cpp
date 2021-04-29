@@ -461,35 +461,6 @@ void FVulkanAndroidPlatform::NotifyFoundDeviceLayersAndExtensions(VkPhysicalDevi
 #endif
 }
 
-bool FVulkanAndroidPlatform::SupportsStandardSwapchain()
-{
-	if (FPlatformMisc::IsStandaloneStereoOnlyDevice())
-	{
-		return false;
-	}
-	else
-	{
-		return FVulkanGenericPlatform::SupportsStandardSwapchain();
-	}
-}
-
-bool FVulkanAndroidPlatform::RequiresRenderingBackBuffer()
-{
-	return !FPlatformMisc::IsStandaloneStereoOnlyDevice();
-}
-
-EPixelFormat FVulkanAndroidPlatform::GetPixelFormatForNonDefaultSwapchain()
-{
-	if (FPlatformMisc::IsStandaloneStereoOnlyDevice())
-	{
-		return PF_R8G8B8A8;
-	}
-	else
-	{
-		return FVulkanGenericPlatform::GetPixelFormatForNonDefaultSwapchain();
-	}
-}
-
 bool FVulkanAndroidPlatform::SupportsTimestampRenderQueries()
 {
 	// standalone devices have newer drivers where timestamp render queries work.

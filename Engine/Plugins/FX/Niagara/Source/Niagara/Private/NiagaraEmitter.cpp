@@ -138,6 +138,7 @@ UNiagaraEmitter::UNiagaraEmitter(const FObjectInitializer& Initializer)
 #if WITH_EDITORONLY_DATA
 , bBakeOutRapidIteration(true)
 , ThumbnailImageOutOfDate(true)
+, IsCooked(false)
 #endif
 {
 }
@@ -310,6 +311,13 @@ void UNiagaraEmitter::Serialize(FArchive& Ar)
 #endif
 	Super::Serialize(Ar);
 
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsLoading())
+	{
+		IsCooked = Ar.IsFilterEditorOnly();
+	}
+#endif
+
 	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
 }
 
@@ -345,13 +353,12 @@ void UNiagaraEmitter::PostLoad()
 
 	for (int32 RendererIndex = RendererProperties.Num() - 1; RendererIndex >= 0; --RendererIndex)
 	{
-#if WITH_EDITOR
-		if (ensureMsgf(RendererProperties[RendererIndex] != nullptr, TEXT("Null renderer found in %s at index %i, removing it to prevent crashes."), *GetPathName(), RendererIndex) == false)
-#else
-		if(RendererProperties[RendererIndex] == nullptr)
-#endif
-		//In cooked builds these can be cooked out and null on purpose.
+		if (RendererProperties[RendererIndex] == nullptr)
 		{
+#if WITH_EDITORONLY_DATA
+			//In cooked builds these can be cooked out and null on purpose.
+			ensureMsgf(IsCooked, TEXT("Null renderer found in %s at index %i, removing it to prevent crashes."), *GetPathName(), RendererIndex);
+#endif
 			RendererProperties.RemoveAt(RendererIndex);
 		}
 		else

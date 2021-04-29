@@ -1,0 +1,64 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	DistortionSTMapProcessor.usf
+=============================================================================*/
+
+#include "/Engine/Public/Platform.ush"
+
+float2 TexelSize;
+uint2 TextureSize;
+Texture2D DistortionSTMap;
+SamplerState DistortionSTMapSampler;
+
+RWBuffer<float2> OutDistortedUV; 
+RWTexture2D<float2> OutUndistortionDisplacementMap;
+RWTexture2D<float2> OutDistortionDisplacementMap;
+
+
+[numthreads(8,8,1)]
+void DistortionSTMapProcessorMainCS(uint3 ThreadId : SV_DispatchThreadID)
+{
+	float2 UV = TexelSize * (ThreadId.xy + 0.5f);
+	float4 UVMapping = DistortionSTMap.SampleLevel(DistortionSTMapSampler, UV, 0);
+
+	float2 Undistortion = float2(UVMapping.x - UV.x, (1.0f - UVMapping.y) - UV.y);
+	float2 Distortion = float2(UVMapping.z - UV.x, (1.0f - UVMapping.w) - UV.y);
+
+	OutUndistortionDisplacementMap[ThreadId.xy] = Undistortion;
+	OutDistortionDisplacementMap[ThreadId.xy] = Distortion;
+
+	//Stamp distorted UV for known undistorted points
+	if(all(ThreadId.xy == uint2(0,0))) //0.0f, 0.0f
+	{
+		OutDistortedUV[0] = UVMapping.zw;
+	}
+	else if(all(ThreadId.xy == uint2(TextureSize.x * 0.5f, 0))) //0.5f, 0.0f
+	{
+		OutDistortedUV[1] = UVMapping.zw;
+	}
+	else if(all(ThreadId.xy == uint2(TextureSize.x - 1, 0))) //1.0f, 0.0f
+	{
+		OutDistortedUV[2] = UVMapping.zw;
+	}
+	else if(all(ThreadId.xy == uint2(TextureSize.x - 1, TextureSize.y * 0.5f))) //1.0f, 0.5f
+	{
+		OutDistortedUV[3] = UVMapping.zw;
+	}
+	else if(all(ThreadId.xy == uint2(TextureSize.x - 1, TextureSize.y - 1))) //1.0f, 1.0f
+	{
+		OutDistortedUV[4] = UVMapping.zw;
+	}
+	else if(all(ThreadId.xy == uint2(TextureSize.x * 0.5f, TextureSize.y - 1))) //0.5f, 1.0f
+	{
+		OutDistortedUV[5] = UVMapping.zw;
+	}
+	else if(all(ThreadId.xy == uint2(0, TextureSize.y - 1))) //0.0f, 1.0f
+	{
+		OutDistortedUV[6] = UVMapping.zw;
+	}
+	else if(all(ThreadId.xy == uint2(0, TextureSize.y * 0.5f))) //0.0f, 0.5f
+	{
+		OutDistortedUV[7] = UVMapping.zw;
+	}	
+}

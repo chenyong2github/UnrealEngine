@@ -1101,6 +1101,8 @@ static void SortActorsHierarchy(TArray<AActor*>& Actors, UObject* Level)
 	TMap<AActor*, int32> DepthMap;
 	TArray<AActor*, TInlineAllocator<10>> VisitedActors;
 
+	DepthMap.Reserve(Actors.Num());
+
 	TFunction<int32(AActor*)> CalcAttachDepth = [&DepthMap, &VisitedActors, &CalcAttachDepth](AActor* Actor)
 	{
 		int32 Depth = 0;

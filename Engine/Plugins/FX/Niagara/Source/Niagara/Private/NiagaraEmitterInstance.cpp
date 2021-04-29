@@ -413,9 +413,7 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 			GPUExecContext = new FNiagaraComputeExecutionContext();
 			const uint32 MaxUpdateIterations = CachedEmitter->bDeprecatedShaderStagesEnabled ? CachedEmitter->MaxUpdateIterations : 1;
 			GPUExecContext->InitParams(CachedEmitter->GetGPUComputeScript(), CachedEmitter->SimTarget, CachedEmitter->DefaultShaderStageIndex, MaxUpdateIterations, CachedEmitter->SpawnStages);
-#if !UE_BUILD_SHIPPING
 			GPUExecContext->SetDebugSimName(CachedEmitter->GetDebugSimName());
-#endif
 #if STATS
 			GPUExecContext->EmitterPtr = GetEmitterHandle().GetInstance();
 #endif
@@ -1364,7 +1362,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		check(GPUExecContext->GPUScript_RT == CachedEmitter->GetGPUComputeScript()->GetRenderThreadScript());
 		GPUExecContext->GPUScript_RT = CachedEmitter->GetGPUComputeScript()->GetRenderThreadScript();
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 		if (ParentSystemInstance->ShouldCaptureThisFrame())
 		{
 			TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo = ParentSystemInstance->GetActiveCaptureWrite(CachedIDName, ENiagaraScriptUsage::ParticleGPUComputeScript, FGuid());

@@ -115,6 +115,31 @@ void STakeRecorderTabContent::SetupForRecording(ULevelSequence* LevelSequenceAss
 	}
 }
 
+void STakeRecorderTabContent::SetupForRecordingInto(ULevelSequence* LevelSequenceAsset)
+{
+	WeakAssetEditor = nullptr;
+
+	CurrentMode    = ETakeRecorderPanelMode::NewRecording;
+	TitleAttribute = ITakeRecorderModule::TakeRecorderTabLabel;
+	IconAttribute  = FTakeRecorderStyle::Get().GetBrush("TakeRecorder.TabIcon");
+
+	// Null out the tab content to ensure that all references have been cleaned up before constructing the new one
+	ChildSlot [ SNullWidget::NullWidget ];
+
+	ChildSlot
+	.HAlign(HAlign_Fill)
+	.VAlign(VAlign_Fill)
+	[
+		SAssignNew(WeakPanel, STakeRecorderPanel)
+		.RecordIntoSequence(LevelSequenceAsset)
+	];
+
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("TakeRecorder.SetupForRecordingIntoLevelSequence"));
+	}
+}
+
 void STakeRecorderTabContent::SetupForEditing(TSharedPtr<FTakePresetToolkit> InToolkit)
 {
 	WeakPanel = nullptr;
@@ -263,7 +288,7 @@ void STakeRecorderTabContent::StartRecording() const
 	{
 		FFrame::KismetExecutionMessage(TEXT("Cannot start a new recording while reviewing a take."), ELogVerbosity::Error);
 	}
-	else if (!Cockpit->CanStartRecording(&ErrorText))
+	else if (!Cockpit->CanStartRecording(ErrorText))
 	{
 		FFrame::KismetExecutionMessage(*ErrorText.ToString(), ELogVerbosity::Error);
 	}
@@ -309,6 +334,23 @@ void STakeRecorderTabContent::ClearPendingTake()
 	{
 		Panel->ClearPendingTake();
 	}
+}
+
+bool STakeRecorderTabContent::CanStartRecording(FText& ErrorText) const
+{
+	TSharedPtr<STakeRecorderPanel>   Panel   = WeakPanel.Pin();
+	TSharedPtr<STakeRecorderCockpit> Cockpit = Panel.IsValid() ? Panel->GetCockpitWidget() : nullptr;
+	
+	if (Cockpit)
+	{
+		return Cockpit->CanStartRecording(ErrorText);
+	}
+	else
+	{
+		ErrorText = LOCTEXT("ErrorWidget_NoTakeRecorderPanel", "Take Recorder panel is not set up yet. Please open Take Recorder.");
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

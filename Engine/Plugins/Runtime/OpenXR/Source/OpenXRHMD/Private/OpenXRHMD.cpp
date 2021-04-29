@@ -5,7 +5,6 @@
 #include "OpenXRHMD_RenderBridge.h"
 #include "OpenXRHMD_Swapchain.h"
 #include "OpenXRCore.h"
-#include "OpenXRPlatformRHI.h"
 #include "IOpenXRExtensionPlugin.h"
 #include "IOpenXRARModule.h"
 
@@ -137,6 +136,7 @@ public:
 	}
 
 	virtual bool IsHMDConnected() override { return true; }
+	virtual bool IsStandaloneStereoOnlyDevice() override;
 	virtual bool IsExtensionAvailable(const FString& Name) const override { return AvailableExtensions.Contains(Name); }
 	virtual bool IsExtensionEnabled(const FString& Name) const override { return EnabledExtensions.Contains(Name); }
 	virtual bool IsLayerAvailable(const FString& Name) const override { return EnabledLayers.Contains(Name); }
@@ -213,6 +213,21 @@ TSharedPtr< IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe > FOpenXRHM
 	}
 #endif//XR_USE_GRAPHICS_API_VULKAN
 	return nullptr;
+}
+
+bool FOpenXRHMDPlugin::IsStandaloneStereoOnlyDevice()
+{
+	if (PreInit())
+	{
+		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+		{
+			if (Module->IsStandaloneStereoOnlyDevice())
+			{
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 bool FOpenXRHMDPlugin::EnumerateExtensions()
@@ -1047,6 +1062,9 @@ bool FOpenXRHMD::EnableStereo(bool stereo)
 		if (OnStereoStartup())
 		{
 			StartSession();
+
+			FApp::SetHasVRFocus(true);
+
 			return true;
 		}
 		return false;
@@ -1054,6 +1072,23 @@ bool FOpenXRHMD::EnableStereo(bool stereo)
 	else
 	{
 		GEngine->bForceDisableFrameRateSmoothing = false;
+
+		FApp::SetHasVRFocus(false);
+
+#if WITH_EDITOR
+		if (GIsEditor)
+		{
+			if (FSceneViewport* SceneVP = FindSceneViewport())
+			{
+				TSharedPtr<SWindow> Window = SceneVP->FindWindow();
+				if (Window.IsValid())
+				{
+					Window->SetViewportSizeDrivenByWindow(true);
+				}
+			}
+		}
+#endif // WITH_EDITOR
+
 		return OnStereoTeardown();
 	}
 }
@@ -1323,6 +1358,25 @@ bool FOpenXRHMD::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Co
 	return GEngine && GEngine->IsStereoscopic3D(Context.Viewport);
 }
 
+bool CheckPlatformDepthExtensionSupport(const XrInstanceProperties& InstanceProps)
+{
+	if (FCStringAnsi::Strstr(InstanceProps.runtimeName, "SteamVR/OpenXR") && (FApp::GetGraphicsRHI() == TEXT("Vulkan")))
+	{
+		return false;
+	}
+	else if (FCStringAnsi::Strstr(InstanceProps.runtimeName, "Oculus") && (FApp::GetGraphicsRHI() == TEXT("DirectX 12")))
+	{
+		// No PF_DepthStencil compatible formats offered yet
+		return false;
+	}
+	else if (FCStringAnsi::Strstr(InstanceProps.runtimeName, "Windows Mixed Reality Runtime") && (FApp::GetGraphicsRHI() == TEXT("DirectX 12")))
+	{
+		// Temp: WMR missing depth layout transitions
+		return false;
+	}
+	return true;
+}
+
 FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance, XrSystemId InSystem, TRefCountPtr<FOpenXRRenderBridge>& InRenderBridge, TArray<const char*> InEnabledExtensions, TArray<IOpenXRExtensionPlugin*> InExtensionPlugins, IARSystemSupport* ARSystemSupport)
 	: FHeadMountedDisplayBase(ARSystemSupport)
 	, FSceneViewExtensionBase(AutoRegister)
@@ -1336,6 +1390,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, bIsMobileMultiViewEnabled(false)
 	, bSupportsHandTracking(false)
 	, bNeedsAcquireOnRHI(false)
+	, bIsStandaloneStereoOnlyDevice(false)
 	, CurrentSessionState(XR_SESSION_STATE_UNKNOWN)
 	, EnabledExtensions(std::move(InEnabledExtensions))
 	, ExtensionPlugins(std::move(InExtensionPlugins))
@@ -1355,8 +1410,8 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	XrInstanceProperties InstanceProps = { XR_TYPE_INSTANCE_PROPERTIES, nullptr };
 	XR_ENSURE(xrGetInstanceProperties(Instance, &InstanceProps));
 
-	bDepthExtensionSupported = IsExtensionEnabled(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME) &&
-		(!FCStringAnsi::Strstr(InstanceProps.runtimeName, "SteamVR/OpenXR") || FApp::GetGraphicsRHI() != "Vulkan");
+	bDepthExtensionSupported = IsExtensionEnabled(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME) && CheckPlatformDepthExtensionSupport(InstanceProps);
+
 	bHiddenAreaMaskSupported = IsExtensionEnabled(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME) &&
 		!FCStringAnsi::Strstr(InstanceProps.runtimeName, "Oculus");
 	bViewConfigurationFovSupported = IsExtensionEnabled(XR_EPIC_VIEW_CONFIGURATION_FOV_EXTENSION_NAME);
@@ -1435,6 +1490,18 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 			SelectedEnvironmentBlendMode = BlendModes[0];
 		}
 	}
+
+#if PLATFORM_HOLOLENS
+	bIsStandaloneStereoOnlyDevice = true;
+#else
+	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	{
+		if (Module->IsStandaloneStereoOnlyDevice())
+		{
+			bIsStandaloneStereoOnlyDevice = true;
+		}
+	}
+#endif
 
 	// Add a device space for the HMD without an action handle and ensure it has the correct index
 	ensure(DeviceSpaces.Emplace(XR_NULL_HANDLE) == HMDDeviceId);
@@ -1798,7 +1865,7 @@ bool FOpenXRHMD::OnStereoStartup()
 	}
 
 #if !PLATFORM_HOLOLENS
-	if (!bUseExtensionSpectatorScreenController && !FPlatformMisc::IsStandaloneStereoOnlyDevice())
+	if (!bUseExtensionSpectatorScreenController && !bIsStandaloneStereoOnlyDevice)
 	{
 		SpectatorScreenController = MakeUnique<FDefaultSpectatorScreenController>(this);
 		UE_LOG(LogHMD, Verbose, TEXT("OpenXR using base spectator screen."));
@@ -2015,6 +2082,21 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 		{
 			return false;
 		}
+
+#if WITH_EDITOR
+		if (GIsEditor)
+		{
+			if (FSceneViewport* SceneVP = FindSceneViewport())
+			{
+				TSharedPtr<SWindow> Window = SceneVP->FindWindow();
+				if (Window.IsValid())
+				{
+					// Window continues to be processed when PIE spectator window is minimized
+					Window->SetIndependentViewportSize(FVector2D(SizeX, SizeY));
+				}
+			}
+		}
+#endif
 	}
 
 	// Grab the presentation texture out of the swapchain.
@@ -2339,6 +2421,8 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 				}
 			}
 
+			FApp::SetUseVRFocus(SessionState.state == XR_SESSION_STATE_FOCUSED);
+
 			if (SessionState.state != XR_SESSION_STATE_EXITING && SessionState.state != XR_SESSION_STATE_LOSS_PENDING)
 			{
 				break;
@@ -2463,18 +2547,22 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 	}
 
 	TArray<const XrCompositionLayerBaseHeader*> Headers;
-	XrCompositionLayerProjection Layer = {};
-	Layer.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION;
-	Layer.next = nullptr;
-	Layer.layerFlags = bProjectionLayerAlphaEnabled ? XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT : 0;
-	Layer.space = PipelinedFrameStateRHI.TrackingSpace;
-	Layer.viewCount = PipelinedLayerStateRHI.ProjectionLayers.Num();
-	Layer.views = PipelinedLayerStateRHI.ProjectionLayers.GetData();
-	Headers.Add(reinterpret_cast<const XrCompositionLayerBaseHeader*>(&Layer));
 
-	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	XrCompositionLayerProjection Layer = {};
+	if (IsBackgroundLayerVisible())
 	{
-		Layer.next = Module->OnEndProjectionLayer(Session, 0, Layer.next, Layer.layerFlags);
+		Layer.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION;
+		Layer.next = nullptr;
+		Layer.layerFlags = bProjectionLayerAlphaEnabled ? XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT : 0;
+		Layer.space = PipelinedFrameStateRHI.TrackingSpace;
+		Layer.viewCount = PipelinedLayerStateRHI.ProjectionLayers.Num();
+		Layer.views = PipelinedLayerStateRHI.ProjectionLayers.GetData();
+		Headers.Add(reinterpret_cast<const XrCompositionLayerBaseHeader*>(&Layer));
+
+		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+		{
+			Layer.next = Module->OnEndProjectionLayer(Session, 0, Layer.next, Layer.layerFlags);
+		}
 	}
 
 	for (const XrCompositionLayerQuad& Quad : PipelinedLayerStateRHI.QuadLayers)

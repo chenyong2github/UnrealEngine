@@ -90,6 +90,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Mobile)
 	EHandTrackingSupport HandTrackingSupport;
 
+	/** Enable phase sync on mobile, reducing HMD and controller latency, improve tracking prediction quality */
+	UPROPERTY(config, EditAnywhere, Category = Mobile)
+	bool bPhaseSync;
+
 private:
 	void LoadFromIni();
 

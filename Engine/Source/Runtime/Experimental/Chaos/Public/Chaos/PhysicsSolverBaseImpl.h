@@ -32,7 +32,7 @@ namespace Chaos
 			//case 4: prev has no dirty data and next does. In this case interpolate from gt data to next
 			//case 5: prev has no dirty data and next was overwritten. In this case do nothing as the overwritten data wins, and also particle may be deleted
 
-			const FChaosInterpolationResults& Results = PullResultsManager->PullAsyncPhysicsResults_External(MarshallingManager, ResultsTime);
+			const FChaosInterpolationResults& Results = PullResultsManager->PullAsyncPhysicsResults_External(ResultsTime);
 			LatestData = Results.Next;
 			//todo: go wide
 			const int32 SolverTimestamp = Results.Next ? Results.Next->SolverTimestamp : INDEX_NONE;
@@ -40,14 +40,10 @@ namespace Chaos
 			{
 				if(FSingleParticlePhysicsProxy* Proxy = RigidInterp.Prev.GetProxy())
 				{
-					if (Proxy->PullFromPhysicsState(RigidInterp.Prev, SolverTimestamp, &RigidInterp.Next, &Results.Alpha))
+					if (Proxy->PullFromPhysicsState(RigidInterp.Prev, SolverTimestamp, &RigidInterp.Next, &Results.Alpha, &RigidInterp.LeashAlpha))
 					{
 						RigidFunc(Proxy);
 					}
-
-					//Only used for building results. These results are either reused, or re-built
-					//if they are rebuilt we get a new index
-					Proxy->SetPullDataInterpIdx_External(INDEX_NONE);
 				}
 				
 			}
@@ -57,22 +53,22 @@ namespace Chaos
 			//no interpolation so just use latest, in non-substepping modes this will just be the next result
 			// available in the queue - however if we substepped externally we need to consume the whole
 			// queue by telling the sync pull that we expect multiple results.
-			const bool bSubstepping = bSolverSubstep_External && MMaxSubSteps > 1;
-			if (FPullPhysicsData* PullData = PullResultsManager->PullSyncPhysicsResults_External(MarshallingManager, bSubstepping))
-			{
-				LatestData = PullData;
-				const int32 SyncTimestamp = PullData->SolverTimestamp;
-				for (const FDirtyRigidParticleData& DirtyData : PullData->DirtyRigids)
+
+			const FChaosInterpolationResults& Results = PullResultsManager->PullSyncPhysicsResults_External();
+			LatestData = Results.Next;
+			//todo: go wide
+			const int32 SolverTimestamp = Results.Next ? Results.Next->SolverTimestamp : INDEX_NONE;
+			for (const FChaosRigidInterpolationData& RigidInterp : Results.RigidInterpolations)
 				{
-					if (auto Proxy = DirtyData.GetProxy())
+				if (FSingleParticlePhysicsProxy* Proxy = RigidInterp.Prev.GetProxy())
 					{
-						if (Proxy->PullFromPhysicsState(DirtyData, SyncTimestamp))
+					if (Proxy->PullFromPhysicsState(RigidInterp.Next, SolverTimestamp))
 						{
 							RigidFunc(Proxy);
 						}
 					}
 				}
-			}
+
 		}
 
 		//no interpolation for GC or joints at the moment

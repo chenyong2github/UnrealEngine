@@ -192,6 +192,16 @@ namespace UnrealBuildTool
 		public bool bEnableObjCExceptions = false;
 
 		/// <summary>
+		/// How to treat any warnings in the code
+		/// </summary>
+		public WarningLevel DefaultWarningLevel = WarningLevel.Warning;
+
+		/// <summary>
+		/// Whether to warn about deprecated variables
+		/// </summary>
+		public WarningLevel DeprecationWarningLevel = WarningLevel.Warning;
+
+		/// <summary>
 		/// Whether to warn about the use of shadow variables
 		/// </summary>
 		public WarningLevel ShadowVariableWarningLevel = WarningLevel.Warning;
@@ -427,6 +437,8 @@ namespace UnrealBuildTool
 			bRetainFramePointers = Other.bRetainFramePointers;
 			bEnableExceptions = Other.bEnableExceptions;
 			bEnableObjCExceptions = Other.bEnableObjCExceptions;
+			DefaultWarningLevel = Other.DefaultWarningLevel;
+			DeprecationWarningLevel = Other.DeprecationWarningLevel;
 			ShadowVariableWarningLevel = Other.ShadowVariableWarningLevel;
 			UnsafeTypeCastWarningLevel = Other.UnsafeTypeCastWarningLevel;
 			bUndefinedIdentifierWarningsAsErrors = Other.bUndefinedIdentifierWarningsAsErrors;

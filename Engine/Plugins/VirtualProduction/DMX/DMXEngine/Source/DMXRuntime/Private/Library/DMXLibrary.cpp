@@ -568,7 +568,8 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 				}
 				else if (IDMXProtocol::Get(ProtocolName).IsValid())
 				{
-					FDMXInputPortConfig InputPortConfig;
+					FDMXInputPortConfig InputPortConfig = FDMXInputPortConfig(FGuid::NewGuid());
+
 					InputPortConfig.ProtocolName = ProtocolName;
 					InputPortConfig.DeviceAddress = InterfaceIPAddress_DEPRECATED;
 					InputPortConfig.PortName = FDMXProtocolUtils::GenerateUniqueNameFromExisting(InputPortConfigNames, TEXT("Generated_InputPort"));
@@ -613,7 +614,8 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 				}
 				else if (IDMXProtocol::Get(ProtocolName).IsValid())
 				{
-					FDMXOutputPortConfig OutputPortConfig;
+					FDMXOutputPortConfig OutputPortConfig = FDMXOutputPortConfig(FGuid::NewGuid());
+
 					OutputPortConfig.ProtocolName = ProtocolName;
 					OutputPortConfig.DeviceAddress = InterfaceIPAddress_DEPRECATED;
 					OutputPortConfig.PortName = FDMXProtocolUtils::GenerateUniqueNameFromExisting(OutputPortConfigNames, TEXT("Generated_OutputPort"));
@@ -659,7 +661,8 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 					}
 					else if (IDMXProtocol::Get(ProtocolName).IsValid())
 					{
-						FDMXOutputPortConfig OutputPortConfig;
+						FDMXOutputPortConfig OutputPortConfig = FDMXOutputPortConfig(FGuid::NewGuid());
+
 						OutputPortConfig.ProtocolName = ProtocolName;
 						OutputPortConfig.DeviceAddress = InterfaceIPAddress_DEPRECATED;
 						OutputPortConfig.PortName = FDMXProtocolUtils::GenerateUniqueNameFromExisting(OutputPortConfigNames, TEXT("Generated_OutputPort"));

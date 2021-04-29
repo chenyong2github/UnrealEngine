@@ -174,6 +174,11 @@ FString FAndroidPlatformProcess::GetGameBundleId()
 	return TEXT("");
 }
 
+void FAndroidPlatformProcess::SetThreadName(const TCHAR* ThreadName)
+{
+	pthread_setname_np(pthread_self(), TCHAR_TO_ANSI(ThreadName));
+}
+
 // Can be specified per device profile
 // android.DefaultThreadAffinity GT 0x01 RT 0x02
 TAutoConsoleVariable<FString> CVarAndroidDefaultThreadAffinity(

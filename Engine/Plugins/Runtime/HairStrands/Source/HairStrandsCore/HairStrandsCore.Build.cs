@@ -23,6 +23,7 @@ namespace UnrealBuildTool.Rules
                     "GeometryCache",
                     "Projects",
 					"MeshDescription",
+					"MovieScene",
 					"NiagaraCore",
 					"Niagara",
 					"NiagaraShader",

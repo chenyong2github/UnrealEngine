@@ -39,7 +39,9 @@
 #include "Interfaces/IAnalyticsProvider.h"
 
 #include "GameProjectGenerationModule.h"
+#if WITH_UNREAL_TARGET_DEVELOPER_TOOLS
 #include "Interfaces/IProjectTargetPlatformEditorModule.h"
+#endif
 #include "PlatformInfo.h"
 
 #include "IHeadMountedDisplay.h"
@@ -60,8 +62,6 @@
 #include "PIEPreviewDeviceProfileSelectorModule.h"
 #include "IDesktopPlatform.h"
 #include "DesktopPlatformModule.h"
-#include "IAndroidDeviceDetectionModule.h"
-#include "IAndroidDeviceDetection.h"
 #include "CookerSettings.h"
 #include "HAL/PlatformFileManager.h"
 #include "SourceControlHelpers.h"
@@ -639,71 +639,6 @@ void FPlayWorldCommands::BuildToolbar(FToolMenuSection& InSection, bool bInclude
 	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().StepOut, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("StepOut"))));
 }
 
-// function will enumerate available Android devices that can export their profile to a json file
-// called (below) from AddAndroidConfigExportMenu()
-static void AddAndroidConfigExportSubMenus(FMenuBuilder& InMenuBuilder)
-{
-	IAndroidDeviceDetection* DeviceDetection = FModuleManager::LoadModuleChecked<IAndroidDeviceDetectionModule>("AndroidDeviceDetection").GetAndroidDeviceDetection();
-
-	TMap<FString, FAndroidDeviceInfo> AndroidDeviceMap;
-
-	// lock device map and copy its contents
-	{
-		FCriticalSection* DeviceLock = DeviceDetection->GetDeviceMapLock();
-		FScopeLock Lock(DeviceLock);
-		AndroidDeviceMap = DeviceDetection->GetDeviceMap();
-	}
-
-	for (auto& Pair : AndroidDeviceMap)
-	{
-		FAndroidDeviceInfo& DeviceInfo = Pair.Value;
-
-		FString ModelName = DeviceInfo.Model + TEXT("[") + DeviceInfo.DeviceBrand + TEXT("]");
-
-		// lambda function called to open the save dialog and trigger device export
-		auto LambdaSaveConfigFile = [DeviceName = Pair.Key, DefaultFileName = ModelName, DeviceDetection]()
-		{
-			TArray<FString> OutputFileName;
-			FString DefaultFolder = FPaths::EngineContentDir() + TEXT("Editor/PIEPreviewDeviceSpecs/Android/");
-
-			bool bResult = FDesktopPlatformModule::Get()->SaveFileDialog(
-				FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
-				LOCTEXT("PackagePluginDialogTitle", "Save platform configuration...").ToString(),
-				DefaultFolder,
-				DefaultFileName,
-				TEXT("Json config file (*.json)|*.json"),
-				0,
-				OutputFileName);
-
-			if (bResult && OutputFileName.Num())
-			{
-				DeviceDetection->ExportDeviceProfile(OutputFileName[0], DeviceName);
-			}
-		};
-
-		InMenuBuilder.AddMenuEntry(
-			FText::FromString(ModelName),
-			FText(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "AssetEditor.SaveAsset"),
-			FUIAction(FExecuteAction::CreateLambda(LambdaSaveConfigFile))
-		);
-	}
-}
-
-// function adds a sub-menu that will enumerate Android devices whose profiles can be exported json files
-static void AddAndroidConfigExportMenu(FMenuBuilder& InMenuBuilder)
-{
-	InMenuBuilder.AddMenuSeparator();
-
-	InMenuBuilder.AddSubMenu(
-		LOCTEXT("loc_AddAndroidConfigExportMenu", "Export device settings"),
-		LOCTEXT("loc_tip_AddAndroidConfigExportMenu", "Export device settings to a Json file."),
-		FNewMenuDelegate::CreateStatic(&AddAndroidConfigExportSubMenus),
-		false,
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.SaveAll")
-	);
-}
-
 static void MakePreviewDeviceMenu(FMenuBuilder& MenuBuilder)
 {
 	struct FLocal
@@ -718,29 +653,9 @@ static void MakePreviewDeviceMenu(FMenuBuilder& MenuBuilder)
 				MenuBuilderIn.AddMenuEntry(TargetedMobilePreviewDeviceCommands[Device]);
 			}
 
-			static FText AndroidCategory = FText::FromString(TEXT("Android"));
-			static FText IOSCategory = FText::FromString(TEXT("IOS"));
-
-			// Android devices can export their profile to a json file which then can be used for PIE device simulations
-			const FText& CategoryDisplayName = PreviewDeviceCategory->GetCategoryDisplayName();
-			if (CategoryDisplayName.CompareToCaseIgnored(AndroidCategory) == 0)
-			{
-				// check to see if we have any connected devices
-				bool bHasAndroidDevices = false;
-				{
-					IAndroidDeviceDetection* DeviceDetection = FModuleManager::LoadModuleChecked<IAndroidDeviceDetectionModule>("AndroidDeviceDetection").GetAndroidDeviceDetection();
-					FCriticalSection* DeviceLock = DeviceDetection->GetDeviceMapLock();
-
-					FScopeLock Lock(DeviceLock);
-					bHasAndroidDevices = DeviceDetection->GetDeviceMap().Num() > 0;
-				}
-
-				// add the config. export menu
-				if (bHasAndroidDevices)
-				{
-					AddAndroidConfigExportMenu(MenuBuilderIn);
-				}
-			}
+			// let other classes add to this menu
+			FPIEPreviewDeviceModule* PIEPreviewDeviceModule = FModuleManager::LoadModulePtr<FPIEPreviewDeviceModule>(TEXT("PIEPreviewDeviceProfileSelector"));
+			PIEPreviewDeviceModule->AddToDevicePreviewMenuDelegates.Broadcast(PreviewDeviceCategory->GetCategoryDisplayName(), MenuBuilderIn);
 
 			for (TSharedPtr<FPIEPreviewDeviceContainerCategory> SubCategory : PreviewDeviceCategory->GetSubCategories())
 			{

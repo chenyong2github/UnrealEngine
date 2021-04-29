@@ -896,6 +896,7 @@ public:
 	virtual void InitForNetDriver(UNetDriver* InNetDriver) override;
 	virtual void InitializeActorsInWorld(UWorld* InWorld) override;
 	virtual void ResetGameWorldState() override { }
+	virtual void TearDown() override;
 
 	/** Called by the NetDriver when the client connection is ready/added to the NetDriver's client connection list */
 	virtual void AddClientConnection(UNetConnection* NetConnection) override;

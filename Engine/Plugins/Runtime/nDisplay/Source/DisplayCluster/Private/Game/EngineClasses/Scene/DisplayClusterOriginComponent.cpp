@@ -24,7 +24,6 @@ UDisplayClusterOriginComponent::UDisplayClusterOriginComponent(const FObjectInit
 			static ConstructorHelpers::FObjectFinder<UStaticMesh> OriginMesh(TEXT("/Engine/BasicShapes/Sphere"));
 			static ConstructorHelpers::FObjectFinder<UMaterial>   OriginMaterial(TEXT("/Engine/EditorMaterials/WidgetMaterial_Z"));
 
-			VisualizationComponent->SetFlags(EObjectFlags::RF_DuplicateTransient | RF_Transient | RF_TextExportTransient);
 			VisualizationComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
 			VisualizationComponent->SetMaterial(0, OriginMaterial.Object);
 			VisualizationComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator, false);
@@ -33,6 +32,7 @@ UDisplayClusterOriginComponent::UDisplayClusterOriginComponent(const FObjectInit
 			VisualizationComponent->SetMobility(EComponentMobility::Movable);
 			VisualizationComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			VisualizationComponent->SetVisibility(true);
+			VisualizationComponent->SetIsVisualizationComponent(true);
 		}
 	}
 #endif

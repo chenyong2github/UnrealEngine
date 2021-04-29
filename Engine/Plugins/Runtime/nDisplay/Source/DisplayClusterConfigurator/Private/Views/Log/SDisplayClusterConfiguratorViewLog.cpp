@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Views/Log/SDisplayClusterConfiguratorViewLog.h"
-#include "DisplayClusterConfiguratorToolkit.h"
+#include "DisplayClusterConfiguratorBlueprintEditor.h"
 
 #include "MessageLogModule.h"
 #include "Modules/ModuleManager.h"
@@ -13,7 +13,7 @@ SDisplayClusterConfiguratorViewLog::~SDisplayClusterConfiguratorViewLog()
 {
 }
 
-void SDisplayClusterConfiguratorViewLog::Construct(const FArguments& InArgs, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit, const TSharedRef<SWidget>& InListingWidget)
+void SDisplayClusterConfiguratorViewLog::Construct(const FArguments& InArgs, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit, const TSharedRef<SWidget>& InListingWidget)
 {
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 

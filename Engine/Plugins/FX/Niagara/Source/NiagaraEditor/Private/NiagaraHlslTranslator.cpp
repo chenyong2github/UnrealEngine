@@ -3835,7 +3835,6 @@ FString FHlslNiagaraTranslator::GetSanitizedSymbolName(FString SymbolName, bool 
 	// Rules for variable namespaces..
 	for (int32 i = 0; i < SplitName.Num(); i++)
 	{
-		SplitName[i].ReplaceInline(TEXT("__"), TEXT("ASC95ASC95")); // Opengl reserves "__" within a name
 		if (SplitName[i][0] >= TCHAR('0') && SplitName[i][0] <= TCHAR('9')) // Cannot start with a numeric digit
 		{
 			SplitName[i] = TEXT("INTEGER_") + SplitName[i];
@@ -3870,6 +3869,9 @@ FString FHlslNiagaraTranslator::GetSanitizedSymbolName(FString SymbolName, bool 
 	{
 		Ret.ReplaceInline(TEXT("."), TEXT("_"));
 	}
+
+	Ret.ReplaceInline(TEXT("__"), TEXT("ASC95ASC95")); // Opengl reserves "__" within a name
+
 	return Ret;
 }
 
@@ -4096,6 +4098,7 @@ int32 FHlslNiagaraTranslator::AddUniformChunk(FString SymbolName, const FNiagara
 		FNiagaraCodeChunk& Chunk = CodeChunks[Ret];
 		Chunk.SymbolName = GetSanitizedSymbolName(SymbolName);
 		Chunk.Type = Type;
+		Chunk.Original = InVariable;
 
 		if (AddPadding)
 		{
@@ -4503,7 +4506,13 @@ int32 FHlslNiagaraTranslator::GetConstant(const FNiagaraVariable& Constant, FStr
 	{
 		return INDEX_NONE;
 	}
-	return AddBodyChunk(GetUniqueSymbolName(TEXT("Constant")), ConstantStr, Constant.GetType());
+	
+	int32 BodyChunk = AddBodyChunk(GetUniqueSymbolName(TEXT("Constant")), ConstantStr, Constant.GetType());
+	if (CodeChunks.IsValidIndex(BodyChunk))
+	{
+		CodeChunks[BodyChunk].Original = Constant;
+	}
+	return BodyChunk;
 }
 
 int32 FHlslNiagaraTranslator::GetConstantDirect(float InConstantValue)
@@ -5243,6 +5252,10 @@ bool FHlslNiagaraTranslator::ParameterMapRegisterExternalConstantNamespaceVariab
 		}
 
 		Output = AddSourceChunk(ParameterMapInstanceName + TEXT(".") + SymbolName, InVariable.GetType());
+		if (CodeChunks.IsValidIndex(Output))
+		{ // Leave a breadcrumb to resolve for compile tags.
+			CodeChunks[Output].Original = InVariable;
+		}
 
 		//Track a few special case reads that the system needs to know about.
 		if(InVariable == SYS_PARAM_ENGINE_SYSTEM_SIGNIFICANCE_INDEX)
@@ -6094,6 +6107,11 @@ int32 FHlslNiagaraTranslator::RegisterDataInterface(FNiagaraVariable& Var, UNiag
 	const FString* EmitterAlias = ActiveHistoryForFunctionCalls.GetEmitterAlias();
 	FName DataInterfaceName = GetDataInterfaceName(Var.GetName(), EmitterAlias != nullptr ? *EmitterAlias : FString(), bAddParameterMapRead);
 
+	if (DataInterface && DataInterface->NeedsGPUContextInit() && CompileOptions.IsGpuScript())
+	{
+		CompilationOutput.ScriptData.bNeedsGPUContextInit = true;
+	}
+
 	int32 Idx = CompilationOutput.ScriptData.DataInterfaceInfo.IndexOfByPredicate([&](const FNiagaraScriptDataInterfaceCompileInfo& OtherInfo)
 	{
 		return OtherInfo.Name == DataInterfaceName;
@@ -6144,6 +6162,11 @@ void FHlslNiagaraTranslator::Operation(class UNiagaraNodeOp* Operation, TArray<i
 
 	FPinCollectorArray OutputPins;
 	Operation->GetOutputPins(OutputPins);
+	OutputPins.RemoveAll([](UEdGraphPin* Pin)
+		{
+			return Pin->bOrphanedPin == true;
+		});
+
 	for (int32 OutputIndex = 0; OutputIndex < OutputPins.Num(); OutputIndex++)
 	{
 		UEdGraphPin* OutputPin = OutputPins[OutputIndex];
@@ -6311,6 +6334,66 @@ void FHlslNiagaraTranslator::FunctionCall(UNiagaraNodeFunctionCall* FunctionNode
 		if (CallOutputs.Num() == 0 || Schema->PinToTypeDefinition(CallOutputs[0]) != FNiagaraTypeDefinition::GetParameterMapDef())
 		{
 			Error(LOCTEXT("FunctionCallInvalidSignatureExecOut", "The first output pin must be a parameter map pin because the signature RequiresExecPin!"), FunctionNode, nullptr);
+		}
+	}
+
+	if (Signature.bIsCompileTagGenerator)
+	{
+		if (CallInputs.Num() != Inputs.Num())
+		{
+			Error(LOCTEXT("FunctionCallInvalidSignatureTagGen", "Mismatch in counts between signature and actual pins on the node!"), FunctionNode, nullptr);
+		}
+		else
+		{
+			FNiagaraVariable ResolvedVariable;
+			for (int32 i = 0; i < CallInputs.Num(); i++)
+			{
+				FNiagaraTypeDefinition TypeDef = Schema->PinToTypeDefinition(CallInputs[i]);
+				if (TypeDef.IsDataInterface())
+				{
+					UObject* const* FoundCDO = CompileData->CDOs.Find(TypeDef.GetClass());
+					UNiagaraDataInterface* CDO = (FoundCDO ? Cast<UNiagaraDataInterface>(*FoundCDO) : nullptr);
+
+					if (CDO == nullptr)
+					{
+						// If the cdo wasn't found, the data interface was not passed through a parameter map and so it won't be bound correctly, so add a compile error
+						// and invalidate the signature.
+						Error(LOCTEXT("DataInterfaceNotFoundTagGen", "Data interface used, but not found in precompiled data. Please notify Niagara team of bug."), nullptr, nullptr);
+						return;
+					}
+				
+					FString Prefix;
+					if (!CDO->GenerateCompilerTagPrefix(Signature, Prefix))
+					{
+						Error(LOCTEXT("DataInterfaceFailedTagGen", "Data interface wanted to generate compiler tag, but was unable to resolve prefix. Please notify Niagara team of bug."), nullptr, nullptr);
+					}
+
+					FNiagaraVariable Variable(TypeDef, *(TEXT("Module.") + Prefix));
+
+					if (FNiagaraParameterMapHistory::IsAliasedModuleParameter(Variable) && ActiveHistoryForFunctionCalls.InTopLevelFunctionCall(CompileOptions.TargetUsage))
+					{
+						ResolvedVariable = ActiveHistoryForFunctionCalls.ResolveAliases(Variable);
+					}
+					else
+					{
+						ResolvedVariable = FNiagaraVariable(TypeDef, *Prefix);
+					}
+
+					Signature.FunctionSpecifiers.Add(TEXT("CompilerTagKey")) =  ResolvedVariable.GetName();
+
+					break;
+				}
+			}
+
+
+			for (int32 i = 0; i < CallInputs.Num(); i++)
+			{
+				FNiagaraTypeDefinition TypeDef = Schema->PinToTypeDefinition(CallInputs[i]);
+				if (!(TypeDef.IsDataInterface() || TypeDef == FNiagaraTypeDefinition::GetParameterMapDef()))
+				{
+					WriteCompilerTag(Inputs[i], CallInputs[i], false, FNiagaraCompileEventSeverity::Log, ResolvedVariable.GetName().ToString());
+				}
+			}
 		}
 	}
 
@@ -7922,12 +8005,27 @@ void FHlslNiagaraTranslator::Select(UNiagaraNodeSelect* SelectNode, int32 Select
 	Outputs.Add(INDEX_NONE);
 }
 
-void FHlslNiagaraTranslator::WriteCompilerTag(int32 InputCompileResult, const UEdGraphPin* Pin)
+void FHlslNiagaraTranslator::WriteCompilerTag(int32 InputCompileResult, const UEdGraphPin* Pin, bool bEmitMessageOnFailure, FNiagaraCompileEventSeverity FailureSeverity, const FString& Prefix)
 {
 	FString Value;
 	FNiagaraTypeDefinition TypeDef = Schema->PinToTypeDefinition(Pin);
-	FNiagaraVariable Variable(TypeDef, *Pin->GetName());
+	FNiagaraVariable Variable(TypeDef, Prefix.Len() ? *(Prefix + TEXT(".") + Pin->GetName()) : *Pin->GetName());
 	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+
+
+	//If we're in an emitter script then the tag needs to be made per emitter with EmitterName.Tag
+	bool bIsSystemOrEmitterScript =
+		UNiagaraScript::IsEmitterSpawnScript(CompileOptions.TargetUsage) || UNiagaraScript::IsSystemSpawnScript(CompileOptions.TargetUsage) ||
+		UNiagaraScript::IsEmitterUpdateScript(CompileOptions.TargetUsage) || UNiagaraScript::IsSystemUpdateScript(CompileOptions.TargetUsage);
+
+	if (bIsSystemOrEmitterScript)
+	{
+		if (const FString* EmitterAliasStr = ActiveHistoryForFunctionCalls.GetEmitterAlias())
+		{
+			Variable.SetName(*(*EmitterAliasStr + TEXT(".") + Variable.GetName().ToString()));
+		}
+	}
+
 	{		
 		bool bSearch = true;
 		FString SourceName;
@@ -7943,13 +8041,19 @@ void FHlslNiagaraTranslator::WriteCompilerTag(int32 InputCompileResult, const UE
 						{
 							InputCompileResult = CodeChunks[InputCompileResult].SourceChunks[0]; // Follow the linkage
 						}
+						else if (CodeChunks[InputCompileResult].Original.IsDataAllocated())
+						{
+							Variable.AllocateData();
+							CodeChunks[InputCompileResult].Original.CopyTo(Variable.GetData());
+							bSearch = false;
+						}
 						else
 						{
 							TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeEditorUtilities = NiagaraEditorModule.GetTypeUtilities(TypeDef);
-							if (TypeEditorUtilities.IsValid() && TypeEditorUtilities->CanHandlePinDefaults())
-							{
+							if (TypeEditorUtilities.IsValid() && TypeEditorUtilities->CanHandlePinDefaults() && CodeChunks[InputCompileResult].Definition.IsEmpty() == false)
+							{							
 								// Note that this might fail due to string not being properly formatted for the type. If so, we just take the definition string altogether.
-								bool bHasValue = TypeEditorUtilities->SetValueFromPinDefaultString(CodeChunks[InputCompileResult].Definition, Variable); 
+								bool bHasValue = TypeEditorUtilities->SetValueFromPinDefaultString(CodeChunks[InputCompileResult].Definition, Variable);
 								if (bHasValue == false)
 								{
 									Value = CodeChunks[InputCompileResult].Definition;
@@ -7964,7 +8068,24 @@ void FHlslNiagaraTranslator::WriteCompilerTag(int32 InputCompileResult, const UE
 					}
 					else  if (CodeChunks[InputCompileResult].Mode == ENiagaraCodeChunkMode::Uniform)
 					{
-						Value = CodeChunks[InputCompileResult].SymbolName;
+						//UE_LOG(LogNiagaraEditor, Log, TEXT("CompilerTag %s looking for uniform with symbol %s"), *Variable.GetName().ToString(), *CodeChunks[InputCompileResult].SymbolName);
+						FString VarSymbol;						
+						for (const FNiagaraVariable& UniformVar : CompilationOutput.ScriptData.Parameters.Parameters)
+						{
+							VarSymbol.Reset();
+							VarSymbol = GetSanitizedSymbolName(UniformVar.GetName().ToString(), true);
+							if (VarSymbol == CodeChunks[InputCompileResult].SymbolName)
+							{
+								//UE_LOG(LogNiagaraEditor, Log, TEXT("Match Found: %s == %s"), *VarSymbol, *UniformVar.GetName().ToString());
+								Value = UniformVar.GetName().ToString();
+								break;
+							}
+							else
+							{
+								//UE_LOG(LogNiagaraEditor, Log, TEXT("No Match: %s != %s"), *VarSymbol, *UniformVar.GetName().ToString());
+							}
+						}
+						check(Value.IsEmpty() == false);//Somethings wrong if we're in a uniform chunk and we can't find it's matching variable again.
 						bSearch = false;
 					}
 					else  if (CodeChunks[InputCompileResult].Mode == ENiagaraCodeChunkMode::Source)
@@ -7974,7 +8095,12 @@ void FHlslNiagaraTranslator::WriteCompilerTag(int32 InputCompileResult, const UE
 						else
 							bSearch = false; // Don't keep searching as we might be going outside a function call boundary and lose track. Just allow one hop.
 
-						if (CodeChunks[InputCompileResult].SourceChunks.Num() == 0) // Search through parent chunks for a name match
+						if (CodeChunks[InputCompileResult].Original.GetName().IsNone() == false)
+						{
+							Value = CodeChunks[InputCompileResult].Original.GetName().ToString();
+							bSearch = false;
+						}
+						else if (CodeChunks[InputCompileResult].SourceChunks.Num() == 0) // Search through parent chunks for a name match
 						{
 							for (int32 i = InputCompileResult - 1; i >= 0 && i < InputCompileResult; i--)
 							{
@@ -8006,10 +8132,10 @@ void FHlslNiagaraTranslator::WriteCompilerTag(int32 InputCompileResult, const UE
 			}
 		}
 	}
-	
-	if (Value.Len() == 0 && Variable.IsDataAllocated() == false)
+
+	if (Value.Len() == 0 && Variable.IsDataAllocated() == false && bEmitMessageOnFailure)
 	{
-		Message(FNiagaraCompileEventSeverity::Log, FText::FromString(TEXT("Output Compile Tag must be connected to a constant or a uniform variable to work! Ignoring the compile tag.")), Cast<UNiagaraNode>(Pin->GetOwningNode()), Pin);
+		Message(FailureSeverity, FText::FromString(TEXT("Output Compile Tag must be connected to a constant or a uniform variable to work! Ignoring the compile tag.")), Cast<UNiagaraNode>(Pin->GetOwningNode()), Pin);
 	}
 	else
 	{

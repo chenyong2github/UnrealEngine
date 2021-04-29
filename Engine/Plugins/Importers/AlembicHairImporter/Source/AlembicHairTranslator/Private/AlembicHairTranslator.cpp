@@ -3,6 +3,7 @@
 #include "AlembicHairTranslator.h"
 
 #include "HairDescription.h"
+#include "GroomCache.h"
 #include "GroomImportOptions.h"
 #include "Misc/Paths.h"
 
@@ -305,16 +306,17 @@ namespace AlembicHairTranslatorUtils
 	}
 
 	/** Convert the given Alembic parameters to hair attributes in the proper scope */
-	void ConvertAlembicAttributes(FHairDescription& HairDescription, int32 StartStrandID, int32 NumStrands, int32 StartVertexID, int32 NumVertices, const Alembic::AbcGeom::ICompoundProperty& Parameters)
+	void ConvertAlembicAttributes(FHairDescription& HairDescription, int32 StartStrandID, int32 NumStrands, int32 StartVertexID, int32 NumVertices, const Alembic::AbcGeom::ICompoundProperty& Parameters, FGroomAnimationInfo* AnimInfo)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ConvertAlembicAttributes);
 
 		for (int Index = 0; Index < Parameters.getNumProperties(); ++Index)
 		{
 			Alembic::Abc::PropertyHeader PropertyHeader = Parameters.getPropertyHeader(Index);
-			std::string PropName = PropertyHeader.getName();
+			const std::string PropName = PropertyHeader.getName();
+			const FString AttributeName = ANSI_TO_TCHAR(PropName.c_str());
 
-			if (!IsAttributeValid(ANSI_TO_TCHAR(PropName.c_str())))
+			if (!IsAttributeValid(AttributeName))
 			{
 				continue;
 			}
@@ -325,6 +327,22 @@ namespace AlembicHairTranslatorUtils
 			// ScalarProperty should only be used for groom-scope properties
 			if (PropType == Alembic::Abc::kArrayProperty)
 			{
+				Alembic::AbcCoreAbstract::TimeSamplingPtr TimeSampler = PropertyHeader.getTimeSampling();
+
+				// Check if the groom_color attribute is animated
+				if (AnimInfo && AttributeName == TEXT("groom_color") && TimeSampler)
+				{
+					 const int32 NumSamples = TimeSampler->getNumStoredTimes();
+					 if (NumSamples > 1)
+					 {
+						 const float MinTime = (float)TimeSampler->getSampleTime(0);
+						 const float MaxTime = (float)TimeSampler->getSampleTime(NumSamples - 1);
+						 AnimInfo->StartTime = FMath::Min(AnimInfo->StartTime, MinTime);
+						 AnimInfo->EndTime = FMath::Max(AnimInfo->EndTime, MaxTime);
+						 AnimInfo->Attributes |= EGroomCacheAttributes::Color;
+					 }
+				}
+
 				Alembic::Abc::DataType DataType = PropertyHeader.getDataType();
 				uint8 Extent = DataType.getExtent();
 
@@ -407,7 +425,7 @@ FMatrix ConvertAlembicMatrix(const Alembic::Abc::M44d& AbcMatrix)
 	return Matrix;
 }
 
-static void ParseObject(const Alembic::Abc::IObject& InObject, FHairDescription& HairDescription, const FMatrix& ParentMatrix, const FMatrix& ConversionMatrix, float Scale, bool bCheckGroomAttributes)
+static void ParseObject(const Alembic::Abc::IObject& InObject, int32 FrameIndex, FHairDescription& HairDescription, const FMatrix& ParentMatrix, const FMatrix& ConversionMatrix, float Scale, bool bCheckGroomAttributes, FGroomAnimationInfo* AnimInfo)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ParseObject);
 
@@ -423,9 +441,59 @@ static void ParseObject(const Alembic::Abc::IObject& InObject, FHairDescription&
 		TRACE_CPUPROFILER_EVENT_SCOPE(ParseICurves);
 
 		Alembic::AbcGeom::ICurves Curves = Alembic::AbcGeom::ICurves(InObject, Alembic::Abc::kWrapExisting);
-		Alembic::AbcGeom::ICurves::schema_type::Sample Sample = Curves.getSchema().getValue();
 
-		Alembic::Abc::FloatArraySamplePtr Widths = Curves.getSchema().getWidthsParam() ? Curves.getSchema().getWidthsParam().getExpandedValue().getVals() : nullptr;
+		if (AnimInfo)
+		{
+			// Collect info about the animated attributes of the groom 
+			const Alembic::AbcGeom::ICurvesSchema& Schema = Curves.getSchema();
+
+			const bool bIsPositionAnimated = !Schema.isConstant();
+			const bool bIsWidthAnimated = Schema.getWidthsParam().valid() && !Schema.getWidthsParam().isConstant();
+			if (bIsPositionAnimated)
+			{
+				AnimInfo->Attributes |= EGroomCacheAttributes::Position;
+			}
+			else if (bIsWidthAnimated)
+			{
+				AnimInfo->Attributes |= EGroomCacheAttributes::Width;
+			}
+
+			uint32 NumSamples = Schema.getNumSamples();
+			AnimInfo->NumFrames = FMath::Max(AnimInfo->NumFrames, NumSamples);
+
+			Alembic::AbcCoreAbstract::TimeSamplingPtr TimeSampler = Schema.getTimeSampling();
+			if (TimeSampler)
+			{
+				const float MinTime = (float)TimeSampler->getSampleTime(0);
+				const float MaxTime = (float)TimeSampler->getSampleTime(NumSamples - 1);
+				AnimInfo->StartTime = FMath::Min(AnimInfo->StartTime, MinTime);
+				AnimInfo->EndTime = FMath::Max(AnimInfo->EndTime, MaxTime);
+
+				// We know the seconds per frame, so if we take the time for the first stored sample we can work out how many 'empty' frames come before it
+				// Ensure that the start frame is never lower than 0
+				Alembic::AbcCoreAbstract::TimeSamplingType SamplingType = TimeSampler->getTimeSamplingType();
+				float TimeStep = (float) SamplingType.getTimePerCycle();
+				if (TimeStep > 0.f)
+				{
+					// Set the value in case it couldn't be retrieved from the archive
+					if (AnimInfo->SecondsPerFrame == 0.f)
+					{
+						AnimInfo->SecondsPerFrame = TimeStep;
+					}
+
+					const int32 StartFrame = FMath::Max<int32>(FMath::CeilToInt(MinTime / TimeStep), 0);
+					const int32 EndFrame = FMath::Max<int32>(FMath::CeilToInt(MaxTime / TimeStep), 0);
+
+					AnimInfo->StartFrame = FMath::Min(AnimInfo->StartFrame, StartFrame);
+					AnimInfo->EndFrame = FMath::Max(AnimInfo->EndFrame, EndFrame);
+				}
+			}
+		}
+
+		Alembic::Abc::ISampleSelector SampleSelector((Alembic::Abc::index_t) FrameIndex);
+		Alembic::AbcGeom::ICurves::schema_type::Sample Sample = Curves.getSchema().getValue(SampleSelector);
+
+		Alembic::Abc::FloatArraySamplePtr Widths = Curves.getSchema().getWidthsParam() ? Curves.getSchema().getWidthsParam().getExpandedValue(SampleSelector).getVals() : nullptr;
 		Alembic::Abc::P3fArraySamplePtr Positions = Sample.getPositions();
 		Alembic::Abc::Int32ArraySamplePtr NumVertices = Sample.getCurvesNumVertices();
 
@@ -515,7 +583,7 @@ static void ParseObject(const Alembic::Abc::IObject& InObject, FHairDescription&
 		Alembic::AbcGeom::ICompoundProperty ArbParams = Curves.getSchema().getArbGeomParams();
 		if (ArbParams)
 		{
-			AlembicHairTranslatorUtils::ConvertAlembicAttributes(HairDescription, StartStrandID, NumCurves, StartVertexID, NumPoints, ArbParams);
+			AlembicHairTranslatorUtils::ConvertAlembicAttributes(HairDescription, StartStrandID, NumCurves, StartVertexID, NumPoints, ArbParams, AnimInfo);
 		}
 
 		if (bCheckGroomAttributes)
@@ -573,12 +641,17 @@ static void ParseObject(const Alembic::Abc::IObject& InObject, FHairDescription&
 	{
 		for (uint32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
 		{
-			ParseObject(InObject.getChild(ChildIndex), HairDescription, LocalMatrix, ConversionMatrix, Scale, bCheckGroomAttributes);
+			ParseObject(InObject.getChild(ChildIndex), FrameIndex, HairDescription, LocalMatrix, ConversionMatrix, Scale, bCheckGroomAttributes, AnimInfo);
 		}
 	}
 }
 
 bool FAlembicHairTranslator::Translate(const FString& FileName, FHairDescription& HairDescription, const FGroomConversionSettings& ConversionSettings)
+{
+	return Translate(FileName, HairDescription, ConversionSettings, nullptr);
+}
+
+bool FAlembicHairTranslator::Translate(const FString& FileName, FHairDescription& HairDescription, const struct FGroomConversionSettings& ConversionSettings, FGroomAnimationInfo* OutAnimInfo)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FAlembicHairTranslator::Translate);
 
@@ -609,12 +682,95 @@ bool FAlembicHairTranslator::Translate(const FString& FileName, FHairDescription
 		return false;
 	}
 
+
+	const int32 TimeSamplingIndex = Archive.getNumTimeSamplings() > 1 ? 1 : 0;
+	Alembic::Abc::TimeSamplingPtr TimeSampler = Archive.getTimeSampling(TimeSamplingIndex);
+	if (TimeSampler && OutAnimInfo)
+	{
+		OutAnimInfo->SecondsPerFrame = TimeSampler->getTimeSamplingType().getTimePerCycle();
+	}
+
 	FMatrix ConversionMatrix = FScaleMatrix::Make(ConversionSettings.Scale) * FRotationMatrix::Make(FQuat::MakeFromEuler(ConversionSettings.Rotation));
 	FMatrix ParentMatrix = FMatrix::Identity;
 	const float StrandsWidthScale = FMath::Abs(ConversionSettings.Scale.X); // Assume uniform scaling
-	ParseObject(TopObject, HairDescription, ParentMatrix, ConversionMatrix, StrandsWidthScale, true);
+	ParseObject(TopObject, 0, HairDescription, ParentMatrix, ConversionMatrix, StrandsWidthScale, true, OutAnimInfo);
 
 	return HairDescription.IsValid();
+}
+
+/** Private implementation to wrap Alembic Archive and its TopObject for parsing */
+class FAbcPimpl
+{
+public:
+	FAbcPimpl(const FString& FileName)
+	{
+		Alembic::AbcCoreFactory::IFactory::CoreType CompressionType = Alembic::AbcCoreFactory::IFactory::kUnknown;
+
+		Factory.setPolicy(Alembic::Abc::ErrorHandler::kThrowPolicy);
+		Factory.setOgawaNumStreams(12);
+
+		// Extract Archive and compression type from file
+		Archive = Factory.getArchive(TCHAR_TO_UTF8(*FileName), CompressionType);
+		if (!Archive.valid())
+		{
+			UE_LOG(LogAlembicHairImporter, Warning, TEXT("Failed to open %s: Not a valid Alembic file."), *FileName);
+			return;
+		}
+
+		// Get Top/root object
+		TopObject = Alembic::Abc::IObject(Archive, Alembic::Abc::kTop);
+		if (!TopObject.valid())
+		{
+			UE_LOG(LogAlembicHairImporter, Warning, TEXT("Failed to import %s: Root not is not valid."), *FileName);
+		}
+	}
+
+	bool IsValid() const
+	{
+		return TopObject.valid();
+	}
+
+	Alembic::AbcCoreFactory::IFactory Factory;
+	Alembic::Abc::IArchive Archive;
+	Alembic::Abc::IObject TopObject;
+};
+
+bool FAlembicHairTranslator::BeginTranslation(const FString& FileName)
+{
+	Abc = new FAbcPimpl(FileName);
+	return Abc->IsValid();
+}
+
+bool FAlembicHairTranslator::Translate(uint32 FrameIndex, FHairDescription& HairDescription, const struct FGroomConversionSettings& ConversionSettings)
+{
+	if (!Abc || !Abc->IsValid())
+	{
+		return false;
+	}
+
+	FMatrix ConversionMatrix = FScaleMatrix::Make(ConversionSettings.Scale) * FRotationMatrix::Make(FQuat::MakeFromEuler(ConversionSettings.Rotation));
+	FMatrix ParentMatrix = FMatrix::Identity;
+	const float StrandsWidthScale = FMath::Abs(ConversionSettings.Scale.X); // Assume uniform scaling
+	ParseObject(Abc->TopObject, FrameIndex, HairDescription, ParentMatrix, ConversionMatrix, StrandsWidthScale, true, nullptr);
+
+	return HairDescription.IsValid();
+}
+
+void FAlembicHairTranslator::EndTranslation()
+{
+	delete Abc;
+	Abc = nullptr;
+}
+
+FAlembicHairTranslator::FAlembicHairTranslator()
+: Abc(nullptr)
+{
+}
+
+
+FAlembicHairTranslator::~FAlembicHairTranslator()
+{
+	EndTranslation();
 }
 
 static void ValidateObject(const Alembic::Abc::IObject& InObject, bool& bHasGeometry, int32& NumCurves)

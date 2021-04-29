@@ -59,7 +59,7 @@ struct OculusPluginWrapper
 
 	// OVR_Plugin.h
 
-	OCULUS_DECLARE_ENTRY_POINT(PreInitialize3);
+	OCULUS_DECLARE_ENTRY_POINT(PreInitialize4);
 	OCULUS_DECLARE_ENTRY_POINT(GetInitialized);
 	OCULUS_DECLARE_ENTRY_POINT(Initialize6);
 	OCULUS_DECLARE_ENTRY_POINT(Shutdown2);

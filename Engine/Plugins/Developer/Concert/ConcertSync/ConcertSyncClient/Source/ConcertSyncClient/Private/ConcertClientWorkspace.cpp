@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConcertClientWorkspace.h"
+#include "Algo/AllOf.h"
 #include "ConcertClientTransactionManager.h"
 #include "ConcertClientPackageManager.h"
 #include "ConcertClientLockManager.h"
 #include "IConcertClientPackageBridge.h"
 #include "IConcertClient.h"
+#include "IConcertClientWorkspace.h"
 #include "IConcertModule.h"
 #include "IConcertSession.h"
 #include "IConcertFileSharingService.h"
@@ -27,6 +29,7 @@
 #include "Misc/PackageName.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/App.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
@@ -110,6 +113,16 @@ private:
 	TArray<FScopedSlowTask*> TaskStack;
 	TArray<TUniquePtr<FScopedSlowTask>> ExtendedTaskLife;
 };
+
+void SetReflectEditorLevelVisibilityWithGame(bool InValue)
+{
+#if WITH_EDITOR
+	// Detail mode was modified, so store in the CVar
+	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("Editor.ReflectEditorLevelVisibilityWithGame"));
+	int32 ValAsInt = !!InValue;
+	CVar->Set(ValAsInt);
+#endif
+}
 
 
 FConcertClientWorkspace::FConcertClientWorkspace(TSharedRef<FConcertSyncClientLiveSession> InLiveSession, IConcertClientPackageBridge* InPackageBridge, IConcertClientTransactionBridge* InTransactionBridge, TSharedPtr<IConcertFileSharingService> InFileSharingService)
@@ -536,6 +549,7 @@ void FConcertClientWorkspace::HandleConnectionChanged(IConcertClientSession& InS
 		bHasSyncedWorkspace = false;
 		bFinalizeWorkspaceSyncRequested = false;
 		FConcertSlowTaskStackWorkaround::Get().PopTask(MoveTemp(InitialSyncSlowTask));
+		SetReflectEditorLevelVisibilityWithGame(false);
 	}
 }
 
@@ -688,7 +702,7 @@ void FConcertClientWorkspace::OnEndFrame()
 {
 	SCOPED_CONCERT_TRACE(FConcertClientWorkspace_OnEndFrame);
 
-	if (bFinalizeWorkspaceSyncRequested)
+	if (CanFinalize())
 	{
 		bFinalizeWorkspaceSyncRequested = false;
 
@@ -747,6 +761,8 @@ void FConcertClientWorkspace::OnEndFrame()
 		}
 	}
 	LiveSession->GetSessionDatabase().UpdateAsynchronousTasks();
+	const UConcertClientConfig *Config = GetDefault<UConcertClientConfig>();
+	SetReflectEditorLevelVisibilityWithGame(Config->ClientSettings.bReflectLevelEditorInGame);
 }
 
 void FConcertClientWorkspace::HandleWorkspaceSyncEndpointEvent(const FConcertSessionContext& Context, const FConcertWorkspaceSyncEndpointEvent& Event)
@@ -966,6 +982,28 @@ void FConcertClientWorkspace::SetIgnoreOnRestoreFlagForEmittedActivities(bool bI
 		// will be seen as 'should restore' by the system.
 		bPendingStopIgnoringActivityOnRestore = true;
 	}
+}
+
+bool FConcertClientWorkspace::CanFinalize() const
+{
+	return bFinalizeWorkspaceSyncRequested && Algo::AllOf(CanFinalizeDelegates, [](const TTuple<FName,FCanFinalizeWorkspaceDelegate>& Pair)
+		{
+			if (Pair.Get<1>().IsBound())
+			{
+				return Pair.Get<1>().Execute();
+			}
+			return true;
+		});
+}
+
+void FConcertClientWorkspace::AddWorkspaceFinalizeDelegate(FName InDelegateName, FCanFinalizeWorkspaceDelegate InDelegate)
+{
+	CanFinalizeDelegates.FindOrAdd(InDelegateName, MoveTemp(InDelegate));
+}
+
+void FConcertClientWorkspace::RemoveWorkspaceFinalizeDelegate(FName InDelegateName)
+{
+	CanFinalizeDelegates.Remove(InDelegateName);
 }
 
 #undef LOCTEXT_NAMESPACE

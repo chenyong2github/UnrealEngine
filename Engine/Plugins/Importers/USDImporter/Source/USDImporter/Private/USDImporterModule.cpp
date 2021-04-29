@@ -39,6 +39,10 @@ public:
 	{
 		Collector.AddReferencedObject(USDImporter);
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FUSDImporterModule");
+	}
 private:
 	UDEPRECATED_UUSDImporter* USDImporter;
 };

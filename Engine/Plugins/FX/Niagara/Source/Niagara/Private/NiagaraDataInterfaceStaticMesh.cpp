@@ -50,7 +50,7 @@ static FAutoConsoleVariableRef CVarNiagaraFailStaticMeshDataInterface(
 	ECVF_Default
 );
 
-static int32 GNDIStaticMesh_UseInlineLODsOnly = 1;
+static int32 GNDIStaticMesh_UseInlineLODsOnly = 0;
 static FAutoConsoleVariableRef CVarNDIStaticMesh_UseInlineLODsOnly(
 	TEXT("fx.Niagara.NDIStaticMesh.UseInlineLODsOnly"),
 	GNDIStaticMesh_UseInlineLODsOnly,
@@ -318,28 +318,35 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 		Mesh = nullptr; // Disallow usage of this mesh to prevent issues on cooked builds
 	}
 
-	TRefCountPtr<const FStaticMeshLODResources> LODData;
 	if (Mesh != nullptr)
 	{
-		// Check if any valid LODs are found. If not, we won't use this mesh
-		MinLOD = Mesh->GetMinLOD().GetValue();
+		// Determine desired LOD for this mesh, based on platform or CVar settings
+		// TODO: Maybe give the user the ability to force a lower LOD
+		DesiredLOD = Mesh->GetMinLOD().GetValue();
+		const FStreamableRenderResourceState& SRRState = Mesh->GetStreamableResourceState();
 		if ( GNDIStaticMesh_UseInlineLODsOnly )
 		{
-			MinLOD = Mesh->GetNumLODs() - Mesh->GetRenderData()->NumInlinedLODs;
+			DesiredLOD = FMath::Max(DesiredLOD, SRRState.LODCountToAssetFirstLODIdx(SRRState.NumNonStreamingLODs));
 		}
 
-		FStaticMeshRenderData* RenderData = Mesh->GetRenderData();
-		if (RenderData)
+		// Don't grab any LODs that are not resident or are being requested to stream out
+		const int32 NumValidLODs = FMath::Min(SRRState.NumRequestedLODs, SRRState.NumResidentLODs);
+		if (NumValidLODs > 0)
 		{
-			CachedLODIdx = RenderData->GetCurrentFirstLODIdx(MinLOD);
-			if (RenderData->LODResources.IsValidIndex(CachedLODIdx))
+			const int32 CurrentFirstLOD = SRRState.LODCountToAssetFirstLODIdx(NumValidLODs);
+			CachedLODIdx = FMath::Max(DesiredLOD, CurrentFirstLOD);
+			if (FStaticMeshRenderData* RenderData = Mesh->GetRenderData())
 			{
-				LODData = &RenderData->LODResources[CachedLODIdx];
+				if (ensure(RenderData->LODResources.IsValidIndex(CachedLODIdx)))
+				{
+					CachedLOD = &RenderData->LODResources[CachedLODIdx];
+				}
 			}
 		}
 
-		if (!LODData.IsValid())
+		if (!CachedLOD.IsValid())
 		{
+			// Failed to cache valid LOD data so bail on the mesh
 			Mesh = nullptr;
 		}
 	}
@@ -362,9 +369,9 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 		bIsGpuUniformlyDistributedSampling = bIsCpuUniformlyDistributedSampling && Mesh->bSupportGpuUniformlyDistributedSampling;
 
 		//Init the instance filter
-		for (int32 i = 0; i < LODData->Sections.Num(); ++i)
+		for (int32 i = 0; i < CachedLOD->Sections.Num(); ++i)
 		{
-			if (Interface->SectionFilter.AllowedMaterialSlots.Num() == 0 || Interface->SectionFilter.AllowedMaterialSlots.Contains(LODData->Sections[i].MaterialIndex))
+			if (Interface->SectionFilter.AllowedMaterialSlots.Num() == 0 || Interface->SectionFilter.AllowedMaterialSlots.Contains(CachedLOD->Sections[i].MaterialIndex))
 			{
 				ValidSections.Add(i);
 			}
@@ -375,7 +382,7 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 			UE_LOG(LogNiagara, Log, TEXT("StaticMesh data interface either has no current LODs or has a section filter preventing any spawning - %s"), *Interface->GetFullName());
 		}
 
-		Sampler.Init(LODData, this);
+		Sampler.Init(CachedLOD, this);
 
 		// Init socket information
 		const int32 NumMeshSockets = Mesh->Sockets.Num();
@@ -457,13 +464,6 @@ bool FNDIStaticMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceStaticMesh*
 
 	if (Mesh != nullptr)
 	{
-		// Currently we only reset if the cached LOD was streamed out, to avoid performance hits. To revisit.
-		// We could probably just recache the data derived from the LOD instead of resetting everything.
-		if (Mesh->GetRenderData()->GetCurrentFirstLODIdx(MinLOD) > CachedLODIdx)
-		{
-			return true;
-		}
-
 		// The following conditions look like they could only be triggered in Editor...
 		//bool bPrevVCSampling = bSupportingVertexColorSampling;//TODO: Vertex color filtering needs more work.
 		const bool bNewMeshAllowsCpuAccess = Mesh->bAllowCPUAccess;
@@ -471,7 +471,38 @@ bool FNDIStaticMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceStaticMesh*
 		const bool bNewIsGpuAreaWeightedSampling = bIsCpuUniformlyDistributedSampling && Mesh->bSupportGpuUniformlyDistributedSampling;
 
 		//bSupportingVertexColorSampling = bEnableVertexColorRangeSorting && MeshHasColors();
-		return bNewMeshAllowsCpuAccess != bMeshAllowsCpuAccess || bNewIsCpuAreaWeightedSampling != bIsCpuUniformlyDistributedSampling || bNewIsGpuAreaWeightedSampling != bIsGpuUniformlyDistributedSampling /* || bSupportingVertexColorSampling != bPrevVCSampling*/;
+		if (bNewMeshAllowsCpuAccess != bMeshAllowsCpuAccess
+			|| bNewIsCpuAreaWeightedSampling != bIsCpuUniformlyDistributedSampling
+			|| bNewIsGpuAreaWeightedSampling != bIsGpuUniformlyDistributedSampling
+			/* || bSupportingVertexColorSampling != bPrevVCSampling*/
+			)
+		{
+			// CPU access and/or sampling options have changed on the mesh, so we must reinit
+			return true;
+		}
+
+		// Validate our currently cached LOD
+		const FStreamableRenderResourceState& SRRState = Mesh->GetStreamableResourceState();
+		const int32 NumValidLODs = FMath::Min(SRRState.NumRequestedLODs, SRRState.NumResidentLODs);
+		if (NumValidLODs == 0)
+		{
+			// We had a valid LOD cached, but now there are none, so we must reinit and rebind
+			return true;
+		}
+
+		const int32 CurrentFirstLOD = SRRState.LODCountToAssetFirstLODIdx(NumValidLODs);
+		int NextCachedLODIdx = CachedLODIdx;
+		if (CurrentFirstLOD > CachedLODIdx)
+		{
+			NextCachedLODIdx = CurrentFirstLOD;
+		}
+		else if (CurrentFirstLOD < CachedLODIdx && CachedLODIdx > DesiredLOD)
+		{
+			NextCachedLODIdx = FMath::Max(CurrentFirstLOD, DesiredLOD);
+		}
+
+		// If we require another LOD, we must re-init to re-cache some things
+		return NextCachedLODIdx != CachedLODIdx;
 	}
 	
 	return false;
@@ -1258,13 +1289,8 @@ struct TTypedMeshAccessorBinder
 		FNDIStaticMesh_InstanceData* InstData = (FNDIStaticMesh_InstanceData*)InstanceData;
 		check(InstData);
 
-		TRefCountPtr<const FStaticMeshLODResources> Res;
-		if (InstData->bMeshValid)
-		{
-			Res = InstData->GetCurrentFirstLOD();
-		}
-		
-		if (!Res.IsValid())
+		const FStaticMeshLODResources* Res = InstData->CachedLOD;
+		if (Res == nullptr)
 		{
 			NextBinder::template Bind<ParamTypes..., TNullMeshVertexAccessor>(Interface, BindingInfo, InstanceData, OutFunc);
 			return;
@@ -1511,13 +1537,9 @@ bool UNiagaraDataInterfaceStaticMesh::InitPerInstanceData(void* PerInstanceData,
 	if (bSuccess)
 	{
 		FStaticMeshGpuSpawnBuffer* MeshGpuSpawnBuffer = nullptr;
-		TRefCountPtr<const FStaticMeshLODResources> GpuMeshLODResource;
-		if (Inst->bMeshValid)
-		{
-			GpuMeshLODResource = Inst->GetCurrentFirstLOD();
-		}
+		const FStaticMeshLODResources* GpuMeshLODResource = Inst->CachedLOD;
 
-		if (GpuMeshLODResource.IsValid() && IsUsedWithGPUEmitter(SystemInstance))
+		if (GpuMeshLODResource && IsUsedWithGPUEmitter(SystemInstance))
 		{
 			// Always allocate when bAllowCPUAccess (index buffer can only have SRV created in this case as of today)
 			// We do not know if this interface is allocated for CPU or GPU so we allocate for both case... TODO: have some cached data created in case a GPU version is needed?
@@ -1808,7 +1830,9 @@ void UNiagaraDataInterfaceStaticMesh::RandomSection(FVectorVMContext& Context)
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutSection(Context);
 
-	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+	const FStaticMeshLODResources* Res = InstData->CachedLOD;
+	check(Res); // sanity check - should have bound the invalid specialization below
+
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		*OutSection.GetDestAndAdvance() = RandomSection<TSampleMode, true>(Context.RandStream, *Res, InstData);
@@ -1898,8 +1922,9 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoord(FVectorVMContext& Context)
 	FNDIOutputParam<int32> OutTri(Context);
 	FNDIOutputParam<FVector> OutBary(Context);
 
-	check(InstData->StaticMesh.IsValid());
-	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+	const FStaticMeshLODResources* Res = InstData->CachedLOD;
+	check(Res && InstData->StaticMesh.IsValid()); // sanity check - should have bound the invalid specialization below
+
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		OutTri.SetAndAdvance(RandomTriIndex<TSampleMode, true>(Context.RandStream, *Res, InstData));
@@ -1934,7 +1959,8 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoordVertexColorFiltered(FVectorV
 	
 	// Handle no mesh case
 	//TODO: Maybe figure out a good way to stub this in bindings to prevent the branch
-	if (!InstData->bMeshValid)
+	const FStaticMeshLODResources* Res = InstData->CachedLOD;
+	if (!Res)
 	{
 		for (int32 i = 0; i < Context.NumInstances; ++i)
 		{
@@ -1944,8 +1970,7 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoordVertexColorFiltered(FVectorV
 		return;
 	}
 	
-	FDynamicVertexColorFilterData* VCFData = InstData->DynamicVertexColorSampler.Get();
-	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+	FDynamicVertexColorFilterData* VCFData = InstData->DynamicVertexColorSampler.Get();	
 	FIndexArrayView Indices = Res->IndexBuffer.GetArrayView();
 
 	for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -2011,10 +2036,9 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoordOnSection(FVectorVMContext& 
 	FNDIOutputParam<int32> OutTri(Context);
 	FNDIOutputParam<FVector> OutBary(Context);
 
-	// This is handled on bind
-	check(InstData->bMeshValid);
+	const FStaticMeshLODResources* Res = InstData->CachedLOD;
+	check(Res && InstData->bMeshValid); // sanity check - should have bound the invalid specialization below
 
-	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
 	FIndexArrayView Indices = Res->IndexBuffer.GetArrayView();
 	const int32 MaxSection = Res->Sections.Num() - 1;
 	if (MaxSection >= 0)
@@ -2066,7 +2090,9 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordPosition(FVectorVMContext& Cont
 
 	if (InstData->bMeshValid)
 	{
-		TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+		const FStaticMeshLODResources* Res = InstData->CachedLOD;
+		check(Res); // sanity check - if the mesh is valid, so should the LOD data be
+
 		const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
 		const FPositionVertexBuffer& Positions = Res->VertexBuffers.PositionVertexBuffer;
 		if ( (Indices.Num() > 0) && (Positions.GetNumVertices() > 0) && Positions.GetVertexData() )
@@ -2113,7 +2139,9 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordNormal(FVectorVMContext& Contex
 
 	if (InstData->bMeshValid)
 	{
-		TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+		const FStaticMeshLODResources* Res = InstData->CachedLOD;
+		check(Res); // sanity check - if the mesh is valid so should the LOD data be
+
 		const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
 		const FStaticMeshVertexBuffer& Verts = Res->VertexBuffers.StaticMeshVertexBuffer;
 		if ((Indices.Num() > 0) && (Verts.GetNumVertices() > 0) && Verts.GetTangentData())
@@ -2159,7 +2187,9 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordTangents(FVectorVMContext& Cont
 
 	if (InstData->bMeshValid)
 	{
-		TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+		const FStaticMeshLODResources* Res = InstData->CachedLOD;
+		check(Res); // sanity check - if the mesh is valid so should the LOD data be
+
 		const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
 		const VertexAccessorType Verts(Res->VertexBuffers.StaticMeshVertexBuffer);
 		if ((Indices.Num() > 0) && (Res->VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0) && Res->VertexBuffers.StaticMeshVertexBuffer.GetTangentData())
@@ -2204,7 +2234,9 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordColor(FVectorVMContext& Context
 
 	if (InstData->bMeshValid)
 	{
-		TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+		const FStaticMeshLODResources* Res = InstData->CachedLOD;
+		check(Res); // sanity check - if the mesh is valid so should the LOD data be
+
 		const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
 		const FColorVertexBuffer& Colors = Res->VertexBuffers.ColorVertexBuffer;
 		if ((Indices.Num() > 0) && (Colors.GetNumVertices() > 0) && Colors.GetVertexData())
@@ -2249,7 +2281,9 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordUV(FVectorVMContext& Context)
 
 	if (InstData->bMeshValid)
 	{
-		TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+		const FStaticMeshLODResources* Res = InstData->CachedLOD;
+		check(Res); // sanity check - if the mesh is valid so should the LOD data be
+
 		const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
 		const VertexAccessorType Verts(Res->VertexBuffers.StaticMeshVertexBuffer);
 		if ( (Indices.Num() > 0) && (Res->VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() > 0) && Res->VertexBuffers.StaticMeshVertexBuffer.GetTexCoordData() )
@@ -2291,7 +2325,9 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordPositionAndVelocity(FVectorVMCo
 
 	if (InstData->bMeshValid)
 	{
-		TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+		const FStaticMeshLODResources* Res = InstData->CachedLOD;
+		check(Res); // sanity check - if the mesh is valid so should the LOD data be
+
 		const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
 		const FPositionVertexBuffer& Positions = Res->VertexBuffers.PositionVertexBuffer;
 		if ( (Indices.Num() > 0) && (Positions.GetNumVertices() > 0) && Positions.GetVertexData() )
@@ -2427,7 +2463,9 @@ void UNiagaraDataInterfaceStaticMesh::GetVertexPosition(FVectorVMContext& Contex
 
 	if (InstData->bMeshValid)
 	{
-		TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+		const FStaticMeshLODResources* Res = InstData->CachedLOD;
+		check(Res); // sanity check - if the mesh is valid so should the LOD data be
+
 		const FPositionVertexBuffer& Positions = Res->VertexBuffers.PositionVertexBuffer;
 		const int32 NumVerts = Positions.GetNumVertices();
 		if ((NumVerts > 0) && Positions.GetVertexData())
@@ -3423,8 +3461,8 @@ bool FDynamicVertexColorFilterData::Init(FNDIStaticMesh_InstanceData* Owner)
 	VertexColorToTriangleStart.AddDefaulted(256);
 	check(Owner->bMeshValid);
 
-	TRefCountPtr<const FStaticMeshLODResources> Res = Owner->GetCurrentFirstLOD();
-	if (!Res.IsValid() || Res->VertexBuffers.ColorVertexBuffer.GetNumVertices() == 0)
+	const FStaticMeshLODResources* Res = Owner->CachedLOD;	
+	if (!Res || Res->VertexBuffers.ColorVertexBuffer.GetNumVertices() == 0)
 	{
 		UE_LOG(LogNiagara, Log, TEXT("Cannot initialize vertex color filter data for a mesh with no color data - %s"), *GetFullNameSafe(Owner->StaticMesh.Get()));
 		return false;

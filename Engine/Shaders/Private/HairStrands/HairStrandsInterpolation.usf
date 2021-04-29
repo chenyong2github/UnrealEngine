@@ -723,3 +723,32 @@ void MainCS(
 }
 
 #endif // SHADER_HAIRTRANSFER_PREV_POSITION
+
+#if SHADER_GROOMCACHE_UPDATE
+
+uint ElementCount;
+uint DispatchCountX;
+
+StructuredBuffer<float3> InAnimatedBuffer;
+Buffer<uint4> InRestPoseBuffer;
+Buffer<float4> InDeformedOffsetBuffer;
+RWBuffer<uint4> OutDeformedBuffer;
+
+#define GROUP_SIZE 64
+[numthreads(GROUP_SIZE, 1, 1)]
+void MainCS(
+	uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint Index = DispatchThreadId.x + DispatchThreadId.y * DispatchCountX * GROUP_SIZE;
+	if (Index >= ElementCount)
+	{
+		return;
+	}
+
+	uint4 PackedRestPosition = InRestPoseBuffer[Index];
+	float3 HairPositionOffset = InDeformedOffsetBuffer[0];
+	float3 WorldVertexPosition = InAnimatedBuffer[Index] - HairPositionOffset;
+	OutDeformedBuffer[Index] = uint4(f32tof16(WorldVertexPosition) , PackedRestPosition.w);
+}
+
+#endif // SHADER_GROOMCACHE_UPDATE

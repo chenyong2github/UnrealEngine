@@ -142,6 +142,10 @@ public:
 
 	//~ FGCObject
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FARSupportInterface");
+	}
 	//~ FGCObject
 
 	// Pass through helpers to create the methods needed to add/remove delegates from the AR system

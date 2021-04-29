@@ -4,23 +4,73 @@
 
 #include "CoreMinimal.h"
 #include "RHI.h"
+#include "RHIResources.h"
 
 class FTextureResource;
 class FTextureRenderTargetResource;
-class IDMXPixelMappingRenderer;
 class UTextureRenderTarget2D;
 class UMaterialInterface;
 class UUserWidget;
 enum class EDMXPixelBlendingQuality : uint8;
 
 /**
- * FDMXPixelMappingRendererPreviewInfo holds properties for the group rendering of multiple downsampled textures
+ * Used in shader permutation for determining number of samples to use in texture blending.
+ * If adding to this you must also adjust the public facing option: 'EPixelBlendingQuality' under the runtime module's DMXPixelMappingOutputComponent.h
  */
-struct FDMXPixelMappingRendererPreviewInfo
+enum class EDMXPixelShaderBlendingQuality : uint8
 {
-	const FTextureResource* TextureResource = nullptr;
-	FVector2D TextureSize;
-	FVector2D TexturePosition;
+	Low,
+	Medium,
+	High,
+
+	MAX
+};
+
+/**
+ * Downsample pixel preview rendering params.
+ * Using for pixel rendering setting in preview
+ */
+struct FDMXPixelMappingDownsamplePixelPreviewParam
+{
+	/** Position in screen pixels of the top left corner of the quad */
+	FVector2D ScreenPixelPosition;
+
+	/** Size in screen pixels of the quad */
+	FVector2D ScreenPixelSize;
+
+	/** Downsample pixel position in screen pixels of the quad */
+	FIntPoint DownsamplePosition;
+};
+
+/**
+ * Downsample pixel rendering params
+ * Using for pixel rendering in downsample rendering pipeline
+ */
+struct FDMXPixelMappingDownsamplePixelParam
+{
+	/** RGBA pixel multiplication */
+	FVector4 PixelFactor;
+
+	/** RGBA pixel flag for inversion */
+	FIntVector4 InvertPixel;
+
+	/** Position in screen pixels of the top left corner of the quad */
+	FIntPoint Position;
+
+	/** Position in texels of the top left corner of the quad's UV's */
+	FVector2D UV;
+
+	/** Size in texels of the quad's total UV space */
+	FVector2D UVSize;
+
+	/** Size in texels of UV.May match UVSize */
+	FVector2D UVCellSize;
+
+	/** The quality of color samples in the pixel shader(number of samples) */
+	EDMXPixelBlendingQuality CellBlendingQuality;
+
+	/** Calculates the UV point to sample purely on the UV position/size. Works best for renderers which represent a single pixel */
+	bool bStaticCalculateUV;
 };
 
 /**
@@ -30,47 +80,27 @@ class IDMXPixelMappingRenderer
 	: public TSharedFromThis<IDMXPixelMappingRenderer>
 {
 public:
-	using SurfaceReadCallback = TFunction<void(TArray<FColor>&, FIntRect&)>;
+	using DownsampleReadCallback = TFunction<void(TArray<FColor>&&, FIntRect)>;
 
 public:
 	/** Virtual destructor */
-	virtual ~IDMXPixelMappingRenderer() {}
+	virtual ~IDMXPixelMappingRenderer() = default;
 
 	/**
-	 * Downsample and Draw input texture to Destination texture. TODO: May want to refactor to use FRenderContext directly.
+	 * Downsample and Draw input texture to Destination texture.
 	 *
 	 * @param InputTexture					Rendering resource of input texture
 	 * @param DstTexture					Rendering resource of RenderTarget texture
-	 * @param DstTextureTargetResource		Rendering resource for render target
-	 * @param PixelFactor					RGBA pixel multiplicator
-	 * @param InvertPixel					RGBA pixel flag for inversion
-	 * @param Position 						Position in screen pixels of the top left corner of the quad
-	 * @param Size    						Size in screen pixels of the quad
-	 * @param UV							Position in texels of the top left corner of the quad's UV's
-	 * @param UVSize    					Size in texels of the quad's total UV space
-	 * @param UVCellSize					Size in texels of UV. May match UVSize
-	 * @param TargetSize					Size in texels of the target texture
-	 * @param TextureSize					Size in texels of the source texture
-	 * @param ReadCallback					ReadSurfaceData from DstTextureTargetResource callback, it holds CPU FColor array and size of the read surface
-	 * @param CellBlendingQuality			The quality of color samples in the pixel shader (number of samples)
-	 * @param bStaticCalculateUV			Calculates the UV point to sample purely on the UV position/size. Works best for renderers which represent a single pixel
+	 * @param InDownsamplePixelPass			Pixels rendering params
+	 * @param InCallback					Callback for reading  the pixels from GPU to CPU			
 	 */
-	virtual void DownsampleRender_GameThread(
-		FTextureResource* InputTexture,
-		FTextureResource* DstTexture,
-		FTextureRenderTargetResource* DstTextureTargetResource,
-		const FVector4& PixelFactor,
-		const FIntVector4& InvertPixel,
-		const FVector2D& Position,
-		const FVector2D& Size,
-		const FVector2D& UV,
-		const FVector2D& UVSize,
-		const FVector2D& UVCellSize,
-		const FIntPoint& TargetSize,
-		const FIntPoint& TextureSize,
-		EDMXPixelBlendingQuality CellBlendingQuality,
-		bool bStaticCalculateUV,
-		SurfaceReadCallback ReadCallback) = 0;
+	 virtual void DownsampleRender(
+		const FTextureResource* InputTexture,
+		const FTextureResource* DstTexture,
+		const FTextureRenderTargetResource* DstTextureTargetResource,
+		TArray<FDMXPixelMappingDownsamplePixelParam>&& InDownsamplePixelPass,
+		DownsampleReadCallback InCallback
+	) const = 0;
 
 	/**
 	 * Render material into the RenderTarget2D
@@ -96,22 +126,23 @@ public:
 	 * @param InSize						Rendering size
 	 * @param bSRGBSource					If the source texture is sRGB
 	 */
-	virtual void RenderTextureToRectangle_GameThread(const FTextureResource* InTextureResource, const FTexture2DRHIRef InRenderTargetTexture, FVector2D InSize, bool bSRGBSource) const = 0;
+	virtual void RenderTextureToRectangle(const FTextureResource* InTextureResource, const FTexture2DRHIRef InRenderTargetTexture, FVector2D InSize, bool bSRGBSource) const = 0;
 
 #if WITH_EDITOR
 	/**
 	 * Render preview with one or multiple downsampled textures
 	 *
 	 * @param TextureResource				Rendering resource of RenderTarget texture
-	 * @param PreviewInfos					Array of input previews
+	 * @param DownsampleResource			Rendering resource of RenderTarget texture
+	 * @param InPixelPreviewParamSet		Pixels rendering params
 	 */
-	virtual void RenderPreview_GameThread(FTextureResource* TextureResource, const TArray<FDMXPixelMappingRendererPreviewInfo>& PreviewInfos) const = 0;
+	virtual void RenderPreview(const FTextureResource* TextureResource, const FTextureResource* DownsampleResource, TArray<FDMXPixelMappingDownsamplePixelPreviewParam>&& InPixelPreviewParamSet) const = 0;
 #endif // WITH_EDITOR
 
 	/**
 	* Sets the brigthness of the renderer
 	*/
-	void SetBrightness(float InBrightness) { Brightness = InBrightness; }
+	void SetBrightness(const float InBrightness) { Brightness = InBrightness; }
 
 protected:
 	/** Brightness multiplier for the renderer */

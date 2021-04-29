@@ -259,9 +259,6 @@ void FHoloLensARSystem::OnStartARSession(UARSessionConfig* InSessionConfig)
 		return;
 	}
 	SessionConfig = InSessionConfig;
-	
-	MeshComponentClass = SessionConfig->GetMeshComponentClass();
-	QRComponentClass = SessionConfig->GetQRCodeComponentClass();
 
 #if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 
@@ -1053,7 +1050,10 @@ void FHoloLensARSystem::AddOrUpdateMesh(FMeshUpdate* CurrentMesh)
 		
 		bIsAdd = true;
 		
-		AARActor::RequestSpawnARActor(CurrentMesh->Id, MeshComponentClass);
+		if (SessionConfig != nullptr)
+		{
+			AARActor::RequestSpawnARActor(CurrentMesh->Id, SessionConfig->GetMeshComponentClass());
+		}
 	}
 
 	UARTrackedGeometry* NewUpdatedGeometry = FoundTrackedGeometryGroup->TrackedGeometry;
@@ -1216,7 +1216,10 @@ void FHoloLensARSystem::QRCodeAdded_GameThread(FQRCodeData* InCode)
 
 		//		DebugDumpQRData(InCode);
 		
-		AARActor::RequestSpawnARActor(InCode->Id, QRComponentClass);
+		if (SessionConfig != nullptr)
+		{
+			AARActor::RequestSpawnARActor(InCode->Id, SessionConfig->GetQRCodeComponentClass());
+		}
 	}
 	delete InCode;
 }

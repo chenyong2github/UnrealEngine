@@ -141,7 +141,9 @@ namespace UAudio
 			SystemThread = FRunnableThread::Create(this, TEXT("Audio System Thread"), 0, TPri_Normal);
 		}
 
+#if WITH_DEV_AUTOMATION_TESTS
 		InitializeSystemTests(this);
+#endif
 
 		return bSuccess;
 	}
@@ -182,8 +184,10 @@ namespace UAudio
 					UE_LOG(LogUnrealAudio, Display, TEXT("Failed to create an audio device stream."));
 					return false;
 				}
-
+				
+#if WITH_DEV_AUTOMATION_TESTS
 				InitializeDeviceTests(this);
+#endif
 
 				if (!UnrealAudioDevice->StartStream())
 				{
@@ -316,8 +320,10 @@ namespace UAudio
 
 			ExecuteAudioThreadCommands();
 
+#if WITH_DEV_AUTOMATION_TESTS
 			// call the update system test function for any test code that needs to be performed in system thread
 			FUnrealAudioModule::UpdateSystemTests();
+#endif
 
 			// To sleep the audio system thread for a set amount of time at regular intervals
 			// we need to subtract how long the update took from a set delta update time
@@ -490,8 +496,10 @@ namespace UAudio
 
 	bool FUnrealAudioModule::AudioDeviceCallback(struct FCallbackInfo& CallbackInfo)
 	{
+#if WITH_DEV_AUTOMATION_TESTS
 		// do any test device callbacks
 		DeviceTestCallback(CallbackInfo);
+#endif
 		
 		VoiceManager.Mix(CallbackInfo);
 

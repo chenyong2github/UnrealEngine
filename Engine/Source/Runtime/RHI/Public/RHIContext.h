@@ -32,6 +32,20 @@ enum class EAsyncComputeBudget;
 
 #define VALIDATE_UNIFORM_BUFFER_STATIC_BINDINGS (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
 
+#if !defined(RHI_WANT_BREADCRUMB_EVENTS)
+	#define RHI_WANT_BREADCRUMB_EVENTS 0
+#endif
+
+#if RHI_WANT_BREADCRUMB_EVENTS
+struct FRHIBreadcrumb
+{
+	FRHIBreadcrumb* Parent{};
+	const TCHAR* Name{};
+};
+
+struct FRHIBreadcrumbState;
+#endif
+
 /** A list of static uniform buffer bindings. */
 class FUniformBufferStaticBindings
 {
@@ -320,6 +334,21 @@ public:
 		checkNoEntry();
 	}
 
+#if RHI_WANT_BREADCRUMB_EVENTS
+	inline void RHISetBreadcrumbStackTop(FRHIBreadcrumb* Breadcrumb)
+	{
+		BreadcrumbStackTop = Breadcrumb;
+	}
+
+	const FRHIBreadcrumb* const * GetBreadcrumbStackTopRef() const
+	{
+		return &BreadcrumbStackTop;
+	}
+
+	// Top of the breadcrumb stack on the RHI thread.
+	FRHIBreadcrumb* BreadcrumbStackTop = nullptr;
+#endif
+
 #if ENABLE_RHI_VALIDATION
 
 	RHIValidation::FTracker* Tracker = nullptr;
@@ -341,6 +370,9 @@ public:
 	inline IRHIComputeContext& GetHighestLevelContext() { return *this; }
 
 #endif
+
+	virtual void* RHIGetNativeCommandBuffer() { return nullptr; }
+	virtual void RHIPostExternalCommandsReset() { }
 };
 
 enum class EAccelerationStructureBuildMode

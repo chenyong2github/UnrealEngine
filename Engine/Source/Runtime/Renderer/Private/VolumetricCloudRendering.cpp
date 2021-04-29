@@ -2248,6 +2248,14 @@ bool FSceneRenderer::RenderVolumetricCloud(
 
 					DestinationRTDepth = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(FIntPoint(RtSize.X, RtSize.Y), PF_G16R16F, FClearValueBinding::Black,
 						TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV), TEXT("Cloud.DummyDepth"));
+
+					if (bShouldUseHighQualityAerialPerspective && ShouldUseComputeForCloudTracing())
+					{
+						// If using the compute path, we then need to clear the intermediate render target manually as RDG won't do it for us in this case.
+						AddClearRenderTargetPass(GraphBuilder, IntermediateRT);
+						AddClearRenderTargetPass(GraphBuilder, DestinationRTDepth);
+					}
+
 					CloudRC.RenderTargets[0] = FRenderTargetBinding(bShouldUseHighQualityAerialPerspective ? IntermediateRT : DestinationRT, bShouldUseHighQualityAerialPerspective ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
 					CloudRC.RenderTargets[1] = FRenderTargetBinding(DestinationRTDepth, bShouldUseHighQualityAerialPerspective ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction);
 
@@ -2287,6 +2295,8 @@ bool FSceneRenderer::RenderVolumetricCloud(
 				// Render high quality sky light shaft on clouds.
 				if (bShouldUseHighQualityAerialPerspective)
 				{
+					RDG_EVENT_SCOPE(GraphBuilder, "HighQualityAerialPerspectiveOnCloud");
+
 					FSkyAtmosphereRenderSceneInfo& SkyInfo = *Scene->GetSkyAtmosphereSceneInfo();
 					const FSkyAtmosphereSceneProxy& SkyAtmosphereSceneProxy = SkyInfo.GetSkyAtmosphereSceneProxy();
 					const FAtmosphereSetup& AtmosphereSetup = SkyAtmosphereSceneProxy.GetAtmosphereSetup();

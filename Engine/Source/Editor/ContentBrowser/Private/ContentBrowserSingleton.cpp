@@ -18,6 +18,8 @@
 #include "SCollectionPicker.h"
 #include "SContentBrowser.h"
 #include "ContentBrowserModule.h"
+#include "IContentBrowserDataModule.h"
+#include "ContentBrowserDataSubsystem.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "IDocumentation.h"
@@ -848,7 +850,7 @@ FText FContentBrowserSingleton::GetContentBrowserTabLabel(int32 BrowserIdx)
 	}
 }
 
-void FContentBrowserSingleton::SetSelectedPaths(const TArray<FString>& FolderPaths, bool bNeedsRefresh/* = false*/)
+void FContentBrowserSingleton::SetSelectedPaths(const TArray<FString>& FolderPaths, bool bNeedsRefresh/* = false*/, bool bPathsAreVirtual/* = false*/)
 {
 	// Make sure we have a valid browser
 	if (!PrimaryContentBrowser.IsValid())
@@ -863,7 +865,17 @@ void FContentBrowserSingleton::SetSelectedPaths(const TArray<FString>& FolderPat
 
 	if (PrimaryContentBrowser.IsValid())
 	{
-		PrimaryContentBrowser.Pin()->SetSelectedPaths(FolderPaths, bNeedsRefresh);
+		if (bPathsAreVirtual)
+		{
+			PrimaryContentBrowser.Pin()->SetSelectedPaths(FolderPaths, bNeedsRefresh);
+		}
+		else
+		{
+			if (UContentBrowserDataSubsystem* ContentBrowserDataSubsystem = IContentBrowserDataModule::Get().GetSubsystem())
+			{
+				PrimaryContentBrowser.Pin()->SetSelectedPaths(ContentBrowserDataSubsystem->ConvertInternalPathsToVirtual(FolderPaths), bNeedsRefresh);
+			}
+		}
 	}
 }
 

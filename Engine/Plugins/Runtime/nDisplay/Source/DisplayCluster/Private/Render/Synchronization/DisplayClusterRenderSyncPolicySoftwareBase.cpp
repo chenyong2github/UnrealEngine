@@ -3,6 +3,7 @@
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicySoftwareBase.h"
 
 #include "Misc/DisplayClusterLog.h"
+#include "DisplayClusterConfigurationStrings.h"
 
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
@@ -100,6 +101,12 @@ FDisplayClusterRenderSyncPolicySoftwareBase::FDisplayClusterRenderSyncPolicySoft
 }
 
 
+FName FDisplayClusterRenderSyncPolicySoftwareBase::GetName() const
+{
+	static const FName Policy = DisplayClusterConfigurationStrings::config::cluster::render_sync::Ethernet;
+	return Policy;
+}
+
 bool FDisplayClusterRenderSyncPolicySoftwareBase::SynchronizeClusterRendering(int32& InOutSyncInterval)
 {
 	if(!(GEngine && GEngine->GameViewport && GEngine->GameViewport->Viewport))
@@ -149,8 +156,6 @@ bool FDisplayClusterRenderSyncPolicySoftwareBase::SynchronizeClusterRendering(in
 			bNeedEnginePresent = false;
 		}
 	}
-
-	DXOutput->Release();
 
 	++FrameCounter;
 

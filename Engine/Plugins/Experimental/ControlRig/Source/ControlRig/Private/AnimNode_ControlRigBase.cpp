@@ -119,7 +119,7 @@ void FAnimNode_ControlRigBase::UpdateInput(UControlRig* ControlRig, const FPoseC
 			ControlRig->GetHierarchy()->SetGlobalTransform(Key, ComponentTransform, false);
 		}
 
-		
+					
 #if WITH_EDITOR
 		ControlRig->ApplyTransformOverrideForUserCreatedBones();
 #endif
@@ -188,10 +188,10 @@ void FAnimNode_ControlRigBase::UpdateOutput(UControlRig* ControlRig, FPoseContex
 			{
 				// this causes a side effect of marking the curve as "valid"
 				// so only apply it for curves that have really changed
-				InOutput.Curve.Set(Index, Value);
-			}
+			InOutput.Curve.Set(Index, Value);
 		}
 	}
+}
 }
 
 void FAnimNode_ControlRigBase::Evaluate_AnyThread(FPoseContext& Output)

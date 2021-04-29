@@ -289,6 +289,35 @@ struct FGPUDriverInfo
 	// get VendorId
 	bool IsNVIDIA() const { return VendorId == 0x10DE; }
 
+	bool IsSameDriverVersionGeneration(const TCHAR* InOpWithMultiInt) const
+	{
+		if (IsIntel())
+		{
+			const TCHAR* p = InOpWithMultiInt;
+			FString DriverVersion = GetUnifiedDriverVersion();
+
+			EComparisonOp Op = ParseComparisonOp(p);
+
+			FMultiInt<6> A, B;
+
+			A.GetValue(*DriverVersion);
+			B.Parse(p);
+
+			// https://www.intel.com/content/www/us/en/support/articles/000005654/graphics.html
+			// Version format changed in April 2018 starting with xx.xx.100.xxxx
+			if (!((A.Value[4] >= 100) ^ (B.Value[4] >= 100)))
+			{
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		
+		return true;
+	}
+
 	FString GetUnifiedDriverVersion() const
 	{
 		// we use the internal version, not the user version to avoid problem where the name was altered 
@@ -318,6 +347,18 @@ struct FGPUDriverInfo
 		}
 		else if(IsIntel())
 		{
+			// https://www.intel.com/content/www/us/en/support/articles/000005654/graphics.html
+			// Drop off the OS and DirectX version
+			// 27.20.100.8935 -> 100.8935
+			int32 DotIndex = FullVersion.Find(TEXT("."), ESearchCase::CaseSensitive, ESearchDir::FromStart);
+			if (DotIndex != INDEX_NONE)
+			{
+				DotIndex = FullVersion.Find(TEXT("."), ESearchCase::CaseSensitive, ESearchDir::FromStart, DotIndex + 1);
+				if (DotIndex != INDEX_NONE)
+				{
+					return FullVersion.RightChop(DotIndex + 1);
+				}
+			}
 		}
 		return FullVersion;
 	}
@@ -369,7 +410,14 @@ struct FBlackListEntry
 
 			if (!DriverVersionString.IsEmpty())
 			{
-				return CompareStringOp(*DriverVersionString, *Info.GetUnifiedDriverVersion());
+				if (Info.IsSameDriverVersionGeneration(*DriverVersionString))
+				{
+					return CompareStringOp(*DriverVersionString, *Info.GetUnifiedDriverVersion());
+				}
+				else
+				{
+					return false;
+				}
 			}
 			else
 			{
@@ -510,7 +558,7 @@ struct FGPUHardware
 				Version.DeviceDescription = TEXT("Intel(R) HD Graphics 4600");
 				Version.InternalDriverVersion = TEXT("9.18.10.3310");
 				Version.DriverDate = TEXT("9-17-2013");
-				check(Version.GetUnifiedDriverVersion() == TEXT("9.18.10.3310"));
+				check(Version.GetUnifiedDriverVersion() == TEXT("10.3310"));
 			}
 		}
 #endif// !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -629,7 +677,7 @@ struct FGPUHardware
 		}
 		else if(DriverInfo.IsIntel())
 		{
-			return TEXT("GPU_0x8086");
+			return TEXT("GPU_Intel");
 		}
 		// more GPU vendors can be added on demand
 		return 0;

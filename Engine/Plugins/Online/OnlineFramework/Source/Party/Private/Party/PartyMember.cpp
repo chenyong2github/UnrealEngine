@@ -27,9 +27,9 @@ void FPartyMemberRepData::CompareAgainst(const FOnlinePartyRepDataBase& OldData)
 {
 	const FPartyMemberRepData& TypedOldData = static_cast<const FPartyMemberRepData&>(OldData);
 
-	ComparePlatform(TypedOldData);
-	ComparePlatformUniqueId(TypedOldData);
-	ComparePlatformSessionId(TypedOldData);
+	ComparePlatformDataPlatform(TypedOldData);
+	ComparePlatformDataUniqueId(TypedOldData);
+	ComparePlatformDataSessionId(TypedOldData);
 	CompareCrossplayPreference(TypedOldData);
 }
 
@@ -102,8 +102,8 @@ void UPartyMember::InitializeLocalMemberRepData()
 {
 	UE_LOG(LogParty, Verbose, TEXT("Initializing rep data for local member [%s]"), *ToDebugString());
 
-	MemberDataReplicator->SetPlatform(IOnlineSubsystem::GetLocalPlatformName());
-	MemberDataReplicator->SetPlatformUniqueId(SocialUser->GetUserId(ESocialSubsystem::Platform));
+	MemberDataReplicator->SetPlatformDataPlatform(IOnlineSubsystem::GetLocalPlatformName());
+	MemberDataReplicator->SetPlatformDataUniqueId(SocialUser->GetUserId(ESocialSubsystem::Platform));
 }
 
 void UPartyMember::Shutdown()
@@ -155,12 +155,12 @@ USocialUser& UPartyMember::GetSocialUser() const
 
 FString UPartyMember::GetDisplayName() const
 {
-	return OssPartyMember->GetDisplayName(GetRepData().GetPlatform());
+	return OssPartyMember->GetDisplayName(GetRepData().GetPlatformDataPlatform());
 }
 
 FName UPartyMember::GetPlatformOssName() const
 {
-	return MemberDataReplicator->GetPlatformUniqueId().GetType();
+	return MemberDataReplicator->GetPlatformDataUniqueId().GetType();
 }
 
 FString UPartyMember::ToDebugString(bool bIncludePartyId) const

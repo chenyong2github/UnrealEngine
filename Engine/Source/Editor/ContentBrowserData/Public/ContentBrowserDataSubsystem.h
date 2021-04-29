@@ -4,10 +4,20 @@
 
 #include "CoreMinimal.h"
 #include "EditorSubsystem.h"
+#include "Misc/StringBuilder.h"
 #include "Containers/SortedMap.h"
+#include "Containers/StringView.h"
 #include "ContentBrowserItem.h"
 #include "ContentBrowserDataFilter.h"
 #include "ContentBrowserDataSubsystem.generated.h"
+
+UENUM(BlueprintType)
+enum class EContentBrowserPathType : uint8
+{
+	None,
+	Internal,
+	Virtual
+};
 
 /** Called for incremental item data updates from data sources that can provide delta-updates */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnContentBrowserItemDataUpdated, TArrayView<const FContentBrowserItemDataUpdate>);
@@ -17,6 +27,9 @@ DECLARE_MULTICAST_DELEGATE(FOnContentBrowserItemDataRefreshed);
 
 /** Called when all active data sources have completed their initial content discovery scan. May be called multiple times if new data sources are registered after the current set of active data sources have completed their initial scan */
 DECLARE_MULTICAST_DELEGATE(FOnContentBrowserItemDataDiscoveryComplete);
+
+/** Called when generating a virtual path, allows customization of how a virtual path is generated. */
+DECLARE_DELEGATE_TwoParams(FContentBrowserGenerateVirtualPathDelegate, const FStringView, FStringBuilderBase&);
 
 /** Internal - Filter data used to inject dummy items for the path down to the mount root of each data source */
 USTRUCT()
@@ -51,6 +64,7 @@ public:
 	//~ UEditorSubsystem interface
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
+	virtual void ConvertInternalPathToVirtual(const FStringView InPath, FStringBuilderBase& OutPath) override;
 
 	/**
 	 * Attempt to activate the named data source.
@@ -198,6 +212,64 @@ public:
 	 */
 	void Legacy_TryConvertAssetDataToVirtualPaths(const FAssetData& InAssetData, const bool InUseFolderPaths, TFunctionRef<bool(FName)> InCallback);
 
+	/**
+	 * Rebuild the virtual path tree if rules have changed.
+	 */
+	void RefreshVirtualPathTreeIfNeeded();
+
+	/**
+	 * Call when rules of virtual path generation have changed beyond content browser settings.
+	 */
+	void SetVirtualPathTreeNeedsRebuild();
+
+	/**
+	 * Converts an internal path to a virtual path based on current rules
+	 */
+	void ConvertInternalPathToVirtual(const FStringView InPath, FName& OutPath);
+	void ConvertInternalPathToVirtual(FName InPath, FName& OutPath);
+	FName ConvertInternalPathToVirtual(FName InPath);
+	TArray<FString> ConvertInternalPathsToVirtual(const TArray<FString>& InPaths);
+
+	/**
+	 * Converts virtual path back into an internal or invariant path
+	 */
+	EContentBrowserPathType TryConvertVirtualPath(const FName InPath, FName& OutPath) const;
+
+	/**
+	 * Returns array of paths converted to internal.
+	 */
+	TArray<FString> TryConvertVirtualPathsToInternal(const TArray<FString>& InVirtualPaths) const;
+
+	/**
+	 * Customize list of folders that appear first in content browser based on internal or invariant paths
+	 */
+	void SetPathViewSpecialSortFolders(const TArray<FName>& InSpecialSortFolders);
+
+	/**
+	 * Returns reference to list of paths that appear first in content browser based on internal or invariant paths
+	 */
+	const TArray<FName>& GetPathViewSpecialSortFolders() const;
+
+	/**
+	 * Returns reference to default list of paths that appear first in content browser based on internal or invariant paths
+	 */
+	const TArray<FName>& GetDefaultPathViewSpecialSortFolders() const;
+
+	/**
+	 * Set delegate used to generate a virtual path.
+	 */
+	void SetGenerateVirtualPathPrefixDelegate(const FContentBrowserGenerateVirtualPathDelegate& InDelegate);
+
+	/**
+	 * Delegate called to generate a virtual path. Can be set to override default behavior.
+	 */
+	FContentBrowserGenerateVirtualPathDelegate& OnGenerateVirtualPathPrefix();
+
+	/**
+	 * Prefix to use when generating virtual paths and "Show All Folder" option is enabled
+	 */
+	const FString& GetAllFolderPrefix() const;
+
 private:
 	using FNameToDataSourceMap = TSortedMap<FName, UContentBrowserDataSource*, FDefaultAllocator, FNameFastLess>;
 
@@ -276,4 +348,24 @@ private:
 	 * @note May be called multiple times if new data sources are registered after the current set of active data sources have completed their initial scan.
 	 */
 	FOnContentBrowserItemDataDiscoveryComplete ItemDataDiscoveryCompleteDelegate;
+
+	/**
+	 * Generates an optional virtual path prefix for a given internal path
+	 */
+	FContentBrowserGenerateVirtualPathDelegate GenerateVirtualPathPrefixDelegate;
+
+	/**
+	 * Optional array of invariant paths to use when sorting
+	 */
+	TArray<FName> PathViewSpecialSortFolders;
+
+	/**
+	 * Default array of invariant paths to use when sorting
+	 */
+	TArray<FName> DefaultPathViewSpecialSortFolders;
+
+	/**
+	 * Prefix to use when generating virtual paths and "Show All Folder" option is enabled
+	 */
+	FString AllFolderPrefix;
 };

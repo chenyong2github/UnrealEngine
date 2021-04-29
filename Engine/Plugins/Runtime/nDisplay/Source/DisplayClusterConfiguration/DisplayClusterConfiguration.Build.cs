@@ -7,12 +7,15 @@ public class DisplayClusterConfiguration : ModuleRules
 {
 	public DisplayClusterConfiguration(ReadOnlyTargetRules ROTargetRules) : base(ROTargetRules)
 	{
+		DefaultBuildSettings = BuildSettingsVersion.V2;
+
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
 				"DisplayCluster",
-				"DisplayClusterInput",
 				"DisplayClusterPostprocess",
-				"DisplayClusterProjection"
+				"DisplayClusterProjection",
+				"OpenColorIO",
+				"ActorLayerUtilities"
 			});
 
 		PrivateDependencyModuleNames.AddRange(
@@ -21,7 +24,11 @@ public class DisplayClusterConfiguration : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"Json",
-				"JsonUtilities"
+				"JsonUtilities",
+				"OpenColorIO",
+				"ActorLayerUtilities"
 			});
+
+		PublicDefinitions.Add("WITH_OCIO=0");
 	}
 }

@@ -405,6 +405,20 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// verify that we aren't creating a platform module when we definitely don't want it
+			if (Target.OptedInModulePlatforms != null)
+			{
+				// figure out what platforms/groups aren't allowed with this opted in list
+				List<string> DisallowedPlatformsAndGroups = Utils.MakeListOfUnsupportedPlatforms(Target.OptedInModulePlatforms.ToList(), false);
+
+				// check if the module file is disallowed
+				if (ModuleFileName.ContainsAnyNames(DisallowedPlatformsAndGroups, UnrealBuildTool.EngineDirectory) ||
+					(Target.ProjectFile != null && ModuleFileName.ContainsAnyNames(DisallowedPlatformsAndGroups, Target.ProjectFile.Directory)))
+				{
+					throw new BuildException("Platform module file {0} is not allowed (only platforms '{1}', and their groups, are allowed. This indicates a module reference not being checked with something like IsPlatformAvailableForTarget()).",
+						ModuleFileName, string.Join(",", Target.OptedInModulePlatforms));
+				}
+			}
 
 
 			// Figure out the best rules object to use
@@ -602,6 +616,23 @@ namespace UnrealBuildTool
 			if (Rules.bDisableUnverifiedCertificates)
 			{
 				Rules.GlobalDefinitions.Add("DISABLE_UNVERIFIED_CERTIFICATE_LOADING=1");
+			}
+
+			// if the Target has opted in only some platforms, disable any plugins of other platforms (there may be editor, etc, modules that
+			// will just add themselves, with no other reference to be able to remove them, other than disabling them here)
+			if (Rules.OptedInModulePlatforms != null)
+			{
+				// figure out what platforms/groups aren't allowed with this opted in list
+				List<string> DisallowedPlatformsAndGroups = Utils.MakeListOfUnsupportedPlatforms(Rules.OptedInModulePlatforms.ToList(), false);
+
+				// look in all plugins' paths to see if any disallowed
+				IEnumerable<PluginInfo> DisallowedPlugins = EnumeratePlugins().Where(Plugin =>
+					Plugin.File.ContainsAnyNames(DisallowedPlatformsAndGroups, UnrealBuildTool.EngineDirectory) ||
+					(Rules.ProjectFile != null && Plugin.File.ContainsAnyNames(DisallowedPlatformsAndGroups, Rules.ProjectFile.Directory)));
+				// log out the plugins we are disabling
+				DisallowedPlugins.ToList().ForEach(x => Log.TraceLog($"Disallowing non-opted-in platform plugin {x.File}"));
+				// and, disable these plugins
+				Rules.DisablePlugins.AddRange(DisallowedPlugins.Select(x => x.Name));
 			}
 
 			// Allow the platform to finalize the settings

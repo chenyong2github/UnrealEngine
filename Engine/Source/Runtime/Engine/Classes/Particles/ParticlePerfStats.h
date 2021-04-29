@@ -7,6 +7,7 @@
 #include "HAL/PlatformTime.h"
 #include "Misc/CoreMiscDefines.h"
 #include "Containers/Array.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 
 #define WITH_GLOBAL_RUNTIME_FX_BUDGET (!UE_SERVER)
@@ -22,6 +23,8 @@
 
 #define WITH_PER_SYSTEM_PARTICLE_PERF_STATS (WITH_PARTICLE_PERF_STATS && !UE_BUILD_SHIPPING)
 #define WITH_PER_COMPONENT_PARTICLE_PERF_STATS (WITH_PARTICLE_PERF_STATS && !UE_BUILD_SHIPPING)
+
+#define WITH_PARTICLE_PERF_CSV_STATS WITH_PER_SYSTEM_PARTICLE_PERF_STATS && CSV_PROFILER && !UE_BUILD_SHIPPING
 
 struct FParticlePerfStats;
 class UWorld;

@@ -5,7 +5,7 @@
 #include "CoreTypes.h"
 #include "Trace/Config.h"
 
-#if (PLATFORM_WINDOWS || PLATFORM_MAC) && !UE_BUILD_SHIPPING
+#if !UE_BUILD_SHIPPING
 #define PLATFORMFILETRACE_ENABLED 1
 #else
 #define PLATFORMFILETRACE_ENABLED 0

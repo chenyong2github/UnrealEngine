@@ -46,7 +46,7 @@ public:
 
 public:
 	/** Creates a track. We don't call UMovieSceneTrackRecorder::CreateTrack or CreateTrackImpl since that expects an  ObjectToRecord and a GUID which isn't needed. */
-	TWeakObjectPtr<UMovieSceneDMXLibraryTrack> CreateTrack(UMovieScene* InMovieScene, UDMXLibrary* Library, const TArray<FDMXEntityFixturePatchRef>& InFixturePatchRefs, bool bDiscardSamplesBeforeStart, UMovieSceneTrackRecorderSettings* InSettingsObject);
+	TWeakObjectPtr<UMovieSceneDMXLibraryTrack> CreateTrack(UMovieScene* InMovieScene, UDMXLibrary* Library, const TArray<FDMXEntityFixturePatchRef>& InFixturePatchRefs, bool bDiscardSamplesBeforeStart, bool bRecordNormalizedValues);
 
 	/** Sets if keys should be reduced */
 	void SetReduceKeys(bool bInReduce) { bReduceKeys = bInReduce; }

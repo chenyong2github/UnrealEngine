@@ -114,6 +114,10 @@ struct FCustomSection : public ISequencerSection, public FGCObject
 	{
 		Collector.AddReferencedObject(Section);
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FCustomSection");
+	}
 
 	UMovieSceneSection* Section;
 };

@@ -12,7 +12,9 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Layout/WidgetPath.h"
 #include "ScopedTransaction.h"
+#include "Classes/EditorStyleSettings.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
+#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraActions"
 
@@ -38,6 +40,51 @@ TOptional<FNiagaraVariable> FNiagaraMenuAction::GetParameterVariable() const
 void FNiagaraMenuAction::SetParamterVariable(const FNiagaraVariable& InParameterVariable)
 {
 	ParameterVariable = InParameterVariable;
+}
+
+FNiagaraMenuAction_Base::FNiagaraMenuAction_Base(FText InDisplayName, ENiagaraMenuSections InSection,
+	TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords)
+{
+	DisplayName = InDisplayName;
+	Section = InSection;
+	Categories = InNodeCategories;
+	ToolTip = InToolTip;
+	Keywords = InKeywords;
+
+	UpdateFullSearchText();
+}
+
+void FNiagaraMenuAction_Base::UpdateFullSearchText()
+{
+	FullSearchString.Reset();
+	
+	TArray<FString> KeywordsArray;
+	Keywords.ToString().ParseIntoArray(KeywordsArray, TEXT(" "), true);
+
+	TArray<FString> TooltipArray;
+	ToolTip.ToString().ParseIntoArray(TooltipArray, TEXT(" "), true);
+
+	for (FString& Entry : KeywordsArray)
+	{
+		Entry.ToLowerInline();
+		FullSearchString += Entry;
+	}
+
+	FullSearchString.Append(LINE_TERMINATOR);
+
+	for (FString& Entry : TooltipArray)
+	{
+		Entry.ToLowerInline();
+		FullSearchString += Entry;
+	}
+
+	FullSearchString.Append(LINE_TERMINATOR);
+
+	for (FString Entry : Categories)
+	{
+		Entry.ToLowerInline();
+		FullSearchString += Entry;
+	}
 }
 
 /************************************************************************/
@@ -91,6 +138,104 @@ void FNiagaraParameterAction::SetIsNamespaceModifierRenamePending(bool bIsNamesp
 			ParameterNamesWithNamespaceModifierRenamePending->Remove(Parameter.GetName());
 		}
 	}
+}
+
+UEdGraphNode* FNiagaraAction_NewNode::CreateNode(UEdGraph* ParentGraph, UEdGraphPin* FromPin, FVector2D NodePosition, bool bSelectNewNode) const
+{
+	// see niagara schema 
+	int32 NiagaraNodeDistance = 60;
+	
+	UEdGraphNode* ResultNode = nullptr;
+
+	// If there is a template, we actually use it
+	if (NodeTemplate != nullptr)
+	{
+		FString OutErrorMsg;
+		UNiagaraNode* NiagaraNodeTemplate = Cast<UNiagaraNode>(NodeTemplate);
+		if (NiagaraNodeTemplate && !NiagaraNodeTemplate->CanAddToGraph(CastChecked<UNiagaraGraph>(ParentGraph), OutErrorMsg))
+		{
+			if (OutErrorMsg.Len() > 0)
+			{
+				FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(OutErrorMsg));
+			}
+			return ResultNode;
+		}
+
+		const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "NiagaraEditorNewNode", "Niagara Editor: New Node"));
+		ParentGraph->Modify();
+
+		NodeTemplate->SetFlags(RF_Transactional);
+
+		// set outer to be the graph so it doesn't go away
+		NodeTemplate->Rename(NULL, ParentGraph, REN_NonTransactional);
+		ParentGraph->AddNode(NodeTemplate, true, bSelectNewNode);
+
+		NodeTemplate->CreateNewGuid();
+		NodeTemplate->PostPlacedNewNode();
+		NodeTemplate->AllocateDefaultPins();
+		NodeTemplate->AutowireNewNode(FromPin);
+
+		// For input pins, new node will generally overlap node being dragged off
+		// Work out if we want to visually push away from connected node
+		int32 XLocation = NodePosition.X;
+		if (FromPin && FromPin->Direction == EGPD_Input)
+		{
+			UEdGraphNode* PinNode = FromPin->GetOwningNode();
+			const float XDelta = FMath::Abs(PinNode->NodePosX - NodePosition.X);
+
+			if (XDelta < NiagaraNodeDistance)
+			{
+				// Set location to edge of current node minus the max move distance
+				// to force node to push off from connect node enough to give selection handle
+				XLocation = PinNode->NodePosX - NiagaraNodeDistance;
+			}
+		}
+
+		NodeTemplate->NodePosX = XLocation;
+		NodeTemplate->NodePosY = NodePosition.Y;
+		NodeTemplate->SnapToGrid(GetDefault<UEditorStyleSettings>()->GridSnapSize);
+
+		ResultNode = NodeTemplate;
+
+		ParentGraph->NotifyGraphChanged();
+	}
+
+	return ResultNode;
+}
+
+UEdGraphNode* FNiagaraAction_NewNode::CreateNode(UEdGraph* Graph, TArray<UEdGraphPin*>& FromPins, FVector2D NodePosition,	bool bSelectNewNode) const
+{
+	UEdGraphNode* ResultNode = NULL;
+
+	if (FromPins.Num() > 0)
+	{
+		ResultNode = CreateNode(Graph, FromPins[0], NodePosition, bSelectNewNode);
+
+		if (ResultNode)
+		{
+			// Try autowiring the rest of the pins
+			for (int32 Index = 1; Index < FromPins.Num(); ++Index)
+			{
+				ResultNode->AutowireNewNode(FromPins[Index]);
+			}
+		}
+	}
+	else
+	{
+		ResultNode = CreateNode(Graph, nullptr, NodePosition, bSelectNewNode);
+	}
+
+	return ResultNode;
+}
+
+TOptional<FNiagaraVariable> FNiagaraMenuAction_Generic::GetParameterVariable() const
+{
+	return ParameterVariable;
+}
+
+void FNiagaraMenuAction_Generic::SetParameterVariable(const FNiagaraVariable& InParameterVariable)
+{
+	ParameterVariable = InParameterVariable;
 }
 
 /************************************************************************/
@@ -181,6 +326,12 @@ FReply FNiagaraParameterGraphDragOperation::DroppedOnPanel(const TSharedRef<SWid
 			UNiagaraGraph* NiagaraGraph = Cast<UNiagaraGraph>(&Graph);
 			UNiagaraScriptVariable* ScriptVariable = NiagaraGraph->GetScriptVariable(ParameterAction->GetParameter());
 
+			// if the ScriptVariable is a nullptr, it is likely that the action was dropped on a panel different than the original
+			if(ScriptVariable == nullptr)
+			{
+				return FReply::Handled();
+			}
+			
 			FNiagaraParameterNodeConstructionParams NewNodeParams;
 			NewNodeParams.Graph = &Graph;
 			NewNodeParams.GraphPosition = GraphPosition;
@@ -189,6 +340,8 @@ FReply FNiagaraParameterGraphDragOperation::DroppedOnPanel(const TSharedRef<SWid
 			// Take into account current state of modifier keys in case the user changed his mind
 			FModifierKeysState ModifierKeys = FSlateApplication::Get().GetModifierKeys();
 			const bool bModifiedKeysActive = ModifierKeys.IsControlDown() || ModifierKeys.IsAltDown();
+			const bool bAutoCreateGetter = bModifiedKeysActive ? ModifierKeys.IsControlDown() : bControlDrag;
+			const bool bAutoCreateSetter = bModifiedKeysActive ? ModifierKeys.IsAltDown() : bAltDrag;
 			
 			if(ScriptVariable->Metadata.GetIsStaticSwitch())
 			{
@@ -196,8 +349,6 @@ FReply FNiagaraParameterGraphDragOperation::DroppedOnPanel(const TSharedRef<SWid
 				return FReply::Handled();
 			}
 			
-			const bool bAutoCreateGetter = bModifiedKeysActive ? ModifierKeys.IsControlDown() : bControlDrag;
-			const bool bAutoCreateSetter = bModifiedKeysActive ? ModifierKeys.IsAltDown() : bAltDrag;
 			// Handle Getter/Setters
 			if (bAutoCreateGetter || bAutoCreateSetter)
 			{

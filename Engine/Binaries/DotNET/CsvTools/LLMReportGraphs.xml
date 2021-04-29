@@ -23,7 +23,7 @@
 		<baseSettings maxHierarchyDepth="4" stacked="0" hideStatPrefix="Meshes/;Audio/;" requiresDetailedStats="0" thickness="100" compression="0.05" />
 
 		<graph title="Total">
-			<statString>Total Untracked TrackedTotal</statString>
+			<statString>Total,Untracked,TrackedTotal</statString>
 		</graph>
 
 		<!-- ignoreStats should include all parent LLM tags -->
@@ -33,16 +33,16 @@
 
 		<!-- top level LLM summary graphs -->
 		<graph title="Content Summary" stacked="1" thickness="100" maxHierarchyDepth="-1">
-			<statString>Shaders Materials MaterialInstance Meshes/* Audio/AudioSoundWaves Animation</statString>
+			<statString>Shaders,Materials,MaterialInstance,Meshes/*,Audio/AudioSoundWaves,Animation</statString>
 		</graph>
 		<graph title="Misc Summary">
-			<statString>EngineInit EnginePreInit EngineMisc TaskGraphMiscTasks FName GC Localization AssetRegistry ConfigSystem</statString>
+			<statString>EngineInit,EnginePreInit,EngineMisc,TaskGraphMiscTasks,FName,GC,Localization,AssetRegistry,ConfigSystem</statString>
 		</graph>
 		<graph title="Rendering Summary">
-			<statString>RenderingThread RenderTargets PSO SceneRender RHIMisc Graphics</statString>
+			<statString>RenderingThread,RenderTargets,PSO,SceneRender,RHIMisc,Graphics</statString>
 		</graph>
 		<graph title="Development Summary">
-			<statString>Stats CsvProfiler</statString>
+			<statString>Stats,CsvProfiler</statString>
 		</graph>	
 
 		<!-- general graphs -->

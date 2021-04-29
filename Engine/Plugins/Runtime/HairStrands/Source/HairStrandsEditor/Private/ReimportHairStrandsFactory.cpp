@@ -151,7 +151,7 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 				}
 			}
 
-			TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayImportOptions(CurrentOptions, GroupsPreview, CurrentFilename);
+			TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayImportOptions(CurrentOptions, nullptr, GroupsPreview, CurrentFilename);
 
 			if (!GroomOptionWindow->ShouldImport())
 			{

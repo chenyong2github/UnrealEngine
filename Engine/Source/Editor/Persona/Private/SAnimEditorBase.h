@@ -80,6 +80,10 @@ public:
 
 	// FGCObject interface start
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SAnimEditorBase");
+	}
 	// FGCObject interface end
 
 	/** Creates a anchor widget for each animation editor type */

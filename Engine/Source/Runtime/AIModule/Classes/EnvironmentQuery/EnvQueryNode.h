@@ -24,7 +24,7 @@ class AIMODULE_API UEnvQueryNode : public UObject
 	virtual FText GetDescriptionTitle() const;
 	virtual FText GetDescriptionDetails() const;
 
-#if WITH_EDITOR && USE_EQS_DEBUGGER
+#if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif //WITH_EDITOR && USE_EQS_DEBUGGER
+#endif //WITH_EDITOR
 };

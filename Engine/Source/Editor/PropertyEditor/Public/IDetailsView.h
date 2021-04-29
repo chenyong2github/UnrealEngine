@@ -80,6 +80,8 @@ struct FDetailsViewArgs
 	bool bShowOptions : 1;
 	/** True if you want to show the object label */
 	bool bShowObjectLabel : 1;
+	UE_DEPRECATED(5.0, "bShowActorLabel has been renamed bShowObjectLabel")
+	bool bShowActorLabel : 1;
 	/** True if you want to show the 'Show Only Modified Properties'. Only valid in conjunction with bShowOptions */
 	bool bShowModifiedPropertiesOption : 1;
 	/** Bind this delegate to hide differing properties */
@@ -155,7 +157,15 @@ public:
 		bSearchInitialKeyFocus = InSearchInitialKeyFocus;
 		ViewIdentifier = InViewIdentifier;
 	}
+
+	FDetailsViewArgs(const FDetailsViewArgs&);
+	FDetailsViewArgs& operator=(const FDetailsViewArgs&);
 };
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+inline FDetailsViewArgs::FDetailsViewArgs(const FDetailsViewArgs&) = default;
+inline FDetailsViewArgs& FDetailsViewArgs::operator=(const FDetailsViewArgs&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
 /**

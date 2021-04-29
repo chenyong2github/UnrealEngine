@@ -2,12 +2,18 @@
 
 #include "SRemoteControlPanel.h"
 
+#include "ActorEditorUtils.h"
+#include "ClassViewerFilter.h"
+#include "ClassViewerModule.h"
 #include "Editor.h"
 #include "Editor/EditorPerformanceSettings.h"
 #include "EditorFontGlyphs.h"
+#include "EngineUtils.h"
 #include "Engine/Selection.h"
 #include "Layout/Visibility.h"
 #include "Input/Reply.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GameFramework/Actor.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlPanelStyle.h"
@@ -17,6 +23,7 @@
 #include "RemoteControlActor.h"
 #include "RemoteControlField.h"
 #include "RemoteControlUIModule.h"
+#include "SClassViewer.h"
 #include "SRCPanelExposedEntitiesList.h"
 #include "SRCPanelFunctionPicker.h"
 #include "SRCPanelFieldGroup.h"
@@ -30,9 +37,26 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Kismet/BlueprintFunctionLibrary.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanel"
+
+namespace RemoteControlPanelUtils
+{
+	bool IsExposableActor(AActor* Actor)
+	{
+		return Actor->IsEditable()
+            && Actor->IsListedInSceneOutliner()						// Only add actors that are allowed to be selected and drawn in editor
+            && !Actor->IsTemplate()									// Should never happen, but we never want CDOs
+            && !Actor->HasAnyFlags(RF_Transient)					// Don't add transient actors in non-play worlds
+            && !FActorEditorUtils::IsABuilderBrush(Actor)			// Don't add the builder brush
+            && !Actor->IsA(AWorldSettings::StaticClass());	// Don't add the WorldSettings actor, even though it is technically editable
+	};
+
+	UWorld* GetEditorWorld()
+	{
+		return GEditor ? GEditor->GetEditorWorldContext(false).World() : nullptr;
+	}
+}
 
 void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPreset* InPreset)
 {
@@ -70,10 +94,8 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 				.ButtonStyle(FEditorStyle::Get(), "FlatButton")
 				.OnClicked(this, &SRemoteControlPanel::OnCreateGroup)
 				[
-					SNew(STextBlock)
-					.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-					.Text(FText::FromString(FString(TEXT("\xf07b"))) /*fa-plus-square-o*/)
+					SNew(SImage)
+					.Image(FEditorStyle::GetBrush("SceneOutliner.NewFolderIcon"))
 				]
 			]
 			// Function library picker
@@ -81,45 +103,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			.Padding(FMargin(5.0f, 0.0f))
 			.AutoWidth()
 			[
-				SAssignNew(BlueprintPicker, SRCPanelFunctionPicker)
-				.AllowDefaultObjects(true)
-				.Label(LOCTEXT("FunctionLibrariesLabel", "Function Libraries"))
-				.ObjectClass(UBlueprintFunctionLibrary::StaticClass())
-				.OnSelectFunction_Raw(this, &SRemoteControlPanel::ExposeFunction)
-			]
-			// Actor function picker
-			+ SHorizontalBox::Slot()
-			.Padding(FMargin(5.0f, 0.0f))
-			.AutoWidth()
-			[
-				SAssignNew(ActorFunctionPicker, SRCPanelFunctionPicker)
-				.Label(LOCTEXT("ActorFunctionsLabel", "Actor Functions"))
-				.ObjectClass(AActor::StaticClass())
-				.OnSelectFunction_Raw(this, &SRemoteControlPanel::ExposeFunction)
-			]
-			// Subsystem function picker
-			+ SHorizontalBox::Slot()
-			.Padding(FMargin(5.0f, 0.0f))
-			.AutoWidth()
-			[
-				SAssignNew(SubsystemFunctionPicker, SRCPanelFunctionPicker)
-				.Label(LOCTEXT("SubsystemFunctionLabel", "Subsystem Functions"))
-				.ObjectClass(USubsystem::StaticClass())
-				.OnSelectFunction_Raw(this, &SRemoteControlPanel::ExposeFunction)
-			]
-			
-			// Expose actor
-			+ SHorizontalBox::Slot()
-			.Padding(FMargin(5.0f, 0.0f))
-			.AutoWidth()
-			[
-				SNew(SObjectPropertyEntryBox)
-					.AllowedClass(AActor::StaticClass())
-					.OnObjectChanged(this, &SRemoteControlPanel::OnExposeActor)
-					.AllowClear(false)
-					.DisplayUseSelected(true)
-					.DisplayBrowse(true)
-					.NewAssetFactories(TArray<UFactory*>())
+				CreateExposeButton()
 			]
 
 			+ SHorizontalBox::Slot()
@@ -166,6 +150,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	}
 
 	RegisterEvents();
+	CacheLevelClasses();
 	Refresh();
 }
 
@@ -294,20 +279,245 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateCPUThrottleButton() const
 		];
 }
 
+TSharedRef<SWidget> SRemoteControlPanel::CreateExposeButton()
+{	
+	FMenuBuilder MenuBuilder(true, nullptr);
+
+	SAssignNew(BlueprintPicker, SRCPanelFunctionPicker)
+		.AllowDefaultObjects(true)
+		.Label(LOCTEXT("FunctionLibrariesLabel", "Function Libraries"))
+		.ObjectClass(UBlueprintFunctionLibrary::StaticClass())
+		.OnSelectFunction_Raw(this, &SRemoteControlPanel::ExposeFunction);
+
+	SAssignNew(SubsystemFunctionPicker, SRCPanelFunctionPicker)
+		.Label(LOCTEXT("SubsystemFunctionLabel", "Subsystem Functions"))
+		.ObjectClass(USubsystem::StaticClass())
+		.OnSelectFunction_Raw(this, &SRemoteControlPanel::ExposeFunction);
+
+	SAssignNew(ActorFunctionPicker, SRCPanelFunctionPicker)
+		.Label(LOCTEXT("ActorFunctionsLabel", "Actor Functions"))
+		.ObjectClass(AActor::StaticClass())
+		.OnSelectFunction_Raw(this, &SRemoteControlPanel::ExposeFunction);
+	
+	MenuBuilder.BeginSection(NAME_None, LOCTEXT("ExposeHeader", "Expose"));
+	{
+		constexpr bool bNoIndent = true;
+		constexpr bool bSearchable = false;
+
+		auto CreatePickerSubMenu = [this, bNoIndent, bSearchable, &MenuBuilder] (const FText& Label, const FText& ToolTip, const TSharedRef<SWidget>& Widget)
+		{
+			MenuBuilder.AddSubMenu(
+				Label,
+				ToolTip,
+				FNewMenuDelegate::CreateLambda(
+					[this, bNoIndent, bSearchable, Widget](FMenuBuilder& MenuBuilder)
+					{
+						MenuBuilder.AddWidget(Widget, FText::GetEmpty(), bNoIndent, bSearchable);
+						FSlateApplication::Get().SetKeyboardFocus(Widget, EFocusCause::Navigation);
+					}
+				)
+			);
+		};
+
+		CreatePickerSubMenu(
+			LOCTEXT("BlueprintFunctionLibraryFunctionSubMenu", "Blueprint Function Library Function"),
+			LOCTEXT("FunctionLibraryFunctionSubMenuToolTip", "Expose a function from a blueprint function library."),
+			BlueprintPicker.ToSharedRef()
+		);
+		
+		CreatePickerSubMenu(
+			LOCTEXT("SubsystemFunctionSubMenu", "Subsystem Function"),
+			LOCTEXT("SubsystemFunctionSubMenuToolTip", "Expose a function from a subsytem."),
+			SubsystemFunctionPicker.ToSharedRef()
+		);
+		
+		CreatePickerSubMenu(
+			LOCTEXT("ActorFunctionSubMenu", "Actor Function"),
+			LOCTEXT("SubsystemFunctionSubMenuToolTip", "Expose an actor's function."),
+			ActorFunctionPicker.ToSharedRef()
+		);
+		
+		MenuBuilder.AddWidget(
+			SNew(SObjectPropertyEntryBox)
+				.AllowedClass(AActor::StaticClass())
+				.OnObjectChanged(this, &SRemoteControlPanel::OnExposeActor)
+				.AllowClear(false)
+				.DisplayUseSelected(true)
+				.DisplayBrowse(true)
+				.NewAssetFactories(TArray<UFactory*>()),
+			LOCTEXT("ActorEntry", "Actor"));
+
+		CreatePickerSubMenu(
+			LOCTEXT("ClassPickerEntry", "Actors By Class"),
+			LOCTEXT("ClassPickerEntrySubMenuToolTip", "Expose all actors of the chosen class."),
+			CreateExposeByClassWidget()
+		);
+	}
+	MenuBuilder.EndSection();
+	
+	return SAssignNew(ExposeComboButton, SComboButton)
+	.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
+	.ForegroundColor(FSlateColor::UseForeground())
+	.CollapseMenuOnParentFocus(true)
+	.ButtonContent()
+	[
+		SNew(STextBlock)
+		.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+		.Text(LOCTEXT("ExposeButtonLabel", "Expose"))
+	]
+	.MenuContent()
+	[
+		MenuBuilder.MakeWidget()
+	];
+}
+
+TSharedRef<SWidget> SRemoteControlPanel::CreateExposeByClassWidget()
+{
+	class FActorClassInLevelFilter : public IClassViewerFilter
+	{
+	public:
+		FActorClassInLevelFilter(const TSet<TWeakObjectPtr<const UClass>>& InClasses)
+			: Classes(InClasses)
+		{
+		}
+		
+		virtual bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef<FClassViewerFilterFuncs> InFilterFuncs) override
+		{
+			return Classes.Contains(TWeakObjectPtr<const UClass>{InClass});
+		}
+
+		virtual bool IsUnloadedClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const TSharedRef<const class IUnloadedBlueprintData> InUnloadedClassData, TSharedRef<class FClassViewerFilterFuncs> InFilterFuncs) override
+		{
+			return false;
+		}
+
+	public:		
+		const TSet<TWeakObjectPtr<const UClass>>& Classes;
+	};
+
+	TSharedPtr<FActorClassInLevelFilter> Filter = MakeShared<FActorClassInLevelFilter>(CachedClassesInLevel);
+	
+	FClassViewerInitializationOptions Options;
+	{
+		Options.ClassFilter = Filter;
+		Options.bIsPlaceableOnly = true;
+		Options.Mode = EClassViewerMode::ClassPicker;
+		Options.DisplayMode = EClassViewerDisplayMode::ListView;
+		Options.bShowObjectRootClass = true;
+		Options.bShowNoneOption = false;
+		Options.bShowUnloadedBlueprints = false;
+	}
+	
+	TSharedRef<SWidget> Widget = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options, FOnClassPicked::CreateLambda(
+		[this](UClass* ChosenClass)
+		{
+			if (UWorld* World = RemoteControlPanelUtils::GetEditorWorld())
+			{
+				for (TActorIterator<AActor> It(World, ChosenClass, EActorIteratorFlags::SkipPendingKill); It; ++It)
+				{
+					if (RemoteControlPanelUtils::IsExposableActor(*It))
+					{
+						ExposeActor(*It);
+					}
+				}
+			}
+
+			if (ExposeComboButton)
+			{
+				ExposeComboButton->SetIsOpen(false);
+			}
+		}));
+
+	ClassPicker = StaticCastSharedRef<SClassViewer>(Widget);
+
+	return SNew(SBox)
+		.MinDesiredWidth(200.f)
+		[
+			Widget
+		];
+}
+
+void SRemoteControlPanel::CacheLevelClasses()
+{
+	CachedClassesInLevel.Empty();	
+	if (UWorld* World = RemoteControlPanelUtils::GetEditorWorld())
+	{
+		for (TActorIterator<AActor> It(World, AActor::StaticClass(), EActorIteratorFlags::SkipPendingKill); It; ++It)
+		{
+			CacheActorClass(*It);
+		}
+		
+		if (ClassPicker)
+		{
+			ClassPicker->Refresh();
+		}
+	}
+}
+
+void SRemoteControlPanel::OnActorAddedToLevel(AActor* Actor)
+{
+	if (Actor)
+	{
+		CacheActorClass(Actor);
+		if (ClassPicker)
+		{
+			ClassPicker->Refresh();
+		}
+	}
+}
+
+void SRemoteControlPanel::CacheActorClass(AActor* Actor)
+{
+	if (RemoteControlPanelUtils::IsExposableActor(Actor))
+	{
+		UClass* Class = Actor->GetClass();
+		do
+		{
+			CachedClassesInLevel.Emplace(Class);
+			Class = Class->GetSuperClass();
+		}
+		while(Class != UObject::StaticClass() && Class != nullptr);
+	}
+}
+
+void SRemoteControlPanel::OnMapChange(uint32)
+{
+	CacheLevelClasses();
+	
+	if (ClassPicker)
+	{
+		ClassPicker->Refresh();	
+	}
+}
+
 void SRemoteControlPanel::RegisterEvents()
 {
+	FEditorDelegates::MapChange.AddSP(this, &SRemoteControlPanel::OnMapChange);
+	
 	if (GEditor)
 	{
 		GEditor->OnBlueprintReinstanced().AddSP(this, &SRemoteControlPanel::OnBlueprintReinstanced);
+	}
+
+	if (GEngine)
+	{
+		GEngine->OnLevelActorAdded().AddSP(this, &SRemoteControlPanel::OnActorAddedToLevel);
 	}
 }
 
 void SRemoteControlPanel::UnregisterEvents()
 {
+	if (GEngine)
+	{
+		GEngine->OnLevelActorAdded().RemoveAll(this);
+	}
+	
 	if (GEditor)
 	{
 		GEditor->OnBlueprintReinstanced().RemoveAll(this);
 	}
+
+	FEditorDelegates::MapChange.RemoveAll(this);
 }
 
 void SRemoteControlPanel::Refresh()
@@ -394,6 +604,11 @@ void SRemoteControlPanel::ExposeProperty(UObject* Object, FRCFieldPathInfo Path)
 
 void SRemoteControlPanel::ExposeFunction(UObject* Object, UFunction* Function)
 {
+	if (ExposeComboButton)
+	{
+		ExposeComboButton->SetIsOpen(false);
+	}
+	
 	FScopedTransaction Transaction(LOCTEXT("ExposeFunction", "ExposeFunction"));
 	Preset->Modify();
 
@@ -404,11 +619,20 @@ void SRemoteControlPanel::ExposeFunction(UObject* Object, UFunction* Function)
 
 void SRemoteControlPanel::OnExposeActor(const FAssetData& AssetData)
 {
-	if (AActor* Actor = Cast<AActor>(AssetData.GetAsset()))
+	ExposeActor(Cast<AActor>(AssetData.GetAsset()));
+}
+
+void SRemoteControlPanel::ExposeActor(AActor* Actor)
+{
+	if (Actor)
 	{
 		FScopedTransaction Transaction(LOCTEXT("ExposeActor", "Expose Actor"));
 		Preset->Modify();
-		Preset->ExposeActor(Actor);
+		
+		FRemoteControlPresetExposeArgs Args;
+		Args.GroupId = GetSelectedGroup();
+		
+		Preset->ExposeActor(Actor, Args);
 	}
 }
 

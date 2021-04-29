@@ -417,11 +417,18 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 FConcertClientTransactionBridge::FConcertClientTransactionBridge()
 	: bHasBoundUnderlyingLocalTransactionEvents(false)
 	, bIgnoreLocalTransactions(false)
+	, bIncludeEditorOnlyProperties(true)
 {
 	ConditionalBindUnderlyingLocalTransactionEvents();
 
 	FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FConcertClientTransactionBridge::OnEngineInitComplete);
 	FCoreDelegates::OnEndFrame.AddRaw(this, &FConcertClientTransactionBridge::OnEndFrame);
+}
+
+FConcertClientTransactionBridge::FConcertClientTransactionBridge(bool bInIncludeEditorOnlyProperties)
+	: FConcertClientTransactionBridge()
+{
+	bIncludeEditorOnlyProperties = bInIncludeEditorOnlyProperties;
 }
 
 FConcertClientTransactionBridge::~FConcertClientTransactionBridge()
@@ -544,7 +551,7 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 	FOngoingTransaction* TrackedTransaction = OngoingTransactions.Find(InTransactionEvent.GetOperationId());
 
 	// TODO: This needs to send both editor-only and non-editor-only payload data to the server, which will forward only the correct part to cooked and non-cooked clients
-	bool bIncludeEditorOnlyProperties = true;
+
 
 	{
 		const TCHAR* ObjectEventString = TEXT("");

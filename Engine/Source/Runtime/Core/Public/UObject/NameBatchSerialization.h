@@ -6,7 +6,7 @@
 #include "UObject/NameTypes.h"
 #include "Templates/Function.h"
 
-#define ALLOW_NAME_BATCH_SAVING (UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT) && PLATFORM_LITTLE_ENDIAN && !PLATFORM_TCHAR_IS_4_BYTES
+#define ALLOW_NAME_BATCH_SAVING (UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT || WITH_EDITOR) && PLATFORM_LITTLE_ENDIAN && !PLATFORM_TCHAR_IS_4_BYTES
 
 #if ALLOW_NAME_BATCH_SAVING
 // Save comparison entries in given order to a name blob and a versioned hash blob.

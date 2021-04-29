@@ -442,7 +442,7 @@ FPrimitiveSceneProxy* USkinnedMeshComponent::CreateSceneProxy()
 		// Only create a scene proxy if the bone count being used is supported, or if we don't have a skeleton (this is the case with destructibles)
 		int32 MinLODIndex = ComputeMinLOD();
 		int32 MaxBonesPerChunk = SkelMeshRenderData->GetMaxBonesPerSection(MinLODIndex);
-		int32 MaxSupportedNumBones = MeshObject->IsCPUSkinned() ? MAX_int32 : GetFeatureLevelMaxNumberOfBones(SceneFeatureLevel);
+		int32 MaxSupportedNumBones = MeshObject->IsCPUSkinned() ? MAX_int32 : FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones();
 		if (MaxBonesPerChunk <= MaxSupportedNumBones)
 		{
 			Result = ::new FSkeletalMeshSceneProxy(this, SkelMeshRenderData);
@@ -569,7 +569,7 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 			else
 			{
 				int32 MaxBonesPerChunk = SkelMeshRenderData->GetMaxBonesPerSection(MinLODIndex);
-				int32 MaxSupportedGPUSkinBones = FMath::Min(GetFeatureLevelMaxNumberOfBones(SceneFeatureLevel), FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones());
+				int32 MaxSupportedGPUSkinBones = FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones();
 				int32 NumBoneInfluences = SkelMeshRenderData->GetNumBoneInfluences(MinLODIndex);
 				FString FeatureLevelName; GetFeatureLevelName(SceneFeatureLevel, FeatureLevelName);
 

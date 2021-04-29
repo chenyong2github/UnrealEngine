@@ -2011,6 +2011,7 @@ void FFindInBlueprintSearchManager::Initialize()
 	GConfig->GetBool(TEXT("BlueprintSearchSettings"), TEXT("bEnableDeveloperMenuTools"), bEnableDeveloperMenuTools, GEditorIni);
 	GConfig->GetBool(TEXT("BlueprintSearchSettings"), TEXT("bDisableSearchResultTemplates"), bDisableSearchResultTemplates, GEditorIni);
 
+#if CSV_PROFILER
 	// If profiling has been enabled, turn on the stat category and begin a capture.
 	if (bEnableCSVStatsProfiling)
 	{
@@ -2021,6 +2022,7 @@ void FFindInBlueprintSearchManager::Initialize()
 			FCsvProfiler::Get()->BeginCapture(-1, CaptureFolder);
 		}
 	}
+#endif
 
 	// Must ensure we do not attempt to load the AssetRegistry Module while saving a package, however, if it is loaded already we can safely obtain it
 	if (!GIsSavingPackage || (GIsSavingPackage && FModuleManager::Get().IsModuleLoaded(TEXT("AssetRegistry"))))

@@ -167,8 +167,73 @@ public:
 
 	double TickAsyncLoading_ProcessLoadedPackages;
 
-
 	double LinkerLoad_SerializeNameMap_ProcessingEntries;
+
+	double FFileCacheHandle_AcquireSlotAndReadLine;
+	double FFileCacheHandle_PreloadData;
+	double FFileCacheHandle_ReadData;
+
+	double FTypeLayoutDesc_Find;
+	
+	double FMemoryImageResult_ApplyPatchesFromArchive;
+	double LoadImports_Event;
+	double StartPrecacheRequests;
+	double MakeNextPrecacheRequestCurrent;
+	double FlushPrecacheBuffer;
+	double ProcessImportsAndExports_Event;
+	double CreateLinker_CreatePackage;
+	double CreateLinker_SetFlags;
+	double CreateLinker_FindLinker;
+	double CreateLinker_GetRedirectedName;
+	double CreateLinker_MassagePath;
+	double CreateLinker_DoesExist;
+	double CreateLinker_MissingPackage;
+	double CreateLinker_CreateLinkerAsync;
+	double FPackageName_DoesPackageExist;
+	double PreLoadAndSerialize;
+	double PostLoad;
+	double LinkerLoad_ReconstructImportAndExportMap;
+	double LinkerLoad_PopulateInstancingContext;
+	double LinkerLoad_VerifyImportInner;
+	double LinkerLoad_LoadAllObjects;
+	double UObject_Serialize;
+	double BulkData_Serialize;
+	double BulkData_SerializeBulkData;
+	double EndLoad;
+	double FTextureReference_InitRHI;
+	double FShaderMapPointerTable_LoadFromArchive;
+	double FShaderLibraryInstance_PreloadShaderMap;
+	double LoadShaderResource_Internal;
+	double LoadShaderResource_AddOrDeleteResource;
+	double FShaderCodeLibrary_LoadResource;
+	double FMaterialShaderMapId_Serialize;
+	double FMaterialShaderMapLayoutCache_CreateLayout;
+	double FMaterialShaderMap_IsComplete;
+	double FMaterialShaderMap_Serialize;
+	double FMaterialResourceProxyReader_Initialize;
+	double FSkeletalMeshVertexClothBuffer_InitRHI;
+	double FSkinWeightVertexBuffer_InitRHI;
+	double FStaticMeshVertexBuffer_InitRHI;
+	double FStreamableTextureResource_InitRHI;
+	double FShaderLibraryInstance_PreloadShader;
+	double FShaderMapResource_SharedCode_InitRHI;
+	double FStaticMeshInstanceBuffer_InitRHI;
+	double FInstancedStaticMeshVertexFactory_InitRHI;
+	double FLocalVertexFactory_InitRHI;
+	double FLocalVertexFactory_InitRHI_CreateLocalVFUniformBuffer;
+	double FSinglePrimitiveStructuredBuffer_InitRHI;
+	double FColorVertexBuffer_InitRHI;
+	double FFMorphTargetVertexInfoBuffers_InitRHI;
+	double FSlateTexture2DRHIRef_InitDynamicRHI;
+	double FLightmapResourceCluster_InitRHI;
+	double UMaterialExpression_Serialize;
+	double UMaterialExpression_PostLoad;
+	double FSlateTextureRenderTarget2DResource_InitDynamicRHI;
+	double VerifyGlobalShaders;
+	double FLandscapeVertexBuffer_InitRHI;
+
+
+
 #endif
 
 private:
@@ -219,8 +284,9 @@ struct CORE_API FScopedLoadTimeAccumulatorTimer : public FScopedDurationTimer
 #if ENABLE_LOADTIME_RAW_TIMINGS
 #define SCOPED_LOADTIMER_TEXT(TimerName)
 #define SCOPED_LOADTIMER(TimerName) FScopedDurationTimer DurationTimer_##TimerName(FLoadTimeTracker::Get().TimerName);
+#define SCOPED_CUSTOM_LOADTIMER(TimerName)
 #define SCOPED_LOADTIMER_CNT(TimerName) FScopedDurationTimer DurationTimer_##TimerName(FLoadTimeTracker::Get().TimerName); FLoadTimeTracker::Get().TimerName##Cnt++;
-#define ADD_CUSTOM_LOADTIMER_META(key, value)
+#define ADD_CUSTOM_LOADTIMER_META(TimerName, Key, Value)
 #else
 
 #if CPUPROFILERTRACE_ENABLED

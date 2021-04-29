@@ -2152,12 +2152,12 @@ public:
 	FOpenGLTexture2D *GetBackBuffer() const { return BackBuffer; }
 	bool IsFullscreen( void ) const { return bIsFullscreen; }
 
-	void WaitForFrameEventCompletion()
+	virtual void WaitForFrameEventCompletion() override
 	{
 		FrameSyncEvent.WaitForCompletion();
 	}
 
-	void IssueFrameEvent()
+	virtual void IssueFrameEvent() override
 	{
 		FrameSyncEvent.IssueEvent();
 	}

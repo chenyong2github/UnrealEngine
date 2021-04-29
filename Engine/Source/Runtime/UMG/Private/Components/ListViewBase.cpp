@@ -101,7 +101,8 @@ TSharedRef<SWidget> UListViewBase::RebuildWidget()
 		ErrorText = LOCTEXT("Error_MissingEntryWidgetClass", "No EntryWidgetClass specified on this list.\nEven if doing custom stuff, this is always required as a fallback.");
 	}
 #if WITH_EDITOR
-	else
+	// if the BP was cooked already, then the ClassGeneratedBy will be null, so nothing to check
+	else if (!EntryWidgetClass->bCooked)
 	{
 		UBlueprint* EntryWidgetBP = Cast<UBlueprint>(EntryWidgetClass->ClassGeneratedBy);
 		if (!EntryWidgetBP)

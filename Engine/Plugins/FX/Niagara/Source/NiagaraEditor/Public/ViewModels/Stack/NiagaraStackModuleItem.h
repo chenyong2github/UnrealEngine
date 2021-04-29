@@ -69,6 +69,8 @@ public:
 
 	/** Reassigns the function script for the module without resetting the inputs. */
 	void ReassignModuleScript(UNiagaraScript* ModuleScript);
+	
+	void ChangeScriptVersion(FGuid NewScriptVersion);
 
 	void SetInputValuesFromClipboardFunctionInputs(const TArray<const UNiagaraClipboardFunctionInput*>& ClipboardFunctionInputs);
 
@@ -104,6 +106,9 @@ public:
 		SetIsEnabledInternal(bEnabled);
 	}
 
+	bool IsDebugDrawEnabled() const;
+	void SetDebugDrawEnabled(bool bInEnabled);
+
 protected:
 	FOnRequestDeprecationRecommended DeprecationDelegate;
 
@@ -122,11 +127,13 @@ private:
 	void RefreshIssues(TArray<FStackIssue>& NewIssues);
 	void RefreshIsEnabled();
 	void OnMessageManagerRefresh(const TArray<TSharedRef<const INiagaraMessage>>& NewMessages);
+	FStackIssueFixDelegate GetUpgradeVersionFix();
 
 private:
 	UNiagaraNodeOutput* OutputNode;
 	UNiagaraNodeFunctionCall* FunctionCallNode;
 	mutable TOptional<bool> bCanMoveAndDeleteCache;
+	mutable TOptional<FText> DisplayNameCache;
 	bool bIsEnabled;
 	bool bCanRefresh;
 

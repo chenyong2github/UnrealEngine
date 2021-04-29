@@ -153,6 +153,10 @@ public:
 
 	// FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FAnimationBudgetAllocator");
+	}
 
 protected:
 	/** We tick before all actors in the world using this delegate */

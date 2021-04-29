@@ -124,6 +124,10 @@ public:
 
 	// FGCObject interface start
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SSkeletonAnimNotifies");
+	}
 	// FGCObject interface end
 
 	/** When user attempts to commit the name of a track*/

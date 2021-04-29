@@ -3,17 +3,27 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "SceneTypes.h"
+
 #include "GameFramework/Actor.h"
 #include "Camera/PlayerCameraManager.h"
 
 #include "Misc/DisplayClusterObjectRef.h"
 #include "DisplayClusterEnums.h"
 
+#include "SceneInterface.h"
+
+#include "DisplayClusterConfigurationStrings.h"
+#include "DisplayClusterConfigurationTypes_Viewport.h"
+#include "DisplayClusterConfigurationTypes_ICVFX.h"
+
+#include "Render/Viewport/IDisplayClusterViewportManager.h"
+
 #include "DisplayClusterRootActor.generated.h"
 
 #if WITH_EDITOR
-class IDisplayClusterConfiguratorToolkit;
-class UDisplayClusterPreviewComponent;
+class IDisplayClusterConfiguratorBlueprintEditor;
 #endif
 
 class UMaterial;
@@ -25,10 +35,7 @@ class UDisplayClusterSceneComponent;
 class UDisplayClusterScreenComponent;
 class UDisplayClusterXformComponent;
 class UDisplayClusterSyncTickComponent;
-
-// Deprecated
-class UDisplayClusterRootComponent;
-
+class UDisplayClusterPreviewComponent;
 
 /**
  * VR root. This contains nDisplay VR hierarchy in the game.
@@ -41,45 +48,65 @@ class DISPLAYCLUSTER_API ADisplayClusterRootActor
 
 	GENERATED_BODY()
 
-#if WITH_EDITORONLY_DATA
-public:
-	static const FString PreviewNodeAll;
-	static const FString PreviewNodeNone;
-#endif
-
 public:
 	ADisplayClusterRootActor(const FObjectInitializer& ObjectInitializer);
+	~ADisplayClusterRootActor();
 
 public:
-	UE_DEPRECATED(4.26, "This feature is no longer supported.")
-	inline UDisplayClusterRootComponent* GetDisplayClusterRootComponent() const
-	{
-		return nullptr;
-	}
-
-	UE_DEPRECATED(4.26, "This feature is no longer supported.")
-	bool GetShowProjectionScreens() const
-	{
-		return false;
-	}
-
-	UE_DEPRECATED(4.26, "This feature is no longer supported.")
-	void SetShowProjectionScreens(bool bShow)
-	{ }
-
-	UE_DEPRECATED(4.26, "This feature is no longer supported.")
-	UMaterial* GetProjectionScreenMaterial() const
-	{
-		return nullptr;
-	}
-
-	UE_DEPRECATED(4.26, "This feature is no longer supported.")
-	void SetProjectionScreenMaterial(UMaterial* NewMaterial)
-	{ }
-
-public:
-	void InitializeFromConfig(const UDisplayClusterConfigurationData* ConfigData);
+	void InitializeFromConfig(UDisplayClusterConfigurationData* ConfigData);
 	void InitializeFromConfig(const FString& ConfigFile);
+	void ApplyConfigDataToComponents();
+
+	/**
+	 * Update or create the config data object. The config sub object is only instantiated once.
+	 * Subsequent calls will only update ConfigDataName unless bForceRecreate is true.
+	 *
+	 * @param ConfigDataTemplate The config template to use for this actors' config data object.
+	 * @param bForceRecreate Deep copies properties from the config data template to this actors' config data object.
+	 */
+	void UpdateConfigDataInstance(UDisplayClusterConfigurationData* ConfigDataTemplate, bool bForceRecreate = false);
+
+	bool IsRunningGameOrPIE() const;
+
+	UDisplayClusterConfigurationData* GetDefaultConfigDataFromAsset() const;
+	UDisplayClusterConfigurationData* GetConfigData() const;
+
+	// Return hidden in game privitives set
+	bool GetHiddenInGamePrimitives(TSet<FPrimitiveComponentId>& OutPrimitives);
+	bool FindPrimitivesByName(const TArray<FString>& InNames, TSet<FPrimitiveComponentId>& OutPrimitives);
+
+	bool IsBlueprint() const;
+
+	UDisplayClusterSyncTickComponent* GetSyncTickComponent() const { return SyncTickComponent; }
+
+	UDisplayClusterConfigurationICVFX_StageSettings* GetStageSettings() const { return StageSettings; }
+	UDisplayClusterConfigurationRenderFrame* GetRenderFrameSettings() const { return RenderFrameSettings; }
+
+	UDisplayClusterConfigurationViewport* GetViewportConfiguration(const FString& ClusterNodeID, const FString& ViewportID);
+
+protected:
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	// AActor
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaSeconds) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void PostLoad() override;
+	virtual void PostActorCreated() override;
+	virtual void BeginDestroy() override;
+	virtual void RerunConstructionScripts() override;
+
+	virtual void Destroyed() override;
+
+	// Cleans current hierarchy
+	virtual void CleanupHierarchy();
+	virtual void ResetHierarchyMap();
+
+	// Initializes the actor on spawn and load
+	void InitializeRootActor();
+
+	// Creates all hierarchy objects declared in a config file
+	bool BuildHierarchy();
 
 public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Screens Amount"), Category = "DisplayCluster|Components")
@@ -110,7 +137,7 @@ public:
 	int32 GetMeshesAmount() const;
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Mesh By ID"), Category = "DisplayCluster|Components")
-	UDisplayClusterMeshComponent* GetMeshById(const FString& MeshId) const;
+	UStaticMeshComponent* GetMeshById(const FString& MeshId) const;
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get All Meshes"), Category = "DisplayCluster|Components")
 	void GetAllMeshes(TMap<FString, UDisplayClusterMeshComponent*>& OutMeshes) const;
@@ -124,26 +151,66 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get All Xforms"), Category = "DisplayCluster|Components")
 	void GetAllXforms(TMap<FString, UDisplayClusterXformComponent*>& OutXforms) const;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get All Components Amount"), Category = "DisplayCluster|Components")
+	UE_DEPRECATED(4.27, "Use 'GetComponentsByClass' instead and retrieve the length")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "Use 'GetComponentsByClass' instead and retrieve the length", DisplayName = "Get All Components Amount"), Category = "DisplayCluster|Components")
 	int32 GetComponentsAmount() const;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get All Components"), Category = "DisplayCluster|Components")
+	UE_DEPRECATED(4.27, "Use 'GetComponentsByClass' instead")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "Use 'GetComponentsByClass' instead", DisplayName = "Get All Components"), Category = "DisplayCluster|Components")
 	void GetAllComponents(TMap<FString, UDisplayClusterSceneComponent*>& OutComponents) const;
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Component By ID"), Category = "DisplayCluster|Components")
 	UDisplayClusterSceneComponent* GetComponentById(const FString& ComponentId) const;
 
-protected:
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// AActor
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void BeginPlay() override;
-	virtual void Tick(float DeltaSeconds) override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void PostLoad() override;
-	virtual void PostActorCreated() override;
+public:
+	UPROPERTY(EditAnywhere, Category = "DisplayCluster|Settings")
+	UDisplayClusterConfigurationICVFX_StageSettings* StageSettings;
+
+	UPROPERTY(EditAnywhere, Category = "DisplayCluster|Settings")
+	UDisplayClusterConfigurationRenderFrame* RenderFrameSettings;
+
+	IDisplayClusterViewportManager* GetViewportManager() const
+	{
+		return ViewportManager.IsValid() ? ViewportManager.Get() : nullptr;
+	}
 
 protected:
+	UPROPERTY(EditAnywhere, Category = "DisplayCluster", meta = (DisplayName = "Exit when ESC pressed"))
+	bool bExitOnEsc;
+
+	// Unique viewport manager for this configuration
+	TUniquePtr<IDisplayClusterViewportManager> ViewportManager;
+
+private:
+	/**
+	 * Name of the CurrentConfigData asset. Only required if this is a parent of a DisplayClusterBlueprint.
+	 * The name is used to lookup the config data as a default sub-object, specifically in packaged builds.
+	 */
+	UPROPERTY()
+	FName ConfigDataName;
+
+	/**
+	 * If set from the DisplayCluster BP Compiler it will be loaded from the class default subobjects in run-time.
+	 */
+	UPROPERTY(VisibleAnywhere, Instanced, Category = "Config Data")
+	UDisplayClusterConfigurationData* CurrentConfigData;
+
+	/**
+	 * The root component for our hierarchy.
+	 * Must have CPF_Edit(such as VisibleDefaultsOnly) on property for Live Link.
+	 * nDisplay details panel will hide this from actually being visible.
+	 */
+	UPROPERTY(VisibleDefaultsOnly, Category = "nDisplay")
+	USceneComponent* DisplayClusterRootComponent;
+	
+	UPROPERTY()
+	UDisplayClusterSyncTickComponent* SyncTickComponent;
+
+private:
+	// Current operation mode
+	EDisplayClusterOperationMode OperationMode;
+	mutable FCriticalSection InternalsSyncScope;
+
 	TMap<FString, FDisplayClusterSceneComponentRef*> AllComponents;
 	TMap<FString, FDisplayClusterSceneComponentRef*> XformComponents;
 	TMap<FString, FDisplayClusterSceneComponentRef*> CameraComponents;
@@ -151,15 +218,10 @@ protected:
 	TMap<FString, FDisplayClusterSceneComponentRef*> MeshComponents;
 	FDisplayClusterSceneComponentRef DefaultCameraComponent;
 
-protected:
-	// Initializes the actor on spawn and load
-	void InitializeRootActor();
-	// Creates all hierarchy objects declared in a config file
-	virtual bool BuildHierarchy(const UDisplayClusterConfigurationData* ConfigData);
-	// Cleans current hierarchy
-	virtual void CleanupHierarchy();
-
 private:
+	template <typename TComp>
+	void GetTypedPrimitives(TSet<FPrimitiveComponentId>& OutPrimitives, const TArray<FString>* InCompNames = nullptr, bool bCollectChildrenVisualizationComponent = true) const;
+
 	template <typename TComp, typename TCfgData>
 	void SpawnComponents(const TMap<FString, TCfgData*>& InConfigData, TMap<FString, FDisplayClusterSceneComponentRef*>& OutTypedMap, TMap<FString, FDisplayClusterSceneComponentRef*>& OutAllMap);
 
@@ -169,101 +231,122 @@ private:
 	template <typename TComp>
 	void GetTypedComponents(TMap<FString, TComp*>& OutTypedMap, const TMap<FString, FDisplayClusterSceneComponentRef*>& InTypedMap) const;
 
-protected:
-	UPROPERTY(EditAnywhere, Category = "DisplayCluster", meta = (DisplayName = "Exit when ESC pressed"))
-	bool bExitOnEsc;
-
-private:
-	// Current operation mode
-	EDisplayClusterOperationMode OperationMode;
-
-	mutable FCriticalSection InternalsSyncScope;
-
-	UPROPERTY(Transient)
-	const UDisplayClusterConfigurationData* CurrentConfigData;
-
-	UPROPERTY()
-	UDisplayClusterSyncTickComponent* SyncTickComponent;
-
-
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// EDITOR STUFF
-	//////////////////////////////////////////////////////////////////////////////////////////////
-#if WITH_EDITOR
+//////////////////////////////////////////////////////////////////////////////////////////////
+// EDITOR STUFF
+//////////////////////////////////////////////////////////////////////////////////////////////
+#if WITH_EDITORONLY_DATA 
 public:
+	// Render single node preview or whole cluster
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)")
+	FString PreviewNodeId = DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll;
 
-	// We need tick in Editor
-	virtual bool ShouldTickIfViewportsOnly() const override
-	{
-		return true;
-	}
+	// Render mode for PIE
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)")
+	EDisplayClusterConfigurationRenderMode RenderMode = EDisplayClusterConfigurationRenderMode::Mono;
 
-	FString GetPreviewConfigPath() const
-	{
-		return PreviewConfigPath.FilePath;
-	}
+	// Allow preview render
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)")
+	bool bPreviewEnable = true;
 
-	FString GetPreviewDefaultCamera() const
-	{
-		return PreviewDefaultCameraId;
-	}
+	// Update preview texture period in tick
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)", meta = (ClampMin = "1", UIMin = "1", ClampMax = "200", UIMax = "200"))
+	int TickPerFrame = 1;
 
-	FString GetPreviewNodeId() const
-	{
-		return PreviewNodeId;
-	}
+	// Preview texture size get from viewport, and scaled by this value
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
+	float PreviewRenderTargetRatioMult = 0.25;
 
-	void SetPreviewNodeId(const FString& NodeId)
-	{
-		PreviewNodeId = NodeId;
-		RebuildPreview();
-	}
+	// Extra settings for preview
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)")
+	UDisplayClusterConfigurationViewportPreview* PreviewSettings;
 
-	const UDisplayClusterConfigurationData* GetConfigData() const
-	{
-		return CurrentConfigData;
-	}
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)")
+	float XformGizmoScale = 1.0f;
 
-	TWeakPtr<IDisplayClusterConfiguratorToolkit> GetToolkit() const
-	{
-		return ToolkitPtr;
-	}
-
-	void SetToolkit(TWeakPtr<IDisplayClusterConfiguratorToolkit> Toolkit)
-	{
-		ToolkitPtr = Toolkit;
-	}
-
-	UDisplayClusterPreviewComponent* GetPreviewComponent(const FString& NodeId, const FString& ViewportId);
-
-	TSharedPtr<TMap<UObject*, FString>> GenerateObjectsNamingMap() const;
-	void SelectComponent(const FString& SelectedComponent);
-
-protected:
-	FString GeneratePreviewComponentName(const FString& NodeId, const FString& ViewportId) const;
-
-	void CleanupPreview();
-	void RebuildPreview();
-
-protected:
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
-
-#if WITH_EDITORONLY_DATA
-protected:
-	UPROPERTY(EditAnywhere, Category = "Preview (Editor only)", meta = (DisplayName = "Preview Config File", FilePathFilter = "cfg;*.ndisplay"))
-	FFilePath PreviewConfigPath;
-
-	UPROPERTY(EditAnywhere, Category = "Preview (Editor only)", meta = (DisplayName = "Preview Node ID"))
-	FString PreviewNodeId;
-
-	UPROPERTY(EditAnywhere, Category = "Preview (Editor only)", meta = (DisplayName = "Preview Default Camera ID"))
-	FString PreviewDefaultCameraId;
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)")
+	bool bAreXformGizmosVisible = true;
 
 private:
 	UPROPERTY(Transient)
 	TMap<FString, UDisplayClusterPreviewComponent*> PreviewComponents;
 
-	TWeakPtr<IDisplayClusterConfiguratorToolkit> ToolkitPtr;
+	UPROPERTY(Transient)
+	bool bDeferPreviewGeneration;
+#endif
+
+#if WITH_EDITOR
+public:
+	DECLARE_DELEGATE(FOnPreviewUpdated);
+
+	/** If the root actor is being displayed in an editor viewport, this variable allows the viewport to scale the xform gizmos independently of the actor's gizmo scale property. */
+	float EditorViewportXformGizmoScale = 1.0f;
+
+	/** If the root actor is being displayed in an editor viewport, this variable allows the viewport to hide the xform gizmos independently of the actor's gizmo visibility flag. */
+	bool bEditorViewportXformGizmoVisibility = true;
+
+private:
+	TWeakPtr<IDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
+
+	int32 TickPerFrameCounter = 0;
+
+	FOnPreviewUpdated OnPreviewGenerated;
+	FOnPreviewUpdated OnPreviewDestroyed;
+
+public:
+	// We need tick in Editor
+	virtual bool ShouldTickIfViewportsOnly() const override { return true; }
+
+	FOnPreviewUpdated& GetOnPreviewGenerated() { return OnPreviewGenerated; }
+	FOnPreviewUpdated& GetOnPreviewDestroyed() { return OnPreviewDestroyed; }
+
+	// return true, if preview enabled for this actor
+	bool IsPreviewEnabled() const;
+
+	void Constructor_Editor();
+	void Destructor_Editor();
+
+	void Tick_Editor(float DeltaSeconds);
+	void PostLoad_Editor();
+	void BeginDestroy_Editor();
+	void RerunConstructionScripts_Editor();
+
+	void Destroyed_Editor();
+
+	TWeakPtr<IDisplayClusterConfiguratorBlueprintEditor> GetToolkit() const { return ToolkitPtr; }
+
+	void SetToolkit(TWeakPtr<IDisplayClusterConfiguratorBlueprintEditor> Toolkit) { ToolkitPtr = Toolkit; }
+
+	UDisplayClusterPreviewComponent* GetPreviewComponent(const FString& NodeId, const FString& ViewportId);
+	TSharedPtr<TMap<UObject*, FString>> GenerateObjectsNamingMap() const;
+	void SelectComponent(const FString& SelectedComponent);
+
+	void UpdatePreviewComponents();
+	void ReleasePreviewComponents();
+
+	float GetPreviewRenderTargetRatioMult() const { return PreviewRenderTargetRatioMult; };
+
+	IDisplayClusterViewport* FindPreviewViewport(const FString& InViewportId) const;
+
+	void GetPreviewRenderTargetableTextures(const TArray<FString>& InViewportNames, TArray<FTextureRHIRef>& OutTextures) const;
+
+	float GetXformGizmoScale() const;
+	bool GetXformGizmoVisibility() const;
+
+	void UpdateXformGizmos();
+
+	virtual bool IsSelectedInEditor() const override;
+	void SetIsSelectedInEditor(bool bValue);
+
+private:
+	bool bIsSelectedInEditor = false;
+	
+protected:
+	FString GeneratePreviewComponentName(const FString& NodeId, const FString& ViewportId) const;
+	void RenderPreview_Editor();
+	bool UpdatePreviewConfiguration_Editor();
+
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditMove(bool bFinished) override;
+
 #endif
 };

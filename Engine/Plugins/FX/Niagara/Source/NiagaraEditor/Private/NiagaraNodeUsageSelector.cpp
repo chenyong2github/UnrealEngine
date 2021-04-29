@@ -242,7 +242,26 @@ void UNiagaraNodeUsageSelector::AddWidgetsToInputBox(TSharedPtr<SVerticalBox> In
 		TArray<FString> PinNameParts;
 		InputPins[Idx]->PinName.ToString().ParseIntoArray(PinNameParts, TEXT(" "), true);
 
-		Cases.Add(PinNameParts.Last());
+		int32 IfIndex = INDEX_NONE;
+		// we are looking for the last if as the variable name could contain a separate "if"
+		PinNameParts.FindLast(TEXT("if"), IfIndex);
+
+		// should never be index_none
+		if(IfIndex != INDEX_NONE)
+		{
+			// there should always be at least one additional part in the pin name that makes up the case label
+			ensure(PinNameParts.IsValidIndex(IfIndex + 1));
+			FString Case = TEXT("");
+			
+			for(int32 CasePartIndex = IfIndex + 1; CasePartIndex < PinNameParts.Num(); CasePartIndex++)
+			{
+				Case += PinNameParts[CasePartIndex] + TEXT(" ");
+			}
+
+			// remove the last unnecessary space
+			Case.RemoveFromEnd(TEXT(" "));
+			Cases.Add(Case);
+		}		
 	}
 	
 	int32 Offset = 0;

@@ -5575,4 +5575,112 @@ void AActor::SetInstigator(APawn* InInstigator)
 TFunction<bool(const AActor*)> GIsActorSelectedInEditor;
 #endif
 
+FArchive& operator<<(FArchive& Ar, AActor::FActorRootComponentReconstructionData::FAttachedActorInfo& ActorInfo)
+{
+	enum class EVersion : uint8
+	{
+		InitialVersion = 0,
+		// -----<new versions can be added above this line>-------------------------------------------------
+		VersionPlusOne,
+		LatestVersion = VersionPlusOne - 1
+	};
+
+	EVersion Version = EVersion::LatestVersion;
+	Ar << Version;
+
+	if (Version > EVersion::LatestVersion)
+	{
+		Ar.SetError();
+		return Ar;
+	}
+
+	Ar << ActorInfo.Actor;
+	Ar << ActorInfo.AttachParent;
+	Ar << ActorInfo.AttachParentName;
+	Ar << ActorInfo.SocketName;
+	Ar << ActorInfo.RelativeTransform;
+
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, AActor::FActorRootComponentReconstructionData& RootComponentData)
+{
+	enum class EVersion : uint8
+	{
+		InitialVersion = 0,
+		// -----<new versions can be added above this line>-------------------------------------------------
+		VersionPlusOne,
+		LatestVersion = VersionPlusOne - 1
+	};
+
+	EVersion Version = EVersion::LatestVersion;
+	Ar << Version;
+
+	if (Version > EVersion::LatestVersion)
+	{
+		Ar.SetError();
+		return Ar;
+	}
+
+	Ar << RootComponentData.Transform;
+
+	if (Ar.IsSaving())
+	{
+		FQuat TransformRotationQuat = RootComponentData.TransformRotationCache.GetCachedQuat();
+		Ar << TransformRotationQuat;
+	}
+	else if (Ar.IsLoading())
+	{
+		FQuat TransformRotationQuat;
+		Ar << TransformRotationQuat;
+		RootComponentData.TransformRotationCache.NormalizedQuatToRotator(TransformRotationQuat);
+	}
+
+	Ar << RootComponentData.AttachedParentInfo;
+
+	Ar << RootComponentData.AttachedToInfo;
+
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, AActor::FActorTransactionAnnotationData& ActorTransactionAnnotationData)
+{
+	enum class EVersion : uint8
+	{
+		InitialVersion = 0,
+		WithInstanceCache,
+		// -----<new versions can be added above this line>-------------------------------------------------
+		VersionPlusOne,
+		LatestVersion = VersionPlusOne - 1
+	};
+
+	EVersion Version = EVersion::LatestVersion;
+	Ar << Version;
+
+	if (Version > EVersion::LatestVersion)
+	{
+		Ar.SetError();
+		return Ar;
+	}
+
+	// InitialVersion
+	Ar << ActorTransactionAnnotationData.Actor;
+	Ar << ActorTransactionAnnotationData.bRootComponentDataCached;
+	if (ActorTransactionAnnotationData.bRootComponentDataCached)
+	{
+		Ar << ActorTransactionAnnotationData.RootComponentData;
+	}
+	// WithInstanceCache
+	if (Ar.IsLoading())
+	{
+		ActorTransactionAnnotationData.ComponentInstanceData = FComponentInstanceDataCache(ActorTransactionAnnotationData.Actor.Get());
+	}
+	if (Version >= EVersion::WithInstanceCache)
+	{
+		ActorTransactionAnnotationData.ComponentInstanceData.Serialize(Ar);
+	}
+
+	return Ar;
+}
+
 #undef LOCTEXT_NAMESPACE

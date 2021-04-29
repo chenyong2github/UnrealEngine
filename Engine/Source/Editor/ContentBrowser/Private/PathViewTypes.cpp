@@ -126,10 +126,17 @@ void FTreeItem::SortChildrenIfNeeded()
 {
 	if (bChildrenRequireSort)
 	{
-		Children.Sort([](TSharedPtr<FTreeItem> A, TSharedPtr<FTreeItem> B) -> bool
+		if (SortOverride.IsBound())
 		{
-			return A->Item.GetDisplayName().ToString() < B->Item.GetDisplayName().ToString();
-		});
+			SortOverride.Execute(this, Children);
+		}
+		else
+		{
+			Children.Sort([](TSharedPtr<FTreeItem> A, TSharedPtr<FTreeItem> B) -> bool
+			{
+				return A->Item.GetDisplayName().ToString() < B->Item.GetDisplayName().ToString();
+			});
+		}
 
 		bChildrenRequireSort = false;
 	}
@@ -140,17 +147,8 @@ bool FTreeItem::IsDisplayOnlyFolder() const
 	return GetItem().IsDisplayOnlyFolder();
 }
 
-void FTreeItem::ExpandToNonDisplayOnlyFolders(TArray<TSharedPtr<FTreeItem>>& OutTreeItems)
+void FTreeItem::SetSortOverride(FSortTreeItemChildrenDelegate& InSortOverride)
 {
-	if (!IsDisplayOnlyFolder())
-	{
-		OutTreeItems.Add(SharedThis(this));
-		return;
-	}
-
-	for (const TSharedPtr<FTreeItem>& Child : Children)
-	{
-		Child->ExpandToNonDisplayOnlyFolders(OutTreeItems);
-	}
+	SortOverride = InSortOverride;
 }
 

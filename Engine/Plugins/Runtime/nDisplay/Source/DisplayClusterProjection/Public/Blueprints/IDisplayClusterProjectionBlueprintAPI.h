@@ -33,6 +33,8 @@ public:
 	virtual void CameraPolicySetCamera(const FString& ViewportId, UCameraComponent* NewCamera, float FOVMultiplier = 1.f) = 0;
 
 	/** Create link to static mesh geometry as warp source */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Assign Warp Mesh To Viewport"), Category = "DisplayClusterProjection|Mesh")
-	virtual void AssignWarpMeshToViewport(const FString& ViewportId, UStaticMeshComponent* MeshComponent, USceneComponent* OriginComponent) = 0;
+	//UFUNCTION(BlueprintCallable, meta = (DisplayName = "Assign Warp Mesh To Viewport"), Category = "DisplayClusterProjection|Mesh")
+	UE_DEPRECATED(4.26, "use config reference")
+	virtual void AssignWarpMeshToViewport(const FString& ViewportId, UStaticMeshComponent* MeshComponent, USceneComponent* OriginComponent)
+	{ }
 };

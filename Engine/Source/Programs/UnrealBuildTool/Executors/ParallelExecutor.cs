@@ -45,7 +45,7 @@ namespace UnrealBuildTool
 		/// Maximum processor count for local execution. 
 		/// </summary>
 		[XmlConfigFile]
-		int MaxProcessorCount = int.MaxValue;
+		public static int MaxProcessorCount = int.MaxValue;
 
 		/// <summary>
 		/// Processor count multiplier for local execution. Can be below 1 to reserve CPU for other tasks.
@@ -54,14 +54,14 @@ namespace UnrealBuildTool
 		/// This value is ignored if the CPU does not support hyper-threading.
 		/// </summary>
 		[XmlConfigFile]
-		double ProcessorCountMultiplier = 1.0;
+		public static double ProcessorCountMultiplier = 1.0;
 
 		/// <summary>
 		/// Free memory per action in bytes, used to limit the number of parallel actions if the machine is memory starved.
 		/// Set to 0 to disable free memory checking.
 		/// </summary>
 		[XmlConfigFile]
-		double MemoryPerActionBytes = 1.5 * 1024 * 1024 * 1024;
+		static double MemoryPerActionBytes = 1.5 * 1024 * 1024 * 1024;
 
 		/// <summary>
 		/// When enabled, will stop compiling targets after a compile error occurs.
@@ -72,7 +72,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// How many processes that will be executed in parallel
 		/// </summary>
-		int NumParallelProcesses;
+		public int NumParallelProcesses { get; private set; }
+
+		public static int GetDefaultNumParallelProcesses()
+		{
+			return Utils.GetMaxActionsToExecuteInParallel(MaxProcessorCount, ProcessorCountMultiplier, Convert.ToInt64(MemoryPerActionBytes));
+		}
 
 		/// <summary>
 		/// Constructor
@@ -90,7 +95,7 @@ namespace UnrealBuildTool
 			else
 			{
 				// Figure out how many processors to use
-				NumParallelProcesses = Utils.GetMaxActionsToExecuteInParallel(MaxProcessorCount, ProcessorCountMultiplier, Convert.ToInt64(MemoryPerActionBytes));
+				NumParallelProcesses = GetDefaultNumParallelProcesses();
 			}
 		}
 
@@ -333,5 +338,16 @@ namespace UnrealBuildTool
 				}
 			}
 		}
+	}
+
+	/// <summary>
+	/// Publicly visible static class that allows external access to the parallel executor config
+	/// </summary>
+	public static class ParallelExecutorConfiguration
+	{
+		/// <summary>
+		/// Maximum number of processes that should be used for execution
+		/// </summary>
+		public static int MaxParallelProcesses { get { return ParallelExecutor.GetDefaultNumParallelProcesses(); } }
 	}
 }

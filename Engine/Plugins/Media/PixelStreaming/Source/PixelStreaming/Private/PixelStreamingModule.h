@@ -72,5 +72,6 @@ private:
 	TArray<UPixelStreamerInputComponent*> InputComponents;
 	bool bFrozen = false;
 	bool bCaptureNextBackBufferAndStream = false;
+	
 	bool bPlayerInitialized = false;
 };

@@ -1185,8 +1185,11 @@ void UMeshTexturePaintingTool::FinishPaintingTexture()
 
 void UMeshTexturePaintingTool::CycleTextures(int32 Direction)
 {
+	if (!PaintableTextures.Num())
+	{
+		return;
+	}
 	UE_TRANSITIONAL_OBJECT_PTR(UTexture2D)& SelectedTexture = TextureProperties->PaintTexture;
-
 	const int32 TextureIndex = (SelectedTexture != nullptr) ? PaintableTextures.IndexOfByKey(SelectedTexture) : 0;
 	if (TextureIndex != INDEX_NONE)
 	{

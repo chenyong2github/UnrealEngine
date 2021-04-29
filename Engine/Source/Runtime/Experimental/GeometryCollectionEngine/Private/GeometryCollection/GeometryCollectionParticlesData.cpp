@@ -2,7 +2,7 @@
 
 #include "GeometryCollection/GeometryCollectionParticlesData.h"
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if GEOMETRYCOLLECTION_DEBUG_DRAW
 
 #include "PhysicsSolver.h"
 #include "Chaos/Sphere.h"
@@ -255,5 +255,5 @@ FString FGeometryCollectionParticlesData::FData::ToString(int32 Index, const TCH
 	return String;
 }
 
-#endif  // #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
 

@@ -33,7 +33,7 @@ namespace ResonanceAudio
 		}
 
 		// Create and register custom slate style.
-		FString ResonanceAudioContent = IPluginManager::Get().FindPlugin("ResonanceAudio")->GetBaseDir() + "/Content";
+		FString ResonanceAudioContent = IPluginManager::Get().FindPlugin(TEXT("ResonanceAudio"))->GetBaseDir() + "/Content";
 		FVector2D Vec16 = FVector2D(16.0f, 16.0f);
 		FVector2D Vec64 = FVector2D(64.0f, 64.0f);
 

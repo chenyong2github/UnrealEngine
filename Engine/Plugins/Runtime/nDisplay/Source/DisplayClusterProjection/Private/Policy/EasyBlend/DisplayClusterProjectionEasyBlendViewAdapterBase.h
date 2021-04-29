@@ -15,7 +15,6 @@ class FDisplayClusterProjectionEasyBlendViewAdapterBase
 public:
 	struct FInitParams
 	{
-		FIntPoint ViewportSize;
 		uint32 NumViews;
 	};
 
@@ -34,20 +33,15 @@ public:
 	{ }
 
 public:
-	const FIntPoint& GetViewportSize() const
-	{
-		return InitParams.ViewportSize;
-	}
-
 	uint32 GetNumViews() const
 	{
 		return InitParams.NumViews;
 	}
 
 public:
-	virtual bool CalculateView(const uint32 ViewIdx, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) = 0;
-	virtual bool GetProjectionMatrix(const uint32 ViewIdx, FMatrix& OutPrjMatrix) = 0;
-	virtual bool ApplyWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewportRect) = 0;
+	virtual bool CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) = 0;
+	virtual bool GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix) = 0;
+	virtual bool ApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy) = 0;
 
 private:
 	const FInitParams InitParams;

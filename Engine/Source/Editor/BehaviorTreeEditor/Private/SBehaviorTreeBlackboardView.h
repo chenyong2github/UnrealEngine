@@ -87,6 +87,10 @@ public:
 
 	/** FGCObject implementation */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SBehaviorTreeBlackboardView");
+	}
 
 	/**
 	 * Retrieves the blackboard item currently selected by the user.

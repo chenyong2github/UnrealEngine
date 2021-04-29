@@ -74,7 +74,7 @@ bool FRecoveryService::Startup()
 		return false;
 	}
 
-	TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin("UdpMessaging");
+	TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("UdpMessaging"));
 	if (!Plugin || !Plugin->IsEnabled())
 	{
 		// The UdpMessaging plugin should be added to the {appname}.Target.cs build file.

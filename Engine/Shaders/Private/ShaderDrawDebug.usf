@@ -16,7 +16,7 @@ StructuredBuffer<FPackedShaderDrawElement>	LockedShaderDrawDebugPrimitive;
 Texture2D<float> DepthTexture;
 int2 DepthTextureResolution;
 float2 DepthTextureInvResolution;
-SamplerState LinearSampler;
+SamplerState DepthSampler;
 
 #if GPU_DEBUG_RENDERING_VS 
 void ShaderDrawDebugVS(
@@ -49,7 +49,7 @@ void ShaderDrawDebugPS(
 	uint2 PixelCoord = Position.xy;
 
 	const float2 DepthUV = float2(PixelCoord) * DepthTextureInvResolution;
-	const float Depth = DepthTexture.SampleLevel(LinearSampler, DepthUV, 0);	
+	const float Depth = DepthTexture.SampleLevel(DepthSampler, DepthUV, 0);	
 	const bool bIsHidden = Position.z < Depth; // Reverse-Z
 
 	const float ColorScale = bIsHidden ? 0.4f : 1;

@@ -55,11 +55,13 @@ inline FString GenerateRandomUserId(int32 LocalUserNum)
 
 	const bool bForceUniqueId = FParse::Param( FCommandLine::Get(), TEXT( "StableNullID" ) );
 	
+#if !(UE_BUILD_SHIPPING && WITH_EDITOR)
 	if ( ( GIsFirstInstance || bForceUniqueId ) && !GIsEditor )
 	{
 		// When possible, return a stable user id
 		return FString::Printf( TEXT( "%s-%s" ), *HostName, *FPlatformMisc::GetLoginId().ToUpper() );
 	}
+#endif
 
 	// If we're not the first instance (or in the editor), return truly random id
 	return FString::Printf( TEXT( "%s-%s" ), *HostName, *FGuid::NewGuid().ToString() );

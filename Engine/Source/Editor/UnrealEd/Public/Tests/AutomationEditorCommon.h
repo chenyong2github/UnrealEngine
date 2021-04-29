@@ -9,6 +9,8 @@
 
 class UFactory;
 
+#if WITH_AUTOMATION_TESTS
+
 //////////////////////////////////////////////////////////////////////////
 // FAutomationEditorCommonUtils
 class UNREALED_API FAutomationEditorCommonUtils
@@ -256,3 +258,5 @@ DEFINE_EXPORTED_LATENT_AUTOMATION_COMMAND(UNREALED_API, FWaitToFinishBuildDeploy
 * Latent command to delete a directory.
 */
 DEFINE_EXPORTED_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(UNREALED_API, FDeleteDirCommand, FString, InFolderLocation);
+
+#endif

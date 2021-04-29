@@ -2502,7 +2502,6 @@ void FPropertyNode::NotifyPostChange( FPropertyChangedEvent& InPropertyChangedEv
 							FPropertyChangedEvent ChangedEvent = InPropertyChangedEvent;
 							if (CurProperty != InPropertyChangedEvent.Property)
 							{
-								//parent object node property.  Reset other internals and leave the event type as unspecified
 								ChangedEvent = FPropertyChangedEvent(CurProperty, InPropertyChangedEvent.ChangeType);
 							}
 							ChangedEvent.ObjectIteratorIndex = CurrentObjectIndex;
@@ -2516,7 +2515,6 @@ void FPropertyNode::NotifyPostChange( FPropertyChangedEvent& InPropertyChangedEv
 							FPropertyChangedEvent ChangedEvent = InPropertyChangedEvent;
 							if (CurProperty != InPropertyChangedEvent.Property)
 							{
-								//parent object node property.  Reset other internals and leave the event type as unspecified
 								ChangedEvent = FPropertyChangedEvent(CurProperty, InPropertyChangedEvent.ChangeType);
 							}
 							FPropertyChangedChainEvent ChainEvent(*PropertyChain, ChangedEvent);
@@ -2534,7 +2532,7 @@ void FPropertyNode::NotifyPostChange( FPropertyChangedEvent& InPropertyChangedEv
 
 			if (!ThisAsWeakPtr.IsValid())
 			{
-				UE_LOG(LogPropertyNode, Error, TEXT("The FPropertyNode got destroy while processing the PostEditChangeProperty or PostEditChangeChainProperty."));
+				UE_LOG(LogPropertyNode, Error, TEXT("The FPropertyNode was destroy while processing the PostEditChangeProperty or PostEditChangeChainProperty."));
 				// Redraw viewports
 				FEditorSupportDelegates::RedrawAllViewports.Broadcast();
 				return;

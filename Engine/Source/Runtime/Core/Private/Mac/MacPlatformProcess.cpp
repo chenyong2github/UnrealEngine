@@ -1239,7 +1239,7 @@ const TCHAR* FMacPlatformProcess::GetBinariesSubdirectory()
 	return TEXT("Mac");
 }
 
-void FMacPlatformProcess::LaunchFileInDefaultExternalApplication( const TCHAR* FileName, const TCHAR* Parms /*= NULL*/, ELaunchVerb::Type Verb /*= ELaunchVerb::Open*/ )
+bool FMacPlatformProcess::LaunchFileInDefaultExternalApplication( const TCHAR* FileName, const TCHAR* Parms /*= NULL*/, ELaunchVerb::Type Verb /*= ELaunchVerb::Open*/, bool bPromptToOpenOnFailure /*= true */)
 {
 	SCOPED_AUTORELEASE_POOL;
 	// First attempt to open the file in its default application
@@ -1251,8 +1251,10 @@ void FMacPlatformProcess::LaunchFileInDefaultExternalApplication( const TCHAR* F
 		// Xcode project is a special case where we don't open the project file itself, but the .xcodeproj folder containing it
 		FileToOpen = [FileToOpen stringByDeletingLastPathComponent];
 	}
-	[[NSWorkspace sharedWorkspace] openFile: FileToOpen];
+	bool Result = [[NSWorkspace sharedWorkspace] openFile: FileToOpen];
 	CFRelease( CFFileName );
+
+	return Result;
 }
 
 void FMacPlatformProcess::ExploreFolder( const TCHAR* FilePath )

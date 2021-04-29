@@ -2042,31 +2042,33 @@ void UK2Node_CallFunction::ValidateNodeDuringCompilation(class FCompilerResultsL
 
 	const UClass* BlueprintClass = Blueprint ? Blueprint->ParentClass : nullptr;
 	const bool bIsEditorOnlyBlueprintBaseClass = !BlueprintClass || IsEditorOnlyObject(BlueprintClass);
+	static bool bAllowUnsafeBlueprintCalls = FParse::Param(FCommandLine::Get(), TEXT("AllowUnsafeBlueprintCalls"));
 
 	// This error is disabled while we figure out how we can identify uncooked only
 	// blueprints that want to make use of uncooked only APIs:
-	#if 0
-	const bool bIsUncookedOnlyFunction = Function && Function->GetOutermost()->HasAllPackagesFlags(PKG_UncookedOnly);
-	if (	bIsUncookedOnlyFunction &&
-			// Only allow calls to uncooked only functions from editor only/uncooked only
-			// contexts:
-			!(	GetOutermost()->HasAnyPackageFlags(PKG_UncookedOnly|PKG_EditorOnly) ||
-				bIsEditorOnlyBlueprintBaseClass ))
+	if (!bAllowUnsafeBlueprintCalls)
 	{
-		MessageLog.Error(*LOCTEXT("UncookedOnlyError", "Attempting to call uncooked only function @@ in runtime blueprint").ToString(), this);
-	}
-	#endif //0
-	
-	// Ensure that editor module BP exposed UFunctions can only be called in blueprints for which the base class is also part of an editor module
-	// Also check for functions wrapped in WITH_EDITOR 
-	if (Function && Blueprint &&
-		(IsEditorOnlyObject(Function) || Function->HasAnyFunctionFlags(FUNC_EditorOnly)))
-	{	
-		if (!bIsEditorOnlyBlueprintBaseClass)
+		const bool bIsUncookedOnlyFunction = Function && Function->GetOutermost()->HasAllPackagesFlags(PKG_UncookedOnly);
+		if (	bIsUncookedOnlyFunction &&
+				// Only allow calls to uncooked only functions from editor only/uncooked only
+				// contexts:
+				!(	GetOutermost()->HasAnyPackageFlags(PKG_UncookedOnly|PKG_EditorOnly) ||
+					bIsEditorOnlyBlueprintBaseClass ))
 		{
-			FString const FunctName = Function->GetName();
-			FText const WarningFormat = LOCTEXT("EditorFunctionFmt", "Cannot use the editor function \"{0}\" in this runtime Blueprint. Only for use in Editor Utility Blueprints and Blutilities.");
-			MessageLog.Error(*FText::Format(WarningFormat, FText::FromString(FunctName)).ToString(), this);
+			MessageLog.Error(*LOCTEXT("UncookedOnlyError", "Attempting to call uncooked only function @@ in runtime blueprint").ToString(), this);
+		}
+	
+		// Ensure that editor module BP exposed UFunctions can only be called in blueprints for which the base class is also part of an editor module
+		// Also check for functions wrapped in WITH_EDITOR 
+		if (Function && Blueprint &&
+			(IsEditorOnlyObject(Function) || Function->HasAnyFunctionFlags(FUNC_EditorOnly)))
+		{	
+			if (!bIsEditorOnlyBlueprintBaseClass)
+			{
+				FString const FunctName = Function->GetName();
+				FText const WarningFormat = LOCTEXT("EditorFunctionFmt", "Cannot use the editor function \"{0}\" in this runtime Blueprint. Only for use in Editor Utility Blueprints and Blutilities.");
+				MessageLog.Error(*FText::Format(WarningFormat, FText::FromString(FunctName)).ToString(), this);
+			}
 		}
 
 		// enforce UnsafeDuringActorConstruction keyword

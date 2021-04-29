@@ -18,9 +18,9 @@
 
 #define LOCTEXT_NAMESPACE "ContentBrowserClassDataSource"
 
-void UContentBrowserClassDataSource::Initialize(const FName InMountRoot, const bool InAutoRegister)
+void UContentBrowserClassDataSource::Initialize(const bool InAutoRegister)
 {
-	Super::Initialize(InMountRoot, InAutoRegister);
+	Super::Initialize(InAutoRegister);
 
 	{
 		static const FName NAME_AssetTools = "AssetTools";
@@ -43,6 +43,8 @@ void UContentBrowserClassDataSource::Initialize(const FName InMountRoot, const b
 			}));
 		}
 	}
+
+	BuildRootPathVirtualTree();
 }
 
 void UContentBrowserClassDataSource::Shutdown()
@@ -54,15 +56,29 @@ void UContentBrowserClassDataSource::Shutdown()
 	Super::Shutdown();
 }
 
-void UContentBrowserClassDataSource::EnumerateRootPaths(const FContentBrowserDataFilter& InFilter, TFunctionRef<void(FName)> InCallback)
+void UContentBrowserClassDataSource::BuildRootPathVirtualTree()
 {
-	TArray<FName> InternalRoots;
-	NativeClassHierarchy->GetClassRoots(InternalRoots, EnumHasAnyFlags(InFilter.ItemAttributeFilter, EContentBrowserItemAttributeFilter::IncludeEngine), EnumHasAnyFlags(InFilter.ItemAttributeFilter, EContentBrowserItemAttributeFilter::IncludePlugins));
+	Super::BuildRootPathVirtualTree();
 
-	for (const FName RootContentPath : InternalRoots)
+	ConditionalCreateNativeClassHierarchy();
+
+	TArray<FName> InternalRoots;
+	NativeClassHierarchy->GetClassRoots(InternalRoots, true, true);
+
+	for (const FName InternalRoot : InternalRoots)
 	{
-		InCallback(RootContentPath);
+		RootPathAdded(FNameBuilder(InternalRoot));
 	}
+}
+
+bool UContentBrowserClassDataSource::RootClassPathPassesFilter(const FName InRootClassPath, const bool bIncludeEngineClasses, const bool bIncludePluginClasses) const
+{
+	// Remove "/" prefix
+	FNameBuilder RootNodeString(InRootClassPath);
+	FStringView RootNodeNameView(RootNodeString);
+	RootNodeNameView.RightChopInline(1);
+
+	return NativeClassHierarchy->RootNodePassesFilter(FName(RootNodeNameView), bIncludeEngineClasses, bIncludePluginClasses);
 }
 
 void UContentBrowserClassDataSource::CompileFilter(const FName InPath, const FContentBrowserDataFilter& InFilter, FContentBrowserDataCompiledFilter& OutCompiledFilter)
@@ -87,37 +103,129 @@ void UContentBrowserClassDataSource::CompileFilter(const FName InPath, const FCo
 	}
 
 	ConditionalCreateNativeClassHierarchy();
+	RefreshVirtualPathTreeIfNeeded();
 
-	// Convert the virtual path - if it doesn't exist in this data source then the filter won't include anything
+	FName ConvertedPath;
+	const EContentBrowserPathType ConvertedPathType = TryConvertVirtualPath(InPath, ConvertedPath);
+
 	TSet<FName> InternalPaths;
-	TMap<FName, TArray<FName>> VirtualPaths;
-	FName SingleInternalPath;
-	ExpandVirtualPath(InPath, InFilter, SingleInternalPath, InternalPaths, VirtualPaths);
-
+	if (ConvertedPathType == EContentBrowserPathType::Internal)
 	{
-		FContentBrowserCompiledVirtualFolderFilter* VirtualFolderFilter = nullptr;
-		for (const auto& It : VirtualPaths)
-		{
-			const FName VirtualSubPath = It.Key;
-			{
-				if (!VirtualFolderFilter)
-				{
-					VirtualFolderFilter = &FilterList.FindOrAddFilter<FContentBrowserCompiledVirtualFolderFilter>();
-				}
+		InternalPaths.Add(ConvertedPath);
+	}
+	else if (ConvertedPathType != EContentBrowserPathType::Virtual)
+	{
+		return;
+	}
 
-				if (!VirtualFolderFilter->CachedSubPaths.Contains(VirtualSubPath))
+	const bool bIncludeEngine = EnumHasAnyFlags(InFilter.ItemAttributeFilter, EContentBrowserItemAttributeFilter::IncludeEngine);
+	const bool bIncludePlugins = EnumHasAnyFlags(InFilter.ItemAttributeFilter, EContentBrowserItemAttributeFilter::IncludePlugins);
+
+	if (bIncludeFolders)
+	{
+		if (InFilter.bRecursivePaths)
+		{
+			if (ConvertedPathType == EContentBrowserPathType::Virtual)
+			{
+				RootPathVirtualTree.EnumerateSubPaths(InPath, [this, &InternalPaths, bIncludeEngine, bIncludePlugins](FName VirtualSubPath, FName InternalSubPath)
 				{
-					FName InternalPath;
-					if (TryConvertVirtualPathToInternal(VirtualSubPath, InternalPath))
+					if (!InternalSubPath.IsNone())
 					{
-						VirtualFolderFilter->CachedSubPaths.Add(VirtualSubPath, CreateClassFolderItem(InternalPath));
+						if (RootClassPathPassesFilter(InternalSubPath, bIncludeEngine, bIncludePlugins))
+						{
+							InternalPaths.Add(InternalSubPath);
+						}
+					}
+					return true;
+				}, true);
+			}
+		}
+		else
+		{
+			if (ConvertedPathType == EContentBrowserPathType::Virtual)
+			{
+				FContentBrowserCompiledVirtualFolderFilter* VirtualFolderFilter = nullptr;
+				RootPathVirtualTree.EnumerateSubPaths(InPath, [this, &InternalPaths, &VirtualFolderFilter, &FilterList, bIncludeEngine, bIncludePlugins](FName VirtualSubPath, FName InternalSubPath)
+				{
+					if (!InternalSubPath.IsNone())
+					{
+						if (RootClassPathPassesFilter(InternalSubPath, bIncludeEngine, bIncludePlugins))
+						{
+							InternalPaths.Add(InternalSubPath);
+						}
 					}
 					else
 					{
-						const FString MountLeafName = FPackageName::GetShortName(VirtualSubPath);
-						VirtualFolderFilter->CachedSubPaths.Add(VirtualSubPath, FContentBrowserItemData(this, EContentBrowserItemFlags::Type_Folder, VirtualSubPath, *MountLeafName, FText(), nullptr));
+						// Determine if any internal path under VirtualSubPath passes
+						bool bPassesFilter = false;
+						RootPathVirtualTree.EnumerateSubPaths(VirtualSubPath, [this, &VirtualFolderFilter, &FilterList, &bPassesFilter, bIncludeEngine, bIncludePlugins](FName RecursiveVirtualSubPath, FName RecursiveInternalSubPath)
+						{
+							bPassesFilter = bPassesFilter || (!RecursiveInternalSubPath.IsNone() && RootClassPathPassesFilter(RecursiveInternalSubPath, bIncludeEngine, bIncludePlugins));
+							return bPassesFilter == false;
+						}, true);
+
+						if (bPassesFilter)
+						{
+							if (!VirtualFolderFilter)
+							{
+								VirtualFolderFilter = &FilterList.FindOrAddFilter<FContentBrowserCompiledVirtualFolderFilter>();
+							}
+
+							if (!VirtualFolderFilter->CachedSubPaths.Contains(VirtualSubPath))
+							{
+								VirtualFolderFilter->CachedSubPaths.Add(VirtualSubPath, CreateVirtualFolderItem(VirtualSubPath));
+							}
+						}
 					}
+					return true;
+				}, false);
+
+				// Not recursive, virtual folder will not contain files
+				ClassDataFilter.ValidFolders.Append(InternalPaths);
+				return;
+			}
+		}
+	}
+	else if (bIncludeFiles)
+	{
+		if (InFilter.bRecursivePaths)
+		{
+			if (ConvertedPathType == EContentBrowserPathType::Internal)
+			{
+				// Nothing more to do, InternalPaths already contains ConvertedPath
+			}
+			else if (ConvertedPathType == EContentBrowserPathType::Virtual)
+			{
+				// Include all internal mounts that pass recursively
+				RootPathVirtualTree.EnumerateSubPaths(InPath, [this, &InternalPaths, bIncludeEngine, bIncludePlugins](FName VirtualSubPath, FName InternalSubPath)
+				{
+					if (!InternalSubPath.IsNone())
+					{
+						if (RootClassPathPassesFilter(InternalSubPath, bIncludeEngine, bIncludePlugins))
+						{
+							InternalPaths.Add(InternalSubPath);
+						}
+					}
+					return true;
+				}, true);
+
+				if (InternalPaths.Num() == 0)
+				{
+					// No internal folders found in the hierarchy of virtual path that passed, there will be no files
+					return;
 				}
+			}
+		}
+		else
+		{
+			if (ConvertedPathType == EContentBrowserPathType::Internal)
+			{
+				// Nothing more to do, InternalPaths already contains ConvertedPath
+			}
+			else if (ConvertedPathType == EContentBrowserPathType::Virtual)
+			{
+				// There are no files directly contained by a dynamically generated fully virtual folder
+				return;
 			}
 		}
 	}
@@ -134,35 +242,20 @@ void UContentBrowserClassDataSource::CompileFilter(const FName InPath, const FCo
 		ClassHierarchyFilter.ClassPaths.Add(InternalPath);
 	}
 	ClassHierarchyFilter.bRecursivePaths = InFilter.bRecursivePaths;
-	
-	// Roots need some special path handling
-	static const FName RootPath = "/";
-	if (InPath == RootPath)
-	{
-		TArray<FName> ClassRootFolders;
-		NativeClassHierarchy->GetClassRoots(ClassRootFolders, EnumHasAnyFlags(InFilter.ItemAttributeFilter, EContentBrowserItemAttributeFilter::IncludeEngine), EnumHasAnyFlags(InFilter.ItemAttributeFilter, EContentBrowserItemAttributeFilter::IncludePlugins));
-
-		ClassHierarchyFilter.ClassPaths.Reset();
-		ClassHierarchyFilter.ClassPaths.Append(ClassRootFolders);
-
-		if (bIncludeFolders)
-		{
-			ClassDataFilter.ValidFolders.Append(ClassRootFolders);
-		}
-
-		// Root paths never contain files, and we've already filled the initial folder list,
-		// so we can stop now unless recursing into the root paths we just configured
-		if (!ClassHierarchyFilter.bRecursivePaths)
-		{
-			return;
-		}
-	}
 
 	// Find the child class folders
 	if (bIncludeFolders && !ClassHierarchyFilter.IsEmpty())
 	{
 		TArray<FString> ChildClassFolders;
 		NativeClassHierarchy->GetMatchingFolders(ClassHierarchyFilter, ChildClassFolders);
+
+		if (ConvertedPathType == EContentBrowserPathType::Virtual)
+		{
+			for (const FName InternalPath : InternalPaths)
+			{
+				ClassDataFilter.ValidFolders.Add(InternalPath);
+			}
+		}
 
 		for (const FString& ChildClassFolder : ChildClassFolders)
 		{
@@ -187,7 +280,7 @@ void UContentBrowserClassDataSource::CompileFilter(const FName InPath, const FCo
 
 		if (ChildClassObjects.Num() > 0)
 		{
-			TSet<FName> ClassNamesToInclude;
+			TSet<FName> ClassPathsToInclude;
 			if (CollectionFilter)
 			{
 				TArray<FName> ClassPathsForCollections;
@@ -197,12 +290,12 @@ void UContentBrowserClassDataSource::CompileFilter(const FName InPath, const FCo
 					return;
 				}
 
-				ClassNamesToInclude.Append(ClassPathsForCollections);
+				ClassPathsToInclude.Append(ClassPathsForCollections);
 			}
 
 			for (UClass* ChildClassObject : ChildClassObjects)
 			{
-				const bool bPassesInclusiveFilter = ClassNamesToInclude.Num() == 0 || ClassNamesToInclude.Contains(ChildClassObject->GetFName());
+				const bool bPassesInclusiveFilter = ClassPathsToInclude.Num() == 0 || ClassPathsToInclude.Contains(*ChildClassObject->GetPathName());
 				const bool bPassesBlacklistFilter = !ClassBlacklist || ClassBlacklist->PassesFilter(ChildClassObject->GetFName());
 
 				if (bPassesInclusiveFilter && bPassesBlacklistFilter)
@@ -241,9 +334,10 @@ void UContentBrowserClassDataSource::EnumerateItemsMatchingFilter(const FContent
 
 	if (EnumHasAnyFlags(InFilter.ItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFiles))
 	{
+		FNativeClassHierarchyGetClassPathCache Cache;
 		for (UClass* ValidClass : ClassDataFilter->ValidClasses)
 		{
-			if (!InCallback(CreateClassFileItem(ValidClass)))
+			if (!InCallback(CreateClassFileItem(ValidClass, Cache)))
 			{
 				return;
 			}
@@ -273,28 +367,36 @@ void UContentBrowserClassDataSource::EnumerateItemsAtPath(const FName InPath, co
 	{
 		if (TSharedPtr<const FNativeClassHierarchyNode> ClassNode = NativeClassHierarchy->FindNode(InternalPath, ENativeClassHierarchyNodeType::Class))
 		{
-			InCallback(CreateClassFileItem(ClassNode->Class));
+			FNativeClassHierarchyGetClassPathCache Cache;
+			InCallback(CreateClassFileItem(ClassNode->Class, Cache));
 		}
 	}
 }
 
 bool UContentBrowserClassDataSource::IsFolderVisibleIfHidingEmpty(const FName InPath)
 {
-	FName InternalPath;
-	if (!TryConvertVirtualPathToInternal(InPath, InternalPath))
+	FName ConvertedPath;
+	const EContentBrowserPathType ConvertedPathType = TryConvertVirtualPath(InPath, ConvertedPath);
+	if (ConvertedPathType == EContentBrowserPathType::Internal)
 	{
-		return false;
+		if (!IsKnownClassPath(ConvertedPath))
+		{
+			return false;
+		}
 	}
-
-	if (!IsKnownClassPath(InternalPath))
+	else if (ConvertedPathType == EContentBrowserPathType::Virtual)
+	{
+		return true;
+	}
+	else
 	{
 		return false;
 	}
 
 	ConditionalCreateNativeClassHierarchy();
 
-	return ContentBrowserClassData::IsTopLevelFolder(InternalPath) 
-		|| NativeClassHierarchy->HasClasses(InternalPath, /*bRecursive*/true);
+	return ContentBrowserClassData::IsTopLevelFolder(ConvertedPath) 
+		|| NativeClassHierarchy->HasClasses(ConvertedPath, /*bRecursive*/true);
 }
 
 bool UContentBrowserClassDataSource::DoesItemPassFilter(const FContentBrowserItemData& InItem, const FContentBrowserDataCompiledFilter& InFilter)
@@ -424,9 +526,7 @@ bool UContentBrowserClassDataSource::Legacy_TryConvertAssetDataToVirtualPath(con
 
 bool UContentBrowserClassDataSource::IsKnownClassPath(const FName InPackagePath) const
 {
-	TStringBuilder<FName::StringBufferSize> PackagePathStr;
-	InPackagePath.ToString(PackagePathStr);
-
+	FNameBuilder PackagePathStr(InPackagePath);
 	return FStringView(PackagePathStr).StartsWith(TEXT("/Classes_"));
 }
 
@@ -455,14 +555,14 @@ FContentBrowserItemData UContentBrowserClassDataSource::CreateClassFolderItem(co
 	return ContentBrowserClassData::CreateClassFolderItem(this, VirtualizedPath, InFolderPath);
 }
 
-FContentBrowserItemData UContentBrowserClassDataSource::CreateClassFileItem(UClass* InClass)
+FContentBrowserItemData UContentBrowserClassDataSource::CreateClassFileItem(UClass* InClass, FNativeClassHierarchyGetClassPathCache& InCache)
 {
 	ConditionalCreateNativeClassHierarchy();
 
 	FName ClassPath;
 	{
 		FString ClassPathStr;
-		const bool bValidClassPath = NativeClassHierarchy->GetClassPath(InClass, ClassPathStr);
+		const bool bValidClassPath = NativeClassHierarchy->GetClassPath(InClass, ClassPathStr, InCache);
 		checkf(bValidClassPath, TEXT("GetClassPath failed to return a result for '%s'"), *InClass->GetPathName());
 		ClassPath = *ClassPathStr;
 	}
@@ -536,8 +636,14 @@ void UContentBrowserClassDataSource::ConditionalCreateNativeClassHierarchy()
 	if (!NativeClassHierarchy)
 	{
 		NativeClassHierarchy = MakeShared<FNativeClassHierarchy>();
-		NativeClassHierarchy->OnClassHierarchyUpdated().AddUObject(this, &UContentBrowserClassDataSource::NotifyItemDataRefreshed);
+		NativeClassHierarchy->OnClassHierarchyUpdated().AddUObject(this, &UContentBrowserClassDataSource::ClassHierarchyUpdated);
 	}
+}
+
+void UContentBrowserClassDataSource::ClassHierarchyUpdated()
+{
+	SetVirtualPathTreeNeedsRebuild();
+	NotifyItemDataRefreshed();
 }
 
 #undef LOCTEXT_NAMESPACE

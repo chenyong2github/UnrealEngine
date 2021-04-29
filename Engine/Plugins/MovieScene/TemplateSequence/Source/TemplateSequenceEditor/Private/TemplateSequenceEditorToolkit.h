@@ -57,6 +57,10 @@ public:
 	{
 		Collector.AddReferencedObject(TemplateSequence);
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FTemplateSequenceEditorToolkit");
+	}
 
 	virtual bool OnRequestClose() override;
 	virtual bool CanFindInContentBrowser() const override;

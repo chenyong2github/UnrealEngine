@@ -83,11 +83,11 @@ public:
 	void DuplicateShot(UMovieSceneCinematicShotSection* Section);
 
 	/*
-	 * Render shot. 
+	 * Render shots. 
 	 *
-	 * @param Section The section to render
+	 * @param Sections The sections to render
 	 */
-	void RenderShot(UMovieSceneCinematicShotSection* Section);
+	void RenderShots(const TArray<UMovieSceneCinematicShotSection*>& Sections);
 
 	/*
 	 * Rename shot. 

@@ -343,11 +343,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	AlertDialog consoleAlert;
 	LinearLayout consoleAlertLayout;
 	Spinner consoleSpinner;
-	EditText consoleInputBox;
-	ArrayList<String> consoleHistoryList;
-	int consoleHistoryIndex;
-	float consoleDistance;
-	float consoleVelocity;
+	ConsoleKeyboardInput consoleInputBox;
 
 	// remember screensaver state to restore
 	private boolean bKeepScreenOn = false;
@@ -2843,60 +2839,25 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 		AlertDialog.Builder builder;
 
-		consoleInputBox = new EditText(this);
+		consoleInputBox = new ConsoleKeyboardInput(this);
 		consoleInputBox.setInputType(0x00080001); // TYPE_CLASS_TEXT | TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-		consoleHistoryList = new ArrayList<String>();
-		consoleHistoryIndex = 0;
-
-		final ViewConfiguration vc = ViewConfiguration.get(this);
-        DisplayMetrics dm = getResources().getDisplayMetrics();
-        consoleDistance = vc.getScaledPagingTouchSlop() * dm.density;
-        consoleVelocity = vc.getScaledMinimumFlingVelocity() / 1000.0f;
-
-		consoleInputBox.setOnTouchListener(new OnTouchListener() {
-			private long downTime;
-			private float downX;
-
-			public void swipeLeft() {
-				if (!consoleHistoryList.isEmpty() && consoleHistoryIndex + 1 < consoleHistoryList.size()) {
-					consoleInputBox.setText(consoleHistoryList.get(++consoleHistoryIndex));
-				}
-			}
-
-			public void swipeRight() {
-				if (!consoleHistoryList.isEmpty() && consoleHistoryIndex > 0) {
-					consoleInputBox.setText(consoleHistoryList.get(--consoleHistoryIndex));
-				}
-			}
-
-			public boolean onTouch(View v, MotionEvent event) {
-				switch (event.getAction()) {
-					case MotionEvent.ACTION_DOWN: {
-						// remember down time and position
-						downTime = System.currentTimeMillis();
-						downX = event.getX();
-						consoleInputBox.requestFocus();
-						return true;
-					}
-					case MotionEvent.ACTION_UP: {
-						long deltaTime = System.currentTimeMillis() - downTime;
-						float delta = event.getX() - downX;
-						float absDelta = Math.abs(delta);
-
-						if (absDelta > consoleDistance && absDelta > deltaTime * consoleVelocity)
-						{
-							if (delta < 0)
-								this.swipeLeft();
-							else
-								this.swipeRight();
-							return true;
-						}
-						return false;
-					}
-				}
-				return false;
-			}
-		});
+		
+		RelativeLayout consoleInputLayout = new RelativeLayout(this);
+		{ 
+			android.widget.ImageButton consoleHistoryButton = consoleInputBox.getButton();
+			consoleInputBox.setId(1);
+			consoleHistoryButton.setId(2);
+			
+			RelativeLayout.LayoutParams lpCIB = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.WRAP_CONTENT);
+			lpCIB.addRule(RelativeLayout.ALIGN_PARENT_LEFT);
+			lpCIB.addRule(RelativeLayout.LEFT_OF, 2);
+			
+			RelativeLayout.LayoutParams lpCHB = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT);
+			lpCHB.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
+			
+			consoleInputLayout.addView(consoleInputBox, lpCIB);
+			consoleInputLayout.addView(consoleHistoryButton, lpCHB);
+		}
 
 		// Spinner with Quick Stat Commands
 		consoleSpinner = new Spinner(this);
@@ -2921,7 +2882,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		consoleAlertLayout = new LinearLayout(this);
 		consoleAlertLayout.setOrientation(LinearLayout.VERTICAL);
 		consoleAlertLayout.addView(consoleSpinner);
-		consoleAlertLayout.addView(consoleInputBox);
+		consoleAlertLayout.addView(consoleInputLayout);
 
 		builder = new AlertDialog.Builder(this);
 		builder.setTitle("Console Window - Enter Command")
@@ -2931,17 +2892,14 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			public void onClick(DialogInterface dialog, int id) {
 				String message = consoleInputBox.getText().toString().trim();
 
-				// remove it if already in history
-				int index = consoleHistoryList.indexOf(message);
-				if (index >= 0)
-					consoleHistoryList.remove(index);
-
-				// add it to the end
-				consoleHistoryList.add(message);
-
+				// remove it if already in history and add to end
+				consoleInputBox.removeHistory(message);
+				consoleInputBox.addHistory(message);
+				
 				nativeConsoleCommand(message);
 				consoleInputBox.setText(" ");
 				consoleSpinner.setSelection(0);
+				consoleInputBox.setText("");
 				dialog.dismiss();
 				CurrentDialogType = EAlertDialogType.None;
 			}
@@ -2950,6 +2908,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			public void onClick(DialogInterface dialog, int id) {
 				consoleInputBox.setText(" ");
 				consoleSpinner.setSelection(0);
+				consoleInputBox.setText("");
 				dialog.dismiss();
 				CurrentDialogType = EAlertDialogType.None;
 			}
@@ -3779,7 +3738,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public void onConfigurationChanged(Configuration newConfig)
 	{
 		super.onConfigurationChanged(newConfig);
-
+		//$${gameActivityonConfigurationChangedAdditions}$$
 		// forward the orientation
 		boolean bPortrait = newConfig.orientation == Configuration.ORIENTATION_PORTRAIT;
 		nativeOnConfigurationChanged(bPortrait);
@@ -3949,7 +3908,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 
 		// start at end of console history
-		consoleHistoryIndex = consoleHistoryList.size();
+		consoleInputBox.setHistoryEnd();
 
 		consoleAlert.setMessage("[Available texture formats: " + Formats + "]");
 		_activity.runOnUiThread(new Runnable()
@@ -5763,7 +5722,93 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			Log.debug("==================================> API<24, cannot use SetSustainedPerformanceMode");
 		}
 	}
-				
+
+	//console input text input class with history - custom EditText
+	public class ConsoleKeyboardInput extends EditText
+	{
+		private android.widget.ImageButton historyButton;
+		private ArrayList<String> historyList;
+
+		public ConsoleKeyboardInput(Context context, AttributeSet attrs, int defStyle)
+		{
+			super(context, attrs, defStyle);
+			init(context);
+		}
+
+		public ConsoleKeyboardInput(Context context, AttributeSet attrs)
+		{
+			super(context, attrs);
+			init(context);
+		}
+
+		public ConsoleKeyboardInput(Context context)
+		{
+			super(context);
+			init(context);
+		}
+
+		private void init(Context context)
+		{
+			historyList = new ArrayList<String>();
+			historyButton = new android.widget.ImageButton(context);
+			historyButton.setImageResource(android.R.drawable.ic_menu_revert);
+			historyButton.setOnClickListener(new View.OnClickListener() {
+				public void onClick(View v) {
+					if (historyList.size() > 0) {
+						final String[] history = historyList.toArray(new String[historyList.size()]);
+
+						AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+						builder.setTitle("History");
+						builder.setCancelable(true);
+						builder.setItems(history, new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								String selected = historyList.get(which);
+								consoleInputBox.removeHistory(selected);
+								consoleInputBox.addHistory(selected);
+								consoleInputBox.setText(selected);
+								dialog.dismiss();
+							}
+						});
+						builder.show();
+					}
+				}
+			});
+			historyButton.setEnabled(false);
+		}
+		
+		private android.widget.ImageButton getButton()
+		{
+			return historyButton;
+		}
+
+		public void setHistoryList(ArrayList<String> inHistoryList)
+		{
+			historyList = inHistoryList;
+		}
+
+		public void removeHistory(String value)
+		{
+			int index = historyList.indexOf(value);
+			if (index >= 0)
+			{
+				historyList.remove(index);
+			}
+			historyButton.setEnabled(historyList.size() > 0);
+		}
+
+		public void addHistory(String value)
+		{
+			historyList.add(0, value);
+			historyButton.setEnabled(historyList.size() > 0);
+		}
+
+		public void setHistoryEnd()
+		{
+			historyButton.setEnabled(historyList.size() > 0);
+		}
+	}
+	
 	//virtual keyboard input class - custom EditText
 	public class VirtualKeyboardInput extends EditText 
 	{

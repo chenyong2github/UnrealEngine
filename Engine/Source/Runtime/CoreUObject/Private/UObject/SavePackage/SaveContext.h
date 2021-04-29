@@ -539,7 +539,7 @@ public:
 		}
 
 		ESavePackageResult FinalResult = IsStubRequested() ? ESavePackageResult::GenerateStub : (bDiffOnlyIdentical ? ESavePackageResult::Success : ESavePackageResult::DifferentContent);
-		return FSavePackageResultStruct(FinalResult, TotalPackageSizeUncompressed, AsyncWriteAndHashSequence.Finalize(EAsyncExecution::TaskGraph, MoveTemp(HashCompletionFunc)), IsCompareLinker() ? MoveTemp(Linker) : nullptr);
+		return FSavePackageResultStruct(FinalResult, TotalPackageSizeUncompressed, AsyncWriteAndHashSequence.Finalize(EAsyncExecution::TaskGraph, MoveTemp(HashCompletionFunc)), 0, IsCompareLinker() ? MoveTemp(Linker) : nullptr);
 	}
 
 	FObjectSaveContextData& GetObjectSaveContext()

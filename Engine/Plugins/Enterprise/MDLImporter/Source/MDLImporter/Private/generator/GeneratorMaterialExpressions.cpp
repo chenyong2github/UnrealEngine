@@ -599,12 +599,9 @@ namespace Generator
 		{
 			UMaterialExpressionMax* Max = Cast<UMaterialExpressionMax>(Expression);
 			const uint32 ACount = Max->A.Expression ? ComponentCount(Max->A.Expression, Max->A.OutputIndex) : 1;
-			check(ACount == (Max->B.Expression ? ComponentCount(Max->B.Expression, Max->B.OutputIndex) : 1));
-			return ACount;
-
-			//const uint32 BCount = Max->B.Expression ? ComponentCount(Max->B.Expression, Max->B.OutputIndex) : 1;
-			//check((ACount == 1) || (BCount == 1) || (ACount == BCount));
-			//return FMath::Max(ACount, BCount);
+			const uint32 BCount = Max->B.Expression ? ComponentCount(Max->B.Expression, Max->B.OutputIndex) : 1;
+			check((ACount == 1) || (BCount == 1) || (ACount == BCount));
+			return FMath::Max(ACount, BCount);
 		}
 		else if (Expression->IsA<UMaterialExpressionMin>())
 		{
@@ -1557,20 +1554,8 @@ namespace Generator
 
 		if (Texture)
 		{
-			const bool bIsVirtualTexture = Texture->VirtualTextureStreaming;
 			Expression->Texture = Texture;
-			if (Texture->IsNormalMap())
-			{
-				Expression->SamplerType = bIsVirtualTexture ? SAMPLERTYPE_VirtualNormal : SAMPLERTYPE_Normal;
-			}
-			else if (Texture->SRGB)
-			{
-				Expression->SamplerType = bIsVirtualTexture ? SAMPLERTYPE_VirtualColor : SAMPLERTYPE_Color;
-			}
-			else
-			{
-				Expression->SamplerType = bIsVirtualTexture ? SAMPLERTYPE_VirtualLinearColor : SAMPLERTYPE_LinearColor;
-			}
+			Expression->SamplerType = UMaterialExpressionTextureBase::GetSamplerTypeForTexture(Texture);
 		}
 
 		return Expression;

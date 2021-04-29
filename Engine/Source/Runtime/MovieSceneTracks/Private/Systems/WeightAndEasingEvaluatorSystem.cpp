@@ -46,14 +46,8 @@ void UMovieSceneHierarchicalEasingInstantiatorSystem::OnRun(FSystemTaskPrerequis
 	{
 		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
 		{
-			const FSequenceInstance* RootInstance = &InstanceRegistry->GetInstance(InstanceHandles[Index]);
-			if (!RootInstance->IsRootSequence())
-			{
-				RootInstance = &InstanceRegistry->GetInstance(RootInstance->GetRootInstanceHandle());
-			}
-
 			const FMovieSceneSequenceID SequenceID = HierarchicalEasingProviders[Index];
-			const FInstanceHandle SubSequenceHandle = RootInstance->FindSubInstance(SequenceID);
+			const FInstanceHandle SubSequenceHandle = InstanceRegistry->FindRelatedInstanceHandle(InstanceHandles[Index], SequenceID);
 
 			// We use instance handles here because sequence IDs by themselves are only unique to a single hierarchy 
 			// of sequences. If a root sequence is playing twice at the same time, there will be 2 sequence instances

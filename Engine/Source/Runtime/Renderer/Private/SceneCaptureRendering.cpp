@@ -44,14 +44,6 @@
 #include "SceneViewExtension.h"
 #include "GenerateMips.h"
 
-static TAutoConsoleVariable<int32> CVarEnableViewExtensionsForSceneCapture(
-	TEXT("r.SceneCapture.EnableViewExtensions"),
-	0,
-	TEXT("Whether to enable view extensions when doing scene capture.\n")
-	TEXT("0: Disable view extensions (default).\n")
-	TEXT("1: Enable view extensions.\n"),
-	ECVF_Default);
-
 /** A pixel shader for capturing a component of the rendered scene for a scene capture.*/
 class FSceneCapturePS : public FGlobalShader
 {
@@ -276,10 +268,10 @@ static void UpdateSceneCaptureContentDeferred_RenderThread(
 			SceneRenderer->Render(GraphBuilder);
 		}
 
-		if (bGenerateMips)
-		{
+			if (bGenerateMips)
+			{
 			FGenerateMips::Execute(GraphBuilder, TargetTexture, GenerateMipsParams);
-		}
+			}
 
 		FRDGTextureRef ResolveTexture = RegisterExternalTexture(GraphBuilder, RenderTargetTexture->TextureRHI, TEXT("SceneCaptureResolve"));
 		AddCopyToResolveTargetPass(GraphBuilder, TargetTexture, ResolveTexture, ResolveParams);
@@ -603,10 +595,7 @@ static FSceneRenderer* CreateSceneRendererForSceneCapture(
 		.SetResolveScene(!bCaptureSceneColor)
 		.SetRealtimeUpdate(SceneCaptureComponent->bCaptureEveryFrame || SceneCaptureComponent->bAlwaysPersistRenderingState));
 	
-	if (CVarEnableViewExtensionsForSceneCapture.GetValueOnAnyThread() > 0)
-	{
 		ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(Scene));
-	}
 	
 	SetupViewFamilyForSceneCapture(
 		ViewFamily,
@@ -785,6 +774,10 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 				{
 					TextureRenderTargetResource->SetActiveGPUMask(FRHIGPUMask::All());
 				}
+
+				// We need to execute the pre-render view extensions before we do any view dependent work.
+				FSceneRenderer::ViewExtensionPreRender_RenderThread(RHICmdList, SceneRenderer);
+
 				UpdateSceneCaptureContent_RenderThread(RHICmdList, SceneRenderer, TextureRenderTargetResource, TextureRenderTargetResource, EventName, FResolveParams(), bGenerateMips, GenerateMipsParams, bDisableFlipCopyGLES);
 			}
 		);

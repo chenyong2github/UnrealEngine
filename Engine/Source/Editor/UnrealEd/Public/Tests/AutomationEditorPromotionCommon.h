@@ -6,6 +6,9 @@
 #include "CoreMinimal.h"
 #include "Framework/Commands/InputChord.h"
 #include "AutomationScreenshotOptions.h"
+#include "Misc/AutomationTest.h"
+
+#if WITH_AUTOMATION_TESTS
 
 class SWidget;
 class UMaterial;
@@ -111,3 +114,5 @@ public:
 	*/
 	UNREALED_API static void TakeScreenshot(const FString& ScreenshotName, const FAutomationScreenshotOptions& Options, bool bUseTopWindow = false);
 };
+
+#endif // WITH_AUTOMATION_TESTS

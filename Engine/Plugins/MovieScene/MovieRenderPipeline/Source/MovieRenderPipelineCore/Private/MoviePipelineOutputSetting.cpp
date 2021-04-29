@@ -5,6 +5,7 @@
 #include "MoviePipelineMasterConfig.h"
 #include "MoviePipelineQueue.h"
 #include "MovieRenderPipelineDataTypes.h"
+#include "MoviePipeline.h"
 
 UMoviePipelineOutputSetting::UMoviePipelineOutputSetting()
 	: OutputResolution(FIntPoint(1920, 1080))
@@ -21,6 +22,7 @@ UMoviePipelineOutputSetting::UMoviePipelineOutputSetting()
 	, bAutoVersion(true)
 	, ZeroPadFrameNumbers(4)
 	, FrameNumberOffset(0)
+	, bFlushDiskWritesPerShot(true)
 {
 	FileNameFormat = TEXT("{sequence_name}.{frame_number}");
 	OutputDirectory.Path = FPaths::ProjectSavedDir() / TEXT("MovieRenders/");
@@ -86,5 +88,13 @@ void UMoviePipelineOutputSetting::GetFormatArguments(FMoviePipelineFormatArgs& I
 	{
 		FString VersionText = FString::Printf(TEXT("v%0*d"), 3, VersionNumber);
 		InOutFormatArgs.FilenameArguments.Add(TEXT("version"), VersionText);
+	}
+}
+
+void UMoviePipelineOutputSetting::SetupForPipelineImpl(UMoviePipeline* InPipeline)
+{
+	if (InPipeline)
+	{
+		InPipeline->SetFlushDiskWritesPerShot(InPipeline->IsFlushDiskWritesPerShot() || bFlushDiskWritesPerShot);
 	}
 }

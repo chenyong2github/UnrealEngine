@@ -283,6 +283,10 @@ public:
 	~SSequencer();
 	
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) { }
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SSequencer");
+	}
 
 	virtual bool SupportsKeyboardFocus() const override
 	{
@@ -408,6 +412,9 @@ private:
 
 	/** Makes the plabacky menu for the toolbar. */
 	TSharedRef<SWidget> MakePlaybackMenu();
+
+	/** Makes the render movie menu for the toolbar. */
+	TSharedRef<SWidget> MakeRenderMovieMenu();
 
 	/** Makes the snapping menu for the toolbar. */
 	TSharedRef<SWidget> MakeSnapMenu();
@@ -541,6 +548,9 @@ private:
 
 	/** Gets whether or not the breadcrumb trail should be visible. */
 	EVisibility GetBreadcrumbTrailVisibility() const;
+
+	/** Return whether there are breadcrumbs to navigate. */
+	bool CanNavigateBreadcrumbs() const;
 
 	/** Gets whether or not the bottom time slider should be visible. */
 	EVisibility GetBottomTimeSliderVisibility() const;

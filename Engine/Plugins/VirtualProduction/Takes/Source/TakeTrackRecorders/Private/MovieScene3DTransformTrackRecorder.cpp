@@ -403,7 +403,11 @@ bool UMovieScene3DTransformTrackRecorder::ResolveTransformToRecord(FTransform& O
  		USceneComponent* RootComponent = Actor->GetRootComponent();
  		USceneComponent* AttachParent = RootComponent ? RootComponent->GetAttachParent() : nullptr;
  
- 		bWasAttached = AttachParent != nullptr;
+		// Only track if this attachment turns true so that we can compensate on Finalize
+		if (!bWasAttached)
+		{
+	 		bWasAttached = AttachParent != nullptr;
+		}
 
 		if (AttachParent && OwningTakeRecorderSource)
  		{
@@ -472,10 +476,7 @@ void UMovieScene3DTransformTrackRecorder::PostProcessAnimationData(UMovieSceneAn
 			FTransform Relative = FTransform::Identity;
 			if (AActor* Actor = Cast<AActor>(ObjectToRecord.Get()))
 			{
-				USceneComponent* RootComponent = Actor->GetRootComponent();
-				USceneComponent* AttachParent = RootComponent ? RootComponent->GetAttachParent() : nullptr;
-				bWasAttached = AttachParent != nullptr;
-				if (AttachParent && OwningTakeRecorderSource && DefaultTransform.IsSet())
+				if (bWasAttached && OwningTakeRecorderSource && DefaultTransform.IsSet())
 				{
 					if (BufferedTransforms.Num() == 0)
 					{

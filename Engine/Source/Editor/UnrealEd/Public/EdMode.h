@@ -136,6 +136,10 @@ public:
 	virtual void UpdateInternalData() {}
 
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override {}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FEdMode");
+	}
 
 	virtual void Enter();
 	virtual void Exit();

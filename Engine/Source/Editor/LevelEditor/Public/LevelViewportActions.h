@@ -209,10 +209,12 @@ public:
 	void RegisterShowSpriteCommands();
 
 private:
+#if STATS
 	/** Registers additional commands as they are loaded */
 	void HandleNewStatGroup(const TArray<FStatNameAndInfo>& NameAndInfos);
 	void HandleNewStat(const FName& InStatName, const FName& InStatCategory, const FText& InStatDescription);
 	int32 FindStatIndex(const TArray< FShowMenuCommand >* ShowStatCommands, const FString& InCommandName) const;
+#endif
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Dummy function that's never used.

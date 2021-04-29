@@ -51,7 +51,7 @@ namespace WindowsMixedReality
 		if (bHasSupportedWindowsBuild && bHasSupportedWindowsVersion)
 		{
 			// Get the base directory of this plugin
-			FString BaseDir = IPluginManager::Get().FindPlugin("WindowsMixedReality")->GetBaseDir();
+			FString BaseDir = IPluginManager::Get().FindPlugin(TEXT("WindowsMixedReality"))->GetBaseDir();
 
 			FString EngineDir = FPaths::EngineDir();
 			FString BinariesSubDir = FPlatformProcess::GetBinariesSubdirectory();

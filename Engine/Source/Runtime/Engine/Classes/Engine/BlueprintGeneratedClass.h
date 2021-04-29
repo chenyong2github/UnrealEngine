@@ -626,7 +626,7 @@ struct FBPComponentClassOverride
 	}
 };
 
-UCLASS()
+UCLASS(NeedsDeferredDependencyLoading)
 class ENGINE_API UBlueprintGeneratedClass : public UClass
 {
 	GENERATED_UCLASS_BODY()

@@ -146,4 +146,10 @@ public:
 	 * If the HMD supports the various extensions listed below, it should return a valid pointer to an implementation contained within it.
 	 */
 	virtual TSharedPtr< IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe > GetVulkanExtensions() { return nullptr; }
+
+	/**
+	* Indicates that the device we're currently running does not support a spectator view.
+	* This will only be called once at initialization and should only return a result based for the current device the engine is running on.
+	*/
+	virtual bool IsStandaloneStereoOnlyDevice() { return false; }
 };

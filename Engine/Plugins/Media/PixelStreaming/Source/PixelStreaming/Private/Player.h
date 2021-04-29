@@ -40,8 +40,8 @@ public:
 	virtual ~FPlayer();
 
 public:
-	static bool CreateDXManagerAndDevice();
-	static bool DestroyDXManagerAndDevice();
+	static bool CreateManagerAndDevice();
+	static bool DestroyManagerAndDevice();
 
 	// IMediaPlayer impl
 
@@ -61,11 +61,11 @@ public:
 	{
 		return GetUrl();
 	}
-	
+
 	FGuid GetPlayerPluginGUID() const override;
 
 	IMediaSamples& GetSamples() override;
-			
+
 	FString GetStats() const override
 	{
 		return FString{};

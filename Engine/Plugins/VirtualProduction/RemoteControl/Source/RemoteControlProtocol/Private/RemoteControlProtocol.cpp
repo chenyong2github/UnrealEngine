@@ -4,6 +4,7 @@
 
 #include "RemoteControlPreset.h"
 #include "RemoteControlProtocolBinding.h"
+#include "RemoteControlProtocolModule.h"
 
 #include "UObject/StructOnScope.h"
 
@@ -27,4 +28,20 @@ TFunction<bool(FRemoteControlProtocolEntityWeakPtr InProtocolEntityWeakPtr)> FRe
 
 		return false;
 	};
+}
+
+FProperty* IRemoteControlProtocol::GetRangeInputTemplateProperty() const
+{
+	FProperty* RangeInputTemplateProperty = nullptr;
+	if(UScriptStruct* ProtocolScriptStruct = GetProtocolScriptStruct())
+	{
+		RangeInputTemplateProperty = ProtocolScriptStruct->FindPropertyByName("RangeInputTemplate");
+	}
+
+	if(!ensure(RangeInputTemplateProperty))
+	{
+		UE_LOG(LogRemoteControlProtocol, Warning, TEXT("Could not find RangeInputTemplate Property for this Protocol. Please either add this named property to the ProtocolScriptStruct implementation, or override IRemoteControlProtocol::GetRangeTemplateType."));
+	}
+	
+	return RangeInputTemplateProperty;
 }

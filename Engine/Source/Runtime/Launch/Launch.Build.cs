@@ -234,22 +234,6 @@ public class Launch : ModuleRules
 			}
 		}
 
-		if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS)
-		{
-			PrivateDependencyModuleNames.AddRange(new string[] {
-				"AudioMixerAudioUnit",
-				"IOSAudio",
-				"LaunchDaemonMessages",
-			});
-
-			DynamicallyLoadedModuleNames.AddRange(new string[] {
-				"IOSLocalNotification",
-				"IOSRuntimeSettings",
-			});
-
-			// needed for Metal layer
-			PublicFrameworks.Add("QuartzCore");
-		}
 
 		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
 			(Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) && Target.Type != TargetType.Server))

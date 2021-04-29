@@ -291,11 +291,19 @@ void UAIPerceptionComponent::BeginDestroy()
 
 void UAIPerceptionComponent::UpdatePerceptionWhitelist(const FAISenseID Channel, const bool bNewValue)
 {
+	// Return if we don't have a Sense Config as it doesn't make sense to update the perception white list.
+	// Also modifying this often requires the Sense Config further along the call stack.
+	if (GetSenseConfig(Channel) == nullptr)
+	{
+		UE_VLOG_UELOG(GetOwner(), LogAIPerception, Warning, TEXT("%s: %s: Channel has no Sense Config. Bailing out!!"), ANSI_TO_TCHAR(__FUNCTION__), *Channel.Name.ToString());
+		return;
+	}
+
 	const bool bCurrentValue = PerceptionFilter.ShouldRespondToChannel(Channel);
 	if (bNewValue != bCurrentValue)
 	{
 		bNewValue ? PerceptionFilter.AcceptChannel(Channel) : PerceptionFilter.FilterOutChannel(Channel);
-		RequestStimuliListenerUpdate();	
+		RequestStimuliListenerUpdate();
 	}
 }
 

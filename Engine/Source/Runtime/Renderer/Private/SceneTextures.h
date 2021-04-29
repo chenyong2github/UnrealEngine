@@ -173,9 +173,6 @@ struct RENDERER_API FSceneTextures : public FMinimalSceneTextures
 	// Texture used by the quad overdraw debug view mode when enabled.
 	FRDGTextureRef QuadOverdraw{};
 
-	// Texture used to control shading rate for rendering.
-	FRDGTextureRef ShadingRate{};
-
 	// (Mobile) Texture used by mobile PPR in the next frame.
 	FRDGTextureRef PixelProjectedReflection{};
 

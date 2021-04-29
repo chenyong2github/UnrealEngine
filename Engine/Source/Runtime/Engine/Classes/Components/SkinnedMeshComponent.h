@@ -358,7 +358,7 @@ public:
 	FColor WireframeColor_DEPRECATED;
 #endif
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_ENABLE_DEBUG_DRAWING
 	/** Debug draw color */
 	TOptional<FLinearColor> DebugDrawColor;
 #endif
@@ -379,7 +379,7 @@ public:
 	 */
 	void GetCPUSkinnedVertices(TArray<struct FFinalSkinVertex>& OutVertices, int32 InLODIndex) const;
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_ENABLE_DEBUG_DRAWING
 	/** Get whether to draw this mesh's debug skeleton */
 	bool ShouldDrawDebugSkeleton() const { return bDrawDebugSkeleton; }
 
@@ -644,7 +644,7 @@ protected:
 	/** Whether mip callbacks have been registered and need to be removed on destroy */
 	uint8 bMipLevelCallbackRegistered:1;
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_ENABLE_DEBUG_DRAWING
 private:
 	/** Whether to draw this mesh's debug skeleton (regardless of showflags) */
 	uint8 bDrawDebugSkeleton:1;

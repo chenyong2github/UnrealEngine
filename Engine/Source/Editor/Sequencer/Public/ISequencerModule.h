@@ -8,6 +8,7 @@
 #include "Modules/ModuleInterface.h"
 #include "AnimatedPropertyKey.h"
 #include "ISequencerChannelInterface.h"
+#include "IMovieRendererInterface.h"
 #include "MovieSceneSequenceEditor.h"
 
 class IKeyArea;
@@ -111,9 +112,13 @@ struct FSequencerHostCapabilities
 	/** Do we support the curve editor */
 	bool bSupportsCurveEditor;
 
+	/** Do we support recording */
+	bool bSupportsRecording;
+
 	FSequencerHostCapabilities()
 		: bSupportsSaveMovieSceneAsset(false)
 		, bSupportsCurveEditor(false)
+		, bSupportsRecording(false)
 	{}
 };
 
@@ -363,6 +368,28 @@ public:
 		auto PropertyTypes = PropertyTrackEditorType::GetAnimatedPropertyTypes();
 		return RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(PropertyTrackEditorType::CreateTrackEditor), PropertyTypes);
 	}
+
+public:
+
+	/**
+	 * Register a movie renderer for this sequencer.
+	 */
+	virtual FDelegateHandle RegisterMovieRenderer(TUniquePtr<IMovieRendererInterface>&& InMovieRenderer) = 0;
+
+	/**
+	 * Unregister a movie renderer for this sequencer.
+	 */
+	virtual void UnregisterMovieRenderer(FDelegateHandle InDelegateHandle) = 0;
+
+	/**
+	 * Get the movie renderer with the requested name.
+	 */
+	virtual IMovieRendererInterface* GetMovieRenderer(const FString& InMovieRendererName) = 0;
+
+	/**
+	 * Get a list of registered movie renderers.
+	 */
+	virtual TArray<FString> GetMovieRendererNames() = 0;
 
 private:
 

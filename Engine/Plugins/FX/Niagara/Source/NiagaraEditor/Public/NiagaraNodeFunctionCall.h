@@ -7,6 +7,8 @@
 #include "NiagaraEditorCommon.h"
 #include "NiagaraNodeWithDynamicPins.h"
 #include "NiagaraNodeInput.h"
+#include "UpgradeNiagaraScriptResults.h"
+
 #include "NiagaraNodeFunctionCall.generated.h"
 
 class UNiagaraScript;
@@ -84,6 +86,17 @@ public:
 	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	FGuid PreviousScriptVersion;
 
+	/** Can be used by the ui after a version change to display change notes */
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
+	FString PythonUpgradeScriptWarnings;
+
+	UPROPERTY()
+	ENiagaraFunctionDebugState DebugState;
+
+	/** Controls whether the debug state of the current function gets propagated into this function call. */
+	UPROPERTY(EditAnywhere, Category = "Debug")
+	bool bInheritDebugStatus = true;
+
 	bool ScriptIsValid() const;
 
 	//Begin UObject interface
@@ -122,7 +135,7 @@ public:
 
 	void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
 
-	NIAGARAEDITOR_API void ChangeScriptVersion(FGuid NewScriptVersion, bool bShowNotesInStack = false);
+	NIAGARAEDITOR_API void ChangeScriptVersion(FGuid NewScriptVersion, const FNiagaraScriptVersionUpgradeContext& UpgradeContext, bool bShowNotesInStack = false);
 
 	FString GetFunctionName() const { return FunctionDisplayName; }
 	NIAGARAEDITOR_API UNiagaraGraph* GetCalledGraph() const;
@@ -135,6 +148,9 @@ public:
 
 	/** Attempts to find the input pin for a static switch with the given name in the internal script graph. Returns nullptr if no such pin can be found. */
 	UEdGraphPin* FindStaticSwitchInputPin(const FName& VariableName) const;
+
+	/** checks to see if this called function contains any debug switches */
+	NIAGARAEDITOR_API bool ContainsDebugSwitch() const;
 
 	/** Tries to rename this function call to a new name.  The actual name that gets applied might be different due to conflicts with existing
 		nodes with the same name. */

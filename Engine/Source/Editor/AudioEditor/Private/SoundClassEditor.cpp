@@ -155,10 +155,12 @@ void FSoundClassEditor::InitSoundClassEditor( const EToolkitMode::Type Mode, con
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();
 			
+#if ENABLE_AUDIO_DEBUG
 	if (GEditor->GetAudioDeviceManager())
 	{
 		Debugger = &GEditor->GetAudioDeviceManager()->GetDebugger();
 	}	
+#endif
 
 	GraphEditor->SelectAllNodes();
 	for (UObject* SelectedNode : GraphEditor->GetSelectedNodes())
@@ -201,7 +203,9 @@ void FSoundClassEditor::BindCommands()
 
 FSoundClassEditor::FSoundClassEditor()
 	: SoundClass(nullptr)
+#if ENABLE_AUDIO_DEBUG
 	, Debugger(nullptr)
+#endif
 {
 }
 
@@ -391,40 +395,68 @@ void FSoundClassEditor::RedoGraphAction()
 
 void FSoundClassEditor::ToggleSolo()
 {
+#if ENABLE_AUDIO_DEBUG
 	if (Debugger)
 	{
 		Debugger->ToggleSoloSoundClass(SoundClass->GetFName());
 	}
+#endif
 }
 
 bool FSoundClassEditor::CanExcuteToggleSolo() const
 {
+#if ENABLE_AUDIO_DEBUG
 	// Enable solo if we are not Muted	
-	return Debugger ? !Debugger->IsMuteSoundClass(SoundClass->GetFName()) : false;
+	if (Debugger)
+	{
+		return !Debugger->IsMuteSoundClass(SoundClass->GetFName());
+	}
+#endif
+	return false;
 }
 
 bool FSoundClassEditor::IsSoloToggled() const
 {
-	return Debugger ? Debugger->IsSoloSoundClass(SoundClass->GetFName()) : false;
+#if ENABLE_AUDIO_DEBUG
+	if (Debugger)
+	{
+		return Debugger->IsSoloSoundClass(SoundClass->GetFName());
+	}
+#endif	
+	return false;
 }
 
 void FSoundClassEditor::ToggleMute()
 {
+#if ENABLE_AUDIO_DEBUG
 	if (Debugger)
 	{
 		Debugger->ToggleMuteSoundClass(SoundClass->GetFName());
 	}
+#endif
 }
 
 bool FSoundClassEditor::CanExcuteToggleMute() const
 {
+#if ENABLE_AUDIO_DEBUG
 	// Enable mute if we are not Soloed
-	return Debugger ? !Debugger->IsSoloSoundClass(SoundClass->GetFName()) : false;
+	if (Debugger)
+	{
+		return !Debugger->IsSoloSoundClass(SoundClass->GetFName());
+	}
+#endif
+	return false;
 }
 
 bool FSoundClassEditor::IsMuteToggled() const
 {	
-	return Debugger ? Debugger->IsMuteSoundClass(SoundClass->GetFName()) : false;
+#if ENABLE_AUDIO_DEBUG
+	if (Debugger)
+	{
+		return Debugger->IsMuteSoundClass(SoundClass->GetFName());
+	}
+#endif
+	return false;
 }
 
 void FSoundClassEditor::CreateSoundClass(UEdGraphPin* FromPin, const FVector2D& Location, const FString& Name)

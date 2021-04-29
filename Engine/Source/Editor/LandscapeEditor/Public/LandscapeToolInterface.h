@@ -114,6 +114,10 @@ public:
 
 	// FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override {}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FLandscapeBrush");
+	}
 };
 
 struct FLandscapeBrushSet
@@ -250,6 +254,10 @@ public:
 
 	// FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override {}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FLandscapeTool");
+	}
 
 public:
 	int32					PreviousBrushIndex;

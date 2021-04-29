@@ -21,6 +21,8 @@ FBaseAttenuationSettings::FBaseAttenuationSettings()
 	, AttenuationShapeExtents(400.f, 0.f, 0.f)
 	, ConeOffset(0.f)
 	, FalloffDistance(3600.f)
+	, ConeSphereRadius(0.f)
+	, ConeSphereFalloffDistance(0.f)
 {
 }
 
@@ -291,16 +293,34 @@ float FBaseAttenuationSettings::AttenuationEvalCone(const FTransform& Origin, co
 	const FVector Forward = Origin.GetUnitAxis( EAxis::X );
 
 	float AttenuationMultiplier = 1.f;
+	float SphereAttenuationMultiplier = 0.f;
 
 	const FVector ConeOrigin = Origin.GetTranslation() - (Forward * ConeOffset);
 
-	const float Distance = FMath::Max(FVector::Dist( ConeOrigin, Location ) - AttenuationShapeExtents.X, 0.f);
-	AttenuationMultiplier *= AttenuationEval(Distance, FalloffDistance, DistanceScale);
-
-	if (AttenuationMultiplier > 0.f)
+	// Evaluate sphere attenuation If ConeSphereRadius is nonzero
+	if (!FMath::IsNearlyZero(ConeSphereRadius))
 	{
-		const float theta = FMath::RadiansToDegrees(FMath::Abs(FMath::Acos( FVector::DotProduct(Forward, (Location - ConeOrigin).GetSafeNormal()))));
-		AttenuationMultiplier *= AttenuationEval(theta - AttenuationShapeExtents.Y, AttenuationShapeExtents.Z, 1.0f);
+		const float SphereDistance = FMath::Max(FVector::Dist(ConeOrigin, Location) - ConeSphereRadius, 0.f);
+		SphereAttenuationMultiplier = AttenuationEval(SphereDistance, ConeSphereFalloffDistance, DistanceScale);
+	}
+
+	// Cone devolves into sphere check if ConeSphereRadius >= AttenuationShapeExtents.X
+	if (ConeSphereRadius >= AttenuationShapeExtents.X)
+	{
+		AttenuationMultiplier = SphereAttenuationMultiplier;
+	}
+	else
+	{
+		const float Distance = FMath::Max(FVector::Dist(ConeOrigin, Location) - AttenuationShapeExtents.X, 0.f);
+		AttenuationMultiplier *= AttenuationEval(Distance, FalloffDistance, DistanceScale);
+
+		if (AttenuationMultiplier > 0.f)
+		{
+			const float theta = FMath::RadiansToDegrees(FMath::Abs(FMath::Acos(FVector::DotProduct(Forward, (Location - ConeOrigin).GetSafeNormal()))));
+			AttenuationMultiplier *= AttenuationEval(theta - AttenuationShapeExtents.Y, AttenuationShapeExtents.Z, 1.0f);
+		}
+
+		AttenuationMultiplier = FMath::Max(AttenuationMultiplier, SphereAttenuationMultiplier);
 	}
 
 	return AttenuationMultiplier;
@@ -312,6 +332,8 @@ void FBaseAttenuationSettings::CollectAttenuationShapesForVisualization(TMultiMa
 	ShapeDetails.Extents = AttenuationShapeExtents;
 	ShapeDetails.Falloff = FalloffDistance;
 	ShapeDetails.ConeOffset = ConeOffset;
+	ShapeDetails.ConeSphereRadius = ConeSphereRadius;
+	ShapeDetails.ConeSphereFalloff = ConeSphereFalloffDistance;
 
-	ShapeDetailsMap.Add(AttenuationShape, ShapeDetails);
+	ShapeDetailsMap.Add(AttenuationShape, MoveTemp(ShapeDetails));
 }

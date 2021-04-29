@@ -107,6 +107,8 @@ void SEnvQueryProfiler::BuildStatData()
 {
 	StatData.Reset();
 
+#if USE_EQS_DEBUGGER
+
 	const FString MatchPattern = OwnerQueryName.ToString() + FString("_");
 	
 	CachedGraphDesc = LOCTEXT("ProfilerNoGraph", "Open query with recorded data to view tick load graph");
@@ -163,6 +165,7 @@ void SEnvQueryProfiler::BuildStatData()
 	}
 
 	TimeToNextUpdate = 2.0f;
+#endif
 }
 
 void SEnvQueryProfiler::ForceUpdate()

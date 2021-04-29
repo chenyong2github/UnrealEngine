@@ -434,6 +434,11 @@ public:
 				// GT has forced a wake so have to wake everything in the island
 				IslandsToWake.Enqueue(Particle->Island());
 			}
+			else if(ObjectState != EObjectStateType::Dynamic)
+			{
+				// even though we went to sleep, we should still report info back to GT
+				Particles.MarkTransientDirtyParticle(Particle);
+			}
 		}
 	}
 
@@ -467,15 +472,15 @@ public:
 
 	/** remove a list of constraints from the constraint graph (see AddConstraintsToConstraintGraph) */
 	CHAOS_API void RemoveConstraintsFromConstraintGraph(const TArray<FConstraintHandle*>& Constraints)
-	{
-		for (FConstraintHandle* BaseConstraintHandle : Constraints)
 		{
-			if (FPBDJointConstraintHandle* ConstraintHandle = BaseConstraintHandle->As<FPBDJointConstraintHandle>())
+		for (FConstraintHandle* BaseConstraintHandle : Constraints)
 			{
-				ConstraintGraph.RemoveConstraint(ConstraintHandle->GetConstraintIndex(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
+				if (FPBDJointConstraintHandle* ConstraintHandle = BaseConstraintHandle->As<FPBDJointConstraintHandle>())
+				{
+						ConstraintGraph.RemoveConstraint(ConstraintHandle->GetConstraintIndex(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
+					}
+				}
 			}
-		}
-	}
 
 	/** Add a list of constraints to the constraint graph (see RemoveConstraintsFromConstraintGraph) */
 	CHAOS_API void AddConstraintsToConstraintGraph(const TArray<FConstraintHandle*>& Constraints)
@@ -487,7 +492,7 @@ public:
 				ConstraintGraph.AddConstraint(ConstraintHandle->GetConstraintIndex(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
 			}
 		}
-	}
+		}
 
 	/** Disconnect constraints from a set of particles to be removed (or destroyed) 
 	* this will set the constraints to Enbaled = false and set their respective bodies handles to nullptr

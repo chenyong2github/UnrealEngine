@@ -2,9 +2,11 @@
 
 #include "ApplySnapshotFilter.h"
 
-#include "LevelSnapshot.h"
+#include "Data/LevelSnapshot.h"
+#include "Data/PropertySelection.h"
 #include "LevelSnapshotFilters.h"
 #include "LevelSnapshotsLog.h"
+#include "Restorability/SnapshotRestorability.h"
 
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
@@ -53,20 +55,23 @@ FApplySnapshotFilter FApplySnapshotFilter::Make(ULevelSnapshot* Snapshot, AActor
 
 void FApplySnapshotFilter::ApplyFilterToFindSelectedProperties(FPropertySelectionMap& MapToAddTo)
 {
-	if (EnsureParametersAreValid() && ULevelSnapshot::IsActorDesirableForCapture(WorldActor))
+	if (EnsureParametersAreValid() && FSnapshotRestorability::IsActorDesirableForCapture(WorldActor))
 	{
 		FilterActorPair(MapToAddTo);
 		AnalyseComponentProperties(MapToAddTo);
 	}
 }
 
-FApplySnapshotFilter::FPropertyContainerContext::FPropertyContainerContext(FPropertySelection& SelectionToAddTo, UStruct* ContainerClass, void* SnapshotContainer, void* WorldContainer, TArray<FString> AuthoredPathInformation)
+FApplySnapshotFilter::FPropertyContainerContext::FPropertyContainerContext(
+	FPropertySelection& SelectionToAddTo, UStruct* ContainerClass, void* SnapshotContainer, void* WorldContainer, const TArray<FString>& AuthoredPathInformation, const FLevelSnapshotPropertyChain& PropertyChain, UClass* RootClass)
 	:
 	SelectionToAddTo(SelectionToAddTo),
 	ContainerClass(ContainerClass),
 	SnapshotContainer(SnapshotContainer),
 	WorldContainer(WorldContainer),
-	AuthoredPathInformation(AuthoredPathInformation)
+	AuthoredPathInformation(AuthoredPathInformation),
+	PropertyChain(PropertyChain),
+	RootClass(RootClass)
 {}
 
 FApplySnapshotFilter::FApplySnapshotFilter(ULevelSnapshot* Snapshot, AActor* DeserializedSnapshotActor, AActor* WorldActor, const ULevelSnapshotFilter* Filter)
@@ -109,7 +114,7 @@ void FApplySnapshotFilter::AnalyseComponentProperties(FPropertySelectionMap& Map
 	DeserializedSnapshotActor->GetComponents(SnapshotComponents);
 	for (UActorComponent* WorldComp : WorldComponents)
 	{
-		if (!ULevelSnapshot::IsComponentDesirableForCapture(WorldComp))
+		if (!FSnapshotRestorability::IsComponentDesirableForCapture(WorldComp))
 		{
 			UE_LOG(LogLevelSnapshots, Verbose, TEXT("Skipping world component '%s' of world actor '%s'"), *WorldComp->GetName(), *WorldActor->GetName());
 			continue;
@@ -130,11 +135,13 @@ void FApplySnapshotFilter::FilterActorPair(FPropertySelectionMap& MapToAddTo)
         DeserializedSnapshotActor->GetClass(),
         DeserializedSnapshotActor,
         WorldActor,
-        {}
+        {},
+        FLevelSnapshotPropertyChain(),
+        WorldActor->GetClass()
         );
 	
 	AnalyseProperties(ActorContext);
-	MapToAddTo.AddObjectProperties(WorldActor, ActorSelection.SelectedPropertyPaths);
+	MapToAddTo.AddObjectProperties(WorldActor, ActorSelection);
 }
 
 void FApplySnapshotFilter::FilterComponentPair(FPropertySelectionMap& MapToAddTo, UActorComponent* SnapshotComponent, UActorComponent* WorldComponent)
@@ -145,11 +152,13 @@ void FApplySnapshotFilter::FilterComponentPair(FPropertySelectionMap& MapToAddTo
         SnapshotComponent->GetClass(),
         SnapshotComponent,
         WorldComponent,
-        { WorldComponent->GetName() }
+        { WorldComponent->GetName() },
+        FLevelSnapshotPropertyChain(),
+		WorldComponent->GetClass()
         );
 
 	AnalyseProperties(ComponentContext);
-	MapToAddTo.AddObjectProperties(WorldComponent, ComponentSelection.SelectedPropertyPaths);
+	MapToAddTo.AddObjectProperties(WorldComponent, ComponentSelection);
 }
 
 void FApplySnapshotFilter::FilterStructPair(FPropertyContainerContext& Parent, FStructProperty* StructProperty)
@@ -158,7 +167,9 @@ void FApplySnapshotFilter::FilterStructPair(FPropertyContainerContext& Parent, F
         StructProperty->Struct,
         StructProperty->ContainerPtrToValuePtr<uint8>(Parent.SnapshotContainer),
         StructProperty->ContainerPtrToValuePtr<uint8>(Parent.WorldContainer),
-        Parent.AuthoredPathInformation
+        Parent.AuthoredPathInformation,
+        Parent.PropertyChain.MakeAppended(StructProperty),
+        Parent.RootClass
         );
 	StructContext.AuthoredPathInformation.Add(StructProperty->GetAuthoredName());
 	
@@ -191,14 +202,6 @@ FApplySnapshotFilter::ECheckSubproperties FApplySnapshotFilter::AnalyseProperty(
 	check(ContainerContext.WorldContainer);
 	check(ContainerContext.SnapshotContainer); 
 
-	// Only show editable or visible properties
-	const bool bHasRequiredFlags = bAllowNonEditableProperties || PropertyInCommon->HasAnyPropertyFlags(CPF_Edit | CPF_BlueprintVisible);
-	const bool bHasForbiddenFlags = PropertyInCommon->HasAnyPropertyFlags(CPF_Transient | CPF_Deprecated);
-	if (!bHasRequiredFlags || bHasForbiddenFlags)
-	{
-		return SkipSubproperties;
-	}
-
 	if (!bAllowUnchangedProperties && Snapshot->AreSnapshotAndOriginalPropertiesEquivalent(PropertyInCommon, ContainerContext.SnapshotContainer, ContainerContext.WorldContainer, DeserializedSnapshotActor, WorldActor))
 	{
 		return SkipSubproperties;
@@ -207,15 +210,13 @@ FApplySnapshotFilter::ECheckSubproperties FApplySnapshotFilter::AnalyseProperty(
 	// Now we can ask user whether they care about the property
 	TArray<FString> PropertyPath = ContainerContext.AuthoredPathInformation;
 	PropertyPath.Add(PropertyInCommon->GetAuthoredName());
-	const bool bIsPropertyValid = EFilterResult::ShouldInclude(Filter->IsPropertyValid(
+	const bool bIsPropertyValid = EFilterResult::CanInclude(Filter->IsPropertyValid(
         { DeserializedSnapshotActor, WorldActor, ContainerContext.SnapshotContainer, ContainerContext.WorldContainer, PropertyInCommon, PropertyPath }
         ));
 						
 	if (bIsPropertyValid)
 	{
-		// TODO: Track the path to the property (similar to AuthoredPathInformation) instead TFieldPath; TFieldPath gives insufficient info to identify struct members, e.g. Script/MyFooStruct:FooProperty.
-		TArray<TFieldPath<FProperty>>& SelectedProperties = ContainerContext.SelectionToAddTo.SelectedPropertyPaths;
-		SelectedProperties.Add(PropertyInCommon);
+		ContainerContext.SelectionToAddTo.AddProperty(ContainerContext.PropertyChain.MakeAppended(PropertyInCommon));
 		return CheckSubproperties;
 	}
 	return SkipSubproperties;

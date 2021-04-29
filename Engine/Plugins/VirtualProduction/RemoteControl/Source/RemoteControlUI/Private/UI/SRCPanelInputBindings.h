@@ -7,6 +7,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 struct FRemoteControlEntity;
+class SBox;
 class SRCPanelExposedEntitiesList;
 struct SRCPanelTreeNode;
 class URemoteControlPreset;
@@ -41,6 +42,9 @@ private:
 
 	/** Holds the field's details. */
 	TSharedPtr<class IStructureDetailsView> EntityDetailsView;
+
+	/** Holds the field's protocol details. */
+	TSharedPtr<SBox> EntityProtocolDetails;
 
 	/**
 	 * Pointer to the currently selected node.

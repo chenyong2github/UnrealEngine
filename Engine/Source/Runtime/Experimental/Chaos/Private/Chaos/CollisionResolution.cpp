@@ -1645,7 +1645,7 @@ namespace Chaos
 		{
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_UpdateCapsuleHeightFieldConstraintSwept, ConstraintsDetailedStats);
 			FReal TOI = 1.0f;
-			UpdateContactPoint(Constraint, GJKImplicitSweptContactPoint<FCapsule >(A, ATransform, B, BTransform, Dir, Length, TOI), Dt);
+			UpdateContactPoint(Constraint, GJKImplicitSweptContactPoint<FCapsule>(A, ATransform, B, BTransform, Dir, Length, TOI), Dt);
 			SetSweptConstraintTOI(Particle0, TOI, Length, Dir, Constraint);
 		}
 
@@ -2304,7 +2304,7 @@ namespace Chaos
 				}
 				case EContactShapesType::CapsuleHeightField:
 				{
-					const TCapsule<FReal>* Object0 = Implicit0.template GetObject<const TCapsule<FReal> >();
+					const FCapsule* Object0 = Implicit0.template GetObject<const FCapsule >();
 					const FHeightField* Object1 = Implicit1.template GetObject<const FHeightField >();
 					UpdateCapsuleHeightFieldConstraintSwept(Particle0, *Object0, WorldTransform0, *Object1, WorldTransform1, DirCCD, LengthCCD, Dt, Constraint);
 					return;
@@ -2328,7 +2328,7 @@ namespace Chaos
 				}
 				case EContactShapesType::CapsuleTriMesh:
 				{
-					const TCapsule<FReal>* Object0 = Implicit0.template GetObject<const TCapsule<FReal> >();
+					const FCapsule* Object0 = Implicit0.template GetObject<const FCapsule >();
 					if (const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = Implicit1.template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>())
 					{
 						UpdateCapsuleTriangleMeshConstraintSwept(Particle0, *Object0, WorldTransform0, *ScaledTriangleMesh, WorldTransform1, DirCCD, LengthCCD, Dt, Constraint);

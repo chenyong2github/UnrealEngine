@@ -92,7 +92,7 @@ public abstract class DatasmithRhinoBaseTarget : TargetRules
 	private void AddVersionUpdatePostSteps(TargetInfo Target)
 	{
 		ReadOnlyBuildVersion BuildVersion = Target.Version;
-		string VersionString = string.Format("{0}.{1}.{2}.{3}", BuildVersion.MajorVersion, BuildVersion.MinorVersion, BuildVersion.PatchVersion, BuildVersion.Changelist);
+		string VersionString = string.Format("{0}.{1}.{2}", BuildVersion.MajorVersion, BuildVersion.MinorVersion, BuildVersion.PatchVersion);
 		string CustomAssemblyInfoPath = GetCustomAssemblyInfoPath(Target);
 		string CustomAssemblyTemplatePath = Path.Combine(GetPropertiesPath(), "GeneratedAssemblyInfo.cs.Template");
 

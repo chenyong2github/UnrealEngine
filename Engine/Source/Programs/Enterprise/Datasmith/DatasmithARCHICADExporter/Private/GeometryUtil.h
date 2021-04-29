@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AddonTools.h"
+#include "Utils/AddonTools.h"
 
 #include "Quat.h"
 #include "ModelVector.hpp"
@@ -43,6 +43,12 @@ class FGeometryUtil
 
 	// Return the pitch in degrees
 	static double GetPitchAngle(const double CameraZ, const double TargetZ, const double Distance2D);
+
+	// Return clamped value
+	static float Clamp(float InValue, float Min, float Max)
+	{
+		return InValue < Min ? Min : (InValue > Max ? Max : InValue);
+	}
 };
 
 END_NAMESPACE_UE_AC

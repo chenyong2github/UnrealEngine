@@ -2272,6 +2272,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 		// Size of serialized out package in bytes. This is before compression.
 		int32 PackageSize = INDEX_NONE;
 		TUniquePtr<FLinkerSave> Linker = nullptr;
+		uint32 SerializedPackageFlags = 0;
 		{			
 			// TODO: Require a SavePackageContext and move to EditorEngine
 			FPackageNameMapSaver NameMapSaver;
@@ -4367,6 +4368,23 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					FArchiveStackTraceIgnoreScope IgnoreSummaryDiffsScope(DiffSettings.bIgnoreHeaderDiffs);
 #endif // WITH_EDITOR
 					StructuredArchiveRoot.EnterField(SA_FIELD_NAME(TEXT("Summary"))) << Linker->Summary;
+					SerializedPackageFlags = Linker->Summary.GetPackageFlags();
+
+					// Currently the PKG_ContainsNoAsset flag is not serialized as part of the summary
+					bool bContainsAsset = false;
+					for (FObjectExport& Export : Linker->ExportMap)
+					{
+						if (Export.bIsAsset)
+						{
+							bContainsAsset = true;
+							break;
+						}
+					}
+
+					if (!bContainsAsset)
+					{
+						SerializedPackageFlags |= PKG_ContainsNoAsset;
+					}
 				}
 
 				if (!bTextFormat)
@@ -4676,11 +4694,11 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 			if (bRequestStub)
 			{
-				return FSavePackageResultStruct(ESavePackageResult::GenerateStub, TotalPackageSizeUncompressed, AsyncWriteAndHashSequence.Finalize(EAsyncExecution::TaskGraph, MoveTemp(HashCompletionFunc)), bCompareLinker ? MoveTemp(Linker) : nullptr);
+				return FSavePackageResultStruct(ESavePackageResult::GenerateStub, TotalPackageSizeUncompressed, AsyncWriteAndHashSequence.Finalize(EAsyncExecution::TaskGraph, MoveTemp(HashCompletionFunc)), SerializedPackageFlags, bCompareLinker ? MoveTemp(Linker) : nullptr);
 			}
 			else
 			{
-				return FSavePackageResultStruct(bDiffOnlyIdentical ? ESavePackageResult::Success : ESavePackageResult::DifferentContent, TotalPackageSizeUncompressed, AsyncWriteAndHashSequence.Finalize(EAsyncExecution::TaskGraph, MoveTemp(HashCompletionFunc)), bCompareLinker ? MoveTemp(Linker) : nullptr);
+				return FSavePackageResultStruct(bDiffOnlyIdentical ? ESavePackageResult::Success : ESavePackageResult::DifferentContent, TotalPackageSizeUncompressed, AsyncWriteAndHashSequence.Finalize(EAsyncExecution::TaskGraph, MoveTemp(HashCompletionFunc)), SerializedPackageFlags, bCompareLinker ? MoveTemp(Linker) : nullptr);
 			}
 		}
 		else

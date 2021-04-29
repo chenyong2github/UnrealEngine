@@ -76,6 +76,10 @@ public:
 
 	// Begin FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FDataprepPreviewSystem");
+	}
 	// End FGCObject interface
 
 	TSharedPtr<FDataprepPreviewProcessingResult> GetPreviewDataForObject(UObject* Object) const;

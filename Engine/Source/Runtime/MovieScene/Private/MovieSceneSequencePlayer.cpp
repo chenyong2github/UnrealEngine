@@ -205,6 +205,9 @@ void UMovieSceneSequencePlayer::PlayInternal()
 
 	if (!IsPlaying() && Sequence && CanPlay())
 	{
+		// Set playback status to playing before any calls to update the position
+		Status = EMovieScenePlayerStatus::Playing;
+
 		float PlayRate = bReversePlayback ? -PlaybackSettings.PlayRate : PlaybackSettings.PlayRate;
 
 		// If at the end and playing forwards, rewind to beginning
@@ -758,11 +761,6 @@ void UMovieSceneSequencePlayer::Update(const float DeltaSeconds)
 		float PlayRate = bReversePlayback ? -PlaybackSettings.PlayRate : PlaybackSettings.PlayRate;
 
 		float DeltaTimeForFunction = DeltaSeconds;
-
-		if (LastTickGameTimeSeconds.IsSet() && LastTickGameTimeSeconds.GetValue() >= 0.f)
-		{
-			DeltaTimeForFunction = CurrentWorldTime - LastTickGameTimeSeconds.GetValue();
-		}
 
 		TimeController->Tick(DeltaTimeForFunction, PlayRate);
 

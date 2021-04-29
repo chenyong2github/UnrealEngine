@@ -729,6 +729,24 @@ bool FMaterialShaderMapId::IsContentValid() const
 #if WITH_EDITOR
 void FMaterialShaderMapId::UpdateFromParameterSet(const FStaticParameterSet& StaticParameters)
 {
+	struct FStaticParameterCompare
+	{
+		bool operator()(const FStaticParameterBase& Lhs, const FStaticParameterBase& Rhs) const
+		{
+			if (Lhs.ParameterInfo.Association != Rhs.ParameterInfo.Association) return Lhs.ParameterInfo.Association < Rhs.ParameterInfo.Association;
+			else if (Lhs.ParameterInfo.Index != Rhs.ParameterInfo.Index) return Lhs.ParameterInfo.Index < Rhs.ParameterInfo.Index;
+			else return Lhs.ParameterInfo.Name.LexicalLess(Rhs.ParameterInfo.Name);
+		}
+	};
+
+	struct FMaterialLayersParameterIDCompare : public FStaticParameterCompare
+	{
+		bool operator()(const FStaticMaterialLayersParameter::ID& Lhs, const FStaticMaterialLayersParameter::ID& Rhs) const
+		{
+			return FStaticParameterCompare::operator()(Lhs.ParameterID, Rhs.ParameterID);
+		}
+	};
+
 	StaticSwitchParameters = StaticParameters.StaticSwitchParameters;
 	StaticComponentMaskParameters = StaticParameters.StaticComponentMaskParameters;
 	TerrainLayerWeightParameters = StaticParameters.TerrainLayerWeightParameters;
@@ -738,6 +756,12 @@ void FMaterialShaderMapId::UpdateFromParameterSet(const FStaticParameterSet& Sta
 	{
 		MaterialLayersParameterIDs[i] = StaticParameters.MaterialLayersParameters[i].GetID();
 	}
+
+	// Sort the arrays by parameter name, ensure the ID is not influenced by the order
+	StaticSwitchParameters.Sort(FStaticParameterCompare());
+	StaticComponentMaskParameters.Sort(FStaticParameterCompare());
+	TerrainLayerWeightParameters.Sort(FStaticParameterCompare());
+	MaterialLayersParameterIDs.Sort(FMaterialLayersParameterIDCompare());
 
 	//since bOverrides aren't used to check id matches, make sure they're consistently set to false in the static parameter set as part of the id.
 	//this ensures deterministic cook results, rather than allowing bOverride to be set in the shader map's copy of the id based on the first id used.
@@ -940,7 +964,7 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
 #if WITH_EDITOR
 void FMaterialShaderMapId::SetShaderDependencies(const TArray<FShaderType*>& ShaderTypes, const TArray<const FShaderPipelineType*>& ShaderPipelineTypes, const TArray<FVertexFactoryType*>& VFTypes, EShaderPlatform ShaderPlatform)
 {
-	if (!FPlatformProperties::RequiresCookedData())
+	if (!FPlatformProperties::RequiresCookedData() && AllowShaderCompiling())
 	{
 		for (int32 ShaderTypeIndex = 0; ShaderTypeIndex < ShaderTypes.Num(); ShaderTypeIndex++)
 		{

@@ -751,8 +751,8 @@ void FChaosEngineInterface::AddAngularVelocityInRadians_AssumesLocked(const FPhy
 	if(ensure(FChaosEngineInterface::IsValid(InActorReference)))
 	{
 		const Chaos::FMatrix33 WorldI = Chaos::FParticleUtilitiesXR::GetWorldInertia(&InActorReference->GetGameThreadAPI());
-			AddAngularImpulseInRadians_AssumesLocked(InActorReference,WorldI * InAngularVelocityDeltaRad);
-		}
+		AddAngularImpulseInRadians_AssumesLocked(InActorReference,WorldI * InAngularVelocityDeltaRad);
+	}
 }
 
 void FChaosEngineInterface::AddImpulseAtLocation_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InImpulse,const FVector& InLocation)
@@ -760,10 +760,10 @@ void FChaosEngineInterface::AddImpulseAtLocation_AssumesLocked(const FPhysicsAct
 	if(ensure(FChaosEngineInterface::IsValid(InActorReference)))
 	{
 		const Chaos::FVec3 WorldCOM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(&InActorReference->GetGameThreadAPI());
-			const Chaos::FVec3 AngularImpulse = Chaos::FVec3::CrossProduct(InLocation - WorldCOM,InImpulse);
-			AddImpulse_AssumesLocked(InActorReference,InImpulse);
-			AddAngularImpulseInRadians_AssumesLocked(InActorReference,AngularImpulse);
-		}
+		const Chaos::FVec3 AngularImpulse = Chaos::FVec3::CrossProduct(InLocation - WorldCOM,InImpulse);
+		AddImpulse_AssumesLocked(InActorReference,InImpulse);
+		AddAngularImpulseInRadians_AssumesLocked(InActorReference,AngularImpulse);
+	}
 }
 
 void FChaosEngineInterface::AddRadialImpulse_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InOrigin,float InRadius,float InStrength,ERadialImpulseFalloff InFalloff,bool bInVelChange)
@@ -778,30 +778,30 @@ void FChaosEngineInterface::AddRadialImpulse_AssumesLocked(const FPhysicsActorHa
 		{
 			FVec3 FinalImpulse = FVector::ZeroVector;
 			if(OriginToActorDistance > 0)
-			{
-				const FVec3 OriginToActorNorm = OriginToActor / OriginToActorDistance;
+		{
+			const FVec3 OriginToActorNorm = OriginToActor / OriginToActorDistance;
 
 				if(InFalloff == ERadialImpulseFalloff::RIF_Constant)
-				{
+			{
 					FinalImpulse = OriginToActorNorm * InStrength;
-				}
+			}
 				else if(InFalloff == ERadialImpulseFalloff::RIF_Linear)
-				{
-					const FReal DistanceOverlapping = InRadius - OriginToActorDistance;
+			{
+				const FReal DistanceOverlapping = InRadius - OriginToActorDistance;
 					if(DistanceOverlapping > 0)
-					{
-						FinalImpulse = OriginToActorNorm * FMath::Lerp(0.0f, InStrength, DistanceOverlapping / InRadius);
-					}
-				}
-				else
 				{
-					// Unimplemented falloff type
-					ensure(false);
+						FinalImpulse = OriginToActorNorm * FMath::Lerp(0.0f, InStrength, DistanceOverlapping / InRadius);
 				}
 			}
 			else
 			{
-				// Sphere and actor center are coincident, just pick a direction and apply maximum strength impulse.
+				// Unimplemented falloff type
+				ensure(false);
+			}
+		}
+		else
+		{
+			// Sphere and actor center are coincident, just pick a direction and apply maximum strength impulse.
 				FinalImpulse = FVector::ForwardVector * InStrength;
 			}
 
@@ -843,19 +843,19 @@ void FChaosEngineInterface::SetMass_AssumesLocked(FPhysicsActorHandle& InActorRe
 {
 	Chaos::FRigidBodyHandle_External& Body_External = InActorReference->GetGameThreadAPI();
 	Body_External.SetM(InMass);
-		if(CHAOS_ENSURE(!FMath::IsNearlyZero(InMass)))
-		{
+	if(CHAOS_ENSURE(!FMath::IsNearlyZero(InMass)))
+	{
 		Body_External.SetInvM(1./InMass);
-		} else
-		{
+	} else
+	{
 		Body_External.SetInvM(0);
 	}
 }
 
 void FChaosEngineInterface::SetMassSpaceInertiaTensor_AssumesLocked(FPhysicsActorHandle& InActorReference,const FVector& InTensor)
 {
-		if(CHAOS_ENSURE(!FMath::IsNearlyZero(InTensor.X)) && CHAOS_ENSURE(!FMath::IsNearlyZero(InTensor.Y)) && CHAOS_ENSURE(!FMath::IsNearlyZero(InTensor.Z)))
-		{
+	if(CHAOS_ENSURE(!FMath::IsNearlyZero(InTensor.X)) && CHAOS_ENSURE(!FMath::IsNearlyZero(InTensor.Y)) && CHAOS_ENSURE(!FMath::IsNearlyZero(InTensor.Z)))
+	{
 		Chaos::FRigidBodyHandle_External& Body_External = InActorReference->GetGameThreadAPI();
 		Body_External.SetI(Chaos::FMatrix33(InTensor.X,InTensor.Y,InTensor.Z));
 		Body_External.SetInvI(Chaos::FMatrix33(1./InTensor.X,1./InTensor.Y,1./InTensor.Z));
@@ -1032,7 +1032,7 @@ FPhysicsConstraintHandle FChaosEngineInterface::CreateSuspension(const FPhysicsA
 				ConstraintRef.Constraint = SuspensionConstraint;
 
 				SuspensionConstraint->SetParticleProxies({ InActorRef,nullptr });
-				SuspensionConstraint->SetLocation( InLocalFrame );
+			SuspensionConstraint->SetLocation(InLocalFrame);
 
 				Chaos::FPhysicsSolver* Solver = InActorRef->GetSolver<Chaos::FPhysicsSolver>();
 				Solver->RegisterObject(SuspensionConstraint);
@@ -1641,7 +1641,7 @@ FChaosScene* FChaosEngineInterface::GetCurrentScene(const FPhysicsActorHandle& I
 	}
 
 	Chaos::FPBDRigidsSolver* Solver = InHandle->GetSolver<Chaos::FPBDRigidsSolver>();
-		return static_cast<FChaosScene*>(Solver ? Solver->PhysSceneHack : nullptr);
+	return static_cast<FChaosScene*>(Solver ? Solver->PhysSceneHack : nullptr);
 }
 
 void FChaosEngineInterface::SetGlobalPose_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FTransform& InNewPose,bool bAutoWake)

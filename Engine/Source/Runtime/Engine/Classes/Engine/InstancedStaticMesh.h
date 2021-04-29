@@ -487,6 +487,9 @@ public:
 #if WITH_EDITOR
 	,	bHasSelectedInstances(false)
 #endif
+#if RHI_RAYTRACING
+	,	CachedRayTracingLOD(-1)
+#endif
 	,	StaticMeshBounds(StaticMesh->GetBounds())
 	{
 #if WITH_EDITOR
@@ -537,7 +540,8 @@ public:
 	}
 
 	virtual void GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) final override;
-	void SetupRayTracingDynamicInstances(int32 NumDynamicInstances);
+
+	void SetupRayTracingDynamicInstances(int32 NumDynamicInstances, int32 LOD);
 
 #endif
 
@@ -617,6 +621,8 @@ protected:
 	};
 
 	TArray<FRayTracingDynamicData> RayTracingDynamicData;
+
+	int32 CachedRayTracingLOD;
 #endif
 
 	/** Common path for the Get*MeshElement functions */

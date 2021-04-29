@@ -39,6 +39,7 @@ enum class ERequestPartyInvitationCompletionResult : int8;
 enum class ESendPartyInvitationCompletionResult : int8;
 enum class EUpdateConfigCompletionResult : int8;
 enum class EInvitationResponse : uint8;
+enum class ERequestToJoinPartyCompletionResult : int8;
 
 struct FQueryPartyJoinabilityResult;
 
@@ -745,6 +746,65 @@ enum class EPartySystemState : uint8
 	ShutDown,
 };
 
+enum class EPartyRequestToJoinRemovedReason : uint8
+{
+	/** Unknown or undefined reason */
+	Unknown,
+	/** Cancelled */
+	Cancelled,
+	/** Expired */
+	Expired,
+	/** Dismissed */
+	Dismissed,
+	/** Accepted */
+	Accepted,
+};
+
+/**
+ * Info about a request to join a local user's party
+ */
+class IOnlinePartyRequestToJoinInfo
+	: public TSharedFromThis<IOnlinePartyRequestToJoinInfo>
+{
+public:
+	IOnlinePartyRequestToJoinInfo() = default;
+	virtual ~IOnlinePartyRequestToJoinInfo() = default;
+
+	/**
+	 * Get the id of the user requesting to join
+	 * @return the id of the user requesting to join
+	 */
+	virtual const FUniqueNetIdPtr GetUserId() const = 0;
+
+	/**
+	 * Get the display name of the user requesting to join
+	 * @return the display name of the user requesting to join
+	 */
+	virtual const FString& GetDisplayName() const = 0;
+
+	/**
+	 * Get the platform data associated with this request
+	 * @return the platform data associated with this request
+	 */
+	virtual const FString& GetPlatformData() const = 0;
+
+	/**
+	 * Get the expiration time of the request to join
+	 * @return the expiration time of the request to join
+	 */
+	virtual const FDateTime& GetExpirationTime() const = 0;
+
+	/**
+	 * Get the GetPartyTypeId of the request to join
+	 * @return the GetPartyTypeId of the request to join
+	 */
+	virtual const FOnlinePartyTypeId GetPartyTypeId() const = 0;
+};
+
+typedef TSharedRef<const IOnlinePartyRequestToJoinInfo> IOnlinePartyRequestToJoinInfoConstRef;
+typedef TSharedPtr<const IOnlinePartyRequestToJoinInfo> IOnlinePartyRequestToJoinInfoConstPtr;
+
+
 ///////////////////////////////////////////////////////////////////
 // Completion delegates
 ///////////////////////////////////////////////////////////////////
@@ -871,7 +931,15 @@ DECLARE_DELEGATE_FourParams(FOnKickPartyMemberComplete, const FUniqueNetId& /*Lo
  * @param Result - string with error info if any
  */
 DECLARE_DELEGATE_FourParams(FOnPromotePartyMemberComplete, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*MemberId*/, const EPromoteMemberCompletionResult /*Result*/);
-
+/**
+ * Request to join party async task completed callback
+ *
+ * @param LocalUserId - id of user that initiated the request
+ * @param PartyLeaderId - id of party leader receiving the request
+ * @param ExpiresAt - if successful, the time the request expires
+ * @param Result - result of the operation
+ */
+DECLARE_DELEGATE_FourParams(FOnRequestToJoinPartyComplete, const FUniqueNetId& /*LocalUserId*/, const FUniqueNetId& /*PartyLeaderId*/, const FDateTime& /*ExpiresAt*/, const ERequestToJoinPartyCompletionResult /*Result*/);
 
 
 
@@ -1132,6 +1200,27 @@ DECLARE_MULTICAST_DELEGATE_OneParam(F_PREFIX(OnPartySystemStateChange), EPartySy
 PARTY_DECLARE_DELEGATETYPE(OnPartySystemStateChange);
 
 /**
+* Notification when a new party join request is received
+* @param LocalUserId - id associated with this notification
+* @param PartyId - id associated with the party
+* @param RequesterId - id of player who requested to join
+* @param Request - information regarding the request
+*/
+DECLARE_MULTICAST_DELEGATE_FourParams(F_PREFIX(OnPartyRequestToJoinReceived), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*RequesterId*/, const IOnlinePartyRequestToJoinInfo& /*Request*/);
+PARTY_DECLARE_DELEGATETYPE(OnPartyRequestToJoinReceived);
+
+/**
+ * Notification when a request to join has been removed
+ * @param LocalUserId id associated with this notification
+ * @param PartyId id associated with the party
+ * @param RequesterId - id of player who requested to join
+ * @param Request - information regarding the request
+ * @param Reason reason the request has been removed
+ */
+DECLARE_MULTICAST_DELEGATE_FiveParams(F_PREFIX(OnPartyRequestToJoinRemoved), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*RequesterId*/, const IOnlinePartyRequestToJoinInfo& /*Request*/, EPartyRequestToJoinRemovedReason /*Reason*/);
+PARTY_DECLARE_DELEGATETYPE(OnPartyRequestToJoinRemoved);
+
+/**
  * Interface definition for the online party services 
  * Allows for forming a party and communicating with party members
  */
@@ -1200,6 +1289,26 @@ public:
 	 * @return true if task was started
 	 */
 	virtual bool JoinParty(const FUniqueNetId& LocalUserId, const IOnlinePartyJoinInfo& OnlinePartyJoinInfo, const FOnJoinPartyComplete& Delegate = FOnJoinPartyComplete()) = 0;
+
+	/**
+	* Request to join an existing party
+	*
+	* @param LocalUserId - user making the request
+	* @param PartyTypeId - type id of the party you want join
+	* @param Recipient - structure specifying the party leader receiving the request
+	* @param Delegate - called on completion
+	*/
+	virtual void RequestToJoinParty(const FUniqueNetId& LocalUserId, const FOnlinePartyTypeId PartyTypeId, const FPartyInvitationRecipient& Recipient, const FOnRequestToJoinPartyComplete& Delegate = FOnRequestToJoinPartyComplete()) = 0;
+
+	/**
+	* Clear a received request to join your party
+	*
+	* @param LocalUserId - user clearing the request
+	* @param PartyId - id of the party the request was made to
+	* @param Sender - user who sent the request
+	* @param Reason - reason why the request was cleared
+	*/
+	virtual void ClearRequestToJoinParty(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& Sender, EPartyRequestToJoinRemovedReason Reason) = 0;
 
 	/**
 	* Join an existing game session from within a party
@@ -1596,6 +1705,16 @@ public:
 	 */
 	virtual bool GetPendingInvitedUsers(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, TArray<FUniqueNetIdRef>& OutPendingInvitedUserArray) const = 0;
 
+	/**
+	 * Get a list of users requesting to join the party. These are not requests for a reservation, but permission (e.g. locked party).
+	 *
+	 * @param LocalUserId       - user making the request
+	 * @param OutRequestsToJoin - list of requests to join
+	 *
+	 * @return true if entries found
+	 */
+	virtual bool GetPendingRequestsToJoin(const FUniqueNetId& LocalUserId, TArray<IOnlinePartyRequestToJoinInfoConstRef>& OutRequestsToJoin) const = 0;
+
 	static const FOnlinePartyTypeId::TInternalType PrimaryPartyTypeIdValue = 0x11111111;
 	/**
 	 * @return party type id for the primary party - the primary party is the party that will be addressable via the social panel
@@ -1673,6 +1792,9 @@ public:
 	 * OnPartyQueryJoinabilityReceived
 	 * OnFillPartyJoinRequestData
 	 * OnPartyAnalyticsEvent
+	 * OnPartySystemStateChange
+	 * OnPartyRequestToJoinReceived
+	 * OnPartyRequestToJoinRemoved
 	 */
 
 	/**
@@ -1881,6 +2003,25 @@ public:
 	DEFINE_ONLINE_DELEGATE_ONE_PARAM(OnPartySystemStateChange, EPartySystemState /*NewState*/);
 
 	/**
+	 * Notification when a new party join request is received
+	 * @param LocalUserId - id associated with this notification
+	 * @param PartyId - id associated with the party
+	 * @param RequesterId - id of player who requested to join
+	 * @param Request - request to join information
+	 */
+	DEFINE_ONLINE_DELEGATE_FOUR_PARAM(OnPartyRequestToJoinReceived, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*RequesterId*/, const IOnlinePartyRequestToJoinInfo& /*Request*/);
+
+	/**
+	 * Notification when a new party join request is removed
+	 * @param LocalUserId - id associated with this notification
+	 * @param PartyId - id associated with the party
+	 * @param RequesterId - id of player who requested to join
+	 * @param Request - request to join information
+	 * @param Reason - the reason why the request was removed
+	 */
+	DEFINE_ONLINE_DELEGATE_FIVE_PARAM(OnPartyRequestToJoinRemoved, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*RequesterId*/, const IOnlinePartyRequestToJoinInfo& /*Request*/, EPartyRequestToJoinRemovedReason /*Reason*/);
+
+	/**
 	 * Dump out party state for all known parties
 	 */
 	virtual void DumpPartyState() = 0;
@@ -2080,6 +2221,18 @@ enum class EInvitationResponse : uint8
 	Accepted
 };
 
+enum class ERequestToJoinPartyCompletionResult : int8
+{
+	ValidationFailure = -100,
+	NotAuthorized,
+	Forbidden,
+	UserNotFound,
+	AlreadyExists,
+	RateLimited,
+	UnknownInternalFailure,
+	Succeeded = 1
+};
+
 /**
  * QueryPartyJoinability result
  */
@@ -2120,6 +2273,8 @@ ONLINESUBSYSTEM_API const TCHAR* ToString(const EKickMemberCompletionResult Valu
 ONLINESUBSYSTEM_API const TCHAR* ToString(const EPromoteMemberCompletionResult Value);
 /** @return the stringified version of the enum passed in */
 ONLINESUBSYSTEM_API const TCHAR* ToString(const EInvitationResponse Value);
+/** @return the stringified version of the enum passed in */
+ONLINESUBSYSTEM_API const TCHAR* ToString(const ERequestToJoinPartyCompletionResult Value);
 
 /** @return the stringified version of the enum passed in */
 ONLINESUBSYSTEM_API const TCHAR* ToString(const PartySystemPermissions::EPermissionType Value);

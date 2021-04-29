@@ -40,7 +40,7 @@ public class Engine : ModuleRules
 			}
 		);
 
-		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
+		if (Target.Configuration != UnrealTargetConfiguration.Shipping || Target.Type == TargetType.Editor)
 		{
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {

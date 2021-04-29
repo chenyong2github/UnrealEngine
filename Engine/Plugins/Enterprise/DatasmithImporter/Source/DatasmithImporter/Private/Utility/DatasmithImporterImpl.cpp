@@ -75,6 +75,48 @@ extern UNREALED_API UEditorEngine* GEditor;
 
 #define LOCTEXT_NAMESPACE "DatasmithImporter"
 
+
+namespace DatasmithImporter
+{
+namespace Private
+{
+namespace DatasmithImporterImpl
+{
+	class FDatasmithWriter final : public FObjectWriter
+	{
+	public:
+		FDatasmithWriter(UObject& Object, TArray< uint8 >& Bytes)
+			: FObjectWriter(Bytes)
+		{
+				SetIsLoading(false);
+				SetIsSaving(true);
+				SetIsPersistent(true);
+
+				SetPortFlags(GetPortFlags() | PPF_Duplicate);
+
+				Object.Serialize(*this);
+		}
+	};
+
+	class FDatasmithReader final : public FObjectReader
+	{
+	public:
+		FDatasmithReader(UObject& Object, const TArray< uint8 >& Bytes)
+			: FObjectReader(Bytes)
+		{
+			SetIsLoading(true);
+			SetIsSaving(false);
+			SetIsPersistent(true);
+
+			SetPortFlags(GetPortFlags() | PPF_Duplicate);
+
+			Object.Serialize(*this);
+		}
+	};
+}
+}
+}
+
 void FDatasmithImporterImpl::ReportProgress(FScopedSlowTask* SlowTask, const float ExpectedWorkThisFrame, const FText& Text)
 {
 	if (SlowTask)
@@ -297,7 +339,8 @@ void FDatasmithImporterImpl::SetTexturesMode( FDatasmithImportContext& ImportCon
 				}
 				else if ( IsTextureConnected( MaterialElement->GetNormal().GetExpression() ) )
 				{
-					if ( TextureElement->GetTextureMode() != EDatasmithTextureMode::Bump )
+					if ( TextureElement->GetTextureMode() != EDatasmithTextureMode::Bump
+					  && TextureElement->GetTextureMode() != EDatasmithTextureMode::NormalGreenInv)
 					{
 						TextureElement->SetTextureMode(EDatasmithTextureMode::Normal);
 					}
@@ -463,54 +506,6 @@ UObject* FDatasmithImporterImpl::FinalizeAsset( UObject* SourceAsset, const TCHA
 	return FinalAsset;
 }
 
-FDatasmithImporterImpl::FActorWriter::FActorWriter( UObject* Object, TArray< uint8 >& Bytes )
-	: FObjectWriter( Bytes )
-{
-	SetIsLoading(false);
-	SetIsSaving(true);
-	SetIsPersistent(false);
-
-	Object->Serialize(*this); // virtual call in ctr -> final class
-}
-
-bool FDatasmithImporterImpl::FActorWriter::ShouldSkipProperty(const FProperty* InProperty) const
-{
-	bool bSkip = false;
-
-	if ( InProperty->IsA< FObjectPropertyBase >() )
-	{
-		bSkip = true;
-	}
-	else if ( InProperty->HasAnyPropertyFlags(CPF_Transient) || !InProperty->HasAnyPropertyFlags(CPF_Edit | CPF_Interp) )
-	{
-		bSkip = true;
-	}
-
-	return bSkip;
-}
-
-FDatasmithImporterImpl::FComponentWriter::FComponentWriter( UObject* Object, TArray< uint8 >& Bytes )
-	: FObjectWriter( Bytes )
-{
-	SetIsLoading(false);
-	SetIsSaving(true);
-	SetIsPersistent(false);
-
-	Object->Serialize(*this); // call in ctr -> final class
-}
-
-bool FDatasmithImporterImpl::FComponentWriter::ShouldSkipProperty(const FProperty* InProperty) const
-{
-	bool bSkip = false;
-
-	if ( InProperty->HasAnyPropertyFlags(CPF_Transient) || !InProperty->HasAnyPropertyFlags(CPF_Edit | CPF_Interp) )
-	{
-		bSkip = true;
-	}
-
-	return bSkip;
-}
-
 void FDatasmithImporterImpl::DeleteImportSceneActorIfNeeded(FDatasmithActorImportContext& ActorContext, bool bForce)
 {
 	ADatasmithSceneActor*& ImportSceneActor = ActorContext.ImportSceneActor;
@@ -542,11 +537,11 @@ void FDatasmithImporterImpl::DeleteImportSceneActorIfNeeded(FDatasmithActorImpor
 	}
 }
 
-UActorComponent* FDatasmithImporterImpl::PublicizeComponent(UActorComponent& SourceComponent, UActorComponent* DestinationComponent, AActor& DestinationActor, TMap< UObject*, UObject* >& ReferencesToRemap, USceneComponent* DestinationParent )
+UActorComponent* FDatasmithImporterImpl::PublicizeComponent(UActorComponent& SourceComponent, UActorComponent* DestinationComponent, AActor& DestinationActor, TMap< UObject*, UObject* >& ReferencesToRemap, TArray<uint8>& ReusableBuffer)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporterImpl::PublicizeComponent);
 
-	if ( !SourceComponent.HasAnyFlags( RF_Transient | RF_TextExportTransient ) )
+	if ( !SourceComponent.HasAnyFlags( RF_Transient | RF_TextExportTransient | RF_DuplicateTransient ) )
 	{
 		if (!DestinationComponent || DestinationComponent->IsPendingKillOrUnreachable())
 		{
@@ -565,50 +560,23 @@ UActorComponent* FDatasmithImporterImpl::PublicizeComponent(UActorComponent& Sou
 
 			// Create a new component
 			DestinationComponent = NewObject<UActorComponent>(&DestinationActor, SourceComponent.GetClass(), SourceComponent.GetFName(), RF_Transactional);
-			DestinationActor.AddInstanceComponent(DestinationComponent);
-
-			if (USceneComponent* NewSceneComponent = Cast<USceneComponent>(DestinationComponent))
-			{
-				if ( !DestinationActor.GetRootComponent() )
-				{
-					DestinationActor.SetRootComponent(NewSceneComponent);
-				}
-				if ( DestinationParent )
-				{
-					NewSceneComponent->AttachToComponent( DestinationParent, FAttachmentTransformRules::KeepRelativeTransform );
-				}
-			}
-
-			DestinationComponent->RegisterComponent();
 		}
 
 		check(DestinationComponent);
 
-		// Copy component data
+		if ( &SourceComponent != DestinationComponent )
 		{
-			TArray< uint8 > Bytes;
-			FComponentWriter ObjectWriter(&SourceComponent, Bytes);
-			FObjectReader ObjectReader(DestinationComponent, Bytes);
+			CopyObject( SourceComponent, *DestinationComponent, ReusableBuffer );
+	
+			if ( DestinationComponent->GetFName() != SourceComponent.GetFName() )
+			{
+				DestinationComponent->Rename( *SourceComponent.GetName() );
+			}
 		}
 
-		if ( DestinationComponent->GetFName() != SourceComponent.GetFName() )
-		{
-			DestinationComponent->Rename( *SourceComponent.GetName() );
-		}
+		ReferencesToRemap.Add(&SourceComponent, DestinationComponent);
 
-		FixReferencesForObject(DestinationComponent, ReferencesToRemap);
-
-		// #ueent_todo: we shouldn't be copying instanced object pointers in the first place
-		UDatasmithAssetUserData* SourceAssetUserData = DestinationComponent->GetAssetUserData< UDatasmithAssetUserData >();
-
-		if ( SourceAssetUserData )
-		{
-			UDatasmithAssetUserData* DestinationAssetUserData = DuplicateObject< UDatasmithAssetUserData >( SourceAssetUserData, DestinationComponent );
-			DestinationComponent->RemoveUserDataOfClass( UDatasmithAssetUserData::StaticClass() );
-			DestinationComponent->AddAssetUserData( DestinationAssetUserData );
-		}
-
-		ReferencesToRemap.Add( &SourceComponent, DestinationComponent );
+		PublicizeSubObjects( SourceComponent, *DestinationComponent, ReferencesToRemap, ReusableBuffer );
 
 		return DestinationComponent;
 	}
@@ -616,7 +584,7 @@ UActorComponent* FDatasmithImporterImpl::PublicizeComponent(UActorComponent& Sou
 	return nullptr;
 }
 
-void FDatasmithImporterImpl::FinalizeSceneComponent(FDatasmithImportContext& ImportContext, USceneComponent& SourceComponent, AActor& DestinationActor, USceneComponent* DestinationParent, TMap<UObject *, UObject *>& ReferencesToRemap )
+USceneComponent* FDatasmithImporterImpl::FinalizeSceneComponent(FDatasmithImportContext& ImportContext, USceneComponent& SourceComponent, AActor& DestinationActor, USceneComponent* DestinationParent, TMap<UObject *, UObject *>& ReferencesToRemap, TArray<uint8>& ReusableBuffer, TArray<TPair<USceneComponent&, TArray<FMigratedTemplatePairType>>>& ComponentsToApplyMigratedTemplate)
 {
 	USceneComponent* DestinationComponent = static_cast<USceneComponent*>( FindObjectWithOuter( &DestinationActor, SourceComponent.GetClass(), SourceComponent.GetFName() ) );
 	FName SourceComponentDatasmithId = FDatasmithImporterUtils::GetDatasmithElementId(&SourceComponent);
@@ -626,7 +594,7 @@ void FDatasmithImporterImpl::FinalizeSceneComponent(FDatasmithImportContext& Imp
 		// This component is not tracked by datasmith
 		if ( !DestinationComponent || DestinationComponent->IsPendingKillOrUnreachable() )
 		{
-			DestinationComponent = static_cast<USceneComponent*> ( PublicizeComponent(SourceComponent, DestinationComponent, DestinationActor, ReferencesToRemap, DestinationParent) );
+			DestinationComponent = static_cast<USceneComponent*> ( PublicizeComponent(SourceComponent, DestinationComponent, DestinationActor, ReferencesToRemap, ReusableBuffer) );
 			if ( DestinationComponent )
 			{
 				// Put back the components in a proper state
@@ -636,11 +604,14 @@ void FDatasmithImporterImpl::FinalizeSceneComponent(FDatasmithImportContext& Imp
 	}
 	else
 	{
-		check(ImportContext.ActorsContext.CurrentTargetedScene);
-
+	
 		if ( !DestinationComponent )
 		{
-			// Look at components of the actor, we might find the scene component we are looking for.
+			// Improvement suggestion. We should build a cache in finalize scene components (It could be done in O(n*k)). 
+			// Currently this can be highly inefficient on the first import of a dataprep scene where some actors would have a absurd amount components.
+			//  O(n^2*k) where n is the number of components on the actor and k is the avergage lenght of a datasmith ID (we need to hash the string representing the ID to convert it to a FName).
+			// 
+			// Look at components of the actor, we might find the scene component we are looking for. 
 			for ( UActorComponent* Component : DestinationActor.GetInstanceComponents() )
 			{
 				if ( Component && Component->IsA( SourceComponent.GetClass() ) )
@@ -662,29 +633,34 @@ void FDatasmithImporterImpl::FinalizeSceneComponent(FDatasmithImportContext& Imp
 			false
 		);
 
-		DestinationComponent = static_cast< USceneComponent* > ( PublicizeComponent( SourceComponent, DestinationComponent, DestinationActor, ReferencesToRemap, DestinationParent ) );
+		DestinationComponent = static_cast< USceneComponent* > ( PublicizeComponent( SourceComponent, DestinationComponent, DestinationActor, ReferencesToRemap, ReusableBuffer ) );
 
 		if ( DestinationComponent )
 		{
-			// Put back the components in a proper state (Unfortunately without this the set relative transform might not work)
-			DestinationComponent->UpdateComponentToWorld();
-			ApplyMigratedTemplates( MigratedTemplates, DestinationComponent );
-			DestinationComponent->PostEditChange();
+			ComponentsToApplyMigratedTemplate.Emplace( *DestinationComponent, MoveTemp(MigratedTemplates) );
 		}
 	}
 
-	USceneComponent* AttachParentForChildren = DestinationComponent  ? DestinationComponent : DestinationParent;
+	USceneComponent* AttachParentForChildren = DestinationComponent  ? nullptr : DestinationParent;
 	for ( USceneComponent* Child : SourceComponent.GetAttachChildren() )
 	{
 		// Only finalize components that are from the same actor
 		if ( Child && Child->GetOuter() == SourceComponent.GetOuter() )
 		{
-			FinalizeSceneComponent( ImportContext, *Child, DestinationActor, AttachParentForChildren, ReferencesToRemap );
+			if ( USceneComponent* DestinationChild = FinalizeSceneComponent( ImportContext, *Child, DestinationActor, AttachParentForChildren, ReferencesToRemap, ReusableBuffer, ComponentsToApplyMigratedTemplate))
+			{ 
+				if ( AttachParentForChildren )
+				{
+					DestinationChild->AttachToComponent(AttachParentForChildren, FAttachmentTransformRules::KeepRelativeTransform);
+				}
+			}
 		}
 	}
+
+	return DestinationComponent;
 }
 
-void FDatasmithImporterImpl::FinalizeComponents(FDatasmithImportContext& ImportContext, AActor& SourceActor, AActor& DestinationActor, TMap<UObject *, UObject *>& ReferencesToRemap)
+void FDatasmithImporterImpl::FinalizeComponents(FDatasmithImportContext& ImportContext, AActor& SourceActor, AActor& DestinationActor, TMap<UObject *, UObject *>& ReferencesToRemap, TArray<uint8>& ReusableBuffer, TArray<TPair<USceneComponent&, TArray<FMigratedTemplatePairType>>>& ComponentsToApplyMigratedTemplate)
 {
 	USceneComponent* ParentComponent = nullptr;
 
@@ -700,7 +676,7 @@ void FDatasmithImporterImpl::FinalizeComponents(FDatasmithImportContext& ImportC
 		USceneComponent* RootComponent = SourceActor.GetRootComponent();
 		if ( RootComponent )
 		{
-			FinalizeSceneComponent( ImportContext, *RootComponent, DestinationActor, ParentComponent, ReferencesToRemap );
+			FinalizeSceneComponent( ImportContext, *RootComponent, DestinationActor, ParentComponent, ReferencesToRemap, ReusableBuffer, ComponentsToApplyMigratedTemplate );
 		}
 	}
 
@@ -713,10 +689,50 @@ void FDatasmithImporterImpl::FinalizeComponents(FDatasmithImportContext& ImportC
 			UActorComponent* DestinationComponent = static_cast< UActorComponent* >( FindObjectWithOuter( &DestinationActor, SourceComponent->GetClass(), SourceComponent->GetFName() ) );
 			if (!DestinationComponent)
 			{
-				DestinationComponent = PublicizeComponent( *SourceComponent, DestinationComponent, DestinationActor, ReferencesToRemap );
+				DestinationComponent = PublicizeComponent( *SourceComponent, DestinationComponent, DestinationActor, ReferencesToRemap, ReusableBuffer );
 			}
 		}
 	}
+}
+
+void FDatasmithImporterImpl::PublicizeSubObjects(UObject& SourceObject, UObject& DestinationObject, TMap< UObject*, UObject* >& ReferencesToRemap, TArray<uint8>& ReusableBuffer)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporterImpl::PublicizeSubObjects);
+	ForEachObjectWithOuter( &SourceObject, [&ReferencesToRemap, &ReusableBuffer, &DestinationObject](UObject* SourceSubObject)
+		{
+			// We don't want to deal with components since this done in finalize components
+			if ( !SourceSubObject->IsA<UActorComponent>() && !SourceSubObject->HasAnyFlags( RF_Transient | RF_TextExportTransient | RF_DuplicateTransient | RF_BeginDestroyed | RF_FinishDestroyed ) )
+			{
+				UObject* DestinationSubObject = FindObjectFast<UObject>( &DestinationObject, SourceSubObject->GetFName() );
+
+				if ( !DestinationSubObject || DestinationSubObject->IsPendingKillOrUnreachable() || DestinationSubObject->GetClass() !=  SourceSubObject->GetClass() )
+				{
+					if ( DestinationSubObject )
+					{
+						// Move away the existing object.
+						DestinationSubObject->Rename( nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional );
+					}
+
+					DestinationSubObject = NewObject<UObject>( &DestinationObject, SourceSubObject->GetClass(), SourceSubObject->GetFName(), SourceSubObject->GetFlags() );
+				}
+
+				CopyObject( *SourceSubObject, *DestinationSubObject, ReusableBuffer );
+
+				ReferencesToRemap.Add( SourceSubObject, DestinationSubObject );
+
+				PublicizeSubObjects( *SourceSubObject, *DestinationSubObject, ReferencesToRemap, ReusableBuffer );
+			}
+		}
+		, false );
+}
+
+void FDatasmithImporterImpl::CopyObject(UObject& Source, UObject& Destination, TArray<uint8>& TempBuffer)
+{
+	// Keep the previous allocation
+	TempBuffer.Reset();
+	using namespace DatasmithImporter::Private::DatasmithImporterImpl;
+	FDatasmithWriter DatasmithWriter( Source, TempBuffer );
+	FDatasmithReader DatasmithReader( Destination, TempBuffer );
 }
 
 void FDatasmithImporterImpl::GatherUnsupportedVirtualTexturesAndMaterials(const TMap<TSharedRef< IDatasmithBaseMaterialElement >, UMaterialInterface*>& ImportedMaterials, TSet<UTexture2D*>& VirtualTexturesToConvert, TArray<UMaterial*>& MaterialsToRefreshAfterVirtualTextureConversion)
@@ -841,8 +857,8 @@ FDatasmithImporterImpl::FScopedFinalizeActorChanges::~FScopedFinalizeActorChange
 		}
 	}
 
+	FinalizedActor->PostEditImport();
 	FinalizedActor->PostEditChange();
-	FinalizedActor->RegisterAllComponents();
 }
 
 bool FDatasmithImporterImpl::CheckAssetPersistenceValidity(const FString& PackageName, FDatasmithImportContext& ImportContext, const FString& Extension)

@@ -520,7 +520,6 @@ void FMetalSurface::Init(FMetalSurface& Source, NSRange MipRange)
 
 void FMetalSurface::Init(FMetalSurface& Source, NSRange MipRange, EPixelFormat Format, bool bSRGBForceDisable)
 {
-	check(!Source.MSAATexture || Format == PF_X24_G8);
 #if PLATFORM_IOS
 	// Mmeory;ess targets can't have texture views (SRVs or UAVs)
 	if (Source.Texture.GetStorageMode() == mtlpp::StorageMode::Memoryless)

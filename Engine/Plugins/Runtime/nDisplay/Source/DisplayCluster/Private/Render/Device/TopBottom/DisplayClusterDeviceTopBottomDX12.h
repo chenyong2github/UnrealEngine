@@ -2,14 +2,13 @@
 
 #pragma once
 
-#include "Render/Device/TopBottom/DisplayClusterDeviceTopBottomBase.h"
-
+#include "Render/Device/DisplayClusterDeviceBase.h"
 
 /**
  * Top-bottom passive stereoscopic device
  */
 class FDisplayClusterDeviceTopBottomDX12
-	: public FDisplayClusterDeviceTopBottomBase
+	: public FDisplayClusterDeviceBase
 {
 public:
 	FDisplayClusterDeviceTopBottomDX12();

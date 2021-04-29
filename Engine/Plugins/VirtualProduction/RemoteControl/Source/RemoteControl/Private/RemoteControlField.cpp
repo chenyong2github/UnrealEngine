@@ -7,6 +7,8 @@
 #include "RemoteControlObjectVersion.h"
 #include "RemoteControlFieldPath.h"
 #include "RemoteControlBinding.h"
+#include "RemoteControlPreset.h"
+#include "RemoteControlPropertyHandle.h"
 #include "UObject/Class.h"
 #include "UObject/StructOnScope.h"
 #include "UObject/UnrealType.h"
@@ -154,6 +156,12 @@ FRemoteControlProperty::FRemoteControlProperty(URemoteControlPreset* InPreset, F
 {
 	InitializeMetadata();
 	OwnerClass = GetSupportedBindingClass();
+
+	if (FProperty* Property = GetProperty())
+	{
+		bIsEditorOnly = Property->HasAnyPropertyFlags(CPF_EditorOnly);
+		bIsEditableInPackaged = !Property->HasAnyPropertyFlags(CPF_BlueprintReadOnly);
+	}
 }
 
 uint32 FRemoteControlProperty::GetUnderlyingEntityIdentifier() const
@@ -174,14 +182,41 @@ FProperty* FRemoteControlProperty::GetProperty() const
 	return nullptr;
 }
 
+TSharedPtr<IRemoteControlPropertyHandle> FRemoteControlProperty::GetPropertyHandle() const 
+{
+	TSharedPtr<FRemoteControlProperty> ThisPtr = Owner->GetExposedEntity<FRemoteControlProperty>(GetId()).Pin();
+	FProperty* Property = GetProperty();
+	const int32 ArrayIndex = Property->ArrayDim != 1 ? -1 : 0;
+	constexpr FProperty* ParentProperty = nullptr;
+	const TCHAR* ParentFieldPath = TEXT("");
+	return FRemoteControlPropertyHandle::GetPropertyHandle(ThisPtr, Property, ParentProperty, ParentFieldPath, ArrayIndex);
+}
+
+bool FRemoteControlProperty::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FRemoteControlObjectVersion::GUID);
+	FRemoteControlProperty::StaticStruct()->SerializeTaggedProperties(Ar, (uint8*)this, FRemoteControlProperty::StaticStruct(), nullptr);
+
+	return true;
+}
+
 void FRemoteControlProperty::PostSerialize(const FArchive& Ar)
 {
 	FRemoteControlField::PostSerialize(Ar);
 
 	if (Ar.IsLoading())
 	{
-		if (!UserMetadata.Contains(MetadataKey_Min)
-			&& !UserMetadata.Contains(MetadataKey_Max))
+		if (FProperty* Property = GetProperty())
+		{
+			int32 CustomVersion = Ar.CustomVer(FRemoteControlObjectVersion::GUID);
+			if (CustomVersion < FRemoteControlObjectVersion::AddedFieldFlags)
+			{
+				bIsEditorOnly = Property->HasAnyPropertyFlags(CPF_EditorOnly);
+				bIsEditableInPackaged = !Property->HasAnyPropertyFlags(CPF_BlueprintReadOnly);
+			}
+		}
+		
+		if (UserMetadata.Num() == 0)
 		{
 			InitializeMetadata();
 		}
@@ -255,6 +290,7 @@ void FRemoteControlProperty::InitializeMetadata()
 FRemoteControlFunction::FRemoteControlFunction(FName InLabel, FRCFieldPathInfo FieldPathInfo, UFunction* InFunction)
 	: FRemoteControlField(nullptr, EExposedFieldType::Function, InLabel, MoveTemp(FieldPathInfo), {})
 	, Function(InFunction)
+	, FunctionPath(InFunction)
 {
 	check(Function);
 	FunctionArguments = MakeShared<FStructOnScope>(Function);
@@ -266,12 +302,16 @@ FRemoteControlFunction::FRemoteControlFunction(FName InLabel, FRCFieldPathInfo F
 FRemoteControlFunction::FRemoteControlFunction(URemoteControlPreset* InPreset, FName InLabel, FRCFieldPathInfo InFieldPathInfo, UFunction* InFunction, const TArray<URemoteControlBinding*>& InBindings)
 	: FRemoteControlField(InPreset, EExposedFieldType::Function, InLabel, MoveTemp(InFieldPathInfo), InBindings)
 	, Function(InFunction)
+	, FunctionPath(InFunction)
 {
 	check(Function);
 	FunctionArguments = MakeShared<FStructOnScope>(Function);
 	Function->InitializeStruct(FunctionArguments->GetStructMemory());
 	AssignDefaultFunctionArguments();
 	OwnerClass = GetSupportedBindingClass();
+
+	bIsEditorOnly = Function->HasAnyFunctionFlags(FUNC_EditorOnly);
+	bIsCallableInPackaged = Function->HasAnyFunctionFlags(FUNC_BlueprintCallable);
 }
 
 uint32 FRemoteControlFunction::GetUnderlyingEntityIdentifier() const
@@ -291,6 +331,20 @@ bool FRemoteControlFunction::Serialize(FArchive& Ar)
 void FRemoteControlFunction::PostSerialize(const FArchive& Ar)
 {
 	FRemoteControlField::PostSerialize(Ar);
+
+	if (Ar.IsLoading())
+	{
+		int32 CustomVersion = Ar.CustomVer(FRemoteControlObjectVersion::GUID);
+
+		if (CustomVersion < FRemoteControlObjectVersion::AddedFieldFlags)
+		{
+			if (Function)
+			{
+				bIsEditorOnly = Function->HasAnyFunctionFlags(FUNC_EditorOnly);
+				bIsCallableInPackaged = Function->HasAnyFunctionFlags(FUNC_BlueprintCallable);
+			}
+		}
+	}
 }
 
 UClass* FRemoteControlFunction::GetSupportedBindingClass() const
@@ -328,6 +382,22 @@ bool FRemoteControlFunction::IsBound() const
 	return false;
 }
 
+UFunction* FRemoteControlFunction::GetFunction() const
+{
+	if (Function)
+	{
+		return Function;
+	}
+	
+	if (UFunction* ResolvedFunction = Cast<UFunction>(FunctionPath.TryLoad()))
+	{
+		Function = ResolvedFunction;
+		return ResolvedFunction;
+	}
+
+	return nullptr;
+}
+
 void FRemoteControlFunction::AssignDefaultFunctionArguments()
 {
 #if WITH_EDITOR
@@ -348,14 +418,17 @@ void FRemoteControlFunction::AssignDefaultFunctionArguments()
 
 FArchive& operator<<(FArchive& Ar, FRemoteControlFunction& RCFunction)
 {
+	Ar.UsingCustomVersion(FRemoteControlObjectVersion::GUID);
+
 	FRemoteControlFunction::StaticStruct()->SerializeTaggedProperties(Ar, (uint8*)&RCFunction, FRemoteControlFunction::StaticStruct(), nullptr);
 
 	if (Ar.IsLoading())
 	{
+		RCFunction.Function = Cast<UFunction>(RCFunction.FunctionPath.TryLoad());
 		RCFunction.FunctionArguments = MakeShared<FStructOnScope>(RCFunction.Function);
 	}
 
-	if (ensure(RCFunction.Function))
+	if (RCFunction.Function)
 	{
 		RCFunction.Function->SerializeTaggedProperties(Ar, RCFunction.FunctionArguments->GetStructMemory(), RCFunction.Function, nullptr);
 	}

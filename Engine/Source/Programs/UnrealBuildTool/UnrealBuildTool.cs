@@ -406,6 +406,9 @@ namespace UnrealBuildTool
 			[CommandLine("-VSMac", Value="GenerateProjectFiles")]
 			[CommandLine("-CLion", Value="GenerateProjectFiles")]
 			[CommandLine("-Rider", Value="GenerateProjectFiles")]
+			#if __VPROJECT_AVAILABLE__
+				[CommandLine("-VProject", Value = "GenerateProjectFiles")]
+			#endif
 			public string? Mode = null;
 
 			/// <summary>

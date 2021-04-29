@@ -10,7 +10,7 @@
 
 DECLARE_GPU_STAT(Fog);
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_ENABLE_DEBUG_DRAWING
 static TAutoConsoleVariable<float> CVarFogStartDistance(
 	TEXT("r.FogStartDistance"),
 	-1.0f,

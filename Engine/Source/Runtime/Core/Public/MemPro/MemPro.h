@@ -1,40 +1,42 @@
 /*
-	This software is provided 'as-is', without any express or implied warranty.
-	In no event will the author(s) be held liable for any damages arising from
-	the use of this software.
+Copyright 2019 PureDev Software Limited
 
-	Permission is granted to anyone to use this software for any purpose, including
-	commercial applications, and to alter it and redistribute it freely, subject to
-	the following restrictions:
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
 
-	1. The origin of this software must not be misrepresented; you must not
-	claim that you wrote the original software. If you use this software
-	in a product, an acknowledgment in the product documentation would be
-	appreciated but is not required.
-	2. Altered source versions must be plainly marked as such, and must not be
-	misrepresented as being the original software.
-	3. This notice may not be removed or altered from any source distribution.
-
-	Author: Stewart Lynch
-	www.puredevsoftware.com
-	slynch@puredevsoftware.com
-
-	This code is released to the public domain, as explained at
-	http://creativecommons.org/publicdomain/zero/1.0/
-
-	MemProLib is the library that allows the MemPro application to communicate
-	with your application.
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
 
 //------------------------------------------------------------------------
 //
-// MemPro.hpp
+// MemPro.h
 //
+/*
+	MemProLib is the library that allows the MemPro application to communicate
+	with your application.
+
+	===========================================================
+                             SETUP
+	===========================================================
+
+	* include MemPro.cpp and MemPro.h in your project.
+
+	* Link with Dbghelp.lib and Ws2_32.lib - these are needed for the callstack trace and the network connection
+
+	* Connect to your app with the MemPro
+*/
 //------------------------------------------------------------------------
 /*
 	MemPro
-	Version:	1.4.14.0
+	Version:	1.6.3.0
 */
 //------------------------------------------------------------------------
 #ifndef MEMPRO_MEMPRO_H_INCLUDED
@@ -194,6 +196,8 @@ namespace MemPro
 	void SetPaused(bool paused);
 
 	void TakeSnapshot(bool send_memory=false);
+
+	void FlushDumpFile();
 
 	// ignore these, for internal use only
 	void IncRef();

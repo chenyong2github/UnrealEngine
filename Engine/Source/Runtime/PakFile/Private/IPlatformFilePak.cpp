@@ -6786,6 +6786,10 @@ const FPakEntryLocation* FPakFile::FindLocationFromIndex(const FString& FullPath
 	const TCHAR* RelativePathFromMount = (*FullPath) + MountPoint.Len();
 	FString RelativeDirName(RelativePathFromMount);
 	FString CleanFileName;
+	if (RelativeDirName.IsEmpty())
+	{
+		return nullptr;
+	}
 	SplitPathInline(RelativeDirName, CleanFileName);
 	const FPakDirectory* PakDirectory = DirectoryIndex.Find(RelativeDirName);
 	if (PakDirectory)
@@ -7084,7 +7088,11 @@ bool FPakPlatformFile::ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) 
 	{
 		TArray<FString> PakFolders;
 		GetPakFolders(CmdLine, PakFolders);
-		Result = CheckIfPakFilesExist(Inner, PakFolders);
+		if (!CheckIfPakFilesExist(Inner, PakFolders))
+		{
+			UE_LOG(LogPakFile, Warning, TEXT("No Pak files were found when checking to make Pak Environment"));
+		}
+		Result = true;
 	}
 #endif
 	return Result;
@@ -7438,6 +7446,7 @@ bool FPakPlatformFile::Unmount(const TCHAR* InPakFilename)
 	{
 		FScopeLock ScopedLock(&PakListCritical);
 
+		bool bRemovedPakFile = false;
 		for (int32 PakIndex = 0; PakIndex < PakFiles.Num(); PakIndex++)
 		{
 			if (PakFiles[PakIndex].PakFile->GetFilename() == InPakFilename)
@@ -7446,9 +7455,25 @@ bool FPakPlatformFile::Unmount(const TCHAR* InPakFilename)
 				RemoveCachedPakSignaturesFile(*PakListEntry.PakFile->GetFilename());
 				UnmountedPak = MoveTemp(PakListEntry.PakFile);
 				PakFiles.RemoveAt(PakIndex);
+				bRemovedPakFile = true;
 				break;
 			}
 		}
+
+		bool bRemovedContainerFile = false;
+		if (FIoDispatcher::IsInitialized())
+		{
+			FString ContainerPath = FPaths::ChangeExtension(InPakFilename, FString());
+			FIoStatus Status = FIoDispatcher::Get().Unmount(*ContainerPath);
+			bRemovedContainerFile = Status.IsOk();
+		}
+
+		if (UnmountedPak)
+		{
+			UnmountedPak->ReaderMap.Empty();
+			UnmountedPak->SetIsMounted(false);
+		}
+		return bRemovedPakFile || bRemovedContainerFile;
 	}
 #if USE_PAK_PRECACHE
 	if (GPakCache_Enable)

@@ -5,12 +5,20 @@
 #include "Network/IDisplayClusterServer.h"
 #include "Network/IDisplayClusterClient.h"
 
+#include "Network/Service/ClusterEventsJson/DisplayClusterClusterEventsJsonClient.h"
+#include "Network/Service/ClusterEventsBinary/DisplayClusterClusterEventsBinaryClient.h"
+
 #include "Misc/DisplayClusterLog.h"
 
 
 FDisplayClusterNodeCtrlBase::FDisplayClusterNodeCtrlBase(const FString& CtrlName, const FString& NodeName)
 	: NodeName(NodeName)
 	, ControllerName(CtrlName)
+	, ExternalEventsClientJson(MakeUnique<FDisplayClusterClusterEventsJsonClient>())
+{
+}
+
+FDisplayClusterNodeCtrlBase::~FDisplayClusterNodeCtrlBase()
 {
 }
 
@@ -51,6 +59,28 @@ void FDisplayClusterNodeCtrlBase::Release()
 {
 	StopServers();
 	StopClients();
+}
+
+void FDisplayClusterNodeCtrlBase::SendClusterEventTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventJson& Event, bool bMasterOnly)
+{
+	// We should synchronize access to the client
+	FScopeLock Lock(&ExternEventsClientJsonGuard);
+
+	// One-shot connection
+	ExternalEventsClientJson->Connect(Address, Port, 1, 0.f);
+	ExternalEventsClientJson->EmitClusterEventJson(Event);
+	ExternalEventsClientJson->Disconnect();
+}
+
+void FDisplayClusterNodeCtrlBase::SendClusterEventTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly)
+{
+	// We should synchronize access to the client
+	FScopeLock Lock(&ExternEventsClientBinaryGuard);
+
+	// One-shot connection
+	ExternalEventsClientBinary->Connect(Address, Port, 1, 0.f);
+	ExternalEventsClientBinary->EmitClusterEventBinary(Event);
+	ExternalEventsClientBinary->Disconnect();
 }
 
 

@@ -366,11 +366,11 @@ void NiagaraDebugShaders::VisualizeTexture(
 	const FIntPoint RenderTargetSize = View.Family->RenderTarget->GetSizeXY();
 
 	const int32 AvailableWidth = RenderTargetSize.X - Location.X;
-	const int32 SlicesWidth = FMath::Clamp(FMath::DivideAndRoundDown(AvailableWidth, DisplaySize.X + 1), 1, TextureSize.Z);
+	const int32 SlicesWidth = FMath::Clamp(FMath::DivideAndRoundUp(AvailableWidth, DisplaySize.X + 1), 1, TextureSize.Z);
 
-	const float DisplayScale = PreviewDisplayRange.Y - PreviewDisplayRange.X;
-	const FVector4 PerChannelScale(DisplayScale > 0.0f ? (1.0f / DisplayScale) : 1.0f);
-	const FVector4 PerChannelBias(-PreviewDisplayRange.X);
+	const float DisplayScale = (PreviewDisplayRange.Y > PreviewDisplayRange.X) ? (1.0f / (PreviewDisplayRange.Y - PreviewDisplayRange.X)) : 1.0f;
+	const FVector4 PerChannelScale(DisplayScale, DisplayScale, DisplayScale, DisplayScale);
+	const FVector4 PerChannelBias(-PreviewDisplayRange.X, -PreviewDisplayRange.X, -PreviewDisplayRange.X, -PreviewDisplayRange.X);
 
 	for (int32 iSlice = 0; iSlice < SlicesWidth; ++iSlice)
 	{

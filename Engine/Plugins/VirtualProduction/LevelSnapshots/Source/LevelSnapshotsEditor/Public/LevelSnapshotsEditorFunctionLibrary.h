@@ -13,17 +13,7 @@ UCLASS()
 class LEVELSNAPSHOTSEDITOR_API ULevelSnapshotsEditorFunctionLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
-	
 public:
-
-	/**
-	 * @brief Creates a new Level Snapshot asset in the content browser based on an existing Level Snapshot.
-	 * @param LevelSnapshot The Level Snapshot to use as the template for the asset
-	 * @param FileName The desired asset file name
-	 * @param FolderPath The desired asset location
-	 */
-	UFUNCTION(BlueprintCallable, Category = "LevelSnapshots", meta=(DevelopmentOnly))
-	static void SaveLevelSnapshotToDisk(ULevelSnapshot* LevelSnapshot, const FString FileName, const FString FolderPath);
 
 	/**
 	 * @brief Creates a new Level Snapshot asset in the content browser and then captures the target world
@@ -39,5 +29,9 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "LevelSnapshots")
 	static void TakeAndSaveLevelSnapshotEditorWorld(const FString FileName, const FString FolderPath, const FString Description);
+
+	/* If the snapshot is saved in the registry, takes a screenshot of the editor scene and sets it as thumnail for the snapshot. */
+	UFUNCTION(BlueprintCallable, Category = "LevelSnapshots")
+	static void GenerateThumbnailForSnapshotAsset(ULevelSnapshot* SnapshotPackage);
 
 };

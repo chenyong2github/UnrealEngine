@@ -803,8 +803,7 @@ void Main(
 		#if FORWARDSHADING_USE_HQ_ENV_BRDF
 			half2 AB = PreIntegratedGF.SampleLevel(PreIntegratedGFSampler, float2(ShadingModelContext.NoV, GBuffer.Roughness), 0).rg;
 		#else
-			half3 Fc = (ShadingModelContext.SpecularColor - ShadingModelContext.SpecPreEnvBrdf) * rcp(saturate(50 * ShadingModelContext.SpecPreEnvBrdf.g) - ShadingModelContext.SpecPreEnvBrdf);
-			half2 AB = half2(1 - Fc.x, Fc.x);
+			half2 AB = EnvBRDFApproxLazarov(GBuffer.Roughness, ShadingModelContext.NoV);
 		#endif
 		Color += SpecularIBL * LayerAttenuation * (ShadingModelContext.SpecPreEnvBrdf * AB.x + AB.y * saturate(50 * ShadingModelContext.SpecPreEnvBrdf.g) * (1 - ShadingModelContext.ClearCoat));
 

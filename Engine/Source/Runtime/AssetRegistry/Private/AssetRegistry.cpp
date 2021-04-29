@@ -365,6 +365,7 @@ void FAssetRegistryImpl::Initialize(Impl::FInitializeContext& Context)
 
 	// Read default serialization options
 	Utils::InitializeSerializationOptionsFromIni(SerializationOptions, FString());
+	Utils::InitializeSerializationOptionsFromIni(DevelopmentSerializationOptions, FString(), UE::AssetRegistry::ESerializationTarget::ForDevelopment);
 
 	// If in the editor or cookcommandlet, we start the GlobalGatherer now
 	// In the game or other commandlets, we do not construct it until project or commandlet code calls SearchAllAssets or ScanPathsSynchronous
@@ -387,8 +388,18 @@ void FAssetRegistryImpl::Initialize(Impl::FInitializeContext& Context)
 #if ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR 
 	if (GIsEditor && !!LoadPremadeAssetRegistryInEditor)
 	{
-		FAssetRegistryLoadOptions LoadOptions;
-		if (LoadAssetRegistry(*(FPaths::ProjectDir() / TEXT("AssetRegistry.bin")), LoadOptions, State))
+		FAssetRegistryLoadOptions Options;
+		const int32 ThreadReduction = 2; // This thread + main thread already has work to do 
+		const bool bCanLoadAsync = FPlatformProcess::SupportsMultithreading() && FTaskGraphInterface::IsRunning();
+		int32 MaxWorkers = bCanLoadAsync ? FPlatformMisc::NumberOfCoresIncludingHyperthreads() - ThreadReduction : 0;
+		Options.ParallelWorkers = FMath::Clamp(MaxWorkers, 0, 16);
+
+		if (LoadAssetRegistry(*(FPaths::ProjectDir() / TEXT("EditorClientAssetRegistry.bin")), Options, State))
+		{
+			UE_LOG(LogAssetRegistry, Log, TEXT("Loaded premade editor client asset registry"));
+			CachePathsFromState(Context.Events, State);
+		}
+		else if (LoadAssetRegistry(*(FPaths::ProjectDir() / TEXT("AssetRegistry.bin")), Options, State))
 		{
 			UE_LOG(LogAssetRegistry, Log, TEXT("Loaded premade asset registry"));
 			CachePathsFromState(Context.Events, State);
@@ -681,26 +692,33 @@ void FAssetRegistryImpl::ReadScriptPackages()
 
 }
 
-void UAssetRegistryImpl::InitializeSerializationOptions(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName) const
+void UAssetRegistryImpl::InitializeSerializationOptions(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName, UE::AssetRegistry::ESerializationTarget Target) const
 {
 	if (PlatformIniName.IsEmpty())
 	{
 		FReadScopeLock InterfaceScopeLock(InterfaceLock);
 		// Use options we already loaded, the first pass for this happens at object creation time so this is always valid when queried externally
-		GuardedData.CopySerializationOptions(Options);
+		GuardedData.CopySerializationOptions(Options, Target);
 	}
 	else
 	{
-		UE::AssetRegistry::Utils::InitializeSerializationOptionsFromIni(Options, PlatformIniName);
+		UE::AssetRegistry::Utils::InitializeSerializationOptionsFromIni(Options, PlatformIniName, Target);
 	}
 }
 
 namespace UE::AssetRegistry
 {
 
-void FAssetRegistryImpl::CopySerializationOptions(FAssetRegistrySerializationOptions& OutOptions) const
+void FAssetRegistryImpl::CopySerializationOptions(FAssetRegistrySerializationOptions& OutOptions, ESerializationTarget Target) const
 {
-	OutOptions = SerializationOptions;
+	if (Target == UE::AssetRegistry::ESerializationTarget::ForGame)
+	{
+		OutOptions = SerializationOptions;
+	}
+	else
+	{
+		OutOptions = DevelopmentSerializationOptions;
+	}
 }
 
 namespace Utils
@@ -718,7 +736,7 @@ static TSet<FName> MakeNameSet(const TArray<FString>& Strings)
 	return Out;
 }
 
-void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName)
+void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName, UE::AssetRegistry::ESerializationTarget Target)
 {
 	FConfigFile* EngineIni = nullptr;
 #if WITH_EDITOR
@@ -731,16 +749,22 @@ void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& O
 	EngineIni = GConfig->FindConfigFile(GEngineIni);
 #endif
 
-	EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bSerializeAssetRegistry"), Options.bSerializeAssetRegistry);
-	EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bSerializeDependencies"), Options.bSerializeDependencies);
-	EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bSerializeNameDependencies"), Options.bSerializeSearchableNameDependencies);
-	EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bSerializeManageDependencies"), Options.bSerializeManageDependencies);
-	EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bSerializePackageData"), Options.bSerializePackageData);
-	EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bUseAssetRegistryTagsWhitelistInsteadOfBlacklist"), Options.bUseAssetRegistryTagsWhitelistInsteadOfBlacklist);
-	EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bFilterAssetDataWithNoTags"), Options.bFilterAssetDataWithNoTags);
-	EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bFilterDependenciesWithNoTags"), Options.bFilterDependenciesWithNoTags);
-	EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bFilterSearchableNames"), Options.bFilterSearchableNames);
+	Options = FAssetRegistrySerializationOptions(Target);
+	// For DevelopmentAssetRegistry, all non-tag options are overridden in the constructor
+	const bool bForDevelopment = Target == UE::AssetRegistry::ESerializationTarget::ForDevelopment;
+	if (!bForDevelopment)
+	{
+		EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bSerializeAssetRegistry"), Options.bSerializeAssetRegistry);
+		EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bSerializeDependencies"), Options.bSerializeDependencies);
+		EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bSerializeNameDependencies"), Options.bSerializeSearchableNameDependencies);
+		EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bSerializeManageDependencies"), Options.bSerializeManageDependencies);
+		EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bSerializePackageData"), Options.bSerializePackageData);
+		EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bFilterAssetDataWithNoTags"), Options.bFilterAssetDataWithNoTags);
+		EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bFilterDependenciesWithNoTags"), Options.bFilterDependenciesWithNoTags);
+		EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bFilterSearchableNames"), Options.bFilterSearchableNames);
+	}
 
+	EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bUseAssetRegistryTagsWhitelistInsteadOfBlacklist"), Options.bUseAssetRegistryTagsWhitelistInsteadOfBlacklist);
 	TArray<FString> FilterlistItems;
 	if (Options.bUseAssetRegistryTagsWhitelistInsteadOfBlacklist)
 	{
@@ -763,6 +787,7 @@ void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& O
 	}
 
 	// Takes on the pattern "(Class=SomeClass,Tag=SomeTag)"
+	// Optional key KeepInDevOnly for tweaking a DevelopmentAssetRegistry (additive if whitelist, subtractive if blacklist)
 	for (const FString& FilterlistItem : FilterlistItems)
 	{
 		FString TrimmedFilterlistItem = FilterlistItem;
@@ -780,6 +805,7 @@ void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& O
 		TrimmedFilterlistItem.ParseIntoArray(Tokens, TEXT(","));
 		FString ClassName;
 		FString TagName;
+		bool bKeepInDevOnly = false;
 
 		for (const FString& Token : Tokens)
 		{
@@ -797,10 +823,15 @@ void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& O
 				{
 					TagName = ValueString;
 				}
+				else if (KeyString == TEXT("KeepInDevOnly"))
+				{
+					bKeepInDevOnly = true;
+				}
 			}
 		}
 
-		if (!ClassName.IsEmpty() && !TagName.IsEmpty())
+		const bool bPassesDevOnlyRule = !bKeepInDevOnly || Options.bUseAssetRegistryTagsWhitelistInsteadOfBlacklist == bForDevelopment;
+		if (!ClassName.IsEmpty() && !TagName.IsEmpty() && bPassesDevOnlyRule)
 		{
 			FName TagFName = FName(*TagName);
 
@@ -822,7 +853,7 @@ void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& O
 				// Class is not in memory yet. Just add an explicit filter.
 				// Automatically adding subclasses of non-native classes is not supported.
 				// In these cases, using Class=* is usually sufficient
-				Options.CookFilterlistTagsByClass.FindOrAdd(FName(*ClassName)).Add(TagFName);
+				Options.CookFilterlistTagsByClass.FindOrAdd(*ClassName).Add(TagFName);
 			}
 		}
 	}
@@ -1460,11 +1491,19 @@ FAssetData UAssetRegistryImpl::GetAssetByObjectPath(const FName ObjectPath, bool
 {
 	if (!bIncludeOnlyOnDiskAssets)
 	{
-		UObject* Asset = FindObject<UObject>(nullptr, *ObjectPath.ToString());
+		const FNameBuilder ObjectPathStr(ObjectPath);
+		UObject* Asset = FindObject<UObject>(nullptr, *ObjectPathStr);
 
 		if (Asset)
 		{
-			return FAssetData(Asset, false /* bAllowBlueprintClass */);
+			if (!UE::AssetRegistry::FFiltering::ShouldSkipAsset(Asset))
+			{
+				return FAssetData(Asset, false /* bAllowBlueprintClass */);
+			}
+			else
+			{
+				return FAssetData();
+			}
 		}
 	}
 
@@ -3567,7 +3606,7 @@ void FAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TRin
 				if (DependsNode->GetConnectionCount() == 0 && Identifier.IsPackage())
 				{
 					// This was newly created, see if we need to read the script package Guid
-					FString PackageName = Identifier.PackageName.ToString();
+					const FNameBuilder PackageName(Identifier.PackageName);
 
 					if (FPackageName::IsScriptPackage(PackageName))
 					{

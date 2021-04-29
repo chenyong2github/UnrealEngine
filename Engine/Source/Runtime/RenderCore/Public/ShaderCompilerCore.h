@@ -35,6 +35,14 @@ extern RENDERCORE_API bool ShouldExportShaderDebugInfo(FName ShaderFormat);
 /** Returns true if (external) debug information should be specific to each shader rather than be deduplicated. */
 extern RENDERCORE_API bool ShouldAllowUniqueDebugInfo(FName ShaderFormat);
 
+
+/** Returns true is shader compiling is allowed */
+extern RENDERCORE_API bool AllowShaderCompiling();
+
+/** Returns true if the global shader cache should be loaded (and potentially compiled if allowed/needed */
+extern RENDERCORE_API bool AllowGlobalShaderLoad();
+
+
 enum ECompilerFlags
 {
 	CFLAG_PreferFlowControl = 0,

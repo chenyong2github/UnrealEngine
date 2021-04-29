@@ -32,6 +32,7 @@ FSlateApplicationBase::FSlateApplicationBase()
 , AccessibleMessageHandler(new FSlateAccessibleMessageHandler())
 #endif
 , bIsSlateAsleep(false)
+, CustomSafeZoneState(ECustomSafeZoneState::Unset)
 {
 
 }
@@ -73,13 +74,11 @@ void FSlateApplicationBase::GetSafeZoneSize(FMargin& SafeZone, const FVector2D& 
 
 void FSlateApplicationBase::GetSafeZoneRatio(FMargin& SafeZoneRatio)
 {
-#if WITH_EDITOR
-	if (CustomSafeZoneRatio != FMargin())
+	if (IsCustomSafeZoneSet())
 	{
 		SafeZoneRatio = CustomSafeZoneRatio;
 	}
 	else
-#endif
 	{
 		FDisplayMetrics Metrics;
 		GetCachedDisplayMetrics(Metrics);
@@ -160,6 +159,12 @@ bool FSlateApplicationBase::AnyActiveTimersArePending()
 bool FSlateApplicationBase::IsSlateAsleep()
 {
 	return bIsSlateAsleep;
+}
+
+void FSlateApplicationBase::ResetCustomSafeZone()
+{
+	CustomSafeZoneRatio = FMargin();
+	CustomSafeZoneState = ECustomSafeZoneState::Unset;
 }
 
 void FSlateApplicationBase::ToggleGlobalInvalidation(bool bIsGlobalInvalidationEnabled)

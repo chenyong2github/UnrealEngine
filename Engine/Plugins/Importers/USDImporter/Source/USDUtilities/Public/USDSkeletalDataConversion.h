@@ -30,16 +30,18 @@ class FSkeletalMeshImportData;
 class UAnimSequence;
 class USkeletalMesh;
 struct FUsdStageInfo;
-
 namespace SkeletalMeshImportData
 {
 	struct FBone;
 	struct FMaterial;
 }
-
 namespace UsdUtils
 {
 	struct FUsdPrimMaterialSlot;
+}
+namespace UE
+{
+	class FUsdStage;
 }
 
 #endif // #if USE_USD_SDK
@@ -186,9 +188,10 @@ namespace UnrealToUsd
 	 * @param SkeletalMesh - Mesh with the source data. If it contains multiple LODs it will lead to the creation of LOD variant sets and variants within SkelRoot
 	 * @param SkelRoot - Root prim of the output source data. Child UsdSkelSkeleton, UsdGeomMesh, and UsdSkelBlendShape will be created as children of it, containing the converted data
 	 * @param TimeCode - TimeCode with which the converted data will be placed in the USD stage
+	 * @param StageForMaterialAssignments - Stage to use when authoring material assignments (we use this when we want to export the mesh to a payload layer, but the material assignments to an asset layer)
 	 * @return Whether the conversion was successful or not.
 	 */
-	USDUTILITIES_API bool ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::UsdPrim& SkelRootPrim, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::Default() );
+	USDUTILITIES_API bool ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::UsdPrim& SkelRootPrim, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::Default(), UE::FUsdStage* StageForMaterialAssignments = nullptr );
 
 	/**
 	 * Converts an AnimSequence to a UsdSkelAnimation. Includes bone transforms and blend shape weights.

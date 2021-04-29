@@ -240,7 +240,7 @@ private:
 	void HandleTransformTrackChange( const UMovieScene3DTransformTrack& TransformTrack, bool bIsMuteChange );
 	void HandleDisplayRateChange(const double DisplayRate);
 
-	bool bMonitorChanges; // Flag to handle or not changes done to the level sequence or one of its subobject
+	bool bMonitorChanges; // Flag to handle or not changes done to the level sequence or one of its subobjects
 
 	FDelegateHandle OnObjectTransactedHandle;
 	FDelegateHandle OnStageEditTargetChangedHandle;
@@ -852,10 +852,11 @@ void FUsdLevelSequenceHelperImpl::AddPrim( UUsdPrimTwin& PrimTwin )
 				if ( !SequencesID.Contains( AttributeSequence ) )
 				{
 					UE::FSdfLayer PrimLayer = UsdUtils::FindLayerForPrim( UsdPrim );
-					ULevelSequence* PrimSequence = FindSequenceForIdentifier( PrimLayer.GetIdentifier() );
-
-					// Create new subsequence section for this referencing prim
-					CreateSubSequenceSection( *PrimSequence, *AttributeSequence );
+					if ( ULevelSequence* PrimSequence = FindSequenceForIdentifier( PrimLayer.GetIdentifier() ) )
+					{
+						// Create new subsequence section for this referencing prim
+						CreateSubSequenceSection( *PrimSequence, *AttributeSequence );
+					}
 				}
 			}
 		}
@@ -965,6 +966,11 @@ void FUsdLevelSequenceHelperImpl::AddXformTrack( UUsdPrimTwin& PrimTwin, ULevelS
 
 void FUsdLevelSequenceHelperImpl::RemovePrim( const UUsdPrimTwin& PrimTwin )
 {
+	if ( !UsdStage )
+	{
+		return;
+	}
+
 	// We can't assume that the UsdPrim still exists in the stage, it might have been removed already so work from the PrimTwin PrimPath.
 
 	TSet< FName > PrimSequences;
@@ -1248,7 +1254,7 @@ void FUsdLevelSequenceHelperImpl::UpdateMovieSceneTimeRanges( UMovieScene& Movie
 
 void FUsdLevelSequenceHelperImpl::OnObjectTransacted(UObject* Object, const class FTransactionObjectEvent& Event)
 {
-	if ( !MainLevelSequence || !bMonitorChanges || !Object || Object->IsPendingKill() )
+	if ( !MainLevelSequence || !bMonitorChanges || !Object || Object->IsPendingKill() || !UsdStage )
 	{
 		return;
 	}
@@ -1549,7 +1555,7 @@ void FUsdLevelSequenceHelperImpl::UpdateLayerTimeInfoFromLayer( FLayerTimeInfo& 
 	LayerTimeInfo.StartTimeCode      = Layer.HasStartTimeCode() ? Layer.GetStartTimeCode() : TOptional<double>();
 	LayerTimeInfo.EndTimeCode        = Layer.HasEndTimeCode() ? Layer.GetEndTimeCode() : TOptional<double>();
 
-	if ( LayerTimeInfo.EndTimeCode.IsSet() && LayerTimeInfo.EndTimeCode.IsSet() && LayerTimeInfo.EndTimeCode.GetValue() < LayerTimeInfo.StartTimeCode.GetValue() )
+	if ( LayerTimeInfo.StartTimeCode.IsSet() && LayerTimeInfo.EndTimeCode.IsSet() && LayerTimeInfo.EndTimeCode.GetValue() < LayerTimeInfo.StartTimeCode.GetValue() )
 	{
 		UE_LOG( LogUsd, Warning, TEXT( "Sublayer '%s' has end time code (%f) before start time code (%f)! These values will be automatically swapped" ),
 			*Layer.GetIdentifier(),
@@ -1626,14 +1632,14 @@ FUsdLevelSequenceHelper::FUsdLevelSequenceHelper(TWeakObjectPtr<AUsdStageActor> 
 {
 	if (AUsdStageActor* ValidStageActor = InStageActor.Get())
 	{
-		Init(InStageActor->GetUsdStage());
+		Init( InStageActor->GetOrLoadUsdStage() );
 		BindToUsdStageActor(ValidStageActor);
 	}
 }
 
 FUsdLevelSequenceHelper::FUsdLevelSequenceHelper()
 {
-	UsdSequencerImpl = nullptr;
+	UsdSequencerImpl = MakeUnique<FUsdLevelSequenceHelperImpl>();
 }
 
 FUsdLevelSequenceHelper::~FUsdLevelSequenceHelper() = default;
@@ -1655,11 +1661,6 @@ FUsdLevelSequenceHelper& FUsdLevelSequenceHelper::operator=(FUsdLevelSequenceHel
 
 ULevelSequence* FUsdLevelSequenceHelper::Init(const UE::FUsdStage& UsdStage)
 {
-	if ( !UsdSequencerImpl.IsValid() )
-	{
-		UsdSequencerImpl = MakeUnique<FUsdLevelSequenceHelperImpl>();
-	}
-
 	if ( UsdSequencerImpl.IsValid() )
 	{
 		return UsdSequencerImpl->Init(UsdStage);
@@ -1675,7 +1676,6 @@ void FUsdLevelSequenceHelper::Clear()
 	if ( UsdSequencerImpl.IsValid() )
 	{
 		UsdSequencerImpl->Clear();
-		UsdSequencerImpl = nullptr;
 	}
 }
 

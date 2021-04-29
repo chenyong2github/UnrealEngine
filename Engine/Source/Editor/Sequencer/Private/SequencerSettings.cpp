@@ -38,7 +38,6 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	LoopMode = ESequencerLoopMode::SLM_NoLoop;
 	bSnapKeysAndSectionsToPlayRange = false;
 	bKeepCursorInPlayRangeWhileScrubbing = false;
-	bKeepCursorInPlayRange = true;
 	bKeepPlayRangeInSectionBounds = true;
 	bCompileDirectorOnEvaluate = true;
 	ZeroPadFrames = 0;
@@ -447,20 +446,6 @@ void USequencerSettings::SetKeepCursorInPlayRangeWhileScrubbing(bool bInKeepCurs
 	}
 }
 
-bool USequencerSettings::ShouldKeepCursorInPlayRange() const
-{
-	return bKeepCursorInPlayRange;
-}
-
-void USequencerSettings::SetKeepCursorInPlayRange(bool bInKeepCursorInPlayRange)
-{
-	if (bKeepCursorInPlayRange != bInKeepCursorInPlayRange)
-	{
-		bKeepCursorInPlayRange = bInKeepCursorInPlayRange;
-		SaveConfig();
-	}
-}
-
 bool USequencerSettings::ShouldKeepPlayRangeInSectionBounds() const
 {
 	return bKeepPlayRangeInSectionBounds;
@@ -762,6 +747,15 @@ void USequencerSettings::SetTimeDisplayFormat(EFrameNumberDisplayFormats InForma
 	if (InFormat != FrameNumberDisplayFormat)
 	{
 		FrameNumberDisplayFormat = InFormat;
+		SaveConfig();
+	}
+}
+
+void USequencerSettings::SetMovieRendererName(const FString& InMovieRendererName)
+{
+	if (InMovieRendererName != MovieRendererName)
+	{
+		MovieRendererName = InMovieRendererName;
 		SaveConfig();
 	}
 }

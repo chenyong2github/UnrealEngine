@@ -172,7 +172,7 @@ public:
 	/** Get the key that we use to check if we need to (re)build */
 	const FName& GetKey() const { return Key; }
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) || WITH_EDITOR
 	/** 
 	 * Check to see if this mesh is built 
 	 * @param	bInForce	Whether to force the recalculation of this actor's build flag. If this is false then the cached flag is used an only recalculated every so often.
@@ -350,7 +350,7 @@ private:
 	void RegisterMeshComponents();
 	void UnregisterMeshComponents();
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if (!(UE_BUILD_SHIPPING || UE_BUILD_TEST)) || WITH_EDITOR
 	// Get/Create the LOD instanced static mesh component for a given imposter material.
 	UInstancedStaticMeshComponent* GetISMComponent(const FHLODInstancingKey& InstancingKey) const;
 	UInstancedStaticMeshComponent* GetOrCreateISMComponent(const FHLODInstancingKey& InstancingKey);
@@ -379,7 +379,7 @@ private:
 	/** Flags for forcing a dithering transition */
 	uint8 bNeedsDrawDistanceReset : 1;
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) || WITH_EDITOR
 	/** Cached flag we use to avoid checking the built status of this actor every frame */
 	mutable uint8 bCachedIsBuilt : 1;
 

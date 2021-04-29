@@ -1270,7 +1270,7 @@ void FPropertyValueImpl::InsertChild( TSharedPtr<FPropertyNode> ChildNodeToInser
 			UObject* Obj = ObjectNode ? ObjectNode->GetUObject(0) : nullptr;
 			if (IsTemplate(Obj))
 			{
-				ChildNodePtr->GatherInstancesAffectedByContainerPropertyChange(Obj, Addr, EPropertyArrayChangeType::Add, AffectedInstances);
+				ChildNodePtr->GatherInstancesAffectedByContainerPropertyChange(Obj, Addr, EPropertyArrayChangeType::Insert, AffectedInstances);
 			}
 		}
 
@@ -2867,11 +2867,25 @@ bool FPropertyHandleBase::GeneratePossibleValues(TArray< TSharedPtr<FString> >& 
 	FName MetaDataKey = PropertyEditorHelpers::GetPropertyOptionsMetaDataKey(Property);
 	if (!MetaDataKey.IsNone())
 	{
-		const FString GetOptionsFunctionName = Property->GetOwnerProperty()->GetMetaData(MetaDataKey);
+		FString GetOptionsFunctionName = Property->GetOwnerProperty()->GetMetaData(MetaDataKey);
 		if (!GetOptionsFunctionName.IsEmpty())
 		{
 			TArray<UObject*> OutObjects;
 			GetOuterObjects(OutObjects);
+
+			// Check for external function references
+			if (GetOptionsFunctionName.Contains(TEXT(".")))
+			{
+				OutObjects.Empty();
+				UFunction* GetOptionsFunction = FindObject<UFunction>(nullptr, *GetOptionsFunctionName, true);
+
+				if (ensureMsgf(GetOptionsFunction && GetOptionsFunction->HasAnyFunctionFlags(EFunctionFlags::FUNC_Static), TEXT("Invalid GetOptions: %s"), *GetOptionsFunctionName))
+				{
+					UObject* GetOptionsCDO = GetOptionsFunction->GetOuterUClass()->GetDefaultObject();
+					GetOptionsFunction->GetName(GetOptionsFunctionName);
+					OutObjects.Add(GetOptionsCDO);
+				}
+			}
 
 			if (OutObjects.Num() > 0)
 			{

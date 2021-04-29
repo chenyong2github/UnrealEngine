@@ -16,13 +16,14 @@
 // This is our global recording task:
 static TUniquePtr<Audio::FAudioRecordingData> RecordingData;
 
-FAudioOutputDeviceInfo::FAudioOutputDeviceInfo(const Audio::FAudioPlatformDeviceInfo& InDeviceInfo) :
-	Name(InDeviceInfo.Name),
-	DeviceId(InDeviceInfo.DeviceId),
-	NumChannels(InDeviceInfo.NumChannels),
-	SampleRate(InDeviceInfo.SampleRate),
-	Format(EAudioMixerStreamDataFormatType(InDeviceInfo.Format)),
-	bIsSystemDefault(InDeviceInfo.bIsSystemDefault)
+FAudioOutputDeviceInfo::FAudioOutputDeviceInfo(const Audio::FAudioPlatformDeviceInfo& InDeviceInfo)
+	: Name(InDeviceInfo.Name)
+	, DeviceId(InDeviceInfo.DeviceId)
+	, NumChannels(InDeviceInfo.NumChannels)
+	, SampleRate(InDeviceInfo.SampleRate)
+	, Format(EAudioMixerStreamDataFormatType(InDeviceInfo.Format))
+	, bIsSystemDefault(InDeviceInfo.bIsSystemDefault)
+	, bIsCurrentDevice(false)
 {
 	for (int32 i = 0; i < NumChannels; ++i)
 	{
@@ -662,6 +663,11 @@ bool UAudioMixerBlueprintLibrary::IsAudioBusActive(const UObject* WorldContextOb
 
 void UAudioMixerBlueprintLibrary::GetAvailableAudioOutputDevices(const UObject* WorldContextObject, const FOnAudioOutputDevicesObtained& OnObtainDevicesEvent)
 {
+	if (!OnObtainDevicesEvent.IsBound())
+	{
+		return;
+	}
+
 	if (!IsInAudioThread())
 	{
 		//Send this over to the audio thread, with the same settings
@@ -685,33 +691,44 @@ void UAudioMixerBlueprintLibrary::GetAvailableAudioOutputDevices(const UObject* 
 		if (MixerPlatform)
 		{
 			uint32 NumOutputDevices = 0;
-
 			MixerPlatform->GetNumOutputDevices(NumOutputDevices);
+			OutputDeviceInfos.Reserve(NumOutputDevices);
+			FAudioOutputDeviceInfo CurrentOutputDevice = MixerPlatform->GetPlatformDeviceInfo();
 
 			for (uint32 i = 0; i < NumOutputDevices; ++i)
 			{
 				Audio::FAudioPlatformDeviceInfo DeviceInfo;
-
 				MixerPlatform->GetOutputDeviceInfo(i, DeviceInfo);
 
-				OutputDeviceInfos.Add(FAudioOutputDeviceInfo(DeviceInfo));
+				FAudioOutputDeviceInfo NewInfo(DeviceInfo);
+				NewInfo.bIsCurrentDevice = (NewInfo.DeviceId == CurrentOutputDevice.DeviceId);
+
+				OutputDeviceInfos.Emplace(MoveTemp(NewInfo));
 			}
 		}
 	}
 
-	//Call delegate event, and send the info there
-	OnObtainDevicesEvent.Execute(OutputDeviceInfos);
+	//Send data through delegate on game thread
+	FAudioThread::RunCommandOnGameThread([OnObtainDevicesEvent, OutputDeviceInfos]()
+	{
+		OnObtainDevicesEvent.ExecuteIfBound(OutputDeviceInfos);
+	});
 }
 
 void UAudioMixerBlueprintLibrary::GetCurrentAudioOutputDeviceName(const UObject* WorldContextObject, const FOnMainAudioOutputDeviceObtained& OnObtainCurrentDeviceEvent)
 {
+	if (!OnObtainCurrentDeviceEvent.IsBound())
+	{
+		return;
+	}
+
 	if (!IsInAudioThread())
 	{
 		//Send this over to the audio thread, with the same settings
 		FAudioThread::RunCommandOnAudioThread([WorldContextObject, OnObtainCurrentDeviceEvent]()
-			{
-				GetCurrentAudioOutputDeviceName(WorldContextObject, OnObtainCurrentDeviceEvent);
-			});
+		{
+			GetCurrentAudioOutputDeviceName(WorldContextObject, OnObtainCurrentDeviceEvent);
+		});
 
 		return;
 	}
@@ -723,21 +740,32 @@ void UAudioMixerBlueprintLibrary::GetCurrentAudioOutputDeviceName(const UObject*
 	if (AudioMixerDevice)
 	{
 		Audio::IAudioMixerPlatformInterface* MixerPlatform = AudioMixerDevice->GetAudioMixerPlatform();
-
-		//Call delegate event, and send the info there
-		OnObtainCurrentDeviceEvent.Execute(MixerPlatform->GetCurrentDeviceName());
+		if (MixerPlatform)
+		{
+			//Send data through delegate on game thread
+			FString CurrentDeviceName = MixerPlatform->GetCurrentDeviceName();
+			FAudioThread::RunCommandOnGameThread([OnObtainCurrentDeviceEvent, CurrentDeviceName]()
+			{
+				OnObtainCurrentDeviceEvent.ExecuteIfBound(CurrentDeviceName);
+			});
+		}
 	}
 
 }
 
-void UAudioMixerBlueprintLibrary::SwapAudioOutputDevice(const UObject* WorldContextObject, const FAudioOutputDeviceInfo& NewDevice, const FOnCompletedDeviceSwap& OnCompletedDeviceSwap)
+void UAudioMixerBlueprintLibrary::SwapAudioOutputDevice(const UObject* WorldContextObject, const FString& NewDeviceId, const FOnCompletedDeviceSwap& OnCompletedDeviceSwap)
 {
+	if (!OnCompletedDeviceSwap.IsBound())
+	{
+		return;
+	}
+
 	if (!IsInAudioThread())
 	{
 		//Send this over to the audio thread, with the same settings
-		FAudioThread::RunCommandOnAudioThread([WorldContextObject, NewDevice, OnCompletedDeviceSwap]()
+		FAudioThread::RunCommandOnAudioThread([WorldContextObject, NewDeviceId, OnCompletedDeviceSwap]()
 		{
-			SwapAudioOutputDevice(WorldContextObject, NewDevice, OnCompletedDeviceSwap);
+			SwapAudioOutputDevice(WorldContextObject, NewDeviceId, OnCompletedDeviceSwap);
 		});
 
 		return;
@@ -752,10 +780,18 @@ void UAudioMixerBlueprintLibrary::SwapAudioOutputDevice(const UObject* WorldCont
 		//Send message to swap device
 		if (MixerPlatform)
 		{
-			bool result = MixerPlatform->RequestDeviceSwap(NewDevice.DeviceId);
+			bool result = MixerPlatform->RequestDeviceSwap(NewDeviceId);
+			FAudioOutputDeviceInfo CurrentOutputDevice = MixerPlatform->GetPlatformDeviceInfo();
 
-			//Call delegate event, and send the info there
-			OnCompletedDeviceSwap.Execute(result);
+			//Send data through delegate on game thread
+			FSwapAudioOutputResult SwapResult;
+			SwapResult.CurrentDeviceId = CurrentOutputDevice.DeviceId;
+			SwapResult.RequestedDeviceId = NewDeviceId;
+			SwapResult.Result = result ? ESwapAudioOutputDeviceResultState::Success : ESwapAudioOutputDeviceResultState::Failure;
+			FAudioThread::RunCommandOnGameThread([OnCompletedDeviceSwap, SwapResult]()
+			{
+				OnCompletedDeviceSwap.ExecuteIfBound(SwapResult);
+			});
 		}
 	}
 }

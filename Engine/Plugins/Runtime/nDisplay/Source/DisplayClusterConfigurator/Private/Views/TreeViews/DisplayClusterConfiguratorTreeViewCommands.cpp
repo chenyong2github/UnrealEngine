@@ -6,7 +6,18 @@
 
 void FDisplayClusterConfiguratorTreeViewCommands::RegisterCommands()
 {
-	UI_COMMAND(ShowAllNodes, "Show All Nodes", "Show every node in the config", EUserInterfaceActionType::RadioButton, FInputChord());
+#if PLATFORM_MAC
+	EModifierKey::Type PlatformControlKey = EModifierKey::Command;
+#else
+	EModifierKey::Type PlatformControlKey = EModifierKey::Control;
+#endif
+
+	UI_COMMAND(ShowAll, "Show All Cluster Items", "Shows all cluster items in the configuration", EUserInterfaceActionType::Button, FInputChord(PlatformControlKey, EKeys::H));
+	UI_COMMAND(ShowSelectedOnly, "Show Only Selected", "Shows only the selected cluster items", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ShowSelected, "Show Selected", "Shows the selected cluster items", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift, EKeys::H));
+	UI_COMMAND(HideSelected, "Hide Selected", "Hides the selected cluster items", EUserInterfaceActionType::Button, FInputChord(EKeys::H));
+
+	UI_COMMAND(SetAsMaster, "Set as Master", "Sets this cluster node as the master node", EUserInterfaceActionType::Button, FInputChord());
 }
 
 #undef LOCTEXT_NAMESPACE

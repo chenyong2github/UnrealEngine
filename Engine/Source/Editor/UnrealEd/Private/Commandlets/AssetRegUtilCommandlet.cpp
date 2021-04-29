@@ -759,7 +759,9 @@ int32 UAssetRegistryDumpCommandlet::Main(const FString& CmdLineParams)
 
 	TArray<FString> Pages;
 	TArray<FString> Arguments({ TEXT("ObjectPath"),TEXT("PackageName"),TEXT("Path"),TEXT("Class"),TEXT("Tag"), TEXT("DependencyDetails"), TEXT("PackageData") });
+#if ASSET_REGISTRY_STATE_DUMPING_ENABLED
 	State.Dump(Arguments, Pages, 10000 /* LinesPerPage */);
+#endif
 	int PageIndex = 0;
 	TStringBuilder<256> FileName;
 	int32 Result = 0;

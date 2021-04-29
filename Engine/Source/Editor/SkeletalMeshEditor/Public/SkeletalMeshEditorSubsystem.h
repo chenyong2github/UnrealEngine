@@ -45,6 +45,25 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Skeletal Mesh Utilities")
 	int32 GetNumVerts(USkeletalMesh* SkeletalMesh, int32 LODIndex);
 
+	/** Get number of sections for a LOD of a Skeletal Mesh
+	 *
+	 * @param SkeletalMesh		Mesh to get number of vertices from.
+	 * @param LODIndex			Index of the mesh LOD.
+	 * @return Number of sections. Returns INDEX_NONE if invalid mesh or LOD index.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Skeletal Mesh Utilities")
+	int32 GetNumSections(USkeletalMesh* SkeletalMesh, int32 LODIndex);
+
+	/**
+	 * Gets the material slot used for a specific LOD section.
+	 * @param	SkeletalMesh		SkeletalMesh to get the material index from.
+	 * @param	LODIndex			Index of the StaticMesh LOD.
+	 * @param	SectionIndex		Index of the StaticMesh Section.
+	 * @return  MaterialSlotIndex	Index of the material slot used by the section or INDEX_NONE in case of error.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Skeletal Mesh Utilities")
+	int32 GetLODMaterialSlot(USkeletalMesh* SkeletalMesh, int32 LODIndex, int32 SectionIndex);
+
 	/** Rename a socket within a skeleton
 	 * @param SkeletalMesh	The mesh inside which we are renaming a socket
 	 * @param OldName       The old name of the socket

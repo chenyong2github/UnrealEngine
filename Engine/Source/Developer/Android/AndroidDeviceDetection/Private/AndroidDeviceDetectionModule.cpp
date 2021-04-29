@@ -31,6 +31,15 @@
 #include "Misc/FileHelper.h"
 #include "Misc/MessageDialog.h"
 
+#if WITH_EDITOR
+#include "PIEPreviewDeviceProfileSelectorModule.h"
+#include "IDesktopPlatform.h"
+#include "DesktopPlatformModule.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorStyleSet.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "FAndroidDeviceDetectionModule" 
 
 DEFINE_LOG_CATEGORY_STATIC(AndroidDeviceDetectionLog, Log, All);
@@ -572,10 +581,30 @@ public:
 		// create and fire off our device detection thread
 		DetectionThreadRunnable = new FAndroidDeviceDetectionRunnable(DeviceMap, &DeviceMapLock, &ADBPathCheckLock);
 		DetectionThread = FRunnableThread::Create(DetectionThreadRunnable, TEXT("FAndroidDeviceDetectionRunnable"));
+
+#if WITH_EDITOR
+		// add some menu options just for Android
+		FPIEPreviewDeviceModule* PIEPreviewDeviceModule = FModuleManager::LoadModulePtr<FPIEPreviewDeviceModule>(TEXT("PIEPreviewDeviceProfileSelector"));
+		PIEPreviewDeviceModule->AddToDevicePreviewMenuDelegates.AddLambda([this](const FText& CategoryName, class FMenuBuilder& MenuBuilder)
+			{
+				if (CategoryName.CompareToCaseIgnored(FText::FromString(TEXT("Android"))) == 0)
+				{
+					CreatePIEPreviewMenu(MenuBuilder);
+				}
+			});
+#endif
 	}
 
 	virtual ~FAndroidDeviceDetection()
 	{
+#if WITH_EDITOR
+		FPIEPreviewDeviceModule* PIEPreviewDeviceModule = FModuleManager::GetModulePtr<FPIEPreviewDeviceModule>(TEXT("PIEPreviewDeviceProfileSelector"));
+		if (PIEPreviewDeviceModule != nullptr)
+		{
+			PIEPreviewDeviceModule->AddToDevicePreviewMenuDelegates.Remove(DelegateHandle);
+		}
+#endif
+
 		if (DetectionThreadRunnable && DetectionThread)
 		{
 			DetectionThreadRunnable->Stop();
@@ -751,6 +780,92 @@ private:
 	TMap<FString,FAndroidDeviceInfo> DeviceMap;
 	FCriticalSection DeviceMapLock;
 	FCriticalSection ADBPathCheckLock;
+
+
+#if WITH_EDITOR
+	FDelegateHandle DelegateHandle;
+
+	// function will enumerate available Android devices that can export their profile to a json file
+	// called (below) from AddAndroidConfigExportMenu()
+	void AddAndroidConfigExportSubMenus(FMenuBuilder& InMenuBuilder)
+	{
+		TMap<FString, FAndroidDeviceInfo> AndroidDeviceMap;
+
+		// lock device map and copy its contents
+		{
+			FCriticalSection* DeviceLock = GetDeviceMapLock();
+			FScopeLock Lock(DeviceLock);
+			AndroidDeviceMap = GetDeviceMap();
+		}
+
+		for (auto& Pair : AndroidDeviceMap)
+		{
+			FAndroidDeviceInfo& DeviceInfo = Pair.Value;
+
+			FString ModelName = DeviceInfo.Model + TEXT("[") + DeviceInfo.DeviceBrand + TEXT("]");
+
+			// lambda function called to open the save dialog and trigger device export
+			auto LambdaSaveConfigFile = [DeviceName = Pair.Key, DefaultFileName = ModelName, this]()
+			{
+				TArray<FString> OutputFileName;
+				FString DefaultFolder = FPaths::EngineContentDir() + TEXT("Editor/PIEPreviewDeviceSpecs/Android/");
+
+				bool bResult = FDesktopPlatformModule::Get()->SaveFileDialog(
+					FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
+					LOCTEXT("PackagePluginDialogTitle", "Save platform configuration...").ToString(),
+					DefaultFolder,
+					DefaultFileName,
+					TEXT("Json config file (*.json)|*.json"),
+					0,
+					OutputFileName);
+
+				if (bResult && OutputFileName.Num())
+				{
+					ExportDeviceProfile(OutputFileName[0], DeviceName);
+				}
+			};
+
+			InMenuBuilder.AddMenuEntry(
+				FText::FromString(ModelName),
+				FText(),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "AssetEditor.SaveAsset"),
+				FUIAction(FExecuteAction::CreateLambda(LambdaSaveConfigFile))
+			);
+		}
+	}
+
+	// function adds a sub-menu that will enumerate Android devices whose profiles can be exported json files
+	void AddAndroidConfigExportMenu(FMenuBuilder& MenuBuilder)
+	{
+		MenuBuilder.AddMenuSeparator();
+
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("loc_AddAndroidConfigExportMenu", "Export device settings"),
+			LOCTEXT("loc_tip_AddAndroidConfigExportMenu", "Export device settings to a Json file."),
+			FNewMenuDelegate::CreateLambda([this](FMenuBuilder& Builder) { AddAndroidConfigExportSubMenus(Builder); }),
+			false,
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.SaveAll")
+		);
+	}
+
+	// Android devices can export their profile to a json file which then can be used for PIE device simulations
+	void CreatePIEPreviewMenu(FMenuBuilder& MenuBuilder)
+	{
+		// check to see if we have any connected devices
+		bool bHasAndroidDevices = false;
+		{
+			FCriticalSection* DeviceLock = GetDeviceMapLock();
+			FScopeLock Lock(DeviceLock);
+			bHasAndroidDevices = GetDeviceMap().Num() > 0;
+		}
+
+		// add the config. export menu
+		if (bHasAndroidDevices)
+		{
+			AddAndroidConfigExportMenu(MenuBuilder);
+		}
+	}
+#endif
 };
 
 
@@ -766,7 +881,6 @@ static TMap<FString, FAndroidDeviceDetection*> AndroidDeviceDetectionSingletons;
 class FAndroidDeviceDetectionModule : public IAndroidDeviceDetectionModule
 {
 public:
-
 	/**
 	 * Destructor.
 	 */

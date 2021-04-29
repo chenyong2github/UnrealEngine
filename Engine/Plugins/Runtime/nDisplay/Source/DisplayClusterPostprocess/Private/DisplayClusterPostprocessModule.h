@@ -24,5 +24,5 @@ public:
 
 private:
 	// Available postprocess policy
-	TMap<FString, TSharedPtr<IDisplayClusterPostProcess>> PostprocessAssets;
+	TMap<FString, TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>> PostprocessAssets;
 };

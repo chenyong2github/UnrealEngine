@@ -786,6 +786,7 @@ bool FParticlePerfStatsListener_NiagaraPerformanceReporter::Tick()
 	{
 		NumFrames = 0;
 		FScopeLock Lock(&AccumulatedStatsGuard);
+#if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
 		for (auto& SysStatPair : AccumulatedSystemStats)
 		{
 			if (UNiagaraSystem* System = Cast<UNiagaraSystem>(SysStatPair.Key.Get()))
@@ -806,6 +807,7 @@ bool FParticlePerfStatsListener_NiagaraPerformanceReporter::Tick()
 				Stats->ResetGT();
 			}
 		}
+#endif
 
 		//Trigger handling of the new results.
 		//Must be delayed until the RT has written the RT stats for the current test.
@@ -824,6 +826,7 @@ void FParticlePerfStatsListener_NiagaraPerformanceReporter::TickRT()
 	{
 		TArray<UNiagaraSystem*, TInlineAllocator<16>> ToRemove;
 		NumFramesRT = 0;
+#if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
 		FScopeLock Lock(&AccumulatedStatsGuard);
 		for (auto& SysStatPair : AccumulatedSystemStats)
 		{
@@ -845,6 +848,7 @@ void FParticlePerfStatsListener_NiagaraPerformanceReporter::TickRT()
 				Stats->ResetRT();
 			}
 		}
+#endif
 	}
 }
 
@@ -865,6 +869,7 @@ bool FParticlePerfStatsListener_NiagaraBaselineComparisonRender::Tick()
 	if (++NumFrames > GPerfTestFrames)
 	{
 		NumFrames = 0;
+#if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
 		FScopeLock Lock(&AccumulatedStatsGuard);
 		for (auto& SysStatPair : AccumulatedSystemStats)
 		{
@@ -889,6 +894,7 @@ bool FParticlePerfStatsListener_NiagaraBaselineComparisonRender::Tick()
 				Stats->ResetGT();
 			}
 		}
+#endif
 	}
 
 	return bRet;
@@ -902,6 +908,7 @@ void FParticlePerfStatsListener_NiagaraBaselineComparisonRender::TickRT()
 	{
 		TArray<UNiagaraSystem*, TInlineAllocator<16>> ToRemove;
 		NumFramesRT = 0;
+#if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
 		FScopeLock Lock(&AccumulatedStatsGuard);
 		for (auto& SysStatPair : AccumulatedSystemStats)
 		{
@@ -925,6 +932,7 @@ void FParticlePerfStatsListener_NiagaraBaselineComparisonRender::TickRT()
 				Stats->ResetRT();
 			}
 		}
+#endif
 	}
 }
 

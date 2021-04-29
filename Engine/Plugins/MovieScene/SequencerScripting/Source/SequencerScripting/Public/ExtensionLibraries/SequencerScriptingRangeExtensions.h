@@ -22,7 +22,7 @@ public:
 	 *
 	 * @param Range       The range to check
 	 */
-	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
 	static bool HasStart(const FSequencerScriptingRange& Range);
 
 	/**
@@ -30,7 +30,7 @@ public:
 	 *
 	 * @param Range       The range to check
 	 */
-	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
 	static bool HasEnd(const FSequencerScriptingRange& Range);
 
 	/**
@@ -38,7 +38,7 @@ public:
 	 *
 	 * @param Range       The range to remove the start from
 	 */
-	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
 	static void RemoveStart(UPARAM(ref) FSequencerScriptingRange& Range);
 
 	/**
@@ -46,7 +46,7 @@ public:
 	 *
 	 * @param Range       The range to remove the end from
 	 */
-	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
 	static void RemoveEnd(UPARAM(ref) FSequencerScriptingRange& Range);
 
 	/**
@@ -54,7 +54,7 @@ public:
 	 *
 	 * @param Range       The range to get the start from
 	 */
-	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
 	static float GetStartSeconds(const FSequencerScriptingRange& Range);
 
 	/**
@@ -62,7 +62,7 @@ public:
 	 *
 	 * @param Range       The range to get the end from
 	 */
-	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
 	static float GetEndSeconds(const FSequencerScriptingRange& Range);
 
 	/**
@@ -70,7 +70,7 @@ public:
 	 *
 	 * @param Range       The range to set the start on
 	 */
-	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
 	static void SetStartSeconds(UPARAM(ref) FSequencerScriptingRange& Range, float Start);
 
 	/**
@@ -78,7 +78,7 @@ public:
 	 *
 	 * @param Range       The range to set the end on
 	 */
-	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
 	static void SetEndSeconds(UPARAM(ref) FSequencerScriptingRange& Range, float End);
 
 	/**
@@ -86,7 +86,7 @@ public:
 	 *
 	 * @param Range       The range to get the start from
 	 */
-	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
 	static int32 GetStartFrame(const FSequencerScriptingRange& Range);
 
 	/**
@@ -94,7 +94,7 @@ public:
 	 *
 	 * @param Range       The range to get the end from
 	 */
-	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
 	static int32 GetEndFrame(const FSequencerScriptingRange& Range);
 
 	/**
@@ -102,7 +102,7 @@ public:
 	 *
 	 * @param Range       The range to set the start on
 	 */
-	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
 	static void SetStartFrame(UPARAM(ref) FSequencerScriptingRange& Range, int32 Start);
 
 	/**
@@ -110,6 +110,6 @@ public:
 	 *
 	 * @param Range       The range to set the end on
 	 */
-	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
 	static void SetEndFrame(UPARAM(ref) FSequencerScriptingRange& Range, int32 End);
 };

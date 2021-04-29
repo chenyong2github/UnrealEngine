@@ -5,8 +5,10 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "UObject/GCObject.h"
+#include "Recorder/TakeRecorderParameters.h"
 
 enum class ECheckBoxState : uint8;
+enum class ETakeRecorderMode : uint8;
 
 struct FAssetData;
 struct ITakeRecorderSourceTreeItem;
@@ -34,6 +36,7 @@ public:
 	SLATE_BEGIN_ARGS(STakeRecorderPanel)
 		: _BasePreset(nullptr)
 		, _BaseSequence(nullptr)
+		, _RecordIntoSequence(nullptr)
 		, _SequenceToView(nullptr)
 		{}
 
@@ -45,6 +48,9 @@ public:
 		/** A level sequence asset to base the recording off */
 		SLATE_ARGUMENT(ULevelSequence*, BaseSequence)
 
+		/** A level sequence asset to record into */
+		SLATE_ARGUMENT(ULevelSequence*, RecordIntoSequence)
+
 		/** A sequence that should be shown directly on the take recorder UI */
 		SLATE_ARGUMENT(ULevelSequence*, SequenceToView)
 		/*-------------------------------------------------*/
@@ -55,6 +61,8 @@ public:
 
 	ULevelSequence* GetLevelSequence() const;
 
+	ETakeRecorderMode GetTakeRecorderMode() const;
+
 	UTakeMetaData* GetTakeMetaData() const;
 
 	TSharedPtr<STakeRecorderCockpit> GetCockpitWidget() const { return CockpitWidget; }
@@ -64,6 +72,10 @@ public:
 private:
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("STakeRecorderPanel");
+	}
 
 private:
 
@@ -100,6 +112,10 @@ private:
 
 	FReply OnReviewLastRecording();
 
+	TSharedRef<SWidget> OnOpenSequenceToRecordIntoMenu();
+
+	void OnOpenSequenceToRecordInto(const FAssetData& InAsset);
+
 	ECheckBoxState GetSettingsCheckState() const;
 	void ToggleSettings(ECheckBoxState CheckState);
 
@@ -119,12 +135,16 @@ private:
 
 	TSharedRef<SWidget> MakeToolBar();
 
+	void SetRecordIntoLevelSequence(ULevelSequence* LevelSequence);
+
 private:
 
 	/** The transient preset that we use to - kept alive by AddReferencedObjects */
 	UTakePreset* TransientPreset;
 
 	ULevelSequence* SuppliedLevelSequence;
+
+	ULevelSequence* RecordIntoLevelSequence;
 
 	ULevelSequence* RecordingLevelSequence;
 

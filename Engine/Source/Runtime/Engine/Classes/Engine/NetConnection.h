@@ -27,6 +27,7 @@
 #include "Net/Common/Packets/PacketTraits.h"
 #include "Net/Core/Misc/ResizableCircularQueue.h"
 #include "Net/NetAnalyticsTypes.h"
+#include "Net/RPCDoSDetection.h"
 #include "Net/TrafficControl.h"
 
 #include "NetConnection.generated.h"
@@ -877,7 +878,7 @@ public:
 	ENGINE_API virtual void Tick(float DeltaSeconds);
 
 	/** Return whether this channel is ready for sending. */
-	ENGINE_API virtual int32 IsNetReady(bool Saturate);
+	ENGINE_API virtual int32 IsNetReady( bool Saturate );
 
 	/** 
 	 * Handle the player controller client
@@ -1225,6 +1226,10 @@ public:
 	/** Removes stale entries from DormantReplicatorMap. */
 	void CleanupStaleDormantReplicators();
 
+	/** Called before Driver.TickDispatch processes received packets */
+	void PreTickDispatch();
+
+	/** Called after Driver.TickDispatch has processed received packets */
 	void PostTickDispatch();
 
 	/**
@@ -1518,6 +1523,10 @@ private:
 
 	bool bAutoFlush;
 
+	/** RPC/Replication code DoS detection */
+	FRPCDoSDetection RPCDoS;
+
+
 	int32 GetFreeChannelIndex(const FName& ChName) const;
 
 public:
@@ -1526,6 +1535,11 @@ public:
 
 	bool GetAutoFlush() const { return bAutoFlush; }
 	void SetAutoFlush(bool bValue) { bAutoFlush = bValue; }
+
+	FRPCDoSDetection& GetRPCDoS()
+	{
+		return RPCDoS;
+	}
 
 protected:
 	TOptional<FNetworkCongestionControl> NetworkCongestionControl;

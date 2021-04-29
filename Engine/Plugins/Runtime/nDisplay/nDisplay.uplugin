@@ -33,30 +33,6 @@
 			]
 		},
 		{
-			"Name": "DisplayClusterInput",
-			"Type": "Runtime",
-			"LoadingPhase": "PostDefault",
-			"WhitelistPlatforms": [
-				"Win64"
-			]
-		},
-		{
-			"Name": "MPCDI",
-			"Type": "Runtime",
-			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
-				"Win64"
-			]
-		},
-		{
-			"Name": "OutputRemap",
-			"Type": "Runtime",
-			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
-				"Win64"
-			]
-		},
-		{
 			"Name": "DisplayClusterProjection",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
@@ -73,17 +49,9 @@
 			]
 		},
 		{
-			"Name": "PicpMPCDI",
+			"Name": "DisplayClusterShaders",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
-				"Win64"
-			]
-		},
-		{
-			"Name": "PicpProjection",
-			"Type": "Runtime",
-			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Win64"
 			]
@@ -113,8 +81,16 @@
 			]
 		},
 		{
-			"Name": "DisplayClusterRendering",
-			"Type": "Editor",
+			"Name": "DisplayClusterStageMonitoring",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "DisplayClusterRemoteControlInterceptor",
+			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Win64"
@@ -132,6 +108,10 @@
 		},
 		{
 			"Name": "TextureShare",
+			"Enabled": true
+		},
+		{
+			"Name": "RemoteControlInterception",
 			"Enabled": true
 		}
 	]

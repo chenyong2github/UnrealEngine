@@ -1671,6 +1671,7 @@ void NiagaraEmitterInstanceBatcher::ProcessDebugReadbacks(FRHICommandListImmedia
 			}
 		);
 	}
+	GpuDebugReadbackInfos.Empty();
 
 	if (bWaitCompletion)
 	{
@@ -2143,7 +2144,6 @@ FGPUSortManager* NiagaraEmitterInstanceBatcher::GetGPUSortManager() const
 	return GPUSortManager;
 }
 
-#if !UE_BUILD_SHIPPING
 void NiagaraEmitterInstanceBatcher::AddDebugReadback(FNiagaraSystemInstanceID InstanceID, TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo, FNiagaraComputeExecutionContext* Context)
 {
 	FDebugReadbackInfo& ReadbackInfo = GpuDebugReadbackInfos.AddDefaulted_GetRef();
@@ -2151,7 +2151,6 @@ void NiagaraEmitterInstanceBatcher::AddDebugReadback(FNiagaraSystemInstanceID In
 	ReadbackInfo.DebugInfo = DebugInfo;
 	ReadbackInfo.Context = Context;
 }
-#endif
 
 NiagaraEmitterInstanceBatcher::DummyUAV::~DummyUAV()
 {

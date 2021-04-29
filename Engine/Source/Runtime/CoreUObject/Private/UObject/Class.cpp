@@ -593,35 +593,6 @@ IMPLEMENT_CORE_INTRINSIC_CLASS(UField, UObject,
 	UStruct implementation.
 -----------------------------------------------------------------------------*/
 
-/** Simple reference processor and collector for collecting all UObjects referenced by FProperties */
-class FPropertyReferenceCollector : public FReferenceCollector
-{
-	/** The owner object for properties we collect references for */
-	UObject* Owner;
-public:
-	FPropertyReferenceCollector(UObject* InOwner)
-		: Owner(InOwner)
-	{
-	}
-
-	TSet<UObject*> UniqueReferences;
-
-	virtual bool IsIgnoringArchetypeRef() const override { return false; }
-	virtual bool IsIgnoringTransient() const override { return false;  }
-	virtual void HandleObjectReference(UObject*& InObject, const UObject* InReferencingObject, const FProperty* InReferencingProperty) override
-	{
-		// Skip nulls and the owner object
-		if (InObject && InObject != Owner)
-		{
-			// Don't collect objects that will never be GC'd anyway
-			if (!InObject->HasAnyInternalFlags(EInternalObjectFlags::Native) && !GUObjectArray.IsDisregardForGC(InObject))
-			{
-				UniqueReferences.Add(InObject);
-			}
-		}
-	}
-};
-
 #if WITH_EDITORONLY_DATA
 static int32 GetNextFieldPathSerialNumber()
 {
@@ -749,12 +720,11 @@ void UStruct::CollectBytecodeReferencedObjects(TArray<UObject*>& OutReferencedOb
 
 void UStruct::CollectPropertyReferencedObjects(TArray<UObject*>& OutReferencedObjects)
 {
-	FPropertyReferenceCollector PropertyReferenceCollector(this);
+	FPropertyReferenceCollector PropertyReferenceCollector(this, OutReferencedObjects);
 	for (FField* CurrentField = ChildProperties; CurrentField; CurrentField = CurrentField->Next)
 	{
 		CurrentField->AddReferencedObjects(PropertyReferenceCollector);
 	}
-	OutReferencedObjects.Append(PropertyReferenceCollector.UniqueReferences.Array());
 }
 
 void UStruct::CollectBytecodeAndPropertyReferencedObjects()
@@ -762,6 +732,33 @@ void UStruct::CollectBytecodeAndPropertyReferencedObjects()
 	ScriptAndPropertyObjectReferences.Empty();
 	CollectBytecodeReferencedObjects(ScriptAndPropertyObjectReferences);
 	CollectPropertyReferencedObjects(ScriptAndPropertyObjectReferences);
+}
+
+void UStruct::CollectBytecodeAndPropertyReferencedObjectsRecursively()
+{
+	CollectBytecodeAndPropertyReferencedObjects();
+
+	for (UField* Field = Children; Field; Field = Field->Next)
+	{
+		if (UStruct* ChildStruct = Cast<UStruct>(Field))
+		{
+			ChildStruct->CollectBytecodeAndPropertyReferencedObjectsRecursively();
+		}
+	}
+}
+
+void UStruct::PreloadChildren(FArchive& Ar)
+{
+	for (UField* Field = Children; Field; Field = Field->Next)
+	{
+		// We don't want to preload functions with EDL enabled because they may pull too many dependencies
+		// which could result in going down the FLinkerLoad::VerifyImportInner path which is not allowed with EDL.
+		// EDL will resolve all dependencies eventually but in a different order
+		if (!GEventDrivenLoaderEnabled || !Cast<UFunction>(Field))
+		{
+			Ar.Preload(Field);
+		}
+	}
 }
 
 void UStruct::Link(FArchive& Ar, bool bRelinkExistingProperties)
@@ -777,13 +774,7 @@ void UStruct::Link(FArchive& Ar, bool bRelinkExistingProperties)
 				Ar.Preload(InheritanceSuper);
 			}
 
-			for (UField* Field = Children; Field; Field = Field->Next)
-			{
-				if (!GEventDrivenLoaderEnabled || !Cast<UFunction>(Field))
-				{
-					Ar.Preload(Field);
-				}
-			}
+			PreloadChildren(Ar);
 
 #if WITH_EDITORONLY_DATA
 			ConvertUFieldsToFFields();
@@ -1971,6 +1962,12 @@ void UStruct::Serialize(FArchive& Ar)
 				Ar.Seek(BytecodeEndOffset);
 			}
 		} // if !GIsDuplicatingClassForReinstancing
+	}
+
+	// For consistency between serialization and TFastReferenceCollector based reference collection
+	if (Ar.IsObjectReferenceCollector() && !Ar.IsPersistent())
+	{
+		Ar << ScriptAndPropertyObjectReferences;
 	}
 }
 
@@ -3734,7 +3731,7 @@ UObject* UClass::CreateDefaultObject()
 {
 	if ( ClassDefaultObject == NULL )
 	{
-		ensureMsgf(!HasAnyClassFlags(CLASS_LayoutChanging), TEXT("Class named %s creating its CDO while changing its layout"), *GetName());
+		ensureMsgf(!bLayoutChanging, TEXT("Class named %s creating its CDO while changing its layout"), *GetName());
 
 		UClass* ParentClass = GetSuperClass();
 		UObject* ParentDefaultObject = NULL;
@@ -4289,7 +4286,7 @@ void UClass::ValidateRuntimeReplicationData()
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Class ValidateRuntimeReplicationData"), STAT_Class_ValidateRuntimeReplicationData, STATGROUP_Game);
 
-	if (HasAnyClassFlags(CLASS_CompiledFromBlueprint|CLASS_LayoutChanging))
+	if (HasAnyClassFlags(CLASS_CompiledFromBlueprint) || bLayoutChanging)
 	{
 		// Blueprint classes don't always generate a GetLifetimeReplicatedProps function. 
 		// Assume the Blueprint compiler was ok to do this.
@@ -4947,6 +4944,7 @@ UClass::UClass(const FObjectInitializer& ObjectInitializer)
 :	UStruct( ObjectInitializer )
 ,	ClassUnique(0)
 ,	bCooked(false)
+,	bLayoutChanging(false)
 ,	ClassFlags(CLASS_None)
 ,	ClassCastFlags(CASTCLASS_None)
 ,	ClassWithin( UObject::StaticClass() )
@@ -4971,6 +4969,7 @@ UClass::UClass(const FObjectInitializer& ObjectInitializer, UClass* InBaseClass)
 :	UStruct(ObjectInitializer, InBaseClass)
 ,	ClassUnique(0)
 ,	bCooked(false)
+,	bLayoutChanging(false)
 ,	ClassFlags(CLASS_None)
 ,	ClassCastFlags(CASTCLASS_None)
 ,	ClassWithin(UObject::StaticClass())
@@ -5029,6 +5028,7 @@ UClass::UClass
 ,	ClassAddReferencedObjects( InClassAddReferencedObjects )
 ,	ClassUnique				( 0 )
 ,	bCooked					( false )
+,	bLayoutChanging			( false )
 ,	ClassFlags				( InClassFlags | CLASS_Native )
 ,	ClassCastFlags			( InClassCastFlags )
 ,	ClassWithin				( nullptr )

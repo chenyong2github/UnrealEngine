@@ -77,6 +77,8 @@ public:
 		return ElementHash;
 	}
 
+	virtual void CustomSerialize(class DirectLink::FSnapshotProxy& Ar) override;
+
 protected:
 	TDatasmithReferenceProxy<IDatasmithMaterialExpression> Expression;
 	TReflected<int32> OutputIndex;

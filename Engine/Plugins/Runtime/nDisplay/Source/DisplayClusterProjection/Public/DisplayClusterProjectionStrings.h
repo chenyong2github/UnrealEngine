@@ -55,10 +55,35 @@ namespace DisplayClusterProjectionStrings
 			static constexpr auto AngleB      = TEXT("b");
 		}
 
+		namespace camera
+		{
+			static constexpr auto Component = TEXT("camera_component");
+			static constexpr auto Native = TEXT("native");
+		}
+		
 		namespace mesh
 		{
-			static constexpr auto FileID   = TEXT("@UESM");
-			static constexpr auto BufferID = TEXT("@@Buf");
+			static constexpr auto FileID    = TEXT("@UESM");
+			static constexpr auto BufferID  = TEXT("@@Buf");
+			static constexpr auto Component = TEXT("mesh_component");
+		}
+
+		namespace mpcdi
+		{
+			static constexpr auto File   = TEXT("file");
+			static constexpr auto Buffer = TEXT("buffer");
+			static constexpr auto Region = TEXT("region");
+			static constexpr auto Origin = TEXT("origin");
+
+			static constexpr auto MPCDIType = TEXT("mpcdi");
+
+			static constexpr auto FilePFM       = TEXT("pfm");
+			static constexpr auto WorldScale    = TEXT("scale");
+			static constexpr auto UseUnrealAxis = TEXT("ue_space");
+
+			static constexpr auto FileAlpha  = TEXT("alpha");
+			static constexpr auto AlphaGamma = TEXT("alpha_gamma");
+			static constexpr auto FileBeta   = TEXT("beta");
 		}
 
 		namespace domeprojection
@@ -79,6 +104,7 @@ namespace DisplayClusterProjectionStrings
 		static constexpr auto VIOSO          = TEXT("vioso");
 		static constexpr auto Manual         = TEXT("manual");
 		static constexpr auto Domeprojection = TEXT("domeprojection");
+		static constexpr auto Link           = TEXT("link");
 	}
 
 	namespace rhi

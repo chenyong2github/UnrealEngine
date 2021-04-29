@@ -196,9 +196,20 @@ public:
 	EContentBrowserItemFlags GetItemTemporaryReason() const;
 
 	/**
-	 * Get the complete virtual path that uniquely identifies this item within its owner data source (eg, "/MyRoot/MyFolder/MyFile").
+	 * Get the complete virtual path that uniquely identifies this item within its owner data source (eg, "/All/MyRoot/MyFolder/MyFile").
 	 */
 	FName GetVirtualPath() const;
+
+	/**
+	 * Get the complete invariant path that uniquely identifies this item within its owner data source (eg, "/MyRoot/MyFolder/MyFile").
+	 * This path will be the same regardless of the options being toggled 'Show All Folder' or 'Organize Folders'
+	 */
+	FName GetInvariantPath() const;
+
+	/**
+	 * Get the complete internal path that uniquely identifies this item within its owner data source if it has one (eg, "/MyRoot/MyFolder/MyFile").
+	 */
+	FName GetInternalPath() const;
 
 	/**
 	 * Get the leaf-name of this item (eg, "MyFile").
@@ -705,4 +716,9 @@ public:
 	 * Notify a wholesale item data update, for data sources that can't provide delta-updates.
 	 */
 	virtual void NotifyItemDataRefreshed() = 0;
+
+	/**
+	 * Converts an internal path to a virtual path.
+	 */
+	virtual void ConvertInternalPathToVirtual(const FStringView InPath, FStringBuilderBase& OutPath) = 0;
 };

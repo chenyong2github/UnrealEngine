@@ -29,7 +29,7 @@ public:
 	bool Initialize(void* pDxDevice, const FViosoPolicyConfiguration &InConfigData);
 	void Release();
 
-	bool CalculateViewProjection(FVector& InOutViewLocation, FRotator& InOutViewRotation, FMatrix& OutProjMatrix, const float WorldToMeters, const float NCP, const float FCP);
+	bool CalculateViewProjection(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, FMatrix& OutProjMatrix, const float WorldToMeters, const float NCP, const float FCP);
 	bool Render(VWB_param RenderParam, VWB_uint StateMask);
 
 private:
@@ -43,7 +43,7 @@ private:
 	FVector GetViosoViewRotationEulerR_LHT() const;
 	FVector GetViosoViewRotationEulerR_RH() const;
 	FVector GetViosoViewLocation() const;
-	FMatrix GetProjMatrix(const float NCP, const float FCP) const;
+	FMatrix GetProjMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, const float NCP, const float FCP) const;
 
 protected:
 	// Internal VIOSO data

@@ -14,6 +14,7 @@ public class ContentBrowserData : ModuleRules
 				"EditorSubsystem",
 				"EditorFramework",
 				"UnrealEd",
+				"Projects",
 			}
 		);
 
@@ -29,7 +30,6 @@ public class ContentBrowserData : ModuleRules
 				"SlateCore",
 				"InputCore",
 				"EditorStyle",
-				"Projects",
 			}
 		);
 	}

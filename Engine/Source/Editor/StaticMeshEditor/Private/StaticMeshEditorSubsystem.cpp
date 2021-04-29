@@ -344,7 +344,7 @@ namespace InternalEditorMeshLibrary
 UStaticMeshEditorSubsystem::UStaticMeshEditorSubsystem()
 	: UEditorSubsystem()
 {
-	
+
 }
 
 int32 UStaticMeshEditorSubsystem::SetLodsWithNotification(UStaticMesh* StaticMesh, const FStaticMeshReductionOptions& ReductionOptions, bool bApplyChanges)
@@ -724,7 +724,7 @@ int32 UStaticMeshEditorSubsystem::SetLodFromStaticMesh(UStaticMesh* DestinationS
 
 	if (DestinationStaticMesh->GetNumSourceModels() < DestinationLodIndex + 1)
 	{
-		// Add one LOD 
+		// Add one LOD
 		DestinationStaticMesh->AddSourceModel();
 
 		DestinationLodIndex = DestinationStaticMesh->GetNumSourceModels() - 1;
@@ -1474,6 +1474,36 @@ void UStaticMeshEditorSubsystem::SetLODMaterialSlot(UStaticMesh* StaticMesh, int
 	StaticMesh->GetSectionInfoMap().Set(LODIndex, SectionIndex, SectionInfo);
 
 	StaticMesh->PostEditChange();
+}
+
+int32 UStaticMeshEditorSubsystem::GetLODMaterialSlot( UStaticMesh* StaticMesh, int32 LODIndex, int32 SectionIndex )
+{
+	TGuardValue<bool> UnattendedScriptGuard( GIsRunningUnattendedScript, true );
+
+	if ( !EditorScriptingHelpers::CheckIfInEditorAndPIE() )
+	{
+		return INDEX_NONE;
+	}
+
+	if ( StaticMesh == nullptr )
+	{
+		UE_LOG( LogStaticMeshEditorSubsystem, Error, TEXT( "GetLODMaterialSlot: The StaticMesh is null." ) );
+		return INDEX_NONE;
+	}
+
+	if ( LODIndex >= StaticMesh->GetNumLODs() )
+	{
+		UE_LOG( LogStaticMeshEditorSubsystem, Error, TEXT( "GetLODMaterialSlot: Invalid LOD index %d (of %d)." ), LODIndex, StaticMesh->GetNumLODs() );
+		return INDEX_NONE;
+	}
+
+	if ( SectionIndex >= StaticMesh->GetNumSections( LODIndex ) )
+	{
+		UE_LOG( LogStaticMeshEditorSubsystem, Error, TEXT( "GetLODMaterialSlot: Invalid section index %d (of %d)." ), SectionIndex, StaticMesh->GetNumSections( LODIndex ) );
+		return INDEX_NONE;
+	}
+
+	return StaticMesh->GetSectionInfoMap().Get( LODIndex, SectionIndex ).MaterialIndex;
 }
 
 bool UStaticMeshEditorSubsystem::HasVertexColors(UStaticMesh* StaticMesh)

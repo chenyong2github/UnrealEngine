@@ -1879,6 +1879,13 @@ public:
 	*/
 	static bool ShouldCompositeEditorPrimitives(const FViewInfo& View);
 
+	/**
+	* Helper function performing actual work in render thread.
+	*
+	* @param SceneRenderer	Scene renderer to use for rendering.
+	*/
+	static void ViewExtensionPreRender_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer);
+
 	/** the last thing we do with a scene renderer, lots of cleanup related to the threading **/
 	static void WaitForTasksClearSnapshotsAndDeleteSceneRenderer(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer, bool bWaitForTasks = true);
 	static void DelayWaitForTasksClearSnapshotsAndDeleteSceneRenderer(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer);

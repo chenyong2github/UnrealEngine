@@ -113,7 +113,8 @@ TUniquePtr<IBulkDataIORequest> CreateBulkDataIoDispatcherRequest(
 	int64 InOffsetInBulkData = 0,
 	int64 InBytesToRead = INDEX_NONE,
 	FBulkDataIORequestCallBack* InCompleteCallback = nullptr,
-	uint8* InUserSuppliedMemory = nullptr);
+	uint8* InUserSuppliedMemory = nullptr,
+	int32 InPriority = IoDispatcherPriority_Low);
 
 /**
  * @documentation @todo documentation

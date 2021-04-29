@@ -242,9 +242,8 @@ void SUsdLayersTreeView::BuildUsdLayersEntries( AUsdStageActor* UsdStageActor )
 		return;
 	}
 
-	const UE::FUsdStage& UsdStage = UsdStageActor->GetUsdStage();
-
-	if ( UsdStage )
+	// The cast here forces us to use the const version of GetUsdStage, that won't force-load the stage in case it isn't opened yet
+	if ( const UE::FUsdStage& UsdStage = const_cast< const AUsdStageActor* >( UsdStageActor )->GetUsdStage() )
 	{
 		RootItems.Add( MakeSharedUnreal< FUsdLayerViewModel >( nullptr, UsdStage, UsdStage.GetRootLayer().GetIdentifier() ) );
 		RootItems.Add( MakeSharedUnreal< FUsdLayerViewModel >( nullptr, UsdStage, UsdStage.GetSessionLayer().GetIdentifier() ) );

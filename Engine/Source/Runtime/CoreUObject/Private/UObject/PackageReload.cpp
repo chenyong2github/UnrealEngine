@@ -46,6 +46,11 @@ struct FExistingPackageReferences : public FGCObject
 		}
 	}
 
+	virtual FString GetReferencerName() const
+	{
+		return TEXT("FExistingPackageReferences");
+	}
+
 	TArray<FExistingPackageReference> Refs;
 };
 
@@ -80,6 +85,11 @@ struct FNewPackageReferences : public FGCObject
 				Ref.EventData->AddReferencedObjects(Collector);
 			}
 		}
+	}
+
+	virtual FString GetReferencerName() const
+	{
+		return TEXT("FNewPackageReferences");
 	}
 
 	TArray<FNewPackageReference> Refs;

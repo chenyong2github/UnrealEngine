@@ -6,7 +6,7 @@
 
 #include "GraphEditorDragDropAction.h"
 
-class FDisplayClusterConfiguratorToolkit;
+class FDisplayClusterConfiguratorBlueprintEditor;
 class FDisplayClusterConfiguratorTreeItemScene;
 class IDisplayClusterConfiguratorViewTree;
 
@@ -19,14 +19,14 @@ public:
 	TSharedPtr<FDisplayClusterConfiguratorTreeItemScene> GetTreeItemScene() const { return TreeItemScenePtr.Pin(); }
 
 	/** Constructs a new drag/drop operation */
-	static TSharedRef<FDisplayClusterConfiguratorViewSceneDragDrop> New(const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit, const TSharedRef<IDisplayClusterConfiguratorViewTree>& InViewTree, const TSharedRef<FDisplayClusterConfiguratorTreeItemScene>& InTreeItemScene);
+	static TSharedRef<FDisplayClusterConfiguratorViewSceneDragDrop> New(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit, const TSharedRef<IDisplayClusterConfiguratorViewTree>& InViewTree, const TSharedRef<FDisplayClusterConfiguratorTreeItemScene>& InTreeItemScene);
 
 	void SetCanDrop(bool InCanDrop);
 
 	bool CanDrop() const { return bCanDrop; }
 
 private:
-	TWeakPtr<FDisplayClusterConfiguratorToolkit> ToolkitPtr;
+	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
 
 	TWeakPtr<IDisplayClusterConfiguratorViewTree> ViewTreePtr;
 

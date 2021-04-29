@@ -50,6 +50,7 @@ namespace AutomationTool
 	[Help("Schema=<FileName>", "Generate a schema describing valid script documents, including all the known tasks")]
 	[Help("ImportSchema=<FileName>", "Imports a schema from an existing schema file")]
 	[Help("Set:<Property>=<Value>", "Sets a named property to the given value")]
+	[Help("Branch=<Value>", "Overrides the auto-detection of the current branch")]
 	[Help("Clean", "Cleans all cached state of completed build nodes before running")]
 	[Help("CleanNode=<Name>[+<Name>...]", "Cleans just the given nodes before running")]
 	[Help("Resume", "Resumes a local build from the last node that completed successfully")]
@@ -98,6 +99,8 @@ namespace AutomationTool
 			bool bWriteToSharedStorage = ParseParam("WriteToSharedStorage") || CommandUtils.IsBuildMachine;
 			bool bPublicTasksOnly = ParseParam("PublicTasksOnly");
 			string ReportName = ParseParamValue("ReportName", null);
+			string BranchOverride = ParseParamValue("Branch", null);
+
 
 			GraphPrintOptions PrintOptions = GraphPrintOptions.ShowCommandLineOptions;
 			if(ParseParam("ShowDeps"))
@@ -136,6 +139,14 @@ namespace AutomationTool
 			DefaultProperties["RestrictedFolderNames"] = String.Join(";", RestrictedFolder.GetNames());
 			DefaultProperties["RestrictedFolderFilter"] = String.Join(";", RestrictedFolder.GetNames().Select(x => String.Format(".../{0}/...", x)));
 			DefaultProperties["DataDrivenPlatforms"] = String.Join(";", DataDrivenPlatformInfo.GetAllPlatformInfos().Keys);
+
+			// Look for overrides
+			if (!string.IsNullOrEmpty(BranchOverride))
+			{
+				LogInformation("Overriding default branch '{0}' with '{1}'", DefaultProperties["Branch"], BranchOverride);
+				DefaultProperties["Branch"] = BranchOverride;
+				DefaultProperties["EscapedBranch"] = CommandUtils.EscapePath(DefaultProperties["Branch"]);
+			}
 
 			// Prevent expansion of the root directory if we're just preprocessing the output. They may vary by machine.
 			if (PreprocessedFileName == null)

@@ -9,6 +9,7 @@ D3D12Adapter.cpp:D3D12 Adapter implementation.
 #include "Misc/EngineVersion.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
+#include "GenericPlatform/GenericPlatformCrashContext.h"
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsPlatformMisc.h"
 #include "Windows/WindowsPlatformStackWalk.h"
@@ -309,6 +310,9 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		SetEmitDrawEvents(true);
 	}
 
+	bool bBreadcrumbs = EnumHasAnyFlags(GPUCrashDebuggingModes, ED3D12GPUCrashDebuggingModes::BreadCrumbs);
+	FGenericCrashContext::SetEngineData(TEXT("RHI.Breadcrumbs"), bBreadcrumbs ? TEXT("true") : TEXT("false"));
+
 #if NV_AFTERMATH
 	if (IsRHIDeviceNVIDIA())
 	{
@@ -368,8 +372,12 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			UE_LOG(LogD3D12RHI, Fatal, TEXT("The debug interface requires the D3D12 SDK Layers. Please install the Graphics Tools for Windows. See: https://docs.microsoft.com/en-us/windows/uwp/gaming/use-the-directx-runtime-and-visual-studio-graphics-diagnostic-features"));
 		}
 	}
-		
+
+	FGenericCrashContext::SetEngineData(TEXT("RHI.D3DDebug"), bWithDebug ? TEXT("true") : TEXT("false"));
+
 	// Setup DRED if requested
+	bool bDRED = false;
+	bool bDREDContext = false;
 	if (EnumHasAnyFlags(GPUCrashDebuggingModes, ED3D12GPUCrashDebuggingModes::DRED))
 	{
 		ID3D12DeviceRemovedExtendedDataSettings* DredSettings = nullptr;
@@ -382,6 +390,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			DredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
 			DredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
 
+			bDRED = true;
 			UE_LOG(LogD3D12RHI, Log, TEXT("[DRED] Dred enabled"));
 		}
 		else
@@ -395,10 +404,14 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		if (SUCCEEDED(hr))
 		{
 			DredSettings1->SetBreadcrumbContextEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+			bDREDContext = true;
 			UE_LOG(LogD3D12RHI, Log, TEXT("[DRED] Dred breadcrumb context enabled"));
 		}
 #endif
 	}
+
+	FGenericCrashContext::SetEngineData(TEXT("RHI.DRED"), bDRED ? TEXT("true") : TEXT("false"));
+	FGenericCrashContext::SetEngineData(TEXT("RHI.DREDContext"), bDREDContext ? TEXT("true") : TEXT("false"));
 
 	UE_LOG(LogD3D12RHI, Log, TEXT("InitD3DDevice: -D3DDebug = %s -D3D12GPUValidation = %s"), bWithDebug ? TEXT("on") : TEXT("off"), bD3d12gpuvalidation ? TEXT("on") : TEXT("off"));
 
@@ -560,6 +573,8 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	{
 		GDX12NVAfterMathEnabled = 0;
 	}
+
+	FGenericCrashContext::SetEngineData(TEXT("RHI.Aftermath"), GDX12NVAfterMathEnabled ? TEXT("true") : TEXT("false"));
 #endif
 
 #if PLATFORM_WINDOWS

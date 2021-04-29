@@ -847,7 +847,7 @@ UCommonTextStyle* UCommonButtonBase::GetCurrentTextStyle() const
 	if (const UCommonButtonStyle* CommonButtonStyle = GetStyleCDO())
 	{
 		UCommonTextStyle* CurrentTextStyle = nullptr;
-		if (!GetIsEnabled())
+		if (!bButtonEnabled)
 		{
 			CurrentTextStyle = CommonButtonStyle->GetDisabledTextStyle();
 		}
@@ -1022,6 +1022,8 @@ void UCommonButtonBase::HandleFocusReceived()
 
 void UCommonButtonBase::HandleButtonPressed()
 {
+	OnPressed().Broadcast();
+
 	UCommonInputSubsystem* CommonInputSubsystem = GetInputSubsystem();
 
 	if (CommonInputSubsystem && CommonInputSubsystem->GetCurrentInputType() == ECommonInputType::Touch)
@@ -1033,6 +1035,8 @@ void UCommonButtonBase::HandleButtonPressed()
 
 void UCommonButtonBase::HandleButtonReleased()
 {
+	OnReleased().Broadcast();
+
 	UCommonInputSubsystem* CommonInputSubsystem = GetInputSubsystem();
 
 	if (CommonInputSubsystem && CommonInputSubsystem->GetCurrentInputType() == ECommonInputType::Touch)

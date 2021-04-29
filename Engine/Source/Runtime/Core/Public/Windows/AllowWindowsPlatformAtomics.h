@@ -1,5 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+// #TODO: redirect to platform-agnostic version for the time being. Eventually this will become an error
+#include "HAL/Platform.h"
+#if !PLATFORM_WINDOWS && !PLATFORM_HOLOLENS
+	#include "Microsoft/AllowMicrosoftPlatformAtomics.h"
+#else
+
 #ifndef WINDOWS_PLATFORM_ATOMICS_GUARD
 	#define WINDOWS_PLATFORM_ATOMICS_GUARD
 #else
@@ -31,3 +37,5 @@
 	#define InterlockedIncrement64 _InterlockedIncrement64
 	#define InterlockedDecrement64 _InterlockedDecrement64
 #endif
+
+#endif //PLATFORM_*

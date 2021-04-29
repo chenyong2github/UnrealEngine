@@ -41,6 +41,7 @@ struct CORE_API FAndroidPlatformProcess : public FGenericPlatformProcess
 	static bool CanLaunchURL(const TCHAR* URL);
 	static void LaunchURL(const TCHAR* URL, const TCHAR* Parms, FString* Error);
 	static FString GetGameBundleId();
+	static void SetThreadName(const TCHAR* ThreadName);
 };
 
 #if !PLATFORM_LUMIN

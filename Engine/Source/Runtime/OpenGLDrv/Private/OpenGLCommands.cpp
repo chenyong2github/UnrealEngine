@@ -1862,7 +1862,8 @@ void FOpenGLDynamicRHI::EnableVertexElementCached(
 		(Attr.Size != VertexElement.Size) |
 		(Attr.Type != VertexElement.Type) |
 		(Attr.bNormalized != VertexElement.bNormalized) |
-		(Attr.Stride != Stride); 
+		(Attr.Stride != Stride) |
+		(Attr.bShouldConvertToFloat != VertexElement.bShouldConvertToFloat); 
 
 	if (bAnyDifferent)
 	{
@@ -1895,6 +1896,7 @@ void FOpenGLDynamicRHI::EnableVertexElementCached(
 		Attr.Type = VertexElement.Type;
 		Attr.bNormalized = VertexElement.bNormalized;
 		Attr.Stride = Stride;
+		Attr.bShouldConvertToFloat = VertexElement.bShouldConvertToFloat;
 	}
 
 	if (Attr.Divisor != VertexElement.Divisor)
@@ -2052,7 +2054,8 @@ void FOpenGLDynamicRHI::SetupVertexArraysVAB(FOpenGLContextState& ContextState, 
 					if ((Attr.StreamOffset != VertexElement.Offset) || //-V1013
 						(Attr.Size != VertexElement.Size) ||
 						(Attr.Type != VertexElement.Type) ||
-						(Attr.bNormalized != VertexElement.bNormalized))
+						(Attr.bNormalized != VertexElement.bNormalized) ||
+						(Attr.bShouldConvertToFloat != VertexElement.bShouldConvertToFloat))
 					{
 						if (!VertexElement.bShouldConvertToFloat)
 						{
@@ -3349,6 +3352,32 @@ void FOpenGLDynamicRHI::RHIWriteGPUFence(FRHIGPUFence* FenceRHI)
 	CopyFence->WriteInternal();
 }
 
+void FOpenGLDynamicRHI::RHIPostExternalCommandsReset()
+{
+	auto &ContextState = RenderingContextState;
+	glUseProgram(0);
+	FOpenGL::BindProgramPipeline(ContextState.Program);
+	glViewport(ContextState.Viewport.Min.X, ContextState.Viewport.Min.Y, ContextState.Viewport.Max.X - ContextState.Viewport.Min.X, ContextState.Viewport.Max.Y - ContextState.Viewport.Min.Y);
+	FOpenGL::DepthRange(ContextState.DepthMinZ, ContextState.DepthMaxZ);
+	ContextState.bScissorEnabled ? glEnable(GL_SCISSOR_TEST) : glDisable(GL_SCISSOR_TEST);
+	glScissor(ContextState.Scissor.Min.X, ContextState.Scissor.Min.Y, ContextState.Scissor.Max.X - ContextState.Scissor.Min.X, ContextState.Scissor.Max.Y - ContextState.Scissor.Min.Y);
+	glBindFramebuffer(GL_FRAMEBUFFER, ContextState.Framebuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, ContextState.ArrayBufferBound);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ContextState.ElementArrayBufferBound);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, ContextState.PixelUnpackBufferBound);
+	glBindBuffer(GL_UNIFORM_BUFFER, ContextState.UniformBufferBound);
+	SharedContextState.BlendState = ContextState.BlendState = InvalidContextState.BlendState;
+	glActiveTexture(GL_TEXTURE0);
+	SharedContextState.ActiveTexture = ContextState.ActiveTexture = 0;
+	SharedContextState.RasterizerState = ContextState.RasterizerState = InvalidContextState.RasterizerState;
+	UpdateRasterizerStateInOpenGLContext(ContextState);
+	SharedContextState.ActiveStreamMask = ContextState.ActiveStreamMask = InvalidContextState.ActiveStreamMask;
+	for (GLuint UniformBufferIndex = 0; UniformBufferIndex < CrossCompiler::NUM_SHADER_STAGES * OGL_MAX_UNIFORM_BUFFER_BINDINGS; UniformBufferIndex++)
+	{
+		SharedContextState.UniformBuffers[UniformBufferIndex] = FOpenGLCachedUniformBuffer_Invalid;	// that'll enforce state update on next cache test
+		RenderingContextState.UniformBuffers[UniformBufferIndex] = FOpenGLCachedUniformBuffer_Invalid;	// that'll enforce state update on next cache test
+	}
+}
 
 #if PLATFORM_USES_FIXED_RHI_CLASS
 #define INTERNAL_DECORATOR(Method) ((FOpenGLDynamicRHI&)CmdList.GetContext()).FOpenGLDynamicRHI::Method

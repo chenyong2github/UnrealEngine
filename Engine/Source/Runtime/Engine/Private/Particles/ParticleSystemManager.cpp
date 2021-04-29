@@ -373,8 +373,17 @@ void FParticleSystemWorldManager::UnregisterComponent(UParticleSystemComponent* 
 			UE_LOG(LogParticles, Verbose, TEXT("| UnRegister Pending PSC: %p | Man: %p | %d | %s"), PSC, this, Handle, *PSC->Template->GetName());
 
 			//Clear existing handle
-			check(PendingRegisterPSCs[Handle]);
-			PendingRegisterPSCs[Handle]->SetManagerHandle(INDEX_NONE);
+			if (PendingRegisterPSCs[Handle])
+			{
+				PendingRegisterPSCs[Handle]->SetManagerHandle(INDEX_NONE);
+			}
+			else
+			{
+				// Handle scenario where registration and destruction of a component happens 
+				// without FParticleSystemWorldManager tick in between and component being nulled
+				// after being marked as PendingKill
+				PSC->SetManagerHandle(INDEX_NONE);
+			}
 
 			PendingRegisterPSCs.RemoveAtSwap(Handle, 1, false);
 

@@ -53,7 +53,7 @@ set /p DirectoryRoot=Type the root directory where the capture files are located
 echo.
 
 :AutoGenDictionaries
-set AutoGenDictionariesParms=-run=OodleTrainerCommandlet GenerateDictionary %DictionaryOutput% %FileFilter% %ChangelistFilter% all %DirectoryRoot%
+set AutoGenDictionariesParms=-run=OodleNetworkTrainerCommandlet GenerateDictionary %DictionaryOutput% %FileFilter% %ChangelistFilter% all %DirectoryRoot%
 set FinalGenCmdLine=%GameName:"=% %AutoGenDictionariesParms% -forcelogflush
 
 echo Executing dictionary generation commandlet - commandline:

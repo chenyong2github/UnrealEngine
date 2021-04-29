@@ -13,15 +13,29 @@ namespace Audio
 
 	FQuartzClockManager::~FQuartzClockManager()
 	{
+		check(ActiveClocks.Num() == 0);
 	}
 
 	void FQuartzClockManager::Update(int32 NumFramesUntilNextUpdate)
 	{
-		// this function should only be called on the Audio Render Thread
-		// (original intent was for this to be called only by the owning FMixerDevice)
-		check(MixerDevice->IsAudioRenderingThread());
+		// if this is owned by a MixerDevice, this function should only be called on the Audio Render Thread
+		if (MixerDevice)
+		{
+			check(MixerDevice->IsAudioRenderingThread());
+		}
+
 		LastUpdateSizeInFrames = NumFramesUntilNextUpdate;
 		TickClocks(NumFramesUntilNextUpdate);
+	}
+
+	void FQuartzClockManager::LowResoultionUpdate(float DeltaTimeSeconds)
+	{
+		FScopeLock Lock(&ActiveClockCritSec);
+
+		for (auto& Clock : ActiveClocks)
+		{
+			Clock->Tick(DeltaTimeSeconds);
+		}
 	}
 
 	void FQuartzClockManager::UpdateClock(FName InClockToAdvance, int32 NumFramesToAdvance)
@@ -78,13 +92,13 @@ namespace Audio
 			return Clock->IsRunning();
 		}
 
-		// doesn't exist, create new clock
+		// clock doesn't exist
 		return false;
 	}
 
 	void FQuartzClockManager::RemoveClock(const FName& InName)
 	{
-		if (!MixerDevice->IsAudioRenderingThread())
+		if (MixerDevice && !MixerDevice->IsAudioRenderingThread())
 		{
 			MixerDevice->AudioRenderThreadCommand([this, InName]()
 			{
@@ -124,7 +138,7 @@ namespace Audio
 
 	void FQuartzClockManager::SetTickRateForClock(const FQuartzClockTickRate& InNewTickRate, const FName& InName)
 	{
-		if (!MixerDevice->IsAudioRenderingThread())
+		if (MixerDevice && !MixerDevice->IsAudioRenderingThread())
 		{
 			MixerDevice->AudioRenderThreadCommand([this, InNewTickRate, InName]()
 			{
@@ -145,7 +159,7 @@ namespace Audio
 
 	void FQuartzClockManager::ResumeClock(const FName& InName, int32 NumFramesToDelayStart)
 	{
-		if (!MixerDevice->IsAudioRenderingThread())
+		if (MixerDevice && !MixerDevice->IsAudioRenderingThread())
 		{
 			MixerDevice->AudioRenderThreadCommand([this, InName]()
 			{
@@ -167,7 +181,7 @@ namespace Audio
 
 	void FQuartzClockManager::StopClock(const FName& InName, bool CancelPendingEvents)
 	{
-		if (!MixerDevice->IsAudioRenderingThread())
+		if (MixerDevice && !MixerDevice->IsAudioRenderingThread())
 		{
 			MixerDevice->AudioRenderThreadCommand([this, InName, CancelPendingEvents]()
 			{
@@ -188,7 +202,7 @@ namespace Audio
 
 	void FQuartzClockManager::PauseClock(const FName& InName)
 	{
-		if (!MixerDevice->IsAudioRenderingThread())
+		if (MixerDevice && !MixerDevice->IsAudioRenderingThread())
 		{
 			MixerDevice->AudioRenderThreadCommand([this, InName]()
 			{
@@ -215,7 +229,7 @@ namespace Audio
 
 		for (int32 i = NumClocks - 1; i >= 0; --i)
 		{
-			if (!ActiveClocks[i]->IgnoresFlush())
+			if (!MixerDevice || !ActiveClocks[i]->IgnoresFlush())
 			{
 				ActiveClocks.RemoveAtSwap(i);
 			}
@@ -224,7 +238,10 @@ namespace Audio
 
 	void FQuartzClockManager::Shutdown()
 	{
-		check(MixerDevice->IsAudioRenderingThread());
+		if (MixerDevice)
+		{
+			check(MixerDevice->IsAudioRenderingThread());
+		}
 
 		FScopeLock Lock(&ActiveClockCritSec);
 		for (auto& Clock : ActiveClocks)
@@ -235,9 +252,20 @@ namespace Audio
 
 	FQuartzQuantizedCommandHandle FQuartzClockManager::AddCommandToClock(FQuartzQuantizedCommandInitInfo& InQuantizationCommandInitInfo)
 	{
+		if (!ensure(InQuantizationCommandInitInfo.QuantizedCommandPtr))
+		{
+			return {};
+		}
+
 		FScopeLock Lock(&ActiveClockCritSec);
 
-		if (TSharedPtr<FQuartzClock> Clock = FindClock(InQuantizationCommandInitInfo.ClockName))
+		// Can this command run without an Audio Device?
+		if (!MixerDevice && InQuantizationCommandInitInfo.QuantizedCommandPtr->RequiresAudioDevice())
+		{
+			InQuantizationCommandInitInfo.QuantizedCommandPtr->Cancel();
+		}
+		// does the target clock exist?
+		else if (TSharedPtr<FQuartzClock> Clock = FindClock(InQuantizationCommandInitInfo.ClockName))
 		{
 			// pass the quantized command to it's clock
 			InQuantizationCommandInitInfo.SetOwningClockPtr(Clock);
@@ -258,7 +286,7 @@ namespace Audio
 
 	void FQuartzClockManager::SubscribeToTimeDivision(FName InClockName, MetronomeCommandQueuePtr InListenerQueue, EQuartzCommandQuantization InQuantizationBoundary)
 	{
-		if (!MixerDevice->IsAudioRenderingThread())
+		if (MixerDevice && !MixerDevice->IsAudioRenderingThread())
 		{
 			MixerDevice->AudioRenderThreadCommand([this, InClockName, InListenerQueue, InQuantizationBoundary]()
 			{
@@ -279,7 +307,7 @@ namespace Audio
 
 	void FQuartzClockManager::SubscribeToAllTimeDivisions(FName InClockName, MetronomeCommandQueuePtr InListenerQueue)
 	{
-		if (!MixerDevice->IsAudioRenderingThread())
+		if (MixerDevice && !MixerDevice->IsAudioRenderingThread())
 		{
 			MixerDevice->AudioRenderThreadCommand([this, InClockName, InListenerQueue]()
 			{
@@ -300,7 +328,7 @@ namespace Audio
 
 	void FQuartzClockManager::UnsubscribeFromTimeDivision(FName InClockName, MetronomeCommandQueuePtr InListenerQueue, EQuartzCommandQuantization InQuantizationBoundary)
 	{
-		if (!MixerDevice->IsAudioRenderingThread())
+		if (MixerDevice && !MixerDevice->IsAudioRenderingThread())
 		{
 			MixerDevice->AudioRenderThreadCommand([this, InClockName, InListenerQueue, InQuantizationBoundary]()
 			{
@@ -321,7 +349,7 @@ namespace Audio
 
 	void FQuartzClockManager::UnsubscribeFromAllTimeDivisions(FName InClockName, MetronomeCommandQueuePtr InListenerQueue)
 	{
-		if (!MixerDevice->IsAudioRenderingThread())
+		if (MixerDevice && !MixerDevice->IsAudioRenderingThread())
 		{
 			MixerDevice->AudioRenderThreadCommand([this, InClockName, InListenerQueue]()
 			{
@@ -343,7 +371,10 @@ namespace Audio
 	bool FQuartzClockManager::CancelCommandOnClock(FName InOwningClockName, TSharedPtr<IQuartzQuantizedCommand> InCommandPtr)
 	{
 		// This function should only be called on the Audio Render Thread
-		check(MixerDevice->IsAudioRenderingThread());
+		if (MixerDevice)
+		{
+			check(MixerDevice->IsAudioRenderingThread());
+		}
 
 		FScopeLock Lock(&ActiveClockCritSec);
 		TSharedPtr<FQuartzClock> Clock = FindClock(InOwningClockName);
@@ -384,22 +415,16 @@ namespace Audio
 
 	FMixerDevice* FQuartzClockManager::GetMixerDevice() const
 	{
-		if (MixerDevice)
-		{
-			return MixerDevice;
-		}
-
-
-		// we should have a mixer device
-		// error if this function is being called outside of the Audio Render Thread
-		check(MixerDevice);
-		return nullptr;
+		return MixerDevice;
 	}
 
 	void FQuartzClockManager::TickClocks(int32 NumFramesToTick)
 	{
-		// This function should only be called on the Audio Render Thread
-		check(MixerDevice->IsAudioRenderingThread());
+		if (MixerDevice)
+		{
+			// This function should only be called on the Audio Render Thread
+			check(MixerDevice->IsAudioRenderingThread());
+		}
 
 		FScopeLock Lock(&ActiveClockCritSec);
 		for (auto& Clock : ActiveClocks)

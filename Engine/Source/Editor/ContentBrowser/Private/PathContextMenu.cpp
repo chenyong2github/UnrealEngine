@@ -330,7 +330,8 @@ void FPathContextMenu::ExecutePickColor()
 		// Make sure an color entry exists for all the paths, otherwise they won't update in realtime with the widget color
 		for (int32 FolderIndex = SelectedFolders.Num() - 1; FolderIndex >= 0; --FolderIndex)
 		{
-			const FString Path = SelectedFolders[FolderIndex].GetVirtualPath().ToString();
+			const FString Path = SelectedFolders[FolderIndex].GetInvariantPath().ToString();
+
 			TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor(Path);
 			if (!Color.IsValid())
 			{
@@ -368,7 +369,7 @@ void FPathContextMenu::NewColorComplete(const TSharedRef<SWindow>& Window)
 	// Save the colors back in the config (ptr should have already updated by the widget)
 	for (const FContentBrowserItem& SelectedItem : SelectedFolders)
 	{
-		const FString Path = SelectedItem.GetVirtualPath().ToString();
+		const FString Path = SelectedItem.GetInvariantPath().ToString();
 		const TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor(Path);
 		check(Color.IsValid());
 		ContentBrowserUtils::SaveColor(Path, Color);
@@ -380,7 +381,7 @@ FReply FPathContextMenu::OnColorClicked( const FLinearColor InColor )
 	// Make sure a color entry exists for all the paths, otherwise it can't save correctly
 	for (const FContentBrowserItem& SelectedItem : SelectedFolders)
 	{
-		const FString Path = SelectedItem.GetVirtualPath().ToString();
+		const FString Path = SelectedItem.GetInvariantPath().ToString();
 		TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor(Path);
 		if (!Color.IsValid())
 		{
@@ -401,7 +402,7 @@ void FPathContextMenu::ResetColors()
 	// Clear the custom colors for all the selected paths
 	for (const FContentBrowserItem& SelectedItem : SelectedFolders)
 	{
-		ContentBrowserUtils::SaveColor(SelectedItem.GetVirtualPath().ToString(), nullptr);
+		ContentBrowserUtils::SaveColor(SelectedItem.GetInvariantPath().ToString(), nullptr);
 	}
 }
 
@@ -534,7 +535,7 @@ bool FPathContextMenu::SelectedHasCustomColors() const
 	for (const FContentBrowserItem& SelectedItem : SelectedFolders)
 	{
 		// Ignore any that are the default color
-		const TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor(SelectedItem.GetVirtualPath().ToString());
+		const TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor(SelectedItem.GetInvariantPath().ToString());
 		if (Color.IsValid() && !Color->Equals(ContentBrowserUtils::GetDefaultColor()))
 		{
 			return true;

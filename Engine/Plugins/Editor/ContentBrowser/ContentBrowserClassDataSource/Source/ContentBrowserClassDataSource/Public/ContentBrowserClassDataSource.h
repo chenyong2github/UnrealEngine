@@ -13,6 +13,7 @@ class ICollectionManager;
 class UToolMenu;
 class FNativeClassHierarchy;
 struct FCollectionNameType;
+struct FNativeClassHierarchyGetClassPathCache;
 
 USTRUCT()
 struct CONTENTBROWSERCLASSDATASOURCE_API FContentBrowserCompiledClassDataFilter
@@ -33,7 +34,7 @@ class CONTENTBROWSERCLASSDATASOURCE_API UContentBrowserClassDataSource : public 
 	GENERATED_BODY()
 
 public:
-	void Initialize(const FName InMountRoot, const bool InAutoRegister = true);
+	void Initialize(const bool InAutoRegister = true);
 
 	virtual void Shutdown() override;
 
@@ -74,7 +75,8 @@ public:
 	virtual bool Legacy_TryConvertAssetDataToVirtualPath(const FAssetData& InAssetData, const bool InUseFolderPaths, FName& OutPath) override;
 
 protected:
-	virtual void EnumerateRootPaths(const FContentBrowserDataFilter& InFilter, TFunctionRef<void(FName)> InCallback) override;
+	virtual void BuildRootPathVirtualTree() override;
+	bool RootClassPathPassesFilter(const FName InRootClassPath, const bool bIncludeEngineClasses, const bool bIncludePluginClasses) const;
 
 private:
 	bool IsKnownClassPath(const FName InPackagePath) const;
@@ -83,7 +85,7 @@ private:
 
 	FContentBrowserItemData CreateClassFolderItem(const FName InFolderPath);
 
-	FContentBrowserItemData CreateClassFileItem(UClass* InClass);
+	FContentBrowserItemData CreateClassFileItem(UClass* InClass, FNativeClassHierarchyGetClassPathCache& InCache);
 
 	TSharedPtr<const FContentBrowserClassFolderItemDataPayload> GetClassFolderItemPayload(const FContentBrowserItemData& InItem) const;
 
@@ -94,6 +96,8 @@ private:
 	void PopulateAddNewContextMenu(UToolMenu* InMenu);
 
 	void ConditionalCreateNativeClassHierarchy();
+
+	void ClassHierarchyUpdated();
 
 	TSharedPtr<FNativeClassHierarchy> NativeClassHierarchy;
 

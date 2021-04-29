@@ -23,13 +23,20 @@
 #include "UObject/UObjectIterator.h"
 #include "EditorWidgetsModule.h"
 #include "PropertyEditorModule.h"
-#include "ISessionServicesModule.h"
-#include "Widgets/Browser/SSessionBrowser.h"
 #include "Modules/ModuleManager.h"
 #include "NiagaraEditorModule.h"
 #include "Customizations/NiagaraDebugHUDCustomization.h"
 #include "Customizations/NiagaraOutlinerCustomization.h"
 #include "IStructureDetailsView.h"
+
+// the SessionFrontend is a "target" developer tool for talking to other devices, etc, and may get disabled
+#define WITH_SESSION_FRONTEND 	WITH_UNREAL_TARGET_DEVELOPER_TOOLS
+#if WITH_SESSION_FRONTEND
+#include "ISessionServicesModule.h"
+#include "Widgets/Browser/SSessionBrowser.h"
+#endif
+
+#if WITH_NIAGARA_DEBUGGER
 
 #define LOCTEXT_NAMESPACE "SNiagaraDebugger"
 
@@ -54,12 +61,23 @@ namespace NiagaraDebugHudTab
 	{
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-		FDetailsViewArgs DetailsArgs;
-		DetailsArgs.bHideSelectionTip = true;
-		TSharedPtr<IDetailsView> DebuggerSettingsDetails = PropertyModule.CreateDetailView(DetailsArgs);
+		UNiagaraDebugHUDSettings* DebugHudSettings = GetMutableDefault<UNiagaraDebugHUDSettings>();
 
-		UNiagaraDebugHUDSettings* DebugHUDSettings = GetMutableDefault<UNiagaraDebugHUDSettings>();
-		DebuggerSettingsDetails->SetObject(DebugHUDSettings);
+		FDetailsViewArgs DetailsViewArgs;
+		DetailsViewArgs.bHideSelectionTip = true;
+		DetailsViewArgs.NotifyHook = DebugHudSettings;
+
+		FStructureDetailsViewArgs StructureViewArgs;
+		StructureViewArgs.bShowObjects = true;
+		StructureViewArgs.bShowAssets = true;
+		StructureViewArgs.bShowClasses = true;
+		StructureViewArgs.bShowInterfaces = true;
+
+		TSharedRef<IStructureDetailsView> StructureDetailsView = PropertyModule.CreateStructureDetailView(DetailsViewArgs, StructureViewArgs, nullptr);
+		StructureDetailsView->GetDetailsView()->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraDebugHUDSettingsDetailsCustomization::MakeInstance, DebugHudSettings));
+
+		TSharedPtr<FStructOnScope> StructOnScope = MakeShared<FStructOnScope>(FNiagaraDebugHUDSettingsData::StaticStruct(), reinterpret_cast<uint8*>(&DebugHudSettings->Data));
+		StructureDetailsView->SetStructureData(StructOnScope);
 
 		TabManager->RegisterTabSpawner(
 			TabName,
@@ -70,7 +88,7 @@ namespace NiagaraDebugHudTab
 						.TabRole(ETabRole::PanelTab)
 						.Label(LOCTEXT("DebugHudTitle", "Debug Hud"))
 						[
-							DebuggerSettingsDetails.ToSharedRef()
+							StructureDetailsView->GetWidget().ToSharedRef()
 						];
 				}
 			)
@@ -599,10 +617,10 @@ namespace NiagaraOutlinerTab
 	}
 }
 
+#if WITH_SESSION_FRONTEND
 namespace NiagaraSessionBrowserTab
 {
 	static const FName TabName = FName(TEXT("Session Browser"));
-
 	static void RegisterTabSpawner(const TSharedPtr<FTabManager>& TabManager, TSharedPtr<ISessionManager>& SessionManager)
 	{
 		TabManager->RegisterTabSpawner(
@@ -623,6 +641,7 @@ namespace NiagaraSessionBrowserTab
 					.SetTooltipText(LOCTEXT("SessionBrowserTooltipText", "Open the Session Browser tab."));
 	}
 }
+#endif
 
 SNiagaraDebugger::SNiagaraDebugger()
 {
@@ -643,11 +662,13 @@ void SNiagaraDebugger::Construct(const FArguments& InArgs)
 	NiagaraPerformanceTab::RegisterTabSpawner(TabManager, FOnExecConsoleCommand::CreateSP(Debugger.ToSharedRef(), &FNiagaraDebugger::ExecConsoleCommand));
 	NiagaraOutlinerTab::RegisterTabSpawner(TabManager, Debugger);
 
+#if WITH_SESSION_FRONTEND
 	ISessionServicesModule& SessionServicesModule = FModuleManager::LoadModuleChecked<ISessionServicesModule>("SessionServices");
 	TSharedPtr<ISessionManager> SessionManager = SessionServicesModule.GetSessionManager();
 	NiagaraSessionBrowserTab::RegisterTabSpawner(TabManager, SessionManager);
+#endif
 
-	TSharedPtr<FTabManager::FLayout> DebuggerLayout = FTabManager::NewLayout("NiagaraDebugger_Layout_v1.1")
+	TSharedPtr<FTabManager::FLayout> DebuggerLayout = FTabManager::NewLayout("NiagaraDebugger_Layout_v1.11")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -655,32 +676,21 @@ void SNiagaraDebugger::Construct(const FArguments& InArgs)
 			->Split
 			(
 				FTabManager::NewSplitter()
-			->SetOrientation(Orient_Vertical)
+				->SetOrientation(Orient_Vertical)
 				->SetSizeCoefficient(0.3f)
-			->Split
-			(
-				FTabManager::NewStack()
-					->SetSizeCoefficient(.8f)
-				->SetHideTabWell(true)
-				->AddTab(NiagaraDebugHudTab::TabName, ETabState::OpenedTab)
-				->AddTab(NiagaraPerformanceTab::TabName, ETabState::OpenedTab)
-				->SetForegroundTab(NiagaraDebugHudTab::TabName)
-			)
 				->Split
 				(
 					FTabManager::NewStack()
+					->SetSizeCoefficient(.8f)
 					->SetHideTabWell(true)
-					->SetSizeCoefficient(0.2f)
+					->AddTab(NiagaraDebugHudTab::TabName, ETabState::OpenedTab)
+					->AddTab(NiagaraOutlinerTab::TabName, ETabState::OpenedTab)
+					->AddTab(NiagaraPerformanceTab::TabName, ETabState::OpenedTab)
+#if WITH_SESSION_FRONTEND
 					->AddTab(NiagaraSessionBrowserTab::TabName, ETabState::OpenedTab)
-					->SetForegroundTab(NiagaraSessionBrowserTab::TabName)
+#endif
+					->SetForegroundTab(NiagaraDebugHudTab::TabName)
 				)
-			)
-			->Split
-			(
-				FTabManager::NewStack()
-				->SetSizeCoefficient(.7f)
-				->AddTab(NiagaraOutlinerTab::TabName, ETabState::OpenedTab)
-				->SetForegroundTab(NiagaraOutlinerTab::TabName)
 			)
 		);
 
@@ -831,7 +841,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 		{
 			ToolbarBuilder.AddToolBarButton(
 				FUIAction(
-					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Play; Settings->PostEditChangeProperty(); }),
+					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Play; Settings->NotifyPropertyChanged(); }),
 					FCanExecuteAction(),
 					FIsActionChecked::CreateLambda([=]() { return Settings->Data.PlaybackMode == ENiagaraDebugPlaybackMode::Play; })
 				),
@@ -846,7 +856,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 		{
 			ToolbarBuilder.AddToolBarButton(
 				FUIAction(
-					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Paused; Settings->PostEditChangeProperty(); }),
+					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Paused; Settings->NotifyPropertyChanged(); }),
 					FCanExecuteAction(),
 					FIsActionChecked::CreateLambda([=]() { return Settings->Data.PlaybackMode == ENiagaraDebugPlaybackMode::Paused; })
 				),
@@ -861,7 +871,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 		{
 			ToolbarBuilder.AddToolBarButton(
 				FUIAction(
-					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Loop; Settings->PostEditChangeProperty(); }),
+					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Loop; Settings->NotifyPropertyChanged(); }),
 					FCanExecuteAction(),
 					FIsActionChecked::CreateLambda([=]() { return Settings->Data.PlaybackMode == ENiagaraDebugPlaybackMode::Loop; })
 				),
@@ -876,7 +886,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 		{
 			ToolbarBuilder.AddToolBarButton(
 				FUIAction(
-					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Step; Settings->PostEditChangeProperty(); }),
+					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Step; Settings->NotifyPropertyChanged(); Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Paused; }),
 					FCanExecuteAction(),
 					FIsActionChecked::CreateLambda([=]() { return Settings->Data.PlaybackMode == ENiagaraDebugPlaybackMode::Step; })
 				),
@@ -891,7 +901,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 		{
 			ToolbarBuilder.AddToolBarButton(
 				FUIAction(
-					FExecuteAction::CreateLambda([=]() {Settings->Data.bPlaybackRateEnabled = !Settings->Data.bPlaybackRateEnabled; Settings->PostEditChangeProperty(); }),
+					FExecuteAction::CreateLambda([=]() {Settings->Data.bPlaybackRateEnabled = !Settings->Data.bPlaybackRateEnabled; Settings->NotifyPropertyChanged(); }),
 					FCanExecuteAction(),
 					FIsActionChecked::CreateLambda([=]() { return Settings->Data.bPlaybackRateEnabled; })
 				),
@@ -942,7 +952,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakePlaybackOptionsMenu()
 				Speed.Get<2>(),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateLambda([Settings, Rate=Speed.Get<0>()]() { Settings->Data.PlaybackRate = Rate; Settings->PostEditChangeProperty(); }),
+					FExecuteAction::CreateLambda([Settings, Rate=Speed.Get<0>()]() { Settings->Data.PlaybackRate = Rate; Settings->NotifyPropertyChanged(); }),
 					FCanExecuteAction(),
 					FIsActionChecked::CreateLambda([Settings, Rate=Speed.Get<0>()]() { return FMath::IsNearlyEqual(Settings->Data.PlaybackRate, Rate); })
 				),
@@ -969,7 +979,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakePlaybackOptionsMenu()
 				.MaxValue(TOptional<float>())
 				.MinSliderValue(0.0f)
 				.MaxSliderValue(1.0f)
-				.OnValueChanged(SNumericEntryBox<float>::FOnValueChanged::CreateLambda([=](float InNewValue) { Settings->Data.PlaybackRate = InNewValue; Settings->PostEditChangeProperty(); }))
+				.OnValueChanged(SNumericEntryBox<float>::FOnValueChanged::CreateLambda([=](float InNewValue) { Settings->Data.PlaybackRate = InNewValue; Settings->NotifyPropertyChanged(); }))
 			],
 			FText()
 		);
@@ -985,7 +995,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakePlaybackOptionsMenu()
 			LOCTEXT("LoopTimeEnabledTooltip", "When enabled and in loop mode systems will loop on this time rather than when they finish"),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([Settings]() { Settings->Data.bLoopTimeEnabled = !Settings->Data.bLoopTimeEnabled; Settings->PostEditChangeProperty(); }),
+				FExecuteAction::CreateLambda([Settings]() { Settings->Data.bLoopTimeEnabled = !Settings->Data.bLoopTimeEnabled; Settings->NotifyPropertyChanged(); }),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateLambda([Settings]() { return Settings->Data.bLoopTimeEnabled; })
 			),
@@ -1011,7 +1021,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakePlaybackOptionsMenu()
 				.MaxValue(TOptional<float>())
 				.MinSliderValue(0.0f)
 				.MaxSliderValue(5.0f)
-				.OnValueChanged(SNumericEntryBox<float>::FOnValueChanged::CreateLambda([=](float InNewValue) { Settings->Data.LoopTime = InNewValue; Settings->PostEditChangeProperty(); }))
+				.OnValueChanged(SNumericEntryBox<float>::FOnValueChanged::CreateLambda([=](float InNewValue) { Settings->Data.LoopTime = InNewValue; Settings->NotifyPropertyChanged(); }))
 			],
 			FText()
 		);
@@ -1020,4 +1030,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakePlaybackOptionsMenu()
 
 	return MenuBuilder.MakeWidget();
 }
+
 #undef LOCTEXT_NAMESPACE
+
+#endif // WITH_NIAGARA_DEBUGGER

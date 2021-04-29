@@ -78,7 +78,6 @@
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "RenderCore/Public/RenderUtils.h"
-#include "Materials/MaterialStaticParameterValueResolver.h"
 #include "Engine/Font.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "Materials/MaterialExpressionAdd.h"
@@ -1806,16 +1805,12 @@ void UMaterial::GetAllMaterialLayersParameterInfo(TArray<FMaterialParameterInfo>
 
 void UMaterial::GetAllStaticSwitchParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 {
-	OutParameterInfo.Reset();
-	OutParameterIds.Reset();
-	GetAllParameterInfo<UMaterialExpressionStaticBoolParameter>(OutParameterInfo, OutParameterIds);
+	GetCachedExpressionData().Parameters.GetAllParameterInfoOfType(EMaterialParameterType::StaticSwitch, true, OutParameterInfo, OutParameterIds);
 }
 
 void UMaterial::GetAllStaticComponentMaskParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 {
-	OutParameterInfo.Reset();
-	OutParameterIds.Reset();
-	GetAllParameterInfo<UMaterialExpressionStaticComponentMaskParameter>(OutParameterInfo, OutParameterIds);
+	GetCachedExpressionData().Parameters.GetAllParameterInfoOfType(EMaterialParameterType::StaticComponentMask, true, OutParameterInfo, OutParameterIds);
 }
 
 bool UMaterial::IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const
@@ -2747,114 +2742,36 @@ bool UMaterial::GetFontParameterValue_Legacy(const FHashedMaterialParameterInfo&
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
-bool UMaterial::GetStaticSwitchParameterValues(FStaticParamEvaluationContext& EvalContext, TBitArray<>& OutValues, FGuid* OutExpressionGuids, bool bCheckParent /*= true*/) const
+bool UMaterial::GetStaticSwitchParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid, bool bOveriddenOnly, bool bCheckParent) const
 {
-	if (EvalContext.AllResolved())
+	if (CachedExpressionData)
 	{
-		return true;
-	}
-
-	check(OutValues.Num() >= EvalContext.GetTotalParameterNum());
-	check(OutExpressionGuids);
-
-	for (UMaterialExpression* Expression : Expressions)
-	{
-		TMaterialStaticParameterValueResolver<UMaterialExpressionStaticBoolParameter, TBitArray<>> ValueResolver(EvalContext, OutValues, OutExpressionGuids);
-
-		EvalContext.ForEachPendingParameter([&EvalContext, Expression, &ValueResolver, &OutValues, &OutExpressionGuids](int32 ParamIndex, const FHashedMaterialParameterInfo& ParameterInfo) -> bool
-			{
-				if (ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter)
-				{
-					if (UMaterialExpressionStaticBoolParameter* ExpressionParameter = Cast<UMaterialExpressionStaticBoolParameter>(Expression))
-					{
-						bool bTempVal;
-						if (ExpressionParameter->IsNamedParameter(ParameterInfo, bTempVal, OutExpressionGuids[ParamIndex]))
-						{
-							OutValues[ParamIndex] = bTempVal;
-							EvalContext.MarkParameterResolved(ParamIndex, true);
-						}
-					}
-					else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
-					{
-						ValueResolver.AttemptResolve(ParamIndex, ParameterInfo, FunctionCall->MaterialFunction);
-					}
-				}
-				else
-				{
-					if (UMaterialExpressionMaterialAttributeLayers* LayersExpression = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression))
-					{
-						ValueResolver.AttemptResolve(ParamIndex, ParameterInfo, LayersExpression->GetParameterAssociatedFunction(ParameterInfo));
-					}
-				}
-				return !EvalContext.AllResolved();
-			});
-
-		ValueResolver.ResolveQueued();
-
-		if (EvalContext.AllResolved())
+		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::StaticSwitch, ParameterInfo, bOveriddenOnly);
+		if (Index != INDEX_NONE)
 		{
+			OutExpressionGuid = CachedExpressionData->Parameters.GetExpressionGuid(EMaterialParameterType::StaticSwitch, Index);
+			OutValue = CachedExpressionData->Parameters.StaticSwitchValues[Index];
 			return true;
 		}
 	}
-
-	return EvalContext.AllResolved();
+	return false;
 }
 
-bool UMaterial::GetStaticComponentMaskParameterValues(FStaticParamEvaluationContext& EvalContext, TBitArray<>& OutRGBAOrderedValues, FGuid* OutExpressionGuids, bool bCheckParent /*= true*/) const
+bool UMaterial::GetStaticComponentMaskParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& R, bool& G, bool& B, bool& A, FGuid& OutExpressionGuid, bool bOveriddenOnly, bool bCheckParent) const
 {
-	if (EvalContext.AllResolved())
+	if (CachedExpressionData)
 	{
-		return true;
-	}
-
-	check(OutRGBAOrderedValues.Num() >= (EvalContext.GetTotalParameterNum()*4));
-	check(OutExpressionGuids);
-
-	for (UMaterialExpression* Expression : Expressions)
-	{
-		TMaterialStaticParameterValueResolver<UMaterialExpressionStaticComponentMaskParameter, TBitArray<>> ValueResolver(EvalContext, OutRGBAOrderedValues, OutExpressionGuids);
-
-		EvalContext.ForEachPendingParameter([&EvalContext, Expression, &ValueResolver, &OutRGBAOrderedValues, &OutExpressionGuids](int32 ParamIndex, const FHashedMaterialParameterInfo& ParameterInfo) -> bool
-			{
-				if (ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter)
-				{
-					if (UMaterialExpressionStaticComponentMaskParameter* ExpressionParameter = Cast<UMaterialExpressionStaticComponentMaskParameter>(Expression))
-					{
-						bool bTempR, bTempG, bTempB, bTempA;
-						if (ExpressionParameter->IsNamedParameter(ParameterInfo, bTempR, bTempG, bTempB, bTempA, OutExpressionGuids[ParamIndex]))
-						{
-							int32 ParamRGBAIndex = ParamIndex * 4;
-							OutRGBAOrderedValues[ParamRGBAIndex + 0] = bTempR;
-							OutRGBAOrderedValues[ParamRGBAIndex + 1] = bTempG;
-							OutRGBAOrderedValues[ParamRGBAIndex + 2] = bTempB;
-							OutRGBAOrderedValues[ParamRGBAIndex + 3] = bTempA;
-							EvalContext.MarkParameterResolved(ParamIndex, true);
-						}
-					}
-					else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
-					{
-						ValueResolver.AttemptResolve(ParamIndex, ParameterInfo, FunctionCall->MaterialFunction);
-					}
-				}
-				else
-				{
-					if (UMaterialExpressionMaterialAttributeLayers* LayersExpression = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression))
-					{
-						ValueResolver.AttemptResolve(ParamIndex, ParameterInfo, LayersExpression->GetParameterAssociatedFunction(ParameterInfo));
-					}
-				}
-				return !EvalContext.AllResolved();
-			});
-
-		ValueResolver.ResolveQueued();
-
-		if (EvalContext.AllResolved())
+		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::StaticComponentMask, ParameterInfo, bOveriddenOnly);
+		if (Index != INDEX_NONE)
 		{
-			return true;
+			OutExpressionGuid = CachedExpressionData->Parameters.GetExpressionGuid(EMaterialParameterType::StaticComponentMask, Index);
+			R = CachedExpressionData->Parameters.StaticComponentMaskValues[Index].R;
+			G = CachedExpressionData->Parameters.StaticComponentMaskValues[Index].G;
+			B = CachedExpressionData->Parameters.StaticComponentMaskValues[Index].B;
+			A = CachedExpressionData->Parameters.StaticComponentMaskValues[Index].A;
 		}
 	}
-
-	return EvalContext.AllResolved();
+	return false;
 }
 
 bool UMaterial::GetMaterialLayersParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, FMaterialLayersFunctions& OutLayers, FGuid& OutExpressionGuid, bool bCheckParent /*= true*/) const
@@ -4276,7 +4193,11 @@ void UMaterial::PostLoad()
 	PropagateDataToMaterialProxy();
 
 #if WITH_EDITOR
-	UpdateCachedExpressionData();
+	// cooked materials will not have any expressions in them, so this will obliterate the saved cached expression data
+	if (!GetOutermost()->bIsCookedForEditor)
+	{
+		UpdateCachedExpressionData();
+	}
 #endif // WITH_EDITOR
 
 	checkf(CachedExpressionData, TEXT("Missing cached expression data for material, should have been either serialized or created during PostLoad"));

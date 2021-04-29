@@ -45,7 +45,6 @@ static TAutoConsoleVariable<int32> CVarRealTimeReflectionCaptureDepthBuffer(
 	ECVF_RenderThreadSafe);
 
 
-
 class FDownsampleCubeFaceCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FDownsampleCubeFaceCS);
@@ -289,6 +288,23 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 {
 	check(SkyLight && SkyLight->bRealTimeCaptureEnabled && !SkyLight->bHasStaticLighting);
 
+	// Ignore viewfamilies without the Atmosphere showflag enabled as the sky capture may fail otherwise.
+	if (!MainView.Family->EngineShowFlags.Atmosphere)
+	{
+		return;
+	}
+
+	// Only run for the first viewfamily of each frame, for efficiency and consistency.
+	{
+		const bool bIsNewFrame = GFrameNumberRenderThread != RealTimeSlicedReflectionCaptureFrameNumber;
+		RealTimeSlicedReflectionCaptureFrameNumber = GFrameNumberRenderThread;
+
+		if (!bIsNewFrame)
+		{
+			return;
+		}
+	}
+
 	RDG_EVENT_SCOPE(GraphBuilder, "CaptureConvolveSkyEnvMap");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, CaptureConvolveSkyEnvMap);
 
@@ -413,7 +429,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 					CloudRC.CloudVolumeMaterialProxy = CloudVolumeMaterialProxy;
 					CloudRC.SceneDepthZ = GSystemTextures.GetMaxFP16Depth(GraphBuilder);
 
-					CloudRC.MainView = &CubeView; /// This is only accessing data that is not changing between view oerientation. Such data are accessed from the ViewUniformBuffer. See CubeView comment above.
+					CloudRC.MainView = &CubeView; /// This is only accessing data that is not changing between view orientation. Such data are accessed from the ViewUniformBuffer. See CubeView comment above.
 
 					CloudRC.bShouldViewRenderVolumetricRenderTarget = false;
 					CloudRC.bIsReflectionRendering = true;
@@ -831,34 +847,24 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 
 	const uint32 LastMipLevel = CubeMipCount - 1;
 
-	// Ensure all viewfamilies on all GPU nodes got the full cubemap by running all the capture operations for the first frame.
+	// Ensure the main view got the full cubemap by running all the capture operations for the first frame.
 	// This ensures a proper initial state when time-slicing the steps.
-	//
-	// When time-slicing, each step will be repeated for each viewfamily, avoiding artifacts that may occur if the step are
-	// incremented without being executed for viewfamilies that have views rendered on different GPUs.
-	//
-	// However, views in the same viewfamily may be rendered on different GPUs, and the current code assumes that
-	// each viewfamily will have a single GPU node associated with them. This code should be refactored to cover the more general case.
 
 	// Update the firt frame detection state variable
 	if (bTimeSlicedRealTimeCapture)
 	{
-		// Only increment frame state for non-additional viewfamilies.
-		if (!MainView.Family->bAdditionalViewFamily)
+		switch (RealTimeSlicedReflectionCaptureFirstFrameState)
 		{
-			switch (RealTimeSlicedReflectionCaptureFirstFrameState)
-			{
-			case ERealTimeSlicedReflectionCaptureFirstFrameState::INIT:
-				RealTimeSlicedReflectionCaptureFirstFrameState = ERealTimeSlicedReflectionCaptureFirstFrameState::FIRST_FRAME;
-				break;
+		case ERealTimeSlicedReflectionCaptureFirstFrameState::INIT:
+			RealTimeSlicedReflectionCaptureFirstFrameState = ERealTimeSlicedReflectionCaptureFirstFrameState::FIRST_FRAME;
+			break;
 
-			case ERealTimeSlicedReflectionCaptureFirstFrameState::FIRST_FRAME:
-				RealTimeSlicedReflectionCaptureFirstFrameState = ERealTimeSlicedReflectionCaptureFirstFrameState::BEYOND_FIRST_FRAME;
-				break;
+		case ERealTimeSlicedReflectionCaptureFirstFrameState::FIRST_FRAME:
+			RealTimeSlicedReflectionCaptureFirstFrameState = ERealTimeSlicedReflectionCaptureFirstFrameState::BEYOND_FIRST_FRAME;
+			break;
 
-			default:
-				break;
-			}
+		default:
+			break;
 		}
 	}
 	else
@@ -906,23 +912,19 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		const int32 TimeSliceCount = 12;
 
 		// Update the current time-slicing state.
-		// Doing this before the state machine evaluation allows us to have the same state for all viewfamilies in the same frame.
 		if (RealTimeSlicedReflectionCaptureState == -1)
 		{
 			// RealTimeSlicedReflectionCaptureState can be -1 to indicate this is the first time-slicing iteration
 
-			// The first one should not be an additional family
-			checkSlow(!MainView.Family->bAdditionalViewFamily);
-
 			// 0 is the first actuable state
 			RealTimeSlicedReflectionCaptureState = 0;
 		}
-		else if (!MainView.Family->bAdditionalViewFamily)
+		else
 		{
 			// State should never go past the max value.
 			checkSlow(RealTimeSlicedReflectionCaptureState < TimeSliceCount);
 
-			// Advance the state for the first viewfamily
+			// Advance the time-sliced state
 			if (++RealTimeSlicedReflectionCaptureState == TimeSliceCount)
 			{
 				RealTimeSlicedReflectionCaptureState = 0;

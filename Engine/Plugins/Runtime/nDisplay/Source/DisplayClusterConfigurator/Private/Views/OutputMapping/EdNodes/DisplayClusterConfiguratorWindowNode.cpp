@@ -2,50 +2,25 @@
 
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorWindowNode.h"
 
+#include "DisplayClusterConfiguratorBlueprintEditor.h"
+#include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorCanvasNode.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorViewportNode.h"
 #include "Views/OutputMapping/GraphNodes/SDisplayClusterConfiguratorWindowNode.h"
 
 #include "DisplayClusterConfigurationTypes.h"
-#include "DisplayClusterConfiguratorStyle.h"
 
-void UDisplayClusterConfiguratorWindowNode::Initialize(const FString& InNodeName, UDisplayClusterConfigurationClusterNode* InCfgNode, uint32 InWindowIndex, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit)
+void UDisplayClusterConfiguratorWindowNode::Initialize(const FString& InNodeName, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
 {
-	UDisplayClusterConfiguratorBaseNode::Initialize(InNodeName, InCfgNode, InToolkit);
+	UDisplayClusterConfiguratorBaseNode::Initialize(InNodeName, InObject, InToolkit);
 
-	CornerColor = FDisplayClusterConfiguratorStyle::GetCornerColor(InWindowIndex);
-
-	NodePosX = InCfgNode->WindowRect.X;
-	NodePosY = InCfgNode->WindowRect.Y;
-	NodeWidth = InCfgNode->WindowRect.W;
-	NodeHeight = InCfgNode->WindowRect.H;
-
-	InCfgNode->OnPostEditChangeChainProperty.Add(UDisplayClusterConfigurationViewport::FOnPostEditChangeChainProperty::FDelegate::CreateUObject(this, &UDisplayClusterConfiguratorWindowNode::OnPostEditChangeChainProperty));
+	UDisplayClusterConfigurationClusterNode* CfgNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
+	CfgNode->OnPostEditChangeChainProperty.Add(UDisplayClusterConfigurationViewport::FOnPostEditChangeChainProperty::FDelegate::CreateUObject(this, &UDisplayClusterConfiguratorWindowNode::OnPostEditChangeChainProperty));
 }
 
 TSharedPtr<SGraphNode> UDisplayClusterConfiguratorWindowNode::CreateVisualWidget()
 {
 	return SNew(SDisplayClusterConfiguratorWindowNode, this, ToolkitPtr.Pin().ToSharedRef());;
-}
-
-void UDisplayClusterConfiguratorWindowNode::UpdateObject()
-{
-	UDisplayClusterConfigurationClusterNode* CfgClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
-
-	CfgClusterNode->WindowRect.X = NodePosX;
-	CfgClusterNode->WindowRect.Y = NodePosY;
-	CfgClusterNode->WindowRect.W = NodeWidth;
-	CfgClusterNode->WindowRect.H = NodeHeight;
-}
-
-void UDisplayClusterConfiguratorWindowNode::OnNodeAligned(const FVector2D& PositionChange, bool bUpdateChildren)
-{
-	Super::OnNodeAligned(PositionChange);
-
-	if (bUpdateChildren)
-	{
-		UpdateChildPositions(PositionChange);
-	}
 }
 
 const FDisplayClusterConfigurationRectangle& UDisplayClusterConfiguratorWindowNode::GetCfgWindowRect() const
@@ -60,132 +35,108 @@ FString UDisplayClusterConfiguratorWindowNode::GetCfgHost() const
 	return CfgClusterNode->Host;
 }
 
+const FString& UDisplayClusterConfiguratorWindowNode::GetPreviewImagePath() const
+{
+	UDisplayClusterConfigurationClusterNode* CfgClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
+	return CfgClusterNode->PreviewImage.ImagePath;
+}
+
 bool UDisplayClusterConfiguratorWindowNode::IsFixedAspectRatio() const
 {
 	UDisplayClusterConfigurationClusterNode* CfgClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
 	return CfgClusterNode->bFixedAspectRatio;
 }
 
-void UDisplayClusterConfiguratorWindowNode::SetParentCanvas(UDisplayClusterConfiguratorCanvasNode* InParentCanvas)
+bool UDisplayClusterConfiguratorWindowNode::IsMaster() const
 {
-	ParentCanvas = InParentCanvas;
+	UDisplayClusterConfigurationClusterNode* ClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
+	return FDisplayClusterConfiguratorClusterUtils::IsClusterNodeMaster(ClusterNode);
 }
 
-UDisplayClusterConfiguratorCanvasNode* UDisplayClusterConfiguratorWindowNode::GetParentCanvas() const
+FDelegateHandle UDisplayClusterConfiguratorWindowNode::RegisterOnPreviewImageChanged(const FOnPreviewImageChangedDelegate& Delegate)
 {
-	if (ParentCanvas.IsValid())
+	return PreviewImageChanged.Add(Delegate);
+}
+
+void UDisplayClusterConfiguratorWindowNode::UnregisterOnPreviewImageChanged(FDelegateHandle DelegateHandle)
+{
+	PreviewImageChanged.Remove(DelegateHandle);
+}
+
+bool UDisplayClusterConfiguratorWindowNode::IsNodeVisible() const
+{
+	UDisplayClusterConfigurationClusterNode* ClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
+
+	if (ClusterNode->bIsVisible)
 	{
-		return ParentCanvas.Get();
+		return true;
 	}
 
-	return nullptr;
-}
-
-void UDisplayClusterConfiguratorWindowNode::AddViewportNode(UDisplayClusterConfiguratorViewportNode* ViewportNode)
-{
-	ViewportNode->SetParentWindow(this);
-	ChildViewports.Add(ViewportNode);
-}
-
-const TArray<UDisplayClusterConfiguratorViewportNode*>& UDisplayClusterConfiguratorWindowNode::GetChildViewports() const
-{
-	return ChildViewports;
-}
-
-void UDisplayClusterConfiguratorWindowNode::UpdateChildPositions(const FVector2D& Offset)
-{
-	for (TArray<UDisplayClusterConfiguratorViewportNode*>::TConstIterator NodeIt(ChildViewports); NodeIt; ++NodeIt)
+	// If this node is marked as invisible but it has a child that is visible, This node needs to remain visible.
+	bool bIsChildVisible = false;
+	for (UDisplayClusterConfiguratorBaseNode* Child : Children)
 	{
-		UDisplayClusterConfiguratorViewportNode* Node = *NodeIt;
-		Node->Modify();
-		Node->NodePosX += Offset.X;
-		Node->NodePosY += Offset.Y;
-		Node->UpdateObject();
-	}
-}
-
-FVector2D UDisplayClusterConfiguratorWindowNode::FindNonOverlappingOffsetFromParent(const FVector2D& InDesiredOffset)
-{
-	const UDisplayClusterConfiguratorCanvasNode* Parent = GetParentCanvas();
-	check(Parent);
-
-	FVector2D BestOffset = InDesiredOffset;
-
-	for (TArray<UDisplayClusterConfiguratorWindowNode*>::TConstIterator NodeIt(Parent->GetChildWindows()); NodeIt; ++NodeIt)
-	{
-		UDisplayClusterConfiguratorWindowNode* ChildNode = *NodeIt;
-
-		// Skip check against self
-		if (this == ChildNode)
+		if (Child->IsNodeVisible())
 		{
-			continue;
-		}
-
-		BestOffset = ChildNode->FindNonOverlappingOffset(this, BestOffset);
-
-		// Break if we have hit a best offset of zero; there is no offset that can be performed that doesn't cause intersection.
-		if (BestOffset.IsNearlyZero())
-		{
-			return FVector2D::ZeroVector;
+			bIsChildVisible = true;
+			break;
 		}
 	}
-
-	// In some cases, the node may still be intersecting with other nodes if its offset change pushed it into another node that it previously
-	// checked. Do a final intersection check over all nodes and return zero offset if the calculated best offset still causes intersection.
-	for (TArray<UDisplayClusterConfiguratorWindowNode*>::TConstIterator NodeIt(Parent->GetChildWindows()); NodeIt; ++NodeIt)
-	{
-		UDisplayClusterConfiguratorWindowNode* ChildNode = *NodeIt;
-
-		// Skip check against self
-		if (this == ChildNode)
-		{
-			continue;
-		}
-
-		if (ChildNode->WillOverlap(this, BestOffset))
-		{
-			return FVector2D::ZeroVector;
-		}
-	}
-
-	return BestOffset;
+	
+	return bIsChildVisible;
 }
 
-FVector2D UDisplayClusterConfiguratorWindowNode::FindNonOverlappingSizeFromParent(const FVector2D& InDesiredSize, const bool bFixedApsectRatio)
+bool UDisplayClusterConfiguratorWindowNode::IsNodeEnabled() const
 {
-	const UDisplayClusterConfiguratorCanvasNode* Parent = GetParentCanvas();
-	check(Parent);
+	UDisplayClusterConfigurationClusterNode* ClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
 
-	FVector2D BestSize = InDesiredSize;
-	const FVector2D NodeSize = GetNodeSize();
-
-	// If desired size is smaller in both dimensions to the slot's current size, can return it immediately, as shrinking a slot can't cause any new intersections.
-	if (BestSize - NodeSize < FVector2D::ZeroVector)
+	if (ClusterNode->bIsEnabled)
 	{
-		return BestSize;
+		return true;
 	}
 
-	for (TArray<UDisplayClusterConfiguratorWindowNode*>::TConstIterator NodeIt(Parent->GetChildWindows()); NodeIt; ++NodeIt)
+	// If this node is marked as disabled but it has a child that is enabled, This node needs to remain enabled.
+	bool bIsChildEnabled = false;
+	for (UDisplayClusterConfiguratorBaseNode* Child : Children)
 	{
-		UDisplayClusterConfiguratorWindowNode* ChildNode = *NodeIt;
-
-		// Skip check against self
-		if (this == ChildNode)
+		if (Child->IsNodeEnabled())
 		{
-			continue;
-		}
-
-		BestSize = ChildNode->FindNonOverlappingSize(this, BestSize, bFixedApsectRatio);
-
-		// If the best size has shrunk to be equal to current size, simply return the current size, as there is no larger size
-		// that doesn't cause intersection.
-		if (BestSize.Equals(NodeSize))
-		{
+			bIsChildEnabled = true;
 			break;
 		}
 	}
 
-	return BestSize;
+	return bIsChildEnabled;
+}
+
+void UDisplayClusterConfiguratorWindowNode::DeleteObject()
+{
+	UDisplayClusterConfigurationClusterNode* ClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
+	FDisplayClusterConfiguratorClusterUtils::RemoveClusterNodeFromCluster(ClusterNode);
+}
+
+void UDisplayClusterConfiguratorWindowNode::WriteNodeStateToObject()
+{
+	UDisplayClusterConfigurationClusterNode* CfgClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
+	const FVector2D LocalPosition = GetNodeLocalPosition();
+	const FVector2D LocalSize = TransformSizeToLocal(GetNodeSize());
+
+	CfgClusterNode->WindowRect.X = LocalPosition.X;
+	CfgClusterNode->WindowRect.Y = LocalPosition.Y;
+	CfgClusterNode->WindowRect.W = LocalSize.X;
+	CfgClusterNode->WindowRect.H = LocalSize.Y;
+}
+
+void UDisplayClusterConfiguratorWindowNode::ReadNodeStateFromObject()
+{
+	const FDisplayClusterConfigurationRectangle& WindowRect = GetCfgWindowRect();
+	const FVector2D GlobalPosition = TransformPointToGlobal(FVector2D(WindowRect.X, WindowRect.Y));
+	const FVector2D GlobalSize = TransformSizeToGlobal(FVector2D(WindowRect.W, WindowRect.H));
+
+	NodePosX = GlobalPosition.X;
+	NodePosY = GlobalPosition.Y;
+	NodeWidth = GlobalSize.X;
+	NodeHeight = GlobalSize.Y;
 }
 
 void UDisplayClusterConfiguratorWindowNode::OnPostEditChangeChainProperty(const FPropertyChangedChainEvent& PropertyChangedEvent)
@@ -197,18 +148,37 @@ void UDisplayClusterConfiguratorWindowNode::OnPostEditChangeChainProperty(const 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationRectangle, X) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationRectangle, Y))
 	{
-		// Change slots and children position, config object already updated 
-		FVector2D Offset = FVector2D(CfgClusterNode->WindowRect.X - NodePosX, CfgClusterNode->WindowRect.Y - NodePosY);
-		NodePosX = CfgClusterNode->WindowRect.X;
-		NodePosY = CfgClusterNode->WindowRect.Y;
+		Modify();
 
-		UpdateChildPositions(Offset);
+		// Change slots and children position, config object already updated 
+		const FVector2D GlobalPosition = TransformPointToGlobal(FVector2D(CfgClusterNode->WindowRect.X, CfgClusterNode->WindowRect.Y));
+
+		NodePosX = GlobalPosition.X;
+		NodePosY = GlobalPosition.Y;
+
+		UpdateChildNodes();
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationRectangle, W) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationRectangle, H))
 	{
+		Modify();
+
 		// Change node slot size, config object already updated 
-		NodeWidth = CfgClusterNode->WindowRect.W;
-		NodeHeight = CfgClusterNode->WindowRect.H;
+		const FVector2D GlobalSize = TransformSizeToGlobal(FVector2D(CfgClusterNode->WindowRect.W, CfgClusterNode->WindowRect.H));
+		NodeWidth = GlobalSize.X;
+		NodeHeight = GlobalSize.Y;
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationClusterNode, Host))
+	{
+		// If the host property on a window node has changed, invoke a config refresh, which will allow the graph editor
+		// to rebuild with the correct hierarchy.
+		if (ToolkitPtr.IsValid())
+		{
+			ToolkitPtr.Pin()->ClusterChanged();
+		}
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationExternalImage, ImagePath))
+	{
+		PreviewImageChanged.Broadcast();
 	}
 }

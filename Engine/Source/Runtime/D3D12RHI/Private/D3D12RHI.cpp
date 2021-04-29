@@ -362,6 +362,16 @@ void* FD3D12DynamicRHI::RHIGetNativeDevice()
 	return (void*)GetAdapter().GetD3DDevice();
 }
 
+void* FD3D12DynamicRHI::RHIGetNativeGraphicsQueue()
+{
+	return (void*)RHIGetD3DCommandQueue();
+}
+
+void* FD3D12DynamicRHI::RHIGetNativeComputeQueue()
+{
+	return (void*)RHIGetD3DCommandQueue();
+}
+
 void* FD3D12DynamicRHI::RHIGetNativeInstance()
 {
 	return nullptr;

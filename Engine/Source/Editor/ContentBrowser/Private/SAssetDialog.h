@@ -9,6 +9,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "AssetData.h"
 #include "IContentBrowserSingleton.h"
+#include "ContentBrowserVirtualPathTree.h"
 
 class SEditableTextBox;
 class STextBlock;
@@ -44,6 +45,9 @@ public:
 
 	/** Sets the delegate handler for when the dialog is closed or cancelled */
 	void SetOnAssetDialogCancelled(const FOnAssetDialogCancelled& InOnAssetDialogCancelled);
+
+	/** Reset selected paths to default choices */
+	void SelectDefaultPaths();
 
 private:
 
@@ -105,7 +109,7 @@ private:
 
 	/** Handler for Delete */
 	void ExecuteDelete();
-	FReply ExecuteDeleteFolderConfirmed();
+	FReply ExecuteDeleteFolderConfirmed(const TArray<FString> SelectedFolderInternalPaths, const bool bResetSelection);
 
 	/** Handler to check to see if a create new folder command is allowed */
 	bool CanExecuteCreateNewFolder() const;
@@ -124,9 +128,11 @@ private:
 	/** Closes this dialog */
 	void CloseDialog();
 
-	void SetCurrentlySelectedPath(const FString& NewPath);
+	void SetCurrentlySelectedPath(const FString& NewPath, const EContentBrowserPathType InPathType);
 
 	void SetCurrentlyEnteredAssetName(const FString& NewName);
+
+	FName GetCurrentSelectedVirtualPath() const;
 
 	void UpdateInputValidity();
 
@@ -175,6 +181,8 @@ private:
 
 	/** The object path of the asset to save. Only used in save dialogs. */
 	FString CurrentlySelectedPath;
+
+	EContentBrowserPathType CurrentlySelectedPathType = EContentBrowserPathType::None;
 
 	/** The object name of the asset to save. Only used in save dialogs. */
 	FString CurrentlyEnteredAssetName;

@@ -9,8 +9,10 @@ extern "C" void __llvm_profile_reset_counters(void);
 extern "C" int __llvm_profile_write_file(void);
 extern "C" void __llvm_profile_set_filename(char*);
 
+extern FString AndroidRelativeToAbsolutePath(bool bUseInternalBasePath, FString RelPath);
+
 static uint64 PGOFileCounter = 0;
-static FString PGO_GetOutputDirectory()
+FString PGO_GetOutputDirectory()
 {
 	FString PGOOutputDirectory;
 	if (FParse::Value(FCommandLine::Get(), TEXT("pgoprofileoutput="), PGOOutputDirectory))
@@ -18,9 +20,9 @@ static FString PGO_GetOutputDirectory()
 		return PGOOutputDirectory;
 	}
 
-	extern FString GExternalFilePath;
-	UE_LOG(LogAndroid, Warning, TEXT("No PGO output destination path specifed, defaulting to %s"), *GExternalFilePath);
-	return GExternalFilePath;
+	FString DefaultPGODir = AndroidRelativeToAbsolutePath(false, FPaths::ProjectSavedDir());
+	UE_LOG(LogAndroid, Warning, TEXT("No PGO output destination path specifed, defaulting to %s"), *DefaultPGODir);
+	return DefaultPGODir;
 }
 
 static void PGO_ResetCounters()

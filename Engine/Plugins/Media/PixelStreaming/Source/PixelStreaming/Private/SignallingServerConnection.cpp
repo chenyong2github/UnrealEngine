@@ -5,11 +5,12 @@
 
 #include "WebSocketsModule.h"
 #include "IWebSocket.h"
-#include "DOM/JsonObject.h"
+#include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
 #include "Misc/AssertionMacros.h"
 #include "Logging/LogMacros.h"
+
 #include "TimerManager.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingSS, Log, VeryVerbose);
@@ -139,6 +140,19 @@ void FSignallingServerConnection::SendIceCandidate(uint32 PlayerId, const webrtc
 	WS->Send(ToString(IceCandidateJson, false));
 }
 
+void FSignallingServerConnection::KeepAlive()
+{
+	auto Json = MakeShared<FJsonObject>();
+	double unixTime = FDateTime::UtcNow().ToUnixTimestamp();
+	Json->SetStringField(TEXT("type"), TEXT("ping"));
+	Json->SetNumberField(TEXT("time"), unixTime);
+	FString Msg = ToString(Json, false);
+	if (WS.IsValid() && WS->IsConnected())
+	{
+		WS->Send(Msg);
+	}
+}
+
 void FSignallingServerConnection::SendDisconnectPlayer(uint32 PlayerId, const FString& Reason)
 {
 	auto Json = MakeShared<FJsonObject>();
@@ -153,21 +167,6 @@ void FSignallingServerConnection::SendDisconnectPlayer(uint32 PlayerId, const FS
 	WS->Send(Msg);
 }
 
-void FSignallingServerConnection::KeepAlive()
-{
-	auto Json = MakeShared<FJsonObject>();
-	double unixTime = FDateTime::UtcNow().ToUnixTimestamp();
-	Json->SetStringField(TEXT("type"), TEXT("ping"));
-	Json->SetNumberField(TEXT("time"), unixTime);
-
-	FString Msg = ToString(Json, false);
-
-	if (WS.IsValid() && WS->IsConnected())
-	{
-		WS->Send(Msg);
-	}
-}
-
 void FSignallingServerConnection::OnConnected()
 {
 	UE_LOG(LogPixelStreamingSS, Log, TEXT("Connected to SS"));
@@ -180,13 +179,13 @@ void FSignallingServerConnection::OnConnectionError(const FString& Error)
 {
 	UE_LOG(LogPixelStreamingSS, Error, TEXT("Failed to connect to SS: %s"), *Error);
 	Observer.OnSignallingServerDisconnected();
+	GWorld->GetTimerManager().ClearTimer(TimerHandle_KeepAlive);
 }
 
 void FSignallingServerConnection::OnClosed(int32 StatusCode, const FString& Reason, bool bWasClean)
 {
-	UE_LOG(LogPixelStreamingSS, Log, TEXT("Connection to SS closed: \n\tstatus %d\n\treason: %s\n\twas clean: %d"), StatusCode, *Reason, bWasClean);
+	UE_LOG(LogPixelStreamingSS, Log, TEXT("Connection to SS closed: \n\tstatus %d\n\treason: %s\n\twas clean: %s"), StatusCode, *Reason, bWasClean ? TEXT("true") : TEXT("false"));
 	Observer.OnSignallingServerDisconnected();
-	GWorld->GetTimerManager().ClearTimer(TimerHandle_KeepAlive);
 }
 
 void FSignallingServerConnection::OnMessage(const FString& Msg)

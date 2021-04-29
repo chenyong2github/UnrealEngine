@@ -7,7 +7,8 @@
 
 #include "DisplayClusterConfiguratorEditorSubsystem.generated.h"
 
-class UDisplayClusterConfiguratorEditorData;
+class UDisplayClusterBlueprint;
+class UDisplayClusterConfigurationData;
 
 UCLASS()
 class UDisplayClusterConfiguratorEditorSubsystem 
@@ -16,11 +17,16 @@ class UDisplayClusterConfiguratorEditorSubsystem
 	GENERATED_BODY()
 
 public:
-	bool ReimportAsset(UDisplayClusterConfiguratorEditorData* InConfiguratorEditorData);
+	UDisplayClusterBlueprint* ImportAsset(UObject* InParent, const FName& InName, const FString& InFilename);
+	
+	bool ReimportAsset(UDisplayClusterBlueprint* InBlueprint);
 
-	bool ReloadConfig(UDisplayClusterConfiguratorEditorData* InConfiguratorEditorData, const FString& InConfigPath);
+	UDisplayClusterConfigurationData* ReloadConfig(UDisplayClusterBlueprint* InBlueprint, const FString& InConfigPath);
 
 	bool RenameAssets(const TWeakObjectPtr<UObject>& InAsset, const FString& InNewPackagePath, const FString& InNewName);
 
-	bool SaveConfig(UDisplayClusterConfiguratorEditorData* InConfiguratorEditorData, const FString& InConfigPath);
+	bool SaveConfig(UDisplayClusterConfigurationData* InConfiguratorEditorData, const FString& InConfigPath);
+
+	// Convert configuration to string
+	bool ConfigAsString(UDisplayClusterConfigurationData* InConfiguratorEditorData, FString& OutString) const;
 };

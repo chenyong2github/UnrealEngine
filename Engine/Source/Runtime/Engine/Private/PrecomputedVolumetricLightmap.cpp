@@ -1020,21 +1020,6 @@ void FVolumetricLightmapBrickAtlas::Insert(int32 Index, FPrecomputedVolumetricLi
 	}
 
 	{
-		{
-			// Transition all the UAVs to writable
-			FRHITransitionInfo Transitions[UE_ARRAY_COUNT(NewTextureSet.SHCoefficients) + 3] =
-			{
-				FRHITransitionInfo(NewTextureSet.AmbientVector.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(NewTextureSet.SkyBentNormal.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(NewTextureSet.DirectionalLightShadowing.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
-			};
-			for (int32 i = 0; i < UE_ARRAY_COUNT(NewTextureSet.SHCoefficients); i++)
-			{
-				Transitions[i + 3] = FRHITransitionInfo(NewTextureSet.SHCoefficients[i].UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute);
-			}
-			RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
-		}
-
 		int32 BrickStartAllocation = 0;
 
 		// Copy old allocations
@@ -1069,21 +1054,6 @@ void FVolumetricLightmapBrickAtlas::Insert(int32 Index, FPrecomputedVolumetricLi
 				Allocations[AllocationIndex].Data->HandleDataMovementInAtlas(Allocations[AllocationIndex].StartOffset, BrickStartAllocation);
 			}
 			BrickStartAllocation += Allocations[AllocationIndex].Size;
-		}
-
-		{
-			// Transition all UAVs in the new set to readable
-			FRHITransitionInfo Transitions[UE_ARRAY_COUNT(NewTextureSet.SHCoefficients) + 3] =
-			{
-				FRHITransitionInfo(NewTextureSet.AmbientVector.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask),
-				FRHITransitionInfo(NewTextureSet.SkyBentNormal.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask),
-				FRHITransitionInfo(NewTextureSet.DirectionalLightShadowing.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask)
-			};
-			for (int32 i = 0; i < UE_ARRAY_COUNT(NewTextureSet.SHCoefficients); i++)
-			{
-				Transitions[i + 3] = FRHITransitionInfo(NewTextureSet.SHCoefficients[i].UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask);
-			}
-			RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
 		}
 	}
 
@@ -1134,21 +1104,6 @@ void FVolumetricLightmapBrickAtlas::Remove(FPrecomputedVolumetricLightmapData* D
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
 		{
-			{
-				// Transition all the UAVs to writable
-				FRHITransitionInfo Transitions[UE_ARRAY_COUNT(NewTextureSet.SHCoefficients) + 3] =
-				{
-					FRHITransitionInfo(NewTextureSet.AmbientVector.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-					FRHITransitionInfo(NewTextureSet.SkyBentNormal.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-					FRHITransitionInfo(NewTextureSet.DirectionalLightShadowing.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
-				};
-				for (int32 i = 0; i < UE_ARRAY_COUNT(NewTextureSet.SHCoefficients); i++)
-				{
-					Transitions[i + 3] = FRHITransitionInfo(NewTextureSet.SHCoefficients[i].UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute);
-				}
-				RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
-			}
-
 			int32 BrickStartAllocation = 0;
 
 			// Copy old allocations
@@ -1170,21 +1125,6 @@ void FVolumetricLightmapBrickAtlas::Remove(FPrecomputedVolumetricLightmapData* D
 				NewAllocations.Add(Allocation{ Allocations[AllocationIndex].Data, Allocations[AllocationIndex].Size, BrickStartAllocation });
 				Allocations[AllocationIndex].Data->HandleDataMovementInAtlas(Allocations[AllocationIndex].StartOffset, BrickStartAllocation);
 				BrickStartAllocation += Allocations[AllocationIndex].Size;
-			}
-
-			{
-				// Transition all UAVs in the new set to readable
-				FRHITransitionInfo Transitions[UE_ARRAY_COUNT(NewTextureSet.SHCoefficients) + 3] =
-				{
-					FRHITransitionInfo(NewTextureSet.AmbientVector.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
-					FRHITransitionInfo(NewTextureSet.SkyBentNormal.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
-					FRHITransitionInfo(NewTextureSet.DirectionalLightShadowing.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
-				};
-				for (int32 i = 0; i < UE_ARRAY_COUNT(NewTextureSet.SHCoefficients); i++)
-				{
-					Transitions[i + 3] = FRHITransitionInfo(NewTextureSet.SHCoefficients[i].UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask);
-				}
-				RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
 			}
 		}
 	}

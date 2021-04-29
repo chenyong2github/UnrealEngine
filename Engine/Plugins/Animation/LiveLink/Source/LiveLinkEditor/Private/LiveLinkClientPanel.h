@@ -35,6 +35,10 @@ class SLiveLinkClientPanel : public SCompoundWidget, public FGCObject, public FE
 
 	// FGCObject interface
 	void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SLiveLinkClientPanel");
+	}
 	// End of FGCObject interface
 
 	// FEditorUndoClient interface

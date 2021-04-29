@@ -20,7 +20,9 @@
 #include "MoviePlayerSettings.h"
 #include "EditorStyleSet.h"
 #include "Settings/ProjectPackagingSettings.h"
+#if WITH_UNREAL_TARGET_DEVELOPER_TOOLS
 #include "Interfaces/IProjectTargetPlatformEditorModule.h"
+#endif
 #include "ISettingsCategory.h"
 #include "ISettingsContainer.h"
 #include "ISettingsEditorModel.h"
@@ -205,6 +207,7 @@ protected:
 			GetMutableDefault<UProjectPackagingSettings>()
 		);
 
+#if WITH_UNREAL_TARGET_DEVELOPER_TOOLS
 		// platforms settings
 		TWeakPtr<SWidget> ProjectTargetPlatformEditorPanel = FModuleManager::LoadModuleChecked<IProjectTargetPlatformEditorModule>("ProjectTargetPlatformEditor").CreateProjectTargetPlatformEditorPanel();
 		SettingsModule.RegisterSettings("Project", "Project", "SupportedPlatforms",
@@ -212,6 +215,7 @@ protected:
 			LOCTEXT("ProjectSupportedPlatformsSettingsDescription", "Specify which platforms your project supports."),
 			ProjectTargetPlatformEditorPanel.Pin().ToSharedRef()
 		);
+#endif
 
 		// movie settings
 		SettingsModule.RegisterSettings("Project", "Project", "Movies",

@@ -281,6 +281,7 @@ namespace Chaos
 		virtual void ConditionalApplyRewind_Internal(){}
 
 		FChaosMarshallingManager& GetMarshallingManager() { return MarshallingManager; }
+		FChaosResultsManager& GetResultsManager() { return *PullResultsManager; }
 
 		EThreadingModeTemp GetThreadingMode() const
 		{
@@ -430,7 +431,7 @@ namespace Chaos
 #endif
 
 	FChaosMarshallingManager MarshallingManager;
-	TUniquePtr<FChaosResultsManager> PullResultsManager;
+	TUniquePtr<FChaosResultsManager> PullResultsManager;	//must come after MarshallingManager since it knows about MarshallingManager
 
 	// The spatial operations not yet consumed by the internal sim. Use this to ensure any GT operations are seen immediately
 	TUniquePtr<FPendingSpatialDataQueue> PendingSpatialOperations_External;

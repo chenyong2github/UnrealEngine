@@ -77,6 +77,10 @@ private:
 		{
 			Object->AddReferencedObjects(InCollector);
 		}
+		virtual FString GetReferencerName() const override
+		{
+			return TEXT("SMediaFrameworkVideoInputDisplay::FInternalReferenceCollector");
+		}
 
 	private:
 		SMediaFrameworkVideoInputDisplay* Object;

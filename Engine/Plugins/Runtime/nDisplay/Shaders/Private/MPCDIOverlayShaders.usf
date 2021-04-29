@@ -2,12 +2,12 @@
 #include "MPCDIUtils.ush"
 
 
-OutputVS PicpWarpVS(InputVS IN)
+OutputVS IcvfxWarpVS(InputVS IN)
 {
 	OutputVS OUT;
 
 #if MESH_WARP
-	OUT.PFMPosition = mul(float4(IN.Position.xyz,1.f), MeshToCaveProjectionMatrix);
+	OUT.PFMPosition = mul(float4(IN.Position.xyz,1.f), MeshToStageProjectionMatrix);
 	OUT.UV_Chromakey = float4(IN.UV_Chromakey, 0.f, 1.f);
 	float4 ScreenPosition = float4(IN.UV.xy, 0, 1);
 #else
@@ -31,36 +31,24 @@ OutputPS Passthrough_PS(OutputVS IN)
 	return OUT;
 }
 
-float3 ComposePicpOverlay(float3 OutColor, float4 OverlayColor)
+float4 GetIcvfxOverlayColor(float2 OverlayUV)
 {
+	float4 OverlayColor = OverlayTexture.Sample(OverlaySampler, OverlayUV).rgba;
+
+#if OVERLAY_ALPHA
+	OverlayColor.a = OverlayAlphaTexture.Sample(OverlayAlphaSampler, OverlayUV).a;
+#endif
+
+	return OverlayColor;
+}
+
+float3 ComposeIcvfxOverlay(float3 OutColor, float2 OverlayUV)
+{
+
+	float4 OverlayColor = GetIcvfxOverlayColor(OverlayUV);
 	float3 FinalColor = OverlayColor.xyz + OutColor * OverlayColor.w;
+
 	return FinalColor;
-}
-
-float4 GetCameraChromakeyMarker(float4 WarpedUV, float2 CameraUV, OutputVS IN)
-{
-#if CHROMAKEY_MARKER_MESH_UV
-	// Map to custom UV
-	float2 ChromakeyMarkerUV = IN.UV_Chromakey.xy;
-#else
-	// Map to screen UV
-	float2 ChromakeyMarkerUV = IN.UV.xy;
-#endif
-
-	return ChromakeyMarkerTexture.Sample(ChromakeyMarkerSampler, ChromakeyMarkerUV*ChromakeyMarkerScale);
-}
-
-float4 GetCameraChromakey(float4 WarpedUV, float2 CameraUV, OutputVS IN)
-{
-	// Load from Cameramap
-	float4 ChromakeyColor = ChromakeyCameraTexture.Sample(ChromakeyCameraSampler, CameraUV);
-
-#if CHROMAKEY_MARKER
-	float4 ChromakeyMarkerColor = GetCameraChromakeyMarker(WarpedUV, CameraUV, IN);
-	ChromakeyColor.xyz = lerp(ChromakeyColor.xyz, ChromakeyMarkerColor.xyz, ChromakeyMarkerColor.w);
-#endif
-
-	return ChromakeyColor;
 }
 
 float4 GetInnerCameraColor(float4 WarpedUV, OutputVS IN)
@@ -68,11 +56,17 @@ float4 GetInnerCameraColor(float4 WarpedUV, OutputVS IN)
 	// Transform WarpedUV to Camera ScreenSpaceUV
 	float4 CameraUVW = mul(WarpedUV, InnerCameraProjectionMatrix);
 	float2 CameraUV = CameraUVW.xy / CameraUVW.w;
-	// Load from Cameramap
+
+
+#if CHROMAKEYFRAMECOLOR
+	float4 CameraColor = float4(0,0,0,0);
+#else
+	// ** Incamera Frame **
 	float3 CameraBaseColor = InnerCameraTexture.Sample(InnerCameraSampler, CameraUV).rgb;
-
 	float4 CameraColor = float4(CameraBaseColor, 0);
+#endif
 
+	// *** Soft Edges **
 	if (CameraUVW.w > 0) // clip back plane
 	{//Defined texel:
 		float2 ToEdge = (CameraUV.xy * 2) - 1.0f; // -1..1
@@ -87,15 +81,35 @@ float4 GetInnerCameraColor(float4 WarpedUV, OutputVS IN)
 		}
 	}
 
+#if CHROMAKEYFRAMECOLOR || CHROMAKEY
+	// Use frame color by default
+	float4 ChromakeyColor = float4(ChromakeyFrameColor.xyz,0);
+
 #if CHROMAKEY
-	float4 ChromakeyColor = GetCameraChromakey(WarpedUV, CameraUV, IN);
+	// Get from chromakey sampler
+	ChromakeyColor = ChromakeyCameraTexture.Sample(ChromakeyCameraSampler, CameraUV);
+#endif
+
+#if CHROMAKEY_MARKER
+	float2 MarkerUV = frac(IN.UV_Chromakey.xy * ChromakeyMarkerScale) * (1+ChromakeyMarkerDistance);
+	float2 ChromakeyMarkerUV = saturate(MarkerUV);
+	// Border pixels always invisible
+	float ChromakeyAlphaMult = 1.f;
+	if(any(ChromakeyMarkerUV - MarkerUV))
+	{
+		ChromakeyAlphaMult = 0.f;
+	}
+	float4 ChromakeyMarkerColor = ChromakeyMarkerTexture.Sample(ChromakeyMarkerSampler, ChromakeyMarkerUV);
+	ChromakeyColor.xyz = lerp(ChromakeyColor.xyz, ChromakeyMarkerColor.xyz, ChromakeyMarkerColor.w * ChromakeyAlphaMult);
+#endif
+
 	CameraColor.xyz = lerp(CameraColor.xyz, ChromakeyColor.xyz, 1-ChromakeyColor.w);
 #endif
 
 	return CameraColor;
 }
 
-OutputPS PicpWarpPS(OutputVS IN)
+OutputPS IcvfxWarpPS(OutputVS IN)
 {
 	OutputPS OUT;
 
@@ -120,24 +134,25 @@ OutputPS PicpWarpPS(OutputVS IN)
 	float4 OutColor = float4(InputTexture.Sample(InputSampler, ViewportUV).rgb, 1.0f);
 
 	#if OVERLAY_UNDER
-		float4 OverlayUnderColor = OverlayUnderTexture.Sample(OverlayUnderSampler, OverlayUV).rgba;
-		OutColor.xyz = ComposePicpOverlay(OutColor.xyz, OverlayUnderColor);
+		OutColor.xyz = ComposeIcvfxOverlay(OutColor.xyz, OverlayUV);
 	#endif
+	
 	#if INNER_CAMERA
 		float4 CameraColor = GetInnerCameraColor(WarpedUV, IN);
 		OutColor.xyz = lerp(OutColor.xyz, CameraColor.xyz, CameraColor.w);
 	#endif
+
 	#if OVERLAY_OVER
-		float4 OverlayOverColor = OverlayOverTexture.Sample(OverlayOverSampler, OverlayUV).rgba;
-		OutColor.xyz = ComposePicpOverlay(OutColor.xyz, OverlayOverColor);
+		OutColor.xyz = ComposeIcvfxOverlay(OutColor.xyz, OverlayUV);
 	#endif
+
 #else 
-	// MultiCam or Final renderpass (only cam or overlay per pass))	
+	// MultiCam or Final renderpass (only cam or overlay per pass))
 	#if INNER_CAMERA
-		float4 OutColor = GetInnerCameraColor(WarpedUV, IN);		
+		float4 OutColor = GetInnerCameraColor(WarpedUV, IN);
 	#else
 		#if OVERLAY_OVER
-			float4 OutColor = OverlayOverTexture.Sample(OverlayOverSampler, OverlayUV).rgba;		
+			float4 OutColor = GetIcvfxOverlayColor(OverlayUV);
 		#else
 			float4 OutColor = float4(0, 0, 0, 0);
 		#endif

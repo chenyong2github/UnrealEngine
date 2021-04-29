@@ -13,7 +13,7 @@
 #include "Sequencer/MovieSceneControlRigParameterSection.h"
 #include "IKeyArea.h"
 #include "LevelSequence.h"
-#include "LevelSequenceEditor/Private/LevelSequenceEditorBlueprintLibrary.h"
+#include "LevelSequenceEditorBlueprintLibrary.h"
 #include "ILevelSequenceEditorToolkit.h"
 #include "Tools/ControlRigSnapper.h"
 #include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"

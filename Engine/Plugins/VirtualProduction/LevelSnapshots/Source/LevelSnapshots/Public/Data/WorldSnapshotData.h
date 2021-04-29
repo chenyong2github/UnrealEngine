@@ -12,7 +12,9 @@
 class FSnapshotArchive;
 class FTakeWorldObjectSnapshotArchive;
 class ULevelSnapshotSelectionSet;
+struct FPropertySelectionMap;
 
+/* Holds saved world data and handles all logic related to writing to the existing world. */
 USTRUCT()
 struct LEVELSNAPSHOTS_API FWorldSnapshotData
 {
@@ -28,9 +30,11 @@ struct LEVELSNAPSHOTS_API FWorldSnapshotData
 	/* Records the actor in this snapshot */
 	void SnapshotWorld(UWorld* World);
 	/* Applies the saved properties to WorldActor */
-	void ApplyToWorld(UWorld* WorldToApplyTo, ULevelSnapshotSelectionSet* PropertiesToSerialize);
-	
+	void ApplyToWorld(UWorld* WorldToApplyTo, const FPropertySelectionMap& PropertiesToSerialize);
+
+	int32 GetNumSavedActors() const;
 	void ForEachOriginalActor(TFunction<void(const FSoftObjectPath& ActorPath)> HandleOriginalActorPath) const;
+	bool HasMatchingSavedActor(const FSoftObjectPath& OriginalObjectPath) const;
 	TOptional<AActor*> GetDeserializedActor(const FSoftObjectPath& OriginalObjectPath);
 
 	/**
@@ -41,21 +45,26 @@ struct LEVELSNAPSHOTS_API FWorldSnapshotData
 
 private:
 
+	void ApplyToWorld_HandleRemovingActors(const FPropertySelectionMap& PropertiesToSerialize);
+	void ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& EvaluatedActors, const FPropertySelectionMap& PropertiesToSerialize);
+	void ApplyToWorld_HandleSerializingMatchingActors(TSet<AActor*>& EvaluatedActors, const TArray<FSoftObjectPath>& SelectedPaths, const FPropertySelectionMap& PropertiesToSerialize);
+	
 	enum class EResolveType
 	{
 		ResolveForUseInOriginalWorld,
 		ResolveForUseInTempWorld
 	};
-
 	/* Adds an object dependency without serializing the object's content. Intended for external objects, e.g. to UMaterial in the content browser. */
 	int32 AddObjectDependency(UObject* ReferenceFromOriginalObject);
 	TOptional<UObject*> ResolveObjectDependency(int32 ObjectPathIndex, EResolveType ResolveType);
+
 	
 	/* Adds a subobject dependency. Intended for internal objects which need to store serialized data, e.g. components and other subobjects. Implicitly calls AddObjectDependency.
 	 * @return A valid index in SerializedObjectReferences and the corresponding subobject data.
 	 */
 	int32 AddSubobjectDependency(UObject* ReferenceFromOriginalObject);
 
+	
 	void AddClassDefault(UClass* Class);
 	UObject* GetClassDefault(UClass* Class);
 	/* Gets the Object's class and serializes the saved CDO into it.
@@ -63,6 +72,9 @@ private:
 	 */
 	void SerializeClassDefaultsInto(UObject* Object);
 
+
+
+	
 	
 	/* The world we will be adding temporary actors to */
 	TWeakObjectPtr<UWorld> TempActorWorld;
@@ -87,7 +99,7 @@ private:
 	UPROPERTY()
 	TArray<FName> SerializedNames;
 
-	/* Whenever an object needs to serialize an object reference, we keep the object path here an serialize an index to this array.
+	/* Whenever an object needs to serialize an object reference, we keep the object path here and serialize an index to this array.
 	 * 
 	 * External references, e.g. UDataAssets or UMaterials, are easily handled.
 	 * Example: UStaticMesh /Game/Australia/StaticMeshes/MegaScans/Nature_Rock_vbhtdixga/vbhtdixga_LOD0.vbhtdixga_LOD0
@@ -102,6 +114,7 @@ private:
 	
 	/*
 	 * Key: A valid index in to SerializedObjectReferences. Value: Subobject information for the associated entry in SerializedObjectReferences.
+	 * There is only an entry if the associated object is in fact a subobject. Actors and assets in particular do not get any entry.
 	 */
 	UPROPERTY()
 	TMap<int32, FSubobjectSnapshotData> Subobjects;

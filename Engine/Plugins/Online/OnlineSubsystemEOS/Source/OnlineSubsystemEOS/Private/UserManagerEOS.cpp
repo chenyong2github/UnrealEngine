@@ -10,6 +10,8 @@
 #include "OnlineError.h"
 #include "EOSSettings.h"
 
+#include COMPILED_PLATFORM_HEADER(EOSHelpers.h)
+
 #if WITH_EOS_SDK
 
 #include "eos_auth.h"
@@ -309,8 +311,11 @@ bool FUserManagerEOS::Login(int32 LocalUserNum, const FOnlineAccountCredentials&
 	LoginOptions.ApiVersion = EOS_AUTH_LOGIN_API_LATEST;
 	LoginOptions.ScopeFlags = EOS_EAuthScopeFlags::EOS_AS_BasicProfile | EOS_EAuthScopeFlags::EOS_AS_FriendsList | EOS_EAuthScopeFlags::EOS_AS_Presence;
 
+	FPlatformEOSHelpersPtr EOSHelpers = EOSSubsystem->GetEOSHelpers();
+
 	FAuthCredentials Credentials;
 	LoginOptions.Credentials = &Credentials;
+	EOSHelpers->PlatformAuthCredentials(Credentials);
 
 	if (AccountCredentials.Type == TEXT("exchangecode"))
 	{
@@ -1225,12 +1230,8 @@ FString FUserManagerEOS::GetAuthType() const
 
 bool FUserManagerEOS::ShowLoginUI(const int ControllerIndex, bool bShowOnlineOnly, bool bShowSkipButton, const FOnLoginUIClosedDelegate& Delegate)
 {
-	UE_LOG_ONLINE_EXTERNALUI(Warning, TEXT("[FUserManagerEOS::ShowLoginUI] This method is not implemented."));
-
-	EOSSubsystem->ExecuteNextTick([this, ControllerIndex, Delegate]()
-		{
-			Delegate.ExecuteIfBound(GetUniquePlayerId(ControllerIndex), ControllerIndex, FOnlineError(EOnlineErrorResult::NotImplemented));
-		});
+	FPlatformEOSHelpersPtr EOSHelpers = EOSSubsystem->GetEOSHelpers();
+	EOSHelpers->PlatformTriggerLoginUI(EOSSubsystem, ControllerIndex, bShowOnlineOnly, bShowSkipButton, Delegate);
 
 	return true;
 }

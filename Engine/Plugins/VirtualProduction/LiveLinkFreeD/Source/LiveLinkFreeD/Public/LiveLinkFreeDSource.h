@@ -109,12 +109,6 @@ private:
 	// Frame counter for incoming data packets
 	int32 FrameCounter = 0;
 
-	// Axis remapping data convenience variables
-	// The default Free D axis mapping has the X and Y axes flipped from Unreal
-	FIntVector DefaultOffsetAxis = { FreeDPacketDefinition::X, FreeDPacketDefinition::Y, FreeDPacketDefinition::Z };
-	FIntVector RemapOffsetAxis = { DefaultOffsetAxis.Y, DefaultOffsetAxis.X, DefaultOffsetAxis.Z };
-	FVector FlipAxis = FVector::OneVector;
-
 	// LiveLink subject name for this camera data
 	FString CameraSubjectName = TEXT("Camera");
 

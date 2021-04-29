@@ -94,6 +94,14 @@ struct ENGINE_API FBaseAttenuationSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category= AttenuationDistance, meta=(ClampMin = "0"))
 	float FalloffDistance;
 
+	/* An optional attenuation radius (sphere) that extends from the cone origin. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationDistance, meta = (ClampMin = "0"))
+	float ConeSphereRadius;
+
+	/* The distance over which volume attenuation occurs for the optional sphere shape. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationDistance, meta = (ClampMin = "0"))
+	float ConeSphereFalloffDistance;
+
 	/* The custom volume attenuation curve to use. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category= AttenuationDistance)
 	FRuntimeFloatCurve CustomAttenuationCurve;
@@ -105,6 +113,8 @@ struct ENGINE_API FBaseAttenuationSettings
 		FVector Extents;
 		float Falloff;
 		float ConeOffset;
+		float ConeSphereRadius;
+		float ConeSphereFalloff;
 	};
 
 	virtual void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, AttenuationShapeDetails>& ShapeDetailsMap) const;

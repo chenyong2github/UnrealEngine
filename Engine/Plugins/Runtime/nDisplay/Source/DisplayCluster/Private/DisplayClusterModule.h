@@ -7,7 +7,6 @@
 #include "Cluster/IPDisplayClusterClusterManager.h"
 #include "Config/IPDisplayClusterConfigManager.h"
 #include "Game/IPDisplayClusterGameManager.h"
-#include "Input/IPDisplayClusterInputManager.h"
 #include "Render/IPDisplayClusterRenderManager.h"
 
 class UDisplayClusterConfigurationData;
@@ -35,7 +34,6 @@ public:
 
 	virtual IDisplayClusterRenderManager*    GetRenderMgr()    const override { return MgrRender; }
 	virtual IDisplayClusterClusterManager*   GetClusterMgr()   const override { return MgrCluster; }
-	virtual IDisplayClusterInputManager*     GetInputMgr()     const override { return MgrInput; }
 	virtual IDisplayClusterConfigManager*    GetConfigMgr()    const override { return MgrConfig; }
 	virtual IDisplayClusterGameManager*      GetGameMgr()      const override { return MgrGame; }
 
@@ -45,7 +43,6 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual IPDisplayClusterRenderManager*    GetPrivateRenderMgr()    const override { return MgrRender; }
 	virtual IPDisplayClusterClusterManager*   GetPrivateClusterMgr()   const override { return MgrCluster; }
-	virtual IPDisplayClusterInputManager*     GetPrivateInputMgr()     const override { return MgrInput; }
 	virtual IPDisplayClusterConfigManager*    GetPrivateConfigMgr()    const override { return MgrConfig; }
 	virtual IPDisplayClusterGameManager*      GetPrivateGameMgr()      const override { return MgrGame; }
 
@@ -55,7 +52,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool Init(EDisplayClusterOperationMode OperationMode) override;
 	virtual void Release() override;
-	virtual bool StartSession(const UDisplayClusterConfigurationData* InConfigData, const FString& NodeId) override;
+	virtual bool StartSession(UDisplayClusterConfigurationData* InConfigData, const FString& NodeId) override;
 	virtual void EndSession() override;
 	virtual bool StartScene(UWorld* InWorld) override;
 	virtual void EndScene() override;
@@ -87,6 +84,12 @@ public:
 	virtual FDisplayClusterPostTickEvent& OnDisplayClusterPostTick() override
 	{ return DisplayClusterPostTickEvent; }
 
+	virtual FDisplayClusterStartSceneEvent& OnDisplayClusterStartScene() override
+	{ return DisplayClusterStartSceneEvent; }
+
+	virtual FDisplayClusterEndSceneEvent& OnDisplayClusterEndScene() override
+	{ return DisplayClusterEndSceneEvent; }
+
 private:
 	FDisplayClusterStartSessionEvent         DisplayClusterStartSessionEvent;
 	FDisplayClusterEndSessionEvent           DisplayClusterEndSessionEvent;
@@ -95,6 +98,8 @@ private:
 	FDisplayClusterPreTickEvent              DisplayClusterPreTickEvent;
 	FDisplayClusterTickEvent                 DisplayClusterTickEvent;
 	FDisplayClusterPostTickEvent             DisplayClusterPostTickEvent;
+	FDisplayClusterStartSceneEvent           DisplayClusterStartSceneEvent;
+	FDisplayClusterEndSceneEvent             DisplayClusterEndSceneEvent;
 
 private:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -111,7 +116,6 @@ private:
 	// DisplayCluster subsystems
 	IPDisplayClusterClusterManager*   MgrCluster   = nullptr;
 	IPDisplayClusterRenderManager*    MgrRender    = nullptr;
-	IPDisplayClusterInputManager*     MgrInput     = nullptr;
 	IPDisplayClusterConfigManager*    MgrConfig    = nullptr;
 	IPDisplayClusterGameManager*      MgrGame      = nullptr;
 	

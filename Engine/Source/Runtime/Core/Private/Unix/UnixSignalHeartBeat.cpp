@@ -115,6 +115,8 @@ void FUnixSignalGameHitchHeartBeat::Init()
 
 void FUnixSignalGameHitchHeartBeat::InitSettings()
 {
+	static bool bFirst = true;
+
 	// Command line takes priority over config, so only check the ini if we didnt already set our selfs from the cmd line
 	if (!bHasCmdLine)
 	{
@@ -127,16 +129,26 @@ void FUnixSignalGameHitchHeartBeat::InitSettings()
 		}
 	}
 
-	bool bStartSuspended = false;
-	GConfig->GetBool(TEXT("Core.System"), TEXT("GameThreadHeartBeatStartSuspended"), bStartSuspended, GEngineIni);
-	if (FParse::Param(FCommandLine::Get(), TEXT("hitchdetectionstartsuspended")))
+	if (bFirst)
 	{
-		bStartSuspended = true;
-	}
+		bFirst = false;
 
-	if( bStartSuspended )
-	{
-		SuspendCount = 1;
+		bool bStartSuspended = false;
+		GConfig->GetBool(TEXT("Core.System"), TEXT("GameThreadHeartBeatStartSuspended"), bStartSuspended, GEngineIni);
+
+		if (FParse::Param(FCommandLine::Get(), TEXT("hitchdetectionstartsuspended")))
+		{
+			bStartSuspended = true;
+		}
+		else if (FParse::Param(FCommandLine::Get(), TEXT("hitchdetectionstartrunning")))
+		{
+			bStartSuspended = false;
+		}
+
+		if (bStartSuspended)
+		{
+			SuspendCount = 1;
+		}
 	}
 }
 
@@ -147,12 +159,6 @@ void FUnixSignalGameHitchHeartBeat::FrameStart(bool bSkipThisFrame)
 
 	if (!bDisabled && SuspendCount == 0 && TimerId)
 	{
-		if (!bSkipThisFrame)
-		{
-			// Need to check each time in case of hot fixes
-			InitSettings();
-		}
-
 		if (HitchThresholdS > MinimalHitchThreashold)
 		{
 			struct itimerspec HeartBeatTime;

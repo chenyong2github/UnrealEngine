@@ -53,6 +53,12 @@ static TAutoConsoleVariable<int32> CVarMobileVirtualTextures(
 	ECVF_RenderThreadSafe | ECVF_ReadOnly
 );
 
+static TAutoConsoleVariable<int32> CVarVirtualTexturesAutoImport(
+	TEXT("r.VT.EnableAutoImport"),
+	1,
+	TEXT("Enable virtual texture on texture import"),
+	ECVF_Default);
+
 DEFINE_LOG_CATEGORY(LogTexture);
 
 #if STATS

@@ -1224,7 +1224,7 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 
 				if(BP->GeneratedClass)
 				{
-					BP->GeneratedClass->ClassFlags |= CLASS_LayoutChanging;
+					BP->GeneratedClass->bLayoutChanging = true;
 				}
 			}
 		}
@@ -1307,7 +1307,7 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 						BPGC->ClassDefaultObject->GetClass() != BPGC) )
 				{
 					// relink, generate CDO:
-					BPGC->ClassFlags &= ~CLASS_LayoutChanging;
+					BPGC->bLayoutChanging = false;
 					BPGC->Bind();
 					BPGC->StaticLink(true);
 					BPGC->ClassDefaultObject = nullptr;
@@ -1342,8 +1342,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 					}
 					BPGC->ClassDefaultObject = nullptr;
 		
-					// class layout is ready, we can clear CLASS_LayoutChanging and CompileFunctions can create the CDO:
-					BPGC->ClassFlags &= ~CLASS_LayoutChanging;
+					// class layout is ready, we can clear bLayoutChanging and CompileFunctions can create the CDO:
+					BPGC->bLayoutChanging = false;
 
 					FKismetCompilerContext& CompilerContext = *(CompilerData.Compiler);
 					CompilerContext.CompileFunctions(
@@ -1388,10 +1388,6 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 			}
 			
 			FKismetCompilerUtilities::UpdateDependentBlueprints(BP);
-			if (CompilerData.Reinstancer.IsValid())
-			{
-				FBlueprintEditorUtils::GetDependentBlueprints(BP, CompilerData.Reinstancer->Dependencies);
-			}
 
 			ensure(BPGC == nullptr || BPGC->ClassDefaultObject->GetClass() == BPGC);
 		}

@@ -130,6 +130,15 @@ public:
 
 #if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
 	mutable FParticlePerfStats* ParticlePerfStats = nullptr;
+
+	//Cached CSV Stat names for this system.
+#if WITH_PARTICLE_PERF_CSV_STATS
+	FName CSVStat_Total = NAME_None;
+	FName CSVStat_GTOnly = NAME_None;
+	FName CSVStat_InstAvg = NAME_None;
+	FName CSVStat_RT = NAME_None;
+	FName CSVStat_Count = NAME_None;
+#endif
 #endif
 };
 

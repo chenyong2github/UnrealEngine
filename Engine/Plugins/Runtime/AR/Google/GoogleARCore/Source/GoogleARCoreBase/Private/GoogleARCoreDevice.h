@@ -225,6 +225,10 @@ private:
 	public:
 		FInternalGCObject(FGoogleARCoreDevice* InARCoreDevice) : ARCoreDevice(InARCoreDevice) {}
 		void AddReferencedObjects(FReferenceCollector& Collector) override;
+		virtual FString GetReferencerName() const override
+		{
+			return TEXT("FGoogleARCoreDevice::FInternalGCObject");
+		}
 	private:
 		FGoogleARCoreDevice* ARCoreDevice = nullptr;
 	};

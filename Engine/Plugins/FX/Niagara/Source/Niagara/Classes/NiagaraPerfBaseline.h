@@ -7,7 +7,7 @@
 
 #include "NiagaraPerfBaseline.generated.h"
 
-#define NIAGARA_PERF_BASELINES (!UE_BUILD_SHIPPING && WITH_PARTICLE_PERF_STATS)
+#define NIAGARA_PERF_BASELINES ((!UE_BUILD_SHIPPING || WITH_EDITOR) && WITH_PARTICLE_PERF_STATS)
 
 class UNiagaraComponent;
 class UNiagaraSystem;

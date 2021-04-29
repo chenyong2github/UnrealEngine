@@ -7,10 +7,6 @@ DROP_TO_PL_ROOT=../..
 DROP_TO_LIBROOT=..
 DROP_TO_THIRDPARTY=.
 
-LIBFILES=(
-	"lib/Mac/Release/libCrashReporter.a"
-	"lib/Mac/Debug/libCrashReporter.a"
-)
 
 ################################################################################
 # Set up script env.
@@ -32,6 +28,11 @@ XCODE_VERSION_TRIMMED=$(echo $XCODE_VERSION | xargs)
 
 
 LIB_OUTPUT_DIR=${PL_ROOT_DIR}/lib/lib-Xcode-$XCODE_VERSION_TRIMMED
+
+LIBFILES=(
+	"${LIB_OUTPUT_DIR}/Mac/Release/libCrashReporter.a"
+	"${LIB_OUTPUT_DIR}/Mac/Debug/libCrashReporter.a"
+)
 
 cd ${PL_ROOT_DIR}/${DROP_TO_LIBROOT}
 LIB_ROOT_DIR=${PWD}
@@ -233,8 +234,6 @@ pushd ${PL_ROOT_DIR}  > /dev/null
 
 # checkFilesWereUpdated ${LIBFILES[@]}
 checkFilesAreFatBinaries ${LIBFILES[@]}
-
-echo The following files were rebuilt: ${LIBFILES[@]}
 
 popd > /dev/null
 

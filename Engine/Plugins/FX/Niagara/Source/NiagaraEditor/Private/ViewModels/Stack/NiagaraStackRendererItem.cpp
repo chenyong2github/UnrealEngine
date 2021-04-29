@@ -137,14 +137,18 @@ UNiagaraRendererProperties* UNiagaraStackRendererItem::GetRendererProperties()
 
 FText UNiagaraStackRendererItem::GetDisplayName() const
 {
-	if (RendererProperties != nullptr)
+	if(DisplayNameCache.IsSet() == false)
 	{
-		return RendererProperties->GetWidgetDisplayName();
+		if (RendererProperties != nullptr)
+		{
+			DisplayNameCache = RendererProperties->GetWidgetDisplayName();
+		}
+		else
+		{
+			DisplayNameCache = FText::FromName(NAME_None);
+		}
 	}
-	else
-	{
-		return FText::FromName(NAME_None);
-	}
+	return DisplayNameCache.GetValue();
 }
 
 bool UNiagaraStackRendererItem::TestCanCutWithMessage(FText& OutMessage) const
@@ -351,6 +355,7 @@ void UNiagaraStackRendererItem::RefreshChildrenInternal(const TArray<UNiagaraSta
 	MissingAttributes = GetMissingVariables(RendererProperties.Get(), GetEmitterViewModel()->GetEmitter());
 	bHasBaseRendererCache.Reset();
 	bCanResetToBaseCache.Reset();
+	DisplayNameCache.Reset();
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
 	
 	RefreshIssues(NewIssues);

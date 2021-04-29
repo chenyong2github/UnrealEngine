@@ -41,6 +41,8 @@
 /** Whether render graph GPU events are enabled. */
 #if WITH_PROFILEGPU
 	#define RDG_EVENTS RDG_EVENTS_STRING_COPY
+#elif RHI_WANT_BREADCRUMB_EVENTS
+	#define RDG_EVENTS RDG_EVENTS_STRING_REF
 #else
 	#define RDG_EVENTS RDG_EVENTS_NONE
 #endif

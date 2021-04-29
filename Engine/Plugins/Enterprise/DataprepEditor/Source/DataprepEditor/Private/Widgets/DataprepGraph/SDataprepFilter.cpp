@@ -200,5 +200,137 @@ void SDataprepFilter::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObject( Filter );
 }
 
+
+void SDataprepFilterNoFetcher::Construct(const FArguments& InArgs, UDataprepFilterNoFetcher& InFilter, const TSharedRef<FDataprepSchemaActionContext>& InDataprepActionContext)
+{
+	Filter = &InFilter;
+
+	TAttribute<FText> TooltipTextAttribute = MakeAttributeSP( this, &SDataprepFilterNoFetcher::GetTooltipText );
+	SetToolTipText( TooltipTextAttribute );
+
+	bIsPreviewed = InArgs._IsPreviewed;
+
+	SDataprepActionBlock::Construct( SDataprepActionBlock::FArguments(), InDataprepActionContext );
+}
+
+void SDataprepFilterNoFetcher::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	if ( DetailsView.IsValid() && Filter )
+	{
+		DetailsView->SetObjectToDisplay( *Filter );
+	}
+}
+
+FSlateColor SDataprepFilterNoFetcher::GetOutlineColor() const
+{
+	if ( bIsPreviewed )
+	{
+		return FDataprepEditorStyle::GetColor( "Graph.ActionStepNode.PreviewColor" );
+	}
+
+	return FDataprepEditorStyle::GetColor( "DataprepActionStep.Filter.OutlineColor" );
+}
+
+FText SDataprepFilterNoFetcher::GetBlockTitle() const
+{
+	if ( Filter )
+	{
+		if ( Filter->IsExcludingResult() )
+		{
+			return FText::Format( LOCTEXT("ExcludingFilterTitle", "Exclude by {0}"), { Filter->GetNodeDisplayFilterName() } );
+		}
+		else
+		{
+			return FText::Format( LOCTEXT("SelectingFilterTitle", "Filter by {0}"), { Filter->GetNodeDisplayFilterName() });
+		}
+	}
+	return LOCTEXT("DefaultFilterTitle", "Unknow Filter Type");
+}
+
+TSharedRef<SWidget> SDataprepFilterNoFetcher::GetTitleWidget()
+{
+	const ISlateStyle* DataprepEditorStyle = FSlateStyleRegistry::FindSlateStyle( FDataprepEditorStyle::GetStyleSetName() );
+	check( DataprepEditorStyle );
+	const float DefaultPadding = DataprepEditorStyle->GetFloat( "DataprepAction.Padding" );
+	TSharedRef<SWidget> DefaultTitle = SNew( STextBlock )
+		.Text( this, &SDataprepFilterNoFetcher::GetBlockTitle )
+		.TextStyle( &DataprepEditorStyle->GetWidgetStyle<FTextBlockStyle>( "DataprepActionBlock.TitleTextBlockStyle" ) )
+		.ColorAndOpacity( FLinearColor( 1.f, 1.f, 1.f ) )
+		.Margin( FMargin( DefaultPadding ) )
+		.Justification( ETextJustify::Center );
+
+
+	if ( bIsPreviewed )
+	{
+		return SNew( SVerticalBox )
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				DefaultTitle
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding( FMargin( 2.0f, 4.0f, 0.0f, 0.0f ) )
+			[
+				SNew( STextBlock )
+				.TextStyle(  &DataprepEditorStyle->GetWidgetStyle<FTextBlockStyle>( "DataprepActionBlock.PreviewTextBlockStyle" ) )
+				.Text( LOCTEXT("PreviewLabel", "Previewing") )
+			];
+	}
+
+	return DefaultTitle;
+}
+
+TSharedRef<SWidget> SDataprepFilterNoFetcher::GetContentWidget()
+{
+	return SNew( SVerticalBox )
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SAssignNew( DetailsView, SDataprepDetailsView )
+			.Object( Filter )
+		];
+}
+
+void SDataprepFilterNoFetcher::PopulateMenuBuilder(FMenuBuilder& MenuBuilder)
+{
+	SDataprepActionBlock::PopulateMenuBuilder( MenuBuilder );
+
+	MenuBuilder.BeginSection( FName( TEXT("FilterSection") ), LOCTEXT("FilterSection", "Filter") );
+	{
+		FUIAction InverseFilterAction;
+		InverseFilterAction.ExecuteAction.BindSP( this, &SDataprepFilterNoFetcher::InverseFilter );
+		MenuBuilder.AddMenuEntry( LOCTEXT("InverseFilter", "Inverse Selection"), 
+			LOCTEXT("InverseFilterTooltip", "Inverse the resulting selection"),
+			FSlateIcon(),
+			InverseFilterAction );
+	}
+	MenuBuilder.EndSection();
+}
+
+void SDataprepFilterNoFetcher::InverseFilter()
+{
+	if ( Filter )
+	{
+		FScopedTransaction Transaction( LOCTEXT("InverseFilterTransaction", "Inverse the filter") );
+		Filter->SetIsExcludingResult( !Filter->IsExcludingResult() );
+	}
+}
+
+FText SDataprepFilterNoFetcher::GetTooltipText() const
+{
+	FText TooltipText;
+	if ( Filter )
+	{
+		TooltipText = Filter->GetTooltipText();
+	}
+	return TooltipText;
+}
+
+void SDataprepFilterNoFetcher::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject( Filter );
+}
+
 #undef LOCTEXT_NAMESPACE
 

@@ -69,7 +69,7 @@
 #include "NiagaraClipboard.h"
 #include "NiagaraMessageManager.h"
 #include "NiagaraComponentBroker.h"
-#include "NiagaraFlipbookSettings.h"
+#include "NiagaraBakerSettings.h"
 #include "ContentBrowserModule.h"
 
 #include "MovieScene/Parameters/MovieSceneNiagaraBoolParameterTrack.h"
@@ -102,7 +102,7 @@
 #include "Customizations/NiagaraTypeCustomizations.h"
 #include "Customizations/NiagaraComponentRendererPropertiesDetails.h"
 #include "Customizations/NiagaraDebugHUDCustomization.h"
-#include "Customizations/NiagaraFlipbookSettingsDetails.h"
+#include "Customizations/NiagaraBakerSettingsDetails.h"
 #include "Customizations/NiagaraOutlinerCustomization.h"
 
 #include "NiagaraComponent.h"
@@ -879,16 +879,13 @@ void FNiagaraEditorModule::StartupModule()
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraDataInterfaceBindingCustomization::MakeInstance));
 
 	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraBakerTextureSource::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraBakerTextureSourceDetails::MakeInstance));
+
+#if WITH_NIAGARA_DEBUGGER
+	PropertyModule.RegisterCustomPropertyTypeLayout(
 		FNiagaraDebugHUDVariable::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraDebugHUDVariableCustomization::MakeInstance));
-
-	PropertyModule.RegisterCustomPropertyTypeLayout(
-		FNiagaraFlipbookTextureSource::StaticStruct()->GetFName(),
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraFlipbookTextureSourceDetails::MakeInstance));
-
-	PropertyModule.RegisterCustomPropertyTypeLayout(
-		FNiagaraDebugHUDSettingsData::StaticStruct()->GetFName(),
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraDebugHUDSettingsDetailsCustomization::MakeInstance));
 
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 		FNiagaraOutlinerWorldData::StaticStruct()->GetFName(),
@@ -905,6 +902,7 @@ void FNiagaraEditorModule::StartupModule()
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 		FNiagaraOutlinerEmitterInstanceData::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraOutlinerEmitterInstanceDetailsCustomization::MakeInstance));
+#endif
 
 	// Outliner Customizations end.
 

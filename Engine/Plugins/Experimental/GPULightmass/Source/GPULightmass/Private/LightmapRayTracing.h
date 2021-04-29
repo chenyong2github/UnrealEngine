@@ -10,6 +10,7 @@
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 #include "IrradianceCaching.h"
 #include "RayTracingTypes.h"
+#include "PathTracingDefinitions.h"
 
 #if RHI_RAYTRACING
 
@@ -68,8 +69,11 @@ class FLightmapPathTracingRGS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, RayGuidingCDFX)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, RayGuidingCDFY)
 		SHADER_PARAMETER_SRV(StructuredBuffer<FGPUTileDescription>, BatchedTiles)
+
+		SHADER_PARAMETER_STRUCT_INCLUDE(FPathTracingData, PathTracingData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPathTracingLight>, SceneLights)
 		SHADER_PARAMETER(uint32, SceneLightCount)
+		SHADER_PARAMETER(uint32, SceneVisibleLightCount)
 		// Skylight
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SkylightTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SkylightPdf)
@@ -81,6 +85,8 @@ class FLightmapPathTracingRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FIrradianceCachingParameters, IrradianceCachingParameters)
 		SHADER_PARAMETER_TEXTURE(Texture3D, IESTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, IESTextureSampler)
+		// Subsurface data
+		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -127,8 +133,11 @@ class FVolumetricLightmapPathTracingRGS : public FGlobalShader
 		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients1G)
 		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients0B)
 		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients1B)
+
+		SHADER_PARAMETER_STRUCT_INCLUDE(FPathTracingData, PathTracingData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPathTracingLight>, SceneLights)
 		SHADER_PARAMETER(uint32, SceneLightCount)
+		SHADER_PARAMETER(uint32, SceneVisibleLightCount)
 		// Skylight
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SkylightTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SkylightPdf)
@@ -140,6 +149,8 @@ class FVolumetricLightmapPathTracingRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FIrradianceCachingParameters, IrradianceCachingParameters)
 		SHADER_PARAMETER_TEXTURE(Texture3D, IESTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, IESTextureSampler)
+		// Subsurface data
+		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -171,6 +182,11 @@ class FStationaryLightShadowTracingRGS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, GBufferShadingNormal)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, ShadowMask)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, ShadowMaskSampleCount)
+
+		SHADER_PARAMETER_STRUCT_INCLUDE(FPathTracingData, PathTracingData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPathTracingLight>, SceneLights)
+		SHADER_PARAMETER(uint32, SceneLightCount)
+		SHADER_PARAMETER(uint32, SceneVisibleLightCount)
 	END_SHADER_PARAMETER_STRUCT()
 };
 

@@ -92,16 +92,16 @@ void FLevelViewportCommands::RegisterCommands()
 		UI_COMMAND( HideAllSprites, "Hide All Sprites", "Hides all sprites", EUserInterfaceActionType::Button, FInputChord() );
 	}
 
+#if STATS
 	// Generate a command for each Stat category
 	{
 		UI_COMMAND(HideAllStats, "Hide All Stats", "Hides all Stats", EUserInterfaceActionType::Button, FInputChord());
 
 		// Bind a listener here for any additional stat commands that get registered later.
 		UEngine::NewStatDelegate.AddRaw(this, &FLevelViewportCommands::HandleNewStat);
-#if STATS
 		FStatGroupGameThreadNotifier::Get().NewStatGroupDelegate.BindRaw(this, &FLevelViewportCommands::HandleNewStatGroup);
-#endif
 	}
+#endif
 
 	// Map the bookmark index to default key.
 	TArray< FKey > NumberKeyNames;
@@ -164,6 +164,7 @@ void FLevelViewportCommands::RegisterCommands()
 
 }
 
+#if STATS
 void FLevelViewportCommands::HandleNewStatGroup(const TArray<FStatNameAndInfo>& NameAndInfos)
 {
 	// #Stats: FStatNameAndInfo should be private and visible only to stats2 system
@@ -245,6 +246,8 @@ int32 FLevelViewportCommands::FindStatIndex(const TArray< FShowMenuCommand >* Sh
 	}
 	return ShowStatCommands->Num();
 }
+#endif
+
 
 void FLevelViewportCommands::RegisterShowVolumeCommands()
 {

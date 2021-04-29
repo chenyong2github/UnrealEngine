@@ -7,6 +7,7 @@
 #include "IContentBrowserDataModule.h"
 #include "MRUFavoritesList.h"
 #include "Settings/ContentBrowserSettings.h"
+#include "ContentBrowserDataSubsystem.h"
 
 IMPLEMENT_MODULE( FContentBrowserModule, ContentBrowser );
 DEFINE_LOG_CATEGORY(LogContentBrowser);
@@ -22,7 +23,7 @@ void FContentBrowserModule::StartupModule()
 	RecentlyOpenedAssets = MakeUnique<FMainMRUFavoritesList>(TEXT("ContentBrowserRecent"), GetDefault<UContentBrowserSettings>()->NumObjectsInRecentList);
 	RecentlyOpenedAssets->ReadFromINI();
 
-	UContentBrowserSettings::OnSettingChanged().AddRaw(this, &FContentBrowserModule::ResizeRecentAssetList);
+	UContentBrowserSettings::OnSettingChanged().AddRaw(this, &FContentBrowserModule::ContentBrowserSettingChanged);
 }
 
 void FContentBrowserModule::ShutdownModule()
@@ -53,12 +54,20 @@ void FContentBrowserModule::RemoveAssetViewExtraStateGenerator(const FDelegateHa
 	AssetViewExtraStateGenerators.RemoveAll([&GeneratorHandle](const FAssetViewExtraStateGenerator& Generator) { return Generator.Handle == GeneratorHandle; });
 }
 
-void FContentBrowserModule::ResizeRecentAssetList(FName InName)
+void FContentBrowserModule::ContentBrowserSettingChanged(FName InName)
 {
+	if (UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem())
+	{
+		ContentBrowserData->RefreshVirtualPathTreeIfNeeded();
+	}
+
+	// Resize the recently opened asset list
 	if (InName == NumberOfRecentAssetsName)
 	{
 		RecentlyOpenedAssets->WriteToINI();
 		RecentlyOpenedAssets = MakeUnique<FMainMRUFavoritesList>(TEXT("ContentBrowserRecent"), GetDefault<UContentBrowserSettings>()->NumObjectsInRecentList);
 		RecentlyOpenedAssets->ReadFromINI();
 	}
+
+	OnContentBrowserSettingChanged.Broadcast(InName);
 }

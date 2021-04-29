@@ -1504,10 +1504,10 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 			SCOPE_CYCLE_COUNTER(STAT_TickTime);
 			FWorldDelegates::OnWorldPreActorTick.Broadcast(this, TickType, DeltaSeconds);
 		}
-
-		// Tick level sequence actors first
-		MovieSceneSequenceTick.Broadcast(DeltaSeconds);
 	}
+
+	// Tick level sequence actors first
+	MovieSceneSequenceTick.Broadcast(DeltaSeconds);
 
 #if !UE_SERVER
 	if (MovieSceneSequenceTick.IsBound())

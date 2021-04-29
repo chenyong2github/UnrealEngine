@@ -18,7 +18,11 @@ DECLARE_LOG_CATEGORY_EXTERN(SubSequenceSerialization, Verbose, All);
 
 struct FTakeRecorderSourcesSettings
 {
+	bool bStartAtCurrentTimecode;
+	bool bRecordSourcesIntoSubSequences;
+	bool bRecordToPossessable;
 	bool bSaveRecordedAssets;
+	bool bAutoLock;
 	bool bRemoveRedundantTracks;
 };
 
@@ -89,19 +93,15 @@ public:
 	{
 		return SourcesSerialNumber;
 	}
-	UFUNCTION(BlueprintPure, Category = "Take Recorder")
-	bool GetRecordToSubSequence() const { return bRecordSourcesToSubSequences; }
-	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
-	void SetRecordToSubSequence(bool bValue) { bRecordSourcesToSubSequences = bValue; }
 
-	UFUNCTION(BlueprintPure, Category = "Take Recorder")
-	bool GetStartAtCurrentTimecode() const { return bStartAtCurrentTimecode; }
-	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
-	void SetStartAtCurrentTimecode(bool bValue) { bStartAtCurrentTimecode = bValue; }
+	/** Sources settings from the user and project parameters */
+	FTakeRecorderSourcesSettings GetSettings() const { return Settings; }
+	void SetSettings(FTakeRecorderSourcesSettings& InSettings) { Settings = InSettings; }
 
 	/** Calls the recording initialization flows on each of the specified sources. */
 	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
 	void StartRecordingSource(TArray<UTakeRecorderSource*> InSources, const FTimecode& CurrentTiimecode);
+
 public:
 
 	/**
@@ -111,7 +111,6 @@ public:
 	 * @return A handle to this specific binding that should be passed to UnbindSourcesChanged
 	 */
 	FDelegateHandle BindSourcesChanged(const FSimpleDelegate& Handler);
-
 
 	/**
 	 * Unbind a previously bound handler for when this source list changes
@@ -156,7 +155,7 @@ public:
 	* Stop recording pass
 	*
 	*/
-	void StopRecording(class ULevelSequence* InSequence, FTakeRecorderSourcesSettings TakeRecorderSourcesSettings);
+	void StopRecording(class ULevelSequence* InSequence);
 
 public:
 	/*
@@ -234,11 +233,8 @@ private:
 	/** Non-serialized serial number that is used for updating UI when the source list changes */
 	uint32 SourcesSerialNumber;
 
-	/** Should we record tracks to start at the current timecode? */
-	bool bStartAtCurrentTimecode;
-
-	/** Should we record our sources to Sub Sequences and place them in the master via a Subscenes track? */
-	bool bRecordSourcesToSubSequences;
+	/** Sources settings */
+	FTakeRecorderSourcesSettings Settings;
 
 	/** Manifest Serializer that we are recording into. */
 	FManifestSerializer* CachedManifestSerializer;

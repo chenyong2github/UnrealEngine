@@ -11,6 +11,42 @@
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "NiagaraActions.generated.h"
 
+UENUM()
+enum class ENiagaraMenuSections : uint8
+{
+	Suggested = 0,
+	General = 1
+};
+
+UENUM()
+enum class EScriptSource : uint8
+{
+	Niagara,
+	Game,
+	Plugins,
+	Developer,
+	Unknown
+};
+
+USTRUCT()
+struct NIAGARAEDITOR_API FNiagaraActionSourceData
+{
+	GENERATED_BODY()
+	
+	FNiagaraActionSourceData()
+	{}
+	FNiagaraActionSourceData(const EScriptSource& InSource, const FText& InSourceText, bool bInDisplaySource = false)
+	{
+		Source = InSource;
+		SourceText = InSourceText;
+		bDisplaySource = bInDisplaySource;
+	}	
+	
+	EScriptSource Source = EScriptSource::Unknown;
+	FText SourceText = FText::GetEmpty();
+	bool bDisplaySource = false;	
+};
+
 USTRUCT()
 struct NIAGARAEDITOR_API FNiagaraMenuAction : public FEdGraphSchemaAction
 {
@@ -48,8 +84,114 @@ private:
 	FCanExecuteStackAction CanPerformAction;
 };
 
-struct NIAGARAEDITOR_API FNiagaraScriptVarAndViewInfoAction : public FEdGraphSchemaAction
+// new action hierarchy for the new menus. Prefer inheriting from this rather than the above
+// this action does not have any use; inherit from it and provide your own functionality
+USTRUCT()
+struct NIAGARAEDITOR_API FNiagaraMenuAction_Base
 {
+	GENERATED_USTRUCT_BODY();
+
+	DECLARE_DELEGATE(FOnExecuteAction);
+	DECLARE_DELEGATE_RetVal(bool, FCanExecuteAction);
+
+	FNiagaraMenuAction_Base() {}
+	FNiagaraMenuAction_Base(FText DisplayName, ENiagaraMenuSections Section, TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords);
+
+	void UpdateFullSearchText();
+
+	bool bIsExperimental = false;
+
+	bool bIsInLibrary = true;
+
+	/** Top level section this action belongs to. */
+	ENiagaraMenuSections Section;
+	
+	/** Nested categories below a top level section. Can be empty */
+	TArray<FString> Categories;
+
+	/** The DisplayName used in lists */
+	FText DisplayName;
+
+	/** The Tooltip text for this action */
+	FText ToolTip;
+
+	/** Additional keywords that should be considered for searching */
+	FText Keywords;
+
+	/** Additional data about where this action originates. Useful to display additional data such as the owning module. */
+	FNiagaraActionSourceData SourceData;
+
+	/** A string that combines all kinds of search terms */
+	FString FullSearchString;
+};
+
+USTRUCT()
+struct NIAGARAEDITOR_API FNiagaraMenuAction_Generic : public FNiagaraMenuAction_Base
+{
+	GENERATED_BODY()
+
+	FNiagaraMenuAction_Generic() {}
+
+	FNiagaraMenuAction_Generic(FOnExecuteAction ExecuteAction, FCanExecuteAction InCanExecuteAction,
+		FText InDisplayName, ENiagaraMenuSections Section, TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords)
+    : FNiagaraMenuAction_Base(InDisplayName, Section, InNodeCategories, InToolTip, InKeywords)
+	{
+		Action = ExecuteAction;
+		CanExecuteAction = InCanExecuteAction;
+	}
+
+	FNiagaraMenuAction_Generic(FOnExecuteAction ExecuteAction,
+        FText InDisplayName, ENiagaraMenuSections Section, TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords)
+    : FNiagaraMenuAction_Base(InDisplayName, Section, InNodeCategories, InToolTip, InKeywords)
+	{
+		Action = ExecuteAction;
+	}
+
+	void Execute()
+	{
+		if(CanExecuteAction.IsBound())
+		{
+			if(CanExecuteAction.Execute())
+			{
+				Action.ExecuteIfBound();
+			}
+		}
+		else
+		{
+			Action.ExecuteIfBound();
+		}
+	}
+
+	TOptional<FNiagaraVariable> GetParameterVariable() const;
+	void SetParameterVariable(const FNiagaraVariable& InParameterVariable);
+protected:
+	FOnExecuteAction Action;
+	FCanExecuteAction CanExecuteAction;
+
+	TOptional<FNiagaraVariable> ParameterVariable;
+};
+
+USTRUCT()
+struct NIAGARAEDITOR_API FNiagaraAction_NewNode : public FNiagaraMenuAction_Generic
+{
+	GENERATED_BODY()
+
+	FNiagaraAction_NewNode() {}
+	FNiagaraAction_NewNode(
+		FText InDisplayName, ENiagaraMenuSections Section, TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords)
+		: FNiagaraMenuAction_Generic(FOnExecuteAction(), InDisplayName, Section, InNodeCategories, InToolTip, InKeywords)
+	{		
+	}
+
+	class UEdGraphNode* CreateNode(UEdGraph* Graph, UEdGraphPin* FromPin, FVector2D NodePosition, bool bSelectNewNode = true) const;
+	class UEdGraphNode* CreateNode(UEdGraph* Graph, TArray<UEdGraphPin*>& FromPins, FVector2D NodePosition, bool bSelectNewNode = true) const;
+
+	UPROPERTY()
+	class UEdGraphNode* NodeTemplate = nullptr;
+};
+	
+struct NIAGARAEDITOR_API FNiagaraScriptVarAndViewInfoAction : public FEdGraphSchemaAction
+{	
 	FNiagaraScriptVarAndViewInfoAction(const FNiagaraScriptVariableAndViewInfo& InScriptVariableAndViewInfo,
 		FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, int32 InSectionID = 0);
 

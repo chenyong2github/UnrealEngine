@@ -77,7 +77,8 @@ public:
 
 	// Rewind API
 	virtual int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep) { ensure(false); return INDEX_NONE; }
-	virtual void ApplyCorrections(int32 PhysicsStep, FSimCallbackInput* Input) { ensure(false); }
+	virtual void ApplyCorrections_Internal(int32 PhysicsStep, FSimCallbackInput* Input) { ensure(false); }
+	virtual void FirstPreResimStep_Internal(int32 PhysicsStep) { }
 	
 protected:
 

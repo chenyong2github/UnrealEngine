@@ -269,7 +269,7 @@ public:
 #endif
 
 	/** How often this component is allowed to move, used to make various optimizations. Only safe to set in constructor. */
-	UPROPERTY(Category = Mobility, EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(Category = Mobility, EditAnywhere, BlueprintReadOnly, Replicated)
 	TEnumAsByte<EComponentMobility::Type> Mobility;
 
 	/** If detail mode is >= system detail mode, primitive won't be rendered. */

@@ -78,7 +78,7 @@ public:
 };
 
 /** Stores the results of the import process */
-struct FLidarPointCloudImportResults
+struct LIDARPOINTCLOUDRUNTIME_API FLidarPointCloudImportResults
 {
 public:
 	TArray64<FLidarPointCloudPoint> Points;
@@ -133,7 +133,7 @@ public:
 };
 
 /** Base type implemented by all file handlers. */
-class FLidarPointCloudFileIOHandler
+class LIDARPOINTCLOUDRUNTIME_API FLidarPointCloudFileIOHandler
 {
 protected:
 	/** Used for precision loss check and correction. */

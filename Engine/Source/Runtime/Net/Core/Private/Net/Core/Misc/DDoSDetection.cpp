@@ -172,7 +172,7 @@ void FDDoSDetection::InitConfig()
 
 void FDDoSDetection::UpdateSeverity(bool bEscalate)
 {
-	int32 NewState = FMath::Clamp(ActiveState + (bEscalate ? 1 : -1), 0, DetectionSeverity.Num());
+	int32 NewState = FMath::Clamp(ActiveState + (bEscalate ? 1 : -1), 0, DetectionSeverity.Num()-1);
 
 	if (NewState != ActiveState)
 	{

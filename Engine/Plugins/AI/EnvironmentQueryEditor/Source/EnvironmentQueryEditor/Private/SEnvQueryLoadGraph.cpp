@@ -34,6 +34,7 @@ int32 SEnvQueryLoadGraph::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 
 	LayerId++;
 
+#if USE_EQS_DEBUGGER
 	const float PaddingH = 2.0f;
 	const float PaddingV = 5.0f;
 
@@ -87,5 +88,7 @@ int32 SEnvQueryLoadGraph::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 	}
 
 	LayerId++;
+#endif
+
 	return LayerId;
 }

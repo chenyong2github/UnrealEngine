@@ -896,7 +896,7 @@ void FPythonScriptPlugin::InitializePython()
 		}
 
 		PythonFileDataSource.Reset(NewObject<UContentBrowserFileDataSource>(GetTransientPackage(), "PythonData"));
-		PythonFileDataSource->Initialize("/", PythonFileConfig);
+		PythonFileDataSource->Initialize(PythonFileConfig);
 
 		TArray<FString> RootPaths;
 		FPackageName::QueryRootContentPaths(RootPaths);

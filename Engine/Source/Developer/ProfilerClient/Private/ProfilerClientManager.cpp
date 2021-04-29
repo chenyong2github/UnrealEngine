@@ -201,7 +201,7 @@ void FProfilerClientManager::SetPreviewState(const bool bRequestedPreviewState, 
 #endif
 }
 
-
+#if STATS
 /*-----------------------------------------------------------------------------
 	New read test, still temporary, but around 4x faster
 -----------------------------------------------------------------------------*/
@@ -288,16 +288,18 @@ protected:
 	FProfilerClientManager* ProfilerClientManager;
 	FServiceConnection* LoadConnection;
 };
-
+#endif
 
 void FServiceConnection::LoadCapture(const FString& DataFilepath, FProfilerClientManager* ProfilerClientManager)
 {
+#if STATS
 	StatsReader = FStatsReader<FNewStatsReader>::Create(*DataFilepath);
 	if (StatsReader)
 	{
 		StatsReader->Initialize(ProfilerClientManager, this);
 		StatsReader->ReadAndProcessAsynchronously();
 	}
+#endif
 }
 
 
@@ -441,6 +443,7 @@ FServiceConnection::FServiceConnection()
 
 FServiceConnection::~FServiceConnection()
 {
+#if STATS
 	if (StatsReader)
 	{
 		StatsReader->RequestStop();
@@ -454,6 +457,7 @@ FServiceConnection::~FServiceConnection()
 		delete StatsReader;
 		StatsReader = nullptr;
 	}
+#endif
 
 	for (const auto& It : ReceivedData)
 	{
@@ -844,8 +848,10 @@ void FProfilerClientManager::FinalizeLoading(const FGuid InstanceId)
 	{
 		ProfilerLoadCompletedDelegate.Broadcast(InstanceId);
 		LoadConnection = &Connections.FindChecked(InstanceId);
+#if STATS
 		delete LoadConnection->StatsReader;
 		LoadConnection->StatsReader = nullptr;
+#endif
 		LoadConnection = nullptr;
 		Connections.Remove(InstanceId);
 
@@ -860,8 +866,10 @@ void FProfilerClientManager::CancelLoading(const FGuid InstanceId)
 	{
 		ProfilerLoadCancelledDelegate.Broadcast(InstanceId);
 		LoadConnection = &Connections.FindChecked(InstanceId);
+#if STATS
 		delete LoadConnection->StatsReader;
 		LoadConnection->StatsReader = nullptr;
+#endif
 		LoadConnection = nullptr;
 		Connections.Remove(InstanceId);
 	}

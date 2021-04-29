@@ -28,6 +28,7 @@ struct FFileIoStoreContainerFile
 	EIoContainerFlags ContainerFlags;
 	TArray<FSHAHash> BlockSignatureHashes;
 	TArray<FFileIoStoreContainerFilePartition> Partitions;
+	uint32 ContainerInstanceId = 0;
 
 	void GetPartitionFileHandleAndOffset(uint64 TocOffset, uint64& OutFileHandle, uint64& OutOffset) const
 	{
@@ -99,6 +100,13 @@ struct FFileIoStoreCompressedBlock
 
 struct FFileIoStoreReadRequest
 {
+	enum EQueueStatus
+	{
+		QueueStatus_NotInQueue,
+		QueueStatus_InQueue,
+		QueueStatus_Started
+	};
+
 	FFileIoStoreReadRequest()
 		: Sequence(NextSequence++)
 	{
@@ -119,6 +127,7 @@ struct FFileIoStoreReadRequest
 	bool bIsCacheable = false;
 	bool bFailed = false;
 	bool bCancelled = false;
+	EQueueStatus QueueStatus = QueueStatus_NotInQueue;
 
 private:
 	static uint32 NextSequence;
@@ -239,6 +248,9 @@ public:
 	void Push(FFileIoStoreReadRequest& Request);
 	void Push(const FFileIoStoreReadRequestList& Requests);
 	void UpdateOrder();
+	void Lock();
+	void Unlock();
+	void CancelRequestsWithFileHandle(uint64 FileHandle);
 
 private:
 	static bool QueueSortFunc(const FFileIoStoreReadRequest& A, const FFileIoStoreReadRequest& B)
@@ -343,14 +355,12 @@ public:
 	FFileIoStoreResolvedRequest* AllocResolvedRequest(
 		FIoRequestImpl& InDispatcherRequest,
 		const FFileIoStoreContainerFile& InContainerFile,
-		uint32 InContainerFileIndex,
 		uint64 InResolvedOffset,
 		uint64 InResolvedSize)
 	{
 		return ResolvedRequestAllocator.Construct(
 			InDispatcherRequest,
 			InContainerFile,
-			InContainerFileIndex,
 			InResolvedOffset,
 			InResolvedSize);
 	}
@@ -408,18 +418,12 @@ public:
 	FFileIoStoreResolvedRequest(
 		FIoRequestImpl& InDispatcherRequest,
 		const FFileIoStoreContainerFile& InContainerFile,
-		uint32 InContainerFileIndex,
 		uint64 InResolvedOffset,
 		uint64 InResolvedSize);
 
 	const FFileIoStoreContainerFile& GetContainerFile() const
 	{
 		return ContainerFile;
-	}
-
-	uint32 GetContainerFileIndex() const
-	{
-		return ContainerFileIndex;
 	}
 
 	uint64 GetResolvedOffset() const
@@ -434,26 +438,28 @@ public:
 
 	int32 GetPriority() const
 	{
-		return DispatcherRequest.Priority;
+		check(DispatcherRequest);
+		return DispatcherRequest->Priority;
 	}
 
 	FIoBuffer& GetIoBuffer()
 	{
-		return DispatcherRequest.IoBuffer;
+		check(DispatcherRequest);
+		return DispatcherRequest->IoBuffer;
 	}
 
 	void AddReadRequestLink(FFileIoStoreReadRequestLink* ReadRequestLink);
 
 private:
-	FIoRequestImpl& DispatcherRequest;
+	FIoRequestImpl* DispatcherRequest = nullptr;
 	const FFileIoStoreContainerFile& ContainerFile;
 	FFileIoStoreReadRequestLink* ReadRequestsHead = nullptr;
 	FFileIoStoreReadRequestLink* ReadRequestsTail = nullptr;
 	const uint64 ResolvedOffset;
 	const uint64 ResolvedSize;
-	const uint32 ContainerFileIndex;
 	uint32 UnfinishedReadsCount = 0;
 	bool bFailed = false;
+	bool bCancelled = false;
 
 	friend class FFileIoStore;
 	friend class FFileIoStoreRequestTracker;

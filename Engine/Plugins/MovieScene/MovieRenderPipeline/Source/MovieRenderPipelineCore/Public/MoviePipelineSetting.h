@@ -60,7 +60,7 @@ public:
 	// ~UObject Interface
 
 	// Post Finalize Export
-	bool HasFinishedExporting() const { return HasFinishedExportingImpl(); }
+	bool HasFinishedExporting() { return HasFinishedExportingImpl(); }
 	void BeginExport() { BeginExportImpl(); }
 	// ~Post Finalize Export
 
@@ -125,7 +125,7 @@ public:
 	virtual void SetIsEnabled(bool bInEnabled) { bEnabled = bInEnabled; }
 
 	/** Has this setting finished any export-related things it needs to do post-finalize? */
-	virtual bool HasFinishedExportingImpl() const { return true; }
+	virtual bool HasFinishedExportingImpl() { return true; }
 	/** Called once when all files have been finalized. */
 	virtual void BeginExportImpl() { }
 	

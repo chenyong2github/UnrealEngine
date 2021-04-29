@@ -5,7 +5,11 @@
 #include "EditorFramework/AssetImportData.h"
 #include "GroomAsset.h"
 #include "GroomAssetImportData.h"
+#include "GroomCache.h"
+#include "GroomCacheData.h"
+#include "GroomCacheImporter.h"
 #include "GroomImportOptions.h"
+#include "GroomCacheImportOptions.h"
 #include "GroomBuilder.h"
 #include "GroomImportOptionsWindow.h"
 #include "HairDescription.h"
@@ -33,6 +37,7 @@ UHairStrandsFactory::UHairStrandsFactory(const FObjectInitializer& ObjectInitial
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		ImportOptions = NewObject<UGroomImportOptions>();
+		GroomCacheImportOptions = NewObject<UGroomCacheImportOptions>();
 
 		InitTranslators();
 	}
@@ -73,6 +78,7 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 		return nullptr;
 	}
 
+	FGroomAnimationInfo AnimInfo;
 	{
 		// Load the alembic file upfront to preview & report any potential issue
 		FHairDescriptionGroups OutDescription;
@@ -81,7 +87,7 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 			Progress.MakeDialog(true);
 
 			FHairDescription HairDescription;
-			if (!SelectedTranslator->Translate(Filename, HairDescription, ImportOptions->ConversionSettings))
+			if (!SelectedTranslator->Translate(Filename, HairDescription, ImportOptions->ConversionSettings, &AnimInfo))
 			{
 				return nullptr;
 			}
@@ -114,10 +120,13 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 			}
 		}
 
+		// GroomCache options are only shown if there's a valid groom animation
+		GroomCacheImportOptions->ImportSettings.bImportGroomCache = GroomCacheImportOptions->ImportSettings.bImportGroomCache && AnimInfo.IsValid();
+
 		if (!GIsRunningUnattendedScript && !IsAutomatedImport())
 		{
 			// Display import options and handle user cancellation
-			TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayImportOptions(ImportOptions, GroupsPreview, Filename);
+			TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayImportOptions(ImportOptions, GroomCacheImportOptions, GroupsPreview, Filename);
 			if (!GroomOptionWindow->ShouldImport())
 			{
 				bOutOperationCanceled = true;
@@ -153,19 +162,57 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 		ExistingAsset->SetNumGroup(0);
 	}
 
+	UObject* CurrentAsset = nullptr;
+	UGroomAsset* GroomAssetForCache = nullptr;
 	FHairImportContext HairImportContext(ImportOptions, InParent, InClass, InName, Flags);
-	UGroomAsset* CurrentAsset = FHairStrandsImporter::ImportHair(HairImportContext, HairDescription, ExistingAsset);
-	if (CurrentAsset)
+	if (GroomCacheImportOptions->ImportSettings.bImportGroomAsset)
 	{
-		// Setup asset import data
-		if (!CurrentAsset->AssetImportData || !CurrentAsset->AssetImportData->IsA<UGroomAssetImportData>())
+		UGroomAsset* ImportedAsset = FHairStrandsImporter::ImportHair(HairImportContext, HairDescription, ExistingAsset);
+		if (ImportedAsset)
 		{
-			CurrentAsset->AssetImportData = NewObject<UGroomAssetImportData>(CurrentAsset);
-		}
-		CurrentAsset->AssetImportData->Update(Filename);
+			// Setup asset import data
+			if (!ImportedAsset->AssetImportData || !ImportedAsset->AssetImportData->IsA<UGroomAssetImportData>())
+			{
+				ImportedAsset->AssetImportData = NewObject<UGroomAssetImportData>(ImportedAsset);
+			}
+			ImportedAsset->AssetImportData->Update(Filename);
 
-		UGroomAssetImportData* GroomAssetImportData = Cast<UGroomAssetImportData>(CurrentAsset->AssetImportData);
-		GroomAssetImportData->ImportOptions = DuplicateObject<UGroomImportOptions>(ImportOptions, GroomAssetImportData);
+			UGroomAssetImportData* GroomAssetImportData = Cast<UGroomAssetImportData>(ImportedAsset->AssetImportData);
+			GroomAssetImportData->ImportOptions = DuplicateObject<UGroomImportOptions>(ImportOptions, GroomAssetImportData);
+
+			GroomAssetForCache = ImportedAsset;
+			CurrentAsset = ImportedAsset;
+		}
+	}
+	else
+	{
+		GroomAssetForCache = Cast<UGroomAsset>(GroomCacheImportOptions->ImportSettings.GroomAsset.TryLoad());
+	}
+
+	if (GroomCacheImportOptions->ImportSettings.bImportGroomCache && GroomAssetForCache)
+	{
+		// Compute the duration as it is not known yet
+		AnimInfo.Duration = AnimInfo.NumFrames * AnimInfo.SecondsPerFrame;
+
+		TArray<UGroomCache*> GroomCaches = FGroomCacheImporter::ImportGroomCache(Filename, SelectedTranslator, AnimInfo, HairImportContext, GroomAssetForCache);
+
+		// Setup asset import data
+		for (UGroomCache* GroomCache : GroomCaches)
+		{
+			if (!GroomCache->AssetImportData || !GroomCache->AssetImportData->IsA<UGroomCacheImportData>())
+			{
+				UGroomCacheImportData* ImportData = NewObject<UGroomCacheImportData>(GroomCache);
+				ImportData->Settings = GroomCacheImportOptions->ImportSettings;
+				GroomCache->AssetImportData = ImportData;
+			}
+			GroomCache->AssetImportData->Update(Filename);
+		}
+
+		// GroomAsset was not imported so return one of the GroomCache as the asset that was created
+		if (!CurrentAsset && GroomCaches.Num() > 0)
+		{
+			CurrentAsset = GroomCaches[0];
+		}
 	}
 
 	return CurrentAsset;

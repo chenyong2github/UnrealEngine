@@ -152,6 +152,9 @@ void FParameterStoreSnapshot::AddParam(FName Name, Reflect::ESerialMethod Storag
 	SnapParam.StorageMethod = StorageMethod;
 	FMemoryWriter Ar(SnapParam.Buffer);
 	Reflect::SerialAny(Ar, StorageLocation, StorageMethod);
+	// #ue_directlink_optim: measures shows a mean alloc size of <20 bytes...
+	// one buffer per property is clearly an aweful structure perfwise.
+	// one buffer for the whole store could be a solution
 }
 
 FElementHash FParameterStoreSnapshot::Hash() const

@@ -2,6 +2,12 @@
 
 #pragma once
 
+// #TODO: redirect to platform-agnostic version for the time being. Eventually this will become an error
+#include "HAL/Platform.h"
+#if !PLATFORM_WINDOWS && !PLATFORM_HOLOLENS
+	#include "Microsoft/MinWindows.h"
+#else
+
 #include "CoreTypes.h"
 
 #if defined(_WINDOWS_) && !defined(UE_MINIMAL_WINDOWS_INCLUDE)
@@ -67,4 +73,5 @@ struct IUnknown;
 // Finally now we can include windows.h
 #include <Windows.h>
 
-#undef GetFreeSpace
+
+#endif //PLATFORM_*

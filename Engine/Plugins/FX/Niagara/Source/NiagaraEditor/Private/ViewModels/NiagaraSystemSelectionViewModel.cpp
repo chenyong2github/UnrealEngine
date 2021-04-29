@@ -362,25 +362,29 @@ void FindStackGroupsAndItemsForDisplayedObjectKeysRecursive(UNiagaraStackEntry* 
 
 void UNiagaraSystemSelectionViewModel::Tick()
 {
-	TArray<UNiagaraStackEntry*> FoundStackEntries;
-	TSharedRef<FNiagaraSystemViewModel> SystemViewModel = GetSystemViewModel();
-	FindStackGroupsAndItemsForDisplayedObjectKeysRecursive(SystemViewModel->GetSystemStackViewModel()->GetRootEntry(), DeferredDisplayedObjectKeysToAddToSelection, FoundStackEntries);
-	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterViewModel : SystemViewModel->GetEmitterHandleViewModels())
-	{
-		FindStackGroupsAndItemsForDisplayedObjectKeysRecursive(EmitterViewModel->GetEmitterStackViewModel()->GetRootEntry(), DeferredDisplayedObjectKeysToAddToSelection, FoundStackEntries);
-	}
-
 	bool bSelectionChanged = false;
-	for (UNiagaraStackEntry* FoundStackEntry : FoundStackEntries)
-	{
-		if (ContainsEntry(FoundStackEntry) == false)
-		{
-			SelectionEntries.Add(FSelectionEntry(FoundStackEntry));
-			bSelectionChanged = true;
-		}
-	}
 
-	DeferredDisplayedObjectKeysToAddToSelection.Empty();
+	if(DeferredDisplayedObjectKeysToAddToSelection.Num() > 0)
+	{
+		TArray<UNiagaraStackEntry*> FoundStackEntries;
+		TSharedRef<FNiagaraSystemViewModel> SystemViewModel = GetSystemViewModel();
+		FindStackGroupsAndItemsForDisplayedObjectKeysRecursive(SystemViewModel->GetSystemStackViewModel()->GetRootEntry(), DeferredDisplayedObjectKeysToAddToSelection, FoundStackEntries);
+		for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterViewModel : SystemViewModel->GetEmitterHandleViewModels())
+		{
+			FindStackGroupsAndItemsForDisplayedObjectKeysRecursive(EmitterViewModel->GetEmitterStackViewModel()->GetRootEntry(), DeferredDisplayedObjectKeysToAddToSelection, FoundStackEntries);
+		}
+
+		for (UNiagaraStackEntry* FoundStackEntry : FoundStackEntries)
+		{
+			if (ContainsEntry(FoundStackEntry) == false)
+			{
+				SelectionEntries.Add(FSelectionEntry(FoundStackEntry));
+				bSelectionChanged = true;
+			}
+		}
+
+		DeferredDisplayedObjectKeysToAddToSelection.Empty();
+	}
 
 	bool bHasBeenRefreshed = false;
 	if (bRefreshIsPending)

@@ -90,7 +90,7 @@ namespace Audio
 		virtual void OnHardwareUpdate() override;
 		//~ End IAudioMixerPlatformInterface
 
-		//~ Begin IAudioMixerDeviceChangedLister
+		//~ Begin IAudioMixerDeviceChangedListener
 		virtual void RegisterDeviceChangedListener() override;
 		virtual void UnregisterDeviceChangedListener() override;
 		virtual void OnDefaultCaptureDeviceChanged(const EAudioDeviceRole InAudioDeviceRole, const FString& DeviceId) override;
@@ -99,7 +99,7 @@ namespace Audio
 		virtual void OnDeviceRemoved(const FString& DeviceId) override;
 		virtual void OnDeviceStateChanged(const FString& DeviceId, const EAudioDeviceState InState) override;
 		virtual FString GetDeviceId() const override;
-		//~ End IAudioMixerDeviceChangedLister
+		//~ End IAudioMixerDeviceChangedListener
 
 	private:
 

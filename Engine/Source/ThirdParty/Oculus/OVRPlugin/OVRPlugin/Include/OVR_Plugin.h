@@ -33,7 +33,7 @@ extern "C" {
 #endif
 
 /// Initializes the Oculus display driver before graphics initialization, if applicable.
-OVRP_EXPORT ovrpResult ovrp_PreInitialize3(void* activity);
+OVRP_EXPORT ovrpResult ovrp_PreInitialize4(void* activity, ovrpRenderAPIType apiType);
 
 /// Gets the current initialization state of the Oculus runtime, VR tracking, and graphics
 /// resources.

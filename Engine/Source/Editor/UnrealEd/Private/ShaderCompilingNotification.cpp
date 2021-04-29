@@ -19,7 +19,7 @@ public:
 protected:
 	virtual bool AllowedToStartNotification() const override
 	{
-		return GShaderCompilingManager->ShouldDisplayCompilingNotification();
+		return AllowShaderCompiling() && GShaderCompilingManager->ShouldDisplayCompilingNotification();
 	}
 	virtual int32 UpdateProgress()
 	{

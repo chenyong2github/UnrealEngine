@@ -26,6 +26,11 @@ public:
 	virtual bool RayIntersectAdapter(UE::Geometry::FIndex3i& HitTriangle, FVector& HitPosition, const FVector Start, const FVector End) const override;
 	/** End IMeshPaintGeometryAdapter Overrides */
 
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FBaseMeshPaintComponentAdapter");
+	}
+
 	virtual bool InitializeVertexData() = 0;
 protected:
 	bool BuildOctree();

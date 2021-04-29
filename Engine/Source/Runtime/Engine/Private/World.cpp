@@ -1756,19 +1756,14 @@ void UWorld::InitWorld(const InitializationValues IVS)
 		}
 	}
 
-	// invalidate lighting if VT is enabled but no valid data is present
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
-	const bool bUseVirtualTextures = (CVar->GetValueOnAnyThread() != 0) && UseVirtualTexturing(FeatureLevel);
-	if (bUseVirtualTextures)
+	// invalidate lighting if VT is enabled but no valid VT data is present or VT is disabled and no valid non-VT data is present.
+	for (auto Level : Levels) //Note: PersistentLevel is part of this array
 	{
-		for (auto Level : Levels) //Note: PersistentLevel is part of this array
+		if (Level && Level->MapBuildData)
 		{
-			if (Level && Level->MapBuildData)
+			if (Level->MapBuildData->IsLightingValid(FeatureLevel) == false)
 			{
-				if (Level->MapBuildData->IsVTLightingValid() == false)
-				{
-					Level->MapBuildData->InvalidateSurfaceLightmaps(this);
-				}
+				Level->MapBuildData->InvalidateSurfaceLightmaps(this);
 			}
 		}
 	}

@@ -10,7 +10,7 @@
 #include "Containers/UnrealString.h"
 
 #ifndef WITH_ADDITIONAL_CRASH_CONTEXTS
-#define WITH_ADDITIONAL_CRASH_CONTEXTS 0
+#define WITH_ADDITIONAL_CRASH_CONTEXTS 1
 #endif
 
 struct FProgramCounterSymbolInfo;
@@ -121,7 +121,7 @@ enum class ECrashTrigger
 #define CR_MAX_GENERIC_FIELD_CHARS 64
 #define CR_MAX_COMMANDLINE_CHARS 1024
 #define CR_MAX_RICHTEXT_FIELD_CHARS 512
-#define CR_MAX_DYNAMIC_BUFFER_CHARS 1024*16
+#define CR_MAX_DYNAMIC_BUFFER_CHARS 1024*32
 
 /**
  * Fixed size structure that holds session specific state.
@@ -153,6 +153,7 @@ struct FSessionContext
 	TCHAR 					RootDir[CR_MAX_DIRECTORY_CHARS];
 	TCHAR 					EpicAccountId[CR_MAX_GENERIC_FIELD_CHARS];
 	TCHAR 					LoginIdStr[CR_MAX_GENERIC_FIELD_CHARS];
+	TCHAR					SymbolsLabel[CR_MAX_GENERIC_FIELD_CHARS];
 	TCHAR 					OsVersion[CR_MAX_GENERIC_FIELD_CHARS];
 	TCHAR 					OsSubVersion[CR_MAX_GENERIC_FIELD_CHARS];
 	TCHAR 					CPUVendor[CR_MAX_GENERIC_FIELD_CHARS];

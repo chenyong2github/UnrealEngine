@@ -45,7 +45,6 @@
 	#error Exactly one of [UE_BUILD_DEBUG UE_BUILD_DEVELOPMENT UE_BUILD_TEST UE_BUILD_SHIPPING] should be defined to be 1
 #endif
 
-
 /*--------------------------------------------------------------------------------
 	Legacy defined we want to make sure don't compile if they came in a merge.
 --------------------------------------------------------------------------------*/
@@ -81,6 +80,13 @@
 #ifndef WITH_UNREAL_DEVELOPER_TOOLS
 	#define WITH_UNREAL_DEVELOPER_TOOLS		0	// for auto-complete
 	#error UBT should always define WITH_UNREAL_DEVELOPER_TOOLS to be 0 or 1
+#endif
+
+ /**
+  *	Whether we are compiling with developer tools that may use other platforms or external connected devices, etc
+  */
+#ifndef WITH_UNREAL_TARGET_DEVELOPER_TOOLS
+	#define WITH_UNREAL_TARGET_DEVELOPER_TOOLS		WITH_UNREAL_DEVELOPER_TOOLS // a subset of WITH_UNREAL_DEVELOPER_TOOLS, but can be disabled separately
 #endif
 
 /**
@@ -301,50 +307,26 @@
 		#define NO_LOGGING										!USE_LOGGING_IN_SHIPPING
 	#endif
 #elif UE_BUILD_SHIPPING
-	#if WITH_EDITOR
-		#ifndef DO_GUARD_SLOW
-			#define DO_GUARD_SLOW								0
-		#endif
-		#ifndef DO_CHECK
-			#define DO_CHECK									1
-		#endif
-		#ifndef DO_ENSURE
-			#define DO_ENSURE									1
-		#endif
-		#ifndef STATS
-			#define STATS										1
-		#endif
-		#ifndef ALLOW_DEBUG_FILES
-			#define ALLOW_DEBUG_FILES							1
-		#endif
-		#ifndef ALLOW_CONSOLE
-			#define ALLOW_CONSOLE								0
-		#endif
-		#ifndef NO_LOGGING
-			#define NO_LOGGING									0
-		#endif
-	#else
-		#ifndef DO_GUARD_SLOW
-			#define DO_GUARD_SLOW								0
-		#endif
-		#ifndef DO_CHECK
-			#define DO_CHECK									USE_CHECKS_IN_SHIPPING
-		#endif
-		#ifndef DO_ENSURE
-			#define DO_ENSURE									USE_ENSURES_IN_SHIPPING
-		#endif
-		#ifndef STATS
-			#define STATS										(FORCE_USE_STATS && !ENABLE_STATNAMEDEVENTS)
-		#endif
-		#ifndef ALLOW_DEBUG_FILES
-			#define ALLOW_DEBUG_FILES							0
-		#endif
-		#ifndef ALLOW_CONSOLE
-			#define ALLOW_CONSOLE								ALLOW_CONSOLE_IN_SHIPPING
-		#endif
-		#ifndef NO_LOGGING
-			#define NO_LOGGING									!USE_LOGGING_IN_SHIPPING
-		#endif
+	#ifndef DO_GUARD_SLOW
+		#define DO_GUARD_SLOW								0
+	#endif
+	#ifndef DO_CHECK
+		#define DO_CHECK									USE_CHECKS_IN_SHIPPING
+	#endif
+	#ifndef DO_ENSURE
+		#define DO_ENSURE									USE_ENSURES_IN_SHIPPING
+	#endif
+	#ifndef STATS
+		#define STATS										(FORCE_USE_STATS && !ENABLE_STATNAMEDEVENTS)
+	#endif
+	#ifndef ALLOW_DEBUG_FILES
+		#define ALLOW_DEBUG_FILES							WITH_EDITOR
+	#endif
+	#ifndef ALLOW_CONSOLE
+		#define ALLOW_CONSOLE								ALLOW_CONSOLE_IN_SHIPPING
+	#endif
+	#ifndef NO_LOGGING
+		#define NO_LOGGING									!USE_LOGGING_IN_SHIPPING
 	#endif
 #else
 	#error Exactly one of [UE_BUILD_DEBUG UE_BUILD_DEVELOPMENT UE_BUILD_TEST UE_BUILD_SHIPPING] should be defined to be 1

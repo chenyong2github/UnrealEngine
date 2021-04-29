@@ -60,6 +60,10 @@ public:
 
 	/** Begin FGCObject overrides*/
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FEditorSessionSourceFilterService");
+	}
 	/** End FGCObject overrides */
 
 protected:

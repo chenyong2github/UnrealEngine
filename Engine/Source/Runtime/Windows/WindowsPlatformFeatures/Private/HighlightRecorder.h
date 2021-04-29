@@ -38,14 +38,14 @@ public:
 		return bSaving;
 	}
 
-	using FDoneCallback = TFunction<void(bool)>;
+	using FDoneCallback = TFunction<void(bool /* bSuccess */, const FString& /* FullPathToFile */)>;
 	bool SaveHighlight(const TCHAR* Filename, FDoneCallback DoneCallback, double MaxDurationSecs = 1.0 * 60 * 60);
 
 private:
 	bool SaveHighlightInBackground(const FString& Filename, double MaxDurationSecs);
 	bool SaveHighlightInBackgroundImpl(const FString& Filename, double MaxDurationSecs);
 	bool InitialiseMp4Writer(const FString& Filename, bool bHasAudio);
-	bool GetSavingStart(const TArray<AVEncoder::FAVPacket>& Samples, FTimespan MaxDuration, int& OutStartIndex, FTimespan& OutStartTime) const;
+	bool GetSavingStart(const TArray<AVEncoder::FMediaPacket>& Samples, FTimespan MaxDuration, int& OutStartIndex, FTimespan& OutStartTime) const;
 
 	// takes into account if we've been paused and shifts current time back to compensate paused state
 	// so all timestamps are continuous even over paused pieces
@@ -54,7 +54,7 @@ private:
 	//
 	// IGameplayMediaEncoderListener implementation
 	//
-	void OnMediaSample(const AVEncoder::FAVPacket& Sample) override;
+	void OnMediaSample(const AVEncoder::FMediaPacket& Sample) override;
 
 private:
 	TAtomic<EState> State{ EState::Stopped };
@@ -165,7 +165,7 @@ public:
 
 		Get()->SaveHighlight(
 			*Filename,
-			[](bool bRes)
+			[](bool bRes, const FString& InFullPathToFile)
 			{
 				UE_LOG(HighlightRecorder, Log, TEXT("saving done: %d"), bRes);
 			},

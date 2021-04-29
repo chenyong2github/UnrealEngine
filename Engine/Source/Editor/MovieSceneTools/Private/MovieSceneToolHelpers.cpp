@@ -1280,28 +1280,6 @@ void ImportTransformChannelToInteger(const FRichCurve& Source, FMovieSceneIntege
 	}
 }
 
-
-
-//TArrayView<FMovieSceneFloatChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-/*
-UMovieScene3DTransformTrack* TransformTrack = InMovieScene->FindTrack<UMovieScene3DTransformTrack>(ObjectBinding);
-	if (!TransformTrack)
-	{
-		InMovieScene->Modify();
-		TransformTrack = InMovieScene->AddTrack<UMovieScene3DTransformTrack>(ObjectBinding);
-	}
-	TransformTrack->Modify();
-
-	bool bSectionAdded = false;
-	UMovieScene3DTransformSection* TransformSection = Cast<UMovieScene3DTransformSection>(TransformTrack->FindOrAddSection(0, bSectionAdded));
-	if (!TransformSection)
-	{
-		return false;
-	}
-		FFrameRate FrameRate = TransformSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
-
-*/
-
 void SetChannelValue(FMovieSceneFloatChannel* Channel, FMovieSceneBoolChannel *BoolChannel, FMovieSceneByteChannel *EnumChannel, FMovieSceneIntegerChannel* IntegerChannel,
 	FFrameRate FrameRate, FFrameNumber StartFrame,
 	FControlRigChannelEnum ChannelEnum, UMovieSceneUserImportFBXControlRigSettings* ImportFBXControlRigSettings,
@@ -1693,7 +1671,7 @@ static bool ImportFBXTransformToChannels(FString NodeName, FFrameNumber StartFra
 	FRichCurve Scale[3];
 	FTransform DefaultTransform;
 	const bool bUseSequencerCurve = true;
-	CurveAPI.GetConvertedTransformCurveData(NodeName, Translation[0], Translation[1], Translation[2], EulerRotation[0], EulerRotation[1], EulerRotation[2], Scale[0], Scale[1], Scale[2], DefaultTransform, true);
+	CurveAPI.GetConvertedTransformCurveData(NodeName, Translation[0], Translation[1], Translation[2], EulerRotation[0], EulerRotation[1], EulerRotation[2], Scale[0], Scale[1], Scale[2], DefaultTransform, true, ImportFBXSettings->ImportUniformScale);
 
 
 	FVector Location = DefaultTransform.GetLocation(), Rotation = DefaultTransform.GetRotation().Euler(), Scale3D = DefaultTransform.GetScale3D();
@@ -2231,12 +2209,14 @@ bool MovieSceneToolHelpers::ImportFBXIntoControlRigChannels(UMovieScene* MovieSc
 	bool bOldbConvertScene = ImportOptions->bConvertScene;
 	bool bOldbConvertSceneUnit = ImportOptions->bConvertSceneUnit;
 	bool bOldbForceFrontXAxis = ImportOptions->bForceFrontXAxis;
+	float OldUniformScale = ImportOptions->ImportUniformScale;
 	EFBXAnimationLengthImportType OldAnimLengthType = ImportOptions->AnimationLengthImportType;
 
 
 	ImportOptions->bConvertScene = true;
-	ImportOptions->bConvertSceneUnit = true;
+	ImportOptions->bConvertSceneUnit = ImportFBXControlRigSettings->bConvertSceneUnit;
 	ImportOptions->bForceFrontXAxis = ImportFBXControlRigSettings->bForceFrontXAxis;
+	ImportOptions->ImportUniformScale = ImportFBXControlRigSettings->ImportUniformScale;
 	ImportOptions->AnimationLengthImportType = FBXALIT_ExportedTime;
 
 	const FString FileExtension = FPaths::GetExtension(ImportFilename);
@@ -2255,7 +2235,9 @@ bool MovieSceneToolHelpers::ImportFBXIntoControlRigChannels(UMovieScene* MovieSc
 		FObjectWriter(CurrentImportFBXSettings, OriginalSettings);
 
 		CurrentImportFBXSettings->bMatchByNameOnly = false;
+		CurrentImportFBXSettings->bConvertSceneUnit = ImportFBXControlRigSettings->bConvertSceneUnit;
 		CurrentImportFBXSettings->bForceFrontXAxis = ImportFBXControlRigSettings->bForceFrontXAxis;
+		CurrentImportFBXSettings->ImportUniformScale = ImportFBXControlRigSettings->ImportUniformScale;
 		CurrentImportFBXSettings->bCreateCameras = false;
 		CurrentImportFBXSettings->bReduceKeys = false;
 		CurrentImportFBXSettings->ReduceKeysTolerance = 0.01f;
@@ -2349,7 +2331,7 @@ bool MovieSceneToolHelpers::ImportFBXIntoControlRigChannels(UMovieScene* MovieSc
 	ImportOptions->bConvertScene = bOldbConvertScene;
 	ImportOptions->bConvertSceneUnit = bOldbConvertSceneUnit;
 	ImportOptions->bForceFrontXAxis = bOldbForceFrontXAxis;
-	ImportOptions->bForceFrontXAxis = bOldbForceFrontXAxis;
+	ImportOptions->ImportUniformScale = OldUniformScale;;
 	return bValid;
 }
 
@@ -2442,7 +2424,6 @@ bool MovieSceneToolHelpers::ImportFBXIntoChannelsWithDialog(const TSharedRef<ISe
 	return true;
 
 }
-
 bool ImportFBXTransform(FString NodeName, FGuid ObjectBinding, UnFbx::FFbxCurvesAPI& CurveAPI, UMovieSceneSequence* InSequence)
 {
 	UMovieScene* MovieScene = InSequence->GetMovieScene();
@@ -2455,7 +2436,7 @@ bool ImportFBXTransform(FString NodeName, FGuid ObjectBinding, UnFbx::FFbxCurves
 	FRichCurve Scale[3];
 	FTransform DefaultTransform;
 	const bool bUseSequencerCurve = true;
-	CurveAPI.GetConvertedTransformCurveData(NodeName, Translation[0], Translation[1], Translation[2], EulerRotation[0], EulerRotation[1], EulerRotation[2], Scale[0], Scale[1], Scale[2], DefaultTransform, bUseSequencerCurve);
+	CurveAPI.GetConvertedTransformCurveData(NodeName, Translation[0], Translation[1], Translation[2], EulerRotation[0], EulerRotation[1], EulerRotation[2], Scale[0], Scale[1], Scale[2], DefaultTransform, bUseSequencerCurve, ImportFBXSettings->ImportUniformScale);
 
  	UMovieScene3DTransformTrack* TransformTrack = MovieScene->FindTrack<UMovieScene3DTransformTrack>(ObjectBinding); 
 	if (!TransformTrack)
@@ -2466,7 +2447,19 @@ bool ImportFBXTransform(FString NodeName, FGuid ObjectBinding, UnFbx::FFbxCurves
 	TransformTrack->Modify();
 
 	bool bSectionAdded = false;
-	UMovieScene3DTransformSection* TransformSection = Cast<UMovieScene3DTransformSection>(TransformTrack->FindOrAddSection(0, bSectionAdded));
+	UMovieScene3DTransformSection* TransformSection = Cast<UMovieScene3DTransformSection>(TransformTrack->FindSection(0));
+	if (TransformSection && !ImportFBXSettings->bReplaceTransformTrack)
+	{
+		TransformSection = Cast<UMovieScene3DTransformSection>(TransformTrack->CreateNewSection());
+		TransformSection->SetRowIndex(TransformTrack->GetMaxRowIndex()+1);
+		TransformTrack->AddSection(*TransformSection);
+		bSectionAdded = true;
+	}
+	else
+	{
+		TransformSection = Cast<UMovieScene3DTransformSection>(TransformTrack->FindOrAddSection(0, bSectionAdded));
+	}
+
 	if (!TransformSection)
 	{
 		return false;
@@ -3025,6 +3018,10 @@ class SMovieSceneImportFBXSettings : public SCompoundWidget, public FGCObject
 	{
 		Collector.AddReferencedObject(Sequence);
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SMovieSceneImportFBXSettings");
+	}
 
 	void SetObjectBindingMap(const TMap<FGuid, FString>& InObjectBindingMap)
 	{
@@ -3094,11 +3091,13 @@ bool MovieSceneToolHelpers::ReadyFBXForImport(const FString&  ImportFilename, UM
 	OutParams.bConvertSceneBackup = ImportOptions->bConvertScene;
 	OutParams.bConvertSceneUnitBackup = ImportOptions->bConvertSceneUnit;
 	OutParams.bForceFrontXAxisBackup = ImportOptions->bForceFrontXAxis;
+	OutParams.ImportUniformScaleBackup = ImportOptions->ImportUniformScale;
 
 	ImportOptions->bIsImportCancelable = false;
 	ImportOptions->bConvertScene = true;
-	ImportOptions->bConvertSceneUnit = true;
+	ImportOptions->bConvertSceneUnit = ImportFBXSettings->bConvertSceneUnit;
 	ImportOptions->bForceFrontXAxis = ImportFBXSettings->bForceFrontXAxis;
+	ImportOptions->ImportUniformScale = ImportFBXSettings->ImportUniformScale;
 
 	const FString FileExtension = FPaths::GetExtension(ImportFilename);
 	if (!FbxImporter->ImportFromFile(*ImportFilename, FileExtension, true))
@@ -3108,6 +3107,7 @@ bool MovieSceneToolHelpers::ReadyFBXForImport(const FString&  ImportFilename, UM
 		ImportOptions->bConvertScene = OutParams.bConvertSceneBackup;
 		ImportOptions->bConvertSceneUnit = OutParams.bConvertSceneUnitBackup;
 		ImportOptions->bForceFrontXAxis = OutParams.bForceFrontXAxisBackup;
+		ImportOptions->ImportUniformScale = OutParams.ImportUniformScaleBackup;
 		return false;
 	}
 	return true;
@@ -3126,6 +3126,9 @@ bool ImportFBXOntoControlRigs(UWorld* World, UMovieScene* MovieScene, IMovieScen
 	CurrentImportFBXSettings->bCreateCameras = ImportFBXSettings->bCreateCameras;
 	CurrentImportFBXSettings->bReduceKeys = ImportFBXSettings->bReduceKeys;
 	CurrentImportFBXSettings->ReduceKeysTolerance = ImportFBXSettings->ReduceKeysTolerance;
+	CurrentImportFBXSettings->bConvertSceneUnit = ImportFBXSettings->bConvertSceneUnit;
+	CurrentImportFBXSettings->ImportUniformScale = ImportFBXSettings->ImportUniformScale;
+
 
 	UnFbx::FFbxImporter* FbxImporter = UnFbx::FFbxImporter::GetInstance();
 
@@ -3146,7 +3149,8 @@ bool MovieSceneToolHelpers::ImportFBXIfReady(UWorld* World, UMovieSceneSequence*
 	CurrentImportFBXSettings->bCreateCameras = ImportFBXSettings->bCreateCameras;
 	CurrentImportFBXSettings->bReduceKeys = ImportFBXSettings->bReduceKeys;
 	CurrentImportFBXSettings->ReduceKeysTolerance = ImportFBXSettings->ReduceKeysTolerance;
-
+	CurrentImportFBXSettings->bConvertSceneUnit = ImportFBXSettings->bConvertSceneUnit;
+	CurrentImportFBXSettings->ImportUniformScale = ImportFBXSettings->ImportUniformScale;
 	UnFbx::FFbxImporter* FbxImporter = UnFbx::FFbxImporter::GetInstance();
 
 	UnFbx::FFbxCurvesAPI CurveAPI;
@@ -3232,6 +3236,7 @@ bool MovieSceneToolHelpers::ImportFBXIfReady(UWorld* World, UMovieSceneSequence*
 	ImportOptions->bConvertScene = InParams.bConvertSceneBackup;
 	ImportOptions->bConvertSceneUnit = InParams.bConvertSceneUnitBackup;
 	ImportOptions->bForceFrontXAxis = InParams.bForceFrontXAxisBackup;
+	ImportOptions->ImportUniformScale = InParams.ImportUniformScaleBackup;
 	return true;
 }
 
@@ -3272,7 +3277,7 @@ bool MovieSceneToolHelpers::ImportFBXWithDialog(UMovieSceneSequence* InSequence,
 		.Title(TitleText)
 		.HasCloseButton(true)
 		.SizingRule(ESizingRule::UserSized)
-		.ClientSize(FVector2D(400.0f, 200.0f))
+		.ClientSize(FVector2D(450.0f, 300.0f))
 		.AutoCenter(EAutoCenter::PreferredWorkArea)
 		.SupportsMinimize(false);
 

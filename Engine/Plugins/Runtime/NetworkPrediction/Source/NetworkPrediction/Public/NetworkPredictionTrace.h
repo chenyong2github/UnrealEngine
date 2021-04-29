@@ -48,7 +48,7 @@
 // Called to set the general tick state
 #define UE_NP_TRACE_PUSH_TICK(StartMS, DeltaMS, OutputFrame) FNetworkPredictionTrace::TraceTick(StartMS, DeltaMS, OutputFrame)
 
-// Called when an actual instance ticks (after calling UE_NP_TRACE_TICK)
+// Called when an actual instance ticks (after calling UE_NP_TRACE_PUSH_TICK)
 #define UE_NP_TRACE_SIM_TICK(TraceID) FNetworkPredictionTrace::TraceSimTick(TraceID)
 
 // General trace to push the active simulation's trace ID and setup for updating the traced state for an already ticked frame (Used to update async data after completion)

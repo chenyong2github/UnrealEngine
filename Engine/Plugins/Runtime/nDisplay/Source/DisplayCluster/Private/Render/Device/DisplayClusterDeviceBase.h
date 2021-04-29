@@ -9,14 +9,15 @@
 #include "Engine/Scene.h"
 #include "StereoRenderTargetManager.h"
 
-#include "Render/Device/DisplayClusterDeviceBase_PostProcess.h"
-#include "Render/Device/DisplayClusterRenderViewport.h"
 #include "Render/Device/IDisplayClusterRenderDevice.h"
+#include "Render/IDisplayClusterRenderManager.h"
 
 #include "Containers/Queue.h"
 
 class IDisplayClusterPostProcess;
 class FDisplayClusterPresentationBase;
+class IDisplayClusterViewportManager;
+class IDisplayClusterViewportManagerProxy;
 class FSceneView;
 
 
@@ -26,38 +27,27 @@ class FSceneView;
 class FDisplayClusterDeviceBase
 	: public IStereoRenderTargetManager
 	, public IDisplayClusterRenderDevice
-	, protected FDisplayClusterDeviceBase_PostProcess
 {
 public:
 	FDisplayClusterDeviceBase() = delete;
-	FDisplayClusterDeviceBase(uint32 ViewsPerViewport);
+	FDisplayClusterDeviceBase(EDisplayClusterRenderFrameMode InRenderFrameMode);
 	virtual ~FDisplayClusterDeviceBase();
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IDisplayClusterStereoDevice
+	// IDisplayClusterRenderDevice
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool Initialize() override;
 	virtual void StartScene(UWorld* InWorld) override;
 	virtual void EndScene() override;
 	virtual void PreTick(float DeltaSeconds) override;
-	virtual void SetViewportCamera(const FString& InCameraId = FString(), const FString& InViewportId = FString()) override;
-	virtual void SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings) override;
-	virtual void SetOverridePostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight = 1.0f) override;
-	virtual void SetFinalPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& FinalPostProcessingSettings) override;
-	virtual bool GetViewportRect(const FString& InViewportID, FIntRect& Rect) override;
-	virtual bool SetBufferRatio(const FString& InViewportID, float  InBufferRatio) override;
-	virtual bool GetBufferRatio(const FString& InViewportID, float& OutBufferRatio) const override;
-	virtual bool SetBufferRatio(int32 ViewportIdx, float InBufferRatio) override;
-	virtual bool GetBufferRatio(int32 ViewportIdx, float& OutBufferRatio) const override;
-	
-	virtual const FDisplayClusterRenderViewport* GetRenderViewport(const FString& ViewportId) const override;
-	virtual const FDisplayClusterRenderViewport* GetRenderViewport(int32 ViewportIdx) const override;
-	virtual const void GetRenderViewports(TArray<FDisplayClusterRenderViewport>& OutViewports) const override;
 
-	virtual bool GetViewportProjectionPolicy(const FString& InViewportID, TSharedPtr<IDisplayClusterProjectionPolicy>& OutProjectionPolicy) override;
-	virtual bool GetViewportContext(const FString& InViewportID, int ViewIndex, FDisplayClusterRenderViewContext& OutViewContext) override;
-	virtual uint32 GetViewsAmountPerViewport() const override;
+	virtual FDisplayClusterRenderCustomPresentCreated& OnDisplayClusterRenderCustomPresentCreated() override { return DisplayClusterRenderCustomPresentCreatedEvent; }
+
+	virtual IDisplayClusterPresentation* GetPresentation() const override;
+
+	virtual bool BeginNewFrame(FViewport* InViewport, UWorld* InWorld, FDisplayClusterRenderFrame& OutRenderFrame) override;
+	virtual void FinalizeNewFrame() override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -67,12 +57,15 @@ public:
 	virtual bool IsStereoEnabledOnNextFrame() const override;
 	virtual bool EnableStereo(bool bStereoEnabled = true) override;
 	virtual void InitCanvasFromView(class FSceneView* InView, class UCanvas* Canvas) override;
-	virtual void AdjustViewRect(enum EStereoscopicPass StereoPassType, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const;
+	virtual void AdjustViewRect(enum EStereoscopicPass StereoPassType, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const override;
 	virtual void CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation) override;
 	virtual FMatrix GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const override;
 	virtual void RenderTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FRHITexture2D* SrcTexture, FVector2D WindowSize) const override final;
-	virtual int32 GetDesiredNumberOfViews(bool bStereoRequested) const override;
-	virtual EStereoscopicPass GetViewPassForIndex(bool bStereoRequested, uint32 ViewIndex) const override;
+	
+	virtual int32 GetDesiredNumberOfViews(bool bStereoRequested) const override
+	{
+		return FMath::Max(1, DesiredNumberOfViews);
+	}
 	virtual uint32 GetViewIndexForPass(EStereoscopicPass StereoPassType) const override;
 
 	virtual IStereoRenderTargetManager* GetRenderTargetManager() override
@@ -132,24 +125,6 @@ protected:
 	};
 
 protected:
-	// Encodes view index to EStereoscopicPass (the value may be out of EStereoscopicPass bounds)
-	EStereoscopicPass EncodeStereoscopicPass(int ViewIndex) const;
-	// Decodes normal EStereoscopicPass from encoded EStereoscopicPass
-	EStereoscopicPass DecodeStereoscopicPass(const enum EStereoscopicPass StereoPassType) const;
-	// Decodes viewport index from encoded EStereoscopicPass
-	int DecodeViewportIndex(const enum EStereoscopicPass StereoPassType) const;
-	// Decodes eye type from encoded EStereoscopicPass
-	EDisplayClusterEyeType DecodeEyeType(const enum EStereoscopicPass StereoPassType) const;
-	// Decodes view index for a viewport (i.e. left=0, right=1)
-	uint32 DecodeViewIndex(const enum EStereoscopicPass StereoPassType) const;
-
-	// Adds a new viewport with specified parameters and projection policy object
-	void AddViewport(const FString& InViewportId, const FIntPoint& InViewportLocation, const FIntPoint& InViewportSize, 
-		TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy, const FString& InCameraId, float InBufferRatio = 1.f,
-		int GPUIndex = INDEX_NONE, bool bAllowCrossGPUTransfer = true, bool bIsShared = false);
-
-	// Performs copying of render target data to the back buffer
-	virtual void CopyTextureToBackBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FRHITexture2D* SrcTexture, FVector2D WindowSize) const;
 	// Factory method to instantiate an output presentation class implementation
 	virtual FDisplayClusterPresentationBase* CreatePresentationObject(FViewport* const Viewport, TSharedPtr<IDisplayClusterRenderSyncPolicy>& SyncPolicy) = 0;
 
@@ -158,34 +133,25 @@ protected:
 	virtual bool OverrideFinalPostprocessSettings(struct FPostProcessSettings* OverridePostProcessingSettings, const enum EStereoscopicPass StereoPassType, float& BlendWeight) override;
 	virtual void EndFinalPostprocessSettings(struct FPostProcessSettings* FinalPostProcessingSettings, const enum EStereoscopicPass StereoPassType) override;
 
-protected:
-	struct FOverridePostProcessingSettings
-	{
-		float BlendWeight = 1.0f;
-		FPostProcessSettings PostProcessingSettings;
-	};
+private:
+	// Runtime viewport manager api for game and render threads. Internal usage only
+	IDisplayClusterViewportManager*      ViewportManagerPtr = nullptr;
+	IDisplayClusterViewportManagerProxy* ViewportManagerProxyPtr = nullptr;
 
-	// Viewports
-	mutable TArray<FDisplayClusterRenderViewport> RenderViewports;
-	// Views per viewport (render passes)
-	uint32 ViewsAmountPerViewport = 0;
+	EDisplayClusterRenderFrameMode RenderFrameMode = EDisplayClusterRenderFrameMode::Mono;
+	int32 DesiredNumberOfViews = 0;
+
 	// UE main viewport
 	FViewport* MainViewport = nullptr;
 
-	bool bIsSceneOpen = false;
 	bool bIsCustomPresentSet = false;
-
-	// Per-eye regions
-	FIntRect EyeRegions[2];
-
-	// Custom post processing settings
-	TMap<int, FPostProcessSettings> ViewportStartPostProcessingSettings;
-	TMap<int, FOverridePostProcessingSettings> ViewportOverridePostProcessingSettings;
-	TMap<int, FPostProcessSettings> ViewportFinalPostProcessingSettings;
 
 	// Data access synchronization
 	mutable FCriticalSection InternalsSyncScope;
-	// Temporary for 4.26.X: PP operations access sync.
-	// 4.27 will have a better solution
-	mutable FCriticalSection PPAccessScope;
+
+	// Pointer to the current presentation handler
+	FDisplayClusterPresentationBase* CustomPresentHandler = nullptr;
+
+	// Event triggered when custom present was created
+	FDisplayClusterRenderCustomPresentCreated DisplayClusterRenderCustomPresentCreatedEvent;
 };

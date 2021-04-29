@@ -104,7 +104,7 @@ void SUsdStage::Construct( const FArguments& InArgs )
 
 	if ( ViewModel.UsdStageActor.IsValid() )
 	{
-		UsdStage = ViewModel.UsdStageActor->GetUsdStage();
+		UsdStage = ViewModel.UsdStageActor->GetOrLoadUsdStage();
 	}
 
 	ChildSlot
@@ -196,7 +196,7 @@ void SUsdStage::SetupStageActorDelegates()
 					 ViewModel.UsdStageActor.IsValid() &&
 					 ( bViewingTheUpdatedPrim || ( bViewingStageProperties && bStageUpdated ) ) )
 				{
-					this->UsdPrimInfoWidget->SetPrimPath( ViewModel.UsdStageActor->GetUsdStage(), *PrimPath );
+					this->UsdPrimInfoWidget->SetPrimPath( ViewModel.UsdStageActor->GetOrLoadUsdStage(), *PrimPath );
 				}
 
 				if ( PrimPath == TEXT("/") && this->UsdStageInfoWidget )
@@ -214,7 +214,9 @@ void SUsdStage::SetupStageActorDelegates()
 				{
 					if ( this->UsdPrimInfoWidget )
 					{
-						this->UsdPrimInfoWidget->SetPrimPath( ViewModel.UsdStageActor->GetUsdStage(), TEXT("/") );
+						// The cast here forces us to use the const version of GetUsdStage, that won't force-load the stage in case it isn't opened yet
+						const UE::FUsdStage& UsdStage = const_cast< const AUsdStageActor* >( ViewModel.UsdStageActor.Get() )->GetUsdStage();
+						this->UsdPrimInfoWidget->SetPrimPath( UsdStage, TEXT("/") );
 					}
 				}
 
@@ -669,7 +671,7 @@ void SUsdStage::OnSave()
 	UE::FUsdStage UsdStage;
 	if ( ViewModel.UsdStageActor.IsValid() )
 	{
-		UsdStage = ViewModel.UsdStageActor->GetUsdStage();
+		UsdStage = ViewModel.UsdStageActor->GetOrLoadUsdStage();
 	}
 
 	if ( UsdStage )
@@ -728,7 +730,7 @@ void SUsdStage::OnPrimSelectionChanged( const TArray<FString>& PrimPaths )
 
 	if ( UsdPrimInfoWidget )
 	{
-		UE::FUsdStage UsdStage = StageActor->GetUsdStage();
+		UE::FUsdStage UsdStage = StageActor->GetOrLoadUsdStage();
 
 		SelectedPrimPath = PrimPaths.Num() == 1 ? PrimPaths[ 0 ] : TEXT( "" );
 		UsdPrimInfoWidget->SetPrimPath( UsdStage, *SelectedPrimPath );
@@ -827,6 +829,12 @@ void SUsdStage::OnStageActorPropertyChanged( UObject* ObjectBeingModified, FProp
 
 void SUsdStage::OnViewportSelectionChanged( UObject* NewSelection )
 {
+	// This may be called when first opening a project, before the our widgets are fully initialized
+	if ( !UsdStageTreeView )
+	{
+		return;
+	}
+
 	const UUsdStageEditorSettings* Settings = GetDefault<UUsdStageEditorSettings>();
 	if ( !Settings || !Settings->bSelectionSynced || bUpdatingViewportSelection )
 	{

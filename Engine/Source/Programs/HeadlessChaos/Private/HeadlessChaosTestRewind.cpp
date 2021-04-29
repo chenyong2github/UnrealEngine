@@ -13,6 +13,7 @@
 #include "RewindData.h"
 #include "GeometryCollection/GeometryCollectionTestFramework.h"
 #include "Chaos/SimCallbackObject.h"
+#include "Chaos/Framework/ChaosResultsManager.h"
 
 #ifndef REWIND_DESYNC
 #define REWIND_DESYNC 0
@@ -398,6 +399,60 @@ namespace ChaosTest {
 				}
 
 				Solver->UnregisterObject(SecondSphere);
+			});
+	}
+
+	GTEST_TEST(AllTraits, RewindTest_ResimSleepChange)
+	{
+		//change object state on physics thread, and make sure the state change is properly recorded in rewind data
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+			{
+				struct FRewindCallback : public IRewindCallback
+				{
+					FSingleParticlePhysicsProxy* Proxy;
+					FRewindData* RewindData;
+
+					virtual void ProcessInputs_Internal(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) override
+					{
+						for (int32 Step = 0; Step < PhysicsStep; ++Step)
+						{
+							const EObjectStateType OldState = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), Step).ObjectState();
+							if (Step < 4)	//we set to sleep on step 3, which means we won't see it as input state until 4
+							{
+								EXPECT_EQ(OldState, EObjectStateType::Dynamic);
+							}
+							else
+							{
+								EXPECT_EQ(OldState, EObjectStateType::Sleeping);
+							}
+						}
+
+						if (PhysicsStep == 3)
+						{
+							Proxy->GetPhysicsThreadAPI()->SetObjectState(EObjectStateType::Sleeping);
+						}
+					}
+				};
+
+				const int32 LastGameStep = 32;
+				const int32 NumPhysSteps = FMath::TruncToInt(LastGameStep / SimDt);
+
+				auto UniqueRewindCallback = MakeUnique<FRewindCallback>();
+				auto RewindCallback = UniqueRewindCallback.Get();
+				RewindCallback->Proxy = Proxy;
+				RewindCallback->RewindData = Solver->GetRewindData();
+
+				Solver->SetRewindCallback(MoveTemp(UniqueRewindCallback));
+
+				auto& Particle = Proxy->GetGameThreadAPI();
+				Particle.SetGravityEnabled(false);
+				Particle.SetV(FVec3(0, 0, 1));
+
+				for (int Step = 0; Step <= LastGameStep; ++Step)
+				{
+					TickSolverHelper(Solver);
+				}
+
 			});
 	}
 
@@ -882,6 +937,151 @@ namespace ChaosTest {
 
 			});
 	}
+
+	GTEST_TEST(AllTraits, RewindTest_SimCallbackCorrectionInterpolation)
+	{
+		/*want to interpolate between original sim and correction
+		edge cases to test:
+		- gt write should stomp interpolation
+		- make sure sleep state works
+		- not moving in original, but moving in resim
+		- moving in original, but not moving in resim
+		- moving along one axis and corrected on another
+		- resim while interpolation is still happening
+		*/
+
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+			{
+				//only care about resim when async results are used
+				if (Solver->IsUsingAsyncResults() == false)
+				{
+					return;
+				}
+
+				struct FRewindCallback : public IRewindCallback
+				{
+					FRewindCallback(int32 InNumPhysicsSteps)
+						: NumPhysicsSteps(InNumPhysicsSteps)
+					{
+
+					}
+
+					int32 NumPhysicsSteps;
+					bool bResim = false;
+					bool bPendingCorrection = true;
+					const FReal ZCorrection = 100;
+					FSingleParticlePhysicsProxy* Proxy;
+
+					virtual int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep) override
+					{
+						if (LastCompletedStep + 1 == NumPhysicsSteps && NumPhysicsSteps != INDEX_NONE)
+						{
+							NumPhysicsSteps = INDEX_NONE;	//don't resim again after this
+							return 0;
+						}
+
+						return INDEX_NONE;
+					}
+
+					virtual void ProcessInputs_Internal(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) override
+					{
+						if (bResim && bPendingCorrection)
+						{
+							Proxy->GetPhysicsThreadAPI()->SetX(FVec3(0, 0, ZCorrection));
+							bPendingCorrection = false;
+						}
+					}
+
+					virtual void PreResimStep_Internal(int32 PhysicsStep, bool bFirst) override
+					{
+						bResim = true;
+					}
+
+					virtual void PostResimStep_Internal(int32 PhysicsStep) override
+					{
+						bResim = false;
+					}
+				};
+
+				const FReal InterpTime = 10;
+				const FReal InterpStrength = 0.25;
+				Solver->GetResultsManager().SetResimInterpTime(InterpTime);
+				Solver->GetResultsManager().SetResimInterpStrength(InterpStrength);
+
+				const int32 LastGameStep = 20;
+				const int32 NumPhysSteps = FMath::TruncToInt(LastGameStep / SimDt);
+
+				auto UniqueRewindCallback = MakeUnique<FRewindCallback>(NumPhysSteps);
+				auto RewindCallback = UniqueRewindCallback.Get();
+				RewindCallback->Proxy = Proxy;
+				const FReal GTDt = 1;
+				FReal Time = 0;
+				FReal ZStart = 0;
+				const FReal ZVel = -1;
+
+				Solver->SetRewindCallback(MoveTemp(UniqueRewindCallback));
+
+				{
+					auto& Particle = Proxy->GetGameThreadAPI();
+					Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
+					Particle.SetGravityEnabled(false);
+					Particle.SetX(FVec3(0, 0, 0));
+					Particle.SetV(FVec3(0, 0, -1));
+
+					for (int Step = 0; Step < LastGameStep; ++Step)
+					{
+						TickSolverHelper(Solver);
+
+						Time += GTDt;
+						const FReal InterpolatedTime = Time - SimDt * Chaos::AsyncInterpolationMultiplier;
+						if (InterpolatedTime < 0)
+						{
+							//not enough time to interpolate so just take initial value
+							EXPECT_NEAR(Particle.X()[2], ZStart, 1e-2);
+						}
+						else
+						{
+							//interpolated
+							EXPECT_NEAR(Particle.X()[2], ZStart + ZVel * InterpolatedTime, 1e-2);
+						}
+					}
+
+					//resim happened
+					for (int Step = LastGameStep; Step < 2*LastGameStep; ++Step)
+					{
+						const FReal PrevZ = Particle.X()[2];
+						TickSolverHelper(Solver);
+
+						Time += GTDt;
+						const FReal InterpolatedTime = Time - SimDt * Chaos::AsyncInterpolationMultiplier;
+
+						if(InterpolatedTime > 20)	//resim happened
+						{
+							ZStart = 100;	//corrected to 100 start point
+						}
+
+						//expected interpolation from pt to gt
+						const int32 NextSimStep = FMath::CeilToInt(InterpolatedTime / SimDt);
+						const FReal NextSimStepTime = NextSimStep * SimDt;
+						const FReal InterpEndTime = 20 + InterpTime;
+						const FReal ExpectedValue = ZStart + ZVel * InterpolatedTime;
+						const FReal TargetValue = ZStart + ZVel * NextSimStepTime;
+
+						if(InterpolatedTime >= InterpEndTime || InterpolatedTime <= 20)
+						{
+							//no resim interpolation, just simple value interpolation
+							EXPECT_NEAR(Particle.X()[2], ExpectedValue, 1e-2);
+						}
+						else
+						{
+							//exponential decay from current state to target
+							EXPECT_NEAR(Particle.X()[2], FMath::Lerp(PrevZ, ExpectedValue, InterpStrength), 1e-2);
+						}
+					}
+				}
+			});
+	}
+
 
 	GTEST_TEST(AllTraits, RewindTest_ResimFallingObjectWithTeleport)
 	{

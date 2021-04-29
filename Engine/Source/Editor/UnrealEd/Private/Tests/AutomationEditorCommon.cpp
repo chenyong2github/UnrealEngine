@@ -41,6 +41,7 @@
 #include "Editor/EditorPerformanceSettings.h"
 #include "TextureCompiler.h"
 
+#if WITH_AUTOMATION_TESTS
 
 #define COOK_TIMEOUT 3600
 
@@ -1213,3 +1214,5 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectMapsPIETest, "Project.Maps.PIE", EAutom
 
 	return true;
 }
+
+#endif

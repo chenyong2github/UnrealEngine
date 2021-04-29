@@ -20,6 +20,7 @@ namespace UnrealBuildTool.Rules
 					"MeshConversion",
 					"MeshDescription",
 					"MeshModelingTools",
+					"MeshUtilitiesCommon",
 					"ModelingOperators",
 					"ModelingOperatorsEditorOnly",
 					"MeshReductionInterface",
@@ -27,6 +28,21 @@ namespace UnrealBuildTool.Rules
 					"UnrealEd",
 				}
 			);
+
+			bool bWithProxyLOD = Target.Platform == UnrealTargetPlatform.Win64;
+			PrivateDefinitions.Add("WITH_PROXYLOD=" + (bWithProxyLOD ? '1' : '0'));
+			if (bWithProxyLOD)
+			{
+				// For boost:: and TBB:: code
+				bEnableUndefinedIdentifierWarnings = false;
+				bUseRTTI = true;
+
+				PrivateDependencyModuleNames.AddRange(
+					new string[] {
+					"ProxyLODMeshReduction",
+					}
+				);
+			}
 		}
 	}
 }

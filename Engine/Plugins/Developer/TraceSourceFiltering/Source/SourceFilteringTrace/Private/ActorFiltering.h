@@ -205,6 +205,10 @@ public:
 		Collector.AddReferencedObjects(ActorArray);
 		Collector.AddReferencedObjects(AllFilteredClasses);
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FFilteredActorCollector");
+	}
 
 protected:
 	UWorld* CurrentWorld;

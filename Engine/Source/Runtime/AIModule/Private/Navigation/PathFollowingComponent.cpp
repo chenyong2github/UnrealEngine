@@ -1035,7 +1035,7 @@ void UPathFollowingComponent::FollowPathSegment(float DeltaTime)
 	{
 		CurrentMoveInput = (CurrentTarget - CurrentLocation).GetSafeNormal();
 
-		if (MoveSegmentStartIndex >= DecelerationSegmentIndex)
+		if (bStopMovementOnFinish && (MoveSegmentStartIndex >= DecelerationSegmentIndex))
 		{
 			const FVector PathEnd = Path->GetEndLocation();
 			const float DistToEndSq = FVector::DistSquared(CurrentLocation, PathEnd);
@@ -1509,6 +1509,11 @@ void UPathFollowingComponent::UpdateDecelerationData()
 {
 	// no point in updating if we don't have a MovementComp
 	if (MovementComp == nullptr)
+	{
+		return;
+	}
+
+	if (!bStopMovementOnFinish)
 	{
 		return;
 	}

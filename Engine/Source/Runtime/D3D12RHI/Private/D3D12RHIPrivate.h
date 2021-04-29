@@ -363,6 +363,8 @@ public:
 	virtual void RHIVirtualTextureSetFirstMipVisible(FRHITexture2D* Texture, uint32 FirstMip) override;
 	virtual void RHIExecuteCommandList(FRHICommandList* CmdList) final override;
 	virtual void* RHIGetNativeDevice() final override;
+	virtual void* RHIGetNativeGraphicsQueue() final override;
+	virtual void* RHIGetNativeComputeQueue() final override;
 	virtual void* RHIGetNativeInstance() final override;
 	virtual class IRHICommandContext* RHIGetDefaultContext() final override;
 	virtual class IRHIComputeContext* RHIGetDefaultAsyncComputeContext() final override;

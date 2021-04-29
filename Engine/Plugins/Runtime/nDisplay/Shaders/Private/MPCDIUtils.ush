@@ -14,8 +14,8 @@ Texture2D InputTexture;
 Texture2D WarpMapTexture;
 Texture2D AlphaMapTexture;
 Texture2D BetaMapTexture;
-Texture2D OverlayUnderTexture;
-Texture2D OverlayOverTexture;
+Texture2D OverlayTexture;
+Texture2D OverlayAlphaTexture;
 Texture2D InnerCameraTexture;
 Texture2D ChromakeyCameraTexture;
 Texture2D ChromakeyMarkerTexture;
@@ -24,13 +24,13 @@ SamplerState InputSampler;
 SamplerState WarpMapSampler;
 SamplerState AlphaMapSampler;
 SamplerState BetaMapSampler;
-SamplerState OverlayUnderSampler;
-SamplerState OverlayOverSampler;
+SamplerState OverlaySampler;
+SamplerState OverlayAlphaSampler;
 SamplerState InnerCameraSampler;
 SamplerState ChromakeyCameraSampler;
 SamplerState ChromakeyMarkerSampler;
 
-float4x4 MeshToCaveProjectionMatrix;
+float4x4 MeshToStageProjectionMatrix;
 float4x4 ViewportTextureProjectionMatrix;
 float4x4 OverlayProjectionMatrix;
 float4x4 InnerCameraProjectionMatrix;
@@ -39,7 +39,10 @@ float AlphaEmbeddedGamma;
 
 float4 InnerCameraSoftEdge;
 
+float4 ChromakeyFrameColor;
+
 float ChromakeyMarkerScale;
+float ChromakeyMarkerDistance;
 
 struct InputVS
 {

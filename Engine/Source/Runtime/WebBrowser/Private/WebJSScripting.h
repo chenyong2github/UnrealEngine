@@ -49,6 +49,10 @@ public:
 			Collector.AddReferencedObject(Binding.Key);
 		}
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FWebJSScripting");
+	}
 
 protected:
 	// Creates a reversible memory addres -> psuedo-guid mapping.

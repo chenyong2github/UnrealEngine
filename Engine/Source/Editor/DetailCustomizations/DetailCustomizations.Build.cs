@@ -62,8 +62,9 @@ public class DetailCustomizations : ModuleRules
 				"HeadMountedDisplay",
                 "DataTableEditor",
 				"ToolMenus",
-				"PhysicsCore"
-            }
+				"PhysicsCore",
+				"RenderCore"
+			}
 		);
 
         PrivateIncludePathModuleNames.AddRange(

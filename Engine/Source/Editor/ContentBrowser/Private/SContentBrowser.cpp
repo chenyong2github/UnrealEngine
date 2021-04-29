@@ -456,10 +456,14 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 	else
 	{
 		// Select /Game by default
-		FSourcesData DefaultSourcesData(FName("/Game"));
+		const FString DefaultInvariantPath = TEXT("/Game");
+		FName DefaultVirtualPath;
+		IContentBrowserDataModule::Get().GetSubsystem()->ConvertInternalPathToVirtual(FStringView(DefaultInvariantPath), DefaultVirtualPath);
+
+		FSourcesData DefaultSourcesData(DefaultVirtualPath);
 		TArray<FString> SelectedPaths;
 		TArray<FString> SelectedFavoritePaths;
-		SelectedPaths.Add(TEXT("/Game"));
+		SelectedPaths.Add(DefaultVirtualPath.ToString());
 		PathViewPtr->SetSelectedPaths(SelectedPaths);
 		AssetViewPtr->SetSourcesData(DefaultSourcesData);
 		FavoritePathViewPtr->SetSelectedPaths(SelectedFavoritePaths);
@@ -1137,7 +1141,7 @@ void SContentBrowser::PrepareToSyncItems(TArrayView<const FContentBrowserItem> I
 		for (const FContentBrowserItem& ItemToSync : ItemsToSync)
 		{
 			const FName VirtualPath = *FPaths::GetPath(ItemToSync.GetVirtualPath().ToString());
-			TSharedPtr<FTreeItem> Item = PathViewPtr->FindItemRecursive(VirtualPath);
+			TSharedPtr<FTreeItem> Item = PathViewPtr->FindTreeItem(VirtualPath);
 			if (!Item.IsValid())
  			{
 				bRepopulate = true;
@@ -2087,6 +2091,7 @@ TSharedRef<SWidget> SContentBrowser::GetPathPickerContent()
 	PathPickerConfig.OnPathSelected = FOnPathSelected::CreateSP(this, &SContentBrowser::PathPickerPathSelected);
 	PathPickerConfig.bAllowContextMenu = false;
 	PathPickerConfig.bAllowClassesFolder = true;
+	PathPickerConfig.bOnPathSelectedPassesVirtualPaths = true;
 
 	return SNew(SBox)
 		.WidthOverride(300)

@@ -23,6 +23,9 @@ limitations under the License.
 extern "C" {
 #endif
 
+// Deprecated to avoid an extra shutdown/initialize on the mobile side
+OVRP_EXPORT ovrpResult ovrp_PreInitialize3(void* activity);
+
 // Deprecated for getting extra Vulkan paramters from Unity Oculus XR Plugin
 
 OVRP_EXPORT ovrpResult ovrp_Initialize5(

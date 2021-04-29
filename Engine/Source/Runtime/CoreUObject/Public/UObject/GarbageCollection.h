@@ -481,8 +481,21 @@ template <EFastReferenceCollectorOptions Options> class FGCReferenceProcessor;
 /** Struct to hold the objects to serialize array and the list of weak references. This is allocated by ArrayPool */
 struct FGCArrayStruct
 {
+	template <typename ReferenceProcessorType, typename CollectorType, typename ArrayPoolType, EFastReferenceCollectorOptions Options>
+	friend class TFastReferenceCollector;
+	
+	// Arrays filled during Garbage Collectionmn
 	TArray<UObject*> ObjectsToSerialize;
 	TArray<UObject**> WeakReferences;
+
+	FORCEINLINE UObject* GetReferencingObject()
+	{
+		return ReferencingObject;
+	}
+
+private:
+	// This is set by GC when processing references from the current referencing object
+	UObject* ReferencingObject = nullptr;
 };
 
 /**

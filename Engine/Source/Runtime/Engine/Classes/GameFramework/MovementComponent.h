@@ -22,6 +22,20 @@ struct FCollisionResponseParams;
 struct FCollisionShape;
 
 
+
+namespace MovementComponentCVars
+{
+	// Typically we want to depenetrate regardless of direction, so we can get all the way out of penetration quickly.
+	// Our rules for "moving with depenetration normal" only get us so far out of the object. We'd prefer to pop out by the full MTD amount.
+	// Depenetration moves (in ResolvePenetration) then ignore blocking overlaps to be able to move out by the MTD amount.
+	extern int32 MoveIgnoreFirstBlockingOverlap;
+
+	extern float PenetrationOverlapCheckInflation;
+
+	extern float PenetrationPullbackDistance;
+}
+
+
 /**
  * Setting that controls behavior when movement is restricted to a 2D plane defined by a specific axis/normal,
  * so that movement along the locked axis is not be possible.

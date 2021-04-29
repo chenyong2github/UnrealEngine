@@ -28,6 +28,7 @@ FSettings::FSettings() :
 	, ColorScale(ovrpVector4f{1,1,1,1})
 	, ColorOffset(ovrpVector4f{0,0,0,0})
 	, bApplyColorScaleAndOffsetToAllLayers(false)
+	, bPhaseSync(false)
 {
 	Flags.Raw = 0;
 	Flags.bHMDEnabled = true;

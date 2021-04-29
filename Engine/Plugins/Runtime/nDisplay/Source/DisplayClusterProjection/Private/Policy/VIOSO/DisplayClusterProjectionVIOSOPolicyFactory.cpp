@@ -5,6 +5,8 @@
 #include "DisplayClusterProjectionStrings.h"
 #include "DisplayClusterProjectionLog.h"
 
+#include "DisplayClusterConfigurationTypes.h"
+
 FDisplayClusterProjectionVIOSOPolicyFactory::FDisplayClusterProjectionVIOSOPolicyFactory()
 {
 }
@@ -16,9 +18,10 @@ FDisplayClusterProjectionVIOSOPolicyFactory::~FDisplayClusterProjectionVIOSOPoli
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicyFactory
 //////////////////////////////////////////////////////////////////////////////////////////////
-TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionVIOSOPolicyFactory::Create(const FString& PolicyType, const FString& RHIName, const FString& ViewportId, const TMap<FString, FString>& Parameters)
+TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionVIOSOPolicyFactory::Create(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 {
-	UE_LOG(LogDisplayClusterProjectionVIOSO, Log, TEXT("Instantiating projection policy <%s>..."), *PolicyType);
+	check(InConfigurationProjectionPolicy != nullptr);
 
-	return MakeShareable(new FDisplayClusterProjectionVIOSOPolicy(ViewportId, RHIName, Parameters));
-};
+	UE_LOG(LogDisplayClusterProjectionVIOSO, Log, TEXT("Instantiating projection policy <%s> id='%s'"), *InConfigurationProjectionPolicy->Type, *ProjectionPolicyId);
+	return  MakeShared<FDisplayClusterProjectionVIOSOPolicy>(ProjectionPolicyId, InConfigurationProjectionPolicy);
+}

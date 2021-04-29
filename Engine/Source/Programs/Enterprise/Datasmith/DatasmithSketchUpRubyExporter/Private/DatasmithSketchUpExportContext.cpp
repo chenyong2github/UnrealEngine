@@ -132,7 +132,7 @@ void FExportContext::Update()
 	Textures.Update();
 }
 
-FDefinition* FExportContext::GetEntityDefinition(SUEntityRef Entity)
+FDefinition* FExportContext::GetDefinition(SUEntityRef Entity)
 {
 	// No Entity means Model
 	if (SUIsInvalid(Entity))
@@ -144,6 +144,26 @@ FDefinition* FExportContext::GetEntityDefinition(SUEntityRef Entity)
 		return ComponentDefinitions.GetComponentDefinition(SUComponentDefinitionFromEntity(Entity)).Get();
 	}
 }
+
+FDefinition* FExportContext::GetDefinition(FEntityIDType DefinitionEntityId)
+{
+	FDefinition* DefinitionPtr = nullptr;
+
+	if (DefinitionEntityId.EntityID == 0)
+	{
+		return ModelDefinition.Get();
+	}
+	else
+	{
+		if (TSharedPtr<FComponentDefinition>* Ptr = ComponentDefinitions.FindComponentDefinition(DefinitionEntityId))
+		{
+			return Ptr->Get();
+		}
+	}
+	return nullptr;
+}
+
+
 
 void FComponentDefinitionCollection::Update()
 {
@@ -290,26 +310,29 @@ DatasmithSketchUp::FEntities* FEntitiesObjectCollection::FindFace(int32 FaceId)
 }
 
 
-TSharedPtr<FComponentInstance> FComponentInstanceCollection::AddComponentInstance(SUComponentInstanceRef InComponentInstanceRef)
+TSharedPtr<FComponentInstance> FComponentInstanceCollection::AddComponentInstance(FDefinition& ParentDefinition, SUComponentInstanceRef InComponentInstanceRef)
 {
 	FComponentInstanceIDType ComponentInstanceId = DatasmithSketchUpUtils::GetComponentInstanceID(InComponentInstanceRef);
 
+	TSharedPtr<FComponentInstance> ComponentInstance;
 	if (TSharedPtr<FComponentInstance>* Ptr = ComponentInstanceMap.Find(ComponentInstanceId))
 	{
-		return *Ptr;
+		ComponentInstance = *Ptr; 
+	}
+	else
+	{
+		TSharedPtr<FComponentDefinition> Definition = Context.ComponentDefinitions.GetComponentDefinition(InComponentInstanceRef);
+		ComponentInstance = MakeShared<FComponentInstance>(SUComponentInstanceToEntity(InComponentInstanceRef), *Definition);
+		Definition->LinkComponentInstance(ComponentInstance.Get());
+		ComponentInstanceMap.Add(ComponentInstanceId, ComponentInstance);
 	}
 
-	TSharedPtr<FComponentDefinition> Definition = Context.ComponentDefinitions.GetComponentDefinition(InComponentInstanceRef);
+	ComponentInstance->SetParentDefinition(Context, &ParentDefinition);
 
-	TSharedPtr<FComponentInstance> ComponentInstance = MakeShared<FComponentInstance>(SUComponentInstanceToEntity(InComponentInstanceRef), *Definition);
-
-	Definition->LinkComponentInstance(ComponentInstance.Get());
-
-	ComponentInstanceMap.Add(ComponentInstanceId, ComponentInstance);
 	return ComponentInstance;
 }
 
-bool FComponentInstanceCollection::RemoveComponentInstance(FComponentInstanceIDType ComponentInstanceId)
+bool FComponentInstanceCollection::RemoveComponentInstance(FComponentInstanceIDType ParentEntityId, FComponentInstanceIDType ComponentInstanceId)
 {
 	const TSharedPtr<FComponentInstance>* ComponentInstancePtr = ComponentInstanceMap.Find(ComponentInstanceId);
 	if (!ComponentInstancePtr)
@@ -318,9 +341,19 @@ bool FComponentInstanceCollection::RemoveComponentInstance(FComponentInstanceIDT
 	}
 	const TSharedPtr<FComponentInstance>& ComponentInstance = *ComponentInstancePtr;
 
-	ComponentInstance->RemoveComponentInstance(Context);
+	FDefinition* ParentDefinition =  Context.GetDefinition(ParentEntityId);
 
-	ComponentInstanceMap.Remove(ComponentInstanceId);
+	// Remove ComponentInstance for good only if incoming ParentDefinition is current Instance's parent. 
+	//
+	// Details:
+	// ComponentInstance which removal is notified could have been relocated to another Definition 
+	// This happens when Make Group is done - first new Group is added, containing existing ComponentInstace
+	// And only after that event about removal previous owning Definition is received
+	if (ComponentInstance->IsParentDefinition(ParentDefinition))
+	{
+		ComponentInstance->RemoveComponentInstance(Context);
+		ComponentInstanceMap.Remove(ComponentInstanceId);
+	}
 
 	return true;
 }

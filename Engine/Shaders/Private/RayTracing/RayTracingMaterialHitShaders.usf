@@ -538,8 +538,8 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	/**
 	 * Set material attributes for simplified materials
 	 **/
-	// Anything that is not foliage will be forced to default lit
-	if (Payload.ShadingModelID != SHADINGMODELID_TWOSIDED_FOLIAGE)
+	// Anything unsupported will be forced to default lit
+	if (Payload.ShadingModelID != SHADINGMODELID_TWOSIDED_FOLIAGE || Payload.ShadingModelID != SHADINGMODELID_THIN_TRANSLUCENT)
 	{
 		Payload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
 	}
@@ -550,6 +550,13 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	Payload.Specular = 0;
 	Payload.Roughness = 1;
 	Payload.Metallic = 0;
+
+#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+	if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
+	{
+		Payload.CustomData.xyz = GetThinTranslucentMaterialOutput0(MaterialParameters);
+	}
+#endif
 
 #endif
 

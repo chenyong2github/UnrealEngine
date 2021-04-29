@@ -252,30 +252,32 @@ namespace DatasmithRuntime
 		ActorData.ParentId = ParentId;
 		ActorData.WorldTransform = FTransform( ActorElement->GetRotation(), ActorElement->GetTranslation(), ActorElement->GetScale() );
 
+		bool bProcessSuccessful = false;
+
 		if (ActorElement->IsA(EDatasmithElementType::StaticMeshActor))
 		{
 			IDatasmithMeshActorElement* MeshActorElement = static_cast<IDatasmithMeshActorElement*>(ActorElement.Get());
 			
 			ActorData.Type = EDataType::MeshActor;
-			ProcessMeshActorData(ActorData, MeshActorElement);
+			bProcessSuccessful = ProcessMeshActorData(ActorData, MeshActorElement);
 		}
 		else if (ActorElement->IsA(EDatasmithElementType::Light))
 		{
 			IDatasmithLightActorElement* LightActorElement = static_cast<IDatasmithLightActorElement*>(ActorElement.Get());
 
 			ActorData.Type = EDataType::LightActor;
-			ProcessLightActorData(ActorData, LightActorElement);
+			bProcessSuccessful = ProcessLightActorData(ActorData, LightActorElement);
 		}
 		else if (ActorElement->IsA(EDatasmithElementType::Camera))
 		{
 			IDatasmithCameraActorElement* CameraElement = static_cast<IDatasmithCameraActorElement*>(ActorElement.Get());
 
-			ProcessCameraActorData(ActorData, CameraElement);
+			bProcessSuccessful = ProcessCameraActorData(ActorData, CameraElement);
 		}
-		else
+
+		if (!bProcessSuccessful)
 		{
 			CreateActorComponent(ActorData, ActorElement);
-
 			ActorData.AddState(EAssetState::Processed | EAssetState::Completed);
 		}
 	}
@@ -1095,7 +1097,7 @@ namespace DatasmithRuntime
 			{
 				SceneComponent->UnregisterComponent();
 
-				SceneComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+				SceneComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
 
 				if (UStaticMeshComponent* MeshComponent = Cast< UStaticMeshComponent >(SceneComponent))
 				{
@@ -1121,8 +1123,8 @@ namespace DatasmithRuntime
 
 					for (USceneComponent* ChildComponent : Children)
 					{
-						ChildComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
-						ChildComponent->AttachToComponent(ParentComponent, FAttachmentTransformRules::KeepWorldTransform);
+						ChildComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+						ChildComponent->AttachToComponent(ParentComponent, FAttachmentTransformRules::KeepRelativeTransform);
 					}
 
 					DeleteSceneComponent();
@@ -1136,8 +1138,8 @@ namespace DatasmithRuntime
 
 					for (AActor* ChildActor : ChildActors)
 					{
-						ChildActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-						ChildActor->AttachToActor(ParentActor, FAttachmentTransformRules::KeepWorldTransform);
+						ChildActor->DetachFromActor(FDetachmentTransformRules::KeepRelativeTransform);
+						ChildActor->AttachToActor(ParentActor, FAttachmentTransformRules::KeepRelativeTransform);
 					}
 
 					RootComponent->GetOwner()->GetWorld()->EditorDestroyActor(Actor, true);
@@ -1179,7 +1181,7 @@ namespace DatasmithRuntime
 		
 		// Check to see if the camera must be updated or not
 		// Update if only the current actor is the only one with a valid source and the source has changed
-		bool bUpdateCamera = true;
+		bool bModifyViewpoint = ImportOptions.bModifyViewpoint;
 
 		TArray<AActor*> Actors;
 		UGameplayStatics::GetAllActorsOfClass(RootComponent->GetOwner()->GetWorld(), ADatasmithRuntimeActor::StaticClass(), Actors);
@@ -1195,14 +1197,14 @@ namespace DatasmithRuntime
 
 				if (ADatasmithRuntimeActor* RuntimeActor = Cast<ADatasmithRuntimeActor>(Actor))
 				{
-					bUpdateCamera &= RuntimeActor->GetSourceName() == TEXT("None");
+					bModifyViewpoint &= RuntimeActor->GetSourceName() == TEXT("None");
 				}
 			}
 		}
 
-		bUpdateCamera &= LastSceneGuid != SceneElement->GetSharedState()->GetGuid();
+		bModifyViewpoint &= LastSceneGuid != SceneElement->GetSharedState()->GetGuid();
 
-		if (bUpdateCamera)
+		if (bModifyViewpoint)
 		{
 			if (APlayerController* PlayerController = UGameplayStatics::GetPlayerController(RootComponent->GetOwner()->GetWorld(), 0))
 			{
@@ -1210,98 +1212,106 @@ namespace DatasmithRuntime
 				if (APawn* Pawn = PlayerController->GetPawn())
 				{
 					Pawn->SetActorLocationAndRotation(ActorData.WorldTransform.GetLocation(), ActorData.WorldTransform.GetRotation(), false);
-					ActorData.Object = Pawn;
 				}
 			}
 		}
 
-#if 0
-		UCineCameraComponent* CameraComponent = ActorData.GetObject<UCineCameraComponent>();
-
-		if (CameraComponent == nullptr)
+		if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None)
 		{
-			UWorld* World = RootComponent->GetOwner()->GetWorld();
+			UCineCameraComponent* CameraComponent = ActorData.GetObject<UCineCameraComponent>();
 
-			ACineCameraActor* CameraActor = Cast< ACineCameraActor >( World->SpawnActor( ACineCameraActor::StaticClass(), nullptr, nullptr ) );
+			if (CameraComponent == nullptr)
+			{
+				if (ImportOptions.BuildHierarchy == EBuildHierarchyMethod::Unfiltered)
+				{
+					UWorld* World = RootComponent->GetOwner()->GetWorld();
+
+					ACineCameraActor* CameraActor = Cast< ACineCameraActor >( World->SpawnActor( ACineCameraActor::StaticClass(), nullptr, nullptr ) );
 #if WITH_EDITOR
-			CameraActor->SetActorLabel(CameraElement->GetLabel());
+					CameraActor->SetActorLabel(CameraElement->GetLabel());
 #endif
-			CameraComponent = CameraActor->GetCineCameraComponent();
-
-			ActorData.Object = TStrongObjectPtr<UObject>(CameraComponent);
-
-			CameraActor->GetRootComponent()->SetMobility(EComponentMobility::Movable);
-		}
-		else
-		{
-			CameraComponent->GetOwner()->UpdateComponentTransforms();
-			CameraComponent->GetOwner()->MarkComponentsRenderStateDirty();
-		}
-
-		CameraComponent->GetOwner()->GetRootComponent()->SetRelativeTransform(ActorData.WorldTransform);
-
-		CameraComponent->Filmback.SensorWidth = CameraElement->GetSensorWidth();
-		CameraComponent->Filmback.SensorHeight = CameraElement->GetSensorWidth() / CameraElement->GetSensorAspectRatio();
-		CameraComponent->LensSettings.MaxFStop = 32.0f;
-		CameraComponent->CurrentFocalLength = CameraElement->GetFocalLength();
-		CameraComponent->CurrentAperture = CameraElement->GetFStop();
-
-		CameraComponent->FocusSettings.FocusMethod = CameraElement->GetEnableDepthOfField() ? ECameraFocusMethod::Manual : ECameraFocusMethod::DoNotOverride;
-		CameraComponent->FocusSettings.ManualFocusDistance = CameraElement->GetFocusDistance();
-
-		if (const IDatasmithPostProcessElement* PostProcess = CameraElement->GetPostProcess().Get())
-		{
-			FPostProcessSettings& PostProcessSettings = CameraComponent->PostProcessSettings;
-
-			if ( !FMath::IsNearlyEqual( PostProcess->GetTemperature(), 6500.f ) )
-			{
-				PostProcessSettings.bOverride_WhiteTemp = true;
-				PostProcessSettings.WhiteTemp = PostProcess->GetTemperature();
-			}
-
-			if ( PostProcess->GetVignette() > 0.f )
-			{
-				PostProcessSettings.bOverride_VignetteIntensity = true;
-				PostProcessSettings.VignetteIntensity = PostProcess->GetVignette();
-			}
-
-			if (PostProcess->GetColorFilter() != FLinearColor::Black && PostProcess->GetColorFilter() != FLinearColor::White )
-			{
-				PostProcessSettings.bOverride_FilmWhitePoint = true;
-				PostProcessSettings.FilmWhitePoint = PostProcess->GetColorFilter();
-			}
-
-			if ( !FMath::IsNearlyEqual( PostProcess->GetSaturation(), 1.f ) )
-			{
-				PostProcessSettings.bOverride_ColorSaturation = true;
-				PostProcessSettings.ColorSaturation.W = PostProcess->GetSaturation();
-			}
-
-			if ( PostProcess->GetCameraISO() > 0.f || PostProcess->GetCameraShutterSpeed() > 0.f || PostProcess->GetDepthOfFieldFstop() > 0.f )
-			{
-				PostProcessSettings.bOverride_AutoExposureMethod = true;
-				PostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
-
-				if ( PostProcess->GetCameraISO() > 0.f )
+					CameraComponent = CameraActor->GetCineCameraComponent();
+				}
+				else
 				{
-					PostProcessSettings.bOverride_CameraISO = true;
-					PostProcessSettings.CameraISO = PostProcess->GetCameraISO();
+					FName ComponentName = NAME_None;
+					ComponentName = MakeUniqueObjectName(RootComponent->GetOwner(), UCineCameraComponent::StaticClass(), CameraElement->GetLabel());
+					CameraComponent = NewObject< UCineCameraComponent >(RootComponent->GetOwner(), ComponentName);
 				}
 
-				if ( PostProcess->GetCameraShutterSpeed() > 0.f )
+				ActorData.Object = CameraComponent;
+			}
+			//else
+			//{
+			//	CameraComponent->GetOwner()->UpdateComponentTransforms();
+			//	CameraComponent->GetOwner()->MarkComponentsRenderStateDirty();
+			//}
+
+			CameraComponent->Filmback.SensorWidth = CameraElement->GetSensorWidth();
+			CameraComponent->Filmback.SensorHeight = CameraElement->GetSensorWidth() / CameraElement->GetSensorAspectRatio();
+			CameraComponent->LensSettings.MaxFStop = 32.0f;
+			CameraComponent->CurrentFocalLength = CameraElement->GetFocalLength();
+			CameraComponent->CurrentAperture = CameraElement->GetFStop();
+
+			CameraComponent->FocusSettings.FocusMethod = CameraElement->GetEnableDepthOfField() ? ECameraFocusMethod::Manual : ECameraFocusMethod::DoNotOverride;
+			CameraComponent->FocusSettings.ManualFocusDistance = CameraElement->GetFocusDistance();
+
+			if (const IDatasmithPostProcessElement* PostProcess = CameraElement->GetPostProcess().Get())
+			{
+				FPostProcessSettings& PostProcessSettings = CameraComponent->PostProcessSettings;
+
+				if ( !FMath::IsNearlyEqual( PostProcess->GetTemperature(), 6500.f ) )
 				{
-					PostProcessSettings.bOverride_CameraShutterSpeed = true;
-					PostProcessSettings.CameraShutterSpeed = PostProcess->GetCameraShutterSpeed();
+					PostProcessSettings.bOverride_WhiteTemp = true;
+					PostProcessSettings.WhiteTemp = PostProcess->GetTemperature();
 				}
 
-				if ( PostProcess->GetDepthOfFieldFstop() > 0.f )
+				if ( PostProcess->GetVignette() > 0.f )
 				{
-					PostProcessSettings.bOverride_DepthOfFieldFstop = true;
-					PostProcessSettings.DepthOfFieldFstop = PostProcess->GetDepthOfFieldFstop();
+					PostProcessSettings.bOverride_VignetteIntensity = true;
+					PostProcessSettings.VignetteIntensity = PostProcess->GetVignette();
+				}
+
+				if (PostProcess->GetColorFilter() != FLinearColor::Black && PostProcess->GetColorFilter() != FLinearColor::White )
+				{
+					PostProcessSettings.bOverride_FilmWhitePoint = true;
+					PostProcessSettings.FilmWhitePoint = PostProcess->GetColorFilter();
+				}
+
+				if ( !FMath::IsNearlyEqual( PostProcess->GetSaturation(), 1.f ) )
+				{
+					PostProcessSettings.bOverride_ColorSaturation = true;
+					PostProcessSettings.ColorSaturation.W = PostProcess->GetSaturation();
+				}
+
+				if ( PostProcess->GetCameraISO() > 0.f || PostProcess->GetCameraShutterSpeed() > 0.f || PostProcess->GetDepthOfFieldFstop() > 0.f )
+				{
+					PostProcessSettings.bOverride_AutoExposureMethod = true;
+					PostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
+
+					if ( PostProcess->GetCameraISO() > 0.f )
+					{
+						PostProcessSettings.bOverride_CameraISO = true;
+						PostProcessSettings.CameraISO = PostProcess->GetCameraISO();
+					}
+
+					if ( PostProcess->GetCameraShutterSpeed() > 0.f )
+					{
+						PostProcessSettings.bOverride_CameraShutterSpeed = true;
+						PostProcessSettings.CameraShutterSpeed = PostProcess->GetCameraShutterSpeed();
+					}
+
+					if ( PostProcess->GetDepthOfFieldFstop() > 0.f )
+					{
+						PostProcessSettings.bOverride_DepthOfFieldFstop = true;
+						PostProcessSettings.DepthOfFieldFstop = PostProcess->GetDepthOfFieldFstop();
+					}
 				}
 			}
 		}
-#endif
+
+		FinalizeComponent(ActorData);
+
 		ActorData.SetState(EAssetState::Processed | EAssetState::Completed);
 
 		return true;
@@ -1422,15 +1432,9 @@ namespace DatasmithRuntime
 
 		// Find the right parent
 		FSceneGraphId ParentId = ActorData.ParentId;
-		while (ParentId != DirectLink::InvalidId)
+		while (ParentId != DirectLink::InvalidId && ActorDataList[ParentId].HasState(EAssetState::Skipped))
 		{
-			FActorData& ParentData = ActorDataList[ParentId];
-			if (!ParentData.HasState(EAssetState::Skipped))
-			{
-				break;
-			}
-
-			ParentId = ParentData.ParentId;
+			ParentId = ActorDataList[ParentId].ParentId;
 		}
 
 		if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None && ParentId != DirectLink::InvalidId)
@@ -1461,37 +1465,46 @@ namespace DatasmithRuntime
 
 		const bool bUseParent = ParentId != DirectLink::InvalidId && ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None;
 		USceneComponent* ParentComponent = bUseParent ? ActorDataList[ParentId].GetObject<USceneComponent>() : RootComponent.Get();
-		ensure(ParentComponent != nullptr);
 
-		const IDatasmithActorElement* ActorElement = static_cast<IDatasmithActorElement*>(Elements[ActorData.ElementId].Get());
-
-		SceneComponent->SetWorldTransform( ActorData.WorldTransform );
-		SceneComponent->SetVisibility(ActorElement->GetVisibility());
-		SceneComponent->SetMobility( EComponentMobility::Movable );
-
-		if (SceneComponent->GetAttachParent() != ParentComponent)
+		if (ParentComponent)
 		{
-			SceneComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
-			SceneComponent->AttachToComponent( ParentComponent, FAttachmentTransformRules::KeepWorldTransform );
-		}
+			const IDatasmithActorElement* ActorElement = static_cast<IDatasmithActorElement*>(Elements[ActorData.ElementId].Get());
 
-		SceneComponent->ComponentTags.Empty(ActorElement->GetTagsCount());
-		for (int32 Index = 0; Index < ActorElement->GetTagsCount(); ++Index)
-		{
-			SceneComponent->ComponentTags.Add(ActorElement->GetTag(Index));
-		}
+			const FTransform ParentToWorld = ParentComponent->GetComponentToWorld();
+			const FTransform RelativeTransform = ActorData.WorldTransform.GetRelativeTransform(ParentToWorld);
 
-		if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None)
-		{
-			if (ActorElement->IsAComponent() && ParentComponent && SceneComponent->GetOwner() != ParentComponent->GetOwner())
+			SceneComponent->SetRelativeTransform( RelativeTransform );
+			SceneComponent->SetVisibility(ActorElement->GetVisibility());
+			SceneComponent->SetMobility( EComponentMobility::Movable );
+
+			if (SceneComponent->GetAttachParent() != ParentComponent)
 			{
-				FName UniqueName = MakeUniqueObjectName(ParentComponent->GetOwner(), SceneComponent->GetClass(), ActorElement->GetLabel());
-				SceneComponent->Rename(*UniqueName.ToString(), ParentComponent->GetOwner(), REN_NonTransactional | REN_DontCreateRedirectors);
+				SceneComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+				SceneComponent->AttachToComponent( ParentComponent, FAttachmentTransformRules::KeepRelativeTransform );
 			}
 
-			SceneComponent->GetOwner()->AddInstanceComponent(SceneComponent);
-		}
+			SceneComponent->ComponentTags.Empty(ActorElement->GetTagsCount());
+			for (int32 Index = 0; Index < ActorElement->GetTagsCount(); ++Index)
+			{
+				SceneComponent->ComponentTags.Add(ActorElement->GetTag(Index));
+			}
 
-		SceneComponent->RegisterComponentWithWorld(RootComponent->GetOwner()->GetWorld());
+			if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None)
+			{
+				if (ActorElement->IsAComponent() && ParentComponent && SceneComponent->GetOwner() != ParentComponent->GetOwner())
+				{
+					FName UniqueName = MakeUniqueObjectName(ParentComponent->GetOwner(), SceneComponent->GetClass(), ActorElement->GetLabel());
+					SceneComponent->Rename(*UniqueName.ToString(), ParentComponent->GetOwner(), REN_NonTransactional | REN_DontCreateRedirectors);
+				}
+
+				SceneComponent->GetOwner()->AddInstanceComponent(SceneComponent);
+			}
+
+			SceneComponent->RegisterComponentWithWorld(RootComponent->GetOwner()->GetWorld());
+		}
+		else
+		{
+			ensure(false);
+		}
 	}
 } // End of namespace DatasmithRuntime

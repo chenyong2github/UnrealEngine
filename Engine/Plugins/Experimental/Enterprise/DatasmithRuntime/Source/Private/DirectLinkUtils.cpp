@@ -166,6 +166,10 @@ namespace DatasmithRuntime
 
 #if !NO_LOGGING
 		LogDatasmith.SetVerbosity( ELogVerbosity::Error );
+#ifndef DIRECTLINK_LOG
+		LogDirectLink.SetVerbosity( ELogVerbosity::Warning );
+		LogDirectLinkNet.SetVerbosity( ELogVerbosity::Warning );
+#endif
 #if !WITH_EDITOR || defined(NO_DL_DEBUG)
 		LogDirectLink.SetVerbosity( ELogVerbosity::Warning );
 		LogDirectLinkNet.SetVerbosity( ELogVerbosity::Warning );

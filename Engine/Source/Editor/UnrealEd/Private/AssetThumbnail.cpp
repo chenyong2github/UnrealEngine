@@ -29,6 +29,8 @@
 #include "UnrealEdGlobals.h"
 #include "Slate/SlateTextures.h"
 #include "ObjectTools.h"
+#include "AssetRegistryModule.h"
+#include "IAssetRegistry.h"
 #include "ShaderCompiler.h"
 #include "AssetCompilingManager.h"
 #include "IAssetTools.h"
@@ -38,6 +40,8 @@
 #include "ClassIconFinder.h"
 #include "IVREditorModule.h"
 #include "Framework/Application/SlateApplication.h"
+
+FName FAssetThumbnailPool::CustomThumbnailTagName = "CustomThumbnail";
 
 class SAssetThumbnail : public SCompoundWidget
 {
@@ -875,6 +879,10 @@ FAssetThumbnailPool::FAssetThumbnailPool( uint32 InNumInPool, double InMaxFrameT
 	{
 		GEditor->OnActorMoved().AddRaw( this, &FAssetThumbnailPool::OnActorPostEditMove );
 	}
+
+	// Add the custom thumbnail tag to the list of tags that the asset registry can parse
+	TSet<FName>& MetaDataTagsForAssetRegistry = UObject::GetMetaDataTagsForAssetRegistry();
+	MetaDataTagsForAssetRegistry.Add(CustomThumbnailTagName);
 }
 
 FAssetThumbnailPool::~FAssetThumbnailPool()
@@ -1052,112 +1060,28 @@ void FAssetThumbnailPool::Tick( float DeltaTime )
 
 				if ( InfoRef->AssetData.IsValid() )
 				{
-					const FObjectThumbnail* ObjectThumbnail = nullptr;
-					bool bLoadedThumbnail = false;
-
-					// Hold off thumbnail rendering during shader compilation to avoid making the game-thread slower than it already is.
-					// It will fallback on the thumbnail cached on disk during asset compile time, which is even better than showing wrong thumbnails.
-					// If this is a loaded asset and we have a rendering info for it, render a fresh thumbnail here
-					if( InfoRef->AssetData.IsAssetLoaded() && !bAreShadersCompiling)
+					FAssetData CustomThumbnailAsset;
+					// Check if a different asset should be used to generate the thumbnail for this asset
+					FString CustomThumbnailTagValue;
+					if (InfoRef->AssetData.GetTagValue(CustomThumbnailTagName, CustomThumbnailTagValue))
 					{
-						UObject* Asset = InfoRef->AssetData.GetAsset();
-						
-						//Avoid rendering the thumbnail of an asset that is currently edited asynchronously
-						const IInterface_AsyncCompilation* Interface_AsyncCompilation = Cast<IInterface_AsyncCompilation>(Asset);
-						bIsAssetStillCompiling = Interface_AsyncCompilation && Interface_AsyncCompilation->IsCompiling();
-						if (!bIsAssetStillCompiling)
+						if (FPackageName::IsValidObjectPath(CustomThumbnailTagValue))
 						{
-							FThumbnailRenderingInfo* RenderInfo = GUnrealEd->GetThumbnailManager()->GetRenderingInfo(Asset);
-							if (RenderInfo != nullptr && RenderInfo->Renderer != nullptr)
-							{
-								FThumbnailInfo_RenderThread ThumbInfo = InfoRef.Get();
-								ENQUEUE_RENDER_COMMAND(SyncSlateTextureCommand)(
-									[ThumbInfo](FRHICommandListImmediate& RHICmdList)
-								{
-									if (ThumbInfo.ThumbnailTexture->GetTypedResource() != ThumbInfo.ThumbnailRenderTarget->GetTextureRHI())
-									{
-										ThumbInfo.ThumbnailTexture->ClearTextureData();
-										ThumbInfo.ThumbnailTexture->ReleaseDynamicRHI();
-										ThumbInfo.ThumbnailTexture->SetRHIRef(ThumbInfo.ThumbnailRenderTarget->GetTextureRHI(), ThumbInfo.Width, ThumbInfo.Height);
-									}
-								});
-
-								if (InfoRef->LastUpdateTime <= 0.0f || RenderInfo->Renderer->AllowsRealtimeThumbnails(Asset))
-								{
-									//@todo: this should be done on the GPU only but it is not supported by thumbnail tools yet
-									ThumbnailTools::RenderThumbnail(
-										Asset,
-										InfoRef->Width,
-										InfoRef->Height,
-										ThumbnailTools::EThumbnailTextureFlushMode::NeverFlush,
-										InfoRef->ThumbnailRenderTarget
-									);
-								}
-
-								bLoadedThumbnail = true;
-							}
+							CustomThumbnailAsset = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get().GetAssetByObjectPath(*CustomThumbnailTagValue);
 						}
 					}
 
-					FThumbnailMap ThumbnailMap;
-					// If we could not render a fresh thumbnail, see if we already have a cached one to load
-					if ( !bLoadedThumbnail )
+					bool bLoadedThumbnail = LoadThumbnail(InfoRef, CustomThumbnailAsset);
+
+					// If we failed to load a custom thumbnail, then load the custom thumbnail's asset and try again
+					if (!bLoadedThumbnail && CustomThumbnailAsset.IsValid())
 					{
-						// Unloaded asset
-						const FObjectThumbnail* FoundThumbnail = ThumbnailTools::FindCachedThumbnail(InfoRef->AssetData.GetFullName());
-						if ( FoundThumbnail )
+						// Only load the custom thumbnail if the original asset is also loaded
+						//if (InfoRef->AssetData.IsAssetLoaded())
 						{
-							ObjectThumbnail = FoundThumbnail;
-						}
-						else
-						{
-							// If we don't have a cached thumbnail, try to find it on disk
-							FString PackageFilename;
-							if ( FPackageName::DoesPackageExist(InfoRef->AssetData.PackageName.ToString(), NULL, &PackageFilename) )
-							{
-								TSet<FName> ObjectFullNames;
-								
- 
-								FName ObjectFullName = FName(*InfoRef->AssetData.GetFullName());
-								ObjectFullNames.Add(ObjectFullName);
- 
-								ThumbnailTools::LoadThumbnailsFromPackage(PackageFilename, ObjectFullNames, ThumbnailMap);
- 
-								const FObjectThumbnail* ThumbnailPtr = ThumbnailMap.Find(ObjectFullName);
-								if (ThumbnailPtr)
-								{
-									ObjectThumbnail = ThumbnailPtr;
-								}
-							}
-						}
-					}
-
-					if ( ObjectThumbnail )
-					{
-						if ( ObjectThumbnail->GetImageWidth() > 0 && ObjectThumbnail->GetImageHeight() > 0 && ObjectThumbnail->GetUncompressedImageData().Num() > 0 )
-						{
-							// Make bulk data for updating the texture memory later
-							FSlateTextureData* BulkData = new FSlateTextureData(ObjectThumbnail->GetImageWidth(),ObjectThumbnail->GetImageHeight(),GPixelFormats[PF_B8G8R8A8].BlockBytes, ObjectThumbnail->AccessImageData() );
-
-							// Update the texture RHI
-							FThumbnailInfo_RenderThread ThumbInfo = InfoRef.Get();
-							ENQUEUE_RENDER_COMMAND(ClearSlateTextureCommand)(
-								[ThumbInfo, BulkData](FRHICommandListImmediate& RHICmdList)
-							{
-								if (ThumbInfo.ThumbnailTexture->GetTypedResource() == ThumbInfo.ThumbnailRenderTarget->GetTextureRHI())
-								{
-									ThumbInfo.ThumbnailTexture->SetRHIRef(NULL, ThumbInfo.Width, ThumbInfo.Height);
-								}
-
-								ThumbInfo.ThumbnailTexture->SetTextureData(MakeShareable(BulkData));
-								ThumbInfo.ThumbnailTexture->UpdateRHI();
-							});
-
-							bLoadedThumbnail = true;
-						}
-						else
-						{
-							bLoadedThumbnail = false;
+							UObject* CustomThumbnail = CustomThumbnailAsset.GetAsset();
+							bLoadedThumbnail = LoadThumbnail(InfoRef, CustomThumbnailAsset);
+							CustomThumbnail->ClearFlags(RF_Standalone);
 						}
 					}
 
@@ -1181,6 +1105,94 @@ void FAssetThumbnailPool::Tick( float DeltaTime )
 			}
 		}
 	}
+}
+
+bool FAssetThumbnailPool::LoadThumbnail(TSharedRef<FThumbnailInfo> ThumbnailInfo, const FAssetData& CustomAssetToRender)
+{
+	const FAssetData& AssetData = CustomAssetToRender.IsValid() ? CustomAssetToRender : ThumbnailInfo->AssetData;
+	UObject* Asset = AssetData.IsAssetLoaded() ? AssetData.GetAsset() : nullptr;
+
+	if (Asset)
+	{
+		FThumbnailRenderingInfo* RenderInfo = GUnrealEd->GetThumbnailManager()->GetRenderingInfo(Asset);
+		if (RenderInfo != NULL && RenderInfo->Renderer != NULL)
+		{
+			FThumbnailInfo_RenderThread ThumbInfo = ThumbnailInfo.Get();
+			ENQUEUE_RENDER_COMMAND(SyncSlateTextureCommand)(
+				[ThumbInfo](FRHICommandListImmediate& RHICmdList)
+			{
+				if (ThumbInfo.ThumbnailTexture->GetTypedResource() != ThumbInfo.ThumbnailRenderTarget->GetTextureRHI())
+				{
+					ThumbInfo.ThumbnailTexture->ClearTextureData();
+					ThumbInfo.ThumbnailTexture->ReleaseDynamicRHI();
+					ThumbInfo.ThumbnailTexture->SetRHIRef(ThumbInfo.ThumbnailRenderTarget->GetTextureRHI(), ThumbInfo.Width, ThumbInfo.Height);
+				}
+			});
+
+			if (ThumbnailInfo->LastUpdateTime <= 0.0f || RenderInfo->Renderer->AllowsRealtimeThumbnails(Asset))
+			{
+				//@todo: this should be done on the GPU only but it is not supported by thumbnail tools yet
+				ThumbnailTools::RenderThumbnail(
+					Asset,
+					ThumbnailInfo->Width,
+					ThumbnailInfo->Height,
+					ThumbnailTools::EThumbnailTextureFlushMode::NeverFlush,
+					ThumbnailInfo->ThumbnailRenderTarget
+				);
+			}
+
+			// Since this was rendered, add it to the list of thumbnails that can be rendered in real-time
+			RealTimeThumbnails.AddUnique(ThumbnailInfo);
+			return true;
+		}
+	}
+
+	FThumbnailMap ThumbnailMap;
+	// If we could not render a fresh thumbnail, see if we already have a cached one to load
+	const FObjectThumbnail* FoundThumbnail = ThumbnailTools::FindCachedThumbnail(AssetData.GetFullName());
+	if (!FoundThumbnail)
+	{
+		// If we don't have a cached thumbnail, try to find it on disk
+		FString PackageFilename;
+		if (FPackageName::DoesPackageExist(AssetData.PackageName.ToString(), NULL, &PackageFilename))
+		{
+			TSet<FName> ObjectFullNames;
+
+
+			FName ObjectFullName = FName(*AssetData.GetFullName());
+			ObjectFullNames.Add(ObjectFullName);
+
+			ThumbnailTools::LoadThumbnailsFromPackage(PackageFilename, ObjectFullNames, ThumbnailMap);
+
+			FoundThumbnail = ThumbnailMap.Find(ObjectFullName);
+		}
+	}
+
+	if (FoundThumbnail)
+	{
+		if (FoundThumbnail->GetImageWidth() > 0 && FoundThumbnail->GetImageHeight() > 0 && FoundThumbnail->GetUncompressedImageData().Num() > 0)
+		{
+			// Make bulk data for updating the texture memory later
+			FSlateTextureData* BulkData = new FSlateTextureData(FoundThumbnail->GetImageWidth(), FoundThumbnail->GetImageHeight(), GPixelFormats[PF_B8G8R8A8].BlockBytes, FoundThumbnail->AccessImageData());
+
+			// Update the texture RHI
+			FThumbnailInfo_RenderThread ThumbInfo = ThumbnailInfo.Get();
+			ENQUEUE_RENDER_COMMAND(ClearSlateTextureCommand)(
+				[ThumbInfo, BulkData](FRHICommandListImmediate& RHICmdList)
+			{
+				if (ThumbInfo.ThumbnailTexture->GetTypedResource() == ThumbInfo.ThumbnailRenderTarget->GetTextureRHI())
+				{
+					ThumbInfo.ThumbnailTexture->SetRHIRef(NULL, ThumbInfo.Width, ThumbInfo.Height);
+				}
+
+				ThumbInfo.ThumbnailTexture->SetTextureData(MakeShareable(BulkData));
+				ThumbInfo.ThumbnailTexture->UpdateRHI();
+			});
+
+			return true;
+		}
+	}
+	return false;
 }
 
 FSlateTexture2DRHIRef* FAssetThumbnailPool::AccessTexture( const FAssetData& AssetData, uint32 Width, uint32 Height )

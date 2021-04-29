@@ -425,6 +425,9 @@ void USocialManager::RegisterSocialInteractions()
 {
 	// Register Party Interactions
 	RegisterInteraction<FSocialInteraction_JoinParty>();
+	RegisterInteraction<FSocialInteraction_RequestToJoinParty>();
+	RegisterInteraction<FSocialInteraction_AcceptJoinRequest>();
+	RegisterInteraction<FSocialInteraction_DismissJoinRequest>();
 	RegisterInteraction<FSocialInteraction_InviteToParty>();
 	RegisterInteraction<FSocialInteraction_AcceptPartyInvite>();
 	RegisterInteraction<FSocialInteraction_RejectPartyInvite>();

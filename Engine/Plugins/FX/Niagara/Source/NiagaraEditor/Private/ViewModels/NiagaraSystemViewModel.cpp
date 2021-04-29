@@ -1403,7 +1403,10 @@ void FNiagaraSystemViewModel::SetupSequencer()
 void FNiagaraSystemViewModel::SnapToNextSpeed(const FString& PropertyName, const UNiagaraEditorSettings* Settings)
 {
 	// we update the speed in any case
-	Sequencer->SnapToClosestPlaybackSpeed();
+	if (Sequencer != nullptr)
+	{
+		Sequencer->SnapToClosestPlaybackSpeed();
+	}
 }
 
 void FNiagaraSystemViewModel::IsolateSelectedEmitters()

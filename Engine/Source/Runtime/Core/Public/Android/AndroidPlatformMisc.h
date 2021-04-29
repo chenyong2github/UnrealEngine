@@ -53,7 +53,6 @@ struct CORE_API FAndroidMisc : public FGenericPlatformMisc
 	static bool UseRenderThread();
 	static bool HasPlatformFeature(const TCHAR* FeatureName);
 	static bool ShouldDisablePluginAtRuntime(const FString& PluginName);
-	static void SetThreadName(const char* name);
 	static bool SupportsES30();
 
 public:
@@ -98,7 +97,6 @@ public:
 	static void GetValidTargetPlatforms(class TArray<class FString>& TargetPlatformNames);
 	static bool GetUseVirtualJoysticks();
 	static bool SupportsTouchInput();
-	static bool IsStandaloneStereoOnlyDevice();
 	static const TCHAR* GetDefaultDeviceProfileName() { return TEXT("Android_Default"); }
 	static bool GetVolumeButtonsHandledBySystem();
 	static void SetVolumeButtonsHandledBySystem(bool enabled);
@@ -311,6 +309,10 @@ public:
 
 	// Android specific requesting of exit, *ONLY* use this function in signal handling code. Otherwise normal RequestExit functions
 	static void NonReentrantRequestExit();
+
+	// Register/Get thread names for Android specific threads
+	static void RegisterThreadName(const char* Name, uint32 ThreadId);
+	static const char* GetThreadName(uint32 ThreadId);
 
 private:
 	static const ANSICHAR* CodeToString(int Signal, int si_code);

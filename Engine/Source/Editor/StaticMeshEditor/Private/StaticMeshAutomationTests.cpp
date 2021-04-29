@@ -13,6 +13,8 @@
 #include "StaticMeshEditorViewportClient.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
+#if WITH_AUTOMATION_TESTS
+
 namespace EditorViewButtonHelper
 {
 	/**
@@ -229,3 +231,5 @@ bool FStaticMeshEditorTest::RunTest(const FString& Parameters)
 
 	return true;
 }
+
+#endif // WITH_AUTOMATION_TESTS

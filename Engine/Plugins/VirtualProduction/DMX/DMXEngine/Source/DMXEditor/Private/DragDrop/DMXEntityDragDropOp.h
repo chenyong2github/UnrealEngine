@@ -40,6 +40,10 @@ protected:
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FDMXEntityDragDropOperation");
+	}
 
 public:
 	/** Handles op entering a category row */

@@ -46,8 +46,8 @@ public:
 	}
 
 private:
-	LAYOUT_FIELD(FShaderResourceParameter, SortedIndices)
-	LAYOUT_FIELD(FShaderParameter, SortedIndicesOffset)
+	LAYOUT_FIELD(FShaderResourceParameter, SortedIndices);
+	LAYOUT_FIELD(FShaderParameter, SortedIndicesOffset);
 };
 
 IMPLEMENT_TYPE_LAYOUT(FNiagaraMeshVertexFactoryShaderParametersVS);
@@ -72,6 +72,7 @@ public:
 		const FNiagaraMeshVertexFactory* NiagaraMeshVF = static_cast<const FNiagaraMeshVertexFactory*>(VertexFactory);
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraMeshUniformParameters>(), NiagaraMeshVF->GetUniformBuffer());
 	}
+
 };
 
 IMPLEMENT_TYPE_LAYOUT(FNiagaraMeshVertexFactoryShaderParametersPS);

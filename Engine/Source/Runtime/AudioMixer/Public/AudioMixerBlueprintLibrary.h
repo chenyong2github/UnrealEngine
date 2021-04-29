@@ -109,22 +109,54 @@ inline const TCHAR* ToString(EAudioMixerChannelType InType)
 	}
 }
 
+// Resulting State of SwapAudioOutputDevice call
+UENUM(BlueprintType)
+enum class ESwapAudioOutputDeviceResultState : uint8
+{
+	Failure, 
+	Success, 
+	None,
+};
+
+/**
+ * Out structure for use with AudioMixerBlueprintLibrary::SwapAudioOutputDevice
+ */
+USTRUCT(BlueprintType)
+struct AUDIOMIXER_API FSwapAudioOutputResult
+{
+	GENERATED_USTRUCT_BODY()
+
+	FSwapAudioOutputResult() = default;
+
+	/** ID of the currently set device. */
+	UPROPERTY(BlueprintReadOnly, Category = "Audio")
+	FString CurrentDeviceId;
+
+	/** ID of the requested device. */
+	UPROPERTY(BlueprintReadOnly, Category = "Audio")
+	FString RequestedDeviceId;
+
+	/** Result of the call */
+	UPROPERTY(BlueprintReadOnly, Category = "Audio")
+	ESwapAudioOutputDeviceResultState Result = ESwapAudioOutputDeviceResultState::None;
+};
 
 /**
  * Platform audio output device info, in a Blueprint-readable format
  */
 USTRUCT(BlueprintType)
-struct FAudioOutputDeviceInfo
+struct AUDIOMIXER_API FAudioOutputDeviceInfo
 {
 	GENERATED_USTRUCT_BODY()
 
-	FAudioOutputDeviceInfo() :
-		Name(""),
-		DeviceId(""),
-		NumChannels(0),
-		SampleRate(0),
-		Format(EAudioMixerStreamDataFormatType::Unknown),
-		bIsSystemDefault(true)
+	FAudioOutputDeviceInfo()
+		: Name("")
+		, DeviceId("")
+		, NumChannels(0)
+		, SampleRate(0)
+		, Format(EAudioMixerStreamDataFormatType::Unknown)
+		, bIsSystemDefault(true)
+		, bIsCurrentDevice(false)
 	{};
 
 	FAudioOutputDeviceInfo(const Audio::FAudioPlatformDeviceInfo& InDeviceInfo);
@@ -139,15 +171,15 @@ struct FAudioOutputDeviceInfo
 
 	/** The number of channels supported by the audio device */
 	UPROPERTY(BlueprintReadOnly, Category = "Audio")
-	int32 NumChannels;
+	int32 NumChannels = 0;
 
 	/** The sample rate of the audio device */
 	UPROPERTY(BlueprintReadOnly, Category = "Audio")
-	int32 SampleRate;
+	int32 SampleRate = 0;
 
 	/** The data format of the audio stream */
 	UPROPERTY(BlueprintReadOnly, Category = "Audio")
-	EAudioMixerStreamDataFormatType Format;
+	EAudioMixerStreamDataFormatType Format = EAudioMixerStreamDataFormatType::Unknown;
 
 	/** The output channel array of the audio device */
 	UPROPERTY(BlueprintReadOnly, Category = "Audio")
@@ -156,6 +188,10 @@ struct FAudioOutputDeviceInfo
 	/** Whether or not this device is the system default */
 	UPROPERTY(BlueprintReadOnly, Category = "Audio")
 	uint8 bIsSystemDefault : 1;
+
+	/** Whether or not this device is the device currently in use */
+	UPROPERTY(BlueprintReadOnly, Category = "Audio")
+	uint8 bIsCurrentDevice : 1;
 };
 
 /**
@@ -171,7 +207,7 @@ DECLARE_DYNAMIC_DELEGATE_OneParam(FOnMainAudioOutputDeviceObtained, const FStrin
 /**
  * Called when the system has swapped to another audio output device
  */
-DECLARE_DYNAMIC_DELEGATE_OneParam(FOnCompletedDeviceSwap, bool, bWasDeviceSwapSuccessful);
+DECLARE_DYNAMIC_DELEGATE_OneParam(FOnCompletedDeviceSwap, const FSwapAudioOutputResult&, SwapResult);
 
 UCLASS(meta=(ScriptName="AudioMixerLibrary"))
 class AUDIOMIXER_API UAudioMixerBlueprintLibrary : public UBlueprintFunctionLibrary
@@ -347,10 +383,10 @@ public:
 
 	/**
 	* Hotswaps to the requested audio output device
-	* @param NewDevice - the device to swap to
+	* @param NewDeviceId - the device Id to swap to
 	* @param OnCompletedDeviceSwap - the event to fire when the audio endpoint devices have been retrieved
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
-	static void SwapAudioOutputDevice(const UObject* WorldContextObject, const FAudioOutputDeviceInfo& NewDevice, const FOnCompletedDeviceSwap& OnCompletedDeviceSwap);
+	static void SwapAudioOutputDevice(const UObject* WorldContextObject, const FString& NewDeviceId, const FOnCompletedDeviceSwap& OnCompletedDeviceSwap);
 };
 

@@ -53,15 +53,15 @@ public:
 		int32 ElementId, 
 		int32 LODIndex)
 		: FGenericEntityRef(ElementId, Refs, RefAllocator)
-		, Collection(Collection)
 		, LODIndex(LODIndex)
+		, Collection(Collection)
 	{}
 
 	TArray<FMeshBatch> GetMeshBatchesForGBufferRendering(FTileVirtualCoordinates CoordsForCulling = FTileVirtualCoordinates{});
 
+	int32 LODIndex;
 private:
 	FGeometryInstanceRenderStateCollectionBase& Collection;
-	int32 LODIndex;
 
 	template<typename GeometryType>
 	friend class TGeometryInstanceRenderStateCollection;

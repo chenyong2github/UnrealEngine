@@ -7,11 +7,12 @@
 #include "GraphEditor.h"
 #include "NodeFactory.h"
 #include "UObject/StrongObjectPtr.h"
+#include "EditorUndoClient.h"
 
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorCanvasNode.h"
 
 class FDisplayClusterConfiguratorViewOutputMapping;
-class FDisplayClusterConfiguratorToolkit;
+class FDisplayClusterConfiguratorBlueprintEditor;
 class FMenuBuilder;
 class FUICommandList;
 class SDisplayClusterConfiguratorGraphEditor;
@@ -36,6 +37,7 @@ enum class ENodeAlignment : uint8
 
 class SDisplayClusterConfiguratorGraphEditor
 	: public SGraphEditor
+	, public FEditorUndoClient
 {
 public:
 	SLATE_BEGIN_ARGS(SDisplayClusterConfiguratorGraphEditor)
@@ -47,20 +49,38 @@ public:
 
 	void Construct(
 		const FArguments& InArgs,
-		const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit,
+		const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit,
 		const TSharedRef<FDisplayClusterConfiguratorViewOutputMapping>& InViewOutputMapping);
 
-	void SetViewportPreviewTexture(const FString& NodeId, const FString& ViewportId, UTexture* InTexture);
+	~SDisplayClusterConfiguratorGraphEditor();
+
+	//~ SWidget interface
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	//~ End SWidget interface
+
+	// FEditorUndoClient Interface
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
+	// End of FEditorUndoClient
+
+	void FindAndSelectObjects(const TArray<UObject*>& ObjectsToSelect);
 
 private:
 	void OnSelectedNodesChanged(const TSet<UObject*>& NewSelection);
 	void OnObjectSelected();
 	void OnConfigReloaded();
-	void RebuildCanvasNode();
+	void OnClusterChanged();
+	void RebuildGraph();
 
 	/** Callback to create contextual menu for graph nodes in graph panel */
 	FActionMenuContent OnCreateNodeOrPinMenu(UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, FMenuBuilder* MenuBuilder, bool bIsDebugging);
 	void BindCommands();
+
+	void AddNewClusterNode();
+	bool CanAddNewClusterNode() const;
+
+	void AddNewViewport();
+	bool CanAddNewViewport() const;
 
 	void BrowseDocumentation();
 
@@ -82,20 +102,21 @@ private:
 	bool CanAlignNodes() const;
 	void AlignNodes(ENodeAlignment Alignment);
 
-	void ForEachGraphNode(TFunction<void(UDisplayClusterConfiguratorBaseNode* Node)> Predicate);
+	bool CanFillParentNode() const;
+	void FillParentNode();
+
+	bool CanSizeToChildNodes() const;
+	void SizeToChildNodes();
 
 private:
-	TWeakPtr<FDisplayClusterConfiguratorToolkit> ToolkitPtr;
+	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
 
 	TWeakObjectPtr<UDisplayClusterConfiguratorGraph> ClusterConfiguratorGraph;
 
 	TWeakPtr<FDisplayClusterConfiguratorViewOutputMapping> ViewOutputMappingPtr;
 
-	TSet<UObject*> SelectedNodes;
-
-	TStrongObjectPtr<UDisplayClusterConfiguratorCanvasNode> RootCanvasNode;
-
-	bool bClearSelection;
+	/** Indicates if the graph's SelectedNodesChange event was invoked from user action or changed directly through code. */
+	bool bSelectionSetDirectly;
 
 	/** The nodes menu command list */
 	TSharedPtr<FUICommandList> CommandList;

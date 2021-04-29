@@ -9,6 +9,7 @@ class CONCERTSYNCCLIENT_API FConcertClientTransactionBridge : public IConcertCli
 {
 public:
 	FConcertClientTransactionBridge();
+	FConcertClientTransactionBridge(bool bInIncludeEditorOnlyProperties);
 	virtual ~FConcertClientTransactionBridge();
 
 	//~ IConcertClientTransactionBridge interface
@@ -70,4 +71,7 @@ private:
 
 	/** Flag to ignore transaction state change event, used when we do not want to record transaction we generate ourselves */
 	bool bIgnoreLocalTransactions;
+
+	/** Include non-cooked properties in object serialization */
+	bool bIncludeEditorOnlyProperties;
 };

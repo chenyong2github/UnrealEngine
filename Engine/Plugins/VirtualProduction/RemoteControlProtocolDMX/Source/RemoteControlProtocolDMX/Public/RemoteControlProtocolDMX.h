@@ -7,11 +7,26 @@
 #include "DMXProtocolCommon.h"
 #include "RemoteControlProtocolBinding.h"
 #include "Tickable.h"
+#include "IO/DMXInputPortReference.h"
 
 #include "RemoteControlProtocolDMX.generated.h"
 
 class FRemoteControlProtocolDMX;
 enum class EDMXFixtureSignalFormat : uint8;
+
+/**
+ * Using as an inner struct for details customization.
+ * Useful to have type customization for the struct
+ */
+USTRUCT()
+struct FRemoteControlDMXProtocolEntityExtraSetting
+{
+	GENERATED_BODY();
+
+	/** Starting universe channel */
+	UPROPERTY(EditAnywhere, Category = Mapping, meta = (ClampMin = "1", ClampMax = "512", UIMin = "1", UIMax = "512"))
+	int32 StartingChannel = 1;
+};
 
 /**
  * DMX protocol entity for remote control binding
@@ -23,10 +38,19 @@ struct FRemoteControlDMXProtocolEntity : public FRemoteControlProtocolEntity
 
 	friend class FRemoteControlProtocolDMX;
 
+	/** Destructor */
+	virtual ~FRemoteControlDMXProtocolEntity();
+
 public:
 	//~ Begin FRemoteControlProtocolEntity interface
 	virtual FName GetRangePropertyName() const override { return NAME_UInt32Property; }
 	//~ End FRemoteControlProtocolEntity interface
+
+	/** Initialize struct and delegates */
+	void Initialize();
+
+	/** Try to get the port ID from dmx protocol settings */
+	void UpdateInputPort();
 
 public:
 	/** DMX universe id */
@@ -41,13 +65,20 @@ public:
 	UPROPERTY(EditAnywhere, Category = Mapping)
 	bool bUseLSB;
 
-	/** Starting universe channel */
-	UPROPERTY(EditAnywhere, Category = Mapping, meta = (ClampMin = "1", ClampMax = "509", UIMin = "1", UIMax = "509"))
-	int32 StartingChannel = 1;
-
 	/** Defines the used number of channels (bytes) */
 	UPROPERTY(EditAnywhere, Category = Mapping)
 	EDMXFixtureSignalFormat DataType;
+
+	/** Extra protocol settings. Primary using for customization */
+	UPROPERTY(EditAnywhere, Category = Mapping, meta=(ShowOnlyInnerProperties))
+	FRemoteControlDMXProtocolEntityExtraSetting ExtraSetting;
+
+	/** DMX range input property template, used for binding. */
+	UPROPERTY(Transient)
+	uint32 RangeInputTemplate = 0;
+
+	/** Reference of an input DMX port id */
+	FGuid InputPortId;
 
 private:
 	/** DMX entity cache buffer. From 1 up to 4 channels, based on DataType */
@@ -55,6 +86,9 @@ private:
 
 	/** A single, generic DMX signal. One universe of raw DMX data received */
 	FDMXSignalSharedPtr LastSignalPtr;
+
+	/** Delegate for protocol configs changes */
+	FDelegateHandle PortConfigsChangedHandle;
 };
 
 /**
@@ -72,7 +106,6 @@ public:
 
 	//~ Begin FTickableGameObject interface
 	virtual void Tick(float DeltaTime) override;
-	virtual bool IsTickable() const override { return true; }
 	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
 	virtual bool IsTickableInEditor() const override { return true; }
 	virtual TStatId GetStatId() const override;
@@ -80,11 +113,12 @@ public:
 
 private:
 	/**
-	 * Apply dmx channel data to the bound property, potentually resize the cache buffer
-	 * @param InChannelData DMX channel bytes
-	 * @param InProtocolEntityPtr protocol entity
+	 * Apply dmx channel data to the bound property, potentially resize the cache buffer
+	 * @param InSignal				DMX signal buffer pointer
+	 * @param InDMXOffset			Byte offset in signal buffer
+	 * @param InProtocolEntityPtr	Protocol entity pointer
 	 */
-	void ProcessAndApplyProtocolValue(const uint8* InChannelData, const FRemoteControlProtocolEntityPtr& InProtocolEntityPtr);
+	void ProcessAndApplyProtocolValue(const FDMXSignalSharedPtr& InSignal, int32 InDMXOffset, const FRemoteControlProtocolEntityPtr& InProtocolEntityPtr);
 
 private:
 	/** Binding for the DMX protocol */

@@ -5,16 +5,20 @@
 #include "AssetToolsModule.h"
 #include "AssetTools/RemoteControlPresetActions.h"
 #include "EditorStyleSet.h"
+#include "ISettingsModule.h"
+#include "ISettingsSection.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "PropertyHandle.h"
 #include "RemoteControlActor.h"
 #include "RemoteControlField.h"
 #include "RemoteControlPreset.h"
+#include "RemoteControlUISettings.h"
 #include "Textures/SlateIcon.h"
 #include "UI/Customizations/RemoteControlEntityCustomization.h"
 #include "UI/RemoteControlPanelStyle.h"
 #include "UI/SRCPanelInputBindings.h"
+#include "UI/SRCPanelExposedEntitiesList.h"
 #include "UI/SRemoteControlPanel.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"
@@ -39,10 +43,12 @@ void FRemoteControlUIModule::StartupModule()
 	RegisterDetailRowExtension();
 	RegisterContextMenuExtender();
 	RegisterStructCustomizations();
+	RegisterSettings();
 }
 
 void FRemoteControlUIModule::ShutdownModule()
 {
+	UnregisterSettings();
 	UnregisterStructCustomizations();
 	UnregisterContextMenuExtender();
 	UnregisterDetailRowExtension();
@@ -100,9 +106,9 @@ TSharedRef<SRemoteControlPanel> FRemoteControlUIModule::CreateRemoteControlPanel
 	return PanelRef;
 }
 
-TSharedRef<SRCPanelInputBindings> FRemoteControlUIModule::CreateInputBindingsPanel(URemoteControlPreset* Preset)
+TSharedRef<SRCPanelInputBindings> FRemoteControlUIModule::CreateInputBindingsWidget(URemoteControlPreset* Preset)
 {
-	return SNew(SRCPanelInputBindings, Preset);
+	return SAssignNew(WeakActiveInputBindingsWidget, SRCPanelInputBindings, Preset);
 }
 
 void FRemoteControlUIModule::RegisterContextMenuExtender()
@@ -137,8 +143,11 @@ void FRemoteControlUIModule::RegisterDetailRowExtension()
 
 void FRemoteControlUIModule::UnregisterDetailRowExtension()
 {
-	FPropertyEditorModule& Module = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	Module.GetGlobalRowExtensionDelegate().RemoveAll(this);
+	if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
+	{
+		FPropertyEditorModule& Module = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		Module.GetGlobalRowExtensionDelegate().RemoveAll(this);
+	}
 }
 
 void FRemoteControlUIModule::RegisterAssetTools()
@@ -292,12 +301,24 @@ TSharedRef<FExtender> FRemoteControlUIModule::ExtendLevelViewportContextMenuForR
 
 bool FRemoteControlUIModule::ShouldDisplayExposeIcon(const TSharedRef<IPropertyHandle>& PropertyHandle) const
 {
-	// Don't display an expose icon for RCEntities since they're only displayed in the Remote Control Panel.
 	if (FProperty* Prop = PropertyHandle->GetProperty())
 	{
+		// Don't display an expose icon for RCEntities since they're only displayed in the Remote Control Panel.
 		if (Prop->GetOwnerStruct() && Prop->GetOwnerStruct()->IsChildOf(FRemoteControlEntity::StaticStruct()))
 		{
 			return false;
+		}
+
+		// Don't display an expose icon for settings
+		if (PropertyHandle->GetNumOuterObjects() == 1)
+		{
+			TArray<UObject*> OuterObjects;
+			PropertyHandle->GetOuterObjects(OuterObjects);
+		
+			if (OuterObjects[0] && OuterObjects[0]->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+			{
+				return false;
+			}
 		}
 	}
 
@@ -333,6 +354,38 @@ void FRemoteControlUIModule::UnregisterStructCustomizations()
 	for (int8 NameIndex = RemoteControlUIModule::CustomizedStructNames.Num() - 1; NameIndex >= 0; NameIndex--)
 	{
 		PropertyEditorModule.UnregisterCustomClassLayout(RemoteControlUIModule::CustomizedStructNames[NameIndex]);
+	}
+}
+
+void FRemoteControlUIModule::RegisterSettings()
+{
+	GetMutableDefault<URemoteControlUISettings>()->OnSettingChanged().AddRaw(this, &FRemoteControlUIModule::OnSettingsModified);
+}
+
+void FRemoteControlUIModule::UnregisterSettings()
+{
+	if (UObjectInitialized())
+	{
+		GetMutableDefault<URemoteControlUISettings>()->OnSettingChanged().RemoveAll(this);
+	}
+}
+
+void FRemoteControlUIModule::OnSettingsModified(UObject*, FPropertyChangedEvent&)
+{
+	if (TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin())
+	{
+		if (TSharedPtr<SRCPanelExposedEntitiesList> EntityList = Panel->GetEntityList())
+		{
+			EntityList->Refresh();
+		}	
+	}
+
+	if (TSharedPtr<SRCPanelInputBindings> InputBindings = WeakActiveInputBindingsWidget.Pin())
+	{
+		if (TSharedPtr<SRCPanelExposedEntitiesList> EntityList = InputBindings->GetEntityList())
+		{
+			EntityList->Refresh();
+		}	
 	}
 }
 

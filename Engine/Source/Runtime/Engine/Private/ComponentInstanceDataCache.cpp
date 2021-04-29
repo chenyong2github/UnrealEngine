@@ -367,9 +367,17 @@ void FActorComponentInstanceData::ApplyToComponent(UActorComponent* Component, c
 {
 	// After the user construction script has run we will re-apply all the cached changes that do not conflict
 	// with a change that the user construction script made.
-	if (CacheApplyPhase == ECacheApplyPhase::PostUserConstructionScript && SavedProperties.Num() > 0)
+	if ((CacheApplyPhase == ECacheApplyPhase::PostUserConstructionScript || CacheApplyPhase == ECacheApplyPhase::NonConstructionScript) && SavedProperties.Num() > 0)
 	{
-		Component->DetermineUCSModifiedProperties();
+		if (CacheApplyPhase == ECacheApplyPhase::PostUserConstructionScript)
+		{
+			Component->DetermineUCSModifiedProperties();
+		}
+		else if (CacheApplyPhase == ECacheApplyPhase::NonConstructionScript)
+		{
+			// When this case is used, we want to apply all properties, even UCS modified ones
+			Component->UCSModifiedProperties.Reset();
+		}
 
 		for (const FActorComponentDuplicatedObjectData& DuplicatedObjectData : DuplicatedObjects)
 		{

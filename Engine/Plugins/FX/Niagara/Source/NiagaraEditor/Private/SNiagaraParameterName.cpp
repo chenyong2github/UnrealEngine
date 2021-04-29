@@ -331,6 +331,12 @@ void SNiagaraParameterName::EnterNamespaceModifierEditingMode()
 	}
 }
 
+void SNiagaraParameterName::UpdateDecorator(TSharedRef<SWidget> InDecorator)
+{
+	Decorator = InDecorator;
+	UpdateContent(ParameterName.Get());
+}
+
 void SNiagaraParameterNameTextBlock::Construct(const FArguments& InArgs)
 {
 	ParameterText = InArgs._ParameterText;

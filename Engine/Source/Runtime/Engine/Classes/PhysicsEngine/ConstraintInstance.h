@@ -117,7 +117,7 @@ struct ENGINE_API FConstraintProfileProperties
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Linear)
 	uint8 bLinearBreakable : 1;
 
-	/** Whether it is possible to reset spr4ing rest length from the linear deformation. */
+	/** Whether it is possible to reset spring rest length from the linear deformation. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Linear)
 	uint8 bLinearPlasticity : 1;
 

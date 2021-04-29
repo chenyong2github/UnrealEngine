@@ -25,6 +25,10 @@ public:
 
 	//~ Begin FGCObject Interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FMediaProfileManager");
+	}
 	//~End FGCObject Interface
 
 private:

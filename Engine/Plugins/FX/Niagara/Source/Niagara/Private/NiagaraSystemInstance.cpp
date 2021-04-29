@@ -1529,6 +1529,24 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 			return;
 		}
 	}
+
+	if (GetSystem()->NeedsGPUContextInitForDataInterfaces())
+	{
+		for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Simulation : Emitters)
+		{
+			FNiagaraEmitterInstance& Sim = Simulation.Get();
+			if (Sim.IsDisabled())
+			{
+				continue;
+			}
+
+			if (Sim.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Sim.GetGPUContext())
+			{
+				Sim.GetGPUContext()->OptionalContexInit(this);
+			}
+		}
+	}
+	
 }
 
 void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSimulate)
@@ -2119,6 +2137,14 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 
 	// We should have no pending async operations, but wait to be safe
 	WaitForConcurrentTickAndFinalize(true);
+
+	// If the attached component is marked pending kill the instance is no longer valid
+	if ( GetAttachComponent() == nullptr )
+	{
+		Complete(true);
+		return;
+	}
+
 	if (IsComplete())
 	{
 		return;
@@ -2316,6 +2342,11 @@ void FNiagaraSystemInstance::FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeede
 		{
 			GenerateAndSubmitGPUTick();
 		}
+
+		if (OnPostTickDelegate.IsBound())
+		{
+			OnPostTickDelegate.Execute();
+		}
 	}
 
 	if (DeferredResetMode != EResetMode::None)
@@ -2324,11 +2355,6 @@ void FNiagaraSystemInstance::FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeede
 		DeferredResetMode = EResetMode::None;
 
 		Reset(ResetMode);
-	}
-
-	if (OnPostTickDelegate.IsBound())
-	{
-		OnPostTickDelegate.Execute();
 	}
 }
 

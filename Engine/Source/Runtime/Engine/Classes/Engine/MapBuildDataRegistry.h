@@ -361,7 +361,7 @@ public:
 
 	ENGINE_API bool IsLegacyBuildData() const;
 
-	ENGINE_API bool IsVTLightingValid() const;
+	ENGINE_API bool IsLightingValid(ERHIFeatureLevel::Type InFeatureLevel) const;
 
 	/** Must be called once MeshBuildData is done being modified, to build resource clusters. */
 	ENGINE_API void SetupLightmapResourceClusters();

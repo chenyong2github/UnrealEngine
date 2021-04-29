@@ -14,6 +14,7 @@ class FMenuBuilder;
 class FSequencer;
 class FSequencerNodeTree;
 class FSequencerDisplayNodeDragDropOp;
+class FSequencerFolderNode;
 class FSequencerObjectBindingNode;
 class FSequencerTrackNode;
 class IKeyArea;
@@ -115,6 +116,13 @@ public:
 	 * @return the parent track node, or nullptr if no track nodeis found
 	 */
 	TSharedPtr<FSequencerTrackNode> FindParentTrackNode() const;
+
+	/**
+	 * Finds the folder node that contains this node
+	 *
+	 * @return the folder node, or nullptr if no folder node is found
+	 */
+	TSharedPtr<FSequencerFolderNode> FindFolderNode() const;
 
 	/** 
 	 * Finds this display node's closest parent object binding GUID, or an empty FGuid if it there is none
@@ -535,6 +543,10 @@ public:
 	 */
 	virtual void Drop( const TArray<TSharedRef<FSequencerDisplayNode>>& DraggedNodes, EItemDropZone DropZone ) { }
 
+	/*
+	 * Handles this node being deleted
+	 */
+	virtual void DeleteNode() { }
 
 public:
 

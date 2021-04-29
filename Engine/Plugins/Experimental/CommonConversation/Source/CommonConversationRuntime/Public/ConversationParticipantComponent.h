@@ -64,13 +64,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category=Conversation)
 	virtual FText GetParticipantDisplayName();
 
+
+	UFUNCTION(BlueprintCallable, Category = Conversation)
+	bool IsInActiveConversation() const;
+
 public:
 
 	FConversationNodeHandle GetCurrentNodeHandle() const;
 
 	const FConversationParticipantEntry* GetParticipant(const FGameplayTag& ParticipantTag) const;
-
-	bool IsInActiveConversation() const;
 
 protected:
 	UFUNCTION(Server, Reliable)

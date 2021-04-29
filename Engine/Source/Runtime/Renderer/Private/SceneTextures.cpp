@@ -18,6 +18,7 @@
 #include "SystemTextures.h"
 #include "PostProcess/PostProcessAmbientOcclusionMobile.h"
 #include "PostProcess/PostProcessPixelProjectedReflectionMobile.h"
+#include "IHeadMountedDisplayModule.h"
 
 static TAutoConsoleVariable<int32> CVarSceneTargetsResizeMethod(
 	TEXT("r.SceneRenderTargetResizeMethod"),
@@ -108,7 +109,8 @@ static EPixelFormat GetGBufferFFormat()
 
 static EPixelFormat GetMobileSceneColorFormat()
 {
-	const EPixelFormat DefaultLowPrecisionFormat = FPlatformMisc::IsStandaloneStereoOnlyDevice() ? PF_R8G8B8A8 : PF_B8G8R8A8;
+	const EPixelFormat DefaultLowPrecisionFormat = IHeadMountedDisplayModule::IsAvailable() && IHeadMountedDisplayModule::Get().IsStandaloneStereoOnlyDevice()
+		? PF_R8G8B8A8 : PF_B8G8R8A8;
 	EPixelFormat DefaultColorFormat = (!IsMobileHDR() || !GSupportsRenderTargetFormat_PF_FloatRGBA) ? DefaultLowPrecisionFormat : PF_FloatRGBA;
 	if (IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform))
 	{
@@ -230,18 +232,6 @@ static TRefCountPtr<FRHITexture2D> FindStereoDepthTexture(FIntPoint TextureExten
 		TRefCountPtr<FRHITexture2D> DepthTex, SRTex;
 		StereoRenderTargetManager->AllocateDepthTexture(0, TextureExtent.X, TextureExtent.Y, PF_DepthStencil, 1, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, DepthTex, SRTex, NumSamples);
 		return MoveTemp(SRTex);
-	}
-	return nullptr;
-}
-
-static TRefCountPtr<FRHITexture2D> FindShadingRateTexture(FIntPoint TextureExtentRequest)
-{
-	if (IStereoRenderTargetManager* StereoRenderTargetManager = FindStereoRenderTargetManager())
-	{
-		FTexture2DRHIRef Texture;
-		FIntPoint TextureExtentActual;
-		StereoRenderTargetManager->AllocateShadingRateTexture(0, TextureExtentRequest.X, TextureExtentRequest.Y, PF_R8G8, 0, TexCreate_None, TexCreate_None, Texture, TextureExtentActual);
-		return MoveTemp(Texture);
 	}
 	return nullptr;
 }
@@ -693,11 +683,6 @@ FSceneTextureShaderParameters FMinimalSceneTextures::GetSceneTextureShaderParame
 FSceneTextures& FSceneTextures::Create(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& Config)
 {
 	FSceneTextures& SceneTextures = FMinimalSceneTextures::Create(GraphBuilder, Config);
-
-	if (FTexture2DRHIRef ShadingRateRHI = FindShadingRateTexture(Config.Extent))
-	{
-		SceneTextures.ShadingRate = RegisterExternalTexture(GraphBuilder, ShadingRateRHI, TEXT("ShadingRate"));
-	}
 
 	if (Config.ShadingPath == EShadingPath::Deferred)
 	{

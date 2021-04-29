@@ -18,6 +18,14 @@ namespace UE::AssetRegistry
 /** Load/Save options used to modify how the cache is serialized. These are read out of the AssetRegistry section of Engine.ini and can be changed per platform. */
 struct FAssetRegistrySerializationOptions
 {
+	FAssetRegistrySerializationOptions(UE::AssetRegistry::ESerializationTarget Target = UE::AssetRegistry::ESerializationTarget::ForGame)
+	{
+		if (Target == UE::AssetRegistry::ESerializationTarget::ForDevelopment)
+		{
+			InitForDevelopment();
+		}
+	}
+
 	/** True rather to load/save registry at all */
 	bool bSerializeAssetRegistry = false;
 
@@ -55,10 +63,10 @@ struct FAssetRegistrySerializationOptions
 	TSet<FName> CookTagsAsPath;
 
 	/** Options used to read/write the DevelopmentAssetRegistry, which includes all data */
+	UE_DEPRECATED(4.26, "Use new UE::AssetRegistry::ESerializationTarget on either the constructor or InitializeSerializationOptions")
 	void ModifyForDevelopment()
 	{
-		bSerializeAssetRegistry = bSerializeDependencies = bSerializeSearchableNameDependencies = bSerializeManageDependencies = bSerializePackageData = true;
-		DisableFilters();
+		InitForDevelopment();
 	}
 
 	/** Disable all filters */
@@ -67,6 +75,13 @@ struct FAssetRegistrySerializationOptions
 		bFilterAssetDataWithNoTags = false;
 		bFilterDependenciesWithNoTags = false;
 		bFilterSearchableNames = false;
+	}
+
+private:
+	void InitForDevelopment()
+	{
+		bSerializeAssetRegistry = bSerializeDependencies = bSerializeSearchableNameDependencies = bSerializeManageDependencies = bSerializePackageData = true;
+		DisableFilters();
 	}
 };
 
@@ -316,6 +331,15 @@ public:
 
 	/** Updates an existing asset data with the new value and updates lookup maps */
 	void UpdateAssetData(FAssetData* AssetData, const FAssetData& NewAssetData);
+
+	/**
+	 * Updates all asset data package flags in the specified package
+	 *
+	 * @param PackageName the package name
+	 * @param PackageFlags the package flags to set
+	 * @return True if any assets exists in the package
+	 */
+	bool UpdateAssetDataPackageFlags(FName PackageName, uint32 PackageFlags);
 
 	/** Removes the asset data from the lookup maps */
 	void RemoveAssetData(FAssetData* AssetData, bool bRemoveDependencyData, bool& bOutRemovedAssetData, bool& bOutRemovedPackageData);

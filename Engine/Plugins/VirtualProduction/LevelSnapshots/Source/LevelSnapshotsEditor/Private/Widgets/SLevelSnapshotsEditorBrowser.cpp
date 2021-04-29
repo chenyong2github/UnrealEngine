@@ -9,6 +9,7 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
@@ -50,9 +51,14 @@ void SLevelSnapshotsEditorBrowser::Construct(const FArguments& InArgs, const TSh
 
 void SLevelSnapshotsEditorBrowser::OnAssetSelected(const FAssetData& InAssetData)
 {
+	FScopedSlowTask SelectSnapshot(100.f, LOCTEXT("SelectSnapshotKey", "Loading snapshot"));
+	SelectSnapshot.EnterProgressFrame(60.f);
+	SelectSnapshot.MakeDialog();
+	
 	TSharedPtr<FLevelSnapshotsEditorViewBuilder> Builder = BuilderPtr.Pin();
 	ULevelSnapshot* Snapshot = Cast<ULevelSnapshot>(InAssetData.GetAsset());
 
+	SelectSnapshot.EnterProgressFrame(40.f);
 	if (ensure(Builder) && ensure(Snapshot))
 	{
 		Builder->EditorDataPtr->SetActiveSnapshot(Snapshot);

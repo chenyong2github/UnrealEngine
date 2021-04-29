@@ -518,8 +518,6 @@ void UCineCameraComponent::UpdateCameraLens(float DeltaTime, FMinimalViewInfo& D
 	else
 	{
 		// Update focus/DoF
-		DesiredView.PostProcessBlendWeight = 1.f;
-
 		DesiredView.PostProcessSettings.bOverride_DepthOfFieldFstop = true;
 		DesiredView.PostProcessSettings.DepthOfFieldFstop = CurrentAperture;
 

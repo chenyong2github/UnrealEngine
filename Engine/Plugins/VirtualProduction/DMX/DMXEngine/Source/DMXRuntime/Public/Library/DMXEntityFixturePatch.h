@@ -32,7 +32,7 @@ class DMXRUNTIME_API UDMXEntityFixturePatch
 {
 	GENERATED_BODY()
 
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FDMXOnFixturePatchReceivedDMXDelegate, UDMXEntityFixturePatch* /** FixturePatch */, const FDMXNormalizedAttributeValueMap& /** ValuePerAttribute */);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FDMXOnFixturePatchReceivedDMXDelegate, UDMXEntityFixturePatch*, FixturePatch, const FDMXNormalizedAttributeValueMap&, ValuePerAttribute);
 
 public:
 	UDMXEntityFixturePatch();
@@ -46,7 +46,7 @@ protected:
 	// ~Begin FTickableGameObject interface
 	virtual void Tick(float DeltaTime) override;
 	virtual bool IsTickable() const override;
-	virtual bool IsTickableInEditor() const override { return false; }
+	virtual bool IsTickableInEditor() const override;
 	virtual ETickableTickType GetTickableTickType() const override;
 	virtual TStatId GetStatId() const override;
 	// ~End FTickableGameObject interface
@@ -66,7 +66,8 @@ public:
 	/** Returns the last received DMX signal. */
 	const FDMXSignalSharedPtr& GetLastReceivedDMXSignal() const { return LastDMXSignal; }
 
-	/** Broadcasts when the patch received dmx, see DMXComponent for an example of use */
+	/** Broadcasts when the patch received dmx */
+	UPROPERTY(BlueprintAssignable, Category = "DMX");
 	FDMXOnFixturePatchReceivedDMXDelegate OnFixturePatchReceivedDMX;
 
 private:
@@ -132,7 +133,11 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Color when displayed in the fixture patch editor */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Patch")
-	FLinearColor EditorColor = FLinearColor(1.0f, 0.0f, 1.0f);
+	FLinearColor EditorColor;
+
+	/** If true, the patch receives dmx and raises the OnFixturePatchReceivedDMX event in editor */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Patch")
+	bool bReceiveDMXInEditor;
 #endif
 
 public:
@@ -272,6 +277,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX|Fixture Patch")
 	bool SendMatrixCellValue(const FIntPoint& CellCoordinate /* Cell coordinate X/Y */, const FDMXAttributeName& Attribute, int32 Value);
 
+	/** Sends the DMX value of the Attribute to specified matrix coordinates with given Attribute Name Channel Map */
+	UFUNCTION(BlueprintCallable, Category = "DMX|Fixture Patch")
+	bool SendMatrixCellValueWithAttributeMap(const FIntPoint& CellCoordinate /* Cell coordinate X/Y */, const FDMXAttributeName& Attribute, int32 Value, const TMap<FDMXAttributeName, int32>& InAttributeNameChannelMap);
+	
 	/** Maps the normalized value to the Attribute's full value range and sends it to specified matrix coordinates  */
 	UFUNCTION(BlueprintCallable, Category = "DMX|Fixture Patch")
 	bool SendNormalizedMatrixCellValue(const FIntPoint& CellCoordinate /* Cell coordinate X/Y */, const FDMXAttributeName& Attribute, float RelativeValue);
@@ -291,6 +300,10 @@ public:
 	/**  Gets the absolute starting channel of each cell attribute at given coordinate */
 	UFUNCTION(BlueprintCallable, Category = "DMX|Fixture Patch")
 	bool GetMatrixCellChannelsAbsolute(const FIntPoint& CellCoordinate /* Cell coordinate X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap);
+
+	/**  Validate and gets the absolute starting channel of each cell attribute at given coordinate */
+	UFUNCTION(BlueprintCallable, Category = "DMX|Fixture Patch")
+	bool GetMatrixCellChannelsAbsoluteWithValidation(const FIntPoint& InCellCoordinate /* Cell coordinate X/Y */, TMap<FDMXAttributeName, int32>& OutAttributeChannelMap);
 
 	/**  Get Matrix Fixture properties */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")

@@ -460,7 +460,7 @@ private:
 
 		if (!v_dllHandle)
 		{
-			FString DllDirectory = FPaths::Combine(IPluginManager::Get().FindPlugin("LidarPointCloud")->GetBaseDir(), TEXT("Source/ThirdParty/LasZip"));
+			FString DllDirectory = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("LidarPointCloud"))->GetBaseDir(), TEXT("Source/ThirdParty/LasZip"));
 #if PLATFORM_MAC
 			v_dllHandle = FPlatformProcess::GetDllHandle(*FPaths::Combine(DllDirectory, TEXT("Mac/laszip.dylib")));
 #elif PLATFORM_WINDOWS

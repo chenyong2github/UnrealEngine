@@ -3,15 +3,17 @@
 #include "Views/OutputMapping/Widgets/SDisplayClusterConfiguratorResizer.h"
 
 #include "DisplayClusterConfiguratorStyle.h"
-#include "DisplayClusterConfiguratorToolkit.h"
+#include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "Views/OutputMapping/GraphNodes/SDisplayClusterConfiguratorBaseNode.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "Widgets/Images/SImage.h"
 #include "SGraphPanel.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorResizer"
 
-void SDisplayClusterConfiguratorResizer::Construct(const FArguments& InArgs, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit, const TSharedRef<SDisplayClusterConfiguratorBaseNode>& InBaseNode)
+void SDisplayClusterConfiguratorResizer::Construct(const FArguments& InArgs, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit, const TSharedRef<SDisplayClusterConfiguratorBaseNode>& InBaseNode)
 {
 	ToolkitPtr = InToolkit;
 	BaseNodePtr = InBaseNode;
@@ -19,6 +21,8 @@ void SDisplayClusterConfiguratorResizer::Construct(const FArguments& InArgs, con
 	bResizing = false;
 
 	IsFixedAspectRatio = InArgs._IsFixedAspectRatio;
+
+	ScopedTransaction.Reset();
 
 	SetCursor(EMouseCursor::GrabHandClosed);
 
@@ -38,6 +42,8 @@ FReply SDisplayClusterConfiguratorResizer::OnMouseButtonDown(const FGeometry& My
 		// Store the current aspect ratio here so that it isn't suspectible to drift due to float->int conversion while dragging.
 		TSharedPtr<SDisplayClusterConfiguratorBaseNode> BaseNode = BaseNodePtr.Pin();
 		check(BaseNode.IsValid());
+
+		BaseNode->BeginUserInteraction();
 
 		const FVector2D CurrentNodeSize = BaseNode->GetSize();
 		if (CurrentNodeSize.Y != 0)
@@ -60,6 +66,13 @@ FReply SDisplayClusterConfiguratorResizer::OnMouseButtonUp(const FGeometry& MyGe
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
 		bResizing = false;
+
+		TSharedPtr<SDisplayClusterConfiguratorBaseNode> BaseNode = BaseNodePtr.Pin();
+		check(BaseNode.IsValid());
+
+		BaseNode->EndUserInteraction();
+
+		ScopedTransaction.Reset();
 		return FReply::Handled().ReleaseMouseCapture();
 	}
 
@@ -71,10 +84,12 @@ FReply SDisplayClusterConfiguratorResizer::OnMouseMove(const FGeometry& MyGeomet
 	if (bResizing)
 	{
 		TSharedPtr<SDisplayClusterConfiguratorBaseNode> BaseNode = BaseNodePtr.Pin();
-		check(BaseNode.IsValid())
+		check(BaseNode.IsValid());
 
 		TSharedPtr<SGraphPanel> GraphPanel = BaseNode->GetOwnerPanel();
-		check(GraphPanel.IsValid())
+		check(GraphPanel.IsValid());
+
+		const float DPIScale = GetDPIScale();
 
 		FVector2D NewNodeSize = MouseEvent.GetScreenSpacePosition() - BaseNode->GetTickSpaceGeometry().GetAbsolutePosition();
 
@@ -95,7 +110,7 @@ FReply SDisplayClusterConfiguratorResizer::OnMouseMove(const FGeometry& MyGeomet
 			}
 		}
 
-		NewNodeSize /= GraphPanel->GetZoomAmount();
+		NewNodeSize /= (GraphPanel->GetZoomAmount() * DPIScale);
 
 		// Never node size less then 0
 		if (NewNodeSize.X < 0.f)
@@ -107,12 +122,30 @@ FReply SDisplayClusterConfiguratorResizer::OnMouseMove(const FGeometry& MyGeomet
 			NewNodeSize.Y = 0.f;
 		}
 
+		// If we don't have a scoped transaction for the resize, create a new one.
+		if (!ScopedTransaction.IsValid())
+		{
+			ScopedTransaction = MakeShareable(new FScopedTransaction(LOCTEXT("ResizeNodeAction", "Resize Node")));
+		}
+
 		BaseNode->SetNodeSize(NewNodeSize, bIsFixedAspectRatio);
 
 		return FReply::Handled();
 	}
 
 	return FReply::Unhandled();
+}
+
+float SDisplayClusterConfiguratorResizer::GetDPIScale() const
+{
+	float DPIScale = 1.0f;
+	TSharedPtr<SWindow> WidgetWindow = FSlateApplication::Get().FindWidgetWindow(SharedThis(this));
+	if (WidgetWindow.IsValid())
+	{
+		DPIScale = WidgetWindow->GetNativeWindow()->GetDPIScaleFactor();
+	}
+
+	return DPIScale;
 }
 
 #undef LOCTEXT_NAMESPACE

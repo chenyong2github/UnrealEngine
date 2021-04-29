@@ -40,6 +40,10 @@ public:
 	/** Midi device channel */
 	UPROPERTY(EditAnywhere, Category = Mapping)
 	int32 Channel = 1;
+
+	/** Midi range input property template, used for binding. */
+	UPROPERTY(Transient, meta = (ClampMin = 0, ClampMax = 127))
+	uint8 RangeInputTemplate = 0;
 };
 
 /**

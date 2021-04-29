@@ -6,6 +6,7 @@
 #include "Library/DMXEntityReference.h"
 #include "DMXPixelMappingFixtureGroupComponent.generated.h"
 
+
 class UDMXLibrary;
 class STextBlock;
 class SUniformGridPanel;
@@ -34,8 +35,6 @@ public:
 	virtual const FName& GetNamePrefix() override;
 	virtual void ResetDMX() override;
 	virtual void SendDMX() override;
-	virtual void Render() override;
-	virtual void RenderAndSendDMX() override;
 	virtual void PostParentAssigned() override;
 
 #if WITH_EDITOR
@@ -45,7 +44,6 @@ public:
 
 	//~ Begin UDMXPixelMappingOutputComponent implementation
 #if WITH_EDITOR
-	virtual void RenderEditorPreviewTexture() override;
 	virtual bool IsExposedToTemplate() { return true; }
 	virtual const FText GetPaletteCategory() override;
 	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas) override;
@@ -54,11 +52,12 @@ public:
 	virtual void UpdateWidget() override;
 #endif // WITH_EDITOR
 
-	virtual UTextureRenderTarget2D* GetOutputTexture() override;
 	virtual FVector2D GetSize() const override;
 	virtual FVector2D GetPosition() override;
 	virtual void SetPosition(const FVector2D& InPosition) override;
 	virtual void SetSize(const FVector2D& InSize) override;
+
+	virtual void QueueDownsample() override;
 
 #if WITH_EDITOR
 	virtual void SetZOrder(int32 NewZOrder) override;
@@ -69,8 +68,6 @@ public:
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
 
 private:
-	void ResizeOutputTarget(uint32 InSizeX, uint32 InSizeY);
-
 	void SetPositionWithChildren();
 
 	void SetSizeWithinMinBoundaryBox();
@@ -83,9 +80,6 @@ public:
 	TSet<FDMXEntityFixturePatchRef> SelectedFixturePatchRef;
 
 private:
-	UPROPERTY(Transient)
-	UTextureRenderTarget2D* OutputTarget;
-
 #if WITH_EDITORONLY_DATA
 	TSharedPtr<SUniformGridPanel> GridPanel;
 

@@ -115,7 +115,6 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 
 	UNiagaraEffectType* GetDefaultEffectType()const;
 
-	virtual void PostInitProperties();
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
@@ -128,9 +127,4 @@ public:
 protected:
 	static FOnNiagaraSettingsChanged SettingsChangedDelegate;
 #endif
-
-
-private:
-	UPROPERTY(transient)
-	mutable TObjectPtr<UNiagaraEffectType> DefaultEffectTypePtr;
 };

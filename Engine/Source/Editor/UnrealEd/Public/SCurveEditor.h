@@ -267,6 +267,10 @@ public:
 	 * @param Ar The archive to serialize with
 	 */
 	UNREALED_API virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	UNREALED_API virtual FString GetReferencerName() const override
+	{
+		return TEXT("SCurveEditor");
+	}
 
 	/** Gets a list of the commands handled by this control */
 	UNREALED_API TSharedPtr<FUICommandList> GetCommands();

@@ -22,7 +22,7 @@ struct FSynthKnobResources
 		{
 			bImagesLoaded = true;
 
-			FString SynthesisPluginBaseDir = IPluginManager::Get().FindPlugin("Synthesis")->GetBaseDir();
+			FString SynthesisPluginBaseDir = IPluginManager::Get().FindPlugin(TEXT("Synthesis"))->GetBaseDir();
 			SynthesisPluginBaseDir += "/Content/UI/";
 
 			FString BrushPath = SynthesisPluginBaseDir + "SynthKnobLarge.png";

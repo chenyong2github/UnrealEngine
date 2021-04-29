@@ -39,15 +39,13 @@ class FFileIoStoreReader
 {
 public:
 	FFileIoStoreReader(FFileIoStoreImpl& InPlatformImpl);
+	~FFileIoStoreReader();
 	FIoStatus Initialize(const TCHAR* ContainerPath, int32 Order);
-	void SetIndex(uint32 InIndex)
+	uint32 GetContainerInstanceId() const
 	{
-		Index = InIndex;
+		return ContainerFile.ContainerInstanceId;
 	}
-	uint32 GetIndex() const
-	{
-		return Index;
-	}
+	FIoStatus Close();
 	bool DoesChunkExist(const FIoChunkId& ChunkId) const;
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const;
 	const FIoOffsetAndLength* Resolve(const FIoChunkId& ChunkId) const;
@@ -67,10 +65,11 @@ private:
 	TMap<FIoChunkId, FIoOffsetAndLength> Toc;
 	FFileIoStoreContainerFile ContainerFile;
 	FIoContainerId ContainerId;
-	uint32 Index;
 	int32 Order;
+	bool bClosed = false;
 
 	static TAtomic<uint32> GlobalPartitionIndex;
+	static TAtomic<uint32> GlobalContainerInstanceId;
 };
 
 class FFileIoStoreRequestTracker
@@ -85,7 +84,7 @@ public:
 	void RemoveRawBlock(const FFileIoStoreReadRequest* RawBlock);
 	void AddReadRequestsToResolvedRequest(FFileIoStoreCompressedBlock* CompressedBlock, FFileIoStoreResolvedRequest& ResolvedRequest);
 	void AddReadRequestsToResolvedRequest(const FFileIoStoreReadRequestList& Requests, FFileIoStoreResolvedRequest& ResolvedRequest);
-	void CancelIoRequest(FFileIoStoreResolvedRequest& ResolvedRequest);
+	bool CancelIoRequest(FFileIoStoreResolvedRequest& ResolvedRequest);
 	void UpdatePriorityForIoRequest(FFileIoStoreResolvedRequest& ResolvedRequest);
 	void ReleaseIoRequestReferences(FFileIoStoreResolvedRequest& ResolvedRequest);
 
@@ -104,7 +103,8 @@ public:
 	FFileIoStore();
 	~FFileIoStore();
 	void Initialize(TSharedRef<const FIoDispatcherBackendContext> Context) override;
-	TIoStatusOr<FIoContainerId> Mount(const TCHAR* ContainerPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey);
+	TIoStatusOr<FIoContainerId> Mount(const TCHAR* ContainerPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey) override;
+	TIoStatusOr<FIoContainerId> Unmount(const TCHAR* ContainerPath) override;
 	bool Resolve(FIoRequestImpl* Request) override;
 	void CancelIoRequest(FIoRequestImpl* Request) override;
 	void UpdatePriorityForIoRequest(FIoRequestImpl* Request) override;
@@ -174,8 +174,7 @@ private:
 	bool bIsMultithreaded;
 	TAtomic<bool> bStopRequested{ false };
 	mutable FRWLock IoStoreReadersLock;
-	TArray<FFileIoStoreReader*> UnorderedIoStoreReaders;
-	TArray<FFileIoStoreReader*> OrderedIoStoreReaders;
+	TArray<TUniquePtr<FFileIoStoreReader>> IoStoreReaders;
 	FFileIoStoreCompressionContext* FirstFreeCompressionContext = nullptr;
 	FFileIoStoreCompressedBlock* ReadyForDecompressionHead = nullptr;
 	FFileIoStoreCompressedBlock* ReadyForDecompressionTail = nullptr;

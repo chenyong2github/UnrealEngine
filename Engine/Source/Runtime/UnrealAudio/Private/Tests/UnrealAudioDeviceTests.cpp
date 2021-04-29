@@ -9,7 +9,7 @@
 #include "Tests/UnrealAudioTestGenerators.h"
 #include "UnrealAudioPrivate.h"
 
-#if ENABLE_UNREAL_AUDIO & WITH_DEV_AUTOMATION_TESTS
+#if ENABLE_UNREAL_AUDIO && WITH_DEV_AUTOMATION_TESTS
 
 namespace UAudio
 {

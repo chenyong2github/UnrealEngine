@@ -1130,7 +1130,10 @@ bool FObjectReplicator::ReceivedBunch(FNetBitReader& Bunch, const FReplicationFl
 bool GReceiveRPCTimingEnabled = false;
 struct FScopedRPCTimingTracker
 {
-	FScopedRPCTimingTracker(UFunction* InFunction, UNetConnection* InConnection) : Connection(InConnection), Function(InFunction)
+	FScopedRPCTimingTracker(UFunction* InFunction, UNetConnection* InConnection, FRPCDoSDetection& InRPCDoS)
+		: Connection(InConnection)
+		, Function(InFunction)
+		, RPCDoS(InRPCDoS)
 	{
 		if (GReceiveRPCTimingEnabled)
 		{
@@ -1142,6 +1145,11 @@ struct FScopedRPCTimingTracker
 
 	~FScopedRPCTimingTracker()
 	{
+		if (RPCDoS.IsRPCDoSDetectionEnabled())
+		{
+			RPCDoS.PostReceivedRPC();
+		}
+
 		ActiveTrackers.RemoveSingleSwap(this);
 		if (GReceiveRPCTimingEnabled)
 		{
@@ -1149,8 +1157,10 @@ struct FScopedRPCTimingTracker
 			Connection->Driver->NotifyRPCProcessed(Function, Connection, Elapsed);
 		}
 	}
+
 	UNetConnection* Connection;
 	UFunction* Function;
+	FRPCDoSDetection& RPCDoS;
 	double StartTime;
 
 	static TArray<FScopedRPCTimingTracker*> ActiveTrackers;
@@ -1180,8 +1190,8 @@ bool FObjectReplicator::ReceivedRPC(FNetBitReader& Reader, const FReplicationFla
 	UObject* Object = GetObject();
 	FName FunctionName = FieldCache->Field.GetFName();
 	UFunction* Function = Object->FindFunction(FunctionName);
-
-	FScopedRPCTimingTracker ScopedTracker(Function, Connection);
+	FRPCDoSDetection& RPCDoS = Connection->GetRPCDoS();
+	FScopedRPCTimingTracker ScopedTracker(Function, Connection, RPCDoS);
 	SCOPE_CYCLE_COUNTER(STAT_NetReceiveRPC);
 	SCOPE_CYCLE_UOBJECT(Function, Function);
 
@@ -1201,6 +1211,26 @@ bool FObjectReplicator::ReceivedRPC(FNetBitReader& Reader, const FReplicationFla
 	{
 		UE_LOG(LogRep, Error, TEXT("Rejected RPC function due to access rights. Object: %s, Function: %s"), *Object->GetFullName(), *FunctionName.ToString());
 		HANDLE_INCOMPATIBLE_RPC
+	}
+
+
+	if (bIsServer && RPCDoS.IsRPCDoSDetectionEnabled() && !Connection->IsReplay())
+	{
+		if (UNLIKELY(RPCDoS.ShouldMonitorReceivedRPC()))
+		{
+			ERPCNotifyResult Result = RPCDoS.NotifyReceivedRPC(Reader, UnmappedGuids, Object, Function, FunctionName);
+
+			if (UNLIKELY(Result == ERPCNotifyResult::BlockRPC))
+			{
+				UE_LOG(LogRepTraffic, Log, TEXT("      Blocked RPC: %s"), *FunctionName.ToString());
+
+				return true;
+			}
+		}
+		else
+		{
+			RPCDoS.LightweightReceivedRPC(Function, FunctionName);
+		}
 	}
 
 	UE_LOG(LogRepTraffic, Log, TEXT("      Received RPC: %s"), *FunctionName.ToString());

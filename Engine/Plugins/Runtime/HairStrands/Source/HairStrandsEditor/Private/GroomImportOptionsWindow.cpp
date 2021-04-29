@@ -4,6 +4,7 @@
 
 #include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
+#include "GroomCacheImportOptions.h"
 #include "GroomImportOptions.h"
 #include "IDetailsView.h"
 #include "Interfaces/IMainFrameModule.h"
@@ -51,6 +52,7 @@ static EHairDescriptionStatus GetStatus(UGroomHairGroupsPreview* Description)
 void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 {
 	ImportOptions = InArgs._ImportOptions;
+	GroomCacheImportOptions = InArgs._GroomCacheImportOptions;
 	GroupsPreview = InArgs._GroupsPreview;
 	WidgetWindow = InArgs._WidgetWindow;
 
@@ -65,7 +67,9 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 	DetailsView2 = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	DetailsView2->SetObject(GroupsPreview);
 
-	
+	GroomCacheDetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	GroomCacheDetailsView->SetObject(GroomCacheImportOptions);
+
 	const EHairDescriptionStatus Status = GetStatus(GroupsPreview);
 
 	FText ValidationText;
@@ -162,6 +166,13 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		.Padding(2)		
 		[
+			GroomCacheDetailsView->AsShared()
+		]
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2)		
+		[
 			DetailsView2->AsShared()
 		]
 
@@ -206,6 +217,15 @@ bool SGroomImportOptionsWindow::CanImport()  const
 			return false;
 		}
 	}
+
+	// For the GroomCache import, if we don't import the groom asset, a compatible replacement must be specified
+	// If neither the asset nor the cache is imported, then there's nothing to import
+	if (GroomCacheImportOptions && !GroomCacheImportOptions->ImportSettings.bImportGroomAsset &&
+		(!GroomCacheImportOptions->ImportSettings.GroomAsset.IsValid() || !GroomCacheImportOptions->ImportSettings.bImportGroomCache))
+	{
+		// TODO: Test for compatibility between cache and selected groom asset
+		return false;
+	}
 	return true;
 }
 
@@ -221,6 +241,7 @@ ENUM_CLASS_FLAGS(EGroomOptionsVisibility);
 
 TSharedPtr<SGroomImportOptionsWindow> DisplayOptions(
 	UGroomImportOptions* ImportOptions, 
+	UGroomCacheImportOptions* GroomCacheImportOptions, 
 	UGroomHairGroupsPreview* GroupsPreview,
 	const FString& FilePath, 
 	EGroomOptionsVisibility VisibilityFlag, 
@@ -255,6 +276,7 @@ TSharedPtr<SGroomImportOptionsWindow> DisplayOptions(
 	(
 		SAssignNew(OptionsWindow, SGroomImportOptionsWindow)
 		.ImportOptions(ImportOptions)
+		.GroomCacheImportOptions(GroomCacheImportOptions)
 		.GroupsPreview(GroupsPreview)
 		.WidgetWindow(Window)
 		.FullPath(FText::FromString(FileName))
@@ -274,14 +296,16 @@ TSharedPtr<SGroomImportOptionsWindow> DisplayOptions(
 	return OptionsWindow;
 }
 
-TSharedPtr<SGroomImportOptionsWindow> SGroomImportOptionsWindow::DisplayImportOptions(UGroomImportOptions* ImportOptions, UGroomHairGroupsPreview* GroupsPreview, const FString& FilePath)
+TSharedPtr<SGroomImportOptionsWindow> SGroomImportOptionsWindow::DisplayImportOptions(UGroomImportOptions* ImportOptions, UGroomCacheImportOptions* GroomCacheImportOptions, UGroomHairGroupsPreview* GroupsPreview, const FString& FilePath)
 {
-	return DisplayOptions(ImportOptions, GroupsPreview, FilePath, EGroomOptionsVisibility::All, LOCTEXT("GroomImportWindowTitle", "Groom Import Options"), LOCTEXT("Import", "Import"));
+	// If there's no groom cache to import, don't show its import options
+	UGroomCacheImportOptions* GroomCacheOptions = GroomCacheImportOptions && GroomCacheImportOptions->ImportSettings.bImportGroomCache ? GroomCacheImportOptions : nullptr;
+	return DisplayOptions(ImportOptions, GroomCacheOptions, GroupsPreview, FilePath, EGroomOptionsVisibility::All, LOCTEXT("GroomImportWindowTitle", "Groom Import Options"), LOCTEXT("Import", "Import"));
 }
 
 TSharedPtr<SGroomImportOptionsWindow> SGroomImportOptionsWindow::DisplayRebuildOptions(UGroomImportOptions* ImportOptions, UGroomHairGroupsPreview* GroupsPreview, const FString& FilePath)
 {
-	return DisplayOptions(ImportOptions, GroupsPreview, FilePath, EGroomOptionsVisibility::BuildOptions, LOCTEXT("GroomRebuildWindowTitle ", "Groom Build Options"), LOCTEXT("Build", "Build"));
+	return DisplayOptions(ImportOptions, nullptr, GroupsPreview, FilePath, EGroomOptionsVisibility::BuildOptions, LOCTEXT("GroomRebuildWindowTitle ", "Groom Build Options"), LOCTEXT("Build", "Build"));
 }
 
 

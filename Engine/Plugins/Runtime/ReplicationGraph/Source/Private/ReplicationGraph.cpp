@@ -298,6 +298,13 @@ void UReplicationGraph::InitForNetDriver(UNetDriver* InNetDriver)
 	}
 }
 
+void UReplicationGraph::TearDown()
+{
+	CSVTracker.TearDown();
+
+	Super::TearDown();
+}
+
 void UReplicationGraph::InitNode(UReplicationGraphNode* Node)
 {
 	Node->Initialize(GraphGlobals);

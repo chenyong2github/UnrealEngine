@@ -33,6 +33,10 @@ public:
 
 	// FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SLidarPointCloudEditorViewport");
+	}
 	// End of FGCObject interface
 
 	void RefreshViewport();

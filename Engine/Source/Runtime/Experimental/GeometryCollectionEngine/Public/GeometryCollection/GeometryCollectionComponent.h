@@ -22,6 +22,7 @@
 #include "Chaos/ChaosNotifyHandlerInterface.h"
 #include "Chaos/ChaosSolverComponentTypes.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
+#include "EngineDefines.h"
 
 #include "GeometryCollectionComponent.generated.h"
 
@@ -583,13 +584,13 @@ public:
 	void EnableTransformSelectionMode(bool bEnable);
 #endif  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_ENABLE_DEBUG_DRAWING
 	/** Force render after constant data changes (such as visibility, or hitproxy subsections). Will also work while paused. */
 	void ForceRenderUpdateConstantData() { MarkRenderStateDirty(); }
 
 	/** Force render after dynamic data changes (such as transforms). Will also work while paused. */
 	void ForceRenderUpdateDynamicData() { MarkRenderDynamicDataDirty(); }
-#endif  // #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif  // UE_ENABLE_DEBUG_DRAWING
 
 	/**/
 	const TArray<bool>& GetDisabledFlags() const { return DisabledFlags; }

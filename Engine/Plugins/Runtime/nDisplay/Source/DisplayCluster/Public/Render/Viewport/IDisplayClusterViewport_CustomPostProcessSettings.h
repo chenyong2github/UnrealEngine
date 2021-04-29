@@ -1,0 +1,22 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+
+
+class DISPLAYCLUSTER_API IDisplayClusterViewport_CustomPostProcessSettings
+{
+public:
+	enum class ERenderPass : int
+	{
+		Start,
+		Override,
+		Final
+	};
+
+public:
+	// Override posproces, if defined
+	// * return true, if processed
+	virtual bool DoPostProcess(const ERenderPass InRenderPass, struct FPostProcessSettings* OutSettings, float* OutBlendWeight = nullptr) const = 0;
+};

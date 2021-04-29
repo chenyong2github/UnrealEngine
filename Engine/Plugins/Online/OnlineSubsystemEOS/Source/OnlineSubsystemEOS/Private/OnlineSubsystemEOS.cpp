@@ -10,85 +10,31 @@
 #include "OnlineUserCloudEOS.h"
 #include "OnlineStoreEOS.h"
 #include "EOSSettings.h"
+#include "IEOSSDKManager.h"
 
+#include "Features/IModularFeatures.h"
 #include "Misc/App.h"
 #include "Misc/NetworkVersion.h"
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
 
-DECLARE_CYCLE_STAT(TEXT("Tick"), STAT_EOS_Tick, STATGROUP_EOS);
-
 #if WITH_EOS_SDK
-
-#include "eos_logging.h"
-
-typedef struct _InternalData
-{
-	int32_t ApiVersion;
-	const char* BackendEnvironment;
-} InternalData;
-
-void EOS_CALL EOSFree(void* Ptr)
-{
-	FMemory::Free(Ptr);
-}
-
-void* EOS_CALL EOSMalloc(size_t Size, size_t Alignment)
-{
-	return FMemory::Malloc(Size, Alignment);
-}
-
-void* EOS_CALL EOSRealloc(void* Ptr, size_t Size, size_t Alignment)
-{
-	return FMemory::Realloc(Ptr, Size, Alignment);
-}
-
-void EOS_CALL EOSLog(const EOS_LogMessage* InMsg)
-{
-	if (GLog == nullptr)
-	{
-		return;
-	}
-
-	switch (InMsg->Level)
-	{
-		case EOS_ELogLevel::EOS_LOG_Fatal:
-		{
-			UE_LOG_ONLINE(Fatal, TEXT("EOSSDK-%s: %s"), ANSI_TO_TCHAR(InMsg->Category), ANSI_TO_TCHAR(InMsg->Message));
-			break;
-		}
-		case EOS_ELogLevel::EOS_LOG_Error:
-		{
-			UE_LOG_ONLINE(Error, TEXT("EOSSDK-%s: %s"), ANSI_TO_TCHAR(InMsg->Category), ANSI_TO_TCHAR(InMsg->Message));
-			break;
-		}
-		case EOS_ELogLevel::EOS_LOG_Warning:
-		{
-			UE_LOG_ONLINE(Warning, TEXT("EOSSDK-%s: %s"), ANSI_TO_TCHAR(InMsg->Category), ANSI_TO_TCHAR(InMsg->Message));
-			break;
-		}
-		case EOS_ELogLevel::EOS_LOG_Verbose:
-		{
-			UE_LOG_ONLINE(Verbose, TEXT("EOSSDK-%s: %s"), ANSI_TO_TCHAR(InMsg->Category), ANSI_TO_TCHAR(InMsg->Message));
-			break;
-		}
-		case EOS_ELogLevel::EOS_LOG_VeryVerbose:
-		{
-			UE_LOG_ONLINE(VeryVerbose, TEXT("EOSSDK-%s: %s"), ANSI_TO_TCHAR(InMsg->Category), ANSI_TO_TCHAR(InMsg->Message));
-			break;
-		}
-		case EOS_ELogLevel::EOS_LOG_Info:
-		default:
-		{
-			UE_LOG_ONLINE(Log, TEXT("EOSSDK-%s: %s"), ANSI_TO_TCHAR(InMsg->Category), ANSI_TO_TCHAR(InMsg->Message));
-			break;
-		}
-	}
-}
 
 // Missing defines
 #define EOS_ENCRYPTION_KEY_MAX_LENGTH 64
 #define EOS_ENCRYPTION_KEY_MAX_BUFFER_LEN (EOS_ENCRYPTION_KEY_MAX_LENGTH + 1)
+
+namespace {
+	IEOSSDKManager* GetEOSSDKManager()
+	{
+		const FName EOSSDKManagerFeatureName = TEXT("EOSSDKManager");
+		if (IModularFeatures::Get().IsModularFeatureAvailable(EOSSDKManagerFeatureName))
+		{
+			return &IModularFeatures::Get().GetModularFeature<IEOSSDKManager>(EOSSDKManagerFeatureName);
+		}
+		return nullptr;
+	}
+}
 
 /** Class that holds the strings for the call duration */
 struct FEOSPlatformOptions :
@@ -116,54 +62,39 @@ struct FEOSPlatformOptions :
 	char EncryptionKeyAnsi[EOS_ENCRYPTION_KEY_MAX_BUFFER_LEN];
 };
 
-static char GProductNameAnsi[EOS_PRODUCTNAME_MAX_BUFFER_LEN];
-static char GProductVersionAnsi[EOS_PRODUCTVERSION_MAX_BUFFER_LEN];
-FString ProductName;
-FString ProductVersion;
-
-EOS_PlatformHandle* GEOSPlatformHandle = NULL;
+FPlatformEOSHelpersPtr FOnlineSubsystemEOS::EOSHelpersPtr;
 
 void FOnlineSubsystemEOS::ModuleInit()
 {
-	// Init EOS SDK
-	EOS_InitializeOptions SDKOptions = { };
-	SDKOptions.ApiVersion = EOS_INITIALIZE_API_LATEST;
-	ProductName = FApp::GetProjectName();
-	FCStringAnsi::Strncpy(GProductNameAnsi, TCHAR_TO_UTF8(*ProductName), EOS_PRODUCTNAME_MAX_BUFFER_LEN);
-	SDKOptions.ProductName = GProductNameAnsi;
-	ProductVersion = FNetworkVersion::GetProjectVersion();
-	if (ProductVersion.IsEmpty())
-	{
-		ProductVersion = TEXT("Unknown");
-	}
-	FCStringAnsi::Strncpy(GProductVersionAnsi, TCHAR_TO_UTF8(*ProductVersion), EOS_PRODUCTVERSION_MAX_BUFFER_LEN);
-	SDKOptions.ProductVersion = GProductVersionAnsi;
-	SDKOptions.AllocateMemoryFunction = &EOSMalloc;
-	SDKOptions.ReallocateMemoryFunction = &EOSRealloc;
-	SDKOptions.ReleaseMemoryFunction = &EOSFree;
+	EOSHelpersPtr = MakeShareable(new FPlatformEOSHelpers());
 
-	EOS_EResult InitResult = EOS_Initialize(&SDKOptions);
+	const FName EOSSharedModuleName = TEXT("EOSShared");
+	if (!FModuleManager::Get().IsModuleLoaded(EOSSharedModuleName))
+	{
+		FModuleManager::Get().LoadModule(EOSSharedModuleName);
+	}
+	IEOSSDKManager* EOSSDKManager = GetEOSSDKManager();
+	if (!EOSSDKManager)
+	{
+		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: Missing IEOSSDKManager modular feature."));
+		return;
+	}
+
+	EOS_EResult InitResult = EOSSDKManager->Initialize();
 	if (InitResult != EOS_EResult::EOS_Success)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to initialize the EOS SDK with result code (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(InitResult)));
 		return;
 	}
-#if !UE_BUILD_SHIPPING
-	InitResult = EOS_Logging_SetCallback(&EOSLog);
-	if (InitResult != EOS_EResult::EOS_Success)
-	{
-		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init logging with result code %s"), ANSI_TO_TCHAR(EOS_EResult_ToString(InitResult)));
-	}
-	EOS_Logging_SetLogLevel(EOS_ELogCategory::EOS_LC_ALL_CATEGORIES, UE_BUILD_DEBUG ? EOS_ELogLevel::EOS_LOG_Verbose : EOS_ELogLevel::EOS_LOG_Info);
-#endif
-	if (IsRunningGame() || IsRunningDedicatedServer())
-	{
-		GEOSPlatformHandle = FOnlineSubsystemEOS::PlatformCreate();
-	}
+}
+
+void FOnlineSubsystemEOS::ModuleShutdown()
+{
+	DESTRUCT_INTERFACE(EOSHelpersPtr);
 }
 
 /** Common method for creating the EOS platform */
-EOS_PlatformHandle* FOnlineSubsystemEOS::PlatformCreate()
+bool FOnlineSubsystemEOS::PlatformCreate()
 {
 	FString ArtifactName;
 	FParse::Value(FCommandLine::Get(), TEXT("EpicApp="), ArtifactName);
@@ -171,8 +102,15 @@ EOS_PlatformHandle* FOnlineSubsystemEOS::PlatformCreate()
 	FEOSArtifactSettings ArtifactSettings;
 	if (!UEOSSettings::GetSettingsForArtifact(ArtifactName, ArtifactSettings))
 	{
-		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS::DeferredInit() failed to find artifact settings object for artifact (%s)"), *ArtifactName);
-		return nullptr;
+		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS::PlatformCreate() failed to find artifact settings object for artifact (%s)"), *ArtifactName);
+		return false;
+	}
+
+	EOSSDKManager = GetEOSSDKManager();
+	if (!EOSSDKManager)
+	{
+		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS::PlatformCreate() failed to init EOS platform"));
+		return false;
 	}
 
 	// Create platform instance
@@ -196,17 +134,19 @@ EOS_PlatformHandle* FOnlineSubsystemEOS::PlatformCreate()
 	}
 	PlatformOptions.Flags = IsRunningGame() ? OverlayFlags : EOS_PF_DISABLE_OVERLAY;
 	// Make the cache directory be in the user's writable area
-	FString CacheDir = FPlatformProcess::UserDir() / ArtifactName / EOSSettings.CacheDir;
+
+	FString CacheDir = EOSHelpersPtr->PlatformCreateCacheDir(ArtifactName, EOSSettings.CacheDir);
 	FCStringAnsi::Strncpy(PlatformOptions.CacheDirectoryAnsi, TCHAR_TO_UTF8(*CacheDir), EOS_OSS_STRING_BUFFER_LENGTH);
 	FCStringAnsi::Strncpy(PlatformOptions.EncryptionKeyAnsi, TCHAR_TO_UTF8(*ArtifactSettings.EncryptionKey), EOS_ENCRYPTION_KEY_MAX_BUFFER_LEN);
 
-	EOS_PlatformHandle* EOSPlatformHandle = EOS_Platform_Create(&PlatformOptions);
+	EOSPlatformHandle = EOSSDKManager->CreatePlatform(PlatformOptions);
 	if (EOSPlatformHandle == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS::PlatformCreate() failed to init EOS platform"));
-		return nullptr;
+		return false;
 	}
-	return EOSPlatformHandle;
+	
+	return true;
 }
 
 bool FOnlineSubsystemEOS::Init()
@@ -232,16 +172,7 @@ bool FOnlineSubsystemEOS::Init()
 		return false;
 	}
 
-	// The editor build will call this completely differently, so give it a chance to run it
-	if (IsRunningGame() || IsRunningDedicatedServer())
-	{
-		EOSPlatformHandle = GEOSPlatformHandle;
-	}
-	else
-	{
-		EOSPlatformHandle = FOnlineSubsystemEOS::PlatformCreate();
-	}
-	if (EOSPlatformHandle == nullptr)
+	if (!PlatformCreate())
 	{
 		return false;
 	}
@@ -347,13 +278,10 @@ bool FOnlineSubsystemEOS::Init()
 	FString ErrorMessage;
 	SocketSubsystem->Init(ErrorMessage);
 
-	FCStringAnsi::Strncpy(ProductNameAnsi, GProductNameAnsi, EOS_PRODUCTNAME_MAX_BUFFER_LEN);
-	FCStringAnsi::Strncpy(ProductVersionAnsi, GProductVersionAnsi, EOS_PRODUCTVERSION_MAX_BUFFER_LEN);
-
 	UserManager = MakeShareable(new FUserManagerEOS(this));
 	SessionInterfacePtr = MakeShareable(new FOnlineSessionEOS(this));
 	// Set the bucket id to use for all sessions based upon the name and version to avoid upgrade issues
-	SessionInterfacePtr->Init(TCHAR_TO_UTF8(*(ProductName + TEXT("_") + ProductVersion)));
+	SessionInterfacePtr->Init(EOSSDKManager->GetProductName() + TEXT("_") + EOSSDKManager->GetProductVersion());
 	StatsInterfacePtr = MakeShareable(new FOnlineStatsEOS(this));
 	LeaderboardsInterfacePtr = MakeShareable(new FOnlineLeaderboardsEOS(this));
 	AchievementsInterfacePtr = MakeShareable(new FOnlineAchievementsEOS(this));
@@ -410,10 +338,6 @@ bool FOnlineSubsystemEOS::Tick(float DeltaTime)
 		return true;
 	}
 
-	{
-		FScopeCycleCounter Scope(GET_STATID(STAT_EOS_Tick), true);
-		EOS_Platform_Tick(EOSPlatformHandle);
-	}
 	SessionInterfacePtr->Tick(DeltaTime);
 	FOnlineSubsystemImpl::Tick(DeltaTime);
 

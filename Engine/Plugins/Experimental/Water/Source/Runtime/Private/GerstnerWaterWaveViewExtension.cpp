@@ -51,41 +51,39 @@ void FGerstnerWaterWaveViewExtension::SetupViewFamily(FSceneViewFamily& InViewFa
 		{
 			WaterIndirectionBuffer.AddZeroed();
 
-			if (WaterBody)
+			if (WaterBody && WaterBody->HasWaves())
 			{
-				if (const UWaterWavesBase* WaterWavesBase = WaterBody->GetWaterWaves())
+				const UWaterWavesBase* WaterWavesBase = WaterBody->GetWaterWaves();
+				check(WaterWavesBase != nullptr);
+				if (const UGerstnerWaterWaves* GerstnerWaves = Cast<const UGerstnerWaterWaves>(WaterWavesBase->GetWaterWaves()))
 				{
-					if (const UGerstnerWaterWaves* GerstnerWaves = Cast<const UGerstnerWaterWaves>(WaterWavesBase->GetWaterWaves()))
+					const TArray<FGerstnerWave>& Waves = GerstnerWaves->GetGerstnerWaves();
+					
+					// Where the data for this water body starts (including header)
+					const int32 DataBaseIndex = WaterDataBuffer.Num();
+					// Allocate for the waves in this water body
+					const int32 NumWaves = FMath::Min(Waves.Num(), MaxWavesPerWaterBody);
+					WaterDataBuffer.AddZeroed(NumWaves * NumFloat4PerWave);
+
+					// The header is a vector4 and contains generic per-water body information
+					// X: Index to the wave data
+					// Y: Num waves
+					// Z: TargetWaveMaskDepth
+					// W: Unused
+					FVector4& Header = WaterIndirectionBuffer.Last();
+					Header.X = DataBaseIndex;
+					Header.Y = NumWaves;
+					Header.Z = WaterBody->TargetWaveMaskDepth;
+					Header.W = 0.0f;
+
+					for (int32 i = 0; i < NumWaves; i++)
 					{
-						const TArray<FGerstnerWave>& Waves = GerstnerWaves->GetGerstnerWaves();
+						const FGerstnerWave& Wave = Waves[i];
 
-						// Where the data for this water body starts (including header)
-						const int32 DataBaseIndex = WaterDataBuffer.Num();
+						const int32 WaveIndex = DataBaseIndex + (i * NumFloat4PerWave);
 
-						// Allocate for the waves in this water body
-						const int32 NumWaves = FMath::Min(Waves.Num(), MaxWavesPerWaterBody);
-						WaterDataBuffer.AddZeroed(NumWaves * NumFloat4PerWave);
-
-						// The header is a vector4 and contains generic per-water body information
-						// X: Index to the wave data
-						// Y: Num waves
-						// Z: TargetWaveMaskDepth
-						// W: Unused
-						FVector4& Header = WaterIndirectionBuffer.Last();
-						Header.X = DataBaseIndex;
-						Header.Y = NumWaves;
-						Header.Z = WaterBody->TargetWaveMaskDepth;
-						Header.W = 0.0f;
-
-						for (int32 i = 0; i < NumWaves; i++)
-						{
-							const FGerstnerWave& Wave = Waves[i];
-
-							const int32 WaveIndex = DataBaseIndex + (i * NumFloat4PerWave);
-
-							WaterDataBuffer[WaveIndex] = FVector4(Wave.Direction.X, Wave.Direction.Y, Wave.WaveLength, Wave.Amplitude);
-							WaterDataBuffer[WaveIndex + 1] = FVector4(Wave.Steepness, 0.0f, 0.0f, 0.0f);
-						}
+						WaterDataBuffer[WaveIndex] = FVector4(Wave.Direction.X, Wave.Direction.Y, Wave.WaveLength, Wave.Amplitude);
+						WaterDataBuffer[WaveIndex + 1] = FVector4(Wave.Steepness, 0.0f, 0.0f, 0.0f);
 					}
 				}
 			}

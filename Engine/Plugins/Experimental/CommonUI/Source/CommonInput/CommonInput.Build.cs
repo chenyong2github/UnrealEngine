@@ -50,6 +50,8 @@ public class CommonInput : ModuleRules
 
 		PrivateDefinitions.Add("UE_COMMONINPUT_PLATFORM_USE_GAMEPAD_IF_MOUSE_REMOVED=" + (PlatformUsesGamepadIfMouseRemoved ? "1" : "0") );
 		PrivateDefinitions.Add("UE_COMMONINPUT_PLATFORM_KBM_REQUIRES_ATTACHED_MOUSE=" + (PlatformKBMRequiresAttachedMouse ? "1" : "0") );
+
+		PrivateDependencyModuleNames.Add("GeForceNOWWrapper");
 	}
 
 	static public string ToCommonUIPlatform(UnrealTargetPlatform TargetPlatform)

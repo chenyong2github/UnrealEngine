@@ -82,6 +82,10 @@ public:
 
 	//~ FGCObject interfaces
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FConcertClientPresenceManager");
+	}
 
 	/** Gets the container for all the assets of Concert clients. */
 	const class UConcertAssetContainer& GetAssetContainer() const;

@@ -16,7 +16,11 @@ public:
 	{}
 
 	// FGCObject interface
-	void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FEditorObjectTracker");
+	}
 	// End of FGCObject interface
 
 	/** Returns an existing editor object for the specified class or creates one

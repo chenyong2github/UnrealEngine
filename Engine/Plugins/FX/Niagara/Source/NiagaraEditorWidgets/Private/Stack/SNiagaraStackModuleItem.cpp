@@ -21,6 +21,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraScratchPadScriptViewModel.h"
 #include "ViewModels/NiagaraScratchPadViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
@@ -300,9 +301,7 @@ TSharedRef<SWidget> SNiagaraStackModuleItem::RaiseActionMenuClicked()
 
 void SNiagaraStackModuleItem::SwitchToVersion(FNiagaraAssetVersion Version)
 {
-	FScopedTransaction ScopedTransaction(LOCTEXT("NiagaraChangeVersion_Transaction", "Changing module version"));
-	ModuleItem->GetModuleNode().ChangeScriptVersion(Version.VersionGuid, true);
-	ModuleItem->Refresh();
+	ModuleItem->ChangeScriptVersion(Version.VersionGuid);
 }
 
 TSharedRef<SWidget> SNiagaraStackModuleItem::GetVersionSelectorDropdownMenu()

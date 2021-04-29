@@ -78,6 +78,7 @@ private:
 
 	void ToggleFilterAssetByAnimatableControls();
 	bool IsToggleFilterAssetByAnimatableControls();
+	void SelectSequencerNodeInSection(UMovieSceneControlRigParameterSection* ParamSection, const FName& ControlName, bool bSelected);
 
 	/** Control Rig Picked */
 	void AddControlRig(UClass* InClass, UObject* BoundActor, FGuid ObjectBinding);
@@ -101,6 +102,9 @@ private:
 
 	/** Delegate for Curve Selection Changed Event */
 	void OnCurveDisplayChanged(FCurveModel* InCurveModel, bool bDisplayed);
+
+	/** Delegate for difference focused movie scene sequence*/
+	void OnActivateSequenceChanged(FMovieSceneSequenceIDRef ID);
 
 	/** Actor Added Delegate*/
 	void HandleActorAdded(AActor* Actor, FGuid TargetObjectGuid);
@@ -172,6 +176,7 @@ public:
 private:
 	FDelegateHandle SelectionChangedHandle;
 	FDelegateHandle SequencerChangedHandle;
+	FDelegateHandle OnActivateSequenceChangedHandle;
 	FDelegateHandle CurveChangedHandle;
 	FDelegateHandle OnChannelChangedHandle;
 	FDelegateHandle OnMovieSceneChannelChangedHandle;
@@ -180,8 +185,8 @@ private:
 
 
 	//used to sync curve editor selections/displays on next tick for performance reasons
-	TArray<FMovieSceneChannelHandle> DisplayedChannels;
-	TArray<FMovieSceneChannelHandle> UnDisplayedChannels;
+	TSet<FName> DisplayedControls;
+	TSet<FName> UnDisplayedControls;
 	bool bCurveDisplayTickIsPending;
 	void BindControlRig(UControlRig* ControlRig);
 	void UnbindControlRig(UControlRig* ControlRig);

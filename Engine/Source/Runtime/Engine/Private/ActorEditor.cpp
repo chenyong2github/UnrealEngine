@@ -331,74 +331,6 @@ void AActor::DebugShowOneComponentHierarchy( USceneComponent* SceneComp, int32& 
 	}
 }
 
-FArchive& operator<<(FArchive& Ar, AActor::FActorRootComponentReconstructionData::FAttachedActorInfo& ActorInfo)
-{
-	enum class EVersion : uint8
-	{
-		InitialVersion = 0,
-		// -----<new versions can be added above this line>-------------------------------------------------
-		VersionPlusOne,
-		LatestVersion = VersionPlusOne - 1
-	};
-
-	EVersion Version = EVersion::LatestVersion;
-	Ar << Version;
-
-	if (Version > EVersion::LatestVersion)
-	{
-		Ar.SetError();
-		return Ar;
-	}
-
-	Ar << ActorInfo.Actor;
-	Ar << ActorInfo.AttachParent;
-	Ar << ActorInfo.AttachParentName;
-	Ar << ActorInfo.SocketName;
-	Ar << ActorInfo.RelativeTransform;
-
-	return Ar;
-}
-
-FArchive& operator<<(FArchive& Ar, AActor::FActorRootComponentReconstructionData& RootComponentData)
-{
-	enum class EVersion : uint8
-	{
-		InitialVersion = 0,
-		// -----<new versions can be added above this line>-------------------------------------------------
-		VersionPlusOne,
-		LatestVersion = VersionPlusOne - 1
-	};
-
-	EVersion Version = EVersion::LatestVersion;
-	Ar << Version;
-
-	if (Version > EVersion::LatestVersion)
-	{
-		Ar.SetError();
-		return Ar;
-	}
-
-	Ar << RootComponentData.Transform;
-
-	if (Ar.IsSaving())
-	{
-		FQuat TransformRotationQuat = RootComponentData.TransformRotationCache.GetCachedQuat();
-		Ar << TransformRotationQuat;
-	}
-	else if (Ar.IsLoading())
-	{
-		FQuat TransformRotationQuat;
-		Ar << TransformRotationQuat;
-		RootComponentData.TransformRotationCache.NormalizedQuatToRotator(TransformRotationQuat);
-	}
-	
-	Ar << RootComponentData.AttachedParentInfo;
-	
-	Ar << RootComponentData.AttachedToInfo;
-
-	return Ar;
-}
-
 TSharedRef<AActor::FActorTransactionAnnotation> AActor::FActorTransactionAnnotation::Create()
 {
 	return MakeShareable(new FActorTransactionAnnotation());
@@ -426,19 +358,20 @@ TSharedPtr<AActor::FActorTransactionAnnotation> AActor::FActorTransactionAnnotat
 }
 
 AActor::FActorTransactionAnnotation::FActorTransactionAnnotation()
-	: bRootComponentDataCached(false)
 {
+	ActorTransactionAnnotationData.bRootComponentDataCached = false;
 }
 
 AActor::FActorTransactionAnnotation::FActorTransactionAnnotation(const AActor* InActor, FComponentInstanceDataCache&& InComponentInstanceData, const bool InCacheRootComponentData)
-	: ComponentInstanceData(MoveTemp(InComponentInstanceData))
 {
-	Actor = InActor;
+	ActorTransactionAnnotationData.ComponentInstanceData = MoveTemp(InComponentInstanceData);
+	ActorTransactionAnnotationData.Actor = InActor;
 
 	USceneComponent* ActorRootComponent = InActor->GetRootComponent();
 	if (InCacheRootComponentData && ActorRootComponent && ActorRootComponent->IsCreatedByConstructionScript())
 	{
-		bRootComponentDataCached = true;
+		ActorTransactionAnnotationData.bRootComponentDataCached = true;
+		FActorRootComponentReconstructionData& RootComponentData = ActorTransactionAnnotationData.RootComponentData;
 		RootComponentData.Transform = ActorRootComponent->GetComponentTransform();
 		RootComponentData.Transform.SetTranslation(ActorRootComponent->GetComponentLocation()); // take into account any custom location
 		RootComponentData.TransformRotationCache = ActorRootComponent->GetRelativeRotationCache();
@@ -468,56 +401,23 @@ AActor::FActorTransactionAnnotation::FActorTransactionAnnotation(const AActor* I
 	}
 	else
 	{
-		bRootComponentDataCached = false;
+		ActorTransactionAnnotationData.bRootComponentDataCached = false;
 	}
 }
 
 void AActor::FActorTransactionAnnotation::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	ComponentInstanceData.AddReferencedObjects(Collector);
+	ActorTransactionAnnotationData.ComponentInstanceData.AddReferencedObjects(Collector);
 }
 
 void AActor::FActorTransactionAnnotation::Serialize(FArchive& Ar)
 {
-	enum class EVersion : uint8
-	{
-		InitialVersion = 0,
-		WithInstanceCache,
-		// -----<new versions can be added above this line>-------------------------------------------------
-		VersionPlusOne,
-		LatestVersion = VersionPlusOne - 1
-	};
-
-	EVersion Version = EVersion::LatestVersion;
-	Ar << Version;
-
-	if (Version > EVersion::LatestVersion)
-	{
-		Ar.SetError();
-		return;
-	}
-
-	// InitialVersion
-	Ar << Actor;
-	Ar << bRootComponentDataCached;
-	if (bRootComponentDataCached)
-	{
-		Ar << RootComponentData;
-	}
-	// WithInstanceCache
-	if (Ar.IsLoading())
-	{
-		ComponentInstanceData = FComponentInstanceDataCache(Actor.Get());
-	}
-	if (Version >= EVersion::WithInstanceCache)
-	{
-		ComponentInstanceData.Serialize(Ar);
-	}
+	Ar << ActorTransactionAnnotationData;
 }
 
 bool AActor::FActorTransactionAnnotation::HasInstanceData() const
 {
-	return (bRootComponentDataCached || ComponentInstanceData.HasInstanceData());
+	return (ActorTransactionAnnotationData.bRootComponentDataCached || ActorTransactionAnnotationData.ComponentInstanceData.HasInstanceData());
 }
 
 TSharedPtr<ITransactionObjectAnnotation> AActor::FactoryTransactionAnnotation(const ETransactionAnnotationCreationMode InCreationMode) const

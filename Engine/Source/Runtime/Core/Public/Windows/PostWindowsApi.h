@@ -1,5 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+// #TODO: redirect to platform-agnostic version for the time being. Eventually this will become an error
+#include "HAL/Platform.h"
+#if !PLATFORM_WINDOWS && !PLATFORM_HOLOLENS
+	#include "Microsoft/PostWindowsApi.h"
+#else
+
 // Re-enable warnings
 THIRD_PARTY_INCLUDES_END
 
@@ -47,6 +53,7 @@ THIRD_PARTY_INCLUDES_END
 #undef Yield
 #undef IMediaEventSink
 #undef GetTempFileName
+#undef GetFreeSpace
 
 // Undefine all the atomics. AllowWindowsPlatformAtomics/HideWindowsPlatformAtomics temporarily defining these macros.
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
@@ -86,3 +93,5 @@ PRAGMA_POP_PLATFORM_DEFAULT_PACKING
 #if !defined(_XTL_) && (_WIN32_WINNT < 0x0403)
 	#error SetCriticalSectionSpinCount requires _WIN32_WINNT >= 0x0403
 #endif
+
+#endif //PLATFORM_*

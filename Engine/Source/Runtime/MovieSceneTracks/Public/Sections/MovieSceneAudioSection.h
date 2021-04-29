@@ -25,19 +25,19 @@ class MOVIESCENETRACKS_API UMovieSceneAudioSection
 public:
 
 	/** Sets this section's sound */
-	UFUNCTION(BlueprintCallable, Category="Movie Scene")
+	UFUNCTION(BlueprintCallable, Category="Sequencer|Section")
 	void SetSound(class USoundBase* InSound) {Sound = InSound;}
 
 	/** Gets the sound for this section */
-	UFUNCTION(BlueprintPure, Category = "Movie Scene")
+	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	class USoundBase* GetSound() const {return Sound;}
 
 	/** Set the offset into the beginning of the audio clip */
-	UFUNCTION(BlueprintCallable, Category = "Movie Scene")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
 	void SetStartOffset(FFrameNumber InStartOffset) {StartFrameOffset = InStartOffset;}
 
 	/** Get the offset into the beginning of the audio clip */
-	UFUNCTION(BlueprintPure, Category = "Movie Scene")
+	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	FFrameNumber GetStartOffset() const {return StartFrameOffset;}
 
 	/**

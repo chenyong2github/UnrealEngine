@@ -28,6 +28,7 @@
 #include "RenderTargetPool.h"
 #include "GroomManager.h"
 #include "GroomInstance.h"
+#include "GroomCache.h"
 
 static int32 GHairEnableAdaptiveSubsteps = 0;  
 static FAutoConsoleVariableRef CVarHairEnableAdaptiveSubsteps(TEXT("r.HairStrands.EnableAdaptiveSubsteps"), GHairEnableAdaptiveSubsteps, TEXT("Enable adaptive solver substeps"));
@@ -899,6 +900,65 @@ private:
 	TArray<FHairGroup> HairGroups;
 };
 
+/** GroomCacheBuffers implementation that hold copies of the GroomCacheAnimationData needed for playback */
+class FGroomCacheBuffers : public IGroomCacheBuffers
+{
+public:
+	virtual FGroomCacheAnimationData& GetCurrentFrameBuffer() override
+	{
+		return CurrentFrame;
+	}
+
+	virtual FGroomCacheAnimationData& GetNextFrameBuffer() override
+	{
+		return NextFrame;
+	}
+
+	virtual FGroomCacheAnimationData& GetInterpolatedFrameBuffer() override
+	{
+		return InterpolatedFrame;
+	}
+
+	virtual int32 GetCurrentFrameIndex() const override
+	{
+		return CurrentFrameIndex;
+	}
+
+	virtual int32 GetNextFrameIndex() const override
+	{
+		return NextFrameIndex;
+	}
+
+	virtual float GetInterpolationFactor() const override
+	{
+		return InterpolationFactor;
+	}
+
+	virtual void SetCurrentFrameIndex(int32 FrameIndex)
+	{
+		CurrentFrameIndex = FrameIndex;
+	}
+
+	virtual void SetNextFrameIndex(int32 FrameIndex)
+	{
+		NextFrameIndex = FrameIndex;
+	}
+
+	virtual void SetInterpolationFactor(float Factor)
+	{
+		InterpolationFactor = Factor;
+	}
+
+private:
+	FGroomCacheAnimationData CurrentFrame;
+	FGroomCacheAnimationData NextFrame;
+	FGroomCacheAnimationData InterpolatedFrame;
+
+	int32 CurrentFrameIndex = 0;
+	int32 NextFrameIndex = 0;
+	float InterpolationFactor = 0.0f;
+};
+
 /////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////
 // UComponent
@@ -923,6 +983,10 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 	PhysicsAsset = nullptr;
 	bCanEverAffectNavigation = false;
 	bValidationEnable = GHairBindingValidationEnable > 0;
+	bRunning = true;
+	bLooping = true;
+	bManualTick = false;
+	ElapsedTime = 0.0f;
 
 	// Overlap events are expensive and not needed (at least at the moment) as we don't need to collide against other component.
 	SetGenerateOverlapEvents(false);
@@ -1902,6 +1966,16 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		bHasNeedGlobalDeformation = false;
 	}
 
+	if (GroomCache)
+	{
+		GroomCacheBuffers = MakeShared<FGroomCacheBuffers, ESPMode::ThreadSafe>();
+		UpdateGroomCache(ElapsedTime);
+	}
+	else
+	{
+		GroomCacheBuffers.Reset();
+	}
+
 	for (int32 GroupIt = 0, GroupCount = GroomAsset->HairGroupsData.Num(); GroupIt < GroupCount; ++GroupIt)
 	{
 		FHairGroupInstance* HairGroupInstance = new FHairGroupInstance();
@@ -1913,6 +1987,8 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		HairGroupInstance->Debug.GroomAssetName = GroomAsset->GetName();
 		HairGroupInstance->Debug.MeshComponent = RegisteredMeshComponent;
 		HairGroupInstance->Debug.GroomBindingType = BindingAsset ? BindingAsset->GroomBindingType : EGroomBindingMeshType::SkeletalMesh;
+		HairGroupInstance->Debug.GroomCacheType = GroomCache ? GroomCache->GetType() : EGroomCacheType::None;
+		HairGroupInstance->Debug.GroomCacheBuffers = GroomCacheBuffers;
 		if (RegisteredMeshComponent)
 		{
 			HairGroupInstance->Debug.MeshComponentName = RegisteredMeshComponent->GetPathName();
@@ -2281,6 +2357,8 @@ void UGroomComponent::ReleaseResources()
 	SkeletalPreviousPositionOffset = FVector::ZeroVector;
 	RegisteredMeshComponent = nullptr;
 
+	GroomCacheBuffers.Reset();
+
 	MarkRenderStateDirty();
 }
 
@@ -2513,6 +2591,60 @@ void UGroomComponent::DetachFromComponent(const FDetachmentTransformRules& In)
 	Super::DetachFromComponent(DetachmentRules);
 }
 
+void UGroomComponent::UpdateGroomCache(float Time)
+{
+	if (GroomCache && GroomCacheBuffers.IsValid() && bRunning)
+	{
+		float AnimationTime = Time;
+		const float Duration = GroomCache->GetDuration();
+		if (bLooping && Duration > 0.0f)
+		{
+			AnimationTime = AnimationTime - Duration * FMath::FloorToFloat(AnimationTime / Duration);
+		}
+		FScopeLock Lock(GroomCacheBuffers->GetCriticalSection());
+		GroomCache->GetGroomDataAtTime(AnimationTime, GroomCacheBuffers->GetInterpolatedFrameBuffer());
+	}
+}
+
+void UGroomComponent::SetGroomCache(UGroomCache* InGroomCache)
+{
+	if (GroomCache != InGroomCache)
+	{
+		ReleaseResources();
+		ResetAnimationTime();
+		GroomCache = InGroomCache;
+		InitResources();
+	}
+}
+
+float UGroomComponent::GetGroomCacheDuration() const
+{
+	return GroomCache ? GroomCache->GetDuration() : 0.0f;
+}
+
+void UGroomComponent::SetManualTick(bool bInManualTick)
+{
+	bManualTick = bInManualTick;
+}
+
+bool UGroomComponent::GetManualTick() const
+{
+	return bManualTick;
+}
+
+void UGroomComponent::ResetAnimationTime()
+{
+	ElapsedTime = 0.0f;
+}
+
+void UGroomComponent::TickAtThisTime(const float Time, bool bInIsRunning, bool bInBackwards, bool bInIsLooping)
+{
+	if (GroomCache && bRunning && bManualTick)
+	{
+		UpdateGroomCache(Time);
+	}
+}
+
 void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);	
@@ -2578,6 +2710,12 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 			// insure the component/proxy bounding box always lies onto the actual skinned mesh
 			MarkRenderTransformDirty();
 		}
+
+	if (GroomCache && bRunning && !bManualTick)
+	{
+		ElapsedTime += DeltaTime;
+		UpdateGroomCache(ElapsedTime);
+	}
 
 	const FTransform SkinLocalToWorld = RegisteredMeshComponent ? RegisteredMeshComponent->GetComponentTransform() : FTransform();
 	TArray<FHairGroupInstance*> LocalHairGroupInstances = HairGroupInstances;
@@ -2673,6 +2811,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	const bool bBindingAssetChanged = PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, BindingAsset);
 	const bool bIsBindingCompatible = UGroomBindingAsset::IsCompatible(GroomAsset, BindingAsset, bValidationEnable);
 	const bool bEnableSolverChanged = PropertyName == GET_MEMBER_NAME_CHECKED(FHairSimulationSolver, bEnableSimulation);
+	const bool bGroomCacheChanged = PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, GroomCache);
 	if (!bIsBindingCompatible || !UGroomBindingAsset::IsBindingAssetValid(BindingAsset, false, bValidationEnable))
 	{
 		BindingAsset = nullptr;
@@ -2708,7 +2847,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	}
 	#endif
 
-	const bool bRecreateResources = bAssetChanged || bBindingAssetChanged || PropertyThatChanged == nullptr || bSourceSkeletalMeshChanged || bRayTracingGeometryChanged || bEnableSolverChanged;
+	const bool bRecreateResources = bAssetChanged || bBindingAssetChanged || bGroomCacheChanged || PropertyThatChanged == nullptr || bSourceSkeletalMeshChanged || bRayTracingGeometryChanged || bEnableSolverChanged;
 	if (bRecreateResources)
 	{
 		// Release the resources before Super::PostEditChangeProperty so that they get

@@ -199,14 +199,14 @@ public:
 
 	/** Recalculates and updates points bounds. */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void RefreshBounds() { Octree.RefreshBounds(); }
+	void RefreshBounds();
 
 	/** Returns true, if the Octree has collision built */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
 	bool HasCollisionData() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void RefreshRendering() { OnPointCloudRebuiltEvent.Broadcast(); }
+	void RefreshRendering();
 
 	TArray<uint8> GetClassificationsImported() { return ClassificationsImported; }
 

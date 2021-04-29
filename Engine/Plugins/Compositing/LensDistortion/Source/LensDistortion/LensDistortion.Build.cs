@@ -6,19 +6,14 @@ namespace UnrealBuildTool.Rules
 	{
 		public LensDistortion(ReadOnlyTargetRules Target) : base(Target)
 		{
-			OptimizeCode = CodeOptimization.Never;
-
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"Core",
 					"CoreUObject",
-					"DeveloperSettings",
-					"Engine",
-					"RHI",
 					"Engine",
 					"RenderCore",
+					"RHI",
 				}
 			);
 
@@ -28,12 +23,7 @@ namespace UnrealBuildTool.Rules
                     "Projects",
 				}
 			);
-			
-			PrivateIncludePaths.AddRange(
-            				new string[] {
-            					//required for ScreenPass
-            					"../../../../Source/Runtime/Renderer/Private",
-            				});
+
 		}
 	}
 }

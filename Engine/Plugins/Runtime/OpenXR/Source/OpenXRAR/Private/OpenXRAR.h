@@ -204,6 +204,10 @@ public:
  * @param Collector The collector of referenced objects.
  */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector);
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FOpenXRARSystem");
+	}
 
 private:
 	FOpenXRHMD* TrackingSystem;

@@ -36,6 +36,12 @@
 #include "Engine/ActorChannel.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
+// Enabling this will validate cached dependent Blueprints against the full set of loaded Blueprints when updating bytecode references.
+// Note: Enabling this may potentially increase editor/Blueprint load time and/or decrease performance related to Blueprint compilation.
+#ifndef VALIDATE_BYTECODE_REFERENCE_DEPENDENCY_CACHE
+#define VALIDATE_BYTECODE_REFERENCE_DEPENDENCY_CACHE 0
+#endif // VALIDATE_BYTECODE_REFERENCE_DEPENDENCY_CACHE
+
 DECLARE_CYCLE_STAT(TEXT("Replace Instances"), EKismetReinstancerStats_ReplaceInstancesOfClass, STATGROUP_KismetReinstancer );
 DECLARE_CYCLE_STAT(TEXT("Find Referencers"), EKismetReinstancerStats_FindReferencers, STATGROUP_KismetReinstancer );
 DECLARE_CYCLE_STAT(TEXT("Replace References"), EKismetReinstancerStats_ReplaceReferences, STATGROUP_KismetReinstancer );
@@ -447,8 +453,6 @@ FBlueprintCompileReinstancer::FBlueprintCompileReinstancer(UClass* InClassToRein
 		if(!IsReinstancingSkeleton() && GeneratingBP)
 		{
 			ClassToReinstanceDefaultValuesCRC = GeneratingBP->CrcLastCompiledCDO;
-			Dependencies.Empty();
-			FBlueprintEditorUtils::GetDependentBlueprints(GeneratingBP, Dependencies);
 
 			// Never queue for saving when regenerating on load
 			if (!GeneratingBP->bIsRegeneratingOnLoad && !IsReinstancingSkeleton())
@@ -1068,17 +1072,32 @@ void FBlueprintCompileReinstancer::UpdateBytecodeReferences()
 {
 	BP_SCOPED_COMPILER_EVENT_STAT(EKismetReinstancerStats_UpdateBytecodeReferences);
 
-	if(ClassToReinstance != nullptr)
+	if (!ClassToReinstance)
+	{
+		return;
+	}
+
+	if(UBlueprint* CompiledBlueprint = UBlueprint::GetBlueprintFromClass(ClassToReinstance))
 	{
 		TMap<FFieldVariant, FFieldVariant> FieldMappings;
 		GenerateFieldMappings(FieldMappings);
 
+		// Note: This API returns a cached set of blueprints that's updated at compile time.
+		TArray<UBlueprint*> CachedDependentBPs;
+		FBlueprintEditorUtils::GetDependentBlueprints(CompiledBlueprint, CachedDependentBPs);
+
 		// Determine whether or not we will be updating references for an Animation Blueprint class.
 		const bool bIsAnimBlueprintClass = !!Cast<UAnimBlueprint>(ClassToReinstance->ClassGeneratedBy);
 
-		for( auto DependentBP = Dependencies.CreateIterator(); DependentBP; ++DependentBP )
+#if VALIDATE_BYTECODE_REFERENCE_DEPENDENCY_CACHE
+		TArray<UBlueprint*> ActualDependentBPs;
+		for (TObjectIterator<UBlueprint> BpIt; BpIt; ++BpIt)
+#else
+		for (auto BpIt = CachedDependentBPs.CreateIterator(); BpIt; ++BpIt)
+#endif // VALIDATE_BYTECODE_REFERENCE_DEPENDENCY_CACHE
 		{
-			UClass* BPClass = (*DependentBP)->GeneratedClass;
+			UBlueprint* DependentBP = *BpIt;
+			UClass* BPClass = DependentBP->GeneratedClass;
 
 			// Skip cases where the class is junk, or haven't finished serializing in yet
 			// Note that BPClass can be null for blueprints that can no longer be compiled:
@@ -1127,19 +1146,43 @@ void FBlueprintCompileReinstancer::UpdateBytecodeReferences()
 				}
 			}
 
-			FArchiveReplaceFieldReferences ReplaceInBPAr(*DependentBP, FieldMappings, false, true, true);
+			FArchiveReplaceFieldReferences ReplaceInBPAr(DependentBP, FieldMappings, false, true, true);
 			if (ReplaceInBPAr.GetCount())
 			{
+#if VALIDATE_BYTECODE_REFERENCE_DEPENDENCY_CACHE
+				ActualDependentBPs.Add(DependentBP);
+#endif // VALIDATE_BYTECODE_REFERENCE_DEPENDENCY_CACHE
+
 				bBPWasChanged = true;
-				UE_LOG(LogBlueprint, Log, TEXT("UpdateBytecodeReferences: %d references from %s was replaced in BP %s"), ReplaceInBPAr.GetCount(), *GetPathNameSafe(ClassToReinstance), *GetPathNameSafe(*DependentBP));
+				UE_LOG(LogBlueprint, Log, TEXT("UpdateBytecodeReferences: %d references from %s was replaced in BP %s"), ReplaceInBPAr.GetCount(), *GetPathNameSafe(ClassToReinstance), *GetPathNameSafe(DependentBP));
 			}
 
-			UBlueprint* CompiledBlueprint = UBlueprint::GetBlueprintFromClass(ClassToReinstance);
 			if (bBPWasChanged && CompiledBlueprint && !CompiledBlueprint->bIsRegeneratingOnLoad)
 			{
-				DependentBlueprintsToRefresh.Add(*DependentBP);
+				DependentBlueprintsToRefresh.Add(DependentBP);
 			}
 		}
+
+#if VALIDATE_BYTECODE_REFERENCE_DEPENDENCY_CACHE
+		bool bHasMissingDependents = false;
+		for (UBlueprint* ChangedBP : ActualDependentBPs)
+		{
+			if (!CachedDependentBPs.Contains(ChangedBP))
+			{
+				UE_LOG(LogBlueprint, Error, TEXT("While updating %s, we needed to update %s but it wasn't cached as a dependent"), *ClassToReinstance->GetName(), *ChangedBP->GetName());
+				bHasMissingDependents = true;
+			}
+		}
+
+		if (bHasMissingDependents)
+		{
+			UE_LOG(LogBlueprint, Error, TEXT("Class: %s, CachedDeps: [%s], ActualDeps: [%s]"),
+				*ClassToReinstance->GetName(),
+				*FString::JoinBy(CachedDependentBPs, TEXT(","), [](UBlueprint* Blueprint) { return Blueprint->GetName(); }),
+				*FString::JoinBy(ActualDependentBPs, TEXT(","), [](UBlueprint* Blueprint) { return Blueprint->GetName(); })
+			);
+		}
+#endif // VALIDATE_BYTECODE_REFERENCE_DEPENDENCY_CACHE
 	}
 }
 
@@ -1318,13 +1361,13 @@ void FActorReplacementHelper::Finalize(const TMap<UObject*, UObject*>& OldToNewI
 	bool bCanReRun = UBlueprint::IsBlueprintHierarchyErrorFree(NewActor->GetClass());
 	if (NewActor->CurrentTransactionAnnotation.IsValid() && bCanReRun)
 	{
-		NewActor->CurrentTransactionAnnotation->ComponentInstanceData.FindAndReplaceInstances(OldToNewInstanceMap);
+		NewActor->CurrentTransactionAnnotation->ActorTransactionAnnotationData.ComponentInstanceData.FindAndReplaceInstances(OldToNewInstanceMap);
 		NewActor->RerunConstructionScripts();
 	}
 	else if (CachedActorData.IsValid())
 	{
-		CachedActorData->ComponentInstanceData.FindAndReplaceInstances(OldToNewInstanceMap);
-		const bool bErrorFree = NewActor->ExecuteConstruction(TargetWorldTransform, nullptr, &CachedActorData->ComponentInstanceData);
+		CachedActorData->ActorTransactionAnnotationData.ComponentInstanceData.FindAndReplaceInstances(OldToNewInstanceMap);
+		const bool bErrorFree = NewActor->ExecuteConstruction(TargetWorldTransform, nullptr, &CachedActorData->ActorTransactionAnnotationData.ComponentInstanceData);
 		if (!bErrorFree)
 		{
 			// Save off the cached actor data for once the blueprint has been fixed so we can reapply it
@@ -2268,7 +2311,23 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 			check(OldClass && NewClass);
 			check(OldClass != NewClass || IsReloadActive());
 			{
+				auto IsScriptComponent = [](UClass* InClass) -> bool
+				{
+					bool bIsScriptComponent = false;
+					// Hacky way of dtecting ScriptComponents
+					static FName NAME_ScriptComponent(TEXT("ScriptComponent"));
+					for (UClass* CurrentClass = InClass; CurrentClass && !bIsScriptComponent; CurrentClass = CurrentClass->GetSuperClass())
+					{
+						bIsScriptComponent = CurrentClass->GetFName() == NAME_ScriptComponent;
+					}					
+					return bIsScriptComponent;
+				};
+				
 				const bool bIsComponent = NewClass->IsChildOf<UActorComponent>();
+				// Keeping script component separate from bIsComponent as there's extra rules for replacing actor components
+				// that may not apply to ScriptComponents.
+				// We need to replace ScriptComponents that are on Blueprint CDOs when they're being edited
+				const bool bIsScriptComponent = IsScriptComponent(NewClass);
 
 				// If any of the class changes are of an actor component to scene component or reverse then we will fixup SCS of all actors affected
 				if (bIsComponent && !bFixupSCS)
@@ -2288,8 +2347,8 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 
 					// Skip archetype instances, EXCEPT for component templates and child actor templates
 					const bool bIsChildActorTemplate = OldActor && OldActor->GetOuter()->IsA<UChildActorComponent>();
-					if (OldObject->IsPendingKill() || 
-						(!bIsComponent && !bIsChildActorTemplate && OldObject->IsTemplate()) ||
+					if ((OldObject->IsPendingKill() && !bIsScriptComponent) || // @todo: why do we need to replace PendingKill script components?
+						(!bIsComponent && !bIsChildActorTemplate && OldObject->IsTemplate() && !bIsScriptComponent) ||
 						(InstancesThatShouldUseOldClass && InstancesThatShouldUseOldClass->Contains(OldObject)))
 					{
 						continue;

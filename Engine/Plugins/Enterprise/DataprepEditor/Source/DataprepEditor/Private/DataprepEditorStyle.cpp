@@ -58,6 +58,16 @@ void FDataprepEditorStyle::Initialize()
 	StyleSet->Set("DataprepEditor.ExecutePipeline.Selected", new IMAGE_PLUGIN_BRUSH("Icons/ExecutePipeline", Icon40x40));
 	StyleSet->Set("DataprepEditor.ExecutePipeline.Selected.Small", new IMAGE_PLUGIN_BRUSH("Icons/ExecutePipeline", Icon20x20));
 
+	StyleSet->Set("DataprepEditor.Pipeline.GroupActions", new IMAGE_PLUGIN_BRUSH("Icons/GroupActions", Icon16x16));
+	StyleSet->Set("DataprepEditor.Pipeline.UngroupActions", new IMAGE_PLUGIN_BRUSH("Icons/UngroupActions", Icon16x16));
+	StyleSet->Set("DataprepEditor.Pipeline.EnableActions", new IMAGE_PLUGIN_BRUSH("Icons/EnableActions", Icon16x16));
+	StyleSet->Set("DataprepEditor.Pipeline.DisableActions", new IMAGE_PLUGIN_BRUSH("Icons/DisableActions", Icon16x16));
+	StyleSet->Set("DataprepEditor.Pipeline.EnableActionGroup", new IMAGE_PLUGIN_BRUSH("Icons/EnableActionGroup", Icon16x16));
+	StyleSet->Set("DataprepEditor.Pipeline.DisableActionGroup", new IMAGE_PLUGIN_BRUSH("Icons/DisableActionGroup", Icon16x16));
+	StyleSet->Set("DataprepEditor.Pipeline.PreviewFilter", new IMAGE_PLUGIN_BRUSH("Icons/PreviewFilter", Icon16x16));
+	StyleSet->Set("DataprepEditor.Pipeline.InversePreviewFilter", new IMAGE_PLUGIN_BRUSH("Icons/InversePreviewFilter", Icon16x16));
+	StyleSet->Set("DataprepEditor.Pipeline.ClearPreviewFilter", new IMAGE_PLUGIN_BRUSH("Icons/ClearPreviewFilter", Icon16x16));
+
 	StyleSet->Set("DataprepEditor.TrackNode.Slot", new IMAGE_PLUGIN_BRUSH("CircleBox", Icon32x32));
 
 	StyleSet->Set("DataprepEditor.Node.Body", new BOX_BRUSH("Node_Body", FMargin(16.f/64.f, 25.f/64.f, 16.f/64.f, 16.f/64.f)));

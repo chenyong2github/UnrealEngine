@@ -82,7 +82,7 @@ public:
 	 */
 	static void ExtractStaticMeshComponentsFromLODActor(const ALODActor* LODActor, TArray<UStaticMeshComponent*>& InOutComponents);
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) || WITH_EDITOR
 	/** Check if we contain data for the specified actor */
 	bool ContainsDataForActor(const ALODActor* InLODActor) const;
 #endif

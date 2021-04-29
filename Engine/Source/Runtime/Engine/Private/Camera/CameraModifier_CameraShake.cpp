@@ -9,6 +9,8 @@
 #include "DisplayDebugHelpers.h"
 #include "EngineGlobals.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogCameraShake, Warning, All);
+
 //////////////////////////////////////////////////////////////////////////
 // UCameraModifier_CameraShake
 
@@ -65,6 +67,7 @@ bool UCameraModifier_CameraShake::ModifyCamera(float DeltaTime, FMinimalViewInfo
 				}
 
 				ActiveShakes.RemoveAt(i, 1);
+				UE_LOG(LogCameraShake, Verbose, TEXT("UCameraModifier_CameraShake::ModifyCamera Removing obsolete shake %s"), *GetNameSafe(ShakeInfo.ShakeInstance));
 
 				SaveShakeInExpiredPoolIfPossible(ShakeInfo);
 			}
@@ -82,6 +85,8 @@ bool UCameraModifier_CameraShake::ModifyCamera(float DeltaTime, FMinimalViewInfo
 UCameraShakeBase* UCameraModifier_CameraShake::AddCameraShake(TSubclassOf<UCameraShakeBase> ShakeClass, const FAddCameraShakeParams& Params)
 {
 	SCOPE_CYCLE_COUNTER(STAT_AddCameraShake);
+
+	UE_LOG(LogCameraShake, Verbose, TEXT("UCameraModifier_CameraShake::AddCameraShake %s"), *GetNameSafe(ShakeClass));
 
 	if (ShakeClass != nullptr)
 	{
@@ -169,6 +174,7 @@ UCameraShakeBase* UCameraModifier_CameraShake::AddCameraShake(TSubclassOf<UCamer
 				ShakeInfo.ShakeSource = SourceComponent;
 				ShakeInfo.bIsCustomInitialized = bIsCustomInitialized;
 				ActiveShakes.Emplace(ShakeInfo);
+				UE_LOG(LogCameraShake, Verbose, TEXT("UCameraModifier_CameraShake::AddCameraShake %s Active Instance Added"), *GetNameSafe(ShakeInfo.ShakeInstance));
 			}
 		}
 
@@ -228,6 +234,7 @@ void UCameraModifier_CameraShake::RemoveCameraShake(UCameraShakeBase* ShakeInst,
 			{
 				SaveShakeInExpiredPoolIfPossible(ShakeInfo);
 				ActiveShakes.RemoveAt(i, 1);
+				UE_LOG(LogCameraShake, Verbose, TEXT("UCameraModifier_CameraShake::RemoveCameraShake %s"), *GetNameSafe(ShakeInfo.ShakeInstance));
 			}
 			break;
 		}
@@ -247,6 +254,7 @@ void UCameraModifier_CameraShake::RemoveAllCameraShakesOfClass(TSubclassOf<UCame
 			{
 				SaveShakeInExpiredPoolIfPossible(ShakeInfo);
 				ActiveShakes.RemoveAt(i, 1);
+				UE_LOG(LogCameraShake, Verbose, TEXT("UCameraModifier_CameraShake::RemoveAllCameraShakesOfClass %s"), *GetNameSafe(ShakeInfo.ShakeInstance));
 			}
 		}
 	}
@@ -264,6 +272,7 @@ void UCameraModifier_CameraShake::RemoveAllCameraShakesFromSource(const UCameraS
 			{
 				SaveShakeInExpiredPoolIfPossible(ShakeInfo);
 				ActiveShakes.RemoveAt(i, 1);
+				UE_LOG(LogCameraShake, Verbose, TEXT("UCameraModifier_CameraShake::RemoveAllCameraShakesFromSource %s"), *GetNameSafe(ShakeInfo.ShakeInstance));
 			}
 		}
 	}
@@ -283,6 +292,7 @@ void UCameraModifier_CameraShake::RemoveAllCameraShakesOfClassFromSource(TSubcla
 			{
 				SaveShakeInExpiredPoolIfPossible(ShakeInfo);
 				ActiveShakes.RemoveAt(i, 1);
+				UE_LOG(LogCameraShake, Verbose, TEXT("UCameraModifier_CameraShake::RemoveAllCameraShakesOfClassFromSource %s"), *GetNameSafe(ShakeInfo.ShakeInstance));
 			}
 		}
 	}
@@ -325,7 +335,8 @@ void UCameraModifier_CameraShake::DisplayDebug(UCanvas* Canvas, const FDebugDisp
 
 		if (ShakeInfo.ShakeInstance != nullptr)
 		{
-			Canvas->DrawText(DrawFont, FString::Printf(TEXT("[%d] %s Source:%s"), i, *GetNameSafe(ShakeInfo.ShakeInstance), *GetNameSafe(ShakeInfo.ShakeSource.Get())), Indentation* YL, (LineNumber++)* YL);
+			const FString DurationString = !ShakeInfo.ShakeInstance->GetCameraShakeDuration().IsInfinite() ? FString::SanitizeFloat(ShakeInfo.ShakeInstance->GetCameraShakeDuration().Get()) : TEXT("Infinite");
+			Canvas->DrawText(DrawFont, FString::Printf(TEXT("[%d] %s Source:%s Duration: %s Elapsed: %f"), i, *GetNameSafe(ShakeInfo.ShakeInstance), *GetNameSafe(ShakeInfo.ShakeSource.Get()), *DurationString, ShakeInfo.ShakeInstance->GetElapsedTime()), Indentation* YL, (LineNumber++)* YL);
 		}
 	}
 

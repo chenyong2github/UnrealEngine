@@ -13,7 +13,6 @@
 #include "DMXComponent.generated.h"
 
 struct FDMXAttributeName;
-class FDMXSharedListener;
 class UDMXLibrary;
 class UDMXEntityFixturePatch;
 
@@ -26,8 +25,6 @@ class DMXRUNTIME_API UDMXComponent
 	: public UActorComponent
 {
 	GENERATED_BODY()
-
-	friend FDMXSharedListener;
 
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FDMXComponentFixturePatchReceivedSignature, UDMXEntityFixturePatch*, FixturePatch, const FDMXNormalizedAttributeValueMap&, ValuePerAttribute);
 
@@ -45,30 +42,37 @@ protected:
 #endif // WITH_EDITOR
 	// ~End UActorComponent interface
 
+	/** Broadcast when the component's fixture patch received DMX */
+	UPROPERTY(BlueprintAssignable, Category = "Components|DMX");
+	FDMXComponentFixturePatchReceivedSignature OnFixturePatchReceived;
+
 protected:
 	/** Called when the fixture patch received DMX */
 	UFUNCTION()
 	void OnFixturePatchReceivedDMX(UDMXEntityFixturePatch* FixturePatch, const FDMXNormalizedAttributeValueMap& NormalizedValuePerAttribute);
 
-	/** Broadcast when the component's fixture patch received DMX */
-	UPROPERTY(BlueprintAssignable, Category = "Components|DMX");
-	FDMXComponentFixturePatchReceivedSignature OnFixturePatchReceived;
-
 public:
 	UPROPERTY(EditAnywhere, Category = "DMX")
 	FDMXEntityFixturePatchRef FixturePatchRef;
 
-	/** If set to true, the fixture patch will receive DMX when used in the world */
-	UPROPERTY(EditDefaultsOnly, BluePrintReadOnly, Category = "Fixture Patch")
-	bool bAutoActivateReceiveDMX;
+	/** If set to true, the component will receive DMX from the patch */
+	UPROPERTY()
+	bool bReceiveDMXFromPatch;
 
-public:
+	/** Gets the fixture patch used in the component */
 	UFUNCTION(BlueprintPure, Category = "DMX")
 	UDMXEntityFixturePatch* GetFixturePatch() const;
 
+	/** Sets the fixture patch used in the component */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	void SetFixturePatch(UDMXEntityFixturePatch* InFixturePatch);
 
+	/** Sets whether the component receives dmx from the patch */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	void SetReceiveDMXFromPatch(bool bReceive);
+
 private:
-	TSharedPtr<FDMXSharedListener> SharedListener;
+	/** The fixture patch currently in use */
+	UPROPERTY(Transient)
+	UDMXEntityFixturePatch* CachedFixturePatch;
 };

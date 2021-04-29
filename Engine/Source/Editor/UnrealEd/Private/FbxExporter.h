@@ -113,7 +113,10 @@ public:
 	
 	//~ FGCObject
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FFbxExporter");
+	}
 
 	/**
 	* Load the export option from the last save state and show the dialog if bShowOptionDialog is true.

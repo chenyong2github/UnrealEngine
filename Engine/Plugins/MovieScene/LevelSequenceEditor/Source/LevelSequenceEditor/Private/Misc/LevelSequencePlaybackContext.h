@@ -87,6 +87,7 @@ private:
 
 	void OnPieEvent(bool);
 	void OnMapChange(uint32);
+	void OnWorldListChanged(UWorld*);
 
 private:
 

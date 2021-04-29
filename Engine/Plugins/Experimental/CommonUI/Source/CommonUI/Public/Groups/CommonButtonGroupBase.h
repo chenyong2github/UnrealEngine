@@ -144,9 +144,6 @@ protected:
 
 protected:
 
-	void SelectNextButtonRecursive(int32 SelectionIndex, bool bAllowWrap);
-	void SelectPrevButtonRecursive(int32 SelectionIndex, bool bAllowWrap);
-	
 	TArray<TWeakObjectPtr<UCommonButtonBase>> Buttons;
 	int32 SelectedButtonIndex = INDEX_NONE;
 	int32 HoveredButtonIndex = INDEX_NONE;

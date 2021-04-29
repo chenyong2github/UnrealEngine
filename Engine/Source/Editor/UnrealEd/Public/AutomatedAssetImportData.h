@@ -56,7 +56,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Asset Import Data")
 	bool bSkipReadOnly;
 
-	/** Pointer to the factory currently being sued */
+	/** Pointer to the factory currently being used */
 	UPROPERTY(BlueprintReadWrite, Category = "Asset Import Data")
 	TObjectPtr<UFactory> Factory;
 

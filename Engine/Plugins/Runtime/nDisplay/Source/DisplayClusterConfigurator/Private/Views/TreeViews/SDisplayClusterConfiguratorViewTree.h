@@ -12,7 +12,7 @@ class IDisplayClusterConfiguratorTreeItem;
 class ITableRow;
 
 class FPackageReloadedEvent;
-class FDisplayClusterConfiguratorToolkit;
+class FDisplayClusterConfiguratorBlueprintEditor;
 class FDisplayClusterConfiguratorViewTree;
 class FDisplayClusterConfiguratorViewBuilder;
 class FTextFilterExpressionEvaluator;
@@ -44,12 +44,16 @@ public:
 
 public:
 	void Construct(const FArguments& InArgs,
-		const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit,
+		const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit,
 		const TSharedRef<IDisplayClusterConfiguratorTreeBuilder>& InBuilder,
 		const TSharedRef<IDisplayClusterConfiguratorViewTree>& ViewTreePtr,
 		const FDisplayClusterConfiguratorTreeArgs& InTreeArgs = FDisplayClusterConfiguratorTreeArgs());
 
 public:
+	//~ Begin SWidget interface
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	//~ End SWidget interface
+
 	//~ Begin FEditorUndoClient interface
 	virtual void PostUndo(bool bSuccess) override {}
 	virtual void PostRedo(bool bSuccess) override {}
@@ -71,6 +75,20 @@ public:
 
 	/** Set the initial expansion state of the tree items */
 	virtual void SetInitialExpansionState();
+
+	/** @return A list of all selected items in the tree view */
+	virtual TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>> GetSelectedItems() const;
+
+	/** Sets the currently selected items in the tree view
+	 * @param InTreeItems - The items to select
+	 */
+	virtual void SetSelectedItems(const TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>& InTreeItems);
+
+	/** Clears the current selection in the tree view */
+	virtual void ClearSelection();
+
+	/** @return A list of all items in the tree view, flattened out into a single array */
+	virtual TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>> GetAllItemsFlattened() const;
 
 protected:
 	/** Create a widget for an entry in the tree from an info */
@@ -95,26 +113,51 @@ protected:
 	virtual void SetTreeItemExpansionRecursive(TSharedPtr<IDisplayClusterConfiguratorTreeItem> TreeItem, bool bInExpansionState) const;
 
 	/** Binds the commands in FDisplayClusterConfiguratorViewTreeCommands to functions in this class */
-	virtual void BindCommands() {}
+	virtual void BindCommands();
 
 	/** Handle package reloading */
 	virtual void HandlePackageReloaded(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent) {}
 
-	/** Called to display the filter menu */
-	virtual TSharedRef< SWidget > CreateFilterMenu();
-
-	/** Returns the current text for the filter button tooltip */
-	virtual FText GetFilterMenuTooltip() const;
-
 	/** Filters the SListView when the user changes the search text box (NameFilterBox)	*/
-	virtual void OnFilterTextChanged(const FText& SearchText) {}
+	virtual void OnFilterTextChanged(const FText& SearchText);
 
 	virtual void OnConfigReloaded();
 
-	virtual void OnObjectSelected();
 
-	/** Handle filtering the tree */
-	virtual EDisplayClusterConfiguratorTreeFilterResult HandleFilterConfiguratonTreeItem(const FDisplayClusterConfiguratorTreeFilterArgs& InArgs, const TSharedPtr<IDisplayClusterConfiguratorTreeItem>& InItem);
+	/** @return The visibility of the "Add New" combo button */
+	virtual EVisibility GetAddNewComboButtonVisibility() const;
+
+	/**
+	 * Raised when creating the "Add New" combo button menu
+	 * @return The widget to show in the menu
+	 */
+	virtual TSharedRef<SWidget> CreateAddNewMenuContent();
+
+	/** @return The visibility of the filter options combo button */
+	virtual EVisibility GetFilterOptionsComboButtonVisibility() const;
+
+	/**
+	 * Raised when creating the filter options combo button menu
+	 * @return The widget to show in the menu
+	 */
+	virtual TSharedRef<SWidget> CreateFilterMenuContent();
+
+	/** @return The current text for the filter button tooltip */
+	virtual FText GetFilterMenuTooltip() const;
+
+	/** @return The visibility of the "View Options" combo button */
+	virtual EVisibility GetViewOptionsComboButtonVisibility() const;
+
+	/**
+	 * Raised when creating the "View Options" combo button menu
+	 * @return The widget to show in the menu
+	 */
+	virtual TSharedRef<SWidget> CreateViewOptionsMenuContent();
+
+	/**
+	 * @return The watermark text to display in the bottom right corner
+	 */
+	virtual FText GetCornerText() const;
 
 protected:
 	/** Current text typed into NameFilterBox */
@@ -162,7 +205,7 @@ protected:
 	/** The builder we use to construct the tree */
 	TWeakPtr<IDisplayClusterConfiguratorTreeBuilder> BuilderPtr;
 
-	TWeakPtr<FDisplayClusterConfiguratorToolkit> ToolkitPtr;
+	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
 
 	TWeakPtr<IDisplayClusterConfiguratorViewTree> ViewTreePtr;
 };

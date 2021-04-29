@@ -23,6 +23,8 @@
 
 #include "Widget.generated.h"
 
+#define UE_HAS_WIDGET_GENERATED_BY_CLASS (!UE_BUILD_SHIPPING || WITH_EDITOR)
+
 class ULocalPlayer;
 class SObjectWidget;
 class UPanelSlot;
@@ -451,7 +453,7 @@ public:
 
 #endif
 
-#if !UE_BUILD_SHIPPING
+#if UE_HAS_WIDGET_GENERATED_BY_CLASS
 	/** Stores a reference to the class responsible for this widgets construction. */
 	TWeakObjectPtr<UClass> WidgetGeneratedByClass;
 #endif

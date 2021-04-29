@@ -37,6 +37,7 @@ using namespace DirectX;
 /** Controls access to our references */
 std::mutex MeshRefsLock;
 bool bIsRunning = false;
+bool bIsStopping = false;
 SpatialSurfaceObserver SurfaceObserver = nullptr;
 event_token OnChangeEventToken;
 std::map<guid, long long> LastGuidToLastUpdateMap;
@@ -242,6 +243,7 @@ void MeshUpdateObserver::StartMeshObserver(
 	void(*FinishFunctionPointer)()
 )
 {
+	bIsStopping = false;
 	TriangleDensityPerCubicMeter = InTriangleDensity;
 	VolumeSize = InVolumeSize;
 
@@ -283,6 +285,12 @@ void MeshUpdateObserver::StartMeshObserver(
 			if (asyncInfo.GetResults() == SpatialPerceptionAccessStatus::Allowed)
 			{
 				std::lock_guard<std::mutex> lock(MeshRefsLock);
+				if (bIsStopping)
+				{
+					bIsStopping = false;
+					return;
+				}
+
 				SurfaceObserver = SpatialSurfaceObserver();
 				if (SurfaceObserver != nullptr)
 				{
@@ -340,6 +348,8 @@ void MeshUpdateObserver::UpdateBoundingVolume(SpatialCoordinateSystem InCoordina
 void MeshUpdateObserver::StopMeshObserver()
 {
 	std::lock_guard<std::mutex> lock(MeshRefsLock);
+	bIsStopping = true;
+
 	if (SurfaceObserver != nullptr)
 	{
 		// Stop our callback from doing any processing first

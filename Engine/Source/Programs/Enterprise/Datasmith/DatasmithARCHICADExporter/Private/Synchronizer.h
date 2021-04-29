@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "AddonTools.h"
+#include "Utils/AddonTools.h"
+#include "Utils/ViewState.h"
 
 #include "SyncContext.h"
 
@@ -17,6 +18,7 @@ class FSynchronizer
 {
 	FDatasmithDirectLink& DatasmithDirectLink;
 	FSyncDatabase*		  SyncDatabase = nullptr;
+	FViewState			  ViewState;
 
   public:
 	// Constructor
@@ -48,6 +50,9 @@ class FSynchronizer
 
 	// Do a snapshot of the model 3D data
 	void DoSnapshot(const ModelerAPI::Model& InModel);
+
+	// Return true if view or at least one material changed
+	bool NeedLiveLinkUpdate() const;
 
 	static void GetProjectPathAndName(GS::UniString* OutPath, GS::UniString* OutName);
 

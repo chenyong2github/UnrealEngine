@@ -33,7 +33,7 @@ bool FPartyPlatformSessionInfo::IsSessionOwner(const UPartyMember& PartyMember) 
 
 bool FPartyPlatformSessionInfo::IsInSession(const UPartyMember& PartyMember) const
 {
-	return PartyMember.GetRepData().GetPlatformSessionId() == SessionId;
+	return PartyMember.GetRepData().GetPlatformDataSessionId() == SessionId;
 }
 
 //////////////////////////////////////////////////////////////////////////

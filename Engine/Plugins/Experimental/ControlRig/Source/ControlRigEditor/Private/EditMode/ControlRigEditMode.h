@@ -172,6 +172,9 @@ protected:
 	/** Toggles visibility of manipulators in the viewport */
 	void ToggleManipulators();
 
+	/** Clear Selection*/
+	void ClearSelection();
+
 	/** Frame to current Control Selection*/
 	void FrameSelection();
 

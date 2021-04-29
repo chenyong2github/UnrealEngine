@@ -34,7 +34,6 @@
 
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyFactoryInternal.h"
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyNone.h"
-#include "Render/Synchronization/DisplayClusterRenderSyncPolicySoftwareGeneric.h"
 
 #include "Framework/Application/SlateApplication.h"
 
@@ -43,6 +42,8 @@
 
 #include "CineCameraComponent.h"
 #include "Engine/Scene.h"
+
+#include "DisplayClusterRootActor.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -87,7 +88,7 @@ void FDisplayClusterRenderManager::Release()
 	//@note: No need to release our RenderDevice. It will be released in a safe way by TSharedPtr.
 }
 
-bool FDisplayClusterRenderManager::StartSession(const UDisplayClusterConfigurationData* InConfigData, const FString& InNodeId)
+bool FDisplayClusterRenderManager::StartSession(UDisplayClusterConfigurationData* InConfigData, const FString& InNodeId)
 {
 	if (CurrentOperationMode == EDisplayClusterOperationMode::Disabled)
 	{
@@ -405,7 +406,7 @@ void FDisplayClusterRenderManager::GetRegisteredProjectionPolicies(TArray<FStrin
 }
 
 
-bool FDisplayClusterRenderManager::RegisterPostprocessOperation(const FString& InName, TSharedPtr<IDisplayClusterPostProcess>& InOperation, int InPriority /* = 0 */)
+bool FDisplayClusterRenderManager::RegisterPostprocessOperation(const FString& InName, TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& InOperation, int InPriority /* = 0 */)
 {
 	IDisplayClusterRenderManager::FDisplayClusterPPInfo PPInfo(InOperation, InPriority);
 	return RegisterPostprocessOperation(InName, PPInfo);
@@ -478,6 +479,17 @@ TMap<FString, IPDisplayClusterRenderManager::FDisplayClusterPPInfo> FDisplayClus
 {
 	FScopeLock Lock(&CritSecInternals);
 	return PostProcessOperations;
+}
+
+IDisplayClusterViewportManager* FDisplayClusterRenderManager::GetViewportManager() const
+{
+	ADisplayClusterRootActor* RootActor = GDisplayCluster->GetGameMgr()->GetRootActor();
+	if (RootActor)
+	{
+		return RootActor->GetViewportManager();
+	}
+
+	return nullptr;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -583,8 +595,12 @@ TSharedPtr<IDisplayClusterRenderSyncPolicy> FDisplayClusterRenderManager::Create
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterRender, Log, TEXT("No factory found for the requested synchronization policy <%s>. Using fallback 'generic' policy."), *SyncPolicyType);
-		NewSyncPolicy = MakeShared<FDisplayClusterRenderSyncPolicySoftwareGeneric>(FDisplayClusterRenderSyncPolicySoftwareGeneric::DefaultParameters);
+		UE_LOG(LogDisplayClusterRender, Log, TEXT("No factory found for the requested synchronization policy <%s>. Default Ethernet based will be used."), *SyncPolicyType);
+		NewSyncPolicy = SyncPolicyFactories[FString(DisplayClusterConfigurationStrings::config::cluster::render_sync::None)]->Create(
+			FString(DisplayClusterConfigurationStrings::config::cluster::render_sync::None),
+			RHIName,
+			TMap<FString, FString>()
+		);
 	}
 
 	return NewSyncPolicy;

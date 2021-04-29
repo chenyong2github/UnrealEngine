@@ -126,7 +126,7 @@ namespace Gauntlet
 		{
 			Name = InName;
 			LocalCachePath = InCachePath;
-			UserDir = Path.Combine(LocalCachePath, Name);
+			UserDir = Path.Combine(LocalCachePath, "UserDir");
 			this.RunOptions = CommandUtils.ERunOptions.NoWaitForExit;
 			LocalDirectoryMappings = new Dictionary<EIntendedBaseCopyDirectory, string>();
 		}
@@ -403,18 +403,6 @@ namespace Gauntlet
 				Log.Warning("Platform directory mappings have not been populated for this platform! This should be done within InstallApplication()");
 			}
 			return LocalDirectoryMappings;
-		}
-
-		public bool IsOSOutOfDate()
-		{
-			//TODO: not yet implemented
-			return false;
-		}
-
-		public bool UpdateOS()
-		{
-			//TODO: not yet implemented
-			return true;
 		}
 	}
 

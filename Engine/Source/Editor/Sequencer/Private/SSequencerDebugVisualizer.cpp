@@ -389,12 +389,14 @@ void SSequencerEntityComponentSystemDebugSlot::Refresh()
 
 			if (!PreviousComponentWidgets.Contains(ComponentBitIndex))
 			{
+#if UE_MOVIESCENE_ENTITY_DEBUG
 				// Component was added.
 				Container->AddSlot()
 					[
 						SNew(SSequencerDebugComponentSlot, ComponentBitIndex, 
 								FText::FromString(ComponentTypeInfo.DebugInfo->DebugName))
 					];
+#endif
 			}
 			else
 			{

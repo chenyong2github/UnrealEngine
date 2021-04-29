@@ -2,6 +2,7 @@
 
 #include "LiveLinkSourceCollection.h"
 
+#include "EngineAnalytics.h"
 #include "ILiveLinkSource.h"
 #include "LiveLinkSourceSettings.h"
 #include "LiveLinkSubjectSettings.h"
@@ -17,6 +18,22 @@ struct FLiveLinkDefaultVirtualSubjectSource : public FLiveLinkVirtualSubjectSour
 
 	virtual bool CanBeDisplayedInUI() const override { return false; }
 };
+
+namespace LiveLinkSourceCollection
+{
+	static void SendAnalyticsSourceAdded(const ILiveLinkSource* Source)
+	{
+		if (!Source || !FEngineAnalytics::IsAvailable())
+		{
+			return;
+		}
+
+		TArray<FAnalyticsEventAttribute> EventAttributes;
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("Type"), Source->GetSourceType().ToString()));
+
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Usage.LiveLink.SourceAdded"), EventAttributes);
+	}
+}
 
 
 bool FLiveLinkCollectionSourceItem::IsVirtualSource() const
@@ -81,6 +98,8 @@ void FLiveLinkSourceCollection::AddSource(FLiveLinkCollectionSourceItem InSource
 
 	OnLiveLinkSourceAdded().Broadcast(SourceItem.Guid);
 	OnLiveLinkSourcesChanged().Broadcast();
+
+	LiveLinkSourceCollection::SendAnalyticsSourceAdded(SourceItem.Source.Get());
 }
 
 

@@ -79,6 +79,27 @@ TSharedPtr<const FNativeClassHierarchyNode> FNativeClassHierarchy::FindNode(cons
 	return nullptr;
 }
 
+bool FNativeClassHierarchy::RootNodePassesFilter(const FName InRootName, const TSharedPtr<const FNativeClassHierarchyNode>& InRootNode, const bool bIncludeEngineClasses, const bool bIncludePluginClasses) const
+{
+	static const FName EngineRootNodeName = "Classes_Engine";
+	static const FName GameRootNodeName = "Classes_Game";
+
+	return (InRootName == GameRootNodeName) ||								// Always include game classes
+			(InRootName == EngineRootNodeName && bIncludeEngineClasses) ||  	// Only include engine classes if we were asked for them
+			(bIncludePluginClasses && InRootNode->LoadedFrom == EPluginLoadedFrom::Project) || // Only include Game plugin classes if we were asked for them
+			(bIncludePluginClasses && bIncludeEngineClasses && InRootNode->LoadedFrom == EPluginLoadedFrom::Engine); //  Only include engine plugin classes if we were asked for them
+}
+
+bool FNativeClassHierarchy::RootNodePassesFilter(const FName InRootName, const bool bIncludeEngineClasses, const bool bIncludePluginClasses) const
+{
+	if (const TSharedPtr<FNativeClassHierarchyNode>* Found = RootNodes.Find(InRootName))
+	{
+		return RootNodePassesFilter(InRootName, *Found, bIncludeEngineClasses, bIncludePluginClasses);
+	}
+
+	return false;
+}
+
 bool FNativeClassHierarchy::HasClasses(const FName InClassPath, const bool bRecursive) const
 {
 	TArray<TSharedRef<FNativeClassHierarchyNode>, TInlineAllocator<4>> NodesToSearch;
@@ -481,7 +502,7 @@ bool FNativeClassHierarchy::GetFileSystemPath(const FString& InClassPath, FStrin
 	return false;
 }
 
-bool FNativeClassHierarchy::GetClassPath(UClass* InClass, FString& OutClassPath, const bool bIncludeClassName) const
+bool FNativeClassHierarchy::GetClassPath(UClass* InClass, FString& OutClassPath, FNativeClassHierarchyGetClassPathCache& InCache, const bool bIncludeClassName) const
 {
 	const FName ClassModuleName = GetClassModuleName(InClass);
 	if(ClassModuleName.IsNone())
@@ -496,12 +517,15 @@ bool FNativeClassHierarchy::GetClassPath(UClass* InClass, FString& OutClassPath,
 		return false;
 	}
 
-	TSet<FName> GameModules = GetGameModules();
-	TMap<FName, FNativeClassHierarchyPluginModuleInfo> PluginModules = GetPluginModules();
+	if (InCache.GameModules.Num() == 0 && InCache.PluginModules.Num() == 0)
+	{
+		InCache.GameModules = GetGameModules();
+		InCache.PluginModules = GetPluginModules();
+	}
 
 	// Work out which root this class should go under
 	EPluginLoadedFrom WhereLoadedFrom;
-	const FName RootNodeName = GetClassPathRootForModule(ClassModuleName, GameModules, PluginModules, WhereLoadedFrom);
+	const FName RootNodeName = GetClassPathRootForModule(ClassModuleName, InCache.GameModules, InCache.PluginModules, WhereLoadedFrom);
 
 	// Work out the final path to this class within the hierarchy (which isn't the same as the path on disk)
 	const FString ClassModuleRelativePath = ClassModuleRelativeIncludePath.Left(ClassModuleRelativeIncludePath.Find(TEXT("/"), ESearchCase::CaseSensitive, ESearchDir::FromEnd));

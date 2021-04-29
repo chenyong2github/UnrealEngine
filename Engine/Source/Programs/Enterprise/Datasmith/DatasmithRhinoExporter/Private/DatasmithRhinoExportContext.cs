@@ -311,6 +311,13 @@ namespace DatasmithRhino
 			}
 		}
 
+		public void UpdateRhinoObject(Rhino.Runtime.CommonObject InCommonObject)
+		{
+			// We are not flagging the info as modified, this will be done by other operations.
+			// This is to allow the case to update a reference to an immuable object.
+			RhinoCommonObject = InCommonObject;
+		}
+
 		public List<string> GetTags(DatasmithRhinoExportContext ExportContext)
 		{
 			List<string> Tags = new List<string>();
@@ -1044,6 +1051,14 @@ namespace DatasmithRhino
 			}
 
 			bIsDirty = true;
+		}
+
+		public void UpdateActorObject(ModelComponent InModelComponent)
+		{
+			if (ObjectIdToHierarchyActorNodeDictionary.TryGetValue(InModelComponent.Id, out DatasmithActorInfo ActorInfo))
+			{
+				ActorInfo.UpdateRhinoObject(InModelComponent);
+			}
 		}
 
 		private void UpdateHiddenFlagsRecursively(DatasmithActorInfo ActorInfo, HashSet<RhinoObject> OutNewObjects)

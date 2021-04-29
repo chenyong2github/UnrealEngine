@@ -2,26 +2,38 @@
 
 #include "DisplayClusterConfiguratorAssetTypeActions.h"
 
-#include "DisplayClusterConfiguratorEditor.h"
-#include "DisplayClusterConfiguratorEditorData.h"
+#include "DisplayClusterConfiguratorBlueprintEditor.h"
+#include "DisplayClusterConfiguratorUtils.h"
+
+#include "DisplayClusterConfigurationTypes.h"
+#include "DisplayClusterConfiguratorFactory.h"
+
+#include "DisplayClusterRootActor.h"
+#include "Blueprints/DisplayClusterBlueprint.h"
 
 #include "Subsystems/AssetEditorSubsystem.h"
 
 UClass* FDisplayClusterConfiguratorAssetTypeActions::GetSupportedClass() const
 {
-	return UDisplayClusterConfiguratorEditorData::StaticClass();
+	return UDisplayClusterBlueprint::StaticClass();
 }
 
 void FDisplayClusterConfiguratorAssetTypeActions::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor)
 {
-	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
-	if (AssetEditorSubsystem)
+	const EToolkitMode::Type Mode = EditWithinLevelEditor.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
+
+	for (TArray<UObject*>::TConstIterator ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
 	{
-		UDisplayClusterConfiguratorEditor* AssetEditor = NewObject<UDisplayClusterConfiguratorEditor>(AssetEditorSubsystem, NAME_None, RF_Transient);
-		if (AssetEditor)
+		if (UDisplayClusterBlueprint* BP = Cast<UDisplayClusterBlueprint>(*ObjIt))
 		{
-			AssetEditor->SetObjectsToEdit(InObjects);
-			AssetEditor->Initialize();
+			if (BP->bIsNewlyCreated && BP->GetConfig() == nullptr)
+			{
+				// This path can be hit if the BP was created by a default factory.
+				UDisplayClusterConfiguratorFactory::SetupNewBlueprint(BP);
+			}
+			
+			TSharedRef<FDisplayClusterConfiguratorBlueprintEditor> BlueprintEditor(new FDisplayClusterConfiguratorBlueprintEditor());
+			BlueprintEditor->InitDisplayClusterBlueprintEditor(Mode, EditWithinLevelEditor, BP);
 		}
 	}
 }
@@ -30,10 +42,18 @@ void FDisplayClusterConfiguratorAssetTypeActions::GetResolvedSourceFilePaths(con
 {
 	for (const UObject* Asset : TypeAssets)
 	{
-		if (const UDisplayClusterConfiguratorEditorData* EditingObject = Cast<UDisplayClusterConfiguratorEditorData>(Asset))
+		if (const UDisplayClusterBlueprint* EditingObject = Cast<UDisplayClusterBlueprint>(Asset))
 		{
-			OutSourceFilePaths.Add(EditingObject->PathToConfig);
+			const FString& Path = EditingObject->GetConfigPath();
+			if (!Path.IsEmpty())
+			{
+				OutSourceFilePaths.Add(Path);
+			}
 		}
 	}
 }
 
+UClass* FDisplayClusterConfiguratorActorAssetTypeActions::GetSupportedClass() const
+{
+	return ADisplayClusterRootActor::StaticClass();
+}

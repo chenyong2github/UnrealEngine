@@ -247,6 +247,8 @@ public:
 	/** Gets whether or not this input is filtered from search results and appearing in stack due to visibility metadata*/
 	bool GetShouldPassFilterForVisibleCondition() const;
 
+	void ChangeScriptVersion(FGuid NewScriptVersion);
+
 	const UNiagaraClipboardFunctionInput* ToClipboardFunctionInput(UObject* InOuter) const;
 
 	void SetValueFromClipboardFunctionInput(const UNiagaraClipboardFunctionInput& ClipboardFunctionInput);

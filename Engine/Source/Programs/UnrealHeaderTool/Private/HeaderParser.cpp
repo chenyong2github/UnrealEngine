@@ -3371,6 +3371,15 @@ void FHeaderParser::CheckSparseClassData(const UStruct* StructToCheck)
 	}
 }
 
+void FHeaderParser::ValidateClassFlags(const UClass* ToValidate)
+{
+	if (ToValidate->HasAnyClassFlags(CLASS_NeedsDeferredDependencyLoading) && !ToValidate->IsChildOf(UClass::StaticClass()))
+	{
+		// CLASS_NeedsDeferredDependencyLoading can only be set on classes derived from UClass
+		FError::Throwf(TEXT("NeedsDeferredDependencyLoading is set on %s but the flag can only be used with classes derived from UClass."), *ToValidate->GetName());
+	}
+}
+
 void FHeaderParser::VerifyBlueprintPropertyGetter(FProperty* Prop, UFunction* TargetFunc)
 {
 	check(TargetFunc);
@@ -6552,6 +6561,9 @@ UClass* FHeaderParser::CompileClassDeclaration()
 
 	// Validate sparse class data
 	CheckSparseClassData(Class);
+
+	// Check that the class has appropriate class flags set
+	ValidateClassFlags(Class);
 
 	return Class;
 }

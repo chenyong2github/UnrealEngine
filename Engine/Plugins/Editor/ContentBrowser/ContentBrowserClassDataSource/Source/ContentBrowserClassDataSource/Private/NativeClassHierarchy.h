@@ -30,6 +30,15 @@ struct FNativeClassHierarchyPluginModuleInfo
 };
 
 /**
+ * Cache to avoid regenerating some necessary data during repeated calls to GetClassPathRootForModule during enumerate
+ */
+struct FNativeClassHierarchyGetClassPathCache
+{
+	TSet<FName> GameModules;
+	TMap<FName, FNativeClassHierarchyPluginModuleInfo> PluginModules;
+};
+
+/**
  * Type used as a key in a map to resolve name conflicts between folders and classes
  */
 struct FNativeClassHierarchyNodeKey
@@ -240,7 +249,7 @@ public:
 	 * 
 	 * @return true if the class path could be resolved and OutClassPath was filled in, false otherwise
 	 */
-	bool GetClassPath(UClass* InClass, FString& OutClassPath, const bool bIncludeClassName = true) const;
+	bool GetClassPath(UClass* InClass, FString& OutClassPath, FNativeClassHierarchyGetClassPathCache& InCache, const bool bIncludeClassName = true) const;
 
 	/**
 	 * This will add a transient folder into the hierarchy
@@ -249,6 +258,16 @@ public:
 	 * @param InClassPath - The location of the new folder (in class path form - eg) "/Classes_Game/MyGame/MyAwesomeCode")
 	 */
 	void AddFolder(const FString& InClassPath);
+
+	/**
+	 * Test if root node passes given rules
+	 */
+	bool RootNodePassesFilter(const FName InRootName, const TSharedPtr<const FNativeClassHierarchyNode>& InRootNode, const bool bIncludeEngineClasses, const bool bIncludePluginClasses) const;
+
+	/**
+	 * Test if root node passes given rules
+	 */
+	bool RootNodePassesFilter(const FName InRootName, const bool bIncludeEngineClasses, const bool bIncludePluginClasses) const;
 
 private:
 	struct FAddClassMetrics

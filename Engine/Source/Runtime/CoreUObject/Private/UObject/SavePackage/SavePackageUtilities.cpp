@@ -321,7 +321,7 @@ EObjectMark GetExcludedObjectMarksForTargetPlatform(const class ITargetPlatform*
 
 	if (TargetPlatform)
 	{
-		if (!TargetPlatform->HasEditorOnlyData())
+		if (!TargetPlatform->AllowsEditorObjects())
 		{
 			ObjectMarks = (EObjectMark)(ObjectMarks | OBJECTMARK_EditorOnly);
 		}
@@ -579,22 +579,24 @@ void WriteToFile(const FString& Filename, const uint8* InDataPtr, int64 InDataSi
 {
 	IFileManager& FileManager = IFileManager::Get();
 
-	if (FArchive* Ar = FileManager.CreateFileWriter(*Filename))
+	for (int tries = 0; tries < 3; ++tries)
 	{
-		Ar->Serialize(/* grrr */ const_cast<uint8*>(InDataPtr), InDataSize);
-		delete Ar;
-
-		if (FileManager.FileSize(*Filename) != InDataSize)
+		if (FArchive* Ar = FileManager.CreateFileWriter(*Filename))
 		{
-			FileManager.Delete(*Filename);
+			Ar->Serialize(/* grrr */ const_cast<uint8*>(InDataPtr), InDataSize);
+			delete Ar;
 
-			UE_LOG(LogSavePackage, Fatal, TEXT("Could not save to %s!"), *Filename);
+			if (FileManager.FileSize(*Filename) != InDataSize)
+			{
+				FileManager.Delete(*Filename);
+
+				UE_LOG(LogSavePackage, Fatal, TEXT("Could not save to %s!"), *Filename);
+			}
+			return;
 		}
 	}
-	else
-	{
-		UE_LOG(LogSavePackage, Fatal, TEXT("Could not write to %s!"), *Filename);
-	}
+
+	UE_LOG(LogSavePackage, Fatal, TEXT("Could not write to %s!"), *Filename);
 }
 
 void AsyncWriteFile(TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, FLargeMemoryPtr Data, const int64 DataSize, const TCHAR* Filename, EAsyncWriteOptions Options, TArrayView<const FFileRegion> InFileRegions)

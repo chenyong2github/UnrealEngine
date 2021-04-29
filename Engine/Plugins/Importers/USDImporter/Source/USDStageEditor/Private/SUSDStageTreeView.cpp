@@ -372,7 +372,7 @@ void SUsdStageTreeView::Refresh( AUsdStageActor* InUsdStageActor )
 		return;
 	}
 
-	if ( UE::FUsdStage UsdStage = UsdStageActor->GetUsdStage() )
+	if ( UE::FUsdStage UsdStage = const_cast< const AUsdStageActor* >( UsdStageActor.Get() )->GetUsdStage() )
 	{
 		if ( UE::FUsdPrim RootPrim = UsdStage.GetPseudoRoot() )
 		{
@@ -683,7 +683,7 @@ void SUsdStageTreeView::OnAddPrim()
 	// Add a new top-level prim (direct child of the pseudo-root prim)
 	else
 	{
-		FUsdPrimViewModelRef TreeItem = MakeShared< FUsdPrimViewModel >( nullptr, UsdStageActor->GetUsdStage() );
+		FUsdPrimViewModelRef TreeItem = MakeShared< FUsdPrimViewModel >( nullptr, UsdStageActor->GetOrLoadUsdStage() );
 		RootItems.Add( TreeItem );
 
 		PendingRenameItem = TreeItem;
@@ -725,13 +725,14 @@ void SUsdStageTreeView::OnRemovePrim()
 
 	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
 	{
-		UsdStageActor->GetUsdStage().RemovePrim( SelectedItem->UsdPrim.GetPrimPath() );
+		UsdStageActor->GetOrLoadUsdStage().RemovePrim( SelectedItem->UsdPrim.GetPrimPath() );
 	}
 }
 
 void SUsdStageTreeView::OnAddReference()
 {
-	if ( !UsdStageActor.IsValid() || !UsdStageActor->GetUsdStage() || !UsdStageActor->GetUsdStage().IsEditTargetValid() )
+	UE::FUsdStage& Stage = UsdStageActor->GetOrLoadUsdStage();
+	if ( !UsdStageActor.IsValid() || !Stage || !Stage.IsEditTargetValid() )
 	{
 		return;
 	}
@@ -784,8 +785,7 @@ bool SUsdStageTreeView::CanAddPrim() const
 		return false;
 	}
 
-	UE::FUsdStage UsdStage =  UsdStageActor->GetUsdStage();
-
+	UE::FUsdStage UsdStage =  UsdStageActor->GetOrLoadUsdStage();
 	if ( !UsdStage )
 	{
 		return false;
@@ -801,8 +801,7 @@ bool SUsdStageTreeView::CanExecutePrimAction() const
 		return false;
 	}
 
-	UE::FUsdStage UsdStage =  UsdStageActor->GetUsdStage();
-
+	UE::FUsdStage UsdStage =  UsdStageActor->GetOrLoadUsdStage();
 	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
 	{
 		return false;
@@ -961,7 +960,7 @@ void SUsdStageTreeView::OnPrimNameCommitted( const FUsdPrimViewModelRef& ViewMod
 		// e.g. "NewPrim"
 		FString NewNameStr = InPrimName.ToString();
 
-		const bool bDidRename = ViewModel->RenamePrim( *NewNameStr );
+		const bool bDidRename = UsdUtils::RenamePrim( ViewModel->UsdPrim, *NewNameStr );
 
 		// Preserve the expansion states before our ChangeBlock's destructor triggers
 		// notices that will refresh the tree view

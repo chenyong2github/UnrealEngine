@@ -9,9 +9,8 @@
 #include "DisplayClusterConfiguratorViewportNode.generated.h"
 
 class UDisplayClusterConfigurationViewport;
-class UDisplayClusterConfiguratorWindowNode;
 struct FDisplayClusterConfigurationRectangle;
-
+class FDisplayClusterConfiguratorBlueprintEditor;
 
 UCLASS(MinimalAPI)
 class UDisplayClusterConfiguratorViewportNode final
@@ -20,34 +19,31 @@ class UDisplayClusterConfiguratorViewportNode final
 	GENERATED_BODY()
 
 public:
-	void Initialize(const FString& InViewportName, UDisplayClusterConfigurationViewport* InCfgViewport, UDisplayClusterConfiguratorWindowNode* InParentWindow,  const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit);
+	virtual void Initialize(const FString& InNodeName, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit) override;
 
 	//~ Begin EdGraphNode Interface
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
+	virtual bool CanDuplicateNode() const override { return true; }
+	virtual bool CanUserDeleteNode() const override { return true; }
 	//~ End EdGraphNode Interface
+	
+	//~ Begin UDisplayClusterConfiguratorBaseNode Interface
+	virtual bool IsNodeVisible() const override;
+	virtual bool IsNodeEnabled() const override;
+	virtual void DeleteObject() override;
 
-	virtual void UpdateObject() override;
+protected:
+	virtual bool CanAlignWithParent() const override { return true; }
+	virtual void WriteNodeStateToObject() override;
+	virtual void ReadNodeStateFromObject() override;
+	//~ End UDisplayClusterConfiguratorBaseNode Interface
 
+public:
 	const FDisplayClusterConfigurationRectangle& GetCfgViewportRegion() const;
 	bool IsFixedAspectRatio() const;
 
-	void SetParentWindow(UDisplayClusterConfiguratorWindowNode* InParentWindow);
-	UDisplayClusterConfiguratorWindowNode* GetParentWindow() const;
-
-	void SetPreviewTexture(UTexture* InTexture);
 	UTexture* GetPreviewTexture() const;
-
-	bool IsOutsideParent() const;
-	bool IsOutsideParentBoundary() const;
-
-
-	FVector2D FindNonOverlappingOffsetFromParent(const FVector2D& InDesiredOffset);
-	FVector2D FindNonOverlappingSizeFromParent(const FVector2D& InDesiredSize, const bool bFixedApsectRatio);
 
 private:
 	void OnPostEditChangeChainProperty(const FPropertyChangedChainEvent& PropertyChangedEvent);
-
-private:
-	TWeakObjectPtr<UDisplayClusterConfiguratorWindowNode> ParentWindow;
-	TWeakObjectPtr<UTexture> PreviewTexture;
 };

@@ -12,8 +12,11 @@ class FDisplayClusterProjectionManualPolicy
 	: public FDisplayClusterProjectionPolicyBase
 {
 public:
-	FDisplayClusterProjectionManualPolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters);
+	FDisplayClusterProjectionManualPolicy(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
 	virtual ~FDisplayClusterProjectionManualPolicy();
+
+	virtual const FString GetTypeId() const
+	{ return DisplayClusterProjectionStrings::projection::Manual; }
 
 public:
 	enum class EManualDataType
@@ -29,13 +32,11 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProjectionPolicy
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void StartScene(UWorld* World) override;
-	virtual void EndScene() override;
-	virtual bool HandleAddViewport(const FIntPoint& ViewportSize, const uint32 ViewsAmount) override;
-	virtual void HandleRemoveViewport() override;
+	virtual bool HandleStartScene(class IDisplayClusterViewport* InViewport) override;
+	virtual void HandleEndScene(class IDisplayClusterViewport* InViewport) override;
 
-	virtual bool CalculateView(const uint32 ViewIdx, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& InViewOffset, const float InWorldToMeters, const float InNCP, const float InFCP) override;
-	virtual bool GetProjectionMatrix(const uint32 ViewIdx, FMatrix& OutPrjMatrix) override;
+	virtual bool CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& InViewOffset, const float InWorldToMeters, const float InNCP, const float InFCP) override;
+	virtual bool GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix) override;
 
 	virtual bool IsWarpBlendSupported() override
 	{ return false; }

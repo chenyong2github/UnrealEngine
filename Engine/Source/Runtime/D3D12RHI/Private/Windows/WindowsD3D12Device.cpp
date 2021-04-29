@@ -8,6 +8,7 @@
 #include "WindowsD3D12Adapter.h"
 #include "Modules/ModuleManager.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
+#include "Windows/WindowsPlatformCrashContext.h"
 #include <delayimp.h>
 #if !PLATFORM_HOLOLENS && !PLATFORM_CPU_ARM_FAMILY
 #include "amd_ags.h"
@@ -532,7 +533,7 @@ void FD3D12DynamicRHIModule::FindAdapter()
 				// PerfHUD is for performance profiling
 				const bool bIsPerfHUD = !FCString::Stricmp(AdapterDesc.Description, TEXT("NVIDIA PerfHUD"));
 
-				FD3D12AdapterDesc CurrentAdapter(AdapterDesc, AdapterIndex, MaxSupportedFeatureLevel, MaxSupportedShaderModel, NumNodes);
+				FD3D12AdapterDesc CurrentAdapter(AdapterDesc, AdapterIndex, MaxSupportedFeatureLevel, MaxSupportedShaderModel, NumNodes, bIsIntegrated);
 				
 				// If requested WARP, then reject all other adapters. If WARP not requested, then reject the WARP device.
 				const bool bSkipRequestedWARP = (bRequestedWARP && !bIsWARP) || (!bRequestedWARP && bIsWARP);
@@ -673,6 +674,12 @@ FDynamicRHI* FD3D12DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 #else
 	bool bPixEventEnabled = false;
 #endif // USE_PIX
+
+	
+	if (ChosenAdapters.Num() > 0 && ChosenAdapters[0].IsValid())
+	{
+		FGenericCrashContext::SetEngineData(TEXT("RHI.IntegratedGPU"), ChosenAdapters[0].Get()->GetDesc().bIsIntegrated ? TEXT("true") : TEXT("false"));
+	}
 
 	GD3D12RHI = new FD3D12DynamicRHI(ChosenAdapters, bPixEventEnabled);
 #if ENABLE_RHI_VALIDATION

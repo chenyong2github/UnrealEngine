@@ -26,7 +26,7 @@ class MOVIERENDERPIPELINECORE_API UMoviePipelineExecutorShot : public UObject
 	GENERATED_BODY()
 public:
 	UMoviePipelineExecutorShot()
-		: bEnabled(true), bForceDisable(false)
+		: bEnabled(true)
 	{
 		Progress = 0.f;
 	}
@@ -113,7 +113,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	bool ShouldRender() const
 	{
-		return (bEnabled && !bForceDisable);
+		return bEnabled;
 	}
 
 protected:
@@ -130,14 +130,6 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
 	bool bEnabled;
 
-	/** Soft object path to uniquley identify this shot. Both Inner and Outer path are compared. */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
-	FSoftObjectPath InnerPathKey;
-
-	/** Soft object path to uniquley identify this shot. Both Inner and Outer path are compared. */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
-	FSoftObjectPath OuterPathKey;
-
 	/** The name of the shot section that contains this shot. Can be empty. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
 	FString OuterName;
@@ -149,9 +141,6 @@ public:
 	/** Transient information used by the active Movie Pipeline working on this shot. */
 	FMoviePipelineCameraCutInfo ShotInfo;
 
-	/** Is rendering of this shot disabled internally for the current render task, e.g. due to being outside the playback range or invalid */
-	UPROPERTY(Transient)
-	bool bForceDisable;
 
 protected:
 	UPROPERTY(Transient)

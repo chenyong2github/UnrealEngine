@@ -189,4 +189,6 @@ private:
 
 	bool bFormatChecked = false;
 
+	std::unique_ptr<webrtc::TaskQueueFactory> m_taskQueueFactory;
+
 };

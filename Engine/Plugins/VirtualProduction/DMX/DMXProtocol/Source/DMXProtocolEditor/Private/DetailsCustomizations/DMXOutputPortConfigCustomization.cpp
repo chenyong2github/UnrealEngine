@@ -35,12 +35,6 @@ void FDMXOutputPortConfigCustomization::CustomizeChildren(TSharedRef<IPropertyHa
 
 	StructPropertyHandle = InStructPropertyHandle;
 
-	// Handle property changes of the communication type, to set bLookbackToEngine according to if the protocol IsCausingLoopback 
-	LoopbackToEngineHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, bLoopbackToEngine));
-
-	FSimpleDelegate OnCommunicationTypeChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXOutputPortConfigCustomization::OnCommunicationTypeChanged);
-	StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, CommunicationType))->SetOnPropertyValueChanged(OnCommunicationTypeChangedDelegate);
-
 	// Update corresponding port on property changes
 	FSimpleDelegate UpdatePortDelegate = FSimpleDelegate::CreateSP(this, &FDMXOutputPortConfigCustomization::UpdatePort);
 	StructPropertyHandle->SetOnChildPropertyValueChanged(UpdatePortDelegate);
@@ -82,29 +76,22 @@ void FDMXOutputPortConfigCustomization::UpdatePort()
 	StructPropertyHandle->AccessRawData(RawData);
 
 	// Multiediting is not supported, may fire if this is used in a blueprint way that would support it
-	if (ensureMsgf(RawData.Num() == 1, TEXT("Using port config in ways that would enable multiediting is not supported.")))
+	if (ensureAlwaysMsgf(RawData.Num() == 1, TEXT("Using port config in ways that would enable multiediting is not supported.")))
 	{
-		const FDMXOutputPortConfig* PortConfigPtr = reinterpret_cast<FDMXOutputPortConfig*>(RawData[0]);
-		if (ensure(PortConfigPtr))
+		FDMXOutputPortConfig* PortConfigPtr = reinterpret_cast<FDMXOutputPortConfig*>(RawData[0]);
+		if (ensureAlways(PortConfigPtr))
 		{
 			FDMXOutputPortSharedPtr OutputPort = FDMXPortManager::Get().FindOutputPortByGuid(PortConfigPtr->GetPortGuid());
-			if (ensure(OutputPort.IsValid()))
+			if (OutputPort.IsValid())
 			{
 				OutputPort->UpdateFromConfig(*PortConfigPtr);
 			}
+			else
+			{
+				PortConfigPtr->PortName = FString(TEXT("Invalid Port Config"));
+			}
 		}
 	}
-}
-
-void FDMXOutputPortConfigCustomization::OnCommunicationTypeChanged()
-{
-	check(LoopbackToEngineHandle.IsValid());
-
-	EDMXCommunicationType CommunicationType = GetCommunicationType();
-	IDMXProtocolPtr Protocol = GetProtocolChecked();
-	bool bCommunicationTypeCausesExternalLoopback = Protocol->IsCausingLoopback(CommunicationType);
-
-	LoopbackToEngineHandle->SetValue(!bCommunicationTypeCausesExternalLoopback);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -749,8 +749,8 @@ TSharedPtr<SWidget> SAssetPicker::GetItemContextMenu(TArrayView<const FContentBr
 		TArray<FString> SelectedPackagePaths;
 		for (const FContentBrowserItem& SelectedFolder : SelectedFolders)
 		{
-			FName PackagePath;
-			if (SelectedFolder.Legacy_TryGetPackagePath(PackagePath))
+			FName PackagePath = SelectedFolder.GetInvariantPath();
+			if (!PackagePath.IsNone())
 			{
 				SelectedPackagePaths.Add(PackagePath.ToString());
 			}

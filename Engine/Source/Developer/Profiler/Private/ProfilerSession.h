@@ -15,6 +15,8 @@
 #include "Stats/StatsData.h"
 #include "ProfilerStream.h"
 
+#if STATS
+
 class FFPSAnalyzer;
 class FProfilerGroup;
 class IDataProvider;
@@ -1116,3 +1118,5 @@ public:
 	/** Provides analysis of the frame rate */
 	TSharedRef<FFPSAnalyzer> FPSAnalyzer;
 };
+
+#endif // STATS

@@ -294,12 +294,15 @@ void FNiagaraSystemRenderData::PostTickRenderers(const FNiagaraSystemInstance& S
 			if (EmitterRenderers_GT.IsValidIndex(ExecIdx.SystemRendererIndex))
 			{
 				const FNiagaraEmitterInstance& EmitterInst = SystemInstance.GetEmitters()[ExecIdx.EmitterIndex].Get();
-				const UNiagaraEmitter* Emitter = EmitterInst.GetCachedEmitter();
-				FNiagaraRenderer* EmitterRenderer = EmitterRenderers_GT[ExecIdx.SystemRendererIndex];
-				if (Emitter && EmitterRenderer)
+				if ( !EmitterInst.IsComplete() )
 				{
-					const UNiagaraRendererProperties* RendererProperties = Emitter->GetRenderers()[ExecIdx.EmitterRendererIndex];
-					EmitterRenderer->PostSystemTick_GameThread(RendererProperties, &EmitterInst);
+					const UNiagaraEmitter* Emitter = EmitterInst.GetCachedEmitter();
+					FNiagaraRenderer* EmitterRenderer = EmitterRenderers_GT[ExecIdx.SystemRendererIndex];
+					if (Emitter && EmitterRenderer)
+					{
+						const UNiagaraRendererProperties* RendererProperties = Emitter->GetRenderers()[ExecIdx.EmitterRendererIndex];
+						EmitterRenderer->PostSystemTick_GameThread(RendererProperties, &EmitterInst);
+					}
 				}
 			}
 		}

@@ -73,7 +73,7 @@ void FElementID::CollectDependantElementsType(API_ElemTypeID TypeID) const
 		FSyncData*& ChildSyncData = SyncContext.GetSyncDatabase().GetSyncData(APIGuid2GSGuid(ConnectedElements[i]));
 		if (ChildSyncData == nullptr)
 		{
-			ChildSyncData = new FSyncData::FElement(APIGuid2GSGuid(ConnectedElements[i]));
+			ChildSyncData = new FSyncData::FElement(APIGuid2GSGuid(ConnectedElements[i]), SyncContext);
 		}
 		ChildSyncData->SetParent(SyncData);
 		UE_AC_VerboseF("FElementID::ConnectedElements %u %s -> %s\n", i, APIGuidToString(ConnectedElements[i]).ToUtf8(),
@@ -115,7 +115,7 @@ void FElementID::HandleDepedencies() const
 			FSyncData*& Parent = SyncContext.GetSyncDatabase().GetSyncData(APIGuid2GSGuid(OwnerElemApiGuid));
 			if (Parent == nullptr)
 			{
-				Parent = new FSyncData::FElement(APIGuid2GSGuid(OwnerElemApiGuid));
+				Parent = new FSyncData::FElement(APIGuid2GSGuid(OwnerElemApiGuid), SyncContext);
 			}
 			SyncData->SetParent(Parent);
 			SyncData->SetIsAComponent();

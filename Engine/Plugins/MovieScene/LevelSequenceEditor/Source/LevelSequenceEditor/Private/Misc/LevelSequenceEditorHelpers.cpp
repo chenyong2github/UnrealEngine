@@ -159,6 +159,10 @@ class SMasterSequenceSettings : public SCompoundWidget, public FGCObject
 		Collector.AddReferencedObject(MasterSequenceSettings);
 		Collector.AddReferencedObject(ToolsProjectSettings);
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SMasterSequenceSettings");
+	}
 
 private:
 

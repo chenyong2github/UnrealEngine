@@ -6,11 +6,19 @@
 namespace Chaos
 {
 	class FChaosMarshallingManager;
+	
+	struct FResimParticleInfo
+	{
+		FDirtyRigidParticleData Next;
+		FReal Time = -1;
+		bool bDiverged;
+	};
 
 	struct CHAOS_API FChaosRigidInterpolationData
 	{
 		FDirtyRigidParticleData Prev;
 		FDirtyRigidParticleData Next;
+		FReal LeashAlpha = 1;
 	};
 
 	struct CHAOS_API FChaosInterpolationResults
@@ -21,13 +29,8 @@ namespace Chaos
 		{
 		}
 
-		void Reset()
-		{
-			RigidInterpolations.Reset();
-
-			//purposely leave Prev and Next alone as we use those for rebuild
-		}
-
+		void Reset();
+		
 		TArray<FChaosRigidInterpolationData> RigidInterpolations;
 		FPullPhysicsData* Prev;
 		FPullPhysicsData* Next;
@@ -37,15 +40,44 @@ namespace Chaos
 	class CHAOS_API FChaosResultsManager
 	{
 	public:
-		FChaosResultsManager()
-		{
-		}
+		FChaosResultsManager(FChaosMarshallingManager& InMarshallingManager);
+		
+		~FChaosResultsManager();
 
-		FPullPhysicsData* PullSyncPhysicsResults_External(FChaosMarshallingManager& MarshallingManager, bool bWasSubstepping);
-		const FChaosInterpolationResults& PullAsyncPhysicsResults_External(FChaosMarshallingManager& MarshallingManager, const FReal ResultsTime);
+		const FChaosInterpolationResults& PullSyncPhysicsResults_External();
+		const FChaosInterpolationResults& PullAsyncPhysicsResults_External(const FReal ResultsTime);
+
+		void SetHistoryLength_External(int32 InLength);
+		void RemoveProxy_External(FSingleParticlePhysicsProxy* Proxy);
+		void SetLastExternalDt_External(const FReal InExternalDt) { LastExternalDt = InExternalDt; }
+		void SetResimInterpTime(const FReal InterpTime);
+		void SetResimInterpStrength(const FReal InterpStrength) { ResimInterpStrength = InterpStrength; }
 
 	private:
+
+		const FChaosInterpolationResults& UpdateInterpAlpha_External(const FReal ResultsTime, const FReal GlobalAlpha);
+		void FreeToHistory_External(FPullPhysicsData* PullData);
+		void ProcessResimResult_External();
+		bool AdvanceResult();
+		void CollapseResultsToLatest();
+
+		enum class ESetPrevNextDataMode
+		{
+			Prev,
+			Next,
+		};
+
+		template <ESetPrevNextDataMode Mode>
+		void SetPrevNextDataHelper(const FPullPhysicsData& PullData);
+
 		FChaosInterpolationResults Results;
-		bool bUsingSync;
+		TArray<FPullPhysicsData*> ResultsHistory;
+		FReal LatestTimeSeen = 0;	//we use this to know when resim results are being pushed
+		int32 HistoryLength = 0;
+		FChaosMarshallingManager& MarshallingManager;
+		FReal LastExternalDt = 0;
+		FReal InvResimInterpTime = 0;
+		FReal ResimInterpStrength = 1;
+		TMap<FSingleParticlePhysicsProxy*, FResimParticleInfo> ParticleToResimInfo;
 	};
 }

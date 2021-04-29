@@ -56,6 +56,10 @@ public:
 			Collector.AddReferencedObject(JSBridge);
 		}
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FDefaultWebBrowserAdapter");
+	}
 
 private:
 

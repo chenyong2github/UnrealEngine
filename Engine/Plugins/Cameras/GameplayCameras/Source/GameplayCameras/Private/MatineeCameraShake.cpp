@@ -11,6 +11,8 @@
 #include "Evaluation/MovieSceneCameraAnimTemplate.h"
 #include "IXRTrackingSystem.h" // for IsHeadTrackingAllowed()
 
+DEFINE_LOG_CATEGORY_STATIC(LogMatineeCameraShake, Warning, All);
+
 //////////////////////////////////////////////////////////////////////////
 // FFOscillator
 
@@ -117,6 +119,8 @@ void UMatineeCameraShake::DoStopShake(bool bImmediately)
 			}
 		}
 	}
+
+	UE_LOG(LogMatineeCameraShake, Verbose, TEXT("UMatineeCameraShake::DoStopShake %s"), *GetNameSafe(this));
 
 	ReceiveStopShake(bImmediately);
 }
@@ -248,6 +252,8 @@ void UMatineeCameraShake::DoStartShake(const FCameraShakeStartParams& Params)
 		// Start the sequence shake pattern.
 		SequenceShakePattern->StartShakePattern(Params);
 	}
+
+	UE_LOG(LogMatineeCameraShake, Verbose, TEXT("UMatineeCameraShake::DoStartShake %s Duration: %f"), *GetNameSafe(this), OscillationDuration);
 
 	ReceivePlayShake(ShakeScale);
 }
@@ -412,6 +418,9 @@ void UMatineeCameraShake::DoUpdateShake(const FCameraShakeUpdateParams& Params, 
 		OutResult.Rotation = InOutPOV.Rotation;
 		OutResult.FOV = InOutPOV.FOV;
 	}
+
+
+	UE_LOG(LogMatineeCameraShake, Verbose, TEXT("UMatineeCameraShake::DoUpdateShake %s Finished: %i Duration: %f Remaining: %f"), *GetNameSafe(this), bOscillationFinished, OscillationDuration, OscillatorTimeRemaining);
 }
 
 void UMatineeCameraShake::DoScrubShake(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult)

@@ -7,8 +7,10 @@
 #include "UObject/StructOnScope.h"
 #include "Misc/Attribute.h"
 #include "AssetData.h"
+#include "NiagaraActions.h"
 #include "NiagaraGraph.h"
 #include "NiagaraEditorSettings.h"
+#include "UpgradeNiagaraScriptResults.h"
 #include "EdGraph/EdGraphSchema.h"
 
 class UNiagaraNodeInput;
@@ -35,8 +37,11 @@ class FMenuBuilder;
 class FNiagaraEmitterViewModel;
 class FNiagaraEmitterHandleViewModel;
 enum class ECheckBoxState : uint8;
+enum class EScriptSource : uint8;
 struct FNiagaraNamespaceMetadata;
 class FNiagaraParameterHandle;
+
+enum class ENiagaraFunctionDebugState : uint8;
 
 namespace FNiagaraEditorUtilities
 {
@@ -174,11 +179,18 @@ namespace FNiagaraEditorUtilities
 	*/
 	struct FGetFilteredScriptAssetsOptions
 	{
+		enum ESuggestedFiltering
+		{
+			NoFiltering,
+			OnlySuggested,
+			NoSuggested
+		};
 		FGetFilteredScriptAssetsOptions()
 			: ScriptUsageToInclude(ENiagaraScriptUsage::Module)
 			, TargetUsageToMatch()
 			, bIncludeDeprecatedScripts(false)
 			, bIncludeNonLibraryScripts(false)
+			, SuggestedFiltering(NoFiltering)
 		{
 		}
 
@@ -186,6 +198,7 @@ namespace FNiagaraEditorUtilities
 		TOptional<ENiagaraScriptUsage> TargetUsageToMatch;
 		bool bIncludeDeprecatedScripts;
 		bool bIncludeNonLibraryScripts;
+		ESuggestedFiltering SuggestedFiltering;
 	};
 
 	NIAGARAEDITOR_API void GetFilteredScriptAssets(FGetFilteredScriptAssetsOptions InFilter, TArray<FAssetData>& OutFilteredScriptAssets); 
@@ -207,6 +220,14 @@ namespace FNiagaraEditorUtilities
 
 	NIAGARAEDITOR_API bool IsScriptAssetInLibrary(const FAssetData& ScriptAssetData);
 
+	NIAGARAEDITOR_API int32 GetWeightForItem(const TSharedPtr<FNiagaraMenuAction_Generic>& Item, const TArray<FString>& FilterTerms);
+
+	NIAGARAEDITOR_API bool DoesItemMatchFilterText(const FText& FilterText, const TSharedPtr<FNiagaraMenuAction_Generic>& Item);
+	
+	NIAGARAEDITOR_API TTuple<EScriptSource, FText> GetScriptSource(const FAssetData& ScriptAssetData);
+
+	NIAGARAEDITOR_API FLinearColor GetScriptSourceColor(EScriptSource ScriptSourceData);
+
 	NIAGARAEDITOR_API FText FormatScriptName(FName Name, bool bIsInLibrary);
 
 	NIAGARAEDITOR_API FText FormatScriptDescription(FText Description, FName Path, bool bIsInLibrary);
@@ -227,7 +248,7 @@ namespace FNiagaraEditorUtilities
 	void KillSystemInstances(const UNiagaraSystem& System);
 
 
-	bool VerifyNameChangeForInputOrOutputNode(const UNiagaraNode& NodeBeingChanged, FName OldName, FName NewName, FText& OutErrorMessage);
+	bool VerifyNameChangeForInputOrOutputNode(const UNiagaraNode& NodeBeingChanged, FName OldName, FString NewName, FText& OutErrorMessage);
 
 	/**
 	 * Adds a new Parameter to a target ParameterStore with an undo/redo transaction and name collision handling.
@@ -315,6 +336,9 @@ namespace FNiagaraEditorUtilities
 
 	/** Used to gather the actions for . */
 	void CollectPinTypeChangeActions(FGraphActionListBuilderBase& OutActions, bool& bOutCreateRemainingActions, UEdGraphPin* Pin);
+
+	// Executes python upgrade scripts on the given source node for all the given in-between versions
+	void RunPythonUpgradeScripts(UNiagaraNodeFunctionCall* SourceNode, const TArray<FVersionedNiagaraScriptData*>& UpgradeVersionData, const FNiagaraScriptVersionUpgradeContext& UpgradeContext, FString& OutWarnings);
 };
 
 namespace FNiagaraParameterUtilities

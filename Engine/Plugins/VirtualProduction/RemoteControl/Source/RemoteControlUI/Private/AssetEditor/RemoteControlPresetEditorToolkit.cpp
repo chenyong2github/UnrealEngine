@@ -44,7 +44,7 @@ void FRemoteControlPresetEditorToolkit::InitRemoteControlPresetEditor(const EToo
 	Preset = InPreset;
 
 	PanelTab = FRemoteControlUIModule::Get().CreateRemoteControlPanel(InPreset);
-	InputBindingsTab = FRemoteControlUIModule::Get().CreateInputBindingsPanel(InPreset);
+	InputBindingsTab = FRemoteControlUIModule::Get().CreateInputBindingsWidget(InPreset);
 	
 	PanelTab->GetEntityList()->OnSelectionChange().AddRaw(this, &FRemoteControlPresetEditorToolkit::OnPanelSelectionChange);
 	InputBindingsTab->GetEntityList()->OnSelectionChange().AddRaw(this, &FRemoteControlPresetEditorToolkit::OnInputBindingsSelectionChange);
@@ -147,7 +147,7 @@ TSharedRef<SDockTab> FRemoteControlPresetEditorToolkit::HandleTabManagerSpawnInp
 	}
 
 	return SNew(SDockTab)
-		.Label(LOCTEXT("ProtocolsLabel", "Protocols"))
+		.Label(LOCTEXT("InputMappingsLabel", "Input Mappings"))
 		.TabColorScale(GetTabColorScale())
 		[
 			InputBindingsTab.ToSharedRef()

@@ -23,7 +23,7 @@ namespace Chaos
 
 namespace ChaosTest {
 
-    using namespace Chaos;
+	using namespace Chaos;
 	using namespace ChaosInterface;
 
 	FSQHitBuffer<ChaosInterface::FOverlapHit> InSphereHelper(const FChaosScene& Scene, const FTransform& InTM, const FReal Radius)
@@ -1208,10 +1208,10 @@ namespace ChaosTest {
 			Particle.SetX(FVec3(0, 0, 3));
 
 			Scene.GetSolver()->EnqueueCommandImmediate([Proxy]()
-			{
-				//sees change immediately
+				{
+					//sees change immediately
 					EXPECT_EQ(Proxy->GetPhysicsThreadAPI()->X()[2], 3);
-			});
+				});
 
 			struct FCallback : public TSimCallbackObject<>
 			{
@@ -1229,10 +1229,10 @@ namespace ChaosTest {
 			Scene.EndFrame();
 
 			Scene.GetSolver()->EnqueueCommandImmediate([&bHitOnShutDown]()
-			{
+				{
 					//command enqueued and then solver shuts down, so flush must happen
-				bHitOnShutDown = true;
-			});
+					bHitOnShutDown = true;
+				});
 		}
 
 		EXPECT_TRUE(bHitOnShutDown);

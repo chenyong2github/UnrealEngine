@@ -29,6 +29,8 @@
 #include "Widgets/SVerticalResizeBox.h"
 
 
+#if WITH_NIAGARA_DEBUGGER
+
 #define LOCTEXT_NAMESPACE "NiagaraOutlinerCustomization"
 
 //////////////////////////////////////////////////////////////////////////
@@ -1414,3 +1416,5 @@ void FNiagaraOutlinerEmitterInstanceDetailsCustomization::CustomizeChildren(TSha
 }
 
 #undef LOCTEXT_NAMESPACE
+
+#endif // WITH_NIAGARA_DEBUGGER

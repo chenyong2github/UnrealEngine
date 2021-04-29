@@ -60,16 +60,15 @@ namespace WindowsMixedReality
 			}
 
 			InOutSyncInterval = 0;
-
-#if PLATFORM_HOLOLENS
-			bool bNeedsNativePresent = false;
-#else
-			bool bNeedsNativePresent = !FPlatformMisc::IsStandaloneStereoOnlyDevice();
-#endif
 			
 			hmd->Present();
-			
-			return bNeedsNativePresent;
+
+
+#if PLATFORM_HOLOLENS
+			return false;
+#else
+			return true;
+#endif
 #else
 			return false;
 #endif

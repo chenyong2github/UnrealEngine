@@ -125,5 +125,4 @@ public:
 
 	// Called by bundle manager to pass through command line options to simulate errors
 	virtual void SetErrorSimulationCommands(const FString& CommandLine) {}
-	virtual EOverallInstallationProcessStep GetCurrentInstallProcessStep() { return EOverallInstallationProcessStep::Downloading; }
 };

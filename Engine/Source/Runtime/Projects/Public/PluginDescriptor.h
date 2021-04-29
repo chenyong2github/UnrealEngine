@@ -125,6 +125,9 @@ struct PROJECTS_API FPluginDescriptor
 	TMap<FString, TSharedPtr<FJsonValue>> AdditionalFieldsToWrite;
 #endif
 
+	/** Return the .uplugin extension (with dot) */
+	static const FString& GetFileExtension();
+
 	/** Constructor. */
 	FPluginDescriptor();
 

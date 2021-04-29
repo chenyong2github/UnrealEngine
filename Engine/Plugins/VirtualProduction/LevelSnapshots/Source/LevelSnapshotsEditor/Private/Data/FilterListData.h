@@ -6,60 +6,21 @@
 
 #include "GameFramework/Actor.h"
 #include "PropertySelectionMap.h"
-#include "UObject/StrongObjectPtr.h"
 
 #include "FilterListData.generated.h"
 
+class AActor;
 class ULevelSnapshot;
 class ULevelSnapshotFilter;
-
-/* Holds data for tracking unmodified actor for when "ShowUnchanged = true". */
-USTRUCT()
-struct FUnmodifiedActors
-{
-	GENERATED_BODY()
-public:
-	
-	FUnmodifiedActors() = default; // Required by Unreal
-	explicit FUnmodifiedActors(const TSet<TWeakObjectPtr<AActor>>& UnmodifiedActors);
-
-	/* Checks whether we need to apply a filter to build inclusion and exclusion set. */
-	bool NeedsToApplyFilter() const;
-	/* Puts unmodified actors into an inclusion and exclusion set by calling IsActorValid on them. */
-	void ApplyFilterToBuildInclusionSet(ULevelSnapshotFilter* FilterToApply);
-
-	TSet<TWeakObjectPtr<AActor>> GetIncludedByFilter() const;
-	TSet<TWeakObjectPtr<AActor>> GetExcludedByFilter() const;
-	TSet<TWeakObjectPtr<AActor>> GetUnmodifiedActors() const;
-
-private:
-	
-	/* Initially empty. The actors which passed the filter in ApplyFilterToBuildInclusionSet.
-	 * These are the actors to show in filter results panel when "ShowUnchanged = true".
-	 */
-	TSet<TWeakObjectPtr<AActor>> IncludedByFilter;
-	/* Initially empty. The actors which did not pass the filter in ApplyFilterToBuildInclusionSet. */
-	TSet<TWeakObjectPtr<AActor>> ExcludedByFilter;
-
-	/* Holds all actors which same serialized data in the selected saved snapshot and editor world. */
-	TSet<TWeakObjectPtr<AActor>> UnmodifiedActors;
-	
-};
+struct FScopedSlowTask;
 
 /* Contains all data required to display the filter results panel. */
 USTRUCT()
 struct FFilterListData
 {
 	GENERATED_BODY()
-public:
 
-	FFilterListData() = default; // Required by Unreal 
-	FFilterListData(
-		ULevelSnapshot* RelatedSnapshot,
-		const TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<AActor>>& ModifiedWorldActorToDeserializedSnapshotActor,
-		const TSet<TWeakObjectPtr<AActor>>& ModifiedActors,
-		const TSet<TWeakObjectPtr<AActor>>& UnmodifiedActors
-		);
+	void UpdateFilteredList(UWorld* World, ULevelSnapshot* FromSnapshot, ULevelSnapshotFilter* FilterToApply);
 	
 	/* Runs IsPropertyValid on all properties of WorldActor.
 	 * 
@@ -75,32 +36,34 @@ public:
 	TWeakObjectPtr<AActor> GetSnapshotCounterpartFor(TWeakObjectPtr<AActor> WorldActor) const;
 
 	const FPropertySelectionMap& GetModifiedActorsSelectedProperties() const;
-	const FPropertySelectionMap& GetUnmodifiedActorsSelectedProperties() const;
 	const TSet<TWeakObjectPtr<AActor>>& GetModifiedFilteredActors() const;
-	const FUnmodifiedActors& GetUnmodifiedUnfilteredActors() const;
+	const TSet<FSoftObjectPath>& GetFilteredRemovedOriginalActorPaths() const;
+	const TSet<TWeakObjectPtr<AActor>>& GetFilteredAddedWorldActors() const;
 
 private:
 
+	void HandleActorExistsInWorldAndSnapshot(const FSoftObjectPath& OriginalActorPath, ULevelSnapshotFilter* FilterToApply, FScopedSlowTask* Progress);
+	void HandleActorWasRemovedFromWorld(const FSoftObjectPath& OriginalActorPath, ULevelSnapshotFilter* FilterToApply);
+	void HandleActorWasAddedToWorld(AActor* WorldActor, ULevelSnapshotFilter* FilterToApply);
+	
+	
 	UPROPERTY()
-	ULevelSnapshot* RelatedSnapshot;
+	ULevelSnapshot* RelatedSnapshot = nullptr;
 	
 	/* Initially empty. Contains the selected properties for actors whose serialized data differs in the selected saved snapshot and the editor world. */
 	UPROPERTY()
 	FPropertySelectionMap ModifiedActorsSelectedProperties;
-	/* Initially empty. Contains the selected properties for actors whose serialized data is the same for the selected saved snapshot and the editor world. */
-	UPROPERTY()
-	FPropertySelectionMap UnmodifiedActorsSelectedProperties;
-
-	/* Only contains actors whose serialized data is not the same as in the selected snapshot. */
-	TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<AActor>> ModifiedWorldActorToDeserializedSnapshotActor;
 
 	/* Actors to show in filter results panel when "ShowUnchanged = false". */
 	UPROPERTY()
 	TSet<TWeakObjectPtr<AActor>> ModifiedFilteredActors;
-	/* Actors to show in filter results panel when "ShowUnchanged = true".
-	 * You need to call ApplyFilterToBuildInclusionSet first.
-	 */
+
+	/* Actors which existed in snapshot but not in the world. Only contains entries that passed filters. */
 	UPROPERTY()
-	FUnmodifiedActors UnmodifiedUnfilteredActors;
+	TSet<FSoftObjectPath> FilteredRemovedOriginalActorPaths;
+
+	/* Actors which existed in the world but not in the snapshot. Only contains entries that passed filters. */
+	UPROPERTY()
+	TSet<TWeakObjectPtr<AActor>> FilteredAddedWorldActors;
 
 };

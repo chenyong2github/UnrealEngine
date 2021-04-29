@@ -75,11 +75,13 @@ TRDGScopeStack<TScopeType>::TRDGScopeStack(
 	FRHIComputeCommandList& InRHICmdList,
 	FRDGAllocator& InAllocator,
 	FPushFunction InPushFunction,
-	FPopFunction InPopFunction)
+	FPopFunction InPopFunction,
+	bool bInRDGEvents)
 	: RHICmdList(InRHICmdList)
 	, Allocator(InAllocator)
 	, PushFunction(InPushFunction)
 	, PopFunction(InPopFunction)
+	, bRDGEvents(bInRDGEvents)
 {}
 
 template <typename TScopeType>
@@ -117,11 +119,11 @@ void TRDGScopeStack<ScopeType>::BeginExecutePass(const ScopeType* ParentScope)
 		ParentScope,
 		[this](const ScopeType* Scope)
 		{
-			PushFunction(RHICmdList, Scope);
+			PushFunction(RHICmdList, Scope, bRDGEvents);
 		},
 		[this](const ScopeType* Scope)
 		{
-			PopFunction(RHICmdList, Scope);
+			PopFunction(RHICmdList, Scope, bRDGEvents);
 		});
 }
 
@@ -130,7 +132,7 @@ void TRDGScopeStack<TScopeType>::EndExecute()
 {
 	Helper.EndExecute([this](const TScopeType* Scope)
 	{
-		PopFunction(RHICmdList, Scope);
+		PopFunction(RHICmdList, Scope, bRDGEvents);
 	});
 	ClearScopes();
 }

@@ -11,6 +11,7 @@
 #include "ScreenPass.h"
 #include "MeshPassProcessor.inl"
 #include "VolumetricRenderTarget.h"
+#include "VariableRateShadingImageManager.h"
 #include "Lumen/LumenTranslucencyVolumeLighting.h"
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
 #include "Strata/Strata.h"
@@ -946,6 +947,7 @@ static void RenderTranslucencyViewInner(
 	PassParameters->VirtualShadowMapSamplingParameters = SceneRenderer.VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture.Target, ERenderTargetLoadAction::ELoad);
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
+	PassParameters->RenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, SceneRenderer.ViewFamily, nullptr);
 	PassParameters->RenderTargets.ResolveRect = FResolveRect(Viewport.Rect);
 
 	const EMeshPass::Type MeshPass = TranslucencyPassToMeshPass(TranslucencyPass);

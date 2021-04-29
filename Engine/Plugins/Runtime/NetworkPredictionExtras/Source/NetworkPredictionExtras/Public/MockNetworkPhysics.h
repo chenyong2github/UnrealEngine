@@ -16,16 +16,26 @@ struct FMockPhysInputCmd
 {
 	GENERATED_BODY()
 
+	// Simple world vector force to be applied
 	UPROPERTY(BlueprintReadWrite, Category="Input")
 	FVector	Force;
 
 	UPROPERTY(BlueprintReadWrite, Category="Input")
+	float Turn=0.f;
+
+	UPROPERTY(BlueprintReadWrite, Category="Input")
 	bool bJumpedPressed = false;
 
-	void NetSerialize(FArchive& Ar)
+	UPROPERTY(BlueprintReadWrite, Category="Input")
+	bool bBrakesPressed = false;
+
+	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
 		Ar << Force;
+		Ar << Turn;
 		Ar << bJumpedPressed;
+		Ar << bBrakesPressed;
+		return true;
 	}
 
 	// This is only called by SP client. AP Client doesn't reconcile InputCmds because they are authoratative on them.
@@ -39,8 +49,35 @@ struct FMockPhysInputCmd
 	//	The bad consequence here is that corrections are going to happen whenever a client InputCmd changes.
 	bool ShouldReconcile(const FMockPhysInputCmd& AuthState) const
 	{
-		return FVector::DistSquared(Force, AuthState.Force) > 0.1f || bJumpedPressed != AuthState.bJumpedPressed;
+		return FVector::DistSquared(Force, AuthState.Force) > 0.1f || bJumpedPressed != AuthState.bJumpedPressed || 
+			bBrakesPressed != AuthState.bBrakesPressed || FMath::Abs<float>(Turn - AuthState.Turn) > 0.1f;
 	}
+
+	// Decays input for non locally controlled sims (client only)
+	// disabled behind np2.InputDecay cvar for now
+	void Decay(float Alpha)
+	{
+		Turn *= Alpha;
+		if (Turn < 0.001f)
+		{
+			Turn = 0.f;
+		}
+	}
+
+	void ToString(FStringBuilderBase& Out)
+	{
+		Out.Appendf(TEXT("%s. bJumpedPressed: %d. bBrakesPressed: %d. Turn: %.2f"), *Force.ToString(), (int32)bJumpedPressed, (int32)bBrakesPressed, Turn);
+	}
+};
+
+template<>
+struct TStructOpsTypeTraits<FMockPhysInputCmd> : public TStructOpsTypeTraitsBase2<FMockPhysInputCmd>
+{
+	enum
+	{
+		WithNetSerializer = true,
+		WithNetSharedSerialization = true
+	};
 };
 
 // The server authoratative state that is read only to physics thread.
@@ -57,22 +94,33 @@ struct FMockState_GT
 
 	// Actually used by AsyncTick to scale force applied
 	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
-	float ForceMultiplier = 250000.f;
+	float ForceMultiplier = 125000.f;
 
 	// Arbitrary data that doesn't affect sim but could still trigger rollback
 	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
 	int32 RandValue = 0;
 
-	void NetSerialize(FArchive& Ar)
-	{
-		Ar << ForceMultiplier;
-		Ar << RandValue;
-	}
-
 	bool ShouldReconcile(const FMockState_GT& AuthState) const
 	{
 		return ForceMultiplier != AuthState.ForceMultiplier || RandValue != AuthState.RandValue;
 	}
+
+	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+	{
+		Ar << ForceMultiplier;
+		Ar << RandValue;
+		return true;
+	}
+};
+
+template<>
+struct TStructOpsTypeTraits<FMockState_GT> : public TStructOpsTypeTraitsBase2<FMockState_GT>
+{
+	enum
+	{
+		WithNetSerializer = true,
+		WithNetSharedSerialization = true
+	};
 };
 
 // The server authoratative state that is writable by the physics thread.
@@ -83,22 +131,49 @@ struct FMockState_PT
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
-	int32 JumpCooldownMS;
+	int32 JumpCooldownMS = 0;
 
 	// Number of frames jump has been pressed
 	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
-	int32 JumpCount;
+	int32 JumpCount = 0;
 
-	void NetSerialize(FArchive& Ar)
+	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
+	int32 CheckSum = 0;
+
+	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
 		Ar << JumpCooldownMS;
 		Ar << JumpCount;
+		Ar << CheckSum;		
+		return true;
 	}
 
 	bool ShouldReconcile(const FMockState_PT& AuthState) const
 	{
 		return JumpCooldownMS != AuthState.JumpCooldownMS || JumpCount != AuthState.JumpCount;
 	}
+};
+
+template<>
+struct TStructOpsTypeTraits<FMockState_PT> : public TStructOpsTypeTraitsBase2<FMockState_PT>
+{
+	enum
+	{
+		WithNetSerializer = true,
+		WithNetSharedSerialization = true
+	};
+};
+
+USTRUCT()
+struct FMockFutureClientInput
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	int32 Frame = INDEX_NONE;
+
+	UPROPERTY()
+	FMockPhysInputCmd InputCmd;
 };
 
 // For now this struct holds "everything". The actor registers a pointer to this struct as the "managed state" with FMockObjectManager.
@@ -108,7 +183,7 @@ struct FMockManagedState
 {
 	GENERATED_BODY()
 
-	void AsyncTick(UWorld* World, Chaos::FPhysicsSolver* Solver, const float DeltaSeconds, const float TotalSeconds, int32 LocalFrame);
+	void AsyncTick(UWorld* World, Chaos::FPhysicsSolver* Solver, const float DeltaSeconds, const int32 SimulationFrame, const int32 LocalStorageFrame);
 
 	UPROPERTY()
 	int32 Frame = INDEX_NONE;
@@ -128,7 +203,38 @@ struct FMockManagedState
 
 	// What physics proxy this is controlling
 	FSingleParticlePhysicsProxy* Proxy = nullptr;
+
+	// Future Inputs, to help more accurately predict/repredict SP clients
+	// FIXME: this is being repped to AP clients unnecessarilly but we cant have rep conditions on properties in structs
+	// pulling this out into a seperate struct is an option but complicates the rest of the code. Since we expect to 
+	// re-generalize this stuff, we will consider these problems then
+	UPROPERTY()
+	TArray<FMockFutureClientInput> FutureInputs;
+
+	float InputDecay = 0.f;
+
+	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+	{
+		Ar << Frame;
+		InputCmd.NetSerialize(Ar, Map, bOutSuccess);
+		GT_State.NetSerialize(Ar, Map, bOutSuccess);
+		PT_State.NetSerialize(Ar, Map, bOutSuccess);
+		bOutSuccess = true;
+		return true;
+	}
 };
+
+template<>
+struct TStructOpsTypeTraits<FMockManagedState> : public TStructOpsTypeTraitsBase2<FMockManagedState>
+{
+	enum
+	{
+		WithNetSerializer = true,
+		WithNetSharedSerialization = true
+	};
+};
+
+
 
 // This is just wrapping FMockAsyncObjectManagerCallback 
 // I just wanted to keep the chaos stuff bs in the cpp file and define a clean interface for the game code

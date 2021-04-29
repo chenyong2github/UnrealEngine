@@ -1450,9 +1450,9 @@ UMaterialInstanceConstant* FMaterialUtilities::CreateInstancedMaterial(UMaterial
 	UObject* ExistingPackage = FindObject<UMaterial>(MaterialOuter, *MaterialAssetName);
 	if (ExistingPackage && !ExistingPackage->IsA<UMaterialInstanceConstant>())
 	{
-#if WITH_EDITOR
+#if WITH_AUTOMATION_TESTS
 		FAutomationEditorCommonUtils::NullReferencesToObject(ExistingPackage);		
-#endif // WITH_EDITOR
+#endif // WITH_AUTOMATION_TESTS
 		ExistingPackage->MarkPendingKill();
 		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true);
 	}

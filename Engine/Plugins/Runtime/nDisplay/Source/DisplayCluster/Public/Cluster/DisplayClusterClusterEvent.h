@@ -6,31 +6,7 @@
 
 #include "DisplayClusterClusterEvent.generated.h"
 
-
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-// Cluster event (deprecated)
-//////////////////////////////////////////////////////////////////////////////////////////////
-USTRUCT(BlueprintType, meta = (DeprecatedNode, DeprecationMessage = "This class is now deprecated, please use FDisplayClusterClusterEventJson."))
-struct FDisplayClusterClusterEvent
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "nDisplay")
-	FString Name;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "nDisplay")
-	FString Type;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "nDisplay")
-	FString Category;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "nDisplay")
-	TMap<FString, FString> Parameters;
-};
-
+constexpr const auto DisplayClusterResetSyncType = TEXT("nDCReset");
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////

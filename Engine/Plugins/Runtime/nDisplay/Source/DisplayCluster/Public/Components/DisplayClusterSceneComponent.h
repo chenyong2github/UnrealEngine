@@ -27,7 +27,7 @@ typedef struct {} IDisplayClusterEditorFeatureInterface;
 /**
  * nDisplay scene component
  */
-UCLASS(Abstract, ClassGroup = (DisplayCluster))
+UCLASS(Abstract, ClassGroup = (DisplayCluster), HideCategories=(Sockets, Rendering, Tags, ComponentTick, ComponentReplication, Activation, Cooking, Events, Physics, LOD, AssetUserData, Collision))
 class DISPLAYCLUSTER_API UDisplayClusterSceneComponent
 	: public USceneComponent
 	, public IDisplayClusterEditorFeatureInterface
@@ -40,30 +40,11 @@ public:
 public:
 	UDisplayClusterSceneComponent(const FObjectInitializer& ObjectInitializer);
 
-public:
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 public:
-	FString GetTrackerId() const
-	{
-		return TrackerId;
-	}
-
-	void SetTrackerId(const FString& InTrackerId)
-	{
-		TrackerId = InTrackerId;
-	}
-
-	int GetTrackerChannel() const
-	{
-		return TrackerChannel;
-	}
-
-	void SetTrackerChannel(int InTrackerChannel)
-	{
-		TrackerChannel = InTrackerChannel;
-	}
-
+	/** Checks if the component is owned by a Display Cluster Blueprint. */
+	bool DoesComponentBelongToBlueprint() const;
+	
 protected:
 	void SetConfigParameters(UDisplayClusterConfigurationSceneComponent* InConfigData)
 	{
@@ -80,12 +61,6 @@ protected:
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "DisplayCluster")
 	FString SyncId;
-
-	UPROPERTY(EditAnywhere, Category = "DisplayCluster")
-	FString TrackerId;
-	
-	UPROPERTY(EditAnywhere, Category = "DisplayCluster")
-	int32 TrackerChannel;
 
 protected:
 	UDisplayClusterConfigurationSceneComponent* ConfigData;

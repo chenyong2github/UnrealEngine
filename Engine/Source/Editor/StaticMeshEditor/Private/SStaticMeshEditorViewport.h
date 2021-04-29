@@ -37,6 +37,10 @@ public:
 	
 	// FGCObject interface
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SStaticMeshEditorViewport");
+	}
 	// End of FGCObject interface
 
 	/** Constructs, destroys, and updates preview mesh components based on the preview static mesh's sockets. */

@@ -77,10 +77,11 @@ void SAssetDialog::Construct(const FArguments& InArgs, const FSharedAssetDialogC
 	PathPickerConfig.OnPathSelected = FOnPathSelected::CreateSP(this, &SAssetDialog::HandlePathSelected);
 	PathPickerConfig.SetPathsDelegates.Add(&SetPathsDelegate);
 	PathPickerConfig.OnGetFolderContextMenu = FOnGetFolderContextMenu::CreateSP(this, &SAssetDialog::OnGetFolderContextMenu);	
+	PathPickerConfig.bOnPathSelectedPassesVirtualPaths = true;
 
 	FAssetPickerConfig AssetPickerConfig;
 	AssetPickerConfig.Filter.ClassNames.Append(AssetClassNames);
-	AssetPickerConfig.Filter.PackagePaths.Add(FName(*DefaultPath));
+	AssetPickerConfig.Filter.PackagePaths.Add(IContentBrowserDataModule::Get().GetSubsystem()->ConvertInternalPathToVirtual(*DefaultPath));
 	AssetPickerConfig.bAllowDragging = false;
 	AssetPickerConfig.InitialAssetViewType = EAssetViewType::Tile;
 	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SAssetDialog::OnAssetSelected);
@@ -96,7 +97,7 @@ void SAssetDialog::Construct(const FArguments& InArgs, const FSharedAssetDialogC
 
 	OnPathSelected = InConfig.OnPathSelected;
 
-	SetCurrentlySelectedPath(DefaultPath);
+	SetCurrentlySelectedPath(DefaultPath, EContentBrowserPathType::Internal);
 
 	// Open and save specific configuration
 	FText ConfirmButtonText;
@@ -382,51 +383,82 @@ void SAssetDialog::ExecuteDelete()
 		}
 	}
 
-	const TArray<FContentBrowserItem> SelectedFiles = AssetPicker->GetAssetView()->GetSelectedFileItems();
-	const TArray<FContentBrowserItem> SelectedFolders = AssetPicker->GetAssetView()->GetSelectedFolderItems();
-
-	// Batch these by their data sources
-	TMap<UContentBrowserDataSource*, TArray<FContentBrowserItemData>> SourcesAndItems;
-	for (const FContentBrowserItem& SelectedItem : SelectedFiles)
+	if (OpenedContextMenuWidget != EOpenedContextMenuWidget::PathView)
 	{
-		FContentBrowserItem::FItemDataArrayView ItemDataArray = SelectedItem.GetInternalItems();
-		for (const FContentBrowserItemData& ItemData : ItemDataArray)
+		const TArray<FContentBrowserItem> SelectedFiles = AssetPicker->GetAssetView()->GetSelectedFileItems();
+
+		// Batch these by their data sources
+		TMap<UContentBrowserDataSource*, TArray<FContentBrowserItemData>> SourcesAndItems;
+		for (const FContentBrowserItem& SelectedItem : SelectedFiles)
 		{
-			if (UContentBrowserDataSource* ItemDataSource = ItemData.GetOwnerDataSource())
+			FContentBrowserItem::FItemDataArrayView ItemDataArray = SelectedItem.GetInternalItems();
+			for (const FContentBrowserItemData& ItemData : ItemDataArray)
 			{
-				FText DeleteErrorMsg;
-				if (ItemDataSource->CanDeleteItem(ItemData, &DeleteErrorMsg))
+				if (UContentBrowserDataSource* ItemDataSource = ItemData.GetOwnerDataSource())
 				{
-					TArray<FContentBrowserItemData>& ItemsForSource = SourcesAndItems.FindOrAdd(ItemDataSource);
-					ItemsForSource.Add(ItemData);
+					FText DeleteErrorMsg;
+					if (ItemDataSource->CanDeleteItem(ItemData, &DeleteErrorMsg))
+					{
+						TArray<FContentBrowserItemData>& ItemsForSource = SourcesAndItems.FindOrAdd(ItemDataSource);
+						ItemsForSource.Add(ItemData);
+					}
+					else
+					{
+						AssetViewUtils::ShowErrorNotifcation(DeleteErrorMsg);
+					}
 				}
-				else
+			}
+		}
+
+		// Execute the operation now
+		for (const auto& SourceAndItemsPair : SourcesAndItems)
+		{
+			SourceAndItemsPair.Key->BulkDeleteItems(SourceAndItemsPair.Value);
+		}
+	}
+
+	// List selected folders that can be deleted
+	FText FirstFolderDisplayName;
+	TArray<FString> SelectedFolderInternalPaths;
+	{
+		const TArray<FContentBrowserItem> SelectedFolderItems = (OpenedContextMenuWidget == EOpenedContextMenuWidget::PathView) ?
+			PathPicker->GetPathView()->GetSelectedFolderItems() :
+			AssetPicker->GetAssetView()->GetSelectedFolderItems();
+
+		for (const FContentBrowserItem& SelectedItem : SelectedFolderItems)
+		{
+			if (SelectedItem.CanDelete())
+			{
+				// Only internal folders supported currently
+				const FName ConvertedPath = SelectedItem.GetInternalPath();
+				if (!ConvertedPath.IsNone())
 				{
-					AssetViewUtils::ShowErrorNotifcation(DeleteErrorMsg);
+					if (SelectedFolderInternalPaths.Num() == 0)
+					{
+						FirstFolderDisplayName = SelectedItem.GetDisplayName();
+					}
+
+					SelectedFolderInternalPaths.Add(ConvertedPath.ToString());
 				}
 			}
 		}
 	}
 
-	// Execute the operation now
-	for (const auto& SourceAndItemsPair : SourcesAndItems)
-	{
-		SourceAndItemsPair.Key->BulkDeleteItems(SourceAndItemsPair.Value);
-	}
-
 	// If we had any folders selected, ask the user whether they want to delete them 
 	// as it can be slow to build the deletion dialog on an accidental click
-	if (SelectedFolders.Num() > 0)
+	if (SelectedFolderInternalPaths.Num() > 0)
 	{
 		FText Prompt;
-		if (SelectedFolders.Num() == 1)
+		if (SelectedFolderInternalPaths.Num() == 1)
 		{
-			Prompt = FText::Format(LOCTEXT("FolderDeleteConfirm_Single", "Delete folder '{0}'?"), SelectedFolders[0].GetDisplayName());
+			Prompt = FText::Format(LOCTEXT("FolderDeleteConfirm_Single", "Delete folder '{0}'?"), FirstFolderDisplayName);
 		}
 		else
 		{
-			Prompt = FText::Format(LOCTEXT("FolderDeleteConfirm_Multiple", "Delete {0} folders?"), SelectedFolders.Num());
+			Prompt = FText::Format(LOCTEXT("FolderDeleteConfirm_Multiple", "Delete {0} folders?"), SelectedFolderInternalPaths.Num());
 		}
+
+		const bool bResetSelection = OpenedContextMenuWidget == EOpenedContextMenuWidget::PathView;
 
 		// Spawn a confirmation dialog since this is potentially a highly destructive operation
 		ContentBrowserUtils::DisplayConfirmationPopup(
@@ -434,39 +466,44 @@ void SAssetDialog::ExecuteDelete()
 			LOCTEXT("FolderDeleteConfirm_Yes", "Delete"),
 			LOCTEXT("FolderDeleteConfirm_No", "Cancel"),
 			AssetPicker->GetAssetView().ToSharedRef(),
-			FOnClicked::CreateSP(this, &SAssetDialog::ExecuteDeleteFolderConfirmed)
+			FOnClicked::CreateSP(this, &SAssetDialog::ExecuteDeleteFolderConfirmed, SelectedFolderInternalPaths, bResetSelection)
 		);
 	}
 }
 
-FReply SAssetDialog::ExecuteDeleteFolderConfirmed()
+FReply SAssetDialog::ExecuteDeleteFolderConfirmed(const TArray<FString> SelectedFolderInternalPaths, const bool bResetSelection)
 {
-	TArray< FString > SelectedFolders = AssetPicker->GetAssetView()->GetSelectedFolders();
-
-	if (SelectedFolders.Num() > 0)
+	if (SelectedFolderInternalPaths.Num() > 0)
 	{
-		ContentBrowserUtils::DeleteFolders(SelectedFolders);
-	}
-	else
-	{
-		const TArray<FString>& SelectedPaths = PathPicker->GetPaths();
-
-		if (SelectedPaths.Num() > 0)
+		if (ContentBrowserUtils::DeleteFolders(SelectedFolderInternalPaths))
 		{
-			if (ContentBrowserUtils::DeleteFolders(SelectedPaths))
+			if (bResetSelection)
 			{
-				// Since the contents of the asset view have just been deleted, set the selected path to the default "/Game"
-				TArray<FString> DefaultSelectedPaths;
-				DefaultSelectedPaths.Add(TEXT("/Game"));
-				PathPicker->GetPathView()->SetSelectedPaths(DefaultSelectedPaths);
-
-				FSourcesData DefaultSourcesData(FName("/Game"));
-				AssetPicker->GetAssetView()->SetSourcesData(DefaultSourcesData);
+				// Since the contents of the asset view have just been deleted, set the default selected paths
+				SelectDefaultPaths();
 			}
 		}
 	}
 
 	return FReply::Handled();
+}
+
+void SAssetDialog::SelectDefaultPaths()
+{
+	const TArray<FName> DefaultVirtualPathsToSelect = PathPicker->GetPathView()->GetDefaultPathsToSelect();
+
+	TArray<FString> DefaultSelectedPaths;
+	DefaultSelectedPaths.Reserve(DefaultVirtualPathsToSelect.Num());
+	for (const FName DefaultVirtualPathToSelect : DefaultVirtualPathsToSelect)
+	{
+		DefaultSelectedPaths.Add(DefaultVirtualPathToSelect.ToString());
+	}
+
+	PathPicker->GetPathView()->SetSelectedPaths(DefaultSelectedPaths);
+
+	FSourcesData DefaultSourcesData;
+	DefaultSourcesData.VirtualPaths = DefaultVirtualPathsToSelect;
+	AssetPicker->GetAssetView()->SetSourcesData(DefaultSourcesData);
 }
 
 void SAssetDialog::ExecuteExplore()
@@ -478,12 +515,12 @@ bool SAssetDialog::CanExecuteCreateNewFolder() const
 {	
 	// We can only create folders when we have a single path selected
 	UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
-	return ContentBrowserData->CanCreateFolder(*CurrentlySelectedPath, nullptr);
+	return ContentBrowserData->CanCreateFolder(GetCurrentSelectedVirtualPath(), nullptr);
 }
 
 void SAssetDialog::ExecuteCreateNewFolder()
 {
-	PathPicker->CreateNewFolder(CurrentlySelectedPath, CurrentContextMenuCreateNewFolderDelegate);
+	PathPicker->CreateNewFolder(GetCurrentSelectedVirtualPath().ToString(), CurrentContextMenuCreateNewFolderDelegate);
 }
 
 TSharedPtr<SWidget> SAssetDialog::OnGetFolderContextMenu(const TArray<FString>& SelectedPaths, FContentBrowserMenuExtender_SelectedPaths InMenuExtender, FOnCreateNewFolder InOnCreateNewFolder)
@@ -634,19 +671,22 @@ FText SAssetDialog::GetNameErrorLabelText() const
 
 void SAssetDialog::HandlePathSelected(const FString& NewPath)
 {
+	FName ConvertedPath;
+	const EContentBrowserPathType ConvertedPathType = IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(*NewPath, ConvertedPath);
+
 	FARFilter NewFilter;
 
 	NewFilter.ClassNames.Append(AssetClassNames);
-	NewFilter.PackagePaths.Add(FName(*NewPath));
+	NewFilter.PackagePaths.Add(*NewPath);
 
-	SetCurrentlySelectedPath(NewPath);
+	SetCurrentlySelectedPath(ConvertedPath.ToString(), ConvertedPathType);
 
 	SetFilterDelegate.ExecuteIfBound(NewFilter);
 }
 
 void SAssetDialog::HandleAssetViewFolderEntered(const FString& NewPath)
 {
-	SetCurrentlySelectedPath(NewPath);
+	SetCurrentlySelectedPath(NewPath, EContentBrowserPathType::Virtual);
 
 	TArray<FString> NewPaths;
 	NewPaths.Add(NewPath);
@@ -706,7 +746,7 @@ void SAssetDialog::OnAssetSelected(const FAssetData& AssetData)
 	
 	if ( AssetData.IsValid() )
 	{
-		SetCurrentlySelectedPath(AssetData.PackagePath.ToString());
+		SetCurrentlySelectedPath(AssetData.PackagePath.ToString(), EContentBrowserPathType::Internal);
 		SetCurrentlyEnteredAssetName(AssetData.AssetName.ToString());
 	}
 }
@@ -725,7 +765,7 @@ void SAssetDialog::OnAssetsActivated(const TArray<FAssetData>& SelectedAssets, E
 		case EAssetDialogType::Save:
 		{
 			const FAssetData& AssetData = SelectedAssets[0];
-			SetCurrentlySelectedPath(AssetData.PackagePath.ToString());
+			SetCurrentlySelectedPath(AssetData.PackagePath.ToString(), EContentBrowserPathType::Internal);
 			SetCurrentlyEnteredAssetName(AssetData.AssetName.ToString());
 			CommitObjectPathForSave();
 			break;
@@ -748,9 +788,11 @@ void SAssetDialog::CloseDialog()
 	}
 }
 
-void SAssetDialog::SetCurrentlySelectedPath(const FString& NewPath)
+void SAssetDialog::SetCurrentlySelectedPath(const FString& NewPath, const EContentBrowserPathType InPathType)
 {
 	CurrentlySelectedPath = NewPath;
+	CurrentlySelectedPathType = InPathType;
+
 	UpdateInputValidity();
 
 	OnPathSelected.ExecuteIfBound(NewPath);
@@ -779,6 +821,32 @@ void SAssetDialog::UpdateInputValidity()
 		{
 			LastInputValidityErrorText = LOCTEXT("AssetDialog_NoPathSelected", "You must select a path.");
 			bLastInputValidityCheckSuccessful = false;
+		}
+		else if (CurrentlySelectedPathType == EContentBrowserPathType::Virtual)
+		{
+			FName ConvertedPath;
+			const EContentBrowserPathType ConvertedType = IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(*CurrentlySelectedPath, ConvertedPath);
+
+			bool bIsMountedInternalPath = false;
+			if (ConvertedType == EContentBrowserPathType::Internal)
+			{
+				FString CheckPath = ConvertedPath.ToString();
+				if (!CheckPath.EndsWith(TEXT("/")))
+				{
+					CheckPath += TEXT("/");
+				}
+
+				if (FPackageName::IsValidPath(CheckPath))
+				{
+					bIsMountedInternalPath = true;
+				}
+			}
+
+			if (!bIsMountedInternalPath)
+			{
+				LastInputValidityErrorText = LOCTEXT("AssetDialog_VirtualPathSelected", "You must select a non virtual path.");
+				bLastInputValidityCheckSuccessful = false;
+			}
 		}
 	}
 
@@ -813,6 +881,11 @@ void SAssetDialog::UpdateInputValidity()
 	}
 }
 
+FName SAssetDialog::GetCurrentSelectedVirtualPath() const
+{
+	return IContentBrowserDataModule::Get().GetSubsystem()->ConvertInternalPathToVirtual(*CurrentlySelectedPath);
+}
+
 void SAssetDialog::ChooseAssetsForOpen(const TArray<FAssetData>& SelectedAssets)
 {
 	if ( ensure(DialogType == EAssetDialogType::Open) )
@@ -828,7 +901,19 @@ void SAssetDialog::ChooseAssetsForOpen(const TArray<FAssetData>& SelectedAssets)
 
 FString SAssetDialog::GetObjectPathForSave() const
 {
-	return CurrentlySelectedPath / CurrentlyEnteredAssetName + TEXT(".") + CurrentlyEnteredAssetName;
+	FString Base = CurrentlySelectedPath;
+
+	if (CurrentlySelectedPathType == EContentBrowserPathType::Virtual)
+	{
+		FName ConvertedPath;
+		const EContentBrowserPathType ConvertedType = IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(*CurrentlySelectedPath, ConvertedPath);
+		if (ConvertedType == EContentBrowserPathType::Internal)
+		{
+			Base = ConvertedPath.ToString();
+		}
+	}
+
+	return Base / CurrentlyEnteredAssetName + TEXT(".") + CurrentlyEnteredAssetName;
 }
 
 void SAssetDialog::CommitObjectPathForSave()

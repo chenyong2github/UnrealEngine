@@ -426,8 +426,6 @@ void FActiveSound::GetSoundSubmixSends(TArray<FSoundSubmixSendInfo>& OutSends) c
 					bOverridden = true;
 					break;
 				}
-
-				ensure(OutSendInfo.SendLevel > 0.0f);
 			}
 
 			if (!bOverridden)

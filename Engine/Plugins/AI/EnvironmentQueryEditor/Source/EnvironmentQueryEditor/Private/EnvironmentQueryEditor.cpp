@@ -393,10 +393,12 @@ void FEnvironmentQueryEditor::OnSaveStats()
 			);
 	}
 
+#if USE_EQS_DEBUGGER
 	if (bSaved && SaveFilenames.Num() > 0 && SaveFilenames[0].IsEmpty() == false)
 	{
 		FEQSDebugger::SaveStats(SaveFilenames[0]);
 	}
+#endif
 }
 
 void FEnvironmentQueryEditor::OnLoadStats()
@@ -418,6 +420,7 @@ void FEnvironmentQueryEditor::OnLoadStats()
 			);
 	}
 
+#if USE_EQS_DEBUGGER
 	if (bOpened && OpenFilenames.Num() > 0 && OpenFilenames[0].IsEmpty() == false)
 	{
 		FEQSDebugger::LoadStats(OpenFilenames[0]);
@@ -427,6 +430,7 @@ void FEnvironmentQueryEditor::OnLoadStats()
 			ProfilerView->ForceUpdate();
 		}
 	}
+#endif
 }
 
 void FEnvironmentQueryEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)

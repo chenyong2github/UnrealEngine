@@ -4,6 +4,7 @@
 
 #include "Widgets/SDMXPixelMappingSurface.h"
 
+
 class FDMXPixelMappingToolkit;
 class FDMXPixelMappingComponentReference;
 class FDMXPixelMappingDragDropOp;
@@ -158,8 +159,6 @@ private:
 	TSharedPtr<SBox> PreviewSizeConstraint;
 
 	TSharedPtr<SOverlay> PreviewHitTestRoot;
-
-	TWeakPtr<FDMXPixelMappingToolkit> ToolkitWeakPtr;
 
 	TSharedPtr<FHittestGrid> HittestGrid;
 

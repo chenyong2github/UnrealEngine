@@ -26,6 +26,10 @@ struct FDataprepParametrizationActionData : public FGCObject
 	TArray<FDataprepPropertyLink> PropertyChain;
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FDataprepParametrizationActionData");
+	}
 
 	bool IsValid() const;
 };

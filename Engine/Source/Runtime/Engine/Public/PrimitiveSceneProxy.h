@@ -15,6 +15,7 @@
 #include "UniformBuffer.h"
 #include "SceneView.h"
 #include "PrimitiveUniformShaderParameters.h"
+#include "DrawDebugHelpers.h"
 
 class FLightSceneInfo;
 class FLightSceneProxy;
@@ -732,7 +733,7 @@ public:
 	 */
 	ENGINE_API void UpdateUniformBuffer();
 
-#if !UE_BUILD_SHIPPING
+#if ENABLE_DRAW_DEBUG
 
 	struct ENGINE_API FDebugMassData
 	{

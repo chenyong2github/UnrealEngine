@@ -447,11 +447,8 @@ private:
 	FThreadSafeCounter TotalBytesRead;
 	/** Cached key/value header pairs. Parsed once request completes. Only accessible on the game thread. */
 	TMap<FString, FString> Headers;
-	/** Critical section for accessing NewlyReceivedHeaders */
-	FCriticalSection NewlyReceivedHeadersCS;
 	/** Newly received headers we need to inform listeners about */
-	TArray<TPair<FString, FString>> NewlyReceivedHeaders; // Temporary to check if a crash goes away when we use TArray and a CS. FORT-356114
-	//TQueue<TPair<FString, FString>> NewlyReceivedHeaders;
+	TQueue<TPair<FString, FString>> NewlyReceivedHeaders;
 	/** Cached code from completed response */
 	int32 HttpCode;
 	/** Cached content length from completed response */

@@ -44,9 +44,15 @@ namespace UnrealBuildTool.Rules
 
             if (Target.Type == TargetType.Editor)
             {
-	            PrivateDependencyModuleNames.Add("MessageLog");
-            }
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+	 					"MessageLog",
+	 					"UnrealEd",
+					}
+				);
+			}
 
-        }
+		}
     }
 }

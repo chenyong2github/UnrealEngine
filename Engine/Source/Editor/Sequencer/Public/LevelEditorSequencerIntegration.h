@@ -29,13 +29,11 @@ struct FLevelEditorSequencerIntegrationOptions
 		: bRequiresLevelEvents(true)
 		, bRequiresActorEvents(false)
 		, bForceRefreshDetails(true)
-		, bCanRecord(false)
 	{}
 
 	bool bRequiresLevelEvents : 1;
 	bool bRequiresActorEvents : 1;
 	bool bForceRefreshDetails : 1;
-	bool bCanRecord : 1;
 };
 
 
@@ -130,9 +128,6 @@ private:
 	/** Handles the actor selection changing externally .*/
 	void OnActorSelectionChanged( UObject* );
 
-	/** Called via UEditorEngine::GetActorRecordingStateEvent to check to see whether we need to record actor state */
-	void GetActorRecordingState( bool& bIsRecording ) const;
-
 	/** Called when an actor label has changed */
 	void OnActorLabelChanged(AActor* ChangedActor);
 
@@ -163,8 +158,6 @@ private:
 
 	TSharedRef<FExtender> OnExtendLevelEditorViewMenu(const TSharedRef<FUICommandList> CommandList);
 
-	void RecordSelectedActors();
-
 	void MakeBrowseToSelectedActorSubMenu(FMenuBuilder& MenuBuilder, AActor* Actor, const TArray<TPair<FMovieSceneSequenceID, FSequencer*> > FoundInSequences);
 	void BrowseToSelectedActor(AActor* Actor, FSequencer* Sequencer, FMovieSceneSequenceID SequenceId);
 
@@ -179,7 +172,6 @@ private:
 	void DetachOutlinerColumn();
 	void ActivateRealtimeViewports();
 	void RestoreRealtimeViewports();
-	void BindLevelEditorCommands();
 
 	struct FSequencerAndOptions
 	{

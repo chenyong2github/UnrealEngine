@@ -20,6 +20,10 @@ struct FPreviewForceFeedbackEffect : public FActiveForceFeedbackEffect, public F
 
 	// FGCObject Implementation
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FPreviewForceFeedbackEffect");
+	}
 };
 
 class FAssetTypeActions_ForceFeedbackEffect : public FAssetTypeActions_Base

@@ -124,6 +124,7 @@ export const _api = {
     get: (preset: string): Promise<IView> => _get(`/api/presets/view?preset=${preset}`, API.VIEW),
     set: (view: IView) => {
       const preset = _internal.getPreset();
+
       _socket.emit('view', preset, view);
     },
   },

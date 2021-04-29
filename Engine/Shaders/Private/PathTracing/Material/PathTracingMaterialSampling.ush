@@ -22,15 +22,17 @@ PathTracingMaterialSampling.usf: Material sampling functions
 #include "PathTracingSubsurfaceProfile.ush"
 #include "../../BurleyNormalizedSSSCommon.ush"
 
-#ifndef FORCE_ALL_MATERIALS_DIFFUSE
-	#define FORCE_ALL_MATERIALS_DIFFUSE 0
+// Simplified material shaders for GPU Lightmass, supporting Lambert, Two Sided Foliage and Thin Translucent
+// Make sure material evaluation code below matches with hit shader which fills the payload
+#ifndef SIMPLIFIED_MATERIAL_SHADER
+	#define SIMPLIFIED_MATERIAL_SHADER 0
 #endif
 
 bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
 {
 	// Checks done in the same order as other sampling and evaluation functions to ensure consistency
 	
-#if FORCE_ALL_MATERIALS_DIFFUSE
+#if SIMPLIFIED_MATERIAL_SHADER
 	return true;
 #else
 
@@ -329,12 +331,6 @@ FMaterialSample SampleMaterial(
 	{
 		return RadianceProbe_SampleMaterial(Payload, RandSample);
 	}
-	
-#if FORCE_ALL_MATERIALS_DIFFUSE
-	{
-		return Lambert_SampleMaterial(Payload, RandSample);
-	}
-#else
 
 	if (Payload.BlendingMode == RAY_TRACING_BLEND_MODE_MODULATE ||
 		Payload.BlendingMode == RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT)
@@ -364,9 +360,11 @@ FMaterialSample SampleMaterial(
 				BrdfProb = Payload.Opacity;
 			}
 			break;
+	#if !SIMPLIFIED_MATERIAL_SHADER
 		case RAY_TRACING_BLEND_MODE_ADDITIVE:
 			BrdfWeight = Payload.Opacity;
 			break;
+	#endif
 		default:
 			// opaque or one of the modes handled above
 			break;
@@ -387,7 +385,8 @@ FMaterialSample SampleMaterial(
 		if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
 		{
 			Result = RoughThinGlass_SampleMaterial(RayDirection, Payload, RandSample);
-		}
+		}	
+	#if !SIMPLIFIED_MATERIAL_SHADER
 		else if (Payload.Roughness == 0)
 		{
 			Result = SpecularRefraction_SampleMaterial(RayDirection, Payload, RandSample);
@@ -396,6 +395,7 @@ FMaterialSample SampleMaterial(
 		{
 			Result = RoughGlass_SampleMaterial(RayDirection, Payload, RandSample);
 		}
+	#endif
 		Result.Weight *= TransWeight;
 		Result.Pdf *= 1 - BrdfProb;
 		return Result;
@@ -403,6 +403,7 @@ FMaterialSample SampleMaterial(
 
 	switch (Payload.ShadingModelID)
 	{
+	#if !SIMPLIFIED_MATERIAL_SHADER
 		case SHADINGMODELID_UNLIT:
 			// Nothing to do, material does not scatter light
 			return Result;
@@ -420,6 +421,7 @@ FMaterialSample SampleMaterial(
 		case SHADINGMODELID_CLEAR_COAT:
 			Result = ClearCoat_SampleMaterial(RayDirection, Payload, RandSample);
 			break;
+	#endif
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:
 			Result = TwoSidedFoliage_SampleMaterial(RayDirection, Payload, RandSample);
 			break;
@@ -432,7 +434,6 @@ FMaterialSample SampleMaterial(
 	Result.Weight *= BrdfWeight;
 	Result.Pdf *= BrdfProb;
 	return Result;
-#endif
 }
 
 FMaterialEval EvalMaterial(
@@ -446,12 +447,6 @@ FMaterialEval EvalMaterial(
 	{
 		return RadianceProbe_EvalMaterial(OutgoingDirection, Payload);
 	}
-	
-#if FORCE_ALL_MATERIALS_DIFFUSE
-	{
-		return Lambert_EvalMaterial(OutgoingDirection, Payload);
-	}
-#else
 
 	if (Payload.BlendingMode == RAY_TRACING_BLEND_MODE_MODULATE ||
 		Payload.BlendingMode == RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT)
@@ -496,6 +491,7 @@ FMaterialEval EvalMaterial(
 	FMaterialEval Result = NullMaterialEval();
 	switch (Payload.ShadingModelID)
 	{
+	#if !SIMPLIFIED_MATERIAL_SHADER
 		case SHADINGMODELID_UNLIT:
 			break;
 		case SHADINGMODELID_DEFAULT_LIT:
@@ -512,6 +508,7 @@ FMaterialEval EvalMaterial(
 		case SHADINGMODELID_CLEAR_COAT:
 			Result = ClearCoat_EvalMaterial(IncomingDirection, OutgoingDirection, Payload);
 			break;
+	#endif
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:
 			Result = TwoSidedFoliage_EvalMaterial(IncomingDirection, OutgoingDirection, Payload);
 			break;
@@ -546,5 +543,4 @@ FMaterialEval EvalMaterial(
 		}
 	}
 	return Result;
-#endif
 }

@@ -1836,6 +1836,11 @@ void UUserWidget::PreSave(const class ITargetPlatform* TargetPlatform)
 
 void UUserWidget::PreSave(FObjectPreSaveContext ObjectSaveContext)
 {
+	if (WidgetTree)
+	{
+		WidgetTree->SetFlags(RF_Transient);
+	}
+
 	// Remove bindings that are no longer contained in the class.
 	if ( UWidgetBlueprintGeneratedClass* BGClass = GetWidgetTreeOwningClass())
 	{

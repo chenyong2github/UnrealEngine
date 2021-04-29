@@ -6,11 +6,13 @@
 
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
+#include "EngineDefines.h"
 
 class UCanvas;
 
- // Define that controls debug drawing
-#define ENABLE_DRAW_DEBUG  !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#ifndef ENABLE_DRAW_DEBUG
+#define ENABLE_DRAW_DEBUG  UE_ENABLE_DEBUG_DRAWING
+#endif
 
 #if ENABLE_DRAW_DEBUG
 

@@ -432,7 +432,7 @@ private:
 /**
  * Holds targets that contain exposed functions and properties.
  */
-UCLASS(BlueprintType)
+UCLASS(BlueprintType, EditInlineNew)
 class REMOTECONTROL_API URemoteControlPreset : public UObject
 {
 public:
@@ -455,11 +455,6 @@ public:
 	 */
 	const FGuid& GetPresetId() const { return PresetId; }
 
-	/**
-	 * Create unique preset's ID.
-	 */
-	void CreatePresetId();
-		                                          
 	/**
 	 * Get this preset's targets.
 	 */
@@ -817,7 +812,7 @@ private:
 	
 private:
 	/** Preset unique ID */
-	UPROPERTY()
+	UPROPERTY(AssetRegistrySearchable)
 	FGuid PresetId;
 
 	/** The mappings of alias to targets. */
@@ -855,16 +850,16 @@ private:
 	/** Delegate triggered when an exposed actor's property is modified. */
 	FOnActorPropertyModified OnActorPropertyModifiedDelegate;
 
-	struct FPreObjectModifiedCache
+	struct FPreObjectsModifiedCache
 	{
-		UObject* Object;
+		TArray<UObject*> Objects;
 		FProperty* Property;
 		FProperty* MemberProperty;
 	};
 
 	/** Caches object modifications during a frame. */
-	TMap<FGuid, FPreObjectModifiedCache> PreObjectModifiedCache;
-	TMap<FGuid, FPreObjectModifiedCache> PreObjectModifiedActorCache;
+	TMap<FGuid, FPreObjectsModifiedCache> PreObjectsModifiedCache;
+	TMap<FGuid, FPreObjectsModifiedCache> PreObjectsModifiedActorCache;
 	/** Cache entities updated during a frame. */
 	TSet<FGuid> PerFrameUpdatedEntities; 
 

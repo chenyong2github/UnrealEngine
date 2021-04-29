@@ -777,7 +777,14 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	// OpenGL Gamma space output in GLSL flips Y when rendering directly to the back buffer (so not needed on PC, as we never render directly into the back buffer)
 	auto ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
 	bool bUsingMobileRenderer = FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Mobile;
-	bool bPlatformRequiresReverseCulling = ((IsOpenGLPlatform(ShaderPlatform) || IsSwitchPlatform(ShaderPlatform)) && bUsingMobileRenderer && !IsPCPlatform(ShaderPlatform) && !IsVulkanMobilePlatform(ShaderPlatform));
+
+	bool bPlatformRequiresReverseCulling = IsOpenGLPlatform(ShaderPlatform);
+	bPlatformRequiresReverseCulling = bPlatformRequiresReverseCulling || IsSwitchPlatform(ShaderPlatform);
+	bPlatformRequiresReverseCulling = bPlatformRequiresReverseCulling || FDataDrivenShaderPlatformInfo::GetRequiresReverseCullingOnMobile(ShaderPlatform);
+	bPlatformRequiresReverseCulling = bPlatformRequiresReverseCulling && bUsingMobileRenderer;
+	bPlatformRequiresReverseCulling = bPlatformRequiresReverseCulling && !IsPCPlatform(ShaderPlatform);
+	bPlatformRequiresReverseCulling = bPlatformRequiresReverseCulling && !IsVulkanMobilePlatform(ShaderPlatform);
+
 	static auto* MobileHDRCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
 	check(MobileHDRCvar);
 	const bool bSkipPostprocessing = MobileHDRCvar->GetValueOnAnyThread() == 0;

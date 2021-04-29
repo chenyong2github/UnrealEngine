@@ -140,5 +140,5 @@ struct FMacPlatformProperties
 };
 
 #ifdef PROPERTY_HEADER_SHOULD_DEFINE_TYPE
-typedef FMacPlatformProperties<WITH_EDITORONLY_DATA, UE_SERVER, !WITH_SERVER_CODE> FPlatformProperties;
+typedef FMacPlatformProperties<WITH_EDITORONLY_DATA, UE_SERVER, !WITH_SERVER_CODE && !WITH_EDITOR> FPlatformProperties;
 #endif

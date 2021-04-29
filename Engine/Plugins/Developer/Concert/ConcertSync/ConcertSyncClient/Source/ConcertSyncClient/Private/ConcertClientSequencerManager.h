@@ -224,6 +224,10 @@ private:
 
 	/** FGCObject interface*/
 	virtual void AddReferencedObjects(FReferenceCollector& Collector);
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FConcertClientSequencerManager");
+	}
 
 private:
 	/** Pointer to the sync client that owns us. */

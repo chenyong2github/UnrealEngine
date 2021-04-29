@@ -504,6 +504,13 @@ private:
 	TArray<TWeakPtr<FActiveTimerHandle>> ActiveTimerHandles;
 
 protected:
+	enum class ECustomSafeZoneState : uint8
+	{
+		Unset,
+		Set,
+		Debug
+	};
+
 	/**
 	 * Used to determine if any active timer handles are ready to fire.
 	 * Means we need to tick slate even if no user interaction.
@@ -583,8 +590,7 @@ protected:
 
 	/** Given a window, locate a widget under the cursor in it; returns an invalid path if cursor is not over this window. */
 	virtual FWidgetPath LocateWidgetInWindow(FVector2D ScreenspaceMouseCoordinate, const TSharedRef<SWindow>& Window, bool bIgnoreEnabledStatus, int32 UserIndex) const = 0;
-
-#if WITH_EDITOR
+	
 	void UpdateCustomSafeZone(const FMargin& NewSafeZoneRatio, bool bShouldRecacheMetrics) 
 	{
 		if (bShouldRecacheMetrics)
@@ -593,7 +599,18 @@ protected:
 			GetDisplayMetrics(DisplayMetrics);
 		}
 		CustomSafeZoneRatio = NewSafeZoneRatio; 
+
+		// Allow for a custom margin of zero, only unset via debug ratio or explicit reset function		
+		if (CustomSafeZoneState == ECustomSafeZoneState::Debug && CustomSafeZoneRatio == FMargin())
+		{
+			CustomSafeZoneState = ECustomSafeZoneState::Unset;
+		}
+		else
+		{
+			CustomSafeZoneState = ECustomSafeZoneState::Set;
+		}
 	}
+#if WITH_EDITOR
 	void SwapSafeZoneTypes()
 	{
 		FDisplayMetrics DisplayMetrics;
@@ -601,7 +618,8 @@ protected:
 
 		if (FDisplayMetrics::GetDebugTitleSafeZoneRatio() < 1.0f)
 		{
-			CustomSafeZoneRatio = FMargin();
+			ResetCustomSafeZone();
+			CustomSafeZoneState = ECustomSafeZoneState::Debug;
 			OnDebugSafeZoneChanged.Broadcast(FMargin(), false);
 		}
 	}
@@ -646,10 +664,10 @@ public:
 	{
 		return PlatformApplication;
 	}
-#if WITH_EDITOR
-	void ResetCustomSafeZone() { CustomSafeZoneRatio = FMargin(); }
-	const FMargin& GetCustomSafeZone() { return CustomSafeZoneRatio; }
-#endif
+
+	void ResetCustomSafeZone();
+	bool IsCustomSafeZoneSet() const { return CustomSafeZoneState == ECustomSafeZoneState::Set; }
+	const FMargin& GetCustomSafeZone() const { return CustomSafeZoneRatio; }
 
 #if WITH_EDITORONLY_DATA
 	FOnDebugSafeZoneChanged OnDebugSafeZoneChanged;
@@ -671,8 +689,10 @@ protected:
 	// Gets set when Slate goes to sleep and cleared when active.
 	bool bIsSlateAsleep;
 
-#if WITH_EDITORONLY_DATA
+	/** If Safe Zone ratio has been manually set, unset, or set via debug */
+	ECustomSafeZoneState CustomSafeZoneState;
+
+	/** Safe Zone ratio to override platform settings */
 	FMargin CustomSafeZoneRatio;
-#endif
 };
 

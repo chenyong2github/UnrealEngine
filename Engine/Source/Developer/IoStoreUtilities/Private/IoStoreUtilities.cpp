@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IoStoreUtilities.h"
+
+#if !UE_BUILD_SHIPPING
+
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Hash/CityHash.h"
@@ -325,6 +328,12 @@ struct FContainerTargetFile
 	TArray<FFileRegion> FileRegions;
 };
 
+struct FFileOrderMap
+{
+	TMap<FName, uint64> PackageNameToOrder;
+	FString Name;
+};
+
 struct FIoStoreArguments
 {
 	FString GlobalContainerPath;
@@ -334,8 +343,7 @@ struct FIoStoreArguments
 	FString MetaOutputDir;
 	TArray<FContainerSourceSpec> Containers;
 	FCookedFileStatMap CookedFileStatMap;
-	TMap<FName, uint64> GameOrderMap;
-	TMap<FName, uint64> CookerOrderMap;
+	TArray<FFileOrderMap> OrderMaps;
 	FKeyChain KeyChain;
 	FKeyChain PatchKeyChain;
 	FString DLCPluginPath;
@@ -425,9 +433,8 @@ static FIoChunkId CreateChunkId(FPackageId GlobalPackageId, uint16 ChunkIndex, E
 
 static void AssignPackagesDiskOrder(
 	const TArray<FLegacyCookedPackage*>& Packages,
-	const TMap<FName, uint64> GameOrderMap,
-	const TMap<FName, uint64>& CookerOrderMap,
-	const FPackageIdMap& PackageIdMap)
+	const TArray<FFileOrderMap>& OrderMaps,
+		const FPackageIdMap& PackageIdMap)
 {
 	struct FCluster
 	{
@@ -440,19 +447,15 @@ static void AssignPackagesDiskOrder(
 
 	struct FPackageAndOrder
 	{
-		FLegacyCookedPackage* Package;
-		uint64 GameOpenOrder;
-		uint64 CookerOpenOrder;
+		FLegacyCookedPackage* Package = nullptr;
+		uint64 Order = MAX_uint64;
+		const FFileOrderMap* BlameOrderMap = nullptr;
 
 		bool operator<(const FPackageAndOrder& Other) const
 		{
-			if (GameOpenOrder != Other.GameOpenOrder)
+			if (Order != Other.Order)
 			{
-				return GameOpenOrder < Other.GameOpenOrder;
-			}
-			if (CookerOpenOrder != Other.CookerOpenOrder)
-			{
-				return CookerOpenOrder < Other.CookerOpenOrder;
+				return Order < Other.Order;
 			}
 			// Fallback to reverse bundle order (so that packages are considered before their imports)
 			return Package->OptimizedPackage->GetLoadOrder() > Other.Package->OptimizedPackage->GetLoadOrder();
@@ -469,32 +472,28 @@ static void AssignPackagesDiskOrder(
 		}
 		FPackageAndOrder& Entry = SortedPackages.AddDefaulted_GetRef();
 		Entry.Package = Package;
-		const uint64* FindGameOpenOrder = GameOrderMap.Find(Package->PackageName);
-		Entry.GameOpenOrder = FindGameOpenOrder ? *FindGameOpenOrder : MAX_uint64;
-		const uint64* FindCookerOpenOrder = CookerOrderMap.Find(Package->PackageName);
-		/*if (!FindCookerOpenOrder)
+		Entry.Order = MAX_uint64;
+
+		for (const FFileOrderMap& OrderMap : OrderMaps)
 		{
-			UE_LOG(LogIoStore, Warning, TEXT("Missing cooker order for package: %s"), *Package->Name.ToString());
-		}*/
-		Entry.CookerOpenOrder = FindCookerOpenOrder ? *FindCookerOpenOrder : MAX_uint64;
+			if (const uint64* Order = OrderMap.PackageNameToOrder.Find(Package->PackageName))
+			{
+				Entry.Order = *Order;
+				Entry.BlameOrderMap = &OrderMap;
+				break;
+			}
+		}
 	}
-	bool bHasGameOrder = true;
-	bool bHasCookerOrder = true;
+	const FFileOrderMap* LastBlameOrderMap = OrderMaps.Num() ? &OrderMaps[0] : nullptr;
 	int32 LastAssignedCount = 0;
 	Algo::Sort(SortedPackages);
 	for (FPackageAndOrder& Entry : SortedPackages)
 	{
-		if (bHasGameOrder && Entry.GameOpenOrder == MAX_uint64)
+		if (Entry.BlameOrderMap != LastBlameOrderMap)
 		{
-			UE_LOG(LogIoStore, Display, TEXT("Ordered %d/%d packages using game open order"), AssignedPackages.Num(), Packages.Num());
+			UE_LOG(LogIoStore, Display, TEXT("Ordered %d/%d packages using order file %s"), AssignedPackages.Num() - LastAssignedCount, Packages.Num(), *LastBlameOrderMap->Name);
 			LastAssignedCount = AssignedPackages.Num();
-			bHasGameOrder = false;
-		}
-		if (!bHasGameOrder && bHasCookerOrder && Entry.CookerOpenOrder == MAX_uint64)
-		{
-			UE_LOG(LogIoStore, Display, TEXT("Ordered %d/%d packages using cooker open order"), AssignedPackages.Num() - LastAssignedCount, Packages.Num() - LastAssignedCount);
-			LastAssignedCount = AssignedPackages.Num();
-			bHasCookerOrder = false;
+			LastBlameOrderMap = Entry.BlameOrderMap;
 		}
 		if (!AssignedPackages.Contains(Entry.Package))
 		{
@@ -553,13 +552,12 @@ static void AssignPackagesDiskOrder(
 static void CreateDiskLayout(
 	const TArray<FContainerTargetSpec*>& ContainerTargets,
 	const TArray<FLegacyCookedPackage*>& Packages,
-	const TMap<FName, uint64>& PackageOrderMap,
-	const TMap<FName, uint64>& CookerOrderMap,
+	const TArray<FFileOrderMap>& OrderMaps,
 	const FPackageIdMap& PackageIdMap)
 {
 	IOSTORE_CPU_SCOPE(CreateDiskLayout);
 
-	AssignPackagesDiskOrder(Packages, PackageOrderMap, CookerOrderMap, PackageIdMap);
+	AssignPackagesDiskOrder(Packages, OrderMaps, PackageIdMap);
 
 	for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 	{
@@ -1566,7 +1564,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	PackageStoreOptimizer.Flush(true);
 
 	UE_LOG(LogIoStore, Display, TEXT("Creating disk layout..."));
-	CreateDiskLayout(ContainerTargets, Packages, Arguments.GameOrderMap, Arguments.CookerOrderMap, PackageIdMap);
+	CreateDiskLayout(ContainerTargets, Packages, Arguments.OrderMaps, PackageIdMap);
 
 	for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 	{
@@ -3072,7 +3070,7 @@ static bool ParsePakResponseFile(const TCHAR* FilePath, TArray<FContainerSourceF
 	return true;
 }
 
-static bool ParsePakOrderFile(const TCHAR* FilePath, TMap<FName, uint64>& OutMap, bool bMerge)
+static bool ParsePakOrderFile(const TCHAR* FilePath, FFileOrderMap& Map, uint64& InOutNumEntries)
 {
 	TArray<FString> OrderFileContents;
 	if (!FFileHelper::LoadFileToStringArray(OrderFileContents, FilePath))
@@ -3081,17 +3079,9 @@ static bool ParsePakOrderFile(const TCHAR* FilePath, TMap<FName, uint64>& OutMap
 		return false;
 	}
 
-	uint64 LineNumber = 1;
-
-	if (bMerge)
-	{
-		const auto* maxValue = Algo::MaxElementBy(OutMap, [](const auto& data) { return data.Value; });
-		if(maxValue != nullptr)
-		{ 
-			LineNumber += maxValue->Value;
-		}
-	}
-
+	Map.Name = FPaths::GetCleanFilename(FilePath);
+	uint64 LocalNumEntries = InOutNumEntries;
+	UE_LOG(LogIoStore, Display, TEXT("Order file %s (short name %s) starting at global index %llu"), FilePath, *Map.Name, LocalNumEntries);
 	for (const FString& OrderLine : OrderFileContents)
 	{
 		const TCHAR* OrderLinePtr = *OrderLine;
@@ -3107,16 +3097,15 @@ static bool ParsePakOrderFile(const TCHAR* FilePath, TMap<FName, uint64>& OutMap
 			continue;;
 		}
 
-		uint64 Order = LineNumber;
-		
 		FName PackageFName(MoveTemp(PackageName));
-		if (!OutMap.Contains(PackageFName))
+		if (!Map.PackageNameToOrder.Contains(PackageFName))
 		{
-			OutMap.Emplace(PackageFName, Order);
+			Map.PackageNameToOrder.Emplace(PackageFName, LocalNumEntries++);
 		}
-
-		++LineNumber;
 	}
+
+	UE_LOG(LogIoStore, Display, TEXT("Order file %s (short name %s) contained %llu valid entries"), FilePath, *Map.Name, LocalNumEntries - InOutNumEntries);
+	InOutNumEntries = LocalNumEntries;
 	return true;
 }
 
@@ -3269,6 +3258,7 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		KeyChainUtilities::LoadKeyChainFromFile(PatchReferenceCryptoKeysFilename, Arguments.PatchKeyChain);
 	}
 
+	uint64 OrderMapStartIndex = 0;
 	FString GameOrderFileStr;
 	if (FParse::Value(FCommandLine::Get(), TEXT("GameOrder="), GameOrderFileStr, false))
 	{
@@ -3277,11 +3267,12 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		bool bMerge = false;
 		for (FString& PrimaryOrderFile : GameOrderFilePaths)
 		{
-			if (!ParsePakOrderFile(*PrimaryOrderFile, Arguments.GameOrderMap, bMerge))
+			FFileOrderMap OrderMap;
+			if (!ParsePakOrderFile(*PrimaryOrderFile, OrderMap, OrderMapStartIndex))
 			{
 				return -1;
 			}
-			bMerge = true;
+			Arguments.OrderMaps.Add(OrderMap);
 		}
 	}
 
@@ -3293,12 +3284,12 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		bool bMerge = false;
 		for (FString& SecondOrderFile : CookerOrderFilePaths)
 		{
-			// Pass the GameOpenOrder as excusion map, since new entries from the CookerOpenOrder could potentially resolve to packages already in the GameOpenOrder.
-			if (!ParsePakOrderFile(*SecondOrderFile, Arguments.CookerOrderMap, bMerge))
+			FFileOrderMap OrderMap;
+			if (!ParsePakOrderFile(*SecondOrderFile, OrderMap, OrderMapStartIndex))
 			{
 				return -1;
 			}
-			bMerge = true;
+			Arguments.OrderMaps.Add(OrderMap);
 		}
 	}
 
@@ -3654,3 +3645,5 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 
 	return 0;
 }
+
+#endif

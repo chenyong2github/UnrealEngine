@@ -1142,6 +1142,7 @@ void FDatasmithImporter::FinalizeActors( FDatasmithImportContext& ImportContext,
 		TSet< FName > LayersUsedByActors;
 		const bool bShouldSpawnNonExistingActors = !ImportContext.bIsAReimport || ImportContext.Options->ReimportOptions.bRespawnDeletedActors;
 
+		TArray<uint8> ReusableBuffer;
 		for ( ADatasmithSceneActor* DestinationSceneActor : FinalSceneActors )
 		{
 			if ( !DestinationSceneActor )
@@ -1196,7 +1197,7 @@ void FDatasmithImporter::FinalizeActors( FDatasmithImportContext& ImportContext,
 				{
 					// Remember the original source path as FinalizeActor may set SourceActor's label, which apparently can also change its Name and package path
 					FSoftObjectPath OriginalSourcePath = FSoftObjectPath(SourceActor);
-					AActor* DestinationActor = FinalizeActor( ImportContext, *SourceActor, ExistingActorPtr.Get(), PerSceneActorReferencesToRemap );
+					AActor* DestinationActor = FinalizeActor( ImportContext, *SourceActor, ExistingActorPtr.Get(), PerSceneActorReferencesToRemap, ReusableBuffer );
 					RenamedActorsMap.Add(OriginalSourcePath, FSoftObjectPath(DestinationActor));
 					LayersUsedByActors.Append(DestinationActor->Layers);
 					ExistingActorPtr = DestinationActor;
@@ -1250,7 +1251,7 @@ void FDatasmithImporter::FinalizeActors( FDatasmithImportContext& ImportContext,
 	GEngine->BroadcastLevelActorListChanged();
 }
 
-AActor* FDatasmithImporter::FinalizeActor( FDatasmithImportContext& ImportContext, AActor& SourceActor, AActor* ExistingActor, TMap< UObject*, UObject* >& ReferencesToRemap )
+AActor* FDatasmithImporter::FinalizeActor( FDatasmithImportContext& ImportContext, AActor& SourceActor, AActor* ExistingActor, TMap< UObject*, UObject* >& ReferencesToRemap, TArray<uint8>& ReusableBuffer )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::FinalizeActor);
 
@@ -1273,59 +1274,59 @@ AActor* FDatasmithImporter::FinalizeActor( FDatasmithImportContext& ImportContex
 		ExistingActor->GetAttachedActors( Children );
 	}
 
-	// Update label to match the source actor's
-	DestinationActor->SetActorLabel( ImportContext.ActorsContext.UniqueNameProvider.GenerateUniqueName( SourceActor.GetActorLabel() ) );
-
 	check( DestinationActor );
 
 	{
 		// Setup the actor to allow modifications.
 		FDatasmithImporterImpl::FScopedFinalizeActorChanges ScopedFinalizedActorChanges(DestinationActor, ImportContext);
 
-	ReferencesToRemap.Add( &SourceActor ) = DestinationActor;
+
+		ReferencesToRemap.Add(&SourceActor, DestinationActor);
+
 
 		TArray< FDatasmithImporterImpl::FMigratedTemplatePairType > MigratedTemplates = FDatasmithImporterImpl::MigrateTemplates(
-		&SourceActor,
-		ExistingActor,
-		&ReferencesToRemap,
-		true
-	);
+			&SourceActor,
+			ExistingActor,
+			&ReferencesToRemap,
+			true
+			);
 
-	// Copy actor data
-	{
-		TArray< uint8 > Bytes;
-			FDatasmithImporterImpl::FActorWriter ObjectWriter( &SourceActor, Bytes );
-		FObjectReader ObjectReader( DestinationActor, Bytes );
-	}
+		TArray<TPair<USceneComponent&, TArray<FDatasmithImporterImpl::FMigratedTemplatePairType>>> ComponentsToApplyMigratedTemplate;
+
+		FDatasmithImporterImpl::FinalizeComponents( ImportContext, SourceActor, *DestinationActor, ReferencesToRemap, ReusableBuffer, ComponentsToApplyMigratedTemplate );
+
+		FDatasmithImporterImpl::CopyObject( SourceActor, *DestinationActor, ReusableBuffer );
+
+		FDatasmithImporterImpl::PublicizeSubObjects( SourceActor, *DestinationActor, ReferencesToRemap , ReusableBuffer );
 
 		FDatasmithImporterImpl::FixReferencesForObject( DestinationActor, ReferencesToRemap );
 
-		FDatasmithImporterImpl::FinalizeComponents( ImportContext, SourceActor, *DestinationActor, ReferencesToRemap );
+		ForEachObjectWithOuter( DestinationActor, [&ReferencesToRemap](UObject* InObject)
+			{
+				FDatasmithImporterImpl::FixReferencesForObject( InObject, ReferencesToRemap );
+		
+				InObject->PostEditImport();
+				InObject->PostEditChange();
+			});
 
-	// The templates for the actor need to be applied after the components were created.
+
+		for ( TPair<USceneComponent&, TArray<FDatasmithImporterImpl::FMigratedTemplatePairType>>& Pair : ComponentsToApplyMigratedTemplate )
+		{
+			// Put back the components in a proper state (Unfortunately without this the set relative transform might not work)
+			Pair.Key.UpdateComponentToWorld();
+			FDatasmithImporterImpl::ApplyMigratedTemplates( Pair.Value, &Pair.Key );
+			Pair.Key.PostEditChange();
+		}
+
+
+		// The templates for the actor need to be applied after the components were created.
 		FDatasmithImporterImpl::ApplyMigratedTemplates( MigratedTemplates, DestinationActor );
 
-	// Restore hierarchy
-	for ( AActor* Child : Children )
-	{
-		Child->AttachToActor( DestinationActor, FAttachmentTransformRules::KeepWorldTransform );
 	}
 
-	// Hotfix for UE-69555
-	TInlineComponentArray<UHierarchicalInstancedStaticMeshComponent*> HierarchicalInstancedStaticMeshComponents;
-	DestinationActor->GetComponents(HierarchicalInstancedStaticMeshComponents);
-	for (UHierarchicalInstancedStaticMeshComponent* HierarchicalInstancedStaticMeshComponent : HierarchicalInstancedStaticMeshComponents )
-	{
-		HierarchicalInstancedStaticMeshComponent->BuildTreeIfOutdated( true, true );
-	}
+	// Update label to match the source actor's
+	DestinationActor->SetActorLabel( ImportContext.ActorsContext.UniqueNameProvider.GenerateUniqueName( SourceActor.GetActorLabel() ) );
 
-	// Need to explicitly call PostEditChange on the LandscapeMaterial property or the landscape proxy won't update its material
-	if ( ALandscape* Landscape = Cast< ALandscape >( DestinationActor ) )
-	{
-		FPropertyChangedEvent MaterialPropertyChangedEvent( FindFieldChecked< FProperty >( Landscape->GetClass(), FName("LandscapeMaterial") ) );
-		Landscape->PostEditChangeProperty( MaterialPropertyChangedEvent );
-	}
-	}
 
 	return DestinationActor;
 }

@@ -40,6 +40,9 @@ namespace UnrealBuildTool
 		[CommandLine("-VSMac", Value = nameof(ProjectFileFormat.VisualStudioMac))]
 		[CommandLine("-CLion", Value = nameof(ProjectFileFormat.CLion))]
 		[CommandLine("-Rider", Value = nameof(ProjectFileFormat.Rider))]
+		#if __VPROJECT_AVAILABLE__
+			[CommandLine("-VProject", Value = nameof(ProjectFileFormat.VProject))]
+		#endif
 		HashSet<ProjectFileFormat> ProjectFileFormats = new HashSet<ProjectFileFormat>();
 
 		/// <summary>
@@ -224,6 +227,11 @@ namespace UnrealBuildTool
 					case ProjectFileFormat.Rider:
 						Generator = new RiderProjectFileGenerator(ProjectFile, Arguments);
 						break;
+					#if __VPROJECT_AVAILABLE__
+						case ProjectFileFormat.VProject:
+							Generator = new VProjectFileGenerator(ProjectFile);
+							break;
+					#endif
 					default:
 						throw new BuildException("Unhandled project file type '{0}", ProjectFileFormat);
 				}

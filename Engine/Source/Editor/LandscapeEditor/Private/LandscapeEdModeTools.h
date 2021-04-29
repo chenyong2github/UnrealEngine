@@ -1330,6 +1330,10 @@ public:
 	{
 		Collector.AddReferencedObject(LandscapeInfo);
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FLandscapeToolStrokeBase");
+	}
 
 protected:
 	FEdModeLandscape* EdMode;

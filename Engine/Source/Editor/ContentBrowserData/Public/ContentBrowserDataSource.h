@@ -7,6 +7,7 @@
 #include "Features/IModularFeature.h"
 #include "ContentBrowserItemData.h"
 #include "ContentBrowserDataFilter.h"
+#include "ContentBrowserVirtualPathTree.h"
 #include "ContentBrowserDataSource.generated.h"
 
 struct FAssetData;
@@ -132,10 +133,9 @@ public:
 	 * Initialize this data source instance, optionally registering it once the initialization has finished (@see RegisterDataSource).
 	 * @note This function is non-virtual because its signature may change on derived types, and so should be called directly on an instance of the correct type.
 	 *
-	 * @param InMountRoot The virtual root path that items in this data source appear under, in the form "/My/Mount/Root".
 	 * @param InAutoRegister True to automatically register this instance once initialization has finished.
 	 */
-	void Initialize(const FName InMountRoot, const bool InAutoRegister = true);
+	void Initialize(const bool InAutoRegister = true);
 
 	/**
 	 * Shutdown this data source instance.
@@ -148,18 +148,6 @@ public:
 	 * @note Called once every 0.1 seconds, prior to the Content Browser Data Subsystem emitting any pending item update notifications.
 	 */
 	virtual void Tick(const float InDeltaTime);
-
-	/**
-	 * Get the virtual mount root that was passed to Initialize.
-	 */
-	FName GetVirtualMountRoot() const;
-
-	/**
-	 * Get the virtual folder paths required to get to the virtual mount root of this data source instance.
-	 * eg) A virtual mount root of "/One/Two" would return ["/", "/One", "/One/Two"].
-	 */
-	TArrayView<const FName> GetVirtualMountRootHierarchy() const;
-
 	/**
 	 * Test whether the given virtual path is under the virtual mount root that was passed to Initialize.
 	 * @note This also returns true if the given virtual path *is* the virtual mount root.
@@ -657,7 +645,37 @@ public:
 	 */
 	virtual bool Legacy_TryConvertAssetDataToVirtualPath(const FAssetData& InAssetData, const bool InUseFolderPaths, FName& OutPath);
 
-protected:
+	/**
+	 * Sets a flag to force rebuild of virtual path tree with next call to RefreshVirtualPathTreeIfNeeded()
+	 */
+	void SetVirtualPathTreeNeedsRebuild();
+
+	/**
+	 * Call after a change that could affect rules of virtual path generation.
+	 */
+	void RefreshVirtualPathTreeIfNeeded();
+
+	/**
+	 * Attempt to convert the given virtual path
+	 * @note Does test if virtual portion of path exists
+	 * @note Does not test if internal portion of path exists
+	 *
+	 * @return None if virtual path prefix of InPath does not exist, Virtual if path exists and is fully virtual (stops before it reaches internal root), Internal if virtual path part of prefix exists and there is text after the virtual prefix
+	 */
+	EContentBrowserPathType TryConvertVirtualPath(const FName InPath, FName& OutInternalPath) const;
+
+	/**
+	 * Rebuilds the tree of virtual paths that ends with internal roots
+	 */
+	virtual void BuildRootPathVirtualTree();
+
+	const FContentBrowserVirtualPathTree& GetRootPathVirtualTree() const { return RootPathVirtualTree; }
+
+	/**
+	 * Creates item data for a fully virtual folder
+	 */
+	FContentBrowserItemData CreateVirtualFolderItem(const FName InFolderPath);
+
 	/**
 	 * Convert a virtualized path to its internal form, based on the mount root set on this data source.
 	 * @note The default implementation expects to produce a package path like result, eg) "/Folder/Folder/File".
@@ -680,6 +698,8 @@ protected:
 	 */
 	virtual bool TryConvertInternalPathToVirtual(const FName InInternalPath, FName& OutPath);
 
+protected:
+
 	/**
 	 * Queue an incremental item data update, for data sources that can provide delta-updates.
 	 * These updates are flushed out at the end of the next call to Tick on the Content Browser Data Subsystem.
@@ -694,15 +714,20 @@ protected:
 	void NotifyItemDataRefreshed();
 
 	/**
-	 * Iterate over each of the root paths in this data source. Path passed to callback must not contain trailing forward slash.
+	 * Adds internal root path to virtual path tree
 	 */
-	virtual void EnumerateRootPaths(const FContentBrowserDataFilter& InFilter, TFunctionRef<void(FName)> InCallback);
+	void RootPathAdded(const FStringView InInternalPath);
 
 	/**
-	 * Convert virtual path to one or more internal paths and any number of virtual paths
-	 * Example: The "/All" virtual path corresponds to more than one internal root paths such as "/Game" and possibly multiple virtual paths such as "/All/Plugins"
+	 * Removes internal root path from virtual path tree
 	 */
-	void ExpandVirtualPath(const FName InPath, const FContentBrowserDataFilter& InFilter, FName& OutInternalPath, TSet<FName>& OutInternalPaths, TMap<FName, TArray<FName>>& OutVirtualPaths);
+	void RootPathRemoved(const FStringView InInternalPath);
+
+
+	/**
+	 * Tree of virtual paths that ends with internal roots. Used for enumeration and conversion of paths.
+	 */
+	FContentBrowserVirtualPathTree RootPathVirtualTree;
 
 private:
 	/**
@@ -711,15 +736,20 @@ private:
 	bool bIsInitialized = false;
 
 	/**
-	 * The virtual root path that items in this data source appear under, in the form "/My/Mount/Root".
+	 * True if this data source's virtual path tree needs rebuilding.
 	 */
-	FName MountRoot;
+	bool bVirtualPathTreeNeedsRebuild = true;
+
+	struct FVirtualPathTreeRulesCachedState
+	{
+		bool bShowAllFolder = false;
+		bool bOrganizeFolders = false;
+	};
 
 	/**
-	 * The virtual folder paths required to get to the virtual mount root of this data source instance.
-	 * eg) A virtual mount root of "/One/Two" would be ["/", "/One", "/One/Two"].
+	 * Cached state of rules used to detect when virtual path tree needs rebuilding
 	 */
-	TArray<FName, TInlineAllocator<2>> MountRootHierarchy;
+	FVirtualPathTreeRulesCachedState VirtualPathTreeRulesCachedState;
 
 	/**
 	 * The data sink that can be used to communicate with the Content Browser Data Subsystem.

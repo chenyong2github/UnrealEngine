@@ -198,10 +198,12 @@ struct FNDIStaticMesh_InstanceData
 	/** Cached change id off of the data interface.*/
 	uint32 ChangeId;
 
-	/** The MinLOD, see UStaticMesh::MinLOD which is platform specific.*/
-	int32 MinLOD = 0;
+	/** The desired LODIdx to use */
+	int32 DesiredLOD = 0;
 	/** The cached LODIdx used to initialize the FNDIStaticMesh_InstanceData.*/
 	int32 CachedLODIdx = 0;
+	/** The cached LOD pointer. Updated every frame to cache the highest-res LOD streamed in */
+	TRefCountPtr<const FStaticMeshLODResources> CachedLOD;
 
 	/** Cached socket information, if available */
 	TArray<FTransform> CachedSockets;
@@ -214,7 +216,7 @@ struct FNDIStaticMesh_InstanceData
 
 	FORCEINLINE bool UsesCpuUniformlyDistributedSampling() const { return bIsCpuUniformlyDistributedSampling; }
 
-	FORCEINLINE_DEBUGGABLE bool ResetRequired(UNiagaraDataInterfaceStaticMesh* Interface)const;
+	FORCEINLINE_DEBUGGABLE bool ResetRequired(UNiagaraDataInterfaceStaticMesh* Interface) const;
 
 	FORCEINLINE const TArray<int32>& GetValidSections()const { return ValidSections; }
 	FORCEINLINE const FWeightedRandomSampler& GetAreaWeightedSampler() const { return Sampler; }
@@ -224,13 +226,6 @@ struct FNDIStaticMesh_InstanceData
 	FORCEINLINE_DEBUGGABLE bool Init(UNiagaraDataInterfaceStaticMesh* Interface, FNiagaraSystemInstance* SystemInstance);
 	FORCEINLINE_DEBUGGABLE bool Tick(UNiagaraDataInterfaceStaticMesh* Interface, FNiagaraSystemInstance* SystemInstance, float InDeltaSeconds);
 	FORCEINLINE_DEBUGGABLE void Release();
-
-	FORCEINLINE const FStaticMeshLODResources* GetCurrentFirstLOD()
-	{
-		UStaticMesh* Mesh = StaticMesh.Get();
-		check(Mesh); // sanity - should have been checked for GC earlier
-		return Mesh->GetRenderData()->GetCurrentFirstLOD(MinLOD);
-	}
 };
 
 /** Data Interface allowing sampling of static meshes. */

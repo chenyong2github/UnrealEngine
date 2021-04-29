@@ -3,8 +3,13 @@
 #pragma once
 
 #include "Misc/Build.h"
+#include "EngineDefines.h"
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#ifndef GEOMETRYCOLLECTION_DEBUG_DRAW
+#define GEOMETRYCOLLECTION_DEBUG_DRAW UE_ENABLE_DEBUG_DRAWING
+#endif
+
+#if GEOMETRYCOLLECTION_DEBUG_DRAW
 #include "Containers/StaticBitArray.h"
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/ImplicitObject.h"
@@ -182,4 +187,4 @@ private:
 template<class T, int d>
 using TGeometryCollectionParticlesData UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FGeometryCollectionParticlesData instead") = FGeometryCollectionParticlesData;
 
-#endif  // #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW

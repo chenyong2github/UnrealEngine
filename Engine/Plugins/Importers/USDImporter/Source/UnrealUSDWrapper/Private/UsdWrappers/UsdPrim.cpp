@@ -200,6 +200,23 @@ namespace UE
 		return AppliedSchemas;
 	}
 
+	bool FUsdPrim::IsA( FName SchemaType ) const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+
+		pxr::TfType Type = pxr::UsdSchemaRegistry::GetTypeFromName( pxr::TfToken( TCHAR_TO_ANSI( *SchemaType.ToString() ) ) );
+		if ( Type.IsUnknown() )
+		{
+			return false;
+		}
+
+		return Impl->PxrUsdPrim.Get().IsA( Type );
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
 	bool FUsdPrim::HasAPI( FName SchemaType, TOptional<FName> InstanceName ) const
 	{
 #if USE_USD_SDK

@@ -299,6 +299,15 @@ public:
 	virtual bool HasEditorOnlyData() const = 0;
 
 	/**
+	 * Checks whether this platform will allow editor objects to be cooked, as opposed to editoronly properties. This will allow a
+	 * target platform to cook editoronly objects, but as if they were being cooked for a client. This is useful for a cooked editor
+	 * scenario, where every pacakge is cooked, editor and game alike.
+	 *
+	 * @return true if this platform allows editor objects to be cooked, false otherwise.
+	 */
+	virtual bool AllowsEditorObjects() const = 0;
+
+	/**
 	 * Checks whether this platform is only a client (and must connect to a server to run).
 	 *
 	 * @return true if this platform must connect to a server.

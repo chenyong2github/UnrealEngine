@@ -296,7 +296,7 @@ void FKismetCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedClass* Cla
 	}
 
 	// Purge the class to get it back to a "base" state
-	bool bLayoutChanging = ClassToClean->HasAnyClassFlags(CLASS_LayoutChanging);
+	bool bLayoutChanging = ClassToClean->bLayoutChanging;
 	ClassToClean->PurgeClass(bRecompilingOnLoad);
 
 	// Set properties we need to regenerate the class with
@@ -306,9 +306,9 @@ void FKismetCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedClass* Cla
 	ClassToClean->ClassConfigName = ClassToClean->IsNative() ? FName(ClassToClean->StaticConfigName()) : ParentClass->ClassConfigName;
 	ClassToClean->DebugData = FBlueprintDebugData();
 
-	if(bLayoutChanging)
+	if (bLayoutChanging)
 	{
-		ClassToClean->ClassFlags |= CLASS_LayoutChanging;
+		ClassToClean->bLayoutChanging = true;
 	}
 }
 

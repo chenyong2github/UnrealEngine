@@ -147,6 +147,10 @@ class SRenderMovieSceneSettings : public SCompoundWidget, public FGCObject
 	{
 		Collector.AddReferencedObject(MovieSceneCapture);
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SRenderMovieSceneSettings");
+	}
 
 private:
 

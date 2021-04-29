@@ -19,5 +19,4 @@ public:
 	//~ End IModuleInterface
 };
 
-
 IMPLEMENT_MODULE(FRemoteControlProtocolDMXModule, RemoteControlProtocolDMX);

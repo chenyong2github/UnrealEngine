@@ -69,6 +69,9 @@
 #include "Animation/AnimSequence.h"
 
 
+EMatineeImportSectionRangeMode FMatineeImportTools::SectionRangeMode = EMatineeImportSectionRangeMode::All;
+
+
 ERichCurveInterpMode FMatineeImportTools::MatineeInterpolationToRichCurveInterpolation( EInterpCurveMode CurveMode )
 {
 	switch ( CurveMode )
@@ -189,7 +192,7 @@ bool FMatineeImportTools::CopyInterpBoolTrack( UInterpTrackBoolProp* MatineeBool
 				KeyRange = TRange<FFrameNumber>::Hull(KeyRange, TRange<FFrameNumber>(KeyTime));
 			}
 
-			if (!KeyRange.IsEmpty())
+			if (SectionRangeMode == EMatineeImportSectionRangeMode::KeysHull && !KeyRange.IsEmpty())
 			{
 				Section->SetRange( KeyRange );
 			}
@@ -243,7 +246,7 @@ bool FMatineeImportTools::CopyInterpFloatTrack( UInterpTrackFloatBase* MatineeFl
 
 			CleanupCurveKeys(Channel);
 
-			if (!KeyRange.IsEmpty())
+			if (SectionRangeMode == EMatineeImportSectionRangeMode::KeysHull && !KeyRange.IsEmpty())
 			{
 				Section->SetRange( KeyRange );
 			}
@@ -435,7 +438,7 @@ bool FMatineeImportTools::CopyInterpVectorTrack( UInterpTrackVectorProp* Matinee
 				CleanupCurveKeys(Channels[2]);
 			}
 
-			if (!KeyRange.IsEmpty())
+			if (SectionRangeMode == EMatineeImportSectionRangeMode::KeysHull && !KeyRange.IsEmpty())
 			{
 				Section->SetRange( KeyRange );
 			}
@@ -505,7 +508,7 @@ bool FMatineeImportTools::CopyInterpColorTrack( UInterpTrackColorProp* ColorProp
 			CleanupCurveKeys(Channels[1]);
 			CleanupCurveKeys(Channels[2]);
 
-			if (!KeyRange.IsEmpty())
+			if (SectionRangeMode == EMatineeImportSectionRangeMode::KeysHull && !KeyRange.IsEmpty())
 			{
 				Section->SetRange( KeyRange );
 			}
@@ -578,7 +581,7 @@ bool FMatineeImportTools::CopyInterpLinearColorTrack( UInterpTrackLinearColorPro
 			CleanupCurveKeys(Channels[2]);
 			CleanupCurveKeys(Channels[3]);
 
-			if (!KeyRange.IsEmpty())
+			if (SectionRangeMode == EMatineeImportSectionRangeMode::KeysHull && !KeyRange.IsEmpty())
 			{
 				Section->SetRange( KeyRange );
 			}
@@ -702,7 +705,7 @@ bool FMatineeImportTools::CopyInterpMoveTrack( UInterpTrackMove* MoveTrack, UMov
 		CleanupCurveKeys(Channels[4]);
 		CleanupCurveKeys(Channels[5]);
 
-		if (!UE::MovieScene::IsEmptyOrZeroSize(KeyRange))
+		if (SectionRangeMode == EMatineeImportSectionRangeMode::KeysHull && !UE::MovieScene::IsEmptyOrZeroSize(KeyRange))
 		{
 			Section->SetRange( KeyRange );
 		}
@@ -752,7 +755,7 @@ bool FMatineeImportTools::CopyInterpParticleTrack( UInterpTrackToggle* MatineeTo
 			KeyRange = TRange<FFrameNumber>::Hull(KeyRange, TRange<FFrameNumber>(KeyTime));
 		}
 
-		if (!UE::MovieScene::IsEmptyOrZeroSize(KeyRange))
+		if (SectionRangeMode == EMatineeImportSectionRangeMode::KeysHull && !UE::MovieScene::IsEmptyOrZeroSize(KeyRange))
 		{
 			Section->SetRange( KeyRange );
 		}
@@ -883,7 +886,7 @@ bool FMatineeImportTools::CopyInterpFadeTrack( UInterpTrackFade* MatineeFadeTrac
 			KeyRange = TRange<FFrameNumber>::Hull(KeyRange, TRange<FFrameNumber>(KeyTime));
 		}
 
-		if (!UE::MovieScene::IsEmptyOrZeroSize(KeyRange))
+		if (SectionRangeMode == EMatineeImportSectionRangeMode::KeysHull && !UE::MovieScene::IsEmptyOrZeroSize(KeyRange))
 		{
 			Section->SetRange( KeyRange );
 		}
@@ -1051,7 +1054,7 @@ bool FMatineeImportTools::CopyInterpVisibilityTrack( UInterpTrackVisibility* Mat
 				KeyRange = TRange<FFrameNumber>::Hull(KeyRange, TRange<FFrameNumber>(KeyTime));
 			}
 
-			if (!UE::MovieScene::IsEmptyOrZeroSize(KeyRange))
+			if (SectionRangeMode == EMatineeImportSectionRangeMode::KeysHull && !UE::MovieScene::IsEmptyOrZeroSize(KeyRange))
 			{
 				Section->SetRange( KeyRange );
 			}
@@ -1097,7 +1100,7 @@ bool FMatineeImportTools::CopyInterpSlomoTrack(UInterpTrackSlomo* MatineeSlomoTr
 
 		CleanupCurveKeys(SlomoChannel);
 
-		if (!UE::MovieScene::IsEmptyOrZeroSize(KeyRange))
+		if (SectionRangeMode == EMatineeImportSectionRangeMode::KeysHull && !UE::MovieScene::IsEmptyOrZeroSize(KeyRange))
 		{
 			Section->SetRange(KeyRange);
 		}

@@ -50,6 +50,7 @@ public:
 
 	//~ Begin UObject interface
 	virtual void PostLoad() override;
+	virtual void PreSave(FObjectPreSaveContext SaveContext);
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

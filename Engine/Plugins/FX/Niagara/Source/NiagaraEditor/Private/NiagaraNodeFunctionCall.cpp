@@ -24,6 +24,7 @@
 #include "Modules/ModuleManager.h"
 #include "UObject/UnrealType.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "NiagaraNodeStaticSwitch.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeFunctionCall"
 
@@ -449,6 +450,7 @@ bool UNiagaraNodeFunctionCall::FixupPinNames()
 				if (Node != this && Node->IsA<UNiagaraNodeFunctionCall>())
 				{
 					UNiagaraNodeFunctionCall* FunctionNode = CastChecked<UNiagaraNodeFunctionCall>(Node);
+					FunctionNode->ConditionalPostLoad();
 					UNiagaraGraph* CalledGraph = FunctionNode->GetCalledGraph();
 					if (!CalledGraph)
 					{
@@ -739,7 +741,7 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 		// parameter map that sets the input values for our function. This is mainly done to prevent data interfaces being
 		// initialized as parameter when they are not used in the function or module.
 		TSet<FName> HiddenPinNames;
-		for (UEdGraphPin* Pin : FNiagaraStackGraphUtilities::GetUnusedFunctionInputPins(*this, FCompileConstantResolver(Translator)))
+		for (UEdGraphPin* Pin : FNiagaraStackGraphUtilities::GetUnusedFunctionInputPins(*this, FCompileConstantResolver(Translator, DebugState)))
 		{
 			HiddenPinNames.Add(Pin->PinName);
 		}
@@ -825,7 +827,7 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 			}
 		}
 
-		FCompileConstantResolver ConstantResolver(Translator);
+		FCompileConstantResolver ConstantResolver(Translator, DebugState);
 		FNiagaraEditorUtilities::SetStaticSwitchConstants(GetCalledGraph(), CallerInputPins, ConstantResolver);
 		Translator->ExitFunctionCallNode();
 	}
@@ -1057,6 +1059,7 @@ void FixupLinkedOutputs(UNiagaraNode* StartNode)
 
 		if (UNiagaraNodeFunctionCall* FunctionNode = Cast<UNiagaraNodeFunctionCall>(Node))
 		{
+			FunctionNode->ConditionalPostLoad();
 			FunctionNode->FixupPinNames();
 		}
 		
@@ -1213,7 +1216,10 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 
 		FPinCollectorArray InputPins;
 		GetInputPins(InputPins);
+
+		ENiagaraFunctionDebugState OldDebugState = OutHistory.ConstantResolver.SetDebugState(DebugState);
 		FNiagaraEditorUtilities::SetStaticSwitchConstants(FunctionGraph, InputPins, OutHistory.ConstantResolver);
+		OutHistory.ConstantResolver.SetDebugState(OldDebugState);
 
 		int32 ParamMapIdx = INDEX_NONE;
 		uint32 NodeIdx = INDEX_NONE;
@@ -1279,19 +1285,67 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 	}
 }
 
-void UNiagaraNodeFunctionCall::ChangeScriptVersion(FGuid NewScriptVersion, bool bShowNotesInStack)
+void UNiagaraNodeFunctionCall::ChangeScriptVersion(FGuid NewScriptVersion, const FNiagaraScriptVersionUpgradeContext& UpgradeContext, bool bShowNotesInStack)
 {
-	if (NewScriptVersion == SelectedScriptVersion && !InvalidScriptVersionReference.IsValid())
+	bool bPreviousVersionValid = !InvalidScriptVersionReference.IsValid();
+	if (NewScriptVersion == SelectedScriptVersion && bPreviousVersionValid)
 	{
 		return;
 	}
 	Modify();
+
+	PythonUpgradeScriptWarnings.Empty();
+	if (bPreviousVersionValid && FunctionScript && !UpgradeContext.bSkipPythonScript)
+	{
+		// run python update scripts
+		TArray<FVersionedNiagaraScriptData*> UpgradeVersionData;
+		FVersionedNiagaraScriptData* PreviousData = FunctionScript->GetScriptData(SelectedScriptVersion);
+		FVersionedNiagaraScriptData* NewData = FunctionScript->GetScriptData(NewScriptVersion);
+		for (const FNiagaraAssetVersion& Version : FunctionScript->GetAllAvailableVersions())
+		{
+			if (PreviousData->Version <= Version && Version <= NewData->Version)
+			{
+				UpgradeVersionData.Add(FunctionScript->GetScriptData(Version.VersionGuid));
+			}
+		}
+		FNiagaraEditorUtilities::RunPythonUpgradeScripts(this, UpgradeVersionData, UpgradeContext, PythonUpgradeScriptWarnings);
+	}
+	
 	InvalidScriptVersionReference = FGuid();
 	PreviousScriptVersion = bShowNotesInStack ? SelectedScriptVersion : NewScriptVersion;
 	SelectedScriptVersion = NewScriptVersion;
 
+	if (FunctionScript)
+	{
+		// Automatically remove old inputs so it does not show a bunch of warnings to the user
+		TArray<FName> FunctionInputNames;
+		FPinCollectorArray OverridePins;
+		UNiagaraNodeParameterMapSet* OverrideNode = FNiagaraStackGraphUtilities::GetStackFunctionOverrideNode(*this);
+		if (OverrideNode != nullptr)
+		{
+			OverrideNode->GetInputPins(OverridePins);
+			
+			TSet<const UEdGraphPin*> HiddenModulePins;
+			TArray<const UEdGraphPin*> ModuleInputPins;
+			GetStackFunctionInputPins(*this, ModuleInputPins, HiddenModulePins, UpgradeContext.ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
+			for (const UEdGraphPin* InputPin : ModuleInputPins)
+			{
+				FunctionInputNames.Add(FNiagaraParameterHandle(InputPin->PinName).GetName());
+			}
+		}
+		for (UEdGraphPin* OverridePin : OverridePins)
+		{
+			FName InputName = FNiagaraParameterHandle(OverridePin->PinName).GetName();
+			if (FNiagaraStackGraphUtilities::IsOverridePinForFunction(*OverridePin, *this) && FunctionInputNames.Contains(InputName) == false)
+			{
+				TArray<TWeakObjectPtr<UNiagaraDataInterface>> RemovedDataObjects;
+				FNiagaraStackGraphUtilities::RemoveNodesForStackFunctionInputOverridePin(*OverridePin, RemovedDataObjects);
+				OverrideNode->RemovePin(OverridePin);
+			}
+		}
+	}
+
 	MarkNodeRequiresSynchronization(__FUNCTION__, true);
-	//TODO MV: run update script
 }
 
 UEdGraphPin* UNiagaraNodeFunctionCall::FindParameterMapDefaultValuePin(const FName VariableName, ENiagaraScriptUsage InParentUsage, FCompileConstantResolver ConstantResolver) const
@@ -1304,7 +1358,10 @@ UEdGraphPin* UNiagaraNodeFunctionCall::FindParameterMapDefaultValuePin(const FNa
 			// Set the static switch values so we traverse the correct node paths
 			TArray<UEdGraphPin*> InputPins;
 			GetInputPins(InputPins);
+
+			ENiagaraFunctionDebugState PreviousDebugState = ConstantResolver.SetDebugState(DebugState);
 			FNiagaraEditorUtilities::SetStaticSwitchConstants(ScriptSource->NodeGraph, InputPins, ConstantResolver);
+			ConstantResolver.SetDebugState(PreviousDebugState);
 			
 			return ScriptSource->NodeGraph->FindParameterMapDefaultValuePin(VariableName, FunctionScript->GetUsage(), InParentUsage);
 		}
@@ -1335,6 +1392,34 @@ UEdGraphPin* UNiagaraNodeFunctionCall::FindStaticSwitchInputPin(const FName& Var
 		}
 	}
 	return nullptr;
+}
+
+bool UNiagaraNodeFunctionCall::ContainsDebugSwitch() const
+{
+	UNiagaraGraph* CalledGraph = GetCalledGraph();
+	if (CalledGraph)
+	{
+		TArray<UNiagaraNodeStaticSwitch*> Switches;
+		CalledGraph->GetNodesOfClass<UNiagaraNodeStaticSwitch>(Switches);
+		for (const auto& Switch : Switches)
+		{
+			if (Switch->IsDebugSwitch())
+			{
+				return true;
+			}
+		}
+
+		TArray<UNiagaraNodeFunctionCall*> FunctionCalls;
+		CalledGraph->GetNodesOfClass<UNiagaraNodeFunctionCall>(FunctionCalls);
+		for (const auto& Function : FunctionCalls)
+		{
+			if (Function->ContainsDebugSwitch())
+			{
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 void UNiagaraNodeFunctionCall::SuggestName(FString SuggestedName, bool bForceSuggestion)

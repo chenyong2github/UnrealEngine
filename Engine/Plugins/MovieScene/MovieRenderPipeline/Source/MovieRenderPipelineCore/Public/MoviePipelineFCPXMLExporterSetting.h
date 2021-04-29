@@ -27,7 +27,7 @@ public:
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "FCPXMLExporterDisplayName", "Final Cut Pro XML"); }
 #endif
 protected:
-	virtual bool HasFinishedExportingImpl() const { return bHasFinishedExporting; }
+	virtual bool HasFinishedExportingImpl() { return bHasFinishedExporting; }
 	virtual void BeginExportImpl() override;
 
 	bool EnsureWritableFile();

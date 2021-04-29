@@ -253,7 +253,7 @@ private:
    {
    public:
      int32 GetMinDesiredObjectsPerSubTask() const;
-		 void HandleTokenStreamObjectReference(TArray<UObject*>& ObjectsToSerialize, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, bool bAllowReferenceElimination);
+		 void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, bool bAllowReferenceElimination);
 		 void UpdateDetailedStats(UObject* CurrentObject, uint32 DeltaCycles);
 		 void LogDetailedStatsSummary();
 	 };
@@ -582,11 +582,11 @@ public:
 	}
 
 private:
-	FORCEINLINE void ConditionalHandleTokenStreamObjectReference(TArray<UObject*>& ObjectsToSerialize, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, bool bAllowReferenceElimination)
+	FORCEINLINE void ConditionalHandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, bool bAllowReferenceElimination)
 	{
 		if (IsObjectHandleResolved(*reinterpret_cast<FObjectHandle*>(&Object)))
 		{
-			ReferenceProcessor.HandleTokenStreamObjectReference(ObjectsToSerialize, ReferencingObject, Object, TokenIndex, bAllowReferenceElimination);
+			ReferenceProcessor.HandleTokenStreamObjectReference(ObjectsToSerializeStruct, ReferencingObject, Object, TokenIndex, bAllowReferenceElimination);
 		}
 	}
 
@@ -618,10 +618,10 @@ private:
 	 * @param CurrentObject current object being processed (owner of the weak object pointer)
 	 * @param ReferenceTokenStreamIndex GC token stream index (for debugging)
 	 */
-	FORCEINLINE void HandleWeakObjectPtr(FWeakObjectPtr& WeakPtr, TArray<UObject*>& NewObjectsToSerialize, UObject* CurrentObject, int32 ReferenceTokenStreamIndex)
+	FORCEINLINE void HandleWeakObjectPtr(FWeakObjectPtr& WeakPtr, FGCArrayStruct& NewObjectsToSerializeStruct, UObject* CurrentObject, int32 ReferenceTokenStreamIndex)
 	{
 		UObject* WeakObject = WeakPtr.Get(true);
-		ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, WeakObject, ReferenceTokenStreamIndex, true);
+		ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerializeStruct, CurrentObject, WeakObject, ReferenceTokenStreamIndex, true);
 	}
 
 	/**
@@ -752,10 +752,9 @@ private:
 					UE_LOG(LogGarbage, Fatal, TEXT("%s does not yet have a token stream assembled."), *GetFullNameSafe(CurrentObject->GetClass()));
 				}
 #endif
-				if (!IsParallel())
-				{
-					ReferenceProcessor.SetCurrentObject(CurrentObject);
-				}
+				// Store the referencing object within the FGCArrayStruct so that we can always fall back to it
+				// when AddReferencedObjects functions don't provide one
+				NewObjectsToSerializeStruct.ReferencingObject = CurrentObject;
 
 				// Get pointer to token stream and jump to the start.
 				FGCReferenceTokenStream* RESTRICT TokenStream = &CurrentObject->GetClass()->ReferenceTokenStream;
@@ -834,7 +833,7 @@ private:
 						UObject**	ObjectPtr = (UObject**)(StackEntryData + ReferenceInfo.Offset);
 						UObject*&	Object = *ObjectPtr;
 						TokenReturnCount = ReferenceInfo.ReturnCount;
-						ConditionalHandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, Object, ReferenceTokenStreamIndex, true);
+						ConditionalHandleTokenStreamObjectReference(NewObjectsToSerializeStruct, CurrentObject, Object, ReferenceTokenStreamIndex, true);
 					}
 					break;
 					case GCRT_ArrayObject:
@@ -844,7 +843,7 @@ private:
 						TokenReturnCount = ReferenceInfo.ReturnCount;
 						for (int32 ObjectIndex = 0, ObjectNum = ObjectArray.Num(); ObjectIndex < ObjectNum; ++ObjectIndex)
 						{
-							ConditionalHandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, ObjectArray[ObjectIndex], ReferenceTokenStreamIndex, true);
+							ConditionalHandleTokenStreamObjectReference(NewObjectsToSerializeStruct, CurrentObject, ObjectArray[ObjectIndex], ReferenceTokenStreamIndex, true);
 						}
 					}
 					break;
@@ -855,7 +854,7 @@ private:
 						TokenReturnCount = ReferenceInfo.ReturnCount;
 						for (int32 ObjectIndex = 0, ObjectNum = ObjectArray.Num(); ObjectIndex < ObjectNum; ++ObjectIndex)
 						{
-							ConditionalHandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, ObjectArray[ObjectIndex], ReferenceTokenStreamIndex, true);
+							ConditionalHandleTokenStreamObjectReference(NewObjectsToSerializeStruct, CurrentObject, ObjectArray[ObjectIndex], ReferenceTokenStreamIndex, true);
 						}
 					}
 					break;
@@ -921,7 +920,7 @@ private:
 						UObject**	ObjectPtr = (UObject**)(StackEntryData + ReferenceInfo.Offset);
 						UObject*&	Object = *ObjectPtr;
 						TokenReturnCount = ReferenceInfo.ReturnCount;
-						ConditionalHandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, Object, ReferenceTokenStreamIndex, false);
+						ConditionalHandleTokenStreamObjectReference(NewObjectsToSerializeStruct, CurrentObject, Object, ReferenceTokenStreamIndex, false);
 					}
 					break;
 					case GCRT_ExternalPackage:
@@ -931,7 +930,7 @@ private:
 						// Test if the object isn't itself, since currently package are their own external and tracking that reference is pointless
 						UObject* Object = CurrentObject->GetExternalPackageInternal();
 						Object = Object != CurrentObject ? Object : nullptr;
-						ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, Object, ReferenceTokenStreamIndex, false);
+						ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerializeStruct, CurrentObject, Object, ReferenceTokenStreamIndex, false);
 					}
 					break;
 					case GCRT_FixedArray:
@@ -1064,7 +1063,7 @@ private:
 						{
 							UObject* OwnerObject = static_cast<UObject*>(FieldOwnerItem->Object);
 							UObject* PreviousOwner = OwnerObject;
-							ConditionalHandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, OwnerObject, ReferenceTokenStreamIndex, true);
+							ConditionalHandleTokenStreamObjectReference(NewObjectsToSerializeStruct, CurrentObject, OwnerObject, ReferenceTokenStreamIndex, true);
 							// Handle reference elimination (PendingKill owner)
 							if (PreviousOwner && !OwnerObject)
 							{
@@ -1085,7 +1084,7 @@ private:
 							{
 								UObject* OwnerObject = static_cast<UObject*>(FieldOwnerItem->Object);
 								UObject* PreviousOwner = OwnerObject;
-								ConditionalHandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, OwnerObject, ReferenceTokenStreamIndex, true);
+								ConditionalHandleTokenStreamObjectReference(NewObjectsToSerializeStruct, CurrentObject, OwnerObject, ReferenceTokenStreamIndex, true);
 								// Handle reference elimination (PendingKill owner)
 								if (PreviousOwner && !OwnerObject)
 								{
@@ -1132,7 +1131,7 @@ private:
 							// We're dealing with an object reference (this code should be identical to GCRT_PersistentObject)
 							UObject**	ObjectPtr = (UObject**)(StackEntryData + ReferenceInfo.Offset);
 							UObject*&	Object = *ObjectPtr;
-							ConditionalHandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, Object, ReferenceTokenStreamIndex, false);
+							ConditionalHandleTokenStreamObjectReference(NewObjectsToSerializeStruct, CurrentObject, Object, ReferenceTokenStreamIndex, false);
 						}
 					}
 					break;
@@ -1144,7 +1143,7 @@ private:
 							// We're dealing with an object reference (this code should be identical to GCRT_Object and GCRT_Class)
 							UObject**	ObjectPtr = (UObject**)(StackEntryData + ReferenceInfo.Offset);
 							UObject*&	Object = *ObjectPtr;
-							ConditionalHandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, Object, ReferenceTokenStreamIndex, true);
+							ConditionalHandleTokenStreamObjectReference(NewObjectsToSerializeStruct, CurrentObject, Object, ReferenceTokenStreamIndex, true);
 						}
 					}
 					break;
@@ -1154,7 +1153,7 @@ private:
 						if (ShouldProcessWeakReferences())
 						{							
 							FWeakObjectPtr& WeakPtr = *(FWeakObjectPtr*)(StackEntryData + ReferenceInfo.Offset);
-							HandleWeakObjectPtr(WeakPtr, NewObjectsToSerialize, CurrentObject, ReferenceTokenStreamIndex);
+							HandleWeakObjectPtr(WeakPtr, NewObjectsToSerializeStruct, CurrentObject, ReferenceTokenStreamIndex);
 						}
 					}
 					break;
@@ -1166,7 +1165,7 @@ private:
 							TArray<FWeakObjectPtr>& WeakPtrArray = *((TArray<FWeakObjectPtr>*)(StackEntryData + ReferenceInfo.Offset));
 							for (FWeakObjectPtr& WeakPtr : WeakPtrArray)
 							{
-								HandleWeakObjectPtr(WeakPtr, NewObjectsToSerialize, CurrentObject, ReferenceTokenStreamIndex);
+								HandleWeakObjectPtr(WeakPtr, NewObjectsToSerializeStruct, CurrentObject, ReferenceTokenStreamIndex);
 							}
 						}
 					}
@@ -1178,7 +1177,7 @@ private:
 						{							
 							FLazyObjectPtr& LazyPtr = *(FLazyObjectPtr*)(StackEntryData + ReferenceInfo.Offset);
 							FWeakObjectPtr& WeakPtr = LazyPtr.WeakPtr;
-							HandleWeakObjectPtr(WeakPtr, NewObjectsToSerialize, CurrentObject, ReferenceTokenStreamIndex);
+							HandleWeakObjectPtr(WeakPtr, NewObjectsToSerializeStruct, CurrentObject, ReferenceTokenStreamIndex);
 						}
 					}
 					break;
@@ -1192,7 +1191,7 @@ private:
 							for (FLazyObjectPtr& LazyPtr : LazyPtrArray)
 							{
 								FWeakObjectPtr& WeakPtr = LazyPtr.WeakPtr;
-								HandleWeakObjectPtr(WeakPtr, NewObjectsToSerialize, CurrentObject, ReferenceTokenStreamIndex);
+								HandleWeakObjectPtr(WeakPtr, NewObjectsToSerializeStruct, CurrentObject, ReferenceTokenStreamIndex);
 							}
 						}
 					}
@@ -1204,7 +1203,7 @@ private:
 						{							
 							FSoftObjectPtr& SoftPtr = *(FSoftObjectPtr*)(StackEntryData + ReferenceInfo.Offset);
 							FWeakObjectPtr& WeakPtr = SoftPtr.WeakPtr;
-							HandleWeakObjectPtr(WeakPtr, NewObjectsToSerialize, CurrentObject, ReferenceTokenStreamIndex);
+							HandleWeakObjectPtr(WeakPtr, NewObjectsToSerializeStruct, CurrentObject, ReferenceTokenStreamIndex);
 						}
 					}
 					break;
@@ -1217,7 +1216,7 @@ private:
 							for (FSoftObjectPtr& SoftPtr : SoftPtrArray)
 							{
 								FWeakObjectPtr& WeakPtr = SoftPtr.WeakPtr;
-								HandleWeakObjectPtr(WeakPtr, NewObjectsToSerialize, CurrentObject, ReferenceTokenStreamIndex);
+								HandleWeakObjectPtr(WeakPtr, NewObjectsToSerializeStruct, CurrentObject, ReferenceTokenStreamIndex);
 							}
 						}
 					}
@@ -1229,7 +1228,7 @@ private:
 						{							
 							FScriptDelegate& Delegate = *(FScriptDelegate*)(StackEntryData + ReferenceInfo.Offset);
 							UObject* DelegateObject = Delegate.GetUObject();
-							ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, DelegateObject, ReferenceTokenStreamIndex, false);
+							ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerializeStruct, CurrentObject, DelegateObject, ReferenceTokenStreamIndex, false);
 						}
 					}
 					break;
@@ -1242,7 +1241,7 @@ private:
 							for (FScriptDelegate& Delegate : DelegateArray)
 							{
 								UObject* DelegateObject = Delegate.GetUObject();
-								ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, DelegateObject, ReferenceTokenStreamIndex, false);
+								ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerializeStruct, CurrentObject, DelegateObject, ReferenceTokenStreamIndex, false);
 							}
 						}
 					}
@@ -1256,7 +1255,7 @@ private:
 							TArray<UObject*> DelegateObjects(Delegate.GetAllObjects());
 							for (UObject* DelegateObject : DelegateObjects)
 							{
-								ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, DelegateObject, ReferenceTokenStreamIndex, false);
+								ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerializeStruct, CurrentObject, DelegateObject, ReferenceTokenStreamIndex, false);
 							}
 						}
 					}
@@ -1272,7 +1271,7 @@ private:
 								TArray<UObject*> DelegateObjects(Delegate.GetAllObjects());
 								for (UObject* DelegateObject : DelegateObjects)
 								{
-									ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, DelegateObject, ReferenceTokenStreamIndex, false);
+									ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerializeStruct, CurrentObject, DelegateObject, ReferenceTokenStreamIndex, false);
 								}
 							}
 						}
@@ -1293,6 +1292,7 @@ private:
 				}
 EndLoop:
 				check(StackEntry == Stack.GetBottomFrame());
+				check(NewObjectsToSerializeStruct.ReferencingObject == CurrentObject);
 
 				if (IsParallel() && NewObjectsToSerialize.Num() >= MinDesiredObjectsPerSubTask)
 				{
@@ -1379,14 +1379,14 @@ public:
 	}
 	virtual void HandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const FProperty* ReferencingProperty) override
 	{
-		Processor.HandleTokenStreamObjectReference(ObjectArrayStruct.ObjectsToSerialize, const_cast<UObject*>(ReferencingObject), Object, INDEX_NONE, false);
+		Processor.HandleTokenStreamObjectReference(ObjectArrayStruct, const_cast<UObject*>(ReferencingObject), Object, INDEX_NONE, false);
 	}
 	virtual void HandleObjectReferences(UObject** InObjects, const int32 ObjectNum, const UObject* ReferencingObject, const FProperty* InReferencingProperty) override
 	{
 		for (int32 ObjectIndex = 0; ObjectIndex < ObjectNum; ++ObjectIndex)
 		{
 			UObject*& Object = InObjects[ObjectIndex];
-			Processor.HandleTokenStreamObjectReference(ObjectArrayStruct.ObjectsToSerialize, const_cast<UObject*>(ReferencingObject), Object, INDEX_NONE, false);
+			Processor.HandleTokenStreamObjectReference(ObjectArrayStruct, const_cast<UObject*>(ReferencingObject), Object, INDEX_NONE, false);
 		}
 	}
 	virtual bool IsIgnoringArchetypeRef() const override
@@ -1426,10 +1426,6 @@ public:
 	{
 		// Do nothing
 	}
-	void SetCurrentObject(UObject* Obj)
-	{
-		// Do nothing
-	}
 	// Implement this in your derived class, don't make this virtual as it will affect performance!
-	//FORCEINLINE void HandleTokenStreamObjectReference(TArray<UObject*>& ObjectsToSerialize, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, bool bAllowReferenceElimination);
+	//FORCEINLINE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, bool bAllowReferenceElimination);
 };

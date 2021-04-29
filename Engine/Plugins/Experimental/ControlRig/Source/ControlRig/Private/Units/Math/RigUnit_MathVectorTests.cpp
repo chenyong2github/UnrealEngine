@@ -358,7 +358,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathVectorMirror)
 	AddErrorIfFalse(FRigUnit_MathVectorTest_Utils::IsNearlyEqual(Unit.Result, FVector(-1.f, 2.f, 3.f)), TEXT("unexpected result"));
 	Unit.Normal = FVector(0.f, 3.f, 0.f);
 	InitAndExecute();
-	AddErrorIfFalse(FRigUnit_MathVectorTest_Utils::IsNearlyEqual(Unit.Result, FVector(1.f, -2.f, 3.f)), TEXT("unexpected result"));
+	AddErrorIfFalse(FRigUnit_MathVectorTest_Utils::IsNearlyEqual(Unit.Result, FVector(1.f, -2.f, 3.f), 1e-6), TEXT("unexpected result"));
 	return true;
 }
 

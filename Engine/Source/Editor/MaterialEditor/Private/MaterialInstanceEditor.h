@@ -55,6 +55,10 @@ public:
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FMaterialInstanceEditor");
+	}
 
 	/** IToolkit interface */
 	virtual FName GetToolkitFName() const override;

@@ -5,11 +5,14 @@
 #include "CoreMinimal.h"
 #include "StereoRendering.h"
 
+#include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameEnums.h"
 
+class IDisplayClusterPresentation;
 struct FDisplayClusterRenderViewContext;
+class FDisplayClusterRenderFrame;
 class IDisplayClusterProjectionPolicy;
-class FDisplayClusterRenderViewport;
 class UWorld;
+class FViewport;
 
 
 /**
@@ -49,13 +52,19 @@ public:
 	virtual void EndScene()
 	{ }
 
+	// update settings from root actor config data, and build new frame structure
+	virtual bool BeginNewFrame(FViewport* InViewport, UWorld* InWorld, FDisplayClusterRenderFrame& OutRenderFrame) = 0;
+	virtual void FinalizeNewFrame() = 0;
+
 	/**
 	* Assigns camera to a specified viewport. If InViewportId is empty, all viewports will be assigned to a new camera. Empty camera ID means default active camera.
 	*
 	* @param CameraId   - ID of a camera (see [camera] in the nDisplay config file
 	* @param ViewportId - ID of a viewport to assign the camera (all viewports if empty)
 	*/
-	virtual void SetViewportCamera(const FString& CameraId = FString(), const FString& ViewportId = FString()) = 0;
+	UE_DEPRECATED(4.27, "This function has been moved to FDisplayClusterViewport. Use GetViewportManager() to access  that interface.")
+	virtual void SetViewportCamera(const FString& CameraId = FString(), const FString& ViewportId = FString()) 
+	{}
 
 	/**
 	* Start postprocess settings
@@ -64,7 +73,9 @@ public:
 	* @param StartPostProcessingSettings - PP settings
 	*
 	*/
-	virtual void SetStartPostProcessingSettings(const FString& ViewportId, const FPostProcessSettings& StartPostProcessingSettings) = 0;
+	UE_DEPRECATED(4.27, "This function has been moved to FDisplayClusterViewport. Use GetViewportManager() to access  that interface.")
+	virtual void SetStartPostProcessingSettings(const FString& ViewportId, const FPostProcessSettings& StartPostProcessingSettings)
+	{}
 
 	/**
 	* Override postprocess settings
@@ -73,7 +84,9 @@ public:
 	* @param OverridePostProcessingSettings - PP settings
 	*
 	*/
-	virtual void SetOverridePostProcessingSettings(const FString& ViewportId, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight = 1.0f) = 0;
+	UE_DEPRECATED(4.27, "This function has been moved to FDisplayClusterViewport. Use GetViewportManager() to access  that interface.")
+	virtual void SetOverridePostProcessingSettings(const FString& ViewportId, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight = 1.0f)
+	{}
 
 	/**
 	* Final postprocess settings
@@ -82,7 +95,9 @@ public:
 	* @param FinalPostProcessingSettings - PP settings
 	*
 	*/
-	virtual void SetFinalPostProcessingSettings(const FString& ViewportId, const FPostProcessSettings& FinalPostProcessingSettings) = 0;
+	UE_DEPRECATED(4.27, "This function has been moved to FDisplayClusterViewport. Use GetViewportManager() to access  that interface.")
+	virtual void SetFinalPostProcessingSettings(const FString& ViewportId, const FPostProcessSettings& FinalPostProcessingSettings)
+	{}
 
 	/**
 	* Returns location and size of a viewport
@@ -90,7 +105,11 @@ public:
 	* @param ViewportId - ID of a viewport
 	* @param OutRect    - a rectangle that describes location and size of the viewport
 	*/
-	virtual bool GetViewportRect(const FString& ViewportId, FIntRect& OutRect) = 0;
+	UE_DEPRECATED(4.27, "This function has been moved to FDisplayClusterViewport. Use GetViewportManager() to access  that interface.")
+	virtual bool GetViewportRect(const FString& ViewportId, FIntRect& OutRect)
+	{
+		return false;
+	}
 
 	/**
 	* Returns projection policy object of a specified viewport
@@ -98,7 +117,11 @@ public:
 	* @param ViewportId          - ID of a viewport
 	* @param OutProjectionPolicy - projection policy instance
 	*/
-	virtual bool GetViewportProjectionPolicy(const FString& ViewportId, TSharedPtr<IDisplayClusterProjectionPolicy>& OutProjectionPolicy) = 0;
+	UE_DEPRECATED(4.27, "This function has been moved to FDisplayClusterViewport. Use GetViewportManager() to access  that interface.")
+	virtual bool GetViewportProjectionPolicy(const FString& ViewportId, TSharedPtr<IDisplayClusterProjectionPolicy>& OutProjectionPolicy)
+	{
+		return false;
+	}
 
 	/**
 	* Returns context of a specified viewport
@@ -107,7 +130,11 @@ public:
 	* @param ViewIndex           - View index (left/center/right eye)
 	* @param OutProjectionPolicy - projection policy instance
 	*/
-	virtual bool GetViewportContext(const FString& ViewportId, int ViewIndex, FDisplayClusterRenderViewContext& OutViewContext) = 0;
+	UE_DEPRECATED(4.27, "This function has been moved to FDisplayClusterViewport. Use GetViewportManager() to access  that interface.")
+	virtual bool GetViewportContext(const FString& ViewportId, int ViewIndex, FDisplayClusterRenderViewContext& OutViewContext)
+	{
+		return false;
+	}
 
 	/**
 	* Sets buffer ratio
@@ -117,8 +144,13 @@ public:
 	*
 	* @return - true if succeeded
 	*/
-	virtual bool SetBufferRatio(const FString& ViewportId, float InBufferRatio) = 0;
-
+	UE_DEPRECATED(4.27, "This function has been moved to FDisplayClusterViewport. Use GetViewportManager() to access  that interface.")
+	virtual bool SetBufferRatio(const FString& ViewportId, float InBufferRatio)
+	{
+		return false;
+	};
+	
+	
 	/**
 	* Returns current buffer ratio
 	*
@@ -127,7 +159,11 @@ public:
 	*
 	* @return - true if succeeded
 	*/
-	virtual bool GetBufferRatio(const FString& ViewportId, float& OutBufferRatio) const = 0;
+	UE_DEPRECATED(4.27, "This function has been moved to FDisplayClusterViewport. Use GetViewportManager() to access  that interface.")
+	virtual bool GetBufferRatio(const FString& ViewportId, float& OutBufferRatio) const
+	{
+		return false;
+	}
 
 	/**
 	* Sets buffer ratio
@@ -137,7 +173,11 @@ public:
 	*
 	* @return - true if succeeded
 	*/
-	virtual bool SetBufferRatio(int32 ViewportIdx, float InBufferRatio) = 0;
+	UE_DEPRECATED(4.27, "This function has been moved to FDisplayClusterViewport. Use GetViewportManager() to access  that interface.")
+	virtual bool SetBufferRatio(int32 ViewportIdx, float InBufferRatio)
+	{
+		return false;
+	}
 
 	/**
 	* Returns current buffer ratio
@@ -147,7 +187,11 @@ public:
 	*
 	* @return - true if succeeded
 	*/
-	virtual bool GetBufferRatio(int32 ViewportIdx, float& OutBufferRatio) const = 0;
+	UE_DEPRECATED(4.27, "This function has been moved to FDisplayClusterViewport. Use GetViewportManager() to access  that interface.")
+	virtual bool GetBufferRatio(int32 ViewportIdx, float& OutBufferRatio) const
+	{
+		return false;
+	}
 
 	/**
 	* Returns specified viewport info
@@ -156,7 +200,11 @@ public:
 	*
 	* @return - Viewport info
 	*/
-	virtual const FDisplayClusterRenderViewport* GetRenderViewport(const FString& ViewportId) const = 0;
+	UE_DEPRECATED(4.27, "This function has been moved to FDisplayClusterViewport. Use GetViewportManager() to access  that interface.")
+	virtual const class FDisplayClusterRenderViewport* GetRenderViewport(const FString& ViewportId) const
+	{
+		return nullptr;
+	}
 
 	/**
 	* Returns specified viewport info
@@ -165,7 +213,11 @@ public:
 	*
 	* @return - Viewport info
 	*/
-	virtual const FDisplayClusterRenderViewport* GetRenderViewport(int32 ViewportIdx) const = 0;
+	UE_DEPRECATED(4.27, "This function has been moved to FDisplayClusterViewport. Use GetViewportManager() to access  that interface.")
+	virtual const class FDisplayClusterRenderViewport* GetRenderViewport(int32 ViewportIdx) const
+	{
+		return nullptr;
+	}
 
 	/**
 	* Returns all available viewports with filter applied
@@ -174,12 +226,21 @@ public:
 	*
 	* @return - Viewport info
 	*/
-	virtual const void GetRenderViewports(TArray<FDisplayClusterRenderViewport>& OutViewports) const = 0;
+	UE_DEPRECATED(4.27, "This function has been moved to FDisplayClusterViewport. Use GetViewportManager() to access  that interface.")
+	virtual const void GetRenderViewports(TArray<class FDisplayClusterRenderViewport*>& OutViewports) const
+	{}
 
 	/**
-	* Returns the number of Views per Viewport.
-	*
-	* @return - Number of Views per Viewport.
+	* Callback triggered when custom present handler was created
 	*/
-	virtual uint32 GetViewsAmountPerViewport() const = 0;
+	DECLARE_EVENT(IDisplayClusterRenderDevice, FDisplayClusterRenderCustomPresentCreated);
+	virtual FDisplayClusterRenderCustomPresentCreated& OnDisplayClusterRenderCustomPresentCreated() = 0;
+
+	/**
+	* Returns current presentation handler
+	*
+	* @return - nullptr if failed
+	*/
+	virtual IDisplayClusterPresentation* GetPresentation() const = 0;
+
 };

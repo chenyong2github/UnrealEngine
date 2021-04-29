@@ -297,7 +297,7 @@ namespace PluginUtils
 		// Enable this plugin in the project
 		if (MountParams.bEnablePluginInProject && !IProjectManager::Get().SetPluginEnabled(PluginName, true, FailReason))
 		{
-			FailReason = FText::Format(LOCTEXT("FailedToEnablePlugin", "Failed to enable plugin\n{0}"), FailReason);
+			FailReason = FText::Format(LOCTEXT("FailedToEnablePluginInProject", "Failed to enable plugin in current project\n{0}"), FailReason);
 			return nullptr;
 		}
 
@@ -309,6 +309,12 @@ namespace PluginUtils
 		else
 		{
 			IPluginManager::Get().MountExplicitlyLoadedPlugin(PluginName);
+		}
+
+		if (!Plugin->IsEnabled())
+		{
+			FailReason = FText::Format(LOCTEXT("FailedToEnablePlugin", "Failed to enable plugin because it is not configured as bExplicitlyLoaded=true\n{0}"), FText::FromString(FPluginUtils::GetPluginFilePath(PluginLocation, PluginName, /*bFullPath*/ true)));
+			return nullptr;
 		}
 
 		// Select plugin Content folder in content browser
@@ -337,7 +343,7 @@ FString FPluginUtils::GetPluginFolder(const FString& PluginLocation, const FStri
 
 FString FPluginUtils::GetPluginFilePath(const FString& PluginLocation, const FString& PluginName, bool bFullPath)
 {
-	FString PluginFilePath = FPaths::Combine(PluginLocation, PluginName, (PluginName + TEXT(".uplugin")));
+	FString PluginFilePath = FPaths::Combine(PluginLocation, PluginName, (PluginName + FPluginDescriptor::GetFileExtension()));
 	if (bFullPath)
 	{
 		PluginFilePath = FPaths::ConvertRelativePathToFull(PluginFilePath);

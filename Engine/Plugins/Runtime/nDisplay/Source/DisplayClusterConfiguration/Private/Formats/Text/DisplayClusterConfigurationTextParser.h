@@ -24,8 +24,12 @@ public:
 public:
 	// Load data from a specified file
 	virtual UDisplayClusterConfigurationData* LoadData(const FString& FilePath, UObject* Owner = nullptr) override;
+
 	// Save data to a specified file
 	virtual bool SaveData(const UDisplayClusterConfigurationData* ConfigData, const FString& FilePath) override;
+
+	// Convert configuration to string
+	virtual bool AsString(const UDisplayClusterConfigurationData* ConfigData, FString& OutString) override;
 
 protected:
 	// Fill generic data container with parsed information
@@ -51,8 +55,6 @@ protected:
 	void AddNvidia(const FDisplayClusterConfigurationTextNvidia& InCfgNvidia);
 	void AddNetwork(const FDisplayClusterConfigurationTextNetwork& InCfgNetwork);
 	void AddDebug(const FDisplayClusterConfigurationTextDebug& InCfgDebug);
-	void AddInput(const FDisplayClusterConfigurationTextInput& InCfgInput);
-	void AddInputSetup(const FDisplayClusterConfigurationTextInputSetup& InCfgInputSetup);
 	void AddCustom(const FDisplayClusterConfigurationTextCustom& InCfgCustom);
 
 protected:
@@ -64,8 +66,6 @@ protected:
 	TArray<FDisplayClusterConfigurationTextViewport>    CfgViewports;
 	TArray<FDisplayClusterConfigurationTextProjection>  CfgProjections;
 	TArray<FDisplayClusterConfigurationTextPostprocess> CfgPostprocess;
-	TArray<FDisplayClusterConfigurationTextInput>       CfgInputDevices;
-	TArray<FDisplayClusterConfigurationTextInputSetup>  CfgInputSetupRecords;
 
 	FDisplayClusterConfigurationTextInfo    CfgInfo;
 	FDisplayClusterConfigurationTextGeneral CfgGeneral;

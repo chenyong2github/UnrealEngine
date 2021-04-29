@@ -80,6 +80,10 @@ private:
 
 	//~ FGCObject
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FHoloLensARSystem");
+	}
 	//~ FGCObject
 
 	//~IARSystemSupport
@@ -249,8 +253,6 @@ private:
 	// ...
 	UHoloLensCameraImageTexture* CameraImage;
 	UARSessionConfig* SessionConfig;
-	UClass* MeshComponentClass;
-	UClass* QRComponentClass;
 	TMap< FName, UARPin* > AnchorIdToPinMap;
 	TArray<UARPin*> Pins;
 	//TMap<FGuid, UARTrackedGeometry*> TrackedGeometries;

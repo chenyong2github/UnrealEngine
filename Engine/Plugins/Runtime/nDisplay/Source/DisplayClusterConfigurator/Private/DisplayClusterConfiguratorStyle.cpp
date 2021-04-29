@@ -60,6 +60,7 @@ const FSlateBrush* FDisplayClusterConfiguratorStyle::GetBrush(FName PropertyName
 #define BOX_BRUSH( RelativePath, ... ) FSlateBoxBrush( Style->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
 #define BORDER_BRUSH( RelativePath, ... ) FSlateBorderBrush( Style->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
 
+const FVector2D Icon128x128(128.0f, 128.0f);
 const FVector2D Icon40x40(40.0f, 40.0f);
 const FVector2D Icon20x20(20.0f, 20.0f);
 const FVector2D Icon16x16(16.0f, 16.0f);
@@ -103,25 +104,34 @@ TSharedRef< FSlateStyleSet > FDisplayClusterConfiguratorStyle::Create()
 	Style->Set("DisplayClusterConfigurator.TreeItems.SceneComponentCamera", new IMAGE_BRUSH("TreeItems/SceneComponentCamera_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.TreeItems.SceneComponentMesh", new IMAGE_BRUSH("TreeItems/SceneComponentMesh_16x", Icon16x16));
 
+	Style->Set("ClassIcon.DisplayClusterXformComponent", new IMAGE_BRUSH(TEXT("TreeItems/SceneComponentXform_16x"), Icon16x16));
+	Style->Set("ClassThumbnail.DisplayClusterXformComponent", new IMAGE_BRUSH(TEXT("TreeItems/SceneComponentXform_16x"), Icon16x16));
+	
+	Style->Set("ClassIcon.DisplayClusterScreenComponent", new IMAGE_BRUSH(TEXT("TreeItems/SceneComponentScreen_16x"), Icon16x16));
+	Style->Set("ClassThumbnail.DisplayClusterScreenComponent", new IMAGE_BRUSH(TEXT("TreeItems/SceneComponentScreen_16x"), Icon16x16));
+	
+	Style->Set("ClassIcon.DisplayClusterCameraComponent", new IMAGE_BRUSH(TEXT("TreeItems/SceneComponentCamera_16x"), Icon16x16));
+	Style->Set("ClassThumbnail.DisplayClusterCameraComponent", new IMAGE_BRUSH(TEXT("TreeItems/SceneComponentCamera_16x"), Icon16x16));
+	
+	Style->Set("ClassIcon.DisplayClusterMeshComponent", new IMAGE_BRUSH(TEXT("TreeItems/SceneComponentMesh_16x"), Icon16x16));
+	Style->Set("ClassThumbnail.DisplayClusterMeshComponent", new IMAGE_BRUSH(TEXT("TreeItems/SceneComponentMesh_16x8"), Icon16x16));
+	
 	// Cluster
-	Style->Set("DisplayClusterConfigurator.TreeItems.ClusterNode", new IMAGE_BRUSH("TreeItems/ClusterNode_16x", Icon16x16));
-	Style->Set("DisplayClusterConfigurator.TreeItems.Viewport", new IMAGE_BRUSH("TreeItems/Viewport_16x", Icon16x16));
+	Style->Set("DisplayClusterConfigurator.TreeItems.Host", new IMAGE_BRUSH("TreeItems/ClusterNode_16x", Icon16x16));
+	Style->Set("DisplayClusterConfigurator.TreeItems.ClusterNode", new IMAGE_BRUSH("TreeItems/Viewport_16x", Icon16x16));
+	Style->Set("DisplayClusterConfigurator.TreeItems.Viewport", new IMAGE_BRUSH("TreeItems/SceneComponentScreen_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.TreeItems.Postprocess", new IMAGE_BRUSH("TreeItems/Postprocess_12x", Icon12x12));
-
-	// Input
-	Style->Set("DisplayClusterConfigurator.TreeItems.InputContainer",      new IMAGE_BRUSH("TreeItems/InputContainer_16x", Icon16x16));
-	Style->Set("DisplayClusterConfigurator.TreeItems.InputDeviceAnalog",   new IMAGE_BRUSH("TreeItems/InputDeviceAnalog_16x", Icon16x16));
-	Style->Set("DisplayClusterConfigurator.TreeItems.InputDeviceButton",   new IMAGE_BRUSH("TreeItems/InputDeviceButton_16x", Icon16x16));
-	Style->Set("DisplayClusterConfigurator.TreeItems.InputDeviceKeyboard", new IMAGE_BRUSH("TreeItems/InputDeviceKeyboard_16x", Icon16x16));
-	Style->Set("DisplayClusterConfigurator.TreeItems.InputDeviceTracker",  new IMAGE_BRUSH("TreeItems/InputDeviceTracker_16x", Icon16x16));
-
 
 	// Icons
 	Style->Set("DisplayClusterConfigurator.OutputMapping.ToggleWindowInfo", new IMAGE_BRUSH("OutputMapping/ToggleWindowInfo_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.OutputMapping.ToggleWindowCornerImage", new IMAGE_BRUSH("OutputMapping/CornerImage_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.OutputMapping.ToggleOutsideViewports", new IMAGE_BRUSH("OutputMapping/ToggleOutsideViewports_16x", Icon16x16));
+	Style->Set("DisplayClusterConfigurator.OutputMapping.ToggleClusterItemOverlap", new IMAGE_BRUSH("OutputMapping/ToggleClusterItemOverlap_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.OutputMapping.ZoomToFit", new IMAGE_BRUSH("OutputMapping/ZoomToFit_16x", Icon16x16));
+	Style->Set("DisplayClusterConfigurator.OutputMapping.ViewScale", new IMAGE_BRUSH("OutputMapping/ViewScale_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.OutputMapping.ResizeAreaHandle", new IMAGE_BRUSH("OutputMapping/ResizeAreaHandle_20x", Icon20x20));
+	Style->Set("DisplayClusterConfigurator.OutputMapping.ViewportLock", new IMAGE_BRUSH("OutputMapping/ViewprtLock_16x", Icon16x16));
+	Style->Set("DisplayClusterConfigurator.OutputMapping.ViewportLock.Large", new IMAGE_BRUSH("OutputMapping/ViewportLock_128x", Icon128x128));
 
 	Style->Set("DisplayClusterConfigurator.Node.Color.Regular", FLinearColor(FColor(97, 97, 97)));
 	Style->Set("DisplayClusterConfigurator.Node.Color.Selected", FLinearColor(FColor(249, 165, 1)));
@@ -131,15 +141,21 @@ TSharedRef< FSlateStyleSet > FDisplayClusterConfiguratorStyle::Create()
 	Style->Set("DisplayClusterConfigurator.Node.Text.Color.Regular", FLinearColor(FColor(255, 255, 255)));
 	Style->Set("DisplayClusterConfigurator.Node.Text.Color.WhiteGray", FLinearColor(FColor(226, 226, 226)));
 
-	Style->Set("DisplayClusterConfigurator.Node.Window.Title.Background", FLinearColor(FColor(73, 73, 73, 255 * 0.85f)));
+	Style->Set("DisplayClusterConfigurator.Node.Host.Inner.Background", FLinearColor(FColor(38, 38, 38)));
 	Style->Set("DisplayClusterConfigurator.Node.Window.Outer.Background", FLinearColor(FColor(63, 63, 63)));
 	Style->Set("DisplayClusterConfigurator.Node.Window.Inner.Background", FLinearColor(FColor(53, 53, 53)));
-	Style->Set("DisplayClusterConfigurator.Node.Window.Border.Color", FLinearColor(FColor(179, 179, 179, 255)));
-	Style->Set("DisplayClusterConfigurator.Node.Viewport.Border.Color.Regular", FLinearColor(FColor(114, 121, 216, 255)));
+	Style->Set("DisplayClusterConfigurator.Node.Window.Border.Color", FLinearColor(FColor(64, 164, 255, 255)));
+	Style->Set("DisplayClusterConfigurator.Node.Window.Corner.Color", FLinearColor(FColor(64, 164, 255, 255)));
+	Style->Set("DisplayClusterConfigurator.Node.Window.Corner.Color.Locked", FLinearColor(FColor(164, 164, 164, 255)));
+	Style->Set("DisplayClusterConfigurator.Node.Viewport.Border.Color.Regular", FLinearColor(FColor(164, 164, 164, 255)));
 	Style->Set("DisplayClusterConfigurator.Node.Viewport.Border.OutsideColor.Regular", FLinearColor(FColor(247, 129, 91, 255)));
+	Style->Set("DisplayClusterConfigurator.Node.Viewport.Text.Background", FLinearColor(FColor(73, 73, 73, 255 * 0.65f)));
+	Style->Set("DisplayClusterConfigurator.Node.Viewport.Text.Background.Locked", FLinearColor(FColor(164, 164, 164, 255)));
 
-	Style->Set("DisplayClusterConfigurator.Node.Viewport.BackgroundColor.Regular", FLinearColor(FColor(88, 94, 168, 255)));
-	Style->Set("DisplayClusterConfigurator.Node.Viewport.BackgroundColor.Selected", FLinearColor(FColor(78, 74, 138, 255)));
+	Style->Set("DisplayClusterConfigurator.Node.Viewport.BackgroundColor.Regular", FLinearColor(FColor(155, 155, 155, 255 * 0.85f)));
+	Style->Set("DisplayClusterConfigurator.Node.Viewport.BackgroundColor.Selected", FLinearColor(FColor(254, 178, 27, 255)));
+	Style->Set("DisplayClusterConfigurator.Node.Viewport.BackgroundImage.Selected", FLinearColor(FColor(255, 204, 102)));
+	Style->Set("DisplayClusterConfigurator.Node.Viewport.BackgroundImage.Locked", FLinearColor(FColor(128, 128, 128)));
 
 	Style->Set("DisplayClusterConfigurator.Node.Viewport.OutsideBackgroundColor.Regular", FLinearColor(FColor(255, 87, 34, 255 * 0.85f)));
 	Style->Set("DisplayClusterConfigurator.Node.Viewport.OutsideBackgroundColor.Selected", FLinearColor(FColor(255, 87, 34, 255)));
@@ -160,6 +176,18 @@ TSharedRef< FSlateStyleSet > FDisplayClusterConfiguratorStyle::Create()
 		Style->Set("DisplayClusterConfigurator.Node.Text.Bold", TilteTextBlockStyle);
 	}
 
+	{
+		FTextBlockStyle TilteTextBlockStyle = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("Graph.StateNode.NodeTitle");
+		TilteTextBlockStyle.SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 36));
+		Style->Set("DisplayClusterConfigurator.Host.Text.Title", TilteTextBlockStyle);
+	}
+
+	{
+		FTextBlockStyle TilteTextBlockStyle = FEditorStyle::GetWidgetStyle< FTextBlockStyle >("NormalText");
+		TilteTextBlockStyle.SetFont(FCoreStyle::GetDefaultFontStyle("Italic", 18));
+		Style->Set("DisplayClusterConfigurator.Node.Text.Small", TilteTextBlockStyle);
+	}
+
 	// Canvas borders
 	{
 		Style->Set("DisplayClusterConfigurator.Selected.Canvas.Brush", new BORDER_BRUSH(TEXT("Slate/NonMarchingAnts"), FMargin(0.25f), Style->GetColor("DisplayClusterConfigurator.Node.Color.Selected.Opacity_50")));
@@ -169,7 +197,7 @@ TSharedRef< FSlateStyleSet > FDisplayClusterConfiguratorStyle::Create()
 	// Window borders
 	{
 		FSlateBrush* SelectedBrush = new FSlateBrush();
-		SelectedBrush->Margin = FMargin(2.f);
+		SelectedBrush->Margin = FMargin(6.f);
 		SelectedBrush->DrawAs = ESlateBrushDrawType::Border;
 		SelectedBrush->TintColor = Style->GetColor("DisplayClusterConfigurator.Node.Color.Selected");
 

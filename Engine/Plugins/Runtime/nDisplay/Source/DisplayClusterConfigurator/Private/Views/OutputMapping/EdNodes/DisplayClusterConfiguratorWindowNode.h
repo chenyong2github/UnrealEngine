@@ -7,8 +7,6 @@
 #include "DisplayClusterConfiguratorWindowNode.generated.h"
 
 class UDisplayClusterConfigurationClusterNode;
-class UDisplayClusterConfiguratorViewportNode;
-class UDisplayClusterConfiguratorCanvasNode;
 struct FDisplayClusterConfigurationRectangle;
 
 UCLASS()
@@ -18,37 +16,42 @@ class UDisplayClusterConfiguratorWindowNode final
 	GENERATED_BODY()
 
 public:
-	void Initialize(const FString& InNodeName, UDisplayClusterConfigurationClusterNode* InCfgNode, uint32 InWindowIndex, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit);
+	DECLARE_MULTICAST_DELEGATE(FOnPreviewImageChanged);
+	using FOnPreviewImageChangedDelegate = FOnPreviewImageChanged::FDelegate;
+
+public:
+	virtual void Initialize(const FString& InNodeName, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit) override;
 
 	//~ Begin EdGraphNode Interface
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
+	virtual bool CanDuplicateNode() const override { return true; }
+	virtual bool CanUserDeleteNode() const override { return true; }
 	//~ End EdGraphNode Interface
-
-	virtual void UpdateObject() override;
-	virtual void OnNodeAligned(const FVector2D& PositionChange, bool bUpdateChildren = false) override;
 
 	const FDisplayClusterConfigurationRectangle& GetCfgWindowRect() const;
 	FString GetCfgHost() const;
+	const FString& GetPreviewImagePath() const;
 	bool IsFixedAspectRatio() const;
+	bool IsMaster() const;
 
-	void SetParentCanvas(UDisplayClusterConfiguratorCanvasNode* InParentCanvas);
-	UDisplayClusterConfiguratorCanvasNode* GetParentCanvas() const;
-	void AddViewportNode(UDisplayClusterConfiguratorViewportNode* ViewportNode);
-	const TArray<UDisplayClusterConfiguratorViewportNode*>& GetChildViewports() const;
+	virtual FDelegateHandle RegisterOnPreviewImageChanged(const FOnPreviewImageChangedDelegate& Delegate);
+	virtual void UnregisterOnPreviewImageChanged(FDelegateHandle DelegateHandle);
 
-	void UpdateChildPositions(const FVector2D& Offset);
+	//~ Begin UDisplayClusterConfiguratorBaseNode Interface
+	virtual bool IsNodeVisible() const override;
+	virtual bool IsNodeEnabled() const override;
+	virtual void DeleteObject() override;
 
-	FVector2D FindNonOverlappingOffsetFromParent(const FVector2D& InDesiredOffset);
-	FVector2D FindNonOverlappingSizeFromParent(const FVector2D& InDesiredSize, const bool bFixedApsectRatio);
+protected:
+	virtual bool CanAlignWithParent() const override { return true; }
+	virtual void WriteNodeStateToObject() override;
+	virtual void ReadNodeStateFromObject() override;
+	//~ End UDisplayClusterConfiguratorBaseNode Interface
 
 private:
 	void OnPostEditChangeChainProperty(const FPropertyChangedChainEvent& PropertyChangedEvent);
 
-public:
-	FLinearColor CornerColor;
-
 private:
-	TArray<UDisplayClusterConfiguratorViewportNode*> ChildViewports;
-	TWeakObjectPtr<UDisplayClusterConfiguratorCanvasNode> ParentCanvas;
+	FOnPreviewImageChanged PreviewImageChanged;
 };
 

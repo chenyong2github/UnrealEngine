@@ -74,7 +74,7 @@ public:
 
 
 protected:
-	FObjectReader(TArray<uint8>& InBytes)
+	FObjectReader(const TArray<uint8>& InBytes)
 		: Bytes(InBytes)
 	{
 		this->SetIsLoading(true);

@@ -75,7 +75,8 @@ struct FToolMenuEntryWidgetData
 public:
 	FToolMenuEntryWidgetData() :
 		bNoIndent(false),
-		bSearchable(false)
+		bSearchable(false),
+		bNoPadding(false)
 	{
 	}
 
@@ -84,6 +85,9 @@ public:
 
 	/** If true, widget will be searchable */
 	bool bSearchable;
+
+	/** If true, no padding will be added */
+	bool bNoPadding;
 };
 
 USTRUCT(BlueprintType)
@@ -110,7 +114,7 @@ struct TOOLMENUS_API FToolMenuEntry
 
 	static FToolMenuEntry InitSeparator(const FName InName);
 
-	static FToolMenuEntry InitWidget(const FName InName, const TSharedRef<SWidget>& InWidget, const FText& Label, bool bNoIndent = false, bool bSearchable = true);
+	static FToolMenuEntry InitWidget(const FName InName, const TSharedRef<SWidget>& InWidget, const FText& Label, bool bNoIndent = false, bool bSearchable = true, bool bNoPadding = false);
 
 	bool IsSubMenu() const { return SubMenuData.bIsSubMenu; }
 

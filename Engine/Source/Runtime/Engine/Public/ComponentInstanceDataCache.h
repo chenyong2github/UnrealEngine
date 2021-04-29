@@ -17,6 +17,7 @@ enum class ECacheApplyPhase
 {
 	PostSimpleConstructionScript,	// After the simple construction script has been run
 	PostUserConstructionScript,		// After the user construction script has been run
+	NonConstructionScript			// Not called during the construction script process
 };
 
 UENUM()

@@ -117,7 +117,14 @@ public:
 #if !IS_MONOLITHIC
 	virtual bool CheckModuleCompatibility(TArray<FString>& OutIncompatibleModules, TArray<FString>& OutIncompatibleEngineModules) override;
 #endif
-	virtual TSharedPtr<IPlugin> FindPlugin(const FString& Name) override;
+	virtual TSharedPtr<IPlugin> FindPlugin(const FStringView Name) override;
+
+	virtual TSharedPtr<IPlugin> FindPlugin(const ANSICHAR* Name) override
+	{
+		FString NameString(Name);
+		return FindPlugin(FStringView(NameString));
+	}
+
 	virtual TArray<TSharedRef<IPlugin>> GetEnabledPlugins() override;
 	virtual TArray<TSharedRef<IPlugin>> GetEnabledPluginsWithContent() const override;
 	virtual TArray<TSharedRef<IPlugin>> GetDiscoveredPlugins() override;

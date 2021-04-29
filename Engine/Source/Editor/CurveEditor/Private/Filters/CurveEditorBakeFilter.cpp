@@ -54,7 +54,8 @@ void UCurveEditorBakeFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEd
 		if (KeyHandles.Num() > 1)
 		{
 			// Determine new times for new keys
-			double Interval = bUseSnapRateForInterval ? BakeRate.AsInterval() : BakeInterval;
+			double Interval = bUseFrameBake ? (double)(BakeIntervalInFrames.Value) * BakeRate.AsInterval() : BakeIntervalInSeconds;
+
 			int32 NumKeysToAdd = FMath::FloorToInt((MaxKey - MinKey) / Interval) + 1;
 
 			NewKeyPositions.Reset(NumKeysToAdd);

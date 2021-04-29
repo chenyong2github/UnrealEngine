@@ -45,6 +45,10 @@ protected:
 	* them being collected
 	*/
 	void		AddReferencedObjects(FReferenceCollector& Collector) override;
+	FString		GetReferencerName() const override
+	{
+		return TEXT("FGauntletModuleImpl");
+	}
 
 	/** Handler for PostMapChange delegate */
 	void		InnerPostMapChange(UWorld* World);

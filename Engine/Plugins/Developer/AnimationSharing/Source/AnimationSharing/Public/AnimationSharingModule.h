@@ -23,6 +23,10 @@ public:
 
 	// Begin FGCObject overrides
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FAnimSharingModule");
+	}
 	// End FGCObject overrides
 
 	FORCEINLINE static UAnimationSharingManager* Get(const UWorld* World)

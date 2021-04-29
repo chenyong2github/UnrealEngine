@@ -13,9 +13,9 @@
 #include "DisplayClusterConfigurationTypes.h"
 
 #include "Cluster/DisplayClusterClusterEvent.h"
-#include "Config/IPDisplayClusterConfigManager.h"
-#include "Render/IPDisplayClusterRenderManager.h"
-#include "Render/Device/IDisplayClusterRenderDevice.h"
+#include "Game/IDisplayClusterGameManager.h"
+
+#include "DisplayClusterRootActor.h"
 
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterLog.h"
@@ -100,14 +100,24 @@ void ADisplayClusterTestPatternsActor::Tick(float DeltaSeconds)
 	// Override post-process settings if nDisplay is active
 	if (OperationMode != EDisplayClusterOperationMode::Disabled)
 	{
-		static IPDisplayClusterRenderManager* const RenderMgr = GDisplayCluster->GetPrivateRenderMgr();
-		for (auto it = ViewportPPSettings.CreateConstIterator(); it; ++it)
+		//@todo: additional test+refactor stuff before release
+		static IDisplayClusterGameManager* const GameMgr = GDisplayCluster->GetGameMgr();
+		ADisplayClusterRootActor* RootActor = GameMgr->GetRootActor();
+		if (RootActor)
 		{
-			IDisplayClusterRenderDevice* RenderDevice = RenderMgr->GetRenderDevice();
-			if (RenderDevice)
+			const FString LocalNodeId = GDisplayCluster->GetConfigMgr()->GetLocalNodeId();
+
+			for (auto it = ViewportPPSettings.CreateConstIterator(); it; ++it)
 			{
-				// Assign current post-process settigns for each viewport
-				RenderDevice->SetOverridePostProcessingSettings(it->Key, it->Value, 1.f);
+				UDisplayClusterConfigurationViewport* ViewportCfg = RootActor->GetViewportConfiguration(LocalNodeId, it->Key);
+				if (ViewportCfg)
+				{
+					// Assign current post-process settigns for each viewport
+					FDisplayClusterConfigurationViewport_CustomPostprocessSettings& DstPostProcess = ViewportCfg->RenderSettings.CustomPostprocess.Override;
+					DstPostProcess.bIsEnabled = true;
+					DstPostProcess.bIsOneFrame = true;
+					DstPostProcess.PostProcessSettings = it->Value;
+				}
 			}
 		}
 	}
@@ -128,7 +138,7 @@ void ADisplayClusterTestPatternsActor::InitializeInternals()
 		if (Node)
 		{
 			// For each local viewport create a PP settings structure with no PP material assigned
-			for (auto& it : Node->Viewports)
+			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& it : Node->Viewports)
 			{
 				ViewportPPSettings.Emplace(it.Key, CreatePPSettings(nullptr));
 			}

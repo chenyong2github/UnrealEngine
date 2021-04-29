@@ -49,6 +49,7 @@ enum EEngineNetworkVersionHistory
 	HISTORY_CLASSNETCACHE_FULLNAME = 15,			// Bump version to use full paths in GetNetFieldExportGroupForClassNetCache
 	HISTORY_REPLAY_DORMANCY = 16,					// Bump version to support dormancy properly in replays
 	HISTORY_ENUM_SERIALIZATION_COMPAT = 17,			// Bump version to include enum bits required for serialization into compat checksums, as well as unify enum and byte property enum serialization
+	HISTORY_SUBOBJECT_OUTER_CHAIN = 18,				// Bump version to support subobject outer chains matching on client and server
 	// New history items go above here.
 
 	HISTORY_ENGINENETVERSION_PLUS_ONE,

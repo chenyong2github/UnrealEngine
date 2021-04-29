@@ -16,6 +16,7 @@
 #include "Misc/IEngineCrypto.h"
 #include "Serialization/FileRegions.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "GenericPlatform/GenericPlatformFile.h"
 
 class FIoRequest;
 class FIoDispatcher;
@@ -408,6 +409,26 @@ TIoStatusOr<T>& TIoStatusOr<T>::operator=(const TIoStatusOr<U>& Other)
 	return *this;
 }
 
+//////////////////////////////////////////////////////////////////////////
+
+/** Helper used to manage creation of I/O store file handles etc
+  */
+class FIoStoreEnvironment
+{
+public:
+	CORE_API FIoStoreEnvironment();
+	CORE_API ~FIoStoreEnvironment();
+
+	CORE_API void InitializeFileEnvironment(FStringView InPath, int32 InOrder = 0);
+
+	CORE_API const FString& GetPath() const { return Path; }
+	CORE_API int32 GetOrder() const { return Order; }
+
+private:
+	FString			Path;
+	int32			Order = 0;
+};
+
 /** Reference to buffer data used by I/O dispatcher APIs
   */
 class FIoBuffer
@@ -790,6 +811,20 @@ enum EIoDispatcherPriority : int32
 	IoDispatcherPriority_Max = INT32_MAX
 };
 
+inline int32 ConvertToIoDispatcherPriority(EAsyncIOPriorityAndFlags AIOP)
+{
+	int32 AIOPriorityToIoDispatcherPriorityMap[] = {
+		IoDispatcherPriority_Min,
+		IoDispatcherPriority_Low,
+		IoDispatcherPriority_Medium - 1,
+		IoDispatcherPriority_Medium,
+		IoDispatcherPriority_High,
+		IoDispatcherPriority_Max
+	};
+	static_assert(AIOP_NUM == UE_ARRAY_COUNT(AIOPriorityToIoDispatcherPriorityMap), "IoDispatcher and AIO priorities mismatch");
+	return AIOPriorityToIoDispatcherPriorityMap[AIOP & AIOP_PRIORITY_MASK];
+}
+
 /** I/O batch
 
 	This is a primitive used to group I/O requests for synchronization
@@ -831,12 +866,26 @@ struct FIoMappedRegion
 	IMappedFileRegion* MappedFileRegion = nullptr;
 };
 
+struct FIoDispatcherMountedContainer
+{
+	FIoStoreEnvironment Environment;
+	FIoContainerId ContainerId;
+};
+
 struct FIoSignatureError
 {
 	FString ContainerName;
 	int32 BlockIndex = INDEX_NONE;
 	FSHAHash ExpectedHash;
 	FSHAHash ActualHash;
+};
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FIoSignatureErrorDelegate, const FIoSignatureError&);
+
+struct FIoSignatureErrorEvent
+{
+	FCriticalSection CriticalSection;
+	FIoSignatureErrorDelegate SignatureErrorDelegate;
 };
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FIoSignatureErrorDelegate, const FIoSignatureError&);
@@ -848,10 +897,14 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FIoContainerMountedDelegate, const FIoContai
 class FIoDispatcher final
 {
 public:
+	DECLARE_EVENT_OneParam(FIoDispatcher, FIoContainerMountedEvent, const FIoDispatcherMountedContainer&);
+	DECLARE_EVENT_OneParam(FIoDispatcher, FIoContainerUnmountedEvent, const FIoDispatcherMountedContainer&);
+
 	CORE_API						FIoDispatcher();
 	CORE_API						~FIoDispatcher();
 
 	CORE_API void					Mount(TSharedRef<IIoDispatcherBackend> Backend);
+	CORE_API FIoStatus				Unmount(const TCHAR* ContainerPath);
 
 	CORE_API FIoBatch				NewBatch();
 
@@ -866,6 +919,7 @@ public:
 
 	// Events
 	CORE_API FIoContainerMountedDelegate& OnContainerMounted();
+	CORE_API FIoContainerUnmountedEvent& OnContainerUnmounted();
 	CORE_API FIoSignatureErrorDelegate& OnSignatureError();
 
 	FIoDispatcher(const FIoDispatcher&) = default;

@@ -8,7 +8,7 @@
 #include "Library/DMXEntityFixtureType.h"
 #include "DMXPixelMappingMatrixComponent.generated.h"
 
-class UTextureRenderTarget2D;
+
 class UDMXLibrary;
 class STextBlock;
 enum class EDMXColorMode : uint8;
@@ -21,6 +21,10 @@ class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingMatrixComponent
 	: public UDMXPixelMappingOutputComponent
 {
 	GENERATED_BODY()
+
+	/** Helper callback for loop through all component child */
+	using ChildCallback = TFunctionRef<void(UDMXPixelMappingMatrixCellComponent*)>;
+
 public:
 	/** Default Constructor */
 	UDMXPixelMappingMatrixComponent();
@@ -41,8 +45,6 @@ public:
 	virtual const FName& GetNamePrefix() override;
 	virtual void ResetDMX() override;
 	virtual void SendDMX() override;
-	virtual void Render() override;
-	virtual void RenderAndSendDMX() override;
 	virtual void PostParentAssigned() override;
 
 #if WITH_EDITOR
@@ -57,7 +59,6 @@ public:
 
 	// ~Begin UDMXPixelMappingOutputComponent interface
 #if WITH_EDITOR
-	virtual void RenderEditorPreviewTexture() override;
 	virtual const FText GetPaletteCategory() override;
 	virtual bool IsExposedToTemplate() { return true; }
 	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas) override;
@@ -66,11 +67,12 @@ public:
 	virtual void UpdateWidget() override;
 #endif // WITH_EDITOR
 
-	virtual UTextureRenderTarget2D* GetOutputTexture() override;
 	virtual FVector2D GetSize() const override;
 	virtual FVector2D GetPosition() override;
 	virtual void SetSize(const FVector2D& InSize) override;
 	virtual void SetPosition(const FVector2D& InPosition) override;
+
+	virtual void QueueDownsample() override;
 
 #if WITH_EDITOR
 	virtual void SetZOrder(int32 NewZOrder) override;
@@ -94,10 +96,11 @@ private:
 	/** Set size of the rendering texture and designer widget */
 	void SetSizeInternal(const FVector2D& InSize);
 
-	/** Resize rendering texture */
-	void ResizeOutputTarget(uint32 InSizeX, uint32 InSizeY);
-
+	/** Set position of Matrix component and all Matrix Cell children components */
 	void SetPositionWithChildren();
+
+	/** Helper for loop through all component child */
+	void UpdateEachChild(ChildCallback InCallback);
 
 public:
 	UPROPERTY(EditAnywhere, Category = "Matrix Settings")
@@ -167,9 +170,6 @@ private:
 	/** Maps attributes that exist in the patch to the attributes of the matrix. Clears those that don't exist. */
 	void AutoMapAttributes();
 #endif // WITH_EDITOR
-
-	UPROPERTY(Transient)
-	UTextureRenderTarget2D* OutputTarget;
 
 #if WITH_EDITORONLY_DATA
 	FSlateBrush Brush;
