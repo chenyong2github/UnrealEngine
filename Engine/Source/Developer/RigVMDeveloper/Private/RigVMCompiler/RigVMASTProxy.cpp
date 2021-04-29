@@ -45,6 +45,15 @@ int32 FRigVMCallstack::Num() const
 	return Stack.Num();
 }
 
+const UObject* FRigVMCallstack::Last() const
+{
+	if(Stack.IsEmpty())
+	{
+		return nullptr;
+	}
+	return Stack.Last();
+}
+
 const UObject* FRigVMCallstack::operator[](int32 InIndex) const
 {
 	return Stack[InIndex];

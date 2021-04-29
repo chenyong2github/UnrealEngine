@@ -181,6 +181,13 @@ public:
 	FORCEINLINE FRigVMMemoryContainer& GetLiteralMemory() { return *LiteralMemoryPtr; }
 	FORCEINLINE const FRigVMMemoryContainer& GetLiteralMemory() const { return *LiteralMemoryPtr; }
 
+	// The default debug watch memory
+	UPROPERTY()
+	FRigVMMemoryContainer DebugMemoryStorage;
+	FRigVMMemoryContainer* DebugMemoryPtr;
+	FORCEINLINE FRigVMMemoryContainer& GetDebugMemory() { return *DebugMemoryPtr; }
+	FORCEINLINE const FRigVMMemoryContainer& GetDebugMemory() const { return *DebugMemoryPtr; }
+
 	// The byte code of the VM
 	UPROPERTY()
 	FRigVMByteCode ByteCodeStorage;
@@ -488,6 +495,7 @@ public:
 		FRigVMStatistics Statistics;
 		Statistics.LiteralMemory = LiteralMemoryPtr->GetStatistics();
 		Statistics.WorkMemory = WorkMemoryPtr->GetStatistics();
+		Statistics.DebugMemory = DebugMemoryPtr->GetStatistics();
 		Statistics.ByteCode = ByteCodePtr->GetStatistics();
 		Statistics.BytesForCaching = FirstHandleForInstruction.GetAllocatedSize() + CachedMemoryHandles.GetAllocatedSize();
 		Statistics.BytesForCDO =
@@ -572,17 +580,30 @@ private:
 	// store the first event such that we know when to reset data for a new round of rig evaluation
 	FName FirstEntryEventInQueue;
 #endif
-
-	TArray<FRigVMRegister*> CachedDebugWatchRegisters;
 	
 	// debug watch register memory needs to be cleared for each execution
-	// cache the registers so that we can directly use them during Execute()
-	void CacheDebugWatchRegisters();
-	
-	// debug watch register memory needs to be cleared for each execution
-	void ClearDebugWatchRegisterMemory();
+	void ClearDebugMemory();
 	
 	void CacheSingleMemoryHandle(const FRigVMOperand& InArg, bool bForExecute = false);
+
+	FORCEINLINE void CopyOperandForDebuggingIfNeeded(const FRigVMOperand& InArg, const FRigVMMemoryHandle& InHandle)
+	{
+#if WITH_EDITOR
+		const FRigVMOperand KeyOperand(InArg.GetMemoryType(), InArg.GetRegisterIndex()); // no register offset
+		if(const TArray<FRigVMOperand>* DebugOperandsPtr = OperandToDebugRegisters.Find(KeyOperand))
+		{
+			const TArray<FRigVMOperand>& DebugOperands = *DebugOperandsPtr;
+			for(const FRigVMOperand& DebugOperand : DebugOperands)
+			{
+				CopyOperandForDebuggingImpl(InArg, InHandle, DebugOperand);
+			}
+		}
+#endif
+	}
+
+	void CopyOperandForDebuggingImpl(const FRigVMOperand& InArg, const FRigVMMemoryHandle& InHandle, const FRigVMOperand& InDebugOperand);
+
+	TMap<FRigVMOperand, TArray<FRigVMOperand>> OperandToDebugRegisters;
 
 	int32 ExecutingThreadId;
 

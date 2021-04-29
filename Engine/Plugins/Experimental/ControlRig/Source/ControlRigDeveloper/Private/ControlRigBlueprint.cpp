@@ -2563,6 +2563,25 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 				break;
 			}
 			case ERigVMGraphNotifType::PinWatchedChanged:
+			{
+				if (UControlRig* CR = Cast<UControlRig>(GetObjectBeingDebugged()))
+				{
+					URigVMPin* Pin = CastChecked<URigVMPin>(InSubject)->GetRootPin(); 
+					URigVMCompiler* Compiler = URigVMCompiler::StaticClass()->GetDefaultObject<URigVMCompiler>();
+					Compiler->Settings = VMCompileSettings;
+					TSharedPtr<FRigVMParserAST> RuntimeAST = Model->GetRuntimeAST();
+					
+					if(Pin->RequiresWatch())
+					{
+						Compiler->CreateDebugRegister(Pin, CR->GetVM(), &PinToOperandMap, RuntimeAST);
+					}
+					else
+					{
+						Compiler->RemoveDebugRegister(Pin, CR->GetVM(), &PinToOperandMap, RuntimeAST);
+					}
+				}
+				// break; fall through
+			}
 			case ERigVMGraphNotifType::PinTypeChanged:
 			case ERigVMGraphNotifType::PinIndexChanged:
 			{
@@ -2583,6 +2602,11 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 									else
 									{
 										WatchedPins.Remove(EdPin);
+									}
+
+									if(InNotifType == ERigVMGraphNotifType::PinWatchedChanged)
+									{
+										return;
 									}
 									RequestAutoVMRecompilation();
 									MarkPackageDirty();

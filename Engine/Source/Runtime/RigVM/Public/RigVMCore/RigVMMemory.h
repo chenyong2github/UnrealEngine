@@ -32,6 +32,7 @@ enum class ERigVMMemoryType: uint8
 {
 	Work, // Mutable state
 	Literal, // Const / fixed state
+	Debug, // Owned memory used for debug watches
 	External, // Unowned external memory
 	Invalid
 };
@@ -94,6 +95,11 @@ public:
 	// returns the register offset of this argument
 	FORCEINLINE_DEBUGGABLE int32 GetRegisterOffset() const { return RegisterOffset == UINT16_MAX ? INDEX_NONE : (int32)RegisterOffset; }
 
+	friend FORCEINLINE uint32 GetTypeHash(const FRigVMOperand& Operand)
+	{
+  		return HashCombine(HashCombine((uint32)Operand.MemoryType, (uint32)Operand.RegisterIndex), (uint32)Operand.RegisterOffset);
+  	}
+	
 	void Serialize(FArchive& Ar);
 	void Save(FArchive& Ar) const;
 	void Load(FArchive& Ar);
@@ -473,6 +479,11 @@ public:
 	FORCEINLINE_DEBUGGABLE uint8* GetData(int32 SliceIndex = 0, bool bGetArrayData = false)
 	{
 		return GetData_Internal(SliceIndex, bGetArrayData);
+	}
+
+	FORCEINLINE FType GetType() const
+	{
+		return Type;
 	}
 
 private:

@@ -64,6 +64,7 @@ UScriptStruct* FRigVMParameter::GetScriptStruct() const
 URigVM::URigVM()
     : WorkMemoryPtr(&WorkMemoryStorage)
     , LiteralMemoryPtr(&LiteralMemoryStorage)
+    , DebugMemoryPtr(&DebugMemoryStorage)
     , ByteCodePtr(&ByteCodeStorage)
 #if WITH_EDITOR
 	, DebugInfo(nullptr)
@@ -79,6 +80,7 @@ URigVM::URigVM()
 {
 	GetWorkMemory().SetMemoryType(ERigVMMemoryType::Work);
 	GetLiteralMemory().SetMemoryType(ERigVMMemoryType::Literal);
+	GetDebugMemory().SetMemoryType(ERigVMMemoryType::Debug);
 }
 
 URigVM::~URigVM()
@@ -161,6 +163,7 @@ void URigVM::Reset()
 {
 	WorkMemoryStorage.Reset();
 	LiteralMemoryStorage.Reset();
+	DebugMemoryStorage.Reset();
 	FunctionNamesStorage.Reset();
 	FunctionsStorage.Reset();
 	ByteCodeStorage.Reset();
@@ -171,19 +174,21 @@ void URigVM::Reset()
 
 	WorkMemoryPtr = &WorkMemoryStorage;
 	LiteralMemoryPtr = &LiteralMemoryStorage;
+	DebugMemoryPtr = &DebugMemoryStorage;
 	FunctionNamesPtr = &FunctionNamesStorage;
 	FunctionsPtr = &FunctionsStorage;
 	ByteCodePtr = &ByteCodeStorage;
 
 	InvalidateCachedMemory();
 	
-	CachedDebugWatchRegisters.Reset();
+	OperandToDebugRegisters.Reset();
 }
 
 void URigVM::Empty()
 {
 	WorkMemoryStorage.Empty();
 	LiteralMemoryStorage.Empty();
+	DebugMemoryStorage.Empty();
 	FunctionNamesStorage.Empty();
 	FunctionsStorage.Empty();
 	ByteCodeStorage.Empty();
@@ -199,7 +204,7 @@ void URigVM::Empty()
 	FirstHandleForInstruction.Empty();
 	CachedMemoryHandles.Empty();
 
-	CachedDebugWatchRegisters.Empty();
+	OperandToDebugRegisters.Empty();
 }
 
 void URigVM::CopyFrom(URigVM* InVM, bool bDeferCopy, bool bReferenceLiteralMemory, bool bReferenceByteCode, bool bCopyExternalVariables, bool bCopyDynamicRegisters)
@@ -238,6 +243,16 @@ void URigVM::CopyFrom(URigVM* InVM, bool bDeferCopy, bool bReferenceLiteralMemor
 	else
 	{
 		LiteralMemoryPtr = InVM->LiteralMemoryPtr;
+	}
+
+	if(InVM->DebugMemoryPtr == &InVM->DebugMemoryStorage)
+	{
+		DebugMemoryStorage = InVM->DebugMemoryStorage;
+		DebugMemoryPtr = &DebugMemoryStorage;
+	}
+	else
+	{
+		DebugMemoryPtr = InVM->DebugMemoryPtr;
 	}
 
 	if(InVM->FunctionNamesPtr == &InVM->FunctionNamesStorage && !bReferenceByteCode)
@@ -737,10 +752,10 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 		return true;
 	}
 
-	FRigVMMemoryContainer* LocalMemory[] = { WorkMemoryPtr, LiteralMemoryPtr };
+	FRigVMMemoryContainer* LocalMemory[] = { WorkMemoryPtr, LiteralMemoryPtr, DebugMemoryPtr };
 	if (Memory.Num() == 0)
 	{
-		Memory = FRigVMMemoryContainerPtrArray(LocalMemory, 2);
+		Memory = FRigVMMemoryContainerPtrArray(LocalMemory, 3);
 	}
 
 	CacheMemoryHandlesIfRequired(Memory);
@@ -755,8 +770,6 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 	Context.SliceOffsets.AddZeroed(Instructions.Num());
 	Context.OpaqueArguments = AdditionalArguments;
 	Context.ExternalVariables = ExternalVariables;
-
-	CacheDebugWatchRegisters();
 	
 #if WITH_EDITOR
 	if (DebugInfo)
@@ -1039,10 +1052,10 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 		return true;
 	}
 
-	FRigVMMemoryContainer* LocalMemory[] = { WorkMemoryPtr, LiteralMemoryPtr }; 
+	FRigVMMemoryContainer* LocalMemory[] = { WorkMemoryPtr, LiteralMemoryPtr, DebugMemoryPtr }; 
 	if (Memory.Num() == 0)
 	{
-		Memory = FRigVMMemoryContainerPtrArray(LocalMemory, 2);
+		Memory = FRigVMMemoryContainerPtrArray(LocalMemory, 3);
 	}
 
 	CacheMemoryHandlesIfRequired(Memory);
@@ -1065,7 +1078,7 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 	Context.OpaqueArguments = AdditionalArguments;
 	Context.ExternalVariables = ExternalVariables;
 
-	ClearDebugWatchRegisterMemory();
+	ClearDebugMemory();
 
 	if (!InEntryName.IsNone())
 	{
@@ -1182,18 +1195,40 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 			case ERigVMOpCode::Execute_64_Operands:
 			{
 				const FRigVMExecuteOp& Op = ByteCode.GetOpAt<FRigVMExecuteOp>(Instruction);
-				int32 OperandCount = FirstHandleForInstruction[Context.InstructionIndex + 1] - FirstHandleForInstruction[Context.InstructionIndex];
+				const int32 OperandCount = FirstHandleForInstruction[Context.InstructionIndex + 1] - FirstHandleForInstruction[Context.InstructionIndex];
 				FRigVMMemoryHandleArray OpHandles(&CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]], OperandCount);
 #if WITH_EDITOR
 				Context.FunctionName = FunctionNames[Op.FunctionIndex];
 #endif
 				(*Functions[Op.FunctionIndex])(Context, OpHandles);
+
+#if WITH_EDITOR
+				if(DebugMemoryPtr->Num() > 0)
+				{
+					const FRigVMOperandArray Operands = ByteCode.GetOperandsForExecuteOp(Instruction);
+					check(Operands.Num() == OperandCount);
+					
+					for(int32 OperandIndex=0;OperandIndex<OperandCount;OperandIndex++)
+					{
+						CopyOperandForDebuggingIfNeeded(Operands[OperandIndex], OpHandles[OperandIndex]);
+					}
+				}
+#endif
+
 				Context.InstructionIndex++;
 				break;
 			}
 			case ERigVMOpCode::Zero:
 			{
 				*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]].GetData()) = 0;
+#if WITH_EDITOR
+				if(DebugMemoryPtr->Num() > 0)
+				{
+					const FRigVMUnaryOp& Op = ByteCode.GetOpAt<FRigVMUnaryOp>(Instruction);
+					CopyOperandForDebuggingIfNeeded(Op.Arg, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]]);
+				}
+#endif
+
 				Context.InstructionIndex++;
 				break;
 			}
@@ -1218,8 +1253,8 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 				void* SourcePtr = SourceHandle;
 				void* TargetPtr = TargetHandle;
 
-				uint64 NumBytes = reinterpret_cast<uint64>(CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2].GetData());
-				ERigVMRegisterType MemoryType = (ERigVMRegisterType)reinterpret_cast<uint64>(CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 3].GetData());
+				const uint64 NumBytes = reinterpret_cast<uint64>(CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2].GetData());
+				const ERigVMRegisterType MemoryType = (ERigVMRegisterType)reinterpret_cast<uint64>(CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 3].GetData());
 
 				if (TargetHandle.Type == FRigVMMemoryHandle::Dynamic)
 				{
@@ -1228,7 +1263,7 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 					{
 						Storage->Reset();
 					}
-					int32 ByteIndex = Storage->AddZeroed(NumBytes);
+					const int32 ByteIndex = Storage->AddZeroed(NumBytes);
 					TargetPtr = Storage->GetData() + ByteIndex;
 				}
 				else if (TargetHandle.Type == FRigVMMemoryHandle::NestedDynamic)
@@ -1238,7 +1273,7 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 					{
 						Storage->Reset();
 					}
-					int32 ArrayIndex = Storage->Add(FRigVMByteArray());
+					const int32 ArrayIndex = Storage->Add(FRigVMByteArray());
 					(*Storage)[ArrayIndex].AddZeroed(NumBytes);
 					TargetPtr = (*Storage)[ArrayIndex].GetData();
 				}
@@ -1252,7 +1287,7 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 					}
 					case ERigVMRegisterType::Name:
 					{
-						int32 NumNames = NumBytes / sizeof(FName);
+						const int32 NumNames = NumBytes / sizeof(FName);
 						FRigVMFixedArray<FName> TargetNames((FName*)TargetPtr, NumNames);
 						FRigVMFixedArray<FName> SourceNames((FName*)SourcePtr, NumNames);
 						for (int32 Index = 0; Index < NumNames; Index++)
@@ -1263,7 +1298,7 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 					}
 					case ERigVMRegisterType::String:
 					{
-						int32 NumStrings = NumBytes / sizeof(FString);
+						const int32 NumStrings = NumBytes / sizeof(FString);
 						FRigVMFixedArray<FString> TargetStrings((FString*)TargetPtr, NumStrings);
 						FRigVMFixedArray<FString> SourceStrings((FString*)SourcePtr, NumStrings);
 						for (int32 Index = 0; Index < NumStrings; Index++)
@@ -1275,7 +1310,7 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 					case ERigVMRegisterType::Struct:
 					{
 						UScriptStruct* ScriptStruct = (UScriptStruct*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 4].GetData();
-						int32 NumStructs = NumBytes / ScriptStruct->GetStructureSize();
+						const int32 NumStructs = NumBytes / ScriptStruct->GetStructureSize();
 						if (NumStructs > 0 && TargetPtr)
 						{
 							ScriptStruct->CopyScriptStruct(TargetPtr, SourcePtr, NumStructs);
@@ -1296,12 +1331,26 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 			case ERigVMOpCode::Increment:
 			{
 				(*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]].GetData()))++;
+#if WITH_EDITOR
+				if(DebugMemoryPtr->Num() > 0)
+				{
+					const FRigVMUnaryOp& Op = ByteCode.GetOpAt<FRigVMUnaryOp>(Instruction);
+					CopyOperandForDebuggingIfNeeded(Op.Arg, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]]);
+				}
+#endif
 				Context.InstructionIndex++;
 				break;
 			}
 			case ERigVMOpCode::Decrement:
 			{
 				(*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]].GetData()))--;
+#if WITH_EDITOR
+				if(DebugMemoryPtr->Num() > 0)
+				{
+					const FRigVMUnaryOp& Op = ByteCode.GetOpAt<FRigVMUnaryOp>(Instruction);
+					CopyOperandForDebuggingIfNeeded(Op.Arg, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]]);
+				}
+#endif
 				Context.InstructionIndex++;
 				break;
 			}
@@ -1311,8 +1360,8 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 				const FRigVMComparisonOp& Op = ByteCode.GetOpAt<FRigVMComparisonOp>(Instruction);
 				const FRigVMRegister& RegisterA = (*Memory[Op.A.GetContainerIndex()])[Op.A.GetRegisterIndex()];
 				const FRigVMRegister& RegisterB = (*Memory[Op.B.GetContainerIndex()])[Op.B.GetRegisterIndex()];
-				uint16 BytesA = RegisterA.GetNumBytesPerSlice();
-				uint16 BytesB = RegisterB.GetNumBytesPerSlice();
+				const uint16 BytesA = RegisterA.GetNumBytesPerSlice();
+				const uint16 BytesB = RegisterB.GetNumBytesPerSlice();
 				
 				bool Result = false;
 				if (BytesA == BytesB && RegisterA.Type == RegisterB.Type && RegisterA.ScriptStructIndex == RegisterB.ScriptStructIndex)
@@ -1400,7 +1449,7 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 			case ERigVMOpCode::JumpAbsoluteIf:
 			{
 				const FRigVMJumpIfOp& Op = ByteCode.GetOpAt<FRigVMJumpIfOp>(Instruction);
-				bool Condition = *(bool*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]].GetData();
+				const bool Condition = *(bool*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]].GetData();
 				if (Condition == Op.Condition)
 				{
 					Context.InstructionIndex = Op.InstructionIndex;
@@ -1414,7 +1463,7 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 			case ERigVMOpCode::JumpForwardIf:
 			{
 				const FRigVMJumpIfOp& Op = ByteCode.GetOpAt<FRigVMJumpIfOp>(Instruction);
-				bool Condition = *(bool*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]].GetData();
+				const bool Condition = *(bool*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]].GetData();
 				if (Condition == Op.Condition)
 				{
 					Context.InstructionIndex += Op.InstructionIndex;
@@ -1428,7 +1477,7 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 			case ERigVMOpCode::JumpBackwardIf:
 			{
 				const FRigVMJumpIfOp& Op = ByteCode.GetOpAt<FRigVMJumpIfOp>(Instruction);
-				bool Condition = *(bool*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]].GetData();
+				const bool Condition = *(bool*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]].GetData();
 				if (Condition == Op.Condition)
 				{
 					Context.InstructionIndex -= Op.InstructionIndex;
@@ -1458,8 +1507,8 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 			}
 			case ERigVMOpCode::BeginBlock:
 			{
-				int32 Count = (*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]].GetData()));
-				int32 Index = (*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1].GetData()));
+				const int32 Count = (*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]].GetData()));
+				const int32 Index = (*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1].GetData()));
 				Context.BeginSlice(Count, Index);
 				Context.InstructionIndex++;
 				break;
@@ -1515,6 +1564,10 @@ void URigVM::SetRegisterValueFromString(const FRigVMOperand& InOperand, const FS
 	else if (InOperand.GetMemoryType() == ERigVMMemoryType::Work)
 	{
 		GetWorkMemory().SetRegisterValueFromString(InOperand, InCPPType, InCPPTypeObject, InDefaultValues);
+	}
+	else if (InOperand.GetMemoryType() == ERigVMMemoryType::Debug)
+	{
+		GetDebugMemory().SetRegisterValueFromString(InOperand, InCPPType, InCPPTypeObject, InDefaultValues);
 	}
 }
 
@@ -1788,6 +1841,10 @@ FString URigVM::GetOperandLabel(const FRigVMOperand& InOperand, TFunction<FStrin
 	{
 		MemoryPtr = LiteralMemoryPtr;
 	}
+	else if (InOperand.GetMemoryType() == ERigVMMemoryType::Debug)
+	{
+		MemoryPtr = DebugMemoryPtr;
+	}
 	else
 	{
 		MemoryPtr = WorkMemoryPtr;
@@ -1829,48 +1886,19 @@ FString URigVM::GetOperandLabel(const FRigVMOperand& InOperand, TFunction<FStrin
 
 #endif
 
-void URigVM::CacheDebugWatchRegisters()
+void URigVM::ClearDebugMemory()
 {
-	FRigVMMemoryContainer* WorkMemory = CachedMemory[(int32)ERigVMMemoryType::Work];
-
-	if (WorkMemory)
-	{
-		CachedDebugWatchRegisters.Reset();
-		for (int32 RegisterIndex = 0; RegisterIndex < WorkMemoryPtr->Registers.Num(); RegisterIndex++)
-		{
-			FRigVMRegister& Register = WorkMemory->Registers[RegisterIndex];
-			if (Register.Name.ToString().StartsWith("DebugWatch:"))
-			{
-				ensure(Register.IsDynamic());
-
-				CachedDebugWatchRegisters.Add(&Register); 
-			}
-		}
-	} 
-}
-
-void URigVM::ClearDebugWatchRegisterMemory()
-{
-	FRigVMMemoryContainer* WorkMemory = CachedMemory[(int32)ERigVMMemoryType::Work];
-
-	if (WorkMemory)
+#if WITH_EDITOR
+	FRigVMMemoryContainer* DebugMemory = CachedMemory[(int32)ERigVMMemoryType::Debug];
+	if (DebugMemory)
 	{ 
-		for (const FRigVMRegister* Register : CachedDebugWatchRegisters)
-		{ 
-			ensure(Register->IsDynamic());
-			
-			if (!Register->IsArray())
-			{
-				FRigVMByteArray* VMMemoryPtr = (FRigVMByteArray*)(&(WorkMemory->Data[Register->GetWorkByteIndex()]));
-				VMMemoryPtr->Reset();
-			}
-			else
-			{ 
-				FRigVMNestedByteArray* VMMemoryPtr = (FRigVMNestedByteArray*)(&(WorkMemory->Data[Register->GetWorkByteIndex()]));
-				VMMemoryPtr->Reset();
-			}
+		for (int32 RegisterIndex = 0; RegisterIndex < DebugMemory->Num(); RegisterIndex++)
+		{
+			ensure(DebugMemory->GetRegister(RegisterIndex).IsDynamic());
+			DebugMemory->Destroy(RegisterIndex);
 		}	
 	} 
+#endif
 }
 
 void URigVM::CacheSingleMemoryHandle(const FRigVMOperand& InArg, bool bForExecute)
@@ -1904,4 +1932,118 @@ void URigVM::CacheSingleMemoryHandle(const FRigVMOperand& InArg, bool bForExecut
 			CachedMemoryHandles.Add(FRigVMMemoryHandle((uint8*)ElementsForArray));
 		}
 	}
+}
+
+void URigVM::CopyOperandForDebuggingImpl(const FRigVMOperand& InArg, const FRigVMMemoryHandle& InHandle, const FRigVMOperand& InDebugOperand)
+{
+#if WITH_EDITOR
+	check(InArg.IsValid());
+	check(InArg.GetRegisterOffset() == INDEX_NONE);
+	check(InDebugOperand.IsValid());
+	check(InDebugOperand.GetRegisterOffset() == INDEX_NONE);
+
+	const FRigVMRegister& DebugRegister = DebugMemoryPtr->GetRegister(InDebugOperand.GetRegisterIndex());
+	check(DebugRegister.IsDynamic());
+
+	if (Context.GetSlice().GetIndex() == 0)
+	{
+		DebugMemoryPtr->Destroy(InDebugOperand.GetRegisterIndex());
+	}
+
+	// the source pointer is not going to be sliced since we only allow
+	// watches on things exposed from a node (so no hidden pins)
+	const uint8* SourcePtr = InHandle.GetData(0, true);
+	uint8* TargetPtr = nullptr;
+
+	int32 NumBytes = (int32)DebugRegister.ElementSize;
+	if(InHandle.GetType() == FRigVMMemoryHandle::FType::Dynamic)
+	{
+		FRigVMByteArray* Storage = (FRigVMByteArray*)InHandle.Ptr;
+		NumBytes = Storage->Num();
+		TargetPtr = Storage->GetData();
+	}
+	else if(InHandle.GetType() == FRigVMMemoryHandle::FType::NestedDynamic)
+	{
+		FRigVMNestedByteArray* Storage = (FRigVMNestedByteArray*)InHandle.Ptr;
+		NumBytes = (*Storage)[Context.GetSlice().GetIndex()].Num(); 
+		TargetPtr = (*Storage)[Context.GetSlice().GetIndex()].GetData();
+	}
+
+	const FRigVMMemoryHandle DebugHandle = DebugMemoryPtr->GetHandle(InDebugOperand.GetRegisterIndex());
+	if (DebugRegister.IsNestedDynamic())
+	{
+		FRigVMNestedByteArray* Storage = (FRigVMNestedByteArray*)DebugHandle.Ptr;
+		while(Storage->Num() < Context.GetSlice().TotalNum())
+		{
+			Storage->Add(FRigVMByteArray());
+		}
+		(*Storage)[Context.GetSlice().GetIndex()].AddZeroed(NumBytes);
+		TargetPtr = (*Storage)[Context.GetSlice().GetIndex()].GetData();
+	}
+	else
+	{
+		const int32 TotalBytes = Context.GetSlice().TotalNum() * NumBytes;
+		FRigVMByteArray* Storage = (FRigVMByteArray*)DebugHandle.Ptr;
+		while(Storage->Num() < TotalBytes)
+		{
+			Storage->AddZeroed(NumBytes);
+		}
+		TargetPtr = &(*Storage)[Context.GetSlice().GetIndex() * NumBytes];
+	}
+
+	if((SourcePtr == nullptr) || (TargetPtr == nullptr))
+	{
+		return;
+	}
+
+	switch (DebugRegister.Type)
+	{
+		case ERigVMRegisterType::Plain:
+		{
+			FMemory::Memcpy(TargetPtr, SourcePtr, NumBytes);
+			break;
+		}
+		case ERigVMRegisterType::Name:
+		{
+			const int32 NumNames = NumBytes / sizeof(FName);
+			FRigVMFixedArray<FName> TargetNames((FName*)TargetPtr, NumNames);
+			FRigVMFixedArray<FName> SourceNames((FName*)SourcePtr, NumNames);
+			for (int32 Index = 0; Index < NumNames; Index++)
+			{
+				TargetNames[Index] = SourceNames[Index];
+			}
+			break;
+		}
+		case ERigVMRegisterType::String:
+		{
+			const int32 NumStrings = NumBytes / sizeof(FString);
+			FRigVMFixedArray<FString> TargetStrings((FString*)TargetPtr, NumStrings);
+			FRigVMFixedArray<FString> SourceStrings((FString*)SourcePtr, NumStrings);
+			for (int32 Index = 0; Index < NumStrings; Index++)
+			{
+				TargetStrings[Index] = SourceStrings[Index];
+			}
+			break;
+		}
+		case ERigVMRegisterType::Struct:
+		{
+			UScriptStruct* ScriptStruct = DebugMemoryPtr->GetScriptStruct(DebugRegister);
+			const int32 NumStructs = NumBytes / ScriptStruct->GetStructureSize();
+			if (NumStructs > 0 && TargetPtr)
+			{
+				ScriptStruct->CopyScriptStruct(TargetPtr, SourcePtr, NumStructs);
+			}
+			break;
+		}
+		default:
+		{
+			// the default pass for any complex memory
+			FRigVMMemoryContainer* LocalMemory[] = { WorkMemoryPtr, LiteralMemoryPtr, DebugMemoryPtr };
+			DebugMemoryPtr->Copy(InArg, InDebugOperand, LocalMemory[InArg.GetContainerIndex()]);
+			break;
+		}
+	}
+
+	
+#endif
 }

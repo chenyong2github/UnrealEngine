@@ -1192,6 +1192,11 @@ public:
 	// @return the expressoin for the given subject (or nullptr)
 	const FRigVMExprAST* GetExprForSubject(const FRigVMASTProxy& InProxy) const;
 
+	// returns all expressions for a given subject. subjects include nodes and pins.
+	// @param InSubject the subject to retrieve the expression for (node or pin)
+	// @return all expressions for the given subject
+	TArray<const FRigVMExprAST*> GetExpressionsForSubject(UObject* InSubject) const;
+
 	// Prepares the parser for cycle checking on a given pin.
 	// This marks up the parents and childen of the corresponding expression in the graph,
 	// to allow the client to determine if a new parent / child relationship could cause a cycle.

@@ -20,6 +20,9 @@ public:
 	// Returns the number of entries on this callstack
 	int32 Num() const;
 
+	// Returns the last object in the callstack
+	const UObject* Last() const;
+
 	// Returns the element at a given index
 	const UObject* operator[](int32 InIndex) const;
 

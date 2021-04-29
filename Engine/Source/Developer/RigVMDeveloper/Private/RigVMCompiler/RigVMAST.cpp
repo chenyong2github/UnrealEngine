@@ -1842,11 +1842,11 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 
 	TempCompiler->Compile(InGraph, InController, TempVM, InExternalVariables, InRigVMUserData, &Operands, TempAST);
 
-	FRigVMMemoryContainer* Memory[] = { TempVM->WorkMemoryPtr, TempVM->LiteralMemoryPtr };
+	FRigVMMemoryContainer* Memory[] = { TempVM->WorkMemoryPtr, TempVM->LiteralMemoryPtr, TempVM->DebugMemoryPtr };
 
 	for (const FRigVMUserDataArray& RigVMUserData : InRigVMUserData)
 	{
-		TempVM->Execute(FRigVMMemoryContainerPtrArray(Memory, 2), RigVMUserData);
+		TempVM->Execute(FRigVMMemoryContainerPtrArray(Memory, 3), RigVMUserData);
 	}
 
 	// copy the values out of the temp VM and set them on the cached value
@@ -2167,6 +2167,21 @@ const FRigVMExprAST* FRigVMParserAST::GetExprForSubject(const FRigVMASTProxy& In
 		return *ExpressionPtr;
 	}
 	return nullptr;
+}
+
+TArray<const FRigVMExprAST*> FRigVMParserAST::GetExpressionsForSubject(UObject* InSubject) const
+{
+	TArray<const FRigVMExprAST*> ExpressionsForSubject;
+	
+	for (TPair<FRigVMASTProxy, FRigVMExprAST*> Pair : SubjectToExpression)
+	{
+		if(Pair.Key.GetCallstack().Last() == InSubject)
+		{
+			ExpressionsForSubject.Add(Pair.Value);
+		}
+	}
+
+	return ExpressionsForSubject;
 }
 
 void FRigVMParserAST::PrepareCycleChecking(URigVMPin* InPin)

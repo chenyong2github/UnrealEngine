@@ -264,6 +264,22 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 
 	WorkData.VM->GetByteCode().AlignByteCode();
 
+	// setup debug registers
+	for(int32 GraphIndex=0; GraphIndex<VisitedGraphs.Num(); GraphIndex++)
+	{
+		URigVMGraph* VisitedGraph = VisitedGraphs[GraphIndex];
+		for(URigVMNode* ModelNode : VisitedGraph->GetNodes())
+		{
+			for(URigVMPin* ModelPin : ModelNode->GetPins())
+			{
+				if(ModelPin->RequiresWatch(false))
+				{
+					CreateDebugRegister(ModelPin, WorkData.VM, WorkData.PinPathToOperand, AST);
+				}
+			}
+		}
+	}
+
 	UE_LOG_RIGVMMEMORY(TEXT("RigVMCompiler: Finished '%s'."), *InGraph->GetPathName());
 
 	return true;
@@ -520,39 +536,6 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 			const FString CallPath = InExpr->GetProxy().GetCallstack().GetCallPath();
 			WorkData.VM->GetByteCode().SetSubject(InstructionIndex, UnitNode, CallPath);
 		}
-
-		ensure(InExpr->NumChildren() == UnitNode->Pins.Num());
-		for (int32 PinIndex = 0; PinIndex < UnitNode->Pins.Num(); PinIndex++)
-		{
-			URigVMPin* Pin = UnitNode->Pins[PinIndex];
-
-			// ensure to copy the debug values
-			if (Pin->RequiresWatch(true) && Settings.EnablePinWatches)
-			{
-				const FRigVMExprAST* PinExpr = InExpr->ChildAt(PinIndex);
-				if (PinExpr->IsA(FRigVMExprAST::EType::CachedValue))
-				{
-					PinExpr = PinExpr->To<FRigVMCachedValueExprAST>()->GetVarExpr();
-				}
-				ensure(PinExpr->IsA(FRigVMExprAST::EType::Var));
-				FRigVMOperand Source = WorkData.ExprToOperand.FindChecked(PinExpr->To<FRigVMVarExprAST>());
-				FString PinHash = GetPinHash(Pin, PinExpr->To<FRigVMVarExprAST>(), true);
-				if (const FRigVMOperand* Target = WorkData.PinPathToOperand->Find(PinHash))
-				{
-					FRigVMOperand SourceRootOperand(Source.GetMemoryType(), Source.GetRegisterIndex(), INDEX_NONE);
-					WorkData.VM->GetByteCode().AddCopyOp(SourceRootOperand, *Target);
-					const int32 CopyOpInstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
-
-					if (Settings.SetupNodeInstructionIndex)
-					{
-						const FRigVMVarExprAST* VarExpr = PinExpr->To<FRigVMVarExprAST>();
-						const FRigVMASTProxy Proxy = VarExpr->GetProxy().GetSibling(VarExpr->GetPin()->GetNode());
-						const FString CallPath = Proxy.GetCallstack().GetCallPath();
-						WorkData.VM->GetByteCode().SetSubject(CopyOpInstructionIndex, Proxy.GetSubject(), CallPath);
-					}
-				}
-			}
-		}
 	}
 
 	return InstructionIndex;
@@ -789,7 +772,8 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 					}
 					else
 					{
-						FRigVMMemoryContainer& Memory = Operand.GetMemoryType() == ERigVMMemoryType::Literal ? VM->GetLiteralMemory() : VM->GetWorkMemory();
+						FRigVMMemoryContainer& Memory = Operand.GetMemoryType() == ERigVMMemoryType::Literal ? VM->GetLiteralMemory() :
+							(Operand.GetMemoryType() == ERigVMMemoryType::Work ? VM->GetWorkMemory() : VM->GetDebugMemory());
 						Operand = Memory.GetOperand(Operand.GetRegisterIndex(), SegmentPath, ArrayIndex);
 					}
 				}
@@ -823,48 +807,6 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 					{
 						const FString CallPath = TargetExpr->GetProxy().GetSibling(VariableNode).GetCallstack().GetCallPath();
 						WorkData.VM->GetByteCode().SetSubject(InstructionIndex, VariableNode, CallPath);
-					}
-				}
-			}
-		}
-
-		if (Cast<URigVMVariableNode>(SourceExpr->GetPin()->GetNode()))
-		{
-			if (SourceExpr->GetPin()->RequiresWatch(true) && Settings.EnablePinWatches)
-			{
-				FRigVMOperand WatchOperand = FindOrAddRegister(SourceExpr, WorkData, true /*debug watch*/);
-				if (WatchOperand.IsValid())
-				{
-					FRigVMOperand SourceRootOperand(Source.GetMemoryType(), Source.GetRegisterIndex(), INDEX_NONE);
-					WorkData.VM->GetByteCode().AddCopyOp(SourceRootOperand, WatchOperand);
-					int32 CopyInstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
-
-					if (Settings.SetupNodeInstructionIndex)
-					{
-						URigVMNode* Node = SourceExpr->GetPin()->GetNode();
-						const FString CallPath = SourceExpr->GetProxy().GetSibling(Node).GetCallstack().GetCallPath();
-						WorkData.VM->GetByteCode().SetSubject(CopyInstructionIndex, Node, CallPath);
-					}
-				}
-			}
-		}
-
-		if (Cast<URigVMVariableNode>(TargetExpr->GetPin()->GetNode()))
-		{
-			if (TargetExpr->GetPin()->RequiresWatch(true) && Settings.EnablePinWatches)
-			{
-				FRigVMOperand WatchOperand = FindOrAddRegister(TargetExpr, WorkData, true /*debug watch*/);
-				if (WatchOperand.IsValid())
-				{
-					FRigVMOperand TargetRootOperand(Target.GetMemoryType(), Target.GetRegisterIndex(), INDEX_NONE);
-					WorkData.VM->GetByteCode().AddCopyOp(TargetRootOperand, WatchOperand);
-					int32 CopyInstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
-
-					if (Settings.SetupNodeInstructionIndex)
-					{
-						URigVMNode* Node = TargetExpr->GetPin()->GetNode();
-						const FString CallPath = TargetExpr->GetProxy().GetSibling(Node).GetCallstack().GetCallPath();
-						WorkData.VM->GetByteCode().SetSubject(CopyInstructionIndex, Node, CallPath);
 					}
 				}
 			}
@@ -1271,6 +1213,83 @@ FString URigVMCompiler::GetPinHash(const URigVMPin* InPin, const FRigVMVarExprAS
 	return FString::Printf(TEXT("%s%s%s"), *Prefix, *InPin->GetPinPath(true /*  full node path */), *Suffix);
 }
 
+void URigVMCompiler::CreateDebugRegister(URigVMPin* InPin, URigVM* OutVM,
+	TMap<FString, FRigVMOperand>* OutOperands, TSharedPtr<FRigVMParserAST> InRuntimeAST)
+{
+	check(InPin);
+	check(OutVM);
+	check(OutOperands);
+	check(InRuntimeAST.IsValid());
+	
+	FRigVMCompilerWorkData WorkData;
+	WorkData.VM = OutVM;
+	WorkData.PinPathToOperand = OutOperands;
+
+	URigVMPin* Pin = InPin->GetRootPin();
+	URigVMPin* SourcePin = Pin;
+	if(Settings.ASTSettings.bFoldAssignments)
+	{
+		while(SourcePin->GetSourceLinks().Num() > 0)
+		{
+			SourcePin = SourcePin->GetSourceLinks()[0]->GetSourcePin();
+		}
+	}
+	
+	TArray<const FRigVMExprAST*> Expressions = InRuntimeAST->GetExpressionsForSubject(SourcePin);
+	for(const FRigVMExprAST* Expression : Expressions)
+	{
+		check(Expression->IsA(FRigVMExprAST::EType::Var));
+		const FRigVMVarExprAST* VarExpression = Expression->To<FRigVMVarExprAST>();
+		const FString PinHash = GetPinHash(SourcePin, VarExpression, false);
+		if(const FRigVMOperand* Operand = OutOperands->Find(PinHash))
+		{
+			const FRigVMASTProxy PinProxy = FRigVMASTProxy::MakeFromUObject(Pin);
+			FRigVMVarExprAST TempVarExpr(FRigVMExprAST::EType::Var, PinProxy);
+			TempVarExpr.ParserPtr = InRuntimeAST.Get();
+	
+			const FRigVMOperand DebugOperand = FindOrAddRegister(&TempVarExpr, WorkData, true);
+			if(DebugOperand.IsValid())
+			{
+				FRigVMOperand KeyOperand(Operand->GetMemoryType(), Operand->GetRegisterIndex()); // no register offset
+				OutVM->OperandToDebugRegisters.FindOrAdd(KeyOperand).AddUnique(DebugOperand);
+			}
+		}
+	}
+}
+
+void URigVMCompiler::RemoveDebugRegister(URigVMPin* InPin, URigVM* OutVM,
+	TMap<FString, FRigVMOperand>* OutOperands, TSharedPtr<FRigVMParserAST> InRuntimeAST)
+{
+	check(OutVM);
+	check(OutOperands);
+
+	URigVMPin* Pin = InPin->GetRootPin();
+	const FRigVMASTProxy PinProxy = FRigVMASTProxy::MakeFromUObject(Pin);
+	FRigVMVarExprAST TempVarExpr(FRigVMExprAST::EType::Var, PinProxy);
+	TempVarExpr.ParserPtr = InRuntimeAST.Get();
+
+	const FString PinHash = GetPinHash(Pin, &TempVarExpr, true);
+	if(const FRigVMOperand* DebugOperand = OutOperands->Find(PinHash))
+	{
+		TArray<FRigVMOperand> KeysToRemove;
+		for(TPair<FRigVMOperand, TArray<FRigVMOperand>>& Pair : OutVM->OperandToDebugRegisters)
+		{
+			if(Pair.Value.Remove(*DebugOperand) > 0)
+			{
+				if(Pair.Value.IsEmpty())
+				{
+					KeysToRemove.AddUnique(Pair.Key);
+				}
+			}
+		}
+		for(const FRigVMOperand& KeyToRemove : KeysToRemove)
+		{
+			OutVM->OperandToDebugRegisters.Remove(KeyToRemove);
+		}
+		OutOperands->Remove(PinHash);
+	}
+}
+
 UScriptStruct* URigVMCompiler::GetScriptStructForCPPType(const FString& InCPPType)
 {
 	if (InCPPType == TEXT("FRotator"))
@@ -1397,15 +1416,22 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 	bool bIsLiteral = InVarExpr->GetType() == FRigVMExprAST::EType::Literal && !bIsDebugValue;
 	bool bIsParameter = InVarExpr->IsGraphParameter();
 
+	FRigVMMemoryContainer& Memory = 
+	    bIsLiteral ? WorkData.VM->GetLiteralMemory() :
+			(bIsDebugValue ? WorkData.VM->GetDebugMemory() : WorkData.VM->GetWorkMemory());
+
 	FRigVMOperand const* ExistingOperand = WorkData.PinPathToOperand->Find(Hash);
 	if (ExistingOperand)
 	{
-		if (!bIsDebugValue)
+		if(ExistingOperand->GetMemoryType() == Memory.GetMemoryType())
 		{
-			check(!WorkData.ExprToOperand.Contains(InVarExpr));
-			WorkData.ExprToOperand.Add(InVarExpr, *ExistingOperand);
+			if (!bIsDebugValue)
+			{
+				check(!WorkData.ExprToOperand.Contains(InVarExpr));
+				WorkData.ExprToOperand.Add(InVarExpr, *ExistingOperand);
+			}
+			return *ExistingOperand;
 		}
-		return *ExistingOperand;
 	}
 
 	// check if this is a variable with a segment path
@@ -1497,8 +1523,6 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 		{
 			ScriptStruct = GetScriptStructForCPPType(BaseCPPType);
 		}
-
-		FRigVMMemoryContainer& Memory = bIsLiteral ? WorkData.VM->GetLiteralMemory() : WorkData.VM->GetWorkMemory();
 
 		bool bRegisterIsMultiUse = Settings.ConsolidateWorkRegisters;
 		if (bRegisterIsMultiUse)
@@ -1629,6 +1653,49 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 				ensure(NumSlices >= 1);
 			}
 
+			int32 Register = INDEX_NONE;
+
+			// debug watch register might already exists - look for them by name
+			if(bIsDebugValue && Memory.SupportsNames())
+			{
+				Register = Memory.GetIndex(RegisterName);
+				if(Register != INDEX_NONE)
+				{
+					bool bFoundValidRegister = false;
+					if(ScriptStruct)
+					{
+						if(Memory[Register].BaseCPPTypeObject == ScriptStruct)
+						{
+							bFoundValidRegister = true;
+						}
+					}
+					else if(UEnum* Enum = Pin->GetEnum())
+					{
+						if(Memory[Register].BaseCPPTypeObject == Enum)
+						{
+							bFoundValidRegister = true;
+						}
+					}
+					else
+					{
+						if(Memory[Register].BaseCPPType == *BaseCPPType)
+						{
+							bFoundValidRegister = true;
+						}
+					}
+
+					if(bFoundValidRegister)
+					{
+						Operand = Memory.GetOperand(Register);
+						if(ExistingOperand == nullptr)
+						{
+							WorkData.PinPathToOperand->Add(Hash, Operand);
+						}
+						return Operand;
+					}
+				}
+			}
+
 			if (ScriptStruct)
 			{
 				TArray<uint8, TAlignedHeapAllocator<16>> Data;
@@ -1646,7 +1713,9 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 					Ptr = Ptr + ScriptStruct->GetStructureSize();
 				}
 
-				int32 Register = Memory.AddRegisterArray(!Pin->IsDynamicArray() && !bIsDebugValue, RegisterName, ScriptStruct->GetStructureSize(), DefaultValues.Num(), Pin->IsArray(), Data.GetData(), NumSlices, ERigVMRegisterType::Struct, ScriptStruct);
+				Register = Memory.AddRegisterArray(!Pin->IsDynamicArray() && !bIsDebugValue, RegisterName, ScriptStruct->GetStructureSize(), DefaultValues.Num(), Pin->IsArray(), Data.GetData(), NumSlices, ERigVMRegisterType::Struct, ScriptStruct);
+				check(Register != INDEX_NONE);
+				
 #if WITH_EDITORONLY_DATA
 				Memory.Registers[Register].BaseCPPType = *ScriptStruct->GetStructCPPName();
 				Memory.Registers[Register].BaseCPPTypeObject = ScriptStruct;
@@ -1670,7 +1739,9 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 					}
 				}
 
-				int32 Register = Memory.AddRegisterArray<uint8>(!Pin->IsDynamicArray() && !bIsDebugValue, RegisterName, Values.Num(), Pin->IsArray(), Values.GetData(), NumSlices, ERigVMRegisterType::Plain, nullptr);
+				Register = Memory.AddRegisterArray<uint8>(!Pin->IsDynamicArray() && !bIsDebugValue, RegisterName, Values.Num(), Pin->IsArray(), Values.GetData(), NumSlices, ERigVMRegisterType::Plain, nullptr);
+				check(Register != INDEX_NONE);
+				
 #if WITH_EDITORONLY_DATA
 				Memory.Registers[Register].BaseCPPType = *Enum->CppType;
 				Memory.Registers[Register].BaseCPPTypeObject = Enum;
@@ -1684,7 +1755,10 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 				{
 					Values.Add((DefaultValue == TEXT("True")) || (DefaultValue == TEXT("true")) || (DefaultValue == TEXT("1")));
 				}
-				int32 Register = Memory.AddRegisterArray<bool>(!Pin->IsDynamicArray() && !bIsDebugValue, RegisterName, Values.Num(), Pin->IsArray(), (uint8*)Values.GetData(), NumSlices, ERigVMRegisterType::Plain, nullptr);
+
+				Register = Memory.AddRegisterArray<bool>(!Pin->IsDynamicArray() && !bIsDebugValue, RegisterName, Values.Num(), Pin->IsArray(), (uint8*)Values.GetData(), NumSlices, ERigVMRegisterType::Plain, nullptr);
+				check(Register != INDEX_NONE);
+				
 #if WITH_EDITORONLY_DATA
 				Memory.Registers[Register].BaseCPPType = *BaseCPPType;
 				Memory.Registers[Register].BaseCPPTypeObject = nullptr;
@@ -1705,7 +1779,9 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 						Values.Add(FCString::Atoi(*DefaultValue));
 					}
 				}
-				int32 Register = Memory.AddRegisterArray<int32>(!Pin->IsDynamicArray() && !bIsDebugValue, RegisterName, Values.Num(), Pin->IsArray(), (uint8*)Values.GetData(), NumSlices, ERigVMRegisterType::Plain, nullptr);
+				Register = Memory.AddRegisterArray<int32>(!Pin->IsDynamicArray() && !bIsDebugValue, RegisterName, Values.Num(), Pin->IsArray(), (uint8*)Values.GetData(), NumSlices, ERigVMRegisterType::Plain, nullptr);
+				check(Register != INDEX_NONE);
+
 #if WITH_EDITORONLY_DATA
 				Memory.Registers[Register].BaseCPPType = *BaseCPPType;
 				Memory.Registers[Register].BaseCPPTypeObject = nullptr;
@@ -1726,7 +1802,9 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 						Values.Add(FCString::Atof(*DefaultValue));
 					}
 				}
-				int32 Register = Memory.AddRegisterArray<float>(!Pin->IsDynamicArray() && !bIsDebugValue, RegisterName, Values.Num(), Pin->IsArray(), (uint8*)Values.GetData(), NumSlices, ERigVMRegisterType::Plain, nullptr);
+				Register = Memory.AddRegisterArray<float>(!Pin->IsDynamicArray() && !bIsDebugValue, RegisterName, Values.Num(), Pin->IsArray(), (uint8*)Values.GetData(), NumSlices, ERigVMRegisterType::Plain, nullptr);
+				check(Register != INDEX_NONE);
+				
 #if WITH_EDITORONLY_DATA
 				Memory.Registers[Register].BaseCPPType = *BaseCPPType;
 				Memory.Registers[Register].BaseCPPTypeObject = nullptr;
@@ -1740,7 +1818,10 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 				{
 					Values.Add(*DefaultValue);
 				}
-				int32 Register = Memory.AddRegisterArray<FName>(!Pin->IsDynamicArray() && !bIsDebugValue, RegisterName, Values.Num(), Pin->IsArray(), (uint8*)Values.GetData(), NumSlices, ERigVMRegisterType::Name, nullptr);
+
+				Register = Memory.AddRegisterArray<FName>(!Pin->IsDynamicArray() && !bIsDebugValue, RegisterName, Values.Num(), Pin->IsArray(), (uint8*)Values.GetData(), NumSlices, ERigVMRegisterType::Name, nullptr);
+				check(Register != INDEX_NONE);
+				
 #if WITH_EDITORONLY_DATA
 				Memory.Registers[Register].BaseCPPType = *BaseCPPType;
 				Memory.Registers[Register].BaseCPPTypeObject = nullptr;
@@ -1749,7 +1830,9 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 			}
 			else if (BaseCPPType == TEXT("FString"))
 			{
-				int32 Register = Memory.AddRegisterArray<FString>(!Pin->IsDynamicArray() && !bIsDebugValue, RegisterName, DefaultValues.Num(), Pin->IsArray(), (uint8*)DefaultValues.GetData(), NumSlices, ERigVMRegisterType::String, nullptr);
+				Register = Memory.AddRegisterArray<FString>(!Pin->IsDynamicArray() && !bIsDebugValue, RegisterName, DefaultValues.Num(), Pin->IsArray(), (uint8*)DefaultValues.GetData(), NumSlices, ERigVMRegisterType::String, nullptr);
+				check(Register != INDEX_NONE);
+				
 #if WITH_EDITORONLY_DATA
 				Memory.Registers[Register].BaseCPPType = *BaseCPPType;
 				Memory.Registers[Register].BaseCPPTypeObject = nullptr;
@@ -1783,7 +1866,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 
 	// Get all possible pins that lead to the same operand
 
-	if(Settings.ASTSettings.bFoldAssignments)
+	if(Settings.ASTSettings.bFoldAssignments && !bIsDebugValue)
 	{
 		TArray<const URigVMPin*> VirtualPins;
 		Pin->GetExposedPinChain(VirtualPins);
@@ -1795,7 +1878,10 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 	}
 	else
 	{
-		WorkData.PinPathToOperand->Add(Hash, Operand);
+		if(ExistingOperand == nullptr)
+		{
+			WorkData.PinPathToOperand->Add(Hash, Operand);
+		}
 	}
 	
 	if (!bIsDebugValue)
