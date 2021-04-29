@@ -65,10 +65,10 @@ protected:
 
 
 	/** @return an attribute reference of ColorAndOpacity */
-	TSlateAttributeRef<float> GetBlurStrengthAttribute() const { return TSlateAttributeRef<float>{*this, BlurStrengthAttribute}; }
+	TSlateAttributeRef<float> GetBlurStrengthAttribute() const { return TSlateAttributeRef<float>{SharedThis(this), BlurStrengthAttribute}; }
 
 	/** @return an attribute reference of ForegroundColor */
-	TSlateAttributeRef<TOptional<int32>> GetBlurRadiusAttribute() const { return TSlateAttributeRef<TOptional<int32>>{*this, BlurRadiusAttribute}; }
+	TSlateAttributeRef<TOptional<int32>> GetBlurRadiusAttribute() const { return TSlateAttributeRef<TOptional<int32>>{SharedThis(this), BlurRadiusAttribute}; }
 
 #if WITH_EDITORONLY_DATA
 	FSlateDeprecatedTAttribute<float> BlurStrength;

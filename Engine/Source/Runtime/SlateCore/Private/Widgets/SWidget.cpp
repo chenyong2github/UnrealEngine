@@ -237,6 +237,8 @@ SWidget::~SWidget()
 	}
 #endif
 
+	bHasRegisteredSlateAttribute = false;
+
 	// Unregister all ActiveTimers so they aren't left stranded in the Application's list.
 	if (FSlateApplicationBase::IsInitialized())
 	{
@@ -1196,7 +1198,7 @@ void SWidget::Invalidate(EInvalidateWidgetReason InvalidateReason)
 {
 	SLATE_CROSS_THREAD_CHECK();
 
-	if (InvalidateReason == EInvalidateWidgetReason::None /*|| !IsConstructionCompleted()*/)
+	if (InvalidateReason == EInvalidateWidgetReason::None || !IsConstructionCompleted())
 	{
 		return;
 	}

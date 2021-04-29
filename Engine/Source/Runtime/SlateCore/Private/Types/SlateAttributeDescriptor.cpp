@@ -59,7 +59,8 @@ FSlateAttributeDescriptor::FInitializer::FInitializer(FSlateAttributeDescriptor&
 
 FSlateAttributeDescriptor::FInitializer::~FInitializer()
 {
-	checkf(Descriptor.Attributes.Num() < std::numeric_limits<int16>::max(), TEXT("There is too many attributes. The index is saved as an int16 in FSlateAttributeMetaData."));
+	checkf(Descriptor.Attributes.Num() <= std::numeric_limits<uint8>::max()-1
+		, TEXT("There are too many attributes '%d'. The index is saved as an uint8 in FSlateAttributeMetaData."), Descriptor.Attributes.Num());
 
 	// Confirm that the Visibility attribute is marked as "bAffectVisibility"
 	{
@@ -179,16 +180,15 @@ FSlateAttributeDescriptor::FInitializer::~FInitializer()
 			}
 			PreviousPrerequisiteIndex = Element.PrerequisitesIndex;
 		}
+
+		Descriptor.Attributes.Sort([](const FAttribute& A, const FAttribute& B) { return A.SortOrder < B.SortOrder; });
 	}
 
 	// Confirm that the attributes marked as "AffectVisibility" are in front of the list.
-#if 1
+#if 0
 	{
-		TArray<FAttribute, TInlineAllocator<32>> Copy;
-		Copy.Append(Descriptor.Attributes);
-		Copy.Sort([](const FAttribute& A, const FAttribute& B){ return A.SortOrder < B.SortOrder; });
 		bool bLookingForAffectVisibility = true;
-		for (const FAttribute& Attribute : Copy)
+		for (const FAttribute& Attribute : Descriptor.Attributes)
 		{
 			if (!Attribute.bAffectVisibility)
 			{

@@ -96,13 +96,13 @@ protected:
 	void SetExponentDisplacementAttribute(TAttribute<float> InExponentDisplacement);
 
 	/** @return an attribute reference of SelectedColor */
-	TSlateAttributeRef<FLinearColor> GetSelectedColorAttribute() const { return TSlateAttributeRef<FLinearColor>(*this, SelectedColorAttribute); }
+	TSlateAttributeRef<FLinearColor> GetSelectedColorAttribute() const { return TSlateAttributeRef<FLinearColor>(SharedThis(this), SelectedColorAttribute); }
 
 	/** @return an attribute reference of DesiredWheelSize */
-	TSlateAttributeRef<int32> GetDesiredWheelSizeAttribute() const { return TSlateAttributeRef<int32>(*this, DesiredWheelSizeAttribute); }
+	TSlateAttributeRef<int32> GetDesiredWheelSizeAttribute() const { return TSlateAttributeRef<int32>(SharedThis(this), DesiredWheelSizeAttribute); }
 
 	/** @return an attribute reference of ExponentDisplacement */
-	TSlateAttributeRef<float> GetExponentDisplacementAttribute() const { return TSlateAttributeRef<float>(*this, ExponentDisplacementAttribute); }
+	TSlateAttributeRef<float> GetExponentDisplacementAttribute() const { return TSlateAttributeRef<float>(SharedThis(this), ExponentDisplacementAttribute); }
 
 	/** The color wheel image to show. */
 	const FSlateBrush* Image;

@@ -89,13 +89,13 @@ protected:
 	// End SWidget overrides.
 
 	/** @return an attribute reference of ContentScale */
-	TSlateAttributeRef<FVector2D> GetContentScaleAttribute() const { return TSlateAttributeRef<FVector2D>(*this, ContentScaleAttribute); }
+	TSlateAttributeRef<FVector2D> GetContentScaleAttribute() const { return TSlateAttributeRef<FVector2D>(SharedThis(this), ContentScaleAttribute); }
 
 	/** @return an attribute reference of ColorAndOpacity */
-	TSlateAttributeRef<FLinearColor> GetColorAndOpacityAttribute() const { return TSlateAttributeRef<FLinearColor>{*this, ColorAndOpacityAttribute}; }
+	TSlateAttributeRef<FLinearColor> GetColorAndOpacityAttribute() const { return TSlateAttributeRef<FLinearColor>{SharedThis(this), ColorAndOpacityAttribute}; }
 
 	/** @return an attribute reference of ForegroundColor */
-	TSlateAttributeRef<FSlateColor> GetForegroundColorAttribute() const {	return TSlateAttributeRef<FSlateColor>{*this, ForegroundColorAttribute}; }
+	TSlateAttributeRef<FSlateColor> GetForegroundColorAttribute() const {	return TSlateAttributeRef<FSlateColor>{SharedThis(this), ForegroundColorAttribute}; }
 
 protected:
 

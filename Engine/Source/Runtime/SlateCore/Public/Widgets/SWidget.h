@@ -1671,13 +1671,13 @@ protected:
 	}
 
 	/** @return an attribute reference of EnabledStateAttribute */
-	TSlateAttributeRef<bool> GetEnabledStateAttribute() const { return TSlateAttributeRef<bool>(*this, EnabledStateAttribute); }
+	TSlateAttributeRef<bool> GetEnabledStateAttribute() const { return TSlateAttributeRef<bool>(SharedThis(this), EnabledStateAttribute); }
 	/** @return an attribute reference of VisibilityAttribute */
-	TSlateAttributeRef<EVisibility> GetVisibilityAttribute() const { return TSlateAttributeRef<EVisibility>(*this, VisibilityAttribute); }
+	TSlateAttributeRef<EVisibility> GetVisibilityAttribute() const { return TSlateAttributeRef<EVisibility>(SharedThis(this), VisibilityAttribute); }
 	/** @return an attribute reference of RenderTransformAttribute */
-	TSlateAttributeRef<TOptional<FSlateRenderTransform>> GetRenderTransformAttribute() const { return TSlateAttributeRef<TOptional<FSlateRenderTransform>>(*this, RenderTransformAttribute); }
+	TSlateAttributeRef<TOptional<FSlateRenderTransform>> GetRenderTransformAttribute() const { return TSlateAttributeRef<TOptional<FSlateRenderTransform>>(SharedThis(this), RenderTransformAttribute); }
 	/** @return an attribute reference of RenderTransformPivotAttribute */
-	TSlateAttributeRef<FVector2D> GetRenderTransformPivotAttribute() const { return TSlateAttributeRef<FVector2D>(*this, RenderTransformPivotAttribute); }
+	TSlateAttributeRef<FVector2D> GetRenderTransformPivotAttribute() const { return TSlateAttributeRef<FVector2D>(SharedThis(this), RenderTransformPivotAttribute); }
 
 protected:
 	/** Dtor ensures that active timer handles are UnRegistered with the SlateApplication. */

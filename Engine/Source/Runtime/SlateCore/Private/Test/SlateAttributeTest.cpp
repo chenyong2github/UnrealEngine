@@ -8,6 +8,7 @@
 #include "Widgets/SNullWidget.h"
 
 #include <type_traits>
+#include <limits>
 
 #if WITH_AUTOMATION_WORKER
 
@@ -224,7 +225,7 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 			, TEXT("The static data do not matches"));
 
 		FSlateAttributeDescriptor const& AttributeDescriptor = WidgetParent->GetWidgetClass().GetAttributeDescriptor();
-		AddErrorIfFalse(AttributeDescriptor.AttributeNum() == 4 + NumberOfAttributeInSWidget, TEXT(""));
+		AddErrorIfFalse(AttributeDescriptor.GetAttributeNum() == 4 + NumberOfAttributeInSWidget, TEXT("Invalid number of attributes"));
 
 		const int32 IndexA = AttributeDescriptor.IndexOfMemberAttribute("IntAttributeA");
 		const int32 IndexB = AttributeDescriptor.IndexOfMemberAttribute("IntAttributeB");
@@ -340,7 +341,7 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 			, TEXT("The static data do not matches"));
 
 		FSlateAttributeDescriptor const& AttributeDescriptor = WidgetChild->GetWidgetClass().GetAttributeDescriptor();
-		AddErrorIfFalse(AttributeDescriptor.AttributeNum() == 9 + NumberOfAttributeInSWidget, TEXT("")); // H is not counted
+		AddErrorIfFalse(AttributeDescriptor.GetAttributeNum() == 9 + NumberOfAttributeInSWidget, TEXT("Invalid number of attributes")); // H is not counted
 
 		const int32 IndexA = AttributeDescriptor.IndexOfMemberAttribute("IntAttributeA");
 		const int32 IndexB = AttributeDescriptor.IndexOfMemberAttribute("IntAttributeB");
@@ -440,6 +441,42 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 			AddErrorIfFalse(WidgetChild->IntAttributeK.Get() == 9, TEXT("K It is not the expected value."));
 			AddErrorIfFalse(WidgetChild->IntAttributeL.Get() == 7, TEXT("L It is not the expected value."));
 			AddErrorIfFalse(WidgetChild->IntAttributeM.Get() == 1, TEXT("M It is not the expected value."));
+		}
+
+		// Check the ForEachDependency result
+		{
+			const FSlateAttributeDescriptor& ChildDescriptor = WidgetChild->GetWidgetClass().GetAttributeDescriptor();
+			auto DependencyTest = [this, ChildDescriptor](auto& AttributeInstance, TSharedRef<SWidget> Widget, int32 Expected, FStringView VariableName)
+			{
+				auto FindOffet = [](const SWidget& OwningWidget, const FSlateAttributeBase& Attribute)
+				{
+					UPTRINT Offset = (UPTRINT)(&Attribute) - (UPTRINT)(&OwningWidget);
+					ensure(Offset <= std::numeric_limits<FSlateAttributeDescriptor::OffsetType>::max());
+					return (FSlateAttributeDescriptor::OffsetType)(Offset);
+				};
+
+				int32 Count = 0;
+				const FSlateAttributeDescriptor::FAttribute* FoundAttribute = ChildDescriptor.FindMemberAttribute(FindOffet(Widget.Get(), AttributeInstance));
+				if (FoundAttribute == nullptr)
+				{
+					AddError(FString::Printf(TEXT("Could not find attribute '%s'"), VariableName.GetData()));
+				}
+				else
+				{
+					ChildDescriptor.ForEachDependentsOn(*FoundAttribute, [&Count](uint8 Index) {++Count;});
+					AddErrorIfFalse(Count == Expected, FString::Printf(TEXT("'%s' doesn't have the correct number of dependency (returned %d, expected %d).")
+						, VariableName.GetData(), Count, Expected));
+				}
+			};
+			DependencyTest(WidgetChild->IntAttributeA, WidgetChild, 1, TEXT("A"));//J
+			DependencyTest(WidgetChild->IntAttributeB, WidgetChild, 0, TEXT("B"));//AIJ, they are prerequisite, not dependency
+			DependencyTest(WidgetChild->IntAttributeC, WidgetChild, 0, TEXT("C"));//L
+			DependencyTest(WidgetChild->IntAttributeD, WidgetChild, 1, TEXT("D"));//CL
+			DependencyTest(WidgetChild->IntAttributeI, WidgetChild, 0, TEXT("I"));
+			DependencyTest(WidgetChild->IntAttributeJ, WidgetChild, 0, TEXT("J"));
+			DependencyTest(WidgetChild->IntAttributeK, WidgetChild, 0, TEXT("K"));
+			DependencyTest(WidgetChild->IntAttributeL, WidgetChild, 0, TEXT("L"));
+			DependencyTest(WidgetChild->IntAttributeM, WidgetChild, 0, TEXT("M"));
 		}
 	}
 

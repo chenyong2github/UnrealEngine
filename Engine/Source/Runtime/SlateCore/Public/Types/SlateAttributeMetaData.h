@@ -92,6 +92,10 @@ private:
 	void RegisterAttributeImpl(SWidget& OwningWidget, FSlateAttributeBase& Attribute, ESlateAttributeType AttributeType, TUniquePtr<ISlateAttributeGetter>&& Getter);
 	bool UnregisterAttributeImpl(const FSlateAttributeBase& Attribute);
 	void UpdateAttributesImpl(SWidget& OwningWidget, EInvalidationPermission InvaldiationStyle, int32 StartIndex, int32 IndexNum);
+	void SetNeedToResetFlag(int32 Index)
+	{
+		ResetFlag |= (Index < AffectVisibilityCounter) ? EResetFlags::NeedToReset_OnlyVisibility : EResetFlags::NeedToReset_ExceptVisibility;
+	}
 
 private:
 	int32 IndexOfAttribute(const FSlateAttributeBase& Attribute) const
@@ -102,7 +106,9 @@ private:
 
 	struct FGetterItem
 	{
-		FGetterItem() = default;
+		using FAttributeIndex = uint8;
+		static const FAttributeIndex InvalidAttributeIndex;
+
 		FGetterItem(const FGetterItem&) = delete;
 		FGetterItem(FGetterItem&&) = default;
 		FGetterItem& operator=(const FGetterItem&) = delete;
@@ -110,23 +116,23 @@ private:
 			: Attribute(InAttribute)
 			, Getter(MoveTemp(InGetter))
 			, SortOrder(InSortOrder)
-			, CachedAttributeDescriptorIndex(INDEX_NONE)
-			, CachedAttributeDependencyIndex(INDEX_NONE)
+			, CachedAttributeDescriptorIndex(InvalidAttributeIndex)
+			, CachedAttributeDependencyIndex(InvalidAttributeIndex)
 			, Flags(0)
 		{ }
-		FGetterItem(FSlateAttributeBase* InAttribute, uint32 InSortOrder, TUniquePtr<SlateAttributePrivate::ISlateAttributeGetter> && InGetter, int16 InAttributeDescriptorIndex)
+		FGetterItem(FSlateAttributeBase* InAttribute, uint32 InSortOrder, TUniquePtr<SlateAttributePrivate::ISlateAttributeGetter> && InGetter, FAttributeIndex InAttributeDescriptorIndex)
 			: Attribute(InAttribute)
 			, Getter(MoveTemp(InGetter))
 			, SortOrder(InSortOrder)
 			, CachedAttributeDescriptorIndex(InAttributeDescriptorIndex)
-			, CachedAttributeDependencyIndex(INDEX_NONE)
+			, CachedAttributeDependencyIndex(InvalidAttributeIndex)
 			, Flags(0)
 		{ }
 		FSlateAttributeBase* Attribute;
 		TUniquePtr<SlateAttributePrivate::ISlateAttributeGetter> Getter;
 		uint32 SortOrder;
-		int16 CachedAttributeDescriptorIndex;
-		int16 CachedAttributeDependencyIndex;
+		FAttributeIndex CachedAttributeDescriptorIndex;
+		FAttributeIndex CachedAttributeDependencyIndex;
 		union
 		{
 			struct
@@ -135,9 +141,10 @@ private:
 				int8 bUpdatedThisFrame : 1;
 				int8 bUpatedManually : 1;
 				int8 bIsADependencyForSomeoneElse : 1;
-				int8 bIsMemberType : 1;
-				int8 bIsManagedType : 1;
 				int8 bAffectVisibility : 1;
+				ESlateAttributeType AttributeType : 2;
+				int8 Unused0 : 1;
+				//~if more space is needed bUpatedManually&bUpdatedThisFrame could be merged
 			};
 			int8 Flags;
 		};
@@ -152,6 +159,7 @@ private:
 		/** If available, return the name of the attribute. */
 		FName GetAttributeName(const SWidget& OwningWidget) const;
 	};
+	static_assert(sizeof(FGetterItem) <= 32, "The size of FGetterItem is bigger than expected.");
 
 	TArray<FGetterItem, TInlineAllocator<4>> Attributes;
 	//~ There is a possibility that the widget has a CachedInvalidationReason and a parent become collapsed.
@@ -159,6 +167,16 @@ private:
 	//~1. The widget is collapsed indirectly, so we do not care if it's invalidated.
 	//~2. The parent widget will clear this widget PersistentState.
 	EInvalidateWidgetReason CachedInvalidationReason = EInvalidateWidgetReason::None;
-	bool bHasUpdatedManuallyFlagToReset = false;
 	uint8 AffectVisibilityCounter = 0;
+
+	enum class EResetFlags : uint8
+	{
+		None = 0,
+		NeedToReset_OnlyVisibility = (1 << 0),
+		NeedToReset_ExceptVisibility = (1 << 1),
+	};
+	FRIEND_ENUM_CLASS_FLAGS(EResetFlags);
+	EResetFlags ResetFlag = EResetFlags::None;
 };
+
+ENUM_CLASS_FLAGS(FSlateAttributeMetaData::EResetFlags);

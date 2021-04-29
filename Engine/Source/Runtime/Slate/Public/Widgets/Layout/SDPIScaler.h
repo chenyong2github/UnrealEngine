@@ -58,7 +58,7 @@ protected:
 
 	virtual float GetRelativeLayoutScale(int32 ChildIndex, float LayoutScaleMultiplier) const override;
 
-	TSlateAttributeRef<float> GetDPIScaleAttribute() const { return TSlateAttributeRef<float>(*this, DPIScaleAttribute); }
+	TSlateAttributeRef<float> GetDPIScaleAttribute() const { return TSlateAttributeRef<float>(SharedThis(this), DPIScaleAttribute); }
 
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.0, "Direct access to DPIScale is now deprecated. Use the setter or getter.")

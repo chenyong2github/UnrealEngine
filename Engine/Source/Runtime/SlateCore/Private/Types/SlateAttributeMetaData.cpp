@@ -10,6 +10,9 @@
 #include <limits>
 
 
+const FSlateAttributeMetaData::FGetterItem::FAttributeIndex FSlateAttributeMetaData::FGetterItem::InvalidAttributeIndex = std::numeric_limits<FSlateAttributeMetaData::FGetterItem::FAttributeIndex>::max();
+
+
 namespace Private
 {
 	FSlateAttributeDescriptor::OffsetType FindOffet(const SWidget& OwningWidget, const FSlateAttributeBase& Attribute)
@@ -85,20 +88,21 @@ void FSlateAttributeMetaData::RegisterAttributeImpl(SWidget& OwningWidget, FSlat
 			if (FoundMemberAttributeIndex != INDEX_NONE)
 			{
 				FSlateAttributeDescriptor::FAttribute const& FoundAttribute = Descriptor.GetAttributeAtIndex(FoundMemberAttributeIndex);
-				check(FoundMemberAttributeIndex < std::numeric_limits<int16>::max());
+				check(FoundMemberAttributeIndex < std::numeric_limits<FGetterItem::FAttributeIndex>::max());
 
 				const int32 InsertLocation = Algo::LowerBoundBy(Attributes, FoundAttribute.SortOrder, [](const FGetterItem& Item) { return Item.SortOrder; }, TLess<>());
-
-				FGetterItem& GetterItem = Attributes.Insert_GetRef({ &Attribute, FoundAttribute.SortOrder, MoveTemp(Getter), (int16)FoundMemberAttributeIndex }, InsertLocation);
-				GetterItem.bIsMemberType = true;
+				FGetterItem& GetterItem = Attributes.Insert_GetRef({ &Attribute, FoundAttribute.SortOrder, MoveTemp(Getter), (FGetterItem::FAttributeIndex)FoundMemberAttributeIndex }, InsertLocation);
+				GetterItem.AttributeType = ESlateAttributeType::Member;
 
 				// Do I have dependency or am I a dependency
-				if (!FoundAttribute.Prerequisite.IsNone() && FoundAttribute.bIsPrerequisiteAlsoADependency)
+				if (!FoundAttribute.Prerequisite.IsNone() && FoundAttribute.bIsPrerequisiteAlsoADependency) 
 				{
 					// I can only be updated if the prerequisite is updated
 					const int32 FoundDependencyAttributeIndex = Descriptor.IndexOfMemberAttribute(FoundAttribute.Prerequisite);
-					check(FoundDependencyAttributeIndex < std::numeric_limits<int16>::max());
-					GetterItem.CachedAttributeDependencyIndex = (int16)FoundDependencyAttributeIndex;
+					if (FoundDependencyAttributeIndex != INDEX_NONE)
+					{
+						GetterItem.CachedAttributeDependencyIndex = (FGetterItem::FAttributeIndex)FoundDependencyAttributeIndex;
+					}
 				}
 				GetterItem.bIsADependencyForSomeoneElse = FoundAttribute.bIsADependencyForSomeoneElse;
 				GetterItem.bAffectVisibility = FoundAttribute.bAffectVisibility;
@@ -113,14 +117,14 @@ void FSlateAttributeMetaData::RegisterAttributeImpl(SWidget& OwningWidget, FSlat
 
 				const  int32 InsertLocation = Algo::LowerBoundBy(Attributes, SortOrder, [](const FGetterItem& Item) { return Item.SortOrder; }, TLess<>());
 				FGetterItem& GetterItem = Attributes.Insert_GetRef({&Attribute, SortOrder, MoveTemp(Getter)}, InsertLocation);
-				GetterItem.bIsMemberType = true;
+				GetterItem.AttributeType = ESlateAttributeType::Member;
 			}
 		}
 		else if (AttributeType == ESlateAttributeType::Managed)
 		{
 			const uint32 ManagedSortOrder = std::numeric_limits<uint32>::max();
 			FGetterItem& GetterItem = Attributes.Emplace_GetRef(&Attribute, ManagedSortOrder, MoveTemp(Getter));
-			GetterItem.bIsManagedType = true;
+			GetterItem.AttributeType = ESlateAttributeType::Managed;
 		}
 		else
 		{
@@ -189,7 +193,7 @@ TArray<FName> FSlateAttributeMetaData::GetAttributeNames(const SWidget& OwningWi
 
 EInvalidateWidgetReason FSlateAttributeMetaData::FGetterItem::GetInvalidationDetail(const SWidget& OwningWidget, EInvalidateWidgetReason Reason) const
 {
-	if (CachedAttributeDescriptorIndex != INDEX_NONE)
+	if (CachedAttributeDescriptorIndex != FGetterItem::InvalidAttributeIndex)
 	{
 		const FSlateAttributeDescriptor::FAttribute& DescriptorAttribute = OwningWidget.GetWidgetClass().GetAttributeDescriptor().GetAttributeAtIndex(CachedAttributeDescriptorIndex);
 		return DescriptorAttribute.InvalidationReason.Get(OwningWidget);
@@ -200,7 +204,7 @@ EInvalidateWidgetReason FSlateAttributeMetaData::FGetterItem::GetInvalidationDet
 
 FName FSlateAttributeMetaData::FGetterItem::GetAttributeName(const SWidget& OwningWidget) const
 {
-	if (CachedAttributeDescriptorIndex != INDEX_NONE)
+	if (CachedAttributeDescriptorIndex != FGetterItem::InvalidAttributeIndex)
 	{
 		const FSlateAttributeDescriptor::FAttribute& DescriptorAttribute = OwningWidget.GetWidgetClass().GetAttributeDescriptor().GetAttributeAtIndex(CachedAttributeDescriptorIndex);
 		return DescriptorAttribute.Name;
@@ -236,10 +240,10 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 			if (GetterItem.bIsADependencyForSomeoneElse)
 			{
 				GetterItem.bUpatedManually = true;
-				AttributeMetaData->bHasUpdatedManuallyFlagToReset = true;
+				AttributeMetaData->SetNeedToResetFlag(FoundIndex);
 			}
 		}
-		// Not registered but may be defined in the Descriptor
+		// Not registered/bound but may be defined in the Descriptor
 		else if (AttributeType == ESlateAttributeType::Member)
 		{
 			FSlateAttributeDescriptor const& AttributeDescriptor = OwningWidget.GetWidgetClass().GetAttributeDescriptor();
@@ -253,11 +257,13 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 				{
 					// Find if that dependency is registered, if not it is ok because every attribute is updated at least once
 					// Set UpdatedOnce to false to force a new update.
-					AttributeDescriptor.ForEachDependency(*FoundAttribute, [AttributeMetaData](int32 DependencyIndex)
+					AttributeDescriptor.ForEachDependentsOn(*FoundAttribute, [AttributeMetaData](int32 DependencyIndex)
 					{
 						FGetterItem* FoundOther = AttributeMetaData->Attributes.FindByPredicate([DependencyIndex](FGetterItem const& Other)
 						{
-							return Other.CachedAttributeDescriptorIndex == DependencyIndex;
+							check(DependencyIndex != INDEX_NONE);
+							check(DependencyIndex < std::numeric_limits<FGetterItem::FAttributeIndex>::max());
+							return Other.CachedAttributeDescriptorIndex == (FGetterItem::FAttributeIndex)DependencyIndex;
 						});
 						if (FoundOther)
 						{
@@ -286,6 +292,15 @@ void FSlateAttributeMetaData::UpdateAllAttributes(SWidget& OwningWidget, EInvali
 	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
 	{
 		AttributeMetaData->UpdateAttributesImpl(OwningWidget, InvalidationStyle, 0, AttributeMetaData->Attributes.Num());
+		if (AttributeMetaData->ResetFlag != EResetFlags::None)
+		{
+			for (FGetterItem& GetterItem : AttributeMetaData->Attributes)
+			{
+				GetterItem.bUpatedManually = false;
+				GetterItem.bUpdatedThisFrame = false;
+			}
+			AttributeMetaData->ResetFlag = EResetFlags::None;
+		}
 	}
 }
 
@@ -294,7 +309,22 @@ void FSlateAttributeMetaData::UpdateOnlyVisibilityAttributes(SWidget& OwningWidg
 {
 	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
 	{
-		AttributeMetaData->UpdateAttributesImpl(OwningWidget, InvalidationStyle, 0, AttributeMetaData->AffectVisibilityCounter);
+		if (AttributeMetaData->AffectVisibilityCounter > 0)
+		{
+			const int32 StartIndex = 0;
+			const int32 EndIndex = AttributeMetaData->AffectVisibilityCounter;
+			AttributeMetaData->UpdateAttributesImpl(OwningWidget, InvalidationStyle, StartIndex, EndIndex);
+			if (EnumHasAllFlags(AttributeMetaData->ResetFlag, EResetFlags::NeedToReset_ExceptVisibility))
+			{
+				for (int32 Index = StartIndex; Index < EndIndex; ++Index)
+				{
+					FGetterItem& GetterItem = AttributeMetaData->Attributes[Index];
+					GetterItem.bUpatedManually = false;
+					GetterItem.bUpdatedThisFrame = false;
+				}
+				EnumRemoveFlags(AttributeMetaData->ResetFlag, EResetFlags::NeedToReset_ExceptVisibility);
+			}
+		}
 	}
 }
 
@@ -303,7 +333,22 @@ void FSlateAttributeMetaData::UpdateExceptVisibilityAttributes(SWidget& OwningWi
 {
 	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
 	{
-		AttributeMetaData->UpdateAttributesImpl(OwningWidget, InvalidationStyle, AttributeMetaData->AffectVisibilityCounter, AttributeMetaData->Attributes.Num());
+		if (AttributeMetaData->AffectVisibilityCounter < AttributeMetaData->Attributes.Num())
+		{
+			const int32 StartIndex = AttributeMetaData->AffectVisibilityCounter;
+			const int32 EndIndex = AttributeMetaData->Attributes.Num();
+			AttributeMetaData->UpdateAttributesImpl(OwningWidget, InvalidationStyle, StartIndex, EndIndex);
+			if (EnumHasAllFlags(AttributeMetaData->ResetFlag, EResetFlags::NeedToReset_ExceptVisibility))
+			{
+				for (int32 Index = StartIndex; Index < EndIndex; ++Index)
+				{
+					FGetterItem& GetterItem = AttributeMetaData->Attributes[Index];
+					GetterItem.bUpatedManually = false;
+					GetterItem.bUpdatedThisFrame = false;
+				}
+				EnumRemoveFlags(AttributeMetaData->ResetFlag, EResetFlags::NeedToReset_ExceptVisibility);
+			}
+		}
 	}
 }
 
@@ -335,7 +380,7 @@ void FSlateAttributeMetaData::UpdateAttributesImpl(SWidget& OwningWidget, EInval
 
 		// Update every attribute at least once.
 		//Check if it has a dependency and if it was updated this frame (it could be from an UpdateNow)
-		if (GetterItem.CachedAttributeDependencyIndex != INDEX_NONE && GetterItem.bUpdatedOnce)
+		if (GetterItem.CachedAttributeDependencyIndex != FGetterItem::InvalidAttributeIndex && GetterItem.bUpdatedOnce)
 		{
 			// Note that the dependency is maybe not registered and the attribute may have been invalidated manually
 
@@ -364,18 +409,10 @@ void FSlateAttributeMetaData::UpdateAttributesImpl(SWidget& OwningWidget, EInval
 		GetterItem.bUpdatedThisFrame = Result.bInvalidationRequested;
 		if (Result.bInvalidationRequested && bAllowInvalidation)
 		{
+			SetNeedToResetFlag(Index);
 			InvalidationReason |= GetterItem.GetInvalidationDetail(OwningWidget, Result.InvalidationReason);
 		}
 	}
-
-	if (bHasUpdatedManuallyFlagToReset)
-	{
-		for (FGetterItem& GetterItem : Attributes)
-		{
-			GetterItem.bUpatedManually = false;
-		}
-	}
-	bHasUpdatedManuallyFlagToReset = false;
 
 	if (bInvalidateIfNeeded)
 	{
@@ -417,7 +454,7 @@ void FSlateAttributeMetaData::UpdateAttribute(SWidget& OwningWidget, FSlateAttri
 				if (GetterItem.bIsADependencyForSomeoneElse)
 				{
 					GetterItem.bUpatedManually = true;
-					AttributeMetaData->bHasUpdatedManuallyFlagToReset = true;
+					AttributeMetaData->SetNeedToResetFlag(FoundIndex);
 				}
 			}
 		}

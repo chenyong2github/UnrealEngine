@@ -147,7 +147,7 @@ public:
 	};
 
 	/** @returns the number of Attributes registered. */
-	int32 AttributeNum() const { return Attributes.Num(); }
+	int32 GetAttributeNum() const { return Attributes.Num(); }
 
 	/** @returns the Attribute at the index previously found with IndexOfMemberAttribute */
 	const FAttribute& GetAttributeAtIndex(int32 Index) const;
@@ -166,13 +166,13 @@ public:
 
 	/** Iterator over each dependency this attribute is responsible of. */
 	template<typename Predicate>
-	void ForEachDependency(FAttribute const& Attribute, Predicate Pred) const
+	void ForEachDependentsOn(FAttribute const& Attribute, Predicate Pred) const
 	{
 		checkf(&Attribute >= Attributes.GetData() && &Attribute <= Attributes.GetData()+Attributes.Num()
 			, TEXT("The attribute is not part of this Descriptor."));
 		if (Attribute.bIsADependencyForSomeoneElse)
 		{
-			ForEachDependencyImpl(Attribute.Name, (int32)(&Attribute - Attributes.GetData()), Pred);
+			ForEachDependentsOfImpl(Attribute.Name, (int32)(&Attribute - Attributes.GetData()), Pred);
 		}
 	}
 
@@ -185,7 +185,7 @@ private:
 	void SetAffectVisibility(FAttribute& Attribute, bool bUpdate);
 
 	template<typename Predicate>
-	void ForEachDependencyImpl(FName const& LookForName, int32 Index, Predicate& Pred) const
+	void ForEachDependentsOfImpl(FName const& LookForName, int32 Index, Predicate& Pred) const
 	{
 		++Index;
 		for (; Index < Attributes.Num(); ++Index)
@@ -196,7 +196,7 @@ private:
 				Pred(Index);
 				if (Other.bIsADependencyForSomeoneElse)
 				{
-					ForEachDependencyImpl(Other.Name, Index, Pred);
+					ForEachDependentsOfImpl(Other.Name, Index, Pred);
 				}
 			}
 		}
