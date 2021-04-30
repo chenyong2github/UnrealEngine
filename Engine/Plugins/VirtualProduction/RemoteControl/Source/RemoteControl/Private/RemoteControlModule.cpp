@@ -146,6 +146,7 @@ namespace RemoteControlUtil
 /**
  * Implementation of the RemoteControl interface
  */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class FRemoteControlModule : public IRemoteControlModule
 {
 public:
@@ -187,7 +188,6 @@ public:
 		IModularFeatures::Get().UnregisterModularFeature(IRemoteControlInterceptionFeatureProcessor::GetName(), RCIProcessor.Get());
 	}
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual FOnPresetRegistered& OnPresetRegistered() override
 	{
 		return OnPresetRegisteredDelegate;
@@ -208,7 +208,6 @@ public:
 	virtual void UnregisterPreset(FName Name) override
 	{
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual bool ResolveCall(const FString& ObjectPath, const FString& FunctionName, FRCCallReference& OutCallRef, FString* OutErrorText) override
 	{
@@ -822,6 +821,7 @@ private:
 	/** RC Processor feature instance */
 	TUniquePtr<IRemoteControlInterceptionFeatureProcessor> RCIProcessor;
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE
 

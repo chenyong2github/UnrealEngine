@@ -6,6 +6,7 @@
 #include "Containers/Array.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Misc/Guid.h"
+#include "Widgets/Layout/SSplitter.h"
 
 class SWidget;
 class SFieldGroup;

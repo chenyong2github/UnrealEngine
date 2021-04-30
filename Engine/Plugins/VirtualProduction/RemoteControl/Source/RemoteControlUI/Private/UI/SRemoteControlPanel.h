@@ -18,6 +18,7 @@ struct FRemoteControlEntity;
 class FReply;
 class IPropertyRowGenerator;
 class IPropertyHandle;
+class SBox;
 class SClassViewer;
 class SComboButton;
 struct SRCPanelTreeNode;
