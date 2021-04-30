@@ -7,11 +7,20 @@
 
 #define TILE_SIZE 8
 
+#define CONFIG_OUTPUT_HALF_RES DIM_OUTPUT_HALF_RES
+
 
 //------------------------------------------------------- PARAMETERS
 
+uint4 HistoryRejectionViewport;
+
 Texture2D<taa_half> HistoryRejectionTexture;
 RWTexture2D<taa_half> HistoryRejectionOutput;
+
+
+//------------------------------------------------------- LDS
+
+groupshared taa_half SharedRejection[TILE_SIZE * TILE_SIZE];
 
 
 //------------------------------------------------------- FUNCTIONS
@@ -76,29 +85,55 @@ void MainCS(
 		taa_short2(GroupId) * taa_short2(TILE_SIZE, TILE_SIZE) +
 		Map8x8Tile2x2Lane(GroupThreadIndex));
 
+	RejectionPixelPos = ClampPixelOffset(RejectionPixelPos, HistoryRejectionViewport.xy, HistoryRejectionViewport.zw - 1);
+
 	// Fetch neighborhood of the kernel
 	taa_half InSamples[9];
 	UNROLL
 	for (uint i = 0; i < 9; i++)
 	{
-		taa_short2 SampleInputPixelPos = RejectionPixelPos + ClampPixelOffset(
+		taa_short2 SampleInputPixelPos = AddAndClampPixelOffset(
 			RejectionPixelPos,
 			kOffsets3x3[i], kOffsets3x3[i],
-			RejectionInfo_ViewportMin, RejectionInfo_ViewportMax - 1);
+			HistoryRejectionViewport.xy, HistoryRejectionViewport.zw - 1);
 
 		InSamples[i] = HistoryRejectionTexture[SampleInputPixelPos];
 	}
 
 	taa_half Rejection = Median9(InSamples);
 
-	bool bIsValid = all(RejectionPixelPos < taa_short2(RejectionInfo_ViewportMax));
-	RejectionPixelPos.x = bIsValid ? RejectionPixelPos.x : ~taa_ushort(0);
+	#if CONFIG_OUTPUT_HALF_RES
+	{
+		SharedRejection[GroupThreadIndex] = Rejection;
 
-	HistoryRejectionOutput[RejectionPixelPos] = Rejection;
+		GroupMemoryBarrierWithGroupSync();
 
+		UNROLL
+		for (uint i = 1; i < 4; i++)
+		{
+			uint ButterflySwap = i;
+
+			Rejection = min(Rejection, SharedRejection[GroupThreadIndex ^ ButterflySwap]);
+		}
+		
+		bool bIsValid = all(RejectionPixelPos <= taa_short2(HistoryRejectionViewport.zw)) && all((taa_ushort2(RejectionPixelPos) % taa_ushort(2)) == taa_ushort(0));
+
+		taa_ushort2 OutputPixelPos = taa_ushort2(RejectionPixelPos) / taa_ushort(2);
+		OutputPixelPos.x = bIsValid ? OutputPixelPos.x : ~taa_ushort(0);
+
+		HistoryRejectionOutput[OutputPixelPos] = Rejection;
+	}
+	#else
+	{
+		taa_short2 OutputPixelPos = InvalidateOutputPixelPos(RejectionPixelPos, HistoryRejectionViewport.zw);
+		HistoryRejectionOutput[OutputPixelPos] = Rejection;
+	}
+	#endif
+	
 	#if DEBUG_OUTPUT
 	{
-		DebugOutput[RejectionPixelPos] = Debug;
+		taa_short2 OutputPixelPos = InvalidateOutputPixelPos(RejectionPixelPos, HistoryRejectionViewport.zw);
+		DebugOutput[OutputPixelPos] = Debug;
 	}
 	#endif
 }

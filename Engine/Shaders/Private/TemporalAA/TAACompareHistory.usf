@@ -5,7 +5,7 @@
 
 //------------------------------------------------------- CONFIG
 
-#define CONFIG_OUTPUT_HALF_RES 1
+#define CONFIG_OUTPUT_HALF_RES DIM_OUTPUT_HALF_RES
 
 #define TILE_SIZE 16
 
@@ -128,24 +128,21 @@ void MainCS(
 
 		HistoryRejectionOutput[OutputPixelPos] = Rejection;
 	}
-	#endif
-
+	#else
 	{
 		bool bIsValid = all(InputPixelPos <= taa_short2(InputPixelPosMax));
 
 		taa_ushort2 OutputPixelPos = taa_ushort2(InputPixelPos - taa_short2(InputPixelPosMin));
 		OutputPixelPos.x = bIsValid ? OutputPixelPos.x : ~taa_ushort(0);
 
-		#if !CONFIG_OUTPUT_HALF_RES
-		{
-			HistoryRejectionOutput[OutputPixelPos] = Rejection;
-		}
-		#endif
-
-		#if DEBUG_OUTPUT
-		{
-			DebugOutput[OutputPixelPos] = Debug;
-		}
-		#endif
+		HistoryRejectionOutput[OutputPixelPos] = Rejection;
 	}
+	#endif
+
+	#if DEBUG_OUTPUT
+	{
+		taa_short2 OutputPixelPos = InvalidateOutputPixelPos(taa_ushort2(InputPixelPos), InputPixelPosMax);
+		DebugOutput[OutputPixelPos] = Debug;
+	}
+	#endif
 }
