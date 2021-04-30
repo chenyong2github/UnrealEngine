@@ -50,6 +50,7 @@ public class TargetPlatform : ModuleRules
 
 				if (Target.bCompileAgainstEngine)
 				{
+					DynamicallyLoadedModuleNames.Add("AudioFormatADPCM");
 					DynamicallyLoadedModuleNames.Add("AudioFormatOgg");
 					DynamicallyLoadedModuleNames.Add("AudioFormatOpus");
 				}
@@ -69,6 +70,7 @@ public class TargetPlatform : ModuleRules
 
 				if (Target.bCompileAgainstEngine)
 				{
+					DynamicallyLoadedModuleNames.Add("AudioFormatADPCM");
 					DynamicallyLoadedModuleNames.Add("AudioFormatOgg");
 					DynamicallyLoadedModuleNames.Add("AudioFormatOpus");
 				}
@@ -82,6 +84,7 @@ public class TargetPlatform : ModuleRules
 
 				if (Target.bCompileAgainstEngine)
 				{
+					DynamicallyLoadedModuleNames.Add("AudioFormatADPCM");
 					DynamicallyLoadedModuleNames.Add("AudioFormatOgg");
 					DynamicallyLoadedModuleNames.Add("AudioFormatOpus");
 				}
