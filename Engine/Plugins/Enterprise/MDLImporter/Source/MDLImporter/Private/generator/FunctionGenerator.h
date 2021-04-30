@@ -5775,6 +5775,53 @@ namespace Generator
 			NewMaterialExpressionFunctionOutput(Function, TEXT("refl"), Refl);
 		}
 
+		void UnrealPixelNormalWS(UMaterialFunction* Function, int32 ArraySize)
+		{
+			UMaterialExpressionPixelNormalWS* Normal = NewMaterialExpression<UMaterialExpressionPixelNormalWS>(Function);
+			NewMaterialExpressionFunctionOutput(Function, TEXT("result"), Normal);
+		}
+
+		void UnrealVertexNormalWS(UMaterialFunction* Function, int32 ArraySize)
+		{
+			UMaterialExpressionVertexNormalWS* Normal = NewMaterialExpression<UMaterialExpressionVertexNormalWS>(Function);
+			NewMaterialExpressionFunctionOutput(Function, TEXT("result"), Normal);
+		}
+
+		void UnrealFresnel(UMaterialFunction* Function, int32 ArraySize)
+		{
+			UMaterialExpressionFunctionInput* Exponent = NewMaterialExpressionFunctionInput(Function, TEXT("exponent"), EFunctionInputType::FunctionInput_Scalar, 5.0f);
+			UMaterialExpressionFunctionInput* BaseReflectRraction = NewMaterialExpressionFunctionInput(Function, TEXT("base_reflect_fraction"), EFunctionInputType::FunctionInput_Scalar, 0.04f);
+			UMaterialExpressionFunctionInput* Normal = NewMaterialExpressionFunctionInput(Function, TEXT("normal"), EFunctionInputType::FunctionInput_Vector3, NewMaterialExpression<UMaterialExpressionPixelNormalWS>(Function));
+
+			UMaterialExpressionFresnel* Fresnel = NewMaterialExpressionFresnel(Function, Exponent, BaseReflectRraction, Normal);
+
+			NewMaterialExpressionFunctionOutput(Function, TEXT("result"), Fresnel);
+		}
+
+		void UnrealCameraVector(UMaterialFunction* Function, int32 ArraySize)
+		{
+			UMaterialExpressionCameraVectorWS* CameraVector = NewMaterialExpression<UMaterialExpressionCameraVectorWS>(Function);
+			NewMaterialExpressionFunctionOutput(Function, TEXT("result"), CameraVector);
+		}
+
+		void UnrealTransformTangentToWorld(UMaterialFunction* Function, int32 ArraySize)
+		{
+			UMaterialExpressionFunctionInput* Vector = NewMaterialExpressionFunctionInput(Function, TEXT("vector"), EFunctionInputType::FunctionInput_Vector3, {});
+
+			UMaterialExpressionTransform* TransformedVector = NewMaterialExpressionTransform(Function, Vector, TRANSFORMSOURCE_Tangent, TRANSFORM_World);
+
+			NewMaterialExpressionFunctionOutput(Function, TEXT("result"), TransformedVector);
+		}
+
+		void UnrealTransformWorldToTangent(UMaterialFunction* Function, int32 ArraySize)
+		{
+			UMaterialExpressionFunctionInput* Vector = NewMaterialExpressionFunctionInput(Function, TEXT("vector"), EFunctionInputType::FunctionInput_Vector3, {});
+
+			UMaterialExpressionTransform* TransformedVector = NewMaterialExpressionTransform(Function, Vector, TRANSFORMSOURCE_World, TRANSFORM_Tangent);
+
+			NewMaterialExpressionFunctionOutput(Function, TEXT("result"), TransformedVector);
+		}
+
 		void UnrealTangentSpaceNormal(UMaterialFunction* Function, int32 ArraySize)
 		{
 			check(0 == ArraySize);
@@ -5809,6 +5856,23 @@ namespace Generator
 		{
 			// Emissive multiplier is always 1.0 in UE
 			NewMaterialExpressionFunctionOutput(Function, TEXT("result"), NewMaterialExpressionConstant(Function, 1.0f));
+		}
+
+		void UnrealSubsurfaceWeight(UMaterialFunction* Function, int32 ArraySize)
+		{
+			NewMaterialExpressionFunctionOutput(Function, TEXT("weight"), 0.0f);
+		}
+
+		void UnrealSubsurfaceColor(UMaterialFunction* Function, int32 ArraySize)
+		{
+			UMaterialExpressionFunctionInput* Color = NewMaterialExpressionFunctionInput(Function, TEXT("color"), EFunctionInputType::FunctionInput_Vector3, { 1.0f, 1.0f, 1.0f });
+			NewMaterialExpressionFunctionOutput(Function, TEXT("color"), Color);
+		}
+
+		void UnrealSubsurfaceOpacity(UMaterialFunction* Function, int32 ArraySize)
+		{
+			UMaterialExpressionFunctionInput* Opacity = NewMaterialExpressionFunctionInput(Function, TEXT("opacity"), EFunctionInputType::FunctionInput_Scalar, 1.0f);
+			NewMaterialExpressionFunctionOutput(Function, TEXT("opacity"), Opacity);
 		}
 
 		void UnrealOpacityWeight(UMaterialFunction* Function, int32 ArraySize)
