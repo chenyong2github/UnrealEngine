@@ -1386,6 +1386,18 @@ enum class ENCPoolMethod : uint8
 };
 
 UENUM()
+enum class ENiagaraSystemInstanceState : uint8
+{
+	None,
+	PendingSpawn,
+	PendingSpawnPaused,
+	Spawning,
+	Running,
+	Paused,
+	Num
+};
+
+UENUM()
 enum class ENiagaraFunctionDebugState : uint8
 {
 	NoDebug,
