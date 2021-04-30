@@ -9,7 +9,10 @@
 #include "Widgets/SCompoundWidget.h"
 
 struct FEdGraphSchemaAction;
+struct FGraphActionListBuilderBase;
 struct FNiagaraNamespaceMetadata;
+class SEditableTextBox;
+class SExpanderArrow;
 class SGraphActionMenu;
 class UEdGraphPin;
 class UNiagaraGraph;
