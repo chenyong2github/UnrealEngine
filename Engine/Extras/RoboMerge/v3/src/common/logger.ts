@@ -43,7 +43,11 @@ abstract class RoboLogger {
         format: format.combine(
             format.timestamp( { format: 'YYYY/MM/DD HH:mm:ss.SSS' } ),
             format.errors({ stack: true }),
-            format.printf(info => `${info.timestamp}${info["prefix"] ? ` ${info["prefix"]}` : ''}${info.level === 'info' ? '' : ` [${info.level}]`}: ${info.message}`)
+            format.printf(info => {
+                const prefix = info.prefix ? ` ${info.prefix}` : ''
+                const level = info.level === 'info' ? '' : ` [${info.level}]`
+                return `${info.timestamp}${prefix}${level}: ${info.message}`
+            })
         ),
         transports: [ RoboLogger.logTransport ],
         levels: NpmLogLevelValues
@@ -112,9 +116,10 @@ abstract class RoboLogger {
 
     printException(err: any, preface?: any) {
         if (err instanceof Error) {
-            return this.error(`${preface ? `${preface.toString()} ` : ''}${err.name}: ${err.message}\n${err.stack}`)
+            const prefaceStr = preface ? `${preface.toString()} ` : ''
+            return this.error(`${prefaceStr}${err.name}: ${err.message}\n${err.stack}`)
         }
-        return this.error(`${preface ? `${preface.toString()}: ` : ''}${err.toString()}`)
+        return this.error((preface ? `${preface.toString()}: ` : '') + err.toString())
     }
 
     error(message: any) {
@@ -158,7 +163,7 @@ export class ContextualLogger extends RoboLogger {
     /**
      * Create a ContextualLogger parented with a specific winston logger
      * @param context Preceeding text for every log message
-     * @param parentLogger winston logger to server as a parent
+     * @param parentLogger winston logger to serve as a parent
      */
     constructor(context: string, parentLogger: winston.Logger);
     constructor(context: string, parentLogger?: winston.Logger) {
