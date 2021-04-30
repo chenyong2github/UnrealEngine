@@ -85,21 +85,44 @@ namespace Chaos
 			bool bShowLevelSetCollision;
 		};
 
-
-		enum class EDebugDrawJointFeature
+		// A bitmask of features to show when drawing joints
+		class FChaosDebugDrawJointFeatures
 		{
-			None = 0,
-			CoMConnector = 1 << 0,		// 1
-			ActorConnector = 1 << 1,	// 2
-			Stretch = 1 << 2,			// 4
-			Axes = 1 << 3,				// 8
-			Level = 1 << 4,				// 16
-			Index = 1 << 5,				// 32
-			Color = 1 << 6,				// 64
-			Batch = 1 << 7,				// 128
-			Island = 1 << 8,			// 2
+		public:
+			FChaosDebugDrawJointFeatures()
+				: bCoMConnector(false)
+				, bActorConnector(false)
+				, bStretch(false)
+				, bAxes(false)
+				, bLevel(false)
+				, bIndex(false)
+				, bColor(false)
+				, bBatch(false)
+				, bIsland(false)
+			{}
 
-			Default = ActorConnector | Stretch
+			static FChaosDebugDrawJointFeatures MakeEmpty()
+			{
+				return FChaosDebugDrawJointFeatures();
+			}
+
+			static FChaosDebugDrawJointFeatures MakeDefault()
+			{
+				FChaosDebugDrawJointFeatures Features = FChaosDebugDrawJointFeatures();
+				Features.bActorConnector = true;
+				Features.bStretch = true;
+				return Features;
+			}
+
+			bool bCoMConnector;
+			bool bActorConnector;
+			bool bStretch;
+			bool bAxes;
+			bool bLevel;
+			bool bIndex;
+			bool bColor;
+			bool bBatch;
+			bool bIsland;
 		};
 
 		CHAOS_API void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TParticleView<FGeometryParticles>& ParticlesView, const FColor& Color, const FChaosDebugDrawSettings* Settings = nullptr);
@@ -116,8 +139,8 @@ namespace Chaos
 		CHAOS_API void DrawParticleCollisions(const FRigidTransform3& SpaceTransform, const FGeometryParticleHandle* Particle, const FPBDCollisionConstraints& Collisions, const FChaosDebugDrawSettings* Settings = nullptr);
 		CHAOS_API void DrawCollisions(const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraints& Collisions, FRealSingle ColorScale, const FChaosDebugDrawSettings* Settings = nullptr);
 		CHAOS_API void DrawCollisions(const FRigidTransform3& SpaceTransform, const TArray<FPBDCollisionConstraintHandle*>& ConstraintHandles, FRealSingle ColorScale, const FChaosDebugDrawSettings* Settings = nullptr);
-		CHAOS_API void DrawJointConstraints(const FRigidTransform3& SpaceTransform, const TArray<FPBDJointConstraintHandle*>& ConstraintHandles, FRealSingle ColorScale, uint32 FeatureMask = (uint32)EDebugDrawJointFeature::Default, const FChaosDebugDrawSettings* Settings = nullptr);
-		CHAOS_API void DrawJointConstraints(const FRigidTransform3& SpaceTransform, const FPBDJointConstraints& Constraints, FRealSingle ColorScale, uint32 FeatureMask = (uint32)EDebugDrawJointFeature::Default, const FChaosDebugDrawSettings* Settings = nullptr);
+		CHAOS_API void DrawJointConstraints(const FRigidTransform3& SpaceTransform, const TArray<FPBDJointConstraintHandle*>& ConstraintHandles, FRealSingle ColorScale, const FChaosDebugDrawJointFeatures& FeatureMask = FChaosDebugDrawJointFeatures::MakeDefault(), const FChaosDebugDrawSettings* Settings = nullptr);
+		CHAOS_API void DrawJointConstraints(const FRigidTransform3& SpaceTransform, const FPBDJointConstraints& Constraints, FRealSingle ColorScale, const FChaosDebugDrawJointFeatures& FeatureMask = FChaosDebugDrawJointFeatures::MakeDefault(), const FChaosDebugDrawSettings* Settings = nullptr);
 		CHAOS_API void DrawSimulationSpace(const FSimulationSpace& SimSpace, const FChaosDebugDrawSettings* Settings = nullptr);
 		CHAOS_API void DrawShape(const FRigidTransform3& ShapeTransform, const FImplicitObject* Shape, const FColor& Color, const FChaosDebugDrawSettings* Settings = nullptr);
 		CHAOS_API void DrawConstraintGraph(const FRigidTransform3& ShapeTransform, const FPBDConstraintColor& Graph, const FChaosDebugDrawSettings* Settings = nullptr);
