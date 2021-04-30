@@ -361,3 +361,5 @@ const FSlateBrush* SNiagaraParameterDefinitionsPanel::GetCategoryBackgroundImage
 		return bIsCategoryExpanded ? FEditorStyle::GetBrush("DetailsView.CategoryTop") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory");
 	}
 }
+
+#undef LOCTEXT_NAMESPACE /*"NiagaraParameterDefinitionsPanel"*/
