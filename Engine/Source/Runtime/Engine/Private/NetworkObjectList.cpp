@@ -250,6 +250,20 @@ bool FNetworkObjectList::MarkActive(AActor* const Actor, UNetConnection* const C
 	return false;
 }
 
+void FNetworkObjectList::MarkDirtyForReplay(AActor* const Actor)
+{
+	if (Actor)
+	{
+		if (TSharedPtr<FNetworkObjectInfo>* InfoPtr = AllNetworkObjects.Find(Actor))
+		{
+			if (FNetworkObjectInfo* ObjectInfo = InfoPtr->Get())
+			{
+				ObjectInfo->bDirtyForReplay = true;
+			}
+		}
+	}
+}
+
 void FNetworkObjectList::ClearRecentlyDormantConnection(AActor* const Actor, UNetConnection* const Connection, const FName NetDriverName)
 {
 	if (Actor != nullptr)
