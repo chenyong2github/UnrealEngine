@@ -327,7 +327,7 @@ public:
 	inline bool IsReferencedVertex(int VertexID) const
 	{
 		return VertexID >= 0 && VertexID < (int)VertexRefCounts.GetMaxIndex() &&
-		    VertexRefCounts.GetRawRefCount(VertexID) > 1;
+		    VertexRefCounts.GetRefCount(VertexID) > 1;
 	}
 	/** @return true if TriangleID is a valid triangle in this mesh */
 	inline bool IsTriangle(int TriangleID) const

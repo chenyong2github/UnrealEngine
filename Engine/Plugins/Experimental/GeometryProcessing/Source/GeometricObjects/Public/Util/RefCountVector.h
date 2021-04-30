@@ -84,13 +84,13 @@ public:
 		}
 		else
 		{
-			int iFree = INVALID_REF_COUNT;
-			while (iFree == INVALID_REF_COUNT && FreeIndices.IsEmpty() == false)
+			int iFree = INDEX_NONE;
+			while (iFree == INDEX_NONE && FreeIndices.IsEmpty() == false)
 			{
 				iFree = FreeIndices.Back();
 				FreeIndices.PopBack();
 			}
-			if (iFree != INVALID_REF_COUNT)
+			if (iFree != INDEX_NONE)
 			{
 				RefCounts[iFree] = 1;
 				return iFree;
@@ -154,7 +154,7 @@ public:
 			{
 				if (FreeIndices[i] == Index)
 				{
-					FreeIndices[i] = INVALID_REF_COUNT;
+					FreeIndices[i] = INDEX_NONE;
 					RefCounts[Index] = 1;
 					UsedCount++;
 					return true;
