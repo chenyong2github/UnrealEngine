@@ -646,10 +646,14 @@ void FD3D12MultiBuddyAllocator::DumpAllocatorStats(class FOutputDevice& Ar)
 
 void FD3D12MultiBuddyAllocator::UpdateMemoryStats(uint32& IOMemoryAllocated, uint32& IOMemoryUsed, uint32& IOMemoryFree, uint32& IOAlignmentWaste, uint32& IOAllocatedPageCount, uint32& IOFullPageCount)
 {
+#if defined(D3D12RHI_TRACK_DETAILED_STATS)
+	FScopeLock Lock(&CS);
+
 	for (FD3D12BuddyAllocator* Allocator : Allocators)
 	{
 		Allocator->UpdateMemoryStats(IOMemoryAllocated, IOMemoryUsed, IOMemoryFree, IOAlignmentWaste, IOAllocatedPageCount, IOFullPageCount);
 	}
+#endif
 }
 
 void FD3D12MultiBuddyAllocator::ReleaseAllResources()
