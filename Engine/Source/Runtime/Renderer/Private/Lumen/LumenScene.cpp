@@ -818,8 +818,17 @@ bool FLumenSceneData::UpdateAtlasSize()
 {
 	extern int32 GLumenSurfaceCacheCompress;
 
-	if (PhysicalAtlasSize != GetDesiredPhysicalAtlasSize()
-		|| bCompressPhysicalAtlas != (GLumenSurfaceCacheCompress != 0))
+	ESurfaceCacheCompression NewCompression = ESurfaceCacheCompression::Disabled;
+	if (GLumenSurfaceCacheCompress == 1 && GRHISupportsUAVFormatAliasing)
+	{
+		NewCompression = ESurfaceCacheCompression::UAVAliasing;
+	}
+	else if (GLumenSurfaceCacheCompress == 2)
+	{
+		NewCompression = ESurfaceCacheCompression::CopyTextureRegion;
+	}
+
+	if (PhysicalAtlasSize != GetDesiredPhysicalAtlasSize() || PhysicalAtlasCompression != NewCompression)
 	{
 		RemoveAllMeshCards();
 
@@ -827,7 +836,7 @@ bool FLumenSceneData::UpdateAtlasSize()
 		SurfaceCacheAllocator.Init(GetDesiredPhysicalAtlasSizeInPages());
 		UnlockedAllocationHeap.Clear();
 
-		bCompressPhysicalAtlas = (GLumenSurfaceCacheCompress != 0);
+		PhysicalAtlasCompression = NewCompression;
 		return true;
 	}
 

@@ -770,7 +770,7 @@ void FCardPageRenderData::PatchView(FRHICommandList& RHICmdList, const FScene* S
 void AllocateCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneData, const FViewInfo& View)
 {
 	const FIntPoint PageAtlasSize = LumenSceneData.GetPhysicalAtlasSize();
-	const bool bCompress = LumenSceneData.GetPhysicalAtlasCompression();
+	const bool bCompress = LumenSceneData.GetPhysicalAtlasCompression() != ESurfaceCacheCompression::Disabled;
 
 	ETextureCreateFlags TexFlags = TexCreate_ShaderResource | TexCreate_NoFastClear;
 

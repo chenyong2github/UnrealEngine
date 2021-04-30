@@ -21,7 +21,6 @@
 #include "Containers/BinaryHeap.h"
 #include "Lumen.h"
 
-class FLumenSceneData;
 class FLumenMeshCards;
 class FMeshCardsBuildData;
 class FLumenCardBuildData;
@@ -315,9 +314,7 @@ union FVirtualPageIndex
 	};
 };
 
-/**
- * Physical page allocator, which routes sub page sized allocations to a bin allocator
- */
+// Physical page allocator, which routes sub page sized allocations to a bin allocator
 class FLumenSurfaceCacheAllocator
 {
 public:
@@ -374,6 +371,13 @@ private:
 
 	TArray<FIntPoint> PhysicalPageFreeList;
 	TArray<FPageBin> PageBins;
+};
+
+enum class ESurfaceCacheCompression : uint8
+{
+	Disabled,
+	UAVAliasing,
+	CopyTextureRegion
 };
 
 class FLumenSceneData
@@ -493,7 +497,7 @@ public:
 	FIntPoint GetRadiosityAtlasSize() const;
 	FIntPoint GetCardCaptureAtlasSizeInPages() const;
 	FIntPoint GetCardCaptureAtlasSize() const;
-	bool GetPhysicalAtlasCompression() const { return bCompressPhysicalAtlas; }
+	ESurfaceCacheCompression GetPhysicalAtlasCompression() const { return PhysicalAtlasCompression; }
 
 	void UpdateSurfaceCacheFeedback(FVector LumenSceneCameraOrigin, TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& MeshCardsUpdate);
 
@@ -507,7 +511,7 @@ private:
 
 	// Virtual surface cache page table
 	FIntPoint PhysicalAtlasSize = FIntPoint(0, 0);
-	bool bCompressPhysicalAtlas = true;
+	ESurfaceCacheCompression PhysicalAtlasCompression;
 	FLumenSurfaceCacheAllocator SurfaceCacheAllocator;
 
 	TSparseSpanArray<FLumenPageTableEntry> PageTable;

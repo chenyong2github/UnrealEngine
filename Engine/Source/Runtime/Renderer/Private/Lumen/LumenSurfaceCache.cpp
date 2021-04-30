@@ -16,16 +16,10 @@ int32 GLumenSurfaceCacheCompress = 1;
 FAutoConsoleVariableRef CVarLumenSurfaceCacheCompress(
 	TEXT("r.LumenScene.SurfaceCache.Compress"),
 	GLumenSurfaceCacheCompress,
-	TEXT("Whether to use run time compression for surface cache."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
-// #lumen_todo: fix this path, at the moment it's blocked by RenderGraph
-int32 GLumenSurfaceCacheUAVAliasing = 0;
-FAutoConsoleVariableRef CVarLumenSurfaceCacheUAVAliasing(
-	TEXT("r.LumenScene.SurfaceCache.UAVAliasing"),
-	GLumenSurfaceCacheUAVAliasing,
-	TEXT("Whether to levarage UAV aliasing for skipping temporary copies."),
+	TEXT("Whether to use run time compression for surface cache.\n")
+	TEXT("0 - Disabled\n")
+	TEXT("1 - Compress using UAV aliasing if supported\n")
+	TEXT("2 - Compress using CopyTexture (may be very slow on some RHIs)\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -143,8 +137,8 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 	}
 
 	const FIntPoint PhysicalAtlasSize = LumenSceneData.GetPhysicalAtlasSize();
+	const ESurfaceCacheCompression PhysicalAtlasCompression = LumenSceneData.GetPhysicalAtlasCompression();
 	const FIntPoint CardCaptureAtlasSize = LumenSceneData.GetCardCaptureAtlasSize();
-	const bool bCompress = LumenSceneData.GetPhysicalAtlasCompression();
 
 	struct FPassConfig
 	{
@@ -163,7 +157,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 		{ CardCaptureAtlas.Emissive,		EmissiveAtlas,	nullptr, ELumenSurfaceCacheLayer::Emissive },
 	};
 
-	if (bCompress && GLumenSurfaceCacheUAVAliasing && GRHISupportsUAVFormatAliasing)
+	if (PhysicalAtlasCompression == ESurfaceCacheCompression::UAVAliasing)
 	{
 		// Compress to surface cache directly
 		for (FPassConfig& Pass : PassConfigs)
@@ -202,7 +196,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 				/*DownsampleFactor*/ 4);
 		}
 	}
-	else if (bCompress)
+	else if (PhysicalAtlasCompression == ESurfaceCacheCompression::CopyTextureRegion)
 	{
 		// Compress through a temp surface
 		const FIntPoint TempAtlasSize = FIntPoint::DivideAndRoundUp(CardCaptureAtlasSize, 4);
@@ -410,9 +404,9 @@ void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 	};
 
 	const FIntPoint PhysicalAtlasSize = LumenSceneData.GetPhysicalAtlasSize();
-	const bool bCompress = LumenSceneData.GetPhysicalAtlasCompression();
+	const ESurfaceCacheCompression PhysicalAtlasCompression = LumenSceneData.GetPhysicalAtlasCompression();
 
-	if (bCompress && GLumenSurfaceCacheUAVAliasing && GRHISupportsUAVFormatAliasing)
+	if (PhysicalAtlasCompression == ESurfaceCacheCompression::UAVAliasing)
 	{
 		// Clear compressed surface cache directly
 		for (FPassConfig& Pass : PassConfigs)
@@ -441,7 +435,7 @@ void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 				FIntVector(GroupSize.X, GroupSize.Y, 1));
 		}
 	}
-	else if (bCompress)
+	else if (PhysicalAtlasCompression == ESurfaceCacheCompression::CopyTextureRegion)
 	{
 		// Temporary atlas is required on platforms without UAV aliasing (GRHISupportsUAVFormatAliasing), where we can't directly compress into the final surface cache
 
@@ -500,7 +494,7 @@ void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 				RDG_EVENT_NAME("CopyToSurfaceCache %s", LayerConfig.Name),
 				Parameters,
 				ERDGPassFlags::Copy,
-				[InputTexture = Pass.TempAtlas, PhysicalAtlasSize, TempAtlasSize, OutputTexture = Pass.SurfaceCacheAtlas, bCompress](FRHICommandList& RHICmdList)
+				[InputTexture = Pass.TempAtlas, PhysicalAtlasSize, TempAtlasSize, OutputTexture = Pass.SurfaceCacheAtlas](FRHICommandList& RHICmdList)
 				{
 					const int32 NumTilesX = FMath::DivideAndRoundDown(PhysicalAtlasSize.X / 4, TempAtlasSize.X);
 					const int32 NumTilesY = FMath::DivideAndRoundDown(PhysicalAtlasSize.Y / 4, TempAtlasSize.Y);
