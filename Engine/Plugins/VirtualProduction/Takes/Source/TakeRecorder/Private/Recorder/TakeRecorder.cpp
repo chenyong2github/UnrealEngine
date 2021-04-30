@@ -645,8 +645,8 @@ bool UTakeRecorder::InitializeSequencer(ULevelSequence* LevelSequence, FText* Ou
 			{
 				*OutError = FText::Format(LOCTEXT("FailedToOpenSequencerError", "Failed to open Sequencer for asset '{0}."), FText::FromString(LevelSequence->GetPathName()));
 			}
+			return false;
 		}
-		return false;
 	}
 		
 	return true;
