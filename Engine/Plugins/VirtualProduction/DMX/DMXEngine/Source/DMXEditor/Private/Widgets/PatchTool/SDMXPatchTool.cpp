@@ -7,8 +7,11 @@
 #include "Library/DMXLibrary.h"
 #include "Library/DMXEntityFixturePatch.h"
 
+#include "Editor.h"
+#include "GameFramework/Actor.h"
 #include "Engine/Selection.h"
 #include "Styling/CoreStyle.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Layout/SGridPanel.h"
 
