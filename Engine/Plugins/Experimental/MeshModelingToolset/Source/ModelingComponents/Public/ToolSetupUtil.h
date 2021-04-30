@@ -97,19 +97,40 @@ namespace ToolSetupUtil
 	MODELINGCOMPONENTS_API UMaterialInterface* GetSelectionMaterial(const FLinearColor& UseColor, UInteractiveToolManager* ToolManager, float PercentDepthOffset = 0.0f);
 
 	/**
-	 * @return Simple material with configurable color and opacity.
+	 * @return Simple material with configurable color and opacity. Note that the material 
+	 *  will have translucent blend mode, which can interact poorly with overlapping translucent
+	 *  objects, so use the other overload if you do not need opacity control.
 	 */
 	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetSimpleCustomMaterial(UInteractiveToolManager* ToolManager, const FLinearColor& Color, float Opacity);
 
 	/**
-	 * @return Simple material with configurable depth offset, color, and opacity.
+	 * @return Simple material with configurable color. The material will have opaque blend mode.
 	 */
+	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetSimpleCustomMaterial(UInteractiveToolManager* ToolManager, const FLinearColor& Color);
+
+	 /**
+	  * @return Simple material with configurable depth offset, color, and opacity. Note that the material
+	  *  will have translucent blend mode, which can interact poorly with overlapping translucent
+	  *  objects, so use the other overload if you do not need opacity control.
+	  */
 	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetCustomDepthOffsetMaterial(UInteractiveToolManager* ToolManager, const FLinearColor& Color, float PercentDepthOffset, float Opacity);
 
 	/**
-	 * @return Simple two-sided material with configurable depth offset, color, and opacity.
+	 * @return Simple material with configurable depth offset and color. The material will have opaque blend mode.
+	 */
+	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetCustomDepthOffsetMaterial(UInteractiveToolManager* ToolManager, const FLinearColor& Color, float PercentDepthOffset);
+	
+	/**
+	 * @return Simple two-sided material with configurable depth offset, color, and opacity. Note that 
+	  *  the material will have translucent blend mode, which can interact poorly with overlapping translucent
+	  *  objects, so use the other overload if you do not need opacity control.
 	 */
 	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetCustomTwoSidedDepthOffsetMaterial(UInteractiveToolManager* ToolManager, const FLinearColor& Color, float PercentDepthOffset, float Opacity);
+
+	/**
+	 * @return Simple two-sided material with configurable depth offset and color. The material will have opaque blend mode.
+	 */
+	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetCustomTwoSidedDepthOffsetMaterial(UInteractiveToolManager* ToolManager, const FLinearColor& Color, float PercentDepthOffset);
 
 	/**
 	 * @return Material used when editing AVolume objects using our tools.
@@ -117,13 +138,37 @@ namespace ToolSetupUtil
 	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultEditVolumeMaterial();
 
 	/**
-	 * @param bRoundPoints true for round points, false for square
-	 * @return custom material suitable for use with UPointSetComponent
+	 * Gets a custom material suitable for use with UPointSetComponent for square points.
+	 * 
+	 * @param bDepthTested If true, the material will be depth tested as normal. If false, occluded points will still be
+	 *  displayed but dimmed.
+	 *  Note that the current implementations of the depth-tested and non-depth-tested modes use opaque and translucent 
+	 *  blend modes, respectively, and so inherit their limitations. Specifically, opaque does not support opacity, 
+	 *  and translucent does not always follow correct draw order relative to other translucent objects, which means
+	 *  that depth offset cannot reliably order lines within a non-depth-tested line set component.
 	 */
-	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultPointComponentMaterial(bool bRoundPoints, UInteractiveToolManager* ToolManager);
+	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultPointComponentMaterial(UInteractiveToolManager* ToolManager, bool bDepthTested = true);
 
 	/**
-	 * @return custom material suitable for use with ULineSetComponent
+	 * Gets a custom material suitable for use with UPointSetComponent for round points.
+	 * Note that this material uses translucent blend mode, and therefore can't always follow the correct draw order
+	 * relative to other translucent objects (and within the point set). If this is not acceptible, you will need to use
+	 * the depth tested square point material (GetDefaultPointComponentMaterial with bDepthTested = true).
+	 * 
+	 * @param bDepthTested If true, the material will be depth tested as normal. If false, occluded portions of lines
+	 *  will still be displayed, but dashed and dimmed.
+	 */
+	MODELINGCOMPONENTS_API UMaterialInterface* GetRoundPointComponentMaterial(UInteractiveToolManager* ToolManager, bool bDepthTested = true);
+
+	/**
+	 * Gets a custom material suitable for use with ULineSetComponent.
+	 * 
+	 * @param bDepthTested If true, the material will be depth tested as normal. If false, occluded portions of lines
+	 *  will still be displayed, but dashed and dimmed. 
+	 *  Note that the current implementations of the depth-tested and non-depth-tested modes use opaque and translucent 
+	 *  blend modes, respectively, and so inherit their limitations. Specifically, opaque does not support opacity, 
+	 *  and translucent does not always follow correct draw order relative to other translucent objects, which means
+	 *  that depth offset cannot reliably order lines within a non-depth-tested line set component.
 	 */
 	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultLineComponentMaterial(UInteractiveToolManager* ToolManager, bool bDepthTested = true);
 

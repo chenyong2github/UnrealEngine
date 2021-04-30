@@ -51,10 +51,10 @@ void USpaceCurveDeformationMechanic::Setup(UInteractiveTool* ParentToolIn)
 	// TODO: This probably should be configurable. For instance, we may want the segments to be dashed, or not visible at all.
 	RenderPoints = NewObject<UPointSetComponent>();
 	RenderPoints->SetPointMaterial(
-		LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/PointSetOverlaidComponentMaterial")));
+		ToolSetupUtil::GetDefaultPointComponentMaterial(GetParentTool()->GetToolManager(), /*bDepthTested*/ false));
 	RenderSegments = NewObject<ULineSetComponent>();
 	RenderSegments->SetLineMaterial(
-		LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/LineSetOverlaidComponentMaterial")));
+		ToolSetupUtil::GetDefaultLineComponentMaterial(GetParentTool()->GetToolManager(), /*bDepthTested*/ false));
 
 	NormalCurveColor = FColor::Red;
 	CurrentSegmentsColor = FColor::Orange;

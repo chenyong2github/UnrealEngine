@@ -53,16 +53,16 @@ void UCurveControlPointsMechanic::Setup(UInteractiveTool* ParentToolIn)
 	// TODO: This probably should be configurable. For instance, we may want the segments to be dashed, or not visible at all.
 	DrawnControlPoints = NewObject<UPointSetComponent>();
 	DrawnControlPoints->SetPointMaterial(
-		LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/PointSetOverlaidComponentMaterial")));
+		ToolSetupUtil::GetDefaultPointComponentMaterial(GetParentTool()->GetToolManager(), /*bDepthTested*/ false));
 	DrawnControlSegments = NewObject<ULineSetComponent>();
 	DrawnControlSegments->SetLineMaterial(
-		LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/LineSetOverlaidComponentMaterial")));
+		ToolSetupUtil::GetDefaultLineComponentMaterial(GetParentTool()->GetToolManager(), /*bDepthTested*/ false));
 	PreviewPoint = NewObject<UPointSetComponent>();
 	PreviewPoint->SetPointMaterial(
-		LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/PointSetOverlaidComponentMaterial")));
+		ToolSetupUtil::GetDefaultPointComponentMaterial(GetParentTool()->GetToolManager(), /*bDepthTested*/ false));
 	PreviewSegment = NewObject<ULineSetComponent>();
 	PreviewSegment->SetLineMaterial(
-		LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/LineSetOverlaidComponentMaterial")));
+		ToolSetupUtil::GetDefaultLineComponentMaterial(GetParentTool()->GetToolManager(), /*bDepthTested*/ false));
 
 	InitializationCurveColor = FColor::Orange;
 	NormalCurveColor = FColor::Red;

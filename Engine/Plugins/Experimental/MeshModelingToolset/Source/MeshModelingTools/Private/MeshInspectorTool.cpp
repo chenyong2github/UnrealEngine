@@ -246,12 +246,12 @@ void UMeshInspectorTool::UpdateVisualization()
 	FColor BinormalColor(15, 240, 15);
 	float TangentThickness = LineWidthMultiplier * 2.0f;
 
-	float BoundaryEdgeDepthBias = 2.0f;
-	float UVSeamDepthBias = 3.0f;
-	float NormalSeamDepthBias = 3.0f;
-	float PolygonBorderDepthBias = 2.0f;
+	float BoundaryEdgeDepthBias = 0.2f;
+	float UVSeamDepthBias = 0.3f;
+	float NormalSeamDepthBias = 0.3f;
+	float PolygonBorderDepthBias = 0.2f;
 	float NormalDepthBias = 0.0f;
-	float TangentDepthBias = 3.5f;
+	float TangentDepthBias = 0.35f;
 
 	// Used to scale normals and tangents appropriately
 	FVector ComponentScale = DrawnLineSet->GetComponentTransform().GetScale3D();

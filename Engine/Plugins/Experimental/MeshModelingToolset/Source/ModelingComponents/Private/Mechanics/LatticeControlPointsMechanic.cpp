@@ -63,10 +63,10 @@ void ULatticeControlPointsMechanic::Setup(UInteractiveTool* ParentToolIn)
 
 	DrawnControlPoints = NewObject<UPointSetComponent>();
 	DrawnControlPoints->SetPointMaterial(
-		LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/PointSetComponentMaterial")));
+		ToolSetupUtil::GetDefaultPointComponentMaterial(GetParentTool()->GetToolManager(), /*bDepthTested*/ true));
 	DrawnLatticeEdges = NewObject<ULineSetComponent>();
 	DrawnLatticeEdges->SetLineMaterial(
-		LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/LineSetComponentMaterial")));
+		ToolSetupUtil::GetDefaultLineComponentMaterial(GetParentTool()->GetToolManager(), /*bDepthTested*/ true));
 
 	NormalPointColor = FColor::Red;
 	NormalSegmentColor = FColor::Red;
