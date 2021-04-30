@@ -276,6 +276,28 @@ bool FEdGraphPinType::Serialize(FArchive& Ar)
 		bIsReference = bIsReferenceBool;
 		bIsWeakPointer = bIsWeakPointerBool;
 		bIsConst = bIsConstBool;
+
+#if WITH_EDITOR
+		// Due to uninitialized memory, bIsUObjectWrapper got serialized as true incorrectly
+		// for some number of pins. Set it back to false if it is not an object containing type
+		if (bIsUObjectWrapperBool)
+		{
+			static const TArray<FName> WrappedCategories = 
+			{
+				TEXT("class"),
+				TEXT("object"),
+				TEXT("interface"),
+				TEXT("softclass"),
+				TEXT("softobject")
+			};
+
+			if (!WrappedCategories.Contains(PinCategory))
+			{
+				bIsUObjectWrapperBool = false;
+			}
+		}
+#endif
+
 		bIsUObjectWrapper = bIsUObjectWrapperBool;
 	}
 
