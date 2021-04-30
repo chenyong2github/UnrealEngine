@@ -105,6 +105,17 @@ namespace UnrealGameSync
 
 			void Run()
 			{
+				try
+				{
+					RunInternal();
+				}
+				catch (ThreadInterruptedException)
+				{
+				}
+			}
+
+			void RunInternal()
+			{
 				List<PerforceChangeRange> CompletedRequests = new List<PerforceChangeRange>(); 
 				while(!bTerminate)
 				{
@@ -175,13 +186,7 @@ namespace UnrealGameSync
 					}
 
 					// Wait for something to change
-					try
-					{
-						RefreshEvent.WaitOne();
-					}
-					catch (ThreadInterruptedException)
-					{
-					}
+					RefreshEvent.WaitOne();
 				}
 			}
 
