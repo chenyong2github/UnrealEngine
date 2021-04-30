@@ -308,6 +308,41 @@ public:
 	}
 };
 
+
+
+class FBakeMultiTextureOp : public FBakeMapBaseOp
+{
+public:
+	typedef FBakeMapBaseOp Super;
+	using ImagePtr = TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>;
+
+	// inputs
+	const FDynamicMeshUVOverlay* UVOverlay = nullptr;
+	TMap<int32, ImagePtr> MaterialToTextureImageMap;
+
+	UBakeMeshAttributeMapsTool::FTexture2DImageSettings Settings;
+
+public:
+
+	virtual ~FBakeMultiTextureOp() {}
+
+	virtual void CalculateResult(FProgressCancel* Progress) override
+	{
+		Super::CalculateResult(Progress);
+		if (Progress && Progress->Cancelled())
+		{
+			return;
+		}
+
+		TUniquePtr<FMeshMultiResampleImageBaker> Baker = MakeUnique<FMeshMultiResampleImageBaker>();
+		Baker->SetCache(BakeCache.Get());
+		Baker->DetailUVOverlay = UVOverlay;
+		Baker->MultiTextures = MaterialToTextureImageMap;
+		Baker->Bake();
+		SetResult(MoveTemp(Baker));
+	}
+};
+
 /*
  * Tool
  */
@@ -447,6 +482,15 @@ void UBakeMeshAttributeMapsTool::Setup()
 	Texture2DProps->WatchProperty(Texture2DProps->UVLayer, [this](float) { bInputsDirty = true; });
 	Texture2DProps->WatchProperty(Texture2DProps->SourceTexture, [this](UTexture2D*) { bInputsDirty = true; });
 
+	MultiTextureProps = NewObject<UBakedMultiTexture2DImageProperties>(this);
+	MultiTextureProps->RestoreProperties(this);
+	AddToolPropertySource(MultiTextureProps);
+	SetToolPropertySourceEnabled(MultiTextureProps, false);
+
+	auto SetDirtyCallback = [this](TMap<int32, UTexture2D*>) { bInputsDirty = true; };
+	auto EqualsCallback = [](const TMap<int32, UTexture2D*>& A, const TMap<int32, UTexture2D*>& B) -> bool { return A.OrderIndependentCompareEqual(B); };
+	MultiTextureProps->WatchProperty(MultiTextureProps->MaterialIDSourceTextureMap, SetDirtyCallback, EqualsCallback);
+	MultiTextureProps->WatchProperty(MultiTextureProps->UVLayer, [this](float) { bInputsDirty = true; });
 
 	VisualizationProps = NewObject<UBakedOcclusionMapVisualizationProperties>(this);
 	VisualizationProps->RestoreProperties(this);
@@ -520,6 +564,7 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshImageBaker>> UBakeMeshAttribu
 	case EBakeMapType::PositionImage:
 	case EBakeMapType::NormalImage:
 	case EBakeMapType::FaceNormalImage:
+	case EBakeMapType::MaterialID:
 	{
 		TUniquePtr<FBakeMeshPropertyMapOp> Op = MakeUnique<FBakeMeshPropertyMapOp>();
 		Op->DetailMesh = DetailMesh;
@@ -541,6 +586,18 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshImageBaker>> UBakeMeshAttribu
 		Op->Settings = CachedTexture2DImageSettings;
 		return Op;
 	}
+	case EBakeMapType::MultiTexture:
+	{
+		TUniquePtr<FBakeMultiTextureOp> Op = MakeUnique<FBakeMultiTextureOp>();
+		Op->DetailMesh = DetailMesh;
+		Op->DetailSpatial = DetailSpatial;
+		Op->BaseMesh = &BaseMesh;
+		Op->BakeCacheSettings = CachedBakeCacheSettings;
+		Op->UVOverlay = DetailMesh->Attributes()->GetUVLayer(CachedTexture2DImageSettings.UVLayer);
+		Op->MaterialToTextureImageMap = CachedMultiTextures;
+		Op->Settings = CachedTexture2DImageSettings;
+		return Op;
+	}
 	}
 	check(false);
 	return nullptr;
@@ -556,6 +613,7 @@ void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 	NormalMapProps->SaveProperties(this);
 	CurvatureMapProps->SaveProperties(this);
 	Texture2DProps->SaveProperties(this);
+	MultiTextureProps->SaveProperties(this);
 	VisualizationProps->SaveProperties(this);
 
 	if (Compute)
@@ -614,7 +672,11 @@ void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
 						FString::Printf(TEXT("%s_FaceNormalImg"), *BaseName), StaticMeshAsset);
 					break;
-
+				case EBakeMapType::MaterialID:
+					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
+					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
+																				  FString::Printf(TEXT("%s_MaterialIDImg"), *BaseName), StaticMeshAsset);
+					break;
 				case EBakeMapType::PositionImage:
 					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
 					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
@@ -626,6 +688,13 @@ void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
 						FString::Printf(TEXT("%s_TextureImg"), *BaseName), StaticMeshAsset);
 					break;
+
+				case EBakeMapType::MultiTexture:
+					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
+					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
+																				  FString::Printf(TEXT("%s_MultiTextureImg"), *BaseName), StaticMeshAsset);
+					break;
+
 				}
 				ensure(bCreatedAssetOK);
 			}
@@ -672,6 +741,102 @@ void UBakeMeshAttributeMapsTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 
 
+int SelectTextureToBake(const TArray<UTexture*>& Textures)
+{
+	TArray<int> TextureVotes;
+	TextureVotes.Init(0, Textures.Num());
+
+	for (int TextureIndex = 0; TextureIndex < Textures.Num(); ++TextureIndex)
+	{
+		UTexture* Tex = Textures[TextureIndex];
+		UTexture2D* Tex2D = Cast<UTexture2D>(Tex);
+
+		if (Tex2D)
+		{
+			// Texture uses SRGB
+			if (Tex->SRGB != 0)
+			{
+				++TextureVotes[TextureIndex];
+			}
+
+#if WITH_EDITORONLY_DATA
+			// Texture has multiple channels
+			ETextureSourceFormat Format = Tex->Source.GetFormat();
+			if (Format == TSF_BGRA8 || Format == TSF_BGRE8 || Format == TSF_RGBA16 || Format == TSF_RGBA16F)
+			{
+				++TextureVotes[TextureIndex];
+			}
+#endif
+
+			// What else? Largest texture? Most layers? Most mipmaps?
+		}
+	}
+
+	int MaxIndex = -1;
+	int MaxVotes = -1;
+	for (int TextureIndex = 0; TextureIndex < Textures.Num(); ++TextureIndex)
+	{
+		if (TextureVotes[TextureIndex] > MaxVotes)
+		{
+			MaxIndex = TextureIndex;
+			MaxVotes = TextureVotes[TextureIndex];
+		}
+	}
+
+	return MaxIndex;
+}
+
+
+void UBakeMeshAttributeMapsTool::GetTexturesFromDetailMesh(const IPrimitiveComponentBackedTarget* DetailComponent)
+{
+	constexpr bool bGuessAtTextures = true;
+
+	MultiTextureProps->AllSourceTextures.Reset();
+	MultiTextureProps->MaterialIDSourceTextureMap.Reset();
+
+	TArray<UMaterialInterface*> Materials;
+	DetailComponent->GetOwnerComponent()->GetUsedMaterials(Materials);
+	
+	for (int32 MaterialID = 0; MaterialID < Materials.Num(); ++MaterialID)	// TODO: This won't match MaterialIDs on the FDynamicMesh3 in general, will it?
+	{
+		UMaterialInterface* MaterialInterface = Materials[MaterialID];
+		if (MaterialInterface == nullptr)
+		{
+			continue;
+		}
+
+		TArray<UTexture*> Textures;
+		MaterialInterface->GetUsedTextures(Textures, EMaterialQualityLevel::High, true, ERHIFeatureLevel::SM5, true);
+		
+		for (UTexture* Tex : Textures)
+		{
+			UTexture2D* Tex2D = Cast<UTexture2D>(Tex);
+			if (Tex2D)
+			{
+				MultiTextureProps->AllSourceTextures.Add(Tex2D);
+			}
+		}
+
+		if (bGuessAtTextures)
+		{
+			int SelectedTextureIndex = SelectTextureToBake(Textures);
+			if (SelectedTextureIndex >= 0)
+			{
+				UTexture2D* Tex2D = Cast<UTexture2D>(Textures[SelectedTextureIndex]);
+
+				// if cast fails, this will set the value to nullptr, which is fine
+				MultiTextureProps->MaterialIDSourceTextureMap.Add(MaterialID, Tex2D);	
+			}
+		}
+		else
+		{
+			MultiTextureProps->MaterialIDSourceTextureMap.Add(MaterialID, nullptr);
+		}
+	}
+
+}
+
+
 void UBakeMeshAttributeMapsTool::UpdateDetailMesh()
 {
 	IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(0);
@@ -692,8 +857,11 @@ void UBakeMeshAttributeMapsTool::UpdateDetailMesh()
 	DetailSpatial = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>();
 	DetailSpatial->SetMesh(DetailMesh.Get(), true);
 
+	GetTexturesFromDetailMesh(DetailComponent);
+
 	bInputsDirty = true;
 	DetailMeshTimestamp++;
+
 }
 
 
@@ -763,12 +931,18 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 		case EBakeMapType::NormalImage:
 		case EBakeMapType::FaceNormalImage:
 		case EBakeMapType::PositionImage:
+		case EBakeMapType::MaterialID:
 			OpState = UpdateResult_MeshProperty();
 			break;
 
 		case EBakeMapType::Texture2DImage:
 			OpState = UpdateResult_Texture2DImage();
 			break;
+
+		case EBakeMapType::MultiTexture:
+			OpState = UpdateResult_MultiTexture();
+			break;
+
 	}
 
 	// Early exit if op input parameters are invalid.
@@ -927,6 +1101,9 @@ UBakeMeshAttributeMapsTool::EOpState UBakeMeshAttributeMapsTool::UpdateResult_Me
 		case EBakeMapType::PositionImage:
 			MeshPropertyMapSettings.PropertyTypeIndex = (int32)EMeshPropertyBakeType::Position;
 			break;
+		case EBakeMapType::MaterialID:
+			MeshPropertyMapSettings.PropertyTypeIndex = (int32)EMeshPropertyBakeType::MaterialID;
+			break;
 		default:
 			check(false);		// should not be possible!
 	}
@@ -1082,6 +1259,65 @@ UBakeMeshAttributeMapsTool::EOpState UBakeMeshAttributeMapsTool::UpdateResult_Te
 }
 
 
+UBakeMeshAttributeMapsTool::EOpState UBakeMeshAttributeMapsTool::UpdateResult_MultiTexture()
+{
+	EOpState ResultState = EOpState::Complete;
+
+	int32 ImageSize = (int32)Settings->Resolution;
+	FImageDimensions Dimensions(ImageSize, ImageSize);
+
+	FTexture2DImageSettings NewSettings;
+	NewSettings.Dimensions = Dimensions;
+	NewSettings.UVLayer = MultiTextureProps->UVLayer;
+
+	const FDynamicMeshUVOverlay* UVOverlay = DetailMesh->Attributes()->GetUVLayer(NewSettings.UVLayer);
+	if (UVOverlay == nullptr)
+	{
+		GetToolManager()->DisplayMessage(LOCTEXT("InvalidUVWarning", "The Source Mesh does not have the selected UV layer"), EToolMessageLevel::UserWarning);
+		return EOpState::Invalid;
+	}
+
+	for (TPair<int32, UTexture2D*>& InputTexture : MultiTextureProps->MaterialIDSourceTextureMap)
+	{
+		if (InputTexture.Value == nullptr)
+		{
+			GetToolManager()->DisplayMessage(LOCTEXT("InvalidTextureWarning", "The Source Texture is not valid"), EToolMessageLevel::UserWarning);
+			return EOpState::Invalid;
+		}
+	}
+
+
+	CachedMultiTextures.Reset();
+
+	for ( TPair<int32, UTexture2D*>& InputTexture : MultiTextureProps->MaterialIDSourceTextureMap)
+	{
+		UTexture2D* Texture = InputTexture.Value;
+		if (!ensure(Texture != nullptr))
+		{
+			GetToolManager()->DisplayMessage(LOCTEXT("InvalidTextureWarning", "The Source Texture is not valid"), EToolMessageLevel::UserWarning);
+			return EOpState::Invalid;
+		}
+
+		int32 MaterialID = InputTexture.Key;
+		FTempTextureAccess TextureAccess(Texture);
+		CachedMultiTextures.Add(MaterialID, MakeShared<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>());
+		CachedMultiTextures[MaterialID]->SetDimensions(TextureAccess.GetDimensions());
+
+		if (!TextureAccess.CopyTo(*CachedMultiTextures[MaterialID]))
+		{
+			GetToolManager()->DisplayMessage(LOCTEXT("CannotReadTextureWarning", "Cannot read from the source texture"), EToolMessageLevel::UserWarning);
+			return EOpState::Invalid;
+		}
+	}
+
+	if (!(CachedTexture2DImageSettings == NewSettings))
+	{
+		CachedTexture2DImageSettings = NewSettings;
+		ResultState = EOpState::Evaluate;
+	}
+	return ResultState;
+}
+
 
 
 
@@ -1132,6 +1368,7 @@ void UBakeMeshAttributeMapsTool::UpdateVisualization()
 	case EBakeMapType::NormalImage:
 	case EBakeMapType::FaceNormalImage:
 	case EBakeMapType::PositionImage:
+	case EBakeMapType::MaterialID:
 		Settings->Result[0] = CachedMeshPropertyMap;
 		PreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
 		PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), EmptyColorMapWhite);
@@ -1139,6 +1376,7 @@ void UBakeMeshAttributeMapsTool::UpdateVisualization()
 		break;
 
 	case EBakeMapType::Texture2DImage:
+	case EBakeMapType::MultiTexture:
 		Settings->Result[0] = CachedTexture2DImageMap;
 		PreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
 		PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), EmptyColorMapWhite);
@@ -1155,6 +1393,7 @@ void UBakeMeshAttributeMapsTool::UpdateOnModeChange()
 	SetToolPropertySourceEnabled(OcclusionMapProps, false);
 	SetToolPropertySourceEnabled(CurvatureMapProps, false);
 	SetToolPropertySourceEnabled(Texture2DProps, false);
+	SetToolPropertySourceEnabled(MultiTextureProps, false);
 
 	Settings->Result.Empty();
 	Settings->Result.Add(nullptr);
@@ -1172,6 +1411,9 @@ void UBakeMeshAttributeMapsTool::UpdateOnModeChange()
 		break;
 	case EBakeMapType::Texture2DImage:
 		SetToolPropertySourceEnabled(Texture2DProps, true);
+		break;
+	case EBakeMapType::MultiTexture:
+		SetToolPropertySourceEnabled(MultiTextureProps, true);
 		break;
 	}
 
@@ -1229,6 +1471,7 @@ void UBakeMeshAttributeMapsTool::OnMapsUpdated(const TUniquePtr<FMeshImageBaker>
 	case EBakeMapType::PositionImage:
 	case EBakeMapType::NormalImage:
 	case EBakeMapType::FaceNormalImage:
+	case EBakeMapType::MaterialID:
 	{
 		FMeshPropertyMapBaker* Baker = static_cast<FMeshPropertyMapBaker*>(NewResult.Get());
 		FTexture2DBuilder TextureBuilder;
@@ -1247,6 +1490,15 @@ void UBakeMeshAttributeMapsTool::OnMapsUpdated(const TUniquePtr<FMeshImageBaker>
 		TextureBuilder.Commit(false);
 		CachedTexture2DImageMap = TextureBuilder.GetTexture2D();
 		break;
+	}
+	case EBakeMapType::MultiTexture:
+	{
+		FMeshMultiResampleImageBaker* Baker = static_cast<FMeshMultiResampleImageBaker*>(NewResult.Get());
+		FTexture2DBuilder TextureBuilder;
+		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, CachedTexture2DImageSettings.Dimensions);
+		TextureBuilder.Copy(*Baker->GetResult(), true);
+		TextureBuilder.Commit(false);
+		CachedTexture2DImageMap = TextureBuilder.GetTexture2D();
 	}
 	}
 

@@ -44,5 +44,21 @@ protected:
 	TUniquePtr<TImageBuilder<FVector4f>> ResultBuilder;
 };
 
+
+
+class DYNAMICMESH_API FMeshMultiResampleImageBaker : public FMeshResampleImageBaker
+{
+public:
+
+	TMap<int32, TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>> MultiTextures;
+
+	virtual void Bake() override;
+
+protected:
+
+	void InitResult();
+	void BakeMaterial(int32 MaterialID);
+};
+
 } // end namespace UE::Geometry
 } // end namespace UE

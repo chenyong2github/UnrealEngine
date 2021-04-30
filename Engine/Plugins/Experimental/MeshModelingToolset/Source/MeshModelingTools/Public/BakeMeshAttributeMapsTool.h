@@ -63,7 +63,9 @@ enum class EBakeMapType
 	Texture2DImage,
 	NormalImage,
 	FaceNormalImage,
-	PositionImage
+	PositionImage,
+	MaterialID,
+	MultiTexture
 };
 
 
@@ -305,6 +307,26 @@ public:
 };
 
 
+UCLASS()
+class MESHMODELINGTOOLS_API UBakedMultiTexture2DImageProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+
+	/** For each material ID, the source texture that will be resampled in that material's region*/
+	UPROPERTY(EditAnywhere, Category = MultiTexture, meta = (DisplayName = "Material IDs / Source Textures"))
+	TMap<int32, UTexture2D*> MaterialIDSourceTextureMap;
+
+	/** UV layer to sample from on the input mesh */
+	UPROPERTY(EditAnywhere, Category = MultiTexture)
+	int32 UVLayer = 0;
+
+	/** The set of all source textures from all input materials */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = MultiTexture, meta = (DisplayName = "Source Textures"))
+	TArray<UTexture2D*> AllSourceTextures;
+
+};
+
 
 
 /**
@@ -353,6 +375,9 @@ protected:
 	UBakedTexture2DImageProperties* Texture2DProps;
 
 	UPROPERTY()
+	UBakedMultiTexture2DImageProperties* MultiTextureProps;
+
+	UPROPERTY()
 	UBakedOcclusionMapVisualizationProperties* VisualizationProps;
 
 
@@ -364,6 +389,8 @@ protected:
 	friend class FBakeCurvatureMapOp;
 	friend class FBakeTexture2DImageMapOp;
 	friend class FBakeMeshPropertyMapOp;
+	friend class FBakeMultiTextureOp;
+
 
 	IAssetGenerationAPI* AssetAPI = nullptr;
 
@@ -536,6 +563,10 @@ protected:
 	EOpState UpdateResult_Texture2DImage();
 
 
+	TMap<int32, TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>> CachedMultiTextures;
+	EOpState UpdateResult_MultiTexture();
+
+
 
 	// empty maps are shown when nothing is computed
 
@@ -549,5 +580,7 @@ protected:
 	UTexture2D* EmptyColorMapWhite;
 
 	void InitializeEmptyMaps();
+
+	void GetTexturesFromDetailMesh(const IPrimitiveComponentBackedTarget* DetailComponent);
 
 };

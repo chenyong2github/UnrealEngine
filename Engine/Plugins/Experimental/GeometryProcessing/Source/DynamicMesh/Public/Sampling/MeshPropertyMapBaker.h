@@ -17,7 +17,8 @@ enum class EMeshPropertyBakeType
 	Position = 1,
 	Normal = 2,
 	FacetNormal = 3,
-	UVPosition = 4
+	UVPosition = 4,
+	MaterialID = 5
 };
 
 

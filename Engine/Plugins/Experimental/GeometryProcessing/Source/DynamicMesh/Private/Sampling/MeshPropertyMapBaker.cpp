@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sampling/MeshPropertyMapBaker.h"
+#include "Util/ColorConstants.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -102,6 +103,20 @@ void FMeshPropertyMapBaker::Bake()
 							FVector2d DetailUV;
 							DetailUVOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailUV.X);
 							Color = UVToColor(DetailUV);
+						}
+					}
+					break;
+				case EMeshPropertyBakeType::MaterialID:
+					{
+						if (DetailMesh->Attributes() && DetailMesh->Attributes()->HasMaterialID())
+						{
+							const FDynamicMeshMaterialAttribute* DetailMaterialIDAttrib = DetailMesh->Attributes()->GetMaterialID();
+							const int32 MatID = DetailMaterialIDAttrib->GetValue(DetailTriID);
+							Color = LinearColors::SelectColor<FVector3f>(MatID);
+						}
+						else
+						{
+							Color = FVector3f(LinearColors::LightPink3f());
 						}
 					}
 					break;
