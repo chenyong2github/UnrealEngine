@@ -147,6 +147,8 @@ void ADatasmithRuntimeActor::BeginPlay()
 
 void ADatasmithRuntimeActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	Reset();
+
 	// Unregister to DirectLink
 	DirectLinkHelper->UnregisterDestination();
 	DirectLinkHelper.Reset();
@@ -348,9 +350,10 @@ bool ADatasmithRuntimeActor::LoadFile(const FString& FilePath)
 	}
 
 #if WITH_EDITOR
-	// Temporarily manually disable load of PlmXml, Rhino and wire files
+	// Temporarily manually disable load of gltf, PlmXml, Rhino and wire files
 	FString Extension = FPaths::GetExtension(FilePath);
 	bool bUnsupported = Extension.Equals(TEXT("3dm"), ESearchCase::IgnoreCase)
+						|| Extension.Equals(TEXT("gltf"), ESearchCase::IgnoreCase)
 						|| Extension.Equals(TEXT("xml"), ESearchCase::IgnoreCase)
 						|| Extension.Equals(TEXT("plmxml"), ESearchCase::IgnoreCase)
 						|| Extension.Equals(TEXT("wire"), ESearchCase::IgnoreCase);

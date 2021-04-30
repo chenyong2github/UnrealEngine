@@ -30,6 +30,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "RuntimePhysXCooking",
+			"Enabled": true
+		},
+		{
 			"Name": "UdpMessaging",
 			"Enabled": true
 		}
