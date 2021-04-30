@@ -4,9 +4,32 @@
 
 #include "AddonTools.h"
 
-#include <map>
+#include "Array.h"
+#include "Map.h"
 
 BEGIN_NAMESPACE_UE_AC
+
+class FNamePtr
+{
+  public:
+	FNamePtr() {}
+
+	FNamePtr(const TCHAR* InName)
+		: Name(InName)
+	{
+	}
+
+	bool operator<(const FNamePtr& InOther) const { return FCString::Strcmp(Name, InOther.Name) < 0; }
+
+	bool operator==(FNamePtr InOther) const { return FCString::Strcmp(Name, InOther.Name) == 0; }
+
+	const TCHAR* Name = nullptr;
+};
+
+inline uint32 GetTypeHash(const FNamePtr& A)
+{
+	return FCrc::Strihash_DEPRECATED(FCString::Strlen(A.Name), A.Name);
+}
 
 class FSceneValidator
 {
@@ -37,33 +60,18 @@ class FSceneValidator
 
 	void CheckActorsDependances(const IDatasmithActorElement& InActor);
 
-	class FNamePtr
-	{
-	  public:
-		FNamePtr() {}
-
-		FNamePtr(const TCHAR* InName)
-			: Name(InName)
-		{
-		}
-
-		bool operator<(const FNamePtr& InOther) const { return FCString::Strcmp(Name, InOther.Name) < 0; }
-
-		const TCHAR* Name = nullptr;
-	};
-
-	typedef std::map< FNamePtr, const IDatasmithElement* > MapNameToElement;
+	typedef TMap< FNamePtr, const IDatasmithElement* > MapNameToElement;
 
 	MapNameToElement NameToElementMap;
 
 	class FUsage
 	{
 	  public:
-		bool bExist;
-		bool bIsRefered;
+		bool bExist = false;
+		bool bIsRefered = false;
 	};
 
-	typedef std::map< FNamePtr, FUsage > FMapNameToUsage;
+	typedef TMap< FNamePtr, FUsage > FMapNameToUsage;
 
 	FMapNameToUsage TexturesUsages;
 	FMapNameToUsage MaterialsUsages;
@@ -96,7 +104,7 @@ class FSceneValidator
 		FString	   Message;
 	};
 
-	std::vector< FMessage > Messages;
+	TArray< FMessage > Messages;
 
 	uint32_t MessagesCounts[kInfoLevelMax] = {};
 };

@@ -7,12 +7,37 @@
 
 #include "Model.hpp"
 
-#include <map>
-#include <set>
+#include "Map.h"
+#include "Set.h"
 
 class FString;
 
 BEGIN_NAMESPACE_UE_AC
+
+class FUniStringPtr
+{
+  public:
+	FUniStringPtr(const GS::UniString* InStr)
+		: UniStringPtr(InStr)
+	{
+		UE_AC_TestPtr(UniStringPtr);
+	}
+
+	FUniStringPtr(const FUniStringPtr& InStr)
+		: UniStringPtr(InStr.UniStringPtr)
+	{
+	}
+
+	inline bool operator==(const FUniStringPtr& B) const { return *UniStringPtr == *B.UniStringPtr; }
+
+	const GS::UniString* UniStringPtr;
+};
+
+inline uint32 GetTypeHash(const FUniStringPtr& A)
+{
+	utf8_string Utf8Str(A.UniStringPtr->ToUtf8());
+	return FCrc::MemCrc32(Utf8Str.c_str(), int32(Utf8Str.size()));
+}
 
 class FTexturesCache
 {
@@ -43,24 +68,18 @@ class FTexturesCache
 
 	void WriteTexture(const ModelerAPI::Texture& inACTexture, const GS::UniString& InPath, bool InIsFingerprint) const;
 
-	size_t GetCount() const { return Textures.size(); }
+	size_t GetCount() const { return Textures.Num(); }
 
   private:
-	typedef std::map< GS::Int32, FTexturesCacheElem > MapTextureIndex2CacheElem;
+	typedef TMap< GS::Int32, FTexturesCacheElem > MapTextureIndex2CacheElem;
 
-	typedef std::set< FString > SetTexturesIds;
-	MapTextureIndex2CacheElem	Textures;
-	GS::UniString				AbsolutePath;
-	GS::UniString				RelativePath;
-	bool						bUseRelative;
+	typedef TSet< FString >	  SetTexturesIds;
+	MapTextureIndex2CacheElem Textures;
+	GS::UniString			  AbsolutePath;
+	GS::UniString			  RelativePath;
+	bool					  bUseRelative;
 
-	class LessUniStringPtr
-	{
-	  public:
-		bool operator()(const GS::UniString* s1, const GS::UniString* s2) const { return *s1 < *s2; }
-	};
-
-	typedef std::set< const GS::UniString*, LessUniStringPtr > SetStrings;
+	typedef TSet< FUniStringPtr > SetStrings;
 
 	SetStrings	   TexturesNameSet;
 	SetTexturesIds TexturesIdsSet;

@@ -34,22 +34,22 @@ void FCommander::DoSnapshot()
 	DoSnapshotOrExport(nullptr);
 }
 
-static bool bLiveLinkEnabled = false;
+static bool bAutoSyncEnabled = false;
 
-void FCommander::ToggleLiveLink()
+void FCommander::ToggleAutoSync()
 {
-	bLiveLinkEnabled = !bLiveLinkEnabled;
-	FMenus::LiveLinkChanged();
-	FPalette::LiveLinkChanged();
-	if (bLiveLinkEnabled)
+	bAutoSyncEnabled = !bAutoSyncEnabled;
+	FMenus::AutoSyncChanged();
+	FPalette::AutoSyncChanged();
+	if (bAutoSyncEnabled)
 	{
 		DoSnapshot();
 	}
 }
 
-bool FCommander::IsLiveLinkEnabled()
+bool FCommander::IsAutoSyncEnabled()
 {
-	return bLiveLinkEnabled;
+	return bAutoSyncEnabled;
 }
 
 void FCommander::CopySelection2Clipboard()

@@ -82,17 +82,6 @@ utf8_string Utf8StringFormat(const utf8_t* InFmt, ...)
 	return FormattedString;
 }
 
-// Compute Guid of the string
-API_Guid String2API_Guid(const GS::UniString& InString)
-{
-	utf8_string	   LibPartName(InString.ToUtf8());
-	MD5::Generator MD5Generator;
-	MD5Generator.Update(LibPartName.c_str(), (unsigned int)LibPartName.size());
-	MD5::FingerPrint FingerPrint;
-	MD5Generator.Finish(FingerPrint);
-	return Fingerprint2API_Guid(FingerPrint);
-}
-
 // Combine 2 guid in one
 API_Guid CombineGuid(const API_Guid& InGuid1, const API_Guid& InGuid2)
 {

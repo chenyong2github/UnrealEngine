@@ -87,14 +87,14 @@ FQuat FGeometryUtil::GetRotationQuat(const double Matrix[3][4])
 	}
 	RotAxis.NormalizeVector();
 
-	return FQuat(FVector(float(-RotAxis.x), float(RotAxis.y), float(RotAxis.z)), float(RotAngle)).Inverse();
+	return FQuat(FVector(float(RotAxis.x), float(-RotAxis.y), float(RotAxis.z)), float(RotAngle)).Inverse();
 }
 
 // Return the Quat equivalent to the direction vector
 FQuat FGeometryUtil::GetRotationQuat(const ModelerAPI::Vector& Direction)
 {
 	const Geometry::Vector3< double > DefaultDirVec(1.0, 0.0, 0.0);
-	Geometry::Vector3< double >		  DirVec(-Direction.x, Direction.y, Direction.z);
+	Geometry::Vector3< double >		  DirVec(Direction.x, -Direction.y, Direction.z);
 	DirVec.NormalizeVector();
 
 	const double distToDirSqr = (DirVec - DefaultDirVec).GetLengthSqr();
@@ -109,20 +109,20 @@ FQuat FGeometryUtil::GetRotationQuat(const ModelerAPI::Vector& Direction)
 // Convert Archicad camera rotation to an Unreal Quat
 FQuat FGeometryUtil::GetRotationQuat(const double PitchInDegrees, const double YawInDegrees, const double RollInDegrees)
 {
-	return FQuat(FRotator(float(-PitchInDegrees), float(-YawInDegrees), float(-RollInDegrees)));
+	return FQuat(FRotator(float(-PitchInDegrees), float(180.0 - YawInDegrees), float(-RollInDegrees)));
 }
 
 // Extract Archicad translation from the matrix and return an Unreal one (in centimeters)
 FVector FGeometryUtil::GetTranslationVector(const double Matrix[3][4])
 {
-	return FVector(float(Matrix[0][3] * -100.0), float(Matrix[1][3] * 100.0),
+	return FVector(float(Matrix[0][3] * 100.0), -float(Matrix[1][3] * 100.0),
 				   float(Matrix[2][3] * 100.0)); // The base unit is centimetre in Unreal
 }
 
 // Convert Archicad Vertex to Unreal one (in centimeters)
 FVector FGeometryUtil::GetTranslationVector(const ModelerAPI::Vertex PosInMeters)
 {
-	return FVector(float(PosInMeters.x * -100.0), float(PosInMeters.y * 100.0), float(PosInMeters.z * 100.0));
+	return FVector(float(PosInMeters.x * 100.0), -float(PosInMeters.y * 100.0), float(PosInMeters.z * 100.0));
 }
 
 // Return focal that fit ViewAngle in SensorWidth

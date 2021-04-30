@@ -6,7 +6,7 @@
 
 #include "Lock.hpp"
 
-#include <map>
+#include "Map.h"
 
 BEGIN_NAMESPACE_UE_AC
 
@@ -70,8 +70,8 @@ class FSyncDatabase
 	bool SetMesh(TSharedPtr< IDatasmithMeshElement >* Handle, const TSharedPtr< IDatasmithMeshElement >& InMesh);
 
   private:
-	typedef std::map< GS::Guid, FSyncData* > FMapGuid2SyncData;
-	typedef std::map< short, FString >		 FMapLayerIndex2Name;
+	typedef TMap< FGuid, FSyncData* > FMapGuid2SyncData;
+	typedef TMap< short, FString >	  FMapLayerIndex2Name;
 
 	// To take care of mesh life cycle.
 	class FMeshInfo
@@ -83,7 +83,7 @@ class FSyncDatabase
 		FMeshInfo() {}
 	};
 	// Map mesh by their hash name.
-	typedef std::map< FString, FMeshInfo > FMapHashToMeshInfo;
+	typedef TMap< FString, FMeshInfo > FMapHashToMeshInfo;
 
 	// Scan all elements, to determine if they need to be synchronized
 	UInt32 ScanElements(const FSyncContext& InSyncContext);
