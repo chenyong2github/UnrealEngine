@@ -14,8 +14,9 @@
 #define kIconConnections 32511
 #define kIconExport3D 32512
 #define kIconMessages 32513
-#define kIconLiveSyncPlay 32514
-#define kIconLiveSyncPause 32515
+#if AUTO_SYNC
+	#define kIconAutoSync 32514
+#endif
 #define kIconDS 32600
 
 /* Localizable resources */
@@ -26,8 +27,10 @@
 
 #define kStrListMenuItemSnapshot 311
 #define kStrListMenuItemSnapshotHelp 411
-#define kStrListMenuItemLiveLink 312
-#define kStrListMenuItemLiveLinkHelp 412
+#if AUTO_SYNC
+	#define kStrListMenuItemAutoSync 312
+	#define kStrListMenuItemAutoSyncHelp 412
+#endif
 #define kStrListMenuItemConnections 313
 #define kStrListMenuItemConnectionsHelp 413
 #define kStrListMenuItemExport 314
@@ -39,19 +42,51 @@
 #define kStrListMenuItemAbout 317
 #define kStrListMenuItemAboutHelp 417
 
-#define kStrListMenuItemPauseLiveLink 322
-#define kStrListMenuItemPauseLiveLinkHelp 422
-
 #define kStrListProgression 330
 
 #define kDlgAboutOf 340
 #define kDlgPalette 341
 #define kDlgReport 342
 
-#ifndef DEBUG
-	#define kPaletteHSize 156
-	#define kPaletteDevTools 0
+#if AUTO_SYNC
+	#define X3 62
+	#define X4 92
+	#define X5 122
+	#define X6 154
+	#define X7 184
+
+	#define H3 3
+	#define H4 4
+	#define H5 5
+	#define H6 6
+	#define H7 7
+
+	#ifndef DEBUG
+		#define kPaletteHSize 156
+		#define kPaletteDevTools 0
+	#else
+		#define kPaletteHSize 218
+		#define kPaletteDevTools 1
+	#endif
+
 #else
-	#define kPaletteHSize 218
-	#define kPaletteDevTools 1
+	#define X3 32
+	#define X4 62
+	#define X5 92
+	#define X6 124
+	#define X7 154
+
+	#define H3 2
+	#define H4 3
+	#define H5 4
+	#define H6 5
+	#define H7 6
+
+	#ifndef DEBUG
+		#define kPaletteHSize 126
+		#define kPaletteDevTools 0
+	#else
+		#define kPaletteHSize 188
+		#define kPaletteDevTools 1
+	#endif
 #endif

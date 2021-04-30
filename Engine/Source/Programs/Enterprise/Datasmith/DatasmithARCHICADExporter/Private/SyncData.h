@@ -3,10 +3,11 @@
 #pragma once
 
 #include "Utils/AddonTools.h"
+#include "Utils/TimeStat.h"
 
 #include "Light.hpp"
 
-#include <vector>
+#include "Array.h"
 
 namespace ModelerAPI
 {
@@ -35,6 +36,9 @@ class FSyncData
 	class FHotLinksRoot;
 	class FHotLinkNode;
 	class FHotLinkInstance;
+
+	// Class use for scanning db to find element not yet registered.
+	class FAttachObservers;
 
 	// Constructor
 	FSyncData(const GS::Guid& InGuid);
@@ -90,6 +94,9 @@ class FSyncData
 
 	// Sync Datasmith elements from Archicad elements (for this syncdata and it's childs)
 	void ProcessTree(FProcessInfo* IOProcessInfo);
+
+	// Attach observer for Auto Sync
+	virtual bool AttachObserver(FAttachObservers*) { return false; }
 
 	// Delete this sync data
 	virtual TSharedPtr< IDatasmithElement > GetElement() const = 0;
@@ -147,7 +154,8 @@ class FSyncData
 	FSyncData* Parent = nullptr;
 
 	// Childs of this element
-	std::vector< FSyncData* > Childs;
+	typedef TArray< FSyncData* > FChildsArray;
+	FChildsArray				 Childs;
 };
 
 class FSyncData::FScene : public FSyncData
@@ -214,8 +222,10 @@ class FSyncData::FActor : public FSyncData
 	// Return Element as an actor
 	virtual const TSharedPtr< IDatasmithActorElement >& GetActorElement() const override { return ActorElement; }
 
+	typedef TArray< FString > FTagsArray;
+
 	// Update tags data
-	void UpdateTags(const std::vector< FString >& InTags);
+	void UpdateTags(const FTagsArray& InTags);
 
 	// Add tags data
 	void AddTags(const FElementID& InElementID);
@@ -266,6 +276,9 @@ class FSyncData::FElement : public FSyncData::FActor
 	// Delete this sync data
 	virtual void DeleteMe(FSyncDatabase* IOSyncDatabase) override;
 
+	// Attach observer for Auto Sync
+	virtual bool AttachObserver(FAttachObservers* IOAttachObservers) override;
+
 	// Rebuild the meta data of this element
 	void UpdateMetaData(IDatasmithScene& IOScene);
 
@@ -292,8 +305,8 @@ class FSyncData::FCameraSet : public FSyncData::FActor
   protected:
 	virtual void Process(FProcessInfo* IOProcessInfo) override;
 
-	const GS::UniString& Name;
-	bool				 bOpenedPath;
+	const GS::UniString Name;
+	bool				bOpenedPath;
 };
 
 class FSyncData::FCamera : public FSyncData::FActor
@@ -401,6 +414,60 @@ class FSyncData::FHotLinkInstance : public FSyncData::FActor
 	virtual void Process(FProcessInfo* IOProcessInfo) override;
 
 	API_Tranmat Transformation;
+};
+
+#define ATTACH_ONSERVER_STAT 1
+
+// Class use for scanning db to find element not yet registered.
+class FSyncData::FAttachObservers
+{
+  public:
+	// Constructor
+	FAttachObservers();
+
+	~FAttachObservers();
+
+	// Start the process with this root observer
+	void Start(FSyncData* Root);
+
+	// Stop processing
+	void Stop();
+
+	// Return true if we need to process
+	bool NeedProcess() const { return Stack.Num() != 0; }
+
+	// Process attachment until done or until time slice finish
+	bool ProcessUntil(double TimeSliceEnd);
+
+	// Return the next FSyncData
+	FSyncData* Next();
+
+#if ATTACH_ONSERVER_STAT
+	void CumulateStats(const FTimeStat& SlotStart, double AfterAttachObserver);
+
+	// Log attach observer statistics
+	void PrintStat();
+#endif
+
+  private:
+	class FAttachEntry
+	{
+	  public:
+		FSyncData*			   Parent;
+		FChildsArray::SizeType ChildIndex;
+	};
+
+	typedef TArray< FAttachEntry > FAttachEntriesArray;
+	FAttachEntriesArray			   Stack;
+
+#if ATTACH_ONSERVER_STAT
+	FTimeStat AttachObserverProcessTimeStart;
+	FTimeStat AttachObserverProcessTimeEnd;
+	double	  AttachObserverStartTime = 0.0;
+	double	  AttachObserverTime = 0.0;
+	double	  GetHeaderTime = 0.0;
+	int		  AttachCount = 0;
+#endif
 };
 
 END_NAMESPACE_UE_AC

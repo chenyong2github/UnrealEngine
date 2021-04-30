@@ -2,7 +2,7 @@
 
 #include "ElementEvent.h"
 #include "Utils/TAssValueName.h"
-#include "Menus.h"
+#include "Synchronizer.h"
 
 BEGIN_NAMESPACE_UE_AC
 
@@ -130,7 +130,7 @@ GSErrCode FElementEvent::Event(const API_NotifyElementType& ElemType)
 						 ElemUUID.ToCStr().Get());
 			break;
 	}
-	FMenus::PostDoSnapshot();
+	FSynchronizer::PostDoSnapshot("Element modified");
 	return NoError;
 }
 

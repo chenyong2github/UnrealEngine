@@ -4,7 +4,7 @@
 
 #include "Utils/AddonTools.h"
 
-#include <map>
+#include "Map.h"
 
 class IDatasmithBaseMaterialElement;
 
@@ -37,15 +37,18 @@ class FMaterialKey
 	GS::Int32 ACTextureIndex;
 	ESided	  Sided;
 
-	// less operator needed for use as map key
-	bool operator<(const FMaterialKey& InOther) const
+	// Equality operator needed for use as FMap key
+	bool operator==(const FMaterialKey& InOther) const
 	{
-		return ACMaterialIndex < InOther.ACMaterialIndex ||
-			   (ACMaterialIndex == InOther.ACMaterialIndex &&
-				(ACTextureIndex < InOther.ACTextureIndex ||
-				 (ACTextureIndex == InOther.ACTextureIndex && Sided < InOther.Sided)));
+		return ACMaterialIndex == InOther.ACMaterialIndex && ACTextureIndex == InOther.ACTextureIndex &&
+			   Sided == InOther.Sided;
 	}
 };
+
+inline uint32 GetTypeHash(const FMaterialKey& A)
+{
+	return FCrc::TypeCrc32(A.ACMaterialIndex, FCrc::TypeCrc32(A.ACTextureIndex, FCrc::TypeCrc32(A.Sided, 0)));
+}
 
 // Materials database
 class FMaterialsDatabase
@@ -102,9 +105,9 @@ class FMaterialsDatabase
 										 GS::Int32 inACTextureIndex, ESided InSided);
 
   private:
-	typedef std::map< FMaterialKey, FMaterialSyncData > MapSyncData; // Map Material key to Material sync data
+	typedef TMap< FMaterialKey, FMaterialSyncData > MapSyncData; // Map Material key to Material sync data
 
-	typedef std::set< FString > SetMaterialsNames;
+	typedef TSet< FString > SetMaterialsNames;
 
 	MapSyncData		  MapMaterials;
 	SetMaterialsNames MaterialsNamesSet;

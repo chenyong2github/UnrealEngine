@@ -73,6 +73,10 @@ GSErrCode __ACENV_CALL RegisterInterface(void)
 	}
 	if (GSErr == NoError)
 	{
+		GSErr = FSynchronizer::Register();
+	}
+	if (GSErr == NoError)
+	{
 		GSErr = FTraceListener::Register();
 	}
 
@@ -97,6 +101,10 @@ GSErrCode __ACENV_CALL Initialize(void)
 	if (GSErr == NoError)
 	{
 		GSErr = FMenus::Initialize();
+	}
+	if (GSErr == NoError)
+	{
+		GSErr = FSynchronizer::Initialize();
 	}
 	if (GSErr == NoError)
 	{

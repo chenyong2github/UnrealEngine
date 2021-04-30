@@ -5,10 +5,13 @@
 #include "Commander.h"
 #include "Utils/SceneValidator.h"
 #include "Utils/TimeStat.h"
+#include "Utils/Error.h"
 
 #include "DatasmithDirectLink.h"
 #include "DatasmithSceneExporter.h"
 #include "DatasmithSceneXmlWriter.h"
+#include "IDirectLinkUI.h"
+#include "IDatasmithExporterUIModule.h"
 
 #ifdef TicksPerSecond
 	#undef TicksPerSecond
@@ -25,6 +28,150 @@ DISABLE_SDK_WARNINGS_END
 BEGIN_NAMESPACE_UE_AC
 
 #define UE_AC_FULL_TRACE 0
+
+enum : GSType
+{
+	DatasmithDynamicLink = 'DsDL'
+}; // Can be called by another Add-on
+
+// Add menu to the menu bar and also add an item to palette menu
+GSErrCode FSynchronizer::Register()
+{
+	return ACAPI_Register_SupportedService(DatasmithDynamicLink, 1L);
+}
+
+// Enable handlers of menu items
+GSErrCode FSynchronizer::Initialize()
+{
+	GSErrCode GSErr = ACAPI_Install_ModulCommandHandler(DatasmithDynamicLink, 1L, SyncCommandHandler);
+	if (GSErr != NoError)
+	{
+		UE_AC_DebugF("FSynchronizer::Initialize - ACAPI_Install_ModulCommandHandler error=%s\n", GetErrorName(GSErr));
+	}
+	return GSErr;
+}
+
+// Intra add-ons command handler
+GSErrCode __ACENV_CALL FSynchronizer::SyncCommandHandler(GSHandle ParHdl, GSPtr /* ResultData */,
+														 bool /* SilentMod */) noexcept
+{
+	return TryFunctionCatchAndAlert("FSynchronizer::DoSyncCommand",
+									[ParHdl]() -> GSErrCode { return FSynchronizer::DoSyncCommand(ParHdl); });
+}
+
+static bool bPostSent = false;
+
+// Process intra add-ons command
+GSErrCode FSynchronizer::DoSyncCommand(GSHandle ParHdl)
+{
+	GSErrCode GSErr = NoError;
+
+	if (ParHdl == nullptr)
+	{
+		return APIERR_GENERAL;
+	}
+
+	Int32 NbPars = 0;
+	GSErr = ACAPI_Goodies(APIAny_GetMDCLParameterNumID, ParHdl, &NbPars);
+	if (GSErr != NoError)
+	{
+		UE_AC_DebugF("FSynchronizer::DoSyncCommand - APIAny_GetMDCLParameterNumID error %s\n", GetErrorName(GSErr));
+		return GSErr;
+	}
+
+	if (NbPars != 1)
+	{
+		UE_AC_DebugF("FSynchronizer::DoSyncCommand - Invalid number of parameters %d\n", NbPars);
+		return APIERR_BADPARS;
+	}
+
+	API_MDCLParameter Param = {};
+	Param.index = 1;
+	GSErr = ACAPI_Goodies(APIAny_GetMDCLParameterID, ParHdl, &Param);
+	if (GSErr != NoError)
+	{
+		UE_AC_DebugF("FSynchronizer::DoSyncCommand - APIAny_GetMDCLParameterID 1 error %s\n", GetErrorName(GSErr));
+		return GSErr;
+	}
+	if (CHCompareCStrings(Param.name, "Reason", CS_CaseSensitive) != 0 || Param.type != MDCLPar_string)
+	{
+		UE_AC_DebugF("FSynchronizer::DoSyncCommand - Invalid parameters (type=%d) %s\n", Param.type, Param.name);
+		return APIERR_BADPARS;
+	}
+
+	if (bPostSent == true)
+	{
+		bPostSent = false;
+		if (Is3DCurrenWindow())
+		{
+			UE_AC_TraceF("FSynchronizer::DoSyncCommand - Auto Sync for %s\n", Param.string_par);
+			FCommander::DoSnapshot();
+		}
+		else
+		{
+			PostDoSnapshot(Param.string_par);
+		}
+	}
+
+	return GSErr;
+}
+
+// Schedule a Auto Sync snapshot to be executed from the main thread event loop.
+void FSynchronizer::PostDoSnapshot(const utf8_t* InReason)
+{
+	if (bPostSent == false && FCommander::IsAutoSyncEnabled())
+	{
+		GSHandle  ParHdl = nullptr;
+		GSErrCode GSErr = ACAPI_Goodies(APIAny_InitMDCLParameterListID, &ParHdl);
+		if (GSErr == NoError)
+		{
+			API_MDCLParameter Param;
+			Zap(&Param);
+			Param.name = "Reason";
+			Param.type = MDCLPar_string;
+			Param.string_par = InReason;
+			GSErr = ACAPI_Goodies(APIAny_AddMDCLParameterID, ParHdl, &Param);
+			if (GSErr == NoError)
+			{
+				API_ModulID mdid;
+				Zap(&mdid);
+				mdid.developerID = kEpicGamesDevId;
+				mdid.localID = kDatasmithExporterId;
+				GSErr = ACAPI_Command_CallFromEventLoop(&mdid, DatasmithDynamicLink, 1, ParHdl, false, nullptr);
+				if (GSErr == NoError)
+				{
+					ParHdl = nullptr;
+					bPostSent = true; // Only one post at a time
+				}
+				else
+				{
+					UE_AC_DebugF("FSynchronizer::PostDoSnapshot - ACAPI_Command_CallFromEventLoop error %s\n",
+								 GetErrorName(GSErr));
+				}
+			}
+			else
+			{
+				UE_AC_DebugF("FSynchronizer::PostDoSnapshot - APIAny_AddMDCLParameterID error %s\n",
+							 GetErrorName(GSErr));
+			}
+
+			if (ParHdl != nullptr)
+			{
+				GSErr = ACAPI_Goodies(APIAny_FreeMDCLParameterListID, &ParHdl);
+				if (GSErr != NoError)
+				{
+					UE_AC_DebugF("FSynchronizer::PostDoSnapshot - APIAny_FreeMDCLParameterListID error %s\n",
+								 GetErrorName(GSErr));
+				}
+			}
+		}
+		else
+		{
+			UE_AC_DebugF("FSynchronizer::PostDoSnapshot - APIAny_InitMDCLParameterListID error %s\n",
+						 GetErrorName(GSErr));
+		}
+	}
+}
 
 static FSynchronizer* CurrentSynchonizer = nullptr;
 
@@ -73,10 +220,11 @@ FSynchronizer::~FSynchronizer()
 // Delete the database (Usualy because document has changed)
 void FSynchronizer::Reset(const utf8_t* InReason)
 {
-	if (FCommander::IsLiveLinkEnabled())
+	if (FCommander::IsAutoSyncEnabled())
 	{
-		FCommander::ToggleLiveLink();
+		FCommander::ToggleAutoSync();
 	}
+	AttachObservers.Stop();
 
 	UE_AC_TraceF("FSynchronizer::Reset - %s\n", InReason);
 	if (SyncDatabase != nullptr)
@@ -99,8 +247,7 @@ void FSynchronizer::ProjectOpen()
 	GS::UniString ProjectPath;
 	GS::UniString ProjectName;
 	GetProjectPathAndName(&ProjectPath, &ProjectName);
-	SyncDatabase =
-		new FSyncDatabase(GSStringToUE(ProjectPath), GSStringToUE(ProjectName), GSStringToUE(GetAddonDataDirectory()));
+	SyncDatabase = new FSyncDatabase(GSStringToUE(ProjectPath), GSStringToUE(ProjectName), *GetExportPath());
 
 	// Announce it to potential receivers
 #if ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION == 26
@@ -143,6 +290,29 @@ void FSynchronizer::ProjectClosed()
 	Reset("Project Closed");
 }
 
+// Return the export path from the ExporterUIModule or a default one
+FString FSynchronizer::GetExportPath()
+{
+	const TCHAR*				CacheDirectory = nullptr;
+	IDatasmithExporterUIModule* DsExporterUIModule = IDatasmithExporterUIModule::Get();
+	if (DsExporterUIModule != nullptr)
+	{
+		IDirectLinkUI* DLUI = DsExporterUIModule->GetDirectLinkExporterUI();
+		if (DLUI != nullptr)
+		{
+			CacheDirectory = DLUI->GetDirectLinkCacheDirectory();
+		}
+	}
+	if (CacheDirectory != nullptr)
+	{
+		return CacheDirectory;
+	}
+	else
+	{
+		return GSStringToUE(GetAddonDataDirectory());
+	}
+}
+
 // Do a snapshot of the model 3D data
 void FSynchronizer::DoSnapshot(const ModelerAPI::Model& InModel)
 {
@@ -158,14 +328,26 @@ void FSynchronizer::DoSnapshot(const ModelerAPI::Model& InModel)
 
 	ViewState = FViewState();
 
+	FString ExportPath = GetExportPath();
+
+	// If we have a sync database validate it use the ExportPath
+	if (SyncDatabase != nullptr)
+	{
+		if (ExportPath != SyncDatabase->GetAssetsFolderPath())
+		{
+			delete SyncDatabase;
+			SyncDatabase = nullptr;
+		}
+	}
+
 	// Insure we have a sync database and a snapshot scene
 	if (SyncDatabase == nullptr)
 	{
 		GS::UniString ProjectPath;
 		GS::UniString ProjectName;
 		GetProjectPathAndName(&ProjectPath, &ProjectName);
-		SyncDatabase = new FSyncDatabase(GSStringToUE(ProjectPath), GSStringToUE(ProjectName),
-										 GSStringToUE(GetAddonDataDirectory()));
+
+		SyncDatabase = new FSyncDatabase(GSStringToUE(ProjectPath), GSStringToUE(ProjectName), *ExportPath);
 
 #if ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION == 26
 		TSharedRef< IDatasmithScene > ToBuildWith_4_26(SyncDatabase->GetScene());
@@ -186,7 +368,7 @@ void FSynchronizer::DoSnapshot(const ModelerAPI::Model& InModel)
 	SyncDatabase->GetMaterialsDatabase().UpdateModified(SyncContext);
 
 #ifdef DEBUG
-	if (!FCommander::IsLiveLinkEnabled()) // In Live Link mode we don't do scene dump or validation
+	if (!FCommander::IsAutoSyncEnabled()) // In Auto Sync mode we don't do scene dump or validation
 	{
 		SyncContext.NewPhase(kDebugSaveScene);
 		DumpScene(SyncDatabase->GetScene());
@@ -212,17 +394,49 @@ void FSynchronizer::DoSnapshot(const ModelerAPI::Model& InModel)
 	FTimeStat DoSnapshotEnd;
 	DoSnapshotSyncEnd.PrintDiff("Synchronization", DoSnapshotStart);
 #ifdef DEBUG
-	if (!FCommander::IsLiveLinkEnabled()) // In Live Link mode we don't do scene dump or validation
+	if (!FCommander::IsAutoSyncEnabled()) // In Auto Sync mode we don't do scene dump or validation
 	{
 		DoSnapshotDumpAndValidatorEnd.PrintDiff("Dump & Validator", DoSnapshotSyncEnd);
 	}
 #endif
 	DoSnapshotEnd.PrintDiff("DirectLink Update", DoSnapshotDumpAndValidatorEnd);
 	DoSnapshotEnd.PrintDiff("Total DoSnapshot", DoSnapshotStart);
+
+	AttachObservers.Start(&SyncDatabase->GetSceneSyncData());
 }
 
-// Live Link related: If view changed shedule an update
-bool FSynchronizer::NeedLiveLinkUpdate() const
+void FSynchronizer::DoIdle(int* IOCount)
+{
+	// If we wait for a snapshoot to be processed
+	if (bPostSent)
+	{
+		// We do nothing until we have processed the pending request
+		return;
+	}
+
+	// If we need to schedule an Auto Sync
+	if (NeedAutoSyncUpdate())
+	{
+		PostDoSnapshot("View or material modified");
+		return;
+	}
+
+	// If we need to schedule an Auto Sync
+	if (AttachObservers.ProcessUntil(FTimeStat::RealTimeClock() + 1.0 / 3.0))
+	{
+		PostDoSnapshot("Process detect modification");
+		return;
+	}
+
+	// If we need to process more
+	if (AttachObservers.NeedProcess())
+	{
+		*IOCount = 2;
+	}
+}
+
+// Auto Sync related: If view changed shedule an update
+bool FSynchronizer::NeedAutoSyncUpdate() const
 {
 	FViewState CurrentViewState;
 	if (!(ViewState == CurrentViewState))

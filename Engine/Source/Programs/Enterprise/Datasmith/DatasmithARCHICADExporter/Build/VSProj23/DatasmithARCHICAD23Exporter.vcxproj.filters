@@ -9,10 +9,6 @@
       <UniqueIdentifier>{7056dae3-3593-4941-8e3c-e104a8092402}</UniqueIdentifier>
       <Extensions>png;svg</Extensions>
     </Filter>
-    <Filter Include="Libraries">
-      <UniqueIdentifier>{42902bf0-12fb-4ecb-a6fa-d9d2cf0ceeb9}</UniqueIdentifier>
-      <Extensions>lib</Extensions>
-    </Filter>
     <Filter Include="Private">
       <UniqueIdentifier>{292ab008-16fb-44e8-bc09-3e91433b6af1}</UniqueIdentifier>
     </Filter>
@@ -284,56 +280,6 @@
     <ClInclude Include="..\..\Private\Utils\ViewState.h">
       <Filter>Private\Utils</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <Library Include="$(ACSDKPATH)\Support\Modules\DGLib\Win\DGImp.lib">
-      <Filter>Libraries</Filter>
-    </Library>
-    <Library Include="$(ACSDKPATH)\Support\Modules\GSRoot\Win\GSRootImp.lib">
-      <Filter>Libraries</Filter>
-    </Library>
-    <Library Include="$(ACSDKPATH)\Support\Modules\GSUtils\Win\GSUtilsImp.lib">
-      <Filter>Libraries</Filter>
-    </Library>
-    <Library Include="$(ACSDKPATH)\Support\Modules\InputOutput\Win\InputOutputImp.lib">
-      <Filter>Libraries</Filter>
-    </Library>
-    <Library Include="$(ACSDKPATH)\Support\Modules\UCLib\Win\UCImp.lib">
-      <Filter>Libraries</Filter>
-    </Library>
-    <Library Include="$(ACSDKPATH)\Support\Modules\UDLib\Win\UDImp.lib">
-      <Filter>Libraries</Filter>
-    </Library>
-    <Library Include="$(ACSDKPATH)\Support\Modules\TextEngine\Win\TextEngineImp.LIB">
-      <Filter>Libraries</Filter>
-    </Library>
-    <Library Include="$(ACSDKPATH)\Support\Modules\ObjectDatabase\Win\ObjectDatabaseImp.LIB">
-      <Filter>Libraries</Filter>
-    </Library>
-    <Library Include="$(ACSDKPATH)\Support\Modules\VectorImage\Win\VectorImageImp.LIB">
-      <Filter>Libraries</Filter>
-    </Library>
-    <Library Include="$(ACSDKPATH)\Support\Modules\GSModeler\Win\GSModelerImp.LIB">
-      <Filter>Libraries</Filter>
-    </Library>
-    <Library Include="$(ACSDKPATH)\Support\Modules\VBAttributes\Win\VBAttributesImp.LIB">
-      <Filter>Libraries</Filter>
-    </Library>
-    <Library Include="$(ACSDKPATH)\Support\Modules\Geometry\Win\GeometryImp.LIB">
-      <Filter>Libraries</Filter>
-    </Library>
-    <Library Include="$(ACSDKPATH)\Support\Modules\GX\Win\GXImp.LIB">
-      <Filter>Libraries</Filter>
-    </Library>
-    <Library Include="$(ACSDKPATH)\Support\Modules\GXImage\Win\GXImageImp.LIB">
-      <Filter>Libraries</Filter>
-    </Library>
-    <Library Include="$(ACSDKPATH)\Support\Modules\GXImageBase\Win\GXImageBaseImp.LIB">
-      <Filter>Libraries</Filter>
-    </Library>
-    <Library Include="$(ACSDKPATH)\Support\Lib\Win\ACAP_STAT.lib">
-      <Filter>Libraries</Filter>
-    </Library>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\..\Resources\RFIX\DatasmithARCHICADExporterFix.grc">

@@ -63,7 +63,9 @@ BEGIN_NAMESPACE_UE_AC
 
 typedef enum
 {
-	kP2DB_Debug = 1,
+	kP2DB_Report = 1,
+	kP2DB_Debug,
+	kP2DB_ReportAndDebug,
 	kP2DB_Trace,
 	kP2DB_Verbose
 } EP2DB;
@@ -97,6 +99,8 @@ const utf8_t* GetErrorName(GS::GSErrCode GSError);
 #define UE_AC_DEBUGF_ON 1
 #define UE_AC_TRACEF_ON 1
 #define UE_AC_VERBOSEF_ON 0
+
+#define UE_AC_ReportF(...) UE_AC::Printf2DB(UE_AC::kP2DB_Report, __VA_ARGS__)
 
 #if UE_AC_DEBUGF_ON
 	#define UE_AC_DebugF(...) UE_AC::Printf2DB(UE_AC::kP2DB_Debug, __VA_ARGS__)
