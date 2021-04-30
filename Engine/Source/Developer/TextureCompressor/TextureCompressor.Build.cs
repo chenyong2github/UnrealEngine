@@ -6,13 +6,17 @@ public class TextureCompressor : ModuleRules
 {
 	public TextureCompressor(ReadOnlyTargetRules Target) : base(Target)
 	{
+		PrivateIncludePathModuleNames.AddRange(new string[]
+		{
+			"CoreUObject",
+			"Engine",
+		});
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"CoreUObject", // @todo Mac: for some reason it's needed to link in debug on Mac
-				"Engine",
-				"TargetPlatform",
-				"ImageCore"
+				"ImageCore",
+				"TextureFormat",
 			}
 			);
 
