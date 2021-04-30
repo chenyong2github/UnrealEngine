@@ -86,6 +86,7 @@ TSharedPtr<FDMXProtocolSACNReceiver> FDMXProtocolSACNReceiver::TryCreate(const T
 		.AsBlocking()
 		.AsReusable()
 		.BoundToEndpoint(Endpoint)
+		.WithMulticastLoopback()
 		.WithMulticastTtl(1)
 		.WithMulticastInterface(Endpoint.Address);
 
@@ -140,13 +141,13 @@ void FDMXProtocolSACNReceiver::AssignInputPort(const TSharedPtr<FDMXInputPort, E
 			ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 			TSharedRef<FInternetAddr> NewMulticastGroupAddr = SocketSubsystem->CreateInternetAddr();
 
-			uint32 Ip = GetIpForUniverseID(UniverseID);
-			NewMulticastGroupAddr->SetIp(Ip);
+			uint32 MulticastIp = GetIpForUniverseID(UniverseID);
+			NewMulticastGroupAddr->SetIp(MulticastIp);
 			NewMulticastGroupAddr->SetPort(ACN_PORT);
 
 			Socket->JoinMulticastGroup(*NewMulticastGroupAddr);
 
-			MulticastGroupAddrToUniverseIDMap.Add(NewMulticastGroupAddr, UniverseID);
+			MulticastGroupAddrToUniverseIDMap.Add(MulticastIp, UniverseID);
 		}
 	}
 }
@@ -156,10 +157,14 @@ void FDMXProtocolSACNReceiver::UnassignInputPort(const TSharedPtr<FDMXInputPort,
 	check(AssignedInputPorts.Contains(InputPort));
 	AssignedInputPorts.Remove(InputPort);
 
+	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+	TSharedRef<FInternetAddr> MulticastGroupAddrToLeave = SocketSubsystem->CreateInternetAddr();
+
 	// Leave multicast groups outside of remaining port's universe ranges
-	for (const TTuple<TSharedRef<FInternetAddr>, uint16>& MulticastGroupAddrToUniverseIDKvp : MulticastGroupAddrToUniverseIDMap)
+	for (const TTuple<uint32, uint16>& MulticastGroupAddrToUniverseIDKvp : MulticastGroupAddrToUniverseIDMap)
 	{
-		const TSharedRef<FInternetAddr>& MulticastGroupAddr = MulticastGroupAddrToUniverseIDKvp.Key;
+		MulticastGroupAddrToLeave->SetIp(MulticastGroupAddrToUniverseIDKvp.Key);
+		MulticastGroupAddrToLeave->SetPort(ACN_PORT);
 		uint16 UniverseID = MulticastGroupAddrToUniverseIDKvp.Value;
 
 		bool bGroupInUse = true;
@@ -177,7 +182,7 @@ void FDMXProtocolSACNReceiver::UnassignInputPort(const TSharedPtr<FDMXInputPort,
 
 		if (!bGroupInUse)
 		{
-			Socket->LeaveMulticastGroup(*MulticastGroupAddr);
+			Socket->LeaveMulticastGroup(*MulticastGroupAddrToLeave);
 		}
 	}
 }
@@ -242,8 +247,10 @@ void FDMXProtocolSACNReceiver::Update(const FTimespan& SocketWaitTime)
 		if (Socket->RecvFromWithPktInfo(Reader->GetData(), Reader->Num(), NumBytesRead, *Sender, *Destination))
 		{
 			Reader->RemoveAt(NumBytesRead, Reader->Num() - NumBytesRead, false);
+			uint32 MulticastIp = 0;
+			Destination->GetIp(MulticastIp);
 
-			if (const uint16* UniverseIDPtr = MulticastGroupAddrToUniverseIDMap.Find(Destination.ToSharedRef()))
+			if (const uint16* UniverseIDPtr = MulticastGroupAddrToUniverseIDMap.Find(MulticastIp))
 			{
 				const uint16 UniverseID = *UniverseIDPtr;
 				DistributeReceivedData(UniverseID, Reader);

@@ -71,10 +71,14 @@ class DMXPROTOCOL_API FDMXPortManager
 
 	DECLARE_MULTICAST_DELEGATE(FDMXOnPortArraysChangedDelegate);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FDMXOnPortChangedDelegate, const FGuid& /** PortGuid */)
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FDMXOnPortInputDequeuedDelegate, FDMXInputPortSharedRef /** DMXInputPortRef */, FDMXSignalSharedRef /** DMXSignalRef */)
 
 public:
 	/** Broadcast when port arrays or data changed */
 	FDMXOnPortArraysChangedDelegate OnPortsChanged;
+
+	/** Broadcast when a DMX Signal is dequeued from the port */
+	FDMXOnPortInputDequeuedDelegate OnPortInputDequeued;
 
 public:
 	static FDMXPortManager& Get();

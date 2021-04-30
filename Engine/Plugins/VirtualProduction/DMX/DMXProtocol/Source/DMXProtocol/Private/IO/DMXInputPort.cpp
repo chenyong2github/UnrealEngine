@@ -6,7 +6,9 @@
 #include "DMXStats.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "IO/DMXInputPortConfig.h"
+#include "IO/DMXPortManager.h"
 #include "IO/DMXRawListener.h"
+
 
 DECLARE_CYCLE_STAT(TEXT("Input Port Tick"), STAT_DMXInputPortTick, STATGROUP_DMX);
 
@@ -160,7 +162,7 @@ void FDMXInputPort::Unregister()
 		check(Protocol.IsValid());
 
 		Protocol->UnregisterInputPort(SharedThis(this));
-	
+
 		bRegistered = false;
 	}
 }
@@ -173,8 +175,9 @@ void FDMXInputPort::Tick(float DeltaTime)
 	FDMXSignalSharedPtr Signal;
 	while (TickedBuffer.Dequeue(Signal))
 	{
-		// No need to fliter extern universe, we already did that when enqueing
+		// No need to filter extern universe, we already did that when enqueing
 		UniverseToLatestSignalMap.FindOrAdd(Signal->ExternUniverseID) = Signal;
+		FDMXPortManager::Get().OnPortInputDequeued.Broadcast(FDMXInputPort::SharedThis(this), Signal.ToSharedRef());
 	}
 }
 
@@ -194,7 +197,7 @@ void FDMXInputPort::ClearBuffers()
 	// Needs be called from the game thread, to maintain thread safety with UniverseToLatestSignalMap
 	check(IsInGameThread());
 #endif // UE_BUILD_DEBUG
-	
+
 	for (const TSharedRef<FDMXRawListener>& RawInput : RawListeners)
 	{
 		RawInput->ClearBuffer();
@@ -237,7 +240,7 @@ bool FDMXInputPort::GameThreadGetDMXSignal(int32 LocalUniverseID, FDMXSignalShar
 		OutDMXSignal = *SignalPtr;
 		return true;
 	}
-	
+
 	return false;
 }
 
