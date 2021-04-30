@@ -2202,7 +2202,6 @@ public:
 	virtual bool UsesTaskGraph(const FTextureBuildSettings& BuildSettings) const override
 	{
 		const ITextureFormat* TextureFormat = nullptr;
-		ITextureFormatManagerModule* TFM = GetTextureFormatManager();
 		if (TFM)
 		{
 			TextureFormat = TFM->FindTextureFormat(BuildSettings.TextureFormatName);
@@ -2226,7 +2225,7 @@ public:
 		)
 	{
 		const ITextureFormat* TextureFormat = nullptr;
-		ITextureFormatManagerModule* TFM = GetTextureFormatManager();
+
 		if (TFM)
 		{
 			TextureFormat = TFM->FindTextureFormat(BuildSettings.TextureFormatName);
@@ -2305,6 +2304,9 @@ public:
 		nvTextureToolsHandle = FPlatformProcess::GetDllHandle(*(FPaths::EngineDir() / TEXT("Binaries/ThirdParty/nvTextureTools/Win32/nvtt_.dll")));
 	#endif
 #endif	//PLATFORM_WINDOWS
+
+		// Initialize TFM singleton on the main thread, as it may be accessed from task threads later.
+		TFM = GetTextureFormatManager();
 	}
 
 	void ShutdownModule()
@@ -2320,6 +2322,8 @@ private:
 	// Handle to the nvtt dll
 	void* nvTextureToolsHandle;
 #endif	//PLATFORM_WINDOWS
+
+	ITextureFormatManagerModule* TFM = nullptr;
 
 	bool BuildTextureMips(
 		const TArray<FImage>& InSourceMips,
