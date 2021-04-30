@@ -10,9 +10,21 @@ RaytracingAccelerationStructure               TLAS;
 StructuredBuffer<FBasicRayData>               Rays;
 RWStructuredBuffer<FNiagaraRayTracingPayload> CollisionOutput;
 
+#if NIAGARA_RAYTRACE_FAKE_INDIRECT
+Buffer<uint>                                  RayTraceCounts;
+#endif
+
 RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 {
 	const uint RayIndex = DispatchRaysIndex().x;
+
+#if NIAGARA_RAYTRACE_FAKE_INDIRECT
+	if (RayIndex >= RayTraceCounts[0])
+	{
+		return;
+	}
+#endif
+
 	FBasicRayData InputRay = Rays[RayIndex];
 
 	RayDesc Ray;

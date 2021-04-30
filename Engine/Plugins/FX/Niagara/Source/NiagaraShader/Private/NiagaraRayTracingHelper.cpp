@@ -12,10 +12,7 @@
 #include "ShaderParameterStruct.h"
 
 /// TODO
-///  -get DispatchIndirect working where we can atomically increment the collision request index and then use that to
-///		control the dispatch index (or, at the least feed it into the RayGen shader to early out)
 ///  -get geometry masking working when an environmental mask is implemented
-///  -template the CollisionDI to allow for multiple instances in the same emitter (even if that doesn't make a whole lot of sense)
 
 class FNiagaraCollisionRayTraceRG : public FGlobalShader
 {
@@ -26,11 +23,28 @@ class FNiagaraCollisionRayTraceRG : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FBasicRayData>, Rays)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FNiagaraRayTracingPayload>, CollisionOutput)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<UINT>, RayTraceCounts)
 	END_SHADER_PARAMETER_STRUCT()
+
+	class FFakeIndirectDispatch : SHADER_PERMUTATION_BOOL("NIAGARA_RAYTRACE_FAKE_INDIRECT");
+	using FPermutationDomain = TShaderPermutationDomain<FFakeIndirectDispatch>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static FRHIRayTracingShader* GetShader(FGlobalShaderMap* ShaderMap)
+	{
+		FPermutationDomain PermutationVector;
+		PermutationVector.Set<FFakeIndirectDispatch>(!SupportsIndirectDispatch());
+
+		return ShaderMap->GetShader<FNiagaraCollisionRayTraceRG>(PermutationVector).GetRayTracingShader();
+	}
+
+	static bool SupportsIndirectDispatch()
+	{
+		return GRHISupportsRayTracingDispatchIndirect;
 	}
 };
 
@@ -172,7 +186,7 @@ void FNiagaraRayTracingHelper::BuildRayTracingSceneInfo(FRHICommandList& RHICmdL
 		ViewUniformBuffer = ReferenceView.ViewUniformBuffer;
 
 		FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ShaderPlatform);
-		auto RayGenShader = ShaderMap->GetShader<FNiagaraCollisionRayTraceRG>().GetRayTracingShader();
+		auto RayGenShader = FNiagaraCollisionRayTraceRG::GetShader(ShaderMap);
 		auto ClosestHitShader = ShaderMap->GetShader<FNiagaraCollisionRayTraceCH>().GetRayTracingShader();
 		auto MissShader = ShaderMap->GetShader<FNiagaraCollisionRayTraceMiss>().GetRayTracingShader();
 
@@ -202,7 +216,7 @@ void FNiagaraRayTracingHelper::BuildRayTracingSceneInfo(FRHICommandList& RHICmdL
 	}
 }
 
-void FNiagaraRayTracingHelper::IssueRayTraces(FRHICommandList& RHICmdList, const FIntPoint& RayTraceCounts, FRHIShaderResourceView* RayTraceRequests, FRHIUnorderedAccessView* RayTraceResults) const
+void FNiagaraRayTracingHelper::IssueRayTraces(FRHICommandList& RHICmdList, const FIntPoint& RayTraceCounts, FRHIShaderResourceView* RayTraceRequests, FRWBuffer* IndirectArgsBuffer, uint32 IndirectArgsOffset, FRHIUnorderedAccessView* RayTraceResults) const
 {
 	check(RayTracingPipelineState);
 	check(RayTracingScene);
@@ -215,15 +229,36 @@ void FNiagaraRayTracingHelper::IssueRayTraces(FRHICommandList& RHICmdList, const
 	GlobalBindings.SRVs[1] = RayTraceRequests;
 	GlobalBindings.UAVs[0] = RayTraceResults;
 
-	// todo - add support for RayTraceDispatchIndirect
-	RHICmdList.RayTraceDispatch(
-		RayTracingPipelineState,
-		ShaderMap->GetShader<FNiagaraCollisionRayTraceRG>().GetRayTracingShader(),
-		RayTracingScene,
-		GlobalBindings,
-		RayTraceCounts.X,
-		RayTraceCounts.Y
-	);
+	if (FNiagaraCollisionRayTraceRG::SupportsIndirectDispatch())
+	{
+		RHICmdList.Transition(FRHITransitionInfo(IndirectArgsBuffer->UAV, ERHIAccess::UAVCompute, ERHIAccess::IndirectArgs | ERHIAccess::SRVCompute));
+
+		RHICmdList.RayTraceDispatchIndirect(
+			RayTracingPipelineState,
+			FNiagaraCollisionRayTraceRG::GetShader(ShaderMap),
+			RayTracingScene,
+			GlobalBindings,
+			IndirectArgsBuffer->Buffer,
+			IndirectArgsOffset);
+
+		RHICmdList.Transition(FRHITransitionInfo(IndirectArgsBuffer->UAV, ERHIAccess::IndirectArgs | ERHIAccess::SRVCompute, ERHIAccess::UAVCompute));
+	}
+	else
+	{
+		RHICmdList.Transition(FRHITransitionInfo(IndirectArgsBuffer->UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
+		GlobalBindings.SRVs[2] = IndirectArgsBuffer->SRV;
+
+		RHICmdList.RayTraceDispatch(
+			RayTracingPipelineState,
+			FNiagaraCollisionRayTraceRG::GetShader(ShaderMap),
+			RayTracingScene,
+			GlobalBindings,
+			RayTraceCounts.X,
+			RayTraceCounts.Y
+		);
+
+		RHICmdList.Transition(FRHITransitionInfo(IndirectArgsBuffer->UAV, ERHIAccess::SRVCompute, ERHIAccess::UAVCompute));
+	}
 }
 
 bool FNiagaraRayTracingHelper::IsValid() const

@@ -1860,11 +1860,11 @@ void NiagaraEmitterInstanceBatcher::ResetRayTracingSceneInfo()
 	RayTracingHelper->Reset();
 }
 
-void NiagaraEmitterInstanceBatcher::IssueRayTraces(FRHICommandList& RHICmdList, const FIntPoint& RayTraceCounts, FRHIShaderResourceView* RayTraceRequests, FRHIUnorderedAccessView* RayTraceResults) const
+void NiagaraEmitterInstanceBatcher::IssueRayTraces(FRHICommandList& RHICmdList, const FIntPoint& RayTraceCounts, FRHIShaderResourceView* RayTraceRequests, FRWBuffer* IndirectArgsBuffer, uint32 IndirectArgsOffset, FRHIUnorderedAccessView* RayTraceResults) const
 {
 	check(NumTicksThatRequireRayTracingScene > 0);
 
-	RayTracingHelper->IssueRayTraces(RHICmdList, RayTraceCounts, RayTraceRequests, RayTraceResults);
+	RayTracingHelper->IssueRayTraces(RHICmdList, RayTraceCounts, RayTraceRequests, IndirectArgsBuffer, IndirectArgsOffset, RayTraceResults);
 }
 
 bool NiagaraEmitterInstanceBatcher::HasRayTracingScene() const

@@ -4,6 +4,8 @@
 
 #include "/Engine/Private/RayTracing/RayTracingCommon.ush"
 
+#define NIAGARA_USE_RAYTRACING        (FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
+
 // payload structure for Niagara ray traces
 struct FNiagaraRayTracingPayload : FMinimalPayload
 {

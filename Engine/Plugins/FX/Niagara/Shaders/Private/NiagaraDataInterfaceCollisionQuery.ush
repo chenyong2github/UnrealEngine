@@ -5,13 +5,7 @@
 #include "/Engine/Private/RayTracing/RayTracingCommon.ush"
 #include "NiagaraRayTracingCommon.ush"
 
-#define NDICOLLISIONQUERY_USE_GBUFFER_NORMAL	(FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
-
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
-int											MaxRayTraceCount;
-RWStructuredBuffer<FBasicRayData>			RWRayRequests;
-StructuredBuffer<FNiagaraRayTracingPayload>	IntersectionResults;
-#endif
+#define NDICOLLISIONQUERY_USE_GBUFFER_NORMAL    (FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
 
 float NDICollisionQuery_GetSceneDepth(float2 ScreenUV)
 {
@@ -145,34 +139,85 @@ void NDICollisionQuery_QueryMeshDistanceFieldGPU(in float3 In_SamplePos, out flo
 #endif
 }
 
-void NDICollisionQuery_IssueAsyncRayTrace(int In_QueryID, float3 In_TraceStart, float3 In_TraceEnd, int In_TraceChannel, out bool Out_IsQueryValid)
+#if NIAGARA_USE_RAYTRACING
+
+uint BuildRayTraceMask(int TraceChannel)
+{
+	// for now we'll ignore the TraceChannel till we can mark up the environment
+	return 0xFF;
+}
+
+void NDICollisionQuery_IssueAsyncRayTrace(uint MaxRayTraceCount, RWStructuredBuffer<FBasicRayData> RWRayRequests, RWBuffer<uint> RWRayTraceCounts, int In_QueryID, float3 In_TraceStart, float3 In_TraceEnd, int In_TraceChannel, out bool Out_IsQueryValid)
 {
 	Out_IsQueryValid = false;
 
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
-	if (In_QueryID >= 0 && In_QueryID < MaxRayTraceCount)
+	if (In_QueryID >= 0 && uint(In_QueryID) < MaxRayTraceCount)
 	{
 		float3 Trace = In_TraceEnd - In_TraceStart;
 		float TraceLength = length(Trace);
 
 		RWRayRequests[In_QueryID].Origin = In_TraceStart;
-		RWRayRequests[In_QueryID].Mask = 0xFF; // In_TraceChannel - for now we'll ignore the TraceChannel till we can mark up the environment
+		RWRayRequests[In_QueryID].Mask = BuildRayTraceMask(In_TraceChannel);
 		RWRayRequests[In_QueryID].Direction = normalize(Trace);
 		RWRayRequests[In_QueryID].TFar = TraceLength;
 		Out_IsQueryValid = true;
+
+		// we want to keep track of the maximum index used
+		InterlockedMax(RWRayTraceCounts[0], In_QueryID + 1);
+		RWRayTraceCounts[1] = 1;
+		RWRayTraceCounts[2] = 1;
 	}
-#endif
 }
 
-void NDICollisionQuery_ReadAsyncRayTrace(int In_PreviousFrameQueryID, out bool Out_CollisionValid, out float Out_CollisionDistance, out float3 Out_CollisionPosWorld, out float3 Out_CollisionNormal)
+void NDICollisionQuery_ReserveRayTraceIndex(uint MaxRayTraceCount, RWBuffer<uint> RWRayTraceCounts, int In_TraceCount, out int Out_StartQueryID, out bool Out_IndicesValid)
+{
+	Out_IndicesValid = false;
+
+	if ((In_TraceCount + RWRayTraceCounts[0]) < MaxRayTraceCount)
+	{
+		uint RequestIndex = 0;
+		InterlockedAdd(RWRayTraceCounts[0], In_TraceCount, RequestIndex);
+		RWRayTraceCounts[1] = 1;
+		RWRayTraceCounts[2] = 1;
+
+		if ((In_TraceCount + RequestIndex) <= MaxRayTraceCount)
+		{
+			Out_StartQueryID = int(RequestIndex);
+			Out_IndicesValid = true;
+		}
+		else
+		{
+			InterlockedMax(RWRayTraceCounts[0], MaxRayTraceCount);
+		}
+	}
+}
+
+void NDICollisionQuery_CreateAsyncRayTrace(uint MaxRayTraceCount, RWStructuredBuffer<FBasicRayData> RWRayRequests, RWBuffer<uint> RWRayTraceCounts, float3 In_TraceStart, float3 In_TraceEnd, int In_TraceChannel, out int Out_QueryID, out bool Out_IsQueryValid)
+{
+	Out_IsQueryValid = false;
+
+	NDICollisionQuery_ReserveRayTraceIndex(MaxRayTraceCount, RWRayTraceCounts, 1, Out_QueryID, Out_IsQueryValid);
+
+	if (Out_IsQueryValid)
+	{
+		float3 Trace = In_TraceEnd - In_TraceStart;
+		float TraceLength = length(Trace);
+
+		RWRayRequests[Out_QueryID].Origin = In_TraceStart;
+		RWRayRequests[Out_QueryID].Mask = BuildRayTraceMask(In_TraceChannel);
+		RWRayRequests[Out_QueryID].Direction = normalize(Trace);
+		RWRayRequests[Out_QueryID].TFar = TraceLength;
+	}
+}
+
+void NDICollisionQuery_ReadAsyncRayTrace(uint MaxRayTraceCount, StructuredBuffer<FNiagaraRayTracingPayload> IntersectionResults, int In_PreviousFrameQueryID, out bool Out_CollisionValid, out float Out_CollisionDistance, out float3 Out_CollisionPosWorld, out float3 Out_CollisionNormal)
 {
 	Out_CollisionValid = false;
 	Out_CollisionDistance = 0.0f;
 	Out_CollisionPosWorld = float3(0.0f, 0.0f, 0.0f);
 	Out_CollisionNormal = float3(0.0f, 0.0f, 0.0f);
 
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
-	if (In_PreviousFrameQueryID >= 0 && In_PreviousFrameQueryID < MaxRayTraceCount)
+	if (In_PreviousFrameQueryID >= 0 && uint(In_PreviousFrameQueryID) < MaxRayTraceCount)
 	{
 		FNiagaraRayTracingPayload HitResult = IntersectionResults[In_PreviousFrameQueryID];
 
@@ -184,5 +229,6 @@ void NDICollisionQuery_ReadAsyncRayTrace(int In_PreviousFrameQueryID, out bool O
 			Out_CollisionNormal = HitResult.WorldNormal;
 		}
 	}
-#endif
 }
+
+#endif
