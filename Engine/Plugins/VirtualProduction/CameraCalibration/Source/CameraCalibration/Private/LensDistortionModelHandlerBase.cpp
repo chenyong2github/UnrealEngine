@@ -204,9 +204,15 @@ void ULensDistortionModelHandlerBase::ProcessCurrentDistortion()
 		UpdateMaterialParameters();
 
 		// Draw the undistortion displacement map
-		UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, UndistortionDisplacementMapRT, UndistortionDisplacementMapMID);
+		if (UndistortionDisplacementMapMID)
+		{
+			UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, UndistortionDisplacementMapRT, UndistortionDisplacementMapMID);
+		}
 
 		// Draw the distortion displacement map
-		UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, DistortionDisplacementMapRT, DistortionDisplacementMapMID);
+		if (DistortionDisplacementMapMID)
+		{
+			UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, DistortionDisplacementMapRT, DistortionDisplacementMapMID);
+		}
 	}
 }
