@@ -142,7 +142,7 @@ void SNiagaraActionWidget::Construct(const FArguments& InArgs, const FCreateNiag
        .VAlign(VAlign_Fill)
        [
            SNew(SSeparator)
-           .SeparatorImage(FNiagaraEditorStyle::Get().GetBrush("MenuSeparator"))
+           .SeparatorImage(FAppStyle::Get().GetBrush("Separator"))
            .Orientation(EOrientation::Orient_Vertical)
            .Visibility(ActionPtr->SourceData.bDisplaySource ? EVisibility::Visible : EVisibility::Collapsed)
        ]

@@ -501,8 +501,7 @@ void SNiagaraCurveOverview::Construct(const FArguments& InArgs, TSharedRef<FNiag
 
 	RefreshCurveEditorTreeItems();
 
-	FToolBarBuilder ToolBarBuilder(CurveEditorPanel->GetCommands(), FMultiBoxCustomization::None, CurveEditorPanel->GetToolbarExtender(), true);
-	ToolBarBuilder.SetStyle(&FEditorStyle::Get(), "Sequencer.ToolBar");
+	FSlimHorizontalToolBarBuilder ToolBarBuilder(CurveEditorPanel->GetCommands(), FMultiBoxCustomization::None, CurveEditorPanel->GetToolbarExtender(), true);
 	ToolBarBuilder.BeginSection("Asset");
 	ToolBarBuilder.EndSection();
 
