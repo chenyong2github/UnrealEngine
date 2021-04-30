@@ -196,6 +196,9 @@ public:
 	/** Marks this object as active for the passed in connection */
 	bool MarkActive(AActor* const Actor, UNetConnection* const Connection, UNetDriver* NetDriver);
 
+	/** Marks this object dirty for replays using delta checkpoints */
+	void MarkDirtyForReplay(AActor* const Actor);
+
 	/** Removes the recently dormant status from the passed in connection */
 	UE_DEPRECATED(4.22, "Please use the ClearRecentlyDormantConnection which takes a net driver instead.")
 	void ClearRecentlyDormantConnection(AActor* const Actor, UNetConnection* const Connection, const FName NetDriverName);

@@ -6,6 +6,7 @@
 #include "Engine/LevelStreaming.h"
 #include "Engine/World.h"
 #include "Engine/ActorChannel.h"
+#include "Engine/NetworkObjectList.h"
 #include "GameFramework/PlayerController.h"
 
 static const int32 MAX_REPLAY_PACKET = 1024 * 2;
@@ -114,7 +115,9 @@ void UReplayNetConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketT
 
 	TrackSendForProfiler(Data, CountBytes);
 
-	TArray<FQueuedDemoPacket>& QueuedPackets = (ResendAllDataState != EResendAllDataState::None) ? ReplayHelper.QueuedCheckpointPackets : ReplayHelper.QueuedDemoPackets;
+	const bool bCheckpoint = (ResendAllDataState != EResendAllDataState::None);
+
+	TArray<FQueuedDemoPacket>& QueuedPackets = bCheckpoint ? ReplayHelper.QueuedCheckpointPackets : ReplayHelper.QueuedDemoPackets;
 
 	int32 NewIndex = QueuedPackets.Emplace((uint8*)Data, CountBits, Traits);
 
@@ -130,6 +133,11 @@ void UReplayNetConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketT
 				//@todo: unique this in tick?
 				// RepChangedPropertyTrackerMap.Find is expensive
 				ReplayHelper.UpdateExternalDataForActor(this, Actor);
+			}
+
+			if (!bCheckpoint && ReplayHelper.bHasDeltaCheckpoints && Driver)
+			{
+				Driver->GetNetworkObjectList().MarkDirtyForReplay(Actor);
 			}
 		}
 	}
