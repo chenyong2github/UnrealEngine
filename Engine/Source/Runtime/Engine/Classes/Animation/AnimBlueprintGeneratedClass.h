@@ -599,6 +599,10 @@ public:
 	// Build the properties that we cache for our constant data
 	void BuildConstantProperties();
 
+	// Get the fixed names of our generated structs
+	static FName GetConstantsStructName();
+	static FName GetMutablesStructName();
+	
 	// UObject interface
 	virtual void Serialize(FArchive& Ar) override;
 	// End of UObject interface

@@ -1169,14 +1169,6 @@ void FAnimBlueprintCompilerContext::RecreateSparseClassData()
 	UAnimBlueprintGeneratedClass* NewAnimBlueprintClass = GetNewAnimBlueprintClass();
 	
 	// Set up our sparse class data struct
-	const FString ConstantsStructTypeName = NewAnimBlueprintClass->GetName() + TEXT("_ConstantData");
-
-	// Rename old struct out of the way
-	if(UScriptStruct* OldAnimBlueprintConstants = FindObject<UScriptStruct>(NewAnimBlueprintClass->GetOuter(), *ConstantsStructTypeName))
-	{
-		OldAnimBlueprintConstants->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional | REN_ForceNoResetLoaders);
-	}
-
 	if (bIsDerivedAnimBlueprint)
 	{
 		// Get parent class
@@ -1187,7 +1179,7 @@ void FAnimBlueprintCompilerContext::RecreateSparseClassData()
 		check(ParentAnimClass->GetSparseClassDataStruct());
 		
 		// Derive sparse class data from parent class
-		NewAnimBlueprintConstants = NewObject<UAnimBlueprintGeneratedStruct>(NewAnimBlueprintClass->GetOuter(), *ConstantsStructTypeName, RF_Public);
+		NewAnimBlueprintConstants = NewObject<UScriptStruct>(NewAnimBlueprintClass, UAnimBlueprintGeneratedClass::GetConstantsStructName(), RF_Public);
 		NewAnimBlueprintConstants->SetSuperStruct(ParentAnimClass->GetSparseClassDataStruct());
 
 		// Just link & assign sparse class data struct here, no additional members are added
@@ -1202,7 +1194,7 @@ void FAnimBlueprintCompilerContext::RecreateSparseClassData()
 		check(ParentClass);
 		
 	    // Create new sparse class data struct
-		NewAnimBlueprintConstants = NewObject<UAnimBlueprintGeneratedStruct>(NewAnimBlueprintClass->GetOuter(), *ConstantsStructTypeName, RF_Public);
+		NewAnimBlueprintConstants = NewObject<UScriptStruct>(NewAnimBlueprintClass, UAnimBlueprintGeneratedClass::GetConstantsStructName(), RF_Public);
 
 		// Inherit from archetype struct if there is any 
 		UScriptStruct* ArchetypeStruct = ParentClass->GetSparseClassDataArchetypeStruct();
@@ -1216,15 +1208,7 @@ void FAnimBlueprintCompilerContext::RecreateMutables()
 	UAnimBlueprintGeneratedClass* NewAnimBlueprintClass = GetNewAnimBlueprintClass();
 
 	// Set up our mutables struct
-	const FString MutablesStructTypeName = NewAnimBlueprintClass->GetName() + TEXT("_MutableData");
-
-	// Rename old struct out of the way
-	if(UScriptStruct* OldAnimBlueprintMutables = FindObject<UScriptStruct>(NewAnimBlueprintClass->GetOuter(), *MutablesStructTypeName))
-	{
-		OldAnimBlueprintMutables->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional | REN_ForceNoResetLoaders);
-	}
-
-	NewAnimBlueprintMutables = NewObject<UAnimBlueprintGeneratedStruct>(NewAnimBlueprintClass->GetOuter(), *MutablesStructTypeName);
+	NewAnimBlueprintMutables = NewObject<UScriptStruct>(NewAnimBlueprintClass, UAnimBlueprintGeneratedClass::GetMutablesStructName());
 	NewAnimBlueprintMutables->SetSuperStruct(FAnimBlueprintMutableData::StaticStruct());
 }
 
@@ -1269,7 +1253,9 @@ void FAnimBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedCla
 	Super::CleanAndSanitizeClass(ClassToClean, InOldCDO);
 
 	UAnimBlueprintGeneratedClass* AnimBlueprintClassToClean= CastChecked<UAnimBlueprintGeneratedClass>(ClassToClean);
-	
+
+	AnimBlueprintClassToClean->SetSparseClassDataStruct(nullptr);
+
 	AnimBlueprintClassToClean->AnimBlueprintDebugData = FAnimBlueprintDebugData();
 
 	// Reset the baked data

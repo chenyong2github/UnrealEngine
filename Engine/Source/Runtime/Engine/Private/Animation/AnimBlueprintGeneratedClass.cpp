@@ -448,8 +448,17 @@ void UAnimBlueprintGeneratedClass::Serialize(FArchive& Ar)
 
 void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProperties)
 {
+#if WITH_EDITOR
+	// Re-link the mutables struct if we have one as we need to correctly account for its size
+	// This is mostly needed during re-instancing as post duplication the class requires a re-link
+	if(UScriptStruct* MutablesStruct = FindObject<UScriptStruct>(this, *GetMutablesStructName().ToString()))
+	{
+		MutablesStruct->Link(Ar, bRelinkExistingProperties);
+	}
+#endif	
+	
 	Super::Link(Ar, bRelinkExistingProperties);
-
+	
 	// @TODO: Shouldn't be necessary to clear these, but currently the class gets linked twice during compilation
 	AnimNodeProperties.Empty();
 	LinkedAnimGraphNodeProperties.Empty();
@@ -889,4 +898,16 @@ int32 UAnimBlueprintGeneratedClass::GetAnimNodePropertyCount(const UScriptStruct
 	}
 	
 	return 0;
+}
+
+FName UAnimBlueprintGeneratedClass::GetConstantsStructName()
+{
+	static const FName Name(TEXT("AnimBlueprintGeneratedConstantData"));
+	return Name;
+}
+
+FName UAnimBlueprintGeneratedClass::GetMutablesStructName()
+{
+	static const FName Name(TEXT("AnimBlueprintGeneratedMutableData"));
+	return Name;
 }
