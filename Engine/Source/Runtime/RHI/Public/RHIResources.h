@@ -966,6 +966,21 @@ public:
 		return nullptr;
 	}
 
+	/**
+	 * Returns the dimensions (i.e. the actual number of texels in each dimension) of the specified mip. ArraySize is ignored.
+	 * The Z component will always be 1 for 2D/cube resources and will contain depth for volume textures.
+	 * This differs from GetSizeXYZ() which returns ArraySize in Z for 2D arrays.
+	 */
+	virtual FIntVector GetMipDimensions(uint8 MipIndex) const
+	{
+		FIntVector Size = GetSizeXYZ();
+		return FIntVector(
+			FMath::Max(Size.X >> MipIndex, 1),
+			FMath::Max(Size.Y >> MipIndex, 1),
+			FMath::Max(Size.Z >> MipIndex, 1)
+		);
+	}
+
 	/** @return The number of mip-maps in the texture. */
 	uint32 GetNumMips() const { return NumMips; }
 
@@ -1126,6 +1141,17 @@ public:
 	virtual FIntVector GetSizeXYZ() const final override
 	{
 		return FIntVector(GetSizeX(), GetSizeY(), SizeZ);
+	}
+
+	// Because GetSizeXYZ() returns ArraySize in Z, we need to override this function to return 1 instead.
+	// @todo: Unify the meaning of "Z" in all texture resources
+	virtual FIntVector GetMipDimensions(uint8 MipIndex) const final override
+	{
+		return FIntVector(
+			FMath::Max(GetSizeX() >> MipIndex, 1u),
+			FMath::Max(GetSizeY() >> MipIndex, 1u),
+			1
+		);
 	}
 
 private:
