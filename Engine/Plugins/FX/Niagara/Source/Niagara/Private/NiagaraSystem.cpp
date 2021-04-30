@@ -128,6 +128,8 @@ void UNiagaraSystem::BeginDestroy()
 	{
 		QueryCompileComplete(true, false, true);
 	}
+
+	CleanupParameterDefinitionsSubscriptions();
 #endif
 
 	//Should we just destroy all system sims here to simplify cleanup?
@@ -200,6 +202,32 @@ void UNiagaraSystem::HandleVariableRemoved(const FNiagaraVariable& InOldVariable
 		FNiagaraSystemUpdateContext UpdateCtx(this, true);
 	}
 }
+
+TArray<UNiagaraScriptSourceBase*> UNiagaraSystem::GetAllSourceScripts()
+{
+	return { SystemSpawnScript->GetLatestSource(), SystemUpdateScript->GetLatestSource() };
+}
+
+FString UNiagaraSystem::GetSourceObjectPathName() const
+{
+	return GetPathName();
+}
+
+TArray<UNiagaraEditorParametersAdapterBase*> UNiagaraSystem::GetEditorOnlyParametersAdapters()
+{
+	return { GetEditorParameters() };
+}
+
+TArray<INiagaraParameterDefinitionsSubscriber*> UNiagaraSystem::GetOwnedParameterDefinitionsSubscribers()
+{
+	TArray<INiagaraParameterDefinitionsSubscriber*> OutSubscribers;
+	for (const FNiagaraEmitterHandle& EmitterHandle : GetEmitterHandles())
+	{
+		OutSubscribers.Add(EmitterHandle.GetInstance());
+	}
+	return OutSubscribers;
+}
+
 #endif
 
 void UNiagaraSystem::PostInitProperties()
@@ -219,6 +247,11 @@ void UNiagaraSystem::PostInitProperties()
 #if WITH_EDITORONLY_DATA && WITH_EDITOR
 		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
 		EditorData = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorData(this);
+
+		if (EditorParameters == nullptr)
+		{
+			EditorParameters = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorParameters(this);
+		}
 #endif
 	}
 
@@ -527,6 +560,12 @@ void UNiagaraSystem::PostLoad()
 
 	if (!GetOutermost()->bIsCookedForEditor && !bIsDedicatedServer)
 	{
+		if (EditorParameters == nullptr)
+		{
+			INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
+			EditorParameters = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorParameters(this);
+		}
+
 		TArray<UNiagaraScript*> AllSystemScripts;
 		UNiagaraScriptSourceBase* SystemScriptSource = nullptr;
 		if (SystemSpawnScript == nullptr)
@@ -660,6 +699,24 @@ void UNiagaraSystem::PostLoad()
 		}
 #endif
 
+		// Synchronize with definitions before compiling.
+		const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+		check(Settings);
+		TArray<FGuid> DefaultDefinitionsUniqueIds;
+		for (const FSoftObjectPath& DefaultLinkedParameterDefinitionObjPath : Settings->DefaultLinkedParameterDefinitions)
+		{
+			UNiagaraParameterDefinitionsBase* DefaultLinkedParameterDefinitions = CastChecked<UNiagaraParameterDefinitionsBase>(DefaultLinkedParameterDefinitionObjPath.TryLoad());
+			DefaultDefinitionsUniqueIds.Add(DefaultLinkedParameterDefinitions->GetDefinitionsUniqueId());
+			const bool bDoNotAssertIfAlreadySubscribed = true;
+			SubscribeToParameterDefinitions(DefaultLinkedParameterDefinitions, bDoNotAssertIfAlreadySubscribed);
+		}
+		FSynchronizeWithParameterDefinitionsArgs Args;
+		Args.SpecificDefinitionsUniqueIds = DefaultDefinitionsUniqueIds;
+		Args.bForceSynchronizeDefinitions = true;
+		Args.bSubscribeAllNameMatchParameters = true;
+		SynchronizeWithParameterDefinitions(Args);
+		InitParameterDefinitionsSubscriptions();
+
 		if (bSystemScriptsAreSynchronized == false || bEmitterScriptsAreSynchronized == false)
 		{
 			// Call modify here so that the system will resave the compile ids and script vm when running the resave
@@ -739,6 +796,11 @@ UNiagaraEditorDataBase* UNiagaraSystem::GetEditorData()
 const UNiagaraEditorDataBase* UNiagaraSystem::GetEditorData() const
 {
 	return EditorData;
+}
+
+UNiagaraEditorParametersAdapterBase* UNiagaraSystem::GetEditorParameters()
+{
+	return EditorParameters;
 }
 
 bool UNiagaraSystem::ReferencesInstanceEmitter(UNiagaraEmitter& Emitter)

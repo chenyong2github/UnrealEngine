@@ -8,6 +8,8 @@
 #include "Misc/Optional.h"
 #include "NiagaraTypes.h"
 
+class UNiagaraScriptVariable;
+
 // This data structure is used internally by the dropdown to keep track of the user's choice
 struct SwitchDropdownOption
 {
@@ -92,7 +94,7 @@ private:
 	FText GetDefaultSelectionItemLabel() const;
 	void RefreshDropdownValues();
 
-	TOptional<FNiagaraVariableMetaData> GetSwitchParameterMetadata() const;
+	UNiagaraScriptVariable* GetSwitchParameterScriptVar() const;
 	void SetSwitchParameterMetadata(const FNiagaraVariableMetaData& MetaData);
 
 	// constant selection functions

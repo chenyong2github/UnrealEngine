@@ -4,7 +4,8 @@
 
 #include "NiagaraEditorStyle.h"
 #include "Widgets/Images/SImage.h"
-#include "Widgets/SNiagaraParameterPanel.h"
+//#include "Widgets/SNiagaraParameterPanel.h"
+#include "Widgets/SNiagaraParameterMenu.h"
 #include "NiagaraNode.h"
 #include "NiagaraEditorUtilities.h"
 
@@ -37,13 +38,9 @@ TSharedRef<SWidget> SNiagaraPinTypeSelector::GetMenuContent()
 	UNiagaraNode* NiagaraNode = Cast<UNiagaraNode>(Pin->GetOwningNode());
 	Graphs.Add(NiagaraNode->GetNiagaraGraph());
 
-	TSharedRef<SNiagaraAddParameterMenu2> MenuWidget = SNew(SNiagaraAddParameterMenu2, Graphs)
-	.OnCollectCustomActions_Lambda([this](FGraphActionListBuilderBase& OutActions, bool& bOutCreateRemainingActions)
-	{
-		return FNiagaraEditorUtilities::CollectPinTypeChangeActions(OutActions, bOutCreateRemainingActions, Pin);
-	})
-	.OnAllowMakeType_UObject(NiagaraNode, &UNiagaraNode::AllowNiagaraTypeForPinTypeChange, Pin)
-	.IsParameterRead(true);
+	TSharedRef<SNiagaraChangePinTypeMenu> MenuWidget = SNew(SNiagaraChangePinTypeMenu)
+	.PinToModify(Pin)
+	.AutoExpandMenu(true);
 
 	SelectorButton->SetMenuContentWidgetToFocus(MenuWidget->GetSearchBox());
 	return MenuWidget;
