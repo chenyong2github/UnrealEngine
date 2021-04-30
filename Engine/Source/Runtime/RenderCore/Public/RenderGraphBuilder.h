@@ -204,9 +204,6 @@ public:
 	/** The RHI command list used for the render graph. */
 	FRHICommandListImmediate& RHICmdList;
 
-	/** The blackboard used to hold common data tied to the graph lifetime. */
-	FRDGBlackboard Blackboard;
-
 private:
 	static const ERHIAccess kDefaultAccessInitial = ERHIAccess::Unknown;
 	static const ERHIAccess kDefaultAccessFinal = ERHIAccess::SRVMask;
@@ -214,6 +211,12 @@ private:
 
 	FRHIAsyncComputeCommandListImmediate& RHICmdListAsyncCompute;
 	FRDGAllocator Allocator;
+
+public:
+	/** The blackboard used to hold common data tied to the graph lifetime. */
+	FRDGBlackboard Blackboard;
+
+private:
 
 	const FRDGEventName BuilderName;
 
