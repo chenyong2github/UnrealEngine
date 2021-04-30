@@ -562,6 +562,8 @@ struct NIAGARA_API FNiagaraVariableMetaData
 		, EditorSortPriority(0)
 		, bInlineEditConditionToggle(false)
 		, VariableGuid(FGuid::NewGuid())
+		, bIsStaticSwitch_DEPRECATED(false)
+		, StaticSwitchDefaultValue_DEPRECATED(0)
 	{};
 
 	UPROPERTY(EditAnywhere, Category = "Variable", meta = (MultiLine = true, SkipForCompileHash = "true"))

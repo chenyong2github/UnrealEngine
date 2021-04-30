@@ -31,6 +31,11 @@ struct FParameterDefinitionsBindingNameSubscription
 public:
 	GENERATED_BODY()
 
+	FParameterDefinitionsBindingNameSubscription() 
+		: SubscribedParameterDefinitions(nullptr)
+		, BindingNameSubscriptions(TArray<FScriptVarBindingNameSubscription>())
+	{};
+
 	UPROPERTY()
 	UNiagaraParameterDefinitions* SubscribedParameterDefinitions;
 
