@@ -2076,7 +2076,7 @@ void FMeshDescriptionBulkData::SaveMeshDescription( FMeshDescription& MeshDescri
 	{
 		const bool bIsPersistent = true;
 #if UE_USE_VIRTUALBULKDATA
-		FVirtualizedBulkDataWriter Ar(BulkData, bIsPersistent);
+		UE::Virtualization::FVirtualizedBulkDataWriter Ar(BulkData, bIsPersistent);
 #else
 		FBulkDataWriter Ar(BulkData, bIsPersistent);
 #endif //UE_USE_VIRTUALBULKDATA
@@ -2107,52 +2107,65 @@ void FMeshDescriptionBulkData::LoadMeshDescription( FMeshDescription& MeshDescri
 
 	MeshDescription.Empty();
 
+#if UE_USE_VIRTUALBULKDATA
+	if (BulkData.GetPayloadSize() > 0)
+	{
+#if WITH_EDITOR
+		// TODO: Remove this once VirtualizedBulkData can be shown to be thread safe
+		// A lock is required so we can clone the mesh description from multiple threads
+		FRWScopeLock ScopeLock(BulkDataLock, SLT_Write);
+#endif //WITH_EDITOR
+
+		const bool bIsPersistent = true;
+		UE::Virtualization::FVirtualizedBulkDataReader Ar(BulkData, bIsPersistent);
+
+		// Propagate the custom version information from the package to the bulk data, so that the MeshDescription
+		// is serialized with the same versioning.
+		Ar.SetCustomVersions(CustomVersions);
+		Ar << MeshDescription;
+
+		BulkData.UnloadData();
+	}
+#else
 	if (BulkData.GetBulkDataSize() > 0)
 	{
 		// Get a lock on the bulk data and read it into the mesh description
-		{
 #if WITH_EDITOR
-			// A lock is required so we can clone the mesh description from multiple threads
-			FRWScopeLock ScopeLock(BulkDataLock, SLT_Write);
+		// A lock is required so we can clone the mesh description from multiple threads
+		FRWScopeLock ScopeLock(BulkDataLock, SLT_Write);
 
-			// This allows any thread to be able to clone a mesh description directly
-			// from disk so we can unload bulk data from memory.
-			bool bHasBeenLoadedFromFileReader = false;
-			if (BulkData.IsAsyncLoadingComplete() && !BulkData.IsBulkDataLoaded())
-			{
-				// This will return false under -game mode for now because we're not allowed to load bulk data outside of EDL.
-				bHasBeenLoadedFromFileReader = BulkData.LoadBulkDataWithFileReader();
-			}
-#endif
-			// This is in a scope because the FBulkDataReader need to be destroyed in order
-			// to unlock the BulkData and allow UnloadBulkData to actually do its job.
-			{
-				const bool bIsPersistent = true;
-#if UE_USE_VIRTUALBULKDATA
-				FVirtualizedBulkDataReader Ar(BulkData, bIsPersistent);
-#else
-				FBulkDataReader Ar(BulkData, bIsPersistent);
-#endif //UE_USE_VIRTUALBULKDATA
-
-				// Propagate the custom version information from the package to the bulk data, so that the MeshDescription
-				// is serialized with the same versioning.
-				Ar.SetCustomVersions( CustomVersions );
-				Ar << MeshDescription;
-			} // Unlock bulk data when we leave scope
-
-#if UE_USE_VIRTUALBULKDATA
-			BulkData.UnloadData();
-#elif WITH_EDITOR
-			// Throw away the bulk data allocation only in the case we can safely reload it from disk
-			// and if BulkData.LoadBulkDataWithFileReader() is allowed to work from any thread.
-			// This saves a significant amount of memory during map loading of Nanite Meshes.
-			if (bHasBeenLoadedFromFileReader)
-			{
-				verify(BulkData.UnloadBulkData());
-			}
-#endif //UE_USE_VIRTUALBULKDATA
+		// This allows any thread to be able to clone a mesh description directly
+		// from disk so we can unload bulk data from memory.
+		bool bHasBeenLoadedFromFileReader = false;
+		if (BulkData.IsAsyncLoadingComplete() && !BulkData.IsBulkDataLoaded())
+		{
+			// This will return false under -game mode for now because we're not allowed to load bulk data outside of EDL.
+			bHasBeenLoadedFromFileReader = BulkData.LoadBulkDataWithFileReader();
 		}
+#endif //WITH_EDITOR
+		// This is in a scope because the FBulkDataReader need to be destroyed in order
+		// to unlock the BulkData and allow UnloadBulkData to actually do its job.
+		{
+			const bool bIsPersistent = true;
+			FBulkDataReader Ar(BulkData, bIsPersistent);
+
+			// Propagate the custom version information from the package to the bulk data, so that the MeshDescription
+			// is serialized with the same versioning.
+			Ar.SetCustomVersions( CustomVersions );
+			Ar << MeshDescription;
+		} // Unlock bulk data when we leave scope
+
+#if WITH_EDITOR
+		// Throw away the bulk data allocation only in the case we can safely reload it from disk
+		// and if BulkData.LoadBulkDataWithFileReader() is allowed to work from any thread.
+		// This saves a significant amount of memory during map loading of Nanite Meshes.
+		if (bHasBeenLoadedFromFileReader)
+		{
+			verify(BulkData.UnloadBulkData());
+		}
+#endif //WITH_EDITOR
 	}
+#endif // UE_USE_VIRTUALBULKDATA
 }
 
 void FMeshDescriptionBulkData::Empty()
@@ -2179,7 +2192,7 @@ FGuid FMeshDescriptionBulkData::GetHash() const
 	if (BulkData.GetBulkDataSize() > 0)
 	{
 #if UE_USE_VIRTUALBULKDATA
-		return BulkData.GetKey();
+		return BulkData.GetPayloadId().ToGuid();
 #else
 		uint32 Hash[5] = {};
 

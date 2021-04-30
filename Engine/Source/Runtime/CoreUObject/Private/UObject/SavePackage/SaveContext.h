@@ -567,7 +567,7 @@ public:
 	int32 OffsetAfterExportMap = 0;
 	TAsyncWorkSequence<FMD5> AsyncWriteAndHashSequence;
 	TArray<FLargeMemoryWriter, TInlineAllocator<4>> AdditionalFilesFromExports;
-
+	FSavePackageOutputFileArray AdditionalPackageFiles;
 private:
 	friend class FPackageHarvester;
 

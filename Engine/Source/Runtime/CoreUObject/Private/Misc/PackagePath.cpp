@@ -27,6 +27,8 @@ const TCHAR* LexToString(EPackageSegment PackageSegment)
 		return TEXT("BulkDataOptional");
 	case EPackageSegment::BulkDataMemoryMapped:
 		return TEXT("BulkDataMemoryMapped");
+	case EPackageSegment::PayloadSidecar:
+		return TEXT("PayloadSidecar");
 	default:
 		checkNoEntry();
 		return TEXT("");
@@ -59,6 +61,8 @@ EPackageSegment ExtensionToSegment(EPackageExtension PackageExtension)
 		return EPackageSegment::BulkDataDefault;
 	case EPackageExtension::BulkDataMemoryMapped:
 		return EPackageSegment::BulkDataDefault;
+	case EPackageExtension::PayloadSidecar:
+		return EPackageSegment::PayloadSidecar;
 	default:
 		checkNoEntry();
 		return EPackageSegment::Header;
@@ -79,6 +83,8 @@ EPackageExtension SegmentToExtension(EPackageSegment PackageSegment)
 		return EPackageExtension::BulkDataOptional;
 	case EPackageSegment::BulkDataMemoryMapped:
 		return EPackageExtension::BulkDataMemoryMapped;
+	case EPackageSegment::PayloadSidecar:
+		return EPackageExtension::PayloadSidecar;
 	default:
 		checkNoEntry();
 		return EPackageExtension::Unspecified;
@@ -111,6 +117,8 @@ const TCHAR* LexToString(EPackageExtension PackageExtension)
 		return TEXT(".uptnl");
 	case EPackageExtension::BulkDataMemoryMapped:
 		return TEXT(".m.ubulk");
+	case EPackageExtension::PayloadSidecar:
+		return TEXT(".upayload");
 	default:
 		checkNoEntry();
 		return TEXT("");
@@ -170,6 +178,10 @@ EPackageExtension FPackagePath::ParseExtension(FStringView Filename, int32* OutE
 	if (Extension.Equals(TEXT(".uptnl"_SV), ESearchCase::IgnoreCase))
 	{
 		return EPackageExtension::BulkDataOptional;
+	}
+	if (Extension.Equals(TEXT(".upayload"_SV), ESearchCase::IgnoreCase))
+	{
+		return EPackageExtension::PayloadSidecar;
 	}
 	return EPackageExtension::Custom;
 }
@@ -758,6 +770,7 @@ EPackageExtension AllExtensions[] =
 	EPackageExtension::BulkDataDefault,
 	EPackageExtension::BulkDataOptional,
 	EPackageExtension::BulkDataMemoryMapped,
+	EPackageExtension::PayloadSidecar,
 };
 static_assert(static_cast<int>(EPackageExtension::Unspecified) == 0 && EPackageExtensionCount == UE_ARRAY_COUNT(AllExtensions), "Need to add new extensions to AllExtensions array");
 }

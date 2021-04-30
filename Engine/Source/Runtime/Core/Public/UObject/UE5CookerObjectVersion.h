@@ -22,10 +22,10 @@ struct CORE_API FUE5CookerObjectVersion
 		// When UE_USE_VIRTUALBULKDATA is removed then they can be moved to the normal section
 
 #if UE_USE_VIRTUALBULKDATA
-		
 		// Switch FMeshDescriptionBulkData to use virtualized bulkdata
 		MeshDescriptionVirtualization,
-
+		// Switch FTextureSource to use virtualized bulkdata
+		TextureSourceVirtualization,
 #endif //UE_USE_VIRTUALBULKDATA
 
 		VersionPlusOne,

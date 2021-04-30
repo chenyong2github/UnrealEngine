@@ -48,7 +48,7 @@ public:
 			TestEqual(Errorf(TEXT("ParsedExtension returns correct extension for %s"), LexToString(Extension)), ParsedExtension, Extension);
 			TestEqual(Errorf(TEXT("ParsedExtension sets correct ExtensionStart for %s"), LexToString(Extension)), ExtensionStart, PathWithoutExtension.Len());
 		};
-		static_assert(EPackageExtensionCount == 11, "Need to add extensions to the test");
+		static_assert(EPackageExtensionCount == 12, "Need to add extensions to the test");
 		TestExtension(EPackageExtension::Unspecified);
 		TestExtension(EPackageExtension::Asset);
 		TestExtension(EPackageExtension::Map);
@@ -60,6 +60,7 @@ public:
 		TestExtension(EPackageExtension::BulkDataDefault);
 		TestExtension(EPackageExtension::BulkDataOptional);
 		TestExtension(EPackageExtension::BulkDataMemoryMapped);
+		TestExtension(EPackageExtension::PayloadSidecar);
 
 		// Test Custom
 		{

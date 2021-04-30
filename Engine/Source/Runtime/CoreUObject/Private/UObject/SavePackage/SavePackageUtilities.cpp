@@ -30,6 +30,7 @@
 #include "UObject/UnrealType.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectThreadContext.h"
+#include "Virtualization/VirtualizedBulkData.h"
 
 DEFINE_LOG_CATEGORY(LogSavePackage);
 UE_TRACE_CHANNEL_DEFINE(SaveTimeChannel);
@@ -193,6 +194,84 @@ const FName NAME_PrestreamPackage("PrestreamPackage");
 
 // Switch to SavePackage to Save2, 0:disabled, 1: enabled for cook, 2: enabled for uncooked, 3: enabled everywhere
 static TAutoConsoleVariable<int32> CVarEnablePackageNewSave(TEXT("SavePackage.EnableNewSave"), 3, TEXT("Enable new package save mechanism over the old one."));
+
+/**
+* A utility that records the state of a package's files before we start moving and overwriting them. 
+* This provides an easy way for us to restore the original state of the package incase of failures 
+* while saving.
+*/
+class FPackageBackupUtility
+{
+public:
+	FPackageBackupUtility(const FPackagePath& InPackagePath)
+		: PackagePath(InPackagePath)
+	{
+
+	}
+
+	/** 
+	* Record a file that has been moved. These will need to be moved back to
+	* restore the package.
+	*/
+	void RecordMovedFile( const FString& OriginalPath, const FString& NewLocation)
+	{
+		MovedOriginalFiles.Emplace(OriginalPath, NewLocation);
+	}
+
+	/** 
+	* Record a newly created file that did not exist before. These will need
+	* deleting to restore the package.
+	*/
+	void RecordNewFile(const FString& NewLocation)
+	{
+		NewFiles.Add(NewLocation);
+	}
+
+	/** Restores the package to it's original state */
+	void RestorePackage()
+	{
+		IFileManager& FileSystem = IFileManager::Get();
+
+		UE_LOG(LogSavePackage, Verbose, TEXT("Restoring package '%s'"), *PackagePath.GetDebugName());
+
+		// First we should delete any new file that has been saved for the package
+		for (const FString& Entry : NewFiles)
+		{
+			if (!FileSystem.Delete(*Entry))
+			{
+				UE_LOG(LogSavePackage, Error, TEXT("Failed to delete newly added file '%s' when trying to restore the package state and the package could be unstable, please revert in source control!"), *Entry);
+			}
+		}
+
+		// Now we can move back the original files
+		for (const TPair<FString, FString>& Entry : MovedOriginalFiles)
+		{
+			if (!FileSystem.Move(*Entry.Key, *Entry.Value))
+			{
+				UE_LOG(LogSavePackage, Error, TEXT("Failed to restore package '%s', the file '%s' is in an incorrect state and the package could be unstable, please revert in source control!"), *PackagePath.GetDebugName(), *Entry.Key);
+			}
+		}
+	}
+
+	/** Deletes the backed up files once they are no longer required. */
+	void DiscardBackupFiles()
+	{
+		IFileManager& FileSystem = IFileManager::Get();
+
+		// Note that we do not warn if we fail to delete a backup file as that is probably
+		// the least of the users problems at the moment.
+		for (const TPair<FString, FString>& Entry : MovedOriginalFiles)
+		{
+			FileSystem.Delete(*Entry.Value);
+		}
+	}
+
+private:
+	const FPackagePath& PackagePath;
+
+	TArray<FString> NewFiles;
+	TArray<TPair<FString, FString>> MovedOriginalFiles;	
+};
 
 bool IsNewSaveEnabled(bool bForCooking)
 {
@@ -575,6 +654,115 @@ void AddFileToHash(FString const& Filename, FMD5& Hash)
 	delete Ar;
 }
 
+ESavePackageResult FinalizeTempOutputFiles(const FPackagePath& PackagePath, const FSavePackageOutputFileArray& OutputFiles, const bool bComputeHash, const FDateTime& FinalTimeStamp, TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence)
+{
+	UE_LOG(LogSavePackage, Log,  TEXT("Moving output files for package: %s"), *PackagePath.GetDebugName());
+
+	IFileManager& FileSystem = IFileManager::Get();
+	FPackageBackupUtility OriginalPackageState(PackagePath);
+
+	UE_LOG(LogSavePackage, Verbose, TEXT("Moving existing files to the temp directory"));
+
+	TArray<bool, TInlineAllocator<4>> CanFileBeMoved;
+	CanFileBeMoved.SetNum(OutputFiles.Num());
+
+	// First check if any of the target files that already exist are read only still, if so we can fail the 
+	// whole thing before we try to move any files
+	for (int32 Index = 0; Index < OutputFiles.Num(); ++Index)
+	{	
+		const FSavePackageOutputFile& File = OutputFiles[Index];
+
+		if (File.FileMemoryBuffer.IsValid())
+		{
+			ensureMsgf(false, TEXT("FinalizeTempOutputFiles does not handle async saving files! (%s)"), *PackagePath.GetDebugName());
+			return ESavePackageResult::Error;
+		}
+
+		if (!File.TempFilePath.IsEmpty())
+		{
+			FFileStatData FileStats = FileSystem.GetStatData(*File.TargetPath);
+
+			if (FileStats.bIsValid && FileStats.bIsReadOnly)
+			{
+				UE_LOG(LogSavePackage, Error, TEXT("Cannot remove '%s' as it is read only!"), *File.TargetPath);
+				return ESavePackageResult::Error;
+			}
+
+			CanFileBeMoved[Index] = FileStats.bIsValid;
+		}
+		else
+		{
+			CanFileBeMoved[Index] = false;
+		}
+	}
+
+	// Now we need to move all of the files that we are going to overwrite (if any) so that we 
+	// can restore them if anything goes wrong.
+	for (int32 Index = 0; Index < OutputFiles.Num(); ++Index)
+	{
+		if (CanFileBeMoved[Index]) 
+		{
+			const FSavePackageOutputFile& File = OutputFiles[Index];
+
+			const FString BaseFilename = FPaths::GetBaseFilename(File.TargetPath);
+			const FString TempFilePath = FPaths::CreateTempFilename(*FPaths::ProjectSavedDir(), *BaseFilename.Left(32));
+
+			if (FileSystem.Move(*TempFilePath, *File.TargetPath))
+			{
+				OriginalPackageState.RecordMovedFile(File.TargetPath, TempFilePath);
+			}
+			else
+			{
+				UE_LOG(LogSavePackage, Warning, TEXT("Failed to move '%s' to temp directory"), *File.TargetPath);
+				OriginalPackageState.RestorePackage();
+
+				return ESavePackageResult::Error;
+			}
+		}
+	}
+
+	// Now attempt to move the new files from the temp location to the final location
+	for (const FSavePackageOutputFile& File : OutputFiles)
+	{
+		if (!File.TempFilePath.IsEmpty()) // Only try to move output files that were saved to temp files
+		{
+			UE_LOG(LogSavePackage, Log, TEXT("Moving '%s' to '%s'"), *File.TempFilePath, *File.TargetPath);
+
+			if (FileSystem.Move(*File.TargetPath, *File.TempFilePath))
+			{
+				OriginalPackageState.RecordNewFile(File.TargetPath);
+			}
+			else
+			{
+				UE_LOG(LogSavePackage, Warning, TEXT("Failed to move '%s' from temp directory"), *File.TargetPath);
+				OriginalPackageState.RestorePackage();
+
+				return ESavePackageResult::Error;
+			}
+
+			if (FinalTimeStamp != FDateTime::MinValue())
+			{
+				FileSystem.SetTimeStamp(*File.TargetPath, FinalTimeStamp);
+			}
+
+			if (bComputeHash)
+			{
+				SavePackageUtilities::IncrementOutstandingAsyncWrites();
+				AsyncWriteAndHashSequence.AddWork([NewPath = File.TargetPath](FMD5& State)
+				{
+					SavePackageUtilities::AddFileToHash(NewPath, State);
+					SavePackageUtilities::DecrementOutstandingAsyncWrites();
+				});
+			}
+		}
+	}
+
+	// Finally we can clean up the temp files as we do not need to restore them (failure to delete them will not be considered an error)
+	OriginalPackageState.DiscardBackupFiles();
+
+	return ESavePackageResult::Success;
+}
+
 void WriteToFile(const FString& Filename, const uint8* InDataPtr, int64 InDataSize)
 {
 	IFileManager& FileManager = IFileManager::Get();
@@ -626,6 +814,12 @@ void AsyncWriteFile(TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, FLargeM
 
 		OutstandingAsyncWrites.Decrement();
 	});
+}
+
+void AsyncWriteFile(TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, EAsyncWriteOptions Options, FSavePackageOutputFile& File)
+{
+	checkf(File.TempFilePath.IsEmpty(), TEXT("AsyncWriteFile does not handle temp files!"));
+	AsyncWriteFile(AsyncWriteAndHashSequence, FLargeMemoryPtr(File.FileMemoryBuffer.Release()), File.DataSize, *File.TargetPath, Options, File.FileRegions);
 }
 
 void AsyncWriteFileWithSplitExports(TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, FLargeMemoryPtr Data, const int64 DataSize, const int64 HeaderSize, const TCHAR* Filename, EAsyncWriteOptions Options, TArrayView<const FFileRegion> InFileRegions)
@@ -1913,6 +2107,104 @@ void SaveThumbnails(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::
 		InOuter->ThumbnailMap.Reset();
 	}
 #endif
+}
+
+ESavePackageResult AppendAdditionalData(FLinkerSave& Linker)
+{
+	FArchive& Ar = Linker;
+
+	for (FLinkerSave::AdditionalDataCallback& Callback : Linker.AdditionalDataToAppend)
+	{
+		Callback(Ar);
+	}
+
+	Linker.AdditionalDataToAppend.Empty();
+
+	// Note that we currently have no failure condition here, but we return a ESavePackageResult
+	// in case one needs to be added in future code.
+	return ESavePackageResult::Success;
+}
+
+ESavePackageResult CreatePayloadSidecarFile(FLinkerSave& Linker, const FPackagePath& PackagePath, const bool bSaveAsync, const bool bWriteToDisk, FSavePackageOutputFileArray& AdditionalPackageFiles)
+{
+	if (Linker.SidecarDataToAppend.IsEmpty())
+	{
+		return ESavePackageResult::Success;
+	}
+
+	// Note since we only allow sidecar file generation when saving a package and not when cooking 
+	// we know that we don't need to generate the hash or check if we should write the file, since those 
+	// operations are cooking only. However we still accept the parameters and check against them for 
+	// safety in case someone tries to add support in the future.
+	// We could add support but it is difficult to test and would be better left for a proper clean up pass
+	// once we enable SavePackage2 only. 
+	checkf(!Linker.IsCooking(), TEXT("Cannot write a sidecar file during cooking! (%s)"), *PackagePath.GetDebugName());
+	checkf(bWriteToDisk, TEXT("Cannot disable writing of the sidecar data to disk, that is supposed to be a cook only operation! (%s)"), *PackagePath.GetDebugName());
+
+	FLargeMemoryWriter Ar(0, true);
+
+	uint32 VersionNumber = UE::Virtualization::FTocEntry::PayloadSidecarFileVersion;
+	Ar << VersionNumber;
+
+	int64 TocPosition = Ar.Tell();
+
+	TArray<UE::Virtualization::FTocEntry> TableOfContents;
+	TableOfContents.SetNum(Linker.SidecarDataToAppend.Num());
+
+	// First we write an empty table of contents to the file to reserve the space
+	Ar << TableOfContents;
+
+	int32 Index = 0;
+	for (FLinkerSave::FSidecarStorageInfo& Info : Linker.SidecarDataToAppend)
+	{
+		// Fill out the entry to the table of contents
+		TableOfContents[Index].Identifier = Info.Identifier;
+		TableOfContents[Index].OffsetInFile = Ar.Tell();
+		TableOfContents[Index].UncompressedSize = Info.Payload.GetRawSize();
+
+		Index++;
+
+		// Now write the payload to the archive
+		for (const FSharedBuffer& Buffer : Info.Payload.GetCompressed().GetSegments())
+		{
+			// Const cast because FArchive requires a non-const pointer!
+			Ar.Serialize(const_cast<void*>(Buffer.GetData()), static_cast<int64>(Buffer.GetSize()));
+		}
+
+		// Reset each payload reference after it has been written to the archive, this could
+		// potentially release memory and keep our high water mark down.
+		Info.Payload.Reset();
+	}
+
+	// Now write out the table of contents again but with valid data
+	int64 EndPos = Ar.Tell();
+	Ar.Seek(TocPosition);
+	Ar << TableOfContents;
+	Ar.Seek(EndPos); 
+
+	const int64 DataSize = Ar.TotalSize();
+	checkf(DataSize > 0, TEXT("The archive should not be empty at this point!"));
+
+	FString TargetFilePath = PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar);
+
+	if (bSaveAsync)
+	{
+		AdditionalPackageFiles.Emplace(MoveTemp(TargetFilePath), FLargeMemoryPtr(Ar.ReleaseOwnership()), TArray<FFileRegion>(), DataSize);
+	}
+	else
+	{
+		const FString BaseFilename = FPaths::GetBaseFilename(TargetFilePath);
+		FString TempFilePath = FPaths::CreateTempFilename(*FPaths::ProjectSavedDir(), *BaseFilename.Left(32));
+			
+		SavePackageUtilities::WriteToFile(TempFilePath, Ar.GetData(), DataSize); // TODO: Check the error handling here!
+		UE_LOG(LogSavePackage, Verbose, TEXT("Saved '%s' as temp file '%s'"), *TargetFilePath, *TempFilePath);
+
+		AdditionalPackageFiles.Emplace(MoveTemp(TargetFilePath), MoveTemp(TempFilePath), DataSize);		
+	}
+
+	Linker.SidecarDataToAppend.Empty();
+
+	return ESavePackageResult::Success;
 }
 
 ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Filename, const ITargetPlatform* TargetPlatform,

@@ -1834,7 +1834,7 @@ void UTexture::BeginCacheForCookedPlatformData( const ITargetPlatform *TargetPla
 
 		// If source data is resident in memory then allow the texture to be built
 		// in a background thread.
-		bool bAllowAsyncBuild = Source.BulkData.IsBulkDataLoaded();
+		bool bAllowAsyncBuild = Source.IsBulkDataLoaded();
 
 		if (bAllowAsyncBuild)
 		{

@@ -41,6 +41,7 @@ CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogLocalization, Error, All);
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogLongPackageNames, Log, All);
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogProcess, Log, All);
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogLoad, Log, All);
+CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogVirtualization, Log, All);
 
 // Temporary log category, generally you should not check things in that use this
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogTemp, Log, All);

@@ -1290,11 +1290,9 @@ public:
 		: bBulkDataUpdated(false)
 		, bGuidIsHash(false)
 	{
-#if UE_USE_VIRTUALBULKDATA
-		BulkData.EnableDataCompression(true);
-#else
+#if !UE_USE_VIRTUALBULKDATA
 		BulkData.SetBulkDataFlags(BULKDATA_SerializeCompressed | BULKDATA_SerializeCompressedBitWindow);
-#endif //UE_USE_VIRTUALBULKDATA
+#endif //!UE_USE_VIRTUALBULKDATA
 	}
 
 	/** Serialization */
@@ -1327,7 +1325,7 @@ private:
 	FRWLock       BulkDataLock;
 #endif
 	/** Internally store bulk data as bytes */
-	TChooseClass<UE_USE_VIRTUALBULKDATA, FByteVirtualizedBulkData, FByteBulkData>::Result BulkData;
+	TChooseClass<UE_USE_VIRTUALBULKDATA, UE::Virtualization::FByteVirtualizedBulkData, FByteBulkData>::Result BulkData;
 
 	/** GUID associated with the data stored herein. */
 	FGuid Guid;

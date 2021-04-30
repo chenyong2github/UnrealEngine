@@ -163,6 +163,7 @@ public class Core : ModuleRules
 		if (Target.bCompileAgainstEngine && !Target.bBuildRequiresCookedData)
 		{
 			DynamicallyLoadedModuleNames.AddRange(new string[] { "DerivedDataCache" });
+			DynamicallyLoadedModuleNames.AddRange(new string[] { "Virtualization" });
 		}
 
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Desktop))

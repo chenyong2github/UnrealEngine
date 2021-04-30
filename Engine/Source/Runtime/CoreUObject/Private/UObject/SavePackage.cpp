@@ -18,7 +18,6 @@
 #include "Serialization/LargeMemoryReader.h"
 #include "Serialization/BufferArchive.h"
 #include "Misc/AssetRegistryInterface.h"
-#include "Misc/ConfigCacheIni.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/ObjectThumbnail.h"
@@ -80,18 +79,6 @@ static FCriticalSection InitializeCoreClassesCritSec;
 
 // bring the UObectGlobal declaration visible to non editor
 bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecursive, bool bCheckMarks);
-
-static void AppendAdditionalData(FLinkerSave& Linker)
-{
-	FArchive& Ar = Linker;
-
-	for (FLinkerSave::AdditionalDataCallback& Callback : Linker.AdditionalDataToAppend)
-	{
-		Callback(Ar);
-	}
-
-	Linker.AdditionalDataToAppend.Empty();
-}
 
 static bool EndSavingIfCancelled() 
 {
@@ -2051,6 +2038,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 	// Sanity checks
 	check(InOuter);
 	check(Filename);
+
 	const bool bIsCooking = TargetPlatform != nullptr;
 	FPackagePath TargetPackagePath = FPackagePath::FromLocalPath(Filename);
 	if (TargetPackagePath.GetHeaderExtension() == EPackageExtension::Unspecified)
@@ -2252,7 +2240,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 		SlowTask.EnterProgressFrame();
 
-		bool Success = true;
+		bool bSuccess = true;
 		bool bRequestStub = false;
 		{
 			// FullyLoad the package's Loader, so that anything we need to serialize (bulkdata, thumbnails) is available
@@ -3461,7 +3449,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						{
 							Error->Logf(ELogVerbosity::Warning, TEXT("%s"), *FText::Format( NSLOCTEXT( "Core", "SavePackageNoMap", "Attempting to save a map asset '{0}' that does not contain a map object" ), FText::FromString( FString( Filename ) ) ).ToString() );
 						}
-						Success = false;
+						bSuccess = false;
 					}
 				}
 
@@ -4171,7 +4159,18 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					return SaveResult;
 				}
 
-				AppendAdditionalData(*Linker);
+				ESavePackageResult AppendAdditionalDataResult = SavePackageUtilities::AppendAdditionalData(*Linker.Get());
+				if (AppendAdditionalDataResult != ESavePackageResult::Success)
+				{
+					return AppendAdditionalDataResult;
+				}
+
+				FSavePackageOutputFileArray AdditionalOutputFiles;
+				ESavePackageResult CreateSidecarResult = SavePackageUtilities::CreatePayloadSidecarFile(*Linker, TargetPackagePath, bSaveAsync, !bDiffing, AdditionalOutputFiles);
+				if (CreateSidecarResult != ESavePackageResult::Success)
+				{
+					return CreateSidecarResult;
+				}
 
 #if WITH_EDITOR
 				if (bIsCooking && AdditionalFilesFromExports.Num() > 0)
@@ -4423,7 +4422,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				}
 				SlowTask.EnterProgressFrame();
 
-				if( Success == true )
+				if( bSuccess == true )
 				{
 					{
 						// If we're writing to the existing file call ResetLoaders on the Package so that we drop the handle to the file on disk and can write to it
@@ -4433,12 +4432,14 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 					// Compress the temporarily file to destination.
 					if (bSaveAsync)
-					{						
+					{	
 						FString NewPathToSave = NewPath;
 #if WITH_EDITOR
 
 						if (SaveFlags & SAVE_DiffCallstack)
 						{
+							checkf(AdditionalOutputFiles.IsEmpty(), TEXT("Saving additional output files with the 'SAVE_DiffCallstack' flag is not supported!"));
+
 							const TCHAR* CutoffString = TEXT("UEditorEngine::Save()");
 							FArchiveStackTrace* Writer = (FArchiveStackTrace*)(Linker->Saver);
 							TMap<FName, FArchiveDiffStats> PackageDiffStats;
@@ -4455,6 +4456,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						}
 						else if (SaveFlags & SAVE_DiffOnly)
 						{
+							checkf(AdditionalOutputFiles.IsEmpty(), TEXT("Saving additional output files with the 'SAVE_DiffOnly' flag is not supported!"));
+
 							FArchiveStackTrace* Writer = (FArchiveStackTrace*)(Linker->Saver);
 							FArchiveDiffMap OutDiffMap;
 							bDiffOnlyIdentical = Writer->GenerateDiffMap(*NewPath, IsEventDrivenLoaderEnabledInCookedBuilds() ? Linker->Summary.TotalHeaderSize : 0, DiffSettings.MaxDiffsToLog, OutDiffMap);
@@ -4473,11 +4476,13 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							FLargeMemoryWriter* Writer = static_cast<FLargeMemoryWriter*>(Linker->Saver);
 							const int64 DataSize = Writer->TotalSize();
 
-							if (!(SaveFlags & SAVE_DiffCallstack))  // Avoid double counting the package size if SAVE_DiffCallstack flag is set and DiffSettings.bSaveForDiff == true.
-								TotalPackageSizeUncompressed += DataSize;
-
 							if (IsEventDrivenLoaderEnabledInCookedBuilds() && Linker->IsCooking())
 							{
+								checkf(AdditionalOutputFiles.IsEmpty(), TEXT("Saving additional output files during cooking is not supported!"));
+
+								if (!(SaveFlags & SAVE_DiffCallstack))  // Avoid double counting the package size if SAVE_DiffCallstack flag is set and DiffSettings.bSaveForDiff == true.
+									TotalPackageSizeUncompressed += DataSize;
+
 								if (SavePackageContext != nullptr && SavePackageContext->PackageStoreWriter != nullptr)
 								{
 									FIoBuffer IoBuffer(FIoBuffer::AssumeOwnership, Writer->ReleaseOwnership(), DataSize);
@@ -4509,17 +4514,30 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 									{
 										WriteOptions |= EAsyncWriteOptions::ComputeHash;
 									}
+
 									SavePackageUtilities::AsyncWriteFileWithSplitExports(AsyncWriteAndHashSequence, FLargeMemoryPtr(Writer->ReleaseOwnership()), DataSize, Linker->Summary.TotalHeaderSize, *NewPathToSave, WriteOptions, Linker->FileRegions);
 								}
 							}
 							else
 							{
+								// Add the uasset file to the list of output files
+								AdditionalOutputFiles.Emplace(NewPathToSave, FLargeMemoryPtr(Writer->ReleaseOwnership()), Linker->FileRegions, DataSize);
+							
 								EAsyncWriteOptions WriteOptions(EAsyncWriteOptions::WriteFileToDisk);
 								if (bComputeHash)
 								{
 									WriteOptions |= EAsyncWriteOptions::ComputeHash;
 								}
-								SavePackageUtilities::AsyncWriteFile(AsyncWriteAndHashSequence, FLargeMemoryPtr(Writer->ReleaseOwnership()), DataSize, *NewPathToSave, WriteOptions, Linker->FileRegions);
+
+								for (FSavePackageOutputFile& Entry : AdditionalOutputFiles)
+								{
+									if (!(SaveFlags & SAVE_DiffCallstack))
+									{
+										TotalPackageSizeUncompressed += Entry.DataSize;
+									}
+
+									SavePackageUtilities::AsyncWriteFile(AsyncWriteAndHashSequence, WriteOptions, Entry);
+								}	
 							}
 						}
 						Linker->CloseAndDestroySaver();
@@ -4531,8 +4549,9 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					// Move the temporary file.
 					else
 					{
-						check(TempFilename.IsSet());
+						checkf(TempFilename.IsSet(), TEXT("The package should've been saved to a tmp file first!"));
 
+						// When saving in text format we will have two temp files, so we need to manually delete the non-textbased one
 						if (bTextFormat)
 						{
 							check(TextFormatTempFilename.IsSet());
@@ -4541,29 +4560,25 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							TextFormatTempFilename.Reset();
 						}
 
-						UE_LOG(LogSavePackage, Log,  TEXT("Moving '%s' to '%s'"), TempFilename.IsSet() ? *TempFilename.GetValue() : TEXT("UNKNOWN"), *NewPath );
-						TotalPackageSizeUncompressed += PackageSize;
-
-						Success = IFileManager::Get().Move( *NewPath, *TempFilename.GetValue());
-						TempFilename.Reset();
-
-						if (FinalTimeStamp != FDateTime::MinValue())
+						// Add the .uasset file to the list of output files
+						AdditionalOutputFiles.Emplace(NewPath, TempFilename.GetValue(), PackageSize);
+						
+						ESavePackageResult FinalizeResult = SavePackageUtilities::FinalizeTempOutputFiles(TargetPackagePath, AdditionalOutputFiles, bComputeHash, FinalTimeStamp, AsyncWriteAndHashSequence);
+						if (FinalizeResult != ESavePackageResult::Success)
 						{
-							IFileManager::Get().SetTimeStamp(*NewPath, FinalTimeStamp);
-						}
+							bSuccess = false;
+						}	
 
-						if (bComputeHash)
+						// Now add up the total size of the data that was saved
+						for (FSavePackageOutputFile& Entry : AdditionalOutputFiles)
 						{
-							SavePackageUtilities::IncrementOutstandingAsyncWrites();
-							AsyncWriteAndHashSequence.AddWork([NewPath](FMD5& State)
-							{
-								SavePackageUtilities::AddFileToHash(NewPath, State);
-								SavePackageUtilities::DecrementOutstandingAsyncWrites();
-							});
+							TotalPackageSizeUncompressed += Entry.DataSize;
 						}
 					}
 
-					if( Success == false )
+					AdditionalOutputFiles.Empty();
+
+					if( bSuccess == false )
 					{
 						if (SaveFlags & SAVE_NoError)
 						{
@@ -4658,10 +4673,15 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 #endif
 
 		}
-		if( Success == true )
+		if( bSuccess == true )
 		{
 			// Package has been save, so unmark NewlyCreated flag.
 			InOuter->ClearPackageFlags(PKG_NewlyCreated);
+
+			if (Linker != nullptr)
+			{
+				Linker->OnPostSave(TargetPackagePath);
+			}
 
 			// send a message that the package was saved
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS;
@@ -4675,7 +4695,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 		UE_CLOG(!bDiffing, LogSavePackage, Verbose, TEXT("Finished SavePackage %s"), Filename);
 
-		if (Success)
+		if (bSuccess)
 		{
 			// if the save was successful, update the internal package filename path if we aren't currently cooking
 #if WITH_EDITOR

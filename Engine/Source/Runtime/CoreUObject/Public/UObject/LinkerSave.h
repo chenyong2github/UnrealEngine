@@ -3,12 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Compression/CompressedBuffer.h"
 #include "Serialization/ArchiveUObject.h"
 #include "Serialization/FileRegions.h"
-#include "UObject/ObjectResource.h"
-#include "UObject/Linker.h"
-#include "UObject/UObjectThreadContext.h"
 #include "Templates/RefCounting.h"
+#include "UObject/Linker.h"
+#include "UObject/ObjectResource.h"
+#include "UObject/UObjectThreadContext.h"
+#include "Virtualization/PayloadId.h"
 
 struct FUntypedBulkData;
 
@@ -91,6 +93,23 @@ public:
 	 */
 	bool bUpdatingLoadedPath = false;
 
+	/** Used by FVirtualizedUntypedBulkData to add payloads to be added to the payload sidecar file */
+	struct FSidecarStorageInfo
+	{
+		UE::Virtualization::FPayloadId Identifier;
+		FCompressedBuffer Payload;
+	};
+	TArray<FSidecarStorageInfo> SidecarDataToAppend;
+
+	/** 
+	 * Array of callbacks that will be invoked when the package has successfully saved to disk.
+	 * The callbacks will not be invoked if the package fails to save for some reason.
+	 * Unlike subscribing to the UPackage::PackageSavedEvent this callback allows custom data
+	 * via lambda capture. 
+	 * @param PackagePath The path of the package
+	 */
+	TArray<TUniqueFunction<void(const FPackagePath& PackagePath)>> PostSaveCallbacks;
+
 	/** A mapping of package name to generated script SHA keys */
 	COREUOBJECT_API static TMap<FString, TArray<uint8> > PackagesToScriptSHAMap;
 
@@ -140,6 +159,9 @@ public:
 	// this fixes the warning : 'FLinkerSave::Serialize' hides overloaded virtual function
 	using FLinker::Serialize;
 	void Serialize( void* V, int64 Length );
+
+	/** Invoke all of the callbacks in PostSaveCallbacks and then empty it. */
+	void OnPostSave(const FPackagePath& PackagePath);
 
 	// FLinker interface
 	virtual FString GetDebugName() const override;

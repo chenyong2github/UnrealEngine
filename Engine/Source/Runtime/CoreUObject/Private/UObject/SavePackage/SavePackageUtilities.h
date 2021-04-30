@@ -18,9 +18,12 @@
 // This file contains private utilities shared by UPackage::Save and UPackage::Save2 
 
 class FMD5;
-class FSavePackageContext;
+class FPackagePath;
 class FSaveContext;
+class FSavePackageContext;
 template<typename StateType> class TAsyncWorkSequence;
+
+enum class ESavePackageResult;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogSavePackage, Log, All);
 
@@ -78,6 +81,47 @@ struct FCanSkipEditorReferencedPackagesWhenCooking
 	FCanSkipEditorReferencedPackagesWhenCooking();
 	FORCEINLINE operator bool() const { return bCanSkipEditorReferencedPackagesWhenCooking; }
 };
+
+
+/** Represents an output file from the package when saving */
+struct FSavePackageOutputFile
+{
+	/** Constructor used for async saving */
+	FSavePackageOutputFile(const FString& InTargetPath, FLargeMemoryPtr&& MemoryBuffer, const TArray<FFileRegion>& InFileRegions, int64 InDataSize)
+		: TargetPath(InTargetPath)
+		, FileMemoryBuffer(MoveTemp(MemoryBuffer))
+		, FileRegions(InFileRegions)
+		, DataSize(InDataSize)
+	{
+
+	}
+
+	/** Constructor used for saving first to a temp file which can be later moved to the target directory */
+	FSavePackageOutputFile(const FString& InTargetPath, const FString& InTempFilePath, int64 InDataSize)
+		: TargetPath(InTargetPath)
+		, TempFilePath(InTempFilePath)
+		, DataSize(InDataSize)
+	{
+
+	}
+
+	/** The final target location of the file once all saving operations are completed */
+	FString TargetPath;
+
+	/** The temp location (if any) that the file is stored at, pending a move to the TargetPath */
+	FString TempFilePath;
+
+	/** The entire file stored as a memory buffer for the async saving path */
+	FLargeMemoryPtr FileMemoryBuffer;
+	/** An array of file regions in FileMemoryBuffer generated during cooking */
+	TArray<FFileRegion> FileRegions;
+
+	/** The size of the file in bytes */
+	int64 DataSize;
+};
+
+// Currently we only expect to store up to 2 files in this, so set the inline capacity to double of this
+using FSavePackageOutputFileArray = TArray<FSavePackageOutputFile, TInlineAllocator<4>>;
 
  /**
   * Helper structure to encapsulate sorting a linker's import table alphabetically, taking into account conforming to other linkers.
@@ -345,6 +389,13 @@ namespace SavePackageUtilities
 	ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Filename, const ITargetPlatform* TargetPlatform,
 		FSavePackageContext* SavePackageContext, uint32 SaveFlags, const bool bTextFormat, const bool bDiffing,
 		const bool bComputeHash, TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, int64& TotalPackageSizeUncompressed);
+	
+	/** Used to append additional data to the end of the package file by invoking callbacks stored in the linker */
+	ESavePackageResult AppendAdditionalData(FLinkerSave& Linker);
+	
+	/** Used to create the sidecar file (.upayload) from payloads that have been added to the linker */
+	ESavePackageResult CreatePayloadSidecarFile(FLinkerSave& Linker, const FPackagePath& PackagePath, const bool bSaveAsync, const bool bWriteToDisk, FSavePackageOutputFileArray& AdditionalPackageFiles);
+	
 	void SaveWorldLevelInfo(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FRecord Record);
 	EObjectMark GetExcludedObjectMarksForTargetPlatform(const class ITargetPlatform* TargetPlatform);
 	bool HasUnsaveableOuter(UObject* InObj, UPackage* InSavingPackage);
@@ -353,8 +404,17 @@ namespace SavePackageUtilities
 	void FindMostLikelyCulprit(const TArray<UObject*>& BadObjects, UObject*& MostLikelyCulprit, FString& OutReferencer, FSaveContext* InOptionalSaveContext = nullptr);
 	void AddFileToHash(FString const& Filename, FMD5& Hash);
 
+	/** 
+	  * Search 'OutputFiles' for output files that were saved to the temp directory and move those files
+	  * to their final location. Output files that were not saved to the temp directory will be ignored.
+	  * 
+	  * If errors are encountered then the original state of the package will be restored and should continue to work.
+	  */
+	ESavePackageResult FinalizeTempOutputFiles(const FPackagePath& PackagePath, const FSavePackageOutputFileArray& OutputFiles, const bool bComputeHash, const FDateTime& FinalTimeStamp, TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence);
+
 	void WriteToFile(const FString& Filename, const uint8* InDataPtr, int64 InDataSize);
 	void AsyncWriteFile(TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, FLargeMemoryPtr Data, const int64 DataSize, const TCHAR* Filename, EAsyncWriteOptions Options, TArrayView<const FFileRegion> InFileRegions);
+	void AsyncWriteFile(TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, EAsyncWriteOptions Options, FSavePackageOutputFile& File);
 	void AsyncWriteFileWithSplitExports(TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, FLargeMemoryPtr Data, const int64 DataSize, const int64 HeaderSize, const TCHAR* Filename, EAsyncWriteOptions Options, TArrayView<const FFileRegion> InFileRegions);
 
 	void GetCDOSubobjects(UObject* CDO, TArray<UObject*>& Subobjects);
@@ -384,4 +444,3 @@ struct FSavePackageStats
 	static void MergeStats(const TMap<FName, FArchiveDiffStats>& ToMerge);
 };
 #endif
-

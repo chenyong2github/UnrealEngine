@@ -8,6 +8,11 @@
 
 #if WITH_EDITORONLY_DATA
 
+namespace UE
+{
+namespace Virtualization
+{
+
 class FVirtualizedBulkDataWriter : public FArchive
 {
 public:
@@ -17,7 +22,7 @@ public:
 		SetIsSaving(true);
 		SetIsPersistent(bIsPersistent);
 
-		FSharedBuffer Payload = InBulkData.GetData().Get();
+		FSharedBuffer Payload = InBulkData.GetPayload().Get();
 
 		if (Payload)
 		{
@@ -49,6 +54,12 @@ public:
 		// Remove the slack from the allocated bulk data
 		Buffer = FMemory::Realloc(Buffer, DataLength, DEFAULT_ALIGNMENT);
 		BulkData.UpdatePayload(FSharedBuffer::TakeOwnership(Buffer, DataLength, FMemory::Free));
+	}
+
+	/** Returns if the FVirtualizedBulkDataWriter has a valid bulkdata payload or not */
+	bool IsValid() const 
+	{
+		return Buffer != nullptr;
 	}
 
 	virtual void Serialize(void* Data, int64 Num)
@@ -126,13 +137,18 @@ namespace UE4VirtualizedBulkData_Private
 	{
 	protected:
 		DataAccessWrapper(FVirtualizedUntypedBulkData& InBulkData)
-			: Payload(InBulkData.GetData().Get())
+			: Payload(InBulkData.GetPayload().Get())
 
 		{
 
 		}
 
 		virtual ~DataAccessWrapper() = default;
+
+		bool IsValid() const
+		{
+			return !Payload.IsNull();
+		}
 
 		void* GetData() const
 		{
@@ -152,8 +168,7 @@ namespace UE4VirtualizedBulkData_Private
 	};
 }
 
-class FVirtualizedBulkDataReader :	public UE4VirtualizedBulkData_Private::DataAccessWrapper,
-	public FBufferReaderBase
+class FVirtualizedBulkDataReader : protected UE4VirtualizedBulkData_Private::DataAccessWrapper, public FBufferReaderBase
 {
 public:
 	FVirtualizedBulkDataReader(FVirtualizedUntypedBulkData& InBulkData, bool bIsPersistent = false)
@@ -163,6 +178,12 @@ public:
 	}
 
 	virtual ~FVirtualizedBulkDataReader() = default;
+
+	/** Returns if the FVirtualizedBulkDataReader has a valid bulkdata payload or not */
+	bool IsValid() const 
+	{
+		return UE4VirtualizedBulkData_Private::DataAccessWrapper::IsValid();
+	}
 
 	using FArchive::operator<<; // For visibility of the overloads we don't override
 
@@ -180,5 +201,8 @@ public:
 		return TEXT("FVirtualizedBulkDataReader");
 	}	
 };
+
+} // namespace Virtualization
+} // namespace UE
 
 #endif //WITH_EDITORONLY_DATA

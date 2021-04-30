@@ -85,6 +85,13 @@ struct FConfigExpansion
 	template<int N>
 	FConfigExpansion(const TCHAR(&Var)[N], FString&& Val)
 		: Variable(Var)
+		, Value(MoveTemp(Val))
+		, VariableLen(N - 1)
+	{}
+
+	template<int N>
+	FConfigExpansion(const TCHAR(&Var)[N], const FString& Val)
+		: Variable(Var)
 		, Value(Val)
 		, VariableLen(N - 1)
 	{}
@@ -112,6 +119,7 @@ static const FConfigExpansion* MatchExpansions(const TCHAR* PotentialVariable)
 		FConfigExpansion(TEXT("%ENGINEUSERDIR%"), FPaths::EngineUserDir()),
 		FConfigExpansion(TEXT("%ENGINEVERSIONAGNOSTICUSERDIR%"), FPaths::EngineVersionAgnosticUserDir()),
 		FConfigExpansion(TEXT("%APPSETTINGSDIR%"), GetApplicationSettingsDirNormalized()),
+		FConfigExpansion(TEXT("%GAMESAVEDDIR%"), FPaths::ProjectSavedDir()),
 	};
 
 	for (const FConfigExpansion& Expansion : Expansions)

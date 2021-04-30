@@ -19,6 +19,7 @@
 #include "Engine/StreamableRenderAsset.h"
 #include "PerPlatformProperties.h"
 #include "Misc/FieldAccessor.h"
+#include "Virtualization/VirtualizedBulkData.h"
 
 #if WITH_EDITOR
 #include "Templates/DontCopy.h"
@@ -175,6 +176,8 @@ struct FTextureSource
 	FORCEINLINE static bool IsHDR(ETextureSourceFormat Format) { return (Format == TSF_BGRE8 || Format == TSF_RGBA16F); }
 
 #if WITH_EDITOR
+	// FwdDecl for member structs
+	struct FMipData;
 
 	ENGINE_API void InitBlocked(const ETextureSourceFormat* InLayerFormats,
 		const FTextureSourceBlock* InBlocks,
@@ -273,9 +276,12 @@ struct FTextureSource
 
 	/** Unlock a mip. */
 	ENGINE_API void UnlockMip(int32 BlockIndex, int32 LayerIndex, int32 MipIndex);
-
+	
 	/** Retrieve a copy of the data for a particular mip. */
 	ENGINE_API bool GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, int32 LayerIndex, int32 MipIndex, class IImageWrapperModule* ImageWrapperModule = nullptr);
+	
+	/** Returns a FMipData structure that wraps around the entire mip chain for read only operations. This is more efficient than calling the above method once per mip. */
+	ENGINE_API FMipData GetMipData(class IImageWrapperModule* ImageWrapperModule);
 
 	/** Computes the size of a single mip. */
 	ENGINE_API int64 CalcMipSize(int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const;
@@ -314,10 +320,44 @@ struct FTextureSource
 	FORCEINLINE int32 GetNumBlocks() const { return Blocks.Num() + 1; }
 	FORCEINLINE ETextureSourceFormat GetFormat(int32 LayerIndex = 0) const { return (LayerIndex == 0) ? Format : LayerFormat[LayerIndex]; }
 	FORCEINLINE bool IsPNGCompressed() const { return bPNGCompressed; }
-	FORCEINLINE int64 GetSizeOnDisk() const { return BulkData.GetBulkDataSize(); }
-	FORCEINLINE bool IsBulkDataLoaded() const { return BulkData.IsBulkDataLoaded(); }
-	FORCEINLINE bool LoadBulkDataWithFileReader() { return BulkData.LoadBulkDataWithFileReader(); }
-	FORCEINLINE void RemoveBulkData() { BulkData.RemoveBulkData(); }
+	FORCEINLINE int64 GetSizeOnDisk() const 
+	{ 
+#if UE_USE_VIRTUALBULKDATA
+		return BulkData.GetPayloadSize(); 
+#else
+		return BulkData.GetBulkDataSize(); 
+#endif //UE_USE_VIRTUALBULKDATA
+	}
+	
+	FORCEINLINE bool IsBulkDataLoaded() const
+	{
+#if UE_USE_VIRTUALBULKDATA
+		return BulkData.IsDataLoaded();
+#else
+		return BulkData.IsBulkDataLoaded();
+#endif //UE_USE_VIRTUALBULKDATA
+	}
+
+	FORCEINLINE bool LoadBulkDataWithFileReader()
+	{
+		// TODO: When we remove UE_USE_VIRTUALBULKDATA and go all in, places that call this
+		// should be changed.
+#if UE_USE_VIRTUALBULKDATA
+		return true; // Currently a NOP
+#else
+		return BulkData.LoadBulkDataWithFileReader(); // Kick off an async load if needed
+#endif
+	}
+
+	FORCEINLINE void RemoveBulkData()
+	{
+#if UE_USE_VIRTUALBULKDATA
+		BulkData.UnloadData();
+#else
+		BulkData.RemoveBulkData();
+#endif //UE_USE_VIRTUALBULKDATA
+	}
+
 	
 	/** Sets the GUID to use, and whether that GUID is actually a hash of some data. */
 	ENGINE_API void SetId(const FGuid& InId, bool bInGuidIsHash);
@@ -335,7 +375,88 @@ struct FTextureSource
 	FORCEINLINE uint8* LockMip(int32 MipIndex) { return LockMip(0, 0, MipIndex); }
 	FORCEINLINE void UnlockMip(int32 MipIndex) { UnlockMip(0, 0, MipIndex); }
 
-#endif
+	struct FMipAllocation
+	{
+		/** Create an empty object */
+		FMipAllocation() = default;
+		/** Take a read only FSharedBuffer, will allocate a new buffer and copy from this if Read/Write access is requested */
+		FMipAllocation(FSharedBuffer SrcData);
+		/** Allocate a new buffer and copy from the source data */
+		FMipAllocation(const void* SrcData, int64 DataLength);
+		/** Lock the bulkdata and use it's memory buffer */
+		FMipAllocation(FByteBulkData& BulkData);
+
+		// Do not actually do anything for copy constructor or assignments, this is required for as long as
+		// we need to support the old bulkdata code path (although previously storing these allocations as
+		// raw pointers would allow it to be assigned, this would most likely cause a mismatch in lock counts,
+		// either in FTextureSource or the underlying bulkdata and was never actually safe)
+		FMipAllocation(const FMipAllocation&) {}
+		FMipAllocation& operator =(const FMipAllocation&) { return *this; }
+
+		// We do allow rvalue assignment
+		FMipAllocation(FMipAllocation&&);
+		FMipAllocation& operator =(FMipAllocation&&);
+
+		~FMipAllocation() = default;
+
+		/** Release all currently owned data and return the object to the default state */
+		void Reset();
+
+		/** Returns true if the object contains no data */
+		bool IsNull() const { return ReadOnlyReference.IsNull(); }
+
+		/** Returns the overall size of the data in bytes */
+		int64 GetSize() const { return ReadOnlyReference.GetSize(); }
+
+		/** Returns a FSharedBuffer that contains the current texture data but cannot be directly modified */
+		const FSharedBuffer& GetDataReadOnly() const { return ReadOnlyReference; }
+
+		/** Returns a pointer that contains the current texture data and can be written to */
+		uint8* GetDataReadWrite();
+
+		/** Returns the internal FSharedBuffer and relinquish ownership, used to transfer the data to virtualized bulkdata */
+		FSharedBuffer Release();
+
+	private:
+		void CreateReadWriteBuffer(const void* SrcData, int64 DataLength);
+
+		FSharedBuffer		ReadOnlyReference;
+		TUniquePtr<uint8[]>	ReadWriteBuffer;
+		uint8* BulkDataPtr{ nullptr };
+	};
+
+	/** Structure that encapsulates the decompressed texture data and can be accessed per mip */
+	struct ENGINE_API FMipData
+	{
+		~FMipData();
+
+		/** Get a copy of a given texture mip, to be stored in OutMipData */
+		bool GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const;
+
+		/** Allow the copy constructor by rvalue*/
+		FMipData(FMipData&& Other)
+			: TextureSource(Other.TextureSource)
+		{
+			MipData = MoveTemp(Other.MipData);
+		}
+
+		/** Disallow everything else so we don't get duplicates */
+		FMipData() = delete;
+		FMipData(const FMipData&) = delete;
+		FMipData& operator=(const FMipData&) = delete;
+		FMipData& operator=(FMipData&& Other) = delete;
+
+	private:
+		// We only want to allow FTextureSource to create FMipData objects
+		friend struct FTextureSource;
+
+		FMipData(const FTextureSource& InSource, FMipAllocation&& InMipData, FRWLock* InReadLock = nullptr);
+
+		const FTextureSource& TextureSource;
+		FMipAllocation MipData;
+		FRWLock* ReadLock;
+	};
+#endif // WITH_EDITOR
 
 private:
 	/** Allow UTexture access to internals. */
@@ -350,9 +471,8 @@ private:
 	TDontCopy<FRWLock> BulkDataLock;
 #endif
 	/** The bulk source data. */
-	FByteBulkData BulkData;
-	/** Pointer to locked mip data, if any. */
-	uint8* LockedMipData;
+	TChooseClass<UE_USE_VIRTUALBULKDATA, UE::Virtualization::FByteVirtualizedBulkData, FByteBulkData>::Result BulkData;
+	
 	/** Number of mips that are locked. */
 	uint32 NumLockedMips;
 
@@ -366,11 +486,19 @@ private:
 	ELockState LockState;
 
 #if WITH_EDITOR
+	/** Pointer to locked mip data, if any. */
+	FMipAllocation LockedMipData;
 
 	// Internal implementation for locking the mip data, called by LockMipReadOnly or LockMip */
 	uint8* LockMipInternal(int32 BlockIndex, int32 LayerIndex, int32 MipIndex, ELockState RequestedLockState);
+	
+	/** Returns the source data fully decompressed */
+	FMipAllocation Decompress(class IImageWrapperModule* ImageWrapperModule) UE_VBD_CONST;
+
+	FMipAllocation TryDecompressPngData(IImageWrapperModule* ImageWrapperModule) UE_VBD_CONST;
 	/** Attempt to decompress the source data from Jpeg format. All failures will be logged and result in the method returning false */
-	bool TryDecompressJpegData(IImageWrapperModule* ImageWrapperModule, const void* RawSourceData, int32 MipIndex, TArray64<uint8>& OutRawData);
+	FMipAllocation TryDecompressJpegData(IImageWrapperModule* ImageWrapperModule) UE_VBD_CONST;
+	
 	/** Return true if the source art is not png compressed but could be. */
 	bool CanPNGCompress() const;
 	/** Removes source data. */

@@ -273,6 +273,16 @@ void FLinkerSave::Serialize( void* V, int64 Length )
 #endif
 	Saver->Serialize( V, Length );
 }
+
+void FLinkerSave::OnPostSave(const FPackagePath& PackagePath)
+{
+	for (TUniqueFunction<void(const FPackagePath&)>& Callback : PostSaveCallbacks)
+	{
+		Callback(PackagePath);
+	}
+
+	PostSaveCallbacks.Empty();
+}
 	
 FString FLinkerSave::GetDebugName() const
 {

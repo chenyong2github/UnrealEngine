@@ -1746,6 +1746,8 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 
 		if (SaveContext.IsDiffCallstack())
 		{
+			checkf(SaveContext.AdditionalPackageFiles.IsEmpty(), TEXT("Saving additional output files with the 'SAVE_DiffCallstack' flag is not currently supported! (%s)"), *PathToSave);
+
 			const TCHAR* CutoffString = TEXT("UEditorEngine::Save()");
 			FArchiveStackTrace* Writer = static_cast<FArchiveStackTrace*>(Linker->Saver);
 			TMap<FName, FArchiveDiffStats> PackageDiffStats;
@@ -1762,6 +1764,8 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 		}
 		else if (SaveContext.IsDiffOnly())
 		{
+			checkf(SaveContext.AdditionalPackageFiles.IsEmpty(), TEXT("Saving additional output files with the 'SAVE_DiffOnly' flag is not currently supported! (%s)"), *PathToSave);
+
 			FArchiveStackTrace* Writer = (FArchiveStackTrace*)(Linker->Saver);
 			FArchiveDiffMap OutDiffMap;
 			SaveContext.bDiffOnlyIdentical = Writer->GenerateDiffMap(*PathToSave, IsEventDrivenLoaderEnabledInCookedBuilds() ? Linker->Summary.TotalHeaderSize : 0, SaveContext.GetMaxDiffsToLog(), OutDiffMap);
@@ -1782,6 +1786,8 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 			{
 				SaveContext.TotalPackageSizeUncompressed += DataSize;
 			}
+
+			checkf(SaveContext.IsCooking() == false || SaveContext.AdditionalPackageFiles.IsEmpty(), TEXT("Saving additional output files during cooking is not currently supported! (%s)"), *PathToSave);
 
 			FSavePackageContext* SavePackageContext = SaveContext.GetSavePackageContext();
 			if (SavePackageContext != nullptr && SavePackageContext->PackageStoreWriter != nullptr && SaveContext.IsCooking())
@@ -1815,13 +1821,20 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 				{
 					WriteOptions |= EAsyncWriteOptions::ComputeHash;
 				}
+
 				if (SaveContext.IsCooking())
 				{
 					SavePackageUtilities::AsyncWriteFileWithSplitExports(SaveContext.AsyncWriteAndHashSequence, FLargeMemoryPtr(Writer->ReleaseOwnership()), DataSize, Linker->Summary.TotalHeaderSize, *PathToSave, WriteOptions, Linker->FileRegions);
 				}
 				else
 				{
-					SavePackageUtilities::AsyncWriteFile(SaveContext.AsyncWriteAndHashSequence, FLargeMemoryPtr(Writer->ReleaseOwnership()), DataSize, *PathToSave, WriteOptions, Linker->FileRegions);
+					// Add the uasset file to the list of output files
+					SaveContext.AdditionalPackageFiles.Emplace(PathToSave, FLargeMemoryPtr(Writer->ReleaseOwnership()), Linker->FileRegions, DataSize);
+
+					for (FSavePackageOutputFile& Entry : SaveContext.AdditionalPackageFiles)
+					{
+						SavePackageUtilities::AsyncWriteFile(SaveContext.AsyncWriteAndHashSequence, WriteOptions, Entry);
+					}
 				}
 			}
 			SaveContext.CloseLinkerArchives();
@@ -1830,9 +1843,7 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 	else
 	{
 		// Destroy archives used for saving, closing file handle.
-		bool bSuccess = SaveContext.CloseLinkerArchives();
-
-		if (!bSuccess)
+		if (SaveContext.CloseLinkerArchives() == false)
 		{
 			UE_LOG(LogSavePackage, Error, TEXT("Error writing temp file '%s' for '%s'"),
 				SaveContext.TempFilename.IsSet() ? *SaveContext.TempFilename.GetValue() : TEXT("UNKNOWN"), SaveContext.GetFilename());
@@ -1840,7 +1851,9 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 		}
 
 		// Move file to its real destination
-		check(SaveContext.TempFilename.IsSet());
+		checkf(SaveContext.TempFilename.IsSet(), TEXT("The package should've been saved to a tmp file first! (%s)"), *SaveContext.GetFilename());
+
+		// When saving in text format we will have two temp files, so we need to manually delete the non-textbased one
 		if (SaveContext.IsTextFormat())
 		{
 			check(SaveContext.TextFormatTempFilename.IsSet());
@@ -1849,11 +1862,15 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 			SaveContext.TextFormatTempFilename.Reset();
 		}
 
-		UE_LOG(LogSavePackage, Log, TEXT("Moving '%s' to '%s'"), SaveContext.TempFilename.IsSet() ? *SaveContext.TempFilename.GetValue() : TEXT("UNKNOWN"), SaveContext.GetFilename());
-		bSuccess = IFileManager::Get().Move(SaveContext.GetFilename(), *SaveContext.TempFilename.GetValue());
+		// Add the .uasset file to the list of output files (TODO: Fix the 0 size, it isn't used after this point but needs to be cleaned up)
+		SaveContext.AdditionalPackageFiles.Emplace(SaveContext.GetFilename(), SaveContext.TempFilename.GetValue(), 0);
+
+		ESavePackageResult FinalizeResult = SavePackageUtilities::FinalizeTempOutputFiles(SaveContext.GetTargetPackagePath(), SaveContext.AdditionalPackageFiles, SaveContext.IsComputeHash(), 
+			SaveContext.GetFinalTimestamp(), SaveContext.AsyncWriteAndHashSequence);
+		
 		SaveContext.TempFilename.Reset();
 
-		if (!bSuccess)
+		if (FinalizeResult != ESavePackageResult::Success)
 		{
 			if (SaveContext.IsGenerateSaveError())
 			{
@@ -1864,22 +1881,7 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 				UE_LOG(LogSavePackage, Error, TEXT("%s"), *FString::Printf(TEXT("Error saving '%s'"), SaveContext.GetFilename()));
 				SaveContext.GetError()->Logf(ELogVerbosity::Warning, TEXT("%s"), *FText::Format(NSLOCTEXT("Core", "SaveWarning", "Error saving '{0}'"), FText::FromString(FString(SaveContext.GetFilename()))).ToString());
 			}
-			return ESavePackageResult::Error;
-		}
-
-		if (SaveContext.GetFinalTimestamp() != FDateTime::MinValue())
-		{
-			IFileManager::Get().SetTimeStamp(SaveContext.GetFilename(), SaveContext.GetFinalTimestamp());
-		}
-
-		if (SaveContext.IsComputeHash())
-		{
-			SavePackageUtilities::IncrementOutstandingAsyncWrites();
-			SaveContext.AsyncWriteAndHashSequence.AddWork([NewPath = FString(SaveContext.GetFilename())](FMD5& State)
-			{
-				SavePackageUtilities::AddFileToHash(NewPath, State);
-				SavePackageUtilities::DecrementOutstandingAsyncWrites();
-			});
+			return FinalizeResult;
 		}
 	}
 
@@ -1928,6 +1930,11 @@ void PostSavePackage(FSaveContext& SaveContext)
 	UPackage* Package = SaveContext.GetPackage();
 	// Package has been saved, so unmark the NewlyCreated flag.
 	Package->ClearPackageFlags(PKG_NewlyCreated);
+
+	if (SaveContext.Linker != nullptr)
+	{
+		SaveContext.Linker->OnPostSave(SaveContext.GetTargetPackagePath());
+	}
 
 	// Send a message that the package was saved
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
@@ -2053,6 +2060,16 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 	SaveContext.Result = SavePackageUtilities::SaveBulkData(SaveContext.Linker.Get(), SaveContext.GetPackage(), SaveContext.GetFilename(), SaveContext.GetTargetPlatform(),
 		SaveContext.GetSavePackageContext(), SaveContext.GetSaveArgs().SaveFlags, SaveContext.IsTextFormat(), SaveContext.IsDiffing(),
 		SaveContext.IsComputeHash(), SaveContext.AsyncWriteAndHashSequence, SaveContext.TotalPackageSizeUncompressed);
+
+	// Add any pending data blobs to the end of the file by invoking the callbacks
+	SaveContext.Result = SavePackageUtilities::AppendAdditionalData(*SaveContext.Linker.Get());
+	if (SaveContext.Result != ESavePackageResult::Success)
+	{
+		return SaveContext.Result;
+	}
+
+	// Create the payload side car file (if needed)
+	SaveContext.Result = SavePackageUtilities::CreatePayloadSidecarFile(*SaveContext.Linker.Get(), SaveContext.GetTargetPackagePath(), SaveContext.IsSaveAsync(), !SaveContext.IsDiffing(), SaveContext.AdditionalPackageFiles);
 	if (SaveContext.Result != ESavePackageResult::Success)
 	{
 		return SaveContext.Result;
@@ -2076,6 +2093,11 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 	// Capture Package Size
 	int32 PackageSize = SaveContext.Linker->Tell();
 	SaveContext.TotalPackageSizeUncompressed += PackageSize;
+
+	for (const FSavePackageOutputFile& File : SaveContext.AdditionalPackageFiles)
+	{
+		SaveContext.TotalPackageSizeUncompressed += File.DataSize;
+	}
 
 	// Update Package Header
 	SlowTask.EnterProgressFrame();

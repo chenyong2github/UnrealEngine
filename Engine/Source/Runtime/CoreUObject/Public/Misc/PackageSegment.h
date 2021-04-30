@@ -21,6 +21,8 @@ enum class EPackageSegment : uint8
 	BulkDataOptional,
 	/** BulkData that is stored in a separate file aligned for memory mapping */
 	BulkDataMemoryMapped,
+	/** BulkData payloads that are stored in a separate file along side the Header in the workspace domain*/
+	PayloadSidecar,
 };
 const TCHAR* LexToString(EPackageSegment PackageSegment);
 

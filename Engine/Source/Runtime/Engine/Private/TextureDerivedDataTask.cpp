@@ -195,6 +195,8 @@ void FTextureSourceData::GetSourceMips(FTextureSource& Source, IImageWrapperModu
 				return;
 		}
 
+		const FTextureSource::FMipData ScopedMipData = Source.GetMipData(InImageWrapper);
+
 		for (int32 BlockIndex = 0; BlockIndex < Blocks.Num(); ++BlockIndex)
 		{
 			FTextureSourceBlock SourceBlock;
@@ -217,7 +219,7 @@ void FTextureSourceData::GetSourceMips(FTextureSource& Source, IImageWrapperModu
 							LayerData.GammaSpace
 						);
 
-						if (!Source.GetMipData(SourceMip->RawData, BlockIndex, LayerIndex, MipIndex, InImageWrapper))
+						if (!ScopedMipData.GetMipData(SourceMip->RawData, BlockIndex, LayerIndex, MipIndex))
 						{
 							UE_LOG(LogTexture, Warning, TEXT("Cannot retrieve source data for mip %d of texture %s"), MipIndex, *TextureName.ToString());
 							ReleaseMemory();

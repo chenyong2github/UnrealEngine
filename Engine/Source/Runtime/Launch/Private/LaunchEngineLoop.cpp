@@ -3875,6 +3875,10 @@ void FEngineLoop::LoadPreInitModules()
 	FModuleManager::Get().LoadModule(TEXT("TextureCompressor"));
 #endif
 
+	if (!FPlatformProperties::RequiresCookedData())
+	{
+		FModuleManager::Get().LoadModule(TEXT("Virtualization"));
+	}
 #endif // WITH_ENGINE
 
 #if (WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
