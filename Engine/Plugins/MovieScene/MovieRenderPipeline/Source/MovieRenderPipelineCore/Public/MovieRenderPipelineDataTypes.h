@@ -317,6 +317,9 @@ namespace MoviePipeline
 		bool bOriginalCameraCutIsActive;
 		bool bOriginalShotSectionIsActive;
 
+		/** An array of sections that we should expand, as well as their original range for restoration later. */
+		TArray<TTuple<UMovieSceneSection*, TRange<FFrameNumber>>> AdditionalSectionsToExpand;
+
 		EMovieSceneEvaluationType EvaluationType;
 		FMovieSceneSequenceID NodeID;
 

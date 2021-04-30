@@ -191,6 +191,14 @@ namespace MoviePipeline
 			}
 		}
 
+		// Cache any sections that we will auto-expand later.
+		for (UMovieSceneSection* Section : InSequence->GetMovieScene()->GetAllSections())
+		{
+			if (Section->GetSupportsInfiniteRange())
+			{
+				InNode->AdditionalSectionsToExpand.Add(MakeTuple(Section, Section->GetRange()));
+			}
+		}
 	}
 
 	void SaveOrRestoreSubSectionHierarchy(TSharedPtr<FCameraCutSubSectionHierarchyNode> InLeaf, const bool bInSave)
@@ -246,6 +254,16 @@ namespace MoviePipeline
 					Node->CameraCutSection->SetIsActive(Node->bOriginalCameraCutIsActive);
 
 					Node->CameraCutSection->MarkAsChanged();
+				}
+			}
+
+			if(!bInSave)
+			{
+				// These are restored, but they're not saved using this function. This is because they're cached earlier
+				for (const TTuple<UMovieSceneSection*, TRange<FFrameNumber>>& Pair : Node->AdditionalSectionsToExpand)
+				{
+					Pair.Key->SetRange(Pair.Value);
+					Pair.Key->MarkAsChanged();
 				}
 			}
 
@@ -335,6 +353,18 @@ namespace MoviePipeline
 					continue;
 				}
 
+				// If the section can be made infinite, it will automatically get expanded when the shot is activated, so no need to warn.
+				if (Section->GetSupportsInfiniteRange())
+				{
+					continue;
+				}
+
+				// camera cut and sub-sections also will get the expansion manually, no need to warn
+				if (Section == Node->Section || Section == Node->CameraCutSection)
+				{
+					continue;
+				}
+
 				if (Section->GetRange().HasLowerBound())
 				{
 					const bool bOverlaps = CheckRange.Contains(Section->GetRange().GetLowerBoundValue());
@@ -360,7 +390,7 @@ namespace MoviePipeline
 						FFrameNumber LowerCheckBoundFrame = FFrameRate::TransformTime(LowerCheckBound, InShot->ShotInfo.CachedTickResolution, InMasterDisplayRate).FloorToFrame();
 						FFrameNumber UpperCheckBoundFrame = FFrameRate::TransformTime(UpperCheckBound, InShot->ShotInfo.CachedTickResolution, InMasterDisplayRate).FloorToFrame();
 
-						UE_LOG(LogMovieRenderPipeline, Warning, TEXT("[%s %s] Due to Temporal sub-sampling or handle frames, evaluation will occur outside of shot boundaries (from frame %d to %d). Section %s (Binding: %s) starts during this time period. Please extend this section to start on frame %d. (All times listed are relative to the master sequence)"),
+						UE_LOG(LogMovieRenderPipeline, Warning, TEXT("[%s %s] Due to Temporal sub-sampling or handle frames, evaluation will occur outside of shot boundaries (from frame %d to %d). Section %s (Binding: %s) starts during this time period and cannot be auto-expanded. Please extend this section to start on frame %d. (All times listed are relative to the master sequence)"),
 							*InShot->OuterName, *InShot->InnerName, LowerCheckBoundFrame.Value, UpperCheckBoundFrame.Value,
 							*SectionName, *BindingName, LowerCheckBoundFrame.Value);
 					}
