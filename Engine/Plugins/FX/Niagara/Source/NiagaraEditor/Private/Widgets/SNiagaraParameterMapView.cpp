@@ -43,6 +43,7 @@
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackSystemSettingsGroup.h"
+#include "Widgets/SNiagaraActionMenuExpander.h"
 #include "Widgets/SNiagaraParameterMenu.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/SToolTip.h"
@@ -2465,42 +2466,6 @@ void SNiagaraAddParameterMenu::AddParameterSelected(FNiagaraVariable NewVariable
 
 	OnAddParameter.ExecuteIfBound(NewVariable);
 }
-
-class SNiagaraActionMenuExpander : public SExpanderArrow
-{
-	SLATE_BEGIN_ARGS(SNiagaraActionMenuExpander) {}
-		SLATE_ATTRIBUTE(float, IndentAmount)
-	SLATE_END_ARGS()
-
-public:
-	void Construct(const FArguments& InArgs, const FCustomExpanderData& ActionMenuData)
-	{
-		OwnerRowPtr = ActionMenuData.TableRow;
-		IndentAmount = InArgs._IndentAmount;
-		if (!ActionMenuData.RowAction.IsValid())
-		{
-			SExpanderArrow::FArguments SuperArgs;
-			SuperArgs._IndentAmount = InArgs._IndentAmount;
-
-			SExpanderArrow::Construct(SuperArgs, ActionMenuData.TableRow);
-		}
-		else
-		{
-			ChildSlot
-			.Padding(TAttribute<FMargin>(this, &SNiagaraActionMenuExpander::GetCustomIndentPadding))
-			[	
-				SNew(SBox)
-			];
-		}
-	}
-
-private:
-	FMargin GetCustomIndentPadding() const
-	{
-		return SExpanderArrow::GetExpanderPadding();
-	}
-};
-
 
 TSharedRef<SExpanderArrow> SNiagaraParameterMapView::CreateCustomActionExpander(const FCustomExpanderData& ActionMenuData)
 {

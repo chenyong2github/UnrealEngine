@@ -16,10 +16,9 @@
 #include "NiagaraScriptSource.h"
 #include "SGraphActionMenu.h"
 #include "SNiagaraGraphActionWidget.h"
-
+#include "Widgets/SNiagaraActionMenuExpander.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraParameterMenu"
-
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Base Parameter Menu														///
@@ -76,41 +75,6 @@ void SNiagaraParameterMenu::OnActionSelected(const TArray<TSharedPtr<FEdGraphSch
 		}
 	}
 }
-
-class SNiagaraActionMenuExpander : public SExpanderArrow
-{
-	SLATE_BEGIN_ARGS(SNiagaraActionMenuExpander) {}
-		SLATE_ATTRIBUTE(float, IndentAmount)
-	SLATE_END_ARGS()
-
-public:
-	void Construct(const FArguments& InArgs, const FCustomExpanderData& ActionMenuData)
-	{
-		OwnerRowPtr = ActionMenuData.TableRow;
-		IndentAmount = InArgs._IndentAmount;
-		if (!ActionMenuData.RowAction.IsValid())
-		{
-			SExpanderArrow::FArguments SuperArgs;
-			SuperArgs._IndentAmount = InArgs._IndentAmount;
-
-			SExpanderArrow::Construct(SuperArgs, ActionMenuData.TableRow);
-		}
-		else
-		{
-			ChildSlot
-			.Padding(TAttribute<FMargin>(this, &SNiagaraActionMenuExpander::GetCustomIndentPadding))
-			[
-				SNew(SBox)
-			];
-		}
-	}
-
-private:
-	FMargin GetCustomIndentPadding() const
-	{
-		return SExpanderArrow::GetExpanderPadding();
-	}
-};
 
 TSharedRef<SExpanderArrow> SNiagaraParameterMenu::CreateCustomActionExpander(const struct FCustomExpanderData& ActionMenuData)
 {
