@@ -154,6 +154,23 @@
 		_Pragma("clang diagnostic pop")
 #endif // PRAGMA_ENABLE_MACRO_REDEFINED_WARNINGS
 
+#if __has_warning("-Wuninitialized-const-reference")
+#define DISABLE_UNINITIALIZED_CONST_REFERENCE _Pragma("clang diagnostic ignored \"-Wuninitialized-const-reference\"")
+#else
+#define DISABLE_UNINITIALIZED_CONST_REFERENCE
+#endif
+
+#ifndef PRAGMA_DISABLE_UNINITIALIZED_CONST_REFERENCE_WARNINGS
+	#define PRAGMA_DISABLE_UNINITIALIZED_CONST_REFERENCE_WARNINGS \
+		_Pragma("clang diagnostic push") \
+        DISABLE_UNINITIALIZED_CONST_REFERENCE
+#endif // PRAGMA_DISABLE_UNINITIALIZED_CONST_REFERENCE_WARNINGS
+
+#ifndef PRAGMA_ENABLE_UNINITIALIZED_CONST_REFERENCE_WARNINGS
+	#define PRAGMA_ENABLE_UNINITIALIZED_CONST_REFERENCE_WARNINGS \
+		_Pragma("clang diagnostic pop")
+#endif // PRAGMA_ENABLE_UNINITIALIZED_CONST_REFERENCE_WARNINGS
+
 #ifndef PRAGMA_POP
 	#define PRAGMA_POP \
 		_Pragma("clang diagnostic pop")
