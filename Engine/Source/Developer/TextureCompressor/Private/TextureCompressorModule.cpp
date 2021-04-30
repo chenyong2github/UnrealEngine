@@ -7,8 +7,8 @@
 #include "Async/AsyncWork.h"
 #include "Async/ParallelFor.h"
 #include "Modules/ModuleManager.h"
-#include "Engine/TextureDefines.h"
-#include "TextureFormatManager.h"
+#include "Engine/Texture.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITextureFormat.h"
 #include "Misc/Paths.h"
 #include "ImageCore.h"
@@ -2202,9 +2202,10 @@ public:
 	virtual bool UsesTaskGraph(const FTextureBuildSettings& BuildSettings) const override
 	{
 		const ITextureFormat* TextureFormat = nullptr;
-		if (TFM)
+		ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
+		if (TPM)
 		{
-			TextureFormat = TFM->FindTextureFormat(BuildSettings.TextureFormatName);
+			TextureFormat = TPM->FindTextureFormat(BuildSettings.TextureFormatName);
 		}
 
 		if (TextureFormat)
@@ -2225,10 +2226,10 @@ public:
 		)
 	{
 		const ITextureFormat* TextureFormat = nullptr;
-
-		if (TFM)
+		ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
+		if (TPM)
 		{
-			TextureFormat = TFM->FindTextureFormat(BuildSettings.TextureFormatName);
+			TextureFormat = TPM->FindTextureFormat(BuildSettings.TextureFormatName);
 		}
 		if (TextureFormat == nullptr)
 		{
@@ -2268,12 +2269,12 @@ public:
 
 			if(!BuildTextureMips(AssociatedNormalSourceMips, DefaultSettings, CompressorCaps, IntermediateAssociatedNormalSourceMipChain))
 			{
-				UE_LOG(LogTextureCompressor, Warning, TEXT("Failed to generate texture mips for composite texture"));
+				UE_LOG(LogTexture, Warning, TEXT("Failed to generate texture mips for composite texture"));
 			}
 
 			if(!ApplyCompositeTexture(IntermediateMipChain, IntermediateAssociatedNormalSourceMipChain, BuildSettings.CompositeTextureMode, BuildSettings.CompositePower))
 			{
-				UE_LOG(LogTextureCompressor, Warning, TEXT("Failed to apply composite texture"));
+				UE_LOG(LogTexture, Warning, TEXT("Failed to apply composite texture"));
 			}
 		}
 
@@ -2304,9 +2305,6 @@ public:
 		nvTextureToolsHandle = FPlatformProcess::GetDllHandle(*(FPaths::EngineDir() / TEXT("Binaries/ThirdParty/nvTextureTools/Win32/nvtt_.dll")));
 	#endif
 #endif	//PLATFORM_WINDOWS
-
-		// Initialize TFM singleton on the main thread, as it may be accessed from task threads later.
-		TFM = GetTextureFormatManager();
 	}
 
 	void ShutdownModule()
@@ -2322,8 +2320,6 @@ private:
 	// Handle to the nvtt dll
 	void* nvTextureToolsHandle;
 #endif	//PLATFORM_WINDOWS
-
-	ITextureFormatManagerModule* TFM = nullptr;
 
 	bool BuildTextureMips(
 		const TArray<FImage>& InSourceMips,

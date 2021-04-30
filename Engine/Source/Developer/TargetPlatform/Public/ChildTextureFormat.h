@@ -4,7 +4,7 @@
 
 #include "Interfaces/ITextureFormat.h"
 #include "Interfaces/ITextureFormatModule.h"
-#include "Interfaces/ITextureFormatManagerModule.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
 #include "TextureCompressorModule.h"
 
 /**
@@ -46,14 +46,14 @@ protected:
 	/**
 	 * Given a platform specific format name, get the parent texture format object
 	 */
-	const ITextureFormat* GetBaseFormatObject(FName FormatName) const
+	const ITextureFormat* GetBaseFormatObject(FName PlatformName) const
 	{
-		FName BaseFormatName = GetBaseFormatName(FormatName);
+		FName BaseFormatName = GetBaseFormatName(PlatformName);
 
-		ITextureFormatManagerModule& TFM = FModuleManager::LoadModuleChecked<ITextureFormatManagerModule>("TextureFormat");
-		const ITextureFormat* FormatObject = TFM.FindTextureFormat(BaseFormatName);
+		ITargetPlatformManagerModule& TPM = FModuleManager::LoadModuleChecked<ITargetPlatformManagerModule>("TargetPlatform");
+		const ITextureFormat* FormatObject = TPM.FindTextureFormat(BaseFormatName);
 
-		checkf(FormatObject != nullptr, TEXT("Bad FormatName %s passed to FChildTextureFormat::GetBaseFormatObject()"));
+		checkf(FormatObject != nullptr, TEXT("Bad PlatformName %s passed to FChildTextureFormat::GetBaseFormatObject()"));
 
 		return FormatObject;
 	}

@@ -4,14 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-
-// TextureDefines.h is used from the TextureCompressor module as an "include only"
-// dependency to get visibility of these enum values without linking to the engine module
-// to facilitate that the generated TextureDefines header is only conditionally included
-// if we're compiling with the engine.
-#if WITH_ENGINE
 #include "TextureDefines.generated.h"
-#endif // WITH_ENGINE
 
 /**
  * @warning: if this is changed:
@@ -222,24 +215,4 @@ enum ETextureLossyCompressionAmount
 	TLCA_Medium			UMETA(DisplayName = "Medium"),
 	TLCA_High			UMETA(DisplayName = "High"),
 	TLCA_Highest		UMETA(DisplayName = "Highest (Worst image quality, smallest filesize)"),
-};
-
-
-UENUM()
-enum ECompositeTextureMode
-{
-	CTM_Disabled UMETA(DisplayName="Disabled"),
-	/** CompositingTexture needs to be a normal map with the same or larger size. */
-	CTM_NormalRoughnessToRed UMETA(DisplayName="Add Normal Roughness To Red"),
-	/** CompositingTexture needs to be a normal map with the same or larger size. */
-	CTM_NormalRoughnessToGreen UMETA(DisplayName="Add Normal Roughness To Green"),
-	/** CompositingTexture needs to be a normal map with the same or larger size. */
-	CTM_NormalRoughnessToBlue UMETA(DisplayName="Add Normal Roughness To Blue"),
-	/** CompositingTexture needs to be a normal map with the same or larger size. */
-	CTM_NormalRoughnessToAlpha UMETA(DisplayName="Add Normal Roughness To Alpha"),
-	CTM_MAX,
-
-	// Note: These are serialized as as raw values in the texture DDC key, so additional entries
-	// should be added at the bottom; reordering or removing entries will require changing the GUID
-	// in the texture compressor DDC key
 };
