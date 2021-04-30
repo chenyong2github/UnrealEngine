@@ -101,6 +101,8 @@ namespace Chaos
 	public:
 		FPBDJointSettings();
 
+		// Ensure that settings are consistent and within valid ranges. Should be called
+		// whenever settings change.
 		void Sanitize();
 
 		FReal Stiffness;
