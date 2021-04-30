@@ -248,6 +248,12 @@ namespace Generator
 		// OmniPBR noinline functions. These are annotated as noinline and require UE specific implementations.
 		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Function_unpack_normal_map"), { &FFunctionGenerator::UnrealTextureLookup, 1 });
 		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Function_greyscale_texture_lookup"), { &FFunctionGenerator::UnrealTextureLookup, 1 });
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Function_pixel_normal_world_space"), { &FFunctionGenerator::UnrealPixelNormalWS, 1 });
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Function_vertex_normal_world_space"), { &FFunctionGenerator::UnrealVertexNormalWS, 1 });
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Function_fresnel"), { &FFunctionGenerator::UnrealFresnel, 1 });
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Function_camera_vector"), { &FFunctionGenerator::UnrealCameraVector, 1 });
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Function_transform_vector_from_tangent_to_world"), { &FFunctionGenerator::UnrealTransformTangentToWorld, 1 });
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Function_transform_vector_from_world_to_tangent"), { &FFunctionGenerator::UnrealTransformWorldToTangent, 1 });
 
 		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Base_tangent_space_normal"), { &FFunctionGenerator::UnrealTangentSpaceNormal, 1 });
 		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Base_emissive_multiplier"), { &FFunctionGenerator::UnrealEmissiveMultiplier, 1 });
@@ -260,6 +266,9 @@ namespace Generator
 
 		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Subsurface_tangent_space_normal"), { &FFunctionGenerator::UnrealTangentSpaceNormal, 1 });
 		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Subsurface_emissive_multiplier"), { &FFunctionGenerator::UnrealEmissiveMultiplier, 1 });
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Subsurface_get_subsurface_weight"), { &FFunctionGenerator::UnrealSubsurfaceWeight, 1 });
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Subsurface_get_subsurface_color"), { &FFunctionGenerator::UnrealSubsurfaceColor, 1 });
+		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Subsurface_get_subsurface_opacity"), { &FFunctionGenerator::UnrealSubsurfaceOpacity, 1 });
 
 		NoInlineFunctionGenerateMap.Add(TEXT("OmniUe4Unlit_emissive_multiplier"), { &FFunctionGenerator::UnrealEmissiveMultiplier, 1 });
 	}
@@ -296,7 +305,7 @@ namespace Generator
 		FString   FunctionPackageName = UPackageTools::SanitizePackageName(*(AssetPath / FunctionName));
 		UPackage* Package             = CreatePackage(*FunctionPackageName);
 
-		UMaterialFunction* Function = Function = dynamic_cast<UMaterialFunction*>(
+		UMaterialFunction* Function = Cast<UMaterialFunction>(
 		    FunctionFactory->FactoryCreateNew(UMaterialFunction::StaticClass(), Package, *FunctionName, ObjectFlags, nullptr, GWarn));
 
 		check(Function);
@@ -357,4 +366,11 @@ namespace Generator
 
 		return Function;
 	}
+
+	void FFunctionLoader::AddReferencedObjects(FReferenceCollector& Collector)
+	{
+		Collector.AddReferencedObjects(LoadedFunctions);
+		Collector.AddReferencedObjects(CommonFunctions);
+	}
+
 }  // namespace Generator
