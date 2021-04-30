@@ -278,8 +278,8 @@ public:
 
 	FNiagaraParameterStore& GetScriptDefinedDataInterfaceParameters();
 
-	/** Transfers a system instance from SourceSimulation. */
-	void TransferInstance(FNiagaraSystemSimulation* SourceSimulation, FNiagaraSystemInstance* SystemInst);
+	/** Transfers a system instance from the current simulation into this one. */
+	void TransferInstance(FNiagaraSystemInstance* SystemInst);
 
 	void DumpInstance(const FNiagaraSystemInstance* Inst)const;
 
@@ -292,7 +292,10 @@ public:
 	FNiagaraScriptExecutionContextBase* GetUpdateExecutionContext() { return UpdateExecContext.Get(); }
 
 	void AddTickGroupPromotion(FNiagaraSystemInstance* Instance);
-	int32 AddPendingSystemInstance(FNiagaraSystemInstance* Instance);
+
+	void RemoveFromInstanceList(FNiagaraSystemInstance* Instance);
+	void AddToInstanceList(FNiagaraSystemInstance* Instance, ENiagaraSystemInstanceState InstanceState);
+	void SetInstanceState(FNiagaraSystemInstance* Instance, ENiagaraSystemInstanceState NewState);
 
 	const FString& GetCrashReporterTag()const;
 
@@ -307,6 +310,7 @@ public:
 	static void OnChanged_UseLegacySystemSimulationContexts(class IConsoleVariable* CVar);
 
 	FORCEINLINE UWorld* GetWorld()const{return World;}
+
 protected:
 	/** Sets constant parameter values */
 	void SetupParameters_GameThread(float DeltaSeconds);
@@ -328,6 +332,8 @@ protected:
 	void AddSystemToTickBatch(FNiagaraSystemInstance* Instance, FNiagaraSystemSimulationTickContext& Context);
 	void FlushTickBatch(FNiagaraSystemSimulationTickContext& Context);
 
+	TArray<FNiagaraSystemInstance*>& GetSystemInstances(ENiagaraSystemInstanceState State) { check(State != ENiagaraSystemInstanceState::None); return SystemInstancesPerState[int32(State)]; }
+
 	/** System of instances being simulated.  We use a weak object ptr here because once the last referencing object goes away this system may be come invalid at runtime. */
 	TWeakObjectPtr<UNiagaraSystem> WeakSystem;
 
@@ -340,12 +346,15 @@ protected:
 	/** World this system simulation belongs to. */
 	UWorld* World;
 
-	/** Main dataset containing system instance attribute data. */
+	/** System instance per state. */
+	TArray<FNiagaraSystemInstance*> SystemInstancesPerState[int32(ENiagaraSystemInstanceState::Num)];
+
+	/** Data set for the Running instance state. */
 	FNiagaraDataSet MainDataSet;
-	/** DataSet used if we have to spawn instances outside of their tick. */
+	/** Data set for the Spawning instance state. */
 	FNiagaraDataSet SpawningDataSet;
-	/** DataSet used to store pausing instance data. */
-	FNiagaraDataSet PausedInstanceData;
+	/** Data set for the Paused instance state. */
+	FNiagaraDataSet PausedDataSet;
 
 	/**
 	As there's a 1 to 1 relationship between system instance and their execution in this simulation we must pull all that instances parameters into a dataset for simulation.
@@ -384,16 +393,6 @@ protected:
 
 	FNiagaraParameterDirectBinding<float> SpawnGlobalSystemCountScaleParam;
 	FNiagaraParameterDirectBinding<float> UpdateGlobalSystemCountScaleParam;
-
-	/** System instances that have been spawned and are now simulating. */
-	TArray<FNiagaraSystemInstance*> SystemInstances;
-	/** System instances that are about to be spawned outside of regular ticking. */
-	TArray<FNiagaraSystemInstance*> SpawningInstances;
-	/** System instances that are paused. */
-	TArray<FNiagaraSystemInstance*> PausedSystemInstances;
-
-	/** System instances that are pending to be spawned. */
-	TArray<FNiagaraSystemInstance*> PendingSystemInstances;
 
 	/** List of instances that are pending a tick group promotion. */
 	TArray<FNiagaraSystemInstance*> PendingTickGroupPromotions;
