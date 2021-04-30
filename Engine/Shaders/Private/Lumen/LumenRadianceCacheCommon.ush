@@ -96,8 +96,23 @@ void MarkPositionUsedInIndirectionTexture(float3 WorldPosition, uint ClipmapInde
 #endif
 }
 
-uint GetRadianceProbeClipmap(float3 WorldSpacePosition)
+struct FRadianceProbeCoord
 {
+	uint3 ProbeMinCoord;
+	uint3 ProbeMaxCoord;
+	uint  ClipmapIndex;
+};
+
+bool IsClipmapIndexValid(uint InClipmapIndex)
+{
+	return InClipmapIndex < NumRadianceProbeClipmaps;
+}
+
+FRadianceProbeCoord GetRadianceProbeCoord(float3 WorldSpacePosition)
+{
+	FRadianceProbeCoord Out = (FRadianceProbeCoord)0;
+	Out.ClipmapIndex = NumRadianceProbeClipmaps;
+
 	uint ClipmapIndex = 0;
 	for (; ClipmapIndex < NumRadianceProbeClipmaps; ++ClipmapIndex)
 	{
@@ -106,21 +121,30 @@ uint GetRadianceProbeClipmap(float3 WorldSpacePosition)
 		int3 ProbeMinCoord;
 		int3 ProbeMaxCoord;
 
-#if RADIANCE_CACHE_USE_INTERPOLATION
+	#if RADIANCE_CACHE_USE_INTERPOLATION
 		ProbeMinCoord = ProbeCoordFloat - .5f;
 		ProbeMaxCoord = ProbeMinCoord + 1;
-#else
+	#else
 		ProbeMinCoord = ProbeCoordFloat;
 		ProbeMaxCoord = ProbeMinCoord;
-#endif
+	#endif
 
 		if (all(ProbeMinCoord >= 0) && all(ProbeMaxCoord < (int3)RadianceProbeClipmapResolution))
 		{
-			return ClipmapIndex;
+			Out.ProbeMinCoord = ProbeMinCoord;
+			Out.ProbeMaxCoord = ProbeMaxCoord;
+			Out.ClipmapIndex  = ClipmapIndex;
+			return Out;
 		}
 	}
 
-	return NumRadianceProbeClipmaps;
+	return Out;
+}
+
+uint GetRadianceProbeClipmap(float3 WorldSpacePosition)
+{
+	FRadianceProbeCoord Cell = GetRadianceProbeCoord(WorldSpacePosition);
+	return Cell.ClipmapIndex;
 }
 
 float GetRadianceProbeTMin(uint ClipmapIndex)

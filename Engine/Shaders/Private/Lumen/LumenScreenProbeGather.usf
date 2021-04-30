@@ -398,26 +398,112 @@ int2 HairStrandsResolution;
 float2 HairStrandsInvResolution;
 uint HairStrandsMip;
 
+#if PERMUTATION_USETILE
+[numthreads(64, 1, 1)]
+#else
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+#endif
 void MarkRadianceProbesUsedByHairStrandsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	const uint2 PixelCoords = DispatchThreadId.xy;
-	if (any(PixelCoords >= uint2(HairStrandsResolution)))
-		return;
+	uint2 PixelCoords = 0;
+	#if PERMUTATION_USETILE
+	{
+		const uint TileLinearIndex = DispatchThreadId.x;
+		const uint TileCount = HairStrands.HairTileCount[0];
+		if (TileLinearIndex >= TileCount)
+			return;
+
+		// Position of a 8x8 tile
+		PixelCoords = HairStrands.HairTileData[TileLinearIndex];
+	}
+	#else
+	{
+		PixelCoords = DispatchThreadId.xy;
+		if (any(PixelCoords >= uint2(HairStrandsResolution)))
+			return;
+	}
+	#endif  // PERMUTATION_USETILE
 
 	// HZB starts at MIP1
-	const float2 ScreenUV = (PixelCoords + float2(0.5f, 0.5f)) * HairStrandsInvResolution;
-	const float DeviceZ = HairStrands.HairOnlyDepthClosestHZBTexture.Load(uint3(PixelCoords, HairStrandsMip-1)).r;
-	const float SceneDepth = ConvertFromDeviceZ(DeviceZ);
-	const float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+	const float SceneDepth = ConvertFromDeviceZ(HairStrands.HairOnlyDepthClosestHZBTexture.Load(uint3(PixelCoords, HairStrandsMip - 1)).r);
+
+	// Two "mark-used" methods:
+	// * Fast    : use the center of the tile to estimate the used probe
+	// * Accurate: compute the AABB of the tile in world-space, and mark all used radiance probes
+	#define MARK_PROBE_FAST 0
+	#define MARK_PROBE_ACCUMRATE 1
+	#define HAIRSTRANDS_MARK_USED_METHOD MARK_PROBE_ACCUMRATE
+
 	if (SceneDepth > 0)
+	#if HAIRSTRANDS_MARK_USED_METHOD == MARK_PROBE_ACCUMRATE
 	{
-		uint ClipmapIndex = GetRadianceProbeClipmap(WorldPosition);
-		if (ClipmapIndex < NumRadianceProbeClipmaps)
+		const float3 P0			= GetWorldPositionFromScreenUV((PixelCoords + uint2(0, 0)) * HairStrandsInvResolution, SceneDepth);
+		const float3 P1			= GetWorldPositionFromScreenUV((PixelCoords + uint2(1, 1)) * HairStrandsInvResolution, SceneDepth);
+		const float3 MinAABB    = min(P0, P1);
+		const float3 MaxAABB    = max(P0, P1);
+
+		const FRadianceProbeCoord MinAABBProbe = GetRadianceProbeCoord(MinAABB);
+		const FRadianceProbeCoord MaxAABBProbe = GetRadianceProbeCoord(MaxAABB);
+
+		// If AABB is withing the same interpolated probes
+		if (all(MinAABBProbe.ProbeMinCoord == MaxAABBProbe.ProbeMinCoord) && MinAABBProbe.ClipmapIndex == MaxAABBProbe.ClipmapIndex)
 		{
-			MarkPositionUsedInIndirectionTexture(WorldPosition, ClipmapIndex);
+			if (IsClipmapIndexValid(MinAABBProbe.ClipmapIndex))
+			{
+				MarkPositionUsedInIndirectionTexture(MinAABB, MinAABBProbe.ClipmapIndex);
+			}
+		}
+		else 
+		{	
+			const float3 P0 = float3(MinAABB.x, MinAABB.y, MinAABB.z);
+			const float3 P1 = float3(MaxAABB.x, MinAABB.y, MinAABB.z);
+			const float3 P2 = float3(MinAABB.x, MaxAABB.y, MinAABB.z);
+			const float3 P3 = float3(MaxAABB.x, MaxAABB.y, MinAABB.z);
+			const float3 P4 = float3(MinAABB.x, MinAABB.y, MaxAABB.z);
+			const float3 P5 = float3(MaxAABB.x, MinAABB.y, MaxAABB.z);
+			const float3 P6 = float3(MinAABB.x, MaxAABB.y, MaxAABB.z);
+			const float3 P7 = float3(MaxAABB.x, MaxAABB.y, MaxAABB.z);
+
+			// If AABB is within the same clipmap
+			if (MinAABBProbe.ClipmapIndex == MaxAABBProbe.ClipmapIndex)
+			{
+				const uint ClipmapIndex = MinAABBProbe.ClipmapIndex;
+				if (IsClipmapIndexValid(ClipmapIndex))
+				{
+					MarkPositionUsedInIndirectionTexture(P0, ClipmapIndex);
+					MarkPositionUsedInIndirectionTexture(P1, ClipmapIndex);
+					MarkPositionUsedInIndirectionTexture(P2, ClipmapIndex);
+					MarkPositionUsedInIndirectionTexture(P3, ClipmapIndex);
+					MarkPositionUsedInIndirectionTexture(P4, ClipmapIndex);
+					MarkPositionUsedInIndirectionTexture(P5, ClipmapIndex);
+					MarkPositionUsedInIndirectionTexture(P6, ClipmapIndex);
+					MarkPositionUsedInIndirectionTexture(P7, ClipmapIndex);
+				}
+			}
+			else
+			{
+				// If AABB is crossing clipmap boundary
+				const uint ClipmapIndex0 = GetRadianceProbeClipmap(P0); if (IsClipmapIndexValid(ClipmapIndex0)) { MarkPositionUsedInIndirectionTexture(P0, ClipmapIndex0); }
+				const uint ClipmapIndex1 = GetRadianceProbeClipmap(P1); if (IsClipmapIndexValid(ClipmapIndex1)) { MarkPositionUsedInIndirectionTexture(P1, ClipmapIndex1); }
+				const uint ClipmapIndex2 = GetRadianceProbeClipmap(P2); if (IsClipmapIndexValid(ClipmapIndex2)) { MarkPositionUsedInIndirectionTexture(P2, ClipmapIndex2); }
+				const uint ClipmapIndex3 = GetRadianceProbeClipmap(P3); if (IsClipmapIndexValid(ClipmapIndex3)) { MarkPositionUsedInIndirectionTexture(P3, ClipmapIndex3); }
+				const uint ClipmapIndex4 = GetRadianceProbeClipmap(P4); if (IsClipmapIndexValid(ClipmapIndex4)) { MarkPositionUsedInIndirectionTexture(P4, ClipmapIndex4); }
+				const uint ClipmapIndex5 = GetRadianceProbeClipmap(P5); if (IsClipmapIndexValid(ClipmapIndex5)) { MarkPositionUsedInIndirectionTexture(P5, ClipmapIndex5); }
+				const uint ClipmapIndex6 = GetRadianceProbeClipmap(P6); if (IsClipmapIndexValid(ClipmapIndex6)) { MarkPositionUsedInIndirectionTexture(P6, ClipmapIndex6); }
+				const uint ClipmapIndex7 = GetRadianceProbeClipmap(P7); if (IsClipmapIndexValid(ClipmapIndex7)) { MarkPositionUsedInIndirectionTexture(P7, ClipmapIndex7); }
+			}
 		}
 	}
+	#else // HAIRSTRANDS_MARK_USED_METHOD == MARK_PROBE_FAST
+	{
+		const float3 P0 = GetWorldPositionFromScreenUV((PixelCoords + float2(0.5f, 0.5f)) * HairStrandsInvResolution, SceneDepth);
+		const uint ClipmapIndex = GetRadianceProbeClipmap(P0);
+		if (ClipmapIndex < NumRadianceProbeClipmaps)
+		{
+			MarkPositionUsedInIndirectionTexture(P0, ClipmapIndex);
+		}
+	}
+	#endif // HAIRSTRANDS_MARK_USED_METHOD
 }
 
 Buffer<float3> ScreenProbeRadianceSHAmbient;
