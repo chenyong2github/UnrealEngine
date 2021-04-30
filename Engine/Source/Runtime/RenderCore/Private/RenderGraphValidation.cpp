@@ -364,13 +364,7 @@ void FRDGUserValidation::ValidateCreateUAV(const FRDGTextureUAVDesc& Desc)
 	checkf(Texture, TEXT("Texture UAV created with a null texture."));
 	ExecuteGuard(TEXT("CreateUAV"), Texture->Name);
 
-	// BC surfaces can't have TexCreate_UAV, but it's valid to create UINT2/UINT4 UAV for them if GRHISupportsUAVFormatAliasing
-	const bool BCFormatUAVAliasing = IsBlockCompressedFormat(Texture->Desc.Format) && GRHISupportsUAVFormatAliasing;
-	if (!BCFormatUAVAliasing)
-	{
-		checkf(Texture->Desc.Flags & TexCreate_UAV, TEXT("Attempted to create UAV from texture %s which was not created with TexCreate_UAV"), Texture->Name);
-	}
-
+	checkf(Texture->Desc.Flags & TexCreate_UAV, TEXT("Attempted to create UAV from texture %s which was not created with TexCreate_UAV"), Texture->Name);
 	checkf(Desc.MipLevel < Texture->Desc.NumMips, TEXT("Failed to create UAV at mip %d: the texture %s has only %d mip levels."), Desc.MipLevel, Texture->Name, Texture->Desc.NumMips);
 }
 

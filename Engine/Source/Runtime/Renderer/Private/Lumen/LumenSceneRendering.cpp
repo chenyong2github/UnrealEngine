@@ -770,14 +770,21 @@ void FCardPageRenderData::PatchView(FRHICommandList& RHICmdList, const FScene* S
 void AllocateCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneData, const FViewInfo& View)
 {
 	const FIntPoint PageAtlasSize = LumenSceneData.GetPhysicalAtlasSize();
-	const bool bCompress = LumenSceneData.GetPhysicalAtlasCompression() != ESurfaceCacheCompression::Disabled;
+	const ESurfaceCacheCompression PageAtlasCompression = LumenSceneData.GetPhysicalAtlasCompression();
+	const bool bCompress = PageAtlasCompression != ESurfaceCacheCompression::Disabled;
 
 	ETextureCreateFlags TexFlags = TexCreate_ShaderResource | TexCreate_NoFastClear;
 
+	// Without compression we can write directly into this surface
 	if (!bCompress)
 	{
-		// Without compression we can write directly into this surface
 		TexFlags |= TexCreate_RenderTargetable;
+	}
+
+	// With UAV aliasing we can directly write into a BC target
+	if (PageAtlasCompression == ESurfaceCacheCompression::UAVAliasing)
+	{
+		TexFlags |= TexCreate_UAV;
 	}
 
 	// Albedo
