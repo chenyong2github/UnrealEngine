@@ -47,6 +47,23 @@ static inline bool IsStencilFormat(EPixelFormat Format)
 	return false;
 }
 
+static inline bool IsBlockCompressedFormat(EPixelFormat Format)
+{
+	switch (Format)
+	{
+	case PF_DXT1:
+	case PF_DXT3:
+	case PF_DXT5:
+	case PF_BC4:
+	case PF_BC5:
+	case PF_BC6H:
+	case PF_BC7:
+		return true;
+	}
+
+	return false;
+}
+
 inline bool RHISupportsTextureBuffers(const FStaticShaderPlatform Platform)
 {
 	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5)
