@@ -12,29 +12,10 @@ RaytracingOptions.h declares ray tracing options for use in rendering
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyLightData, RENDERER_API)
 	SHADER_PARAMETER(uint32, SamplesPerPixel)
-	SHADER_PARAMETER(uint32, SamplingStopLevel)
 	SHADER_PARAMETER(float, MaxRayDistance)
-	SHADER_PARAMETER(FVector, Color)
-	SHADER_PARAMETER(FIntVector, MipDimensions)
 	SHADER_PARAMETER(float, MaxNormalBias)
 	SHADER_PARAMETER(float, MaxShadowThickness)
 	SHADER_PARAMETER(int, bTransmission)
-	SHADER_PARAMETER_TEXTURE(TextureCube, Texture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, TextureSampler)
-	SHADER_PARAMETER(FIntVector, TextureDimensions)
-	SHADER_PARAMETER_SRV(Buffer<float>, MipTreePosX)
-	SHADER_PARAMETER_SRV(Buffer<float>, MipTreeNegX)
-	SHADER_PARAMETER_SRV(Buffer<float>, MipTreePosY)
-	SHADER_PARAMETER_SRV(Buffer<float>, MipTreeNegY)
-	SHADER_PARAMETER_SRV(Buffer<float>, MipTreePosZ)
-	SHADER_PARAMETER_SRV(Buffer<float>, MipTreeNegZ)
-	SHADER_PARAMETER_SRV(Buffer<float>, MipTreePdfPosX)
-	SHADER_PARAMETER_SRV(Buffer<float>, MipTreePdfNegX)
-	SHADER_PARAMETER_SRV(Buffer<float>, MipTreePdfPosY)
-	SHADER_PARAMETER_SRV(Buffer<float>, MipTreePdfNegY)
-	SHADER_PARAMETER_SRV(Buffer<float>, MipTreePdfPosZ)
-	SHADER_PARAMETER_SRV(Buffer<float>, MipTreePdfNegZ)
-	SHADER_PARAMETER_SRV(Buffer<float>, SolidAnglePdf)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FWritableSkyLightVisibilityRaysData, )
@@ -51,7 +32,14 @@ END_SHADER_PARAMETER_STRUCT()
 
 int32 GetRayTracingSkyLightDecoupleSampleGenerationCVarValue();
 
-extern RENDERER_API bool SetupSkyLightParameters(const FScene& Scene, FSkyLightData* SkyLight);
+class FPathTracingSkylight;
+
+bool SetupSkyLightParameters(
+	FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View,
+	bool bEnableSkylight,
+	FPathTracingSkylight* SkylightParameters,
+	FSkyLightData* SkyLight);
+
 void SetupSkyLightVisibilityRaysParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FSkyLightVisibilityRaysData* OutSkyLightVisibilityRaysData);
 
 extern RENDERER_API void BuildSkyLightCdfs(FRHICommandListImmediate& RHICmdList, class FSkyLightSceneProxy* SkyLight);

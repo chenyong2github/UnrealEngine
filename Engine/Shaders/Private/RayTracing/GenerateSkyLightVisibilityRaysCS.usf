@@ -21,10 +21,8 @@ void MainCS(
 {
 	uint2 PixelCoord = uint2(DispatchThreadId.x, DispatchThreadId.y);
 
-	// Cache Cubeface CDF
-	uint MipCount = log2(SkyLight.MipDimensions.x);
-	float FaceCdf[7];
-	BuildFaceCdf(MipCount, FaceCdf);
+	// split samples between strategies unless the skylight pdf is 0 due to MIS compensation (which implies a constant map)
+	const float SkyLightSamplingStrategyPdf = SkyLight_Estimate() > 0 ? 0.5 : 0.0;
 
 	for (uint SampleIndex = 0; SampleIndex < SkyLight.SamplesPerPixel; ++SampleIndex)
 	{
@@ -32,29 +30,37 @@ void MainCS(
 		RandomSequence_Initialize(RandSequence, PixelCoord, SampleIndex, View.StateFrameIndex, SkyLight.SamplesPerPixel);
 
 		// Determine sky light or lambert ray
-		float3 RandSample = RandomSequence_GenerateSample3D(RandSequence);
+		float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
 
 		float3 RayDirection;
-		float SkyLightSamplingStrategyPdf = 0.5;
-		float MisWeight = 1.0;
-		float RayPdf = 0.0;
+		float UniformPdf = 1.0 / (4 * PI);
+		float SkyLightPdf;
 		BRANCH
 			if (RandSample.x < SkyLightSamplingStrategyPdf)
 			{
 				RandSample.x /= SkyLightSamplingStrategyPdf;
-				GenerateSkyLightOcclusionRay(FaceCdf, RandSample, RayDirection, RayPdf);
-				MisWeight = RayPdf / (SkyLightSamplingStrategyPdf * RayPdf + (1.0 - SkyLightSamplingStrategyPdf) * PdfSphericalOcclusionRay(RayDirection));
+
+				FSkyLightSample SkySample = SkyLight_SampleLight(RandSample);
+
+				RayDirection = SkySample.Direction;
+				SkyLightPdf = SkySample.Pdf;
 			}
 			else
 			{
-				GenerateSphericalOcclusionRay(RandSample.yz, RayDirection, RayPdf);
-				MisWeight = RayPdf / ((1.0 - SkyLightSamplingStrategyPdf) * RayPdf + SkyLightSamplingStrategyPdf * PdfSkyLightOcclusionRay(FaceCdf, RayDirection));
+				RandSample.x = (RandSample.x - SkyLightSamplingStrategyPdf) / (1.0 - SkyLightSamplingStrategyPdf);
+
+				RayDirection = UniformSampleSphere(RandSample).xyz;
+				SkyLightPdf = SkyLight_EvalLight(RayDirection).w;
+
+				
 			}
+
+		float MisWeightOverPdf = 1.0 / lerp(UniformPdf, SkyLightPdf, SkyLightSamplingStrategyPdf);
 
 		// Write out a new Sky Light Visibility Ray for this sample
 
 		const uint SkyLightVisibilityRayIndex = GetSkyLightVisibilityRayIndex(PixelCoord, SampleIndex, SkyLightVisibilityRaysDimensions.xy);
 
-		OutSkyLightVisibilityRays[SkyLightVisibilityRayIndex].DirectionAndPdf = float4(RayDirection.xyz, MisWeight / RayPdf);
+		OutSkyLightVisibilityRays[SkyLightVisibilityRayIndex].DirectionAndPdf = float4(RayDirection, MisWeightOverPdf);
 	}
 }

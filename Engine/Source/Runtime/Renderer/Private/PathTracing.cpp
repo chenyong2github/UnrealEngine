@@ -580,7 +580,9 @@ RENDERER_API void PrepareSkyTexture_Internal(
 	}
 }
 
-bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, bool SkylightEnabled, bool UseMISCompensation, bool IsSkylightCachingEnabled, FPathTracingSkylight* SkylightParameters)
+RDG_REGISTER_BLACKBOARD_STRUCT(FPathTracingSkylight)
+
+bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, bool SkylightEnabled, bool UseMISCompensation, FPathTracingSkylight* SkylightParameters)
 {
 	SkylightParameters->SkylightTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
@@ -596,6 +598,17 @@ bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo
 		SkylightParameters->SkylightMipCount = 0;
 		return false;
 	}
+
+	// the sky is actually enabled, lets see if someone already made use of it for this frame
+	const FPathTracingSkylight* PreviousSkylightParameters = GraphBuilder.Blackboard.Get<FPathTracingSkylight>();
+	if (PreviousSkylightParameters != nullptr)
+	{
+		*SkylightParameters = *PreviousSkylightParameters;
+		return true;
+	}
+
+	// should we remember the skylight prep for the next frame?
+	const bool IsSkylightCachingEnabled = CVarPathTracingSkylightCaching.GetValueOnAnyThread() != 0;
 
 	if (!IsSkylightCachingEnabled)
 	{
@@ -640,6 +653,10 @@ bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo
 		GraphBuilder.QueueTextureExtraction(SkylightParameters->SkylightTexture, &Scene->PathTracingSkylightTexture);
 		GraphBuilder.QueueTextureExtraction(SkylightParameters->SkylightPdf, &Scene->PathTracingSkylightPdf);
 	}
+
+	// remember the skylight parameters for future passes within this frame
+	GraphBuilder.Blackboard.Create<FPathTracingSkylight>() = *SkylightParameters;
+
 	return true;
 }
 
@@ -758,8 +775,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 
 	// Prepend SkyLight to light buffer since it is not part of the regular light list
 	const float Inf = std::numeric_limits<float>::infinity();
-	const bool IsSkylightCachingEnabled = CVarPathTracingSkylightCaching.GetValueOnAnyThread() != 0;
-	if (PrepareSkyTexture(GraphBuilder, Scene, View, true, UseMISCompensation, IsSkylightCachingEnabled, &PassParameters->SkylightParameters))
+	if (PrepareSkyTexture(GraphBuilder, Scene, View, true, UseMISCompensation, &PassParameters->SkylightParameters))
 	{
 		check(Scene->SkyLight != nullptr);
 		FPathTracingLight& DestLight = Lights[NumLights++];
