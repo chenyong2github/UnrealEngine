@@ -42,6 +42,7 @@ struct FHairStrandsTiles
 	FIntPoint			Resolution = FIntPoint(0, 0);
 	static const uint32 GroupSize = 64;
 	static const uint32	TileSize = 8;
+	static const uint32	TilePerThread_GroupSize = 64;
 	uint32				TileCount = 0;
 	FIntPoint			TileCountXY = FIntPoint(0, 0);
 	bool				bRectPrimitive = false;
@@ -51,6 +52,7 @@ struct FHairStrandsTiles
 	FRDGBufferRef		TileCountBuffer = nullptr;
 	FRDGBufferRef		TileIndirectDrawBuffer = nullptr;
 	FRDGBufferRef		TileIndirectDispatchBuffer = nullptr;
+	FRDGBufferRef		TilePerThreadIndirectDispatchBuffer = nullptr;
 
 	bool IsValid() const { return TileCount > 0 && TileDataBuffer != nullptr; }
 };

@@ -70,10 +70,12 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 
 #if SHADER_TILE_COPY_ARGS
 uint2 TileCountXY;
+uint  TilePerThread_GroupSize;
 uint bRectPrimitive;
 Buffer<uint> TileCountBuffer;
 RWBuffer<uint> TileIndirectDrawBuffer;
 RWBuffer<uint> TileIndirectDispatchBuffer;
+RWBuffer<uint> TilePerThreadIndirectDispatchBuffer;
 
 [numthreads(1, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
@@ -91,6 +93,13 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		TileIndirectDispatchBuffer[0] = TileCount % TileCountXY.x;
 		TileIndirectDispatchBuffer[1] = (TileCount+TileCountXY.x-1) / TileCountXY.x;
 		TileIndirectDispatchBuffer[2] = 1;
+
+		// Indirect dispatch with one thread
+		// At 4k, with 8x8 tiles: 4096 x 4096 / 8 x 8 = 512 x 512 tiles 
+		// With a group size of 64 (8x8), the total dispatch count should be 512 x 512 / 8 x 8 = 64 x 64 = 4096, which is below the 65k limit per dimension
+		TilePerThreadIndirectDispatchBuffer[0] = (TileCount + TilePerThread_GroupSize -1) / TilePerThread_GroupSize;
+		TilePerThreadIndirectDispatchBuffer[1] = 1;
+		TilePerThreadIndirectDispatchBuffer[2] = 1;
 	}
 }
 #endif // SHADER_TILE_COPY_ARGS
