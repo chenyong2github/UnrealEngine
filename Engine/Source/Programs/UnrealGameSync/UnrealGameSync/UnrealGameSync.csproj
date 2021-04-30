@@ -4,6 +4,7 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <Deterministic>true</Deterministic>
     <RootNamespace>UnrealGameSync</RootNamespace>
     <AssemblyName>UnrealGameSync</AssemblyName>
     <StartupObject>UnrealGameSync.Program</StartupObject>
