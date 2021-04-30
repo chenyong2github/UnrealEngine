@@ -133,14 +133,14 @@ void SMoviePipelineConfigPanel::Construct(const FArguments& InArgs, TSubclassOf<
 						.AutoWidth()
 						[
 							SNew(SImage)
-							.Image(FSlateIconFinder::FindIconBrushForClass(UMoviePipelineConfigBase::StaticClass()))
+							.Image(FEditorStyle::Get().GetBrush("AssetEditor.SaveAsset.Greyscale"))
 						]
 
 						+ SHorizontalBox::Slot()
 						.Padding(0, 1, 0, 0)
 						[
 							SNew(STextBlock)
-							.Text(LOCTEXT("PresetsToolbarButton", "Presets"))
+							.Text(LOCTEXT("PresetsToolbarButton", "Load/Save Preset"))
 						]
 					]
 				]
