@@ -88,11 +88,13 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 			FRayCone RayCone = (FRayCone)0;
 			RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);
 
+			const bool bCullBackFacingTriangles = true;
 			FRayTracedLightingContext Context = CreateRayTracedLightingContext(
 				TLAS,
 				RayCone,
 				ScreenTileCoord,
 				ScreenTileCoord.y * ScreenProbeViewSize.x + ScreenTileCoord.x,
+				bCullBackFacingTriangles,
 				MaxTranslucentSkipCount);
 
 			bool bTraceRay = true;
@@ -193,7 +195,9 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingDeferredMateria
 	RayCone = PropagateRayCone(RayCone, ConeHalfAngle, SceneDepth);
 
 	uint LinearCoord = ScreenTileCoord.y * ScreenProbeViewSize.x + ScreenTileCoord.x;
-	FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, ScreenTileCoord, LinearCoord);
+	const bool bCullBackFacingTriangles = true;
+	FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, ScreenTileCoord, LinearCoord, bCullBackFacingTriangles);
+
 	bool bIsHit = TraceDeferredMaterialRay(Ray, Context, DeferredMaterialPayload);
 
 	// Encode max trace distance in the case of an invalid or miss condition

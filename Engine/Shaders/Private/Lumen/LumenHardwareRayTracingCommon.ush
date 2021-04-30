@@ -50,6 +50,7 @@ struct FRayTracedLightingContext
 
 	// Whether to sample high res surface cache data or low res always resident pages
 	bool bHiResSurface;
+	bool bCullBackFacingTriangles;
 };
 
 FRayTracedLightingContext CreateRayTracedLightingContext(
@@ -57,6 +58,7 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	in FRayCone RayCone,
 	in uint2 TraceCoord,
 	in uint LinearCoord,
+	bool bCullBackFacingTriangles,
 	in int TranslucentSkipCountMax,
 	in bool bHiResSurface
 )
@@ -67,6 +69,7 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	Context.TraceCoord = TraceCoord;
 	Context.TranslucentSkipCountMax = TranslucentSkipCountMax;
 	Context.bHiResSurface = bHiResSurface;
+	Context.bCullBackFacingTriangles = bCullBackFacingTriangles;
 	return Context;
 }
 
@@ -75,23 +78,25 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	in FRayCone RayCone,
 	in uint2 TraceCoord,
 	in uint LinearCoord,
+	bool bCullBackFacingTriangles,
 	in int TranslucentSkipCountMax
 )
 {
 	bool bHiResSurface = false;
-	return CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, TranslucentSkipCountMax, bHiResSurface);
+	return CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, bCullBackFacingTriangles, TranslucentSkipCountMax, bHiResSurface);
 }
 
 FRayTracedLightingContext CreateRayTracedLightingContext(
 	in RaytracingAccelerationStructure TLAS,
 	in FRayCone RayCone,
 	in uint2 TraceCoord,
-	in uint LinearCoord
+	in uint LinearCoord,
+	bool bCullBackFacingTriangles
 )
 {
 	int TranslucentSkipCountMax = 0;
 	bool bHiResSurface = false;
-	return CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, TranslucentSkipCountMax, bHiResSurface);
+	return CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, bCullBackFacingTriangles, TranslucentSkipCountMax, bHiResSurface);
 }
 
 bool TraceDeferredMaterialRay(
@@ -105,6 +110,8 @@ bool TraceDeferredMaterialRay(
 	DeferredMaterialPayload.PixelCoordinates = (Context.TraceCoord.y << 16) | Context.TraceCoord.x;
 
 	uint RayFlags = RAY_FLAG_FORCE_OPAQUE;
+	RayFlags |= Context.bCullBackFacingTriangles ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
+
 	uint InstanceMask = RAY_TRACING_MASK_OPAQUE;
 	FRayIntersectionBookmark Bookmark = (FRayIntersectionBookmark)0;
 	TraceDeferredMaterialGatherRay(Context.TLAS, RayFlags, InstanceMask, Ray, Bookmark, DeferredMaterialPayload);
@@ -120,7 +127,9 @@ bool TraceLumenMinimalRay(
 {
 	Payload = (FLumenMinimalPayload)0;
 
-	uint RayFlags = RAY_FLAG_FORCE_OPAQUE | RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+	uint RayFlags = RAY_FLAG_FORCE_OPAQUE;
+	RayFlags |= Context.bCullBackFacingTriangles ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
+
 	uint InstanceMask = RAY_TRACING_MASK_OPAQUE;
 	TraceLumenRay(Context.TLAS, RayFlags, InstanceMask, RAY_TRACING_SHADER_SLOT_MATERIAL, RAY_TRACING_NUM_SHADER_SLOTS, 0, Ray, Payload);
 

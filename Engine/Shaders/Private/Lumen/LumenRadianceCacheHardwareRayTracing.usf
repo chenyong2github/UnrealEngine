@@ -77,11 +77,9 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadianceCacheHardwareRayTracingRGS)
 			FRayCone RayCone = (FRayCone)0;
 			RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);
 
-			FRayTracedLightingContext Context;
-			Context.TLAS = TLAS;
-			Context.RayCone = RayCone;
-			Context.TraceCoord = ProbeTexelCoord;
-			Context.LinearCoord = ProbeTexelCoord.y * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + ProbeTexelCoord.x;
+			const uint LinearCoord = ProbeTexelCoord.y * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + ProbeTexelCoord.x;
+			const bool bCullBackFacingTriangles = false;
+			FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, ProbeTexelCoord, LinearCoord, bCullBackFacingTriangles);
 
 			float3 SampleRadiance = 0.0;
 			float SampleHitDistance = MaxHalfFloat;

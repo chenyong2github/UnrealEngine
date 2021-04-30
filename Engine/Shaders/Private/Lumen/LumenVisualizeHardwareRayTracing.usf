@@ -62,6 +62,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 		RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 		int LinearCoord = TraceCoord.y * View.BufferSizeAndInvSize.x + TraceCoord.x;
 
+		const bool bCullBackFacingTriangles = true;
 		const bool bHiResSurface = VisualizeHiResSurface != 0 ? true : false;
 
 		FRayTracedLightingContext Context = CreateRayTracedLightingContext(
@@ -69,6 +70,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 			RayCone,
 			TraceCoord,
 			LinearCoord,
+			bCullBackFacingTriangles,
 			MaxTranslucentSkipCount,
 			bHiResSurface);
 
@@ -135,7 +137,8 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingDeferredMaterialRGS)
 		FRayCone RayCone = (FRayCone)0;
 		RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 
-		FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord);
+		const bool bCullBackFacingTriangles = true;
+		FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, bCullBackFacingTriangles);
 		TraceDeferredMaterialRay(Ray, Context, DeferredMaterialPayload);
 	}
 

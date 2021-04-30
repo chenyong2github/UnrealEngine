@@ -80,12 +80,14 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 
 	// Always use highest available mip maps for reflections
 	const bool bHiResSurface = true;
+	const bool bCullBackFacingTriangles = true;
 
 	FRayTracedLightingContext Context = CreateRayTracedLightingContext(
 		TLAS,
 		RayCone,
 		ReflectionTracingCoord,
 		LinearCoord,
+		bCullBackFacingTriangles,
 		MaxTranslucentSkipCount,
 		bHiResSurface);
 
@@ -165,7 +167,8 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingDeferredMaterialRGS)
 	RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 	RayCone = PropagateRayCone(RayCone, RayData.ConeHalfAngle, SceneDepth);
 
-	FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, ReflectionTracingCoord, LinearCoord);
+	const bool bCullBackFacingTriangles = true;
+	FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, ReflectionTracingCoord, LinearCoord, bCullBackFacingTriangles);
 	bool bIsHit = TraceDeferredMaterialRay(Ray, Context, DeferredMaterialPayload);
 
 	// Encode max trace distance in the case of an invalid or miss condition
