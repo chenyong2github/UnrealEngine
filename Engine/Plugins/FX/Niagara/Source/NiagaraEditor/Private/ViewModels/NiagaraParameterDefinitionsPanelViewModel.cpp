@@ -8,6 +8,7 @@
 #include "NiagaraObjectSelection.h"
 #include "NiagaraParameterDefinitions.h"
 #include "NiagaraScriptVariable.h"
+#include "ScopedTransaction.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraStandaloneScriptViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
