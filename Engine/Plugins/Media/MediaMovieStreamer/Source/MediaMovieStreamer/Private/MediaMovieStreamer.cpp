@@ -9,6 +9,9 @@
 #include "MediaSource.h"
 #include "MediaTexture.h"
 
+#include "Rendering/RenderingCommon.h"
+#include "Slate/SlateTextures.h"
+
 DEFINE_LOG_CATEGORY(LogMediaMovieStreamer);
 
 FMediaMovieStreamer::FMediaMovieStreamer()
@@ -78,6 +81,8 @@ bool FMediaMovieStreamer::Init(const TArray<FString>& InMoviePaths, TEnumAsByte<
 	// Play source.
 	MediaPlayer->OpenSource(MediaSource.Get());
 
+	Texture = MakeShareable(new FSlateTexture2DRHIRef(nullptr, 0, 0));
+	
 	return true;
 }
 
@@ -87,6 +92,40 @@ void FMediaMovieStreamer::ForceCompletion()
 
 bool FMediaMovieStreamer::Tick(float DeltaTime)
 {
+	check(IsInRenderingThread());
+
+	// Get media texture.
+	if (MediaTexture != nullptr)
+	{
+		FTextureResource* TextureResource = MediaTexture->GetResource();
+		if (TextureResource != nullptr)
+		{
+			FRHITexture2D* RHITexture2D = TextureResource->GetTexture2DRHI();
+			if (RHITexture2D != nullptr)
+			{
+				// Get slate texture.
+				FSlateTexture2DRHIRef* CurrentTexture = Texture.Get();
+				if (CurrentTexture)
+				{
+					if (!CurrentTexture->IsInitialized())
+					{
+						CurrentTexture->InitResource();
+					}
+
+					// Update the slate texture.
+					FTexture2DRHIRef ref = RHITexture2D;
+					CurrentTexture->SetRHIRef(ref, MediaTexture->GetWidth(), MediaTexture->GetHeight());
+
+					// Update viewport.
+					if (MovieViewport->GetViewportRenderTargetTexture() == nullptr)
+					{
+						MovieViewport->SetTexture(Texture);
+					}
+				}
+			}
+		}
+	}
+
 	return false;
 }
 
@@ -122,6 +161,22 @@ void FMediaMovieStreamer::Cleanup()
 
 	MediaPlayer.Reset();
 	MediaSource.Reset();
+
+	MovieViewport->SetTexture(NULL);
+	
+	FSlateTexture2DRHIRef* CurrentTexture = Texture.Get();
+	if (CurrentTexture != nullptr)
+	{
+		// Remove any reference to UMediaTexture so we can let MediaFramework release it.
+		ENQUEUE_RENDER_COMMAND(ResetMovieTexture)(
+		[CurrentTexture](FRHICommandListImmediate& RHICmdList)
+		{
+			CurrentTexture->SetRHIRef(nullptr, 0, 0);
+		});
+		BeginReleaseResource(CurrentTexture);
+		FlushRenderingCommands();
+		Texture.Reset();
+	}
 }
 
 FTexture2DRHIRef FMediaMovieStreamer::GetTexture()
