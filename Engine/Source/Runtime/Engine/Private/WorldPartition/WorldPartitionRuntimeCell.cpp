@@ -49,7 +49,7 @@ void UWorldPartitionRuntimeCell::UpdateDebugName()
 	Builder += FString::Printf(TEXT("L%d_X%d_Y%d"), Coords.Z, Coords.X, Coords.Y);
 	int32 DataLayerCount = DataLayers.Num();
 
-	const AWorldDataLayers* WorldDataLayers = GetOuterUWorldPartition()->GetWorld()->GetWorldDataLayers();
+	const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetOuterUWorldPartition()->GetWorld());
 	TArray<const UDataLayer*> DataLayerObjects;
 	if (WorldDataLayers && (DataLayerCount > 0))
 	{

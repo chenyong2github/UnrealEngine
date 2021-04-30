@@ -853,11 +853,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	}
 
 	UPackage* MainPackage = MainLevel->GetPackage();
-	AWorldDataLayers* MainWorldDataLayers = MainWorld->GetWorldDataLayers();
-	if (!MainWorldDataLayers)
-	{
-		MainWorldDataLayers = AWorldDataLayers::Create(MainWorld);
-	}
+	AWorldDataLayers* MainWorldDataLayers = AWorldDataLayers::Get(MainWorld, /*bCreateIfNotFound*/true);
 
 	OnWorldLoaded(MainWorld);
 

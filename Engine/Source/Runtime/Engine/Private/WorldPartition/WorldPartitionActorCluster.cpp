@@ -16,7 +16,7 @@ template<class LayerNameContainer>
 TSet<const UDataLayer*> GetDataLayers(UWorld* InWorld, const LayerNameContainer& DataLayerNames)
 {
 	TSet<const UDataLayer*> DataLayers;
-	if (const AWorldDataLayers* WorldDataLayers = InWorld->GetWorldDataLayers())
+	if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(InWorld))
 	{
 		for (const FName& DataLayerName : DataLayerNames)
 		{

@@ -59,7 +59,7 @@ FDataLayerHierarchy::~FDataLayerHierarchy()
 
 void FDataLayerHierarchy::CreateItems(TArray<FSceneOutlinerTreeItemPtr>& OutItems) const
 {
-	const AWorldDataLayers* WorldDataLayers = RepresentingWorld.Get()->GetWorldDataLayers();
+	const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(RepresentingWorld.Get());
 	if (!WorldDataLayers)
 	{
 		return;

@@ -324,11 +324,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		}
 
 		EditorHash->Initialize();
-
-		if (!GetWorld()->GetWorldDataLayers())
-		{
-			AWorldDataLayers::Create(GetWorld());
-		}
 	}
 
 	if (!RuntimeHash)
@@ -833,7 +828,7 @@ bool UWorldPartition::ShouldActorBeLoaded(const FWorldPartitionActorDesc* ActorD
 		return true;
 	}
 
-	if (const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+	if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld()))
 	{
 		uint32 NumValidLayers = 0;
 		for (const FName& DataLayerName : ActorDesc->GetDataLayers())

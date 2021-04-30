@@ -24,7 +24,6 @@ class AInstancedFoliageActor;
 class ALevelBounds;
 class APlayerController;
 class AWorldSettings;
-class AWorldDataLayers;
 class FSceneInterface;
 class ITargetPlatform;
 class UAssetUserData;
@@ -746,9 +745,6 @@ private:
 	UPROPERTY()
 	TObjectPtr<AWorldSettings> WorldSettings;
 
-	UPROPERTY()
-	TObjectPtr<AWorldDataLayers> WorldDataLayers;
-
 	/** Cached level collection that this level is contained in, for faster access than looping through the collections in the world. */
 	FLevelCollection* CachedLevelCollection;
 
@@ -965,15 +961,6 @@ public:
 	ENGINE_API AWorldSettings* GetWorldSettings(bool bChecked = true) const;
 
 	ENGINE_API void SetWorldSettings(AWorldSettings* NewWorldSettings);
-
-	/**
-	 * Returns the world data layers info for this level.
-	 *
-	 * @return		The AWorldDataLayers for this level.
-	 */
-	ENGINE_API AWorldDataLayers* GetWorldDataLayers() const;
-
-	ENGINE_API void SetWorldDataLayers(AWorldDataLayers* NewWorldDataLayers);
 
 	/**
 	 * Returns the UWorldPartition for this level.

@@ -124,7 +124,7 @@ UHLODLayer* UHLODLayer::GetHLODLayer(const FWorldPartitionActorDesc& InActorDesc
 	{
 		if (UDataLayerSubsystem* DataLayerSubsystem = InWorldPartition->GetWorld()->GetSubsystem<UDataLayerSubsystem>())
 		{
-			if (const AWorldDataLayers* WorldDataLayers = InWorldPartition->GetWorld()->GetWorldDataLayers())
+			if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(InWorldPartition->GetWorld()))
 			{
 				for (const FName& DataLayerName : InActorDesc.GetDataLayers())
 				{

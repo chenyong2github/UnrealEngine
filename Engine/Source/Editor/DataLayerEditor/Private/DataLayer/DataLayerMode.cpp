@@ -506,7 +506,7 @@ void FDataLayerMode::RegisterContextMenu()
 			TArray<UDataLayer*> SelectedDataLayers = GetSelectedDataLayers(SceneOutliner);
 
 			TArray<const UDataLayer*> AllDataLayers;
-			if (const AWorldDataLayers* WorldDataLayers = RepresentingWorld.Get()->GetWorldDataLayers())
+			if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(RepresentingWorld.Get()))
 			{
 				WorldDataLayers->ForEachDataLayer([&AllDataLayers](UDataLayer* DataLayer)
 				{

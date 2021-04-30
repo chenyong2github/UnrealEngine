@@ -162,7 +162,7 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 	UWorldPartition* WorldPartition = World->GetWorldPartition();
 
 	// Properly Setup DataLayers for Builder
-	if (const AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers())
+	if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(World))
 	{
 		// Load Data Layers
 		bool bUpdateEditorCells = false;

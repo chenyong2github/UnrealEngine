@@ -56,7 +56,7 @@ void UDataLayerSubsystem::PostInitialize()
 	if (GetWorld()->IsGameWorld())
 	{
 		// Initialize Dynamically loaded Data Layers state
-		if (const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+		if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld()))
 		{
 			WorldDataLayers->ForEachDataLayer([this](class UDataLayer* DataLayer)
 			{
@@ -77,13 +77,13 @@ UDataLayer* UDataLayerSubsystem::GetDataLayer(const FActorDataLayer& InDataLayer
 
 UDataLayer* UDataLayerSubsystem::GetDataLayerFromLabel(FName InDataLayerLabel) const
 {
-	const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
+	const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld());
 	return WorldDataLayers ? const_cast<UDataLayer*>(WorldDataLayers->GetDataLayerFromLabel(InDataLayerLabel)) : nullptr;
 }
 
 UDataLayer* UDataLayerSubsystem::GetDataLayerFromName(FName InDataLayerName) const
 {
-	const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
+	const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld());
 	return WorldDataLayers ? const_cast<UDataLayer*>(WorldDataLayers->GetDataLayerFromName(InDataLayerName)) : nullptr;
 }
 
@@ -290,7 +290,7 @@ TArray<UDataLayer*> UDataLayerSubsystem::ConvertArgsToDataLayers(UWorld* World, 
 	for (const FString& Arg : Args)
 	{
 		FName DataLayerLabel = FName(Arg);
-		if (const AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers())
+		if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(World))
 		{
 			UDataLayer* DataLayer = const_cast<UDataLayer*>(WorldDataLayers->GetDataLayerFromLabel(DataLayerLabel));
 			if (!DataLayer)
@@ -344,7 +344,7 @@ void UDataLayerSubsystem::GetDataLayerDebugColors(TMap<FName, FColor>& OutMappin
 {
 	OutMapping.Reset();
 
-	const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
+	const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld());
 	if (!WorldDataLayers)
 	{
 		return;
@@ -361,7 +361,7 @@ void UDataLayerSubsystem::DrawDataLayersLegend(UCanvas* Canvas, FVector2D& Offse
 {
 	check(Canvas);
 
-	const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
+	const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld());
 	if (!WorldDataLayers)
 	{
 		return;

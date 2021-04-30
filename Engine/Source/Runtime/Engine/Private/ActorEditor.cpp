@@ -1120,7 +1120,7 @@ bool AActor::HasDataLayers() const
 
 bool AActor::HasValidDataLayers() const
 {
-	if (const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+	if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld()))
 	{
 		for (const FActorDataLayer& DataLayer : DataLayers)
 		{
@@ -1152,13 +1152,13 @@ bool AActor::HasAllDataLayers(const TArray<const UDataLayer*>& InDataLayers) con
 
 TArray<FName> AActor::GetDataLayerNames() const
 {
-	const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
+	const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld());
 	return WorldDataLayers ? WorldDataLayers->GetDataLayerNames(DataLayers) : TArray<FName>();
 }
 
 TArray<const UDataLayer*> AActor::GetDataLayerObjects() const
 {
-	const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
+	const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld());
 	return WorldDataLayers ? WorldDataLayers->GetDataLayerObjects(DataLayers) : TArray<const UDataLayer*>();
 }
 
@@ -1176,31 +1176,25 @@ bool AActor::HasAnyOfDataLayers(const TArray<FName>& DataLayerNames) const
 
 void AActor::FixupDataLayers()
 {
-	if (!GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor))
+	if (!SupportsDataLayer())
 	{
-		if (!SupportsDataLayer())
-		{
-			DataLayers.Empty();
-		}
+		DataLayers.Empty();
+	}
 
-		if (GetWorld())
+	if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld()))
+	{
+		TSet<FName> ExistingDataLayers;
+		for (int32 Index = 0; Index < DataLayers.Num();)
 		{
-			if (const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+			const FName& DataLayer = DataLayers[Index].Name;
+			if (!WorldDataLayers->GetDataLayerFromName(DataLayer) || ExistingDataLayers.Contains(DataLayer))
 			{
-				TSet<FName> ExistingDataLayers;
-				for (int32 Index = 0; Index < DataLayers.Num();)
-				{
-					const FName& DataLayer = DataLayers[Index].Name;
-					if (!WorldDataLayers->GetDataLayerFromName(DataLayer) || ExistingDataLayers.Contains(DataLayer))
-					{
-						DataLayers.RemoveAtSwap(Index);
-					}
-					else
-					{
-						ExistingDataLayers.Add(DataLayer);
-						++Index;
-					}
-				}
+				DataLayers.RemoveAtSwap(Index);
+			}
+			else
+			{
+				ExistingDataLayers.Add(DataLayer);
+				++Index;
 			}
 		}
 	}

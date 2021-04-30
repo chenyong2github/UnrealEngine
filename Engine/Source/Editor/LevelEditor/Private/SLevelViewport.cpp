@@ -2112,7 +2112,7 @@ void SLevelViewport::OnToggleAllDataLayers(bool bVisible)
 	else
 	{
 		TArray<FName> AllDataLayerNames;
-		if (const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+		if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld()))
 		{
 			WorldDataLayers->ForEachDataLayer([&AllDataLayerNames](UDataLayer* DataLayer)
 			{
