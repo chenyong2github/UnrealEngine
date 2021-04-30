@@ -54,7 +54,7 @@ namespace UnrealBuildTool.Rules
 
 				if (!Directory.Exists(SketchUpSDKLocation) && !Target.bGenerateProjectFiles)
 				{
-					throw new System.Exception("SketchUp SDK directory doesn't exist: '" + SketchUpSDKLocation + "'");
+					Log.TraceWarningOnce("Unable to find SketchUp SDK directory. SketchUp plugins will not compile");
 				}
 			}
 		}
