@@ -6,8 +6,6 @@
 #include "NiagaraSettings.h"
 #include "NiagaraParameterDefinitions.h"
 
-#define LOCTEXT_NAMESPACE "NiagaraParameterCollectionFactory"
-
 UNiagaraParameterDefinitionsFactory::UNiagaraParameterDefinitionsFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
