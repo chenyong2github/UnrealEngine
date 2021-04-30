@@ -533,7 +533,7 @@ void FGeometryCacheSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterial
 
 		if (RayTracingInstance.Materials.Num() > 0)
 		{
-			RayTracingInstance.BuildInstanceMaskAndFlags();
+			RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
 
 			OutRayTracingInstances.Add(RayTracingInstance);
 		}

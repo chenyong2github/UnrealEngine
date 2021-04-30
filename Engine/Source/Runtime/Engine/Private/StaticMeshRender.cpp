@@ -1771,7 +1771,7 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 			RayTracingInstance.InstanceTransforms.Add(GetLocalToWorld());
 		}
 		
-		RayTracingInstance.BuildInstanceMaskAndFlags();
+		RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
 
 		checkf(RayTracingInstance.Geometry->Initializer.Segments.Num() == RayTracingInstance.Materials.Num(), TEXT("Segments/Materials mismatch. Number of segments: %d. Number of Materials: %d. LOD Index: %d"), 
 			RayTracingInstance.Geometry->Initializer.Segments.Num(), 

@@ -97,10 +97,10 @@ struct FRayTracingInstance
 	FShaderResourceViewRHIRef InstanceGPUTransformsSRV;
 
 	/** Build mask and flags based on materials specified in Materials. You can still override Mask after calling this function. */
-	ENGINE_API void BuildInstanceMaskAndFlags();
+	ENGINE_API void BuildInstanceMaskAndFlags(ERHIFeatureLevel::Type FeatureLevel);
 };
 
 /** Build mask and flags based on materials specified in Materials. You can still override Mask after calling this function. */
-ENGINE_API FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMeshBatch> MeshBatches);
+ENGINE_API FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMeshBatch> MeshBatches, ERHIFeatureLevel::Type FeatureLevel);
 ENGINE_API uint8 ComputeBlendModeMask(const EBlendMode BlendMode);
 #endif

@@ -10,17 +10,17 @@
 
 #include "RayTracingDefinitions.h"
 
-void FRayTracingInstance::BuildInstanceMaskAndFlags()
+void FRayTracingInstance::BuildInstanceMaskAndFlags(ERHIFeatureLevel::Type FeatureLevel)
 {
 	TArrayView<const FMeshBatch> MeshBatches = GetMaterials();
-	FRayTracingMaskAndFlags MaskAndFlags = BuildRayTracingInstanceMaskAndFlags(MeshBatches);
+	FRayTracingMaskAndFlags MaskAndFlags = BuildRayTracingInstanceMaskAndFlags(MeshBatches, FeatureLevel);
 
 	Mask |= MaskAndFlags.Mask;
 	bForceOpaque = bForceOpaque || MaskAndFlags.bForceOpaque;
 	bDoubleSided = bDoubleSided || MaskAndFlags.bDoubleSided;
 }
 
-FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMeshBatch> MeshBatches)
+FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMeshBatch> MeshBatches, ERHIFeatureLevel::Type FeatureLevel)
 {
 	FRayTracingMaskAndFlags Result;
 
@@ -41,7 +41,7 @@ FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMe
 		if (MeshBatch.bUseForMaterial && MeshBatch.MaterialRenderProxy)
 		{
 			const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
-			const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(ERHIFeatureLevel::SM5, FallbackMaterialRenderProxyPtr);
+			const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
 			const EBlendMode BlendMode = Material.GetBlendMode();
 			Result.Mask |= ComputeBlendModeMask(BlendMode);
 			bAllSegmentsOpaque &= BlendMode == BLEND_Opaque;

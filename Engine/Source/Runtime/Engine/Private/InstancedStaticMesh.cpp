@@ -1498,7 +1498,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 			RayTracingWPOInstanceTemplate.Materials.Add(MeshBatch);
 			RayTracingWPODynamicTemplate.Materials.Add(DynamicMeshBatch);
 		}
-		RayTracingWPOInstanceTemplate.BuildInstanceMaskAndFlags();
+		RayTracingWPOInstanceTemplate.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
 	
 		
 
@@ -1741,7 +1741,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 
 			RayTracingInstanceTemplate.Materials.Add(MeshBatch);
 		}
-		RayTracingInstanceTemplate.BuildInstanceMaskAndFlags();
+		RayTracingInstanceTemplate.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
 
 		OutRayTracingInstances.Add(RayTracingInstanceTemplate);
 	}

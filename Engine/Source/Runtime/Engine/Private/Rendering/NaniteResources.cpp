@@ -979,7 +979,7 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 
 	if (CachedRayTracingInstanceMaskAndFlags.Mask == 0)
 	{
-		CachedRayTracingInstanceMaskAndFlags = BuildRayTracingInstanceMaskAndFlags(CachedRayTracingMaterials);
+		CachedRayTracingInstanceMaskAndFlags = BuildRayTracingInstanceMaskAndFlags(CachedRayTracingMaterials, GetScene().GetFeatureLevel());
 	}
 
 	RayTracingInstance.Mask = CachedRayTracingInstanceMaskAndFlags.Mask;
@@ -1019,7 +1019,7 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 		MeshBatch.LODIndex = LODIndex;
 	}
 
-	FRayTracingMaskAndFlags MaskAndFlags = BuildRayTracingInstanceMaskAndFlags(RayTracingInstance.Materials);
+	FRayTracingMaskAndFlags MaskAndFlags = BuildRayTracingInstanceMaskAndFlags(RayTracingInstance.Materials, GetScene().GetFeatureLevel());
 
 	RayTracingInstance.Mask = MaskAndFlags.Mask;
 	RayTracingInstance.bForceOpaque = MaskAndFlags.bForceOpaque;

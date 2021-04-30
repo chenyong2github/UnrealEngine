@@ -23,9 +23,10 @@ ENGINE_API void AddOpaqueRaytracingInstance(
 	TArray<struct FRayTracingInstance>& OutRayTracingInstances);
 
 ENGINE_API void AddOpaqueRaytracingInstance(
-	const FMatrix& InstanceTransform, 
-	const FRayTracingGeometry* RayTracingGeometry, 
-	const uint32 Mask, 
-	const TArray<FMeshBatch>& Materials, 
+	const FMatrix& InstanceTransform,
+	const FRayTracingGeometry* RayTracingGeometry,
+	const uint32 Mask,
+	const TArray<FMeshBatch>& Materials,
+	ERHIFeatureLevel::Type FeatureLevel,
 	TArray<FRayTracingInstance>& OutRayTracingInstances);
 #endif

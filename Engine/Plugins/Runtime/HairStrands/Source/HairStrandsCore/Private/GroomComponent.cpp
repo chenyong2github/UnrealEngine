@@ -598,7 +598,7 @@ public:
 					FMeshBatch* MeshBatch = CreateMeshBatch(Context.ReferenceView, Context.ReferenceViewFamily, Context.RayTracingMeshResourceCollector, GroupData, Instance, GroupIt, /*LODIndex,*/ nullptr);
 					TArray<FMeshBatch> MeshBatches;
 					MeshBatches.Add(*MeshBatch);
-					AddOpaqueRaytracingInstance(OverrideLocalToWorld, GroupData.RayTracingGeometries_Cards[LODIndex], RaytracingInstanceMask_Opaque, MeshBatches, OutRayTracingInstances);
+					AddOpaqueRaytracingInstance(OverrideLocalToWorld, GroupData.RayTracingGeometries_Cards[LODIndex], RaytracingInstanceMask_Opaque, MeshBatches, GetScene().GetFeatureLevel(), OutRayTracingInstances);
 				#endif
 				}
 			}
@@ -619,7 +619,7 @@ public:
 					FMeshBatch* MeshBatch = CreateMeshBatch(Context.ReferenceView, Context.ReferenceViewFamily, Context.RayTracingMeshResourceCollector, GroupData, Instance, GroupIt, /*LODIndex,*/ nullptr);
 					TArray<FMeshBatch> MeshBatches;
 					MeshBatches.Add(*MeshBatch);
-					AddOpaqueRaytracingInstance(OverrideLocalToWorld, GroupData.RayTracingGeometries_Meshes[LODIndex], RaytracingInstanceMask_Opaque, MeshBatches, OutRayTracingInstances);
+					AddOpaqueRaytracingInstance(OverrideLocalToWorld, GroupData.RayTracingGeometries_Meshes[LODIndex], RaytracingInstanceMask_Opaque, MeshBatches, GetScene().GetFeatureLevel(), OutRayTracingInstances);
 				#endif
 				}
 			}

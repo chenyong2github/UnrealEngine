@@ -486,7 +486,7 @@ public:
 
 					RayTracingInstance.Materials.Add(MeshBatch);
 
-					RayTracingInstance.BuildInstanceMaskAndFlags();
+					RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
 					OutRayTracingInstances.Add(RayTracingInstance);
 				}
 			}

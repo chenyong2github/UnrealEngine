@@ -25,7 +25,13 @@ void AddOpaqueRaytracingInstance(const FMatrix& InstanceTransform, const FRayTra
 	OutRayTracingInstances.Add(Instance);
 }
 
-void AddOpaqueRaytracingInstance(const FMatrix& InstanceTransform, const FRayTracingGeometry* RayTracingGeometry, const uint32 Mask, const TArray<FMeshBatch>& Materials, TArray<FRayTracingInstance>& OutRayTracingInstances)
+void AddOpaqueRaytracingInstance(
+	const FMatrix& InstanceTransform,
+	const FRayTracingGeometry* RayTracingGeometry,
+	const uint32 Mask,
+	const TArray<FMeshBatch>& Materials,
+	ERHIFeatureLevel::Type FeatureLevel,
+	TArray<FRayTracingInstance>& OutRayTracingInstances)
 {
 	FRayTracingInstance Instance;
 	Instance.Geometry = RayTracingGeometry;
@@ -37,7 +43,7 @@ void AddOpaqueRaytracingInstance(const FMatrix& InstanceTransform, const FRayTra
 	if (Mask & RaytracingInstanceMask_Translucent)	Instance.Mask |= RAY_TRACING_MASK_TRANSLUCENT;
 	if (Mask & RaytracingInstanceMask_Shadow)		Instance.Mask |= RAY_TRACING_MASK_SHADOW;
 	if (Mask & RaytracingInstanceMask_ThinShadow)	Instance.Mask |= RAY_TRACING_MASK_THIN_SHADOW;
-	Instance.BuildInstanceMaskAndFlags();
+	Instance.BuildInstanceMaskAndFlags(FeatureLevel);
 	OutRayTracingInstances.Add(Instance);
 }
 

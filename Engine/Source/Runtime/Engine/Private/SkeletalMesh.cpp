@@ -6288,7 +6288,7 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 				);
 			}
 
-			RayTracingInstance.BuildInstanceMaskAndFlags();
+			RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
 
 			OutRayTracingInstances.Add(RayTracingInstance);
 		}
