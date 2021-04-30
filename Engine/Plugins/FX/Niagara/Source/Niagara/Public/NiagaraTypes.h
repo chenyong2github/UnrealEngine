@@ -561,7 +561,6 @@ struct NIAGARA_API FNiagaraVariableMetaData
 		: bAdvancedDisplay(false)
 		, EditorSortPriority(0)
 		, bInlineEditConditionToggle(false)
-		, VariableGuid(FGuid::NewGuid())
 		, bIsStaticSwitch_DEPRECATED(false)
 		, StaticSwitchDefaultValue_DEPRECATED(0)
 	{};
