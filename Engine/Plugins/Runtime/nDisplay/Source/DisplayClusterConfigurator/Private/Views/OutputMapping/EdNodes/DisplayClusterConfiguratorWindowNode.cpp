@@ -4,6 +4,7 @@
 
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
+#include "ClusterConfiguration/ViewModels/DisplayClusterConfiguratorClusterNodeViewModel.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorCanvasNode.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorViewportNode.h"
 #include "Views/OutputMapping/GraphNodes/SDisplayClusterConfiguratorWindowNode.h"
@@ -16,6 +17,8 @@ void UDisplayClusterConfiguratorWindowNode::Initialize(const FString& InNodeName
 
 	UDisplayClusterConfigurationClusterNode* CfgNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
 	CfgNode->OnPostEditChangeChainProperty.Add(UDisplayClusterConfigurationViewport::FOnPostEditChangeChainProperty::FDelegate::CreateUObject(this, &UDisplayClusterConfiguratorWindowNode::OnPostEditChangeChainProperty));
+
+	ClusterNodeVM = MakeShareable(new FDisplayClusterConfiguratorClusterNodeViewModel(CfgNode));
 }
 
 TSharedPtr<SGraphNode> UDisplayClusterConfiguratorWindowNode::CreateVisualWidget()
@@ -121,10 +124,8 @@ void UDisplayClusterConfiguratorWindowNode::WriteNodeStateToObject()
 	const FVector2D LocalPosition = GetNodeLocalPosition();
 	const FVector2D LocalSize = TransformSizeToLocal(GetNodeSize());
 
-	CfgClusterNode->WindowRect.X = LocalPosition.X;
-	CfgClusterNode->WindowRect.Y = LocalPosition.Y;
-	CfgClusterNode->WindowRect.W = LocalSize.X;
-	CfgClusterNode->WindowRect.H = LocalSize.Y;
+	FDisplayClusterConfigurationRectangle NewWindowRect(LocalPosition.X, LocalPosition.Y, LocalSize.X, LocalSize.Y);
+	ClusterNodeVM->SetWindowRect(NewWindowRect);
 }
 
 void UDisplayClusterConfiguratorWindowNode::ReadNodeStateFromObject()

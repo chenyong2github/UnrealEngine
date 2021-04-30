@@ -54,6 +54,23 @@ public:
 	static TSharedPtr<FDragDropOperation> MakeDragDropOperation(const TArray<UObject*>& SelectedObjects);
 
 	/**
+	 * Finds the next available position for a cluster node within a host so that the cluster node doesn't overlap any existing nodes.
+	 * @param Cluster - The cluster to find the position within.
+	 * @param DesiredHost - The host the cluster node wants to be positioned in.
+	 * @param DesiredPosition - The desired position of the cluster node.
+	 * @param DesiredSize - The desired size of the cluster node.
+	 */
+	static FVector2D FindNextAvailablePositionForClusterNode(UDisplayClusterConfigurationCluster* Cluster, const FString& DesiredHost, const FVector2D& DesiredPosition, const FVector2D& DesiredSize);
+
+	/**
+	 * Finds the next available position for a viewport within a cluster node so that the viewport doesn't overlap any existing viewports.
+	 * @param ClusterNode - The cluster node to find the position within.
+	 * @param DesiredPosition - The desired position of the viewport.
+	 * @param DesiredSize - The desired size of the viewport.
+	 */
+	static FVector2D FindNextAvailablePositionForViewport(UDisplayClusterConfigurationClusterNode* ClusterNode, const FVector2D& DesiredPosition, const FVector2D& DesiredSize);
+
+	/**
 	 * Sorts a list of cluster nodes by their host.
 	 * @param InClusterNodes - The list of nodes to sort
 	 * @param OutSortedNodes - The sorted nodes, indexed by the Host property of the cluster nodes

@@ -6,6 +6,7 @@
 #include "SlateFwd.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Types/SlateStructs.h"
 
 class IDetailsView;
 class SWindow;
@@ -87,6 +88,8 @@ private:
 
 	void OnSelectedPresetChanged(TSharedPtr<FDisplayClusterConfiguratorPresetSize> SelectedPreset, ESelectInfo::Type SelectionType);
 
+	FOptionalSize GetDetailsMaxDesiredSize() const;
+
 private:
 	TWeakPtr<SWindow> ParentWindow;
 	TSharedPtr<SWidget> FooterContent;
@@ -100,5 +103,7 @@ private:
 
 	FOnPresetChanged OnPresetChanged;
 
+	float MaxWindowWidth;
+	float MaxWindowHeight;
 	bool bWasAccepted;
 };

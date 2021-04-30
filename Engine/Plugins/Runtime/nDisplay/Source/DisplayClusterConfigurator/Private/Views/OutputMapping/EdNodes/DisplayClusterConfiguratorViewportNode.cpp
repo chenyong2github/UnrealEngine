@@ -3,6 +3,7 @@
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorViewportNode.h"
 
 #include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
+#include "ClusterConfiguration/ViewModels/DisplayClusterConfiguratorViewportViewModel.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorWindowNode.h"
 #include "Views/OutputMapping/GraphNodes/SDisplayClusterConfiguratorViewportNode.h"
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
@@ -19,6 +20,8 @@ void UDisplayClusterConfiguratorViewportNode::Initialize(const FString& InNodeNa
 
 	UDisplayClusterConfigurationViewport* CfgViewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
 	CfgViewport->OnPostEditChangeChainProperty.Add(UDisplayClusterConfigurationViewport::FOnPostEditChangeChainProperty::FDelegate::CreateUObject(this, &UDisplayClusterConfiguratorViewportNode::OnPostEditChangeChainProperty));
+
+	ViewportVM = MakeShareable(new FDisplayClusterConfiguratorViewportViewModel(CfgViewport));
 }
 
 TSharedPtr<SGraphNode> UDisplayClusterConfiguratorViewportNode::CreateVisualWidget()
@@ -50,10 +53,8 @@ void UDisplayClusterConfiguratorViewportNode::WriteNodeStateToObject()
 	const FVector2D LocalPosition = GetNodeLocalPosition();
 	const FVector2D LocalSize = TransformSizeToLocal(GetNodeSize());
 
-	CfgViewport->Region.X = LocalPosition.X;
-	CfgViewport->Region.Y = LocalPosition.Y;
-	CfgViewport->Region.W = LocalSize.X;
-	CfgViewport->Region.H = LocalSize.Y;
+	FDisplayClusterConfigurationRectangle NewRegion(LocalPosition.X, LocalPosition.Y, LocalSize.X, LocalSize.Y);
+	ViewportVM->SetRegion(NewRegion);
 }
 
 void UDisplayClusterConfiguratorViewportNode::ReadNodeStateFromObject()
