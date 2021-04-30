@@ -9,12 +9,16 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraEditorModule.h"
+#include "NiagaraObjectSelection.h"
+#include "NiagaraParameterDefinitions.h"
 #include "ViewModels/NiagaraScratchPadUtilities.h"
 
 #include "ScopedTransaction.h"
 #include "Framework/Commands/UICommandList.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScratchPadScriptViewModel"
+
+
 
 FNiagaraScratchPadScriptViewModel::FNiagaraScratchPadScriptViewModel()
 	: FNiagaraScriptViewModel(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FNiagaraScratchPadScriptViewModel::GetDisplayNameInternal)), ENiagaraParameterEditMode::EditAll)
@@ -48,11 +52,14 @@ void FNiagaraScratchPadScriptViewModel::Initialize(UNiagaraScript* Script)
 	OnGraphNeedsRecompileHandle = EditScriptSource->NodeGraph->AddOnGraphNeedsRecompileHandler(FOnGraphChanged::FDelegate::CreateSP(this, &FNiagaraScratchPadScriptViewModel::OnScriptGraphChanged));
 	EditScript.Script->OnPropertyChanged().AddSP(this, &FNiagaraScratchPadScriptViewModel::OnScriptPropertyChanged);
 	ParameterPanelCommands = MakeShared<FUICommandList>();
-	if (GbShowNiagaraDeveloperWindows)
-	{
-		ParameterPaneViewModel = MakeShared<FNiagaraScriptToolkitParameterPanelViewModel>(this->AsShared());
-		ParameterPaneViewModel->InitBindings();
-	}
+
+	ParameterPaneViewModel = MakeShared<FNiagaraScriptToolkitParameterPanelViewModel>(this->AsShared());
+	FScriptToolkitUIContext UIContext = FScriptToolkitUIContext(
+		FSimpleDelegate::CreateSP(ParameterPaneViewModel.ToSharedRef(), &INiagaraImmutableParameterPanelViewModel::Refresh),
+		FSimpleDelegate(), //@todo(ng) skip binding refresh parameter definitions panel as scratchpad does not have a parameter definitions panel currently
+		FSimpleDelegate::CreateSP(GetVariableSelection(), &FNiagaraObjectSelection::Refresh)
+	);
+	ParameterPaneViewModel->Init(UIContext);
 }
 
 void FNiagaraScratchPadScriptViewModel::Finalize()

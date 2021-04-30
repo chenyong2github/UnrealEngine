@@ -31,3 +31,39 @@ private:
 	UEdGraphPin* Pin = nullptr;
 	TSharedPtr<SComboButton> SelectorButton;
 };
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/SCompoundWidget.h"
+#include "SGraphPalette.h"
+
+class SNiagaraIconWidget : public SGraphPaletteItem
+{
+public:
+
+	SLATE_BEGIN_ARGS(SNiagaraIconWidget)
+	{}
+		SLATE_ARGUMENT(FText, IconToolTip)
+		SLATE_ARGUMENT(const FSlateBrush*, IconBrush)
+		SLATE_ARGUMENT(FSlateColor, IconColor)
+		SLATE_ARGUMENT(FString, DocLink)
+		SLATE_ARGUMENT(FString, DocExcerpt)
+		SLATE_ARGUMENT(const FSlateBrush*, SecondaryIconBrush)
+		SLATE_ARGUMENT(FSlateColor, SecondaryIconColor)
+	SLATE_END_ARGS();
+
+	void Construct(const FArguments& InArgs)
+	{
+		ChildSlot
+		[
+			CreateIconWidget(
+				InArgs._IconToolTip
+				, InArgs._IconBrush
+				, InArgs._IconColor
+				, InArgs._DocLink
+				, InArgs._DocExcerpt
+				, InArgs._SecondaryIconBrush
+				, InArgs._SecondaryIconColor
+			)
+		];
+	}
+};

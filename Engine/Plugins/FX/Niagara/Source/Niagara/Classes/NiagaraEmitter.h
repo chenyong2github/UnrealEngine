@@ -13,6 +13,7 @@
 #include "NiagaraDataSetAccessor.h"
 #include "NiagaraBoundsCalculator.h"
 #include "NiagaraRendererProperties.h"
+#include "NiagaraParameterDefinitionsBase.h"
 #include "NiagaraEmitter.generated.h"
 
 class UMaterial;
@@ -207,7 +208,7 @@ struct MemoryRuntimeEstimation
  *	that need to be serialized and are used for its initialization 
  */
 UCLASS(MinimalAPI)
-class UNiagaraEmitter : public UObject
+class UNiagaraEmitter : public UObject, public INiagaraParameterDefinitionsSubscriber
 {
 	GENERATED_UCLASS_BODY()
 
@@ -252,6 +253,22 @@ public:
 	virtual bool IsEditorOnly() const override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	//End UObject Interface
+
+#if WITH_EDITORONLY_DATA
+	//~ Begin INiagaraParameterDefinitionsSubscriber Interface
+	virtual const TArray<FParameterDefinitionsSubscription>& GetParameterDefinitionsSubscriptions() const override { return ParameterDefinitionsSubscriptions; };
+	virtual TArray<FParameterDefinitionsSubscription>& GetParameterDefinitionsSubscriptions() override { return ParameterDefinitionsSubscriptions; };
+
+	/** Get all UNiagaraScriptSourceBase of this subscriber. */
+	virtual TArray<UNiagaraScriptSourceBase*> GetAllSourceScripts() override;
+
+	/** Get the path to the UObject of this subscriber. */
+	virtual FString GetSourceObjectPathName() const override;
+
+	/** Get All adapters to editor only script vars owned directly by this subscriber. */
+	virtual TArray<UNiagaraEditorParametersAdapterBase*> GetEditorOnlyParametersAdapters() override;
+	//~ End INiagaraParameterDefinitionsSubscriber Interface
+#endif
 
 	bool IsEnabledOnPlatform(const FString& PlatformName)const;
 
@@ -405,6 +422,7 @@ public:
 	FGuid NIAGARA_API GetChangeId() const;
 
 	NIAGARA_API UNiagaraEditorDataBase* GetEditorData() const;
+	NIAGARA_API UNiagaraEditorParametersAdapterBase* GetEditorParameters();
 
 	NIAGARA_API void SetEditorData(UNiagaraEditorDataBase* InEditorData);
 
@@ -595,6 +613,10 @@ private:
 	UPROPERTY()
 	UNiagaraEditorDataBase* EditorData;
 
+	/** Wrapper for editor only parameters. */
+	UPROPERTY()
+	UNiagaraEditorParametersAdapterBase* EditorParameters;
+
 	/** A multicast delegate which is called whenever all the scripts for this emitter have been compiled (successfully or not). */
 	FOnEmitterCompiled OnVMScriptCompiledDelegate;
 
@@ -632,6 +654,10 @@ private:
 
 	UPROPERTY()
 	UNiagaraEmitter* ParentAtLastMerge;
+
+	/** Subscriptions to definitions of parameters. */
+	UPROPERTY()
+	TArray<FParameterDefinitionsSubscription> ParameterDefinitionsSubscriptions;
 #endif
 
 #if WITH_EDITOR

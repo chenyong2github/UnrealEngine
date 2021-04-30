@@ -6,8 +6,39 @@
 #include "UObject/WeakObjectPtr.h"
 #include "IDetailCustomization.h"
 #include "EditorUndoClient.h"
+
+#include "NiagaraScriptVariableCustomization.generated.h"
  
+class IDetailCategoryBuilder;
 class UEdGraphPin;
+
+
+/** Intermediate representations for default mode set on library script variables. Maps to ENiagaraDefaultMode and bOverrideParameterDefinitionsDefaultValue of UNiagaraScriptVariable. */
+UENUM()
+enum class ENiagaraLibrarySynchronizedDefaultMode : uint8
+{
+	// Synchronize with the default value as defined in the synchronized parameter definitions.
+	Library = 0,
+	// Default initialize using a value widget in the Selected Details panel. Override the library default value.
+	Value,
+	// Default initialize using a dropdown widget in the Selected Details panel. Override the library default value.
+	Binding,
+	// Default initialization is done using a sub-graph.
+	Custom,
+	// Fail compilation if this value has not been set previously in the stack. Override the library default value.
+	FailIfPreviouslyNotSet
+};
+
+UENUM()
+enum class ENiagaraLibrarySourceDefaultMode : uint8
+{
+	// Default initialize using a value widget in the Selected Details panel.
+	Value = 0,
+	// Default initialize using a dropdown widget in the Selected Details panel.
+	Binding,
+	// Fail compilation if this value has not been set previously in the stack.
+	FailIfPreviouslyNotSet
+};
 
 /** This customization sets up a custom details panel for the static switch Variable in the niagara module graph. */
 class FNiagaraScriptVariableDetails : public IDetailCustomization, public FEditorUndoClient
@@ -28,23 +59,54 @@ public:
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 	// End of FEditorUndoClient
+
+	// Fully regenerates the details view.
+	void Refresh();
  
-	void OnComboValueChanged();
 private:
+	void CustomizeDetailsGenericScriptVariable(IDetailLayoutBuilder& DetailBuilder);
+	void CustomizeDetailsStaticSwitchScriptVariable(IDetailLayoutBuilder& DetailBuilder);
+	void CustomizeDetailsParameterDefinitionsSynchronizedScriptVariable(IDetailLayoutBuilder& DetailBuilder);
+
+	void AddGraphDefaultValueCustomRow(IDetailCategoryBuilder& CategoryBuilder);
+	void AddLibraryDefaultValueCustomRow(IDetailCategoryBuilder& CategoryBuilder, bool bInLibraryAsset);
+
+	void OnComboValueChanged();
 	void OnBeginValueChanged();
 	void OnEndValueChanged();
 	void OnValueChanged();
+
 	void OnStaticSwitchValueChanged();
 
-	UEdGraphPin* GetAnyDefaultPin();
+	void OnLibraryValueChanged();
+	int32 GetLibraryDefaultModeValue() const { return LibraryDefaultModeValue; };
+	int32 GetLibrarySourcedDefaultModeInitialValue() const;
+	int32 GetLibrarySynchronizedDefaultModeInitialValue() const;
+	void OnLibrarySourceDefaultModeChanged(int32 InValue, ESelectInfo::Type InSelectInfo);
+	void OnLibrarySynchronizedDefaultModeChanged(int32 InValue, ESelectInfo::Type InSelectInfo);
 
+	bool CanEditCustomDefaultModeRow(bool bVParameterDefinitionsScriptVar) const;
+	bool CanEditCustomValueRow(bool bParameterDefinitionsScriptVar) const;
+
+	UEdGraphPin* GetAnyDefaultPin();
 	TArray<UEdGraphPin*> GetDefaultPins();
+
+private:
+	// Cached value of enum selector for choosing the library default mode.
+	int32 LibraryDefaultModeValue;
+
+	UEnum* LibrarySynchronizedDefaultModeEnum;
+	UEnum* LibrarySourceDefaultModeEnum;
 
 	TWeakPtr<class IDetailLayoutBuilder> CachedDetailBuilder;
 
 	TWeakObjectPtr<class UNiagaraScriptVariable> Variable;
 	TSharedPtr<class INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeUtilityValue;
+	TSharedPtr<class INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeUtilityLibraryValue;
 	TSharedPtr<class INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeUtilityStaticSwitchValue;
 	TSharedPtr<class SNiagaraParameterEditor> ParameterEditorValue;
+	TSharedPtr<class SNiagaraParameterEditor> ParameterEditorLibraryValue;
 	TSharedPtr<class SNiagaraParameterEditor> ParameterEditorStaticSwitchValue;
+
+	static const FName DefaultValueCategoryName;
 };

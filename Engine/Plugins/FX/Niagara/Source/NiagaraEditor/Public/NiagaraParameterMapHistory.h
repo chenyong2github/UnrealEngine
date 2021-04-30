@@ -238,87 +238,6 @@ public:
 	bool ShouldIgnoreVariableDefault(const FNiagaraVariable& Var)const;
 };
 
-// view of FNiagaraVariableMetaData that caches configurable types to avoid verification checks on getters.
-struct FNiagaraStaticVariableMetaData
-{
-	FNiagaraStaticVariableMetaData(const FNiagaraVariableMetaData& ViewMetaData);
-
-	ENiagaraParameterScope GetScope() const { return Scope; };
-	const FString& GetNamespaceString() const { return NamespaceString; };
-
-private:
-	ENiagaraParameterScope Scope;
-	FString NamespaceString;
-};
-
-// helper struct for handling tracked variable metadata and aliases from histories.
-struct FNiagaraHistoryVariable
-{
-	FNiagaraHistoryVariable(FNiagaraVariable* InVar, const FNiagaraVariable* InVarWithOriginalAlias, const FNiagaraVariableMetaData& InVarMetaData)
-		: Var(InVar)
-		, VarWithOriginalAlias(InVarWithOriginalAlias)
-		, VarMetaData(&InVarMetaData)
-		, StaticVarMetaData(InVarMetaData)
-		, bDoNotDemote(false)
-	{};
-
-	FNiagaraVariable* Var;
-	const FNiagaraVariable* VarWithOriginalAlias;
-	const FNiagaraVariableMetaData* VarMetaData;
-	const FNiagaraStaticVariableMetaData StaticVarMetaData;
-
-	// Used to track whether this history variable should not be demoted during pre-compilation.
-	bool bDoNotDemote;
-
-	// Use carefully, implemented to fixup names of module namespace parameters that alias with other parameters in same scope.
-	void SetVarWithOriginalAliasName(const FName& NewName);
-};
-
-struct FNiagaraParameterMapHistoryHandle
-{
-public:
-	FNiagaraParameterMapHistoryHandle();
-
-	FNiagaraParameterMapHistoryHandle(FNiagaraParameterMapHistory& InHistory, const TArray<FNiagaraVariable>& InRequiredRendererVariables, const FName InEmitterUniqueName = FName());
-
-	FNiagaraParameterMapHistoryHandle(FNiagaraParameterMapHistory& InPrimaryHistory, FNiagaraParameterMapHistory& InSecondaryHistory, const TArray<FNiagaraVariable>& InRequiredRendererVariables, const FName InEmitterUniqueName = FName());
-
-	const int32 GetScriptExecutionIndex() const { return ScriptExecutionIndex; };
-	const int32 GetScriptRunIndex() const { return ScriptRunIndex; };
-	const ENiagaraParameterScope GetScriptScope() const { return Scope; };
-	const ENiagaraScriptUsage GetOriginatingScriptUsage() const { return History->OriginatingScriptUsage; };
-
-	TArray<FNiagaraHistoryVariable> HistoryVariables;
-
-	void SetScriptExecutionIndex(int32& InIndex) { ScriptExecutionIndex = InIndex; };
-	void SetScriptRunIndex(int32& InIndex) { ScriptRunIndex = InIndex; };
-	void SetScriptScope(ENiagaraParameterScope InScope) { Scope = InScope; };
-
-	void FixupWrittenHistoryPinNames(int32& VarIdx, const FName& NewName);
-	void FixupWrittenHistoryPinNames(const FNiagaraVariable* AssociatedVar, const FName& NewName);
-	void FixupReadHistoryPinNames(int32& VarIdx, const FName& NewName);
-	void FixupReadHistoryPinNames(const FNiagaraVariable* AssociatedVar, const FName& NewName);
-
-	const int32 GetSourceVariableHistoryIndex(const FNiagaraVariable* InVar) const { return History->VariablesWithOriginalAliasesIntact.IndexOfByPredicate([InVar](const FNiagaraVariable& Var) {return InVar == &Var; }); };
-
-	const TArray<FNiagaraVariable>& GetRequiredRendererVariables() const { return RequiredRendererVariables; };
-	const FName& GetEmitterUniqueName() const { return EmitterUniqueName; };
-	const bool IsSystemHistoryHandle() const { return EmitterUniqueName.IsNone(); };
-
-private:
-	/** Records a number associated with the required order of execution of the script that has been visited. Used to determine if parameters will be accessed from prior or proceeding scripts. */ 
-	int32 ScriptExecutionIndex;
-	int32 ScriptRunIndex;
-
-	ENiagaraParameterScope Scope;
-
-	FNiagaraParameterMapHistory* History;
-
-	TArray<FNiagaraVariable> RequiredRendererVariables;
-
-	FName EmitterUniqueName;
-};
-
 class FNiagaraParameterMapHistoryBuilder
 {
 public:
@@ -520,9 +439,6 @@ protected:
 class FNiagaraParameterMapHistoryWithMetaDataBuilder : public FNiagaraParameterMapHistoryBuilder
 {
 public:
-	/** Iterate over histories and fix variable namespaces so the translator can link parameters across script executions. */
-	static void FixupHistoryVariableNamespaces(TArray<FNiagaraParameterMapHistoryHandle>& InHistoryHandles, bool bCullDatasetOutputs);
-
 	//** Add a graph to the calling graph context stack. Generally used to prime the context stack with the node graph deep copy during precompilation. */
 	void AddGraphToCallingGraphContextStack(const UNiagaraGraph* InGraph) { CallingGraphContext.Add(InGraph); };
 
