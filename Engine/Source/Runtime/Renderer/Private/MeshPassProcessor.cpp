@@ -1023,38 +1023,6 @@ void FMeshDrawCommand::SubmitDrawBegin(
 	// checkSlow(MeshDrawCommand.PrimitiveIdStreamIndex == -1 || ScenePrimitiveIdsBuffer != nullptr);
 #endif // GPUCULL_TODO
 
-#if WANTS_DRAW_MESH_EVENTS
-	FDrawEvent MeshEvent;
-
-	if (GShowMaterialDrawEvents)
-	{
-		const FString& MaterialName = MeshDrawCommand.DebugData.MaterialName;
-		FName ResourceName = MeshDrawCommand.DebugData.ResourceName;
-
-		FString DrawEventName = FString::Printf(
-				TEXT("%s %s"),
-				// Note: this is the parent's material name, not the material instance
-			*MaterialName,
-			ResourceName.IsValid() ? *ResourceName.ToString() : TEXT(""));
-
-		const uint32 Instances = MeshDrawCommand.NumInstances * InstanceFactor;
-		if (Instances > 1)
-		{
-			BEGIN_DRAW_EVENTF(
-				RHICmdList,
-				MaterialEvent,
-				MeshEvent,
-				TEXT("%s %u instances"),
-				*DrawEventName,
-				Instances);
-		}
-		else
-		{
-			BEGIN_DRAW_EVENTF(RHICmdList, MaterialEvent, MeshEvent, *DrawEventName);
-		}
-	}
-#endif
-
 	const FGraphicsMinimalPipelineStateInitializer& MeshPipelineState = MeshDrawCommand.CachedPipelineId.GetPipelineState(GraphicsMinimalPipelineStateSet);
 
 	if (MeshDrawCommand.CachedPipelineId.GetId() != StateCache.PipelineId)
@@ -1149,6 +1117,9 @@ void FMeshDrawCommand::SubmitDraw(
 	FRHIBuffer* IndirectArgsOverrideBuffer,
 	uint32 IndirectArgsOverrideByteOffset)
 {
+#if WANTS_DRAW_MESH_EVENTS
+	FMeshDrawEvent MeshEvent(MeshDrawCommand, InstanceFactor, RHICmdList);
+#endif
 	SubmitDrawBegin(MeshDrawCommand, GraphicsMinimalPipelineStateSet, ScenePrimitiveIdsBuffer, PrimitiveIdOffset, InstanceFactor, RHICmdList, StateCache);
 	SubmitDrawEnd(MeshDrawCommand, InstanceFactor, RHICmdList, IndirectArgsOverrideBuffer, IndirectArgsOverrideByteOffset);
 }
@@ -1576,4 +1547,37 @@ void FSimpleMeshDrawCommandPass::SubmitDraw(FRHICommandListImmediate& RHICmdList
 		}
 	}
 }
+
+#if WANTS_DRAW_MESH_EVENTS
+FMeshDrawCommand::FMeshDrawEvent::FMeshDrawEvent(const FMeshDrawCommand& MeshDrawCommand, const uint32 InstanceFactor, FRHICommandList& RHICmdList)
+{
+	if (GShowMaterialDrawEvents)
+	{
+		const FString& MaterialName = MeshDrawCommand.DebugData.MaterialName;
+		FName ResourceName = MeshDrawCommand.DebugData.ResourceName;
+
+		FString DrawEventName = FString::Printf(
+			TEXT("%s %s"),
+			// Note: this is the parent's material name, not the material instance
+			*MaterialName,
+			ResourceName.IsValid() ? *ResourceName.ToString() : TEXT(""));
+
+		const uint32 Instances = MeshDrawCommand.NumInstances * InstanceFactor;
+		if (Instances > 1)
+		{
+			BEGIN_DRAW_EVENTF(
+				RHICmdList,
+				MaterialEvent,
+				*this,
+				TEXT("%s %u instances"),
+				*DrawEventName,
+				Instances);
+		}
+		else
+		{
+			BEGIN_DRAW_EVENTF(RHICmdList, MaterialEvent, *this, *DrawEventName);
+		}
+	}
+}
+#endif
 

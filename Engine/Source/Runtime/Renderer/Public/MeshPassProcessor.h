@@ -1140,6 +1140,15 @@ public:
 private:
 	mutable FMeshDrawCommandDebugData DebugData;
 #endif
+
+#if WANTS_DRAW_MESH_EVENTS
+public:
+	friend struct FMeshDrawEvent;
+	struct FMeshDrawEvent : FDrawEvent
+	{
+		FMeshDrawEvent(const FMeshDrawCommand& MeshDrawCommand, const uint32 InstanceFactor, FRHICommandList& RHICmdList);
+	};
+#endif
 };
 
 /** FVisibleMeshDrawCommand sort key. */

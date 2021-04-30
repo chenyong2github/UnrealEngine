@@ -4205,6 +4205,9 @@ static void SubmitNaniteMaterialPassCommand(
 	FRHICommandList& RHICmdList,
 	FMeshDrawCommandStateCache& StateCache)
 {
+#if WANTS_DRAW_MESH_EVENTS
+	FMeshDrawCommand::FMeshDrawEvent MeshEvent(MeshDrawCommand, InstanceFactor, RHICmdList);
+#endif
 	FMeshDrawCommand::SubmitDrawBegin(MeshDrawCommand, GraphicsMinimalPipelineStateSet, nullptr, 0, InstanceFactor, RHICmdList, StateCache);
 
 	// All Nanite mesh draw commands are using the same vertex shader, which has a material depth parameter we assign at render time.
