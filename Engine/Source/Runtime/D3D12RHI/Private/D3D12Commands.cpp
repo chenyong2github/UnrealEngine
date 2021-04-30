@@ -153,14 +153,6 @@ void FD3D12CommandContext::RHIDispatchComputeShader(uint32 ThreadGroupCountX, ui
 	numDispatches++;
 	CommandListHandle->Dispatch(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 
-#if DEBUG_BARRIER_DISPATCHES
-	D3D12_RESOURCE_BARRIER Barrier = {};
-	Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-	Barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	Barrier.UAV.pResource = nullptr;
-	CommandListHandle->ResourceBarrier(1, &Barrier);
-#endif
-
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
 
@@ -204,14 +196,6 @@ void FD3D12CommandContext::RHIDispatchIndirectComputeShader(FRHIBuffer* Argument
 		0
 		);
 	CommandListHandle.UpdateResidency(Location.GetResource());
-
-#if DEBUG_BARRIER_DISPATCHES
-	D3D12_RESOURCE_BARRIER Barrier = {};
-	Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-	Barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	Barrier.UAV.pResource = nullptr;
-	CommandListHandle->ResourceBarrier(1, &Barrier);
-#endif
 
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
