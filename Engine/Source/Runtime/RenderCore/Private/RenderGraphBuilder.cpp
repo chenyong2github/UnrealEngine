@@ -392,6 +392,7 @@ const char* const FRDGBuilder::kDefaultUnaccountedCSVStat = "RDG_Pass";
 
 FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName InName, const char* UnaccountedCSVStat)
 	: RHICmdList(InRHICmdList)
+	, Blackboard(Allocator)
 	, RHICmdListAsyncCompute(FRHICommandListExecutor::GetImmediateAsyncComputeCommandList())
 	, BuilderName(InName)
 #if RDG_CPU_SCOPES
