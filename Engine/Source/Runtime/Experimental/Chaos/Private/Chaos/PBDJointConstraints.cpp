@@ -299,22 +299,27 @@ namespace Chaos
 		, AngleTolerance(0)
 		, MinParentMassRatio(0)
 		, MaxInertiaRatio(0)
+		, MinSolverStiffness(1)
+		, MaxSolverStiffness(1)
+		, NumIterationsAtMaxSolverStiffness(1)
 		, bEnableTwistLimits(true)
 		, bEnableSwingLimits(true)
 		, bEnableDrives(true)
-		, LinearProjection(-1)
-		, AngularProjection(-1)
-		, Stiffness(0)
-		, LinearDriveStiffness(0)
-		, LinearDriveDamping(0)
-		, AngularDriveStiffness(0)
-		, AngularDriveDamping(0)
-		, SoftLinearStiffness(0)
-		, SoftLinearDamping(0)
-		, SoftTwistStiffness(0)
-		, SoftTwistDamping(0)
-		, SoftSwingStiffness(0)
-		, SoftSwingDamping(0)
+		, LinearStiffnessOverride(-1)
+		, TwistStiffnessOverride(-1)
+		, SwingStiffnessOverride(-1)
+		, LinearProjectionOverride(-1)
+		, AngularProjectionOverride(-1)
+		, LinearDriveStiffnessOverride(-1)
+		, LinearDriveDampingOverride(-1)
+		, AngularDriveStiffnessOverride(-1)
+		, AngularDriveDampingOverride(-1)
+		, SoftLinearStiffnessOverride(-1)
+		, SoftLinearDampingOverride(-1)
+		, SoftTwistStiffnessOverride(-1)
+		, SoftTwistDampingOverride(-1)
+		, SoftSwingStiffnessOverride(-1)
+		, SoftSwingDampingOverride(-1)
 	{
 	}
 
@@ -1085,6 +1090,18 @@ namespace Chaos
 		UpdateParticleState(Particle1, Dt, JointState.PrevPs[Index1], JointState.PrevQs[Index1], JointState.Ps[Index1], JointState.Qs[Index1], bUpdateVelocityInApplyConstraints);
 	}
 
+	FReal FPBDJointConstraints::CalculateIterationStiffness(int32 It, int32 NumIts) const
+	{
+		// Linearly interpolate betwwen MinStiffness and NumIterationsAtMaxStiffness over the first few iterations,
+		// then clamp at MaxStiffness for the final NumIterationsAtMaxStiffness
+		if (NumIts > Settings.NumIterationsAtMaxSolverStiffness)
+		{
+			const FReal Interpolant = FMath::Clamp((FReal)It / (FReal)(NumIts - Settings.NumIterationsAtMaxSolverStiffness), 0.0f, 1.0f);
+			return FMath::Lerp(Settings.MinSolverStiffness, Settings.MaxSolverStiffness, Interpolant);
+		}
+		return 1.0f;
+	}
+
 	bool FPBDJointConstraints::ApplyBatch(const FReal Dt, const int32 BatchIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
 	{
 		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Solve Joint Batch %d %d-%d (dt = %f; it = %d / %d)"), BatchIndex, JointBatches[BatchIndex][0], JointBatches[BatchIndex][1], Dt, It, NumIts);
@@ -1243,7 +1260,6 @@ namespace Chaos
 			return false;
 		}
 
-
 		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = ConstraintParticles[ConstraintIndex];
 		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
 
@@ -1263,7 +1279,6 @@ namespace Chaos
 			return false;
 		}
 
-
 		const FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
 		const FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
 		const FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
@@ -1271,8 +1286,11 @@ namespace Chaos
 
 		const bool bWasActive = Solver.GetIsActive();
 
+		const FReal IterationStiffness = CalculateIterationStiffness(It, NumIts);
+
 		Solver.Update(
 			Dt,
+			IterationStiffness,
 			Settings,
 			JointSettings,
 			P0,
@@ -1352,8 +1370,11 @@ namespace Chaos
 
 		const bool bWasActive = Solver.GetIsActive();
 
+		const FReal IterationStiffness = CalculateIterationStiffness(It, NumIts);
+
 		Solver.Update(
 			Dt,
+			IterationStiffness,
 			Settings,
 			JointSettings,
 			P0,

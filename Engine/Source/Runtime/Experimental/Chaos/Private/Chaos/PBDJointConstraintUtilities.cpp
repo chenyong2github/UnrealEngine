@@ -417,63 +417,63 @@ namespace Chaos
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.Stiffness > (FReal)0) ? SolverSettings.Stiffness : JointSettings.Stiffness;
+		return (SolverSettings.LinearStiffnessOverride >= (FReal)0) ? SolverSettings.LinearStiffnessOverride : JointSettings.Stiffness;
 	}
 
 	FReal FPBDJointUtilities::GetSoftLinearStiffness(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.SoftLinearStiffness > (FReal)0) ? SolverSettings.SoftLinearStiffness : JointSettings.SoftLinearStiffness;
+		return (SolverSettings.SoftLinearStiffnessOverride >= (FReal)0) ? SolverSettings.SoftLinearStiffnessOverride : JointSettings.SoftLinearStiffness;
 	}
 
 	FReal FPBDJointUtilities::GetSoftLinearDamping(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.SoftLinearDamping > (FReal)0) ? SolverSettings.SoftLinearDamping : JointSettings.SoftLinearDamping;
+		return (SolverSettings.SoftLinearDampingOverride >= (FReal)0) ? SolverSettings.SoftLinearDampingOverride : JointSettings.SoftLinearDamping;
 	}
 
 	FReal FPBDJointUtilities::GetTwistStiffness(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.Stiffness > (FReal)0) ? SolverSettings.Stiffness : JointSettings.Stiffness;
+		return (SolverSettings.TwistStiffnessOverride >= (FReal)0) ? SolverSettings.TwistStiffnessOverride : JointSettings.Stiffness;
 	}
 
 	FReal FPBDJointUtilities::GetSoftTwistStiffness(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.SoftTwistStiffness > 0)? SolverSettings.SoftTwistStiffness : JointSettings.SoftTwistStiffness;
+		return (SolverSettings.SoftTwistStiffnessOverride >= 0)? SolverSettings.SoftTwistStiffnessOverride : JointSettings.SoftTwistStiffness;
 	}
 
 	FReal FPBDJointUtilities::GetSoftTwistDamping(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.SoftTwistDamping > 0) ? SolverSettings.SoftTwistDamping : JointSettings.SoftTwistDamping;
+		return (SolverSettings.SoftTwistDampingOverride >= 0) ? SolverSettings.SoftTwistDampingOverride : JointSettings.SoftTwistDamping;
 	}
 
 	FReal FPBDJointUtilities::GetSwingStiffness(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.Stiffness > (FReal)0) ? SolverSettings.Stiffness : JointSettings.Stiffness;
+		return (SolverSettings.SwingStiffnessOverride >= (FReal)0) ? SolverSettings.SwingStiffnessOverride : JointSettings.Stiffness;
 	}
 
 	FReal FPBDJointUtilities::GetSoftSwingStiffness(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.SoftSwingStiffness > 0) ? SolverSettings.SoftSwingStiffness : JointSettings.SoftSwingStiffness;
+		return (SolverSettings.SoftSwingStiffnessOverride >= 0) ? SolverSettings.SoftSwingStiffnessOverride : JointSettings.SoftSwingStiffness;
 	}
 
 	FReal FPBDJointUtilities::GetSoftSwingDamping(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.SoftSwingDamping > 0) ? SolverSettings.SoftSwingDamping : JointSettings.SoftSwingDamping;
+		return (SolverSettings.SoftSwingDampingOverride >= 0) ? SolverSettings.SoftSwingDampingOverride : JointSettings.SoftSwingDamping;
 	}
 
 	FReal FPBDJointUtilities::GetLinearDriveStiffness(
@@ -483,7 +483,7 @@ namespace Chaos
 	{
 		if (JointSettings.bLinearPositionDriveEnabled[AxisIndex])
 		{
-			return (SolverSettings.LinearDriveStiffness > 0.0f) ? SolverSettings.LinearDriveStiffness : JointSettings.LinearDriveStiffness;
+			return (SolverSettings.LinearDriveStiffnessOverride >= 0.0f) ? SolverSettings.LinearDriveStiffnessOverride : JointSettings.LinearDriveStiffness;
 		}
 		return 0.0f;
 	}
@@ -495,7 +495,7 @@ namespace Chaos
 	{
 		if (JointSettings.bLinearVelocityDriveEnabled[AxisIndex])
 		{
-			return (SolverSettings.LinearDriveDamping > 0.0f) ? SolverSettings.LinearDriveDamping : JointSettings.LinearDriveDamping;
+			return (SolverSettings.LinearDriveDampingOverride >= 0.0f) ? SolverSettings.LinearDriveDampingOverride : JointSettings.LinearDriveDamping;
 		}
 		return 0.0f;
 	}
@@ -506,7 +506,7 @@ namespace Chaos
 	{
 		if (JointSettings.bAngularTwistPositionDriveEnabled)
 		{
-			return (SolverSettings.AngularDriveStiffness > 0.0f) ? SolverSettings.AngularDriveStiffness : JointSettings.AngularDriveStiffness;
+			return (SolverSettings.AngularDriveStiffnessOverride >= 0.0f) ? SolverSettings.AngularDriveStiffnessOverride : JointSettings.AngularDriveStiffness;
 		}
 		return 0.0f;
 	}
@@ -517,7 +517,7 @@ namespace Chaos
 	{
 		if (JointSettings.bAngularTwistVelocityDriveEnabled)
 		{
-			return (SolverSettings.AngularDriveDamping > 0.0f) ? SolverSettings.AngularDriveDamping : JointSettings.AngularDriveDamping;
+			return (SolverSettings.AngularDriveDampingOverride >= 0.0f) ? SolverSettings.AngularDriveDampingOverride : JointSettings.AngularDriveDamping;
 		}
 		return 0.0f;
 	}
@@ -528,7 +528,7 @@ namespace Chaos
 	{
 		if (JointSettings.bAngularSwingPositionDriveEnabled)
 		{
-			return (SolverSettings.AngularDriveStiffness > 0.0f) ? SolverSettings.AngularDriveStiffness : JointSettings.AngularDriveStiffness;
+			return (SolverSettings.AngularDriveStiffnessOverride >= 0.0f) ? SolverSettings.AngularDriveStiffnessOverride : JointSettings.AngularDriveStiffness;
 		}
 		return 0.0f;
 	}
@@ -539,7 +539,7 @@ namespace Chaos
 	{
 		if (JointSettings.bAngularSwingVelocityDriveEnabled)
 		{
-			return (SolverSettings.AngularDriveDamping > 0.0f) ? SolverSettings.AngularDriveDamping : JointSettings.AngularDriveDamping;
+			return (SolverSettings.AngularDriveDampingOverride >= 0.0f) ? SolverSettings.AngularDriveDampingOverride : JointSettings.AngularDriveDamping;
 		}
 		return 0.0f;
 	}
@@ -550,7 +550,7 @@ namespace Chaos
 	{
 		if (JointSettings.bAngularSLerpPositionDriveEnabled)
 		{
-			return (SolverSettings.AngularDriveStiffness > 0.0f) ? SolverSettings.AngularDriveStiffness : JointSettings.AngularDriveStiffness;
+			return (SolverSettings.AngularDriveStiffnessOverride >= 0.0f) ? SolverSettings.AngularDriveStiffnessOverride : JointSettings.AngularDriveStiffness;
 		}
 		return 0.0f;
 	}
@@ -561,7 +561,7 @@ namespace Chaos
 	{
 		if (JointSettings.bAngularSLerpVelocityDriveEnabled)
 		{
-			return (SolverSettings.AngularDriveDamping > 0.0f) ? SolverSettings.AngularDriveDamping : JointSettings.AngularDriveDamping;
+			return (SolverSettings.AngularDriveDampingOverride >= 0.0f) ? SolverSettings.AngularDriveDampingOverride : JointSettings.AngularDriveDamping;
 		}
 		return 0.0f;
 	}
@@ -570,14 +570,14 @@ namespace Chaos
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.LinearProjection >= 0.0f) ? SolverSettings.LinearProjection : JointSettings.LinearProjection;
+		return (SolverSettings.LinearProjectionOverride >= 0.0f) ? SolverSettings.LinearProjectionOverride : JointSettings.LinearProjection;
 	}
 
 	FReal FPBDJointUtilities::GetAngularProjection(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.AngularProjection >= 0.0f) ? SolverSettings.AngularProjection : JointSettings.AngularProjection;
+		return (SolverSettings.AngularProjectionOverride >= 0.0f) ? SolverSettings.AngularProjectionOverride : JointSettings.AngularProjection;
 	}
 
 	bool FPBDJointUtilities::GetLinearSoftAccelerationMode(
