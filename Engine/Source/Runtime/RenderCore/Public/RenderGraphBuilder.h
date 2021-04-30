@@ -7,6 +7,7 @@
 #include "RenderGraphResources.h"
 #include "RenderGraphPass.h"
 #include "RenderGraphValidation.h"
+#include "RenderGraphBlackboard.h"
 #include "ShaderParameterMacros.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
@@ -202,6 +203,9 @@ public:
 
 	/** The RHI command list used for the render graph. */
 	FRHICommandListImmediate& RHICmdList;
+
+	/** The blackboard used to hold common data tied to the graph lifetime. */
+	FRDGBlackboard Blackboard;
 
 private:
 	static const ERHIAccess kDefaultAccessInitial = ERHIAccess::Unknown;

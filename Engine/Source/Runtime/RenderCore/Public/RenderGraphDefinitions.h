@@ -490,6 +490,8 @@ const TRDGHandle<ObjectType, IndexType> TRDGHandle<ObjectType, IndexType>::Null;
 
 struct FRDGTextureDesc;
 
+class FRDGBlackboard;
+
 class FRDGPassFlagsScopeGuard;
 class FRDGAsyncComputeBudgetScopeGuard;
 class FRDGEventScopeGuard;
