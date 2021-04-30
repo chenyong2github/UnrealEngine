@@ -257,12 +257,11 @@ static void SetupLightParameters(
 
 	FSkyLightSceneProxy* SkyLight = Scene->SkyLight;
 
-	const bool bUseMISCompensation = false; // RTGI doesn't use MIS
-	const bool bUseSkylightCaching = true; // re-use the skylight texture if possible
+	const bool bUseMISCompensation = true;
 	const bool bSkylightEnabled = SkyLight && SkyLight->bAffectGlobalIllumination && CVarRayTracingGlobalIlluminationSkyLight.GetValueOnRenderThread() != 0;
 
 	// Prepend SkyLight to light buffer (if it is active)
-	if (PrepareSkyTexture(GraphBuilder, Scene, View, bSkylightEnabled, bUseMISCompensation, bUseSkylightCaching, SkylightParameters))
+	if (PrepareSkyTexture(GraphBuilder, Scene, View, bSkylightEnabled, bUseMISCompensation, SkylightParameters))
 	{
 		FPathTracingLight& DestLight = Lights[LightCount];
 
@@ -417,6 +416,12 @@ class FGlobalIlluminationRGS : public FGlobalShader
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
 
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		// We need the skylight to do its own form of MIS because RTGI doesn't do its own
+		OutEnvironment.SetDefine(TEXT("PATHTRACING_SKY_MIS"), 1);
+	}
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, SamplesPerPixel)
 		SHADER_PARAMETER(uint32, MaxBounces)
@@ -472,6 +477,12 @@ class FRayTracingGlobalIlluminationCreateGatherPointsRGS : public FGlobalShader
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		// We need the skylight to do its own form of MIS because RTGI doesn't do its own
+		OutEnvironment.SetDefine(TEXT("PATHTRACING_SKY_MIS"), 1);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )

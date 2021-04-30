@@ -23,6 +23,7 @@
 #include "RayTracing/RayTracingLighting.h"
 #include "RayTracing/RayTracingSkyLight.h"
 #include "SceneTextureParameters.h"
+#include "PathTracing.h"
 
 static int32 GRayTracingReflections = -1;
 static FAutoConsoleVariableRef CVarReflectionsMethod(
@@ -286,7 +287,7 @@ class FRayTracingReflectionsRGS : public FGlobalShader
 		SHADER_PARAMETER(uint32, RenderTileOffsetX)
 		SHADER_PARAMETER(uint32, RenderTileOffsetY)
 		SHADER_PARAMETER(uint32, EnableTranslucency)
-		SHADER_PARAMETER(int32, SkyLightDecoupleSampleGeneration) 
+		SHADER_PARAMETER(int32, SkyLightDecoupleSampleGeneration)
 		SHADER_PARAMETER(int32, SampleMode)
 		SHADER_PARAMETER(int32, SampleOffset)
 
@@ -305,6 +306,7 @@ class FRayTracingReflectionsRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCapture)
 		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, Forward)
 		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLightData)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FPathTracingSkylight, SkylightParameters)
 
 		// Optional indirection buffer used for sorted materials
 		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer<FDeferredMaterialPayload>, MaterialBuffer)
@@ -694,14 +696,10 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	CommonParameters.ReflectionCapture = View.ReflectionCaptureUniformBuffer;
 	CommonParameters.Forward = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 
-	if (bRayTraceSkyLightContribution)
-	{
-		// Fill Sky Light parameters
-		FSkyLightData SkyLightData;
-		SetupSkyLightParameters(*Scene, &SkyLightData);
-
-		CommonParameters.SkyLightData = CreateUniformBufferImmediate(SkyLightData, EUniformBufferUsage::UniformBuffer_SingleDraw);
-	}
+	// Fill Sky Light parameters
+	FSkyLightData SkyLightData;
+	SetupSkyLightParameters(GraphBuilder, Scene, View, bRayTraceSkyLightContribution, &CommonParameters.SkylightParameters, &SkyLightData);
+	CommonParameters.SkyLightData = CreateUniformBufferImmediate(SkyLightData, EUniformBufferUsage::UniformBuffer_SingleDraw);
 
 	for (int32 SamplePassIndex = 0; SamplePassIndex < Options.SamplesPerPixel; SamplePassIndex++)
 	{

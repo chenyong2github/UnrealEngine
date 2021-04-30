@@ -76,7 +76,6 @@ void ReleaseBrickData(FVolumetricLightmapBrickData& BrickData)
 }
 
 void SetupPathTracingLightParameters(const GPULightmass::FLightSceneRenderState& LightScene, FRDGBuilder& GraphBuilder, FRDGBufferSRV** OutLightBuffer, uint32* OutLightCount);
-FSkyLightData SetupSkyLightParameters(const GPULightmass::FLightSceneRenderState& LightScene);
 
 namespace GPULightmass
 {
@@ -518,9 +517,6 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 #if RHI_RAYTRACING
 			if (IsRayTracingEnabled())
 			{
-				// These two buffers must have lifetime extended beyond RHICmdList.RayTraceDispatch()
-				TUniformBufferRef<FSkyLightData> SkyLightDataUniformBuffer;
-
 				FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
 				{
