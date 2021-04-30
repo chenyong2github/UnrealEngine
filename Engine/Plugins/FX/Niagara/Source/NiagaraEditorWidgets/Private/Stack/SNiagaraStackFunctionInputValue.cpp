@@ -877,7 +877,7 @@ bool SNiagaraStackFunctionInputValue::GetLibraryOnly() const
 void SNiagaraStackFunctionInputValue::SetLibraryOnly(bool bInIsLibraryOnly)
 {
 	bLibraryOnly = bInIsLibraryOnly;
-	ActionSelector->RefreshAllItems(true);
+	ActionSelector->RefreshAllCurrentItems(true);
 }
 
 FReply SNiagaraStackFunctionInputValue::ScratchButtonPressed() const
@@ -1158,7 +1158,7 @@ void SNiagaraStackFunctionInputValue::OnItemActivated(const TSharedPtr<FNiagaraM
 
 void SNiagaraStackFunctionInputValue::TriggerRefresh(const TMap<EScriptSource, bool>& SourceState)
 {
-	ActionSelector->RefreshAllItems();
+	ActionSelector->RefreshAllCurrentItems();
 
 	TArray<bool> States;
 	SourceState.GenerateValueArray(States);

@@ -3,6 +3,7 @@
 
 #include "NiagaraEmitter.h"
 
+#include "INiagaraEditorOnlyDataUtlities.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraEditorDataBase.h"
 #include "NiagaraModule.h"
@@ -164,6 +165,13 @@ void UNiagaraEmitter::PostInitProperties()
 		GPUComputeScript = NewObject<UNiagaraScript>(this, "GPUComputeScript", EObjectFlags::RF_Transactional);
 		GPUComputeScript->SetUsage(ENiagaraScriptUsage::ParticleGPUComputeScript);
 
+#if WITH_EDITORONLY_DATA && WITH_EDITOR
+		if (EditorParameters == nullptr)
+		{
+			INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
+			EditorParameters = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorParameters(this);
+		}
+#endif
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -422,6 +430,17 @@ void UNiagaraEmitter::PostLoad()
 	}
 
 #if WITH_EDITORONLY_DATA
+	if (NiagaraVer < FNiagaraCustomVersion::MoveDefaultValueFromFNiagaraVariableMetaDataToUNiagaraScriptVariable)
+	{
+		if (EditorParameters == nullptr)
+		{
+			INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
+			EditorParameters = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorParameters(this);
+		}
+	}
+#endif
+
+#if WITH_EDITORONLY_DATA
 	if (!GPUComputeScript)
 	{
 		GPUComputeScript = NewObject<UNiagaraScript>(this, "GPUComputeScript", EObjectFlags::RF_Transactional);
@@ -515,6 +534,24 @@ void UNiagaraEmitter::PostLoad()
 				ParentScratchPadScript->ConditionalPostLoad();
 			}
 		}
+
+		// Synchronize with definitions before merging.
+		const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+		check(Settings);
+		TArray<FGuid> DefaultDefinitionsUniqueIds;
+		for (const FSoftObjectPath& DefaultLinkedParameterDefinitionObjPath : Settings->DefaultLinkedParameterDefinitions)
+		{
+			UNiagaraParameterDefinitionsBase* DefaultLinkedParameterDefinitions = CastChecked<UNiagaraParameterDefinitionsBase>(DefaultLinkedParameterDefinitionObjPath.TryLoad());
+			DefaultDefinitionsUniqueIds.Add(DefaultLinkedParameterDefinitions->GetDefinitionsUniqueId());
+			const bool bDoNotAssertIfAlreadySubscribed = true;
+			SubscribeToParameterDefinitions(DefaultLinkedParameterDefinitions, bDoNotAssertIfAlreadySubscribed);
+		}
+		FSynchronizeWithParameterDefinitionsArgs Args;
+		Args.SpecificDefinitionsUniqueIds = DefaultDefinitionsUniqueIds;
+		Args.bForceSynchronizeDefinitions = true;
+		Args.bSubscribeAllNameMatchParameters = true;
+		SynchronizeWithParameterDefinitions(Args);
+		InitParameterDefinitionsSubscriptions();
 
 		if (IsSynchronizedWithParent() == false)
 		{
@@ -1000,6 +1037,28 @@ void UNiagaraEmitter::HandleVariableRemoved(const FNiagaraVariable& InOldVariabl
 }
 #endif
 
+TArray<UNiagaraScriptSourceBase*> UNiagaraEmitter::GetAllSourceScripts()
+{
+	TArray<UNiagaraScriptSourceBase*> OutScriptSources;
+	TArray<UNiagaraScript*> Scripts;
+	GetScripts(Scripts, false);
+	for (UNiagaraScript* Script : Scripts)
+	{
+		OutScriptSources.Add(Script->GetLatestSource());
+	}
+	return OutScriptSources;
+}
+
+FString UNiagaraEmitter::GetSourceObjectPathName() const
+{
+	return GetPathName();
+}
+
+TArray<UNiagaraEditorParametersAdapterBase*> UNiagaraEmitter::GetEditorOnlyParametersAdapters()
+{
+	return { GetEditorParameters() };
+}
+
 bool UNiagaraEmitter::IsEnabledOnPlatform(const FString& PlatformName)const
 {
 	return Platforms.IsEnabledForPlatform(PlatformName);
@@ -1260,6 +1319,11 @@ FGuid UNiagaraEmitter::GetChangeId() const
 UNiagaraEditorDataBase* UNiagaraEmitter::GetEditorData() const
 {
 	return EditorData;
+}
+
+UNiagaraEditorParametersAdapterBase* UNiagaraEmitter::GetEditorParameters()
+{
+	return EditorParameters;
 }
 
 void UNiagaraEmitter::SetEditorData(UNiagaraEditorDataBase* InEditorData)
@@ -1835,6 +1899,8 @@ void UNiagaraEmitter::BeginDestroy()
 	{
 		GPUComputeScript->OnGPUScriptCompiled().RemoveAll(this);
 	}
+
+	CleanupParameterDefinitionsSubscriptions();
 #endif
 	Super::BeginDestroy();
 }

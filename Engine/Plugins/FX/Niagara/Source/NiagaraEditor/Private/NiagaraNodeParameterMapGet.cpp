@@ -202,7 +202,6 @@ void UNiagaraNodeParameterMapGet::OnNewTypedPinAdded(UEdGraphPin*& NewPin)
 		}
 
 		NewPin->PinType.PinSubCategory = UNiagaraNodeParameterMapBase::ParameterPinSubCategory;
-		UpdateAddedPinMetaData(NewPin);
 	}
 
 	if (HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedInitialization))
@@ -561,14 +560,11 @@ void UNiagaraNodeParameterMapGet::GetPinHoverText(const UEdGraphPin& Pin, FStrin
 				if (Metadata.IsSet())
 				{
 					FText Description = Metadata->Description;
-					const FText TooltipFormat = LOCTEXT("Parameters", "Name: {0} \nType: {1}\nDescription: {2}\nScope: {3}\nUser Editable: {4}\nUsage: {5}");
+					const FText TooltipFormat = LOCTEXT("Parameters", "Name: {0} \nType: {1}\nDescription: {2}");
 					const FText Name = FText::FromName(Var.GetName());
 					FName CachedParamName;
-					Metadata->GetParameterName(CachedParamName);
-					const FText ScopeText = FText::FromName(Metadata->GetScopeName());
-					const FText UserEditableText = FText::FromName(CachedParamName);
-					const FText UsageText = StaticEnum<ENiagaraScriptParameterUsage>()->GetDisplayNameTextByValue((int64)Metadata->GetUsage());
-					const FText ToolTipText = FText::Format(TooltipFormat, FText::FromName(Var.GetName()), Var.GetType().GetNameText(), Description, ScopeText, UserEditableText, UsageText);
+
+					const FText ToolTipText = FText::Format(TooltipFormat, FText::FromName(Var.GetName()), Var.GetType().GetNameText(), Description);
 					HoverTextOut = ToolTipText.ToString();
 				}
 				else

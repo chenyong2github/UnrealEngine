@@ -6,7 +6,9 @@
 #include "GraphEditAction.h"
 
 class INiagaraParameterPanelViewModel;
+class FNiagaraScriptToolkitParameterPanelViewModel;
 class FUICommandList;
+
 
 class NIAGARAEDITOR_API FNiagaraScratchPadScriptViewModel : public FNiagaraScriptViewModel, public FGCObject
 {
@@ -25,7 +27,16 @@ public:
 
 	void Finalize();
 
+	//~ Begin FGCObject
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	//~ End FGCObject
+
+	//~ Begin NiagaraParameterDefinitionsSubscriberViewModel Interface
+protected:
+	virtual INiagaraParameterDefinitionsSubscriber* GetParameterDefinitionsSubscriber() override { return &EditScript; };
+	//~ End NiagaraParameterDefinitionsSubscriberViewModel Interface
+
+public:
 
 	UNiagaraScript* GetOriginalScript() const;
 
@@ -88,7 +99,7 @@ private:
 	bool bHasPendingChanges;
 
 	TSharedPtr<FUICommandList> ParameterPanelCommands;
-	TSharedPtr<INiagaraParameterPanelViewModel> ParameterPaneViewModel;
+	TSharedPtr<FNiagaraScriptToolkitParameterPanelViewModel> ParameterPaneViewModel;
 
 	FDelegateHandle OnGraphNeedsRecompileHandle;
 

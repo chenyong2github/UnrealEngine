@@ -23,8 +23,10 @@
 #include "Misc/SecureHash.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UnrealType.h"
+#include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraNodeStaticSwitch.h"
+
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeFunctionCall"
 
@@ -252,10 +254,10 @@ void UNiagaraNodeFunctionCall::AllocateDefaultPins()
 			NewPin->bDefaultValueIsIgnored = FindPropagatedVariable(Input) != nullptr;
 			
 			FString PinDefaultValue;
-			TOptional<FNiagaraVariableMetaData> MetaData = Graph->GetMetaData(Input);
-			if (MetaData.IsSet())
+			UNiagaraScriptVariable* ScriptVar = Graph->GetScriptVariable(Input);
+			if (ScriptVar)
 			{
-				int32 DefaultValue = MetaData->GetStaticSwitchDefaultValue();
+				int32 DefaultValue = ScriptVar->GetStaticSwitchDefaultValue();
 				Input.AllocateData();
 				Input.SetValue<FNiagaraInt32>({ DefaultValue });
 				
@@ -461,8 +463,7 @@ bool UNiagaraNodeFunctionCall::FixupPinNames()
 					{
 						if (Entry.Value && Entry.Key.IsInNameSpace(FNiagaraConstants::OutputNamespace))
 						{
-							FName MetadataName;
-							Entry.Value->Metadata.GetParameterName(MetadataName);
+							FName MetadataName = FNiagaraParameterHandle(Entry.Key.GetName()).GetName();
 							FString AliasedNamespace = *FString::Printf(TEXT("%s.%s"), *FNiagaraConstants::OutputNamespace.ToString(), *FunctionNode->GetFunctionName());
 							FNiagaraParameterHandle AliasedFunctionInputHandle(FName(AliasedNamespace), MetadataName);
 							FNiagaraVariable OutputVar = Entry.Key;

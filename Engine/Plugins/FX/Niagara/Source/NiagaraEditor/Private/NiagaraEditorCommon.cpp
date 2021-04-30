@@ -13,6 +13,22 @@
 #define LOCTEXT_NAMESPACE "NiagaraEditor"
 
 DEFINE_LOG_CATEGORY(LogNiagaraEditor);
+
+
+///////////////////////////////////////////////////////////////////////////////
+/// Common Editor Strings													///
+///////////////////////////////////////////////////////////////////////////////
+namespace FNiagaraEditorStrings
+{
+	const FName DefaultValueCustomRowName = TEXT("Default Value");
+	const FName DefaultModeCustomRowName = TEXT("Default Mode");
+
+	const FName FNiagaraParameterActionId = TEXT("FNiagaraParameterAction");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// Op Info																	///
+///////////////////////////////////////////////////////////////////////////////
 TMap<FName, int32> FNiagaraOpInfo::OpInfoMap;
 TArray<FNiagaraOpInfo> FNiagaraOpInfo::OpInfos;
 
@@ -1311,12 +1327,12 @@ void FNiagaraOpInfo::Init()
 	OpInfoMap.Add(Op->Name) = Idx;
 }
 END_FUNCTION_BUILD_OPTIMIZATION
-//////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////// 
 
 
-/*-----------------------------------------------------------------------------
-UActorFactoryNiagara
------------------------------------------------------------------------------*/
+///////////////////////////////////////////////////////////////////////////////
+/// UActorFactoryNiagara													///
+///////////////////////////////////////////////////////////////////////////////
 UActorFactoryNiagara::UActorFactoryNiagara(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -1385,15 +1401,12 @@ void UActorFactoryNiagara::PostCreateBlueprint(UObject* Asset, AActor* CDO)
 }
 
 
-
-#undef LOCTEXT_NAMESPACE
-
+///////////////////////////////////////////////////////////////////////////////
+/// INiagaraScriptGraphFocusInfo											///
+///////////////////////////////////////////////////////////////////////////////
 INiagaraScriptGraphFocusInfo::~INiagaraScriptGraphFocusInfo()
 {
 	//Stand-in definition for abstract INiagaraScriptGraphFocusInfo's pure virtual dtor
 }
 
-bool FNiagaraScriptVariableAndViewInfo::operator==(const FNiagaraScriptVariableAndViewInfo& Other) const
-{
-	return ScriptVariable == Other.ScriptVariable && MetaData.GetUsage() == Other.MetaData.GetUsage();
-}
+#undef LOCTEXT_NAMESPACE
