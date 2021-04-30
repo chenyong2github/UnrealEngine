@@ -12,6 +12,7 @@
 #include "Containers/Queue.h"
 #include "Engine/EngineTypes.h"
 #include "GameFramework/Actor.h"
+#include "BodySetupEnums.h"
 
 #include <atomic>
 
@@ -127,6 +128,12 @@ struct FDatasmithRuntimeImportOptions
 	UPROPERTY(Category = "DatasmithRuntime", EditDefaultsOnly, BlueprintReadWrite)
 	TEnumAsByte<ECollisionEnabled::Type> BuildCollisions = ECollisionEnabled::QueryOnly;
 
+	/**
+	 * Indicates the type of collision for static meshes
+	 * Set to ECollisionTraceFlag::CTF_UseComplexAsSimple by default
+	 */
+	UPROPERTY(Category = "DatasmithRuntime", EditDefaultsOnly, BlueprintReadWrite)
+	TEnumAsByte<ECollisionTraceFlag> CollisionType = ECollisionTraceFlag::CTF_UseComplexAsSimple;
 	/**
 	 * Indicates whether meta-data should be imported or not
 	 * Meta-data are not imported by default

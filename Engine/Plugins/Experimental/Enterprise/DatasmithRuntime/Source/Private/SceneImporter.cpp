@@ -1227,6 +1227,7 @@ namespace DatasmithRuntime
 					UWorld* World = RootComponent->GetOwner()->GetWorld();
 
 					ACineCameraActor* CameraActor = Cast< ACineCameraActor >( World->SpawnActor( ACineCameraActor::StaticClass(), nullptr, nullptr ) );
+					CameraActor->Rename(CameraElement->GetName(), nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
 #if WITH_EDITOR
 					CameraActor->SetActorLabel(CameraElement->GetLabel());
 #endif
@@ -1493,7 +1494,7 @@ namespace DatasmithRuntime
 			{
 				if (ActorElement->IsAComponent() && ParentComponent && SceneComponent->GetOwner() != ParentComponent->GetOwner())
 				{
-					FName UniqueName = MakeUniqueObjectName(ParentComponent->GetOwner(), SceneComponent->GetClass(), ActorElement->GetLabel());
+					FName UniqueName = MakeUniqueObjectName(ParentComponent->GetOwner(), SceneComponent->GetClass(), ActorElement->GetName());
 					SceneComponent->Rename(*UniqueName.ToString(), ParentComponent->GetOwner(), REN_NonTransactional | REN_DontCreateRedirectors);
 				}
 
