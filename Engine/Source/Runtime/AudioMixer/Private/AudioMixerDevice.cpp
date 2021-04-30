@@ -152,7 +152,6 @@ namespace Audio
 			SubmixMap.Reset();
 		}
 	}
-	
 
 	FMixerDevice::FMixerDevice(IAudioMixerPlatformInterface* InAudioMixerPlatform)
 		: QuantizedEventClockManager(this)
@@ -2407,7 +2406,7 @@ namespace Audio
 		}
 	}
 
-	bool FMixerDevice::IsAudioBusActive(uint32 InAudioBusId)
+	bool FMixerDevice::IsAudioBusActive(uint32 InAudioBusId) const
 	{
 		if (IsInGameThread())
 		{
@@ -2431,7 +2430,6 @@ namespace Audio
 			return StrongOutputPtr;
 		}
 
-		UE_LOG(LogAudioMixer, Warning, TEXT("Failed to add a patch output for audio bus: audio bus with id '%d' is inactive."), InAudioBusId);
 		return nullptr;
 	}
 

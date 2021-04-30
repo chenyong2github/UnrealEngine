@@ -1161,7 +1161,6 @@ namespace Audio
 		AUDIO_MIXER_CHECK(NumFrames > 0);
 		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
 
-
 		AudioMixerThreadCommand([this, SourceId, NumFrames]()
 		{
 			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);

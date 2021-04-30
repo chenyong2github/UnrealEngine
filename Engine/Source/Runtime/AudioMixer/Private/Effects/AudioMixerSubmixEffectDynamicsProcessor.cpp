@@ -189,11 +189,20 @@ bool FSubmixEffectDynamicsProcessor::UpdateKeySourcePatch()
 			// should never be hit during Teardown.
 			if (Audio::FMixerDevice* MixerDevice = GetMixerDevice())
 			{
-				KeySource.Patch = MixerDevice->AddPatchForAudioBus(KeySource.GetObjectId(), 1.0f /* PatchGain */);
-				if (KeySource.Patch.IsValid())
+				const uint32 ObjectId = KeySource.GetObjectId();
+				if (ObjectId != INDEX_NONE)
 				{
-					DynamicsProcessor.SetKeyNumChannels(KeySource.GetNumChannels());
-					return true;
+					KeySource.Patch = MixerDevice->AddPatchForAudioBus(ObjectId, 1.0f /* PatchGain */);
+					if (KeySource.Patch.IsValid())
+					{
+						DynamicsProcessor.SetKeyNumChannels(KeySource.GetNumChannels());
+						return true;
+					}
+					else if (KeySource.ShouldReportInactive())
+					{
+						KeySource.SetReportInactive(false);
+						UE_LOG(LogAudioMixer, Warning, TEXT("DynamicsProcessor failed to add patch output to inactive AudioBus (ID: '%d')"), ObjectId);
+					}
 				}
 			}
 		}
@@ -207,18 +216,27 @@ bool FSubmixEffectDynamicsProcessor::UpdateKeySourcePatch()
 			// should never be hit during Teardown.
 			if (Audio::FMixerDevice* MixerDevice = GetMixerDevice())
 			{
-				KeySource.Patch = MixerDevice->AddPatchForSubmix(KeySource.GetObjectId(), 1.0f /* PatchGain */);
-				if (KeySource.Patch.IsValid())
+				const uint32 ObjectId = KeySource.GetObjectId();
+				if (ObjectId != INDEX_NONE)
 				{
-					Audio::FMixerSubmixPtr SubmixPtr = MixerDevice->FindSubmixInstanceByObjectId(KeySource.GetObjectId());
-					if (SubmixPtr.IsValid())
+					KeySource.Patch = MixerDevice->AddPatchForSubmix(ObjectId, 1.0f /* PatchGain */);
+					if (KeySource.Patch.IsValid())
 					{
-						const int32 SubmixNumChannels = SubmixPtr->GetNumOutputChannels();
-						KeySource.SetNumChannels(SubmixNumChannels);
-						DynamicsProcessor.SetKeyNumChannels(SubmixNumChannels);
-						return true;
+						Audio::FMixerSubmixPtr SubmixPtr = MixerDevice->FindSubmixInstanceByObjectId(KeySource.GetObjectId());
+						if (SubmixPtr.IsValid())
+						{
+							const int32 SubmixNumChannels = SubmixPtr->GetNumOutputChannels();
+							KeySource.SetNumChannels(SubmixNumChannels);
+							DynamicsProcessor.SetKeyNumChannels(SubmixNumChannels);
+							return true;
+						}
 					}
-				}
+					else if (KeySource.ShouldReportInactive())
+					{
+						KeySource.SetReportInactive(false);
+						UE_LOG(LogAudioMixer, Warning, TEXT("DynamicsProcessor failed to add patch output to inactive Submix (ID: '%d')"), ObjectId);
+					}
+				}	
 			}
 		}
 		break;
@@ -240,8 +258,8 @@ void FSubmixEffectDynamicsProcessor::OnProcessAudio(const FSoundEffectSubmixInpu
 
 	ensure(InData.NumChannels == OutData.NumChannels);
 
-	const Audio::AlignedFloatBuffer& InBuffer = *InData.AudioBuffer;
-	Audio::AlignedFloatBuffer& OutBuffer = *OutData.AudioBuffer;
+	const Audio::FAlignedFloatBuffer& InBuffer = *InData.AudioBuffer;
+	Audio::FAlignedFloatBuffer& OutBuffer = *OutData.AudioBuffer;
 
 	const bool bBypassDueToInvalidChannelCount = !ensure(InData.NumChannels <= AudioInputFrame.Num());
 	if (bBypassDueToInvalidChannelCount || bBypassSubmixDynamicsProcessor || bBypass)

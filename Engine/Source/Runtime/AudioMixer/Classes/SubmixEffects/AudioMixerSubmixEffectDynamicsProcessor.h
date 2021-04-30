@@ -225,7 +225,7 @@ protected:
 	void OnDeviceCreated(Audio::FDeviceId InDeviceId);
 	void OnDeviceDestroyed(Audio::FDeviceId InDeviceId);
 	
-	Audio::AlignedFloatBuffer AudioExternal;
+	Audio::FAlignedFloatBuffer AudioExternal;
 
 	TArray<float> AudioKeyFrame;
 	TArray<float> AudioInputFrame;
@@ -240,6 +240,7 @@ private:
 		ESubmixEffectDynamicsKeySource Type = ESubmixEffectDynamicsKeySource::Default;
 		int32 NumChannels = 0;
 		uint32 ObjectId = INDEX_NONE;
+		bool bReportInactive = true;
 
 		mutable FCriticalSection MutateSourceCritSection;
 
@@ -255,6 +256,7 @@ private:
 				NumChannels = 0;
 				ObjectId = INDEX_NONE;
 				Type = ESubmixEffectDynamicsKeySource::Default;
+				bReportInactive = true;
 			}
 		}
 
@@ -268,6 +270,18 @@ private:
 		{
 			const FScopeLock ScopeLock(&MutateSourceCritSection);
 			return NumChannels;
+		}
+
+		void SetReportInactive(bool bInReportInactive)
+		{
+			const FScopeLock ScopeLock(&MutateSourceCritSection);
+			bReportInactive = bInReportInactive;
+		}
+
+		bool ShouldReportInactive() const
+		{
+			const FScopeLock ScopeLock(&MutateSourceCritSection);
+			return bReportInactive;
 		}
 
 		ESubmixEffectDynamicsKeySource GetType() const
@@ -295,6 +309,7 @@ private:
 					NumChannels = InNumChannels;
 
 					bResetPatch = true;
+					bReportInactive = true;
 				}
 			}
 

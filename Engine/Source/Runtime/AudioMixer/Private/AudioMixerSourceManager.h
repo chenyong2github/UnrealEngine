@@ -173,7 +173,7 @@ namespace Audio
 		// Stops an audio bus manually
 		void StopAudioBus(uint32 InAudioBusId);
 
-		// Queries if an audio bus is active
+		// Queries if an audio bus is active. Must be called from the audio thread.
 		bool IsAudioBusActive(uint32 InAudioBusId) const;
 
 		// Returns the number of channels currently set for the audio bus associated with
