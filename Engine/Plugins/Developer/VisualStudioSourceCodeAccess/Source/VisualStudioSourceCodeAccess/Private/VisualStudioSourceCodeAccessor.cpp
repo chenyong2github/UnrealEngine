@@ -702,8 +702,6 @@ EAccessVisualStudioResult AccessVisualStudioViaProcess(::DWORD& OutProcessID, FS
 					if (::Module32First(hModuleSnap, &ModuleEntry))
 					{
 						FString ProcPath = ModuleEntry.szExePath;
-						FPaths::NormalizeDirectoryName(ProcPath);
-						FPaths::CollapseRelativeDirectories(ProcPath);
 
 						if (ProcPath == Location.ExecutablePath)
 						{
