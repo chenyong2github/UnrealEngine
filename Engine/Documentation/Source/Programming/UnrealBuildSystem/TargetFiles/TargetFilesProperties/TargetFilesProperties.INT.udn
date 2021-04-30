@@ -308,4 +308,6 @@ $ DisableOptimizeCodeForModules (String[]): List of modules to disable optimizat
 
 $ GeneratedProjectName (String): When generating project files, specifies the name of the project file to use when there are multiple targets of the same type.
 
+$ OptedInModulePlatforms (UnrealTargetPlatform[]): If this is non-null, then any platforms NOT listed will not be allowed to have modules in their directories be created
+
 
