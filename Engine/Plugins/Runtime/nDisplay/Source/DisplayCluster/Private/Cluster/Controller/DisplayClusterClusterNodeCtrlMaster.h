@@ -62,7 +62,7 @@ private:
 
 private:
 	// GetTimeData internals
-	FEventRef CachedDeltaTimeEvent{ EEventMode::ManualReset };
+	FEventRef CachedTimeDataEvent{ EEventMode::ManualReset };
 	float   CachedDeltaTime = 0.f;
 	double  CachedGameTime = 0.f;
 	TOptional<FQualifiedFrameTime>  CachedFrameTime;
