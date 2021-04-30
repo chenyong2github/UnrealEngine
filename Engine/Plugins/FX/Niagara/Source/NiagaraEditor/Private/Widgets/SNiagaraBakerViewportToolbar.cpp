@@ -79,7 +79,7 @@ void SNiagaraBakerViewportToolbar::Construct(const FArguments& InArgs)
 		SNew(SEditorViewportToolBarButton)
 		.Cursor(EMouseCursor::Default)
 		.ButtonType(EUserInterfaceActionType::Button)
-		.ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.MenuButtonWarning"))
+		.ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.WarningButton"))
 		.OnClicked(
 			FOnClicked::CreateLambda(
 				[WeakViewModel=WeakViewModel]()
