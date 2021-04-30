@@ -139,7 +139,7 @@ private:
 			{
 				int8 bUpdatedOnce : 1;
 				int8 bUpdatedThisFrame : 1;
-				int8 bUpatedManually : 1;
+				int8 bUpdatedManually : 1;
 				int8 bIsADependencyForSomeoneElse : 1;
 				int8 bAffectVisibility : 1;
 				ESlateAttributeType AttributeType : 2;
