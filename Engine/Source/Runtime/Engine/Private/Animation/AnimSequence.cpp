@@ -4753,6 +4753,8 @@ void UAnimSequence::SynchronousAnimatedBoneAttributesCompression()
 
 		const FReferenceSkeleton& RefSkeleton = GetSkeleton()->GetReferenceSkeleton();
 
+		FMemMark Mark(FMemStack::Get());
+
 		// Helper struct to match sample timings with regular additive baking
 		FByFramePoseEvalContext EvalContext(this);
 
