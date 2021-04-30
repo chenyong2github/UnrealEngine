@@ -330,32 +330,32 @@ TSharedPtr<FDragDropOperation> FDisplayClusterConfiguratorClusterUtils::MakeDrag
 
 namespace
 {
-	bool Intrudes(const FBox2D& BoxA, const FBox2D& BoxB)
-	{
-		// Similar to FBox2D::Intersects, but ignores the case where the box edges are touching.
-
-		// Special case if both boxes are directly on top of each other, which is considered an intrusion.
-		if (BoxA == BoxB)
-		{
-			return true;
-		}
-
-		if ((BoxA.Min.X >= BoxB.Max.X) || (BoxB.Min.X >= BoxA.Max.X))
-		{
-			return false;
-		}
-
-		if ((BoxA.Min.Y >= BoxB.Max.Y) || (BoxB.Min.Y >= BoxA.Max.Y))
-		{
-			return false;
-		}
-
-		return true;
-	}
-
 	FVector2D FindAvailableSpace(const TArray<FBox2D>& OtherBounds, const FBox2D& DesiredBounds)
 	{
 		FBox2D CurrentBounds(DesiredBounds);
+
+		// Similar to FBox2D::Intersects, but ignores the case where the box edges are touching.
+		auto IntrudesFunc = [](const FBox2D& BoxA, const FBox2D& BoxB)
+		{
+
+			// Special case if both boxes are directly on top of each other, which is considered an intrusion.
+			if (BoxA == BoxB)
+			{
+				return true;
+			}
+
+			if ((BoxA.Min.X >= BoxB.Max.X) || (BoxB.Min.X >= BoxA.Max.X))
+			{
+				return false;
+			}
+
+			if ((BoxA.Min.Y >= BoxB.Max.Y) || (BoxB.Min.Y >= BoxA.Max.Y))
+			{
+				return false;
+			}
+
+			return true;
+		};
 
 		bool bIntersectsBounds;
 		do
@@ -364,7 +364,7 @@ namespace
 
 			for (const FBox2D& Bounds : OtherBounds)
 			{
-				if (Intrudes(CurrentBounds, Bounds))
+				if (IntrudesFunc(CurrentBounds, Bounds))
 				{
 					bIntersectsBounds = true;
 
