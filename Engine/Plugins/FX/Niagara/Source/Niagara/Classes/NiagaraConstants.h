@@ -53,21 +53,20 @@
 #define SYS_PARAM_ENGINE_WORLD_TO_LOCAL_NO_SCALE         INiagaraModule::GetVar_Engine_Owner_SystemWorldToLocalNoScale()
 
 
-#define SYS_PARAM_ENGINE_TIME_SINCE_RENDERED			 INiagaraModule::GetVar_Engine_Owner_TimeSinceRendered()
-#define SYS_PARAM_ENGINE_LOD_DISTANCE					 INiagaraModule::GetVar_Engine_Owner_LODDistance()
-#define SYS_PARAM_ENGINE_LOD_DISTANCE_FRACTION			 INiagaraModule::GetVar_Engine_Owner_LODDistanceFraction()
+#define SYS_PARAM_ENGINE_TIME_SINCE_RENDERED			INiagaraModule::GetVar_Engine_Owner_TimeSinceRendered()
+#define SYS_PARAM_ENGINE_LOD_DISTANCE					INiagaraModule::GetVar_Engine_Owner_LODDistance()
+#define SYS_PARAM_ENGINE_LOD_DISTANCE_FRACTION			INiagaraModule::GetVar_Engine_Owner_LODDistanceFraction()
 
 
 #define SYS_PARAM_ENGINE_EXECUTION_STATE                 INiagaraModule::GetVar_Engine_Owner_ExecutionState()
 
 #define SYS_PARAM_ENGINE_EXEC_COUNT                      INiagaraModule::GetVar_Engine_ExecutionCount()
 #define SYS_PARAM_ENGINE_EMITTER_NUM_PARTICLES           INiagaraModule::GetVar_Engine_Emitter_NumParticles()
-#define SYS_PARAM_ENGINE_EMITTER_SIMULATION_POSITION	 INiagaraModule::GetVar_Engine_Emitter_SimulationPosition()
 #define SYS_PARAM_ENGINE_EMITTER_TOTAL_SPAWNED_PARTICLES INiagaraModule::GetVar_Engine_Emitter_TotalSpawnedParticles()
 #define SYS_PARAM_ENGINE_EMITTER_SPAWN_COUNT_SCALE       INiagaraModule::GetVar_Engine_Emitter_SpawnCountScale()
 #define SYS_PARAM_ENGINE_EMITTER_INSTANCE_SEED           INiagaraModule::GetVar_Engine_Emitter_InstanceSeed()
 #define SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS_ALIVE       INiagaraModule::GetVar_Engine_System_NumEmittersAlive()
-#define SYS_PARAM_ENGINE_SYSTEM_SIGNIFICANCE_INDEX		 INiagaraModule::GetVar_Engine_System_SignificanceIndex()
+#define SYS_PARAM_ENGINE_SYSTEM_SIGNIFICANCE_INDEX	 INiagaraModule::GetVar_Engine_System_SignificanceIndex()
 #define SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS             INiagaraModule::GetVar_Engine_System_NumEmitters()
 #define SYS_PARAM_ENGINE_NUM_SYSTEM_INSTANCES            INiagaraModule::GetVar_Engine_NumSystemInstances()
 

@@ -47,14 +47,6 @@ class UNiagaraScriptSource : public UNiagaraScriptSourceBase
 
 	virtual void CollectDataInterfaces(TArray<const UNiagaraDataInterfaceBase*>& DataInterfaces) const override;
 
-	/** Synchronize all source script variables that have been changed or removed from the parameter definitions to all eligible destination script variables owned by the nodegraph. */
-	virtual void SynchronizeGraphParametersWithParameterDefinitions(const TArray<UNiagaraParameterDefinitionsBase*> ParameterDefinitions, const TArray<FGuid>& ParameterDefinitionsParameterIds, FSynchronizeWithParameterDefinitionsArgs Args) override;
-
-	/** Rename all graph assignment and map set node pins.
-	 *  Used when synchronizing definitions with source scripts of systems and emitters.
-	 */
-	virtual void RenameGraphAssignmentAndSetNodePins(const FName OldName, const FName NewName);
-
 private:
 	void OnGraphChanged(const FEdGraphEditAction &Action);
 	void OnGraphDataInterfaceChanged();

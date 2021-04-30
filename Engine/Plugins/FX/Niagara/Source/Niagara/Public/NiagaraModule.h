@@ -132,7 +132,6 @@ public:
 
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_ExecutionCount() { return Engine_ExecutionCount; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Emitter_NumParticles() { return Engine_Emitter_NumParticles; }
-	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Emitter_SimulationPosition() { return Engine_Emitter_SimulationPosition; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Emitter_TotalSpawnedParticles() { return Engine_Emitter_TotalSpawnedParticles; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Emitter_SpawnCountScale() { return Engine_Emitter_SpawnCountScale; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Emitter_InstanceSeed() { return Engine_Emitter_InstanceSeed; }
@@ -250,7 +249,6 @@ private:
 
 	static FNiagaraVariable Engine_ExecutionCount;
 	static FNiagaraVariable Engine_Emitter_NumParticles;
-	static FNiagaraVariable Engine_Emitter_SimulationPosition;
 	static FNiagaraVariable Engine_Emitter_TotalSpawnedParticles;
 	static FNiagaraVariable Engine_Emitter_SpawnCountScale;
 	static FNiagaraVariable Engine_System_TickCount;

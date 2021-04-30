@@ -580,8 +580,6 @@ public:
 	/** If OutVar can be replaced by a literal constant, it's data is initialized with the correct value and we return true. Returns false otherwise. */
 	bool GetLiteralConstantVariable(FNiagaraVariable& OutVar) const;
 
-	/** If Var can be replaced by a another constant variable, or is a constant itself, add the appropriate body chunk and return true. */
-	bool HandleBoundConstantVariableToDataSetRead(FNiagaraVariable InVariable, UNiagaraNode* InNode, int32 InParamMapHistoryIdx, int32& Output, const UEdGraphPin* InDefaultPin);
 private:
 	bool GetUsesOldShaderStages() const;
 

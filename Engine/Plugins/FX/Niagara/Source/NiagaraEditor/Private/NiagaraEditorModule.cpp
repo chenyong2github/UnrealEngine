@@ -19,7 +19,6 @@
 #include "AssetTypeActions/AssetTypeActions_NiagaraScript.h"
 #include "AssetTypeActions/AssetTypeActions_NiagaraParameterCollection.h"
 #include "AssetTypeActions/AssetTypeActions_NiagaraEffectType.h"
-#include "AssetTypeActions/AssetTypeActions_NiagaraParameterDefinitions.h"
 
 #include "EdGraphUtilities.h"
 #include "SGraphPin.h"
@@ -72,7 +71,6 @@
 #include "NiagaraComponentBroker.h"
 #include "NiagaraBakerSettings.h"
 #include "ContentBrowserModule.h"
-#include "NiagaraParameterDefinitions.h"
 
 #include "MovieScene/Parameters/MovieSceneNiagaraBoolParameterTrack.h"
 #include "MovieScene/Parameters/MovieSceneNiagaraFloatParameterTrack.h"
@@ -150,6 +148,7 @@ IMPLEMENT_MODULE( FNiagaraEditorModule, NiagaraEditor );
 
 const FName FNiagaraEditorModule::NiagaraEditorAppIdentifier( TEXT( "NiagaraEditorApp" ) );
 const FLinearColor FNiagaraEditorModule::WorldCentricTabColorScale(0.0f, 0.0f, 0.2f, 0.5f);
+TArray<TPair<FName, FNiagaraParameterScopeInfo>> FNiagaraEditorModule::RegisteredParameterScopeInfos;
 
 EAssetTypeCategories::Type FNiagaraEditorModule::NiagaraAssetCategory;
 
@@ -161,16 +160,26 @@ static FAutoConsoleVariableRef CVarShowNiagaraDeveloperWindows(
 	ECVF_Default
 	);
 
+const FNiagaraParameterScopeInfo* FNiagaraEditorModule::FindParameterScopeInfo(const FName& ParameterScopeInfoName)
+{
+	auto FindPredicate = [ParameterScopeInfoName](const TPair<FName, FNiagaraParameterScopeInfo>& ScopeInfoPair) {return ScopeInfoPair.Key == ParameterScopeInfoName; };
+	if (const TPair<FName, FNiagaraParameterScopeInfo>* ScopeInfoPair = RegisteredParameterScopeInfos.FindByPredicate(FindPredicate))
+	{
+		return &ScopeInfoPair->Value;
+	}
+	return nullptr;
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 class FNiagaraEditorOnlyDataUtilities : public INiagaraEditorOnlyDataUtilities
 {
-	UNiagaraScriptSourceBase* CreateDefaultScriptSource(UObject* InOuter) const override
+	UNiagaraScriptSourceBase* CreateDefaultScriptSource(UObject* InOuter) const
 	{
 		return NewObject<UNiagaraScriptSource>(InOuter);
 	}
 
-	virtual UNiagaraEditorDataBase* CreateDefaultEditorData(UObject* InOuter) const override
+	virtual UNiagaraEditorDataBase* CreateDefaultEditorData(UObject* InOuter) const
 	{
 		UNiagaraSystem* System = Cast<UNiagaraSystem>(InOuter);
 		if (System != nullptr)
@@ -180,11 +189,6 @@ class FNiagaraEditorOnlyDataUtilities : public INiagaraEditorOnlyDataUtilities
 			return SystemEditorData;
 		}
 		return nullptr;
-	}
-
-	virtual UNiagaraEditorParametersAdapterBase* CreateDefaultEditorParameters(UObject* InOuter) const override
-	{
-		return NewObject<UNiagaraEditorParametersAdapter>(InOuter);
 	}
 };
 
@@ -779,7 +783,6 @@ void FNiagaraEditorModule::StartupModule()
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraScriptDynamicInputs()));
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraParameterCollection())); 
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraParameterCollectionInstance()));
-	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraParameterDefinitions()));
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraEffectType()));
 
 	UNiagaraSettings::OnSettingsChanged().AddRaw(this, &FNiagaraEditorModule::OnNiagaraSettingsChangedEvent);
@@ -882,10 +885,6 @@ void FNiagaraEditorModule::StartupModule()
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 		FNiagaraBakerTextureSource::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraBakerTextureSourceDetails::MakeInstance));
-
-	PropertyModule.RegisterCustomPropertyTypeLayout(
-		FNiagaraVariableMetaData::StaticStruct()->GetFName(),
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraVariableMetaDataCustomization::MakeInstance));
 
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 		FNiagaraOutlinerWorldData::StaticStruct()->GetFName(),
@@ -1087,6 +1086,23 @@ void FNiagaraEditorModule::StartupModule()
 		TEXT("fx.DumpCompileIdDataForAsset"),
 		TEXT("Dumps data relevant to generating the compile id for an asset."),
 		FConsoleCommandWithArgsDelegate::CreateStatic(&DumpCompileIdDataForAsset));
+
+	RegisterParameterScopeInfo(FNiagaraConstants::UserNamespace, FNiagaraParameterScopeInfo(ENiagaraParameterScope::User, PARAM_MAP_USER_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::EngineNamespace, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Engine, PARAM_MAP_ENGINE_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::EngineOwnerScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Owner, PARAM_MAP_ENGINE_OWNER_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::EngineSystemScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Engine, PARAM_MAP_ENGINE_SYSTEM_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::EngineEmitterScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Engine, PARAM_MAP_ENGINE_EMITTER_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::SystemNamespace, FNiagaraParameterScopeInfo(ENiagaraParameterScope::System, PARAM_MAP_SYSTEM_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::EmitterNamespace, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Emitter, PARAM_MAP_EMITTER_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::ParticleAttributeNamespace, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Particles, PARAM_MAP_ATTRIBUTE_STR));
+	
+	RegisterParameterScopeInfo(FNiagaraConstants::InputScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Input, PARAM_MAP_MODULE_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::LocalNamespace, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Local, PARAM_MAP_LOCAL_MODULE_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::ScriptPersistentScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::ScriptPersistent, PARAM_MAP_SCRIPT_PERSISTENT_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::ScriptTransientScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::ScriptTransient, PARAM_MAP_SCRIPT_TRANSIENT_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::OutputScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Output, PARAM_MAP_OUTPUT_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::UniqueOutputScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Output, PARAM_MAP_OUTPUT_MODULE_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::CustomScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Custom, FString()));
 
 	FNiagaraMessageManager* MessageManager = FNiagaraMessageManager::Get();
 	MessageManager->RegisterMessageTopic(FNiagaraMessageTopics::CompilerTopicName);
@@ -1298,6 +1314,7 @@ TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> FNiagaraEditorModul
 	return TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe>();
 }
 
+
 void FNiagaraEditorModule::RegisterWidgetProvider(TSharedRef<INiagaraEditorWidgetProvider> InWidgetProvider)
 {
 	checkf(WidgetProvider.IsValid() == false, TEXT("Widget provider has already been set."));
@@ -1305,7 +1322,7 @@ void FNiagaraEditorModule::RegisterWidgetProvider(TSharedRef<INiagaraEditorWidge
 }
 
 void FNiagaraEditorModule::UnregisterWidgetProvider(TSharedRef<INiagaraEditorWidgetProvider> InWidgetProvider)
-{
+{	
 	checkf(WidgetProvider.IsValid() && WidgetProvider == InWidgetProvider, TEXT("Can only unregister the widget provider that was originally registered."));
 	WidgetProvider.Reset();
 }
@@ -1451,44 +1468,9 @@ FNiagaraClipboard& FNiagaraEditorModule::GetClipboard() const
 	return Clipboard.Get();
 }
 
-const TSet<FName>& FNiagaraEditorModule::GetReservedLibraryParameterNames() const
+void FNiagaraEditorModule::RegisterParameterScopeInfo(const FName& ParameterScopeInfoName, const FNiagaraParameterScopeInfo& ParameterScopeInfo)
 {
-	if (ReservedLibraryParameterNames.Num() > 0)
-	{
-		return ReservedLibraryParameterNames;
-	}
-
-	// lazy init ReservedParameterLiraryNames as we cannot init during startup module due to asset registry module not being fully online.
-	TArray<FAssetData> ParameterDefinitionsAssetData;
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	AssetRegistryModule.GetRegistry().GetAssetsByClass(UNiagaraParameterDefinitions::StaticClass()->GetFName(), ParameterDefinitionsAssetData);
-	for (const FAssetData& ParameterDefinitionsAssetDatum : ParameterDefinitionsAssetData)
-	{
-		const UNiagaraParameterDefinitions* ParameterDefinitions = Cast<UNiagaraParameterDefinitions>(ParameterDefinitionsAssetDatum.GetAsset());
-		if (ParameterDefinitions == nullptr)
-		{
-			ensureMsgf(false, TEXT("Failed to load parameter definitions when initializing reserved parameter names!"));
-			continue;
-		}
-
-		for (const UNiagaraScriptVariable* ScriptVar : ParameterDefinitions->GetParametersConst())
-		{
-			//@todo(ng) impl assert path here if we end up with name aliases!
-			ReservedLibraryParameterNames.Add(ScriptVar->Variable.GetName());
-		}
-	}
-	
-	return ReservedLibraryParameterNames;
-}
-
-void FNiagaraEditorModule::AddReservedLibraryParameterName(const FName& ParameterName)
-{
-	ReservedLibraryParameterNames.Add(ParameterName);
-}
-
-void FNiagaraEditorModule::RemoveReservedLibraryParameterName(const FName& ParameterName)
-{
-	ReservedLibraryParameterNames.Remove(ParameterName);
+	RegisteredParameterScopeInfos.AddUnique(TPair<FName, FNiagaraParameterScopeInfo>(ParameterScopeInfoName, ParameterScopeInfo));
 }
 
 void FNiagaraEditorModule::RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)

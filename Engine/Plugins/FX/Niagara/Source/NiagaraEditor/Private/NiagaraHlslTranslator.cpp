@@ -1126,7 +1126,6 @@ static void ConvertFloatToHalf(const FNiagaraCompileOptions& InCompileOptions, T
 			SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS,
 			SYS_PARAM_ENGINE_NUM_SYSTEM_INSTANCES,
 			SYS_PARAM_ENGINE_EMITTER_NUM_PARTICLES,
-			SYS_PARAM_ENGINE_EMITTER_SIMULATION_POSITION,
 			SYS_PARAM_ENGINE_EMITTER_TOTAL_SPAWNED_PARTICLES,
 			SYS_PARAM_PARTICLES_UNIQUE_ID,
 			SYS_PARAM_PARTICLES_ID,
@@ -1368,8 +1367,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 						//-TODO: Temporarily skip the IGNORE variable, this needs to be cleaned up
 						static const FName Name_IGNORE("IGNORE");
 						FName ParameterName;
-						FNiagaraEditorUtilities::DecomposeVariableNamespace(FoundHistory.Variables[iVar].GetName(), ParameterName);
-						if (ParameterName == Name_IGNORE)
+						if (FoundHistory.VariableMetaData[iVar].GetParameterName(ParameterName) && (ParameterName == Name_IGNORE))
 						{
 							continue;
 						}
@@ -4539,7 +4537,6 @@ FString FHlslNiagaraTranslator::GenerateConstantString(const FNiagaraVariable& C
 		Error(FText::Format(LOCTEXT("GetConstantFail", "Cannot handle type {0}! Variable: {1}"), Type.GetNameText(), FText::FromName(Constant.GetName())), nullptr, nullptr);
 	}
 	FString ConstantStr = GetHlslDefaultForType(Type);
-
 	if (Constant.IsDataAllocated())
 	{
 		if (Type == FNiagaraTypeDefinition::GetFloatDef())
@@ -5134,33 +5131,6 @@ bool FHlslNiagaraTranslator::GetLiteralConstantVariable(FNiagaraVariable& OutVar
 		OutVar.SetValue(EnumValue);
 		return true;
 	}
-
-	return false;
-}
-
-bool FHlslNiagaraTranslator::HandleBoundConstantVariableToDataSetRead(FNiagaraVariable InVariable, UNiagaraNode* InNode, int32 InParamMapHistoryIdx, int32& Output, const UEdGraphPin* InDefaultPin)
-{
-	if (InVariable == SYS_PARAM_ENGINE_EMITTER_SIMULATION_POSITION)
-	{
-		// Simulation position is 0 for localspace emitters.
-		// If we are not in localspace then this will not be a literal constant and is instead a default linked variable as handled in GenerateConstantString().
-		const bool bEmitterLocalSpace = CompileOptions.AdditionalDefines.Contains(SYS_PARAM_EMITTER_LOCALSPACE.GetName().ToString());
-		if (bEmitterLocalSpace)
-		{
-			const FString ConstantStr = FString::Printf(TEXT("%s"), *SYS_PARAM_ENGINE_POSITION.GetName().ToString());
-			const FString ParameterMapInstanceNameStr = GetParameterMapInstanceName(InParamMapHistoryIdx);
-			Output = AddBodyChunk(GetUniqueSymbolName(TEXT("Constant")), FString::Printf(TEXT("%s.%s"), *ParameterMapInstanceNameStr, *ConstantStr), InVariable.GetType());
-			return true;
-		}
-		else
-		{
-			InVariable.SetValue(FVector(EForceInit::ForceInitToZero));
-			float* ValuePtr = (float*)InVariable.GetData();
-			const FString ConstantStr = FString::Printf(TEXT("float3(%g,%g,%g)"), *ValuePtr, *(ValuePtr + 1), *(ValuePtr + 2));
-			Output = AddBodyChunk(GetUniqueSymbolName(TEXT("Constant")), ConstantStr, InVariable.GetType());
-			return true;
-		}
-	}
 	return false;
 }
 
@@ -5584,10 +5554,6 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 	if (GetLiteralConstantVariable(Var))
 	{
 		OutputChunkId = GetConstant(Var);
-		return;
-	}
-	else if (HandleBoundConstantVariableToDataSetRead(Var, ErrorNode, ParamMapHistoryIdx, OutputChunkId, DefaultPin))
-	{
 		return;
 	}
 

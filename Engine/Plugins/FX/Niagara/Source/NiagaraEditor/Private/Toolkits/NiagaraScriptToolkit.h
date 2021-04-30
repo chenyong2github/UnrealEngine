@@ -24,7 +24,6 @@ struct FEdGraphEditAction;
 class FNiagaraMessageLogViewModel;
 class FNiagaraStandaloneScriptViewModel;
 class FNiagaraScriptToolkitParameterPanelViewModel;
-class FNiagaraScriptToolkitParameterDefinitionsPanelViewModel;
 class SNiagaraSelectedObjectsDetails;
 
 /** Viewer/editor for a DataTable */
@@ -91,7 +90,6 @@ private:
 	/** Spawns the tab with the parameter view. */
 	TSharedRef<SDockTab> SpawnTabScriptParameters(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTabScriptParameters2(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTabParameterDefinitions(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTabStats(const FSpawnTabArgs& Args);
 
 	/** Spawns the tab with the version management. */
@@ -156,9 +154,6 @@ private:
 	/** The Parameter Panel displaying graph variables */
 	TSharedPtr<FNiagaraScriptToolkitParameterPanelViewModel> ParameterPanelViewModel;
 
-	/** The Parameter Definitions Panel displaying included libraries */
-	TSharedPtr<FNiagaraScriptToolkitParameterDefinitionsPanelViewModel> ParameterDefinitionsPanelViewModel;
-
 	/** The selection displayed by the details tab. */
 	TSharedPtr<FNiagaraObjectSelection> DetailsScriptSelection;
 
@@ -172,7 +167,6 @@ private:
 	static const FName SelectedDetailsTabId;
 	static const FName ParametersTabId;
 	static const FName ParametersTabId2;
-	static const FName ParameterDefinitionsTabId;
 	static const FName StatsTabId;
 	static const FName MessageLogTabID;
 	static const FName VersioningTabID;
@@ -195,8 +189,4 @@ private:
 	TSharedPtr<class IDetailsView> DetailsView;
 	UNiagaraVersionMetaData* VersionMetadata = nullptr;
 	FText GetGraphEditorDisplayName() const;
-
-private:
-	void RefreshDetailsPanel();
-
 };

@@ -15,7 +15,6 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "NiagaraConstants.h"
-#include "NiagaraScriptVariable.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStaticSwitchNodeDetails"
 
@@ -236,27 +235,27 @@ int32 FNiagaraStaticSwitchNodeDetails::GetDefaultWidgetIndex() const
 
 TOptional<int32> FNiagaraStaticSwitchNodeDetails::GetSwitchDefaultValue() const
 {
-	UNiagaraScriptVariable* ScriptVar = GetSwitchParameterScriptVar();
-	return ScriptVar ? TOptional<int32>(ScriptVar->GetStaticSwitchDefaultValue()) : TOptional<int32>();
+	TOptional<FNiagaraVariableMetaData> MetaData = GetSwitchParameterMetadata();
+	return MetaData.IsSet() ? TOptional<int32>(MetaData->GetStaticSwitchDefaultValue()) : TOptional<int32>();
 }
 
 void FNiagaraStaticSwitchNodeDetails::DefaultIntValueCommitted(int32 Value, ETextCommit::Type CommitInfo)
 {
-	UNiagaraScriptVariable* ScriptVar = GetSwitchParameterScriptVar();
-	if (ScriptVar)
+	TOptional<FNiagaraVariableMetaData> MetaData = GetSwitchParameterMetadata();
+	if (MetaData.IsSet())
 	{
-		ScriptVar->SetStaticSwitchDefaultValue(Value);
-		SetSwitchParameterMetadata(ScriptVar->Metadata);
+		MetaData->SetStaticSwitchDefaultValue(Value);
+		SetSwitchParameterMetadata(MetaData.GetValue());
 	}
 }
 
 void FNiagaraStaticSwitchNodeDetails::DefaultBoolValueCommitted(ECheckBoxState NewState)
 {
-	UNiagaraScriptVariable* ScriptVar = GetSwitchParameterScriptVar();
-	if (ScriptVar)
+	TOptional<FNiagaraVariableMetaData> MetaData = GetSwitchParameterMetadata();
+	if (MetaData.IsSet())
 	{
-		ScriptVar->SetStaticSwitchDefaultValue((NewState == ECheckBoxState::Checked) ? 1 : 0);
-		SetSwitchParameterMetadata(ScriptVar->Metadata);
+		MetaData->SetStaticSwitchDefaultValue((NewState == ECheckBoxState::Checked) ? 1 : 0);
+		SetSwitchParameterMetadata(MetaData.GetValue());
 	}
 }
 
@@ -290,8 +289,8 @@ FText FNiagaraStaticSwitchNodeDetails::GetConstantSelectionItemLabel() const
 void FNiagaraStaticSwitchNodeDetails::OnSelectionChanged(TSharedPtr<DefaultEnumOption> NewValue, ESelectInfo::Type)
 {
 	SelectedDefaultValue = NewValue;
-	UNiagaraScriptVariable* ScriptVar = GetSwitchParameterScriptVar();
-	if (!SelectedDefaultValue.IsValid() || !ScriptVar)
+	TOptional<FNiagaraVariableMetaData> MetaData = GetSwitchParameterMetadata();
+	if (!SelectedDefaultValue.IsValid() || !MetaData.IsSet())
 	{
 		return;
 	}
@@ -302,8 +301,8 @@ void FNiagaraStaticSwitchNodeDetails::OnSelectionChanged(TSharedPtr<DefaultEnumO
 		return;
 	}
 
-	ScriptVar->SetStaticSwitchDefaultValue(SelectedDefaultValue->EnumIndex);
-	SetSwitchParameterMetadata(ScriptVar->Metadata);
+	MetaData->SetStaticSwitchDefaultValue(SelectedDefaultValue->EnumIndex);
+	SetSwitchParameterMetadata(MetaData.GetValue());
 }
 
 void FNiagaraStaticSwitchNodeDetails::OnSelectionChanged(TSharedPtr<SwitchDropdownOption> NewValue, ESelectInfo::Type)
@@ -425,8 +424,7 @@ void FNiagaraStaticSwitchNodeDetails::RefreshDropdownValues()
 	{
 		return;
 	}
-
-	UNiagaraScriptVariable* ScriptVar = GetSwitchParameterScriptVar();
+	TOptional<FNiagaraVariableMetaData> MetaData = GetSwitchParameterMetadata();
 
 	DefaultEnumDropdownOptions.Empty();
 	UEnum* Enum = Node->SwitchTypeData.Enum;
@@ -442,7 +440,7 @@ void FNiagaraStaticSwitchNodeDetails::RefreshDropdownValues()
 			FText DisplayName = Enum->GetDisplayNameTextByIndex(i);
 			DefaultEnumDropdownOptions.Add(MakeShared<DefaultEnumOption>(DisplayName, i));
 
-			if (ScriptVar && i == ScriptVar->GetStaticSwitchDefaultValue())
+			if (MetaData.IsSet() && i == MetaData->GetStaticSwitchDefaultValue())
 			{
 				SelectedDefaultValue = DefaultEnumDropdownOptions[i];
 			}
@@ -454,13 +452,14 @@ void FNiagaraStaticSwitchNodeDetails::RefreshDropdownValues()
 	}
 }
 
-UNiagaraScriptVariable* FNiagaraStaticSwitchNodeDetails::GetSwitchParameterScriptVar() const
+TOptional<FNiagaraVariableMetaData> FNiagaraStaticSwitchNodeDetails::GetSwitchParameterMetadata() const
 {
 	if (!Node.IsValid() || !Node->GetNiagaraGraph())
 	{
-		return nullptr;
+		TOptional<FNiagaraVariableMetaData> Empty;
+		return Empty;
 	}
-	return Node->GetNiagaraGraph()->GetScriptVariable(FNiagaraVariable(Node->GetInputType(), Node->InputParameterName));
+	return Node->GetNiagaraGraph()->GetMetaData(FNiagaraVariable(Node->GetInputType(), Node->InputParameterName));
 }
 
 void FNiagaraStaticSwitchNodeDetails::SetSwitchParameterMetadata(const FNiagaraVariableMetaData& MetaData)

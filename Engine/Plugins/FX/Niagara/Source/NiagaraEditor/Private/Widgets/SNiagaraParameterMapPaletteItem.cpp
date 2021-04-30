@@ -58,12 +58,12 @@ void SNiagaraParameterMapPalleteItem::Construct(const FArguments& InArgs, FCreat
 	bool bForceReadOnly = NamespaceMetadata.IsValid() == false || NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingName);
 
 	ParameterNameTextBlock = SNew(SNiagaraParameterNameTextBlock)
-		.ParameterText(FText::FromName(ParameterAction->GetParameter().GetName()))
+		.ParameterText(FText::FromName(ParameterAction->Parameter.GetName()))
 		.HighlightText(InCreateData->HighlightText)
 		.OnTextCommitted(this, &SNiagaraParameterMapPalleteItem::OnNameTextCommitted)
 		.OnVerifyTextChanged(this, &SNiagaraParameterMapPalleteItem::OnNameTextVerifyChanged)
 		.IsSelected(InCreateData->IsRowSelectedDelegate)
-		.IsReadOnly(InCreateData->bIsReadOnly || bForceReadOnly || ParameterAction->GetIsExternallyReferenced())
+		.IsReadOnly(InCreateData->bIsReadOnly || bForceReadOnly || ParameterAction->bIsExternallyReferenced)
 		.Decorator()
 		[
 			SNew(SHorizontalBox)
@@ -72,7 +72,7 @@ void SNiagaraParameterMapPalleteItem::Construct(const FArguments& InArgs, FCreat
 			.Padding(0, 0, 5, 0)
 			[
 				SNew(STextBlock)
-				.Visibility(ParameterAction->GetIsExternallyReferenced() ? EVisibility::Visible : EVisibility::Collapsed)
+				.Visibility(ParameterAction->bIsExternallyReferenced ? EVisibility::Visible : EVisibility::Collapsed)
 				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
 				.Text(FEditorFontGlyphs::Lock)
 				.ToolTipText(LOCTEXT("LockedToolTip", "This parameter is used in a referenced external graph and can't be edited directly."))
@@ -82,7 +82,7 @@ void SNiagaraParameterMapPalleteItem::Construct(const FArguments& InArgs, FCreat
 			.Padding(0, 0, 5, 0)
 			[
 				SNew(STextBlock)
-				.Visibility(ParameterAction->GetIsSourcedFromCustomStackContext() ? EVisibility::Visible : EVisibility::Collapsed)
+				.Visibility(ParameterAction->bIsSourcedFromCustomStackContext ? EVisibility::Visible : EVisibility::Collapsed)
 				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
 				.Text(FEditorFontGlyphs::Database)
 				.ToolTipText(LOCTEXT("DataInterfaceSourceToolTip", "This parameter is a child variable of an existing Data Interface, meant to be used in Simulation Stage based stacks where the parent Data Interface is the Iteration Source.") )
@@ -167,7 +167,7 @@ FText SNiagaraParameterMapPalleteItem::GetReferenceCount() const
 	if (ParameterAction.IsValid())
 	{
 		int32 TotalCount = 0;
-		for (const FNiagaraGraphParameterReferenceCollection& ReferenceCollection : ParameterAction->GetReferenceCollection())
+		for (const FNiagaraGraphParameterReferenceCollection& ReferenceCollection : ParameterAction->ReferenceCollection)
 		{
 			for (const FNiagaraGraphParameterReference& ParamReference : ReferenceCollection.ParameterReferences)
 			{

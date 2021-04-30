@@ -76,14 +76,7 @@ void FNiagaraVariant::SetDataInterface(UNiagaraDataInterface* InDataInterface)
 	DataInterface = InDataInterface;
 }
 
-void FNiagaraVariant::AllocateBytes(int32 InCount)
-{
-	check(InCount > 0);
-	ensure(CurrentMode == ENiagaraVariantMode::None || CurrentMode == ENiagaraVariantMode::Bytes);
-	Bytes.SetNumZeroed(InCount);
-}
-
-void FNiagaraVariant::SetBytes(const uint8* InBytes, int32 InCount)
+void FNiagaraVariant::SetBytes(uint8* InBytes, int32 InCount)
 {
 	check(InCount > 0);
 	ensure(CurrentMode == ENiagaraVariantMode::None || CurrentMode == ENiagaraVariantMode::Bytes);
@@ -97,11 +90,6 @@ uint8* FNiagaraVariant::GetBytes() const
 {
 	ensure(CurrentMode == ENiagaraVariantMode::Bytes);
 	return (uint8*) Bytes.GetData();
-}
-
-int32 FNiagaraVariant::GetNumBytes() const
-{
-	return Bytes.Num();
 }
 
 bool FNiagaraVariant::operator==(const FNiagaraVariant& Other) const

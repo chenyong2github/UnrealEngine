@@ -15,7 +15,6 @@
 #include "NiagaraNodeEmitter.h"
 #include "NiagaraScriptSource.h"
 #include "EdGraphSchema_Niagara.h"
-#include "ViewModels/NiagaraScriptViewModel.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
 #include "ViewModels/Stack/NiagaraStackInputCategory.h"
@@ -37,9 +36,6 @@
 #include "NiagaraMessageManager.h"
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraScriptVariable.h"
-#include "INiagaraEditorTypeUtilities.h"
-#include "NiagaraEditorData.h"
-
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - StackGraphUtilities - RelayoutGraph"), STAT_NiagaraEditor_StackGraphUtilities_RelayoutGraph, STATGROUP_NiagaraEditor);
 
@@ -1940,17 +1936,13 @@ void FNiagaraStackGraphUtilities::GetAvailableParametersForScript(UNiagaraNodeOu
 		UNiagaraSystem* System = ScriptOutputNode.GetTypedOuter<UNiagaraSystem>();
 		if (System != nullptr)
 		{
-			TSharedPtr<FNiagaraSystemViewModel> SystemViewModel = TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemViewModel>::GetExistingViewModelForObject(System);
-			if (SystemViewModel.IsValid())
+			TArray<FNiagaraVariable> EditorOnlyParameters;
+			System->EditorOnlyAddedParameters.GetParameters(EditorOnlyParameters);
+			for (FNiagaraVariable& EditorOnlyParameter : EditorOnlyParameters)
 			{
-				TArray<FNiagaraVariable> EditorOnlyParameters;
-				for (const UNiagaraScriptVariable* EditorOnlyScriptVar : SystemViewModel->GetEditorOnlyParametersAdapter()->GetParameters())
+				if (EditorOnlyParameter.IsInNameSpace(UsageNamespace.GetValue().ToString()))
 				{
-					const FNiagaraVariable& EditorOnlyParameter = EditorOnlyScriptVar->Variable;
-					if (EditorOnlyParameter.IsInNameSpace(UsageNamespace.GetValue().ToString()))
-					{
-						OutAvailableParameters.AddUnique(EditorOnlyParameter);
-					}
+					OutAvailableParameters.AddUnique(EditorOnlyParameter);
 				}
 			}
 		}
@@ -1989,6 +1981,32 @@ TOptional<FName> FNiagaraStackGraphUtilities::GetNamespaceForScriptUsage(ENiagar
 		return FNiagaraConstants::SystemNamespace;
 	default:
 		return TOptional<FName>();
+	}
+}
+
+ENiagaraParameterScope FNiagaraStackGraphUtilities::GetScopeForScriptUsage(ENiagaraScriptUsage ScriptUsage)
+{
+	switch (ScriptUsage)
+	{
+	case ENiagaraScriptUsage::ParticleSpawnScript:
+	case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
+	case ENiagaraScriptUsage::ParticleUpdateScript:
+	case ENiagaraScriptUsage::ParticleEventScript:
+	case ENiagaraScriptUsage::ParticleSimulationStageScript:
+		return ENiagaraParameterScope::Particles;
+	case ENiagaraScriptUsage::EmitterSpawnScript:
+	case ENiagaraScriptUsage::EmitterUpdateScript:
+		return ENiagaraParameterScope::Emitter;
+	case ENiagaraScriptUsage::SystemSpawnScript:
+	case ENiagaraScriptUsage::SystemUpdateScript:
+		return ENiagaraParameterScope::System;
+	case ENiagaraScriptUsage::Module:
+	case ENiagaraScriptUsage::Function:
+	case ENiagaraScriptUsage::DynamicInput:
+		return ENiagaraParameterScope::None; // These script usages do not have associated scopes.
+	default:
+		checkf(false, TEXT("Script usage does not have known scope!"));
+		return ENiagaraParameterScope::None;
 	}
 }
 
@@ -3078,94 +3096,6 @@ void FNiagaraStackGraphUtilities::RenameAssignmentTarget(
 		// This refresh call must come last because it will finalize this input entry which would cause earlier fixup to fail.
 		OwningAssignmentNode.RefreshFromExternalChanges();
 	}
-}
-
-void FNiagaraStackGraphUtilities::AddNewVariableToParameterMapNode(UNiagaraNodeParameterMapBase* MapBaseNode, bool bCreateInputPin, const FNiagaraVariable& NewVariable)
-{
-	const EEdGraphPinDirection NewPinDirection = bCreateInputPin ? EGPD_Input : EGPD_Output;
-
-	UNiagaraGraph* Graph = MapBaseNode->GetNiagaraGraph();
-	if (!Graph)
-	{
-		return;
-	}
-
-	// First check that the new variable exists on the UNiagaraGraph. If not, add the new variable as a parameter.
-	if (Graph->GetScriptVariable(NewVariable.GetName()) == nullptr)
-	{
-		Graph->Modify();
-		Graph->AddParameter(NewVariable);
-	}
-
-	// Then add the pin.
-	MapBaseNode->Modify();
-	UEdGraphPin* Pin = MapBaseNode->RequestNewTypedPin(NewPinDirection, NewVariable.GetType(), NewVariable.GetName());
-	MapBaseNode->CancelEditablePinName(FText::GetEmpty(), Pin);
-}
-
-void FNiagaraStackGraphUtilities::AddNewVariableToParameterMapNode(UNiagaraNodeParameterMapBase* MapBaseNode, bool bCreateInputPin, const UNiagaraScriptVariable* NewScriptVar)
-{
-	const FNiagaraVariable& NewVariable = NewScriptVar->Variable;
-	const EEdGraphPinDirection NewPinDirection = bCreateInputPin ? EGPD_Input : EGPD_Output;
-
-	UNiagaraGraph* Graph = MapBaseNode->GetNiagaraGraph();
-	if (!Graph)
-	{
-		return;
-	}
-
-	// First check that the new variable exists on the UNiagaraGraph. If not, add the new variable as a parameter.
-	if (Graph->GetScriptVariable(NewVariable.GetName()) == nullptr)
-	{
-		Graph->Modify();
-		Graph->AddParameter(NewScriptVar);
-	}
-
-	// Then add the pin.
-	MapBaseNode->Modify();
-	UEdGraphPin* Pin = MapBaseNode->RequestNewTypedPin(NewPinDirection, NewVariable.GetType(), NewVariable.GetName());
-	MapBaseNode->CancelEditablePinName(FText::GetEmpty(), Pin);
-}
-
-void FNiagaraStackGraphUtilities::SynchronizeVariableToLibraryAndApplyToGraph(UNiagaraScriptVariable* ScriptVarToSync)
-{
-	// Get all requisite utilties/objects first.
-	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
-	UNiagaraGraph* Graph = Cast<UNiagaraGraph>(ScriptVarToSync->GetOuter());
-	FNiagaraEditorModule& EditorModule = FNiagaraEditorModule::Get();
-	TSharedPtr<class INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeUtilityValue = EditorModule.GetTypeUtilities(ScriptVarToSync->Variable.GetType());
-	if (Graph == nullptr || TypeUtilityValue.IsValid() == false)
-	{
-		ensureMsgf(false, TEXT("Could not force synchronize library value to graph: failed to get graph and/or create parameter type utility!"));
-		return;
-	}
-
-	Graph->Modify();
-	ScriptVarToSync->Modify();
-
-	// Synchronize with parameter definitions.
-	TSharedPtr<INiagaraParameterDefinitionsSubscriberViewModel> ParameterDefinitionsSubscriberViewModel = FNiagaraEditorUtilities::GetOwningLibrarySubscriberViewModelForGraph(Graph);
-	if (ParameterDefinitionsSubscriberViewModel.IsValid())
-	{
-		const bool bForceSync = true;
-		ParameterDefinitionsSubscriberViewModel->SynchronizeScriptVarWithParameterDefinitions(ScriptVarToSync, bForceSync);
-	}
-
-	// Set the value on the FNiagaraVariable from the UNiagaraScriptVariable.
-	ScriptVarToSync->Variable.SetData(ScriptVarToSync->GetDefaultValueData());
-	const FString NewDefaultValue = TypeUtilityValue->GetPinDefaultStringFromValue(ScriptVarToSync->Variable);
-
-	// Set the value on the graph pins.
-	for (UEdGraphPin* Pin : Graph->FindParameterMapDefaultValuePins(ScriptVarToSync->Variable.GetName()))
-	{
-		Pin->Modify();
-		Schema->TrySetDefaultValue(*Pin, NewDefaultValue, true);
-	}
-
-	Graph->ScriptVariableChanged(ScriptVarToSync->Variable);
-#if WITH_EDITOR
-	Graph->NotifyGraphNeedsRecompile();
-#endif
 }
 
 #undef LOCTEXT_NAMESPACE
