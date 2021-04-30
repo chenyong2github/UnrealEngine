@@ -14,6 +14,7 @@
 #include "NiagaraBoundsCalculator.h"
 #include "NiagaraRendererProperties.h"
 #include "NiagaraParameterDefinitionsBase.h"
+#include "NiagaraParameterDefinitionsSubscriber.h"
 #include "NiagaraEmitter.generated.h"
 
 class UMaterial;
