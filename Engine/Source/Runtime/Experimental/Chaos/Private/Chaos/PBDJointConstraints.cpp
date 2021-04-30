@@ -98,11 +98,6 @@ namespace Chaos
 		return ConstraintContainer->GetConstraintSettings(ConstraintIndex);
 	}
 
-	FPBDJointSettings& FPBDJointConstraintHandle::GetSettings()
-	{
-		return ConstraintContainer->GetConstraintSettings(ConstraintIndex);
-	}
-
 	void FPBDJointConstraintHandle::SetSettings(const FPBDJointSettings& Settings)
 	{
 		ConstraintContainer->SetConstraintSettings(ConstraintIndex, Settings);
@@ -399,9 +394,12 @@ namespace Chaos
 		int ConstraintIndex = Handles.Num();
 		Handles.Add(HandleAllocator.AllocHandle(this, ConstraintIndex));
 		ConstraintParticles.Add(InConstrainedParticles);
-		ConstraintSettings.Add(InConstraintSettings);
 		ConstraintFrames.Add(InConstraintFrames);
 		ConstraintStates.Add(FPBDJointState());
+
+		ConstraintSettings.AddDefaulted();
+		SetConstraintSettings(ConstraintIndex, InConstraintSettings);
+
 		return Handles.Last();
 	}
 
@@ -614,15 +612,11 @@ namespace Chaos
 		return ConstraintSettings[ConstraintIndex];
 	}
 
-	FPBDJointSettings& FPBDJointConstraints::GetConstraintSettings(int32 ConstraintIndex)
-	{
-		return ConstraintSettings[ConstraintIndex];
-	}
-
 
 	void FPBDJointConstraints::SetConstraintSettings(int32 ConstraintIndex, const FPBDJointSettings& InConstraintSettings)
 	{
 		ConstraintSettings[ConstraintIndex] = InConstraintSettings;
+		ConstraintSettings[ConstraintIndex].Sanitize();
 	}
 
 
@@ -1092,14 +1086,15 @@ namespace Chaos
 
 	FReal FPBDJointConstraints::CalculateIterationStiffness(int32 It, int32 NumIts) const
 	{
-		// Linearly interpolate betwwen MinStiffness and NumIterationsAtMaxStiffness over the first few iterations,
+		// Linearly interpolate betwwen MinStiffness and MaxStiffness over the first few iterations,
 		// then clamp at MaxStiffness for the final NumIterationsAtMaxStiffness
+		FReal IterationStiffness = Settings.MaxSolverStiffness;
 		if (NumIts > Settings.NumIterationsAtMaxSolverStiffness)
 		{
 			const FReal Interpolant = FMath::Clamp((FReal)It / (FReal)(NumIts - Settings.NumIterationsAtMaxSolverStiffness), 0.0f, 1.0f);
-			return FMath::Lerp(Settings.MinSolverStiffness, Settings.MaxSolverStiffness, Interpolant);
+			IterationStiffness = FMath::Lerp(Settings.MinSolverStiffness, Settings.MaxSolverStiffness, Interpolant);
 		}
-		return 1.0f;
+		return FMath::Clamp(IterationStiffness, 0.0f, 1.0f);
 	}
 
 	bool FPBDJointConstraints::ApplyBatch(const FReal Dt, const int32 BatchIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)

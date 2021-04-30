@@ -43,7 +43,6 @@ namespace Chaos
 		FVec3 GetLinearImpulse() const;
 		FVec3 GetAngularImpulse() const;
 
-		FPBDJointSettings& GetSettings();
 		const FPBDJointSettings& GetSettings() const;
 
 		void SetSettings(const FPBDJointSettings& Settings);
@@ -178,7 +177,6 @@ namespace Chaos
 		 */
 		const FParticlePair& GetConstrainedParticles(int32 ConstraintIndex) const;
 
-		FPBDJointSettings& GetConstraintSettings(int32 ConstraintIndex);
 		const FPBDJointSettings& GetConstraintSettings(int32 ConstraintIndex) const;
 
 		void SetConstraintSettings(int32 ConstraintIndex, const FPBDJointSettings& InConstraintSettings);
