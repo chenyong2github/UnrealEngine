@@ -31,6 +31,7 @@
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
+#include "Logging/MessageLog.h"
 
 #define LOCTEXT_NAMESPACE "WaterBrushManager"
 
