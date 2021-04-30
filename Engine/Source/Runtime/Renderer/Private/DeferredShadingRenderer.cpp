@@ -1441,8 +1441,10 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 			RHIAsyncCmdList.BindAccelerationStructureMemory(RayTracingSceneRHI, Scene->RayTracingScene.GetBufferChecked(), 0);
 
-			SCOPED_DRAW_EVENT(RHIAsyncCmdList, RayTracingScene);
-			RHIAsyncCmdList.BuildAccelerationStructure(RayTracingSceneRHI);
+			{
+				SCOPED_DRAW_EVENT(RHIAsyncCmdList, RayTracingScene);
+				RHIAsyncCmdList.BuildAccelerationStructure(RayTracingSceneRHI);				
+			}
 
 			RHIAsyncCmdList.BeginTransition(RayTracingDynamicGeometryUpdateEndTransition);
 			FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(RHIAsyncCmdList);

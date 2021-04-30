@@ -445,6 +445,10 @@ void FRHICommandListExecutor::ExecuteInner_DoExecute(FRHICommandListBase& CmdLis
 	{
 		CmdList.Context->RHISetBreadcrumbStackTop(CmdList.PopFirstUnsubmittedBreadcrumb());
 	}
+	else if (CmdList.ComputeContext)
+	{
+		CmdList.ComputeContext->RHISetBreadcrumbStackTop(CmdList.PopFirstUnsubmittedBreadcrumb());
+	}
 #endif
 
 #if WITH_MGPU
