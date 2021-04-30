@@ -23,6 +23,7 @@ public class MediaMovieStreamer : ModuleRules
 				"Media",
 				"MediaAssets",
 				"MoviePlayer",
+				"RenderCore",
 				"RHI",
 				"Slate",
 				"SlateCore",

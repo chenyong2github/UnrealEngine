@@ -64,6 +64,8 @@ private:
 
 	/** Viewport data for displaying to Slate. */
 	TSharedPtr<FMovieViewport> MovieViewport;
+	/** Texture displaying to Slate. */
+	TSharedPtr<FSlateTexture2DRHIRef, ESPMode::ThreadSafe> Texture;
 
 	/** Holds the player we are using. */
 	TWeakObjectPtr<UMediaPlayer> MediaPlayer;
