@@ -9,8 +9,9 @@
 #include "DisplayClusterConfiguratorViewportNode.generated.h"
 
 class UDisplayClusterConfigurationViewport;
-struct FDisplayClusterConfigurationRectangle;
 class FDisplayClusterConfiguratorBlueprintEditor;
+class FDisplayClusterConfiguratorViewportViewModel;
+struct FDisplayClusterConfigurationRectangle;
 
 UCLASS(MinimalAPI)
 class UDisplayClusterConfiguratorViewportNode final
@@ -46,4 +47,7 @@ public:
 
 private:
 	void OnPostEditChangeChainProperty(const FPropertyChangedChainEvent& PropertyChangedEvent);
+
+private:
+	TSharedPtr<FDisplayClusterConfiguratorViewportViewModel> ViewportVM;
 };

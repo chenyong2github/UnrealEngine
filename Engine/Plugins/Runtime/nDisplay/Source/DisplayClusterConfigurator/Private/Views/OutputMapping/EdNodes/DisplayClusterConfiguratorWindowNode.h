@@ -7,6 +7,7 @@
 #include "DisplayClusterConfiguratorWindowNode.generated.h"
 
 class UDisplayClusterConfigurationClusterNode;
+class FDisplayClusterConfiguratorClusterNodeViewModel;
 struct FDisplayClusterConfigurationRectangle;
 
 UCLASS()
@@ -52,6 +53,7 @@ private:
 	void OnPostEditChangeChainProperty(const FPropertyChangedChainEvent& PropertyChangedEvent);
 
 private:
+	TSharedPtr<FDisplayClusterConfiguratorClusterNodeViewModel> ClusterNodeVM;
 	FOnPreviewImageChanged PreviewImageChanged;
 };
 

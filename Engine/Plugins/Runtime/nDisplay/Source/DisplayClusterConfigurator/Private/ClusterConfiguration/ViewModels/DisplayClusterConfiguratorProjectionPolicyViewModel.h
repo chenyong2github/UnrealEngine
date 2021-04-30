@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/WeakObjectPtr.h"
 
 class UDisplayClusterConfigurationViewport;
 class ISinglePropertyView;
