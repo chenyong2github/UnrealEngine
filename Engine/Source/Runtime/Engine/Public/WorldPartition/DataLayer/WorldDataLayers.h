@@ -18,11 +18,10 @@ class ENGINE_API AWorldDataLayers : public AInfo
 	GENERATED_UCLASS_BODY()
 
 public:
-	static const AWorldDataLayers* Get(UWorld* World);
 	virtual void PostLoad() override;
 	
-#if WITH_EDITOR
-	static AWorldDataLayers* Get(UWorld* World, bool bCreateIfNotFound);
+#if WITH_EDITOR	
+	static AWorldDataLayers* Create(UWorld* World);
 	UDataLayer* CreateDataLayer(FName InName = TEXT("DataLayer"), EObjectFlags InObjectFlags = RF_NoFlags);
 	bool RemoveDataLayer(UDataLayer* InDataLayer);
 	bool RemoveDataLayers(const TArray<UDataLayer*>& InDataLayers);

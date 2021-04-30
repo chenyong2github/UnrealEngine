@@ -1118,7 +1118,6 @@ void UWorld::PostLoad()
 #if WITH_EDITOR
 	RepairWorldSettings();
 	RepairStreamingLevels();
-	RepairWorldDataLayers();
 #endif
 #if INCLUDE_CHAOS
 	//RepairChaosActors();
@@ -1558,16 +1557,6 @@ void UWorld::RepairWorldSettings()
 	check(GetWorldSettings());
 }
 
-void UWorld::RepairWorldDataLayers()
-{
-#if 0
-	if (const UWorldPartition* WorldPartition = GetWorldPartition())
-	{
-		AWorldDataLayers::Get(this, /*bCreateIfNotFound*/true);
-	}
-#endif
-}
-
 void UWorld::InitWorld(const InitializationValues IVS)
 {
 	if (!ensure(!bIsWorldInitialized))
@@ -1652,7 +1641,6 @@ void UWorld::InitWorld(const InitializationValues IVS)
 #if WITH_EDITOR
 	RepairWorldSettings();
 	RepairStreamingLevels();
-	RepairWorldDataLayers();
 #endif
 #if INCLUDE_CHAOS
 	//RepairChaosActors();
@@ -5211,6 +5199,24 @@ AWorldSettings* UWorld::GetWorldSettings( const bool bCheckStreamingPersistent, 
 		}
 	}
 	return WorldSettings;
+}
+
+AWorldDataLayers* UWorld::GetWorldDataLayers() const
+{
+	AWorldDataLayers* WorldDataLayers = nullptr;
+	if (PersistentLevel)
+	{
+		WorldDataLayers = PersistentLevel->GetWorldDataLayers();
+	}
+	return WorldDataLayers;
+}
+
+void UWorld::SetWorldDataLayers(AWorldDataLayers* NewWorldDataLayers)
+{
+	if (PersistentLevel)
+	{
+		PersistentLevel->SetWorldDataLayers(NewWorldDataLayers);
+	}
 }
 
 FString UWorld::GetDebugDisplayName() const

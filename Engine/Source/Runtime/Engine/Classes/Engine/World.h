@@ -1464,9 +1464,6 @@ private:
 	/** Utility function to cleanup streaming levels that point to invalid level packages */
 	void RepairStreamingLevels();
 
-	/** Utility function that is used to ensure that a World has the correct WorldDataLayers */
-	void RepairWorldDataLayers();
-	
 #if INCLUDE_CHAOS
 	/** Utility function that is used to ensure that a World has the correct ChaosActor */
 	void RepairChaosActors();
@@ -2493,6 +2490,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Utilities|World", meta=(DisplayName="GetWorldSettings", ScriptName="GetWorldSettings"))
 	AWorldSettings* K2_GetWorldSettings();
 	AWorldSettings* GetWorldSettings( bool bCheckStreamingPersistent = false, bool bChecked = true ) const;
+
+	/**
+	 * Returns the AWorldDataLayers actor associated with this world.
+	 *
+	 * @return AWorldDataLayers actor associated with this world
+	 */
+	AWorldDataLayers* GetWorldDataLayers() const;
+	void SetWorldDataLayers(AWorldDataLayers* NewWorldDataLayers);
 
 	/** Returns a human friendly display string for the current world (showing the kind of world when in multiplayer PIE) */
 	FString GetDebugDisplayName() const;

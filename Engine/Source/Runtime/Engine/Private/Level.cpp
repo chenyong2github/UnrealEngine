@@ -2113,6 +2113,18 @@ void ULevel::SetWorldSettings(AWorldSettings* NewWorldSettings)
 	}
 }
 
+AWorldDataLayers* ULevel::GetWorldDataLayers() const
+{
+	return WorldDataLayers;
+}
+
+void ULevel::SetWorldDataLayers(AWorldDataLayers* NewWorldDataLayers)
+{
+	check(!WorldDataLayers || WorldDataLayers == NewWorldDataLayers);
+	WorldDataLayers = NewWorldDataLayers;
+}
+
+
 UWorldPartition* ULevel::GetWorldPartition() const
 {
 	return bIsPartitioned ? GetWorldSettings()->GetWorldPartition() : nullptr;

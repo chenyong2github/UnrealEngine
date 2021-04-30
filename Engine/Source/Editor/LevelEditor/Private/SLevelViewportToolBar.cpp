@@ -1462,7 +1462,7 @@ void SLevelViewportToolBar::FillShowDataLayersMenu(UToolMenu* Menu, TWeakPtr<cla
 		TSharedRef<SLevelViewport> ViewportRef = Viewport.Pin().ToSharedRef();
 		FToolMenuSection& Section = Menu->AddSection("LevelViewportDataLayers2");
 		// Get all the DataLayers and create an entry for each of them
-		if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(ViewportRef->GetWorld()))
+		if (const AWorldDataLayers* WorldDataLayers = ViewportRef->GetWorld()->GetWorldDataLayers())
 		{
 			WorldDataLayers->ForEachDataLayer([&Section, &ViewportRef, &DataLayerIcon](UDataLayer* DataLayer)
 			{
