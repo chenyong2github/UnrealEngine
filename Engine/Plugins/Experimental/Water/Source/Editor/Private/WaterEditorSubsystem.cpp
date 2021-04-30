@@ -42,6 +42,7 @@ void UpdateSingleTexture(UTexture2D*& DestTexure, UTextureRenderTarget2D* SrcRen
 		break;
 	}
 
+	DestTexure->Modify();
 	DestTexure->LODGroup = GetDefault<UWaterEditorSettings>()->TextureGroupForGeneratedTextures;
 	DestTexure->MipGenSettings = TMGS_NoMipmaps;
 	DestTexure->MaxTextureSize = GetDefault<UWaterEditorSettings>()->MaxWaterVelocityAndHeightTextureSize;
