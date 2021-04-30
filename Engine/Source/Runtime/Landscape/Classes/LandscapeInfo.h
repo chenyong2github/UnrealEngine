@@ -212,6 +212,9 @@ public:
 	LANDSCAPE_API int32 GetLayerInfoIndex(ULandscapeLayerInfoObject* LayerInfo, ALandscapeProxy* Owner = nullptr) const;
 	LANDSCAPE_API bool UpdateLayerInfoMap(ALandscapeProxy* Proxy = nullptr, bool bInvalidate = false);
 
+
+	LANDSCAPE_API bool CanDeleteLandscape(FText& OutReason) const;
+
 	/**
 	 *  Returns the landscape proxy of this landscape info in the given level (if it exists)
 	 *  @param  Level  Level to look in

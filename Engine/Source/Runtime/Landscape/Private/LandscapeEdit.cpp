@@ -63,6 +63,7 @@ LandscapeEdit.cpp: Landscape editing
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/Landscape/LandscapeActorDesc.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
+#include "LandscapeSplineActor.h"
 #endif
 #include "Algo/Count.h"
 #include "Serialization/MemoryWriter.h"
@@ -5027,6 +5028,100 @@ AActor* ALandscapeStreamingProxy::GetSceneOutlinerParent() const
 	}
 
 	return Super::GetSceneOutlinerParent();
+}
+
+bool ALandscapeStreamingProxy::CanDeleteSelectedActor(FText& OutReason) const
+{
+	return true;
+}
+
+bool ALandscape::CanDeleteSelectedActor(FText& OutReason) const
+{
+	if (!IsUserManaged())
+	{
+		// Allow Delete of Actor if all other related actors have been deleted
+		ULandscapeInfo* Info = GetLandscapeInfo();
+		check(Info);
+		return Info->CanDeleteLandscape(OutReason);
+	}
+
+	return true;
+}
+
+bool ULandscapeInfo::CanDeleteLandscape(FText& OutReason) const
+{
+	check(LandscapeActor != nullptr);
+	int32 UndeletedProxyCount = 0;
+	int32 UndeletedSplineCount = 0;
+
+	// Check Registered Proxies
+	for (ALandscapeProxy* RegisteredProxy : Proxies)
+	{
+		if (RegisteredProxy == LandscapeActor)
+		{
+			continue;
+		}
+
+		check(!RegisteredProxy->IsPendingKill());
+		UndeletedProxyCount++;
+	}
+
+	// Then check for Unloaded Proxies
+	for (const FWorldPartitionHandle& Handle : ProxyHandles)
+	{
+		ALandscapeProxy* LandscapeProxy = Cast<ALandscapeProxy>(Handle->GetActor());
+		if (LandscapeProxy == LandscapeActor)
+		{
+			continue;
+		}
+		
+		// If LandscapeProxy is null then it is not loaded so not deleted.
+		if (!LandscapeProxy)
+		{
+			++UndeletedProxyCount;
+		}
+		else
+		{
+			// If Actor is loaded it should be Registered and not pending kill (already accounted for) or pending kill (deleted)
+			check(Proxies.Contains(LandscapeProxy) == !LandscapeProxy->IsPendingKill());
+		}
+	}
+
+	// Check Registered Splines
+	for (TScriptInterface<ILandscapeSplineInterface> SplineOwner : SplineActors)
+	{
+		// Only check for ALandscapeSplineActor type because ALandscapeProxy also implement the ILandscapeSplineInterface for non WP worlds
+		if(ALandscapeSplineActor* SplineActor = Cast<ALandscapeSplineActor>(SplineOwner.GetObject()))
+		{ 
+			check(!SplineActor->IsPendingKill());
+			UndeletedSplineCount++;
+		}
+	}
+
+	// Then check for Unloaded Splines
+	for (const FWorldPartitionHandle& Handle : SplineHandles)
+	{
+		ALandscapeSplineActor* SplineActor = Cast<ALandscapeSplineActor>(Handle->GetActor());
+		
+		// If SplineActor is null then it is not loaded/deleted. If it's loaded then it needs to be pending kill.
+		if (!SplineActor)
+		{
+			++UndeletedSplineCount;
+		}
+		else
+		{
+			// If Actor is loaded it should be Registered and not pending kill (already accounted for) or pending kill (deleted)
+			check(SplineActors.Contains(SplineActor) == !SplineActor->IsPendingKill());
+		}
+	}
+
+	if (UndeletedProxyCount > 0 || UndeletedSplineCount > 0)
+	{
+		OutReason = FText::Format(LOCTEXT("CanDeleteLandscapeReason", "Landscape can't be deleted because it still has {0} LandscapeStreamingProxies and {1} LandscapeSplineActors"), FText::AsNumber(UndeletedProxyCount), FText::AsNumber(UndeletedSplineCount));
+		return false;
+	}
+
+	return true;
 }
 
 void ALandscape::PreEditChange(FProperty* PropertyThatWillChange)

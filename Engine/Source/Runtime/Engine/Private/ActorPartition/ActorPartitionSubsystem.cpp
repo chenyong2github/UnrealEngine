@@ -211,13 +211,12 @@ public:
 					return false;
 				}
 
-				FoundActor = CastChecked<APartitionActor>(DescActor);
-				check(FoundActor->GridSize == InGridSize && FoundActor->GetGridGuid() == InActorPartitionId.GetGridGuid());
-				// Typically, this could happen if a PartitionActor was manually deleted (it's now be prevented by APartitionActor::CanDeleteSelectedActor);
-				// If at some point it's decided to be supported, a solution for a found PendingKill PartitionActor is to
-				// call Modify(), Rename the actor to a unique/trash name and behave as if no actor was found
-				check(!FoundActor->IsPendingKill());
-				return false;
+				// Skip PendingKill actors because they will be renamed out of the way later
+				if (!DescActor->IsPendingKill())
+				{
+					FoundActor = CastChecked<APartitionActor>(DescActor);
+					return false;
+				}
 			}
 			return true;
 		};
@@ -262,11 +261,16 @@ public:
 			SpawnParams.Name = *ActorNameBuilder;
 			SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_Fatal;
 
-			// Handle the case where the actor already exists, but is in the undo stack
+			// Handle the case where the actor already exists, but is in the undo stack (was deleted)
 			if (UObject* ExistingObject = StaticFindObject(nullptr, World->PersistentLevel, *SpawnParams.Name.ToString()))
 			{
-				check(CastChecked<AActor>(ExistingObject)->IsPendingKill());
-				ExistingObject->Rename(nullptr, nullptr, REN_DontCreateRedirectors | REN_DoNotDirty | REN_NonTransactional | REN_ForceNoResetLoaders);
+				AActor* ExistingActor = CastChecked<AActor>(ExistingObject);
+				check(ExistingActor->IsPendingKill());
+				ExistingActor->Modify();
+				// Don't go through AActor::Rename here because we aren't changing outers (the actor's level) and we also don't want to reset loaders
+				// if the actor is using an external package. We really just want to rename that actor out of the way so we can spawn the new one in
+				// the exact same package, keeping the package name intact.
+				ExistingActor->UObject::Rename(nullptr, nullptr, REN_DontCreateRedirectors | REN_DoNotDirty | REN_NonTransactional | REN_ForceNoResetLoaders);
 			}
 						
 			FVector CellCenter(CellBounds.GetCenter());

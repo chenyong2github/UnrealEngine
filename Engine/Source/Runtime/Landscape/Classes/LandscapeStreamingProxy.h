@@ -37,7 +37,8 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void PostRegisterAllComponents() override;
-	virtual AActor* GetSceneOutlinerParent() const;
+	virtual AActor* GetSceneOutlinerParent() const override;
+	virtual bool CanDeleteSelectedActor(FText& OutReason) const override;
 #endif
 	//~ End UObject Interface
 
