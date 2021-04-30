@@ -569,7 +569,7 @@ namespace DatasmithRuntime
 		ConvexElem.UpdateElemBox();
 	}
 
-	void DatasmithRuntime::BuildCollision(UBodySetup* BodySetup, ECollisionTraceFlag CollisionFlag, const FStaticMeshLODResources& Resources)
+	void BuildCollision(UBodySetup* BodySetup, ECollisionTraceFlag CollisionFlag, const FStaticMeshLODResources& Resources)
 	{
 		BodySetup->CollisionTraceFlag = CollisionFlag;
 
