@@ -65,7 +65,7 @@ namespace UnrealBuildTool
 		public ConfigDependencyKey(BinaryArchiveReader Reader)
 		{
 			Type = (ConfigHierarchyType)Reader.ReadInt();
-			ProjectDir = Reader.ReadDirectoryReference();
+			ProjectDir = Reader.ReadDirectoryReferenceNotNull();
 			Platform = Reader.ReadUnrealTargetPlatform();
 			SectionName = Reader.ReadString();
 			KeyName = Reader.ReadString();

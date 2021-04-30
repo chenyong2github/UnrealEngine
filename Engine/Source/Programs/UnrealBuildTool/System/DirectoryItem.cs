@@ -343,7 +343,7 @@ namespace UnrealBuildTool
 		/// <returns>Instance of the serialized directory item</returns>
 		public static DirectoryItem ReadDirectoryItem(this BinaryArchiveReader Reader)
 		{
-			return Reader.ReadObjectReference<DirectoryItem>(() => DirectoryItem.GetItemByDirectoryReference(Reader.ReadDirectoryReference()));
+			return Reader.ReadObjectReference<DirectoryItem>(() => DirectoryItem.GetItemByDirectoryReference(Reader.ReadDirectoryReferenceNotNull()));
 		}
 
 		/// <summary>

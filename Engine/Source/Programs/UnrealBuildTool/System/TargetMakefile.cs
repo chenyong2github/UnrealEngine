@@ -221,7 +221,7 @@ namespace UnrealBuildTool
 			ExternalMetadata = Reader.ReadString();
 			ExecutableFile = Reader.ReadFileReference();
 			ReceiptFile = Reader.ReadFileReference();
-			ProjectIntermediateDirectory = Reader.ReadDirectoryReference();
+			ProjectIntermediateDirectory = Reader.ReadDirectoryReferenceNotNull();
 			TargetType = (TargetType)Reader.ReadInt();
 			ConfigValueTracker = new ConfigValueTracker(Reader);
 			bDeployAfterCompile = Reader.ReadBool();

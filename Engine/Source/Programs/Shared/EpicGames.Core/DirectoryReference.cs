@@ -452,9 +452,10 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Reader">Binary reader to read from</param>
 		/// <returns>New DirectoryReference object</returns>
-		public static DirectoryReference ReadDirectoryReference(this BinaryReader Reader)
+		public static DirectoryReference? ReadDirectoryReference(this BinaryReader Reader)
 		{
-			return BinaryArchiveReader.NotNull(ReadDirectoryReferenceOrNull(Reader));
+			string FullName = Reader.ReadString();
+			return (FullName.Length == 0) ? null : new DirectoryReference(FullName, DirectoryReference.Sanitize.None);
 		}
 
 		/// <summary>
@@ -462,10 +463,9 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Reader">Binary reader to read from</param>
 		/// <returns>New DirectoryReference object</returns>
-		public static DirectoryReference? ReadDirectoryReferenceOrNull(this BinaryReader Reader)
+		public static DirectoryReference ReadDirectoryReferenceNotNull(this BinaryReader Reader)
 		{
-			string FullName = Reader.ReadString();
-			return (FullName.Length == 0) ? null : new DirectoryReference(FullName, DirectoryReference.Sanitize.None);
+			return BinaryArchiveReader.NotNull(ReadDirectoryReference(Reader));
 		}
 
 		/// <summary>
@@ -500,17 +500,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Reader">Reader to serialize data from</param>
 		/// <returns>New directory reference instance</returns>
-		public static DirectoryReference ReadDirectoryReference(this BinaryArchiveReader Reader)
-		{
-			return BinaryArchiveReader.NotNull(ReadDirectoryReferenceOrNull(Reader));
-		}
-
-		/// <summary>
-		/// Reads a directory reference from a binary archive
-		/// </summary>
-		/// <param name="Reader">Reader to serialize data from</param>
-		/// <returns>New directory reference instance</returns>
-		public static DirectoryReference? ReadDirectoryReferenceOrNull(this BinaryArchiveReader Reader)
+		public static DirectoryReference? ReadDirectoryReference(this BinaryArchiveReader Reader)
 		{
 			string FullName = Reader.ReadString();
 			if (FullName == null)
@@ -521,6 +511,16 @@ namespace EpicGames.Core
 			{
 				return new DirectoryReference(FullName, DirectoryReference.Sanitize.None);
 			}
+		}
+
+		/// <summary>
+		/// Reads a directory reference from a binary archive
+		/// </summary>
+		/// <param name="Reader">Reader to serialize data from</param>
+		/// <returns>New directory reference instance</returns>
+		public static DirectoryReference ReadDirectoryReferenceNotNull(this BinaryArchiveReader Reader)
+		{
+			return BinaryArchiveReader.NotNull(ReadDirectoryReference(Reader));
 		}
 	}
 }

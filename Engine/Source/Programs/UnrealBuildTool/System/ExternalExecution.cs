@@ -264,7 +264,7 @@ namespace UnrealBuildTool
 		{
 			ModuleName = Reader.ReadString();
 			ModuleRulesFile = Reader.ReadFileReference();
-			ModuleDirectories = Reader.ReadArray<DirectoryReference>(Reader.ReadDirectoryReference);
+			ModuleDirectories = Reader.ReadArray<DirectoryReference>(Reader.ReadDirectoryReferenceNotNull);
 			ModuleType = Reader.ReadString();
 			OverrideModuleType = Reader.ReadString();
 			PublicUObjectClassesHeaders = Reader.ReadList(() => Reader.ReadFileItem());

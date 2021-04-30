@@ -249,7 +249,7 @@ namespace UnrealBuildTool
 		public Action(BinaryArchiveReader Reader)
 		{
 			ActionType = (ActionType)Reader.ReadByte();
-			WorkingDirectory = Reader.ReadDirectoryReference();
+			WorkingDirectory = Reader.ReadDirectoryReferenceNotNull();
 			CommandPath = Reader.ReadFileReference();
 			CommandArguments = Reader.ReadString();
 			CommandVersion = Reader.ReadString();
