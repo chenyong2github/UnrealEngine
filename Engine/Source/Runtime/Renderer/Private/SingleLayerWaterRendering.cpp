@@ -43,13 +43,6 @@ static FAutoConsoleVariableRef CVarWaterSingleLayerRefractionDownsampleFactor(
 	TEXT("Resolution divider for the water refraction buffer."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-int32 GSingleLayerWaterRefractionFullPrecision = 0;
-static FAutoConsoleVariableRef CVarWaterSingleLayerRefractionFullPrecision(
-	TEXT("r.Water.SingleLayer.RefractionFullPrecision"),
-	GSingleLayerWaterRefractionFullPrecision,
-	TEXT("Whether to pack refraction depth in a Float32 (instead of Float16). To be used as a debug option to find issues with refraction depth precision."),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int32> CVarParallelSingleLayerWaterPass(
 	TEXT("r.ParallelSingleLayerWaterPass"),
 	1,
@@ -279,6 +272,7 @@ IMPLEMENT_GLOBAL_SHADER(FWaterRefractionCopyPS, "/Engine/Private/SingleLayerWate
 
 static FSceneWithoutWaterTextures AddCopySceneWithoutWaterPass(
 	FRDGBuilder& GraphBuilder,
+	const FSceneViewFamily& ViewFamily, 
 	TArrayView<const FViewInfo> Views,
 	FRDGTextureRef SceneColorTexture,
 	FRDGTextureRef SceneDepthTexture)
@@ -303,7 +297,7 @@ static FSceneWithoutWaterTextures AddCopySceneWithoutWaterPass(
 		SceneColorWithoutSingleLayerWaterTexture = GraphBuilder.CreateTexture(ColorDesc, TEXT("SceneColorWithoutSingleLayerWater"));
 	}
 
-	const FRDGTextureDesc DepthDesc(FRDGTextureDesc::Create2D(RefractionResolution, GSingleLayerWaterRefractionFullPrecision ? PF_R32_FLOAT : PF_R16F, SceneDepthDesc.ClearValue, TexCreate_ShaderResource | TexCreate_RenderTargetable));
+	const FRDGTextureDesc DepthDesc(FRDGTextureDesc::Create2D(RefractionResolution, ViewFamily.EngineShowFlags.SingleLayerWaterRefractionFullPrecision ? PF_R32_FLOAT : PF_R16F, SceneDepthDesc.ClearValue, TexCreate_ShaderResource | TexCreate_RenderTargetable));
 	FRDGTextureRef SceneDepthWithoutSingleLayerWaterTexture = GraphBuilder.CreateTexture(DepthDesc, TEXT("SceneDepthWithoutSingleLayerWater"));
 
 	FSceneWithoutWaterTextures Textures;
@@ -669,9 +663,9 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWater(
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "SingleLayerWater");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, SingleLayerWater);
-
+	
 	// Copy the texture to be available for the water surface to refract
-	SceneWithoutWaterTextures = AddCopySceneWithoutWaterPass(GraphBuilder, Views, SceneColorTexture.Resolve, SceneDepthTexture.Resolve);
+	SceneWithoutWaterTextures = AddCopySceneWithoutWaterPass(GraphBuilder, ViewFamily, Views, SceneColorTexture.Resolve, SceneDepthTexture.Resolve);
 
 	// Render height fog over the color buffer if it is allocated, e.g. SingleLayerWaterUsesSimpleShading is true which is not the case on Switch.
 	if (SceneWithoutWaterTextures.ColorTexture && ShouldRenderFog(ViewFamily))
