@@ -218,8 +218,3 @@ FLinearColor FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::GetColor
 {
 	return FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(ExecutionCategory));
 }
-
-FLinearColor FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::GetColorForParameterScope(ENiagaraParameterScope ParameterScope) const
-{
-	return FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetColorNameForParameterScope(ParameterScope));
-}

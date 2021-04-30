@@ -18,6 +18,7 @@
 #include "NiagaraScript.h"
 #include "NiagaraScriptGraphViewModel.h"
 #include "NiagaraScriptInputCollectionViewModel.h"
+#include "Widgets/SNiagaraParameterDefinitionsPanel.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraStandaloneScriptViewModel.h"
 #include "NiagaraSystem.h"
@@ -43,6 +44,7 @@
 #include "Widgets/SNiagaraScriptGraph.h"
 #include "Widgets/SNiagaraSelectedObjectsDetails.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "ViewModels/NiagaraParameterDefinitionsPanelViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptToolkit"
 
@@ -53,6 +55,7 @@ const FName FNiagaraScriptToolkit::ScriptDetailsTabId(TEXT("NiagaraEditor_Script
 const FName FNiagaraScriptToolkit::SelectedDetailsTabId(TEXT("NiagaraEditor_SelectedDetails"));
 const FName FNiagaraScriptToolkit::ParametersTabId(TEXT("NiagaraEditor_Parameters"));
 const FName FNiagaraScriptToolkit::ParametersTabId2(TEXT("NiagaraEditor_Paramters2"));
+const FName FNiagaraScriptToolkit::ParameterDefinitionsTabId(TEXT("NiagaraEditor_ParameterDefinitions"));
 const FName FNiagaraScriptToolkit::StatsTabId(TEXT("NiagaraEditor_Stats"));
 const FName FNiagaraScriptToolkit::MessageLogTabID(TEXT("NiagaraEditor_MessageLog"));
 const FName FNiagaraScriptToolkit::VersioningTabID(TEXT("NiagaraEditor_Versioning"));
@@ -96,11 +99,14 @@ void FNiagaraScriptToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 		.SetDisplayName(LOCTEXT("ParametersTab", "Parameters"))
 		.SetGroup(WorkspaceMenuCategoryRef);
 
-	InTabManager->RegisterTabSpawner(ParametersTabId2, FOnSpawnTab::CreateSP(this, &FNiagaraScriptToolkit::SpawnTabScriptParameters2))
-		.SetDisplayName(LOCTEXT("ParametersTab2", "Parameters2"))
-		.SetGroup(WorkspaceMenuCategoryRef)
-		.SetAutoGenerateMenuEntry(GbShowNiagaraDeveloperWindows != 0);
+	InTabManager->RegisterTabSpawner(ParametersTabId2, FOnSpawnTab::CreateSP(this, &FNiagaraScriptToolkit::SpawnTabScriptParameters2)) //@todo(ng) remove this
+		.SetDisplayName(LOCTEXT("ParametersTab2", "Legacy Parameters"))
+		.SetGroup(WorkspaceMenuCategoryRef);
 		
+	InTabManager->RegisterTabSpawner(ParameterDefinitionsTabId, FOnSpawnTab::CreateSP(this, &FNiagaraScriptToolkit::SpawnTabParameterDefinitions))
+		.SetDisplayName(LOCTEXT("ParameterDefinitions", "Parameter Definitions"))
+		.SetGroup(WorkspaceMenuCategoryRef);
+
 	InTabManager->RegisterTabSpawner(StatsTabId, FOnSpawnTab::CreateSP(this, &FNiagaraScriptToolkit::SpawnTabStats))
 		.SetDisplayName(LOCTEXT("StatsTab", "Stats"))
 		.SetGroup(WorkspaceMenuCategoryRef)
@@ -124,6 +130,7 @@ void FNiagaraScriptToolkit::UnregisterTabSpawners(const TSharedRef<class FTabMan
 	InTabManager->UnregisterTabSpawner(SelectedDetailsTabId);
 	InTabManager->UnregisterTabSpawner(ParametersTabId);
 	InTabManager->UnregisterTabSpawner(ParametersTabId2);
+	InTabManager->UnregisterTabSpawner(ParameterDefinitionsTabId);
 	InTabManager->UnregisterTabSpawner(StatsTabId);
 	InTabManager->UnregisterTabSpawner(VersioningTabID);
 }
@@ -172,18 +179,23 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 	ScriptViewModel = MakeShareable(new FNiagaraStandaloneScriptViewModel(GetGraphEditorDisplayName(), ENiagaraParameterEditMode::EditAll, NiagaraMessageLogViewModel, MessageLogGuidKey));
 	ScriptViewModel->Initialize(EditedNiagaraScript, OriginalNiagaraScript);
 
-	if (GbShowNiagaraDeveloperWindows)
-	{
-		ParameterPanelViewModel = MakeShareable(new FNiagaraScriptToolkitParameterPanelViewModel(ScriptViewModel));
-		ParameterPanelViewModel->InitBindings();
-	}
+	ParameterPanelViewModel = MakeShareable(new FNiagaraScriptToolkitParameterPanelViewModel(ScriptViewModel));
+	ParameterDefinitionsPanelViewModel = MakeShareable(new FNiagaraScriptToolkitParameterDefinitionsPanelViewModel(ScriptViewModel));
+
+	FScriptToolkitUIContext UIContext = FScriptToolkitUIContext(
+		FSimpleDelegate::CreateSP(ParameterPanelViewModel.ToSharedRef(), &INiagaraImmutableParameterPanelViewModel::Refresh),
+		FSimpleDelegate::CreateSP(ParameterDefinitionsPanelViewModel.ToSharedRef(), &INiagaraImmutableParameterPanelViewModel::Refresh),
+		FSimpleDelegate::CreateRaw(this, &FNiagaraScriptToolkit::RefreshDetailsPanel)
+	);
+	ParameterPanelViewModel->Init(UIContext);
+	ParameterDefinitionsPanelViewModel->Init(UIContext);
 
 	OnEditedScriptGraphChangedHandle = ScriptViewModel->GetGraphViewModel()->GetGraph()->AddOnGraphNeedsRecompileHandler(
 		FOnGraphChanged::FDelegate::CreateRaw(this, &FNiagaraScriptToolkit::OnEditedScriptGraphChanged));
 
 	DetailsScriptSelection = MakeShareable(new FNiagaraObjectSelection());
 	DetailsScriptSelection->SetSelectedObject(EditedNiagaraScript.Script, &EditedNiagaraScript.Version);
-	
+
  	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog"); //@todo(message manager) remove stats listing
  	FMessageLogInitializationOptions LogOptions;
  	// Show Pages so that user is never allowed to clear log messages
@@ -301,11 +313,24 @@ void FNiagaraScriptToolkit::InitViewWithVersionedData()
 	ScriptViewModel->GetGraphViewModel()->GetGraph()->RemoveOnGraphNeedsRecompileHandler(OnEditedScriptGraphChangedHandle);
 
 	// reinitialize the ui with the new version data
+	const FSimpleDelegate RefreshParameterPanelDelegate = ParameterPanelViewModel.IsValid() ? FSimpleDelegate::CreateSP(ParameterPanelViewModel.ToSharedRef(), &INiagaraImmutableParameterPanelViewModel::Refresh) : FSimpleDelegate();
+	const FSimpleDelegate RefreshParameterDefinitionsPanelDelegate = ParameterDefinitionsPanelViewModel.IsValid() ? FSimpleDelegate::CreateSP(ParameterDefinitionsPanelViewModel.ToSharedRef(), &INiagaraImmutableParameterPanelViewModel::Refresh) : FSimpleDelegate();
+	const FSimpleDelegate RefreshDetailsPanelDelegate = FSimpleDelegate::CreateRaw(this, &FNiagaraScriptToolkit::RefreshDetailsPanel);
+	FScriptToolkitUIContext UIContext = FScriptToolkitUIContext(
+		RefreshParameterPanelDelegate,
+		RefreshParameterDefinitionsPanelDelegate,
+		RefreshDetailsPanelDelegate
+	);
+
 	ScriptViewModel->Initialize(EditedNiagaraScript, OriginalNiagaraScript);
 	ScriptViewModel->GetGraphViewModel()->SetDisplayName(GetGraphEditorDisplayName());
 	if (ParameterPanelViewModel)
 	{
-		ParameterPanelViewModel->InitBindings();
+		ParameterPanelViewModel->Init(UIContext);
+	}
+	if (ParameterDefinitionsPanelViewModel)
+	{
+		ParameterDefinitionsPanelViewModel->Init(UIContext);
 	}
 	DetailsScriptSelection->SetSelectedObject(EditedNiagaraScript.Script, &EditedNiagaraScript.Version);
 	if (NiagaraScriptGraphWidget)
@@ -448,6 +473,19 @@ TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabScriptParameters(const FSpaw
 {
 	checkf(Args.GetTabId().TabType == ParametersTabId, TEXT("Wrong tab ID in NiagaraScriptToolkit"));
 
+	TSharedRef<SDockTab> SpawnedTab =
+		SNew(SDockTab)
+		[
+			SNew(SNiagaraParameterPanel, ParameterPanelViewModel, GetToolkitCommands())
+		];
+
+	return SpawnedTab;
+}
+
+TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabScriptParameters2(const FSpawnTabArgs& Args)
+{
+	checkf(Args.GetTabId().TabType == ParametersTabId2, TEXT("Wrong tab ID in NiagaraScriptToolkit"));
+
 	TArray<TSharedRef<FNiagaraObjectSelection>> Array;
 	Array.Push(DetailsScriptSelection.ToSharedRef());
 	Array.Push(ScriptViewModel->GetVariableSelection());
@@ -461,14 +499,14 @@ TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabScriptParameters(const FSpaw
 	return SpawnedTab;
 }
 
-TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabScriptParameters2(const FSpawnTabArgs& Args)
+TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabParameterDefinitions(const FSpawnTabArgs& Args)
 {
-	checkf(Args.GetTabId().TabType == ParametersTabId2, TEXT("Wrong tab ID in NiagaraScriptToolkit"));
+	checkf(Args.GetTabId().TabType == ParameterDefinitionsTabId, TEXT("Wrong tab ID in NiagaraScriptToolkit"));
 
 	TSharedRef<SDockTab> SpawnedTab =
 		SNew(SDockTab)
 		[
-			SNew(SNiagaraParameterPanel, ParameterPanelViewModel, GetToolkitCommands())
+			SNew(SNiagaraParameterDefinitionsPanel, ParameterDefinitionsPanelViewModel, GetToolkitCommands())
 		];
 
 	return SpawnedTab;
@@ -821,95 +859,10 @@ void FNiagaraScriptToolkit::UpdateOriginalNiagaraScript()
 	// Now there might be other Scripts with functions that referenced this script. So let's update them. They'll need a recompile.
 	// Note that we don't discriminate between the version that are open in transient packages (likely duplicates for editing) and the
 	// original in-scene versions.
-	TArray<UNiagaraScript*> AffectedScripts;
-	UNiagaraGraph* OriginalGraph = CastChecked<UNiagaraScriptSource>(OriginalNiagaraScript.Script->GetSource(EditedNiagaraScript.Version))->NodeGraph;
-	for (TObjectIterator<UNiagaraScript> It; It; ++It)
-	{
-		if (*It == OriginalNiagaraScript.Script || It->IsPendingKillOrUnreachable())
-		{
-			continue;
-		}
-
-		// First see if it is directly called, as this will force a need to refresh from external changes...
-		UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(It->GetLatestSource());
-		if (!Source)
-		{
-			continue;
-		}
-		TArray<UNiagaraNode*> NiagaraNodes;
-		Source->NodeGraph->GetNodesOfClass<UNiagaraNode>(NiagaraNodes);
-		bool bRefreshed = false;
-		for (UNiagaraNode* NiagaraNode : NiagaraNodes)
-		{
-			UObject* ReferencedAsset = NiagaraNode->GetReferencedAsset();
-			if (ReferencedAsset == OriginalNiagaraScript.Script)
-			{
-				NiagaraNode->RefreshFromExternalChanges();
-				bRefreshed = true;
-			}
-		}
-
-		if (bRefreshed)
-		{
-			//Source->NodeGraph->NotifyGraphNeedsRecompile();
-			AffectedScripts.AddUnique(*It);
-		}
-		else
-		{
-			// Now check to see if our graph is anywhere in the dependency chain for a given graph. If it is, 
-			// then it will need to be recompiled against the latest version.
-			TArray<const UNiagaraGraph*> ReferencedGraphs;
-			Source->NodeGraph->GetAllReferencedGraphs(ReferencedGraphs);
-			for (const UNiagaraGraph* Graph : ReferencedGraphs)
-			{
-				if (Graph == OriginalGraph)
-				{
-					//Source->NodeGraph->NotifyGraphNeedsRecompile();
-					AffectedScripts.AddUnique(*It);
-					break;
-				}
-			}
-		}
-	}
-
-	// Now determine if any of these scripts were in Emitters. If so, those emitters should be compiled together. If not, go ahead and compile individually.
-	// Use the existing view models if they exist,as they are already wired into the correct UI.
-	TArray<UNiagaraEmitter*> AffectedEmitters;
-	for (UNiagaraScript* Script : AffectedScripts)
-	{
-		if (Script->IsParticleScript() || Script->IsEmitterSpawnScript() || Script->IsEmitterUpdateScript())
-		{
-			UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(Script->GetOuter());
-			if (Emitter)
-			{
-				AffectedEmitters.AddUnique(Emitter);
-			}
-		}
-		else if (Script->IsSystemSpawnScript() || Script->IsSystemUpdateScript())
-		{
-			UNiagaraSystem* System = Cast<UNiagaraSystem>(Script->GetOuter());
-			if (System)
-			{
-				for (int32 i = 0; i < System->GetNumEmitters(); i++)
-				{
-					AffectedEmitters.AddUnique(System->GetEmitterHandle(i).GetInstance());
-					AffectedEmitters.AddUnique((UNiagaraEmitter*)System->GetEmitterHandle(i).GetInstance()->GetParent());
-				}
-			}
-		}
-		else
-		{
-			TSharedPtr<FNiagaraScriptViewModel> AffectedScriptViewModel = FNiagaraScriptViewModel::GetExistingViewModelForObject(Script);
-			if (!AffectedScriptViewModel.IsValid())
-			{
-				AffectedScriptViewModel = MakeShareable(new FNiagaraScriptViewModel(FText::FromString(Script->GetName()), ENiagaraParameterEditMode::EditValueOnly));
-				AffectedScriptViewModel->SetScript({Script, FGuid()});
-			}
-			AffectedScriptViewModel->CompileStandaloneScript();
-		}
-	}
-
-	FNiagaraEditorUtilities::CompileExistingEmitters(AffectedEmitters);
+	FRefreshAllScriptsFromExternalChangesArgs Args;
+	Args.OriginatingScript = OriginalNiagaraScript.Script;
+	Args.OriginatingGraph = CastChecked<UNiagaraScriptSource>(OriginalNiagaraScript.Script->GetSource(EditedNiagaraScript.Version))->NodeGraph;
+	FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(Args);
 
 	GWarn->EndSlowTask();
 	bEditedScriptHasPendingChanges = false;
@@ -975,6 +928,14 @@ void FNiagaraScriptToolkit::FocusGraphElementIfSameScriptID(const FNiagaraScript
 	if (FocusInfo->GetScriptUniqueAssetID() == OriginalNiagaraScript.Script->GetUniqueID())
 	{
 		NiagaraScriptGraphWidget->FocusGraphElement(FocusInfo->GetScriptGraphFocusInfo().Get());
+	}
+}
+
+void FNiagaraScriptToolkit::RefreshDetailsPanel()
+{
+	if (SelectedDetailsWidget.IsValid())
+	{
+		SelectedDetailsWidget->RefreshDetails();
 	}
 }
 

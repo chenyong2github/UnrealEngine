@@ -437,3 +437,14 @@ void UNiagaraScriptSource::CollectDataInterfaces(TArray<const UNiagaraDataInterf
 		}
 	}
 }
+
+void UNiagaraScriptSource::SynchronizeGraphParametersWithParameterDefinitions(const TArray<UNiagaraParameterDefinitionsBase*> ParameterDefinitions, const TArray<FGuid>& ParameterDefinitionsParameterIds, FSynchronizeWithParameterDefinitionsArgs Args)
+{
+	TArray<UNiagaraParameterDefinitions*> EditorOnlyParameterDefinitions = FNiagaraEditorUtilities::DowncastParameterDefinitionsBaseArray(ParameterDefinitions);
+	NodeGraph->SynchronizeParametersWithParameterDefinitions(EditorOnlyParameterDefinitions, ParameterDefinitionsParameterIds, Args);
+}
+
+void UNiagaraScriptSource::RenameGraphAssignmentAndSetNodePins(const FName OldName, const FName NewName)
+{
+	NodeGraph->RenameAssignmentAndSetNodePins(OldName, NewName);
+}

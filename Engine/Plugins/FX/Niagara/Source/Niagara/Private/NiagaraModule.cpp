@@ -104,6 +104,7 @@ FNiagaraVariable INiagaraModule::Engine_Owner_ExecutionState;
 
 FNiagaraVariable INiagaraModule::Engine_ExecutionCount;
 FNiagaraVariable INiagaraModule::Engine_Emitter_NumParticles;
+FNiagaraVariable INiagaraModule::Engine_Emitter_SimulationPosition;
 FNiagaraVariable INiagaraModule::Engine_Emitter_TotalSpawnedParticles;
 FNiagaraVariable INiagaraModule::Engine_Emitter_SpawnCountScale;
 FNiagaraVariable INiagaraModule::Engine_System_TickCount;
@@ -226,6 +227,7 @@ void INiagaraModule::StartupModule()
 	
 	Engine_ExecutionCount = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.ExecutionCount"));
 	Engine_Emitter_NumParticles = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.Emitter.NumParticles"));
+	Engine_Emitter_SimulationPosition = FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Engine.Emitter.SimulationPosition"));
 	Engine_Emitter_TotalSpawnedParticles = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.Emitter.TotalSpawnedParticles"));
 	Engine_Emitter_SpawnCountScale = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.Emitter.SpawnCountScale"));
 	Engine_Emitter_InstanceSeed = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.Emitter.InstanceSeed"));
@@ -687,9 +689,6 @@ void FNiagaraTypeDefinition::Init()
 	SimulationTargetEnum = StaticEnum<ENiagaraSimTarget>();
 	ScriptUsageEnum = StaticEnum<ENiagaraCompileUsageStaticSwitch>();
 	ScriptContextEnum = StaticEnum<ENiagaraScriptContextStaticSwitch>();
-
-	ParameterScopeEnum = StaticEnum<ENiagaraParameterScope>();
-	ParameterPanelCategoryEnum = StaticEnum<ENiagaraParameterPanelCategory>();
 
 	FunctionDebugStateEnum = StaticEnum<ENiagaraFunctionDebugState>();
 	

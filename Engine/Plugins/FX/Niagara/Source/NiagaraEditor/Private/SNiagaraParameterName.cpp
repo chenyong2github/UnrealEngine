@@ -217,7 +217,7 @@ void SNiagaraParameterName::UpdateContent(FName InDisplayedParameterName, int32 
 		];
 	}
 
-	if (Decorator.IsValid())
+	if (Decorator.IsValid() && Decorator != SNullWidget::NullWidget)
 	{
 		ContentBox->AddSlot()
 		.VAlign(VAlign_Center)

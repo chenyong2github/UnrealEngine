@@ -137,7 +137,7 @@ void SNiagaraStackItemGroupAddMenu::OnItemActivated(const TSharedPtr<FNiagaraMen
 
 void SNiagaraStackItemGroupAddMenu::TriggerRefresh(const TMap<EScriptSource, bool>& SourceState)
 {
-	ActionSelector->RefreshAllItems();
+	ActionSelector->RefreshAllCurrentItems();
 
 	TArray<bool> States;
 	SourceState.GenerateValueArray(States);
@@ -162,7 +162,7 @@ bool SNiagaraStackItemGroupAddMenu::GetLibraryOnly() const
 void SNiagaraStackItemGroupAddMenu::SetLibraryOnly(bool bInLibraryOnly)
 {
 	bLibraryOnly = bInLibraryOnly;
-	ActionSelector->RefreshAllItems(true);
+	ActionSelector->RefreshAllCurrentItems(true);
 }
 
 TArray<FString> SNiagaraStackItemGroupAddMenu::OnGetCategoriesForItem(

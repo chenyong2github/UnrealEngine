@@ -6,6 +6,15 @@
 
 NIAGARAEDITOR_API DECLARE_LOG_CATEGORY_EXTERN(LogNiagaraEditor, Log, All);
 
+/** Common Strings */
+namespace FNiagaraEditorStrings
+{ 
+	extern const FName DefaultValueCustomRowName;
+	extern const FName DefaultModeCustomRowName;
+
+	extern const FName FNiagaraParameterActionId;
+}
+
 /** Information about a Niagara operation. */
 class FNiagaraOpInfo
 {
@@ -130,61 +139,6 @@ public:
 private:
 	const uint32 ScriptUniqueAssetID;
 	const TSharedPtr<INiagaraScriptGraphFocusInfo> ScriptGraphFocusInfo;
-};
-
-/** Convenience wrapper for generating entries for scope enum combo boxes in SNiagaraParameterNameView. */
-struct FScopeIsEnabledAndTooltip
-{
-	FScopeIsEnabledAndTooltip()
-		: bEnabled(true)
-		, Tooltip()
-	{};
-
-	FScopeIsEnabledAndTooltip(bool bInEnabled, FText InTooltip)
-		: bEnabled(bInEnabled)
-		, Tooltip(InTooltip)
-	{};
-
-	bool bEnabled;
-	FText Tooltip;
-};
-
-/** Helper struct for passing along info on parameters and how to display them in SNiagaraParameterNameView */
-struct FNiagaraScriptVariableAndViewInfo
-{
-	FNiagaraScriptVariableAndViewInfo() {}
-	FNiagaraScriptVariableAndViewInfo(const FNiagaraVariable& InScriptVariable, const FNiagaraVariableMetaData& InScriptVariableMetaData)
-		: bIsSelectionRelevant(false)
-	{
-		ScriptVariable = InScriptVariable;
-		MetaData = InScriptVariableMetaData;
-	};
-
-	FNiagaraScriptVariableAndViewInfo(const FNiagaraVariable& InScriptVariable, const FNiagaraVariableMetaData& InMetaData, const TStaticArray<FScopeIsEnabledAndTooltip, (int32)ENiagaraParameterScope::Num>& InParameterScopeToDisplayInfo)
-		: ParameterScopeToDisplayInfo(InParameterScopeToDisplayInfo)
-		, bIsSelectionRelevant(false)
-	{
-		ScriptVariable = InScriptVariable;
-		MetaData = InMetaData;
-	};
-
-	FNiagaraScriptVariableAndViewInfo(const FNiagaraScriptVariableAndViewInfo& Other)
-		: ScriptVariable(Other.ScriptVariable)
-		, MetaData(Other.MetaData)
-		, ParameterScopeToDisplayInfo(Other.ParameterScopeToDisplayInfo)
-		, bIsSelectionRelevant(Other.bIsSelectionRelevant)
-	{};
-
-	bool operator== (const FNiagaraScriptVariableAndViewInfo& Other) const;
-
-	FNiagaraVariable ScriptVariable;
-	FNiagaraVariableMetaData MetaData;
-
-	// Array indexed by ENiagaraParameterScope value containing info on how to present each scope in a ComboBox.
-	TStaticArray<FScopeIsEnabledAndTooltip, (int32)ENiagaraParameterScope::Num> ParameterScopeToDisplayInfo;
-
-	// Whether this entry is related to the current selection state, e.g. if a module is selected in the Stack, mark this entry if ScriptVariable is a member of that module.
-	bool bIsSelectionRelevant;
 };
 
 /** Defines different types of changes to data objects within a niagara system. */
