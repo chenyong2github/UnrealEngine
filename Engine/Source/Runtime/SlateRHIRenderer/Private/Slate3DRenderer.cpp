@@ -120,6 +120,8 @@ void FSlate3DRenderer::DrawWindowToTarget_RenderThread(FRHICommandListImmediate&
 
 	FMemMark MemMark(FMemStack::Get());
 
+	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
+
 	// Enqueue a command to unlock the draw buffer after all windows have been drawn
 	RenderTargetPolicy->BeginDrawingWindows();
 
