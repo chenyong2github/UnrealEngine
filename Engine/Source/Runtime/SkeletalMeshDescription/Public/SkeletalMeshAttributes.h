@@ -45,11 +45,11 @@ public:
 	FSkinWeightsVertexAttributesConstRef GetVertexSkinWeightsFromAttributeName(const FName InAttributeName = NAME_None) const
 	{
 		if (IsSkinWeightAttribute(InAttributeName))
-	{
+		{
 			return MeshDescriptionShared.VertexAttributes().GetAttributesRef<TArrayAttribute<int32>>(InAttributeName);
-	}
+		}
 		else
-	{
+		{
 			return {};
 		}
 	}
@@ -83,6 +83,20 @@ public:
 	/// Returns \c false if the attribute was already registered or if IsValidSkinWeightProfileName() returned false.
 	bool RegisterSkinWeightAttribute(const FName InProfileName);
 
+	static bool IsReservedAttributeName(const FName InAttributeName)
+	{
+		return FStaticMeshAttributes::IsReservedAttributeName(InAttributeName) ||
+               InAttributeName == MeshAttribute::VertexInstance::TextureCoordinate ||
+               InAttributeName == MeshAttribute::VertexInstance::Normal ||
+               InAttributeName == MeshAttribute::VertexInstance::Tangent ||
+               InAttributeName == MeshAttribute::VertexInstance::BinormalSign ||
+               InAttributeName == MeshAttribute::VertexInstance::Color ||
+               InAttributeName == MeshAttribute::Triangle::Normal ||
+               InAttributeName == MeshAttribute::Triangle::Tangent ||
+               InAttributeName == MeshAttribute::Triangle::Binormal ||
+			   IsSkinWeightAttribute(InAttributeName);
+	}	
+	
 	/// Returns the skin weight profile given by its name. NAME_None corresponds to the default profile.
 	FSkinWeightsVertexAttributesRef GetVertexSkinWeights(const FName InProfileName = NAME_None)
 	{
@@ -96,7 +110,7 @@ public:
 			return MeshDescription.VertexAttributes().GetAttributesRef<TArrayAttribute<int32>>(InAttributeName);
 		}
 		else
-	{
+		{
 			return {};
 		}
 	}

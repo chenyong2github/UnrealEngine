@@ -72,6 +72,22 @@ public:
 	{}
 
 	virtual void Register() override;
+	
+	static bool IsReservedAttributeName(const FName InAttributeName)
+	{
+		return FMeshAttributes::IsReservedAttributeName(InAttributeName) ||
+               InAttributeName == MeshAttribute::VertexInstance::TextureCoordinate ||
+               InAttributeName == MeshAttribute::VertexInstance::Normal ||
+               InAttributeName == MeshAttribute::VertexInstance::Tangent ||
+               InAttributeName == MeshAttribute::VertexInstance::BinormalSign ||
+               InAttributeName == MeshAttribute::VertexInstance::Color ||
+               InAttributeName == MeshAttribute::Edge::IsHard ||
+               InAttributeName == MeshAttribute::Triangle::Normal ||
+               InAttributeName == MeshAttribute::Triangle::Tangent ||
+               InAttributeName == MeshAttribute::Triangle::Binormal ||
+               InAttributeName == MeshAttribute::PolygonGroup::ImportedMaterialSlotName
+		;
+	}	
 
 	UE_DEPRECATED(4.26, "Please use RegisterTriangleNormalAndTangentAttributes() instead.")
 	void RegisterPolygonNormalAndTangentAttributes();

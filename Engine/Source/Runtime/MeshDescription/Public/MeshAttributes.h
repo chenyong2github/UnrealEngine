@@ -55,6 +55,21 @@ public:
 
 	virtual void Register();
 
+	static bool IsReservedAttributeName(const FName InAttributeName)
+	{
+		return InAttributeName == MeshAttribute::Vertex::Position ||
+			   InAttributeName == MeshAttribute::VertexInstance::VertexIndex ||
+			   InAttributeName == MeshAttribute::Edge::VertexIndex ||
+			   InAttributeName == MeshAttribute::Triangle::VertexInstanceIndex ||
+			   InAttributeName == MeshAttribute::Triangle::PolygonIndex ||
+			   InAttributeName == MeshAttribute::Triangle::EdgeIndex ||
+			   InAttributeName == MeshAttribute::Triangle::VertexIndex ||
+			   InAttributeName == MeshAttribute::Triangle::UVIndex ||
+			   InAttributeName == MeshAttribute::Triangle::PolygonGroupIndex ||
+			   InAttributeName == MeshAttribute::UV::UVCoordinate ||
+			   InAttributeName == MeshAttribute::Polygon::PolygonGroupIndex;
+	}
+
 	/** Accessors for cached vertex position array */
 	TVertexAttributesRef<FVector> GetVertexPositions()
 	{
