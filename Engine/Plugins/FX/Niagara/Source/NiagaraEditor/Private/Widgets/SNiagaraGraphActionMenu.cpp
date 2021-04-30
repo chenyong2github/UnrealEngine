@@ -208,7 +208,7 @@ void SNiagaraGraphActionMenu::OnItemActivated(const TSharedPtr<FNiagaraAction_Ne
 
 void SNiagaraGraphActionMenu::TriggerRefresh(const TMap<EScriptSource, bool>& SourceState)
 {
-	ActionSelector->RefreshAllCurrentItems();
+	ActionSelector->RefreshAllItems();
 
 	TArray<bool> States;
 	SourceState.GenerateValueArray(States);
@@ -228,7 +228,7 @@ void SNiagaraGraphActionMenu::TriggerRefresh(const TMap<EScriptSource, bool>& So
 void SNiagaraGraphActionMenu::SetLibraryOnly(bool bInIsLibraryOnly)
 {
 	bLibraryOnly = bInIsLibraryOnly;
-	ActionSelector->RefreshAllCurrentItems(true);
+	ActionSelector->RefreshAllItems(true);
 }
 
 bool SNiagaraGraphActionMenu::DoesItemPassCustomFilter(const TSharedPtr<FNiagaraAction_NewNode>& Item)

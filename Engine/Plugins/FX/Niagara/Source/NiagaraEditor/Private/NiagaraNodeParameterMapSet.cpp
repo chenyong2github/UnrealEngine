@@ -125,10 +125,18 @@ void UNiagaraNodeParameterMapSet::OnNewTypedPinAdded(UEdGraphPin*& NewPin)
 		{
 			const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
 			FNiagaraVariable PinVariable = Schema->PinToNiagaraVariable(NewPin, false);
-			const bool bIsStaticSwitch = false;
-			UNiagaraScriptVariable* Var = GetNiagaraGraph()->AddParameter(PinVariable, bIsStaticSwitch);
+			UNiagaraGraph::FAddParameterOptions AddParameterOptions = UNiagaraGraph::FAddParameterOptions();
+
+			//FNiagaraEditorUtilities::GetParameterMetaDataFromName(NewUniqueName, MetaDataGuess);
+			//AddParameterOptions.NewParameterScopeName = FNiagaraConstants::LocalNamespace;
+			//AddParameterOptions.NewParameterUsage = ENiagaraScriptParameterUsage::Local;
+			//AddParameterOptions.bMakeParameterNameUnique = true;
+			AddParameterOptions.bRefreshMetaDataScopeAndUsage = true;
+
+			UNiagaraScriptVariable* Var = GetNiagaraGraph()->AddParameter(PinVariable, AddParameterOptions);
 			NewPin->PinName = Var->Variable.GetName();
 		}
+		UpdateAddedPinMetaData(NewPin);
 	}
 
 	if (!NewPin->PersistentGuid.IsValid())

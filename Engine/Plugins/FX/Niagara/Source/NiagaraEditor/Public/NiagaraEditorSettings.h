@@ -12,23 +12,6 @@
 class UCurveFloat;
 enum class EScriptSource : uint8;
 
-namespace FNiagaraEditorGuids
-{
-	const extern FGuid SystemNamespaceMetaDataGuid;
-	const extern FGuid EmitterNamespaceMetaDataGuid;
-	const extern FGuid ParticleAttributeNamespaceMetaDataGuid;
-	const extern FGuid ModuleNamespaceMetaDataGuid;
-	const extern FGuid ModuleOutputNamespaceMetaDataGuid;
-	const extern FGuid ModuleLocalNamespaceMetaDataGuid;
-	const extern FGuid TransientNamespaceMetaDataGuid;
-	const extern FGuid StackContextNamespaceMetaDataGuid;
-	const extern FGuid EngineNamespaceMetaDataGuid;
-	const extern FGuid UserNamespaceMetaDataGuid;
-	const extern FGuid ParameterCollectionNamespaceMetaDataGuid;
-	const extern FGuid DataInstanceNamespaceMetaDataGuid;
-	const extern FGuid StaticSwitchNamespaceMetaDataGuid;
-}
-
 USTRUCT()
 struct FNiagaraNewAssetDialogConfig
 {
@@ -61,15 +44,13 @@ enum class ENiagaraNamespaceMetadataOptions
 };
 
 USTRUCT()
-struct NIAGARAEDITOR_API FNiagaraNamespaceMetadata
+struct FNiagaraNamespaceMetadata
 {
 	GENERATED_BODY()
 
 	FNiagaraNamespaceMetadata();
 
 	FNiagaraNamespaceMetadata(TArray<FName> InNamespaces, FName InRequiredNamespaceModifier = NAME_None);
-
-	//FNiagaraNamespaceMetadata(const FNiagaraNamespaceMetadata& Other);
 
 	bool operator==(const FNiagaraNamespaceMetadata& Other) const
 	{
@@ -164,19 +145,7 @@ struct NIAGARAEDITOR_API FNiagaraNamespaceMetadata
 		return *this;
 	}
 
-	FNiagaraNamespaceMetadata& SetGuid(const FGuid& NewGuid)
-	{ 
-		Guid = NewGuid; 
-		return *this;
-	}
-
 	bool IsValid() const { return Namespaces.Num() > 0; }
-
-	const FGuid& GetGuid() const { return Guid; }
-
-private:
-	UPROPERTY(Transient)
-	FGuid Guid;
 };
 
 USTRUCT()
@@ -208,11 +177,6 @@ struct NIAGARAEDITOR_API FNiagaraActionColors
 	UPROPERTY(EditAnywhere, Category = Color)
 	FLinearColor DeveloperColor;
 };
-
-FORCEINLINE uint32 GetTypeHash(const FNiagaraNamespaceMetadata& NamespaceMetaData)
-{
-	return GetTypeHash(NamespaceMetaData.GetGuid());
-}
 
 UCLASS(config = Niagara, defaultconfig, meta=(DisplayName="Niagara"))
 class NIAGARAEDITOR_API UNiagaraEditorSettings : public UDeveloperSettings
@@ -292,7 +256,6 @@ public:
 
 	FNiagaraNamespaceMetadata GetDefaultNamespaceMetadata() const;
 	FNiagaraNamespaceMetadata GetMetaDataForNamespaces(TArray<FName> Namespaces) const;
-	FNiagaraNamespaceMetadata GetMetaDataForId(const FGuid& NamespaceId) const;
 	const TArray<FNiagaraNamespaceMetadata>& GetAllNamespaceMetadata() const;
 
 	FNiagaraNamespaceMetadata GetDefaultNamespaceModifierMetadata() const;

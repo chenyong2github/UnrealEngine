@@ -343,7 +343,7 @@ void UNiagaraNodeAssignment::CollectAddExistingActions(ENiagaraScriptUsage InUsa
 			0, FText(),
 			FNiagaraMenuAction::FOnExecuteStackAction::CreateUObject(this, &UNiagaraNodeAssignment::AddParameter, AvailableParameter, VarDefaultValue),
 			FNiagaraMenuAction::FCanExecuteStackAction::CreateLambda([bCanExecute] { return bCanExecute; })));
-		AddExistingAction->SetParameterVariable(AvailableParameter);
+		AddExistingAction->SetParamterVariable(AvailableParameter);
 		OutAddExistingActions.Add(AddExistingAction);
 	}
 }

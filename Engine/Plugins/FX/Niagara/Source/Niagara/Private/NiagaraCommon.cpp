@@ -2,15 +2,14 @@
 
 #include "NiagaraCommon.h"
 #include "NiagaraComponent.h"
+#include "NiagaraSystemInstance.h"
+#include "NiagaraParameterCollection.h"
 #include "NiagaraConstants.h"
 #include "NiagaraCustomVersion.h"
-#include "NiagaraParameterCollection.h"
-#include "NiagaraParameterDefinitionsBase.h"
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraStats.h"
-#include "NiagaraSystemInstance.h"
-#include "NiagaraWorldManager.h"
 #include "UObject/Class.h"
+#include "NiagaraWorldManager.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - Utilities - PrepareRapidIterationParameters"), STAT_Niagara_Utilities_PrepareRapidIterationParameters, STATGROUP_Niagara);
 
@@ -1190,11 +1189,3 @@ bool FVMExternalFunctionBindingInfo::Serialize(FArchive& Ar)
 
 const FString FNiagaraCompileOptions::CpuScriptDefine = TEXT("CPUSim");
 const FString FNiagaraCompileOptions::GpuScriptDefine = TEXT("GPUComputeSim");
-
-FSynchronizeWithParameterDefinitionsArgs::FSynchronizeWithParameterDefinitionsArgs()
-	: SpecificDefinitionsUniqueIds(TArray<FGuid>())
-	, SpecificDestScriptVarIds(TArray<FGuid>())
-	, bForceSynchronizeDefinitions(false)
-	, bSubscribeAllNameMatchParameters(false)
-{
-}

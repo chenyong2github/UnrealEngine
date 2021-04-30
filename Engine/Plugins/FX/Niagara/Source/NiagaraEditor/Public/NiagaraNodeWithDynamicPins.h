@@ -42,13 +42,17 @@ public:
 
 	/** Request a new pin. */
 	void AddParameter(FNiagaraVariable Parameter, const UEdGraphPin* AddPin);
-	void AddParameter(const UNiagaraScriptVariable* ScriptVar, const UEdGraphPin* AddPin);
+	void AddParameter(FNiagaraVariable Parameter, const struct UNiagaraGraph::FAddParameterOptions AddParameterOptions);
 
+	/** Request a new pin and assign MetaData to the newly generated UNiagaraScriptVariable. */
+//	void AddParameterAndSetMetaData(FNiagaraVariable& Parameter, const FNiagaraVariableMetaData& ParameterMetaData, UEdGraphPin* AddPin);
 protected:
 	virtual bool AllowDynamicPins() const { return true; }
 
 	/** Creates an add pin on the node for the specified direction. */
 	void CreateAddPin(EEdGraphPinDirection Direction);
+
+	void UpdateAddedPinMetaData(const UEdGraphPin* AddedPin);
 
 	/** Called when a new typed pin is added by the user. */
 	virtual void OnNewTypedPinAdded(UEdGraphPin*& NewPin) { }

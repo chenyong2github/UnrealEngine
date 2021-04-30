@@ -23,7 +23,6 @@
 #if WITH_EDITOR
 	#include "DerivedDataCacheInterface.h"
 	#include "Interfaces/ITargetPlatform.h"
-	#include "NiagaraSettings.h"
 
 
 	// This is a version string that mimics the old versioning scheme. In case of merge conflicts with DDC versions,
@@ -1436,32 +1435,12 @@ void UNiagaraScript::PostLoad()
 		}
 	}
 
-	for (FVersionedNiagaraScriptData& Data : VersionData)
+	for (const FVersionedNiagaraScriptData& Data : VersionData)
 	{
 		UNiagaraScriptSourceBase* Source = Data.Source;
         if (Source != nullptr)
         {
         	Source->ConditionalPostLoad();
-
-			// Synchronize with Definitions after source scripts have been postloaded.
-			FVersionedNiagaraScript VersionedNiagaraScriptAdapter = FVersionedNiagaraScript(this, Data.Version.VersionGuid);
-			const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
-			check(Settings);
-			TArray<FGuid> DefaultDefinitionsUniqueIds;
-			for (const FSoftObjectPath& DefaultLinkedParameterDefinitionObjPath : Settings->DefaultLinkedParameterDefinitions)
-			{
-				UNiagaraParameterDefinitionsBase* DefaultLinkedParameterDefinitions = CastChecked<UNiagaraParameterDefinitionsBase>(DefaultLinkedParameterDefinitionObjPath.TryLoad());
-				DefaultDefinitionsUniqueIds.Add(DefaultLinkedParameterDefinitions->GetDefinitionsUniqueId());
-				const bool bDoNotAssertIfAlreadySubscribed = true;
-				VersionedNiagaraScriptAdapter.SubscribeToParameterDefinitions(DefaultLinkedParameterDefinitions, bDoNotAssertIfAlreadySubscribed);
-			}
-			FSynchronizeWithParameterDefinitionsArgs Args;
-			Args.SpecificDefinitionsUniqueIds = DefaultDefinitionsUniqueIds;
-			Args.bForceSynchronizeDefinitions = true;
-			Args.bSubscribeAllNameMatchParameters = true;
-			VersionedNiagaraScriptAdapter.SynchronizeWithParameterDefinitions(Args);
-			VersionedNiagaraScriptAdapter.InitParameterDefinitionsSubscriptions();
-
         	bool bScriptVMNeedsRebuild = false;
         	FString RebuildReason;
         	if (NiagaraVer < FNiagaraCustomVersion::UseHashesToIdentifyCompileStateOfTopLevelScripts && CachedScriptVMId.CompilerVersionID.IsValid())
@@ -1514,7 +1493,6 @@ void UNiagaraScript::PostLoad()
         	}
         }
 	}
-
 #endif
 
 	ProcessSerializedShaderMaps();
@@ -1914,59 +1892,18 @@ UNiagaraDataInterface* UNiagaraScript::CopyDataInterface(UNiagaraDataInterface* 
 }
 
 #if WITH_EDITORONLY_DATA
-const FVersionedNiagaraScript FVersionedNiagaraScriptWeakPtr::Pin() const
-{
-	if (Script.IsValid())
-	{
-		return FVersionedNiagaraScript(Script.Get(), Version);
-	}
-	return FVersionedNiagaraScript();
-}
-
 FVersionedNiagaraScript FVersionedNiagaraScriptWeakPtr::Pin()
 {
 	if (Script.IsValid())
 	{
-		FVersionedNiagaraScript PinnedVersionedNiagaraScript = FVersionedNiagaraScript(Script.Get(), Version);
-		PinnedVersionedNiagaraScript.InitParameterDefinitionsSubscriptions();
-		return PinnedVersionedNiagaraScript;
+		return { Script.Get(), Version };
 	}
-	return FVersionedNiagaraScript();
-}
-
-TArray<UNiagaraScriptSourceBase*> FVersionedNiagaraScriptWeakPtr::GetAllSourceScripts()
-{
-	if (Script.IsValid())
-	{
-		return { Script.Get()->GetSource(Version) };
-	}
-	return TArray<UNiagaraScriptSourceBase*>();
-}
-
-FString FVersionedNiagaraScriptWeakPtr::GetSourceObjectPathName() const
-{
-	return Script.IsValid() ? Script.Get()->GetPathName() : FString();
-}
-
-TArray<UNiagaraScriptSourceBase*> FVersionedNiagaraScript::GetAllSourceScripts()
-{
-	if (Script != nullptr)
-	{
-		return { Script->GetSource(Version) };
-	}
-	return TArray<UNiagaraScriptSourceBase*>();
-}
-
-FString FVersionedNiagaraScript::GetSourceObjectPathName() const
-{
-	return Script ? Script->GetPathName() : FString();
+	return { nullptr, FGuid() };
 }
 
 FVersionedNiagaraScriptWeakPtr FVersionedNiagaraScript::ToWeakPtr()
 {
-	FVersionedNiagaraScriptWeakPtr WeakVersionedNiagaraScript = FVersionedNiagaraScriptWeakPtr(Script, Version);
-	WeakVersionedNiagaraScript.InitParameterDefinitionsSubscriptions();
-	return WeakVersionedNiagaraScript;
+	return { Script, Version };
 }
 
 FVersionedNiagaraScriptData* FVersionedNiagaraScript::GetScriptData() const
@@ -2991,6 +2928,35 @@ FNiagaraShaderScript* UNiagaraScript::AllocateResource()
 }
 
 #if WITH_EDITORONLY_DATA
+TArray<ENiagaraParameterScope> FVersionedNiagaraScriptData::GetUnsupportedParameterScopes() const
+{
+	TArray<ENiagaraParameterScope> UnsupportedParameterScopes;
+	UnsupportedParameterScopes.Add(ENiagaraParameterScope::System);
+	UnsupportedParameterScopes.Add(ENiagaraParameterScope::Emitter);
+	UnsupportedParameterScopes.Add(ENiagaraParameterScope::Particles);
+
+	const TArray<ENiagaraScriptUsage> SupportedUsages = UNiagaraScript::GetSupportedUsageContextsForBitmask(ModuleUsageBitmask);
+	for (ENiagaraScriptUsage SupportedUsage : SupportedUsages)
+	{
+		if (SupportedUsage == ENiagaraScriptUsage::ParticleSpawnScript || SupportedUsage == ENiagaraScriptUsage::ParticleUpdateScript || SupportedUsage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated
+		|| SupportedUsage == ENiagaraScriptUsage::ParticleGPUComputeScript || SupportedUsage == ENiagaraScriptUsage::ParticleEventScript)
+		{
+			UnsupportedParameterScopes.Empty();
+			return UnsupportedParameterScopes;
+		}
+		else if (SupportedUsage == ENiagaraScriptUsage::EmitterSpawnScript || SupportedUsage == ENiagaraScriptUsage::EmitterUpdateScript)
+		{
+			UnsupportedParameterScopes.Remove(ENiagaraParameterScope::System);
+			UnsupportedParameterScopes.Remove(ENiagaraParameterScope::Emitter);
+		}
+		else if (SupportedUsage == ENiagaraScriptUsage::SystemSpawnScript || SupportedUsage == ENiagaraScriptUsage::SystemUpdateScript)
+		{
+			UnsupportedParameterScopes.Remove(ENiagaraParameterScope::System);
+		}
+	}
+	return UnsupportedParameterScopes;
+}
+
 TArray<ENiagaraScriptUsage> FVersionedNiagaraScriptData::GetSupportedUsageContexts() const
 {
 	return UNiagaraScript::GetSupportedUsageContextsForBitmask(ModuleUsageBitmask);

@@ -573,10 +573,10 @@ void UNiagaraNodeStaticSwitch::PostLoad()
 	if (GetInputType().IsValid() && InputParameterName.IsValid())
 	{
 		UNiagaraScriptVariable* Var = GetNiagaraGraph()->GetScriptVariable(InputParameterName);
-		if (Var != nullptr && Var->Variable.GetType() == GetInputType() && Var->GetIsStaticSwitch() == false)
+		if (Var != nullptr && Var->Variable.GetType() == GetInputType() && Var->Metadata.GetIsStaticSwitch() == false)
 		{
 			UE_LOG(LogNiagaraEditor, Log, TEXT("Static switch constant \"%s\" in \"%s\" didn't have static switch meta-data conversion set properly. Fixing now."), *InputParameterName.ToString(), *GetPathName())
-			Var->SetIsStaticSwitch(true);
+			Var->Metadata.SetIsStaticSwitch(true);
 			MarkNodeRequiresSynchronization(TEXT("Static switch metadata updated"), true);
 		}
 	}

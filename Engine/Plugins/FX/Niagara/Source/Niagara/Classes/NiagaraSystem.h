@@ -16,7 +16,6 @@
 #include "NiagaraParameterCollection.h"
 #include "NiagaraUserRedirectionParameterStore.h"
 #include "NiagaraEffectType.h"
-#include "NiagaraParameterDefinitionsSubscriber.h"
 
 #include "NiagaraSystem.generated.h"
 
@@ -200,7 +199,7 @@ struct FNiagaraRendererExecutionIndex
 
 /** Container for multiple emitters that combine together to create a particle system effect.*/
 UCLASS(BlueprintType)
-class NIAGARA_API UNiagaraSystem : public UFXSystemAsset, public INiagaraParameterDefinitionsSubscriber
+class NIAGARA_API UNiagaraSystem : public UFXSystemAsset
 {
 	GENERATED_UCLASS_BODY()
 
@@ -223,34 +222,12 @@ public:
 	virtual void PreEditChange(FProperty* PropertyThatWillChange)override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override; 
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform) override;
-	//~ End UObject interface
 
 	/** Helper method to handle when an internal variable has been renamed. Renames any downstream dependencies in the emitters or exposed variables.*/
 	void HandleVariableRenamed(const FNiagaraVariable& InOldVariable, const FNiagaraVariable& InNewVariable, bool bUpdateContexts);
 	/** Helper method to handle when an internal variable has been removed. Resets any downstream dependencies in the emitters or exposed variables.*/
 	void HandleVariableRemoved(const FNiagaraVariable& InOldVariable, bool bUpdateContexts);
 #endif
-
-#if WITH_EDITORONLY_DATA
-	//~ Begin INiagaraParameterDefinitionsSubscriber interface
-	virtual const TArray<FParameterDefinitionsSubscription>& GetParameterDefinitionsSubscriptions() const override { return ParameterDefinitionsSubscriptions; };
-	virtual TArray<FParameterDefinitionsSubscription>& GetParameterDefinitionsSubscriptions() override { return ParameterDefinitionsSubscriptions; };
-
-	/** Get all UNiagaraScriptSourceBase of this subscriber. */
-	virtual TArray<UNiagaraScriptSourceBase*> GetAllSourceScripts() override;
-
-	/** Get the path to the UObject of this subscriber. */
-	virtual FString GetSourceObjectPathName() const override;
-
-	/** Get All adapters to editor only script vars owned directly by this subscriber. */
-	virtual TArray<UNiagaraEditorParametersAdapterBase*> GetEditorOnlyParametersAdapters() override;
-
-	/** Get all subscribers that are owned by this subscriber.
-	 *  Note: Implemented for synchronizing UNiagaraSystem. UNiagaraSystem returns all UNiagaraEmitters it owns to call SynchronizeWithParameterDefinitions for each.
-	 */
-	virtual TArray<INiagaraParameterDefinitionsSubscriber*> GetOwnedParameterDefinitionsSubscribers() override;
-	//~ End INiagaraParameterDefinitionsSubscriber interface
-#endif 
 
 	/** Gets an array of the emitter handles. */
 	const TArray<FNiagaraEmitterHandle>& GetEmitterHandles();
@@ -366,9 +343,6 @@ public:
 	/** Gets editor specific data stored with this system. */
 	UNiagaraEditorDataBase* GetEditorData();
 
-	/** Gets editor specific parameters stored with this system */
-	UNiagaraEditorParametersAdapterBase* GetEditorParameters();
-
 	/** Gets editor specific data stored with this system. */
 	const UNiagaraEditorDataBase* GetEditorData() const;
 
@@ -444,10 +418,6 @@ public:
 	/** If true, forcefully disables all debug switches */
 	UPROPERTY(meta = (SkipSystemResetOnChange = "true"))
 	uint32 bDisableAllDebugSwitches : 1;
-	/** Subscriptions to definitions of parameters. */
-	UPROPERTY()
-	TArray<FParameterDefinitionsSubscription> ParameterDefinitionsSubscriptions;
-
 #endif
 
 	/** Computes emitter priorities based on the dependency information. */
@@ -638,10 +608,6 @@ protected:
 	/** Data used by the editor to maintain UI state etc.. */
 	UPROPERTY()
 	UNiagaraEditorDataBase* EditorData;
-
-	/** Wrapper for editor only parameters. */
-	UPROPERTY()
-	UNiagaraEditorParametersAdapterBase* EditorParameters;
 
 	bool bIsolateEnabled;
 

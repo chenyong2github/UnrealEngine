@@ -6,21 +6,6 @@
 #include "NiagaraConstants.h"
 #include "NiagaraEditorModule.h"
 
-const FGuid FNiagaraEditorGuids::SystemNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::EmitterNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::ParticleAttributeNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::ModuleNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::ModuleOutputNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::ModuleLocalNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::TransientNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::StackContextNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::EngineNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::UserNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::ParameterCollectionNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::DataInstanceNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::StaticSwitchNamespaceMetaDataGuid = FGuid::NewGuid();
-
-
 FNiagaraNamespaceMetadata::FNiagaraNamespaceMetadata()
 	: BackgroundColor(FLinearColor::Black)
 	, ForegroundStyle("NiagaraEditor.ParameterName.NamespaceText")
@@ -92,8 +77,7 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetSortId(10)
 			.AddOptionalNamespaceModifier(FNiagaraConstants::ModuleNamespace)
 			.AddOptionalNamespaceModifier(FNiagaraConstants::InitialNamespace)
-			.AddOptionalNamespaceModifier(FNiagaraConstants::PreviousNamespace)
-			.SetGuid(FNiagaraEditorGuids::SystemNamespaceMetaDataGuid),
+			.AddOptionalNamespaceModifier(FNiagaraConstants::PreviousNamespace),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::EmitterNamespace})
 			.SetDisplayName(LOCTEXT("EmitterDisplayName", "Emitter"))
 			.SetDisplayNameLong(LOCTEXT("EmitterDisplayNameLong", "Emitter Attributes"))
@@ -102,8 +86,7 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetSortId(20)
 			.AddOptionalNamespaceModifier(FNiagaraConstants::ModuleNamespace)
 			.AddOptionalNamespaceModifier(FNiagaraConstants::InitialNamespace)
-			.AddOptionalNamespaceModifier(FNiagaraConstants::PreviousNamespace)
-			.SetGuid(FNiagaraEditorGuids::EmitterNamespaceMetaDataGuid),
+			.AddOptionalNamespaceModifier(FNiagaraConstants::PreviousNamespace),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::ParticleAttributeNamespace})
 			.SetDisplayName(LOCTEXT("ParticleDisplayName", "Particles"))
 			.SetDisplayNameLong(LOCTEXT("ParticleDisplayNameLong", "Particle Attributes"))
@@ -112,16 +95,14 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetSortId(30)
 			.AddOptionalNamespaceModifier(FNiagaraConstants::ModuleNamespace)
 			.AddOptionalNamespaceModifier(FNiagaraConstants::InitialNamespace)
-			.AddOptionalNamespaceModifier(FNiagaraConstants::PreviousNamespace)
-			.SetGuid(FNiagaraEditorGuids::ParticleAttributeNamespaceMetaDataGuid),
+			.AddOptionalNamespaceModifier(FNiagaraConstants::PreviousNamespace),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::ModuleNamespace})
 			.SetDisplayName(LOCTEXT("ModuleDisplayName", "Input"))
 			.SetDisplayNameLong(LOCTEXT("ModuleDisplayNameLong", "Module Inputs"))
 			.SetDescription(LOCTEXT("ModuleDescription", "A value which exposes a module input to the system and emitter editor."))
 			.SetBackgroundColor(FLinearColor(FColor(136, 66, 65)))
 			.SetSortId(40)
-			.AddOption(ENiagaraNamespaceMetadataOptions::HideInSystem)
-			.SetGuid(FNiagaraEditorGuids::ModuleNamespaceMetaDataGuid),
+			.AddOption(ENiagaraNamespaceMetadataOptions::HideInSystem),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::OutputNamespace}, FNiagaraConstants::ModuleNamespace)
 			.SetDisplayName(LOCTEXT("ModuleOutputDisplayName", "Output"))
 			.SetDisplayNameLong(LOCTEXT("ModuleOutputDisplayNameLong", "Module Outputs"))
@@ -130,8 +111,7 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetSortId(60)
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInScript)
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInSystem)
-			.AddOption(ENiagaraNamespaceMetadataOptions::PreventCreatingInSystemEditor)
-			.SetGuid(FNiagaraEditorGuids::ModuleOutputNamespaceMetaDataGuid),
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventCreatingInSystemEditor),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::LocalNamespace, FNiagaraConstants::ModuleNamespace})
 			.SetDisplayName(LOCTEXT("ModuleLocalDisplayName", "Local"))
 			.SetDisplayNameLong(LOCTEXT("ModuleLocalDisplayNameLong", "Module Locals"))
@@ -140,8 +120,7 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetForegroundStyle("NiagaraEditor.ParameterName.NamespaceTextDark")
 			.SetSortId(50)
 			.AddOption(ENiagaraNamespaceMetadataOptions::HideInSystem)
-			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier)
-			.SetGuid(FNiagaraEditorGuids::ModuleLocalNamespaceMetaDataGuid),
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::TransientNamespace})
 			.SetDisplayName(LOCTEXT("TransientDisplayName", "Transient"))
 			.SetDisplayNameLong(LOCTEXT("TransientDisplayNameLong", "Stage Transients"))
@@ -150,8 +129,7 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetSortId(80)
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInScript)
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInSystem)
-			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier)
-			.SetGuid(FNiagaraEditorGuids::TransientNamespaceMetaDataGuid),
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::StackContextNamespace})
 			.SetDisplayName(LOCTEXT("StackContextDisplayName", "StackContext"))
 			.SetDisplayNameLong(LOCTEXT("StackContextDisplayNameLong", "Stack Context Sensitive"))
@@ -163,8 +141,7 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 		//.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier),
 			.AddOptionalNamespaceModifier(FNiagaraConstants::ModuleNamespace)
 			.AddOptionalNamespaceModifier(FNiagaraConstants::InitialNamespace)
-			.AddOptionalNamespaceModifier(FNiagaraConstants::PreviousNamespace)
-			.SetGuid(FNiagaraEditorGuids::StackContextNamespaceMetaDataGuid),
+			.AddOptionalNamespaceModifier(FNiagaraConstants::PreviousNamespace),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::EngineNamespace})
 			.SetDisplayName(LOCTEXT("EngineDisplayName", "Engine"))
 			.SetDisplayNameLong(LOCTEXT("EngineDisplayNameLong", "Engine Provided"))
@@ -174,8 +151,7 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetSortId(70)
 			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace)
 			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier)
-			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingName)
-			.SetGuid(FNiagaraEditorGuids::EngineNamespaceMetaDataGuid),
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingName),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::UserNamespace})
 			.SetDisplayName(LOCTEXT("UserDisplayName", "User"))
 			.SetDisplayNameLong(LOCTEXT("UserDisplayNameLong", "User Exposed"))
@@ -184,8 +160,7 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetSortId(0)
 			.AddOption(ENiagaraNamespaceMetadataOptions::HideInScript)
 			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier)
-			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace)
-			.SetGuid(FNiagaraEditorGuids::UserNamespaceMetaDataGuid),
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::ParameterCollectionNamespace})
 			.SetDisplayName(LOCTEXT("NiagaraParameterCollectionDisplayName", "NPC"))
 			.SetDisplayNameLong(LOCTEXT("NiagaraParameterCollectionDisplayNameLong", "Niagara Parameter Collection"))
@@ -197,8 +172,7 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInSystem)
 			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace)
 			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier)
-			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingName)
-			.SetGuid(FNiagaraEditorGuids::ParameterCollectionNamespaceMetaDataGuid),
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingName),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::DataInstanceNamespace})
 			.SetDisplayName(LOCTEXT("DataInstanceDisplayName", "Data Instance"))
 			.SetDescription(LOCTEXT("DataInstanceDescription", "A special value which has a single bool IsAlive value, which determines if a particle is alive or not."))
@@ -210,8 +184,7 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInSystem)
 			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace)
 			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier)
-			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingName)
-			.SetGuid(FNiagaraEditorGuids::DataInstanceNamespaceMetaDataGuid),
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingName),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::StaticSwitchNamespace})
 			.SetDisplayName(LOCTEXT("StatisSwitchDisplayName", "Static Switch Inputs"))
 			.SetDescription(LOCTEXT("StaticSwitchDescription", "Values which can only be set at edit time."))
@@ -219,8 +192,7 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.AddOption(ENiagaraNamespaceMetadataOptions::HideInSystem)
 			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace)
 			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier)
-			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingName)
-			.SetGuid(FNiagaraEditorGuids::StaticSwitchNamespaceMetaDataGuid),
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingName),
 	};
 
 	DefaultNamespaceModifierMetadata = FNiagaraNamespaceMetadata({ NAME_None })
@@ -432,19 +404,6 @@ FNiagaraNamespaceMetadata UNiagaraEditorSettings::GetMetaDataForNamespaces(TArra
 		}
 		return MatchingMetadata[IndexOfLargestMatch];
 	}
-}
-
-FNiagaraNamespaceMetadata UNiagaraEditorSettings::GetMetaDataForId(const FGuid& NamespaceId) const
-{
-	for (const FNiagaraNamespaceMetadata& NamespaceMetaDatum : NamespaceMetadata)
-	{
-		if (NamespaceMetaDatum.GetGuid() == NamespaceId)
-		{
-			return NamespaceMetaDatum;
-		}
-	}
-	ensureMsgf(false, TEXT("Failed to find namespace metadata by ID!"));
-	return DefaultNamespaceMetadata;
 }
 
 const TArray<FNiagaraNamespaceMetadata>& UNiagaraEditorSettings::GetAllNamespaceMetadata() const

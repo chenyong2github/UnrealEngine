@@ -1479,8 +1479,11 @@ void UNiagaraStackFunctionInput::SetLocalValue(TSharedRef<FStructOnScope> InLoca
 
 		if (InputMetaData.IsSet())
 		{
-			FName VariableName = FNiagaraParameterHandle(RapidIterationParameter.GetName()).GetName();
-			OwningFunctionCallNode->UpdateInputNameBinding(InputMetaData->GetVariableGuid(), VariableName);
+			FName VariableName;
+			if (InputMetaData->GetParameterName(VariableName))
+			{
+				OwningFunctionCallNode->UpdateInputNameBinding(InputMetaData->GetVariableGuid(), VariableName);
+			}
 		}
 	}
 	
@@ -2433,7 +2436,7 @@ void UNiagaraStackFunctionInput::UpdateValuesFromScriptDefaults(FInputValues& In
 		// Static switch parameters are always locally set values.
 		if (InputScriptVariable != nullptr)
 		{
-			TSharedPtr<FStructOnScope> StaticSwitchLocalStruct = FNiagaraEditorUtilities::StaticSwitchDefaultIntToStructOnScope(InputScriptVariable->GetStaticSwitchDefaultValue(), InputType);
+			TSharedPtr<FStructOnScope> StaticSwitchLocalStruct = FNiagaraEditorUtilities::StaticSwitchDefaultIntToStructOnScope(InputScriptVariable->Metadata.GetStaticSwitchDefaultValue(), InputType);
 			if(ensureMsgf(StaticSwitchLocalStruct.IsValid(), TEXT("Unsupported static struct default value.")))
 			{ 
 				InInputValues.Mode = EValueMode::Local;

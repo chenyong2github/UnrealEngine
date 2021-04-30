@@ -20,7 +20,7 @@ FNiagaraSystemScriptViewModel::FNiagaraSystemScriptViewModel()
 void FNiagaraSystemScriptViewModel::Initialize(UNiagaraSystem& InSystem)
 {
 	System = &InSystem;
-	SetScript(FVersionedNiagaraScript(System->GetSystemSpawnScript()));
+	SetScript({System->GetSystemSpawnScript(), FGuid()});
 	System->OnSystemCompiled().AddSP(this, &FNiagaraSystemScriptViewModel::OnSystemVMCompiled);
 }
 

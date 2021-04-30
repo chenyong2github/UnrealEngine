@@ -9,16 +9,14 @@
 
 class FNiagaraObjectSelection;
 class IDetailsView;
-class UNiagaraScriptVariable;
 
 /** A widget for viewing and editing a set of selected objects with a details panel. */
 class SNiagaraSelectedObjectsDetails : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SNiagaraSelectedObjectsDetails)
-		: _AllowEditingLibraryScriptVariables(false)
 	{}
-		SLATE_ARGUMENT(bool, AllowEditingLibraryScriptVariables)
+
 	SLATE_END_ARGS();
 
 	NIAGARAEDITOR_API void Construct(const FArguments& InArgs, TSharedRef<FNiagaraObjectSelection> InSelectedObjects);
@@ -28,9 +26,6 @@ public:
 	FOnFinishedChangingProperties& OnFinishedChangingProperties() { return OnFinishedChangingPropertiesDelegate; }
 
 	void SelectedObjectsChanged();
-
-	// Fully regenerates the details view.
-	void RefreshDetails();
 private:
 	/** Called whenever the object selection changes. */
 	void SelectedObjectsChangedSecond();
@@ -38,20 +33,6 @@ private:
 	/** Internal delegate to route to third parties. */
 	void OnDetailsPanelFinishedChangingProperties(const FPropertyChangedEvent& InEvent);
 
-	/** Whether or not to enable editing for the entire details panel. */
-	bool DetailsPanelIsReadOnly() const;
-
-	/** Whether or not to enable editing for a given property. */
-	bool PropertyIsReadOnly(const FPropertyAndParent& PropertyAndParent) const;
-
-	/** Whether or not to enable editing for a given custom row. */
-	bool CustomRowIsReadOnly(const FName InRowName, const FName InParentName) const;
-
-	/** Check whether SelectedObjects contains a UNiagaraScriptVariable that is synchronizing with and/or from a UNiagaraParameterDefinitions and set flags owned by this widget accordingly. */
-	void UpdateSelectedObjectInfoFlags(const TSharedPtr<FNiagaraObjectSelection>& SelectedObjects);
-
-	/** Convenience wrapper to get a single selected UNiagaraScriptVariable. Assumes there is only one UNiagaraScriptVariable selected. */
-	const UNiagaraScriptVariable* GetSelectedScriptVar() const;
 private:
 	/** The selected objects being viewed and edited by this widget. */
 	TArray<TSharedPtr<FNiagaraObjectSelection>> SelectedObjectsArray;
@@ -61,13 +42,4 @@ private:
 
 	/** Delegate for third parties to be notified when properties have changed.*/
 	FOnFinishedChangingProperties OnFinishedChangingPropertiesDelegate;
-
-	/** Whether or not to allow editing a UNiagaraScriptVariable owned by a UNiagaraParameterDefinitions.*/
-	bool bAllowEditingLibraryOwnedScriptVars;
-
-	/** Flag to notify if a UNiagaraScriptVariable synchronizing with a UNiagaraParameterDefinitions is being viewed. Used to selectively disable editing. */
-	bool bViewingLibrarySubscribedScriptVar;
-
-	/** Flag to notify if a UNiagaraScriptVariable owned by a UNiagaraParameterDefinitions is being viewed. Used to selectively disable editing. */
-	bool bViewingLibraryOwnedScriptVar;
 };

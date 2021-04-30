@@ -4,10 +4,6 @@
 #include "NiagaraMessageManager.h"
 #include "NiagaraMessages.h"
 #include "NiagaraMessageUtilities.h"
-#include "NiagaraScriptVariable.h"
-#include "NiagaraScriptSource.h"
-#include "NiagaraParameterDefinitions.h"
-
 
 FNiagaraStandaloneScriptViewModel::FNiagaraStandaloneScriptViewModel(
 	FText DisplayName,
@@ -24,9 +20,7 @@ FNiagaraStandaloneScriptViewModel::FNiagaraStandaloneScriptViewModel(
 void FNiagaraStandaloneScriptViewModel::Initialize(FVersionedNiagaraScript& InScript, const FVersionedNiagaraScript& InSourceScript)
 {
 	SetScript(InScript);
-	GetStandaloneScript().InitParameterDefinitionsSubscriptions();
 	SourceScript = InSourceScript;
-
 	SendLastCompileMessages(SourceScript);
 }
 
@@ -36,27 +30,10 @@ FVersionedNiagaraScript FNiagaraStandaloneScriptViewModel::GetStandaloneScript()
 	return Scripts[0].Pin();
 }
 
-const FVersionedNiagaraScript FNiagaraStandaloneScriptViewModel::GetStandaloneScript() const
-{
-	return const_cast<FNiagaraStandaloneScriptViewModel*>(this)->GetStandaloneScript();
-}
-
-INiagaraParameterDefinitionsSubscriber* FNiagaraStandaloneScriptViewModel::GetParameterDefinitionsSubscriber()
-{
-	checkf(Scripts.Num() == 1, TEXT("StandaloneScriptViewModel did not have exactly one script!"));
-	return &Scripts[0];
-}
-
-void FNiagaraStandaloneScriptViewModel::SetScripts(UNiagaraScriptSource* InScriptSource, TArray<FVersionedNiagaraScript>& InScripts)
-{
-	ensureMsgf(InScripts.Num() == 1, TEXT("Tried to set more than one script for a standalone script viewmodel!"));
-	SetScriptsImpl(InScriptSource, InScripts, true);
-}
-
 void FNiagaraStandaloneScriptViewModel::OnVMScriptCompiled(UNiagaraScript* InScript, const FGuid& ScriptVersion)
 {
 	FNiagaraScriptViewModel::OnVMScriptCompiled(InScript, ScriptVersion);
-	SendLastCompileMessages(FVersionedNiagaraScript(InScript, ScriptVersion));
+	SendLastCompileMessages( { InScript, ScriptVersion });
 }
 
 void FNiagaraStandaloneScriptViewModel::SendLastCompileMessages(const FVersionedNiagaraScript& InScript)

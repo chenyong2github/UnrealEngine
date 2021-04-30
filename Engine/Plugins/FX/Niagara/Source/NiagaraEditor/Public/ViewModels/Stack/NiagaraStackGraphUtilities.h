@@ -15,7 +15,6 @@ class UNiagaraGraph;
 class UNiagaraNode;
 class UNiagaraNodeInput;
 class UNiagaraNodeOutput;
-class UNiagaraNodeParameterMapBase;
 class UNiagaraNodeFunctionCall;
 class UNiagaraNodeCustomHlsl;
 class UNiagaraNodeAssignment;
@@ -23,7 +22,6 @@ class UNiagaraNodeParameterMapSet;
 class FNiagaraSystemViewModel;
 class UNiagaraEmitter;
 class FNiagaraEmitterViewModel;
-class UNiagaraScriptVariable;
 class UNiagaraStackEditorData;
 class UNiagaraStackErrorItem;
 class FCompileConstantResolver;
@@ -174,6 +172,8 @@ namespace FNiagaraStackGraphUtilities
 	TOptional<FName> GetNamespaceForScriptUsage(ENiagaraScriptUsage ScriptUsage);
 	TOptional<FName> GetNamespaceForOutputNode(const UNiagaraNodeOutput* OutputNode);
 	
+	ENiagaraParameterScope GetScopeForScriptUsage(ENiagaraScriptUsage ScriptUsage);
+	
 	bool IsValidDefaultDynamicInput(UNiagaraScript& OwningScript, UEdGraphPin& DefaultPin);
 
 	bool CanWriteParameterFromUsage(FNiagaraVariable Parameter, ENiagaraScriptUsage Usage, const TOptional<FName>& StackContextOverride = TOptional<FName>(), const TArray<FName>& StackContextAllOverrides = TArray<FName>());
@@ -236,10 +236,4 @@ namespace FNiagaraStackGraphUtilities
 		UNiagaraNodeAssignment& OwningAssignmentNode,
 		FNiagaraVariable CurrentAssignmentTarget,
 		FName NewAssignmentTargetName);
-
-	/** Helper to add a new pin to a ParameterMapBaseNode, and conditionally add a new parameter to the underlying UNiagaraGraph if it does not yet exist. */
-	void AddNewVariableToParameterMapNode(UNiagaraNodeParameterMapBase* MapBaseNode, bool bCreateInputPin, const FNiagaraVariable& NewVariable);
-	void AddNewVariableToParameterMapNode(UNiagaraNodeParameterMapBase* MapBaseNode, bool bCreateInputPin, const UNiagaraScriptVariable* NewScriptVar);
-
-	void SynchronizeVariableToLibraryAndApplyToGraph(UNiagaraScriptVariable* ScriptVarToSync);
 }

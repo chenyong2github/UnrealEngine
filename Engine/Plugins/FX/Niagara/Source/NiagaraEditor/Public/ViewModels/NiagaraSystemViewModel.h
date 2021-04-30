@@ -9,7 +9,6 @@
 #include "EditorUndoClient.h"
 #include "UObject/GCObject.h"
 #include "ViewModels/TNiagaraViewModelManager.h"
-#include "ViewModels/NiagaraParameterDefinitionsSubscriberViewModel.h"
 #include "NiagaraOverviewNode.h"
 #include "ISequencer.h"
 
@@ -42,10 +41,6 @@ class FNiagaraOverviewGraphViewModel;
 class UNiagaraScratchPadViewModel;
 class UNiagaraCurveSelectionViewModel;
 class UNiagaraMessageData;
-class UNiagaraEditorParametersAdapter;
-
-class INiagaraParameterDefinitionsSubscriber;
-
 
 /** Defines different editing modes for this system view model. */
 enum class NIAGARAEDITOR_API ENiagaraSystemViewModelEditMode
@@ -96,7 +91,6 @@ class FNiagaraSystemViewModel
 	, public FEditorUndoClient
 	, public FTickableEditorObject
 	, public TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemViewModel>
-	, public INiagaraParameterDefinitionsSubscriberViewModel
 {
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnEmitterHandleViewModelsChanged);
@@ -161,16 +155,10 @@ public:
 
 	NIAGARAEDITOR_API ~FNiagaraSystemViewModel();
 
-	//~ Begin NiagaraParameterDefinitionsSubscriberViewModel Interface
-protected:
-	virtual INiagaraParameterDefinitionsSubscriber* GetParameterDefinitionsSubscriber() override;
-	//~ End NiagaraParameterDefinitionsSubscriberViewModel Interface
-
-public:
 	NIAGARAEDITOR_API FText GetDisplayName() const;
 
 	/** Gets an array of the view models for the emitter handles owned by this System. */
-	NIAGARAEDITOR_API const TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& GetEmitterHandleViewModels() const;
+	NIAGARAEDITOR_API const TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& GetEmitterHandleViewModels();
 
 	/** Gets an emitter handle view model by ID. Returns an invalid shared ptr if it can't be found. */
 	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> GetEmitterHandleViewModelById(FGuid InEmitterHandleId);
@@ -356,9 +344,6 @@ public:
 
 	/** Wrapper to set bPendingMessagesChanged after calling a delegate off of a message link. */
 	void ExecuteMessageDelegateAndRefreshMessages(FSimpleDelegate MessageDelegate);
-
-	/** Helper to get the current System or Emitter's EditorParameters. */
-	UNiagaraEditorParametersAdapter* GetEditorOnlyParametersAdapter() const;
 
 	ENiagaraStatEvaluationType StatEvaluationType = ENiagaraStatEvaluationType::Average;
 	ENiagaraStatDisplayMode StatDisplayMode = ENiagaraStatDisplayMode::Percent;

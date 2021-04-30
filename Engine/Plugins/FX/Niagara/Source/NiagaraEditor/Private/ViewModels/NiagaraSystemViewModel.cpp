@@ -7,7 +7,6 @@
 #include "NiagaraEmitterEditorData.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraSimulationStageBase.h"
-#include "NiagaraEditorData.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraDataInterfaceCurveBase.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
@@ -34,7 +33,6 @@
 #include "EdGraphSchema_NiagaraSystemOverview.h"
 #include "EdGraphUtilities.h"
 #include "ViewModels/NiagaraScratchPadUtilities.h"
-#include "NiagaraParameterDefinitions.h"
 
 #include "Editor.h"
 
@@ -54,8 +52,6 @@
 #include "NiagaraMessageUtilities.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "Framework/Application/SlateApplication.h"
-#include "NiagaraScriptVariable.h"
-#include "NiagaraParameterDefinitionsSubscriber.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - SystemViewModel - CompileSystem"), STAT_NiagaraEditor_SystemViewModel_CompileSystem, STATGROUP_NiagaraEditor);
 
@@ -230,24 +226,12 @@ FNiagaraSystemViewModel::~FNiagaraSystemViewModel()
 	UE_LOG(LogNiagaraEditor, Warning, TEXT("Deleting System view model %p"), this);
 }
 
-INiagaraParameterDefinitionsSubscriber* FNiagaraSystemViewModel::GetParameterDefinitionsSubscriber()
-{
-	if(EditMode == ENiagaraSystemViewModelEditMode::SystemAsset)
-	{ 
-		return System;
-	}
-	else /**EditMode == ENiagaraSystemViewModelEditMode::EmitterAsset */
-	{
-		return GetEmitterHandleViewModels()[0]->GetEmitterHandle()->GetInstance();
-	}
-}
-
 FText FNiagaraSystemViewModel::GetDisplayName() const
 {
 	return FText::FromString(System->GetName());
 }
 
-const TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& FNiagaraSystemViewModel::GetEmitterHandleViewModels() const
+const TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& FNiagaraSystemViewModel::GetEmitterHandleViewModels()
 {
 	return EmitterHandleViewModels;
 }
@@ -783,17 +767,6 @@ const TArray<FNiagaraStackModuleData>& FNiagaraSystemViewModel::BuildAndCacheSta
 		BuildStackModuleData(OrderedScript, EmitterHandleId, StackModuleData);
 	}
 	return StackModuleData;
-}
-
-UNiagaraEditorParametersAdapter* FNiagaraSystemViewModel::GetEditorOnlyParametersAdapter() const
-{
-	if (EditMode == ENiagaraSystemViewModelEditMode::SystemAsset)
-	{
-		return CastChecked<UNiagaraEditorParametersAdapter>(System->GetEditorParameters());
-	}
-	/** else EditMode == ENiagaraSystemViewModelEditMode::EmitterAsset */
-	UNiagaraEmitter* Emitter = GetEmitterHandleViewModels()[0]->GetEmitterHandle()->GetInstance();
-	return CastChecked<UNiagaraEditorParametersAdapter>(Emitter->GetEditorParameters());
 }
 
 void FNiagaraSystemViewModel::GetOrderedScriptsForEmitterHandleId(FGuid EmitterHandleId, TArray<UNiagaraScript*>& OutScripts)

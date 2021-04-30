@@ -5,16 +5,13 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IDetailChildrenBuilder.h"
-#include "IPropertyUtilities.h"
 #include "NiagaraConstants.h"
 #include "NiagaraConstants.h"
 #include "NiagaraEditorStyle.h"
-#include "NiagaraEditorUtilities.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraNodeOutput.h"
 #include "NiagaraNodeParameterMapBase.h"
 #include "NiagaraParameterMapHistory.h"
-#include "NiagaraParameterDefinitions.h"
 #include "NiagaraPlatformSet.h"
 #include "NiagaraRendererProperties.h"
 #include "NiagaraScriptSource.h"
@@ -29,10 +26,6 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Framework/Application/SlateApplication.h"
-#include "ViewModels/NiagaraEmitterViewModel.h"
-#include "ViewModels/NiagaraScriptViewModel.h"
-#include "ViewModels/NiagaraSystemViewModel.h"
-#include "ViewModels/TNiagaraViewModelManager.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
@@ -44,9 +37,7 @@
 #include "NiagaraSettings.h"
 #include "Widgets/SNiagaraParameterName.h"
 
-
 #define LOCTEXT_NAMESPACE "FNiagaraVariableAttributeBindingCustomization"
-#define ALLOW_LIBRARY_TO_LIBRARY_DEFAULT_BINDING 0
 
 void FNiagaraNumericCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
@@ -1448,7 +1439,7 @@ void FNiagaraDataInterfaceBindingCustomization::CustomizeHeader(TSharedRef<IProp
 ////////////////////////
 FName FNiagaraScriptVariableBindingCustomization::GetVariableName() const
 {
-	if (TargetVariableBinding && TargetVariableBinding->IsValid())
+	if (BaseGraph && TargetVariableBinding && TargetVariableBinding->IsValid())
 	{
 		return (TargetVariableBinding->Name);
 	}
@@ -1457,7 +1448,7 @@ FName FNiagaraScriptVariableBindingCustomization::GetVariableName() const
 
 FText FNiagaraScriptVariableBindingCustomization::GetCurrentText() const
 {
-	if (TargetVariableBinding && TargetVariableBinding->IsValid())
+	if (BaseGraph && TargetVariableBinding && TargetVariableBinding->IsValid())
 	{
 		return FText::FromName(TargetVariableBinding->Name);
 	}
@@ -1466,7 +1457,7 @@ FText FNiagaraScriptVariableBindingCustomization::GetCurrentText() const
 
 FText FNiagaraScriptVariableBindingCustomization::GetTooltipText() const
 {
-	if (TargetVariableBinding && TargetVariableBinding->IsValid())
+	if (BaseGraph && TargetVariableBinding && TargetVariableBinding->IsValid())
 	{
 		FText TooltipDesc = FText::Format(LOCTEXT("BindingTooltip", "Use the variable \"{0}\" if it is defined, otherwise use the type's default value."), FText::FromName(TargetVariableBinding->Name));
 		return TooltipDesc;
@@ -1494,12 +1485,14 @@ TSharedRef<SWidget> FNiagaraScriptVariableBindingCustomization::OnGetMenuContent
 		];
 }
 
-TArray<TSharedPtr<FEdGraphSchemaAction>> FNiagaraScriptVariableBindingCustomization::GetGraphParameterBindingActions(const UNiagaraGraph* Graph)
+TArray<FName> FNiagaraScriptVariableBindingCustomization::GetNames() const
 {
+	// TODO: Only show Particles attributes for valid graphs,
+	//       i.e. only show Particles attributes for Particle scripts
+	//       and only show Emitter attributes for Emitter and Particle scripts.
 	TArray<FName> Names;
-	TArray<TSharedPtr<FEdGraphSchemaAction>> OutActions;
 
-	for (const FNiagaraParameterMapHistory& History : UNiagaraNodeParameterMapBase::GetParameterMaps(Graph))
+	for (const FNiagaraParameterMapHistory& History : UNiagaraNodeParameterMapBase::GetParameterMaps(BaseGraph))
 	{
 		for (const FNiagaraVariable& Var : History.Variables)
 		{
@@ -1516,7 +1509,7 @@ TArray<TSharedPtr<FEdGraphSchemaAction>> FNiagaraScriptVariableBindingCustomizat
 		}
 	}
 
-	for (const auto& Var : Graph->GetParameterReferenceMap())
+	for (const auto& Var : BaseGraph->GetParameterReferenceMap())
 	{
 		FString Namespace = FNiagaraParameterMapHistory::GetNamespace(Var.Key);
 		if (Namespace == TEXT("Module."))
@@ -1529,121 +1522,38 @@ TArray<TSharedPtr<FEdGraphSchemaAction>> FNiagaraScriptVariableBindingCustomizat
 			Names.AddUnique(Var.Key.GetName());
 		}
 	}
-	
-	for (const FName& Name : Names)
+
+	for (const FNiagaraVariable& Var : FNiagaraConstants::GetEngineConstants())
 	{
-		const FText NameText = FText::FromName(Name);
-		const FText TooltipDesc = FText::Format(LOCTEXT("SetFunctionPopupTooltip", "Use the variable \"{0}\" "), NameText);
-		TSharedPtr<FNiagaraStackAssetAction_VarBind> NewNodeAction(
-			new FNiagaraStackAssetAction_VarBind(Name, FText(), NameText, TooltipDesc, 0, FText())
-		);
-		OutActions.Add(NewNodeAction);
-	}
-
-	return OutActions;
-}
-
-TArray<TSharedPtr<FEdGraphSchemaAction>> FNiagaraScriptVariableBindingCustomization::GetEngineConstantBindingActions()
-{
-	TArray<TSharedPtr<FEdGraphSchemaAction>> OutActions;
-
-	for (const FNiagaraVariable& Parameter : FNiagaraConstants::GetEngineConstants())
-	{
-		if (BaseScriptVariable->Variable.GetType() != Parameter.GetType())
+		if (Var.GetType() == BaseScriptVariable->Variable.GetType())
 		{
-			// types must match
-			continue;
-		}
-
-		const FName& Name = Parameter.GetName();
-		const FText NameText = FText::FromName(Name);
-		const FText TooltipDesc = FText::Format(LOCTEXT("SetFunctionPopupTooltip", "Use the variable \"{0}\" "), NameText);
-
-		TSharedPtr<FNiagaraStackAssetAction_VarBind> NewNodeAction(
-			new FNiagaraStackAssetAction_VarBind(Name, FText(), NameText, TooltipDesc, 0, FText())
-		);
-		OutActions.Add(NewNodeAction);
-	}
-
-	return OutActions;
-}
-
-TArray<TSharedPtr<FEdGraphSchemaAction>> FNiagaraScriptVariableBindingCustomization::GetLibraryParameterBindingActions()
-{
-	TArray<TSharedPtr<FEdGraphSchemaAction>> OutActions;
-
-	auto GetAvailableParameterDefinitions = [this]()->TArray<UNiagaraParameterDefinitions*> {
-		const bool bSkipSubscribed = false;
-		if (BaseGraph)
-		{
-			TSharedPtr<INiagaraParameterDefinitionsSubscriberViewModel> ParameterDefinitionsSubscriberViewModel = FNiagaraEditorUtilities::GetOwningLibrarySubscriberViewModelForGraph(BaseGraph);
-			if (ParameterDefinitionsSubscriberViewModel.IsValid())
-			{
-				return ParameterDefinitionsSubscriberViewModel->GetAvailableParameterDefinitions(bSkipSubscribed);
-			}
-		}
-		else if (BaseLibrary)
-		{
-			return BaseLibrary->GetAvailableParameterDefinitions(bSkipSubscribed);
-		}
-		checkf(false, TEXT("Script variable did not have a valid outer UNiagaraGraph or UNiagaraParameterDefinitions!"));
-		return TArray<UNiagaraParameterDefinitions*>();
-	};
-	
-	const TArray<UNiagaraParameterDefinitions*> AvailableParameterDefinitions = GetAvailableParameterDefinitions();
-	for (UNiagaraParameterDefinitions* ParameterDefinitions : AvailableParameterDefinitions)
-	{
-		for(const UNiagaraScriptVariable* LibraryScriptVar : ParameterDefinitions->GetParametersConst())
-		{ 
-			if (BaseScriptVariable->Variable.GetType() != LibraryScriptVar->Variable.GetType())
-			{
-				// types must match
-				continue;
-			}
-			else if (BaseScriptVariable->Metadata.GetVariableGuid() == LibraryScriptVar->Metadata.GetVariableGuid())
-			{
-				// do not bind to self
-				continue;
-			}
-
-			const FName& Name = LibraryScriptVar->Variable.GetName();
-			const FText NameText = FText::FromName(Name);
-			const FText TooltipDesc = FText::Format(LOCTEXT("SetFunctionPopupTooltip", "Use the variable \"{0}\" "), NameText);
-
-			FScriptVarBindingNameSubscriptionArgs SubscriptionArgs(ParameterDefinitions, LibraryScriptVar, BaseScriptVariable);
-
-			TSharedPtr<FNiagaraStackAssetAction_VarBind> NewNodeAction(
-				new FNiagaraStackAssetAction_VarBind(Name, FText(), NameText, TooltipDesc, 0, FText(), SubscriptionArgs)
-			);
-			OutActions.Add(NewNodeAction);
+			Names.AddUnique(Var.GetName());
 		}
 	}
 
-	return OutActions;
+	for (const FNiagaraVariable& Var : FNiagaraConstants::GetCommonParticleAttributes())
+	{
+		if (Var.GetType() == BaseScriptVariable->Variable.GetType())
+		{
+			Names.AddUnique(Var.GetName());
+		}
+	}
+
+	return Names;
 }
 
 void FNiagaraScriptVariableBindingCustomization::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 {
 	if (BaseGraph)
 	{
-		for (const TSharedPtr<FEdGraphSchemaAction>& Action : GetGraphParameterBindingActions(BaseGraph))
+		for (FName Name : GetNames())
 		{
-			OutAllActions.AddAction(Action);
-		}
-		
-	}
-
-	for (const TSharedPtr<FEdGraphSchemaAction>& Action : GetEngineConstantBindingActions())
-	{
-		OutAllActions.AddAction(Action);
-	}
-	
-	//@todo(ng) for now do not allow binding libraries to libraries as we do not handle fixing up the binding if the source library is removed.
-	if(BaseGraph != nullptr || ALLOW_LIBRARY_TO_LIBRARY_DEFAULT_BINDING)
-	{ 
-		for (const TSharedPtr<FEdGraphSchemaAction>& Action : GetLibraryParameterBindingActions())
-		{
-			OutAllActions.AddAction(Action);
+			const FText NameText = FText::FromName(Name);
+			const FText TooltipDesc = FText::Format(LOCTEXT("SetFunctionPopupTooltip", "Use the variable \"{0}\" "), NameText);
+			TSharedPtr<FNiagaraStackAssetAction_VarBind> NewNodeAction(
+				new FNiagaraStackAssetAction_VarBind(Name, FText(), NameText, TooltipDesc, 0, FText())
+			);
+			OutAllActions.AddAction(NewNodeAction);
 		}
 	}
 }
@@ -1657,6 +1567,8 @@ TSharedRef<SWidget> FNiagaraScriptVariableBindingCustomization::OnCreateWidgetFo
 			SNew(SNiagaraParameterName)
 			.ParameterName(((FNiagaraStackAssetAction_VarBind* const)InCreateData->Action.Get())->VarName)
 			.IsReadOnly(true)
+			//SNew(STextBlock)
+			//.Text(InCreateData->Action->GetMenuDescription())
 			.ToolTipText(InCreateData->Action->GetTooltipDescription())
 		];
 }
@@ -1671,42 +1583,7 @@ void FNiagaraScriptVariableBindingCustomization::OnActionSelected(const TArray< 
 			{
 				FSlateApplication::Get().DismissAllMenus();
 				FNiagaraStackAssetAction_VarBind* EventSourceAction = (FNiagaraStackAssetAction_VarBind*)CurrentAction.Get();
-				UNiagaraParameterDefinitions* SourceParameterDefinitions = EventSourceAction->LibraryNameSubscriptionArgs.SourceParameterDefinitions;
-				const UNiagaraScriptVariable* SourceScriptVar = EventSourceAction->LibraryNameSubscriptionArgs.SourceScriptVar;
-
 				ChangeSource(EventSourceAction->VarName);
-
-				// If in a parameter definitions, consider the parameter definitions binding name subscriptions.
-				if (BaseLibrary != nullptr)
-				{
-					// Force unsubscribe the current binding name.
-					BaseLibrary->UnsubscribeBindingNameFromExternalParameterDefinitions(BaseScriptVariable->Metadata.GetVariableGuid());
-
-					// If we are in a parameter definitions and the parameter definitions name binding args are set, set the base library to synchronize the binding name with the source library.
-					//@todo(ng) re-enable
-					if (ALLOW_LIBRARY_TO_LIBRARY_DEFAULT_BINDING && SourceParameterDefinitions != nullptr)
-					{
-						BaseLibrary->SubscribeBindingNameToExternalParameterDefinitions(
-							SourceParameterDefinitions,
-							SourceScriptVar->Metadata.GetVariableGuid(),
-							BaseScriptVariable->Metadata.GetVariableGuid()
-						);
-					}
-				}
-				else if (BaseGraph != nullptr && SourceParameterDefinitions != nullptr)
-				{
-					// If we are in a script graph and the parameter definitions name binding args are set, add the parameter specified by the binding as it is not guaranteed to exist in the graph yet.
-					if(BaseGraph->GetMetaData(EventSourceAction->LibraryNameSubscriptionArgs.SourceScriptVar->Variable).IsSet() == false)
-					{
-						BaseGraph->AddParameter(EventSourceAction->LibraryNameSubscriptionArgs.SourceScriptVar);
-
-						TSharedPtr<INiagaraParameterDefinitionsSubscriberViewModel> ParameterDefinitionsSubscriberViewModel = FNiagaraEditorUtilities::GetOwningLibrarySubscriberViewModelForGraph(BaseGraph);
-						if (ParameterDefinitionsSubscriberViewModel.IsValid() && ParameterDefinitionsSubscriberViewModel->GetSubscribedParameterDefinitions().Contains(SourceParameterDefinitions) == false)
-						{
-							ParameterDefinitionsSubscriberViewModel->SubscribeToParameterDefinitions(SourceParameterDefinitions);
-						}
-					}
-				}
 			}
 		}
 	}
@@ -1730,7 +1607,6 @@ void FNiagaraScriptVariableBindingCustomization::ChangeSource(FName InVarName)
 
 void FNiagaraScriptVariableBindingCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
-	TSharedPtr<IPropertyUtilities> PropertyUtils = CustomizationUtils.GetPropertyUtilities();
 	PropertyHandle = InPropertyHandle;
 	TArray<UObject*> Objects;
 	PropertyHandle->GetOuterObjects(Objects);
@@ -1740,114 +1616,61 @@ void FNiagaraScriptVariableBindingCustomization::CustomizeHeader(TSharedRef<IPro
 		BaseScriptVariable = Cast<UNiagaraScriptVariable>(Objects[0]);
 		if (BaseScriptVariable)
 		{
-			BaseGraph = Cast<UNiagaraGraph>(BaseScriptVariable->GetOuter());
-			BaseLibrary = Cast<UNiagaraParameterDefinitions>(BaseScriptVariable->GetOuter());
+		    BaseGraph = Cast<UNiagaraGraph>(BaseScriptVariable->GetOuter());
+			if (BaseGraph)
+			{
+				TargetVariableBinding = (FNiagaraScriptVariableBinding*)PropertyHandle->GetValueBaseAddress((uint8*)Objects[0]);
 
-			TargetVariableBinding = (FNiagaraScriptVariableBinding*)PropertyHandle->GetValueBaseAddress((uint8*)Objects[0]);
-
-			HeaderRow
-			.IsEnabled(MakeAttributeLambda([=] { return !InPropertyHandle->IsEditConst() && PropertyUtils->IsPropertyEditingEnabled(); }))
-			.NameContent()
-			[
-				PropertyHandle->CreatePropertyNameWidget()
-			]
-			.ValueContent()
-			.MaxDesiredWidth(200.f)
-			[
-				SNew(SComboButton)
-				.OnGetMenuContent(this, &FNiagaraScriptVariableBindingCustomization::OnGetMenuContent)
-				.ContentPadding(1)
-				.ToolTipText(this, &FNiagaraScriptVariableBindingCustomization::GetTooltipText)
-				.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
-				.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
-				.ButtonContent()
-				[
-					SNew(SNiagaraParameterName)
-					.ParameterName(this, &FNiagaraScriptVariableBindingCustomization::GetVariableName)
-					.IsReadOnly(true)
-				]
-			];
-			bAddDefault = false;
+				HeaderRow
+					.NameContent()
+					[
+						PropertyHandle->CreatePropertyNameWidget()
+					]
+				.ValueContent()
+					.MaxDesiredWidth(200.f)
+					[
+						SNew(SComboButton)
+						.OnGetMenuContent(this, &FNiagaraScriptVariableBindingCustomization::OnGetMenuContent)
+						.ContentPadding(1)
+						.ToolTipText(this, &FNiagaraScriptVariableBindingCustomization::GetTooltipText)
+						.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
+						.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+						.ButtonContent()
+						[
+							SNew(SNiagaraParameterName)
+							.ParameterName(this, &FNiagaraScriptVariableBindingCustomization::GetVariableName)
+							.IsReadOnly(true)
+						]
+					];
+				bAddDefault = false;
+			}
+			else
+			{
+				BaseScriptVariable = nullptr;
+			}
 		}
 		else
 		{
 			BaseGraph = nullptr;
-			BaseLibrary = nullptr;
 		}
 	}
 	
 	if (bAddDefault)
 	{
 		HeaderRow
-		.IsEnabled(MakeAttributeLambda([=] { return !InPropertyHandle->IsEditConst() && PropertyUtils->IsPropertyEditingEnabled(); }))
-		.NameContent()
-		[
-			PropertyHandle->CreatePropertyNameWidget()
-		]
+			.NameContent()
+			[
+				PropertyHandle->CreatePropertyNameWidget()
+			]
 		.ValueContent()
-		.MaxDesiredWidth(200.f)
-		[
-			SNew(STextBlock)
-			.Text(FText::FromString(FName::NameToDisplayString(CastField<FStructProperty>(PropertyHandle->GetProperty())->Struct->GetName(), false)))
-			.Font(IDetailLayoutBuilder::GetDetailFont())
-		];
+			.MaxDesiredWidth(200.f)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(FName::NameToDisplayString(CastField<FStructProperty>(PropertyHandle->GetProperty())->Struct->GetName(), false)))
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			];
 	}
 }
 
-void FNiagaraVariableMetaDataCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
-{
-	TArray<UObject*> Objects;
-	PropertyHandle->GetOuterObjects(Objects);
-	UNiagaraScriptVariable* OwningScriptVariable = nullptr;
-	if (Objects.Num() == 1)
-	{
-		OwningScriptVariable = Cast<UNiagaraScriptVariable>(Objects[0]);
-	}
-
-	bool bOwningScriptVariableSubscribedToDefinition = false;
-	bool bOwningScriptVariableOuteredToDefinitions = false;
-	if (OwningScriptVariable != nullptr)
-	{
-		bOwningScriptVariableSubscribedToDefinition = OwningScriptVariable->GetIsSubscribedToParameterDefinitions();
-		if (OwningScriptVariable->GetOuter()->IsA<UNiagaraParameterDefinitions>())
-		{
-			bOwningScriptVariableOuteredToDefinitions = true;
-		}
-	}
-
-	uint32 NumChildren;
-	PropertyHandle->GetNumChildren(NumChildren);
-	TArray<TSharedRef<IPropertyHandle>> ChildPropertyHandles;
-	for (uint32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
-	{
-		ChildPropertyHandles.Add(PropertyHandle->GetChildHandle(ChildIndex).ToSharedRef());
-	}
-
-	for (const TSharedRef<IPropertyHandle>& ChildPropertyHandle : ChildPropertyHandles)
-	{
-		const FProperty* ChildProperty = ChildPropertyHandle->GetProperty();
-		const FName ChildPropertyName = ChildProperty->GetFName();
-
-		if (ChildPropertyName == GET_MEMBER_NAME_CHECKED(FNiagaraVariableMetaData, Description))
-		{ 
-			IDetailPropertyRow & DetailPropertyRow = ChildBuilder.AddProperty(ChildPropertyHandle);
-			if (!bOwningScriptVariableOuteredToDefinitions && bOwningScriptVariableSubscribedToDefinition)
-			{
-				// Parameters linked to definitions but not part of the definitions asset themselves may not edit the description property.
-				// NOTE: Parameters outered to definitions, when viewed via the SNiagaraParameterDefinitionsPanel, will not allow editing the definition due to the owning details view being disabled.
-				DetailPropertyRow.IsEnabled(false);
-			}
-		}
-		else if(bOwningScriptVariableOuteredToDefinitions)
-		{
-			// Parameters outered to definitions may only edit the description; all other properties are skipped for the child builder.
-			continue;
-		}
-		else
-		{
-			ChildBuilder.AddProperty(ChildPropertyHandle);
-		}
-	}
-}
 
 #undef LOCTEXT_NAMESPACE
