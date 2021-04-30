@@ -35,6 +35,7 @@
 #pragma warning(disable: 4005)
 // disable(SU2021): 'reinterpret_cast': unsafe conversion from 'ruby::backward::cxxanyargs::void_type (__cdecl *)' to 'rb_gvar_setter_t (__cdecl *)'	
 #pragma warning(disable: 4191)
+#undef DEPRECATED
 #include <ruby.h>
 #pragma warning(pop)
 
@@ -89,20 +90,21 @@ public:
 		// Set the product name of the application used to build the scene.
 		DatasmithSceneRef->SetProductName(*ProductName);
 
+// todo: Mac binary doesn't export SUGetVersionStringUtf8(although docs doesn't mention this)
+// Might fall back to SUGetAPIVersion
+#if PLATFORM_WINDOWS
 		TArray<char> VersionArr;
 		VersionArr.SetNum(32);
-
 		while (SUGetVersionStringUtf8(VersionArr.Num(), VersionArr.GetData()) == SU_ERROR_INSUFFICIENT_SIZE)
 		{
 			VersionArr.SetNum(VersionArr.Num());
 		}
-
 		FUTF8ToTCHAR Converter(VersionArr.GetData(), VersionArr.Num());
 		FString VersionStr(Converter.Length(), Converter.Get());
 
-
 		// Set the product version of the application used to build the scene.
 		DatasmithSceneRef->SetProductVersion(*VersionStr);
+#endif		
 
 		// XXX: PreExport needs to be called before DirectLink instance is constructed - 
 		// Reason - it calls initialization of FTaskGraphInterface. Callstack:
@@ -865,6 +867,9 @@ VALUE on_unload() {
 }
 
 VALUE open_directlink_ui() {
+// todo: implement DL UI on Mac
+#if PLATFORM_WINDOWS
+
 	if (IDatasmithExporterUIModule * Module = IDatasmithExporterUIModule::Get())
 	{
 		if (IDirectLinkUI* UI = Module->GetDirectLinkExporterUI())
@@ -873,10 +878,13 @@ VALUE open_directlink_ui() {
 			return Qtrue;
 		}
 	}
+#endif	
 	return Qfalse;
 }
 
 VALUE get_directlink_cache_directory() {
+// todo: implement DL UI on Mac
+#if PLATFORM_WINDOWS
 	if (IDatasmithExporterUIModule* Module = IDatasmithExporterUIModule::Get())
 	{
 		if (IDirectLinkUI* UI = Module->GetDirectLinkExporterUI())
@@ -884,12 +892,13 @@ VALUE get_directlink_cache_directory() {
 			return UnrealStringToRuby(UI->GetDirectLinkCacheDirectory());
 		}
 	}
+#endif	
 	return Qnil;
 }
 
 
 // todo: hardcoded init module function name
-extern "C" __declspec(dllexport) void Init_DatasmithSketchUpRuby()
+extern "C" DLLEXPORT void Init_DatasmithSketchUpRuby()
 {
 
 	VALUE EpicGames = rb_define_module("EpicGames");

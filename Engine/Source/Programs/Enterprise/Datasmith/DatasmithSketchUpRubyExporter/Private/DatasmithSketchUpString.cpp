@@ -19,7 +19,7 @@ FString FDatasmithSketchUpString::GetWideString(SUStringRef InSStringRef)
 	size_t SStringLength = 0;
 	SUStringGetUTF16Length(InSStringRef, &SStringLength); // we can ignore the returned SU_RESULT
 
-	wchar_t* WideString = new wchar_t[SStringLength + 1]; // account for the terminating NULL put by SketchUp
+	unichar* WideString = new unichar[SStringLength + 1]; // account for the terminating NULL put by SketchUp
 	SUStringGetUTF16(InSStringRef, SStringLength + 1, WideString, &SStringLength); // we can ignore the returned SU_RESULT
 	FString Result = WideString;
 	delete[] WideString;
