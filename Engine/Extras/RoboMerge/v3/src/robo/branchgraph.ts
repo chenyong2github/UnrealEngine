@@ -85,7 +85,9 @@ if (botname === '__TEST__') {
 			['lastGoodCLPath', 'lastGoodCLPath', null],
 			['disallowSkip', 'disallowSkip', null],
 			['incognitoMode', 'incognitoMode', null],
-			['excludeAuthors', 'excludeAuthors', 'override']
+			['excludeAuthors', 'excludeAuthors', 'override'],
+			['integrationWindow', 'integrationWindow', null],
+			['invertIntegrationWindow', 'invertIntegrationWindow', null],
 		]
 
 		// propagate source node settings to edges
