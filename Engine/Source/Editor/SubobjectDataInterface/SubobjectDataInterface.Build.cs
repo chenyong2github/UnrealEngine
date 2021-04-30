@@ -10,7 +10,6 @@ public class SubobjectDataInterface : ModuleRules
 		PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Public"));
 		PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Private"));
 
-		// #TODO_BH Remove UnrealEd as a dependency here, because that sucks.
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
