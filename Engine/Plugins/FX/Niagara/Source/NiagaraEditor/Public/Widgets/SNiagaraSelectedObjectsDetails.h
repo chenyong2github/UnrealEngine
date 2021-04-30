@@ -39,7 +39,7 @@ private:
 	void OnDetailsPanelFinishedChangingProperties(const FPropertyChangedEvent& InEvent);
 
 	/** Whether or not to enable editing for the entire details panel. */
-	bool DetailsPanelIsReadOnly() const;
+	bool DetailsPanelIsEnabled() const;
 
 	/** Whether or not to enable editing for a given property. */
 	bool PropertyIsReadOnly(const FPropertyAndParent& PropertyAndParent) const;
