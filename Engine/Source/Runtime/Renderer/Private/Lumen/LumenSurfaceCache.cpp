@@ -12,7 +12,7 @@
 #include "LumenSceneUtils.h"
 #include "PixelShaderUtils.h"
 
-int32 GLumenSurfaceCacheCompress = 1;
+int32 GLumenSurfaceCacheCompress = 0;
 FAutoConsoleVariableRef CVarLumenSurfaceCacheCompress(
 	TEXT("r.LumenScene.SurfaceCache.Compress"),
 	GLumenSurfaceCacheCompress,
