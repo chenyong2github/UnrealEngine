@@ -5,11 +5,26 @@ using System.IO;
 
 public class libstrophe : ModuleRules
 {
-	protected virtual string StropheVersion { get { return "libstrophe-0.9.1"; } }
+	protected virtual string StropheVersion {
+		get { 
+			if (Target.Platform == UnrealTargetPlatform.Android)
+			{
+				return  "libstrophe-0.9.3"; 
+			}
+			else
+			{
+				return  "libstrophe-0.9.1";
+			}
+		} 
+	}
 
 	protected virtual string LibRootDirectory { get { return ModuleDirectory; } }
 
 	protected virtual string StrophePackagePath { get { return Path.Combine(LibRootDirectory, StropheVersion); } }
+
+	protected virtual string StropheLibRootPath { get { return Path.Combine(StrophePackagePath, "Lib"); } }
+
+	protected virtual string StropheIncludePath { get { return Path.Combine(StrophePackagePath, "Include"); } }
 
 	protected virtual string ConfigName { get { return (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "Debug" : "Release"; } }
 
@@ -29,8 +44,11 @@ public class libstrophe : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(StrophePackagePath, "Android", ConfigName, "arm64", "libstrophe.a"));
-			PublicAdditionalLibraries.Add(Path.Combine(StrophePackagePath, "Android", ConfigName, "armv7", "libstrophe.a"));
+			PublicSystemIncludePaths.Add(StropheIncludePath);
+			PublicAdditionalLibraries.Add(Path.Combine(StropheLibRootPath, "Android", ConfigName, "arm64", "libstrophe.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(StropheLibRootPath, "Android", ConfigName, "armv7", "libstrophe.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(StropheLibRootPath, "Android", ConfigName, "x86", "libstrophe.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(StropheLibRootPath, "Android", ConfigName, "x86_64", "libstrophe.a"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.Mac)
 		{
