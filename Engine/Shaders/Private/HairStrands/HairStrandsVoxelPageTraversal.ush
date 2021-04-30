@@ -88,6 +88,13 @@ float3 GetHairVoxelJitter(uint2 PixelCoord, uint Seed)
 		InterleavedGradientNoise(PixelCoord.xy, Seed * 7901));
 }
 
+float4 GetHairVoxelJitter2(uint2 PixelCoord, uint Seed)
+{
+	const uint2 Seed0 = Rand3DPCG16(int3(PixelCoord, Seed)).xy;
+	const uint2 Seed1 = Rand3DPCG16(int3(PixelCoord + 17, Seed)).xy;
+	return float4(Hammersley16(Seed, 8, Seed0), Hammersley16(Seed, 8, Seed1));
+}
+
 // This assume pages have a resolution of 32x32x32
 bool DoesVoxelContainData(uint2 PageOccupancy, uint3 CoordInPage)
 {

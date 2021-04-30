@@ -422,15 +422,6 @@ float4 ComputeRandom4_0(uint2 PixelPosition, uint InSeed)
 	return float4(U0.x, U0.y, U1.x, U1.y);
 }
 
-float4 ComputeRandom4_1(uint2 PixelPosition, uint InSeed)
-{
-	const uint2 Seed0 = Rand3DPCG16(int3(PixelPosition, InSeed)).xy;
-	const uint2 Seed1 = Rand3DPCG16(int3(PixelPosition + 17, InSeed)).xy;
-	return float4(
-		Hammersley16(InSeed, 8, Seed0),
-		Hammersley16(InSeed, 8, Seed1));
-}
-
 float3 GetShadowMaskRandom(uint2 PixelPosition)
 {
 	float3 Random = 0.5f;
@@ -444,7 +435,7 @@ float3 GetShadowMaskRandom(uint2 PixelPosition)
 	}
 	else if (Voxel_RandomType == 2)
 	{
-		Random = ComputeRandom4_1(PixelPosition, View.StateFrameIndexMod8).xyz;
+		Random = GetHairVoxelJitter2(PixelPosition, View.StateFrameIndexMod8).xyz;
 	}
 	return Random;
 }
