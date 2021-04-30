@@ -27,7 +27,7 @@ void SNiagaraSelectedObjectsDetails::Construct(const FArguments& InArgs, TShared
 	DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	DetailsView->SetObjects(SelectedObjectsArray[0]->GetSelectedObjects().Array());
 	DetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SNiagaraSelectedObjectsDetails::PropertyIsReadOnly));
-	DetailsView->SetEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SNiagaraSelectedObjectsDetails::DetailsPanelIsReadOnly)));
+	DetailsView->SetEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SNiagaraSelectedObjectsDetails::DetailsPanelIsEnabled)));
 	//@todo(ng) re-enable once this is implemented.
 	//DetailsView->SetIsCustomRowReadOnlyDelegate(FIsCustomRowReadOnly::CreateSP(this, &SNiagaraSelectedObjectsDetails::CustomRowIsReadOnly)); 
 	DetailsView->OnFinishedChangingProperties().AddRaw(this, &SNiagaraSelectedObjectsDetails::OnDetailsPanelFinishedChangingProperties);
@@ -52,7 +52,7 @@ void SNiagaraSelectedObjectsDetails::Construct(const FArguments& InArgs, TShared
 	DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	DetailsView->SetObjects(SelectedObjectsArray[0]->GetSelectedObjects().Array());
 	DetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SNiagaraSelectedObjectsDetails::PropertyIsReadOnly));
-	DetailsView->SetEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SNiagaraSelectedObjectsDetails::DetailsPanelIsReadOnly)));
+	DetailsView->SetEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SNiagaraSelectedObjectsDetails::DetailsPanelIsEnabled)));
 	//@todo(ng) re-enable once this is implemented.
 	//DetailsView->SetIsCustomRowReadOnlyDelegate(FIsCustomRowReadOnly::CreateSP(this, &SNiagaraSelectedObjectsDetails::CustomRowIsReadOnly)); 
 	DetailsView->OnFinishedChangingProperties().AddRaw(this, &SNiagaraSelectedObjectsDetails::OnDetailsPanelFinishedChangingProperties);
@@ -97,21 +97,22 @@ void SNiagaraSelectedObjectsDetails::OnDetailsPanelFinishedChangingProperties(co
 	}
 }
 
-bool SNiagaraSelectedObjectsDetails::DetailsPanelIsReadOnly() const
+bool SNiagaraSelectedObjectsDetails::DetailsPanelIsEnabled() const
 {
 	const UNiagaraScriptVariable* ScriptVar = GetSelectedScriptVar();
 	if (ScriptVar == nullptr)
-	{
-		return false;
-	}
-	else if (bAllowEditingLibraryOwnedScriptVars)
 	{
 		return true;
 	}
 	else if (ScriptVar->GetOuter()->IsA<UNiagaraParameterDefinitions>())
 	{
+		if (bAllowEditingLibraryOwnedScriptVars)
+		{
+			return true;
+		}
 		return false;
 	}
+
 	return true;
 }
 
