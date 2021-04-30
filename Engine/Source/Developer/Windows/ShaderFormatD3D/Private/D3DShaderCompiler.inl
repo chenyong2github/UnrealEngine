@@ -241,7 +241,7 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 	typename ID3D1xShaderReflectionVariable, typename D3D1x_SHADER_VARIABLE_DESC>
 inline void ExtractParameterMapFromD3DShader(
 		uint32 TargetPlatform, uint32 BindingSpace, const FString& VirtualSourceFilePath, ID3D1xShaderReflection* Reflector, const D3D1x_SHADER_DESC& ShaderDesc,
-		bool& bGlobalUniformBufferUsed, uint32& NumSamplers, uint32& NumSRVs, uint32& NumCBs, uint32& NumUAVs,
+		bool& bGlobalUniformBufferUsed, bool& bDiagnosticBufferUsed, uint32& NumSamplers, uint32& NumSRVs, uint32& NumCBs, uint32& NumUAVs,
 		FShaderCompilerOutput& Output, TArray<FString>& UniformBufferNames, TBitArray<>& UsedUniformBufferSlots, TArray<FShaderCodeVendorExtension>& VendorExtensions)
 {
 	// Add parameters for shader resources (constant buffers, textures, samplers, etc. */
@@ -374,6 +374,9 @@ inline void ExtractParameterMapFromD3DShader(
 
 			const bool bIsVendorParameter = bIsNVExtension || bIsIntelExtension || bIsAMDExtensionDX11 || bIsAMDExtensionDX12;
 
+			// See D3DCommon.ush
+			const bool bIsDiagnosticBufferParameter = (FCStringAnsi::Strcmp(BindDesc.Name, "UEDiagnosticBuffer") == 0);
+
 			TCHAR OfficialName[1024];
 			FCString::Strcpy(OfficialName, ANSI_TO_TCHAR(BindDesc.Name));
 
@@ -398,6 +401,10 @@ inline void ExtractParameterMapFromD3DShader(
 				VendorExtension.Parameter.Size = BindCount;
 				VendorExtension.Parameter.Type = EShaderParameterType::UAV;
 				VendorExtensions.Add(VendorExtension);
+			}
+			else if (bIsDiagnosticBufferParameter)
+			{
+				bDiagnosticBufferUsed = true;
 			}
 			else
 			{

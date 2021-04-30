@@ -48,6 +48,8 @@ static inline bool ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShad
 	{
 		bOutFoundCodeFeatures = true;
 		OutCodeFeatures = *CodeFeatures;
+
+		OutShader.bUsesDiagnosticBuffer = CodeFeatures->bUsesDiagnosticBuffer;
 	}
 	else
 	{

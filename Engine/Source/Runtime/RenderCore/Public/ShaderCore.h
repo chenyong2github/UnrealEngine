@@ -543,7 +543,8 @@ struct FShaderCodeFeatures
 	// for FindOptionalData() and AddOptionalData()
 	static const uint8 Key = 'x';
 
-	bool bUsesWaveOps;
+	bool bUsesWaveOps = false;
+	bool bUsesDiagnosticBuffer = false;
 };
 
 // if this changes you need to make sure all shaders get invalidated

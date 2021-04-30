@@ -52,9 +52,12 @@ public:
 
 	static constexpr uint32 MaxRootParameters = 32;	// Arbitrary max, increase as needed.
 
+	inline int8 GetDiagnosticBufferSlot() const { return DiagnosticBufferSlot; }
+
 private:
 
 	uint32 RootParametersSize;	// The size of all root parameters in the root signature. Size in DWORDs, the limit is 64.
+	int8 DiagnosticBufferSlot = -1;
 	CD3DX12_ROOT_PARAMETER1 TableSlots[MaxRootParameters];
 	CD3DX12_DESCRIPTOR_RANGE1 DescriptorRanges[MaxRootParameters];
 	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC RootDesc;
@@ -208,6 +211,9 @@ public:
 
 	uint32 GetBindSlotOffsetInBytes(uint8 BindSlotIndex) const { check(BindSlotIndex < UE_ARRAY_COUNT(BindSlotOffsetsInDWORDs)); return 4 * BindSlotOffsetsInDWORDs[BindSlotIndex]; }
 	uint32 GetTotalRootSignatureSizeInBytes() const { return 4 * TotalRootSignatureSizeInDWORDs; }
+
+	// Returns root parameter slot for the internal shader diagnostic buffer (used for asserts, etc.) or -1 if not available.
+	inline int8 GetDiagnosticBufferSlot() const { return DiagnosticBufferSlot; }
 
 private:
 	void AnalyzeSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& Desc, uint32 BindingSpace);
@@ -451,6 +457,7 @@ private:
 
 	uint8 BindSlotOffsetsInDWORDs[FD3D12RootSignatureDesc::MaxRootParameters] = {};
 	uint8 TotalRootSignatureSizeInDWORDs = 0;
+	int8 DiagnosticBufferSlot = -1;
 
 	uint8 bHasUAVs : 1;
 	uint8 bHasSRVs : 1;

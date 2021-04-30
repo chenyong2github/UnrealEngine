@@ -42,6 +42,8 @@ struct FD3D12ShaderData
 
 	/** The static slot associated with the resource table index in ShaderResourceTable. */
 	TArray<FUniformBufferStaticSlot> StaticSlots;
+
+	bool bUsesDiagnosticBuffer = false;
 };
 
 /** This represents a vertex shader that hasn't been combined with a specific declaration to create a bound shader. */

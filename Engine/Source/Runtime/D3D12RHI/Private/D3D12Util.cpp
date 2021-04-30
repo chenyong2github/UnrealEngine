@@ -243,6 +243,46 @@ static bool LogBreadcrumbData(D3D12RHI::FD3DGPUProfiler& GPUProfiler, FD3D12Comm
 
 	UE_LOG(LogD3D12RHI, Error, TEXT("%s"), *gpu_progress);
 
+	const FD3D12DiagnosticBufferData* DiagnosticData = CommandListManager.GetDiagnosticBufferData();
+	if (DiagnosticData && DiagnosticData->Counter)
+	{
+		UE_LOG(LogD3D12RHI, Error, TEXT("[GPUBreadCrumb]\t\tShader assertion failed! ID: 0x%08X"), DiagnosticData->MessageID);
+
+		{
+			const int32* Payload = DiagnosticData->Payload.AsInt;
+			if (Payload[0] < 0 || Payload[1] < 0 || Payload[2] < 0 || Payload[3] < 0)
+			{
+				UE_LOG(LogD3D12RHI, Error,
+					TEXT("[GPUBreadCrumb]\t\tPayload  [int32]: %d %d %d %d"),
+					Payload[0], Payload[1], Payload[2], Payload[3]);
+			}
+		}
+
+		{
+			const uint32* Payload = DiagnosticData->Payload.AsUint;
+			UE_LOG(LogD3D12RHI, Error,
+				TEXT("[GPUBreadCrumb]\t\tPayload [uint32]: %u %u %u %u"),
+				Payload[0], Payload[1], Payload[2], Payload[3]);
+		}
+
+		{
+			const uint32* Payload = DiagnosticData->Payload.AsUint;
+			UE_LOG(LogD3D12RHI, Error,
+				TEXT("[GPUBreadCrumb]\t\tPayload    [hex]: 0x%08X 0x%08X 0x%08X 0x%08X"),
+				Payload[0], Payload[1], Payload[2], Payload[3]);
+		}
+
+		{
+			const float* Payload = DiagnosticData->Payload.AsFloat;
+			UE_LOG(LogD3D12RHI, Error,
+				TEXT("[GPUBreadCrumb]\t\tPayload  [float]: %f %f %f %f"),
+				Payload[0], Payload[1], Payload[2], Payload[3]);
+		}
+	}
+
+	GLog->PanicFlushThreadedLogs();
+	GLog->Flush();
+
 	return true;
 }
 
@@ -870,30 +910,35 @@ void QuantizeBoundShaderState(
 	{
 		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, VertexShader->ResourceCounts, QBSS.RegisterCounts[SV_Vertex]);
 		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*VertexShader);
+		QBSS.bUseDiagnosticBuffer = VertexShader->bUsesDiagnosticBuffer;
 	}
 
 	if (const FD3D12MeshShader* const MeshShader = BSS->GetMeshShader())
 	{
 		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, MeshShader->ResourceCounts, QBSS.RegisterCounts[SV_Mesh]);
 		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*MeshShader);
+		QBSS.bUseDiagnosticBuffer = MeshShader->bUsesDiagnosticBuffer;
 	}
 
 	if (const FD3D12AmplificationShader* const AmplificationShader = BSS->GetAmplificationShader())
 	{
 		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, AmplificationShader->ResourceCounts, QBSS.RegisterCounts[SV_Amplification]);
 		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*AmplificationShader);
+		QBSS.bUseDiagnosticBuffer = AmplificationShader->bUsesDiagnosticBuffer;
 	}
 
 	if (const FD3D12PixelShader* const PixelShader = BSS->GetPixelShader())
 	{
 		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, PixelShader->ResourceCounts, QBSS.RegisterCounts[SV_Pixel], true);
 		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*PixelShader);
+		QBSS.bUseDiagnosticBuffer = PixelShader->bUsesDiagnosticBuffer;
 	}
 
 	if (const FD3D12GeometryShader* const GeometryShader = BSS->GetGeometryShader())
 	{
 		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, GeometryShader->ResourceCounts, QBSS.RegisterCounts[SV_Geometry]);
 		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*GeometryShader);
+		QBSS.bUseDiagnosticBuffer = GeometryShader->bUsesDiagnosticBuffer;
 	}
 }
 
@@ -923,6 +968,7 @@ void QuantizeBoundShaderState(
 	QuantizeBoundShaderStateCommon(ResourceBindingTier, ComputeShader->ResourceCounts, SV_All, bAllosUAVs, OutQBSS);
 	check(OutQBSS.bAllowIAInputLayout == false); // No access to vertex buffers needed
 	OutQBSS.bUseVendorExtension = (ComputeShader->VendorExtensions.Num() > 0);
+	OutQBSS.bUseDiagnosticBuffer = ComputeShader->bUsesDiagnosticBuffer;
 }
 
 #if D3D12_RHI_RAYTRACING
@@ -988,6 +1034,11 @@ void QuantizeBoundShaderState(
 	}
 	default:
 		checkNoEntry(); // Unexpected shader target frequency
+	}
+
+	if (RayTracingShader)
+	{
+		OutQBSS.bUseDiagnosticBuffer = RayTracingShader->bUsesDiagnosticBuffer;
 	}
 }
 #endif // D3D12_RHI_RAYTRACING

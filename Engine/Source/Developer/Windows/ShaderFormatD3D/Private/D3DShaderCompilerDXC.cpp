@@ -407,6 +407,12 @@ inline bool IsCompatibleBinding(const D3D12_SHADER_INPUT_BIND_DESC& BindDesc, ui
 		const bool bIsAMDExtensionDX12 = (FCStringAnsi::Strcmp(BindDesc.Name, "AmdExtD3DShaderIntrinsicsUAV") == 0);
 		bIsCompatibleBinding = bIsAMDExtensionDX12 && (BindDesc.Space == AGS_DX12_SHADER_INSTRINSICS_SPACE_ID);
 	}
+	if (!bIsCompatibleBinding)
+	{
+		// #todo: there is currently no common header where a binding space number or buffer name could be defined. See D3DCommon.ush and D3D12RootSignature.cpp.
+		const bool bIsUEDebugBuffer = (FCStringAnsi::Strcmp(BindDesc.Name, "UEDiagnosticBuffer") == 0);
+		bIsCompatibleBinding = bIsUEDebugBuffer && (BindDesc.Space == 999);
+	}
 
 	return bIsCompatibleBinding;
 }
@@ -724,6 +730,7 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 		TArray<FShaderCodeVendorExtension> VendorExtensions;
 
 		bool bGlobalUniformBufferUsed = false;
+		bool bDiagnosticBufferUsed = false;
 		uint32 NumInstructions = 0;
 		uint32 NumSamplers = 0;
 		uint32 NumSRVs = 0;
@@ -792,7 +799,9 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 						ExtractParameterMapFromD3DShader<ID3D12FunctionReflection, D3D12_FUNCTION_DESC, D3D12_SHADER_INPUT_BIND_DESC,
 							ID3D12ShaderReflectionConstantBuffer, D3D12_SHADER_BUFFER_DESC,
 							ID3D12ShaderReflectionVariable, D3D12_SHADER_VARIABLE_DESC>(
-								Input.Target.Platform, AutoBindingSpace, Input.VirtualSourceFilePath, FunctionReflection, FunctionDesc, bGlobalUniformBufferUsed, NumSamplers, NumSRVs, NumCBs, NumUAVs,
+								Input.Target.Platform, AutoBindingSpace, Input.VirtualSourceFilePath, FunctionReflection, FunctionDesc, 
+								bGlobalUniformBufferUsed, bDiagnosticBufferUsed,
+								NumSamplers, NumSRVs, NumCBs, NumUAVs,
 								Output, UniformBufferNames, UsedUniformBufferSlots, VendorExtensions);
 
 						NumFoundEntryPoints++;
@@ -860,7 +869,9 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 			ExtractParameterMapFromD3DShader<ID3D12ShaderReflection, D3D12_SHADER_DESC, D3D12_SHADER_INPUT_BIND_DESC,
 				ID3D12ShaderReflectionConstantBuffer, D3D12_SHADER_BUFFER_DESC,
 				ID3D12ShaderReflectionVariable, D3D12_SHADER_VARIABLE_DESC>(
-					Input.Target.Platform, AutoBindingSpace, Input.VirtualSourceFilePath, ShaderReflection, ShaderDesc, bGlobalUniformBufferUsed, NumSamplers, NumSRVs, NumCBs, NumUAVs,
+					Input.Target.Platform, AutoBindingSpace, Input.VirtualSourceFilePath, ShaderReflection, ShaderDesc,
+						bGlobalUniformBufferUsed, bDiagnosticBufferUsed, 
+						NumSamplers, NumSRVs, NumCBs, NumUAVs,
 					Output, UniformBufferNames, UsedUniformBufferSlots, VendorExtensions);
 
 
@@ -890,6 +901,7 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 				FShaderCodeFeatures CodeFeatures;
 				//#todo-rco: Really should look inside DXIL
 				CodeFeatures.bUsesWaveOps = Input.Environment.CompilerFlags.Contains(CFLAG_WaveOperations);
+				CodeFeatures.bUsesDiagnosticBuffer = bDiagnosticBufferUsed;
 
 				// We only need this to appear when using a DXC shader
 				ShaderCode.AddOptionalData<FShaderCodeFeatures>(CodeFeatures);

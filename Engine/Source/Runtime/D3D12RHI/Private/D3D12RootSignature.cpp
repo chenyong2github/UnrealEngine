@@ -22,6 +22,11 @@
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
+// Allows to automatically bind UEDiagnosticBuffer UAV, available to all shaders.
+// If a shader is compiled with diagnostics enabled, it will fail to load/create 
+// unless D3D12_ALLOW_SHADER_DIAGNOSTIC_BUFFER is enabled.
+#define D3D12_ALLOW_SHADER_DIAGNOSTIC_BUFFER 1
+
 namespace
 {
 	// Root parameter costs in DWORDs as described here: https://docs.microsoft.com/en-us/windows/desktop/direct3d12/root-signature-limits
@@ -142,6 +147,10 @@ FD3D12RootSignatureDesc::FD3D12RootSignatureDesc(const FD3D12QuantizedBoundShade
 	const D3D12_ROOT_DESCRIPTOR_FLAGS CBVRootDescriptorFlags = D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC;	// We always set the data in an upload heap before calling Set*RootConstantBufferView.
 
 	uint32 BindingSpace = 0; // Default binding space for D3D 11 & 12 shaders
+
+	const bool bUseShaderDiagnosticBuffer = D3D12_ALLOW_SHADER_DIAGNOSTIC_BUFFER
+		&& QBSS.bUseDiagnosticBuffer
+		&& QBSS.RootSignatureType != RS_RayTracingLocal;
 
 #if D3D12_RHI_RAYTRACING
 	if (QBSS.RootSignatureType == RS_RayTracingLocal)
@@ -313,9 +322,18 @@ FD3D12RootSignatureDesc::FD3D12RootSignatureDesc(const FD3D12QuantizedBoundShade
 		check(RootParameterCount < MaxRootParameters);
 		TableSlots[RootParameterCount].InitAsUnorderedAccessView(0, AGS_DX12_SHADER_INSTRINSICS_SPACE_ID, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE, D3D12_SHADER_VISIBILITY_ALL);
 		RootParameterCount++;
-		RootParametersSize += RootDescriptorTableCost;
+		RootParametersSize += RootDescriptorCost;
 	}
 #endif
+
+	if (bUseShaderDiagnosticBuffer)
+	{
+		check(RootParameterCount < MaxRootParameters);
+		DiagnosticBufferSlot = int8(RootParameterCount);
+		TableSlots[RootParameterCount].InitAsUnorderedAccessView(0, 999, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE, D3D12_SHADER_VISIBILITY_ALL);
+		RootParameterCount++;
+		RootParametersSize += RootDescriptorCost;
+	}
 
 	// Init the desc (warn about the size if necessary).
 #if !NO_LOGGING
@@ -502,7 +520,10 @@ void FD3D12RootSignature::Init(const FD3D12QuantizedBoundShaderState& InQBSS)
 {
 	// Create a root signature desc from the quantized bound shader state.
 	const D3D12_RESOURCE_BINDING_TIER ResourceBindingTier = GetParentAdapter()->GetResourceBindingTier();
+
 	FD3D12RootSignatureDesc Desc(InQBSS, ResourceBindingTier);
+
+	DiagnosticBufferSlot = Desc.GetDiagnosticBufferSlot();
 
 	uint32 BindingSpace = 0; // Default binding space for D3D 11 & 12 shaders
 

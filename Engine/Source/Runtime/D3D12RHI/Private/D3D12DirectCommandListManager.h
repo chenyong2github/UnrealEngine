@@ -206,6 +206,22 @@ private:
 	const D3D12_COMMAND_LIST_TYPE Type;
 };
 
+// Counterpart to UEDiagnosticBuffer in D3DCommon.ush
+struct FD3D12DiagnosticBufferData
+{
+	uint32 Counter;
+	uint32 MessageID;
+	union
+	{
+		int32  AsInt[4];
+		uint32 AsUint[4];
+		float  AsFloat[4];
+	} Payload;
+};
+
+static_assert(sizeof(FD3D12DiagnosticBufferData) == 6*sizeof(uint32),
+	"Remember to change UEDiagnosticBuffer layout in the shaders when changing FD3D12DiagnosticBufferData");
+
 class FD3D12CommandListManager : public FD3D12DeviceChild, public FD3D12SingleNodeGPUObject
 {
 public:
@@ -267,6 +283,15 @@ public:
 
 	/** Get the CPU readable data from the breadcrumb data - this data is still valid after the Device is Lost */
 	const void* GetBreadCrumbResourceAddress() const { return BreadCrumbResourceAddress; }
+	const FD3D12DiagnosticBufferData* GetDiagnosticBufferData() const
+	{ 
+		const uint8* Address = BreadCrumbResourceAddress ? reinterpret_cast<const uint8*>(GetBreadCrumbResourceAddress()) + DiagnosticBufferOffset : nullptr;
+		return reinterpret_cast<const FD3D12DiagnosticBufferData*>(Address);
+	}
+	const D3D12_GPU_VIRTUAL_ADDRESS GetDiagnosticBufferGPUAddress() const
+	{ 
+		return BreadCrumbResourceGPUAddress ? BreadCrumbResourceGPUAddress + DiagnosticBufferOffset : 0;
+	}
 
 	void WaitForCommandQueueFlush();
 
@@ -346,7 +371,9 @@ protected:
 	void* BreadCrumbResourceAddress;
 	TRefCountPtr<FD3D12Heap> BreadCrumbHeap;
 	TRefCountPtr<FD3D12Resource> BreadCrumbResource;
-	
+	D3D12_GPU_VIRTUAL_ADDRESS BreadCrumbResourceGPUAddress = {};
+	uint32 DiagnosticBufferOffset = 0;
+
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 	uint64 CmdListTimingQueryBatchTokens[2];
 	TArray<FResolvedCmdListExecTime> ResolvedTimingPairs;

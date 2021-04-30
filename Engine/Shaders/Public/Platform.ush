@@ -352,6 +352,13 @@
 	#define PLATFORM_BREAK() 
 #endif
 
+#if !defined(PLATFORM_ASSERT)
+	#define PLATFORM_ASSERT(condition, assert_id)
+	#define PLATFORM_ASSERT1(condition, assert_id, a)
+	#define PLATFORM_ASSERT2(condition, assert_id, a, b)
+	#define PLATFORM_ASSERT3(condition, assert_id, a, b, c)
+	#define PLATFORM_ASSERT4(condition, assert_id, a, b, c, d)
+#endif
 
 // Hlslcc platforms ignore the uniform keyword as it can't properly optimize flow
 #if COMPILER_HLSLCC

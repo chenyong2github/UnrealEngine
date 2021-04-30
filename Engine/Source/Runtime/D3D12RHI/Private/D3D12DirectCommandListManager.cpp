@@ -426,9 +426,15 @@ void FD3D12CommandListManager::Create(const TCHAR* Name, uint32 NumCommandLists,
 			int32 GPUCrashDataDepth = GetParentDevice()->GetGPUProfiler().GPUCrashDataDepth;
 			int32 MaxEventCount = GPUCrashDataDepth > 0 ? FMath::Min(GPUCrashDataDepth, MAX_GPU_BREADCRUMB_DEPTH) : MAX_GPU_BREADCRUMB_DEPTH;			
 
+			const uint32 ShaderDiagnosticBufferSize = sizeof(FD3D12DiagnosticBufferData);
+
 			// Allocate persistent CPU readable memory which will still be valid after a device lost and wrap this data in a placed resource
 			// so the GPU command list can write to it
-			const uint32 BreadCrumbBufferSize = MaxEventCount * sizeof(uint32);
+			const uint32 EventBufferSize = MaxEventCount * sizeof(uint32);
+			const uint32 BreadCrumbBufferSize = EventBufferSize + ShaderDiagnosticBufferSize;
+
+			DiagnosticBufferOffset = EventBufferSize;
+
 			BreadCrumbResourceAddress = VirtualAlloc(nullptr, BreadCrumbBufferSize, MEM_COMMIT, PAGE_READWRITE);
 			if (BreadCrumbResourceAddress)
 			{
@@ -448,6 +454,7 @@ void FD3D12CommandListManager::Create(const TCHAR* Name, uint32 NumCommandLists,
 					if (SUCCEEDED(hr))
 					{
 						UE_LOG(LogD3D12RHI, Log, TEXT("[GPUBreadCrumb] Successfully setup breadcrumb resource for %s"), Name);
+						BreadCrumbResourceGPUAddress = BreadCrumbResource->GetGPUVirtualAddress();
 					}
 					else
 					{

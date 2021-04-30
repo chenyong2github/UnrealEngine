@@ -26,3 +26,39 @@ SamplerState D3DStaticTrilinearClampedSampler   : register(s5, space1000);
 #define GetGlobalSampler(Filter, WrapMode) D3DStatic##Filter##WrapMode##Sampler
 
 #endif // PLATFORM_SUPPORTS_STATIC_SAMPLERS
+
+#if PLATFORM_SUPPORTS_DIAGNOSTIC_BUFFER
+
+// Diagnostic buffer which will be automatically bound by the RHI as a root parameter
+// Counterpart to FD3D12DiagnosticBufferData in D3D12DirectCommandListManager.h
+// Diagnostic message layout: [uint counter, uint message_id, uint4 payload] (6 DWORDs total)
+RWStructuredBuffer<uint> UEDiagnosticBuffer : register(u0, space999);
+
+void UEReportAssertWithPayload(uint AssertID, uint4 Payload)
+{
+	if (WaveIsFirstLane())
+	{
+		// Write some diagnostic data if we're first
+		uint OldValue = 0;
+		InterlockedAdd(UEDiagnosticBuffer[0], 1, OldValue);
+		if (OldValue == 0)
+		{
+			UEDiagnosticBuffer[1] = AssertID;
+			UEDiagnosticBuffer[2] = Payload.x;
+			UEDiagnosticBuffer[3] = Payload.y;
+			UEDiagnosticBuffer[4] = Payload.z;
+			UEDiagnosticBuffer[5] = Payload.w;
+		}
+		// Try to trigger a crash
+		// TODO: use PLATFORM_BREAK
+		UEDiagnosticBuffer[0xFFFFFFFF] = 0;
+	}
+}
+
+#define PLATFORM_ASSERT(condition, assert_id)              { if (!(condition)) UEReportAssertWithPayload(assert_id, uint4(0, 0, 0, 0)); }
+#define PLATFORM_ASSERT1(condition, assert_id, a)          { if (!(condition)) UEReportAssertWithPayload(assert_id, uint4(a, 0, 0, 0));  }
+#define PLATFORM_ASSERT2(condition, assert_id, a, b)       { if (!(condition)) UEReportAssertWithPayload(assert_id, uint4(a, b, 0, 0));  }
+#define PLATFORM_ASSERT3(condition, assert_id, a, b, c)    { if (!(condition)) UEReportAssertWithPayload(assert_id, uint4(a, b, c, 0));  }
+#define PLATFORM_ASSERT4(condition, assert_id, a, b, c, d) { if (!(condition)) UEReportAssertWithPayload(assert_id, uint4(a, b, c, d));  }
+
+#endif // PLATFORM_SUPPORTS_DIAGNOSTIC_BUFFER
