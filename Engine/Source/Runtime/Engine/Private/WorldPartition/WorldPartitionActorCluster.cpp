@@ -397,6 +397,8 @@ const TArray<FActorCluster>& FActorClusterContext::CreateActorClustersImpl(const
 
 void FActorClusterContext::CreateActorClusters()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(CreateActorClusters);
+
 	// First Instance is the main WorldPartition
 	FBox WorldBounds(ForceInit);
 	CreateContainerInstanceRecursive(0, FTransform::Identity, EContainerClusterMode::Partitioned, WorldPartition, TSet<FName>(), WorldBounds);

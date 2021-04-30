@@ -77,6 +77,8 @@ void UWorldPartitionRuntimeHash::ForceExternalActorLevelReference(bool bForceExt
 
 void UWorldPartitionRuntimeHash::CreateActorDescViewMap(const UActorDescContainer* Container, TMap<FGuid, FWorldPartitionActorDescView>& OutActorDescViewMap) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(CreateActorDescViewMap);
+
 	// Build the actor desc view map
 	OutActorDescViewMap.Empty();
 
