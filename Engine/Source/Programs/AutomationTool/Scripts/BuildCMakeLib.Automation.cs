@@ -564,23 +564,20 @@ public sealed class BuildCMakeLib : BuildCommand
 
 	private void SetupBuildEnvironment()
 	{
-		if (!Utils.IsRunningOnMono)
+		// ================================================================================
+		// ThirdPartyNotUE
+		// NOTE: these are Windows executables
+		if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 		{
-			// ================================================================================
-			// ThirdPartyNotUE
-			// NOTE: these are Windows executables
-			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
-			{
-				string CMakePath = DirectoryReference.Combine(TargetPlatform.CMakeRootDirectory, "bin").FullName;
-				string MakePath = DirectoryReference.Combine(TargetPlatform.MakeRootDirectory, "bin").FullName;
+			string CMakePath = DirectoryReference.Combine(TargetPlatform.CMakeRootDirectory, "bin").FullName;
+			string MakePath = DirectoryReference.Combine(TargetPlatform.MakeRootDirectory, "bin").FullName;
 
-				string PrevPath = Environment.GetEnvironmentVariable("PATH");
-				// mixing bundled make and cygwin make is no good. Try to detect and remove cygwin paths.
-				string PathWithoutCygwin = RemoveOtherMakeAndCygwinFromPath(PrevPath);
-				Environment.SetEnvironmentVariable("PATH", CMakePath + ";" + MakePath + ";" + PathWithoutCygwin);
-				Environment.SetEnvironmentVariable("PATH", CMakePath + ";" + MakePath + ";" + Environment.GetEnvironmentVariable("PATH"));
-				LogInformation("set {0}={1}", "PATH", Environment.GetEnvironmentVariable("PATH"));
-			}
+			string PrevPath = Environment.GetEnvironmentVariable("PATH");
+			// mixing bundled make and cygwin make is no good. Try to detect and remove cygwin paths.
+			string PathWithoutCygwin = RemoveOtherMakeAndCygwinFromPath(PrevPath);
+			Environment.SetEnvironmentVariable("PATH", CMakePath + ";" + MakePath + ";" + PathWithoutCygwin);
+			Environment.SetEnvironmentVariable("PATH", CMakePath + ";" + MakePath + ";" + Environment.GetEnvironmentVariable("PATH"));
+			LogInformation("set {0}={1}", "PATH", Environment.GetEnvironmentVariable("PATH"));
 		}
 	}
 

@@ -133,7 +133,7 @@ public abstract class BaseLinuxPlatform : Platform
 		// write out the 
 		FileReference.WriteAllText(IntermediateFile, Script.ToString());
 
-		if (Utils.IsRunningOnMono)
+		if (!Utils.IsRunningOnWindows)
 		{
 			var Result = CommandUtils.Run("env", string.Format("-- \"chmod\" \"+x\" \"{0}\"", IntermediateFile.ToString().Replace("'", "'\"'\"'")));
 			if (Result.ExitCode != 0)

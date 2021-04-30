@@ -272,9 +272,7 @@ namespace UnrealBuildTool
 		/// Accessors for fields on the inner BuildVersion instance
 		/// </summary>
 		#region Read-only accessor properties 
-		#if !__MonoCS__
 		#pragma warning disable CS1591
-		#endif
 
 		public int MajorVersion
 		{
@@ -326,9 +324,7 @@ namespace UnrealBuildTool
 			get { return Inner.BuildVersionString; }
 		}
 
-		#if !__MonoCS__
 		#pragma warning restore C1591
-		#endif
 		#endregion
 	}
 }

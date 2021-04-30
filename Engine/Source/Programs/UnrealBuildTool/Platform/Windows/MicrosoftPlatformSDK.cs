@@ -42,7 +42,7 @@ namespace UnrealBuildTool
 
 		public override string? GetInstalledSDKVersion()
 		{
-			if (Utils.IsRunningOnMono)
+			if (!Utils.IsRunningOnWindows)
 			{
 				return null;
 			}

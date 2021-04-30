@@ -105,9 +105,7 @@ namespace UnrealBuildTool
 		/// Accessors for fields on the inner TargetRules instance
 		/// </summary>
 		#region Read-only accessor properties 
-#if !__MonoCS__
 #pragma warning disable CS1591
-#endif
 		public bool bStripSymbols
 		{
 			get { return Inner.bStripSymbols; }
@@ -163,9 +161,7 @@ namespace UnrealBuildTool
 			get { return float.Parse(Inner.ProjectSettings.RuntimeVersion, System.Globalization.CultureInfo.InvariantCulture); }
 		}
 		
-#if !__MonoCS__
 #pragma warning restore CS1591
-#endif
 		#endregion
 	}
 

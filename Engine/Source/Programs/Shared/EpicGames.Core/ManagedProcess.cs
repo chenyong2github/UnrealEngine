@@ -592,7 +592,7 @@ namespace EpicGames.Core
 		/// <param name="Flags">Flags for the new process</param>
 		private void CreateManagedProcessPortable(ManagedProcessGroup? Group, string FileName, string CommandLine, string? WorkingDirectory, IReadOnlyDictionary<string, string>? Environment, ProcessPriorityClass Priority, ManagedProcessFlags Flags)
 		{
-			// Fallback for Mono platforms
+			// for non-Windows platforms
 			FrameworkProcess = new Process();
 			FrameworkProcess.StartInfo.FileName = FileName;
 			FrameworkProcess.StartInfo.Arguments = CommandLine;

@@ -204,7 +204,7 @@ namespace UnrealBuildTool
 			Result += " -pipe";
 			Result += " -fpascal-strings";
 
-			if (!Utils.IsRunningOnMono)
+			if (Utils.IsRunningOnWindows)
 			{
 				Result += " -fdiagnostics-format=msvc";
 			}

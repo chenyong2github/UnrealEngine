@@ -122,7 +122,7 @@ namespace AutomationTool
                 NoThrow(() => CommandUtils.ClearDirStack(), "Clear Dir Stack");
 
                 // Try to kill process before app domain exits to leave the other KillAll call to extreme edge cases
-                NoThrow(() => { if (ShouldKillProcesses && !Utils.IsRunningOnMono) ProcessManager.KillAll(); }, "Kill All Processes");
+                NoThrow(() => { if (ShouldKillProcesses && Utils.IsRunningOnWindows) ProcessManager.KillAll(); }, "Kill All Processes");
 
 				// Write the exit code
                 Log.TraceInformation("AutomationTool exiting with ExitCode={0} ({1})", (int)ReturnCode, ReturnCode);
@@ -165,7 +165,7 @@ namespace AutomationTool
 		static void Domain_ProcessExit(object sender, EventArgs e)
 		{
 			// Kill all spawned processes (Console instead of Log because logging is closed at this time anyway)
-			if (ShouldKillProcesses && !Utils.IsRunningOnMono)
+			if (ShouldKillProcesses && Utils.IsRunningOnWindows)
 			{			
 				ProcessManager.KillAll();
 			}

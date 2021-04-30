@@ -158,7 +158,7 @@ public class ZipUtils : BuildCommand
 					}
 				}
 
-				if (UnrealBuildTool.Utils.IsRunningOnMono && CommandUtils.IsProbablyAMacOrIOSExe(OutputFileName))
+				if (!Utils.IsRunningOnWindows && CommandUtils.IsProbablyAMacOrIOSExe(OutputFileName))
 				{
 					FixUnixFilePermissions(OutputFileName);
 				}

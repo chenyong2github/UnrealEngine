@@ -216,8 +216,8 @@ namespace UnrealBuildTool
 					}
 				}
 
-				// If we are on Mono and we are still missing a key then go and find it from the .bash_profile
-				if (Utils.IsRunningOnMono && !EnvVarNames.All(s => AndroidEnv.ContainsKey(s.Key)))
+				// If we are not running on Windows and we are still missing a key then go and find it from the .bash_profile
+				if (!Utils.IsRunningOnWindows && !EnvVarNames.All(s => AndroidEnv.ContainsKey(s.Key)))
 				{
 					string BashProfilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), ".bash_profile");
 					if (!File.Exists(BashProfilePath))

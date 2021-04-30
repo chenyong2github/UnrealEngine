@@ -2063,7 +2063,7 @@ namespace AutomationTool
                 }
                 else
                 {
-                    CachedRootBuildStorageDirectory = Utils.IsRunningOnMono ? "/Volumes/Builds" : CombinePaths("P:", "Builds");
+                    CachedRootBuildStorageDirectory = Utils.IsRunningOnWindows ? CombinePaths("P:", "Builds") : "/Volumes/Builds";
                 }
             }
             return CachedRootBuildStorageDirectory;
@@ -2233,7 +2233,7 @@ namespace AutomationTool
 		public static IEnumerable<string> LegacyUnzipFiles(string ZipFileName, string BaseDirectory)
 		{
 			List<string> OutputFileNames = new List<string>();
-			if (Utils.IsRunningOnMono)
+			if (!Utils.IsRunningOnWindows)
 			{
 				CommandUtils.CreateDirectory(BaseDirectory);
 
@@ -2933,9 +2933,9 @@ namespace AutomationTool
 		/// </summary>
 		public static void SignSingleExecutableIfEXEOrDLL(string Filename, bool bIgnoreExtension = false)
 		{
-            if (UnrealBuildTool.Utils.IsRunningOnMono)
+            if (!Utils.IsRunningOnWindows)
             {
-                CommandUtils.LogLog(String.Format("Can't sign '{0}', we are running under mono.", Filename));
+                CommandUtils.LogLog(String.Format("Can't sign '{0}' on non-Windows platform.", Filename));
                 return;
             }
             if (!CommandUtils.FileExists(Filename))
@@ -3126,9 +3126,9 @@ namespace AutomationTool
 
 		public static void SignMultipleFilesIfEXEOrDLL(List<FileReference> Files, bool bIgnoreExtension = false)
 		{
-			if (UnrealBuildTool.Utils.IsRunningOnMono)
+			if (!Utils.IsRunningOnWindows)
 			{
-				CommandUtils.LogLog(String.Format("Can't sign we are running under mono."));
+				CommandUtils.LogLog(String.Format("Can't sign on non-Windows platform."));
 				return;
 			}
 			List<FileReference> FinalFiles = new List<FileReference>();

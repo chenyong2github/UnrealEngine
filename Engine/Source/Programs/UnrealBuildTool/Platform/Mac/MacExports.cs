@@ -114,7 +114,7 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Returns true if we're running on Apple architecture (either natively which mono will do, or under Rosetta)
+		/// Returns true if we're running on Apple architecture (either natively which mono/dotnet will do, or under Rosetta)
 		/// </summary>
 		/// <returns></returns>
 		public static bool IsRunningOnAppleArchitecture

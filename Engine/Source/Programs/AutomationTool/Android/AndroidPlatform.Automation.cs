@@ -422,7 +422,7 @@ public class AndroidPlatform : Platform
 
 	public static string GetStorageQueryCommand(bool bForcePC = false)
     {
-		if (!bForcePC && Utils.IsRunningOnMono)
+		if (!bForcePC && !Utils.IsRunningOnWindows)
 		{
 			return "shell 'echo $EXTERNAL_STORAGE'";
 		}
@@ -991,7 +991,7 @@ public class AndroidPlatform : Platform
 						File.WriteAllLines(SymbolizeBatchName, BatchLines);
 					}
 
-					if (Utils.IsRunningOnMono)
+					if (!Utils.IsRunningOnWindows)
 					{
 						if (bHaveAPK)
 						{
@@ -1560,7 +1560,7 @@ public class AndroidPlatform : Platform
 
 	public static IProcessResult RunAdbCommand(ProjectParams Params, string SerialNumber, string Args, string Input = null, ERunOptions Options = ERunOptions.Default, bool bShouldLogCommand = false)
 	{
-		string AdbCommand = Environment.ExpandEnvironmentVariables("%ANDROID_HOME%/platform-tools/adb" + (Utils.IsRunningOnMono ? "" : ".exe"));
+		string AdbCommand = Environment.ExpandEnvironmentVariables("%ANDROID_HOME%/platform-tools/adb" + (Utils.IsRunningOnWindows ? ".exe" : ""));
 		if (Options.HasFlag(ERunOptions.AllowSpew) || Options.HasFlag(ERunOptions.SpewIsVerbose))
 		{
 			LastSpewFilename = "";
@@ -1571,7 +1571,7 @@ public class AndroidPlatform : Platform
 
 	private string RunAndLogAdbCommand(ProjectParams Params, string SerialNumber, string Args, out int SuccessCode)
 	{
-		string AdbCommand = Environment.ExpandEnvironmentVariables("%ANDROID_HOME%/platform-tools/adb" + (Utils.IsRunningOnMono ? "" : ".exe"));
+		string AdbCommand = Environment.ExpandEnvironmentVariables("%ANDROID_HOME%/platform-tools/adb" + (Utils.IsRunningOnWindows ? ".exe" : ""));
 		LastSpewFilename = "";
 		return RunAndLog(CmdEnv, AdbCommand, GetAdbCommandLine(Params, SerialNumber, Args), out SuccessCode, SpewFilterCallback: new ProcessResult.SpewFilterCallbackType(ADBSpewFilter));
 	}
@@ -2419,7 +2419,7 @@ public class AndroidPlatform : Platform
 		uint BestVersion = 0;
 		foreach (string CandidateDir in Subdirs)
 		{
-			string AaptFilename = Path.Combine(CandidateDir, Utils.IsRunningOnMono ? "aapt" : "aapt.exe");
+			string AaptFilename = Path.Combine(CandidateDir, Utils.IsRunningOnWindows ? "aapt.exe" : "aapt");
 			uint RevisionValue = 0;
 
 			if (File.Exists(AaptFilename))

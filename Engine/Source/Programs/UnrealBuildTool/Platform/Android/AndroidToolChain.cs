@@ -1291,7 +1291,7 @@ namespace UnrealBuildTool
 			foreach (string Definition in CompileEnvironment.Definitions)
 			{
 				// We must change the \" to escaped double quotes to save it properly for clang .rsp
-				BaseArguments += string.Format(" -D \"{0}\"", Definition.Replace("\"", Utils.IsRunningOnMono ? "\\\"" : "\"\""));
+				BaseArguments += string.Format(" -D \"{0}\"", Definition.Replace("\"", Utils.IsRunningOnWindows ? "\"\"" : "\\\""));
 			}
 
 			//LUMIN_MERGE
@@ -2157,7 +2157,7 @@ namespace UnrealBuildTool
 					// To work around this we call clang to just get the command it would execute and generate a
 					// second response file to directly call ld with the right arguments instead of calling through clang.
 /* disable while tracking down some linker errors this introduces
-					if (!Utils.IsRunningOnMono)
+					if (Utils.IsRunningOnWindows)
 					{
 						// capture the actual link command without running it
 						ProcessStartInfo StartInfo = new ProcessStartInfo();

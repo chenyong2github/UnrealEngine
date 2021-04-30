@@ -1877,9 +1877,7 @@ namespace UnrealBuildTool
 		/// Accessors for fields on the inner TargetRules instance
 		/// </summary>
 		#region Read-only accessor properties
-		#if !__MonoCS__
 		#pragma warning disable CS1591
-		#endif
 
 		public string Name
 		{
@@ -2837,9 +2835,7 @@ namespace UnrealBuildTool
 			get { return Inner.OptedInModulePlatforms; } 
 		}
 
-#if !__MonoCS__
 #pragma warning restore C1591
-#endif
 		#endregion
 
 		/// <summary>

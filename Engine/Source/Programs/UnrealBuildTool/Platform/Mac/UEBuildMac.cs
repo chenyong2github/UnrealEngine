@@ -70,9 +70,7 @@ namespace UnrealBuildTool
 		/// Accessors for fields on the inner TargetRules instance
 		/// </summary>
 		#region Read-only accessor properties 
-		#if !__MonoCS__
 		#pragma warning disable CS1591
-		#endif
 
 		public bool? bGenerateDsymFile
 		{
@@ -94,9 +92,7 @@ namespace UnrealBuildTool
 			get { return Inner.bEnableUndefinedBehaviorSanitizer; }
 		}		
 
-		#if !__MonoCS__
 		#pragma warning restore CS1591
-		#endif
 		#endregion
 	}
 
