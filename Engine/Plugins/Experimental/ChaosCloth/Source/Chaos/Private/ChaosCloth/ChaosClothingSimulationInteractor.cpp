@@ -65,11 +65,11 @@ void UChaosClothingInteractor::SetDamping(float DampingCoefficient)
 	}));
 }
 
-void UChaosClothingInteractor::SetAerodynamics(float DragCoefficient, float LiftCoefficient)
+void UChaosClothingInteractor::SetAerodynamics(float DragCoefficient, float LiftCoefficient, FVector WindVelocity)
 {
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([DragCoefficient, LiftCoefficient](FClothingSimulationCloth* Cloth)
+	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([DragCoefficient, LiftCoefficient, WindVelocity](FClothingSimulationCloth* Cloth)
 	{
-		Cloth->SetAerodynamicsProperties(DragCoefficient, LiftCoefficient);
+		Cloth->SetAerodynamicsProperties(DragCoefficient, LiftCoefficient, WindVelocity);
 	}));
 }
 

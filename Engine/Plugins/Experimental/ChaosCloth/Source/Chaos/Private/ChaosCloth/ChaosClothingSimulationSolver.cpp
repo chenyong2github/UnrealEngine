@@ -26,14 +26,15 @@ DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Solver Particle Pre Simulation Transforms")
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Solver Collision Pre Simulation Transforms"), STAT_ChaosClothCollisionPreSimulationTransforms, STATGROUP_ChaosCloth);
 
 static int32 ChaosClothSolverMinParallelBatchSize = 1000;
-static bool ChaosClothSolverParallelClothPreUpdate = false;  // TODO: Doesn't seem to improve much here. Review this after the ISPC implementation.
-static bool ChaosClothSolverParallelClothUpdate = true;
-static bool ChaosClothSolverParallelClothPostUpdate = true;
+static bool bChaosClothSolverParallelClothPreUpdate = false;  // TODO: Doesn't seem to improve much here. Review this after the ISPC implementation.
+static bool bChaosClothSolverParallelClothUpdate = true;
+static bool bChaosClothSolverParallelClothPostUpdate = true;
+
 #if !UE_BUILD_SHIPPING
 FAutoConsoleVariableRef CVarChaosClothSolverMinParallelBatchSize(TEXT("p.ChaosCloth.Solver.MinParallelBatchSize"), ChaosClothSolverMinParallelBatchSize, TEXT("The minimum number of particle to process in parallel batch by the solver."));
-FAutoConsoleVariableRef CVarChaosClothSolverParallelClothPreUpdate(TEXT("p.ChaosCloth.Solver.ParallelClothPreUpdate"), ChaosClothSolverParallelClothPreUpdate, TEXT("Pre-transform the cloth particles for each cloth in parallel."));
-FAutoConsoleVariableRef CVarChaosClothSolverParallelClothUpdate(TEXT("p.ChaosCloth.Solver.ParallelClothUpdate"), ChaosClothSolverParallelClothUpdate, TEXT("Skin the physics mesh and do the other cloth update for each cloth in parallel."));
-FAutoConsoleVariableRef CVarChaosClothSolverParallelClothPostUpdate(TEXT("p.ChaosCloth.Solver.ParallelClothPostUpdate"), ChaosClothSolverParallelClothPostUpdate, TEXT("Pre-transform the cloth particles for each cloth in parallel."));
+FAutoConsoleVariableRef CVarChaosClothSolverParallelClothPreUpdate(TEXT("p.ChaosCloth.Solver.ParallelClothPreUpdate"), bChaosClothSolverParallelClothPreUpdate, TEXT("Pre-transform the cloth particles for each cloth in parallel."));
+FAutoConsoleVariableRef CVarChaosClothSolverParallelClothUpdate(TEXT("p.ChaosCloth.Solver.ParallelClothUpdate"), bChaosClothSolverParallelClothUpdate, TEXT("Skin the physics mesh and do the other cloth update for each cloth in parallel."));
+FAutoConsoleVariableRef CVarChaosClothSolverParallelClothPostUpdate(TEXT("p.ChaosCloth.Solver.ParallelClothPostUpdate"), bChaosClothSolverParallelClothPostUpdate, TEXT("Pre-transform the cloth particles for each cloth in parallel."));
 #endif
 
 namespace ChaosClothingSimulationSolverDefault
@@ -613,6 +614,12 @@ void FClothingSimulationSolver::SetWindVelocity(const FVec3& InWindVelocity, FRe
 	LegacyWindAdaption = InLegacyWindAdaption;
 }
 
+void FClothingSimulationSolver::SetWindVelocity(uint32 GroupId, const FVec3& InWindVelocity)
+{
+	FVelocityField& VelocityField = Evolution->GetVelocityField(GroupId);
+	VelocityField.SetVelocity(InWindVelocity);
+}
+
 void FClothingSimulationSolver::SetWindVelocityField(uint32 GroupId, FRealSingle DragCoefficient, FRealSingle LiftCoefficient, const FTriangleMesh* TriangleMesh)
 {
 	FVelocityField& VelocityField = Evolution->GetVelocityField(GroupId);
@@ -738,17 +745,17 @@ void FClothingSimulationSolver::ApplyPreSimulationTransforms()
 					const FRigidTransform3& GroupSpaceTransform = PreSimulationTransforms[ParticleGroupIds[Index]];
 
 					// Update initial state for particles
-					Particles.P(Index) = Particles.X(Index) = GroupSpaceTransform.TransformPosition(Particles.X(Index)) - DeltaLocalSpaceLocation;
+					Particles.P(Index) = Particles.X(Index) = GroupSpaceTransform.TransformPositionNoScale(Particles.X(Index)) - DeltaLocalSpaceLocation;
 					Particles.V(Index) = GroupSpaceTransform.TransformVector(Particles.V(Index));
 
 					// Update anim initial state (target updated by skinning)
-					OldAnimationPositions[Index] = GroupSpaceTransform.TransformPosition(OldAnimationPositions[Index]) - DeltaLocalSpaceLocation;
+					OldAnimationPositions[Index] = GroupSpaceTransform.TransformPositionNoScale(OldAnimationPositions[Index]) - DeltaLocalSpaceLocation;
 				}, RangeSize < ChaosClothSolverMinParallelBatchSize);
-		}, /*bForceSingleThreaded =*/ !ChaosClothSolverParallelClothPreUpdate);
+		}, /*bForceSingleThreaded =*/ !bChaosClothSolverParallelClothPreUpdate);
 
 #if FRAMEPRO_ENABLED
 	FRAMEPRO_CUSTOM_STAT("ChaosClothSolverMinParallelBatchSize", ChaosClothSolverMinParallelBatchSize, "ChaosClothSolver", "Particles", FRAMEPRO_COLOUR(128,0,255));
-	FRAMEPRO_CUSTOM_STAT("ChaosClothSolverParallelClothPreUpdate", ChaosClothSolverParallelClothPreUpdate, "ChaosClothSolver", "Enabled", FRAMEPRO_COLOUR(128, 128, 64));
+	FRAMEPRO_CUSTOM_STAT("ChaosClothSolverParallelClothPreUpdate", bChaosClothSolverParallelClothPreUpdate, "ChaosClothSolver", "Enabled", FRAMEPRO_COLOUR(128, 128, 64));
 #endif
 
 	{
@@ -808,7 +815,7 @@ void FClothingSimulationSolver::Update(FReal InDeltaTime)
 			Evolution->GetVelocityField(GroupId).SetFluidDensity(WindFluidDensity);
 
 			Cloth->Update(this);
-		}, /*bForceSingleThreaded =*/ !ChaosClothSolverParallelClothUpdate);
+		}, /*bForceSingleThreaded =*/ !bChaosClothSolverParallelClothUpdate);
 	}
 
 	// Pre solver step, apply group space transforms for teleport and linear/delta ratios, ...etc
@@ -845,7 +852,7 @@ void FClothingSimulationSolver::Update(FReal InDeltaTime)
 		{
 			FClothingSimulationCloth* const Cloth = Cloths[ClothIndex];
 			Cloth->PostUpdate(this);
-		}, /*bForceSingleThreaded =*/ !ChaosClothSolverParallelClothPostUpdate);
+		}, /*bForceSingleThreaded =*/ !bChaosClothSolverParallelClothPostUpdate);
 	}
 
 	// Save old space location for next update
