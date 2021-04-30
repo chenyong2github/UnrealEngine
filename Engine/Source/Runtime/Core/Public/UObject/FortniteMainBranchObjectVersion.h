@@ -149,6 +149,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// (Merged from //UE4/Main)
 		ChaosConvexVariableStructureDataAndVerticesArray,
 
+		// Remove the WaterVelocityHeightTexture dependency on MPC_Landscape and LandscapeWaterIndo 
+		RemoveLandscapeWaterInfo,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

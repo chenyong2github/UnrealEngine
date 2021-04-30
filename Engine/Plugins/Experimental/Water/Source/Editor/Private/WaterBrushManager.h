@@ -188,7 +188,10 @@ public:
 		
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(Category="Debug"))
 	bool DisableBrushTextureEffects = false;
-			
+
+	UPROPERTY()
+	bool bNeedsForceUpdate = false;
+
 	AWaterBrushManager(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void Serialize(FArchive& Ar) override;
@@ -288,6 +291,10 @@ private:
 	virtual void ApplyWeightmapSettings(const FBrushRenderContext& BrushRenderContext, const FBrushActorRenderContext& BrushActorRenderContext, const FWaterBodyWeightmapSettings& WMSettings);
 	virtual void ApplyToCompositeWaterBodyTexture(FBrushRenderContext& BrushRenderContext, const FBrushActorRenderContext& BrushActorRenderContext);
 
+#if WITH_EDITOR
+	virtual void CheckForErrors() override;
+#endif // WITH_EDITOR
+
 	UCurveFloat* GetElevationCurveAsset(const FWaterCurveSettings& CurveSettings);
 	void ClearCurveCache();
 	void OnCurveUpdated(UCurveBase* Curve, EPropertyChangeType::Type ChangeType);
@@ -295,6 +302,10 @@ private:
 	
 	// HACK [jonathan.bard] : this is only needed for data deprecation, when LandscapeTransform and LandscapeRTRes were not serialized: 
 	bool DeprecateWaterLandscapeInfo(FVector& OutRTWorldLocation, FVector& OutRTWorldSizeVector);
+
+#if WITH_EDITOR
+	void ShowForceUpdateMapCheckError();
+#endif // WITH_EDITOR
 
 	UTextureRenderTarget2D* VelocityPingPongRead(const FBrushRenderContext& BrushRenderContext) const;
 	UTextureRenderTarget2D* VelocityPingPongWrite(const FBrushRenderContext& BrushRenderContext) const;
