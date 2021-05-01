@@ -464,7 +464,7 @@ class TestMacZip : BuildCommand
 	{
 		LogInformation("TestMacZip *********************");
 
-		if (UnrealBuildTool.Utils.IsRunningOnMono)
+		if (!Utils.IsRunningOnWindows)
 		{
 			PushDir(CombinePaths(CmdEnv.LocalRoot, "Rocket/QFE"));
 			RunAndLog(CommandUtils.CmdEnv, "zip", "-r TestZip .");

@@ -524,7 +524,7 @@ class BuildHlslcc : BuildCommand
 	}
 	private static void SetupStaticBuildEnvironment()
 	{
-		if (!Utils.IsRunningOnMono)
+		if (Utils.IsRunningOnWindows)
 		{
 			string VS2015Path = GetMsDevExe(WindowsCompiler.VisualStudio2015_DEPRECATED);
 			if (VS2015Path != null)
