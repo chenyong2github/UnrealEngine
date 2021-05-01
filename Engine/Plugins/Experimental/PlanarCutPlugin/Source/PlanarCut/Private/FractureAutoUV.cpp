@@ -19,6 +19,7 @@
 #include "Parameterization/UVPacking.h"
 #include "Sampling/MeshCurvatureMapBaker.h"
 #include "Sampling/MeshOcclusionMapBaker.h"
+#include "Solvers/MeshSmoothing.h"
 #include "DisjointSet.h"
 
 #include "Image/ImageOccupancyMap.h"
@@ -578,43 +579,20 @@ void TextureInternalSurfaces(
 
 			FDynamicMesh3 SolidMesh(&Solidify.Generate());
 
-			// Smooth mesh (there is a more general version in MeshModelingToolset's IterativeSmoothingOp.cpp, but don't want to depend on MeshModelingToolset just for that)
-			// (note it is extra simple b/c we shouldn't have boundary vertices)
-			auto IterativeSmoothMesh = [](FDynamicMesh3& Mesh, int Iters, double SmoothAlpha)
+			// Smooth mesh
+			double SmoothAlpha = AttributeSettings.Curvature_SmoothingPerStep;
+			TArray<FVector3d> PositionBuffer;
+			PositionBuffer.SetNumUninitialized(Mesh.MaxVertexID());
+			for (int VID : Mesh.VertexIndicesItr())
 			{
-				TArray<FVector3d> SmoothedBuffer, PositionBuffer;
-				int NV = Mesh.MaxVertexID();
-				SmoothedBuffer.SetNumZeroed(NV);
-				PositionBuffer.SetNumZeroed(NV);
-				for (int VID : Mesh.VertexIndicesItr())
-				{
-					PositionBuffer[VID] = Mesh.GetVertex(VID);
-				}
-				for (int32 k = 0; k < Iters; ++k)
-				{
-					// calculate smoothed positions of interior vertices
-					ParallelFor(NV, [&Mesh, &SmoothedBuffer, &PositionBuffer, SmoothAlpha](int32 vid)
-						{
-							if (Mesh.IsReferencedVertex(vid) == false)
-							{
-								return;
-							}
-
-							FVector3d Centroid = FMeshWeights::UniformCentroid(Mesh, vid, [&](int32 nbrvid) { return PositionBuffer[nbrvid]; });
-							SmoothedBuffer[vid] = Lerp(PositionBuffer[vid], Centroid, SmoothAlpha);
-						});
-
-					for (int32 vid = 0; vid < NV; ++vid)
-					{
-						PositionBuffer[vid] = SmoothedBuffer[vid];
-					}
-				}
-				for (int VID : Mesh.VertexIndicesItr())
-				{
-					Mesh.SetVertex(VID, PositionBuffer[VID]);
-				}
-			};
-			IterativeSmoothMesh(SolidMesh, AttributeSettings.Curvature_SmoothingSteps, AttributeSettings.Curvature_SmoothingPerStep);
+				PositionBuffer[VID] = Mesh.GetVertex(VID);
+			}
+			UE::MeshDeformation::ComputeSmoothing_Forward(true, false, SolidMesh, [SmoothAlpha](int VID, bool bIsBoundary) { return SmoothAlpha; },
+				AttributeSettings.Curvature_SmoothingSteps, PositionBuffer);
+			for (int VID : Mesh.VertexIndicesItr())
+			{
+				Mesh.SetVertex(VID, PositionBuffer[VID]);
+			}
 
 			FDynamicMeshAABBTree3 SolidSpatial(&SolidMesh);
 

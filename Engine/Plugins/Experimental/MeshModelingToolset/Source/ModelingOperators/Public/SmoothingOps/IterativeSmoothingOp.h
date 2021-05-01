@@ -33,9 +33,6 @@ private:
 
 	// mean value smoothing iterations
 	void Smooth_MeanValue();
-
-private:
-	TArray<FVector3d> SmoothedBuffer;
 };
 
 } // end namespace UE::Geometry

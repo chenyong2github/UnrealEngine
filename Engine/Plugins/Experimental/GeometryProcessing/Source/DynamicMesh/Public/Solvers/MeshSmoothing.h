@@ -56,5 +56,19 @@ namespace UE
 			const double Speed, double Weight, const int32 NumIterations, TArray<FVector3d>& PositionArray);
 
 
+		/**
+		 * Simple iterative smoothing with an optional weight map
+		 * Each iteration Lerps towards the weighted neighbor centroid by the GetSmoothingAlpha amount
+		 * 
+		 * @param bUniformWeightScheme If true, uses uniform weights for centroid; else uses cotan weights
+		 * @param bSmoothBoundary If true, boundary vertices are smoothed (toward the centroid of neighboring boundary vertices); else boundary is fixed
+		 * @param OriginalMesh The source mesh, used for topology
+		 * @param GetSmoothingAlpha The amount to lerp each vertex towards the centroid, per iteration
+		 * @param NumIterations Number of iterations to smooth
+		 * @param PositionsArray Vertex positions (input and output)
+		 */
+		void DYNAMICMESH_API ComputeSmoothing_Forward(bool bUniformWeightScheme, bool bSmoothBoundary, const FDynamicMesh3& OriginalMesh,
+			TFunctionRef<double(int VID, bool bBoundary)> GetSmoothingAlpha, const int32 NumIterations, TArray<FVector3d>& PositionArray);
+
 	}
 }
