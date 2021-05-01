@@ -179,11 +179,17 @@ uint GetRelativeMaterialIndex(FCluster InCluster, uint InTriIndex)
 	return MaterialIndex;
 }
 
-uint RemapMaterialIndexToId(uint InPrimitiveIndex, uint InMaterialIndex, ByteAddressBuffer InMaterialTable)
+uint RemapMaterialIndexToOffset(uint InPrimitiveIndex, uint InMaterialIndex)
 {
 	// Remap local primitive material indices (i.e. 0...8) to global indices of all primitives in current scene
 	const uint MaxMaterials = 64;
 	const uint RemapOffset = (InPrimitiveIndex * MaxMaterials * 4) + (InMaterialIndex * 4);
+	return RemapOffset;
+}
+
+uint RemapMaterialIndexToId(uint InPrimitiveIndex, uint InMaterialIndex, ByteAddressBuffer InMaterialTable)
+{
+	const uint RemapOffset = RemapMaterialIndexToOffset(InPrimitiveIndex, InMaterialIndex);
 	const uint MaterialId = InMaterialTable.Load(RemapOffset);
 	return MaterialId;
 }

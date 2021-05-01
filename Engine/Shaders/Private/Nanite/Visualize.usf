@@ -14,10 +14,12 @@ Texture2D<UlongType>	DbgBuffer64;
 Texture2D<uint>			DbgBuffer32;
 Texture2D<uint>			NaniteMask;
 Texture2D<float>		SceneDepth;
-int4					VisualizeConfig;
-
+Texture2D<uint>			MaterialComplexity;
 ByteAddressBuffer		MaterialDepthTable;
 ByteAddressBuffer		MaterialHitProxyTable;
+
+int4					VisualizeConfig;
+int4					VisualizeScales;
 
 uint MurmurMix(uint Hash)
 {
@@ -105,7 +107,12 @@ uint GetVisualizeMode()
 
 float GetOverdrawScale()
 {
-	return clamp(float(VisualizeConfig.y), 0.0f, 100.0f) / 100.0f;
+	return clamp(float(VisualizeScales.x), 0.0f, 100.0f) / 100.0f;
+}
+
+float GetComplexityScale()
+{
+	return clamp(float(VisualizeScales.y), 0.0f, 100.0f) / 100.0f;
 }
 
 bool GetCompositeWithSceneDepth()
@@ -119,9 +126,12 @@ bool ShouldApplySobelFilter()
 }
 
 [numthreads(8, 8, 1)]
-void VisualizeCS(uint3 PixelPos : SV_DispatchThreadID)
+void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 {
-	const UlongType VisPixel = VisBuffer64[PixelPos.xy];
+	const uint2 PixelPos = DTID.xy;
+	const uint2 TilePos  = GID.xy; // 8x8 tile 2D coord
+
+	const UlongType VisPixel = VisBuffer64[PixelPos];
 
 	uint DepthInt;
 	uint VisibleClusterIndex;
@@ -130,7 +140,7 @@ void VisualizeCS(uint3 PixelPos : SV_DispatchThreadID)
 
 	FNaniteView NaniteView = GetNaniteView( 0 );
 
-	const bool IsUnOccluded = NaniteMask[PixelPos.xy] == 0x1;
+	const bool IsUnOccluded = NaniteMask[PixelPos] == 0x1;
 	const float3 Velocity = float3(0.0f, 0.0f, 0.0f);
 
 	float3 Result = float3(0, 0, 0);
@@ -141,11 +151,11 @@ void VisualizeCS(uint3 PixelPos : SV_DispatchThreadID)
 	{
 		// Nanite Pixel
 
-		UlongType DbgPixel = DbgBuffer64[PixelPos.xy];
+		UlongType DbgPixel = DbgBuffer64[PixelPos];
 		uint DebugDepthInt;
 		uint DebugValueMax;
 		UnpackDbgPixel(DbgPixel, DebugDepthInt, DebugValueMax);
-		uint DebugValueAdd = DbgBuffer32[PixelPos.xy];
+		uint DebugValueAdd = DbgBuffer32[PixelPos];
 
 		FVisibleCluster VisibleCluster           = GetVisibleCluster(VisibleClusterIndex);
 		FInstanceSceneData InstanceData          = GetInstanceData(VisibleCluster);
@@ -163,7 +173,7 @@ void VisualizeCS(uint3 PixelPos : SV_DispatchThreadID)
 		const float4 PointClip1 = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToClip);
 		const float4 PointClip2 = mul(float4(PointLocal2, 1), InstanceDynamicData.LocalToClip);
 
-		const float2 PixelClip = (PixelPos.xy + 0.5 - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw * float2(2, -2) + float2(-1, 1);
+		const float2 PixelClip = (PixelPos + 0.5 - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw * float2(2, -2) + float2(-1, 1);
 
 		// Calculate perspective correct barycentric coordinates with screen derivatives
 		const FBarycentrics Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2, View.ViewSizeAndInvSize.zw);
@@ -239,6 +249,14 @@ void VisualizeCS(uint3 PixelPos : SV_DispatchThreadID)
 		{
 			Result = IntToColor(GetMaterialDepthId(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialDepthTable));
 		}
+		else if (VisualizeMode == VISUALIZE_MATERIAL_COMPLEXITY)
+		{
+			const uint TileMaterialCount = MaterialComplexity[TilePos];
+			const float ComplexityScale = GetComplexityScale();
+			const float ComplexityCount = TileMaterialCount; // Num of unique materials per tile
+			const float ComplexityColor = 1.0f - exp2(-ComplexityCount * ComplexityScale);
+			Result = ColorMapTurbo(ComplexityColor);
+		}
 		else if (VisualizeMode == VISUALIZE_HIT_PROXY_DEPTH)
 		{
 			Result = IntToColor(GetMaterialHitProxyId(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialHitProxyTable));
@@ -280,7 +298,7 @@ void VisualizeCS(uint3 PixelPos : SV_DispatchThreadID)
 
 		if (GetVisualizeMode() == VISUALIZE_NANITE_MASK)
 		{
-			if (SceneDepth[PixelPos.xy] > 0.0f) // only visualize written fragments
+			if (SceneDepth[PixelPos] > 0.0f) // only visualize written fragments
 			{
 				Result = float4(1, 0, 0, 0);
 			}
@@ -289,8 +307,8 @@ void VisualizeCS(uint3 PixelPos : SV_DispatchThreadID)
 
 	if (ShouldApplySobelFilter() && (!GetCompositeWithSceneDepth() | IsUnOccluded))
 	{
-		Result = ApplySobelFilter(PixelPos.xy, DepthInt, Result, OutlineColor, bDarkOutline);
+		Result = ApplySobelFilter(PixelPos, DepthInt, Result, OutlineColor, bDarkOutline);
 	}
 
-	DebugOutput[PixelPos.xy] = float4(Result, 0);;
+	DebugOutput[PixelPos] = float4(Result, 0);
 }

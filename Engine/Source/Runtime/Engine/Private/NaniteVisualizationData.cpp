@@ -28,13 +28,14 @@ static FNaniteVisualizationData GNaniteVisualizationData;
 #define VISUALIZE_MATERIAL_MODE						(1 << 14)
 #define VISUALIZE_MATERIAL_INDEX					(1 << 15)
 #define VISUALIZE_MATERIAL_DEPTH					(1 << 16)
-#define VISUALIZE_HIT_PROXY_DEPTH					(1 << 17)
-#define VISUALIZE_NANITE_MASK						(1 << 18)
-#define VISUALIZE_LIGHTMAP_UVS						(1 << 19)
-#define VISUALIZE_LIGHTMAP_UV_INDEX					(1 << 20)
-#define VISUALIZE_LIGHTMAP_DATA_INDEX				(1 << 21)
-#define VISUALIZE_HIERARCHY_OFFSET					(1 << 22)
-#define VISUALIZE_POSITION_BITS						(1 << 23)
+#define VISUALIZE_MATERIAL_COMPLEXITY				(1 << 17)
+#define VISUALIZE_HIT_PROXY_DEPTH					(1 << 18)
+#define VISUALIZE_NANITE_MASK						(1 << 19)
+#define VISUALIZE_LIGHTMAP_UVS						(1 << 20)
+#define VISUALIZE_LIGHTMAP_UV_INDEX					(1 << 21)
+#define VISUALIZE_LIGHTMAP_DATA_INDEX				(1 << 22)
+#define VISUALIZE_HIERARCHY_OFFSET					(1 << 23)
+#define VISUALIZE_POSITION_BITS						(1 << 24)
 
 void FNaniteVisualizationData::Initialize()
 {
@@ -48,6 +49,7 @@ void FNaniteVisualizationData::Initialize()
 		AddVisualizationMode(TEXT("Primitives"), LOCTEXT("Primitives", "Primitives"), FModeType::Standard, VISUALIZE_PRIMITIVES, true);
 		AddVisualizationMode(TEXT("Instances"), LOCTEXT("Instances", "Instances"), FModeType::Standard, VISUALIZE_INSTANCES, true);
 		AddVisualizationMode(TEXT("Overdraw"), LOCTEXT("Overdraw", "Overdraw"), FModeType::Standard, VISUALIZE_OVERDRAW, false);
+		AddVisualizationMode(TEXT("MaterialComplexity"), LOCTEXT("MaterialComplexity", "Material Complexity"), FModeType::Standard, VISUALIZE_MATERIAL_COMPLEXITY, false);
 		AddVisualizationMode(TEXT("MaterialID"), LOCTEXT("MaterialID", "Material ID"), FModeType::Standard, VISUALIZE_MATERIAL_DEPTH, true);
 		AddVisualizationMode(TEXT("LightmapUV"), LOCTEXT("LightmapUV", "Lightmap UV"), FModeType::Standard, VISUALIZE_LIGHTMAP_UVS, true);
 
@@ -98,7 +100,7 @@ void FNaniteVisualizationData::ConfigureConsoleCommand()
 
 	IConsoleManager::Get().RegisterConsoleVariable(
 		GetOverviewConsoleCommandName(),
-		TEXT("Triangles,Clusters,Instances,Primitives,,,,,,,,,Mask,Overdraw,MaterialID,LightmapUV"),
+		TEXT("Triangles,Clusters,Instances,Primitives,,,,,,,,,Mask,Overdraw,MaterialID,MaterialComplexity"),
 		//TEXT("Triangles,Clusters,Instances,Primitives"),
 		*ConsoleDocumentationOverviewTargets,
 		ECVF_Default

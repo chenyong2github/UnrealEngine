@@ -129,6 +129,13 @@ FAutoConsoleVariableRef CVarNaniteVisualizeOverdrawScale(
 	TEXT("")
 );
 
+int32 GNaniteVisualizeComplexityScale = 80; // % of contribution per material evaluation (up to 100%)
+FAutoConsoleVariableRef CVarNaniteVisualizeComplexityScale(
+	TEXT("r.Nanite.Visualize.ComplexityScale"),
+	GNaniteVisualizeComplexityScale,
+	TEXT("")
+);
+
 // Specifies if visualization only shows Nanite information that passes full scene depth test
 // -1: Use default composition specified the each mode
 //  0: Force composition with scene depth off
@@ -328,9 +335,19 @@ static FIntVector4 GetVisualizeConfig(int32 ModeID, bool bCompositeScene, bool b
 {
 	if (ModeID != INDEX_NONE)
 	{
-		return FIntVector4(ModeID, GNaniteVisualizeOverdrawScale, bCompositeScene ? 1 : 0, bEdgeDetect ? 1 : 0);
+		return FIntVector4(ModeID, 0 /* Unused */, bCompositeScene ? 1 : 0, bEdgeDetect ? 1 : 0);
 	}
 	
+	return FIntVector4(INDEX_NONE, 0, 0, 0);
+}
+
+static FIntVector4 GetVisualizeScales(int32 ModeID)
+{
+	if (ModeID != INDEX_NONE)
+	{
+		return FIntVector4(GNaniteVisualizeOverdrawScale, GNaniteVisualizeComplexityScale, 0 /* Unused */, 0 /* Unused */);
+	}
+
 	return FIntVector4(INDEX_NONE, 0, 0, 0);
 }
 
@@ -1457,6 +1474,7 @@ class FNaniteVisualizeCS : public FNaniteShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, DebugOutput)
 		SHADER_PARAMETER(FIntVector4, VisualizeConfig)
+		SHADER_PARAMETER(FIntVector4, VisualizeScales)
 		SHADER_PARAMETER(FIntVector4, SOAStrides)
 		SHADER_PARAMETER(uint32, MaxVisibleClusters)
 		SHADER_PARAMETER(uint32, RenderFlags)
@@ -1469,6 +1487,7 @@ class FNaniteVisualizeCS : public FNaniteShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, DbgBuffer32)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, NaniteMask)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneDepth)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialComplexity)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialHitProxyTable)
 	END_SHADER_PARAMETER_STRUCT()
@@ -1557,6 +1576,36 @@ public:
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FClassifyMaterialsCS, "/Engine/Private/Nanite/MaterialCulling.usf", "ClassifyMaterials", SF_Compute);
+
+class FMaterialComplexityCS : public FNaniteShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FMaterialComplexityCS);
+	SHADER_USE_PARAMETER_STRUCT(FMaterialComplexityCS, FNaniteShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
+		SHADER_PARAMETER(FIntVector4, SOAStrides)
+		SHADER_PARAMETER(FIntVector4, ViewRect)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageHeaders)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, MaterialComplexity)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportNanite(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FMaterialComplexityCS, "/Engine/Private/Nanite/MaterialComplexity.usf", "CalculateMaterialComplexity", SF_Compute);
 
 // TODO: Move to common location outside of Nanite
 class FHTileVisualizeCS : public FNaniteShader
@@ -4639,6 +4688,46 @@ void AddVisualizationPasses(
 			RDG_EVENT_SCOPE(GraphBuilder, "Nanite::Visualization");
 			RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteDebug);
 
+			const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+
+			FRDGTextureRef VisBuffer64 = Data.VisBuffer64 ? Data.VisBuffer64 : SystemTextures.Black;
+			FRDGTextureRef DbgBuffer64 = Data.DbgBuffer64 ? Data.DbgBuffer64 : SystemTextures.Black;
+			FRDGTextureRef DbgBuffer32 = Data.DbgBuffer32 ? Data.DbgBuffer32 : SystemTextures.Black;
+			FRDGTextureRef NaniteMask = Data.NaniteMask ? Data.NaniteMask : SystemTextures.Black;
+			FRDGTextureRef VelocityBuffer = Data.VelocityBuffer ? Data.VelocityBuffer : SystemTextures.Black;
+
+			FRDGBufferRef VisibleClustersSWHW = Data.VisibleClustersSWHW;
+
+			// Generate material complexity
+			FRDGTextureRef MaterialComplexity = nullptr;
+			{
+				const FIntPoint TileGridDim = FMath::DivideAndRoundUp(ViewSize, { 8, 8 });
+
+				FRDGTextureDesc MaterialComplexityDesc = FRDGTextureDesc::Create2D(TileGridDim, PF_R32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
+				MaterialComplexity = GraphBuilder.CreateTexture(MaterialComplexityDesc, TEXT("Nanite.MaterialComplexity"));
+				FRDGTextureUAVRef MaterialComplexityUAV = GraphBuilder.CreateUAV(MaterialComplexity);
+
+				FMaterialComplexityCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMaterialComplexityCS::FParameters>();
+				PassParameters->View					= View.ViewUniformBuffer;
+				PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
+				PassParameters->SOAStrides				= Data.SOAStrides;
+				PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
+				PassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
+				PassParameters->VisBuffer64				= VisBuffer64;
+				PassParameters->MaterialDepthTable		= Scene->MaterialTables[ENaniteMeshPass::BasePass].GetDepthTableSRV();
+				PassParameters->MaterialComplexity		= MaterialComplexityUAV;
+
+				auto ComputeShader = View.ShaderMap->GetShader<FMaterialComplexityCS>();
+				FComputeShaderUtils::AddPass(
+					GraphBuilder,
+					RDG_EVENT_NAME("MaterialComplexity"),
+					ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+					ComputeShader,
+					PassParameters,
+					FComputeShaderUtils::GetGroupCount(ViewSize, 8)
+				);
+			}
+
 			Data.Visualizations.Reset();
 
 			if (VisualizationData.GetActiveModeID() > 0)
@@ -4685,16 +4774,6 @@ void AddVisualizationPasses(
 					Visualization.bCompositeScene = true;
 				}
 
-				const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
-
-				FRDGTextureRef VisBuffer64 = Data.VisBuffer64 ? Data.VisBuffer64 : SystemTextures.Black;
-				FRDGTextureRef DbgBuffer64 = Data.DbgBuffer64 ? Data.DbgBuffer64 : SystemTextures.Black;
-				FRDGTextureRef DbgBuffer32 = Data.DbgBuffer32 ? Data.DbgBuffer32 : SystemTextures.Black;
-				FRDGTextureRef NaniteMask  = Data.NaniteMask  ? Data.NaniteMask  : SystemTextures.Black;
-				FRDGTextureRef VelocityBuffer = Data.VelocityBuffer ? Data.VelocityBuffer : SystemTextures.Black;
-
-				FRDGBufferRef VisibleClustersSWHW = Data.VisibleClustersSWHW;
-
 				FRDGTextureDesc VisualizationOutputDesc = FRDGTextureDesc::Create2D(
 					View.ViewRect.Max,
 					PF_A32B32G32R32F,
@@ -4709,6 +4788,7 @@ void AddVisualizationPasses(
 				PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV();
 				PassParameters->ClusterPageHeaders = Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 				PassParameters->VisualizeConfig = GetVisualizeConfig(Visualization.ModeID, Visualization.bCompositeScene, GNaniteVisualizeEdgeDetect != 0);
+				PassParameters->VisualizeScales = GetVisualizeScales(Visualization.ModeID);
 				PassParameters->SOAStrides = Data.SOAStrides;
 				PassParameters->MaxVisibleClusters = Data.MaxVisibleClusters;
 				PassParameters->RenderFlags = Data.RenderFlags;
@@ -4718,6 +4798,7 @@ void AddVisualizationPasses(
 				PassParameters->DbgBuffer32 = DbgBuffer32;
 				PassParameters->NaniteMask = NaniteMask;
 				PassParameters->SceneDepth = SceneTextures.Depth.Target;
+				PassParameters->MaterialComplexity = MaterialComplexity ? MaterialComplexity : SystemTextures.Black;
 				PassParameters->MaterialDepthTable = Scene->MaterialTables[ENaniteMeshPass::BasePass].GetDepthTableSRV();
 			#if WITH_EDITOR
 				PassParameters->MaterialHitProxyTable = Scene->MaterialTables[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
