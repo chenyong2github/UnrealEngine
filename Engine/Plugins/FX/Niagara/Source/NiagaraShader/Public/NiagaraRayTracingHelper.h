@@ -14,6 +14,7 @@ class FRHIRayTracingScene;
 class FRHIShaderResourceView;
 class FRHIUniformBuffer;
 class FRHIUnorderedAccessView;
+struct FRWBuffer;
 
 // c++ mirror of the struct defined in NiagaraRayTracingCommon.ush
 struct FNiagaraRayTracingPayload
