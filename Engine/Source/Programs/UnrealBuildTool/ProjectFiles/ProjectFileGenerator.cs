@@ -427,8 +427,6 @@ namespace UnrealBuildTool
 				if (FileReference.Exists(ProjectFile))
 				{
 					VCSharpProjectFile Project = new VCSharpProjectFile(ProjectFile);
-					if (Project.IsDotNETCoreProject() && !SupportsDotnetCoreProjects())
-						continue;
 
 					Project.ShouldBuildForAllSolutionTargets = false;//true;
 					AddExistingProjectFile(Project, bForceDevelopmentConfiguration: true);
@@ -449,34 +447,26 @@ namespace UnrealBuildTool
 		/// </summary>
 		void AddSharedDotNetModules(MasterProjectFolder ProgramsFolder)
 		{
-			if (SupportsDotnetCoreProjects())
-			{
 				DirectoryInfo DotNetDir = new DirectoryInfo(DirectoryReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Programs", "Shared").FullName);
-				if (DotNetDir.Exists)
+			if (DotNetDir.Exists)
+			{
+				List<FileInfo> ProjectFiles = new List<FileInfo>();
+				foreach (DirectoryInfo ProjectDir in DotNetDir.EnumerateDirectories())
 				{
-					List<FileInfo> ProjectFiles = new List<FileInfo>();
-					foreach (DirectoryInfo ProjectDir in DotNetDir.EnumerateDirectories())
+					ProjectFiles.AddRange(ProjectDir.EnumerateFiles("*.csproj"));
+				}
+				if (ProjectFiles.Count > 0)
+				{
+					MasterProjectFolder Folder = ProgramsFolder.AddSubFolder("Shared");
+					foreach (FileInfo ProjectFile in ProjectFiles)
 					{
-						ProjectFiles.AddRange(ProjectDir.EnumerateFiles("*.csproj"));
-					}
-					if (ProjectFiles.Count > 0)
-					{
-						MasterProjectFolder Folder = ProgramsFolder.AddSubFolder("Shared");
-						foreach (FileInfo ProjectFile in ProjectFiles)
-						{
-							VCSharpProjectFile Project = new VCSharpProjectFile(new FileReference(ProjectFile));
-							Project.ShouldBuildForAllSolutionTargets = false;
-							AddExistingProjectFile(Project, bForceDevelopmentConfiguration: true);
-							Folder.ChildProjects.Add(Project);
-						}
+						VCSharpProjectFile Project = new VCSharpProjectFile(new FileReference(ProjectFile));
+						Project.ShouldBuildForAllSolutionTargets = false;
+						AddExistingProjectFile(Project, bForceDevelopmentConfiguration: true);
+						Folder.ChildProjects.Add(Project);
 					}
 				}
 			}
-		}
-
-		protected virtual bool SupportsDotnetCoreProjects()
-		{
-			return true;
 		}
 
 		/// <summary>
@@ -540,9 +530,6 @@ namespace UnrealBuildTool
 						if (!FoundProject.ContainsAnyNames(UnsupportedPlatformNames, ProjectDir))
 						{
 							VCSharpProjectFile Project = new VCSharpProjectFile(FoundProject);
-
-							if (Project.IsDotNETCoreProject() && !SupportsDotnetCoreProjects())
-								continue;
 
 							Project.ShouldBuildForAllSolutionTargets = true;
 							Project.ShouldBuildByDefaultForSolutionTargets = true;
@@ -1629,10 +1616,6 @@ namespace UnrealBuildTool
 		/// </summary>
 		private void AddUnrealBuildToolProject(MasterProjectFolder ProgramsFolder)
 		{
-			// UBT is a dotnet core project so we can not add it if the project generator does not support dotnet core projects
-			if (!SupportsDotnetCoreProjects())
-				return;
-
 			List<string> ProjectDirectoryNames = new List<string>();
 			ProjectDirectoryNames.Add("UnrealBuildTool");
 
@@ -1681,9 +1664,6 @@ namespace UnrealBuildTool
 			if( Info.Exists )
 			{
 				Project = new VCSharpProjectFile(ProjectFileName);
-
-				if (Project.IsDotNETCoreProject() && !SupportsDotnetCoreProjects())
-					return null;
 
 				Project.ShouldBuildForAllSolutionTargets = bShouldBuildForAllSolutionTargets;
 				Project.ShouldBuildByDefaultForSolutionTargets = bShouldBuildByDefaultForSolutionTargets;
