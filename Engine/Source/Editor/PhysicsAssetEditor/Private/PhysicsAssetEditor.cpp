@@ -651,6 +651,7 @@ void FPhysicsAssetEditor::ExtendMenu()
 			MenuBarBuilder.AddMenuEntry(Commands.ShowSelected);
 			MenuBarBuilder.AddMenuEntry(Commands.HideSelected);
 			MenuBarBuilder.AddMenuEntry(Commands.ToggleShowOnlySelected);
+			MenuBarBuilder.AddMenuEntry(Commands.ToggleShowOnlyColliding);
 			MenuBarBuilder.AddMenuEntry(Commands.ShowAll);
 			MenuBarBuilder.AddMenuEntry(Commands.HideAll);
 			MenuBarBuilder.AddMenuEntry(Commands.DeselectAll);
@@ -954,6 +955,11 @@ void FPhysicsAssetEditor::BindCommands()
 		Commands.HideSelected,
 		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnHideSelected),
 		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::IsNotSimulation));
+
+	ToolkitCommands->MapAction(
+		Commands.ToggleShowOnlyColliding,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnToggleShowOnlyColliding),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::HasOneSelectedBodyAndIsNotSimulation));
 
 	ToolkitCommands->MapAction(
 		Commands.ToggleShowOnlySelected,
@@ -1397,6 +1403,7 @@ void FPhysicsAssetEditor::BuildMenuWidgetSelection(FMenuBuilder& InMenuBuilder)
 		InMenuBuilder.AddMenuEntry( Commands.ShowSelected );
 		InMenuBuilder.AddMenuEntry( Commands.HideSelected );
 		InMenuBuilder.AddMenuEntry( Commands.ToggleShowOnlySelected );
+		InMenuBuilder.AddMenuEntry( Commands.ToggleShowOnlyColliding );
 		InMenuBuilder.AddMenuEntry( Commands.ShowAll );
 		InMenuBuilder.AddMenuEntry( Commands.HideAll );
 		InMenuBuilder.EndSection();
@@ -1791,6 +1798,11 @@ bool FPhysicsAssetEditor::IsNotSimulation() const
 bool FPhysicsAssetEditor::HasSelectedBodyAndIsNotSimulation() const
 {
 	return IsNotSimulation() && (SharedData->GetSelectedBody());
+}
+
+bool FPhysicsAssetEditor::HasOneSelectedBodyAndIsNotSimulation() const
+{
+	return IsNotSimulation() && (SharedData->SelectedBodies.Num() == 1);
 }
 
 bool FPhysicsAssetEditor::CanEditConstraintProperties() const
@@ -2923,6 +2935,11 @@ void FPhysicsAssetEditor::OnHideSelected()
 	SharedData->HideSelected();
 }
 
+void FPhysicsAssetEditor::OnToggleShowOnlyColliding()
+{
+	SharedData->ToggleShowOnlyColliding();
+}
+
 void FPhysicsAssetEditor::OnToggleShowOnlySelected()
 {
 	SharedData->ToggleShowOnlySelected();
@@ -3161,6 +3178,7 @@ void FPhysicsAssetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 	InPersonaPreviewScene->SetPreviewMeshComponent(SharedData->EditorSkelComp);
 	InPersonaPreviewScene->AddComponent(SharedData->EditorSkelComp, FTransform::Identity);
 	InPersonaPreviewScene->SetAdditionalMeshesSelectable(false);
+	InPersonaPreviewScene->SetUsePhysicsBodiesForBoneSelection(false);
 	// set root component, so we can attach to it. 
 	Actor->SetRootComponent(SharedData->EditorSkelComp);
 

@@ -742,6 +742,27 @@ void FPhysicsAssetEditorSharedData::HideSelected()
 	}
 }
 
+void FPhysicsAssetEditorSharedData::ToggleShowOnlyColliding()
+{
+	// important that we check this before calling ShowAll
+	const bool bIsShowingColliding = (HiddenBodies == NoCollisionBodies);
+
+	// in any case first show all
+	ShowAll();
+
+	if (!bIsShowingColliding)
+	{
+		// only works if one only body is selected
+		if (PhysicsAsset != nullptr && SelectedBodies.Num() == 1)
+		{
+
+			// NoCollisionBodies already contains the non colliding bodies from the one selection
+			HiddenBodies.Empty();
+			HiddenBodies.Append(NoCollisionBodies);
+		}
+	}
+}
+
 void FPhysicsAssetEditorSharedData::UpdateNoCollisionBodies()
 {
 	NoCollisionBodies.Empty();
