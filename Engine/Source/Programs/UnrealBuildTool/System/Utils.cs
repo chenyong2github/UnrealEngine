@@ -21,14 +21,10 @@ namespace UnrealBuildTool
 	public static class Utils
 	{
 		/// <summary>
-		/// Whether we are currently running on Mono platform.  We cache this statically because it is a bit slow to check.
-		/// </summary>
-		public static readonly bool IsRunningOnMono = !RuntimeInformation.IsOSPlatform(OSPlatform.Windows); // TODO: This check seems to mainly be used to determine if this is running on windows or not. Should be refactored.
-
-		/// <summary>
 		/// Whether we are currently running on Linux.
 		/// </summary>
 		public static readonly bool IsRunningOnLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
+
 		/// <summary>
 		/// Whether we are currently running on a MacOS platform.
 		/// </summary>

@@ -103,7 +103,7 @@ namespace Turnkey
 		private static void SetupVisuals()
 		{
 			// make the form look good on modern displays!
-			if (!UnrealBuildTool.Utils.IsRunningOnMono && Environment.OSVersion.Version.Major >= 6)
+			if (Utils.IsRunningOnWindows && Environment.OSVersion.Version.Major >= 6)
 			{
 				SetProcessDPIAware();
 			}
