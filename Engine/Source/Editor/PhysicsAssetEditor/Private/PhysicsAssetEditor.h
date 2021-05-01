@@ -324,6 +324,9 @@ private:
 	/** Customize the filter label */
 	void HandleGetFilterLabel(TArray<FText>& InOutItems) const;
 
+	/** refresh filter after changing filter settings */
+	void RefreshFilter();
+
 	/** Invalidate convex meshes and recreate the physics state. Performed on property changes (etc) */
 	void RecreatePhysicsState();
 

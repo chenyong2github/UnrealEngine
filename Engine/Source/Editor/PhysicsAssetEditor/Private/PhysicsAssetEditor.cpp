@@ -3261,31 +3261,31 @@ void FPhysicsAssetEditor::HandleExtendFilterMenu(FMenuBuilder& InMenuBuilder)
 void FPhysicsAssetEditor::HandleToggleShowBodies()
 {
 	SkeletonTreeBuilder->bShowBodies = !SkeletonTreeBuilder->bShowBodies;
-	SkeletonTree->RefreshFilter();
+	RefreshFilter();
 }
 
 void FPhysicsAssetEditor::HandleToggleShowSimulatedBodies()
 {
 	SkeletonTreeBuilder->bShowSimulatedBodies = !SkeletonTreeBuilder->bShowSimulatedBodies;
-	SkeletonTree->RefreshFilter();
+	RefreshFilter();
 }
 
 void FPhysicsAssetEditor::HandleToggleShowKinematicBodies()
 {
 	SkeletonTreeBuilder->bShowKinematicBodies = !SkeletonTreeBuilder->bShowKinematicBodies;
-	SkeletonTree->RefreshFilter();
+	RefreshFilter();
 }
 
 void FPhysicsAssetEditor::HandleToggleShowConstraints()
 {
 	SkeletonTreeBuilder->bShowConstraints = !SkeletonTreeBuilder->bShowConstraints;
-	SkeletonTree->RefreshFilter();
+	RefreshFilter();
 }
 
 void FPhysicsAssetEditor::HandleToggleShowPrimitives()
 {
 	SkeletonTreeBuilder->bShowPrimitives = !SkeletonTreeBuilder->bShowPrimitives;
-	SkeletonTree->RefreshFilter();
+	RefreshFilter();
 }
 
 ECheckBoxState FPhysicsAssetEditor::GetShowBodiesChecked() const
@@ -3329,6 +3329,13 @@ void FPhysicsAssetEditor::HandleGetFilterLabel(TArray<FText>& InOutItems) const
 	{
 		InOutItems.Add(LOCTEXT("PrimitivesFilterLabel", "Primitives"));
 	}
+}
+
+void FPhysicsAssetEditor::RefreshFilter()
+{
+	SkeletonTree->RefreshFilter();
+	// make sure we resynchronize the list 
+	HandleViewportSelectionChanged(SharedData->SelectedBodies, SharedData->SelectedConstraints);
 }
 
 void FPhysicsAssetEditor::HandleCreateNewConstraint(int32 BodyIndex0, int32 BodyIndex1)
