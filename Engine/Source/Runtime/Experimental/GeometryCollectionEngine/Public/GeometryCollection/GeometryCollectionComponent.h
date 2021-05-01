@@ -785,4 +785,7 @@ private:
 	bool IsEmbeddedGeometryValid() const;
 	void ClearEmbeddedGeometry();
 
+	/** True if GeometryCollection transforms have changed from previous tick. */
+	bool bIsMoving;
+
 };

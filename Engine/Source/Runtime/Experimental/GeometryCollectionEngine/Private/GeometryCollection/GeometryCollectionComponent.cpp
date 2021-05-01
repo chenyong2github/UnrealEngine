@@ -249,6 +249,7 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 	, bIsTransformSelectionModeEnabled(false)
 #endif  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
+	, bIsMoving(false)
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	bTickInEditor = true;
@@ -1528,10 +1529,37 @@ FGeometryCollectionDynamicData* UGeometryCollectionComponent::InitDynamicData(bo
 		}
 	}
 
-	if (DynamicData && DynamicData->ChangedCount == 0 && !bEditorMode && !bInitialization)
+	if (!bEditorMode && !bInitialization)
 	{
-		GDynamicDataPool.Release(DynamicData);
-		DynamicData = nullptr;
+		if (DynamicData && DynamicData->ChangedCount == 0)
+		{
+			GDynamicDataPool.Release(DynamicData);
+			DynamicData = nullptr;
+
+			// Change of state?
+			if (bIsMoving)
+			{
+				bIsMoving = false;
+				if (SceneProxy && SceneProxy->IsNaniteMesh())
+				{
+					FNaniteGeometryCollectionSceneProxy* NaniteProxy = static_cast<FNaniteGeometryCollectionSceneProxy*>(SceneProxy);
+					NaniteProxy->OnMotionEnd();
+				}
+			}
+		}
+		else
+		{
+			// Change of state?
+			if (!bIsMoving)
+			{
+				bIsMoving = true;
+				if (SceneProxy && SceneProxy->IsNaniteMesh())
+				{
+					FNaniteGeometryCollectionSceneProxy* NaniteProxy = static_cast<FNaniteGeometryCollectionSceneProxy*>(SceneProxy);
+					NaniteProxy->OnMotionBegin();
+				}
+			}
+		}
 	}
 
 	return DynamicData;

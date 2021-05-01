@@ -164,6 +164,8 @@ private:
 	FCriticalSection ListLock;
 };
 
+
+
 /***
 *   FGeometryCollectionSceneProxy
 *    
@@ -351,6 +353,9 @@ public:
 	{
 		return Resources;
 	}
+
+	void OnMotionBegin();
+	void OnMotionEnd();
 
 protected:
 	TArray<Nanite::FResources*> Resources;

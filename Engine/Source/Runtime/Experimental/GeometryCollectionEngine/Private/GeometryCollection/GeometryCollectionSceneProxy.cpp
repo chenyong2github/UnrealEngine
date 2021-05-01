@@ -1421,6 +1421,16 @@ void FNaniteGeometryCollectionSceneProxy::ResetPreviousTransforms_RenderThread()
 	}
 }
 
+void FNaniteGeometryCollectionSceneProxy::OnMotionBegin()
+{
+	// Currently we don't trigger anything
+}
+
+void FNaniteGeometryCollectionSceneProxy::OnMotionEnd()
+{
+	// Currently we don't trigger anything
+}
+
 FGeometryCollectionDynamicDataPool::FGeometryCollectionDynamicDataPool()
 {
 	FreeList.SetNum(32);
