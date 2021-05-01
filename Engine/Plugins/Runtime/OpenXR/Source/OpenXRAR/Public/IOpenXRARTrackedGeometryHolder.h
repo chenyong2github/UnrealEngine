@@ -16,11 +16,12 @@ public:
 
 	virtual ~IOpenXRARTrackedGeometryHolder() {}
 
-	UE_DEPRECATED(4.27, "Use overload with SharedPtr instead.")
+	// @todo: deprecation - since existing third party plugins already out there use this interface, we'll need to revisit the deprecations. Disabling for now to avoid CIS errors.
+//	UE_DEPRECATED(4.27, "Use overload with SharedPtr instead.")		
 	virtual void ARTrackedGeometryAdded(struct FOpenXRARTrackedGeometryData* InData) = 0;
-	UE_DEPRECATED(4.27, "Use overload with SharedPtr instead.")
+//	UE_DEPRECATED(4.27, "Use overload with SharedPtr instead.")
 	virtual void ARTrackedGeometryUpdated(struct FOpenXRARTrackedGeometryData* InData) = 0;
-	UE_DEPRECATED(4.27, "Use overload with SharedPtr instead.")
+//	UE_DEPRECATED(4.27, "Use overload with SharedPtr instead.")
 	virtual void ARTrackedGeometryRemoved(struct FOpenXRARTrackedGeometryData* InData) = 0;
 
 	virtual void ARTrackedGeometryAdded(TSharedPtr<struct FOpenXRARTrackedGeometryData> InData) = 0;
@@ -39,7 +40,7 @@ public:
 	virtual struct FOpenXRPlaneUpdate* AllocatePlaneUpdate(FGuid InGuidPlaneUpdate) = 0;
 	virtual void RemovePlane(FGuid InGuidPlaneUpdate) = 0;
 	virtual void EndMeshUpdates() = 0;
-	UE_DEPRECATED(4.27, "Use overload with SharedPtr instead.")
+//	UE_DEPRECATED(4.27, "Use overload with SharedPtr instead.")
 	virtual void ObjectUpdated(FOpenXRARTrackedGeometryData* InUpdate) = 0;
 	virtual void ObjectUpdated(TSharedPtr<struct FOpenXRARTrackedGeometryData>) = 0;
 };
