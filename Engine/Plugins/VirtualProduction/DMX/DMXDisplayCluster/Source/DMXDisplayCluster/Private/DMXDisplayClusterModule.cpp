@@ -2,6 +2,7 @@
 
 #include "DMXDisplayClusterModule.h"
 #include "Serialization/ArrayWriter.h"
+#include "Serialization/MemoryReader.h"
 
 #define LOCTEXT_NAMESPACE "DMXDisplayClusterModule"
 
