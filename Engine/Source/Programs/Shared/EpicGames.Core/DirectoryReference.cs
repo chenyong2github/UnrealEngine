@@ -473,26 +473,9 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Writer">The writer to output data to</param>
 		/// <param name="Directory">The item to write</param>
-		public static void WriteDirectoryReference(this BinaryArchiveWriter Writer, DirectoryReference Directory)
+		public static void WriteDirectoryReference(this BinaryArchiveWriter Writer, DirectoryReference? Directory)
 		{
-			Writer.WriteNullableDirectoryReference(Directory);
-		}
-
-		/// <summary>
-		/// Writes a directory reference  to a binary archive
-		/// </summary>
-		/// <param name="Writer">The writer to output data to</param>
-		/// <param name="Directory">The item to write</param>
-		public static void WriteNullableDirectoryReference(this BinaryArchiveWriter Writer, DirectoryReference? Directory)
-		{
-			if (Directory == null)
-			{
-				Writer.WriteString(null);
-			}
-			else
-			{
-				Writer.WriteString(Directory.FullName);
-			}
+			Writer.WriteString(Directory?.FullName);
 		}
 
 		/// <summary>

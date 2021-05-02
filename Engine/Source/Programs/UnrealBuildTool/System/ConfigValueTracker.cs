@@ -24,7 +24,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Project directory to read config files from
 		/// </summary>
-		public DirectoryReference ProjectDir;
+		public DirectoryReference? ProjectDir;
 		
 		/// <summary>
 		/// The platform being built
@@ -49,7 +49,7 @@ namespace UnrealBuildTool
 		/// <param name="Platform">The platform being built</param>
 		/// <param name="SectionName">The section name</param>
 		/// <param name="KeyName">The key name</param>
-		public ConfigDependencyKey(ConfigHierarchyType Type, DirectoryReference ProjectDir, UnrealTargetPlatform Platform, string SectionName, string KeyName)
+		public ConfigDependencyKey(ConfigHierarchyType Type, DirectoryReference? ProjectDir, UnrealTargetPlatform Platform, string SectionName, string KeyName)
 		{
 			this.Type = Type;
 			this.ProjectDir = ProjectDir;
@@ -65,7 +65,7 @@ namespace UnrealBuildTool
 		public ConfigDependencyKey(BinaryArchiveReader Reader)
 		{
 			Type = (ConfigHierarchyType)Reader.ReadInt();
-			ProjectDir = Reader.ReadDirectoryReferenceNotNull();
+			ProjectDir = Reader.ReadDirectoryReference();
 			Platform = Reader.ReadUnrealTargetPlatform();
 			SectionName = Reader.ReadString();
 			KeyName = Reader.ReadString();
