@@ -16,6 +16,11 @@
 	"EnabledByDefault": false,
 	"Plugins": [
 		{
+			"Name": "ActorLayerUtilities",
+			"Enabled": true,
+			"Optional": false
+		},
+		{
 			"Name": "EditorScriptingUtilities",
 			"Enabled": true
 		},
@@ -30,9 +35,8 @@
 			"Optional": false
 		},
 		{
-			"Name": "ActorLayerUtilities",
-			"Enabled": true,
-			"Optional": false
+			"Name": "SequencerScripting",
+			"Enabled": true
 		}
 	],
 	"Modules": [
