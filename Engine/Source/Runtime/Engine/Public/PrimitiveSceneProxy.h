@@ -907,15 +907,15 @@ private:
 	/** Whether this component has any collision enabled */
 	uint8 bCollisionEnabled : 1;
 
-	/** Whether this component can skip redundant transform updates where applicable. */
-	uint8 bCanSkipRedundantTransformUpdates : 1;
-
 	/** Whether the primitive should be treated as part of the background for occlusion purposes. */
 	uint8 bTreatAsBackgroundForOcclusion : 1;
 
 	friend class FLightPrimitiveInteraction;
 
 protected:
+
+	/** Whether this component can skip redundant transform updates where applicable. */
+	uint8 bCanSkipRedundantTransformUpdates : 1;
 
 	/** Whether this proxy's mesh is unlikely to be constantly changing. */
 	uint8 bGoodCandidateForCachedShadowmap : 1;

@@ -1543,7 +1543,12 @@ FGeometryCollectionDynamicData* UGeometryCollectionComponent::InitDynamicData(bo
 				if (SceneProxy && SceneProxy->IsNaniteMesh())
 				{
 					FNaniteGeometryCollectionSceneProxy* NaniteProxy = static_cast<FNaniteGeometryCollectionSceneProxy*>(SceneProxy);
-					NaniteProxy->OnMotionEnd();
+					ENQUEUE_RENDER_COMMAND(NaniteProxyOnMotionEnd)(
+						[NaniteProxy](FRHICommandListImmediate& RHICmdList)
+						{
+							NaniteProxy->OnMotionEnd();
+						}
+					);
 				}
 			}
 		}
@@ -1556,7 +1561,12 @@ FGeometryCollectionDynamicData* UGeometryCollectionComponent::InitDynamicData(bo
 				if (SceneProxy && SceneProxy->IsNaniteMesh())
 				{
 					FNaniteGeometryCollectionSceneProxy* NaniteProxy = static_cast<FNaniteGeometryCollectionSceneProxy*>(SceneProxy);
-					NaniteProxy->OnMotionBegin();
+					ENQUEUE_RENDER_COMMAND(NaniteProxyOnMotionBegin)(
+						[NaniteProxy](FRHICommandListImmediate& RHICmdList)
+						{
+							NaniteProxy->OnMotionBegin();
+						}
+					);
 				}
 			}
 		}

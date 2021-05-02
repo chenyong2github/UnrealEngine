@@ -360,17 +360,6 @@ public:
 protected:
 	TArray<Nanite::FResources*> Resources;
 
-	// TODO: Should probably calculate this on the materials array above instead of on the component
-	//       Null and !Opaque are assigned default material unlike the component material relevance.
-	FMaterialRelevance MaterialRelevance;
-
-	uint32 bCastShadow : 1;
-	uint32 bReverseCulling : 1;
-	uint32 bHasMaterialErrors : 1;
-	uint32 bLastUpdateWasDynamic : 1;
-
-	const UGeometryCollection* GeometryCollection = nullptr;
-
 	struct FGeometryNaniteData
 	{
 		FBoxSphereBounds RenderBounds;
@@ -378,4 +367,15 @@ protected:
 		uint32 PrimitiveId;
 	};
 	TArray<FGeometryNaniteData> GeometryNaniteData;
+
+	const UGeometryCollection* GeometryCollection = nullptr;
+
+	// TODO: Should probably calculate this on the materials array above instead of on the component
+	//       Null and !Opaque are assigned default material unlike the component material relevance.
+	FMaterialRelevance MaterialRelevance;
+
+	uint32 bCastShadow : 1;
+	uint32 bReverseCulling : 1;
+	uint32 bHasMaterialErrors : 1;
+	uint32 bCurrentlyInMotion : 1;
 };
