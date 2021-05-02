@@ -93,16 +93,22 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), GetThreadCount(Parameters.Platform));
+	}
+
+	static uint32 GetThreadCount(EShaderPlatform Platform)
+	{
+		//-TODO: Pull from shader platform info
+		return 64;
 	}
 
 	void Execute(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FRHIComputeShader* ComputeShader, uint32 NumIDs, FRHIShaderResourceView* IDToIndexTable, FRWBuffer& FreeIDList, FRWBuffer& FreeIDListSizes, uint32 FreeIDListIndex)
 	{
 		const EShaderPlatform Platform = GShaderPlatformForFeatureLevel[FeatureLevel];
-		const uint32 DDPINumThreads = FDataDrivenShaderPlatformInfo::GetNumberOfComputeThreads(Platform);
-		const uint32 THREAD_COUNT = (DDPINumThreads != 0) ? DDPINumThreads : 128;
+		const uint32 NumThreadGroups = NumIDs / GetThreadCount(Platform);
 
 		// To simplify the shader code, the size of the ID table must be a multiple of the thread count.
-		check(NumIDs % THREAD_COUNT == 0);
+		check((NumIDs - (NumThreadGroups * GetThreadCount(Platform))) == 0);
 
 		RHICmdList.SetComputeShader(ComputeShader);
 
@@ -111,7 +117,7 @@ public:
 		FreeIDListSizesParam.SetBuffer(RHICmdList, ComputeShader, FreeIDListSizes);
 		SetShaderValue(RHICmdList, ComputeShader, FreeIDListIndexParam, FreeIDListIndex);
 
-		DispatchComputeShader(RHICmdList, this, NumIDs / THREAD_COUNT, 1, 1);
+		DispatchComputeShader(RHICmdList, this, NumThreadGroups, 1, 1);
 
 		RHICmdList.SetShaderResourceViewParameter(ComputeShader, IDToIndexTableParam.GetBaseIndex(), nullptr);
 		RHICmdList.SetUAVParameter(ComputeShader, FreeIDListParam.GetUAVIndex(), nullptr);
