@@ -628,7 +628,7 @@ void FNDIPhysicsAssetProxy::PreStage(FRHICommandList& RHICmdList, const FNiagara
 
 	if (ProxyData != nullptr && ProxyData->AssetBuffer)
 	{
-		if (Context.SimulationStageIndex == 0)
+		if (Context.SimStageData->bFirstStage)
 		{
 			UpdateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(ProxyData->AssetArrays.CurrentTransform, ProxyData->AssetBuffer->CurrentTransformBuffer);
 			UpdateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(ProxyData->AssetArrays.PreviousTransform, ProxyData->AssetBuffer->PreviousTransformBuffer);

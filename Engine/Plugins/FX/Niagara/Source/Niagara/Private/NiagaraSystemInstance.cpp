@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraSystemInstance.h"
+#include "NiagaraSystemGpuComputeProxy.h"
 #include "NiagaraConstants.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataInterface.h"
@@ -105,7 +106,6 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& 
 	, bAlreadyBound(false)
 	, bLODDistanceIsValid(false)
 	, bPooled(bInPooled)
-	, bHasSimulationReset(false)
 	, CachedDeltaSeconds(0.0f)
 	, RequestedExecutionState(ENiagaraExecutionState::Complete)
 	, ActualExecutionState(ENiagaraExecutionState::Complete)
@@ -622,17 +622,11 @@ bool FNiagaraSystemInstance::DeallocateSystemInstance(TUniquePtr< FNiagaraSystem
 		}
 		SystemInstanceAllocation->UnbindParameters();
 
-		// If we have active GPU emitters make sure we remove any pending ticks from the RT
-		NiagaraEmitterInstanceBatcher* InstanceBatcher = SystemInstanceAllocation->GetBatcher();
-		if (SystemInstanceAllocation->bHasGPUEmitters)
+		// Release the render proxy
+		if (SystemInstanceAllocation->SystemGpuComputeProxy)
 		{
-			ENQUEUE_RENDER_COMMAND(NiagaraRemoveGPUSystem)
-			(
-				[InstanceBatcher, InstanceID=SystemInstanceAllocation->GetId()](FRHICommandListImmediate& RHICmdList) mutable
-				{
-					InstanceBatcher->InstanceDeallocated_RenderThread(InstanceID);
-				}
-			);
+			FNiagaraSystemGpuComputeProxy* Proxy = SystemInstanceAllocation->SystemGpuComputeProxy.Release();
+			Proxy->RemoveFromBatcher(SystemInstanceAllocation->GetBatcher(), true);
 		}
 		
 		// Queue deferred deletion from the WorldManager
@@ -681,6 +675,12 @@ void FNiagaraSystemInstance::Complete(bool bExternalCompletion)
 	}
 
 	DestroyDataInterfaceInstanceData();
+
+	if (SystemGpuComputeProxy)
+	{
+		FNiagaraSystemGpuComputeProxy* Proxy = SystemGpuComputeProxy.Release();
+		Proxy->RemoveFromBatcher(GetBatcher(), true);
+	}
 
 	if (!bPooled)
 	{
@@ -818,11 +818,25 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 		{
 			InstanceParameters.Tick();//Make sure the owner has flushed it's parameters by now. Especially it's DIs.
 			InitDataInterfaces();
+
+			// Kill the current proxy as we are reinitializing the system
+			if (SystemGpuComputeProxy.IsValid())
+			{
+				FNiagaraSystemGpuComputeProxy* Proxy = SystemGpuComputeProxy.Release();
+				Proxy->RemoveFromBatcher(GetBatcher(), true);
+			}
 		}
 
 		//Interface init can disable the system.
 		if (!IsComplete())
 		{
+			// Create the shared context for the batcher if we have a single active GPU emitter in the system
+			if (bHasGPUEmitters && !SystemGpuComputeProxy.IsValid())
+			{
+				SystemGpuComputeProxy.Reset(new FNiagaraSystemGpuComputeProxy(this));
+				SystemGpuComputeProxy->AddToBatcher(GetBatcher());
+			}
+
 			SystemSimulation->AddInstance(this);
 
 			UNiagaraSystem* System = GetSystem();
@@ -837,6 +851,9 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 				Age = 0.0f;
 				TickCount = 0;
 			}
+		}
+		else
+		{
 		}
 	}
 	else
@@ -853,7 +870,6 @@ void FNiagaraSystemInstance::ResetInternal(bool bResetSimulations)
 
 	Age = 0;
 	TickCount = 0;
-	bHasSimulationReset = bResetSimulations;
 	CachedDeltaSeconds = 0.0f;
 	bLODDistanceIsValid = false;
 	TotalGPUParamSize = 0;
@@ -989,7 +1005,6 @@ void FNiagaraSystemInstance::ReInitInternal()
 
 	Age = 0;
 	TickCount = 0;
-	bHasSimulationReset = true;
 	LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
 	CachedDeltaSeconds = 0.0f;
 	bAlreadyBound = false;
@@ -1106,6 +1121,12 @@ void FNiagaraSystemInstance::Cleanup()
 	check(!FinalizeRef.IsPending());
 
 	DestroyDataInterfaceInstanceData();
+
+	if (SystemGpuComputeProxy)
+	{
+		FNiagaraSystemGpuComputeProxy* Proxy = SystemGpuComputeProxy.Release();
+		Proxy->RemoveFromBatcher(GetBatcher(), true);
+	}
 
 	UnbindParameters();
 
@@ -1992,12 +2013,6 @@ void FNiagaraSystemInstance::InitEmitters()
 			}
 		}
 
-		// Create the shared context for the batcher if we have a single active GPU emitter in the system
-		if (bHasGPUEmitters)
-		{
-			SharedContext.Reset(new FNiagaraComputeSharedContext());
-		}
-
 		if (System->bFixedBounds)
 		{
 			LocalBounds = System->GetFixedBounds();
@@ -2325,11 +2340,10 @@ void FNiagaraSystemInstance::GenerateAndSubmitGPUTick()
 		// We no longer own it and cannot modify it after this point.
 		// @todo We are taking a copy of the object here. This object is small so this overhead should
 		// not be very high. And we avoid making a bunch of small allocations here.
-		NiagaraEmitterInstanceBatcher* TheBatcher = GetBatcher();
 		ENQUEUE_RENDER_COMMAND(FNiagaraGiveSystemInstanceTickToRT)(
-			[TheBatcher, GPUTick](FRHICommandListImmediate& RHICmdList) mutable
+			[RT_Proxy=SystemGpuComputeProxy.Get(), GPUTick](FRHICommandListImmediate& RHICmdList) mutable
 			{
-				TheBatcher->GiveSystemTick_RenderThread(GPUTick);
+				RT_Proxy->QueueTick(GPUTick);
 			}
 		);
 	}
@@ -2338,6 +2352,7 @@ void FNiagaraSystemInstance::GenerateAndSubmitGPUTick()
 void FNiagaraSystemInstance::InitGPUTick(FNiagaraGPUSystemTick& OutTick)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraInitGPUSystemTick);
+	check(SystemGpuComputeProxy.IsValid());
 	OutTick.Init(this);
 
 	//if (GPUTick.DIInstanceData)
@@ -2381,19 +2396,6 @@ bool FNiagaraSystemInstance::GetIsolateEnabled() const
 
 void FNiagaraSystemInstance::DestroyDataInterfaceInstanceData()
 {
-	NiagaraEmitterInstanceBatcher* InstanceBatcher = GetBatcher();
-	if (bHasGPUEmitters && FNiagaraUtilities::AllowGPUParticles(InstanceBatcher->GetShaderPlatform()))
-	{
-		ENQUEUE_RENDER_COMMAND(NiagaraRemoveGPUSystem)
-		(
-			[InstanceBatcher, InstanceID=GetId()](FRHICommandListImmediate& RHICmdList) mutable
-			{
-				InstanceBatcher->InstanceDeallocated_RenderThread(InstanceID);
-			}
-		);
-	}
-
-	//
 	for (TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& Pair : DataInterfaceInstanceDataOffsets)
 	{
 		if (UNiagaraDataInterface* Interface = Pair.Key.Get())

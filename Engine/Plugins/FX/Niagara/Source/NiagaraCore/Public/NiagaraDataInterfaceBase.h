@@ -22,6 +22,7 @@ class FRHICommandList;
 struct FNiagaraDataInterfaceProxy;
 class NiagaraEmitterInstanceBatcher;
 struct FNiagaraComputeInstanceData;
+struct FNiagaraSimStageData;
 
 DECLARE_EXPORTED_TEMPLATE_INTRINSIC_TYPE_LAYOUT(template<>, TIndexedPtr<UNiagaraDataInterfaceBase>, NIAGARACORE_API);
 
@@ -41,17 +42,17 @@ struct FNiagaraDataInterfaceArgs
 
 struct FNiagaraDataInterfaceStageArgs : public FNiagaraDataInterfaceArgs
 {
-	FNiagaraDataInterfaceStageArgs(FNiagaraDataInterfaceProxy* InDataInterface, FNiagaraSystemInstanceID InSystemInstanceID, const NiagaraEmitterInstanceBatcher* InBatcher, const FNiagaraComputeInstanceData* InComputeInstanceData, uint32 InSimulationStageIndex, bool InIsOutputStage, bool InIsIterationStage)
+	FNiagaraDataInterfaceStageArgs(FNiagaraDataInterfaceProxy* InDataInterface, FNiagaraSystemInstanceID InSystemInstanceID, const NiagaraEmitterInstanceBatcher* InBatcher, const FNiagaraComputeInstanceData* InComputeInstanceData, const FNiagaraSimStageData* InSimStageData, bool InIsOutputStage, bool InIsIterationStage)
 		: FNiagaraDataInterfaceArgs(InDataInterface, InSystemInstanceID, InBatcher)
 		, ComputeInstanceData(InComputeInstanceData)
-		, SimulationStageIndex(InSimulationStageIndex)
+		, SimStageData(InSimStageData)
 		, IsOutputStage(InIsOutputStage)
 		, IsIterationStage(InIsIterationStage)
 	{
 	}
 
 	const FNiagaraComputeInstanceData* ComputeInstanceData;
-	uint32 SimulationStageIndex;
+	const FNiagaraSimStageData* SimStageData;
 	bool IsOutputStage;
 	bool IsIterationStage;
 };
@@ -61,11 +62,11 @@ struct FNiagaraDataInterfaceSetArgs : public FNiagaraDataInterfaceArgs
 	typedef TShaderRefBase<FNiagaraShader, FNiagaraShaderMapPointerTable> FShaderReference;
 
 	FNiagaraDataInterfaceSetArgs(
-		FNiagaraDataInterfaceProxy* InDataInterface, FNiagaraSystemInstanceID InSystemInstanceID, const NiagaraEmitterInstanceBatcher* InBatcher, const FShaderReference& InShader, const FNiagaraComputeInstanceData* InComputeInstanceData, uint32 InSimulationStageIndex, bool InIsOutputStage, bool InIsIterationStage)
+		FNiagaraDataInterfaceProxy* InDataInterface, FNiagaraSystemInstanceID InSystemInstanceID, const NiagaraEmitterInstanceBatcher* InBatcher, const FShaderReference& InShader, const FNiagaraComputeInstanceData* InComputeInstanceData, const FNiagaraSimStageData* InSimStageData, bool InIsOutputStage, bool InIsIterationStage)
 		: FNiagaraDataInterfaceArgs(InDataInterface, InSystemInstanceID, InBatcher)
 		, Shader(InShader)
 		, ComputeInstanceData(InComputeInstanceData)
-		, SimulationStageIndex(InSimulationStageIndex)
+		, SimStageData(InSimStageData)
 		, IsOutputStage(InIsOutputStage)
 		, IsIterationStage(InIsIterationStage)
 	{
@@ -73,7 +74,7 @@ struct FNiagaraDataInterfaceSetArgs : public FNiagaraDataInterfaceArgs
 
 	FShaderReference Shader;
 	const FNiagaraComputeInstanceData* ComputeInstanceData;
-	uint32 SimulationStageIndex;
+	const FNiagaraSimStageData* SimStageData;
 	bool IsOutputStage;
 	bool IsIterationStage;
 };

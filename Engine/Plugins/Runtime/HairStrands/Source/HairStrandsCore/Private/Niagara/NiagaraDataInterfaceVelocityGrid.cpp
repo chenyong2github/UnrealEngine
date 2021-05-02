@@ -631,7 +631,7 @@ void FNDIVelocityGridProxy::PreStage(FRHICommandList& RHICmdList, const FNiagara
 
 	if (ProxyData != nullptr )
 	{
-		if (Context.SimulationStageIndex == 0)
+		if (Context.SimStageData->bFirstStage)
 		{
 			ClearBuffer(RHICmdList, ProxyData->DestinationGridBuffer);
 		}

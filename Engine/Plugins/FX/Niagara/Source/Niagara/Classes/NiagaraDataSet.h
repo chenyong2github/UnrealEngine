@@ -103,14 +103,19 @@ protected:
 class NIAGARA_API FNiagaraDataBuffer : public FNiagaraSharedObject
 {
 	friend class FScopedNiagaraDataSetGPUReadback;
+	friend class NiagaraEmitterInstanceBatcher;
+	
 protected:
 	virtual ~FNiagaraDataBuffer();
 
 public:
 	FNiagaraDataBuffer(FNiagaraDataSet* InOwner);
 	void Allocate(uint32 NumInstances, bool bMaintainExisting = false);
-	void AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceCountManager& GPUInstanceCountManager, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName);
+
+	void AllocateGPU(FRHICommandList& RHICmdList, uint32 InNumInstances, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName);
+	void AliasGPU(FNiagaraDataBuffer* BufferToAlias);
 	void ReleaseGPU();
+
 	void SwapInstances(uint32 OldIndex, uint32 NewIndex);
 	void KillInstance(uint32 InstanceIdx);
 	void CopyTo(FNiagaraDataBuffer& DestBuffer, int32 SrcStartIdx, int32 DestStartIdx, int32 NumInstances)const;
@@ -183,11 +188,14 @@ public:
 	static void SetOutputShaderParams(FRHICommandList& RHICmdList, class FNiagaraShader* Shader, FNiagaraDataBuffer* Buffer);
 	static void UnsetShaderParams(FRHICommandList& RHICmdList, class FNiagaraShader* Shader);
 
-	void ReleaseGPUInstanceCount(FNiagaraGPUInstanceCountManager& GPUInstanceCountManager);
+	void ClearGPUInstanceCount()
+	{
+		GPUInstanceCountBufferOffset = INDEX_NONE;
+	}
 
 	void BuildRegisterTable();
-private:
 
+private:
 	FORCEINLINE void CheckUsage(bool bReadOnly)const;
 
 	FORCEINLINE int32 GetSafeComponentBufferSize(int32 RequiredSize) const
@@ -225,6 +233,9 @@ private:
 	FRWBuffer GPUIDToIndexTable;
 	/** GPU Buffer containing half values for GPU simulations. */
 	FRWBuffer GPUBufferHalf;
+#if NIAGARA_MEMORY_TRACKING
+	int32 AllocationSizeBytes = 0;
+#endif
 	//////////////////////////////////////////////////////////////////////////
 
 	/** Number of instances in data. */
@@ -373,9 +384,6 @@ public:
 		check(DestinationData);
 		return *DestinationData;
 	}
-
-	/** Release the GPU instance counts so that they can be reused */
-	void ReleaseGPUInstanceCounts(FNiagaraGPUInstanceCountManager& GPUInstanceCountManager);
 
 	void AllocateGPUFreeIDs(uint32 InNumInstances, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName);
 

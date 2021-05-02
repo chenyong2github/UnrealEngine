@@ -19,6 +19,6 @@ void InitIDBufferCS(uint Index : SV_DispatchThreadID)
 	else
 	{
 		// Copy existing IDs after the new IDs.
-		RWNewBuffer[Index.x] = ExistingBuffer[Index.x];
+		RWNewBuffer[Index.x] = ExistingBuffer[Index.x - NumNewElements];
 	}
 }
