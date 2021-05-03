@@ -1061,7 +1061,7 @@ uint32 FD3D12CommandListManager::GetResourceBarrierCommandList(FBarrierDescInfo&
 			}
 		}
 
-		if (BarrierDescs.Num())
+		if (InBarrierDescInfo.BarrierDescs.Num())
 #else
 		InBarrierDescInfo.BarrierDescs.Append(InBarrierDescInfo.BackBufferBarrierDescs);
 		InBarrierDescInfo.BackBufferBarrierDescs.Empty();
