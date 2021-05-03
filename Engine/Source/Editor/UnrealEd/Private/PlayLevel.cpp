@@ -173,6 +173,8 @@ void UEditorEngine::EndPlayMap()
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(UEditorEngine::EndPlayMap);
+
 	TGuardValue<bool> GuardIsEndingPlay(bIsEndingPlay, true);
 
 	FEditorDelegates::PrePIEEnded.Broadcast( bIsSimulatingInEditor );
