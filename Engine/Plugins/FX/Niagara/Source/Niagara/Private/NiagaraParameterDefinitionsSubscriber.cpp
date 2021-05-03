@@ -7,7 +7,7 @@
 #include "NiagaraParameterDefinitionsBase.h"
 #include "NiagaraScriptSourceBase.h"
 
-
+#if WITH_EDITORONLY_DATA
 void INiagaraParameterDefinitionsSubscriber::InitParameterDefinitionsSubscriptions()
 {
 	for (UNiagaraParameterDefinitionsBase* ParameterDefinitions : GetSubscribedParameterDefinitions())
@@ -170,3 +170,4 @@ void INiagaraParameterDefinitionsSubscriber::MarkSubscribedParameterDefinitionsS
 		Subscription.CachedChangeIdHash = Subscription.ParameterDefinitions->GetChangeIdHash();
 	}
 }
+#endif

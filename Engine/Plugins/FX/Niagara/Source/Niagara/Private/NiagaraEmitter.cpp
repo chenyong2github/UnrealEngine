@@ -1037,6 +1037,7 @@ void UNiagaraEmitter::HandleVariableRemoved(const FNiagaraVariable& InOldVariabl
 }
 #endif
 
+#if WITH_EDITORONLY_DATA
 TArray<UNiagaraScriptSourceBase*> UNiagaraEmitter::GetAllSourceScripts()
 {
 	TArray<UNiagaraScriptSourceBase*> OutScriptSources;
@@ -1058,6 +1059,7 @@ TArray<UNiagaraEditorParametersAdapterBase*> UNiagaraEmitter::GetEditorOnlyParam
 {
 	return { GetEditorParameters() };
 }
+#endif
 
 bool UNiagaraEmitter::IsEnabledOnPlatform(const FString& PlatformName)const
 {
