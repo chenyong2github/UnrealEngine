@@ -261,6 +261,9 @@ struct CORE_API FGenericPlatformProcess
 	/** Get the user temporary directory.  NOTE: Only one return value is valid at a time! **/
 	static const TCHAR *UserTempDir();
 
+	/** Get the user home directory.  NOTE: Only one return value is valid at a time! **/
+	static const TCHAR *UserHomeDir();
+
 	/** Get application settings directory.  NOTE: Only one return value is valid at a time! **/
 	static const TCHAR* ApplicationSettingsDir();
 
