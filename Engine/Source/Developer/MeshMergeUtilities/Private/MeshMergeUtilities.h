@@ -76,8 +76,9 @@ protected:
 	  * @warning This is a destructive operation for InOutBakeOutputs
 	  */
 	void TransferOutputToFlatMaterials(const TArray<FMaterialData>& InMaterialData, TArray<FBakeOutput>& InOutBakeOutputs, TArray<FFlattenMaterial> &OutFlattenedMaterials) const;
-	/** Converts new material property value to old legacy enum values */
-	EFlattenMaterialProperties NewToOldProperty(int32 OldProperty) const;
+
+	/** Converts material property enum value to flatten material property */
+	EFlattenMaterialProperties ToFlattenProperty(EMaterialProperty MaterialProperty) const;
 private:
 	FProxyGenerationProcessor* Processor;
 	FDelegateHandle ModuleLoadedDelegateHandle;

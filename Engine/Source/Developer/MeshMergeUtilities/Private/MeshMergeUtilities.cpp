@@ -537,7 +537,7 @@ void FMeshMergeUtilities::ConvertOutputToFlatMaterials(const TArray<FBakeOutput>
 
 		for (TPair<EMaterialProperty, FIntPoint> SizePair : Output.PropertySizes)
 		{
-			EFlattenMaterialProperties OldProperty = NewToOldProperty(SizePair.Key);
+			EFlattenMaterialProperties OldProperty = ToFlattenProperty(SizePair.Key);
 			Material.SetPropertySize(OldProperty, SizePair.Value);
 			Material.GetPropertySamples(OldProperty).Append(Output.PropertyData[SizePair.Key]);
 		}
@@ -566,7 +566,7 @@ void FMeshMergeUtilities::TransferOutputToFlatMaterials(const TArray<FMaterialDa
 
 		for (TPair<EMaterialProperty, FIntPoint> SizePair : Output.PropertySizes)
 		{
-			EFlattenMaterialProperties OldProperty = NewToOldProperty(SizePair.Key);
+			EFlattenMaterialProperties OldProperty = ToFlattenProperty(SizePair.Key);
 			Material.SetPropertySize(OldProperty, SizePair.Value);
 			Material.GetPropertySamples(OldProperty) = MoveTemp(Output.PropertyData[SizePair.Key]);
 		}
@@ -578,30 +578,23 @@ void FMeshMergeUtilities::TransferOutputToFlatMaterials(const TArray<FMaterialDa
 	}
 }
 
-EFlattenMaterialProperties FMeshMergeUtilities::NewToOldProperty(int32 NewProperty) const
+EFlattenMaterialProperties FMeshMergeUtilities::ToFlattenProperty(EMaterialProperty MaterialProperty) const
 {
-	const EFlattenMaterialProperties Remap[MP_Refraction] =
+	switch (MaterialProperty)
 	{
-		EFlattenMaterialProperties::Emissive,
-		EFlattenMaterialProperties::Opacity,
-		EFlattenMaterialProperties::OpacityMask,
-		EFlattenMaterialProperties::NumFlattenMaterialProperties,
-		EFlattenMaterialProperties::NumFlattenMaterialProperties,
-		EFlattenMaterialProperties::Diffuse,
-		EFlattenMaterialProperties::Metallic,
-		EFlattenMaterialProperties::Specular,
-		EFlattenMaterialProperties::Roughness,
-		EFlattenMaterialProperties::Anisotropy,
-		EFlattenMaterialProperties::Normal,
-		EFlattenMaterialProperties::Tangent,
-		EFlattenMaterialProperties::NumFlattenMaterialProperties,
-		EFlattenMaterialProperties::NumFlattenMaterialProperties,
-		EFlattenMaterialProperties::NumFlattenMaterialProperties,
-		EFlattenMaterialProperties::NumFlattenMaterialProperties,
-		EFlattenMaterialProperties::AmbientOcclusion
-	};
-	
-	return Remap[NewProperty];
+	case EMaterialProperty::MP_BaseColor:			return EFlattenMaterialProperties::Diffuse;
+	case EMaterialProperty::MP_Metallic:			return EFlattenMaterialProperties::Metallic;
+	case EMaterialProperty::MP_Specular:			return EFlattenMaterialProperties::Specular;
+	case EMaterialProperty::MP_Roughness:			return EFlattenMaterialProperties::Roughness;
+	case EMaterialProperty::MP_Anisotropy:			return EFlattenMaterialProperties::Anisotropy;
+	case EMaterialProperty::MP_Normal:				return EFlattenMaterialProperties::Normal;
+	case EMaterialProperty::MP_Tangent:				return EFlattenMaterialProperties::Tangent;
+	case EMaterialProperty::MP_Opacity:				return EFlattenMaterialProperties::Opacity;
+	case EMaterialProperty::MP_EmissiveColor:		return EFlattenMaterialProperties::Emissive;
+	case EMaterialProperty::MP_OpacityMask:			return EFlattenMaterialProperties::OpacityMask;
+	case EMaterialProperty::MP_AmbientOcclusion:	return EFlattenMaterialProperties::AmbientOcclusion;
+	default:										return EFlattenMaterialProperties::NumFlattenMaterialProperties;
+	}
 }
 
 UMaterialOptions* FMeshMergeUtilities::PopulateMaterialOptions(const FMaterialProxySettings& MaterialSettings) const
@@ -2655,7 +2648,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		{
 			if (Entry.Property != MP_MAX)
 			{
-				EFlattenMaterialProperties OldProperty = NewToOldProperty(Entry.Property);
+				EFlattenMaterialProperties OldProperty = ToFlattenProperty(Entry.Property);
 				OutMaterial.SetPropertySize(OldProperty, Entry.bUseCustomSize ? Entry.CustomSize : MaterialOptions->TextureSize);
 			}
 		}
