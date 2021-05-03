@@ -6,7 +6,8 @@
 #include "LevelSnapshotsStats.h"
 #include "WorldSnapshotData.h"
 
-#include "Serialization/ArchiveSerializedPropertyChain.h"
+#include "Components/ActorComponent.h"
+#include "GameFramework/Actor.h"
 #include "Serialization/ObjectReader.h"
 #include "Serialization/ObjectWriter.h"
 
@@ -30,6 +31,15 @@ namespace
 
 		virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
 		{
+			if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(InProperty))
+			{
+				const bool bIsSubobject = InProperty->HasAnyPropertyFlags(CPF_InstancedReference | CPF_ContainsInstancedReference | CPF_PersistentInstance);
+				const bool bIsWorldPointer = ObjectProperty->PropertyClass->IsInA(AActor::StaticClass()) || ObjectProperty->PropertyClass->IsInA(UActorComponent::StaticClass());
+				if (bIsSubobject || bIsWorldPointer)
+				{
+					return false;
+				}
+			}
 			return !PropertiesToSerialize.ShouldSerializeProperty(GetSerializedPropertyChain(), InProperty);
 		}
 	};
@@ -41,8 +51,8 @@ void FApplySnapshotDataArchiveV2::ApplyToExistingWorldObject(FObjectSnapshotData
 	// Hence, we serialise in two steps:
 
 	
-	// Step 1: Serialise any properties that were different from CDO at time of snapshotting and that are different now
-	// Most UObject references will be handled here:
+	// Step 1: Serialise  properties that were different from CDO at time of snapshotting and that are still different from CDO
+	// Most UObject are handled here: world pointers (to Actors and Components) and most asset pointers (material, data assets, etc.). UObject references are a special case: object references were saved even if the value was the same as the CDO. This is done to avoid copy-pasting errors in step 2.
 		// - Subobject references are handled here
 		// - References to other actors in the world are handled here
 	FApplySnapshotDataArchiveV2 ApplySavedData(InObjectData, InSharedData, InOriginalObject, InSelectionSet);
@@ -52,10 +62,7 @@ void FApplySnapshotDataArchiveV2::ApplyToExistingWorldObject(FObjectSnapshotData
 	
 	// Step 2: Serialise any remaining properties that were not covered: properties that were the equal to the CDO value when the snapshot was taken, but now are different from the CDO.
 	// For this step, we indirectly use the CDO values saved in the snapshot: we copy over all remaining properties from the deserialized version.
-	// 
-	// Most UObject references were covered in step 1.
-		// - CDO was nullptr and level property is non-nullptr
-		// - CDO was asset reference and level property now has different asset reference
+	// The only UObject properties handled here are external references to e.g. materials or data assets. Example: the reference in CDO when snapshot was taken was different from the reference in current CDO.
 	const FPropertySelection& PropertiesLeftToSerialise = ApplySavedData.PropertiesLeftToSerialize;
 	if (!PropertiesLeftToSerialise.IsEmpty())
 	{

@@ -61,7 +61,8 @@ private:
 	void FilterComponentPair(FPropertySelectionMap& MapToAddTo, UActorComponent* SnapshotComponent, UActorComponent* WorldComponent);
 	void FilterStructPair(FPropertyContainerContext& Parent, FStructProperty* StructProperty);
 
-	void AnalyseProperties(FPropertyContainerContext& ContainerContext);
+	void AnalyseRootProperties(FPropertyContainerContext& ContainerContext, UObject* SnapshotObject, UObject* WorldObject);
+	void AnalyseStructProperties(FPropertyContainerContext& ContainerContext);
 	void HandleStructProperties(FPropertyContainerContext& ContainerContext, FProperty* PropertyToHandle);
 	
 	enum ECheckSubproperties

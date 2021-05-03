@@ -54,7 +54,7 @@ namespace EBlueprintPropertyType
 
 /* Allows a property if it is of a certain type. */
 UCLASS()
-class UPropertyTypeFilter : public ULevelSnapshotFilter
+class LEVELSNAPSHOTFILTERS_API UPropertyTypeFilter : public ULevelSnapshotFilter
 {
 	GENERATED_BODY()
 public:
