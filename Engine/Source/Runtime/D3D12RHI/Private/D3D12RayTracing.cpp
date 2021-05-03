@@ -1747,7 +1747,7 @@ public:
 		}
 	}
 
-	void CopyToGPU(FD3D12Device* Device)
+	void CopyToGPU(FD3D12CommandContext& CommandContext)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ShaderTableCopyToGPU);
 
@@ -1755,6 +1755,7 @@ public:
 
 		checkf(Data.Num(), TEXT("Shader table is expected to be initialized before copying to GPU."));
 
+		FD3D12Device* Device = CommandContext.GetParentDevice();
 		FD3D12Adapter* Adapter = Device->GetParentAdapter();
 		D3D12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(Data.GetResourceDataSize(), D3D12_RESOURCE_FLAG_NONE, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
 		FRHIGPUMask GPUMask = FRHIGPUMask::FromIndex(Device->GetGPUIndex());
@@ -1762,12 +1763,16 @@ public:
 
 		ID3D12ResourceAllocator* ResourceAllocator = nullptr;
 		Buffer = Adapter->CreateRHIBuffer(
-			BufferDesc, BufferDesc.Alignment, 0, BufferDesc.Width, BUF_Static, ED3D12ResourceStateMode::SingleState, 
-			D3D12_RESOURCE_STATE_GENERIC_READ, bHasInitialData, GPUMask, ResourceAllocator, TEXT("Shader binding table"));
+			BufferDesc, BufferDesc.Alignment, 0, BufferDesc.Width, BUF_Static, ED3D12ResourceStateMode::MultiState,
+			D3D12_RESOURCE_STATE_COPY_DEST, bHasInitialData, GPUMask, ResourceAllocator, TEXT("Shader binding table"));
 
-		// providing nullprt immidiate command least means execute on default command list
-		FRHICommandListImmediate* RHICmdList = nullptr;
-		Buffer->UploadResourceData(RHICmdList, &Data, D3D12_RESOURCE_STATE_GENERIC_READ);
+		// Use copy queue for uploading the data
+		FD3D12SyncPoint CopyQueueSyncPoint = Buffer->UploadResourceDataViaCopyQueue(&Data);
+		CommandContext.CopyQueueSyncPoint.Merge(CopyQueueSyncPoint);
+
+		// Enqueue transition to SRV
+		FD3D12DynamicRHI::TransitionResource(CommandContext.CommandListHandle, Buffer->GetResource(),
+			D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, 0, FD3D12DynamicRHI::ETransitionMode::Apply);
 
 		bIsDirty = false;
 	}
@@ -4617,7 +4622,7 @@ void FD3D12CommandContext::RHIRayTraceOcclusion(FRHIRayTracingScene* InScene,
 
 	if (ShaderTable.bIsDirty)
 	{
-		ShaderTable.CopyToGPU(GetParentDevice());
+		ShaderTable.CopyToGPU(*this);
 	}
 
 	Scene->UpdateResidency(*this);
@@ -4654,7 +4659,7 @@ void FD3D12CommandContext::RHIRayTraceIntersection(FRHIRayTracingScene* InScene,
 
 	if (ShaderTable.bIsDirty)
 	{
-		ShaderTable.CopyToGPU(GetParentDevice());
+		ShaderTable.CopyToGPU(*this);
 	}
 
 	Scene->UpdateResidency(*this);
@@ -4691,7 +4696,7 @@ void FD3D12CommandContext::RHIRayTraceDispatch(FRHIRayTracingPipelineState* InRa
 
 	if (ShaderTable->bIsDirty)
 	{
-		ShaderTable->CopyToGPU(GetParentDevice());
+		ShaderTable->CopyToGPU(*this);
 	}
 
 	Scene->UpdateResidency(*this);
@@ -4727,7 +4732,7 @@ void FD3D12CommandContext::RHIRayTraceDispatchIndirect(FRHIRayTracingPipelineSta
 
 	if (ShaderTable->bIsDirty)
 	{
-		ShaderTable->CopyToGPU(GetParentDevice());
+		ShaderTable->CopyToGPU(*this);
 	}
 
 	Scene->UpdateResidency(*this);

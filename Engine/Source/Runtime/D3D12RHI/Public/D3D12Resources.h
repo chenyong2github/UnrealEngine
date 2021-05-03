@@ -346,7 +346,7 @@ private:
 		}
 		else
 		{
-			DetermineResourceStates(InDefaultState);
+			DetermineResourceStates(InDefaultState, InResourceStateMode);
 		}
 
 		if (bRequiresResourceStateTracking)
@@ -362,7 +362,7 @@ private:
 		}
 	}
 
-	void DetermineResourceStates(D3D12_RESOURCE_STATES InDefaultState)
+	void DetermineResourceStates(D3D12_RESOURCE_STATES InDefaultState, ED3D12ResourceStateMode InResourceStateMode)
 	{
 		const FD3D12ResourceTypeHelper Type(Desc, HeapType);
 
@@ -372,7 +372,7 @@ private:
 		SetCompressedState(D3D12_RESOURCE_STATE_COMMON);
 #endif
 
-		if (Type.bWritable)
+		if (Type.bWritable || InResourceStateMode == ED3D12ResourceStateMode::MultiState)
 		{
 			// Determine the resource's write/read states.
 			if (Type.bRTV)
@@ -390,52 +390,29 @@ private:
 			}
 			else
 			{
-				check(Type.bUAV && !Type.bRTV && !Type.bDSV);
-				WritableState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+				WritableState = Type.bUAV ? D3D12_RESOURCE_STATE_UNORDERED_ACCESS : D3D12_RESOURCE_STATE_CORRUPT;
 				ReadableState = Type.bSRV ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_CORRUPT;
-			}
-		}
-
-		if (Type.bBuffer)
-		{
-			if (!Type.bWritable)
-			{
-				// Buffer used for input, like Vertex/Index buffer.
-				// Don't bother tracking state for this resource.
-#if UE_BUILD_DEBUG
-				FPlatformAtomics::InterlockedIncrement(&NoStateTrackingResourceCount);
-#endif
-				if (InDefaultState != D3D12_RESOURCE_STATE_TBD)
-				{
-					DefaultResourceState = InDefaultState;
-				}
-				else
-				{
-					DefaultResourceState = (HeapType == D3D12_HEAP_TYPE_READBACK) ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_GENERIC_READ;
-				}
-				bRequiresResourceStateTracking = false;
-				return;
 			}
 		}
 		else
 		{
-			if (Type.bSRVOnly)
-			{
-				// Texture used only as a SRV.
-				// Don't bother tracking state for this resource.
+			bRequiresResourceStateTracking = false;
+						
 #if UE_BUILD_DEBUG
-				FPlatformAtomics::InterlockedIncrement(&NoStateTrackingResourceCount);
+			FPlatformAtomics::InterlockedIncrement(&NoStateTrackingResourceCount);
 #endif
-				if (InDefaultState != D3D12_RESOURCE_STATE_TBD)
-				{
-					DefaultResourceState = InDefaultState;
-				}
-				else
-				{
-					DefaultResourceState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-				}
-				bRequiresResourceStateTracking = false;
-				return;
+			if (InDefaultState != D3D12_RESOURCE_STATE_TBD)
+			{
+				DefaultResourceState = InDefaultState;
+			}
+			else if (Type.bBuffer)
+			{
+				DefaultResourceState = (HeapType == D3D12_HEAP_TYPE_READBACK) ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_GENERIC_READ;
+			}
+			else
+			{
+				check(Type.bSRVOnly);
+				DefaultResourceState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 			}
 		}
 	}

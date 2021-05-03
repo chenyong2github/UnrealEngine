@@ -263,12 +263,10 @@ void FD3D12PoolAllocator::AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHe
 		// Ensure we're allocating from the correct pool
 		if (bPlacedResource)
 		{
-			// Writeable resources get separate ID3D12Resource* with their own resource state by using placed resources. Just make sure it's UAV, other flags are free to differ.
-			check(InDesc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER || (InDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0 || InHeapType == D3D12_HEAP_TYPE_READBACK);
-
 			// If it's a placed resource then base offset will always be 0 from the actual d3d resource so ignore the allocation alignment - no extra offset required
 			// for creating the views!
 			check(InAllocationAlignment <= PoolAlignment);
+			check(InDesc.Alignment <= PoolAlignment);
 			AllocationAlignment = PoolAlignment;
 		}
 		else
@@ -319,8 +317,11 @@ void FD3D12PoolAllocator::AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHe
 		else
 		{
 			check(ResourceLocation.GetResource() == nullptr);
+			
+			D3D12_RESOURCE_DESC Desc = InDesc;
+			Desc.Alignment = AllocationAlignment;
 
-			FD3D12Resource* NewResource = CreatePlacedResource(AllocationData, InDesc, InCreateState, InResourceStateMode, InClearValue, InName);
+			FD3D12Resource* NewResource = CreatePlacedResource(AllocationData, Desc, InCreateState, InResourceStateMode, InClearValue, InName);
 			ResourceLocation.SetResource(NewResource);
 			ResourceLocation.SetGPUVirtualAddress(NewResource->GetGPUVirtualAddress());
 		}
