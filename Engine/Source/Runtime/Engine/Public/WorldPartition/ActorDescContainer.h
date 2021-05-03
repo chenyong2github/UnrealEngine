@@ -65,7 +65,7 @@ protected:
 	bool ShouldHandleActorEvent(const AActor* Actor);
 
 	TMap<FGuid, FWorldPartitionReference> PinnedActors;
-	TMap<FGuid, TArray<FWorldPartitionReference>> PinnedActorRefs;
+	TMap<FGuid, TMap<FGuid, FWorldPartitionReference>> PinnedActorRefs;
 	
 	bool bContainerInitialized;
 
