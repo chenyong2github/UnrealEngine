@@ -107,7 +107,10 @@ private:
 	static TSharedRef<FSceneOutlinerFilter> CreateHideUnloadedActorsFilter();
 	
 	void ToggleActorSCCStatusColumn();
-	bool isActorSCCStatusColumnActive() const { return bActorSCCStatusColumnActive; }
+	bool IsActorSCCStatusColumnActive() const { return bActorSCCStatusColumnActive; }
+
+	void TogglePinnedColumn();
+	bool IsPinnedColumnActive() const { return bPinnedColumnActive; }
 private:
 	/** Number of actors which have passed through the filters */
 	uint32 FilteredActorCount = 0;
@@ -115,4 +118,5 @@ private:
 	TSet<TWeakObjectPtr<AActor>> ApplicableActors;
 
 	bool bActorSCCStatusColumnActive = false;
+	bool bPinnedColumnActive = false;
 };

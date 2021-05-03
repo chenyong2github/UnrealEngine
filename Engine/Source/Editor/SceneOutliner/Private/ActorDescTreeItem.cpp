@@ -274,4 +274,13 @@ bool FActorDescTreeItem::GetVisibility() const
 	return true;
 }
 
+bool FActorDescTreeItem::GetPinnedState() const
+{
+	if (ActorDescHandle.IsValid())
+	{
+		return ActorDescHandle.GetActorDescContainer()->IsActorPinned(GetGuid());
+	}
+	return false;
+}
+
 #undef LOCTEXT_NAMESPACE

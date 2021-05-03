@@ -18,6 +18,7 @@
 #include "Logging/MessageLog.h"
 #include "SSocketChooser.h"
 #include "LevelInstance/LevelInstanceActor.h"
+#include "WorldPartition/WorldPartition.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActorTreeItem"
 
@@ -393,6 +394,22 @@ bool FActorTreeItem::GetVisibility() const
 {
 	// We want deleted actors to appear as if they are visible to minimize visual clutter.
 	return !Actor.IsValid() || !Actor->IsTemporarilyHiddenInEditor(true);
+}
+
+bool FActorTreeItem::GetPinnedState() const
+{
+	if (Actor.IsValid())
+	{
+		if (const UWorld* const World = Actor->GetWorld())
+		{
+			if (const UWorldPartition* const WorldPartition = World->GetWorldPartition())
+			{
+				return WorldPartition->IsActorPinned(Actor->GetActorGuid());
+			}
+		}
+	}
+
+	return false;
 }
 
 void FActorTreeItem::OnLabelChanged()

@@ -46,6 +46,12 @@ struct FSceneOutlinerBuiltInColumnTypes
 		static FName SourceControl("SourceControl");
 		return SourceControl;
 	}
+
+	static FName& Pinned()
+	{
+		static FName Pinned("Pinned");
+		return Pinned;
+	}
 };
 
 /** Visibility enum for scene outliner columns */

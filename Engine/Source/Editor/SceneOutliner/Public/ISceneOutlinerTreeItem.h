@@ -147,6 +147,15 @@ public:
 	/** Query this items visibility state. Only called if the item type has visibility info */
 	virtual bool GetVisibility() const { return false; }
 
+	/** Returns true if this item should show pinned state */
+	virtual bool ShouldShowPinnedState() const { return false; }
+
+	/** Returns true if this item can set its own pinned state */
+	virtual bool HasPinnedStateInfo() const { return false; }
+
+	/** Query the pinned staet of this item. Only called if the item has its own pinned state info */
+	virtual bool GetPinnedState() const { return false; }
+
 	/** Called when this item's label has changed */
 	virtual void OnLabelChanged() {}
 };

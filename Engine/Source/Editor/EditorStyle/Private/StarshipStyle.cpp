@@ -1172,6 +1172,11 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 		Set( "SceneOutliner.World", 		new CORE_IMAGE_BRUSH_SVG("Starship/Common/world", Icon16x16 ) );
 		Set( "SceneOutliner.ChangedItemHighlight", new FSlateRoundedBoxBrush( FStyleColors::White, 1.0) );
 
+		Set("SceneOutliner.PinnedHighlighIcon", new IMAGE_BRUSH( "Icons/icon_Blueprint_CommentBubblePin_16x", Icon10x10));
+		Set("SceneOutliner.PinnedIcon", new IMAGE_BRUSH( "Icons/icon_Blueprint_CommentBubblePin_16x", Icon10x10));
+		Set("SceneOutliner.UnpinnedHighlighIcon", new IMAGE_BRUSH( "Icons/icon_Blueprint_CommentBubbleUnPin_16x", Icon10x10));
+		Set("SceneOutliner.UnpinnedIcon", new IMAGE_BRUSH( "Icons/icon_Blueprint_CommentBubbleUnPin_16x", Icon10x10));
+
 		Set( "SceneOutliner.TableViewRow", FTableRowStyle(NormalTableRowStyle));
 	}
 

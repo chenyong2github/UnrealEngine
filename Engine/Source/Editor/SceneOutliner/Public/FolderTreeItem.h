@@ -56,6 +56,9 @@ public:
 	virtual void GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outliner) override;
 	/** Delete this folder, children will be reparented to provided new parent path */
 	virtual void Delete(FName InNewParentPath) {}
+	
+	virtual bool ShouldShowPinnedState() const override { return true; }
+	virtual bool HasPinnedStateInfo() const override { return false; }
 	/* End ISceneOutlinerTreeItem Implementation */
 
 	/** Move this folder to a new parent */

@@ -84,6 +84,9 @@ public:
 	virtual void OnVisibilityChanged(const bool bNewVisibility) override;
 	virtual bool HasVisibilityInfo() const override { return true; }
 	virtual bool GetVisibility() const override;
+	virtual bool ShouldShowPinnedState() const override { return true; }
+	virtual bool HasPinnedStateInfo() const override { return true; }
+	virtual bool GetPinnedState() const override;
 	/* End ISceneOutlinerTreeItem Implementation */
 	
 	const FGuid& GetGuid() const { return ActorGuid; }

@@ -10,6 +10,7 @@
 #include "SceneOutlinerGutter.h"
 #include "SceneOutlinerItemLabelColumn.h"
 #include "SceneOutlinerActorSCCColumn.h"
+#include "SceneOutlinerPinnedColumn.h"
 #include "SceneOutlinerPublicTypes.h"
 
 #include "ActorPickingMode.h"
@@ -28,6 +29,7 @@ void FSceneOutlinerModule::StartupModule()
 	RegisterColumnType<FSceneOutlinerGutter>();
 	RegisterColumnType<FActorInfoColumn>();
 	RegisterColumnType<FSceneOutlinerActorSCCColumn>();
+	RegisterColumnType<FSceneOutlinerPinnedColumn>();
 }
 
 
@@ -36,6 +38,8 @@ void FSceneOutlinerModule::ShutdownModule()
 	UnRegisterColumnType<FSceneOutlinerGutter>();
 	UnRegisterColumnType<FSceneOutlinerItemLabelColumn>();
 	UnRegisterColumnType<FActorInfoColumn>();
+	UnRegisterColumnType<FSceneOutlinerActorSCCColumn>();
+	UnRegisterColumnType<FSceneOutlinerPinnedColumn>();
 }
 
 TSharedRef<ISceneOutliner> FSceneOutlinerModule::CreateSceneOutliner(const FSceneOutlinerInitializationOptions& InitOptions) const
