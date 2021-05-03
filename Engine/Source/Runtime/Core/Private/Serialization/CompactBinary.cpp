@@ -548,18 +548,18 @@ uint64 FCbFieldView::GetPayloadSize() const
 	}
 }
 
-FIoHash FCbFieldView::GetHash() const
+FBlake3Hash FCbFieldView::GetHash() const
 {
 	FBlake3 Hash;
-	GetHash(Hash);
-	return FIoHash(Hash.Finalize());
+	AppendHash(Hash);
+	return Hash.Finalize();
 }
 
-void FCbFieldView::GetHash(FBlake3& Hash) const
+void FCbFieldView::AppendHash(FBlake3& Builder) const
 {
 	const ECbFieldType SerializedType = FCbFieldType::GetSerializedType(Type);
-	Hash.Update(&SerializedType, sizeof(SerializedType));
-	Hash.Update(GetViewNoType());
+	Builder.Update(&SerializedType, sizeof(SerializedType));
+	Builder.Update(GetViewNoType());
 }
 
 bool FCbFieldView::Equals(const FCbFieldView& Other) const
@@ -662,18 +662,18 @@ uint64 FCbArrayView::GetSize() const
 	return sizeof(ECbFieldType) + GetPayloadSize();
 }
 
-FIoHash FCbArrayView::GetHash() const
+FBlake3Hash FCbArrayView::GetHash() const
 {
 	FBlake3 Hash;
-	GetHash(Hash);
-	return FIoHash(Hash.Finalize());
+	AppendHash(Hash);
+	return Hash.Finalize();
 }
 
-void FCbArrayView::GetHash(FBlake3& Hash) const
+void FCbArrayView::AppendHash(FBlake3& Builder) const
 {
 	const ECbFieldType SerializedType = FCbFieldType::GetType(GetType());
-	Hash.Update(&SerializedType, sizeof(SerializedType));
-	Hash.Update(GetPayloadView());
+	Builder.Update(&SerializedType, sizeof(SerializedType));
+	Builder.Update(GetPayloadView());
 }
 
 bool FCbArrayView::Equals(const FCbArrayView& Other) const
@@ -742,18 +742,18 @@ uint64 FCbObjectView::GetSize() const
 	return sizeof(ECbFieldType) + GetPayloadSize();
 }
 
-FIoHash FCbObjectView::GetHash() const
+FBlake3Hash FCbObjectView::GetHash() const
 {
 	FBlake3 Hash;
-	GetHash(Hash);
-	return FIoHash(Hash.Finalize());
+	AppendHash(Hash);
+	return Hash.Finalize();
 }
 
-void FCbObjectView::GetHash(FBlake3& Hash) const
+void FCbObjectView::AppendHash(FBlake3& Builder) const
 {
 	const ECbFieldType SerializedType = FCbFieldType::GetType(GetType());
-	Hash.Update(&SerializedType, sizeof(SerializedType));
-	Hash.Update(GetPayloadView());
+	Builder.Update(&SerializedType, sizeof(SerializedType));
+	Builder.Update(GetPayloadView());
 }
 
 bool FCbObjectView::Equals(const FCbObjectView& Other) const
@@ -816,26 +816,26 @@ uint64 TCbFieldIterator<FieldType>::GetRangeSize() const
 }
 
 template <typename FieldType>
-FIoHash TCbFieldIterator<FieldType>::GetRangeHash() const
+FBlake3Hash TCbFieldIterator<FieldType>::GetRangeHash() const
 {
 	FBlake3 Hash;
-	GetRangeHash(Hash);
-	return FIoHash(Hash.Finalize());
+	AppendRangeHash(Hash);
+	return Hash.Finalize();
 }
 
 template <typename FieldType>
-void TCbFieldIterator<FieldType>::GetRangeHash(FBlake3& Hash) const
+void TCbFieldIterator<FieldType>::AppendRangeHash(FBlake3& Builder) const
 {
 	FMemoryView View;
 	if (TryGetSerializedRangeView(View))
 	{
-		Hash.Update(View);
+		Builder.Update(View);
 	}
 	else
 	{
 		for (TCbFieldIterator It(*this); It; ++It)
 		{
-			It.GetHash(Hash);
+			It.AppendHash(Builder);
 		}
 	}
 }

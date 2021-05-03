@@ -347,9 +347,9 @@ public:
 	CORE_API uint64 GetRangeSize() const;
 
 	/** Calculate the hash of every field in the range. */
-	CORE_API FIoHash GetRangeHash() const;
-	/** Calculate the hash of every field in the range. */
-	CORE_API void GetRangeHash(FBlake3& Hash) const;
+	CORE_API FBlake3Hash GetRangeHash() const;
+	/** Append the hash of every field in the range. */
+	CORE_API void AppendRangeHash(FBlake3& Builder) const;
 
 	using FieldType::Equals;
 
@@ -707,9 +707,9 @@ public:
 	CORE_API uint64 GetSize() const;
 
 	/** Calculate the hash of the field, including the type and name. */
-	CORE_API FIoHash GetHash() const;
-	/** Calculate the hash of the field, including the type and name. */
-	CORE_API void GetHash(FBlake3& Hash) const;
+	CORE_API FBlake3Hash GetHash() const;
+	/** Append the hash of the field, including the type and name. */
+	CORE_API void AppendHash(FBlake3& Builder) const;
 
 	/**
 	 * Whether this field is identical to the other field.
@@ -908,9 +908,9 @@ public:
 	CORE_API uint64 GetSize() const;
 
 	/** Calculate the hash of the array if serialized by itself with no name. */
-	CORE_API FIoHash GetHash() const;
-	/** Calculate the hash of the array if serialized by itself with no name. */
-	CORE_API void GetHash(FBlake3& Hash) const;
+	CORE_API FBlake3Hash GetHash() const;
+	/** Append the hash of the array if serialized by itself with no name. */
+	CORE_API void AppendHash(FBlake3& Builder) const;
 
 	/**
 	 * Whether this array is identical to the other array.
@@ -1008,9 +1008,9 @@ public:
 	CORE_API uint64 GetSize() const;
 
 	/** Calculate the hash of the object if serialized by itself with no name. */
-	CORE_API FIoHash GetHash() const;
-	/** Calculate the hash of the object if serialized by itself with no name. */
-	CORE_API void GetHash(FBlake3& Hash) const;
+	CORE_API FBlake3Hash GetHash() const;
+	/** Append the hash of the object if serialized by itself with no name. */
+	CORE_API void AppendHash(FBlake3& Builder) const;
 
 	/**
 	 * Whether this object is identical to the other object.
