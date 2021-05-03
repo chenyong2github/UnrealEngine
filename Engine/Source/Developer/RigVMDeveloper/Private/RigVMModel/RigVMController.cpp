@@ -6717,8 +6717,17 @@ TArray<FAssetData> URigVMController::GetAffectedAssets(ERigVMControllerBulkEditT
 
 #if WITH_EDITOR
 
+	if(!IsValidGraph())
+	{
+		return Assets;
+	}
+
 	TArray<TSoftObjectPtr<URigVMFunctionReferenceNode>> FunctionReferencePtrs = GetAffectedReferences(InEditType, bForceLoad, bNotify);
 	TMap<FString, int32> VisitedAssets;
+
+	URigVMGraph* Graph = GetGraph();
+	TSoftObjectPtr<URigVMGraph> GraphPtr = Graph;
+	const FString ThisAssetPath = GraphPtr.ToSoftObjectPath().GetAssetPathName().ToString();
 
 	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
@@ -6731,6 +6740,10 @@ TArray<FAssetData> URigVMController::GetAffectedAssets(ERigVMControllerBulkEditT
 			continue;
 		}
 		if(VisitedAssets.Contains(AssetPath))
+		{
+			continue;
+		}
+		if(AssetPath == ThisAssetPath)
 		{
 			continue;
 		}

@@ -234,6 +234,7 @@ void URigVMPin::GetExposedPinChain(TArray<const URigVMPin*>& OutExposedPins) con
 	for (URigVMLink* Link : GetSourceLinks())
 	{
 		URigVMPin* SourcePin = Link->GetSourcePin();
+		check(SourcePin != nullptr);
 		
 		// If the source is on an entry node, add the pin and make a recursive call on the collapse node pin
 		if (URigVMFunctionEntryNode* EntryNode = Cast<URigVMFunctionEntryNode>(SourcePin->GetNode()))
@@ -241,8 +242,10 @@ void URigVMPin::GetExposedPinChain(TArray<const URigVMPin*>& OutExposedPins) con
 			URigVMGraph* Graph = EntryNode->GetGraph();
 			if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Graph->GetOuter()))
 			{
-				URigVMPin* CollapseNodePin = CollapseNode->FindPin(SourcePin->GetName());
-				CollapseNodePin->GetExposedPinChain(OutExposedPins);				
+				if(URigVMPin* CollapseNodePin = CollapseNode->FindPin(SourcePin->GetName()))
+				{
+					CollapseNodePin->GetExposedPinChain(OutExposedPins);
+				}
 			}
 		}
 		else if (URigVMFunctionReturnNode* ReturnNode = Cast<URigVMFunctionReturnNode>(SourcePin->GetNode()))
@@ -250,8 +253,10 @@ void URigVMPin::GetExposedPinChain(TArray<const URigVMPin*>& OutExposedPins) con
 			URigVMGraph* Graph = ReturnNode->GetGraph();
 			if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Graph->GetOuter()))
 			{
-				URigVMPin* CollapseNodePin = CollapseNode->FindPin(SourcePin->GetName());
-				CollapseNodePin->GetExposedPinChain(OutExposedPins);				
+				if(URigVMPin* CollapseNodePin = CollapseNode->FindPin(SourcePin->GetName()))
+				{
+					CollapseNodePin->GetExposedPinChain(OutExposedPins);
+				}
 			}
 		}
 		// Variable nodes do not share the operand with their source link
