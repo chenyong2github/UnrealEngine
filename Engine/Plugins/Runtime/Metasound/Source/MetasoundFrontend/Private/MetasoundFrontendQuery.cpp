@@ -190,10 +190,8 @@ namespace Metasound
 				{
 					if (InOutResult.GetSelection().Num() > 0)
 					{
-						TArrayView<FFrontendQueryEntry* > SelectionView = InOutResult.GetSelection();
-
+						TArrayView<FFrontendQueryEntry*> SelectionView = InOutResult.GetSelection();
 						TArray<FFrontendQueryEntry*> SortedSelection(SelectionView.GetData(), SelectionView.Num()); 
-
 						InOutResult.ResetSelection();
 
 						Algo::SortBy(SortedSelection, [](const FFrontendQueryEntry* InEntry)
@@ -207,40 +205,36 @@ namespace Metasound
 							}
 						);
 
-
-						int32 Num = SortedSelection.Num();
-						int32 StartIndex = 0;
-
-						FFrontendQueryEntry::FKey CurrentKey = FFrontendQueryEntry::InvalidKey;
-
-						auto ReduceFunc = [&](int32 Index)
+						if (!SortedSelection.IsEmpty())
 						{
-							FFrontendQueryEntry::FKey ThisKey = nullptr == SortedSelection[Index] ? FFrontendQueryEntry::InvalidKey : SortedSelection[Index]->Key;
+							int32 StartIndex = 0;
+							FFrontendQueryEntry::FKey CurrentKey = SortedSelection[0] ? SortedSelection[0]->Key : FFrontendQueryEntry::InvalidKey;
 
-							if (CurrentKey != ThisKey)
+							auto ReduceFunc = [&](int32 Index)
 							{
-								if (Index > StartIndex)
+								TArrayView<FFrontendQueryEntry*> ResultsToReduce(&SortedSelection[StartIndex], Index - StartIndex);
+								FFrontendQuerySelection::FReduceOutputView ReduceResult(ResultsToReduce);
+
+								Step->Reduce(CurrentKey, ResultsToReduce, ReduceResult);
+
+								InOutResult.AppendToStorageAndSelection(ReduceResult);
+							};
+
+							const int32 Num = SortedSelection.Num();
+							for (int32 ResultIndex = 1; ResultIndex < Num; ResultIndex++)
+							{
+								FFrontendQueryEntry::FKey ThisKey = SortedSelection[ResultIndex] ? SortedSelection[ResultIndex]->Key : FFrontendQueryEntry::InvalidKey;
+								if (CurrentKey != ThisKey)
 								{
-									TArrayView<FFrontendQueryEntry*> ResultsToReduce(&SortedSelection[StartIndex], Index - StartIndex);
+									ReduceFunc(ResultIndex);
 
-									FFrontendQuerySelection::FReduceOutputView ReduceResult(ResultsToReduce);
-
-									Step->Reduce(CurrentKey, ResultsToReduce, ReduceResult);
-
-									InOutResult.AppendToStorageAndSelection(ReduceResult);
+									CurrentKey = ThisKey;
+									StartIndex = ResultIndex;
 								}
-
-								CurrentKey = ThisKey;
-								StartIndex = Index;
 							}
-						};
 
-						for (int32 ResultIndex = 0; ResultIndex < Num; ResultIndex++)
-						{
-							ReduceFunc(ResultIndex);
+							ReduceFunc(Num);
 						}
-
-						ReduceFunc(Num - 1);
 					}
 				}
 			}

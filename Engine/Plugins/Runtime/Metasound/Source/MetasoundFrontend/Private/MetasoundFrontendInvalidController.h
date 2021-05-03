@@ -155,12 +155,11 @@ namespace Metasound
 			FInputHandle AddOutput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) override { return FInvalidInputController::GetInvalid(); }
 			bool RemoveOutput(FGuid InVertexID) override { return false; }
 
-			EMetasoundFrontendClassType GetClassType() const override { return EMetasoundFrontendClassType::Invalid; }
-			const FMetasoundFrontendClassName& GetClassName() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendClassName>(); }
-			FMetasoundFrontendVersionNumber GetClassVersionNumber() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendVersionNumber>(); }
-			const FMetasoundFrontendInterfaceStyle& GetInputStyle() const override { static const FMetasoundFrontendInterfaceStyle Invalid; return Invalid; }
-			const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const override { static const FMetasoundFrontendInterfaceStyle Invalid; return Invalid; }
-			const FMetasoundFrontendClassStyle& GetClassStyle() const override { static const FMetasoundFrontendClassStyle Invalid; return Invalid; }
+			const FMetasoundFrontendClassInterface& GetClassInterface() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendClassInterface>(); }
+			const FMetasoundFrontendClassMetadata& GetClassMetadata() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendClassMetadata>(); }
+			const FMetasoundFrontendInterfaceStyle& GetInputStyle() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendInterfaceStyle>(); }
+			const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendInterfaceStyle>(); }
+			const FMetasoundFrontendClassStyle& GetClassStyle() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendClassStyle>(); }
 
 			const FText& GetDescription() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FText>(); }
 
@@ -344,7 +343,8 @@ namespace Metasound
 				FConstClassAccessPtr FindOrAddClass(const FNodeClassInfo& InNodeClass) override { return FConstClassAccessPtr(); }
 				FConstClassAccessPtr FindClass(const FMetasoundFrontendClassMetadata& InMetadata) const override{ return FConstClassAccessPtr(); }
 				FConstClassAccessPtr FindOrAddClass(const FMetasoundFrontendClassMetadata& InMetadata) override{ return FConstClassAccessPtr(); }
-				void RemoveUnreferencedDependencies() override {}
+
+				void SynchronizeDependencies() override { }
 
 				TArray<FGraphHandle> GetSubgraphHandles() override { return TArray<FGraphHandle>(); }
 

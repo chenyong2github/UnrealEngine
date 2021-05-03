@@ -85,5 +85,55 @@ namespace Metasound
 	{
 		return InEntry.Value.Get<FMetasoundFrontendClass>().ID == ClassID;
 	}
-}
 
+	FFrontendQueryEntry::FKey FMapClassNameToMajorVersion::Map(const FFrontendQueryEntry& InEntry) const
+	{
+		const FMetasoundFrontendClass& FrontendClass = InEntry.Value.Get<FMetasoundFrontendClass>();
+		const uint32 HashKey = GetTypeHash(FrontendClass.Metadata.ClassName.GetFullName());
+		return static_cast<FFrontendQueryEntry::FKey>(HashKey);
+	}
+
+	void FReduceClassesToHighestVersion::Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry*>& InEntries, FReduceOutputView& OutResult) const
+	{
+		FFrontendQueryEntry* HighestVersionEntry = nullptr;
+		int32 HighestMajorVersion = -1;
+
+		for (FFrontendQueryEntry* Entry : InEntries)
+		{
+			const int32 EntryMajorVersion = Entry->Value.Get<FMetasoundFrontendClass>().Metadata.Version.Major;
+
+			if (!HighestVersionEntry || HighestMajorVersion < EntryMajorVersion)
+			{
+				HighestVersionEntry = Entry;
+				HighestMajorVersion = EntryMajorVersion;
+			}
+		}
+
+		OutResult.Add(*HighestVersionEntry);
+	}
+
+	FReduceClassesToMajorVersion::FReduceClassesToMajorVersion(int32 InMajorVersion)
+		: MajorVersion(InMajorVersion)
+	{
+	}
+
+	void FReduceClassesToMajorVersion::Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry*>& InEntries, FReduceOutputView& OutResult) const
+	{
+		for (FFrontendQueryEntry* Entry : InEntries)
+		{
+			const int32 EntryMajorVersion = Entry->Value.Get<FMetasoundFrontendClass>().Metadata.Version.Major;
+			if (MajorVersion == EntryMajorVersion)
+			{
+				OutResult.Add(*Entry);
+				return;
+			}
+		}
+	}
+
+	bool FSortClassesByVersion::Sort(const FFrontendQueryEntry& InEntryLHS, const FFrontendQueryEntry& InEntryRHS) const
+	{
+		const FMetasoundFrontendVersionNumber& VersionLHS = InEntryLHS.Value.Get<FMetasoundFrontendClass>().Metadata.Version;
+		const FMetasoundFrontendVersionNumber& VersionRHS = InEntryRHS.Value.Get<FMetasoundFrontendClass>().Metadata.Version;
+		return VersionLHS > VersionRHS;
+	}
+}

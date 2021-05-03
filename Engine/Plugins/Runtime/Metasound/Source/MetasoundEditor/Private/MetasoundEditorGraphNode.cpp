@@ -7,19 +7,40 @@
 #include "Engine/Font.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "GraphEditorActions.h"
+#include "Logging/TokenizedMessage.h"
 #include "Metasound.h"
+#include "MetasoundEditorCommands.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphSchema.h"
-#include "MetasoundEditorCommands.h"
+#include "MetasoundEditorGraphValidation.h"
 #include "MetasoundEditorModule.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendRegistries.h"
+#include "MetasoundFrontendSearchEngine.h"
+#include "MetasoundNodeInterface.h"
 #include "MetasoundUObjectRegistry.h"
 #include "ScopedTransaction.h"
 #include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
+
+
+namespace Metasound
+{
+	namespace Editor
+	{
+		namespace GraphNodePrivate
+		{
+			void SetGraphNodeMessage(UEdGraphNode& InNode, EMessageSeverity::Type InSeverity, const FString& InMessage)
+			{
+				InNode.bHasCompilerMessage = true;
+				InNode.ErrorMsg = InMessage;
+				InNode.ErrorType = InSeverity;
+			}
+		} // namespace GraphNodePrivate
+	} // namespace Editor
+} // namespace Metasound
 
 
 UMetasoundEditorGraphNode::UMetasoundEditorGraphNode(const FObjectInitializer& ObjectInitializer)
@@ -124,13 +145,13 @@ Metasound::Frontend::FNodeHandle UMetasoundEditorGraphNode::GetNodeHandle() cons
 	return GetRootGraphHandle()->GetNodeWithID(NodeID);
 }
 
-void UMetasoundEditorGraphNode::IteratePins(TUniqueFunction<void(UEdGraphPin* /* Pin */, int32 /* Index */)> InFunc, EEdGraphPinDirection InPinDirection)
+void UMetasoundEditorGraphNode::IteratePins(TUniqueFunction<void(UEdGraphPin& /* Pin */, int32 /* Index */)> InFunc, EEdGraphPinDirection InPinDirection)
 {
 	for (int32 PinIndex = 0; PinIndex < Pins.Num(); PinIndex++)
 	{
 		if (InPinDirection == EGPD_MAX || Pins[PinIndex]->Direction == InPinDirection)
 		{
-			InFunc(Pins[PinIndex], PinIndex);
+			InFunc(*Pins[PinIndex], PinIndex);
 		}
 	}
 }
@@ -452,5 +473,342 @@ void UMetasoundEditorGraphOutputNode::SetNodeID(FGuid InNodeID)
 	{
 		Output->NodeID = InNodeID;
 	}
+}
+
+bool UMetasoundEditorGraphExternalNode::RefreshPinMetadata()
+{
+	using namespace Metasound::Frontend;
+
+	bool bModified = false;
+
+	FConstNodeHandle NodeHandle = GetConstNodeHandle();
+	const FMetasoundFrontendClassInterface& ClassInterface = NodeHandle->GetClassInterface();
+	TArray<FMetasoundFrontendClassInput> Inputs = ClassInterface.Inputs;
+	TArray<FMetasoundFrontendClassOutput> Outputs = ClassInterface.Outputs;
+
+	for (UEdGraphPin* Pin : Pins)
+	{
+		check(Pin);
+
+		if (Pin->Direction == EGPD_Input)
+		{
+			// Remove valid class inputs on iteration to avoid additional
+			// incurred look-up cost on subsequent tooltip update.
+			auto RemoveValidEntry = [&](const FMetasoundFrontendClassInput& Entry)
+			{
+				const FString PinNameString = Pin->PinName.ToString();
+				if (Entry.Name == PinNameString)
+				{
+					Metasound::Editor::FGraphBuilder::RefreshPinMetadata(*Pin, Entry.Metadata);
+					return true;
+				}
+
+				return false;
+			};
+			bModified |= Inputs.RemoveAllSwap(RemoveValidEntry) > 0;
+		}
+
+		if (Pin->Direction == EGPD_Output)
+		{
+			// Remove valid class inputs on iteration to avoid additional
+			// incurred look-up cost on subsequent tooltip update.
+			auto RemoveValidEntry = [&](const FMetasoundFrontendClassOutput& Entry)
+			{
+				const FString PinNameString = Pin->PinName.ToString();
+				if (Entry.Name == PinNameString)
+				{
+					Metasound::Editor::FGraphBuilder::RefreshPinMetadata(*Pin, Entry.Metadata);
+					return true;
+				}
+
+				return false;
+			};
+			bModified |= Outputs.RemoveAllSwap(RemoveValidEntry) > 0;
+		}
+	}
+
+	return bModified;
+}
+
+FMetasoundFrontendVersionNumber UMetasoundEditorGraphExternalNode::GetMajorUpdateAvailable() const
+{
+	using namespace Metasound::Frontend;
+
+	const FMetasoundFrontendClassMetadata& Metadata = GetConstNodeHandle()->GetClassMetadata();
+	const FMetasoundFrontendVersionNumber& CurrentVersion = Metadata.Version;
+	Metasound::FNodeClassName NodeClassName = Metadata.ClassName.ToNodeClassName();
+
+	FMetasoundFrontendClass ClassWithHighestVersion;
+	if (ISearchEngine::Get().FindClassWithHighestVersion(NodeClassName, ClassWithHighestVersion))
+	{
+		if (ClassWithHighestVersion.Metadata.Version.Major > CurrentVersion.Major)
+		{
+			return ClassWithHighestVersion.Metadata.Version;
+		}
+	}
+
+	return FMetasoundFrontendVersionNumber::GetInvalid();
+}
+
+FMetasoundFrontendVersionNumber UMetasoundEditorGraphExternalNode::GetMinorUpdateAvailable() const
+{
+	using namespace Metasound::Frontend;
+
+	const FMetasoundFrontendClassMetadata& Metadata = GetConstNodeHandle()->GetClassMetadata();
+	const FMetasoundFrontendVersionNumber& CurrentVersion = Metadata.Version;
+	Metasound::FNodeClassName NodeClassName = Metadata.ClassName.ToNodeClassName();
+
+	FMetasoundFrontendClass ClassWithHighestVersion;
+	if (ISearchEngine::Get().FindClassWithMajorVersion(NodeClassName, CurrentVersion.Major, ClassWithHighestVersion))
+	{
+		if (ClassWithHighestVersion.Metadata.Version.Minor > CurrentVersion.Minor)
+		{
+			return ClassWithHighestVersion.Metadata.Version;
+		}
+	}
+
+	return FMetasoundFrontendVersionNumber::GetInvalid();
+}
+
+UMetasoundEditorGraphExternalNode* UMetasoundEditorGraphExternalNode::UpdateToVersion(const FMetasoundFrontendVersionNumber& InNewVersion, bool bInPropagateErrorMessages)
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	const FMetasoundFrontendClassMetadata& Metadata = GetConstNodeHandle()->GetClassMetadata();
+	const TArray<FMetasoundFrontendClass> SortedVersions = ISearchEngine::Get().FindClassesWithName(Metadata.ClassName.ToNodeClassName(), true /* bInSortByVersion */);
+
+	auto IsClassOfNewVersion = [InNewVersion](const FMetasoundFrontendClass& SortedClass)
+	{
+		return SortedClass.Metadata.Version == InNewVersion;
+	};
+
+	if (!ensure(SortedVersions.ContainsByPredicate(IsClassOfNewVersion)))
+	{
+		return this;
+	}
+
+	struct FConnectionInfo
+	{
+		TArray<UEdGraphPin*> PinsLinkedTo;
+		FName DataType;
+		FString DefaultValue;
+	};
+
+	// Cache pin connections by name to try so they can be
+	// hooked back up after swapping to the new class version.
+	TMap<FName, FConnectionInfo> InputConnections;
+	IteratePins([Connections = &InputConnections](UEdGraphPin& Pin, int32 /* Index */)
+	{
+		FConstInputHandle InputHandle = FGraphBuilder::GetConstInputHandleFromPin(&Pin);
+		Connections->Add(Pin.GetFName(), FConnectionInfo
+		{
+			Pin.LinkedTo,
+			InputHandle->GetDataType(),
+			Pin.DefaultValue
+		});
+	}, EGPD_Input);
+
+	TMap<FName, FConnectionInfo> OutputConnections;
+	IteratePins([Connections = &OutputConnections](UEdGraphPin& Pin, int32 /* Index */)
+	{
+		FConstOutputHandle OutputHandle = FGraphBuilder::GetConstOutputHandleFromPin(&Pin);
+		Connections->Add(Pin.GetFName(), FConnectionInfo
+		{
+			Pin.LinkedTo,
+			OutputHandle->GetDataType()
+		});
+	}, EGPD_Output);
+
+	FNodeHandle NodeHandle = GetNodeHandle();
+	FMetasoundFrontendVersionNumber InitVersion = NodeHandle->GetClassMetadata().Version;
+
+	// Only update the version on the Metadata. Name and version are the only fields that pertain
+	// to building valid class data (via the GetRegistryKey look-up).  All other Metadata is
+	// superfluous for this use case.
+	FMetasoundFrontendClassMetadata NewMetadata = NodeHandle->GetClassMetadata();
+	NewMetadata.Version = InNewVersion;
+
+	const FVector2D NodePos(NodePosX, NodePosY);
+	if (!ensureAlways(FGraphBuilder::DeleteNode(*this)))
+	{
+		return this;
+	}
+
+	Modify();
+	UObject& Metasound = GetMetasoundChecked();
+	UMetasoundEditorGraphExternalNode* ReplacementNode = FGraphBuilder::AddExternalNode(Metasound, NewMetadata, NodePos);
+	if (!ensureAlways(ReplacementNode))
+	{
+		return this;
+	}
+
+	ReplacementNode->Modify();
+	ReplacementNode->IteratePins([&](UEdGraphPin& Pin, int32 /* Index */)
+	{
+		if (FConnectionInfo* ConnectionInfo = InputConnections.Find(Pin.GetFName()))
+		{
+			FInputHandle InputHandle = FGraphBuilder::GetInputHandleFromPin(&Pin);
+			if (ConnectionInfo->DataType == InputHandle->GetDataType())
+			{
+				if (ConnectionInfo->PinsLinkedTo.IsEmpty())
+				{
+					Pin.DefaultValue = ConnectionInfo->DefaultValue;
+					FGraphBuilder::AddOrUpdateLiteralInput(Metasound, InputHandle->GetOwningNode(), Pin, true /* bForcePinValueAsDefault */);
+				}
+				else
+				{
+					for (UEdGraphPin* OutputPin : ConnectionInfo->PinsLinkedTo)
+					{
+						FGraphBuilder::ConnectNodes(Pin, *OutputPin, true /* bInConnectEdPins */);
+					}
+				}
+			}
+		}
+	}, EGPD_Input);
+
+	ReplacementNode->IteratePins([&](UEdGraphPin& Pin, int32 /* Index */)
+	{
+		if (FConnectionInfo* ConnectionInfo = OutputConnections.Find(Pin.GetFName()))
+		{
+			FConstOutputHandle OutputHandle = FGraphBuilder::GetConstOutputHandleFromPin(&Pin);
+			if (ConnectionInfo->DataType == OutputHandle->GetDataType())
+			{
+				for (UEdGraphPin* InputPin : ConnectionInfo->PinsLinkedTo)
+				{
+					FGraphBuilder::ConnectNodes(*InputPin, Pin, true /* bInConnectEdPins */);
+				}
+			}
+		}
+	}, EGPD_Output);
+
+	ReplacementNode->NodeUpgradeMessage = FText::Format(LOCTEXT("NodeVersionUpgradeMessageFormat", "Class upgraded from {0} to {1}"),
+		FText::FromString(*InitVersion.ToString()),
+		FText::FromString(*InNewVersion.ToString())
+	);
+
+	if (ReplacementNode != this)
+	{
+		if (bInPropagateErrorMessages)
+		{
+			ReplacementNode->bHasCompilerMessage = bHasCompilerMessage;
+			ReplacementNode->ErrorMsg = ErrorMsg;
+			ReplacementNode->ErrorType = ErrorType;
+		}
+	}
+
+	return ReplacementNode;
+}
+
+bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult)
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	OutResult = FGraphNodeValidationResult(*this);
+
+	FNodeHandle NodeHandle = GetNodeHandle();
+
+	if (bHasCompilerMessage)
+	{
+		bHasCompilerMessage = false;
+		ErrorMsg.Reset();
+		OutResult.bIsDirty = true;
+	}
+
+	if (!ensure(NodeHandle->IsValid()))
+	{
+		GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Error, TEXT("Node is invalid (Frontend node not found)"));
+		OutResult.bIsInvalid = true;
+		OutResult.bIsDirty = true;
+		return true;
+	}
+
+	const FMetasoundFrontendClassMetadata& Metadata = NodeHandle->GetClassMetadata();
+	if (!ensure(Metadata.Type == EMetasoundFrontendClassType::External))
+	{
+		GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Error, TEXT("Node is of type 'External' but Frontend counterpart is not natively-defined."));
+		OutResult.bIsDirty = true;
+		OutResult.bIsInvalid = true;
+		return true;
+	}
+
+	const Metasound::FNodeClassName NodeClassName = Metadata.ClassName.ToNodeClassName();
+	const TArray<FMetasoundFrontendClass> SortedClasses = ISearchEngine::Get().FindClassesWithName(NodeClassName, true /* bSortByVersion */);
+
+	if (SortedClasses.IsEmpty())
+	{
+		OutResult.MissingClass = NodeClassName.GetFullName();
+		const FString NewErrorMsg = FString::Format(TEXT("Missing Class '{0}': {1}"),
+			{
+				*Metadata.ClassName.ToString(),
+				*Metadata.PromptIfMissing.ToString()
+			});
+
+		for (UEdGraphPin* Pin : Pins)
+		{
+			Pin->bOrphanedPin = true;
+		}
+
+		GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Error, NewErrorMsg);
+		OutResult.bIsDirty = true;
+		OutResult.bIsInvalid = true;
+		return true;
+	}
+
+	for (UEdGraphPin* Pin : Pins)
+	{
+		if (Pin->bOrphanedPin)
+		{
+			Pin->bOrphanedPin = false;
+			OutResult.bIsDirty = true;
+		}
+	}
+
+	if (SortedClasses[0].Metadata.Version.Major > Metadata.Version.Major)
+	{
+		const FMetasoundFrontendVersionNumber& CurrentVersion = NodeHandle->GetClassMetadata().Version;
+
+		FMetasoundFrontendClass HighestMinorVersionClass;
+		FString NodeMsg;
+		EMessageSeverity::Type Severity;
+
+		// Only compare major version as minor can be incorrect and graph
+		// will still build and divert to using the new upgraded version.
+		if (ISearchEngine::Get().FindClassWithMajorVersion(NodeClassName, CurrentVersion.Major, HighestMinorVersionClass))
+		{
+			NodeMsg = FString::Format(TEXT("Node class '{0}' out-of-date: Eligible for upgrade to {1}"),
+			{
+				*Metadata.ClassName.ToString(),
+				*SortedClasses[0].Metadata.Version.ToString()
+			});
+			Severity = EMessageSeverity::Warning;
+		}
+		else
+		{
+			NodeMsg = FString::Format(TEXT("Node class '{0} ({1})' is missing.  Eligible for upgrade to {2}"),
+			{
+				*Metadata.ClassName.ToString(),
+				*Metadata.Version.ToString(),
+				*SortedClasses[0].Metadata.Version.ToString()
+			});
+			Severity = EMessageSeverity::Error;
+		}
+
+		GraphNodePrivate::SetGraphNodeMessage(*this, Severity, NodeMsg);
+		OutResult.bIsDirty = true;
+	}
+
+	auto IsMinorUpgradeVersion = [&](const FMetasoundFrontendVersionNumber& Version)
+	{
+		if (Version.Major != Metadata.Version.Major)
+		{
+			return false;
+		}
+
+		return Version.Minor > Metadata.Version.Minor;
+	};
+
+	return false;
 }
 #undef LOCTEXT_NAMESPACE

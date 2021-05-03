@@ -140,6 +140,8 @@ namespace Metasound
 			/** Called when the selection changes in the GraphEditor */
 			void OnSelectedNodesChanged(const TSet<UObject*>& NewSelection);
 
+			UMetasoundEditorGraph& GetMetaSoundGraphChecked();
+
 			/**
 			 * Called when a node's title is committed for a rename
 			 *

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/NumericLimits.h"
 #include "MetasoundFrontendDocument.h"
 #include "Misc/TVariant.h"
 
@@ -16,7 +17,7 @@ namespace Metasound
 		using FValue = TVariant<FMetasoundFrontendDocument, FMetasoundFrontendClass, FMetasoundFrontendNode>;
 		using FKey = int32;
 
-		static constexpr FKey InvalidKey = 0xFFFFFFFF;
+		static constexpr FKey InvalidKey = TNumericLimits<int32>::Max();
 
 		FKey Key = InvalidKey;
 		FValue Value;

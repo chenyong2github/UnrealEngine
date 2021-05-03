@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraphNode.h"
-#include "UObject/ObjectMacros.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
@@ -12,6 +11,7 @@
 #include "MetasoundFrontendRegistries.h"
 #include "Misc/Guid.h"
 #include "Sound/SoundWave.h"
+#include "UObject/ObjectMacros.h"
 
 #include "MetasoundEditorGraphNode.generated.h"
 
@@ -24,10 +24,13 @@ namespace Metasound
 {
 	namespace Editor
 	{
+		struct FGraphNodeValidationResult;
 		class FGraphBuilder;
-	}
-}
 
+		// Map of class names to sorted array of registered version numbers
+		using FSortedClassVersionMap = TMap<FName, TArray<FMetasoundFrontendVersionNumber>>;
+	} // namespace Editor
+} // namespace Metasound
 
 UCLASS(MinimalAPI)
 class UMetasoundEditorGraphNode : public UEdGraphNode
@@ -41,7 +44,7 @@ public:
 	/** Estimate the width of this Node from the length of its title */
 	METASOUNDEDITOR_API int32 EstimateNodeWidth() const;
 
-	METASOUNDEDITOR_API void IteratePins(TUniqueFunction<void(UEdGraphPin* /* Pin */, int32 /* Index */)> Func, EEdGraphPinDirection InPinDirection = EGPD_MAX);
+	METASOUNDEDITOR_API void IteratePins(TUniqueFunction<void(UEdGraphPin& /* Pin */, int32 /* Index */)> Func, EEdGraphPinDirection InPinDirection = EGPD_MAX);
 
 	// UEdGraphNode interface
 	virtual void AllocateDefaultPins() override;
@@ -135,7 +138,19 @@ public:
 	virtual FMetasoundFrontendClassName GetClassName() const override { return ClassName; }
 	virtual FGuid GetNodeID() const override { return NodeID; }
 
+	FMetasoundFrontendVersionNumber GetMajorUpdateAvailable() const;
+	FMetasoundFrontendVersionNumber GetMinorUpdateAvailable() const;
+
+	// Attempts to replace this node with a new one of the same class and given version number.
+	// If this node is already of the given version, returns itself. If update fails, returns this node.
+	UMetasoundEditorGraphExternalNode* UpdateToVersion(const FMetasoundFrontendVersionNumber& InNewVersion, bool bInPropagateErrorMessages);
+
+	bool Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult);
+
 protected:
+	// Refreshes all Pin Metadata from the associated Frontend node's default class interface.
+	bool RefreshPinMetadata();
+
 	virtual void SetNodeID(FGuid InNodeID) override
 	{
 		NodeID = InNodeID;

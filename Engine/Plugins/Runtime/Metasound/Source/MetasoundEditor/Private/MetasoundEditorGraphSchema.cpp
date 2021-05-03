@@ -11,17 +11,20 @@
 #include "GraphEditor.h"
 #include "GraphEditorActions.h"
 #include "GraphEditorSettings.h"
+#include "HAL/IConsoleManager.h"
 #include "Layout/SlateRect.h"
 #include "Metasound.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundEditor.h"
+#include "MetasoundEditorCommands.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundEditorModule.h"
 #include "MetasoundEditorSettings.h"
 #include "MetasoundFrontend.h"
+#include "MetasoundFrontendSearchEngine.h"
 #include "ScopedTransaction.h"
 #include "Toolkits/ToolkitManager.h"
 #include "ToolMenus.h"
@@ -31,6 +34,13 @@
 
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
+static int32 EnableDeprecatedMetaSoundNodeClassCreationCVar = 0;
+FAutoConsoleVariableRef CVarEnableDeprecatedMetaSoundNodeClassCreation(
+	TEXT("au.Debug.Editor.MetaSounds.EnableDeprecatedNodeClassCreation"),
+	EnableDeprecatedMetaSoundNodeClassCreationCVar,
+	TEXT("Enable creating nodes major versions of deprecated MetaSound classes in the Editor.\n")
+	TEXT("0: Disabled (default), !0: Enabled"),
+	ECVF_Default);
 
 namespace Metasound
 {
@@ -172,7 +182,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewNode::PerformAction(UEdGraph* Paren
 	ParentMetasound.Modify();
 	ParentGraph->Modify();
 
-	if (UMetasoundEditorGraphExternalNode* NewGraphNode = FGraphBuilder::AddExternalNode(ParentMetasound, NodeClassInfo, Location, bSelectNewNode))
+	if (UMetasoundEditorGraphExternalNode* NewGraphNode = FGraphBuilder::AddExternalNode(ParentMetasound, ClassMetadata, Location, bSelectNewNode))
 	{
 		NewGraphNode->Modify();
 		SchemaPrivate::TryConnectNewNodeToPin(*NewGraphNode, FromPin);
@@ -254,7 +264,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToInput::PerformAction(UEdGraph
 	FMetasoundFrontendLiteral DefaultValue;
 	FGraphBuilder::GetPinDefaultLiteral(*FromPin, DefaultValue);
 
-	FNodeHandle NodeHandle = FGraphBuilder::AddInputNodeHandle(ParentMetasound, NewNodeName, InputHandle->GetDataType(), FText::GetEmpty(), EMetasoundFrontendNodeStyleDisplayVisibility::Visible, &DefaultValue);
+	FNodeHandle NodeHandle = FGraphBuilder::AddInputNodeHandle(ParentMetasound, NewNodeName, InputHandle->GetDataType(), FText::GetEmpty(), false /* bIsLiteralInput */, &DefaultValue);
 	if (ensure(NodeHandle->IsValid()))
 	{
 		UMetasoundEditorGraphInput* Input = MetasoundGraph->FindOrAddInput(NodeHandle);
@@ -504,6 +514,8 @@ void UMetasoundEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilde
 
 void UMetasoundEditorGraphSchema::GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
 {
+	using namespace Metasound::Editor;
+
 	if (Context->Pin)
 	{
 		FToolMenuSection& Section = Menu->AddSection("MetasoundGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
@@ -522,6 +534,17 @@ void UMetasoundEditorGraphSchema::GetContextMenuActions(class UToolMenu* Menu, c
 		Section.AddMenuEntry(FGenericCommands::Get().Copy);
 		Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
 		Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
+
+		// Only display update ability if node is of type external
+		// and node registry is reporting a major update is available.
+		if (const UMetasoundEditorGraphExternalNode* ExternalNode = Cast<UMetasoundEditorGraphExternalNode>(Context->Node))
+		{
+			FMetasoundFrontendVersionNumber MajorUpdateVersion = ExternalNode->GetMajorUpdateAvailable();
+			if (MajorUpdateVersion.IsValid())
+			{
+				Section.AddMenuEntry(FEditorCommands::Get().UpdateNodes);
+			}
+		}
 	}
 
 	Super::GetContextMenuActions(Menu, Context);
@@ -568,9 +591,32 @@ const FPinConnectionResponse UMetasoundEditorGraphSchema::CanCreateConnection(co
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectionTypeIncorrect", "Connection pin types do not match"));
 	}
 
+	// Check if nodes being connected are in error/out-of-date version state before checking if can be connected as 
+	// nodes with errors can contain invalid pins/handles).
+	bool bConnectingNodesWithErrors = false;
+	UEdGraphNode* InputNode = InputPin->GetOwningNode();
+	if (ensure(InputNode))
+	{
+		if (InputNode->ErrorType == EMessageSeverity::Error)
+		{
+			bConnectingNodesWithErrors = true;
+		}
+	}
+	UEdGraphNode* OutputNode = InputPin->GetOwningNode();
+	if (ensure(OutputNode))
+	{
+		if (OutputNode->ErrorType == EMessageSeverity::Error)
+		{
+			bConnectingNodesWithErrors = true;
+		}
+	}
+	if (bConnectingNodesWithErrors)
+	{
+		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectionCannotContainErrorNode", "Cannot create new connections with node containing errors."));
+	}
+
 	Frontend::FInputHandle InputHandle = Editor::FGraphBuilder::GetInputHandleFromPin(InputPin);
 	Frontend::FOutputHandle OutputHandle = Editor::FGraphBuilder::GetOutputHandleFromPin(OutputPin);
-
 	if (InputHandle->IsValid() && OutputHandle->IsValid())
 	{
 		// TODO: Implement YesWithConverterNode to provide conversion options
@@ -665,7 +711,7 @@ FText UMetasoundEditorGraphSchema::GetPinDisplayName(const UEdGraphPin* Pin) con
 
 	UMetasoundEditorGraphNode* Node = CastChecked<UMetasoundEditorGraphNode>(Pin->GetOwningNode());
 	FNodeHandle NodeHandle = Node->GetNodeHandle();
-	const EMetasoundFrontendClassType ClassType = NodeHandle->GetClassType();
+	const EMetasoundFrontendClassType ClassType = NodeHandle->GetClassMetadata().Type;
 
 	switch (ClassType)
 	{
@@ -714,10 +760,14 @@ FLinearColor UMetasoundEditorGraphSchema::GetPinTypeColor(const FEdGraphPinType&
 
 void UMetasoundEditorGraphSchema::BreakNodeLinks(UEdGraphNode& TargetNode) const
 {
-	using namespace Metasound::Editor;
-	using namespace Metasound::Frontend;
+	BreakNodeLinks(TargetNode, true /* bShouldActuallyTransact */);
+}
 
-	const FScopedTransaction Transaction(LOCTEXT("BreakNodeLinks", "Break Node Links"));
+void UMetasoundEditorGraphSchema::BreakNodeLinks(UEdGraphNode& TargetNode, bool bShouldActuallyTransact) const
+{
+	using namespace Metasound::Editor;
+
+	const FScopedTransaction Transaction(LOCTEXT("BreakNodeLinks", "Break Node Links"), bShouldActuallyTransact);
 	UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(TargetNode.GetGraph());
 	Graph->GetMetasoundChecked().Modify();
 	TargetNode.Modify();
@@ -767,21 +817,21 @@ void UMetasoundEditorGraphSchema::GetConversionActions(FGraphActionMenuBuilder& 
 	using namespace Metasound;
 
 	const FText MenuJoinFormat = LOCTEXT("MetasoundActionsFormatSubCategory", "{0}|{1}");
-	const TArray<Frontend::FNodeClassInfo> ClassInfos = Frontend::GetAllAvailableNodeClasses();
-	for (const Frontend::FNodeClassInfo& ClassInfo : ClassInfos)
+	const bool bIncludeDeprecated = static_cast<bool>(EnableDeprecatedMetaSoundNodeClassCreationCVar);
+	const TArray<FMetasoundFrontendClass> FrontendClasses = Frontend::ISearchEngine::Get().FindAllClasses(bIncludeDeprecated);
+	for (const FMetasoundFrontendClass& FrontendClass : FrontendClasses)
 	{
-		const FMetasoundFrontendClass ClassDescription = Frontend::GenerateClassDescription(ClassInfo);
-		if (InFilters.InputFilterFunction && !ClassDescription.Interface.Inputs.ContainsByPredicate(InFilters.InputFilterFunction))
+		if (InFilters.InputFilterFunction && !FrontendClass.Interface.Inputs.ContainsByPredicate(InFilters.InputFilterFunction))
 		{
 			continue;
 		}
 
-		if (InFilters.OutputFilterFunction && !ClassDescription.Interface.Outputs.ContainsByPredicate(InFilters.OutputFilterFunction))
+		if (InFilters.OutputFilterFunction && !FrontendClass.Interface.Outputs.ContainsByPredicate(InFilters.OutputFilterFunction))
 		{
 			continue;
 		}
 
-		const FMetasoundFrontendClassMetadata Metadata = ClassDescription.Metadata;
+		const FMetasoundFrontendClassMetadata& Metadata = FrontendClass.Metadata;
 		const FText Tooltip = Metadata.Author.IsEmpty()
 			? Metadata.Description
 			: FText::Format(LOCTEXT("MetasoundTooltipAuthorFormat", "{0}\nAuthor: {1}"), Metadata.Description, Metadata.Author);
@@ -796,7 +846,7 @@ void UMetasoundEditorGraphSchema::GetConversionActions(FGraphActionMenuBuilder& 
 				0
 			);
 
-			NewNodeAction->NodeClassInfo = ClassInfo;
+			NewNodeAction->ClassMetadata = Metadata;
 			ActionMenuBuilder.AddAction(NewNodeAction);
 
 		}
@@ -875,21 +925,21 @@ void UMetasoundEditorGraphSchema::GetFunctionActions(FGraphActionMenuBuilder& Ac
 
 	const FText MenuJoinFormat = LOCTEXT("MetasoundActionsFormatSubCategory", "{0}|{1}");
 
-	const TArray<FNodeClassInfo> ClassInfos = GetAllAvailableNodeClasses();
-	for (const FNodeClassInfo& ClassInfo : ClassInfos)
+	const bool bIncludeDeprecated = static_cast<bool>(EnableDeprecatedMetaSoundNodeClassCreationCVar);
+	const TArray<FMetasoundFrontendClass> FrontendClasses = ISearchEngine::Get().FindAllClasses(bIncludeDeprecated);
+	for (const FMetasoundFrontendClass& FrontendClass : FrontendClasses)
 	{
-		const FMetasoundFrontendClass ClassDescription = GenerateClassDescription(ClassInfo);
-		if (InFilters.InputFilterFunction && !ClassDescription.Interface.Inputs.ContainsByPredicate(InFilters.InputFilterFunction))
+		if (InFilters.InputFilterFunction && !FrontendClass.Interface.Inputs.ContainsByPredicate(InFilters.InputFilterFunction))
 		{
 			continue;
 		}
 
-		if (InFilters.OutputFilterFunction && !ClassDescription.Interface.Outputs.ContainsByPredicate(InFilters.OutputFilterFunction))
+		if (InFilters.OutputFilterFunction && !FrontendClass.Interface.Outputs.ContainsByPredicate(InFilters.OutputFilterFunction))
 		{
 			continue;
 		}
 
-		const FMetasoundFrontendClassMetadata Metadata = ClassDescription.Metadata;
+		const FMetasoundFrontendClassMetadata& Metadata = FrontendClass.Metadata;
 		const FText Tooltip = Metadata.Author.IsEmpty()
 			? Metadata.Description
 			: FText::Format(LOCTEXT("MetasoundTooltipAuthorFormat", "{0}\nAuthor: {1}"), Metadata.Description, Metadata.Author);
@@ -905,7 +955,7 @@ void UMetasoundEditorGraphSchema::GetFunctionActions(FGraphActionMenuBuilder& Ac
 				0
 			);
 
-			NewNodeAction->NodeClassInfo = ClassInfo;
+			NewNodeAction->ClassMetadata = Metadata;
 			ActionMenuBuilder.AddAction(NewNodeAction);
 		}
 	}

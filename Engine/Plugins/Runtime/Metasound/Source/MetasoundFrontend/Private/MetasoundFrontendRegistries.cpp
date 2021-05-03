@@ -149,7 +149,6 @@ namespace Metasound
 				using FNodeClassMetadata = Metasound::FNodeClassMetadata;
 				using IEnumDataTypeInterface = Metasound::Frontend::IEnumDataTypeInterface;
 
-
 				FRegistryContainerImpl() = default;
 
 				FRegistryContainerImpl(const FRegistryContainerImpl&) = delete;
@@ -180,6 +179,8 @@ namespace Metasound
 
 				// Return any data types that can be used as a metasound input type or output type.
 				TArray<FName> GetAllValidDataTypes() override;
+
+				void IterateRegistry(Metasound::FIterateMetasoundFrontendClassFunction InIterFunc, EMetasoundFrontendClassType InClassType = EMetasoundFrontendClassType::Invalid) const override;
 
 				// Find Frontend Document data.
 				bool FindFrontendClassFromRegistered(const FNodeClassInfo& InClassInfo, FMetasoundFrontendClass& OutClass) override;
@@ -563,14 +564,19 @@ namespace Metasound
 				if (ensure(FMetasoundFrontendRegistryContainer::GetRegistryKey(RegistryElement, Key)))
 				{
 					// check to see if an identical node was already registered, and log
-					ensureAlwaysMsgf(!ExternalNodeRegistry.Contains(Key), TEXT("Node with identical name, inputs and outputs to node %s was already registered. The previously registered node will be overwritten. This could also happen because METASOUND_REGISTER_NODE is in a public header."), *Key.NodeClassFullName.ToString());
+					ensureAlwaysMsgf(
+						!ExternalNodeRegistry.Contains(Key),
+						TEXT("Node with identical name '%s' & Major Version already registered. "
+							"The previously registered node will be overwritten. "
+							"This can happen if two classes share the same name or if METASOUND_REGISTER_NODE is defined in a public header."),
+						*Key.NodeClassFullName.ToString());
 
 					// Store update to newly registered node in history so nodes
 					// can be queried by transaction ID
-					FNodeClassInfo ClassInfo = {EMetasoundFrontendClassType::External, Key};
+					FNodeClassInfo ClassInfo = { EMetasoundFrontendClassType::External, Key };
 					RegistryTransactionHistory.Add(MakeNodeRegistrationTransaction(ClassInfo));
 
-					// Store registry elements in map so nodes can be queried using registry key. 
+					// Store registry elements in map so nodes can be queried using registry key.
 					ExternalNodeRegistry.Add(MoveTemp(Key), MoveTemp(RegistryElement));
 
 					return true;
@@ -642,7 +648,6 @@ namespace Metasound
 				return nullptr;
 			}
 
-
 			TSharedPtr<Metasound::IDataChannel, ESPMode::ThreadSafe> FRegistryContainerImpl::CreateDataChannelForDataType(const FName& InDataType, const Metasound::FOperatorSettings& InSettings) const
 			{
 				if (const FDataTypeRegistryElement* Element = DataTypeRegistry.Find(InDataType))
@@ -692,7 +697,6 @@ namespace Metasound
 				Info.LookupKey = GetRegistryKey(InMetadata);
 
 				return FindFrontendClassFromRegistered(Info, OutClass);
-
 			}
 
 			bool FRegistryContainerImpl::FindInputNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata)
@@ -713,6 +717,71 @@ namespace Metasound
 					return true;
 				}
 				return false;
+			}
+
+			void FRegistryContainerImpl::IterateRegistry(Metasound::FIterateMetasoundFrontendClassFunction InIterFunc, EMetasoundFrontendClassType InClassType) const
+			{
+				auto IterateExternalClasses = [=]
+				{
+					for (const TPair<FNodeRegistryKey, FNodeRegistryElement>& Pair : ExternalNodeRegistry)
+					{
+						InIterFunc(Pair.Value.CreateFrontendClass());
+					}
+				};
+
+				auto IterateInputClasses = [=]
+				{
+					for (const TPair<FNodeRegistryKey, FDataTypeRegistryElement>& Pair : DataTypeNodeRegistry)
+					{
+						InIterFunc(Pair.Value.Callbacks.CreateFrontendInputClass());
+					}
+				};
+
+				auto IterateOutputClasses = [=]
+				{
+					for (const TPair<FNodeRegistryKey, FDataTypeRegistryElement>& Pair : DataTypeNodeRegistry)
+					{
+						InIterFunc(Pair.Value.Callbacks.CreateFrontendOutputClass());
+					}
+				};
+
+				switch (InClassType)
+				{
+					case EMetasoundFrontendClassType::External:
+					{
+						IterateExternalClasses();
+					}
+					break;
+
+					// TODO: Implement
+					case EMetasoundFrontendClassType::Graph:
+					{
+						checkNoEntry();
+					}
+					break;
+
+					case EMetasoundFrontendClassType::Input:
+					{
+						IterateInputClasses();
+					}
+					break;
+
+					case EMetasoundFrontendClassType::Output:
+					{
+						IterateOutputClasses();
+					}
+					break;
+
+					default:
+					case EMetasoundFrontendClassType::Invalid:
+					{
+						IterateExternalClasses();
+						IterateInputClasses();
+						IterateOutputClasses();
+					}
+					break;
+				}
+				static_assert(static_cast<uint32>(EMetasoundFrontendClassType::Invalid) == 4, "Possible missing switch case coverage for EMetasoundFrontendClassType");
 			}
 		}
 	}

@@ -19,7 +19,7 @@ namespace Metasound
 		/** FBaseOutputController provides common functionality for multiple derived
 		 * output controllers.
 		 */
-		class METASOUNDFRONTEND_API FBaseOutputController: public IOutputController
+		class METASOUNDFRONTEND_API FBaseOutputController : public IOutputController
 		{
 		public:
 
@@ -352,7 +352,8 @@ namespace Metasound
 			FGuid GetID() const override;
 			FGuid GetClassID() const override;
 
-			FMetasoundFrontendVersionNumber GetClassVersionNumber() const override;
+			const FMetasoundFrontendClassInterface& GetClassInterface() const override;
+			const FMetasoundFrontendClassMetadata& GetClassMetadata() const override;
 			const FMetasoundFrontendInterfaceStyle& GetInputStyle() const override;
 			const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const override;
 			const FMetasoundFrontendClassStyle& GetClassStyle() const override;
@@ -364,7 +365,6 @@ namespace Metasound
 			void SetNodeStyle(const FMetasoundFrontendNodeStyle& InStyle) override;
 
 			const FString& GetNodeName() const override;
-			EMetasoundFrontendClassType GetClassType() const override;
 
 			bool CanAddInput(const FString& InVertexName) const override;
 			FInputHandle AddInput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) override;
@@ -373,8 +373,6 @@ namespace Metasound
 			bool CanAddOutput(const FString& InVertexName) const override;
 			FInputHandle AddOutput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) override;
 			bool RemoveOutput(FGuid InVertexID) override;
-
-			const FMetasoundFrontendClassName& GetClassName() const override;
 
 			/** Returns all node inputs. */
 			TArray<FInputHandle> GetInputs() override;
@@ -484,15 +482,12 @@ namespace Metasound
 			const FMetasoundFrontendVertex* FindNodeInputWithName(const FString& InName) const;
 			const FMetasoundFrontendVertex* FindNodeOutputWithName(const FString& InName) const;
 
-
-
 			virtual FInputHandle CreateInputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const = 0;
-
 			virtual FOutputHandle CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const = 0;
 		};
 
 		/** FNodeController represents a external or subgraph node. */
-		class METASOUNDFRONTEND_API FNodeController: public FBaseNodeController
+		class METASOUNDFRONTEND_API FNodeController : public FBaseNodeController
 		{
 			// Private token only allows members or friends to call constructor.
 			enum EPrivateToken { Token };
@@ -530,19 +525,15 @@ namespace Metasound
 			bool IsValid() const override;
 
 		protected:
-
 			FDocumentAccess ShareAccess() override;
 			FConstDocumentAccess ShareAccess() const override;
 
 
 		private:
-
 			FInputHandle CreateInputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const override;
-
 			FOutputHandle CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const override;
 
 			FGraphAccessPtr GraphPtr;
-
 		};
 
 		/** FOutputNodeController represents an output node. */
@@ -925,7 +916,7 @@ namespace Metasound
 			FConstClassAccessPtr FindOrAddClass(const FNodeClassInfo& InNodeClass) override;
 			FConstClassAccessPtr FindOrAddClass(const FMetasoundFrontendClassMetadata& InMetadata) override;
 
-			void RemoveUnreferencedDependencies() override;
+			void SynchronizeDependencies() override;
 
 			FGraphHandle GetRootGraph() override;
 			FConstGraphHandle GetRootGraph() const override;

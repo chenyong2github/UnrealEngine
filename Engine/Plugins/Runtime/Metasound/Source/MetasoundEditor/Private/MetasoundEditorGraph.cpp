@@ -4,9 +4,11 @@
 #include "Audio/AudioParameterInterface.h"
 #include "Components/AudioComponent.h"
 #include "EdGraph/EdGraphNode.h"
+#include "Interfaces/ITargetPlatform.h"
 #include "MetasoundEditorGraphBuilder.h"
-#include "MetasoundEditorGraphNode.h"
 #include "MetasoundEditorGraphInputNodes.h"
+#include "MetasoundEditorGraphNode.h"
+#include "MetasoundEditorGraphValidation.h"
 #include "MetasoundEditorModule.h"
 #include "MetasoundUObjectRegistry.h"
 #include "ScopedTransaction.h"
@@ -33,6 +35,25 @@ TArray<UMetasoundEditorGraphNode*> UMetasoundEditorGraphVariable::GetNodes() con
 	}
 
 	return Nodes;
+}
+
+void UMetasoundEditorGraphVariable::SetDisplayName(const FText& InNewName)
+{
+	using namespace Metasound::Frontend;
+
+	const FText TransactionLabel = FText::Format(LOCTEXT("Rename Variable", "Rename Metasound {0}"), GetVariableLabel());
+	const FScopedTransaction Transaction(TransactionLabel);
+
+	Modify();
+	if (UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(GetOuter()))
+	{
+		Graph->GetMetasoundChecked().Modify();
+	}
+
+	FNodeHandle NodeHandle = GetNodeHandle();
+	NodeHandle->SetDisplayName(InNewName);
+
+	NameChanged.Broadcast(NodeID);
 }
 
 void UMetasoundEditorGraphVariable::SetDataType(FName InNewType)
@@ -77,7 +98,7 @@ void UMetasoundEditorGraphVariable::SetDataType(FName InNewType)
 		return;
 	}
 
-	ClassName = NewNodeHandle->GetClassName();
+	ClassName = NewNodeHandle->GetClassMetadata().ClassName;
 	NodeID = NewNodeHandle->GetID();
 	TypeName = InNewType;
 
@@ -116,6 +137,35 @@ Metasound::Frontend::FNodeHandle UMetasoundEditorGraphVariable::GetNodeHandle() 
 Metasound::Frontend::FConstNodeHandle UMetasoundEditorGraphVariable::GetConstNodeHandle() const
 {
 	return GetNodeHandle();
+}
+
+bool UMetasoundEditorGraphVariable::CanRename(const FText& InNewName, FText& OutError) const
+{
+	using namespace Metasound::Frontend;
+
+	if (InNewName.IsEmpty())
+	{
+		OutError = FText::Format(LOCTEXT("VariableRenameInvalid_NameEmpty", "{0} cannot be empty string."), InNewName);
+		return false;
+	}
+
+	FConstNodeHandle NodeHandle = GetConstNodeHandle();
+	FConstGraphHandle GraphHandle = NodeHandle->GetOwningGraph();
+
+	bool bIsNameValid = true;
+	GraphHandle->IterateConstNodes([&](FConstNodeHandle NodeToCompare)
+	{
+		if (NodeID != NodeToCompare->GetID())
+		{
+			if (InNewName.CompareToCaseIgnored(NodeToCompare->GetDisplayName()) == 0)
+			{
+				bIsNameValid = false;
+				OutError = FText::Format(LOCTEXT("VariableRenameInvalid_NameTaken", "{0} is already in use"), InNewName);
+			}
+		}
+	}, GetClassType());
+
+		return bIsNameValid;
 }
 
 #if WITH_EDITORONLY_DATA
@@ -184,6 +234,12 @@ Metasound::Frontend::FNodeHandle UMetasoundEditorGraphInput::AddNodeHandle(const
 	Metasound::Frontend::FNodeHandle NewNodeHandle = FGraphBuilder::AddInputNodeHandle(Metasound, InNodeName, InDataType, FText::GetEmpty());
 	NewNodeHandle->SetDisplayName(InNodeDisplayName);
 	return NewNodeHandle;
+}
+
+const FText& UMetasoundEditorGraphInput::GetVariableLabel() const
+{
+	static const FText Label = LOCTEXT("VariableLabel_Input", "Input");
+	return Label;
 }
 
 #if WITH_EDITORONLY_DATA
@@ -260,6 +316,12 @@ Metasound::Frontend::FNodeHandle UMetasoundEditorGraphOutput::AddNodeHandle(cons
 	return NewNodeHandle;
 }
 
+const FText& UMetasoundEditorGraphOutput::GetVariableLabel() const
+{
+	static const FText Label = LOCTEXT("VariableLabel_Output", "Output");
+	return Label;
+}
+
 UMetasoundEditorGraphInputNode* UMetasoundEditorGraph::CreateInputNode(Metasound::Frontend::FNodeHandle InNodeHandle, bool bInSelectNewNode)
 {
 	using namespace Metasound::Editor;
@@ -289,6 +351,19 @@ UMetasoundEditorGraphInputNode* UMetasoundEditorGraph::CreateInputNode(Metasound
 	}
 	
 	return nullptr;	
+}
+
+Metasound::Frontend::FDocumentHandle UMetasoundEditorGraph::GetDocumentHandle() const
+{
+	return GetGraphHandle()->GetOwningDocument();
+}
+
+Metasound::Frontend::FGraphHandle UMetasoundEditorGraph::GetGraphHandle() const
+{
+	FMetasoundAssetBase* MetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&GetMetasoundChecked());
+	check(MetasoundAsset);
+
+	return MetasoundAsset->GetRootGraphHandle();
 }
 
 UObject* UMetasoundEditorGraph::GetMetasound() const
@@ -346,7 +421,7 @@ UMetasoundEditorGraphInput* UMetasoundEditorGraph::FindOrAddInput(Metasound::Fro
 	if (UMetasoundEditorGraphInput* NewInput = NewObject<UMetasoundEditorGraphInput>(this, FName(), RF_Transactional))
 	{
 		NewInput->NodeID = NodeID;
-		NewInput->ClassName = InNodeHandle->GetClassName();
+		NewInput->ClassName = InNodeHandle->GetClassMetadata().ClassName;
 		NewInput->TypeName = TypeName;
 
 		FMetasoundFrontendLiteral DefaultLiteral = Graph->GetDefaultInput(VertexID);
@@ -401,7 +476,7 @@ UMetasoundEditorGraphOutput* UMetasoundEditorGraph::FindOrAddOutput(Metasound::F
 	if (UMetasoundEditorGraphOutput* NewOutput = NewObject<UMetasoundEditorGraphOutput>(this, FName(), RF_Transactional))
 	{
 		NewOutput->NodeID = NodeID;
-		NewOutput->ClassName = InNodeHandle->GetClassName();
+		NewOutput->ClassName = InNodeHandle->GetClassMetadata().ClassName;
 		NewOutput->TypeName = TypeName;
 		Outputs.Add(NewOutput);
 		return NewOutput;
@@ -493,5 +568,33 @@ bool UMetasoundEditorGraph::RemoveVariable(UMetasoundEditorGraphVariable& InVari
 	}
 
 	return false;
+}
+
+bool UMetasoundEditorGraph::Validate(Metasound::Editor::FGraphValidationResults& OutResults)
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	bool bMarkDirty = false;
+	bool bIsValid = false;
+
+	OutResults = FGraphValidationResults();
+
+	TArray<UMetasoundEditorGraphExternalNode*> ExternalNodes;
+	GetNodesOfClass<UMetasoundEditorGraphExternalNode>(ExternalNodes);
+	for (UMetasoundEditorGraphExternalNode* ExternalNode : ExternalNodes)
+	{
+		FGraphNodeValidationResult NodeResult(*ExternalNode);
+		bIsValid |= ExternalNode->Validate(NodeResult);
+		bMarkDirty |= NodeResult.bIsDirty;
+		OutResults.NodeResults.Add(NodeResult);
+	}
+
+	if (bMarkDirty)
+	{
+		MarkPackageDirty();
+	}
+
+	return bIsValid;
 }
 #undef LOCTEXT_NAMESPACE

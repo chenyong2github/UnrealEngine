@@ -85,5 +85,33 @@ namespace Metasound
 	private:
 		FGuid ClassID;
 	};
-}
 
+	class METASOUNDFRONTEND_API FMapClassNameToMajorVersion : public IFrontendQueryMapStep
+	{
+	public:
+		FFrontendQueryEntry::FKey Map(const FFrontendQueryEntry& InEntry) const override;
+	};
+
+	class METASOUNDFRONTEND_API FReduceClassesToHighestVersion : public IFrontendQueryReduceStep
+	{
+	public:
+		void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry*>& InEntries, FReduceOutputView& OutResult) const override;
+	};
+
+	class METASOUNDFRONTEND_API FReduceClassesToMajorVersion : public IFrontendQueryReduceStep
+	{
+	public:
+		FReduceClassesToMajorVersion(int32 InMajorVersion);
+
+		void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry*>& InEntries, FReduceOutputView& OutResult) const override;
+
+	private:
+		int32 MajorVersion = -1;
+	};
+
+	class METASOUNDFRONTEND_API FSortClassesByVersion : public IFrontendQuerySortStep
+	{
+	public:
+		bool Sort(const FFrontendQueryEntry& InEntryLHS, const FFrontendQueryEntry& InEntryRHS) const override;
+	};
+}

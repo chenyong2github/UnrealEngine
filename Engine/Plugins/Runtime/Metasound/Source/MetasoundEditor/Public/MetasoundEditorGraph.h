@@ -4,6 +4,7 @@
 #include "Audio/AudioParameterInterface.h"
 #include "CoreMinimal.h"
 #include "MetasoundEditor.h"
+#include "MetasoundEditorGraphNode.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendLiteral.h"
@@ -16,8 +17,17 @@
 
 // Forward Declarations
 struct FMetasoundFrontendDocument;
+class ITargetPlatform;
 class UMetasoundEditorGraphInputNode;
 class UMetasoundEditorGraphNode;
+
+namespace Metasound
+{
+	namespace Editor
+	{
+		struct FGraphValidationResults;
+	} // namespace Editor
+} // namespace Metasound
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMetasoundNodeNameChanged, FGuid /* NodeID */);
 
@@ -48,9 +58,14 @@ public:
 	Metasound::Frontend::FNodeHandle GetNodeHandle() const;
 	Metasound::Frontend::FConstNodeHandle GetConstNodeHandle() const;
 
+	bool CanRename(const FText& InNewName, FText& OutError) const;
 	TArray<UMetasoundEditorGraphNode*> GetNodes() const;
 	void SetDataType(FName InNewType);
+	void SetDisplayName(const FText& InNewName);
+
+	virtual EMetasoundFrontendClassType GetClassType() const { return EMetasoundFrontendClassType::Invalid; }
 	virtual void OnDataTypeChanged() { }
+	virtual const FText& GetVariableLabel() const { return FText::GetEmpty(); }
 };
 
 UCLASS()
@@ -89,7 +104,8 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphInput : public UMetasoundEditorGr
 
 protected:
 	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FString& InNodeName, const FText& InNodeDisplayName, FName InDataType) override;
-
+	virtual EMetasoundFrontendClassType GetClassType() const override { return EMetasoundFrontendClassType::Input; }
+	virtual const FText& GetVariableLabel() const override;
 
 public:
 	UPROPERTY(VisibleAnywhere, Category = DefaultValue)
@@ -113,6 +129,8 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphOutput : public UMetasoundEditorG
 
 protected:
 	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FString& InNodeName, const FText& InNodeDisplayName, FName InDataType) override;
+	virtual EMetasoundFrontendClassType GetClassType() const override { return EMetasoundFrontendClassType::Output; }
+	virtual const FText& GetVariableLabel() const override;
 };
 
 UCLASS()
@@ -122,6 +140,9 @@ class METASOUNDEDITOR_API UMetasoundEditorGraph : public UMetasoundEditorGraphBa
 
 public:
 	UMetasoundEditorGraphInputNode* CreateInputNode(Metasound::Frontend::FNodeHandle InNodeHandle, bool bInSelectNewNode);
+
+	Metasound::Frontend::FDocumentHandle GetDocumentHandle() const;
+	Metasound::Frontend::FGraphHandle GetGraphHandle() const;
 
 	UObject* GetMetasound() const;
 	UObject& GetMetasoundChecked() const;
@@ -136,6 +157,8 @@ public:
 	bool IsPreviewing() const;
 
 	virtual void Synchronize();
+
+	bool Validate(Metasound::Editor::FGraphValidationResults& OutResults);
 
 private:
 	// Preview ID is the Unique ID provided by the UObject that implements

@@ -43,7 +43,7 @@ enum class EMetasoundFrontendClassType : uint8
 
 // General purpose version number for Metasound Frontend objects.
 USTRUCT()
-struct FMetasoundFrontendVersionNumber
+struct METASOUNDFRONTEND_API FMetasoundFrontendVersionNumber
 {
 	GENERATED_BODY()
 
@@ -54,6 +54,72 @@ struct FMetasoundFrontendVersionNumber
 	// Minor version number.
 	UPROPERTY(VisibleAnywhere, Category = General)
 	int32 Minor = 0;
+
+	static const FMetasoundFrontendVersionNumber& GetInvalid()
+	{
+		static const FMetasoundFrontendVersionNumber Invalid { 0, 0 };
+		return Invalid;
+	}
+
+	bool IsValid() const
+	{
+		return *this != GetInvalid();
+	}
+
+	friend bool operator==(const FMetasoundFrontendVersionNumber& InLHS, const FMetasoundFrontendVersionNumber& InRHS)
+	{
+		return InLHS.Major == InRHS.Major && InLHS.Minor == InRHS.Minor;
+	}
+
+	friend bool operator!=(const FMetasoundFrontendVersionNumber& InLHS, const FMetasoundFrontendVersionNumber& InRHS)
+	{
+		return InLHS.Major != InRHS.Major || InLHS.Minor != InRHS.Minor;
+	}
+
+	friend bool operator>(const FMetasoundFrontendVersionNumber& InLHS, const FMetasoundFrontendVersionNumber& InRHS)
+	{
+		if (InLHS.Major > InRHS.Major)
+		{
+			return true;
+		}
+
+		if (InLHS.Major == InRHS.Major)
+		{
+			return InLHS.Minor > InRHS.Minor;
+		}
+
+		return false;
+	}
+
+	friend bool operator>=(const FMetasoundFrontendVersionNumber& InLHS, const FMetasoundFrontendVersionNumber& InRHS)
+	{
+		return InLHS == InRHS || InLHS > InRHS;
+	}
+
+	friend bool operator<(const FMetasoundFrontendVersionNumber& InLHS, const FMetasoundFrontendVersionNumber& InRHS)
+	{
+		if (InLHS.Major < InRHS.Major)
+		{
+			return true;
+		}
+
+		if (InLHS.Major == InRHS.Major)
+		{
+			return InLHS.Minor < InRHS.Minor;
+		}
+
+		return false;
+	}
+
+	friend bool operator<=(const FMetasoundFrontendVersionNumber& InLHS, const FMetasoundFrontendVersionNumber& InRHS)
+	{
+		return InLHS == InRHS || InLHS < InRHS;
+	}
+
+	FString ToString() const
+	{
+		return FString::Format(TEXT("v{0}.{1}"), { Major, Minor });
+	}
 };
 
 // General purpose version info for Metasound Frontend objects.
@@ -534,7 +600,6 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassName
 	FMetasoundFrontendClassName(const FName& InNamespace, const FName& InName, const FName& InVariant);
 
 	FMetasoundFrontendClassName(const Metasound::FNodeClassName& InName);
-	
 
 	// Namespace of class.
 	UPROPERTY(EditAnywhere, Category = General)
@@ -553,6 +618,13 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassName
 
 	// Returns scoped name representing namespace and name. 
 	FName GetScopedName() const;
+
+	// Returns NodeClassName version of full name
+	Metasound::FNodeClassName ToNodeClassName() const
+	{
+		return { Namespace, Name, Variant };
+	}
+
 
 	// Return string version of full name.
 	FString ToString() const;

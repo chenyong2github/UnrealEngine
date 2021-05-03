@@ -101,8 +101,8 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewNode : public FEdGraph
 {
 	GENERATED_USTRUCT_BODY();
 
-	/** ClassInfo of node to create */
-	Metasound::Frontend::FNodeClassInfo NodeClassInfo;
+	/** Class Metadata of node to create */
+	FMetasoundFrontendClassMetadata ClassMetadata;
 
 	FMetasoundGraphSchemaAction_NewNode() 
 		: FEdGraphSchemaAction()
@@ -202,6 +202,8 @@ class UMetasoundEditorGraphSchema : public UEdGraphSchema
 	virtual int32 GetNodeSelectionCount(const UEdGraph* Graph) const override;
 	virtual TSharedPtr<FEdGraphSchemaAction> GetCreateCommentAction() const override;
 	//~ End EdGraphSchema Interface
+
+	void BreakNodeLinks(UEdGraphNode& TargetNode, bool bShouldActuallyTransact) const;
 
 private:
 	/** Adds actions for creating actions associated with graph DataTypes */

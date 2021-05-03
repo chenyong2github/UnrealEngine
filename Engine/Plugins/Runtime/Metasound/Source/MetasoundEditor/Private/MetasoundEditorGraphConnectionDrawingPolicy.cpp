@@ -48,7 +48,15 @@ namespace Metasound
 			OutParams.AssociatedPin1 = InputPin;
 			OutParams.AssociatedPin2 = OutputPin;
 
-			OutParams.WireColor = FGraphBuilder::GetPinCategoryColor(OutputPin->PinType);
+			if (OutputPin->bOrphanedPin || InputPin->bOrphanedPin)
+			{
+				OutParams.WireColor = FLinearColor::Red;
+			}
+			else
+			{
+				OutParams.WireColor = FGraphBuilder::GetPinCategoryColor(OutputPin->PinType);
+			}
+
 			bool bExecuted = false;
 
 			// Run through the predecessors, and on

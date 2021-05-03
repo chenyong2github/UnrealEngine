@@ -61,18 +61,18 @@ namespace Metasound
 	};
 	*/
 
-
-	typedef TFunction<TUniquePtr<Metasound::INode>(::Metasound::FInputNodeConstructorParams&&)> FCreateInputNodeFunction;
-	typedef TFunction<TUniquePtr<Metasound::INode>(const ::Metasound::FOutputNodeConstructorParams&)> FCreateOutputNodeFunction;
+	using FCreateInputNodeFunction = TFunction<TUniquePtr<Metasound::INode>(::Metasound::FInputNodeConstructorParams&&)>;
+	using FCreateOutputNodeFunction = TFunction<TUniquePtr<Metasound::INode>(const ::Metasound::FOutputNodeConstructorParams&)>;
 
 	// This function is used to create a proxy from a datatype's base uclass.
-	typedef TFunction<Audio::IProxyDataPtr(UObject*)> FCreateAudioProxyFunction;
+	using FCreateAudioProxyFunction = TFunction<Audio::IProxyDataPtr(UObject*)> ;
 
 	// Creates a data channel for senders and receivers of this data type.
-	typedef TFunction<TSharedPtr<IDataChannel, ESPMode::ThreadSafe>(const FOperatorSettings&)> FCreateDataChannelFunction;
+	using FCreateDataChannelFunction = TFunction<TSharedPtr<IDataChannel, ESPMode::ThreadSafe>(const FOperatorSettings&)>;
 
-	typedef TFunction<TUniquePtr<Metasound::INode>(const Metasound::FNodeInitData&)> FCreateMetasoundNodeFunction;
-	typedef TFunction<FMetasoundFrontendClass()> FCreateMetasoundFrontendClassFunction;
+	using FCreateMetasoundNodeFunction = TFunction<TUniquePtr<Metasound::INode>(const Metasound::FNodeInitData&)>;
+	using FCreateMetasoundFrontendClassFunction = TFunction<FMetasoundFrontendClass()>;
+	using FIterateMetasoundFrontendClassFunction = TFunction<void(const FMetasoundFrontendClass&)>;
 
 	// Various elements that we pass to the frontend registry based on templated type traits.
 	struct FDataTypeRegistryInfo
@@ -273,7 +273,7 @@ namespace Metasound
 
 		FCreateDataChannelFunction CreateDataChannel;
 	};
-}
+} // namespace Frontend
 
 /**
  * Singleton registry for all types and nodes.
@@ -330,7 +330,6 @@ public:
 	virtual bool RegisterConversionNode(const FConverterNodeRegistryKey& InNodeKey, const FConverterNodeInfo& InNodeInfo) = 0;
 	virtual bool IsNodeRegistered(const FNodeRegistryKey& InKey) const = 0;
 
-
 	/** Return all node classes registered. */
 	virtual TArray<Metasound::Frontend::FNodeClassInfo> GetAllAvailableNodeClasses(Metasound::Frontend::FRegistryTransactionID* OutCurrentRegistryTransactionID) const = 0;
 
@@ -339,6 +338,9 @@ public:
 
 	// Return any data types that can be used as a metasound input type or output type.
 	virtual TArray<FName> GetAllValidDataTypes() = 0;
+
+	// Iterates class types in registry.  If InClassType is set to a valid class type (optional), only iterates classes of the given type
+	virtual void IterateRegistry(Metasound::FIterateMetasoundFrontendClassFunction InIterFunc, EMetasoundFrontendClassType InClassType = EMetasoundFrontendClassType::Invalid) const = 0;
 
 	// Query for MetaSound Frontend document objects.
 	virtual bool FindFrontendClassFromRegistered(const Metasound::Frontend::FNodeClassInfo& InClassInfo, FMetasoundFrontendClass& OutClass) = 0;
@@ -354,8 +356,6 @@ public:
 	// Returns a list of possible nodes to use to convert from FromDataType to ToDataType.
 	// Returns an empty array if none are available.
 	virtual TArray<FConverterNodeInfo> GetPossibleConverterNodes(const FName& FromDataType, const FName& ToDataType) = 0;
-
-
 
 	virtual bool RegisterDataType(const FDataTypeRegistryInfo& InDataInfo, const FDataTypeConstructorCallbacks& InCallbacks) = 0;
 

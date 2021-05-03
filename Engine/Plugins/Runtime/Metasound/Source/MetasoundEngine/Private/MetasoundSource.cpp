@@ -186,15 +186,16 @@ bool UMetaSoundSource::GetReceiveNodeMetadataForDataType(const FName& InTypeName
 {
 	using namespace Metasound;
 
-	TArray<FMetasoundFrontendClass> ReceiverNodeClasses = Metasound::Frontend::ISearchEngine::Get().FindClassesWithClassName(FReceiveNodeNames::GetClassNameForDataType(InTypeName));
+	const FNodeClassName ClassName = FReceiveNodeNames::GetClassNameForDataType(InTypeName);
+	TArray<FMetasoundFrontendClass> ReceiverNodeClasses = Frontend::ISearchEngine::Get().FindClassesWithName(ClassName, true /* bInSortByVersion */);
 
-	if (ReceiverNodeClasses.Num() > 0)
+	if (ReceiverNodeClasses.IsEmpty())
 	{
-		OutMetadata = ReceiverNodeClasses[0].Metadata;
-		return true;
+		return false;
 	}
 
-	return false;
+	OutMetadata = ReceiverNodeClasses[0].Metadata;
+	return true;
 }
 
 Metasound::Frontend::FNodeHandle UMetaSoundSource::AddInputPinForSendAddress(const Metasound::FMetasoundInstanceTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const

@@ -383,12 +383,9 @@ namespace Metasound
 			virtual FInputHandle AddOutput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) = 0;
 			virtual bool RemoveOutput(FGuid InVertexID) = 0;
 
-			/** Returns the class type for this node. */
-			virtual EMetasoundFrontendClassType GetClassType() const = 0;
-
-			/** Returns the name of the node class. */
-			virtual const FMetasoundFrontendClassName& GetClassName() const = 0;
-			virtual FMetasoundFrontendVersionNumber GetClassVersionNumber() const = 0;
+			/** Returns associated node class data */
+			virtual const FMetasoundFrontendClassInterface& GetClassInterface() const = 0;
+			virtual const FMetasoundFrontendClassMetadata& GetClassMetadata() const = 0;
 			virtual const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const = 0;
 			virtual const FMetasoundFrontendInterfaceStyle& GetInputStyle() const = 0;
 			virtual const FMetasoundFrontendClassStyle& GetClassStyle() const = 0;
@@ -523,7 +520,6 @@ namespace Metasound
 
 			virtual FConstClassInputAccessPtr FindClassInputWithName(const FString& InName) const = 0;
 			virtual FConstClassOutputAccessPtr FindClassOutputWithName(const FString& InName) const = 0;
-
 
 			/** Add a new input node using the input description. 
 			 *
@@ -748,8 +744,9 @@ namespace Metasound
 			 */
 			virtual FConstClassAccessPtr FindOrAddClass(const FMetasoundFrontendClassMetadata& InMetadata) = 0;
 
-			/** Removes all dependencies which are no longer referenced by any graphs within this document.  */
-			virtual void RemoveUnreferencedDependencies() = 0;
+			/** Removes all dependencies which are no longer referenced by any graphs within this document
+			  * and updates dependency Metadata where necessary with that found in the registry.  */
+			virtual void SynchronizeDependencies() = 0;
 
 			/** Returns an array of all subgraphs for this document. */
 			virtual TArray<FGraphHandle> GetSubgraphHandles() = 0;

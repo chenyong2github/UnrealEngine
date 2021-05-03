@@ -52,6 +52,9 @@ namespace Metasound
 			/** Shows the Metasound's top-level general object settings in the Inspector */
 			TSharedPtr<FUICommandInfo> EditMetasoundSettings;
 
+			// Run updates on selected nodes if required by any subset of selected nodes
+			TSharedPtr<FUICommandInfo> UpdateNodes;
+
 			/** Initialize commands */
 			virtual void RegisterCommands() override;
 		};
