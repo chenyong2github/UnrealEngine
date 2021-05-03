@@ -90,7 +90,11 @@ Pass::Status StripReflectInfoPass::Process() {
   // clear all debug data now if it hasn't been cleared already, to remove any
   // remaining OpString that may have been referenced by non-semantic extinsts
   for (auto& dbg : context()->debugs1()) to_remove.push_back(&dbg);
-  for (auto& dbg : context()->debugs2()) to_remove.push_back(&dbg);
+  // UE Change Begin: OpName is required in UE
+  for (auto& dbg : context()->debugs2()) {
+    if (dbg.opcode() != SpvOpName) to_remove.push_back(&dbg);
+  }
+  // UE Change Begin: OpName is required in UE
   for (auto& dbg : context()->debugs3()) to_remove.push_back(&dbg);
   for (auto& dbg : context()->ext_inst_debuginfo()) to_remove.push_back(&dbg);
 

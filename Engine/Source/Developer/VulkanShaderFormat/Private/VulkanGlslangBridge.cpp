@@ -24,7 +24,6 @@ THIRD_PARTY_INCLUDES_START
 	#include "SPIRV/GLSL.std.450.h"
 	#include "SPIRV/doc.h"
 	#include "SPIRV/disassemble.h"
-	#include "SPIRV/spirv.hpp"
 THIRD_PARTY_INCLUDES_END
 
 #if defined(_MSC_VER) && _MSC_VER >= 1800
@@ -166,33 +165,8 @@ static EShLanguage GetStage(EHlslShaderFrequency Frequency)
 	return EShLangCount;
 }
 
-static void ComputeMovableWordIndices(FVulkanSpirv& Spirv)
+void PatchSpirvReflectionEntries(FVulkanSpirv& Spirv)
 {
-	// SPIRV Header
-	const uint32* PtrStart = Spirv.Data.GetData();
-	const uint32* Ptr = PtrStart;
-	const uint32* PtrEnd = Spirv.Data.GetData() + Spirv.Data.Num();
-	const uint32_t MagicNumberValue = *Ptr++;
-	check(MagicNumberValue == spv::MagicNumber);
-	uint32_t Version = *Ptr++;
-	uint32_t Generator = *Ptr++;
-	uint32_t Bound = *Ptr++;
-	const uint32_t ZeroCheckValue = *Ptr++;
-	check(ZeroCheckValue == 0);
-
-	auto ReadLiteralString = [](const uint32_t* Ptr)
-	{
-		FString S;
-		const char* Str = (const char*)Ptr;
-		// Empty string is allowed...
-		while (*Str)
-		{
-			S += *Str;
-			++Str;
-		}
-		return S;
-	};
-
 	TMap<uint32, FString> Names;
 	struct FDecorations
 	{
@@ -204,57 +178,38 @@ static void ComputeMovableWordIndices(FVulkanSpirv& Spirv)
 	TMap<uint32, FDecorations> Decorations;
 	TMap<uint32, uint32> TypePointerUniforms;
 	TMap<uint32, uint32> VariableUniformTypes;
-	bool bFoundEntry = false;
-	while (Ptr < PtrEnd)
+
+	bool bDone = false;
+	for (FSpirvConstIterator Iter = Spirv.cbegin(); Iter != Spirv.cend() && !bDone; ++Iter)
 	{
-		uint32_t WordCount = (*Ptr >> spv::WordCountShift) & spv::OpCodeMask;
-		spv::Op OpCode = (spv::Op)(*Ptr & spv::OpCodeMask);
-		switch (OpCode)
+		switch (Iter.Opcode())
 		{
-		case spv::OpEntryPoint:
-			{
-				uint32 ExecModel = Ptr[1];
-				uint32 EntryPoint = Ptr[2];
-				FString Name = ReadLiteralString(Ptr + 3);
-				if (Name == TEXT("main_00000000_00000000"))
-				{
-					check(Spirv.OffsetToEntryPoint == 0);
-					Spirv.OffsetToEntryPoint = (uint32)(&Ptr[3] - PtrStart);
-					bFoundEntry = true;
-				}
-			}
-			break;
-		case spv::OpName:
-			{
-				uint32 TargetId = Ptr[1];
-				FString Name = ReadLiteralString(Ptr + 2);
-				if (Name == TEXT("main_00000000_00000000"))
-				{
-					check(Spirv.OffsetToMainName == 0);
-					Spirv.OffsetToMainName = (uint32)(&Ptr[2] - PtrStart);
-				}
-				Names.Add(TargetId, Name);
-			}
-			break;
-		case spv::OpDecorate:
+		case SpvOpName:
 		{
-			uint32 TargetId = Ptr[1];
-			spv::Decoration Decoration = (spv::Decoration)Ptr[2];
+			uint32 TargetId = Iter.Operand(1);
+			FString Name = ANSI_TO_TCHAR(Iter.OperandAsString(2));
+			Names.Add(TargetId, MoveTemp(Name));
+		}
+			break;
+		case SpvOpDecorate:
+		{
+			uint32 TargetId = Iter.Operand(1);
+			SpvDecoration Decoration = Iter.OperandAs<SpvDecoration>(2);
 			switch (Decoration)
 			{
-			case spv::DecorationDescriptorSet:
+			case SpvDecorationDescriptorSet:
 			{
-				uint32 Value = Ptr[3];
-				uint32 WordValueIndex = (uint32)(&Ptr[3] - PtrStart);
+				uint32 Value = Iter.Operand(3);
+				uint32 WordValueIndex = Spirv.GetWordOffset(Iter, 3);
 				FDecorations& UBDecoration = Decorations.FindOrAdd(TargetId);
 				UBDecoration.DescriptorSet = Value;
 				UBDecoration.WordDescriptorSet = WordValueIndex;
 				break;
 			}
-			case spv::DecorationBinding:
+			case SpvDecorationBinding:
 			{
-				uint32 Value = Ptr[3];
-				uint32 WordValueIndex = (uint32)(&Ptr[3] - PtrStart);
+				uint32 Value = Iter.Operand(3);
+				uint32 WordValueIndex = Spirv.GetWordOffset(Iter, 3);
 				FDecorations& UBDecoration = Decorations.FindOrAdd(TargetId);
 				UBDecoration.BindingIndex = Value;
 				UBDecoration.WordBindingIndex = WordValueIndex;
@@ -265,36 +220,35 @@ static void ComputeMovableWordIndices(FVulkanSpirv& Spirv)
 			}
 		}
 			break;
-		case spv::OpTypePointer:
+		case SpvOpTypePointer:
 		{
-			uint32 Result = Ptr[1];
-			spv::StorageClass Storage = (spv::StorageClass)Ptr[2];
-			if (Storage == spv::StorageClassUniform || Storage == spv::StorageClassUniformConstant)
+			uint32 Result = Iter.Operand(1);
+			SpvStorageClass Storage = Iter.OperandAs<SpvStorageClass>(2);
+			if (Storage == SpvStorageClassUniform || Storage == SpvStorageClassUniformConstant)
 			{
-				uint32 Type = Ptr[3];
+				uint32 Type = Iter.Operand(3);
 				TypePointerUniforms.Add(Result, Type);
 			}
 		}
 			break;
-		case spv::OpVariable:
+		case SpvOpVariable:
 		{
-			uint32 Type = Ptr[1];
-			uint32 Id = Ptr[2];
-			spv::StorageClass Storage = (spv::StorageClass)Ptr[3];
-			if (Storage == spv::StorageClassUniform || Storage == spv::StorageClassUniformConstant)
+			uint32 Type = Iter.Operand(1);
+			uint32 Id = Iter.Operand(2);
+			SpvStorageClass Storage = Iter.OperandAs<SpvStorageClass>(3);
+			if (Storage == SpvStorageClassUniform || Storage == SpvStorageClassUniformConstant)
 			{
 				VariableUniformTypes.Add(Id, Type);
 			}
 		}
 			break;
+		case SpvOpFunction:
+			bDone = true;
+			break;
 		default:
 			break;
 		}
-
-		Ptr += WordCount;
 	}
-
-	check(bFoundEntry);
 
 	// Go through all found uniform variables and make sure we found the right info
 	for (const auto& Pair : VariableUniformTypes)
@@ -333,25 +287,6 @@ static void ComputeMovableWordIndices(FVulkanSpirv& Spirv)
 			}
 		}
 	}
-}
-
-static void PatchSpirvEntryPoint(FVulkanSpirv& OutSpirv, uint32 OffsetToName)
-{
-	char* EntryPointName = (char*)(OutSpirv.Data.GetData() + OffsetToName);
-	check(!FCStringAnsi::Strcmp(EntryPointName, "main_00000000_00000000"));
-	FCStringAnsi::Sprintf(EntryPointName, "main_%0.8x_%0.8x", OutSpirv.Data.Num() * sizeof(uint32), OutSpirv.CRC);
-};
-
-bool PatchSpirvReflectionEntriesAndEntryPoint(FVulkanSpirv& OutSpirv)
-{
-	// Re-compute movable word indices and update CRC code
-	ComputeMovableWordIndices(OutSpirv);
-	OutSpirv.CRC = FCrc::MemCrc32(OutSpirv.Data.GetData(), OutSpirv.Data.Num() * sizeof(uint32));
-
-	// Patch the entry point name
-	PatchSpirvEntryPoint(OutSpirv, OutSpirv.OffsetToMainName);
-	PatchSpirvEntryPoint(OutSpirv, OutSpirv.OffsetToEntryPoint);
-	return true;
 }
 
 bool GenerateSpirv(const ANSICHAR* Source, FCompilerInfo& CompilerInfo, FString& OutErrors, const FString& DumpDebugInfoPath, FVulkanSpirv& OutSpirv)
@@ -444,7 +379,8 @@ bool GenerateSpirv(const ANSICHAR* Source, FCompilerInfo& CompilerInfo, FString&
 			OutSpirv.ReflectionInfo.Add(Entry);
 		}
 
-		PatchSpirvReflectionEntriesAndEntryPoint(OutSpirv);
+		PatchSpirvReflectionEntries(OutSpirv);
+		OutSpirv.EntryPointName = PatchSpirvEntryPointWithCRC(OutSpirv, OutSpirv.CRC);
 
 		// Copy back to original spirv data as it is used for dumping information
 		FMemory::Memcpy(&Spirv[0], OutSpirv.Data.GetData(), SizeInWords * sizeof(uint32));

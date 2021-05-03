@@ -52,10 +52,10 @@ struct FVulkanSpirv : FSpirv
 		// Index into the Spirv Word containing the binding index decoration
 		uint32 WordBindingIndex = UINT32_MAX;
 	};
+
 	TArray<FEntry> ReflectionInfo;
-	uint32 OffsetToMainName = 0;
-	uint32 OffsetToEntryPoint = 0;
 	uint32 CRC = 0;
+	const ANSICHAR* EntryPointName = nullptr;
 
 	int32 FindBinding(const FString& Name, bool bOuter = false) const
 	{
@@ -135,7 +135,7 @@ struct FVulkanSpirv : FSpirv
 };
 
 // Updates all reflection entries in the specified SPIR-V module.
-extern bool PatchSpirvReflectionEntriesAndEntryPoint(FVulkanSpirv& OutSpirv);
+extern void PatchSpirvReflectionEntries(FVulkanSpirv& OutSpirv);
 
 // Generates SPIR-V out of the specified GLSL source code.
 extern bool GenerateSpirv(const ANSICHAR* Source, FCompilerInfo& CompilerInfo, FString& OutErrors, const FString& DumpDebugInfoPath, FVulkanSpirv& OutSpirv);

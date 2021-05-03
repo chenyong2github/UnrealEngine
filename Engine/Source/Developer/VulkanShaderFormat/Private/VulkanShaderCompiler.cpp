@@ -9,21 +9,6 @@
 #include "hlslcc.h"
 #include "SpirvReflectCommon.h"
 
-#if PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
-THIRD_PARTY_INCLUDES_START
-	#include "SPIRV/GlslangToSpv.h"
-	#include "SPIRV/doc.h"
-	#include "SPIRV/disassemble.h"
-THIRD_PARTY_INCLUDES_END
-
-#if PLATFORM_WINDOWS
-#include "Windows/AllowWindowsPlatformTypes.h"
-// For excpt.h
-#include <D3Dcompiler.h>
-#include "Windows/HideWindowsPlatformTypes.h"
-#endif
-#endif // PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
-
 #if PLATFORM_MAC
 // Horrible hack as we need the enum available but the Vulkan headers do not compile on Mac
 enum VkDescriptorType {
@@ -1563,7 +1548,7 @@ static void BuildShaderOutput(
 	{
 		if (IsVulkanMobilePlatform((EShaderPlatform)ShaderInput.Target.Platform))
 		{
-			CompileOfflineMali(ShaderInput, ShaderOutput, (const ANSICHAR*)Spirv.GetByteData(), Spirv.GetByteSize(), true, (const ANSICHAR*)(Spirv.GetByteData() + Spirv.OffsetToMainName));
+			CompileOfflineMali(ShaderInput, ShaderOutput, (const ANSICHAR*)Spirv.GetByteData(), Spirv.GetByteSize(), true, Spirv.EntryPointName);
 		}
 	}
 
@@ -1919,15 +1904,17 @@ static void GatherSpirvReflectionBindings(
 	}
 }
 
-static void BuildShaderOutputFromSpirv(
-	FVulkanSpirv&				Spirv,
-	const FShaderCompilerInput& Input,
-	FShaderCompilerOutput&		Output,
-	FVulkanBindingTable&		BindingTable,
-	const FString&				EntryPointName,
-	bool						bHasRealUBs,
-	bool						bDebugDump,
-	bool						bIsRayTracingShader)
+static bool BuildShaderOutputFromSpirv(
+	CrossCompiler::FShaderConductorContext&	CompilerContext,
+	FVulkanSpirv&							Spirv,
+	const FShaderCompilerInput&				Input,
+	FShaderCompilerOutput&					Output,
+	FVulkanBindingTable&					BindingTable,
+	const FString&							EntryPointName,
+	bool									bHasRealUBs,
+	bool									bStripReflect,
+	bool									bIsRayTracingShader,
+	bool									bDebugDump)
 {
 	FShaderParameterMap& ParameterMap = Output.ParameterMap;
 
@@ -2299,7 +2286,20 @@ static void BuildShaderOutputFromSpirv(
 
 	// Overwrite updated SPIRV code
 	Spirv.Data = TArray<uint32>(Reflection.GetCode(), Reflection.GetCodeSize() / 4);
-	PatchSpirvReflectionEntriesAndEntryPoint(Spirv);
+
+	// We have to strip out most debug instructions (except OpName) for Vulkan mobile
+	if (bStripReflect)
+	{
+		const char* OptArgs[] = { "--strip-reflect" };
+		if (!CompilerContext.OptimizeSpirv(Spirv.Data, OptArgs, UE_ARRAY_COUNT(OptArgs)))
+		{
+			UE_LOG(LogVulkanShaderCompiler, Error, TEXT("Failed to strip debug instructions from SPIR-V module"));
+			return false;
+		}
+	}
+
+	PatchSpirvReflectionEntries(Spirv);
+	Spirv.EntryPointName = PatchSpirvEntryPointWithCRC(Spirv, Spirv.CRC);
 
 	BuildShaderOutput(
 		Output,
@@ -2321,6 +2321,8 @@ static void BuildShaderOutputFromSpirv(
 		DumpDebugShaderBinary(Input, Spirv.GetByteData(), Spirv.GetByteSize(), TEXT("spv"));
 		DumpDebugShaderDisassembledSpirv(Input, Spirv.GetByteData(), Spirv.GetByteSize(), TEXT("spvasm"));
 	}
+
+	return true;
 }
 
 static bool CompileWithShaderConductor(
@@ -2330,7 +2332,8 @@ static bool CompileWithShaderConductor(
 	EHlslCompileTarget		HlslCompilerTarget,
 	FShaderCompilerOutput&	Output,
 	FVulkanBindingTable&	BindingTable,
-	bool					bHasRealUBs)
+	bool					bHasRealUBs,
+	bool					bStripReflect)
 {
 	const FShaderCompilerInput& Input = CompilerInfo.Input;
 
@@ -2384,14 +2387,12 @@ static bool CompileWithShaderConductor(
 	}
 
 	// Build shader output and binding table
-	BuildShaderOutputFromSpirv(Spirv, Input, Output, BindingTable, EntryPointName, bHasRealUBs, bDebugDump, bIsRayTracingShader);
+	Output.bSucceeded = BuildShaderOutputFromSpirv(CompilerContext, Spirv, Input, Output, BindingTable, EntryPointName, bHasRealUBs, bStripReflect, bIsRayTracingShader, bDebugDump);
 
 	if (Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
 	{
 		Output.ShaderCode.AddOptionalData(FShaderCodeName::Key, TCHAR_TO_UTF8(*Input.GenerateShaderName()));
 	}
-
-	Output.bSucceeded = true;
 
 	if (bDebugDump)
 	{
@@ -2414,6 +2415,7 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	const bool bHasRealUBs = !Input.Environment.CompilerFlags.Contains(CFLAG_UseEmulatedUB);
 	const bool bIsSM5 = (Version == EVulkanShaderVersion::SM5);
 	const bool bIsMobile = (Version == EVulkanShaderVersion::ES3_1 || Version == EVulkanShaderVersion::ES3_1_ANDROID);
+	const bool bStripReflect = (IsVulkanMobilePlatform(ShaderPlatform) || IsVulkanMobileSM5Platform(ShaderPlatform));
 	const bool bForceDXC = Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC);
 
 	const EHlslShaderFrequency FrequencyTable[] =
@@ -2564,7 +2566,7 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	if (bForceDXC)
 	{
 		// Cross-compile shader via ShaderConductor (DXC, SPIRV-Tools, SPIRV-Cross)
-		bSuccess = CompileWithShaderConductor(PreprocessedShaderSource, EntryPointName, CompilerInfo, HlslCompilerTarget, Output, BindingTable, bHasRealUBs);
+		bSuccess = CompileWithShaderConductor(PreprocessedShaderSource, EntryPointName, CompilerInfo, HlslCompilerTarget, Output, BindingTable, bHasRealUBs, bStripReflect);
 	}
 	else
 #endif // PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX

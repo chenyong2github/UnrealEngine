@@ -586,13 +586,13 @@ namespace
             shaderProfile = L"cs";
             break;
 
-		// UE Change Begin: Ray tracing shaders use a library profile.
-		case ShaderStage::RayGen:
-		case ShaderStage::RayMiss:
-		case ShaderStage::RayHitGroup:
-		case ShaderStage::RayCallable:
-			return L"lib_6_3";
-		// UE Change End: Ray tracing shaders use a library profile.
+        // UE Change Begin: Ray tracing shaders use a library profile.
+        case ShaderStage::RayGen:
+        case ShaderStage::RayMiss:
+        case ShaderStage::RayHitGroup:
+        case ShaderStage::RayCallable:
+            return L"lib_6_3";
+        // UE Change End: Ray tracing shaders use a library profile.
 
         default:
             llvm_unreachable("Invalid shader stage.");
@@ -784,13 +784,13 @@ namespace
             dxcArgStrings.push_back(L"all");
         }
 
-		// UE Change Begin: Ensure 1.2 for ray tracing shaders
-		const bool bIsRayTracingShader = (source.stage >= ShaderStage::RayGen) && (source.stage <= ShaderStage::RayCallable);
-		if (bIsRayTracingShader)
-		{
-			dxcArgStrings.push_back(L"-fspv-target-env=vulkan1.2");
-		}
-		// UE Change End: Ensure 1.2 for ray tracing shaders
+        // UE Change Begin: Ensure 1.2 for ray tracing shaders
+        const bool bIsRayTracingShader = (source.stage >= ShaderStage::RayGen) && (source.stage <= ShaderStage::RayCallable);
+        if (bIsRayTracingShader)
+        {
+            dxcArgStrings.push_back(L"-fspv-target-env=vulkan1.2");
+        }
+        // UE Change End: Ensure 1.2 for ray tracing shaders
 
         switch (targetLanguage)
         {
@@ -1012,7 +1012,9 @@ namespace
         opts.flatten_multidimensional_arrays = false;
         opts.enable_420pack_extension =
             (target.language == ShadingLanguage::Glsl) && ((target.version == nullptr) || (opts.version >= 420));
-        opts.vulkan_semantics = true;// false; //WIP
+        // UE Change Begin: Always enable Vulkan semantics
+        opts.vulkan_semantics = true;
+        // UE Change End: Always enable Vulkan semantics
         opts.vertex.fixup_clipspace = opts.es;
         opts.vertex.flip_vert_y = opts.es;
         opts.vertex.support_nonzero_base_instance = true;
@@ -1478,7 +1480,10 @@ namespace ShaderConductor
             const size_t spirvSize = source.binarySize / sizeof(uint32_t);
 
             spv_context context = spvContextCreate(SPV_ENV_UNIVERSAL_1_3);
-            uint32_t options = SPV_BINARY_TO_TEXT_OPTION_NONE | SPV_BINARY_TO_TEXT_OPTION_INDENT | SPV_BINARY_TO_TEXT_OPTION_FRIENDLY_NAMES;
+			// UE Change Begin: Enable comments to improve readability for SPIR-V disassembly
+            uint32_t options =
+                SPV_BINARY_TO_TEXT_OPTION_COMMENT | SPV_BINARY_TO_TEXT_OPTION_INDENT | SPV_BINARY_TO_TEXT_OPTION_FRIENDLY_NAMES;
+            // UE Change End: Enable comments to improve readability for SPIR-V disassembly
             spv_text text = nullptr;
             spv_diagnostic diagnostic = nullptr;
 
@@ -1581,41 +1586,6 @@ namespace ShaderConductor
         return result;
     }
     // UE Change End: Allow optimization after source-to-spirv conversion and before spirv-to-source cross-compilation
-
-    // UE Change Begin: Add disassembler to public interface
-    Compiler::ResultDesc Compiler::Disassemble(const ResultDesc& binaryResult)
-    {
-        ResultDesc textResult;
-        textResult.isText = false;
-        textResult.hasError = false;
-
-        if (binaryResult.isText || binaryResult.hasError)
-        {
-            textResult.hasError = true;
-            return textResult;
-        }
-
-        spvtools::SpirvTools tools(SPV_ENV_UNIVERSAL_1_3);
-
-        const uint32_t* spirvData = reinterpret_cast<const uint32_t*>(binaryResult.target.Data());
-        const size_t spirvDataSize = binaryResult.target.Size();
-        const size_t spirvDataWordSize = spirvDataSize / sizeof(uint32_t);
-
-        std::string text;
-        const uint32_t options =
-            SPV_BINARY_TO_TEXT_OPTION_INDENT | SPV_BINARY_TO_TEXT_OPTION_COMMENT | SPV_BINARY_TO_TEXT_OPTION_FRIENDLY_NAMES;
-        if (!tools.Disassemble(spirvData, spirvDataWordSize, &text, options))
-        {
-            textResult.hasError = true;
-            return textResult;
-        }
-
-        textResult.isText = true;
-        textResult.target = Blob(text.data(), static_cast<uint32_t>(text.size()));
-
-        return textResult;
-    }
-    // UE Change End: Add disassembler to public interface
 
     bool Compiler::LinkSupport()
     {
