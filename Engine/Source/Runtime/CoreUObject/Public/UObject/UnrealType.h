@@ -37,6 +37,7 @@
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
 #include "UObject/UndefineUPropertyMacros.h"
 
+class FBlake3;
 class UPropertyWrapper;
 
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogType, Log, All);
@@ -409,6 +410,21 @@ public:
 		PortFlags |= EPropertyPortFlags::PPF_UseDeprecatedProperties; // Imports should always process deprecated properties
 		return ImportText_Internal( Buffer, Data, PortFlags, OwnerObject, ErrorText );
 	}
+
+#if WITH_EDITORONLY_DATA
+	/**
+	 * Updates the given HashBuilder with name and type information of this Property.
+	 * Contract: the hashed data is different from any property that serializes differently in Tagged Property Serialization.
+	 * If necessary to follow the contract, subclasses should override and add further information after calling
+	 * Super::AppendSchemaHash. e.g. FStructProperty needs to append the schema hash of its UStruct.
+	 * 
+	 * @param HashBuilder The builder to Update with property information
+	 * @param bSkipEditorOnly Used by subclasses with sub- properties that may be editor-only.
+	 *                        If true, sub- properties that are editor-only should not be appended to the hash.
+	 *                        This property's base data is appended without regard for bSkipEditorOnly.
+	 */
+	virtual void AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const;
+#endif
 protected:
 	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText ) const PURE_VIRTUAL(FProperty::ImportText,return NULL;);
 public:
@@ -1652,6 +1668,9 @@ class COREUOBJECT_API FByteProperty : public TProperty_Numeric<uint8>
 	virtual void ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const override;
 	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
+#if WITH_EDITORONLY_DATA
+	virtual void AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const override;
+#endif
 	// End of FProperty interface
 
 	// FNumericProperty interface.
@@ -2022,6 +2041,9 @@ public:
 	virtual void InitializeValueInternal( void* Dest ) const override;
 	virtual int32 GetMinAlignment() const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
+#if WITH_EDITORONLY_DATA
+	virtual void AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const override;
+#endif
 	// End of FProperty interface
 
 	// Emulate the CPP type API, see TPropertyTypeFundamentals
@@ -2601,6 +2623,9 @@ public:
 	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText ) const override;
 	virtual bool SameType(const FProperty* Other) const override;
 	virtual bool Identical( const void* A, const void* B, uint32 PortFlags ) const override;
+#if WITH_EDITORONLY_DATA
+	virtual void AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const override;
+#endif
 	// End of FProperty interface
 
 	virtual FString GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& InnerNativeTypeName)  const override;
@@ -2779,6 +2804,9 @@ public:
 	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText ) const override;
 	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps, EPropertyObjectReferenceType InReferenceType = EPropertyObjectReferenceType::Strong) const override;
 	virtual bool SameType(const FProperty* Other) const override;
+#if WITH_EDITORONLY_DATA
+	virtual void AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const override;
+#endif
 	// End of FProperty interface
 
 	// UObject interface
@@ -3025,6 +3053,9 @@ public:
 
 	/** Called by ImportTextItem, but can also be used by a non-ArrayProperty whose ArrayDim is > 1. ArrayHelper should be supplied by ArrayProperties and nullptr for fixed-size arrays. */
 	static const TCHAR* ImportTextInnerItem(const TCHAR* Buffer, const FProperty* Inner, void* Data, int32 PortFlags, UObject* OwnerObject, FScriptArrayHelper* ArrayHelper = nullptr, FOutputDevice* ErrorText = (FOutputDevice*)GWarn);
+#if WITH_EDITORONLY_DATA
+	virtual void AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const override;
+#endif
 
 private:
 	FORCEINLINE void SetElementSize()
@@ -3179,6 +3210,9 @@ public:
 	{
 		return ValueProp;
 	}
+#if WITH_EDITORONLY_DATA
+	virtual void AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const override;
+#endif
 };
 
 // need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma
@@ -3281,6 +3315,9 @@ public:
 		FScriptSet* Set = (FScriptSet*)InSet;
 		return (uint8*)Set->GetData(Index, SetLayout);
 	}
+#if WITH_EDITORONLY_DATA
+	virtual void AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const override;
+#endif
 };
 
 /**
@@ -5054,6 +5091,9 @@ public:
 	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper) override;
 	virtual bool SameType(const FProperty* Other) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
+#if WITH_EDITORONLY_DATA
+	virtual void AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const override;
+#endif
 	// End of FProperty interface
 
 	bool UseBinaryOrNativeSerialization(const FArchive& Ar) const;
@@ -5132,6 +5172,9 @@ public:
 	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper) override;
 	virtual void InstanceSubobjects( void* Data, void const* DefaultData, UObject* Owner, struct FObjectInstancingGraph* InstanceGraph ) override;
 	virtual bool SameType(const FProperty* Other) const override;
+#if WITH_EDITORONLY_DATA
+	virtual void AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const override;
+#endif
 	// End of FProperty interface
 };
 

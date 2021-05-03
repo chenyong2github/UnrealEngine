@@ -1278,6 +1278,13 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+const FBlake3Hash& UStruct::GetSchemaHash(bool bSkipEditorOnly) const
+{
+	return ::GetSchemaHash(this, bSkipEditorOnly);
+}
+#endif
+
 void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad) const
 {
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();

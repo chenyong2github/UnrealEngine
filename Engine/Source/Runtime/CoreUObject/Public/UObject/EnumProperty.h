@@ -50,6 +50,9 @@ public:
 	virtual int32 GetMinAlignment() const override;
 	virtual bool SameType(const FProperty* Other) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
+#if WITH_EDITORONLY_DATA
+	virtual void AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const override;
+#endif
 	// End of FProperty interface
 
 	/**

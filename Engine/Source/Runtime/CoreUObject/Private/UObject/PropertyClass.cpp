@@ -8,6 +8,7 @@
 #include "UObject/LinkerPlaceholderClass.h"
 #include "Misc/ConfigCacheIni.h"
 #include "UObject/PropertyHelper.h"
+#include "Hash/Blake3.h"
 
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
 #include "UObject/UndefineUPropertyMacros.h"
@@ -178,4 +179,17 @@ bool FClassProperty::Identical( const void* A, const void* B, uint32 PortFlags )
 	return (ObjectA == ObjectB);
 }
 
+#if WITH_EDITORONLY_DATA
+void FClassProperty::AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const
+{
+	Super::AppendSchemaHash(Builder, bSkipEditorOnly);
+	if (MetaClass)
+	{
+		// Hash the class's name instead of recursively hashing the class; the class's schema does not impact how we serialize our pointer to it
+		FNameBuilder ObjectPath;
+		MetaClass->GetPathName(nullptr, ObjectPath);
+		Builder.Update(ObjectPath.GetData(), ObjectPath.Len() * sizeof(ObjectPath.GetData()[0]));
+	}
+}
+#endif
 #include "UObject/DefineUPropertyMacros.h"

@@ -28,6 +28,7 @@
 #include "Serialization/MemoryImage.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "Hash/Blake3.h"
 #include "Hash/CityHash.h"
 #include "Templates/AlignmentTemplates.h"
 
@@ -2320,6 +2321,22 @@ bool FName::TryAppendAnsiString(FAnsiStringBuilderBase& Out) const
 	}
 
 	return true;
+}
+
+void AppendHash(FBlake3& Builder, FName In)
+{
+	FNameBuffer DecodeBuffer;
+	FNameStringView NameEntryView = In.GetDisplayNameEntry()->MakeView(DecodeBuffer);
+	if (NameEntryView.IsAnsi())
+	{
+		Builder.Update(NameEntryView.Ansi, NameEntryView.Len * sizeof(NameEntryView.Ansi[0]));
+	}
+	else
+	{
+		Builder.Update(NameEntryView.Wide, NameEntryView.Len * sizeof(NameEntryView.Wide[0]));
+	}
+	int32 Number = INTEL_ORDER64(In.GetNumber());
+	Builder.Update(&Number, sizeof(Number));
 }
 
 void FName::DisplayHash(FOutputDevice& Ar)

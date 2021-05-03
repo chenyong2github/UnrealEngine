@@ -9,6 +9,7 @@
 #include "UObject/UnrealType.h"
 #include "UObject/UnrealTypePrivate.h"
 #include "UObject/LinkerPlaceholderClass.h"
+#include "Hash/Blake3.h"
 
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
 #include "UObject/UndefineUPropertyMacros.h"
@@ -299,6 +300,20 @@ bool FInterfaceProperty::SameType(const FProperty* Other) const
 {
 	return Super::SameType(Other) && (InterfaceClass == ((FInterfaceProperty*)Other)->InterfaceClass);
 }
+
+#if WITH_EDITORONLY_DATA
+void FInterfaceProperty::AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const
+{
+	Super::AppendSchemaHash(Builder, bSkipEditorOnly);
+	if (InterfaceClass)
+	{
+		// Hash the class's name instead of recursively hashing the class; the class's schema does not impact how we serialize our pointer to it
+		FNameBuilder ObjectPath;
+		InterfaceClass->GetPathName(nullptr, ObjectPath);
+		Builder.Update(ObjectPath.GetData(), ObjectPath.Len() * sizeof(ObjectPath.GetData()[0]));
+	}
+}
+#endif
 
 void FInterfaceProperty::AddReferencedObjects(FReferenceCollector& Collector)
 {

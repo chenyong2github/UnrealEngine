@@ -605,6 +605,17 @@ const TCHAR* FArrayProperty::ImportTextInnerItem( const TCHAR* Buffer, const FPr
 	return Buffer;
 }
 
+#if WITH_EDITORONLY_DATA
+void FArrayProperty::AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const
+{
+	Super::AppendSchemaHash(Builder, bSkipEditorOnly);
+	if (Inner)
+	{
+		Inner->AppendSchemaHash(Builder, bSkipEditorOnly);
+	}
+}
+#endif
+
 void FArrayProperty::AddCppProperty(FProperty* Property)
 {
 	check(!Inner);

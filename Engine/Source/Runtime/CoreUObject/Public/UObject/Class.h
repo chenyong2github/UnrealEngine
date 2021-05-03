@@ -30,6 +30,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/FieldPath.h"
 
+struct FBlake3Hash;
 struct FCustomPropertyListNode;
 struct FFrame;
 struct FNetDeltaSerializeInfo;
@@ -348,6 +349,9 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Cached schema for optimized unversioned property serialization, with editor data, owned by this. */
 	mutable const struct FUnversionedStructSchema* UnversionedEditorSchema = nullptr;
+
+	/** Get the Schema Hash for this struct - the hash of its property names and types. */
+	const FBlake3Hash& GetSchemaHash(bool bSkipEditorOnly) const;
 #endif
 
 public:

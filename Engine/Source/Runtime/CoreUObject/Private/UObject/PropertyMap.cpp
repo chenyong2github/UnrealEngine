@@ -1176,6 +1176,21 @@ EConvertFromTypeResult FMapProperty::ConvertFromType(const FPropertyTag& Tag, FS
 	return EConvertFromTypeResult::UseSerializeItem;
 }
 
+#if WITH_EDITORONLY_DATA
+void FMapProperty::AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const
+{
+	Super::AppendSchemaHash(Builder, bSkipEditorOnly);
+	if (KeyProp)
+	{
+		KeyProp->AppendSchemaHash(Builder, bSkipEditorOnly);
+	}
+	if (ValueProp)
+	{
+		ValueProp->AppendSchemaHash(Builder, bSkipEditorOnly);
+	}
+}
+#endif
+
 void FScriptMapHelper::Rehash()
 {
 	WithScriptMap([this](auto* Map)

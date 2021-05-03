@@ -984,6 +984,17 @@ EConvertFromTypeResult FSetProperty::ConvertFromType(const FPropertyTag& Tag, FS
 	return EConvertFromTypeResult::UseSerializeItem;
 }
 
+#if WITH_EDITORONLY_DATA
+void FSetProperty::AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const
+{
+	Super::AppendSchemaHash(Builder, bSkipEditorOnly);
+	if (ElementProp)
+	{
+		ElementProp->AppendSchemaHash(Builder, bSkipEditorOnly);
+	}
+}
+#endif
+
 void FScriptSetHelper::Rehash()
 {
 	// Moved out-of-line to maybe fix a weird link error

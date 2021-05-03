@@ -5605,6 +5605,8 @@ void ListMapPackageDependencies(const TCHAR* InStr)
 	}
 }
 
+COREUOBJECT_API void DumpClassSchemas(const TCHAR* Str, FOutputDevice& Ar);
+
 bool UEditorEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice& Ar )
 {
 	TCHAR ErrorTemp[256]=TEXT("Setup: ");
@@ -5883,6 +5885,10 @@ bool UEditorEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice& A
 	else if( FParse::Command(&Str,TEXT("DUMPPUBLIC")) )
 	{
 		HandleDumpPublicCommand( Str, Ar );
+	}
+	else if (FParse::Command(&Str, TEXT("DumpClassSchemas")))
+	{
+		DumpClassSchemas(Str, Ar);
 	}
 	else if( FParse::Command(&Str,TEXT("JUMPTO")) )
 	{

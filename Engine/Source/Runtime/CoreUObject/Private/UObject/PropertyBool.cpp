@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
+
+#include "Hash/Blake3.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UnrealType.h"
@@ -290,6 +292,17 @@ EConvertFromTypeResult FBoolProperty::ConvertFromType(const FPropertyTag& Tag, F
 
 	return EConvertFromTypeResult::Converted;
 }
+
+#if WITH_EDITORONLY_DATA
+void FBoolProperty::AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const
+{
+	Super::AppendSchemaHash(Builder, bSkipEditorOnly);
+	Builder.Update(&ByteOffset, sizeof(ByteOffset));
+	Builder.Update(&ByteMask, sizeof(ByteMask));
+	Builder.Update(&FieldMask, sizeof(FieldMask));
+}
+#endif
+
 
 void FBoolProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {

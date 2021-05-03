@@ -8,6 +8,7 @@
 #include "UObject/PropertyHelper.h"
 #include "UObject/LinkerPlaceholderFunction.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
+#include "Hash/Blake3.h"
 
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
 #include "UObject/UndefineUPropertyMacros.h"
@@ -189,6 +190,21 @@ bool FDelegateProperty::SameType(const FProperty* Other) const
 {
 	return Super::SameType(Other) && (SignatureFunction == ((FDelegateProperty*)Other)->SignatureFunction);
 }
+
+#if WITH_EDITORONLY_DATA
+void FDelegateProperty::AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const
+{
+	Super::AppendSchemaHash(Builder, bSkipEditorOnly);
+	if (SignatureFunction)
+	{
+		// Hash the function's name instead of recursively hashing the function; the function's schema does not impact how we serialize our pointer to it
+		FNameBuilder ObjectPath;
+		SignatureFunction->GetPathName(nullptr, ObjectPath);
+		Builder.Update(ObjectPath.GetData(), ObjectPath.Len() * sizeof(ObjectPath.GetData()[0]));
+	}
+}
+#endif
+
 
 void FDelegateProperty::BeginDestroy()
 {

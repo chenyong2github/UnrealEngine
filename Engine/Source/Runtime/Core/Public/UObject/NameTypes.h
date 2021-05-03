@@ -1295,3 +1295,7 @@ public:
 };
 
 template <> struct TIsContiguousContainer<FNameBuilder> { static constexpr bool Value = true; };
+
+/** Update the Hash with the FName's text and number */
+class FBlake3;
+CORE_API void AppendHash(FBlake3& Builder, FName In);

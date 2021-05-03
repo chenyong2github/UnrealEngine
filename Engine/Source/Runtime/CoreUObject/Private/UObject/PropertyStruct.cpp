@@ -9,6 +9,7 @@
 #include "UObject/PropertyHelper.h"
 #include "UObject/LinkerPlaceholderBase.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
+#include "Hash/Blake3.h"
 
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
 #include "UObject/UndefineUPropertyMacros.h"
@@ -404,5 +405,18 @@ EConvertFromTypeResult FStructProperty::ConvertFromType(const FPropertyTag& Tag,
 	}
 	return EConvertFromTypeResult::UseSerializeItem;
 }
+
+#if WITH_EDITORONLY_DATA
+void FStructProperty::AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const
+{
+	Super::AppendSchemaHash(Builder, bSkipEditorOnly);
+	if (Struct)
+	{
+		const FIoHash& StructSchemaHash = Struct->GetSchemaHash(bSkipEditorOnly);
+		Builder.Update(&StructSchemaHash, sizeof(StructSchemaHash));
+	}
+}
+#endif
+
 
 #include "UObject/DefineUPropertyMacros.h"

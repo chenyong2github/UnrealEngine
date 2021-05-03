@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "CoreMinimal.h"
+#include "Hash/Blake3.h"
 #include "Misc/AsciiSet.h"
 #include "Misc/Guid.h"
 #include "Misc/StringBuilder.h"
@@ -955,6 +956,16 @@ bool FProperty::SupportsNetSharedSerialization() const
 {
 	return true;
 }
+
+#if WITH_EDITORONLY_DATA
+void FProperty::AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const
+{
+	AppendHash(Builder, NamePrivate);
+	Builder.Update(&ArrayDim, sizeof(ArrayDim));
+	AppendHash(Builder, GetID());
+}
+#endif
+
 
 //
 // Return whether the property should be exported.
