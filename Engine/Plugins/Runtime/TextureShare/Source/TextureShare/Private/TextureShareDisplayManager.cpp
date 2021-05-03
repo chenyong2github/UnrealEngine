@@ -12,7 +12,7 @@
 #include "Engine/GameViewportClient.h"
 #include "RenderGraphUtils.h"
 
-#include "Slate\SceneViewport.h"
+#include "Slate/SceneViewport.h"
 
 #if WITH_EDITOR
 #include "AssetData.h"

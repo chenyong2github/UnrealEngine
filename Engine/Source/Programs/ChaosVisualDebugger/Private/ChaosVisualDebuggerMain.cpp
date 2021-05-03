@@ -5,7 +5,7 @@
 #include "ChaosVisualDebuggerSlateStyle.h"
 #include "RequiredProgramMainCPPInclude.h"
 #include "StandaloneRenderer.h"
-#include "Widgets\Testing\STestSuite.h"
+#include "Widgets/Testing/STestSuite.h"
 #include "Modules/ModuleManager.h"
 #include "ISlateReflectorModule.h"
 

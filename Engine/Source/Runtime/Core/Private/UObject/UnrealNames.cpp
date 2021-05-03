@@ -3580,7 +3580,7 @@ static bool WithinBlock(uint8* BlockBegin, const FNameEntry* Entry)
 	return UPTRINT(Entry) >= UPTRINT(BlockBegin) && UPTRINT(Entry) < UPTRINT(BlockBegin) + FNameEntryAllocator::BlockSizeBytes;
 }
 
-#include "GenericPlatform\GenericPlatformFile.h"
+#include "GenericPlatform/GenericPlatformFile.h"
 
 static void WriteBlobFile(const TCHAR* FileName, const TArray<uint8>& Blob)
 {
