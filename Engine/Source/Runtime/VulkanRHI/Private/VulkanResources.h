@@ -18,7 +18,6 @@
 class FVulkanDevice;
 class FVulkanQueue;
 class FVulkanCmdBuffer;
-class FVulkanBuffer;
 class FVulkanBufferCPU;
 struct FVulkanTextureBase;
 class FVulkanTexture2D;
@@ -332,20 +331,6 @@ public:
 	void OnFullDefrag(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, uint32 NewOffset);
 	void EvictSurface(FVulkanDevice& InDevice);
 
-
-#if 0
-	/**
-	 * Locks one of the texture's mip-maps.
-	 * @param ArrayIndex Index of the texture array/face in the form Index*6+Face
-	 * @return A pointer to the specified texture data.
-	 */
-	void* Lock(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride);
-
-	/** Unlocks a previously locked mip-map.
-	 * @param ArrayIndex Index of the texture array/face in the form Index*6+Face
-	 */
-	void Unlock(uint32 MipIndex, uint32 ArrayIndex);
-#endif
 
 	/**
 	 * Returns how much memory is used by the surface
@@ -911,7 +896,8 @@ public:
 struct FVulkanBufferView : public FRHIResource, public VulkanRHI::FDeviceChild
 {
 	FVulkanBufferView(FVulkanDevice* InDevice)
-		: VulkanRHI::FDeviceChild(InDevice)
+		: FRHIResource(RRT_None)
+		, VulkanRHI::FDeviceChild(InDevice)
 		, View(VK_NULL_HANDLE)
 		, ViewId(0)
 		, Flags(0)
@@ -925,7 +911,6 @@ struct FVulkanBufferView : public FRHIResource, public VulkanRHI::FDeviceChild
 		Destroy();
 	}
 
-	void Create(FVulkanBuffer& Buffer, EPixelFormat Format, uint32 InOffset, uint32 InSize);
 	void Create(FVulkanResourceMultiBuffer* Buffer, EPixelFormat Format, uint32 InOffset, uint32 InSize);
 	void Create(VkFormat Format, FVulkanResourceMultiBuffer* Buffer, uint32 InOffset, uint32 InSize);
 	void Destroy();
@@ -935,36 +920,6 @@ struct FVulkanBufferView : public FRHIResource, public VulkanRHI::FDeviceChild
 	VkFlags Flags;
 	uint32 Offset;
 	uint32 Size;
-};
-
-class FVulkanBuffer : public FRHIResource
-{
-public:
-	FVulkanBuffer(FVulkanDevice& Device, uint32 InSize, VkFlags InUsage, VkMemoryPropertyFlags InMemPropertyFlags, bool bAllowMultiLock, const char* File, int32 Line);
-	virtual ~FVulkanBuffer();
-
-	inline VkBuffer GetBufferHandle() const { return Buf; }
-
-	inline uint32 GetSize() const { return Size; }
-
-	void* Lock(uint32 InSize, uint32 InOffset = 0);
-
-	void Unlock();
-
-	inline VkFlags GetFlags() const { return Usage; }
-
-private:
-	FVulkanDevice& Device;
-	VkBuffer Buf;
-	VulkanRHI::FDeviceMemoryAllocation* Allocation;
-	uint32 Size;
-	VkFlags Usage;
-
-	void* BufferPtr;	
-	VkMappedMemoryRange MappedRange;
-
-	bool bAllowMultiLock;
-	int32 LockStack;
 };
 
 struct FVulkanRingBuffer : public FVulkanEvictable, public VulkanRHI::FDeviceChild

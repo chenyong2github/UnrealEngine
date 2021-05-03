@@ -1763,19 +1763,6 @@ public:
 	}
 };
 
-class OPENGLDRV_API FOpenGLBaseTexture : public FRHITexture
-{
-public:
-	FOpenGLBaseTexture(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, uint32 InArraySize, EPixelFormat InFormat, ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
-		: FRHITexture(InNumMips, InNumSamples, InFormat, InFlags, NULL, InClearValue)
-	{}
-
-	uint32 GetSizeX() const { return 0; }
-	uint32 GetSizeY() const { return 0; }
-	uint32 GetSizeZ() const { return 0; }
-};
-
-typedef TOpenGLTexture<FOpenGLBaseTexture>				FOpenGLTexture;
 typedef TOpenGLTexture<FOpenGLBaseTexture2D>			FOpenGLTexture2D;
 typedef TOpenGLTexture<FOpenGLBaseTexture2DArray>		FOpenGLTexture2DArray;
 typedef TOpenGLTexture<FOpenGLBaseTexture3D>			FOpenGLTexture3D;
@@ -2305,11 +2292,7 @@ struct TOpenGLResourceTraits<FRHITexture3D>
 {
 	typedef FOpenGLTexture3D TConcreteType;
 };
-template<>
-struct TOpenGLResourceTraits<FRHITexture>
-{
-	typedef FOpenGLTexture TConcreteType;
-};
+
 template<>
 struct TOpenGLResourceTraits<FRHITexture2D>
 {

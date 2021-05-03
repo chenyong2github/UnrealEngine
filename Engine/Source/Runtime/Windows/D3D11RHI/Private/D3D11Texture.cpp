@@ -1051,6 +1051,11 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 #endif
 		);
 
+	if (CreateInfo.DebugName)
+	{
+		Texture2D->SetName(CreateInfo.DebugName);
+	}
+
 	D3D11TextureAllocated(*Texture2D);
 	
 #if !PLATFORM_HOLOLENS
@@ -1189,6 +1194,11 @@ FD3D11Texture3D* FD3D11DynamicRHI::CreateD3D11Texture3D(uint32 SizeX,uint32 Size
 	TArray<TRefCountPtr<ID3D11RenderTargetView> > RenderTargetViews;
 	RenderTargetViews.Add(RenderTargetView);
 	FD3D11Texture3D* Texture3D = new FD3D11Texture3D(this,TextureResource,ShaderResourceView,RenderTargetViews,SizeX,SizeY,SizeZ,NumMips,(EPixelFormat)Format,Flags, CreateInfo.ClearValueBinding);
+
+	if (CreateInfo.DebugName)
+	{
+		Texture3D->SetName(CreateInfo.DebugName);
+	}
 
 	D3D11TextureAllocated(*Texture3D);
 #if !PLATFORM_HOLOLENS
@@ -1407,10 +1417,6 @@ FTexture3DRHIRef FD3D11DynamicRHI::RHICreateTexture3D_RenderThread(
 
 void FD3D11DynamicRHI::RHIGetResourceInfo(FRHITexture* Ref, FRHIResourceInfo& OutInfo)
 {
-	if(Ref)
-	{
-		OutInfo = Ref->ResourceInfo;
-	}
 }
 
 FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FRHITexture* TextureRHI, const FRHITextureSRVCreateInfo& CreateInfo)

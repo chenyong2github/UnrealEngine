@@ -361,6 +361,18 @@ public:
 
 	virtual ~TD3D11Texture2D();
 
+	// FRHIResource overrides
+#if RHI_WANT_RESOURCE_INFO
+	bool GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const override
+	{
+		OutResourceInfo = FRHIResourceInfo{};
+		OutResourceInfo.Name = this->GetName().ToString();
+		OutResourceInfo.Type = this->GetType();
+		OutResourceInfo.VRamAllocation.AllocationSize = GetMemorySize();
+		return true;
+	}
+#endif
+
 	/**
 	 * Locks one of the texture's mip-maps.
 	 * @return A pointer to the specified texture data.
@@ -453,6 +465,18 @@ public:
 	}
 
 	virtual ~FD3D11Texture3D();
+
+	// FRHIResource overrides
+#if RHI_WANT_RESOURCE_INFO
+	bool GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const override
+	{
+		OutResourceInfo = FRHIResourceInfo{};
+		OutResourceInfo.Name = GetName().ToString();
+		OutResourceInfo.Type = GetType();
+		OutResourceInfo.VRamAllocation.AllocationSize = GetMemorySize();
+		return true;
+	}
+#endif
 	
 	// Accessors.
 	ID3D11Texture3D* GetResource() const { return (ID3D11Texture3D*)FD3D11TextureBase::GetResource(); }
@@ -612,7 +636,20 @@ public:
 	FD3D11Buffer(ID3D11Buffer* InResource, uint32 InSize, uint32 InUsage, uint32 InStride)
 	: FRHIBuffer(InSize, InUsage, InStride)
 	, Resource(InResource)
-	{}
+	{
+	}
+
+	// FRHIResource overrides
+#if RHI_WANT_RESOURCE_INFO
+	bool GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const override
+	{
+		OutResourceInfo = FRHIResourceInfo{};
+		OutResourceInfo.Name = GetName().ToString();
+		OutResourceInfo.Type = GetType();
+		OutResourceInfo.VRamAllocation.AllocationSize = GetSize();
+		return true;
+	}
+#endif
 
 	virtual ~FD3D11Buffer()
 	{

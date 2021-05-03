@@ -1229,84 +1229,6 @@ void FVulkanDynamicRHI::RHICopySubTextureRegion(FRHITexture2D* SourceTexture, FR
 	RHIGetDefaultContext()->RHICopyTexture(SourceTexture, DestinationTexture, CopyInfo);
 }
 
-
-FVulkanBuffer::FVulkanBuffer(FVulkanDevice& InDevice, uint32 InSize, VkFlags InUsage, VkMemoryPropertyFlags InMemPropertyFlags, bool bInAllowMultiLock, const char* File, int32 Line) :
-	Device(InDevice),
-	Buf(VK_NULL_HANDLE),
-	Allocation(nullptr),
-	Size(InSize),
-	Usage(InUsage),
-	BufferPtr(nullptr),
-	bAllowMultiLock(bInAllowMultiLock),
-	LockStack(0)
-{
-	VkBufferCreateInfo BufInfo;
-	ZeroVulkanStruct(BufInfo, VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
-	BufInfo.size = Size;
-	BufInfo.usage = Usage;
-	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkCreateBuffer(Device.GetInstanceHandle(), &BufInfo, VULKAN_CPU_ALLOCATOR, &Buf));
-
-	VkMemoryRequirements MemoryRequirements;
-	VulkanRHI::vkGetBufferMemoryRequirements(Device.GetInstanceHandle(), Buf, &MemoryRequirements);
-
-	Allocation = InDevice.GetDeviceMemoryManager().Alloc(false, MemoryRequirements.size, MemoryRequirements.memoryTypeBits, InMemPropertyFlags, nullptr, VULKAN_MEMORY_MEDIUM_PRIORITY, File ? File : __FILE__, Line ? Line : __LINE__);
-	check(Allocation);
-	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkBindBufferMemory(Device.GetInstanceHandle(), Buf, Allocation->GetHandle(), 0));
-}
-
-FVulkanBuffer::~FVulkanBuffer()
-{
-	// The buffer should be unmapped
-	check(BufferPtr == nullptr);
-
-	Device.GetDeferredDeletionQueue().EnqueueResource(FDeferredDeletionQueue2::EType::Buffer, Buf);
-	Buf = VK_NULL_HANDLE;
-
-	Device.GetDeviceMemoryManager().Free(Allocation);
-	Allocation = nullptr;
-}
-
-void* FVulkanBuffer::Lock(uint32 InSize, uint32 InOffset)
-{
-	check(InSize + InOffset <= Size);
-
-	uint32 BufferPtrOffset = 0;
-	if (bAllowMultiLock)
-	{
-		if (LockStack == 0)
-		{
-			// lock the whole range
-			BufferPtr = Allocation->Map(GetSize(), 0);
-		}
-		// offset the whole range by the requested offset
-		BufferPtrOffset = InOffset;
-		LockStack++;
-	}
-	else
-	{
-		check(BufferPtr == nullptr);
-		BufferPtr = Allocation->Map(InSize, InOffset);
-	}
-
-	return (uint8*)BufferPtr + BufferPtrOffset;
-}
-
-void FVulkanBuffer::Unlock()
-{
-	// The buffer should be mapped, before it can be unmapped
-	check(BufferPtr != nullptr);
-
-	// for multi-lock, if not down to 0, do nothing
-	if (bAllowMultiLock && --LockStack > 0)
-	{
-		return;
-	}
-
-	Allocation->Unmap();
-	BufferPtr = nullptr;
-}
-
-
 FVulkanDescriptorSetsLayout::FVulkanDescriptorSetsLayout(FVulkanDevice* InDevice) :
 	Device(InDevice)
 {
@@ -1522,33 +1444,6 @@ void FVulkanDescriptorSetsLayout::Compile(FVulkanDescriptorSetLayoutMap& DSetLay
 	DescriptorSetAllocateInfo.pSetLayouts = LayoutHandles.GetData();
 }
 
-
-void FVulkanBufferView::Create(FVulkanBuffer& Buffer, EPixelFormat Format, uint32 InOffset, uint32 InSize)
-{
-	Offset = InOffset;
-	Size = InSize;
-	check(Format != PF_Unknown);
-	VkFormat BufferFormat = GVulkanBufferFormat[Format];
-	check(BufferFormat != VK_FORMAT_UNDEFINED);
-
-	VkBufferViewCreateInfo ViewInfo;
-	ZeroVulkanStruct(ViewInfo, VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO);
-	ViewInfo.buffer = Buffer.GetBufferHandle();
-	ViewInfo.format = BufferFormat;
-	ViewInfo.offset = Offset;
-	ViewInfo.range = Size;
-	Flags = Buffer.GetFlags() & VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
-	check(Flags);
-
-	VERIFYVULKANRESULT(VulkanRHI::vkCreateBufferView(GetParent()->GetInstanceHandle(), &ViewInfo, VULKAN_CPU_ALLOCATOR, &View));
-	
-	if (UseVulkanDescriptorCache())
-	{
-		ViewId = ++GVulkanBufferViewHandleIdCounter;
-	}
-
-	INC_DWORD_STAT(STAT_VulkanNumBufferViews);
-}
 
 void FVulkanBufferView::Create(FVulkanResourceMultiBuffer* Buffer, EPixelFormat Format, uint32 InOffset, uint32 InSize)
 {

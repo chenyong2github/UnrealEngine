@@ -1059,12 +1059,14 @@ class FD3D12RenderTargetView : public FD3D12View<D3D12_RENDER_TARGET_VIEW_DESC>,
 public:
 	FD3D12RenderTargetView(FD3D12Device* InParent, const D3D12_RENDER_TARGET_VIEW_DESC& InRTVDesc, FD3D12BaseShaderResource* InBaseShaderResource)
 		: FD3D12View(InParent, ViewSubresourceSubsetFlags_None)
+		, FRHIResource(RRT_None)
 	{
 		CreateView(InRTVDesc, InBaseShaderResource, InBaseShaderResource->ResourceLocation);
 	}
 
 	FD3D12RenderTargetView(FD3D12Device* InParent, const D3D12_RENDER_TARGET_VIEW_DESC& InRTVDesc, FD3D12BaseShaderResource* InBaseShaderResource, FD3D12ResourceLocation& InResourceLocation)
 		: FD3D12View(InParent, ViewSubresourceSubsetFlags_None)
+		, FRHIResource(RRT_None)
 	{
 		CreateView(InRTVDesc, InBaseShaderResource, InResourceLocation);
 	}
@@ -1086,6 +1088,7 @@ class FD3D12DepthStencilView : public FD3D12View<D3D12_DEPTH_STENCIL_VIEW_DESC>,
 public:
 	FD3D12DepthStencilView(FD3D12Device* InParent, const D3D12_DEPTH_STENCIL_VIEW_DESC& InDSVDesc, FD3D12BaseShaderResource* InBaseShaderResource, bool InHasStencil)
 		: FD3D12View(InParent, ViewSubresourceSubsetFlags_DepthAndStencilDsv)
+		, FRHIResource(RRT_None)
 		, bHasDepth(true)				// Assume all DSVs have depth bits in their format
 		, bHasStencil(InHasStencil)		// Only some DSVs have stencil bits in their format
 	{

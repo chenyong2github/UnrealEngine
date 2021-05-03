@@ -1576,8 +1576,6 @@ void TOpenGLTexture<RHIResourceType>::CloneViaPBO( TOpenGLTexture<RHIResourceTyp
 	CachedBindPixelUnpackBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 }
 
-template class TOpenGLTexture<FOpenGLBaseTexture>;
-
 /*-----------------------------------------------------------------------------
 	2D texture support.
 -----------------------------------------------------------------------------*/

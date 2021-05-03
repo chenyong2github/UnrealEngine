@@ -1416,7 +1416,8 @@ typedef TArray<FScreenResolutionRHI>	FScreenResolutionArray;
 
 struct FVRamAllocation
 {
-	FVRamAllocation(uint32 InAllocationStart = 0, uint32 InAllocationSize = 0)
+	FVRamAllocation() = default;
+	FVRamAllocation(uint64 InAllocationStart, uint64 InAllocationSize)
 		: AllocationStart(InAllocationStart)
 		, AllocationSize(InAllocationSize)
 	{
@@ -1425,13 +1426,15 @@ struct FVRamAllocation
 	bool IsValid() const { return AllocationSize > 0; }
 
 	// in bytes
-	uint32 AllocationStart;
+	uint64 AllocationStart{};
 	// in bytes
-	uint32 AllocationSize;
+	uint64 AllocationSize{};
 };
 
 struct FRHIResourceInfo
 {
+	FString Name;
+	ERHIResourceType Type{ RRT_None };
 	FVRamAllocation VRamAllocation;
 };
 

@@ -13,6 +13,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "String/LexFromString.h"
 #include "String/ParseTokens.h"
+#include "Misc/BufferedOutputDevice.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, RHI);
 
@@ -628,6 +629,327 @@ bool operator==(const FBlendStateInitializerRHI::FRenderTarget& A, const FBlendS
 		A.ColorWriteMask == B.ColorWriteMask;
 	return bSame;
 }
+
+#if RHI_WANT_RESOURCE_INFO
+
+static FCriticalSection GRHIResourceTrackingCriticalSection;
+static TSet<FRHIResource*> GRHITrackedResources;
+
+void FRHIResource::BeginTrackingResource(FRHIResource* InResource)
+{
+	FScopeLock Lock(&GRHIResourceTrackingCriticalSection);
+
+	InResource->bBeingTracked = true;
+
+	GRHITrackedResources.Add(InResource);
+}
+
+void FRHIResource::EndTrackingResource(FRHIResource* InResource)
+{
+	if (InResource->bBeingTracked)
+	{
+		FScopeLock Lock(&GRHIResourceTrackingCriticalSection);
+		GRHITrackedResources.Remove(InResource);
+		InResource->bBeingTracked = false;
+	}
+}
+
+struct FRHIResourceTypeName
+{
+	ERHIResourceType Type;
+	const TCHAR* Name;
+};
+static const FRHIResourceTypeName GRHIResourceTypeNames[] =
+{
+#define RHI_RESOURCE_TYPE_DEF(Name) { RRT_##Name, TEXT(#Name) }
+
+	RHI_RESOURCE_TYPE_DEF(None),
+	RHI_RESOURCE_TYPE_DEF(SamplerState),
+	RHI_RESOURCE_TYPE_DEF(RasterizerState),
+	RHI_RESOURCE_TYPE_DEF(DepthStencilState),
+	RHI_RESOURCE_TYPE_DEF(BlendState),
+	RHI_RESOURCE_TYPE_DEF(VertexDeclaration),
+	RHI_RESOURCE_TYPE_DEF(VertexShader),
+	RHI_RESOURCE_TYPE_DEF(MeshShader),
+	RHI_RESOURCE_TYPE_DEF(AmplificationShader),
+	RHI_RESOURCE_TYPE_DEF(PixelShader),
+	RHI_RESOURCE_TYPE_DEF(GeometryShader),
+	RHI_RESOURCE_TYPE_DEF(RayTracingShader),
+	RHI_RESOURCE_TYPE_DEF(ComputeShader),
+	RHI_RESOURCE_TYPE_DEF(GraphicsPipelineState),
+	RHI_RESOURCE_TYPE_DEF(ComputePipelineState),
+	RHI_RESOURCE_TYPE_DEF(RayTracingPipelineState),
+	RHI_RESOURCE_TYPE_DEF(BoundShaderState),
+	RHI_RESOURCE_TYPE_DEF(UniformBuffer),
+	RHI_RESOURCE_TYPE_DEF(Buffer),
+	RHI_RESOURCE_TYPE_DEF(Texture),
+	RHI_RESOURCE_TYPE_DEF(Texture2D),
+	RHI_RESOURCE_TYPE_DEF(Texture2DArray),
+	RHI_RESOURCE_TYPE_DEF(Texture3D),
+	RHI_RESOURCE_TYPE_DEF(TextureCube),
+	RHI_RESOURCE_TYPE_DEF(TextureReference),
+	RHI_RESOURCE_TYPE_DEF(TimestampCalibrationQuery),
+	RHI_RESOURCE_TYPE_DEF(GPUFence),
+	RHI_RESOURCE_TYPE_DEF(RenderQuery),
+	RHI_RESOURCE_TYPE_DEF(RenderQueryPool),
+	RHI_RESOURCE_TYPE_DEF(ComputeFence),
+	RHI_RESOURCE_TYPE_DEF(Viewport),
+	RHI_RESOURCE_TYPE_DEF(UnorderedAccessView),
+	RHI_RESOURCE_TYPE_DEF(ShaderResourceView),
+	RHI_RESOURCE_TYPE_DEF(RayTracingAccelerationStructure),
+	RHI_RESOURCE_TYPE_DEF(StagingBuffer),
+	RHI_RESOURCE_TYPE_DEF(CustomPresent),
+	RHI_RESOURCE_TYPE_DEF(ShaderLibrary),
+	RHI_RESOURCE_TYPE_DEF(PipelineBinaryLibrary),
+};
+
+static ERHIResourceType RHIResourceTypeFromString(const FString& InString)
+{
+	for (const auto& TypeName : GRHIResourceTypeNames)
+	{
+		if (InString.Equals(TypeName.Name, ESearchCase::IgnoreCase))
+		{
+			return TypeName.Type;
+		}
+	}
+	return RRT_None;
+}
+
+static const TCHAR* StringFromRHIResourceType(ERHIResourceType ResourceType)
+{
+	for (const auto& TypeName : GRHIResourceTypeNames)
+	{
+		if (TypeName.Type == ResourceType)
+		{
+			return TypeName.Name;
+		}
+	}
+	return TEXT("<unknown>");
+}
+
+static FAutoConsoleCommandWithWorldArgsAndOutputDevice GDumpRHIResourceCountsCmd(
+	TEXT("rhi.DumpResourceCounts"),
+	TEXT("Dumps RHI resource counts to the log"),
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic([](const TArray<FString>& Args, UWorld*, FOutputDevice& OutputDevice)
+{
+	int32 ResourceCounts[RRT_Num]{};
+	int32 TotalResources{};
+
+	FRHIResourceInfo ResourceInfo;
+
+	{
+		FScopeLock Lock(&GRHIResourceTrackingCriticalSection);
+
+		TotalResources = GRHITrackedResources.Num();
+
+		for (const FRHIResource* Resource : GRHITrackedResources)
+		{
+			if (Resource)
+			{
+				ERHIResourceType ResourceType = Resource->GetType();
+				if (ResourceType > 0 && ResourceType < RRT_Num)
+				{
+					ResourceCounts[ResourceType]++;
+				}
+			}
+		}
+	}
+
+	FBufferedOutputDevice BufferedOutput;
+	FName CategoryName(TEXT("RHIResources"));
+
+	BufferedOutput.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("RHIResource Counts"));
+
+	for (int32 Index = 0; Index < RRT_Num; Index++)
+	{
+		const int32 CurrentCount = ResourceCounts[Index];
+		if (CurrentCount > 0)
+		{
+			BufferedOutput.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("%s: %d"),
+				StringFromRHIResourceType((ERHIResourceType)Index),
+				CurrentCount);
+		}
+	}
+	BufferedOutput.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Total: %d"), TotalResources);
+
+	BufferedOutput.RedirectTo(OutputDevice);
+}));
+
+static FAutoConsoleCommandWithWorldArgsAndOutputDevice GDumpRHIResourceMemoryCmd(
+	TEXT("rhi.DumpResourceMemory"),
+	TEXT("Dumps RHI resource memory stats to the log"),
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic([](const TArray<FString>& Args, UWorld*, FOutputDevice& OutputDevice)
+{
+	FString NameFilter;
+	ERHIResourceType TypeFilter = RRT_None;
+	int32 NumberOfResourcesToShow = 50;
+	bool bUseCSVOutput = false;
+
+	for (const FString& Argument : Args)
+	{
+		if (Argument.Equals(TEXT("all"), ESearchCase::IgnoreCase))
+		{
+			NumberOfResourcesToShow = -1;
+		}
+		else if (Argument.Equals(TEXT("csv"), ESearchCase::IgnoreCase))
+		{
+			bUseCSVOutput = true;
+		}
+		else if (Argument.StartsWith(TEXT("Name="), ESearchCase::IgnoreCase))
+		{
+			NameFilter = Argument.RightChop(5);
+		}
+		else if (Argument.StartsWith(TEXT("Type="), ESearchCase::IgnoreCase))
+		{
+			TypeFilter = RHIResourceTypeFromString(Argument.RightChop(5));
+		}
+		else if (FCString::IsNumeric(*Argument))
+		{
+			LexFromString(NumberOfResourcesToShow, *Argument);
+		}
+		else
+		{
+			NameFilter = Argument;
+		}
+	}
+
+	auto ShouldIncludeResource = [&](const FRHIResource* Resource, const FRHIResourceInfo& ResourceInfo) -> bool
+	{
+		if (!NameFilter.IsEmpty() && ResourceInfo.Name.Find(NameFilter, ESearchCase::IgnoreCase) == INDEX_NONE)
+		{
+			return false;
+		}
+		if (TypeFilter != RRT_None)
+		{
+			if (TypeFilter == RRT_Texture)
+			{
+				if (ResourceInfo.Type != RRT_Texture2D &&
+					ResourceInfo.Type != RRT_Texture2DArray &&
+					ResourceInfo.Type != RRT_Texture3D &&
+					ResourceInfo.Type != RRT_TextureCube)
+				{
+					return false;
+				}
+			}
+			else if (TypeFilter != ResourceInfo.Type)
+			{
+				return false;
+			}
+		}
+		return true;
+	};
+
+
+	struct FLocalResourceEntry
+	{
+		const FRHIResource* Resource;
+		FRHIResourceInfo ResourceInfo;
+	};
+	TArray<FLocalResourceEntry> Resources;
+
+	FScopeLock Lock(&GRHIResourceTrackingCriticalSection);
+
+	int32 TotalResourcesWithInfo = 0;
+	int32 TotalTrackedResources = 0;
+	int64 TotalTrackedResourceSize = 0;
+
+	{
+		FRHIResourceInfo ResourceInfo;
+		TotalTrackedResources = GRHITrackedResources.Num();
+
+		for (const FRHIResource* Resource : GRHITrackedResources)
+		{
+			if (Resource && Resource->GetResourceInfo(ResourceInfo))
+			{
+				if (ShouldIncludeResource(Resource, ResourceInfo))
+				{
+					Resources.Emplace(FLocalResourceEntry{ Resource, ResourceInfo });
+				}
+
+				TotalResourcesWithInfo++;
+				TotalTrackedResourceSize += ResourceInfo.VRamAllocation.AllocationSize;
+			}
+		}
+	}
+
+	if (NumberOfResourcesToShow < 0 || NumberOfResourcesToShow > Resources.Num())
+	{
+		NumberOfResourcesToShow = Resources.Num();
+	}
+
+	Resources.Sort([](const FLocalResourceEntry& EntryA, const FLocalResourceEntry& EntryB)
+	{
+		return EntryA.ResourceInfo.VRamAllocation.AllocationSize > EntryB.ResourceInfo.VRamAllocation.AllocationSize;
+	});
+
+	FBufferedOutputDevice BufferedOutput;
+	FName CategoryName(TEXT("RHIResources"));
+
+	if (bUseCSVOutput)
+	{
+		BufferedOutput.Logf(ELogVerbosity::Log, TEXT("\"Name\",\"Type\",\"Size\""));
+	}
+	else
+	{
+		BufferedOutput.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Tracked RHIResources"));
+
+		if (NumberOfResourcesToShow != Resources.Num())
+		{
+			BufferedOutput.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Showing %d out of %d with info and %d tracked"), NumberOfResourcesToShow, TotalResourcesWithInfo, TotalTrackedResources);
+		}
+		else
+		{
+			BufferedOutput.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Showing %d with info and %d tracked"), TotalResourcesWithInfo, TotalTrackedResources);
+		}
+	}
+
+	int64 TotalShownResourceSize = 0;
+
+	for (int32 Index = 0; Index < Resources.Num(); Index++)
+	{
+		if (Index < NumberOfResourcesToShow)
+		{
+			const FRHIResourceInfo& ResourceInfo = Resources[Index].ResourceInfo;
+			const TCHAR* ResourceType = StringFromRHIResourceType(ResourceInfo.Type);
+			const int64 SizeInBytes = ResourceInfo.VRamAllocation.AllocationSize;
+
+			if (bUseCSVOutput)
+			{
+				BufferedOutput.Logf(ELogVerbosity::Log, TEXT("\"%s\",\"%s\",\"%.3f\""),
+					*ResourceInfo.Name,
+					ResourceType,
+					SizeInBytes / double(1 << 20));
+			}
+			else
+			{
+				BufferedOutput.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Name: %s - Type: %s - Size: %.3f MB"),
+					*ResourceInfo.Name,
+					ResourceType,
+					SizeInBytes / double(1 << 20));
+			}
+
+			TotalShownResourceSize += SizeInBytes;
+		}
+	}
+
+	const double TotalSizeF = TotalTrackedResourceSize / double(1 << 20);
+	const double ShownSizeF = TotalShownResourceSize / double(1 << 20);
+
+	if (!bUseCSVOutput)
+	{
+		if (NumberOfResourcesToShow != Resources.Num())
+		{
+			BufferedOutput.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Shown %d entries. Size: %.3f MB (%.2f%% of total)"),
+				NumberOfResourcesToShow, TotalSizeF, 100.0 * ShownSizeF / TotalSizeF);
+		}
+
+		BufferedOutput.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Total tracked resource size: %.3f MB"), TotalSizeF);
+	}
+
+	BufferedOutput.RedirectTo(OutputDevice);
+}));
+
+#endif // RHI_WANT_RESOURCE_INFO
 
 bool FRHIResource::Bypass()
 {

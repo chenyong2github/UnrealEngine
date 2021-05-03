@@ -176,8 +176,7 @@ FOpenGLShaderResourceView::~FOpenGLShaderResourceView()
 
 FUnorderedAccessViewRHIRef FOpenGLDynamicRHI::RHICreateUnorderedAccessView(FRHITexture* TextureRHI, uint32 MipLevel)
 {
-	FOpenGLTexture* Texture = ResourceCast(TextureRHI);
-	check(Texture->GetFlags() & TexCreate_UAV);
+	check(TextureRHI->GetFlags() & TexCreate_UAV);
 	return new FOpenGLTextureUnorderedAccessView(TextureRHI);
 }
 

@@ -355,6 +355,12 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 			FD3D12Buffer* NewBuffer = new FD3D12Buffer(Device, Size, InUsage, Stride);
 			NewBuffer->BufferAlignment = Alignment;
 
+			if (InDebugName)
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::SetDebugName);
+				NewBuffer->SetName(InDebugName);
+			}
+
 			if (Device->GetGPUIndex() == FirstGPUIndex)
 			{
 				AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, InCreateState, Alignment, NewBuffer, NewBuffer->ResourceLocation, ResourceAllocator, InDebugName);
@@ -375,6 +381,13 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 		{
 			FD3D12Buffer* NewBuffer = new FD3D12Buffer(Device, Size, InUsage, Stride);
 			NewBuffer->BufferAlignment = Alignment;
+
+			if (InDebugName)
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::SetDebugName);
+				NewBuffer->SetName(InDebugName);
+			}
+
 			AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, InCreateState, Alignment, NewBuffer, NewBuffer->ResourceLocation, ResourceAllocator, InDebugName);
 			
 			// Unlock immediately if there is no initial data

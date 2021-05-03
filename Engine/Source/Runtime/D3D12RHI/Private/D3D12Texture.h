@@ -235,6 +235,8 @@ public:
 	/** Flags used when the texture was created */
 	ETextureCreateFlags Flags;
 
+	TD3D12Texture2D() = delete;
+
 	/** Initialization constructor. */
 	TD3D12Texture2D(
 		class FD3D12Device* InParent,
@@ -285,6 +287,18 @@ public:
 	}
 
 	virtual ~TD3D12Texture2D();
+
+	// FRHIResource overrides
+#if RHI_WANT_RESOURCE_INFO
+	bool GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const override
+	{
+		OutResourceInfo = FRHIResourceInfo{};
+		OutResourceInfo.Name = this->GetName().ToString();
+		OutResourceInfo.Type = this->GetType();
+		OutResourceInfo.VRamAllocation.AllocationSize = GetMemorySize();
+		return true;
+	}
+#endif
 
 	/**
 	* Locks one of the texture's mip-maps.
@@ -396,7 +410,7 @@ private:
 class FD3D12Texture3D : public FRHITexture3D, public FD3D12TextureBase
 {
 public:
-
+	FD3D12Texture3D() = delete;
 	/** Initialization constructor. */
 	FD3D12Texture3D(
 	class FD3D12Device* InParent,
@@ -415,6 +429,18 @@ public:
 	}
 
 	virtual ~FD3D12Texture3D();
+
+	// FRHIResource overrides
+#if RHI_WANT_RESOURCE_INFO
+	bool GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const override
+	{
+		OutResourceInfo = FRHIResourceInfo{};
+		OutResourceInfo.Name = GetName().ToString();
+		OutResourceInfo.Type = GetType();
+		OutResourceInfo.VRamAllocation.AllocationSize = ResourceLocation.GetSize();
+		return true;
+	}
+#endif
 
 	/** FRHITexture override.  See FRHITexture::GetNativeResource() */
 	virtual void* GetNativeResource() const override final

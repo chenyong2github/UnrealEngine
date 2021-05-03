@@ -23,6 +23,11 @@ public class RHI : ModuleRules
 					PublicDefinitions.Add("RHI_WANT_BREADCRUMB_EVENTS=1");
 				}
 
+				if (Target.Configuration != UnrealTargetConfiguration.Shipping)
+                {
+					PublicDefinitions.Add("RHI_WANT_RESOURCE_INFO=1");
+                }
+
 				// UEBuildAndroid.cs adds VulkanRHI for Android builds if it is enabled
 				if (Target.Platform == UnrealTargetPlatform.Win64)
 				{

@@ -112,7 +112,12 @@ FBufferRHIRef FD3D11DynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags U
 		CreateInfo.ResourceArray->Discard();
 	}
 
-	return new FD3D11Buffer(BufferResource, Size, Usage, Stride);
+	FD3D11Buffer* NewBuffer = new FD3D11Buffer(BufferResource, Size, Usage, Stride);
+	if (CreateInfo.DebugName)
+	{
+		NewBuffer->SetName(CreateInfo.DebugName);
+	}
+	return NewBuffer;
 }
 
 FBufferRHIRef FD3D11DynamicRHI::CreateBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)

@@ -300,7 +300,7 @@ struct FNiagaraGpuSpawnInfo
 class FNiagaraRHIUniformBufferLayout : public FRHIResource
 {
 public:
-	explicit FNiagaraRHIUniformBufferLayout(const TCHAR* LayoutName) : UBLayout(LayoutName) { }
+	explicit FNiagaraRHIUniformBufferLayout(const TCHAR* LayoutName) : FRHIResource(RRT_None), UBLayout(LayoutName) { }
 
 	FRHIUniformBufferLayout UBLayout;
 };

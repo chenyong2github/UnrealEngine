@@ -1628,10 +1628,6 @@ FTexture3DRHIRef FD3D12DynamicRHI::RHICreateTexture3D(uint32 SizeX, uint32 SizeY
 
 void FD3D12DynamicRHI::RHIGetResourceInfo(FRHITexture* Ref, FRHIResourceInfo& OutInfo)
 {
-	if (Ref)
-	{
-		OutInfo = Ref->ResourceInfo;
-	}
 }
 
 /**
