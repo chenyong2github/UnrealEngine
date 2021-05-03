@@ -8,7 +8,7 @@
 #include "Misc/Paths.h"
 #include "Misc/StringBuilder.h"
 #include "Virtualization/VirtualizationManager.h"
-#include "VirtualizationUtilities.h."
+#include "VirtualizationUtilities.h"
 
 namespace UE::Virtualization
 {
