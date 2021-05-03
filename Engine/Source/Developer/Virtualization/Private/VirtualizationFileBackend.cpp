@@ -6,7 +6,9 @@
 #include "HAL/FileManager.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
+#include "Misc/StringBuilder.h"
 #include "Virtualization/VirtualizationManager.h"
+#include "VirtualizationUtilities.h."
 
 namespace UE::Virtualization
 {
@@ -28,8 +30,7 @@ public:
 	FFileSystemBackend(FStringView ConfigName)
 		: IVirtualizationBackend(EOperations::Both)
 	{
-		Name = TEXT("FFileSystemBackend - ");
-		Name.Append(ConfigName);
+		Name = WriteToString<256>(TEXT("FFileSystemBackend - "), ConfigName).ToString();
 	}
 
 	virtual ~FFileSystemBackend() = default;
@@ -69,14 +70,15 @@ private:
 			return true;
 		}
 
-		const FString FilePath = CreateFilePath(Id);
+		TStringBuilder<512> FilePath;
+		CreateFilePath(Id, FilePath);
 
 		{
 			// TODO: Should we write to a temp file and then move it once it has written?
-			TUniquePtr<FArchive> FileAr(IFileManager::Get().CreateFileWriter(*FilePath));
+			TUniquePtr<FArchive> FileAr(IFileManager::Get().CreateFileWriter(FilePath.ToString()));
 			if (FileAr == nullptr)
 			{
-				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to push payload '%s' to '%s'"), *GetDebugString(), *Id.ToString(), *FilePath);
+				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to push payload '%s' to '%s'"), *GetDebugString(), *Id.ToString(), FilePath.ToString());
 				return false;
 			}
 
@@ -94,16 +96,17 @@ private:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FFileSystemBackend::PullData);
 
-		const FString FilePath = CreateFilePath(Id);
+		TStringBuilder<512> FilePath;
+		CreateFilePath(Id, FilePath);
 
 		// TODO: Should we allow the error severity to be configured via ini or just not report this case at all?
-		if (!IFileManager::Get().FileExists(*FilePath))
+		if (!IFileManager::Get().FileExists(FilePath.ToString()))
 		{
 			UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Does not contain the payload '%s'"), *GetDebugString(), *Id.ToString());
 			return FCompressedBuffer();
 		}
 
-		TUniquePtr<FArchive> FileAr(IFileManager::Get().CreateFileReader(*FilePath));
+		TUniquePtr<FArchive> FileAr(IFileManager::Get().CreateFileReader(FilePath.ToString()));
 		if (FileAr == nullptr)
 		{
 			const uint32 SystemError = FPlatformMisc::GetLastError();
@@ -113,11 +116,11 @@ private:
 			{
 				TCHAR SystemErrorMsg[2048] = { 0 };
 				FPlatformMisc::GetSystemErrorMessage(SystemErrorMsg, sizeof(SystemErrorMsg), SystemError);
-				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to load payload '%s' file '%s' due to system error: '%s' (%d))"), *GetDebugString(), *Id.ToString(), *FilePath, SystemErrorMsg, SystemError);
+				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to load payload '%s' file '%s' due to system error: '%s' (%d))"), *GetDebugString(), *Id.ToString(), FilePath.ToString(), SystemErrorMsg, SystemError);
 			}
 			else
 			{
-				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to load payload '%s' from '%s' (reason unknown)"), *GetDebugString(), *Id.ToString(), *FilePath);
+				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to load payload '%s' from '%s' (reason unknown)"), *GetDebugString(), *Id.ToString(), FilePath.ToString());
 			}
 		
 			return FCompressedBuffer();
@@ -130,8 +133,10 @@ private:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FFileSystemBackend::DoesExist);
 
-		const FString FilePath = CreateFilePath(Id);
-		return IFileManager::Get().FileExists(*FilePath);
+		TStringBuilder<512> FilePath;
+		CreateFilePath(Id, FilePath);
+
+		return IFileManager::Get().FileExists(FilePath.ToString());
 	}
 
 	virtual FString GetDebugString() const override
@@ -139,12 +144,16 @@ private:
 		return Name;
 	}
 
-	FString CreateFilePath(const FPayloadId& PayloadId)
+	void CreateFilePath(const FPayloadId& PayloadId, FStringBuilderBase& OutPath)
 	{
-		return FString::Printf(TEXT("%s/%s.payload"), *RootDirectory, *PayloadId.ToString());
+		TStringBuilder<52> PayloadPath;
+		Utils::PayloadIdToPath(PayloadId, PayloadPath);
+
+		OutPath << RootDirectory << TEXT("/") << PayloadPath;
 	}
 
 private:
+
 	FString Name;
 	FString RootDirectory;
 };
