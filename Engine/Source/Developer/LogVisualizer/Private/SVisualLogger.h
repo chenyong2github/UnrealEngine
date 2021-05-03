@@ -5,7 +5,6 @@
 #include "VisualLogger/VisualLoggerTypes.h"
 #include "Input/Reply.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Engine/GameViewportClient.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/Docking/TabManager.h"
@@ -43,7 +42,6 @@ public:
 	* @param InArgs The Slate argument list.
 	* @param ConstructUnderMajorTab The major tab which will contain the session front-end.
 	* @param ConstructUnderWindow The window in which this widget is being constructed.
-	* @param InStyleSet The style set to use.
 	*/
 	void Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow);
 
@@ -126,6 +124,10 @@ protected:
 	TArray<FVisualLogDevice::FVisualLogEntryItem> OnPauseCacheForEntries;
 
 	bool bGotHistogramData;
+
+#if WITH_EDITOR
+	FDelegateHandle PostPIEStartedHandle;
+#endif
 
 	FDelegateHandle DrawOnCanvasDelegateHandle;
 	TWeakObjectPtr<class UWorld> LastUsedWorld;
