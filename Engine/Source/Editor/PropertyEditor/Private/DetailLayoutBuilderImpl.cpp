@@ -727,7 +727,7 @@ TSharedPtr<FAssetThumbnailPool> FDetailLayoutBuilderImpl::GetThumbnailPool() con
 
 bool FDetailLayoutBuilderImpl::IsPropertyVisible( TSharedRef<IPropertyHandle> PropertyHandle ) const
 {
-	if( PropertyHandle->IsValidHandle() )
+	if( PropertyHandle->IsValidHandle() && PropertyHandle->GetProperty() != nullptr )
 	{
 		TArray<UObject*> OuterObjects;
 		PropertyHandle->GetOuterObjects(OuterObjects);
