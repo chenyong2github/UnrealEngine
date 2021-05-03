@@ -248,7 +248,7 @@ void FD3D12CommandContext::RHICopyBufferRegions(const TArrayView<const FCopyBuff
 		FinalizeDest,
 	};
 
-	auto TransitionResources = [](FD3D12CommandListHandle& CommandListHandle, FLocalResourceArray& SortedResources, EBatchCopyState State)
+	auto TransitionResources = [](FD3D12CommandListHandle& InCommandListHandle, FLocalResourceArray& SortedResources, EBatchCopyState State)
 	{
 		const uint32 Subresource = 0; // Buffers only have one subresource
 
@@ -287,11 +287,11 @@ void FD3D12CommandContext::RHICopyBufferRegions(const TArrayView<const FCopyBuff
 			if (bUseDefaultState)
 			{
 				check(CurrentState != D3D12_RESOURCE_STATE_CORRUPT);
-				CommandListHandle.AddTransitionBarrier(Resource, CurrentState, DesiredState, Subresource);
+				InCommandListHandle.AddTransitionBarrier(Resource, CurrentState, DesiredState, Subresource);
 			}
 			else
 			{
-				FD3D12DynamicRHI::TransitionResource(CommandListHandle, Resource, DesiredState, Subresource);
+				FD3D12DynamicRHI::TransitionResource(InCommandListHandle, Resource, DesiredState, Subresource);
 			}
 
 			PrevResource = Resource;
