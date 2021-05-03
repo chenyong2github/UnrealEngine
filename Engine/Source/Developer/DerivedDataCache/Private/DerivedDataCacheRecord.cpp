@@ -4,9 +4,12 @@
 
 #include "Containers/UnrealString.h"
 #include "DerivedDataCacheKey.h"
+#include "HAL/CriticalSection.h"
+#include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinary.h"
 #include "UObject/NameTypes.h"
+#include <atomic>
 
 namespace UE::DerivedData::Private
 {
@@ -46,8 +49,6 @@ public:
 
 	~FCacheRecordInternal() final = default;
 
-	FCacheRecord Clone() const final;
-
 	const FCacheKey& GetKey() const final;
 	const FCbObject& GetMeta() const final;
 
@@ -60,21 +61,31 @@ public:
 
 	const FPayload& GetPayload(const FPayloadId& Id) const final;
 
+	inline void AddRef() const final
+	{
+		ReferenceCount.fetch_add(1, std::memory_order_relaxed);
+	}
+
+	inline void Release() const final
+	{
+		if (ReferenceCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
+		{
+			delete this;
+		}
+	}
+
+private:
+	mutable std::atomic<uint32> ReferenceCount{0};
 	FCacheKey Key;
 	FCbObject Meta;
 	FPayload Value;
 	TArray<FPayload> Attachments;
+	mutable FRWLock CacheLock;
 	mutable FSharedBuffer ValueCache;
 	mutable TArray<FSharedBuffer> AttachmentsCache;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-static const FPayload& GetEmptyCachePayload()
-{
-	static const FPayload Empty;
-	return Empty;
-}
 
 static FPayloadId GetOrCreatePayloadId(const FPayloadId& Id, const FIoHash& RawHash)
 {
@@ -91,11 +102,6 @@ FCacheRecordInternal::FCacheRecordInternal(FCacheRecordBuilderInternal&& RecordB
 {
 }
 
-FCacheRecord FCacheRecordInternal::Clone() const
-{
-	return CreateCacheRecord(new FCacheRecordInternal(*this));
-}
-
 const FCacheKey& FCacheRecordInternal::GetKey() const
 {
 	return Key;
@@ -108,10 +114,20 @@ const FCbObject& FCacheRecordInternal::GetMeta() const
 
 FSharedBuffer FCacheRecordInternal::GetValue() const
 {
-	if (ValueCache.IsNull() && Value.IsValid())
+	if (Value.IsNull())
 	{
-		ValueCache = Value.GetData().Decompress();
+		return FSharedBuffer();
 	}
+	if (FReadScopeLock Lock(CacheLock); ValueCache)
+	{
+		return ValueCache;
+	}
+	FWriteScopeLock Lock(CacheLock);
+	if (ValueCache)
+	{
+		return ValueCache;
+	}
+	ValueCache = Value.GetData().Decompress();
 	return ValueCache;
 }
 
@@ -125,16 +141,21 @@ FSharedBuffer FCacheRecordInternal::GetAttachment(const FPayloadId& Id) const
 	const int32 Index = Algo::LowerBound(Attachments, Id, FPayloadLessById());
 	if (Attachments.IsValidIndex(Index) && FPayloadEqualById()(Attachments[Index], Id))
 	{
+		if (FReadScopeLock Lock(CacheLock); AttachmentsCache.IsValidIndex(Index) && AttachmentsCache[Index])
+		{
+			return AttachmentsCache[Index];
+		}
+		FWriteScopeLock Lock(CacheLock);
 		if (AttachmentsCache.IsEmpty())
 		{
 			AttachmentsCache.SetNum(Attachments.Num());
 		}
-		FSharedBuffer& DataCache = AttachmentsCache[Index];
-		if (!DataCache)
+		FSharedBuffer& Cache = AttachmentsCache[Index];
+		if (Cache.IsNull())
 		{
-			DataCache = Attachments[Index].GetData().Decompress();
+			Cache = Attachments[Index].GetData().Decompress();
 		}
-		return DataCache;
+		return Cache;
 	}
 	return FSharedBuffer();
 }
@@ -146,7 +167,7 @@ const FPayload& FCacheRecordInternal::GetAttachmentPayload(const FPayloadId& Id)
 	{
 		return Attachments[Index];
 	}
-	return GetEmptyCachePayload();
+	return FPayload::Null;
 }
 
 TConstArrayView<FPayload> FCacheRecordInternal::GetAttachmentPayloads() const

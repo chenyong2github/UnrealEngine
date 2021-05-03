@@ -5,7 +5,8 @@
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataPayload.h"
 #include "DerivedDataRequest.h"
-#include "Memory/MemoryFwd.h"
+#include "Memory/SharedBuffer.h"
+#include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 
 class FCbObject;
@@ -24,7 +25,6 @@ class ICacheRecordInternal
 {
 public:
 	virtual ~ICacheRecordInternal() = default;
-	virtual FCacheRecord Clone() const = 0;
 	virtual const FCacheKey& GetKey() const = 0;
 	virtual const FCbObject& GetMeta() const = 0;
 	virtual FSharedBuffer GetValue() const = 0;
@@ -33,6 +33,8 @@ public:
 	virtual const FPayload& GetAttachmentPayload(const FPayloadId& Id) const = 0;
 	virtual TConstArrayView<FPayload> GetAttachmentPayloads() const = 0;
 	virtual const FPayload& GetPayload(const FPayloadId& Id) const = 0;
+	virtual void AddRef() const = 0;
+	virtual void Release() const = 0;
 };
 
 FCacheRecord CreateCacheRecord(ICacheRecordInternal* Record);
@@ -81,7 +83,7 @@ public:
 	explicit FCacheRecord() = default;
 
 	/** Clone this cache record. Prefer to move records, and clone only when a copy is necessary. */
-	inline FCacheRecord Clone() const { return Record->Clone(); }
+	inline FCacheRecord Clone() const { return *this; }
 
 	/** Returns the key that identifies this record in the cache. Always available in a non-null cache record. */
 	inline const FCacheKey& GetKey() const { return Record->GetKey(); }
@@ -120,20 +122,20 @@ public:
 private:
 	friend FCacheRecord Private::CreateCacheRecord(Private::ICacheRecordInternal* Record);
 
-	/** Construct a cache record. Use Record.Clone() or Builder.Build[Async](). */
+	/** Construct a cache record. Use Build() or BuildAsync() on a builder from ICache::CreateRecord(). */
 	inline explicit FCacheRecord(Private::ICacheRecordInternal* InRecord)
 		: Record(InRecord)
 	{
 	}
 
-	TUniquePtr<Private::ICacheRecordInternal> Record;
+	TRefCountPtr<Private::ICacheRecordInternal> Record;
 };
 
 /**
  * A cache record builder is used to construct a cache record.
  *
- * Create using ICache::CreateRecord, which must be given a key uniquely corresponds to the value
- * and attachments for the cache record. Optional metadata may vary and may be non-deterministic.
+ * Create using ICache::CreateRecord() which must be given a key that uniquely corresponds to the
+ * value and attachments for the cache record. Metadata may vary between records of the same key.
  *
  * The value and attachments can be provided as buffers, which will be compressed, or as payloads
  * which were previously compressed and have an identifier assigned.
