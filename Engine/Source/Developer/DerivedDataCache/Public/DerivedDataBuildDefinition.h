@@ -51,7 +51,7 @@ public:
 	virtual void AddInputBulkData(FStringView Key, const FGuid& BulkDataId) = 0;
 	virtual void AddInputFile(FStringView Key, FStringView Path) = 0;
 	virtual void AddInputHash(FStringView Key, const FIoHash& RawHash) = 0;
-	virtual IBuildDefinitionInternal* Build() = 0;
+	virtual FBuildDefinition Build() = 0;
 };
 
 FBuildDefinitionBuilder CreateBuildDefinitionBuilder(IBuildDefinitionBuilderInternal* DefinitionBuilder);
@@ -211,7 +211,7 @@ public:
 	 */
 	inline FBuildDefinition Build()
 	{
-		return CreateBuildDefinition(DefinitionBuilder->Build());
+		return DefinitionBuilder->Build();
 	}
 
 private:
@@ -237,20 +237,3 @@ public:
 };
 
 } // UE::DerivedData
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace UE::DerivedData::Private
-{
-
-inline FBuildDefinition CreateBuildDefinition(IBuildDefinitionInternal* Definition)
-{
-	return FBuildDefinition(Definition);
-}
-
-inline FBuildDefinitionBuilder CreateBuildDefinitionBuilder(IBuildDefinitionBuilderInternal* DefinitionBuilder)
-{
-	return FBuildDefinitionBuilder(DefinitionBuilder);
-}
-
-} // UE::DerivedData::Private

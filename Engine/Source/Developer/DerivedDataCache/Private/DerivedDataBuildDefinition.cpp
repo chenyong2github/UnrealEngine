@@ -61,7 +61,7 @@ public:
 		Add<FIoHash>(Key, RawHash);
 	}
 
-	IBuildDefinitionInternal* Build() final;
+	FBuildDefinition Build() final;
 
 	using InputType = TVariant<FCbObject, FBuildPayloadKey, FGuid, FString, FIoHash>;
 
@@ -304,9 +304,21 @@ void FBuildDefinitionInternal::Save(FCbWriter& Writer) const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IBuildDefinitionInternal* FBuildDefinitionBuilderInternal::Build()
+FBuildDefinition FBuildDefinitionBuilderInternal::Build()
 {
-	return new FBuildDefinitionInternal(MoveTemp(*this));
+	return CreateBuildDefinition(new FBuildDefinitionInternal(MoveTemp(*this)));
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FBuildDefinition CreateBuildDefinition(IBuildDefinitionInternal* Definition)
+{
+	return FBuildDefinition(Definition);
+}
+
+FBuildDefinitionBuilder CreateBuildDefinitionBuilder(IBuildDefinitionBuilderInternal* DefinitionBuilder)
+{
+	return FBuildDefinitionBuilder(DefinitionBuilder);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
