@@ -11,7 +11,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/GameViewportClient.h"
 
-#include "Slate\SceneViewport.h"
+#include "Slate/SceneViewport.h"
 
 #if WITH_EDITOR
 #include "AssetData.h"
