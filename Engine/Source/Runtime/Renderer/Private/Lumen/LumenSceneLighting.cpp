@@ -15,26 +15,26 @@
 #include "LumenRadianceCache.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
-int32 GLumenSceneCardLightingForceFullUpdate = 0;
-FAutoConsoleVariableRef CVarLumenSceneCardLightingForceFullUpdate(
-	TEXT("r.LumenScene.CardLightingForceFullUpdate"),
-	GLumenSceneCardLightingForceFullUpdate,
+int32 GLumenSceneLightingForceFullUpdate = 0;
+FAutoConsoleVariableRef CVarLumenSceneLightingForceFullUpdate(
+	TEXT("r.LumenScene.Lighting.ForceLightingUpdate"),
+	GLumenSceneLightingForceFullUpdate,
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenSceneCardLightingUpdateMinFrequency = 3;
-FAutoConsoleVariableRef CVarLumenSceneCardLightingUpdateMinFrequency(
-	TEXT("r.LumenScene.CardLightingUpdateMinFrequency"),
-	GLumenSceneCardLightingUpdateMinFrequency,
+int32 GLumenSceneLightingMinUpdateFrequency = 3;
+FAutoConsoleVariableRef CVarLumenSceneLightingMinUpdateFrequency(
+	TEXT("r.LumenScene.Lighting.MinUpdateFrequency"),
+	GLumenSceneLightingMinUpdateFrequency,
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenSceneDiffuseReflectivityOverride = 0;
+float GLumenSceneSurfaceCacheDiffuseReflectivityOverride = 0;
 FAutoConsoleVariableRef CVarLumenSceneDiffuseReflectivityOverride(
-	TEXT("r.LumenScene.DiffuseReflectivityOverride"),
-	GLumenSceneDiffuseReflectivityOverride,
+	TEXT("r.LumenScene.Lighting.DiffuseReflectivityOverride"),
+	GLumenSceneSurfaceCacheDiffuseReflectivityOverride,
 	TEXT(""),
 	ECVF_RenderThreadSafe
 );
@@ -272,9 +272,9 @@ void FLumenCardScatterContext::CullCardPagesToShape(
 	PassParameters->CardPagesToRenderIndices = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(LumenCardRenderer.CardPagesToRenderIndexBuffer, PF_R32_UINT));
 	PassParameters->CardPagesToRenderHashMap = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(LumenCardRenderer.CardPagesToRenderHashMapBuffer, PF_R32_UINT));
 	PassParameters->FrameId = View.ViewState->GetFrameIndex();
-	PassParameters->CardLightingUpdateFrequencyScale = GLumenSceneCardLightingForceFullUpdate ? 0.0f : UpdateFrequencyScale;
-	PassParameters->CardLightingUpdateMinFrequency = GLumenSceneCardLightingForceFullUpdate ? 1 : GLumenSceneCardLightingUpdateMinFrequency;
-
+	PassParameters->CardLightingUpdateFrequencyScale = GLumenSceneLightingForceFullUpdate ? 0.0f : UpdateFrequencyScale;
+	PassParameters->CardLightingUpdateMinFrequency = GLumenSceneLightingForceFullUpdate ? 1 : GLumenSceneLightingMinUpdateFrequency;
+	 
 	FCullCardPagesToShapeCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FCullCardPagesToShapeCS::FOperateOnCardPagesMode>((uint32)CardsCullMode);
 	PermutationVector.Set<FCullCardPagesToShapeCS::FShapeType>((int32)ShapeType);
@@ -525,7 +525,7 @@ void ApplyLumenCardAlbedo(
 	PassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
 	PassParameters->PS.AlbedoAtlas = AlbedoAtlas;
 	PassParameters->PS.EmissiveAtlas = EmissiveAtlas;
-	PassParameters->PS.DiffuseReflectivityOverride = FMath::Clamp<float>(GLumenSceneDiffuseReflectivityOverride, 0.0f, 1.0f);
+	PassParameters->PS.DiffuseReflectivityOverride = FMath::Clamp<float>(GLumenSceneSurfaceCacheDiffuseReflectivityOverride, 0.0f, 1.0f);
 
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("ApplyLumenCardAlbedo"),

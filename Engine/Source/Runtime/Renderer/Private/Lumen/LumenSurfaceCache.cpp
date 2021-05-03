@@ -12,6 +12,14 @@
 #include "LumenSceneUtils.h"
 #include "PixelShaderUtils.h"
 
+int32 GLumenSceneSurfaceCacheAtlasSize = 4096;
+FAutoConsoleVariableRef CVarLumenSceneSurfaceCacheAtlasSize(
+	TEXT("r.LumenScene.SurfaceCache.AtlasSize"),
+	GLumenSceneSurfaceCacheAtlasSize,
+	TEXT("Surface cache card atlas size."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 int32 GLumenSurfaceCacheCompress = 0;
 FAutoConsoleVariableRef CVarLumenSurfaceCacheCompress(
 	TEXT("r.LumenScene.SurfaceCache.Compress"),

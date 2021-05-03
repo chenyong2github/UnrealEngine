@@ -546,8 +546,8 @@ void RenderRadiosityComputeScatter(
 	}
 
 	const int32 TraceBlockMaxSize = 2;
-	extern int32 GLumenSceneCardLightingForceFullUpdate;
-	const int32 Divisor = TraceBlockMaxSize * GLumenRadiosityDownsampleFactor * (GLumenSceneCardLightingForceFullUpdate ? 1 : GLumenRadiosityTraceBlocksAllocationDivisor);
+	extern int32 GLumenSceneLightingForceFullUpdate;
+	const int32 Divisor = TraceBlockMaxSize * GLumenRadiosityDownsampleFactor * (GLumenSceneLightingForceFullUpdate ? 1 : GLumenRadiosityTraceBlocksAllocationDivisor);
 	const int32 NumTraceBlocksToAllocate = FMath::Max((LumenSceneData.GetPhysicalAtlasSize().X / Divisor) * (LumenSceneData.GetPhysicalAtlasSize().Y / Divisor), 1024);
 	const FIntPoint RadiosityAtlasSize = LumenSceneData.GetRadiosityAtlasSize();
 

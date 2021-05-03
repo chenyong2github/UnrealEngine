@@ -10,14 +10,6 @@
 
 extern void BuildMeshCardsDataForMergedInstances(const FPrimitiveSceneInfo* PrimitiveSceneInfo, FMeshCardsBuildData& MeshCardsBuildData);
 
-int32 GLumenSceneCardAtlasSize = 4096;
-FAutoConsoleVariableRef CVarLumenSceneCardAtlasSize(
-	TEXT("r.LumenScene.CardAtlasSize"),
-	GLumenSceneCardAtlasSize,
-	TEXT("Physical card atlas size."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
 int32 GLumenSceneUploadEveryFrame = 0;
 FAutoConsoleVariableRef CVarLumenSceneUploadEveryFrame(
 	TEXT("r.LumenScene.UploadEveryFrame"),
@@ -51,7 +43,8 @@ public:
 
 FIntPoint GetDesiredPhysicalAtlasSizeInPages()
 {
-	int32 AtlasSizeInPages = FMath::DivideAndRoundUp<uint32>(GLumenSceneCardAtlasSize, Lumen::PhysicalPageSize);
+	extern int32 GLumenSceneSurfaceCacheAtlasSize;
+	int32 AtlasSizeInPages = FMath::DivideAndRoundUp<uint32>(GLumenSceneSurfaceCacheAtlasSize, Lumen::PhysicalPageSize);
 	AtlasSizeInPages = FMath::Clamp(AtlasSizeInPages, 1, 64);
 	return FIntPoint(AtlasSizeInPages, AtlasSizeInPages);
 }

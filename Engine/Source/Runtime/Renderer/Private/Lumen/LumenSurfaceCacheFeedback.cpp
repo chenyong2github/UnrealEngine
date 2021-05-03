@@ -20,7 +20,7 @@ FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedback(
 
 int32 GLumenSurfaceCacheFeedbackTileSize = 16;
 FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackTileSize(
-	TEXT("r.LumenScene.SurfaceCache.FeedbackTileSize"),
+	TEXT("r.LumenScene.SurfaceCache.Feedback.TileSize"),
 	GLumenSurfaceCacheFeedbackTileSize,
 	TEXT("One surface cache feedback element will be writen out per tile. Aligned to a power of two."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -28,7 +28,7 @@ FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackTileSize(
 
 float GLumenSurfaceCacheFeedbackResLevelBias = -1.0f;
 FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackResLevelBias(
-	TEXT("r.LumenScene.SurfaceCache.FeedbackResLevelBias"),
+	TEXT("r.LumenScene.SurfaceCache.Feedback.ResLevelBias"),
 	GLumenSurfaceCacheFeedbackResLevelBias,
 	TEXT("Bias resolution of on demand surface cache pages."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -36,7 +36,7 @@ FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackResLevelBias(
 
 float GLumenSurfaceCacheFeedbackFeedbackMinPageHits = 16;
 FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackMinPageHits(
-	TEXT("r.LumenScene.SurfaceCache.FeedbackMinPageHits"),
+	TEXT("r.LumenScene.SurfaceCache.Feedback.MinPageHits"),
 	GLumenSurfaceCacheFeedbackFeedbackMinPageHits,
 	TEXT("Min number of page hits to demand a new page."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -44,7 +44,7 @@ FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackMinPageHits(
 
 int32 GLumenSurfaceCacheFeedbackMaxUniqueElements = 1024;
 FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackUniqueElements(
-	TEXT("r.LumenScene.SurfaceCache.FeedbackMaxUnqiueElements"),
+	TEXT("r.LumenScene.SurfaceCache.Feedback.UniqueElements"),
 	GLumenSurfaceCacheFeedbackMaxUniqueElements,
 	TEXT("Limit of unique surface cache feedback elements. Used to resize buffers."),
 	ECVF_Scalability | ECVF_RenderThreadSafe

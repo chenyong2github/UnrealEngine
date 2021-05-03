@@ -13,17 +13,9 @@
 constexpr uint32 INVALID_LUMEN_DF_INSTANCE_OFFSET = UINT32_MAX;
 constexpr uint32 LUMEN_SINGLE_DF_INSTANCE_BIT = 0x80000000;
 
-int32 GLumenSceneMaxInstanceAddsPerFrame = 5000;
-FAutoConsoleVariableRef CVarLumenSceneMaxInstanceAddsPerFrame(
-	TEXT("r.LumenScene.MaxInstanceAddsPerFrame"),
-	GLumenSceneMaxInstanceAddsPerFrame,
-	TEXT("Max number of instanced allowed to be added per frame, remainder deferred to subsequent frames. (default 5000)"),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
 float GLumenMeshCardsMinSize = 30.0f;
 FAutoConsoleVariableRef CVarLumenMeshCardsMinSize(
-	TEXT("r.LumenScene.MeshCardsMinSize"),
+	TEXT("r.LumenScene.SurfaceCache.MeshCardsMinSize"),
 	GLumenMeshCardsMinSize,
 	TEXT("Minimum mesh card size to be captured by Lumen Scene."),
 	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
@@ -35,7 +27,7 @@ FAutoConsoleVariableRef CVarLumenMeshCardsMinSize(
 
 int32 GLumenMeshCardsMergeInstances = 1;
 FAutoConsoleVariableRef CVarLumenMeshCardsMergeInstances(
-	TEXT("r.LumenScene.MeshCardsMergeInstances"),
+	TEXT("r.LumenScene.SurfaceCache.MeshCardsMergeInstances"),
 	GLumenMeshCardsMergeInstances,
 	TEXT("Whether to merge all instances of a Instanced Static Mesh Component into a single MeshCards."),
 	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
@@ -47,7 +39,7 @@ FAutoConsoleVariableRef CVarLumenMeshCardsMergeInstances(
 
 int32 GLumenMeshCardsMaxLOD = 1;
 FAutoConsoleVariableRef CVarLumenMeshCardsMaxLOD(
-	TEXT("r.LumenScene.MeshCardsMaxLOD"),
+	TEXT("r.LumenScene.SurfaceCache.MeshCardsMaxLOD"),
 	GLumenMeshCardsMaxLOD,
 	TEXT("Max LOD level for the card representation. 0 - lowest quality."),
 	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
@@ -59,7 +51,7 @@ FAutoConsoleVariableRef CVarLumenMeshCardsMaxLOD(
 
 float GLumenMeshCardsMergeInstancesMaxSurfaceAreaRatio = 1.7f;
 FAutoConsoleVariableRef CVarLumenMeshCardsMergeInstancesMaxSurfaceAreaRatio(
-	TEXT("r.LumenScene.MeshCardsMergeInstancesMaxSurfaceAreaRatio"),
+	TEXT("r.LumenScene.SurfaceCache.MeshCardsMergeInstancesMaxSurfaceAreaRatio"),
 	GLumenMeshCardsMergeInstancesMaxSurfaceAreaRatio,
 	TEXT("Only merge if the (combined box surface area) / (summed instance box surface area) < MaxSurfaceAreaRatio"),
 	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
@@ -71,7 +63,7 @@ FAutoConsoleVariableRef CVarLumenMeshCardsMergeInstancesMaxSurfaceAreaRatio(
 
 float GLumenMeshCardsMergedResolutionScale = .3f;
 FAutoConsoleVariableRef CVarLumenMeshCardsMergedResolutionScale(
-	TEXT("r.LumenScene.MeshCardsMergedResolutionScale"),
+	TEXT("r.LumenScene.SurfaceCache.MeshCardsMergedResolutionScale"),
 	GLumenMeshCardsMergedResolutionScale,
 	TEXT("Scale on the resolution calculation for a merged MeshCards.  This compensates for the merged box getting a higher resolution assigned due to being closer to the viewer."),
 	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
@@ -83,7 +75,7 @@ FAutoConsoleVariableRef CVarLumenMeshCardsMergedResolutionScale(
 
 float GLumenMeshCardsMergedMaxWorldSize = 10000.0f;
 FAutoConsoleVariableRef CVarLumenMeshCardsMergedMaxWorldSize(
-	TEXT("r.LumenScene.MeshCardsMergedMaxWorldSize"),
+	TEXT("r.LumenScene.SurfaceCache.MeshCardsMergedMaxWorldSize"),
 	GLumenMeshCardsMergedMaxWorldSize,
 	TEXT("Only merged bounds less than this size on any axis are considered, since Lumen Scene streaming relies on object granularity."),
 	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
@@ -95,7 +87,7 @@ FAutoConsoleVariableRef CVarLumenMeshCardsMergedMaxWorldSize(
 
 int32 GLumenMeshCardsCullFaces = 1;
 FAutoConsoleVariableRef CVarLumenMeshCardsCullFaces(
-	TEXT("r.LumenScene.MeshCardsCullFaces"),
+	TEXT("r.LumenScene.SurfaceCache.MeshCardsCullFaces"),
 	GLumenMeshCardsCullFaces,
 	TEXT(""),
 	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)

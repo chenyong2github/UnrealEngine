@@ -24,106 +24,6 @@
 #include "HAL/LowLevelMemStats.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
-int32 GLumenSceneCardCapturesPerFrame = 300;
-FAutoConsoleVariableRef CVarLumenSceneCardCapturesPerFrame(
-	TEXT("r.LumenScene.CardCapturesPerFrame"),
-	GLumenSceneCardCapturesPerFrame,
-	TEXT(""),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
-float GLumenSceneCardCaptureMargin = 0.0f;
-FAutoConsoleVariableRef CVarLumenSceneCardCaptureMargin(
-	TEXT("r.LumenScene.CardCaptureMargin"),
-	GLumenSceneCardCaptureMargin,
-	TEXT("How far from Lumen scene range start to capture cards."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
-float GLumenSceneCardFixedDebugTexelDensity = -1;
-FAutoConsoleVariableRef CVarLumenSceneCardFixedTexelDensity(
-	TEXT("r.LumenScene.CardFixedDebugTexelDensity"),
-	GLumenSceneCardFixedDebugTexelDensity,
-	TEXT("Lumen card texels per world space distance"),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-	);
-
-float GLumenSceneCardCameraDistanceTexelDensityScale = 100;
-FAutoConsoleVariableRef CVarLumenSceneCardCameraDistanceTexelDensityScale(
-	TEXT("r.LumenScene.CardCameraDistanceTexelDensityScale"),
-	GLumenSceneCardCameraDistanceTexelDensityScale,
-	TEXT("Lumen card texels per world space distance"),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
-float GLumenSceneCardMaxTexelDensity = .2f;
-FAutoConsoleVariableRef CVarLumenSceneCardMaxTexelDensity(
-	TEXT("r.LumenScene.CardMaxTexelDensity"),
-	GLumenSceneCardMaxTexelDensity,
-	TEXT("Lumen card texels per world space distance"),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
-int32 GLumenSceneMaxQuadResolution = 512;
-FAutoConsoleVariableRef CVarLumenSceneMaxQuadResolution(
-	TEXT("r.LumenScene.CardMaxResolution"),
-	GLumenSceneMaxQuadResolution,
-	TEXT(""),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
-int32 GLumenSceneReset = 0;
-FAutoConsoleVariableRef CVarLumenSceneReset(
-	TEXT("r.LumenScene.Reset"),
-	GLumenSceneReset,
-	TEXT("Reset all atlases and captured cards.\n")
-	TEXT("1 - one time reset\n")
-	TEXT("2 - continuos reset\n")
-	TEXT("3 - continuos reset every 2 frames\n")
-	TEXT("4 - continuos reset every 3 frames\n"),
-	ECVF_RenderThreadSafe
-);
-
-int32 GLumenSceneForceEvict = 0;
-FAutoConsoleVariableRef CVarLumenSceneForceEvict(
-	TEXT("r.LumenScene.ForceEvict"),
-	GLumenSceneForceEvict,
-	TEXT("Evict all optional surface cache pages."),
-	ECVF_RenderThreadSafe
-);
-
-int32 GLumenSceneRecaptureLumenSceneEveryFrame = 0;
-FAutoConsoleVariableRef CVarLumenGIRecaptureLumenSceneEveryFrame(
-	TEXT("r.LumenScene.RecaptureEveryFrame"),
-	GLumenSceneRecaptureLumenSceneEveryFrame,
-	TEXT(""),
-	ECVF_RenderThreadSafe
-);
-
-int32 GLumenSceneNaniteMultiViewCapture = 1;
-FAutoConsoleVariableRef CVarLumenSceneNaniteMultiViewCapture(
-	TEXT("r.LumenScene.NaniteMultiViewCapture"),
-	GLumenSceneNaniteMultiViewCapture,
-	TEXT(""),
-	ECVF_RenderThreadSafe
-);
-
-int32 GLumenGIMaxConeSteps = 1000;
-FAutoConsoleVariableRef CVarLumenGIMaxConeSteps(
-	TEXT("r.Lumen.MaxConeSteps"),
-	GLumenGIMaxConeSteps,
-	TEXT("Maximum steps to use for Cone Stepping of proxy cards."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
-int32 GLumenParallelBeginUpdate = 1;
-FAutoConsoleVariableRef CVarLumenParallelBeginUpdate(
-	TEXT("r.LumenScene.ParallelBeginUpdate"),
-	GLumenParallelBeginUpdate,
-	TEXT("Whether to run the Lumen begin update in parallel or not."),
-	ECVF_RenderThreadSafe
-);
-
 int32 GLumenFastCameraMode = 0;
 FAutoConsoleVariableRef CVarLumenFastCameraMode(
 	TEXT("r.LumenScene.FastCameraMode"),
@@ -132,19 +32,11 @@ FAutoConsoleVariableRef CVarLumenFastCameraMode(
 	ECVF_RenderThreadSafe
 );
 
-int32 GLumenSceneGlobalDFResolution = 224;
-FAutoConsoleVariableRef CVarLumenSceneGlobalDFResolution(
-	TEXT("r.LumenScene.GlobalSDF.Resolution"),
-	GLumenSceneGlobalDFResolution,
-	TEXT(""),
-	ECVF_RenderThreadSafe
-);
-
-float GLumenSceneGlobalDFClipmapExtent = 2500.0f;
-FAutoConsoleVariableRef CVarLumenSceneGlobalDFClipmapExtent(
-	TEXT("r.LumenScene.GlobalSDF.ClipmapExtent"),
-	GLumenSceneGlobalDFClipmapExtent,
-	TEXT(""),
+int32 GLumenSceneParallelUpdate = 1;
+FAutoConsoleVariableRef CVarLumenSceneParallelUpdate(
+	TEXT("r.LumenScene.ParallelUpdate"),
+	GLumenSceneParallelUpdate,
+	TEXT("Whether to run the Lumen Scene update in parallel."),
 	ECVF_RenderThreadSafe
 );
 
@@ -164,13 +56,124 @@ FAutoConsoleVariableRef CVarLumenSceneMeshCardsPerTask(
 	ECVF_RenderThreadSafe
 );
 
+int32 GLumenGIMaxConeSteps = 1000;
+FAutoConsoleVariableRef CVarLumenGIMaxConeSteps(
+	TEXT("r.Lumen.MaxConeSteps"),
+	GLumenGIMaxConeSteps,
+	TEXT("Maximum steps to use for Cone Stepping of proxy cards."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+
+int32 GLumenSceneSurfaceCacheReset = 0;
+FAutoConsoleVariableRef CVarLumenSceneSurfaceCacheReset(
+	TEXT("r.LumenScene.SurfaceCache.Reset"),
+	GLumenSceneSurfaceCacheReset,
+	TEXT("Reset all atlases and captured cards.\n")
+	TEXT("1 - one time reset\n")
+	TEXT("2 - continuos reset\n")
+	TEXT("3 - continuos reset every 2 frames\n")
+	TEXT("4 - continuos reset every 3 frames\n"),
+	ECVF_RenderThreadSafe
+);
+
+int32 GLumenSceneCardCapturesPerFrame = 300;
+FAutoConsoleVariableRef CVarLumenSceneCardCapturesPerFrame(
+	TEXT("r.LumenScene.SurfaceCache.CardCapturesPerFrame"),
+	GLumenSceneCardCapturesPerFrame,
+	TEXT(""),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 int32 GLumenSceneCardCaptureAtlasFactor = 4;
 FAutoConsoleVariableRef CVarLumenSceneCardCapturesAtlasFactor(
-	TEXT("r.LumenScene.CardCaptureAtlasFactor"),
+	TEXT("r.LumenScene.SurfaceCache.CardCaptureAtlasFactor"),
 	GLumenSceneCardCaptureAtlasFactor,
 	TEXT("Controls the size of a transient card capture atlas."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
+
+float GLumenSceneCardCaptureMargin = 0.0f;
+FAutoConsoleVariableRef CVarLumenSceneCardCaptureMargin(
+	TEXT("r.LumenScene.SurfaceCache.CardCaptureMargin"),
+	GLumenSceneCardCaptureMargin,
+	TEXT("How far from Lumen scene range start to capture cards."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+float GLumenSceneCardFixedDebugTexelDensity = -1;
+FAutoConsoleVariableRef CVarLumenSceneCardFixedTexelDensity(
+	TEXT("r.LumenScene.SurfaceCache.CardFixedDebugTexelDensity"),
+	GLumenSceneCardFixedDebugTexelDensity,
+	TEXT("Lumen card texels per world space distance"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+	);
+
+float GLumenSceneCardCameraDistanceTexelDensityScale = 100;
+FAutoConsoleVariableRef CVarLumenSceneCardCameraDistanceTexelDensityScale(
+	TEXT("r.LumenScene.SurfaceCache.CardCameraDistanceTexelDensityScale"),
+	GLumenSceneCardCameraDistanceTexelDensityScale,
+	TEXT("Lumen card texels per world space distance"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+float GLumenSceneCardMaxTexelDensity = .2f;
+FAutoConsoleVariableRef CVarLumenSceneCardMaxTexelDensity(
+	TEXT("r.LumenScene.SurfaceCache.CardMaxTexelDensity"),
+	GLumenSceneCardMaxTexelDensity,
+	TEXT("Lumen card texels per world space distance"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+int32 GLumenSceneMaxQuadResolution = 512;
+FAutoConsoleVariableRef CVarLumenSceneMaxQuadResolution(
+	TEXT("r.LumenScene.SurfaceCache.CardMaxResolution"),
+	GLumenSceneMaxQuadResolution,
+	TEXT(""),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+int32 GLumenSceneForceEvictHiResPages = 0;
+FAutoConsoleVariableRef CVarLumenSceneForceEvictHiResPages(
+	TEXT("r.LumenScene.SurfaceCache.ForceEvictHiResPages"),
+	GLumenSceneForceEvictHiResPages,
+	TEXT("Evict all optional hi-res surface cache pages."),
+	ECVF_RenderThreadSafe
+);
+
+int32 GLumenSceneRecaptureLumenSceneEveryFrame = 0;
+FAutoConsoleVariableRef CVarLumenGIRecaptureLumenSceneEveryFrame(
+	TEXT("r.LumenScene.SurfaceCache.RecaptureEveryFrame"),
+	GLumenSceneRecaptureLumenSceneEveryFrame,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+int32 GLumenSceneNaniteMultiViewCapture = 1;
+FAutoConsoleVariableRef CVarLumenSceneNaniteMultiViewCapture(
+	TEXT("r.LumenScene.SurfaceCache.NaniteMultiViewCapture"),
+	GLumenSceneNaniteMultiViewCapture,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+
+int32 GLumenSceneGlobalDFResolution = 224;
+FAutoConsoleVariableRef CVarLumenSceneGlobalDFResolution(
+	TEXT("r.LumenScene.GlobalSDF.Resolution"),
+	GLumenSceneGlobalDFResolution,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+float GLumenSceneGlobalDFClipmapExtent = 2500.0f;
+FAutoConsoleVariableRef CVarLumenSceneGlobalDFClipmapExtent(
+	TEXT("r.LumenScene.GlobalSDF.ClipmapExtent"),
+	GLumenSceneGlobalDFClipmapExtent,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 DECLARE_LLM_MEMORY_STAT(TEXT("Lumen"), STAT_LumenLLM, STATGROUP_LLMFULL);
@@ -1435,7 +1438,7 @@ void UpdateSurfaceCachePrimitives(
 			NumPrimitivesPerTask);
 	}
 
-	const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance();
+	const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance() && GLumenSceneParallelUpdate != 0;
 
 	ParallelFor(Tasks.Num(),
 		[&Tasks](int32 Index)
@@ -1519,7 +1522,7 @@ void UpdateSurfaceCacheMeshCards(
 			NumMeshCardsPerTask);
 	}
 
-	const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance();
+	const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance() && GLumenSceneParallelUpdate != 0;
 
 	ParallelFor(Tasks.Num(),
 		[&Tasks](int32 Index)
@@ -1596,23 +1599,23 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 		LumenSceneData.bDebugClearAllCachedState = GLumenSceneRecaptureLumenSceneEveryFrame != 0;
 		const bool bReallocateAtlas = LumenSceneData.UpdateAtlasSize();
 
-		if (GLumenSceneReset == 1 
-			|| GLumenSceneReset == 2 
-			|| (GLumenSceneReset == 3 && View.Family->FrameNumber % 2 == 0)
-			|| (GLumenSceneReset == 4 && View.Family->FrameNumber % 3 == 0))
+		if (GLumenSceneSurfaceCacheReset == 1
+			|| GLumenSceneSurfaceCacheReset == 2
+			|| (GLumenSceneSurfaceCacheReset == 3 && View.Family->FrameNumber % 2 == 0)
+			|| (GLumenSceneSurfaceCacheReset == 4 && View.Family->FrameNumber % 3 == 0))
 		{
 			LumenSceneData.bDebugClearAllCachedState = true;
 		}
 
-		if (GLumenSceneReset == 1)
+		if (GLumenSceneSurfaceCacheReset == 1)
 		{
-			GLumenSceneReset = 0;
+			GLumenSceneSurfaceCacheReset = 0;
 		}
 
-		if (GLumenSceneForceEvict != 0)
+		if (GLumenSceneForceEvictHiResPages != 0)
 		{
 			LumenSceneData.ForceEvictEntireCache();
-			GLumenSceneForceEvict = 0;
+			GLumenSceneForceEvictHiResPages = 0;
 		}
 
 		LumenSceneData.NumMeshCardsToAdd = 0;
