@@ -2863,17 +2863,18 @@ static TRefCountPtr<FD3D12Buffer> CreateRayTracingBuffer(FD3D12Adapter* Adapter,
 			0, BufferDesc.Width, BUF_UnorderedAccess,
 			ED3D12ResourceStateMode::SingleState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, bHasInitialData,
 			GPUMask, ResourceAllocator, *DebugNameString);
+
+		// Elevates the scratch buffer heap priority, which may help performance / stability in low memory conditions 
+		// (Acceleration structure already boosted from allocation side)
+		ID3D12Pageable* HeapResource = Result->GetResource()->GetPageable();
+		D3D12_RESIDENCY_PRIORITY HeapPriority = D3D12_RESIDENCY_PRIORITY_HIGH;
+		FD3D12Device* NodeDevice = Adapter->GetDevice(GPUIndex);
+		NodeDevice->GetDevice5()->SetResidencyPriority(1, &HeapResource, &HeapPriority);
 	}
 	else
 	{
 		checkNoEntry();
 	}
-
-	// Elevates the raytracing acceleration structure heap priority, which may help performance / stability in low memory conditions
-	ID3D12Pageable* HeapResource = Result->GetResource()->GetPageable();
-	D3D12_RESIDENCY_PRIORITY HeapPriority = D3D12_RESIDENCY_PRIORITY_HIGH;
-	FD3D12Device* NodeDevice = Adapter->GetDevice(GPUIndex);
-	NodeDevice->GetDevice5()->SetResidencyPriority(1, &HeapResource, &HeapPriority);
 
 	return Result;
 }

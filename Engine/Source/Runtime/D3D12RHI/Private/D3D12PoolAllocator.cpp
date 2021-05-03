@@ -362,6 +362,17 @@ void FD3D12PoolAllocator::AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHe
 
 		ResourceLocation.AsStandAlone(NewResource, InSize);
 	}
+
+#if D3D12_RHI_RAYTRACING
+	// Elevates the raytracing acceleration structure heap priority, which may help performance / stability in low memory conditions
+	if (InCreateState == D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE)
+	{
+		ID3D12Pageable* HeapResource = ResourceLocation.GetResource()->GetPageable();
+		D3D12_RESIDENCY_PRIORITY HeapPriority = D3D12_RESIDENCY_PRIORITY_HIGH;
+		FD3D12Device* NodeDevice = Adapter->GetDevice(GPUIndex);
+		NodeDevice->GetDevice5()->SetResidencyPriority(1, &HeapResource, &HeapPriority);
+	}
+#endif // D3D12_RHI_RAYTRACING
 }
 
 
