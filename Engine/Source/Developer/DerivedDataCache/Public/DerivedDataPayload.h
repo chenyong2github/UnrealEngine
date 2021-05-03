@@ -49,9 +49,14 @@ public:
 	/** Reset this to null. */
 	inline void Reset() { *this = FPayloadId(); }
 
+	/** A null ID. */
+	static const FPayloadId Null;
+
 private:
 	alignas(uint32) ByteArray Bytes{};
 };
+
+inline const FPayloadId FPayloadId::Null;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -96,11 +101,16 @@ public:
 	/** Reset this to null. */
 	inline void Reset() { *this = FPayload(); }
 
+	/** A null payload. */
+	static const FPayload Null;
+
 private:
 	FPayloadId Id;
 	FIoHash RawHash;
 	FCompressedBuffer Data;
 };
+
+inline const FPayload FPayload::Null;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
