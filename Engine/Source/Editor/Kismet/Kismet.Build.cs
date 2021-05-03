@@ -58,7 +58,8 @@ public class Kismet : ModuleRules
                 "UMG", // for SBlueprintDiff
                 "WorkspaceMenuStructure",
 				"ToolMenus",
-            }
+				"SubobjectDataInterface",
+			}
 			);
 
         DynamicallyLoadedModuleNames.AddRange(

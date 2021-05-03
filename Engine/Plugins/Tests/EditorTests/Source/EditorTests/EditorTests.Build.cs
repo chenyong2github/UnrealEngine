@@ -69,6 +69,7 @@ public class EditorTests : ModuleRules
                 "MeshBuilder",
                 "RawMesh",
 				"AutomationController",
+				//"SubobjectDataInterface",
 			}
 		);
 
