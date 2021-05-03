@@ -402,6 +402,31 @@ void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, co
 	AddClearUAVPass(GraphBuilder, TextureUAV, FVector4(ClearColor.R, ClearColor.G, ClearColor.B, ClearColor.A));
 }
 
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, uint32 Value)
+{
+	AddClearUAVPass(GraphBuilder, TextureUAV, { Value, Value , Value , Value });
+}
+
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, float Value)
+{
+	AddClearUAVPass(GraphBuilder, TextureUAV, { Value, Value , Value , Value });
+}
+
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FVector& Value)
+{
+	AddClearUAVPass(GraphBuilder, TextureUAV, { Value.X, Value.Y , Value.Z , 0.f });
+}
+
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FIntPoint& Value)
+{
+	AddClearUAVPass(GraphBuilder, TextureUAV, { uint32(Value.X), uint32(Value.Y), 0u, 0u });
+}
+
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FVector2D& Value)
+{
+	AddClearUAVPass(GraphBuilder, TextureUAV, { Value.X, Value.Y , 0.f, 0.f });
+}
+
 class FClearUAVRectsPS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FClearUAVRectsPS);

@@ -34,6 +34,33 @@ struct FRDGSystemTextures
 	FRDGTextureSRVRef StencilDummySRV{};
 };
 
+
+struct FDefaultTextureKey
+{
+	uint32 ValueAsUInt[4] = { 0u,0u,0u,0u };
+	EPixelFormat Format = PF_Unknown;
+	ETextureDimension Dimension = ETextureDimension::Texture2D;
+};
+struct FDefaultTexture
+{
+	uint32 Hash = 0;
+	FDefaultTextureKey Key;
+	TRefCountPtr<IPooledRenderTarget> Texture;
+};
+
+struct FDefaultBufferKey
+{
+	uint32 ValueAsUInt[4] = { 0u,0u,0u,0u };
+	uint32 NumBytePerElement = 0;
+	bool bIsStructuredBuffer = false;
+};
+struct FDefaultBuffer
+{
+	uint32 Hash = 0;
+	FDefaultBufferKey Key;
+	TRefCountPtr<FRDGPooledBuffer> Buffer;
+};
+
 /**
  * Encapsulates the system textures used for scene rendering.
  */
@@ -114,6 +141,7 @@ public:
 	// SRV for StencilDummy Texture.
 	TRefCountPtr<FRHIShaderResourceView> StencilDummySRV;
 
+	// Create simple default texture
 	FRDGTextureRef GetWhiteDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetBlackDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetZeroUIntDummy(FRDGBuilder& GraphBuilder) const;
@@ -127,9 +155,49 @@ public:
 	FRDGTextureRef GetMidGreyDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetVolumetricBlackDummy(FRDGBuilder& GraphBuilder) const;
 
+	// Create default 2D texture (1x1) with specific format and initialize value 
+	FRDGTextureRef GetDefaultTexture2D(FRDGBuilder& GraphBuilder, EPixelFormat Format, float Value);
+	FRDGTextureRef GetDefaultTexture2D(FRDGBuilder& GraphBuilder, EPixelFormat Format, uint32 Value);
+	FRDGTextureRef GetDefaultTexture2D(FRDGBuilder& GraphBuilder, EPixelFormat Format, const FVector& Value);
+	FRDGTextureRef GetDefaultTexture2D(FRDGBuilder& GraphBuilder, EPixelFormat Format, const FVector4& Value);
+	FRDGTextureRef GetDefaultTexture2D(FRDGBuilder& GraphBuilder, EPixelFormat Format, const FUintVector4& Value);
+	FRDGTextureRef GetDefaultTexture2D(FRDGBuilder& GraphBuilder, EPixelFormat Format, const FClearValueBinding& Value);
+
+	// Create default 2D/3D/Cube/Array texture (1x1) with specific format and initialize value 
+	FRDGTextureRef GetDefaultTexture(FRDGBuilder& GraphBuilder, ETextureDimension Dimension, EPixelFormat Format, float Value);
+	FRDGTextureRef GetDefaultTexture(FRDGBuilder& GraphBuilder, ETextureDimension Dimension, EPixelFormat Format, uint32 Value);
+	FRDGTextureRef GetDefaultTexture(FRDGBuilder& GraphBuilder, ETextureDimension Dimension, EPixelFormat Format, const FVector2D& Value);
+	FRDGTextureRef GetDefaultTexture(FRDGBuilder& GraphBuilder, ETextureDimension Dimension, EPixelFormat Format, const FIntPoint& Value);
+	FRDGTextureRef GetDefaultTexture(FRDGBuilder& GraphBuilder, ETextureDimension Dimension, EPixelFormat Format, const FVector& Value);
+	FRDGTextureRef GetDefaultTexture(FRDGBuilder& GraphBuilder, ETextureDimension Dimension, EPixelFormat Format, const FVector4& Value);
+	FRDGTextureRef GetDefaultTexture(FRDGBuilder& GraphBuilder, ETextureDimension Dimension, EPixelFormat Format, const FUintVector4& Value);
+	FRDGTextureRef GetDefaultTexture(FRDGBuilder& GraphBuilder, ETextureDimension Dimension, EPixelFormat Format, const FClearValueBinding& Value);
+
+	// Create default buffer initialize to zero.
+	FRDGBufferRef GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement);
+	FRDGBufferRef GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement);
+
+	// Create a default buffer initialized with a reference element.
+	FRDGBufferRef GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, float Value);
+	FRDGBufferRef GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, uint32 Value);
+	FRDGBufferRef GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, const FVector& Value);
+	FRDGBufferRef GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, const FVector4& Value);
+	FRDGBufferRef GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, const FUintVector4& Value);
+	FRDGBufferRef GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, float Value);
+	FRDGBufferRef GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, uint32 Value);
+	FRDGBufferRef GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, const FVector& Value);
+	FRDGBufferRef GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, const FVector4& Value);
+	FRDGBufferRef GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, const FUintVector4& Value);
+
 protected:
 	/** Maximum feature level that the textures have been initialized up to */
 	ERHIFeatureLevel::Type FeatureLevelInitializedTo;
+
+	/** Default textures allocated on-demand */
+	TArray<FDefaultTexture> DefaultTextures;
+	TArray<FDefaultBuffer> DefaultBuffers;
+	FHashTable HashDefaultTextures;
+	FHashTable HashDefaultBuffers;
 
 	void InitializeCommonTextures(FRHICommandListImmediate& RHICmdList);
 	void InitializeFeatureLevelDependentTextures(FRHICommandListImmediate& RHICmdList, const ERHIFeatureLevel::Type InFeatureLevel);

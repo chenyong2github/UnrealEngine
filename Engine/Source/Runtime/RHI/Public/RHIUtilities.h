@@ -64,6 +64,28 @@ static inline bool IsBlockCompressedFormat(EPixelFormat Format)
 	return false;
 }
 
+static bool IsFloatFormat(EPixelFormat Format)
+{
+	switch (Format)
+	{
+	case PF_A32B32G32R32F:
+	case PF_FloatRGB:
+	case PF_FloatRGBA:
+	case PF_R32_FLOAT:
+	case PF_G16R16F:
+	case PF_G16R16F_FILTER:
+	case PF_G32R32F:
+	case PF_R16F:
+	case PF_R16F_FILTER:
+	case PF_FloatR11G11B10:
+		return true;
+
+	default:
+		break;
+	}
+	return false;
+}
+
 inline bool RHISupportsTextureBuffers(const FStaticShaderPlatform Platform)
 {
 	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5)
