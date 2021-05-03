@@ -496,6 +496,12 @@ public:
 		FSkeletalMeshLODModel::CopyStructure(Destination, Other);
 		return Destination;
 	}
+
+	/**
+	 * Fills in a representation of this model into the given mesh description object. Existing
+	 * mesh description data is emptied.
+	 */
+	void ENGINE_API GetMeshDescription(FMeshDescription& MeshDescription, const USkeletalMesh *Owner) const;
 };
 
 #endif // WITH_EDITOR

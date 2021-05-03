@@ -89,6 +89,7 @@ public class Engine : ModuleRules
 				"AudioPlatformConfiguration",
 				"MeshDescription",
 				"StaticMeshDescription",
+				"SkeletalMeshDescription",
 				"PakFile",
 				"NetworkReplayStreaming",
 				"PhysicsCore",

@@ -21,6 +21,8 @@
 #include "GPUSkinVertexFactory.h"
 #include "UObject/AnimObjectVersion.h"
 #include "Misc/ScopeLock.h"
+#include "MeshDescription.h"
+#include "SkeletalMeshAttributes.h"
 
 /*-----------------------------------------------------------------------------
 FSoftSkinVertex
@@ -1231,6 +1233,124 @@ void FSkeletalMeshLODModel::CopyStructure(FSkeletalMeshLODModel* Destination, co
 
 	//Make sure the mutex of the copy is set back to the original destination mutex, we can recycle the pointer.
 	Destination->BulkDataReadMutex = DestinationBulkDataReadMutex;
+}
+
+void FSkeletalMeshLODModel::GetMeshDescription(FMeshDescription& MeshDescription, const USkeletalMesh *Owner) const
+{
+	using UE::AnimationCore::FBoneWeights;
+
+	MeshDescription.Empty();
+	
+	FSkeletalMeshAttributes MeshAttributes(MeshDescription);			
+	
+	// Register extra attributes for us.
+	MeshAttributes.Register();
+
+	TVertexAttributesRef<FVector> VertexPositions = MeshAttributes.GetVertexPositions();
+	FSkinWeightsVertexAttributesRef VertexSkinWeights = MeshAttributes.GetVertexSkinWeights();
+	TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = MeshAttributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = MeshAttributes.GetVertexInstanceTangents();
+	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = MeshAttributes.GetVertexInstanceBinormalSigns();
+	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = MeshAttributes.GetVertexInstanceColors();
+	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = MeshAttributes.GetVertexInstanceUVs();
+
+	TPolygonGroupAttributesRef<FName> PolygonGroupMaterialSlotNames = MeshAttributes.GetPolygonGroupMaterialSlotNames();
+	
+	const int32 NumTriangles = IndexBuffer.Num() / 3;
+
+	MeshDescription.ReserveNewPolygonGroups(Sections.Num());
+	MeshDescription.ReserveNewTriangles(NumTriangles);
+	MeshDescription.ReserveNewVertexInstances(NumTriangles * 3);
+	MeshDescription.ReserveNewVertices(static_cast<int32>(NumVertices));
+
+	TArray<FVertexID> VertexIDs;
+	VertexIDs.Reserve(NumVertices);
+	for (int32 VertexIndex = 0; VertexIndex < int32(NumVertices); VertexIndex++)
+	{
+		VertexIDs.Add(MeshDescription.CreateVertex());
+	}
+
+	const TArray<FSkeletalMaterial>& Materials = Owner->GetMaterials();
+	const bool bHasVertexColors = (Owner->GetVertexBufferFlags() & ESkeletalMeshVertexFlags::HasVertexColors);
+
+	// Convert sections to polygon groups, each with their own material.
+	for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); SectionIndex++)
+	{
+		const FSkelMeshSection& Section = Sections[SectionIndex];
+
+		// Convert positions and bone weights
+		const TArray<FSoftSkinVertex>& SourceVertices = Section.SoftVertices;
+		for (int32 VertexIndex = 0; VertexIndex < SourceVertices.Num(); VertexIndex++)
+		{
+			const FVertexID VertexID = VertexIDs[VertexIndex + Section.BaseVertexIndex];
+
+			VertexPositions.Set(VertexID, SourceVertices[VertexIndex].Position);
+
+			// Skeleton bone indexes translated from the render mesh compact indexes.
+			FBoneIndexType	InfluenceBones[MAX_TOTAL_INFLUENCES];
+
+			for (int32 InfluenceIndex = 0; SourceVertices[VertexIndex].InfluenceWeights[InfluenceIndex] && InfluenceIndex < MAX_TOTAL_INFLUENCES; InfluenceIndex++)
+			{
+				const int32 BoneId = SourceVertices[VertexIndex].InfluenceBones[InfluenceIndex];
+
+				InfluenceBones[InfluenceIndex] = Section.BoneMap[BoneId];
+			}
+
+			VertexSkinWeights.Set(VertexID, FBoneWeights::Create(InfluenceBones, SourceVertices[VertexIndex].InfluenceWeights));
+		}
+
+
+		const FPolygonGroupID PolygonGroupID(Section.MaterialIndex);
+
+		if (!MeshDescription.IsPolygonGroupValid(PolygonGroupID))
+		{
+			MeshDescription.CreatePolygonGroupWithID(FPolygonGroupID(Section.MaterialIndex));
+		}
+
+		if (ensure(Materials.IsValidIndex(Section.MaterialIndex)))
+		{
+			PolygonGroupMaterialSlotNames.Set(PolygonGroupID, Materials[Section.MaterialIndex].MaterialSlotName);
+		}
+
+		for (int32 TriangleID = 0; TriangleID < int32(Section.NumTriangles); TriangleID++)
+		{
+			const int32 VertexIndexBase = TriangleID * 3 + Section.BaseIndex;
+
+			TArray<FVertexInstanceID> TriangleVertexInstanceIDs;
+			TriangleVertexInstanceIDs.SetNum(3);
+
+			for (int32 Corner = 0; Corner < 3; Corner++)
+			{
+				const int32 SourceVertexIndex = IndexBuffer[VertexIndexBase + Corner];
+				const FVertexID VertexID = VertexIDs[SourceVertexIndex];
+				const FVertexInstanceID VertexInstanceID = MeshDescription.CreateVertexInstance(VertexID);
+
+				const FSoftSkinVertex& SourceVertex = SourceVertices[SourceVertexIndex - Section.BaseVertexIndex];
+
+				VertexInstanceNormals.Set(VertexInstanceID, SourceVertex.TangentZ);
+				VertexInstanceTangents.Set(VertexInstanceID, SourceVertex.TangentX);
+				VertexInstanceBinormalSigns.Set(VertexInstanceID, FMatrix(
+					SourceVertex.TangentX.GetSafeNormal(),
+					SourceVertex.TangentY.GetSafeNormal(),
+					SourceVertex.TangentZ.GetSafeNormal(),
+					FVector::ZeroVector).Determinant() < 0.0f ? -1.0f : +1.0f);
+
+				for (int32 UVIndex = 0; UVIndex < int32(NumTexCoords); UVIndex++)
+				{
+					VertexInstanceUVs.Set(VertexInstanceID, UVIndex, SourceVertex.UVs[UVIndex]);
+				}
+
+				if (bHasVertexColors)
+				{
+					VertexInstanceColors.Set(VertexInstanceID, FLinearColor(SourceVertex.Color));
+				}
+
+				TriangleVertexInstanceIDs[Corner] = VertexInstanceID;
+			}
+
+			MeshDescription.CreateTriangle(PolygonGroupID, TriangleVertexInstanceIDs);
+		}
+	}
 }
 
 #endif // WITH_EDITOR

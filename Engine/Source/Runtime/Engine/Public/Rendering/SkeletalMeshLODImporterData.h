@@ -14,6 +14,7 @@
 #include "Animation/MorphTarget.h"
 #include "Templates/DontCopy.h"
 
+struct FMeshDescription;
 class FSkeletalMeshLODModel;
 
 #endif
@@ -418,6 +419,17 @@ public:
 	 * Use the faces corner normals to create the face smooth groups data
 	 */
 	void ComputeSmoothGroupFromNormals();
+
+	/**
+	 * Returns a mesh description from the import data
+	 */
+	bool GetMeshDescription(FMeshDescription &OutMeshDescription) const;
+
+	static FSkeletalMeshImportData CreateFromMeshDescription(const FMeshDescription &InMeshDescription);
+
+private:
+	void CleanUpUnusedMaterials();
+	void SplitVerticesBySmoothingGroups();
 };
 
 /**
