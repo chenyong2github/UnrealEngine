@@ -17,6 +17,9 @@
 #include "Modules/ModuleManager.h"
 
 #include "DerivedDataBackendInterface.h"
+#include "DerivedDataBuild.h"
+#include "DerivedDataBuildDefinition.h"
+#include "DerivedDataBuildPrivate.h"
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataPluginInterface.h"
@@ -170,7 +173,7 @@ namespace UE::DerivedData
  * Implementation of the derived data cache
  * This API is fully threadsafe
 **/
-class FDerivedDataCache final : public FDerivedDataCacheInterface
+class FDerivedDataCache final : public FDerivedDataCacheInterface, public IBuild
 {
 
 	/** 
@@ -669,6 +672,8 @@ private:
 	FOnDDCNotification DDCNotificationEvent;
 
 public:
+	// ICache Interface
+
 	FCacheBucket CreateBucket(FStringView Name) final { return Private::CreateCacheBucket(Name); }
 
 	FCacheRecordBuilder CreateRecord(const FCacheKey& Key) final { return Private::CreateCacheRecordBuilder(Key); }
@@ -707,11 +712,25 @@ public:
 	{
 		return FDerivedDataBackend::Get().GetRoot().CancelAll();
 	}
+
+public:
+	// IBuild Interface
+
+	FBuildDefinitionBuilder CreateDefinition(FStringView Name, FStringView Function) final
+	{
+		return Private::CreateBuildDefinition(Name, Function);
+	}
+
+	FBuildDefinition LoadDefinition(FStringView Name, FCbObject&& Definition) final
+	{
+		return Private::LoadBuildDefinition(Name, MoveTemp(Definition));
+	}
 };
 
 } // UE::DerivedData
 
 static FDerivedDataCacheInterface* GDerivedDataCacheInstance;
+static UE::DerivedData::IBuild* GDerivedDataBuildInstance;
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
@@ -731,10 +750,25 @@ public:
 		FScopeLock Lock(&CreateLock);
 		if (!GDerivedDataCacheInstance)
 		{
-			GDerivedDataCacheInstance = new UE::DerivedData::FDerivedDataCache();
-			check(GDerivedDataCacheInstance);
+			UE::DerivedData::FDerivedDataCache* Instance = new UE::DerivedData::FDerivedDataCache();
+			GDerivedDataCacheInstance = Instance;
+			GDerivedDataBuildInstance = Instance;
+			check(Instance);
 		}
 		return &GDerivedDataCacheInstance;
+	}
+
+	UE::DerivedData::IBuild* const* CreateOrGetBuild() final
+	{
+		FScopeLock Lock(&CreateLock);
+		if (!GDerivedDataBuildInstance)
+		{
+			UE::DerivedData::FDerivedDataCache* Instance = new UE::DerivedData::FDerivedDataCache();
+			GDerivedDataCacheInstance = Instance;
+			GDerivedDataBuildInstance = Instance;
+			check(Instance);
+		}
+		return &GDerivedDataBuildInstance;
 	}
 
 	void ShutdownModule() final

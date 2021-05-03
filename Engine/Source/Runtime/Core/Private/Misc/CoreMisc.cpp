@@ -91,7 +91,7 @@ bool FStaticSelfRegisteringExec::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutpu
 
 FDerivedDataCacheInterface* GetDerivedDataCache()
 {
-	static FDerivedDataCacheInterface* const* DDC;
+	static FDerivedDataCacheInterface* const* Cache;
 	static bool bInitialized = false;
 	if (!bInitialized)
 	{
@@ -101,22 +101,52 @@ FDerivedDataCacheInterface* GetDerivedDataCache()
 			bInitialized = true;
 			if (IDerivedDataCacheModule* Module = FModuleManager::LoadModulePtr<IDerivedDataCacheModule>("DerivedDataCache"))
 			{
-				DDC = Module->CreateOrGetCache();
+				Cache = Module->CreateOrGetCache();
 			}
 		}
 	}
-	return DDC ? *DDC : nullptr;
+	return Cache ? *Cache : nullptr;
 }
 
 FDerivedDataCacheInterface& GetDerivedDataCacheRef()
 {
-	FDerivedDataCacheInterface* DDC = GetDerivedDataCache();
-	if (!DDC)
+	FDerivedDataCacheInterface* Cache = GetDerivedDataCache();
+	if (!Cache)
 	{
 		UE_LOG(LogInit, Fatal, TEXT("Derived Data Cache was requested, but not available."));
-		CA_ASSUME(DDC); // Suppress static analysis warning in unreachable code (fatal error)
+		CA_ASSUME(Cache); // Suppress static analysis warning in unreachable code (fatal error)
 	}
-	return *DDC;
+	return *Cache;
+}
+
+UE::DerivedData::IBuild* GetDerivedDataBuild()
+{
+	static UE::DerivedData::IBuild* const* Build;
+	static bool bInitialized = false;
+	if (!bInitialized)
+	{
+		if (!FPlatformProperties::RequiresCookedData())
+		{
+			check(IsInGameThread());
+			bInitialized = true;
+			if (IDerivedDataCacheModule* Module = FModuleManager::LoadModulePtr<IDerivedDataCacheModule>("DerivedDataCache"))
+			{
+				Build = Module->CreateOrGetBuild();
+			}
+		}
+	}
+	return Build ? *Build : nullptr;
+}
+
+UE::DerivedData::IBuild& GetDerivedDataBuildRef()
+{
+	UE::DerivedData::IBuild* Build = GetDerivedDataBuild();
+	if (!Build)
+	{
+		UE_LOG(LogInit, Fatal, TEXT("Derived Data Build was requested, but not available."));
+		CA_ASSUME(Build); // Suppress static analysis warning in unreachable code (fatal error)
+	}
+	return *Build;
 }
 
 class ITargetPlatformManagerModule* GetTargetPlatformManager(bool bFailOnInitErrors)
