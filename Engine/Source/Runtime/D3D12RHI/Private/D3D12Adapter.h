@@ -311,13 +311,15 @@ public:
 		const TCHAR* Name,
 		D3D12_RESOURCE_FLAGS Flags = D3D12_RESOURCE_FLAG_NONE);
 
-	FD3D12Buffer* CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
+	FD3D12Buffer* CreateRHIBuffer(
 		const D3D12_RESOURCE_DESC& Desc,
 		uint32 Alignment, uint32 Stride, uint32 Size, uint32 InUsage,
 		ED3D12ResourceStateMode InResourceStateMode,
-		ERHIAccess InResourceState,
-		FRHIResourceCreateInfo& CreateInfo,
-		ID3D12ResourceAllocator* ResourceAllocator);
+		D3D12_RESOURCE_STATES InCreateState,
+		bool bHasInitialData,
+		const FRHIGPUMask& InGPUMask,
+		ID3D12ResourceAllocator* ResourceAllocator,
+		const TCHAR* InDebugName);
 
 	template <typename ObjectType, typename CreationCoreFunction>
 	inline ObjectType* CreateLinkedObject(FRHIGPUMask GPUMask, const CreationCoreFunction& pfnCreationCore)
@@ -395,11 +397,11 @@ protected:
 		uint32 InUsage,
 		ED3D12ResourceStateMode InResourceStateMode,
 		D3D12_RESOURCE_STATES InCreateState,
-		FRHIResourceCreateInfo& CreateInfo,
 		uint32 Alignment,
 		FD3D12Buffer* Buffer,
 		FD3D12ResourceLocation& ResourceLocation,
-		ID3D12ResourceAllocator* ResourceAllocator);
+		ID3D12ResourceAllocator* ResourceAllocator,
+		const TCHAR* InDebugName);
 
 	// Creates default root and execute indirect signatures
 	virtual void CreateCommandSignatures();

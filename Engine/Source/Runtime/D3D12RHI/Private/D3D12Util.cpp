@@ -1421,6 +1421,12 @@ void FD3D12SyncPoint::WaitForCompletion() const
 	Fence->WaitForFence(Value);
 }
 
+void FD3D12SyncPoint::GPUWait(ED3D12CommandQueueType InCommandQueueType) const
+{
+	check(IsValid());
+	Fence->GpuWait(InCommandQueueType, Value);
+}
+
 // Forward declarations are required for the template functions
 template bool AssertResourceState(ID3D12CommandList* pCommandList, FD3D12View<D3D12_RENDER_TARGET_VIEW_DESC>* pView, const D3D12_RESOURCE_STATES& State);
 template bool AssertResourceState(ID3D12CommandList* pCommandList, FD3D12View<D3D12_UNORDERED_ACCESS_VIEW_DESC>* pView, const D3D12_RESOURCE_STATES& State);

@@ -2353,7 +2353,8 @@ void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName,
 	}
 	hCopyCommandList.Close();
 
-	CopyCommandListManager.ExecuteCommandList(hCopyCommandList);
+	bool bWaitForCompletion = false;
+	CopyCommandListManager.ExecuteCommandListNoCopyQueueSync(hCopyCommandList, bWaitForCompletion);
 	CopyCommandAllocatorManager.ReleaseCommandAllocator(CopyCommandAllocator);
 
 	// Signal again once the copy queue copy is complete.

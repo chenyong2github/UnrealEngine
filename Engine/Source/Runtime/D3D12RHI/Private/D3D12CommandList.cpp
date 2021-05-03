@@ -293,10 +293,10 @@ void FD3D12CommandListHandle::FD3D12CommandListData::FCommandListResourceState::
 	ResourceStates.Empty();
 }
 
-void FD3D12CommandListHandle::Execute(bool WaitForCompletion)
+void FD3D12CommandListHandle::Execute(FD3D12SyncPoint& CopyQueueSyncPoint, bool WaitForCompletion)
 {
 	check(CommandListData);
-	CommandListData->CommandListManager->ExecuteCommandList(*this, WaitForCompletion);
+	CommandListData->CommandListManager->ExecuteCommandList(*this, CopyQueueSyncPoint, WaitForCompletion);
 }
 
 FD3D12CommandAllocator::FD3D12CommandAllocator(ID3D12Device* InDevice, const D3D12_COMMAND_LIST_TYPE& InType)

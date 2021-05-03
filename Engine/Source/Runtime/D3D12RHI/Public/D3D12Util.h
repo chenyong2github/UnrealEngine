@@ -261,6 +261,11 @@ static bool IsValidD3D12ResourceState(D3D12_RESOURCE_STATES InState)
 	return (InState != D3D12_RESOURCE_STATE_TBD && InState != D3D12_RESOURCE_STATE_CORRUPT);
 }
 
+static bool IsDirectQueueExclusiveD3D12State(D3D12_RESOURCE_STATES InState)
+{
+	return EnumHasAnyFlags(InState, D3D12_RESOURCE_STATE_RENDER_TARGET | D3D12_RESOURCE_STATE_DEPTH_WRITE | D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
 D3D12_RESOURCE_STATES GetD3D12ResourceState(ERHIAccess InRHIAccess, bool InIsAsyncCompute);
 
 //==================================================================================================================================
@@ -504,6 +509,14 @@ public:
 	bool IsValid() const;
 	bool IsComplete() const;
 	void WaitForCompletion() const;
+	void GPUWait(ED3D12CommandQueueType InCommandQueueType) const;
+
+	void Merge(const FD3D12SyncPoint& InOther)
+	{
+		check(Fence == nullptr || Fence == InOther.Fence);
+		Fence = InOther.Fence;
+		Value = FMath::Max(Value, InOther.Value);
+	}
 
 private:
 	FD3D12Fence* Fence;

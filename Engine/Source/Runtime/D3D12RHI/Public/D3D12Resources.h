@@ -938,8 +938,15 @@ public:
 	virtual ~FD3D12Buffer()
 	{
 		int64 BufferSize = ResourceLocation.GetSize();
-		UpdateBufferStats(GetBufferStats(GetUsage()), -BufferSize);
+		bool bTransient = ResourceLocation.IsTransient();
+		if (!bTransient)
+		{
+			UpdateBufferStats(GetBufferStats(GetUsage()), -BufferSize);
+		}
 	}
+
+	void UploadResourceData(class FRHICommandListImmediate* InRHICmdList, FResourceArrayInterface* InResourceArray, D3D12_RESOURCE_STATES InDestinationState);
+	FD3D12SyncPoint UploadResourceDataViaCopyQueue(FResourceArrayInterface* InResourceArray);
 
 	void Rename(FD3D12ResourceLocation& NewLocation);
 	void RenameLDAChain(FD3D12ResourceLocation& NewLocation);

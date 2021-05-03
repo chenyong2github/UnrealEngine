@@ -1506,7 +1506,9 @@ FTexture2DRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 
 
 			// Wait for the copy context to finish before continuing as this function is only expected to return once all the texture streaming has finished.
 			hCopyCommandList.Close();
-			Device->GetCopyCommandListManager().ExecuteCommandList(hCopyCommandList, true);
+
+			bool bWaitForCompletion = true;
+			Device->GetCopyCommandListManager().ExecuteCommandListNoCopyQueueSync(hCopyCommandList, bWaitForCompletion);
 
 			CommandAllocatorManager.ReleaseCommandAllocator(CurrentCommandAllocator);
 		}

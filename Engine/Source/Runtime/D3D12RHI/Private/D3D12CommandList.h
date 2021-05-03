@@ -378,7 +378,7 @@ public:
 
 	void Create(FD3D12Device* ParentDevice, D3D12_COMMAND_LIST_TYPE CommandListType, FD3D12CommandAllocator& CommandAllocator, FD3D12CommandListManager* InCommandListManager);
 
-	void Execute(bool WaitForCompletion = false);
+	void Execute(FD3D12SyncPoint& CopyQueueSyncPoint, bool WaitForCompletion = false);
 	
 	void Close()
 	{

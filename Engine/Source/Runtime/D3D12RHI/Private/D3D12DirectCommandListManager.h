@@ -255,8 +255,9 @@ public:
 	FD3D12CommandListHandle ObtainCommandList(FD3D12CommandAllocator& CommandAllocator, bool bHasBackbufferWriteTransition = false);
 	void ReleaseCommandList(FD3D12CommandListHandle& hList);
 
-	void ExecuteCommandList(FD3D12CommandListHandle& hList, bool WaitForCompletion = false);
-	virtual void ExecuteCommandLists(TArray<FD3D12CommandListHandle>& Lists, bool WaitForCompletion = false);
+	FD3D12SyncPoint ExecuteCommandListNoCopyQueueSync(FD3D12CommandListHandle& hList, bool WaitForCompletion);
+	FD3D12SyncPoint ExecuteCommandList(FD3D12CommandListHandle& hList, FD3D12SyncPoint& CopyQueueSyncPoint, bool WaitForCompletion);
+	virtual FD3D12SyncPoint ExecuteCommandLists(TArray<FD3D12CommandListHandle>& Lists, FD3D12SyncPoint& CopyQueueSyncPoint, bool WaitForCompletion);
 
 	void WaitOnExecuteTask();
 
@@ -338,8 +339,18 @@ protected:
 		{}
 	};
 
-	void ExecuteCommandListInternal(TArray<FD3D12CommandListHandle>& Lists, bool WaitForCompletion);
-	uint32 GetResourceBarrierCommandList(FD3D12CommandListHandle& hList, FD3D12CommandListHandle& hResourceBarrierList);
+	FD3D12SyncPoint ExecuteCommandListInternal(TArray<FD3D12CommandListHandle>& Lists, FD3D12SyncPoint& CopyQueueSyncPoint, bool WaitForCompletion);
+	struct FBarrierDescInfo
+	{
+		TArray<D3D12_RESOURCE_BARRIER> BarrierDescs;
+		TArray<D3D12_RESOURCE_BARRIER, TInlineAllocator<2>> BackBufferBarrierDescs;
+#if ENABLE_RESIDENCY_MANAGEMENT
+		TArray<FD3D12ResidencyHandle*> ResidencyHandles;
+#endif // ENABLE_RESIDENCY_MANAGEMENT
+		bool bHasGraphicStates;
+	};
+	static uint32 CollectInitialResourceBarriersAndUpdateFinalState(FD3D12CommandListHandle& InCommandListHandle, FBarrierDescInfo& BarrierDescInfo);
+	uint32 GetResourceBarrierCommandList(FBarrierDescInfo& InBarrierDescInfo, FD3D12CommandListHandle& hResourceBarrierList);
 
 	// Returns signaled Fence
 	uint64 ExecuteAndIncrementFence(FD3D12CommandListPayload& Payload, FD3D12Fence &Fence);

@@ -130,7 +130,10 @@ public:
 	FD3D12CommandListHandle CommandListHandle;
 	FD3D12CommandAllocator* CommandAllocator;
 	FD3D12CommandAllocatorManager CommandAllocatorManager;
-	
+
+	// Sync point with copy queue which needs to be checked before kicking this command lists
+	FD3D12SyncPoint CopyQueueSyncPoint;
+
 	// Current GPU event stack
 	TArray<uint32> GPUEventStack;
 

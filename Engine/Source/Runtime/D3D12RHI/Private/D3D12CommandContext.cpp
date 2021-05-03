@@ -394,7 +394,7 @@ FD3D12CommandListHandle FD3D12CommandContext::FlushCommands(bool WaitForCompleti
 				// which could insert a flush in between pending command lists
 				check(IsInRenderingThread());
 			}
-			GetCommandListManager().ExecuteCommandLists(Device->PendingCommandLists, WaitForCompletion);
+			GetCommandListManager().ExecuteCommandLists(Device->PendingCommandLists, CopyQueueSyncPoint, WaitForCompletion);
 			Device->PendingCommandLists.Reset();
 		}
 		else
@@ -403,8 +403,11 @@ FD3D12CommandListHandle FD3D12CommandContext::FlushCommands(bool WaitForCompleti
 			check(bIsCommandListOpen);
 
 			// Just submit the current command list
-			CommandListHandle.Execute(WaitForCompletion);
+			CommandListHandle.Execute(CopyQueueSyncPoint, WaitForCompletion);
 		}
+
+		// reset sync point again
+		CopyQueueSyncPoint = FD3D12SyncPoint();
 
 		if (bIsCommandListOpen)
 		{
@@ -890,7 +893,10 @@ public:
 				const bool bHasPendingWork = Device->PendingCommandLists.Num() > 0;
 				if (bFlush && bHasPendingWork)
 				{
-					Device->GetCommandListManager().ExecuteCommandLists(Device->PendingCommandLists);
+					// TODO: find out copy queue sync point of all parallel translate jobs?
+					FD3D12SyncPoint EmptyCopyQueueSyncPoint;
+					bool bWaitForCompletion = false;
+					Device->GetCommandListManager().ExecuteCommandLists(Device->PendingCommandLists, EmptyCopyQueueSyncPoint, bWaitForCompletion);
 					Device->PendingCommandLists.Reset();
 				}
 

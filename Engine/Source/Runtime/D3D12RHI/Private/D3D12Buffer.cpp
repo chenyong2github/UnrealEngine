@@ -79,19 +79,19 @@ struct FD3D12RHICommandInitializeBuffer final : public FRHICommand<FD3D12RHIComm
 		FD3D12ResourceLocation::TransferOwnership(SrcResourceLoc, InSrcResourceLoc);
 	}
 
-	void Execute(FRHICommandListBase& /* unused */)
+	void Execute(FRHICommandListBase& CmdList)
 	{
-		ExecuteNoCmdList();
+		FD3D12CommandContext& CommandContext = (FD3D12CommandContext&)(CmdList.IsImmediateAsyncCompute() ? CmdList.GetComputeContext().GetLowestLevelContext() : CmdList.GetContext().GetLowestLevelContext());
+		ExecuteOnCommandContext(CommandContext);
 	}
 
-	void ExecuteNoCmdList()
+	void ExecuteOnCommandContext(FD3D12CommandContext& CommandContext)
 	{
 		for (FD3D12Buffer::FLinkedObjectIterator CurrentBuffer(Buffer); CurrentBuffer; ++CurrentBuffer)
 		{
 			FD3D12Resource* Destination = CurrentBuffer->ResourceLocation.GetResource();
 			FD3D12Device* Device = Destination->GetParentDevice();
 
-			FD3D12CommandContext& CommandContext = Device->GetDefaultCommandContext();
 			FD3D12CommandListHandle& hCommandList = CommandContext.CommandListHandle;
 			// Copy from the temporary upload heap to the default resource
 			{
@@ -141,17 +141,158 @@ struct FD3D12RHICommandInitializeBuffer final : public FRHICommand<FD3D12RHIComm
 	}
 };
 
+
+void FD3D12Buffer::UploadResourceData(class FRHICommandListImmediate* RHICmdList, FResourceArrayInterface* InResourceArray, D3D12_RESOURCE_STATES InDestinationState)
+{
+	check(InResourceArray);
+	check(ResourceLocation.IsValid());
+
+	uint32 BufferSize = GetSize();
+	check(BufferSize == InResourceArray->GetResourceDataSize());
+
+	const bool bIsDynamic = (GetUsage() & BUF_AnyDynamic) ? true : false;
+	if (bIsDynamic)
+	{
+		// Copy directly in mapped data
+		void* MappedUploadData = ResourceLocation.GetMappedBaseAddress(); 
+		FMemory::Memcpy(MappedUploadData, InResourceArray->GetResourceData(), BufferSize);
+	}
+	else
+	{
+		const bool bOnAsyncThread = !IsInRHIThread() && !IsInRenderingThread();
+
+		// Get an upload heap and initialize data
+		FD3D12ResourceLocation SrcResourceLoc(GetParentDevice());
+		void* pData;
+		if (bOnAsyncThread)
+		{
+			const uint32 GPUIdx = SrcResourceLoc.GetParentDevice()->GetGPUIndex();
+			pData = GetParentDevice()->GetParentAdapter()->GetUploadHeapAllocator(GPUIdx).AllocUploadResource(BufferSize, 4u, SrcResourceLoc);
+		}
+		else
+		{
+			pData = SrcResourceLoc.GetParentDevice()->GetDefaultFastAllocator().Allocate(BufferSize, 4UL, &SrcResourceLoc);
+		}
+		check(pData);
+		FMemory::Memcpy(pData, InResourceArray->GetResourceData(), BufferSize);
+
+		if (bOnAsyncThread)
+		{
+			// Need to update buffer content on RHI thread (immediate context) because the buffer can be a
+			// sub-allocation and its backing resource may be in a state incompatible with the copy queue.
+			// TODO:
+			// Create static buffers in COMMON state, rely on state promotion/decay to avoid transition barriers,
+			// and initialize them asynchronously on the copy queue. D3D12 buffers always allow simultaneous acess
+			// so it is legal to write to a region on the copy queue while other non-overlapping regions are
+			// being read on the graphics/compute queue. Currently, d3ddebug throws error for such usage.
+			// Once Microsoft (via Windows update) fix the debug layer, async static buffer initialization should
+			// be done on the copy queue.
+			FD3D12ResourceLocation* SrcResourceLoc_Heap = new FD3D12ResourceLocation(SrcResourceLoc.GetParentDevice());
+			FD3D12ResourceLocation::TransferOwnership(*SrcResourceLoc_Heap, SrcResourceLoc);
+			ENQUEUE_RENDER_COMMAND(CmdD3D12InitializeBuffer)(
+				[this, SrcResourceLoc_Heap, BufferSize, InDestinationState](FRHICommandListImmediate& RHICmdList)
+				{
+					if (RHICmdList.Bypass())
+					{
+						FD3D12RHICommandInitializeBuffer Command(this, *SrcResourceLoc_Heap, BufferSize, InDestinationState);
+						Command.Execute(RHICmdList);
+					}
+					else
+					{
+						new (RHICmdList.AllocCommand<FD3D12RHICommandInitializeBuffer>()) FD3D12RHICommandInitializeBuffer(this, *SrcResourceLoc_Heap, BufferSize, InDestinationState);
+					}
+					delete SrcResourceLoc_Heap;
+				});
+		}
+		else if (!RHICmdList || RHICmdList->Bypass())
+		{
+			// On RHIT or RT (when bypassing), we can access immediate context directly
+			FD3D12RHICommandInitializeBuffer Command(this, SrcResourceLoc, BufferSize, InDestinationState);
+			if (RHICmdList)
+			{
+				Command.Execute(*RHICmdList);
+			}
+			else
+			{
+				FD3D12CommandContext& CommandContext = GetParentDevice()->GetDefaultCommandContext();
+				Command.ExecuteOnCommandContext(CommandContext);
+			}
+		}
+		else
+		{
+			// On RT but not bypassing
+			new (RHICmdList->AllocCommand<FD3D12RHICommandInitializeBuffer>()) FD3D12RHICommandInitializeBuffer(this, SrcResourceLoc, BufferSize, InDestinationState);
+		}
+	}
+
+	// Discard the resource array's contents.
+	InResourceArray->Discard();
+}
+
+
+FD3D12SyncPoint FD3D12Buffer::UploadResourceDataViaCopyQueue(FResourceArrayInterface* InResourceArray)
+{
+	// assume not dynamic and not on async thread (probably fine but untested)
+	check(IsInRHIThread() || IsInRenderingThread());
+	check(!(GetUsage() & BUF_AnyDynamic));
+
+	uint32 BufferSize = GetSize();
+
+	// Get an upload heap and copy the data
+	FD3D12ResourceLocation SrcResourceLoc(GetParentDevice());
+	void* pData = GetParentDevice()->GetDefaultFastAllocator().Allocate(BufferSize, 4UL, &SrcResourceLoc);
+	check(pData);
+	FMemory::Memcpy(pData, InResourceArray->GetResourceData(), BufferSize);
+
+	// Allocate copy queue command list and perform the copy op
+	FD3D12Device* Device = SrcResourceLoc.GetParentDevice();
+	FD3D12CommandAllocatorManager& CommandAllocatorManager = Device->GetTextureStreamingCommandAllocatorManager();
+	FD3D12CommandAllocator* CurrentCommandAllocator = CommandAllocatorManager.ObtainCommandAllocator();
+	FD3D12CommandListHandle hCopyCommandList = Device->GetCopyCommandListManager().ObtainCommandList(*CurrentCommandAllocator);
+
+	// Required for stat tracking ?!?
+	hCopyCommandList.SetCurrentOwningContext(&Device->GetDefaultCommandContext());
+	hCopyCommandList.GetCurrentOwningContext()->numCopies++;
+
+	// Perform actual copy op		
+	hCopyCommandList->CopyBufferRegion(
+		ResourceLocation.GetResource()->GetResource(),
+		ResourceLocation.GetOffsetFromBaseOfResource(),
+		SrcResourceLoc.GetResource()->GetResource(),
+		SrcResourceLoc.GetOffsetFromBaseOfResource(), BufferSize);
+
+	// Residency update needed since it's just been created?
+	hCopyCommandList.UpdateResidency(ResourceLocation.GetResource());
+
+	// Close and kick the command list without waiting for it
+	hCopyCommandList.Close();
+	bool bWaitForCompletion = false;
+	FD3D12SyncPoint CopyQueueSyncPoint = Device->GetCopyCommandListManager().ExecuteCommandListNoCopyQueueSync(hCopyCommandList, bWaitForCompletion);
+
+	// Release command allocator (has the sync point as well)
+	CommandAllocatorManager.ReleaseCommandAllocator(CurrentCommandAllocator);
+
+	// Buffer is now written and ready, so unlock the block
+	ResourceLocation.UnlockPoolData();
+
+	// Discard the resource array's contents.
+	InResourceArray->Discard();
+
+	return CopyQueueSyncPoint;
+}
+
+
 void FD3D12Adapter::AllocateBuffer(FD3D12Device* Device,
 	const D3D12_RESOURCE_DESC& InDesc,
 	uint32 Size,
 	uint32 InUsage,
 	ED3D12ResourceStateMode InResourceStateMode,
 	D3D12_RESOURCE_STATES InCreateState,
-	FRHIResourceCreateInfo& CreateInfo,
 	uint32 Alignment,
 	FD3D12Buffer* Buffer,
 	FD3D12ResourceLocation& ResourceLocation,
-	ID3D12ResourceAllocator* ResourceAllocator)
+	ID3D12ResourceAllocator* ResourceAllocator,
+	const TCHAR* InDebugName)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::AllocateBuffer);
 
@@ -165,74 +306,58 @@ void FD3D12Adapter::AllocateBuffer(FD3D12Device* Device,
 		check(ResourceAllocator == nullptr);
 		check(InResourceStateMode != ED3D12ResourceStateMode::MultiState);
 		check(InCreateState == D3D12_RESOURCE_STATE_GENERIC_READ);
-		void* pData = GetUploadHeapAllocator(Device->GetGPUIndex()).AllocUploadResource(Size, Alignment, ResourceLocation);
+		GetUploadHeapAllocator(Device->GetGPUIndex()).AllocUploadResource(Size, Alignment, ResourceLocation);
 		check(ResourceLocation.GetSize() == Size);
-
-		if (CreateInfo.ResourceArray)
-		{
-			const void* InitialData = CreateInfo.ResourceArray->GetResourceData();
-
-			check(Size == CreateInfo.ResourceArray->GetResourceDataSize());
-			// Handle initial data
-			FMemory::Memcpy(pData, InitialData, Size);
-		}
 	}
 	else
 	{
 		if (ResourceAllocator)
 		{
-			ResourceAllocator->AllocateResource(Device->GetGPUIndex(), D3D12_HEAP_TYPE_DEFAULT, InDesc, InDesc.Width, Alignment, InResourceStateMode, InCreateState, nullptr, CreateInfo.DebugName, ResourceLocation);
+			ResourceAllocator->AllocateResource(Device->GetGPUIndex(), D3D12_HEAP_TYPE_DEFAULT, InDesc, InDesc.Width, Alignment, InResourceStateMode, InCreateState, nullptr, InDebugName, ResourceLocation);
 		}
 		else
 		{
-			Device->GetDefaultBufferAllocator().AllocDefaultResource(D3D12_HEAP_TYPE_DEFAULT, InDesc, (EBufferUsageFlags)InUsage, InResourceStateMode, InCreateState, ResourceLocation, Alignment, CreateInfo.DebugName);
+			Device->GetDefaultBufferAllocator().AllocDefaultResource(D3D12_HEAP_TYPE_DEFAULT, InDesc, (EBufferUsageFlags)InUsage, InResourceStateMode, InCreateState, ResourceLocation, Alignment, InDebugName);
 		}
 		ResourceLocation.SetOwner(Buffer);
 		check(ResourceLocation.GetSize() == Size);
 	}
 }
 
-FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
+FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 	const D3D12_RESOURCE_DESC& InDesc,
 	uint32 Alignment,
 	uint32 Stride,
 	uint32 Size,
 	uint32 InUsage,
 	ED3D12ResourceStateMode InResourceStateMode,
-	ERHIAccess InResourceState,
-	FRHIResourceCreateInfo& CreateInfo,
-	ID3D12ResourceAllocator* ResourceAllocator)
+	D3D12_RESOURCE_STATES InCreateState,
+	bool bHasInitialData,
+	const FRHIGPUMask& InGPUMask,
+	ID3D12ResourceAllocator* ResourceAllocator,
+	const TCHAR* InDebugName)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::CreateRHIBuffer);
-
 	SCOPE_CYCLE_COUNTER(STAT_D3D12CreateBufferTime);
 
 	check(InDesc.Width == Size);
 
-	const bool bIsDynamic = (InUsage & BUF_AnyDynamic) ? true : false;
-	const uint32 FirstGPUIndex = CreateInfo.GPUMask.GetFirstIndex();
-		
-	// Does this resource support tracking?
-	const bool bSupportResourceStateTracking = !bIsDynamic && FD3D12DefaultBufferAllocator::IsPlacedResource(InDesc.Flags, InResourceStateMode);
-
-	// Initial state is derived from the InResourceState if it's supports tracking
-	D3D12_HEAP_TYPE HeapType = bIsDynamic ? D3D12_HEAP_TYPE_UPLOAD : D3D12_HEAP_TYPE_DEFAULT;
-	const FD3D12Resource::FD3D12ResourceTypeHelper Type(InDesc, HeapType);
-	const D3D12_RESOURCE_STATES InitialState = bSupportResourceStateTracking ? Type.GetOptimalInitialState(InResourceState, false) : 
-		FD3D12DefaultBufferAllocator::GetDefaultInitialResourceState(HeapType, (EBufferUsageFlags)InUsage, InResourceStateMode);
-
 	FD3D12Buffer* BufferOut = nullptr;
+
+	const bool bIsDynamic = (InUsage & BUF_AnyDynamic) ? true : false;		
 	if (bIsDynamic)
-	{		
+	{
+		const uint32 FirstGPUIndex = InGPUMask.GetFirstIndex();
+
 		FD3D12Buffer* NewBuffer0 = nullptr;
-		BufferOut = CreateLinkedObject<FD3D12Buffer>(CreateInfo.GPUMask, [&](FD3D12Device* Device)
+		BufferOut = CreateLinkedObject<FD3D12Buffer>(InGPUMask, [&](FD3D12Device* Device)
 		{
 			FD3D12Buffer* NewBuffer = new FD3D12Buffer(Device, Size, InUsage, Stride);
 			NewBuffer->BufferAlignment = Alignment;
 
 			if (Device->GetGPUIndex() == FirstGPUIndex)
 			{
-				AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, InitialState, CreateInfo, Alignment, NewBuffer, NewBuffer->ResourceLocation, ResourceAllocator);
+				AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, InCreateState, Alignment, NewBuffer, NewBuffer->ResourceLocation, ResourceAllocator, InDebugName);
 				NewBuffer0 = NewBuffer;
 			}
 			else
@@ -246,17 +371,14 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdLis
 	}
 	else
 	{
-		// Setup the state at which the resource needs to be created - copy dest only supported for placed resources
-		const D3D12_RESOURCE_STATES CreateState = (CreateInfo.ResourceArray && bSupportResourceStateTracking) ? D3D12_RESOURCE_STATE_COPY_DEST : InitialState;
-
-		BufferOut = CreateLinkedObject<FD3D12Buffer>(CreateInfo.GPUMask, [&](FD3D12Device* Device)
+		BufferOut = CreateLinkedObject<FD3D12Buffer>(InGPUMask, [&](FD3D12Device* Device)
 		{
 			FD3D12Buffer* NewBuffer = new FD3D12Buffer(Device, Size, InUsage, Stride);
 			NewBuffer->BufferAlignment = Alignment;
-			AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, CreateState, CreateInfo, Alignment, NewBuffer, NewBuffer->ResourceLocation, ResourceAllocator);
+			AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, InCreateState, Alignment, NewBuffer, NewBuffer->ResourceLocation, ResourceAllocator, InDebugName);
 			
-			// Unlock immediately if no initial data
-			if (CreateInfo.ResourceArray == nullptr)
+			// Unlock immediately if there is no initial data
+			if (!bHasInitialData)
 			{
 				NewBuffer->ResourceLocation.UnlockPoolData();
 			}
@@ -265,72 +387,10 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdLis
 		});
 	}
 
-	if (CreateInfo.ResourceArray)
+	// Don't track transient buffer stats here
+	if (!BufferOut->ResourceLocation.IsTransient())
 	{
-		if (bIsDynamic == false && BufferOut->ResourceLocation.IsValid())
-		{
-			check(Size == CreateInfo.ResourceArray->GetResourceDataSize());
-
-			const bool bOnAsyncThread = !IsInRHIThread() && !IsInRenderingThread();
-
-			// Get an upload heap and initialize data
-			FD3D12ResourceLocation SrcResourceLoc(BufferOut->GetParentDevice());
-			void* pData;
-			if (bOnAsyncThread)
-			{
-				const uint32 GPUIdx = SrcResourceLoc.GetParentDevice()->GetGPUIndex();
-				pData = GetUploadHeapAllocator(GPUIdx).AllocUploadResource(Size, 4u, SrcResourceLoc);
-			}
-			else
-			{
-				pData = SrcResourceLoc.GetParentDevice()->GetDefaultFastAllocator().Allocate(Size, 4UL, &SrcResourceLoc);
-			}
-			check(pData);
-			FMemory::Memcpy(pData, CreateInfo.ResourceArray->GetResourceData(), Size);
-			
-			if (bOnAsyncThread)
-			{
-				// Need to update buffer content on RHI thread (immediate context) because the buffer can be a
-				// sub-allocation and its backing resource may be in a state incompatible with the copy queue.
-				// TODO:
-				// Create static buffers in COMMON state, rely on state promotion/decay to avoid transition barriers,
-				// and initialize them asynchronously on the copy queue. D3D12 buffers always allow simultaneous acess
-				// so it is legal to write to a region on the copy queue while other non-overlapping regions are
-				// being read on the graphics/compute queue. Currently, d3ddebug throws error for such usage.
-				// Once Microsoft (via Windows update) fix the debug layer, async static buffer initialization should
-				// be done on the copy queue.
-				FD3D12ResourceLocation* SrcResourceLoc_Heap = new FD3D12ResourceLocation(SrcResourceLoc.GetParentDevice());
-				FD3D12ResourceLocation::TransferOwnership(*SrcResourceLoc_Heap, SrcResourceLoc);
-				ENQUEUE_RENDER_COMMAND(CmdD3D12InitializeBuffer)(
-					[BufferOut, SrcResourceLoc_Heap, Size, InitialState](FRHICommandListImmediate& RHICmdList)
-				{
-					if (RHICmdList.Bypass())
-					{
-						FD3D12RHICommandInitializeBuffer Command(BufferOut, *SrcResourceLoc_Heap, Size, InitialState);
-						Command.ExecuteNoCmdList();
-					}
-					else
-					{
-						new (RHICmdList.AllocCommand<FD3D12RHICommandInitializeBuffer>()) FD3D12RHICommandInitializeBuffer(BufferOut, *SrcResourceLoc_Heap, Size, InitialState);
-					}
-					delete SrcResourceLoc_Heap;
-				});
-			}
-			else if (!RHICmdList || RHICmdList->Bypass())
-			{
-				// On RHIT or RT (when bypassing), we can access immediate context directly
-				FD3D12RHICommandInitializeBuffer Command(BufferOut, SrcResourceLoc, Size, InitialState);
-				Command.ExecuteNoCmdList();
-			}
-			else
-			{
-				// On RT but not bypassing
-				new (RHICmdList->AllocCommand<FD3D12RHICommandInitializeBuffer>()) FD3D12RHICommandInitializeBuffer(BufferOut, SrcResourceLoc, Size, InitialState);
-			}
-		}
-
-		// Discard the resource array's contents.
-		CreateInfo.ResourceArray->Discard();
+		UpdateBufferStats(GetBufferStats(InUsage), BufferOut->ResourceLocation.GetSize());
 	}
 
 	return BufferOut;
@@ -438,7 +498,7 @@ FBufferRHIRef FD3D12DynamicRHI::CreateBuffer(FRHICommandListImmediate* RHICmdLis
 	return CreateD3D12Buffer(RHICmdList, Size, Usage, Stride, InResourceState, CreateInfo, ResourceAllocator);
 }
 
-FD3D12Buffer* FD3D12DynamicRHI::CreateD3D12Buffer(class FRHICommandListImmediate* RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo, ID3D12ResourceAllocator* ResourceAllocator)
+FD3D12Buffer* FD3D12DynamicRHI::CreateD3D12Buffer(class FRHICommandListImmediate* RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo, ID3D12ResourceAllocator* ResourceAllocator)
 {
 	D3D12_RESOURCE_DESC Desc;
 	uint32 Alignment;
@@ -448,11 +508,28 @@ FD3D12Buffer* FD3D12DynamicRHI::CreateD3D12Buffer(class FRHICommandListImmediate
 		? ED3D12ResourceStateMode::SingleState 
 		: ED3D12ResourceStateMode::Default;
 
-	FD3D12Buffer* Buffer = GetAdapter().CreateRHIBuffer(RHICmdList, Desc, Alignment, Stride, Size, Usage, StateMode, ResourceState, CreateInfo, ResourceAllocator);
-	if (Buffer->ResourceLocation.IsTransient())
+	// Does this resource support tracking?
+	const bool bIsDynamic = (Usage & BUF_AnyDynamic) ? true : false;
+	const bool bSupportResourceStateTracking = !bIsDynamic && FD3D12DefaultBufferAllocator::IsPlacedResource(Desc.Flags, StateMode);
+
+	// Initial state is derived from the InResourceState if it's supports tracking
+	D3D12_HEAP_TYPE HeapType = bIsDynamic ? D3D12_HEAP_TYPE_UPLOAD : D3D12_HEAP_TYPE_DEFAULT;
+	const FD3D12Resource::FD3D12ResourceTypeHelper Type(Desc, HeapType);
+	D3D12_RESOURCE_STATES DesiredState = bSupportResourceStateTracking ? Type.GetOptimalInitialState(InResourceState, false) :
+		FD3D12DefaultBufferAllocator::GetDefaultInitialResourceState(HeapType, (EBufferUsageFlags)Usage, StateMode);
+
+	// Setup the state at which the resource needs to be created - copy dest only supported for placed resources
+	D3D12_RESOURCE_STATES CreateState = (CreateInfo.ResourceArray && bSupportResourceStateTracking) ? D3D12_RESOURCE_STATE_COPY_DEST : DesiredState;
+	bool bHasInitialData = CreateInfo.ResourceArray != nullptr;
+
+	FD3D12SyncPoint CopyQueueSyncPoint;
+	FD3D12Buffer* Buffer = GetAdapter().CreateRHIBuffer(Desc, Alignment, Stride, Size, Usage, StateMode, CreateState, bHasInitialData, CreateInfo.GPUMask, ResourceAllocator, CreateInfo.DebugName);
+	check(Buffer->ResourceLocation.IsValid());
+
+	// Copy the resource data if available 
+	if (bHasInitialData)
 	{
-		// TODO: this should ideally be set in platform-independent code, since this tracking is for the high level
-		Buffer->SetCommitted(false);
+		Buffer->UploadResourceData(RHICmdList, CreateInfo.ResourceArray, DesiredState);
 	}
 
 	return Buffer;
