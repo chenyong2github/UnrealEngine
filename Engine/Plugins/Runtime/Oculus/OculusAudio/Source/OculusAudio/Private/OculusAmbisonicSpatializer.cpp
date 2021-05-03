@@ -263,6 +263,11 @@ public:
 		const FAmbisonicsSoundfieldBuffer& InputBuffer = DowncastSoundfieldRef<const FAmbisonicsSoundfieldBuffer>(InputData);
 		FOculusSoundfieldBuffer& OutputBuffer = DowncastSoundfieldRef<FOculusSoundfieldBuffer>(PacketToSumTo);
 
+		if (!InputBuffer.NumChannels || InputBuffer.AudioBuffer.IsEmpty())
+		{
+			return;
+		}
+
 		const int32 NumFrames = InputBuffer.AudioBuffer.Num() / InputBuffer.NumChannels;
 		OutputBuffer.AudioBuffer.SetNumZeroed(NumFrames * 2);
 		OutputBuffer.NumChannels = 2;
