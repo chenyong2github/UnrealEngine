@@ -163,7 +163,7 @@ public:
 	}
 
 	virtual FRequest Put(
-		TArrayView<FCacheRecord> Records,
+		TConstArrayView<FCacheRecord> Records,
 		FStringView Context,
 		ECachePolicy Policy,
 		EPriority Priority,

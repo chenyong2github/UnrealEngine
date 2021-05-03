@@ -458,7 +458,7 @@ private:
 };
 
 FRequest FDerivedDataBackendAsyncPutWrapper::Put(
-	TArrayView<FCacheRecord> Records,
+	TConstArrayView<FCacheRecord> Records,
 	FStringView Context,
 	ECachePolicy Policy,
 	EPriority Priority,
@@ -470,14 +470,8 @@ FRequest FDerivedDataBackendAsyncPutWrapper::Put(
 	}
 	else
 	{
-		TArray<FCacheRecord> RecordsArray;
-		RecordsArray.Reserve(Records.Num());
-		for (FCacheRecord& Record : Records)
-		{
-			RecordsArray.Add(MoveTemp(Record));
-		}
 		TRequest<FDerivedDataAsyncWrapperRequest> Request(new FDerivedDataAsyncWrapperRequest(
-			[Backend = InnerBackend, Records = MoveTemp(RecordsArray), Context = FString(Context), Policy, Priority, OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
+			[Backend = InnerBackend, Records = TArray<FCacheRecord>(Records), Context = FString(Context), Policy, Priority, OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
 			{
 				if (!bCancel)
 				{

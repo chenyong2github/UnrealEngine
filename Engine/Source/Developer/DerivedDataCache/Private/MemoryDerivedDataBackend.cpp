@@ -406,13 +406,13 @@ int64 FMemoryDerivedDataBackend::CalcSerializedCacheRecordSize(const FCacheRecor
 }
 
 FRequest FMemoryDerivedDataBackend::Put(
-	TArrayView<FCacheRecord> Records,
+	TConstArrayView<FCacheRecord> Records,
 	FStringView Context,
 	ECachePolicy Policy,
 	EPriority Priority,
 	FOnCachePutComplete&& OnComplete)
 {
-	for (FCacheRecord& Record : Records)
+	for (const FCacheRecord& Record : Records)
 	{
 		const FCacheKey& Key = Record.GetKey();
 		EStatus Status = EStatus::Error;
@@ -457,7 +457,7 @@ FRequest FMemoryDerivedDataBackend::Put(
 			}
 
 			CurrentCacheSize += RecordSize;
-			CacheRecords.Add(MoveTemp(Record));
+			CacheRecords.Add(Record);
 			COOK_STAT(Timer.AddHit(RecordSize));
 			Status = EStatus::Ok;
 		}
@@ -478,7 +478,7 @@ FRequest FMemoryDerivedDataBackend::Get(
 		FCacheRecord Record;
 		if (FScopeLock ScopeLock(&SynchronizationObject); const FCacheRecord* CacheRecord = CacheRecords.Find(Key))
 		{
-			Record = CacheRecord->Clone();
+			Record = *CacheRecord;
 		}
 		if (Record)
 		{

@@ -75,7 +75,7 @@ public:
 	void SetSpeedClass(ESpeedClass InSpeedClass) { SpeedClass = InSpeedClass; }
 
 	virtual FRequest Put(
-		TArrayView<FCacheRecord> Records,
+		TConstArrayView<FCacheRecord> Records,
 		FStringView Context,
 		ECachePolicy Policy,
 		EPriority Priority,

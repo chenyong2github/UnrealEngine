@@ -82,9 +82,6 @@ public:
 	/** Construct a null cache record. */
 	explicit FCacheRecord() = default;
 
-	/** Clone this cache record. Prefer to move records, and clone only when a copy is necessary. */
-	inline FCacheRecord Clone() const { return *this; }
-
 	/** Returns the key that identifies this record in the cache. Always available in a non-null cache record. */
 	inline const FCacheKey& GetKey() const { return Record->GetKey(); }
 

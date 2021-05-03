@@ -679,7 +679,7 @@ public:
 	FCacheRecordBuilder CreateRecord(const FCacheKey& Key) final { return Private::CreateCacheRecordBuilder(Key); }
 
 	FRequest Put(
-		TArrayView<FCacheRecord> Records,
+		TConstArrayView<FCacheRecord> Records,
 		FStringView Context,
 		ECachePolicy Policy,
 		EPriority Priority,

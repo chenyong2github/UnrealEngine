@@ -131,14 +131,14 @@ public:
 	 * The callback will always be called for every key, and may be called from an arbitrary thread.
 	 * Records may finish storing in any order, and from multiple threads concurrently.
 	 *
-	 * @param Records The cache records to store. Must have a key. Records are reset to null.
+	 * @param Records The cache records to store. Must have a key.
 	 * @param Context A description of the request. An object path is typically sufficient.
 	 * @param Policy Flags to control the behavior of the request. See ECachePolicy.
 	 * @param Priority A priority to consider when scheduling the request. See EPriority.
 	 * @param OnComplete A callback invoked for every key in the batch as it completes or is canceled.
 	 */
 	virtual FRequest Put(
-		TArrayView<FCacheRecord> Records,
+		TConstArrayView<FCacheRecord> Records,
 		FStringView Context,
 		ECachePolicy Policy = ECachePolicy::Default,
 		EPriority Priority = EPriority::Normal,
@@ -225,7 +225,7 @@ struct FCacheGetCompleteParams
 	/**
 	 * Record for the part of the get request that completed or was canceled.
 	 *
-	 * The key is always populated. The remainder of the record is populated when Status is Cached.
+	 * The key is always populated. The remainder of the record is populated when Status is Ok.
 	 *
 	 * The value, attachments, and metadata may be skipped based on cache policy flags. When a value
 	 * or attachment has been skipped, it will have a payload but its buffers will be null.
@@ -245,7 +245,7 @@ struct FCacheGetPayloadCompleteParams
 	/**
 	 * Payload for the part of the payload request that completed or was canceled.
 	 *
-	 * The ID is always populated. The hash and buffer are populated when Status is Cached.
+	 * The ID is always populated. The hash and buffer are populated when Status is Ok.
 	 */
 	FPayload&& Payload;
 

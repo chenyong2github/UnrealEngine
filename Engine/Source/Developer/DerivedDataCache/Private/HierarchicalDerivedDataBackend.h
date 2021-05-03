@@ -489,7 +489,7 @@ public:
 	}
 
 	virtual FRequest Put(
-		TArrayView<FCacheRecord> Records,
+		TConstArrayView<FCacheRecord> Records,
 		FStringView Context,
 		ECachePolicy Policy,
 		EPriority Priority,
@@ -580,8 +580,7 @@ public:
 									const bool bIsLocalFill = InnerBackends[FillCacheIndex]->GetSpeedClass() == ESpeedClass::Local;
 									if ((bIsLocalFill && bStoreLocal && bIsLocalGet <= bStoreLocalCopy) || (!bIsLocalFill && bStoreRemote))
 									{
-										FCacheRecord Record = Params.Record.Clone();
-										AsyncPutInnerBackends[FillCacheIndex]->Put(MakeArrayView(&Record, 1), Context);
+										AsyncPutInnerBackends[FillCacheIndex]->Put({Params.Record}, Context);
 									}
 								}
 							}

@@ -2272,7 +2272,7 @@ TSharedRef<FDerivedDataCacheStatsNode> FHttpDerivedDataBackend::GatherUsageStats
 }
 
 FRequest FHttpDerivedDataBackend::Put(
-	TArrayView<FCacheRecord> Records,
+	TConstArrayView<FCacheRecord> Records,
 	FStringView Context,
 	ECachePolicy Policy,
 	EPriority Priority,

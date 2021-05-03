@@ -102,7 +102,7 @@ public:
 	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override { return false; }
 
 	virtual FRequest Put(
-		TArrayView<FCacheRecord> Records,
+		TConstArrayView<FCacheRecord> Records,
 		FStringView Context,
 		ECachePolicy Policy,
 		EPriority Priority,

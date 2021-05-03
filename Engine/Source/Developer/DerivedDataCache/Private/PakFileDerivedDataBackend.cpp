@@ -442,7 +442,7 @@ TSharedRef<FDerivedDataCacheStatsNode> FPakFileDerivedDataBackend::GatherUsageSt
 }
 
 FRequest FPakFileDerivedDataBackend::Put(
-	TArrayView<FCacheRecord> Records,
+	TConstArrayView<FCacheRecord> Records,
 	FStringView Context,
 	ECachePolicy Policy,
 	EPriority Priority,
