@@ -15,7 +15,7 @@
 FDataLayerEditorContext::FDataLayerEditorContext(UWorld* InWorld, const TArray<FName>& InDataLayers)
 	: Hash(FDataLayerEditorContext::EmptyHash)
 {
-	const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(InWorld);
+	const AWorldDataLayers* WorldDataLayers = InWorld->GetWorldDataLayers();
 	if (!WorldDataLayers)
 	{
 		return;
@@ -53,7 +53,7 @@ FScopeChangeDataLayerEditorContext::FScopeChangeDataLayerEditorContext(UWorld* I
 FScopeChangeDataLayerEditorContext::FScopeChangeDataLayerEditorContext(UWorld* InWorld, const FActorDataLayer& InContextDataLayer)
 	: World(InWorld)
 {
-	const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(InWorld);
+	const AWorldDataLayers* WorldDataLayers = InWorld->GetWorldDataLayers();
 	Initialize(FDataLayerEditorContext(InWorld, WorldDataLayers ? WorldDataLayers->GetDataLayerNames({ InContextDataLayer }) : TArray<FName>()));
 }
 

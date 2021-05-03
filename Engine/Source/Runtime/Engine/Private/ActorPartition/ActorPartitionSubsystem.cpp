@@ -387,7 +387,7 @@ APartitionActor* UActorPartitionSubsystem::GetActor(const TSubclassOf<APartition
 	{
 		if (UDataLayerSubsystem* DataLayerSubsystem = World->GetSubsystem<UDataLayerSubsystem>())
 		{
-			if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(World))
+			if (const AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers())
 			{
 				for (const FName& DataLayer : DataLayerSubsystem->GetDataLayerEditorContext().GetDataLayers())
 				{

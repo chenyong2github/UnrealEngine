@@ -1093,12 +1093,19 @@ bool UDataLayerEditorSubsystem::TryGetDataLayerFromLabel(const FName& DataLayerL
 
 const AWorldDataLayers* UDataLayerEditorSubsystem::GetWorldDataLayers() const
 {
-	return AWorldDataLayers::Get(GetWorld());
+	return GetWorld()->GetWorldDataLayers();
 }
 
 AWorldDataLayers* UDataLayerEditorSubsystem::GetWorldDataLayers(bool bCreateIfNotFound)
 {
-	return AWorldDataLayers::Get(GetWorld(), bCreateIfNotFound);
+	AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
+
+	if (!WorldDataLayers && bCreateIfNotFound)
+	{
+		WorldDataLayers = AWorldDataLayers::Create(GetWorld());
+	}
+
+	return WorldDataLayers;
 }
 
 void UDataLayerEditorSubsystem::AddAllDataLayersTo(TArray<TWeakObjectPtr<UDataLayer>>& OutDataLayers) const

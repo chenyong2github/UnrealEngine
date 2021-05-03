@@ -828,7 +828,7 @@ bool UWorldPartition::ShouldActorBeLoaded(const FWorldPartitionActorDesc* ActorD
 		return true;
 	}
 
-	if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld()))
+	if (const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
 	{
 		uint32 NumValidLayers = 0;
 		for (const FName& DataLayerName : ActorDesc->GetDataLayers())

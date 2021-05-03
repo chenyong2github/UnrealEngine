@@ -18,62 +18,42 @@ AWorldDataLayers::AWorldDataLayers(const FObjectInitializer& ObjectInitializer)
 {
 }
 
-const AWorldDataLayers* AWorldDataLayers::Get(UWorld* World)
-{
-	if (World)
-	{
-		// Prepare flags for actor iterator. Don't use default Flags because it uses EActorIteratorFlags::OnlyActiveLevels 
-		// which will make this code return no actor when cooking (because world is not initialized)
-		EActorIteratorFlags Flags = EActorIteratorFlags::SkipPendingKill;
-		if (!IsRunningCookCommandlet())
-		{
-			Flags |= EActorIteratorFlags::OnlyActiveLevels;
-		}
-		for (AWorldDataLayers* Actor : TActorRange<AWorldDataLayers>(World, AWorldDataLayers::StaticClass(), Flags))
-		{
-			if (Actor)
-			{
-				check(!Actor->IsPendingKill());
-				return Actor;
-			}
-		}
-	}
-	return nullptr;
-}
-
 #if WITH_EDITOR
-AWorldDataLayers* AWorldDataLayers::Get(UWorld* World, bool bCreateIfNotFound)
+AWorldDataLayers* AWorldDataLayers::Create(UWorld* World)
 {
-	if (bCreateIfNotFound)
-	{
-		AWorldDataLayers* WorldDataLayers = nullptr;
-		static FName WorldDataLayersName = AWorldDataLayers::StaticClass()->GetFName();
-		if (UObject* ExistingObject = StaticFindObject(nullptr, World->PersistentLevel, *WorldDataLayersName.ToString()))
-		{
-			WorldDataLayers = CastChecked<AWorldDataLayers>(ExistingObject);
-			if (WorldDataLayers->IsPendingKill())
-			{
-				// Handle the case where the actor already exists, but it's pending kill
-				WorldDataLayers->Rename(nullptr, nullptr, REN_DontCreateRedirectors | REN_DoNotDirty | REN_NonTransactional | REN_ForceNoResetLoaders);
-				WorldDataLayers = nullptr;
-			}
-		}
+	check(World);
+	check(!World->GetWorldDataLayers());
 
-		if (!WorldDataLayers)
-		{
-			FActorSpawnParameters SpawnParams;
-			SpawnParams.OverrideLevel = World->PersistentLevel;
-			SpawnParams.bHideFromSceneOutliner = true;
-			SpawnParams.Name = WorldDataLayersName;
-			SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_Fatal;
-			WorldDataLayers = World->SpawnActor<AWorldDataLayers>(AWorldDataLayers::StaticClass(), SpawnParams);
-		}
-		return WorldDataLayers;
-	}
-	else
+	AWorldDataLayers* WorldDataLayers = nullptr;
+
+	static FName WorldDataLayersName = AWorldDataLayers::StaticClass()->GetFName();
+	if (UObject* ExistingObject = StaticFindObject(nullptr, World->PersistentLevel, *WorldDataLayersName.ToString()))
 	{
-		return const_cast<AWorldDataLayers*>(Get(World));
+		WorldDataLayers = CastChecked<AWorldDataLayers>(ExistingObject);
+		if (WorldDataLayers->IsPendingKill())
+		{
+			// Handle the case where the actor already exists, but it's pending kill
+			WorldDataLayers->Rename(nullptr, nullptr, REN_DontCreateRedirectors | REN_DoNotDirty | REN_NonTransactional | REN_ForceNoResetLoaders);
+			WorldDataLayers = nullptr;
+		}
 	}
+
+	if (!WorldDataLayers)
+	{
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.OverrideLevel = World->PersistentLevel;
+		SpawnParams.bHideFromSceneOutliner = true;
+		SpawnParams.Name = WorldDataLayersName;
+		SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_Fatal;
+		WorldDataLayers = World->SpawnActor<AWorldDataLayers>(AWorldDataLayers::StaticClass(), SpawnParams);
+	}
+
+	check(WorldDataLayers);
+
+	World->Modify();
+	World->SetWorldDataLayers(WorldDataLayers);
+
+	return WorldDataLayers;
 }
 
 FName AWorldDataLayers::GenerateUniqueDataLayerLabel(const FName& InDataLayerLabel) const
@@ -230,6 +210,10 @@ void AWorldDataLayers::ForEachDataLayer(TFunctionRef<bool(UDataLayer*)> Func) co
 void AWorldDataLayers::PostLoad()
 {
 	Super::PostLoad();
+
+	GetLevel()->ConditionalPostLoad();
+
+	GetWorld()->SetWorldDataLayers(this);
 
 #if WITH_EDITOR
 	// Initialize DataLayer's IsDynamicallyLoadedInEditor based on DataLayerEditorPerProjectUserSettings
