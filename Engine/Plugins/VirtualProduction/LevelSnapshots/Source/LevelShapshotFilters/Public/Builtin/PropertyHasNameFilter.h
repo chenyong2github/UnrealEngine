@@ -24,7 +24,7 @@ namespace ENameMatchingRule
 
 /* Allows a property when is has a certain name */
 UCLASS(meta = (CommonSnapshotFilter))
-class UPropertyHasNameFilter : public ULevelSnapshotFilter
+class LEVELSNAPSHOTFILTERS_API UPropertyHasNameFilter : public ULevelSnapshotFilter
 {
 	GENERATED_BODY()
 public:

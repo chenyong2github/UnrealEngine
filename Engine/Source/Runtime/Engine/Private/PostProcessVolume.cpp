@@ -89,8 +89,10 @@ bool APostProcessVolume::CanEditChange(const FProperty* InProperty) const
 
 			if (UWorld* World = GetWorld())
 			{
-				FSceneInterface* Scene = World->Scene;
-				bIsMobile = Scene->GetShadingPath(Scene->GetFeatureLevel()) == EShadingPath::Mobile;
+				if (FSceneInterface* Scene = World->Scene)
+				{
+					bIsMobile = Scene->GetShadingPath(Scene->GetFeatureLevel()) == EShadingPath::Mobile;
+				}
 			}
 
 			bool bHaveCinematicDOF = !bIsMobile;
