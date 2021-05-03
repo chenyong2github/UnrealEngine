@@ -96,6 +96,12 @@ const TCHAR *FGenericPlatformProcess::UserTempDir()
 	return FPlatformMisc::RootDir();
 }
 
+const TCHAR *FGenericPlatformProcess::UserHomeDir()
+{
+    // default to the root directory
+    return FPlatformMisc::RootDir();
+}
+
 const TCHAR* FGenericPlatformProcess::ApplicationSettingsDir()
 {
 	// default to the root directory
