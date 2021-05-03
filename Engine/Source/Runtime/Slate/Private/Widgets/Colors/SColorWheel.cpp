@@ -5,7 +5,7 @@
 #include "Styling/CoreStyle.h"
 
 SColorWheel::SColorWheel()
-	: SelectedColor(*this)
+	: SelectedColor(*this, FLinearColor(ForceInit))
 {}
 
 /* SColorWheel methods

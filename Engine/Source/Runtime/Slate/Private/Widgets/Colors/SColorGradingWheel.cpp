@@ -13,7 +13,7 @@ void SColorGradingWheel::PrivateRegisterAttributes(FSlateAttributeInitializer& A
 }
 
 SColorGradingWheel::SColorGradingWheel()
-	: SelectedColorAttribute(*this)
+	: SelectedColorAttribute(*this, FLinearColor(ForceInit))
 	, DesiredWheelSizeAttribute(*this)
 	, ExponentDisplacementAttribute(*this)
 	, Union_IsAttributeSet(0)

@@ -8,8 +8,8 @@
 /* SSimpleGradient implementation
  *****************************************************************************/
 SSimpleGradient::SSimpleGradient()
-	: StartColor(*this)
-	, EndColor(*this)
+	: StartColor(*this, FLinearColor(0.0f, 0.0f, 0.0f))
+	, EndColor(*this, FLinearColor(1.0f, 1.0f, 1.0f))
 {
 	SetCanTick(false);
 }

@@ -45,14 +45,42 @@ namespace SlateAttributePrivate
 #endif
 		}
 
+		void VerifyNan() const
+		{
+#if UE_SLATE_WITH_ATTRIBUTE_NAN_DIAGNOSTIC
+			if constexpr (std::is_same<FVector, InObjectType>::value)
+			{
+				ensureMsgf(!Value.ContainsNaN(), TEXT("Value contains a NaN. Initialize your FVector properly (see FVector::EForceInit)"));
+			}
+			else if constexpr (std::is_same<FVector2D, InObjectType>::value)
+			{
+				ensureMsgf(!Value.ContainsNaN(), TEXT("Value contains a NaN. Initialize your FVector2D properly (see FVector2D::EForceInit)"));
+			}
+			else if constexpr (std::is_same<FLinearColor, InObjectType>::value)
+			{
+				ensureMsgf(!FVector4(Value).ContainsNaN(), TEXT("Value contains a NaN. Initialize your FLinearColor properly (see FLinearColor::EForceInit)"));
+			}
+			else if constexpr (std::is_same<FRotator, InObjectType>::value)
+			{
+				ensureMsgf(!Value.ContainsNaN(), TEXT("Value contains a NaN. Initialize your FRotator properly (see FRotator::EForceInit)"));
+			}
+#endif
+		}
+
 	public:
 #if UE_SLATE_WITH_MEMBER_ATTRIBUTE_DEBUGGING
 		TSlateAttributeBase()
-			: Debug_OwningWidget(nullptr)
+			: Value()
+			, Debug_OwningWidget(nullptr)
 		{
+			VerifyNan();
 		}
 #else
-		TSlateAttributeBase() = default;
+		TSlateAttributeBase()
+			: Value()
+		{
+			VerifyNan();
+		}
 #endif
 
 		TSlateAttributeBase(const ObjectType& InValue)
@@ -61,6 +89,7 @@ namespace SlateAttributePrivate
 			, Debug_OwningWidget(nullptr)
 #endif
 		{
+			VerifyNan();
 		}
 
 		TSlateAttributeBase(ObjectType&& InValue)
@@ -69,6 +98,7 @@ namespace SlateAttributePrivate
 			, Debug_OwningWidget(nullptr)
 #endif
 		{
+			VerifyNan();
 		}
 
 		TSlateAttributeBase(SWidget& Widget)
@@ -77,6 +107,7 @@ namespace SlateAttributePrivate
 			, Debug_OwningWidget(&Widget)
 #endif
 		{
+			VerifyNan();
 		}
 
 		TSlateAttributeBase(SWidget& Widget, const ObjectType& InValue)
@@ -85,6 +116,7 @@ namespace SlateAttributePrivate
 			, Debug_OwningWidget(&Widget)
 #endif
 		{
+			VerifyNan();
 		}
 
 		TSlateAttributeBase(SWidget& Widget, ObjectType&& InValue)
@@ -93,6 +125,7 @@ namespace SlateAttributePrivate
 			, Debug_OwningWidget(&Widget)
 #endif
 		{
+			VerifyNan();
 		}
 
 		TSlateAttributeBase(SWidget& Widget, const FGetter& Getter, const ObjectType& InitialValue)
@@ -101,6 +134,7 @@ namespace SlateAttributePrivate
 			, Debug_OwningWidget(&Widget)
 #endif
 		{
+			VerifyNan();
 			if (Getter.IsBound())
 			{
 				ConstructWrapper(Widget, Getter);
@@ -113,6 +147,7 @@ namespace SlateAttributePrivate
 			, Debug_OwningWidget(&Widget)
 #endif
 		{
+			VerifyNan();
 			if (Getter.IsBound())
 			{
 				ConstructWrapper(Widget, Getter);
@@ -125,6 +160,7 @@ namespace SlateAttributePrivate
 			, Debug_OwningWidget(&Widget)
 #endif
 		{
+			VerifyNan();
 			if (Getter.IsBound())
 			{
 				ConstructWrapper(Widget, MoveTemp(Getter));
@@ -137,6 +173,7 @@ namespace SlateAttributePrivate
 			, Debug_OwningWidget(&Widget)
 #endif
 		{
+			VerifyNan();
 			if (Getter.IsBound())
 			{
 				ConstructWrapper(Widget, MoveTemp(Getter));
@@ -149,6 +186,7 @@ namespace SlateAttributePrivate
 			, Debug_OwningWidget(&Widget)
 #endif
 		{
+			VerifyNan();
 			if (Attribute.IsBound())
 			{
 				ConstructWrapper(Widget, Attribute.GetBinding());
@@ -161,6 +199,7 @@ namespace SlateAttributePrivate
 			, Debug_OwningWidget(&Widget)
 #endif
 		{
+			VerifyNan();
 			if (Attribute.IsBound())
 			{
 				ConstructWrapper(Widget, MoveTemp(Attribute.Steal().template Get<FGetter>()));

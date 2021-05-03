@@ -19,14 +19,14 @@ void SColorBlock::PrivateRegisterAttributes(FSlateAttributeInitializer& Attribut
 }
 
 SColorBlock::SColorBlock()
-	: Color(*this)
-	, AlphaBackgroundBrush(*this)
-	, GradientCornerRadius(*this)
-	, ColorBlockSize(*this)
-	, AlphaDisplayMode(*this)
-	, ColorIsHSV(*this)
-	, ShowBackgroundForAlpha(*this)
-	, bUseSRGB(*this)
+	: Color(*this, FLinearColor::White)
+	, AlphaBackgroundBrush(*this, nullptr)
+	, GradientCornerRadius(*this, FVector4(0.0f))
+	, ColorBlockSize(*this, FVector2D(16, 16))
+	, AlphaDisplayMode(*this, EColorBlockAlphaDisplayMode::Combined)
+	, ColorIsHSV(*this, false)
+	, ShowBackgroundForAlpha(*this, false)
+	, bUseSRGB(*this, true)
 {
 }
 

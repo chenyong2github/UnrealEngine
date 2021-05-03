@@ -6,7 +6,7 @@
 
 
 SColorSpectrum::SColorSpectrum()
-	: SelectedColor(*this)
+	: SelectedColor(*this, FLinearColor(ForceInit))
 {
 }
 

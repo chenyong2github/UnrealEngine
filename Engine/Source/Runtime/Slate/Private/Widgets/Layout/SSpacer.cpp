@@ -9,7 +9,7 @@ void SSpacer::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeIni
 }
 
 SSpacer::SSpacer()
-	: SpacerSize(*this)
+	: SpacerSize(*this, FVector2D::ZeroVector)
 	, bIsSpacerSizeBound(false)
 {
 	SetCanTick(false);
