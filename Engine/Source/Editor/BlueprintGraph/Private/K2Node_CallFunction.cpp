@@ -1319,7 +1319,12 @@ bool UK2Node_CallFunction::CanEditorOnlyFunctionBeCalled(const UFunction* InFunc
 	if (InFunction && InObject &&
 		(IsEditorOnlyObject(InFunction) || InFunction->HasAnyFunctionFlags(FUNC_EditorOnly)))
 	{
-		return IsEditorOnlyObject(InObject);
+		if (!IsEditorOnlyObject(InObject))
+		{
+			// InObject isn't editor-only, but it's still possible that it's a blueprint derived from an editor-only class, so let's check for that case
+			const UBlueprint* InObjectAsBP = Cast<const UBlueprint>(InObject->GetOuter());
+			return (InObjectAsBP && InObjectAsBP->ParentClass && IsEditorOnlyObject(InObjectAsBP->ParentClass));
+		}
 	}
 
 	return true;
