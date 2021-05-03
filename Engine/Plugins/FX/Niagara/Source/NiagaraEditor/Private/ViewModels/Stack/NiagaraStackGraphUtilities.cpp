@@ -1270,7 +1270,7 @@ void FNiagaraStackGraphUtilities::SetDataValueObjectForFunctionInput(UEdGraphPin
 	}
 }
 
-void FNiagaraStackGraphUtilities::SetDynamicInputForFunctionInput(UEdGraphPin& OverridePin, UNiagaraScript* DynamicInput, UNiagaraNodeFunctionCall*& OutDynamicInputFunctionCall, const FGuid& NewNodePersistentId, FString SuggestedName)
+void FNiagaraStackGraphUtilities::SetDynamicInputForFunctionInput(UEdGraphPin& OverridePin, UNiagaraScript* DynamicInput, UNiagaraNodeFunctionCall*& OutDynamicInputFunctionCall, const FGuid& NewNodePersistentId, FString SuggestedName, const FGuid& InScriptVersion)
 {
 	checkf(OverridePin.LinkedTo.Num() == 0, TEXT("Can't set a data value when the override pin already has a value."));
 
@@ -1280,7 +1280,10 @@ void FNiagaraStackGraphUtilities::SetDynamicInputForFunctionInput(UEdGraphPin& O
 	FGraphNodeCreator<UNiagaraNodeFunctionCall> FunctionCallNodeCreator(*Graph);
 	UNiagaraNodeFunctionCall* FunctionCallNode = FunctionCallNodeCreator.CreateNode();
 	FunctionCallNode->FunctionScript = DynamicInput;
-	FunctionCallNode->SelectedScriptVersion = DynamicInput && DynamicInput->IsVersioningEnabled() ? DynamicInput->GetExposedVersion().VersionGuid : FGuid();
+	if (DynamicInput && DynamicInput->IsVersioningEnabled())
+	{
+		FunctionCallNode->SelectedScriptVersion = InScriptVersion.IsValid() ? InScriptVersion : DynamicInput->GetExposedVersion().VersionGuid;
+	}
 	FunctionCallNodeCreator.Finalize();
 
 	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();

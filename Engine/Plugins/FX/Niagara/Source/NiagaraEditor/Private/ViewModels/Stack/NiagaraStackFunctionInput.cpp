@@ -1323,7 +1323,7 @@ void UNiagaraStackFunctionInput::GetAvailableDynamicInputs(TArray<UNiagaraScript
 	}
 }
 
-void UNiagaraStackFunctionInput::SetDynamicInput(UNiagaraScript* DynamicInput, FString SuggestedName)
+void UNiagaraStackFunctionInput::SetDynamicInput(UNiagaraScript* DynamicInput, FString SuggestedName, const FGuid& InScriptVersion)
 {
 	FScopedTransaction ScopedTransaction(LOCTEXT("SetDynamicInput", "Make dynamic input"));
 
@@ -1335,7 +1335,7 @@ void UNiagaraStackFunctionInput::SetDynamicInput(UNiagaraScript* DynamicInput, F
 	}
 
 	UNiagaraNodeFunctionCall* FunctionCallNode;
-	FNiagaraStackGraphUtilities::SetDynamicInputForFunctionInput(OverridePin, DynamicInput, FunctionCallNode, FGuid(), SuggestedName);
+	FNiagaraStackGraphUtilities::SetDynamicInputForFunctionInput(OverridePin, DynamicInput, FunctionCallNode, FGuid(), SuggestedName, InScriptVersion);
 	FNiagaraStackGraphUtilities::InitializeStackFunctionInputs(GetSystemViewModel(), GetEmitterViewModel(), GetStackEditorData(), *OwningModuleNode, *FunctionCallNode);
 	FNiagaraStackGraphUtilities::RelayoutGraph(*OwningFunctionCallNode->GetGraph());
 
@@ -2051,7 +2051,7 @@ const UNiagaraClipboardFunctionInput* UNiagaraStackFunctionInput::ToClipboardFun
 		break;
 	case EValueMode::Dynamic:
 	{
-		ClipboardInput = UNiagaraClipboardFunctionInput::CreateDynamicValue(InOuter, InputName, InputType, bEditConditionValue, InputValues.DynamicNode->GetFunctionName(), InputValues.DynamicNode->FunctionScript);
+		ClipboardInput = UNiagaraClipboardFunctionInput::CreateDynamicValue(InOuter, InputName, InputType, bEditConditionValue, InputValues.DynamicNode->GetFunctionName(), InputValues.DynamicNode->FunctionScript, InputValues.DynamicNode->SelectedScriptVersion);
 
 		TArray<UNiagaraStackFunctionInputCollection*> DynamicInputCollections;
 		GetUnfilteredChildrenOfType(DynamicInputCollections);
@@ -2126,7 +2126,7 @@ void UNiagaraStackFunctionInput::SetValueFromClipboardFunctionInput(const UNiaga
 						// Otherwise it's a scratch pad script from another asset so we need to add a duplicate scratch pad script to this asset.
 						NewDynamicInputScript = GetSystemViewModel()->GetScriptScratchPadViewModel()->CreateNewScriptAsDuplicate(ClipboardFunctionScript)->GetOriginalScript();
 					}
-					SetDynamicInput(NewDynamicInputScript, ClipboardFunctionInput.Dynamic->FunctionName);
+					SetDynamicInput(NewDynamicInputScript, ClipboardFunctionInput.Dynamic->FunctionName, ClipboardFunctionInput.Dynamic->ScriptVersion);
 
 					TArray<UNiagaraStackFunctionInputCollection*> DynamicInputCollections;
 					GetUnfilteredChildrenOfType(DynamicInputCollections);
