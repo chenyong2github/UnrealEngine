@@ -113,6 +113,7 @@ public class UnrealEd : ModuleRules
 				"InterchangeCore",
 				"InterchangeEngine",
 				"DeveloperToolSettings",
+				"SubobjectDataInterface",
 			}
 		);
 

@@ -6,6 +6,7 @@
 #include "SlateFwd.h"
 #include "Templates/SubclassOf.h"
 #include "Components/ActorComponent.h"
+#include "SubobjectData.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Views/STableViewBase.h"
@@ -34,8 +35,10 @@ namespace EComponentCreateAction
 
 
 DECLARE_DELEGATE_OneParam(FOnComponentCreated, UActorComponent*);
+DECLARE_DELEGATE_OneParam(FOnSubobjectCreated, FSubobjectDataHandle);
 
 DECLARE_DELEGATE_RetVal_ThreeParams( UActorComponent*, FComponentClassSelected, TSubclassOf<UActorComponent>, EComponentCreateAction::Type, UObject*);
+DECLARE_DELEGATE_RetVal_ThreeParams( FSubobjectDataHandle, FSubobjectClassSelected, TSubclassOf<UActorComponent>, EComponentCreateAction::Type, UObject*);
 
 struct FComponentEntryCustomizationArgs
 {
@@ -45,6 +48,8 @@ struct FComponentEntryCustomizationArgs
 	FString ComponentNameOverride;
 	/** Callback when a new component is created */
 	FOnComponentCreated OnComponentCreated;
+	/** Callback when a new subobject is created */
+	FOnSubobjectCreated OnOnSubobjectCreated;
 	/** Brush icon to use instead of the class icon */
 	FName IconOverrideBrushName;
 	/** Custom sort priority to use (smaller means sorted first) */
@@ -138,6 +143,12 @@ public:
 	{
 		return CustomizationArgs.OnComponentCreated;
 	}
+	
+	FOnSubobjectCreated& GetOnSubobjectCreated()
+    {
+    	return CustomizationArgs.OnOnSubobjectCreated;
+    }
+	
 	FString GetClassName() const;
 	FString GetComponentPath() const { return ComponentPath.ToString(); }
 
@@ -176,6 +187,7 @@ public:
 
 		SLATE_ATTRIBUTE(bool, IncludeText)
 		SLATE_EVENT( FComponentClassSelected, OnComponentClassSelected )
+		SLATE_EVENT( FSubobjectClassSelected, OnSubobjectClassSelected )
 
 	SLATE_END_ARGS()
 
@@ -217,9 +229,11 @@ private:
 	FText GetFriendlyComponentName(FComponentClassComboEntryPtr Entry) const;
 
 	TSharedRef<SToolTip> GetComponentToolTip(FComponentClassComboEntryPtr Entry) const;
-
+	
 	FComponentClassSelected OnComponentClassSelected;
 
+	FSubobjectClassSelected OnSubobjectClassSelected;
+	
 	/** List of component class names used by combo box */
 	TArray<FComponentClassComboEntryPtr>* ComponentClassList;
 

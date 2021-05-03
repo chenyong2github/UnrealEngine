@@ -48,6 +48,7 @@ void SComponentClassCombo::Construct(const FArguments& InArgs)
 {
 	PrevSelectedIndex = INDEX_NONE;
 	OnComponentClassSelected = InArgs._OnComponentClassSelected;
+	OnSubobjectClassSelected = InArgs._OnSubobjectClassSelected;
 	TextFilter = MakeShared<FTextFilterExpressionEvaluator>(ETextFilterExpressionEvaluatorMode::BasicString);
 
 	FComponentTypeRegistry::Get().SubscribeToComponentList(ComponentClassList).AddRaw(this, &SComponentClassCombo::UpdateComponentClassList);
@@ -242,21 +243,35 @@ void SComponentClassCombo::OnAddComponentSelectionChanged( FComponentClassComboE
 			// Neither do we want the combo dropdown staying open once the user has clicked on a valid option
 			AddNewButton->SetIsMenuOpen(false, false);
 
-			if( OnComponentClassSelected.IsBound() )
+			if( OnComponentClassSelected.IsBound() || OnSubobjectClassSelected.IsBound() )
 			{
 				UClass* ComponentClass = InItem->GetComponentClass();
 				if (ComponentClass == nullptr)
 				{
 					// The class is not loaded yet, so load it:
 					const ELoadFlags LoadFlags = LOAD_None;
-					UBlueprint* LoadedObject = LoadObject<UBlueprint>(NULL, *InItem->GetComponentPath(), NULL, LoadFlags, NULL);
+					UBlueprint* LoadedObject = LoadObject<UBlueprint>(nullptr, *InItem->GetComponentPath(), nullptr, LoadFlags, nullptr);
 					ComponentClass = GetAuthoritativeBlueprintClass(LoadedObject);
 				}
 
-				UActorComponent* NewActorComponent = OnComponentClassSelected.Execute(ComponentClass, InItem->GetComponentCreateAction(), InItem->GetAssetOverride());
+				UActorComponent* NewActorComponent =
+					OnComponentClassSelected.IsBound() ?
+					OnComponentClassSelected.Execute(ComponentClass, InItem->GetComponentCreateAction(), InItem->GetAssetOverride())
+					: nullptr;
+				
+				FSubobjectDataHandle NewActorCompHandle =
+					OnSubobjectClassSelected.IsBound() ?
+					OnSubobjectClassSelected.Execute(ComponentClass, InItem->GetComponentCreateAction(), InItem->GetAssetOverride())
+					: FSubobjectDataHandle::InvalidHandle;
+				
 				if(NewActorComponent)
 				{
 					InItem->GetOnComponentCreated().ExecuteIfBound(NewActorComponent);
+				}
+				
+				if(NewActorCompHandle.IsValid())
+				{
+					InItem->GetOnSubobjectCreated().ExecuteIfBound(NewActorCompHandle);
 				}
 			}
 		}
