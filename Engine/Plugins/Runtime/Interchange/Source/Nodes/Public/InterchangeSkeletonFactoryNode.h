@@ -83,13 +83,13 @@ public:
 public:
 	/** Return false if the Attribute was not set previously.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Skeleton")
-	bool GetCustomRootJointID(FString& AttributeValue) const
+	bool GetCustomRootJointUid(FString& AttributeValue) const
 	{
 		IMPLEMENT_NODE_ATTRIBUTE_GETTER(RootJointID, FString);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Skeleton")
-	bool SetCustomRootJointID(const FString& AttributeValue)
+	bool SetCustomRootJointUid(const FString& AttributeValue)
 	{
 		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(RootJointID, FString)
 	}

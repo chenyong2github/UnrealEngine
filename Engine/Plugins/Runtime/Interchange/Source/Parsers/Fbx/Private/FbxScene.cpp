@@ -8,6 +8,7 @@
 #include "FbxInclude.h"
 #include "FbxMaterial.h"
 #include "FbxMesh.h"
+#include "InterchangeMeshNode.h"
 #include "InterchangeSceneNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 
@@ -21,14 +22,14 @@ namespace UE
 			{
 				void CreateMeshNodeReference(UInterchangeSceneNode* UnrealSceneNode, FbxNode* FbxSceneNode, FbxNodeAttribute* NodeAttribute, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages)
 				{
-					UInterchangeBaseNode* MeshNode = nullptr;
+					UInterchangeMeshNode* MeshNode = nullptr;
 					if (NodeAttribute->GetAttributeType() == FbxNodeAttribute::eMesh)
 					{
 						FbxMesh* Mesh = static_cast<FbxMesh*>(NodeAttribute);
 						if (ensure(Mesh))
 						{
 							FString MeshRefString = FFbxMesh::GetMeshUniqueID(Mesh);
-							MeshNode = NodeContainer.GetNode(MeshRefString);
+							MeshNode = Cast<UInterchangeMeshNode>(NodeContainer.GetNode(MeshRefString));
 						}
 					}
 					else if (NodeAttribute->GetAttributeType() == FbxNodeAttribute::eShape)
@@ -38,7 +39,8 @@ namespace UE
 
 					if (MeshNode)
 					{
-						UnrealSceneNode->AddAssetDependency(MeshNode->GetUniqueID());
+						UnrealSceneNode->SetCustomMeshDependencyUid(MeshNode->GetUniqueID());
+						MeshNode->SetSceneInstanceUid(UnrealSceneNode->GetUniqueID());
 					}
 				}
 
@@ -59,20 +61,29 @@ namespace UE
 					UInterchangeSceneNode* UnrealNode = FFbxScene::CreateTransformNode(NodeContainer, NodeName, NodeUniqueID, JSonErrorMessages);
 					check(UnrealNode);
 					
-					FTransform GlobalTransform = FFbxConvert::ConvertTransform(Node->EvaluateGlobalTransform());
-					UnrealNode->SetCustomGlobalTransform(GlobalTransform);
-					FbxNode* FbxParentNode = Node->GetParent();
-					FTransform LocalTransform;
-					if (FbxParentNode)
+					auto GetConvertedTransform = [](FbxAMatrix& NewFbxMatrix)
 					{
-						FTransform ParentGlobalTransform = FFbxConvert::ConvertTransform(FbxParentNode->EvaluateGlobalTransform());
-						LocalTransform = ParentGlobalTransform.Inverse() * GlobalTransform;
-					}
-					else
+						FTransform Transform;
+						FbxVector4 NewLocalT = NewFbxMatrix.GetT();
+						FbxVector4 NewLocalS = NewFbxMatrix.GetS();
+						FbxQuaternion NewLocalQ = NewFbxMatrix.GetQ();
+						Transform.SetTranslation(FFbxConvert::ConvertPos(NewLocalT));
+						Transform.SetScale3D(FFbxConvert::ConvertScale(NewLocalS));
+						Transform.SetRotation(FFbxConvert::ConvertRotToQuat(NewLocalQ));
+						return Transform;
+					};
+
 					{
-						LocalTransform = GlobalTransform;
+						//Set the global node transform
+						FbxAMatrix GloabalFbxMatrix = Node->EvaluateGlobalTransform();
+						FTransform GlobalTransform = GetConvertedTransform(GloabalFbxMatrix);
+						UnrealNode->SetCustomGlobalTransform(GlobalTransform);
+
+						//Set the local node transform
+						FbxAMatrix LocalFbxMatrix = Node->EvaluateLocalTransform();
+						FTransform LocalTransform = GetConvertedTransform(LocalFbxMatrix);
+						UnrealNode->SetCustomLocalTransform(LocalTransform);
 					}
-					UnrealNode->SetCustomLocalTransform(LocalTransform);
 
 					int32 AttributeCount = Node->GetNodeAttributeCount();
 					for (int32 AttributeIndex = 0; AttributeIndex < AttributeCount; ++AttributeIndex)
@@ -103,8 +114,7 @@ namespace UE
 							case FbxNodeAttribute::eSkeleton:
 							{
 								//Add the joint specialized type
-								FString SpecializedType = TEXT("Joint");
-								UnrealNode->AddSpecializedType(SpecializedType);
+								UnrealNode->AddSpecializedType(FSceneNodeStaticData::GetJointSpecializeTypeString());
 								break;
 							}
 							case FbxNodeAttribute::eMesh:
@@ -116,8 +126,7 @@ namespace UE
 							}
 							case FbxNodeAttribute::eLODGroup:
 							{
-								FString SpecializedType = TEXT("LodGroup");
-								UnrealNode->AddSpecializedType(SpecializedType);
+								UnrealNode->AddSpecializedType(FSceneNodeStaticData::GetLodGroupSpecializeTypeString());
 								break;
 							}
 							case FbxNodeAttribute::eCamera:

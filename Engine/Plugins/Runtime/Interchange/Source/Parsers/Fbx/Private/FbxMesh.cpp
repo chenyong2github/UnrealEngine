@@ -203,14 +203,14 @@ namespace UE
 				return FillMeshDescriptionFromFbxMesh(Mesh, UnusedArray, EMeshType::Static);
 			}
 
-			bool FMeshDescriptionImporter::FillSkinnedMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TArray<FString>& OutJointNodeUniqueIDs)
+			bool FMeshDescriptionImporter::FillSkinnedMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TArray<FString>& OutJointUniqueNames)
 			{
 				if (!ensure(bInitialized) || !ensure(MeshDescription) || !ensure(Mesh) || !ensure(Mesh->GetDeformerCount() > 0))
 				{
 					return false;
 				}
 
-				return FillMeshDescriptionFromFbxMesh(Mesh, OutJointNodeUniqueIDs, EMeshType::Skinned);
+				return FillMeshDescriptionFromFbxMesh(Mesh, OutJointUniqueNames, EMeshType::Skinned);
 			}
 
 			bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxShape(FbxShape* Shape)
@@ -279,7 +279,7 @@ namespace UE
 				return true;
 			}
 
-			bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TArray<FString>& OutJointNodeUniqueIDs, EMeshType MeshType)
+			bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TArray<FString>& OutJointUniqueNames, EMeshType MeshType)
 			{
 				if (!ensure(bInitialized) || !ensure(MeshDescription) || !ensure(Mesh))
 				{
@@ -287,6 +287,7 @@ namespace UE
 				}
 
 				FStaticMeshAttributes Attributes(*MeshDescription);
+				Attributes.Register();
 
 				//Get the base layer of the mesh
 				FbxLayer* BaseLayer = Mesh->GetLayer(0);
@@ -997,7 +998,7 @@ namespace UE
 						const int32 ClusterCount = Skin->GetClusterCount();
 						TArray<FbxNode*> SortedJoints;
 						SortedJoints.Reserve(ClusterCount);
-						OutJointNodeUniqueIDs.Reserve(ClusterCount);
+						OutJointUniqueNames.Reserve(ClusterCount);
 						// create influences for each cluster
 						for (int32 ClusterIndex = 0; ClusterIndex < ClusterCount; ClusterIndex++)
 						{
@@ -1016,8 +1017,8 @@ namespace UE
 							if (!SortedJoints.Find(Link, BoneIndex))
 							{
 								BoneIndex = SortedJoints.Add(Link);
-								FString JointNodeUniqueID = FFbxHelper::GetFbxNodeHierarchyName(Link);
-								OutJointNodeUniqueIDs.Add(JointNodeUniqueID);
+								FString JointNodeUniqueID = FFbxHelper::GetFbxObjectName(Link);
+								OutJointUniqueNames.Add(JointNodeUniqueID);
 							}
 
 							//	get the vertex indices
@@ -1123,7 +1124,7 @@ namespace UE
 
 				bool bFetchSkinnedData = (Mesh->GetDeformerCount(FbxDeformer::eSkin) > 0);
 				
-				TArray<FString> JointUniqueID;
+				TArray<FString> JointUniqueNames;
 
 				FMeshDescription MeshDescription;
 				if (bFetchSkinnedData)
@@ -1131,7 +1132,7 @@ namespace UE
 					FSkeletalMeshAttributes SkeletalMeshAttribute(MeshDescription);
 					SkeletalMeshAttribute.Register();
 					FMeshDescriptionImporter MeshDescriptionImporter(&MeshDescription, SDKScene, SDKGeometryConverter);
-					if (!MeshDescriptionImporter.FillSkinnedMeshDescriptionFromFbxMesh(Mesh, JointUniqueID))
+					if (!MeshDescriptionImporter.FillSkinnedMeshDescriptionFromFbxMesh(Mesh, JointUniqueNames))
 					{
 						JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot fetch skinned mesh payload because there was an error when creating the FMeshDescription\"}}"));
 						return false;
@@ -1157,7 +1158,7 @@ namespace UE
 					if (bFetchSkinnedData)
 					{
 						//When passing a skinned MeshDescription, We want to pass the joint Node ID so we can know what the influence bone index refer to
-						Ar << JointUniqueID;
+						Ar << JointUniqueNames;
 					}
 					uint8* ArchiveData = Ar.GetData();
 					int64 ArchiveSize = Ar.TotalSize();

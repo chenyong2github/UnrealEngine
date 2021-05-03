@@ -22,10 +22,22 @@ namespace UE
 				return SceneNodeSpecializeType_BaseKey;
 			}
 
-			static const FString& GetAssetDependenciesBaseKey()
+			static const FString& GetMaterialDependencyUidsBaseKey()
 			{
-				static FString AssetDependencies_BaseKey = TEXT("__AssetDependenciesBaseKey__");
-				return AssetDependencies_BaseKey;
+				static FString MaterialDependencyUids_BaseKey = TEXT("__MaterialDependencyUidsBaseKey__");
+				return MaterialDependencyUids_BaseKey;
+			}
+
+			static const FString& GetJointSpecializeTypeString()
+			{
+				static FString JointSpecializeTypeString = TEXT("Joint");
+				return JointSpecializeTypeString;
+			}
+
+			static const FString& GetLodGroupSpecializeTypeString()
+			{
+				static FString JointSpecializeTypeString = TEXT("LodGroup");
+				return JointSpecializeTypeString;
 			}
 		};
 
@@ -42,7 +54,7 @@ public:
 	:UInterchangeBaseNode()
 	{
 		NodeSpecializeTypes.Initialize(Attributes, UE::Interchange::FSceneNodeStaticData::GetNodeSpecializeTypeBaseKey());
-		AssetDependencies.Initialize(Attributes, UE::Interchange::FSceneNodeStaticData::GetAssetDependenciesBaseKey());
+		MaterialDependencyUids.Initialize(Attributes, UE::Interchange::FSceneNodeStaticData::GetMaterialDependencyUidsBaseKey());
 	}
 
 	/**
@@ -73,14 +85,14 @@ public:
 			}
 			return KeyDisplayName;
 		}
-		else if (NodeAttributeKey.Key.Equals(UE::Interchange::FSceneNodeStaticData::GetAssetDependenciesBaseKey()))
+		else if (NodeAttributeKey.Key.Equals(UE::Interchange::FSceneNodeStaticData::GetMaterialDependencyUidsBaseKey()))
 		{
-			KeyDisplayName = TEXT("Asset dependencies count");
+			KeyDisplayName = TEXT("Material dependencies count");
 			return KeyDisplayName;
 		}
-		else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FSceneNodeStaticData::GetAssetDependenciesBaseKey()))
+		else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FSceneNodeStaticData::GetMaterialDependencyUidsBaseKey()))
 		{
-			KeyDisplayName = TEXT("Asset dependency index ");
+			KeyDisplayName = TEXT("Material dependency index ");
 			const FString IndexKey = UE::Interchange::FNameAttributeArrayHelper::IndexKey();
 			int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
 			if (IndexPosition < NodeAttributeKey.Key.Len())
@@ -98,12 +110,13 @@ public:
 		{
 			return FString(TEXT("SpecializeType"));
 		}
-		else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FSceneNodeStaticData::GetAssetDependenciesBaseKey()))
+		else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FSceneNodeStaticData::GetMaterialDependencyUidsBaseKey()))
 		{
-			return FString(TEXT("AssetDependencies"));
+			return FString(TEXT("MaterialDependencies"));
 		}
 		else if (NodeAttributeKey == Macro_CustomLocalTransformKey
-				 || NodeAttributeKey == Macro_CustomGlobalTransformKey)
+				 || NodeAttributeKey == Macro_CustomGlobalTransformKey
+				 || NodeAttributeKey == Macro_CustomMeshDependencyUidKey)
 		{
 			return FString(TEXT("Scene"));
 		}
@@ -128,6 +141,22 @@ public:
 		}
 		SpecializedType = TEXT("SceneGraphIcon.") + SpecializedType;
 		return FName(*SpecializedType);
+	}
+
+	/** Return true if this node contains the specialized type parameter.*/
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
+	bool IsSpecializedTypeContains(const FString& SpecializedType) const
+	{
+		TArray<FString> SpecializedTypes;
+		GetSpecializedTypes(SpecializedTypes);
+		for (const FString& SpecializedTypeRef : SpecializedTypes)
+		{
+			if (SpecializedTypeRef.Equals(SpecializedType))
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** Specialized type are scene node special type like (Joint or LODGroup).*/
@@ -163,33 +192,33 @@ public:
 
 	/** Asset dependencies are the asset on which this node depend.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	int32 GetAssetDependenciesCount() const
+	int32 GetMaterialDependencyUidsCount() const
 	{
-		return AssetDependencies.GetCount();
+		return MaterialDependencyUids.GetCount();
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	void GetAssetDependency(const int32 Index, FString& OutAssetDependency) const
+	void GetMaterialDependencyUid(const int32 Index, FString& OutMaterialDependencyUid) const
 	{
-		AssetDependencies.GetName(Index, OutAssetDependency);
+		MaterialDependencyUids.GetName(Index, OutMaterialDependencyUid);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	void GetAssetDependencies(TArray<FString>& OutAssetDependencies) const
+	void GetMaterialDependencyUids(TArray<FString>& OutMaterialDependencyUids) const
 	{
-		AssetDependencies.GetNames(OutAssetDependencies);
+		MaterialDependencyUids.GetNames(OutMaterialDependencyUids);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool AddAssetDependency(const FString& AssetDependency)
+	bool AddMaterialDependencyUid(const FString& MaterialDependencyUid)
 	{
-		return AssetDependencies.AddName(AssetDependency);
+		return MaterialDependencyUids.AddName(MaterialDependencyUid);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool RemoveAssetDependency(const FString& AssetDependency)
+	bool RemoveMaterialDependencyUid(const FString& MaterialDependencyUid)
 	{
-		return AssetDependencies.RemoveName(AssetDependency);
+		return MaterialDependencyUids.RemoveName(MaterialDependencyUid);
 	}
 
 	/** Return false if the Attribute was not set previously.*/
@@ -218,11 +247,25 @@ public:
 		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(GlobalTransform, FTransform);
 	}
 
+	/** Return false if the Attribute was not set previously.*/
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
+	bool GetCustomMeshDependencyUid(FString& AttributeValue) const
+	{
+		IMPLEMENT_NODE_ATTRIBUTE_GETTER(MeshDependencyUid, FString);
+	}
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
+	bool SetCustomMeshDependencyUid(const FString& AttributeValue)
+	{
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(MeshDependencyUid, FString);
+	}
+
 private:
 	//Scene Attribute Keys
 	const UE::Interchange::FAttributeKey Macro_CustomLocalTransformKey = UE::Interchange::FAttributeKey(TEXT("LocalTransform"));
 	const UE::Interchange::FAttributeKey Macro_CustomGlobalTransformKey = UE::Interchange::FAttributeKey(TEXT("GlobalTransform"));
+	const UE::Interchange::FAttributeKey Macro_CustomMeshDependencyUidKey = UE::Interchange::FAttributeKey(TEXT("MeshDependencyUid"));
 
 	UE::Interchange::FNameAttributeArrayHelper NodeSpecializeTypes;
-	UE::Interchange::FNameAttributeArrayHelper AssetDependencies;
+	UE::Interchange::FNameAttributeArrayHelper MaterialDependencyUids;
 };

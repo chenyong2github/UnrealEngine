@@ -202,7 +202,7 @@ namespace UE
 					FbxSurfaceMaterial* SurfaceMaterial = ParentFbxNode->GetMaterial(MaterialIndex);
 					UInterchangeMaterialNode* MaterialNode = AddNodeMaterial(SurfaceMaterial, NodeContainer, JSonErrorMessages);
 					//The dependencies order is important because mesh will use index in that order to determine material use by a face
-					SceneNode->AddAssetDependency(MaterialNode->GetUniqueID());
+					SceneNode->AddMaterialDependencyUid(MaterialNode->GetUniqueID());
 				}
 			}
 

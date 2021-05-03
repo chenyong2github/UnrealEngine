@@ -13,7 +13,9 @@ namespace UE
 		{
 			//Currently the skeletalmesh payload data is editor only, we have to move to something available at runtime
 			FMeshDescription LodMeshDescription;
-			TMap<FString, FMeshDescription> LodBlendShapeMeshDescriptions;
+
+			//This map the indice use in the meshdescription to the bone name, so we can use this information to remap properly the skinning when we merge the meshdescription
+			TArray<FString> JointNames;
 		};
 	}//ns Interchange
 }//ns UE

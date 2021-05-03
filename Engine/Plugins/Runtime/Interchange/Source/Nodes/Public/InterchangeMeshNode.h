@@ -54,6 +54,12 @@ namespace UE
 				static FString Dependencies_BaseKey = TEXT("__MeshShapeDependencies__");
 				return Dependencies_BaseKey;
 			}
+
+			static const FString& GetSceneInstancesUidsKey()
+			{
+				static FString SceneInstanceUids_BaseKey = TEXT("__MeshSceneInstancesUids__");
+				return SceneInstanceUids_BaseKey;
+			}
 		};
 
 	}//ns Interchange
@@ -71,6 +77,7 @@ public:
 		SkeletonDependencies.Initialize(Attributes, UE::Interchange::FMeshNodeStaticData::GetSkeletonDependenciesKey());
 		MaterialDependencies.Initialize(Attributes, UE::Interchange::FMeshNodeStaticData::GetMaterialDependenciesKey());
 		ShapeDependencies.Initialize(Attributes, UE::Interchange::FMeshNodeStaticData::GetShapeDependenciesKey());
+		SceneInstancesUids.Initialize(Attributes, UE::Interchange::FMeshNodeStaticData::GetSceneInstancesUidsKey());
 	}
 
 	virtual FString GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const override
@@ -137,6 +144,21 @@ public:
 			}
 			return KeyDisplayName;
 		}
+		else if (NodeAttributeKey.Key.Equals(UE::Interchange::FMeshNodeStaticData::GetSceneInstancesUidsKey()))
+		{
+			return KeyDisplayName = TEXT("Scene mesh instances count");
+		}
+		else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FMeshNodeStaticData::GetSceneInstancesUidsKey()))
+		{
+			KeyDisplayName = TEXT("Scene mesh instances Index ");
+			const FString IndexKey = UE::Interchange::FNameAttributeArrayHelper::IndexKey();
+			int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
+			if (IndexPosition < NodeAttributeKey.Key.Len())
+			{
+				KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
+			}
+			return KeyDisplayName;
+		}
 		return Super::GetKeyDisplayName(NodeAttributeKey);
 	}
 
@@ -153,6 +175,10 @@ public:
 		else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FMeshNodeStaticData::GetShapeDependenciesKey()))
 		{
 			return FString(TEXT("ShapeDependencies"));
+		}
+		else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FMeshNodeStaticData::GetSceneInstancesUidsKey()))
+		{
+			return FString(TEXT("SceneInstances"));
 		}
 		else if (NodeAttributeKey == Macro_CustomVertexCountKey
 				 || NodeAttributeKey == Macro_CustomPolygonCountKey
@@ -601,6 +627,54 @@ public:
 	{
 		return ShapeDependencies.RemoveName(DependencyUid);
 	}
+
+	/**
+	 * This function allow to retrieve the number of scene node instancing this mesh.
+	 *
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
+	int32 GetSceneInstanceUidsCount() const
+	{
+		return SceneInstancesUids.GetCount();
+	}
+
+	/**
+	 * This function allow to retrieve the Shape dependency for this object.
+	 *
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
+	void GetSceneInstanceUids(TArray<FString>& OutDependencies) const
+	{
+		SceneInstancesUids.GetNames(OutDependencies);
+	}
+
+	/**
+	 * This function allow to retrieve one Shape dependency for this object.
+	 *
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
+	void GetSceneInstanceUid(const int32 Index, FString& OutDependency) const
+	{
+		SceneInstancesUids.GetName(Index, OutDependency);
+	}
+
+	/**
+	 * Add one Shape dependency to this object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
+	bool SetSceneInstanceUid(const FString& DependencyUid)
+	{
+		return SceneInstancesUids.AddName(DependencyUid);
+	}
+
+	/**
+	 * Remove one Shape dependency from this object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
+	bool RemoveSceneInstanceUid(const FString& DependencyUid)
+	{
+		return SceneInstancesUids.RemoveName(DependencyUid);
+	}
 private:
 	const UE::Interchange::FAttributeKey Macro_CustomVertexCountKey = UE::Interchange::FAttributeKey(TEXT("VertexCount"));
 	const UE::Interchange::FAttributeKey Macro_CustomPolygonCountKey = UE::Interchange::FAttributeKey(TEXT("PolygonCount"));
@@ -615,4 +689,5 @@ private:
 	UE::Interchange::FNameAttributeArrayHelper SkeletonDependencies;
 	UE::Interchange::FNameAttributeArrayHelper MaterialDependencies;
 	UE::Interchange::FNameAttributeArrayHelper ShapeDependencies;
+	UE::Interchange::FNameAttributeArrayHelper SceneInstancesUids;
 };

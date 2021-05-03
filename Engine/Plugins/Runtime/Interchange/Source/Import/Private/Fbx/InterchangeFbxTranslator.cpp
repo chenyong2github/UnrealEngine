@@ -200,16 +200,18 @@ TOptional<UE::Interchange::FSkeletalMeshLodPayloadData> UInterchangeFbxTranslato
 		return TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>();
 	}
 
-
 	//Buffer keep the ownership of the data, the large memory reader is use to serialize the TMap
 	FLargeMemoryReader Ar(FileData, FileDataSize);
 	SkeletalMeshLodPayload.LodMeshDescription.Serialize(Ar);
-	//Read the blend shape
-	Ar << SkeletalMeshLodPayload.LodBlendShapeMeshDescriptions;
+	bool bFetchSkinnedData = false;
+	Ar << bFetchSkinnedData;
+	if (bFetchSkinnedData)
+	{
+		//Read the bone Name to remap the influence correctly
+		Ar << SkeletalMeshLodPayload.JointNames;
+	}
 
 	return SkeletalMeshLodPayload;
-
-	//return TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>(SkeletalMeshLodPayload);
 }
 
 FString UInterchangeFbxTranslator::CreateLoadFbxFileCommand(const FString& FbxFilePath) const

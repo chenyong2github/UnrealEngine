@@ -6,7 +6,10 @@
 #include "GPUSkinPublicDefs.h"
 #include "InterchangeImportCommon.h"
 #include "InterchangeImportLog.h"
+#include "InterchangeMaterialFactoryNode.h"
 #include "InterchangeMaterialNode.h"
+#include "InterchangeMeshNode.h"
+#include "InterchangeSceneNode.h"
 #include "InterchangeSkeletalMeshLodDataNode.h"
 #include "InterchangeSkeletalMeshFactoryNode.h"
 #include "InterchangeSkeletonFactoryNode.h"
@@ -27,7 +30,7 @@
 
 #endif //WITH_EDITORONLY_DATA
 
-#if 0//WITH_EDITOR
+#if WITH_EDITOR
 namespace UE
 {
 	namespace Interchange
@@ -43,8 +46,8 @@ namespace UE
 
 			void RecursiveAddBones(const UInterchangeBaseNodeContainer* NodeContainer, const FString& JointNodeId, TArray <FJointInfo>& JointInfos, int32 ParentIndex, TArray<SkeletalMeshImportData::FBone>& RefBonesBinary)
 			{
-				const UInterchangeJointNode* JointNode = Cast<UInterchangeJointNode>(NodeContainer->GetNode(JointNodeId));
-				if (!JointNode)
+				const UInterchangeSceneNode* JointNode = Cast<UInterchangeSceneNode>(NodeContainer->GetNode(JointNodeId));
+				if (!JointNode || !JointNode->IsSpecializedTypeContains(FSceneNodeStaticData::GetJointSpecializeTypeString()))
 				{
 					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton Joint"));
 					return;
@@ -52,7 +55,7 @@ namespace UE
 
 				int32 JointInfoIndex = JointInfos.Num();
 				FJointInfo& Info = JointInfos.AddZeroed_GetRef();
-				ensure(JointNode->GetCustomName(Info.Name));
+				Info.Name = JointNode->GetDisplayLabel();
 				ensure(JointNode->GetCustomLocalTransform(Info.LocalTransform));
 				Info.ParentIndex = ParentIndex;
 
@@ -66,7 +69,7 @@ namespace UE
 				Bone.BonePos.YSize = 1.0f;
 				Bone.BonePos.ZSize = 1.0f;
 				
-				const TArray<FString> ChildrenIds = NodeContainer->GetNodeChildrenUIDs(JointNodeId);
+				const TArray<FString> ChildrenIds = NodeContainer->GetNodeChildrenUids(JointNodeId);
 				Bone.NumChildren = ChildrenIds.Num();
 				for (int32 ChildIndex = 0; ChildIndex < ChildrenIds.Num(); ++ChildIndex)
 				{
@@ -174,144 +177,6 @@ namespace UE
 						check(RemapIndex[Triangle.MatIndex] != INDEX_NONE);
 						Triangle.MatIndex = RemapIndex[Triangle.MatIndex];
 						ImportData.MaxMaterialIndex = FMath::Max<uint32>(ImportData.MaxMaterialIndex, Triangle.MatIndex);
-					}
-				}
-			}
-
-			void SetMaterialSkinXXOrder(FSkeletalMeshImportData& ImportData)
-			{
-				TArray<int32> MaterialIndexToSkinIndex;
-				TMap<int32, int32> SkinIndexToMaterialIndex;
-				TArray<int32> MissingSkinSuffixMaterial;
-				TMap<int32, int32> SkinIndexGreaterThenMaterialArraySize;
-				{
-					int32 MaterialCount = ImportData.Materials.Num();
-
-					bool bNeedsReorder = false;
-					for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
-					{
-						// get skin index
-						FString MatName = ImportData.Materials[MaterialIndex].MaterialImportName;
-
-						if (MatName.Len() > 6)
-						{
-							int32 Offset = MatName.Find(TEXT("_SKIN"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-							if (Offset != INDEX_NONE)
-							{
-								// Chop off the material name so we are left with the number in _SKINXX
-								FString SkinXXNumber = MatName.Right(MatName.Len() - (Offset + 1)).RightChop(4);
-
-								if (SkinXXNumber.IsNumeric())
-								{
-									bNeedsReorder = true;
-									int32 TmpIndex = FPlatformString::Atoi(*SkinXXNumber);
-									if (TmpIndex < MaterialCount)
-									{
-										SkinIndexToMaterialIndex.Add(TmpIndex, MaterialIndex);
-									}
-									else
-									{
-										SkinIndexGreaterThenMaterialArraySize.Add(TmpIndex, MaterialIndex);
-									}
-
-								}
-							}
-							else
-							{
-								MissingSkinSuffixMaterial.Add(MaterialIndex);
-							}
-						}
-						else
-						{
-							MissingSkinSuffixMaterial.Add(MaterialIndex);
-						}
-					}
-
-					if (bNeedsReorder && MissingSkinSuffixMaterial.Num() > 0)
-					{
-						//TODO log a user warning message
-						//AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, LOCTEXT("FbxSkeletaLMeshimport_Skinxx_missing", "Cannot mix skinxx suffix materials with no skinxx material, mesh section order will not be right.")), FFbxErrors::Generic_Mesh_SkinxxNameError);
-						return;
-					}
-
-					//Add greater then material array skinxx at the end sorted by integer the index will be remap correctly in the case of a LOD import
-					if (SkinIndexGreaterThenMaterialArraySize.Num() > 0)
-					{
-						int32 MaxAvailableKey = SkinIndexToMaterialIndex.Num();
-						for (int32 AvailableKey = 0; AvailableKey < MaxAvailableKey; ++AvailableKey)
-						{
-							if (SkinIndexToMaterialIndex.Contains(AvailableKey))
-								continue;
-
-							TMap<int32, int32> TempSkinIndexToMaterialIndex;
-							for (auto KvpSkinToMat : SkinIndexToMaterialIndex)
-							{
-								if (KvpSkinToMat.Key > AvailableKey)
-								{
-									TempSkinIndexToMaterialIndex.Add(KvpSkinToMat.Key - 1, KvpSkinToMat.Value);
-								}
-								else
-								{
-									TempSkinIndexToMaterialIndex.Add(KvpSkinToMat.Key, KvpSkinToMat.Value);
-								}
-							}
-							//move all the later key of the array to fill the available index
-							SkinIndexToMaterialIndex = TempSkinIndexToMaterialIndex;
-							AvailableKey--; //We need to retest the same index it can be empty
-						}
-						//Reorder the array
-						SkinIndexGreaterThenMaterialArraySize.KeySort(TLess<int32>());
-						for (auto Kvp : SkinIndexGreaterThenMaterialArraySize)
-						{
-							SkinIndexToMaterialIndex.Add(SkinIndexToMaterialIndex.Num(), Kvp.Value);
-						}
-					}
-
-					//Fill the array MaterialIndexToSkinIndex so we order material by _skinXX order
-					//This ensure we support skinxx suffixe that are not increment by one like _skin00, skin_01, skin_03, skin_04, skin_08... 
-					for (auto kvp : SkinIndexToMaterialIndex)
-					{
-						int32 MatIndexToInsert = 0;
-						for (MatIndexToInsert = 0; MatIndexToInsert < MaterialIndexToSkinIndex.Num(); ++MatIndexToInsert)
-						{
-							if (*(SkinIndexToMaterialIndex.Find(MaterialIndexToSkinIndex[MatIndexToInsert])) >= kvp.Value)
-							{
-								break;
-							}
-						}
-						MaterialIndexToSkinIndex.Insert(kvp.Key, MatIndexToInsert);
-					}
-
-					if (bNeedsReorder)
-					{
-						// re-order the materials
-						TArray< SkeletalMeshImportData::FMaterial > ExistingMatList = ImportData.Materials;
-						for (int32 MissingIndex : MissingSkinSuffixMaterial)
-						{
-							MaterialIndexToSkinIndex.Insert(MaterialIndexToSkinIndex.Num(), MissingIndex);
-						}
-						for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
-						{
-							if (MaterialIndex < MaterialIndexToSkinIndex.Num())
-							{
-								int32 NewIndex = MaterialIndexToSkinIndex[MaterialIndex];
-								if (ExistingMatList.IsValidIndex(NewIndex))
-								{
-									ImportData.Materials[NewIndex] = ExistingMatList[MaterialIndex];
-								}
-							}
-						}
-
-						// remapping the material index for each triangle
-						int32 FaceNum = ImportData.Faces.Num();
-						for (int32 TriangleIndex = 0; TriangleIndex < FaceNum; TriangleIndex++)
-						{
-							SkeletalMeshImportData::FTriangle& Triangle = ImportData.Faces[TriangleIndex];
-							if (Triangle.MatIndex < MaterialIndexToSkinIndex.Num())
-							{
-								Triangle.MatIndex = MaterialIndexToSkinIndex[Triangle.MatIndex];
-							}
-						}
 					}
 				}
 			}
@@ -696,8 +561,6 @@ namespace UE
 				}
 
 				CleanUpUnusedMaterials(DestinationSkeletalMeshImportData);
-				// reorder material according to "SKinXX" in material name
-				SetMaterialSkinXXOrder(DestinationSkeletalMeshImportData);
 				DoUnSmoothVerts(DestinationSkeletalMeshImportData);
 
 				return true;
@@ -755,6 +618,7 @@ namespace UE
 			 * Fill the Materials array using the raw skeletalmesh geometry data (using material imported name)
 			 * Find the material from the dependencies of the skeletalmesh before searching in all package.
 			 */
+			//TODO: the pipeline should search for existing material and hook those before the factory is called
 			void ProcessImportMeshMaterials(TArray<FSkeletalMaterial>& Materials, FSkeletalMeshImportData& ImportData, TMap<FString, UMaterialInterface*>& AvailableMaterials)
 			{
 				TArray <SkeletalMeshImportData::FMaterial>& ImportedMaterials = ImportData.Materials;
@@ -766,19 +630,14 @@ namespace UE
 					const SkeletalMeshImportData::FMaterial& ImportedMaterial = ImportedMaterials[MatIndex];
 
 					UMaterialInterface* Material = nullptr;
-					//Remove _SkinXX from the material name
-					FString MaterialNameNoSkin = UE::Interchange::Material::RemoveSkinFromName(ImportedMaterial.MaterialImportName);
+
 					const FName SearchMaterialSlotName(*ImportedMaterial.MaterialImportName);
 					int32 MaterialIndex = 0;
 					FSkeletalMaterial* SkeletalMeshMaterialFind = Materials.FindByPredicate([&SearchMaterialSlotName, &MaterialIndex](const FSkeletalMaterial& ItemMaterial)
 					{
 						//Imported material slot name is available only WITH_EDITOR
 						FName ImportedMaterialSlot = NAME_None;
-#if WITH_EDITOR
 						ImportedMaterialSlot = ItemMaterial.ImportedMaterialSlotName;
-#else
-						ImportedMaterialSlot = ItemMaterial.MaterialSlotName;
-#endif
 						if (ImportedMaterialSlot != SearchMaterialSlotName)
 						{
 							MaterialIndex++;
@@ -795,26 +654,20 @@ namespace UE
 					if(!Material)
 					{
 						//Try to find the material in the skeletal mesh node dependencies (Materials are import before skeletal mesh when there is a dependency)
-						const FString MaterialName = ImportedMaterial.MaterialImportName;
-						if (AvailableMaterials.Contains(MaterialName))
+						if (AvailableMaterials.Contains(ImportedMaterial.MaterialImportName))
 						{
-							Material = AvailableMaterials.FindChecked(MaterialName);
+							Material = AvailableMaterials.FindChecked(ImportedMaterial.MaterialImportName);
 						}
 						else
 						{
 							//We did not found any material in the dependencies so try to find material everywhere
-							Material = FindObject<UMaterialInterface>(ANY_PACKAGE, *MaterialName);
-							if (Material == nullptr && MaterialNameNoSkin.Len() < MaterialName.Len())
-							{
-								//If we have remove the _skinXX search for material without the suffixe
-								Material = FindObject<UMaterialInterface>(ANY_PACKAGE, *MaterialNameNoSkin);
-							}
+							Material = FindObject<UMaterialInterface>(ANY_PACKAGE, *ImportedMaterial.MaterialImportName);
 						}
 					}
 					
 					const bool bEnableShadowCasting = true;
 					const bool bInRecomputeTangent = false;
-					Materials.Add(FSkeletalMaterial(Material, bEnableShadowCasting, bInRecomputeTangent, Material != nullptr ? Material->GetFName() : FName(*MaterialNameNoSkin), FName(*(ImportedMaterial.MaterialImportName))));
+					Materials.Add(FSkeletalMaterial(Material, bEnableShadowCasting, bInRecomputeTangent, Material != nullptr ? Material->GetFName() : FName(*ImportedMaterial.MaterialImportName), FName(*(ImportedMaterial.MaterialImportName))));
 				}
 
 				int32 NumMaterialsToAdd = FMath::Max<int32>(ImportedMaterials.Num(), ImportData.MaxMaterialIndex + 1);
@@ -997,7 +850,7 @@ UClass* UInterchangeSkeletalMeshFactory::GetFactoryClass() const
 
 UObject* UInterchangeSkeletalMeshFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments) const
 {
-#if 1//!WITH_EDITOR || !WITH_EDITORONLY_DATA
+#if !WITH_EDITOR || !WITH_EDITORONLY_DATA
 
 	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import skeletalMesh asset in runtime, this is an editor only feature."));
 	return nullptr;
@@ -1009,8 +862,8 @@ UObject* UInterchangeSkeletalMeshFactory::CreateEmptyAsset(const FCreateAssetPar
 		return nullptr;
 	}
 
-	const UInterchangeSkeletalMeshNode* SkeletalMeshNode = Cast<UInterchangeSkeletalMeshNode>(Arguments.AssetNode);
-	if (SkeletalMeshNode == nullptr)
+	const UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = Cast<UInterchangeSkeletalMeshFactoryNode>(Arguments.AssetNode);
+	if (SkeletalMeshFactoryNode == nullptr)
 	{
 		return nullptr;
 	}
@@ -1037,7 +890,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateEmptyAsset(const FCreateAssetPar
 	
 	SkeletalMesh->PreEditChange(nullptr);
 	//Allocate the LODImport data in the main thread
-	SkeletalMesh->ReserveLODImportData(SkeletalMeshNode->GetLodDataCount());
+	SkeletalMesh->ReserveLODImportData(SkeletalMeshFactoryNode->GetLodDataCount());
 	
 	return SkeletalMesh;
 #endif //else !WITH_EDITOR || !WITH_EDITORONLY_DATA
@@ -1045,7 +898,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateEmptyAsset(const FCreateAssetPar
 
 UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletalMeshFactory::FCreateAssetParams& Arguments) const
 {
-#if 1//!WITH_EDITOR || !WITH_EDITORONLY_DATA
+#if !WITH_EDITOR || !WITH_EDITORONLY_DATA
 
 	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import skeletalMesh asset in runtime, this is an editor only feature."));
 	return nullptr;
@@ -1057,8 +910,8 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 		return nullptr;
 	}
 
-	const UInterchangeSkeletalMeshNode* SkeletalMeshNode = Cast<UInterchangeSkeletalMeshNode>(Arguments.AssetNode);
-	if (SkeletalMeshNode == nullptr)
+	const UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = Cast<UInterchangeSkeletalMeshFactoryNode>(Arguments.AssetNode);
+	if (SkeletalMeshFactoryNode == nullptr)
 	{
 		return nullptr;
 	}
@@ -1070,7 +923,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 		return nullptr;
 	}
 
-	const UClass* SkeletalMeshClass = SkeletalMeshNode->GetAssetClass();
+	const UClass* SkeletalMeshClass = SkeletalMeshFactoryNode->GetAssetClass();
 	check(SkeletalMeshClass && SkeletalMeshClass->IsChildOf(GetFactoryClass()));
 
 	// create an asset if it doesn't exist
@@ -1118,9 +971,9 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 				ImportedResource->LODModels.Empty();
 			}
 			USkeleton* SkeletonReference = nullptr;
-			int32 LodCount = SkeletalMeshNode->GetLodDataCount();
+			int32 LodCount = SkeletalMeshFactoryNode->GetLodDataCount();
 			TArray<FString> LodDataUniqueIds;
-			SkeletalMeshNode->GetLodDataUniqueIds(LodDataUniqueIds);
+			SkeletalMeshFactoryNode->GetLodDataUniqueIds(LodDataUniqueIds);
 			ensure(LodDataUniqueIds.Num() == LodCount);
 			int32 CurrentLodIndex = 0;
 			for (int32 LodIndex = 0; LodIndex < LodCount; ++LodIndex)
@@ -1132,13 +985,66 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
 					continue;
 				}
-				FString SkeletonNodeId;
-				if (!LodDataNode->GetCustomSkeletonID(SkeletonNodeId))
+
+				//Get the mesh node context for each MeshUids
+				struct FMeshNodeContext
+				{
+					const UInterchangeMeshNode* MeshNode = nullptr;
+					const UInterchangeSceneNode* SceneNode = nullptr;
+					FTransform SceneGlobalTransform = FTransform::Identity;
+					FString TranslatorPayloadKey;
+				};
+				TArray<FMeshNodeContext> MeshReferences;
+				//Scope to query the mesh node
+				{
+					TArray<FString> MeshUids;
+					LodDataNode->GetMeshUids(MeshUids);
+					MeshReferences.Reserve(MeshUids.Num());
+					for (const FString& MeshUid : MeshUids)
+					{
+						FMeshNodeContext MeshReference;
+						MeshReference.MeshNode = Cast<UInterchangeMeshNode>(Arguments.NodeContainer->GetNode(MeshUid));
+						if (!MeshReference.MeshNode)
+						{
+							//The reference is a scene node and we need to bake the geometry
+							MeshReference.SceneNode = Cast<UInterchangeSceneNode>(Arguments.NodeContainer->GetNode(MeshUid));
+							if (!ensure(MeshReference.SceneNode != nullptr))
+							{
+								UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid LOD mesh reference when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+								continue;
+							}
+							FString MeshDependencyUid;
+							MeshReference.SceneNode->GetCustomMeshDependencyUid(MeshDependencyUid);
+							MeshReference.MeshNode = Cast<UInterchangeMeshNode>(Arguments.NodeContainer->GetNode(MeshDependencyUid));
+							//Cache the scene node global matrix, we will use this matrix to bake the vertices
+							MeshReference.SceneNode->GetCustomGlobalTransform(MeshReference.SceneGlobalTransform);
+						}
+						if (!ensure(MeshReference.MeshNode != nullptr))
+						{
+							UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid LOD mesh reference when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+							continue;
+						}
+						TOptional<FString> MeshPayloadKey = MeshReference.MeshNode->GetPayLoadKey();
+						if (MeshPayloadKey.IsSet())
+						{
+							MeshReference.TranslatorPayloadKey = MeshPayloadKey.GetValue();
+						}
+						else
+						{
+							UE_LOG(LogInterchangeImport, Warning, TEXT("Empty LOD mesh reference payload when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+							continue;
+						}
+						MeshReferences.Add(MeshReference);
+					}
+				}
+
+				FString SkeletonNodeUid;
+				if (!LodDataNode->GetCustomSkeletonUid(SkeletonNodeUid))
 				{
 					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
 					continue;
 				}
-				const UInterchangeSkeletonNode* SkeletonNode = Cast<UInterchangeSkeletonNode>(Arguments.NodeContainer->GetNode(SkeletonNodeId));
+				const UInterchangeSkeletonFactoryNode* SkeletonNode = Cast<UInterchangeSkeletonFactoryNode>(Arguments.NodeContainer->GetNode(SkeletonNodeUid));
 				if (!SkeletonNode)
 				{
 					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
@@ -1160,7 +1066,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 				}
 
 				FString RootJointNodeId;
-				if (!SkeletonNode->GetCustomRootJointID(RootJointNodeId))
+				if (!SkeletonNode->GetCustomRootJointUid(RootJointNodeId))
 				{
 					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD Root Joint when importing SkeletalMesh asset %s"), *Arguments.AssetName);
 					continue;
@@ -1172,10 +1078,69 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 
 				//Add the lod mesh data to the skeletalmesh
 				FSkeletalMeshImportData SkeletalMeshImportData;
-				TArray<FString> TranslatorMeshKeys;
-				LodDataNode->GetTranslatorMeshKeys(TranslatorMeshKeys);
-				//We should have only one key per LOD
-				ensure(TranslatorMeshKeys.Num() == 1);
+				FMeshDescription LodMeshDescription;
+				FSkeletalMeshAttributes SkeletalMeshAttributes(LodMeshDescription);
+				SkeletalMeshAttributes.Register();
+				FStaticMeshOperations::FAppendSettings AppendSettings;
+				for (int32 ChannelIdx = 0; ChannelIdx < FStaticMeshOperations::FAppendSettings::MAX_NUM_UV_CHANNELS; ++ChannelIdx)
+				{
+					AppendSettings.bMergeUVChannels[ChannelIdx] = true;
+				}
+				//Fill the lod mesh description using all combined mesh part
+				for (const FMeshNodeContext& MeshNodeContext : MeshReferences)
+				{
+					TOptional<UE::Interchange::FSkeletalMeshLodPayloadData> LodMeshPayload = SkeletalMeshTranslatorPayloadInterface->GetSkeletalMeshLodPayloadData(MeshNodeContext.TranslatorPayloadKey);
+					if (!LodMeshPayload.IsSet())
+					{
+						UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeletal mesh payload key [%s] SkeletalMesh asset %s"), *MeshNodeContext.TranslatorPayloadKey, *Arguments.AssetName);
+						continue;
+					}
+					const int32 VertexOffset = LodMeshDescription.Vertices().Num();
+					const int32 VertexInstanceOffset = LodMeshDescription.VertexInstances().Num();
+					const int32 TriangleOffset = LodMeshDescription.Triangles().Num();
+					
+					FSkeletalMeshOperations::FSkeletalMeshAppendSettings SkeletalMeshAppendSettings;
+					SkeletalMeshAppendSettings.SourceVertexIDOffset = VertexOffset;
+					FElementIDRemappings ElementIDRemappings;
+					LodMeshPayload->LodMeshDescription.Compact(ElementIDRemappings);
+					//Remap the influence vertex index to point on the correct index
+					if (LodMeshPayload->JointNames.Num() > 0)
+					{
+						const int32 LocalJointCount = LodMeshPayload->JointNames.Num();
+						const int32 RefBoneCount = RefBonesBinary.Num();
+						SkeletalMeshAppendSettings.SourceRemapBoneIndex.AddZeroed(LocalJointCount);
+						for(int32 LocalJointIndex = 0; LocalJointIndex < LocalJointCount; ++LocalJointIndex)
+						{
+							SkeletalMeshAppendSettings.SourceRemapBoneIndex[LocalJointIndex] = LocalJointIndex;
+							const FString& LocalJointName = LodMeshPayload->JointNames[LocalJointIndex];
+							for(int32 RefBoneIndex = 0; RefBoneIndex < RefBoneCount; ++RefBoneIndex)
+							{
+								const SkeletalMeshImportData::FBone& Bone = RefBonesBinary[RefBoneIndex];
+								if(Bone.Name.Equals(LocalJointName))
+								{
+									SkeletalMeshAppendSettings.SourceRemapBoneIndex[LocalJointIndex] = RefBoneIndex;
+									break;
+								}
+							}
+						}
+					}
+
+					FStaticMeshOperations::AppendMeshDescription(LodMeshPayload->LodMeshDescription, LodMeshDescription, AppendSettings);
+					FSkeletalMeshOperations::AppendSkinWeight(LodMeshPayload->LodMeshDescription, LodMeshDescription, SkeletalMeshAppendSettings);
+
+					/*
+					TArray<FString> BlendShapeToImport;
+					MeshNodeContext.MeshNode->GetShapeDependencies(BlendShapeToImport);
+					for(const FString)
+					//Copy also the blend shapes data (we need to pass the offset in the Main MeshDescription, so we have the correct vertex index mapping)
+					UE::Interchange::Private::CopyBlendShapesMeshDescriptionToSkeletalMeshImportData(BlendShapeToImport, LodMeshPayload->LodBlendShapeMeshDescriptions, SkeletalMeshImportData);
+					*/
+					
+				}
+				UE::Interchange::Private::CopyMeshDescriptionToSkeletalMeshImportData(LodMeshDescription, SkeletalMeshImportData);
+				SkeletalMeshImportData.RefBonesBinary = RefBonesBinary;
+/*
+
 				//Use the first geo LOD since we are suppose to have only one Key
 				if(TranslatorMeshKeys.IsValidIndex(0))
 				{
@@ -1201,26 +1166,27 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 					//Copy also the blend shapes data
 					UE::Interchange::Private::CopyBlendShapesMeshDescriptionToSkeletalMeshImportData(BlendShapeToImport, LodMeshPayload->LodBlendShapeMeshDescriptions, SkeletalMeshImportData);
 				}
+*/
 
 				ensure(ImportedResource->LODModels.Add(new FSkeletalMeshLODModel()) == CurrentLodIndex);
 				FSkeletalMeshLODModel& LODModel = ImportedResource->LODModels[CurrentLodIndex];
 
 				TMap<FString, UMaterialInterface*> AvailableMaterials;
-				TArray<FString> Dependencies;
-				SkeletalMeshNode->GetDependecies(Dependencies);
-				for (int32 DependencyIndex = 0; DependencyIndex < Dependencies.Num(); ++DependencyIndex)
+				TArray<FString> FactoryDependencies;
+				SkeletalMeshFactoryNode->GetFactoryDependencies(FactoryDependencies);
+				for (int32 DependencyIndex = 0; DependencyIndex < FactoryDependencies.Num(); ++DependencyIndex)
 				{
-					const UInterchangeMaterialNode* MaterialNode = Cast<UInterchangeMaterialNode>(Arguments.NodeContainer->GetNode(Dependencies[DependencyIndex]));
-					if (!MaterialNode || !MaterialNode->ReferenceObject.IsValid())
+					const UInterchangeMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeMaterialFactoryNode>(Arguments.NodeContainer->GetNode(FactoryDependencies[DependencyIndex]));
+					if (!MaterialFactoryNode || !MaterialFactoryNode->ReferenceObject.IsValid())
 					{
 						continue;
 					}
-					UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialNode->ReferenceObject.ResolveObject());
+					UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialFactoryNode->ReferenceObject.ResolveObject());
 					if (!MaterialInterface)
 					{
 						continue;
 					}
-					AvailableMaterials.Add(MaterialNode->GetDisplayLabel(), MaterialInterface);
+					AvailableMaterials.Add(MaterialFactoryNode->GetDisplayLabel(), MaterialInterface);
 				}
 
 				UE::Interchange::Private::ProcessImportMeshMaterials(SkeletalMesh->GetMaterials(), SkeletalMeshImportData, AvailableMaterials);
@@ -1261,8 +1227,8 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 
 			SkeletalMesh->CalculateInvRefMatrices();
 
-			/** Apply all SkeletalMeshNode custom attributes to the material asset */
-			SkeletalMeshNode->ApplyAllCustomAttributeToAsset(SkeletalMesh);
+			/** Apply all SkeletalMeshFactoryNode custom attributes to the material asset */
+			SkeletalMeshFactoryNode->ApplyAllCustomAttributeToAsset(SkeletalMesh);
 		}
 		
 		//Getting the file Hash will cache it into the source data

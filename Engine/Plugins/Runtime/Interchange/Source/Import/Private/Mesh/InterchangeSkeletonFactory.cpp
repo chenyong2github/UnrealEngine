@@ -8,8 +8,7 @@
 #include "InterchangeSourceData.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
-
-
+#include "Rendering/SkeletalMeshLODImporterData.h"
 
 UClass* UInterchangeSkeletonFactory::GetFactoryClass() const
 {
@@ -35,7 +34,7 @@ UObject* UInterchangeSkeletonFactory::CreateEmptyAsset(const FCreateAssetParams&
 	// create an asset if it doesn't exist
 	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
 
-	// create a new material or overwrite existing asset, if possible
+	// create a new skeleton or overwrite existing asset, if possible
 	if (!ExistingAsset)
 	{
 		Skeleton = NewObject<UObject>(Arguments.Parent, USkeleton::StaticClass(), *Arguments.AssetName, RF_Public | RF_Standalone);
@@ -51,6 +50,8 @@ UObject* UInterchangeSkeletonFactory::CreateEmptyAsset(const FCreateAssetParams&
 		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create Skeleton asset %s"), *Arguments.AssetName);
 		return nullptr;
 	}
+	SkeletonNode->ReferenceObject = Skeleton;
+
 	Skeleton->PreEditChange(nullptr);
 #endif //WITH_EDITORONLY_DATA
 	return Skeleton;
@@ -83,7 +84,7 @@ UObject* UInterchangeSkeletonFactory::CreateAsset(const UInterchangeSkeletonFact
 	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
 
 	UObject* SkeletonObject = nullptr;
-	// create a new material or overwrite existing asset, if possible
+	// create a new skeleton or overwrite existing asset, if possible
 	if (!ExistingAsset)
 	{
 		//NewObject is not thread safe, the asset registry directory watcher tick on the main thread can trig before we finish initializing the UObject and will crash
@@ -105,8 +106,8 @@ UObject* UInterchangeSkeletonFactory::CreateAsset(const UInterchangeSkeletonFact
 
 	if (SkeletonObject)
 	{
-		//Currently material re-import will not touch the material at all
-		//TODO design a re-import process for the material (expressions and input connections)
+		//Currently skeleton re-import will not touch the skeleton at all
+		//TODO design a re-import process for the skeleton (expressions and input connections)
 		if(!Arguments.ReimportObject)
 		{
 			USkeleton* Skeleton = Cast<USkeleton>(SkeletonObject);
@@ -115,16 +116,25 @@ UObject* UInterchangeSkeletonFactory::CreateAsset(const UInterchangeSkeletonFact
 				UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create Skeleton asset %s"), *Arguments.AssetName);
 				return nullptr;
 			}
+			FString RootJointUid;
+			if (!SkeletonNode->GetCustomRootJointUid(RootJointUid))
+			{
+				UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create Skeleton asset %s, because there is no valid root joint node"), *Arguments.AssetName);
+				return nullptr;
+			}
+			
+			//The joint will be added by the skeletalmesh factory since we need a valid skeletalmesh to add joint to a skeleton
+			SkeletonNode->ReferenceObject = Skeleton;
 		}
 		
 		//Getting the file Hash will cache it into the source data
 		Arguments.SourceData->GetFileContentHash();
 
-		//The interchange completion task (call in the GameThread after the factories pass), will call PostEditChange which will trig another asynchronous system that will build all material in parallel
+		//The interchange completion task (call in the GameThread after the factories pass), will call PostEditChange which will trig another asynchronous system that will build all skeleton in parallel
 	}
 	else
 	{
-		//The material is not a UMaterialInterface
+		//The skeleton is not a USkeleton
 		SkeletonObject->RemoveFromRoot();
 		SkeletonObject->MarkPendingKill();
 	}
