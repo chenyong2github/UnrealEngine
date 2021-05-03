@@ -17,6 +17,7 @@
 #include "Interfaces/IShaderFormat.h"
 #include "Interfaces/IShaderFormatModule.h"
 #include "Interfaces/ITextureFormat.h"
+#include "Interfaces/ITextureFormatManagerModule.h"
 #include "Interfaces/ITextureFormatModule.h"
 #include "PlatformInfo.h"
 #include "DesktopPlatformModule.h"
@@ -123,6 +124,8 @@ public:
 			}
 		}
 #endif
+		TextureFormatManager = FModuleManager::LoadModulePtr<ITextureFormatManagerModule>("TextureFormat");
+
 		// Calling a virtual function from a constructor, but with no expectation that a derived implementation of this
 		// method would be called.  This is solely to avoid duplicating code in this implementation, not for polymorphism.
 		FTargetPlatformManagerModule::Invalidate();
@@ -161,7 +164,7 @@ public:
 		if (!bHasInitErrors)
 		{
 			GetAudioFormats();
-			GetTextureFormats();
+			TextureFormatManager->Invalidate();
 			GetShaderFormats();
 		}
 
@@ -453,60 +456,12 @@ public:
 
 	virtual const TArray<const ITextureFormat*>& GetTextureFormats() override
 	{
-		static bool bInitialized = false;
-		static TArray<const ITextureFormat*> Results;
-
-		if (!bInitialized || bForceCacheUpdate)
-		{
-			bInitialized = true;
-			Results.Empty(Results.Num());
-
-			TArray<FName> Modules;
-
-			FModuleManager::Get().FindModules(TEXT("*TextureFormat*"), Modules);
-
-			if (!Modules.Num())
-			{
-				UE_LOG(LogTargetPlatformManager, Error, TEXT("No target texture formats found!"));
-			}
-
-			for (int32 Index = 0; Index < Modules.Num(); Index++)
-			{
-				ITextureFormatModule* Module = FModuleManager::LoadModulePtr<ITextureFormatModule>(Modules[Index]);
-				if (Module)
-				{
-					ITextureFormat* Format = Module->GetTextureFormat();
-					if (Format != nullptr)
-					{
-						Results.Add(Format);
-					}
-				}
-			}
-		}
-
-		return Results;
+		return TextureFormatManager->GetTextureFormats();
 	}
 
 	virtual const ITextureFormat* FindTextureFormat(FName Name) override
 	{
-		const TArray<const ITextureFormat*>& TextureFormats = GetTextureFormats();
-
-		for (int32 Index = 0; Index < TextureFormats.Num(); Index++)
-		{
-			TArray<FName> Formats;
-
-			TextureFormats[Index]->GetSupportedFormats(Formats);
-
-			for (int32 FormatIndex = 0; FormatIndex < Formats.Num(); FormatIndex++)
-			{
-				if (Formats[FormatIndex] == Name)
-				{
-					return TextureFormats[Index];
-				}
-			}
-		}
-
-		return nullptr;
+		return TextureFormatManager->FindTextureFormat(Name);
 	}
 
 	virtual const TArray<const IShaderFormat*>& GetShaderFormats() override
@@ -1206,6 +1161,9 @@ private:
 
 	// Map for fast lookup of platforms by name.
 	TMap<FName, ITargetPlatform*> PlatformsByName;
+
+	// External module that texture format operations are forwarded to
+	ITextureFormatManagerModule* TextureFormatManager;
 
 #if AUTOSDKS_ENABLED
 	// holds the list of Platforms that have attempted setup.

@@ -7,8 +7,8 @@
 #include "Async/AsyncWork.h"
 #include "Async/ParallelFor.h"
 #include "Modules/ModuleManager.h"
-#include "Engine/Texture.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Engine/TextureDefines.h"
+#include "TextureFormatManager.h"
 #include "Interfaces/ITextureFormat.h"
 #include "Misc/Paths.h"
 #include "ImageCore.h"
@@ -2202,10 +2202,10 @@ public:
 	virtual bool UsesTaskGraph(const FTextureBuildSettings& BuildSettings) const override
 	{
 		const ITextureFormat* TextureFormat = nullptr;
-		ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
-		if (TPM)
+		ITextureFormatManagerModule* TFM = GetTextureFormatManager();
+		if (TFM)
 		{
-			TextureFormat = TPM->FindTextureFormat(BuildSettings.TextureFormatName);
+			TextureFormat = TFM->FindTextureFormat(BuildSettings.TextureFormatName);
 		}
 
 		if (TextureFormat)
@@ -2226,10 +2226,11 @@ public:
 		)
 	{
 		const ITextureFormat* TextureFormat = nullptr;
-		ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
-		if (TPM)
+
+		ITextureFormatManagerModule* TFM = GetTextureFormatManager();
+		if (TFM)
 		{
-			TextureFormat = TPM->FindTextureFormat(BuildSettings.TextureFormatName);
+			TextureFormat = TFM->FindTextureFormat(BuildSettings.TextureFormatName);
 		}
 		if (TextureFormat == nullptr)
 		{
@@ -2269,12 +2270,12 @@ public:
 
 			if(!BuildTextureMips(AssociatedNormalSourceMips, DefaultSettings, CompressorCaps, IntermediateAssociatedNormalSourceMipChain))
 			{
-				UE_LOG(LogTexture, Warning, TEXT("Failed to generate texture mips for composite texture"));
+				UE_LOG(LogTextureCompressor, Warning, TEXT("Failed to generate texture mips for composite texture"));
 			}
 
 			if(!ApplyCompositeTexture(IntermediateMipChain, IntermediateAssociatedNormalSourceMipChain, BuildSettings.CompositeTextureMode, BuildSettings.CompositePower))
 			{
-				UE_LOG(LogTexture, Warning, TEXT("Failed to apply composite texture"));
+				UE_LOG(LogTextureCompressor, Warning, TEXT("Failed to apply composite texture"));
 			}
 		}
 

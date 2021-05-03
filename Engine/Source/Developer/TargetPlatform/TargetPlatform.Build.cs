@@ -18,6 +18,11 @@ public class TargetPlatform : ModuleRules
 		PublicDependencyModuleNames.Add("DesktopPlatform");
 		PublicDependencyModuleNames.Add("LauncherPlatform");
 
+		// TextureFormat contains public headers that were historically part of TargetPlatform, so it is exposed
+		// as a public include path on TargetPlatform.
+		PublicIncludePathModuleNames.Add("TextureFormat");
+		PublicDependencyModuleNames.Add("TextureFormat");
+
 		PrivateIncludePathModuleNames.Add("Engine");
 		PrivateIncludePathModuleNames.Add("PhysicsCore");
 
