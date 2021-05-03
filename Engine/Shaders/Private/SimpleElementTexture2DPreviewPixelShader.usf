@@ -18,6 +18,9 @@
 
 #if SAMPLE_VIRTUAL_TEXTURE
 	#define NUM_VIRTUALTEXTURE_SAMPLES 1
+	// Workaround for unbound View uniform buffer which is used for LOD randomization.
+	// View.StateFrameIndexMod8 is used as random seed.
+	#define VT_RANDOMIZE_LOD 0
 	#include "VirtualTextureCommon.ush"
 #endif
 

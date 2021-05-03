@@ -5,6 +5,10 @@
 #include "Common.ush"
 #include "Random.ush"
 
+#ifndef VT_RANDOMIZE_LOD
+#define VT_RANDOMIZE_LOD 1
+#endif
+
 #ifndef NUM_VIRTUALTEXTURE_SAMPLES
 #error NUM_VIRTUALTEXTURE_SAMPLES should be set to the number of VT samples that will be done before including this file (exluding any lightmap samples)
 #endif
@@ -208,7 +212,12 @@ int TextureComputeVirtualMipLevel(
 	// This way the VT mip level selection will come much closer to HW mip selection, even if we're not sampling the texture using anisotropic filtering
 	const float ComputedLevel = MipLevelAniso2D(OutResult.dUVdx, OutResult.dUVdy, PageTableUniform.MaxAnisoLog2);
 
+#if VT_RANDOMIZE_LOD
 	const float Noise = InterleavedGradientNoise(SvPositionXY, View.StateFrameIndexMod8);
+#else
+	const float Noise = 0;
+#endif
+
 	return (int)floor(ComputedLevel + MipBias + Noise) + int(PageTableUniform.vPageTableMipBias);
 }
 
