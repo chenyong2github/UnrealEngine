@@ -44,8 +44,27 @@ APawn::APawn(const FObjectInitializer& ObjectInitializer)
 
 	if (HasAnyFlags(RF_ClassDefaultObject) && GetClass() == APawn::StaticClass())
 	{
-		// WARNING: This line is why the AISupport plugin has to load the AIModule before UObject initialization, otherwise this load fails and CDOs are corrupt in the editor
-		AIControllerClass = LoadClass<AController>(nullptr, *((UEngine*)(UEngine::StaticClass()->GetDefaultObject()))->AIControllerClassName.ToString(), nullptr, LOAD_None, nullptr);
+		bool bLoadPluginClass = true;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		// disabling engine plugins will cause loader warnings, this was added because it added non-valuable warnings for things like basic commandlets
+		if (FParse::Param(FCommandLine::Get(), TEXT("NoEnginePlugins")))
+		{
+			bLoadPluginClass = false;
+		}
+#endif
+
+		FString AIControllerClassName = GetDefault<UEngine>()->AIControllerClassName.ToString();
+
+		// resolve the name to a UClass
+		AIControllerClass = FindObject<UClass>(ANY_PACKAGE, *AIControllerClassName);
+
+		// if we failed to resolve, and plugins are expected to be loaded, proceed with loading it
+		if (AIControllerClass == nullptr && bLoadPluginClass)
+		{
+			// WARNING: This line is why the AISupport plugin has to load the AIModule before UObject initialization, otherwise this load fails and CDOs are corrupt in the editor
+			AIControllerClass = LoadClass<AController>(nullptr, *AIControllerClassName, nullptr, LOAD_None, nullptr);
+		}
 	}
 	else
 	{

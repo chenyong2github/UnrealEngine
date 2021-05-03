@@ -80,6 +80,17 @@ enum class ECheckModuleCompatibilityFlags
 ENUM_CLASS_FLAGS(ECheckModuleCompatibilityFlags)
 
 
+enum class ELoadModuleFlags
+{
+	None = 0x0,
+
+	// Print to the log any failure information
+	LogFailures = 1 << 0,
+};
+
+ENUM_CLASS_FLAGS(ELoadModuleFlags)
+
+
 /**
  * Structure for reporting module statuses.
  */
@@ -175,10 +186,11 @@ public:
 	 * Loads the specified module.
 	 *
 	 * @param InModuleName The base name of the module file.  Should not include path, extension or platform/configuration info.  This is just the "module name" part of the module file name.  Names should be globally unique.
+	 * @param InLoadModuleFlags Optional flags for module load operation.
 	 * @return The loaded module, or nullptr if the load operation failed.
 	 * @see AbandonModule, IsModuleLoaded, LoadModuleChecked, LoadModulePtr, LoadModuleWithFailureReason, UnloadModule
 	 */
-	IModuleInterface* LoadModule( const FName InModuleName );
+	IModuleInterface* LoadModule( const FName InModuleName, ELoadModuleFlags InLoadModuleFlags = ELoadModuleFlags::None );
 
 	/**
 	 * Loads the specified module, checking to ensure it exists.
@@ -204,10 +216,11 @@ public:
 	 *
 	 * @param InModuleName The base name of the module file.  Should not include path, extension or platform/configuration info.  This is just the "module name" part of the module file name.  Names should be globally unique.
 	 * @param OutFailureReason Will contain the result.
+	 * @param InLoadModuleFlags Optional flags for module load operation.
 	 * @return The loaded module (null if the load operation failed).
 	 * @see AbandonModule, IsModuleLoaded, LoadModule, LoadModuleChecked, LoadModulePtr, UnloadModule
 	 */
-	IModuleInterface* LoadModuleWithFailureReason( const FName InModuleName, EModuleLoadResult& OutFailureReason );
+	IModuleInterface* LoadModuleWithFailureReason( const FName InModuleName, EModuleLoadResult& OutFailureReason, ELoadModuleFlags InLoadModuleFlags = ELoadModuleFlags::None);
 
 	/**
 	 * Queries information about a specific module name.
