@@ -97,17 +97,18 @@ FUploadingVirtualTexture::~FUploadingVirtualTexture()
 	}
 }
 
-uint32 FUploadingVirtualTexture::GetLocalMipBias(uint8 vLevel, uint32 vAddress) const
+uint32 FUploadingVirtualTexture::GetLocalMipBias(uint8 vLevel, uint32 vAddress, uint8 MaxLevel) const
 {
 	const uint32 NumMips = Data->NumMips;
-	uint32 NumNonResidentLevels = 0u;
-	while (vLevel < NumMips)
+	uint32 Current_vLevel = vLevel;
+	uint32 Current_vAddress = vAddress;
+	while (Current_vLevel <= MaxLevel)
 	{
-		const uint32 TileIndex = Data->GetTileIndex(vLevel, vAddress);
+		const uint32 TileIndex = Data->GetTileIndex(Current_vLevel, Current_vAddress);
 		if (TileIndex == ~0u)
 		{
-			// vAddress is out-of-bounds for the given producer, this is a 
-			NumNonResidentLevels += (NumMips - vLevel);
+			// vAddress is out-of-bounds for the given producer
+			Current_vLevel = MaxLevel;
 			break;
 		}
 
@@ -117,12 +118,11 @@ uint32 FUploadingVirtualTexture::GetLocalMipBias(uint8 vLevel, uint32 vAddress) 
 			break;
 		}
 
-		++NumNonResidentLevels;
-		++vLevel;
-		vAddress >>= 2;
+		Current_vLevel++;
+		Current_vAddress >>= 2;
 	}
 
-	return NumNonResidentLevels;
+	return Current_vLevel - vLevel;
 }
 
 FVTRequestPageResult FUploadingVirtualTexture::RequestPageData(const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint64 vAddress, EVTRequestPagePriority Priority)

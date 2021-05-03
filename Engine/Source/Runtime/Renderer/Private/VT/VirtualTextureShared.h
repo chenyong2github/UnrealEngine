@@ -44,7 +44,7 @@ struct FPageTableUpdate
 	inline void Check(uint8 vDimensions)
 	{
 		const uint32 LowBitMask = (1u << (vDimensions * vLogSize)) - 1;
-		checkSlow((vAddress & LowBitMask) == 0);
+		check((vAddress & LowBitMask) == 0);
 		//checkSlow(vLogSize <= vLevel);
 	}
 };

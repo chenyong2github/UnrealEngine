@@ -259,7 +259,7 @@ public:
 	 * @param vAddress Virtual address to check
 	 * @return Mip bias to be added to vLevel to reach a resident page at the given address
 	 */
-	virtual uint32 GetLocalMipBias(uint8 vLevel, uint32 vAddress) const { return 0u; }
+	virtual uint32 GetLocalMipBias(uint8 vLevel, uint32 vAddress, uint8 MaxLevel) const { return 0u; }
 
 	/**
 	* Makes a request for the given page data.
