@@ -27,6 +27,7 @@ static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHai
 			Parameters->HairTileData = In->TileData.TileDataSRV;
 			Parameters->HairTileCount = GraphBuilder.CreateSRV(In->TileData.TileCountBuffer, PF_R32_UINT);
 			Parameters->HairTileCountXY = In->TileData.TileCountXY;
+			Parameters->bHairTileValid = true;
 		}
 		else
 		{
@@ -34,9 +35,10 @@ static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHai
 			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(DummyBuffer, PF_R16G16_UINT), 0);
 			FRDGBufferSRVRef DummyBufferR32SRV = GraphBuilder.CreateSRV(DummyBuffer, PF_R32_UINT);
 			FRDGBufferSRVRef DummyBufferRG16SRV = GraphBuilder.CreateSRV(DummyBuffer, PF_R16G16_UINT);
-			Parameters->HairTileData = DummyBufferR32SRV;
-			Parameters->HairTileCount = DummyBufferRG16SRV;
+			Parameters->HairTileData = DummyBufferRG16SRV;
+			Parameters->HairTileCount = DummyBufferR32SRV;
 			Parameters->HairTileCountXY = FIntPoint(0,0);
+			Parameters->bHairTileValid = false;
 		}
 
 		if (!Parameters->HairOnlyDepthFurthestHZBTexture)
