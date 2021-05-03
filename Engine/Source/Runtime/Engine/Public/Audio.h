@@ -464,11 +464,6 @@ public:
 	bool GetUseSpatialization() const;
 };
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-FWaveInstance::FWaveInstance(FWaveInstance&&) = default;
-FWaveInstance& FWaveInstance::operator=(FWaveInstance&&) = default;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 inline uint32 GetTypeHash(FWaveInstance* A) { return A->TypeHash; }
 
 /*-----------------------------------------------------------------------------
