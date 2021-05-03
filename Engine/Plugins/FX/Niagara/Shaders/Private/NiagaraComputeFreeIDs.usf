@@ -17,6 +17,7 @@ uint FreeIDListIndex;
 
 #if USE_WAVE_INTRINSICS
 
+// This happens to be fixed on PS4 and XB1, but we'll need to configure it externally
 [numthreads(THREAD_COUNT, 1, 1)]
 void ComputeFreeIDs(uint3 GroupId : SV_GroupID, uint3 GroupThreadId : SV_GroupThreadID, uint3 DispatchThreadId : SV_DispatchThreadID)
 {

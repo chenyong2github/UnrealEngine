@@ -4013,7 +4013,7 @@ void UNiagaraDataInterfaceHairStrands::ProvidePerInstanceDataForRenderThread(voi
 
 void FNDIHairStrandsProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
 {
-	if (Context.SimulationStageIndex == 0)
+	if (Context.SimStageData->bFirstStage)
 	{
 		FNDIHairStrandsData* ProxyData =
 			SystemInstancesToProxyData.Find(Context.SystemInstanceID);

@@ -119,7 +119,7 @@ struct FNDIExportProxy : public FNiagaraDataInterfaceProxy
 
 		// Ensure our buffer if big enough to hold all the data
 		const int32 AllocationRounding = 64;
-		const int32 DataBufferNumInstances = FMath::Max(Context.ComputeInstanceData->SimStageData.Last().DestinationNumInstances, Context.ComputeInstanceData->SimStageData.Last().SourceNumInstances);
+		const int32 DataBufferNumInstances = Context.ComputeInstanceData->Context->CurrentMaxInstances_RT;
 		int32 NumInstances;
 		if (InstanceData->AllocationMode == ENDIExport_GPUAllocationMode::PerParticle)
 		{

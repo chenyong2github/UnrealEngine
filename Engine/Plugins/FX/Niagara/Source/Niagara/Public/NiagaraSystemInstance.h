@@ -16,6 +16,7 @@ class FNiagaraSystemInstance;
 class FNiagaraSystemSimulation;
 class NiagaraEmitterInstanceBatcher;
 class FNiagaraGPUSystemTick;
+class FNiagaraSystemGpuComputeProxy;
 
 using FNiagaraSystemInstancePtr = TSharedPtr<FNiagaraSystemInstance, ESPMode::ThreadSafe>;
 
@@ -236,7 +237,7 @@ public:
 
 	FORCEINLINE bool NeedsGPUTick() const { return ActiveGPUEmitterCount > 0 /*&& Component->IsRegistered()*/ && !IsComplete();}
 
-	struct FNiagaraComputeSharedContext* GetComputeSharedContext() { check(SharedContext.Get()); return SharedContext.Get(); }
+	FNiagaraSystemGpuComputeProxy* GetSystemGpuComputeProxy() { return SystemGpuComputeProxy.Get(); }
 
 	/** Gets a multicast delegate which is called after this instance has finished ticking for the frame on the game thread */
 	FORCEINLINE void SetOnPostTick(const FOnPostTick& InPostTickDelegate) { OnPostTickDelegate = InPostTickDelegate; }
@@ -285,7 +286,6 @@ public:
 
 	FORCEINLINE float GetAge() const { return Age; }
 	FORCEINLINE int32 GetTickCount() const { return TickCount; }
-	FORCEINLINE bool RequiresGpuBufferReset() const { return bHasSimulationReset && (TickCount == 1); }
 
 	FORCEINLINE float GetLastRenderTime() const { return LastRenderTime; }
 	FORCEINLINE void SetLastRenderTime(float TimeSeconds) { LastRenderTime = TimeSeconds; }
@@ -517,9 +517,6 @@ private:
 	/** True if the system instance is pooled. Prevents unbinding of parameters on completing the system */
 	uint32 bPooled : 1;
 
-	/** Will be set to true when the the simulation needs a full reset from ResetInternal() */
-	uint32 bHasSimulationReset : 1;
-
 #if WITH_EDITOR
 	uint32 bNeedsUIResync : 1;
 #endif
@@ -549,6 +546,7 @@ private:
 	ENiagaraExecutionState ActualExecutionState;
 
 	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
+	TUniquePtr<FNiagaraSystemGpuComputeProxy> SystemGpuComputeProxy;
 
 	/** Tag we feed into crash reporter for this instance. */
 	mutable FString CrashReporterTag;
@@ -563,7 +561,6 @@ public:
 	// Transient data that is accumulated during tick.
 	uint32 TotalGPUParamSize = 0;
 	uint32 ActiveGPUEmitterCount = 0;
-	TUniquePtr<FNiagaraComputeSharedContext, FNiagaraComputeSharedContextDeleter> SharedContext;
 
 	int32 GPUDataInterfaceInstanceDataSize = 0;
 	bool GPUParamIncludeInterpolation = false;

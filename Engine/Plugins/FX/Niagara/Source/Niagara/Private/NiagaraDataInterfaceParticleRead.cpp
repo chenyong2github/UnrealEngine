@@ -497,47 +497,53 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 			return;
 		}
 
-		FNiagaraDataBuffer* SourceData;
-		uint32 NumSpawnedInstances = 0, IDAcquireTag = 0, InstanceCountOffset = 0xffffffff;
-		const bool bReadingOwnEmitter = Context.ComputeInstanceData->Context == InstanceData->SourceEmitterGPUContext;
-		if (bReadingOwnEmitter)
-		{
-			// If the current execution context is the same as the source emitter's context, it means we're reading from
-			// ourselves. We can't use SourceDataSet->GetCurrentData() in that case, because EndSimulate() has already been
-			// called on the current emitter, and the current data has been set to the destination data. We need to use the
-			// current compute instance data to get to the input buffers.
-			const FNiagaraSimStageData& SimStageData = Context.ComputeInstanceData->SimStageData[Context.SimulationStageIndex];
-			SourceData = SimStageData.Source;
-			InstanceCountOffset = SimStageData.SourceCountOffset;
+		FNiagaraDataBuffer* SourceData = nullptr;
+		uint32 NumSpawnedInstances = 0;
+		uint32 IDAcquireTag = 0;
 
-			// We still want to get the spawn count and ID acquire tag from the destination data, because that's where
-			// NiagaraEmitterInstanceBatcher::Run() stores them.
-			if (SimStageData.Destination != nullptr)
+		// Test for reading ourself
+		if (Context.ComputeInstanceData->Context == InstanceData->SourceEmitterGPUContext)
+		{
+			// Pull source data from SimStageData as this has the correct information until all stages are dispatched
+			// Note: In the case of an in place (aka partial update) stage this does not work as we need to bind the
+			//       same buffer as both UAV & SRV.  For the moment the user must disable partial writes.
+			//       Another option would be to read from the UAV, but that would equally race.
+			//-TODO: Automate this in some way or surface as feedback...
+			if (const FSimulationStageMetaData* StageMetaData = Context.SimStageData->StageMetaData )
 			{
-				NumSpawnedInstances = SimStageData.Destination->GetNumSpawnedInstances();
-				IDAcquireTag = SimStageData.Destination->GetIDAcquireTag();
+				if ( StageMetaData->bPartialParticleUpdate )
+				{
+					UE_LOG(LogNiagara, Error, TEXT("Particle read DI reading self '%s' on stage '%s' is unsafe, please disable partial writes on the stage."), *InstanceData->SourceEmitterName, *StageMetaData->SimulationStageName.ToString());
+					SetErrorParams(RHICmdList, ComputeShader, true);
+					return;
+				}
 			}
-			// When we don't write particle data the destination is invalid, therefore we can pull from the source
-			else if (SimStageData.Source != nullptr)
+
+			SourceData = Context.SimStageData->Source;
+
+			// Pull some spawned / acquire tag from destination data as we are reading from ourselves this is what we are currently doing in this stage.
+			if (Context.SimStageData->Destination)
 			{
-				NumSpawnedInstances = SimStageData.Source->GetNumSpawnedInstances();
-				IDAcquireTag = SimStageData.Source->GetIDAcquireTag();
+				ensure(SourceData != nullptr);
+				NumSpawnedInstances = Context.SimStageData->Destination->GetNumSpawnedInstances();
+				IDAcquireTag = Context.SimStageData->Destination->GetIDAcquireTag();
+			}
+			// In cases where we do not have destination data pull from source (i.e. this is an iteration on none particle stages)
+			else if (SourceData)
+			{
+				NumSpawnedInstances = SourceData->GetNumSpawnedInstances();
+				IDAcquireTag = SourceData->GetIDAcquireTag();
 			}
 		}
 		else
 		{
 			SourceData = SourceDataSet->GetCurrentData();
-			if (SourceData)
+			if ( SourceData )
 			{
 				NumSpawnedInstances = SourceData->GetNumSpawnedInstances();
 				IDAcquireTag = SourceData->GetIDAcquireTag();
-				InstanceCountOffset = SourceData->GetGPUInstanceCountBufferOffset();
 			}
 		}
-
-		SetShaderValue(RHICmdList, ComputeShader, NumSpawnedParticlesParam, NumSpawnedInstances);
-		SetShaderValue(RHICmdList, ComputeShader, SpawnedParticlesAcquireTagParam, IDAcquireTag);
-		SetSRVParameter(RHICmdList, ComputeShader, SpawnedIDsBufferParam, GetIntSRVWithFallback(SourceDataSet->GetGPUFreeIDs()));
 
 		if (!SourceData)
 		{
@@ -559,7 +565,10 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 		// There's no need to transition the input buffers, because the grouping logic inside NiagaraEmitterInstanceBatcher ensures that our source emitter has ran before us,
 		// and its buffers have been transitioned to readable.
 
-		SetShaderValue(RHICmdList, ComputeShader, InstanceCountOffsetParam, InstanceCountOffset);
+		SetShaderValue(RHICmdList, ComputeShader, InstanceCountOffsetParam, SourceData->GetGPUInstanceCountBufferOffset());
+		SetShaderValue(RHICmdList, ComputeShader, NumSpawnedParticlesParam, NumSpawnedInstances);
+		SetShaderValue(RHICmdList, ComputeShader, SpawnedParticlesAcquireTagParam, IDAcquireTag);
+		SetSRVParameter(RHICmdList, ComputeShader, SpawnedIDsBufferParam, GetIntSRVWithFallback(SourceDataSet->GetGPUFreeIDs()));
 		SetSRVParameter(RHICmdList, ComputeShader, IDToIndexTableParam, GetIntSRVWithFallback(SourceData->GetGPUIDToIndexTable()));
 		SetSRVParameter(RHICmdList, ComputeShader, InputFloatBufferParam, GetFloatSRVWithFallback(SourceData->GetGPUBufferFloat()));
 		SetSRVParameter(RHICmdList, ComputeShader, InputIntBufferParam, GetIntSRVWithFallback(SourceData->GetGPUBufferInt()));

@@ -8,6 +8,7 @@
 #include "NiagaraSettings.h"
 #include "NiagaraParameterCollection.h"
 #include "NiagaraSystemInstance.h"
+#include "NiagaraSystemGpuComputeProxy.h"
 #include "NiagaraConstants.h"
 #include "NiagaraStats.h"
 #include "Async/ParallelFor.h"
@@ -315,7 +316,7 @@ struct FNiagaraSystemInstanceTickConcurrentTask
 	{
 		if (SystemSimulation->GetGPUTickHandlingMode() == ENiagaraGPUTickHandlingMode::ConcurrentBatched)
 		{
-			TArray<FNiagaraGPUSystemTick, TInlineAllocator<NiagaraSystemTickBatchSize>> GPUTicks;
+			TArray<TPair<FNiagaraSystemGpuComputeProxy*, FNiagaraGPUSystemTick>, TInlineAllocator<NiagaraSystemTickBatchSize>> GPUTicks;
 			GPUTicks.Reserve(Batch.Num());
 			for (FNiagaraSystemInstance* Inst : Batch)
 			{
@@ -323,20 +324,20 @@ struct FNiagaraSystemInstanceTickConcurrentTask
 				Inst->Tick_Concurrent(false);
 				if (Inst->NeedsGPUTick())
 				{
-					Inst->InitGPUTick(GPUTicks.AddDefaulted_GetRef());
+					auto& Tick = GPUTicks.AddDefaulted_GetRef();
+					Tick.Key = Inst->GetSystemGpuComputeProxy();
+					Inst->InitGPUTick(Tick.Value);
 				}
 			}
 
 			if (GPUTicks.Num() > 0)
 			{
-				NiagaraEmitterInstanceBatcher* TheBatcher = SystemSimulation->GetBatcher();
-				ENQUEUE_RENDER_COMMAND(FNiagaraGiveSystemInstanceTickToRT)
-				(
-					[TheBatcher, GPUTicks](FRHICommandListImmediate& RHICmdList) mutable
+				ENQUEUE_RENDER_COMMAND(FNiagaraGiveSystemInstanceTickToRT)(
+					[GPUTicks](FRHICommandListImmediate& RHICmdList) mutable
 					{
 						for (auto& GPUTick : GPUTicks)
 						{
-							TheBatcher->GiveSystemTick_RenderThread(GPUTick);
+							GPUTick.Key->QueueTick(GPUTick.Value);
 						}
 					}
 				);
@@ -389,7 +390,7 @@ struct FNiagaraSystemInstanceFinalizeTask
 
 		if ( TickHandlingMode == ENiagaraGPUTickHandlingMode::GameThreadBatched )
 		{
-			TArray<FNiagaraGPUSystemTick, TInlineAllocator<NiagaraSystemTickBatchSize>> GPUTicks;
+			TArray<TPair<FNiagaraSystemGpuComputeProxy*, FNiagaraGPUSystemTick>, TInlineAllocator<NiagaraSystemTickBatchSize>> GPUTicks;
 			GPUTicks.Reserve(Batch.Num());
 			for (FNiagaraSystemInstance* Instance : Batch)
 			{
@@ -402,19 +403,20 @@ struct FNiagaraSystemInstanceFinalizeTask
 				Instance->FinalizeTick_GameThread(false);
 				if(Instance->NeedsGPUTick())
 				{
-					Instance->InitGPUTick(GPUTicks.AddDefaulted_GetRef());
+					auto& Tick = GPUTicks.AddDefaulted_GetRef();
+					Tick.Key = Instance->GetSystemGpuComputeProxy();
+					Instance->InitGPUTick(Tick.Value);
 				}
 			}
 
 			if(GPUTicks.Num() > 0)
 			{
-				NiagaraEmitterInstanceBatcher* TheBatcher = SystemSimulation->GetBatcher();
 				ENQUEUE_RENDER_COMMAND(FNiagaraGiveSystemInstanceTickToRT)(
-					[TheBatcher, GPUTicks](FRHICommandListImmediate& RHICmdList) mutable
+					[GPUTicks](FRHICommandListImmediate& RHICmdList) mutable
 					{
 						for(auto& GPUTick : GPUTicks)
 						{
-							TheBatcher->GiveSystemTick_RenderThread(GPUTick);
+							GPUTick.Key->QueueTick(GPUTick.Value);
 						}
 					}
 				);
