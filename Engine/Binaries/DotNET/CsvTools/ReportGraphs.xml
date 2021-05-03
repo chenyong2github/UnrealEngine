@@ -137,4 +137,25 @@
 
 	</graphGroup>
 
+	<graphGroup name="AI5">		
+		<baseSettings smooth="0" maxy="0"/>
+
+		<graph title="All StateTree Costs" showAverages="1" hideStatPrefix="Exclusive/Gamethread/StateTree" stacked="1">
+			<statString>Exclusive/Gamethread/StateTree*</statString>
+		</graph>
+
+		<graph title="StateTree Processor Costs" showAverages="1" hideStatPrefix="Exclusive/Gamethread/StateTree" stacked="1">
+			<statString>Exclusive/Gamethread/StateTreeProcessor*</statString>
+		</graph>
+
+		<graph title="StateTree Context Costs" showAverages="1" hideStatPrefix="Exclusive/Gamethread/StateTree" stacked="1">
+			<statString>Exclusive/Gamethread/StateTreeCtx*</statString>
+		</graph>
+
+		<graph title="Ticked StateTree Count" showAverages="1" hideStatPrefix="StateTreeProcessor/">
+			<statString>StateTreeProcessor/NumTickedStateTree</statString>
+		</graph>
+
+	</graphGroup>
+
 </graphGroups>

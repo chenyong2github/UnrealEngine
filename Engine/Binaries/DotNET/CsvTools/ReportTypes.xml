@@ -167,6 +167,16 @@
 			<graph title="GPU bandwidth / frame" budget="0" />
 		</reporttype>
 
+		<!-- AI5 Fps report -->
+		<reporttype name="AI5" title="AI Performance Report" vsync="1">
+			<metadataToShow>buildversion,platform,deviceprofile</metadataToShow>
+
+			<graph title="All StateTree Costs" budget="0"/>
+			<graph title="StateTree Processor Costs" budget="0"/>
+			<graph title="StateTree Context Costs" budget="0"/>
+			<graph title="Ticked StateTree Count" budget="0"/>
+		</reporttype>
+
 		<reporttype name="Memory" title="Physical Memory Report" vsync="1">
 			<autodetection requiredstats="memoryfreemb,physicalusedmb"/>
 			<summary type="fpschart" fps="60" hitchThreshold="60" useEngineHitchMetric="1">
