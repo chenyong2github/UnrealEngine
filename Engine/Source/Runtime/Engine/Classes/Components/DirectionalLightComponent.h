@@ -146,12 +146,15 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	/** Determines how far shadows can be cast, in world units.  Larger values increase the shadowing cost. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=DistanceFieldShadows, meta=(UIMin = "1000", UIMax = "100000"), DisplayName = "DistanceField Trace Distance")
 	float TraceDistance;
-	
+
+	UPROPERTY()
+	uint32 bUsedAsAtmosphereSunLight_DEPRECATED : 1;
+
 	/**
 	 * Whether the directional light can interact with the atmosphere, cloud and generate a visual disk. All of which compose the visual sky.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category= AtmosphereAndCloud, meta=(DisplayName = "Atmosphere Sun Light", ShouldShowInViewport = true))
-	uint32 bUsedAsAtmosphereSunLight : 1;
+	uint32 bAtmosphereSunLight : 1;
 
 	/**
 	 * Two atmosphere lights are supported. For instance: a sun and a moon, or two suns.
@@ -300,7 +303,7 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	virtual FLightSceneProxy* CreateSceneProxy() const override;
 	virtual bool IsUsedAsAtmosphereSunLight() const override
 	{
-		return bUsedAsAtmosphereSunLight;
+		return bAtmosphereSunLight; 
 	}
 	virtual uint8 GetAtmosphereSunLightIndex() const override
 	{

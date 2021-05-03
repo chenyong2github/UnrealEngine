@@ -370,7 +370,7 @@ FReply SEnvironmentLightingViewer::OnButtonCreateAtmosphericLight(uint32 Index)
 	DirectionalLight->SetMobility(EComponentMobility::Movable);
 	DirectionalLight->SetActorRotation(FRotator(329, 346, -105));
 #if WITH_EDITORONLY_DATA
-	DirectionalLight->GetComponent()->bUsedAsAtmosphereSunLight = 1;
+	DirectionalLight->GetComponent()->bAtmosphereSunLight = 1;
 	DirectionalLight->GetComponent()->AtmosphereSunLightIndex = Index;
 	// The render proxy is create right after AddActor, so we need to mark the render state as dirty again to get the new values set on the render side too.
 	DirectionalLight->MarkComponentsRenderStateDirty();

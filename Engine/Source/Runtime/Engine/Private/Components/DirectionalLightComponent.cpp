@@ -12,6 +12,7 @@
 #include "Engine/Texture2D.h"
 #include "SceneManagement.h"
 #include "Engine/DirectionalLight.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 static float GMaxCSMRadiusToAllowPerObjectShadows = 8000;
 static FAutoConsoleVariableRef CVarMaxCSMRadiusToAllowPerObjectShadows(
@@ -991,7 +992,8 @@ UDirectionalLightComponent::UDirectionalLightComponent(const FObjectInitializer&
 	ModulatedShadowColor = FColor(128, 128, 128);
 	ShadowAmount = 1.0f;
 
-	bUsedAsAtmosphereSunLight = false;
+	bUsedAsAtmosphereSunLight_DEPRECATED = false;
+	bAtmosphereSunLight = true;
 	AtmosphereSunLightIndex = 0;
 	AtmosphereSunDiskColorScale = FLinearColor::White;
 
@@ -1106,7 +1108,7 @@ bool UDirectionalLightComponent::CanEditChange(const FProperty* InProperty) cons
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowOnSurfaceStrength)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowDepthBias))
 		{
-			return bCastCloudShadows && bUsedAsAtmosphereSunLight;
+			return bCastCloudShadows && bAtmosphereSunLight;
 		}
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, bCastCloudShadows)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, bCastShadowsOnAtmosphere)
@@ -1115,11 +1117,11 @@ bool UDirectionalLightComponent::CanEditChange(const FProperty* InProperty) cons
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, AtmosphereSunLightIndex)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, AtmosphereSunDiskColorScale))
 		{
-			return bUsedAsAtmosphereSunLight;
+			return bAtmosphereSunLight;
 		}
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, bCastShadowsOnClouds))
 		{
-			return bUsedAsAtmosphereSunLight && AtmosphereSunLightIndex == 0;	// AtmosphereLight1 has opaque shadow on cloud disabled.
+			return bAtmosphereSunLight && AtmosphereSunLightIndex == 0;	// AtmosphereLight1 has opaque shadow on cloud disabled.
 		}
 
 
@@ -1263,9 +1265,9 @@ void UDirectionalLightComponent::SetShadowAmount(float NewValue)
 void UDirectionalLightComponent::SetAtmosphereSunLight(bool bNewValue)
 {
 	if (AreDynamicDataChangesAllowed()
-		&& bUsedAsAtmosphereSunLight != bNewValue)
+		&& bAtmosphereSunLight != bNewValue)
 	{
-		bUsedAsAtmosphereSunLight = bNewValue;
+		bAtmosphereSunLight = bNewValue;
 		MarkRenderStateDirty();
 	}
 }
@@ -1284,6 +1286,8 @@ void UDirectionalLightComponent::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
 	if(Ar.UEVer() < VER_UE4_REMOVE_LIGHT_MOBILITY_CLASSES)
 	{
 		// If outer is a DirectionalLight, we use the ADirectionalLight::LoadedFromAnotherClass path
@@ -1298,6 +1302,11 @@ void UDirectionalLightComponent::Serialize(FArchive& Ar)
 				DynamicShadowDistanceStationaryLight = WholeSceneDynamicShadowRadius_DEPRECATED;
 			}
 		}
+	}
+
+	if ((Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::DirLightsAreAtmosphereLightsByDefault))
+	{
+		bAtmosphereSunLight = bUsedAsAtmosphereSunLight_DEPRECATED;
 	}
 }
 

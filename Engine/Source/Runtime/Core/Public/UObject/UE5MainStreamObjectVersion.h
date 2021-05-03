@@ -124,6 +124,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Remove explicit decal blend mode
 		RemoveDecalBlendMode,
 
+		// Made directional lights be atmosphere lights by default
+		DirLightsAreAtmosphereLightsByDefault,
+
         // -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
