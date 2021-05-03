@@ -375,8 +375,8 @@ class FGeneratePageFlagsFromPixelsCS : public FVirtualPageManagementShader
 	DECLARE_GLOBAL_SHADER(FGeneratePageFlagsFromPixelsCS);
 	SHADER_USE_PARAMETER_STRUCT(FGeneratePageFlagsFromPixelsCS, FVirtualPageManagementShader)
 
-	class FNaniteDepthBufferDim : SHADER_PERMUTATION_BOOL("LOAD_DEPTH_FROM_NANITE_BUFFER");
-	using FPermutationDomain = TShaderPermutationDomain<FNaniteDepthBufferDim>;
+	class FInputType : SHADER_PERMUTATION_INT("PERMUTATION_INPUT_TYPE", 3); 
+	using FPermutationDomain = TShaderPermutationDomain<FInputType>;
 	
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
@@ -387,6 +387,7 @@ class FGeneratePageFlagsFromPixelsCS : public FVirtualPageManagementShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, VisBuffer64)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutPageRequestFlags)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, VirtualShadowMapIdRemap)
+		RDG_BUFFER_ACCESS(IndirectBufferArgs, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER(uint32, InputType)
 		SHADER_PARAMETER(uint32, NumDirectionalLightSmInds)
 		SHADER_PARAMETER(uint32, bPostBasePass)
@@ -912,9 +913,11 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 				{
 					auto GeneratePageFlags = [&](bool bHairPass)
 					{
-						FGeneratePageFlagsFromPixelsCS::FPermutationDomain PermutationVector;
-						PermutationVector.Set<FGeneratePageFlagsFromPixelsCS::FNaniteDepthBufferDim>(NaniteVisBuffer64 != nullptr && !bPostBasePass);
+						const bool bUseNaniteDepth = NaniteVisBuffer64 != nullptr && !bPostBasePass;
+						const uint32 InputType = bHairPass ? 2u : (bUseNaniteDepth ? 1u : 0u); // HairStrands, Nanite, or GBuffer
 
+						FGeneratePageFlagsFromPixelsCS::FPermutationDomain PermutationVector;
+						PermutationVector.Set<FGeneratePageFlagsFromPixelsCS::FInputType>(InputType);
 						FGeneratePageFlagsFromPixelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FGeneratePageFlagsFromPixelsCS::FParameters >();
 						PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
 
@@ -922,7 +925,6 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 						PassParameters->bPostBasePass = bPostBasePass;
 
 						PassParameters->VisBuffer64 = VisBuffer64;
-						PassParameters->InputType = bHairPass ? 1 : 0;
 						PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 						PassParameters->View = View.ViewUniformBuffer;
 						PassParameters->OutPageRequestFlags = PageRequestFlagsUAV;
@@ -937,13 +939,26 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 						static_assert((FVirtualPageManagementShader::DefaultCSGroupXY % 2) == 0, "GeneratePageFlagsFromPixels requires even-sized CS groups for quad swizzling.");
 						const FIntPoint GridSize = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), FVirtualPageManagementShader::DefaultCSGroupXY);
 
-						FComputeShaderUtils::AddPass(
-							GraphBuilder,
-							RDG_EVENT_NAME("GeneratePageFlagsFromPixels(%s)", bHairPass ? TEXT("HairStrands") : TEXT("GBuffer")),
-							ComputeShader,
-							PassParameters,
-							FIntVector(GridSize.X, GridSize.Y, 1)
-						);
+						if (bHairPass && View.HairStrandsViewData.VisibilityData.TileData.IsValid())
+						{
+							PassParameters->IndirectBufferArgs = View.HairStrandsViewData.VisibilityData.TileData.TileIndirectDispatchBuffer;
+							FComputeShaderUtils::AddPass(
+								GraphBuilder,
+								RDG_EVENT_NAME("GeneratePageFlagsFromPixels(HairStrands,Tile)"),
+								ComputeShader,
+								PassParameters,
+								View.HairStrandsViewData.VisibilityData.TileData.TileIndirectDispatchBuffer,
+								0);
+						}
+						else
+						{
+							FComputeShaderUtils::AddPass(
+								GraphBuilder,
+								RDG_EVENT_NAME("GeneratePageFlagsFromPixels(%s)", bHairPass ? TEXT("HairStrands") : (bUseNaniteDepth ? TEXT("Nanite") : TEXT("GBuffer"))),
+								ComputeShader,
+								PassParameters,
+								FIntVector(GridSize.X, GridSize.Y, 1));
+						}
 					};
 
 					GeneratePageFlags(false);
