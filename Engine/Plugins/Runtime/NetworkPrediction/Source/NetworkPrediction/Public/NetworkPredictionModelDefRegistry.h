@@ -49,7 +49,7 @@ public:
 		{
 			if (LHS.SortPriority == RHS.SortPriority)
 			{
-				UE_LOG(LogNetworkPrediction, Warning, TEXT("ModelDefs %s and %s have same sort priority. Using lexical sort as backup"), LHS.Name, RHS.Name);
+				UE_LOG(LogNetworkPrediction, Log, TEXT("ModelDefs %s and %s have same sort priority. Using lexical sort as backup"), LHS.Name, RHS.Name);
 				int32 StrCmpResult = FCString::Strcmp(LHS.Name, RHS.Name);
 				npEnsureMsgf(StrCmpResult != 0, TEXT("Duplicate ModelDefs appear to have been registered."));
 				return StrCmpResult > 0;
