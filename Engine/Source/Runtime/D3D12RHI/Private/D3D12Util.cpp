@@ -1583,6 +1583,8 @@ DEFINE_STAT(STAT_D3D12BufferPoolMemoryFree);
 DEFINE_STAT(STAT_D3D12BufferPoolAlignmentWaste);
 DEFINE_STAT(STAT_D3D12BufferPoolPageCount);
 DEFINE_STAT(STAT_D3D12BufferPoolFullPages);
+DEFINE_STAT(STAT_D3D12BufferPoolFragmentation);
+DEFINE_STAT(STAT_D3D12BufferPoolFragmentationPercentage);
 
 DEFINE_STAT(STAT_D3D12UploadPoolMemoryAllocated);
 DEFINE_STAT(STAT_D3D12UploadPoolMemoryUsed);

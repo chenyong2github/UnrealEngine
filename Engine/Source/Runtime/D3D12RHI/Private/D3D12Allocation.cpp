@@ -1072,13 +1072,14 @@ void FD3D12UploadHeapAllocator::UpdateMemoryStats()
 	uint32 MemoryAllocated = 0;
 	uint32 MemoryUsed = 0;
 	uint32 FreeMemory = 0;
+	uint32 EndFreeMemory = 0;
 	uint32 AlignmentWaste = 0;
 	uint32 AllocatedPageCount = 0;
 	uint32 FullPageCount = 0;
 
 #if defined(D3D12RHI_TRACK_DETAILED_STATS)
 	SmallBlockAllocator.UpdateMemoryStats(MemoryAllocated, MemoryUsed, FreeMemory, AlignmentWaste, AllocatedPageCount, FullPageCount);
-	BigBlockAllocator.UpdateMemoryStats(MemoryAllocated, MemoryUsed, FreeMemory, AlignmentWaste, AllocatedPageCount, FullPageCount);
+	BigBlockAllocator.UpdateMemoryStats(MemoryAllocated, MemoryUsed, FreeMemory, EndFreeMemory, AlignmentWaste, AllocatedPageCount, FullPageCount);
 	FastConstantPageAllocator.UpdateMemoryStats(MemoryAllocated, MemoryUsed, FreeMemory, AlignmentWaste, AllocatedPageCount, FullPageCount);
 #endif
 
@@ -1263,7 +1264,7 @@ void FD3D12DefaultBufferPool::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, c
 
 
 
-void FD3D12DefaultBufferPool::UpdateMemoryStats(uint32& IOMemoryAllocated, uint32& IOMemoryUsed, uint32& IOMemoryFree, uint32& IOAlignmentWaste, uint32& IOAllocatedPageCount, uint32& IOFullPageCount)
+void FD3D12DefaultBufferPool::UpdateMemoryStats(uint32& IOMemoryAllocated, uint32& IOMemoryUsed, uint32& IOMemoryFree, uint32& IOMemoryEndFree, uint32& IOAlignmentWaste, uint32& IOAllocatedPageCount, uint32& IOFullPageCount)
 {
 	Allocator->UpdateMemoryStats(IOMemoryAllocated, IOMemoryUsed, IOMemoryFree, IOAlignmentWaste, IOAllocatedPageCount, IOFullPageCount);
 }
@@ -1473,6 +1474,7 @@ void FD3D12DefaultBufferAllocator::UpdateMemoryStats()
 	uint32 MemoryAllocated = 0;
 	uint32 MemoryUsed = 0;
 	uint32 FreeMemory = 0;
+	uint32 EndFreeMemory = 0;
 	uint32 AlignmentWaste = 0;
 	uint32 AllocatedPageCount = 0;
 	uint32 FullPageCount = 0;
@@ -1482,10 +1484,16 @@ void FD3D12DefaultBufferAllocator::UpdateMemoryStats()
 	{
 		if (DefaultBufferPool)
 		{
-			DefaultBufferPool->UpdateMemoryStats(MemoryAllocated, MemoryUsed, FreeMemory, AlignmentWaste, AllocatedPageCount, FullPageCount);
+			DefaultBufferPool->UpdateMemoryStats(MemoryAllocated, MemoryUsed, FreeMemory, EndFreeMemory, AlignmentWaste, AllocatedPageCount, FullPageCount);
 		}
 	}
 #endif
+
+	//check((MemoryUsed + AlignmentWaste + FreeMemory) == MemoryAllocated);
+
+	// compute fragmentation percentage stats:
+	uint32 Fragmentation = FreeMemory - EndFreeMemory;
+	float FragmentationPercentage = float(Fragmentation) / float(MemoryUsed + AlignmentWaste + Fragmentation);
 
 	SET_MEMORY_STAT(STAT_D3D12BufferPoolMemoryAllocated, MemoryAllocated);
 	SET_MEMORY_STAT(STAT_D3D12BufferPoolMemoryUsed, MemoryUsed);
@@ -1493,6 +1501,8 @@ void FD3D12DefaultBufferAllocator::UpdateMemoryStats()
 	SET_MEMORY_STAT(STAT_D3D12BufferPoolAlignmentWaste, AlignmentWaste);
 	SET_DWORD_STAT(STAT_D3D12BufferPoolPageCount, AllocatedPageCount);
 	SET_DWORD_STAT(STAT_D3D12BufferPoolFullPages, FullPageCount);
+	SET_MEMORY_STAT(STAT_D3D12BufferPoolFragmentation, Fragmentation);
+	SET_FLOAT_STAT(STAT_D3D12BufferPoolFragmentationPercentage, FragmentationPercentage);
 }
 
 //-----------------------------------------------------------------------------
@@ -1651,13 +1661,14 @@ bool FD3D12TextureAllocatorPool::GetMemoryStats(uint64& OutTotalAllocated, uint6
 	uint32 MemoryAllocated = 0;
 	uint32 MemoryUsed = 0;
 	uint32 FreeMemory = 0;
+	uint32 EndFreeMemory = 0;
 	uint32 AlignmentWaste = 0;
 	uint32 AllocatedPageCount = 0;
 	uint32 FullPageCount = 0;
 
 	for (uint32 PoolIndex = 0; PoolIndex < (uint32)EPoolType::Count; ++PoolIndex)
 	{
-		PoolAllocators[PoolIndex]->UpdateMemoryStats(MemoryAllocated, MemoryUsed, FreeMemory, AlignmentWaste, AllocatedPageCount, FullPageCount);
+		PoolAllocators[PoolIndex]->UpdateMemoryStats(MemoryAllocated, MemoryUsed, FreeMemory, EndFreeMemory, AlignmentWaste, AllocatedPageCount, FullPageCount);
 	}
 
 	OutTotalAllocated = MemoryAllocated;

@@ -676,11 +676,14 @@ void FRHIPoolAllocator::Defrag(uint32 InMaxCopySize, uint32& CurrentCopySize)
 }
 
 
-void FRHIPoolAllocator::UpdateMemoryStats(uint32& IOMemoryAllocated, uint32& IOMemoryUsed, uint32& IOMemoryFree, uint32& IOAlignmentWaste, uint32& IOAllocatedPageCount, uint32& IOFullPageCount)
+void FRHIPoolAllocator::UpdateMemoryStats(uint32& IOMemoryAllocated, uint32& IOMemoryUsed, uint32& IOMemoryFree, uint32& IOMemoryEndFree, uint32& IOAlignmentWaste, uint32& IOAllocatedPageCount, uint32& IOFullPageCount)
 {
 	FScopeLock Lock(&CS);
 
 	TotalAllocatedBlocks = 0;
+
+	// found out which pool has maximum available free size
+	uint32 MaxEndFree = 0;
 	for (FRHIMemoryPool* Pool : Pools)
 	{
 		if (Pool)
@@ -688,6 +691,7 @@ void FRHIPoolAllocator::UpdateMemoryStats(uint32& IOMemoryAllocated, uint32& IOM
 			IOMemoryAllocated += Pool->GetPoolSize();
 			IOMemoryUsed += Pool->GetUsedSize() - Pool->GetAlignmentWaste();
 			IOMemoryFree += Pool->GetFreeSize();
+			MaxEndFree = FMath::Max(MaxEndFree, (uint32)Pool->GetFreeSize());
 			IOAlignmentWaste += Pool->GetAlignmentWaste();
 			IOAllocatedPageCount++;
 			if (Pool->IsFull())
@@ -698,4 +702,6 @@ void FRHIPoolAllocator::UpdateMemoryStats(uint32& IOMemoryAllocated, uint32& IOM
 			TotalAllocatedBlocks += Pool->GetAllocatedBlocks();
 		}
 	}
+
+	IOMemoryEndFree += MaxEndFree;
 }
