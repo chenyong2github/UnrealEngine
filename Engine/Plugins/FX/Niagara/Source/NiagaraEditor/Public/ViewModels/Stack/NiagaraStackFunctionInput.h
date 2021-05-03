@@ -140,7 +140,7 @@ public:
 	void GetAvailableDynamicInputs(TArray<UNiagaraScript*>& AvailableDynamicInputs, bool bIncludeNonLibraryInputs = false);
 
 	/** Sets the dynamic input script for this input. */
-	void SetDynamicInput(UNiagaraScript* DynamicInput, FString SuggestedName = FString());
+	void SetDynamicInput(UNiagaraScript* DynamicInput, FString SuggestedName = FString(), const FGuid& InScriptVersion = FGuid());
 
 	/** Gets the expression providing the value for this input, if one is available. */
 	FText GetCustomExpressionText() const;
