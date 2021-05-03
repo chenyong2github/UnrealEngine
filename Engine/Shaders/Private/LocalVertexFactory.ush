@@ -189,7 +189,7 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
 #if GPUCULL_TODO
 	// Note: GetInstanceUserData() stores the GPU-Scene primitive ID
 	Input.InstanceIdOffset = GetInstanceUserData() | VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG;
-	Input.DrawInstanceId = 0;
+	Input.DrawInstanceId = InstanceIndex() - GetBaseInstanceIndex();
 #else // !GPUCULL_TODO
 	// GPUCULL_TODO: Need to work out what this is meant to do
 	Input.PrimitiveId = GetInstanceUserData();
@@ -198,10 +198,6 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
 
 #if USE_INSTANCING
 	Input.InstanceId = InstanceIndex() - GetBaseInstanceIndex();
-#endif
-
-#if USE_INSTANCE_CULLING
-	Input.DrawInstanceId = InstanceIndex() - GetBaseInstanceIndex();
 #endif
 
 	return Input;
