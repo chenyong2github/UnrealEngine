@@ -7,7 +7,7 @@
 #include "D3D12Util.h"
 
 #if TEXTURESHARE_CROSSGPUHEAP
-#include "CrossGPUHeap\D3D12CrossGPUHeap.h"
+#include "CrossGPUHeap/D3D12CrossGPUHeap.h"
 #endif
 
 // macro to deal with COM calls inside a function that returns `{}` on error

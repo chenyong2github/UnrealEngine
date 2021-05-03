@@ -3,7 +3,7 @@
 #pragma once
 #include "ITextureShareD3D12.h"
 
-#include "Platform\TextureShareD3D12PlatformWindows.h"
+#include "Platform/TextureShareD3D12PlatformWindows.h"
 
 class FTextureShareD3D12
 	: public ITextureShareD3D12

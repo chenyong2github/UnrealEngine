@@ -7,7 +7,7 @@
 #if TEXTURESHARE_CROSSGPUHEAP
 // DX12 Cross GPU heap resource API (experimental)
 
-#include "..\Platform\TextureShareD3D12PlatformWindows.h"
+#include "../Platform/TextureShareD3D12PlatformWindows.h"
 
 #include "D3D12CrossGPUHeapRules.h"
 #include "D3D12CrossGPUHeapProcessSync.h"
