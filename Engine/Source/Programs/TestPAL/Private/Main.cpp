@@ -287,6 +287,9 @@ int32 SysInfoTest(const TCHAR* CommandLine)
 	FString UserDir = FPlatformProcess::UserDir();
 	UE_LOG(LogTestPAL, Display, TEXT("  FPlatformProcess::UserDir() = '%s'"), *UserDir);
 
+	FString UserHomeDir = FPlatformProcess::UserHomeDir();
+	UE_LOG(LogTestPAL, Display, TEXT("  FPlatformProcess::UserHomeDir() = '%s'"), *UserHomeDir);
+
 	FString UserTempDir = FPlatformProcess::UserTempDir();
 	UE_LOG(LogTestPAL, Display, TEXT("  FPlatformProcess::UserTempDir() = '%s'"), *UserTempDir);
 

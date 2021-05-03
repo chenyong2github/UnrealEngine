@@ -262,25 +262,24 @@ const TCHAR* FUnixPlatformProcess::UserHomeDir()
 
 	if (!bHaveHome)
 	{
+		bHaveHome = true;
 		//  get user $HOME var first
 		const char * VarValue = secure_getenv("HOME");
-		if (VarValue)
+		if (VarValue && VarValue[0] != '\0')
 		{
 			FCString::Strcpy(CachedResult, UE_ARRAY_COUNT(CachedResult) - 1, UTF8_TO_TCHAR(VarValue));
-			bHaveHome = true;
 		}
 		else
 		{
 			struct passwd * UserInfo = getpwuid(geteuid());
-			if (NULL != UserInfo && NULL != UserInfo->pw_dir)
+			if (NULL != UserInfo && NULL != UserInfo->pw_dir && UserInfo->pw_dir[0] != '\0')
 			{
 				FCString::Strcpy(CachedResult, UE_ARRAY_COUNT(CachedResult) - 1, UTF8_TO_TCHAR(UserInfo->pw_dir));
-				bHaveHome = true;
 			}
 			else
 			{
-				// fail for realz
-				UE_LOG(LogInit, Fatal, TEXT("Could not get determine user home directory."));
+				FCString::Strcpy(CachedResult, UE_ARRAY_COUNT(CachedResult) - 1, FUnixPlatformProcess::UserTempDir());
+				UE_LOG(LogInit, Warning, TEXT("Could get determine user home directory.  Using temporary directory: %s"), CachedResult);
 			}
 		}
 	}
