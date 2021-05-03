@@ -387,6 +387,9 @@ public:
 	/** Constructor, initializing all member variables. */
 	FWaveInstance(const UPTRINT InWaveInstanceHash, FActiveSound& ActiveSound);
 
+	FWaveInstance(FWaveInstance&&);
+	FWaveInstance& operator=(FWaveInstance&&);
+
 	/** Stops the wave instance without notifying NotifyWaveInstanceFinishedHook. */
 	void StopWithoutNotification();
 
@@ -460,6 +463,11 @@ public:
 	/** Whether this wave will be spatialized, which controls 3D effects like panning */
 	bool GetUseSpatialization() const;
 };
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FWaveInstance::FWaveInstance(FWaveInstance&&) = default;
+FWaveInstance& FWaveInstance::operator=(FWaveInstance&&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 inline uint32 GetTypeHash(FWaveInstance* A) { return A->TypeHash; }
 
