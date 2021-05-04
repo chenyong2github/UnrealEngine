@@ -99,7 +99,7 @@ void UHLODSubsystem::OnWorldPartitionRegistered(UWorldPartition* InWorldPartitio
 	// Build cell to HLOD mapping
 	for (const UWorldPartitionRuntimeCell* Cell : StreamingCells)
 	{
-		CellsHLODMapping.Emplace(Cell->GetFName());
+		CellsHLODMapping.Emplace(Cell);
 	}
 }
 
@@ -113,11 +113,11 @@ void UHLODSubsystem::RegisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODSubsystem::RegisterHLODActor);
 
-	FName CellName = InWorldPartitionHLOD->GetCellName();
-	FCellHLODMapping* CellHLODs = CellsHLODMapping.Find(CellName);
+	const TSoftObjectPtr<UWorldPartitionRuntimeCell>& RuntimeCell = InWorldPartitionHLOD->GetSourceCell();
+	FCellHLODMapping* CellHLODs = CellsHLODMapping.Find(RuntimeCell);
 
 #if WITH_EDITOR
-	UE_LOG(LogHLODSubsystem, Verbose, TEXT("Registering HLOD %s (%s) for cell %s"), *InWorldPartitionHLOD->GetActorLabel(), *InWorldPartitionHLOD->GetActorGuid().ToString(), *CellName.ToString());
+	UE_LOG(LogHLODSubsystem, Verbose, TEXT("Registering HLOD %s (%s) for cell %s"), *InWorldPartitionHLOD->GetActorLabel(), *InWorldPartitionHLOD->GetActorGuid().ToString(), *RuntimeCell.ToString());
 #endif
 
 	if (CellHLODs)
@@ -127,7 +127,7 @@ void UHLODSubsystem::RegisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD
 	}
 	else
 	{
-		UE_LOG(LogHLODSubsystem, Warning, TEXT("Found HLOD referencing nonexistent cell '%s'"), *CellName.ToString());
+		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Found HLOD referencing nonexistent cell '%s'"), *RuntimeCell.ToString());
 		InWorldPartitionHLOD->SetVisibility(false);
 	}
 }
@@ -136,12 +136,13 @@ void UHLODSubsystem::UnregisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHL
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODSubsystem::UnregisterHLODActor);
 
+	const TSoftObjectPtr<UWorldPartitionRuntimeCell>& RuntimeCell = InWorldPartitionHLOD->GetSourceCell();
+	FCellHLODMapping* CellHLODs = CellsHLODMapping.Find(RuntimeCell);
+
 #if WITH_EDITOR
-	UE_LOG(LogHLODSubsystem, Verbose, TEXT("Unregistering HLOD %s (%s) for cell %s"), *InWorldPartitionHLOD->GetActorLabel(), *InWorldPartitionHLOD->GetActorGuid().ToString(), *InWorldPartitionHLOD->GetCellName().ToString());
+	UE_LOG(LogHLODSubsystem, Verbose, TEXT("Unregistering HLOD %s (%s) for cell %s"), *InWorldPartitionHLOD->GetActorLabel(), *InWorldPartitionHLOD->GetActorGuid().ToString(), *RuntimeCell.ToString());
 #endif
 
-	FName CellName = InWorldPartitionHLOD->GetCellName();
-	FCellHLODMapping* CellHLODs = CellsHLODMapping.Find(CellName);
 	if (CellHLODs)
 	{
 		int32 NumRemoved = CellHLODs->LoadedHLODs.Remove(InWorldPartitionHLOD);
@@ -151,7 +152,7 @@ void UHLODSubsystem::UnregisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHL
 
 void UHLODSubsystem::OnCellShown(const UWorldPartitionRuntimeCell* InCell)
 {
-	FCellHLODMapping& CellHLODs = CellsHLODMapping.FindChecked(InCell->GetFName());
+	FCellHLODMapping& CellHLODs = CellsHLODMapping.FindChecked(InCell);
 	CellHLODs.bIsCellVisible = true;
 
 #if WITH_EDITOR
@@ -169,7 +170,7 @@ void UHLODSubsystem::OnCellShown(const UWorldPartitionRuntimeCell* InCell)
 
 void UHLODSubsystem::OnCellHidden(const UWorldPartitionRuntimeCell* InCell)
 {
-	FCellHLODMapping& CellHLODs = CellsHLODMapping.FindChecked(InCell->GetFName());
+	FCellHLODMapping& CellHLODs = CellsHLODMapping.FindChecked(InCell);
 	CellHLODs.bIsCellVisible = false;
 
 #if WITH_EDITOR

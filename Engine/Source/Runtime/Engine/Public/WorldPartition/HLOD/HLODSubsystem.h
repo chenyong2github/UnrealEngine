@@ -52,11 +52,12 @@ private:
 	{
 		bool						bIsCellVisible;
 		TSet<AWorldPartitionHLOD*>	LoadedHLODs;
+		
 
 		FCellHLODMapping() : bIsCellVisible(false)
 		{
 		}
 	};
 
-	TMap<FName, FCellHLODMapping> CellsHLODMapping;
+	TMap<TSoftObjectPtr<UWorldPartitionRuntimeCell>, FCellHLODMapping> CellsHLODMapping;
 };

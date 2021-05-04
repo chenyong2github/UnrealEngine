@@ -236,15 +236,6 @@ int32 UWorldPartitionRenameCommandlet::Main(const FString& Params)
 		PackagesToSave.Add(ActorDescIterator->GetActor()->GetPackage());
 	}
 
-	// Fixup cell names referenced by HLODs
-	for (FActorDescList::TIterator<AWorldPartitionHLOD> HLODActorDescIterator(WorldPartition); HLODActorDescIterator; ++HLODActorDescIterator)
-	{
-		AWorldPartitionHLOD* HLODActor = CastChecked<AWorldPartitionHLOD>(HLODActorDescIterator->GetActor());
-		FString OldCellName = HLODActor->GetCellName().ToString();
-		FString NewCellName = OldCellName.Replace(*OldWorldName, *NewWorldName);
-		HLODActor->SetCellName(FName(NewCellName));
-	}
-
 	PackagesToSave.Add(World->GetPackage());
 
 	// Replace old map package with a redirector to the new map package

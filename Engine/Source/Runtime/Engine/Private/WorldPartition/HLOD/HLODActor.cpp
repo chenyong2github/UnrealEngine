@@ -49,20 +49,6 @@ void AWorldPartitionHLOD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void AWorldPartitionHLOD::PostLoad()
-{
-	Super::PostLoad();
-
-#if WITH_EDITOR
-	if (CellName == NAME_None)
-	{
-		// Prior to the addition of the cell name member, the cell name was actually stored in the label
-		CellName = *GetActorLabel();
-	}
-#endif
-}
-
-
 void AWorldPartitionHLOD::RerunConstructionScripts()
 {}
 
@@ -133,9 +119,9 @@ const TArray<FGuid>& AWorldPartitionHLOD::GetSubActors() const
 	return SubActors;
 }
 
-void AWorldPartitionHLOD::SetCellName(FName InCellName)
+void AWorldPartitionHLOD::SetSourceCell(const TSoftObjectPtr<UWorldPartitionRuntimeCell>& InSourceCell)
 {
-	CellName = InCellName;
+	SourceCell = InSourceCell;
 }
 
 const FBox& AWorldPartitionHLOD::GetHLODBounds() const
