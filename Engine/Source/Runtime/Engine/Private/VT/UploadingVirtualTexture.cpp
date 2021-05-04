@@ -97,18 +97,18 @@ FUploadingVirtualTexture::~FUploadingVirtualTexture()
 	}
 }
 
-uint32 FUploadingVirtualTexture::GetLocalMipBias(uint8 vLevel, uint32 vAddress, uint8 MaxLevel) const
+uint32 FUploadingVirtualTexture::GetLocalMipBias(uint8 vLevel, uint32 vAddress) const
 {
 	const uint32 NumMips = Data->NumMips;
 	uint32 Current_vLevel = vLevel;
 	uint32 Current_vAddress = vAddress;
-	while (Current_vLevel <= MaxLevel)
+	while (Current_vLevel < NumMips)
 	{
 		const uint32 TileIndex = Data->GetTileIndex(Current_vLevel, Current_vAddress);
 		if (TileIndex == ~0u)
 		{
 			// vAddress is out-of-bounds for the given producer
-			Current_vLevel = MaxLevel;
+			Current_vLevel = NumMips - 1u;
 			break;
 		}
 

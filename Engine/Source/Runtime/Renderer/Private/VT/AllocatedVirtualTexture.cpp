@@ -61,39 +61,8 @@ FAllocatedVirtualTexture::FAllocatedVirtualTexture(FVirtualTextureSystem* InSyst
 
 	MaxLevel = FMath::Min(MaxLevel, VIRTUALTEXTURE_LOG2_MAX_PAGETABLE_SIZE - 1u);
 
-	// Lock lowest resolution mip from each producer
-	// Depending on the block dimensions of the producers that make up this allocated VT, different allocated VTs may need to lock different low resolution mips from the same producer
-	// In the common case where block dimensions match, same mip will be locked by all allocated VTs that make use of the same producer
-	for (int32 ProducerIndex = 0u; ProducerIndex < UniqueProducers.Num(); ++ProducerIndex)
-	{
-		FVirtualTextureProducerHandle ProducerHandle = UniqueProducers[ProducerIndex].Handle;
-		FVirtualTextureProducer* Producer = InSystem->FindProducer(ProducerHandle);
-		if (Producer && Producer->GetDescription().bPersistentHighestMip)
-		{
-			const uint32 MipBias = UniqueProducers[ProducerIndex].MipBias;
-			check(MipBias <= MaxLevel);
-			const uint32 Local_vLevel = MaxLevel - MipBias;
-			checkf(Local_vLevel <= Producer->GetMaxLevel(), TEXT("Invalid Local_vLevel %d for VT producer %s, Producer MaxLevel %d, MipBias %d, AllocatedVT MaxLevel %d"),
-				Local_vLevel,
-				*Producer->GetName().ToString(),
-				Producer->GetMaxLevel(),
-				MipBias,
-				MaxLevel);
-
-			const uint32 MipScaleFactor = (1u << Local_vLevel);
-			const uint32 RootWidthInTiles = FMath::DivideAndRoundUp(Producer->GetWidthInTiles(), MipScaleFactor);
-			const uint32 RootHeightInTiles = FMath::DivideAndRoundUp(Producer->GetHeightInTiles(), MipScaleFactor);
-			for (uint32 TileY = 0u; TileY < RootHeightInTiles; ++TileY)
-			{
-				for (uint32 TileX = 0u; TileX < RootWidthInTiles; ++TileX)
-				{
-					const uint32 Local_vAddress = FMath::MortonCode2(TileX) | (FMath::MortonCode2(TileY) << 1);
-					const FVirtualTextureLocalTile TileToUnlock(ProducerHandle, Local_vAddress, Local_vLevel);
-					InSystem->LockTile(TileToUnlock);
-				}
-			}
-		}
-	}
+	// Lock tiles
+	LockOrUnlockTiles(InSystem, true);
 
 	// Use 16bit page table entries if all physical spaces are small enough
 	bool bSupport16BitPageTable = true;
@@ -151,31 +120,7 @@ void FAllocatedVirtualTexture::Release(FVirtualTextureSystem* System)
 	check(RefCount.GetValue() == 0);
 
 	// Unlock any locked tiles
-	for (int32 ProducerIndex = 0u; ProducerIndex < UniqueProducers.Num(); ++ProducerIndex)
-	{
-		const FVirtualTextureProducerHandle ProducerHandle = UniqueProducers[ProducerIndex].Handle;
-		FVirtualTextureProducer* Producer = System->FindProducer(ProducerHandle);
-		if (Producer && Producer->GetDescription().bPersistentHighestMip)
-		{
-			const uint32 MipBias = UniqueProducers[ProducerIndex].MipBias;
-			check(MipBias <= MaxLevel);
-			const uint32 Local_vLevel = MaxLevel - MipBias;
-			check(Local_vLevel <= Producer->GetMaxLevel());
-
-			const uint32 MipScaleFactor = (1u << Local_vLevel);
-			const uint32 RootWidthInTiles = FMath::DivideAndRoundUp(Producer->GetWidthInTiles(), MipScaleFactor);
-			const uint32 RootHeightInTiles = FMath::DivideAndRoundUp(Producer->GetHeightInTiles(), MipScaleFactor);
-			for (uint32 TileY = 0u; TileY < RootHeightInTiles; ++TileY)
-			{
-				for (uint32 TileX = 0u; TileX < RootWidthInTiles; ++TileX)
-				{
-					const uint32 Local_vAddress = FMath::MortonCode2(TileX) | (FMath::MortonCode2(TileY) << 1);
-					const FVirtualTextureLocalTile TileToUnlock(ProducerHandle, Local_vAddress, Local_vLevel);
-					System->UnlockTile(TileToUnlock, Producer);
-				}
-			}
-		}
-	}
+	LockOrUnlockTiles(System, false);
 
 	// Physical pool needs to evict all pages that belong to this VT
 	{
@@ -234,6 +179,59 @@ void FAllocatedVirtualTexture::Release(FVirtualTextureSystem* System)
 	System->ReleaseSpace(Space);
 
 	delete this;
+}
+
+void FAllocatedVirtualTexture::LockOrUnlockTiles(FVirtualTextureSystem* InSystem, bool bLock) const
+{
+	// (Un)Lock lowest resolution mip from each producer
+	// Depending on the block dimensions of the producers that make up this allocated VT, different allocated VTs may need to lock different low resolution mips from the same producer
+	// In the common case where block dimensions match, same mip will be locked by all allocated VTs that make use of the same producer
+	for (int32 ProducerIndex = 0u; ProducerIndex < UniqueProducers.Num(); ++ProducerIndex)
+	{
+		FVirtualTextureProducerHandle ProducerHandle = UniqueProducers[ProducerIndex].Handle;
+		FVirtualTextureProducer* Producer = InSystem->FindProducer(ProducerHandle);
+		if (Producer && Producer->GetDescription().bPersistentHighestMip)
+		{
+			const uint32 MipBias = UniqueProducers[ProducerIndex].MipBias;
+			check(MipBias <= MaxLevel);
+			const uint32 Local_vLevel = MaxLevel - MipBias;
+			checkf(Local_vLevel <= Producer->GetMaxLevel(), TEXT("Invalid Local_vLevel %d for VT producer %s, Producer MaxLevel %d, MipBias %d, AllocatedVT MaxLevel %d"),
+				Local_vLevel,
+				*Producer->GetName().ToString(),
+				Producer->GetMaxLevel(),
+				MipBias,
+				MaxLevel);
+
+			const uint32 MipScaleFactor = (1u << Local_vLevel);
+			const uint32 RootWidthInTiles = FMath::DivideAndRoundUp(Producer->GetWidthInTiles(), MipScaleFactor);
+			const uint32 RootHeightInTiles = FMath::DivideAndRoundUp(Producer->GetHeightInTiles(), MipScaleFactor);
+
+			for (uint32 TileY = 0u; TileY < RootHeightInTiles; ++TileY)
+			{
+				for (uint32 TileX = 0u; TileX < RootWidthInTiles; ++TileX)
+				{
+					const uint32 Local_vAddress = FMath::MortonCode2(TileX) | (FMath::MortonCode2(TileY) << 1);
+					FVirtualTextureLocalTile Tile(ProducerHandle, Local_vAddress, Local_vLevel);
+
+					const uint32 LocalMipBias = Producer->GetVirtualTexture()->GetLocalMipBias(Local_vLevel, Local_vAddress);
+					if (LocalMipBias > 0u)
+					{
+						Tile.Local_vAddress >>= (LocalMipBias * Description.Dimensions);
+						Tile.Local_vLevel += LocalMipBias;
+					}
+
+					if (bLock)
+					{
+						InSystem->LockTile(Tile);
+					}
+					else
+					{
+						InSystem->UnlockTile(Tile, Producer);
+					}
+				}
+			}
+		}
+	}
 }
 
 uint32 FAllocatedVirtualTexture::AddUniqueProducer(FVirtualTextureProducerHandle const& InHandle, const FVirtualTextureProducer* InProducer)

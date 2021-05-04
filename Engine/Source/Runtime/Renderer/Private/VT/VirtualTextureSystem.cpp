@@ -907,20 +907,23 @@ static int32 WrapTilePosition(int32 Position, int32 Size)
 
 void FVirtualTextureSystem::RequestTilesForRegionInternal(const IAllocatedVirtualTexture* AllocatedVT, const FVector2D& InScreenSpaceSize, const FVector2D& InViewportPosition, const FVector2D& InViewportSize, const FVector2D& InUV0, const FVector2D& InUV1, int32 InMipLevel)
 {
+	const float ScreenSpaceSizeX = FMath::Max(InScreenSpaceSize.X, 1.0f);
+	const float ScreenSpaceSizeY = FMath::Max(InScreenSpaceSize.Y, 1.0f);
+
 	// Determine the screen-space coordinates of the texture we're trying to display
 	const float SrcPositionX0 = FMath::Max(InViewportPosition.X, 0.0f);
 	const float SrcPositionY0 = FMath::Max(InViewportPosition.Y, 0.0f);
-	const float SrcPositionX1 = FMath::Min(InViewportPosition.X + InViewportSize.X, InScreenSpaceSize.X);
-	const float SrcPositionY1 = FMath::Min(InViewportPosition.Y + InViewportSize.Y, InScreenSpaceSize.Y);
+	const float SrcPositionX1 = FMath::Min(InViewportPosition.X + InViewportSize.X, ScreenSpaceSizeX);
+	const float SrcPositionY1 = FMath::Min(InViewportPosition.Y + InViewportSize.Y, ScreenSpaceSizeY);
 
 	const int32 WidthInBlocks = AllocatedVT->GetWidthInBlocks();
 	const int32 HeightInBlocks = AllocatedVT->GetHeightInBlocks();
 
 	// Map coordinates to UV space
-	const float PositionU0 = FMath::Lerp(InUV0.X, InUV1.X, SrcPositionX0 / InScreenSpaceSize.X) / WidthInBlocks;
-	const float PositionV0 = FMath::Lerp(InUV0.Y, InUV1.Y, SrcPositionY0 / InScreenSpaceSize.Y) / HeightInBlocks;
-	const float PositionU1 = FMath::Lerp(InUV0.X, InUV1.X, SrcPositionX1 / InScreenSpaceSize.X) / WidthInBlocks;
-	const float PositionV1 = FMath::Lerp(InUV0.Y, InUV1.Y, SrcPositionY1 / InScreenSpaceSize.Y) / HeightInBlocks;
+	const float PositionU0 = FMath::Lerp(InUV0.X, InUV1.X, SrcPositionX0 / ScreenSpaceSizeX) / WidthInBlocks;
+	const float PositionV0 = FMath::Lerp(InUV0.Y, InUV1.Y, SrcPositionY0 / ScreenSpaceSizeY) / HeightInBlocks;
+	const float PositionU1 = FMath::Lerp(InUV0.X, InUV1.X, SrcPositionX1 / ScreenSpaceSizeX) / WidthInBlocks;
+	const float PositionV1 = FMath::Lerp(InUV0.Y, InUV1.Y, SrcPositionY1 / ScreenSpaceSizeY) / HeightInBlocks;
 
 	// Map UVs to tile coordinates
 	const int32 MipWidthInTiles = FMath::Max<int32>(AllocatedVT->GetWidthInTiles() >> InMipLevel, 1);
@@ -1139,6 +1142,7 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 
 	// Collect tiles to lock
 	{
+		TArray<FVirtualTextureLocalTile> RemainingTilesToLock;
 		for (const FVirtualTextureLocalTile& Tile : TilesToLock)
 		{
 			const FVirtualTextureProducerHandle ProducerHandle = Tile.GetProducerHandle();
@@ -1162,14 +1166,20 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 						PagePool.Lock(pAddress);
 					}
 				}
+
 				if (ProducerLayerMaskToLoad != 0u)
 				{
-					MergedRequestList->LockLoadRequest(FVirtualTextureLocalTile(Tile.GetProducerHandle(), Tile.Local_vAddress, Tile.Local_vLevel), ProducerLayerMaskToLoad);
+					const uint16 LoadRequestIndex = MergedRequestList->LockLoadRequest(FVirtualTextureLocalTile(Tile.GetProducerHandle(), Tile.Local_vAddress, Tile.Local_vLevel), ProducerLayerMaskToLoad);
+					if (LoadRequestIndex == 0xffff)
+					{
+						// Overflowed the request list...try to lock the tile again next frame
+						RemainingTilesToLock.Add(Tile);
+					}
 				}
 			}
 		}
 
-		TilesToLock.Reset();
+		TilesToLock = MoveTemp(RemainingTilesToLock);
 	}
 
 	TArray<uint32> PackedTiles;
@@ -1550,7 +1560,7 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 			}
 
 			const uint32 ProducerMipBias = AllocatedVT->GetUniqueProducerMipBias(ProducerIndex);
-			const uint32 MaxLocalLevel = MaxLevel - ProducerMipBias;
+			const uint32 ProducerMaxLevel = Producer->GetMaxLevel();
 
 			// here vLevel is clamped against ProducerMipBias, as ProducerMipBias represents the most detailed level of this producer, relative to the allocated VT
 			// used to rescale vAddress to the correct tile within the given mip level
@@ -1564,7 +1574,7 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 			const uint32 Local_vPageY = (vPageY - AllocatedPageY) >> Mapping_vLevel;
 			uint32 Local_vAddress = FMath::MortonCode2(Local_vPageX) | (FMath::MortonCode2(Local_vPageY) << 1);
 
-			const uint32 LocalMipBias = Producer->GetVirtualTexture()->GetLocalMipBias(Local_vLevel, Local_vAddress, MaxLocalLevel);
+			const uint32 LocalMipBias = Producer->GetVirtualTexture()->GetLocalMipBias(Local_vLevel, Local_vAddress);
 			if (LocalMipBias > 0u)
 			{
 				Local_vLevel += LocalMipBias;
@@ -1587,7 +1597,7 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 				const FTexturePagePool& RESTRICT PagePool = PhysicalSpace->GetPagePool();
 
 				// Find the highest resolution tile that's currently loaded
-				const uint32 Allocated_pAddress = PagePool.FindNearestPageAddress(ProducerHandle, ProducerGroupIndex, Local_vAddress, Local_vLevel, MaxLevel);
+				const uint32 Allocated_pAddress = PagePool.FindNearestPageAddress(ProducerHandle, ProducerGroupIndex, Local_vAddress, Local_vLevel, ProducerMaxLevel);
 
 				bool bRequestedPageWasResident = false;
 				uint32 AllocatedLocal_vLevel = MaxLevel;
@@ -1597,7 +1607,7 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 					check(AllocatedLocal_vLevel >= Local_vLevel);
 
 					const uint32 AllocatedMapping_vLevel = AllocatedLocal_vLevel + ProducerMipBias;
-					uint32 Allocated_vLevel = AllocatedMapping_vLevel;
+					uint32 Allocated_vLevel = FMath::Min(AllocatedMapping_vLevel, MaxLevel);
 					if (AllocatedLocal_vLevel == Local_vLevel)
 					{
 						// page at the requested level was already resident, no longer need to load
@@ -1946,6 +1956,7 @@ void FVirtualTextureSystem::SubmitRequests(FRDGBuilder& GraphBuilder, ERHIFeatur
 
 			const EVTRequestPagePriority Priority = bLockTile ? EVTRequestPagePriority::High : EVTRequestPagePriority::Normal;
 			FVTRequestPageResult RequestPageResult = Producer.GetVirtualTexture()->RequestPageData(ProducerHandle, ProducerTextureLayerMask, TileToLoad.Local_vLevel, TileToLoad.Local_vAddress, Priority);
+			checkf(!bLockTile || RequestPageResult.Status != EVTRequestPageStatus::Invalid, TEXT("Tried to lock an invalid VT tile"));
 			if (RequestPageResult.Status == EVTRequestPageStatus::Pending && bForceProduceTile)
 			{
 				// If we're trying to lock this tile, we're OK producing data now (and possibly waiting) as long as data is pending
@@ -2225,12 +2236,15 @@ void FVirtualTextureSystem::SubmitRequests(FRDGBuilder& GraphBuilder, ERHIFeatur
 							uint32 pAddress = PageMap.FindPageAddress(vLevel, vAddress);
 							if (pAddress == ~0u)
 							{
-								const uint32 Local_vAddress = FMath::MortonCode2(TileX) | (FMath::MortonCode2(TileY) << 1);
+								uint32 Local_vAddress = FMath::MortonCode2(TileX) | (FMath::MortonCode2(TileY) << 1);
 
-								pAddress = PagePool.FindPageAddress(ProducerHandle, ProducerPhysicalGroupIndex, Local_vAddress, Local_vLevel);
+								const uint32 LocalMipBias = Producer->GetVirtualTexture()->GetLocalMipBias(Local_vLevel, Local_vAddress);
+								Local_vAddress >>= (LocalMipBias * 2u);
+
+								pAddress = PagePool.FindPageAddress(ProducerHandle, ProducerPhysicalGroupIndex, Local_vAddress, Local_vLevel + LocalMipBias);
 								if (pAddress != ~0u)
 								{
-									PagePool.MapPage(Space, PhysicalSpace, PageTableLayerIndex, MaxLevel, vLevel, vAddress, vLevel, pAddress);
+									PagePool.MapPage(Space, PhysicalSpace, PageTableLayerIndex, MaxLevel, vLevel, vAddress, vLevel + LocalMipBias, pAddress);
 								}
 								else
 								{

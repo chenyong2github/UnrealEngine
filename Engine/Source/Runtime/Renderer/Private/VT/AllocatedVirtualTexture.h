@@ -36,6 +36,8 @@ public:
 
 	void AssignVirtualAddress(uint32 vAddress);
 
+	void LockOrUnlockTiles(FVirtualTextureSystem* InSystem, bool bLock) const;
+
 	// begin IAllocatedVirtualTexture
 	virtual uint32 GetNumPageTableTextures() const override;
 	virtual FRHITexture* GetPageTableTexture(uint32 InPageTableIndex) const override;
