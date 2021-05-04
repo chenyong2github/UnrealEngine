@@ -860,7 +860,7 @@ private:
 
 		const TRefCountPtr<FRDGPooledBuffer>& GetLastBuffer(FRDGBuilder& GraphBuilder)
 		{
-			return GetOrCreateBuffer(GraphBuilder, 1 - CurrentBuffer);
+			return GetOrCreateBuffer(GraphBuilder, GetPreviousPreviousIndex());
 		}
 
 		void SwapBuffers(FRDGBuilder& GraphBuilder, bool bUpdateLastExposure);
@@ -883,8 +883,8 @@ private:
 		TUniquePtr<FRHIGPUTextureReadback> ExposureTextureReadback[3];
 
 		// ES3.1 feature level. For efficent readback use buffers instead of textures
-		TRefCountPtr<FRDGPooledBuffer> ExposureBufferData[2];
-		TUniquePtr<FRHIGPUBufferReadback> ExposureBufferReadback;
+		TRefCountPtr<FRDGPooledBuffer> ExposureBufferData[3];
+		TUniquePtr<FRHIGPUBufferReadback> ExposureBufferReadback[3];
 
 	} EyeAdaptationManager;
 
