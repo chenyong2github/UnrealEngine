@@ -8,14 +8,13 @@ colors.setTheme(require('colors/themes/generic-logging.js'))
 
 const FIELD_RE = /^\.\.\. ([a-zA-Z]*)(\d*) (.*)/
 
-type ZtagProperties = {[key: string]: string | number}[]
+type ZtagProperties = {[key: string]: string | number | boolean}[]
+type Type = 'string' | 'integer' | 'boolean'
 
-type Type = 'string' | 'integer'
 export type ParseOptions = {
 	expected?: {[field: string]: Type}
 	optional?: {[field: string]: Type}
 }
-
 
 class Shape {
 	fields = new Map<string, string>() // encode optionality in type?
@@ -43,7 +42,7 @@ class Shape {
 }
 
 class Record {
-	values = new Map<string, string | number>()
+	values = new Map<string, string | number | boolean>()
 
 	constructor(public shape: Shape) {
 	}
@@ -77,6 +76,15 @@ class Record {
 					throw new Error(`Failed to parse number field ${key}, value: ${valStr}`)
 				}
 				this.values.set(key, num)
+			}
+		}
+		else if (fieldType.startsWith('boolean')) {
+			if (!optional || valStr) {
+				const valLower = valStr.toLowerCase()
+				if (valLower !== 'true' && valLower !== 'false') {
+					throw new Error(`Failed to parse boolean field ${key}, value: ${valStr}`)
+				}
+				this.values.set(key, valLower === 'true')
 			}
 		}
 		else {
@@ -156,8 +164,6 @@ function removeTrailingNewline(rec: Record, field: string) {
 	if (!lastVal) {
 		throw new Error('internal error')
 	}
-
-		// console.log(lastVal.replace(/\n/g, '-'))
 
 	if (typeof lastVal === 'string') {
 		if (!lastVal.endsWith('\n')) {
@@ -249,7 +255,6 @@ export function parseZtagOutput(ztagOutput: string, logger: ContextualLogger, op
 		ztagOutput += '\n'
 	}
 
-	// console.log(ztagOutput.replace(/\n/g, '-'))
 	const propertyReader = new ZtagPropertyReader(ztagOutput.split('\n'), logger)
 
 	const shape = initialShapeFromOptions(options)
@@ -330,7 +335,6 @@ function doTest(it: string, s: string, logger: ContextualLogger, options: ParseO
 		return
 	}
 	if (!expected) {
-console.log('2')
 		return fail()
 	}
 	if (!equal(result, expected)) {
