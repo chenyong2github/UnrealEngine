@@ -348,6 +348,7 @@ void SAnimSequenceCurveEditor::Construct(const FArguments& InArgs, const TShared
 
 	FCurveEditorInitParams CurveEditorInitParams;
 	CurveEditor->InitCurveEditor(CurveEditorInitParams);
+	CurveEditor->InputSnapRateAttribute = InAnimSequence->GetSamplingFrameRate();
 
 	AnimSequence = InAnimSequence;
 
