@@ -253,14 +253,32 @@ void FTaskGraphProfilerManager::OnTaskTableTreeViewTabClosed(TSharedRef<SDockTab
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTaskGraphProfilerManager::GetTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, AddRelationCallback Callback)
+void FTaskGraphProfilerManager::GetTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, FAddRelationCallback Callback)
+{
+	check(Task != nullptr);
+
+	auto GetSingleTaskRelationsForAll = [this, TasksProvider, &Callback](const TArray< TraceServices::FTaskInfo::FRelationInfo>& Collection)
+	{
+		for (const TraceServices::FTaskInfo::FRelationInfo& Relation : Collection)
+		{
+			const TraceServices::FTaskInfo* Task = TasksProvider->TryGetTask(Relation.RelativeId);
+			if (Task != nullptr)
+			{
+				GetSingleTaskRelations(Task, TasksProvider, Callback);
+			}
+		}
+	};
+
+
+	GetSingleTaskRelationsForAll(Task->Prerequisites);
+	GetSingleTaskRelations(Task, TasksProvider, Callback);
+	GetSingleTaskRelationsForAll(Task->NestedTasks);
+	GetSingleTaskRelationsForAll(Task->Subsequents);
+}
+
+void FTaskGraphProfilerManager::GetSingleTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, FAddRelationCallback Callback)
 {
 	const int32 MaxTasksToShow = 30;
-
-	if (Task == nullptr)
-	{
-		return;
-	}
 
 	if (Task->CreatedTimestamp != Task->LaunchedTimestamp || Task->CreatedThreadId != Task->LaunchedThreadId)
 	{
@@ -294,12 +312,15 @@ void FTaskGraphProfilerManager::GetTaskRelations(const TraceServices::FTaskInfo*
 		Callback(NestedTask->CompletedTimestamp, NestedTask->CompletedThreadId, NestedTask->CompletedTimestamp, Task->StartedThreadId, ETaskEventType::NestedCompleted);
 	}
 
-	int32 NumSubsequentsToShow = FMath::Min(Task->NestedTasks.Num(), MaxTasksToShow);
+	int32 NumSubsequentsToShow = FMath::Min(Task->Subsequents.Num(), MaxTasksToShow);
 	for (int32 i = 0; i != NumSubsequentsToShow; ++i)
 	{
 		const TraceServices::FTaskInfo* Subsequent = TasksProvider->TryGetTask(Task->Subsequents[i].RelativeId);
 		check(Subsequent != nullptr);
-		Callback(Task->CompletedTimestamp, Task->CompletedThreadId, Subsequent->ScheduledTimestamp, Subsequent->ScheduledThreadId, ETaskEventType::Subsequent);
+		if (Task->CompletedTimestamp < Subsequent->ScheduledTimestamp)
+		{
+			Callback(Task->CompletedTimestamp, Task->CompletedThreadId, Subsequent->ScheduledTimestamp, Subsequent->ScheduledThreadId, ETaskEventType::Subsequent);
+		}
 	}
 
 	if (Task->FinishedTimestamp != Task->CompletedTimestamp || Task->CompletedThreadId != Task->StartedThreadId)
@@ -310,7 +331,7 @@ void FTaskGraphProfilerManager::GetTaskRelations(const TraceServices::FTaskInfo*
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTaskGraphProfilerManager::GetTaskRelations(double Time, uint32 ThreadId, AddRelationCallback Callback)
+void FTaskGraphProfilerManager::GetTaskRelations(double Time, uint32 ThreadId, FAddRelationCallback Callback)
 {
 	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (!Session.IsValid())
@@ -337,7 +358,7 @@ void FTaskGraphProfilerManager::GetTaskRelations(double Time, uint32 ThreadId, A
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTaskGraphProfilerManager::GetTaskRelations(uint32 TaskId, AddRelationCallback Callback)
+void FTaskGraphProfilerManager::GetTaskRelations(uint32 TaskId, FAddRelationCallback Callback)
 {
 	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (!Session.IsValid())

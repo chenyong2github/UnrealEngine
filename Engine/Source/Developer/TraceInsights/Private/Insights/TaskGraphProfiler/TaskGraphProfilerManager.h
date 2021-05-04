@@ -52,7 +52,7 @@ enum class ETaskEventType : uint32
 class FTaskGraphProfilerManager : public TSharedFromThis<FTaskGraphProfilerManager>, public IInsightsComponent
 {
 public:
-	typedef TFunction<void(double /*SourceTimestamp*/, uint32 /*SourceThreadId*/, double /*TargetTimestamp*/, uint32 /*TargetThreadId*/, ETaskEventType /*Type*/)> AddRelationCallback;
+	typedef TFunctionRef<void(double /*SourceTimestamp*/, uint32 /*SourceThreadId*/, double /*TargetTimestamp*/, uint32 /*TargetThreadId*/, ETaskEventType /*Type*/)> FAddRelationCallback;
 
 	/** Creates the Memory Profiler manager, only one instance can exist. */
 	FTaskGraphProfilerManager(TSharedRef<FUICommandList> InCommandList);
@@ -90,8 +90,8 @@ public:
 
 	void OnSessionChanged();
 
-	void GetTaskRelations(double Time, uint32 ThreadId, AddRelationCallback Callback);
-	void GetTaskRelations(uint32 TaskId, AddRelationCallback Callback);
+	void GetTaskRelations(double Time, uint32 ThreadId, FAddRelationCallback Callback);
+	void GetTaskRelations(uint32 TaskId, FAddRelationCallback Callback);
 	FLinearColor GetColorForTaskEvent(ETaskEventType InEvent);
 
 	TSharedPtr<Insights::FTaskTimingSharedState> GetTaskTimingSharedState() { return TaskTimingSharedState;	}
@@ -102,7 +102,8 @@ private:
 
 	void RegisterTimingProfilerLayoutExtensions(FInsightsMajorTabExtender& InOutExtender);
 
-	void GetTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, AddRelationCallback Callback);
+	void GetTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, FAddRelationCallback Callback);
+	void GetSingleTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, FAddRelationCallback Callback);
 
 	void InitializeColorCode();
 
