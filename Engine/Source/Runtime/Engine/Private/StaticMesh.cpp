@@ -3813,7 +3813,7 @@ bool UStaticMesh::IsReadyForFinishDestroy()
 #endif
 
 	// Match BeginDestroy() by checking for HasPendingInitOrStreaming().
-	if (HasPendingInitOrStreaming() || !Super::IsReadyForFinishDestroy())
+	if (!Super::IsReadyForFinishDestroy() || HasPendingInitOrStreaming())
 	{
 		return false;
 	}
