@@ -164,22 +164,14 @@ struct CONTROLRIG_API FRigControl : public FRigElement
 		return DisplayName.IsNone() ? Name : DisplayName;
 	}
 
-	FORCEINLINE_DEBUGGABLE virtual FRigElementKey GetParentElementKey(bool bForce = false) const
+	FORCEINLINE_DEBUGGABLE virtual FRigElementKey GetParentElementKey() const
 	{
-		if (ParentIndex != INDEX_NONE || bForce)
-		{
-			return FRigElementKey(ParentName, GetElementType());
-		}
-		return FRigElementKey();
+		return FRigElementKey(ParentName, GetElementType());
 	}
 
-	FORCEINLINE_DEBUGGABLE virtual FRigElementKey GetSpaceElementKey(bool bForce = false) const
+	FORCEINLINE_DEBUGGABLE virtual FRigElementKey GetSpaceElementKey() const
 	{
-		if (SpaceIndex != INDEX_NONE || bForce)
-		{
-			return FRigElementKey(SpaceName, ERigElementType::Null);
-		}
-		return FRigElementKey();
+		return FRigElementKey(SpaceName, ERigElementType::Null);
 	}
 
 	FORCEINLINE_DEBUGGABLE const FRigControlValue& GetValue(ERigControlValueType InValueType = ERigControlValueType::Current) const
@@ -273,6 +265,18 @@ struct CONTROLRIG_API FRigControlHierarchy
 	FORCEINLINE_DEBUGGABLE TArray<FRigControl>::RangedForConstIteratorType begin() const { return Controls.begin(); }
 	FORCEINLINE_DEBUGGABLE TArray<FRigControl>::RangedForIteratorType      end()         { return Controls.end();   }
 	FORCEINLINE_DEBUGGABLE TArray<FRigControl>::RangedForConstIteratorType end() const   { return Controls.end();   }
+
+	FRigControl& Add(
+	    const FName& InNewName,
+	    ERigControlType InControlType,
+	    const FName& InParentName,
+	    const FName& InSpaceName,
+	    const FTransform& InOffsetTransform,
+	    const FRigControlValue& InValue,
+	    const FName& InGizmoName,
+	    const FTransform& InGizmoTransform,
+	    const FLinearColor& InGizmoColor
+	);
 
 	void PostLoad();
 	

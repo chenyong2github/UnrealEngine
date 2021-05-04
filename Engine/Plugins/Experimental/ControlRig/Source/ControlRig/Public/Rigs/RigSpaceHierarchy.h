@@ -62,28 +62,25 @@ struct CONTROLRIG_API FRigSpace : public FRigElement
 		return ERigElementType::Null;
 	}
 
-	FORCEINLINE virtual FRigElementKey GetParentElementKey(bool bForce = false) const
+	FORCEINLINE virtual FRigElementKey GetParentElementKey() const
 	{
-		if (ParentIndex != INDEX_NONE || bForce)
+		switch (SpaceType)
 		{
-			switch (SpaceType)
+			case ERigSpaceType::Bone:
 			{
-				case ERigSpaceType::Bone:
-				{
-					return FRigElementKey(ParentName, ERigElementType::Bone);
-				}
-				case ERigSpaceType::Control:
-				{
-					return FRigElementKey(ParentName, ERigElementType::Control);
-				}
-				case ERigSpaceType::Space:
-				{
-					return FRigElementKey(ParentName, ERigElementType::Null);
-				}
-				default:
-				{
-					break;
-				}
+				return FRigElementKey(ParentName, ERigElementType::Bone);
+			}
+			case ERigSpaceType::Control:
+			{
+				return FRigElementKey(ParentName, ERigElementType::Control);
+			}
+			case ERigSpaceType::Space:
+			{
+				return FRigElementKey(ParentName, ERigElementType::Null);
+			}
+			default:
+			{
+				break;
 			}
 		}
 		return FRigElementKey();
@@ -102,6 +99,8 @@ struct CONTROLRIG_API FRigSpaceHierarchy
 	FORCEINLINE TArray<FRigSpace>::RangedForIteratorType      end()         { return Spaces.end();   }
 	FORCEINLINE TArray<FRigSpace>::RangedForConstIteratorType end() const   { return Spaces.end();   }
 
+	FRigSpace& Add(const FName& InNewName, ERigSpaceType InSpaceType, const FName& InParentName, const FTransform& InTransform);
+	
 private:
 
 	// disable copy constructor

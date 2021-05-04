@@ -41,7 +41,10 @@ public:
 
 private:
 
+	TArray<FRigElementKey> ImportFromText(const FRigHierarchyCopyPasteContent& InData);
+
 	friend class SRigHierarchy;
+	friend class URigHierarchyController;
 };
 
 // this struct is still here for backwards compatibility - but not used anywhere

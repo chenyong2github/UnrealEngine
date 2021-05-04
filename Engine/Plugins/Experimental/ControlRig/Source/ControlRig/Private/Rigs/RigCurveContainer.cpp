@@ -13,3 +13,15 @@
 FRigCurveContainer::FRigCurveContainer()
 {
 }
+
+FRigCurve& FRigCurveContainer::Add(const FName& InNewName, float InValue)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+    FRigCurve NewCurve;
+	NewCurve.Name = InNewName;
+	NewCurve.Value = InValue;
+	FName NewCurveName = NewCurve.Name;
+	const int32 Index = Curves.Add(NewCurve);
+	return Curves[Index];
+}

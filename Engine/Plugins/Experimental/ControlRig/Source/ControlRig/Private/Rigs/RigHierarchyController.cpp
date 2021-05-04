@@ -819,6 +819,16 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromText(FString InContent
 
 	if (Data.Elements.Num() == 0)
 	{
+		// check if this is a copy & paste buffer from pre-5.0
+		if(Data.Contents.Num() > 0)
+		{
+			FRigHierarchyContainer OldHierarchy;
+			if(OldHierarchy.ImportFromText(Data).Num() > 0)
+			{
+				return ImportFromHierarchyContainer(OldHierarchy);
+			}
+		}
+		
 		return PastedKeys;
 	}
 
@@ -981,6 +991,125 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromText(FString InContent
 	}
 
 	return PastedKeys;
+}
+
+TArray<FRigElementKey> URigHierarchyController::ImportFromHierarchyContainer(const FRigHierarchyContainer& InContainer)
+{
+	TMap<FRigElementKey, FRigElementKey> KeyMap;;
+
+	for(const FRigBone& Bone : InContainer.BoneHierarchy)
+	{
+		const FRigElementKey OriginalParentKey = Bone.GetParentElementKey(true);
+		const FRigElementKey* ParentKey = nullptr;
+		if(OriginalParentKey.IsValid())
+		{
+			ParentKey = KeyMap.Find(OriginalParentKey);
+		}
+		if(ParentKey == nullptr)
+		{
+			ParentKey = &OriginalParentKey;
+		}
+
+		const FRigElementKey Key = AddBone(Bone.Name, *ParentKey, Bone.InitialTransform, true, Bone.Type, false);
+		KeyMap.Add(Bone.GetElementKey(), Key);
+	}
+	for(const FRigSpace& Space : InContainer.SpaceHierarchy)
+	{
+		const FRigElementKey Key = AddNull(Space.Name, FRigElementKey(), Space.InitialTransform, false, false);
+		KeyMap.Add(Space.GetElementKey(), Key);
+	}
+	for(const FRigControl& Control : InContainer.ControlHierarchy)
+	{
+		FRigControlSettings Settings;
+		Settings.ControlType = Control.ControlType;
+		Settings.DisplayName = Control.DisplayName;
+		Settings.PrimaryAxis = Control.PrimaryAxis;
+		Settings.bIsCurve = Control.bIsCurve;
+		Settings.bAnimatable = Control.bAnimatable;
+		Settings.bLimitTranslation = Control.bLimitTranslation;
+		Settings.bLimitRotation = Control.bLimitRotation;
+		Settings.bLimitScale = Control.bLimitScale;
+		Settings.bDrawLimits = Control.bDrawLimits;
+		Settings.MinimumValue = Control.MinimumValue;
+		Settings.MaximumValue = Control.MaximumValue;
+		Settings.bGizmoEnabled = Control.bGizmoEnabled;
+		Settings.bGizmoVisible = Control.bGizmoVisible;
+		Settings.GizmoName = Control.GizmoName;
+		Settings.GizmoColor = Control.GizmoColor;
+		Settings.ControlEnum = Control.ControlEnum;
+
+		FRigControlValue InitialValue = Control.InitialValue;
+		if(!InitialValue.IsValid())
+		{
+			InitialValue.SetFromTransform(InitialValue.Storage_DEPRECATED, Settings.ControlType, Settings.PrimaryAxis);
+		}
+		
+		const FRigElementKey Key = AddControl(
+			Control.Name,
+			FRigElementKey(),
+			Settings,
+			InitialValue,
+			Control.OffsetTransform,
+			Control.GizmoTransform,
+			false);
+
+		KeyMap.Add(Control.GetElementKey(), Key);
+	}
+	
+	for(const FRigCurve& Curve : InContainer.CurveContainer)
+	{
+		const FRigElementKey Key = AddCurve(Curve.Name, Curve.Value, false);
+		KeyMap.Add(Curve.GetElementKey(), Key);
+	}
+
+	for(const FRigSpace& Space : InContainer.SpaceHierarchy)
+	{
+		const FRigElementKey OriginalParentKey = Space.GetParentElementKey();
+		if(OriginalParentKey.IsValid())
+		{
+			FRigElementKey ParentKey;
+			if(const FRigElementKey* ParentKeyPtr = KeyMap.Find(OriginalParentKey))
+			{
+				ParentKey = *ParentKeyPtr;
+			}
+			SetParent(Space.GetElementKey(), ParentKey, false, false);
+		}
+	}
+
+	for(const FRigControl& Control : InContainer.ControlHierarchy)
+	{
+		FRigElementKey OriginalParentKey = Control.GetParentElementKey();
+		const FRigElementKey SpaceKey = Control.GetSpaceElementKey();
+		OriginalParentKey = SpaceKey.IsValid() ? SpaceKey : OriginalParentKey;
+		if(OriginalParentKey.IsValid())
+		{
+			FRigElementKey ParentKey;
+			if(const FRigElementKey* ParentKeyPtr = KeyMap.Find(OriginalParentKey))
+			{
+				ParentKey = *ParentKeyPtr;
+			}
+			SetParent(Control.GetElementKey(), ParentKey, false, false);
+		}
+	}
+
+#if WITH_EDITOR
+	if(!IsRunningCommandlet()) // don't show warnings like this if we are cooking
+	{
+		for(const TPair<FRigElementKey, FRigElementKey>& Pair: KeyMap)
+		{
+			if(Pair.Key != Pair.Value)
+			{
+				check(Pair.Key.Type == Pair.Value.Type);
+				const FText TypeLabel = StaticEnum<ERigElementType>()->GetDisplayNameTextByValue((int64)Pair.Key.Type);
+				ReportWarningf(TEXT("%s '%s' was renamed to '%s' during load (fixing invalid name)."), *TypeLabel.ToString(), *Pair.Key.Name.ToString(), *Pair.Value.Name.ToString());
+			}
+		}
+	}
+#endif
+
+	TArray<FRigElementKey> AddedKeys;
+	KeyMap.GenerateValueArray(AddedKeys);
+	return AddedKeys;
 }
 
 void URigHierarchyController::Notify(ERigHierarchyNotification InNotifType, const FRigBaseElement* InElement)

@@ -34,6 +34,41 @@ FRigControlHierarchy::FRigControlHierarchy()
 {
 }
 
+FRigControl& FRigControlHierarchy::Add(
+    const FName& InNewName,
+    ERigControlType InControlType,
+    const FName& InParentName,
+    const FName& InSpaceName,
+    const FTransform& InOffsetTransform,
+    const FRigControlValue& InValue,
+    const FName& InGizmoName,
+    const FTransform& InGizmoTransform,
+    const FLinearColor& InGizmoColor
+)
+{
+	FRigControl NewControl;
+	NewControl.Name = InNewName;
+	NewControl.ControlType = InControlType;
+	NewControl.ParentIndex = INDEX_NONE; // we don't support indices
+	NewControl.ParentName = InParentName;
+	NewControl.SpaceIndex = INDEX_NONE;
+	NewControl.SpaceName = InSpaceName;
+	NewControl.OffsetTransform = InOffsetTransform;
+	NewControl.InitialValue = InValue;
+	NewControl.Value = FRigControlValue();
+	NewControl.GizmoName = InGizmoName;
+	NewControl.GizmoTransform = InGizmoTransform;
+	NewControl.GizmoColor = InGizmoColor;
+
+	if (!NewControl.InitialValue.IsValid())
+	{
+		NewControl.SetValueFromTransform(FTransform::Identity, ERigControlValueType::Initial);
+	}
+
+	const int32 Index = Controls.Add(NewControl);
+	return Controls[Index];
+}
+
 void FRigControlHierarchy::PostLoad()
 {
 	for (FRigControl& Control : Controls)

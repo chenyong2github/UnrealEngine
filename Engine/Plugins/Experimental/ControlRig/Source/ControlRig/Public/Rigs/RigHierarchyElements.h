@@ -410,6 +410,19 @@ struct CONTROLRIG_API FRigHierarchyCopyPasteContent
 
     UPROPERTY()
 	TArray<FRigHierarchyCopyPasteContentPerElement> Elements;
+
+	// Maintain properties below for backwards compatibility pre-5.0
+	UPROPERTY()
+	TArray<ERigElementType> Types;
+
+	UPROPERTY()
+	TArray<FString> Contents;
+
+	UPROPERTY()
+	TArray<FTransform> LocalTransforms;
+
+	UPROPERTY()
+	TArray<FTransform> GlobalTransforms;
 };
 
 USTRUCT(BlueprintType)

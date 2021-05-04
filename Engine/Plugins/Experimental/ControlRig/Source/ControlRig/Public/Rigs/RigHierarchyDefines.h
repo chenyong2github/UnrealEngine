@@ -19,6 +19,7 @@ enum class ERigElementType : uint8
 	None,
 	Bone = 0x001,
 	Null = 0x002,
+	Space = Null UMETA(Hidden),
 	Control = 0x004,
 	Curve = 0x008,
 	RigidBody = 0x010,
@@ -721,6 +722,7 @@ private:
 
 	friend struct FRigControlHierarchy;
 	friend class UControlRigBlueprint;
+	friend class URigHierarchyController;
 };
 
 template<>

@@ -60,11 +60,7 @@ struct CONTROLRIG_API FRigBone: public FRigElement
 
 	FORCEINLINE virtual FRigElementKey GetParentElementKey(bool bForce = false) const
 	{
-		if (ParentIndex != INDEX_NONE || bForce)
-		{
-			return FRigElementKey(ParentName, GetElementType());
-		}
-		return FRigElementKey();
+		return FRigElementKey(ParentName, GetElementType());
 	}
 };
 
@@ -80,6 +76,8 @@ struct CONTROLRIG_API FRigBoneHierarchy
 	FORCEINLINE TArray<FRigBone>::RangedForIteratorType      end()         { return Bones.end();   }
 	FORCEINLINE TArray<FRigBone>::RangedForConstIteratorType end() const   { return Bones.end();   }
 
+	FRigBone& Add(const FName& InNewName, const FName& InParentName, ERigBoneType InType, const FTransform& InInitTransform, const FTransform& InLocalTransform, const FTransform& InGlobalTransform);
+	
 private:
 
 	// disable copy constructor

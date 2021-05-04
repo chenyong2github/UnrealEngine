@@ -4,7 +4,9 @@
 
 #include "Rigs/RigHierarchy.h"
 #include "ReferenceSkeleton.h"
+#include "RigHierarchyContainer.h"
 #include "Animation/Skeleton.h"
+#include "RigHierarchyContainer.h"
 #include "RigHierarchyController.generated.h"
 
 UCLASS(BlueprintType)
@@ -322,6 +324,13 @@ public:
 		bool bReplaceExistingElements = false,
 		bool bSelectNewElements = true,
 		bool bSetupUndo = false);
+
+	/**
+	* Imports the content of a RigHierachyContainer (the hierarchy v1 pre 5.0)
+	* This is used for backwards compatbility only during load and does not support undo.
+	* @param InContainer The input hierarchy container
+	*/
+    TArray<FRigElementKey> ImportFromHierarchyContainer(const FRigHierarchyContainer& InContainer);
 
 	/**
 	 * Removes an existing element from the hierarchy
