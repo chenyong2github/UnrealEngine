@@ -145,8 +145,6 @@
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
 #include "Misc/ScopedSlowTask.h"
-#include "DistanceFieldAtlas.h"
-#include "MeshCardRepresentation.h"
 
 #include "ComponentReregisterContext.h"
 #include "Engine/DocumentationActor.h"
@@ -2138,32 +2136,6 @@ void UEditorEngine::EditorDestroyWorld( FWorldContext & Context, const FText& Cl
 			if (ensureAlways(LevelWorld) && LevelWorld != ContextWorld && LevelWorld != NewWorld)
 			{
 				FEditorSupportDelegates::PrepareToCleanseEditorObject.Broadcast(LevelWorld);
-			}
-		}
-	}
-
-	// Prevent the GC from not being able to garbage collect the packages we're tying to unload due to async tasks
-	// for static mesh that are embedded in the world.
-	if (GDistanceFieldAsyncQueue || GCardRepresentationAsyncQueue)
-	{
-		UPackage* NewWorldPackage = NewWorld ? NewWorld->GetOutermost() : nullptr;
-		if (NewWorldPackage && WorldPackage != NewWorldPackage)
-		{
-			for (TObjectIterator<UStaticMesh> It; It; ++It)
-			{
-				UStaticMesh* StaticMesh = *It;
-				if (WorldPackage == StaticMesh->GetPackage())
-				{
-					if (GDistanceFieldAsyncQueue)
-					{
-						GDistanceFieldAsyncQueue->CancelBuild(StaticMesh);
-					}
-
-					if (GCardRepresentationAsyncQueue)
-					{
-						GCardRepresentationAsyncQueue->CancelBuild(StaticMesh);
-					}
-				}
 			}
 		}
 	}

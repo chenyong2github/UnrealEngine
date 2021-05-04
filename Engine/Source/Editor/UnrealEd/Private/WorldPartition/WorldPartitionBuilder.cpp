@@ -6,8 +6,6 @@
 #include "Editor.h"
 #include "Misc/ConfigCacheIni.h"
 #include "HAL/PlatformFileManager.h"
-#include "DistanceFieldAtlas.h"
-#include "MeshCardRepresentation.h"
 #include "StaticMeshCompiler.h"
 #include "Engine/World.h"
 #include "WorldPartition/WorldPartition.h"
@@ -269,16 +267,6 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 
 void UWorldPartitionBuilder::DoCollectGarbage() const
 {
-	if (GDistanceFieldAsyncQueue)
-	{
-		GDistanceFieldAsyncQueue->BlockUntilAllBuildsComplete();
-	}
-
-	if (GCardRepresentationAsyncQueue)
-	{
-		GCardRepresentationAsyncQueue->BlockUntilAllBuildsComplete();
-	}
-
 	const FPlatformMemoryStats MemStatsBefore = FPlatformMemory::GetStats();
 	CollectGarbage(RF_NoFlags, true);
 	const FPlatformMemoryStats MemStatsAfter = FPlatformMemory::GetStats();

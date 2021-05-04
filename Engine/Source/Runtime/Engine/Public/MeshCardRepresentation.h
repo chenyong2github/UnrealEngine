@@ -200,7 +200,7 @@ public:
 };
 
 /** Class that manages asynchronous building of mesh distance fields. */
-class FCardRepresentationAsyncQueue : public FGCObject, IAssetCompilingManager
+class FCardRepresentationAsyncQueue : IAssetCompilingManager
 {
 public:
 
@@ -225,11 +225,6 @@ public:
 
 	/** Called once per frame, fetches completed tasks and applies them to the scene. */
 	ENGINE_API void ProcessAsyncTasks(bool bLimitExecutionTime = false) override;
-
-	/** Exposes UObject references used by the async build. */
-	ENGINE_API void AddReferencedObjects(FReferenceCollector& Collector);
-
-	ENGINE_API virtual FString GetReferencerName() const override;
 
 	/** Blocks until it is safe to shut down (worker threads are idle). */
 	ENGINE_API void Shutdown() override;
@@ -266,7 +261,13 @@ private:
 	void StartBackgroundTask(FAsyncCardRepresentationTask* Task);
 
 	/** Cancel or finish any background work for the given task. */
-	void CancelBackgroundTask(TArray<FAsyncCardRepresentationTask*> Tasks);
+	static void CancelAndDeleteBackgroundTask(TArray<FAsyncCardRepresentationTask*> Tasks);
+
+	/** Return whether the task has become invalid and should be cancelled (i.e. reference unreachable objects) */
+	bool IsTaskInvalid(FAsyncCardRepresentationTask* Task) const;
+
+	/** Used to cancel tasks that are not needed anymore when garbage collection occurs */
+	void OnPostReachabilityAnalysis();
 
 	/** Game-thread managed list of tasks in the async system. */
 	TArray<FAsyncCardRepresentationTask*> ReferencedTasks;
@@ -276,6 +277,8 @@ private:
 
 	/** Tasks that have completed processing. */
 	TLockFreePointerListLIFO<FAsyncCardRepresentationTask> CompletedTasks;
+
+	FDelegateHandle PostReachabilityAnalysisHandle;
 
 	class IMeshUtilities* MeshUtilities;
 

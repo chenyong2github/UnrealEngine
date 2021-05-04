@@ -336,7 +336,7 @@ public:
 };
 
 /** Class that manages asynchronous building of mesh distance fields. */
-class FDistanceFieldAsyncQueue : public FGCObject, IAssetCompilingManager
+class FDistanceFieldAsyncQueue : IAssetCompilingManager
 {
 public:
 
@@ -361,12 +361,6 @@ public:
 
 	/** Called once per frame, fetches completed tasks and applies them to the scene. */
 	ENGINE_API void ProcessAsyncTasks(bool bLimitExecutionTime = false) override;
-
-	/** Exposes UObject references used by the async build. */
-	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-
-	/** Returns name of class for reference tracking */
-	ENGINE_API virtual FString GetReferencerName() const override;
 
 	/** Blocks until it is safe to shut down (worker threads are idle). */
 	ENGINE_API void Shutdown() override;
@@ -402,7 +396,13 @@ private:
 	void StartBackgroundTask(FAsyncDistanceFieldTask* Task);
 
 	/** Cancel or finish any background work for the given task. */
-	void CancelBackgroundTask(TArray<FAsyncDistanceFieldTask*> Tasks);
+	static void CancelAndDeleteBackgroundTask(TArray<FAsyncDistanceFieldTask*> Tasks);
+
+	/** Return whether the task has become invalid and should be cancelled (i.e. reference unreachable objects) */
+	bool IsTaskInvalid(FAsyncDistanceFieldTask* Task) const;
+
+	/** Used to cancel tasks that are not needed anymore when garbage collection occurs */
+	void OnPostReachabilityAnalysis();
 
 	/** Get notified when static mesh finish compiling */
 	void OnAssetPostCompile(const TArray<FAssetCompileData>& CompiledAssets);
@@ -416,6 +416,8 @@ private:
 	/** Tasks that have completed processing. */
 	// consider changing this from FIFO to Unordered, which may be faster
 	TLockFreePointerListLIFO<FAsyncDistanceFieldTask> CompletedTasks;
+
+	FDelegateHandle PostReachabilityAnalysisHandle;
 
 	class IMeshUtilities* MeshUtilities;
 

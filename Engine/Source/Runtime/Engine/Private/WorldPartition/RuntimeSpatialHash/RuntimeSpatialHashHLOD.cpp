@@ -20,8 +20,6 @@
 
 #include "EngineUtils.h"
 
-#include "DistanceFieldAtlas.h"
-#include "MeshCardRepresentation.h"
 #include "StaticMeshCompiler.h"
 
 
@@ -93,16 +91,6 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 {
 	auto DoCollectGarbage = []()
 	{
-		if (GDistanceFieldAsyncQueue)
-		{
-			GDistanceFieldAsyncQueue->BlockUntilAllBuildsComplete();
-		}
-
-		if (GCardRepresentationAsyncQueue)
-		{
-			GCardRepresentationAsyncQueue->BlockUntilAllBuildsComplete();
-		}
-
 		const FPlatformMemoryStats MemStatsBefore = FPlatformMemory::GetStats();
 		CollectGarbage(RF_NoFlags, true);
 		const FPlatformMemoryStats MemStatsAfter = FPlatformMemory::GetStats();

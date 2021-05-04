@@ -94,11 +94,8 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "TextureCompiler.h"
 #include "UObject/ReferencerFinder.h"
-#include "DistanceFieldAtlas.h"
-#include "MeshCardRepresentation.h"
 #include "Containers/Set.h"
 #include "UObject/StrongObjectPtr.h"
-#include "DistanceFieldAtlas.h"
 #include "Logging/LogMacros.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogObjectTools, Log, All);
@@ -2660,21 +2657,6 @@ namespace ObjectTools
 			if (UWorld* World = Cast<UWorld>(ObjectToDelete))
 			{
 				World->CleanupWorld();
-			}
-
-			// Make sure the object is not still referenced by async tasks
-			UStaticMesh* StaticMesh = Cast<UStaticMesh>(ObjectToDelete);
-			if (StaticMesh != nullptr)
-			{
-				if (GDistanceFieldAsyncQueue)
-				{
-					GDistanceFieldAsyncQueue->CancelBuild(StaticMesh);
-				}
-				
-				if (GCardRepresentationAsyncQueue)
-				{
-					GCardRepresentationAsyncQueue->CancelBuild(StaticMesh);
-				}
 			}
 		}
 
