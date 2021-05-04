@@ -27,6 +27,7 @@ public:
 	};
 
 						FThreads();
+						~FThreads();
 	FInfo*				GetInfo();
 	FInfo*				GetInfo(uint32 ThreadId);
 	void				SetGroupName(const ANSICHAR* InGroupName, uint32 Length);
@@ -34,8 +35,7 @@ public:
 
 private:
 	uint32				LastGetInfoId = ~0u;
-	FInfo				ImportantInfo;
-	TArray<FInfo>		Infos;
+	TArray<FInfo*>		Infos;
 	TArray<uint8>		GroupName;
 };
 
