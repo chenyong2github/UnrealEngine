@@ -288,7 +288,35 @@ bool UAssetPlacementEdMode::HasAnyAssetsInPalette() const
 
 bool UAssetPlacementEdMode::HasActiveSelection() const
 {
-	return HasAnyAssetsInPalette() && Owner->GetEditorSelectionSet()->HasSelectedElements();
+	if (!HasAnyAssetsInPalette())
+	{
+		return false;
+	}
+
+	if (Owner->GetEditorSelectionSet()->HasSelectedElements())
+	{
+		return true;
+	}
+
+	for (TActorIterator<AInstancedFoliageActor> It(GetWorld()); It; ++It)
+	{
+		if (AInstancedFoliageActor* FoliageActor = *It)
+		{
+			bool bHasSelectedFoliage = false;
+			FoliageActor->ForEachFoliageInfo([&bHasSelectedFoliage](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
+				{
+					bHasSelectedFoliage = (FoliageInfo.SelectedIndices.Num() > 0);
+					return !bHasSelectedFoliage;
+				});
+
+			if (bHasSelectedFoliage)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 bool UAssetPlacementEdMode::IsInSelectionTool() const

@@ -67,6 +67,8 @@ void UPlacementModeLassoSelectTool::OnTick(float DeltaTime)
 					}
 					return true;
 				});
+
+				continue;
 			}
 		}
 
