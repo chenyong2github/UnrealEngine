@@ -743,7 +743,7 @@ bool FDetailLayoutBuilderImpl::IsPropertyVisible( TSharedRef<IPropertyHandle> Pr
 		return IsPropertyVisible(PropertyAndParent);
 	}
 	
-	return false;
+	return true;
 }
 
 bool FDetailLayoutBuilderImpl::IsPropertyVisible( const struct FPropertyAndParent& PropertyAndParent ) const
