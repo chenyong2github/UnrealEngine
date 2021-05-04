@@ -26,6 +26,7 @@ UProgressBar::UProgressBar(const FObjectInitializer& ObjectInitializer)
 	WidgetStyle.FillImage.TintColor = FLinearColor::White;
 
 	BarFillType = EProgressBarFillType::LeftToRight;
+	BarFillStyle = EProgressBarFillStyle::Mask;
 	bIsMarquee = false;
 	Percent = 0;
 	FillColorAndOpacity = FLinearColor::White;
@@ -56,6 +57,7 @@ void UProgressBar::SynchronizeProperties()
 	MyProgressBar->SetStyle(&WidgetStyle);
 
 	MyProgressBar->SetBarFillType(BarFillType);
+	MyProgressBar->SetBarFillStyle(BarFillStyle);
 	MyProgressBar->SetPercent(bIsMarquee ? TOptional<float>() : PercentBinding);
 	MyProgressBar->SetFillColorAndOpacity(FillColorAndOpacityBinding);
 	MyProgressBar->SetBorderPadding(BorderPadding);

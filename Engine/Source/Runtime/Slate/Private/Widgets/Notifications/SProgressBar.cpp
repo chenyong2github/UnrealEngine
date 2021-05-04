@@ -14,6 +14,7 @@ void SProgressBar::Construct( const FArguments& InArgs )
 
 	SetPercent(InArgs._Percent);
 	BarFillType = InArgs._BarFillType;
+	BarFillStyle = InArgs._BarFillStyle;
 	
 	BackgroundImage = InArgs._BackgroundImage;
 	FillImage = InArgs._FillImage;
@@ -61,6 +62,15 @@ void SProgressBar::SetBarFillType(EProgressBarFillType::Type InBarFillType)
 	if(BarFillType != InBarFillType)
 	{
 		BarFillType = InBarFillType;
+		Invalidate(EInvalidateWidget::Paint);
+	}
+}
+
+void SProgressBar::SetBarFillStyle(EProgressBarFillStyle::Type InBarFillStyle)
+{
+	if (BarFillStyle != InBarFillStyle)
+	{
+		BarFillStyle = InBarFillStyle;
 		Invalidate(EInvalidateWidget::Paint);
 	}
 }
@@ -188,29 +198,49 @@ int32 SProgressBar::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 			}
 		}
 
+		float MarqueeAnimOffsetX = 0.0f;
+		float MarqueeImageSizeX = 0.0f;
+		float MarqueeAnimOffsetY = 0.0f;
+		float MarqueeImageSizeY = 0.0f;
+
+		if (Style->EnableFillAnimation)
+		{
+			MarqueeAnimOffsetX = CurrentFillImage->ImageSize.X * MarqueeOffset;
+			MarqueeImageSizeX = CurrentFillImage->ImageSize.X;
+
+			MarqueeAnimOffsetY = CurrentFillImage->ImageSize.Y * MarqueeOffset;
+			MarqueeImageSizeY = CurrentFillImage->ImageSize.Y;
+		}
+
+		bool bScaleWithFillPerc = BarFillStyle == EProgressBarFillStyle::Scale;
+
 		const float ClampedFraction = FMath::Clamp(ProgressFraction.GetValue(), 0.0f, 1.0f);
 		switch (ComputedBarFillType)
 		{
-			case EProgressBarFillType::RightToLeft:
+			case EProgressBarFillType::FillFromCenter:
 			{
-				if (PushTransformedClip(OutDrawElements, AllottedGeometry, BorderPaddingRef, FVector2D(1, 0), FSlateRect(ClampedFraction, 0, 0, 1)))
+				float HalfFrac = ClampedFraction / 2.0f;
+				if (PushTransformedClip(OutDrawElements, AllottedGeometry, BorderPaddingRef, FVector2D(0.5, 0.5), FSlateRect(HalfFrac, HalfFrac, HalfFrac, HalfFrac)))
 				{
-					float MarqueeAnimOffset = 0;
-					float MarqueeImageSize = 0;
-
-					if (Style->EnableFillAnimation)
+					FPaintGeometry PaintRect;
+					if (bScaleWithFillPerc)
 					{
-						MarqueeAnimOffset = CurrentFillImage->ImageSize.X * MarqueeOffset;
-						MarqueeImageSize = CurrentFillImage->ImageSize.X;
+						PaintRect = AllottedGeometry.ToPaintGeometry(
+							FVector2D((AllottedGeometry.GetLocalSize().X * 0.5f) - ((AllottedGeometry.GetLocalSize().X * (ClampedFraction)) * 0.5f), (AllottedGeometry.GetLocalSize().Y * 0.5f) - ((AllottedGeometry.GetLocalSize().Y * (ClampedFraction)) * 0.5f)),
+							FVector2D(AllottedGeometry.GetLocalSize().X * ClampedFraction, AllottedGeometry.GetLocalSize().Y * ClampedFraction));
+					}
+					else
+					{
+						PaintRect = AllottedGeometry.ToPaintGeometry(
+							FVector2D(0.0f, 0.0f),
+							FVector2D(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y));
 					}
 
 					// Draw Fill
 					FSlateDrawElement::MakeBox(
 						OutDrawElements,
 						RetLayerId++,
-						AllottedGeometry.ToPaintGeometry(
-							FVector2D(MarqueeAnimOffset - MarqueeImageSize, 0.0f),
-							FVector2D(AllottedGeometry.GetLocalSize().X+MarqueeImageSize, AllottedGeometry.GetLocalSize().Y)),
+						PaintRect,
 						CurrentFillImage,
 						DrawEffects,
 						FillColorAndOpacitySRGB
@@ -220,22 +250,67 @@ int32 SProgressBar::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 				}
 				break;
 			}
-			case EProgressBarFillType::FillFromCenter:
+			case EProgressBarFillType::FillFromCenterHorizontal:
 			{
 				float HalfFrac = ClampedFraction / 2.0f;
-				if (PushTransformedClip(OutDrawElements, AllottedGeometry, BorderPaddingRef, FVector2D(0.5, 0.5), FSlateRect(HalfFrac, HalfFrac, HalfFrac, HalfFrac)))
+				if (PushTransformedClip(OutDrawElements, AllottedGeometry, BorderPaddingRef, FVector2D(0.5, 0), FSlateRect(HalfFrac, 0, HalfFrac, 1)))
 				{
+					FPaintGeometry PaintRect;
+					if (bScaleWithFillPerc)
+					{
+						PaintRect = AllottedGeometry.ToPaintGeometry(
+							FVector2D((AllottedGeometry.GetLocalSize().X * 0.5f) - ((AllottedGeometry.GetLocalSize().X * (ClampedFraction)) * 0.5f), 0.0f),
+							FVector2D(AllottedGeometry.GetLocalSize().X * ClampedFraction, AllottedGeometry.GetLocalSize().Y));
+					}
+					else
+					{
+						PaintRect = AllottedGeometry.ToPaintGeometry(
+							FVector2D(0.0f, 0.0f),
+							FVector2D(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y));
+					}
+
 					// Draw Fill
 					FSlateDrawElement::MakeBox(
 						OutDrawElements,
 						RetLayerId++,
-						AllottedGeometry.ToPaintGeometry(
-							FVector2D((AllottedGeometry.GetLocalSize().X * 0.5f) - ((AllottedGeometry.GetLocalSize().X * ( ClampedFraction ))*0.5f), 0.0f),
-							FVector2D(AllottedGeometry.GetLocalSize().X * ( ClampedFraction ) , AllottedGeometry.GetLocalSize().Y )),
+						PaintRect,
 						CurrentFillImage,
 						DrawEffects,
 						FillColorAndOpacitySRGB
-						);
+					);
+
+					OutDrawElements.PopClip();
+				}
+				break;
+			}
+			case EProgressBarFillType::FillFromCenterVertical:
+			{
+				float HalfFrac = ClampedFraction / 2.0f;
+				if (PushTransformedClip(OutDrawElements, AllottedGeometry, BorderPaddingRef, FVector2D(0, 0.5), FSlateRect(0, HalfFrac, 1, HalfFrac)))
+				{
+					FPaintGeometry PaintRect;
+					if (bScaleWithFillPerc)
+					{
+						PaintRect = AllottedGeometry.ToPaintGeometry(
+							FVector2D(0.0f, (AllottedGeometry.GetLocalSize().Y * 0.5f) - ((AllottedGeometry.GetLocalSize().Y * (ClampedFraction)) * 0.5f)),
+							FVector2D(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y * ClampedFraction));
+					}
+					else
+					{
+						PaintRect = AllottedGeometry.ToPaintGeometry(
+							FVector2D(0.0f, 0.0f),
+							FVector2D(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y));
+					}
+
+					// Draw Fill
+					FSlateDrawElement::MakeBox(
+						OutDrawElements,
+						RetLayerId++,
+						PaintRect,
+						CurrentFillImage,
+						DrawEffects,
+						FillColorAndOpacitySRGB
+					);
 
 					OutDrawElements.PopClip();
 				}
@@ -245,22 +320,25 @@ int32 SProgressBar::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 			{
 				if (PushTransformedClip(OutDrawElements, AllottedGeometry, BorderPaddingRef, FVector2D(0, 0), FSlateRect(0, 0, 1, ClampedFraction)))
 				{
-					float MarqueeAnimOffset = 0;
-					float MarqueeImageSize = 0;
-
-					if (Style->EnableFillAnimation)
+					FPaintGeometry PaintRect;
+					if (bScaleWithFillPerc)
 					{
-						MarqueeAnimOffset = CurrentFillImage->ImageSize.Y * MarqueeOffset;
-						MarqueeImageSize = CurrentFillImage->ImageSize.Y;
+						PaintRect = AllottedGeometry.ToPaintGeometry(
+							FVector2D(0.0f, 0.0f),
+							FVector2D(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y * ClampedFraction));
+					}
+					else
+					{
+						PaintRect = AllottedGeometry.ToPaintGeometry(
+							FVector2D(0.0f, MarqueeAnimOffsetY - MarqueeImageSizeY),
+							FVector2D(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y + MarqueeImageSizeY));
 					}
 
 					// Draw Fill
 					FSlateDrawElement::MakeBox(
 						OutDrawElements,
 						RetLayerId++,
-						AllottedGeometry.ToPaintGeometry(
-							FVector2D(0.0f, MarqueeAnimOffset - MarqueeImageSize),
-							FVector2D(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y + MarqueeImageSize)),
+						PaintRect,
 						CurrentFillImage,
 						DrawEffects,
 						FillColorAndOpacitySRGB
@@ -274,26 +352,61 @@ int32 SProgressBar::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 			{
 				if (PushTransformedClip(OutDrawElements, AllottedGeometry, BorderPaddingRef, FVector2D(0, 1), FSlateRect(0, ClampedFraction, 1, 0)))
 				{
-					float MarqueeAnimOffset = 0;
-					float MarqueeImageSize = 0;
-
-					if (Style->EnableFillAnimation)
+					FPaintGeometry PaintRect;
+					if (bScaleWithFillPerc)
 					{
-						MarqueeAnimOffset = CurrentFillImage->ImageSize.Y * MarqueeOffset;
-						MarqueeImageSize = CurrentFillImage->ImageSize.Y;
+						PaintRect = AllottedGeometry.ToPaintGeometry(
+							FVector2D(0.0f, AllottedGeometry.GetLocalSize().Y * (1.0f - ClampedFraction)),
+							FVector2D(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y * ClampedFraction));
+					}
+					else
+					{
+						PaintRect = AllottedGeometry.ToPaintGeometry(
+							FVector2D(0.0f, MarqueeAnimOffsetY - MarqueeImageSizeY),
+							FVector2D(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y + MarqueeImageSizeY));
 					}
 
 					// Draw Fill
 					FSlateDrawElement::MakeBox(
 						OutDrawElements,
 						RetLayerId++,
-						AllottedGeometry.ToPaintGeometry(
-							FVector2D(0.0f, MarqueeAnimOffset - MarqueeImageSize),
-							FVector2D( AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y + MarqueeImageSize)),
+						PaintRect,
 						CurrentFillImage,
 						DrawEffects,
 						FillColorAndOpacitySRGB
-						);
+					);
+
+					OutDrawElements.PopClip();
+				}
+				break;
+			}
+			case EProgressBarFillType::RightToLeft:
+			{
+				if (PushTransformedClip(OutDrawElements, AllottedGeometry, BorderPaddingRef, FVector2D(1, 0), FSlateRect(ClampedFraction, 0, 0, 1)))
+				{
+					FPaintGeometry PaintRect;
+					if (bScaleWithFillPerc)
+					{
+						PaintRect = AllottedGeometry.ToPaintGeometry(
+							FVector2D(AllottedGeometry.GetLocalSize().X * (1.0f - ClampedFraction), 0.0f),
+							FVector2D(AllottedGeometry.GetLocalSize().X * ClampedFraction, AllottedGeometry.GetLocalSize().Y));
+					}
+					else
+					{
+						PaintRect = AllottedGeometry.ToPaintGeometry(
+							FVector2D(MarqueeAnimOffsetX - MarqueeImageSizeX, 0.0f),
+							FVector2D(AllottedGeometry.GetLocalSize().X + MarqueeImageSizeX, AllottedGeometry.GetLocalSize().Y));
+					}
+
+					// Draw Fill
+					FSlateDrawElement::MakeBox(
+						OutDrawElements,
+						RetLayerId++,
+						PaintRect,
+						CurrentFillImage,
+						DrawEffects,
+						FillColorAndOpacitySRGB
+					);
 
 					OutDrawElements.PopClip();
 				}
@@ -302,25 +415,27 @@ int32 SProgressBar::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 			case EProgressBarFillType::LeftToRight:
 			default:
 			{
-				float MarqueeAnimOffset = 0;
-				float MarqueeImageSize = 0;
-
-				if(Style->EnableFillAnimation)
-				{
-					MarqueeAnimOffset = CurrentFillImage->ImageSize.X * MarqueeOffset;
-					MarqueeImageSize = CurrentFillImage->ImageSize.X;
-				}
-
 				if (PushTransformedClip(OutDrawElements, AllottedGeometry, BorderPaddingRef, FVector2D(0, 0), FSlateRect(0, 0, ClampedFraction, 1)))
 				{
+					FPaintGeometry PaintRect;
+					if (bScaleWithFillPerc)
+					{
+						PaintRect = AllottedGeometry.ToPaintGeometry(
+							FVector2D(0.0f, 0.0f),
+							FVector2D(AllottedGeometry.GetLocalSize().X * ClampedFraction, AllottedGeometry.GetLocalSize().Y));
+					}
+					else
+					{
+						PaintRect = AllottedGeometry.ToPaintGeometry(
+							FVector2D(MarqueeAnimOffsetX - MarqueeImageSizeX, 0.0f),
+							FVector2D(AllottedGeometry.GetLocalSize().X + MarqueeImageSizeX, AllottedGeometry.GetLocalSize().Y));
+					}
 
 					// Draw fill
 					FSlateDrawElement::MakeBox(
 						OutDrawElements,
 						RetLayerId++,
-						AllottedGeometry.ToPaintGeometry(
-							FVector2D(MarqueeAnimOffset - MarqueeImageSize, 0.0f),
-							FVector2D(AllottedGeometry.GetLocalSize().X+ MarqueeImageSize, AllottedGeometry.GetLocalSize().Y)),
+						PaintRect,
 						CurrentFillImage,
 						DrawEffects,
 						FillColorAndOpacitySRGB

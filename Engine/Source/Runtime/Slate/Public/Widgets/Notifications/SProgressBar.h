@@ -29,12 +29,31 @@ namespace EProgressBarFillType
 		LeftToRight,
 		// will fill up from the right side to the left side
 		RightToLeft,
-		// will fill up from the center to the outer edges
+		// will scale up from the midpoint to the outer edges both vertically and horizontally
 		FillFromCenter,
+		// will fill up from the centerline to the outer edges horizontally
+		FillFromCenterHorizontal,
+		// will fill up from the centerline to the outer edges vertically
+		FillFromCenterVertical,
 		// will fill up from the top to the the bottom
 		TopToBottom,
 		// will fill up from the bottom to the the top
 		BottomToTop,
+	};
+}
+
+/**
+ * SProgressBar Fill Style
+ */
+UENUM(BlueprintType)
+namespace EProgressBarFillStyle
+{
+	enum Type
+	{
+		// a mask is used to paint the fill image
+		Mask,
+		// the fill image is scaled to the fill percentage
+		Scale,
 	};
 }
 
@@ -46,6 +65,7 @@ public:
 	SLATE_BEGIN_ARGS(SProgressBar)
 		: _Style( &FAppStyle::Get().GetWidgetStyle<FProgressBarStyle>("ProgressBar") )
 		, _BarFillType(EProgressBarFillType::LeftToRight)
+		, _BarFillStyle(EProgressBarFillStyle::Mask)
 		, _Percent( TOptional<float>() )
 		, _FillColorAndOpacity( FLinearColor::White )
 		, _BorderPadding( FVector2D(0,0) )
@@ -60,8 +80,11 @@ public:
 		/** Style used for the progress bar */
 		SLATE_STYLE_ARGUMENT( FProgressBarStyle, Style )
 
-		/** Defines if this progress bar fills Left to right or right to left*/
+		/** Defines the direction in which the progress bar fills */
 		SLATE_ARGUMENT( EProgressBarFillType::Type, BarFillType )
+
+		/** Defines the visual style of the progress bar fill - scale or mask */
+		SLATE_ARGUMENT( EProgressBarFillStyle::Type, BarFillStyle )
 
 		/** Used to determine the fill position of the progress bar ranging 0..1 */
 		SLATE_ATTRIBUTE( TOptional<float>, Percent )
@@ -105,6 +128,9 @@ public:
 	
 	/** See attribute BarFillType */
 	void SetBarFillType(EProgressBarFillType::Type InBarFillType);
+
+	/** See attribute BarFillStyle */
+	void SetBarFillStyle(EProgressBarFillStyle::Type InBarFillStyle);
 	
 	/** See attribute SetFillColorAndOpacity */
 	void SetFillColorAndOpacity(TAttribute< FSlateColor > InFillColorAndOpacity);
@@ -147,6 +173,8 @@ private:
 	TAttribute< TOptional<float> > Percent;
 
 	EProgressBarFillType::Type BarFillType;
+
+	EProgressBarFillStyle::Type BarFillStyle;
 
 	/** Background image to use for the progress bar */
 	const FSlateBrush* BackgroundImage;
