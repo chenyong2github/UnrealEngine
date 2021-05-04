@@ -4097,6 +4097,11 @@ void UAssetRegistryImpl::ProcessLoadedAssetsToUpdateCache(UE::AssetRegistry::Imp
 		while (Index < CurrentBatchSize)
 		{
 			UObject* LoadedObject = BatchObjects[Index++];
+			if (!LoadedObject->IsAsset())
+			{
+				// If the object has changed and is no longer an asset, ignore it. This can happen when an Actor is modified during cooking to no longer have an external package
+				continue;
+			}
 			BatchAssetDatas.Add(FAssetData(LoadedObject, true /* bAllowBlueprintClass */));
 
 			// Check to see if we have run out of time in this tick

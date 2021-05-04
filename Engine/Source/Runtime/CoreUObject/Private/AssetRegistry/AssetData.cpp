@@ -96,18 +96,18 @@ FAssetData::FAssetData(const UObject* InAsset, bool bAllowBlueprintClass)
 			InAsset = InClass->ClassGeneratedBy;
 		}
 
-		const UPackage* Outermost = InAsset->GetOutermost();
+		const UPackage* Package = InAsset->GetPackage();
 
-		PackageName = Outermost->GetFName();
-		PackagePath = FName(*FPackageName::GetLongPackagePath(Outermost->GetName()));
+		PackageName = Package->GetFName();
+		PackagePath = FName(*FPackageName::GetLongPackagePath(Package->GetName()));
 		AssetName = InAsset->GetFName();
 		AssetClass = InAsset->GetClass()->GetFName();
 		ObjectPath = FName(*InAsset->GetPathName());
 
 		InAsset->GetAssetRegistryTags(*this);
 
-		ChunkIDs = Outermost->GetChunkIDs();
-		PackageFlags = Outermost->GetPackageFlags();
+		ChunkIDs = Package->GetChunkIDs();
+		PackageFlags = Package->GetPackageFlags();
 	}
 }
 

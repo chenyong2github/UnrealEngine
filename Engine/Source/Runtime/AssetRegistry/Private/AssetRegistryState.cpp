@@ -1623,7 +1623,7 @@ void FAssetRegistryState::UpdateAssetData(FAssetData* AssetData, const FAssetDat
 	}
 
 	// Update ObjectPath
-	if (AssetData->PackageName != NewAssetData.PackageName || AssetData->AssetName != NewAssetData.AssetName)
+	if (AssetData->ObjectPath != NewAssetData.ObjectPath)
 	{
 		int32 NumRemoved = CachedAssetsByObjectPath.Remove(AssetData->ObjectPath);
 		check(NumRemoved <= 1);
