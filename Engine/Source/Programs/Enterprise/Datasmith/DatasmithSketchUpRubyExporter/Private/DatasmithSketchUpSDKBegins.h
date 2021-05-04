@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "HAL/Platform.h"
 
 #if PLATFORM_WINDOWS
