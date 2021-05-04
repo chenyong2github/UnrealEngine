@@ -114,12 +114,19 @@ class UWorldPartitionRuntimeCell : public UObject
 	virtual FLinearColor GetDebugColor() const { return FLinearColor::Black; }
 	virtual bool IsAlwaysLoaded() const { return bIsAlwaysLoaded; }
 	virtual void SetIsAlwaysLoaded(bool bInIsAlwaysLoaded) { bIsAlwaysLoaded = bInIsAlwaysLoaded; }
+	virtual void SetPriority(int32 InPriority) { Priority = InPriority; }
 	bool HasDataLayers() const { return !DataLayers.IsEmpty(); }
 	const TArray<FName>& GetDataLayers() const { return DataLayers; }
 	virtual EStreamingStatus GetStreamingStatus() const { return LEVEL_Unloaded; }
 	virtual bool IsLoading() const { return false; }
 	virtual const FString& GetDebugName() const { return DebugName; }
 	virtual bool IsDebugShown() const;
+	virtual int32 SortCompare(const UWorldPartitionRuntimeCell* Other) const;
+
+	/** Caches information on streaming source that will be used later on to sort cell. Returns true if cache was reset, else returns false. */
+	virtual bool CacheStreamingSourceInfo(const struct FWorldPartitionStreamingSource& Source) const;
+
+	static void DirtyStreamingSourceCacheEpoch() { ++UWorldPartitionRuntimeCell::StreamingSourceCacheEpoch; }
 
 #if WITH_EDITOR
 	void SetDataLayers(const TArray<const UDataLayer*>& InDataLayers);
@@ -163,4 +170,16 @@ private:
 
 	UPROPERTY()
 	FString DebugName;
+
+	// Custom Priority
+	UPROPERTY()
+	int32 Priority;
+
+	// Source Priority
+	mutable int32 CachedSourcePriority;
+
+	// Epoch used to dirty cache
+	mutable int32 CachedSourceInfoEpoch;
+
+	static int32 StreamingSourceCacheEpoch;
 };

@@ -266,13 +266,13 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 			float MaxTextWidth = 0;
 			for (const FWorldPartitionStreamingSource& StreamingSource : *StreamingSources)
 			{
-				FWorldPartitionDebugHelper::DrawText(Canvas, StreamingSource.Name.ToString(), GEngine->GetTinyFont(), FColor::White, Pos, &MaxTextWidth);
+				FWorldPartitionDebugHelper::DrawText(Canvas, StreamingSource.Name.ToString(), GEngine->GetSmallFont(), StreamingSource.GetDebugColor(), Pos, &MaxTextWidth);
 			}
 			Pos = CurrentOffset + FVector2D(MaxTextWidth + 10, 0.f);
 			for (const FWorldPartitionStreamingSource& StreamingSource : *StreamingSources)
 			{
-				const FString Text = FString::Printf(TEXT("Pos: %s | Rot: %s"), *StreamingSource.Location.ToString(), *StreamingSource.Rotation.ToString());
-				FWorldPartitionDebugHelper::DrawText(Canvas, Text, GEngine->GetTinyFont(), FColor::White, Pos);
+				const FString Text = FString::Printf(TEXT("Priority: %d | Pos: %s | Rot: %s"), StreamingSource.Priority, *StreamingSource.Location.ToString(), *StreamingSource.Rotation.ToString());
+				FWorldPartitionDebugHelper::DrawText(Canvas, Text, GEngine->GetSmallFont(), FColor::White, Pos);
 			}
 			CurrentOffset.Y = Pos.Y;
 		}

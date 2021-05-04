@@ -9,9 +9,14 @@
 #include "WorldPartition/DataLayer/DataLayersID.h"
 #include "Engine/World.h"
 
+int32 UWorldPartitionRuntimeCell::StreamingSourceCacheEpoch = 0;
+
 UWorldPartitionRuntimeCell::UWorldPartitionRuntimeCell(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 , bIsAlwaysLoaded(false)
+, Priority(0)
+, CachedSourcePriority(0)
+, CachedSourceInfoEpoch(INT_MIN)
 {}
 
 #if WITH_EDITOR
@@ -67,6 +72,28 @@ void UWorldPartitionRuntimeCell::UpdateDebugName()
 }
 
 #endif
+
+bool UWorldPartitionRuntimeCell::CacheStreamingSourceInfo(const FWorldPartitionStreamingSource& Source) const
+{
+	bool bWasCacheDirtied = false;
+	if (CachedSourceInfoEpoch != UWorldPartitionRuntimeCell::StreamingSourceCacheEpoch)
+	{
+		CachedSourceInfoEpoch = UWorldPartitionRuntimeCell::StreamingSourceCacheEpoch;
+		bWasCacheDirtied = true;
+	}
+
+	// If cache was dirtied, use value, else use minimum with existing cached value
+	CachedSourcePriority = bWasCacheDirtied ? (int32)Source.Priority : FMath::Min((int32)Source.Priority, CachedSourcePriority);
+	return bWasCacheDirtied;
+}
+
+int32 UWorldPartitionRuntimeCell::SortCompare(const UWorldPartitionRuntimeCell* Other) const
+{
+	// Source priority (lower value is higher prio)
+	const int32 Comparison = CachedSourcePriority - Other->CachedSourcePriority;
+	// Cell priority (lower value is higher prio)
+	return (Comparison != 0) ? Comparison : (Priority - Other->Priority);
+}
 
 bool UWorldPartitionRuntimeCell::IsDebugShown() const
 {

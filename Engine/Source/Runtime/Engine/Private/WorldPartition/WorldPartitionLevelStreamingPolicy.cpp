@@ -82,6 +82,8 @@ void UWorldPartitionLevelStreamingPolicy::SetTargetStateForCells(EWorldPartition
 
 void UWorldPartitionLevelStreamingPolicy::SetCellsStateToLoaded(const TSet<const UWorldPartitionRuntimeCell*>& ToLoadCells)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionLevelStreamingPolicy::SetCellsStateToLoaded);
+
 	int32 MaxCellsToLoad = GetMaxCellsToLoad();
 	
 	// Sort cells based on importance
@@ -113,6 +115,8 @@ void UWorldPartitionLevelStreamingPolicy::SetCellsStateToLoaded(const TSet<const
 
 void UWorldPartitionLevelStreamingPolicy::SetCellsStateToActivated(const TSet<const UWorldPartitionRuntimeCell*>& ToActivateCells)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionLevelStreamingPolicy::SetCellsStateToActivated);
+
 	int32 MaxCellsToLoad = GetMaxCellsToLoad();
 
 	// Sort cells based on importance
@@ -144,6 +148,8 @@ void UWorldPartitionLevelStreamingPolicy::SetCellsStateToActivated(const TSet<co
 
 void UWorldPartitionLevelStreamingPolicy::SetCellsStateToUnloaded(const TSet<const UWorldPartitionRuntimeCell*>& ToUnloadCells)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionLevelStreamingPolicy::SetCellsStateToUnloaded);
+
 	for (const UWorldPartitionRuntimeCell* Cell : ToUnloadCells)
 	{
 		UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartitionLevelStreamingPolicy::UnloadCells %s"), *Cell->GetName());
@@ -156,6 +162,8 @@ void UWorldPartitionLevelStreamingPolicy::SetCellsStateToUnloaded(const TSet<con
 
 ULevel* UWorldPartitionLevelStreamingPolicy::GetPreferredLoadedLevelToAddToWorld() const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionLevelStreamingPolicy::GetPreferredLoadedLevelToAddToWorld);
+
 	check(WorldPartition->IsInitialized());
 	UWorld* World = WorldPartition->GetWorld();
 	if (World->GetNetMode() == NM_DedicatedServer)

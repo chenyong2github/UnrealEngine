@@ -65,12 +65,6 @@ static FAutoConsoleVariableRef CVarShowRuntimeSpatialHashGridLevelCount(
 	GShowRuntimeSpatialHashGridLevelCount,
 	TEXT("Used to choose how many grid levels to display when showing world partition runtime hash."));
 
-static float GRuntimeSpatialHashCellToSourceAngleContributionToCellImportance = 0.4f; // Value between [0, 1]
-static FAutoConsoleVariableRef CVarRuntimeSpatialHashCellToSourceAngleContributionToCellImportance(
-	TEXT("wp.Runtime.RuntimeSpatialHashCellToSourceAngleContributionToCellImportance"),
-	GRuntimeSpatialHashCellToSourceAngleContributionToCellImportance,
-	TEXT("Value between 0 and 1 that modulates the contribution of the angle between streaming source-to-cell vector and source-forward vector to the cell importance. The closest to 0, the less the angle will contribute to the cell importance."));
-
 // ------------------------------------------------------------------------------------------------
 FSpatialHashStreamingGrid::FSpatialHashStreamingGrid()
 	: Origin(ForceInitToZero)
@@ -108,6 +102,8 @@ const FSquare2DGridHelper& FSpatialHashStreamingGrid::GetGridHelper() const
 
 void FSpatialHashStreamingGrid::GetCells(const FWorldPartitionStreamingQuerySource& QuerySource, TSet<const UWorldPartitionRuntimeCell*>& OutCells) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSpatialHashStreamingGrid::GetCells_QuerySource);
+
 	auto ShouldAddCell = [](const UWorldPartitionRuntimeCell* Cell, const FWorldPartitionStreamingQuerySource& QuerySource)
 	{
 		if (Cell->HasDataLayers())
@@ -160,8 +156,10 @@ void FSpatialHashStreamingGrid::GetCells(const FWorldPartitionStreamingQuerySour
 	}	
 }
 
-void FSpatialHashStreamingGrid::GetCells(const TArray<FWorldPartitionStreamingSource>& Sources, const UDataLayerSubsystem* DataLayerSubsystem, TSet<const UWorldPartitionRuntimeCell*>& OutActivateCells, TSet<const UWorldPartitionRuntimeCell*>& OutLoadCells) const
+void FSpatialHashStreamingGrid::GetCells(const TArray<FWorldPartitionStreamingSource>& Sources, const UDataLayerSubsystem* DataLayerSubsystem, UWorldPartitionRuntimeHash::FStreamingSourceCells& OutActivateCells, UWorldPartitionRuntimeHash::FStreamingSourceCells& OutLoadCells) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSpatialHashStreamingGrid::GetCells);
+
 	const FSquare2DGridHelper& Helper = GetGridHelper();
 	for (const FWorldPartitionStreamingSource& Source : Sources)
 	{
@@ -177,24 +175,24 @@ void FSpatialHashStreamingGrid::GetCells(const TArray<FWorldPartitionStreamingSo
 					{
 						if (Source.TargetState == EStreamingSourceTargetState::Loaded)
 						{
-							OutLoadCells.Add(Cell);
+							OutLoadCells.AddCell(Cell, Source);
 						}
 						else
 						{
 							check(Source.TargetState == EStreamingSourceTargetState::Activated);
-							OutActivateCells.Add(Cell);
+							OutActivateCells.AddCell(Cell, Source);
 						}
 					}
 					else if (DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerInState(Cell->GetDataLayers(), EDataLayerState::Loaded))
 					{
-						OutLoadCells.Add(Cell);
+						OutLoadCells.AddCell(Cell, Source);
 					}
 				}
 			}
 		});
 	}
 
-	GetAlwaysLoadedCells(DataLayerSubsystem, OutActivateCells, OutLoadCells);
+	GetAlwaysLoadedCells(DataLayerSubsystem, OutActivateCells.GetCells(), OutLoadCells.GetCells());
 }
 
 void FSpatialHashStreamingGrid::GetAlwaysLoadedCells(const UDataLayerSubsystem* DataLayerSubsystem, TSet<const UWorldPartitionRuntimeCell*>& OutActivateCells, TSet<const UWorldPartitionRuntimeCell*>& OutLoadCells) const
@@ -430,10 +428,11 @@ void FSpatialHashStreamingGrid::Draw2D(UCanvas* Canvas, const TArray<FWorldParti
 
 		FCanvasLineItem LineItem;
 		LineItem.LineThickness = 2;
-		LineItem.SetColor(FLinearColor::White);
 
 		for (const FWorldPartitionStreamingSource& Source : Sources)
 		{
+			LineItem.SetColor(Source.GetDebugColor());
+
 			TArray<FVector> LinePoints;
 			LinePoints.SetNum(2);
 
@@ -833,7 +832,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				StreamingCell->SetIsAlwaysLoaded(bIsCellAlwaysLoaded);
 				StreamingCell->SetDataLayers(GridCellDataChunk.GetDataLayers());
 				StreamingCell->Level = Level;
-				StreamingCell->Priority = RuntimeGrid.Priority;
+				StreamingCell->SetPriority(RuntimeGrid.Priority);
 				FBox2D Bounds;
 				verify(TempLevel.GetCellBounds(FIntVector2(CellCoordX, CellCoordY), Bounds));
 				StreamingCell->Position = FVector(Bounds.GetCenter(), 0.f);
@@ -1018,8 +1017,10 @@ bool UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const FWorldPartitionS
 	return !!OutCells.Num();
 }
 
-bool UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const TArray<FWorldPartitionStreamingSource>& Sources, TSet<const UWorldPartitionRuntimeCell*>& OutActivateCells, TSet<const UWorldPartitionRuntimeCell*>& OutLoadCells) const
+bool UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const TArray<FWorldPartitionStreamingSource>& Sources, UWorldPartitionRuntimeHash::FStreamingSourceCells& OutActivateCells, UWorldPartitionRuntimeHash::FStreamingSourceCells& OutLoadCells) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionRuntimeSpatialHash::GetStreamingCells);
+
 	UDataLayerSubsystem* DataLayerSubsystem = GetWorld()->GetSubsystem<UDataLayerSubsystem>();
 
 	if (Sources.Num() == 0)
@@ -1027,7 +1028,7 @@ bool UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const TArray<FWorldPar
 		// Get always loaded cells
 		for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
 		{
-			StreamingGrid.GetAlwaysLoadedCells(DataLayerSubsystem, OutActivateCells, OutLoadCells);
+			StreamingGrid.GetAlwaysLoadedCells(DataLayerSubsystem, OutActivateCells.GetCells(), OutLoadCells.GetCells());
 		}
 	}
 	else
@@ -1040,63 +1041,6 @@ bool UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const TArray<FWorldPar
 	}
 
 	return !!(OutActivateCells.Num() + OutLoadCells.Num());
-}
-
-void UWorldPartitionRuntimeSpatialHash::SortStreamingCellsByImportance(const TSet<const UWorldPartitionRuntimeCell*>& InCells, const TArray<FWorldPartitionStreamingSource>& InSources, TArray<const UWorldPartitionRuntimeCell*, TInlineAllocator<256>>& OutSortedCells) const
-{
-	struct FCellShortestDist
-	{
-		FCellShortestDist(const UWorldPartitionRuntimeSpatialHashCell* InCell, float InMinDistance)
-			: Cell(InCell)
-			, SourceMinDistance(InMinDistance)
-		{}
-		const UWorldPartitionRuntimeSpatialHashCell* Cell;
-		float SourceMinDistance;
-	};
-
-	TArray<FCellShortestDist> SortedCells;
-	SortedCells.Reserve(InCells.Num());
-	for (const UWorldPartitionRuntimeCell* ToLoadCell : InCells)
-	{
-		const UWorldPartitionRuntimeSpatialHashCell* Cell = Cast<const UWorldPartitionRuntimeSpatialHashCell>(ToLoadCell);
-		FCellShortestDist& SortedCell = SortedCells.Emplace_GetRef(Cell, FLT_MAX);
-
-		const float AngleContribution = FMath::Clamp(GRuntimeSpatialHashCellToSourceAngleContributionToCellImportance, 0.f, 1.f);
-		for (const FWorldPartitionStreamingSource& Source : InSources)
-		{
-			const float SqrDistance = FVector::DistSquared(Source.Location, Cell->Position);
-			float AngleFactor = 1.f;
-			if (!FMath::IsNearlyZero(AngleContribution))
-			{
-				const FVector2D SourceForward(Source.Rotation.Quaternion().GetForwardVector());
-				const FVector2D SourceToCell(Cell->Position - Source.Location);
-				const float Dot = FVector2D::DotProduct(SourceForward.GetSafeNormal(), SourceToCell.GetSafeNormal());
-				const float NormalizedAngle = FMath::Clamp(FMath::Abs(FMath::Acos(Dot)/PI), 0.f, 1.f);
-				AngleFactor = FMath::Pow(NormalizedAngle, AngleContribution);
-			}
-			// Modulate distance to cell by angle relative to source forward vector (to prioritize cells in front)
-			SortedCell.SourceMinDistance = FMath::Min(SqrDistance * AngleFactor, SortedCell.SourceMinDistance);
-		}
-	}
-
-	Algo::Sort(SortedCells, [](const FCellShortestDist& A, const FCellShortestDist& B)
-	{
-		if (A.Cell->Priority == B.Cell->Priority)
-		{
-			if (A.Cell->Level == B.Cell->Level)
-			{
-				return A.SourceMinDistance < B.SourceMinDistance;
-			}
-			return A.Cell->Level > B.Cell->Level;
-		}
-		return A.Cell->Priority < B.Cell->Priority;
-	});
-
-	OutSortedCells.Reserve(InCells.Num());
-	for (const FCellShortestDist& SortedCell : SortedCells)
-	{
-		OutSortedCells.Add(SortedCell.Cell);
-	}
 }
 
 FVector2D UWorldPartitionRuntimeSpatialHash::GetDraw2DDesiredFootprint(const FVector2D& CanvasSize) const

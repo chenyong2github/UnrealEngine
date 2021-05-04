@@ -40,6 +40,8 @@ UWorldPartitionStreamingPolicy::UWorldPartitionStreamingPolicy(const FObjectInit
 
 void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::UpdateStreamingSources);
+
 	StreamingSources.Reset();
 
 	if (!WorldPartition->IsInitialized())
@@ -99,6 +101,11 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 			// Transform to Local
 			StreamingSource.Location = WorldToLocal.TransformPosition(StreamingSource.Location);
 			StreamingSource.Rotation = WorldToLocal.TransformRotation(StreamingSource.Rotation.Quaternion()).Rotator();
+			// If none is provided, default Streaming Source provider's priority to be less than those based on player controllers
+			if (StreamingSource.Priority == EStreamingSourcePriority::Default)
+			{
+				StreamingSource.Priority = EStreamingSourcePriority::Low;
+			}
 
 			StreamingSources.Add(StreamingSource);
 		}
@@ -107,8 +114,8 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 
 void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 {
-	TSet<const UWorldPartitionRuntimeCell*> LoadStreamingCells;
-	TSet<const UWorldPartitionRuntimeCell*> ActivateStreamingCells;
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::UpdateStreamingState);
+
 	UWorld* World = WorldPartition->GetWorld();
 	check(World && World->IsGameWorld());
 	
@@ -120,8 +127,9 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		// Load all cells on server (do this once)
 		if (!bIsServerLoadingDone)
 		{
-			WorldPartition->RuntimeHash->GetAllStreamingCells(ActivateStreamingCells);
-			TSet<const UWorldPartitionRuntimeCell*> ToActivateCells = ActivateStreamingCells.Difference(ActivatedCells);
+			TSet<const UWorldPartitionRuntimeCell*> AllStreamingCells;
+			WorldPartition->RuntimeHash->GetAllStreamingCells(AllStreamingCells);
+			TSet<const UWorldPartitionRuntimeCell*> ToActivateCells = AllStreamingCells.Difference(ActivatedCells);
 
 			// Mark Runtime Cells to be Always Loaded
 			for (const UWorldPartitionRuntimeCell* Cell : ToActivateCells)
@@ -142,10 +150,17 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 			return;
 		}
 
+		UWorldPartitionRuntimeHash::FStreamingSourceCells ActivateCells;
+		UWorldPartitionRuntimeHash::FStreamingSourceCells LoadCells;
+		TSet<const UWorldPartitionRuntimeCell*>& LoadStreamingCells = LoadCells.GetCells();
+		TSet<const UWorldPartitionRuntimeCell*>& ActivateStreamingCells = ActivateCells.GetCells();
+
 		// When uninitializing, UpdateStreamingState is called, but we don't want any cells to be loaded
 		if (WorldPartition->IsInitialized())
 		{
-			WorldPartition->RuntimeHash->GetStreamingCells(StreamingSources, ActivateStreamingCells, LoadStreamingCells);
+			UWorldPartitionRuntimeCell::DirtyStreamingSourceCacheEpoch();
+			WorldPartition->RuntimeHash->GetStreamingCells(StreamingSources, ActivateCells, LoadCells);
+
 			// Activation superseeds Loading
 			LoadStreamingCells = LoadStreamingCells.Difference(ActivateStreamingCells);
 		}

@@ -2,6 +2,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/Color.h"
+#include "Math/RandomStream.h"
 #include "WorldPartitionStreamingSource.generated.h"
 
 /**
@@ -64,24 +66,43 @@ struct FWorldPartitionStreamingQuerySource
 };
 
 /**
+ * Streaming Source Priority
+ */
+enum class EStreamingSourcePriority : int32
+{
+	Highest = INT_MIN,
+	High = -4096,
+	Normal = 0,
+	Low = 4096,
+	Lowest = INT_MAX,
+	Default = Normal
+};
+
+/**
  * Structure containing all properties required to stream from a source
  */
 struct ENGINE_API FWorldPartitionStreamingSource
 {
 	FWorldPartitionStreamingSource()
+		: Priority(EStreamingSourcePriority::Default)
 	{}
 
-	FWorldPartitionStreamingSource(FName InName, const FVector& InLocation, const FRotator& InRotation, EStreamingSourceTargetState InTargetState)
+	FWorldPartitionStreamingSource(FName InName, const FVector& InLocation, const FRotator& InRotation, EStreamingSourceTargetState InTargetState, EStreamingSourcePriority InPriority = EStreamingSourcePriority::Default)
 		: Name(InName)
 		, Location(InLocation)
 		, Rotation(InRotation)
 		, TargetState(InTargetState)
-	{}
+		, Priority(InPriority)
+	{
+	}
+
+	FColor GetDebugColor() const { return FColor::MakeRedToGreenColorFromScalar(FRandomStream(Name).GetFraction()); }
 
 	FName Name;
 	FVector Location;
 	FRotator Rotation;
 	EStreamingSourceTargetState TargetState;
+	EStreamingSourcePriority Priority;
 };
 
 /**

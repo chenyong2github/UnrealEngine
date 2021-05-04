@@ -267,4 +267,15 @@ void UWorldPartitionRuntimeHash::CheckForErrorsInternal(const TMap<FGuid, FWorld
 }
 #endif
 
+void UWorldPartitionRuntimeHash::SortStreamingCellsByImportance(const TSet<const UWorldPartitionRuntimeCell*>& InCells, const TArray<FWorldPartitionStreamingSource>& InSources, TArray<const UWorldPartitionRuntimeCell*, TInlineAllocator<256>>& OutSortedCells) const
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionRuntimeHash::SortStreamingCellsByImportance);
+
+	OutSortedCells = InCells.Array();
+	Algo::Sort(OutSortedCells, [](const UWorldPartitionRuntimeCell* CellA, const UWorldPartitionRuntimeCell* CellB)
+	{
+		return CellA->SortCompare(CellB) < 0;
+	});
+}
+
 #undef LOCTEXT_NAMESPACE

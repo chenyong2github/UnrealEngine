@@ -13,6 +13,8 @@ class UWorldPartitionRuntimeSpatialHashCell : public UWorldPartitionRuntimeCell
 #if WITH_EDITOR
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 #endif
+	virtual bool CacheStreamingSourceInfo(const FWorldPartitionStreamingSource& Source) const override;
+	virtual int32 SortCompare(const UWorldPartitionRuntimeCell* InOther) const override;
 
 	UPROPERTY()
 	FVector Position;
@@ -20,8 +22,8 @@ class UWorldPartitionRuntimeSpatialHashCell : public UWorldPartitionRuntimeCell
 	UPROPERTY()
 	int32 Level;
 
-	UPROPERTY()
-	int32 Priority;
+	// Computed and cached value used by SortCompare to sort Cells
+	mutable float CachedSourceMinDistance;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
