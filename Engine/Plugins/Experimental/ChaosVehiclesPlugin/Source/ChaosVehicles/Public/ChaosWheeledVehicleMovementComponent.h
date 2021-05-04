@@ -24,6 +24,7 @@ struct FWheeledVehicleDebugParams
 	bool ShowWheelForces = false;
 	bool ShowSuspensionForces = false;
 	bool ShowBatchQueryExtents = false;
+	int TraceTypeOverride = 0;
 
 	bool DisableSuspensionForces = false;
 	bool DisableFrictionForces = false;
