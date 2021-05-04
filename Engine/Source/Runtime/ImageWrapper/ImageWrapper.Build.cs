@@ -16,7 +16,6 @@ public class ImageWrapper : ModuleRules
 		PublicDefinitions.Add("WITH_UNREALJPEG=1");
 
 		PrivateDependencyModuleNames.Add("Core");
-		PublicDependencyModuleNames.Add("CoreUObject");
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target,
 			"zlib",

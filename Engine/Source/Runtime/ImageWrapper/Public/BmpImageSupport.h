@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "UObject/ObjectMacros.h"
 #include "CoreMinimal.h"
-
-#include "BmpImageSupport.generated.h"
 
 struct FBitmapFileHeader;
 struct FBitmapInfoHeader;
@@ -23,7 +20,6 @@ enum EBitmapCompression
 };
 
 // Bitmap info header versions.
-UENUM()
 enum class EBitmapHeaderVersion : uint8
 {
 	BHV_BITMAPINFOHEADER   = 0,
@@ -34,7 +30,6 @@ enum class EBitmapHeaderVersion : uint8
 };
 
 // Color space type of the bitmap, property introduced in Bitmap header version 4.
-UENUM()
 enum class EBitmapCSType : uint32
 {
 	BCST_BLCS_CALIBRATED_RGB     = 0x00000000,
