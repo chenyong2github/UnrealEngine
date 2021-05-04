@@ -25,9 +25,11 @@ public:
 		/* Check the property normally. */
 		CheckNormally
 	};
-
+	
+	virtual ~IPropertyComparer() = default;
+	
 	/**
-	 * Decides whether the property should be cosidered equal.
+	 * Decides whether the property should be considered equal.
 	 * Note that this is only called on root properties. For performance reasons, this is not called on nested struct properties.
 	 * This is not a big restriction because you can just check the structs content yourself.
 	 */
