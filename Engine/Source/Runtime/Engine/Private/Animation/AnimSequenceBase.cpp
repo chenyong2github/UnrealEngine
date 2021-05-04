@@ -834,7 +834,10 @@ void UAnimSequenceBase::RefreshParentAssetData()
 	{
 		const UAnimDataModel* ParentDataModel = ParentSeqBase->GetDataModel();
 
-		Controller->SetPlayLength(ParentDataModel->GetPlayLength());
+		if (!FMath::IsNearlyEqual(DataModel->GetPlayLength(), ParentDataModel->GetPlayLength()))
+		{
+			Controller->SetPlayLength(ParentDataModel->GetPlayLength());
+		}
 		
 		Controller->RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Float);
 		for (const FFloatCurve& FloatCurve : ParentDataModel->GetFloatCurves())
