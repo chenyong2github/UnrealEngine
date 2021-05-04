@@ -62,7 +62,7 @@ struct FStrataSceneData
 	FRDGTextureRef TopLayerNormalTexture;
 	FRDGTextureRef SSSTexture;
 
-	TRDGUniformBufferRef<FStrataGlobalUniformParameters> StrataGlobalUniformParameters;
+	TRDGUniformBufferRef<FStrataGlobalUniformParameters> StrataGlobalUniformParameters{};
 
 	// Resources computed once for multiple frames
 

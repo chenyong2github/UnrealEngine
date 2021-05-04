@@ -255,9 +255,9 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 	}
 
 	// Create the readable uniform buffers for each views once for all (it is view independent and all the views should be tiled into the render target textures & material buffer)
-	FStrataGlobalUniformParameters* StrataUniformParameters = GraphBuilder.AllocParameters<FStrataGlobalUniformParameters>();
 	if (IsStrataEnabled())
 	{
+		FStrataGlobalUniformParameters* StrataUniformParameters = GraphBuilder.AllocParameters<FStrataGlobalUniformParameters>();
 		StrataUniformParameters->MaxBytesPerPixel = StrataSceneData.MaxBytesPerPixel;
 		StrataUniformParameters->MaterialLobesBuffer = StrataSceneData.MaterialLobesBufferSRV;
 		StrataUniformParameters->ClassificationTexture = StrataSceneData.ClassificationTexture;
@@ -265,20 +265,6 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 		StrataUniformParameters->SSSTexture = StrataSceneData.SSSTexture;
 		StrataUniformParameters->GGXEnergyLUT3DTexture = StrataSceneData.GGXEnergyLUT3DTexture->GetRenderTargetItem().ShaderResourceTexture;
 		StrataUniformParameters->GGXEnergyLUT2DTexture = StrataSceneData.GGXEnergyLUT2DTexture->GetRenderTargetItem().ShaderResourceTexture;
-		StrataUniformParameters->GGXEnergyLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-		StrataUniformParameters->GGXEnergyLUTScaleBias = GetStrataGGXEnergyLUTScaleBias();
-		StrataSceneData.StrataGlobalUniformParameters = GraphBuilder.CreateUniformBuffer(StrataUniformParameters);
-	}
-	else
-	{
-		// Create each time. This path will go away when Strata is always enabled anyway.
-		StrataUniformParameters->MaxBytesPerPixel = 0;
-		StrataUniformParameters->MaterialLobesBuffer = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R32_UINT);
-		StrataUniformParameters->ClassificationTexture = GSystemTextures.GetZeroUIntDummy(GraphBuilder);
-		StrataUniformParameters->TopLayerNormalTexture = GSystemTextures.GetZeroUIntDummy(GraphBuilder);
-		StrataUniformParameters->SSSTexture = GSystemTextures.GetZeroUIntDummy(GraphBuilder);
-		StrataUniformParameters->GGXEnergyLUT3DTexture = GSystemTextures.VolumetricBlackDummy->GetRenderTargetItem().ShaderResourceTexture;
-		StrataUniformParameters->GGXEnergyLUT2DTexture = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
 		StrataUniformParameters->GGXEnergyLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		StrataUniformParameters->GGXEnergyLUTScaleBias = GetStrataGGXEnergyLUTScaleBias();
 		StrataSceneData.StrataGlobalUniformParameters = GraphBuilder.CreateUniformBuffer(StrataUniformParameters);
@@ -309,7 +295,7 @@ void BindStrataBasePassUniformParameters(FRDGBuilder& GraphBuilder, FStrataScene
 TRDGUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParameters(FStrataSceneData* StrataSceneData)
 {
 	check(StrataSceneData);
-	check(StrataSceneData->StrataGlobalUniformParameters != nullptr);
+	check(StrataSceneData->StrataGlobalUniformParameters != nullptr || !IsStrataEnabled());
 	return StrataSceneData->StrataGlobalUniformParameters;
 }
 
