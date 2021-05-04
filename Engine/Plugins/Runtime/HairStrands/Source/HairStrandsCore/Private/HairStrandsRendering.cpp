@@ -204,11 +204,14 @@ static void AddGroomCacheUpdatePass(
 	const uint32 DataSizeInBytes = sizeof(FVector) * DataCount;
 	if (DataSizeInBytes != 0)
 	{
-		VertexBuffer = CreateStructuredBuffer(
+		// Deformation are upload into a Buffer<float> as the original position are float3 which is is both
+		// 1) incompatible with structure buffer alignment (128bits), and 2) incompatible with vertex buffer 
+		// as R32G32B32_FLOAT format is not well supported for SRV accross HW.
+		// So instead the positions are uploaded into vertex buffer Buffer<float>
+		VertexBuffer = CreateVertexBuffer(
 			GraphBuilder,
 			TEXT("GroomCache_PositionBuffer"),
-			sizeof(FVector),
-			GroomCacheData.VertexData.PointsPosition.Num(),
+			FRDGBufferDesc::CreateBufferDesc(sizeof(float), GroomCacheData.VertexData.PointsPosition.Num() * 3),
 			GroomCacheData.VertexData.PointsPosition.GetData(),
 			DataSizeInBytes,
 			ERDGInitialDataFlags::None);
