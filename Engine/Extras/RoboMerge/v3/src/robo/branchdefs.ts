@@ -179,7 +179,7 @@ export function calculateStream(nodeOrStreamName: string, rootPath?: string | nu
 		throw new Error(`Branch rootPath not in '//<something>/...'' format: ${rootPath}`)
 	}
 
-	const depotMatch = rootPath.match(new RegExp('//[^/]/'))
+	const depotMatch = rootPath.match(new RegExp('//([^/]+)/'))
 	if (!depotMatch || !depotMatch[1]) {
 		throw new Error(`Cannot find depotname in ${rootPath}`)
 	}
