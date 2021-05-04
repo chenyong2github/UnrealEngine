@@ -1431,6 +1431,7 @@ void FNaniteGeometryCollectionSceneProxy::ResetPreviousTransforms_RenderThread()
 	for (FPrimitiveInstance& Instance : Instances)
 	{
 		Instance.PrevLocalToWorld = Instance.LocalToWorld;
+		Instance.PrevInstanceToLocal = Instance.InstanceToLocal;
 	}
 }
 
