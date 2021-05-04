@@ -109,7 +109,10 @@ namespace Metasound
 			}
 		}
 
-		OutResult.Add(*HighestVersionEntry);
+		if (HighestVersionEntry)
+		{
+			OutResult.Add(*HighestVersionEntry);
+		}
 	}
 
 	FReduceClassesToMajorVersion::FReduceClassesToMajorVersion(int32 InMajorVersion)
