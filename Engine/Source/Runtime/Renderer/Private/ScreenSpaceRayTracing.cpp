@@ -175,7 +175,7 @@ bool IsSSRTemporalPassRequired(const FViewInfo& View)
 
 
 FRDGTextureUAV* CreateScreenSpaceRayTracingDebugUAV(FRDGBuilder& GraphBuilder, const FRDGTextureDesc& Desc, const TCHAR* Name, bool bClear = false)
-#if 1
+#if (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
 {
 	FRDGTextureDesc DebugDesc = FRDGTextureDesc::Create2D(
 		Desc.Extent,
