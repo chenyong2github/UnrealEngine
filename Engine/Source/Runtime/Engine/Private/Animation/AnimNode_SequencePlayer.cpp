@@ -225,7 +225,7 @@ FName FAnimNode_SequencePlayer::GetGroupName() const
 
 EAnimGroupRole::Type FAnimNode_SequencePlayer::GetGroupRole() const
 {
-	return GET_ANIM_NODE_DATA(EAnimGroupRole::Type, GroupRole);
+	return GET_ANIM_NODE_DATA(TEnumAsByte<EAnimGroupRole::Type>, GroupRole);
 }
 
 EAnimSyncMethod FAnimNode_SequencePlayer::GetGroupMethod() const
