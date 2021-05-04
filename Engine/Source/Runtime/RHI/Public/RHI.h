@@ -1433,7 +1433,7 @@ struct FVRamAllocation
 
 struct FRHIResourceInfo
 {
-	FString Name;
+	FName Name;
 	ERHIResourceType Type{ RRT_None };
 	FVRamAllocation VRamAllocation;
 };

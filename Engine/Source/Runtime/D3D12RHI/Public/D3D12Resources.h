@@ -930,7 +930,7 @@ public:
 	bool GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const override
 	{
 		OutResourceInfo = FRHIResourceInfo{};
-		OutResourceInfo.Name = GetName().ToString();
+		OutResourceInfo.Name = GetName();
 		OutResourceInfo.Type = GetType();
 		OutResourceInfo.VRamAllocation.AllocationSize = ResourceLocation.GetSize();
 		return true;
