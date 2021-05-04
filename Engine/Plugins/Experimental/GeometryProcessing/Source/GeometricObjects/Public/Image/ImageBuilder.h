@@ -46,10 +46,27 @@ public:
 	/**
 	 * @return true if the given X/Y coordinates are inside the image pixel bounds, ie can be used to index a pixel
 	 */
+	bool ContainsPixel(int32 X, int32 Y) const
+	{
+		return X >= 0 && Y >= 0 && X < Dimensions.GetWidth() && Y < Dimensions.GetHeight();
+	}
+
+	/**
+	 * @return true if the given X/Y coordinates are inside the image pixel bounds, ie can be used to index a pixel
+	 */
 	bool ContainsPixel(const FVector2i& ImageCoords) const
 	{
 		return ImageCoords.X >= 0 && ImageCoords.Y >= 0 &&
 			ImageCoords.X < Dimensions.GetWidth() && ImageCoords.Y < Dimensions.GetHeight();
+	}
+
+	/**
+	 * Get the Pixel at the given X/Y coordinates
+	 */
+	const PixelType& GetPixel(int32 X, int32 Y) const
+	{
+		int64 LinearIndex = Dimensions.GetIndex(FVector2i(X,Y));
+		return Image[LinearIndex];
 	}
 
 	/**
@@ -61,7 +78,6 @@ public:
 		return Image[LinearIndex];
 	}
 
-
 	/**
 	 * Get the Pixel at the given linear index
 	 */
@@ -70,6 +86,15 @@ public:
 		return Image[LinearIndex];
 	}
 
+
+	/**
+	 * Set the Pixel at the given X/Y coordinates to the given PixelType
+	 */
+	void SetPixel(int32 X, int32 Y, const PixelType& NewValue)
+	{
+		int64 LinearIndex = Dimensions.GetIndex(FVector2i(X,Y));
+		Image[LinearIndex] = NewValue;
+	}
 
 	/**
 	 * Set the Pixel at the given X/Y coordinates to the given PixelType
@@ -165,6 +190,58 @@ public:
 
 		return BilinearSample<ScalarType>(PixelCoords, InvalidValue);
 	}
+
+	/**
+	 * Very basic downsampling technqiue that just averages NxN pixel blocks. Multi-threaded.
+	 * @param SubSteps each NxN pixel block of this size is averaged into 1 pixel in the output image
+	 * @param Zero value to use with template PixelType must be provided, pixel values will be added to this value
+	 * @param AverageFunc Called with Sum(Pixels) and PixelCount, return value is used as new pixel value (eg should be average)
+	 */
+	TImageBuilder<PixelType> FastDownsample(
+		int32 SubSteps, 
+		const PixelType& ZeroValue, 
+		TFunctionRef<PixelType(PixelType, int)> AverageFunc) const
+	{
+		TImageBuilder<PixelType> DownsampleImage;
+		int32 Width = Dimensions.GetWidth();
+		int32 Height = Dimensions.GetHeight();
+
+		// can only fast-downsample by even multiple of image size
+		if (ensure((Width % SubSteps == 0) && (Height % SubSteps == 0)) == false)
+		{
+			DownsampleImage = *this;
+			return DownsampleImage;
+		}
+
+		int32 SubWidth = Width / SubSteps;
+		int32 SubHeight = Height / SubSteps;
+
+		FImageDimensions SubDimensions(SubWidth, SubHeight);
+		DownsampleImage.SetDimensions(SubDimensions);
+
+		ParallelFor(SubHeight, [&](int32 yi)
+		{
+			int32 baseyi = yi * SubSteps;
+			for (int32 xi = 0; xi < SubWidth; ++xi)
+			{
+				int32 basexi = xi * SubSteps;
+
+				PixelType AccumBasePixels = ZeroValue;
+				for (int32 dy = 0; dy < SubSteps; ++dy)
+				{
+					for (int32 dx = 0; dx < SubSteps; ++dx)
+					{
+						AccumBasePixels += GetPixel(basexi + dx, baseyi + dy);
+					}
+				}
+				PixelType SubPixel = AverageFunc(AccumBasePixels, SubSteps * SubSteps);
+				DownsampleImage.SetPixel(xi, yi, SubPixel);
+			}
+		});
+
+		return DownsampleImage;
+	}
+	
 
 };
 

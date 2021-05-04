@@ -63,6 +63,8 @@ public:
 		float WorldSpaceApproximationAccuracyMeters = 1.0f;
 		int32 ClampVoxelDimension = 512;
 
+		float WindingThreshold = 0.5;
+
 		bool bApplyMorphology = false;
 		float MorphologyDistanceMeters = 0.1;
 
@@ -87,6 +89,8 @@ public:
 		// output texture options
 		int32 TextureImageSize = 1024;
 
+		// supersampling parameter
+		int32 AntiAliasMultiSampling = 0;
 
 
 

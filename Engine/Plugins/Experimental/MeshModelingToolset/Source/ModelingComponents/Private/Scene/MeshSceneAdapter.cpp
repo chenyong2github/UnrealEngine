@@ -62,13 +62,12 @@ public:
 		if (!SourceMesh) return;
 
 		int32 NumVertices = Adapter->VertexCount();
-		int32 LogNumVertices = FMathd::Log(NumVertices);
-		int32 SeedPointCount = (int)(5.0 * LogNumVertices * LogNumVertices);
-		ensure(SeedPointCount < 500);		// just a sanity check
+		int32 LogNumVertices = FMath::Max(1, (int32)FMathd::Ceil(FMathd::Log(NumVertices)));
+		int32 SeedPointCount = (int)(10 * LogNumVertices);
+		SeedPointCount = FMath::Min(SeedPointCount, 5000);
 		int32 Skip = FMath::Max(NumVertices / SeedPointCount, 2);
 		for (int32 k = 0; k < NumVertices; k += Skip)
 		{
-			Adapter->GetNormal(k);
 			WorldPoints.Add(LocalToWorldFunc(Adapter->GetVertex(k)));
 		}
 	}
@@ -248,9 +247,9 @@ void FMeshSceneAdapter::CollectMeshSeedPoints(TArray<FVector3d>& Points)
 	}
 }
 
-double FMeshSceneAdapter::MaxFastWindingNumber(const FVector3d& P)
+double FMeshSceneAdapter::FastWindingNumber(const FVector3d& P)
 {
-	double MaxWinding = 0.0;
+	double SumWinding = 0.0;
 	for (const TUniquePtr<FActorAdapter>& Actor : SceneActors)
 	{
 		if (Actor->WorldBounds.Contains(P))
@@ -260,11 +259,11 @@ double FMeshSceneAdapter::MaxFastWindingNumber(const FVector3d& P)
 				if (ChildMesh.MeshSpatial != nullptr)
 				{
 					FVector3d LocalP = ChildMesh.WorldTransformInverse.TransformPosition(P);
-					double LocalWinding = ChildMesh.MeshSpatial->FastWindingNumber(LocalP);
-					MaxWinding = FMathd::Max(LocalWinding, MaxWinding);
+					double MeshWinding = ChildMesh.MeshSpatial->FastWindingNumber(LocalP);
+					SumWinding += MeshWinding;
 				}
 			}
 		}
 	}
-	return MaxWinding;
+	return SumWinding;
 }

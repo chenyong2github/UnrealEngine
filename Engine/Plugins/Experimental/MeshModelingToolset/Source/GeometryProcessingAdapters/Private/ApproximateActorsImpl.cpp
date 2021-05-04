@@ -59,8 +59,15 @@ static void BakeTexturesFromPhotoCapture(
 	double NearPlaneDist = Options.NearPlaneDist;
 	double RayOffsetHackDist = (double)(100.0f * FMathf::ZeroTolerance);
 
+	int32 Supersample = FMath::Max(1, Options.AntiAliasMultiSampling);
+	if ( (Options.TextureImageSize * Supersample) > 16384)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ApproximateActors] Ignoring requested supersampling rate %d because it would require image buffers with resolution %d, please try lower value."), Supersample, Options.TextureImageSize * Supersample);
+		Supersample = 1;
+	}
+
 	FImageDimensions CaptureDimensions(Options.RenderCaptureImageSize, Options.RenderCaptureImageSize);
-	FImageDimensions OutputDimensions(Options.TextureImageSize, Options.TextureImageSize);
+	FImageDimensions OutputDimensions(Options.TextureImageSize*Supersample, Options.TextureImageSize*Supersample);
 
 	FSceneCapturePhotoSet SceneCapture;
 	SceneCapture.SetCaptureSceneActors(Actors[0]->GetWorld(), Actors);
@@ -117,7 +124,7 @@ static void BakeTexturesFromPhotoCapture(
 		return ColorImage->GetPixel(Coords) == DefaultSample.BaseColor;
 	}, MissingPixels);
 
-
+	// solve infill for the holes while also caching infill information
 	TMarchingPixelInfill<FVector4f> Infill;
 	Infill.ComputeInfill(*ColorImage, MissingPixels, DefaultSample.BaseColor,
 		[](FVector4f SumValue, int32 Count) {
@@ -125,7 +132,14 @@ static void BakeTexturesFromPhotoCapture(
 		return FVector4f(SumValue.X * InvSum, SumValue.Y * InvSum, SumValue.Z * InvSum, 1.0f);
 	});
 
+	// downsample the image if necessary
+	if (Supersample > 1)
+	{
+		TImageBuilder<FVector4f> Downsampled = ColorImage->FastDownsample(Supersample, FVector4f::Zero(), [](FVector4f V, int N) { return V / (float)N; });
+		*ColorImage = MoveTemp(Downsampled);
+	}
 
+	// this lambda is used to process the per-channel images. It does the bake, applies infill, and downsamples if necessary
 	auto ProcessChannelFunc = [&](ERenderCaptureType CaptureType)
 	{
 		FVector4f DefaultValue(0, 0, 0, 0);
@@ -144,6 +158,12 @@ static void BakeTexturesFromPhotoCapture(
 			float InvSum = (Count == 0) ? 1.0f : (1.0f / Count);
 			return FVector4f(SumValue.X * InvSum, SumValue.Y * InvSum, SumValue.Z * InvSum, 1.0f);
 		});
+
+		if (Supersample > 1)
+		{
+			TImageBuilder<FVector4f> Downsampled = Image->FastDownsample(Supersample, FVector4f::Zero(), [](FVector4f V, int N) { return V / (float)N; });
+			*Image = MoveTemp(Downsampled);
+		}
 
 		return MoveTemp(Image);
 	};
@@ -178,6 +198,11 @@ static void BakeTexturesFromPhotoCapture(
 	NormalMapBaker.Bake();
 	TUniquePtr<TImageBuilder<FVector3f>> NormalImage = NormalMapBaker.TakeResult();
 
+	if (Supersample > 1)
+	{
+		TImageBuilder<FVector3f> Downsampled = NormalImage->FastDownsample(Supersample, FVector3f::Zero(), [](FVector3f V, int N) { return V / (float)N; });
+		*NormalImage = MoveTemp(Downsampled);
+	}
 
 	// build textures
 	Progress.EnterProgressFrame(1.f, LOCTEXT("BuildingTextures", "Building Textures..."));
@@ -247,9 +272,10 @@ void FApproximateActorsImpl::GenerateApproximationForActorSet(const TArray<AActo
 	Progress.EnterProgressFrame(1.f, LOCTEXT("GeneratingMesh", "Generating Mesh..."));
 
 	FWindingNumberBasedSolidify Solidify(
-		[&Scene](const FVector3d& Position) { return Scene.MaxFastWindingNumber(Position); },
+		[&Scene](const FVector3d& Position) { return Scene.FastWindingNumber(Position); },
 		SceneBounds, SeedPoints);
 	Solidify.SetCellSizeAndExtendBounds(SceneBounds, 0, VoxelDimTarget);
+	Solidify.WindingThreshold = Options.WindingThreshold;
 
 	FDynamicMesh3 SolidMesh(&Solidify.Generate());
 	SolidMesh.DiscardAttributes();

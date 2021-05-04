@@ -164,8 +164,8 @@ public:
 	/** @return a set of points on the surface of the meshes, can be used to initialize the MarchingCubes mesher */
 	virtual void CollectMeshSeedPoints(TArray<FVector3d>& PointsOut);
 
-	/** @return max FastWindingNumber computed for all mesh Actors/Components */
-	virtual double MaxFastWindingNumber(const FVector3d& P);
+	/** @return FastWindingNumber computed across all mesh Actors/Components */
+	virtual double FastWindingNumber(const FVector3d& P);
 
 protected:
 
