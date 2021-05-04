@@ -208,6 +208,8 @@ void FInstancedStruct::AddStructReferencedObjects(class FReferenceCollector& Col
 {
 	if (const UScriptStruct* ScriptStructPtr = GetScriptStruct())
 	{
+		Collector.AddReferencedObject(ScriptStructPtr);
+
 		if (ScriptStructPtr->StructFlags & STRUCT_AddStructReferencedObjects)
 		{
 			ScriptStructPtr->GetCppStructOps()->AddStructReferencedObjects()(GetMutableMemory(), Collector);
