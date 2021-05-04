@@ -478,3 +478,5 @@ public:
 	#endif
 	}
 };
+
+template <int32 BufferSize> struct TIsContiguousContainer<WriteToString<BufferSize>> { static constexpr bool Value = true; };
