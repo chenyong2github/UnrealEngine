@@ -60,6 +60,11 @@ namespace Chaos
 		FConstraintContainerHandle* ConstraintHandle = Handles[ConstraintIndex];
 		if (ConstraintHandle != nullptr)
 		{
+			if (ConstraintEnabledStates[ConstraintIndex] && ConstrainedParticles[ConstraintIndex])
+			{				
+				ConstrainedParticles[ConstraintIndex]->RemoveConstraintHandle(ConstraintHandle);
+			}
+
 			// Release the handle for the freed constraint
 			HandleAllocator.FreeHandle(ConstraintHandle);
 			Handles[ConstraintIndex] = nullptr;
