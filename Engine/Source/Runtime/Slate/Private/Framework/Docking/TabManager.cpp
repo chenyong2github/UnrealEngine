@@ -316,33 +316,40 @@ TSharedRef<FTabManager::FLayoutNode> FTabManager::FLayout::NewFromString_Helper(
 
 TSharedPtr<FTabManager::FLayout> FTabManager::FLayout::NewFromString( const FString& LayoutAsText )
 {
-	TSharedPtr<FTabManager::FLayout> Layout;
 	TSharedPtr<FJsonObject> JsonObject;
-	FString OutError;
 
 	TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create( LayoutAsText );
-	
 	if (FJsonSerializer::Deserialize( Reader, JsonObject ))
 	{
-		const FString LayoutName = JsonObject->GetStringField(TEXT("Name"));
-		TSharedRef<FTabManager::FLayout> NewLayout = FTabManager::NewLayout( *LayoutName );
-		int32 PrimaryAreaIndex = FMath::TruncToInt((float)JsonObject->GetNumberField(TEXT("PrimaryAreaIndex")) );
-
-		TArray< TSharedPtr<FJsonValue> > Areas = JsonObject->GetArrayField(TEXT("Areas"));
-		for(int32 AreaIndex=0; AreaIndex < Areas.Num(); ++AreaIndex)
-		{
-			TSharedRef<FTabManager::FArea> NewArea = StaticCastSharedRef<FTabManager::FArea>( NewFromString_Helper( Areas[AreaIndex]->AsObject() ) );
-			NewLayout->AddArea( NewArea );
-			if (AreaIndex == PrimaryAreaIndex)
-			{
-				NewLayout->PrimaryArea = NewArea;
-			}
-		}
-		
-		Layout = NewLayout;
+		return NewFromJson( JsonObject );
 	}
 	
-	return Layout;
+	return TSharedPtr<FTabManager::FLayout>();
+}
+
+TSharedPtr<FTabManager::FLayout> FTabManager::FLayout::NewFromJson( const TSharedPtr<FJsonObject>& LayoutAsJson )
+{
+	if (!LayoutAsJson.IsValid())
+	{
+		return TSharedPtr<FTabManager::FLayout>();
+	}
+
+	const FString LayoutName = LayoutAsJson->GetStringField(TEXT("Name"));
+	TSharedRef<FTabManager::FLayout> NewLayout = FTabManager::NewLayout( *LayoutName );
+	int32 PrimaryAreaIndex = FMath::TruncToInt((float)LayoutAsJson->GetNumberField(TEXT("PrimaryAreaIndex")) );
+
+	TArray< TSharedPtr<FJsonValue> > Areas = LayoutAsJson->GetArrayField(TEXT("Areas"));
+	for(int32 AreaIndex=0; AreaIndex < Areas.Num(); ++AreaIndex)
+	{
+		TSharedRef<FTabManager::FArea> NewArea = StaticCastSharedRef<FTabManager::FArea>( NewFromString_Helper( Areas[AreaIndex]->AsObject() ) );
+		NewLayout->AddArea( NewArea );
+		if (AreaIndex == PrimaryAreaIndex)
+		{
+			NewLayout->PrimaryArea = NewArea;
+		}
+	}
+		
+	return NewLayout;
 }
 
 FName FTabManager::FLayout::GetLayoutName() const
@@ -350,7 +357,7 @@ FName FTabManager::FLayout::GetLayoutName() const
 	return LayoutName;
 }
 
-FString FTabManager::FLayout::ToString() const
+TSharedRef<FJsonObject> FTabManager::FLayout::ToJson() const
 {
 	TSharedRef<FJsonObject> LayoutJson = MakeShareable( new FJsonObject() );
 	LayoutJson->SetStringField( TEXT("Type"), TEXT("Layout") );
@@ -368,6 +375,13 @@ FString FTabManager::FLayout::ToString() const
 		AreasAsJson.Add( MakeShareable( new FJsonValueObject( PersistToString_Helper( Areas[AreaIndex] ) ) ) );
 	}
 	LayoutJson->SetArrayField( TEXT("Areas"), AreasAsJson );
+
+	return LayoutJson;
+}
+
+FString FTabManager::FLayout::ToString() const
+{
+	TSharedRef<FJsonObject> LayoutJson = this->ToJson();
 
 	FString LayoutAsString;
 	TSharedRef< TJsonWriter<> > Writer = TJsonWriterFactory<>::Create( &LayoutAsString );

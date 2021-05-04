@@ -625,7 +625,9 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 				
 			public:
 				static TSharedPtr<FTabManager::FLayout> NewFromString( const FString& LayoutAsText );
+				static TSharedPtr<FTabManager::FLayout> NewFromJson( const TSharedPtr<FJsonObject>& LayoutAsJson );
 				FName GetLayoutName() const;
+				TSharedRef<FJsonObject> ToJson() const;
 				FString ToString() const;
 
 				void ProcessExtensions(const FLayoutExtender& Extender);
