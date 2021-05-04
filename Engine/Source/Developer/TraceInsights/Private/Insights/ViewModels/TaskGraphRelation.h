@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+#include "Insights/TaskGraphProfiler/TaskGraphProfilerManager.h"
 #include "Insights/ViewModels/ITimingEvent.h"
 
 namespace Insights
@@ -12,20 +13,7 @@ namespace Insights
 class FTaskGraphRelation : public ITimingEventRelation
 {
 public:
-	enum class ETaskGraphRelationType : int32
-	{
-		Created,
-		Launched,
-		Prerequisite,
-		Scheduled,
-		AddedNested,
-		NestedCompleted,
-		Subsequent,
-		Completed,
-		Count
-	};
-
-	FTaskGraphRelation(double InSourceTime, int32 InSourceThreadId, double InTargetTime, int32 InTargetThreadId, ETaskGraphRelationType InType);
+	FTaskGraphRelation(double InSourceTime, int32 InSourceThreadId, double InTargetTime, int32 InTargetThreadId, ETaskEventType InType);
 
 	virtual bool IsSolved() override { return bIsSolved; }
 
@@ -48,7 +36,7 @@ public:
 	int32 GetTargetDepth() { return TargetDepth; }
 
 	void SetIsSolved(bool InValue) { bIsSolved = InValue; }
-	ETaskGraphRelationType GetType() { return Type; }
+	ETaskEventType GetType() { return Type; }
 
 private:
 	double SourceTime;
@@ -57,7 +45,7 @@ private:
 	double TargetTime;
 	int32 TargetThreadId;
 	int32 TargetDepth = 0;
-	ETaskGraphRelationType Type;
+	ETaskEventType Type;
 
 	bool bIsSolved = false;
 

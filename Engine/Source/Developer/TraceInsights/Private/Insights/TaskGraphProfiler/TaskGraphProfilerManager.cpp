@@ -2,6 +2,7 @@
 
 #include "TaskGraphProfilerManager.h"
 
+#include "Features/IModularFeatures.h"
 #include "Modules/ModuleManager.h"
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/Model/TasksProfiler.h"
@@ -9,8 +10,10 @@
 
 #include "Insights/InsightsStyle.h"
 #include "Insights/TaskGraphProfiler/ViewModels/TaskTable.h"
+#include "Insights/TaskGraphProfiler/ViewModels/TaskTimingTrack.h"
 #include "Insights/TaskGraphProfiler/Widgets/STaskTableTreeView.h"
 #include "Insights/TimingProfilerManager.h"
+#include "Insights/ViewModels/TaskGraphRelation.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -67,6 +70,8 @@ void FTaskGraphProfilerManager::Initialize(IUnrealInsightsModule& InsightsModule
 	}
 	bIsInitialized = true;
 
+	InitializeColorCode();
+
 	// Register tick functions.
 	OnTick = FTickerDelegate::CreateSP(this, &FTaskGraphProfilerManager::Tick);
 	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 0.0f);
@@ -104,6 +109,11 @@ void FTaskGraphProfilerManager::Shutdown()
 FTaskGraphProfilerManager::~FTaskGraphProfilerManager()
 {
 	ensure(!bIsInitialized);
+
+	if (TaskTimingSharedState.IsValid())
+	{
+		IModularFeatures::Get().UnregisterModularFeature(Insights::TimingViewExtenderFeatureName, TaskTimingSharedState.Get());
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -136,7 +146,25 @@ bool FTaskGraphProfilerManager::Tick(float DeltaTime)
 			TSharedPtr<FTabManager> TabManagerShared = TimingTabManager.Pin();
 			if (TasksProvider && TasksProvider->GetNumTasks() > 0 && TabManagerShared.IsValid())
 			{
+				TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
+				if (!Window.IsValid())
+				{
+					return true;
+				}
+
+				TSharedPtr<STimingView> TimingView = Window->GetTimingView();
+				if (!TimingView.IsValid())
+				{
+					return true;
+				}
+
 				bIsAvailable = true;
+
+				if (!TaskTimingSharedState.IsValid())
+				{
+					TaskTimingSharedState = MakeShared<FTaskTimingSharedState>(TimingView.Get());
+					IModularFeatures::Get().RegisterModularFeature(Insights::TimingViewExtenderFeatureName, TaskTimingSharedState.Get());
+				}
 				TabManagerShared->TryInvokeTab(FTaskGraphProfilerTabs::TaskTableTreeViewTabID);
 			}
 
@@ -236,22 +264,22 @@ void FTaskGraphProfilerManager::GetTaskRelations(const TraceServices::FTaskInfo*
 
 	if (Task->CreatedTimestamp != Task->LaunchedTimestamp || Task->CreatedThreadId != Task->LaunchedThreadId)
 	{
-		Callback(Task->CreatedTimestamp, Task->CreatedThreadId, Task->LaunchedTimestamp, Task->LaunchedThreadId, FTaskGraphRelation::ETaskGraphRelationType::Created);
+		Callback(Task->CreatedTimestamp, Task->CreatedThreadId, Task->LaunchedTimestamp, Task->LaunchedThreadId, ETaskEventType::Created);
 	}
 
-	Callback(Task->LaunchedTimestamp, Task->LaunchedThreadId, Task->ScheduledTimestamp, Task->ScheduledThreadId, FTaskGraphRelation::ETaskGraphRelationType::Launched);
+	Callback(Task->LaunchedTimestamp, Task->LaunchedThreadId, Task->ScheduledTimestamp, Task->ScheduledThreadId, ETaskEventType::Launched);
 
 	int32 NumPrerequisitesToShow = FMath::Min(Task->Prerequisites.Num(), MaxTasksToShow);
 	for (int32 i = 0; i != NumPrerequisitesToShow; ++i)
 	{
 		const TraceServices::FTaskInfo* Prerequisite = TasksProvider->TryGetTask(Task->Prerequisites[i].RelativeId);
 		check(Prerequisite != nullptr);
-		Callback(Prerequisite->CompletedTimestamp, Prerequisite->CompletedThreadId, Task->ScheduledTimestamp, Task->ScheduledThreadId, FTaskGraphRelation::ETaskGraphRelationType::Prerequisite);
+		Callback(Prerequisite->CompletedTimestamp, Prerequisite->CompletedThreadId, Task->ScheduledTimestamp, Task->ScheduledThreadId, ETaskEventType::Prerequisite);
 	}
 
 	if (Task->LaunchedTimestamp != Task->ScheduledTimestamp || Task->LaunchedThreadId != Task->ScheduledThreadId)
 	{
-		Callback(Task->ScheduledTimestamp, Task->ScheduledThreadId, Task->StartedTimestamp, Task->StartedThreadId, FTaskGraphRelation::ETaskGraphRelationType::Scheduled);
+		Callback(Task->ScheduledTimestamp, Task->ScheduledThreadId, Task->StartedTimestamp, Task->StartedThreadId, ETaskEventType::Scheduled);
 	}
 
 	int32 NumNestedToShow = FMath::Min(Task->NestedTasks.Num(), MaxTasksToShow);
@@ -261,9 +289,9 @@ void FTaskGraphProfilerManager::GetTaskRelations(const TraceServices::FTaskInfo*
 		const TraceServices::FTaskInfo* NestedTask = TasksProvider->TryGetTask(RelationInfo.RelativeId);
 		check(NestedTask != nullptr);
 
-		Callback(RelationInfo.Timestamp, Task->StartedThreadId, NestedTask->StartedTimestamp, NestedTask->StartedThreadId, FTaskGraphRelation::ETaskGraphRelationType::AddedNested);
+		Callback(RelationInfo.Timestamp, Task->StartedThreadId, NestedTask->StartedTimestamp, NestedTask->StartedThreadId, ETaskEventType::AddedNested);
 
-		Callback(NestedTask->CompletedTimestamp, NestedTask->CompletedThreadId, NestedTask->CompletedTimestamp, Task->StartedThreadId, FTaskGraphRelation::ETaskGraphRelationType::NestedCompleted);
+		Callback(NestedTask->CompletedTimestamp, NestedTask->CompletedThreadId, NestedTask->CompletedTimestamp, Task->StartedThreadId, ETaskEventType::NestedCompleted);
 	}
 
 	int32 NumSubsequentsToShow = FMath::Min(Task->NestedTasks.Num(), MaxTasksToShow);
@@ -271,12 +299,12 @@ void FTaskGraphProfilerManager::GetTaskRelations(const TraceServices::FTaskInfo*
 	{
 		const TraceServices::FTaskInfo* Subsequent = TasksProvider->TryGetTask(Task->Subsequents[i].RelativeId);
 		check(Subsequent != nullptr);
-		Callback(Task->CompletedTimestamp, Task->CompletedThreadId, Subsequent->ScheduledTimestamp, Subsequent->ScheduledThreadId, FTaskGraphRelation::ETaskGraphRelationType::Subsequent);
+		Callback(Task->CompletedTimestamp, Task->CompletedThreadId, Subsequent->ScheduledTimestamp, Subsequent->ScheduledThreadId, ETaskEventType::Subsequent);
 	}
 
 	if (Task->FinishedTimestamp != Task->CompletedTimestamp || Task->CompletedThreadId != Task->StartedThreadId)
 	{
-		Callback(Task->FinishedTimestamp, Task->StartedThreadId, Task->CompletedTimestamp, Task->StartedThreadId, FTaskGraphRelation::ETaskGraphRelationType::Completed);
+		Callback(Task->FinishedTimestamp, Task->StartedThreadId, Task->CompletedTimestamp, Task->StartedThreadId, ETaskEventType::Completed);
 	}
 }
 
@@ -348,6 +376,29 @@ void FTaskGraphProfilerManager::OnWindowClosedEvent()
 			Tab->RequestCloseTab();
 		}
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTaskGraphProfilerManager::InitializeColorCode()
+{
+	ColorCode[static_cast<uint32>(ETaskEventType::Created)] = FLinearColor::Yellow;
+	ColorCode[static_cast<uint32>(ETaskEventType::Launched)] = FLinearColor::Green;
+	ColorCode[static_cast<uint32>(ETaskEventType::Prerequisite)] = FLinearColor::Red;
+	ColorCode[static_cast<uint32>(ETaskEventType::Scheduled)] = FLinearColor::Blue;
+	ColorCode[static_cast<uint32>(ETaskEventType::Started)] = FLinearColor::Red;
+	ColorCode[static_cast<uint32>(ETaskEventType::AddedNested)] = FLinearColor::Blue;
+	ColorCode[static_cast<uint32>(ETaskEventType::NestedCompleted)] = FLinearColor::Red;
+	ColorCode[static_cast<uint32>(ETaskEventType::Subsequent)] = FLinearColor::Red;
+	ColorCode[static_cast<uint32>(ETaskEventType::Completed)] = FLinearColor::Yellow;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FLinearColor FTaskGraphProfilerManager::GetColorForTaskEvent(ETaskEventType InEvent)
+{
+	check(InEvent < ETaskEventType::NumTaskEventTypes);
+	return ColorCode[static_cast<uint32>(InEvent)];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

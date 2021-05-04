@@ -9,7 +9,6 @@
 // Insights
 #include "Insights/InsightsManager.h"
 #include "Insights/IUnrealInsightsModule.h"
-#include "Insights/ViewModels/TaskGraphRelation.h"
 
 namespace TraceServices
 {
@@ -21,11 +20,29 @@ namespace Insights
 {
 
 class STaskTableTreeView;
+class FTaskTimingSharedState;
 
 struct FTaskGraphProfilerTabs
 {
 	// Tab identifiers
 	static const FName TaskTableTreeViewTabID;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+enum class ETaskEventType : uint32
+{
+	Created,
+	Launched,
+	Prerequisite,
+	Scheduled,
+	Started,
+	AddedNested,
+	NestedCompleted,
+	Subsequent,
+	Completed,
+	
+	NumTaskEventTypes,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -35,7 +52,7 @@ struct FTaskGraphProfilerTabs
 class FTaskGraphProfilerManager : public TSharedFromThis<FTaskGraphProfilerManager>, public IInsightsComponent
 {
 public:
-	typedef TFunction<void(double /*SourceTimestamp*/, uint32 /*SourceThreadId*/, double /*TargetTimestamp*/, uint32 /*TargetThreadId*/, FTaskGraphRelation::ETaskGraphRelationType /*Type*/)> AddRelationCallback;
+	typedef TFunction<void(double /*SourceTimestamp*/, uint32 /*SourceThreadId*/, double /*TargetTimestamp*/, uint32 /*TargetThreadId*/, ETaskEventType /*Type*/)> AddRelationCallback;
 
 	/** Creates the Memory Profiler manager, only one instance can exist. */
 	FTaskGraphProfilerManager(TSharedRef<FUICommandList> InCommandList);
@@ -75,6 +92,9 @@ public:
 
 	void GetTaskRelations(double Time, uint32 ThreadId, AddRelationCallback Callback);
 	void GetTaskRelations(uint32 TaskId, AddRelationCallback Callback);
+	FLinearColor GetColorForTaskEvent(ETaskEventType InEvent);
+
+	TSharedPtr<Insights::FTaskTimingSharedState> GetTaskTimingSharedState() { return TaskTimingSharedState;	}
 
 private:
 	/** Updates this manager, done through FCoreTicker. */
@@ -83,6 +103,8 @@ private:
 	void RegisterTimingProfilerLayoutExtensions(FInsightsMajorTabExtender& InOutExtender);
 
 	void GetTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, AddRelationCallback Callback);
+
+	void InitializeColorCode();
 
 private:
 	bool bIsInitialized;
@@ -98,9 +120,13 @@ private:
 	/** A shared pointer to the global instance of the Task Graph Profiler manager. */
 	static TSharedPtr<FTaskGraphProfilerManager> Instance;
 
+	/** Shared state for task tracks */
+	TSharedPtr<FTaskTimingSharedState> TaskTimingSharedState;
+
 	TWeakPtr<FTabManager> TimingTabManager;
 
 	TSharedPtr<Insights::STaskTableTreeView> TaskTableTreeView;
+	FLinearColor ColorCode[static_cast<uint32>(ETaskEventType::NumTaskEventTypes)];
 };
 
 } // namespace Insights

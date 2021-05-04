@@ -48,7 +48,8 @@ struct TRACEINSIGHTS_API FTimingTrackOrder
 	static constexpr int32 Memory     = 1 * GroupRange;
 	static constexpr int32 Gpu        = 2 * GroupRange;
 	static constexpr int32 Cpu        = 3 * GroupRange;
-	static constexpr int32 Last       = 4 * GroupRange;
+	static constexpr int32 Task       = 4 * GroupRange;
+	static constexpr int32 Last       = 5 * GroupRange;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

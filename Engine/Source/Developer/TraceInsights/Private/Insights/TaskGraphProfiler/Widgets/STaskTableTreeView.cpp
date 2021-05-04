@@ -14,9 +14,11 @@
 #include "Insights/TaskGraphProfiler/TaskGraphProfilerManager.h"
 #include "Insights/TaskGraphProfiler/ViewModels/TaskEntry.h"
 #include "Insights/TaskGraphProfiler/ViewModels/TaskNode.h"
+#include "Insights/TaskGraphProfiler/ViewModels/TaskTimingTrack.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/FilterConfigurator.h"
+#include "Insights/ViewModels/TaskGraphRelation.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
 #include "Insights/Widgets/STimingView.h"
 
@@ -435,7 +437,7 @@ void STaskTableTreeView::ContextMenu_GoToTask_Execute()
 
 	TimingView->ClearRelations();
 
-	auto AddRelation = [&TimingView](double SourceTimestamp, uint32 SourceThreadId, double TargetTimestamp, uint32 TargetThreadId, FTaskGraphRelation::ETaskGraphRelationType Type)
+	auto AddRelation = [&TimingView](double SourceTimestamp, uint32 SourceThreadId, double TargetTimestamp, uint32 TargetThreadId, ETaskEventType Type)
 	{
 		if (SourceTimestamp == TraceServices::FTaskInfo::InvalidTimestamp || TargetTimestamp == TraceServices::FTaskInfo::InvalidTimestamp)
 		{
@@ -451,6 +453,13 @@ void STaskTableTreeView::ContextMenu_GoToTask_Execute()
 
 	double Duration = (SelectedTask->GetTask()->GetFinishedTimestamp() - SelectedTask->GetTask()->GetCreatedTimestamp()) * 1.5;
 	TimingView->ZoomOnTimeInterval(SelectedTask->GetTask()->GetCreatedTimestamp() - Duration * 0.15, Duration);
+
+	TSharedPtr<FTaskTimingSharedState> TaskSharedState = FTaskGraphProfilerManager::Get()->GetTaskTimingSharedState();
+
+	if (TaskSharedState.IsValid())
+	{
+		TaskSharedState->SetTaskId(SelectedTask->GetTask()->GetId());
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

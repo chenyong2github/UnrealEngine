@@ -9,7 +9,7 @@
 namespace Insights
 {
 
-FTaskGraphRelation::FTaskGraphRelation(double InSourceTime, int32 InSourceThreadId, double InTargetTime, int32 InTargetThreadId, ETaskGraphRelationType InType)
+FTaskGraphRelation::FTaskGraphRelation(double InSourceTime, int32 InSourceThreadId, double InTargetTime, int32 InTargetThreadId, ETaskEventType InType)
 {
 	SourceTime = InSourceTime;
 	SourceThreadId = InSourceThreadId;
@@ -56,18 +56,7 @@ void FTaskGraphRelation::Draw(const FDrawContext& DrawContext, const FTimingTrac
 	constexpr float LineLenghtAtEnds = 20.0f;
 	FVector2D StartDir((X2 - X1) / DirectionFactor, 0.0f);
 
-	FLinearColor RelationColors[(int32)ETaskGraphRelationType::Count] = {
-		FLinearColor::Yellow, // Created
-		FLinearColor::Green, // Launched
-		FLinearColor::Red, // Prerequisite
-		FLinearColor::Blue, // Scheduled
-		FLinearColor::Blue, // AddedNested
-		FLinearColor::Red, // NestedCompleted
-		FLinearColor::Red, // Subsequent
-		FLinearColor::Yellow, // Completed
-	};
-	
-	FLinearColor Color = RelationColors[(int32)Type];
+	FLinearColor Color = FTaskGraphProfilerManager::Get()->GetColorForTaskEvent(Type);
 	TArray<FVector2D> ArrowPoints;
 
 	if (Distance > LineLenghtAtEnds)
