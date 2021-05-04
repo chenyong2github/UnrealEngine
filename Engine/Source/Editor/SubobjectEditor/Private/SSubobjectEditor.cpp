@@ -839,6 +839,7 @@ TSharedRef<SWidget> SSubobject_RowWidget::GenerateWidgetForColumn(const FName& C
 	return SNew(STextBlock)
 		.Text(LOCTEXT("UnknownColumn", "Unknown Column"));
 }
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 FText SSubobject_RowWidget::GetNameLabel() const
 {
@@ -1920,8 +1921,6 @@ bool SSubobject_RowWidget::IsReadOnly() const
 	// If there is no valid data then default to read only
 	return true;
 }
-
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////
 // SSubobjectEditor
