@@ -63,24 +63,36 @@ half4 MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0) : SV_Target0
 	int xCoord = UV.x * TextureWidth;
 	int yCoord = UV.y * TextureHeight;
 
-	// Depending on the EXR file it could contain multi-channel data. We support only 3 or 4 channel data.
-#if IS_RGBA
-	int Channels = 4;
-#else
+	// Depending on the EXR file it could contain multi-channel data.
+#if NUM_CHANNELS == 1
+	int Channels = 1;
+#elif NUM_CHANNELS == 2
+	int Channels = 2;
+#elif NUM_CHANNELS == 3
 	int Channels = 3;
+#else
+	int Channels = 4;
 #endif
 	// Current scanline position.
 	int Offset = yCoord * TextureWidth * Channels + xCoord + (yCoord + 1) * 4;
 	int ChannelIndex = 0;
-#if IS_RGBA
+#if NUM_CHANNELS == 4
 	half A = UintContainingFloatToFloat(GetValueFromTheBuffer(Offset, TextureWidth, TextureHeight, ChannelIndex++));
 #else
 	half A = 1.;
 #endif
 
 	half B = UintContainingFloatToFloat(GetValueFromTheBuffer(Offset, TextureWidth, TextureHeight, ChannelIndex++));
+#if NUM_CHANNELS <= 1
+	half G = B;
+#else
 	half G = UintContainingFloatToFloat(GetValueFromTheBuffer(Offset, TextureWidth, TextureHeight, ChannelIndex++));
+#endif
+#if NUM_CHANNELS <= 2
+	half R = B;
+#else
 	half R = UintContainingFloatToFloat(GetValueFromTheBuffer(Offset, TextureWidth, TextureHeight, ChannelIndex++));
+#endif
 
 	half3 Rgb = half3(R, G, B);
 
