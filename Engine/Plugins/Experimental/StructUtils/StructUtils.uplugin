@@ -24,6 +24,10 @@
 		{
 			"Name" : "StructUtilsEditor",
 			"Type" : "Editor"
+		},
+		{
+			"Name": "StructUtilsTestSuite",
+			"Type": "UncookedOnly"
 		}
 	],
 	"Plugins": [
