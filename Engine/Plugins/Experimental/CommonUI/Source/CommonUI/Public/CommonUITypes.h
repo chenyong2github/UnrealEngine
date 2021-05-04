@@ -40,6 +40,12 @@ public:
 	/** Get the input type key bound to this input type, with a potential override */
 	FKey GetKey() const;
 
+	/** Get the input type key bound to this input type, with a potential override */
+	void SetKey(FKey InKey)
+	{
+		Key = InKey;
+	};
+
 	/** EInputActionState::Enabled means that the state isn't overriden and the games dynamic control will work */
 	UPROPERTY(EditAnywhere, Category = "CommonInput")
 	EInputActionState OverrrideState;
@@ -111,6 +117,8 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "CommonInput")
 	FCommonInputTypeInfo TouchInputTypeInfo;
 
+	friend class UCommonInputActionDataProcessor;
+
 public:
 	bool CanDisplayInReflector(ECommonInputType InputType, const FName& GamepadName) const;
 
@@ -127,6 +135,12 @@ public:
 	virtual void OnPostDataImport(const UDataTable* InDataTable, const FName InRowName, TArray<FString>& OutCollectedImportProblems) override;
 
 	virtual bool HasHoldBindings() const;
+
+	const FCommonInputTypeInfo& GetDefaultGamepadInputTypeInfo() const;
+
+	bool HasGamepadInputOverride(const FName& GamepadName) const;
+
+	void AddGamepadInputOverride(const FName& GamepadName, const FCommonInputTypeInfo& InputInfo);
 
 	bool operator==(const FCommonInputActionDataBase& Other) const
 	{

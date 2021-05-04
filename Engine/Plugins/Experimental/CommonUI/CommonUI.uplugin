@@ -2,7 +2,7 @@
 	"FileVersion" : 3,
 	"Version" : 1,
 	"VersionName" : "1.0",
-	"FriendlyName" : "UI Common Plugin",
+	"FriendlyName" : "Common UI Plugin",
 	"Description" : "A repository for game independent UI elements.",
 	"Category" : "UI",
 	"CreatedBy" : "Epic Games, Inc.",

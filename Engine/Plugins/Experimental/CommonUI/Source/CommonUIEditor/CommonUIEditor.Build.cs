@@ -13,6 +13,7 @@ public class CommonUIEditor : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
+				"ApplicationCore",
 				"Engine",
 				"PropertyEditor",
 				"InputCore",
@@ -22,9 +23,13 @@ public class CommonUIEditor : ModuleRules
 				"CommonUI",
                 "EditorWidgets",
 				"EditorStyle",
+				"UnrealEd",
 				"GameplayTags",
 				"GameplayTagsEditor",
-            }
+				"AssetTools",
+				"AssetRegistry",
+				"ToolMenus",
+			}
         );
 
 		PrivateIncludePaths.AddRange(
@@ -32,6 +37,13 @@ public class CommonUIEditor : ModuleRules
 			{
 				"CommonUI/Private",
                 "CommonUIEditor/Private",
+			}
+		);
+
+		PrivateIncludePathModuleNames.AddRange(
+			new string[] {
+				"AssetRegistry",
+				"AssetTools",
 			}
 		);
 

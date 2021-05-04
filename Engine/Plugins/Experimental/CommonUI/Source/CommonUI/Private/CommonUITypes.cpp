@@ -180,6 +180,21 @@ bool FCommonInputActionDataBase::HasHoldBindings() const
 	return false;
 }
 
+const FCommonInputTypeInfo& FCommonInputActionDataBase::GetDefaultGamepadInputTypeInfo() const
+{
+	return DefaultGamepadInputTypeInfo;
+}
+
+bool FCommonInputActionDataBase::HasGamepadInputOverride(const FName& GamepadName) const
+{
+	return GamepadInputOverrides.Contains(GamepadName);
+}
+
+void FCommonInputActionDataBase::AddGamepadInputOverride(const FName& GamepadName, const FCommonInputTypeInfo& InputInfo)
+{
+	GamepadInputOverrides.Add(GamepadName, InputInfo);
+}
+
 void CommonUI::SetupStyles()
 {
 	EmptyScrollBoxStyle.BottomShadowBrush.DrawAs = ESlateBrushDrawType::NoDrawType;
