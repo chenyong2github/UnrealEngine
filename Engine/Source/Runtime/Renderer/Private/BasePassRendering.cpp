@@ -758,6 +758,8 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 			ViewFamily.EngineShowFlags.LODColoration ||
 			ViewFamily.EngineShowFlags.HLODColoration);
 
+	const bool bForwardShadingEnabled = IsForwardShadingEnabled(SceneTextures.Config.ShaderPlatform);
+
 	const FExclusiveDepthStencil ExclusiveDepthStencil(BasePassDepthStencilAccess);
 
 	TStaticArray<FRDGTextureRef, MaxSimultaneousRenderTargets> BasePassTextures;
@@ -853,9 +855,13 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	BasePassRenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, ViewFamily, nullptr, EVRSType::None);
 	
 	FForwardBasePassTextures ForwardBasePassTextures{};
-	ForwardBasePassTextures.SceneDepthIfResolved = SceneTextures.Depth.IsSeparate() ? SceneTextures.Depth.Resolve : nullptr;
-	ForwardBasePassTextures.ScreenSpaceAO = SceneTextures.ScreenSpaceAO;
-	ForwardBasePassTextures.ScreenSpaceShadowMask = ForwardShadowMaskTexture;
+
+	if (bForwardShadingEnabled)
+	{
+		ForwardBasePassTextures.SceneDepthIfResolved = SceneTextures.Depth.IsSeparate() ? SceneTextures.Depth.Resolve : nullptr;
+		ForwardBasePassTextures.ScreenSpaceAO = SceneTextures.ScreenSpaceAO;
+		ForwardBasePassTextures.ScreenSpaceShadowMask = ForwardShadowMaskTexture;
+	}
 
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_BasePass));
 	RenderBasePassInternal(GraphBuilder, BasePassRenderTargets, BasePassDepthStencilAccess, ForwardBasePassTextures, DBufferTextures, SceneTextures.QuadOverdraw, bDoParallelBasePass, bRenderLightmapDensity, InstanceCullingManager);

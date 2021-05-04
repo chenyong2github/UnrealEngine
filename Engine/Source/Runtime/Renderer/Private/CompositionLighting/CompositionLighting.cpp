@@ -501,7 +501,7 @@ void ProcessBeforeBasePass(
 
 	const auto ProcessView = [&](const FViewInfo& View, uint32 SSAOLevels)
 	{
-		const bool bNeedSSAO = SSAOLevels && FSSAOHelper::GetGTAOPassType(View, SSAOLevels) != EGTAOType::ENonAsync;
+		const bool bNeedSSAO = SSAOLevels && FSSAOHelper::GetGTAOPassType(View, SSAOLevels) == EGTAOType::EOff;
 
 		// so that the passes can register themselves to the graph
 		if (bDBuffer || bNeedSSAO)
@@ -539,8 +539,8 @@ void ProcessBeforeBasePass(
 
 		uint32 SSAOLevels = FSSAOHelper::ComputeAmbientOcclusionPassCount(View);
 
-		// In forward, if depth prepass is off - as SSAO here requires a valid HZB buffer - disable SSAO.
-		if (!IsForwardShadingEnabled(ShaderPlatform) || !View.HZB || FSSAOHelper::IsAmbientOcclusionAsyncCompute(View, SSAOLevels))
+		// Disable SSAO if no valid HZB exists, or if we are deferred and non-async (this is handled in ProcessAfterBasePass instead).
+		if (!View.HZB || (!IsForwardShadingEnabled(View.GetShaderPlatform()) && !FSSAOHelper::IsAmbientOcclusionAsyncCompute(View, SSAOLevels)))
 		{
 			SSAOLevels = 0;
 		}
@@ -597,13 +597,7 @@ void ProcessAfterBasePass(
 			const bool bScreenSpaceAOIsProduced = SceneTextures.ScreenSpaceAO->HasBeenProduced();
 			FScreenPassRenderTarget FinalTarget = FScreenPassRenderTarget(SceneTextures.ScreenSpaceAO, View.ViewRect, bScreenSpaceAOIsProduced ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::ENoAction);
 
-			FScreenPassTexture AmbientOcclusion;
-#if RHI_RAYTRACING
-			if (ShouldRenderRayTracingAmbientOcclusion(View) && bScreenSpaceAOIsProduced)
-			{
-				AmbientOcclusion = FinalTarget;
-			}
-#endif
+			FScreenPassTexture AmbientOcclusion = bScreenSpaceAOIsProduced ? FinalTarget : FScreenPassTexture();
 
 			const EGTAOType GTAOType = FSSAOHelper::GetGTAOPassType(View, SSAOLevels);
 
@@ -628,7 +622,7 @@ void ProcessAfterBasePass(
 					FGTAOCommonParameters Parameters = GetGTAOCommonParameters(GraphBuilder, View, SceneTextures.UniformBuffer, GTAOType);
 					AmbientOcclusion = AddPostProcessingGTAOAllPasses(GraphBuilder, View, Parameters, FinalTarget);
 				}
-				else
+				else if (!AmbientOcclusion.IsValid())
 				{
 					FSSAOCommonParameters Parameters = GetSSAOCommonParameters(GraphBuilder, View, SceneTextures.UniformBuffer, SSAOLevels, true);
 					AmbientOcclusion = AddPostProcessingAmbientOcclusion(GraphBuilder, View, Parameters, FinalTarget);
