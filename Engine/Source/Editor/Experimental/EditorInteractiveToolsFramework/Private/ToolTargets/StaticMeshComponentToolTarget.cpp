@@ -169,7 +169,9 @@ UStaticMesh* UStaticMeshComponentToolTarget::GetStaticMesh() const
 
 bool UStaticMeshComponentToolTargetFactory::CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& Requirements) const
 {
-	return Cast<UStaticMeshComponent>(SourceObject) && Requirements.AreSatisfiedBy(UStaticMeshComponentToolTarget::StaticClass());
+	const UStaticMeshComponent* Component = Cast<UStaticMeshComponent>(SourceObject);
+	return Component && !Component->IsPendingKillOrUnreachable() && Component->IsValidLowLevel() && Component->GetStaticMesh()
+		&& Requirements.AreSatisfiedBy(UStaticMeshComponentToolTarget::StaticClass());
 }
 
 UToolTarget* UStaticMeshComponentToolTargetFactory::BuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& Requirements)
