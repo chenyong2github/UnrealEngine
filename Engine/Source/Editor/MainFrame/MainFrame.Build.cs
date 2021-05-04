@@ -58,6 +58,7 @@ public class MainFrame : ModuleRules
 				"LevelEditor",
 				"Settings",
 				"SourceCodeAccess",
+				"LocalizationDashboard", // not required but causes circular depends issues on Linux/Mac
 			}
 		);
 
@@ -77,6 +78,7 @@ public class MainFrame : ModuleRules
 				"LevelEditor",
 				"SourceCodeAccess",
 				"HotReload",
+				"LocalizationDashboard", // not required but causes circular depends issues on Linux/Mac
 			}
 		);
 	}
