@@ -25,8 +25,8 @@ struct FPackedShaderDrawElement
 
 FPackedShaderDrawElement PackShaderElement(FShaderDrawElement E)
 {
-	uint4 PackedC0 = 255.0f * saturate(E.Color0);
-	uint4 PackedC1 = 255.0f * saturate(E.Color1);
+	uint4 PackedC0 = uint4(255.0f * saturate(E.Color0));
+	uint4 PackedC1 = uint4(255.0f * saturate(E.Color1));
 
 	FPackedShaderDrawElement PackedE;
 	PackedE.Pos0_ColorX = float4(E.Pos0, asfloat((PackedC0.x << 24) | (PackedC0.y << 16) | (PackedC0.z << 8) | (PackedC0.w)));
