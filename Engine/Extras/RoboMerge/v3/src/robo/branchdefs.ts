@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+import { StreamSpecs } from '../common/perforce'
+
 const jsonlint: any = require('jsonlint')
 
 const RESERVED_BRANCH_NAMES = ['NONE', 'DEFAULT', 'IGNORE', 'DEADEND', ''];
@@ -157,6 +159,33 @@ interface ParseResult {
 	config: BotConfig
 }
 
+export type StreamResult = {
+	depot: string
+	rootPath?: string
+	stream?: string
+}
+
+/** expects either rootPath or all the other optional arguments */
+export function calculateStream(nodeOrStreamName: string, rootPath?: string | null, depot?: string | null, streamSubpath?: string | null) {
+	if (!rootPath) {
+		if (!depot) {
+			throw new Error(`Missing rootPath and no streamDepot defined for branch ${nodeOrStreamName}.`)
+		}
+		const stream = `//${depot}/${nodeOrStreamName}`
+		return {depot, stream, rootPath: stream + (streamSubpath || '/...')}
+	}
+
+	if (!rootPath.startsWith('//') || !rootPath.endsWith('/...')) {
+		throw new Error(`Branch rootPath not in '//<something>/...'' format: ${rootPath}`)
+	}
+
+	const depotMatch = rootPath.match(new RegExp('//[^/]/'))
+	if (!depotMatch || !depotMatch[1]) {
+		throw new Error(`Cannot find depotname in ${rootPath}`)
+	}
+	return {depot: depotMatch[1]}
+}
+
 export class BranchDefs {
 	static checkName(name: string) {
 		if (!name.match(/^[-a-zA-Z0-9_\.]+$/))
@@ -176,7 +205,7 @@ export class BranchDefs {
 		}
 	}
 
-	static parseAndValidate(outErrors: string[], branchSpecsText: string): ParseResult {
+	static parseAndValidate(outErrors: string[], branchSpecsText: string, allStreamSpecs: StreamSpecs): ParseResult {
 		const defaultConfigForWholeBot: BotConfig = {
 			defaultStreamDepot: null,
 			defaultIntegrationMethod: null,
@@ -269,6 +298,17 @@ export class BranchDefs {
 			}
 			else {
 				names.set(upperName, upperName)
+			}
+
+			const streamResult = calculateStream(
+				def.streamName || def.name,
+				def.rootPath,
+				def.streamDepot || defaultConfigForWholeBot.defaultStreamDepot,
+				def.streamSubpath
+			)
+
+			if (streamResult.stream && !allStreamSpecs.has(streamResult.stream)) {
+				outErrors.push(`Stream ${streamResult.stream} not found`)
 			}
 		}
 

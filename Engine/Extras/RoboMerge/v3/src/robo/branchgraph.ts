@@ -3,7 +3,8 @@
 import { setDefault } from '../common/helper';
 import { BranchSpec } from '../common/perforce';
 import { Branch, BranchGraphInterface } from './branch-interfaces';
-import { BotConfig, BranchDefs, BranchGraphDefinition, EdgeOptions, EdgeProperties, IntegrationMethod, NodeOptions } from './branchdefs';
+import { BotConfig, BranchDefs, BranchGraphDefinition, EdgeOptions, EdgeProperties, IntegrationMethod } from './branchdefs';
+import { NodeOptions, calculateStream } from './branchdefs';
 
 type ConfigBlendMode = 'override' | 'accumulate'
 
@@ -242,31 +243,18 @@ if (botname === '__TEST__') {
 		// lower-case notify names so we can more easily check for uniqueness
 		branch.notify.map(str => { return str.toLowerCase() })
 
-		const depot = options.streamDepot || this.config.defaultStreamDepot
-		const streamName = options.streamName || name
-		const computedStreamRoot = depot && streamName ? `//${depot}/${streamName}` : null
-
 		// compute root path if not specified
-		if (branch.rootPath === "") {
-			if (!computedStreamRoot) {
-				throw new Error(`Missing rootPath and no streamDepot+streamName defined for branch ${name}.`)
-			}
+		const streamResult = calculateStream(
+			options.streamName || name,
+			branch.rootPath,
+			options.streamDepot || this.config.defaultStreamDepot,
+			options.streamSubpath
+			)
 
-			branch.depot = depot!
-			branch.rootPath = computedStreamRoot + (options.streamSubpath || '/...')
-			branch.stream = computedStreamRoot
-		}
-		else {
-			if (!branch.rootPath.startsWith('//') || !branch.rootPath.endsWith('/...')) {
-				throw new Error(`Branch rootPath not in '//<something>/...'' format: ${branch.rootPath}`)
-			}
-
-			const depotMatch = branch.rootPath.match(/\/\/([^/]+)\//)
-			if (!depotMatch || !depotMatch[1]) {
-				throw new Error(`Cannot find depotname in ${branch.rootPath}`)
-			}
-
-			branch.depot = depotMatch[1]
+		branch.depot = streamResult.depot
+		if (streamResult.rootPath) {
+			branch.rootPath = streamResult.rootPath
+			branch.stream = streamResult.stream
 		}
 
 		// make sure flowsTo and defaultFlow are all upper case
