@@ -1800,6 +1800,11 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		KeyString += TEXT("_PPDBM");
 	}
 
+	if (RHISupportsMeshShaders(Platform))
+	{
+		KeyString += TEXT("_MS");
+	}
+
 	if (ShouldCompileRayTracingShadersForProject(Platform))
 	{
 		static const auto CVarCompileCHS = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.CompileMaterialCHS"));
