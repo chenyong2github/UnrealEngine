@@ -260,12 +260,6 @@ void UDerivedDataCacheCommandlet::CacheWorldPackages(UWorld* World, uint8 Packag
 	bool bResult = true;
 	if (World->HasSubsystem<UWorldPartitionSubsystem>())
 	{
-		// Commandlets aren't loading level instances by default, change that behavior
-		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = World->GetSubsystem<ULevelInstanceSubsystem>())
-		{
-			LevelInstanceSubsystem->SetLoadInstancesOnRegistration(true);
-		}
-
 		// Ensure the world has a valid world partition.
 		UWorldPartition* WorldPartition = World->GetWorldPartition();
 		check(WorldPartition);

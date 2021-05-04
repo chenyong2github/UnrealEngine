@@ -64,8 +64,6 @@ void ULevelInstanceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		FModuleManager::LoadModuleChecked<ILevelInstanceEditorModule>("LevelInstanceEditor");
 	}
-
-	bLoadInstancesOnRegistration = !IsRunningCommandlet();
 #endif
 }
 
@@ -1728,21 +1726,6 @@ void ULevelInstanceSubsystem::BlockUnloadLevelInstance(ALevelInstance* LevelInst
 	}
 }
 
-void ULevelInstanceSubsystem::SetLoadInstancesOnRegistration(bool bInLoadInstancesOnRegistration)
-{
-	bLoadInstancesOnRegistration = bInLoadInstancesOnRegistration;
-}
-
 #endif
-
-bool ULevelInstanceSubsystem::ShouldLoadInstancesOnRegistration() const
-{
-#if WITH_EDITOR
-	return bLoadInstancesOnRegistration;
-#else
-	return !IsRunningCommandlet();
-#endif
-}
 
 #undef LOCTEXT_NAMESPACE
-

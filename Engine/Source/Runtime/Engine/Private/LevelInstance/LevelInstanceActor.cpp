@@ -80,10 +80,7 @@ void ALevelInstance::PostRegisterAllComponents()
 	{
 		LevelInstanceID = LevelInstanceSubsystem->RegisterLevelInstance(this);
 
-		if (LevelInstanceSubsystem->ShouldLoadInstancesOnRegistration())
-		{
-			LoadLevelInstance();
-		}
+		LoadLevelInstance();
 
 #if WITH_EDITOR
 		// Make sure transformation is up to date after registration as its possible LevelInstance actor can get unregistered when editing properties
@@ -107,10 +104,7 @@ void ALevelInstance::PostUnregisterAllComponents()
 
 		LevelInstanceSubsystem->UnregisterLevelInstance(this);
 
-		if (LevelInstanceSubsystem->ShouldLoadInstancesOnRegistration())
-		{
-			UnloadLevelInstance();
-		}
+		UnloadLevelInstance();
 
 		// To avoid processing PostUnregisterAllComponents multiple times (BP Recompile is one use case)
 		LevelInstanceID = FLevelInstanceID();
