@@ -467,8 +467,8 @@ void FDisplayClusterViewportConfigurationICVFX::Update()
 
 	if (StageSettings.bEnable)
 	{
-		TArray<FDisplayClusterViewport*>   TargetViewports;
-		EDisplayClusterViewportICVFXFlags  TargetViewportsFlags = ImplGetTargetViewports(TargetViewports);
+		TArray<FDisplayClusterViewport*> TargetViewports;
+		const EDisplayClusterViewportICVFXFlags TargetViewportsFlags = ImplGetTargetViewports(TargetViewports);
 
 		// Find ICVFX target viewports
 		if (TargetViewports.Num() > 0)
