@@ -28,7 +28,8 @@ public:
 	enum class EItemSortOrder : int32
 	{
 		DataLayer = 0,
-		Actor = 10
+		Actor = 10,
+		Unloaded = 20,
 	};
 
 	FDataLayerMode(const FDataLayerModeParams& Params);

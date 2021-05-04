@@ -14,6 +14,7 @@
 #include "DragAndDrop/ActorDragDropOp.h"
 #include "DragAndDrop/FolderDragDropOp.h"
 #include "ActorMode.h"
+#include "DataLayersActorDescTreeItem.h"
 #include "EditorActorFolders.h"
 #include "Algo/Transform.h"
 #include "ToolMenus.h"
@@ -47,11 +48,15 @@ int32 FDataLayerMode::GetTypeSortPriority(const ISceneOutlinerTreeItem& Item) co
 {
 	if (Item.IsA<FDataLayerTreeItem>())
 	{
-		return (int32)EItemSortOrder::DataLayer;
+		return static_cast<int32>(EItemSortOrder::DataLayer);
 	}
 	else if (Item.IsA<FDataLayerActorTreeItem>())
 	{
-		return (int32)EItemSortOrder::Actor;
+		return static_cast<int32>(EItemSortOrder::Actor);
+	}
+	else if (Item.IsA<FDataLayerActorDescTreeItem>())
+	{
+		return static_cast<int32_t>(EItemSortOrder::Unloaded);
 	}
 	// Warning: using actor mode with an unsupported item type!
 	check(false);

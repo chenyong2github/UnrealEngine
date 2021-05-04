@@ -32,6 +32,10 @@ private:
 	void OnLevelActorListChanged();
 	void OnLevelAdded(ULevel* InLevel, UWorld* InWorld);
 	void OnLevelRemoved(ULevel* InLevel, UWorld* InWorld);
+	void OnLoadedActorAdded(AActor& InActor);
+	void OnLoadedActorRemoved(AActor& InActor);
+	void OnActorDescAdded(FWorldPartitionActorDesc* InActorDesc);
+	void OnActorDescRemoved(FWorldPartitionActorDesc* InActorDesc);
 	void OnActorDataLayersChanged(const TWeakObjectPtr<AActor>& InActor);
 	void OnDataLayerChanged(const EDataLayerAction Action, const TWeakObjectPtr<const UDataLayer>& ChangedDataLayer, const FName& ChangedProperty);
 	void OnDataLayerBrowserModeChanged(EDataLayerBrowserMode InMode);
