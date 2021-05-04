@@ -11,6 +11,7 @@
 FVirtualTexturePhysicalSpace::FVirtualTexturePhysicalSpace(const FVTPhysicalSpaceDescription& InDesc, uint16 InID)
 	: Description(InDesc)
 	, NumRefs(0u)
+	, LastFrameOversubscribed(0u)
 	, ID(InID)
 	, bPageTableLimit(false)
 	, bGpuTextureLimit(false)

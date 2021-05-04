@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#if !UE_BUILD_SHIPPING
+#include "Misc/CoreDelegates.h"
+#endif
 #include "RHI.h"
 #include "RendererInterface.h"
 #include "Templates/UniquePtr.h"
@@ -101,6 +104,13 @@ private:
 	void GetContinuousUpdatesToProduce(FUniqueRequestList const* RequestList, int32 MaxTilesToProduce);
 
 	void UpdateCSVStats() const;
+
+#if !UE_BUILD_SHIPPING
+	void GetOnScreenMessages(FCoreDelegates::FSeverityMessageMap& OutMessages);
+
+	FCoreDelegates::FSeverityMessageMap OnScreenMessages;
+	FCriticalSection OnScreenMessageLock;
+#endif
 
 	uint32	Frame;
 

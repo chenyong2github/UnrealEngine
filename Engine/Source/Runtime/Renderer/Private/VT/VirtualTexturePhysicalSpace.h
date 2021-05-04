@@ -70,6 +70,9 @@ public:
 	inline uint32 Release() { check(NumRefs > 0u); return --NumRefs; }
 	inline uint32 GetRefCount() const { return NumRefs; }
 
+	inline uint32 GetLastFrameOversubscribed() const { return LastFrameOversubscribed; }
+	inline void SetLastFrameOversubscribed(uint32 InFrame) { LastFrameOversubscribed = InFrame; }
+
 	FRHITexture* GetPhysicalTexture(int32 Layer) const
 	{
 		check(PooledRenderTarget[Layer].IsValid());
@@ -112,6 +115,7 @@ private:
 
 	uint32 TextureSizeInTiles;
 	uint32 NumRefs;
+	uint32 LastFrameOversubscribed;
 	uint16 ID;
 	bool bPageTableLimit; // True if the physical size was limited by the page table format requested
 	bool bGpuTextureLimit; // True if the physical size was limited by the maximum GPU texture size
