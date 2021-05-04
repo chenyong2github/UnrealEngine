@@ -19,7 +19,8 @@
 
 
 FMetalQueryBuffer::FMetalQueryBuffer(FMetalContext* InContext, FMetalBuffer InBuffer)
-	: Pool(InContext->GetQueryBufferPool())
+	: FRHIResource(RRT_TimestampCalibrationQuery)
+	, Pool(InContext->GetQueryBufferPool())
 	, Buffer(MoveTemp(InBuffer))
 	, WriteOffset(0)
 {
