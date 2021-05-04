@@ -1,3 +1,4 @@
+
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 import { Badge } from '../common/badge';
@@ -112,7 +113,7 @@ class BadgeHandler implements BotEventHandler {
 					contentType: 'application/json'
 				}, `Pause of CIS for ${arg.to}`)
 
-			}, CIS_PAUSE_REFRESH_INTERVAL_SECONDS))
+			}, CIS_PAUSE_REFRESH_INTERVAL_SECONDS * 1000.))
 		}
 	}
 
