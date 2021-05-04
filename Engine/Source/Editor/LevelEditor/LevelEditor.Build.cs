@@ -82,6 +82,8 @@ public class LevelEditor : ModuleRules
 				"DesktopPlatform",
 				"DataLayerEditor",
 				"TranslationEditor",
+				"SubobjectEditor",
+				"SubobjectDataInterface",
 			}
 		);
 
