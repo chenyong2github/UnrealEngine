@@ -19,6 +19,8 @@
  */
 int32 WINAPI WinMain( HINSTANCE hInInstance, HINSTANCE hPrevInstance, char* lpCmdLine, int32 nShowCmd )
 {
+	FTaskTagScope Scope(ETaskTag::EGameThread);
+
 	hInstance = hInInstance;
 
 	const TCHAR* CmdLine = ::GetCommandLineW();
