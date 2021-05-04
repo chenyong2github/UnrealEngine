@@ -168,7 +168,7 @@ namespace Audio
 	{
 	public:
 		/** Callback to generate a new audio stream buffer. */
-		virtual bool OnProcessAudioStream(AlignedFloatBuffer& OutputBuffer) = 0;
+		virtual bool OnProcessAudioStream(FAlignedFloatBuffer& OutputBuffer) = 0;
 
 		/** Called when audio render thread stream is shutting down. Last function called. Allows cleanup on render thread. */
 		virtual void OnAudioStreamShutdown() = 0;
@@ -332,13 +332,13 @@ namespace Audio
 		mutable Audio::TCircularAudioBuffer<uint8> CircularBuffer;
 		
 		// Buffer that we render audio to from the IAudioMixer instance associated with this output buffer.
-		Audio::AlignedFloatBuffer RenderBuffer;
+		Audio::FAlignedFloatBuffer RenderBuffer;
 
 		// Buffer read by the platform interface thread.
-		mutable Audio::AlignedByteBuffer PopBuffer;
+		mutable Audio::FAlignedByteBuffer PopBuffer;
 
 		// For non-float situations, this buffer is used to convert RenderBuffer before pushing it to CircularBuffer.
-		AlignedByteBuffer FormattedBuffer;
+		FAlignedByteBuffer FormattedBuffer;
  		EAudioMixerStreamDataFormat::Type DataFormat;
 
 		static size_t GetSizeForDataFormat(EAudioMixerStreamDataFormat::Type InDataFormat);

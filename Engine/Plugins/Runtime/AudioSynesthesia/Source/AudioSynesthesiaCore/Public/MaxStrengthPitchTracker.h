@@ -28,7 +28,7 @@ namespace Audio
 			virtual ~FMaxStrengthPitchTracker();
 
 			/** Append pitch tracks to processed audio. */
-			virtual void TrackPitches(const AlignedFloatBuffer& InMonoAudio, TArray<FPitchTrackInfo>& OutPitchTracks) override;
+			virtual void TrackPitches(const FAlignedFloatBuffer& InMonoAudio, TArray<FPitchTrackInfo>& OutPitchTracks) override;
 
 			/** Call when all audio has been processed. Appends pitch tracks to OutPitchTracks. */
 			virtual void Finalize(TArray<FPitchTrackInfo>& OutPitchTracks) override;

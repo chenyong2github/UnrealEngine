@@ -160,7 +160,7 @@ struct FSoundfieldEncoderInputData
 	/*
 	 * Input buffer of interleaved floats. Each channel of the interleaved AudioBuffer corresponds to a channel index in PositionalData.
 	 */
-	Audio::AlignedFloatBuffer& AudioBuffer;
+	Audio::FAlignedFloatBuffer& AudioBuffer;
 
 	// Number of channels of the source audio buffer.
 	int32 NumChannels;
@@ -195,7 +195,7 @@ struct FSoundfieldDecoderInputData
 
 struct FSoundfieldDecoderOutputData
 {
-	Audio::AlignedFloatBuffer& AudioBuffer;
+	Audio::FAlignedFloatBuffer& AudioBuffer;
 };
 
 class AUDIOEXTENSIONS_API ISoundfieldDecoderStream

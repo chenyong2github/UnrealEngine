@@ -146,7 +146,7 @@ struct FAudioPluginSourceInputData
 	uint64 AudioComponentId;
 
 	// The audio input buffer
-	Audio::AlignedFloatBuffer* AudioBuffer;
+	Audio::FAlignedFloatBuffer* AudioBuffer;
 
 	// Number of channels of the source audio buffer.
 	int32 NumChannels;
@@ -161,7 +161,7 @@ struct FAudioPluginSourceInputData
 struct FAudioPluginSourceOutputData
 {
 	// The audio output buffer
-	Audio::AlignedFloatBuffer AudioBuffer;
+	Audio::FAlignedFloatBuffer AudioBuffer;
 };
 
 /** This is a class which should be overridden to provide users with settings to use for individual sounds */

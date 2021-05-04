@@ -511,8 +511,8 @@ namespace Audio
 			const int32 NumOutputFFTElements;
 			FFTFreqDomainData FreqDomainData;
 
-			AlignedFloatBuffer FreqRealBuffer;
-			AlignedFloatBuffer FreqImagBuffer;
+			FAlignedFloatBuffer FreqRealBuffer;
+			FAlignedFloatBuffer FreqImagBuffer;
 			
 
 		public:
@@ -652,7 +652,7 @@ namespace Audio
 		return MakeUnique<FAudioFFTAlgorithm>(FFTSize);
 	}
 
-	void ComputePowerSpectrumNoScaling(const FFTFreqDomainData& InFrequencyData, int32 FFTSize, AlignedFloatBuffer& OutBuffer)
+	void ComputePowerSpectrumNoScaling(const FFTFreqDomainData& InFrequencyData, int32 FFTSize, FAlignedFloatBuffer& OutBuffer)
 	{
 		check((FFTSize % 2) == 0);
 
@@ -695,7 +695,7 @@ namespace Audio
 		}
 	}
 
-	void ComputePowerSpectrum(const FFTFreqDomainData& InFrequencyData, int32 FFTSize, AlignedFloatBuffer& OutBuffer)
+	void ComputePowerSpectrum(const FFTFreqDomainData& InFrequencyData, int32 FFTSize, FAlignedFloatBuffer& OutBuffer)
 	{
 		if (FFTSize < 1)
 		{
@@ -723,7 +723,7 @@ namespace Audio
 		OutBufferData[NumSpectrumValues - 1] *= FFTScale;
 	}
 
-	void ComputeMagnitudeSpectrum(const FFTFreqDomainData& InFrequencyData, int32 FFTSize, AlignedFloatBuffer& OutBuffer)
+	void ComputeMagnitudeSpectrum(const FFTFreqDomainData& InFrequencyData, int32 FFTSize, FAlignedFloatBuffer& OutBuffer)
 	{
 		if (FFTSize < 1)
 		{
@@ -756,7 +756,7 @@ namespace Audio
 		OutBufferData[NumSpectrumValues - 1] *= FFTScale;
 	}
 
-	void ComputeSpectrum(ESpectrumType InSpectrumType, const FFTFreqDomainData& InFrequencyData, int32 FFTSize, AlignedFloatBuffer& OutBuffer)
+	void ComputeSpectrum(ESpectrumType InSpectrumType, const FFTFreqDomainData& InFrequencyData, int32 FFTSize, FAlignedFloatBuffer& OutBuffer)
 	{
 		switch (InSpectrumType)
 		{
@@ -772,7 +772,7 @@ namespace Audio
 				checkf(false, TEXT("Unhandled Audio::ESpectrumType"));
 		}
 	}
-	SIGNALPROCESSING_API void CrossCorrelate(AlignedFloatBuffer& FirstBuffer, AlignedFloatBuffer& SecondBuffer, AlignedFloatBuffer& OutCorrelation, bool bZeroPad /*= true*/)
+	SIGNALPROCESSING_API void CrossCorrelate(FAlignedFloatBuffer& FirstBuffer, FAlignedFloatBuffer& SecondBuffer, FAlignedFloatBuffer& OutCorrelation, bool bZeroPad /*= true*/)
 	{
 		FrequencyBuffer OutputCorrelationFrequencies;
 		CrossCorrelate(FirstBuffer, SecondBuffer, OutputCorrelationFrequencies, bZeroPad);
@@ -796,7 +796,7 @@ namespace Audio
 		PerformIFFT(FreqDomainData, TimeDomainData);
 	}
 
-	SIGNALPROCESSING_API void CrossCorrelate(AlignedFloatBuffer& FirstBuffer, AlignedFloatBuffer& SecondBuffer, FrequencyBuffer& OutCorrelation, bool bZeroPad /*= true*/)
+	SIGNALPROCESSING_API void CrossCorrelate(FAlignedFloatBuffer& FirstBuffer, FAlignedFloatBuffer& SecondBuffer, FrequencyBuffer& OutCorrelation, bool bZeroPad /*= true*/)
 	{
 		const int32 NumSamples = FMath::Max(FirstBuffer.Num(), SecondBuffer.Num());
 
@@ -1048,7 +1048,7 @@ namespace Audio
 		COLABuffer.AddZeroed(BlockSize);
 	}
 
-	void FFFTConvolver::SetFilter(const AlignedFloatBuffer& TimeDomainBuffer)
+	void FFFTConvolver::SetFilter(const FAlignedFloatBuffer& TimeDomainBuffer)
 	{
 		SetFilter(TimeDomainBuffer.GetData(), TimeDomainBuffer.Num());
 	}

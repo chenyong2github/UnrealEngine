@@ -25,7 +25,7 @@ namespace Audio
 		}
 	}
 
-	void ArraySum(const AlignedFloatBuffer& InValues, float& OutSum)
+	void ArraySum(const FAlignedFloatBuffer& InValues, float& OutSum)
 	{
 		OutSum = 0.f;
 
@@ -366,7 +366,7 @@ namespace Audio
 		}
 	}
 
-	void ArrayMultiplyInPlace(const AlignedFloatBuffer& InValues1, AlignedFloatBuffer& InValues2)
+	void ArrayMultiplyInPlace(const FAlignedFloatBuffer& InValues1, FAlignedFloatBuffer& InValues2)
 	{
 		check(InValues1.Num() == InValues2.Num());
 
@@ -412,7 +412,7 @@ namespace Audio
 		}
 	}
 
-	void ArrayComplexMultiplyInPlace(const AlignedFloatBuffer& InValues1, AlignedFloatBuffer& InValues2)
+	void ArrayComplexMultiplyInPlace(const FAlignedFloatBuffer& InValues1, FAlignedFloatBuffer& InValues2)
 	{
 		check(InValues1.Num() == InValues2.Num());
 
@@ -464,7 +464,7 @@ namespace Audio
 		}
 	}
 
-	void ArrayMultiplyByConstantInPlace(AlignedFloatBuffer& InValues, float InMultiplier)
+	void ArrayMultiplyByConstantInPlace(FAlignedFloatBuffer& InValues, float InMultiplier)
 	{
 		const int32 Num = InValues.Num();
 		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
@@ -500,7 +500,7 @@ namespace Audio
 		}
 	}
 
-	void ArrayAddInPlace(const AlignedFloatBuffer& InValues, AlignedFloatBuffer& InAccumulateValues)
+	void ArrayAddInPlace(const FAlignedFloatBuffer& InValues, FAlignedFloatBuffer& InAccumulateValues)
 	{
 		check(InValues.Num() == InAccumulateValues.Num());
 
@@ -544,7 +544,7 @@ namespace Audio
 		}
 	}
 
-	void ArrayMultiplyAddInPlace(const AlignedFloatBuffer& InValues, float InMultiplier, AlignedFloatBuffer& InAccumulateValues)
+	void ArrayMultiplyAddInPlace(const FAlignedFloatBuffer& InValues, float InMultiplier, FAlignedFloatBuffer& InAccumulateValues)
 	{
 		check(InValues.Num() == InAccumulateValues.Num());
 
@@ -585,7 +585,7 @@ namespace Audio
 		}
 	}
 
-	void ArrayLerpAddInPlace(const AlignedFloatBuffer& InValues, float InStartMultiplier, float InEndMultiplier, AlignedFloatBuffer& InAccumulateValues)
+	void ArrayLerpAddInPlace(const FAlignedFloatBuffer& InValues, float InStartMultiplier, float InEndMultiplier, FAlignedFloatBuffer& InAccumulateValues)
 	{
 		check(InValues.Num() == InAccumulateValues.Num());
 
@@ -632,7 +632,7 @@ namespace Audio
 		}
 	}
 
-	void ArraySubtractByConstantInPlace(AlignedFloatBuffer& InValues, float InSubtrahend)
+	void ArraySubtractByConstantInPlace(FAlignedFloatBuffer& InValues, float InSubtrahend)
 	{
 		const int32 Num = InValues.Num();
 		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
@@ -709,7 +709,7 @@ namespace Audio
 		}
 	}
 
-	void ArrayComplexConjugate(const AlignedFloatBuffer& InValues, AlignedFloatBuffer& OutValues)
+	void ArrayComplexConjugate(const FAlignedFloatBuffer& InValues, FAlignedFloatBuffer& OutValues)
 	{
 		check(OutValues.Num() == InValues.Num());
 
@@ -754,7 +754,7 @@ namespace Audio
 		}
 	}
 
-	void ArrayComplexConjugateInPlace(AlignedFloatBuffer& InValues)
+	void ArrayComplexConjugateInPlace(FAlignedFloatBuffer& InValues)
 	{
 		const int32 Num = InValues.Num();
 		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
@@ -795,7 +795,7 @@ namespace Audio
 		}
 	}
 
-	void ArrayMagnitudeToDecibelInPlace(AlignedFloatBuffer& InValues, float InMinimumDb)
+	void ArrayMagnitudeToDecibelInPlace(FAlignedFloatBuffer& InValues, float InMinimumDb)
 	{
 		const int32 Num = InValues.Num();
 		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
@@ -841,7 +841,7 @@ namespace Audio
 		}
 	}
 
-	void ArrayPowerToDecibelInPlace(AlignedFloatBuffer& InValues, float InMinimumDb)
+	void ArrayPowerToDecibelInPlace(FAlignedFloatBuffer& InValues, float InMinimumDb)
 	{
 		const int32 Num = InValues.Num();
 		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
@@ -894,7 +894,7 @@ namespace Audio
 		}
 	}
 
-	void ArrayComplexToPower(const AlignedFloatBuffer& InComplexValues, AlignedFloatBuffer& OutPowerValues)
+	void ArrayComplexToPower(const FAlignedFloatBuffer& InComplexValues, FAlignedFloatBuffer& OutPowerValues)
 	{
 		check((InComplexValues.Num() % 2) == 0);
 		check(InComplexValues.Num() == (OutPowerValues.Num() * 2));
@@ -983,7 +983,7 @@ namespace Audio
 		TransformArray(InView.GetData(), OutArray.GetData());
 	}
 
-	void FContiguousSparse2DKernelTransform::TransformArray(TArrayView<const float> InView, AlignedFloatBuffer& OutArray) const
+	void FContiguousSparse2DKernelTransform::TransformArray(TArrayView<const float> InView, FAlignedFloatBuffer& OutArray) const
 	{	
 		check(InView.Num() == NumIn);
 

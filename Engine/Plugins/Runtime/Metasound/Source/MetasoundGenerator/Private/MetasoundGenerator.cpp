@@ -8,7 +8,7 @@
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundOutputNode.h"
 #include "MetasoundTrigger.h"
-//#include "MetasoundSource.h"
+
 
 namespace Metasound
 {
@@ -271,7 +271,7 @@ namespace Metasound
 		return bIsFinished;
 	}
 
-	int32 FMetasoundGenerator::FillWithBuffer(const Audio::AlignedFloatBuffer& InBuffer, float* OutAudio, int32 MaxNumOutputSamples)
+	int32 FMetasoundGenerator::FillWithBuffer(const Audio::FAlignedFloatBuffer& InBuffer, float* OutAudio, int32 MaxNumOutputSamples)
 	{
 		int32 InNum = InBuffer.Num();
 

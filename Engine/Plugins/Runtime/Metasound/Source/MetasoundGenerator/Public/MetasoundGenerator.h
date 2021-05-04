@@ -151,7 +151,7 @@ namespace Metasound
 
 		// Fill OutAudio with data in InBuffer, up to maximum number of samples.
 		// Returns the number of samples used.
-		int32 FillWithBuffer(const Audio::AlignedFloatBuffer& InBuffer, float* OutAudio, int32 MaxNumOutputSamples); 
+		int32 FillWithBuffer(const Audio::FAlignedFloatBuffer& InBuffer, float* OutAudio, int32 MaxNumOutputSamples);
 
 		// Metasound creates deinterleaved audio while sound generator requires interleaved audio.
 		void InterleaveGeneratedAudio();
@@ -173,9 +173,9 @@ namespace Metasound
 		// Triggered when metasound is finished
 		FTriggerReadRef OnFinishedTriggerRef;
 
-		Audio::AlignedFloatBuffer InterleavedAudioBuffer;
+		Audio::FAlignedFloatBuffer InterleavedAudioBuffer;
 
-		Audio::AlignedFloatBuffer OverflowBuffer;
+		Audio::FAlignedFloatBuffer OverflowBuffer;
 
 		typedef FAsyncTask<FAsyncMetaSoundBuilder> FBuilderTask;
 		TUniquePtr<FBuilderTask> BuilderTask;

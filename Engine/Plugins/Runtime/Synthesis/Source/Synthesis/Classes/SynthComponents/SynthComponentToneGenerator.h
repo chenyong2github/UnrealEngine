@@ -26,7 +26,7 @@ public:
 private:
 	int32 NumChannels = 2;
 	Audio::FSineOsc SineOsc;
-	Audio::AlignedFloatBuffer Buffer;
+	Audio::FAlignedFloatBuffer Buffer;
 };
 
 UCLASS(ClassGroup = Synth, meta = (BlueprintSpawnableComponent))

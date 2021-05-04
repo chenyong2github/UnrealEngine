@@ -30,7 +30,7 @@ namespace Audio
 		void SetFrequency(const float InFrequency);
 
 		// Process InSamples and place filtered audio in OutSamples
-		void ProcessAudio(const AlignedFloatBuffer& InSamples, AlignedFloatBuffer& OutSamples);
+		void ProcessAudio(const FAlignedFloatBuffer& InSamples, FAlignedFloatBuffer& OutSamples);
 
 	protected:
 		float CutoffFrequency;

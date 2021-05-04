@@ -119,7 +119,7 @@ public:
 
 private:
 	int32 NumChannelsComingIn;
-	Audio::AlignedFloatBuffer DownmixBuffer;
+	Audio::FAlignedFloatBuffer DownmixBuffer;
 
 	TUniquePtr<Audio::IAudioMixerPlatformInterface> PlatformEndpoint;
 

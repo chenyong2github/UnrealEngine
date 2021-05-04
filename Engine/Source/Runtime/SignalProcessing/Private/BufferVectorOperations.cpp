@@ -42,7 +42,7 @@ namespace Audio
 	}
 
 	/* Clamps values in the buffer to be between InMinValue and InMaxValue */
-	void BufferRangeClampFast(AlignedFloatBuffer& InOutBuffer, float InMinValue, float InMaxValue)
+	void BufferRangeClampFast(FAlignedFloatBuffer& InOutBuffer, float InMinValue, float InMaxValue)
 	{
 		return BufferRangeClampFast(InOutBuffer.GetData(), InOutBuffer.Num(), InMinValue, InMaxValue);
 	}
@@ -126,7 +126,7 @@ namespace Audio
 #endif
 	}
 
-	void MultiplyBufferByConstantInPlace(AlignedFloatBuffer& InBuffer, float InGain)
+	void MultiplyBufferByConstantInPlace(FAlignedFloatBuffer& InBuffer, float InGain)
 	{
 		MultiplyBufferByConstantInPlace(InBuffer.GetData(), InBuffer.Num(), InGain);
 	}
@@ -144,7 +144,7 @@ namespace Audio
 	}
 
 	// Adds a constant to a buffer (useful for DC offset removal)
-	void AddConstantToBufferInplace(AlignedFloatBuffer& InBuffer, float InConstant)
+	void AddConstantToBufferInplace(FAlignedFloatBuffer& InBuffer, float InConstant)
 	{
 		AddConstantToBufferInplace(InBuffer.GetData(), InBuffer.Num(), InConstant);
 	}
@@ -161,7 +161,7 @@ namespace Audio
 		}
 	}
 
-	void BufferSetToConstantInplace(AlignedFloatBuffer& InBuffer, float InConstant)
+	void BufferSetToConstantInplace(FAlignedFloatBuffer& InBuffer, float InConstant)
 	{
 		BufferSetToConstantInplace(InBuffer.GetData(), InBuffer.Num(), InConstant);
 	}
@@ -257,7 +257,7 @@ namespace Audio
 		}
 	}
 
-	void FadeBufferFast(AlignedFloatBuffer& OutFloatBuffer, const float StartValue, const float EndValue)
+	void FadeBufferFast(FAlignedFloatBuffer& OutFloatBuffer, const float StartValue, const float EndValue)
 	{
 		FadeBufferFast(OutFloatBuffer.GetData(), OutFloatBuffer.Num(), StartValue, EndValue);
 	}
@@ -516,7 +516,7 @@ namespace Audio
 	}
 	
 	/* Performs element-wise in-place subtraction placing the result in the minuend. InOutMinuend = InOutMinuend - InSubtrahend */
-	void BufferSubtractInPlace2Fast(AlignedFloatBuffer& InOutMinuend, const FAlignedFloatBuffer& InSubtrahend)
+	void BufferSubtractInPlace2Fast(FAlignedFloatBuffer& InOutMinuend, const FAlignedFloatBuffer& InSubtrahend)
 	{
 		checkf(InOutMinuend.Num() == InSubtrahend.Num(), TEXT("Input buffers must be equal length"));
 		BufferSubtractInPlace2Fast(InOutMinuend.GetData(), InSubtrahend.GetData(), InOutMinuend.Num());
@@ -764,7 +764,7 @@ namespace Audio
 	 * For clarity, the layout of vectors for each function variant is given in a block comment above that function.
 	 */
 
-	void Apply2ChannelGain(AlignedFloatBuffer& StereoBuffer, const float* RESTRICT Gains)
+	void Apply2ChannelGain(FAlignedFloatBuffer& StereoBuffer, const float* RESTRICT Gains)
 	{
 		Apply2ChannelGain(StereoBuffer.GetData(), StereoBuffer.Num(), Gains);
 	}
@@ -781,7 +781,7 @@ namespace Audio
 		}
 	}
 
-	void Apply2ChannelGain(AlignedFloatBuffer& StereoBuffer, const float* RESTRICT StartGains, const float* RESTRICT EndGains)
+	void Apply2ChannelGain(FAlignedFloatBuffer& StereoBuffer, const float* RESTRICT StartGains, const float* RESTRICT EndGains)
 	{
 		Apply2ChannelGain(StereoBuffer.GetData(), StereoBuffer.Num(), StartGains, EndGains);
 	}
@@ -1009,7 +1009,7 @@ namespace Audio
 		}
 	}
 
-	void Apply4ChannelGain(AlignedFloatBuffer& InterleavedBuffer, const float* RESTRICT Gains)
+	void Apply4ChannelGain(FAlignedFloatBuffer& InterleavedBuffer, const float* RESTRICT Gains)
 	{
 		Apply4ChannelGain(InterleavedBuffer.GetData(), InterleavedBuffer.Num(), Gains);
 	}
@@ -1026,7 +1026,7 @@ namespace Audio
 		}
 	}
 
-	void Apply4ChannelGain(AlignedFloatBuffer& InterleavedBuffer, const float* RESTRICT StartGains, const float* RESTRICT EndGains)
+	void Apply4ChannelGain(FAlignedFloatBuffer& InterleavedBuffer, const float* RESTRICT StartGains, const float* RESTRICT EndGains)
 	{
 		Apply4ChannelGain(InterleavedBuffer.GetData(), InterleavedBuffer.Num(), StartGains, EndGains);
 	}
@@ -1203,7 +1203,7 @@ namespace Audio
 		}
 	}
 
-	void Apply6ChannelGain(AlignedFloatBuffer& InterleavedBuffer, const float* RESTRICT Gains)
+	void Apply6ChannelGain(FAlignedFloatBuffer& InterleavedBuffer, const float* RESTRICT Gains)
 	{
 		Apply6ChannelGain(InterleavedBuffer.GetData(), InterleavedBuffer.Num(), Gains);
 	}
@@ -1230,7 +1230,7 @@ namespace Audio
 		}
 	}
 
-	void Apply6ChannelGain(AlignedFloatBuffer& InterleavedBuffer, const float* RESTRICT StartGains, const float* RESTRICT EndGains)
+	void Apply6ChannelGain(FAlignedFloatBuffer& InterleavedBuffer, const float* RESTRICT StartGains, const float* RESTRICT EndGains)
 	{
 		Apply6ChannelGain(InterleavedBuffer.GetData(), InterleavedBuffer.Num(), StartGains, EndGains);
 	}
@@ -1542,7 +1542,7 @@ namespace Audio
 		}
 	}
 
-	void Apply8ChannelGain(AlignedFloatBuffer& InterleavedBuffer, const float* RESTRICT Gains)
+	void Apply8ChannelGain(FAlignedFloatBuffer& InterleavedBuffer, const float* RESTRICT Gains)
 	{
 		Apply8ChannelGain(InterleavedBuffer.GetData(), InterleavedBuffer.Num(), Gains);
 	}
@@ -1564,7 +1564,7 @@ namespace Audio
 		}
 	}
 
-	void Apply8ChannelGain(AlignedFloatBuffer& InterleavedBuffer, const float* RESTRICT StartGains, const float* RESTRICT EndGains)
+	void Apply8ChannelGain(FAlignedFloatBuffer& InterleavedBuffer, const float* RESTRICT StartGains, const float* RESTRICT EndGains)
 	{
 		Apply8ChannelGain(InterleavedBuffer.GetData(), InterleavedBuffer.Num(), StartGains, EndGains);
 	}
@@ -2083,7 +2083,7 @@ namespace Audio
 		MultiplyBufferByConstantInPlace(DeltaBuffer, OneOverLerpLength);
 	}
 
-	bool FBufferLinearEase::Update(AlignedFloatBuffer & InSourceValues)
+	bool FBufferLinearEase::Update(FAlignedFloatBuffer & InSourceValues)
 	{
 		check(InSourceValues.Num() == BufferLength);
 		check(CurrentLerpStep != LerpLength);

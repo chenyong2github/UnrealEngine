@@ -228,7 +228,7 @@ protected:
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
-	Audio::AlignedFloatBuffer AnalysisBuffer;
+	Audio::FAlignedFloatBuffer AnalysisBuffer;
 #endif
 
 	// Data containing PCM audio of the imported source asset (filled out by the factory)

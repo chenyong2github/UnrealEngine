@@ -101,7 +101,7 @@ namespace Audio
 
 		// Slide over audio 
 		FSlidingWindow SlidingWindow(SlidingBuffer, InSamples, WorkingBuffer, bDoFlush);
-		for (const AlignedFloatBuffer& WindowBuffer : SlidingWindow)
+		for (const FAlignedFloatBuffer& WindowBuffer : SlidingWindow)
 		{
 			// Calculate onset strength per audio buffer.
 			float OnsetStrength = GetNextOnsetStrength(WindowBuffer);

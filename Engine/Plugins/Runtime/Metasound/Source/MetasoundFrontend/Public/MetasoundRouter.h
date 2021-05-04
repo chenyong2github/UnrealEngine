@@ -659,7 +659,7 @@ namespace Metasound
 
 				if (DelayLines[ChannelIndex].Num() > DelayTimeInFrames)
 				{
-					Audio::AlignedFloatBuffer& IntermediateBuffer = IntermediaryBuffers[ChannelIndex];
+					Audio::FAlignedFloatBuffer& IntermediateBuffer = IntermediaryBuffers[ChannelIndex];
 					DelayLines[ChannelIndex].Pop(IntermediateBuffer.GetData(), IntermediateBuffer.Num());
 					DataChannelInputs[ChannelIndex].PushAudio(IntermediateBuffer.GetData(), IntermediateBuffer.Num());
 				}
@@ -695,7 +695,7 @@ namespace Metasound
 				for (int32 Index = 0; Index < MaxChannels; Index++)
 				{
 					DelayLines.Emplace(NumSamplesToBuffer);
-					Audio::AlignedFloatBuffer BufferForChannel;
+					Audio::FAlignedFloatBuffer BufferForChannel;
 					BufferForChannel.AddZeroed(Params.OperatorSettings.GetNumFramesPerBlock());
 					IntermediaryBuffers.Add(MoveTemp(BufferForChannel));
 				}
@@ -725,7 +725,7 @@ namespace Metasound
 
 		TArray<Audio::FPatchInput> DataChannelInputs;
 
-		TArray<Audio::AlignedFloatBuffer> IntermediaryBuffers;
+		TArray<Audio::FAlignedFloatBuffer> IntermediaryBuffers;
 
 		FSenderInitParams Params;
 	};

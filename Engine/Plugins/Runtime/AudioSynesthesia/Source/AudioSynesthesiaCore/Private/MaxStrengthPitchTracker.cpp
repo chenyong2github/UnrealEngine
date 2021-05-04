@@ -52,7 +52,7 @@ namespace Audio
 	{
 	}
 
-	void FMaxStrengthPitchTracker::TrackPitches(const AlignedFloatBuffer& InMonoAudio, TArray<FPitchTrackInfo>& OutPitchTracks)
+	void FMaxStrengthPitchTracker::TrackPitches(const FAlignedFloatBuffer& InMonoAudio, TArray<FPitchTrackInfo>& OutPitchTracks)
 	{
 		if (PitchDetector.IsValid())
 		{

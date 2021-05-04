@@ -185,8 +185,8 @@ namespace Audio
 		FrequencyBuffer IncomingFrequencies;
 		FrequencyBuffer OutgoingFrequencies;
 
-		AlignedFloatBuffer ZeroPaddedIncomingBuffer;
-		AlignedFloatBuffer ZeroPaddedOutgoingBuffer;
+		FAlignedFloatBuffer ZeroPaddedIncomingBuffer;
+		FAlignedFloatBuffer ZeroPaddedOutgoingBuffer;
 	};
 
 	/*
@@ -214,7 +214,7 @@ namespace Audio
 		FFDAPFilterComputer FilterComputer;
 		FAdaptiveFilter AdaptiveFilter;
 		
-		AlignedFloatBuffer FilterComputerInput;
+		FAlignedFloatBuffer FilterComputerInput;
 		FrequencyBuffer FilterComputerOutput;
 		float ConvergenceRate;
 		int32 FilterLength;

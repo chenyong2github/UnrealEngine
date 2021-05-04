@@ -159,7 +159,7 @@ private:
 	// Level of wet/dry signal on current buffer
 	Audio::FWetDry CurrentWetDry;
 
-	Audio::AlignedFloatBuffer WetInputBuffer;
+	Audio::FAlignedFloatBuffer WetInputBuffer;
 
 	// Curve which maps old reverb times to new decay value
 	FRichCurve DecayCurve;

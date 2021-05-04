@@ -80,7 +80,7 @@ namespace Audio
 		void SetForceSyncDecode(bool bShouldForceSyncDecode);
 
 		// Get audio buffer
-		bool GetAudioBuffer(const int32 InNumFrames, const int32 InNumChannels, AlignedFloatBuffer& OutAudioBuffer);
+		bool GetAudioBuffer(const int32 InNumFrames, const int32 InNumChannels, FAlignedFloatBuffer& OutAudioBuffer);
 
 		// Return the underlying sound wave
 		USoundWave* GetSoundWave() { return SoundWave; }
@@ -88,7 +88,7 @@ namespace Audio
 	private:
 
 		void ReadFrame();
-		void GetAudioBufferInternal(const int32 InNumFrames, const int32 InNumChannels, AlignedFloatBuffer& OutAudioBuffer);
+		void GetAudioBufferInternal(const int32 InNumFrames, const int32 InNumChannels, FAlignedFloatBuffer& OutAudioBuffer);
 
 		// Handle to the decoding source
 		FDecodingSoundSourceHandle Handle;
@@ -106,7 +106,7 @@ namespace Audio
 		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> MixerSourceBuffer;
 
 		// Scratch buffer used for upmixing and downmixing the audio
-		AlignedFloatBuffer ScratchBuffer;
+		FAlignedFloatBuffer ScratchBuffer;
 
 		// Sample rate of the source
 		int32 SampleRate;
@@ -250,7 +250,7 @@ namespace Audio
 		void SetSourceVolumeScale(const FDecodingSoundSourceHandle& Handle, float InVolumeScale);
 
 		// Get a decoded buffer for the given decoding sound wave handle. Call only from audio render thread or audio render thread task.
-		bool GetSourceBuffer(const FDecodingSoundSourceHandle& InHandle, const int32 NumOutFrames, const int32 NumOutChannels, AlignedFloatBuffer& OutAudioBuffer);
+		bool GetSourceBuffer(const FDecodingSoundSourceHandle& InHandle, const int32 NumOutFrames, const int32 NumOutChannels, FAlignedFloatBuffer& OutAudioBuffer);
 
 		// Queries if the decoding source is finished
 		bool IsFinished(const FDecodingSoundSourceHandle& InHandle) const;

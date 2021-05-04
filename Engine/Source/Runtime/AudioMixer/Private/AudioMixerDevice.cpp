@@ -703,7 +703,7 @@ namespace Audio
 		bDebugOutputEnabled = true;
 	}
 
-	bool FMixerDevice::OnProcessAudioStream(AlignedFloatBuffer& Output)
+	bool FMixerDevice::OnProcessAudioStream(FAlignedFloatBuffer& Output)
 	{
 		LLM_SCOPE(ELLMTag::AudioMixer);
 
@@ -1788,7 +1788,7 @@ namespace Audio
 		return SourceManager->GetNumActiveSources();
 	}
 
-	void FMixerDevice::Get3DChannelMap(const int32 InSubmixNumChannels, const FWaveInstance* InWaveInstance, float EmitterAzimith, float NormalizedOmniRadius, Audio::AlignedFloatBuffer& OutChannelMap)
+	void FMixerDevice::Get3DChannelMap(const int32 InSubmixNumChannels, const FWaveInstance* InWaveInstance, float EmitterAzimith, float NormalizedOmniRadius, Audio::FAlignedFloatBuffer& OutChannelMap)
 	{
 		// If we're center-channel only, then no need for spatial calculations, but need to build a channel map
 		if (InWaveInstance->bCenterChannelOnly)
@@ -1967,7 +1967,7 @@ namespace Audio
 		}
 	}
 
-	Audio::AlignedFloatBuffer& FMixerDevice::StopRecording(USoundSubmix* InSubmix, float& OutNumChannels, float& OutSampleRate)
+	Audio::FAlignedFloatBuffer& FMixerDevice::StopRecording(USoundSubmix* InSubmix, float& OutNumChannels, float& OutSampleRate)
 	{
 		// if we can find the submix here, record that submix. Otherwise, just record the master submix.
 		FMixerSubmixPtr FoundSubmix = GetSubmixInstance(InSubmix).Pin();
@@ -2500,7 +2500,7 @@ namespace Audio
 		return bIsMain;
 	}
 
-	void FMixerDevice::WhiteNoiseTest(AlignedFloatBuffer& Output)
+	void FMixerDevice::WhiteNoiseTest(FAlignedFloatBuffer& Output)
 	{
 		const int32 NumFrames = OpenStreamParams.NumFrames;
 		const int32 NumChannels = PlatformInfo.NumChannels;
@@ -2517,7 +2517,7 @@ namespace Audio
 		}
 	}
 
-	void FMixerDevice::SineOscTest(AlignedFloatBuffer& Output)
+	void FMixerDevice::SineOscTest(FAlignedFloatBuffer& Output)
 	{
 		const int32 NumFrames = OpenStreamParams.NumFrames;
 		const int32 NumChannels = PlatformInfo.NumChannels;

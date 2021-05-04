@@ -86,13 +86,13 @@ namespace Audio
 		void UpdateChannelMaps();
 
 		/** Computes the mono-channel map. */
-		bool ComputeMonoChannelMap(Audio::AlignedFloatBuffer& OutChannelMap);
+		bool ComputeMonoChannelMap(Audio::FAlignedFloatBuffer& OutChannelMap);
 
 		/** Computes the stereo-channel map. */
-		bool ComputeStereoChannelMap(Audio::AlignedFloatBuffer& OutChannelMap);
+		bool ComputeStereoChannelMap(Audio::FAlignedFloatBuffer& OutChannelMap);
 
 		/** Compute the channel map based on the number of output and source channels. */
-		bool ComputeChannelMap(const int32 NumSourceChannels, Audio::AlignedFloatBuffer& OutChannelMap);
+		bool ComputeChannelMap(const int32 NumSourceChannels, Audio::FAlignedFloatBuffer& OutChannelMap);
 
 		/** Whether or not we should create the source voice with the HRTF spatializer. */
 		bool UseObjectBasedSpatialization() const;
@@ -136,7 +136,7 @@ namespace Audio
 		};
 
 		// Mapping of channel map types to channel maps. Determined by what submixes this source sends its audio to.
-		Audio::AlignedFloatBuffer ChannelMap;
+		Audio::FAlignedFloatBuffer ChannelMap;
 		FRWLock ChannelMapLock;
 
 		float PreviousAzimuth;

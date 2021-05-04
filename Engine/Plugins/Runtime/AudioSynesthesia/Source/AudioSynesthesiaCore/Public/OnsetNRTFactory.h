@@ -152,7 +152,7 @@ namespace Audio
 		/** Analyze audio with multiple channels interleaved. */
 		void AnalyzeMultichannel(TArrayView<const float> InAudio, IAnalyzerNRTResult* OutResult, bool bDoFlush);
 
-		void AnalyzeWindow(const AlignedFloatBuffer& InWindow, int32 InChannelIndex, FOnsetNRTResult& OutResult);
+		void AnalyzeWindow(const FAlignedFloatBuffer& InWindow, int32 InChannelIndex, FOnsetNRTResult& OutResult);
 
 		void ExtractOnsetsFromOnsetStrengths(FOnsetNRTResult& OutResult);
 
@@ -167,9 +167,9 @@ namespace Audio
 		int32 NumWindowSamples;
 		float MonoScaling;
 
-		AlignedFloatBuffer HopBuffer;
-		AlignedFloatBuffer ChannelBuffer;
-		AlignedFloatBuffer MonoBuffer;
+		FAlignedFloatBuffer HopBuffer;
+		FAlignedFloatBuffer ChannelBuffer;
+		FAlignedFloatBuffer MonoBuffer;
 
 		TUniquePtr<TSlidingBuffer<float> > SlidingBuffer;
 

@@ -300,8 +300,8 @@ protected:
 	TArray<float> ModDestinationUpdateTimeMS;
 
 	// Intermediary Scratch Buffers
-	Audio::AlignedFloatBuffer ScratchBufferA;
-	Audio::AlignedFloatBuffer ScratchBufferB;
+	Audio::FAlignedFloatBuffer ScratchBufferA;
+	Audio::FAlignedFloatBuffer ScratchBufferB;
 
 	// Filter Output Scalars
 	float FilterAMixScale;

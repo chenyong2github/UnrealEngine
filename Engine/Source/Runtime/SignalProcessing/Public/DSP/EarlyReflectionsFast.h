@@ -64,7 +64,7 @@ namespace Audio
 		void SetSettings(const FEarlyReflectionsFastSettings& InSettings);
 
 		// Process the single audio frame
-		void ProcessAudio(const AlignedFloatBuffer& InSamples, const int32 InNumChannels, AlignedFloatBuffer& OutLeftSamples, AlignedFloatBuffer& OutRightSamples);
+		void ProcessAudio(const FAlignedFloatBuffer& InSamples, const int32 InNumChannels, FAlignedFloatBuffer& OutLeftSamples, FAlignedFloatBuffer& OutRightSamples);
 
 		// Silence internal audio.
 		void FlushAudio();
@@ -78,12 +78,12 @@ namespace Audio
 		FEarlyReflectionsFastSettings Settings;
 		float SampleRate;
 
-		AlignedFloatBuffer LeftInputBuffer;
-		AlignedFloatBuffer LeftWorkBufferA;
-		AlignedFloatBuffer LeftWorkBufferB;
-		AlignedFloatBuffer RightInputBuffer;
-		AlignedFloatBuffer RightWorkBufferA;
-		AlignedFloatBuffer RightWorkBufferB;
+		FAlignedFloatBuffer LeftInputBuffer;
+		FAlignedFloatBuffer LeftWorkBufferA;
+		FAlignedFloatBuffer LeftWorkBufferB;
+		FAlignedFloatBuffer RightInputBuffer;
+		FAlignedFloatBuffer RightWorkBufferA;
+		FAlignedFloatBuffer RightWorkBufferB;
 
 		FFDNCoefficients LeftCoefficients;
 		FFDNCoefficients RightCoefficients;

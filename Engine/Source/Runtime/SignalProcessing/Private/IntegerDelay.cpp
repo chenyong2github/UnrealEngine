@@ -65,7 +65,7 @@ int32 FIntegerDelay::GetNumDelaySamples() const
 	return NumDelaySamples;
 }
 
-void FIntegerDelay::ProcessAudio(const Audio::AlignedFloatBuffer& InSamples, Audio::AlignedFloatBuffer& OutSamples)
+void FIntegerDelay::ProcessAudio(const Audio::FAlignedFloatBuffer& InSamples, Audio::FAlignedFloatBuffer& OutSamples)
 {
 	const float* InSampleData = InSamples.GetData();
 	const int32 InNum = InSamples.Num();
@@ -102,7 +102,7 @@ void FIntegerDelay::ProcessAudioBlock(const float* InSamples, const int32 InNum,
 	DelayLine->RemoveSamples(InNum);
 }
 
-void FIntegerDelay::PeekDelayLine(int32 InNum, Audio::AlignedFloatBuffer& OutSamples)
+void FIntegerDelay::PeekDelayLine(int32 InNum, Audio::FAlignedFloatBuffer& OutSamples)
 {
 	int32 NumToInspect = FMath::Min(DelayLine->GetNumAvailable(), NumDelaySamples);
 	NumToInspect = FMath::Min(InNum, NumToInspect);

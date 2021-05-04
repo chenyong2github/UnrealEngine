@@ -25,7 +25,7 @@ namespace Metasound
 	 * function.
 	 *
 	 * GetNumFramesPerBlock() is required to return a value that abides by the
-	 * alignment requirements of FAudioBuffer, AlignedFloatBuffer and the math
+	 * alignment requirements of FAudioBuffer, FAlignedFloatBuffer and the math
 	 * routines declared in BufferVectorOperations.h. This enables the vast 
 	 * majority of Metasound IOperators to take advantage of SIMD hardware
 	 * accelerations.  
@@ -74,10 +74,10 @@ namespace Metasound
 			/** Get the number of audio frames in a block. 
 			 *
 			 * This function is required to return a value that abides by the
-			 * alignment requirements of FAudioBuffer, AlignedFloatBuffer and 
+			 * alignment requirements of FAudioBuffer, FAlignedFloatBuffer and 
 			 * the math routines declared in BufferVectorOperations.h. This 
 			 * enables the vast majority of Metasound IOperators to take 
-			 * advantage of SIMD hardware accelerations.  
+			 * advantage of SIMD hardware accelerations.
 			 */
 			FORCEINLINE int32 GetNumFramesPerBlock() const
 			{

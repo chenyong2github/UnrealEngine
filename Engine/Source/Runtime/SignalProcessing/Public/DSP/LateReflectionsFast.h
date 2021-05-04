@@ -18,10 +18,10 @@ namespace Audio
 		static const int32 NumTaps = 7;
 
 		// Tap sample buffers.
-		AlignedFloatBuffer Taps[NumTaps];
+		FAlignedFloatBuffer Taps[NumTaps];
 
 		// Output sample buffer.
-		AlignedFloatBuffer Output;
+		FAlignedFloatBuffer Output;
 
 		// Resizes and zero all buffers in structure.
 		void ResizeAndZero(int32 InNumSamples);
@@ -134,9 +134,9 @@ namespace Audio
 		// InDelayModulations contains the fractional delay values per a sample to modulate the first all pass filters delay line.
 		// OutPlateSamples is filled with audio from the various tap points and delay line output.
 		void ProcessAudioFrames(
-			const AlignedFloatBuffer& InSamples,
-			const AlignedFloatBuffer& InFeedbackSamples,
-			const AlignedFloatBuffer& InDelayModulations,
+			const FAlignedFloatBuffer& InSamples,
+			const FAlignedFloatBuffer& InFeedbackSamples,
+			const FAlignedFloatBuffer& InDelayModulations,
 			FLateReflectionsPlateOutputs& OutPlateSamples);
 
 		// Flush internal audio to silence.
@@ -153,7 +153,7 @@ namespace Audio
 		// Retrieve the internal delay line data. The number of samples retrieved is limited to the
 		// number of samples in the internal buffer. That amount can be determined by calling
 		// "GetNumInternalBufferSamples()".
-		void PeekDelayLine(int32 InNum, AlignedFloatBuffer& OutSamples);
+		void PeekDelayLine(int32 InNum, FAlignedFloatBuffer& OutSamples);
 
 	protected:
 		// Current parameter settings of reverb
@@ -182,9 +182,9 @@ namespace Audio
 		TUniquePtr<FIntegerDelay> DelayH;
 		TUniquePtr<FIntegerDelay> DelayI;
 
-		Audio::AlignedFloatBuffer WorkBufferA;
-		Audio::AlignedFloatBuffer WorkBufferB;
-		Audio::AlignedFloatBuffer WorkBufferC;
+		Audio::FAlignedFloatBuffer WorkBufferA;
+		Audio::FAlignedFloatBuffer WorkBufferB;
+		Audio::FAlignedFloatBuffer WorkBufferC;
 	};
 
 	// Settings for controlling the FLateReflections
@@ -258,7 +258,7 @@ namespace Audio
 		// Create reverberation in OutSamples based upon InSamples. 
 		// OutSamples is a 2 channel audio buffer no matter the value of InNumChannels.
 		// OutSamples is mixed with InSamples based upon gain.
-		void ProcessAudio(const AlignedFloatBuffer& InSamples, const int32 InNumChannels, AlignedFloatBuffer& OutLeftSamples, AlignedFloatBuffer& OutRightSamples);
+		void ProcessAudio(const FAlignedFloatBuffer& InSamples, const int32 InNumChannels, FAlignedFloatBuffer& OutLeftSamples, FAlignedFloatBuffer& OutRightSamples);
 
 		// Flush internal audio to silence.
 		void FlushAudio();
@@ -268,7 +268,7 @@ namespace Audio
 
 		void ApplySettings();
 
-		void GeneraterPlateModulations(const int32 InNum, AlignedFloatBuffer& OutLeftDelays, AlignedFloatBuffer& OutRightDelays);
+		void GeneraterPlateModulations(const int32 InNum, FAlignedFloatBuffer& OutLeftDelays, FAlignedFloatBuffer& OutRightDelays);
 
 		float SampleRate;
 		float Gain;
@@ -306,12 +306,12 @@ namespace Audio
 		FLateReflectionsPlateOutputs RightPlateOutputs;
 
 		// Buffer for delay modulation of left and right plates.
-		AlignedFloatBuffer LeftDelayModSamples;
-		AlignedFloatBuffer RightDelayModSamples;
+		FAlignedFloatBuffer LeftDelayModSamples;
+		FAlignedFloatBuffer RightDelayModSamples;
 
-		AlignedFloatBuffer WorkBufferA;
-		AlignedFloatBuffer WorkBufferB;
-		AlignedFloatBuffer WorkBufferC;
+		FAlignedFloatBuffer WorkBufferA;
+		FAlignedFloatBuffer WorkBufferB;
+		FAlignedFloatBuffer WorkBufferC;
 
 	};
 

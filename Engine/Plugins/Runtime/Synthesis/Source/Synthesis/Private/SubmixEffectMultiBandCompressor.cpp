@@ -169,8 +169,8 @@ void FSubmixEffectMultibandCompressor::OnProcessAudio(const FSoundEffectSubmixIn
 		return;
 	}
 
-	const Audio::AlignedFloatBuffer& InBuffer = *InData.AudioBuffer;
-	Audio::AlignedFloatBuffer& OutBuffer = *OutData.AudioBuffer;
+	const Audio::FAlignedFloatBuffer& InBuffer = *InData.AudioBuffer;
+	Audio::FAlignedFloatBuffer& OutBuffer = *OutData.AudioBuffer;
 
 	FMemory::Memzero(OutBuffer.GetData(), FrameSize * InData.NumFrames);
 

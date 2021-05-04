@@ -162,7 +162,7 @@ namespace Audio
 
 		if (bDownmixToMono)
 		{
-			for (const AlignedFloatBuffer& Window : SlidingWindow)
+			for (const FAlignedFloatBuffer& Window : SlidingWindow)
 			{
 				FMemory::Memset(MonoBuffer.GetData(), 0, sizeof(float) * NumWindowFrames);
 
@@ -184,7 +184,7 @@ namespace Audio
 		else
 		{
 			// Loop through entire array of input samples.
-			for (const AlignedFloatBuffer& Window : SlidingWindow)
+			for (const FAlignedFloatBuffer& Window : SlidingWindow)
 			{
 				// Each channel is analyzed seperately.
 				for(const TDeinterleaveView<float>::TChannel<FAudioBufferAlignedAllocator> Channel : TAutoDeinterleaveView<float, FAudioBufferAlignedAllocator>(Window, ChannelBuffer, NumChannels))
@@ -200,7 +200,7 @@ namespace Audio
 	/** Called when analysis of audio asset is complete. */
 	void FConstantQNRTWorker::Finalize(IAnalyzerNRTResult* OutResult) 
 	{
-		AlignedFloatBuffer EmptyArray;
+		FAlignedFloatBuffer EmptyArray;
 		bool bDoFlush = true;
 
 		AnalyzeMultichannel(EmptyArray, OutResult, bDoFlush);
@@ -229,7 +229,7 @@ namespace Audio
 		SlidingBuffer.Reset();
 	}
 
-	void FConstantQNRTWorker::AnalyzeWindow(const AlignedFloatBuffer& InWindow, int32 InChannelIndex, FConstantQNRTResult& OutResult)
+	void FConstantQNRTWorker::AnalyzeWindow(const FAlignedFloatBuffer& InWindow, int32 InChannelIndex, FConstantQNRTResult& OutResult)
 	{
 		// Run CQT Analyzer
 		ConstantQAnalyzer->CalculateCQT(InWindow.GetData(), CQTSpectrum);

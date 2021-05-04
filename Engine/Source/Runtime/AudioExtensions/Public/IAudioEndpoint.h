@@ -146,7 +146,7 @@ private:
 	TUniquePtr<Audio::FMixerNullCallback> RenderCallback;
 	
 	// If we have a render callback, we pop audio from the PatchMixer to this buffer before calling OnAudioCallback.
-	Audio::AlignedFloatBuffer BufferForRenderCallback;
+	Audio::FAlignedFloatBuffer BufferForRenderCallback;
 
 	// Owns the current settings for this endpoint.
 	TUniquePtr<IAudioEndpointSettingsProxy> CurrentSettings;

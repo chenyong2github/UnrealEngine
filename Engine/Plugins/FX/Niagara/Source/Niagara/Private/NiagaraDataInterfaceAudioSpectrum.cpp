@@ -53,7 +53,7 @@ float FNiagaraDataInterfaceProxySpectrum::GetSpectrumValue(float InNormalizedPos
 		return 0.f;
 	}
 
-	const Audio::AlignedFloatBuffer& Buffer = ChannelSpectrumBuffers[InChannelIndex];
+	const Audio::FAlignedFloatBuffer& Buffer = ChannelSpectrumBuffers[InChannelIndex];
 	const int32 MaxIndex = Buffer.Num() - 1;
 
 	if (MaxIndex < 0)
@@ -214,7 +214,7 @@ void FNiagaraDataInterfaceProxySpectrum::UpdateSpectrum()
 	{
 		for (int32 ChannelIndex = 0; ChannelIndex < ChannelSpectrumBuffers.Num(); ChannelIndex++)
 		{
-			Audio::AlignedFloatBuffer& Buffer = ChannelSpectrumBuffers[ChannelIndex];
+			Audio::FAlignedFloatBuffer& Buffer = ChannelSpectrumBuffers[ChannelIndex];
 			if (Buffer.Num() > 0)
 			{
 				FMemory::Memset(Buffer.GetData(), 0, sizeof(float) * Buffer.Num());
@@ -248,7 +248,7 @@ void FNiagaraDataInterfaceProxySpectrum::UpdateSpectrum()
 	FSlidingWindow SlidingWindow(*SlidingBuffer, PopBuffer, InterleavedBuffer);
 
 	int32 NumWindows = 0;
-	for (Audio::AlignedFloatBuffer& InterleavedWindow : SlidingWindow)
+	for (Audio::FAlignedFloatBuffer& InterleavedWindow : SlidingWindow)
 	{
 		if (0 == NumWindows)
 		{
@@ -295,7 +295,7 @@ void FNiagaraDataInterfaceProxySpectrum::UpdateSpectrum()
 		// Apply scaling for each channel.
 		for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ChannelIndex++)
 		{
-			Audio::AlignedFloatBuffer& Buffer = ChannelSpectrumBuffers[ChannelIndex];
+			Audio::FAlignedFloatBuffer& Buffer = ChannelSpectrumBuffers[ChannelIndex];
 
 			Audio::ArrayMultiplyByConstantInPlace(Buffer, LinearScale);
 
@@ -340,7 +340,7 @@ void FNiagaraDataInterfaceProxySpectrum::ResizeSpectrumBuffer(int32 InNumChannel
 
 	for (int32 ChannelIndex = 0; ChannelIndex < InNumChannels; ChannelIndex++)
 	{
-		Audio::AlignedFloatBuffer& Buffer = ChannelSpectrumBuffers[ChannelIndex];
+		Audio::FAlignedFloatBuffer& Buffer = ChannelSpectrumBuffers[ChannelIndex];
 		Buffer.Reset();
 		if (InNumBands > 0)
 		{

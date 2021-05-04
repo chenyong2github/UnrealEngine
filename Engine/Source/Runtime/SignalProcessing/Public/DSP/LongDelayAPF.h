@@ -25,11 +25,11 @@ namespace Audio
 		void SetG(float InG) { G = InG; }
 
 		// Process InSamples and place filtered data in OutSamples
-		void ProcessAudio(const AlignedFloatBuffer& InSamples, AlignedFloatBuffer& OutSamples);
+		void ProcessAudio(const FAlignedFloatBuffer& InSamples, FAlignedFloatBuffer& OutSamples);
 
 		// Process InSamples and place filtered data in OutSamples and delay line samples in OutDelaySamples.
 		// The OutDelaySamples correspond to "w[n] = InSamples[n] + InG * w[n - InDelay]"
-		void ProcessAudio(const AlignedFloatBuffer& InSamples, AlignedFloatBuffer& OutSamples, AlignedFloatBuffer& OutDelaySamples);
+		void ProcessAudio(const FAlignedFloatBuffer& InSamples, FAlignedFloatBuffer& OutSamples, FAlignedFloatBuffer& OutDelaySamples);
 
 		// Sets delay line values to zero.
 		void Reset();
@@ -51,7 +51,7 @@ namespace Audio
 		int32 NumInternalBufferSamples;
 
 		// Buffer for block operations.
-		AlignedFloatBuffer WorkBuffer;
+		FAlignedFloatBuffer WorkBuffer;
 
 		// Filter delay line memory.
 		TUniquePtr<FAlignedBlockBuffer> DelayLine;

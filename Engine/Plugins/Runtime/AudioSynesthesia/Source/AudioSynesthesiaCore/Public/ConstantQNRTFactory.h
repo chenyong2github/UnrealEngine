@@ -153,7 +153,7 @@ namespace Audio
 		void AnalyzeMultichannel(TArrayView<const float> InAudio, IAnalyzerNRTResult* OutResult, bool bDoFlush);
 
 		/** Analyze a single window of audio from a single channel */
-		void AnalyzeWindow(const AlignedFloatBuffer& InWindow, int32 InChannelIndex, FConstantQNRTResult& OutResult);
+		void AnalyzeWindow(const FAlignedFloatBuffer& InWindow, int32 InChannelIndex, FConstantQNRTResult& OutResult);
 
 		int32 NumFrames;
 		int32 NumChannels;
@@ -166,9 +166,9 @@ namespace Audio
 
 		float MonoScaling;
 
-		AlignedFloatBuffer HopBuffer;
-		AlignedFloatBuffer ChannelBuffer;
-		AlignedFloatBuffer MonoBuffer;
+		FAlignedFloatBuffer HopBuffer;
+		FAlignedFloatBuffer ChannelBuffer;
+		FAlignedFloatBuffer MonoBuffer;
 
 		TArray<float> CQTSpectrum;
 

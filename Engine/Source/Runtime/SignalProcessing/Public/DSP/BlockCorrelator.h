@@ -53,7 +53,7 @@ namespace Audio
 			 * @param InputB - Second input block with `GetNumInputValues()` elements. 
 			 * @param Output - Output block with `GetNumOutputValues()` elements.
 			 */
-			void CrossCorrelate(const AlignedFloatBuffer& InputA, const AlignedFloatBuffer& InputB, AlignedFloatBuffer& Output);
+			void CrossCorrelate(const FAlignedFloatBuffer& InputA, const FAlignedFloatBuffer& InputB, FAlignedFloatBuffer& Output);
 
 			/** Autocorrelate an input signal. 
 			 *
@@ -68,15 +68,15 @@ namespace Audio
 			 * @param Input - input block with `GetNumInputValues()` elements. 
 			 * @param Output - Output block with `GetNumOutputValues()` elements.
 			 */
-			void AutoCorrelate(const AlignedFloatBuffer& Input, AlignedFloatBuffer& Output);
+			void AutoCorrelate(const FAlignedFloatBuffer& Input, FAlignedFloatBuffer& Output);
 
 
 		private:
 			// No normalization or windowing.
-			void CyclicCrossCorrelate(const AlignedFloatBuffer& InputA, const AlignedFloatBuffer& InputB, AlignedFloatBuffer& Output);
+			void CyclicCrossCorrelate(const FAlignedFloatBuffer& InputA, const FAlignedFloatBuffer& InputB, FAlignedFloatBuffer& Output);
 
 			// No normalization or windowing.
-			void CyclicAutoCorrelate(const AlignedFloatBuffer& Input, AlignedFloatBuffer& Output);
+			void CyclicAutoCorrelate(const FAlignedFloatBuffer& Input, FAlignedFloatBuffer& Output);
 
 			void InitializeNormalizationBuffer();
 
@@ -89,16 +89,16 @@ namespace Audio
 			TUniquePtr<IFFTAlgorithm> FFTAlgorithm;
 
 			FWindow Window;
-			AlignedFloatBuffer NormalizationBuffer;
+			FAlignedFloatBuffer NormalizationBuffer;
 
-			AlignedFloatBuffer WindowedBufferA;
-			AlignedFloatBuffer WindowedBufferB;
+			FAlignedFloatBuffer WindowedBufferA;
+			FAlignedFloatBuffer WindowedBufferB;
 
-			AlignedFloatBuffer ComplexBufferA;
-			AlignedFloatBuffer ComplexBufferB;
+			FAlignedFloatBuffer ComplexBufferA;
+			FAlignedFloatBuffer ComplexBufferB;
 
-			AlignedFloatBuffer ComplexCorrelationBuffer;
+			FAlignedFloatBuffer ComplexCorrelationBuffer;
 
-			AlignedFloatBuffer FullOutputBuffer;
+			FAlignedFloatBuffer FullOutputBuffer;
 	};
 }

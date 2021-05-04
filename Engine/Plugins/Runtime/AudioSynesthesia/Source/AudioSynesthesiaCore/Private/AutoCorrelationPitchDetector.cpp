@@ -128,13 +128,13 @@ namespace Audio
 	{
 	}
 
-	void FAutoCorrelationPitchDetector::DetectPitches(const AlignedFloatBuffer& InMonoAudio, TArray<FPitchInfo>& OutPitches)
+	void FAutoCorrelationPitchDetector::DetectPitches(const FAlignedFloatBuffer& InMonoAudio, TArray<FPitchInfo>& OutPitches)
 	{
 		TAutoSlidingWindow<float, FAudioBufferAlignedAllocator> SlidingWindow(SlidingBuffer, InMonoAudio, WindowBuffer);
 
 		const float InverseSampleRate = 1.f / SampleRate;
 
-		for (AlignedFloatBuffer& AnalysisBuffer : SlidingWindow)
+		for (FAlignedFloatBuffer& AnalysisBuffer : SlidingWindow)
 		{
 			int32 SampleCounter = (WindowCounter * SlidingBuffer.GetNumHopSamples()) + SlidingBuffer.GetNumWindowSamples() / 2;
 			const float Timestamp = SampleCounter * InverseSampleRate;

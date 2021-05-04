@@ -124,10 +124,10 @@ namespace Audio
 			const int32 NumFrames = TargetImpulseSamples->Num() / InNumImpulseResponses;
 
 			// Prepare deinterleave pointers
-			TArray<AlignedFloatBuffer> DeinterleaveSamples;
+			TArray<FAlignedFloatBuffer> DeinterleaveSamples;
 			while (DeinterleaveSamples.Num() < InNumImpulseResponses)
 			{
-				AlignedFloatBuffer& Buffer = DeinterleaveSamples.Emplace_GetRef();
+				FAlignedFloatBuffer& Buffer = DeinterleaveSamples.Emplace_GetRef();
 				if (NumFrames > 0)
 				{
 					Buffer.AddUninitialized(NumFrames);
@@ -140,7 +140,7 @@ namespace Audio
 			// Set impulse responses in algorithm
 			for (int32 i = 0; i < DeinterleaveSamples.Num(); i++)
 			{
-				const AlignedFloatBuffer& Buffer = DeinterleaveSamples[i];
+				const FAlignedFloatBuffer& Buffer = DeinterleaveSamples[i];
 
 				InAlgo.SetImpulseResponse(i, Buffer.GetData(), Buffer.Num());
 			}
@@ -208,7 +208,7 @@ namespace Audio
 		return DefaultOutputFormat;
 	}
 	
-	void FConvolutionReverb::FChannelFormatConverterWrapper::ProcessAudio(const TArray<AlignedFloatBuffer>& InInputBuffers, TArray<AlignedFloatBuffer>& OutOutputBuffers)
+	void FConvolutionReverb::FChannelFormatConverterWrapper::ProcessAudio(const TArray<FAlignedFloatBuffer>& InInputBuffers, TArray<FAlignedFloatBuffer>& OutOutputBuffers)
 	{
 		if (nullptr != BaseConverter)
 		{
@@ -456,7 +456,7 @@ namespace Audio
 	}
 
 
-	void FConvolutionReverb::ProcessAudio(int32 NumInputChannels, AlignedFloatBuffer& InputAudio, int32 NumOutputChannels, AlignedFloatBuffer& OutputAudio)
+	void FConvolutionReverb::ProcessAudio(int32 NumInputChannels, FAlignedFloatBuffer& InputAudio, int32 NumOutputChannels, FAlignedFloatBuffer& OutputAudio)
 	{
 		check(InputBlockBuffer.IsValid());
 		check(OutputBlockBuffer.IsValid());
@@ -536,7 +536,7 @@ namespace Audio
 		}
 	}
 
-	void FConvolutionReverb::ProcessAudioBlock(const float* InputAudio, int32 InNumInputChannels, AlignedFloatBuffer& OutputAudio, int32 InNumOutputChannels)
+	void FConvolutionReverb::ProcessAudioBlock(const float* InputAudio, int32 InNumInputChannels, FAlignedFloatBuffer& OutputAudio, int32 InNumOutputChannels)
 	{
 		check(nullptr != InputAudio);
 		check(ConvolutionAlgorithm.IsValid());
@@ -697,7 +697,7 @@ namespace Audio
 		}
 	}
 
-	void FConvolutionReverb::ResizeArrayOfBuffers(TArray<AlignedFloatBuffer>& InArrayOfBuffers, int32 MinNumBuffers, int32 NumFrames) const
+	void FConvolutionReverb::ResizeArrayOfBuffers(TArray<FAlignedFloatBuffer>& InArrayOfBuffers, int32 MinNumBuffers, int32 NumFrames) const
 	{
 		while (InArrayOfBuffers.Num() < MinNumBuffers)
 		{
@@ -706,7 +706,7 @@ namespace Audio
 
 		for (int32 i = 0; i < MinNumBuffers; i++)
 		{
-			AlignedFloatBuffer& Buffer = InArrayOfBuffers[i];
+			FAlignedFloatBuffer& Buffer = InArrayOfBuffers[i];
 			Buffer.Reset();
 			if (NumFrames > 0)
 			{
@@ -754,7 +754,7 @@ namespace Audio
 		OutputBlockBuffer = MakeUnique<FAlignedBlockBuffer>(OutputCapacity, OutputMaxInspect);
 	}
 
-	void FConvolutionReverb::InterleaveBuffer(AlignedFloatBuffer& OutBuffer, const TArray<AlignedFloatBuffer>& InputBuffers, const int32 NumChannels)
+	void FConvolutionReverb::InterleaveBuffer(FAlignedFloatBuffer& OutBuffer, const TArray<FAlignedFloatBuffer>& InputBuffers, const int32 NumChannels)
 	{
 		check(InputBuffers.Num() >= NumChannels);
 
@@ -790,7 +790,7 @@ namespace Audio
 		}
 	}
 
-	void FConvolutionReverb::DeinterleaveBuffer(TArray<AlignedFloatBuffer>& OutputBuffers, TArrayView<const float> InputBuffer, const int32 NumChannels)
+	void FConvolutionReverb::DeinterleaveBuffer(TArray<FAlignedFloatBuffer>& OutputBuffers, TArrayView<const float> InputBuffer, const int32 NumChannels)
 	{
 		check(OutputBuffers.Num() >= NumChannels);
 
@@ -805,7 +805,7 @@ namespace Audio
 
 		for (int32 i = 0; i < NumChannels; i++)
 		{
-			AlignedFloatBuffer& OutBuffer = OutputBuffers[i];
+			FAlignedFloatBuffer& OutBuffer = OutputBuffers[i];
 
 			check(OutBuffer.Num() == NumFrames);
 

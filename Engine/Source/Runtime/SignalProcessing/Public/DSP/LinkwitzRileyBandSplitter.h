@@ -22,7 +22,7 @@ namespace Audio
 
 	struct FMultibandBuffer
 	{
-		Audio::AlignedFloatBuffer Buffer;
+		Audio::FAlignedFloatBuffer Buffer;
 
 		int32 NumBands = 0;
 		int32 NumSamples = 0;

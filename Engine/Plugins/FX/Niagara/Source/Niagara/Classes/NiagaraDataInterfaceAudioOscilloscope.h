@@ -70,15 +70,15 @@ private:
 	float ScopeInMilliseconds;
 
 	// The buffer we downsample PoppedBuffer to based on the Resolution property.
-	Audio::AlignedFloatBuffer PopBuffer;
-	Audio::AlignedFloatBuffer DownsampledBuffer;
+	Audio::FAlignedFloatBuffer PopBuffer;
+	Audio::FAlignedFloatBuffer DownsampledBuffer;
 
 	// Handle for the SRV used by the generated HLSL.
 	FReadBuffer GPUDownsampledBuffer;
 	FThreadSafeCounter NumChannelsInDownsampledBuffer;
 	
 	// Buffer read by VectorVM worker threads. This vector is guaranteed to not be mutated during the VectorVM tasks.
-	Audio::AlignedFloatBuffer VectorVMReadBuffer;
+	Audio::FAlignedFloatBuffer VectorVMReadBuffer;
 
 	FDelegateHandle DeviceCreatedHandle;
 	FDelegateHandle DeviceDestroyedHandle;

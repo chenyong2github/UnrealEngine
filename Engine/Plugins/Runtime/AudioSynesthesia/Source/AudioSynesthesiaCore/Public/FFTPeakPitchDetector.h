@@ -51,7 +51,7 @@ namespace Audio
 			 * @param InMonoAudio - A mono audio buffer of any length.
 			 * @param OutPitches - This array is filled with pitch observations.
 			 */
-			virtual void DetectPitches(const AlignedFloatBuffer& InMonoAudio, TArray<FPitchInfo>& OutPitches) override;
+			virtual void DetectPitches(const FAlignedFloatBuffer& InMonoAudio, TArray<FPitchInfo>& OutPitches) override;
 
 			/** Resets internal audio buffers. This pitch detector does not produce any more pitches on Finalize. */
 			virtual void Finalize(TArray<FPitchInfo>& OutPitches) override;
@@ -70,9 +70,9 @@ namespace Audio
 			TUniquePtr<FPeakPicker> PeakPicker;
 
 			TSlidingBuffer<float> SlidingBuffer;
-			AlignedFloatBuffer WindowBuffer;
-			AlignedFloatBuffer ZeroPaddedAnalysisBuffer;
-			AlignedFloatBuffer ComplexSpectrumBuffer;
-			AlignedFloatBuffer PowerSpectrumBuffer;
+			FAlignedFloatBuffer WindowBuffer;
+			FAlignedFloatBuffer ZeroPaddedAnalysisBuffer;
+			FAlignedFloatBuffer ComplexSpectrumBuffer;
+			FAlignedFloatBuffer PowerSpectrumBuffer;
 	};
 }

@@ -154,7 +154,7 @@ void FEarlyReflectionsFast::ApplySettings()
 	RightFDN.SetCoefficients(RightCoefficients);
 }
 
-void FEarlyReflectionsFast::ProcessAudio(const AlignedFloatBuffer& InSamples, const int32 InNumChannels, AlignedFloatBuffer& OutLeftSamples, AlignedFloatBuffer& OutRightSamples)
+void FEarlyReflectionsFast::ProcessAudio(const FAlignedFloatBuffer& InSamples, const int32 InNumChannels, FAlignedFloatBuffer& OutLeftSamples, FAlignedFloatBuffer& OutRightSamples)
 {
 	checkf((InNumChannels == 1) || (InNumChannels == 2), TEXT("EarlyReflections only supports one or two channel input samples."));
 

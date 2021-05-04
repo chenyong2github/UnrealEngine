@@ -128,10 +128,10 @@ namespace Audio
 					// If source channels are different than bus channels, we need to up-mix or down-mix
 					if (NumSourceChannels != NumChannels)
 					{
-						Audio::AlignedFloatBuffer ChannelMap;
+						Audio::FAlignedFloatBuffer ChannelMap;
 						SourceManager->Get2DChannelMap(AudioBusSend.SourceId, NumChannels, ChannelMap);
 
-						Audio::AlignedFloatBuffer DownmixedBuffer;
+						Audio::FAlignedFloatBuffer DownmixedBuffer;
 						DownmixedBuffer.AddUninitialized(NumOutputFrames * NumChannels);
 						Audio::DownmixBuffer(NumSourceChannels, NumChannels, SourceBufferPtr, DownmixedBuffer.GetData(), NumOutputFrames, ChannelMap.GetData());
 						Audio::MixInBufferFast(DownmixedBuffer.GetData(), BusDataBufferPtr, DownmixedBuffer.Num(), AudioBusSend.SendLevel);
@@ -152,12 +152,12 @@ namespace Audio
 		PatchMixerSplitter.ProcessAudio();
 	}
 
-	void FMixerAudioBus::CopyCurrentBuffer(Audio::AlignedFloatBuffer& InChannelMap, int32 InNumOutputChannels, AlignedFloatBuffer& OutBuffer, int32 NumOutputFrames) const
+	void FMixerAudioBus::CopyCurrentBuffer(Audio::FAlignedFloatBuffer& InChannelMap, int32 InNumOutputChannels, FAlignedFloatBuffer& OutBuffer, int32 NumOutputFrames) const
 	{
 		const float* RESTRICT CurrentBuffer = GetCurrentBusBuffer();
 
 		check(NumChannels != InNumOutputChannels);
-		Audio::AlignedFloatBuffer DownmixedBuffer;
+		Audio::FAlignedFloatBuffer DownmixedBuffer;
 		DownmixedBuffer.AddUninitialized(NumOutputFrames * NumChannels);
 
 		Audio::DownmixBuffer(NumChannels, InNumOutputChannels, CurrentBuffer, DownmixedBuffer.GetData(), NumOutputFrames, InChannelMap.GetData());
@@ -165,7 +165,7 @@ namespace Audio
 		Audio::MixInBufferFast(DownmixedBuffer.GetData(), OutBuffer.GetData(), DownmixedBuffer.Num(), 1.0f);
 	}
 
-	void FMixerAudioBus::CopyCurrentBuffer(int32 InNumOutputChannels, AlignedFloatBuffer& OutBuffer, int32 NumOutputFrames) const
+	void FMixerAudioBus::CopyCurrentBuffer(int32 InNumOutputChannels, FAlignedFloatBuffer& OutBuffer, int32 NumOutputFrames) const
 	{
 		const float* RESTRICT CurrentBuffer = GetCurrentBusBuffer();
 

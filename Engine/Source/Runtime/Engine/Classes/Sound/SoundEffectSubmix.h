@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 
 #include "AudioDefines.h"
+#include "DSP/BufferVectorOperations.h"
 #include "IAudioExtensionPlugin.h"
 #include "Sound/SoundEffectPreset.h"
 #include "Sound/SoundEffectBase.h"
@@ -57,7 +58,7 @@ struct FSoundEffectSubmixInputData
 	const TArray<FTransform>* ListenerTransforms;
 
 	/** The raw input audio buffer. Size is NumFrames * NumChannels */
-	Audio::AlignedFloatBuffer* AudioBuffer;
+	Audio::FAlignedFloatBuffer* AudioBuffer;
 
 	/** Sample accurate audio clock. */
 	double AudioClock;
@@ -75,7 +76,7 @@ struct FSoundEffectSubmixInputData
 struct FSoundEffectSubmixOutputData
 {
 	/** The output audio buffer. */
-	Audio::AlignedFloatBuffer* AudioBuffer;
+	Audio::FAlignedFloatBuffer* AudioBuffer;
 
 	/** The number of channels of the submix. */
 	int32 NumChannels;

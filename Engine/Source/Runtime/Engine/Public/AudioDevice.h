@@ -1302,11 +1302,11 @@ public:
 	}
 
 	/** This is called by a USoundSubmix when we stop recording a submix on this device. */
-	virtual Audio::AlignedFloatBuffer& StopRecording(USoundSubmix* InSubmix, float& OutNumChannels, float& OutSampleRate)
+	virtual Audio::FAlignedFloatBuffer& StopRecording(USoundSubmix* InSubmix, float& OutNumChannels, float& OutSampleRate)
 	{
 		UE_LOG(LogAudio, Error, TEXT("Submix recording only works with the audio mixer. Please run using -audiomixer to or set INI file use submix recording."));
 
-		static Audio::AlignedFloatBuffer InvalidBuffer;
+		static Audio::FAlignedFloatBuffer InvalidBuffer;
 		return InvalidBuffer;
 	}
 

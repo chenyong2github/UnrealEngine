@@ -83,10 +83,10 @@ namespace Audio
 		/** Scale factor to normalize between different FFT Sizes */
 		FWindow Window;
 
-		AlignedFloatBuffer WindowedSamples;
-		AlignedFloatBuffer FFTOutputRealData;
-		AlignedFloatBuffer FFTOutputImagData;
-		AlignedFloatBuffer SpectrumBuffer;
+		FAlignedFloatBuffer WindowedSamples;
+		FAlignedFloatBuffer FFTOutputRealData;
+		FAlignedFloatBuffer FFTOutputImagData;
+		FAlignedFloatBuffer SpectrumBuffer;
 
 		TUniquePtr<FContiguousSparse2DKernelTransform> CQTTransform;
 	};

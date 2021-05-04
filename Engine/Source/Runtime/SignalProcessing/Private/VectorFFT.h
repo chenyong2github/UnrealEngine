@@ -80,10 +80,10 @@ namespace Audio
 			// Needed to convert buffers for implementation of real-to-complex fft using complex-to-comlex fft.
 			struct FConversionBuffers
 			{
-				AlignedFloatBuffer AlphaReal;
-				AlignedFloatBuffer AlphaImag;
-				AlignedFloatBuffer BetaReal;
-				AlignedFloatBuffer BetaImag;
+				FAlignedFloatBuffer AlphaReal;
+				FAlignedFloatBuffer AlphaImag;
+				FAlignedFloatBuffer BetaReal;
+				FAlignedFloatBuffer BetaImag;
 			};
 
 
@@ -96,7 +96,7 @@ namespace Audio
 			int32 FFTSize;
 			int32 Log2FFTSize;
 
-			AlignedFloatBuffer WorkBuffer;
+			FAlignedFloatBuffer WorkBuffer;
 
 			FConversionBuffers ForwardConvBuffers;
 			FConversionBuffers InverseConvBuffers;

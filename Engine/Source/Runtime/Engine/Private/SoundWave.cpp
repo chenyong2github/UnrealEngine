@@ -1621,7 +1621,7 @@ void USoundWave::BakeFFTAnalysis()
 		Audio::FSpectrumAnalyzer SpectrumAnalyzer(SpectrumAnalyzerSettings, (float)RawDataSampleRate);
 
 		// The audio data block to use to submit audio data to the spectrum analyzer
-		Audio::AlignedFloatBuffer AnalysisData;
+		Audio::FAlignedFloatBuffer AnalysisData;
 		check(FFTAnalysisFrameSize > 256);
 		AnalysisData.Reserve(FFTAnalysisFrameSize);
 

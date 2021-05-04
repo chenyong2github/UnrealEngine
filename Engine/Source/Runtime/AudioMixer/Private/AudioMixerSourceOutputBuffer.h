@@ -43,12 +43,12 @@ namespace Audio
 		uint32 GetNumSourceChannels() const { return NumSourceChannels; }
 
 		// Sets the channel map
-		bool SetChannelMap(const AlignedFloatBuffer& InChannelMap, bool bInIsCenterChannelOnly);
+		bool SetChannelMap(const FAlignedFloatBuffer& InChannelMap, bool bInIsCenterChannelOnly);
 
 		// Sets the pre and post attenuation source buffers. This is the source buffer data derived from source manager source processing.
-		void SetPreAttenuationSourceBuffer(AlignedFloatBuffer* InPreAttenuationBuffer);
-		void SetPostAttenuationSourceBuffer(AlignedFloatBuffer* InPostAttenuationBuffer);
-		void CopyReverbPluginOutputData(AlignedFloatBuffer& InAudioBuffer);
+		void SetPreAttenuationSourceBuffer(FAlignedFloatBuffer* InPreAttenuationBuffer);
+		void SetPostAttenuationSourceBuffer(FAlignedFloatBuffer* InPostAttenuationBuffer);
+		void CopyReverbPluginOutputData(FAlignedFloatBuffer& InAudioBuffer);
 		const float* GetReverbPluginOutputData() const;
 
 		// Retrieves the current sound field packet for the given key
@@ -59,7 +59,7 @@ namespace Audio
 		void ComputeOutput(const FSpatializationParams& InSpatParams);
 
 		// Called by submixes to mix this output buffer to their buffer
-		void MixOutput(float SendLevel, EMixerSourceSubmixSendStage InSubmixSendStage, AlignedFloatBuffer& OutMixedBuffer) const;
+		void MixOutput(float SendLevel, EMixerSourceSubmixSendStage InSubmixSendStage, FAlignedFloatBuffer& OutMixedBuffer) const;
 
 		// Return the listener rotation
 		// TODO: consolidate the code that is using this to be private to this class.
@@ -140,33 +140,33 @@ namespace Audio
 
 	private: // private methods
 
-		void ComputeOutput3D(AlignedFloatBuffer& InSource, AlignedFloatBuffer& InOutput);
+		void ComputeOutput3D(FAlignedFloatBuffer& InSource, FAlignedFloatBuffer& InOutput);
 		void ComputeOutput3D();
-		void ComputeOutput2D(AlignedFloatBuffer& InSource, AlignedFloatBuffer& InOutput);
+		void ComputeOutput2D(FAlignedFloatBuffer& InSource, FAlignedFloatBuffer& InOutput);
 		void ComputeOutput2D();
 
-		void EncodeSoundfield(FSoundfieldData& InSoundfieldData, Audio::AlignedFloatBuffer& InSourceBuffer);
+		void EncodeSoundfield(FSoundfieldData& InSoundfieldData, Audio::FAlignedFloatBuffer& InSourceBuffer);
 		void EncodeToSoundfieldFormats(const FSpatializationParams& InSpatParams);
 
 	private: // private data
 
 		// Buffer for reverb plugins to write into
-		AlignedFloatBuffer ReverbPluginOutputBuffer;
+		FAlignedFloatBuffer ReverbPluginOutputBuffer;
 
 		// The source buffer created before distance attenuation is applied
-		AlignedFloatBuffer* PreAttenuationSourceBuffer;
+		FAlignedFloatBuffer* PreAttenuationSourceBuffer;
 
 		// The source buffer created after distance attenuation is applied
-		AlignedFloatBuffer* PostAttenuationSourceBuffer;
+		FAlignedFloatBuffer* PostAttenuationSourceBuffer;
 
 		// Data used to map the source channel data to the output channel configuration
 		FSourceChannelMap SourceChannelMap;
 
 		// The result of the source output with source data derived pre distance attenuation
-		AlignedFloatBuffer PreAttenuationOutputBuffer;
+		FAlignedFloatBuffer PreAttenuationOutputBuffer;
 
 		// The result of the source output with source data derived post distance attenuation
-		AlignedFloatBuffer PostAttenuationOutputBuffer;
+		FAlignedFloatBuffer PostAttenuationOutputBuffer;
 
 		// The number of source channels (sound input)
 		uint32 NumSourceChannels;

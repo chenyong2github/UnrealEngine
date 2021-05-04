@@ -127,8 +127,8 @@ namespace Audio
 			return;
 		}
 
-		AlignedFloatBuffer TempReal;
-		AlignedFloatBuffer TempImag;
+		FAlignedFloatBuffer TempReal;
+		FAlignedFloatBuffer TempImag;
 		TempReal.AddUninitialized(Signal.Num());
 		TempImag.AddUninitialized(Signal.Num());
 

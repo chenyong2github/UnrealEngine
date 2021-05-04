@@ -32,11 +32,11 @@ namespace Audio
 		int32 GetNumDelaySamples() const;
 
 		// Process InSamples, placing delayed versions in OutSamples.
-		void ProcessAudio(const Audio::AlignedFloatBuffer& InSamples, Audio::AlignedFloatBuffer& OutSamples);
+		void ProcessAudio(const Audio::FAlignedFloatBuffer& InSamples, Audio::FAlignedFloatBuffer& OutSamples);
 
 		// Retrieve a copy of the internal delay line.
 		// InNum must be less than or equal to InMaxNumDelaySamples.
-		void PeekDelayLine(int32 InNum, Audio::AlignedFloatBuffer& OutSamples);
+		void PeekDelayLine(int32 InNum, Audio::FAlignedFloatBuffer& OutSamples);
 
 	private:
 		// Process a block of audio. InNum is always less than or equal to NumInternalBufferSamples.

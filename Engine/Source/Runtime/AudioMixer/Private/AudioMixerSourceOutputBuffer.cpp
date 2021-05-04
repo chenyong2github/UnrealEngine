@@ -137,7 +137,7 @@ namespace Audio
 		PostAttenuationOutputBuffer.AddUninitialized(NumFrames * NumOutputChannels);
 	}
 
-	bool FMixerSourceSubmixOutputBuffer::SetChannelMap(const AlignedFloatBuffer& InChannelMap, bool bInIsCenterChannelOnly)
+	bool FMixerSourceSubmixOutputBuffer::SetChannelMap(const FAlignedFloatBuffer& InChannelMap, bool bInIsCenterChannelOnly)
 	{
 		bool bNeedsNewChannelMap = false;
 
@@ -146,7 +146,7 @@ namespace Audio
 
 		if (InChannelMap.Num() != ChannelMapSize)
 		{
-			AlignedFloatBuffer NewChannelMap;
+			FAlignedFloatBuffer NewChannelMap;
 
 			if (bIs3D)
 			{
@@ -169,12 +169,12 @@ namespace Audio
 		return bNeedsNewChannelMap;
 	}
 
-	void FMixerSourceSubmixOutputBuffer::SetPreAttenuationSourceBuffer(AlignedFloatBuffer* InPreAttenuationSourceBuffer)
+	void FMixerSourceSubmixOutputBuffer::SetPreAttenuationSourceBuffer(FAlignedFloatBuffer* InPreAttenuationSourceBuffer)
 	{
 		PreAttenuationSourceBuffer = InPreAttenuationSourceBuffer;
 	}
 
-	void FMixerSourceSubmixOutputBuffer::SetPostAttenuationSourceBuffer(AlignedFloatBuffer* InPostAttenuationSourceBuffer)
+	void FMixerSourceSubmixOutputBuffer::SetPostAttenuationSourceBuffer(FAlignedFloatBuffer* InPostAttenuationSourceBuffer)
 	{
 		PostAttenuationSourceBuffer = InPostAttenuationSourceBuffer;
 	}
@@ -208,7 +208,7 @@ namespace Audio
 		}
 	}
 
-	void FMixerSourceSubmixOutputBuffer::ComputeOutput3D(AlignedFloatBuffer& InSourceBuffer, AlignedFloatBuffer& OutSourceBuffer)
+	void FMixerSourceSubmixOutputBuffer::ComputeOutput3D(FAlignedFloatBuffer& InSourceBuffer, FAlignedFloatBuffer& OutSourceBuffer)
 	{
 		if (SoundfieldDecoder.IsValid())
 		{
@@ -296,7 +296,7 @@ namespace Audio
 		SourceChannelMap.CopyDestinationToStart();
 	}
 
-	void FMixerSourceSubmixOutputBuffer::ComputeOutput2D(AlignedFloatBuffer& InSourceBuffer, AlignedFloatBuffer& OutSourceBuffer)
+	void FMixerSourceSubmixOutputBuffer::ComputeOutput2D(FAlignedFloatBuffer& InSourceBuffer, FAlignedFloatBuffer& OutSourceBuffer)
 	{
 		// For 2D sources, we just apply the gain matrix in ChannelDestionationGains with no interpolation.
 		if (SoundfieldDecoder.IsValid())
@@ -444,7 +444,7 @@ namespace Audio
 		}
 	}
 
-	void FMixerSourceSubmixOutputBuffer::EncodeSoundfield(FSoundfieldData& InSoundfieldData, Audio::AlignedFloatBuffer& InSourceBuffer)
+	void FMixerSourceSubmixOutputBuffer::EncodeSoundfield(FSoundfieldData& InSoundfieldData, Audio::FAlignedFloatBuffer& InSourceBuffer)
 	{
 		check(InSoundfieldData.EncoderSettings.IsValid());
 		check(InSoundfieldData.EncodedPacket.IsValid());
@@ -487,7 +487,7 @@ namespace Audio
 		}
 	}
 
-	void FMixerSourceSubmixOutputBuffer::MixOutput(float InSendLevel, EMixerSourceSubmixSendStage InSubmixSendStage, AlignedFloatBuffer& OutMixedBuffer) const
+	void FMixerSourceSubmixOutputBuffer::MixOutput(float InSendLevel, EMixerSourceSubmixSendStage InSubmixSendStage, FAlignedFloatBuffer& OutMixedBuffer) const
 	{
 		if (InSubmixSendStage == EMixerSourceSubmixSendStage::PostDistanceAttenuation)
 		{
@@ -504,7 +504,7 @@ namespace Audio
 		return SoundfieldPositionalData.Rotation;
 	}
 
-	void FMixerSourceSubmixOutputBuffer::CopyReverbPluginOutputData(AlignedFloatBuffer& InAudioBuffer)
+	void FMixerSourceSubmixOutputBuffer::CopyReverbPluginOutputData(FAlignedFloatBuffer& InAudioBuffer)
 	{
 		ReverbPluginOutputBuffer.Reset();
 		ReverbPluginOutputBuffer.Append(InAudioBuffer);

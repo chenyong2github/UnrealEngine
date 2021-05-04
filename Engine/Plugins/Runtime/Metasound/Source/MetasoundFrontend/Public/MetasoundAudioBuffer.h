@@ -11,19 +11,19 @@
 /** Define which determines whether to check that the size of the audio buffer has not changed since initialization */
 #define METASOUNDGRAPHCORE_CHECKAUDIONUM !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-namespace Metasound 
+namespace Metasound
 {
 	/**  FAudioBuffer
 	 *
-	 * FAudioBuffer is the default buffer for passing audio data between nodes.  It should not be resized. 
-	 * It is compatible with functions accepting const references to AlignedFloatBuffer (const AlignedFloatBuffer&) 
-	 * arguments via an implicit conversion operator which exposes the underlying AlignedFloatBuffer container.
+	 * FAudioBuffer is the default buffer for passing audio data between nodes.  It should not be resized.
+	 * It is compatible with functions accepting const references to FAlignedFloatBuffer (const FAlignedFloatBuffer&)
+	 * arguments via an implicit conversion operator which exposes the underlying FAlignedFloatBuffer container.
 	 *
 	 */
 	class METASOUNDFRONTEND_API FAudioBuffer
 	{
 		public:
-			/** Create an FAudioBuffer with a specific number of samples. 
+			/** Create an FAudioBuffer with a specific number of samples.
 			 *
 			 * @param InNumSamples - Number of samples in buffer.
 			 */
@@ -85,8 +85,8 @@ namespace Metasound
 				return Buffer.Num();
 			}
 
-			/** Implicit conversion to Audio::AlignedFloatBuffer */
-			FORCEINLINE operator const Audio::AlignedFloatBuffer& () const
+			/** Implicit conversion to Audio::FAlignedFloatBuffer */
+			FORCEINLINE operator const Audio::FAlignedFloatBuffer& () const
 			{
 #if METASOUNDGRAPHCORE_CHECKAUDIONUM
 				UE_CLOG(InitialNum != Buffer.Num(), LogMetaSound, Error, TEXT("MetaSound audio buffer size change detected.  Audio Buffers should not be resized."));
@@ -94,11 +94,11 @@ namespace Metasound
 return Buffer;
 			}
 
-			/** Implicit conversion to Audio::AlignedFloatBuffer 
+			/** Implicit conversion to Audio::FAlignedFloatBuffer 
 			 *
-			 * WARNING: if the buffer is resized, it will cause errors. 
+			 * WARNING: if the buffer is resized, it will cause errors.
 			 */
-			FORCEINLINE operator Audio::AlignedFloatBuffer& ()
+			FORCEINLINE operator Audio::FAlignedFloatBuffer& ()
 			{
 #if METASOUNDGRAPHCORE_CHECKAUDIONUM
 				UE_CLOG(InitialNum != Buffer.Num(), LogMetaSound, Error, TEXT("MetaSound audio buffer size change detected.  Audio Buffers should not be resized."));
@@ -116,7 +116,7 @@ return Buffer;
 
 		private:
 
-			Audio::AlignedFloatBuffer Buffer;
+			Audio::FAlignedFloatBuffer Buffer;
 
 #if METASOUNDGRAPHCORE_CHECKAUDIONUM
 			int32 InitialNum;

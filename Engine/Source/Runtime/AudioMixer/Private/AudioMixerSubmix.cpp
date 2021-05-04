@@ -355,9 +355,9 @@ namespace Audio
 		}
 	}
 
-	void FMixerSubmix::DownmixBuffer(const int32 InChannels, const AlignedFloatBuffer& InBuffer, const int32 OutChannels, AlignedFloatBuffer& OutNewBuffer)
+	void FMixerSubmix::DownmixBuffer(const int32 InChannels, const FAlignedFloatBuffer& InBuffer, const int32 OutChannels, FAlignedFloatBuffer& OutNewBuffer)
 	{
-		Audio::AlignedFloatBuffer MixdownGainsMap;
+		Audio::FAlignedFloatBuffer MixdownGainsMap;
 		Audio::FMixerDevice::Get2DChannelMap(false, InChannels, OutChannels, false, MixdownGainsMap);
 		Audio::DownmixBuffer(InChannels, OutChannels, InBuffer, OutNewBuffer, MixdownGainsMap.GetData());
 	}
@@ -670,7 +670,7 @@ namespace Audio
 		});
 	}
 
-	void FMixerSubmix::MixBufferDownToMono(const AlignedFloatBuffer& InBuffer, int32 NumInputChannels, AlignedFloatBuffer& OutBuffer)
+	void FMixerSubmix::MixBufferDownToMono(const FAlignedFloatBuffer& InBuffer, int32 NumInputChannels, FAlignedFloatBuffer& OutBuffer)
 	{
 		check(NumInputChannels > 0);
 
@@ -975,7 +975,7 @@ namespace Audio
 		return OwningSubmixObject.IsValid();
 	}
 
-	void FMixerSubmix::ProcessAudio(AlignedFloatBuffer& OutAudioBuffer)
+	void FMixerSubmix::ProcessAudio(FAlignedFloatBuffer& OutAudioBuffer)
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
@@ -1285,7 +1285,7 @@ namespace Audio
 		}
 	}
 
-	bool FMixerSubmix::GenerateEffectChainAudio(FSoundEffectSubmixInputData& InputData, AlignedFloatBuffer& InAudioBuffer, TArray<FSoundEffectSubmixPtr>& InEffectChain, AlignedFloatBuffer& OutBuffer)
+	bool FMixerSubmix::GenerateEffectChainAudio(FSoundEffectSubmixInputData& InputData, FAlignedFloatBuffer& InAudioBuffer, TArray<FSoundEffectSubmixPtr>& InEffectChain, FAlignedFloatBuffer& OutBuffer)
 	{
 		// Reset the output scratch buffer
 		ScratchBuffer.Reset(NumSamples);
@@ -1752,7 +1752,7 @@ namespace Audio
 		bIsRecording = true;
 	}
 
-	AlignedFloatBuffer& FMixerSubmix::OnStopRecordingOutput(float& OutNumChannels, float& OutSampleRate)
+	FAlignedFloatBuffer& FMixerSubmix::OnStopRecordingOutput(float& OutNumChannels, float& OutSampleRate)
 	{
 		FScopeLock ScopedLock(&RecordingCriticalSection);
 		bIsRecording = false;

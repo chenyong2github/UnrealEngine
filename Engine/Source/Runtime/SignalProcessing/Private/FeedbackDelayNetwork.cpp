@@ -88,7 +88,7 @@ void FFeedbackDelayNetwork::SetCoefficients(const FFDNCoefficients& InCoefficien
 	Coefficients = InCoefficients;
 }
 
-void FFeedbackDelayNetwork::ProcessAudio(const AlignedFloatBuffer& InSamples, AlignedFloatBuffer& OutSamples)
+void FFeedbackDelayNetwork::ProcessAudio(const FAlignedFloatBuffer& InSamples, FAlignedFloatBuffer& OutSamples)
 {
 	const int32 InNum = InSamples.Num();
 	const float* InSampleData = InSamples.GetData();

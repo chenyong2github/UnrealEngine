@@ -130,10 +130,10 @@ namespace Audio
 			};
 
 			// Vector optimized complex multiply add
-			void VectorComplexMultiplyAdd(const AlignedFloatBuffer& InA, const AlignedFloatBuffer& InB, AlignedFloatBuffer& Out) const;
+			void VectorComplexMultiplyAdd(const FAlignedFloatBuffer& InA, const FAlignedFloatBuffer& InB, FAlignedFloatBuffer& Out) const;
 
 			// Vector optimized multiply
-			void VectorMultiplyByConstant(const AlignedFloatBuffer& InBuffer, float InConstant, AlignedFloatBuffer& OutBuffer) const;
+			void VectorMultiplyByConstant(const FAlignedFloatBuffer& InBuffer, float InConstant, FAlignedFloatBuffer& OutBuffer) const;
 
 			// Contains a single input channel.
 			//
@@ -147,7 +147,7 @@ namespace Audio
 					void PushBlock(const float* InSamples);
 
 					// Reference to latest transformed block.
-					const AlignedFloatBuffer& GetTransformedBlock() const;
+					const FAlignedFloatBuffer& GetTransformedBlock() const;
 
 					// Clears the transformed block
 					void Reset();
@@ -158,8 +158,8 @@ namespace Audio
 				private: 
 
 					FSharedFFTRef FFTAlgorithm;
-					AlignedFloatBuffer InputBuffer;
-					AlignedFloatBuffer OutputBuffer;
+					FAlignedFloatBuffer InputBuffer;
+					FAlignedFloatBuffer OutputBuffer;
 			};
 
 			// Contains a single output channel
@@ -177,7 +177,7 @@ namespace Audio
 					~FOutput();
 
 					// Returns the history block at the given index. 
-					AlignedFloatBuffer& GetTransformedBlock(int32 InBlockIndex);	
+					FAlignedFloatBuffer& GetTransformedBlock(int32 InBlockIndex);	
 
 					// Pop the latest block without performing inverse FFT
 					void PopBlock();
@@ -195,10 +195,10 @@ namespace Audio
 				private:
 
 					FSharedFFTRef FFTAlgorithm;
-					AlignedFloatBuffer OutputBuffer;
+					FAlignedFloatBuffer OutputBuffer;
 
 					int32 HeadBlockIndex;
-					TArray<AlignedFloatBuffer> Blocks;
+					TArray<FAlignedFloatBuffer> Blocks;
 
 			};
 
@@ -219,7 +219,7 @@ namespace Audio
 					void SetImpulseResponse(const float* InSamples, int32 InNum);
 
 					// Returns a block of the transformed impulse response.
-					const AlignedFloatBuffer& GetTransformedBlock(int32 InBlockIndex) const;
+					const FAlignedFloatBuffer& GetTransformedBlock(int32 InBlockIndex) const;
 
 					// Returns the number of active blocks. This may be less than the maximum
 					// number of blocks if the impulse response is shorter than the maximum
@@ -237,8 +237,8 @@ namespace Audio
 					int32 NumFFTOutputFloats;		
 					int32 NumActiveBlocks;
 					int32 NumImpulseResponseSamples;
-					AlignedFloatBuffer FFTInput;
-					TArray<AlignedFloatBuffer> Blocks;
+					FAlignedFloatBuffer FFTInput;
+					TArray<FAlignedFloatBuffer> Blocks;
 			};
 
 			FUniformPartitionConvolutionSettings Settings;
@@ -246,7 +246,7 @@ namespace Audio
 			int32 BlockSize;
 			int32 NumFFTOutputFloats;
 			int32 NumBlocks;
-			AlignedFloatBuffer TransformedAndScaledInput;
+			FAlignedFloatBuffer TransformedAndScaledInput;
 			TSharedRef<IFFTAlgorithm> FFTAlgorithm;
 
 			TArray<FInput> Inputs;

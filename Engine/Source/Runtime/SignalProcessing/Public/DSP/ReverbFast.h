@@ -71,7 +71,7 @@ namespace Audio
 			// Creates reverberated audio in OutSamples based upon InSamples
 			// InNumChannels can be 1 or 2 channels.
 			// OutSamples must be greater or equal to 2.
-			void ProcessAudio(const AlignedFloatBuffer& InSamples, const int32 InNumChannels, AlignedFloatBuffer& OutSamples, const int32 OutNumChannels);
+			void ProcessAudio(const FAlignedFloatBuffer& InSamples, const int32 InNumChannels, FAlignedFloatBuffer& OutSamples, const int32 OutNumChannels);
 
 			void FlushAudio();
 
@@ -80,7 +80,7 @@ namespace Audio
 
 		private:
 			// Copy reverberated samples to interleaved output samples. Map channels according to internal settings.
-			void InterleaveAndMixOutput(const AlignedFloatBuffer& InFrontLeftSamples, const AlignedFloatBuffer& InFrontRightSamples, AlignedFloatBuffer& OutSamples, const int32 OutNumChannels);
+			void InterleaveAndMixOutput(const FAlignedFloatBuffer& InFrontLeftSamples, const FAlignedFloatBuffer& InFrontRightSamples, FAlignedFloatBuffer& OutSamples, const int32 OutNumChannels);
 
 			void ApplySettings();
 
@@ -91,15 +91,15 @@ namespace Audio
 			FEarlyReflectionsFast EarlyReflections;
 			FLateReflectionsFast LateReflections;
 
-			AlignedFloatBuffer FrontLeftLateReflectionsSamples;
-			AlignedFloatBuffer FrontRightLateReflectionsSamples;
-			AlignedFloatBuffer FrontLeftEarlyReflectionsSamples;
-			AlignedFloatBuffer FrontRightEarlyReflectionsSamples;
-			AlignedFloatBuffer FrontLeftReverbSamples;
-			AlignedFloatBuffer FrontRightReverbSamples;
-			AlignedFloatBuffer LeftAttenuatedSamples;
-			AlignedFloatBuffer RightAttenuatedSamples;
-			AlignedFloatBuffer ScaledInputBuffer;
+			FAlignedFloatBuffer FrontLeftLateReflectionsSamples;
+			FAlignedFloatBuffer FrontRightLateReflectionsSamples;
+			FAlignedFloatBuffer FrontLeftEarlyReflectionsSamples;
+			FAlignedFloatBuffer FrontRightEarlyReflectionsSamples;
+			FAlignedFloatBuffer FrontLeftReverbSamples;
+			FAlignedFloatBuffer FrontRightReverbSamples;
+			FAlignedFloatBuffer LeftAttenuatedSamples;
+			FAlignedFloatBuffer RightAttenuatedSamples;
+			FAlignedFloatBuffer ScaledInputBuffer;
 
 	};
 }

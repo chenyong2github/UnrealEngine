@@ -49,7 +49,7 @@ private:
 	FQuat PreviousRotation = FQuat::Identity;
 
 	FAmbisonicsSoundfieldBuffer RotatedAudio;
-	Audio::AlignedFloatBuffer DecoderOutputBuffer;
+	Audio::FAlignedFloatBuffer DecoderOutputBuffer;
 
 public:
 	virtual ~FAmbisonicsSoundfieldDecoder() {};

@@ -8,7 +8,7 @@ namespace Audio
 {
 	namespace PseudoConstantQIntrinsics
 	{
-		void FillArrayWithTruncatedGaussian(const float InCenterFreq, const float InBandWidth, const int32 InFFTSize, const float InSampleRate, AlignedFloatBuffer& OutOffsetArray, int32& OutOffsetIndex)
+		void FillArrayWithTruncatedGaussian(const float InCenterFreq, const float InBandWidth, const int32 InFFTSize, const float InSampleRate, FAlignedFloatBuffer& OutOffsetArray, int32& OutOffsetIndex)
 		{
 			check(InBandWidth > 0.f);
 			check(InFFTSize > 0);
@@ -68,7 +68,7 @@ namespace Audio
 	}
 
 
-	void FPseudoConstantQ::FillArrayWithConstantQBand(const FPseudoConstantQBandSettings& InSettings, AlignedFloatBuffer& OutOffsetArray, int32& OutOffsetIndex)
+	void FPseudoConstantQ::FillArrayWithConstantQBand(const FPseudoConstantQBandSettings& InSettings, FAlignedFloatBuffer& OutOffsetArray, int32& OutOffsetIndex)
 	{
 		check(InSettings.SampleRate > 0.f);
 		check(InSettings.FFTSize > 0);
@@ -187,7 +187,7 @@ namespace Audio
 			}
 
 			// Create gaussian centered around center freq and with appropriate bandwidth
-			AlignedFloatBuffer OffsetBandWeights;
+			FAlignedFloatBuffer OffsetBandWeights;
 			int32 OffsetBandWeightsIndex = 0;
 
 			FPseudoConstantQ::FillArrayWithConstantQBand(BandSettings, OffsetBandWeights, OffsetBandWeightsIndex);

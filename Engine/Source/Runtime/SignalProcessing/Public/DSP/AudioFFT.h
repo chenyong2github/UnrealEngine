@@ -87,7 +87,7 @@ namespace Audio
 
 	private:
 		EWindowType WindowType;
-		AlignedFloatBuffer WindowBuffer;
+		FAlignedFloatBuffer WindowBuffer;
 		int32 NumSamples;
 
 		// Purposefully hidden constructor.
@@ -174,8 +174,8 @@ namespace Audio
 
 	struct FrequencyBuffer
 	{
-		AlignedFloatBuffer Real;
-		AlignedFloatBuffer Imag;
+		FAlignedFloatBuffer Real;
+		FAlignedFloatBuffer Imag;
 
 		void InitZeroed(int32 Num)
 		{
@@ -204,8 +204,8 @@ namespace Audio
 	// Performs an acyclic FFT correlation on FirstBuffer and Second buffer and stores the output in OutCorrelation.
 	// If bCyclic is false, This function may zero pad FirstBuffer and Second Buffer as needed.
 	// If bCyclic is true, FirstBuffer and SecondBuffer should have the same length, and that length should be a power of two.
-	SIGNALPROCESSING_API void CrossCorrelate(AlignedFloatBuffer& FirstBuffer, AlignedFloatBuffer& SecondBuffer, AlignedFloatBuffer& OutCorrelation, bool bZeroPad = true);
-	SIGNALPROCESSING_API void CrossCorrelate(AlignedFloatBuffer& FirstBuffer, AlignedFloatBuffer& SecondBuffer, FrequencyBuffer& OutCorrelation, bool bZeroPad = true);
+	SIGNALPROCESSING_API void CrossCorrelate(FAlignedFloatBuffer& FirstBuffer, FAlignedFloatBuffer& SecondBuffer, FAlignedFloatBuffer& OutCorrelation, bool bZeroPad = true);
+	SIGNALPROCESSING_API void CrossCorrelate(FAlignedFloatBuffer& FirstBuffer, FAlignedFloatBuffer& SecondBuffer, FrequencyBuffer& OutCorrelation, bool bZeroPad = true);
 	SIGNALPROCESSING_API void CrossCorrelate(const float* FirstBuffer, const float* SecondBuffer, int32 NumSamples, int32 FFTSize, float* OutCorrelation, int32 OutCorrelationSamples);
 	SIGNALPROCESSING_API void CrossCorrelate(const float* FirstBuffer, const float* SecondBuffer, int32 NumSamples, int32 FFTSize, FrequencyBuffer& OutCorrelation);
 
@@ -232,7 +232,7 @@ namespace Audio
 		void SetFilter(const float* InFilterReal, const float* InFilterImag, int32 FilterSize, int32 FFTSize);
 		void SetFilter(const FrequencyBuffer& InFilterFrequencies, int32 FilterSize);
 		void SetFilter(const float* TimeDomainBuffer, int32 FilterSize);
-		void SetFilter(const AlignedFloatBuffer& TimeDomainBuffer);
+		void SetFilter(const FAlignedFloatBuffer& TimeDomainBuffer);
 
 	private:
 		void ConvolveBlock(float* InputAudio, int32 NumSamples);
@@ -244,8 +244,8 @@ namespace Audio
 		int32 BlockSize;
 
 
-		AlignedFloatBuffer TimeDomainInputBuffer;
-		AlignedFloatBuffer COLABuffer;
+		FAlignedFloatBuffer TimeDomainInputBuffer;
+		FAlignedFloatBuffer COLABuffer;
 	};
 
 	// Computes the power spectrum from FFTFreqDomainData. Applies a 1/(FFTSize^2) scaling to the output to 
@@ -255,7 +255,7 @@ namespace Audio
 	// InFrequencyData is the input frequency domain data. Generally this is created by calling PerformFFT(...)
 	// FFTSize is the number of samples used when originally calculating the FFT
 	// OutBuffer is an aligned buffer which will contain spectrum data. It will constain (FFTSize / 2 + 1) elements.
-	SIGNALPROCESSING_API void ComputePowerSpectrum(const FFTFreqDomainData& InFrequencyData, int32 FFTSize, AlignedFloatBuffer& OutBuffer);
+	SIGNALPROCESSING_API void ComputePowerSpectrum(const FFTFreqDomainData& InFrequencyData, int32 FFTSize, FAlignedFloatBuffer& OutBuffer);
 
 	// Computes the magnitude spectrum from FFTFreqDomainData. Applies a 1/FFTSize scaling to the output to 
 	// maintain equal energy between original time domain data and output spectrum.  Only the first 
@@ -264,7 +264,7 @@ namespace Audio
 	// InFrequencyData is the input frequency domain data. Generally this is created by calling PerformFFT(...)
 	// FFTSize is the number of samples used when originally calculating the FFT
 	// OutBuffer is an aligned buffer which will contain spectrum data. It will constain (FFTSize / 2 + 1) elements.
-	SIGNALPROCESSING_API void ComputeMagnitudeSpectrum(const FFTFreqDomainData& InFrequencyData, int32 FFTSize, AlignedFloatBuffer& OutBuffer);
+	SIGNALPROCESSING_API void ComputeMagnitudeSpectrum(const FFTFreqDomainData& InFrequencyData, int32 FFTSize, FAlignedFloatBuffer& OutBuffer);
 	
 	// Computes the spectrum from FFTFreqDomainData. Applies a scaling to the output to maintain equal 
 	// energy between original time domain data and output spectrum.  Only the first (FFTSize / 2 + 1)
@@ -274,5 +274,5 @@ namespace Audio
 	// InFrequencyData is the input frequency domain data. Generally this is created by calling PerformFFT(...)
 	// FFTSize is the number of samples used when originally calculating the FFT
 	// OutBuffer is an aligned buffer which will contain spectrum data. It will constain (FFTSize / 2 + 1) elements.
-	SIGNALPROCESSING_API void ComputeSpectrum(ESpectrumType InSpectrumType, const FFTFreqDomainData& InFrequencyData, int32 FFTSize, AlignedFloatBuffer& OutBuffer);
+	SIGNALPROCESSING_API void ComputeSpectrum(ESpectrumType InSpectrumType, const FFTFreqDomainData& InFrequencyData, int32 FFTSize, FAlignedFloatBuffer& OutBuffer);
 }

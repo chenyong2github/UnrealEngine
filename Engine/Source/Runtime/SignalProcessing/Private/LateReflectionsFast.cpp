@@ -155,9 +155,9 @@ FLateReflectionsPlate::~FLateReflectionsPlate()
 
 
 void FLateReflectionsPlate::ProcessAudioFrames(
-		const AlignedFloatBuffer& InSamples,
-		const AlignedFloatBuffer& InFeedbackSamples,
-		const AlignedFloatBuffer& InDelayModulations,
+		const FAlignedFloatBuffer& InSamples,
+		const FAlignedFloatBuffer& InFeedbackSamples,
+		const FAlignedFloatBuffer& InDelayModulations,
 		FLateReflectionsPlateOutputs& OutPlateSamples)
 {
 	
@@ -261,7 +261,7 @@ int32 FLateReflectionsPlate::GetNumInternalBufferSamples() const
 	return NumInternalBufferSamples;
 }
 
-void FLateReflectionsPlate::PeekDelayLine(int32 InNum, AlignedFloatBuffer& OutSamples)
+void FLateReflectionsPlate::PeekDelayLine(int32 InNum, FAlignedFloatBuffer& OutSamples)
 {
 	DelayI->PeekDelayLine(InNum, OutSamples);
 }
@@ -366,7 +366,7 @@ void FLateReflectionsFast::SetSettings(const FLateReflectionsFastSettings& InSet
 	ApplySettings();
 }
 
-void FLateReflectionsFast::ProcessAudio(const AlignedFloatBuffer& InSamples, const int32 InNumChannels, AlignedFloatBuffer& OutLeftSamples, AlignedFloatBuffer& OutRightSamples)
+void FLateReflectionsFast::ProcessAudio(const FAlignedFloatBuffer& InSamples, const int32 InNumChannels, FAlignedFloatBuffer& OutLeftSamples, FAlignedFloatBuffer& OutRightSamples)
 {
 	checkf((InNumChannels == 1) || (InNumChannels == 2), TEXT("FLateReflections only supports 1 or 2 channel input audio"));
 
@@ -532,7 +532,7 @@ void FLateReflectionsFast::ApplySettings()
 }
 
 
-void FLateReflectionsFast::GeneraterPlateModulations(const int32 InNum, AlignedFloatBuffer& OutLeftDelays, AlignedFloatBuffer& OutRightDelays)
+void FLateReflectionsFast::GeneraterPlateModulations(const int32 InNum, FAlignedFloatBuffer& OutLeftDelays, FAlignedFloatBuffer& OutRightDelays)
 {
 	OutLeftDelays.Reset(InNum);
 	OutRightDelays.Reset(InNum);

@@ -73,11 +73,11 @@ namespace Audio
 			int32 LagSpectraIndex;
 
 			TSlidingBuffer<float> SlidingBuffer;
-			AlignedFloatBuffer WorkingBuffer;
-			AlignedFloatBuffer WindowedSamples;
-			AlignedFloatBuffer FFTOutputRealData;
-			AlignedFloatBuffer FFTOutputImagData;
-			AlignedFloatBuffer FFTSpectrumBuffer;
+			FAlignedFloatBuffer WorkingBuffer;
+			FAlignedFloatBuffer WindowedSamples;
+			FAlignedFloatBuffer FFTOutputRealData;
+			FAlignedFloatBuffer FFTOutputImagData;
+			FAlignedFloatBuffer FFTSpectrumBuffer;
 
 			// Array of arrays to hold lag spectra.
 			TArray< TArray<float> > PreviousSpectra;

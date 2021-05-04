@@ -20,7 +20,7 @@ namespace Audio
 
 		// Apply delay to InSamples. Fill OutSamples with data from the delay line at a delay of InDelay.
 		// InDelay must be equal length to InSamples. 
-		void ProcessAudio(const AlignedFloatBuffer& InSamples, const AlignedFloatBuffer& InDelays, AlignedFloatBuffer& OutSamples);
+		void ProcessAudio(const FAlignedFloatBuffer& InSamples, const FAlignedFloatBuffer& InDelays, FAlignedFloatBuffer& OutSamples);
 
 		// Set all values in internal delay line to zero. 
 		void Reset();
@@ -36,9 +36,9 @@ namespace Audio
 
 		TUniquePtr<FAlignedBlockBuffer> DelayLine;
 
-		AlignedFloatBuffer Coefficients;
-		AlignedFloatBuffer FractionalDelays;
-		AlignedInt32Buffer IntegerDelays;
-		AlignedInt32Buffer IntegerDelayOffsets;
+		FAlignedFloatBuffer Coefficients;
+		FAlignedFloatBuffer FractionalDelays;
+		FAlignedInt32Buffer IntegerDelays;
+		FAlignedInt32Buffer IntegerDelayOffsets;
 	};
 }

@@ -144,8 +144,8 @@ protected:
 	ESourceEffectFilterCircuit CircuitType;
 	ESourceEffectFilterType FilterType;
 
-	Audio::AlignedFloatBuffer ScratchModBuffer;
-	Audio::AlignedFloatBuffer ScratchEnvFollowerBuffer;
+	Audio::FAlignedFloatBuffer ScratchModBuffer;
+	Audio::FAlignedFloatBuffer ScratchEnvFollowerBuffer;
 
 	struct FAudioBusModulationData
 	{

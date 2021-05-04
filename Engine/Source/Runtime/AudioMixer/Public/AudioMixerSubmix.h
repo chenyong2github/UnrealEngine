@@ -190,7 +190,7 @@ namespace Audio
 		bool IsValid() const;
 
 		// Function which processes audio.
-		void ProcessAudio(AlignedFloatBuffer& OutAudio);
+		void ProcessAudio(FAlignedFloatBuffer& OutAudio);
 		void ProcessAudio(ISoundfieldAudioPacket& OutputAudio);
 
 		// This should be called if this submix doesn't send it's audio to a parent submix,
@@ -226,7 +226,7 @@ namespace Audio
 		void OnStartRecordingOutput(float ExpectedDuration);
 
 		// This is called by the corresponding USoundSubmix when StopRecordingOutput is called.
-		AlignedFloatBuffer& OnStopRecordingOutput(float& OutNumChannels, float& OutSampleRate);
+		FAlignedFloatBuffer& OnStopRecordingOutput(float& OutNumChannels, float& OutSampleRate);
 
 		// This is called by the corresponding USoundSubmix when PauseRecording is called.
 		void PauseRecordingOutput();
@@ -301,9 +301,9 @@ namespace Audio
 		void InitInternal();
 
 		// Down mix the given buffer to the desired down mix channel count
-		static void DownmixBuffer(const int32 InChannels, const AlignedFloatBuffer& InBuffer, const int32 OutChannels, AlignedFloatBuffer& OutNewBuffer);
+		static void DownmixBuffer(const int32 InChannels, const FAlignedFloatBuffer& InBuffer, const int32 OutChannels, FAlignedFloatBuffer& OutNewBuffer);
 
-		void MixBufferDownToMono(const AlignedFloatBuffer& InBuffer, int32 NumInputChannels, AlignedFloatBuffer& OutBuffer);
+		void MixBufferDownToMono(const FAlignedFloatBuffer& InBuffer, int32 NumInputChannels, FAlignedFloatBuffer& OutBuffer);
 
 		void SetupSoundfieldEncodersForChildren();
 		void SetupSoundfieldEncodingForChild(FChildSubmixInfo& InChild);
@@ -335,7 +335,7 @@ namespace Audio
 		void SubmixCommand(TFunction<void()> Command);
 
 		// Generates audio from the given effect chain into the given buffer
-		bool GenerateEffectChainAudio(FSoundEffectSubmixInputData& InputData, AlignedFloatBuffer& InAudioBuffer, TArray<FSoundEffectSubmixPtr>& InEffectChain, AlignedFloatBuffer& OutBuffer);
+		bool GenerateEffectChainAudio(FSoundEffectSubmixInputData& InputData, FAlignedFloatBuffer& InAudioBuffer, TArray<FSoundEffectSubmixPtr>& InEffectChain, FAlignedFloatBuffer& OutBuffer);
 
 		// This mixer submix's Id
 		uint32 Id;
@@ -362,7 +362,7 @@ namespace Audio
 
 		// The array of submix effect overrides. There may be more than one if multiple are fading out. There should be only one fading in (the current override).
 		TArray<FSubmixEffectFadeInfo> EffectChains;
-		AlignedFloatBuffer EffectChainOutputBuffer;
+		FAlignedFloatBuffer EffectChainOutputBuffer;
 
 		// Owning mixer device. 
 		FMixerDevice* MixerDevice;
@@ -370,11 +370,11 @@ namespace Audio
 		// Map of mixer source voices with a given send level for this submix
 		TMap<FMixerSourceVoice*, FSubmixVoiceData> MixerSourceVoices;
 
-		AlignedFloatBuffer ScratchBuffer;
-		AlignedFloatBuffer SubmixChainMixBuffer;
-		AlignedFloatBuffer InputBuffer;
-		AlignedFloatBuffer DownmixedBuffer;
-		AlignedFloatBuffer SourceInputBuffer;
+		FAlignedFloatBuffer ScratchBuffer;
+		FAlignedFloatBuffer SubmixChainMixBuffer;
+		FAlignedFloatBuffer InputBuffer;
+		FAlignedFloatBuffer DownmixedBuffer;
+		FAlignedFloatBuffer SourceInputBuffer;
 
 		int32 NumChannels;
 		int32 NumSamples;
@@ -462,10 +462,10 @@ namespace Audio
 			TUniquePtr<ISoundfieldEndpoint> SoundfieldEndpoint;
 
 			// for non-soundfield endpoints, we use these buffers for processing.
-			AlignedFloatBuffer AudioBuffer;
-			AlignedFloatBuffer ResampledAudioBuffer;
-			AlignedFloatBuffer DownmixedResampledAudioBuffer;
-			AlignedFloatBuffer DownmixChannelMap;
+			FAlignedFloatBuffer AudioBuffer;
+			FAlignedFloatBuffer ResampledAudioBuffer;
+			FAlignedFloatBuffer DownmixedResampledAudioBuffer;
+			FAlignedFloatBuffer DownmixChannelMap;
 
 			// Number of channels and sample rate for the external endpoint.
 			int32 NumChannels;
@@ -516,10 +516,10 @@ namespace Audio
 		TSharedPtr<FAsyncSpectrumAnalyzer, ESPMode::ThreadSafe> SpectrumAnalyzer;
 		
 		// This buffer is used to downmix the submix output to mono before submitting it to the SpectrumAnalyzer.
-		AlignedFloatBuffer MonoMixBuffer;
+		FAlignedFloatBuffer MonoMixBuffer;
 
 		// The dry channel buffer
-		AlignedFloatBuffer DryChannelBuffer;
+		FAlignedFloatBuffer DryChannelBuffer;
 
 		// Submix command queue to shuffle commands from audio thread to audio render thread.
 		TQueue<TFunction<void()>> CommandQueue;
@@ -531,7 +531,7 @@ namespace Audio
 		FCriticalSection BufferListenerCriticalSection;
 
 		// This buffer is used for recorded output of the submix.
-		AlignedFloatBuffer RecordingData;
+		FAlignedFloatBuffer RecordingData;
 
 		// Returns the number of submix effects
 		int32 NumSubmixEffects;

@@ -102,21 +102,21 @@ private:
 	float SampleRate;
 	float FFTScale;
 
-	Audio::AlignedFloatBuffer PopBuffer;
+	Audio::FAlignedFloatBuffer PopBuffer;
 	TUniquePtr< FSlidingBuffer > SlidingBuffer;
 
-	TArray<Audio::AlignedFloatBuffer> ChannelSpectrumBuffers;
+	TArray<Audio::FAlignedFloatBuffer> ChannelSpectrumBuffers;
 
 	TUniquePtr<Audio::FContiguousSparse2DKernelTransform> CQTKernel;
 	TUniquePtr<Audio::IFFTAlgorithm> FFTAlgorithm;
 
-	Audio::AlignedFloatBuffer InterleavedBuffer;
-	Audio::AlignedFloatBuffer DeinterleavedBuffer;
-	Audio::AlignedFloatBuffer FFTInputBuffer;
-	Audio::AlignedFloatBuffer FFTOutputBuffer;
-	Audio::AlignedFloatBuffer PowerSpectrumBuffer;
-	Audio::AlignedFloatBuffer SpectrumBuffer;
-	Audio::AlignedFloatBuffer WindowBuffer;
+	Audio::FAlignedFloatBuffer InterleavedBuffer;
+	Audio::FAlignedFloatBuffer DeinterleavedBuffer;
+	Audio::FAlignedFloatBuffer FFTInputBuffer;
+	Audio::FAlignedFloatBuffer FFTOutputBuffer;
+	Audio::FAlignedFloatBuffer PowerSpectrumBuffer;
+	Audio::FAlignedFloatBuffer SpectrumBuffer;
+	Audio::FAlignedFloatBuffer WindowBuffer;
 
 	// Handle for the SRV used by the generated HLSL.
 	FReadBuffer GPUBuffer;

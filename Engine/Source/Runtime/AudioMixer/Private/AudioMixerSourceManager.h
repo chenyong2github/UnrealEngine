@@ -48,7 +48,7 @@ namespace Audio
 	struct FMixerSourceVoiceBuffer
 	{
 		/** PCM float data. */
-		AlignedFloatBuffer AudioData;
+		FAlignedFloatBuffer AudioData;
 
 		/** How many times this buffer will loop. */
 		int32 LoopCount = 0;
@@ -198,7 +198,7 @@ namespace Audio
 		void SetVolume(const int32 SourceId, const float Volume);
 		void SetDistanceAttenuation(const int32 SourceId, const float DistanceAttenuation);
 		void SetSpatializationParams(const int32 SourceId, const FSpatializationParams& InParams);
-		void SetChannelMap(const int32 SourceId, const uint32 NumInputChannels, const Audio::AlignedFloatBuffer& InChannelMap, const bool bInIs3D, const bool bInIsCenterChannelOnly);
+		void SetChannelMap(const int32 SourceId, const uint32 NumInputChannels, const Audio::FAlignedFloatBuffer& InChannelMap, const bool bInIs3D, const bool bInIsCenterChannelOnly);
 		void SetLPFFrequency(const int32 SourceId, const float Frequency);
 		void SetHPFFrequency(const int32 SourceId, const float Frequency);
 
@@ -218,11 +218,11 @@ namespace Audio
 		bool NeedsSpeakerMap(const int32 SourceId) const;
 		void ComputeNextBlockOfSamples();
 		void ClearStoppingSounds();
-		void MixOutputBuffers(const int32 SourceId, int32 InNumOutputChannels, const float InSendLevel, EMixerSourceSubmixSendStage InSubmixSendStage, AlignedFloatBuffer& OutWetBuffer) const;
+		void MixOutputBuffers(const int32 SourceId, int32 InNumOutputChannels, const float InSendLevel, EMixerSourceSubmixSendStage InSubmixSendStage, FAlignedFloatBuffer& OutWetBuffer) const;
 
 		// Retrieves a channel map for the given source ID for the given output channels
 		// can be used even when a source is 3D if the source is doing any kind of bus sending or otherwise needs a channel map
-		void Get2DChannelMap(const int32 SourceId, int32 InNumOutputChannels, Audio::AlignedFloatBuffer& OutChannelMap);
+		void Get2DChannelMap(const int32 SourceId, int32 InNumOutputChannels, Audio::FAlignedFloatBuffer& OutChannelMap);
 
 		// Called by a soundfield submix to get encoded audio.
 		// If this source wasn't encoded (possibly because it is paused or finished playing),
@@ -350,10 +350,10 @@ namespace Audio
 			int32 CurrentAudioChunkNumFrames;
 
 			// The post-attenuation source buffer, used to send audio to submixes
-			Audio::AlignedFloatBuffer SourceBuffer;
-			Audio::AlignedFloatBuffer PreEffectBuffer;
-			Audio::AlignedFloatBuffer PreDistanceAttenuationBuffer;
-			Audio::AlignedFloatBuffer SourceEffectScratchBuffer;
+			Audio::FAlignedFloatBuffer SourceBuffer;
+			Audio::FAlignedFloatBuffer PreEffectBuffer;
+			Audio::FAlignedFloatBuffer PreDistanceAttenuationBuffer;
+			Audio::FAlignedFloatBuffer SourceEffectScratchBuffer;
 
 			// Data used for delaying the rendering of source audio for sample-accurate quantization
 			int32 SubCallbackDelayLengthInFrames{ 0 };
@@ -425,7 +425,7 @@ namespace Audio
 			float HighpassModulationBase;
 
 			FSpatializationParams SpatParams;
-			Audio::AlignedFloatBuffer ScratchChannelMap;
+			Audio::FAlignedFloatBuffer ScratchChannelMap;
 
 			// Quantization data
 			FQuartzQuantizedCommandHandle QuantizedCommandHandle;

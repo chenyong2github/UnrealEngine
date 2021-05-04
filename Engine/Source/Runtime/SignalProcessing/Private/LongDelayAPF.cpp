@@ -34,7 +34,7 @@ FLongDelayAPF::FLongDelayAPF(float InG, int32 InNumDelaySamples, int32 InMaxNumI
 FLongDelayAPF::~FLongDelayAPF()
 {}
 
-void FLongDelayAPF::ProcessAudio(const AlignedFloatBuffer& InSamples, AlignedFloatBuffer& OutSamples)
+void FLongDelayAPF::ProcessAudio(const FAlignedFloatBuffer& InSamples, FAlignedFloatBuffer& OutSamples)
 {
 	const float* InData = InSamples.GetData();
 	const int32 InNum = InSamples.Num();
@@ -66,7 +66,7 @@ void FLongDelayAPF::ProcessAudio(const AlignedFloatBuffer& InSamples, AlignedFlo
 	}
 }
 
-void FLongDelayAPF::ProcessAudio(const AlignedFloatBuffer& InSamples, AlignedFloatBuffer& OutSamples, AlignedFloatBuffer& OutDelaySamples)
+void FLongDelayAPF::ProcessAudio(const FAlignedFloatBuffer& InSamples, FAlignedFloatBuffer& OutSamples, FAlignedFloatBuffer& OutDelaySamples)
 {
 	const float* InData = InSamples.GetData();
 	const int32 InNum = InSamples.Num();

@@ -54,7 +54,7 @@ namespace Audio
 		TCircularAudioBuffer<float> InternalBuffer;
 
 		// For MixInAudio, audio is popped off of InternalBuffer onto here, and then mixed into OutBuffer in MixInAudio.
-		AlignedFloatBuffer MixingBuffer;
+		FAlignedFloatBuffer MixingBuffer;
 
 		// This is applied in PopAudio or MixInAudio.
 		TAtomic<float> TargetGain;
@@ -252,6 +252,6 @@ namespace Audio
 		FPatchSplitter Splitter;
 
 		/** This buffer is used to pop audio from our Mixer and push to our splitter. */
-		AlignedFloatBuffer IntermediateBuffer;
+		FAlignedFloatBuffer IntermediateBuffer;
 	};
 }

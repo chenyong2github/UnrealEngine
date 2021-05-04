@@ -36,7 +36,7 @@ namespace Audio
 			 * @param InMonoAudio - The most recent input buffer from a stream of audio.
 			 * @param OutPitches - The pitches detected during this call to `DetectPitches` are appended to this array. 
 			 */
-			virtual void DetectPitches(const AlignedFloatBuffer& InMonoAudio, TArray<FPitchInfo>& OutPitches) = 0;
+			virtual void DetectPitches(const FAlignedFloatBuffer& InMonoAudio, TArray<FPitchInfo>& OutPitches) = 0;
 
 
 			/** Mark the end of an audio stream. 
@@ -71,7 +71,7 @@ namespace Audio
 			 * @param InMonoAudio - The most recent input buffer from a stream of audio.
 			 * @param OutPitchTracks - The pitch tracks detected during this call to `TrackPitches` are appended to this array. 
 			 */
-			virtual void TrackPitches(const AlignedFloatBuffer& InMonoAudio, TArray<FPitchTrackInfo>& OutPitchTracks) = 0;
+			virtual void TrackPitches(const FAlignedFloatBuffer& InMonoAudio, TArray<FPitchTrackInfo>& OutPitchTracks) = 0;
 
 			/** Mark the end of an audio stream. 
 			 *

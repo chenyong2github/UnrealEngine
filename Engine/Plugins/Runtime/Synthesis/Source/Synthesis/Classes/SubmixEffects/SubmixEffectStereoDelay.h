@@ -72,7 +72,7 @@ public:
 
 private:
 
-	Audio::AlignedFloatBuffer ScratchStereoBuffer;
+	Audio::FAlignedFloatBuffer ScratchStereoBuffer;
 	Audio::FDelayStereo DelayStereo;
 };
 

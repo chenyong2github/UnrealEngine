@@ -57,7 +57,7 @@ namespace Audio
 		void SetCoefficients(const FFDNCoefficients& InCoefficients);
 
 		// Generates artificial reverberation for InSamples and places results in OutSamples.
-		void ProcessAudio(const AlignedFloatBuffer& InSamples, AlignedFloatBuffer& OutSamples);
+		void ProcessAudio(const FAlignedFloatBuffer& InSamples, FAlignedFloatBuffer& OutSamples);
 
 		// Sets internal audio samples to silence. 
 		void FlushAudio();
@@ -90,9 +90,9 @@ namespace Audio
 		TUniquePtr<FAlignedBlockBuffer> DelayLine2;
 		TUniquePtr<FAlignedBlockBuffer> DelayLine3;
 
-		AlignedFloatBuffer WorkBuffer0;
-		AlignedFloatBuffer WorkBuffer1;
-		AlignedFloatBuffer WorkBuffer2;
-		AlignedFloatBuffer WorkBuffer3;
+		FAlignedFloatBuffer WorkBuffer0;
+		FAlignedFloatBuffer WorkBuffer1;
+		FAlignedFloatBuffer WorkBuffer2;
+		FAlignedFloatBuffer WorkBuffer3;
 	};
 }

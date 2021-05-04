@@ -108,12 +108,12 @@ namespace Audio
 
             FWindow Window;
 
-            AlignedFloatBuffer WindowedSamples;
-            AlignedFloatBuffer FFTOutputRealData;
-            AlignedFloatBuffer FFTOutputImagData;
+            FAlignedFloatBuffer WindowedSamples;
+            FAlignedFloatBuffer FFTOutputRealData;
+            FAlignedFloatBuffer FFTOutputImagData;
 
-            AlignedFloatBuffer CurveWeights;
-            AlignedFloatBuffer PowerSpectrumBuffer;
+            FAlignedFloatBuffer CurveWeights;
+            FAlignedFloatBuffer PowerSpectrumBuffer;
     };
 
 
@@ -164,7 +164,7 @@ namespace Audio
 
         private:
 
-            AlignedFloatBuffer MonoBuffer;
+            FAlignedFloatBuffer MonoBuffer;
             TArray<float> ChannelWeights;
             FLoudnessAnalyzer Analyzer;
     };

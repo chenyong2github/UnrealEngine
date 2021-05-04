@@ -67,7 +67,7 @@ namespace Audio {
 		return Settings;
 	}
 	// Process a buffer of input audio samples.
-	void FPlateReverbFast::ProcessAudio(const AlignedFloatBuffer& InSamples, const int32 InNumChannels, AlignedFloatBuffer& OutSamples, const int32 OutNumChannels)
+	void FPlateReverbFast::ProcessAudio(const FAlignedFloatBuffer& InSamples, const int32 InNumChannels, FAlignedFloatBuffer& OutSamples, const int32 OutNumChannels)
 	{
 		if(InSamples.Num() == 0)
 		{
@@ -157,7 +157,7 @@ namespace Audio {
 
 	// Copy reverberated samples to interleaved output samples. Map channels according to internal settings.
 	// InFrontLeftSamples and InFrontRightSamples may be modified in-place.
-	void FPlateReverbFast::InterleaveAndMixOutput(const AlignedFloatBuffer& InFrontLeftSamples, const AlignedFloatBuffer& InFrontRightSamples, AlignedFloatBuffer& OutSamples, const int32 OutNumChannels)
+	void FPlateReverbFast::InterleaveAndMixOutput(const FAlignedFloatBuffer& InFrontLeftSamples, const FAlignedFloatBuffer& InFrontRightSamples, FAlignedFloatBuffer& OutSamples, const int32 OutNumChannels)
 	{
 		check(InFrontLeftSamples.Num() == InFrontRightSamples.Num())
 

@@ -180,7 +180,7 @@ namespace Audio
 
 		if (Settings.bDownmixToMono)
 		{
-			for (const AlignedFloatBuffer& Window : SlidingWindow)
+			for (const FAlignedFloatBuffer& Window : SlidingWindow)
 			{
 				FMemory::Memset(MonoBuffer.GetData(), 0, sizeof(float) * NumWindowFrames);
 
@@ -200,7 +200,7 @@ namespace Audio
 		else
 		{
 			// Loop through entire array of input samples.
-			for (const AlignedFloatBuffer& Window : SlidingWindow)
+			for (const FAlignedFloatBuffer& Window : SlidingWindow)
 			{
 				// Each channel is analyzed seperately.
 				for(const TDeinterleaveView<float>::TChannel<FAudioBufferAlignedAllocator> Channel : TAutoDeinterleaveView<float, FAudioBufferAlignedAllocator>(Window, ChannelBuffer, NumChannels))
@@ -215,7 +215,7 @@ namespace Audio
 	void FOnsetNRTWorker::Finalize(IAnalyzerNRTResult* OutResult) 
 	{
 		// Finish analyzing audio
-		AlignedFloatBuffer EmptyArray;
+		FAlignedFloatBuffer EmptyArray;
 		bool bDoFlush = true;
 
 		AnalyzeMultichannel(EmptyArray, OutResult, bDoFlush);
@@ -248,7 +248,7 @@ namespace Audio
 		Reset();
 	}
 
-	void FOnsetNRTWorker::AnalyzeWindow(const AlignedFloatBuffer& InWindow, int32 InChannelIndex, FOnsetNRTResult& OutResult)
+	void FOnsetNRTWorker::AnalyzeWindow(const FAlignedFloatBuffer& InWindow, int32 InChannelIndex, FOnsetNRTResult& OutResult)
 	{
 		TArray<float> Strengths;
 		OnsetStrengthAnalyzers[InChannelIndex]->CalculateOnsetStrengths(InWindow, Strengths);

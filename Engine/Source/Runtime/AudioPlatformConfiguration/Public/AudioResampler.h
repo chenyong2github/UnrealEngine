@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
-//#if PLATFORM_WINDOWS
+
 #include "CoreMinimal.h"
 
 #if PLATFORM_SWITCH
 // Switch uses page alignment for submitted buffers
+// TODO: Move BufferVectorOperations AUDIO_BUFFER_ALIGNMENT
+// define to more central location and reference here.
 #define AUDIO_BUFFER_ALIGNMENT 4096
 #else
 #define AUDIO_BUFFER_ALIGNMENT 16
@@ -15,8 +16,12 @@ DECLARE_LOG_CATEGORY_EXTERN(LogAudioResampler, Warning, All);
 
 namespace Audio
 {
-	typedef TArray<float, TAlignedHeapAllocator<AUDIO_BUFFER_ALIGNMENT>> AlignedFloatBuffer;
-	typedef TArray<uint8, TAlignedHeapAllocator<AUDIO_BUFFER_ALIGNMENT>> AlignedByteBuffer;
+	// TODO: Move BufferVectorOperations Aligned...Buffer
+	// defines to more central location and reference here.
+	namespace VectorOps
+	{
+		using FAlignedFloatBuffer = TArray<float, TAlignedHeapAllocator<AUDIO_BUFFER_ALIGNMENT>>;
+	} // namespace VectorOps
 
 	enum class EResamplingMethod : uint8
 	{
@@ -33,12 +38,12 @@ namespace Audio
 		int32 NumChannels;
 		float SourceSampleRate;
 		float DestinationSampleRate;
-		AlignedFloatBuffer& InputBuffer;
+		VectorOps::FAlignedFloatBuffer& InputBuffer;
 	};
 
 	struct FResamplerResults
 	{
-		AlignedFloatBuffer* OutBuffer;
+		VectorOps::FAlignedFloatBuffer* OutBuffer;
 
 		float ResultingSampleRate;
 
@@ -78,6 +83,4 @@ namespace Audio
 		TUniquePtr<FResamplerImpl> Impl;
 	};
 	
-}
-
-//#endif //PLATFORM_WINDOWS
+} // namespace Audio

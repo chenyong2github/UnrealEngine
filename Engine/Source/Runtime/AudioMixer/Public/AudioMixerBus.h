@@ -74,8 +74,8 @@ namespace Audio
 		void MixBuffer();
 
 		// Copies the current internal buffer to a provided output buffer. Only supports mono or stereo input/output formats.
-		void CopyCurrentBuffer(Audio::AlignedFloatBuffer& InChannelMap, int32 InNumOutputChannels, AlignedFloatBuffer& OutBuffer, int32 NumOutputFrames) const;
-		void CopyCurrentBuffer(int32 InNumOutputChannels, AlignedFloatBuffer& OutBuffer, int32 NumOutputFrames) const;
+		void CopyCurrentBuffer(Audio::FAlignedFloatBuffer& InChannelMap, int32 InNumOutputChannels, FAlignedFloatBuffer& OutBuffer, int32 NumOutputFrames) const;
+		void CopyCurrentBuffer(int32 InNumOutputChannels, FAlignedFloatBuffer& OutBuffer, int32 NumOutputFrames) const;
 
 		// If this bus was constructed before
 		void SetNumOutputChannels(int32 InNumOutputChannels);

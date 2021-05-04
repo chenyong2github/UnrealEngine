@@ -75,7 +75,7 @@ namespace Audio
 		return NumValuesInFFTRealBuffer;
 	}
 
-	void FBlockCorrelator::CrossCorrelate(const AlignedFloatBuffer& InputA, const AlignedFloatBuffer& InputB, AlignedFloatBuffer& Output)
+	void FBlockCorrelator::CrossCorrelate(const FAlignedFloatBuffer& InputA, const FAlignedFloatBuffer& InputB, FAlignedFloatBuffer& Output)
 	{
 		check(InputA.Num() == NumValuesInBlock);
 		check(InputB.Num() == NumValuesInBlock);
@@ -104,7 +104,7 @@ namespace Audio
 		}
 	}
 
-	void FBlockCorrelator::AutoCorrelate(const AlignedFloatBuffer& Input, AlignedFloatBuffer& Output)
+	void FBlockCorrelator::AutoCorrelate(const FAlignedFloatBuffer& Input, FAlignedFloatBuffer& Output)
 	{
 		check(Input.Num() == NumValuesInBlock);
 		check(Output.Num() == NumValuesInFFTRealBuffer);
@@ -129,7 +129,7 @@ namespace Audio
 		}
 	}
 
-	void FBlockCorrelator::CyclicCrossCorrelate(const AlignedFloatBuffer& InputA, const AlignedFloatBuffer& InputB, AlignedFloatBuffer& Output)
+	void FBlockCorrelator::CyclicCrossCorrelate(const FAlignedFloatBuffer& InputA, const FAlignedFloatBuffer& InputB, FAlignedFloatBuffer& Output)
 	{
 		check(InputA.Num() == NumValuesInFFTRealBuffer);
 		check(InputB.Num() == NumValuesInFFTRealBuffer);
@@ -151,7 +151,7 @@ namespace Audio
 		}
 	}
 
-	void FBlockCorrelator::CyclicAutoCorrelate(const AlignedFloatBuffer& Input, AlignedFloatBuffer& Output)
+	void FBlockCorrelator::CyclicAutoCorrelate(const FAlignedFloatBuffer& Input, FAlignedFloatBuffer& Output)
 	{
 		check(Input.Num() == NumValuesInFFTRealBuffer);
 		check(Output.Num() == NumValuesInFFTRealBuffer);
@@ -195,7 +195,7 @@ namespace Audio
 			Window.ApplyToBuffer(NormalizationBuffer.GetData());
 		}
 
-		AlignedFloatBuffer CorrelationBuffer;
+		FAlignedFloatBuffer CorrelationBuffer;
 		CorrelationBuffer.AddUninitialized(NumValuesInFFTRealBuffer);
 
 		// Take auto correlation of the window.

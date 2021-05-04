@@ -72,7 +72,7 @@ namespace Audio
 			 * @param InInputBuffers - An array of input audio buffers.
 			 * @param OutOutputBuffers - An array of buffers where output audio is stored. 
 			 */
-			void ProcessAudio(const TArray<AlignedFloatBuffer>& InInputBuffers, TArray<AlignedFloatBuffer>& OutOutputBuffers) override;
+			void ProcessAudio(const TArray<FAlignedFloatBuffer>& InInputBuffers, TArray<FAlignedFloatBuffer>& OutOutputBuffers) override;
 
 			/** Create a simple router.
 			 *

@@ -60,7 +60,7 @@ void FLinearInterpFractionalDelay::Reset()
 }
 
 
-void FLinearInterpFractionalDelay::ProcessAudio(const AlignedFloatBuffer& InSamples, const AlignedFloatBuffer& InDelays, AlignedFloatBuffer& OutSamples)
+void FLinearInterpFractionalDelay::ProcessAudio(const FAlignedFloatBuffer& InSamples, const FAlignedFloatBuffer& InDelays, FAlignedFloatBuffer& OutSamples)
 {
 	const int32 InNum = InSamples.Num();
 	checkf(InNum == InDelays.Num(), TEXT("Input buffers must be equal length"));

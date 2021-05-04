@@ -165,13 +165,13 @@ namespace Audio
 
 
 		// If the number of input frames changes between callbacks, the output may contain discontinuities.
-		void ProcessAudio(int32 InNumInputChannels, AlignedFloatBuffer& InputAudio, int32 InNumOutputChannels, AlignedFloatBuffer& OutputAudio);
+		void ProcessAudio(int32 InNumInputChannels, FAlignedFloatBuffer& InputAudio, int32 InNumOutputChannels, FAlignedFloatBuffer& OutputAudio);
 
 		int32 GetNumInputChannels() const;
 		int32 GetNumOutputChannels() const;
 
-		static void InterleaveBuffer(AlignedFloatBuffer& OutBuffer, const TArray<AlignedFloatBuffer>& InputBuffers, const int32 NumChannels);
-		static void DeinterleaveBuffer(TArray<AlignedFloatBuffer>& OutputBuffers, TArrayView<const float> InputBuffer, const int32 NumChannels);
+		static void InterleaveBuffer(FAlignedFloatBuffer& OutBuffer, const TArray<FAlignedFloatBuffer>& InputBuffers, const int32 NumChannels);
+		static void DeinterleaveBuffer(TArray<FAlignedFloatBuffer>& OutputBuffers, TArrayView<const float> InputBuffer, const int32 NumChannels);
 
 	private:
 
@@ -198,7 +198,7 @@ namespace Audio
 
 				const FOutputFormat& GetOutputFormat() const;
 				
-				void ProcessAudio(const TArray<AlignedFloatBuffer>& InInputBuffers, TArray<AlignedFloatBuffer>& OutOutputBuffers);
+				void ProcessAudio(const TArray<FAlignedFloatBuffer>& InInputBuffers, TArray<FAlignedFloatBuffer>& OutOutputBuffers);
 
 				void SetRearChannelBleed(float InGain, bool bFadeToGain=true);
 
@@ -221,7 +221,7 @@ namespace Audio
 
 		void SetConvolutionAlgorithm(TUniquePtr<IConvolutionAlgorithm> InAlgorithm);
 
-		void ProcessAudioBlock(const float* InputAudio, int32 InNumInputChannels, AlignedFloatBuffer& OutputAudio, int32 InNumOutputChannels);
+		void ProcessAudioBlock(const float* InputAudio, int32 InNumInputChannels, FAlignedFloatBuffer& OutputAudio, int32 InNumOutputChannels);
 
 		void Update(bool bFadeToParams);
 
@@ -229,7 +229,7 @@ namespace Audio
 
 		void ResizeProcessingBuffers();
 
-		void ResizeArrayOfBuffers(TArray<AlignedFloatBuffer>& InArrayOfBuffers, int32 MinNumBuffers, int32 NumFrames) const;
+		void ResizeArrayOfBuffers(TArray<FAlignedFloatBuffer>& InArrayOfBuffers, int32 MinNumBuffers, int32 NumFrames) const;
 
 		FConvolutionReverbSettings Settings;
 
@@ -239,19 +239,19 @@ namespace Audio
 		FChannelFormatConverterWrapper OutputChannelFormatConverter;
 		
 		// data is passed to the convolution algorithm as 2D arrays
-		TArray<AlignedFloatBuffer> InputDeinterleaveBuffers;
-		TArray<AlignedFloatBuffer> InputChannelConverterBuffers; 
+		TArray<FAlignedFloatBuffer> InputDeinterleaveBuffers;
+		TArray<FAlignedFloatBuffer> InputChannelConverterBuffers; 
 
 		// data is recieved from the convolution algorithm as 2D arrays
-		TArray<AlignedFloatBuffer> OutputDeinterleaveBuffers;
-		TArray<AlignedFloatBuffer> OutputChannelConverterBuffers;
+		TArray<FAlignedFloatBuffer> OutputDeinterleaveBuffers;
+		TArray<FAlignedFloatBuffer> OutputChannelConverterBuffers;
 
 		TArray<float*> InputBufferPtrs;
 		TArray<float*> OutputBufferPtrs;
 
 		TUniquePtr<FAlignedBlockBuffer> InputBlockBuffer;
 		TUniquePtr<FAlignedBlockBuffer> OutputBlockBuffer;
-		AlignedFloatBuffer InterleavedOutputBlock;
+		FAlignedFloatBuffer InterleavedOutputBlock;
 
 		int32 ExpectedNumFramesPerCallback;
 		int32 NumInputSamplesPerBlock;

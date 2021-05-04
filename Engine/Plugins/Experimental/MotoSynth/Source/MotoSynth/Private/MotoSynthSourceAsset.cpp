@@ -314,7 +314,7 @@ void UMotoSynthSource::UpdateSourceData()
 
 void UMotoSynthSource::FilterSourceDataForAnalysis()
 {
-	Audio::AlignedFloatBuffer ScratchBuffer;
+	Audio::FAlignedFloatBuffer ScratchBuffer;
 	ScratchBuffer.AddUninitialized(SourceDataPCM.Num());
 
 	float* ScratchDataBufferPtr = ScratchBuffer.GetData();
@@ -359,7 +359,7 @@ void UMotoSynthSource::DynamicsProcessForAnalysis()
 		DynamicsProcessor.SetAttackTime(DynamicsProcessorAttackTimeMsec);
 		DynamicsProcessor.SetReleaseTime(DynamicsProcessorReleaseTimeMsec);
 
-		Audio::AlignedFloatBuffer DynamicsProcessorScratchBuffer;
+		Audio::FAlignedFloatBuffer DynamicsProcessorScratchBuffer;
 		DynamicsProcessorScratchBuffer.AddUninitialized(AnalysisBuffer.Num());
 
 		DynamicsProcessor.ProcessAudio(AnalysisBuffer.GetData(), AnalysisBuffer.Num(), DynamicsProcessorScratchBuffer.GetData());
@@ -392,7 +392,7 @@ void UMotoSynthSource::BuildGrainTableByFFT()
 	// TODO
 }
 
-static void GetBufferViewFromAnalysisBuffer(const Audio::AlignedFloatBuffer& InAnalysisBuffer, int32 StartingBufferIndex, int32 BufferSize, TArrayView<const float>& OutBufferView)
+static void GetBufferViewFromAnalysisBuffer(const Audio::FAlignedFloatBuffer& InAnalysisBuffer, int32 StartingBufferIndex, int32 BufferSize, TArrayView<const float>& OutBufferView)
 {
 	if (BufferSize > 0)
 	{

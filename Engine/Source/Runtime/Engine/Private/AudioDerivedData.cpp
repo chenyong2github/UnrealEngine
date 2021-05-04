@@ -956,8 +956,8 @@ static void ResampleWaveData(TArray<uint8>& WaveData, size_t& NumBytes, int32 Nu
 	double StartTime = FPlatformTime::Seconds();
 
 	// Set up temporary output buffers:
-	Audio::AlignedFloatBuffer ResamplerInputData;
-	Audio::AlignedFloatBuffer ResamplerOutputData;
+	Audio::FAlignedFloatBuffer ResamplerInputData;
+	Audio::FAlignedFloatBuffer ResamplerOutputData;
 
 	int32 NumSamples = NumBytes / sizeof(int16);
 

@@ -5,6 +5,7 @@
 #include "VoiceModule.h"
 #include "Voice.h"
 
+#include "DSP/BufferVectorOperations.h"
 #include "Sound/SoundWaveProcedural.h"
 #include "OnlineSubsystemUtils.h"
 #include "GameFramework/GameSession.h"
@@ -1074,7 +1075,7 @@ void FVoiceEndpoint::PatchInOutput(Audio::FPatchOutputStrongPtr& InOutput)
 	OutputPatch = InOutput;
 }
 
-bool FVoiceEndpoint::OnProcessAudioStream(Audio::AlignedFloatBuffer& OutputBuffer)
+bool FVoiceEndpoint::OnProcessAudioStream(Audio::FAlignedFloatBuffer& OutputBuffer)
 {
 	FScopeLock ScopeLock(&OutputPatchCriticalSection);
 

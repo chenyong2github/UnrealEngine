@@ -118,7 +118,7 @@ namespace Audio
 		return OutputGainState.bFadeToNextGain ? OutputGainState.NextGain : OutputGainState.Gain;
 	}
 
-	void FBaseChannelFormatConverter::ProcessAudio(const TArray<AlignedFloatBuffer>& InInputBuffers, TArray<AlignedFloatBuffer>& OutOutputBuffers)
+	void FBaseChannelFormatConverter::ProcessAudio(const TArray<FAlignedFloatBuffer>& InInputBuffers, TArray<FAlignedFloatBuffer>& OutOutputBuffers)
 	{
 		using FMixElement = TSortedMap<FChannelMixKey, FChannelMixState>::ElementType;
 
@@ -147,7 +147,7 @@ namespace Audio
 		// is used to determine whether the input channel in a mix entry differs
 		// from the previous. If so, the "Current" input channel is updated.
 		int32 CurrentInputChannelIndex = INDEX_NONE;
-		const AlignedFloatBuffer* CurrentInputChannel = nullptr;
+		const FAlignedFloatBuffer* CurrentInputChannel = nullptr;
 
 		TArray<FChannelMixKey> EntriesToRemove;
 
@@ -161,7 +161,7 @@ namespace Audio
 			if (MixState.InputChannelIndex != CurrentInputChannelIndex)
 			{
 				// Check validity of input channel.
-				const AlignedFloatBuffer& InputBuffer = InInputBuffers[MixState.InputChannelIndex];
+				const FAlignedFloatBuffer& InputBuffer = InInputBuffers[MixState.InputChannelIndex];
 
 				if (ensure(InputBuffer.Num() == NumFramesPerCall))
 				{

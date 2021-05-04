@@ -197,7 +197,7 @@ namespace Audio
 			 * @param InTimestamp - A timestamp associated with the input complex buffer.
 			 * @param OutValues - Array to store output bands.
 			 */
-			virtual void ExtractBands(const AlignedFloatBuffer& InComplexBuffer, double InTimestamp, TArray<float>& OutValues) = 0;
+			virtual void ExtractBands(const FAlignedFloatBuffer& InComplexBuffer, double InTimestamp, TArray<float>& OutValues) = 0;
 
 			/** Creates a ISpectrumBandExtractor. */
 			static TUniquePtr<ISpectrumBandExtractor> CreateSpectrumBandExtractor(const FSpectrumBandExtractorSettings& InSettings);
@@ -216,21 +216,21 @@ namespace Audio
 		void Reset(int32 InNum);
 
 		// Input. Used on analysis thread to lock a buffer to write to.
-		AlignedFloatBuffer& StartWorkOnBuffer();
+		FAlignedFloatBuffer& StartWorkOnBuffer();
 
 		// When calling stop work on buffer, also set timestmap associated with buffer.
 		void StopWorkOnBuffer(double InTimestamp);
 		
 		// Output. Used to lock the most recent buffer we analyzed.
-		const AlignedFloatBuffer& LockMostRecentBuffer() const;
+		const FAlignedFloatBuffer& LockMostRecentBuffer() const;
 
 		// Output. Used to lock the most recent buffer we analyzed.
 		// OutTimestamp is populated with the timestamp associated with the buffer wehn StopWorkOnBuffer is called.
-		const AlignedFloatBuffer& LockMostRecentBuffer(double& OutTimestamp) const;
+		const FAlignedFloatBuffer& LockMostRecentBuffer(double& OutTimestamp) const;
 		void UnlockBuffer();
 
 	private:
-		TArray<AlignedFloatBuffer> ComplexBuffers;
+		TArray<FAlignedFloatBuffer> ComplexBuffers;
 		TArray<double> Timestamps;
 
 		// Private functions. Either increments or decrements the respective counter,
@@ -356,7 +356,7 @@ namespace Audio
 		void ResetSettings();
 
 		// Called in GetMagnitudeForFrequency and GetPhaseForFrequency.
-		void PerformInterpolation(const AlignedFloatBuffer& InComplexBuffer, EPeakInterpolationMethod InMethod, const float InFreq, float& OutReal, float& OutImag);
+		void PerformInterpolation(const FAlignedFloatBuffer& InComplexBuffer, EPeakInterpolationMethod InMethod, const float InFreq, float& OutReal, float& OutImag);
 
 		// Cached current settings. Only actually used in ResetSettings().
 		FSpectrumAnalyzerSettings CurrentSettings;
@@ -372,14 +372,14 @@ namespace Audio
 		int32 HopInSamples;
 		EFFTScaling FFTScaling;
 
-		AlignedFloatBuffer AnalysisTimeDomainBuffer;
+		FAlignedFloatBuffer AnalysisTimeDomainBuffer;
 		FThreadSafeCounter SampleCounter; 
 		TCircularAudioBuffer<float> InputQueue;
 		FSpectrumAnalyzerBuffer FrequencyBuffer;
 
 		// if non-null, owns pointer to locked frequency vector we're using.
 		double LockedBufferTimestamp;
-		const AlignedFloatBuffer* LockedFrequencyVector;
+		const FAlignedFloatBuffer* LockedFrequencyVector;
 
 
 		TUniquePtr<IFFTAlgorithm> FFT;

@@ -139,7 +139,7 @@ namespace Audio
 		static const bool bIsCenterChannelOnly = false;
 
 		// Get channel map from FMixerDevice
-		AlignedFloatBuffer ChannelMap;
+		FAlignedFloatBuffer ChannelMap;
 
 		FMixerDevice::Get2DChannelMap(bIsVorbis, InInputFormat.NumChannels, InOutputFormat.NumChannels, bIsCenterChannelOnly, ChannelMap);
 
@@ -198,7 +198,7 @@ namespace Audio
 		return OutputFormat;
 	}
 	
-	void FSimpleRouter::ProcessAudio(const TArray<AlignedFloatBuffer>& InInputBuffers, TArray<AlignedFloatBuffer>& OutOutputBuffers)
+	void FSimpleRouter::ProcessAudio(const TArray<FAlignedFloatBuffer>& InInputBuffers, TArray<FAlignedFloatBuffer>& OutOutputBuffers)
 	{
 		check(InInputBuffers.Num() == InputFormat.NumChannels);
 

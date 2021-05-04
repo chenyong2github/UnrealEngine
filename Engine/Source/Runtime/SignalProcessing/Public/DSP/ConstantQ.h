@@ -80,7 +80,7 @@ namespace Audio
 		static float GetConstantQBandWidth(const float InBandCenter, const float InBandsPerOctave, const float InBandWidthStretch);
 
 		// Fills an array with the spectrum weights to apply to an FFT magnitude or power spectrum output.
-		static void FillArrayWithConstantQBand(const FPseudoConstantQBandSettings& InSettings, AlignedFloatBuffer& OutOffsetArray, int32& OutOffsetIndex);
+		static void FillArrayWithConstantQBand(const FPseudoConstantQBandSettings& InSettings, FAlignedFloatBuffer& OutOffsetArray, int32& OutOffsetIndex);
 
 	};
 }

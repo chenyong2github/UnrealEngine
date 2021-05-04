@@ -44,7 +44,7 @@ void FBufferOnePoleLPF::SetFrequency(const float InFrequency)
 	}
 }
 
-void FBufferOnePoleLPF::ProcessAudio(const Audio::AlignedFloatBuffer& InSamples, Audio::AlignedFloatBuffer& OutSamples)
+void FBufferOnePoleLPF::ProcessAudio(const Audio::FAlignedFloatBuffer& InSamples, Audio::FAlignedFloatBuffer& OutSamples)
 {
 	int32 Index;
 	const int32 InNum = InSamples.Num();

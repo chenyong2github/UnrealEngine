@@ -1001,7 +1001,7 @@ namespace Audio
 			TArray<FFinalIndices> FinalIndices;
 			TArray<FFinalWeights> FinalWeights;
 
-			AlignedFloatBuffer InverseWorkBuffer;
+			FAlignedFloatBuffer InverseWorkBuffer;
 	};
 
 	// Maximum log 2 size of fft

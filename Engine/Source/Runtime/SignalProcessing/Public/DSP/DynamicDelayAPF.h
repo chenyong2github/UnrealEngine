@@ -33,7 +33,7 @@ namespace Audio
 
 		// Processes InSamples through the all pass filter and populates OutSamples with the filter output.
 		// InDelays denotes the per-sample delay of the allpass. It must have an equal number of elements as InSamples
-		void ProcessAudio(const AlignedFloatBuffer& InSamples, const AlignedFloatBuffer& InDelays, AlignedFloatBuffer& OutSamples);
+		void ProcessAudio(const FAlignedFloatBuffer& InSamples, const FAlignedFloatBuffer& InDelays, FAlignedFloatBuffer& OutSamples);
 
 		// Zeros the internal delay line.
 		void Reset();
@@ -43,7 +43,7 @@ namespace Audio
 	protected:
 
 		// Process one block of audio.
-		void ProcessAudioBlock(const float* InSamples, const AlignedFloatBuffer& InFractionalDelays, const int32 InNum, float* OutSamples);
+		void ProcessAudioBlock(const float* InSamples, const FAlignedFloatBuffer& InFractionalDelays, const int32 InNum, float* OutSamples);
 
 	private:
 		// Feedback/Feedforward gain coefficient
@@ -55,10 +55,10 @@ namespace Audio
 		int32 NumInternalBufferSamples;
 
 		// Buffers for block processing
-		AlignedFloatBuffer FractionalDelays;
-		AlignedFloatBuffer DelayLineInput;
-		AlignedFloatBuffer WorkBufferA;
-		AlignedFloatBuffer WorkBufferB;
+		FAlignedFloatBuffer FractionalDelays;
+		FAlignedFloatBuffer DelayLineInput;
+		FAlignedFloatBuffer WorkBufferA;
+		FAlignedFloatBuffer WorkBufferB;
 
 		// Delay line memory.
 		TUniquePtr<FAlignedBlockBuffer> IntegerDelayLine;
