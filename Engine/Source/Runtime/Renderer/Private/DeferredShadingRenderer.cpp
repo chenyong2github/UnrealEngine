@@ -2126,13 +2126,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			}
 		}
 	}
-	else
-	{
-		for (FViewInfo& View : Views)
-		{
-			View.HairStrandsViewData.UniformBuffer = HairStrands::CreateDefaultHairStrandsViewUniformBuffer(GraphBuilder, View);
-		}
-	}
 
 	if (bNaniteEnabled)
 	{

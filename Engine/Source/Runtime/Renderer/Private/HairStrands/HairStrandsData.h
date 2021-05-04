@@ -352,7 +352,7 @@ typedef TArray<FHairStrandsMacroGroupData, SceneRenderingAllocator> FHairStrands
 // View Data
 struct FHairStrandsViewData
 {
-	TRDGUniformBufferRef<FHairStrandsViewUniformParameters> UniformBuffer;
+	TRDGUniformBufferRef<FHairStrandsViewUniformParameters> UniformBuffer{};
 	bool bIsValid = false;
 
 	// Internal data
