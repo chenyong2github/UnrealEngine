@@ -26,6 +26,7 @@ SUCCEED();
 Generates a success. This does **NOT** make the overall test succeed. A test is
 considered successful only if none of its assertions fail during its execution.
 
+{: .callout .note}
 NOTE: `SUCCEED()` is purely documentary and currently doesn't generate any
 user-visible output. However, we may add `SUCCEED()` messages to googletest's
 output in the future.
@@ -52,6 +53,7 @@ switch(expression) {
 }
 ```
 
+{: .callout .note}
 NOTE: you can only use `FAIL()` in functions that return `void`. See the
 [Assertion Placement section](#assertion-placement) for more information.
 
@@ -99,7 +101,6 @@ If you already have a function or functor that returns `bool` (or a type that
 can be implicitly converted to `bool`), you can use it in a *predicate
 assertion* to get the function arguments printed for free:
 
-<!-- mdformat off(github rendering does not support multiline tables) -->
 
 | Fatal assertion                   | Nonfatal assertion                | Verifies                    |
 | --------------------------------- | --------------------------------- | --------------------------- |
@@ -107,7 +108,6 @@ assertion* to get the function arguments printed for free:
 | `ASSERT_PRED2(pred2, val1, val2)` | `EXPECT_PRED2(pred2, val1, val2)` | `pred2(val1, val2)` is true |
 | `...`                             | `...`                             | `...`                       |
 
-<!-- mdformat on-->
 In the above, `predn` is an `n`-ary predicate function or functor, where `val1`,
 `val2`, ..., and `valn` are its arguments. The assertion succeeds if the
 predicate returns `true` when applied to the given arguments, and fails
@@ -145,6 +145,7 @@ b is 4
 c is 10
 ```
 
+{: .callout .note}
 > NOTE:
 >
 > 1.  If you see a compiler error "no matching function to call" when using
@@ -329,26 +330,22 @@ want to learn more, see
 
 #### Floating-Point Macros
 
-<!-- mdformat off(github rendering does not support multiline tables) -->
 
 | Fatal assertion                 | Nonfatal assertion              | Verifies                                 |
 | ------------------------------- | ------------------------------- | ---------------------------------------- |
 | `ASSERT_FLOAT_EQ(val1, val2);`  | `EXPECT_FLOAT_EQ(val1, val2);`  | the two `float` values are almost equal  |
 | `ASSERT_DOUBLE_EQ(val1, val2);` | `EXPECT_DOUBLE_EQ(val1, val2);` | the two `double` values are almost equal |
 
-<!-- mdformat on-->
 
 By "almost equal" we mean the values are within 4 ULP's from each other.
 
 The following assertions allow you to choose the acceptable error bound:
 
-<!-- mdformat off(github rendering does not support multiline tables) -->
 
 | Fatal assertion                       | Nonfatal assertion                    | Verifies                                                                         |
 | ------------------------------------- | ------------------------------------- | -------------------------------------------------------------------------------- |
 | `ASSERT_NEAR(val1, val2, abs_error);` | `EXPECT_NEAR(val1, val2, abs_error);` | the difference between `val1` and `val2` doesn't exceed the given absolute error |
 
-<!-- mdformat on-->
 
 #### Floating-Point Predicate-Format Functions
 
@@ -367,19 +364,15 @@ Verifies that `val1` is less than, or almost equal to, `val2`. You can replace
 
 ### Asserting Using gMock Matchers
 
-[gMock](gmock_for_dummies.md) comes with
-[a library of matchers](gmock_cheat_sheet.md#MatcherList) for
-validating arguments passed to mock objects. A gMock *matcher* is basically a
-predicate that knows how to describe itself. It can be used in these assertion
-macros:
+gMock comes with a library of *matchers* for validating arguments passed to mock
+objects. A gMock matcher is basically a predicate that knows how to describe
+itself. It can be used in these assertion macros:
 
-<!-- mdformat off(github rendering does not support multiline tables) -->
 
 | Fatal assertion                | Nonfatal assertion             | Verifies              |
 | ------------------------------ | ------------------------------ | --------------------- |
 | `ASSERT_THAT(value, matcher);` | `EXPECT_THAT(value, matcher);` | value matches matcher |
 
-<!-- mdformat on-->
 
 For example, `StartsWith(prefix)` is a matcher that matches a string starting
 with `prefix`, and you can write:
@@ -391,14 +384,11 @@ using ::testing::StartsWith;
     EXPECT_THAT(Foo(), StartsWith("Hello"));
 ```
 
-Read this
-[recipe](gmock_cook_book.md#using-matchers-in-googletest-assertions)
-in the gMock Cookbook for more details.
-
-gMock has a rich set of matchers. You can do many things googletest cannot do
-alone with them. For a list of matchers gMock provides, read
-[this](gmock_cook_book.md##using-matchers). It's easy to write
-your [own matchers](gmock_cook_book.md#NewMatchers) too.
+See
+[Using Matchers in googletest Assertions](gmock_cook_book.md#using-matchers-in-googletest-assertions)
+in the gMock Cookbook for more details. For a list of built-in matchers, see the
+[Matchers Reference](reference/matchers.md). You can also write your own
+matchers—see [Writing New Matchers Quickly](gmock_cook_book.md#NewMatchers).
 
 gMock is bundled with googletest, so you don't need to add any build dependency
 in order to take advantage of this. Just include `"gmock/gmock.h"`
@@ -409,9 +399,8 @@ and you're ready to go.
 (Please read the [previous](#asserting-using-gmock-matchers) section first if
 you haven't.)
 
-You can use the gMock
-[string matchers](gmock_cheat_sheet.md#string-matchers) with
-`EXPECT_THAT()` or `ASSERT_THAT()` to do more string comparison tricks
+You can use the gMock [string matchers](reference/matchers.md#string-matchers)
+with `EXPECT_THAT()` or `ASSERT_THAT()` to do more string comparison tricks
 (sub-string, prefix, suffix, regular expression, and etc). For example,
 
 ```c++
@@ -516,6 +505,7 @@ any assertion inside of it.
 If changing the function's type is not an option, you should just use assertions
 that generate non-fatal failures, such as `ADD_FAILURE*` and `EXPECT_*`.
 
+{: .callout .note}
 NOTE: Constructors and destructors are not considered void-returning functions,
 according to the C++ language specification, and so you may not use fatal
 assertions in them; you'll get a compilation error if you try. Instead, either
@@ -523,12 +513,45 @@ call `abort` and crash the entire test executable, or put the fatal assertion in
 a `SetUp`/`TearDown` function; see
 [constructor/destructor vs. `SetUp`/`TearDown`](faq.md#CtorVsSetUp)
 
+{: .callout .warning}
 WARNING: A fatal assertion in a helper function (private void-returning method)
 called from a constructor or destructor does not terminate the current test, as
 your intuition might suggest: it merely returns from the constructor or
 destructor early, possibly leaving your object in a partially-constructed or
 partially-destructed state! You almost certainly want to `abort` or use
 `SetUp`/`TearDown` instead.
+
+## Skipping test execution
+
+Related to the assertions `SUCCEED()` and `FAIL()`, you can prevent further test
+execution at runtime with the `GTEST_SKIP()` macro. This is useful when you need
+to check for preconditions of the system under test during runtime and skip
+tests in a meaningful way.
+
+`GTEST_SKIP()` can be used in individual test cases or in the `SetUp()` methods
+of classes derived from either `::testing::Environment` or `::testing::Test`.
+For example:
+
+```c++
+TEST(SkipTest, DoesSkip) {
+  GTEST_SKIP() << "Skipping single test";
+  EXPECT_EQ(0, 1);  // Won't fail; it won't be executed
+}
+
+class SkipFixture : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    GTEST_SKIP() << "Skipping all tests for this fixture";
+  }
+};
+
+// Tests for SkipFixture won't be executed.
+TEST_F(SkipFixture, SkipsOneTest) {
+  EXPECT_EQ(5, 7);  // Won't fail
+}
+```
+
+As with assertion macros, you can stream a custom message into `GTEST_SKIP()`.
 
 ## Teaching googletest How to Print Your Values
 
@@ -653,6 +676,7 @@ to be an expression.
 As usual, the `ASSERT` variants abort the current test function, while the
 `EXPECT` variants do not.
 
+{: .callout .note}
 > NOTE: We use the word "crash" here to mean that the process terminates with a
 > *non-zero* exit status code. There are two possibilities: either the process
 > has called `exit()` or `_exit()` with a non-zero value, or it may be killed by
@@ -728,6 +752,7 @@ necessary.
 
 ### Death Test Naming
 
+{: .callout .important}
 IMPORTANT: We strongly recommend you to follow the convention of naming your
 **test suite** (not test) `*DeathTest` when it contains a death test, as
 demonstrated in the above example. The
@@ -814,7 +839,8 @@ initialized from the command-line flag `--gtest_death_test_style`).
     consideration to be run - much like the `threadsafe` mode on POSIX.
 
 Other values for the variable are illegal and will cause the death test to fail.
-Currently, the flag's default value is **"fast"**
+Currently, the flag's default value is
+**`"fast"`**.
 
 1.  the child's exit status satisfies the predicate, and
 2.  the child's stderr matches the regular expression.
@@ -909,6 +935,7 @@ handlers registered with `pthread_atfork(3)`.
 
 ## Using Assertions in Sub-routines
 
+{: .callout .note}
 Note: If you want to put a series of test assertions in a subroutine to check
 for a complex condition, consider using
 [a custom GMock matcher](gmock_cook_book.md#NewMatchers)
@@ -1136,6 +1163,7 @@ will output XML like this:
   ...
 ```
 
+{: .callout .note}
 > NOTE:
 >
 > *   `RecordProperty()` is a static member of the `Test` class. Therefore it
@@ -1203,10 +1231,10 @@ class FooTest : public testing::Test {
   }
 
   // You can define per-test set-up logic as usual.
-  virtual void SetUp() { ... }
+  void SetUp() override { ... }
 
   // You can define per-test tear-down logic as usual.
-  virtual void TearDown() { ... }
+  void TearDown() override { ... }
 
   // Some expensive resource shared by all tests.
   static T* shared_resource_;
@@ -1223,6 +1251,7 @@ TEST_F(FooTest, Test2) {
 }
 ```
 
+{: .callout .note}
 NOTE: Though the above code declares `SetUpTestSuite()` protected, it may
 sometimes be necessary to declare it public, such as when using it with
 `TEST_P`.
@@ -1236,7 +1265,7 @@ First, you subclass the `::testing::Environment` class to define a test
 environment, which knows how to set-up and tear-down:
 
 ```c++
-class Environment : public testing::Environment {
+class Environment : public ::testing::Environment {
  public:
   ~Environment() override {}
 
@@ -1310,6 +1339,7 @@ and `testing::WithParamInterface<T>`. `T` can be any copyable type. If it's a
 raw pointer, you are responsible for managing the lifespan of the pointed
 values.
 
+{: .callout .note}
 NOTE: If your test fixture defines `SetUpTestSuite()` or `TearDownTestSuite()`
 they must be declared **public** rather than **protected** in order to use
 `TEST_P`.
@@ -1355,7 +1385,6 @@ for generating test parameters. They return what we call (surprise!) *parameter
 generators*. Here is a summary of them, which are all in the `testing`
 namespace:
 
-<!-- mdformat off(github rendering does not support multiline tables) -->
 
 | Parameter Generator                                                                       | Behavior                                                                                                          |
 | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
@@ -1365,7 +1394,6 @@ namespace:
 | `Bool()`                                                                                  | Yields sequence `{false, true}`.                                                                                  |
 | `Combine(g1, g2, ..., gN)`                                                                | Yields all combinations (Cartesian product) as std\:\:tuples of the values generated by the `N` generators.       |
 
-<!-- mdformat on-->
 
 For more details, see the comments at the definitions of these functions.
 
@@ -1373,63 +1401,67 @@ The following statement will instantiate tests from the `FooTest` test suite
 each with parameter values `"meeny"`, `"miny"`, and `"moe"`.
 
 ```c++
-INSTANTIATE_TEST_SUITE_P(InstantiationName,
+INSTANTIATE_TEST_SUITE_P(MeenyMinyMoe,
                          FooTest,
                          testing::Values("meeny", "miny", "moe"));
 ```
 
+{: .callout .note}
 NOTE: The code above must be placed at global or namespace scope, not at
 function scope.
 
-Per default, every `TEST_P` without a corresponding `INSTANTIATE_TEST_SUITE_P`
-causes a failing test in test suite `GoogleTestVerification`. If you have a test
-suite where that omission is not an error, for example it is in a library that
-may be linked in for other reason or where the list of test cases is dynamic and
-may be empty, then this check can be suppressed by tagging the test suite:
+The first argument to `INSTANTIATE_TEST_SUITE_P` is a unique name for the
+instantiation of the test suite. The next argument is the name of the test
+pattern, and the last is the parameter generator.
 
-```c++
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(FooTest);
-```
+You can instantiate a test pattern more than once, so to distinguish different
+instances of the pattern, the instantiation name is added as a prefix to the
+actual test suite name. Remember to pick unique prefixes for different
+instantiations. The tests from the instantiation above will have these names:
 
-To distinguish different instances of the pattern (yes, you can instantiate it
-more than once), the first argument to `INSTANTIATE_TEST_SUITE_P` is a prefix
-that will be added to the actual test suite name. Remember to pick unique
-prefixes for different instantiations. The tests from the instantiation above
-will have these names:
-
-*   `InstantiationName/FooTest.DoesBlah/0` for `"meeny"`
-*   `InstantiationName/FooTest.DoesBlah/1` for `"miny"`
-*   `InstantiationName/FooTest.DoesBlah/2` for `"moe"`
-*   `InstantiationName/FooTest.HasBlahBlah/0` for `"meeny"`
-*   `InstantiationName/FooTest.HasBlahBlah/1` for `"miny"`
-*   `InstantiationName/FooTest.HasBlahBlah/2` for `"moe"`
+*   `MeenyMinyMoe/FooTest.DoesBlah/0` for `"meeny"`
+*   `MeenyMinyMoe/FooTest.DoesBlah/1` for `"miny"`
+*   `MeenyMinyMoe/FooTest.DoesBlah/2` for `"moe"`
+*   `MeenyMinyMoe/FooTest.HasBlahBlah/0` for `"meeny"`
+*   `MeenyMinyMoe/FooTest.HasBlahBlah/1` for `"miny"`
+*   `MeenyMinyMoe/FooTest.HasBlahBlah/2` for `"moe"`
 
 You can use these names in [`--gtest_filter`](#running-a-subset-of-the-tests).
 
-This statement will instantiate all tests from `FooTest` again, each with
-parameter values `"cat"` and `"dog"`:
+The following statement will instantiate all tests from `FooTest` again, each
+with parameter values `"cat"` and `"dog"`:
 
 ```c++
 const char* pets[] = {"cat", "dog"};
-INSTANTIATE_TEST_SUITE_P(AnotherInstantiationName, FooTest,
-                         testing::ValuesIn(pets));
+INSTANTIATE_TEST_SUITE_P(Pets, FooTest, testing::ValuesIn(pets));
 ```
 
 The tests from the instantiation above will have these names:
 
-*   `AnotherInstantiationName/FooTest.DoesBlah/0` for `"cat"`
-*   `AnotherInstantiationName/FooTest.DoesBlah/1` for `"dog"`
-*   `AnotherInstantiationName/FooTest.HasBlahBlah/0` for `"cat"`
-*   `AnotherInstantiationName/FooTest.HasBlahBlah/1` for `"dog"`
+*   `Pets/FooTest.DoesBlah/0` for `"cat"`
+*   `Pets/FooTest.DoesBlah/1` for `"dog"`
+*   `Pets/FooTest.HasBlahBlah/0` for `"cat"`
+*   `Pets/FooTest.HasBlahBlah/1` for `"dog"`
 
 Please note that `INSTANTIATE_TEST_SUITE_P` will instantiate *all* tests in the
 given test suite, whether their definitions come before or *after* the
 `INSTANTIATE_TEST_SUITE_P` statement.
 
+Additionally, by default, every `TEST_P` without a corresponding
+`INSTANTIATE_TEST_SUITE_P` causes a failing test in test suite
+`GoogleTestVerification`. If you have a test suite where that omission is not an
+error, for example it is in a library that may be linked in for other reasons or
+where the list of test cases is dynamic and may be empty, then this check can be
+suppressed by tagging the test suite:
+
+```c++
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(FooTest);
+```
+
 You can see [sample7_unittest.cc] and [sample8_unittest.cc] for more examples.
 
-[sample7_unittest.cc]: ../googletest/samples/sample7_unittest.cc "Parameterized Test example"
-[sample8_unittest.cc]: ../googletest/samples/sample8_unittest.cc "Parameterized Test example with multiple parameters"
+[sample7_unittest.cc]: https://github.com/google/googletest/blob/master/googletest/samples/sample7_unittest.cc "Parameterized Test example"
+[sample8_unittest.cc]: https://github.com/google/googletest/blob/master/googletest/samples/sample8_unittest.cc "Parameterized Test example with multiple parameters"
 
 ### Creating Value-Parameterized Abstract Tests
 
@@ -1466,6 +1498,7 @@ the test parameters. The function should accept one argument of type
 returns the value of `testing::PrintToString(GetParam())`. It does not work for
 `std::string` or C strings.
 
+{: .callout .note}
 NOTE: test names must be non-empty, unique, and may only contain ASCII
 alphanumeric characters. In particular, they
 [should not contain underscores](faq.md#why-should-test-suite-names-and-test-names-not-contain-underscore)
@@ -1498,13 +1531,13 @@ class MyTestSuite : public testing::TestWithParam<std::tuple<MyType, std::string
 INSTANTIATE_TEST_SUITE_P(
     MyGroup, MyTestSuite,
     testing::Combine(
-        testing::Values(MyType::VALUE_0, MyType::VALUE_1),
-        testing::ValuesIn("", "")),
+        testing::Values(MyType::MY_FOO, MyType::MY_BAR),
+        testing::Values("A", "B")),
     [](const testing::TestParamInfo<MyTestSuite::ParamType>& info) {
       std::string name = absl::StrCat(
-          std::get<0>(info.param) == MY_FOO ? "Foo" : "Bar", "_",
+          std::get<0>(info.param) == MyType::MY_FOO ? "Foo" : "Bar",
           std::get<1>(info.param));
-      absl::c_replace_if(name, [](char c) { return !std::isalnum(c); }, '_');
+      absl::c_replace_if(name, [](char c) { return !std::isalnum(c); }, '');
       return name;
     });
 ```
@@ -1579,7 +1612,7 @@ TYPED_TEST(FooTest, HasPropertyA) { ... }
 
 You can see [sample6_unittest.cc] for a complete example.
 
-[sample6_unittest.cc]: ../googletest/samples/sample6_unittest.cc "Typed Test example"
+[sample6_unittest.cc]: https://github.com/google/googletest/blob/master/googletest/samples/sample6_unittest.cc "Typed Test example"
 
 ## Type-Parameterized Tests
 
@@ -1734,10 +1767,11 @@ To test them, we use the following special techniques:
     }
     ```
 
-    Pay special attention when your class is defined in a namespace, as you
-    should define your test fixtures and tests in the same namespace if you want
-    them to be friends of your class. For example, if the code to be tested
-    looks like:
+    Pay special attention when your class is defined in a namespace. If you want
+    your test fixtures and tests to be friends of your class, then they must be
+    defined in the exact same namespace (no anonymous or inline namespaces).
+
+    For example, if the code to be tested looks like:
 
     ```c++
     namespace my_namespace {
@@ -1804,6 +1838,7 @@ well, use one of the following macros instead:
   EXPECT_NONFATAL_FAILURE_ON_ALL_THREADS(statement, substring);
 ```
 
+{: .callout .note}
 NOTE: Assertions from multiple threads are currently not supported on Windows.
 
 For technical reasons, there are some caveats:
@@ -1966,13 +2001,13 @@ Here's an example:
 ```c++
   class MinimalistPrinter : public testing::EmptyTestEventListener {
     // Called before a test starts.
-    virtual void OnTestStart(const testing::TestInfo& test_info) {
+    void OnTestStart(const testing::TestInfo& test_info) override {
       printf("*** Test %s.%s starting.\n",
              test_info.test_suite_name(), test_info.name());
     }
 
     // Called after a failed assertion or a SUCCESS().
-    virtual void OnTestPartResult(const testing::TestPartResult& test_part_result) {
+    void OnTestPartResult(const testing::TestPartResult& test_part_result) override {
       printf("%s in %s:%d\n%s\n",
              test_part_result.failed() ? "*** Failure" : "Success",
              test_part_result.file_name(),
@@ -1981,7 +2016,7 @@ Here's an example:
     }
 
     // Called after a test ends.
-    virtual void OnTestEnd(const testing::TestInfo& test_info) {
+    void OnTestEnd(const testing::TestInfo& test_info) override {
       printf("*** Test %s.%s ending.\n",
              test_info.test_suite_name(), test_info.name());
     }
@@ -2022,7 +2057,7 @@ You can do so by adding one line:
 Now, sit back and enjoy a completely different output from your tests. For more
 details, see [sample9_unittest.cc].
 
-[sample9_unittest.cc]: ../googletest/samples/sample9_unittest.cc "Event listener example"
+[sample9_unittest.cc]: https://github.com/google/googletest/blob/master/googletest/samples/sample9_unittest.cc "Event listener example"
 
 You may append more than one listener to the list. When an `On*Start()` or
 `OnTestPartResult()` event is fired, the listeners will receive it in the order
@@ -2049,7 +2084,7 @@ by the former.
 
 See [sample10_unittest.cc] for an example of a failure-raising listener.
 
-[sample10_unittest.cc]: ../googletest/samples/sample10_unittest.cc "Failure-raising listener example"
+[sample10_unittest.cc]: https://github.com/google/googletest/blob/master/googletest/samples/sample10_unittest.cc "Failure-raising listener example"
 
 ## Running Test Programs: Advanced Options
 
@@ -2151,13 +2186,15 @@ class DISABLED_BarTest : public testing::Test { ... };
 TEST_F(DISABLED_BarTest, DoesXyz) { ... }
 ```
 
+{: .callout .note}
 NOTE: This feature should only be used for temporary pain-relief. You still have
 to fix the disabled tests at a later date. As a reminder, googletest will print
 a banner warning you if a test program contains any disabled tests.
 
-TIP: You can easily count the number of disabled tests you have using `gsearch`
-and/or `grep`. This number can be used as a metric for improving your test
-quality.
+{: .callout .tip}
+TIP: You can easily count the number of disabled tests you have using
+`grep`. This number can be used as a metric for
+improving your test quality.
 
 #### Temporarily Enabling Disabled Tests
 
@@ -2224,38 +2261,25 @@ random seed and re-shuffle the tests in each iteration.
 googletest can use colors in its terminal output to make it easier to spot the
 important information:
 
-<code>
-...<br/>
-  <font color="green">[----------]</font><font color="black"> 1 test from
-  FooTest</font><br/>
-  <font color="green">[ RUN &nbsp; &nbsp; &nbsp;]</font><font color="black">
-  FooTest.DoesAbc</font><br/>
-  <font color="green">[ &nbsp; &nbsp; &nbsp; OK ]</font><font color="black">
-  FooTest.DoesAbc </font><br/>
-  <font color="green">[----------]</font><font color="black">
-  2 tests from BarTest</font><br/>
-  <font color="green">[ RUN &nbsp; &nbsp; &nbsp;]</font><font color="black">
-  BarTest.HasXyzProperty </font><br/>
-  <font color="green">[ &nbsp; &nbsp; &nbsp; OK ]</font><font color="black">
-  BarTest.HasXyzProperty</font><br/>
-  <font color="green">[ RUN &nbsp; &nbsp; &nbsp;]</font><font color="black">
-  BarTest.ReturnsTrueOnSuccess ... some error messages ...</font><br/>
-  <font color="red">[ &nbsp; FAILED ]</font><font color="black">
-  BarTest.ReturnsTrueOnSuccess ...</font><br/>
-  <font color="green">[==========]</font><font color="black">
-  30 tests from 14 test suites ran.</font><br/>
-  <font color="green">[ &nbsp; PASSED ]</font><font color="black">
-  28 tests.</font><br/>
-  <font color="red">[ &nbsp; FAILED ]</font><font color="black">
-  2 tests, listed below:</font><br/>
-  <font color="red">[ &nbsp; FAILED ]</font><font color="black">
-  BarTest.ReturnsTrueOnSuccess</font><br/>
-  <font color="red">[ &nbsp; FAILED ]</font><font color="black">
-  AnotherTest.DoesXyz<br/>
-<br/>
-  2 FAILED TESTS
-  </font>
-</code>
+<pre>...
+<font color="green">[----------]</font> 1 test from FooTest
+<font color="green">[ RUN      ]</font> FooTest.DoesAbc
+<font color="green">[       OK ]</font> FooTest.DoesAbc
+<font color="green">[----------]</font> 2 tests from BarTest
+<font color="green">[ RUN      ]</font> BarTest.HasXyzProperty
+<font color="green">[       OK ]</font> BarTest.HasXyzProperty
+<font color="green">[ RUN      ]</font> BarTest.ReturnsTrueOnSuccess
+... some error messages ...
+<font color="red">[   FAILED ]</font> BarTest.ReturnsTrueOnSuccess
+...
+<font color="green">[==========]</font> 30 tests from 14 test suites ran.
+<font color="green">[   PASSED ]</font> 28 tests.
+<font color="red">[   FAILED ]</font> 2 tests, listed below:
+<font color="red">[   FAILED ]</font> BarTest.ReturnsTrueOnSuccess
+<font color="red">[   FAILED ]</font> AnotherTest.DoesXyz
+
+ 2 FAILED TESTS
+</pre>
 
 You can set the `GTEST_COLOR` environment variable or the `--gtest_color`
 command line flag to `yes`, `no`, or `auto` (the default) to enable colors,
@@ -2565,6 +2589,7 @@ could generate this report:
 }
 ```
 
+{: .callout .important}
 IMPORTANT: The exact format of the JSON document is subject to change.
 
 ### Controlling How Failures Are Reported
