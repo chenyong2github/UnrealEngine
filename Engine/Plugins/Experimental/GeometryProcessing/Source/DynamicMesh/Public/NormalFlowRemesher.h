@@ -33,6 +33,9 @@ public:
 		RemeshWithFaceProjection();
 	}
 
+	/// Gather candidates for edge flipping in parallel, then do the actual flips sequentially
+	bool bEnableParallelEdgeFlipPass = true;
+
 protected:
 
 	// Do remeshing with face-aligned projection. During the Projection step of RemeshIteration, perform N passes of 
@@ -42,6 +45,7 @@ protected:
 
 	// Perform face-aligned projection onto the target mesh. Queue edges whose lengths change because of it.
 	void TrackedFaceProjectionPass(double& MaxDistanceMoved);
+	void TrackedFaceProjectionPass_Serial(double& MaxDistanceMoved);
 
 	// This is called during RemeshIteration 
 	void TrackedFullProjectionPass(bool bParallel) override
@@ -49,13 +53,26 @@ protected:
 		for (int i = 0; i < FaceProjectionPassesPerRemeshIteration; ++i)
 		{
 			double ProjectionDistance;
-			TrackedFaceProjectionPass(ProjectionDistance);
+			if (bParallel)
+			{
+				TrackedFaceProjectionPass(ProjectionDistance);
+			}
+			else
+			{
+				TrackedFaceProjectionPass_Serial(ProjectionDistance);
+			}
 		}
 	}
 
 
-	// Per-vertex weights for face projection pass
 	TArray<double> TempWeightBuffer;
+
+	// Per triangle-vertex weights for face projection pass. (Size >= 3 * MaxTriangleID)
+	TArray<double> ProjectionWeightBuffer;
+
+	// Per triangle-vertex projection positions for face projection pass. (Size >= 3 * MaxTriangleID)
+	TArray<FVector3d> ProjectionVertexBuffer;
+
 
 	// Similar to InitializeVertexBufferForPass, but also initialize the additional per-vertex weight buffer
 	void InitializeVertexBufferForFacePass()
@@ -67,6 +84,21 @@ protected:
 			TempWeightBuffer.SetNum(2 * Mesh->MaxVertexID());
 		}
 		TempWeightBuffer.Init(0.0, TempWeightBuffer.Num());
+
+		int NumTriangleVertices = 3 * Mesh->MaxTriangleID();
+
+		if (ProjectionWeightBuffer.Num() < NumTriangleVertices)
+		{
+			ProjectionWeightBuffer.SetNum(2 * NumTriangleVertices);
+		}
+		ProjectionWeightBuffer.Init(0.0, ProjectionWeightBuffer.Num());
+
+		if (ProjectionVertexBuffer.Num() < NumTriangleVertices)
+		{
+			ProjectionVertexBuffer.SetNum(2 * NumTriangleVertices);
+		}
+		ProjectionVertexBuffer.Init(FVector3d{ 0,0,0 }, ProjectionWeightBuffer.Num());
+
 	}
 
 
