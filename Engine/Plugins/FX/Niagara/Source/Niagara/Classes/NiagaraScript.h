@@ -540,6 +540,7 @@ class UNiagaraScript : public UNiagaraScriptBase
 	GENERATED_UCLASS_BODY()
 public:
 	UNiagaraScript();
+	~UNiagaraScript();
 
 #if WITH_EDITORONLY_DATA
 	/** If true then this script asset uses active version control to track changes. */
@@ -604,6 +605,9 @@ private:
 	/** Contains all of the versioned script data. */
 	UPROPERTY()
 	TArray<FVersionedNiagaraScriptData> VersionData;
+
+	/** Editor time adapters to a specific VersionData and this Script ptr to handle synchronizing changes made by parameter definitions. */
+	TArray<struct FVersionedNiagaraScript> VersionedScriptAdapters;
 #endif
 
 public:
@@ -944,8 +948,6 @@ public:
 
 	bool UsesCollection(const class UNiagaraParameterCollection* Collection)const;
 	
-	virtual ~UNiagaraScript(); //@Todo(ng) did I do this?
-
 	NIAGARA_API const FNiagaraScriptExecutionParameterStore* GetExecutionReadyParameterStore(ENiagaraSimTarget SimTarget);
 	void InvalidateExecutionReadyParameterStores();
 
@@ -1087,11 +1089,6 @@ public:
 	{
 	};
 
-	~FVersionedNiagaraScript()
-	{
-		CleanupParameterDefinitionsSubscriptions();
-	}
-
 	//~ Begin INiagaraParameterDefinitionsSubscriber Interface
 	virtual const TArray<FParameterDefinitionsSubscription>& GetParameterDefinitionsSubscriptions() const override { return GetScriptData()->ParameterDefinitionsSubscriptions; };
 	virtual TArray<FParameterDefinitionsSubscription>& GetParameterDefinitionsSubscriptions() override { return GetScriptData()->ParameterDefinitionsSubscriptions; };
@@ -1123,11 +1120,6 @@ public:
 		, Version(InVersion)
 	{
 	};
-
-	~FVersionedNiagaraScriptWeakPtr()
-	{
-		CleanupParameterDefinitionsSubscriptions();
-	}
 
 	//~ Begin INiagaraParameterDefinitionsSubscriber Interface
 	virtual const TArray<FParameterDefinitionsSubscription>& GetParameterDefinitionsSubscriptions() const override { return Pin().GetScriptData()->ParameterDefinitionsSubscriptions; };

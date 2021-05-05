@@ -171,7 +171,7 @@ void FNiagaraScriptViewModel::SetScriptsImpl(UNiagaraScriptSource* InScriptSourc
 		int32 i = Scripts.Add(VersionedScript.ToWeakPtr());
 		if (bStandalone)
 		{
-			Scripts[i].InitParameterDefinitionsSubscriptions();
+			Scripts[i].InitParameterDefinitionsSubscriptions(); //@todo(ng) cleanup
 		}
 		check(VersionedScript.Script->GetSource(VersionedScript.Version) == InScriptSource);
 		Scripts[i].Script->OnVMScriptCompiled().AddSP(this, &FNiagaraScriptViewModel::OnVMScriptCompiled);
@@ -264,7 +264,7 @@ void FNiagaraScriptViewModel::SetScript(FVersionedNiagaraScript InScript)
 	UNiagaraScriptSource* InSource = nullptr;
 	if (InScript.Script)
 	{
-		InScript.InitParameterDefinitionsSubscriptions();
+		InScript.InitParameterDefinitionsSubscriptions(); //@todo(ng) cleanup
 		InScripts.Add(InScript);
 		InSource = Cast<UNiagaraScriptSource>(InScript.Script->GetSource(InScript.Version));
 	}
