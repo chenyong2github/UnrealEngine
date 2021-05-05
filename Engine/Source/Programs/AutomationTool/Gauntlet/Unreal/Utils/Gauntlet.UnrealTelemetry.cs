@@ -5,7 +5,6 @@ using System.IO;
 using System.Collections.Generic;
 using AutomationTool;
 using UnrealBuildTool;
-using EpicGames.Core;
 
 
 namespace Gauntlet
@@ -136,8 +135,8 @@ namespace Gauntlet
 	{
 		[Help("CSVFile", "Path to the csv file to parse.")]
 		[Help("CSVDirectory", "Path to a folder containing csv files to parse.")]
-		[Help("CSVMapping", "Optional CSV column mapping. Formate is: <target key>:<source key>,...")]
-		[Help("TelemetryConfig", "Telemetry configuration to use to publish to Database. Default: UETelemtr.y")]
+		[Help("CSVMapping", "Optional CSV column mapping. Format is: <target key>:<source key>,...")]
+		[Help("TelemetryConfig", "Telemetry configuration to use to publish to Database. Default: UETelemtry.")]
 		[Help("DatabaseConfigPath", "Path to alternate Database config. Default is TelemetryConfig default.")]
 		[Help("Project", "Target Project name.")]
 		[Help("Platform", "Target platform name. Default: current environment platform.")]
@@ -256,13 +255,17 @@ namespace Gauntlet
 					{
 						DBConfig.LoadConfig(DatabaseConfigPath);
 						IDatabaseDriver<TelemetryData> DB = DBConfig.GetDriver();
-						Log.Verbose("Submitting telemetry data to {0}", DB.ToString());
+						Log.Info("Submitting telemetry data to {0}", DB.ToString());
 						DB.SubmitDataItems(DataRows, Context);
 					}
 					else
 					{
 						Log.Warning("Got telemetry data, but database configuration is unknown '{0}'.", Config);
 					}
+				}
+				else
+				{
+					Log.Error("Failed to retrieve any data from telemetry report.");
 				}
 
 			}

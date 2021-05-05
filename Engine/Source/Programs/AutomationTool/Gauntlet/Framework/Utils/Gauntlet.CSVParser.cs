@@ -2,6 +2,7 @@
 
 using System.IO;
 using System.Collections.Generic;
+using AutomationTool;
 
 
 namespace Gauntlet
@@ -16,20 +17,26 @@ namespace Gauntlet
 			{
 				// Parse Header
 				string FirstLine = Reader.ReadLine();
+				int LineNumber = 1;
 				string[] HeaderValues = FirstLine.Split(',');
 				// Parse the rest of the data
 				while (!Reader.EndOfStream)
 				{
 					Dictionary<string, string> OneRow = new Dictionary<string, string>();
 					string Line = Reader.ReadLine();
+					LineNumber++;
 					string[] Values = Line.Split(',');
-					if (Values.Length == HeaderValues.Length)
+					if (Values.Length >= HeaderValues.Length)
 					{
 						for (int i = 0; i < HeaderValues.Length; i++)
 						{
 							OneRow[HeaderValues[i]] = Values[i];
 						}
 						Rows.Add(OneRow);
+					}
+					else
+					{
+						throw new AutomationException(string.Format("Not enough number of columns at line {0}.", LineNumber));
 					}
 				}
 			}
