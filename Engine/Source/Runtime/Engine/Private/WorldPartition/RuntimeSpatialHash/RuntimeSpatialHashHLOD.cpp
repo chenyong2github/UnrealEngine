@@ -14,6 +14,7 @@
 #include "HAL/PlatformFileManager.h"
 #include "Misc/PackageName.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Modules/ModuleManager.h"
 
 #include "Algo/AnyOf.h"
 #include "Algo/ForEach.h"
