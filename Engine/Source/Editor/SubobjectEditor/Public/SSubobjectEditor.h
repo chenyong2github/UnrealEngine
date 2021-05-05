@@ -541,6 +541,9 @@ protected:
 
 	/** Restore the previous selection state when updating the tree */
 	virtual void RestoreSelectionState(TArray<FSubobjectEditorTreeNodePtrType>& SelectedTreeNodes);
+
+	/** If true, then the blueprint should be modified on TryHandleAssetDragDropOperation */
+	virtual bool ShouldModifyBPOnAssetDrop() const { return false; }
 	
 	bool CanCutNodes() const;
 	void CutSelectedNodes();

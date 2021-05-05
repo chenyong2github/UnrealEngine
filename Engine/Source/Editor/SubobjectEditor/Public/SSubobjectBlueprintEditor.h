@@ -33,6 +33,7 @@ protected:
 	TAttribute<AActor*> PreviewActor;
 	
 	// SSubobjectEditor interface
+	virtual bool ShouldModifyBPOnAssetDrop() const override { return true; }
 	virtual void OnDeleteNodes() override;
 	virtual void CopySelectedNodes() override;
 	virtual void OnDuplicateComponent() override;
