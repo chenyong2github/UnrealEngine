@@ -2306,7 +2306,7 @@ FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::FNiagaraParameterDef
 
 FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::~FNiagaraParameterDefinitionsToolkitParameterPanelViewModel()
 {
-	ParameterDefinitions->GetOnParameterDefinitionsChanged().RemoveAll(this);
+	//ParameterDefinitions->GetOnParameterDefinitionsChanged().RemoveAll(this); //@todo(ng) invoke this before editor shutdown
 }
 
 void FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::Init(const FParameterDefinitionsToolkitUIContext& InUIContext)
