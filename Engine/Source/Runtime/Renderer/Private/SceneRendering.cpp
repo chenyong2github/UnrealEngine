@@ -1200,7 +1200,9 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.AtmosphereLightColor[Index].A = 0.0f;
 		ViewUniformShaderParameters.AtmosphereLightColorGlobalPostTransmittance[Index] = FLinearColor::Black;
 		ViewUniformShaderParameters.AtmosphereLightColorGlobalPostTransmittance[Index].A = 0.0f;
-		ViewUniformShaderParameters.AtmosphereLightDirection[Index] = DefaultSunDirection;
+
+		// We must set a default atmospheric light0 direction because this is use for instance by the height fog directional lobe. And we do not want to add an in shader test for that.
+		ViewUniformShaderParameters.AtmosphereLightDirection[Index] = Index == 0 && Scene && Scene->SimpleDirectionalLight && Scene->SimpleDirectionalLight->Proxy ? -Scene->SimpleDirectionalLight->Proxy->GetDirection() : DefaultSunDirection;
 	};
 
 	bool bShouldRenderAtmosphericFog = false;
