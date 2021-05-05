@@ -8,28 +8,6 @@
 #include "Components/StaticMeshComponent.h"
 
 
-/**
- * EStaticMeshEditingLOD specifies which LOD of a StaticMesh the FStaticMeshComponentTarget
- * refers to. FStaticMeshComponentTarget will remap requested value to the closest available LOD.
- */
-enum class EStaticMeshEditingLOD
-{
-	LOD0 = 0,
-	LOD1 = 1,
-	LOD2 = 2,
-	LOD3 = 3,
-	LOD4 = 4,
-	LOD5 = 5,
-	LOD6 = 6,
-	LOD7 = 7,
-
-	HiResSource = 20,	// HiRes source mesh is optional, and will fall back to LOD0 if not stored
-	MaxQuality = 21		// use HiRes source mesh if available, or LOD0 otherwise
-};
-
-
-
-
 
 class UNREALED_API FStaticMeshComponentTargetFactory : public FComponentTargetFactory
 {

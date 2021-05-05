@@ -35,6 +35,8 @@ namespace ToolBuilderUtil
 	template<typename ComponentType>
 	ComponentType* FindFirstComponentOfType(const FToolBuilderState& InputState);
 
+	INTERACTIVETOOLSFRAMEWORK_API
+	void EnumerateComponents(const FToolBuilderState& InputState, TFunctionRef<void(UActorComponent*)> ComponentFunc);
 
 	/** Count number of selected Actors that pass predicate. */
 	INTERACTIVETOOLSFRAMEWORK_API
@@ -55,7 +57,6 @@ namespace ToolBuilderUtil
 	/** Find first first available Actor of given type, or return nullptr if not found */
 	template<typename ActorType>
 	ActorType* FindFirstActorOfType(const FToolBuilderState& InputState);
-
 }
 
 /*

@@ -45,6 +45,7 @@ public:
 		NewStaticMesh->SetNumSourceModels(1);
 		NewStaticMesh->GetSourceModel(0).BuildSettings.bRecomputeNormals = false;
 		NewStaticMesh->GetSourceModel(0).BuildSettings.bRecomputeTangents = true;
+		NewStaticMesh->GetSourceModel(0).BuildSettings.bRemoveDegenerates = false;
 		this->MeshDescription = NewStaticMesh->CreateMeshDescription(0);
 
 		if (NewStaticMesh->GetBodySetup() == nullptr)

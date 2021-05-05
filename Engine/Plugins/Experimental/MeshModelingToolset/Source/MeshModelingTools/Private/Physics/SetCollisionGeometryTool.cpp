@@ -46,8 +46,10 @@ const FToolTargetTypeRequirements& USetCollisionGeometryToolBuilder::GetTargetRe
 
 bool USetCollisionGeometryToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	return (Targets.Num() > 0 && Cast<IStaticMeshBackedTarget>(Targets[Targets.Num() - 1]) != nullptr);
+	UActorComponent* LastValidTarget = nullptr;
+	SceneState.TargetManager->EnumerateSelectedAndTargetableComponents(SceneState, GetTargetRequirements(),
+		[&](UActorComponent* Component) { LastValidTarget = Component; });
+	return (LastValidTarget != nullptr && Cast<UStaticMeshComponent>(LastValidTarget) != nullptr);
 }
 
 

@@ -9,6 +9,7 @@
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/StaticMeshBackedTarget.h"
 #include "ToolTargets/PrimitiveComponentToolTarget.h"
+#include "ComponentSourceInterfaces.h"  // for EStaticMeshEditingLOD
 
 #include "StaticMeshComponentToolTarget.generated.h"
 
@@ -25,7 +26,20 @@ class EDITORINTERACTIVETOOLSFRAMEWORK_API UStaticMeshComponentToolTarget : publi
 	GENERATED_BODY()
 
 public:
+	/**
+	 * Configure active LOD to edit. Can only call this after Component is configured in base UPrimitiveComponentToolTarget.
+	 * If requested LOD does not exist, fall back to one that does.
+	 */
+	virtual void SetEditingLOD(EStaticMeshEditingLOD RequestedEditingLOD);
 
+	/** @return current editing LOD */
+	virtual EStaticMeshEditingLOD GetEditingLOD() const { return EditingLOD; }
+
+public:
+	virtual bool IsValid() const override;
+
+
+public:
 	// IMeshDescriptionProvider implementation
 	FMeshDescription* GetMeshDescription() override;
 
@@ -43,10 +57,14 @@ public:
 
 	// Rest provided by parent class
 
+public:
+
 protected:
+	EStaticMeshEditingLOD EditingLOD = EStaticMeshEditingLOD::LOD0;
 
 	friend class UStaticMeshComponentToolTargetFactory;
 };
+
 
 /** Factory for UStaticMeshComponentToolTarget to be used by the target manager. */
 UCLASS(Transient)
@@ -59,4 +77,14 @@ public:
 	virtual bool CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetTypeInfo) const override;
 
 	virtual UToolTarget* BuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetTypeInfo) override;
+
+
+
+public:
+	virtual EStaticMeshEditingLOD GetActiveEditingLOD() const { return EditingLOD; }
+	virtual void SetActiveEditingLOD(EStaticMeshEditingLOD NewEditingLOD);
+
+protected:
+	// LOD to edit, default is to edit LOD0
+	EStaticMeshEditingLOD EditingLOD = EStaticMeshEditingLOD::LOD0;
 };

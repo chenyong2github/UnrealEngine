@@ -30,6 +30,14 @@ void UToolTargetManager::AddTargetFactory(UToolTargetFactory* Factory)
 	Factories.Add(Factory);
 }
 
+
+UToolTargetFactory* UToolTargetManager::FindFirstFactoryByPredicate(TFunctionRef<bool(UToolTargetFactory*)> Predicate)
+{
+	TObjectPtr<UToolTargetFactory>* Found = Factories.FindByPredicate(Predicate);
+	return (Found) ? Found->Get() : nullptr;
+}
+
+
 bool UToolTargetManager::CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetType) const
 {
 	for (UToolTargetFactory* Factory : Factories)
@@ -65,6 +73,23 @@ int32 UToolTargetManager::CountSelectedAndTargetable(const FToolBuilderState& Sc
 			return CanBuildTarget(Object, TargetType);
 		});
 }
+
+
+void UToolTargetManager::EnumerateSelectedAndTargetableComponents(const FToolBuilderState& SceneState,
+	const FToolTargetTypeRequirements& TargetRequirements,
+	TFunctionRef<void(UActorComponent*)> ComponentFunc) const
+{
+	ToolBuilderUtil::EnumerateComponents(SceneState, [&](UActorComponent* Component)
+	{
+		if (CanBuildTarget(Component, TargetRequirements))
+		{
+			ComponentFunc(Component);
+		}
+	});
+}
+
+
+
 
 UToolTarget* UToolTargetManager::BuildFirstSelectedTargetable(const FToolBuilderState& SceneState, const FToolTargetTypeRequirements& TargetType)
 {

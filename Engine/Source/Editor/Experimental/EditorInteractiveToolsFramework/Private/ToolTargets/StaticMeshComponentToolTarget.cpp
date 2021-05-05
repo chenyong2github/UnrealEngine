@@ -7,10 +7,89 @@
 #include "Engine/StaticMesh.h"
 #include "RenderingThread.h"
 
-namespace UStaticMeshComponentToolTargetLocals
+
+static void DisplayCriticalWarningMessage(const FString& Message)
 {
-	int32 LODIndex = 0;
+	if (GAreScreenMessagesEnabled)
+	{
+		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 10.0f, FColor::Red, Message);
+	}
+	UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
 }
+
+
+void UStaticMeshComponentToolTarget::SetEditingLOD(EStaticMeshEditingLOD RequestedEditingLOD)
+{
+	EStaticMeshEditingLOD ValidEditingLOD = EStaticMeshEditingLOD::LOD0;
+
+	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
+	if (ensure(StaticMeshComponent != nullptr))
+	{
+		UStaticMesh* StaticMeshAsset = StaticMeshComponent->GetStaticMesh();
+		if (ensure(StaticMeshAsset != nullptr))
+		{
+			if (RequestedEditingLOD == EStaticMeshEditingLOD::MaxQuality)
+			{
+				ValidEditingLOD = StaticMeshAsset->IsHiResMeshDescriptionValid() ? EStaticMeshEditingLOD::HiResSource : EStaticMeshEditingLOD::LOD0;
+			}
+			else if (RequestedEditingLOD == EStaticMeshEditingLOD::HiResSource)
+			{
+				ValidEditingLOD = StaticMeshAsset->IsHiResMeshDescriptionValid() ? EStaticMeshEditingLOD::HiResSource : EStaticMeshEditingLOD::LOD0;
+				if (ValidEditingLOD != EStaticMeshEditingLOD::HiResSource)
+				{
+					DisplayCriticalWarningMessage(FString(TEXT("HiRes Source selected but not available - Falling Back to LOD0")));
+				}
+			}
+			else
+			{
+				ValidEditingLOD = RequestedEditingLOD;
+				int32 MaxExistingLOD = StaticMeshAsset->GetNumSourceModels() - 1;
+				if ((int32)ValidEditingLOD > MaxExistingLOD)
+				{
+					DisplayCriticalWarningMessage(FString::Printf(TEXT("LOD%d Requested but not available - Falling Back to LOD%d"), (int32)ValidEditingLOD, MaxExistingLOD));
+					ValidEditingLOD = (EStaticMeshEditingLOD)MaxExistingLOD;
+				}
+			}
+		}
+	}
+
+	EditingLOD = ValidEditingLOD;
+}
+
+
+bool UStaticMeshComponentToolTarget::IsValid() const
+{
+	if (!UPrimitiveComponentToolTarget::IsValid())
+	{
+		return false;
+	}
+	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
+	if (StaticMeshComponent == nullptr)
+	{
+		return false;
+	}
+	UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
+	if (StaticMesh == nullptr)
+	{
+		return false;
+	}
+
+	if (EditingLOD == EStaticMeshEditingLOD::HiResSource)
+	{
+		if (StaticMesh->IsHiResMeshDescriptionValid() == false)
+		{
+			return false;
+		}
+	}
+	else if ((int32)EditingLOD >= StaticMesh->GetNumSourceModels())
+	{
+		return false;
+	}
+
+	return true;
+}
+
+
 
 int32 UStaticMeshComponentToolTarget::GetNumMaterials() const
 {
@@ -110,28 +189,28 @@ bool UStaticMeshComponentToolTarget::CommitMaterialSetUpdate(const FComponentMat
 	return true;
 }
 
+
 FMeshDescription* UStaticMeshComponentToolTarget::GetMeshDescription()
 {
-	using namespace UStaticMeshComponentToolTargetLocals;
-
-	return IsValid() ? Cast<UStaticMeshComponent>(Component)->GetStaticMesh()->GetMeshDescription(LODIndex) : nullptr;
+	if (ensure(IsValid()))
+	{
+		UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
+		return (EditingLOD == EStaticMeshEditingLOD::HiResSource) ?
+			StaticMesh->GetHiResMeshDescription() : StaticMesh->GetMeshDescription((int32)EditingLOD);
+	}
+	return nullptr;
 }
+
 
 void UStaticMeshComponentToolTarget::CommitMeshDescription(const FCommitter& Committer)
 {
-	using namespace UStaticMeshComponentToolTargetLocals;
 	if (ensure(IsValid()) == false) return;
 
 	UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
 
 	if (StaticMesh->GetPathName().StartsWith(TEXT("/Engine/")))
 	{
-		FString DebugMessage = FString::Printf(TEXT("CANNOT MODIFY BUILT-IN ENGINE ASSET %s"), *StaticMesh->GetPathName());
-		if (GAreScreenMessagesEnabled)
-		{
-			GEngine->AddOnScreenDebugMessage(INDEX_NONE, 10.0f, FColor::Red, DebugMessage);
-		}
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *DebugMessage);
+		DisplayCriticalWarningMessage(FString::Printf(TEXT("CANNOT MODIFY BUILT-IN ENGINE ASSET %s"), *StaticMesh->GetPathName()));
 		return;
 	}
 
@@ -145,14 +224,29 @@ void UStaticMeshComponentToolTarget::CommitMeshDescription(const FCommitter& Com
 	StaticMesh->SetFlags(RF_Transactional);
 
 	verify(StaticMesh->Modify());
-	verify(StaticMesh->ModifyMeshDescription(LODIndex));
+	if (EditingLOD == EStaticMeshEditingLOD::HiResSource)
+	{
+		verify(StaticMesh->ModifyHiResMeshDescription());
+	}
+	else
+	{
+		verify(StaticMesh->ModifyMeshDescription((int32)EditingLOD));
+	}
 
 	FCommitterParams CommitterParams;
-	CommitterParams.MeshDescriptionOut = StaticMesh->GetMeshDescription(LODIndex);
+	CommitterParams.MeshDescriptionOut = GetMeshDescription();
 
 	Committer(CommitterParams);
 
-	StaticMesh->CommitMeshDescription(LODIndex);
+	if (EditingLOD == EStaticMeshEditingLOD::HiResSource)
+	{
+		StaticMesh->CommitHiResMeshDescription();
+	}
+	else
+	{
+		StaticMesh->CommitMeshDescription((int32)EditingLOD);
+	}
+
 	StaticMesh->PostEditChange();
 
 	// this rebuilds physics, but it doesn't undo!
@@ -171,6 +265,7 @@ bool UStaticMeshComponentToolTargetFactory::CanBuildTarget(UObject* SourceObject
 {
 	const UStaticMeshComponent* Component = Cast<UStaticMeshComponent>(SourceObject);
 	return Component && !Component->IsPendingKillOrUnreachable() && Component->IsValidLowLevel() && Component->GetStaticMesh()
+		&& (Component->GetStaticMesh()->GetNumSourceModels() > 0)
 		&& Requirements.AreSatisfiedBy(UStaticMeshComponentToolTarget::StaticClass());
 }
 
@@ -178,7 +273,14 @@ UToolTarget* UStaticMeshComponentToolTargetFactory::BuildTarget(UObject* SourceO
 {
 	UStaticMeshComponentToolTarget* Target = NewObject<UStaticMeshComponentToolTarget>();// TODO: Should we set an outer here?
 	Target->Component = Cast<UStaticMeshComponent>(SourceObject);
+	Target->SetEditingLOD(EditingLOD);
 	check(Target->Component && Requirements.AreSatisfiedBy(Target));
 
 	return Target;
+}
+
+
+void UStaticMeshComponentToolTargetFactory::SetActiveEditingLOD(EStaticMeshEditingLOD NewEditingLOD)
+{
+	EditingLOD = NewEditingLOD;
 }

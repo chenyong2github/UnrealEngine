@@ -28,6 +28,8 @@
 // for LOD setting
 #include "EditorInteractiveToolsFrameworkModule.h"
 #include "Tools/EditorComponentSourceFactory.h"
+#include "ToolTargetManager.h"
+#include "ToolTargets/StaticMeshComponentToolTarget.h"
 
 #define LOCTEXT_NAMESPACE "FModelingToolsEditorModeToolkit"
 
@@ -259,33 +261,44 @@ TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
 		.OptionsSource(&AssetLODModes)
 		.OnSelectionChanged_Lambda([&](TSharedPtr<FString> String, ESelectInfo::Type)
 	{
+		EStaticMeshEditingLOD NewSelectedLOD = EStaticMeshEditingLOD::LOD0;
+		if (*String == *AssetLODModes[0])
+		{
+			NewSelectedLOD = EStaticMeshEditingLOD::MaxQuality;
+		}
+		else if (*String == *AssetLODModes[1])
+		{
+			NewSelectedLOD = EStaticMeshEditingLOD::HiResSource;
+		}
+		else
+		{
+			for (int32 k = 2; k < AssetLODModes.Num(); ++k)
+			{
+				if (*String == *AssetLODModes[k])
+				{
+					NewSelectedLOD = (EStaticMeshEditingLOD)(k - 2);
+					break;
+				}
+			}
+		}
+
 		if (FEditorInteractiveToolsFrameworkGlobals::RegisteredStaticMeshTargetFactoryKey >= 0)
 		{
 			FComponentTargetFactory* Factory = FindComponentTargetFactoryByKey(FEditorInteractiveToolsFrameworkGlobals::RegisteredStaticMeshTargetFactoryKey);
 			if (Factory != nullptr)
 			{
 				FStaticMeshComponentTargetFactory* StaticMeshFactory = static_cast<FStaticMeshComponentTargetFactory*>(Factory);
-				if (*String == *AssetLODModes[0])
-				{
-					StaticMeshFactory->CurrentEditingLOD = EStaticMeshEditingLOD::MaxQuality;
-				}
-				else if (*String == *AssetLODModes[1])
-				{
-					StaticMeshFactory->CurrentEditingLOD = EStaticMeshEditingLOD::HiResSource;
-				}
-				else
-				{
-					for (int32 k = 2; k < AssetLODModes.Num(); ++k)
-					{
-						if (*String == *AssetLODModes[k])
-						{
-							StaticMeshFactory->CurrentEditingLOD = (EStaticMeshEditingLOD)(k - 2);
-							break;
-						}
-					}
-				}
+				StaticMeshFactory->CurrentEditingLOD = NewSelectedLOD;
 			}
 		}
+
+		TObjectPtr<UToolTargetManager> TargetManager = GetScriptableEditorMode()->GetInteractiveToolsContext()->TargetManager;
+		UStaticMeshComponentToolTargetFactory* StaticMeshTargetFactory = TargetManager->FindFirstFactoryByType<UStaticMeshComponentToolTargetFactory>();
+		if (StaticMeshTargetFactory)
+		{
+			StaticMeshTargetFactory->SetActiveEditingLOD(NewSelectedLOD);
+		}
+
 	});
 
 

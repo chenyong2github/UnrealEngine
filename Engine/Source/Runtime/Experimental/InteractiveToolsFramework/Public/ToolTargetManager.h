@@ -31,7 +31,27 @@ public:
 	 */
 	bool IsActive() const { return bIsActive; }
 
+	/**
+	 * Add a new ToolTargetFactory
+	 */
 	virtual void AddTargetFactory(UToolTargetFactory* Factory);
+
+	/**
+	 * Find the first ToolTargetFactory that passes the Predicate function
+	 */
+	virtual UToolTargetFactory* FindFirstFactoryByPredicate(TFunctionRef<bool(UToolTargetFactory*)> Predicate);
+
+	/**
+	 * Find the first ToolTargetFactory of a given type
+	 */
+	template<typename CastToType>
+	CastToType* FindFirstFactoryByType()
+	{
+		UToolTargetFactory* Found = FindFirstFactoryByPredicate([](UToolTargetFactory* Factory) { return Cast<CastToType>(Factory) != nullptr; });
+		return (Found != nullptr) ? Cast<CastToType>(Found) : nullptr;
+	}
+
+
 
 	/** Examines stored target factories to see if one can build the requested type of target. */
 	virtual bool CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetRequirements) const;
@@ -60,6 +80,15 @@ public:
 	 */
 	virtual int32 CountSelectedAndTargetable(const FToolBuilderState& SceneState,
 		const FToolTargetTypeRequirements& TargetRequirements) const;
+
+	/**
+	 * Looks through the currently selected components and actors and counts the number of
+	 * inputs that could be used to create qualifying tool targets.
+	 */
+	virtual void EnumerateSelectedAndTargetableComponents(const FToolBuilderState& SceneState,
+		const FToolTargetTypeRequirements& TargetRequirements,
+		TFunctionRef<void(UActorComponent*)> ComponentFunc) const;
+
 	
 	/**
 	 * Looks through the currently selected components and actors and builds a target out of

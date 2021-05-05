@@ -83,6 +83,26 @@ TArray<UActorComponent*> ToolBuilderUtil::FindAllComponents(const FToolBuilderSt
 }
 
 
+void ToolBuilderUtil::EnumerateComponents(const FToolBuilderState& InputState, TFunctionRef<void(UActorComponent*)> ComponentFunc)
+{
+	if (InputState.SelectedComponents.Num() > 0)
+	{
+		for (UActorComponent* Component : InputState.SelectedComponents)
+		{
+			ComponentFunc(Component);
+		}
+	}
+	else
+	{
+		for (AActor* Actor : InputState.SelectedActors)
+		{
+			Actor->ForEachComponent(true,
+				[&ComponentFunc](UActorComponent* Component) {
+				ComponentFunc(Component);
+			});
+		}
+	}
+}
 
 
 
