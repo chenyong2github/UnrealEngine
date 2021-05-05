@@ -502,8 +502,8 @@ void FSceneRenderer::ReconstructVolumetricRenderTarget(FRDGBuilder& GraphBuilder
 		PassParameters->DownSampleFactor = TracingVolumetricCloudRTDownSample;
 		PassParameters->VolumetricRenderTargetMode = VolumetricCloudRT.GetMode();
 
-		const bool bVisualizeConservativeDensity = ShouldViewVisualizeVolumetricCloudConservativeDensity(ViewInfo, ViewFamily.EngineShowFlags);
-		PassParameters->HalfResDepthTexture = bVisualizeConservativeDensity ?
+		const bool bVisualizeConservativeDensityOrDebugSampleCount = ShouldViewVisualizeVolumetricCloudConservativeDensity(ViewInfo, ViewFamily.EngineShowFlags) || GetVolumetricCloudDebugSampleCountMode(ViewFamily.EngineShowFlags)>0;
+		PassParameters->HalfResDepthTexture = bVisualizeConservativeDensityOrDebugSampleCount ?
 			((bool)ERHIZBuffer::IsInverted ? GSystemTextures.GetBlackDummy(GraphBuilder) : GSystemTextures.GetWhiteDummy(GraphBuilder)) :
 			((VolumetricCloudRT.GetMode() == 0 || VolumetricCloudRT.GetMode() == 3) ?
 				GraphBuilder.RegisterExternalTexture(ViewInfo.HalfResDepthSurfaceCheckerboardMinMax) :
