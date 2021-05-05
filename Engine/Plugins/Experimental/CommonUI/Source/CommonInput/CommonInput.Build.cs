@@ -48,9 +48,6 @@ public class CommonInput : ModuleRules
 			PublicDefinitions.Add("UE_COMMONINPUT_PLATFORM_TYPE = " + CommonUIPlatform);
 		}
 
-		PrivateDefinitions.Add("UE_COMMONINPUT_PLATFORM_USE_GAMEPAD_IF_MOUSE_REMOVED=" + (PlatformUsesGamepadIfMouseRemoved ? "1" : "0") );
-		PrivateDefinitions.Add("UE_COMMONINPUT_PLATFORM_KBM_REQUIRES_ATTACHED_MOUSE=" + (PlatformKBMRequiresAttachedMouse ? "1" : "0") );
-
 		PrivateDependencyModuleNames.Add("GeForceNOWWrapper");
 	}
 
@@ -79,8 +76,4 @@ public class CommonInput : ModuleRules
 
 		return string.Empty;
 	}
-
-	protected virtual bool PlatformUsesGamepadIfMouseRemoved { get { return false; } }
-	protected virtual bool PlatformKBMRequiresAttachedMouse { get { return false; } }
-
 }
