@@ -6,6 +6,7 @@
 #include "LiveLinkAxisSwitchPreProcessor.generated.h"
 
 
+// DO NOT modify the order or values of these enums - the code relies on the order and values and will fail if it's changed
 UENUM()
 enum class ELiveLinkAxis : uint8
 {
@@ -31,30 +32,36 @@ public:
 	class FLiveLinkTransformAxisSwitchPreProcessorWorker : public ILiveLinkFramePreProcessorWorker
 	{
 	public:
-		ELiveLinkAxis OrientationAxisX = ELiveLinkAxis::X;
-		ELiveLinkAxis OrientationAxisY = ELiveLinkAxis::Y;
-		ELiveLinkAxis OrientationAxisZ = ELiveLinkAxis::Z;
-		ELiveLinkAxis TranslationAxisX = ELiveLinkAxis::X;
-		ELiveLinkAxis TranslationAxisY = ELiveLinkAxis::Y;
-		ELiveLinkAxis TranslationAxisZ = ELiveLinkAxis::Z;
+		ELiveLinkAxis FrontAxis = ELiveLinkAxis::X;
+		ELiveLinkAxis RightAxis = ELiveLinkAxis::Y;
+		ELiveLinkAxis UpAxis = ELiveLinkAxis::Z;
 
 		virtual TSubclassOf<ULiveLinkRole> GetRole() const override;
 		virtual bool PreProcessFrame(FLiveLinkFrameDataStruct& InOutFrame) const override;
 	};
 
 protected:
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use FrontAxis, RightAxis, UpAxis instead"))
+	ELiveLinkAxis OrientationAxisX_DEPRECATED = ELiveLinkAxis::X;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use FrontAxis, RightAxis, UpAxis instead"))
+	ELiveLinkAxis OrientationAxisY_DEPRECATED = ELiveLinkAxis::Y;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use FrontAxis, RightAxis, UpAxis instead"))
+	ELiveLinkAxis OrientationAxisZ_DEPRECATED = ELiveLinkAxis::Z;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use FrontAxis, RightAxis, UpAxis instead"))
+	ELiveLinkAxis TranslationAxisX_DEPRECATED = ELiveLinkAxis::X;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use FrontAxis, RightAxis, UpAxis instead"))
+	ELiveLinkAxis TranslationAxisY_DEPRECATED = ELiveLinkAxis::Y;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use FrontAxis, RightAxis, UpAxis instead"))
+	ELiveLinkAxis TranslationAxisZ_DEPRECATED = ELiveLinkAxis::Z;
+#endif	// WITH_EDITORONLY_DATA
+
 	UPROPERTY(EditAnywhere, Category = "LiveLink")
-	ELiveLinkAxis OrientationAxisX = ELiveLinkAxis::X;
+	ELiveLinkAxis FrontAxis = ELiveLinkAxis::X;
 	UPROPERTY(EditAnywhere, Category = "LiveLink")
-	ELiveLinkAxis OrientationAxisY = ELiveLinkAxis::Y;
+	ELiveLinkAxis RightAxis = ELiveLinkAxis::Y;
 	UPROPERTY(EditAnywhere, Category = "LiveLink")
-	ELiveLinkAxis OrientationAxisZ = ELiveLinkAxis::Z;
-	UPROPERTY(EditAnywhere, Category = "LiveLink")
-	ELiveLinkAxis TranslationAxisX = ELiveLinkAxis::X;
-	UPROPERTY(EditAnywhere, Category = "LiveLink")
-	ELiveLinkAxis TranslationAxisY = ELiveLinkAxis::Y;
-	UPROPERTY(EditAnywhere, Category = "LiveLink")
-	ELiveLinkAxis TranslationAxisZ = ELiveLinkAxis::Z;
+	ELiveLinkAxis UpAxis = ELiveLinkAxis::Z;
 
 public:
 	virtual TSubclassOf<ULiveLinkRole> GetRole() const override;
@@ -62,6 +69,7 @@ public:
 
 public:
 	//~ UObject interface
+	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif //WITH_EDITOR

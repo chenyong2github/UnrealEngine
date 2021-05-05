@@ -126,6 +126,9 @@ struct CORE_API FReleaseObjectVersion
 		// Add structure data to Chaos Convex
 		StructureDataAddedToConvex,
 
+		// Changed axis UI for LiveLink AxisSwitch Pre Processor
+		AddedFrontRightUpAxesToLiveLinkPreProcessor,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
