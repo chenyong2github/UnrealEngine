@@ -18,7 +18,7 @@ public:
 	virtual ~FTypedElementCommonActionsCustomization() = default;
 
 	//~ See UTypedElementCommonActions for API docs
-	virtual void GetElementsForAction(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToDelete);
+	virtual void GetElementsForAction(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UTypedElementList* InElementList, UTypedElementList* OutElementsToDelete);
 	virtual bool DeleteElements(UTypedElementWorldInterface* InWorldInterface, TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions);
 	virtual void DuplicateElements(UTypedElementWorldInterface* InWorldInterface, TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, const FVector& InLocationOffset, TArray<FTypedElementHandle>& OutNewElements);
 };
@@ -55,7 +55,7 @@ public:
 	}
 
 	//~ See UTypedElementCommonActions for API docs
-	void GetElementsForAction(const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToDelete) { CommonActionsCustomization->GetElementsForAction(ElementWorldHandle, InSelectionSet, OutElementsToDelete); }
+	void GetElementsForAction(const UTypedElementList* InElementList, UTypedElementList* OutElementsToDelete) { CommonActionsCustomization->GetElementsForAction(ElementWorldHandle, InElementList, OutElementsToDelete); }
 
 private:
 	TTypedElement<UTypedElementWorldInterface> ElementWorldHandle;
@@ -73,10 +73,10 @@ class ENGINE_API UTypedElementCommonActions : public UObject, public TTypedEleme
 
 public:
 	/**
-	 * Get the elements from the given selection set that a common action should operate on.
+	 * Get the elements from the given element list that a common action should operate on.
 	 * @note This allows coarse filtering of the elements based on the selection state (eg, favoring components over actors), however it doesn't mean that the returned elements will actually be valid to perform a given action on.
 	 */
-	void GetSelectedElementsForAction(const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsForAction) const;
+	void GetElementsForAction(const UTypedElementList* InElementList, UTypedElementList* OutElementsForAction) const;
 
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Common")
 	bool DeleteElements(const TArray<FTypedElementHandle>& ElementHandles, UWorld* World, UTypedElementSelectionSet* SelectionSet, const FTypedElementDeletionOptions& DeletionOptions);
@@ -85,6 +85,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Common")
 	bool DeleteSelectedElements(UTypedElementSelectionSet* SelectionSet, UWorld* World, const FTypedElementDeletionOptions& DeletionOptions);
+	bool DeleteElementsInList(const UTypedElementList* ElementList, UWorld* World, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& DeletionOptions);
 
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Common")
 	TArray<FTypedElementHandle> DuplicateElements(const TArray<FTypedElementHandle>& ElementHandles, UWorld* World, const FVector& LocationOffset);
@@ -93,6 +94,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Common")
 	TArray<FTypedElementHandle> DuplicateSelectedElements(const UTypedElementSelectionSet* SelectionSet, UWorld* World, const FVector& LocationOffset);
+	TArray<FTypedElementHandle> DuplicateElementsInList(const UTypedElementList* ElementList, UWorld* World, const FVector& LocationOffset);
 
 private:
 	/**

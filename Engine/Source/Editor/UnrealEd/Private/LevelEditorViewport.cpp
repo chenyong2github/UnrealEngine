@@ -2610,7 +2610,7 @@ bool FLevelEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAxisLi
 							if (CommonActions)
 							{
 								const UTypedElementList* ElementsToManipulate = GetElementsToManipulate();
-								TArray<FTypedElementHandle> DuplicatedElements = CommonActions->DuplicateElements(ElementsToManipulate, GetWorld(), FVector::ZeroVector);
+								TArray<FTypedElementHandle> DuplicatedElements = CommonActions->DuplicateElementsInList(ElementsToManipulate, GetWorld(), FVector::ZeroVector);
 
 								// Exclusively select the new elements, so that future gizmo interaction manipulates those items instead
 								if (DuplicatedElements.Num() > 0)

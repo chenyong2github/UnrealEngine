@@ -10,17 +10,17 @@
 #include "EditorModeManager.h"
 #include "Toolkits/IToolkitHost.h"
 
-void FActorElementLevelEditorCommonActionsCustomization::GetElementsForAction(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToDelete)
+void FActorElementLevelEditorCommonActionsCustomization::GetElementsForAction(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UTypedElementList* InElementList, UTypedElementList* OutElementsForAction)
 {
 	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
 
-	if (UComponentElementSelectionInterface::HasSelectedComponents(InSelectionSet->GetElementList()))
+	if (UComponentElementSelectionInterface::HasSelectedComponents(InElementList))
 	{
 		// If we have components selected then we will perform the action on those rather than the actors
 		return;
 	}
 
-	FTypedElementCommonActionsCustomization::GetElementsForAction(InElementWorldHandle, InSelectionSet, OutElementsToDelete);
+	FTypedElementCommonActionsCustomization::GetElementsForAction(InElementWorldHandle, InElementList, OutElementsForAction);
 }
 
 bool FActorElementLevelEditorCommonActionsCustomization::DeleteElements(UTypedElementWorldInterface* InWorldInterface, TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions)
