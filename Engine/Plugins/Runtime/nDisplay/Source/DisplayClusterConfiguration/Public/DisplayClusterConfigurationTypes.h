@@ -9,6 +9,7 @@
 
 #include "DisplayClusterConfigurationTypes_Base.h"
 #include "DisplayClusterConfigurationTypes_ICVFX.h"
+#include "DisplayClusterConfigurationTypes_Viewport.h"
 
 #include "DisplayClusterConfigurationTypes.generated.h"
 
@@ -437,6 +438,15 @@ public:
 
 	UPROPERTY(VisibleInstanceOnly, EditFixedSize, Instanced, Category = nDisplay, meta = (DisplayThumbnail = false, nDisplayInstanceOnly, ShowInnerProperties))
 	TMap<FString, UDisplayClusterConfigurationClusterNode*> Nodes;
+
+	// Apply the global cluster post process settings to all viewports
+	UPROPERTY(EditAnywhere, Category = nDisplay)
+	bool bUseOverallClusterPostProcess = false;
+
+	// Global cluster post process settings
+	UPROPERTY(EditAnywhere, Category = nDisplay, meta = (EditCondition = "bUseOverallClusterPostProcess"))
+	FDisplayClusterConfigurationViewport_PerViewportSettings OverallClusterPostProcessSettings;
+
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Instanced)
