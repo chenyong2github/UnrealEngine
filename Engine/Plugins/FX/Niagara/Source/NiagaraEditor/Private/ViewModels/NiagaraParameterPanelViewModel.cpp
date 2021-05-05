@@ -1022,8 +1022,10 @@ const TArray<FNiagaraParameterPanelCategory>& FNiagaraSystemToolkitParameterPane
 		CachedCurrentCategories = FNiagaraSystemToolkitParameterPanelViewModel::DefaultAdvancedCategories;
 		return FNiagaraSystemToolkitParameterPanelViewModel::DefaultAdvancedCategories;
 	}
-	CachedCurrentCategories = FNiagaraSystemToolkitParameterPanelViewModel::DefaultCategories;
-	return FNiagaraSystemToolkitParameterPanelViewModel::DefaultCategories;
+	// For now always show advanced.
+	CachedCurrentCategories = FNiagaraSystemToolkitParameterPanelViewModel::DefaultAdvancedCategories;
+	//CachedCurrentCategories = FNiagaraSystemToolkitParameterPanelViewModel::DefaultCategories;
+	return FNiagaraSystemToolkitParameterPanelViewModel::DefaultAdvancedCategories;
 }
 
 FMenuAndSearchBoxWidgets FNiagaraSystemToolkitParameterPanelViewModel::GetParameterMenu(FNiagaraParameterPanelCategory Category) const
@@ -2002,8 +2004,10 @@ const TArray<FNiagaraParameterPanelCategory>& FNiagaraScriptToolkitParameterPane
 		CachedCurrentCategories = FNiagaraScriptToolkitParameterPanelViewModel::DefaultAdvancedCategories;
 		return FNiagaraScriptToolkitParameterPanelViewModel::DefaultAdvancedCategories;
 	}
-	CachedCurrentCategories = FNiagaraScriptToolkitParameterPanelViewModel::DefaultCategories;
-	return FNiagaraScriptToolkitParameterPanelViewModel::DefaultCategories;
+	// For now always show advanced.
+	CachedCurrentCategories = FNiagaraScriptToolkitParameterPanelViewModel::DefaultAdvancedCategories;
+	//CachedCurrentCategories = FNiagaraScriptToolkitParameterPanelViewModel::DefaultCategories;
+	return FNiagaraScriptToolkitParameterPanelViewModel::DefaultAdvancedCategories;
 }
 
 FMenuAndSearchBoxWidgets FNiagaraScriptToolkitParameterPanelViewModel::GetParameterMenu(FNiagaraParameterPanelCategory Category) const
