@@ -41,6 +41,7 @@
 
 #if USE_USD_SDK
 #include "USDIncludesStart.h"
+	#include "pxr/base/tf/stringUtils.h"
 	#include "pxr/base/tf/token.h"
 	#include "pxr/usd/usd/attribute.h"
 	#include "pxr/usd/usd/editContext.h"
@@ -927,6 +928,20 @@ bool UsdUtils::RenamePrim( UE::FUsdPrim& Prim, const TCHAR* NewPrimName )
 #else
 	return false;
 #endif // #if USE_USD_SDK
+}
+
+FString UsdUtils::SanitizeUsdIdentifier( const TCHAR* InIdentifier )
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs Allocs;
+
+	std::string UsdInName = UnrealToUsd::ConvertString( InIdentifier ).Get();
+	std::string UsdValidName = pxr::TfMakeValidIdentifier( UsdInName );
+
+	return UsdToUnreal::ConvertString( UsdValidName );
+#endif // USE_USD_SDK
+
+	return InIdentifier;
 }
 
 #if USE_USD_SDK
