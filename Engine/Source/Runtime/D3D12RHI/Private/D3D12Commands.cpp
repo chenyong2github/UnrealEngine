@@ -1184,7 +1184,8 @@ void FD3D12CommandContext::SetRenderTargetsAndClear(const FRHISetRenderTargetsIn
 	}
 
 #if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
-	if (GRHIVariableRateShadingEnabled && CommandListHandle.GraphicsCommandList5() != nullptr)
+	// If we support tier 2, we will support tier 1.
+	if (GRHISupportsPipelineVariableRateShading && GRHIVariableRateShadingEnabled && CommandListHandle.GraphicsCommandList5() != nullptr)
 	{
 		if (GRHISupportsAttachmentVariableRateShading && GRHIAttachmentVariableRateShadingEnabled)
 		{
