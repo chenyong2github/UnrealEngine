@@ -324,8 +324,12 @@ struct FMeshProxySettings
 	uint8 bGenerateLightmapUVs:1;
 
 	/** Whether to generate a nanite-enabled mesh */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ProxySettings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
 	uint8 bGenerateNaniteEnabledMesh : 1;
+
+	/** Percentage of triangles to reduce down to for generating a coarse proxy mesh from the Nanite mesh */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = NaniteSettings, meta = (EditConditionHides, EditCondition = "bGenerateNaniteEnabledMesh", ClampMin = 0, ClampMax = 100))
+	float NaniteProxyTrianglePercent;
 
 	/** Default settings. */
 	FMeshProxySettings()
@@ -361,6 +365,7 @@ struct FMeshProxySettings
 		, bAllowVertexColors(false)
 		, bGenerateLightmapUVs(false)
 		, bGenerateNaniteEnabledMesh(false)
+		, NaniteProxyTrianglePercent(100)
 	{
 		MaterialSettings.MaterialMergeType = EMaterialMergeType::MaterialMergeType_Simplygon;
 	}
@@ -391,7 +396,8 @@ struct FMeshProxySettings
 			&& bCreateCollision == Other.bCreateCollision
 			&& bAllowVertexColors == Other.bAllowVertexColors
 			&& bGenerateLightmapUVs == Other.bGenerateLightmapUVs
-			&& bGenerateNaniteEnabledMesh == Other.bGenerateNaniteEnabledMesh;
+			&& bGenerateNaniteEnabledMesh == Other.bGenerateNaniteEnabledMesh
+			&& NaniteProxyTrianglePercent == Other.NaniteProxyTrianglePercent;
 	}
 
 	/** Inequality. */
@@ -524,8 +530,12 @@ struct FMeshMergingSettings
 	uint8 bAllowDistanceField:1;
 
 	/** Whether to generate a nanite-enabled mesh */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshSettings)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NaniteSettings)
 	uint8 bGenerateNaniteEnabledMesh : 1;
+
+	/** Percentage of triangles to reduce down to for generating a coarse proxy mesh from the Nanite mesh */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = NaniteSettings, meta = (EditConditionHides, EditCondition = "bGenerateNaniteEnabledMesh", ClampMin = 0, ClampMax = 100))
+	float NaniteProxyTrianglePercent;
 
 #if WITH_EDITORONLY_DATA
 	/** Whether we should import vertex colors into merged mesh */
@@ -575,6 +585,7 @@ struct FMeshMergingSettings
 		, bIncludeImposters(true)
 		, bAllowDistanceField(false)
 		, bGenerateNaniteEnabledMesh(false)
+		, NaniteProxyTrianglePercent(100)
 #if WITH_EDITORONLY_DATA
 		, bImportVertexColors_DEPRECATED(false)
 		, bCalculateCorrectLODModel_DEPRECATED(false)
