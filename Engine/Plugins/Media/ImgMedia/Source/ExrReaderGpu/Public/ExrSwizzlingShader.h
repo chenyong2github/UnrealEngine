@@ -40,7 +40,7 @@ class EXRREADERGPU_API FExrSwizzlePS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FExrSwizzlePS, FGlobalShader);
 
 	/** If the provided buffer is RGBA the shader would work slightly differently to RGB. */
-	class FRgbaSwizzle : SHADER_PERMUTATION_BOOL("IS_RGBA");
+	class FRgbaSwizzle : SHADER_PERMUTATION_INT("NUM_CHANNELS", 5);
 	using FPermutationDomain = TShaderPermutationDomain<FRgbaSwizzle>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
