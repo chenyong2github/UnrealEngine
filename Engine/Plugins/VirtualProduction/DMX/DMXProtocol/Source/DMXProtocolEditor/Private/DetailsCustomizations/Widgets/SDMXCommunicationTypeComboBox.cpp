@@ -40,9 +40,17 @@ void SDMXCommunicationTypeComboBox::Construct(const FArguments& InArgs)
 	if (InArgs._InitialCommunicationType != EDMXCommunicationType::InternalOnly)
 	{
 		TSharedPtr<FString> InitialSelection = CommunicationTypeToStringMap.FindChecked(InArgs._InitialCommunicationType);
-		check(CommunicationTypesSource.Contains(InitialSelection));
-
-		CommunicationTypeComboBox->SetSelectedItem(InitialSelection);
+		
+		if (CommunicationTypesSource.Contains(InitialSelection))
+		{
+			CommunicationTypeComboBox->SetSelectedItem(InitialSelection);
+		}
+		else
+		{
+			// Recover from a bad initial selection
+			check(CommunicationTypesSource.Num() > 0);
+			CommunicationTypeComboBox->SetSelectedItem(CommunicationTypesSource[0]);
+		}
 	}
 }
 
