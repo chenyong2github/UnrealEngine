@@ -44,7 +44,6 @@ public:
 	/**
 	 * Should this actor be recorded as a Possessable in Sequencer? If so the resulting Object Binding	
 	 * will not create a Spawnable copy of this object and instead will possess this object in the level.
-	 * This 
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actor Source")
 	ETakeRecorderActorRecordType RecordType;
