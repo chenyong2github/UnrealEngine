@@ -164,7 +164,7 @@ FVirtualTextureLocalTile FTexturePagePool::GetLocalTileFromPhysicalAddress(uint1
 	return FVirtualTextureLocalTile(FVirtualTextureProducerHandle(Pages[pAddress].PackedProducerHandle), Pages[pAddress].Local_vAddress, Pages[pAddress].Local_vLevel);
 }
 
-bool FTexturePagePool::AnyFreeAvailable( uint32 Frame ) const
+bool FTexturePagePool::AnyFreeAvailable( uint32 Frame, uint32 FreeThreshold) const
 {
 	if( FreeHeap.Num() > 0 )
 	{
@@ -172,7 +172,7 @@ bool FTexturePagePool::AnyFreeAvailable( uint32 Frame ) const
 		const uint16 pAddress = FreeHeap.Top();
 		const uint32 PageFrame = FreeHeap.GetKey(pAddress) >> 4;
 		// Don't free any pages that were touched this frame
-		return PageFrame != Frame;
+		return PageFrame + FreeThreshold < Frame;
 	}
 
 	return false;
@@ -239,7 +239,6 @@ uint32 FTexturePagePool::FindNearestPageLevel(const FVirtualTextureProducerHandl
 uint32 FTexturePagePool::Alloc(FVirtualTextureSystem* System, uint32 Frame, const FVirtualTextureProducerHandle& ProducerHandle, uint8 GroupIndex, uint32 Local_vAddress, uint8 Local_vLevel, bool bLock)
 {
 	check(ProducerHandle.PackedValue != 0u);
-	check(AnyFreeAvailable(Frame));
 	checkSlow(FindPageAddress(ProducerHandle, GroupIndex, Local_vAddress, Local_vLevel) == ~0u);
 
 	// Grab the LRU free page

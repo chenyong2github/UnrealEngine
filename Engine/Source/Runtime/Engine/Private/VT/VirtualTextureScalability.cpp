@@ -126,6 +126,14 @@ namespace VirtualTextureScalability
 		0,
 		TEXT("Is anisotropic filtering for VTs enabled?"),
 		ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
+	static TAutoConsoleVariable<int32> CVarVTPageFreeThreshold(
+		TEXT("r.VT.PageFreeThreshold"),
+		60,
+		TEXT("Number of frames since the last time a VT page was used, before it's considered free.\n")
+		TEXT("VT pages are not necesarily marked as used on the CPU every time they're accessed by the GPU.\n")
+		TEXT("Increasing this threshold reduces the chances that an in-use frame is considered free."),
+		ECVF_RenderThreadSafe);
 	
 	/** Track changes and apply to relevant systems. This allows us to dynamically change the scalability settings. */
 	static void OnUpdate()
@@ -245,5 +253,10 @@ namespace VirtualTextureScalability
 	int32 GetRuntimeVirtualTextureSizeBias(uint32 GroupIndex)
 	{
 		return GroupIndex < NumScalabilityGroups ? GTileCountBiases[GroupIndex] : 0;
+	}
+
+	uint32 GetPageFreeThreshold()
+	{
+		return FMath::Max(CVarVTPageFreeThreshold.GetValueOnRenderThread(), 0);
 	}
 }

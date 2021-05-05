@@ -28,4 +28,6 @@ namespace VirtualTextureScalability
 	ENGINE_API float GetPoolSizeScale(uint32 GroupIndex);
 	/** Get resolution bias for runtime virtual textures. */
 	ENGINE_API int32 GetRuntimeVirtualTextureSizeBias(uint32 GroupIndex);
+	/** Get the number of frames a page must be unused, before it's considered free */
+	ENGINE_API uint32 GetPageFreeThreshold();
 }

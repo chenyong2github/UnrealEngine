@@ -74,7 +74,7 @@ public:
 	/**
 	 * Check if there are any free pages available at the moment.
 	 */
-	bool		AnyFreeAvailable( uint32 Frame ) const;
+	bool		AnyFreeAvailable( uint32 Frame, uint32 FreeThreshold ) const;
 
 	/**
 	 * Find physical address of the page allocated for the given VT address, or ~0 if not allocated

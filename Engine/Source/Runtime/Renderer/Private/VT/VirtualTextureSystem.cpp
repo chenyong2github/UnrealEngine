@@ -1950,6 +1950,7 @@ void FVirtualTextureSystem::SubmitRequests(FRDGBuilder& GraphBuilder, ERHIFeatur
 		PrepareTasks.Reserve(RequestList->GetNumLoadRequests());
 
 		const uint32 MaxPagesProduced = VirtualTextureScalability::GetMaxPagesProducedPerFrame();
+		const uint32 PageFreeThreshold = VirtualTextureScalability::GetPageFreeThreshold();
 		uint32 NumStacksProduced = 0u;
 		uint32 NumPagesProduced = 0u;
 		uint32 NumPageAllocateFails = 0u;
@@ -2011,7 +2012,7 @@ void FVirtualTextureSystem::SubmitRequests(FRDGBuilder& GraphBuilder, ERHIFeatur
 					{
 						FVirtualTexturePhysicalSpace* RESTRICT PhysicalSpace = Producer.GetPhysicalSpaceForPhysicalGroup(ProducerPhysicalGroupIndex);
 						FTexturePagePool& RESTRICT PagePool = PhysicalSpace->GetPagePool();
-						if (PagePool.AnyFreeAvailable(Frame))
+						if (PagePool.AnyFreeAvailable(Frame, PageFreeThreshold))
 						{
 							const uint32 pAddress = PagePool.Alloc(this, Frame, ProducerHandle, ProducerPhysicalGroupIndex, TileToLoad.Local_vAddress, TileToLoad.Local_vLevel, bLockTile);
 							check(pAddress != ~0u);
