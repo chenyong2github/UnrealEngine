@@ -175,6 +175,9 @@ public:
 	}
 
 protected:
+	UPROPERTY(EditAnywhere, Category = "NDisplay", meta = (DisplayName = "Follow Local Player Camera"))
+	bool bFollowLocalPlayerCamera;
+
 	UPROPERTY(EditAnywhere, Category = "NDisplay", meta = (DisplayName = "Exit when ESC pressed"))
 	bool bExitOnEsc;
 
