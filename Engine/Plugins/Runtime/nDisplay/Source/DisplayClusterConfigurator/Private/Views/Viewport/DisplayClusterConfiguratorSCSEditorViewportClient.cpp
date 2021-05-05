@@ -7,6 +7,7 @@
 #include "Settings/DisplayClusterConfiguratorSettings.h"
 #include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterConfigurationStrings.h"
+#include "DisplayClusterConfiguratorPropertyUtils.h"
 
 #include "DisplayClusterRootActor.h"
 #include "Components/DisplayClusterPreviewComponent.h"
@@ -1105,6 +1106,33 @@ void FDisplayClusterConfiguratorSCSEditorViewportClient::ToggleShowViewportNames
 bool FDisplayClusterConfiguratorSCSEditorViewportClient::CanToggleViewportNames() const
 {
 	return GetShowPreview();
+}
+
+TOptional<float> FDisplayClusterConfiguratorSCSEditorViewportClient::GetPreviewResolutionScale() const
+{
+	const TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin();
+	if (BlueprintEditor.IsValid())
+	{
+		if (ADisplayClusterRootActor* CDO = BlueprintEditor->GetDefaultRootActor())
+		{
+			return CDO->PreviewRenderTargetRatioMult;
+		}
+	}
+
+	return TOptional<float>();
+}
+
+void FDisplayClusterConfiguratorSCSEditorViewportClient::SetPreviewResolutionScale(float InScale)
+{
+	const TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin();
+	if (BlueprintEditor.IsValid())
+	{
+		if (ADisplayClusterRootActor* CDO = BlueprintEditor->GetDefaultRootActor())
+		{
+			DisplayClusterConfiguratorPropertyUtils::SetPropertyHandleValue(
+				CDO, GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, PreviewRenderTargetRatioMult), InScale);
+		}
+	}
 }
 
 TOptional<float> FDisplayClusterConfiguratorSCSEditorViewportClient::GetXformGizmoScale() const

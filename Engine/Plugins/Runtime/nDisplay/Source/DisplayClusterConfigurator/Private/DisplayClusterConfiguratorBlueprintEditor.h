@@ -5,6 +5,7 @@
 #include "BlueprintEditorModes.h"
 #include "Interfaces/IDisplayClusterConfiguratorBlueprintEditor.h"
 
+class ADisplayClusterRootActor;
 class UDisplayClusterBlueprint;
 class FEditorViewportTabContent;
 class UDisplayClusterConfigurationData;
@@ -55,8 +56,12 @@ public:
 	virtual void InvalidateViews();
 	virtual void ClusterChanged(bool bStructureChange = false);
 	virtual void ClearViewportSelection();
-	
+
+	/** Retrieve the config data from the CDO. */
 	virtual UDisplayClusterConfigurationData* GetConfig() const;
+
+	/** Retrieve the CDO being edited. */
+	ADisplayClusterRootActor* GetDefaultRootActor() const;
 	
 	virtual TSharedRef<IDisplayClusterConfiguratorViewOutputMapping> GetViewOutputMapping() const;
 	virtual TSharedRef<IDisplayClusterConfiguratorViewTree> GetViewCluster() const;
