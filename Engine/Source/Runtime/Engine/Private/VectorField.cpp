@@ -933,7 +933,7 @@ void UVectorFieldComponent::PostEditChangeProperty(FPropertyChangedEvent& Proper
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT( FCompositeAnimatedVectorFieldUniformParameters, )
 	SHADER_PARAMETER( FVector4, FrameA )
 	SHADER_PARAMETER( FVector4, FrameB )
-	SHADER_PARAMETER( FVector, VoxelSize )
+	SHADER_PARAMETER( FVector3f, VoxelSize )
 	SHADER_PARAMETER( float, FrameLerp )
 	SHADER_PARAMETER( float, NoiseScale )
 	SHADER_PARAMETER( float, NoiseMax )

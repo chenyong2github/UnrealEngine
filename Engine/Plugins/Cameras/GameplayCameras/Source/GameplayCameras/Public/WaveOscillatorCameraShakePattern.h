@@ -117,14 +117,14 @@ private:
 private:
 
 	/** Initial sinusoidal offset for location oscillation. */
-	FVector InitialLocationOffset;
+	FVector3f InitialLocationOffset;
 	/** Current sinusoidal offset for location oscillation. */
-	FVector CurrentLocationOffset;
+	FVector3f CurrentLocationOffset;
 
 	/** Initial sinusoidal offset for rotation oscillation. */
-	FVector InitialRotationOffset;
+	FVector3f InitialRotationOffset;
 	/** Current sinusoidal offset for rotation oscillation. */
-	FVector CurrentRotationOffset;
+	FVector3f CurrentRotationOffset;
 
 	/** Initial sinusoidal offset for FOV oscillation */
 	float InitialFOVOffset;

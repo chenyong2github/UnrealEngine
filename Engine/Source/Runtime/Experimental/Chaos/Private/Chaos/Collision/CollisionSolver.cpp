@@ -126,7 +126,7 @@ namespace Chaos
 			FReal ContactVelocityTargetNormal = 0.0f;
 			if (bApplyRestitution)
 			{
-				ContactVelocityTargetNormal = FMath::Max(0.0f, -Restitution * ManifoldPoint.InitialContactVelocity);
+				ContactVelocityTargetNormal = FMath::Max((FReal)0., -Restitution * ManifoldPoint.InitialContactVelocity);
 			}
 
 			// Calculate constraint-space mass
@@ -486,7 +486,7 @@ namespace Chaos
 				FReal TargetVelocityNormal = 0.0f;
 				if (ManifoldPoint.bRestitutionEnabled && Chaos_Manifold_PushOut_Restitution)
 				{
-					TargetVelocityNormal = FMath::Max(0.0f, -Restitution * ManifoldPoint.InitialContactVelocity);
+					TargetVelocityNormal = FMath::Max((FReal)0., -Restitution * ManifoldPoint.InitialContactVelocity);
 				}
 
 				const FReal ImpulseNormalDenominator = FVec3::DotProduct(ContactNormal, ContactMassInv * ContactNormal);

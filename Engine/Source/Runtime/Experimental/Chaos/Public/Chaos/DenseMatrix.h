@@ -21,7 +21,7 @@ namespace Chaos
 			return Mass;
 		}
 		
-		const FReal& I(int32 RowIndex, int32 ColIndex) const
+		const FReal I(int32 RowIndex, int32 ColIndex) const
 		{
 			checkSlow(RowIndex < 3);
 			checkSlow(ColIndex < 3);

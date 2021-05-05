@@ -1698,16 +1698,16 @@ void FDynamicMeshEmitterData::GetParticlePrevTransform(
 
 void FDynamicMeshEmitterData::CalculateParticleTransform(
 	const FMatrix& ProxyLocalToWorld,
-	const FVector& ParticleLocation,
+	const FVector3f& ParticleLocation,
 		  float    ParticleRotation,
-	const FVector& ParticleVelocity,
-	const FVector& ParticleSize,
-	const FVector& ParticlePayloadInitialOrientation,
-	const FVector& ParticlePayloadRotation,
-	const FVector& ParticlePayloadCameraOffset,
-	const FVector& ParticlePayloadOrbitOffset,
-	const FVector& ViewOrigin,
-	const FVector& ViewDirection,
+	const FVector3f& ParticleVelocity,
+	const FVector3f& ParticleSize,
+	const FVector3f& ParticlePayloadInitialOrientation,
+	const FVector3f& ParticlePayloadRotation,
+	const FVector3f& ParticlePayloadCameraOffset,
+	const FVector3f& ParticlePayloadOrbitOffset,
+	const FVector3f& ViewOrigin,
+	const FVector3f& ViewDirection,
 	FMatrix& OutTransformMat
 	) const
 {
@@ -2136,7 +2136,7 @@ void FDynamicMeshEmitterData::GetInstanceData(void* InstanceData, void* DynamicP
 
 		// Particle velocity. Calculate on CPU to avoid computing in vertex shader.
 		// Note: It would be preferred if we could check whether the material makes use of the 'Particle Direction' node to avoid this work.
-		FVector DeltaPosition = Particle.Location - Particle.OldLocation;
+		FVector3f DeltaPosition = Particle.Location - Particle.OldLocation;
 
 		int32 CurrentOffset = Source.OrbitModuleOffset;
 		if (CurrentOffset != 0)
@@ -2151,7 +2151,7 @@ void FDynamicMeshEmitterData::GetInstanceData(void* InstanceData, void* DynamicP
 			{
 				DeltaPosition = Proxy->GetLocalToWorld().TransformVector(DeltaPosition);
 			}
-			FVector Direction;
+			FVector3f Direction;
 			float Speed; 
 			DeltaPosition.ToDirectionAndLength(Direction, Speed);
 
@@ -2505,11 +2505,11 @@ void FDynamicBeam2EmitterData::RenderDirectLine(const FParticleSystemSceneProxy*
 		DECLARE_PARTICLE_PTR(Particle, Source.DataContainer.ParticleData + Source.ParticleStride * Beam);
 
 		FBeam2TypeDataPayload*	BeamPayloadData		= NULL;
-		FVector*				InterpolatedPoints	= NULL;
+		FVector3f*				InterpolatedPoints	= NULL;
 		float*					NoiseRate			= NULL;
 		float*					NoiseDelta			= NULL;
-		FVector*				TargetNoisePoints	= NULL;
-		FVector*				NextNoisePoints		= NULL;
+		FVector3f*				TargetNoisePoints	= NULL;
+		FVector3f*				NextNoisePoints		= NULL;
 		float*					TaperValues			= NULL;
 
 		BeamPayloadData = (FBeam2TypeDataPayload*)((uint8*)Particle + Source.BeamDataOffset);
@@ -2572,8 +2572,8 @@ void FDynamicBeam2EmitterData::RenderLines(const FParticleSystemSceneProxy* Prox
 			FBeam2TypeDataPayload*	BeamPayloadData		= NULL;
 			float*					NoiseRate			= NULL;
 			float*					NoiseDelta			= NULL;
-			FVector*				TargetNoisePoints	= NULL;
-			FVector*				NextNoisePoints		= NULL;
+			FVector3f*				TargetNoisePoints	= NULL;
+			FVector3f*				NextNoisePoints		= NULL;
 			float*					TaperValues			= NULL;
 			float*					NoiseDistanceScale	= NULL;
 
@@ -2592,11 +2592,11 @@ void FDynamicBeam2EmitterData::RenderLines(const FParticleSystemSceneProxy* Prox
 			}
 			if (Source.TargetNoisePointsOffset != -1)
 			{
-				TargetNoisePoints = (FVector*)((uint8*)Particle + Source.TargetNoisePointsOffset);
+				TargetNoisePoints = (FVector3f*)((uint8*)Particle + Source.TargetNoisePointsOffset);
 			}
 			if (Source.NextNoisePointsOffset != -1)
 			{
-				NextNoisePoints = (FVector*)((uint8*)Particle + Source.NextNoisePointsOffset);
+				NextNoisePoints = (FVector3f*)((uint8*)Particle + Source.NextNoisePointsOffset);
 			}
 			if (Source.TaperValuesOffset != -1)
 			{
@@ -2613,8 +2613,8 @@ void FDynamicBeam2EmitterData::RenderLines(const FParticleSystemSceneProxy* Prox
 				NoiseDistScale = *NoiseDistanceScale;
 			}
 
-			FVector* NoisePoints	= TargetNoisePoints;
-			FVector* NextNoise		= NextNoisePoints;
+			FVector3f* NoisePoints	= TargetNoisePoints;
+			FVector3f* NextNoise		= NextNoisePoints;
 
 			float NoiseRangeScaleFactor = Source.NoiseRangeScale;
 			//@todo. How to handle no noise points?
@@ -2911,7 +2911,7 @@ void FDynamicBeam2EmitterData::RenderLines(const FParticleSystemSceneProxy* Prox
 				DECLARE_PARTICLE_PTR(Particle, Source.DataContainer.ParticleData + Source.ParticleStride * i);
 
 				FBeam2TypeDataPayload*	BeamPayloadData		= NULL;
-				FVector*				InterpolatedPoints	= NULL;
+				FVector3f*				InterpolatedPoints	= NULL;
 
 				BeamPayloadData = (FBeam2TypeDataPayload*)((uint8*)Particle + Source.BeamDataOffset);
 				if (BeamPayloadData->TriangleCount == 0)
@@ -2920,7 +2920,7 @@ void FDynamicBeam2EmitterData::RenderLines(const FParticleSystemSceneProxy* Prox
 				}
 				if (Source.InterpolatedPointsOffset != -1)
 				{
-					InterpolatedPoints = (FVector*)((uint8*)Particle + Source.InterpolatedPointsOffset);
+					InterpolatedPoints = (FVector3f*)((uint8*)Particle + Source.InterpolatedPointsOffset);
 				}
 
 				FVector Location;
@@ -3127,11 +3127,11 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 			DECLARE_PARTICLE_PTR(Particle, Source.DataContainer.ParticleData + Source.ParticleStride * i);
 
 			FBeam2TypeDataPayload*	BeamPayloadData		= NULL;
-			FVector*				InterpolatedPoints	= NULL;
+			FVector3f*				InterpolatedPoints	= NULL;
 			float*					NoiseRate			= NULL;
 			float*					NoiseDelta			= NULL;
-			FVector*				TargetNoisePoints	= NULL;
-			FVector*				NextNoisePoints		= NULL;
+			FVector3f*				TargetNoisePoints	= NULL;
+			FVector3f*				NextNoisePoints		= NULL;
 			float*					TaperValues			= NULL;
 
 			BeamPayloadData = (FBeam2TypeDataPayload*)((uint8*)Particle + Source.BeamDataOffset);
@@ -3141,7 +3141,7 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 			}
 			if (Source.InterpolatedPointsOffset != -1)
 			{
-				InterpolatedPoints = (FVector*)((uint8*)Particle + Source.InterpolatedPointsOffset);
+				InterpolatedPoints = (FVector3f*)((uint8*)Particle + Source.InterpolatedPointsOffset);
 			}
 			if (Source.NoiseRateOffset != -1)
 			{
@@ -3153,11 +3153,11 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 			}
 			if (Source.TargetNoisePointsOffset != -1)
 			{
-				TargetNoisePoints = (FVector*)((uint8*)Particle + Source.TargetNoisePointsOffset);
+				TargetNoisePoints = (FVector3f*)((uint8*)Particle + Source.TargetNoisePointsOffset);
 			}
 			if (Source.NextNoisePointsOffset != -1)
 			{
-				NextNoisePoints = (FVector*)((uint8*)Particle + Source.NextNoisePointsOffset);
+				NextNoisePoints = (FVector3f*)((uint8*)Particle + Source.NextNoisePointsOffset);
 			}
 			if (Source.TaperValuesOffset != -1)
 			{
@@ -3306,11 +3306,11 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 			DECLARE_PARTICLE_PTR(Particle, Source.DataContainer.ParticleData + Source.ParticleStride * i);
 
 			FBeam2TypeDataPayload*	BeamPayloadData		= NULL;
-			FVector*				InterpolatedPoints	= NULL;
+			FVector3f*				InterpolatedPoints	= NULL;
 			float*					NoiseRate			= NULL;
 			float*					NoiseDelta			= NULL;
-			FVector*				TargetNoisePoints	= NULL;
-			FVector*				NextNoisePoints		= NULL;
+			FVector3f*				TargetNoisePoints	= NULL;
+			FVector3f*				NextNoisePoints		= NULL;
 			float*					TaperValues			= NULL;
 
 			BeamPayloadData = (FBeam2TypeDataPayload*)((uint8*)Particle + Source.BeamDataOffset);
@@ -3320,7 +3320,7 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 			}
 			if (Source.InterpolatedPointsOffset != -1)
 			{
-				InterpolatedPoints = (FVector*)((uint8*)Particle + Source.InterpolatedPointsOffset);
+				InterpolatedPoints = (FVector3f*)((uint8*)Particle + Source.InterpolatedPointsOffset);
 			}
 			if (Source.NoiseRateOffset != -1)
 			{
@@ -3332,11 +3332,11 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 			}
 			if (Source.TargetNoisePointsOffset != -1)
 			{
-				TargetNoisePoints = (FVector*)((uint8*)Particle + Source.TargetNoisePointsOffset);
+				TargetNoisePoints = (FVector3f*)((uint8*)Particle + Source.TargetNoisePointsOffset);
 			}
 			if (Source.NextNoisePointsOffset != -1)
 			{
-				NextNoisePoints = (FVector*)((uint8*)Particle + Source.NextNoisePointsOffset);
+				NextNoisePoints = (FVector3f*)((uint8*)Particle + Source.NextNoisePointsOffset);
 			}
 			if (Source.TaperValuesOffset != -1)
 			{
@@ -3582,11 +3582,11 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 
 		// Retrieve the beam data from the particle.
 		FBeam2TypeDataPayload*	BeamPayloadData		= NULL;
-		FVector*				InterpolatedPoints	= NULL;
+		FVector3f*				InterpolatedPoints	= NULL;
 		float*					NoiseRate			= NULL;
 		float*					NoiseDelta			= NULL;
-		FVector*				TargetNoisePoints	= NULL;
-		FVector*				NextNoisePoints		= NULL;
+		FVector3f*				TargetNoisePoints	= NULL;
+		FVector3f*				NextNoisePoints		= NULL;
 		float*					TaperValues			= NULL;
 		float*					NoiseDistanceScale	= NULL;
 
@@ -3597,7 +3597,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 		}
 		if (Source.InterpolatedPointsOffset != -1)
 		{
-			InterpolatedPoints = (FVector*)((uint8*)Particle + Source.InterpolatedPointsOffset);
+			InterpolatedPoints = (FVector3f*)((uint8*)Particle + Source.InterpolatedPointsOffset);
 		}
 		if (Source.NoiseRateOffset != -1)
 		{
@@ -3609,11 +3609,11 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 		}
 		if (Source.TargetNoisePointsOffset != -1)
 		{
-			TargetNoisePoints = (FVector*)((uint8*)Particle + Source.TargetNoisePointsOffset);
+			TargetNoisePoints = (FVector3f*)((uint8*)Particle + Source.TargetNoisePointsOffset);
 		}
 		if (Source.NextNoisePointsOffset != -1)
 		{
-			NextNoisePoints = (FVector*)((uint8*)Particle + Source.NextNoisePointsOffset);
+			NextNoisePoints = (FVector3f*)((uint8*)Particle + Source.NextNoisePointsOffset);
 		}
 		if (Source.TaperValuesOffset != -1)
 		{
@@ -3630,8 +3630,8 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 			NoiseDistScale = *NoiseDistanceScale;
 		}
 
-		FVector* NoisePoints	= TargetNoisePoints;
-		FVector* NextNoise		= NextNoisePoints;
+		FVector3f* NoisePoints	= TargetNoisePoints;
+		FVector3f* NextNoise		= NextNoisePoints;
 
 		float NoiseRangeScaleFactor = Source.NoiseRangeScale;
 		//@todo. How to handle no noise points?
@@ -4543,11 +4543,11 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 
 		// Retrieve the beam data from the particle.
 		FBeam2TypeDataPayload*	BeamPayloadData		= NULL;
-		FVector*				InterpolatedPoints	= NULL;
+		FVector3f*				InterpolatedPoints	= NULL;
 		float*					NoiseRate			= NULL;
 		float*					NoiseDelta			= NULL;
-		FVector*				TargetNoisePoints	= NULL;
-		FVector*				NextNoisePoints		= NULL;
+		FVector3f*				TargetNoisePoints	= NULL;
+		FVector3f*				NextNoisePoints		= NULL;
 		float*					TaperValues			= NULL;
 		float*					NoiseDistanceScale	= NULL;
 
@@ -4563,7 +4563,7 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 
 		if (Source.InterpolatedPointsOffset != -1)
 		{
-			InterpolatedPoints = (FVector*)((uint8*)Particle + Source.InterpolatedPointsOffset);
+			InterpolatedPoints = (FVector3f*)((uint8*)Particle + Source.InterpolatedPointsOffset);
 		}
 		if (Source.NoiseRateOffset != -1)
 		{
@@ -4575,11 +4575,11 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 		}
 		if (Source.TargetNoisePointsOffset != -1)
 		{
-			TargetNoisePoints = (FVector*)((uint8*)Particle + Source.TargetNoisePointsOffset);
+			TargetNoisePoints = (FVector3f*)((uint8*)Particle + Source.TargetNoisePointsOffset);
 		}
 		if (Source.NextNoisePointsOffset != -1)
 		{
-			NextNoisePoints = (FVector*)((uint8*)Particle + Source.NextNoisePointsOffset);
+			NextNoisePoints = (FVector3f*)((uint8*)Particle + Source.NextNoisePointsOffset);
 		}
 		if (Source.TaperValuesOffset != -1)
 		{
@@ -4603,8 +4603,8 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 		bool bInterpFractionIsZero = false;
 		int32 InterpIndex = FMath::TruncToInt(InterpStepSize);
 
-		FVector* NoisePoints	= TargetNoisePoints;
-		FVector* NextNoise		= NextNoisePoints;
+		FVector3f* NoisePoints	= TargetNoisePoints;
+		FVector3f* NextNoise		= NextNoisePoints;
 
 		// Appropriate checks are made before access access, no need to assert here
 		CA_ASSUME(NoisePoints != NULL);
@@ -6025,8 +6025,8 @@ struct FAnimTrailParticleRenderData
 			check( InterpFactor >= 0.0f && InterpFactor <= 1.0f );
 			check( Particle && PrevParticle && Payload && PrevPayload );
 				
-			FVector PrevPrevLocation;
-			FVector PrevPrevDirection;		
+			FVector3f PrevPrevLocation;
+			FVector3f PrevPrevDirection;		
 			float PrevPrevLength;
 			float PrevPrevTiledU;
 			float PrevPrevSize;
@@ -6053,8 +6053,8 @@ struct FAnimTrailParticleRenderData
 				PrevPrevDynParamParticle = PrevParticle;
 			}
 
-			FVector NextLocation;
-			FVector NextDirection;
+			FVector3f NextLocation;
+			FVector3f NextDirection;
 			float NextLength;
 			float NextTiledU;
 			float NextSize;

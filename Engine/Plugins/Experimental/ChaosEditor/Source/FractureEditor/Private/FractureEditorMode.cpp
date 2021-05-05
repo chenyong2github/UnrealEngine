@@ -371,7 +371,7 @@ void FFractureEditorMode::GetActorGlobalBounds(TArrayView<UGeometryCollectionCom
 		const TManagedArray<FBox>& BoundingBox = OutGeometryCollection->GetAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
 		const TManagedArray<int32>& TransformToGeometryIndex = OutGeometryCollection->GetAttribute<int32>("TransformToGeometryIndex", FGeometryCollection::TransformGroup);
 
-		TManagedArray<FVector>* ExplodedVectorsPtr = OutGeometryCollection->FindAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
+		TManagedArray<FVector3f>* ExplodedVectorsPtr = OutGeometryCollection->FindAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup);
 
 		TArray<FTransform> Transforms;
 		GeometryCollectionAlgo::GlobalMatrices(Transform, OutGeometryCollection->Parent, Transforms);
@@ -380,12 +380,12 @@ void FFractureEditorMode::GetActorGlobalBounds(TArrayView<UGeometryCollectionCom
 
 		if (ExplodedVectorsPtr)
 		{
-			TManagedArray<FVector>& ExplodedVectors = *ExplodedVectorsPtr;
+			TManagedArray<FVector3f>& ExplodedVectors = *ExplodedVectorsPtr;
 			for (int32 Idx = 0, ni = GeometryCollection->NumElements(FGeometryCollection::TransformGroup); Idx < ni; ++Idx)
 			{
 				if (TransformToGeometryIndex[Idx] > -1)
 				{
-					const FVector& Offset = ExplodedVectors[Idx];
+					const FVector3f& Offset = ExplodedVectors[Idx];
 					const FBox& Bounds = BoundingBox[TransformToGeometryIndex[Idx]];
 					BoundsToBone.Add(Idx, Bounds.ShiftBy(Offset).TransformBy(Transforms[Idx]));
 				}

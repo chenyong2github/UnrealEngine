@@ -361,6 +361,11 @@ TSharedRef<SWidget> FMathStructCustomization::MakeChildWidget(
 		return MakeNumericWidget<float>(StructurePropertyHandle, PropertyHandle);
 	}
 	
+	if (PropertyClass == FDoubleProperty::StaticClass())
+	{
+		return MakeNumericWidget<double>(StructurePropertyHandle, PropertyHandle);
+	}
+
 	if (PropertyClass == FIntProperty::StaticClass())
 	{
 		return MakeNumericWidget<int32>(StructurePropertyHandle, PropertyHandle);

@@ -265,8 +265,8 @@ FORCEINLINE void AEFConstantKeyLerp<FORMAT>::GetBoneAtomTranslation(FTransform& 
 	{
 		const uint8* RESTRICT KeyData0 = TransStream + TransStreamOffset + Index0*CompressedTranslationStrides[FORMAT]*CompressedTranslationNum[FORMAT];
 		const uint8* RESTRICT KeyData1 = TransStream + TransStreamOffset + Index1*CompressedTranslationStrides[FORMAT]*CompressedTranslationNum[FORMAT];
-		FVector P0;
-		FVector P1;
+		FVector3f P0;
+		FVector3f P1;
 		DecompressTranslation<FORMAT>( P0, TransStream, KeyData0 );
 		DecompressTranslation<FORMAT>( P1, TransStream, KeyData1 );
 		OutAtom.SetTranslation( FMath::Lerp( P0, P1, Alpha ) );
@@ -275,7 +275,7 @@ FORCEINLINE void AEFConstantKeyLerp<FORMAT>::GetBoneAtomTranslation(FTransform& 
 	{
 		// unpack a single key
 		const uint8* RESTRICT KeyData = TransStream + TransStreamOffset + Index0*CompressedTranslationStrides[FORMAT]*CompressedTranslationNum[FORMAT];
-		FVector P0;
+		FVector3f P0;
 		DecompressTranslation<FORMAT>( P0, TransStream, KeyData);
 		OutAtom.SetTranslation(P0);
 	}
@@ -307,8 +307,8 @@ FORCEINLINE void AEFConstantKeyLerp<FORMAT>::GetBoneAtomScale(FTransform& OutAto
 	{
 		const uint8* RESTRICT KeyData0 = ScaleStream + ScaleStreamOffset + Index0*CompressedScaleStrides[FORMAT]*CompressedScaleNum[FORMAT];
 		const uint8* RESTRICT KeyData1 = ScaleStream + ScaleStreamOffset + Index1*CompressedScaleStrides[FORMAT]*CompressedScaleNum[FORMAT];
-		FVector P0;
-		FVector P1;
+		FVector3f P0;
+		FVector3f P1;
 		DecompressScale<FORMAT>( P0, ScaleStream, KeyData0 );
 		DecompressScale<FORMAT>( P1, ScaleStream, KeyData1 );
 		OutAtom.SetScale3D( FMath::Lerp( P0, P1, Alpha ) );
@@ -317,7 +317,7 @@ FORCEINLINE void AEFConstantKeyLerp<FORMAT>::GetBoneAtomScale(FTransform& OutAto
 	{
 		// unpack a single key
 		const uint8* RESTRICT KeyData = ScaleStream + ScaleStreamOffset + Index0*CompressedScaleStrides[FORMAT]*CompressedScaleNum[FORMAT];
-		FVector P0;
+		FVector3f P0;
 		DecompressScale<FORMAT>( P0, ScaleStream, KeyData);
 		OutAtom.SetScale3D(P0);
 	}

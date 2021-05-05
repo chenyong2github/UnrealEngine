@@ -730,6 +730,7 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// Whether to enable support for DirectX Math
+		/// LWC_TODO: No longer supported. Needs removing.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		public bool bWithDirectXMath = false;
@@ -2081,7 +2082,7 @@ namespace UnrealBuildTool
 
 		public bool bCompileISPC
 		{
-			get { return Inner.bCompileISPC; }
+			get { return Inner.bCompileISPC && !GlobalDefinitions.Contains("UE_LARGE_WORLD_COORDINATES_DISABLED=0"); }	// LWC_TODO: Temporarily disable ISPC when LWC is turned on. To be removed when double support is added to ISPC.
 		}
 
 		public bool bBuildEditor

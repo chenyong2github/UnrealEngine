@@ -476,7 +476,7 @@ FRepMovement::FRepMovement()
 }
 
 /** Rebase zero-origin position onto local world origin value. */
-FVector FRepMovement::RebaseOntoLocalOrigin(const struct FVector& Location, const struct FIntVector& LocalOrigin)
+FVector FRepMovement::RebaseOntoLocalOrigin(const FVector& Location, const struct FIntVector& LocalOrigin)
 {
 	if (EnableMultiplayerWorldOriginRebasing <= 0 || LocalOrigin == FIntVector::ZeroValue)
 	{
@@ -487,7 +487,7 @@ FVector FRepMovement::RebaseOntoLocalOrigin(const struct FVector& Location, cons
 }
 
 /** Rebase local-origin position onto zero world origin value. */
-FVector FRepMovement::RebaseOntoZeroOrigin(const struct FVector& Location, const struct FIntVector& LocalOrigin)
+FVector FRepMovement::RebaseOntoZeroOrigin(const FVector& Location, const struct FIntVector& LocalOrigin)
 {
 	if (EnableMultiplayerWorldOriginRebasing <= 0 || LocalOrigin == FIntVector::ZeroValue)
 	{
@@ -498,7 +498,7 @@ FVector FRepMovement::RebaseOntoZeroOrigin(const struct FVector& Location, const
 }
 
 /** Rebase zero-origin position onto local world origin value based on an actor's world. */
-FVector FRepMovement::RebaseOntoLocalOrigin(const struct FVector& Location, const AActor* const WorldContextActor)
+FVector FRepMovement::RebaseOntoLocalOrigin(const FVector& Location, const AActor* const WorldContextActor)
 {
 	if (WorldContextActor == nullptr || EnableMultiplayerWorldOriginRebasing <= 0)
 	{
@@ -509,7 +509,7 @@ FVector FRepMovement::RebaseOntoLocalOrigin(const struct FVector& Location, cons
 }
 
 /** Rebase local-origin position onto zero world origin value based on an actor's world.*/
-FVector FRepMovement::RebaseOntoZeroOrigin(const struct FVector& Location, const AActor* const WorldContextActor)
+FVector FRepMovement::RebaseOntoZeroOrigin(const FVector& Location, const AActor* const WorldContextActor)
 {
 	if (WorldContextActor == nullptr || EnableMultiplayerWorldOriginRebasing <= 0)
 	{
@@ -522,7 +522,7 @@ FVector FRepMovement::RebaseOntoZeroOrigin(const struct FVector& Location, const
 /// @cond DOXYGEN_WARNINGS
 
 /** Rebase zero-origin position onto local world origin value based on an actor component's world. */
-FVector FRepMovement::RebaseOntoLocalOrigin(const struct FVector& Location, const UActorComponent* const WorldContextActorComponent)
+FVector FRepMovement::RebaseOntoLocalOrigin(const FVector& Location, const UActorComponent* const WorldContextActorComponent)
 {
 	if (WorldContextActorComponent == nullptr || EnableMultiplayerWorldOriginRebasing <= 0)
 	{
@@ -533,7 +533,7 @@ FVector FRepMovement::RebaseOntoLocalOrigin(const struct FVector& Location, cons
 }
 
 /** Rebase local-origin position onto zero world origin value based on an actor component's world.*/
-FVector FRepMovement::RebaseOntoZeroOrigin(const struct FVector& Location, const UActorComponent* const WorldContextActorComponent)
+FVector FRepMovement::RebaseOntoZeroOrigin(const FVector& Location, const UActorComponent* const WorldContextActorComponent)
 {
 	if (WorldContextActorComponent == nullptr || EnableMultiplayerWorldOriginRebasing <= 0)
 	{

@@ -29,7 +29,6 @@ struct FAnimationCacheBonesContext;
 struct FPoseContext;
 struct FComponentSpacePoseContext;
 class FName;
-struct FVector;
 struct FRotator;
 struct FAnimNode_SequencePlayerBase;
 struct FAnimNotifyEvent;

@@ -114,7 +114,7 @@ void FGeomTools::ClipMeshWithPlane( TArray<FClipSMTriangle>& OutTris, TArray<FUt
 		float PlaneDist[3];
 		for(int32 i=0; i<3; i++)
 		{
-			PlaneDist[i] = Plane.PlaneDot(SrcTri->Vertices[i].Pos);
+			PlaneDist[i] = Plane.PlaneDot(FVector(SrcTri->Vertices[i].Pos));
 		}
 
 		TArray<FClipSMVertex> FinalVerts;
@@ -187,11 +187,11 @@ void FGeomTools::ProjectEdges( TArray<FUtilEdge2D>& Out2DEdges, FMatrix& ToWorld
 	Out2DEdges.AddUninitialized( In3DEdges.Num() );
 	for(int32 i=0; i<In3DEdges.Num(); i++)
 	{
-		FVector P = ToWorld.InverseTransformPosition(In3DEdges[i].V0);
+		FVector P = ToWorld.InverseTransformPosition(FVector(In3DEdges[i].V0));
 		Out2DEdges[i].V0.X = P.X;
 		Out2DEdges[i].V0.Y = P.Y;
 
-		P = ToWorld.InverseTransformPosition(In3DEdges[i].V1);
+		P = ToWorld.InverseTransformPosition(FVector(In3DEdges[i].V1));
 		Out2DEdges[i].V1.X = P.X;
 		Out2DEdges[i].V1.Y = P.Y;
 	}
@@ -327,16 +327,16 @@ void FGeomTools::Buid2DPolysFromEdges(TArray<FUtilPoly2D>& OutPolys, const TArra
 }
 
 /** Given three direction vectors, indicates if A and B are on the same 'side' of Vec. */
-bool FGeomTools::VectorsOnSameSide(const FVector& Vec, const FVector& A, const FVector& B, const float SameSideDotProductEpsilon)
+bool FGeomTools::VectorsOnSameSide(const FVector3f& Vec, const FVector3f& A, const FVector3f& B, const float SameSideDotProductEpsilon)
 {
-	const FVector CrossA = Vec ^ A;
-	const FVector CrossB = Vec ^ B;
+	const FVector3f CrossA = Vec ^ A;
+	const FVector3f CrossB = Vec ^ B;
 	float DotWithEpsilon = SameSideDotProductEpsilon + ( CrossA | CrossB );
 	return !FMath::IsNegativeFloat(DotWithEpsilon);
 }
 
 /** Util to see if P lies within triangle created by A, B and C. */
-bool FGeomTools::PointInTriangle(const FVector& A, const FVector& B, const FVector& C, const FVector& P, const float InsideTriangleDotProductEpsilon)
+bool FGeomTools::PointInTriangle(const FVector3f& A, const FVector3f& B, const FVector3f& C, const FVector3f& P, const float InsideTriangleDotProductEpsilon)
 {
 	// Cross product indicates which 'side' of the vector the point is on
 	// If its on the same side as the remaining vert for all edges, then its inside.	
@@ -398,7 +398,7 @@ static bool AreEdgesMergeable(
 	const FClipSMVertex& V2
 	)
 {
-	const FVector MergedEdgeVector = V2.Pos - V0.Pos;
+	const FVector3f MergedEdgeVector = V2.Pos - V0.Pos;
 	const float MergedEdgeLengthSquared = MergedEdgeVector.SizeSquared();
 	if(MergedEdgeLengthSquared > DELTA)
 	{
@@ -464,8 +464,8 @@ bool FGeomTools::TriangulatePoly(TArray<FClipSMTriangle>& OutTris, const FClipSM
 				const int32 CIndex = (EarVertexIndex+1)%PolyVerts.Num();
 
 				// Check that this vertex is convex (cross product must be positive)
-				const FVector ABEdge = PolyVerts[BIndex].Pos - PolyVerts[AIndex].Pos;
-				const FVector ACEdge = PolyVerts[CIndex].Pos - PolyVerts[AIndex].Pos;
+				const FVector3f ABEdge = PolyVerts[BIndex].Pos - PolyVerts[AIndex].Pos;
+				const FVector3f ACEdge = PolyVerts[CIndex].Pos - PolyVerts[AIndex].Pos;
 				const float TriangleDeterminant = (ABEdge ^ ACEdge) | InPoly.FaceNormal;
 				if(FMath::IsNegativeFloat(TriangleDeterminant))
 				{

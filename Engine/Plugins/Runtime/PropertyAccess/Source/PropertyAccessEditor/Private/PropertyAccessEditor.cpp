@@ -346,6 +346,10 @@ struct FPropertyAccessEditorSystem
 				{
 					return EPropertyAccessCopyType::PromoteBoolToFloat;
 				}
+				else if (DestProperty->IsA<FDoubleProperty>())
+				{
+					return EPropertyAccessCopyType::PromoteBoolToDouble;
+				}
 			}
 			else if(SrcProperty->IsA<FByteProperty>())
 			{
@@ -361,6 +365,10 @@ struct FPropertyAccessEditorSystem
 				{
 					return EPropertyAccessCopyType::PromoteByteToFloat;
 				}
+				else if (DestProperty->IsA<FDoubleProperty>())
+				{
+					return EPropertyAccessCopyType::PromoteByteToDouble;
+				}
 			}
 			else if(SrcProperty->IsA<FIntProperty>())
 			{
@@ -371,6 +379,24 @@ struct FPropertyAccessEditorSystem
 				else if(DestProperty->IsA<FFloatProperty>())
 				{
 					return EPropertyAccessCopyType::PromoteInt32ToFloat;
+				}
+				else if (DestProperty->IsA<FDoubleProperty>())
+				{
+					return EPropertyAccessCopyType::PromoteInt32ToDouble;
+				}
+			}
+			else if (SrcProperty->IsA<FFloatProperty>())
+			{
+				if (DestProperty->IsA<FDoubleProperty>())
+				{
+					return EPropertyAccessCopyType::PromoteFloatToDouble;
+				}
+			}
+			else if (SrcProperty->IsA<FDoubleProperty>())
+			{
+				if (DestProperty->IsA<FFloatProperty>())
+				{
+					return EPropertyAccessCopyType::DemoteDoubleToFloat;
 				}
 			}
 		}
@@ -477,23 +503,37 @@ namespace PropertyAccess
 			// Not directly compatible, check for promotions
 			if(InPropertyA->IsA<FBoolProperty>())
 			{
-				if(InPropertyB->IsA<FByteProperty>() || InPropertyB->IsA<FIntProperty>() || InPropertyB->IsA<FInt64Property>() || InPropertyB->IsA<FFloatProperty>())
+				if(InPropertyB->IsA<FByteProperty>() || InPropertyB->IsA<FIntProperty>() || InPropertyB->IsA<FInt64Property>() || InPropertyB->IsA<FFloatProperty>() || InPropertyB->IsA<FDoubleProperty>())
 				{
 					return EPropertyAccessCompatibility::Promotable;
 				}
 			}
 			else if(InPropertyA->IsA<FByteProperty>())
 			{
-				if(InPropertyB->IsA<FIntProperty>() || InPropertyB->IsA<FInt64Property>() || InPropertyB->IsA<FFloatProperty>())
+				if(InPropertyB->IsA<FIntProperty>() || InPropertyB->IsA<FInt64Property>() || InPropertyB->IsA<FFloatProperty>() || InPropertyB->IsA<FDoubleProperty>())
 				{
 					return EPropertyAccessCompatibility::Promotable;
 				}
 			}
 			else if(InPropertyA->IsA<FIntProperty>())
 			{
-				if(InPropertyB->IsA<FInt64Property>() || InPropertyB->IsA<FFloatProperty>())
+				if(InPropertyB->IsA<FInt64Property>() || InPropertyB->IsA<FFloatProperty>() || InPropertyB->IsA<FDoubleProperty>())
 				{
 					return EPropertyAccessCompatibility::Promotable;
+				}
+			}
+			else if (InPropertyA->IsA<FFloatProperty>())
+			{
+				if (InPropertyB->IsA<FDoubleProperty>())
+				{
+					return EPropertyAccessCompatibility::Promotable;
+				}
+			}
+			else if (InPropertyA->IsA<FDoubleProperty>())
+			{
+				if (InPropertyB->IsA<FFloatProperty>())
+				{
+					return EPropertyAccessCompatibility::Promotable;	// LWC_TODO: Incorrect! Do not ship this!
 				}
 			}
 		}
@@ -513,23 +553,37 @@ namespace PropertyAccess
 			// Not directly compatible, check for promotions
 			if(InPinTypeA.PinCategory == UEdGraphSchema_K2::PC_Boolean)
 			{
-				if(InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Byte || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Float)
+				if(InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Byte || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Float || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Double)
 				{
 					return EPropertyAccessCompatibility::Promotable;
 				}
 			}
 			else if(InPinTypeA.PinCategory == UEdGraphSchema_K2::PC_Byte)
 			{
-				if(InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Float)
+				if(InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Float || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Double)
 				{
 					return EPropertyAccessCompatibility::Promotable;
 				}
 			}
 			else if(InPinTypeA.PinCategory == UEdGraphSchema_K2::PC_Int)
 			{
-				if(InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Float)
+				if(InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Float || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Double)
 				{
 					return EPropertyAccessCompatibility::Promotable;
+				}
+			}
+			else if (InPinTypeA.PinCategory == UEdGraphSchema_K2::PC_Float)
+			{
+				if (InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Double)
+				{
+					return EPropertyAccessCompatibility::Promotable;
+				}
+			}
+			else if (InPinTypeA.PinCategory == UEdGraphSchema_K2::PC_Double)
+			{
+				if (InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Float)
+				{
+					return EPropertyAccessCompatibility::Promotable;	// LWC_TODO: Incorrect! Do not ship this!
 				}
 			}
 		}

@@ -73,8 +73,8 @@ class FHairCardAtlasTextureRectVS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FHairCardAtlasTextureRectVS, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector, Raster_MinBound)
-		SHADER_PARAMETER(FVector, Raster_MaxBound)
+		SHADER_PARAMETER(FVector3f, Raster_MinBound)
+		SHADER_PARAMETER(FVector3f, Raster_MaxBound)
 
 		SHADER_PARAMETER(uint32, SampleCount)
 
@@ -82,9 +82,9 @@ class FHairCardAtlasTextureRectVS : public FGlobalShader
 		SHADER_PARAMETER(FIntPoint, Atlas_RectOffset)
 		SHADER_PARAMETER(FIntPoint, Atlas_RectResolution)
 
-		SHADER_PARAMETER(FVector, Raster_AxisX)
-		SHADER_PARAMETER(FVector, Raster_AxisY)
-		SHADER_PARAMETER(FVector, Raster_AxisZ)
+		SHADER_PARAMETER(FVector3f, Raster_AxisX)
+		SHADER_PARAMETER(FVector3f, Raster_AxisY)
+		SHADER_PARAMETER(FVector3f, Raster_AxisZ)
 
 		SHADER_PARAMETER(uint32, Curve_VertexOffset)
 		SHADER_PARAMETER(uint32, Curve_VertexCount)
@@ -111,8 +111,8 @@ class FHairCardAtlasTextureRectPS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
-		SHADER_PARAMETER(FVector, Raster_MinBound)
-		SHADER_PARAMETER(FVector, Raster_MaxBound)
+		SHADER_PARAMETER(FVector3f, Raster_MinBound)
+		SHADER_PARAMETER(FVector3f, Raster_MaxBound)
 		
 		SHADER_PARAMETER(uint32, SampleCount)
 
@@ -120,9 +120,9 @@ class FHairCardAtlasTextureRectPS : public FGlobalShader
 		SHADER_PARAMETER(FIntPoint, Atlas_RectOffset)
 		SHADER_PARAMETER(FIntPoint, Atlas_RectResolution)
 
-		SHADER_PARAMETER(FVector, Raster_AxisX)
-		SHADER_PARAMETER(FVector, Raster_AxisY)
-		SHADER_PARAMETER(FVector, Raster_AxisZ)
+		SHADER_PARAMETER(FVector3f, Raster_AxisX)
+		SHADER_PARAMETER(FVector3f, Raster_AxisY)
+		SHADER_PARAMETER(FVector3f, Raster_AxisZ)
 
 		SHADER_PARAMETER(uint32,	Curve_TotalVertexCount)
 		SHADER_PARAMETER(uint32,	Curve_VertexOffset)
@@ -1263,7 +1263,7 @@ namespace HairCards
 
 		if (HairStrands.GetNumCurves() > 0 && HairStrands.GetNumPoints() > 0)
 		{
-			TArray<FVector>::TIterator PositionIterator = Points.PointsPosition.CreateIterator();
+			TArray<FVector3f>::TIterator PositionIterator = Points.PointsPosition.CreateIterator();
 			TArray<float>::TIterator RadiusIterator = Points.PointsRadius.CreateIterator();
 			TArray<float>::TIterator CoordUIterator = Points.PointsCoordU.CreateIterator();
 
@@ -1769,7 +1769,7 @@ namespace HairCards
 	// Returns the axis index by decreasing size
 	static void GetSortedAxis(const FHairOrientedBound& B, uint8& Axis0, uint8& Axis1, uint8& Axis2)
 	{
-		float Size[3] = { B.ExtentX.Size(), B.ExtentY.Size(), B.ExtentZ.Size() };
+		float Size[3] = { (float)B.ExtentX.Size(), (float)B.ExtentY.Size(), (float)B.ExtentZ.Size() };
 		uint8 Axis[3] = { 0, 1, 2 };
 		if (Size[0] < Size[1]) { Swap(Axis[0], Axis[1]); Swap(Size[0], Size[1]); }
 		if (Size[1] < Size[2]) { Swap(Axis[1], Axis[2]); Swap(Size[1], Size[2]); }
@@ -3231,7 +3231,7 @@ namespace HairCards
 			// Compute rasterization info (rasterization axis) and cards dimension (width/length)
 			{
 
-				float Size[3] = 
+				FVector::FReal Size[3] = 
 				{ 
 					OutRect.MaxBound.X - OutRect.MinBound.X, 
 					OutRect.MaxBound.Y - OutRect.MinBound.Y, 
@@ -3665,9 +3665,9 @@ bool InternalImportGeometry(
 	Out.Cards.BoundingBox.Init();
 
 	SanitizeMeshDescription(MeshDescription);
-	const TVertexAttributesRef<const FVector> VertexPositions					= MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-	const TVertexInstanceAttributesRef<const FVector> VertexInstanceNormals		= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-	const TVertexInstanceAttributesRef<const FVector> VertexInstanceTangents	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
+	const TVertexAttributesRef<const FVector3f> VertexPositions					= MeshDescription->VertexAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Vertex::Position);
+	const TVertexInstanceAttributesRef<const FVector3f> VertexInstanceNormals		= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Normal);
+	const TVertexInstanceAttributesRef<const FVector3f> VertexInstanceTangents	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Tangent);
 	const TVertexInstanceAttributesRef<const float> VertexInstanceBinormalSigns	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
 	const TVertexInstanceAttributesRef<const FVector2D> VertexInstanceUVs		= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 
@@ -4161,9 +4161,9 @@ public:
 protected:
 	FMeshDescription* MeshDescription;
 
-	TVertexAttributesRef<FVector> VertexPositions;
+	TVertexAttributesRef<FVector3f> VertexPositions;
 	TVertexInstanceAttributesRef<FVector2D> InstanceUVs;
-	TVertexInstanceAttributesRef<FVector> InstanceNormals;
+	TVertexInstanceAttributesRef<FVector3f> InstanceNormals;
 	TVertexInstanceAttributesRef<FVector4> InstanceColors;
 
 	TPolygonAttributesRef<int> PolyGroups;
@@ -4177,9 +4177,9 @@ namespace ExtendedMeshAttribute
 void FMeshDescriptionBuilder::SetMeshDescription(FMeshDescription* Description)
 {
 	this->MeshDescription	= Description;
-	this->VertexPositions	= MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+	this->VertexPositions	= MeshDescription->VertexAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Vertex::Position);
 	this->InstanceUVs		= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-	this->InstanceNormals	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+	this->InstanceNormals	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Normal);
 	this->InstanceColors	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
 }
 

@@ -2807,18 +2807,18 @@ void UParticleModuleAcceleration::PostEditChangeProperty(FPropertyChangedEvent& 
 void UParticleModuleAcceleration::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
 {
 	SPAWN_INIT;
-	PARTICLE_ELEMENT(FVector, UsedAcceleration);
+	PARTICLE_ELEMENT(FVector3f, UsedAcceleration);
 	UsedAcceleration = Acceleration.GetValue(Owner->EmitterTime, Owner->Component);
 	if ((bApplyOwnerScale == true) && Owner && Owner->Component)
 	{
-		FVector Scale = Owner->Component->GetComponentTransform().GetScale3D();
+		FVector3f Scale = Owner->Component->GetComponentTransform().GetScale3D();
 		UsedAcceleration *= Scale;
 	}
 	UParticleLODLevel* LODLevel	= Owner->SpriteTemplate->GetCurrentLODLevel(Owner);
 	check(LODLevel);
 	if (bAlwaysInWorldSpace && LODLevel->RequiredModule->bUseLocalSpace)
 	{
-		FVector TempUsedAcceleration = Owner->Component->GetComponentTransform().InverseTransformVector(UsedAcceleration);
+		FVector3f TempUsedAcceleration = Owner->Component->GetComponentTransform().InverseTransformVector(UsedAcceleration);
 		Particle.Velocity		+= TempUsedAcceleration * SpawnTime;
 		Particle.BaseVelocity	+= TempUsedAcceleration * SpawnTime;
 	}
@@ -2849,7 +2849,7 @@ void UParticleModuleAcceleration::Update(FParticleEmitterInstance* Owner, int32 
 		FTransform Mat = Owner->Component->GetComponentTransform();
 		BEGIN_UPDATE_LOOP;
 		{
-			FVector& UsedAcceleration = *((FVector*)(ParticleBase + CurrentOffset));																\
+			FVector3f& UsedAcceleration = *((FVector3f*)(ParticleBase + CurrentOffset));																\
 			FVector TransformedUsedAcceleration = Mat.InverseTransformVector(UsedAcceleration);
 			FPlatformMisc::Prefetch(ParticleData, (ParticleIndices[i+1] * ParticleStride));
 			FPlatformMisc::Prefetch(ParticleData, (ParticleIndices[i+1] * ParticleStride) + PLATFORM_CACHE_LINE_SIZE);
@@ -2862,7 +2862,7 @@ void UParticleModuleAcceleration::Update(FParticleEmitterInstance* Owner, int32 
 	{
 		BEGIN_UPDATE_LOOP;
 		{
-			FVector& UsedAcceleration = *((FVector*)(ParticleBase + CurrentOffset));																\
+			FVector3f& UsedAcceleration = *((FVector3f*)(ParticleBase + CurrentOffset));																\
 			FPlatformMisc::Prefetch(ParticleData, (ParticleIndices[i+1] * ParticleStride));
 			FPlatformMisc::Prefetch(ParticleData, (ParticleIndices[i+1] * ParticleStride) + PLATFORM_CACHE_LINE_SIZE);
 			Particle.Velocity		+= UsedAcceleration * DeltaTime;
@@ -2875,7 +2875,7 @@ void UParticleModuleAcceleration::Update(FParticleEmitterInstance* Owner, int32 
 uint32 UParticleModuleAcceleration::RequiredBytes(UParticleModuleTypeDataBase* TypeData)
 {
 	// FVector UsedAcceleration
-	return sizeof(FVector);
+	return sizeof(FVector3f);
 }
 
 #if WITH_EDITOR
@@ -3139,7 +3139,7 @@ void UParticleModuleLight::UpdateHQLight(UPointLightComponent* PointLightCompone
 
 	//light color on HQ lights is just a uint32 and our light scalars can be huge.  To preserve the color control and range from the particles we need to normalize
 	//around the full range multiplied value, and set the scalar intensity such that it will bring things back into line later.
-	FVector AdjustedColor(DesiredFinalColor.R, DesiredFinalColor.G, DesiredFinalColor.B);
+	FVector3f AdjustedColor(DesiredFinalColor.R, DesiredFinalColor.G, DesiredFinalColor.B);
 	float Intensity = AdjustedColor.Size();
 	AdjustedColor.Normalize();	
 	
@@ -3301,7 +3301,7 @@ void UParticleModuleLight::Render3DPreview(FParticleEmitterInstance* Owner, cons
 
 			if (LightPayload->bValid)
 			{
-				const FVector LightPosition = bLocalSpace ? FVector(LocalToWorld.TransformPosition(Particle.Location)) : Particle.Location;
+				const FVector LightPosition = bLocalSpace ? FVector(LocalToWorld.TransformPosition(Particle.Location)) : FVector(Particle.Location);
 				const FVector Size = Scale * Particle.Size;
 				const float LightRadius = LightPayload->RadiusScale * (Size.X + Size.Y) / 2.0f;
 

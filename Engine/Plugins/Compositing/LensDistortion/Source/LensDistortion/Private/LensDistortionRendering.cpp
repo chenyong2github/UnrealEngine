@@ -91,7 +91,7 @@ public:
 	{
 		FVector2D PixelUVSizeValue(
 			1.f / float(DisplacementMapResolution.X), 1.f / float(DisplacementMapResolution.Y));
-		FVector RadialDistortionCoefsValue(
+		FVector3f RadialDistortionCoefsValue(
 			CompiledCameraModel.OriginalCameraModel.K1,
 			CompiledCameraModel.OriginalCameraModel.K2,
 			CompiledCameraModel.OriginalCameraModel.K3);

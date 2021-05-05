@@ -340,7 +340,7 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		const FClothingSimulationContext* const Context = static_cast<const FClothingSimulationContext*>(InOwnerComponent->GetClothingSimulationContext());
 		check(Context);
 		static const bool bReset = true;
-		Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? Context->ComponentToWorld.GetLocation() : TVector<float, 3>(0.f), bReset);
+		Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? Context->ComponentToWorld.GetLocation() : FVec3(0.), bReset);
 	}
 	else
 	{
@@ -514,7 +514,7 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 		bIsTeleported = bNeedsTeleport;
 
 		// Update Solver animatable parameters
-		Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? Context->ComponentToWorld.GetLocation() : FVec3(0), bNeedsReset);
+		Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? (FVec3)Context->ComponentToWorld.GetLocation() : FVec3(0), bNeedsReset);
 		Solver->SetWindVelocity(Context->WindVelocity, Context->WindAdaption);
 		Solver->SetGravity(bUseGravityOverride ? GravityOverride : Context->WorldGravity);
 		Solver->EnableClothGravityOverride(!bUseGravityOverride);  // Disable all cloth gravity overrides when the interactor takes over
@@ -539,9 +539,9 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 		Solver->Update(Context->DeltaSeconds);
 
 		// Update simulation time in ms (and provide an instant average instead of the value in real-time)
-		const FReal PrevSimulationTime = SimulationTime;  // Copy the atomic to prevent a re-read
-		const FReal CurrSimulationTime = (FReal)((FPlatformTime::Seconds() - StartTime) * 1000.);
-		static const FReal SimulationTimeDecay = 0.03f; // 0.03 seems to provide a good rate of update for the instant average
+		const float PrevSimulationTime = SimulationTime;  // Copy the atomic to prevent a re-read
+		const float CurrSimulationTime = (float)((FPlatformTime::Seconds() - StartTime) * 1000.);
+		static const float SimulationTimeDecay = 0.03f; // 0.03 seems to provide a good rate of update for the instant average
 		SimulationTime = PrevSimulationTime ? PrevSimulationTime + (CurrSimulationTime - PrevSimulationTime) * SimulationTimeDecay : CurrSimulationTime;
 
 #if FRAMEPRO_ENABLED
@@ -716,7 +716,7 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 	// Update new space location
 	const FClothingSimulationContext* const Context = static_cast<const FClothingSimulationContext*>(InContext);
 	static const bool bReset = true;
-	Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? Context->ComponentToWorld.GetLocation() : FVec3(0), bReset);
+	Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? (FVec3)Context->ComponentToWorld.GetLocation() : FVec3(0), bReset);
 
 	// Reset stats
 	ResetStats();

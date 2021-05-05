@@ -132,7 +132,7 @@ bool UEditorBrushBuilder::EndBrush( UWorld* InWorld, ABrush* InBrush )
 
 		for( int32 j=0; j<It->VertexIndices.Num(); j++ )
 		{
-			new(Poly.Vertices) FVector(Vertices[It->VertexIndices[j]]);
+			new(Poly.Vertices) FVector3f(Vertices[It->VertexIndices[j]]);
 		}
 		if( Poly.Finalize( BuilderBrush, 1 ) == 0 )
 		{

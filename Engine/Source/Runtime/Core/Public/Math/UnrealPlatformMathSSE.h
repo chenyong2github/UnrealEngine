@@ -197,32 +197,38 @@ namespace SSE
 template<class Base>
 struct TUnrealPlatformMathSSEBase : public Base
 {
-	static FORCEINLINE int32 TruncToInt(float F)
+	template<typename T>
+	static FORCEINLINE int32 TruncToInt(T F)
 	{
 		return UE4::SSE::TruncToInt(F);
 	}
 
-	static FORCEINLINE int32 RoundToInt(float F)
+	template<typename T>
+	static FORCEINLINE int32 RoundToInt(T F)
 	{
 		return UE4::SSE::RoundToInt(F);
 	}
 
-	static FORCEINLINE int32 FloorToInt(float F)
+	template<typename T>
+	static FORCEINLINE int32 FloorToInt(T F)
 	{
 		return UE4::SSE::FloorToInt(F);
 	}
 
-	static FORCEINLINE int32 CeilToInt(float F)
+	template<typename T>
+	static FORCEINLINE int32 CeilToInt(T F)
 	{
 		return UE4::SSE::CeilToInt(F);
 	}
 
-	static FORCEINLINE float InvSqrt(float F)
+	template<typename T>
+	static FORCEINLINE float InvSqrt(T F)
 	{
 		return UE4::SSE::InvSqrt(F);
 	}
 
-	static FORCEINLINE float InvSqrtEst(float F)
+	template<typename T>
+	static FORCEINLINE float InvSqrtEst(T F)
 	{
 		return UE4::SSE::InvSqrtEst(F);
 	}
@@ -235,6 +241,38 @@ struct TUnrealPlatformMathSSEBase : public Base
 	static FORCEINLINE void VectorLoadHalf(float* RESTRICT Dst, const uint16* RESTRICT Src)
 	{
 		_mm_storeu_ps(Dst, UE4::SSE::HalfToFloat(_mm_loadu_si64((__m128i*)Src)));
+	}
+
+	// LWC_TODO: Implement vectorized double equivalents. 
+	// LWC_TODO: Default to double variant for non-float types, or just for int64?
+	static FORCEINLINE int32 TruncToInt(double F)
+	{
+		return Base::TruncToInt(F);
+	}
+
+	static FORCEINLINE int32 RoundToInt(double F)
+	{
+		return Base::RoundToInt(F);
+	}
+
+	static FORCEINLINE int32 FloorToInt(double F)
+	{
+		return Base::FloorToInt(F);
+	}
+
+	static FORCEINLINE int32 CeilToInt(double F)
+	{
+		return Base::CeilToInt(F);
+	}
+
+	static FORCEINLINE double InvSqrt(double F)
+	{
+		return Base::InvSqrt(F);
+	}
+
+	static FORCEINLINE double InvSqrtEst(double F)
+	{
+		return Base::InvSqrtEst(F);
 	}
 
 };

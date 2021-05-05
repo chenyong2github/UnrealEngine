@@ -29,7 +29,7 @@ namespace Chaos
 			const uint32 InParticleOffset,
 			const uint32 InParticleCount,
 			const TArray<FVec3>& InAnimationPositions,  // Use global indexation (will need adding ParticleOffset)
-			const TConstArrayView<FReal>& InSphereRadii  // Use local indexation
+			const TConstArrayView<FRealSingle>& InSphereRadii  // Use local indexation
 		)
 			: AnimationPositions(InAnimationPositions)
 			, SphereRadii(InSphereRadii)
@@ -93,7 +93,7 @@ namespace Chaos
 
 	protected:
 		const TArray<FVec3>& AnimationPositions;  // Use global indexation (will need adding ParticleOffset)
-		const TConstArrayView<FReal> SphereRadii;  // Use local indexation
+		const TConstArrayView<FRealSingle> SphereRadii;  // Use local indexation
 		const int32 ParticleOffset;
 		FReal SphereRadiiMultiplier;
 	};
@@ -106,8 +106,8 @@ namespace Chaos
 			const int32 InParticleCount,
 			const TArray<FVec3>& InAnimationPositions,  // Use global indexation (will need adding ParticleOffset)
 			const TArray<FVec3>& InAnimationNormals,  // Use global indexation (will need adding ParticleOffset)
-			const TConstArrayView<FReal>& InSphereRadii,  // Use local indexation
-			const TConstArrayView<FReal>& InSphereOffsetDistances,  // Use local indexation
+			const TConstArrayView<FRealSingle>& InSphereRadii,  // Use local indexation
+			const TConstArrayView<FRealSingle>& InSphereOffsetDistances,  // Use local indexation
 			const bool bInUseLegacyBackstop  // Do not include the sphere radius in the distance calculations when this is true
 		)
 			: AnimationPositions(InAnimationPositions)
@@ -251,8 +251,8 @@ namespace Chaos
 	private:
 		const TArray<FVec3>& AnimationPositions;  // Positions of spheres, use global indexation (will need adding ParticleOffset)
 		const TArray<FVec3>& AnimationNormals; // Sphere offset directions, use global indexation (will need adding ParticleOffset)
-		const TConstArrayView<FReal> SphereRadii; // Start at index 0, use local indexation
-		const TConstArrayView<FReal> SphereOffsetDistances;  // Sphere position offsets, use local indexation
+		const TConstArrayView<FRealSingle> SphereRadii; // Start at index 0, use local indexation
+		const TConstArrayView<FRealSingle> SphereOffsetDistances;  // Sphere position offsets, use local indexation
 		const int32 ParticleOffset;
 		FReal SphereRadiiMultiplier;
 		bool bUseLegacyBackstop;

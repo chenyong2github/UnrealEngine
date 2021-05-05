@@ -47,7 +47,7 @@ public:
 	template<typename TShaderRHIParamRef>
 	void SetMeshToPFMMatrix(FRHICommandListImmediate& RHICmdList, const TShaderRHIParamRef ShaderRHI, const FMatrix& MeshToPFMMatrix)
 	{
-		SetShaderValue(RHICmdList, ShaderRHI, MeshToPFMMatrixParameter, MeshToPFMMatrix);
+		SetShaderValue(RHICmdList, ShaderRHI, MeshToPFMMatrixParameter, (FMatrix44f)MeshToPFMMatrix);
 	}
 
 private:

@@ -79,7 +79,7 @@ private:
 			auto NextClosestIntersection = MObjects[i]->FindClosestIntersection(StartPoint, EndPoint, Thickness);
 			if (!NextClosestIntersection.Second)
 				continue;
-			Intersections.Add(MakePair((NextClosestIntersection.First - StartPoint).Size(), NextClosestIntersection.First));
+			Intersections.Add(MakePair((FReal)(NextClosestIntersection.First - StartPoint).Size(), NextClosestIntersection.First));
 		}
 		Intersections.Sort([](const Pair<T, TVector<T, d>>& Elem1, const Pair<T, TVector<T, d>>& Elem2) { return Elem1.First < Elem2.First; });
 		for (int32 i = 0; i < Intersections.Num(); ++i)

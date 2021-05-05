@@ -834,6 +834,13 @@ namespace
 				return Result;
 			}
 
+			case CPT_FLargeWorldCoordinatesReal:
+			{
+				FLargeWorldCoordinatesRealProperty* Result = new FLargeWorldCoordinatesRealProperty(Scope, Name, ObjectFlags);
+				GTypeDefinitionInfoMap.Add(Result, MakeShared<FUnrealPropertyDefinitionInfo>(*UnrealSourceFile, 0, Result));
+				return Result;
+			}
+
 			case CPT_ObjectReference:
 				check(VarProperty.PropertyClass);
 
@@ -1030,7 +1037,7 @@ namespace
 			}
 
 			default:
-				FError::Throwf(TEXT("Unknown property type %i"), (uint8)VarProperty.Type);
+				FError::Throwf(TEXT("Unknown property type %i (%s)"), (uint8)VarProperty.Type, *Name.ToString());
 		}
 
 		// Unreachable
@@ -1302,6 +1309,7 @@ namespace
 			|| Property->IsA<FClassPtrProperty>()
 			|| Property->IsA<FFloatProperty>()
 			|| Property->IsA<FDoubleProperty>()
+			|| Property->IsA<FLargeWorldCoordinatesRealProperty>()
 			|| Property->IsA<FIntProperty>()
 			|| Property->IsA<FInt64Property>()
 			|| Property->IsA<FByteProperty>()
@@ -4424,6 +4432,15 @@ void FHeaderParser::GetVarType(
 	{
 		// Intrinsic double precision floating point type type.
 		VarProperty = FPropertyBase(CPT_Double);
+	}
+	else if (VarType.Matches(TEXT("FLargeWorldCoordinatesReal"), ESearchCase::CaseSensitive))		// LWC_TODO: Remove with UE_LARGE_WORLD_COORDINATES_DISABLED toggle.
+	{
+		const FString& ForSourceFile = Scope->GetFileScope()->GetSourceFile()->GetFilename();
+		if(!ForSourceFile.EndsWith(TEXT("NoExportTypes.h")))
+		{
+			FError::Throwf(TEXT("FLargeWorldCoordinatesReal is intended for LWC support only and should not be used outside of NoExportTypes.h"));
+		}
+		VarProperty = FPropertyBase(CPT_FLargeWorldCoordinatesReal);
 	}
 	else if ( VarType.Matches(TEXT("FName"), ESearchCase::CaseSensitive) )
 	{

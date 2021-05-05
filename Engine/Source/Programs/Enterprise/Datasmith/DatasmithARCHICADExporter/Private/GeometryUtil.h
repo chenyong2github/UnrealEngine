@@ -9,7 +9,7 @@
 #include "Vertex.hpp"
 
 struct FQuat;
-struct FVector;
+DECLARE_LWC_TYPE(Vector);
 
 BEGIN_NAMESPACE_UE_AC
 

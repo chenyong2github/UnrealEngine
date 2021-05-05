@@ -142,10 +142,10 @@ class FComputeDistanceFieldAssetWantedMipsCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWDistanceFieldAssetStreamingRequests)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, DistanceFieldObjectBuffers)
 		SHADER_PARAMETER(int32, DebugForceNumMips)
-		SHADER_PARAMETER(FVector, Mip1WorldCenter)
-		SHADER_PARAMETER(FVector, Mip1WorldExtent)
-		SHADER_PARAMETER(FVector, Mip2WorldCenter)
-		SHADER_PARAMETER(FVector, Mip2WorldExtent)
+		SHADER_PARAMETER(FVector3f, Mip1WorldCenter)
+		SHADER_PARAMETER(FVector3f, Mip1WorldExtent)
+		SHADER_PARAMETER(FVector3f, Mip2WorldCenter)
+		SHADER_PARAMETER(FVector3f, Mip2WorldExtent)
 	END_SHADER_PARAMETER_STRUCT()
 
 	using FPermutationDomain = TShaderPermutationDomain<>;

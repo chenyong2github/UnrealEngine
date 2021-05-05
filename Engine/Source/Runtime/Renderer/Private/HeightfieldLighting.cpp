@@ -829,7 +829,7 @@ public:
 		GlobalHeightfieldParameters.Set(RHICmdList, ShaderRHI, Atlas);
 
 		FVector4 ShadowmapMinMaxValue;
-		FMatrix WorldToShadowMatrixValue = ProjectedShadowInfo->GetWorldToShadowMatrix(ShadowmapMinMaxValue);
+		FMatrix44f WorldToShadowMatrixValue = ProjectedShadowInfo->GetWorldToShadowMatrix(ShadowmapMinMaxValue);
 
 		SetShaderValue(RHICmdList, ShaderRHI, WorldToShadow, WorldToShadowMatrixValue);
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowmapMinMax, ShadowmapMinMaxValue);
@@ -990,7 +990,7 @@ public:
 		HeightfieldDescriptionParameters.Set(RHICmdList, ShaderRHI, GetHeightfieldDescriptionsSRV(), NumHeightfieldsValue);
 		GlobalHeightfieldParameters.Set(RHICmdList, ShaderRHI, Atlas);
 
-		SetShaderValue(RHICmdList, ShaderRHI, LightDirection, LightSceneInfo.Proxy->GetDirection());
+		SetShaderValue(RHICmdList, ShaderRHI, LightDirection, FVector3f(LightSceneInfo.Proxy->GetDirection()));
 		SetShaderValue(RHICmdList, ShaderRHI, LightColor, LightSceneInfo.Proxy->GetColor() * LightSceneInfo.Proxy->GetIndirectLightingScale());
 
 		SetShaderValue(RHICmdList, ShaderRHI, SkyLightIndirectScale, SkyLightIndirectScaleValue);
@@ -1001,7 +1001,7 @@ public:
 		const FVector Scale = LightSceneInfo.Proxy->GetLightFunctionScale();
 		// Switch x and z so that z of the user specified scale affects the distance along the light direction
 		const FVector InverseScale = FVector(1.f / Scale.Z, 1.f / Scale.Y, 1.f / Scale.X);
-		const FMatrix WorldToLightValue = LightSceneInfo.Proxy->GetWorldToLight() * FScaleMatrix(FVector(InverseScale));
+		const FMatrix44f WorldToLightValue = LightSceneInfo.Proxy->GetWorldToLight() * FScaleMatrix(FVector(InverseScale));
 
 		SetShaderValue(RHICmdList, ShaderRHI, WorldToLight, WorldToLightValue);
 

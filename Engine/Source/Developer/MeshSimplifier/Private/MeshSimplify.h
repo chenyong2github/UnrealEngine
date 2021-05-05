@@ -14,7 +14,7 @@
 #include "Containers/BinaryHeap.h"
 #include "DisjointSet.h"
 
-FORCEINLINE uint32 HashPosition( const FVector& Position )
+FORCEINLINE uint32 HashPosition( const FVector3f& Position )
 {
 	union { float f; uint32 i; } x;
 	union { float f; uint32 i; } y;
@@ -94,8 +94,8 @@ protected:
 
 	struct FPair
 	{
-		FVector	Position0;
-		FVector	Position1;
+		FVector3f	Position0;
+		FVector3f	Position1;
 	};
 	TArray< FPair >			Pairs;
 	FHashTable				PairHash0;
@@ -107,7 +107,7 @@ protected:
 	TArray< uint32 >	MovedPairs;
 	TArray< uint32 >	ReevaluatePairs;
 
-	TSet< TTuple< FVector, FVector > >	LockedEdges;
+	TSet< TTuple< FVector3f, FVector3f > >	LockedEdges;
 
 	TArray< uint8 >			TriQuadrics;
 	TArray< FEdgeQuadric >	EdgeQuadrics;
@@ -125,22 +125,22 @@ protected:
 	};
 
 protected:
-	FVector&		GetPosition( uint32 VertIndex );
-	const FVector&	GetPosition( uint32 VertIndex ) const;
+	FVector3f&		GetPosition( uint32 VertIndex );
+	const FVector3f&	GetPosition( uint32 VertIndex ) const;
 	float*			GetAttributes( uint32 VertIndex );
-	FVector			GetNormal( uint32 TriIndex ) const;
+	FVector3f			GetNormal( uint32 TriIndex ) const;
 	FQuadricAttr&	GetTriQuadric( uint32 TriIndex );
 
 	template< typename FuncType >
-	void	ForAllVerts( const FVector& Position, FuncType&& Function ) const;
+	void	ForAllVerts( const FVector3f& Position, FuncType&& Function ) const;
 
 	template< typename FuncType >
-	void	ForAllCorners( const FVector& Position, FuncType&& Function ) const;
+	void	ForAllCorners( const FVector3f& Position, FuncType&& Function ) const;
 
 	template< typename FuncType >
-	void	ForAllPairs( const FVector& Position, FuncType&& Function ) const;
+	void	ForAllPairs( const FVector3f& Position, FuncType&& Function ) const;
 
-	void	GatherAdjTris( const FVector& Position, uint32 Flag, TArray< uint32, TInlineAllocator<16> >& AdjTris, int32& VertDegree, uint32& FlagUnion );
+	void	GatherAdjTris( const FVector3f& Position, uint32 Flag, TArray< uint32, TInlineAllocator<16> >& AdjTris, int32& VertDegree, uint32& FlagUnion );
 	bool	AddUniquePair( FPair& Pair, uint32 PairIndex );
 
 	void	CalcTriQuadric( uint32 TriIndex );
@@ -148,12 +148,12 @@ protected:
 
 	bool	IsBoundaryEdge( uint32 EdgeIndex ) const;
 
-	float	EvaluateMerge( const FVector& Position0, const FVector& Position1, bool bMoveVerts );
+	float	EvaluateMerge( const FVector3f& Position0, const FVector3f& Position1, bool bMoveVerts );
 	
-	void	BeginMovePosition( const FVector& Position );
+	void	BeginMovePosition( const FVector3f& Position );
 	void	EndMovePositions();
 
-	bool	TriWillInvert( uint32 TriIndex, const FVector& NewPosition );
+	bool	TriWillInvert( uint32 TriIndex, const FVector3f& NewPosition );
 
 	void	FixUpTri( uint32 TriIndex );
 	bool	IsDuplicateTri( uint32 TriIndex ) const;
@@ -162,14 +162,14 @@ protected:
 };
 
 
-FORCEINLINE FVector& FMeshSimplifier::GetPosition( uint32 VertIndex )
+FORCEINLINE FVector3f& FMeshSimplifier::GetPosition( uint32 VertIndex )
 {
-	return *reinterpret_cast< FVector* >( &Verts[ ( 3 + NumAttributes ) * VertIndex ] );
+	return *reinterpret_cast< FVector3f* >( &Verts[ ( 3 + NumAttributes ) * VertIndex ] );
 }
 
-FORCEINLINE const FVector& FMeshSimplifier::GetPosition( uint32 VertIndex ) const
+FORCEINLINE const FVector3f& FMeshSimplifier::GetPosition( uint32 VertIndex ) const
 {
-	return *reinterpret_cast< const FVector* >( &Verts[ ( 3 + NumAttributes ) * VertIndex ] );
+	return *reinterpret_cast< const FVector3f* >( &Verts[ ( 3 + NumAttributes ) * VertIndex ] );
 }
 
 FORCEINLINE float* FMeshSimplifier::GetAttributes( uint32 VertIndex )
@@ -177,13 +177,13 @@ FORCEINLINE float* FMeshSimplifier::GetAttributes( uint32 VertIndex )
 	return &Verts[ ( 3 + NumAttributes ) * VertIndex + 3 ];
 }
 
-FORCEINLINE FVector FMeshSimplifier::GetNormal( uint32 TriIndex ) const
+FORCEINLINE FVector3f FMeshSimplifier::GetNormal( uint32 TriIndex ) const
 {
-	const FVector& p0 = GetPosition( Indexes[ TriIndex * 3 + 0 ] );
-	const FVector& p1 = GetPosition( Indexes[ TriIndex * 3 + 1 ] );
-	const FVector& p2 = GetPosition( Indexes[ TriIndex * 3 + 2 ] );
+	const FVector3f& p0 = GetPosition( Indexes[ TriIndex * 3 + 0 ] );
+	const FVector3f& p1 = GetPosition( Indexes[ TriIndex * 3 + 1 ] );
+	const FVector3f& p2 = GetPosition( Indexes[ TriIndex * 3 + 2 ] );
 
-	FVector Normal = ( p2 - p0 ) ^ ( p1 - p0 );
+	FVector3f Normal = ( p2 - p0 ) ^ ( p1 - p0 );
 	Normal.Normalize();
 	return Normal;
 }
@@ -195,7 +195,7 @@ FORCEINLINE FQuadricAttr& FMeshSimplifier::GetTriQuadric( uint32 TriIndex )
 }
 
 template< typename FuncType >
-void FMeshSimplifier::ForAllVerts( const FVector& Position, FuncType&& Function ) const
+void FMeshSimplifier::ForAllVerts( const FVector3f& Position, FuncType&& Function ) const
 {
 	uint32 Hash = HashPosition( Position );
 	for( uint32 VertIndex = VertHash.First( Hash ); VertHash.IsValid( VertIndex ); VertIndex = VertHash.Next( VertIndex ) )
@@ -208,7 +208,7 @@ void FMeshSimplifier::ForAllVerts( const FVector& Position, FuncType&& Function 
 }
 
 template< typename FuncType >
-void FMeshSimplifier::ForAllCorners( const FVector& Position, FuncType&& Function ) const
+void FMeshSimplifier::ForAllCorners( const FVector3f& Position, FuncType&& Function ) const
 {
 	uint32 Hash = HashPosition( Position );
 	for( uint32 Corner = CornerHash.First( Hash ); CornerHash.IsValid( Corner ); Corner = CornerHash.Next( Corner ) )
@@ -221,7 +221,7 @@ void FMeshSimplifier::ForAllCorners( const FVector& Position, FuncType&& Functio
 }
 
 template< typename FuncType >
-void FMeshSimplifier::ForAllPairs( const FVector& Position, FuncType&& Function ) const
+void FMeshSimplifier::ForAllPairs( const FVector3f& Position, FuncType&& Function ) const
 {
 	uint32 Hash = HashPosition( Position );
 	for( uint32 PairIndex = PairHash0.First( Hash ); PairHash0.IsValid( PairIndex ); PairIndex = PairHash0.Next( PairIndex ) )
@@ -292,7 +292,7 @@ protected:
 	uint32				GetTriIndex( const TSimpTri<T>* tri ) const;
 	uint32				GetEdgeIndex( const TSimpEdge<T>* edge ) const;
 
-	uint32				HashPoint( const FVector& p ) const;
+	uint32				HashPoint( const FVector3f& p ) const;
 	uint32				HashEdge( const TSimpVert<T>* u, const TSimpVert<T>* v ) const;
 	TSimpEdge<T>*		FindEdge( const TSimpVert<T>* u, const TSimpVert<T>* v );
 	
@@ -302,7 +302,7 @@ protected:
 	void				CollapseEdgeVert( const TSimpVert<T>* oldV, const TSimpVert<T>* otherV, TSimpVert<T>* newV );
 
 	float				Merge( TSimpVert<T>* v0, TSimpVert<T>* v1, bool bMoveVerts );
-	float				ComputeMergePenalty( TSimpVert<T>* v0, TSimpVert<T>* v1, const FVector& NewPos );
+	float				ComputeMergePenalty( TSimpVert<T>* v0, TSimpVert<T>* v1, const FVector3f& NewPos );
 #if !SIMP_NEW_MERGE
 	float				ComputeNewVerts( TSimpEdge<T>* edge, TArray< T, TInlineAllocator<16> >& newVerts );
 	float				ComputeEdgeCollapseCost( TSimpEdge<T>* edge, bool bMoveVerts );
@@ -806,7 +806,7 @@ FORCEINLINE uint32 TMeshSimplifier<T, NumAttributes>::GetEdgeIndex( const TSimpE
 }
 
 template< typename T, uint32 NumAttributes >
-FORCEINLINE uint32 TMeshSimplifier<T, NumAttributes>::HashPoint( const FVector& p ) const
+FORCEINLINE uint32 TMeshSimplifier<T, NumAttributes>::HashPoint( const FVector3f& p ) const
 {
 	union { float f; uint32 i; } x;
 	union { float f; uint32 i; } y;
@@ -1033,8 +1033,8 @@ void TMeshSimplifier<T, NumAttributes>::GatherUpdates( TSimpVert<T>* v )
 template< typename T, uint32 NumAttributes >
 float TMeshSimplifier<T, NumAttributes>::Merge( TSimpVert<T>* v0, TSimpVert<T>* v1, bool bMoveVerts )
 {
-	const FVector Position0 = v0->GetPos();
-	const FVector Position1 = v1->GetPos();
+	const FVector3f Position0 = v0->GetPos();
+	const FVector3f Position1 = v1->GetPos();
 
 	// Find unique adjacent triangles
 	TArray< TSimpTri<T>*, TInlineAllocator<16> > AdjTris;
@@ -1078,8 +1078,8 @@ float TMeshSimplifier<T, NumAttributes>::Merge( TSimpVert<T>* v0, TSimpVert<T>* 
 		v = v->next;
 	} while( v != v1 );
 
-	FVector	BoundsMin = {  MAX_flt,  MAX_flt,  MAX_flt };
-	FVector	BoundsMax = { -MAX_flt, -MAX_flt, -MAX_flt };
+	FVector3f	BoundsMin = {  MAX_flt,  MAX_flt,  MAX_flt };
+	FVector3f	BoundsMax = { -MAX_flt, -MAX_flt, -MAX_flt };
 
 	AdjCorners.Clear();
 	WedgeSet.Init( AdjTris.Num() );
@@ -1115,8 +1115,8 @@ float TMeshSimplifier<T, NumAttributes>::Merge( TSimpVert<T>* v0, TSimpVert<T>* 
 				// if didn't find this vert already present, add it.
 				AdjCorners.Add( Hash, (AdjTriIndex << 2) | CornerIndex );
 
-				BoundsMin = FVector::Min( BoundsMin, Vert->GetPos() );
-				BoundsMax = FVector::Max( BoundsMax, Vert->GetPos() );
+				BoundsMin = FVector3f::Min( BoundsMin, Vert->GetPos() );
+				BoundsMax = FVector3f::Max( BoundsMax, Vert->GetPos() );
 			}
 		}
 	}
@@ -1167,7 +1167,7 @@ float TMeshSimplifier<T, NumAttributes>::Merge( TSimpVert<T>* v0, TSimpVert<T>* 
 	QuadricOptimizer.AddQuadric( EdgeQuadric );
 
 
-	FVector NewPos;
+	FVector3f NewPos;
 	{
 		bool bLocked0 = v0->TestFlags( SIMP_LOCKED );
 		bool bLocked1 = v1->TestFlags( SIMP_LOCKED );
@@ -1368,7 +1368,7 @@ float TMeshSimplifier<T, NumAttributes>::ComputeNewVerts( TSimpEdge<T>* edge, TA
 
 	optimizer.AddQuadric( edgeQuadric );
 	
-	FVector newPos;
+	FVector3f newPos;
 	{
 		bool bLocked0 = edge->v0->TestFlags( SIMP_LOCKED );
 		bool bLocked1 = edge->v1->TestFlags( SIMP_LOCKED );
@@ -1388,7 +1388,7 @@ float TMeshSimplifier<T, NumAttributes>::ComputeNewVerts( TSimpEdge<T>* edge, TA
 		else
 		{
 			// optimal position
-			FVector pos;
+			FVector3f pos;
 			bool valid = optimizer.Optimize( pos, newPos );
 			if( !valid )
 			{
@@ -1490,7 +1490,7 @@ float TMeshSimplifier<T, NumAttributes>::ComputeEdgeCollapseCost( TSimpEdge<T>* 
 #endif
 
 template< typename T, uint32 NumAttributes >
-float TMeshSimplifier<T, NumAttributes>::ComputeMergePenalty( TSimpVert<T>* v0, TSimpVert<T>* v1, const FVector& NewPos )
+float TMeshSimplifier<T, NumAttributes>::ComputeMergePenalty( TSimpVert<T>* v0, TSimpVert<T>* v1, const FVector3f& NewPos )
 {
 	// add penalties
 	// the below penalty code works with groups so no need to worry about remainder verts
@@ -1704,9 +1704,9 @@ void TMeshSimplifier<T, NumAttributes>::UpdateTris()
 
 		TriQuadricsValid[ GetTriIndex( tri ) ] = false;
 
-		const FVector& p0 = tri->verts[0]->GetPos();
-		const FVector& p1 = tri->verts[1]->GetPos();
-		const FVector& p2 = tri->verts[2]->GetPos();
+		const FVector3f& p0 = tri->verts[0]->GetPos();
+		const FVector3f& p1 = tri->verts[1]->GetPos();
+		const FVector3f& p2 = tri->verts[2]->GetPos();
 
 		if( p0 == p1 ||
 			p1 == p2 ||
@@ -2037,9 +2037,9 @@ float TMeshSimplifier<T, NumAttributes>::SimplifyMesh( float maxErrorLimit, int 
 		if( tri->TestFlags( SIMP_REMOVED ) )
 			continue;
 
-		const FVector& p0 = tri->verts[0]->GetPos();
-		const FVector& p1 = tri->verts[1]->GetPos();
-		const FVector& p2 = tri->verts[2]->GetPos();
+		const FVector3f& p0 = tri->verts[0]->GetPos();
+		const FVector3f& p1 = tri->verts[1]->GetPos();
+		const FVector3f& p2 = tri->verts[2]->GetPos();
 
 		if( p0 == p1 ||
 			p1 == p2 ||
@@ -2103,7 +2103,7 @@ void TMeshSimplifier<T, NumAttributes>::OutputMesh( T* verts, uint32* indexes, u
 			checkSlow( !vert->TestFlags( SIMP_REMOVED ) );
 			checkSlow( vert->adjTris.Num() != 0 );
 
-			const FVector& p = vert->GetPos();
+			const FVector3f& p = vert->GetPos();
 			uint32 hash = HashPoint( p );
 			uint32 f;
 			for( f = HashTable.First( hash ); HashTable.IsValid(f); f = HashTable.Next( f ) )

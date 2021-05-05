@@ -528,7 +528,7 @@ bool FOpenXRHandTracking::GetKeypointState(EControllerHand Hand, EHandKeypoint K
 	return gotTransform;
 }
 
-bool FOpenXRHandTracking::GetAllKeypointStates(EControllerHand Hand, TArray<struct FVector>& OutPositions, TArray<struct FQuat>& OutRotations, TArray<float>& OutRadii) const
+bool FOpenXRHandTracking::GetAllKeypointStates(EControllerHand Hand, TArray<FVector>& OutPositions, TArray<struct FQuat>& OutRotations, TArray<float>& OutRadii) const
 {
 	if (!bHandTrackingAvailable)
 	{

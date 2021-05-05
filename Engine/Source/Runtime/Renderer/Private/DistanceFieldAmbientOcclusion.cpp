@@ -520,7 +520,7 @@ void GenerateBestSpacedVectors()
 				}
 
 				FVector NewPosition = OriginalSpacedVectors9[i] + Force;
-				NewPosition.Z = FMath::Max(NewPosition.Z, MinZ);
+				NewPosition.Z = FMath::Max<FVector::FReal>(NewPosition.Z, MinZ);
 				NewPosition = NewPosition.GetSafeNormal();
 				OriginalSpacedVectors9[i] = NewPosition;
 			}

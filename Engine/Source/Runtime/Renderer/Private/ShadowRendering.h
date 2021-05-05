@@ -197,12 +197,12 @@ using FPackedNaniteView = Nanite::FPackedView;
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FShadowDepthPassUniformParameters,)
 	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
-	SHADER_PARAMETER(FMatrix, ProjectionMatrix)
-	SHADER_PARAMETER(FMatrix, ViewMatrix)
+	SHADER_PARAMETER(FMatrix44f, ProjectionMatrix)
+	SHADER_PARAMETER(FMatrix44f, ViewMatrix)
 	SHADER_PARAMETER(FVector4, ShadowParams)
 	SHADER_PARAMETER(float, bClampToNearPlane)
-	SHADER_PARAMETER_ARRAY(FMatrix, ShadowViewProjectionMatrices, [6])
-	SHADER_PARAMETER_ARRAY(FMatrix, ShadowViewMatrices, [6])
+	SHADER_PARAMETER_ARRAY(FMatrix44f, ShadowViewProjectionMatrices, [6])
+	SHADER_PARAMETER_ARRAY(FMatrix44f, ShadowViewMatrices, [6])
 	// GPUCULL_TODO: ?
 	SHADER_PARAMETER(int, bRenderToVirtualShadowMap)
 	SHADER_PARAMETER(int, bInstancePerPage)
@@ -216,11 +216,11 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileShadowDepthPassUniformParameters,)
 	SHADER_PARAMETER_STRUCT(FMobileSceneTextureUniformParameters, SceneTextures)
-	SHADER_PARAMETER(FMatrix, ProjectionMatrix)
-	SHADER_PARAMETER(FMatrix, ViewMatrix)
+	SHADER_PARAMETER(FMatrix44f, ProjectionMatrix)
+	SHADER_PARAMETER(FMatrix44f, ViewMatrix)
 	SHADER_PARAMETER(FVector4, ShadowParams)
 	SHADER_PARAMETER(float, bClampToNearPlane)
-	SHADER_PARAMETER_ARRAY(FMatrix, ShadowViewProjectionMatrices, [6])
+	SHADER_PARAMETER_ARRAY(FMatrix44f, ShadowViewProjectionMatrices, [6])
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 /**
@@ -1001,12 +1001,12 @@ public:
 		if (bModulatedShadows)
 		{
 			// UE-29083 : work around precision issues with ScreenToShadowMatrix on low end devices.
-			const FMatrix ScreenToShadow = ShadowInfo->GetScreenToShadowMatrix(View, 0, 0, ShadowBufferResolution.X, ShadowBufferResolution.Y);
+			const FMatrix44f ScreenToShadow = ShadowInfo->GetScreenToShadowMatrix(View, 0, 0, ShadowBufferResolution.X, ShadowBufferResolution.Y);
 			SetShaderValue(RHICmdList, ShaderRHI, ScreenToShadowMatrix, ScreenToShadow);
 		}
 		else
 		{
-			const FMatrix ScreenToShadow = ShadowInfo->GetScreenToShadowMatrix(View);
+			const FMatrix44f ScreenToShadow = ShadowInfo->GetScreenToShadowMatrix(View);
 			SetShaderValue(RHICmdList, ShaderRHI, ScreenToShadowMatrix, ScreenToShadow);
 		}
 
@@ -1014,7 +1014,7 @@ public:
 		{
 			const float TransitionSize = ShadowInfo->ComputeTransitionSize();
 
-			SetShaderValue(RHICmdList, ShaderRHI, SoftTransitionScale, FVector(0, 0, 1.0f / TransitionSize));
+			SetShaderValue(RHICmdList, ShaderRHI, SoftTransitionScale, FVector3f(0, 0, 1.0f / TransitionSize));
 		}
 
 		if (ShadowBufferSize.IsBound())
@@ -1177,7 +1177,7 @@ public:
 
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowFadeFraction, ShadowInfo->FadeAlphas[ViewIndex] );
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowSharpen, LightProxy.GetShadowSharpen() * 7.0f + 1.0f );
-		SetShaderValue(RHICmdList, ShaderRHI, LightPosition, FVector4(LightProxy.GetPosition(), 1.0f / LightProxy.GetRadius()));
+		SetShaderValue(RHICmdList, ShaderRHI, LightPosition, FVector4(FVector(LightProxy.GetPosition()), 1.0f / LightProxy.GetRadius()));
 
 		auto DeferredLightParameter = GetUniformBufferParameter<FDeferredLightUniformStruct>();
 
@@ -1260,7 +1260,7 @@ protected:
 
 /** Translucency shadow projection uniform buffer containing data needed for Fourier opacity maps. */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FTranslucentSelfShadowUniformParameters, )
-	SHADER_PARAMETER(FMatrix, WorldToShadowMatrix)
+	SHADER_PARAMETER(FMatrix44f, WorldToShadowMatrix)
 	SHADER_PARAMETER(FVector4, ShadowUVMinMax)
 	SHADER_PARAMETER(FVector4, DirectionalLightDirection)
 	SHADER_PARAMETER(FVector4, DirectionalLightColor)
@@ -1329,7 +1329,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FOnePassPointShadowProjection, )
 	SHADER_PARAMETER_RDG_TEXTURE(TextureCube, ShadowDepthCubeTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(TextureCube, ShadowDepthCubeTexture2)
 	SHADER_PARAMETER_SAMPLER(SamplerComparisonState, ShadowDepthCubeTextureSampler)
-	SHADER_PARAMETER_ARRAY(FMatrix, ShadowViewProjectionMatrices, [6])
+	SHADER_PARAMETER_ARRAY(FMatrix44f, ShadowViewProjectionMatrices, [6])
 	SHADER_PARAMETER(float, InvShadowmapResolution)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -1497,7 +1497,7 @@ public:
 
 		const FLightSceneProxy& LightProxy = *(ShadowInfo->GetLightSceneInfo().Proxy);
 
-		SetShaderValue(RHICmdList, ShaderRHI, LightPosition, FVector4(LightProxy.GetPosition(), 1.0f / LightProxy.GetRadius()));
+		SetShaderValue(RHICmdList, ShaderRHI, LightPosition, FVector4(FVector3f(LightProxy.GetPosition()), 1.0f / LightProxy.GetRadius()));
 
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowFadeFraction, ShadowInfo->FadeAlphas[ViewIndex]);
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowSharpen, LightProxy.GetShadowSharpen() * 7.0f + 1.0f);
@@ -1506,7 +1506,7 @@ public:
 		float Far = LightProxy.GetRadius();
 		FVector2D param = FVector2D(Far / (Far - Near), -Near * Far / (Far - Near));
 		FVector2D projParam = FVector2D(1.0f / param.Y, param.X / param.Y);
-		SetShaderValue(RHICmdList, ShaderRHI, PointLightDepthBias, FVector(ShadowInfo->GetShaderDepthBias(), ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderMaxSlopeDepthBias()));
+		SetShaderValue(RHICmdList, ShaderRHI, PointLightDepthBias, FVector3f(ShadowInfo->GetShaderDepthBias(), ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderMaxSlopeDepthBias()));
 		SetShaderValue(RHICmdList, ShaderRHI, PointLightProjParameters, FVector2D(projParam.X, projParam.Y));
 
 		if (HairStrandsParameters.IsBound())

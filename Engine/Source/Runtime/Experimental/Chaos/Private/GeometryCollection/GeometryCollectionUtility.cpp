@@ -27,10 +27,10 @@ namespace GeometryCollection
 		int NumNewParticles = 1; // 1 particle for this geometry structure
 		int ParticlesIndex = RestCollection->AddElements(NumNewParticles, FGeometryCollection::TransformGroup);
 
-		TManagedArray<FVector>& Vertices = RestCollection->Vertex;
-		TManagedArray<FVector>&  Normals = RestCollection->Normal;
-		TManagedArray<FVector>&  TangentU = RestCollection->TangentU;
-		TManagedArray<FVector>&  TangentV = RestCollection->TangentV;
+		TManagedArray<FVector3f>& Vertices = RestCollection->Vertex;
+		TManagedArray<FVector3f>&  Normals = RestCollection->Normal;
+		TManagedArray<FVector3f>&  TangentU = RestCollection->TangentU;
+		TManagedArray<FVector3f>&  TangentV = RestCollection->TangentV;
 		TManagedArray<FVector2D>&  UVs = RestCollection->UV;
 		TManagedArray<FLinearColor>&  Colors = RestCollection->Color;
 		TManagedArray<FIntVector>&  Indices = RestCollection->Indices;
@@ -47,23 +47,23 @@ namespace GeometryCollection
 
 		// set the vertex information
 		int32 Index = 0;
-		Vertices[0] = FVector(-Scale.X / 2.f, -Scale.Y / 2.f, -Scale.Z / 2.f);
-		Vertices[1] = FVector(+Scale.X / 2.f, -Scale.Y / 2.f, -Scale.Z / 2.f);
-		Vertices[2] = FVector(-Scale.X / 2.f, +Scale.Y / 2.f, -Scale.Z / 2.f);
-		Vertices[3] = FVector(+Scale.X / 2.f, +Scale.Y / 2.f, -Scale.Z / 2.f);
-		Vertices[4] = FVector(-Scale.X / 2.f, -Scale.Y / 2.f, +Scale.Z / 2.f);
-		Vertices[5] = FVector(+Scale.X / 2.f, -Scale.Y / 2.f, +Scale.Z / 2.f);
-		Vertices[6] = FVector(-Scale.X / 2.f, +Scale.Y / 2.f, +Scale.Z / 2.f);
-		Vertices[7] = FVector(+Scale.X / 2.f, +Scale.Y / 2.f, +Scale.Z / 2.f);
+		Vertices[0] = FVector3f(-Scale.X / 2.f, -Scale.Y / 2.f, -Scale.Z / 2.f);
+		Vertices[1] = FVector3f(+Scale.X / 2.f, -Scale.Y / 2.f, -Scale.Z / 2.f);
+		Vertices[2] = FVector3f(-Scale.X / 2.f, +Scale.Y / 2.f, -Scale.Z / 2.f);
+		Vertices[3] = FVector3f(+Scale.X / 2.f, +Scale.Y / 2.f, -Scale.Z / 2.f);
+		Vertices[4] = FVector3f(-Scale.X / 2.f, -Scale.Y / 2.f, +Scale.Z / 2.f);
+		Vertices[5] = FVector3f(+Scale.X / 2.f, -Scale.Y / 2.f, +Scale.Z / 2.f);
+		Vertices[6] = FVector3f(-Scale.X / 2.f, +Scale.Y / 2.f, +Scale.Z / 2.f);
+		Vertices[7] = FVector3f(+Scale.X / 2.f, +Scale.Y / 2.f, +Scale.Z / 2.f);
 
-		Normals[0] = FVector(-1.f, -1.f, -1.f).GetSafeNormal();
-		Normals[1] = FVector(1.f, -1.f, -1.f).GetSafeNormal();
-		Normals[2] = FVector(-1.f, 1.f, -1.f).GetSafeNormal();
-		Normals[3] = FVector(1.f, 1.f, -1.f).GetSafeNormal();
-		Normals[4] = FVector(-1.f, -1.f, 1.f).GetSafeNormal();
-		Normals[5] = FVector(1.f, -1.f, 1.f).GetSafeNormal();
-		Normals[6] = FVector(-1.f, 1.f, 1.f).GetSafeNormal();
-		Normals[7] = FVector(1.f, 1.f, 1.f).GetSafeNormal();
+		Normals[0] = FVector3f(-1.f, -1.f, -1.f).GetSafeNormal();
+		Normals[1] = FVector3f(1.f, -1.f, -1.f).GetSafeNormal();
+		Normals[2] = FVector3f(-1.f, 1.f, -1.f).GetSafeNormal();
+		Normals[3] = FVector3f(1.f, 1.f, -1.f).GetSafeNormal();
+		Normals[4] = FVector3f(-1.f, -1.f, 1.f).GetSafeNormal();
+		Normals[5] = FVector3f(1.f, -1.f, 1.f).GetSafeNormal();
+		Normals[6] = FVector3f(-1.f, 1.f, 1.f).GetSafeNormal();
+		Normals[7] = FVector3f(1.f, 1.f, 1.f).GetSafeNormal();
 
 		UVs[0] = FVector2D(0, 0);
 		UVs[1] = FVector2D(1, 0);
@@ -121,8 +121,8 @@ namespace GeometryCollection
 			FIntVector Tri = Indices[IndexIdx];
 			for (int idx = 0; idx < 3; idx++)
 			{
-				const FVector Normal = Normals[Tri[idx]];
-				const FVector Edge = (Vertices[Tri[(idx + 1) % 3]] - Vertices[Tri[idx]]);
+				const FVector3f Normal = Normals[Tri[idx]];
+				const FVector3f Edge = (Vertices[Tri[(idx + 1) % 3]] - Vertices[Tri[idx]]);
 				TangentU[Tri[idx]] = (Edge ^ Normal).GetSafeNormal();
 				TangentV[Tri[idx]] = (Normal ^ TangentU[Tri[idx]]).GetSafeNormal();
 			}
@@ -191,18 +191,18 @@ namespace GeometryCollection
 
 		TManagedArray<int32>& VertexCount = Collection->VertexCount;
 		TManagedArray<int32>& VertexStart = Collection->VertexStart;
-		TManagedArray<FVector> & Vertex = Collection->Vertex;
+		TManagedArray<FVector3f> & Vertex = Collection->Vertex;
 		
 		TArray<int32> ReverseMap;
 		GeometryCollectionAlgo::BuildTransformGroupToGeometryGroupMap(*Collection, ReverseMap);
 
 		for (int32 i = VertexStart[ReverseMap[TransformIndex0]]; i < VertexStart[ReverseMap[TransformIndex0]] + VertexCount[ReverseMap[TransformIndex0]]; i++)
 		{
-			Vertex[i] += FVector(1, 0, 0);
+			Vertex[i] += FVector3f(1, 0, 0);
 		}
 		for (int32 i = VertexStart[ReverseMap[TransformIndex1]]; i < VertexStart[ReverseMap[TransformIndex1]] + VertexCount[ReverseMap[TransformIndex1]]; i++)
 		{
-			Vertex[i] -= FVector(1, 0, 0);
+			Vertex[i] -= FVector3f(1, 0, 0);
 		}
 
 		TManagedArray<FString> & Names = Collection->BoneName;
@@ -259,7 +259,7 @@ namespace GeometryCollection
 					TManagedArray<int32>& TransformToGeometryIndex = Collection->TransformToGeometryIndex;
 					// vertices group
 					TManagedArray<int32> & BoneMap = Collection->BoneMap;
-					TManagedArray<FVector> & Vertex = Collection->Vertex;
+					TManagedArray<FVector3f> & Vertex = Collection->Vertex;
 					// faces
 					TManagedArray<FIntVector> & FaceIndices = Collection->Indices;
 

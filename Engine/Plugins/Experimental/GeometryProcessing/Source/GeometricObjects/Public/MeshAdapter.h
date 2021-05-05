@@ -30,7 +30,7 @@ struct TTriangleMeshAdapter
 	TFunction<FIndex3i(int32)> GetTriangle;
 	TFunction<FVector3<RealType>(int32)> GetVertex;
 
-	inline void GetTriVertices(int TID, UE::Core::TVector<RealType>& V0, UE::Core::TVector<RealType>& V1, UE::Core::TVector<RealType>& V2) const
+	inline void GetTriVertices(int TID, UE::Math::TVector<RealType>& V0, UE::Math::TVector<RealType>& V1, UE::Math::TVector<RealType>& V2) const
 	{
 		FIndex3i TriIndices = GetTriangle(TID);
 		V0 = GetVertex(TriIndices.A);
@@ -132,7 +132,7 @@ struct TIndexMeshArrayAdapter
 		return FVector3<OutRealType>((*SourceVertices)[Index]);
 	}
 
-	FORCEINLINE void GetTriVertices(int32 TriIndex, UE::Core::TVector<OutRealType>& V0, UE::Core::TVector<OutRealType>& V1, UE::Core::TVector<OutRealType>& V2) const
+	FORCEINLINE void GetTriVertices(int32 TriIndex, UE::Math::TVector<OutRealType>& V0, UE::Math::TVector<OutRealType>& V1, UE::Math::TVector<OutRealType>& V2) const
 	{
 		int32 Start = TriIndex * 3;
 		V0 = FVector3<OutRealType>((*SourceVertices)[(*SourceTriangles)[Start]]);
@@ -214,7 +214,7 @@ struct TIndexVectorMeshArrayAdapter
 		return FVector3<OutRealType>((*SourceVertices)[Index]);
 	}
 
-	FORCEINLINE void GetTriVertices(int32 TriIndex, UE::Core::TVector<OutRealType>& V0, UE::Core::TVector<OutRealType>& V1, UE::Core::TVector<OutRealType>& V2) const
+	FORCEINLINE void GetTriVertices(int32 TriIndex, UE::Math::TVector<OutRealType>& V0, UE::Math::TVector<OutRealType>& V1, UE::Math::TVector<OutRealType>& V2) const
 	{
 		const IndexVectorType& Tri = (*SourceTriangles)[TriIndex];
 		V0 = FVector3<OutRealType>((*SourceVertices)[Tri[0]]);

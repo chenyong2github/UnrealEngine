@@ -37,6 +37,7 @@
 #include "Templates/AreTypesEqual.h"
 #include "Templates/RemoveCV.h"
 #include "Templates/IsPODType.h"
+#include "Templates/IsUECoreType.h"
 #include "Templates/IsTriviallyCopyConstructible.h"
 #include "Templates/UnrealTypeTraits.h"
 #include "Templates/EnableIf.h"

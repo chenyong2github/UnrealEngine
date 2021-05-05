@@ -841,7 +841,7 @@ void UDebugSkelMeshComponent::RefreshSelectedClothingSkinnedPositions()
 				SkinnedSelectedClothingPositions.Reset();
 				SkinnedSelectedClothingNormals.Reset();
 
-				TArray<FMatrix> RefToLocals;
+				TArray<FMatrix44f> RefToLocals;
 				// Pass LOD0 to collect all bones
 				GetCurrentRefToLocalMatrices(RefToLocals, 0);
 
@@ -949,8 +949,8 @@ void FDebugSkelMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneV
 				FDynamicMeshBuilder MeshBuilderWireframe(Views[0]->GetFeatureLevel());
 
 				const TArray<uint32>& Indices = DynamicData->ClothingSimIndices;
-				const TArray<FVector>& Vertices = DynamicData->SkinnedPositions;
-				const TArray<FVector>& Normals = DynamicData->SkinnedNormals;
+				const TArray<FVector3f>& Vertices = DynamicData->SkinnedPositions;
+				const TArray<FVector3f>& Normals = DynamicData->SkinnedNormals;
 
 				float* ValueArray = DynamicData->ClothingVisiblePropertyValues.GetData();
 

@@ -12,7 +12,7 @@ struct MESHUTILITIESCOMMON_API FOverlappingCorners
 {
 	FOverlappingCorners() {}
 
-	FOverlappingCorners(const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, float ComparisonThreshold);
+	FOverlappingCorners(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, float ComparisonThreshold);
 	FOverlappingCorners(const FLayoutUV::IMeshView& MeshView, float ComparisonThreshold);
 
 	/* Resets, pre-allocates memory, marks all indices as not overlapping in preperation for calls to Add() */

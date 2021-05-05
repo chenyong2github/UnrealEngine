@@ -805,10 +805,10 @@ FRigUnit_ScaleConstraint_Execute()
 		
 		FTransform ChildInitialGlobalTransform = Hierarchy->GetInitialGlobalTransform(Child);
 
-		float OverallWeight = 0;
+		FVector::FReal OverallWeight = 0;
 		for (const FConstraintParent& Parent : Parents)
 		{
-			const float ClampedWeight = FMath::Max(Parent.Weight, 0.f);
+			const FVector::FReal ClampedWeight = FMath::Max<FVector::FReal>(Parent.Weight, 0.f);
 
 			if (ClampedWeight < KINDA_SMALL_NUMBER)
 			{
@@ -825,13 +825,13 @@ FRigUnit_ScaleConstraint_Execute()
 
 		if (OverallWeight > KINDA_SMALL_NUMBER)
 		{
-			const float WeightNormalizer = 1.0f / OverallWeight;
+			const FVector::FReal WeightNormalizer = 1.0f / OverallWeight;
 
 			FVector MixedGlobalScale = FVector::OneVector;
 
 			for (const FConstraintParent& Parent : Parents)
 			{
-				const float ClampedWeight = FMath::Max(Parent.Weight, 0.f);
+				const FVector::FReal ClampedWeight = FMath::Max<FVector::FReal>(Parent.Weight, 0.f);
 
 				if (ClampedWeight < KINDA_SMALL_NUMBER)
 				{
@@ -843,7 +843,7 @@ FRigUnit_ScaleConstraint_Execute()
 					continue;
 				}
 
-				const float NormalizedWeight = ClampedWeight * WeightNormalizer;
+				const FVector::FReal NormalizedWeight = ClampedWeight * WeightNormalizer;
 
 				FVector OffsetScale = FVector::OneVector;
 				FTransform ParentCurrentGlobalTransform = Hierarchy->GetGlobalTransform(Parent.Item, false);

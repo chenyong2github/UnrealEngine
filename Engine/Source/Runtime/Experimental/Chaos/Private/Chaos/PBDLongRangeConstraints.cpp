@@ -41,7 +41,7 @@ void FPBDLongRangeConstraints::Apply(FPBDParticles& Particles, const FReal /*Dt*
 
 	if (!Stiffness.HasWeightMap())
 	{
-		const float ExpStiffnessValue = (float)Stiffness;
+		const FReal ExpStiffnessValue = (FReal)Stiffness;
 #if INTEL_ISPC
 		if (bRealTypeCompatibleWithISPC && bChaos_LongRange_ISPC_Enabled)
 		{

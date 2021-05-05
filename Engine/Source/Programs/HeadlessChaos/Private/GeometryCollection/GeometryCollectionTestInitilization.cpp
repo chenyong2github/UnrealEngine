@@ -117,13 +117,18 @@ GTEST_TEST(AllTraits,GeometryCollection_Initilization_TransformedGeometryCollect
 	//
 	TArray<FTransform> RestTransforms;
 	int32 NumVertices = Collection->DynamicCollection->NumElements(FGeometryCollection::VerticesGroup);
-	TManagedArray<FVector>& Vertices = Collection->RestCollection->template GetAttribute<FVector>("Vertex",FGeometryCollection::VerticesGroup);
+	TManagedArray<FVector3f>& Vertices = Collection->RestCollection->template GetAttribute<FVector3f>("Vertex",FGeometryCollection::VerticesGroup);
 	TManagedArray<int32>& BoneMap = Collection->RestCollection->template GetAttribute<int32>("BoneMap",FGeometryCollection::VerticesGroup);
 	GeometryCollectionAlgo::GlobalMatrices(Collection->RestCollection->Transform,Collection->RestCollection->Parent,RestTransforms);
-	FVector CenterOfMass(0);  for(int VertexIndex =0; VertexIndex <NumVertices; VertexIndex++) CenterOfMass += RestTransforms[BoneMap[VertexIndex]].TransformPosition(Vertices[VertexIndex]); CenterOfMass /= NumVertices;
+	FVector CenterOfMass(0);  
+	for (int VertexIndex = 0; VertexIndex < NumVertices; VertexIndex++)
+	{
+		CenterOfMass += RestTransforms[BoneMap[VertexIndex]].TransformPosition(Vertices[VertexIndex]);
+	}
+	CenterOfMass /= NumVertices;
 	EXPECT_NEAR(CenterOfMass.X - GlobalTranslation[0],0.0f,KINDA_SMALL_NUMBER);
-	EXPECT_NEAR(CenterOfMass.Y - GlobalTranslation[0],0.0f,KINDA_SMALL_NUMBER);
-	EXPECT_NEAR(CenterOfMass.Z - GlobalTranslation[0],0.0f,KINDA_SMALL_NUMBER);
+	EXPECT_NEAR(CenterOfMass.Y - GlobalTranslation[1],0.0f,KINDA_SMALL_NUMBER);
+	EXPECT_NEAR(CenterOfMass.Z - GlobalTranslation[2],0.0f,KINDA_SMALL_NUMBER);
 
 
 

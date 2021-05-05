@@ -254,16 +254,16 @@ bool FMeshDescriptionTest::CompareRawMesh(const FString& AssetName, FAutomationT
 	FString ConversionName = TEXT("RawMesh to MeshDescription to RawMesh");
 
 	//Positions
-	StructureArrayCompare<FVector>(ConversionName, AssetName, ExecutionInfo, bAllSame, TEXT("vertex positions"), ReferenceRawMesh.VertexPositions, ResultRawMesh.VertexPositions);
+	StructureArrayCompare<FVector3f>(ConversionName, AssetName, ExecutionInfo, bAllSame, TEXT("vertex positions"), ReferenceRawMesh.VertexPositions, ResultRawMesh.VertexPositions);
 
 	//Normals
-	StructureArrayCompare<FVector>(ConversionName, AssetName, ExecutionInfo, bAllSame, TEXT("vertex instance normals"), ReferenceRawMesh.WedgeTangentZ, ResultRawMesh.WedgeTangentZ);
+	StructureArrayCompare<FVector3f>(ConversionName, AssetName, ExecutionInfo, bAllSame, TEXT("vertex instance normals"), ReferenceRawMesh.WedgeTangentZ, ResultRawMesh.WedgeTangentZ);
 
 	//Tangents
-	StructureArrayCompare<FVector>(ConversionName, AssetName, ExecutionInfo, bAllSame, TEXT("vertex instance tangents"), ReferenceRawMesh.WedgeTangentX, ResultRawMesh.WedgeTangentX);
+	StructureArrayCompare<FVector3f>(ConversionName, AssetName, ExecutionInfo, bAllSame, TEXT("vertex instance tangents"), ReferenceRawMesh.WedgeTangentX, ResultRawMesh.WedgeTangentX);
 
 	//BiNormal
-	StructureArrayCompare<FVector>(ConversionName, AssetName, ExecutionInfo, bAllSame, TEXT("vertex instance binormals"), ReferenceRawMesh.WedgeTangentY, ResultRawMesh.WedgeTangentY);
+	StructureArrayCompare<FVector3f>(ConversionName, AssetName, ExecutionInfo, bAllSame, TEXT("vertex instance binormals"), ReferenceRawMesh.WedgeTangentY, ResultRawMesh.WedgeTangentY);
 
 	//Colors --- FColor do not have Equals, so let use the full precision (FColor use integer anyway)
 	StructureArrayCompareFullPrecision<FColor>(ConversionName, AssetName, ExecutionInfo, bAllSame, TEXT("vertex instance colors"), ReferenceRawMesh.WedgeColors, ResultRawMesh.WedgeColors);
@@ -289,7 +289,7 @@ bool FMeshDescriptionTest::CompareRawMesh(const FString& AssetName, FAutomationT
 
 
 template <typename T> FString AttributeValueAsString(const T& Value) { return LexToString(Value); }
-FString AttributeValueAsString(const FVector& Value) { return Value.ToString(); }
+FString AttributeValueAsString(const FVector3f& Value) { return Value.ToString(); }
 FString AttributeValueAsString(const FVector2D& Value) { return Value.ToString(); }
 FString AttributeValueAsString(const FVector4& Value) { return Value.ToString(); }
 
@@ -357,9 +357,9 @@ bool FMeshDescriptionTest::CompareMeshDescription(const FString& AssetName, FAut
 	//////////////////////////////////////////////////////////////////////////
 	//Gather the reference data
 	FStaticMeshConstAttributes ReferenceAttributes(ReferenceMeshDescription);
-	TVertexAttributesConstRef<FVector> ReferenceVertexPositions = ReferenceAttributes.GetVertexPositions();
-	TVertexInstanceAttributesConstRef<FVector> ReferenceVertexInstanceNormals = ReferenceAttributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesConstRef<FVector> ReferenceVertexInstanceTangents = ReferenceAttributes.GetVertexInstanceTangents();
+	TVertexAttributesConstRef<FVector3f> ReferenceVertexPositions = ReferenceAttributes.GetVertexPositions();
+	TVertexInstanceAttributesConstRef<FVector3f> ReferenceVertexInstanceNormals = ReferenceAttributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesConstRef<FVector3f> ReferenceVertexInstanceTangents = ReferenceAttributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesConstRef<float> ReferenceVertexInstanceBinormalSigns = ReferenceAttributes.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesConstRef<FVector4> ReferenceVertexInstanceColors = ReferenceAttributes.GetVertexInstanceColors();
 	TVertexInstanceAttributesConstRef<FVector2D> ReferenceVertexInstanceUVs = ReferenceAttributes.GetVertexInstanceUVs();
@@ -370,9 +370,9 @@ bool FMeshDescriptionTest::CompareMeshDescription(const FString& AssetName, FAut
 	//////////////////////////////////////////////////////////////////////////
 	//Gather the result data
 	FStaticMeshConstAttributes ResultAttributes(MeshDescription);
-	TVertexAttributesConstRef<FVector> ResultVertexPositions = ResultAttributes.GetVertexPositions();
-	TVertexInstanceAttributesConstRef<FVector> ResultVertexInstanceNormals = ResultAttributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesConstRef<FVector> ResultVertexInstanceTangents = ResultAttributes.GetVertexInstanceTangents();
+	TVertexAttributesConstRef<FVector3f> ResultVertexPositions = ResultAttributes.GetVertexPositions();
+	TVertexInstanceAttributesConstRef<FVector3f> ResultVertexInstanceNormals = ResultAttributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesConstRef<FVector3f> ResultVertexInstanceTangents = ResultAttributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesConstRef<float> ResultVertexInstanceBinormalSigns = ResultAttributes.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesConstRef<FVector4> ResultVertexInstanceColors = ResultAttributes.GetVertexInstanceColors();
 	TVertexInstanceAttributesConstRef<FVector2D> ResultVertexInstanceUVs = ResultAttributes.GetVertexInstanceUVs();
@@ -569,8 +569,8 @@ bool FMeshDescriptionTest::NTBTest(FAutomationTestExecutionInfo& ExecutionInfo)
 		AssetMesh->GetSourceModel(0).LoadRawMesh(RawMesh);
 
 		FStaticMeshAttributes Attributes(MeshDescription);
-		const TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-		const TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+		const TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+		const TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 		const TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 		const TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 		const TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
@@ -698,7 +698,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMeshDescriptionBuilderTest, "Editor.Meshes.Mes
 bool FMeshDescriptionBuilderTest::RunTest(const FString& Parameters)
 {
 	FMeshDescription MeshDescription;
-	TVertexAttributesRef<FVector> Positions = MeshDescription.GetVertexPositions();
+	TVertexAttributesRef<FVector3f> Positions = MeshDescription.GetVertexPositions();
 
 	// Build a hexagonal cylinder
 

@@ -84,12 +84,12 @@ public:
 	/** Changed to float& from float to avoid LHS **/
 	friend FORCEINLINE TSHVector operator*(const TSHVector& A,const float& B)
 	{
-		const VectorRegister ReplicatedScalar = VectorLoadFloat1(&B);
+		const VectorRegister4Float ReplicatedScalar = VectorLoadFloat1(&B);
 
 		TSHVector Result;
 		for(int32 BasisIndex = 0;BasisIndex < NumSIMDVectors;BasisIndex++)
 		{
-			VectorRegister MulResult = VectorMultiply(
+			VectorRegister4Float MulResult = VectorMultiply(
 				VectorLoadAligned(&A.V[BasisIndex * NumComponentsPerSIMDVector]),
 				ReplicatedScalar
 				);
@@ -102,12 +102,12 @@ public:
 	friend FORCEINLINE TSHVector operator/(const TSHVector& A,const float& Scalar)
 	{
 		const float B = (1.0f / Scalar);
-		const VectorRegister ReplicatedScalar = VectorLoadFloat1(&B);
+		const VectorRegister4Float ReplicatedScalar = VectorLoadFloat1(&B);
 
 		TSHVector Result;
 		for(int32 BasisIndex = 0;BasisIndex < NumSIMDVectors;BasisIndex++)
 		{
-			VectorRegister MulResult = VectorMultiply(
+			VectorRegister4Float MulResult = VectorMultiply(
 				VectorLoadAligned(&A.V[BasisIndex * NumComponentsPerSIMDVector]),
 				ReplicatedScalar
 				);
@@ -122,7 +122,7 @@ public:
 		TSHVector Result;
 		for(int32 BasisIndex = 0;BasisIndex < NumSIMDVectors;BasisIndex++)
 		{
-			VectorRegister AddResult = VectorAdd(
+			VectorRegister4Float AddResult = VectorAdd(
 				VectorLoadAligned(&A.V[BasisIndex * NumComponentsPerSIMDVector]),
 				VectorLoadAligned(&B.V[BasisIndex * NumComponentsPerSIMDVector])
 				);
@@ -138,7 +138,7 @@ public:
 		TSHVector Result;
 		for(int32 BasisIndex = 0;BasisIndex < NumSIMDVectors;BasisIndex++)
 		{
-			VectorRegister SubResult = VectorSubtract(
+			VectorRegister4Float SubResult = VectorSubtract(
 				VectorLoadAligned(&A.V[BasisIndex * NumComponentsPerSIMDVector]),
 				VectorLoadAligned(&B.V[BasisIndex * NumComponentsPerSIMDVector])
 				);
@@ -151,7 +151,7 @@ public:
 	/** Dot product operator. */
 	friend FORCEINLINE float Dot(const TSHVector& A,const TSHVector& B)
 	{
-		VectorRegister ReplicatedResult = VectorZero();
+		VectorRegister4Float ReplicatedResult = VectorZero();
 		for(int32 BasisIndex = 0;BasisIndex < NumSIMDVectors;BasisIndex++)
 		{
 			ReplicatedResult = VectorAdd(
@@ -174,7 +174,7 @@ public:
 	{
 		for(int32 BasisIndex = 0;BasisIndex < NumSIMDVectors;BasisIndex++)
 		{
-			VectorRegister AddResult = VectorAdd(
+			VectorRegister4Float AddResult = VectorAdd(
 				VectorLoadAligned(&V[BasisIndex * NumComponentsPerSIMDVector]),
 				VectorLoadAligned(&B.V[BasisIndex * NumComponentsPerSIMDVector])
 				);
@@ -191,7 +191,7 @@ public:
 	{
 		for(int32 BasisIndex = 0;BasisIndex < NumSIMDVectors;BasisIndex++)
 		{
-			VectorRegister SubResult = VectorSubtract(
+			VectorRegister4Float SubResult = VectorSubtract(
 				VectorLoadAligned(&V[BasisIndex * NumComponentsPerSIMDVector]),
 				VectorLoadAligned(&B.V[BasisIndex * NumComponentsPerSIMDVector])
 				);
@@ -208,11 +208,11 @@ public:
 	FORCEINLINE TSHVector& operator/=(const float& Scalar)
 	{
 		const float B = (1.0f/Scalar);
-		const VectorRegister ReplicatedScalar = VectorLoadFloat1(&B);
+		const VectorRegister4Float ReplicatedScalar = VectorLoadFloat1(&B);
 
 		for(int32 BasisIndex = 0;BasisIndex < NumSIMDVectors;BasisIndex++)
 		{
-			VectorRegister MulResult = VectorMultiply(
+			VectorRegister4Float MulResult = VectorMultiply(
 				VectorLoadAligned(&V[BasisIndex * NumComponentsPerSIMDVector]),
 				ReplicatedScalar
 				);
@@ -227,11 +227,11 @@ public:
 	/** Now this avoids TSHVector * operator thus LHS on *this as well as Result and LHS **/
 	FORCEINLINE TSHVector& operator*=(const float& B)
 	{
-		const VectorRegister ReplicatedScalar = VectorLoadFloat1(&B);
+		const VectorRegister4Float ReplicatedScalar = VectorLoadFloat1(&B);
 
 		for(int32 BasisIndex = 0;BasisIndex < NumSIMDVectors;BasisIndex++)
 		{
-			VectorRegister MulResult = VectorMultiply(
+			VectorRegister4Float MulResult = VectorMultiply(
 				VectorLoadAligned(&V[BasisIndex * NumComponentsPerSIMDVector]),
 				ReplicatedScalar
 				);

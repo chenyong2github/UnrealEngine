@@ -477,7 +477,7 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(FGPUSkinCache* GPUSki
 
 		check(PositionBuffer.GetNumVertices() == DynamicData->PreSkinningOffsets.Num());
 
-		uint32 SizeInBytes = PositionBuffer.GetNumVertices() * sizeof(FVector);
+		uint32 SizeInBytes = PositionBuffer.GetNumVertices() * sizeof(FVector3f);
 
 		void* Buffer = RHICmdList.LockBuffer(
 			PositionBuffer.VertexBufferRHI,
@@ -497,7 +497,7 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(FGPUSkinCache* GPUSki
 
 		check(PositionBuffer.GetNumVertices() == DynamicData->PostSkinningOffsets.Num());
 
-		uint32 SizeInBytes = PositionBuffer.GetNumVertices() * sizeof(FVector);
+		uint32 SizeInBytes = PositionBuffer.GetNumVertices() * sizeof(FVector3f);
 
 		void* Buffer = RHICmdList.LockBuffer(
 			PositionBuffer.VertexBufferRHI,
@@ -617,12 +617,12 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(FGPUSkinCache* GPUSki
 			// if we have previous reference to loca, we also update to previous frame
 			if (DynamicData->PreviousReferenceToLocal.Num() > 0)
 			{
-				TArray<FMatrix>& PreviousReferenceToLocalMatrices = DynamicData->PreviousReferenceToLocal;
+				TArray<FMatrix44f>& PreviousReferenceToLocalMatrices = DynamicData->PreviousReferenceToLocal;
 				ShaderData.UpdateBoneData(RHICmdList, PreviousReferenceToLocalMatrices, Section.BoneMap, RevisionNumber, true, FeatureLevel, bUseSkinCache);
 			}
 
 			// Create a uniform buffer from the bone transforms.
-			TArray<FMatrix>& ReferenceToLocalMatrices = DynamicData->ReferenceToLocal;
+			TArray<FMatrix44f>& ReferenceToLocalMatrices = DynamicData->ReferenceToLocal;
 			bool bNeedFence = ShaderData.UpdateBoneData(RHICmdList, ReferenceToLocalMatrices, Section.BoneMap, RevisionNumber, false, FeatureLevel, bUseSkinCache);
 
 #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
@@ -1856,7 +1856,7 @@ TArray<FTransform>* FSkeletalMeshObjectGPUSkin::GetComponentSpaceTransforms() co
 	}
 }
 
-const TArray<FMatrix>& FSkeletalMeshObjectGPUSkin::GetReferenceToLocalMatrices() const
+const TArray<FMatrix44f>& FSkeletalMeshObjectGPUSkin::GetReferenceToLocalMatrices() const
 {
 	return DynamicData->ReferenceToLocal;
 }

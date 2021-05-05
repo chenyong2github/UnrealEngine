@@ -12,7 +12,7 @@ namespace LiveLinkTransformHandlerUtils
 {
 	void FillTransformInterpolated(const FFrameTime& InFrameTime, int32& InOutStartIndex, const TArray<FMovieSceneFloatChannel>& InSourceChannels, FTransform& OutTransform)
 	{
-		FVector TempVector;
+		FVector3f TempVector;
 
 		for (int32 i = 0; i < 3; ++i)
 		{
@@ -37,7 +37,7 @@ namespace LiveLinkTransformHandlerUtils
 
 	void FillTransform(int32 InKeyIndex, int32& InOutStartIndex, const TArray<FMovieSceneFloatChannel>& InSourceChannels, FTransform& OutTransform)
 	{
-		FVector TempVector;
+		FVector3f TempVector;
 
 		for (int32 i = 0; i < 3; ++i)
 		{

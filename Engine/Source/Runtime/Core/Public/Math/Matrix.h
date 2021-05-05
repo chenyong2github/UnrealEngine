@@ -12,46 +12,75 @@
 #include "Math/Rotator.h"
 #include "Math/Axis.h"
 
+#ifdef _MSC_VER
+#pragma warning (push)
+// Ensure template functions don't generate shadowing warnings against global variables at the point of instantiation.
+#pragma warning (disable : 4459)
+#endif
+
 /**
  * 4x4 matrix of floating point values.
  * Matrix-matrix multiplication happens with a pre-multiple of the transpose --
- * in other words, Res = Mat1.operator*(Mat2) means Res = Mat2^T * Mat1, as
+ * in other words, Res = Mat1.operator*(Mat2) means Res = Mat2^FArg * Mat1, as
  * opposed to Res = Mat1 * Mat2.
  * Matrix elements are accessed with M[RowIndex][ColumnIndex].
  */
-struct FMatrix
+namespace UE
+{
+namespace Math
+{
+
+template<typename T>
+struct TMatrix
 {
 public:
+	using FReal = T;
+
 	union
 	{
-		MS_ALIGN(16) float M[4][4] GCC_ALIGN(16);
+		MS_ALIGN(16) T M[4][4] GCC_ALIGN(16);
 	};
 
 	//Identity matrix
-	MS_ALIGN(16) static CORE_API const FMatrix Identity GCC_ALIGN(16);
+	MS_ALIGN(16) static const TMatrix<T> Identity GCC_ALIGN(16);
+
+
+#if ENABLE_NAN_DIAGNOSTIC
+	FORCEINLINE void DiagnosticCheckNaN() const
+	{
+		if (ContainsNaN())
+		{
+			logOrEnsureNanError(TEXT("FMatrix contains NaN: %s"), *ToString());
+			*const_cast<TMatrix<T>*>(static_cast<const TMatrix<T>*>(this)) = TMatrix<T>(ForceInitToZero);
+		}
+	}
+#else
+	FORCEINLINE void DiagnosticCheckNaN() const {}
+#endif
+
 
 	// Constructors.
-	FORCEINLINE FMatrix();
+	FORCEINLINE TMatrix();
 
 	/**
 	 * Constructor.
 	 *
 	 * @param EForceInit Force Init Enum.
 	 */
-	explicit FORCEINLINE FMatrix(EForceInit)
+	explicit FORCEINLINE TMatrix(EForceInit)
 	{
-		FMemory::Memzero(this,sizeof(*this));
+		FMemory::Memzero(this, sizeof(*this));
 	}
 
 	/**
 	 * Constructor.
 	 *
-	 * @param InX X plane 
+	 * @param InX X plane
 	 * @param InY Y plane
 	 * @param InZ Z plane
 	 * @param InW W plane
 	 */
-	FORCEINLINE FMatrix(const FPlane& InX,const FPlane& InY,const FPlane& InZ,const FPlane& InW);
+	FORCEINLINE TMatrix(const TPlane<T>& InX, const TPlane<T>& InY, const TPlane<T>& InZ, const TPlane<T>& InW);
 
 	/**
 	 * Constructor.
@@ -61,7 +90,7 @@ public:
 	 * @param InZ Z vector
 	 * @param InW W vector
 	 */
-	FORCEINLINE FMatrix(const FVector& InX,const FVector& InY,const FVector& InZ,const FVector& InW);
+	FORCEINLINE TMatrix(const TVector<T>& InX, const TVector<T>& InY, const TVector<T>& InZ, const TVector<T>& InW);
 
 	// Set this to the identity matrix
 	inline void SetIdentity();
@@ -72,7 +101,7 @@ public:
 	 * @param Other The matrix to multiply this by.
 	 * @return The result of multiplication.
 	 */
-	FORCEINLINE FMatrix operator* (const FMatrix& Other) const;
+	FORCEINLINE TMatrix<T> operator* (const TMatrix<T>& Other) const;
 
 	/**
 	 * Multiply this by a matrix.
@@ -80,7 +109,7 @@ public:
 	 * @param Other the matrix to multiply by this.
 	 * @return reference to this after multiply.
 	 */
-	FORCEINLINE void operator*=(const FMatrix& Other);
+	FORCEINLINE void operator*=(const TMatrix<T>& Other);
 
 	/**
 	 * Gets the result of adding a matrix to this.
@@ -88,7 +117,7 @@ public:
 	 * @param Other The Matrix to add.
 	 * @return The result of addition.
 	 */
-	FORCEINLINE FMatrix operator+ (const FMatrix& Other) const;
+	FORCEINLINE TMatrix<T> operator+ (const TMatrix<T>& Other) const;
 
 	/**
 	 * Adds to this matrix.
@@ -96,12 +125,12 @@ public:
 	 * @param Other The matrix to add to this.
 	 * @return Reference to this after addition.
 	 */
-	FORCEINLINE void operator+=(const FMatrix& Other);
+	FORCEINLINE void operator+=(const TMatrix<T>& Other);
 
-	/** 
+	/**
 	  * This isn't applying SCALE, just multiplying the value to all members - i.e. weighting
 	  */
-	FORCEINLINE FMatrix operator* (float Other) const;
+	FORCEINLINE TMatrix<T> operator* (T Other) const;
 
 	/**
 	 * Multiply this matrix by a weighting factor.
@@ -109,15 +138,15 @@ public:
 	 * @param other The weight.
 	 * @return a reference to this after weighting.
 	 */
-	FORCEINLINE void operator*=(float Other);
+	FORCEINLINE void operator*=(T Other);
 
- 	/**
+	/**
 	 * Checks whether two matrix are identical.
 	 *
 	 * @param Other The other matrix.
 	 * @return true if two matrix are identical, otherwise false.
 	 */
-	inline bool operator==(const FMatrix& Other) const;
+	inline bool operator==(const TMatrix<T>& Other) const;
 
 	/**
 	 * Checks whether another Matrix is equal to this, within specified tolerance.
@@ -126,7 +155,7 @@ public:
 	 * @param Tolerance Error Tolerance.
 	 * @return true if two Matrix are equal, within specified tolerance, otherwise false.
 	 */
-	inline bool Equals(const FMatrix& Other, float Tolerance=KINDA_SMALL_NUMBER) const;
+	inline bool Equals(const TMatrix<T>& Other, T Tolerance = KINDA_SMALL_NUMBER) const;
 
 	/**
 	 * Checks whether another Matrix is not equal to this, within specified tolerance.
@@ -134,84 +163,84 @@ public:
 	 * @param Other The other Matrix.
 	 * @return true if two Matrix are not equal, within specified tolerance, otherwise false.
 	 */
-	inline bool operator!=(const FMatrix& Other) const;
+	inline bool operator!=(const TMatrix<T>& Other) const;
 
 	// Homogeneous transform.
 	FORCEINLINE FVector4 TransformFVector4(const FVector4& V) const;
 
-	/** Transform a location - will take into account translation part of the FMatrix. */
-	FORCEINLINE FVector4 TransformPosition(const FVector &V) const;
+	/** Transform a location - will take into account translation part of the TMatrix<T>. */
+	FORCEINLINE FVector4 TransformPosition(const TVector<T>& V) const;
 
 	/** Inverts the matrix and then transforms V - correctly handles scaling in this matrix. */
-	FORCEINLINE FVector InverseTransformPosition(const FVector &V) const;
+	FORCEINLINE TVector<T> InverseTransformPosition(const TVector<T>& V) const;
 
-	/** 
-	 *	Transform a direction vector - will not take into account translation part of the FMatrix. 
+	/**
+	 *	Transform a direction vector - will not take into account translation part of the TMatrix<T>.
 	 *	If you want to transform a surface normal (or plane) and correctly account for non-uniform scaling you should use TransformByUsingAdjointT.
 	 */
-	FORCEINLINE FVector4 TransformVector(const FVector& V) const;
+	FORCEINLINE FVector4 TransformVector(const TVector<T>& V) const;
 
-	/** 
+	/**
 	 *	Transform a direction vector by the inverse of this matrix - will not take into account translation part.
 	 *	If you want to transform a surface normal (or plane) and correctly account for non-uniform scaling you should use TransformByUsingAdjointT with adjoint of matrix inverse.
 	 */
-	FORCEINLINE FVector InverseTransformVector(const FVector &V) const;
+	FORCEINLINE TVector<T> InverseTransformVector(const TVector<T>& V) const;
 
 	// Transpose.
 
-	FORCEINLINE FMatrix GetTransposed() const;
+	FORCEINLINE TMatrix<T> GetTransposed() const;
 
 	// @return determinant of this matrix.
 
-	inline float Determinant() const;
+	inline T Determinant() const;
 
 	/** @return the determinant of rotation 3x3 matrix */
-	inline float RotDeterminant() const;
+	inline T RotDeterminant() const;
 
 	/** Fast path, doesn't check for nil matrices in final release builds */
-	inline FMatrix InverseFast() const;
+	inline TMatrix<T> InverseFast() const;
 
 	/** Fast path, and handles nil matrices. */
-	inline FMatrix Inverse() const;
+	inline TMatrix<T> Inverse() const;
 
-	inline FMatrix TransposeAdjoint() const;
+	inline TMatrix<T> TransposeAdjoint() const;
 
 	// NOTE: There is some compiler optimization issues with WIN64 that cause FORCEINLINE to cause a crash
 	// Remove any scaling from this matrix (ie magnitude of each row is 1) with error Tolerance
-	inline void RemoveScaling(float Tolerance=SMALL_NUMBER);
+	inline void RemoveScaling(T Tolerance = SMALL_NUMBER);
 
 	// Returns matrix after RemoveScaling with error Tolerance
-	inline FMatrix GetMatrixWithoutScale(float Tolerance=SMALL_NUMBER) const;
+	inline TMatrix<T> GetMatrixWithoutScale(T Tolerance = SMALL_NUMBER) const;
 
 	/** Remove any scaling from this matrix (ie magnitude of each row is 1) and return the 3D scale vector that was initially present with error Tolerance */
-	inline FVector ExtractScaling(float Tolerance=SMALL_NUMBER);
+	inline TVector<T> ExtractScaling(T Tolerance = SMALL_NUMBER);
 
 	/** return a 3D scale vector calculated from this matrix (where each component is the magnitude of a row vector) with error Tolerance. */
-	inline FVector GetScaleVector(float Tolerance=SMALL_NUMBER) const;
+	inline TVector<T> GetScaleVector(T Tolerance = SMALL_NUMBER) const;
 
 	// Remove any translation from this matrix
-	inline FMatrix RemoveTranslation() const;
+	inline TMatrix<T> RemoveTranslation() const;
 
 	/** Returns a matrix with an additional translation concatenated. */
-	inline FMatrix ConcatTranslation(const FVector& Translation) const;
+	inline TMatrix<T> ConcatTranslation(const TVector<T>& Translation) const;
 
 	/** Returns true if any element of this matrix is NaN */
 	inline bool ContainsNaN() const;
 
 	/** Scale the translation part of the matrix by the supplied vector. */
-	inline void ScaleTranslation(const FVector& Scale3D);
+	inline void ScaleTranslation(const TVector<T>& Scale3D);
 
 	/** @return the minimum magnitude of any row of the matrix. */
-	inline float GetMinimumAxisScale() const;
+	inline T GetMinimumAxisScale() const;
 
 	/** @return the maximum magnitude of any row of the matrix. */
-	inline float GetMaximumAxisScale() const;
+	inline T GetMaximumAxisScale() const;
 
 	/** Apply Scale to this matrix **/
-	inline FMatrix ApplyScale(float Scale) const;
+	inline TMatrix<T> ApplyScale(T Scale) const;
 
 	// @return the origin of the co-ordinate system
-	inline FVector GetOrigin() const;
+	inline TVector<T> GetOrigin() const;
 
 	/**
 	 * get axis of this matrix scaled by the scale of the matrix
@@ -219,7 +248,7 @@ public:
 	 * @param i index into the axis of the matrix
 	 * @ return vector of the axis
 	 */
-	inline FVector GetScaledAxis(EAxis::Type Axis) const;
+	inline TVector<T> GetScaledAxis(EAxis::Type Axis) const;
 
 	/**
 	 * get axes of this matrix scaled by the scale of the matrix
@@ -228,7 +257,7 @@ public:
 	 * @param Y axes returned to this param
 	 * @param Z axes returned to this param
 	 */
-	inline void GetScaledAxes(FVector &X, FVector &Y, FVector &Z) const;
+	inline void GetScaledAxes(TVector<T>& X, TVector<T>& Y, TVector<T>& Z) const;
 
 	/**
 	 * get unit length axis of this matrix
@@ -236,7 +265,7 @@ public:
 	 * @param i index into the axis of the matrix
 	 * @return vector of the axis
 	 */
-	inline FVector GetUnitAxis(EAxis::Type Axis) const;
+	inline TVector<T> GetUnitAxis(EAxis::Type Axis) const;
 
 	/**
 	 * get unit length axes of this matrix
@@ -245,7 +274,7 @@ public:
 	 * @param Y axes returned to this param
 	 * @param Z axes returned to this param
 	 */
-	inline void GetUnitAxes(FVector &X, FVector &Y, FVector &Z) const;
+	inline void GetUnitAxes(TVector<T>& X, TVector<T>& Y, TVector<T>& Z) const;
 
 	/**
 	 * set an axis of this matrix
@@ -253,29 +282,29 @@ public:
 	 * @param i index into the axis of the matrix
 	 * @param Axis vector of the axis
 	 */
-	inline void SetAxis( int32 i, const FVector& Axis );
+	inline void SetAxis(int32 i, const TVector<T>& Axis);
 
 	// Set the origin of the coordinate system to the given vector
-	inline void SetOrigin( const FVector& NewOrigin );
+	inline void SetOrigin(const TVector<T>& NewOrigin);
 
 	/**
 	 * Update the axes of the matrix if any value is NULL do not update that axis
 	 *
 	 * @param Axis0 set matrix row 0
-	 * @param Axis1 set matrix row 1 
+	 * @param Axis1 set matrix row 1
 	 * @param Axis2 set matrix row 2
 	 * @param Origin set matrix row 3
 	 */
-	inline void SetAxes(const FVector* Axis0 = NULL, const FVector* Axis1 = NULL, const FVector* Axis2 = NULL, const FVector* Origin = NULL);
+	inline void SetAxes(const TVector<T>* Axis0 = NULL, const TVector<T>* Axis1 = NULL, const TVector<T>* Axis2 = NULL, const TVector<T>* Origin = NULL);
 
-	
+
 	/**
 	 * get a column of this matrix
 	 *
 	 * @param i index into the column of the matrix
-	 * @return vector of the column 
+	 * @return vector of the column
 	 */
-	inline FVector GetColumn(int32 i) const;
+	inline TVector<T> GetColumn(int32 i) const;
 
 	/**
 	 * Set a column of this matrix
@@ -283,12 +312,12 @@ public:
 	 * @param i index of the matrix column
 	 * @param Value new value of the column
 	 */
-	inline void SetColumn(int32 i, FVector Value);
+	inline void SetColumn(int32 i, TVector<T> Value);
 
 	/** @return rotator representation of this matrix */
 	CORE_API FRotator Rotator() const;
 
-	/** 
+	/**
 	 * Transform a rotation matrix into a quaternion.
 	 *
 	 * @warning rotation part will need to be unit length for this to be right!
@@ -296,23 +325,23 @@ public:
 	CORE_API FQuat ToQuat() const;
 
 	// Frustum plane extraction.
-	/** @param OutPlane the near plane of the Frustum of this matrix */
-	FORCEINLINE bool GetFrustumNearPlane(FPlane& OutPlane) const;
+	/** @param OuTPln the near plane of the Frustum of this matrix */
+	FORCEINLINE bool GetFrustumNearPlane(TPlane<T>& OuTPln) const;
 
-	/** @param OutPlane the far plane of the Frustum of this matrix */
-	FORCEINLINE bool GetFrustumFarPlane(FPlane& OutPlane) const;
+	/** @param OuTPln the far plane of the Frustum of this matrix */
+	FORCEINLINE bool GetFrustumFarPlane(TPlane<T>& OuTPln) const;
 
-	/** @param OutPlane the left plane of the Frustum of this matrix */
-	FORCEINLINE bool GetFrustumLeftPlane(FPlane& OutPlane) const;
+	/** @param OuTPln the left plane of the Frustum of this matrix */
+	FORCEINLINE bool GetFrustumLeftPlane(TPlane<T>& OuTPln) const;
 
-	/** @param OutPlane the right plane of the Frustum of this matrix */
-	FORCEINLINE bool GetFrustumRightPlane(FPlane& OutPlane) const;
+	/** @param OuTPln the right plane of the Frustum of this matrix */
+	FORCEINLINE bool GetFrustumRightPlane(TPlane<T>& OuTPln) const;
 
-	/** @param OutPlane the top plane of the Frustum of this matrix */
-	FORCEINLINE bool GetFrustumTopPlane(FPlane& OutPlane) const;
+	/** @param OuTPln the top plane of the Frustum of this matrix */
+	FORCEINLINE bool GetFrustumTopPlane(TPlane<T>& OuTPln) const;
 
-	/** @param OutPlane the bottom plane of the Frustum of this matrix */
-	FORCEINLINE bool GetFrustumBottomPlane(FPlane& OutPlane) const;
+	/** @param OuTPln the bottom plane of the Frustum of this matrix */
+	FORCEINLINE bool GetFrustumBottomPlane(TPlane<T>& OuTPln) const;
 
 	/**
 	 * Utility for mirroring this transform across a certain plane, and flipping one of the axis as well.
@@ -324,40 +353,56 @@ public:
 	 *
 	 * @return Text describing the vector.
 	 */
-	CORE_API FString ToString() const;
+	FString ToString() const
+	{
+		FString Output;
+
+		Output += FString::Printf(TEXT("[%g %g %g %g] "), M[0][0], M[0][1], M[0][2], M[0][3]);
+		Output += FString::Printf(TEXT("[%g %g %g %g] "), M[1][0], M[1][1], M[1][2], M[1][3]);
+		Output += FString::Printf(TEXT("[%g %g %g %g] "), M[2][0], M[2][1], M[2][2], M[2][3]);
+		Output += FString::Printf(TEXT("[%g %g %g %g] "), M[3][0], M[3][1], M[3][2], M[3][3]);
+
+		return Output;
+	}
 
 	/** Output ToString */
-	void DebugPrint() const;
+	void DebugPrint() const
+	{
+		UE_LOG(LogUnrealMath, Log, TEXT("%s"), *ToString());
+	}
 
 	/** For debugging purpose, could be changed */
-	CORE_API uint32 ComputeHash() const; 
-
-	/**
-	 * Serializes the Matrix.
-	 *
-	 * @param Ar Reference to the serialization archive.
-	 * @param M Reference to the matrix being serialized.
-	 * @return Reference to the Archive after serialization.
-	 */
-	friend CORE_API FArchive& operator<<(FArchive& Ar,FMatrix& M);
-
-	bool Serialize( FArchive& Ar )
+	uint32 ComputeHash() const
 	{
-		if (Ar.UEVer() >= VER_UE4_ADDED_NATIVE_SERIALIZATION_FOR_IMMUTABLE_STRUCTURES)
+		uint32 Ret = 0;
+
+		const uint32* Data = (uint32*)this;
+
+		for (uint32 i = 0; i < 16; ++i)
 		{
-			Ar << *this;
+			Ret ^= Data[i] + i;
+		}
+
+		return Ret;
+	}
+
+	bool Serialize(FArchive& Ar)
+	{
+		//if (Ar.UEVer() >= VER_UE4_ADDED_NATIVE_SERIALIZATION_FOR_IMMUTABLE_STRUCTURES)
+		{
+			Ar << (TMatrix<T>&)*this;
 			return true;
 		}
-		return false;
+		//return false;
 	}
 
 	/**
 	 * Convert this Atom to the 3x4 transpose of the transformation matrix.
 	 */
-	void To3x4MatrixTranspose( float* Out ) const
+	void To3x4MatrixTranspose(T* Out) const
 	{
-		const float* RESTRICT Src = &(M[0][0]);
-		float* RESTRICT Dest = Out;
+		const T* RESTRICT Src = &(M[0][0]);
+		T* RESTRICT Dest = Out;
 
 		Dest[0] = Src[0];   // [0][0]
 		Dest[1] = Src[4];   // [1][0]
@@ -373,17 +418,119 @@ public:
 		Dest[9] = Src[6];   // [1][2]
 		Dest[10] = Src[10]; // [2][2]
 		Dest[11] = Src[14]; // [3][2]
-	}	
+	}
+
+	// Conversion to other type. TODO: explicit!
+	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	TMatrix(const TMatrix<FArg>& From)
+	{
+		// TODO: SIMD this?
+		M[0][0] = (T)From.M[0][0]; M[0][1] = (T)From.M[0][1]; M[0][2] = (T)From.M[0][2]; M[0][3] = (T)From.M[0][3];
+		M[1][0] = (T)From.M[1][0]; M[1][1] = (T)From.M[1][1]; M[1][2] = (T)From.M[1][2]; M[1][3] = (T)From.M[1][3];
+		M[2][0] = (T)From.M[2][0]; M[2][1] = (T)From.M[2][1]; M[2][2] = (T)From.M[2][2]; M[2][3] = (T)From.M[2][3];
+		M[3][0] = (T)From.M[3][0]; M[3][1] = (T)From.M[3][1]; M[3][2] = (T)From.M[3][2]; M[3][3] = (T)From.M[3][3];
+		DiagnosticCheckNaN();
+	}
+	// LWC_TODO: Don't want this! Must be explicit!
+	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	TMatrix<T>& operator=(const TMatrix<FArg>& From)
+	{
+		// TODO: SIMD this?
+		M[0][0] = (T)From.M[0][0]; M[0][1] = (T)From.M[0][1]; M[0][2] = (T)From.M[0][2]; M[0][3] = (T)From.M[0][3];
+		M[1][0] = (T)From.M[1][0]; M[1][1] = (T)From.M[1][1]; M[1][2] = (T)From.M[1][2]; M[1][3] = (T)From.M[1][3];
+		M[2][0] = (T)From.M[2][0]; M[2][1] = (T)From.M[2][1]; M[2][2] = (T)From.M[2][2]; M[2][3] = (T)From.M[2][3];
+		M[3][0] = (T)From.M[3][0]; M[3][1] = (T)From.M[3][1]; M[3][2] = (T)From.M[3][2]; M[3][3] = (T)From.M[3][3];
+		DiagnosticCheckNaN();
+		return *this;
+	}
 
 private:
 
-	/** 
-	 * Output an error message and trigger an ensure 
+	/**
+	 * Output an error message and trigger an ensure
 	 */
-	static CORE_API void ErrorEnsure(const TCHAR* Message);
+	static void ErrorEnsure(const TCHAR* Message)
+	{
+		UE_LOG(LogUnrealMath, Error, TEXT("%s"), Message);
+		ensureMsgf(false, TEXT("%s"), Message);
+	}
 };
 
+template<typename T> const TMatrix<T> TMatrix<T>::Identity(TPlane<T>(1, 0, 0, 0), TPlane<T>(0, 1, 0, 0), TPlane<T>(0, 0, 1, 0), TPlane<T>(0, 0, 0, 1));
 
+
+/**
+ * Serializes the Matrix.
+ *
+ * @param Ar Reference to the serialization archive.
+ * @param M Reference to the matrix being serialized.
+ * @return Reference to the Archive after serialization.
+ */
+inline FArchive& operator<<(FArchive& Ar, TMatrix<float>& M)
+{
+	Ar << M.M[0][0] << M.M[0][1] << M.M[0][2] << M.M[0][3];
+	Ar << M.M[1][0] << M.M[1][1] << M.M[1][2] << M.M[1][3];
+	Ar << M.M[2][0] << M.M[2][1] << M.M[2][2] << M.M[2][3];
+	Ar << M.M[3][0] << M.M[3][1] << M.M[3][2] << M.M[3][3];
+	M.DiagnosticCheckNaN();
+	return Ar;
+}
+
+/**
+ * Serializes the Matrix.
+ *
+ * @param Ar Reference to the serialization archive.
+ * @param M Reference to the matrix being serialized.
+ * @return Reference to the Archive after serialization.
+ */
+inline FArchive& operator<<(FArchive& Ar, TMatrix<double>& M)
+{
+	// LWC_TODO: Serializer
+	//if (!Ar.IsPersistent())
+	//{
+	//	Ar << M.M[0][0] << M.M[0][1] << M.M[0][2] << M.M[0][3];
+	//	Ar << M.M[1][0] << M.M[1][1] << M.M[1][2] << M.M[1][3];
+	//	Ar << M.M[2][0] << M.M[2][1] << M.M[2][2] << M.M[2][3];
+	//	Ar << M.M[3][0] << M.M[3][1] << M.M[3][2] << M.M[3][3];
+	//}
+	//else
+	{
+		// Stored as floats, so serialize float and copy.
+		for (int32 Row = 0; Row < 4; ++Row)
+		{
+			float Col0 = (float)M.M[Row][0], Col1 = (float)M.M[Row][1], Col2 = (float)M.M[Row][2], Col3 = (float)M.M[Row][3];
+			Ar << Col0 << Col1 << Col2 << Col3;
+			M.M[Row][0] = Col0;
+			M.M[Row][1] = Col1;
+			M.M[Row][2] = Col2;
+			M.M[Row][3] = Col3;
+		}
+	}
+	M.DiagnosticCheckNaN();
+	return Ar;
+}
+
+} // namespace UE::Core
+} // namespace UE
+
+DECLARE_LWC_TYPE(Matrix, 44);
+
+template<> struct TIsPODType<FMatrix44f> { enum { Value = true }; };
+template<> struct TIsUECoreType<FMatrix44f> { enum { Value = true }; };
+template<> struct TIsPODType<FMatrix44d> { enum { Value = true }; };
+template<> struct TIsUECoreType<FMatrix44d> { enum { Value = true }; };
+
+// ispc doesn't export typedefs in generated headers, so we do it here to keep our code happy.
+DECLARE_LWC_TYPE_ISPC(Matrix, 44);
+
+// Forward declare all explicit specializations (in UnrealMath.cpp)
+template<> CORE_API FRotator FMatrix44f::Rotator() const;
+template<> CORE_API FRotator FMatrix44d::Rotator() const;
+template<> CORE_API FQuat FMatrix44f::ToQuat() const;
+template<> CORE_API FQuat FMatrix44d::ToQuat() const;
+
+
+#if 0	// LWC_TODO: Is this in use?
 /**
  * A storage class for compile-time fixed size matrices.
  */
@@ -422,6 +569,7 @@ FORCEINLINE TMatrix<NumRows,NumColumns>::TMatrix(const FMatrix& InMatrix)
 		}
 	}
 }
+#endif
 
 
 struct FBasisVectorMatrix: FMatrix
@@ -456,11 +604,11 @@ struct FLookAtMatrix : FLookFromMatrix
 };
 
 
-template <> struct TIsPODType<FMatrix> { enum { Value = true }; };
 
 
 // very high quality 4x4 matrix inverse
-static inline void Inverse4x4( double* dst, const float* src )
+template<typename FArg, TEMPLATE_REQUIRES(std::is_floating_point<FArg>::value)>
+static inline void Inverse4x4( double* dst, const FArg* src )
 {
 	const double s0  = (double)(src[ 0]); const double s1  = (double)(src[ 1]); const double s2  = (double)(src[ 2]); const double s3  = (double)(src[ 3]);
 	const double s4  = (double)(src[ 4]); const double s5  = (double)(src[ 5]); const double s6  = (double)(src[ 6]); const double s7  = (double)(src[ 7]);
@@ -497,3 +645,7 @@ static inline void Inverse4x4( double* dst, const float* src )
 }
 
 #include "Math/Matrix.inl"
+
+#ifdef _MSC_VER
+#pragma warning (pop)
+#endif

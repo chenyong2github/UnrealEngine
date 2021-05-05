@@ -1208,8 +1208,8 @@ bool UClothingAssetFactory::ImportToLodInternal(
 	// If we're going to remap the parameters we need to cache the remap source
 	// data. We copy it here incase the destination and remap source
 	// lod models are aliased (as in a reimport)
-	TArray<FVector> CachedPositions;
-	TArray<FVector> CachedNormals;
+	TArray<FVector3f> CachedPositions;
+	TArray<FVector3f> CachedNormals;
 	TArray<uint32> CachedIndices;
 	int32 NumSourceMasks = 0;
 	TArray<FPointWeightMap> SourceMaskCopy;

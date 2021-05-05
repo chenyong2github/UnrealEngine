@@ -63,10 +63,10 @@ bool FMeshPaintSpriteAdapter::LineTraceComponent(struct FHitResult& OutHit, cons
 
 			for (int32 VertexIndex = 0; VertexIndex < BakedPoints.Num(); VertexIndex += 3)
 			{
-				const FVector& A = BakedPoints[VertexIndex + 0];
-				const FVector& B = BakedPoints[VertexIndex + 1];
-				const FVector& C = BakedPoints[VertexIndex + 2];
-				const FVector Q = FMath::GetBaryCentric2D(LocalPoint, A, B, C);
+				const FVector3f& A = BakedPoints[VertexIndex + 0];
+				const FVector3f& B = BakedPoints[VertexIndex + 1];
+				const FVector3f& C = BakedPoints[VertexIndex + 2];
+				const FVector3f Q = FMath::GetBaryCentric2D(LocalPoint, A, B, C);
 
 				if ((Q.X >= 0.0f) && (Q.Y >= 0.0f) && (Q.Z >= 0.0f) && FMath::IsNearlyEqual(Q.X + Q.Y + Q.Z, 1.0f))
 				{

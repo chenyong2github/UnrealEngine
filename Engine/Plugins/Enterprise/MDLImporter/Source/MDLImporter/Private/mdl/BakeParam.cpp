@@ -136,7 +136,7 @@ namespace Mdl
 
 		bool FBakedVectorValue::SetValue(const mi::IData& ValueData)
 		{
-			return SetValueFrom<mi::Color, FVector>(ValueData, BakeDst, [](const mi::Color& InValue, FVector& OutValue) {
+			return SetValueFrom<mi::Color, FVector3f>(ValueData, BakeDst, [](const mi::Color& InValue, FVector3f& OutValue) {
 				OutValue.X = InValue.r;
 				OutValue.Y = InValue.g;
 				OutValue.Z = InValue.b;

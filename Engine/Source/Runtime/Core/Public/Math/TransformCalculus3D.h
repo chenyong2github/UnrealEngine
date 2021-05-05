@@ -204,6 +204,12 @@ template<> struct ConcatenateRules<FMatrix      , FQuat        > { typedef FMatr
 // template that calls member functions. Instead, we provide direct overloads.
 //////////////////////////////////////////////////////////////////////////
 
+
+namespace UE
+{
+namespace Math
+{
+	
 /**
  * Specialization for concatenating two Matrices.
  * 
@@ -215,6 +221,22 @@ inline FMatrix Concatenate(const FMatrix& LHS, const FMatrix& RHS)
 {
 	return LHS * RHS;
 }
+
+
+/**
+* Specialization for concatenating two translations.
+* 
+* @param LHS Translation that goes from space A to space B
+* @param RHS Translation that goes from space B to space C.
+* @return a new Translation representing the transformation from the input space of LHS to the output space of RHS.
+*/
+inline FVector Concatenate(const FVector& LHS, const FVector& RHS)
+{
+	return LHS + RHS;
+}
+	
+} // namespace UE::Core 
+} // namespace UE
 
 /**
  * Specialization for concatenating two rotations.
@@ -244,17 +266,6 @@ inline FRotator Concatenate(const FRotator& LHS, const FRotator& RHS)
 	return TransformCast<FRotator>(Concatenate(TransformCast<FMatrix>(LHS), TransformCast<FMatrix>(RHS)));
 }
 
-/**
- * Specialization for concatenating two translations.
- * 
- * @param LHS Translation that goes from space A to space B
- * @param RHS Translation that goes from space B to space C.
- * @return a new Translation representing the transformation from the input space of LHS to the output space of RHS.
- */
-inline FVector Concatenate(const FVector& LHS, const FVector& RHS)
-{
-	return LHS + RHS;
-}
 
 //////////////////////////////////////////////////////////////////////////
 // Inverse overloads. 

@@ -7,7 +7,7 @@
 namespace GeometryCollectionTest 
 {
 
-	const TArray<Chaos::FReal> FracturedGeometry::RawVertexArray = {
+	const TArray<float> FracturedGeometry::RawVertexArray = {
 													50, 0, -50,
 													50, 50, -50,
 													0, 50, -50,

@@ -11,13 +11,13 @@
 
 void FDatasmithFacadeMesh::SetVertex(int32 Index, float X, float Y, float Z)
 {
-	FVector Position(FDatasmithFacadeElement::ConvertPosition(X, Y, Z));
+	FVector3f Position(FDatasmithFacadeElement::ConvertPosition(X, Y, Z));
 	GetDatasmithMesh().SetVertex(Index, Position.X, Position.Y, Position.Z);
 }
 
 void FDatasmithFacadeMesh::GetVertex(int32 Index, float& OutX, float& OutY, float& OutZ) const
 { 
-	FVector Position(FDatasmithFacadeElement::ConvertBackPosition(GetDatasmithMesh().GetVertex(Index)));
+	FVector3f Position(FDatasmithFacadeElement::ConvertBackPosition(GetDatasmithMesh().GetVertex(Index)));
 	OutX = Position.X;
 	OutY = Position.Y;
 	OutZ = Position.Z;
@@ -25,13 +25,13 @@ void FDatasmithFacadeMesh::GetVertex(int32 Index, float& OutX, float& OutY, floa
 
 void FDatasmithFacadeMesh::SetNormal(int32 Index, float X, float Y, float Z)
 {
-	FVector Normal(FDatasmithFacadeElement::ConvertDirection(X, Y, Z));
+	FVector3f Normal(FDatasmithFacadeElement::ConvertDirection(X, Y, Z));
 	GetDatasmithMesh().SetNormal(Index, Normal.X, Normal.Y, Normal.Z);
 }
 
 void FDatasmithFacadeMesh::GetNormal(int32 Index, float& OutX, float& OutY, float& OutZ) const
 {
-	FVector Normal(FDatasmithFacadeElement::ConvertBackDirection(GetDatasmithMesh().GetNormal(Index)));
+	FVector3f Normal(FDatasmithFacadeElement::ConvertBackDirection(GetDatasmithMesh().GetNormal(Index)));
 	OutX = Normal.X;
 	OutY = Normal.Y;
 	OutZ = Normal.Z;

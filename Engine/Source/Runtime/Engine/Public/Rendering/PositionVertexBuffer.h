@@ -9,7 +9,7 @@ struct FStaticMeshBuildVertex;
 /** A vertex that stores just position. */
 struct FPositionVertex
 {
-	FVector	Position;
+	FVector3f	Position;
 
 	friend FArchive& operator<<(FArchive& Ar, FPositionVertex& V)
 	{
@@ -46,7 +46,7 @@ public:
 	*/
 	void Init(const FPositionVertexBuffer& InVertexBuffer, bool bInNeedsCPUAccess = true);
 
-	ENGINE_API void Init(const TArray<FVector>& InPositions, bool bInNeedsCPUAccess = true);
+	ENGINE_API void Init(const TArray<FVector3f>& InPositions, bool bInNeedsCPUAccess = true);
 
 	/**
 	 * Appends the specified vertices to the end of the buffer
@@ -74,12 +74,12 @@ public:
 	ENGINE_API void operator=(const FPositionVertexBuffer &Other);
 
 	// Vertex data accessors.
-	FORCEINLINE FVector& VertexPosition(uint32 VertexIndex)
+	FORCEINLINE FVector3f& VertexPosition(uint32 VertexIndex)
 	{
 		checkSlow(VertexIndex < GetNumVertices());
 		return ((FPositionVertex*)(Data + VertexIndex * Stride))->Position;
 	}
-	FORCEINLINE const FVector& VertexPosition(uint32 VertexIndex) const
+	FORCEINLINE const FVector3f& VertexPosition(uint32 VertexIndex) const
 	{
 		checkSlow(VertexIndex < GetNumVertices());
 		return ((FPositionVertex*)(Data + VertexIndex * Stride))->Position;

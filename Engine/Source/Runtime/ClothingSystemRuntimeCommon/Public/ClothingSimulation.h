@@ -42,7 +42,7 @@ public:
 	TArray<FTransform> BoneTransforms;
 
 	// Ref to local matrices from the owning component (for skinning fixed verts)
-	TArray<FMatrix> RefToLocals;
+	TArray<FMatrix44f> RefToLocals;
 
 	// Component to world transform of the owning component
 	FTransform ComponentToWorld;

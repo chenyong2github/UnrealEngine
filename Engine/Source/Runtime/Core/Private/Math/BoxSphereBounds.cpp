@@ -41,8 +41,8 @@ FBoxSphereBounds FBoxSphereBounds::TransformBy(const FMatrix& M) const
 	NewExtent = VectorAdd(NewExtent, VectorAbs(VectorMultiply(VectorReplicate(VecExtent, 1), m1)));
 	NewExtent = VectorAdd(NewExtent, VectorAbs(VectorMultiply(VectorReplicate(VecExtent, 2), m2)));
 
-	VectorStoreFloat3(NewExtent, &Result.BoxExtent);
-	VectorStoreFloat3(NewOrigin, &Result.Origin);
+	VectorStoreFloat3(NewExtent, &(Result.BoxExtent.X));
+	VectorStoreFloat3(NewOrigin, &(Result.Origin.X));
 
 	VectorRegister MaxRadius = VectorMultiply(m0, m0);
 	MaxRadius = VectorMultiplyAdd(m1, m1, MaxRadius);
@@ -52,7 +52,7 @@ FBoxSphereBounds FBoxSphereBounds::TransformBy(const FMatrix& M) const
 
 	// For non-uniform scaling, computing sphere radius from a box results in a smaller sphere.
 	float const BoxExtentMagnitude = FMath::Sqrt(VectorGetComponent(VectorDot3(NewExtent, NewExtent), 0));
-	Result.SphereRadius = FMath::Min(Result.SphereRadius, BoxExtentMagnitude);
+	Result.SphereRadius = FMath::Min<FVector::FReal>(Result.SphereRadius, BoxExtentMagnitude);
 
 	Result.DiagnosticCheckNaN();
 	return Result;

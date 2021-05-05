@@ -95,9 +95,9 @@ namespace Chaos
 			FPlane TriPlane(A, B, C);
 			const FReal DPointDistance = FMath::Abs(TriPlane.PlaneDot(D));
 			OutNormal = FVec3(TriPlane.X, TriPlane.Y, TriPlane.Z);
-			return FMath::IsNearlyEqual(DPointDistance, 0, KINDA_SMALL_NUMBER);
+			return FMath::IsNearlyEqual(DPointDistance, (FReal)0, (FReal)KINDA_SMALL_NUMBER);
 		}
-
+		
 		static bool IsPlanarShape(const TArray<FVec3>& InVertices, FVec3& OutNormal)
 		{
 			bool bResult = false;
@@ -116,7 +116,7 @@ namespace Chaos
 				for (int32 Index = 3; Index < NumVertices; ++Index)
 				{
 					const FReal PointPlaneDot = FMath::Abs(TriPlane.PlaneDot(InVertices[Index]));
-					if(!FMath::IsNearlyEqual(PointPlaneDot, 0, KINDA_SMALL_NUMBER))
+					if(!FMath::IsNearlyEqual(PointPlaneDot, (FReal)0, (FReal)KINDA_SMALL_NUMBER))
 					{
 						return false;
 					}
@@ -594,7 +594,7 @@ namespace Chaos
 		// Reorder the vertices to be counter-clockwise about the normal
 		static void SortFaceVerticesCCW(const TPlaneConcrete<FReal, 3>& Face, TArray<int32>& InOutFaceVertexIndices, const TArray<FVec3>& Vertices)
 		{
-			FMatrix33 FaceMatrix = FRotationMatrix::MakeFromZ(Face.Normal());
+			FMatrix33 FaceMatrix = (FMatrix44f)FRotationMatrix::MakeFromZ(Face.Normal());
 
 			FVec3 Centroid = FVec3(0);
 			for (int32 VertexIndex = 0; VertexIndex < InOutFaceVertexIndices.Num(); ++VertexIndex)

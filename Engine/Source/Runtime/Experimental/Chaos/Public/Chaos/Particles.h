@@ -157,11 +157,11 @@ namespace Chaos
 
 			if(NumXEntries > 0)
 			{
-				OutHash = ::GetTypeHash(MX[0]);
+				OutHash = UE::Math::GetTypeHash(MX[0]);
 
 				for(int32 XIndex = 1; XIndex < NumXEntries; ++XIndex)
 				{
-					OutHash = HashCombine(OutHash, ::GetTypeHash(MX[XIndex]));
+					OutHash = HashCombine(OutHash, UE::Math::GetTypeHash(MX[XIndex]));
 				}
 			}
 

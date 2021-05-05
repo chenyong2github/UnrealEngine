@@ -12,7 +12,7 @@ namespace GeometryCollectionTest
 		EllipsoidGeometry() {}
 		~EllipsoidGeometry() {}
 
-		static const TArray<Chaos::FReal>	RawVertexArray;
-		static const TArray<int32>			RawIndicesArray;
+		static const TArray<float>	RawVertexArray;
+		static const TArray<int32>	RawIndicesArray;
 	};
 }

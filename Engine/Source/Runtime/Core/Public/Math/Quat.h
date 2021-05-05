@@ -69,11 +69,12 @@ public:
 	FORCEINLINE FQuat(float InX, float InY, float InZ, float InW);
 
 	/**
-	 * Creates and initializes a new quaternion from the XYZW values in the given VectorRegister.
+	 * Creates and initializes a new quaternion from the XYZW values in the given VectorRegister4Float.
 	 *
-	 * @param V XYZW components of the quaternion packed into a single VectorRegister
+	 * @param V XYZW components of the quaternion packed into a single VectorRegister4Float
 	 */
-	explicit FORCEINLINE FQuat(const VectorRegister& V);
+	explicit FORCEINLINE FQuat(const VectorRegister4Float& V);
+	explicit FORCEINLINE FQuat(const VectorRegister4Double& V);
 
 	/**
 	 * Creates and initializes a new quaternion from the given matrix.
@@ -722,9 +723,15 @@ FORCEINLINE FQuat::FQuat(float InX, float InY, float InZ, float InW)
 }
 
 
-FORCEINLINE FQuat::FQuat(const VectorRegister& V)
+FORCEINLINE FQuat::FQuat(const VectorRegister4Float& V)
 {
-	VectorStoreAligned(V, this);
+	VectorStoreAligned(V, &(this->X));
+	DiagnosticCheckNaN();
+}
+
+FORCEINLINE FQuat::FQuat(const VectorRegister4Double& V)
+{
+	VectorStoreAligned(V, &(this->X));
 	DiagnosticCheckNaN();
 }
 
@@ -779,8 +786,8 @@ FORCEINLINE FQuat::FQuat(FVector Axis, float AngleRad)
 FORCEINLINE FQuat FQuat::operator+(const FQuat& Q) const
 {
 #if PLATFORM_ENABLE_VECTORINTRINSICS
-	VectorRegister A = VectorLoadAligned(this);
-	VectorRegister B = VectorLoadAligned(&Q);
+	VectorRegister4Float A = VectorLoadAligned(this);
+	VectorRegister4Float B = VectorLoadAligned(&Q);
 	return FQuat(VectorAdd(A, B));
 #else
 	return FQuat(X + Q.X, Y + Q.Y, Z + Q.Z, W + Q.W);
@@ -791,8 +798,8 @@ FORCEINLINE FQuat FQuat::operator+(const FQuat& Q) const
 FORCEINLINE FQuat FQuat::operator+=(const FQuat& Q)
 {
 #if PLATFORM_ENABLE_VECTORINTRINSICS
-	VectorRegister A = VectorLoadAligned(this);
-	VectorRegister B = VectorLoadAligned(&Q);
+	VectorRegister4Float A = VectorLoadAligned(this);
+	VectorRegister4Float B = VectorLoadAligned(&Q);
 	VectorStoreAligned(VectorAdd(A, B), this);
 #else
 	this->X += Q.X;
@@ -810,8 +817,8 @@ FORCEINLINE FQuat FQuat::operator+=(const FQuat& Q)
 FORCEINLINE FQuat FQuat::operator-(const FQuat& Q) const
 {
 #if PLATFORM_ENABLE_VECTORINTRINSICS
-	VectorRegister A = VectorLoadAligned(this);
-	VectorRegister B = VectorLoadAligned(&Q);
+	VectorRegister4Float A = VectorLoadAligned(this);
+	VectorRegister4Float B = VectorLoadAligned(&Q);
 	return FQuat(VectorSubtract(A, B));
 #else
 	return FQuat(X - Q.X, Y - Q.Y, Z - Q.Z, W - Q.W);
@@ -822,12 +829,12 @@ FORCEINLINE FQuat FQuat::operator-(const FQuat& Q) const
 FORCEINLINE bool FQuat::Equals(const FQuat& Q, float Tolerance) const
 {
 #if PLATFORM_ENABLE_VECTORINTRINSICS
-	const VectorRegister ToleranceV = VectorLoadFloat1(&Tolerance);
-	const VectorRegister A = VectorLoadAligned(this);
-	const VectorRegister B = VectorLoadAligned(&Q);
+	const VectorRegister4Float ToleranceV = VectorLoadFloat1(&Tolerance);
+	const VectorRegister4Float A = VectorLoadAligned(this);
+	const VectorRegister4Float B = VectorLoadAligned(&Q);
 
-	const VectorRegister RotationSub = VectorAbs(VectorSubtract(A, B));
-	const VectorRegister RotationAdd = VectorAbs(VectorAdd(A, B));
+	const VectorRegister4Float RotationSub = VectorAbs(VectorSubtract(A, B));
+	const VectorRegister4Float RotationAdd = VectorAbs(VectorAdd(A, B));
 	return !VectorAnyGreaterThan(RotationSub, ToleranceV) || !VectorAnyGreaterThan(RotationAdd, ToleranceV);
 #else
 	return (FMath::Abs(X - Q.X) <= Tolerance && FMath::Abs(Y - Q.Y) <= Tolerance && FMath::Abs(Z - Q.Z) <= Tolerance && FMath::Abs(W - Q.W) <= Tolerance)
@@ -843,8 +850,8 @@ FORCEINLINE bool FQuat::IsIdentity(float Tolerance) const
 FORCEINLINE FQuat FQuat::operator-=(const FQuat& Q)
 {
 #if PLATFORM_ENABLE_VECTORINTRINSICS
-	VectorRegister A = VectorLoadAligned(this);
-	VectorRegister B = VectorLoadAligned(&Q);
+	VectorRegister4Float A = VectorLoadAligned(this);
+	VectorRegister4Float B = VectorLoadAligned(&Q);
 	VectorStoreAligned(VectorSubtract(A, B), this);
 #else
 	this->X -= Q.X;
@@ -872,9 +879,9 @@ FORCEINLINE FQuat FQuat::operator*(const FQuat& Q) const
 
 FORCEINLINE FQuat FQuat::operator*=(const FQuat& Q)
 {
-	VectorRegister A = VectorLoadAligned(this);
-	VectorRegister B = VectorLoadAligned(&Q);
-	VectorRegister Result;
+	VectorRegister4Float A = VectorLoadAligned(this);
+	VectorRegister4Float B = VectorLoadAligned(&Q);
+	VectorRegister4Float Result;
 	VectorQuaternionMultiply(&Result, &A, &B);
 	VectorStoreAligned(Result, this);
 
@@ -887,8 +894,8 @@ FORCEINLINE FQuat FQuat::operator*=(const FQuat& Q)
 FORCEINLINE FQuat FQuat::operator*=(const float Scale)
 {
 #if PLATFORM_ENABLE_VECTORINTRINSICS
-	VectorRegister A = VectorLoadAligned(this);
-	VectorRegister B = VectorSetFloat1(Scale);
+	VectorRegister4Float A = VectorLoadAligned(this);
+	VectorRegister4Float B = VectorSetFloat1(Scale);
 	VectorStoreAligned(VectorMultiply(A, B), this);
 #else
 	X *= Scale;
@@ -906,8 +913,8 @@ FORCEINLINE FQuat FQuat::operator*=(const float Scale)
 FORCEINLINE FQuat FQuat::operator*(const float Scale) const
 {
 #if PLATFORM_ENABLE_VECTORINTRINSICS
-	VectorRegister A = VectorLoadAligned(this);
-	VectorRegister B = VectorSetFloat1(Scale);
+	VectorRegister4Float A = VectorLoadAligned(this);
+	VectorRegister4Float B = VectorSetFloat1(Scale);
 	return FQuat(VectorMultiply(A, B));
 #else
 	return FQuat(Scale * X, Scale * Y, Scale * Z, Scale * W);
@@ -918,8 +925,8 @@ FORCEINLINE FQuat FQuat::operator*(const float Scale) const
 FORCEINLINE FQuat FQuat::operator/=(const float Scale)
 {
 #if PLATFORM_ENABLE_VECTORINTRINSICS
-	VectorRegister A = VectorLoadAligned(this);
-	VectorRegister B = VectorSetFloat1(Scale);
+	VectorRegister4Float A = VectorLoadAligned(this);
+	VectorRegister4Float B = VectorSetFloat1(Scale);
 	VectorStoreAligned(VectorDivide(A, B), this);
 #else
 	const float Recip = 1.0f / Scale;
@@ -938,8 +945,8 @@ FORCEINLINE FQuat FQuat::operator/=(const float Scale)
 FORCEINLINE FQuat FQuat::operator/(const float Scale) const
 {
 #if PLATFORM_ENABLE_VECTORINTRINSICS
-	VectorRegister A = VectorLoadAligned(this);
-	VectorRegister B = VectorSetFloat1(Scale);
+	VectorRegister4Float A = VectorLoadAligned(this);
+	VectorRegister4Float B = VectorSetFloat1(Scale);
 	return FQuat(VectorDivide(A, B));
 #else
 	const float Recip = 1.0f / Scale;
@@ -955,8 +962,8 @@ FORCEINLINE bool FQuat::Identical(const FQuat* Q, const uint32 PortFlags) const
 FORCEINLINE bool FQuat::operator==(const FQuat& Q) const
 {
 #if PLATFORM_ENABLE_VECTORINTRINSICS
-	const VectorRegister A = VectorLoadAligned(this);
-	const VectorRegister B = VectorLoadAligned(&Q);
+	const VectorRegister4Float A = VectorLoadAligned(this);
+	const VectorRegister4Float B = VectorLoadAligned(&Q);
 	return VectorMaskBits(VectorCompareEQ(A, B)) == 0x0F;
 #else
 	return X == Q.X && Y == Q.Y && Z == Q.Z && W == Q.W;
@@ -967,8 +974,8 @@ FORCEINLINE bool FQuat::operator==(const FQuat& Q) const
 FORCEINLINE bool FQuat::operator!=(const FQuat& Q) const
 {
 #if PLATFORM_ENABLE_VECTORINTRINSICS
-	const VectorRegister A = VectorLoadAligned(this);
-	const VectorRegister B = VectorLoadAligned(&Q);
+	const VectorRegister4Float A = VectorLoadAligned(this);
+	const VectorRegister4Float B = VectorLoadAligned(&Q);
 	return VectorMaskBits(VectorCompareNE(A, B)) != 0x00;
 #else
 	return X != Q.X || Y != Q.Y || Z != Q.Z || W != Q.W;
@@ -985,13 +992,13 @@ FORCEINLINE float FQuat::operator|(const FQuat& Q) const
 FORCEINLINE void FQuat::Normalize(float Tolerance)
 {
 #if PLATFORM_ENABLE_VECTORINTRINSICS
-	const VectorRegister Vector = VectorLoadAligned(this);
+	const VectorRegister4Float Vector = VectorLoadAligned(this);
 
-	const VectorRegister SquareSum = VectorDot4(Vector, Vector);
-	const VectorRegister NonZeroMask = VectorCompareGE(SquareSum, VectorLoadFloat1(&Tolerance));
-	const VectorRegister InvLength = VectorReciprocalSqrtAccurate(SquareSum);
-	const VectorRegister NormalizedVector = VectorMultiply(InvLength, Vector);
-	VectorRegister Result = VectorSelect(NonZeroMask, NormalizedVector, GlobalVectorConstants::Float0001);
+	const VectorRegister4Float SquareSum = VectorDot4(Vector, Vector);
+	const VectorRegister4Float NonZeroMask = VectorCompareGE(SquareSum, VectorLoadFloat1(&Tolerance));
+	const VectorRegister4Float InvLength = VectorReciprocalSqrtAccurate(SquareSum);
+	const VectorRegister4Float NormalizedVector = VectorMultiply(InvLength, Vector);
+	VectorRegister4Float Result = VectorSelect(NonZeroMask, NormalizedVector, GlobalVectorConstants::Float0001);
 
 	VectorStoreAligned(Result, this);
 #else
@@ -1026,8 +1033,8 @@ FORCEINLINE FQuat FQuat::GetNormalized(float Tolerance) const
 FORCEINLINE bool FQuat::IsNormalized() const
 {
 #if PLATFORM_ENABLE_VECTORINTRINSICS
-	VectorRegister A = VectorLoadAligned(this);
-	VectorRegister TestValue = VectorAbs(VectorSubtract(VectorOne(), VectorDot4(A, A)));
+	VectorRegister4Float A = VectorLoadAligned(this);
+	VectorRegister4Float TestValue = VectorAbs(VectorSubtract(VectorOne(), VectorDot4(A, A)));
 	return !VectorAnyGreaterThan(TestValue, GlobalVectorConstants::ThreshQuatNormalized);
 #else
 	return (FMath::Abs(1.f - SizeSquared()) < THRESH_QUAT_NORMALIZED);
@@ -1062,8 +1069,8 @@ FORCEINLINE FVector FQuat::GetRotationAxis() const
 {
 #if PLATFORM_ENABLE_VECTORINTRINSICS
 	FVector V;
-	VectorRegister A = VectorLoadAligned(this);
-	VectorRegister R = VectorNormalizeSafe(VectorSet_W0(A), GlobalVectorConstants::Float1000);
+	VectorRegister4Float A = VectorLoadAligned(this);
+	VectorRegister4Float R = VectorNormalizeSafe(VectorSet_W0(A), GlobalVectorConstants::Float1000);
 	VectorStoreFloat3(R, &V);
 	return V;
 #else
@@ -1223,6 +1230,7 @@ FORCEINLINE bool FQuat::ContainsNaN() const
 
 
 template<> struct TIsPODType<FQuat> { enum { Value = true }; };
+template<> struct TIsUECoreType<FQuat> { enum { Value = true }; };
 
 /* FMath inline functions
  *****************************************************************************/

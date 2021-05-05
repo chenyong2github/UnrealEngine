@@ -840,7 +840,7 @@ bool UUnrealEdEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice&
 		bool bScale = false;
 		bool bScaleRadii = false;
 
-		float Scale = 1.0f;
+		FVector::FReal Scale = 1.0f;
 		FString ScaleStr;
 		FVector ScaleVec( Scale );
 		if(FParse::Value( Str, TEXT("Scale="), ScaleStr, false) && GetFVECTOR( *ScaleStr, ScaleVec ))
@@ -916,7 +916,9 @@ bool UUnrealEdEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice&
 									// "Then snap the vertices new positions by the specified Snap amount"
 									if ( bSnap )
 									{
-										FSnappingUtils::SnapPointToGrid( Poly->Vertices[vtx], FVector(0, 0, 0) );
+										FVector VPos = Poly->Vertices[vtx];	// LWC_TODO: Perf pessimization
+										FSnappingUtils::SnapPointToGrid( VPos, FVector(0, 0, 0) );
+										Poly->Vertices[vtx] = VPos;
 									}
 								}
 
@@ -1967,7 +1969,7 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 		float NormalTolerance = 0.25f;
 		FParse::Value( Str, TEXT("NORMALTOLERANCE="), NormalTolerance );
 
-		FVector NormalLimits( 1.0f, 1.0f, 1.0f );
+		FVector3f NormalLimits( 1.0f, 1.0f, 1.0f );
 		FParse::Value( Str, TEXT("NLIMITX="), NormalLimits.X );
 		FParse::Value( Str, TEXT("NLIMITY="), NormalLimits.Y );
 		FParse::Value( Str, TEXT("NLIMITZ="), NormalLimits.Z );

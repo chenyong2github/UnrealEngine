@@ -207,7 +207,7 @@ private:
 	FLinearColor WireframeColor = FLinearColor::White;
 	
 	/** Temporarily saved data pointers used for constructing the collision mesh */
-	const TArray<FVector>* TempPosition = nullptr;
+	const TArray<FVector3f>* TempPosition = nullptr;
 	const TArray<MRMESH_INDEX_TYPE>* TempIndices = nullptr;
 	
 	FOnMRMeshBrickDataUpdatedDelegate OnBrickDataUpdatedDelegate;

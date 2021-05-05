@@ -213,7 +213,7 @@ FAttenuationListenerData FAttenuationListenerData::Create(const FAudioDevice& Au
 	const FSoundAttenuationSettings& AttenuationSettings = *ListenerData.AttenuationSettings;
 	if ((AttenuationSettings.bAttenuate && AttenuationSettings.AttenuationShape == EAttenuationShape::Sphere) || AttenuationSettings.bAttenuateWithLPF)
 	{
-		ListenerData.AttenuationDistance = FMath::Max(ListenerData.ListenerToSoundDistance - AttenuationSettings.AttenuationShapeExtents.X, 0.0f);
+		ListenerData.AttenuationDistance = FMath::Max<float>(ListenerData.ListenerToSoundDistance - AttenuationSettings.AttenuationShapeExtents.X, 0.0f);
 	}
 
 	return MoveTemp(ListenerData);
@@ -246,7 +246,7 @@ FAttenuationListenerData FAttenuationListenerData::Create(const FAudioDevice& Au
 	const FSoundAttenuationSettings& AttenuationSettings = *ListenerData.AttenuationSettings;
 	if ((AttenuationSettings.bAttenuate && AttenuationSettings.AttenuationShape == EAttenuationShape::Sphere) || AttenuationSettings.bAttenuateWithLPF)
 	{
-		ListenerData.AttenuationDistance = FMath::Max(ListenerData.ListenerToSoundDistance - AttenuationSettings.AttenuationShapeExtents.X, 0.0f);
+		ListenerData.AttenuationDistance = FMath::Max<float>(ListenerData.ListenerToSoundDistance - AttenuationSettings.AttenuationShapeExtents.X, 0.0f);
 	}
 
 	return MoveTemp(ListenerData);

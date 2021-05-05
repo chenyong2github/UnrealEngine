@@ -268,8 +268,8 @@ FORCEINLINE_DEBUGGABLE void AEFVariableKeyLerp<FORMAT>::GetBoneAtomTranslation(F
 
 	if (Index0 != Index1)
 	{
-		FVector P0;
-		FVector P1;
+		FVector3f P0;
+		FVector3f P1;
 		const uint8* RESTRICT KeyData0 = TransStream + TransStreamOffset + Index0*CompressedTranslationStrides[FORMAT]*CompressedTranslationNum[FORMAT];
 		const uint8* RESTRICT KeyData1 = TransStream + TransStreamOffset + Index1*CompressedTranslationStrides[FORMAT]*CompressedTranslationNum[FORMAT];
 		DecompressTranslation<FORMAT>( P0, TransStream, KeyData0 );
@@ -279,7 +279,7 @@ FORCEINLINE_DEBUGGABLE void AEFVariableKeyLerp<FORMAT>::GetBoneAtomTranslation(F
 	else // (Index0 == Index1)
 	{
 		// unpack a single key
-		FVector P0;
+		FVector3f P0;
 		const uint8* RESTRICT KeyData = TransStream + TransStreamOffset + Index0*CompressedTranslationStrides[FORMAT]*CompressedTranslationNum[FORMAT];
 		DecompressTranslation<FORMAT>( P0, TransStream, KeyData);
 		OutAtom.SetTranslation( P0 );
@@ -312,8 +312,8 @@ FORCEINLINE_DEBUGGABLE void AEFVariableKeyLerp<FORMAT>::GetBoneAtomScale(FTransf
 
 	if (Index0 != Index1)
 	{
-		FVector P0;
-		FVector P1;
+		FVector3f P0;
+		FVector3f P1;
 		const uint8* RESTRICT KeyData0 = ScaleStream + ScaleStreamOffset + Index0*CompressedScaleStrides[FORMAT]*CompressedScaleNum[FORMAT];
 		const uint8* RESTRICT KeyData1 = ScaleStream + ScaleStreamOffset + Index1*CompressedScaleStrides[FORMAT]*CompressedScaleNum[FORMAT];
 		DecompressScale<FORMAT>( P0, ScaleStream, KeyData0 );
@@ -323,7 +323,7 @@ FORCEINLINE_DEBUGGABLE void AEFVariableKeyLerp<FORMAT>::GetBoneAtomScale(FTransf
 	else // (Index0 == Index1)
 	{
 		// unpack a single key
-		FVector P0;
+		FVector3f P0;
 		const uint8* RESTRICT KeyData = ScaleStream + ScaleStreamOffset + Index0*CompressedScaleStrides[FORMAT]*CompressedScaleNum[FORMAT];
 		DecompressScale<FORMAT>( P0, ScaleStream, KeyData);
 		OutAtom.SetScale3D( P0 );

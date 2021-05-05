@@ -264,15 +264,15 @@ namespace ImmediatePhysics_Chaos
 
 				if (auto* Kinematic = ParticleHandle->CastToKinematicParticle())
 				{
-					Kinematic->SetV(FVector::ZeroVector);
-					Kinematic->SetW(FVector::ZeroVector);
+					Kinematic->SetV(FVector3f::ZeroVector);
+					Kinematic->SetW(FVector3f::ZeroVector);
 				}
 
 				auto* Dynamic = ParticleHandle->CastToRigidParticle();
 				if (Dynamic && Dynamic->ObjectState() == EObjectStateType::Dynamic)
 				{
 					FReal MassInv = (Mass > 0.0f) ? 1.0f / Mass : 0.0f;
-					FVector InertiaInv = (Mass > 0.0f) ? Inertia.Reciprocal() : FVector::ZeroVector;
+					FVec3 InertiaInv = (Mass > 0.0f) ? Inertia.Reciprocal() : FVec3::ZeroVector;
 					Dynamic->SetM(Mass);
 					Dynamic->SetInvM(MassInv);
 					Dynamic->SetCenterOfMass(CoMTransform.GetTranslation());
@@ -612,13 +612,13 @@ namespace ImmediatePhysics_Chaos
 		FPBDRigidParticleHandle* Dynamic = ParticleHandle->CastToRigidParticle();
 		if(Dynamic && Dynamic->ObjectState() == EObjectStateType::Dynamic)
 		{
-			Chaos::FVec3 NewInertia = FVector::ZeroVector;
+			Chaos::FVec3 NewInertia = FVector3f::ZeroVector;
 			if ((NewInverseInertia.X > SMALL_NUMBER) && (NewInverseInertia.Y > SMALL_NUMBER) && (NewInverseInertia.Z > SMALL_NUMBER))
 			{
-				NewInertia = { 1.0f / NewInverseInertia.X , 1.0f / NewInverseInertia.Y, 1.0f / NewInverseInertia.Z };
+				NewInertia = FVector3f( 1.0f / NewInverseInertia.X , 1.0f / NewInverseInertia.Y, 1.0f / NewInverseInertia.Z );
 			}
 			Dynamic->SetI({ NewInertia.X, NewInertia.Y, NewInertia.Z });
-			Dynamic->SetInvI({ NewInverseInertia.X, NewInverseInertia.Y, NewInverseInertia.Z });
+			Dynamic->SetInvI({ (float)NewInverseInertia.X, (float)NewInverseInertia.Y, (float)NewInverseInertia.Z });
 		}
 	}
 

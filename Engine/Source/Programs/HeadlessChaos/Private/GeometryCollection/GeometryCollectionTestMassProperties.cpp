@@ -78,9 +78,9 @@ namespace GeometryCollectionTest
 		// This is just measured data to let us know when it changes. Ideally this would be derived. 
 		FVector EulerAngle = MassProperties.RotationOfMass.Euler();
 		EXPECT_TRUE(MassProperties.RotationOfMass.Euler().Equals(FVector(115.8153, -12.4347, 1.9705)));
-		EXPECT_TRUE(FMath::IsNearlyEqual(MassProperties.InertiaTensor.M[0][0], static_cast<FReal>(14.9866095), KINDA_SMALL_NUMBER));
-		EXPECT_TRUE(FMath::IsNearlyEqual(MassProperties.InertiaTensor.M[1][1], static_cast<FReal>(1.40656376), KINDA_SMALL_NUMBER));
-		EXPECT_TRUE(FMath::IsNearlyEqual(MassProperties.InertiaTensor.M[2][2], static_cast<FReal>(13.7401619), KINDA_SMALL_NUMBER));
+		EXPECT_TRUE(FMath::IsNearlyEqual((FReal)MassProperties.InertiaTensor.M[0][0], static_cast<FReal>(14.9866095), (FReal)KINDA_SMALL_NUMBER));
+		EXPECT_TRUE(FMath::IsNearlyEqual((FReal)MassProperties.InertiaTensor.M[1][1], static_cast<FReal>(1.40656376), (FReal)KINDA_SMALL_NUMBER));
+		EXPECT_TRUE(FMath::IsNearlyEqual((FReal)MassProperties.InertiaTensor.M[2][2], static_cast<FReal>(13.7401619), (FReal)KINDA_SMALL_NUMBER));
 	}
 
 	GTEST_TEST(AllTraits, GeometryCollection_MassProperties_Cube)
@@ -98,7 +98,7 @@ namespace GeometryCollectionTest
 		const TManagedArray<bool>& Visible = Collection->RestCollection->Visible;
 
 		// VerticesGroup
-		const TManagedArray<FVector>& Vertex = Collection->RestCollection->Vertex;
+		const TManagedArray<FVector3f>& Vertex = Collection->RestCollection->Vertex;
 
 		// GeometryGroup
 		const int32 NumGeometries = Collection->RestCollection->NumElements(FGeometryCollection::GeometryGroup);
@@ -158,9 +158,9 @@ namespace GeometryCollectionTest
 
 		// This is just measured data to let us know when it changes. Ideally this would be derived. 
 		EXPECT_TRUE((MassProperties.RotationOfMass.Euler() - FVector(115.8153, -12.4347, 1.9705)).Size() > KINDA_SMALL_NUMBER);
-		EXPECT_TRUE(FMath::IsNearlyEqual(MassProperties.InertiaTensor.M[0][0], static_cast<FReal>(4.99521351), KINDA_SMALL_NUMBER));
-		EXPECT_TRUE(FMath::IsNearlyEqual(MassProperties.InertiaTensor.M[1][1], static_cast<FReal>(4.07145357), KINDA_SMALL_NUMBER));
-		EXPECT_TRUE(FMath::IsNearlyEqual(MassProperties.InertiaTensor.M[2][2], static_cast<FReal>(4.26666689), KINDA_SMALL_NUMBER));
+		EXPECT_TRUE(FMath::IsNearlyEqual((FReal)MassProperties.InertiaTensor.M[0][0], static_cast<FReal>(4.99521351), (FReal)KINDA_SMALL_NUMBER));
+		EXPECT_TRUE(FMath::IsNearlyEqual((FReal)MassProperties.InertiaTensor.M[1][1], static_cast<FReal>(4.07145357), (FReal)KINDA_SMALL_NUMBER));
+		EXPECT_TRUE(FMath::IsNearlyEqual((FReal)MassProperties.InertiaTensor.M[2][2], static_cast<FReal>(4.26666689), (FReal)KINDA_SMALL_NUMBER));
 	}
 
 	GTEST_TEST(AllTraits, GeometryCollection_MassProperties_Sphere)
@@ -178,7 +178,7 @@ namespace GeometryCollectionTest
 		const TManagedArray<bool>& Visible = Collection->RestCollection->Visible;
 
 		// VerticesGroup
-		const TManagedArray<FVector>& Vertex = Collection->RestCollection->Vertex;
+		const TManagedArray<FVector3f>& Vertex = Collection->RestCollection->Vertex;
 
 		// GeometryGroup
 		const int32 NumGeometries = Collection->RestCollection->NumElements(FGeometryCollection::GeometryGroup);
@@ -258,7 +258,7 @@ namespace GeometryCollectionTest
 		const TManagedArray<bool>& Visible = Collection->RestCollection->Visible;
 
 		// VerticesGroup
-		const TManagedArray<FVector>& Vertex = Collection->RestCollection->Vertex;
+		const TManagedArray<FVector3f>& Vertex = Collection->RestCollection->Vertex;
 
 		// GeometryGroup
 		const int32 NumGeometries = Collection->RestCollection->NumElements(FGeometryCollection::GeometryGroup);
@@ -339,7 +339,7 @@ namespace GeometryCollectionTest
 		const TManagedArray<bool>& Visible = Collection->RestCollection->Visible;
 
 		// VerticesGroup
-		TManagedArray<FVector>& Vertex = Collection->RestCollection->Vertex;
+		TManagedArray<FVector3f>& Vertex = Collection->RestCollection->Vertex;
 
 		// GeometryGroup
 		const int32 NumGeometries = Collection->RestCollection->NumElements(FGeometryCollection::GeometryGroup);

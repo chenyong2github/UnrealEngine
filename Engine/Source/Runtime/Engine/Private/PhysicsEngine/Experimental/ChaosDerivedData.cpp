@@ -82,9 +82,10 @@ FString FChaosDerivedDataCooker::GetPluginSpecificCacheKeySuffix() const
 		Setup->GetGeometryDDCKey(SetupGeometryKey);
 	}
 
-	return FString::Printf(TEXT("%s_%s"),
+	return FString::Printf(TEXT("%s_%s_REAL%d"),
 		*RequestedFormat.ToString(),
-		*SetupGeometryKey);
+		*SetupGeometryKey,
+		(int)sizeof(Chaos::FReal));
 }
 
 bool FChaosDerivedDataCooker::IsBuildThreadsafe() const

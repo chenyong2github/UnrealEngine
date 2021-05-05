@@ -211,7 +211,7 @@ namespace Chaos
 
 		virtual uint32 GetTypeHash() const override
 		{
-			const uint32 OriginAxisHash = HashCombine(::GetTypeHash(Origin), ::GetTypeHash(Axis));
+			const uint32 OriginAxisHash = HashCombine(UE::Math::GetTypeHash(Origin), UE::Math::GetTypeHash(Axis));
 			const uint32 PropertyHash = HashCombine(::GetTypeHash(Height), HashCombine(::GetTypeHash(Radius1), ::GetTypeHash(Radius2)));
 
 			return HashCombine(OriginAxisHash, PropertyHash);

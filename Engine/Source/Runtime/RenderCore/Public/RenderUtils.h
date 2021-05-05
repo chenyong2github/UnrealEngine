@@ -312,23 +312,33 @@ struct FPackedPosition
 
 	// Constructors.
 	FPackedPosition() : Packed(0) {}
-	FPackedPosition(const FVector& Other) : Packed(0) 
+	FPackedPosition(const FVector3f& Other) : Packed(0) 
+	{
+		Set(Other);
+	}
+	FPackedPosition(const FVector3d& Other) : Packed(0) 
 	{
 		Set(Other);
 	}
 	
 	// Conversion operators.
-	FPackedPosition& operator=( FVector Other )
+	FPackedPosition& operator=( FVector3f Other )
+	{
+		Set( Other );
+		return *this;
+	}
+	FPackedPosition& operator=( FVector3d Other )
 	{
 		Set( Other );
 		return *this;
 	}
 
-	operator FVector() const;
+	operator FVector3f() const;
 	VectorRegister GetVectorRegister() const;
 
 	// Set functions.
-	void Set( const FVector& InVector );
+	void Set(const FVector3f& InVector);
+	void Set(const FVector3d& InVector);
 
 	// Serializer.
 	friend FArchive& operator<<(FArchive& Ar,FPackedPosition& N);

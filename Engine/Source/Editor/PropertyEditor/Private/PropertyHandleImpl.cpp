@@ -4193,9 +4193,11 @@ FPropertyAccess::Result FPropertyHandleVector::GetValue( FVector& OutValue ) con
 	if( VectorComponents.Num() == 3 )
 	{
 		// To get the value from the vector we read each child.  If reading a child fails, the value for that component is not set
-		FPropertyAccess::Result ResX = VectorComponents[0]->GetValue( OutValue.X );
-		FPropertyAccess::Result ResY = VectorComponents[1]->GetValue( OutValue.Y );
-		FPropertyAccess::Result ResZ = VectorComponents[2]->GetValue( OutValue.Z );
+		FVector3f OutValue32;	// LWC_TODO: Forced reading of properties as float. Precision loss?
+		FPropertyAccess::Result ResX = VectorComponents[0]->GetValue( OutValue32.X );
+		FPropertyAccess::Result ResY = VectorComponents[1]->GetValue( OutValue32.Y );
+		FPropertyAccess::Result ResZ = VectorComponents[2]->GetValue( OutValue32.Z );
+		OutValue = OutValue32;	// LWC_TODO: Perf pessimization
 
 		if( ResX == FPropertyAccess::Fail || ResY == FPropertyAccess::Fail || ResZ == FPropertyAccess::Fail )
 		{

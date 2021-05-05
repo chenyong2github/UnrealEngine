@@ -253,7 +253,7 @@ public:
 				SamplerStateRHI,
 				TextureDI->TextureRHI
 			);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, TextureDI->TexDims);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, (FVector3f)TextureDI->TexDims);
 		}
 		else
 		{
@@ -265,7 +265,7 @@ public:
 				GBlackVolumeTexture->SamplerStateRHI,
 				GBlackVolumeTexture->TextureRHI
 			);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, FVector::ZeroVector);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, FVector3f::ZeroVector);
 		}
 	}
 private:

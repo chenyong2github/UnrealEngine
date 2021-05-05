@@ -145,7 +145,12 @@ namespace SkeletalSimplifier
 				MyBase(base)
 			{}
 
-			Vec3d(const FVector& fvec)
+			Vec3d(const FVector3f& fvec)
+			{
+				Data[0] = fvec[0]; Data[1] = fvec[1]; Data[2] = fvec[2];
+			}
+
+			Vec3d(const FVector3d& fvec)
 			{
 				Data[0] = fvec[0]; Data[1] = fvec[1]; Data[2] = fvec[2];
 			}

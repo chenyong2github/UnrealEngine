@@ -103,70 +103,70 @@ struct FSkeletalMeshSkinningData
 		return BoneCount;
 	}
 
-	FORCEINLINE FVector GetPosition(int32 LODIndex, int32 VertexIndex) const
+	FORCEINLINE FVector3f GetPosition(int32 LODIndex, int32 VertexIndex) const
 	{
-		return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex].SkinnedCPUPositions[CurrIndex][VertexIndex] : FVector::ZeroVector;
+		return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex].SkinnedCPUPositions[CurrIndex][VertexIndex] : FVector3f::ZeroVector;
 	}
 
-	FORCEINLINE FVector GetPreviousPosition(int32 LODIndex, int32 VertexIndex) const
+	FORCEINLINE FVector3f GetPreviousPosition(int32 LODIndex, int32 VertexIndex) const
 	{
-		return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex].SkinnedCPUPositions[CurrIndex ^ 1][VertexIndex] : FVector::ZeroVector;
+		return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex].SkinnedCPUPositions[CurrIndex ^ 1][VertexIndex] : FVector3f::ZeroVector;
 	}
 
-	FORCEINLINE void GetTangentBasis(int32 LODIndex, int32 VertexIndex, FVector& OutTangentX, FVector& OutTangentY, FVector& OutTangentZ)
+	FORCEINLINE void GetTangentBasis(int32 LODIndex, int32 VertexIndex, FVector3f& OutTangentX, FVector3f& OutTangentY, FVector3f& OutTangentZ)
 	{
 		const bool bValidLOD = LODData.IsValidIndex(LODIndex);
-		OutTangentX = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 0] : FVector(1.0f, 0.0f, 0.0f);
-		OutTangentY = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 1] : FVector(0.0f, 1.0f, 0.0f);
-		OutTangentZ = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 2] : FVector(0.0f, 0.0f, 1.0f);
+		OutTangentX = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 0] : FVector3f(1.0f, 0.0f, 0.0f);
+		OutTangentY = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 1] : FVector3f(0.0f, 1.0f, 0.0f);
+		OutTangentZ = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 2] : FVector3f(0.0f, 0.0f, 1.0f);
 	}
 
-	FORCEINLINE void GetPreviousTangentBasis(int32 LODIndex, int32 VertexIndex, FVector& OutTangentX, FVector& OutTangentY, FVector& OutTangentZ)
+	FORCEINLINE void GetPreviousTangentBasis(int32 LODIndex, int32 VertexIndex, FVector3f& OutTangentX, FVector3f& OutTangentY, FVector3f& OutTangentZ)
 	{
 		const bool bValidLOD = LODData.IsValidIndex(LODIndex);
-		OutTangentX = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 0] : FVector(1.0f, 0.0f, 0.0f);
-		OutTangentY = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 1] : FVector(0.0f, 1.0f, 0.0f);
-		OutTangentZ = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 2] : FVector(0.0f, 0.0f, 1.0f);
+		OutTangentX = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 0] : FVector3f(1.0f, 0.0f, 0.0f);
+		OutTangentY = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 1] : FVector3f(0.0f, 1.0f, 0.0f);
+		OutTangentZ = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 2] : FVector3f(0.0f, 0.0f, 1.0f);
 	}
 
 private:
-	FORCEINLINE TArray<FVector>& CurrSkinnedPositions(int32 LODIndex)
+	FORCEINLINE TArray<FVector3f>& CurrSkinnedPositions(int32 LODIndex)
 	{
 		return LODData[LODIndex].SkinnedCPUPositions[CurrIndex];
 	}
 
-	FORCEINLINE TArray<FVector>& PrevSkinnedPositions(int32 LODIndex)
+	FORCEINLINE TArray<FVector3f>& PrevSkinnedPositions(int32 LODIndex)
 	{
 		return LODData[LODIndex].SkinnedCPUPositions[CurrIndex ^ 1];
 	}
 
-	FORCEINLINE TArray<FVector>& CurrSkinnedTangentBasis(int32 LODIndex)
+	FORCEINLINE TArray<FVector3f>& CurrSkinnedTangentBasis(int32 LODIndex)
 	{
 		return LODData[LODIndex].SkinnedTangentBasis[CurrIndex];
 	}
 
-	FORCEINLINE TArray<FVector>& PrevSkinnedTangentBasis(int32 LODIndex)
+	FORCEINLINE TArray<FVector3f>& PrevSkinnedTangentBasis(int32 LODIndex)
 	{
 		return LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1];
 	}
 
 public:
-	FORCEINLINE TArray<FMatrix>& CurrBoneRefToLocals()
+	FORCEINLINE TArray<FMatrix44f>& CurrBoneRefToLocals()
 	{
 		return BoneRefToLocals[CurrIndex];
 	}
 
-	FORCEINLINE const TArray<FMatrix>& CurrBoneRefToLocals() const
+	FORCEINLINE const TArray<FMatrix44f>& CurrBoneRefToLocals() const
 	{
 		return BoneRefToLocals[CurrIndex];
 	}
 
-	FORCEINLINE TArray<FMatrix>& PrevBoneRefToLocals()
+	FORCEINLINE TArray<FMatrix44f>& PrevBoneRefToLocals()
 	{
 		return BoneRefToLocals[CurrIndex ^ 1];
 	}
 
-	FORCEINLINE const TArray<FMatrix>& PrevBoneRefToLocals() const
+	FORCEINLINE const TArray<FMatrix44f>& PrevBoneRefToLocals() const
 	{
 		return BoneRefToLocals[CurrIndex ^ 1];
 	}
@@ -219,7 +219,7 @@ private:
 	int32 TotalPreSkinnedVertsUsers;
 
 	/** Cached bone matrices. */
-	TArray<FMatrix> BoneRefToLocals[2];
+	TArray<FMatrix44f> BoneRefToLocals[2];
 
 	/** Component space transforms */
 	TArray<FTransform> ComponentTransforms[2];
@@ -231,10 +231,10 @@ private:
 		int32 PreSkinnedVertsUsers = 0;
 
 		/** CPU Skinned vertex positions. Double buffered to allow accurate velocity calculation. */
-		TArray<FVector> SkinnedCPUPositions[2];
+		TArray<FVector3f> SkinnedCPUPositions[2];
 
 		/** CPU Skinned tangent basis, where each vertex will map to TangentX + TangentZ */
-		TArray<FVector> SkinnedTangentBasis[2];
+		TArray<FVector3f> SkinnedTangentBasis[2];
 	};
 	TArray<FLODData> LODData;
 
@@ -1090,8 +1090,8 @@ struct FNiagaraDISkeletalMeshPassedDataToRT
 	bool bUnlimitedBoneInfluences;
 	uint32 MeshWeightStrideByte;
 	uint32 MeshSkinWeightIndexSizeByte;
-	FMatrix Transform;
-	FMatrix PrevTransform;
+	FMatrix44f Transform;
+	FMatrix44f PrevTransform;
 	float DeltaSeconds;
 	uint32 UvMappingSet;
 };

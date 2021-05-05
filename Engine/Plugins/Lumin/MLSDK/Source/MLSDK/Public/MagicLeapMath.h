@@ -215,7 +215,7 @@ namespace MagicLeap
 
 	FORCEINLINE MLMat4f ToMLMat4f(const FVector& InPosition, const FQuat& InOrientation, const FVector& InScale3D, const float WorldToMetersScale)
 	{
-		FMatrix OutMatrix = FTransform(InOrientation, InPosition, InScale3D).ToMatrixWithScale();
+		FMatrix44f OutMatrix = (FMatrix44f)FTransform(InOrientation, InPosition, InScale3D).ToMatrixWithScale();
 		return MLMat4f {
 			{
 				OutMatrix.M[1][1], OutMatrix.M[1][2], -OutMatrix.M[1][0], 0.0f,

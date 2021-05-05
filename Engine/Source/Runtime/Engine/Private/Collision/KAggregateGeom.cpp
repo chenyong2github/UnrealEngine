@@ -36,7 +36,7 @@ static_assert(sizeof(ispc::FRotator) == sizeof(FRotator), "sizeof(ispc::FRotator
 /////////// FKAggregateGeom ///////////
 ///////////////////////////////////////
 
-float SelectMinScale(FVector Scale)
+float SelectMinScale(FVector3f Scale)
 {
 	float Min = Scale.X, AbsMin = FPlatformMath::Abs(Scale.X);
 
@@ -59,7 +59,7 @@ float SelectMinScale(FVector Scale)
 
 FBox FKAggregateGeom::CalcAABB(const FTransform& Transform) const
 {
-	const FVector Scale3D = Transform.GetScale3D();
+	const FVector3f Scale3D = Transform.GetScale3D();
 	FTransform BoneTM = Transform;
 	BoneTM.RemoveScaling();
 
@@ -116,7 +116,7 @@ void FKAggregateGeom::CalcBoxSphereBounds(FBoxSphereBounds& Output, const FTrans
 	{
 		// For bounds that only consist of convex shapes (such as anything generated from a BSP model),
 		// we can get nice tight bounds by considering just the points of the convex shape
-		const FVector Origin = AABB.GetCenter();
+		const FVector3f Origin = AABB.GetCenter();
 
 		float RadiusSquared = 0.0f;
 		for (int32 i = 0; i < ConvexElems.Num(); i++)
@@ -124,7 +124,7 @@ void FKAggregateGeom::CalcBoxSphereBounds(FBoxSphereBounds& Output, const FTrans
 			const FKConvexElem& Elem = ConvexElems[i];
 			for (int32 j = 0; j < Elem.VertexData.Num(); ++j)
 			{
-				const FVector Point = LocalToWorld.TransformPosition(Elem.VertexData[j]);
+				const FVector3f Point = LocalToWorld.TransformPosition(Elem.VertexData[j]);
 				RadiusSquared = FMath::Max(RadiusSquared, (Point - Origin).SizeSquared());
 			}
 		}
@@ -184,12 +184,12 @@ static void RemoveDuplicateVerts(TArray<FVector>& InVerts)
 }
 
 // Weisstein, Eric W. "Point-Line Distance--3-Dimensional." From MathWorld--A Switchram Web Resource. http://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html 
-static float DistanceToLine(const FVector& LineStart, const FVector& LineEnd, const FVector& Point)
+static float DistanceToLine(const FVector3f& LineStart, const FVector3f& LineEnd, const FVector3f& Point)
 {
-	const FVector StartToEnd = LineEnd - LineStart;
-	const FVector PointToStart = LineStart - Point;
+	const FVector3f StartToEnd = LineEnd - LineStart;
+	const FVector3f PointToStart = LineStart - Point;
 
-	const FVector Cross = StartToEnd ^ PointToStart;
+	const FVector3f Cross = StartToEnd ^ PointToStart;
 	return Cross.Size()/StartToEnd.Size();
 }
 
@@ -298,11 +298,11 @@ EAggCollisionShape::Type FKSphereElem::StaticShapeType = EAggCollisionShape::Sph
 FBox FKSphereElem::CalcAABB(const FTransform& BoneTM, float Scale) const
 {
 	FTransform ElemTM = GetTransform();
-	ElemTM.ScaleTranslation( FVector(Scale) );
+	ElemTM.ScaleTranslation( FVector3f(Scale) );
 	ElemTM *= BoneTM;
 
-	const FVector BoxCenter = ElemTM.GetTranslation();
-	const FVector BoxExtents(Radius * Scale);
+	const FVector3f BoxCenter = ElemTM.GetTranslation();
+	const FVector3f BoxExtents(Radius * Scale);
 
 	return FBox(BoxCenter - BoxExtents, BoxCenter + BoxExtents);
 }
@@ -336,10 +336,10 @@ FBox FKBoxElem::CalcAABB(const FTransform& BoneTM, float Scale) const
 	else
 	{
 		FTransform ElemTM = GetTransform();
-		ElemTM.ScaleTranslation(FVector(Scale));
+		ElemTM.ScaleTranslation(FVector3f(Scale));
 		ElemTM *= BoneTM;
 
-		FVector Extent(0.5f * Scale * X, 0.5f * Scale * Y, 0.5f * Scale * Z);
+		FVector3f Extent(0.5f * Scale * X, 0.5f * Scale * Y, 0.5f * Scale * Z);
 		FBox LocalBox(-Extent, Extent);
 
 		return LocalBox.TransformBy(ElemTM);
@@ -374,21 +374,21 @@ FBox FKSphylElem::CalcAABB(const FTransform& BoneTM, float Scale) const
 	else
 	{
 		FTransform ElemTM = GetTransform();
-		ElemTM.ScaleTranslation( FVector(Scale) );
+		ElemTM.ScaleTranslation( FVector3f(Scale) );
 		ElemTM *= BoneTM;
 
-		const FVector SphylCenter = ElemTM.GetLocation();
+		const FVector3f SphylCenter = ElemTM.GetLocation();
 
 		// Get sphyl axis direction
-		const FVector Axis = ElemTM.GetScaledAxis( EAxis::Z );
+		const FVector3f Axis = ElemTM.GetScaledAxis( EAxis::Z );
 		// Get abs of that vector
-		const FVector AbsAxis(FMath::Abs(Axis.X), FMath::Abs(Axis.Y), FMath::Abs(Axis.Z));
+		const FVector3f AbsAxis(FMath::Abs(Axis.X), FMath::Abs(Axis.Y), FMath::Abs(Axis.Z));
 		// Scale by length of sphyl
-		const FVector AbsDist = (Scale * 0.5f * Length) * AbsAxis;
+		const FVector3f AbsDist = (Scale * 0.5f * Length) * AbsAxis;
 
-		const FVector MaxPos = SphylCenter + AbsDist;
-		const FVector MinPos = SphylCenter - AbsDist;
-		const FVector Extent(Scale * Radius);
+		const FVector3f MaxPos = SphylCenter + AbsDist;
+		const FVector3f MinPos = SphylCenter - AbsDist;
+		const FVector3f Extent(Scale * Radius);
 
 		FBox Result(MinPos - Extent, MaxPos + Extent);
 
@@ -440,7 +440,7 @@ void FKConvexElem::GetPlanes(TArray<FPlane>& Planes) const
 		}
 	}
 #elif WITH_CHAOS
-	using FChaosPlane = Chaos::TPlaneConcrete<float, 3>;
+	using FChaosPlane = Chaos::TPlaneConcrete<Chaos::FReal, 3>;
 	if(Chaos::FConvex* RawConvex = ChaosConvex.Get())
 	{
 		const int32 NumPlanes = RawConvex->NumPlanes();
@@ -463,22 +463,22 @@ EAggCollisionShape::Type FKTaperedCapsuleElem::StaticShapeType = EAggCollisionSh
 FBox FKTaperedCapsuleElem::CalcAABB(const FTransform& BoneTM, float Scale) const
 {
 	FTransform ElemTM = GetTransform();
-	ElemTM.ScaleTranslation( FVector(Scale) );
+	ElemTM.ScaleTranslation( FVector3f(Scale) );
 	ElemTM *= BoneTM;
 
-	const FVector TaperedCapsuleCenter = ElemTM.GetLocation();
+	const FVector3f TaperedCapsuleCenter = ElemTM.GetLocation();
 
 	// Get tapered capsule axis direction
-	const FVector Axis = ElemTM.GetScaledAxis( EAxis::Z );
+	const FVector3f Axis = ElemTM.GetScaledAxis( EAxis::Z );
 	// Get abs of that vector
-	const FVector AbsAxis(FMath::Abs(Axis.X), FMath::Abs(Axis.Y), FMath::Abs(Axis.Z));
+	const FVector3f AbsAxis(FMath::Abs(Axis.X), FMath::Abs(Axis.Y), FMath::Abs(Axis.Z));
 	// Scale by length of sphyl
-	const FVector AbsDist = (Scale * 0.5f * Length) * AbsAxis;
+	const FVector3f AbsDist = (Scale * 0.5f * Length) * AbsAxis;
 
-	const FVector MaxPos = TaperedCapsuleCenter + AbsDist;
-	const FVector MinPos = TaperedCapsuleCenter - AbsDist;
-	const FVector Extent0(Scale * Radius0);
-	const FVector Extent1(Scale * Radius1);
+	const FVector3f MaxPos = TaperedCapsuleCenter + AbsDist;
+	const FVector3f MinPos = TaperedCapsuleCenter - AbsDist;
+	const FVector3f Extent0(Scale * Radius0);
+	const FVector3f Extent1(Scale * Radius1);
 
 	FBox Result(MinPos - Extent0, MaxPos + Extent1);
 
@@ -582,21 +582,21 @@ bool FKConvexElem::HullFromPlanes(const TArray<FPlane>& InPlanes, const TArray<F
 		FPoly Polygon;
 		Polygon.Normal = InPlanes[i];
 
-		FVector AxisX, AxisY;
+		FVector3f AxisX, AxisY;
 		Polygon.Normal.FindBestAxisVectors(AxisX,AxisY);
 
-		const FVector Base = InPlanes[i] * InPlanes[i].W;
+		const FVector3f Base = InPlanes[i] * InPlanes[i].W;
 
-		new(Polygon.Vertices) FVector(Base + AxisX * HALF_WORLD_MAX + AxisY * HALF_WORLD_MAX);
-		new(Polygon.Vertices) FVector(Base - AxisX * HALF_WORLD_MAX + AxisY * HALF_WORLD_MAX);
-		new(Polygon.Vertices) FVector(Base - AxisX * HALF_WORLD_MAX - AxisY * HALF_WORLD_MAX);
-		new(Polygon.Vertices) FVector(Base + AxisX * HALF_WORLD_MAX - AxisY * HALF_WORLD_MAX);
+		new(Polygon.Vertices) FVector3f(Base + AxisX * HALF_WORLD_MAX + AxisY * HALF_WORLD_MAX);
+		new(Polygon.Vertices) FVector3f(Base - AxisX * HALF_WORLD_MAX + AxisY * HALF_WORLD_MAX);
+		new(Polygon.Vertices) FVector3f(Base - AxisX * HALF_WORLD_MAX - AxisY * HALF_WORLD_MAX);
+		new(Polygon.Vertices) FVector3f(Base + AxisX * HALF_WORLD_MAX - AxisY * HALF_WORLD_MAX);
 
 		for(int32 j=0; j<InPlanes.Num(); j++)
 		{
 			if(i != j)
 			{
-				if(!Polygon.Split(-FVector(InPlanes[j]), InPlanes[j] * InPlanes[j].W))
+				if(!Polygon.Split(-FVector3f(InPlanes[j]), InPlanes[j] * InPlanes[j].W))
 				{
 					Polygon.Vertices.Empty();
 					break;
@@ -726,7 +726,7 @@ void FKConvexElem::ConvexFromBoxElem(const FKBoxElem& InBox)
 {
 	Reset();
 
-	FVector	B[2], P, Q, Radii;
+	FVector3f	B[2], P, Q, Radii;
 
 	// X,Y,Z member variables are LENGTH not RADIUS
 	Radii.X = 0.5f*InBox.X;

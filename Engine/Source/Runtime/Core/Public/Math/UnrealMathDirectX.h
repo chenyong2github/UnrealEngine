@@ -22,7 +22,7 @@
  *	float4 vector register type, where the first float (X) is stored in the lowest 32 bits, and so on.
  */
 typedef DirectX::XMVECTOR VectorRegister;
-typedef __m128i VectorRegisterInt;
+typedef __m128i VectorRegister4Int;
 
 // for an DirectX::XMVECTOR, we need a single set of braces (for clang)
 #define DECLARE_VECTOR_REGISTER(X, Y, Z, W) { X, Y, Z, W }
@@ -66,7 +66,7 @@ FORCEINLINE VectorRegister MakeVectorRegister( float X, float Y, float Z, float 
  * @param W		4th int32 component
  * @return		Vector of the 4 int32
  */
-FORCEINLINE VectorRegisterInt MakeVectorRegisterInt(int32 X, int32 Y, int32 Z, int32 W)
+FORCEINLINE VectorRegister4Int MakeVectorRegisterInt(int32 X, int32 Y, int32 Z, int32 W)
 {
 	return _mm_castps_si128(DirectX::XMVectorSetInt(X, Y, Z, W));
 }
@@ -1129,7 +1129,7 @@ FORCEINLINE VectorRegister VectorStep(const VectorRegister& X)
 #define VectorIntCompareLE(A, B)	VectorIntNot(VectorIntCompareGT(A,B))
 
 
-FORCEINLINE VectorRegisterInt VectorIntSelect(const VectorRegisterInt& Mask, const VectorRegisterInt& Vec1, const VectorRegisterInt& Vec2)
+FORCEINLINE VectorRegister4Int VectorIntSelect(const VectorRegister4Int& Mask, const VectorRegister4Int& Vec1, const VectorRegister4Int& Vec2)
 {
 	return _mm_xor_si128(Vec2, _mm_and_si128(Mask, _mm_xor_si128(Vec1, Vec2)));
 }
@@ -1138,7 +1138,7 @@ FORCEINLINE VectorRegisterInt VectorIntSelect(const VectorRegisterInt& Mask, con
 #define VectorIntAdd(A, B)	_mm_add_epi32(A, B)
 #define VectorIntSubtract(A, B)	_mm_sub_epi32(A, B)
 
-FORCEINLINE VectorRegisterInt VectorIntMultiply(const VectorRegisterInt& A, const VectorRegisterInt& B)
+FORCEINLINE VectorRegister4Int VectorIntMultiply(const VectorRegister4Int& A, const VectorRegister4Int& B)
 {
 	//SSE2 doesn't have a multiply op for 4 32bit ints. Ugh.
 	__m128i Temp0 = _mm_mul_epu32(A, B);
@@ -1148,21 +1148,21 @@ FORCEINLINE VectorRegisterInt VectorIntMultiply(const VectorRegisterInt& A, cons
 
 #define VectorIntNegate(A) VectorIntSubtract( GlobalVectorConstants::IntZero, A)
 
-FORCEINLINE VectorRegisterInt VectorIntMin(const VectorRegisterInt& A, const VectorRegisterInt& B)
+FORCEINLINE VectorRegister4Int VectorIntMin(const VectorRegister4Int& A, const VectorRegister4Int& B)
 {
-	VectorRegisterInt Mask = VectorIntCompareLT(A, B);
+	VectorRegister4Int Mask = VectorIntCompareLT(A, B);
 	return VectorIntSelect(Mask, A, B);
 }
 
-FORCEINLINE VectorRegisterInt VectorIntMax(const VectorRegisterInt& A, const VectorRegisterInt& B)
+FORCEINLINE VectorRegister4Int VectorIntMax(const VectorRegister4Int& A, const VectorRegister4Int& B)
 {
-	VectorRegisterInt Mask = VectorIntCompareGT(A, B);
+	VectorRegister4Int Mask = VectorIntCompareGT(A, B);
 	return VectorIntSelect(Mask, A, B);
 }
 
-FORCEINLINE VectorRegisterInt VectorIntAbs(const VectorRegisterInt& A)
+FORCEINLINE VectorRegister4Int VectorIntAbs(const VectorRegister4Int& A)
 {
-	VectorRegisterInt Mask = VectorIntCompareGE(A, GlobalVectorConstants::IntZero);
+	VectorRegister4Int Mask = VectorIntCompareGE(A, GlobalVectorConstants::IntZero);
 	return VectorIntSelect(Mask, A, VectorIntNegate(A));
 }
 
@@ -1179,15 +1179,15 @@ FORCEINLINE VectorRegisterInt VectorIntAbs(const VectorRegisterInt& A)
 * @param Vec	Vector to store
 * @param Ptr	Memory pointer
 */
-#define VectorIntStore( Vec, Ptr )			_mm_storeu_si128( (VectorRegisterInt*)(Ptr), Vec )
+#define VectorIntStore( Vec, Ptr )			_mm_storeu_si128( (VectorRegister4Int*)(Ptr), Vec )
 
 /**
 * Loads 4 int32s from unaligned memory.
 *
 * @param Ptr	Unaligned memory pointer to the 4 int32s
-* @return		VectorRegisterInt(Ptr[0], Ptr[1], Ptr[2], Ptr[3])
+* @return		VectorRegister4Int(Ptr[0], Ptr[1], Ptr[2], Ptr[3])
 */
-#define VectorIntLoad( Ptr )				_mm_loadu_si128( (VectorRegisterInt*)(Ptr) )
+#define VectorIntLoad( Ptr )				_mm_loadu_si128( (VectorRegister4Int*)(Ptr) )
 
 /**
 * Stores a vector to memory (aligned).
@@ -1195,23 +1195,23 @@ FORCEINLINE VectorRegisterInt VectorIntAbs(const VectorRegisterInt& A)
 * @param Vec	Vector to store
 * @param Ptr	Aligned Memory pointer
 */
-#define VectorIntStoreAligned( Vec, Ptr )			_mm_store_si128( (VectorRegisterInt*)(Ptr), Vec )
+#define VectorIntStoreAligned( Vec, Ptr )			_mm_store_si128( (VectorRegister4Int*)(Ptr), Vec )
 
 /**
 * Loads 4 int32s from aligned memory.
 *
 * @param Ptr	Aligned memory pointer to the 4 int32s
-* @return		VectorRegisterInt(Ptr[0], Ptr[1], Ptr[2], Ptr[3])
+* @return		VectorRegister4Int(Ptr[0], Ptr[1], Ptr[2], Ptr[3])
 */
-#define VectorIntLoadAligned( Ptr )				_mm_load_si128( (VectorRegisterInt*)(Ptr) )
+#define VectorIntLoadAligned( Ptr )				_mm_load_si128( (VectorRegister4Int*)(Ptr) )
 
 /**
 * Loads 1 int32 from unaligned memory into all components of a vector register.
 *
 * @param Ptr	Unaligned memory pointer to the 4 int32s
-* @return		VectorRegisterInt(*Ptr, *Ptr, *Ptr, *Ptr)
+* @return		VectorRegister4Int(*Ptr, *Ptr, *Ptr, *Ptr)
 */
-#define VectorIntLoad1( Ptr )	_mm_shuffle_epi32(_mm_loadu_si128((VectorRegisterInt*)(Ptr)),_MM_SHUFFLE(0,0,0,0))
+#define VectorIntLoad1( Ptr )	_mm_shuffle_epi32(_mm_loadu_si128((VectorRegister4Int*)(Ptr)),_MM_SHUFFLE(0,0,0,0))
 
 #endif
 

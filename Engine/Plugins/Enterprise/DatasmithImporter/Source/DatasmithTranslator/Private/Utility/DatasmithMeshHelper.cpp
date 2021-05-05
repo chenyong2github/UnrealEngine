@@ -29,7 +29,7 @@ namespace DatasmithMeshHelper
 	void ExtractVertexPositions(const FMeshDescription& Mesh, TArray<FVector>& Positions)
 	{
 		FStaticMeshConstAttributes Attributes(Mesh);
-		const TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+		const TVertexAttributesConstRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 		if (VertexPositions.IsValid())
 		{
 			Positions.Reserve(VertexPositions.GetNumElements());
@@ -47,7 +47,7 @@ namespace DatasmithMeshHelper
 
 	bool IsTriangleDegenerated(const FMeshDescription& Mesh, const FTriangleID TriangleID)
 	{
-		TVertexAttributesConstRef<FVector> VertexPositions = Mesh.GetVertexPositions();
+		TVertexAttributesConstRef<FVector3f> VertexPositions = Mesh.GetVertexPositions();
 		TArrayView<const FVertexID> TriangleVerts = Mesh.GetTriangleVertices(TriangleID);
 		float NormalLengthSquare = ((VertexPositions[TriangleVerts[1]] - VertexPositions[TriangleVerts[2]]) ^ (VertexPositions[TriangleVerts[0]] - VertexPositions[TriangleVerts[2]])).SizeSquared();
 		return NormalLengthSquare < SMALL_NUMBER;
@@ -341,7 +341,7 @@ namespace DatasmithMeshHelper
 
 	bool IsMeshValid(const FMeshDescription& Mesh, FVector BuildScale)
 	{
-		TVertexAttributesConstRef<FVector> VertexPositions = Mesh.GetVertexPositions();
+		TVertexAttributesConstRef<FVector3f> VertexPositions = Mesh.GetVertexPositions();
 		FVector RawNormalScale(BuildScale.Y*BuildScale.Z, BuildScale.X*BuildScale.Z, BuildScale.X*BuildScale.Y); // Component-wise scale
 
 		for (const FTriangleID TriangleID : Mesh.Triangles().GetElementIDs())

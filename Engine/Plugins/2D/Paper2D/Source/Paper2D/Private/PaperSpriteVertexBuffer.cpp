@@ -28,7 +28,7 @@ void FPaperSpriteVertexBuffer::CreateBuffers(int32 InNumVertices)
 	uint32 Usage = BUF_ShaderResource | (bDynamicUsage ? BUF_Dynamic : BUF_Static);
 	NumAllocatedVertices = InNumVertices;
 
-	uint32 PositionSize = NumAllocatedVertices * sizeof(FVector);
+	uint32 PositionSize = NumAllocatedVertices * sizeof(FVector3f);
 	// create vertex buffer
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("PaperSpritePositionBuffer"));
@@ -107,11 +107,11 @@ void FPaperSpriteVertexBuffer::CommitVertexData()
 		}
 
 		//Lock vertices
-		FVector* PositionBufferData = nullptr;
-		uint32 PositionSize = Vertices.Num() * sizeof(FVector);
+		FVector3f* PositionBufferData = nullptr;
+		uint32 PositionSize = Vertices.Num() * sizeof(FVector3f);
 		{
 			void* Data = RHILockBuffer(PositionBuffer.VertexBufferRHI, 0, PositionSize, RLM_WriteOnly);
-			PositionBufferData = static_cast<FVector*>(Data);
+			PositionBufferData = static_cast<FVector3f*>(Data);
 		}
 
 		FPackedNormal* TangentBufferData = nullptr;
@@ -145,7 +145,7 @@ void FPaperSpriteVertexBuffer::CommitVertexData()
 		//Fill verts
 		for (int32 i = 0; i < Vertices.Num(); i++)
 		{
-			PositionBufferData[i] = Vertices[i].Position;
+			PositionBufferData[i] = (FVector3f)Vertices[i].Position;
 			TangentBufferData[2 * i + 0] = Vertices[i].TangentX;
 			TangentBufferData[2 * i + 1] = Vertices[i].TangentZ;
 			ColorBufferData[i] = Vertices[i].Color;

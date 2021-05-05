@@ -348,7 +348,7 @@ void URecastNavMeshDataChunk::MoveTiles(FPImplRecastNavMesh& NavMeshImpl, const 
 
 			if ((TileData.bAttached == false) && TileData.TileRawData.IsValid())
 			{
-				const FVector RcRotationCenter = Unreal2RecastPoint(FVector(RotationCenter.X, RotationCenter.Y, 0.f));
+				const FVector3f RcRotationCenter = Unreal2RecastPoint(FVector(RotationCenter.X, RotationCenter.Y, 0.f));
 
 				const float TileWidth = NavMesh->getParams()->tileWidth;
 				const float TileHeight = NavMesh->getParams()->tileHeight;
@@ -363,7 +363,7 @@ void URecastNavMeshDataChunk::MoveTiles(FPImplRecastNavMesh& NavMeshImpl, const 
 				int DeltaX = 0;
 				int DeltaY = 0;
 				FBox TileBox(Recast2UnrealPoint(Header->bmin), Recast2UnrealPoint(Header->bmax));
-				FVector RcTileCenter = Unreal2RecastPoint(TileBox.GetCenter());
+				FVector3f RcTileCenter = Unreal2RecastPoint(TileBox.GetCenter());
 				dtComputeTileOffsetFromRotation(&RcTileCenter.X, &RcRotationCenter.X, RotationDeg, TileWidth, TileHeight, DeltaX, DeltaY);
 
 				const int OffsetWithRotX = Offset.X + DeltaX;

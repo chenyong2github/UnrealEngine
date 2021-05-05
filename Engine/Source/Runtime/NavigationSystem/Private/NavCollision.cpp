@@ -56,7 +56,7 @@ public:
 	{
 		// Read cooked data
 		uint8* DataPtr = (uint8*)InBulkData.Lock( LOCK_READ_ONLY );
-		FBufferReader Ar( DataPtr, InBulkData.GetBulkDataSize(), false );
+		FBufferReader Ar( DataPtr, InBulkData.GetBulkDataSize(), false, true );
 
 		uint8 bLittleEndian = true;
 

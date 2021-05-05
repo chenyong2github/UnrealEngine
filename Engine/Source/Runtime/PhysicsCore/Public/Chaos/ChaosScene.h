@@ -108,7 +108,7 @@ public:
 	void AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InHandles,const bool bImmediate=true);
 	void RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor);
 #if WITH_CHAOS
-	void RemoveActorFromAccelerationStructureImp(Chaos::TGeometryParticle<float, 3>* Particle);
+	void RemoveActorFromAccelerationStructureImp(Chaos::FGeometryParticle* Particle);
 #endif
 	void UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsActorHandle>& Actors);
 	void UpdateActorInAccelerationStructure(const FPhysicsActorHandle& Actor);

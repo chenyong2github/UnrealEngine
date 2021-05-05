@@ -321,7 +321,7 @@ public:
 		//SDFUnionVolume->setTransform(XForm);
 		
 		// Fill the SDFUnionVolume
-		FMatrix LocalToVoxel = FMatrix::Identity;
+		FMatrix44f LocalToVoxel = FMatrix44f::Identity;
 		LocalToVoxel.M[0][0] = VoxelSize;
 		LocalToVoxel.M[1][1] = VoxelSize;
 		LocalToVoxel.M[2][2] = VoxelSize;
@@ -337,7 +337,7 @@ public:
 				// Get the transform relative to the average
 				FTransform MeshTransform = PlacedMesh.Transform;
 				MeshTransform.AddToTranslation(-AverageTranslation);
-				FMatrix TransformMatrix = MeshTransform.ToMatrixWithScale().Inverse();
+				FMatrix44f TransformMatrix = MeshTransform.ToMatrixWithScale().Inverse();
 				
 
  				TransformMatrix = LocalToVoxel * TransformMatrix;
@@ -468,7 +468,7 @@ private:
 		{
 			FTransform MeshXForm = PlacedMesh.Transform;
 			MeshXForm.AddToTranslation(-AverageTranslation);
-			FMatrix TransformMatrix = MeshXForm.ToMatrixWithScale().Inverse();
+			FMatrix44f TransformMatrix = MeshXForm.ToMatrixWithScale().Inverse();
 
 			TransformMatrix = LocalToVoxel * TransformMatrix;
 			float* data = &TransformMatrix.M[0][0];

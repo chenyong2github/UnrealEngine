@@ -38,9 +38,9 @@ struct FModuleLocationVertSurfaceInstancePayload
 	/** Bone indices for the associated bone names. */
 	TPreallocatedArrayProxy<int32> ValidAssociatedBoneIndices;
 	/** The position of each bone from the previous tick. Used to calculate the inherited bone velocity when spawning particles. */
-	TPreallocatedArrayProxy<FVector> PrevFrameBonePositions;
+	TPreallocatedArrayProxy<FVector3f> PrevFrameBonePositions;
 	/** The velocity of each bone. Used to calculate the inherited bone velocity when spawning particles. */
-	TPreallocatedArrayProxy<FVector> BoneVelocities;
+	TPreallocatedArrayProxy<FVector3f> BoneVelocities;
 
 	/** Min LOD for the current mesh. INDEX_NONE if the mesh is not valid. */
 	int32 MeshMinLOD;
@@ -54,10 +54,10 @@ struct FModuleLocationVertSurfaceInstancePayload
 		ValidAssociatedBoneIndices = TPreallocatedArrayProxy<int32>((uint8*)this + StructSize, FixedArraySize);
 
 		uint32 StructOffset = StructSize + (FixedArraySize * sizeof(int32));
-		PrevFrameBonePositions = TPreallocatedArrayProxy<FVector>((uint8*)this + StructOffset, FixedArraySize);
+		PrevFrameBonePositions = TPreallocatedArrayProxy<FVector3f>((uint8*)this + StructOffset, FixedArraySize);
 
-		StructOffset = StructSize + (FixedArraySize * sizeof(int32)) + (FixedArraySize * sizeof(FVector));
-		BoneVelocities = TPreallocatedArrayProxy<FVector>((uint8*)this + StructOffset, FixedArraySize);
+		StructOffset = StructSize + (FixedArraySize * sizeof(int32)) + (FixedArraySize * sizeof(FVector3f));
+		BoneVelocities = TPreallocatedArrayProxy<FVector3f>((uint8*)this + StructOffset, FixedArraySize);
 	}
 
 	FORCEINLINE bool MeshIsValid() { return SourceComponent.IsValid() && MeshMinLOD != INDEX_NONE; }

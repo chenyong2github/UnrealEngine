@@ -1722,7 +1722,7 @@ public:
 		UpdateShapeBounds(FRigidTransform3(X(), R()));
 	}
 
-	void UpdateShapeBounds(const FTransform& Transform)
+	void UpdateShapeBounds(const FRigidTransform3& Transform)
 	{
 		auto GeomShared = MNonFrequentData.Read().Geometry();
 		if (GeomShared && GeomShared->HasBoundingBox())

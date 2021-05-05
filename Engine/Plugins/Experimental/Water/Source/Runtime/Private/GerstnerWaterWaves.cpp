@@ -210,7 +210,7 @@ void UGerstnerWaterWaveGeneratorSimple::GenerateGerstnerWaves_Implementation(TAr
 		FGerstnerWave& Params = OutWaves.AddDefaulted_GetRef();
 
 		Params.Direction = FVector(EForceInit::ForceInitToZero);
-		FMath::SinCos(&Params.Direction.Y, &Params.Direction.X, FMath::DegreesToRadians(WindAngleDeg));
+		FMath::SinCos(&Params.Direction.Y, &Params.Direction.X, FMath::DegreesToRadians((FVector::FReal)WindAngleDeg));
 		if (i > 0)
 		{
 			Params.Direction = Params.Direction.RotateAngleAxis(LocalSeed.FRandRange(-DirectionAngularSpreadDeg, DirectionAngularSpreadDeg), FVector::UpVector);

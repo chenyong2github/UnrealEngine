@@ -22,7 +22,7 @@ struct FBoxSphereBounds
 	FVector BoxExtent;
 
 	/** Holds the radius of the bounding sphere. */
-	float SphereRadius;
+	FVector::FReal SphereRadius;
 
 public:
 
@@ -161,7 +161,7 @@ public:
 	 */
 	FORCEINLINE static bool SpheresIntersect(const FBoxSphereBounds& A, const FBoxSphereBounds& B, float Tolerance = KINDA_SMALL_NUMBER)
 	{
-		return (A.Origin - B.Origin).SizeSquared() <= FMath::Square(FMath::Max(0.f, A.SphereRadius + B.SphereRadius + Tolerance));
+		return (A.Origin - B.Origin).SizeSquared() <= FMath::Square(FMath::Max<FVector::FReal>(0.f, A.SphereRadius + B.SphereRadius + Tolerance));
 	}
 
 	/**
@@ -295,7 +295,20 @@ public:
 	 */
 	friend FArchive& operator<<( FArchive& Ar, FBoxSphereBounds& Bounds )
 	{
-		return Ar << Bounds.Origin << Bounds.BoxExtent << Bounds.SphereRadius;
+		Ar << Bounds.Origin << Bounds.BoxExtent;
+		// LWC_TODO: Serializer
+		//if(!Ar.IsPersistent())
+		//{
+		//	Ar << Bounds.SphereRadius;
+		//}
+		//else
+		{
+			float Radius = (float)Bounds.SphereRadius;
+			Ar << Radius;
+			Bounds.SphereRadius = Radius;
+		}
+
+		return Ar;
 	}
 };
 
@@ -320,7 +333,7 @@ FORCEINLINE FBoxSphereBounds::FBoxSphereBounds( const FVector* Points, uint32 Nu
 
 	for (uint32 PointIndex = 0; PointIndex < NumPoints; PointIndex++)
 	{
-		SquaredSphereRadius = FMath::Max(SquaredSphereRadius, (Points[PointIndex] - Origin).SizeSquared());
+		SquaredSphereRadius = FMath::Max<FVector::FReal>(SquaredSphereRadius, (Points[PointIndex] - Origin).SizeSquared());
 	}
 
 	SphereRadius = FMath::Sqrt(SquaredSphereRadius);
@@ -341,7 +354,7 @@ FORCEINLINE FBoxSphereBounds FBoxSphereBounds::operator+( const FBoxSphereBounds
 	// build a bounding sphere from the bounding box's origin and the radii of A and B.
 	FBoxSphereBounds Result(BoundingBox);
 
-	Result.SphereRadius = FMath::Min(Result.SphereRadius, FMath::Max((Origin - Result.Origin).Size() + SphereRadius, (Other.Origin - Result.Origin).Size() + Other.SphereRadius));
+	Result.SphereRadius = FMath::Min<FVector::FReal>(Result.SphereRadius, FMath::Max((Origin - Result.Origin).Size() + SphereRadius, (Other.Origin - Result.Origin).Size() + Other.SphereRadius));
 	Result.DiagnosticCheckNaN();
 
 	return Result;

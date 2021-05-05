@@ -80,7 +80,7 @@ public:
 		const FLightSceneInfo* LightSceneInfo, 
 		const FMaterialRenderProxy* MaterialProxy,
 		FVector2D LightFunctionTexelSizeValue,
-		const FMatrix& ShadowToWorldValue)
+		const FMatrix44f& ShadowToWorldValue)
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
@@ -90,7 +90,7 @@ public:
 
 		LightFunctionParameters.Set(RHICmdList, ShaderRHI, LightSceneInfo, 1.0f);
 
-		SetShaderValue(RHICmdList, ShaderRHI, LightFunctionParameters2, FVector(
+		SetShaderValue(RHICmdList, ShaderRHI, LightFunctionParameters2, FVector3f(
 			LightSceneInfo->Proxy->GetLightFunctionFadeDistance(), 
 			LightSceneInfo->Proxy->GetLightFunctionDisabledBrightness(),
 			0.0f));
@@ -100,7 +100,7 @@ public:
 			const FVector Scale = LightSceneInfo->Proxy->GetLightFunctionScale();
 			// Switch x and z so that z of the user specified scale affects the distance along the light direction
 			const FVector InverseScale = FVector( 1.f / Scale.Z, 1.f / Scale.Y, 1.f / Scale.X );
-			const FMatrix WorldToLight = LightSceneInfo->Proxy->GetWorldToLight() * FScaleMatrix(FVector(InverseScale));	
+			const FMatrix44f WorldToLight = LightSceneInfo->Proxy->GetWorldToLight() * FScaleMatrix(FVector(InverseScale));	
 
 			SetShaderValue(RHICmdList, ShaderRHI, LightFunctionWorldToLight, WorldToLight);
 		}
@@ -108,7 +108,7 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, LightFunctionTexelSize, LightFunctionTexelSizeValue);
 		
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowToWorld, ShadowToWorldValue);
-		SetShaderValue(RHICmdList, ShaderRHI, LightWorldPositionParam, FVector(LightSceneInfo->Proxy->GetPosition()));
+		SetShaderValue(RHICmdList, ShaderRHI, LightWorldPositionParam, FVector3f(LightSceneInfo->Proxy->GetPosition()));
 	}
 
 private:

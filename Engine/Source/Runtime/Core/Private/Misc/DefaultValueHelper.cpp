@@ -420,7 +420,19 @@ bool FDefaultValueHelper::StringFromCppString(const FString& Source, const FStri
 
 ////////////////////////////////////////////////////////
 
-bool FDefaultValueHelper::ParseVector(const FString& Source, FVector& OutVal)
+bool FDefaultValueHelper::ParseVector(const FString& Source, FVector3f& OutVal)
+{
+	// LWC_TODO: Perf pessimization, especially if LWC is disabled!
+	FVector3d TempVec;
+	if (ParseVector(Source, TempVec))
+	{
+		OutVal = FVector3f((float)TempVec.X, (float)TempVec.Y, (float)TempVec.Z);
+		return true;
+	}
+	return false;
+}
+
+bool FDefaultValueHelper::ParseVector(const FString& Source, FVector3d& OutVal)
 {
 	const bool bHasWhitespace = HasWhitespaces(Source);
 	const FString NoWhitespace = bHasWhitespace ? RemoveWhitespaces(Source) : FString();
@@ -459,9 +471,9 @@ bool FDefaultValueHelper::ParseVector(const FString& Source, FVector& OutVal)
 	}
 	
 	OutVal = FVector( 
-		FCString::Atof(Start),
-		FCString::Atof(FirstComma + 1),
-		FCString::Atof(SecondComma + 1) );
+		(FVector::FReal)FCString::Atod(Start),
+		(FVector::FReal)FCString::Atod(FirstComma + 1),
+		(FVector::FReal)FCString::Atod(SecondComma + 1) );
 	return true;
 }
 

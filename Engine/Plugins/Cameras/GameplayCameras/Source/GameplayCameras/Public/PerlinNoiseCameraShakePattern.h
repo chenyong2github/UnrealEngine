@@ -99,14 +99,14 @@ private:
 private:
 
 	/** Initial perlin noise offset for location oscillation. */
-	FVector InitialLocationOffset;
+	FVector3f InitialLocationOffset;
 	/** Current perlin noise offset for location oscillation. */
-	FVector CurrentLocationOffset;
+	FVector3f CurrentLocationOffset;
 
 	/** Initial perlin noise offset for rotation oscillation. */
-	FVector InitialRotationOffset;
+	FVector3f InitialRotationOffset;
 	/** Current perlin noise offset for rotation oscillation. */
-	FVector CurrentRotationOffset;
+	FVector3f CurrentRotationOffset;
 
 	/** Initial perlin noise offset for FOV oscillation */
 	float InitialFOVOffset;

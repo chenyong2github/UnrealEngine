@@ -43,8 +43,8 @@ namespace Chaos
 			FRealSingle InLimitScale,
 			ETetherMode InTetherMode,
 			FRealSingle InMaxDistancesMultiplier,
-			const FVec2& InAnimDriveStiffness,
-			const FVec2& InAnimDriveDamping,
+			const TVec2<FRealSingle>& InAnimDriveStiffness,
+			const TVec2<FRealSingle>& InAnimDriveDamping,
 			FRealSingle InShapeTargetStiffness,
 			bool bInUseXPBDConstraints,
 			FRealSingle InGravityScale,
@@ -195,8 +195,8 @@ namespace Chaos
 		FRealSingle LimitScale;
 		ETetherMode TetherMode;
 		FRealSingle MaxDistancesMultiplier;
-		FVec2 AnimDriveStiffness;
-		FVec2 AnimDriveDamping;
+		TVec2<FRealSingle> AnimDriveStiffness;
+		TVec2<FRealSingle> AnimDriveDamping;
 		FRealSingle ShapeTargetStiffness;
 		bool bUseXPBDConstraints;
 		FRealSingle GravityScale;

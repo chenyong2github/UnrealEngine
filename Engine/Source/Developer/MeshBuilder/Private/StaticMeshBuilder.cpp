@@ -57,7 +57,7 @@ static bool UseNativeQuadraticReduction()
 /**
  * Compute bounding box and sphere from position buffer
  */
-static void ComputeBoundsFromPositionBuffer(const FPositionVertexBuffer& UsePositionBuffer, FVector& OriginOut, FVector& ExtentOut, float& RadiusOut)
+static void ComputeBoundsFromPositionBuffer(const FPositionVertexBuffer& UsePositionBuffer, FVector& OriginOut, FVector& ExtentOut, FVector::FReal& RadiusOut)
 {
 	// Calculate the bounding box.
 	FBox BoundingBox(ForceInit);
@@ -71,7 +71,7 @@ static void ComputeBoundsFromPositionBuffer(const FPositionVertexBuffer& UsePosi
 	RadiusOut = 0.0f;
 	for (uint32 VertexIndex = 0; VertexIndex < UsePositionBuffer.GetNumVertices(); VertexIndex++)
 	{
-		RadiusOut = FMath::Max(
+		RadiusOut = FMath::Max<FVector::FReal>(
 			(UsePositionBuffer.VertexPosition(VertexIndex) - OriginOut).Size(),
 			RadiusOut
 		);
@@ -82,7 +82,7 @@ static void ComputeBoundsFromPositionBuffer(const FPositionVertexBuffer& UsePosi
 /**
  * Compute bounding box and sphere from vertices
  */
-static void ComputeBoundsFromVertexList(const TArray<FStaticMeshBuildVertex>& Vertices, FVector& OriginOut, FVector& ExtentOut, float& RadiusOut)
+static void ComputeBoundsFromVertexList(const TArray<FStaticMeshBuildVertex>& Vertices, FVector& OriginOut, FVector& ExtentOut, FVector::FReal& RadiusOut)
 {
 	// Calculate the bounding box.
 	FBox BoundingBox(ForceInit);
@@ -96,7 +96,7 @@ static void ComputeBoundsFromVertexList(const TArray<FStaticMeshBuildVertex>& Ve
 	RadiusOut = 0.0f;
 	for (int32 VertexIndex = 0; VertexIndex < Vertices.Num(); VertexIndex++)
 	{
-		RadiusOut = FMath::Max(
+		RadiusOut = FMath::Max<FVector::FReal>(
 			(Vertices[VertexIndex].Position - OriginOut).Size(),
 			RadiusOut
 		);
@@ -591,7 +591,7 @@ bool FStaticMeshBuilder::BuildMeshVertexPositions(
 			const FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(0).BuildSettings;
 
 			const FStaticMeshConstAttributes Attributes(MeshDescription);
-			TArrayView<const FVector> VertexPositions = Attributes.GetVertexPositions().GetRawArray();
+			TArrayView<const FVector3f> VertexPositions = Attributes.GetVertexPositions().GetRawArray();
 			TArrayView<const FVertexID> VertexIndices = Attributes.GetTriangleVertexIndices().GetRawArray();
 
 			BuiltVertices.Reserve(VertexPositions.Num());
@@ -670,9 +670,9 @@ void BuildVertexBuffer(
 	FStaticMeshConstAttributes Attributes(MeshDescription);
 
 	TPolygonGroupAttributesConstRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
-	TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
-	TVertexInstanceAttributesConstRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesConstRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+	TVertexAttributesConstRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
+	TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesConstRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesConstRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 	TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();

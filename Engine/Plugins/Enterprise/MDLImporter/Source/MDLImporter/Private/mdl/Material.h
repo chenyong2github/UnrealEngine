@@ -129,7 +129,7 @@ namespace Mdl
 				}
 			};
 			FTextureArrayEntry Flakes;
-			FVector            FlakesColorValue;
+			FVector3f          FlakesColorValue;
 			FThetaSliceLUT     ThetaFiLUT;
 			int                NumThetaI;
 			int                NumThetaF;
@@ -151,12 +151,12 @@ namespace Mdl
 		int PreferredWidth;
 		int PreferredHeight;
 
-		TMapEntry<FVector>    BaseColor;
+		TMapEntry<FVector3f>    BaseColor;
 		TMapEntry<float, 0>   Metallic;
 		TMapEntry<float>      Specular;
 		TMapEntry<float>      Roughness;
 		TMapEntry<float>      Opacity;
-		TMapEntry<FVector, 0> Emission;
+		TMapEntry<FVector3f, 0> Emission;
 		TPropertyEntry<float> EmissionStrength;
 		FNormalMapEntry       Normal;
 		FDisplacementMapEntry Displacement;
@@ -164,9 +164,9 @@ namespace Mdl
 		FClearcoatEntry Clearcoat;
 		FCarpaintEntry  Carpaint;
 
-		TPropertyEntry<FVector>    IOR;
-		TPropertyEntry<FVector, 0> Absorption;
-		TMapEntry<FVector, 0>      Scattering;
+		TPropertyEntry<FVector3f>    IOR;
+		TPropertyEntry<FVector3f, 0> Absorption;
+		TMapEntry<FVector3f, 0>      Scattering;
 
 		float TilingFactor;
 		FVector2D Tiling;

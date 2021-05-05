@@ -637,7 +637,7 @@ bool UGeometryCollectionComponent::DoCustomNavigableGeometryExport(FNavigableGeo
 	const TManagedArray<int32>& VertexCountArray = Collection->VertexCount;
 	const TManagedArray<int32>& FaceCountArray = Collection->FaceCount;
 	const TManagedArray<int32>& VertexStartArray = Collection->VertexStart;
-	const TManagedArray<FVector>& Vertex = Collection->Vertex;
+	const TManagedArray<FVector3f>& Vertex = Collection->Vertex;
 
 	for(int32 GeometryGroupIndex = 0; GeometryGroupIndex < NumGeometry; GeometryGroupIndex++)
 	{
@@ -835,8 +835,8 @@ void UGeometryCollectionComponent::InitializeComponent()
 			// As we're the authority we need to track velocities in the dynamic collection so we
 			// can send them over to the other clients to correctly set their state. Attach this now.
 			// The physics proxy will pick them up and populate them as needed
-			DynamicCollection->AddAttribute<FVector>("LinearVelocity", FTransformCollection::TransformGroup);
-			DynamicCollection->AddAttribute<FVector>("AngularVelocity", FTransformCollection::TransformGroup);
+			DynamicCollection->AddAttribute<FVector3f>("LinearVelocity", FTransformCollection::TransformGroup);
+			DynamicCollection->AddAttribute<FVector3f>("AngularVelocity", FTransformCollection::TransformGroup);
 
 			// We also need to track our control of particles if that control can be shared between server and client
 			if(bEnableAbandonAfterLevel)
@@ -955,7 +955,7 @@ void UGeometryCollectionComponent::UpdateBreakEventRegistration()
 	}
 }
 
-void ActivateClusters(Chaos::FPBDRigidsEvolution::FRigidClustering& Clustering, Chaos::TPBDRigidClusteredParticleHandle<float, 3>* Cluster)
+void ActivateClusters(Chaos::FPBDRigidsEvolution::FRigidClustering& Clustering, Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>* Cluster)
 {
 	if(!Cluster)
 	{
@@ -1001,7 +1001,7 @@ void UGeometryCollectionComponent::OnRep_RepData(const FGeometryCollectionRepDat
 
 			Solver->RegisterSimOneShotCallback([SourcePose, Prox = PhysicsProxy]()
 			{
-				Chaos::TPBDRigidClusteredParticleHandle<float, 3>* Particle = Prox->GetParticles()[SourcePose.ParticleIndex];
+				Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>* Particle = Prox->GetParticles()[SourcePose.ParticleIndex];
 
 				Chaos::FPhysicsSolver* Solver = Prox->GetSolver<Chaos::FPhysicsSolver>();
 				Chaos::FPBDRigidsEvolution* Evo = Solver->GetEvolution();
@@ -1053,8 +1053,8 @@ void UGeometryCollectionComponent::UpdateRepData()
 		const int32 NumTransforms = DynamicCollection->Transform.Num();
 		RepData.Poses.Reset(NumTransforms);
 
-		TManagedArray<FVector>* LinearVelocity = DynamicCollection->FindAttributeTyped<FVector>("LinearVelocity", FTransformCollection::TransformGroup);
-		TManagedArray<FVector>* AngularVelocity = DynamicCollection->FindAttributeTyped<FVector>("AngularVelocity", FTransformCollection::TransformGroup);
+		TManagedArray<FVector3f>* LinearVelocity = DynamicCollection->FindAttributeTyped<FVector3f>("LinearVelocity", FTransformCollection::TransformGroup);
+		TManagedArray<FVector3f>* AngularVelocity = DynamicCollection->FindAttributeTyped<FVector3f>("AngularVelocity", FTransformCollection::TransformGroup);
 
 		for(int32 Index = 0; Index < NumTransforms; ++Index)
 		{
@@ -1179,20 +1179,20 @@ void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantD
 	if (!RestCollection->EnableNanite)
 	{
 		const int32 NumPoints = Collection->NumElements(FGeometryCollection::VerticesGroup);
-		const TManagedArray<FVector>& Vertex = Collection->Vertex;
+		const TManagedArray<FVector3f>& Vertex = Collection->Vertex;
 		const TManagedArray<int32>& BoneMap = Collection->BoneMap;
-		const TManagedArray<FVector>& TangentU = Collection->TangentU;
-		const TManagedArray<FVector>& TangentV = Collection->TangentV;
-		const TManagedArray<FVector>& Normal = Collection->Normal;
+		const TManagedArray<FVector3f>& TangentU = Collection->TangentU;
+		const TManagedArray<FVector3f>& TangentV = Collection->TangentV;
+		const TManagedArray<FVector3f>& Normal = Collection->Normal;
 		const TManagedArray<FVector2D>& UV = Collection->UV;
 		const TManagedArray<FLinearColor>& Color = Collection->Color;
 		const TManagedArray<FLinearColor>& BoneColors = Collection->BoneColor;
 
-		ConstantData->Vertices = TArray<FVector>(Vertex.GetData(), Vertex.Num());
+		ConstantData->Vertices = TArray<FVector3f>(Vertex.GetData(), Vertex.Num());
 		ConstantData->BoneMap = TArray<int32>(BoneMap.GetData(), BoneMap.Num());
-		ConstantData->TangentU = TArray<FVector>(TangentU.GetData(), TangentU.Num());
-		ConstantData->TangentV = TArray<FVector>(TangentV.GetData(), TangentV.Num());
-		ConstantData->Normals = TArray<FVector>(Normal.GetData(), Normal.Num());
+		ConstantData->TangentU = TArray<FVector3f>(TangentU.GetData(), TangentU.Num());
+		ConstantData->TangentV = TArray<FVector3f>(TangentV.GetData(), TangentV.Num());
+		ConstantData->Normals = TArray<FVector3f>(Normal.GetData(), Normal.Num());
 		ConstantData->UVs = TArray<FVector2D>(UV.GetData(), UV.Num());
 		ConstantData->Colors = TArray<FLinearColor>(Color.GetData(), Color.Num());
 
@@ -2691,7 +2691,7 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 	{
 		if (RestCollection->GetGeometryCollection()->HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup))
 		{
-			const TManagedArray<FVector>& ExplodedVectors = RestCollection->GetGeometryCollection()->GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
+			const TManagedArray<FVector3f>& ExplodedVectors = RestCollection->GetGeometryCollection()->GetAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup);
 
 			check(GlobalMatrices.Num() == ExplodedVectors.Num());
 

@@ -222,10 +222,10 @@ inline void InitPrimitiveInstance(FPrimitiveInstance& PrimitiveInstance, const F
 		Scale.X > KINDA_SMALL_NUMBER ? 1.0f / Scale.X : 0.0f,
 		Scale.Y > KINDA_SMALL_NUMBER ? 1.0f / Scale.Y : 0.0f,
 		Scale.Z > KINDA_SMALL_NUMBER ? 1.0f / Scale.Z : 0.0f,
-		FMath::FloatSelect(PrimitiveInstance.LocalToWorld.RotDeterminant(), 1.0f, -1.0f)
+		FMath::FloatSelect(PrimitiveInstance.LocalToWorld.RotDeterminant(), (FMatrix::FReal)1.0, (FMatrix::FReal)-1.0)
 	);
-}
 
+}
 inline void InitPrimitiveInstanceDummy(FPrimitiveInstance& DummyInstance, const FPrimitiveTransforms& PrimitiveTransforms, const FBoxSphereBounds& LocalBounds, int32 PrimitiveID, uint32 SceneFrameNumber)
 {
 	// We always create an instance to ensure that we can always use the same code paths in the shader
@@ -945,9 +945,20 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 						for (int32 ItemIndex = ParallelRanges.Range[RangeIndex].ItemStart; ItemIndex < ParallelRanges.Range[RangeIndex].ItemStart + ParallelRanges.Range[RangeIndex].ItemCount; ++ItemIndex)
 						{
 							const int32 Index = InstancesToClear[ItemIndex];
-							FPrimitiveInstance PrimitiveInstance;
-							PrimitiveInstance.PrimitiveId = ~uint32(0);
-							FInstanceSceneShaderData InstanceSceneData(PrimitiveInstance);
+							FInstanceSceneShaderData InstanceSceneData(GetInstanceUniformShaderParameters(
+								FMatrix::Identity,
+								FMatrix::Identity,
+								FVector::ZeroVector,
+								FVector::ZeroVector,
+								FVector4(1.0f, 1.0f, 1.0f, 1.0f),
+								FVector4(1.0f, 1.0f, 1.0f, 1.0f),
+								FVector4(ForceInitToZero),
+								FNaniteInfo(),
+								~(uint32)0,
+								0,
+								0.0f,
+								false
+							));
 
 							void* DstRefs[FInstanceSceneShaderData::InstanceDataStrideInFloat4s];
 							if (RangeCount > 1)

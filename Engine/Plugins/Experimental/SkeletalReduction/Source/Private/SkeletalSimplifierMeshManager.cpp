@@ -562,7 +562,7 @@ void  SkeletalSimplifier::FSimplifierMeshManager::WeldNonSplitBasicAttributes(EV
 			{
 				return SimpVert->vert.BasicAttributes.ElementIDs.NormalID;
 			};
-			auto NormalValueAccessor = [](SimpVertType* SimpVert)->FVector&
+			auto NormalValueAccessor = [](SimpVertType* SimpVert)->FVector3f&
 			{
 				return SimpVert->vert.BasicAttributes.Normal;
 			};
@@ -578,7 +578,7 @@ void  SkeletalSimplifier::FSimplifierMeshManager::WeldNonSplitBasicAttributes(EV
 			{
 				return SimpVert->vert.BasicAttributes.ElementIDs.TangentID;
 			};
-			auto TangentValueAccessor = [](SimpVertType* SimpVert)->FVector&
+			auto TangentValueAccessor = [](SimpVertType* SimpVert)->FVector3f&
 			{
 				return SimpVert->vert.BasicAttributes.Tangent;
 			};
@@ -593,7 +593,7 @@ void  SkeletalSimplifier::FSimplifierMeshManager::WeldNonSplitBasicAttributes(EV
 			{
 				return SimpVert->vert.BasicAttributes.ElementIDs.BiTangentID;
 			};
-			auto BiTangentValueAccessor = [](SimpVertType* SimpVert)->FVector&
+			auto BiTangentValueAccessor = [](SimpVertType* SimpVert)->FVector3f&
 			{
 				return SimpVert->vert.BasicAttributes.BiTangent;
 			};

@@ -1248,7 +1248,7 @@ void FScene::AddPrimitive(UPrimitiveComponent* Primitive)
 		{
 			FPrimitiveSceneProxy* SceneProxy = Params.PrimitiveSceneProxy;
 			FScopeCycleCounter Context(SceneProxy->GetStatId());
-			SceneProxy->SetTransform(Params.RenderMatrix, Params.WorldBounds, Params.LocalBounds, Params.AttachmentRootPosition);
+			SceneProxy->SetTransform(FMatrix44f(Params.RenderMatrix), Params.WorldBounds, Params.LocalBounds, Params.AttachmentRootPosition);
 
 			// Create any RenderThreadResources required.
 			SceneProxy->CreateRenderThreadResources();

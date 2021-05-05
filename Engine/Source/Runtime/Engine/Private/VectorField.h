@@ -106,7 +106,7 @@ public:
 	FBox WorldBounds;
 	/** Transform from the vector field's local space to world space, no scaling is applied. */
 	FMatrix VolumeToWorldNoScale;
-	/** Transform from world space to the vector field's local space. */
+	/** Tra32nsform from world space to the vector field's local space. */
 	FMatrix WorldToVolume;
 	/** Transform from the vector field's local space to world space. */
 	FMatrix VolumeToWorld;

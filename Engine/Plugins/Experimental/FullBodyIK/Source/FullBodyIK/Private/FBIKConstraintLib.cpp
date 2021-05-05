@@ -61,7 +61,7 @@ namespace FBIKConstraintLib
 					{
 						int32 LinkIndex = *Found;
 
-						auto GetLimit = [](EFBIKBoneLimitType Type, float DesiredLimit, float& OutLimit) -> bool
+						auto GetLimit = [](EFBIKBoneLimitType Type, FVector::FReal DesiredLimit, FVector::FReal& OutLimit) -> bool
 						{
 							OutLimit = (Type == EFBIKBoneLimitType::Locked) ? 0.f : DesiredLimit;
 							return (Type != EFBIKBoneLimitType::Free);

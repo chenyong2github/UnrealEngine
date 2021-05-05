@@ -158,16 +158,16 @@ namespace Chaos
 		{
 			//if we have no future results alpha will be > 1
 			//in that case we just keep rendering the latest results we can
-			return FMath::Min(1.f, (ResultsTime - Next.ExternalStartTime) / Denom);
+			return FMath::Min((FReal)1., (ResultsTime - Next.ExternalStartTime) / Denom);
 		}
 
 		return 1;	//if 0 dt just use 1 as alpha
 	}
 
-	FReal DefaultResimInterpTime = 1.f;
+	FRealSingle DefaultResimInterpTime = 1.f;
 	FAutoConsoleVariableRef CVarResimInterpTime(TEXT("p.ResimInterpTime"), DefaultResimInterpTime, TEXT("How long to interpolate between original sim and resim results. 0 means no interpolation, the larget the value the smoother and longer interpolation takes. Restart game to see affect"));
 
-	FReal DefaultResimInterpStrength = 0.2f;
+	FRealSingle DefaultResimInterpStrength = 0.2f;
 	FAutoConsoleVariableRef CVarResimInterpStrength(TEXT("p.ResimInterpStrength"), DefaultResimInterpStrength, TEXT("How strong the resim interp leash is. 1 means immediately snap to new target, 0 means do not interpolate at all"));
 
 	FChaosResultsManager::FChaosResultsManager(FChaosMarshallingManager& InMarshallingManager)

@@ -22,13 +22,13 @@ struct FSkelMeshRenderSection;
 /** data for a single skinned skeletal mesh vertex */
 struct FFinalSkinVertex
 {
-	FVector			Position;
+	FVector3f			Position;
 	FPackedNormal	TangentX;
 	FPackedNormal	TangentZ;
 	float			U;
 	float			V;
 
-	FVector GetTangentY() const
+	FVector3f GetTangentY() const
 	{
 		return GenerateYAxis(TangentX, TangentZ);
 	};
@@ -109,7 +109,7 @@ public:
 	 *	Get the array of refpose->local matrices
 	 *	Not safe to hold this reference between frames, because it exists in dynamic data passed from main thread.
 	 */
-	virtual const TArray<FMatrix>& GetReferenceToLocalMatrices() const = 0;
+	virtual const TArray<FMatrix44f>& GetReferenceToLocalMatrices() const = 0;
 
 	/**
 	*	Will force re-evaluating which Skin Weight buffer should be used for skinning, determined by checking for any override weights or a skin weight profile being set.

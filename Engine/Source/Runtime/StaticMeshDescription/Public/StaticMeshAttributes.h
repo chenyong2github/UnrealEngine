@@ -102,11 +102,11 @@ public:
 	TVertexInstanceAttributesRef<FVector2D> GetVertexInstanceUVs() { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate); }
 	TVertexInstanceAttributesConstRef<FVector2D> GetVertexInstanceUVs() const { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate); }
 
-	TVertexInstanceAttributesRef<FVector> GetVertexInstanceNormals() { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal); }
-	TVertexInstanceAttributesConstRef<FVector> GetVertexInstanceNormals() const { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal); }
+	TVertexInstanceAttributesRef<FVector3f> GetVertexInstanceNormals() { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Normal); }
+	TVertexInstanceAttributesConstRef<FVector3f> GetVertexInstanceNormals() const { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Normal); }
 
-	TVertexInstanceAttributesRef<FVector> GetVertexInstanceTangents() { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent); }
-	TVertexInstanceAttributesConstRef<FVector> GetVertexInstanceTangents() const { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent); }
+	TVertexInstanceAttributesRef<FVector3f> GetVertexInstanceTangents() { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Tangent); }
+	TVertexInstanceAttributesConstRef<FVector3f> GetVertexInstanceTangents() const { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Tangent); }
 
 	TVertexInstanceAttributesRef<float> GetVertexInstanceBinormalSigns() { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign); }
 	TVertexInstanceAttributesConstRef<float> GetVertexInstanceBinormalSigns() const { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign); }
@@ -122,34 +122,34 @@ public:
 	UE_DEPRECATED(4.26, "This attribute is no longer supported, please remove code pertaining to it.")
 	TEdgeAttributesConstRef<float> GetEdgeCreaseSharpnesses() const { return MeshDescription.EdgeAttributes().GetAttributesRef<float>(MeshAttribute::Edge::CreaseSharpness); }
 
-	TTriangleAttributesRef<FVector> GetTriangleNormals() { return MeshDescription.TriangleAttributes().GetAttributesRef<FVector>(MeshAttribute::Triangle::Normal); }
-	TTriangleAttributesConstRef<FVector> GetTriangleNormals() const { return MeshDescription.TriangleAttributes().GetAttributesRef<FVector>(MeshAttribute::Triangle::Normal); }
+	TTriangleAttributesRef<FVector3f> GetTriangleNormals() { return MeshDescription.TriangleAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Triangle::Normal); }
+	TTriangleAttributesConstRef<FVector3f> GetTriangleNormals() const { return MeshDescription.TriangleAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Triangle::Normal); }
 
-	TTriangleAttributesRef<FVector> GetTriangleTangents() { return MeshDescription.TriangleAttributes().GetAttributesRef<FVector>(MeshAttribute::Triangle::Tangent); }
-	TTriangleAttributesConstRef<FVector> GetTriangleTangents() const { return MeshDescription.TriangleAttributes().GetAttributesRef<FVector>(MeshAttribute::Triangle::Tangent); }
+	TTriangleAttributesRef<FVector3f> GetTriangleTangents() { return MeshDescription.TriangleAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Triangle::Tangent); }
+	TTriangleAttributesConstRef<FVector3f> GetTriangleTangents() const { return MeshDescription.TriangleAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Triangle::Tangent); }
 
-	TTriangleAttributesRef<FVector> GetTriangleBinormals() { return MeshDescription.TriangleAttributes().GetAttributesRef<FVector>(MeshAttribute::Triangle::Binormal); }
-	TTriangleAttributesConstRef<FVector> GetTriangleBinormals() const { return MeshDescription.TriangleAttributes().GetAttributesRef<FVector>(MeshAttribute::Triangle::Binormal); }
-
-	UE_DEPRECATED(4.26, "This attribute is no longer supported, please remove code pertaining to it.")
-	TPolygonAttributesRef<FVector> GetPolygonNormals() { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Normal); }
-	UE_DEPRECATED(4.26, "This attribute is no longer supported, please remove code pertaining to it.")
-	TPolygonAttributesConstRef<FVector> GetPolygonNormals() const { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Normal); }
+	TTriangleAttributesRef<FVector3f> GetTriangleBinormals() { return MeshDescription.TriangleAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Triangle::Binormal); }
+	TTriangleAttributesConstRef<FVector3f> GetTriangleBinormals() const { return MeshDescription.TriangleAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Triangle::Binormal); }
 
 	UE_DEPRECATED(4.26, "This attribute is no longer supported, please remove code pertaining to it.")
-	TPolygonAttributesRef<FVector> GetPolygonTangents() { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Tangent); }
+	TPolygonAttributesRef<FVector3f> GetPolygonNormals() { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Polygon::Normal); }
 	UE_DEPRECATED(4.26, "This attribute is no longer supported, please remove code pertaining to it.")
-	TPolygonAttributesConstRef<FVector> GetPolygonTangents() const { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Tangent); }
+	TPolygonAttributesConstRef<FVector3f> GetPolygonNormals() const { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Polygon::Normal); }
 
 	UE_DEPRECATED(4.26, "This attribute is no longer supported, please remove code pertaining to it.")
-	TPolygonAttributesRef<FVector> GetPolygonBinormals() { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Binormal); }
+	TPolygonAttributesRef<FVector3f> GetPolygonTangents() { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Polygon::Tangent); }
 	UE_DEPRECATED(4.26, "This attribute is no longer supported, please remove code pertaining to it.")
-	TPolygonAttributesConstRef<FVector> GetPolygonBinormals() const { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Binormal); }
+	TPolygonAttributesConstRef<FVector3f> GetPolygonTangents() const { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Polygon::Tangent); }
 
 	UE_DEPRECATED(4.26, "This attribute is no longer supported, please remove code pertaining to it.")
-	TPolygonAttributesRef<FVector> GetPolygonCenters() { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Center); }
+	TPolygonAttributesRef<FVector3f> GetPolygonBinormals() { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Polygon::Binormal); }
 	UE_DEPRECATED(4.26, "This attribute is no longer supported, please remove code pertaining to it.")
-	TPolygonAttributesConstRef<FVector> GetPolygonCenters() const { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Center); }
+	TPolygonAttributesConstRef<FVector3f> GetPolygonBinormals() const { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Polygon::Binormal); }
+
+	UE_DEPRECATED(4.26, "This attribute is no longer supported, please remove code pertaining to it.")
+	TPolygonAttributesRef<FVector3f> GetPolygonCenters() { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Polygon::Center); }
+	UE_DEPRECATED(4.26, "This attribute is no longer supported, please remove code pertaining to it.")
+	TPolygonAttributesConstRef<FVector3f> GetPolygonCenters() const { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Polygon::Center); }
 
 	TPolygonGroupAttributesRef<FName> GetPolygonGroupMaterialSlotNames() { return MeshDescription.PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName); }
 	TPolygonGroupAttributesConstRef<FName> GetPolygonGroupMaterialSlotNames() const { return MeshDescription.PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName); }
@@ -167,24 +167,24 @@ public:
 	UE_DEPRECATED(4.26, "This attribute is no longer supported, please remove code pertaining to it.")
 	TVertexAttributesConstRef<float> GetVertexCornerSharpnesses() const { return MeshDescription.VertexAttributes().GetAttributesRef<float>(MeshAttribute::Vertex::CornerSharpness); }
 	TVertexInstanceAttributesConstRef<FVector2D> GetVertexInstanceUVs() const { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate); }
-	TVertexInstanceAttributesConstRef<FVector> GetVertexInstanceNormals() const { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal); }
-	TVertexInstanceAttributesConstRef<FVector> GetVertexInstanceTangents() const { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent); }
+	TVertexInstanceAttributesConstRef<FVector3f> GetVertexInstanceNormals() const { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Normal); }
+	TVertexInstanceAttributesConstRef<FVector3f> GetVertexInstanceTangents() const { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Tangent); }
 	TVertexInstanceAttributesConstRef<float> GetVertexInstanceBinormalSigns() const { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign); }
 	TVertexInstanceAttributesConstRef<FVector4> GetVertexInstanceColors() const { return MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color); }
 	TEdgeAttributesConstRef<bool> GetEdgeHardnesses() const { return MeshDescription.EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard); }
 	UE_DEPRECATED(4.26, "This attribute is no longer supported, please remove code pertaining to it.")
 	TEdgeAttributesConstRef<float> GetEdgeCreaseSharpnesses() const { return MeshDescription.EdgeAttributes().GetAttributesRef<float>(MeshAttribute::Edge::CreaseSharpness); }
-	TTriangleAttributesConstRef<FVector> GetTriangleNormals() const { return MeshDescription.TriangleAttributes().GetAttributesRef<FVector>(MeshAttribute::Triangle::Normal); }
-	TTriangleAttributesConstRef<FVector> GetTriangleTangents() const { return MeshDescription.TriangleAttributes().GetAttributesRef<FVector>(MeshAttribute::Triangle::Tangent); }
-	TTriangleAttributesConstRef<FVector> GetTriangleBinormals() const { return MeshDescription.TriangleAttributes().GetAttributesRef<FVector>(MeshAttribute::Triangle::Binormal); }
+	TTriangleAttributesConstRef<FVector3f> GetTriangleNormals() const { return MeshDescription.TriangleAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Triangle::Normal); }
+	TTriangleAttributesConstRef<FVector3f> GetTriangleTangents() const { return MeshDescription.TriangleAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Triangle::Tangent); }
+	TTriangleAttributesConstRef<FVector3f> GetTriangleBinormals() const { return MeshDescription.TriangleAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Triangle::Binormal); }
 	UE_DEPRECATED(4.26, "This attribute is no longer supported, please remove code pertaining to it.")
-	TPolygonAttributesConstRef<FVector> GetPolygonNormals() const { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Normal); }
+	TPolygonAttributesConstRef<FVector3f> GetPolygonNormals() const { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Polygon::Normal); }
 	UE_DEPRECATED(4.26, "This attribute is no longer supported, please remove code pertaining to it.")
-	TPolygonAttributesConstRef<FVector> GetPolygonTangents() const { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Tangent); }
+	TPolygonAttributesConstRef<FVector3f> GetPolygonTangents() const { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Polygon::Tangent); }
 	UE_DEPRECATED(4.26, "This attribute is no longer supported, please remove code pertaining to it.")
-	TPolygonAttributesConstRef<FVector> GetPolygonBinormals() const { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Binormal); }
+	TPolygonAttributesConstRef<FVector3f> GetPolygonBinormals() const { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Polygon::Binormal); }
 	UE_DEPRECATED(4.26, "This attribute is no longer supported, please remove code pertaining to it.")
-	TPolygonAttributesConstRef<FVector> GetPolygonCenters() const { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Center); }
+	TPolygonAttributesConstRef<FVector3f> GetPolygonCenters() const { return MeshDescription.PolygonAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Polygon::Center); }
 	TPolygonGroupAttributesConstRef<FName> GetPolygonGroupMaterialSlotNames() const { return MeshDescription.PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName); }
 };
 

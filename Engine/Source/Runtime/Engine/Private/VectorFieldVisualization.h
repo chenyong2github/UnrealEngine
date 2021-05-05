@@ -37,9 +37,9 @@ class FSceneView;
  * Uniform buffer to hold parameters for vector field visualization.
  */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT( FVectorFieldVisualizationParameters, )
-	SHADER_PARAMETER( FMatrix, VolumeToWorld )
-	SHADER_PARAMETER( FMatrix, VolumeToWorldNoScale )
-	SHADER_PARAMETER( FVector, VoxelSize )
+	SHADER_PARAMETER( FMatrix44f, VolumeToWorld )
+	SHADER_PARAMETER( FMatrix44f, VolumeToWorldNoScale )
+	SHADER_PARAMETER( FVector3f, VoxelSize )
 	SHADER_PARAMETER( float, Scale )
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 typedef TUniformBufferRef<FVectorFieldVisualizationParameters> FVectorFieldVisualizationBufferRef;

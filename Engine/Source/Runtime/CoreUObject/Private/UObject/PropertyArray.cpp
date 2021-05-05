@@ -216,10 +216,10 @@ void FArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 		{
 			auto CanSerializeFromStructWithDifferentName = [](const FPropertyTag& PropertyTag, const FStructProperty* StructProperty)
 			{
-				return PropertyTag.StructGuid.IsValid()
-					&& StructProperty 
-					&& StructProperty->Struct 
-					&& (PropertyTag.StructGuid == StructProperty->Struct->GetCustomGuid());
+				return StructProperty
+					&& StructProperty->Struct
+					&& ( (PropertyTag.StructGuid.IsValid() && (PropertyTag.StructGuid == StructProperty->Struct->GetCustomGuid()))
+						|| StructProperty->Struct->CanSerializeAsAlias(PropertyTag) );
 			};
 
 			// Check if the Inner property can successfully serialize, the type may have changed

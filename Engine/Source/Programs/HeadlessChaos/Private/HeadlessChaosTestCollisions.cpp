@@ -458,7 +458,7 @@ namespace ChaosTest {
 		Collisions.UpdateLevelsetConstraint(*Constraint.template As<FPBDCollisionConstraints::FPointContactConstraint>());
 		EXPECT_EQ(Constraint.Particle[0], DynamicCube);
 		EXPECT_EQ(Constraint.Particle[1], StaticCube);
-		EXPECT_TRUE(Constraint.GetNormal().operator==(FVec3(0, 0, 1)));
+		EXPECT_TRUE(Constraint.GetNormal().Equals(FVec3(0, 0, 1)));
 		EXPECT_TRUE(FMath::Abs(ChaosTest::SignedDistance(*Constraint.Particle[0], Constraint.GetLocation())) < SMALL_THRESHOLD);
 		{
 			INVARIANT_XR_START(DynamicCube);

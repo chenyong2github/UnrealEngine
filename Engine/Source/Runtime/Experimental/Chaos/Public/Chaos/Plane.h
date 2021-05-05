@@ -121,7 +121,7 @@ public:
 
 	bool Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const
 	{
-		ensure(FMath::IsNearlyEqual(Dir.SizeSquared(),1, KINDA_SMALL_NUMBER));
+		ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), (T)1, (T)KINDA_SMALL_NUMBER));
 		CHAOS_ENSURE(Length > 0);
 		OutFaceIndex = INDEX_NONE;
 
@@ -195,7 +195,7 @@ public:
 
 	uint32 GetTypeHash() const
 	{
-		return HashCombine(::GetTypeHash(MX), ::GetTypeHash(MNormal));
+		return HashCombine(UE::Math::GetTypeHash(MX), UE::Math::GetTypeHash(MNormal));
 	}
 
   private:

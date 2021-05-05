@@ -318,7 +318,7 @@ namespace
 		return false;
 	}
 
-	static void GetPolygonMesh(const FVisualLogShapeElement* ElementToDraw, FDebugRenderSceneProxy::FMesh& TestMesh, const FVector& VertexOffset = FVector::ZeroVector)
+	static void GetPolygonMesh(const FVisualLogShapeElement* ElementToDraw, FDebugRenderSceneProxy::FMesh& TestMesh, const FVector3f& VertexOffset = FVector3f::ZeroVector)
 	{
 		TestMesh.Color = ElementToDraw->GetFColor();
 
@@ -403,7 +403,7 @@ void AVisualLoggerRenderingActor::GetDebugShapes(const FVisualLogDevice::FVisual
 		}
 
 
-		const FVector CorridorOffset = FDebugDrawing::NavOffset * 1.25f;
+		const FVector3f CorridorOffset = FDebugDrawing::NavOffset * 1.25f;
 		const FColor Color = ElementToDraw->GetFColor();
 
 		switch (ElementToDraw->GetType())
@@ -458,7 +458,7 @@ void AVisualLoggerRenderingActor::GetDebugShapes(const FVisualLogDevice::FVisual
 			int32 EndIndex = StartIndex + HeaderData.VerticesNum;
 			for (int32 VIdx = StartIndex; VIdx < EndIndex; VIdx++)
 			{
-				TestMesh.Vertices.Add(ElementToDraw->Points[VIdx]);
+				TestMesh.Vertices.Add(FVector3f(ElementToDraw->Points[VIdx]));
 			}
 
 
@@ -620,10 +620,10 @@ void AVisualLoggerRenderingActor::GetDebugShapes(const FVisualLogDevice::FVisual
 				FVector Point = AreaMeshPoints[PointIndex];
 				FVector NextPoint = AreaMeshPoints[PointIndex + 1];
 
-				FVector P1(Point.X, Point.Y, HeaderData.MinZ);
-				FVector P2(Point.X, Point.Y, HeaderData.MaxZ);
-				FVector P3(NextPoint.X, NextPoint.Y, HeaderData.MinZ);
-				FVector P4(NextPoint.X, NextPoint.Y, HeaderData.MaxZ);
+				FVector3f P1(Point.X, Point.Y, HeaderData.MinZ);
+				FVector3f P2(Point.X, Point.Y, HeaderData.MaxZ);
+				FVector3f P3(NextPoint.X, NextPoint.Y, HeaderData.MinZ);
+				FVector3f P4(NextPoint.X, NextPoint.Y, HeaderData.MaxZ);
 
 				TestMesh.Vertices.Add(P1); TestMesh.Vertices.Add(P2); TestMesh.Vertices.Add(P3);
 				TestMesh.Indices.Add(CurrentIndex + 0);
@@ -644,7 +644,7 @@ void AVisualLoggerRenderingActor::GetDebugShapes(const FVisualLogDevice::FVisual
 				PolygonToDraw.SetColor(ElementToDraw->GetFColor());
 				PolygonToDraw.Points.Reserve(AreaMeshPoints.Num());
 				PolygonToDraw.Points = AreaMeshPoints;
-				GetPolygonMesh(&PolygonToDraw, PolygonMesh, FVector(0, 0, HeaderData.MaxZ));
+				GetPolygonMesh(&PolygonToDraw, PolygonMesh, FVector3f(0, 0, HeaderData.MaxZ));
 				DebugShapes.Meshes.Add(PolygonMesh);
 			}
 

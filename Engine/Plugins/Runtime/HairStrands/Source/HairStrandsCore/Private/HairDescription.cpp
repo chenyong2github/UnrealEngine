@@ -14,7 +14,7 @@ FHairDescription::FHairDescription()
 {
 	// Required attributes
 	StrandAttributesSet.RegisterAttribute<int>(HairAttribute::Strand::VertexCount);
-	VertexAttributesSet.RegisterAttribute<FVector>(HairAttribute::Vertex::Position, 1, FVector::ZeroVector);
+	VertexAttributesSet.RegisterAttribute<FVector3f>(HairAttribute::Vertex::Position, 1, FVector3f::ZeroVector);
 
 	// Only one set of groom attributes
 	GroomAttributesSet.Initialize(1);

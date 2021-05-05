@@ -18,7 +18,7 @@ namespace Chaos
 
 	int32 FConvex::FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const
 	{
-		SearchDist = FMath::Max(SearchDist,FMath::Abs(BoundingBox().Extents().GetAbsMax()) * 1e-4f);
+		SearchDist = FMath::Max(SearchDist,(FReal)(FMath::Abs(BoundingBox().Extents().GetAbsMax()) * 1e-4f));
 		//todo: use hill climbing
 		int32 MostOpposingIdx = INDEX_NONE;
 		FReal MostOpposingDot = TNumericLimits<FReal>::Max();
@@ -281,14 +281,14 @@ namespace Chaos
 
 	void FConvex::MovePlanesAndRebuild(const FReal InDelta)
 	{
-		TArray<FPlane> NewPlanes;
+		TArray<FPlane4f> NewPlanes;
 		TArray<FVec3> NewPoints;
 		NewPlanes.Reserve(Planes.Num());
 
 		// Move all the planes inwards
 		for (int32 PlaneIndex = 0; PlaneIndex < Planes.Num(); ++PlaneIndex)
 		{
-			const FPlane NewPlane = FPlane(Planes[PlaneIndex].X() + InDelta * Planes[PlaneIndex].Normal(), Planes[PlaneIndex].Normal());
+			const FPlane4f NewPlane = FPlane4f(Planes[PlaneIndex].X() + InDelta * Planes[PlaneIndex].Normal(), Planes[PlaneIndex].Normal());
 			NewPlanes.Add(NewPlane);
 		}
 
@@ -302,7 +302,7 @@ namespace Chaos
 				for (int32 PlaneIndex2 = PlaneIndex1 + 1; PlaneIndex2 < NewPlanes.Num(); ++PlaneIndex2)
 				{
 					FVec3 PlanesPos;
-					if (FMath::IntersectPlanes3(PlanesPos, NewPlanes[PlaneIndex0], NewPlanes[PlaneIndex1], NewPlanes[PlaneIndex2]))
+					if (FMath::IntersectPlanes3<FReal>(PlanesPos, NewPlanes[PlaneIndex0], NewPlanes[PlaneIndex1], NewPlanes[PlaneIndex2]))
 					{
 						// Reject duplicate points
 						int32 NewPointIndex = INDEX_NONE;

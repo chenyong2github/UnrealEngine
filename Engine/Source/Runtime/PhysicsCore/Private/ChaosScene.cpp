@@ -183,7 +183,7 @@ void FChaosScene::RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Acto
 
 #if WITH_CHAOS
 
-void FChaosScene::RemoveActorFromAccelerationStructureImp(Chaos::TGeometryParticle<float, 3>* Particle)
+void FChaosScene::RemoveActorFromAccelerationStructureImp(Chaos::FGeometryParticle* Particle)
 {
 	using namespace Chaos;
 	if (GetSpacialAcceleration() && Particle->UniqueIdx().IsValid())

@@ -100,7 +100,7 @@ public:
 		NormalOverlay = NormalOverlayIn;
 	}
 
-	int FindOrAddUnique(const FVector & Normal, int VertexID)
+	int FindOrAddUnique(const FVector3f & Normal, int VertexID)
 	{
 		FVertexNormal VertNormal = { VertexID, Normal.X, Normal.Y, Normal.Z };
 
@@ -178,7 +178,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	VertIDMap.SetNumUninitialized(MeshIn->Vertices().Num());
 
 	// look up vertex positions
-	TVertexAttributesConstRef<FVector> VertexPositions = MeshIn->GetVertexPositions();
+	TVertexAttributesConstRef<FVector3f> VertexPositions = MeshIn->GetVertexPositions();
 
 	// copy vertex positions. Later we may have to append duplicate vertices to resolve non-manifold structures.
 	for (const FVertexID VertexID : MeshIn->Vertices().GetElementIDs())
@@ -192,8 +192,8 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	// @todo: does the MeshDescription always have UVs and Normals?
 	FSkeletalMeshConstAttributes Attributes(*MeshIn);
 	TVertexInstanceAttributesConstRef<FVector2D> InstanceUVs = Attributes.GetVertexInstanceUVs();
-	TVertexInstanceAttributesConstRef<FVector> InstanceNormals = Attributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesConstRef<FVector> InstanceTangents = Attributes.GetVertexInstanceTangents();
+	TVertexInstanceAttributesConstRef<FVector3f> InstanceNormals = Attributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesConstRef<FVector3f> InstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesConstRef<float> InstanceBiTangentSign = Attributes.GetVertexInstanceBinormalSigns();
 
 	TVertexInstanceAttributesConstRef<FVector4> InstanceColors = Attributes.GetVertexInstanceColors();
@@ -661,7 +661,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 					FIndex3i TriNormals;
 					for (int j = 0; j < 3; ++j)
 					{
-						const FVector Normal = InstanceNormals.Get(TriData.TriInstances[j]);
+						const FVector3f Normal = InstanceNormals.Get(TriData.TriInstances[j]);
 						TriNormals[j] = NormalWelder.FindOrAddUnique(Normal, Tri[j]);
 					}
 					NormalOverlay->SetTriangle(TriangleID, TriNormals);
@@ -684,7 +684,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 					FIndex3i TriVector;
 					for (int j = 0; j < 3; ++j)
 					{
-						const FVector Vector = InstanceTangents.Get(TriData.TriInstances[j]);
+						const FVector3f Vector = InstanceTangents.Get(TriData.TriInstances[j]);
 						TriVector[j] = TangentWelder.FindOrAddUnique(Vector, Tri[j]);
 					}
 					TangentOverlay->SetTriangle(TriangleID, TriVector);
@@ -708,11 +708,11 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 					{
 						// compute the bi tangent.
 						const FVertexInstanceID VertexInstanceID = TriData.TriInstances[j];
-						const FVector NormalVector = InstanceNormals.Get(VertexInstanceID);
-						const FVector TangentVector = InstanceTangents.Get(VertexInstanceID);
+						const FVector3f NormalVector = InstanceNormals.Get(VertexInstanceID);
+						const FVector3f TangentVector = InstanceTangents.Get(VertexInstanceID);
 						const float BiSign  = InstanceBiTangentSign.Get(VertexInstanceID);
 
-						FVector BiTangentVector = BiSign * FVector::CrossProduct(NormalVector, TangentVector);
+						FVector3f BiTangentVector = BiSign * FVector3f::CrossProduct(NormalVector, TangentVector);
 						BiTangentVector.Normalize();
 
 						TriVector[j] = BiTangentWelder.FindOrAddUnique(BiTangentVector, Tri[j]);
@@ -838,8 +838,8 @@ static void CopyTangents_Internal(const FMeshDescription* SourceMesh, const FDyn
 
 	FStaticMeshConstAttributes Attributes(*SourceMesh);
 
-	TArrayView<const FVector> InstanceNormals = Attributes.GetVertexInstanceNormals().GetRawArray();
-	TArrayView<const FVector> InstanceTangents = Attributes.GetVertexInstanceTangents().GetRawArray();
+	TArrayView<const FVector3f> InstanceNormals = Attributes.GetVertexInstanceNormals().GetRawArray();
+	TArrayView<const FVector3f> InstanceTangents = Attributes.GetVertexInstanceTangents().GetRawArray();
 	TArrayView<const float> InstanceSigns = Attributes.GetVertexInstanceBinormalSigns().GetRawArray();
 
 	if (!ensureMsgf(InstanceNormals.Num() != 0, TEXT("Cannot CopyTangents from MeshDescription with invalid Instance Normals"))) return;

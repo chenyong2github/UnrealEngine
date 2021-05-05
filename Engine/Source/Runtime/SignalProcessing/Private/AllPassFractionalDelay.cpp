@@ -97,8 +97,8 @@ void FAllPassFractionalDelay::ProcessAudioBlock(const float* InSamples, const fl
 	FMemory::Memcpy(FractionalDelayData, InDelays, InNum * sizeof(float));
 	
 	// Determine integer delays and filter coefficients per a sample
-	const VectorRegister VTwoAndAHalf = MakeVectorRegister(2.5f, 2.5f, 2.5f, 2.5f);
-	const VectorRegister VMaxDelay = MakeVectorRegister((float)MaxDelay, (float)MaxDelay, (float)MaxDelay, (float)MaxDelay);
+	const VectorRegister4Float VTwoAndAHalf = MakeVectorRegister(2.5f, 2.5f, 2.5f, 2.5f);
+	const VectorRegister4Float VMaxDelay = MakeVectorRegister((float)MaxDelay, (float)MaxDelay, (float)MaxDelay, (float)MaxDelay);
 	for (int32 i = 0; i < InNum; i += 4)
 	{
 		checkf(FractionalDelayData[i] <= MaxDelay, TEXT("Delay exceeds maximum"));
@@ -108,7 +108,7 @@ void FAllPassFractionalDelay::ProcessAudioBlock(const float* InSamples, const fl
 
 		// Ensure that delays are in [0.5, MaxDelay]
 		// Delay= Max(Delay, 0.5)
-		VectorRegister VFractionalDelays = VectorLoadAligned(&FractionalDelayData[i]);
+		VectorRegister4Float VFractionalDelays = VectorLoadAligned(&FractionalDelayData[i]);
 		VFractionalDelays = VectorMax(VFractionalDelays, GlobalVectorConstants::FloatOneHalf);
 		// Delay = Min(Delay, MaxDelay)
 		VFractionalDelays = VectorMin(VFractionalDelays, VMaxDelay);
@@ -117,22 +117,22 @@ void FAllPassFractionalDelay::ProcessAudioBlock(const float* InSamples, const fl
 		// Delay = Delay + 0.5
 		VFractionalDelays = VectorAdd(VFractionalDelays, GlobalVectorConstants::FloatOneHalf);
 		// Delay.floor = Floor(Delay)
-		VectorRegister VFloorDelays = VectorFloor(VFractionalDelays);
+		VectorRegister4Float VFloorDelays = VectorFloor(VFractionalDelays);
 		// Delay.frac = Delay - Delay.floor
 		VFractionalDelays = VectorSubtract(VFractionalDelays, VFloorDelays);
 		
 		// Reintroduing 0.5 previously removed.
 		// alpha = Delay.frac - 0.5
-		VectorRegister VCoefficients = VectorSubtract(VFractionalDelays, GlobalVectorConstants::FloatOneHalf);
+		VectorRegister4Float VCoefficients = VectorSubtract(VFractionalDelays, GlobalVectorConstants::FloatOneHalf);
 		// denom = 2.5 - alpha
-		VectorRegister VDenominator = VectorSubtract(VTwoAndAHalf, VFractionalDelays);
+		VectorRegister4Float VDenominator = VectorSubtract(VTwoAndAHalf, VFractionalDelays);
 		// coef = alpha / (2.5 - alpha)
 		VCoefficients = VectorDivide(VCoefficients, VDenominator);
 		VectorStoreAligned(VCoefficients, &Coefficients[i]);
 
 		// Delay.int = int(Delay.floor)
-		VectorRegisterInt VIntegerDelays = VectorFloatToInt(VFloorDelays);
-		VectorRegisterInt VIntegerDelayOffset = VectorIntLoadAligned(&IntegerDelayOffsetData[i]);
+		VectorRegister4Int VIntegerDelays = VectorFloatToInt(VFloorDelays);
+		VectorRegister4Int VIntegerDelayOffset = VectorIntLoadAligned(&IntegerDelayOffsetData[i]);
 		// Delay.int += BufferIdx
 		VectorIntStoreAligned(VectorIntSubtract(VIntegerDelayOffset, VIntegerDelays), &IntegerDelayData[i]);
 	}

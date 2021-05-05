@@ -121,7 +121,7 @@ struct AIMODULE_API FRecastAStarSearchNode : public FGraphAStarDefaultNode<FReca
 		: Super(InNodeRef)
 		, Tile{ nullptr }
 		, Poly{ nullptr }
-		, Position { InPosition[0], InPosition[1], InPosition[2] }
+		, Position { (float)InPosition[0], (float)InPosition[1], (float)InPosition[2] }
 	{}
 
 	FRecastAStarSearchNode(const FRecastAStarSearchNode& Other) = default;

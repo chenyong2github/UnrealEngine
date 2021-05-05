@@ -53,12 +53,12 @@ public:
 
 		if (InViewProjection.IsBound())
 		{
-			SetShaderValue(RHICmdList, VS, InViewProjection, ViewProjection);
+			SetShaderValue(RHICmdList, VS, InViewProjection, (FMatrix44f)ViewProjection);
 		}
 
 		if (InWorld.IsBound())
 		{
-			SetShaderValue(RHICmdList, VS, InWorld, World);
+			SetShaderValue(RHICmdList, VS, InWorld, (FMatrix44f)World);
 		}
 	}
 

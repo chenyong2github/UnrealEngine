@@ -133,9 +133,9 @@ bool AGeometryCollectionRenderLevelSetActor::SetLevelSetToRender(const Chaos::FL
 	}
 
 	// get refs to the grid structures
-	const TArrayND<float, 3>& LevelSetPhiArray = LevelSet.GetPhiArray();
+	const TArrayND<FReal, 3>& LevelSetPhiArray = LevelSet.GetPhiArray();
 	const TArrayND<FVec3, 3>& LevelSetNormalsArray = LevelSet.GetNormalsArray();
-	const TUniformGrid<float, 3>& LevelSetGrid = LevelSet.GetGrid();
+	const TUniformGrid<FReal, 3>& LevelSetGrid = LevelSet.GetGrid();
 
 	const TVec3<int32>& Counts = LevelSetGrid.Counts();
 	

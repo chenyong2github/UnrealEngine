@@ -177,8 +177,8 @@ void FNDIVelocityGridParametersCS::Set(FRHICommandList& RHICmdList, const FNiaga
 		SetSRVParameter(RHICmdList, ComputeShaderRHI, GridCurrentBuffer, CurrentGridBuffer->GridDataBuffer.SRV);
 
 		SetShaderValue(RHICmdList, ComputeShaderRHI, GridSize, ProxyData->GridSize);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, WorldTransform, ProxyData->WorldTransform);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, WorldInverse, ProxyData->WorldTransform.Inverse());
+		SetShaderValue(RHICmdList, ComputeShaderRHI, WorldTransform, (FMatrix44f)ProxyData->WorldTransform);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, WorldInverse, (FMatrix44f)ProxyData->WorldTransform.Inverse());
 	}
 	else
 	{
@@ -186,8 +186,8 @@ void FNDIVelocityGridParametersCS::Set(FRHICommandList& RHICmdList, const FNiaga
 		SetSRVParameter(RHICmdList, ComputeShaderRHI, GridCurrentBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
 
 		SetShaderValue(RHICmdList, ComputeShaderRHI, GridSize, FIntVector());
-		SetShaderValue(RHICmdList, ComputeShaderRHI, WorldTransform, FMatrix::Identity);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, WorldInverse, FMatrix::Identity);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, WorldTransform, FMatrix44f::Identity);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, WorldInverse, FMatrix44f::Identity);
 	}
 }
 

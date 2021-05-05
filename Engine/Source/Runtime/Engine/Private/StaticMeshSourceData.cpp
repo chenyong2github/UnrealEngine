@@ -154,7 +154,6 @@ UStaticMesh* FStaticMeshSourceModel::GetStaticMeshOwner() const
 	return Cast<UStaticMesh>(StaticMeshDescriptionBulkData->GetOuter());
 }
 
-
 bool FStaticMeshSourceModel::LoadMeshDescription(FMeshDescription& OutMeshDescription) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshSourceModel::LoadMeshDescription);

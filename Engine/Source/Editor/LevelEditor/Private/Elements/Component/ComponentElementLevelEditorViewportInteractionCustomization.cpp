@@ -238,7 +238,7 @@ void FComponentElementLevelEditorViewportInteractionCustomization::ValidateScale
 		{
 			if (bActiveAxes[Axis])
 			{
-				bool CurrentValueIsZero = FMath::IsNearlyZero(InOriginalPreDragScale[Axis], SMALL_NUMBER);
+				bool CurrentValueIsZero = FMath::IsNearlyZero(InOriginalPreDragScale[Axis], (FVector::FReal)SMALL_NUMBER);
 				//when the current value is zero we assume it is positive
 				bool IsCurrentValueSignPositive = CurrentValueIsZero ? true : InOriginalPreDragScale[Axis] > 0.0f;
 				if (ActiveAxisCount == 0)
@@ -266,7 +266,7 @@ void FComponentElementLevelEditorViewportInteractionCustomization::ValidateScale
 			{
 				if (bActiveAxes[Axis])
 				{
-					bool CurrentValueIsZero = FMath::IsNearlyZero(InOriginalPreDragScale[Axis], SMALL_NUMBER);
+					bool CurrentValueIsZero = FMath::IsNearlyZero(InOriginalPreDragScale[Axis], (FVector::FReal)SMALL_NUMBER);
 					//when the current value is zero we assume it is positive
 					bool IsCurrentValueSignPositive = CurrentValueIsZero ? true : InOriginalPreDragScale[Axis] > 0.0f;
 					InOutScaleDelta[Axis] = IsCurrentValueSignPositive ? InOutScaleDelta[Axis] : -(InOutScaleDelta[Axis]);
@@ -280,7 +280,7 @@ void FComponentElementLevelEditorViewportInteractionCustomization::ValidateScale
 			{
 				if (bActiveAxes[Axis])
 				{
-					const float AbsScale = FMath::Abs(InOutScaleDelta[Axis] + InOriginalPreDragScale[Axis]);
+					const FVector::FReal AbsScale = FMath::Abs(InOutScaleDelta[Axis] + InOriginalPreDragScale[Axis]);
 					if (AbsScale > MaxComponentSum)
 					{
 						MaxAxisIndex = Axis;
@@ -291,14 +291,14 @@ void FComponentElementLevelEditorViewportInteractionCustomization::ValidateScale
 
 			check(MaxAxisIndex != -1);
 
-			float AbsoluteScaleValue = InOriginalPreDragScale[MaxAxisIndex] + InOutScaleDelta[MaxAxisIndex];
+			FVector::FReal AbsoluteScaleValue = InOriginalPreDragScale[MaxAxisIndex] + InOutScaleDelta[MaxAxisIndex];
 			if (ViewportSettings->SnapScaleEnabled)
 			{
-				AbsoluteScaleValue = FMath::GridSnap(InOriginalPreDragScale[MaxAxisIndex] + InOutScaleDelta[MaxAxisIndex], GEditor->GetScaleGridSize());
+				AbsoluteScaleValue = FMath::GridSnap(InOriginalPreDragScale[MaxAxisIndex] + InOutScaleDelta[MaxAxisIndex], (FVector::FReal)GEditor->GetScaleGridSize());
 				SnapScaleAfter = false;
 			}
 
-			float ScaleRatioMax = AbsoluteScaleValue / InOriginalPreDragScale[MaxAxisIndex];
+			FVector::FReal ScaleRatioMax = AbsoluteScaleValue / InOriginalPreDragScale[MaxAxisIndex];
 			for (int Axis = 0; Axis < 3; ++Axis)
 			{
 				if (bActiveAxes[Axis])

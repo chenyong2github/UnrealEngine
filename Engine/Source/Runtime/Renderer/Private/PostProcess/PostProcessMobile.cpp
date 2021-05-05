@@ -1024,7 +1024,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FVector4, BloomDirtMaskTint)
 		SHADER_PARAMETER(FVector4, SunColorVignetteIntensity)
-		SHADER_PARAMETER(FVector, BloomColor)
+		SHADER_PARAMETER(FVector3f, BloomColor)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SunBlurTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SunBlurSampler)

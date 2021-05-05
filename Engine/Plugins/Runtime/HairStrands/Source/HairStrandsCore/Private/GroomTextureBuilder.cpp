@@ -579,13 +579,13 @@ class FHairStrandsTexturePS : public FGlobalShader
 
 		SHADER_PARAMETER(float, InVF_Radius)
 		SHADER_PARAMETER(float, InVF_Length)
-		SHADER_PARAMETER(FVector, InVF_PositionOffset)
+		SHADER_PARAMETER(FVector3f, InVF_PositionOffset)
 		SHADER_PARAMETER_SRV(Buffer, InVF_PositionBuffer)
 		SHADER_PARAMETER_SRV(Buffer, InVF_AttributeBuffer)
 		SHADER_PARAMETER(uint32, InVF_ControlPointCount)
 
-		SHADER_PARAMETER(FVector, Voxel_MinBound)
-		SHADER_PARAMETER(FVector, Voxel_MaxBound)
+		SHADER_PARAMETER(FVector3f, Voxel_MinBound)
+		SHADER_PARAMETER(FVector3f, Voxel_MaxBound)
 		SHADER_PARAMETER(FIntVector, Voxel_Resolution)
 		SHADER_PARAMETER(float, Voxel_Size)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, Voxel_OffsetAndCount)

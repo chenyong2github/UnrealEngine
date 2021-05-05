@@ -132,6 +132,7 @@ TEST(Clustering, Clustering) {
 }
 
 TEST(SerializationTests, Serialization) {
+	ChaosTest::SimpleTypesSerialization();
 	ChaosTest::SimpleObjectsSerialization();
 	ChaosTest::SharedObjectsSerialization();
 	ChaosTest::GraphSerialization();

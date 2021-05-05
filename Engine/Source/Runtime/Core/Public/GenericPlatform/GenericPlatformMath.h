@@ -432,14 +432,20 @@ struct FGenericPlatformMath
 		return ((*(uint64*)&A) & 0x7FF0000000000000ULL) != 0x7FF0000000000000ULL;
 	}
 
-	static FORCEINLINE bool IsNegativeFloat(float A)
+	//UE_DEPRECATED(5.0, "Use IsNegative here.")	// LWC_TODO: Enable IsNegativeFloat/Double deprecations and fix engine calls.
+	static FORCEINLINE bool IsNegativeFloat(float A) { return IsNegative(A); }
+
+	//UE_DEPRECATED(5.0, "Use IsNegative here.")
+	static FORCEINLINE bool IsNegativeDouble(double A) { return IsNegative(A); }
+
+	static FORCEINLINE bool IsNegative(float A)
 	{
-		return ( (*(uint32*)&A) >= (uint32)0x80000000 ); // Detects sign bit.
+		return ((*(uint32*)&A) >= (uint32)0x80000000); // Detects sign bit.
 	}
 
-	static FORCEINLINE bool IsNegativeDouble(double A)
+	static FORCEINLINE bool IsNegative(double A)
 	{
-		return ( (*(uint64*)&A) >= (uint64)0x8000000000000000 ); // Detects sign bit.
+		return ((*(uint64*)&A) >= (uint64)0x8000000000000000); // Detects sign bit.
 	}
 
 	/** Returns a random integer between 0 and RAND_MAX, inclusive */
@@ -798,6 +804,12 @@ struct FGenericPlatformMath
 	{
 		return (A<=B) ? A : B;
 	}
+
+	// LWC_TODO: Simplify code refactoring to avoid double/float mismatches. Should not ship?
+	static CONSTEXPR FORCEINLINE double Max(const double A, const float B) { return Max<double>(A, B); }
+	static CONSTEXPR FORCEINLINE double Max(const float A, const double B) { return Max<double>(A, B); }
+	static CONSTEXPR FORCEINLINE double Min(const double A, const float B) { return Min<double>(A, B); }
+	static CONSTEXPR FORCEINLINE double Min(const float A, const double B) { return Min<double>(A, B); }
 
 	/**
 	* Min of Array

@@ -62,7 +62,7 @@ struct TVec3
 		: x( InX ), y( InY ), z( InZ )
 	{}
 
-	TVec3( const FVector& v )
+	TVec3( const FVector3f& v )
 		: x( v.X ), y( v.Y ), z( v.Z )
 	{}
 
@@ -158,7 +158,7 @@ class FEdgeQuadric
 {
 public:
 	FEdgeQuadric() {}
-	FEdgeQuadric( const FVector& p0, const FVector& p1, const FVector& FaceNormal, const float Weight );
+	FEdgeQuadric( const FVector3f& p0, const FVector3f& p1, const FVector3f& FaceNormal, const float Weight );
 	
 	void		Zero();
 
@@ -177,7 +177,7 @@ public:
 	QScalar		a;
 };
 
-inline FEdgeQuadric::FEdgeQuadric( const FVector& fp0, const FVector& fp1, const FVector& FaceNormal, const float Weight )
+inline FEdgeQuadric::FEdgeQuadric( const FVector3f& fp0, const FVector3f& fp1, const FVector3f& FaceNormal, const float Weight )
 {
 	if( !FaceNormal.IsNormalized() )
 	{
@@ -246,18 +246,18 @@ public:
 	FQuadric() {}
 
 	// Quadric for triangle
-	FQuadric( const FVector& p0, const FVector& p1, const FVector& p2 );
+	FQuadric( const FVector3f& p0, const FVector3f& p1, const FVector3f& p2 );
 	// Quadric for boundary edge
-	FQuadric( const FVector& p0, const FVector& p1, const FVector& faceNormal, const float edgeWeight );
+	FQuadric( const FVector3f& p0, const FVector3f& p1, const FVector3f& faceNormal, const float edgeWeight );
 	
 	void		Zero();
 
 	FQuadric&	operator+=( const FQuadric& q );
 
-	void		Add( const FEdgeQuadric& q, const FVector& Point );
+	void		Add( const FEdgeQuadric& q, const FVector3f& Point );
 	
 	// Evaluate error at point
-	float		Evaluate( const FVector& p ) const;
+	float		Evaluate( const FVector3f& p ) const;
 
 	QScalar		nxx;
 	QScalar		nyy;
@@ -307,7 +307,7 @@ inline FQuadric& FQuadric::operator+=( const FQuadric& q )
 	return *this;
 }
 
-inline void FQuadric::Add( const FEdgeQuadric& RESTRICT EdgeQuadric, const FVector& Point )
+inline void FQuadric::Add( const FEdgeQuadric& RESTRICT EdgeQuadric, const FVector3f& Point )
 {
 	const QVec3 p0( Point );
 	const QVec3 n( EdgeQuadric.nx, EdgeQuadric.ny, EdgeQuadric.nz );
@@ -336,22 +336,22 @@ class FQuadricAttr : public FQuadric
 public:
 				FQuadricAttr() {}
 				FQuadricAttr(
-					const FVector& p0, const FVector& p1, const FVector& p2,
+					const FVector3f& p0, const FVector3f& p1, const FVector3f& p2,
 					const float* a0, const float* a1, const float* a2,
 					const float* AttributeWeights, uint32 NumAttributes
 					);
 
-	void		Rebase( const FVector& Point, const float* Attributes, const float* AttributeWeights, uint32 NumAttributes );
-	void		Add( const FQuadricAttr& q, const FVector& Point, const float* Attribute, const float* AttributeWeights, uint32 NumAttributes );
+	void		Rebase( const FVector3f& Point, const float* Attributes, const float* AttributeWeights, uint32 NumAttributes );
+	void		Add( const FQuadricAttr& q, const FVector3f& Point, const float* Attribute, const float* AttributeWeights, uint32 NumAttributes );
 	void		Add( const FQuadricAttr& q, uint32 NumAttributes );
 
 	void		Zero( uint32 NumAttributes );
 	
 	// Evaluate error at point with attributes and weights
-	float		Evaluate( const FVector& Point, const float* Attributes, const float* AttributeWeights, uint32 NumAttributes ) const;
+	float		Evaluate( const FVector3f& Point, const float* Attributes, const float* AttributeWeights, uint32 NumAttributes ) const;
 	
 	// Calculate attributes for point and evaluate error
-	float		CalcAttributesAndEvaluate( const FVector& Point, float* Attributes, const float* AttributeWeights, uint32 NumAttributes ) const;
+	float		CalcAttributesAndEvaluate( const FVector3f& Point, float* Attributes, const float* AttributeWeights, uint32 NumAttributes ) const;
 
 #if VOLUME_CONSTRAINT
 	QVec3		nv;
@@ -368,13 +368,13 @@ class TQuadricAttr : public FQuadricAttr
 public:
 				TQuadricAttr() {}
 				TQuadricAttr(
-					const FVector& p0, const FVector& p1, const FVector& p2,
+					const FVector3f& p0, const FVector3f& p1, const FVector3f& p2,
 					const float* a0, const float* a1, const float* a2,
 					const float* AttributeWeights
 					);
 
-	void		Rebase( const FVector& Point, const float* Attributes, const float* AttributeWeights );
-	void		Add( const TQuadricAttr< NumAttributes >& q, const FVector& Point, const float* Attribute, const float* AttributeWeights );
+	void		Rebase( const FVector3f& Point, const float* Attributes, const float* AttributeWeights );
+	void		Add( const TQuadricAttr< NumAttributes >& q, const FVector3f& Point, const float* Attribute, const float* AttributeWeights );
 
 	void		Zero();
 	
@@ -382,10 +382,10 @@ public:
 	TQuadricAttr< NumAttributes >& operator+=( const TQuadricAttr< NumAttributes >& q );
 	
 	// Evaluate error at point with attributes and weights
-	float		Evaluate( const FVector& Point, const float* Attributes, const float* AttributeWeights ) const;
+	float		Evaluate( const FVector3f& Point, const float* Attributes, const float* AttributeWeights ) const;
 	
 	// Calculate attributes for point and evaluate error
-	float		CalcAttributesAndEvaluate( const FVector& Point, float* Attributes, const float* AttributeWeights ) const;
+	float		CalcAttributesAndEvaluate( const FVector3f& Point, float* Attributes, const float* AttributeWeights ) const;
 	
 	QScalar		g[ NumAttributes ][3];
 	QScalar		d[ NumAttributes ];
@@ -393,7 +393,7 @@ public:
 
 template< uint32 NumAttributes >
 inline TQuadricAttr< NumAttributes >::TQuadricAttr(
-	const FVector& p0, const FVector& p1, const FVector& p2,
+	const FVector3f& p0, const FVector3f& p1, const FVector3f& p2,
 	const float* a0, const float* a1, const float* a2,
 	const float* AttributeWeights )
 	: FQuadricAttr(
@@ -405,7 +405,7 @@ inline TQuadricAttr< NumAttributes >::TQuadricAttr(
 
 template< uint32 NumAttributes >
 inline void TQuadricAttr< NumAttributes >::Rebase(
-	const FVector& Point, const float* Attribute,
+	const FVector3f& Point, const float* Attribute,
 	const float* AttributeWeights )
 {
 	Rebase( Point, Attribute, AttributeWeights, NumAttributes );
@@ -450,7 +450,7 @@ inline TQuadricAttr< NumAttributes >& TQuadricAttr< NumAttributes >::operator+=(
 }
 
 template< uint32 NumAttributes >
-inline float TQuadricAttr< NumAttributes >::CalcAttributesAndEvaluate( const FVector& Point, float* RESTRICT Attributes, const float* RESTRICT AttributeWeights ) const
+inline float TQuadricAttr< NumAttributes >::CalcAttributesAndEvaluate( const FVector3f& Point, float* RESTRICT Attributes, const float* RESTRICT AttributeWeights ) const
 {
 	return FQuadricAttr::CalcAttributesAndEvaluate( Point, Attributes, AttributeWeights, NumAttributes );
 }
@@ -465,9 +465,9 @@ public:
 	void		AddQuadric( const FQuadricAttr& q, uint32 NumAttributes );
 
 	// Find optimal point for minimal error
-	bool		Optimize( FVector& Position ) const;
-	bool		OptimizeVolume( FVector& Position ) const;
-	bool		OptimizeLinear( const FVector& Position0, const FVector& Position1, FVector& Position ) const;
+	bool		Optimize( FVector3f& Position ) const;
+	bool		OptimizeVolume( FVector3f& Position ) const;
+	bool		OptimizeLinear( const FVector3f& Position0, const FVector3f& Position1, FVector3f& Position ) const;
 
 private:
 	QScalar		nxx;

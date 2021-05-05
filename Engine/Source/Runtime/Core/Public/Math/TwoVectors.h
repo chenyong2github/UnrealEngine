@@ -184,7 +184,7 @@ public:
 	 *			odd ones are for the second. Returns index 5 if out of range.
 	 * @return Reference to the specified component.
 	 */
-    float& operator[]( int32 i );
+    FVector::FReal& operator[]( int32 i );
 
 public:
 
@@ -193,14 +193,14 @@ public:
 	 *
 	 * @return The maximum value of all the vector coordinates.
 	 */
-	float GetMax() const;
+	FVector::FReal GetMax() const;
 
 	/**
 	 * Get the minimum value of all the vector coordinates.
 	 *
 	 * @return The minimum value of all the vector coordinates.
 	 */
-	float GetMin() const;
+	FVector::FReal GetMin() const;
 
 	/**
 	 * Get a textual representation of this two-vector.
@@ -396,25 +396,25 @@ FORCEINLINE FTwoVectors FTwoVectors::operator/=( const FTwoVectors& V )
 }
 
 
-FORCEINLINE float FTwoVectors::GetMax() const
+FORCEINLINE FVector::FReal FTwoVectors::GetMax() const
 {
-	const float MaxMax = FMath::Max(FMath::Max(v1.X, v1.Y), v1.Z);
-	const float MaxMin = FMath::Max(FMath::Max(v2.X, v2.Y), v2.Z);
+	const FVector::FReal MaxMax = FMath::Max(FMath::Max(v1.X, v1.Y), v1.Z);
+	const FVector::FReal MaxMin = FMath::Max(FMath::Max(v2.X, v2.Y), v2.Z);
 
 	return FMath::Max(MaxMax, MaxMin);
 }
 
 
-FORCEINLINE float FTwoVectors::GetMin() const
+FORCEINLINE FVector::FReal FTwoVectors::GetMin() const
 {
-	const float MinMax = FMath::Min(FMath::Min(v1.X, v1.Y), v1.Z);
-	const float MinMin = FMath::Min(FMath::Min(v2.X, v2.Y), v2.Z);
+	const FVector::FReal MinMax = FMath::Min(FMath::Min(v1.X, v1.Y), v1.Z);
+	const FVector::FReal MinMin = FMath::Min(FMath::Min(v2.X, v2.Y), v2.Z);
 
 	return FMath::Min(MinMax, MinMin);
 }
 
 
-FORCEINLINE float& FTwoVectors::operator[]( int32 i )
+FORCEINLINE FVector::FReal& FTwoVectors::operator[]( int32 i )
 {
 	check(i > -1);
 	check(i < 6);

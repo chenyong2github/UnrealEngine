@@ -17,8 +17,8 @@ namespace Chaos
 			const int32 InParticleCount,
 			const TArray<FVec3>& InAnimationPositions,  // Use global indexation (will need adding ParticleOffset)
 			const TArray<FVec3>& InOldAnimationPositions,  // Use global indexation (will need adding ParticleOffset)
-			const TConstArrayView<FReal>& StiffnessMultipliers,  // Use local indexation
-			const TConstArrayView<FReal>& DampingMultipliers  // Use local indexation
+			const TConstArrayView<FRealSingle>& StiffnessMultipliers,  // Use local indexation
+			const TConstArrayView<FRealSingle>& DampingMultipliers  // Use local indexation
 		)
 			: AnimationPositions(InAnimationPositions)
 			, OldAnimationPositions(InOldAnimationPositions)

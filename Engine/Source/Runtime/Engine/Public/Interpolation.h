@@ -699,7 +699,7 @@ namespace MatineeKeyReduction
 			// The relative tolerance value now comes from the user.
 			for (int32 I = 0; I < OldCurveDimensionCount; ++I)
 			{
-				Tolerance[LocalCurveDimensionOffset + I] = FMath::Max(RelativeTolerance * (MaxValue[I] - MinValue[I]), (float) KINDA_SMALL_NUMBER);
+				Tolerance[LocalCurveDimensionOffset + I] = FMath::Max<float>(RelativeTolerance * (MaxValue[I] - MinValue[I]), (float) KINDA_SMALL_NUMBER);
 			}
 		}
 

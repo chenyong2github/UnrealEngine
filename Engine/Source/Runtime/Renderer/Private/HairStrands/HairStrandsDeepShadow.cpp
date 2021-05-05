@@ -22,16 +22,16 @@ static FAutoConsoleVariableRef CVarDeepShadowInjectVoxelDepth(TEXT("r.HairStrand
 // Inject voxel structure into shadow map to amortize the tracing, and rely on look up kernel to 
 // filter limited resolution
 BEGIN_SHADER_PARAMETER_STRUCT(FHairStransShadowDepthInjectionParameters, )
-	SHADER_PARAMETER(FMatrix, CPU_WorldToClip)
+	SHADER_PARAMETER(FMatrix44f, CPU_WorldToClip)
 
 	SHADER_PARAMETER(FVector2D, OutputResolution)
 	SHADER_PARAMETER(uint32, AtlasSlotIndex)
 	SHADER_PARAMETER(uint32, bIsGPUDriven)
 
-	SHADER_PARAMETER(FVector, LightDirection)
+	SHADER_PARAMETER(FVector3f, LightDirection)
 	SHADER_PARAMETER(uint32, MacroGroupId)
 
-	SHADER_PARAMETER(FVector, LightPosition)
+	SHADER_PARAMETER(FVector3f, LightPosition)
 	SHADER_PARAMETER(uint32, bIsDirectional)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FDeepShadowViewInfo>, DeepShadowViewInfoBuffer)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -183,9 +183,9 @@ class FDeepShadowCreateViewInfoCS : public FGlobalShader
 		SHADER_PARAMETER_ARRAY(FVector4,	LightPositions,		[FHairStrandsDeepShadowData::MaxMacroGroupCount])
 		SHADER_PARAMETER_ARRAY(FIntVector4,	MacroGroupIndices,	[FHairStrandsDeepShadowData::MaxMacroGroupCount])
 
-		SHADER_PARAMETER(FVector, CPU_MinAABB)
+		SHADER_PARAMETER(FVector3f, CPU_MinAABB)
 		SHADER_PARAMETER(uint32, CPU_bUseCPUData)
-		SHADER_PARAMETER(FVector, CPU_MaxAABB)
+		SHADER_PARAMETER(FVector3f, CPU_MaxAABB)
 		SHADER_PARAMETER(float, RasterizationScale)
 
 		SHADER_PARAMETER(FIntPoint, SlotResolution)
@@ -319,7 +319,7 @@ void RenderHairStrandsDeepShadows(
 				FHairStrandsDeepShadowData& DomData = MacroGroup.DeepShadowDatas.AddZeroed_GetRef();
 				ComputeWorldToLightClip(DomData.CPU_WorldToLightTransform, MinStrandRadiusAtDepth1, MacroGroupBounds, *LightProxy, LightType, AtlasSlotResolution);
 				DomData.LightDirection = LightProxy->GetDirection();
-				DomData.LightPosition = FVector4(LightProxy->GetPosition(), bIsDirectional ? 0 : 1);
+				DomData.LightPosition = FVector4(FVector(LightProxy->GetPosition()), bIsDirectional ? 0 : 1);
 				DomData.LightLuminance = LightProxy->GetColor();
 				DomData.LayerDistribution = LightProxy->GetDeepShadowLayerDistribution();
 				DomData.bIsLightDirectional = bIsDirectional;

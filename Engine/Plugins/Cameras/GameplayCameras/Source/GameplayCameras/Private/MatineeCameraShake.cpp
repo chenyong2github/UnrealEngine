@@ -19,21 +19,31 @@ DEFINE_LOG_CATEGORY_STATIC(LogMatineeCameraShake, Warning, All);
 // static
 float FFOscillator::UpdateOffset(FFOscillator const& Osc, float& CurrentOffset, float DeltaTime)
 {
+	// LWC_TODO: Perf pessimization
+	double AsDouble = CurrentOffset;
+	float Result = UpdateOffset(Osc, AsDouble, DeltaTime);
+	CurrentOffset = (float)AsDouble;
+	return Result;
+}
+
+// static
+float FFOscillator::UpdateOffset(FFOscillator const& Osc, double& CurrentOffset, float DeltaTime)
+{
 	if (Osc.Amplitude != 0.f)
 	{
 		CurrentOffset += DeltaTime * Osc.Frequency;
 
 		float WaveformSample;
-		switch(Osc.Waveform)
+		switch (Osc.Waveform)
 		{
-			case EOscillatorWaveform::SineWave:
-			default:
-				WaveformSample = FMath::Sin(CurrentOffset);
-				break;
+		case EOscillatorWaveform::SineWave:
+		default:
+			WaveformSample = FMath::Sin(CurrentOffset);
+			break;
 
-			case EOscillatorWaveform::PerlinNoise:
-				WaveformSample = FMath::PerlinNoise1D(CurrentOffset);
-				break;
+		case EOscillatorWaveform::PerlinNoise:
+			WaveformSample = FMath::PerlinNoise1D(CurrentOffset);
+			break;
 		}
 
 		return Osc.Amplitude * WaveformSample;

@@ -128,19 +128,19 @@ void FImageTilePlane::AccumulateSinglePlane(const TArray64<float> & InRawData, i
 
 			int32 MidVecSamples = SamplesM / 4;
 
-			VectorRegister VecScale = MakeVectorRegister(InSampleWeight, InSampleWeight, InSampleWeight, InSampleWeight);
+			VectorRegister4Float VecScale = MakeVectorRegister(InSampleWeight, InSampleWeight, InSampleWeight, InSampleWeight);
 
 			const char* SrcVecRow = reinterpret_cast<const char*>(&SrcRow[SamplesL + InSampleOffsetX]);
 			char* DstVecRow = reinterpret_cast<char*>(&DstRow[SamplesL]);
 
 			for (int32 VecIter = 0; VecIter < MidVecSamples; VecIter++)
 			{
-				VectorRegister SrcVec = VectorLoad(SrcVecRow + 16 * VecIter);
-				VectorRegister DstVec = VectorLoad(DstVecRow + 16 * VecIter);
+				VectorRegister4Float SrcVec = VectorLoad((float*)(SrcVecRow + 16 * VecIter));
+				VectorRegister4Float DstVec = VectorLoad((float*)(DstVecRow + 16 * VecIter));
 
 				DstVec = VectorAdd(DstVec, VectorMultiply(SrcVec, VecScale));
 
-				VectorStore(DstVec, DstVecRow + 16 * VecIter);
+				VectorStore(DstVec, (float*)(DstVecRow + 16 * VecIter));
 			}
 
 			// only need to clamp on the right
@@ -336,12 +336,12 @@ void FImageTileAccumulator::AccumulatePixelData(const FImagePixelData& InPixelDa
 					float* DstRowDataB = &RawData[2][Y*RawSize.X];
 					float* DstRowDataA = &RawData[3][Y*RawSize.X];
 
-					VectorRegister ColorScale = MakeVectorRegister(1.0f / 255.0f, 1.0f / 255.0f, 1.0f / 255.0f, 1.0f / 255.0f);
+					VectorRegister4Float ColorScale = MakeVectorRegister(1.0f / 255.0f, 1.0f / 255.0f, 1.0f / 255.0f, 1.0f / 255.0f);
 
 					// simple, one pixel at a time vectorized version, we could do better
 					for (int32 X = 0; X < RawSize.X; X++)
 					{
-						VectorRegister Color = VectorLoadByte4(&SrcRowDataPtr[X*RawNumChan]);
+						VectorRegister4Float Color = VectorLoadByte4(&SrcRowDataPtr[X*RawNumChan]);
 						Color = VectorMultiply(Color, ColorScale); // multiply by 1/255
 
 						const float* RawColorVec = reinterpret_cast<const float *>(&Color);

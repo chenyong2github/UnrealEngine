@@ -21,7 +21,7 @@ namespace
 {
 	// returns the HitUV
 	template<typename TestFunctorType>
-	float EvaluateHit(const FVector& HitPoint, const uint32 SrcPolyId, const FMeshDescriptionArrayAdapter& MeshAdapter,
+	float EvaluateHit(const FVector3f& HitPoint, const uint32 SrcPolyId, const FMeshDescriptionArrayAdapter& MeshAdapter,
 		ProxyLOD::FSrcMeshData& HitPayload, TestFunctorType& TestFunctor)
 	{
 		int32 MeshId, InstanceIdx, LocalFaceNumber;
@@ -98,7 +98,7 @@ namespace
 		return TestFunctor(SrcPoly);
 	}
 
-	float EvaluateHit(const FVector& HitPoint, const uint32 SrcPolyId, const FMeshDescriptionArrayAdapter& MeshAdapter,
+	float EvaluateHit(const FVector3f& HitPoint, const uint32 SrcPolyId, const FMeshDescriptionArrayAdapter& MeshAdapter,
 		ProxyLOD::FSrcMeshData& HitPayload)
 	{
 		auto NoOpFunctor = [](const FMeshDescriptionArrayAdapter::FRawPoly& RawPoly)->float {return 1; };
@@ -108,7 +108,7 @@ namespace
 
 	// returns the HitUV
 	template <bool Forward>
-	float EvaluateHit(const FkHitResult& HitResult, const FVector& RayStart, const FVector& RayDirection, const FMeshDescriptionArrayAdapter& MeshAdapter,
+	float EvaluateHit(const FkHitResult& HitResult, const FVector3f& RayStart, const FVector3f& RayDirection, const FMeshDescriptionArrayAdapter& MeshAdapter,
 		ProxyLOD::FSrcMeshData& HitPayload)
 	{
 
@@ -119,18 +119,18 @@ namespace
 		// Interpolate the UVs to the hit point
 
 		const float  HitTime = (Forward) ? HitResult.Time : -HitResult.Time;
-		const FVector HitPoint = RayStart + HitTime * RayDirection;
+		const FVector3f HitPoint = RayStart + HitTime * RayDirection;
 
 		auto DirectionalTest = [&RayDirection](const FMeshDescriptionArrayAdapter::FRawPoly& RawPoly)->float
 		{
 			// Is the SrcNormal roughly in the same direction as the ray
 			// the face normal of this poly
-			// const FVector SrcNormal = ComputeNormal(RawPoly.VertexPositions); 
+			// const FVector3f SrcNormal = ComputeNormal(RawPoly.VertexPositions); 
 
-			FVector SrcNormal = RawPoly.WedgeTangentZ[0] + RawPoly.WedgeTangentZ[1] + RawPoly.WedgeTangentZ[2];
+			FVector3f SrcNormal = RawPoly.WedgeTangentZ[0] + RawPoly.WedgeTangentZ[1] + RawPoly.WedgeTangentZ[2];
 			SrcNormal.Normalize();
 
-			return FVector::DotProduct(SrcNormal, RayDirection);
+			return FVector3f::DotProduct(SrcNormal, RayDirection);
 		};
 
 		HitPayload.Forward = (Forward == true) ? 1 : 0;
@@ -211,21 +211,21 @@ ProxyLOD::FSrcDataGrid::Ptr ProxyLOD::CreateCorrespondence(
 
 					// The triangle in the simplified mesh that corresponds to this texel
 
-					const FVector VertPos[3] = { Points[Indices[Offset + 0]], Points[Indices[Offset + 1]], Points[Indices[Offset + 2]] };
-					const FVector VertNormal[3] = { Normal[Indices[Offset + 0]], Normal[Indices[Offset + 1]], Normal[Indices[Offset + 2]] };
+					const FVector3f VertPos[3] = { Points[Indices[Offset + 0]], Points[Indices[Offset + 1]], Points[Indices[Offset + 2]] };
+					const FVector3f VertNormal[3] = { Normal[Indices[Offset + 0]], Normal[Indices[Offset + 1]], Normal[Indices[Offset + 2]] };
 
 					// Find the location in 3d space the corresponds to this UV on this triangle,
 					// this will be the origin for rays we shoot.
 					// NB: This is interpolating based on the texture-space barycentric-coords.  
 					// This could introduce some distortion. 
 
-					const FVector RayOrigin = ProxyLOD::InterpolateVertexData(BarycentricCoords, VertPos);
+					const FVector3f RayOrigin = ProxyLOD::InterpolateVertexData(BarycentricCoords, VertPos);
 
 					// face normal.. used for testing
-					//  FVector RayDirection = ComputeNormal(VertPos);
+					//  FVector3f RayDirection = ComputeNormal(VertPos);
 
 					// The averaged normal at this position, revert to face normal if this fails.
-					FVector RayDirection = ProxyLOD::InterpolateVertexData(BarycentricCoords, VertNormal);
+					FVector3f RayDirection = ProxyLOD::InterpolateVertexData(BarycentricCoords, VertNormal);
 					bool bSuccess = RayDirection.Normalize(1.e-5); // Todo: what if this normalize fails?
 					if (!bSuccess)
 					{
@@ -236,13 +236,13 @@ ProxyLOD::FSrcDataGrid::Ptr ProxyLOD::CreateCorrespondence(
 					// Slight offset to the star point when casting rays to insure that we don't miss the case
 					// when the Src geometry is actually co-planar with triangle we are shooting from.
 
-					const FVector ForwardRayStart = RayOrigin - 0.0001 * RayDirection;
-					const FVector ReverseRayStart = RayOrigin + 0.0001 * RayDirection;
+					const FVector3f ForwardRayStart = RayOrigin - 0.0001 * RayDirection;
+					const FVector3f ReverseRayStart = RayOrigin + 0.0001 * RayDirection;
 
 					// We have to shoot rays in forward & back-facing normal direction to look for the closest source triangle. 
 					// Construct a forward and a reverse ray.
-					FVector ForwardRayEnd = ForwardRayStart + RayDirection * MaxRayLength;
-					FVector ReverseRayEnd = ReverseRayStart - RayDirection * MaxRayLength;
+					FVector3f ForwardRayEnd = ForwardRayStart + RayDirection * MaxRayLength;
+					FVector3f ReverseRayEnd = ReverseRayStart - RayDirection * MaxRayLength;
 
 					// Find t
 
@@ -452,14 +452,14 @@ ProxyLOD::FSrcDataGrid::Ptr ProxyLOD::CreateCorrespondence(
 
 					// The triangle in the simplified mesh that corresponds to this texel
 
-					const FVector VertPos[3] = { Points[Indices[Offset + 0]], Points[Indices[Offset + 1]], Points[Indices[Offset + 2]] };
+					const FVector3f VertPos[3] = { Points[Indices[Offset + 0]], Points[Indices[Offset + 1]], Points[Indices[Offset + 2]] };
 
 					// Find the location in 3d space the corresponds to this UV on this triangle,
 					// this will be the origin for rays we shoot.
 					// NB: This is interpolating based on the texture-space barycentric-coords.  
 					// This could introduce some distortion. 
 
-					const FVector RayOrigin = ProxyLOD::InterpolateVertexData(BarycentricCoords, VertPos);
+					const FVector3f RayOrigin = ProxyLOD::InterpolateVertexData(BarycentricCoords, VertPos);
 
 
 					ProxyLOD::FSrcMeshData HitPayload;
@@ -485,7 +485,7 @@ ProxyLOD::FSrcDataGrid::Ptr ProxyLOD::CreateCorrespondence(
 					{
 
 
-						const FVector VertNormal[3] = { Normal[Indices[Offset + 0]], Normal[Indices[Offset + 1]], Normal[Indices[Offset + 2]] };
+						const FVector3f VertNormal[3] = { Normal[Indices[Offset + 0]], Normal[Indices[Offset + 1]], Normal[Indices[Offset + 2]] };
 
 
 
@@ -493,10 +493,10 @@ ProxyLOD::FSrcDataGrid::Ptr ProxyLOD::CreateCorrespondence(
 
 
 						// face normal.. used for testing
-						//  FVector RayDirection = ComputeNormal(VertPos);
+						//  FVector3f RayDirection = ComputeNormal(VertPos);
 
 						// The averaged normal at this position.
-						FVector RayDirection = ProxyLOD::InterpolateVertexData(BarycentricCoords, VertNormal);
+						FVector3f RayDirection = ProxyLOD::InterpolateVertexData(BarycentricCoords, VertNormal);
 						RayDirection.Normalize(); // Todo: what if this normalize fails?
 
 
@@ -504,13 +504,13 @@ ProxyLOD::FSrcDataGrid::Ptr ProxyLOD::CreateCorrespondence(
 												  // Slight offset to the star point when casting rays to insure that we don't miss the case
 												  // when the Src geometry is actually co-planar with triangle we are shooting from.
 
-						const FVector ForwardRayStart = RayOrigin - 0.0001 * RayDirection;
-						const FVector ReverseRayStart = RayOrigin + 0.0001 * RayDirection;
+						const FVector3f ForwardRayStart = RayOrigin - 0.0001 * RayDirection;
+						const FVector3f ReverseRayStart = RayOrigin + 0.0001 * RayDirection;
 
 						// We have to shoot rays in forward & backfacing normal direction to look for the closest source triangle. 
 						// Construct a forward and a reverse ray.
-						FVector ForwardRayEnd = ForwardRayStart + RayDirection * MaxRayLength;
-						FVector ReverseRayEnd = ReverseRayStart - RayDirection * MaxRayLength;
+						FVector3f ForwardRayEnd = ForwardRayStart + RayDirection * MaxRayLength;
+						FVector3f ReverseRayEnd = ReverseRayStart - RayDirection * MaxRayLength;
 
 						// Find t
 
@@ -1012,17 +1012,17 @@ namespace
 	}
 
 	// Unpack a quantized vector into the [-1,1]x[-1,1]x[-1,1] cube
-	FVector UnPackQuantizedVector(const FColor& QuantizedNormal)
+	FVector3f UnPackQuantizedVector(const FColor& QuantizedNormal)
 	{
-		FVector Vector(QuantizedNormal.R / 255.f, QuantizedNormal.G / 255.f, QuantizedNormal.B / 255.f);
+		FVector3f Vector(QuantizedNormal.R / 255.f, QuantizedNormal.G / 255.f, QuantizedNormal.B / 255.f);
 
-		Vector = 2.f * Vector - FVector(1., 1., 1.);
+		Vector = 2.f * Vector - FVector3f(1., 1., 1.);
 		return Vector;
 	}
 
-	FColor QuantizeVector(const FVector& Vector)
+	FColor QuantizeVector(const FVector3f& Vector)
 	{
-		FVector Tmp = 0.5 * (Vector + FVector(1., 1., 1.));
+		FVector3f Tmp = 0.5 * (Vector + FVector3f(1., 1., 1.));
 		FLinearColor LinearColor(Tmp);
 		return LinearColor.QuantizeRound();
 	}
@@ -1036,10 +1036,10 @@ namespace
 		const ProxyLOD::FSrcDataGrid& SuperSampleCorrespondenceGrid,
 		const ProxyLOD::FRasterGrid& SuperSampleUVGrid,
 		const TArray<FFlattenMaterial>& InputMaterials,
-		TArray<FVector>& SuperSampleBuffer)
+		TArray<FVector3f>& SuperSampleBuffer)
 	{
 
-		typedef FVector FTangentSpace[3];
+		typedef FVector3f FTangentSpace[3];
 
 		//	const FIntPoint Size = OutMaterial.GetPropertySize(PropertyType);
 		//	TArray<FColor>& TargetBuffer = OutMaterial.GetPropertySamples(PropertyType);
@@ -1052,8 +1052,8 @@ namespace
 		ProxyLOD::Parallel_For(ProxyLOD::FIntRange(0, BufferCount),
 			[&SuperSampleBuffer](const ProxyLOD::FIntRange& Range)
 		{
-			FVector* Data = SuperSampleBuffer.GetData();
-			for (int32 i = Range.begin(), I = Range.end(); i < I; ++i) Data[i] = FVector(0.f, 0.f, 0.f);
+			FVector3f* Data = SuperSampleBuffer.GetData();
+			for (int32 i = Range.begin(), I = Range.end(); i < I; ++i) Data[i] = FVector3f(0.f, 0.f, 0.f);
 		});
 
 
@@ -1083,17 +1083,17 @@ namespace
 				TangentSpace[0].Normalize();
 
 				// bi-tangent
-				TangentSpace[1] = FVector::CrossProduct(TangentSpace[2], TangentSpace[0]);
+				TangentSpace[1] = FVector3f::CrossProduct(TangentSpace[2], TangentSpace[0]);
 
 				// tangent
-				TangentSpace[0] = FVector::CrossProduct(TangentSpace[1], TangentSpace[2]);
+				TangentSpace[0] = FVector3f::CrossProduct(TangentSpace[1], TangentSpace[2]);
 
 			};
 
 
 
 			// Samples the normal map and unpacks the result
-			auto GetNormalFromBuffer = [](const FIntPoint& Size, const TArray<FColor>& Buffer, const FIntPoint& ij)->FVector
+			auto GetNormalFromBuffer = [](const FIntPoint& Size, const TArray<FColor>& Buffer, const FIntPoint& ij)->FVector3f
 			{
 				FIntPoint SampleIJ = ij;
 				// if the sample requested is outside the 2d array bounds, just shift it to the closest valid point. 
@@ -1106,7 +1106,7 @@ namespace
 				FColor NormalAsColor = Buffer[SampleIJ.X + SampleIJ.Y * Size.X];
 
 				// Map from uint8 0, 255 x 0,255 x 0,255  to -1,1 x -1,1 x -1,1 region
-				FVector TSNormal = UnPackQuantizedVector(NormalAsColor);
+				FVector3f TSNormal = UnPackQuantizedVector(NormalAsColor);
 
 				TSNormal.Normalize();
 				return TSNormal;
@@ -1123,8 +1123,8 @@ namespace
 
 
 					const float MinFloat = std::numeric_limits<float>::lowest();
-					FVector& ResultNormal = SuperSampleBuffer[i + j * BufferSize.X];
-					ResultNormal = FVector(MinFloat, 0.f, 0.f);
+					FVector3f& ResultNormal = SuperSampleBuffer[i + j * BufferSize.X];
+					ResultNormal = FVector3f(MinFloat, 0.f, 0.f);
 
 
 					const auto& SuperSampleTexelData = SuperSampleUVGrid(i, j);
@@ -1186,7 +1186,7 @@ namespace
 
 							// corner samples.
 
-							FVector NormalSampleArray[4];
+							FVector3f NormalSampleArray[4];
 							NormalSampleArray[0] = GetNormalFromBuffer(SrcBufferSize, SrcBuffer, Min + FIntPoint(0, 0));
 							NormalSampleArray[1] = GetNormalFromBuffer(SrcBufferSize, SrcBuffer, Min + FIntPoint(1, 0));
 							NormalSampleArray[2] = GetNormalFromBuffer(SrcBufferSize, SrcBuffer, Min + FIntPoint(0, 1));
@@ -1194,7 +1194,7 @@ namespace
 
 							// Interpolate the results
 
-							const FVector TangentSpaceNormal =
+							const FVector3f TangentSpaceNormal =
 								NormalSampleArray[0] * (1. - Delta.X) * (1. - Delta.Y) +
 								NormalSampleArray[1] * Delta.X * (1. - Delta.Y) +
 								NormalSampleArray[2] * (1. - Delta.X) * Delta.Y +
@@ -1250,15 +1250,15 @@ namespace
 	*      texels correspond to each result texel
 	*  
 	*/
-	void SparseDownSampleNormal(const ProxyLOD::TGridWrapper<FVector>& SuperSampledNormalGrid,
+	void SparseDownSampleNormal(const ProxyLOD::TGridWrapper<FVector3f>& SuperSampledNormalGrid,
 		const ProxyLOD::FRasterGrid& DstUVGrid, const FMeshDescription& MeshDescription,
 		ProxyLOD::FLinearColorGrid& OutDstBufferGrid)
 	{
 		FStaticMeshConstAttributes Attributes(MeshDescription);
 
-		TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
-		TVertexInstanceAttributesConstRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-		TVertexInstanceAttributesConstRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+		TVertexAttributesConstRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
+		TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+		TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 		TVertexInstanceAttributesConstRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 
 		const FIntPoint SuperSampleSize = SuperSampledNormalGrid.Size();
@@ -1291,26 +1291,26 @@ namespace
 
 
 				// Compute the local tangent space
-				FVector InterpolatedTangent;
-				FVector TangentSamples[3];
+				FVector3f InterpolatedTangent;
+				FVector3f TangentSamples[3];
 				TangentSamples[0] = VertexInstanceTangents[VertexInstanceIDs[0]];
 				TangentSamples[1] = VertexInstanceTangents[VertexInstanceIDs[1]];
 				TangentSamples[2] = VertexInstanceTangents[VertexInstanceIDs[2]];
 				InterpolatedTangent = ProxyLOD::InterpolateVertexData(BarycentricCoords, TangentSamples);
 
-				FVector InterpolatedBiTangent;
+				FVector3f InterpolatedBiTangent;
 				// The bi-tangent is reconstructed from the tangent and normal
 				//{
-				FVector BiTangentSamples[3];
-				BiTangentSamples[0] = FVector::CrossProduct(VertexInstanceNormals[VertexInstanceIDs[0]], VertexInstanceTangents[VertexInstanceIDs[0]]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceIDs[0]];
-				BiTangentSamples[1] = FVector::CrossProduct(VertexInstanceNormals[VertexInstanceIDs[1]], VertexInstanceTangents[VertexInstanceIDs[1]]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceIDs[1]];
-				BiTangentSamples[2] = FVector::CrossProduct(VertexInstanceNormals[VertexInstanceIDs[2]], VertexInstanceTangents[VertexInstanceIDs[2]]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceIDs[2]];
+				FVector3f BiTangentSamples[3];
+				BiTangentSamples[0] = FVector3f::CrossProduct(VertexInstanceNormals[VertexInstanceIDs[0]], VertexInstanceTangents[VertexInstanceIDs[0]]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceIDs[0]];
+				BiTangentSamples[1] = FVector3f::CrossProduct(VertexInstanceNormals[VertexInstanceIDs[1]], VertexInstanceTangents[VertexInstanceIDs[1]]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceIDs[1]];
+				BiTangentSamples[2] = FVector3f::CrossProduct(VertexInstanceNormals[VertexInstanceIDs[2]], VertexInstanceTangents[VertexInstanceIDs[2]]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceIDs[2]];
 				InterpolatedBiTangent = ProxyLOD::InterpolateVertexData(BarycentricCoords, BiTangentSamples);
 				//}
 
-				FVector InterpolatedNormal;
+				FVector3f InterpolatedNormal;
 				//{
-				FVector NormalSamples[3];
+				FVector3f NormalSamples[3];
 				NormalSamples[0] = VertexInstanceNormals[VertexInstanceIDs[0]];
 				NormalSamples[1] = VertexInstanceNormals[VertexInstanceIDs[1]];
 				NormalSamples[2] = VertexInstanceNormals[VertexInstanceIDs[2]];
@@ -1335,8 +1335,8 @@ namespace
 				Handedness = (Handedness > 0) ? 1.f : -1.f;
 	
 
-				InterpolatedBiTangent = Handedness * FVector::CrossProduct(InterpolatedNormal, InterpolatedTangent);
-				InterpolatedTangent = Handedness * FVector::CrossProduct(InterpolatedBiTangent, InterpolatedNormal);
+				InterpolatedBiTangent = Handedness * FVector3f::CrossProduct(InterpolatedNormal, InterpolatedTangent);
+				InterpolatedTangent = Handedness * FVector3f::CrossProduct(InterpolatedBiTangent, InterpolatedNormal);
 
 
 
@@ -1347,16 +1347,16 @@ namespace
 
 			};
 
-			// Dotproduct between Vec3f and FVector
+			// Dotproduct between Vec3f and FVector3f
 
-			auto LocalDot = [](const openvdb::Vec3f& VecA, const FVector& VecB)->float
+			auto LocalDot = [](const openvdb::Vec3f& VecA, const FVector3f& VecB)->float
 			{
 				return VecA[0] * VecB[0] + VecA[1] * VecB[1] + VecA[2] * VecB[2];
 			};
 
 			// Loop over the texels
 			FLinearColor* DstBuffer            = OutDstBufferGrid.GetData();
-			const FVector* SuperSampledNormals = SuperSampledNormalGrid.GetData();
+			const FVector3f* SuperSampledNormals = SuperSampledNormalGrid.GetData();
 
 			for (int32 j = Range.begin(), J = Range.end(); j < J; ++j)
 			{
@@ -1379,7 +1379,7 @@ namespace
 					FTangentSpace XForm;
 					ComputeDstTangentSpace(DstTexel.TriangleId, DstTexel.BarycentricCoords, XForm);
 
-					FVector      ResultVector(0, 0, 0);
+					FVector3f      ResultVector(0, 0, 0);
 					uint32       ResultCount = 0;
 
 					int32 ioffset = i * NumXSuperSamples;
@@ -1391,7 +1391,7 @@ namespace
 					{
 						for (int32 ii = ioffset; ii < ioffset + NumXSuperSamples; ++ii)
 						{
-							const FVector& SuperSampleColor = SuperSampledNormals[ii + jj * SuperSampleSize.X];
+							const FVector3f& SuperSampleColor = SuperSampledNormals[ii + jj * SuperSampleSize.X];
 							if (SuperSampleColor.X != std::numeric_limits<float>::lowest())
 							{
 								const float DotWithWorldNormal = LocalDot(WorldNormal, SuperSampleColor);
@@ -1558,11 +1558,11 @@ namespace
 			if (PropertyType == EFlattenMaterialProperties::Normal)
 			{
 
-				TArray<FVector> SuperSampleBuffer;
+				TArray<FVector3f> SuperSampleBuffer;
 				SuperSampleWSNormal(SrcMeshAdapter, SuperSampledCorrespondenceGrid, SuperSampledDstUVGrid, InputMaterials, SuperSampleBuffer);
 
 				// Respect the local tangent spaces when down sampling the normal.
-				ProxyLOD::TGridWrapper<FVector> SuperSampleGrid(SuperSampleBuffer, SuperSampledDstUVGrid.Size());
+				ProxyLOD::TGridWrapper<FVector3f> SuperSampleGrid(SuperSampleBuffer, SuperSampledDstUVGrid.Size());
 				SparseDownSampleNormal(SuperSampleGrid, DstUVGrid, DstRawMesh, *LinearColorGrid);
 			}
 			else if (PropertyType == EFlattenMaterialProperties::Diffuse)

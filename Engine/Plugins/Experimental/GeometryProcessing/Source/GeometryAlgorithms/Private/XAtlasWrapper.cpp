@@ -48,7 +48,7 @@ namespace XAtlasWrapper
 	}
 
 	bool ComputeUVs(const TArray<int32>& IndexBuffer,
-					const TArray<FVector>& VertexBuffer,
+					const TArray<FVector3f>& VertexBuffer,
 					const XAtlasChartOptions& InChartOptions,
 					const XAtlasPackOptions& InPackOptions,
 					TArray<FVector2D>& UVVertexBuffer,

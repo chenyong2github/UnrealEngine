@@ -20,7 +20,7 @@ class FOctreeChildNodeRef;
 class FBoxCenterAndExtent
 {
 public:
-	FVector4 Center;
+	FVector4 Center;	// LWC_TODO: Case for FVector4d
 	FVector4 Extent;
 
 	/** Default constructor. */
@@ -35,8 +35,10 @@ public:
 	/** FBox conversion constructor. */
 	FBoxCenterAndExtent(const FBox& Box)
 	{
-		Box.GetCenterAndExtents((FVector&)Center,(FVector&)Extent);
-		Center.W = Extent.W = 0;
+		FVector C, E;
+		Box.GetCenterAndExtents(C,E);	// LWC_TODO: Perf pessimization
+		Center = FVector4(C, 0); 
+		Extent = FVector4(E, 0);
 	}
 
 	/** FBoxSphereBounds conversion constructor. */
@@ -50,9 +52,8 @@ public:
 	/** Center - radius as four contiguous floats conversion constructor. */
 	explicit FBoxCenterAndExtent(const float PositionRadius[4])
 	{
-		Center = FVector(PositionRadius[0],PositionRadius[1],PositionRadius[2]);
-		Extent = FVector(PositionRadius[3]);
-		Center.W = Extent.W = 0;
+		Center = FVector4(PositionRadius[0],PositionRadius[1],PositionRadius[2], 0);
+		Extent = FVector4(PositionRadius[3],PositionRadius[3],PositionRadius[3], 0);
 	}
 
 	/** Converts to a FBox. */
@@ -283,7 +284,7 @@ public:
 
 	inline VectorRegister GetChildOffsetVec(int i) const
 	{
-		union MaskType { VectorRegister v;  VectorRegisterInt i; 
+		union MaskType { VectorRegister v;  VectorRegister4Int i; 
 #if PLATFORM_HOLOLENS
 			MaskType() 
 				: v(MakeVectorRegister(0.0f, 0.0f, 0.0f, 0.0f))
@@ -293,8 +294,8 @@ public:
 		} Mask;
 
 		Mask.v = MakeVectorRegister(1u, 2u, 4u, 8u);
-		VectorRegisterInt X = VectorIntLoad1(&i);
-		VectorRegisterInt A = VectorIntAnd(X, Mask.i);
+		VectorRegister4Int X = VectorIntLoad1(&i);
+		VectorRegister4Int A = VectorIntAnd(X, Mask.i);
 		Mask.i = VectorIntCompareEQ(Mask.i, A);
 		return VectorSelect(Mask.v, VectorSetFloat1(ChildCenterOffset), VectorSetFloat1(-ChildCenterOffset));
 	}
@@ -304,8 +305,8 @@ public:
 	{
 		FBoxCenterAndExtent LocalBounds;
 		VectorRegister ZeroW = MakeVectorRegister(1.0f, 1.0f, 1.0f, 0.0f);
-		VectorStoreAligned(VectorMultiply(ZeroW, VectorAdd(VectorLoadAligned(&Bounds.Center), GetChildOffsetVec(ChildRef.Index))), &LocalBounds.Center);
-		VectorStoreAligned(VectorMultiply(ZeroW, VectorSetFloat1(ChildExtent)), &LocalBounds.Extent);
+		VectorStoreAligned(VectorMultiply(ZeroW, VectorAdd(VectorLoadAligned(&Bounds.Center), GetChildOffsetVec(ChildRef.Index))), &(LocalBounds.Center.X));
+		VectorStoreAligned(VectorMultiply(ZeroW, VectorSetFloat1(ChildExtent)), &(LocalBounds.Extent.X));
 		return FOctreeNodeContext(LocalBounds);
 	}
 
@@ -313,8 +314,8 @@ public:
 	inline void GetChildContext(FOctreeChildNodeRef ChildRef, FOctreeNodeContext* ChildContext) const
 	{
 		VectorRegister ZeroW = MakeVectorRegister(1.0f, 1.0f, 1.0f, 0.0f);
-		VectorStoreAligned(VectorMultiply(ZeroW, VectorAdd(VectorLoadAligned(&Bounds.Center), GetChildOffsetVec(ChildRef.Index))), &ChildContext->Bounds.Center);
-		VectorStoreAligned(VectorMultiply(ZeroW, VectorSetFloat1(ChildExtent)), &ChildContext->Bounds.Extent);
+		VectorStoreAligned(VectorMultiply(ZeroW, VectorAdd(VectorLoadAligned(&Bounds.Center), GetChildOffsetVec(ChildRef.Index))), &(ChildContext->Bounds.Center.X));
+		VectorStoreAligned(VectorMultiply(ZeroW, VectorSetFloat1(ChildExtent)), &(ChildContext->Bounds.Extent.X));
 
 		const float TightChildExtent = ChildExtent * 0.5f;
 		const float LooseChildExtent = TightChildExtent * (1.0f + 1.0f / (float)LoosenessDenominator);
@@ -327,8 +328,8 @@ public:
 	{
 		FBoxCenterAndExtent LocalBounds;
 		VectorRegister ZeroW = MakeVectorRegister(1.0f, 1.0f, 1.0f, 0.0f);
-		VectorStoreAligned(VectorMultiply(ZeroW, VectorAdd(VectorLoadAligned(&Bounds.Center), GetChildOffsetVec(ChildRef.Index))), &LocalBounds.Center);
-		VectorStoreAligned(VectorMultiply(ZeroW, VectorSetFloat1(ChildExtent)), &LocalBounds.Extent);
+		VectorStoreAligned(VectorMultiply(ZeroW, VectorAdd(VectorLoadAligned(&Bounds.Center), GetChildOffsetVec(ChildRef.Index))), &(LocalBounds.Center.X));
+		VectorStoreAligned(VectorMultiply(ZeroW, VectorSetFloat1(ChildExtent)), &(LocalBounds.Extent.X));
 		return FOctreeNodeContext(LocalBounds, InInCullBits, InOutCullBits);
 	}
 	/**

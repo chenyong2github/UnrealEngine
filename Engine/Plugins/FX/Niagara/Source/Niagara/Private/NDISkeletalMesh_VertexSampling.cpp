@@ -726,9 +726,9 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexSkinnedData(FVectorVMContext& C
 
 				if (bNeedsTangentBasis)
 				{
-					FVector TangentX = FVector::ZeroVector;
-					FVector TangentY = FVector::ZeroVector;
-					FVector TangentZ = FVector::ZeroVector;
+					FVector3f TangentX = FVector3f::ZeroVector;
+					FVector3f TangentY = FVector3f::ZeroVector;
+					FVector3f TangentZ = FVector3f::ZeroVector;
 					SkinningHandler.GetSkinnedTangentBasis(Accessor, Vertex, TangentX, TangentY, TangentZ);
 
 					if (Output.bNeedsTangentX)

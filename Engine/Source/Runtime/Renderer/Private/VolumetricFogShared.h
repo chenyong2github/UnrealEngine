@@ -8,10 +8,10 @@
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVoxelizeVolumePassUniformParameters, )
 	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
-	SHADER_PARAMETER(FMatrix, ViewToVolumeClip)
+	SHADER_PARAMETER(FMatrix44f, ViewToVolumeClip)
 	SHADER_PARAMETER(FVector4, FrameJitterOffset0)
 	SHADER_PARAMETER_STRUCT(FVolumetricFogGlobalData, VolumetricFog)
-	SHADER_PARAMETER(FVector, RenderVolumetricCloudParametersCloudLayerCenterKm)
+	SHADER_PARAMETER(FVector3f, RenderVolumetricCloudParametersCloudLayerCenterKm)
 	SHADER_PARAMETER(float, RenderVolumetricCloudParametersPlanetRadiusKm)
 	SHADER_PARAMETER(float, RenderVolumetricCloudParametersBottomRadiusKm)
 	SHADER_PARAMETER(float, RenderVolumetricCloudParametersTopRadiusKm)
@@ -72,13 +72,13 @@ public:
 
 		if (UnjitteredClipToTranslatedWorld.IsBound())
 		{
-			FMatrix UnjitteredInvTranslatedViewProjectionMatrix = View.ViewMatrices.ComputeInvProjectionNoAAMatrix() * View.ViewMatrices.GetTranslatedViewMatrix().GetTransposed();
+			FMatrix44f UnjitteredInvTranslatedViewProjectionMatrix = View.ViewMatrices.ComputeInvProjectionNoAAMatrix() * View.ViewMatrices.GetTranslatedViewMatrix().GetTransposed();
 			SetShaderValue(RHICmdList, ShaderRHI, UnjitteredClipToTranslatedWorld, UnjitteredInvTranslatedViewProjectionMatrix);
 		}
 
 		if (UnjitteredPrevWorldToClip.IsBound())
 		{
-			FMatrix UnjitteredViewProjectionMatrix = View.PrevViewInfo.ViewMatrices.GetViewMatrix() * View.PrevViewInfo.ViewMatrices.ComputeProjectionNoAAMatrix();
+			FMatrix44f UnjitteredViewProjectionMatrix = View.PrevViewInfo.ViewMatrices.GetViewMatrix() * View.PrevViewInfo.ViewMatrices.ComputeProjectionNoAAMatrix();
 			SetShaderValue(RHICmdList, ShaderRHI, UnjitteredPrevWorldToClip, UnjitteredViewProjectionMatrix);
 		}
 

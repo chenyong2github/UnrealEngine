@@ -56,13 +56,13 @@ static void OptimizeIntoConvexPolys(ABrush* InOwnerBrush, TArray<FPoly>& InPolyg
 
 					for (int32 v = 0; v < PolyMainNumVerts; ++v)
 					{
-						FVector vtx = PolyMain->Vertices[v];
+						FVector3f vtx = PolyMain->Vertices[v];
 
 						int32 idx = INDEX_NONE;
 
 						for (int32 v2 = 0; v2 < PolyNeighborNumVerts; ++v2)
 						{
-							const FVector* vtx2 = &PolyNeighbor->Vertices[v2];
+							const FVector3f* vtx2 = &PolyNeighbor->Vertices[v2];
 
 							if (vtx.Equals(*vtx2))
 							{

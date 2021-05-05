@@ -713,7 +713,7 @@ static int32 TagAdjacentsType(UWorld* InWorld, EAdjacentsType AdjacentType)
 	}
 
 	FVert		*VertPool;
-	FVector		*Base,*Normal;
+	FVector3f		*Base,*Normal;
 	uint8		b;
 	int32		    i;
 	int			Selected,Found;

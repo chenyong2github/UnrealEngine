@@ -228,7 +228,7 @@ namespace AbcImporterUtilities
 
 	/** Generated smoothing groups based on the given face normals, will compare angle between adjacent normals to determine whether or not an edge is hard/soft
 		and calculates the smoothing group information with the edge data */
-	void GenerateSmoothingGroups(TMultiMap<uint32, uint32> &TouchingFaces, const TArray<FVector>& FaceNormals,
+	void GenerateSmoothingGroups(TMultiMap<uint32, uint32> &TouchingFaces, const TArray<FVector3f>& FaceNormals,
 		TArray<uint32>& FaceSmoothingGroups, uint32& HighestSmoothingGroup, const float HardAngleDotThreshold);
 	
 	/** Generates AbcMeshSample with given parameters and schema */
@@ -299,7 +299,7 @@ namespace AbcImporterUtilities
 	void PropogateMatrixTransformationToSample(FAbcMeshSample* Sample, const FMatrix& Matrix);
 
 	/** Generates the delta frame data for the given average and frame vertex data */
-	void GenerateDeltaFrameDataMatrix(const TArray<FVector>& FrameVertexData, const TArray<FVector>& FrameNormalData, const TArray<FVector>& AverageVertexData, const TArray<FVector>& AverageNormalData,
+	void GenerateDeltaFrameDataMatrix(const TArray<FVector3f>& FrameVertexData, const TArray<FVector3f>& FrameNormalData, const TArray<FVector3f>& AverageVertexData, const TArray<FVector3f>& AverageNormalData,
 		const int32 SampleIndex, const int32 AverageVertexOffset, const int32 AverageIndexOffset, const FVector& SamplePositionOffset, TArray<float>& OutGeneratedMatrix, TArray<float>& OutGeneratedNormalsMatrix);
 
 	/** Populates compressed data structure from the result PCA compression bases and weights */

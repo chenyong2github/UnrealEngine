@@ -928,10 +928,10 @@ FVector UCharacterMovementComponent::GetPawnCapsuleExtent(const EShrinkCapsuleEx
 	}
 
 	// Don't shrink to zero extent.
-	const float MinExtent = KINDA_SMALL_NUMBER * 10.f;
-	CapsuleExtent.X = FMath::Max(CapsuleExtent.X - RadiusEpsilon, MinExtent);
+	const FVector::FReal MinExtent = KINDA_SMALL_NUMBER * 10;
+	CapsuleExtent.X = FMath::Max<FVector::FReal>(CapsuleExtent.X - RadiusEpsilon, MinExtent);
 	CapsuleExtent.Y = CapsuleExtent.X;
-	CapsuleExtent.Z = FMath::Max(CapsuleExtent.Z - HeightEpsilon, MinExtent);
+	CapsuleExtent.Z = FMath::Max<FVector::FReal>(CapsuleExtent.Z - HeightEpsilon, MinExtent);
 
 	return CapsuleExtent;
 }
@@ -944,7 +944,7 @@ bool UCharacterMovementComponent::DoJump(bool bReplayingMoves)
 		// Don't jump if we can't move up/down.
 		if (!bConstrainToPlane || FMath::Abs(PlaneConstraintNormal.Z) != 1.f)
 		{
-			Velocity.Z = FMath::Max(Velocity.Z, JumpZVelocity);
+			Velocity.Z = FMath::Max<FVector::FReal>(Velocity.Z, JumpZVelocity);
 			SetMovementMode(MOVE_Falling);
 			return true;
 		}
@@ -4058,12 +4058,12 @@ void UCharacterMovementComponent::PhysSwimming(float deltaTime, int32 Iterations
 	if (!HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() && (Velocity.Z > 0.33f * MaxSwimSpeed) && (NetBuoyancy != 0.f))
 	{
 		//damp positive Z out of water
-		Velocity.Z = FMath::Max(0.33f * MaxSwimSpeed, Velocity.Z * Depth*Depth);
+		Velocity.Z = FMath::Max<FVector::FReal>(0.33f * MaxSwimSpeed, Velocity.Z * Depth*Depth);
 	}
 	else if (Depth < 0.65f)
 	{
 		bLimitedUpAccel = (Acceleration.Z > 0.f);
-		Acceleration.Z = FMath::Min(0.1f, Acceleration.Z);
+		Acceleration.Z = FMath::Min<FVector::FReal>(0.1f, Acceleration.Z);
 	}
 
 	Iterations++;
@@ -5384,7 +5384,7 @@ FVector UCharacterMovementComponent::ProjectLocationFromNavMesh(float DeltaSecon
 	// Project to last plane we found.
 	if (CachedProjectedNavMeshHitResult.bBlockingHit)
 	{
-		if (bCachedLocationStillValid && FMath::IsNearlyEqual(CurrentFeetLocation.Z, CachedProjectedNavMeshHitResult.ImpactPoint.Z, 0.01f))
+		if (bCachedLocationStillValid && FMath::IsNearlyEqual(CurrentFeetLocation.Z, CachedProjectedNavMeshHitResult.ImpactPoint.Z, (FVector::FReal)0.01f))
 		{
 			// Already at destination.
 			NewLocation.Z = CurrentFeetLocation.Z;
@@ -5397,14 +5397,14 @@ FVector UCharacterMovementComponent::ProjectLocationFromNavMesh(float DeltaSecon
 			// Optimized assuming we only care about Z coordinate of result.
 			const FVector& PlaneOrigin = CachedProjectedNavMeshHitResult.ImpactPoint;
 			const FVector& PlaneNormal = CachedProjectedNavMeshHitResult.Normal;
-			float ProjectedZ = TraceStart.Z + ZOffset * (((PlaneOrigin - TraceStart)|PlaneNormal) / (ZOffset * PlaneNormal.Z));
+			FVector::FReal ProjectedZ = TraceStart.Z + ZOffset * (((PlaneOrigin - TraceStart)|PlaneNormal) / (ZOffset * PlaneNormal.Z));
 
 			// Limit to not be too far above or below NavMesh location
 			ProjectedZ = FMath::Clamp(ProjectedZ, TraceEnd.Z, TraceStart.Z);
 
 			// Interp for smoother updates (less "pop" when trace hits something new). 0 interp speed is instant.
-			const float InterpSpeed = FMath::Max(0.f, NavMeshProjectionInterpSpeed);
-			ProjectedZ = FMath::FInterpTo(CurrentFeetLocation.Z, ProjectedZ, DeltaSeconds, InterpSpeed);
+			const FVector::FReal InterpSpeed = FMath::Max<FVector::FReal>(0.f, NavMeshProjectionInterpSpeed);
+			ProjectedZ = FMath::FInterpTo(CurrentFeetLocation.Z, ProjectedZ, (FVector::FReal)DeltaSeconds, InterpSpeed);
 			ProjectedZ = FMath::Clamp(ProjectedZ, TraceEnd.Z, TraceStart.Z);
 
 			// Final result
@@ -6627,7 +6627,7 @@ bool UCharacterMovementComponent::ComputePerchResult(const float TestRadius, con
 	float PawnRadius, PawnHalfHeight;
 	CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleSize(PawnRadius, PawnHalfHeight);
 
-	const float InHitAboveBase = FMath::Max(0.f, InHit.ImpactPoint.Z - (InHit.Location.Z - PawnHalfHeight));
+	const float InHitAboveBase = FMath::Max<float>(0.f, InHit.ImpactPoint.Z - (InHit.Location.Z - PawnHalfHeight));
 	const float PerchLineDist = FMath::Max(0.f, InMaxFloorDist - InHitAboveBase);
 	const float PerchSweepDist = FMath::Max(0.f, InMaxFloorDist);
 
@@ -7213,7 +7213,7 @@ float UCharacterMovementComponent::ComputeAnalogInputModifier() const
 	const float MaxAccel = GetMaxAcceleration();
 	if (Acceleration.SizeSquared() > 0.f && MaxAccel > SMALL_NUMBER)
 	{
-		return FMath::Clamp(Acceleration.Size() / MaxAccel, 0.f, 1.f);
+		return FMath::Clamp<FVector::FReal>(Acceleration.Size() / MaxAccel, 0.f, 1.f);
 	}
 
 	return 0.f;
@@ -10469,7 +10469,7 @@ void UCharacterMovementComponent::CapsuleTouched(UPrimitiveComponent* Overlapped
 			TouchForceFactorModified *= BI ? BI->GetBodyMass() : 1.0f;
 		}
 
-		float ImpulseStrength = FMath::Clamp(Velocity.Size2D() * TouchForceFactorModified, 
+		float ImpulseStrength = FMath::Clamp<FVector::FReal>(Velocity.Size2D() * TouchForceFactorModified, 
 			MinTouchForce > 0.0f ? MinTouchForce : -FLT_MAX, 
 			MaxTouchForce > 0.0f ? MaxTouchForce : FLT_MAX);
 

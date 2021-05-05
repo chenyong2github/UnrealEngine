@@ -68,7 +68,7 @@ namespace DatasmithNativeTranslatorImpl
 		return Result;
 	}
 
-	TOptional<FMeshDescription> ExtractMeshDescription(FDatasmithMeshSourceModel& DSSourceModel)
+	TOptional<FMeshDescription> ExtractMeshDescription(FDatasmithMeshSourceModel& DSSourceModel, int32 LinkerUEVersion)
 	{
 		FRawMesh RawMesh;
 		DSSourceModel.RawMeshBulkData.LoadRawMesh( RawMesh );
@@ -138,7 +138,7 @@ bool FDatasmithNativeTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshE
 				SourceModel.RawMeshBulkData.LoadRawMesh( RawMesh );
 				if ( RawMesh.VertexPositions.Num() > 0 )
 				{
-					OutMeshPayload.CollisionPointCloud = MoveTemp(RawMesh.VertexPositions);
+					OutMeshPayload.CollisionPointCloud = LWC::PromoteArrayType<FVector>(RawMesh.VertexPositions);	// LWC_TODO: Perf pessimization. Was MoveTemp.
 					break;
 				}
 				ExtractionFailure++;
@@ -148,7 +148,7 @@ bool FDatasmithNativeTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshE
 		{
 			for (FDatasmithMeshSourceModel& SourceModel : DatasmithMesh->SourceModels)
 			{
-				if (TOptional<FMeshDescription> Mesh = ExtractMeshDescription(SourceModel))
+				if (TOptional<FMeshDescription> Mesh = ExtractMeshDescription(SourceModel, DatasmithMesh->GetLinkerUEVersion()))
 				{
 					OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
 					continue;

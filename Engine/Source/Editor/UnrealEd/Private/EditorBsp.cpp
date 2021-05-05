@@ -156,7 +156,7 @@ int TryToMerge( FPoly *Poly1, FPoly *Poly2 )
 	int32 Vertex = End1;
 	for( int32 i=0; i<Poly1->Vertices.Num(); i++ )
 	{
-		new(NewPoly.Vertices) FVector(Poly1->Vertices[Vertex]);
+		new(NewPoly.Vertices) FVector3f(Poly1->Vertices[Vertex]);
 		if( ++Vertex >= Poly1->Vertices.Num() )
 			Vertex=0;
 	}
@@ -165,7 +165,7 @@ int TryToMerge( FPoly *Poly1, FPoly *Poly2 )
 	{
 		if( ++Vertex >= Poly2->Vertices.Num() )
 			Vertex=0;
-		new(NewPoly.Vertices) FVector(Poly2->Vertices[Vertex]);
+		new(NewPoly.Vertices) FVector3f(Poly2->Vertices[Vertex]);
 	}
 
 	// Remove colinear vertices and check convexity.
@@ -950,7 +950,7 @@ int UEditorEngine::bspNodeToFPoly
 
 	for(int32 VertexIndex = 0;VertexIndex < Node.NumVertices;VertexIndex++)
 	{
-		new(EdPoly->Vertices) FVector(Model->Points[VertPool[VertexIndex].pVertex]);
+		new(EdPoly->Vertices) FVector3f(Model->Points[VertPool[VertexIndex].pVertex]);
 	}
 
 	if(EdPoly->Vertices.Num() < 3)
@@ -1704,10 +1704,10 @@ void MergeNearPoints( UModel *Model, float Dist )
 	for( int32 i=0; i<Model->Points.Num(); i++ )
 	{
 		PointRemap[i] = i;
-		FVector &Point = Model->Points[i];
+		FVector3f &Point = Model->Points[i];
 		for( int32 j=0; j<i; j++ )
 		{
-			FVector &TestPoint = Model->Points[j];
+			FVector3f &TestPoint = Model->Points[j];
 			if( (TestPoint - Point).SizeSquared() < Dist*Dist )
 			{
 				PointRemap[i] = j;

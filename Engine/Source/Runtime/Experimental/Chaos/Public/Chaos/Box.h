@@ -138,7 +138,7 @@ namespace Chaos
 		}
 
 		// Extents
-		FORCEINLINE const TAABB<T, d> BoundingBox() const
+		FORCEINLINE const TAABB<FReal, 3> BoundingBox() const
 		{
 			return AABB;
 		}
@@ -488,5 +488,49 @@ namespace Chaos
 		static TArray<TArray<int32>> SPlaneVertices;
 		static TArray<FVec3> SNormals;
 		static TArray<FVec3> SVertices;
+	};
+
+
+	class FBoxFloat3: public FImplicitObject
+	{
+	public:
+
+		FBoxFloat3()
+			: FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Box)
+		{}
+
+		virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const override
+		{
+			check(false); // should not be called - empty shell class for legacy serialization
+			return 0.;
+		}
+
+		FORCEINLINE void SerializeImp(FArchive& Ar)
+		{
+			FImplicitObject::SerializeImp(Ar);
+			Ar << MMin << MMax;
+
+			Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+			if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::MarginAddedToConvexAndBox)
+			{
+				Ar << FImplicitObject::Margin;
+			}
+		}
+
+		virtual void Serialize(FChaosArchive& Ar) override
+		{
+			FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName());
+			SerializeImp(Ar);
+		}
+
+		virtual void Serialize(FArchive& Ar) override { SerializeImp(Ar); }
+
+		virtual uint32 GetTypeHash() const override
+		{
+			return HashCombine(Chaos::GetTypeHash(MMin), Chaos::GetTypeHash(MMax));
+		}
+
+	private:
+		TVector<float, 3> MMin, MMax;
 	};
 }

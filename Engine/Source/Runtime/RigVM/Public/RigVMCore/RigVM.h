@@ -388,7 +388,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVM)
 	FVector GetParameterValueVector(const FName& InParameterName, int32 InArrayIndex = 0)
 	{
-		return GetParameterValue<FVector>(InParameterName, InArrayIndex, FVector::ZeroVector);
+		return GetParameterValue<FVector3f>(InParameterName, InArrayIndex, FVector3f::ZeroVector);	// LWC_TODO: Store double FVector
 	}
 
 	UFUNCTION(BlueprintCallable, Category = RigVM)
@@ -442,7 +442,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVM)
 	void SetParameterValueVector(const FName& InParameterName, const FVector& InValue, int32 InArrayIndex = 0)
 	{
-		SetParameterValue<FVector>(InParameterName, InValue, InArrayIndex);
+		SetParameterValue<FVector3f>(InParameterName, InValue, InArrayIndex);	// LWC_TODO: Store double FVector
 	}
 
 	UFUNCTION(BlueprintCallable, Category = RigVM)

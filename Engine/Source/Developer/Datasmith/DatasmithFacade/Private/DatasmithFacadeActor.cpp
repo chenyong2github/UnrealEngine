@@ -57,9 +57,9 @@ void FDatasmithFacadeActor::GetScale(
 {
 	FVector ScaleVector(GetDatasmithActorElement()->GetScale());
 
-	OutX = ScaleVector.X;
-	OutY = ScaleVector.Y;
-	OutZ = ScaleVector.Z;
+	OutX = (float)ScaleVector.X;
+	OutY = (float)ScaleVector.Y;
+	OutZ = (float)ScaleVector.Z;
 }
 
 void FDatasmithFacadeActor::SetRotation(
@@ -126,9 +126,9 @@ void FDatasmithFacadeActor::GetTranslation(
 {
 	FVector TranslationVector(GetDatasmithActorElement()->GetTranslation());
 
-	OutX = TranslationVector.X;
-	OutY = TranslationVector.Y;
-	OutZ = TranslationVector.Z;
+	OutX = (float)TranslationVector.X;
+	OutY = (float)TranslationVector.Y;
+	OutZ = (float)TranslationVector.Z;
 }
 
 void FDatasmithFacadeActor::SetLayer(

@@ -73,9 +73,9 @@ class FHairClusterCullingCS : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<FHZBCulling, FDebugAABBBuffer>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector, CameraWorldPos)
-		SHADER_PARAMETER(FMatrix, WorldToClipMatrix)
-		SHADER_PARAMETER(FMatrix, ProjectionMatrix)
+		SHADER_PARAMETER(FVector3f, CameraWorldPos)
+		SHADER_PARAMETER(FMatrix44f, WorldToClipMatrix)
+		SHADER_PARAMETER(FMatrix44f, ProjectionMatrix)
 		SHADER_PARAMETER(uint32, ClusterCount)
 		SHADER_PARAMETER(float, LODForcedIndex)
 		SHADER_PARAMETER(int32, bIsHairGroupVisible)
@@ -92,7 +92,7 @@ class FHairClusterCullingCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, ClusterDebugInfoBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, DispatchIndirectParametersClusterCount)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, DrawIndirectParameters)
-		SHADER_PARAMETER(FVector, HZBUvFactor)
+		SHADER_PARAMETER(FVector3f, HZBUvFactor)
 		SHADER_PARAMETER(FVector4, HZBSize)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, HZBTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, HZBSampler)

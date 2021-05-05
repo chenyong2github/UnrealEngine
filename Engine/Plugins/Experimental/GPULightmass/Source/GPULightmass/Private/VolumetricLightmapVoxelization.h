@@ -208,8 +208,8 @@ class FVoxelizeImportanceVolumeCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntVector, VolumeSize)
-		SHADER_PARAMETER(FVector, ImportanceVolumeMin)
-		SHADER_PARAMETER(FVector, ImportanceVolumeMax)
+		SHADER_PARAMETER(FVector3f, ImportanceVolumeMin)
+		SHADER_PARAMETER(FVector3f, ImportanceVolumeMax)
 		SHADER_PARAMETER_UAV(RWTexture3D<uint>, VoxelizeVolume)
 		SHADER_PARAMETER_STRUCT_REF(FVLMVoxelizationParams, VLMVoxelizationParams)
 	END_SHADER_PARAMETER_STRUCT()

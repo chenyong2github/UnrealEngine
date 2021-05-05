@@ -90,8 +90,8 @@ public:
 				const int32 NumVertices = OriginalMeshData.Positions.Num();
 				for (int32 Index = 0; Index < NumVertices; ++Index)
 				{
-					const FVector& PositionA = OriginalMeshData.Positions[Index];
-					const FVector& PositionB = DecodedMeshData.Positions[Index];
+					const FVector3f& PositionA = OriginalMeshData.Positions[Index];
+					const FVector3f& PositionB = DecodedMeshData.Positions[Index];
 
 					if (!PointsEqual(PositionA, PositionB, true))
 					{

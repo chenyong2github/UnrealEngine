@@ -84,7 +84,7 @@ void FDatasmithFacadeActorCamera::SetFocusDistance(
 	FVector CameraPosition(CameraActor->GetTranslation());
 
 	FVector DistanceVector(InTargetX - CameraPosition.X, InTargetY - CameraPosition.Y, InTargetZ - CameraPosition.Z);
-	CameraActor->SetFocusDistance(DistanceVector.Size() * WorldUnitScale);
+	CameraActor->SetFocusDistance((float)DistanceVector.Size() * WorldUnitScale);	// LWC_TODO: Precision loss
 }
 
 void FDatasmithFacadeActorCamera::SetFocusDistance(

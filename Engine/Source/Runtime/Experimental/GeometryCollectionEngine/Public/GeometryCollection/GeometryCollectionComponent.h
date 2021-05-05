@@ -391,12 +391,12 @@ public:
 	}
 
 	// Vertices Group
-	COPY_ON_WRITE_ATTRIBUTE(FVector, Vertex, FGeometryCollection::VerticesGroup) 	//GetVertexArray, GetVertexArrayCopyOnWrite, GetVertexArrayRest
+	COPY_ON_WRITE_ATTRIBUTE(FVector3f, Vertex, FGeometryCollection::VerticesGroup) 	//GetVertexArray, GetVertexArrayCopyOnWrite, GetVertexArrayRest
 	COPY_ON_WRITE_ATTRIBUTE(FVector2D, UV, FGeometryCollection::VerticesGroup)		//GetUVArray
 	COPY_ON_WRITE_ATTRIBUTE(FLinearColor, Color, FGeometryCollection::VerticesGroup)//GetColorArray
-	COPY_ON_WRITE_ATTRIBUTE(FVector, TangentU, FGeometryCollection::VerticesGroup)	//GetTangentUArray
-	COPY_ON_WRITE_ATTRIBUTE(FVector, TangentV, FGeometryCollection::VerticesGroup)	//...
-	COPY_ON_WRITE_ATTRIBUTE(FVector, Normal, FGeometryCollection::VerticesGroup)
+	COPY_ON_WRITE_ATTRIBUTE(FVector3f, TangentU, FGeometryCollection::VerticesGroup)	//GetTangentUArray
+	COPY_ON_WRITE_ATTRIBUTE(FVector3f, TangentV, FGeometryCollection::VerticesGroup)	//...
+	COPY_ON_WRITE_ATTRIBUTE(FVector3f, Normal, FGeometryCollection::VerticesGroup)
 	COPY_ON_WRITE_ATTRIBUTE(int32, BoneMap, FGeometryCollection::VerticesGroup)
 
 	// Faces Group

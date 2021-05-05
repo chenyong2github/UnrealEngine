@@ -72,11 +72,11 @@ struct CLOTHINGSYSTEMRUNTIMECOMMON_API FClothPhysicalMeshData
 
 	// Positions of each simulation vertex
 	UPROPERTY(EditAnywhere, Category = SimMesh)
-	TArray<FVector> Vertices;
+	TArray<FVector3f> Vertices;
 
 	// Normal at each vertex
 	UPROPERTY(EditAnywhere, Category = SimMesh)
-	TArray<FVector> Normals;
+	TArray<FVector3f> Normals;
 
 #if WITH_EDITORONLY_DATA
 	// Color at each vertex

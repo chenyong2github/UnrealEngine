@@ -62,7 +62,7 @@ FString FSkeletalMeshImportData::FixupBoneName(FString BoneName)
 * @param LODInfluences - weights/ influences to static LOD level.
 */
 void FSkeletalMeshImportData::CopyLODImportData(
-	TArray<FVector>& LODPoints,
+	TArray<FVector3f>& LODPoints,
 	TArray<SkeletalMeshImportData::FMeshWedge>& LODWedges,
 	TArray<SkeletalMeshImportData::FMeshFace>& LODFaces,
 	TArray<SkeletalMeshImportData::FVertInfluence>& LODInfluences,
@@ -241,10 +241,10 @@ bool FSkeletalMeshImportData::ApplyRigToGeo(FSkeletalMeshImportData& Other)
 		}
 		const FVector2D& CurWedgeUV = Wedges[WedgeIndex].UVs[0];
 		int32 NewVertexIndex = (int32)(Wedges[WedgeIndex].VertexIndex);
-		FVector& NewPointA = Points[NewVertexIndex];
+		FVector3f& NewPointA = Points[NewVertexIndex];
 		SkeletalMeshImportData::FTriangle& NewFace = Faces[(WedgeIndex / 3)];
 		int32 NewFaceCorner = (WedgeIndex % 3);
-		FVector NewNormal = NewFace.TangentZ[NewFaceCorner];
+		FVector3f NewNormal = NewFace.TangentZ[NewFaceCorner];
 		bool bFoundMatch = false;
 
 		TArray<int32> OldWedgeIndexes;
@@ -252,8 +252,8 @@ bool FSkeletalMeshImportData::ApplyRigToGeo(FSkeletalMeshImportData& Other)
 		if (OldWedgeIndexes.Num() > 0)
 		{
 			//Getting the other 2 vertices of the new triangle
-			FVector& NewPointB = Points[Wedges[NewFace.WedgeIndex[(WedgeIndex + 1) % 3]].VertexIndex];
-			FVector& NewPointC = Points[Wedges[NewFace.WedgeIndex[(WedgeIndex + 2) % 3]].VertexIndex];
+			FVector3f& NewPointB = Points[Wedges[NewFace.WedgeIndex[(WedgeIndex + 1) % 3]].VertexIndex];
+			FVector3f& NewPointC = Points[Wedges[NewFace.WedgeIndex[(WedgeIndex + 2) % 3]].VertexIndex];
 			int32 BestOldVertexIndex = INDEX_NONE;
 			float LowestTriangleDeltaSum = 0;
 
@@ -262,7 +262,7 @@ bool FSkeletalMeshImportData::ApplyRigToGeo(FSkeletalMeshImportData& Other)
 				int32 OldVertexIndex = Other.Wedges[OldWedgeIndex].VertexIndex;
 				SkeletalMeshImportData::FTriangle& OldFace = Other.Faces[OldWedgeIndex / 3];
 				int32 OldFaceCorner = (OldWedgeIndex % 3);
-				FVector OldNormal = OldFace.TangentZ[OldFaceCorner];
+				FVector3f OldNormal = OldFace.TangentZ[OldFaceCorner];
 
 				if (Other.Wedges[OldWedgeIndex].UVs[0].Equals(CurWedgeUV, THRESH_UVS_ARE_SAME)
 					&& OldNormal.Equals(NewNormal, THRESH_NORMALS_ARE_SAME))
@@ -276,9 +276,9 @@ bool FSkeletalMeshImportData::ApplyRigToGeo(FSkeletalMeshImportData& Other)
 						break;
 					}
 
-					FVector& OldPointA = Other.Points[Other.Wedges[OldWedgeIndex].VertexIndex];
-					FVector& OldPointB = Other.Points[Other.Wedges[OldFace.WedgeIndex[(OldWedgeIndex + 1) % 3]].VertexIndex];
-					FVector& OldPointC = Other.Points[Other.Wedges[OldFace.WedgeIndex[(OldWedgeIndex + 2) % 3]].VertexIndex];
+					FVector3f& OldPointA = Other.Points[Other.Wedges[OldWedgeIndex].VertexIndex];
+					FVector3f& OldPointB = Other.Points[Other.Wedges[OldFace.WedgeIndex[(OldWedgeIndex + 1) % 3]].VertexIndex];
+					FVector3f& OldPointC = Other.Points[Other.Wedges[OldFace.WedgeIndex[(OldWedgeIndex + 2) % 3]].VertexIndex];
 					float TriangleDeltaSum =
 						(NewPointA - OldPointA).Size() +
 						(NewPointB - OldPointB).Size() +
@@ -304,7 +304,7 @@ bool FSkeletalMeshImportData::ApplyRigToGeo(FSkeletalMeshImportData& Other)
 		if(!bFoundMatch)
 		{
 			TArray<FWedgeInfo> NearestWedges;
-			FVector SearchPosition = Points[NewVertexIndex];
+			FVector3f SearchPosition = Points[NewVertexIndex];
 			OctreeQueryHelper.FindNearestWedgeIndexes(SearchPosition, NearestWedges);
 			//The best old wedge match is base on those weight ratio
 			const int32 UVWeightRatioIndex = 0;
@@ -326,9 +326,9 @@ bool FSkeletalMeshImportData::ApplyRigToGeo(FSkeletalMeshImportData& Other)
 					int32 OldFaceIndex = (OldWedgeIndex / 3);
 					int32 OldFaceCorner = (OldWedgeIndex % 3);
 					const FVector2D& OldUV = Other.Wedges[OldWedgeIndex].UVs[0];
-					const FVector& OldNormal = Other.Faces[OldFaceIndex].TangentZ[OldFaceCorner];
+					const FVector3f& OldNormal = Other.Faces[OldFaceIndex].TangentZ[OldFaceCorner];
 					float UVDelta = FVector2D::DistSquared(CurWedgeUV, OldUV);
-					float NormalDelta = FMath::Abs(FMath::Acos(FVector::DotProduct(NewNormal, OldNormal)));
+					float NormalDelta = FMath::Abs(FMath::Acos(FVector3f::DotProduct(NewNormal, OldNormal)));
 					if (UVDelta > MaxUVDistance)
 					{
 						MaxUVDistance = UVDelta;
@@ -687,7 +687,7 @@ FArchive& operator<<(FArchive& Ar, FSkeletalMeshImportData& RawMesh)
 				}
 				const TSet<uint32>& ModifiedPoints = RawMesh.MorphTargetModifiedPoints[MorphTargetIndex];
 				FSkeletalMeshImportData& ToCompressShapeImportData = RawMesh.MorphTargets[MorphTargetIndex];
-				TArray<FVector> CompressPoints;
+				TArray<FVector3f> CompressPoints;
 				CompressPoints.Reserve(ToCompressShapeImportData.Points.Num());
 				for (uint32 PointIndex : ModifiedPoints)
 				{
@@ -892,7 +892,7 @@ const FByteBulkData& FRawSkeletalMeshBulkData::GetBulkData() const
 /************************************************************************
 * FWedgePosition
 */
-void FWedgePosition::FindMatchingPositionWegdeIndexes(const FVector &Position, float ComparisonThreshold, TArray<int32>& OutResults)
+void FWedgePosition::FindMatchingPositionWegdeIndexes(const FVector3f &Position, float ComparisonThreshold, TArray<int32>& OutResults)
 {
 	int32 SortedPositionNumber = SortedPositions.Num();
 	OutResults.Empty();
@@ -960,7 +960,7 @@ void FWedgePosition::FindMatchingPositionWegdeIndexes(const FVector &Position, f
 			break; // can't be any more dups
 
 		//Point is close to the position, verify it
-		const FVector& PositionA = Points[Wedges[SortedPositions[i].Index].VertexIndex];
+		const FVector3f& PositionA = Points[Wedges[SortedPositions[i].Index].VertexIndex];
 		if (FWedgePositionHelper::PointsEqual(PositionA, Position, ComparisonThreshold))
 		{
 			OutResults.Add(SortedPositions[i].Index);
@@ -968,7 +968,7 @@ void FWedgePosition::FindMatchingPositionWegdeIndexes(const FVector &Position, f
 	}
 }
 
-void FOctreeQueryHelper::FindNearestWedgeIndexes(const FVector& SearchPosition, TArray<FWedgeInfo>& OutNearestWedges)
+void FOctreeQueryHelper::FindNearestWedgeIndexes(const FVector3f& SearchPosition, TArray<FWedgeInfo>& OutNearestWedges)
 {
 	if (WedgePosOctree == nullptr)
 	{
@@ -978,7 +978,7 @@ void FOctreeQueryHelper::FindNearestWedgeIndexes(const FVector& SearchPosition, 
 	OutNearestWedges.Empty();
 	const float OctreeExtent = WedgePosOctree->GetRootBounds().Extent.Size3();
 	//Use the max between 1e-4 cm and 1% of the bounding box extend
-	FVector Extend(FMath::Max(KINDA_SMALL_NUMBER, OctreeExtent*0.005f));
+	FVector3f Extend(FMath::Max(KINDA_SMALL_NUMBER, OctreeExtent*0.005f));
 
 	//Pass Extent size % of the Octree bounding box extent
 	//PassIndex 0 -> 0.5%
@@ -1008,7 +1008,7 @@ void FOctreeQueryHelper::FindNearestWedgeIndexes(const FVector& SearchPosition, 
 
 void FWedgePosition::FillWedgePosition(
 	FWedgePosition& OutOverlappingPosition,
-	const TArray<FVector>& Points,
+	const TArray<FVector3f>& Points,
 	const TArray<SkeletalMeshImportData::FVertex> Wedges,
 	float ComparisonThreshold)
 {
@@ -1592,10 +1592,10 @@ bool FSkeletalMeshImportData::GetMeshDescription(FMeshDescription& OutMeshDescri
 		return false;
 	}
 
-	TVertexAttributesRef<FVector> VertexPositions = MeshAttributes.GetVertexPositions();
+	TVertexAttributesRef<FVector3f> VertexPositions = MeshAttributes.GetVertexPositions();
 	FSkinWeightsVertexAttributesRef VertexSkinWeights = MeshAttributes.GetVertexSkinWeights();
-	TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = MeshAttributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = MeshAttributes.GetVertexInstanceTangents();
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = MeshAttributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = MeshAttributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = MeshAttributes.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = MeshAttributes.GetVertexInstanceColors();
 	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = MeshAttributes.GetVertexInstanceUVs();
@@ -1753,12 +1753,12 @@ FSkeletalMeshImportData FSkeletalMeshImportData::CreateFromMeshDescription(const
 	FSkeletalMeshImportData SkelMeshImportData;
 	
 	FSkeletalMeshConstAttributes Attributes(InMeshDescription);
-	TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+	TVertexAttributesConstRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 	FSkinWeightsVertexAttributesConstRef VertexSkinWeights = Attributes.GetVertexSkinWeights();
 
 	TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
-	TVertexInstanceAttributesConstRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesConstRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+	TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesConstRef<float> VertexInstanceBiNormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesConstRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 

@@ -17,7 +17,7 @@
 struct FMorphTargetDelta;
 
 template<typename VertexType>
-static void SkinVertices(FFinalSkinVertex* DestVertex, FMatrix* ReferenceToLocal, int32 LODIndex, FSkeletalMeshLODRenderData& LOD, FSkinWeightVertexBuffer& WeightBuffer, TArray<FActiveMorphTarget>& ActiveMorphTargets, TArray<float>& MorphTargetWeights, const TMap<int32, FClothSimulData>& ClothSimulUpdateData, float ClothBlendWeight, const FMatrix& WorldToLocal);
+static void SkinVertices(FFinalSkinVertex* DestVertex, FMatrix44f* ReferenceToLocal, int32 LODIndex, FSkeletalMeshLODRenderData& LOD, FSkinWeightVertexBuffer& WeightBuffer, TArray<FActiveMorphTarget>& ActiveMorphTargets, TArray<float>& MorphTargetWeights, const TMap<int32, FClothSimulData>& ClothSimulUpdateData, float ClothBlendWeight, const FMatrix& WorldToLocal);
 
 #define INFLUENCE_0		0
 #define INFLUENCE_1		1
@@ -212,7 +212,7 @@ void FSkeletalMeshObjectCPUSkin::CacheVertices(int32 LODIndex, bool bForce) cons
 		const FSkelMeshObjectLODInfo& MeshLODInfo = LODInfo[LODIndex];
 
 		// bone matrices
-		FMatrix* ReferenceToLocal = DynamicData->ReferenceToLocal.GetData();
+		FMatrix44f* ReferenceToLocal = DynamicData->ReferenceToLocal.GetData();
 
 		int32 CachedFinalVerticesNum = LOD.GetNumVertices();
 		CachedFinalVertices.Empty(CachedFinalVerticesNum);
@@ -493,7 +493,7 @@ TArray<FTransform>* FSkeletalMeshObjectCPUSkin::GetComponentSpaceTransforms() co
 	}
 }
 
-const TArray<FMatrix>& FSkeletalMeshObjectCPUSkin::GetReferenceToLocalMatrices() const
+const TArray<FMatrix44f>& FSkeletalMeshObjectCPUSkin::GetReferenceToLocalMatrices() const
 {
 	return DynamicData->ReferenceToLocal;
 }
@@ -508,7 +508,7 @@ void FSkeletalMeshObjectCPUSkin::DrawVertexElements(FPrimitiveDrawInterface* PDI
 	{
 		FFinalSkinVertex& Vert = CachedFinalVertices[i];
 
-		const FVector WorldPos = ToWorldSpace.TransformPosition( Vert.Position );
+		const FVector WorldPos = ToWorldSpace.TransformPosition( FVector(Vert.Position) );
 
 		const FVector Normal = Vert.TangentZ.ToFVector();
 		const FVector Tangent = Vert.TangentX.ToFVector();
@@ -712,7 +712,7 @@ static void SkinVertexSection(
 	uint32 NumValidMorphs, 
 	int32 &CurBaseVertIdx, 
 	int32 LODIndex, 
-	const FMatrix* RESTRICT ReferenceToLocal, 
+	const FMatrix44f* RESTRICT ReferenceToLocal, 
 	const FClothSimulData* ClothSimData, 
 	float ClothBlendWeight, 
 	const FMatrix& WorldToLocal)
@@ -993,7 +993,7 @@ static void SkinVertexSection(
 				FVector SimulatedPositionWorld = ClothCPU::ClothingPosition(*ClothVertData, *ClothSimData);
 
 				// transform back to local space
-				FVector SimulatedPosition = WorldToLocal.TransformPosition(SimulatedPositionWorld);
+				FVector3f SimulatedPosition = WorldToLocal.TransformPosition(SimulatedPositionWorld);
 
 				// Lerp between skinned and simulated position
 				DestVertex->Position = FMath::Lerp(DestVertex->Position, SimulatedPosition, ClothBlendWeight);
@@ -1023,7 +1023,7 @@ static void SkinVertexSection(
 template<typename VertexType>
 static void SkinVertices(
 	FFinalSkinVertex* DestVertex, 
-	FMatrix* ReferenceToLocal, 
+	FMatrix44f* ReferenceToLocal, 
 	int32 LODIndex, 
 	FSkeletalMeshLODRenderData& LOD,
 	FSkinWeightVertexBuffer& WeightBuffer,

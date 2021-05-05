@@ -41,8 +41,8 @@ namespace {
 	static const float AnimationEditorViewport_RotateSpeed = 0.02f;
 	static const float AnimationEditorViewport_TranslateSpeed = 0.25f;
 	// follow camera feature
-	static const float FollowCamera_InterpSpeed = 4.f;
-	static const float FollowCamera_InterpSpeed_Z = 1.f;
+	static const FVector::FReal FollowCamera_InterpSpeed = 4.f;
+	static const FVector::FReal FollowCamera_InterpSpeed_Z = 1.f;
 }
 
 namespace EAnimationPlaybackSpeeds
@@ -594,9 +594,9 @@ void FAnimationViewportClient::SetCameraTargetLocation(const FSphere &BoundSpher
 	FVector CamDir = FVector(CamRotMat.M[0][0],CamRotMat.M[0][1],CamRotMat.M[0][2]);
 	FVector NewViewLocation = BoundSphere.Center - BoundSphere.W * 2 * CamDir;
 
-	NewViewLocation.X = FMath::FInterpTo(OldViewLoc.X, NewViewLocation.X, DeltaSeconds, FollowCamera_InterpSpeed);
-	NewViewLocation.Y = FMath::FInterpTo(OldViewLoc.Y, NewViewLocation.Y, DeltaSeconds, FollowCamera_InterpSpeed);
-	NewViewLocation.Z = FMath::FInterpTo(OldViewLoc.Z, NewViewLocation.Z, DeltaSeconds, FollowCamera_InterpSpeed_Z);
+	NewViewLocation.X = FMath::FInterpTo(OldViewLoc.X, NewViewLocation.X, (FVector::FReal)DeltaSeconds, FollowCamera_InterpSpeed);
+	NewViewLocation.Y = FMath::FInterpTo(OldViewLoc.Y, NewViewLocation.Y, (FVector::FReal)DeltaSeconds, FollowCamera_InterpSpeed);
+	NewViewLocation.Z = FMath::FInterpTo(OldViewLoc.Z, NewViewLocation.Z, (FVector::FReal)DeltaSeconds, FollowCamera_InterpSpeed_Z);
 
 	SetViewLocation( NewViewLocation );
 }
@@ -1612,7 +1612,7 @@ void FAnimationViewportClient::TransformVertexPositionsToWorld(TArray<FFinalSkin
 
 	for ( int32 VertexIndex = 0; VertexIndex < LocalVertices.Num(); ++VertexIndex )
 	{
-		FVector& VertexPosition = LocalVertices[VertexIndex].Position;
+		FVector3f& VertexPosition = LocalVertices[VertexIndex].Position;
 		VertexPosition = LocalToWorldTransform.TransformPosition(VertexPosition);
 	}
 }

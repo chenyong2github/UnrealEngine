@@ -70,6 +70,9 @@ struct GAMEPLAYCAMERAS_API FFOscillator
 	/** Advances the oscillation time and returns the current value. */
 	static float UpdateOffset(FFOscillator const& Osc, float& CurrentOffset, float DeltaTime);
 
+	/** Advances the oscillation time and returns the current value. */
+	static float UpdateOffset(FFOscillator const& Osc, double& CurrentOffset, float DeltaTime);
+
 	/** Returns the initial value of the oscillator. */
 	static float GetInitialOffset(FFOscillator const& Osc);
 

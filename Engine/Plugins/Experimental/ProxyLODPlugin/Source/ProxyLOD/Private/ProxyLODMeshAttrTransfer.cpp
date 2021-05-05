@@ -29,9 +29,9 @@ FColor AverageColor(const FColor(&Colors)[Size])
 }
 
 template <int Size>
-FVector AverageUnitVector(const FVector(&Vectors)[Size])
+FVector3f AverageUnitVector(const FVector3f(&Vectors)[Size])
 {
-	FVector Result(0.f, 0.f, 0.f);
+	FVector3f Result(0.f, 0.f, 0.f);
 
 	for (int i = 0; i < Size; ++i)
 	{
@@ -64,9 +64,9 @@ void ProxyLOD::TransferMeshAttributes(const FClosestPolyField& SrcPolyField, FMe
 
 	FStaticMeshAttributes Attributes(InOutMesh);
 
-	TArrayView<const FVector> VertexPositions = Attributes.GetVertexPositions().GetRawArray();
-	TArrayView<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals().GetRawArray();
-	TArrayView<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents().GetRawArray();
+	TArrayView<const FVector3f> VertexPositions = Attributes.GetVertexPositions().GetRawArray();
+	TArrayView<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals().GetRawArray();
+	TArrayView<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents().GetRawArray();
 	TArrayView<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns().GetRawArray();
 	TArrayView<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors().GetRawArray();
 
@@ -93,7 +93,7 @@ void ProxyLOD::TransferMeshAttributes(const FClosestPolyField& SrcPolyField, FMe
 				{
 					const FVertexInstanceID Idx = TriangleVerts[i];
 					// world space location
-					const FVector& WSPos = VertexPositions[InOutMesh.GetVertexInstanceVertex(Idx)];
+					const FVector3f& WSPos = VertexPositions[InOutMesh.GetVertexInstanceVertex(Idx)];
 
 					bool bFoundPoly;
 					// The closest poly to this point
@@ -148,8 +148,8 @@ void ProxyLOD::TransferSrcNormals(const FClosestPolyField& SrcPolyField, FAOSMes
 		for (uint32 CurrentRange = Range.begin(), EndRange = Range.end(); CurrentRange < EndRange; ++CurrentRange)
 		{
 			// Get the closest poly to this vertex.
-			FVector& Normal = Vertexes[CurrentRange].Normal;
-			const FVector& Pos = Vertexes[CurrentRange].Position;
+			FVector3f& Normal = Vertexes[CurrentRange].Normal;
+			const FVector3f& Pos = Vertexes[CurrentRange].Position;
 
 			bool bSuccess = false;
 			const FMeshDescriptionArrayAdapter::FRawPoly  RawPoly = PolyAccessor.Get(openvdb::Vec3d(Pos.X, Pos.Y, Pos.Z), bSuccess);
@@ -158,9 +158,9 @@ void ProxyLOD::TransferSrcNormals(const FClosestPolyField& SrcPolyField, FAOSMes
 				bool bValidSizedPoly = true;
 #if 0
 				// compute 4 * area * area  of raw poly
-				const FVector AB = RawPoly.VertexPositions[1] - RawPoly.VertexPositions[0];
-				const FVector AC = RawPoly.VertexPositions[2] - RawPoly.VertexPositions[0];
-				const float FourAreaSqr = FVector::CrossProduct(AB, AC).SizeSquared();
+				const FVector3f AB = RawPoly.VertexPositions[1] - RawPoly.VertexPositions[0];
+				const FVector3f AC = RawPoly.VertexPositions[2] - RawPoly.VertexPositions[0];
+				const float FourAreaSqr = FVector3f::CrossProduct(AB, AC).SizeSquared();
 
 				bValidSizedPoly = FourAreaSqr > 0.001;
 #endif
@@ -173,7 +173,7 @@ void ProxyLOD::TransferSrcNormals(const FClosestPolyField& SrcPolyField, FAOSMes
 
 				if (!MissedPoly && bValidSizedPoly)
 				{
-					FVector TransferedNormal = ProxyLOD::InterpolateVertexData(Weights, RawPoly.WedgeTangentZ);
+					FVector3f TransferedNormal = ProxyLOD::InterpolateVertexData(Weights, RawPoly.WedgeTangentZ);
 					//bool bNormal = !TransferedNormal.ContainsNaN();
 					bool bNormal = TransferedNormal.Normalize(0.1f);
 					// assume that the transfered normal is more accurate if it is somewhat aligned with the local geometric normal
@@ -194,7 +194,7 @@ void ProxyLOD::TransferSrcNormals(const FClosestPolyField& SrcPolyField, FAOSMes
 
 void ProxyLOD::TransferVertexColors(const FClosestPolyField& SrcPolyField, FMeshDescription& InOutMesh)
 {
-	TArrayView<const FVector> VertexPositions = InOutMesh.GetVertexPositions().GetRawArray();
+	TArrayView<const FVector3f> VertexPositions = InOutMesh.GetVertexPositions().GetRawArray();
 
 	FStaticMeshAttributes Attributes(InOutMesh);
 	TArrayView<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors().GetRawArray();
@@ -265,7 +265,7 @@ void ProxyLOD::TransferVertexColors(const FClosestPolyField& SrcPolyField, FMesh
 template <typename ProjectionOperatorType>
 void ProjectVerticiesOntoSrc(const ProjectionOperatorType& ProjectionOperator, const FClosestPolyField& SrcPolyField, FMeshDescription& InOutMesh)
 {
-	TArrayView<FVector> VertexPositions = InOutMesh.GetVertexPositions().GetRawArray();
+	TArrayView<FVector3f> VertexPositions = InOutMesh.GetVertexPositions().GetRawArray();
 	const uint32 NumVertexes = InOutMesh.Vertices().Num();
 
 	ProxyLOD::Parallel_For(ProxyLOD::FUIntRange(0, NumVertexes),
@@ -277,7 +277,7 @@ void ProjectVerticiesOntoSrc(const ProjectionOperatorType& ProjectionOperator, c
 		{
 			FVertexID VertexID(CurrentRange);
 			// Get the closest poly to this vertex.
-			FVector& Pos = VertexPositions[VertexID];
+			FVector3f& Pos = VertexPositions[VertexID];
 
 			bool bSuccess = false;
 			const FMeshDescriptionArrayAdapter::FRawPoly  RawPoly = PolyAccessor.Get(openvdb::Vec3d(Pos.X, Pos.Y, Pos.Z), bSuccess);
@@ -305,7 +305,7 @@ template <typename ProjectionOperatorType>
 void ProjectVerticiesOntoSrc(const ProjectionOperatorType& ProjectionOperator, const FClosestPolyField& SrcPolyField, FVertexDataMesh& InOutMesh)
 {
 	const uint32 NumVertexes = InOutMesh.Points.Num();
-	FVector* Vertexes = InOutMesh.Points.GetData();
+	FVector3f* Vertexes = InOutMesh.Points.GetData();
 
 	ProxyLOD::Parallel_For(ProxyLOD::FUIntRange(0, NumVertexes),
 		[Vertexes, &SrcPolyField, ProjectionOperator](const ProxyLOD::FUIntRange& Range)
@@ -315,7 +315,7 @@ void ProjectVerticiesOntoSrc(const ProjectionOperatorType& ProjectionOperator, c
 		for (uint32 CurrentRange = Range.begin(), EndRange = Range.end(); CurrentRange < EndRange; ++CurrentRange)
 		{
 			// Get the closest poly to this vertex.
-			FVector& Pos = Vertexes[CurrentRange];
+			FVector3f& Pos = Vertexes[CurrentRange];
 
 			bool bSuccess = false;
 			const FMeshDescriptionArrayAdapter::FRawPoly  RawPoly = PolyAccessor.Get(openvdb::Vec3d(Pos.X, Pos.Y, Pos.Z), bSuccess);
@@ -353,7 +353,7 @@ void ProjectVerticiesOntoSrc(const ProjectionOperatorType& ProjectionOperator, c
 		for (uint32 CurrentRange = Range.begin(), EndRange = Range.end(); CurrentRange < EndRange; ++CurrentRange)
 		{
 			// Get the closest poly to this vertex.
-			FVector& Pos = Vertexes[CurrentRange].Position;
+			FVector3f& Pos = Vertexes[CurrentRange].Position;
 
 			bool bSuccess = false;
 			const FMeshDescriptionArrayAdapter::FRawPoly  RawPoly = PolyAccessor.Get(openvdb::Vec3d(Pos.X, Pos.Y, Pos.Z), bSuccess);
@@ -384,7 +384,7 @@ public:
 		: MaxCloseDistSqr(MaxDistSqr) 
 	{}
 
-	FVector operator()(const ProxyLOD::DArray3d& Weights, const FVector(&VertexPos)[3], const FVector& CurrentPos) const 
+	FVector operator()(const ProxyLOD::DArray3d& Weights, const FVector3f(&VertexPos)[3], const FVector3f& CurrentPos) const 
 	{
 		// Identify the closest vertex.
 
@@ -466,7 +466,7 @@ public:
 		: MaxCloseDistSqr(MaxDistSqr)
 	{}
 
-	FVector operator()(const ProxyLOD::DArray3d& Weights, const FVector(&VertexPos)[3], const FVector& CurrentPos) const
+	FVector operator()(const ProxyLOD::DArray3d& Weights, const FVector3f(&VertexPos)[3], const FVector& CurrentPos) const
 	{
 
 		// Closest location on the surface

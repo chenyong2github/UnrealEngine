@@ -118,10 +118,10 @@ namespace Mdl
 
 		class FBakedVectorValue : public IBakeDestination
 		{
-			FVector& BakeDst;
+			FVector3f& BakeDst;
 
 		public:
-			FBakedVectorValue(FVector& Dst)  // destination to bake
+			FBakedVectorValue(FVector3f& Dst)  // destination to bake
 				: BakeDst(Dst)
 			{
 			}
@@ -159,7 +159,7 @@ namespace Mdl
 		};
 
 		template <>
-		struct TGetValueTypeHelper<FVector>
+		struct TGetValueTypeHelper<FVector3f>
 		{
 			static const Mdl::EValueType TypeValue = Mdl::EValueType::ColorRGB;
 			using BakeType                         = FBakedVectorValue;

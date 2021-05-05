@@ -52,9 +52,9 @@ namespace GeometryCollectionTest
 			0.0
 		};
 
-		TArray<Chaos::FReal> ResultsArray;
+		TArray<float> ResultsArray;
 		ResultsArray.Init(false, Bounds*Bounds);
-		TArrayView<Chaos::FReal> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
+		TArrayView<float> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		NoiseField->Evaluate(Context, ResultsView);
 
 		Chaos::FReal min = FLT_MAX, max = -FLT_MAX;
@@ -145,9 +145,9 @@ namespace GeometryCollectionTest
 			0.0
 		};
 
-		TArray<Chaos::FReal> ResultsArray;
+		TArray<float> ResultsArray;
 		ResultsArray.Init(false, 10);
-		TArrayView<Chaos::FReal> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
+		TArrayView<float> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		RadialFalloff->Evaluate(Context, ResultsView);
 
 		for (int32 Index = 0; Index < 10; Index++)
@@ -198,9 +198,9 @@ namespace GeometryCollectionTest
 			0.0
 		};
 
-		TArray<Chaos::FReal> ResultsArray;
+		TArray<float> ResultsArray;
 		ResultsArray.Init(false, 10);
-		TArrayView<Chaos::FReal> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
+		TArrayView<float> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		PlaneFalloff->Evaluate(Context, ResultsView);
 
 		FPlane Plane(PlaneFalloff->Position, PlaneFalloff->Normal);
@@ -776,9 +776,9 @@ namespace GeometryCollectionTest
 			0.0
 		};
 
-		TArray<Chaos::FReal> ResultsArray;
+		TArray<float> ResultsArray;
 		ResultsArray.Init(0.f, SamplesArray.Num());
-		TArrayView<Chaos::FReal> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
+		TArrayView<float> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumScalar->Evaluate(Context, ResultsView);
 
 		for (int32 Index = 0; Index < NumPoints; Index++)
@@ -843,9 +843,9 @@ namespace GeometryCollectionTest
 			0.0
 		};
 
-		TArray<Chaos::FReal> ResultsArray;
+		TArray<float> ResultsArray;
 		ResultsArray.Init(0.f, SamplesArray.Num());
-		TArrayView<Chaos::FReal> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
+		TArrayView<float> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumScalar->Evaluate(Context, ResultsView);
 
 		for (int32 Index = 0; Index < NumPoints; Index++)
@@ -902,9 +902,9 @@ namespace GeometryCollectionTest
 			0.0
 		};
 
-		TArray<Chaos::FReal> ResultsArray;
+		TArray<float> ResultsArray;
 		ResultsArray.Init(0.f, SamplesArray.Num());
-		TArrayView<Chaos::FReal> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
+		TArrayView<float> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumScalar->Evaluate(Context, ResultsView);
 
 		for (int32 Index = 0; Index < NumPoints; Index++)
@@ -959,7 +959,7 @@ namespace GeometryCollectionTest
 		RadialFalloff2->Magnitude = 3.0;
 		Chaos::FReal RadialFalloff2Radius = RadialFalloff2->Radius;
 
-		FCullingField<Chaos::FReal> * CullingField = new FCullingField<Chaos::FReal>(RadialFalloff, RadialFalloff2, EFieldCullingOperationType::Field_Culling_Outside);
+		FCullingField<float> * CullingField = new FCullingField<float>(RadialFalloff, RadialFalloff2, EFieldCullingOperationType::Field_Culling_Outside);
 
 		FFieldContext Context{
 			IndexView,
@@ -968,9 +968,9 @@ namespace GeometryCollectionTest
 			0.0
 		};
 
-		TArray<Chaos::FReal> ResultsArray;
+		TArray<float> ResultsArray;
 		ResultsArray.Init(0.f, SamplesArray.Num());
-		TArrayView<Chaos::FReal> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
+		TArrayView<float> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		CullingField->Evaluate(Context, ResultsView);
 
 		for (int32 Index = 0; Index < NumPoints; Index++)
@@ -1141,13 +1141,13 @@ namespace GeometryCollectionTest
 		// conversion fields
 		{
 			FUniformScalar* UniformScalar = new FUniformScalar(41.f);
-			FFieldSystemCommand CommandOut("FConversionField", new FConversionField<Chaos::FReal,int32>(UniformScalar));
+			FFieldSystemCommand CommandOut("FConversionField", new FConversionField<float,int32>(UniformScalar));
 			FFieldSystemCommand CommandIn = SaveAndLoad(CommandOut);
 			EXPECT_TRUE(TestFFieldSystemEquality(CommandIn, CommandOut));
 		}
 		{
 			FUniformInteger* UniformInteger = new FUniformInteger(3);
-			FFieldSystemCommand CommandOut("FConversionField", new FConversionField<int32, Chaos::FReal>(UniformInteger));
+			FFieldSystemCommand CommandOut("FConversionField", new FConversionField<int32, float>(UniformInteger));
 			FFieldSystemCommand CommandIn = SaveAndLoad(CommandOut);
 			EXPECT_TRUE(TestFFieldSystemEquality(CommandIn, CommandOut));
 		}
@@ -1163,7 +1163,7 @@ namespace GeometryCollectionTest
 		{
 			FUniformScalar* UniformScalar = new FUniformScalar(3.f);
 			FRadialFalloff* RadialScalar = new FRadialFalloff(1.f, 3.f, 5.f, 7.f, 11.f, FVector(13, 17, 19));
-			FFieldSystemCommand CommandOut("FCullingField", new FCullingField<Chaos::FReal>(RadialScalar, UniformScalar));
+			FFieldSystemCommand CommandOut("FCullingField", new FCullingField<float>(RadialScalar, UniformScalar));
 			FFieldSystemCommand CommandIn = SaveAndLoad(CommandOut);
 			EXPECT_TRUE(TestFFieldSystemEquality(CommandIn, CommandOut));
 		}
@@ -1182,7 +1182,7 @@ namespace GeometryCollectionTest
 			EXPECT_TRUE(TestFFieldSystemEquality(CommandIn, CommandOut));
 		}
 		{
-			FFieldSystemCommand CommandOut("FReturnResultsTerminal", new FReturnResultsTerminal<Chaos::FReal>());
+			FFieldSystemCommand CommandOut("FReturnResultsTerminal", new FReturnResultsTerminal<float>());
 			FFieldSystemCommand CommandIn = SaveAndLoad(CommandOut);
 			EXPECT_TRUE(TestFFieldSystemEquality(CommandIn, CommandOut));
 		}
@@ -1196,16 +1196,16 @@ namespace GeometryCollectionTest
 		// depth test with lots of nodes.
 		{
 			FUniformScalar* UniformScalar = new FUniformScalar(3);
-			FConversionField<Chaos::FReal, int32>* ConversionFieldFI = new FConversionField<Chaos::FReal, int32>(UniformScalar);
+			FConversionField<float, int32>* ConversionFieldFI = new FConversionField<float, int32>(UniformScalar);
 
 			FBoxFalloff* BoxFalloff = new FBoxFalloff(1.f, 7.f, 9.f, 13.f, FTransform::Identity);
 			FCullingField<int32>* CullingFieldI = new FCullingField<int32>(BoxFalloff, ConversionFieldFI);
 
 			FUniformInteger* UniformInteger = new FUniformInteger(3);
-			FConversionField<int32, Chaos::FReal>*  ConversionFieldIF = new FConversionField<int32, Chaos::FReal>(UniformInteger);
+			FConversionField<int32, float>*  ConversionFieldIF = new FConversionField<int32, float>(UniformInteger);
 
 			FPlaneFalloff* PlaneFalloff = new FPlaneFalloff(1.f, 3.f, 5.f, 7.f, 100.f, FVector(9, 11, 13), FVector(17, 19, 23));
-			FCullingField<Chaos::FReal>* CullingFieldF = new FCullingField<Chaos::FReal>(PlaneFalloff, ConversionFieldIF);
+			FCullingField<float>* CullingFieldF = new FCullingField<float>(PlaneFalloff, ConversionFieldIF);
 
 
 			FNoiseField* NoiseField2 = new FNoiseField(1.f, 3.f);
@@ -1219,8 +1219,8 @@ namespace GeometryCollectionTest
 			FSumVector* SumVector = new FSumVector(1.f, SumScalar, CullingFieldV, UniformVector, EFieldOperationType::Field_Divide);
 
 			FReturnResultsTerminal<int32>*  ReturnResultsTerminalI = new FReturnResultsTerminal<int32>();
-			FConversionField<int32, Chaos::FReal>*  ConversionFieldIF2 = new FConversionField<int32, Chaos::FReal>(ReturnResultsTerminalI);
-			FReturnResultsTerminal<Chaos::FReal>* ReturnResultsTerminalF = new FReturnResultsTerminal<Chaos::FReal>();
+			FConversionField<int32, float>*  ConversionFieldIF2 = new FConversionField<int32, float>(ReturnResultsTerminalI);
+			FReturnResultsTerminal<float>* ReturnResultsTerminalF = new FReturnResultsTerminal<float>();
 			FSumScalar* SumScalar2 = new FSumScalar(1.f, ReturnResultsTerminalF, ConversionFieldIF2, EFieldOperationType::Field_Substract);
 
 
@@ -1228,7 +1228,7 @@ namespace GeometryCollectionTest
 			FSumVector* SumVector2 = new FSumVector(1.f, SumScalar2, ReturnResultsTerminalV, SumVector, EFieldOperationType::Field_Divide);
 
 			FReturnResultsTerminal<FVector>* ReturnResultsTerminalV2 = new FReturnResultsTerminal<FVector>();
-			FConversionField<int32, Chaos::FReal>*  ConversionFieldIF3 = new FConversionField<int32, Chaos::FReal>(CullingFieldI);
+			FConversionField<int32, float>*  ConversionFieldIF3 = new FConversionField<int32, float>(CullingFieldI);
 			FSumVector* SumVector3 = new FSumVector(1.f, ConversionFieldIF3, SumVector2, ReturnResultsTerminalV2, EFieldOperationType::Field_Divide);
 
 			FFieldSystemCommand CommandOut("DeepTreeOfEverything", SumVector3);

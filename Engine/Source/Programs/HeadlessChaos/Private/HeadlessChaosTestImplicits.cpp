@@ -1491,7 +1491,7 @@ namespace ChaosTest {
 			EXPECT_LT(Volume, 3);
 			EXPECT_LT(Inertia.M[0][0] * 1.5, Inertia.M[1][1]);
 			EXPECT_GT(Inertia.M[0][0] * 3, Inertia.M[1][1]);
-			EXPECT_EQ(Inertia.M[2][2], Inertia.M[1][1]);
+			EXPECT_NEAR(Inertia.M[2][2], Inertia.M[1][1], SMALL_NUMBER);
 		}
 	}
 

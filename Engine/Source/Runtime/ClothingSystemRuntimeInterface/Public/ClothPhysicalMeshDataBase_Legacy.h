@@ -40,11 +40,11 @@ protected:
 public:
 	// Positions of each simulation vertex
 	UPROPERTY()
-	TArray<FVector> Vertices;
+	TArray<FVector3f> Vertices;
 
 	// Normal at each vertex
 	UPROPERTY()
-	TArray<FVector> Normals;
+	TArray<FVector3f> Normals;
 
 #if WITH_EDITORONLY_DATA
 	// Color at each vertex

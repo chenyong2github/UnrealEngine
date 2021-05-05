@@ -89,8 +89,8 @@ struct HBSPBrushVert : public HHitProxy
 {
 	DECLARE_HIT_PROXY( ENGINE_API );
 	TWeakObjectPtr<ABrush>	Brush;
-	FVector* Vertex;
-	HBSPBrushVert(ABrush* InBrush,FVector* InVertex):
+	FVector3f* Vertex;
+	HBSPBrushVert(ABrush* InBrush,FVector3f* InVertex):
 		HHitProxy(HPP_UI),
 		Brush(InBrush),
 		Vertex(InVertex)

@@ -24,7 +24,7 @@
 using AttributeTypes = TTuple
 <
 	FVector4,
-	FVector,
+	FVector3f,
 	FVector2D,
 	float,
 	int32,

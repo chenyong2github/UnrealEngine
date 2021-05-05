@@ -35,12 +35,12 @@ public:
 		*
 		*   VerticesGroup ("Vertices")
 		*
-		*			FVectorArray      Vertex         = GetAttribute<FVector>("Vertex", VerticesGroup)
+		*			FVectorArray      Vertex         = GetAttribute<FVector3f>("Vertex", VerticesGroup)
 		*			FInt32Array       BoneMap        = GetAttribute<Int32>("BoneMap", VerticesGroup, {"Transform"})
-		*           FVectorArray      Normal         = GetAttribute<FVector>("Normal", MaterialGroup)
+		*           FVectorArray      Normal         = GetAttribute<FVector3f>("Normal", MaterialGroup)
 		*           FVector2DArray    UV             = GetAttribute<FVector2D>("UV", MaterialGroup)
-		*           FVectorArray      TangentU       = GetAttribute<FVector>("TangentU", MaterialGroup)
-		*           FVectorArray      TangentV       = GetAttribute<FVector>("TangentV", MaterialGroup)
+		*           FVectorArray      TangentU       = GetAttribute<FVector3f>("TangentU", MaterialGroup)
+		*           FVectorArray      TangentV       = GetAttribute<FVector3f>("TangentV", MaterialGroup)
 		*           FLinearColorArray Color          = GetAttribute<FLinearColor>("Color", MaterialGroup)
 		*
 		*		The VerticesGroup will store per-vertex information about the geometry. For
@@ -247,12 +247,12 @@ public:
 	TManagedArray<int32>		ExemplarIndex;
 
 	// Vertices Group
-	TManagedArray<FVector>		Vertex;
+	TManagedArray<FVector3f>		Vertex;
 	TManagedArray<FVector2D>    UV;
 	TManagedArray<FLinearColor> Color;
-	TManagedArray<FVector>      TangentU;
-	TManagedArray<FVector>      TangentV;
-	TManagedArray<FVector>      Normal;
+	TManagedArray<FVector3f>      TangentU;
+	TManagedArray<FVector3f>      TangentV;
+	TManagedArray<FVector3f>      Normal;
 	TManagedArray<int32>        BoneMap;
 
 	// Faces Group

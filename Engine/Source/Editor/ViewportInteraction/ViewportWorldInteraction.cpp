@@ -3408,7 +3408,7 @@ FVector UViewportWorldInteraction::FindTransformGizmoAlignPoint(const FTransform
 	{
 		for (int32 PointAxis = 0; PointAxis < 3; ++PointAxis)
 		{
-			if (!FMath::IsNearlyZero(ConstraintAxes[PointAxis], 0.0001f))
+			if (!FMath::IsNearlyZero(ConstraintAxes[PointAxis], FVector::FReal(0.0001)))
 			{
 				NumberOfMatchesNeeded++;
 			}
@@ -3506,7 +3506,7 @@ FVector UViewportWorldInteraction::FindTransformGizmoAlignPoint(const FTransform
 				{
 					// If we are within the snap distance and can snap along that axis
 					if (FMath::Abs(DesiredGizmoLocalCandidateSnapPoint[PointAxis] - DesiredGizmoLocalGizmoSnapPoint[PointAxis]) <= AdjustedSnapDistance &&
-						(!FMath::IsNearlyZero(ConstraintAxes[PointAxis], 0.0001f) ||
+						(!FMath::IsNearlyZero(ConstraintAxes[PointAxis], (FVector::FReal)0.0001) ||
 							!bShouldConstrainMovement ))
 					{
 						NumberOfMatchingAxes++;

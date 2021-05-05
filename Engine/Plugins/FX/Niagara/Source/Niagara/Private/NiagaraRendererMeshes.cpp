@@ -722,7 +722,9 @@ void FNiagaraRendererMeshes::InitializeSortInfo(
 				const FSceneView* RightEyeView = AllViewsInFamily[ViewIndex + 1];
 				check(RightEyeView);
 				FVector RightEyePos;
-				GetViewMatrices(*RightEyeView, RightEyePos).GetViewProjectionMatrix().GetFrustumRightPlane(OutSortInfo.CullPlanes[5]);
+				FPlane CullPlane;
+				GetViewMatrices(*RightEyeView, RightEyePos).GetViewProjectionMatrix().GetFrustumRightPlane(CullPlane);
+				OutSortInfo.CullPlanes[5] = CullPlane;	// LWC_TODO: Perf pessimization
 			}
 			else
 			{

@@ -399,7 +399,7 @@ public:
 		}
 		else if(LightSceneInfo->Proxy->GetLightType() == LightType_Spot)
 		{
-			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilConeTransform, LightSceneInfo->Proxy->GetLightToWorld());
+			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilConeTransform, (FMatrix44f)LightSceneInfo->Proxy->GetLightToWorld());
 			SetShaderValue(
 				RHICmdList, 
 				RHICmdList.GetBoundVertexShader(),
@@ -409,7 +409,7 @@ public:
 					StencilingGeometry::FStencilConeIndexBuffer::NumSlices,
 					LightSceneInfo->Proxy->GetOuterConeAngle(),
 					LightSceneInfo->Proxy->GetRadius()));
-			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilPreViewTranslation, View.ViewMatrices.GetPreViewTranslation());
+			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilPreViewTranslation, (FVector3f)View.ViewMatrices.GetPreViewTranslation());
 		}
 	}
 

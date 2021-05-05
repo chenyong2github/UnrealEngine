@@ -117,7 +117,7 @@ FBoxSphereBounds UImagePlateFrustumComponent::CalcBounds(const FTransform& Local
 {
 	UImagePlateComponent* Parent = Cast<UImagePlateComponent>(GetAttachParent());
 	
-	FBox MaxBox({
+	FBox MaxBox(TArray<FVector>{
 		FVector(0,  1,  1),
 		FVector(0, -1,  1),
 		FVector(0,  1, -1),

@@ -4759,14 +4759,14 @@ UReplicationGraphNode_GridSpatialization2D::FActorCellInfo UReplicationGraphNode
 	}
 
 	FActorCellInfo CellInfo;
-	const float LocationBiasX = (ClampedLocation.X - SpatialBias.X);
-	const float LocationBiasY = (ClampedLocation.Y - SpatialBias.Y);
+	const auto LocationBiasX = (ClampedLocation.X - SpatialBias.X);
+	const auto LocationBiasY = (ClampedLocation.Y - SpatialBias.Y);
 
-	const float Dist = CullDistance;
-	const float MinX = LocationBiasX - Dist;
-	const float MinY = LocationBiasY - Dist;
-	float MaxX = LocationBiasX + Dist;
-	float MaxY = LocationBiasY + Dist;
+	const auto Dist = CullDistance;
+	const auto MinX = LocationBiasX - Dist;
+	const auto MinY = LocationBiasY - Dist;
+	auto MaxX = LocationBiasX + Dist;
+	auto MaxY = LocationBiasY + Dist;
 
 	if (GridBounds.IsValid)
 	{

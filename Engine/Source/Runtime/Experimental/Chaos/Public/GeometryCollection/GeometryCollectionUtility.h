@@ -35,10 +35,10 @@ namespace GeometryCollection
 		RestCollection->AddElements(TrianglesIn.Num(), FGeometryCollection::FacesGroup);
 		RestCollection->AddElements(1, FGeometryCollection::TransformGroup);
 
-		TManagedArray<FVector>& Vertices = RestCollection->Vertex;
-		TManagedArray<FVector>& Normals = RestCollection->Normal;
-		TManagedArray<FVector>& TangentU = RestCollection->TangentU;
-		TManagedArray<FVector>& TangentV = RestCollection->TangentV;
+		TManagedArray<FVector3f>& Vertices = RestCollection->Vertex;
+		TManagedArray<FVector3f>& Normals = RestCollection->Normal;
+		TManagedArray<FVector3f>& TangentU = RestCollection->TangentU;
+		TManagedArray<FVector3f>& TangentV = RestCollection->TangentV;
 		TManagedArray<FVector2D>& UVs = RestCollection->UV;
 		TManagedArray<FLinearColor>& Colors = RestCollection->Color;
 		TManagedArray<FIntVector>& Indices = RestCollection->Indices;
@@ -172,8 +172,8 @@ void GeometryCollection::AttributeTransfer(const FGeometryCollection * FromColle
 	const TManagedArray<T> &FromAttribute = FromCollection->GetAttribute<T>(FromAttributeName, FGeometryCollection::VerticesGroup);
 	TManagedArray<T> &ToAttribute = ToCollection->GetAttribute<T>(ToAttributeName, FGeometryCollection::VerticesGroup);
 
-	const TManagedArray<FVector> &FromVertex = FromCollection->Vertex;
-	TManagedArray<FVector> &ToVertex = ToCollection->Vertex;
+	const TManagedArray<FVector3f> &FromVertex = FromCollection->Vertex;
+	TManagedArray<FVector3f> &ToVertex = ToCollection->Vertex;
 
 	// for each vertex in ToCollection, find the closest in FromCollection based on vertex position
 	// #todo(dmp): should we be evaluating the transform hierarchy here, or just do it in local space?

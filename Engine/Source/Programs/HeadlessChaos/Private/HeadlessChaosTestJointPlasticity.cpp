@@ -39,7 +39,7 @@ namespace ChaosTest {
 		Test.AddParticleBox(FVec3(0, 30, 50), FRotation3::Identity, FVec3(10.f), 100.f);
 
 		FReal Angle = Test.Joints.GetConstraintSettings(0).AngularDrivePositionTarget.GetAngle() * (180. / PI);
-		EXPECT_TRUE(FMath::IsNearlyEqual(Angle, 0.f));
+		EXPECT_TRUE(FMath::IsNearlyEqual(Angle, (FReal)0.));
 
 		// Run the sim
 		for (int32 i = 0; i < NumIts; ++i)
@@ -55,7 +55,7 @@ namespace ChaosTest {
 		Angle = Test.Joints.GetConstraintSettings(0).AngularDrivePositionTarget.GetAngle() * (180. / PI);
 
 		// Nothing should have been reset
-		EXPECT_TRUE(FMath::IsNearlyEqual(Angle, 0.f));
+		EXPECT_TRUE(FMath::IsNearlyEqual(Angle, (FReal)0.));
 		
 	}
 
@@ -95,7 +95,7 @@ namespace ChaosTest {
 		Test.AddParticleBox(FVec3(0, 30, 50), FRotation3::Identity, FVec3(10.f), 100.f);
 
 		FReal Angle = Test.Joints.GetConstraintSettings(0).AngularDrivePositionTarget.GetAngle() * (180. / PI);
-		EXPECT_TRUE(FMath::IsNearlyEqual(Angle, 0.f));
+		EXPECT_TRUE(FMath::IsNearlyEqual(Angle, (FReal)0.));
 
 		// Run the sim
 		for (int32 i = 0; i < NumIts; ++i)
@@ -111,7 +111,7 @@ namespace ChaosTest {
 		Angle = Test.Joints.GetConstraintSettings(0).AngularDrivePositionTarget.GetAngle() * (180. / PI);
 
 		// The angle should have reset. 
-		EXPECT_FALSE(FMath::IsNearlyEqual(Angle, 0.f));
+		EXPECT_FALSE(FMath::IsNearlyEqual(Angle, (FReal)0.));
 		EXPECT_TRUE(FMath::IsNearlyEqual(Angle, PlasticityAngle, PlasticityAngle * 0.1f));
 
 	}
@@ -151,7 +151,7 @@ namespace ChaosTest {
 		Test.AddParticleBox(FVec3(0, 0, 100), FRotation3::Identity, FVec3(10.f), 100.f);
 
 		FReal DeltaPos = (Test.SOAs.GetDynamicParticles().X(0)).Size();
-		EXPECT_TRUE(FMath::IsNearlyEqual(DeltaPos, 50.f));
+		EXPECT_TRUE(FMath::IsNearlyEqual(DeltaPos, (FReal)50.));
 
 		// Run the sim
 		for (int32 i = 0; i < NumIts; ++i)
@@ -167,7 +167,7 @@ namespace ChaosTest {
 		FReal DeltaPosPost = (Test.SOAs.GetDynamicParticles().X(0)).Size();
 
 		// Nothing should have reset
-		EXPECT_TRUE(FMath::IsNearlyEqual(DeltaPosPost, DeltaPos, 5.f));
+		EXPECT_TRUE(FMath::IsNearlyEqual(DeltaPosPost, DeltaPos, (FReal)5.));
 
 	}
 
@@ -206,7 +206,7 @@ namespace ChaosTest {
 		Test.AddParticleBox(FVec3(0, 0, 100), FRotation3::Identity, FVec3(10.f), 100.f);
 
 		FReal DeltaPos = (Test.SOAs.GetDynamicParticles().X(0)).Size();
-		EXPECT_TRUE(FMath::IsNearlyEqual(DeltaPos, 50.f));
+		EXPECT_TRUE(FMath::IsNearlyEqual(DeltaPos, (FReal)50.));
 
 		// Run the sim
 		for (int32 i = 0; i < NumIts; ++i)

@@ -306,15 +306,22 @@ enum class EPropertyAccessCopyType : uint8
 	PromoteBoolToInt32,
 	PromoteBoolToInt64,
 	PromoteBoolToFloat,
+	PromoteBoolToDouble,
 
 	// Byte promotions
 	PromoteByteToInt32,
 	PromoteByteToInt64,
 	PromoteByteToFloat,
+	PromoteByteToDouble,
 
 	// Int32 promotions
 	PromoteInt32ToInt64,
 	PromoteInt32ToFloat,		// This is strictly sketchy because of potential data loss, but it is usually OK in the general case
+	PromoteInt32ToDouble,
+
+	// Float promotions		// LWC_TODO: Float/double should become synonyms?
+	PromoteFloatToDouble,
+	DemoteDoubleToFloat,	// LWC_TODO: This should not ship!
 };
 
 // A property copy, represents a one-to-many copy operation

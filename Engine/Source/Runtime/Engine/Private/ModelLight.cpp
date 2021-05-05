@@ -397,8 +397,8 @@ void UModelComponent::GetSurfaceLightMapResolution( int32 SurfaceIndex, int32 Qu
 	FBspSurf& Surf = Model->Surfs[SurfaceIndex];
 
 	// Find a plane parallel to the surface.
-	FVector MapX;
-	FVector MapY;
+	FVector3f MapX;
+	FVector3f MapY;
 	Surf.Plane.FindBestAxisVectors(MapX,MapY);
 
 	// Find the surface's nodes and the part of the plane they map to.
@@ -789,7 +789,7 @@ void UModel::GroupAllNodes(ULevel* Level, const TArray<ULightComponentBase*>& Li
 		if (Node.NumVertices > 0 && HasStaticLightingCache[Node.ComponentIndex])
 		{
 			const FBspSurf& Surf = Surfs[Node.iSurf];
-			PlaneMap.AddPlane(Surf.Plane, NodeIndex);
+			PlaneMap.AddPlane(FPlane(Surf.Plane), NodeIndex);	// LWC_TODO: Perf pessimization
 		}
 	}
 

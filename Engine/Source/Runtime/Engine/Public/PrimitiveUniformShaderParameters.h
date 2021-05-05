@@ -19,17 +19,17 @@
  * Note 2: Try to keep this 16 byte aligned. i.e |Matrix4x4|Vector3,float|Vector3,float|Vector4|  _NOT_  |Vector3,(waste padding)|Vector3,(waste padding)|Vector3. Or at least mark out padding if it can't be avoided.
  */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_API)
-	SHADER_PARAMETER(FMatrix,LocalToWorld)		// always needed
+	SHADER_PARAMETER(FMatrix44f,LocalToWorld)		// always needed
 	SHADER_PARAMETER_EX(FVector4,InvNonUniformScaleAndDeterminantSign,EShaderPrecisionModifier::Half) //often needed
 	SHADER_PARAMETER(FVector4,ObjectWorldPositionAndRadius)	// needed by some materials
-	SHADER_PARAMETER(FMatrix,WorldToLocal)		// rarely needed
-	SHADER_PARAMETER(FMatrix,PreviousLocalToWorld)	// Used to calculate velocity
-	SHADER_PARAMETER(FMatrix,PreviousWorldToLocal)	// rarely used when calculating velocity, if material uses vertex offset along with world->local transform
+	SHADER_PARAMETER(FMatrix44f,WorldToLocal)		// rarely needed
+	SHADER_PARAMETER(FMatrix44f,PreviousLocalToWorld)	// Used to calculate velocity
+	SHADER_PARAMETER(FMatrix44f,PreviousWorldToLocal)	// rarely used when calculating velocity, if material uses vertex offset along with world->local transform
 
-	SHADER_PARAMETER(FVector,ActorWorldPosition)
+	SHADER_PARAMETER(FVector3f,ActorWorldPosition)
 	SHADER_PARAMETER_EX(float,UseSingleSampleShadowFromStationaryLights,EShaderPrecisionModifier::Half)	
 
-	SHADER_PARAMETER(FVector,ObjectBounds)		// only needed for editor/development
+	SHADER_PARAMETER(FVector3f,ObjectBounds)		// only needed for editor/development
 
 	SHADER_PARAMETER_EX(float,DecalReceiverMask,EShaderPrecisionModifier::Half)
 	SHADER_PARAMETER_EX(float,PerObjectGBufferData,EShaderPrecisionModifier::Half)		// 0..1, 2 bits, bCastContactShadow, bHeightfieldRepresentation
@@ -38,13 +38,13 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 
 	SHADER_PARAMETER_EX(FVector4,ObjectOrientation,EShaderPrecisionModifier::Half)
 	SHADER_PARAMETER_EX(FVector4,NonUniformScale,EShaderPrecisionModifier::Half)
-	SHADER_PARAMETER(FVector, LocalObjectBoundsMin)		// This is used in a custom material function (ObjectLocalBounds.uasset)
+	SHADER_PARAMETER(FVector3f, LocalObjectBoundsMin)		// This is used in a custom material function (ObjectLocalBounds.uasset)
 	SHADER_PARAMETER(uint32,  LightingChannelMask)
-	SHADER_PARAMETER(FVector, LocalObjectBoundsMax)		// This is used in a custom material function (ObjectLocalBounds.uasset)
+	SHADER_PARAMETER(FVector3f, LocalObjectBoundsMax)		// This is used in a custom material function (ObjectLocalBounds.uasset)
 	SHADER_PARAMETER(uint32,  LightmapDataIndex)
-	SHADER_PARAMETER(FVector, PreSkinnedLocalBoundsMin)	// Local space min bounds, pre-skinning
+	SHADER_PARAMETER(FVector3f, PreSkinnedLocalBoundsMin)	// Local space min bounds, pre-skinning
 	SHADER_PARAMETER(int32, SingleCaptureIndex)			// Should default to 0 if no reflection captures are provided, as there will be a default black (0,0,0,0) cubemap in that slot
-	SHADER_PARAMETER(FVector, PreSkinnedLocalBoundsMax)	// Local space bounds, pre-skinning
+	SHADER_PARAMETER(FVector3f, PreSkinnedLocalBoundsMax)	// Local space bounds, pre-skinning
 	SHADER_PARAMETER(uint32, OutputVelocity)
 	SHADER_PARAMETER(uint32, LightmapUVIndex)
 	SHADER_PARAMETER(uint32, InstanceDataOffset)
@@ -81,9 +81,9 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 {
 	FPrimitiveUniformShaderParameters Result;
 	Result.LocalToWorld = LocalToWorld;
-	Result.WorldToLocal = LocalToWorld.Inverse();
-	Result.PreviousLocalToWorld = PreviousLocalToWorld;
-	Result.PreviousWorldToLocal = PreviousLocalToWorld.Inverse();
+	Result.WorldToLocal = (FMatrix44f)LocalToWorld.Inverse();
+	Result.PreviousLocalToWorld = (FMatrix44f)PreviousLocalToWorld;
+	Result.PreviousWorldToLocal = (FMatrix44f)PreviousLocalToWorld.Inverse();
 	Result.ObjectWorldPositionAndRadius = FVector4(WorldBounds.Origin, WorldBounds.SphereRadius);
 	Result.ObjectBounds = WorldBounds.BoxExtent;
 	Result.LocalObjectBoundsMin = LocalBounds.GetBoxExtrema(0); // 0 == minimum
@@ -91,7 +91,7 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	Result.PreSkinnedLocalBoundsMin = PreSkinnedLocalBounds.GetBoxExtrema(0); // 0 == minimum
 	Result.PreSkinnedLocalBoundsMax = PreSkinnedLocalBounds.GetBoxExtrema(1); // 1 == maximum
 	Result.ObjectOrientation = LocalToWorld.GetUnitAxis( EAxis::Z );
-	Result.ActorWorldPosition = ActorPosition;
+	Result.ActorWorldPosition = (FVector3f)ActorPosition;
 	Result.LightingChannelMask = LightingChannelMask;
 
 	{
@@ -194,7 +194,7 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 }
 
 inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUniformBufferImmediate(
-	const FMatrix& LocalToWorld,
+	const FMatrix44f& LocalToWorld,
 	const FBoxSphereBounds& WorldBounds,
 	const FBoxSphereBounds& LocalBounds,
 	const FBoxSphereBounds& PreSkinnedLocalBounds,
@@ -234,12 +234,12 @@ inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUnifo
 
 inline FPrimitiveUniformShaderParameters GetIdentityPrimitiveParameters()
 {
-	//don't use FMatrix::Identity here as GetIdentityPrimitiveParameters is used by TGlobalResource<FIdentityPrimitiveUniformBuffer> and because static initialization order is undefined
-	//FMatrix::Identiy might be all 0's or random data the first time this is called.
+	//don't use FMatrix44f::Identity here as GetIdentityPrimitiveParameters is used by TGlobalResource<FIdentityPrimitiveUniformBuffer> and because static initialization order is undefined
+	//FMatrix44f::Identiy might be all 0's or random data the first time this is called.
 	return GetPrimitiveUniformShaderParameters(
-		FMatrix(FPlane(1, 0, 0, 0), FPlane(0, 1, 0, 0), FPlane(0, 0, 1, 0), FPlane(0, 0, 0, 1)),
-		FMatrix(FPlane(1, 0, 0, 0), FPlane(0, 1, 0, 0), FPlane(0, 0, 1, 0), FPlane(0, 0, 0, 1)),
-		FVector(0.0f, 0.0f, 0.0f),
+		FMatrix44f(FPlane4f(1, 0, 0, 0), FPlane4f(0, 1, 0, 0), FPlane4f(0, 0, 1, 0), FPlane4f(0, 0, 0, 1)),
+		FMatrix44f(FPlane4f(1, 0, 0, 0), FPlane4f(0, 1, 0, 0), FPlane4f(0, 0, 1, 0), FPlane4f(0, 0, 0, 1)),
+		FVector3f(0.0f, 0.0f, 0.0f),
 		FBoxSphereBounds(EForceInit::ForceInit),
 		FBoxSphereBounds(EForceInit::ForceInit),
 		true,

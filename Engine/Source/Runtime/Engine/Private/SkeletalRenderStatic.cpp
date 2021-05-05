@@ -164,9 +164,9 @@ TArray<FTransform>* FSkeletalMeshObjectStatic::GetComponentSpaceTransforms() con
 	return nullptr;
 }
 
-const TArray<FMatrix>& FSkeletalMeshObjectStatic::GetReferenceToLocalMatrices() const
+const TArray<FMatrix44f>& FSkeletalMeshObjectStatic::GetReferenceToLocalMatrices() const
 {
-	static TArray<FMatrix> ReferenceToLocalMatrices;
+	static TArray<FMatrix44f> ReferenceToLocalMatrices;
 	return ReferenceToLocalMatrices;
 }
 

@@ -111,63 +111,62 @@ double FGenericPlatformMath::Atan2(double Y, double X)
 	t0 = t0 * t4 + c[6];
 	t3 = t0 * t3;
 
-	t3 = yAbsBigger ? (0.5 * PI) - t3 : t3;
-	t3 = (X < 0.0) ? PI - t3 : t3;
+	t3 = yAbsBigger ? (0.5 * DOUBLE_PI) - t3 : t3;
+	t3 = (X < 0.0) ? DOUBLE_PI - t3 : t3;
 	t3 = (Y < 0.0) ? -t3 : t3;
 
 	return t3;
 }
 
-/*FORCENOINLINE*/ float FGenericPlatformMath::Fmod(float X, float Y)
+
+float FGenericPlatformMath::Fmod(float X, float Y)
 {
-	const float AbsY = fabsf(Y);
+	const float AbsY = FMath::Abs(Y);
 	if (AbsY <= 1.e-8f)
 	{
 		FmodReportError(X, Y);
-		return 0.f;
-	}
-	const float Div = (X / Y);
-	// All floats where abs(f) >= 2^23 (8388608) are whole numbers so do not need truncation, and avoid overflow in TruncToFloat as they get even larger.
-	const float Quotient = fabsf(Div) < FLOAT_NON_FRACTIONAL ? TruncToFloat(Div) : Div;
-	float IntPortion = Y * Quotient;
-
-	// Rounding and imprecision could cause IntPortion to exceed X and cause the result to be outside the expected range.
-	// For example Fmod(55.8, 9.3) would result in a very small negative value!
-	if (fabsf(IntPortion) > fabsf(X))
-	{
-		IntPortion = X;
+		return 0.0;
 	}
 
-	const float Result = X - IntPortion;
-	// Clamp to [-AbsY, AbsY] because of possible failures for very large numbers (>1e10) due to precision loss.
-	// We could instead fall back to stock fmodf() for large values, however this would diverge from the SIMD VectorMod() which has no similar fallback with reasonable performance.
-	return FMath::Clamp(Result, -AbsY, AbsY);
+	// Convert to double for better precision, since intermediate rounding can lose enough precision to skew the result.
+	const double DX = double(X);
+	const double DY = double(Y);
+
+	const double Div = (DX / DY);
+	const double IntPortion = DY * TruncToDouble(Div);
+	const double Result = DX - IntPortion;
+	// Convert back to float. This is safe because the result will by definition not exceed the X input.
+	return float(Result);
 }
 
-/*FORCENOINLINE*/ double FGenericPlatformMath::Fmod(double X, double Y)
+double FGenericPlatformMath::Fmod(double X, double Y)
 {
-	const double AbsY = fabs(Y);
+	const double AbsY = FMath::Abs(Y);
 	if (AbsY <= 1.e-8)
 	{
 		FmodReportError(X, Y);
 		return 0.0;
 	}
+
+#if 1
+	// Due to the lack of standard support across platforms for `long double`, we can't rely on this to always minimize the intermediate precision loss of division and multiplication.
+	// As a result, due to small precision loss the result here could be different than the std library version of fmod(), but our validation tests in UnrealMathTest should show
+	// that when different the results are within a small delta from either 0 or the value of Y. We could just use the library version here of course, but it is slower and also will not
+	// match the vectorized versions of Fmod (VectorRegisterMod) that use division and truncation.
 	const double Div = (X / Y);
-	// All doubles where abs(f) >= 2^52 (4503599627370496.0) are whole numbers so do not need truncation, and avoid overflow in TruncToDouble as they get even larger.
-	const double Quotient = fabs(Div) < DOUBLE_NON_FRACTIONAL ? TruncToDouble(Div) : Div;
-	double IntPortion = Y * Quotient;
-
-	// Rounding and imprecision could cause IntPortion to exceed X and cause the result to be outside the expected range.
-	// For example Fmod(55.8, 9.3) would result in a very small negative value!
-	if (fabs(IntPortion) > fabs(X))
-	{
-		IntPortion = X;
-	}
-
+	const double IntPortion = Y * FMath::TruncToDouble(Div);
 	const double Result = X - IntPortion;
-	// Clamp to [-AbsY, AbsY] because of possible failures for very large numbers (>1e10) due to precision loss.
-	// We could instead fall back to stock fmodf() for large values, however this would diverge from the SIMD VectorMod() which has no similar fallback with reasonable performance.
-	return FMath::Clamp(Result, -AbsY, AbsY);
+	return Result;
+#elif 0
+	const long double LDX = (long double)(X);
+	const long double LDY = (long double)(Y);
+	const long double Div = (LDX / LDY);
+	const long double IntPortion = LDY * truncl(Div);
+	const long double Result = LDX - IntPortion;
+	return double(Result);
+#else
+	return fmod(X, Y);
+#endif
 }
 
 void FGenericPlatformMath::FmodReportError(float X, float Y)

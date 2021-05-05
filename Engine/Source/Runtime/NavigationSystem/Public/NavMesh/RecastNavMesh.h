@@ -84,7 +84,7 @@ struct FRecastDebugPathfindingNode
 	float Length;
 
 	FVector NodePos;
-	TArray<FVector, TInlineAllocator<6> > Verts;
+	TArray<FVector3f, TInlineAllocator<6> > Verts;
 	uint8 NumVerts;
 
 	uint8 bOpenSet : 1;

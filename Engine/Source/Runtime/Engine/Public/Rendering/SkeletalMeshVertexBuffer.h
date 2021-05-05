@@ -21,7 +21,7 @@ struct TGPUSkinVertexBase
 	// Normal
 	FPackedNormal	TangentZ;
 
-	FORCEINLINE FVector GetTangentY() const
+	FORCEINLINE FVector3f GetTangentY() const
 	{
 		return GenerateYAxis(TangentX, TangentZ);
 	}
@@ -41,7 +41,7 @@ struct TGPUSkinVertexFloat16Uvs : public TGPUSkinVertexBase
 	constexpr static EStaticMeshVertexUVType StaticMeshVertexUVType = EStaticMeshVertexUVType::Default;
 
 	/** full float position **/
-	FVector			Position;
+	FVector3f			Position;
 	/** half float UVs */
 	FVector2DHalf	UVs[NumTexCoords];
 
@@ -76,7 +76,7 @@ struct TGPUSkinVertexFloat32Uvs : public TGPUSkinVertexBase
 	constexpr static EStaticMeshVertexUVType StaticMeshVertexUVType = EStaticMeshVertexUVType::HighPrecision;
 
 	/** full float position **/
-	FVector			Position;
+	FVector3f			Position;
 	/** full float UVs */
 	FVector2D UVs[NumTexCoords];
 

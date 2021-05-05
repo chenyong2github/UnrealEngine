@@ -344,7 +344,7 @@ class FClearCompressedAtlasCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint4>, RWAtlasBlock4)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint2>, RWAtlasBlock2)
-		SHADER_PARAMETER(FVector, ClearValue)
+		SHADER_PARAMETER(FVector3f, ClearValue)
 		SHADER_PARAMETER(FIntPoint, OutputAtlasSize)
 	END_SHADER_PARAMETER_STRUCT()
 

@@ -154,7 +154,7 @@ FCombinedGraphDataSource::FCombinedGraphDataSource( const uint32 InStatID, const
 const FVector FCombinedGraphDataSource::GetUncachedValueFromTimeRange( const float StartTimeMS, const float EndTimeMS ) const
 {
 	// X=Min, Y=Max, Z=Avg
-	FVector AggregatedValue( (TGraphDataType)MAX_int32, (TGraphDataType)MIN_int32, 0.0f );
+	FVector3f AggregatedValue( (TGraphDataType)MAX_int32, (TGraphDataType)MIN_int32, 0.0f );
 
 	const uint32 NumSources = GraphDataSources.Num();
 	const float InvNumSources = 1.0f / (float)NumSources;

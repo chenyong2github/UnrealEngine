@@ -1229,16 +1229,16 @@ FVector2D FWorldTileCollectionModel::SnapTranslationDelta(const FLevelModelList&
 						MovingLevelsBBoxExpected.Min.Y);
 	
 	// Test axis values
-	float TestPointsX1[4] = {	MovingLevelsBBoxExpected.Min.X, 
-								MovingLevelsBBoxExpected.Min.X, 
-								MovingLevelsBBoxExpected.Max.X, 
-								MovingLevelsBBoxExpected.Max.X 
+	float TestPointsX1[4] = {	(float)MovingLevelsBBoxExpected.Min.X, 
+								(float)MovingLevelsBBoxExpected.Min.X, 
+								(float)MovingLevelsBBoxExpected.Max.X, 
+								(float)MovingLevelsBBoxExpected.Max.X 
 	};
 
-	float TestPointsY1[4] = {	MovingLevelsBBoxExpected.Min.Y, 
-								MovingLevelsBBoxExpected.Min.Y, 
-								MovingLevelsBBoxExpected.Max.Y, 
-								MovingLevelsBBoxExpected.Max.Y 
+	float TestPointsY1[4] = {	(float)MovingLevelsBBoxExpected.Min.Y, 
+								(float)MovingLevelsBBoxExpected.Min.Y, 
+								(float)MovingLevelsBBoxExpected.Max.Y, 
+								(float)MovingLevelsBBoxExpected.Max.Y 
 	};
 	
 	for (auto It = StaticTileList.CreateConstIterator(); It; ++It)
@@ -1252,10 +1252,10 @@ FVector2D FWorldTileCollectionModel::SnapTranslationDelta(const FLevelModelList&
 		{
 
 			// Find closest X value
-			float TestPointsX2[4] = {	StaticLevelBBox.Min.X, 
-										StaticLevelBBox.Max.X, 
-										StaticLevelBBox.Min.X, 
-										StaticLevelBBox.Max.X 
+			FVector::FReal TestPointsX2[4] = {	(float)StaticLevelBBox.Min.X, 
+										(float)StaticLevelBBox.Max.X, 
+										(float)StaticLevelBBox.Min.X, 
+										(float)StaticLevelBBox.Max.X 
 			};
 
 			for (int32 i = 0; i < 4; i++)
@@ -1270,10 +1270,10 @@ FVector2D FWorldTileCollectionModel::SnapTranslationDelta(const FLevelModelList&
 			}
 			
 			// Find closest Y value
-			float TestPointsY2[4] = {	StaticLevelBBox.Min.Y, 
-										StaticLevelBBox.Max.Y, 
-										StaticLevelBBox.Min.Y, 
-										StaticLevelBBox.Max.Y 
+			float TestPointsY2[4] = {	(float)StaticLevelBBox.Min.Y, 
+										(float)StaticLevelBBox.Max.Y, 
+										(float)StaticLevelBBox.Min.Y, 
+										(float)StaticLevelBBox.Max.Y 
 			};
 
 			for (int32 i = 0; i < 4; i++)
@@ -1315,7 +1315,7 @@ FVector2D FWorldTileCollectionModel::SnapTranslationDeltaLandscape(const TShared
 																	float SnappingDistance)
 {
 	ALandscapeProxy* Landscape = LandscapeTile->GetLandscape();
-	FVector ComponentScale = Landscape->GetRootComponent()->GetRelativeScale3D()*Landscape->ComponentSizeQuads;
+	FVector3f ComponentScale = Landscape->GetRootComponent()->GetRelativeScale3D()*Landscape->ComponentSizeQuads;
 	
 	return FVector2D(	FMath::GridSnap(InAbsoluteDelta.X, ComponentScale.X),
 						FMath::GridSnap(InAbsoluteDelta.Y, ComponentScale.Y));
@@ -2174,7 +2174,7 @@ bool FWorldTileCollectionModel::GenerateLODLevels(FLevelModelList InLevelList, i
 		
 			Landscape->ExportToRawMesh(LandscapeLOD, *LandscapeRawMesh);
 		
-			TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+			TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 			for (const FVertexID VertexID : LandscapeRawMesh->Vertices().GetElementIDs())
 			{
 				VertexPositions[VertexID] -= LandscapeWorldLocation;

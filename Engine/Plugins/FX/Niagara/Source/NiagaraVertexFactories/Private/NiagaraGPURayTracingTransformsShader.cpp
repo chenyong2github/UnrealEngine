@@ -53,7 +53,7 @@ void FNiagaraGPURayTracingTransformsCS::SetParameters(
 
 	RHICmdList.SetShaderParameter(ComputeShaderRHI, NiagaraOffsetsParam.GetBufferIndex(), NiagaraOffsetsParam.GetBaseIndex(), NiagaraOffsetsParam.GetNumBytes(), &NiagaraOffsets);
 
-	SetShaderValue(RHICmdList, ComputeShaderRHI, LocalToWorldParam, PrimitiveLocalToWorld);
+	SetShaderValue(RHICmdList, ComputeShaderRHI, LocalToWorldParam, (FMatrix44f)PrimitiveLocalToWorld);
 
 	RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, NiagaraParticleDataFloat.GetBaseIndex(), NiagaraFloatBuffer);
 	RHICmdList.SetShaderParameter(ComputeShaderRHI, FloatDataOffset.GetBufferIndex(), FloatDataOffset.GetBaseIndex(), FloatDataOffset.GetNumBytes(), &FloatDataOffsetValue);

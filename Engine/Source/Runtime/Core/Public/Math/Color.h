@@ -55,7 +55,8 @@ struct FLinearColor
 	 */
 	CORE_API FLinearColor(const FColor& Color);
 
-	CORE_API FLinearColor(const FVector& Vector);
+	CORE_API FLinearColor(const FVector3f& Vector);
+	CORE_API FLinearColor(const FVector3d& Vector);
 
 	CORE_API explicit FLinearColor(const FVector4& Vector);
 	

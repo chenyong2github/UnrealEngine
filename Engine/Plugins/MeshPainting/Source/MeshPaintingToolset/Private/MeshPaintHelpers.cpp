@@ -138,12 +138,12 @@ bool UMeshPaintingSubsystem::PropagateColorsToRawMesh(UStaticMesh* StaticMesh, i
 		FStaticMeshAttributes Attributes(*MeshDescription);
 
 		// Fall back to mapping based on position.
-		TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+		TVertexAttributesConstRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 		TVertexInstanceAttributesRef<FVector4> Colors = Attributes.GetVertexInstanceColors();
 		TArray<FColor> NewVertexColors;
 		FPositionVertexBuffer TempPositionVertexBuffer;
 		int32 NumVertex = MeshDescription->Vertices().Num();
-		TArray<FVector> VertexPositionsDup;
+		TArray<FVector3f> VertexPositionsDup;
 		VertexPositionsDup.AddZeroed(NumVertex);
 		int32 VertexIndex = 0;
 		for (const FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())

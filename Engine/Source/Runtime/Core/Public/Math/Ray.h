@@ -53,7 +53,7 @@ public:
 	 * @param RayParameter Scalar distance along Ray
 	 * @return Point on Ray
 	 */
-	FVector PointAt(float RayParameter) const
+	FVector PointAt(FVector::FReal RayParameter) const
 	{
 		return Origin + RayParameter * Direction;
 	}
@@ -64,7 +64,7 @@ public:
 	 * @param Point query Point
 	 * @return distance along ray from origin to closest point
 	 */
-	float GetParameter(const FVector& Point) const
+	FVector::FReal GetParameter(const FVector& Point) const
 	{
 		return FVector::DotProduct((Point - Origin), Direction);
 	}
@@ -75,9 +75,9 @@ public:
 	 * @param Point query Point
 	 * @return squared distance to Ray
 	 */
-	float DistSquared(const FVector& Point) const
+	FVector::FReal DistSquared(const FVector& Point) const
 	{
-		float RayParameter = FVector::DotProduct((Point - Origin), Direction);
+		FVector::FReal RayParameter = FVector::DotProduct((Point - Origin), Direction);
 		if (RayParameter < 0)
 		{
 			return FVector::DistSquared(Origin, Point);
@@ -96,7 +96,7 @@ public:
 	 */
 	FVector ClosestPoint(const FVector& Point) const
 	{
-		float RayParameter = FVector::DotProduct((Point - Origin), Direction);
+		FVector::FReal RayParameter = FVector::DotProduct((Point - Origin), Direction);
 		if (RayParameter < 0) 
 		{
 			return Origin;

@@ -33,7 +33,7 @@ static TMap<EARObjectClassification, FLinearColor> ClassificationColors =
 	{ EARObjectClassification::Door, FLinearColor::Red },
 };
 
-template <class TComponent>
+template <class FReal>
 void NotifyDebugModeUpdated()
 {
 #if AR_DEBUG_MODE
@@ -42,7 +42,7 @@ void NotifyDebugModeUpdated()
 		return;
 	}
 	
-	for (TObjectIterator<TComponent> ComponentItr; ComponentItr; ++ComponentItr)
+	for (TObjectIterator<FReal> ComponentItr; ComponentItr; ++ComponentItr)
 	{
 		auto Component = *ComponentItr;
 		if (Component->GetOwner())

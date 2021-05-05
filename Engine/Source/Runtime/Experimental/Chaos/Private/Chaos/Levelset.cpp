@@ -1392,7 +1392,7 @@ FReal FLevelSet::PhiWithNormal(const FVec3& x, FVec3& Normal) const
 	FReal SizeSquared = (Location - x).SizeSquared();
 	if (SizeSquared)
 	{
-		MLocalBoundingBox.PhiWithNormal(x, Normal);
+		MLocalBoundingBox.PhiWithNormal(Location, Normal);
 	}
 	else
 	{

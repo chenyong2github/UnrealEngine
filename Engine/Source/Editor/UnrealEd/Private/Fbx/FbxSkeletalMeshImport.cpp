@@ -1473,7 +1473,7 @@ bool UnFbx::FFbxImporter::FillSkeletalMeshImportPoints(FSkeletalMeshImportData* 
 bool UnFbx::FFbxImporter::GatherPointsForMorphTarget(FSkeletalMeshImportData* OutData, TArray<FbxNode*>& NodeArray, TArray< FbxShape* >* FbxShapeArray, TSet<uint32>& ModifiedPoints)
 {
 	check(OutData);
-	TArray<FVector> CompressPoints;
+	TArray<FVector3f> CompressPoints;
 	CompressPoints.Reserve(OutData->Points.Num());
 	FSkeletalMeshImportData NewImportData = *OutData;
 	NewImportData.Points.Empty();
@@ -1854,7 +1854,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 
 	if(ImportSkeletalMeshArgs.bCreateRenderData )
 	{
-		TArray<FVector> LODPoints;
+		TArray<FVector3f> LODPoints;
 		TArray<SkeletalMeshImportData::FMeshWedge> LODWedges;
 		TArray<SkeletalMeshImportData::FMeshFace> LODFaces;
 		TArray<SkeletalMeshImportData::FVertInfluence> LODInfluences;

@@ -86,7 +86,7 @@ protected:
 
 private:
 
-	FVector CachedMoveInput;
+	FVector3f CachedMoveInput;
 	FVector2D CachedLookInput;
 
 	void InputAxis_MoveForward(float Value);

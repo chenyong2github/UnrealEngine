@@ -2483,7 +2483,7 @@ void UInstancedStaticMeshComponent::GetLightAndShadowMapMemoryUsage( int32& Ligh
 // Deprecated version of PerInstanceSMData
 struct FInstancedStaticMeshInstanceData_DEPRECATED
 {
-	FMatrix Transform;
+	FMatrix44f Transform;
 	FVector2D LightmapUVBias;
 	FVector2D ShadowmapUVBias;
 	
@@ -2638,7 +2638,8 @@ void UInstancedStaticMeshComponent::Serialize(FArchive& Ar)
 	else
 #endif //WITH_EDITOR
 	{
-		PerInstanceSMData.BulkSerialize(Ar);
+		// LWC_TODO: Perf pessimization. PerInstance data contains an FMatrix so can't be bulk serialized
+		PerInstanceSMData.BulkSerialize(Ar, true);
 	}
 
 	if (!Ar.IsLoading() || Ar.CustomVer(FRenderingObjectVersion::GUID) >= FRenderingObjectVersion::PerInstanceCustomData)

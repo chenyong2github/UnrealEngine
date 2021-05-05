@@ -1215,9 +1215,9 @@ float UKismetMathLibrary::WeightedMovingAverage_Float(float CurrentSample, float
 FVector UKismetMathLibrary::WeightedMovingAverage_FVector(FVector CurrentSample, FVector PreviousSample, float Weight)
 {
 	FVector OutVector;
-	OutVector.X = FMath::WeightedMovingAverage(CurrentSample.X, PreviousSample.X, Weight);
-	OutVector.Y = FMath::WeightedMovingAverage(CurrentSample.Y, PreviousSample.Y, Weight);
-	OutVector.Z = FMath::WeightedMovingAverage(CurrentSample.Z, PreviousSample.Z, Weight);
+	OutVector.X = FMath::WeightedMovingAverage<FVector::FReal>(CurrentSample.X, PreviousSample.X, Weight);
+	OutVector.Y = FMath::WeightedMovingAverage<FVector::FReal>(CurrentSample.Y, PreviousSample.Y, Weight);
+	OutVector.Z = FMath::WeightedMovingAverage<FVector::FReal>(CurrentSample.Z, PreviousSample.Z, Weight);
 	return OutVector;
 }
 
@@ -1238,9 +1238,9 @@ float UKismetMathLibrary::DynamicWeightedMovingAverage_Float(float CurrentSample
 FVector UKismetMathLibrary::DynamicWeightedMovingAverage_FVector(FVector CurrentSample, FVector PreviousSample, float MaxDistance, float MinWeight, float MaxWeight)
 {
 	FVector OutVector;
-	OutVector.X = FMath::DynamicWeightedMovingAverage(CurrentSample.X, PreviousSample.X, MaxDistance, MinWeight, MaxWeight);
-	OutVector.Y = FMath::DynamicWeightedMovingAverage(CurrentSample.Y, PreviousSample.Y, MaxDistance, MinWeight, MaxWeight);
-	OutVector.Z = FMath::DynamicWeightedMovingAverage(CurrentSample.Z, PreviousSample.Z, MaxDistance, MinWeight, MaxWeight);
+	OutVector.X = FMath::DynamicWeightedMovingAverage<FVector::FReal>(CurrentSample.X, PreviousSample.X, MaxDistance, MinWeight, MaxWeight);
+	OutVector.Y = FMath::DynamicWeightedMovingAverage<FVector::FReal>(CurrentSample.Y, PreviousSample.Y, MaxDistance, MinWeight, MaxWeight);
+	OutVector.Z = FMath::DynamicWeightedMovingAverage<FVector::FReal>(CurrentSample.Z, PreviousSample.Z, MaxDistance, MinWeight, MaxWeight);
 	return OutVector;
 }
 

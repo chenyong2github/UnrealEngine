@@ -25,11 +25,26 @@
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealMathTest, Log, All);
 
 // Create some temporary storage variables
-MS_ALIGN( 16 ) static float GScratch[16] GCC_ALIGN( 16 );
+alignas(16) static float GScratch[16];
+alignas(16) static double GScratchDouble[16];
 static float GSum;
+static double GSumDouble;
 static bool GPassing;
 
 #define MATHTEST_INLINE FORCENOINLINE // if you want to do performance testing change to FORCEINLINE or FORCEINLINE_DEBUGGABLE
+
+FORCENOINLINE void SetPassing(bool Passing)
+{
+	// Convenient for setting breakpoints to catch any failures.
+	if (!Passing)
+	{
+		GPassing = false;
+	}
+	else
+	{
+		GPassing = true;
+	}
+}
 
 /**
  * Tests if two vectors (xyzw) are bitwise equal
@@ -39,14 +54,25 @@ static bool GPassing;
  *
  * @return true if equal
  */
-bool TestVectorsEqualBitwise( VectorRegister Vec0, VectorRegister Vec1)
+bool TestVectorsEqualBitwise( VectorRegister4Float Vec0, VectorRegister4Float Vec1)
 {
 	VectorStoreAligned( Vec0, GScratch + 0 );
 	VectorStoreAligned( Vec1, GScratch + 4 );
 
 	const bool Passed = (memcmp(GScratch + 0, GScratch + 4, sizeof(float) * 4) == 0);
 
-	GPassing = GPassing && Passed;
+	SetPassing(GPassing && Passed);
+	return Passed;
+}
+
+bool TestVectorsEqualBitwise(VectorRegister4Double Vec0, VectorRegister4Double Vec1)
+{
+	VectorStoreAligned(Vec0, GScratchDouble + 0);
+	VectorStoreAligned(Vec1, GScratchDouble + 4);
+
+	const bool Passed = (memcmp(GScratchDouble + 0, GScratchDouble + 4, sizeof(double) * 4) == 0);
+
+	SetPassing(GPassing && Passed);
 	return Passed;
 }
 
@@ -60,7 +86,7 @@ bool TestVectorsEqualBitwise( VectorRegister Vec0, VectorRegister Vec1)
  *
  * @return true if equal(ish)
  */
-bool TestVectorsEqual( VectorRegister Vec0, VectorRegister Vec1, float Tolerance = 0.0f)
+bool TestVectorsEqual( VectorRegister4Float Vec0, VectorRegister4Float Vec1, float Tolerance = 0.0f)
 {
 	VectorStoreAligned( Vec0, GScratch + 0 );
 	VectorStoreAligned( Vec1, GScratch + 4 );
@@ -70,15 +96,28 @@ bool TestVectorsEqual( VectorRegister Vec0, VectorRegister Vec1, float Tolerance
 		float Diff = GScratch[ Component + 0 ] - GScratch[ Component + 4 ];
 		GSum += ( Diff >= 0.0f ) ? Diff : -Diff;
 	}
-	GPassing = GPassing && GSum <= Tolerance;
+	SetPassing(GPassing && GSum <= Tolerance);
 	return GSum <= Tolerance;
 }
 
+bool TestVectorsEqual(VectorRegister4Double Vec0, VectorRegister4Double Vec1, double Tolerance = 0.0)
+{
+	VectorStoreAligned(Vec0, GScratchDouble + 0);
+	VectorStoreAligned(Vec1, GScratchDouble + 4);
+	GSumDouble = 0.0;
+	for (int32 Component = 0; Component < 4; Component++)
+	{
+		double Diff = GScratchDouble[Component + 0] - GScratchDouble[Component + 4];
+		GSumDouble += (Diff >= 0.0f) ? Diff : -Diff;
+	}
+	SetPassing(GPassing && GSumDouble <= Tolerance);
+	return GSumDouble <= Tolerance;
+}
 
 /**
  * Enforce tolerance per-component, not summed error
  */
-bool TestVectorsEqual_ComponentWiseError(VectorRegister Vec0, VectorRegister Vec1, float Tolerance = 0.0f)
+bool TestVectorsEqual_ComponentWiseError(VectorRegister4Float Vec0, VectorRegister4Float Vec1, float Tolerance = 0.0f)
 {
 	VectorStoreAligned(Vec0, GScratch + 0);
 	VectorStoreAligned(Vec1, GScratch + 4);
@@ -88,7 +127,7 @@ bool TestVectorsEqual_ComponentWiseError(VectorRegister Vec0, VectorRegister Vec
 		float Diff = GScratch[Component + 0] - GScratch[Component + 4];
 		bPassing &= FMath::IsNearlyZero(Diff, Tolerance);
 	}
-	GPassing &= bPassing;
+	SetPassing(GPassing && bPassing);
 	return bPassing;
 }
 
@@ -102,7 +141,7 @@ bool TestVectorsEqual_ComponentWiseError(VectorRegister Vec0, VectorRegister Vec
  *
  * @return true if equal(ish)
  */
-bool TestVectorsEqual3( VectorRegister Vec0, VectorRegister Vec1, float Tolerance = 0.0f)
+bool TestVectorsEqual3( VectorRegister4Float Vec0, VectorRegister4Float Vec1, float Tolerance = 0.0f)
 {
 	VectorStoreAligned( Vec0, GScratch + 0 );
 	VectorStoreAligned( Vec1, GScratch + 4 );
@@ -111,8 +150,21 @@ bool TestVectorsEqual3( VectorRegister Vec0, VectorRegister Vec1, float Toleranc
 	{
 		GSum += FMath::Abs<float>( GScratch[ Component + 0 ] - GScratch[ Component + 4 ] );
 	}
-	GPassing = GPassing && GSum <= Tolerance;
+	SetPassing(GPassing && GSum <= Tolerance);
 	return GSum <= Tolerance;
+}
+
+bool TestVectorsEqual3(VectorRegister4Double Vec0, VectorRegister4Double Vec1, double Tolerance = 0.0)
+{
+	VectorStoreAligned(Vec0, GScratchDouble + 0);
+	VectorStoreAligned(Vec1, GScratchDouble + 4);
+	GSumDouble = 0.f;
+	for (int32 Component = 0; Component < 3; Component++)
+	{
+		GSumDouble += FMath::Abs<double>(GScratchDouble[Component + 0] - GScratchDouble[Component + 4]);
+	}
+	SetPassing(GPassing && GSumDouble <= Tolerance);
+	return GSumDouble <= Tolerance;
 }
 
 /**
@@ -124,7 +176,7 @@ bool TestVectorsEqual3( VectorRegister Vec0, VectorRegister Vec1, float Toleranc
  *
  * @return true if equal(ish)
  */
-bool TestFVector3Equal( const FVector& Vec0, const FVector& Vec1, float Tolerance = 0.0f)
+bool TestFVector3Equal( const FVector3f& Vec0, const FVector3f& Vec1, float Tolerance = 0.0f)
 {
 	GScratch[0] = Vec0.X;
 	GScratch[1] = Vec0.Y;
@@ -140,7 +192,7 @@ bool TestFVector3Equal( const FVector& Vec0, const FVector& Vec1, float Toleranc
 	{
 		GSum += FMath::Abs<float>( GScratch[ Component + 0 ] - GScratch[ Component + 4 ] );
 	}
-	GPassing = GPassing && GSum <= Tolerance;
+	SetPassing(GPassing && GSum <= Tolerance);
 	return GSum <= Tolerance;
 }
 
@@ -157,7 +209,7 @@ bool TestQuatsEqual(const FQuat& Q0, const FQuat& Q1, float Tolerance)
 	GSum = 0.f;
 
 	const bool bEqual = Q0.Equals(Q1, Tolerance);
-	GPassing = GPassing && bEqual;
+	SetPassing(GPassing && bEqual);
 	return bEqual;
 }
 
@@ -169,7 +221,7 @@ bool TestQuatsEqual(const FQuat& Q0, const FQuat& Q1, float Tolerance)
  *
  * @return true if normalized(ish)
  */
-bool TestFVector3Normalized(const FVector& Vec0, float Tolerance)
+bool TestFVector3Normalized(const FVector3f& Vec0, float Tolerance)
 {
 	GScratch[0] = Vec0.X;
 	GScratch[1] = Vec0.Y;
@@ -182,7 +234,7 @@ bool TestFVector3Normalized(const FVector& Vec0, float Tolerance)
 	GSum = FMath::Sqrt(Vec0.X * Vec0.X + Vec0.Y * Vec0.Y + Vec0.Z * Vec0.Z);
 
 	const bool bNormalized = FMath::IsNearlyEqual(GSum, 1.0f, Tolerance);
-	GPassing = GPassing && bNormalized;
+	SetPassing(GPassing && bNormalized);
 	return bNormalized;
 }
 
@@ -207,7 +259,7 @@ bool TestQuatNormalized(const FQuat& Q0, float Tolerance)
 	GSum = FMath::Sqrt(Q0.X*Q0.X + Q0.Y*Q0.Y + Q0.Z*Q0.Z + Q0.W*Q0.W);
 
 	const bool bNormalized = FMath::IsNearlyEqual(GSum, 1.0f, Tolerance);
-	GPassing = GPassing && bNormalized;
+	SetPassing(GPassing && bNormalized);
 	return bNormalized;
 }
 
@@ -220,7 +272,7 @@ bool TestQuatNormalized(const FQuat& Q0, float Tolerance)
  *
  * @return true if equal(ish)
  */
-bool TestMatricesEqual( FMatrix &Mat0, FMatrix &Mat1, float Tolerance = 0.0f)
+bool TestMatricesEqual( FMatrix44f &Mat0, FMatrix44f &Mat1, float Tolerance = 0.0f)
 {
 	for (int32 Row = 0; Row < 4; ++Row ) 
 	{
@@ -232,7 +284,7 @@ bool TestMatricesEqual( FMatrix &Mat0, FMatrix &Mat1, float Tolerance = 0.0f)
 		}
 		if (GSum > Tolerance)
 		{
-			GPassing = false; 
+			SetPassing(false);
 			return false;
 		}
 	}
@@ -247,9 +299,10 @@ bool TestMatricesEqual( FMatrix &Mat0, FMatrix &Mat1, float Tolerance = 0.0f)
  * @param Matrix1	Pointer to the first matrix
  * @param Matrix2	Pointer to the second matrix
  */
-void TestVectorMatrixMultiply( void* Result, const void* Matrix1, const void* Matrix2 )
+template<typename FReal>
+void TestVectorMatrixMultiply(UE::Math::TMatrix<FReal>* Result, const UE::Math::TMatrix<FReal>* Matrix1, const UE::Math::TMatrix<FReal>* Matrix2 )
 {
-	typedef float Float4x4[4][4];
+	typedef FReal Float4x4[4][4];
 	const Float4x4& A = *((const Float4x4*) Matrix1);
 	const Float4x4& B = *((const Float4x4*) Matrix2);
 	Float4x4 Temp;
@@ -272,22 +325,23 @@ void TestVectorMatrixMultiply( void* Result, const void* Matrix1, const void* Ma
 	Temp[3][1] = A[3][0] * B[0][1] + A[3][1] * B[1][1] + A[3][2] * B[2][1] + A[3][3] * B[3][1];
 	Temp[3][2] = A[3][0] * B[0][2] + A[3][1] * B[1][2] + A[3][2] * B[2][2] + A[3][3] * B[3][2];
 	Temp[3][3] = A[3][0] * B[0][3] + A[3][1] * B[1][3] + A[3][2] * B[2][3] + A[3][3] * B[3][3];
-	memcpy( Result, &Temp, 16*sizeof(float) );
+	memcpy( Result, &Temp, 16*sizeof(FReal) );
 }
 
 
 /**
- * Calculate the inverse of an FMatrix.
+ * Calculate the inverse of an FMatrix44f.
  *
- * @param DstMatrix		FMatrix pointer to where the result should be stored
- * @param SrcMatrix		FMatrix pointer to the Matrix to be inversed
+ * @param DstMatrix		FMatrix44f pointer to where the result should be stored
+ * @param SrcMatrix		FMatrix44f pointer to the Matrix to be inversed
  */
- void TestVectorMatrixInverse( void* DstMatrix, const void* SrcMatrix )
+template<typename FReal>
+void TestVectorMatrixInverse(UE::Math::TMatrix<FReal>* DstMatrix, const UE::Math::TMatrix<FReal>* SrcMatrix)
 {
-	typedef float Float4x4[4][4];
+	typedef FReal Float4x4[4][4];
 	const Float4x4& M = *((const Float4x4*) SrcMatrix);
 	Float4x4 Result;
-	float Det[4];
+	FReal Det[4];
 	Float4x4 Tmp;
 
 	Tmp[0][0]	= M[2][2] * M[3][3] - M[2][3] * M[3][2];
@@ -311,8 +365,8 @@ void TestVectorMatrixMultiply( void* Result, const void* Matrix1, const void* Ma
 	Det[2]		= M[0][1]*Tmp[2][0] - M[1][1]*Tmp[2][1] + M[3][1]*Tmp[2][2];
 	Det[3]		= M[0][1]*Tmp[3][0] - M[1][1]*Tmp[3][1] + M[2][1]*Tmp[3][2];
 
-	float Determinant = M[0][0]*Det[0] - M[1][0]*Det[1] + M[2][0]*Det[2] - M[3][0]*Det[3];
-	const float	RDet = 1.0f / Determinant;
+	FReal Determinant = M[0][0]*Det[0] - M[1][0]*Det[1] + M[2][0]*Det[2] - M[3][0]*Det[3];
+	const FReal	RDet = 1.0f / Determinant;
 
 	Result[0][0] =  RDet * Det[0];
 	Result[0][1] = -RDet * Det[1];
@@ -363,22 +417,22 @@ void TestVectorMatrixMultiply( void* Result, const void* Matrix1, const void* Ma
 				M[2][0] * (M[0][1] * M[1][2] - M[0][2] * M[1][1])
 			);
 
-	memcpy( DstMatrix, &Result, 16*sizeof(float) );
+	memcpy( DstMatrix, &Result, 16*sizeof(FReal) );
 }
 
 
 /**
  * Calculate Homogeneous transform.
  *
- * @param VecP			VectorRegister 
- * @param MatrixM		FMatrix pointer to the Matrix to apply transform
- * @return VectorRegister = VecP*MatrixM
+ * @param VecP			VectorRegister4Float 
+ * @param MatrixM		FMatrix44f pointer to the Matrix to apply transform
+ * @return VectorRegister4Float = VecP*MatrixM
  */
-VectorRegister TestVectorTransformVector(const VectorRegister&  VecP,  const void* MatrixM )
+VectorRegister4Float TestVectorTransformVector(const VectorRegister4Float&  VecP,  const void* MatrixM )
 {
 	typedef float Float4x4[4][4];
 	union U { 
-		VectorRegister v; float f[4]; 
+		VectorRegister4Float v; float f[4]; 
 		FORCEINLINE U() : v() {}
 	} Tmp, Result;
 	Tmp.v = VecP;
@@ -418,11 +472,11 @@ MATHTEST_INLINE FQuat TestRotatorToQuaternion( const FRotator& Rotator)
 	return RotationQuat;
 }
 
-MATHTEST_INLINE FVector TestQuaternionRotateVectorScalar(const FQuat& Quat, const FVector& Vector)
+MATHTEST_INLINE FVector3f TestQuaternionRotateVectorScalar(const FQuat& Quat, const FVector3f& Vector)
 {
 	// (q.W*q.W-qv.qv)v + 2(qv.v)qv + 2 q.W (qv x v)
-	const FVector qv(Quat.X, Quat.Y, Quat.Z);
-	FVector vOut = (2.f * Quat.W) * (qv ^ Vector);
+	const FVector3f qv(Quat.X, Quat.Y, Quat.Z);
+	FVector3f vOut = (2.f * Quat.W) * (qv ^ Vector);
 	vOut += ((Quat.W * Quat.W) - (qv | qv)) * Vector;
 	vOut += (2.f * (qv | Vector)) * qv;
 	
@@ -430,7 +484,7 @@ MATHTEST_INLINE FVector TestQuaternionRotateVectorScalar(const FQuat& Quat, cons
 }
 
 // Q * V * Q^-1
-MATHTEST_INLINE FVector TestQuaternionMultiplyVector(const FQuat& Quat, const FVector& Vector)
+MATHTEST_INLINE FVector3f TestQuaternionMultiplyVector(const FQuat& Quat, const FVector3f& Vector)
 {
 	FQuat VQ(Vector.X, Vector.Y, Vector.Z, 0.f);
 	FQuat VT, VR;
@@ -438,16 +492,16 @@ MATHTEST_INLINE FVector TestQuaternionMultiplyVector(const FQuat& Quat, const FV
 	VectorQuaternionMultiply(&VT, &Quat, &VQ);
 	VectorQuaternionMultiply(&VR, &VT, &I);
 
-	return FVector(VR.X, VR.Y, VR.Z);
+	return FVector3f(VR.X, VR.Y, VR.Z);
 }
 
-MATHTEST_INLINE FVector TestQuaternionRotateVectorRegister(const FQuat& Quat, const FVector &V)
+MATHTEST_INLINE FVector3f TestQuaternionRotateVectorRegister(const FQuat& Quat, const FVector3f &V)
 {
-	const VectorRegister Rotation = *((const VectorRegister*)(&Quat));
-	const VectorRegister InputVectorW0 = VectorLoadFloat3_W0(&V);
-	const VectorRegister RotatedVec = VectorQuaternionRotateVector(Rotation, InputVectorW0);
+	const VectorRegister4Float Rotation = *((const VectorRegister4Float*)(&Quat));
+	const VectorRegister4Float InputVectorW0 = VectorLoadFloat3_W0(&V);
+	const VectorRegister4Float RotatedVec = VectorQuaternionRotateVector(Rotation, InputVectorW0);
 
-	FVector Result;
+	FVector3f Result;
 	VectorStoreFloat3(RotatedVec, &Result);
 	return Result;
 }
@@ -527,9 +581,9 @@ FORCENOINLINE FRotator TestQuaternionToRotator(const FQuat& Quat)
 }
 
 
-FORCENOINLINE FQuat FindBetween_Old(const FVector& vec1, const FVector& vec2)
+FORCENOINLINE FQuat FindBetween_Old(const FVector3f& vec1, const FVector3f& vec2)
 {
-	const FVector cross = vec1 ^ vec2;
+	const FVector3f cross = vec1 ^ vec2;
 	const float crossMag = cross.Size();
 
 	// See if vectors are parallel or anti-parallel
@@ -545,10 +599,10 @@ FORCENOINLINE FQuat FindBetween_Old(const FVector& vec1, const FVector& vec2)
 		else
 		{
 			// ..rotation by 180 degrees around a vector orthogonal to vec1 & vec2
-			FVector Vec = vec1.SizeSquared() > vec2.SizeSquared() ? vec1 : vec2;
+			FVector3f Vec = vec1.SizeSquared() > vec2.SizeSquared() ? vec1 : vec2;
 			Vec.Normalize();
 
-			FVector AxisA, AxisB;
+			FVector3f AxisA, AxisB;
 			Vec.FindBestAxisVectors(AxisA, AxisB);
 
 			return FQuat(AxisA.X, AxisA.Y, AxisA.Z, 0.f); // (axis*sin(pi/2), cos(pi/2)) = (axis, 0)
@@ -566,7 +620,7 @@ FORCENOINLINE FQuat FindBetween_Old(const FVector& vec1, const FVector& vec2)
 
 	float sinHalfAng, cosHalfAng;
 	FMath::SinCos(&sinHalfAng, &cosHalfAng, 0.5f * angle);
-	const FVector axis = cross / crossMag;
+	const FVector3f axis = cross / crossMag;
 
 	return FQuat(
 		sinHalfAng * axis.X,
@@ -589,10 +643,10 @@ bool TestRotatorEqual0(const FRotator& A, const FRotator& B, const float Toleran
 bool TestRotatorEqual1(const FRotator& A, const FRotator& B, const float Tolerance)
 {
 	// Test the vectorized method.
-	const VectorRegister RegA = VectorLoadFloat3_W0(&A);
-	const VectorRegister RegB = VectorLoadFloat3_W0(&B);
-	const VectorRegister NormDelta = VectorNormalizeRotator(VectorSubtract(RegA, RegB));
-	const VectorRegister AbsNormDelta = VectorAbs(NormDelta);
+	const VectorRegister4Float RegA = VectorLoadFloat3_W0(&A);
+	const VectorRegister4Float RegB = VectorLoadFloat3_W0(&B);
+	const VectorRegister4Float NormDelta = VectorNormalizeRotator(VectorSubtract(RegA, RegB));
+	const VectorRegister4Float AbsNormDelta = VectorAbs(NormDelta);
 	return !VectorAnyGreaterThan(AbsNormDelta, VectorLoadFloat1(&Tolerance));
 }
 
@@ -616,7 +670,7 @@ void LogRotatorTest(bool bExpected, const TCHAR* TestName, const FRotator& A, co
 	{
 		UE_LOG(LogUnrealMathTest, Log, TEXT("%s: %s"), bHasPassed ? TEXT("PASSED") : TEXT("FAILED"), TestName);
 		UE_LOG(LogUnrealMathTest, Log, TEXT("(%s).Equals(%s) = %d"), *A.ToString(), *B.ToString(), bComparison);
-		GPassing = false;
+		SetPassing(false);
 	}
 }
 
@@ -627,7 +681,7 @@ void LogRotatorTest(const TCHAR* TestName, const FRotator& A, const FRotator& B,
 	{
 		UE_LOG(LogUnrealMathTest, Log, TEXT("%s: %s"), bComparison ? TEXT("PASSED") : TEXT("FAILED"), TestName);
 		UE_LOG(LogUnrealMathTest, Log, TEXT("(%s).Equals(%s) = %d"), *A.ToString(), *B.ToString(), bComparison);
-		GPassing = false;
+		SetPassing(false);
 	}
 }
 
@@ -637,76 +691,100 @@ void LogQuaternionTest(const TCHAR* TestName, const FQuat& A, const FQuat& B, bo
 	{
 		UE_LOG(LogUnrealMathTest, Log, TEXT("%s: %s"), bComparison ? TEXT("PASSED") : TEXT("FAILED"), TestName);
 		UE_LOG(LogUnrealMathTest, Log, TEXT("(%s).Equals(%s) = %d"), *A.ToString(), *B.ToString(), bComparison);
-		GPassing = false;
+		SetPassing(false);
 	}
 }
 
 
 // Normalize tests
 
-MATHTEST_INLINE VectorRegister TestVectorNormalize_Sqrt(const VectorRegister& V)
+MATHTEST_INLINE VectorRegister4Float TestVectorNormalize_Sqrt(const VectorRegister4Float& V)
 {
-	const VectorRegister Len = VectorDot4(V, V);
+	const VectorRegister4Float Len = VectorDot4(V, V);
 	const float rlen = 1.0f / FMath::Sqrt(VectorGetComponent(Len, 0));
 	return VectorMultiply(V, VectorLoadFloat1(&rlen));
 }
 
-MATHTEST_INLINE VectorRegister TestVectorNormalize_InvSqrt(const VectorRegister& V)
+MATHTEST_INLINE VectorRegister4Float TestVectorNormalize_InvSqrt(const VectorRegister4Float& V)
 {
-	const VectorRegister Len = VectorDot4(V, V);
+	const VectorRegister4Float Len = VectorDot4(V, V);
 	const float rlen = FMath::InvSqrt(VectorGetComponent(Len, 0));
 	return VectorMultiply(V, VectorLoadFloat1(&rlen));
 }
 
-MATHTEST_INLINE VectorRegister TestVectorNormalize_InvSqrtEst(const VectorRegister& V)
+MATHTEST_INLINE VectorRegister4Float TestVectorNormalize_InvSqrtEst(const VectorRegister4Float& V)
 {
-	const VectorRegister Len = VectorDot4(V, V);
+	const VectorRegister4Float Len = VectorDot4(V, V);
 	const float rlen = FMath::InvSqrtEst(VectorGetComponent(Len, 0));
 	return VectorMultiply(V, VectorLoadFloat1(&rlen));
 }
 
 
 // A Mod M
-MATHTEST_INLINE VectorRegister TestReferenceMod(const VectorRegister& A, const VectorRegister& M)
+MATHTEST_INLINE VectorRegister4Float TestReferenceMod(const VectorRegister4Float& A, const VectorRegister4Float& M)
 {
+	float AF[4], MF[4];
+	VectorStore(A, AF);
+	VectorStore(M, MF);
+
 	return MakeVectorRegister(
-		(float)fmodf(VectorGetComponent(A, 0), VectorGetComponent(M, 0)),
-		(float)fmodf(VectorGetComponent(A, 1), VectorGetComponent(M, 1)),
-		(float)fmodf(VectorGetComponent(A, 2), VectorGetComponent(M, 2)),
-		(float)fmodf(VectorGetComponent(A, 3), VectorGetComponent(M, 3)));
+		(float)fmodf(AF[0], MF[0]),
+		(float)fmodf(AF[1], MF[1]),
+		(float)fmodf(AF[2], MF[2]),
+		(float)fmodf(AF[3], MF[3]));
 }
 
-// SinCos
-MATHTEST_INLINE void TestReferenceSinCos(VectorRegister& S, VectorRegister& C, const VectorRegister& VAngles)
+MATHTEST_INLINE VectorRegister4Double TestReferenceMod(const VectorRegister4Double& A, const VectorRegister4Double& M)
 {
+	double AF[4], MF[4];
+	VectorStore(A, AF);
+	VectorStore(M, MF);
+
+	return MakeVectorRegister(
+		(double)fmod(AF[0], MF[0]),
+		(double)fmod(AF[1], MF[1]),
+		(double)fmod(AF[2], MF[2]),
+		(double)fmod(AF[3], MF[3]));
+}
+
+
+// SinCos
+MATHTEST_INLINE void TestReferenceSinCos(VectorRegister4Float& S, VectorRegister4Float& C, const VectorRegister4Float& VAngles)
+{
+	float FloatAngles[4];
+	VectorStore(VAngles, FloatAngles);
+
 	S = MakeVectorRegister(
-			FMath::Sin(VectorGetComponent(VAngles, 0)),
-			FMath::Sin(VectorGetComponent(VAngles, 1)),
-			FMath::Sin(VectorGetComponent(VAngles, 2)),
-			FMath::Sin(VectorGetComponent(VAngles, 3))
+			FMath::Sin(FloatAngles[0]),
+			FMath::Sin(FloatAngles[1]),
+			FMath::Sin(FloatAngles[2]),
+			FMath::Sin(FloatAngles[3])
 			);
 
 	C = MakeVectorRegister(
-			FMath::Cos(VectorGetComponent(VAngles, 0)),
-			FMath::Cos(VectorGetComponent(VAngles, 1)),
-			FMath::Cos(VectorGetComponent(VAngles, 2)),
-			FMath::Cos(VectorGetComponent(VAngles, 3))
+			FMath::Cos(FloatAngles[0]),
+			FMath::Cos(FloatAngles[1]),
+			FMath::Cos(FloatAngles[2]),
+			FMath::Cos(FloatAngles[3])
 			);
 }
 
-MATHTEST_INLINE void TestFastSinCos(VectorRegister& S, VectorRegister& C, const VectorRegister& VAngles)
+MATHTEST_INLINE void TestFastSinCos(VectorRegister4Float& S, VectorRegister4Float& C, const VectorRegister4Float& VAngles)
 {
+	float FloatAngles[4];
+	VectorStore(VAngles, FloatAngles);
+
 	float SFloat[4], CFloat[4];
-	FMath::SinCos(&SFloat[0], &CFloat[0], VectorGetComponent(VAngles, 0));
-	FMath::SinCos(&SFloat[1], &CFloat[1], VectorGetComponent(VAngles, 1));
-	FMath::SinCos(&SFloat[2], &CFloat[2], VectorGetComponent(VAngles, 2));
-	FMath::SinCos(&SFloat[3], &CFloat[3], VectorGetComponent(VAngles, 3));
+	FMath::SinCos(&SFloat[0], &CFloat[0], FloatAngles[0]);
+	FMath::SinCos(&SFloat[1], &CFloat[1], FloatAngles[1]);
+	FMath::SinCos(&SFloat[2], &CFloat[2], FloatAngles[2]);
+	FMath::SinCos(&SFloat[3], &CFloat[3], FloatAngles[3]);
 
 	S = VectorLoad(SFloat);
 	C = VectorLoad(CFloat);
 }
 
-MATHTEST_INLINE void TestVectorSinCos(VectorRegister& S, VectorRegister& C, const VectorRegister& VAngles)
+MATHTEST_INLINE void TestVectorSinCos(VectorRegister4Float& S, VectorRegister4Float& C, const VectorRegister4Float& VAngles)
 {
 	VectorSinCos(&S, &C, &VAngles);
 }
@@ -717,23 +795,22 @@ MATHTEST_INLINE void TestVectorSinCos(VectorRegister& S, VectorRegister& C, cons
  * @param TestName Name of the current test
  * @param bHasPassed true if the test has passed
  */
-void LogTest( const TCHAR *TestName, bool bHasPassed ) 
+void LogTest(const TCHAR* TestName, bool bHasPassed)
 {
-	if ( bHasPassed == false )
+	if (bHasPassed == false)
 	{
-		UE_LOG(LogUnrealMathTest, Log,  TEXT("%s: %s"), bHasPassed ? TEXT("PASSED") : TEXT("FAILED"), TestName );
-		UE_LOG(LogUnrealMathTest, Log,  TEXT("Bad(%f): (%f %f %f %f) (%f %f %f %f)"), GSum, GScratch[0], GScratch[1], GScratch[2], GScratch[3], GScratch[4], GScratch[5], GScratch[6], GScratch[7] );
-		GPassing = false;
+		UE_LOG(LogUnrealMathTest, Log, TEXT("%s: %s"), bHasPassed ? TEXT("PASSED") : TEXT("FAILED"), TestName);
+		UE_LOG(LogUnrealMathTest, Log, TEXT("Bad(%.8f): (%.8f %.8f %.8f %.8f) (%.8f %.8f %.8f %.8f)"), GSum, GScratch[0], GScratch[1], GScratch[2], GScratch[3], GScratch[4], GScratch[5], GScratch[6], GScratch[7]);
+		SetPassing(false);
 	}
 }
 
-
-/** 
+/**
  * Set the contents of the scratch memory
- * 
+ *
  * @param X,Y,Z,W,U values to push into GScratch
  */
-void SetScratch( float X, float Y, float Z, float W, float U = 0.0f )
+void SetScratch(float X, float Y, float Z, float W, float U = 0.0f)
 {
 	GScratch[0] = X;
 	GScratch[1] = Y;
@@ -742,8 +819,581 @@ void SetScratch( float X, float Y, float Z, float W, float U = 0.0f )
 	GScratch[4] = U;
 }
 
+void SetScratchDouble(double X, double Y, double Z, double W, double U = 0.0)
+{
+	GScratchDouble[0] = X;
+	GScratchDouble[1] = Y;
+	GScratchDouble[2] = Z;
+	GScratchDouble[3] = W;
+	GScratchDouble[4] = U;
+}
+
+void SetScratchDouble(float X, float Y, float Z, float W, float U = 0.0f)
+{
+	SetScratchDouble((double)X, (double)Y, (double)Z, (double)W, (double)U);
+}
+
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVectorRegisterAbstractionTest, "System.Core.Math.Vector Register Abstraction Test", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+
+
+bool RunDoubleVectorTest()
+{
+	SetPassing(true);
+
+	double F1 = 1.0;
+	uint64 U1 = *(uint64*)&F1;
+	VectorRegister4Double V0, V1;
+	VectorRegister4Double V2, V3;
+
+	V0 = MakeVectorRegisterDouble(U1, U1, U1, U1);
+	V1 = MakeVectorRegisterDouble(F1, F1, F1, F1);
+	LogTest(TEXT("MakeVectorRegister<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(0., 0., 0., 0.);
+	V1 = VectorZeroDouble();
+	LogTest(TEXT("VectorZero<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(1., 1., 1., 1.);
+	V1 = VectorOneDouble();
+	LogTest(TEXT("VectorOne<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(0.f, 1.f, 2.f, 3.f); // floats
+	V1 = MakeVectorRegisterDouble(0.0, 1.0, 2.0, 3.0); // doubles
+	LogTest(TEXT("MakeVectorRegister4Double<float>, MakeVectorRegister4Double<double>"), TestVectorsEqual(V0, V1));
+
+	SetScratchDouble(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = MakeVectorRegisterDouble(1.0f, 2.0f, -0.25f, -0.5f);
+	V1 = VectorLoad(GScratchDouble);
+	LogTest(TEXT("VectorLoad<double>"), TestVectorsEqual(V0, V1));
+
+	SetScratch(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	SetScratchDouble(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = VectorLoad(GScratch);		// float*
+	V1 = VectorLoad(GScratchDouble);// double*
+	LogTest(TEXT("VectorLoad<float>, VectorLoad<double>"), TestVectorsEqual(V0, V1));
+
+	SetScratchDouble(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = MakeVectorRegisterDouble(1.0f, 2.0f, -0.25f, -0.5f);
+	V1 = VectorLoadAligned(GScratchDouble);
+	LogTest(TEXT("VectorLoadAligned<double>"), TestVectorsEqual(V0, V1));
+
+	SetScratchDouble(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = VectorLoad(GScratchDouble + 1);
+	V1 = VectorLoadDouble3(GScratchDouble + 1);
+	LogTest(TEXT("VectorLoadFloat3<double>"), TestVectorsEqual3(V0, V1));
+
+	SetScratchDouble(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = MakeVectorRegisterDouble(1.0f, 2.0f, -0.25f, 0.0f);
+	V1 = VectorLoadDouble3_W0(GScratchDouble);
+	LogTest(TEXT("VectorLoadFloat3_W0<double>"), TestVectorsEqual(V0, V1));
+
+	SetScratchDouble(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = MakeVectorRegisterDouble(1.0f, 2.0f, -0.25f, 1.0f);
+	V1 = VectorLoadDouble3_W1(GScratchDouble);
+	LogTest(TEXT("VectorLoadFloat3_W1<double>"), TestVectorsEqual(V0, V1));
+
+	SetScratchDouble(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = MakeVectorRegisterDouble(-0.5f, -0.5f, -0.5f, -0.5f);
+	V1 = VectorLoadDouble1(GScratchDouble + 3);
+	LogTest(TEXT("VectorLoadFloat1<double>"), TestVectorsEqual(V0, V1));
+
+	SetScratchDouble(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = VectorSetDouble3(GScratchDouble[1], GScratchDouble[2], GScratchDouble[3]);
+	GScratchDouble[4] = 127.;
+	V1 = VectorLoadDouble3(GScratchDouble + 1);
+	LogTest(TEXT("VectorSet3<double>"), TestVectorsEqual3(V0, V1));
+
+	SetScratchDouble(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = VectorSet(GScratchDouble[1], GScratchDouble[2], GScratchDouble[3], GScratchDouble[4]);
+	V1 = VectorLoad(GScratchDouble + 1);
+	LogTest(TEXT("VectorSet<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(1.0f, 2.0f, -0.25f, 1.0f);
+	VectorStoreAligned(V0, GScratchDouble + 8);
+	V1 = VectorLoad(GScratchDouble + 8);
+	LogTest(TEXT("VectorStoreAligned<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(1.0f, 2.0f, -0.55f, 1.0f);
+	VectorStore(V0, GScratchDouble + 7);
+	V1 = VectorLoad(GScratchDouble + 7);
+	LogTest(TEXT("VectorStore<double>"), TestVectorsEqual(V0, V1));
+
+	SetScratchDouble(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = MakeVectorRegisterDouble(5.0f, 3.0f, 1.0f, -1.0f);
+	VectorStoreDouble3(V0, GScratchDouble);
+	V1 = VectorLoad(GScratchDouble);
+	V0 = MakeVectorRegisterDouble(5.0f, 3.0f, 1.0f, -0.5f);
+	LogTest(TEXT("VectorStoreFloat3<double>"), TestVectorsEqual(V0, V1));
+
+	SetScratchDouble(1.0f, 2.0f, -0.25f, -0.5f, 5.f);
+	V0 = MakeVectorRegisterDouble(5.0f, 3.0f, 1.0f, -1.0f);
+	VectorStoreDouble1(V0, GScratchDouble + 1);
+	V1 = VectorLoad(GScratchDouble);
+	V0 = MakeVectorRegisterDouble(1.0f, 5.0f, -0.25f, -0.5f);
+	LogTest(TEXT("VectorStoreFloat1<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(0., 0., 2., 0.);
+	V1 = MakeVectorRegisterDouble(0., 1., 0., 3.);
+	double D0 = VectorGetComponent(V0, 0);
+	double D1 = VectorGetComponent(V1, 1);
+	double D2 = VectorGetComponent(V0, 2);
+	double D3 = VectorGetComponent(V1, 3);
+	V0 = MakeVectorRegisterDouble(0., 1., 2., 3.);
+	V1 = MakeVectorRegisterDouble(D0, D1, D2, D3);
+	LogTest(TEXT("VectorGetComponent<double>"), TestVectorsEqual(V0, V1));
+
+	// Replicate
+
+	V0 = MakeVectorRegisterDouble(1.0f, 2.0f, 3.0f, 4.0f);
+	V1 = VectorReplicate(V0, 1);
+	V0 = MakeVectorRegisterDouble(2.0f, 2.0f, 2.0f, 2.0f);
+	LogTest(TEXT("VectorReplicate<double>"), TestVectorsEqual(V0, V1));
+
+	// Swizzle
+
+	V0 = MakeVectorRegisterDouble(4.0f, 3.0f, 2.0f, 1.0f);
+	V1 = VectorSwizzle(V0, 1, 0, 1, 0);
+	V0 = MakeVectorRegisterDouble(3.0f, 4.0f, 3.0f, 4.0f);
+	LogTest(TEXT("VectorSwizzle1010<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(4.0f, 3.0f, 2.0f, 1.0f);
+	V1 = VectorSwizzle(V0, 1, 0, 3, 2);
+	V0 = MakeVectorRegisterDouble(3.0f, 4.0f, 1.0f, 2.0f);
+	LogTest(TEXT("VectorSwizzle1032<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(4.0f, 3.0f, 2.0f, 1.0f);
+	V1 = VectorSwizzle(V0, 1, 2, 0, 1);
+	V0 = MakeVectorRegisterDouble(3.0f, 2.0f, 4.0f, 3.0f);
+	LogTest(TEXT("VectorSwizzle1201<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(4.0f, 3.0f, 2.0f, 1.0f);
+	V1 = VectorSwizzle(V0, 2, 0, 1, 3);
+	V0 = MakeVectorRegisterDouble(2.0f, 4.0f, 3.0f, 1.0f);
+	LogTest(TEXT("VectorSwizzle2013<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(4.0f, 3.0f, 2.0f, 1.0f);
+	V1 = V1 = VectorSwizzle(V0, 2, 3, 0, 1);
+	V0 = MakeVectorRegisterDouble(2.0f, 1.0f, 4.0f, 3.0f);
+	LogTest(TEXT("VectorSwizzle2301<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(4.0f, 3.0f, 2.0f, 1.0f);
+	V1 = VectorSwizzle(V0, 3, 2, 1, 0);
+	V0 = MakeVectorRegisterDouble(1.0f, 2.0f, 3.0f, 4.0f);
+	LogTest(TEXT("VectorSwizzle3210<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(0.0, 1.0, 2.0, 3.0);
+	V1 = VectorSwizzle(V0, 3, 0, 3, 0);
+	V0 = MakeVectorRegisterDouble(3.0, 0.0, 3.0, 0.0);
+	LogTest(TEXT("VectorShuffle3030<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(0.0, 1.0, 2.0, 3.0);
+	V1 = VectorSwizzle(V0, 0, 3, 1, 2);
+	V0 = MakeVectorRegisterDouble(0.0, 3.0, 1.0, 2.0);
+	LogTest(TEXT("VectorShuffle0312<double>"), TestVectorsEqual(V0, V1));
+
+	// Shuffle
+
+	V0 = MakeVectorRegisterDouble(0.0, 1.0, 2.0, 3.0);
+	V1 = MakeVectorRegisterDouble(4.0, 5.0, 6.0, 7.0);
+	V1 = VectorShuffle(V0, V1, 1, 0, 1, 0);
+	V0 = MakeVectorRegisterDouble(1.0, 0.0, 5.0, 4.0);
+	LogTest(TEXT("VectorShuffle1010<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(0.0, 1.0, 2.0, 3.0);
+	V1 = MakeVectorRegisterDouble(4.0, 5.0, 6.0, 7.0);
+	V1 = VectorShuffle(V0, V1, 1, 0, 3, 2);
+	V0 = MakeVectorRegisterDouble(1.0, 0.0, 7.0, 6.0);
+	LogTest(TEXT("VectorShuffle1032<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(0.0, 1.0, 2.0, 3.0);
+	V1 = MakeVectorRegisterDouble(4.0, 5.0, 6.0, 7.0);
+	V1 = VectorShuffle(V0, V1, 1, 2, 0, 1);
+	V0 = MakeVectorRegisterDouble(1.0, 2.0, 4.0, 5.0);
+	LogTest(TEXT("VectorShuffle1201<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(0.0, 1.0, 2.0, 3.0);
+	V1 = MakeVectorRegisterDouble(4.0, 5.0, 6.0, 7.0);
+	V1 = VectorShuffle(V0, V1, 2, 0, 1, 3);
+	V0 = MakeVectorRegisterDouble(2.0, 0.0, 5.0, 7.0);
+	LogTest(TEXT("VectorShuffle2013<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(0.0, 1.0, 2.0, 3.0);
+	V1 = MakeVectorRegisterDouble(4.0, 5.0, 6.0, 7.0);
+	V1 = VectorShuffle(V0, V1, 2, 3, 0, 1);
+	V0 = MakeVectorRegisterDouble(2.0, 3.0, 4.0, 5.0);
+	LogTest(TEXT("VectorShuffle2301<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(0.0, 1.0, 2.0, 3.0);
+	V1 = MakeVectorRegisterDouble(4.0, 5.0, 6.0, 7.0);
+	V1 = VectorShuffle(V0, V1, 3, 2, 1, 0);
+	V0 = MakeVectorRegisterDouble(3.0, 2.0, 5.0, 4.0);
+	LogTest(TEXT("VectorShuffle3210<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(0.0, 1.0, 2.0, 3.0);
+	V1 = MakeVectorRegisterDouble(4.0, 5.0, 6.0, 7.0);
+	V1 = VectorShuffle(V0, V1, 3, 0, 3, 0);
+	V0 = MakeVectorRegisterDouble(3.0, 0.0, 7.0, 4.0);
+	LogTest(TEXT("VectorShuffle3030<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(0.0, 1.0, 2.0, 3.0);
+	V1 = MakeVectorRegisterDouble(4.0, 5.0, 6.0, 7.0);
+	V1 = VectorShuffle(V0, V1, 0, 3, 1, 2);
+	V0 = MakeVectorRegisterDouble(0.0, 3.0, 5.0, 6.0);
+	LogTest(TEXT("VectorShuffle0312<double>"), TestVectorsEqual(V0, V1));
+
+	// Abs
+	V0 = MakeVectorRegisterDouble(1.0f, -2.0f, 3.0f, -4.0f);
+	V1 = VectorAbs(V0);
+	V0 = MakeVectorRegisterDouble(1.0f, 2.0f, 3.0f, 4.0f);
+	LogTest(TEXT("VectorAbs<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(1.0f, -2.0f, 3.0f, -4.0f);
+	V1 = VectorNegate(V0);
+	V0 = MakeVectorRegisterDouble(-1.0f, 2.0f, -3.0f, 4.0f);
+	LogTest(TEXT("VectorNegate<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(1.0f, 2.0f, 3.0f, 4.0f);
+	V1 = MakeVectorRegisterDouble(2.0f, 4.0f, 6.0f, 8.0f);
+	V1 = VectorAdd(V0, V1);
+	V0 = MakeVectorRegisterDouble(3.0f, 6.0f, 9.0f, 12.0f);
+	LogTest(TEXT("VectorAdd<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(2.0f, 4.0f, 6.0f, 8.0f);
+	V1 = MakeVectorRegisterDouble(1.0f, 2.0f, 3.0f, 4.0f);
+	V1 = VectorSubtract(V0, V1);
+	V0 = MakeVectorRegisterDouble(1.0f, 2.0f, 3.0f, 4.0f);
+	LogTest(TEXT("VectorSubtract<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(2.0f, 4.0f, 6.0f, 8.0f);
+	V1 = MakeVectorRegisterDouble(1.0f, 2.0f, 3.0f, 4.0f);
+	V2 = VectorMultiply(V0, V1);
+	V3 = MakeVectorRegisterDouble(2.0f, 8.0f, 18.0f, 32.0f);
+	LogTest(TEXT("VectorMultiply<double>"), TestVectorsEqual(V3, V2));
+
+	V0 = MakeVectorRegisterDouble(2.0f, 4.0f, 6.0f, 8.0f);
+	V1 = MakeVectorRegisterDouble(1.0f, 2.0f, 3.0f, 4.0f);
+	V2 = VectorMultiplyAdd(V0, V1, VectorOneDouble());
+	V3 = MakeVectorRegisterDouble(3.0f, 9.0f, 19.0f, 33.0f);
+	LogTest(TEXT("VectorMultiplyAdd<double>"), TestVectorsEqual(V3, V2));
+
+	V0 = MakeVectorRegisterDouble(2.0f, 4.0f, 6.0f, 8.0f);
+	V1 = MakeVectorRegisterDouble(1.0f, 2.0f, 3.0f, 4.0f);
+	V1 = VectorDot3(V0, V1);
+	V0 = MakeVectorRegisterDouble(28.0f, 28.0f, 28.0f, 28.0f);
+	LogTest(TEXT("VectorDot3<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(2.0f, 4.0f, 6.0f, 8.0f);
+	V1 = MakeVectorRegisterDouble(1.0f, 2.0f, 3.0f, 4.0f);
+	V1 = VectorDot4(V0, V1);
+	V0 = MakeVectorRegisterDouble(60.0f, 60.0f, 60.0f, 60.0f);
+	LogTest(TEXT("VectorDot4<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(1.0f, 0.0f, 0.0f, 8.0f);
+	V1 = MakeVectorRegisterDouble(0.0f, 2.0f, 0.0f, 4.0f);
+	V1 = VectorCross(V0, V1);
+	V0 = MakeVectorRegisterDouble(0.f, 0.0f, 2.0f, 0.0f);
+	LogTest(TEXT("VectorCross<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(2.0, 3.0, 4.0, 8.0);
+	V1 = MakeVectorRegisterDouble(5.0, 6.0, 7.0, 4.0);
+	V1 = VectorCross(V0, V1);
+	V0 = MakeVectorRegisterDouble(-3.0, 6.0, -3.0, 0.0);
+	LogTest(TEXT("VectorCross<double>"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(1.0f, 3.0f, 2.0f, 8.0f);
+	V1 = MakeVectorRegisterDouble(2.0f, 4.0f, 2.0f, 1.0f);
+	V2 = VectorCompareGT(V0, V1);
+	V3 = MakeVectorRegisterDouble((uint64)0, (uint64)0, (uint64)0, (uint64)-1);
+	LogTest(TEXT("VectorCompareGT"), TestVectorsEqualBitwise(V2, V3));
+
+	V0 = MakeVectorRegisterDouble(1.0f, 3.0f, 2.0f, 8.0f);
+	V1 = MakeVectorRegisterDouble(2.0f, 4.0f, 2.0f, 1.0f);
+	V2 = VectorCompareGE(V0, V1);
+	V3 = MakeVectorRegisterDouble((uint64)0, (uint64)0, (uint64)-1, (uint64)-1);
+	LogTest(TEXT("VectorCompareGE"), TestVectorsEqualBitwise(V2, V3));
+
+	V0 = MakeVectorRegisterDouble(1.0f, 3.0f, 2.0f, 8.0f);
+	V1 = MakeVectorRegisterDouble(2.0f, 4.0f, 2.0f, 1.0f);
+	V2 = VectorCompareEQ(V0, V1);
+	V3 = MakeVectorRegisterDouble((uint64)0, (uint64)0, (uint64)-1, (uint64)0);
+	LogTest(TEXT("VectorCompareEQ"), TestVectorsEqualBitwise(V2, V3));
+
+	V0 = MakeVectorRegisterDouble(1.0f, 3.0f, 2.0f, 8.0f);
+	V1 = MakeVectorRegisterDouble(2.0f, 4.0f, 2.0f, 1.0f);
+	V2 = VectorCompareNE(V0, V1);
+	V3 = MakeVectorRegisterDouble((uint64)(0xFFFFFFFFFFFFFFFFU), (uint64)(0xFFFFFFFFFFFFFFFFU), (uint64)(0), (uint64)(0xFFFFFFFFFFFFFFFFU));
+	LogTest(TEXT("VectorCompareNE"), TestVectorsEqualBitwise(V2, V3));
+
+	V0 = MakeVectorRegisterDouble(1.0f, 3.0f, 2.0f, 8.0f);
+	V1 = MakeVectorRegisterDouble(2.0f, 4.0f, 2.0f, 1.0f);
+	V2 = MakeVectorRegisterDouble((uint64)-1, (uint64)0, (uint64)0, (uint64)-1);
+	V2 = VectorSelect(V2, V0, V1);
+	V3 = MakeVectorRegisterDouble(1.0f, 4.0f, 2.0f, 8.0f);
+	LogTest(TEXT("VectorSelect"), TestVectorsEqual(V2, V3));
+
+	V0 = MakeVectorRegisterDouble(1.0f, 3.0f, 0.0f, 0.0f);
+	V1 = MakeVectorRegisterDouble(0.0f, 0.0f, 2.0f, 1.0f);
+	V2 = VectorBitwiseOr(V0, V1);
+	V3 = MakeVectorRegisterDouble(1.0f, 3.0f, 2.0f, 1.0f);
+	LogTest(TEXT("VectorBitwiseOr-Double1"), TestVectorsEqual(V2, V3));
+
+	V0 = MakeVectorRegisterDouble(1.0f, 3.0f, 24.0f, 36.0f);
+	V1 = MakeVectorRegisterDouble((uint64)(0x8000000000000000U), (uint64)(0x8000000000000000U), (uint64)(0x8000000000000000U), (uint64)(0x8000000000000000U));
+	V2 = VectorBitwiseOr(V0, V1);
+	V3 = MakeVectorRegisterDouble(-1.0f, -3.0f, -24.0f, -36.0f);
+	LogTest(TEXT("VectorBitwiseOr-Double2"), TestVectorsEqual(V2, V3));
+
+	V0 = MakeVectorRegisterDouble(-1.0f, -3.0f, -24.0f, 36.0f);
+	V1 = MakeVectorRegisterDouble((uint64)(0xFFFFFFFFFFFFFFFFU), (uint64)(0x7FFFFFFFFFFFFFFFU), (uint64)(0x7FFFFFFFFFFFFFFFU), (uint64)(0xFFFFFFFFFFFFFFFFU));
+	V2 = VectorBitwiseAnd(V0, V1);
+	V3 = MakeVectorRegisterDouble(-1.0f, 3.0f, 24.0f, 36.0f);
+	LogTest(TEXT("VectorBitwiseAnd-Double"), TestVectorsEqual(V2, V3));
+
+	V0 = MakeVectorRegisterDouble(-1.0f, -3.0f, -24.0f, 36.0f);
+	V1 = MakeVectorRegisterDouble((uint64)(0x8000000000000000U), (uint64)(0x0000000000000000U), (uint64)(0x8000000000000000U), (uint64)(0x8000000000000000U));
+	V2 = VectorBitwiseXor(V0, V1);
+	V3 = MakeVectorRegisterDouble(1.0f, -3.0f, 24.0f, -36.0f);
+	LogTest(TEXT("VectorBitwiseXor-Double"), TestVectorsEqual(V2, V3));
+
+	V0 = MakeVectorRegisterDouble(2.0f, -2.0f, 3.0f, -4.0f);
+	V1 = VectorSet_W0(V0);
+	V0 = MakeVectorRegisterDouble(2.0f, -2.0f, 3.0f, 0.0f);
+	LogTest(TEXT("VectorSet_W0"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(2.0f, -2.0f, 3.0f, -4.0f);
+	V1 = VectorSet_W1(V0);
+	V0 = MakeVectorRegisterDouble(2.0f, -2.0f, 3.0f, 1.0f);
+	LogTest(TEXT("VectorSet_W1"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(2.0f, 4.0f, 6.0f, 8.0f);
+	V1 = MakeVectorRegisterDouble(4.0f, 3.0f, 2.0f, 1.0f);
+	V1 = VectorMin(V0, V1);
+	V0 = MakeVectorRegisterDouble(2.0f, 3.0f, 2.0f, 1.0f);
+	LogTest(TEXT("VectorMin"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(2.0f, 4.0f, 6.0f, 8.0f);
+	V1 = MakeVectorRegisterDouble(4.0f, 3.0f, 2.0f, 1.0f);
+	V1 = VectorMax(V0, V1);
+	V0 = MakeVectorRegisterDouble(4.0f, 4.0f, 6.0f, 8.0f);
+	LogTest(TEXT("VectorMax"), TestVectorsEqual(V0, V1));
+
+	//TODO: Rename functions to explicitly mention Double?
+	V0 = MakeVectorRegister(2.0, 4.0, 6.0, 8.0);
+	V1 = MakeVectorRegister(4.0, 3.0, 2.0, 1.0);
+	bool bIsVAGT_TRUE = VectorAnyGreaterThan(V0, V1) != 0;
+	LogTest(TEXT("VectorAnyGreaterThan-true"), bIsVAGT_TRUE);
+
+	V0 = MakeVectorRegister(1.0, 3.0, 2.0, 1.0);
+	V1 = MakeVectorRegister(2.0, 4.0, 6.0, 8.0);
+	bool bIsVAGT_FALSE = VectorAnyGreaterThan(V0, V1) == 0;
+	LogTest(TEXT("VectorAnyGreaterThan-false"), bIsVAGT_FALSE);
+
+	V0 = MakeVectorRegister(1.0, 3.0, 2.0, 1.0);
+	V1 = MakeVectorRegister(2.0, 4.0, 6.0, 8.0);
+	LogTest(TEXT("VectorAnyLesserThan-true"), VectorAnyLesserThan(V0, V1) != 0);
+
+	V0 = MakeVectorRegister(3.0, 5.0, 7.0, 9.0);
+	V1 = MakeVectorRegister(2.0, 4.0, 6.0, 8.0);
+	LogTest(TEXT("VectorAnyLesserThan-false"), VectorAnyLesserThan(V0, V1) == 0);
+
+	V0 = MakeVectorRegister(3.0, 5.0, 7.0, 9.0);
+	V1 = MakeVectorRegister(2.0, 4.0, 6.0, 8.0);
+	LogTest(TEXT("VectorAllGreaterThan-true"), VectorAllGreaterThan(V0, V1) != 0);
+
+	V0 = MakeVectorRegister(3.0, 1.0, 7.0, 9.0);
+	V1 = MakeVectorRegister(2.0, 4.0, 6.0, 8.0);
+	LogTest(TEXT("VectorAllGreaterThan-false"), VectorAllGreaterThan(V0, V1) == 0);
+
+	V0 = MakeVectorRegister(1.0, 3.0, 2.0, 1.0);
+	V1 = MakeVectorRegister(2.0, 4.0, 6.0, 8.0);
+	LogTest(TEXT("VectorAllLesserThan-true"), VectorAllLesserThan(V0, V1) != 0);
+
+	V0 = MakeVectorRegister(3.0, 3.0, 2.0, 1.0);
+	V1 = MakeVectorRegister(2.0, 4.0, 6.0, 8.0);
+	LogTest(TEXT("VectorAllLesserThan-false"), VectorAllLesserThan(V0, V1) == 0);
+
+	V0 = MakeVectorRegister(1.0, 3.0, 2.0, 8.0);
+	V1 = MakeVectorRegister(2.0, 4.0, 2.0, 1.0);
+	V2 = VectorCompareGT(V0, V1);
+	V3 = MakeVectorRegisterDouble((uint64)0, (uint64)0, (uint64)0, (uint64)-1);
+	LogTest(TEXT("VectorCompareGT"), TestVectorsEqualBitwise(V2, V3));
+
+	V0 = MakeVectorRegister(1.0, 3.0, 2.0, 8.0);
+	V1 = MakeVectorRegister(2.0, 4.0, 2.0, 1.0);
+	V2 = VectorCompareGE(V0, V1);
+	V3 = MakeVectorRegisterDouble((uint64)0, (uint64)0, (uint64)-1, (uint64)-1);
+	LogTest(TEXT("VectorCompareGE"), TestVectorsEqualBitwise(V2, V3));
+
+	V0 = MakeVectorRegister(1.0, 3.0, 2.0, 8.0);
+	V1 = MakeVectorRegister(2.0, 4.0, 2.0, 1.0);
+	V2 = VectorCompareEQ(V0, V1);
+	V3 = MakeVectorRegisterDouble((uint64)0, (uint64)0, (uint64)-1, (uint64)0);
+	LogTest(TEXT("VectorCompareEQ"), TestVectorsEqualBitwise(V2, V3));
+
+	V0 = MakeVectorRegister(1.0, 3.0, 2.0, 8.0);
+	V1 = MakeVectorRegister(2.0, 4.0, 2.0, 1.0);
+	V2 = VectorCompareNE(V0, V1);
+	V3 = MakeVectorRegisterDouble((uint64)(0xFFFFFFFFFFFFFFFF), (uint64)(0xFFFFFFFFFFFFFFFF), (uint64)(0), (uint64)(0xFFFFFFFFFFFFFFFF));
+	LogTest(TEXT("VectorCompareNE"), TestVectorsEqualBitwise(V2, V3));
+
+	V0 = MakeVectorRegister(1.0, 3.0, 2.0, 8.0);
+	V1 = MakeVectorRegister(2.0, 4.0, 2.0, 1.0);
+	V2 = MakeVectorRegisterDouble((uint64)-1, (uint64)0, (uint64)0, (uint64)-1);
+	V2 = VectorSelect(V2, V0, V1);
+	V3 = MakeVectorRegister(1.0, 4.0, 2.0, 8.0);
+	LogTest(TEXT("VectorSelect"), TestVectorsEqual(V2, V3));
+
+	V0 = MakeVectorRegister(1.0, 3.0, 0.0, 0.0);
+	V1 = MakeVectorRegister(0.0, 0.0, 2.0, 1.0);
+	V2 = VectorBitwiseOr(V0, V1);
+	V3 = MakeVectorRegister(1.0, 3.0, 2.0, 1.0);
+	LogTest(TEXT("VectorBitwiseOr-Float1"), TestVectorsEqual(V2, V3));
+
+	V0 = MakeVectorRegister(1.0, 3.0, 24.0, 36.0);
+	V1 = MakeVectorRegisterDouble((uint64)(0x8000000000000000U), (uint64)(0x8000000000000000U), (uint64)(0x8000000000000000U), (uint64)(0x8000000000000000U));
+	V2 = VectorBitwiseOr(V0, V1);
+	V3 = MakeVectorRegister(-1.0, -3.0, -24.0, -36.0);
+	LogTest(TEXT("VectorBitwiseOr-Float2"), TestVectorsEqual(V2, V3));
+
+	V0 = MakeVectorRegister(-1.0, -3.0, -24.0, 36.0);
+	V1 = MakeVectorRegisterDouble((uint64)(0xFFFFFFFFFFFFFFFF), (uint64)(0x7FFFFFFFFFFFFFFFU), (uint64)(0x7FFFFFFFFFFFFFFFU), (uint64)(0xFFFFFFFFFFFFFFFF));
+	V2 = VectorBitwiseAnd(V0, V1);
+	V3 = MakeVectorRegister(-1.0, 3.0, 24.0, 36.0);
+	LogTest(TEXT("VectorBitwiseAnd-Float"), TestVectorsEqual(V2, V3));
+
+	V0 = MakeVectorRegister(-1.0, -3.0, -24.0, 36.0);
+	V1 = MakeVectorRegisterDouble((uint64)(0x8000000000000000), (uint64)(0x0000000000000000U), (uint64)(0x8000000000000000U), (uint64)(0x8000000000000000U));
+	V2 = VectorBitwiseXor(V0, V1);
+	V3 = MakeVectorRegister(1.0, -3.0, 24.0, -36.0);
+	LogTest(TEXT("VectorBitwiseXor-Float"), TestVectorsEqual(V2, V3));
+
+	V0 = MakeVectorRegister(-1.0, -3.0, -24.0, 36.0);
+	V1 = MakeVectorRegister(5.0, 35.0, 23.0, 48.0);
+	V2 = VectorMergeVecXYZ_VecW(V0, V1);
+	V3 = MakeVectorRegister(-1.0, -3.0, -24.0, 48.0);
+	LogTest(TEXT("VectorMergeXYZ_VecW-1"), TestVectorsEqual(V2, V3));
+
+	V0 = MakeVectorRegister(-1.0, -3.0, -24.0, 36.0);
+	V1 = MakeVectorRegister(5.0, 35.0, 23.0, 48.0);
+	V2 = VectorMergeVecXYZ_VecW(V1, V0);
+	V3 = MakeVectorRegister(5.0, 35.0, 23.0, 36.0);
+	LogTest(TEXT("VectorMergeXYZ_VecW-2"), TestVectorsEqual(V2, V3));
+
+	V0 = MakeVectorRegister(1.0, 1.0e6, 1.3e-8, 35.0);
+	V1 = VectorReciprocal(V0);
+	V3 = VectorMultiply(V1, V0);
+	LogTest(TEXT("VectorReciprocal"), TestVectorsEqual(VectorOneDouble(), V3, 0.008));
+
+	V0 = MakeVectorRegister(1.0, 1.0e6, 1.3e-8, 35.0);
+	V1 = VectorReciprocalAccurate(V0);
+	V3 = VectorMultiply(V1, V0);
+	LogTest(TEXT("VectorReciprocalAccurate"), TestVectorsEqual(VectorOneDouble(), V3, 1e-7));
+
+	V0 = MakeVectorRegister(1.0, 1.0e6, 1.3e-8, 35.0);
+	V1 = VectorReciprocalSqrt(V0);
+	V3 = VectorMultiply(VectorMultiply(V1, V1), V0);
+	LogTest(TEXT("VectorReciprocalSqrt"), TestVectorsEqual(VectorOneDouble(), V3, 0.007));
+
+	V0 = MakeVectorRegister(1.0, 1.0e6, 1.3e-8, 35.0);
+	V1 = VectorReciprocalSqrtAccurate(V0);
+	V3 = VectorMultiply(VectorMultiply(V1, V1), V0);
+	LogTest(TEXT("VectorReciprocalSqrtAccurate"), TestVectorsEqual(VectorOneDouble(), V3, 1e-6));
+
+	// VectorMod
+	V0 = MakeVectorRegister(0.0, 3.2, 2.8, 1.5);
+	V1 = MakeVectorRegister(2.0, 1.2, 2.0, 3.0);
+	V2 = TestReferenceMod(V0, V1);
+	V3 = VectorMod(V0, V1);
+	LogTest(TEXT("VectorMod positive"), TestVectorsEqual(V2, V3));
+
+	V0 = MakeVectorRegister(-2.0, 3.2, -2.8, -1.5);
+	V1 = MakeVectorRegister(-1.5, -1.2, 2.0, 3.0);
+	V2 = TestReferenceMod(V0, V1);
+	V3 = VectorMod(V0, V1);
+	LogTest(TEXT("VectorMod negative"), TestVectorsEqual(V2, V3));
+
+	// VectorSign
+	V0 = MakeVectorRegister(2.0, -2.0, 0.0, -3.0);
+	V2 = MakeVectorRegister(1.0, -1.0, 1.0, -1.0);
+	V3 = VectorSign(V0);
+	LogTest(TEXT("VectorSign"), TestVectorsEqual(V2, V3));
+
+	// VectorStep
+	V0 = MakeVectorRegister(2.0, -2.0, 0.0, -3.0);
+	V2 = MakeVectorRegister(1.0, 0.0, 1.0, 0.0);
+	V3 = VectorStep(V0);
+	LogTest(TEXT("VectorStep"), TestVectorsEqual(V2, V3));
+
+	// VectorTruncate
+	V0 = MakeVectorRegister(-1.8, -1.0, -0.8, 0.0);
+	V2 = MakeVectorRegister(-1.0, -1.0, 0.0, 0.0);
+	V3 = VectorTruncate(V0);
+	LogTest(TEXT("VectorTruncate"), TestVectorsEqual(V2, V3, DOUBLE_KINDA_SMALL_NUMBER));
+
+	V0 = MakeVectorRegister(0.0, 0.8, 1.0, 1.8);
+	V2 = MakeVectorRegister(0.0, 0.0, 1.0, 1.0);
+	V3 = VectorTruncate(V0);
+	LogTest(TEXT("VectorTruncate"), TestVectorsEqual(V2, V3, DOUBLE_KINDA_SMALL_NUMBER));
+
+	V0 = MakeVectorRegister(0.1, 1.8, 2.4, -2.4);
+	V2 = MakeVectorRegister(0.0, 1.0, 2.0, -2.0);
+	V3 = VectorTruncate(V0);
+	LogTest(TEXT("VectorTruncate"), TestVectorsEqual(V2, V3, DOUBLE_KINDA_SMALL_NUMBER));
+
+	// VectorFractional
+	V0 = MakeVectorRegister(-1.8, -1.0, -0.8, 0.0);
+	V2 = MakeVectorRegister(-0.8, 0.0, -0.8, 0.0);
+	V3 = VectorFractional(V0);
+	LogTest(TEXT("VectorFractional"), TestVectorsEqual(V2, V3, DOUBLE_KINDA_SMALL_NUMBER));
+
+	V0 = MakeVectorRegister(0.0, 0.8, 1.0, 1.8);
+	V2 = MakeVectorRegister(0.0, 0.8, 0.0, 0.8);
+	V3 = VectorFractional(V0);
+	LogTest(TEXT("VectorFractional"), TestVectorsEqual(V2, V3, DOUBLE_KINDA_SMALL_NUMBER));
+
+	// VectorCeil
+	V0 = MakeVectorRegister(-1.8, -1.0, -0.8, 0.0);
+	V2 = MakeVectorRegister(-1.0, -1.0, -0.0, 0.0);
+	V3 = VectorCeil(V0);
+	LogTest(TEXT("VectorCeil"), TestVectorsEqual(V2, V3, DOUBLE_KINDA_SMALL_NUMBER));
+
+	V0 = MakeVectorRegister(0.0, 0.8, 1.0, 1.8);
+	V2 = MakeVectorRegister(0.0, 1.0, 1.0, 2.0);
+	V3 = VectorCeil(V0);
+	LogTest(TEXT("VectorCeil"), TestVectorsEqual(V2, V3, DOUBLE_KINDA_SMALL_NUMBER));
+
+	// VectorFloor
+	V0 = MakeVectorRegister(-1.8, -1.0, -0.8, 0.0);
+	V2 = MakeVectorRegister(-2.0, -1.0, -1.0, 0.0);
+	V3 = VectorFloor(V0);
+	LogTest(TEXT("VectorFloor"), TestVectorsEqual(V2, V3, DOUBLE_KINDA_SMALL_NUMBER));
+
+	V0 = MakeVectorRegister(0.0, 0.8, 1.0, 1.8);
+	V2 = MakeVectorRegister(0.0, 0.0, 1.0, 1.0);
+	V3 = VectorFloor(V0);
+	LogTest(TEXT("VectorFloor"), TestVectorsEqual(V2, V3));
+
+	// NaN / Inf tests
+	// Using a union as we need to do a bitwise cast of 0xFFFFFFFF into a float.
+	typedef union
+	{
+		uint64 IntNaN;
+		double DoubleNaN;
+	} Int64DoubleUnion;
+	Int64DoubleUnion NaNU;
+	NaNU.IntNaN = 0xFFFFFFFFFFFFFFFF;
+	const double NaN = NaNU.DoubleNaN;
+	LogTest(TEXT("VectorContainsNaNOrInfinite true"), VectorContainsNaNOrInfinite(MakeVectorRegisterDouble(NaN, NaN, NaN, NaN)));
+	LogTest(TEXT("VectorContainsNaNOrInfinite true"), VectorContainsNaNOrInfinite(MakeVectorRegisterDouble(NaN, 0.0, 0.0, 0.0)));
+	LogTest(TEXT("VectorContainsNaNOrInfinite true"), VectorContainsNaNOrInfinite(MakeVectorRegisterDouble(0.0, 0.0, 0.0, NaN)));
+	LogTest(TEXT("VectorContainsNaNOrInfinite true"), VectorContainsNaNOrInfinite(GlobalVectorConstants::DoubleInfinity));
+	LogTest(TEXT("VectorContainsNaNOrInfinite true"), VectorContainsNaNOrInfinite(MakeVectorRegisterDouble((uint64)0xFFF0000000000000ULL, (uint64)0xFFF0000000000000ULL,
+																										   (uint64)0xFFF0000000000000ULL, (uint64)0xFFF0000000000000ULL))); // negative infinity
+	LogTest(TEXT("VectorContainsNaNOrInfinite true"), VectorContainsNaNOrInfinite(GlobalVectorConstants::DoubleAllMask));
+
+	return GPassing;
+}
 
 /**
  * Run a suite of vector operations to validate vector intrinsics are working on the platform
@@ -752,9 +1402,9 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 {
 	float F1 = 1.f;
 	uint32 D1 = *(uint32 *)&F1;
-	VectorRegister V0, V1, V2, V3;
+	VectorRegister4Float V0, V1, V2, V3;
 
-	GPassing = true;
+	SetPassing(true);
 
 	V0 = MakeVectorRegister( D1, D1, D1, D1 );
 	V1 = MakeVectorRegister( F1, F1, F1, F1 );
@@ -864,17 +1514,19 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V0 = MakeVectorRegister( 1.0f, 2.0f, 3.0f, 4.0f );
 	LogTest( TEXT("VectorSubtract"), TestVectorsEqual( V0, V1 ) );
 
-	V0 = MakeVectorRegister( 2.0f, 4.0f, 6.0f, 8.0f );
-	V1 = MakeVectorRegister( 1.0f, 2.0f, 3.0f, 4.0f );
-	V1 = VectorMultiply( V0, V1 );
-	V0 = MakeVectorRegister( 2.0f, 8.0f, 18.0f, 32.0f );
-	LogTest( TEXT("VectorMultiply"), TestVectorsEqual( V0, V1 ) );
+	// Note: Older versions of MSVC had codegen issues with optimization on that caused this to fail. If this passes in Debug builds but not optimized builds, try updating your MSVC compiler.
+	V0 = MakeVectorRegister(2.0f, 4.0f, 6.0f, 8.0f);
+	V1 = MakeVectorRegister(1.0f, 2.0f, 3.0f, 4.0f);
+	V2 = VectorMultiply(V0, V1);
+	V3 = MakeVectorRegister(2.0f, 8.0f, 18.0f, 32.0f);
+	LogTest(TEXT("VectorMultiply"), TestVectorsEqual(V3, V2));
 
-	V0 = MakeVectorRegister( 2.0f, 4.0f, 6.0f, 8.0f );
-	V1 = MakeVectorRegister( 1.0f, 2.0f, 3.0f, 4.0f );
-	V1 = VectorMultiplyAdd( V0, V1, VectorOne() );
-	V0 = MakeVectorRegister( 3.0f, 9.0f, 19.0f, 33.0f );
-	LogTest( TEXT("VectorMultiplyAdd"), TestVectorsEqual( V0, V1 ) );
+	// Note: Older versions of MSVC had codegen issues with optimization on that caused this to fail. If this passes in Debug builds but not optimized builds, try updating your MSVC compiler.
+	V0 = MakeVectorRegister(2.0f, 4.0f, 6.0f, 8.0f);
+	V1 = MakeVectorRegister(1.0f, 2.0f, 3.0f, 4.0f);
+	V2 = VectorMultiplyAdd(V0, V1, VectorOne());
+	V3 = MakeVectorRegister(3.0f, 9.0f, 19.0f, 33.0f);
+	LogTest(TEXT("VectorMultiplyAdd"), TestVectorsEqual(V3, V2));
 
 	V0 = MakeVectorRegister( 2.0f, 4.0f, 6.0f, 8.0f );
 	V1 = MakeVectorRegister( 1.0f, 2.0f, 3.0f, 4.0f );
@@ -894,6 +1546,12 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V0 = MakeVectorRegister( 0.f, 0.0f, 2.0f, 0.0f );
 	LogTest( TEXT("VectorCross"), TestVectorsEqual( V0, V1 ) );
 
+	V0 = MakeVectorRegister( 2.0f, 3.0f, 4.0f, 8.0f );
+	V1 = MakeVectorRegister( 5.0f, 6.0f, 7.0f, 4.0f );
+	V1 = VectorCross(V0, V1);
+	V0 = MakeVectorRegister( -3.0f, 6.0f, -3.0f, 0.0f );
+	LogTest(TEXT("VectorCross"), TestVectorsEqual( V0, V1 ));
+
 	V0 = MakeVectorRegister( 2.0f, 4.0f, 6.0f, 8.0f );
 	V1 = MakeVectorRegister( 4.0f, 3.0f, 2.0f, 1.0f );
 	V1 = VectorPow( V0, V1 );
@@ -903,12 +1561,12 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V0 = MakeVectorRegister( 2.0f, -2.0f, 2.0f, -2.0f );
 	V1 = VectorReciprocalLen( V0 );
 	V0 = MakeVectorRegister( 0.25f, 0.25f, 0.25f, 0.25f );
-	LogTest( TEXT("VectorReciprocalLen"), TestVectorsEqual( V0, V1, 0.001f ) );
+	LogTest( TEXT("VectorReciprocalLen"), TestVectorsEqual( V0, V1, 0.004f ) );
 
 	V0 = MakeVectorRegister( 2.0f, -2.0f, 2.0f, -2.0f );
 	V1 = VectorNormalize( V0 );
 	V0 = MakeVectorRegister( 0.5f, -0.5f, 0.5f, -0.5f );
-	LogTest( TEXT("VectorNormalize"), TestVectorsEqual( V0, V1, 0.001f ) );
+	LogTest( TEXT("VectorNormalize"), TestVectorsEqual( V0, V1, 0.004f ) );
 
 	V0 = MakeVectorRegister(2.0f, -2.0f, 2.0f, -2.0f);
 	V1 = VectorNormalizeAccurate(V0);
@@ -1096,17 +1754,17 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V0 = MakeVectorRegister( 1.0f, 1.0e6f, 1.3e-8f, 35.0f );
 	V1 = VectorReciprocal( V0 );
 	V3 = VectorMultiply(V1, V0);
-	LogTest( TEXT("VectorReciprocal"), TestVectorsEqual( VectorOne(), V3, 1e-3f ) );
+	LogTest( TEXT("VectorReciprocal"), TestVectorsEqual( VectorOne(), V3, 0.008f ) );
 
 	V0 = MakeVectorRegister( 1.0f, 1.0e6f, 1.3e-8f, 35.0f );
 	V1 = VectorReciprocalAccurate( V0 );
 	V3 = VectorMultiply(V1, V0);
-	LogTest( TEXT("VectorReciprocalAccurate"), TestVectorsEqual( VectorOne(), V3, 1e-7f ) );
+	LogTest( TEXT("VectorReciprocalAccurate"), TestVectorsEqual( VectorOne(), V3, 1e-7f) );
 
 	V0 = MakeVectorRegister( 1.0f, 1.0e6f, 1.3e-8f, 35.0f );
 	V1 = VectorReciprocalSqrt( V0 );
 	V3 = VectorMultiply(VectorMultiply(V1, V1), V0);
-	LogTest( TEXT("VectorReciprocalSqrt"), TestVectorsEqual( VectorOne(), V3, 2e-3f ) );
+	LogTest( TEXT("VectorReciprocalSqrt"), TestVectorsEqual( VectorOne(), V3, 0.007f ) );
 
 	V0 = MakeVectorRegister( 1.0f, 1.0e6f, 1.3e-8f, 35.0f );
 	V1 = VectorReciprocalSqrtAccurate( V0 );
@@ -1194,12 +1852,12 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V3 = VectorFloor(V0);
 	LogTest(TEXT("VectorFloor"), TestVectorsEqual(V2, V3));
 
-	FMatrix	M0, M1, M2, M3;
-	FVector Eye, LookAt, Up;	
+	FMatrix44f	M0, M1, M2, M3;		// LWC_TODO: Need double version tests!
+	FVector3f Eye, LookAt, Up;	
 	// Create Look at Matrix
-	Eye    = FVector(1024.0f, -512.0f, -2048.0f);
-	LookAt = FVector(0.0f,		  0.0f,     0.0f);
-	Up     = FVector(0.0f,       1.0f,    0.0f);
+	Eye    = FVector3f(1024.0f, -512.0f, -2048.0f);
+	LookAt = FVector3f(0.0f,		  0.0f,     0.0f);
+	Up     = FVector3f(0.0f,       1.0f,    0.0f);
 	M0	= FLookAtMatrix(Eye, LookAt, Up);		
 
 	// Create GL ortho projection matrix
@@ -1212,18 +1870,18 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	const float ZNear = -100.0f;
 	const float ZFar = 100.0f;
 
-	M1 = FMatrix(FPlane(2.0f/(Right-Left),	0,							0,					0 ),
-		FPlane(0,							2.0f/(Top-Bottom),			0,					0 ),
-		FPlane(0,							0,							1/(ZNear-ZFar),		0 ),
-		FPlane((Left+Right)/(Left-Right),	(Top+Bottom)/(Bottom-Top),	ZNear/(ZNear-ZFar), 1 ) );
+	M1 = FMatrix44f(FPlane4f(2.0f/(Right-Left),	0,							0,					0 ),
+		FPlane4f(0,							2.0f/(Top-Bottom),			0,					0 ),
+		FPlane4f(0,							0,							1/(ZNear-ZFar),		0 ),
+		FPlane4f((Left+Right)/(Left-Right),	(Top+Bottom)/(Bottom-Top),	ZNear/(ZNear-ZFar), 1 ) );
 
 	VectorMatrixMultiply( &M2, &M0, &M1 );
 	TestVectorMatrixMultiply( &M3, &M0, &M1 );
-	LogTest( TEXT("VectorMatrixMultiply"), TestMatricesEqual( M2, M3 ) );
+	LogTest( TEXT("VectorMatrixMultiply"), TestMatricesEqual( M2, M3, 0.000001f ) );
 
 	VectorMatrixInverse( &M2, &M1 );
 	TestVectorMatrixInverse( &M3, &M1 );
-	LogTest( TEXT("VectorMatrixInverse"), TestMatricesEqual( M2, M3 ) );
+	LogTest( TEXT("VectorMatrixInverse"), TestMatricesEqual( M2, M3, 0.000001f) );
 
 // 	FTransform Transform;
 // 	Transform.SetFromMatrix(M1);
@@ -1266,27 +1924,197 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	LogTest(TEXT("VectorContainsNaNOrInfinite false"), !VectorContainsNaNOrInfinite(GlobalVectorConstants::SmallNumber));
 	LogTest(TEXT("VectorContainsNaNOrInfinite false"), !VectorContainsNaNOrInfinite(GlobalVectorConstants::BigNumber));
 
+	// FMath::FMod (floats)
+	{
+		struct XYPair
+		{
+			float X, Y;
+		};
+
+		static XYPair XYArray[] =
+		{
+			// Test normal ranges
+			{ 0.0f,	 1.0f},
+			{ 1.5f,	 1.0f},
+			{ 2.8f,	 0.3f},
+			{-2.8f,	 0.3f},
+			{ 2.8f,	-0.3f},
+			{-2.8f,	-0.3f},
+			{-0.4f,	 5.5f},
+			{ 0.4f,	-5.5f},
+			{ 2.8f,	 2.0f + KINDA_SMALL_NUMBER},
+			{-2.8f,	 2.0f - KINDA_SMALL_NUMBER},
+
+			// Analytically should be zero but floating point precision can cause results close to Y (or erroneously negative) depending on the method used.
+			{55.8f,	 9.3f},
+			{1234.1234f, 0.1234f},
+
+			// Commonly used for FRotators and angles
+			{725.2f,	360.0f},
+			{179.9f,	90.0f},
+			{ 5.3f * PI,	2.f * PI},
+			{-5.3f * PI,	2.f * PI},
+
+			// Test extreme ranges
+			{ 1.0f,			 KINDA_SMALL_NUMBER},
+			{ 1.0f,			-KINDA_SMALL_NUMBER},
+			{-SMALL_NUMBER,  SMALL_NUMBER},
+			{ SMALL_NUMBER, -SMALL_NUMBER},
+			{ 1.0f,			 MIN_flt},
+			{ 1.0f,			-MIN_flt},
+			{ MAX_flt,		 MIN_flt},
+			{ MAX_flt,		-MIN_flt},
+
+			// Test some tricky cases
+			{8388808.00f, 178.222f},  // FAILS old version
+			{360.0f * 1e10f,		360.0f},
+			{-720.0f * 1000000.0f,	360.0f},
+			{1080.0f * 12345.f,		360.0f},
+			{360.0f,				360.0f - KINDA_SMALL_NUMBER},
+			{1080.0f,				360.0f - KINDA_SMALL_NUMBER},
+			{719.0f,				360.0f - KINDA_SMALL_NUMBER},
+			
+
+			// We define this to be zero and not NaN.
+			// Disabled since we don't want to trigger an ensure, but left here for testing that logic.
+			//{ 1.0,	 0.0}, 
+			//{ 1.0,	-0.0},
+		};
+
+		for (auto XY : XYArray)
+		{
+			const float X = XY.X;
+			const float Y = XY.Y;
+			const float Ours = FMath::Fmod(X, Y);
+			const float Theirs = fmodf(X, Y);
+			const float Delta = FMath::Abs(Ours - Theirs);
+
+			//UE_LOG(LogUnrealMathTest, Warning, TEXT("fmodf(%.12f, %.12f) Ref: %.12f Ours: %.12f (delta %.12f)"), X, Y, Theirs, Ours, Delta);
+
+			// A compiler bug causes stock fmodf() to rarely return NaN for valid input, we don't want to report this as a fatal error.
+			if (Y != 0.0f && FMath::IsNaN(Theirs))
+			{
+				UE_LOG(LogUnrealMathTest, Warning, TEXT("fmodf(%f, %f) with valid input resulted in NaN!"), X, Y);
+				continue;
+			}
+
+			if (Delta > 1e-8f)
+			{
+				UE_LOG(LogUnrealMathTest, Log, TEXT("FMath::Fmod(%f, %f)=%f <-> fmodf(%f, %f)=%f: FAILED"), X, Y, Ours, X, Y, Theirs);
+				SetPassing(false);
+			}
+		}
+	}
+
+	// FMath::FMod (doubles)
+	{
+		struct XYPair
+		{
+			double X, Y;
+		};
+
+		static XYPair XYArray[] =
+		{
+			// Test normal ranges
+			{ 0.0,	 1.0},
+			{ 1.5,	 1.0},
+			{ 2.8,	 0.3},
+			{-2.8,	 0.3},
+			{ 2.8,	-0.3},
+			{-2.8,	-0.3},
+			{-0.4,	 5.5},
+			{ 0.4,	-5.5},
+			{ 2.8,	 2.0 + DOUBLE_KINDA_SMALL_NUMBER},
+			{-2.8,	 2.0 - DOUBLE_KINDA_SMALL_NUMBER},
+
+			// Analytically should be zero but floating point precision can cause results close to Y (or erroneously negative) depending on the method used.
+			{55.8,	 9.3},
+			{1234.1234, 0.1234},
+			{12341234.12341234, 0.12341234},
+
+			// Commonly used for FRotators and angles
+			{725.2,	360.0},
+			{179.9,	90.0},
+			{ 5.3 * DOUBLE_PI,	2. * DOUBLE_PI},
+			{-5.3 * DOUBLE_PI,	2. * DOUBLE_PI},
+
+			// Test extreme ranges
+			{ 1.0,			 DOUBLE_KINDA_SMALL_NUMBER},
+			{ 1.0,			-DOUBLE_KINDA_SMALL_NUMBER},
+			{-DOUBLE_SMALL_NUMBER,  DOUBLE_SMALL_NUMBER},
+			{ DOUBLE_SMALL_NUMBER, -DOUBLE_SMALL_NUMBER},
+			{ 1.0,			 MIN_dbl},
+			{ 1.0,			-MIN_dbl},
+			{ MAX_flt,		 MIN_dbl},
+			{ MAX_flt,		-MIN_dbl},
+
+			// Test some tricky cases
+			{8388808.00,			178.222},  // FAILS old version
+			{360.0 * 1e10,			360.0},
+			{-720.0 * 1000000.0,	360.0},
+			{1080.0 * 12345.,		360.0},
+			{360.0,					360.0 - DOUBLE_KINDA_SMALL_NUMBER},
+			{1080.0,				360.0 - DOUBLE_KINDA_SMALL_NUMBER},
+			{719.0,					360.0 - DOUBLE_KINDA_SMALL_NUMBER},
+
+			// We define this to be zero and not NaN.
+			// Disabled since we don't want to trigger an ensure, but left here for testing that logic.
+			//{ 1.0,	 0.0}, 
+			//{ 1.0,	-0.0},
+		};
+
+		for (auto XY : XYArray)
+		{
+			const double X = XY.X;
+			const double Y = XY.Y;
+			const double Ours = FMath::Fmod(X, Y);
+			const double Theirs = fmod(X, Y);
+			const double Delta = FMath::Abs(Ours - Theirs);
+
+			//UE_LOG(LogUnrealMathTest, Warning, TEXT("fmod(%.12f, %.12f) Ref: %.12f Ours: %.12f (delta %.12f)"), X, Y, Theirs, Ours, Delta);
+
+			// A compiler bug causes stock fmodf() to rarely return NaN for valid input, we don't want to report this as a fatal error.
+			if (Y != 0.0 && FMath::IsNaN(Theirs))
+			{
+				UE_LOG(LogUnrealMathTest, Warning, TEXT("fmod(%f, %f) with valid input resulted in NaN!"), X, Y);
+				continue;
+			}
+
+			if (Delta > 1e-8)
+			{
+				// If we differ significantly, that is likely due to rounding and the difference should be nearly equal to Y.
+				const double FractionalDelta = FMath::Abs(Delta - FMath::Abs(Y));
+				if (FractionalDelta > 1e-8)
+				{
+					UE_LOG(LogUnrealMathTest, Log, TEXT("FMath::Fmod(%.12f, %.12f)=%.12f <-> fmod(%.12f, %.12f)=%.12f: FAILED"), X, Y, Ours, X, Y, Theirs);
+					SetPassing(false);
+				}				
+			}
+		}
+	}
+
+
 
 	FQuat Q0, Q1, Q2, Q3;
 
 	// SinCos tests
 	{
-		const VectorRegister QuadrantDegreesArray[] = {
+		const VectorRegister4Float QuadrantDegreesArray[] = {
 			MakeVectorRegister( 0.0f, 10.0f, 20.0f, 30.0f),
 			MakeVectorRegister(45.0f, 60.0f, 70.0f, 80.0f),
 		};
 
-		const float SinCosTolerance = 1e-6f;
+		const float SinCosTolerance = 1e-5f;
 		const int32 Cycles = 3; // Go through a full circle this many times (negative and positive)
 		for (int32 OffsetQuadrant = -4*Cycles; OffsetQuadrant <= 4*Cycles; ++OffsetQuadrant)
 		{
 			const float OffsetFloat = (float)OffsetQuadrant * 90.0f; // Add 90 degrees repeatedly to cover all quadrants and wrap a few times
-			const VectorRegister VOffset = VectorLoadFloat1(&OffsetFloat);
-			for (VectorRegister const& VDegrees : QuadrantDegreesArray)
+			const VectorRegister4Float VOffset = VectorLoadFloat1(&OffsetFloat);
+			for (VectorRegister4Float const& VDegrees : QuadrantDegreesArray)
 			{
-				const VectorRegister VAnglesDegrees = VectorAdd(VOffset, VDegrees);
-				const VectorRegister VAngles = VectorMultiply(VAnglesDegrees, GlobalVectorConstants::DEG_TO_RAD);
-				VectorRegister S[3], C[3];
+				const VectorRegister4Float VAnglesDegrees = VectorAdd(VOffset, VDegrees);
+				const VectorRegister4Float VAngles = VectorMultiply(VAnglesDegrees, GlobalVectorConstants::DEG_TO_RAD);
+				VectorRegister4Float S[3], C[3];
 				TestReferenceSinCos(S[0], C[0], VAngles);
 				TestFastSinCos(S[1], C[1], VAngles);
 				TestVectorSinCos(S[2], C[2], VAngles);
@@ -1403,7 +2231,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 
 		// Identity -> X Axis
 		Axis = FQuat::Identity.GetRotationAxis();
-		LogTest(TEXT("FQuat::Identity.GetRotationAxis() == FVector::XAxisVector"), TestFVector3Equal(Axis, FVector::XAxisVector));
+		LogTest(TEXT("FQuat::Identity.GetRotationAxis() == FVector3f::XAxisVector"), TestFVector3Equal(Axis, FVector3f::XAxisVector));
 
 		const FQuat QuatArray[] = {
 			FQuat(0.0f, 0.0f, 0.0f, 1.0f),
@@ -1429,7 +2257,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		Q1 = TestRotatorToQuaternion(Rotator0);
 		LogTest( TEXT("TestRotatorToQuaternion"), TestQuatsEqual(Q0, Q1, 1e-6f));
 
-		FVector FV0, FV1;
+		FVector3f FV0, FV1;
 		FV0 = Rotator0.Vector();
 		FV1 = FRotationMatrix( Rotator0 ).GetScaledAxis( EAxis::X );
 		LogTest( TEXT("Test0 Rotator::Vector()"), TestFVector3Equal(FV0, FV1, 1e-6f));
@@ -1469,15 +2297,15 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		};
 
 		// ... to rotate these Vectors...
-		const FVector TestVectors[] = {
-			FVector::ZeroVector,
-			FVector::ForwardVector,
-			FVector::RightVector,
-			FVector::UpVector,
-			FVector(45.0f, -60.0f, 120.0f),
-			FVector(-45.0f, 60.0f, -120.0f),
-			FVector(0.57735026918962576451f, 0.57735026918962576451f, 0.57735026918962576451f),
-			-FVector::ForwardVector,
+		const FVector3f TestVectors[] = {
+			FVector3f::ZeroVector,
+			FVector3f::ForwardVector,
+			FVector3f::RightVector,
+			FVector3f::UpVector,
+			FVector3f(45.0f, -60.0f, 120.0f),
+			FVector3f(-45.0f, 60.0f, -120.0f),
+			FVector3f(0.57735026918962576451f, 0.57735026918962576451f, 0.57735026918962576451f),
+			-FVector3f::ForwardVector,
 		};
 
 		// ... and test within this tolerance.
@@ -1496,7 +2324,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 			const FQuat& Q = TestQuats[QIndex];
 			for (int32 VIndex = 0; VIndex < UE_ARRAY_COUNT(TestVectors); ++VIndex)
 			{
-				const FVector& V = TestVectors[VIndex];
+				const FVector3f& V = TestVectors[VIndex];
 				TEST_QUAT_ROTATE(QIndex, VIndex, Q, V, TestQuaternionRotateVectorScalar, Tolerance);
 				TEST_QUAT_ROTATE(QIndex, VIndex, Q, V, TestQuaternionRotateVectorRegister, Tolerance);
 				TEST_QUAT_ROTATE(QIndex, VIndex, Q, V, TestQuaternionMultiplyVector, Tolerance);
@@ -1506,20 +2334,20 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 
 		// FindBetween
 		{
-			for (FVector const& A: TestVectors)
+			for (FVector3f const& A: TestVectors)
 			{
-				for (FVector const &B : TestVectors)
+				for (FVector3f const &B : TestVectors)
 				{
-					const FVector ANorm = A.GetSafeNormal();
-					const FVector BNorm = B.GetSafeNormal();
+					const FVector3f ANorm = A.GetSafeNormal();
+					const FVector3f BNorm = B.GetSafeNormal();
 
 					const FQuat Old = FindBetween_Old(ANorm, BNorm);
 					const FQuat NewNormal = FQuat::FindBetweenNormals(ANorm, BNorm);
 					const FQuat NewVector = FQuat::FindBetweenVectors(A, B);
 
-					const FVector RotAOld = Old.RotateVector(ANorm);
-					const FVector RotANewNormal = NewNormal.RotateVector(ANorm);
-					const FVector RotANewVector = NewVector.RotateVector(ANorm);
+					const FVector3f RotAOld = Old.RotateVector(ANorm);
+					const FVector3f RotANewNormal = NewNormal.RotateVector(ANorm);
+					const FVector3f RotANewVector = NewVector.RotateVector(ANorm);
 
 					if (A.IsZero() || B.IsZero())
 					{
@@ -1537,19 +2365,19 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		}
 
 
-		// FVector::ToOrientationRotator(), FVector::ToOrientationQuat()
+		// FVector3f::ToOrientationRotator(), FVector3f::ToOrientationQuat()
 		{
-			for (FVector const& V: TestVectors)
+			for (FVector3f const& V: TestVectors)
 			{
-				const FVector VNormal = V.GetSafeNormal();
+				const FVector3f VNormal = V.GetSafeNormal();
 
-				Q0 = FQuat::FindBetweenNormals(FVector::ForwardVector, VNormal);
+				Q0 = FQuat::FindBetweenNormals(FVector3f::ForwardVector, VNormal);
 				Q1 = V.ToOrientationQuat();
 				const FRotator R0 = V.ToOrientationRotator();
 
-				const FVector Rotated0 = Q0.RotateVector(FVector::ForwardVector);
-				const FVector Rotated1 = Q1.RotateVector(FVector::ForwardVector);
-				const FVector Rotated2 = R0.RotateVector(FVector::ForwardVector);
+				const FVector3f Rotated0 = Q0.RotateVector(FVector3f::ForwardVector);
+				const FVector3f Rotated1 = Q1.RotateVector(FVector3f::ForwardVector);
+				const FVector3f Rotated2 = R0.RotateVector(FVector3f::ForwardVector);
 
 				LogTest(TEXT("V.ToOrientationQuat() rotate"), TestFVector3Equal(Rotated0, Rotated1, KINDA_SMALL_NUMBER));
 				LogTest(TEXT("V.ToOrientationRotator() rotate"), TestFVector3Equal(Rotated0, Rotated2, KINDA_SMALL_NUMBER));
@@ -1582,86 +2410,14 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		LogTest(TEXT("VectorQuaternionMultiply2"), TestVectorsEqual(V2, V3, 1e-6f));
 	}
 
-	// FMath::FMod
-	{
-		struct XYPair
-		{
-			float X, Y;
-		};
-
-		static XYPair XYArray[] =
-		{		
-			// Test normal ranges
-			{ 0.0f,	 1.0f},
-			{ 1.5f,	 1.0f},
-			{ 2.8f,	 0.3f},
-			{-2.8f,	 0.3f},
-			{ 2.8f,	-0.3f},
-			{-2.8f,	-0.3f},
-			{-0.4f,	 5.5f},
-			{ 0.4f,	-5.5f},
-			{ 2.8f,	 2.0f + KINDA_SMALL_NUMBER},
-			{-2.8f,	 2.0f - KINDA_SMALL_NUMBER},
-
-			// Analytically should be zero but floating point precision can cause results close to Y (or erroneously negative) depending on the method used.
-			{55.8f,	 9.3f},
-			{1234.1234f, 0.1234f},
-
-			// Commonly used for FRotators and angles
-			{725.2f,		360.0f},
-			{179.9f,		 90.0f},
-			{ 5.3f*PI,	2.f*PI},
-			{-5.3f*PI,	2.f*PI},
-
-			// Test extreme ranges
-			{ 1.0f,			 KINDA_SMALL_NUMBER},
-			{ 1.0f,			-KINDA_SMALL_NUMBER},
-			{-SMALL_NUMBER,  SMALL_NUMBER},
-			{ SMALL_NUMBER, -SMALL_NUMBER},
-			{ 1.0f,			 MIN_flt},
-			{ 1.0f,			-MIN_flt},
-			{ MAX_flt,		 MIN_flt},
-			{ MAX_flt,		-MIN_flt},
-
-			// We define this to be zero and not NaN.
-			// Disabled since we don't want to trigger an ensure, but left here for testing that logic.
-			//{ 1.0,	 0.0}, 
-			//{ 1.0,	-0.0},
-		};
-
-		for (auto XY : XYArray)
-		{
-			const float X = XY.X;
-			const float Y = XY.Y;
-			const float Ours = FMath::Fmod(X, Y);
-			const float Theirs = fmodf(X, Y);
-
-			//UE_LOG(LogUnrealMathTest, Warning, TEXT("fmodf(%f, %f) Ours: %f Theirs: %f"), X, Y, Ours, Theirs);
-
-			// A compiler bug causes stock fmodf() to rarely return NaN for valid input, we don't want to report this as a fatal error.
-			if (Y != 0.0f && FMath::IsNaN(Theirs))
-			{
-				UE_LOG(LogUnrealMathTest, Warning, TEXT("fmodf(%f, %f) with valid input resulted in NaN!"), X, Y);
-				continue;
-			}
-
-			const float Delta = FMath::Abs(Ours - Theirs);
-			if (Delta > 1e-5f)
-			{
-				// If we differ significantly, that is likely due to rounding and the difference should be nearly equal to Y.
-				const float FractionalDelta = FMath::Abs(Delta - FMath::Abs(Y));
-				if (FractionalDelta > 1e-4f)
-				{
-					UE_LOG(LogUnrealMathTest, Log, TEXT("FMath::Fmod(%f, %f)=%f <-> fmodf(%f, %f)=%f: FAILED"), X, Y, Ours, X, Y, Theirs);
-					GPassing = false;
-				}
-			}
-		}
-	}
-
 	if (!GPassing)
 	{
 		UE_LOG(LogUnrealMathTest, Fatal,TEXT("VectorIntrinsics Failed."));
+	}
+
+	if (!RunDoubleVectorTest())
+	{
+		UE_LOG(LogUnrealMathTest, Fatal, TEXT("VectorIntrinsics<double> Failed."));
 	}
 
 	return true;

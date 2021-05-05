@@ -181,14 +181,14 @@ namespace Audio
 
 			for (int32 Iteration = 0; Iteration < NumIterations; Iteration++)
 			{
-				const VectorRegister A = VectorLoad(&XRealBuffer[Iteration * 4]);
-				const VectorRegister B = VectorLoad(&XImagBuffer[Iteration * 4]);
+				const VectorRegister4Float A = VectorLoad(&XRealBuffer[Iteration * 4]);
+				const VectorRegister4Float B = VectorLoad(&XImagBuffer[Iteration * 4]);
 
-				const VectorRegister C = VectorLoad(&YRealBuffer[Iteration * 4]);
-				const VectorRegister D = VectorLoad(&YImagBuffer[Iteration * 4]);
+				const VectorRegister4Float C = VectorLoad(&YRealBuffer[Iteration * 4]);
+				const VectorRegister4Float D = VectorLoad(&YImagBuffer[Iteration * 4]);
 
-				const VectorRegister ResultReal = VectorSubtract(VectorMultiply(A, C), VectorMultiply(B, D));
-				const VectorRegister ResultImag = VectorAdd(VectorMultiply(A, D), VectorMultiply(B, C));
+				const VectorRegister4Float ResultReal = VectorSubtract(VectorMultiply(A, C), VectorMultiply(B, D));
+				const VectorRegister4Float ResultImag = VectorAdd(VectorMultiply(A, D), VectorMultiply(B, C));
 
 				VectorStore(ResultReal, &YRealBuffer[Iteration * 4]);
 				VectorStore(ResultImag, &YImagBuffer[Iteration * 4]);
@@ -222,16 +222,16 @@ namespace Audio
 			float* XRealBuffer = InFreqBuffer.Real.GetData();
 			float* XImagBuffer = InFreqBuffer.Imag.GetData();
 
-			const VectorRegister C = VectorSetFloat1(InReal);
-			const VectorRegister D = VectorSetFloat1(InImag);
+			const VectorRegister4Float C = VectorSetFloat1(InReal);
+			const VectorRegister4Float D = VectorSetFloat1(InImag);
 
 			for (int32 Iteration = 0; Iteration < NumIterations; Iteration++)
 			{
-				const VectorRegister A = VectorLoad(&XRealBuffer[Iteration * 4]);
-				const VectorRegister B = VectorLoad(&XImagBuffer[Iteration * 4]);
+				const VectorRegister4Float A = VectorLoad(&XRealBuffer[Iteration * 4]);
+				const VectorRegister4Float B = VectorLoad(&XImagBuffer[Iteration * 4]);
 
-				const VectorRegister ResultReal = VectorSubtract(VectorMultiply(A, C), VectorMultiply(B, D));
-				const VectorRegister ResultImag = VectorAdd(VectorMultiply(A, D), VectorMultiply(B, C));
+				const VectorRegister4Float ResultReal = VectorSubtract(VectorMultiply(A, C), VectorMultiply(B, D));
+				const VectorRegister4Float ResultImag = VectorAdd(VectorMultiply(A, D), VectorMultiply(B, C));
 
 				VectorStore(ResultReal, &XRealBuffer[Iteration * 4]);
 				VectorStore(ResultImag, &XImagBuffer[Iteration * 4]);
@@ -263,18 +263,18 @@ namespace Audio
 			float* ZRealBuffer = OutFrequencyBuffer.Real.GetData();
 			float* ZImagBuffer = OutFrequencyBuffer.Imag.GetData();
 
-			const VectorRegister NegativeOne = VectorSetFloat1(-1.0f);
+			const VectorRegister4Float NegativeOne = VectorSetFloat1(-1.0f);
 
 			for (int32 Iteration = 0; Iteration < NumIterations; Iteration++)
 			{
-				const VectorRegister A = VectorLoad(&XRealBuffer[Iteration * 4]);
-				const VectorRegister B = VectorLoad(&XImagBuffer[Iteration * 4]);
+				const VectorRegister4Float A = VectorLoad(&XRealBuffer[Iteration * 4]);
+				const VectorRegister4Float B = VectorLoad(&XImagBuffer[Iteration * 4]);
 
-				const VectorRegister C = VectorLoad(&YRealBuffer[Iteration * 4]);
-				const VectorRegister D = VectorLoad(&YImagBuffer[Iteration * 4]);
+				const VectorRegister4Float C = VectorLoad(&YRealBuffer[Iteration * 4]);
+				const VectorRegister4Float D = VectorLoad(&YImagBuffer[Iteration * 4]);
 
-				const VectorRegister ResultReal = VectorAdd(VectorMultiply(A, C), VectorMultiply(B, D));
-				const VectorRegister ResultImag = VectorSubtract(VectorMultiply(B, C), VectorMultiply(A, D));
+				const VectorRegister4Float ResultReal = VectorAdd(VectorMultiply(A, C), VectorMultiply(B, D));
+				const VectorRegister4Float ResultImag = VectorSubtract(VectorMultiply(B, C), VectorMultiply(A, D));
 
 				VectorStore(ResultReal, &ZRealBuffer[Iteration * 4]);
 				VectorStore(ResultImag, &ZImagBuffer[Iteration * 4]);

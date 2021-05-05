@@ -1471,8 +1471,12 @@ void FViewInfo::SetupUniformBufferParameters(
 		}
 
 		// Regular view sampling of the SkyViewLUT. This is only changed when sampled from a sky material for the real time reflection capture around sky light position)
+		FVector SkyWorldCameraOrigin;
+		FMatrix SkyViewLutReferential;
 		AtmosphereSetup.ComputeViewData(ViewUniformShaderParameters.WorldCameraOrigin, ViewUniformShaderParameters.ViewForward, ViewUniformShaderParameters.ViewRight,
-			ViewUniformShaderParameters.SkyWorldCameraOrigin, ViewUniformShaderParameters.SkyPlanetCenterAndViewHeight, ViewUniformShaderParameters.SkyViewLutReferential);
+			SkyWorldCameraOrigin, ViewUniformShaderParameters.SkyPlanetCenterAndViewHeight, SkyViewLutReferential);
+		ViewUniformShaderParameters.SkyWorldCameraOrigin = SkyWorldCameraOrigin;
+		ViewUniformShaderParameters.SkyViewLutReferential = SkyViewLutReferential;
 	}
 	else
 	{
@@ -1491,7 +1495,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.SkyAtmosphereApplyCameraAerialPerspectiveVolume = 0.0f;
 		ViewUniformShaderParameters.SkyWorldCameraOrigin = ViewUniformShaderParameters.WorldCameraOrigin;
 		ViewUniformShaderParameters.SkyPlanetCenterAndViewHeight = FVector4(ForceInitToZero);
-		ViewUniformShaderParameters.SkyViewLutReferential = FMatrix::Identity;
+		ViewUniformShaderParameters.SkyViewLutReferential = FMatrix44f::Identity;
 
 		if(!bShouldRenderAtmosphericFog && Scene)
 		{

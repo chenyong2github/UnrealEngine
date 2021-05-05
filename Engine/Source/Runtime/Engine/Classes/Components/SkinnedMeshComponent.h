@@ -177,8 +177,8 @@ struct ENGINE_API FSkelMeshComponentLODInfo
 	/** Vertex buffer used to override skin weights from one of the profiles */
 	FSkinWeightVertexBuffer* OverrideProfileSkinWeights;
 
-	TArray<FVector> PreSkinningOffsets;
-	TArray<FVector> PostSkinningOffsets;
+	TArray<FVector3f> PreSkinningOffsets;
+	TArray<FVector3f> PostSkinningOffsets;
 
 	FSkelMeshComponentLODInfo();
 	~FSkelMeshComponentLODInfo();
@@ -199,7 +199,7 @@ private:
 struct FSkelMeshRefPoseOverride
 {
 	/** Inverse of (component space) ref pose matrices  */
-	TArray<FMatrix> RefBasesInvMatrix;
+	TArray<FMatrix44f> RefBasesInvMatrix;
 	/** Per bone transforms (local space) for new ref pose */
 	TArray<FTransform> RefBonePoses;
 };
@@ -954,7 +954,7 @@ public:
 	* @param SkinWeightBuffer The SkinWeightBuffer to use.
 	* @param CachedRefToLocals Cached RefToLocal matrices.
 	*/
-	static FVector GetSkinnedVertexPosition(USkinnedMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& LODDatal, FSkinWeightVertexBuffer& SkinWeightBuffer);
+	static FVector3f GetSkinnedVertexPosition(USkinnedMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& LODDatal, FSkinWeightVertexBuffer& SkinWeightBuffer);
 
 	/**
 	 * Simple, CPU evaluation of a vertex's skinned position (returned in component space)
@@ -964,7 +964,7 @@ public:
 	 * @param SkinWeightBuffer The SkinWeightBuffer to use.
 	 * @param CachedRefToLocals Cached RefToLocal matrices.
 	*/
-	static FVector GetSkinnedVertexPosition(USkinnedMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& LODData, FSkinWeightVertexBuffer& SkinWeightBuffer, TArray<FMatrix>& CachedRefToLocals);
+	static FVector3f GetSkinnedVertexPosition(USkinnedMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& LODData, FSkinWeightVertexBuffer& SkinWeightBuffer, TArray<FMatrix44f>& CachedRefToLocals);
 
 	/**
 	* CPU evaluation of the positions of all vertices (returned in component space)
@@ -974,10 +974,10 @@ public:
 	* @param Model The Model to use.
 	* @param SkinWeightBuffer The SkinWeightBuffer to use.
 	*/
-	static void ComputeSkinnedPositions(USkinnedMeshComponent* Component, TArray<FVector> & OutPositions, TArray<FMatrix>& CachedRefToLocals, const FSkeletalMeshLODRenderData& LODData, const FSkinWeightVertexBuffer& SkinWeightBuffer);
+	static void ComputeSkinnedPositions(USkinnedMeshComponent* Component, TArray<FVector3f> & OutPositions, TArray<FMatrix44f>& CachedRefToLocals, const FSkeletalMeshLODRenderData& LODData, const FSkinWeightVertexBuffer& SkinWeightBuffer);
 
 	/** Caches the RefToLocal matrices. */
-	void CacheRefToLocalMatrices(TArray<FMatrix>& OutRefToLocal) const;
+	void CacheRefToLocalMatrices(TArray<FMatrix44f>& OutRefToLocal) const;
 
 	FORCEINLINE	const USkinnedMeshComponent* GetBaseComponent()const
 	{
@@ -1273,7 +1273,7 @@ protected:
 	 *						  If MasterPoseComponent exists, it will applied to MasterPoseComponent's bound
 	 * @param UsePhysicsAsset	: Whether or not to use PhysicsAsset for calculating bound of mesh
 	 */
-	FBoxSphereBounds CalcMeshBound(const FVector& RootOffset, bool UsePhysicsAsset, const FTransform& Transform) const;
+	FBoxSphereBounds CalcMeshBound(const FVector3f& RootOffset, bool UsePhysicsAsset, const FTransform& Transform) const;
 
 	/**
 	 * return true if it needs update. Return false if not
@@ -1662,19 +1662,19 @@ void GetTypedSkinnedTangentBasis(
 	const FStaticMeshVertexBuffers& StaticVertexBuffers,
 	const FSkinWeightVertexBuffer& SkinWeightVertexBuffer,
 	const int32 VertIndex,
-	const TArray<FMatrix> & RefToLocals,
-	FVector& OutTangentX,
-	FVector& OutTangentY,
-	FVector& OutTangentZ
+	const TArray<FMatrix44f> & RefToLocals,
+	FVector3f& OutTangentX,
+	FVector3f& OutTangentY,
+	FVector3f& OutTangentZ
 );
 
 /** Simple, CPU evaluation of a vertex's skinned position helper function */
 template <bool bCachedMatrices>
-FVector GetTypedSkinnedVertexPosition(
+FVector3f GetTypedSkinnedVertexPosition(
 	const USkinnedMeshComponent* SkinnedComp,
 	const FSkelMeshRenderSection& Section,
 	const FPositionVertexBuffer& PositionVertexBuffer,
 	const FSkinWeightVertexBuffer& SkinWeightVertexBuffer,
 	const int32 VertIndex,
-	const TArray<FMatrix> & RefToLocals = TArray<FMatrix>()
+	const TArray<FMatrix44f> & RefToLocals = TArray<FMatrix44f>()
 );

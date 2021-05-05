@@ -47,8 +47,8 @@ void FMeshDescriptionHelper::SetupRenderMeshDescription(UObject* Owner, FMeshDes
 	FVertexInstanceArray& VertexInstanceArray = RenderMeshDescription.VertexInstances();
 
 	FStaticMeshAttributes Attributes(RenderMeshDescription);
-	TVertexInstanceAttributesRef<FVector> Normals = Attributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesRef<FVector> Tangents = Attributes.GetVertexInstanceTangents();
+	TVertexInstanceAttributesRef<FVector3f> Normals = Attributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesRef<FVector3f> Tangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<float> BinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 
 	// Find overlapping corners to accelerate adjacency.

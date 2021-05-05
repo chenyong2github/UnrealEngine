@@ -84,7 +84,7 @@ struct ENGINE_API FTranslationTrack
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	TArray<FVector> PosKeys;
+	TArray<FVector3f> PosKeys;
 
 	UPROPERTY()
 	TArray<float> Times;
@@ -114,7 +114,7 @@ struct ENGINE_API FScaleTrack
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	TArray<FVector> ScaleKeys;
+	TArray<FVector3f> ScaleKeys;
 
 	UPROPERTY()
 	TArray<float> Times;

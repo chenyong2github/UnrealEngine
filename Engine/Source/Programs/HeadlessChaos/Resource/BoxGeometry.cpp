@@ -3,7 +3,7 @@
 #include "../Resource/BoxGeometry.h"
 namespace GeometryCollectionTest
 {
-	const TArray<Chaos::FReal> BoxGeometry::RawVertexArray = {
+	const TArray<float> BoxGeometry::RawVertexArray = {
 																-50.000000, -50.000000, -50.000000,
 																50.000000, -50.000000, -50.000000,
 																50.000000, -50.000000, 50.000000,

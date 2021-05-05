@@ -198,7 +198,7 @@ void UXRVisualizationFunctionLibrary::RenderHandMesh(const FXRMotionControllerDa
 				return;
 			}
 
-			TArray<struct FVector> Vertices, Normals;
+			TArray<FVector> Vertices, Normals;
 			TArray<int32> Indices;
 			FTransform HandMeshTransform;
 

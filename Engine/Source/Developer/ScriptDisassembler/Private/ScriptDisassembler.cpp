@@ -147,6 +147,15 @@ double FKismetBytecodeDisassembler::ReadDOUBLE(int32& ScriptIndex)
 	return Result.d;
 }
 
+FVector FKismetBytecodeDisassembler::ReadFVECTOR(int32& ScriptIndex)
+{
+	FVector Vec;
+	Vec.X = ReadFLOAT(ScriptIndex);
+	Vec.Y = ReadFLOAT(ScriptIndex);
+	Vec.Z = ReadFLOAT(ScriptIndex);
+	return Vec;
+}
+
 CodeSkipSizeType FKismetBytecodeDisassembler::ReadSkipCount(int32& ScriptIndex)
 {
 #if SCRIPT_LIMIT_BYTECODE_TO_64KB
@@ -827,30 +836,21 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 		}
 	case EX_VectorConst:
 		{
-			float X = ReadFLOAT(ScriptIndex);
-			float Y = ReadFLOAT(ScriptIndex);
-			float Z = ReadFLOAT(ScriptIndex);
-
-			Ar.Logf(TEXT("%s $%X: literal vector (%f,%f,%f)"), *Indents, (int32)Opcode, X, Y, Z);
+			FVector Vec = ReadFVECTOR(ScriptIndex);
+			Ar.Logf(TEXT("%s $%X: literal vector (%f,%f,%f)"), *Indents, (int32)Opcode, Vec.X, Vec.Y, Vec.Z);
 			break;
 		}
 	case EX_TransformConst:
 		{
-
 			float RotX = ReadFLOAT(ScriptIndex);
 			float RotY = ReadFLOAT(ScriptIndex);
 			float RotZ = ReadFLOAT(ScriptIndex);
 			float RotW = ReadFLOAT(ScriptIndex);
 
-			float TransX = ReadFLOAT(ScriptIndex);
-			float TransY = ReadFLOAT(ScriptIndex);
-			float TransZ = ReadFLOAT(ScriptIndex);
+			FVector Trans = ReadFVECTOR(ScriptIndex);
+			FVector Scale = ReadFVECTOR(ScriptIndex);
 
-			float ScaleX = ReadFLOAT(ScriptIndex);
-			float ScaleY = ReadFLOAT(ScriptIndex);
-			float ScaleZ = ReadFLOAT(ScriptIndex);
-
-			Ar.Logf(TEXT("%s $%X: literal transform R(%f,%f,%f,%f) T(%f,%f,%f) S(%f,%f,%f)"), *Indents, (int32)Opcode, TransX, TransY, TransZ, RotX, RotY, RotZ, RotW, ScaleX, ScaleY, ScaleZ);
+			Ar.Logf(TEXT("%s $%X: literal transform R(%f,%f,%f,%f) T(%f,%f,%f) S(%f,%f,%f)"), *Indents, (int32)Opcode, Trans.X, Trans.Y, Trans.Z, RotX, RotY, RotZ, RotW, Scale.X, Scale.Y, Scale.Z);
 			break;
 		}
 	case EX_StructConst:

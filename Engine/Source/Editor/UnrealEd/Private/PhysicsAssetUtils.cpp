@@ -103,12 +103,12 @@ void AddInfoToParentInfo(const FTransform& LocalToParentTM, const FBoneVertInfo&
 	ParentInfo.Positions.Reserve(ParentInfo.Positions.Num() + ChildInfo.Positions.Num());
 	ParentInfo.Positions.Reserve(ParentInfo.Normals.Num() + ChildInfo.Normals.Num());
 
-	for(const FVector& Pos : ChildInfo.Positions)
+	for(const FVector3f& Pos : ChildInfo.Positions)
 	{
 		ParentInfo.Positions.Add( LocalToParentTM.TransformPosition(Pos) );
 	}
 
-	for (const FVector& Normal : ChildInfo.Normals)
+	for (const FVector3f& Normal : ChildInfo.Normals)
 	{
 		ParentInfo.Normals.Add(LocalToParentTM.TransformVectorNoScale(Normal));
 	}
@@ -385,7 +385,7 @@ FMatrix ComputeCovarianceMatrix(const FBoneVertInfo& VertInfo)
 		return FMatrix::Identity;
 	}
 
-	const TArray<FVector> & Positions = VertInfo.Positions;
+	const TArray<FVector3f> & Positions = VertInfo.Positions;
 
 	//get average
 	const float N = Positions.Num();
@@ -410,13 +410,13 @@ FMatrix ComputeCovarianceMatrix(const FBoneVertInfo& VertInfo)
 	for (int32 j = 0; j < 3; ++j)
 	{
 		FVector Axis = FVector::ZeroVector;
-		float* Cj = &Axis.X;
+		FVector::FReal* Cj = &Axis.X;
 		for (int32 k = 0; k < 3; ++k)
 		{
 			float Cjk = 0.f;
 			for (int32 i = 0; i < N; ++i)
 			{
-				const float* error = &Errors[i].X;
+				const FVector::FReal* error = &Errors[i].X;
 				Cj[k] += error[j] * error[k];
 			}
 			Cj[k] /= N;

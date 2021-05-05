@@ -101,7 +101,7 @@ protected:
 		}
 		else
 		{
-			float Value = FMath::Lerp((float)Dest, Interpolant.Z, Alpha);
+			float Value = FMath::Lerp<float>((float)Dest, Interpolant.Z, Alpha);
 			uint16 DValue = (uint16)FMath::Clamp<float>(Value, 0, (float)LandscapeDataAccess::MaxValue);
 			if ((bRaiseTerrain && DValue > Dest) ||
 				(bLowerTerrain && DValue < Dest))
@@ -233,7 +233,7 @@ protected:
 		}
 
 		uint8& Dest = Data[(Y - MinY)*(1 + MaxX - MinX) + X - MinX];
-		float Value = FMath::Lerp((float)Dest, Interpolant.Z, Alpha);
+		float Value = FMath::Lerp<float>((float)Dest, Interpolant.Z, Alpha);
 		Dest = (uint32)FMath::Clamp<float>(Value, 0, LandscapeDataAccess::MaxValue);
 	}
 

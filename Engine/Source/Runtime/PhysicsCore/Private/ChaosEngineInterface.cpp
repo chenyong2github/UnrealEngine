@@ -645,7 +645,7 @@ FVector FChaosEngineInterface::GetWorldVelocityAtPoint_AssumesLocked(const FPhys
 		if(ensure(Body_External.CanTreatAsKinematic()))
 		{
 			const bool bIsRigid = Body_External.CanTreatAsRigid();
-			const Chaos::FVec3 COM = bIsRigid ? Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(&Body_External) : Chaos::FParticleUtilitiesGT::GetActorWorldTransform(&Body_External).GetTranslation();
+			const Chaos::FVec3 COM = bIsRigid ? Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(&Body_External) : (Chaos::FVec3)Chaos::FParticleUtilitiesGT::GetActorWorldTransform(&Body_External).GetTranslation();
 			const Chaos::FVec3 Diff = InPoint - COM;
 			return Body_External.V() - Chaos::FVec3::CrossProduct(Diff, Body_External.W());
 		}
@@ -656,7 +656,7 @@ FVector FChaosEngineInterface::GetWorldVelocityAtPoint_AssumesLocked(const FPhys
 #if WITH_CHAOS
 FVector FChaosEngineInterface::GetWorldVelocityAtPoint_AssumesLocked(const Chaos::FRigidBodyHandle_Internal* Body_Internal, const FVector& InPoint)
 {
-	const Chaos::FVec3 COM = Body_Internal->CanTreatAsRigid() ? Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Body_Internal) : Chaos::FParticleUtilitiesGT::GetActorWorldTransform(Body_Internal).GetTranslation();
+	const Chaos::FVec3 COM = Body_Internal->CanTreatAsRigid() ? Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Body_Internal) : (Chaos::FVec3)Chaos::FParticleUtilitiesGT::GetActorWorldTransform(Body_Internal).GetTranslation();
 	const Chaos::FVec3 Diff = InPoint - COM;
 	return Body_Internal->V() - Chaos::FVec3::CrossProduct(Diff, Body_Internal->W());
 }
@@ -1502,7 +1502,7 @@ FTransform FChaosEngineInterface::GetLocalTransform(const FPhysicsShapeReference
 	// Transforms are baked into the object so there is never a local transform
 	if(InShapeRef.Shape->GetGeometry()->GetType() == Chaos::ImplicitObjectType::Transformed && FChaosEngineInterface::IsValid(InShapeRef.ActorRef))
 	{
-		return InShapeRef.Shape->GetGeometry()->GetObject<Chaos::TImplicitObjectTransformed<float,3>>()->GetTransform();
+		return InShapeRef.Shape->GetGeometry()->GetObject<Chaos::TImplicitObjectTransformed<Chaos::FReal,3>>()->GetTransform();
 	} else
 	{
 		return FTransform();
@@ -1519,19 +1519,19 @@ void FChaosEngineInterface::SetLocalTransform(const FPhysicsShapeHandle& InShape
 		if(InShape.Object->GetType() == Chaos::ImplicitObjectType::Transformed)
 		{
 			// @todo(mlentine): We can avoid creating a new object here by adding delayed update support for the object transforms
-			LocalParticles.SetDynamicGeometry(Index,MakeUnique<Chaos::TImplicitObjectTransformed<float,3>>(InShape.Object->GetObject<Chaos::TImplicitObjectTransformed<float,3>>()->Object(),NewLocalTransform));
+			LocalParticles.SetDynamicGeometry(Index,MakeUnique<Chaos::TImplicitObjectTransformed<Chaos::FReal,3>>(InShape.Object->GetObject<Chaos::TImplicitObjectTransformed<Chaos::FReal,3>>()->Object(),NewLocalTransform));
 		} else
 		{
-			LocalParticles.SetDynamicGeometry(Index,MakeUnique<Chaos::TImplicitObjectTransformed<float,3>>(InShape.Object,NewLocalTransform));
+			LocalParticles.SetDynamicGeometry(Index,MakeUnique<Chaos::TImplicitObjectTransformed<Chaos::FReal,3>>(InShape.Object,NewLocalTransform));
 		}
 	}
 	{
 		if(InShape.Object->GetType() == Chaos::ImplicitObjectType::Transformed)
 		{
-			InShape.Object->GetObject<Chaos::TImplicitObjectTransformed<float,3>>()->SetTransform(NewLocalTransform);
+			InShape.Object->GetObject<Chaos::TImplicitObjectTransformed<Chaos::FReal,3>>()->SetTransform(NewLocalTransform);
 		} else
 		{
-			const_cast<FPhysicsShapeHandle&>(InShape).Object = new Chaos::TImplicitObjectTransformed<float,3>(InShape.Object,NewLocalTransform);
+			const_cast<FPhysicsShapeHandle&>(InShape).Object = new Chaos::TImplicitObjectTransformed<Chaos::FReal,3>(InShape.Object,NewLocalTransform);
 		}
 	}
 #endif
@@ -1658,7 +1658,7 @@ void FChaosEngineInterface::SetGlobalPose_AssumesLocked(const FPhysicsActorHandl
 void FChaosEngineInterface::SetKinematicTarget_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FTransform& InNewTarget)
 {
 	{
-		Chaos::TKinematicTarget<float, 3> newKinematicTarget;
+		Chaos::TKinematicTarget<Chaos::FReal, 3> newKinematicTarget;
 		Chaos::TRigidTransform<Chaos::FReal, 3> PreviousTM(InActorReference->GetGameThreadAPI().X(), InActorReference->GetGameThreadAPI().R());
 		newKinematicTarget.SetTargetMode(InNewTarget, PreviousTM);
 		InActorReference->GetGameThreadAPI().SetKinematicTarget(newKinematicTarget);

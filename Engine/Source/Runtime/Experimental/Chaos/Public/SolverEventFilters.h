@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Chaos/Real.h"
 #include "UObject/ObjectMacros.h"
 #include "SolverEventFilters.generated.h"
 

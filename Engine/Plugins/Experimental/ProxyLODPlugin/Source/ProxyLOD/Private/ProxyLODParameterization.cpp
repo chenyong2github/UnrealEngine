@@ -80,7 +80,7 @@ public:
 	virtual bool GenerateUVs(int32                    Width,
 		                     int32                    Height,
 		                     float                    GutterSpace,
-			                 const TArray<FVector>&   VertexBuffer,
+			                 const TArray<FVector3f>&   VertexBuffer,
 			                 const TArray<int32>&     IndexBuffer,
 			                 const TArray<int32>&     AdjacencyBuffer,
 			                 TFunction<bool(float)>&  Callback,

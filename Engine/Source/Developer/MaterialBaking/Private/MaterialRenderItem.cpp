@@ -185,9 +185,9 @@ void FMeshMaterialRenderItem::PopulateWithMeshData()
 	const FMeshDescription* RawMesh = MeshSettings->MeshDescription;
 
 	FStaticMeshConstAttributes Attributes(*RawMesh);
-	TArrayView<const FVector> VertexPositions = Attributes.GetVertexPositions().GetRawArray();
-	TArrayView<const FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals().GetRawArray();
-	TArrayView<const FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents().GetRawArray();
+	TArrayView<const FVector3f> VertexPositions = Attributes.GetVertexPositions().GetRawArray();
+	TArrayView<const FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals().GetRawArray();
+	TArrayView<const FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents().GetRawArray();
 	TArrayView<const float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns().GetRawArray();
 	TArrayView<const FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors().GetRawArray();
 

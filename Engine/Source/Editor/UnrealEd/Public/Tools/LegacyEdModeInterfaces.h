@@ -17,7 +17,7 @@ struct FConvexVolume;
 enum EModeTools : int8;
 class FModeTool;
 struct FBox;
-struct FMatrix;
+DECLARE_LWC_TYPE(Matrix, 44);
 class FSceneView;
 class FPrimitiveDrawInterface;
 class FViewport;

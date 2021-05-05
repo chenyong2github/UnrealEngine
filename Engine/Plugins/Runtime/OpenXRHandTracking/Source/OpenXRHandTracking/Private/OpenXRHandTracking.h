@@ -85,7 +85,7 @@ public:
 	virtual FName GetHandTrackerDeviceTypeName() const override;
 	virtual bool IsHandTrackingStateValid() const override;
 	virtual bool GetKeypointState(EControllerHand Hand, EHandKeypoint Keypoint, FTransform& OutTransform, float& OutRadius) const override;
-	virtual bool GetAllKeypointStates(EControllerHand Hand, TArray<struct FVector>& OutPositions, TArray<struct FQuat>& OutRotations, TArray<float>& OutRadii) const override;
+	virtual bool GetAllKeypointStates(EControllerHand Hand, TArray<FVector>& OutPositions, TArray<struct FQuat>& OutRotations, TArray<float>& OutRadii) const override;
 
 private:
 	FHandState& GetLeftHandState();

@@ -99,22 +99,22 @@ namespace ProxyLOD
 	* @return Barycentric coordinates (alpha, beta, gamma) of the point relative to the input triangle.
 	*         alpha = 1 at Vertices[0],  beta = 1 at Vertices[1] and gamma = 1 at Vertices[2]
 	*/
-	static DArray3d ComputeBarycentricWeights(const FVector(&Vertices)[3], const FVector& Point)
+	static DArray3d ComputeBarycentricWeights(const FVector3f(&Vertices)[3], const FVector3f& Point)
 	{
 
 		if (1)
 		{
-			const FVector U = Vertices[1] - Vertices[0];
-			const FVector V = Vertices[2] - Vertices[0];
-			const FVector W = Point - Vertices[0];
-			const FVector NormDir = FVector::CrossProduct(U, V);
-			const float NSqr = FVector::DotProduct(NormDir, NormDir);
+			const FVector3f U = Vertices[1] - Vertices[0];
+			const FVector3f V = Vertices[2] - Vertices[0];
+			const FVector3f W = Point - Vertices[0];
+			const FVector3f NormDir = FVector3f::CrossProduct(U, V);
+			const float NSqr = FVector3f::DotProduct(NormDir, NormDir);
 
-			FVector Tmp = FVector::CrossProduct(U, W);
-			double Gamma = FVector::DotProduct(Tmp, NormDir) / NSqr;
+			FVector3f Tmp = FVector3f::CrossProduct(U, W);
+			double Gamma = FVector3f::DotProduct(Tmp, NormDir) / NSqr;
 
-			Tmp = FVector::CrossProduct(W, V);
-			double Beta = FVector::DotProduct(Tmp, NormDir) / NSqr;
+			Tmp = FVector3f::CrossProduct(W, V);
+			double Beta = FVector3f::DotProduct(Tmp, NormDir) / NSqr;
 
 			DArray3d Result = { 1. - Gamma - Beta, Beta, Gamma };
 			return Result;
@@ -124,23 +124,23 @@ namespace ProxyLOD
 			// Alternate calculation of the weights at the projected point.
 			// Should be equivalent (more explicit but slower)
 
-			const FVector E10 = Vertices[1] - Vertices[0];
-			const FVector E20 = Vertices[2] - Vertices[0];
-			const FVector Ndir = FVector::CrossProduct(E10, E20);
-			float LengthSqr = FVector::DotProduct(Ndir, Ndir);
+			const FVector3f E10 = Vertices[1] - Vertices[0];
+			const FVector3f E20 = Vertices[2] - Vertices[0];
+			const FVector3f Ndir = FVector3f::CrossProduct(E10, E20);
+			float LengthSqr = FVector3f::DotProduct(Ndir, Ndir);
 
 
 			// project point
-			const FVector Pprime = Point - Ndir * FVector::DotProduct(Point, Ndir) / LengthSqr;
+			const FVector3f Pprime = Point - Ndir * FVector3f::DotProduct(Point, Ndir) / LengthSqr;
 
-			const FVector E21 = Vertices[2] - Vertices[1];
-			const FVector Na =  FVector::CrossProduct(E21, Pprime - Vertices[1]);
-			const FVector Nb = -FVector::CrossProduct(E20, Pprime - Vertices[2]);
-			const FVector Nc =  FVector::CrossProduct(E10, Pprime - Vertices[0]);
+			const FVector3f E21 = Vertices[2] - Vertices[1];
+			const FVector3f Na =  FVector3f::CrossProduct(E21, Pprime - Vertices[1]);
+			const FVector3f Nb = -FVector3f::CrossProduct(E20, Pprime - Vertices[2]);
+			const FVector3f Nc =  FVector3f::CrossProduct(E10, Pprime - Vertices[0]);
 
-			float Alpha = FVector::DotProduct(Na, Ndir) / LengthSqr;
-			float Beta  = FVector::DotProduct(Nb, Ndir) / LengthSqr;
-			float Gamma = FVector::DotProduct(Nc, Ndir) / LengthSqr;
+			float Alpha = FVector3f::DotProduct(Na, Ndir) / LengthSqr;
+			float Beta  = FVector3f::DotProduct(Nb, Ndir) / LengthSqr;
+			float Gamma = FVector3f::DotProduct(Nc, Ndir) / LengthSqr;
 			DArray3d Result = { Alpha, Beta, Gamma };
 			return Result;
 		}

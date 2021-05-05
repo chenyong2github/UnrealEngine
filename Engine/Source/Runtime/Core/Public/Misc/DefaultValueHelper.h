@@ -131,7 +131,8 @@ public:
 	 *
 	 * @return true if the conversion happened, false otherwise
 	 */
-	static bool ParseVector(const FString& Source, FVector& OutVal);
+	static bool ParseVector(const FString& Source, FVector3f& OutVal);
+	static bool ParseVector(const FString& Source, FVector3d& OutVal);
 
 	/**
 	 * Converts a string into a FVector. Accepted form: " %f, %f "

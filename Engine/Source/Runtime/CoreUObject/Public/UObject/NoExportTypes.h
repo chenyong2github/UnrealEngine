@@ -402,6 +402,13 @@ namespace EAppMsgType
 	};
 }
 
+/**
+ * A struct used as stub for deleted ones. 
+ */
+USTRUCT(noexport)
+struct FFallbackStruct
+{
+};
 
 /** A globally unique identifier (mirrored from Guid.h) */
 USTRUCT(immutable, noexport, BlueprintType)
@@ -424,18 +431,54 @@ struct FGuid
  * A point or direction FVector in 3d space.
  * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Vector.h
  */
-USTRUCT(immutable, noexport, BlueprintType, meta=(HasNativeMake="Engine.KismetMathLibrary.MakeVector", HasNativeBreak="Engine.KismetMathLibrary.BreakVector"))
-struct FVector
+USTRUCT(immutable, noexport)
+struct FVector3f
 {
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Vector, SaveGame)
+	UPROPERTY(EditAnywhere, Category = Vector, SaveGame)
 	float X;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Vector, SaveGame)
+	UPROPERTY(EditAnywhere, Category = Vector, SaveGame)
 	float Y;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Vector, SaveGame)
+	UPROPERTY(EditAnywhere, Category = Vector, SaveGame)
 	float Z;
 };
+
+/**
+ * A point or direction FVector in 3d space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Vector.h
+ */
+USTRUCT(immutable, noexport)
+struct FVector3d
+{
+	UPROPERTY(EditAnywhere, Category = Vector, SaveGame)
+	double X;
+
+	UPROPERTY(EditAnywhere, Category = Vector, SaveGame)
+	double Y;
+
+	UPROPERTY(EditAnywhere, Category = Vector, SaveGame)
+	double Z;
+};
+
+/**
+ * A point or direction FVector in 3d space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Vector.h
+ */
+USTRUCT(immutable, noexport, BlueprintType, meta = (HasNativeMake = "Engine.KismetMathLibrary.MakeVector", HasNativeBreak = "Engine.KismetMathLibrary.BreakVector"))
+struct FVector
+{
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Vector, SaveGame)
+	FLargeWorldCoordinatesReal X;		// Alias for float/double depending on LWC status. Note: Will be refactored to double before UE5 ships.
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Vector, SaveGame)
+	FLargeWorldCoordinatesReal Y;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Vector, SaveGame)
+	FLargeWorldCoordinatesReal Z;
+};
+
+
 
 /**
 * A 4-D homogeneous vector.
@@ -488,12 +531,35 @@ struct FTwoVectors
  * A plane definition in 3D space.
  * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Plane.h
  */
+USTRUCT(immutable, noexport)
+struct FPlane4f : public FVector3f
+{
+	UPROPERTY(EditAnywhere, Category=Plane, SaveGame)
+	float W;
+};
+
+/**
+ * A plane definition in 3D space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Plane.h
+ */
+USTRUCT(immutable, noexport)
+struct FPlane4d : public FVector3d
+{
+	UPROPERTY(EditAnywhere, Category = Plane, SaveGame)
+	double W;
+};
+
+/**
+ * A plane definition in 3D space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Plane.h
+ */
 USTRUCT(immutable, noexport, BlueprintType)
 struct FPlane : public FVector
 {
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Plane, SaveGame)
-	float W;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Plane, SaveGame)
+	FLargeWorldCoordinatesReal W;
 };
+
 
 /**
  * An orthogonal rotation in 3d space.
@@ -710,8 +776,7 @@ struct FBoxSphereBounds
 
 	/** Holds the radius of the bounding sphere. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BoxSphereBounds, SaveGame)
-	float SphereRadius;
-
+	FLargeWorldCoordinatesReal SphereRadius;
 };
 
 /**
@@ -739,15 +804,57 @@ struct FOrientedBox
 
 	/** Holds the extent of the box along its x-axis. */
 	UPROPERTY(EditAnywhere, Category=OrientedBox, SaveGame)
-	float ExtentX;
+	FLargeWorldCoordinatesReal ExtentX;
 	
 	/** Holds the extent of the box along its y-axis. */
 	UPROPERTY(EditAnywhere, Category=OrientedBox, SaveGame)
-	float ExtentY;
+	FLargeWorldCoordinatesReal ExtentY;
 
 	/** Holds the extent of the box along its z-axis. */
 	UPROPERTY(EditAnywhere, Category=OrientedBox, SaveGame)
-	float ExtentZ;
+	FLargeWorldCoordinatesReal ExtentZ;
+};
+
+/**
+ * A 4x4 matrix.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Matrix.h
+ */
+USTRUCT(immutable, noexport)
+struct FMatrix44f
+{
+	UPROPERTY(EditAnywhere, Category=Matrix, SaveGame)
+	FPlane4f XPlane;
+
+	UPROPERTY(EditAnywhere, Category=Matrix, SaveGame)
+	FPlane4f YPlane;
+
+	UPROPERTY(EditAnywhere, Category=Matrix, SaveGame)
+	FPlane4f ZPlane;
+
+	UPROPERTY(EditAnywhere, Category=Matrix, SaveGame)
+	FPlane4f WPlane;
+
+};
+
+/**
+ * A 4x4 matrix.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Matrix.h
+ */
+USTRUCT(immutable, noexport)
+struct FMatrix44d
+{
+	UPROPERTY(EditAnywhere, Category = Matrix, SaveGame)
+	FPlane4d XPlane;
+
+	UPROPERTY(EditAnywhere, Category = Matrix, SaveGame)
+	FPlane4d YPlane;
+
+	UPROPERTY(EditAnywhere, Category = Matrix, SaveGame)
+	FPlane4d ZPlane;
+
+	UPROPERTY(EditAnywhere, Category = Matrix, SaveGame)
+	FPlane4d WPlane;
+
 };
 
 /**
@@ -757,16 +864,16 @@ struct FOrientedBox
 USTRUCT(immutable, noexport, BlueprintType)
 struct FMatrix
 {
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Matrix, SaveGame)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Matrix, SaveGame)
 	FPlane XPlane;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Matrix, SaveGame)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Matrix, SaveGame)
 	FPlane YPlane;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Matrix, SaveGame)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Matrix, SaveGame)
 	FPlane ZPlane;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Matrix, SaveGame)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Matrix, SaveGame)
 	FPlane WPlane;
 
 };
@@ -1253,12 +1360,6 @@ struct FPrimaryAssetId
 	/** The Name of this object, by default its short name */
 	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = PrimaryAssetId)
 	FName PrimaryAssetName;
-};
-
-/** A struct used as stub for deleted ones. */
-USTRUCT(noexport)
-struct FFallbackStruct  
-{
 };
 
 /** Enumerates the valid types of range bounds (mirrored from RangeBound.h) */

@@ -166,12 +166,12 @@ void ANetworkPredictionExtrasFlyingPawn::InputAxis_LookPitch(float Value)
 
 void ANetworkPredictionExtrasFlyingPawn::InputAxis_MoveUp(float Value)
 {
-	CachedMoveInput.Z = FMath::Clamp(CachedMoveInput.Z + Value, -1.0f, 1.0f);
+	CachedMoveInput.Z = FMath::Clamp(CachedMoveInput.Z + Value, -1.0, 1.0);
 }
 
 void ANetworkPredictionExtrasFlyingPawn::InputAxis_MoveDown(float Value)
 {
-	CachedMoveInput.Z = FMath::Clamp(CachedMoveInput.Z - Value, -1.0f, 1.0f);
+	CachedMoveInput.Z = FMath::Clamp(CachedMoveInput.Z - Value, -1.0, 1.0);
 }
 
 void ANetworkPredictionExtrasFlyingPawn::Tick( float DeltaSeconds)

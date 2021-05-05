@@ -1564,7 +1564,8 @@ void OpenModelUtils::SetActorTransform(const TSharedPtr< IDatasmithActorElement 
 		AlMatrix4x4 AlMatrix;
 		DagNode.localTransformationMatrix(AlMatrix);
 
-		FMatrix Matrix;
+		// LWC_TODO: Perf improvements with LWC enabled
+		FMatrix44f Matrix;
 		float* MatrixFloats = (float*)Matrix.M;
 		for (int32 IndexI = 0; IndexI < 4; ++IndexI)
 		{
@@ -1663,10 +1664,10 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, FM
 
 	// Gather all array data
 	FStaticMeshAttributes Attributes(MeshDescription);
-	TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
 	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 	TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
-	TVertexAttributesRef<FVector> VertexPositions = MeshDescription.GetVertexPositions();
+	TVertexAttributesRef<FVector3f> VertexPositions = MeshDescription.GetVertexPositions();
 
 	// Prepared for static mesh usage ?
 	if (!VertexPositions.IsValid() || !VertexInstanceNormals.IsValid() || !VertexInstanceUVs.IsValid() || !PolygonGroupImportedMaterialSlotNames.IsValid())

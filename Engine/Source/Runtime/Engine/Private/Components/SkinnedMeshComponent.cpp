@@ -1108,7 +1108,7 @@ class UPhysicsAsset* USkinnedMeshComponent::GetPhysicsAsset() const
 	return nullptr;
 }
 
-FBoxSphereBounds USkinnedMeshComponent::CalcMeshBound(const FVector& RootOffset, bool UsePhysicsAsset, const FTransform& LocalToWorld) const
+FBoxSphereBounds USkinnedMeshComponent::CalcMeshBound(const FVector3f& RootOffset, bool UsePhysicsAsset, const FTransform& LocalToWorld) const
 {
 	FBoxSphereBounds NewBounds;
 
@@ -2601,7 +2601,7 @@ FSkinWeightVertexBuffer* USkinnedMeshComponent::GetSkinWeightBuffer(int32 LODInd
 	return WeightBuffer;
 }
 
-FVector USkinnedMeshComponent::GetSkinnedVertexPosition(USkinnedMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& LODData, FSkinWeightVertexBuffer& SkinWeightBuffer) 
+FVector3f USkinnedMeshComponent::GetSkinnedVertexPosition(USkinnedMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& LODData, FSkinWeightVertexBuffer& SkinWeightBuffer) 
 {
 	FVector SkinnedPos(0, 0, 0);
 
@@ -2615,7 +2615,7 @@ FVector USkinnedMeshComponent::GetSkinnedVertexPosition(USkinnedMeshComponent* C
 	return GetTypedSkinnedVertexPosition<false>(Component, Section, LODData.StaticVertexBuffers.PositionVertexBuffer, SkinWeightBuffer, VertIndex);
 }
 
-FVector USkinnedMeshComponent::GetSkinnedVertexPosition(USkinnedMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& LODData, FSkinWeightVertexBuffer& SkinWeightBuffer, TArray<FMatrix>& CachedRefToLocals) 
+FVector3f USkinnedMeshComponent::GetSkinnedVertexPosition(USkinnedMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& LODData, FSkinWeightVertexBuffer& SkinWeightBuffer, TArray<FMatrix44f>& CachedRefToLocals) 
 {
 	FVector SkinnedPos(0, 0, 0);
 	
@@ -2664,7 +2664,7 @@ void USkinnedMeshComponent::SetRefPoseOverride(const TArray<FTransform>& NewRefP
 	RefPoseOverride->RefBasesInvMatrix.AddUninitialized(NumRealBones);
 
 	// Reset cached mesh-space ref pose
-	TArray<FMatrix> CachedComposedRefPoseMatrices;
+	TArray<FMatrix44f> CachedComposedRefPoseMatrices;
 	CachedComposedRefPoseMatrices.AddUninitialized(NumRealBones);
 
 	// Compute the RefBasesInvMatrix array
@@ -2685,7 +2685,7 @@ void USkinnedMeshComponent::SetRefPoseOverride(const TArray<FTransform>& NewRefP
 		}
 
 		// Check for zero matrix
-		FVector XAxis, YAxis, ZAxis;
+		FVector3f XAxis, YAxis, ZAxis;
 		CachedComposedRefPoseMatrices[BoneIndex].GetScaledAxes(XAxis, YAxis, ZAxis);
 		if (XAxis.IsNearlyZero(SMALL_NUMBER) &&
 			YAxis.IsNearlyZero(SMALL_NUMBER) &&
@@ -2710,7 +2710,7 @@ void USkinnedMeshComponent::ClearRefPoseOverride()
 	}
 }
 
-void USkinnedMeshComponent::CacheRefToLocalMatrices(TArray<FMatrix>& OutRefToLocal)const
+void USkinnedMeshComponent::CacheRefToLocalMatrices(TArray<FMatrix44f>& OutRefToLocal)const
 {
 	const USkinnedMeshComponent* BaseComponent = GetBaseComponent();
 	OutRefToLocal.SetNumUninitialized(SkeletalMesh->GetRefBasesInvMatrix().Num());
@@ -2734,7 +2734,7 @@ void USkinnedMeshComponent::CacheRefToLocalMatrices(TArray<FMatrix>& OutRefToLoc
 	}
 }
 
-void USkinnedMeshComponent::ComputeSkinnedPositions(USkinnedMeshComponent* Component, TArray<FVector> & OutPositions, TArray<FMatrix>& CachedRefToLocals, const FSkeletalMeshLODRenderData& LODData, const FSkinWeightVertexBuffer& SkinWeightBuffer)
+void USkinnedMeshComponent::ComputeSkinnedPositions(USkinnedMeshComponent* Component, TArray<FVector3f> & OutPositions, TArray<FMatrix44f>& CachedRefToLocals, const FSkeletalMeshLODRenderData& LODData, const FSkinWeightVertexBuffer& SkinWeightBuffer)
 {
 	OutPositions.Empty();
 
@@ -3938,7 +3938,7 @@ void USkinnedMeshComponent::SetPreSkinningOffsets(int32 LODIndex, TArray<FVector
 		uint32 VertexCount = LODData.GetNumVertices();
 		Offsets.SetNumZeroed(VertexCount);
 
-		Info.PreSkinningOffsets = MoveTemp(Offsets);
+		Info.PreSkinningOffsets = LWC::DemoteArrayType<FVector3f>(Offsets);	// LWC_TODO: Perf pessimization - was MoveTemp!
 
 		MarkRenderDynamicDataDirty();
 	}
@@ -3961,7 +3961,7 @@ void USkinnedMeshComponent::SetPostSkinningOffsets(int32 LODIndex, TArray<FVecto
 		uint32 VertexCount = LODData.GetNumVertices();
 		Offsets.SetNumZeroed(VertexCount);
 
-		Info.PostSkinningOffsets = MoveTemp(Offsets);
+		Info.PostSkinningOffsets = LWC::DemoteArrayType<FVector3f>(Offsets);	// LWC_TODO: Perf pessimization - was MoveTemp!
 
 		MarkRenderDynamicDataDirty();
 	}
@@ -4121,15 +4121,15 @@ void GetTypedSkinnedTangentBasis(
 	const FStaticMeshVertexBuffers& StaticVertexBuffers,
 	const FSkinWeightVertexBuffer& SkinWeightVertexBuffer,
 	const int32 VertIndex,
-	const TArray<FMatrix> & RefToLocals,
-	FVector& OutTangentX,
-	FVector& OutTangentY,
-	FVector& OutTangentZ
+	const TArray<FMatrix44f> & RefToLocals,
+	FVector3f& OutTangentX,
+	FVector3f& OutTangentY,
+	FVector3f& OutTangentZ
 )
 {
-	OutTangentX = FVector::ZeroVector;
-	OutTangentY = FVector::ZeroVector;
-	OutTangentZ = FVector::ZeroVector;
+	OutTangentX = FVector3f::ZeroVector;
+	OutTangentY = FVector3f::ZeroVector;
+	OutTangentZ = FVector3f::ZeroVector;
 
 	const USkinnedMeshComponent* const MasterPoseComponentInst = SkinnedComp->MasterPoseComponent.Get();
 	const USkinnedMeshComponent* BaseComponent = MasterPoseComponentInst ? MasterPoseComponentInst : SkinnedComp;
@@ -4160,16 +4160,16 @@ void GetTypedSkinnedTangentBasis(
 
 /** Simple, CPU evaluation of a vertex's skinned position helper function */
 template <bool bCachedMatrices>
-FVector GetTypedSkinnedVertexPosition(
+FVector3f GetTypedSkinnedVertexPosition(
 	const USkinnedMeshComponent* SkinnedComp,
 	const FSkelMeshRenderSection& Section,
 	const FPositionVertexBuffer& PositionVertexBuffer,
 	const FSkinWeightVertexBuffer& SkinWeightVertexBuffer,
 	const int32 VertIndex,
-	const TArray<FMatrix> & RefToLocals
+	const TArray<FMatrix44f> & RefToLocals
 )
 {
-	FVector SkinnedPos(0, 0, 0);
+	FVector3f SkinnedPos(0, 0, 0);
 
 	const USkinnedMeshComponent* const MasterPoseComponentInst = SkinnedComp->MasterPoseComponent.Get();
 	const USkinnedMeshComponent* BaseComponent = MasterPoseComponentInst ? MasterPoseComponentInst : SkinnedComp;
@@ -4199,13 +4199,13 @@ FVector GetTypedSkinnedVertexPosition(
 		{
 			if (bCachedMatrices)
 			{
-				const FMatrix& RefToLocal = RefToLocals[MeshBoneIndex];
+				const FMatrix44f& RefToLocal = RefToLocals[MeshBoneIndex];
 				SkinnedPos += RefToLocal.TransformPosition(PositionVertexBuffer.VertexPosition(BufferVertIndex)) * Weight;
 			}
 			else
 			{
-				const FMatrix BoneTransformMatrix = (TransformBoneIndex != INDEX_NONE) ? BaseComponent->GetComponentSpaceTransforms()[TransformBoneIndex].ToMatrixWithScale() : FMatrix::Identity;
-				const FMatrix RefToLocal = SkinnedComp->SkeletalMesh->GetRefBasesInvMatrix()[MeshBoneIndex] * BoneTransformMatrix;
+				const FMatrix44f BoneTransformMatrix = (TransformBoneIndex != INDEX_NONE) ? (FMatrix44f)BaseComponent->GetComponentSpaceTransforms()[TransformBoneIndex].ToMatrixWithScale() : FMatrix44f::Identity;
+				const FMatrix44f RefToLocal = SkinnedComp->SkeletalMesh->GetRefBasesInvMatrix()[MeshBoneIndex] * BoneTransformMatrix;
 				SkinnedPos += RefToLocal.TransformPosition(PositionVertexBuffer.VertexPosition(BufferVertIndex)) * Weight;
 			}
 		}
@@ -4216,8 +4216,8 @@ FVector GetTypedSkinnedVertexPosition(
 
 
 
-template FVector GetTypedSkinnedVertexPosition<true>(const USkinnedMeshComponent* SkinnedComp, const FSkelMeshRenderSection& Section, const FPositionVertexBuffer& PositionVertexBuffer,
-	const FSkinWeightVertexBuffer& SkinWeightVertexBuffer, const int32 VertIndex, const TArray<FMatrix> & RefToLocals);
+template FVector3f GetTypedSkinnedVertexPosition<true>(const USkinnedMeshComponent* SkinnedComp, const FSkelMeshRenderSection& Section, const FPositionVertexBuffer& PositionVertexBuffer,
+	const FSkinWeightVertexBuffer& SkinWeightVertexBuffer, const int32 VertIndex, const TArray<FMatrix44f> & RefToLocals);
 
-template FVector GetTypedSkinnedVertexPosition<false>(const USkinnedMeshComponent* SkinnedComp, const FSkelMeshRenderSection& Section, const FPositionVertexBuffer& PositionVertexBuffer,
-	const FSkinWeightVertexBuffer& SkinWeightVertexBuffer, const int32 VertIndex, const TArray<FMatrix> & RefToLocals);
+template FVector3f GetTypedSkinnedVertexPosition<false>(const USkinnedMeshComponent* SkinnedComp, const FSkelMeshRenderSection& Section, const FPositionVertexBuffer& PositionVertexBuffer,
+	const FSkinWeightVertexBuffer& SkinWeightVertexBuffer, const int32 VertIndex, const TArray<FMatrix44f> & RefToLocals);

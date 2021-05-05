@@ -45,10 +45,17 @@ FLinearColor::FLinearColor(const FColor& Color)
 	A =	float(Color.A) * (1.0f / 255.0f);
 }
 
-FLinearColor::FLinearColor(const FVector& Vector) :
+FLinearColor::FLinearColor(const FVector3f& Vector) :
 	R(Vector.X),
 	G(Vector.Y),
 	B(Vector.Z),
+	A(1.0f)
+{}
+
+FLinearColor::FLinearColor(const FVector3d& Vector) :
+	R((float)Vector.X),
+	G((float)Vector.Y),
+	B((float)Vector.Z),
 	A(1.0f)
 {}
 

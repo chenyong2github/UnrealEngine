@@ -495,6 +495,8 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 				// We have rendered a sky dome with identity rotation at the SkyLight position for the capture.
 				if (AtmosphereSetup)
 				{
+					FVector SkyWorldCameraOrigin;
+					FMatrix SkyViewLutReferential;
 					if (MainView.bSceneHasSkyMaterial)
 					{
 						// Setup a constant referential for each of the faces of the dynamic reflection capture.
@@ -502,8 +504,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 						const FVector SkyViewLutReferentialForward = FVector(1.0f, 0.0f, 0.0f);
 						const FVector SkyViewLutReferentialRight = FVector(0.0f, 0.0f, -1.0f);
 						AtmosphereSetup->ComputeViewData(SkyLight->CapturePosition, SkyViewLutReferentialForward, SkyViewLutReferentialRight,
-							CubeView.CachedViewUniformShaderParameters->SkyWorldCameraOrigin, CubeView.CachedViewUniformShaderParameters->SkyPlanetCenterAndViewHeight,
-							CubeView.CachedViewUniformShaderParameters->SkyViewLutReferential);
+							SkyWorldCameraOrigin, CubeView.CachedViewUniformShaderParameters->SkyPlanetCenterAndViewHeight, SkyViewLutReferential);
 
 						CubeView.CachedViewUniformShaderParameters->SkyViewLutTexture = RealTimeReflectionCaptureSkyAtmosphereViewLutTexture->GetRenderTargetItem().ShaderResourceTexture;
 					}
@@ -514,9 +515,11 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 						const FVector SkyViewLutReferentialForward = FVector(1.0f, 0.0f, 0.0f);
 						const FVector SkyViewLutReferentialRight = FVector(0.0f, 0.0f, -1.0f);
 						AtmosphereSetup->ComputeViewData(SkyLight->CapturePosition, SkyViewLutReferentialForward, SkyViewLutReferentialRight,
-							CubeView.CachedViewUniformShaderParameters->SkyWorldCameraOrigin, CubeView.CachedViewUniformShaderParameters->SkyPlanetCenterAndViewHeight,
-							CubeView.CachedViewUniformShaderParameters->SkyViewLutReferential);
+							SkyWorldCameraOrigin, CubeView.CachedViewUniformShaderParameters->SkyPlanetCenterAndViewHeight, SkyViewLutReferential);
 					}
+
+					CubeView.CachedViewUniformShaderParameters->SkyWorldCameraOrigin = SkyWorldCameraOrigin;
+					CubeView.CachedViewUniformShaderParameters->SkyViewLutReferential = SkyViewLutReferential;
 				}
 
 				if (HasSkyAtmosphere()&& (MainView.bSceneHasSkyMaterial || HasVolumetricCloud())

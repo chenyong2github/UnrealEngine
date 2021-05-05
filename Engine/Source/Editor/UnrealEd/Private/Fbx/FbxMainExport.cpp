@@ -1071,10 +1071,10 @@ void FFbxExporter::ExportBSP( UModel* Model, bool bSelectedOnly )
 			
 			//Get the Attributes
 			FStaticMeshAttributes MeshAttributes(Mesh);
-			TVertexAttributesRef<FVector> VertexPositions = MeshAttributes.GetVertexPositions();
+			TVertexAttributesRef<FVector3f> VertexPositions = MeshAttributes.GetVertexPositions();
 			TVertexInstanceAttributesRef<FVector2D> UVs = MeshAttributes.GetVertexInstanceUVs();
 			TVertexInstanceAttributesRef<FVector4> Colors = MeshAttributes.GetVertexInstanceColors();
-			TVertexInstanceAttributesRef<FVector> Normals = MeshAttributes.GetVertexInstanceNormals();
+			TVertexInstanceAttributesRef<FVector3f> Normals = MeshAttributes.GetVertexInstanceNormals();
 			TEdgeAttributesRef<bool> EdgeHardnesses = MeshAttributes.GetEdgeHardnesses();
 
 			
@@ -3079,7 +3079,7 @@ void FFbxExporter::ExportLevelSequence3DTransformTrack(FbxNode* FbxNode, IMovieS
 
 			FFrameTime LocalTime = FFrameRate::TransformTime(FFrameTime(LocalFrame), DisplayRate, TickResolution);
 
-			FVector Trans = FVector::ZeroVector;
+			FVector3f Trans = FVector3f::ZeroVector;
 			FloatChannels[0]->Evaluate(LocalTime, Trans.X);
 			FloatChannels[1]->Evaluate(LocalTime, Trans.Y);
 			FloatChannels[2]->Evaluate(LocalTime, Trans.Z);
@@ -3089,7 +3089,7 @@ void FFbxExporter::ExportLevelSequence3DTransformTrack(FbxNode* FbxNode, IMovieS
 			FloatChannels[4]->Evaluate(LocalTime, Rotator.Pitch);
 			FloatChannels[5]->Evaluate(LocalTime, Rotator.Yaw);
 
-			FVector Scale;
+			FVector3f Scale;
 			FloatChannels[6]->Evaluate(LocalTime, Scale.X);
 			FloatChannels[7]->Evaluate(LocalTime, Scale.Y);
 			FloatChannels[8]->Evaluate(LocalTime, Scale.Z);

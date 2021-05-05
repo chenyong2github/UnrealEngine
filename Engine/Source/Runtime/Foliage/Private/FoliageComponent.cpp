@@ -93,9 +93,9 @@ float AInteractiveFoliageActor::TakeDamage(float DamageAmount, FDamageEvent cons
 	FVector DamageImpulse = ImpulseDir.GetSafeNormal() * DamageAmount * FoliageDamageImpulseScale;
 
 	// Apply force magnitude clamps
-	DamageImpulse.X = FMath::Clamp(DamageImpulse.X, -MaxDamageImpulse, MaxDamageImpulse);
-	DamageImpulse.Y = FMath::Clamp(DamageImpulse.Y, -MaxDamageImpulse, MaxDamageImpulse);
-	DamageImpulse.Z = FMath::Clamp(DamageImpulse.Z, -MaxDamageImpulse, MaxDamageImpulse);
+	DamageImpulse.X = FMath::Clamp<FVector::FReal>(DamageImpulse.X, -MaxDamageImpulse, MaxDamageImpulse);
+	DamageImpulse.Y = FMath::Clamp<FVector::FReal>(DamageImpulse.Y, -MaxDamageImpulse, MaxDamageImpulse);
+	DamageImpulse.Z = FMath::Clamp<FVector::FReal>(DamageImpulse.Z, -MaxDamageImpulse, MaxDamageImpulse);
 
 	FoliageForce += DamageImpulse;
 	
@@ -180,9 +180,9 @@ void AInteractiveFoliageActor::Tick(float DeltaSeconds)
 
 					// Scale and clamp the touch force
 					FVector Impulse = ImpulseDirection * FoliageTouchImpulseScale;
-					Impulse.X = FMath::Clamp(Impulse.X, -MaxTouchImpulse, MaxTouchImpulse);
-					Impulse.Y = FMath::Clamp(Impulse.Y, -MaxTouchImpulse, MaxTouchImpulse);
-					Impulse.Z = FMath::Clamp(Impulse.Z, -MaxTouchImpulse, MaxTouchImpulse);
+					Impulse.X = FMath::Clamp<FVector::FReal>(Impulse.X, -MaxTouchImpulse, MaxTouchImpulse);
+					Impulse.Y = FMath::Clamp<FVector::FReal>(Impulse.Y, -MaxTouchImpulse, MaxTouchImpulse);
+					Impulse.Z = FMath::Clamp<FVector::FReal>(Impulse.Z, -MaxTouchImpulse, MaxTouchImpulse);
 					FoliageForce += Impulse;
 				}
 			}
@@ -196,17 +196,17 @@ void AInteractiveFoliageActor::Tick(float DeltaSeconds)
 		// Apply spring damping, which is like air resistance and causes the spring to lose energy over time
 		FoliageForce += -FoliageDamping * FoliageVelocity;
 
-		FoliageForce.X = FMath::Clamp(FoliageForce.X, -MaxForce, MaxForce);
-		FoliageForce.Y = FMath::Clamp(FoliageForce.Y, -MaxForce, MaxForce);
-		FoliageForce.Z = FMath::Clamp(FoliageForce.Z, -MaxForce, MaxForce);
+		FoliageForce.X = FMath::Clamp<FVector::FReal>(FoliageForce.X, -MaxForce, MaxForce);
+		FoliageForce.Y = FMath::Clamp<FVector::FReal>(FoliageForce.Y, -MaxForce, MaxForce);
+		FoliageForce.Z = FMath::Clamp<FVector::FReal>(FoliageForce.Z, -MaxForce, MaxForce);
 
 		FoliageVelocity += FoliageForce * DeltaSeconds;
 		FoliageForce = FVector::ZeroVector;
 
 		const float MaxVelocity = 1000.0f;
-		FoliageVelocity.X = FMath::Clamp(FoliageVelocity.X, -MaxVelocity, MaxVelocity);
-		FoliageVelocity.Y = FMath::Clamp(FoliageVelocity.Y, -MaxVelocity, MaxVelocity);
-		FoliageVelocity.Z = FMath::Clamp(FoliageVelocity.Z, -MaxVelocity, MaxVelocity);
+		FoliageVelocity.X = FMath::Clamp<FVector::FReal>(FoliageVelocity.X, -MaxVelocity, MaxVelocity);
+		FoliageVelocity.Y = FMath::Clamp<FVector::FReal>(FoliageVelocity.Y, -MaxVelocity, MaxVelocity);
+		FoliageVelocity.Z = FMath::Clamp<FVector::FReal>(FoliageVelocity.Z, -MaxVelocity, MaxVelocity);
 
 		FoliagePosition += FoliageVelocity * DeltaSeconds;
 

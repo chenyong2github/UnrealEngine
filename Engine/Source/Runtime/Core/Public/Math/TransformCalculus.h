@@ -231,6 +231,7 @@
 // 
 //////////////////////////////////////////////////////////////////////////
 
+
 /** Provides default logic (used by TransformCast) to convert one transform type to another via a conversion ctor. */
 template<class TransformType>
 struct TransformConverter
@@ -296,6 +297,8 @@ inline typename ConcatenateRules<TransformTypeA, TransformTypeB>::ResultType Con
 	// your transform type doesn't support a Concatenate method. Either add one or provide an overload of Concatenate that does this.
 	return Concatenate(TransformCast<ReturnType>(LHS), TransformCast<ReturnType>(RHS));
 }
+
+
 
 /** Special overload that allows one to explicitly define the result type, which applies TransformCast on each argument first. */
 template<typename ReturnType, typename LHSType, typename RHSType>

@@ -176,19 +176,19 @@ struct FPackedCluster
 	FIntVector	QuantizedPosStart;
 	uint32		NumVerts_PositionOffset;					// NumVerts:9, PositionOffset:23
 
-	FVector		MeshBoundsMin;
+	FVector3f	MeshBoundsMin;
 	uint32		NumTris_IndexOffset;						// NumTris:8, IndexOffset: 24
 
-	FVector		MeshBoundsDelta;
+	FVector3f	MeshBoundsDelta;
 	uint32		BitsPerIndex_QuantizedPosShift_PosBits;		// BitsPerIndex:4, QuantizedPosShift:6, QuantizedPosBits:5.5.5
 	
 	// Members needed for culling
-	FSphere		LODBounds;
+	FVector4	LODBounds;											// LWC_TODO: Was FSphere, but that's now twice as big and won't work on GPU.
 
-	FVector		BoxBoundsCenter;
+	FVector3f	BoxBoundsCenter;
 	uint32		LODErrorAndEdgeLength;
 	
-	FVector		BoxBoundsExtent;
+	FVector3f	BoxBoundsExtent;
 	uint32		Flags;
 
 	// Members needed by materials

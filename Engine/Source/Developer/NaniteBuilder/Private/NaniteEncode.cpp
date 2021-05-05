@@ -325,14 +325,14 @@ FORCEINLINE static FVector OctahedronDecode(int32 X, int32 Y, int32 Quantization
 	return FVector(fx, fy, fz).GetUnsafeNormal();
 }
 
-FORCEINLINE static void OctahedronEncodePreciseSIMD( FVector N, int32& X, int32& Y, int32 QuantizationBits )
+FORCEINLINE static void OctahedronEncodePreciseSIMD( FVector3f N, int32& X, int32& Y, int32 QuantizationBits )
 {
 	const int32 QuantizationMaxValue = ( 1 << QuantizationBits ) - 1;
 	FVector2D ScalarCoord = OctahedronEncode( N );
 
 	const VectorRegister Scale = VectorSetFloat1( 0.5f * QuantizationMaxValue );
 	const VectorRegister RcpScale = VectorSetFloat1( 2.0f / QuantizationMaxValue );
-	VectorRegisterInt IntCoord = VectorFloatToInt( VectorMultiplyAdd( MakeVectorRegister( ScalarCoord.X, ScalarCoord.Y, ScalarCoord.X, ScalarCoord.Y ), Scale, Scale ) );	// x0, y0, x1, y1
+	VectorRegister4Int IntCoord = VectorFloatToInt( VectorMultiplyAdd( MakeVectorRegister( ScalarCoord.X, ScalarCoord.Y, ScalarCoord.X, ScalarCoord.Y ), Scale, Scale ) );	// x0, y0, x1, y1
 	IntCoord = VectorIntAdd( IntCoord, MakeVectorRegisterInt( 0, 0, 1, 1 ) );
 	VectorRegister Coord = VectorMultiplyAdd( VectorIntToFloat( IntCoord ), RcpScale, GlobalVectorConstants::FloatMinusOne );	// Coord = Coord * 2.0f / QuantizationMaxValue - 1.0f
 
@@ -581,7 +581,7 @@ static void PackCluster(Nanite::FPackedCluster& OutCluster, const Nanite::FClust
 	OutCluster.SetPosBitsZ(InCluster.QuantizedPosBits.Z);
 
 	// 3
-	OutCluster.LODBounds				= InCluster.LODBounds;
+	OutCluster.LODBounds				= FVector4((float)InCluster.LODBounds.Center.X, (float)InCluster.LODBounds.Center.Y, (float)InCluster.LODBounds.Center.Z, (float)InCluster.LODBounds.W);	// LWC_TODO: Precision loss. Nanite packed cluster LODBounds.
 
 	// 4
 	OutCluster.BoxBoundsCenter			= (InCluster.Bounds.Min + InCluster.Bounds.Max) * 0.5f;

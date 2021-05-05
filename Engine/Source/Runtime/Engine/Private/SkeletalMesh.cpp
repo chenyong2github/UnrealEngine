@@ -578,16 +578,17 @@ void USkeletalMesh::ValidateBoundsExtension()
 {
 	FVector HalfExtent = GetImportedBounds().BoxExtent;
 
+	FVector::FReal MaxVal = MAX_flt;
 	FVector Bounds = GetPositiveBoundsExtension();
-	Bounds.X = FMath::Clamp(Bounds.X, -HalfExtent.X, MAX_flt);
-	Bounds.Y = FMath::Clamp(Bounds.Y, -HalfExtent.Y, MAX_flt);
-	Bounds.Z = FMath::Clamp(Bounds.Z, -HalfExtent.Z, MAX_flt);
+	Bounds.X = FMath::Clamp(Bounds.X, -HalfExtent.X, MaxVal);
+	Bounds.Y = FMath::Clamp(Bounds.Y, -HalfExtent.Y, MaxVal);
+	Bounds.Z = FMath::Clamp(Bounds.Z, -HalfExtent.Z, MaxVal);
 	SetPositiveBoundsExtension(Bounds);
 
 	Bounds = GetNegativeBoundsExtension();
-	Bounds.X = FMath::Clamp(Bounds.X, -HalfExtent.X, MAX_flt);
-	Bounds.Y = FMath::Clamp(Bounds.Y, -HalfExtent.Y, MAX_flt);
-	Bounds.Z = FMath::Clamp(Bounds.Z, -HalfExtent.Z, MAX_flt);
+	Bounds.X = FMath::Clamp(Bounds.X, -HalfExtent.X, MaxVal);
+	Bounds.Y = FMath::Clamp(Bounds.Y, -HalfExtent.Y, MaxVal);
+	Bounds.Z = FMath::Clamp(Bounds.Z, -HalfExtent.Z, MaxVal);
 	SetNegativeBoundsExtension(Bounds);
 }
 
@@ -2868,13 +2869,13 @@ void USkeletalMesh::PostLoadVerifyAndFixBadTangent()
 					bool bNeedToOrthonormalize = false;
 
 					//Make sure we have normalized tangents
-					auto NormalizedTangent = [&bNeedToOrthonormalize, &bFoundBadTangents](FVector& Tangent)
+					auto NormalizedTangent = [&bNeedToOrthonormalize, &bFoundBadTangents](FVector3f& Tangent)
 					{
 						if (Tangent.ContainsNaN() || Tangent.SizeSquared() < THRESH_VECTOR_NORMALIZED)
 						{
 							//This is a degenerated tangent, we will set it to zero. It will be fix by the
 							//FixTangent lambda function.
-							Tangent = FVector::ZeroVector;
+							Tangent = FVector3f::ZeroVector;
 							//If we can fix this tangents, we have to orthonormalize the result
 							bNeedToOrthonormalize = true;
 							bFoundBadTangents = true;
@@ -2890,7 +2891,7 @@ void USkeletalMesh::PostLoadVerifyAndFixBadTangent()
 					};
 
 					/** Call this lambda only if you need to fix the tangent */
-					auto FixTangent = [&IndexBuffer, &Section, &TriangleTangents, &ComputeTriangleTangent, &BaseFaceIndexBufferIndex](FVector& TangentA, const FVector& TangentB, const FVector& TangentC, const int32 Offset)
+					auto FixTangent = [&IndexBuffer, &Section, &TriangleTangents, &ComputeTriangleTangent, &BaseFaceIndexBufferIndex](FVector3f& TangentA, const FVector3f& TangentB, const FVector3f& TangentC, const int32 Offset)
 					{
 						//If the two other axis are valid, fix the tangent with a cross product and normalize the answer.
 						if (TangentB.IsNormalized() && TangentC.IsNormalized())
@@ -2945,7 +2946,7 @@ void USkeletalMesh::PostLoadVerifyAndFixBadTangent()
 					};
 
 					//The SoftSkinVertex TangentZ is a FVector4 so we must use a temporary FVector to be able to pass reference
-					FVector TangentZ = SoftSkinVertex.TangentZ;
+					FVector3f TangentZ = SoftSkinVertex.TangentZ;
 					//Make sure the tangent space is normalize before fixing bad tangent, because we want to do a cross product
 					//of 2 valid axis if possible. If not possible we will use the triangle normal which give a faceted triangle.
 					bool ValidTangentX = NormalizedTangent(SoftSkinVertex.TangentX);
@@ -2968,7 +2969,7 @@ void USkeletalMesh::PostLoadVerifyAndFixBadTangent()
 					//Make sure the result tangent space is orthonormal, only if we succeed to fix all tangents
 					if (bNeedToOrthonormalize && ValidTangentX && ValidTangentY && ValidTangentZ)
 					{
-						FVector::CreateOrthonormalBasis(
+						FVector3f::CreateOrthonormalBasis(
 							SoftSkinVertex.TangentX,
 							SoftSkinVertex.TangentY,
 							TangentZ
@@ -6311,7 +6312,7 @@ void FSkeletalMeshSceneProxy::GetShadowShapes(TArray<FCapsuleShape>& CapsuleShap
 {
 	SCOPE_CYCLE_COUNTER(STAT_GetShadowShapes);
 
-	const TArray<FMatrix>& ReferenceToLocalMatrices = MeshObject->GetReferenceToLocalMatrices();
+	const TArray<FMatrix44f>& ReferenceToLocalMatrices = MeshObject->GetReferenceToLocalMatrices();
 	const FMatrix& ProxyLocalToWorld = GetLocalToWorld();
 
 	int32 CapsuleIndex = CapsuleShapes.Num();
@@ -6753,7 +6754,7 @@ FVector GetSkeletalMeshRefVertLocation(const USkeletalMesh* Mesh, const FSkeleta
 }
 
 //GetRefTangentBasisTyped
-void GetRefTangentBasisTyped(const USkeletalMesh* Mesh, const FSkelMeshRenderSection& Section, const FStaticMeshVertexBuffer& StaticVertexBuffer, const FSkinWeightVertexBuffer& SkinWeightVertexBuffer, const int32 VertIndex, FVector& OutTangentX, FVector& OutTangentY, FVector& OutTangentZ)
+void GetRefTangentBasisTyped(const USkeletalMesh* Mesh, const FSkelMeshRenderSection& Section, const FStaticMeshVertexBuffer& StaticVertexBuffer, const FSkinWeightVertexBuffer& SkinWeightVertexBuffer, const int32 VertIndex, FVector3f& OutTangentX, FVector3f& OutTangentY, FVector3f& OutTangentZ)
 {
 	OutTangentX = FVector::ZeroVector;
 	OutTangentY = FVector::ZeroVector;
@@ -6784,7 +6785,7 @@ void GetRefTangentBasisTyped(const USkeletalMesh* Mesh, const FSkelMeshRenderSec
 	}
 }
 
-void GetSkeletalMeshRefTangentBasis(const USkeletalMesh* Mesh, const FSkeletalMeshLODRenderData& LODData, const FSkinWeightVertexBuffer& SkinWeightVertexBuffer, const int32 VertIndex, FVector& OutTangentX, FVector& OutTangentY, FVector& OutTangentZ)
+void GetSkeletalMeshRefTangentBasis(const USkeletalMesh* Mesh, const FSkeletalMeshLODRenderData& LODData, const FSkinWeightVertexBuffer& SkinWeightVertexBuffer, const int32 VertIndex, FVector3f& OutTangentX, FVector3f& OutTangentY, FVector3f& OutTangentZ)
 {
 	int32 SectionIndex;
 	int32 VertIndexInChunk;

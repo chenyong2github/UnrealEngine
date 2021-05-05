@@ -318,13 +318,13 @@ FAreaNavModifier::FAreaNavModifier(const FBox& Box, const FTransform& LocalToWor
 	SetBox(Box, LocalToWorld);
 }
 
-FAreaNavModifier::FAreaNavModifier(const TArray<FVector>& InPoints, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> InAreaClass)
+FAreaNavModifier::FAreaNavModifier(const TArray<FVector3f>& InPoints, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> InAreaClass)
 {
 	Init(InAreaClass);
 	SetConvex(InPoints.GetData(), 0, InPoints.Num(), CoordType, LocalToWorld);
 }
 
-FAreaNavModifier::FAreaNavModifier(const TArray<FVector>& InPoints, const int32 FirstIndex, const int32 LastIndex, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> InAreaClass)
+FAreaNavModifier::FAreaNavModifier(const TArray<FVector3f>& InPoints, const int32 FirstIndex, const int32 LastIndex, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> InAreaClass)
 {
 	check(InPoints.IsValidIndex(FirstIndex) && InPoints.IsValidIndex(LastIndex-1));
 
@@ -332,7 +332,7 @@ FAreaNavModifier::FAreaNavModifier(const TArray<FVector>& InPoints, const int32 
 	SetConvex(InPoints.GetData(), FirstIndex, LastIndex, CoordType, LocalToWorld);
 }
 
-FAreaNavModifier::FAreaNavModifier(const TNavStatArray<FVector>& InPoints, const int32 FirstIndex, const int32 LastIndex, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> InAreaClass)
+FAreaNavModifier::FAreaNavModifier(const TNavStatArray<FVector3f>& InPoints, const int32 FirstIndex, const int32 LastIndex, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> InAreaClass)
 {
 	check(InPoints.IsValidIndex(FirstIndex) && InPoints.IsValidIndex(LastIndex-1));
 
@@ -345,7 +345,7 @@ void FAreaNavModifier::InitializeConvex(const TNavStatArray<FVector>& InPoints, 
 	check(InPoints.IsValidIndex(FirstIndex) && InPoints.IsValidIndex(LastIndex-1));
 
 	Init(InAreaClass);
-	SetConvex(InPoints.GetData(), FirstIndex, LastIndex, ENavigationCoordSystem::Unreal, LocalToWorld);
+	SetConvex(LWC::DemoteArrayType<FVector3f>(InPoints).GetData(), FirstIndex, LastIndex, ENavigationCoordSystem::Unreal, LocalToWorld);	// LWC_TODO: Perf pessimization
 }
 
 void FAreaNavModifier::InitializePerInstanceConvex(const TNavStatArray<FVector>& InPoints, const int32 FirstIndex, const int32 LastIndex, const TSubclassOf<UNavAreaBase> InAreaClass)
@@ -353,14 +353,14 @@ void FAreaNavModifier::InitializePerInstanceConvex(const TNavStatArray<FVector>&
 	check(InPoints.IsValidIndex(FirstIndex) && InPoints.IsValidIndex(LastIndex - 1));
 
 	Init(InAreaClass);
-	SetPerInstanceConvex(InPoints.GetData(), FirstIndex, LastIndex);
+	SetPerInstanceConvex(LWC::DemoteArrayType<FVector3f>(InPoints).GetData(), FirstIndex, LastIndex);	// LWC_TODO: Perf pessimization
 }
 
 FAreaNavModifier::FAreaNavModifier(const UBrushComponent* BrushComponent, const TSubclassOf<UNavAreaBase> InAreaClass)
 {
 	check(BrushComponent != NULL);
 
-	TArray<FVector> Verts;
+	TArray<FVector3f> Verts;
 	if(BrushComponent->BrushBodySetup)
 	{
 		for (int32 ElemIndex = 0; ElemIndex < BrushComponent->BrushBodySetup->AggGeom.ConvexElems.Num(); ElemIndex++)
@@ -463,13 +463,13 @@ bool IsAngleMatching(float Angle)
 
 void FAreaNavModifier::SetBox(const FBox& Box, const FTransform& LocalToWorld)
 {
-	const FVector BoxOrigin = Box.GetCenter();
-	const FVector BoxExtent = Box.GetExtent();
+	const FVector3f BoxOrigin = Box.GetCenter();
+	const FVector3f BoxExtent = Box.GetExtent();
 
-	TArray<FVector> Corners;
+	TArray<FVector3f> Corners;
 	for (int32 i = 0; i < 8; i++)
 	{
-		const FVector Dir(((i / 4) % 2) ? 1 : -1, ((i / 2) % 2) ? 1 : -1, (i % 2) ? 1 : -1);
+		const FVector3f Dir(((i / 4) % 2) ? 1 : -1, ((i / 2) % 2) ? 1 : -1, (i % 2) ? 1 : -1);
 		Corners.Add(LocalToWorld.TransformPosition(BoxOrigin + BoxExtent * Dir));
 	}
 
@@ -497,7 +497,7 @@ void FAreaNavModifier::SetBox(const FBox& Box, const FTransform& LocalToWorld)
 	}
 }
 
-void FAreaNavModifier::FillConvexNavAreaData(const FVector* InPoints, const int32 InNumPoints, const FTransform& InTotalTransform, FConvexNavAreaData& OutConvexData, FBox& OutBounds)
+void FAreaNavModifier::FillConvexNavAreaData(const FVector3f* InPoints, const int32 InNumPoints, const FTransform& InTotalTransform, FConvexNavAreaData& OutConvexData, FBox& OutBounds)
 {
 	OutBounds = FBox(ForceInit);
 	OutConvexData.Points.Reset();
@@ -515,7 +515,7 @@ void FAreaNavModifier::FillConvexNavAreaData(const FVector* InPoints, const int3
 
 	for (int32 i = 0; i < InNumPoints; i++)
 	{
-		FVector TransformedPoint = InTotalTransform.TransformPosition(InPoints[i]);
+		FVector3f TransformedPoint = InTotalTransform.TransformPosition(InPoints[i]);
 		OutConvexData.MinZ = FMath::Min(OutConvexData.MinZ, TransformedPoint.Z);
 		OutConvexData.MaxZ = FMath::Max(OutConvexData.MaxZ, TransformedPoint.Z);
 		TransformedPoint.Z = 0.f;
@@ -560,15 +560,15 @@ void FAreaNavModifier::FillConvexNavAreaData(const FVector* InPoints, const int3
 	}
 }
 
-void FAreaNavModifier::SetPerInstanceConvex(const FVector* InPoints, const int32 InFirstIndex, const int32 InLastIndex)
+void FAreaNavModifier::SetPerInstanceConvex(const FVector3f* InPoints, const int32 InFirstIndex, const int32 InLastIndex)
 {
 	// Per Instance modifiers requires that we keep all unique points until we receive the instance transform for
     // ConvexHull to be computed. Local Bounds must be computed right away.
 	Bounds = FBox(ForceInit);
 	for (int32 i = InFirstIndex; i < InLastIndex; i++)
 	{
-		const FVector& CurrentPoint = InPoints[i];
-		FVector* SamePoint = Points.FindByPredicate([&CurrentPoint](FVector& Point) { return FMath::IsNearlyZero(FVector::DistSquared(Point, CurrentPoint)); });
+		const FVector3f& CurrentPoint = InPoints[i];
+		FVector3f* SamePoint = Points.FindByPredicate([&CurrentPoint](FVector3f& Point) { return FMath::IsNearlyZero(FVector3f::DistSquared(Point, CurrentPoint)); });
 		if (SamePoint == nullptr)
 		{
 			Points.Add(CurrentPoint);
@@ -578,7 +578,7 @@ void FAreaNavModifier::SetPerInstanceConvex(const FVector* InPoints, const int32
 	ShapeType = ENavigationShapeType::InstancedConvex;
 }
 
-void FAreaNavModifier::SetConvex(const FVector* InPoints, const int32 FirstIndex, const int32 LastIndex, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld)
+void FAreaNavModifier::SetConvex(const FVector3f* InPoints, const int32 FirstIndex, const int32 LastIndex, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld)
 {
 	const FTransform& TotalTransform = LocalToWorld * FNavigationSystem::GetCoordTransform(CoordType, ENavigationCoordSystem::Unreal);
 
@@ -588,7 +588,7 @@ void FAreaNavModifier::SetConvex(const FVector* InPoints, const int32 FirstIndex
 	if (ConvexData.Points.Num() > 0)
 	{
 		Points.Append(ConvexData.Points);
-		Points.Add(FVector(ConvexData.MinZ, ConvexData.MaxZ, 0));
+		Points.Add(FVector3f(ConvexData.MinZ, ConvexData.MaxZ, 0));
 		ShapeType = ENavigationShapeType::Convex;
 	}
 	else
@@ -884,7 +884,7 @@ void FCompositeNavModifier::CreateAreaModifiers(const UPrimitiveComponent* PrimC
 	for (int32 Idx = 0; Idx < BodySetup->AggGeom.SphylElems.Num(); Idx++)
 	{
 		const FKSphylElem& SphylElem = BodySetup->AggGeom.SphylElems[Idx];
-		const FTransform AreaOffset(FVector(0, 0, -SphylElem.Length));
+		const FTransform AreaOffset(FVector3f(0, 0, -SphylElem.Length));
 
 		FAreaNavModifier AreaMod(SphylElem.Radius, SphylElem.Length * 2.0f, AreaOffset * PrimComp->GetComponentTransform(), AreaClass);
 		Add(AreaMod);
@@ -895,7 +895,7 @@ void FCompositeNavModifier::CreateAreaModifiers(const UPrimitiveComponent* PrimC
 		const FKConvexElem& ConvexElem = BodySetup->AggGeom.ConvexElems[Idx];
 		if (ConvexElem.VertexData.Num() > 0)
 		{
-			FAreaNavModifier AreaMod(ConvexElem.VertexData, 0, ConvexElem.VertexData.Num(), ENavigationCoordSystem::Unreal, PrimComp->GetComponentTransform(), AreaClass);
+			FAreaNavModifier AreaMod(LWC::DemoteArrayType<FVector3f>(ConvexElem.VertexData), 0, ConvexElem.VertexData.Num(), ENavigationCoordSystem::Unreal, PrimComp->GetComponentTransform(), AreaClass);
 			Add(AreaMod);
 		}
 		else
@@ -907,7 +907,7 @@ void FCompositeNavModifier::CreateAreaModifiers(const UPrimitiveComponent* PrimC
 	for (int32 Idx = 0; Idx < BodySetup->AggGeom.SphereElems.Num(); Idx++)
 	{
 		const FKSphereElem& SphereElem = BodySetup->AggGeom.SphereElems[Idx];
-		const FTransform AreaOffset(FVector(0, 0, -SphereElem.Radius));
+		const FTransform AreaOffset(FVector3f(0, 0, -SphereElem.Radius));
 
 		FAreaNavModifier AreaMod(SphereElem.Radius, SphereElem.Radius * 2.0f, AreaOffset * PrimComp->GetComponentTransform(), AreaClass);
 		Add(AreaMod);
@@ -918,7 +918,7 @@ void FCompositeNavModifier::CreateAreaModifiers(const FCollisionShape& Collision
 {
 	if (CollisionShape.IsBox())
 	{
-		const FVector BoxExtent = CollisionShape.GetBox();
+		const FVector3f BoxExtent = CollisionShape.GetBox();
 		FAreaNavModifier AreaMod(FBox(-BoxExtent, BoxExtent), LocalToWorld, AreaClass);
 		AreaMod.SetIncludeAgentHeight(bIncludeAgentHeight);
 		Add(AreaMod);
@@ -926,7 +926,7 @@ void FCompositeNavModifier::CreateAreaModifiers(const FCollisionShape& Collision
 	else if (CollisionShape.IsCapsule())
 	{
 		const float CapsuleHalfHeight = CollisionShape.GetCapsuleHalfHeight();
-		const FTransform AreaOffset(FVector(0.0f, 0.0f, -CapsuleHalfHeight));
+		const FTransform AreaOffset(FVector3f(0.0f, 0.0f, -CapsuleHalfHeight));
 		FAreaNavModifier AreaMod(CollisionShape.GetCapsuleRadius(), CapsuleHalfHeight * 2.0f, AreaOffset * LocalToWorld, AreaClass); // Note: FAreaNavModifier creates a cylinder shape under the hood
 		AreaMod.SetIncludeAgentHeight(bIncludeAgentHeight);
 		Add(AreaMod);
@@ -934,7 +934,7 @@ void FCompositeNavModifier::CreateAreaModifiers(const FCollisionShape& Collision
 	else if (CollisionShape.IsSphere())
 	{
 		const float SphereRadius = CollisionShape.GetSphereRadius();
-		const FTransform AreaOffset(FVector(0.0f, 0.0f, -SphereRadius));
+		const FTransform AreaOffset(FVector3f(0.0f, 0.0f, -SphereRadius));
 		FAreaNavModifier AreaMod(SphereRadius, SphereRadius * 2.0f, AreaOffset * LocalToWorld, AreaClass); // Note: FAreaNavModifier creates a cylinder shape under the hood
 		AreaMod.SetIncludeAgentHeight(bIncludeAgentHeight);
 		Add(AreaMod);

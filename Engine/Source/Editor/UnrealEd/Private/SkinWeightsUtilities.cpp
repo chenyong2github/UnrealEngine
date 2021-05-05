@@ -346,7 +346,7 @@ bool FSkinWeightsUtilities::RemoveSkinnedWeightProfileData(USkeletalMesh* Skelet
 	//Rechunk the skeletal mesh since we remove it, we rebuild the skeletal mesh to achieve rechunking
 	UFbxSkeletalMeshImportData* OriginalSkeletalMeshImportData = UFbxSkeletalMeshImportData::GetImportDataForSkeletalMesh(SkeletalMesh, nullptr);
 
-	TArray<FVector> LODPointsDest;
+	TArray<FVector3f> LODPointsDest;
 	TArray<SkeletalMeshImportData::FMeshWedge> LODWedgesDest;
 	TArray<SkeletalMeshImportData::FMeshFace> LODFacesDest;
 	TArray<SkeletalMeshImportData::FVertInfluence> LODInfluencesDest;

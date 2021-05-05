@@ -66,7 +66,7 @@ public:
 	uint32 GetAllocatedSize(void) const;
 
 private:
-	FVector NavMeshDrawOffset;
+	FVector3f NavMeshDrawOffset;
 
 	uint32 bShowBestPath : 1;
 	uint32 bShowNodePool : 1;

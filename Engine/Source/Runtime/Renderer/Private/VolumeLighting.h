@@ -14,7 +14,7 @@
 #include "Engine/MapBuildDataRegistry.h"
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVolumeShadowingShaderParameters, )
-	SHADER_PARAMETER(FMatrix, WorldToShadowMatrix)
+	SHADER_PARAMETER(FMatrix44f, WorldToShadowMatrix)
 	SHADER_PARAMETER(FVector4, ShadowmapMinMax)
 	SHADER_PARAMETER(FVector4, DepthBiasParameters)
 	SHADER_PARAMETER(FVector4, ShadowInjectParams)
@@ -25,7 +25,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVolumeShadowingShaderParameters, )
 	SHADER_PARAMETER(uint32, bStaticallyShadowed)
 	SHADER_PARAMETER_TEXTURE(Texture2D, StaticShadowDepthTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, StaticShadowDepthTextureSampler)
-	SHADER_PARAMETER(FMatrix, WorldToStaticShadowMatrix)
+	SHADER_PARAMETER(FMatrix44f, WorldToStaticShadowMatrix)
 	SHADER_PARAMETER(FVector4, StaticShadowBufferSize)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -47,13 +47,13 @@ extern void GetVolumeShadowingShaderParameters(
 
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVolumeShadowingShaderParametersGlobal0, )
-	SHADER_PARAMETER(FVector, Position)
+	SHADER_PARAMETER(FVector3f, Position)
 	SHADER_PARAMETER(float, InvRadius)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParameters, VolumeShadowingShaderParameters)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVolumeShadowingShaderParametersGlobal1, )
-	SHADER_PARAMETER(FVector, Position)
+	SHADER_PARAMETER(FVector3f, Position)
 	SHADER_PARAMETER(float, InvRadius)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParameters, VolumeShadowingShaderParameters)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -128,7 +128,7 @@ public:
 		if (bDynamicallyShadowed)
 		{
 			FVector4 ShadowmapMinMaxValue;
-			FMatrix WorldToShadowMatrixValue = ShadowMap->GetWorldToShadowMatrix(ShadowmapMinMaxValue);
+			FMatrix44f WorldToShadowMatrixValue = ShadowMap->GetWorldToShadowMatrix(ShadowmapMinMaxValue);
 
 			SetShaderValue(RHICmdList, ShaderRHI, WorldToShadowMatrix, WorldToShadowMatrixValue);
 			SetShaderValue(RHICmdList, ShaderRHI, ShadowmapMinMax, ShadowmapMinMaxValue);
@@ -206,7 +206,7 @@ public:
 		const FStaticShadowDepthMap* StaticShadowDepthMap = LightSceneInfo->Proxy->GetStaticShadowDepthMap();
 		const uint32 bStaticallyShadowedValue = LightSceneInfo->IsPrecomputedLightingValid() && StaticShadowDepthMap && StaticShadowDepthMap->Data && StaticShadowDepthMap->TextureRHI ? 1 : 0;
 		FRHITexture* StaticShadowDepthMapTexture = bStaticallyShadowedValue ? StaticShadowDepthMap->TextureRHI : GWhiteTexture->TextureRHI;
-		const FMatrix WorldToStaticShadow = bStaticallyShadowedValue ? StaticShadowDepthMap->Data->WorldToLight : FMatrix::Identity;
+		const FMatrix44f WorldToStaticShadow = bStaticallyShadowedValue ? FMatrix44f(StaticShadowDepthMap->Data->WorldToLight) : FMatrix44f::Identity;
 		const FVector4 StaticShadowBufferSizeValue = bStaticallyShadowedValue ? FVector4(StaticShadowDepthMap->Data->ShadowMapSizeX, StaticShadowDepthMap->Data->ShadowMapSizeY, 1.0f / StaticShadowDepthMap->Data->ShadowMapSizeX, 1.0f / StaticShadowDepthMap->Data->ShadowMapSizeY) : FVector4(0, 0, 0, 0);
 
 		SetShaderValue(RHICmdList, ShaderRHI, bStaticallyShadowed, bStaticallyShadowedValue);

@@ -104,8 +104,8 @@ namespace ChaosTest
 		auto* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, EThreadingMode::SingleThread);
 		
 		int Count = 0;
-		float Time = 0;
-		const float Dt = 1 / 30.f;
+		FReal Time = 0;
+		const FReal Dt = 1 / 30.;
 
 		struct FDummyInt : public FSimCallbackInput
 		{
@@ -123,14 +123,14 @@ namespace ChaosTest
 		{
 			virtual void OnPreSimulate_Internal() override
 			{
-				EXPECT_EQ(1 / 30.f, GetDeltaTime_Internal());
+				EXPECT_EQ((FReal)1 / (FReal)30., GetDeltaTime_Internal());
 				EXPECT_EQ(GetConsumerInput_Internal()->Data, *CountPtr);
 				GetProducerOutputData_Internal().Data = *CountPtr;
 				++(*CountPtr);
 			}
 
 			int32* CountPtr;
-			float* Time;
+			FReal* Time;
 		};
 
 		FCallback* Callback = Solver->CreateAndRegisterSimCallbackObject_External<FCallback>();
@@ -198,12 +198,12 @@ namespace ChaosTest
 			FChaosMarshallingManager MarshallingManager;
 			FChaosResultsManager ResultsManager(MarshallingManager);
 
-			const float ExternalDt = 1 / 30.f;
+			const FReal ExternalDt = 1 / 30.;
 			float ExternalTime = 0;
 
 			for (int Step = 0; Step < 10; ++Step)
 			{
-				const float StartTime = ExternalTime;	//external time we would have kicked the sim task off with
+				const FReal StartTime = ExternalTime;	//external time we would have kicked the sim task off with
 				ExternalTime += ExternalDt;
 				MarshallingManager.FinalizePullData_Internal(Step, StartTime, ExternalDt);
 				//in sync mode the external time we pass in doesn't matter
@@ -215,12 +215,12 @@ namespace ChaosTest
 			FChaosMarshallingManager MarshallingManager;
 			FChaosResultsManager ResultsManager(MarshallingManager);
 
-			const float ExternalDt = 1 / 30.f;
-			float ExternalTime = 0;
+			const FReal ExternalDt = 1 / 30.;
+			FReal ExternalTime = 0;
 
 			for (int Step = 0; Step < 10; ++Step)
 			{
-				const float StartTime = ExternalTime;	//external time we would have kicked the sim task off with
+				const FReal StartTime = ExternalTime;	//external time we would have kicked the sim task off with
 				ExternalTime += ExternalDt;
 				MarshallingManager.FinalizePullData_Internal(Step, StartTime, ExternalDt);
 				const FChaosInterpolationResults& Results = ResultsManager.PullAsyncPhysicsResults_External(ExternalTime);
@@ -233,16 +233,16 @@ namespace ChaosTest
 			FChaosMarshallingManager MarshallingManager;
 			FChaosResultsManager ResultsManager(MarshallingManager);
 
-			float PreTime;
-			const float ExternalDt = 1 / 30.f;
-			float ExternalTime = 0;
-			const float Delay = ExternalDt * 2 + 1e-2;
+			FReal PreTime;
+			const FReal ExternalDt = 1 / 30.;
+			FReal ExternalTime = 0;
+			const FReal Delay = ExternalDt * 2 + 1e-2;
 
 			for (int Step = 0; Step < 10; ++Step)
 			{
-				const float StartTime = ExternalTime;	//external time we would have kicked the sim task off with
+				const FReal StartTime = ExternalTime;	//external time we would have kicked the sim task off with
 				ExternalTime += ExternalDt;
-				const float RenderTime = ExternalTime - Delay;
+				const FReal RenderTime = ExternalTime - Delay;
 				MarshallingManager.FinalizePullData_Internal(Step, StartTime, ExternalDt);
 				FChaosInterpolationResults Results = ResultsManager.PullAsyncPhysicsResults_External(RenderTime);
 				if(RenderTime < 0)
@@ -266,20 +266,20 @@ namespace ChaosTest
 			FChaosMarshallingManager MarshallingManager;
 			FChaosResultsManager ResultsManager(MarshallingManager);
 
-			float PreTime;
-			const float ExternalDt = 1 / 30.f;
-			float ExternalTime = 0;
-			const float Delay = ExternalDt * 2 + 1e-2;
+			FReal PreTime;
+			const FReal ExternalDt = 1 / 30.f;
+			FReal ExternalTime = 0;
+			const FReal Delay = ExternalDt * 2 + 1e-2;
 
 			int InnerStepTotal = 0;
 			for (int Step = 0; Step < 10; ++Step)
 			{
-				const float StartTime = ExternalTime;	//external time we would have kicked the sim task off with
+				const FReal StartTime = ExternalTime;	//external time we would have kicked the sim task off with
 				ExternalTime += ExternalDt;
-				const float RenderTime = ExternalTime - Delay;
+				const FReal RenderTime = ExternalTime - Delay;
 
 				//even if we have multiple smaller results, interpolate as needed
-				const float InnerDt = ExternalDt / 3.f;
+				const FReal InnerDt = ExternalDt / 3.;
 				for(int InnerStep = 0; InnerStep < 3; ++InnerStep)
 				{
 					MarshallingManager.FinalizePullData_Internal(InnerStepTotal++, StartTime + InnerDt * InnerStep, InnerDt);

@@ -22,7 +22,7 @@ namespace Chaos
 		 * Weightmap constructor. 
 		 */
 		inline FPBDStiffness(
-			const TConstArrayView<FReal>& Multipliers,
+			const TConstArrayView<FRealSingle>& Multipliers,
 			const FVec2& InWeightedValue,
 			int32 ParticleCount,
 			int32 TableSize = 16,  // Size of the lookup table, can't be more than 256 values, the larger the table the longer it takes to apply changes to the stiffness values
@@ -76,7 +76,7 @@ namespace Chaos
 	};
 
 	FPBDStiffness::FPBDStiffness(
-		const TConstArrayView<FReal>& Multipliers,
+		const TConstArrayView<FRealSingle>& Multipliers,
 		const FVec2& InWeightedValue,
 		int32 ParticleCount,
 		int32 TableSize,

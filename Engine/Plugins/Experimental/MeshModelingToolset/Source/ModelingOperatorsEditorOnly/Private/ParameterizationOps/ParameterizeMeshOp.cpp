@@ -19,7 +19,7 @@ using namespace UE::Geometry;
 FParameterizeMeshOp::FLinearMesh::FLinearMesh(const FDynamicMesh3& Mesh, const bool bRespectPolygroups)
 {
 
-	TArray<FVector>& Positions = this->VertexBuffer;
+	TArray<FVector3f>& Positions = this->VertexBuffer;
 
 	// Temporary maps used during construction.
 
@@ -76,7 +76,7 @@ FParameterizeMeshOp::FLinearMesh::FLinearMesh(const FDynamicMesh3& Mesh, const b
 
 		for (const auto& Vertex : Mesh.VerticesItr())
 		{
-			FVector Pos(Vertex.X, Vertex.Y, Vertex.Z);
+			FVector3f Pos(Vertex.X, Vertex.Y, Vertex.Z);
 			Positions.Add(Pos);
 		}
 	}

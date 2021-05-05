@@ -142,7 +142,7 @@ namespace HairStrandsBuilder
 
 		if (HairStrands.GetNumCurves() > 0 && HairStrands.GetNumPoints() > 0)
 		{
-			TArray<FVector>::TIterator PositionIterator = Points.PointsPosition.CreateIterator();
+			TArray<FVector3f>::TIterator PositionIterator = Points.PointsPosition.CreateIterator();
 			TArray<float>::TIterator RadiusIterator = Points.PointsRadius.CreateIterator();
 			TArray<float>::TIterator CoordUIterator = Points.PointsCoordU.CreateIterator();
 
@@ -1195,8 +1195,8 @@ namespace HairInterpolationBuilder
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(HairInterpolationBuilder::FillInterpolationData);
 
-		TStrandAttributesConstRef<FVector> ClosestGuides = HairDescription.StrandAttributes().GetAttributesRef<FVector>(HairAttribute::Strand::ClosestGuides);
-		TStrandAttributesConstRef<FVector> GuideWeights = HairDescription.StrandAttributes().GetAttributesRef<FVector>(HairAttribute::Strand::GuideWeights);
+		TStrandAttributesConstRef<FVector3f> ClosestGuides = HairDescription.StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::ClosestGuides);
+		TStrandAttributesConstRef<FVector3f> GuideWeights = HairDescription.StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::GuideWeights);
 
 		if (!GroomAsset || !ClosestGuides.IsValid() || !GuideWeights.IsValid())
 		{
@@ -1355,15 +1355,15 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 		GroomHairWidth = GroomHairWidthAttribute[GroomID];
 	}
 
-	TGroomAttributesConstRef<FVector> GroomHairColorAttribute = HairDescription.GroomAttributes().GetAttributesRef<FVector>(HairAttribute::Groom::Color);
+	TGroomAttributesConstRef<FVector3f> GroomHairColorAttribute = HairDescription.GroomAttributes().GetAttributesRef<FVector3f>(HairAttribute::Groom::Color);
 	TOptional<FVector> GroomHairColor;
 	if (GroomHairColorAttribute.IsValid())
 	{
 		GroomHairColor = GroomHairColorAttribute[GroomID];
 	}
 
-	TVertexAttributesConstRef<FVector> VertexPositions	= HairDescription.VertexAttributes().GetAttributesRef<FVector>(HairAttribute::Vertex::Position);
-	TVertexAttributesConstRef<FVector> VertexBaseColor	= HairDescription.VertexAttributes().GetAttributesRef<FVector>(HairAttribute::Vertex::Color);
+	TVertexAttributesConstRef<FVector3f> VertexPositions	= HairDescription.VertexAttributes().GetAttributesRef<FVector3f>(HairAttribute::Vertex::Position);
+	TVertexAttributesConstRef<FVector3f> VertexBaseColor	= HairDescription.VertexAttributes().GetAttributesRef<FVector3f>(HairAttribute::Vertex::Color);
 	TStrandAttributesConstRef<int> StrandNumVertices	= HairDescription.StrandAttributes().GetAttributesRef<int>(HairAttribute::Strand::VertexCount);
 
 	if (!VertexPositions.IsValid() || !StrandNumVertices.IsValid())
@@ -1386,8 +1386,8 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 
 	bool bImportGuides = true;
 
-	TStrandAttributesConstRef<FVector> ClosestGuides = HairDescription.StrandAttributes().GetAttributesRef<FVector>(HairAttribute::Strand::ClosestGuides);
-	TStrandAttributesConstRef<FVector> GuideWeights = HairDescription.StrandAttributes().GetAttributesRef<FVector>(HairAttribute::Strand::GuideWeights);
+	TStrandAttributesConstRef<FVector3f> ClosestGuides = HairDescription.StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::ClosestGuides);
+	TStrandAttributesConstRef<FVector3f> GuideWeights = HairDescription.StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::GuideWeights);
 
 	// To use ClosestGuides and GuideWeights attributes, guides must be imported from HairDescription and
 	// must include StrandID attribute since ClosestGuides references those IDs
@@ -1707,7 +1707,7 @@ inline uint32 DecimatePointCount(uint32 InCount, float InDecimationFactor)
 }
 
 static void DecimateCurve(
-	const TArray<FVector>& InPoints, 
+	const TArray<FVector3f>& InPoints, 
 	const uint32 InOffset, 
 	const uint32 InCount, 
 	const float InDecimationFactor, 
@@ -1942,7 +1942,7 @@ struct FClusterGrid
 };
 
 static void DecimateCurve(
-	const TArray<FVector>& InPoints,
+	const TArray<FVector3f>& InPoints,
 	const uint32 InOffset,
 	const uint32 InCount,
 	const TArray<FHairLODSettings>& InSettings,

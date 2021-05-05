@@ -99,14 +99,14 @@ void FGeometryCollectionProximityUtility::UpdateProximity(FGeometryCollection* G
 		GeometryCollection->AddAttribute<int32>("BreakingFaceIndex", FGeometryCollection::BreakingGroup);
 		GeometryCollection->AddAttribute<int32>("BreakingSourceTransformIndex", FGeometryCollection::BreakingGroup);
 		GeometryCollection->AddAttribute<int32>("BreakingTargetTransformIndex", FGeometryCollection::BreakingGroup);
-		GeometryCollection->AddAttribute<FVector>("BreakingRegionCentroid", FGeometryCollection::BreakingGroup);
-		GeometryCollection->AddAttribute<FVector>("BreakingRegionNormal", FGeometryCollection::BreakingGroup);
+		GeometryCollection->AddAttribute<FVector3f>("BreakingRegionCentroid", FGeometryCollection::BreakingGroup);
+		GeometryCollection->AddAttribute<FVector3f>("BreakingRegionNormal", FGeometryCollection::BreakingGroup);
 		GeometryCollection->AddAttribute<float>("BreakingRegionRadius", FGeometryCollection::BreakingGroup);
 	}
 
 	auto start = std::chrono::high_resolution_clock::now();
 
-	const TManagedArray<FVector>& VertexArray = GeometryCollection->Vertex;
+	const TManagedArray<FVector3f>& VertexArray = GeometryCollection->Vertex;
 	const TManagedArray<int32>& BoneMapArray = GeometryCollection->BoneMap;
 	const TManagedArray<FIntVector>& IndicesArray = GeometryCollection->Indices;
 	const TManagedArray<int32>& TransformIndexArray = GeometryCollection->TransformIndex;
@@ -116,8 +116,8 @@ void FGeometryCollectionProximityUtility::UpdateProximity(FGeometryCollection* G
 	TManagedArray<int32>& BreakingFaceIndexArray = GeometryCollection->GetAttribute<int32>("BreakingFaceIndex", FGeometryCollection::BreakingGroup);
 	TManagedArray<int32>& BreakingSourceTransformIndexArray = GeometryCollection->GetAttribute<int32>("BreakingSourceTransformIndex", FGeometryCollection::BreakingGroup);
 	TManagedArray<int32>& BreakingTargetTransformIndexArray = GeometryCollection->GetAttribute<int32>("BreakingTargetTransformIndex", FGeometryCollection::BreakingGroup);
-	TManagedArray<FVector>& BreakingRegionCentroidArray = GeometryCollection->GetAttribute<FVector>("BreakingRegionCentroid", FGeometryCollection::BreakingGroup);
-	TManagedArray<FVector>& BreakingRegionNormalArray = GeometryCollection->GetAttribute<FVector>("BreakingRegionNormal", FGeometryCollection::BreakingGroup);
+	TManagedArray<FVector3f>& BreakingRegionCentroidArray = GeometryCollection->GetAttribute<FVector3f>("BreakingRegionCentroid", FGeometryCollection::BreakingGroup);
+	TManagedArray<FVector3f>& BreakingRegionNormalArray = GeometryCollection->GetAttribute<FVector3f>("BreakingRegionNormal", FGeometryCollection::BreakingGroup);
 	TManagedArray<float>& BreakingRegionRadiusArray = GeometryCollection->GetAttribute<float>("BreakingRegionRadius", FGeometryCollection::BreakingGroup);
 
 	float DistanceThreshold = 1e-2;

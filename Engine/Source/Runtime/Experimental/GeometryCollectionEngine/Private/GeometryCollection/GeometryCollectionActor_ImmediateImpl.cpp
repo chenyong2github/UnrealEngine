@@ -30,7 +30,7 @@ AGeometryCollectionActor::AGeometryCollectionActor(const FObjectInitializer& Obj
 	: Super(ObjectInitializer)
 	, bInitializedState(false)
 	, RigidBodyIdArray(new TManagedArray<int32>())
-	, CenterOfMassArray(new TManagedArray<FVector>())
+	, CenterOfMassArray(new TManagedArray<FVector3f>())
 {
 	GeometryCollectionComponent = CreateDefaultSubobject<UGeometryCollectionComponent>(TEXT("GeometryCollectionComponent0"));
 	RootComponent = GeometryCollectionComponent;
@@ -49,7 +49,7 @@ void AGeometryCollectionActor::Tick(float DeltaTime)
 	if (Collection && !AGeometryCollectionActor::bInitializedState)
 	{
 		Collection->GetGeometryCollection()->AddAttribute<int32>("RigidBodyID", FGeometryCollection::TransformGroup, RigidBodyIdArray);
-		Collection->GetGeometryCollection()->AddAttribute<FVector>("CenterOfMass", FGeometryCollection::TransformGroup, CenterOfMassArray);
+		Collection->GetGeometryCollection()->AddAttribute<FVector3f>("CenterOfMass", FGeometryCollection::TransformGroup, CenterOfMassArray);
 
 		Scene.SetKinematicUpdateFunction([this](FSolverCallbacks::FParticlesType& Particles, const float Dt, const float Time, const int32 Index) {
 

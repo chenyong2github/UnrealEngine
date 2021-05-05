@@ -39,7 +39,15 @@ public:
 	 * @param InVector 3D Vector to set first three components.
 	 * @param InW W Coordinate.
 	 */
-	FVector4(const FVector& InVector, float InW = 1.0f);
+	FVector4(const FVector3f& InVector, float InW = 1.0f);
+	FVector4(const FVector3d& InVector, float InW = 1.0f);
+
+	/**
+	 * Constructor allowing copying of an FVector4 whilst setting up a new W component.
+	 * @param InVector 4D Vector to set first three components.
+	 * @param InOverrideW Replaces W Coordinate of InVector.
+	 */
+	FVector4(const FVector4& InVector, float InOverrideW);	
 
 	/**
 	 * Creates and initializes a new vector from a color value.
@@ -461,7 +469,7 @@ FORCEINLINE uint32 GetTypeHash(const FVector4& Vector)
 /* FVector4 inline functions
  *****************************************************************************/
 
-FORCEINLINE FVector4::FVector4(const FVector& InVector,float InW)
+FORCEINLINE FVector4::FVector4(const FVector3f& InVector,float InW)
 	: X(InVector.X)
 	, Y(InVector.Y)
 	, Z(InVector.Z)
@@ -470,6 +478,23 @@ FORCEINLINE FVector4::FVector4(const FVector& InVector,float InW)
 	DiagnosticCheckNaN();
 }
 
+FORCEINLINE FVector4::FVector4(const FVector3d& InVector, float InW)
+	: X((float)InVector.X)
+	, Y((float)InVector.Y)
+	, Z((float)InVector.Z)
+	, W(InW)
+{
+	DiagnosticCheckNaN();
+}
+
+FORCEINLINE FVector4::FVector4(const FVector4& InVector, float InOverrideW)
+	: X(InVector.X)
+	, Y(InVector.Y)
+	, Z(InVector.Z)
+	, W(InOverrideW)
+{
+	DiagnosticCheckNaN();
+}
 
 FORCEINLINE FVector4::FVector4(const FLinearColor& InColor)
 	: X(InColor.R)
@@ -775,12 +800,14 @@ FORCEINLINE FVector4 FVector4::operator/(const FVector4& V) const
 }
 
 template <> struct TIsPODType<FVector4> { enum { Value = true }; };
+template <> struct TIsUECoreType<FVector4> { enum { Value = true }; };
 
 
 /* FVector inline functions
  *****************************************************************************/
 
-FORCEINLINE FVector::FVector( const FVector4& V )
+template<typename FReal>
+FORCEINLINE UE::Math::TVector<FReal>::TVector( const FVector4& V )
 	: X(V.X), Y(V.Y), Z(V.Z)
 {
 	DiagnosticCheckNaN();

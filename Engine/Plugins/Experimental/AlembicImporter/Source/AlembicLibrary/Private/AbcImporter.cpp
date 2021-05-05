@@ -871,8 +871,8 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 		{
 			// Merged path
 			const uint32 FrameZeroIndex = 0;
-			TArray<FVector> AverageVertexData;
-			TArray<FVector> AverageNormalData;
+			TArray<FVector3f> AverageVertexData;
+			TArray<FVector3f> AverageNormalData;
 
 			float MinTime = FLT_MAX;
 			float MaxTime = -FLT_MAX;
@@ -926,14 +926,14 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 			// Average out vertex data
 			FBox AverageBoundingBox(ForceInit);
 			const float Multiplier = 1.0f / FMath::Max(NumSamples, 1);
-			for (FVector& Vertex : AverageVertexData)
+			for (FVector3f& Vertex : AverageVertexData)
 			{
 				Vertex *= Multiplier;
 				AverageBoundingBox += Vertex;
 			}
 			const FVector AverageSampleCenter = AverageBoundingBox.GetCenter();
 
-			for (FVector& Normal : AverageNormalData)
+			for (FVector3f& Normal : AverageNormalData)
 			{
 				Normal = Normal.GetSafeNormal();
 			}
@@ -991,9 +991,9 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 						// For each object generate the delta frame data for the PCA compression
 						for (FAbcPolyMesh* PolyMesh : PolyMeshesToCompress)
 						{
-							const TArray<FVector>& Vertices = PolyMesh->GetSample(FrameIndex)->Vertices;
+							const TArray<FVector3f>& Vertices = PolyMesh->GetSample(FrameIndex)->Vertices;
 
-							for ( const FVector& Vertex : Vertices )
+							for ( const FVector3f& Vertex : Vertices )
 							{
 								BoundingBox += Vertex;
 							}
@@ -1007,8 +1007,8 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 					for (int32 MeshIndex = 0; MeshIndex < NumPolyMeshesToCompress; ++MeshIndex)
 					{
 						FAbcPolyMesh* PolyMesh = PolyMeshesToCompress[MeshIndex];
-						const TArray<FVector>& Vertices = PolyMesh->GetSample(FrameIndex)->Vertices;
-						const TArray<FVector>& Normals = PolyMesh->GetSample(FrameIndex)->Normals;
+						const TArray<FVector3f>& Vertices = PolyMesh->GetSample(FrameIndex)->Vertices;
+						const TArray<FVector3f>& Normals = PolyMesh->GetSample(FrameIndex)->Normals;
 
 						AbcImporterUtilities::GenerateDeltaFrameDataMatrix(Vertices, Normals, AverageVertexData, AverageNormalData, GenerateMatrixSampleIndex,
 							ObjectVertexOffsets[MeshIndex], ObjectIndexOffsets[MeshIndex], SampleOffset, OriginalMatrix, OriginalNormalsMatrix);
@@ -1075,8 +1075,8 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 		{
 			TArray<float> MinTimes;
 			TArray<float> MaxTimes;
-			TArray<TArray<FVector>> AverageVertexData;
-			TArray<TArray<FVector>> AverageNormalData;
+			TArray<TArray<FVector3f>> AverageVertexData;
+			TArray<TArray<FVector3f>> AverageNormalData;
 
 			MinTimes.AddZeroed(NumPolyMeshesToCompress);
 			MaxTimes.AddZeroed(NumPolyMeshesToCompress);
@@ -1093,8 +1093,8 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 				for (int32 MeshIndex = 0; MeshIndex < NumPolyMeshesToCompress; ++MeshIndex)
 				{
 					FAbcPolyMesh* PolyMesh = PolyMeshesToCompress[MeshIndex];
-					TArray<FVector>& AverageVertices = AverageVertexData[MeshIndex];
-					TArray<FVector>& AverageNormals = AverageNormalData[MeshIndex];
+					TArray<FVector3f>& AverageVertices = AverageVertexData[MeshIndex];
+					TArray<FVector3f>& AverageNormals = AverageNormalData[MeshIndex];
 
 					if (AverageVertices.Num() == 0)
 					{
@@ -1105,7 +1105,7 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 					}
 					else
 					{
-						const TArray<FVector>& CurrentVertices = PolyMesh->GetSample(FrameIndex)->Vertices;
+						const TArray<FVector3f>& CurrentVertices = PolyMesh->GetSample(FrameIndex)->Vertices;
 						for (int32 VertexIndex = 0; VertexIndex < AverageVertices.Num(); ++VertexIndex)
 						{
 							AverageVertices[VertexIndex] += CurrentVertices[VertexIndex];
@@ -1123,9 +1123,9 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 
 				for (int32 MeshIndex = 0; MeshIndex < NumPolyMeshesToCompress; ++MeshIndex)
 				{
-					TArray<FVector>& AverageNormals = AverageNormalData[MeshIndex];
+					TArray<FVector3f>& AverageNormals = AverageNormalData[MeshIndex];
 
-					for (FVector& AverageNormal : AverageNormals)
+					for (FVector3f& AverageNormal : AverageNormals)
 					{
 						AverageNormal = AverageNormal.GetSafeNormal();
 					}
@@ -1145,9 +1145,9 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 			// Average out vertex data
 			FBox AverageBoundingBox(ForceInit);
 			const float Multiplier = 1.0f / FMath::Max(NumSamples, 1);
-			for (TArray<FVector>& VertexData : AverageVertexData)
+			for (TArray<FVector3f>& VertexData : AverageVertexData)
 			{
-				for (FVector& Vertex : VertexData)
+				for (FVector3f& Vertex : VertexData)
 				{
 					Vertex *= Multiplier;
 					AverageBoundingBox += Vertex;
@@ -1192,9 +1192,9 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 						FAbcPolyMesh* PolyMesh = PolyMeshesToCompress[MeshIndex];
 						const uint32 NumMatrixRows = AverageVertexData[MeshIndex].Num() * 3;
 
-						const TArray<FVector>& Vertices = PolyMesh->GetSample(FrameIndex)->Vertices;
+						const TArray<FVector3f>& Vertices = PolyMesh->GetSample(FrameIndex)->Vertices;
 
-						for ( const FVector& Vector : Vertices )
+						for ( const FVector3f& Vector : Vertices )
 						{
 							BoundingBox += Vector;
 						}
@@ -1212,8 +1212,8 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 					{
 						FAbcPolyMesh* PolyMesh = PolyMeshesToCompress[MeshIndex];
 						const uint32 NumMatrixRows = AverageVertexData[MeshIndex].Num() * 3;
-						const TArray<FVector>& CurrentVertices = PolyMesh->GetSample(FrameIndex)->Vertices;
-						const TArray<FVector>& CurrentNormals = PolyMesh->GetSample(FrameIndex)->Normals;
+						const TArray<FVector3f>& CurrentVertices = PolyMesh->GetSample(FrameIndex)->Vertices;
+						const TArray<FVector3f>& CurrentNormals = PolyMesh->GetSample(FrameIndex)->Normals;
 
 						const int32 AverageVertexOffset = 0;
 						const int32 AverageIndexOffset = 0;
@@ -1472,11 +1472,11 @@ void FAbcImporter::GenerateMeshDescriptionFromSample(const FAbcMeshSample* Sampl
 
 	FStaticMeshAttributes Attributes(*MeshDescription);
 
-	TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+	TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 	TEdgeAttributesRef<bool> EdgeHardnesses = Attributes.GetEdgeHardnesses();
 	TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
-	TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
@@ -1493,10 +1493,10 @@ void FAbcImporter::GenerateMeshDescriptionFromSample(const FAbcMeshSample* Sampl
 	// position
 	for (int32 VertexIndex = 0; VertexIndex < Sample->Vertices.Num(); ++VertexIndex)
 	{
-		FVector Position = Sample->Vertices[VertexIndex];
+		FVector3f Position = Sample->Vertices[VertexIndex];
 
 		FVertexID VertexID = MeshDescription->CreateVertex();
-		VertexPositions[VertexID] = FVector(Position);
+		VertexPositions[VertexID] = FVector3f(Position);
 	}
 
 	uint32 VertexIndices[3];
@@ -1525,9 +1525,9 @@ void FAbcImporter::GenerateMeshDescriptionFromSample(const FAbcMeshSample* Sampl
 			const FVertexInstanceID VertexInstanceID = MeshDescription->CreateVertexInstance(VertexID);
 
 			// tangents
-			FVector TangentX = Sample->TangentX[IndiceIndex];
-			FVector TangentY = Sample->TangentY[IndiceIndex];
-			FVector TangentZ = Sample->Normals[IndiceIndex];
+			FVector3f TangentX = Sample->TangentX[IndiceIndex];
+			FVector3f TangentY = Sample->TangentY[IndiceIndex];
+			FVector3f TangentZ = Sample->Normals[IndiceIndex];
 
 			VertexInstanceTangents[VertexInstanceID] = TangentX;
 			VertexInstanceNormals[VertexInstanceID] = TangentZ;

@@ -38,7 +38,7 @@ void FInstanceSceneShaderData::Setup(const FInstanceUniformShaderParameters& Ins
 	InstanceUniformShaderParameters.LocalToWorld.To3x4MatrixTranspose((float*)&Data[1]);
 	InstanceUniformShaderParameters.PrevLocalToWorld.To3x4MatrixTranspose((float*)&Data[4]);
 	
-	Data[7]    = *(const  FVector*)&InstanceUniformShaderParameters.LocalBoundsCenter;
+	Data[7]    = *(const  FVector3f*)&InstanceUniformShaderParameters.LocalBoundsCenter;
 	Data[7].W  = *(const    float*)&InstanceUniformShaderParameters.LocalBoundsExtent.X;
 	
 	Data[8].X  = *(const    float*)&InstanceUniformShaderParameters.LocalBoundsExtent.Y;

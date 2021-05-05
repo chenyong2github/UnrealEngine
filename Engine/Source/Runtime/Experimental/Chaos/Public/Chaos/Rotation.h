@@ -56,7 +56,7 @@ namespace Chaos
 
 		PMatrix<FReal, 3, 3> ToMatrix() const
 		{
-			return FRotationMatrix::Make(*this);
+			return (FMatrix44f)FRotationMatrix::Make(*this);
 		}
 
 		/**
@@ -95,7 +95,7 @@ namespace Chaos
 			if (LenSq > EpsilionSq)
 			{
 				FReal InvLen = FMath::InvSqrt(LenSq);
-				OutAxis = FVector(X * InvLen, Y * InvLen, Z * InvLen);
+				OutAxis = TVector<FReal, 3>(X * InvLen, Y * InvLen, Z * InvLen);
 				return true;
 			}
 
@@ -168,7 +168,7 @@ namespace Chaos
 		 */
 		static TRotation<FReal, 3> FromAxisAngle(const ::Chaos::TVector<FReal, 3>& Axis, const FReal AngleRad)
 		{
-			return FQuat(Axis, AngleRad);
+			return FQuat(FVector(Axis.X, Axis.Y, Axis.Z), AngleRad);
 		}
 
 		/**
@@ -199,7 +199,7 @@ namespace Chaos
 			checkSlow(FMath::Abs(InitialVector.Size() - 1.0) < KINDA_SMALL_NUMBER);
 			checkSlow(FMath::Abs(FinalVector.Size() - 1.0) < KINDA_SMALL_NUMBER);
 
-			const double CosTheta = FMath::Clamp(TV::DotProduct(InitialVector, FinalVector), -1.f, 1.f);
+			const double CosTheta = FMath::Clamp<FReal>(TV::DotProduct(InitialVector, FinalVector), -1., 1.);
 
 			TV V = TV::CrossProduct(InitialVector, FinalVector);
 			const FReal VMagnitude = V.Size();
@@ -224,7 +224,7 @@ namespace Chaos
 		{
 			if (!ensure(InDt > SMALL_NUMBER))
 			{
-				return TVector<float, 3>(0);
+				return TVector<FReal, 3>(0);
 			}
 
 			const TRotation<FReal, 3>& R0 = InR0;
@@ -250,7 +250,7 @@ namespace Chaos
 			// underestimates the angular velocity magnitude and randomizes direction.
 			if (!ensure(InDt > SMALL_NUMBER))
 			{
-				return TVector<float, 3>(0);
+				return TVector<FReal, 3>(0);
 			}
 
 			const TRotation<FReal, 3>& R0 = InR0;
@@ -258,9 +258,8 @@ namespace Chaos
 			R1.EnforceShortestArcWith(R0);
 
 			const TRotation<FReal, 3> DR = R1 * Conjugate(R0);
-			TVector<FReal, 3> Axis;
-			FReal Angle;
-			DR.ToAxisAndAngle(Axis, Angle);
+			FReal Angle = DR.GetAngle();
+			TVector<FReal, 3> Axis = DR.GetRotationAxis();
 			return Axis * (Angle / InDt);
 		}
 
@@ -303,9 +302,9 @@ namespace Chaos
 		static bool IsNearlyEqual(const TRotation<FReal, 3>& A, const TRotation<FReal, 3>& B, const FReal Epsilon)
 		{
 			// Only check imaginary part. This is comparing Epsilon to 2*AngleDelta for small angle deltas
-			return FMath::IsNearlyEqual(A.X, B.X, Epsilon) 
-				&& FMath::IsNearlyEqual(A.Y, B.Y, Epsilon) 
-				&& FMath::IsNearlyEqual(A.Z, B.Z, Epsilon);
+			return FMath::IsNearlyEqual((FReal)A.X, (FReal)B.X, Epsilon)
+				&& FMath::IsNearlyEqual((FReal)A.Y, (FReal)B.Y, Epsilon)
+				&& FMath::IsNearlyEqual((FReal)A.Z, (FReal)B.Z, Epsilon);
 		}
 	};
 }

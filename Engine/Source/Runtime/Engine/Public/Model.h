@@ -97,7 +97,7 @@ struct FBspNode // 62 bytes
 	enum {MAX_ZONES=64};			// Max zones per level.
 
 	// Persistent information.
-	FPlane		Plane;			// 16 Plane the node falls into (X, Y, Z, W).
+	FPlane4f		Plane;			// 16 Plane the node falls into (X, Y, Z, W).
 	int32			iVertPool;		// 4  Index of first vertex in vertex pool, =iTerrain if NumVertices==0 and NF_TerrainFront.
 	int32			iSurf;			// 4  Index to surface information.
 
@@ -214,7 +214,7 @@ public:
 	int32					vTextureV;		// 4 Texture V-vector index.
 	int32					iBrushPoly;		// 4 Editor brush polygon index.
 	ABrush*				Actor;			// 4 Brush actor owning this Bsp surface.
-	FPlane				Plane;			// 16 The plane this surface lies on.
+	FPlane4f				Plane;			// 16 The plane this surface lies on.
 	float				LightMapScale;	// 4 The number of units/lightmap texel on this surface.
 
 	int32					iLightmassIndex;// 4 Index to the lightmass settings
@@ -271,16 +271,16 @@ enum EPolyFlags
 
 struct FModelVertex
 {
-	FVector Position;
-	FVector TangentX;
+	FVector3f Position;
+	FVector3f TangentX;
 	FVector4 TangentZ;
 	FVector2D TexCoord;
 	FVector2D ShadowTexCoord;
 
-	FVector GetTangentY() const
+	FVector3f GetTangentY() const
 	{
-		FVector TanX = TangentX;
-		FVector TanZ = TangentZ;
+		FVector3f TanX = TangentX;
+		FVector3f TanZ = TangentZ;
 
 		return (TanZ ^ TanX) * TangentZ.W;
 	};
@@ -297,7 +297,7 @@ struct FModelVertex
 
 struct FDepecatedModelVertex
 {
-	FVector Position;
+	FVector3f Position;
 	FDeprecatedSerializedPackedNormal TangentX;
 	FDeprecatedSerializedPackedNormal TangentZ;
 	FVector2D TexCoord;
@@ -357,9 +357,9 @@ struct FNodeGroup
 	/** List of relevant lights for this nodegroup */
 	TArray<ULightComponent*> RelevantLights;
 
-	FVector TangentX;
-	FVector TangentY;
-	FVector TangentZ;
+	FVector3f TangentX;
+	FVector3f TangentY;
+	FVector3f TangentZ;
 
 	FMatrix MapToWorld;
 	FMatrix WorldToMap;
@@ -399,8 +399,8 @@ class UModel : public UObject
 
 	TArray<FBspNode>		Nodes;
 	TArray<FVert>			Verts;
-	TArray<FVector>			Vectors;
-	TArray<FVector>			Points;
+	TArray<FVector3f>			Vectors;
+	TArray<FVector3f>			Points;
 	TArray<FBspSurf>		Surfs;
 
 #if WITH_EDITOR
@@ -448,9 +448,9 @@ class UModel : public UObject
 	ULevel* LightingLevel;
 
 	/** Cached transform of the owner brush when the geometry was last built */
-	FVector OwnerLocationWhenLastBuilt;
+	FVector3f OwnerLocationWhenLastBuilt;
 	FRotator OwnerRotationWhenLastBuilt;
-	FVector OwnerScaleWhenLastBuilt;
+	FVector3f OwnerScaleWhenLastBuilt;
 
 	/** Specifies whether the above cached transform is valid */
 	bool bCachedOwnerTransformValid;
@@ -548,8 +548,8 @@ public:
 
 	ENGINE_API float FindNearestVertex
 	(
-		const FVector	&SourcePoint,
-		FVector			&DestPoint,
+		const FVector3f	&SourcePoint,
+		FVector3f			&DestPoint,
 		float			MinRadius,
 		int32				&pVertex
 	) const;
@@ -559,7 +559,7 @@ public:
 	);
 
 	/* Find the source brush actor associated with this point, or NULL if the point does not lie on a BSP surface. */
-	ENGINE_API ABrush* FindBrush(const FVector &SourcePoint) const;
+	ENGINE_API ABrush* FindBrush(const FVector3f &SourcePoint) const;
 
 	/**
 	 * Creates a bounding box for the passed in node

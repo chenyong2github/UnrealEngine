@@ -580,7 +580,7 @@ class FVisualizeTexturePS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector, TextureExtent)
+		SHADER_PARAMETER(FVector3f, TextureExtent)
 		SHADER_PARAMETER_ARRAY(FVector4, VisualizeParam, [3])
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VisualizeTexture2D)

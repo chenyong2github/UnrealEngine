@@ -48,7 +48,7 @@ TGlobalResource<FSpriteIndexBuffer<GQuadsPerVisualizeInstance>> GVisualizeQuadIn
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVisualizeVolumetricLightmapParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-	SHADER_PARAMETER(FVector, DiffuseColor)
+	SHADER_PARAMETER(FVector3f, DiffuseColor)
 	SHADER_PARAMETER(float, VisualizationRadiusScale)
 	SHADER_PARAMETER(float, VisualizationMinScreenFraction)
 END_SHADER_PARAMETER_STRUCT()

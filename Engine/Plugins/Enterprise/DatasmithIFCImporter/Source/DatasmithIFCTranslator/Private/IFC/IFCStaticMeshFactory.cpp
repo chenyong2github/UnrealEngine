@@ -42,9 +42,9 @@ namespace IFC
 	void FStaticMeshFactory::FillMeshDescription(const IFC::FObject* InObject, FMeshDescription* MeshDescription) const
 	{
 		FStaticMeshAttributes Attributes(*MeshDescription);
-		TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+		TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 		TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
-		TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+		TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
 		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 		const int32 NumUVs = 1;

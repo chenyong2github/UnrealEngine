@@ -74,13 +74,13 @@ FORCEINLINE void SetupPrimitiveInstance(FPrimitiveInstance& PrimitiveInstance,
  * Note 2: Try to keep this 16 byte aligned. i.e |Matrix4x4|Vector3,float|Vector3,float|Vector4|  _NOT_  |Vector3,(waste padding)|Vector3,(waste padding)|Vector3. Or at least mark out padding if it can't be avoided.
  */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FInstanceUniformShaderParameters,ENGINE_API)
-	SHADER_PARAMETER(FMatrix,  LocalToWorld)
-	SHADER_PARAMETER(FMatrix,  PrevLocalToWorld)
+	SHADER_PARAMETER(FMatrix44f,  LocalToWorld)
+	SHADER_PARAMETER(FMatrix44f,  PrevLocalToWorld)
 	SHADER_PARAMETER(FVector4, NonUniformScale)
 	SHADER_PARAMETER(FVector4, InvNonUniformScaleAndDeterminantSign)
-	SHADER_PARAMETER(FVector,  LocalBoundsCenter)
+	SHADER_PARAMETER(FVector3f,  LocalBoundsCenter)
 	SHADER_PARAMETER(uint32,   PrimitiveId)
-	SHADER_PARAMETER(FVector,  LocalBoundsExtent)
+	SHADER_PARAMETER(FVector3f,  LocalBoundsExtent)
 	SHADER_PARAMETER(uint32,   LastUpdateSceneFrameNumber)
 	SHADER_PARAMETER(uint32,   NaniteRuntimeResourceID)
 	SHADER_PARAMETER(uint32,   NaniteHierarchyOffset)
@@ -106,14 +106,14 @@ inline FInstanceUniformShaderParameters GetInstanceUniformShaderParameters(
 )
 {
 	FInstanceUniformShaderParameters Result;
-	Result.LocalToWorld							= LocalToWorld;
-	Result.PrevLocalToWorld						= PrevLocalToWorld;
+	Result.LocalToWorld							= (FMatrix44f)LocalToWorld;
+	Result.PrevLocalToWorld						= (FMatrix44f)PrevLocalToWorld;
 	Result.NonUniformScale						= NonUniformScale;
 	Result.InvNonUniformScaleAndDeterminantSign	= InvNonUniformScaleAndDeterminantSign;
 	Result.LightMapAndShadowMapUVBias			= LightMapAndShadowMapUVBias;
 	Result.PrimitiveId							= PrimitiveId;
-	Result.LocalBoundsCenter					= LocalBoundsCenter;
-	Result.LocalBoundsExtent					= LocalBoundsExtent;
+	Result.LocalBoundsCenter					= (FVector3f)LocalBoundsCenter;
+	Result.LocalBoundsExtent					= (FVector3f)LocalBoundsExtent;
 	Result.NaniteRuntimeResourceID				= NaniteInfo.RuntimeResourceID;
 	Result.NaniteHierarchyOffset				= NaniteInfo.HierarchyOffset_AndHasImposter >> 1u;
 	Result.LastUpdateSceneFrameNumber			= LastUpdateSceneFrameNumber;

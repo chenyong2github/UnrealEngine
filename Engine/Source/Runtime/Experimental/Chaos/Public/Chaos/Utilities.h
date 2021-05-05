@@ -524,12 +524,12 @@ namespace Chaos
 			else if (A <= Epsilon)
 			{
 				// First segment (only) is a point
-				T = FMath::Clamp(F / E, 0.0f, 1.0f);
+				T = FMath::Clamp<FReal>(F / E, 0., 1.);
 			}
 			else if (E <= Epsilon)
 			{
 				// Second segment (only) is a point
-				S = FMath::Clamp(-C / A, 0.0f, 1.0f);
+				S = FMath::Clamp<FReal>(-C / A, 0., 1.);
 			}
 			else
 			{
@@ -537,18 +537,18 @@ namespace Chaos
 				const FReal Denom = A * E - B * B;
 				if (Denom != 0.0f)
 				{
-					S = FMath::Clamp((B * F - C * E) / Denom, 0.0f, 1.0f);
+					S = FMath::Clamp<FReal>((B * F - C * E) / Denom, 0., 1.);
 				}
 				T = (B * S + F) / E;
 
 				if (T < 0.0f)
 				{
-					S = FMath::Clamp(-C / A, 0.0f, 1.0f);
+					S = FMath::Clamp<FReal>(-C / A, 0., 1.);
 					T = 0.0f;
 				}
 				else if (T > 1.0f)
 				{
-					S = FMath::Clamp((B - C) / A, 0.0f, 1.0f);
+					S = FMath::Clamp<FReal>((B - C) / A, 0., 1.);
 					T = 1.0f;
 				}
 			}

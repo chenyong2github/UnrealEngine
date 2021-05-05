@@ -351,7 +351,9 @@ static const TCHAR* ImportProperties(
 						FString Temp;
 						if (FParse::Value(StrPtr, TEXT("Location="), Temp, false))
 						{
-							GetFVECTOR(*Temp, Instance.Location);
+							FVector Location;
+							GetFVECTOR(*Temp, Location);
+							Instance.Location = Location;
 						}
 						if (FParse::Value(StrPtr, TEXT("Rotation="), Temp, false))
 						{
@@ -363,7 +365,9 @@ static const TCHAR* ImportProperties(
 						}
 						if (FParse::Value(StrPtr, TEXT("DrawScale3D="), Temp, false))
 						{
-							GetFVECTOR(*Temp, Instance.DrawScale3D);
+							FVector DrawScale3D;
+							GetFVECTOR(*Temp, DrawScale3D);
+							Instance.DrawScale3D = DrawScale3D;
 						}
 						FParse::Value(StrPtr, TEXT("Flags="), Instance.Flags);
 

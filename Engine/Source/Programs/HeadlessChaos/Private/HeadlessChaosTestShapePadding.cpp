@@ -302,7 +302,7 @@ namespace ChaosTest {
 			FVec3 InvDir;
 			for (int Axis = 0; Axis < 3; ++Axis)
 			{
-				bParallel[Axis] = FMath::IsNearlyZero(Dir[Axis], 1.e-8f);
+				bParallel[Axis] = FMath::IsNearlyZero(Dir[Axis], (FReal)1.e-8);
 				InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
 			}
 

@@ -11,9 +11,11 @@ namespace Chaos
 
 
 #if UE_BUILD_SHIPPING
+	const bool bDisablePhysicsParallelFor = false;
 	const bool bDisableParticleParallelFor = false;
 	const bool bDisableCollisionParallelFor = false;
 #else
+	CHAOS_API extern bool bDisablePhysicsParallelFor;
 	CHAOS_API extern bool bDisableParticleParallelFor;
 	CHAOS_API extern bool bDisableCollisionParallelFor;
 #endif

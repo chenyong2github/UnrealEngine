@@ -46,8 +46,8 @@ namespace ETangentOptions
 struct FBoneVertInfo
 {
 	// Invariant: Arrays should be same length!
-	TArray<FVector>	Positions;
-	TArray<FVector>	Normals;
+	TArray<FVector3f>	Positions;
+	TArray<FVector3f>	Normals;
 };
 
 class FSignedDistanceFieldBuildMaterialData
@@ -279,7 +279,7 @@ public:
 		const TArray<SkeletalMeshImportData::FVertInfluence>& Influences,
 		const TArray<SkeletalMeshImportData::FMeshWedge>& Wedges,
 		const TArray<SkeletalMeshImportData::FMeshFace>& Faces,
-		const TArray<FVector>& Points,
+		const TArray<FVector3f>& Points,
 		const TArray<int32>& PointToOriginalMap,
 		const MeshBuildOptions& BuildOptions = MeshBuildOptions(),
 		TArray<FText> * OutWarningMessages = NULL,
@@ -372,7 +372,7 @@ public:
 	 * @param OutTangentY Array to hold calculated Bitangents
 	 * @param OutNormals Array to hold calculated normals (if already contains normals will use those instead for the tangent calculation)	
 	 */
-	virtual void CalculateTangents(const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<uint32>& InSmoothingGroupIndices, const uint32 InTangentOptions, TArray<FVector>& OutTangentX, TArray<FVector>& OutTangentY, TArray<FVector>& OutNormals) const = 0;
+	virtual void CalculateTangents(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<uint32>& InSmoothingGroupIndices, const uint32 InTangentOptions, TArray<FVector3f>& OutTangentX, TArray<FVector3f>& OutTangentY, TArray<FVector3f>& OutNormals) const = 0;
 
 	/**
 	 * Calculates MikkTSpace Tangents for a given set of vertex data with normals provided
@@ -385,7 +385,7 @@ public:
 	 * @param OutTangentX Array to hold calculated Tangents
 	 * @param OutTangentY Array to hold calculated Bitangents
 	 */
-	virtual void CalculateMikkTSpaceTangents(const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<FVector>& InNormals, bool bIgnoreDegenerateTriangles, TArray<FVector>& OutTangentX, TArray<FVector>& OutTangentY) const = 0;
+	virtual void CalculateMikkTSpaceTangents(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<FVector3f>& InNormals, bool bIgnoreDegenerateTriangles, TArray<FVector3f>& OutTangentX, TArray<FVector3f>& OutTangentY) const = 0;
 
 	/** 
 	 * Calculates Normals for a given set of vertex data
@@ -397,7 +397,7 @@ public:
 	 * @param InTangentOptions Flags for Tangent calculation
 	 * @param OutNormals Array to hold calculated normals	
 	 */
-	virtual void CalculateNormals(const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<uint32>& InSmoothingGroupIndices, const uint32 InTangentOptions, TArray<FVector>& OutNormals) const = 0;
+	virtual void CalculateNormals(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<uint32>& InSmoothingGroupIndices, const uint32 InTangentOptions, TArray<FVector3f>& OutNormals) const = 0;
 
 	/** 
 	 * Calculates the overlapping corners for a given set of vertex data
@@ -407,12 +407,12 @@ public:
 	 * @param bIgnoreDegenerateTriangles Indicates if we should skip degenerate triangles
 	 * @param OutOverlappingCorners Container to hold the overlapping corners. For a vertex, lists all the overlapping vertices.
 	 */
-	virtual void CalculateOverlappingCorners(const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, bool bIgnoreDegenerateTriangles, FOverlappingCorners& OutOverlappingCorners) const = 0;
+	virtual void CalculateOverlappingCorners(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, bool bIgnoreDegenerateTriangles, FOverlappingCorners& OutOverlappingCorners) const = 0;
 
 	virtual void RecomputeTangentsAndNormalsForRawMesh(bool bRecomputeTangents, bool bRecomputeNormals, const FMeshBuildSettings& InBuildSettings, FRawMesh &OutRawMesh) const = 0;
 	virtual void RecomputeTangentsAndNormalsForRawMesh(bool bRecomputeTangents, bool bRecomputeNormals, const FMeshBuildSettings& InBuildSettings, const FOverlappingCorners& InOverlappingCorners, FRawMesh &OutRawMesh) const = 0;
 
-	virtual void FindOverlappingCorners(FOverlappingCorners& OutOverlappingCorners, const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, float ComparisonThreshold) const = 0;
+	virtual void FindOverlappingCorners(FOverlappingCorners& OutOverlappingCorners, const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, float ComparisonThreshold) const = 0;
 
 	/** Used to generate runtime skin weight data from Editor-only data */
 	virtual void GenerateRuntimeSkinWeightData(const FSkeletalMeshLODModel* ImportedModel, const TArray<FRawSkinWeight>& InRawSkinWeights, struct FRuntimeSkinWeightProfileData& InOutSkinWeightOverrideData) const = 0;

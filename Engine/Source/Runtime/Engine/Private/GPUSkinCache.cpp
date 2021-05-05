@@ -298,8 +298,9 @@ public:
 		uint32 ClothBufferOffset = 0;
         float ClothBlendWeight = 0.0f;
 
-        FMatrix ClothLocalToWorld = FMatrix::Identity;
-        FMatrix ClothWorldToLocal = FMatrix::Identity;
+		// LWC_TODO: Cloth LocalToWorld/WorldToLocal matrices forced to float.
+        FMatrix44f ClothLocalToWorld = FMatrix44f::Identity;
+        FMatrix44f ClothWorldToLocal = FMatrix44f::Identity;
 
 		// triangle index buffer (input for the RecomputeSkinTangents, might need special index buffer unique to position and normal, not considering UV/vertex color)
 		uint32 IndexBufferOffsetValue = 0;

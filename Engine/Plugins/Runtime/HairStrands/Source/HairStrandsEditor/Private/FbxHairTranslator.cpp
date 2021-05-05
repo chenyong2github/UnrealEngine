@@ -133,7 +133,7 @@ static void ParseFbxNode(FbxNode* FileNode, FHairDescription& HairDescription, c
 		TStrandAttributesRef<int> StrandNumVertices = HairDescription.StrandAttributes().GetAttributesRef<int>(HairAttribute::Strand::VertexCount);
 		StrandNumVertices[StrandID] = PointCount;
 
-		TVertexAttributesRef<FVector> VertexPositions = HairDescription.VertexAttributes().GetAttributesRef<FVector>(HairAttribute::Vertex::Position);
+		TVertexAttributesRef<FVector3f> VertexPositions = HairDescription.VertexAttributes().GetAttributesRef<FVector3f>(HairAttribute::Vertex::Position);
 		TVertexAttributesRef<float> VertexWidths = HairDescription.VertexAttributes().GetAttributesRef<float>(HairAttribute::Vertex::Width);
 
 		for (uint32 PointIndex = 0; PointIndex < PointCount; ++PointIndex)

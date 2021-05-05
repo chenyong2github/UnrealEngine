@@ -1079,17 +1079,17 @@ void FFractureEditorModeToolkit::UpdateGeometryComponentAttributes(UGeometryColl
 
 			if (!GeometryCollection->HasAttribute("Volume", FTransformCollection::TransformGroup))
 			{
-				GeometryCollection->AddAttribute<Chaos::FReal>("Volume", FTransformCollection::TransformGroup);
+				GeometryCollection->AddAttribute<float>("Volume", FTransformCollection::TransformGroup);
 				UE_LOG(LogFractureTool, Warning, TEXT("Added Volume attribute to GeometryCollection."));
 			}
 
 			TArray<FTransform> Transform;
 			GeometryCollectionAlgo::GlobalMatrices(GeometryCollection->Transform, GeometryCollection->Parent, Transform);
 
-			const TManagedArray<FVector>& Vertex = GeometryCollection->Vertex;
+			const TManagedArray<FVector3f>& Vertex = GeometryCollection->Vertex;
 			const TManagedArray<int32>& BoneMap = GeometryCollection->BoneMap;
 
-			Chaos::TParticles<float, 3> MassSpaceParticles;
+			Chaos::TParticles<Chaos::FReal, 3> MassSpaceParticles;
 			MassSpaceParticles.AddParticles(Vertex.Num());
 			for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
 			{
@@ -1110,7 +1110,7 @@ void FFractureEditorModeToolkit::UpdateGeometryComponentAttributes(UGeometryColl
 	
 }
 
-void FFractureEditorModeToolkit::UpdateVolumes(FGeometryCollectionPtr GeometryCollection, const Chaos::TParticles<float, 3>& MassSpaceParticles, int32 TransformIndex)
+void FFractureEditorModeToolkit::UpdateVolumes(FGeometryCollectionPtr GeometryCollection, const Chaos::TParticles<Chaos::FReal, 3>& MassSpaceParticles, int32 TransformIndex)
 {
 	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
 	const TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
@@ -1135,12 +1135,12 @@ void FFractureEditorModeToolkit::UpdateVolumes(FGeometryCollectionPtr GeometryCo
 					Indices,
 					true));
 
-			float Volume = 0.0;
+			Chaos::FReal Volume = 0.0;
 			Chaos::FVec3 CenterOfMass;
 			Chaos::CalculateVolumeAndCenterOfMass(MassSpaceParticles, TriMesh->GetElements(), Volume, CenterOfMass);
 
 			// Since we're only interested in relative mass, we assume density = 1.0
-			Volumes[TransformIndex] = Volume;
+			Volumes[TransformIndex] = Volume; // todo(lwc) potential conversion from double to float
 		}	
 	}
 	else if (SimulationType[TransformIndex] == FGeometryCollection::ESimulationTypes::FST_Clustered)
@@ -1232,12 +1232,12 @@ void FFractureEditorModeToolkit::UpdateExplodedVectors(UGeometryCollectionCompon
 
 		if (!OutGeometryCollection->HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup))
 		{
-			OutGeometryCollection->AddAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup, FManagedArrayCollection::FConstructionParameters(FName(), false));
+			OutGeometryCollection->AddAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup, FManagedArrayCollection::FConstructionParameters(FName(), false));
 		}
 
 		check(OutGeometryCollection->HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup));
 
-		TManagedArray<FVector>& ExplodedVectors = OutGeometryCollection->GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
+		TManagedArray<FVector3f>& ExplodedVectors = OutGeometryCollection->GetAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup);
 		const TManagedArray<FTransform>& Transform = OutGeometryCollection->GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
 		const TManagedArray<int32>& TransformToGeometryIndex = OutGeometryCollection->GetAttribute<int32>("TransformToGeometryIndex", FGeometryCollection::TransformGroup);
 		const TManagedArray<FBox>& BoundingBox = OutGeometryCollection->GetAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);

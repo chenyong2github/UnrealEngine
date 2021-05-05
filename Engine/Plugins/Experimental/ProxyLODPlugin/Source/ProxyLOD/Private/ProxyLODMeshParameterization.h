@@ -93,7 +93,7 @@ namespace ProxyLOD
 	* @return 'true' if the UV generation succeeded,  'false' if it failed.
 	*/
 	bool GenerateUVs(const FTextureAtlasDesc& TextureAtlasDesc,
-		             const TArray<FVector>&   VertexBuffer,
+		             const TArray<FVector3f>&   VertexBuffer,
 		             const TArray<int32>&     IndexBuffer,
 		             const TArray<int32>&     AdjacencyBuffer,
 		             TFunction<bool(float)>&  Callback,

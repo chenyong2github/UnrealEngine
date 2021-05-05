@@ -1772,7 +1772,7 @@ private:
 	using FPermutationDomain = TShaderPermutationDomain<FSourceType>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector, CPUPositionOffset)
+		SHADER_PARAMETER(FVector3f, CPUPositionOffset)
 		SHADER_PARAMETER(uint32, bUseCPUOffset)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RootTrianglePosition0Buffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutOffsetBuffer)

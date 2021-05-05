@@ -52,7 +52,7 @@ void FMeshDescriptionAdapter::getIndexSpacePoint(size_t FaceNumber, size_t Corne
 	const FVertexID VertexID = RawMesh->GetVertexInstanceVertex(VertexInstanceID);
 
 
-	FVector Position = VertexPositions[VertexID];
+	FVector3f Position = VertexPositions[VertexID];
 	pos = Transform.worldToIndex(openvdb::Vec3d(Position.X, Position.Y, Position.Z));
 };
 
@@ -243,7 +243,7 @@ void FMeshDescriptionArrayAdapter::GetWorldSpacePoint(size_t FaceNumber, size_t 
 	// Get the vertex position in local space.
 	const FVertexInstanceID VertexInstanceID = IndexBuffer[3 * LocalFaceNumber + int32(CornerNumber)];
 	// float3 position 
-	FVector Position = AttributesGetter->VertexPositions[RawMesh.GetVertexInstanceVertex(VertexInstanceID)];
+	FVector3f Position = AttributesGetter->VertexPositions[RawMesh.GetVertexInstanceVertex(VertexInstanceID)];
 
 	if (InstanceIdx != INDEX_NONE)
 	{
@@ -340,7 +340,7 @@ FMeshDescriptionArrayAdapter::FRawPoly FMeshDescriptionArrayAdapter::GetRawPoly(
 			for (int32 i = 0; i < 3; ++i)
 			{
 				RawPoly.WedgeTangentX[i] = AttributesGetter->VertexInstanceTangents[VertexInstanceIDs[i]];
-				RawPoly.WedgeTangentY[i] = FVector::CrossProduct(AttributesGetter->VertexInstanceNormals[VertexInstanceIDs[i]], AttributesGetter->VertexInstanceTangents[VertexInstanceIDs[i]]).GetSafeNormal() * AttributesGetter->VertexInstanceBinormalSigns[VertexInstanceIDs[i]];
+				RawPoly.WedgeTangentY[i] = FVector3f::CrossProduct(AttributesGetter->VertexInstanceNormals[VertexInstanceIDs[i]], AttributesGetter->VertexInstanceTangents[VertexInstanceIDs[i]]).GetSafeNormal() * AttributesGetter->VertexInstanceBinormalSigns[VertexInstanceIDs[i]];
 				RawPoly.WedgeTangentZ[i] = AttributesGetter->VertexInstanceNormals[VertexInstanceIDs[i]];
 			}
 

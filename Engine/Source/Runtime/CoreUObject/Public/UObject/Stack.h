@@ -56,6 +56,7 @@ enum EPropertyType
 	CPT_Map,
 	CPT_Set,
 	CPT_FieldPath,
+	CPT_FLargeWorldCoordinatesReal,
 
 	CPT_MAX
 };
@@ -156,9 +157,12 @@ public:
 	/** Skips over the number of op codes specified by NumOps */
 	void SkipCode(const int32 NumOps) { Code += NumOps; }
 
+	template<typename T>
+	T Read();
 	template<typename TNumericType>
 	TNumericType ReadInt();
 	float ReadFloat();
+	double ReadDouble();
 	FName ReadName();
 	UObject* ReadObject();
 	int32 ReadWord();
@@ -239,12 +243,18 @@ inline FFrame::FFrame( UObject* InObject, UFunction* InNode, void* InLocals, FFr
 #endif
 }
 
+template<typename T>
+inline T FFrame::Read()
+{
+	T Result = FPlatformMemory::ReadUnaligned<T>(Code);
+	Code += sizeof(T);
+	return Result;
+}
+
 template<typename TNumericType>
 inline TNumericType FFrame::ReadInt()
 {
-	TNumericType Result = FPlatformMemory::ReadUnaligned<TNumericType>(Code);
-	Code += sizeof(TNumericType);
-	return Result;
+	return Read<TNumericType>();
 }
 
 inline UObject* FFrame::ReadObject()
@@ -278,16 +288,17 @@ inline FProperty* FFrame::ReadPropertyUnchecked()
 
 inline float FFrame::ReadFloat()
 {
-	float Result = FPlatformMemory::ReadUnaligned<float>(Code);
-	Code += sizeof(float);
-	return Result;
+	return Read<float>();
+}
+
+inline double FFrame::ReadDouble()
+{
+	return Read<double>();
 }
 
 inline int32 FFrame::ReadWord()
 {
-	int32 Result = FPlatformMemory::ReadUnaligned<uint16>(Code);
-	Code += sizeof(uint16);
-	return Result;
+	return Read<uint16>();
 }
 
 /**

@@ -436,7 +436,7 @@ public:
 	FLandscapeLayersVS()
 	{}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FMatrix& InProjectionMatrix)
+	void SetParameters(FRHICommandList& RHICmdList, const FMatrix44f& InProjectionMatrix)
 	{
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), TransformParam, InProjectionMatrix);
 	}
@@ -522,7 +522,7 @@ public:
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), LayerInfoParam, LayerInfo);
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), OutputConfigParam, OutputConfig);
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), TextureSizeParam, TextureSize);
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), LandscapeGridScaleParam, InParams.GridSize);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), LandscapeGridScaleParam, FVector3f(InParams.GridSize));
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ComponentVertexCountParam, (float)InParams.CurrentMipComponentVertexCount);
 	}
 

@@ -71,14 +71,14 @@ public:
 	}
 
 	/** Accessors for cached vertex position array */
-	TVertexAttributesRef<FVector> GetVertexPositions()
+	TVertexAttributesRef<FVector3f> GetVertexPositions()
 	{
-		return MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+		return MeshDescription.VertexAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Vertex::Position);
 	}
 
-	TVertexAttributesConstRef<FVector> GetVertexPositions() const
+	TVertexAttributesConstRef<FVector3f> GetVertexPositions() const
 	{
-		return MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+		return MeshDescription.VertexAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Vertex::Position);
 	}
 
 	/** Accessors for array of vertex IDs for vertex instances */
@@ -194,7 +194,7 @@ public:
 	{}
 
 	/** Accessors for cached vertex position array */
-	TVertexAttributesConstRef<FVector> GetVertexPositions() const { return MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position); }
+	TVertexAttributesConstRef<FVector3f> GetVertexPositions() const { return MeshDescription.VertexAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Vertex::Position); }
 
 	/** Accessors for array of vertex IDs for vertex instances */
 	TVertexInstanceAttributesConstRef<FVertexID> GetVertexInstanceVertexIndices() const

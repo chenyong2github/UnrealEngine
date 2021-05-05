@@ -279,7 +279,7 @@ FBox FVoronoiPartitioner::GenerateBounds(const FGeometryCollection* GeometryColl
 		int32 GeometryIndex = GeometryCollection->TransformToGeometryIndex[TransformIndex];
 		int32 VertexStart = GeometryCollection->VertexStart[GeometryIndex];
 		int32 VertexCount = GeometryCollection->VertexCount[GeometryIndex];
-		const TManagedArray<FVector>& GCVertices = GeometryCollection->Vertex;
+		const TManagedArray<FVector3f>& GCVertices = GeometryCollection->Vertex;
 
 		TArray<FVector> Vertices;
 		Vertices.SetNum(VertexCount);

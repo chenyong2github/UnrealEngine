@@ -896,7 +896,7 @@ struct TShaderParameterTypeInfo<FVector2D>
 };
 
 template<>
-struct TShaderParameterTypeInfo<FVector>
+struct TShaderParameterTypeInfo<FVector3f>
 {
 	static constexpr EUniformBufferBaseType BaseType = UBMT_FLOAT32;
 	static constexpr int32 NumRows = 1;
@@ -905,7 +905,7 @@ struct TShaderParameterTypeInfo<FVector>
 	static constexpr int32 Alignment = 16;
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
-	using TAlignedType = TAlignedTypedef<FVector, Alignment>::Type;
+	using TAlignedType = TAlignedTypedef<FVector3f, Alignment>::Type;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
@@ -1016,7 +1016,7 @@ struct TShaderParameterTypeInfo<FIntRect>
 };
 
 template<>
-struct TShaderParameterTypeInfo<FMatrix>
+struct TShaderParameterTypeInfo<FMatrix44f>
 {
 	static constexpr EUniformBufferBaseType BaseType = UBMT_FLOAT32;
 	static constexpr int32 NumRows = 4;
@@ -1025,7 +1025,7 @@ struct TShaderParameterTypeInfo<FMatrix>
 	static constexpr int32 Alignment = 16;
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
-	using TAlignedType = TAlignedTypedef<FMatrix, Alignment>::Type;
+	using TAlignedType = TAlignedTypedef<FMatrix44f, Alignment>::Type;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
@@ -1410,7 +1410,7 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByShader
  *
  * Example:
  *	SHADER_PARAMETER(float, MyScalar)
- *	SHADER_PARAMETER(FMatrix, MyMatrix)
+ *	SHADER_PARAMETER(FMatrix44f, MyMatrix)
  */
 #define SHADER_PARAMETER(MemberType,MemberName) \
 	SHADER_PARAMETER_EX(MemberType,MemberName,EShaderPrecisionModifier::Float)
@@ -1422,7 +1422,7 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByShader
  *
  * Example:
  *	SHADER_PARAMETER_ARRAY(float, MyScalarArray, [8])
- *	SHADER_PARAMETER_ARRAY(FMatrix, MyMatrixArray, [2])
+ *	SHADER_PARAMETER_ARRAY(FMatrix44f, MyMatrixArray, [2])
  */
 #define SHADER_PARAMETER_ARRAY(MemberType,MemberName,ArrayDecl) \
 	SHADER_PARAMETER_ARRAY_EX(MemberType,MemberName,ArrayDecl,EShaderPrecisionModifier::Float)

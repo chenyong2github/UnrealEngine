@@ -616,7 +616,7 @@ namespace SteamAudio
 				for (auto v = 2; v > -1; v--)
 				{
 					auto i = Indices[BaseIndex + v];
-					auto vtx = bGetRelativeVertexPos ? StaticMeshComponent->GetComponentTransform().TransformPosition(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(i))
+					auto vtx = bGetRelativeVertexPos ? FVector3f(StaticMeshComponent->GetComponentTransform().TransformPosition(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(i)))
 						: LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(i);
 
 					VertexArray.Add(UnrealToPhononIPLVector3(vtx));

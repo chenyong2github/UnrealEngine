@@ -237,7 +237,7 @@ namespace Chaos
 
 		virtual uint32 GetTypeHash() const override
 		{
-			return HashCombine(::GetTypeHash(Tri[0]), HashCombine(::GetTypeHash(Tri[1]), ::GetTypeHash(Tri[2])));
+			return HashCombine(UE::Math::GetTypeHash(Tri[0]), HashCombine(UE::Math::GetTypeHash(Tri[1]), UE::Math::GetTypeHash(Tri[2])));
 		}
 
 		virtual FName GetTypeName() const override

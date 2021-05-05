@@ -39,7 +39,7 @@ bool GetFVECTOR( const TCHAR* Stream, FVector& Value )
 	// New format.
 	if( NumVects == 0 )
 	{
-		Value.X = FCString::Atof(Stream);
+		Value.X = (FVector::FReal)FCString::Atof(Stream);
 		Stream = FCString::Strchr(Stream,',');
 		if( !Stream )
 		{
@@ -47,7 +47,7 @@ bool GetFVECTOR( const TCHAR* Stream, FVector& Value )
 		}
 
 		Stream++;
-		Value.Y = FCString::Atof(Stream);
+		Value.Y = (FVector::FReal)FCString::Atof(Stream);
 		Stream = FCString::Strchr(Stream,',');
 		if( !Stream )
 		{
@@ -55,7 +55,7 @@ bool GetFVECTOR( const TCHAR* Stream, FVector& Value )
 		}
 
 		Stream++;
-		Value.Z = FCString::Atof(Stream);
+		Value.Z = (FVector::FReal)FCString::Atof(Stream);
 
 		NumVects=3;
 	}

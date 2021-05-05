@@ -265,7 +265,7 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 
 		// Sky light parameters.
 		SHADER_PARAMETER(FVector4, OcclusionTintAndMinOcclusion)
-		SHADER_PARAMETER(FVector, ContrastAndNormalizeMulAdd)
+		SHADER_PARAMETER(FVector3f, ContrastAndNormalizeMulAdd)
 		SHADER_PARAMETER(float, ApplyBentNormalAO)
 		SHADER_PARAMETER(float, InvSkySpecularOcclusionStrength)
 		SHADER_PARAMETER(float, OcclusionExponent)
@@ -291,7 +291,7 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float2>, CloudSkyAOTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, CloudSkyAOSampler)
-		SHADER_PARAMETER(FMatrix, CloudSkyAOWorldToLightClipMatrix)
+		SHADER_PARAMETER(FMatrix44f, CloudSkyAOWorldToLightClipMatrix)
 		SHADER_PARAMETER(float, CloudSkyAOFarDepthKm)
 		SHADER_PARAMETER(int32, CloudSkyAOEnabled)
 

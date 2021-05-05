@@ -78,7 +78,7 @@ namespace Chaos
 		virtual int32 GetNumDynamicParticles() const override { return NumDynamicParticles; }
 		virtual int32 GetNumIterations() const override { return NumIterations; }
 		virtual int32 GetNumSubsteps() const override { return NumSubsteps; }
-		virtual FReal GetSimulationTime() const override { return SimulationTime; }
+		virtual float GetSimulationTime() const override { return SimulationTime; }
 		virtual bool IsTeleported() const override { return bIsTeleported; }
 		virtual void UpdateWorldForces(const USkeletalMeshComponent* OwnerComponent) override;
 		// End of IClothingSimulation interface
@@ -150,7 +150,7 @@ namespace Chaos
 		TAtomic<int32> NumDynamicParticles;
 		TAtomic<int32> NumIterations;
 		TAtomic<int32> NumSubsteps;
-		TAtomic<FReal> SimulationTime;
+		TAtomic<float> SimulationTime;
 		TAtomic<bool> bIsTeleported;
 
 		// Overrides

@@ -52,7 +52,7 @@ FAutoConsoleVariableRef CVarLumenRadianceCacheVisualizeProbeRadius(
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVisualizeRadianceCacheCommonParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
-	SHADER_PARAMETER(FVector, ProbeCoordToWorldCenterBias)
+	SHADER_PARAMETER(FVector3f, ProbeCoordToWorldCenterBias)
 	SHADER_PARAMETER(float, ProbeCoordToWorldCenterScale)
 	SHADER_PARAMETER(float, VisualizeProbeRadiusScale)
 	SHADER_PARAMETER(uint32, ProbeClipmapIndex)

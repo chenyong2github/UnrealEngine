@@ -50,6 +50,23 @@ void SetShaderValue(
 	}
 }
 
+
+// LWC_TODO: Setting guards to catch any attempt to pass a type with double components. Could just convert these to the correct type internally, but would prefer to optimize where possible.
+#define GUARD_SETSHADERVALUE(_BLOCKTYPE, _ALLOWTYPE)																						\
+template<typename ShaderRHIParamRef, typename TRHICmdList>																\
+void SetShaderValue(  TRHICmdList& RHICmdList,	const ShaderRHIParamRef& Shader, const FShaderParameter& Parameter,	\
+	const _BLOCKTYPE& Value, uint32 ElementIndex = 0)																		\
+{ static_assert(sizeof(ShaderRHIParamRef) == 0, "Passing unsupported "#_BLOCKTYPE". Needs to be swapped to "#_ALLOWTYPE); }	\
+template<typename ShaderRHIParamRef, typename TRHICmdList>																\
+void SetShaderValue(  TRHICmdList& RHICmdList,	const ShaderRHIParamRef& Shader, const FShaderParameter& Parameter,	\
+	_BLOCKTYPE& Value, uint32 ElementIndex = 0)																				\
+{ static_assert(sizeof(ShaderRHIParamRef) == 0, "Passing unsupported "#_BLOCKTYPE". Needs to be swapped to "#_ALLOWTYPE); }
+
+GUARD_SETSHADERVALUE(FMatrix44d, FMatrix44f)
+GUARD_SETSHADERVALUE(FVector3d, FVector3f)
+GUARD_SETSHADERVALUE(FPlane4d, FPlane4f)
+
+
 template<typename ShaderRHIParamRef, class ParameterType>
 void SetShaderValueOnContext(
 	IRHICommandContext& RHICmdListContext,
@@ -79,7 +96,21 @@ void SetShaderValueOnContext(
 	}
 }
 
+// LWC_TODO: Setting guards to catch any attempt to pass a type with double components. Could just convert these to the correct type internally, but would prefer to optimize where possible.
+#define GUARD_SETSHADERVALUEONCONTEXT(_TYPECC)																							\
+template<typename ShaderRHIParamRef>																									\
+void SetShaderValueOnContext(IRHICommandContext& RHICmdListContext,	const ShaderRHIParamRef& Shader, const FShaderParameter& Parameter,	\
+	const _TYPECC##d& Value, uint32 ElementIndex = 0)																					\
+{ static_assert(sizeof(ShaderRHIParamRef) == 0, "Passing unsupported "#_TYPECC"d. Needs to be swapped to "#_TYPECC"f"); }				\
+template<typename ShaderRHIParamRef>																									\
+void SetShaderValueOnContext(IRHICommandContext& RHICmdListContext,	const ShaderRHIParamRef& Shader, const FShaderParameter& Parameter,	\
+	_TYPECC##d& Value, uint32 ElementIndex = 0)																							\
+{ static_assert(sizeof(ShaderRHIParamRef) == 0, "Passing unsupported "#_TYPECC"d. Needs to be swapped to "#_TYPECC"f"); }
 
+GUARD_SETSHADERVALUEONCONTEXT(FMatrix44)
+GUARD_SETSHADERVALUEONCONTEXT(FVector3)
+GUARD_SETSHADERVALUEONCONTEXT(FPlane4)
+//GUARD_SETSHADERVALUEONCONTEXT(FSphere4)
 
 /** Specialization of the above for C++ bool type. */
 template<typename ShaderRHIParamRef>
@@ -159,6 +190,23 @@ void SetShaderValueArray(
 			);
 	}
 }
+
+// LWC_TODO: Setting guards to catch any attempt to pass a type with double components. Could just convert these to the correct type internally, but would prefer to optimize where possible.
+#define GUARD_SETSHADERVALUEARRAY(_TYPECC)																					\
+template<typename ShaderRHIParamRef, typename TRHICmdList>																	\
+void SetShaderValueArray(TRHICmdList& RHICmdList, const ShaderRHIParamRef& Shader, const FShaderParameter& Parameter,		\
+	const _TYPECC##d* Values, uint32 NumElements, uint32 BaseElementIndex = 0)												\
+{ static_assert(sizeof(ShaderRHIParamRef) == 0, "Passing unsupported "#_TYPECC"d*. Needs to be swapped to "#_TYPECC"f*"); }	\
+template<typename ShaderRHIParamRef, typename TRHICmdList>																	\
+void SetShaderValueArray(TRHICmdList& RHICmdList, const ShaderRHIParamRef& Shader, const FShaderParameter& Parameter,		\
+	_TYPECC##d* Values, uint32 NumElements, uint32 BaseElementIndex = 0)													\
+{ static_assert(sizeof(ShaderRHIParamRef) == 0, "Passing unsupported "#_TYPECC"d*. Needs to be swapped to "#_TYPECC"f*"); }
+
+GUARD_SETSHADERVALUEARRAY(FMatrix44)
+GUARD_SETSHADERVALUEARRAY(FVector3)
+GUARD_SETSHADERVALUEARRAY(FPlane4)
+//GUARD_SETSHADERVALUEARRAY(FSphere)
+
 
 /** Specialization of the above for C++ bool type. */
 template<typename ShaderRHIParamRef, typename TRHICmdList>

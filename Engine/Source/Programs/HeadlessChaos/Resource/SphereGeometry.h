@@ -14,8 +14,8 @@ namespace GeometryCollectionTest
 		SphereGeometry() {}
 		~SphereGeometry() {}
 
-		static const TArray<Chaos::FReal>	RawVertexArray;
-		static const TArray<int32>			RawIndicesArray;
+		static const TArray<float>	RawVertexArray;
+		static const TArray<int32>	RawIndicesArray;
 	};
 
 

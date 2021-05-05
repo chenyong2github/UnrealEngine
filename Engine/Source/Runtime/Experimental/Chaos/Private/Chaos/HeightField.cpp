@@ -614,8 +614,8 @@ namespace Chaos
 			FVec3 Pts[4];
 			InGeomData.GetPointsScaled(SingleIndex, Pts);
 
-			FReal FractionX = FMath::Frac(InGridLocationLocal[0]);
-			FReal FractionY = FMath::Frac(InGridLocationLocal[1]);
+			float FractionX = FMath::Frac(InGridLocationLocal[0]);
+			float FractionY = FMath::Frac(InGridLocationLocal[1]);
 
 			if(FractionX > FractionY)
 			{
@@ -768,7 +768,7 @@ namespace Chaos
 		FReal InvCurrentLength = 1 / CurrentLength;
 		for(int Axis = 0; Axis < 3; ++Axis)
 		{
-			bParallel[Axis] = FMath::IsNearlyZero(Dir[Axis], 1.e-8f);
+			bParallel[Axis] = FMath::IsNearlyZero(Dir[Axis], (FReal)1.e-8);
 			InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
 		}
 
@@ -972,7 +972,7 @@ namespace Chaos
 
 			for(int Axis = 0; Axis < 3; ++Axis)
 			{
-				bParallel[Axis] = FMath::IsNearlyZero(Dir[Axis], 1.e-8f);
+				bParallel[Axis] = FMath::IsNearlyZero(Dir[Axis], (FReal)1.e-8);
 				InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
 			}
 
@@ -1258,7 +1258,7 @@ namespace Chaos
 				const FReal SweepLength = ApproximateSizeOfObject + ApproximateDistToObject;
 				const FVec3 TriNormal = Offset.GetUnsafeNormal();
 				const FRigidTransform3 QueryStartTM(QueryTM.GetLocation() + TriNormal * SweepLength, QueryTM.GetRotation());
-				if (GJKRaycast2(TriangleConvex, QueryGeom, QueryStartTM, -TriNormal, SweepLength, Penetration, ClosestB, Normal, 0.f, true))
+				if (GJKRaycast2(TriangleConvex, QueryGeom, QueryStartTM, -TriNormal, SweepLength, Penetration, ClosestB, Normal, (FReal)0., true))
 				{
 					LocalContactLocation = ClosestB;
 					LocalContactNormal = TriNormal;

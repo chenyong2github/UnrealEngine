@@ -141,11 +141,11 @@ static bool GetBarycentricWeights(
 
 	FVector NormalU = (InterpolatePosition - Position1) ^ (Position2 - InterpolatePosition);
 	// Signed area, if negative then InterpolatePosition is not in the triangle
-	float ParallelogramAreaU = NormalU.Size() * FMath::FloatSelect(NormalU | TriangleNormal, 1.0f, -1.0f);
+	float ParallelogramAreaU = NormalU.Size() * FMath::FloatSelect(NormalU | TriangleNormal, (FVector::FReal)1.0f, (FVector::FReal)-1.0f);
 	float BaryCentricU = ParallelogramAreaU / ParallelogramArea;
 
 	FVector NormalV = (InterpolatePosition - Position2) ^ (Position0 - InterpolatePosition);
-	float ParallelogramAreaV = NormalV.Size() * FMath::FloatSelect(NormalV | TriangleNormal, 1.0f, -1.0f);
+	float ParallelogramAreaV = NormalV.Size() * FMath::FloatSelect(NormalV | TriangleNormal, (FVector::FReal)1.0f, (FVector::FReal)-1.0f);
 	float BaryCentricV = ParallelogramAreaV / ParallelogramArea;
 
 	float BaryCentricW = 1.0f - BaryCentricU - BaryCentricV;
@@ -297,8 +297,8 @@ void SetDebugLightmapSample(TArray<UActorComponent*>* Components, UModel* Model,
 					FVector2D LightmapUV2 = LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index2, StaticMesh->GetLightMapCoordinateIndex());
 
 					FVector BaryCentricWeights;
-					BaryCentricWeights.X = FMath::FRandRange(0, 1);
-					BaryCentricWeights.Y = FMath::FRandRange(0, 1);
+					BaryCentricWeights.X = FMath::FRandRange(0.f, 1.f);
+					BaryCentricWeights.Y = FMath::FRandRange(0.f, 1.f);
 
 					if (BaryCentricWeights.X + BaryCentricWeights.Y >= 1)
 					{

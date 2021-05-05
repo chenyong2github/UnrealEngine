@@ -293,9 +293,9 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 
 	// Data for mesh to mesh binding
 	TArray<FMeshToMeshVertData> MeshToMeshData;
-	TArray<FVector> RenderPositions;
-	TArray<FVector> RenderNormals;
-	TArray<FVector> RenderTangents;
+	TArray<FVector3f> RenderPositions;
+	TArray<FVector3f> RenderNormals;
+	TArray<FVector3f> RenderTangents;
 
 	RenderPositions.Reserve(OriginalSection.SoftVertices.Num());
 	RenderNormals.Reserve(OriginalSection.SoftVertices.Num());

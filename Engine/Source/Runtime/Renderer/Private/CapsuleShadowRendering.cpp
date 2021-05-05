@@ -333,7 +333,7 @@ public:
 			SetShaderValue(RHICmdList, ShaderRHI, RayStartOffsetDepthScale, LightProxy.GetRayStartOffsetDepthScale());
 
 			const float LightSourceAngle = FMath::Clamp(LightProxy.GetLightSourceAngle() * 5, 1.0f, 30.0f) * PI / 180.0f;
-			const FVector LightAngleAndNormalThresholdValue(LightSourceAngle, FMath::Cos(PI / 2 + LightSourceAngle), LightProxy.GetTraceDistance());
+			const FVector3f LightAngleAndNormalThresholdValue(LightSourceAngle, FMath::Cos(PI / 2 + LightSourceAngle), LightProxy.GetTraceDistance());
 			SetShaderValue(RHICmdList, ShaderRHI, LightAngleAndNormalThreshold, LightAngleAndNormalThresholdValue);
 		}
 		else
@@ -956,7 +956,7 @@ void FDeferredShadingSceneRenderer::SetupIndirectCapsuleShadows(
 			// Stationary sky light case
 			// Get the indirect shadow direction from the unoccluded sky direction
 			const float ConeAngle = FMath::Max(Allocation->CurrentSkyBentNormal.W * GCapsuleSkyAngleScale * .5f * PI, GCapsuleMinSkyAngle * PI / 180.0f);
-			PackedLightDirection = FVector4(Allocation->CurrentSkyBentNormal, ConeAngle);
+			PackedLightDirection = FVector4(FVector3f(Allocation->CurrentSkyBentNormal), ConeAngle);
 		}
 		else if (SkyLight 
 			&& !SkyLight->bHasStaticLighting 

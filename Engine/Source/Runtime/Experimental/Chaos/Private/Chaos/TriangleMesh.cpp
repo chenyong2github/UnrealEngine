@@ -253,10 +253,10 @@ void FTriangleMesh::GetFaceNormals(TArray<FVec3>& Normals, const TConstArrayView
 	{
 		if (bRealTypeCompatibleWithISPC && bChaos_TriangleMesh_ISPC_Enabled)
 		{
-			static_assert(std::is_same<FReal, float>::value == true, "ISPC only supports float template type");
 			Normals.SetNumUninitialized(MElements.Num());
 
 #if INTEL_ISPC
+			static_assert(std::is_same<FReal, float>::value == true, "ISPC only supports float template type");
 			ispc::GetFaceNormals(
 				(ispc::FVector*)Normals.GetData(),
 				(ispc::FVector*)Points.GetData(),
@@ -302,9 +302,8 @@ void FTriangleMesh::GetPointNormals(TArrayView<FVec3> PointNormals, const TConst
 
 	if (bRealTypeCompatibleWithISPC && bChaos_TriangleMesh_ISPC_Enabled)
 	{
-		static_assert(std::is_same<FReal, float>::value == true, "ISPC only supports float template type");
-
 #if INTEL_ISPC
+		static_assert(std::is_same<FReal, float>::value == true, "ISPC only supports float template type");
 		ispc::GetPointNormals(
 			(ispc::FVector*)PointNormals.GetData(),
 			(const ispc::FVector*)FaceNormals.GetData(),

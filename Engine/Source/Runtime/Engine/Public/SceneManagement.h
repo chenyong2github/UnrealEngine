@@ -1195,26 +1195,26 @@ private:
 /** Shader paraneter structure for rendering lights. */
 BEGIN_SHADER_PARAMETER_STRUCT(FLightShaderParameters, ENGINE_API)
 	// Position of the light in the world space.
-	SHADER_PARAMETER(FVector, Position)
+	SHADER_PARAMETER(FVector3f, Position)
 
 	// 1 / light's falloff radius from Position.
 	SHADER_PARAMETER(float, InvRadius)
 
 	// Color of the light.
-	SHADER_PARAMETER(FVector, Color)
+	SHADER_PARAMETER(FVector3f, Color)
 
 	// The exponent for the falloff of the light intensity from the distance.
 	SHADER_PARAMETER(float, FalloffExponent)
 
 	// Direction of the light if applies.
-	SHADER_PARAMETER(FVector, Direction)
+	SHADER_PARAMETER(FVector3f, Direction)
 
 	// Factor to applies on the specular.
 	SHADER_PARAMETER(float, SpecularScale)
 
 	// One tangent of the light if applies.
 	// Note: BiTangent is on purpose not stored for memory optimisation purposes.
-	SHADER_PARAMETER(FVector, Tangent)
+	SHADER_PARAMETER(FVector3f, Tangent)
 
 	// Radius of the point light.
 	SHADER_PARAMETER(float, SourceRadius)
@@ -1247,7 +1247,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileMovablePointLightUniformShaderParame
 	SHADER_PARAMETER(FVector4, SpotLightAnglesAndSoftTransitionScaleAndLightShadowType) //xy SpotAngles, z SoftTransitionScale, w LightShadowType if (w&1 == 1) is pointlight, (w&2 == 2) is spotlight, (w&4 == 4) is with shadow
 	SHADER_PARAMETER(FVector4, SpotLightShadowSharpenAndShadowFadeFraction) // x ShadowSharpen, y ShadowFadFraction
 	SHADER_PARAMETER(FVector4, SpotLightShadowmapMinMax)
-	SHADER_PARAMETER(FMatrix, SpotLightShadowWorldToShadowMatrix)
+	SHADER_PARAMETER(FMatrix44f, SpotLightShadowWorldToShadowMatrix)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 /** Initializes the movable point light uniform shader parameters. */
@@ -1268,7 +1268,7 @@ FORCEINLINE FMobileMovablePointLightUniformShaderParameters GetMovablePointLight
 	Result.SpotLightAnglesAndSoftTransitionScaleAndLightShadowType = SpotLightAnglesAndSoftTransitionScaleAndLightShadowType;
 	Result.SpotLightShadowSharpenAndShadowFadeFraction = SpotLightShadowSharpenAndShadowFadeFraction;
 	Result.SpotLightShadowmapMinMax = SpotLightShadowmapMinMax;
-	Result.SpotLightShadowWorldToShadowMatrix = SpotLightShadowWorldToShadowMatrix;
+	Result.SpotLightShadowWorldToShadowMatrix = (FMatrix44f)SpotLightShadowWorldToShadowMatrix;
 
 	return Result;
 }

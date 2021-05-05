@@ -26,6 +26,7 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "Templates/IsIntegral.h"
 #include "Templates/IsPointer.h"
 #include "Templates/IsPODType.h"
+#include "Templates/IsUECoreType.h"
 #include "Templates/IsSigned.h"
 #include "Templates/IsTriviallyCopyAssignable.h"
 #include "Templates/IsTriviallyCopyConstructible.h"

@@ -7,7 +7,7 @@
 #else
 #include <array>
 
-struct FMatrix
+struct UE::Math::TMatrix<FReal>
 {
 public:
 	std::array<std::array<Chaos::FReal, 4>, 4> M;
@@ -109,13 +109,13 @@ namespace Chaos
 	};
 
 	template<>
-	class PMatrix<FReal, 4, 4> : public FMatrix
+	class PMatrix<FReal, 4, 4> : public UE::Math::TMatrix<FReal>
 	{
 	public:
 		PMatrix()
-		    : FMatrix() {}
+		    : UE::Math::TMatrix<FReal>() {}
 		PMatrix(const FReal x00, const FReal x10, const FReal x20, const FReal x30, const FReal x01, const FReal x11, const FReal x21, const FReal x31, const FReal x02, const FReal x12, const FReal x22, const FReal x32, const FReal x03, const FReal x13, const FReal x23, const FReal x33)
-		    : FMatrix()
+		    : UE::Math::TMatrix<FReal>()
 		{
 			M[0][0] = x00;
 			M[1][0] = x10;
@@ -134,8 +134,8 @@ namespace Chaos
 			M[2][3] = x23;
 			M[3][3] = x33;
 		}
-		PMatrix(const FMatrix& Matrix)
-		    : FMatrix(Matrix)
+		PMatrix(const UE::Math::TMatrix<FReal>& Matrix)
+		    : UE::Math::TMatrix<FReal>(Matrix)
 		{
 		}
 #if COMPILE_WITHOUT_UNREAL_SUPPORT
@@ -152,17 +152,19 @@ namespace Chaos
 
 	// TODO(mlentine): Do not use 4x4 matrix for 3x3 implementation
 	template<>
-	class PMatrix<FReal, 3, 3> : public FMatrix
+	class PMatrix<FReal, 3, 3> : public UE::Math::TMatrix<FReal>
 	{
 	public:
 		PMatrix()
-		    : FMatrix() {}
-		PMatrix(FMatrix&& Other)
-		    : FMatrix(MoveTemp(Other)) {}
-		PMatrix(const FMatrix& Other)
-		    : FMatrix(Other) {}
+		    : UE::Math::TMatrix<FReal>() {}
+		PMatrix(UE::Math::TMatrix<FReal>&& Other)
+		    : UE::Math::TMatrix<FReal>(MoveTemp(Other)) {}
+		PMatrix(const UE::Math::TMatrix<FRealSingle>& Other)
+		    : UE::Math::TMatrix<FReal>((UE::Math::TMatrix<FReal>)Other) {}
+		PMatrix(const UE::Math::TMatrix<FRealDouble>& Other)
+			: UE::Math::TMatrix<FReal>((UE::Math::TMatrix<FReal>)Other) {}
 		PMatrix(const FReal x00, const FReal x11, const FReal x22)
-		    : FMatrix()
+		    : UE::Math::TMatrix<FReal>()
 		{
 			M[0][0] = x00;
 			M[1][0] = 0;
@@ -183,7 +185,7 @@ namespace Chaos
 			M[2][3] = 0;
 		}
 		PMatrix(const FReal x00, const FReal x10, const FReal x20, const FReal x11, const FReal x21, const FReal x22)
-		    : FMatrix()
+		    : UE::Math::TMatrix<FReal>()
 		{
 			M[0][0] = x00;
 			M[1][0] = x10;
@@ -204,7 +206,7 @@ namespace Chaos
 			M[2][3] = 0;
 		}
 		PMatrix(const FReal x00, const FReal x10, const FReal x20, const FReal x01, const FReal x11, const FReal x21, const FReal x02, const FReal x12, const FReal x22)
-		    : FMatrix()
+		    : UE::Math::TMatrix<FReal>()
 		{
 			M[0][0] = x00;
 			M[1][0] = x10;
@@ -225,7 +227,7 @@ namespace Chaos
 			M[2][3] = 0;
 		}
 		PMatrix(const FReal x)
-		    : FMatrix()
+		    : UE::Math::TMatrix<FReal>()
 		{
 			M[0][0] = x;
 			M[1][0] = x;
@@ -341,7 +343,7 @@ namespace Chaos
 		}
 		PMatrix<FReal, 3, 3> operator*(const PMatrix<FReal, 3, 3>& Other) const
 		{
-			return static_cast<const FMatrix*>(this)->operator*(static_cast<const FMatrix&>(Other));
+			return static_cast<const UE::Math::TMatrix<FReal>*>(this)->operator*(static_cast<const UE::Math::TMatrix<FReal>&>(Other));
 		}
 		PMatrix<FReal, 3, 3> operator*(const FReal Other) const
 		{

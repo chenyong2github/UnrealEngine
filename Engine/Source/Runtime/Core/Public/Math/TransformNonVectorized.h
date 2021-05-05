@@ -370,6 +370,60 @@ public:
 		return OutMatrix;
 	}
 
+	FORCEINLINE FMatrix44f ToMatrix32NoScale() const
+	{
+		FMatrix44f OutMatrix;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && WITH_EDITORONLY_DATA
+		// Make sure Rotation is normalized when we turn it into a matrix.
+		check(IsRotationNormalized());
+#endif
+		OutMatrix.M[3][0] = Translation.X;
+		OutMatrix.M[3][1] = Translation.Y;
+		OutMatrix.M[3][2] = Translation.Z;
+
+		const float x2 = Rotation.X + Rotation.X;
+		const float y2 = Rotation.Y + Rotation.Y;
+		const float z2 = Rotation.Z + Rotation.Z;
+		{
+			const float xx2 = Rotation.X * x2;
+			const float yy2 = Rotation.Y * y2;
+			const float zz2 = Rotation.Z * z2;
+
+			OutMatrix.M[0][0] = (1.0f - (yy2 + zz2));
+			OutMatrix.M[1][1] = (1.0f - (xx2 + zz2));
+			OutMatrix.M[2][2] = (1.0f - (xx2 + yy2));
+		}
+		{
+			const float yz2 = Rotation.Y * z2;
+			const float wx2 = Rotation.W * x2;
+
+			OutMatrix.M[2][1] = (yz2 - wx2);
+			OutMatrix.M[1][2] = (yz2 + wx2);
+		}
+		{
+			const float xy2 = Rotation.X * y2;
+			const float wz2 = Rotation.W * z2;
+
+			OutMatrix.M[1][0] = (xy2 - wz2);
+			OutMatrix.M[0][1] = (xy2 + wz2);
+		}
+		{
+			const float xz2 = Rotation.X * z2;
+			const float wy2 = Rotation.W * y2;
+
+			OutMatrix.M[2][0] = (xz2 + wy2);
+			OutMatrix.M[0][2] = (xz2 - wy2);
+		}
+
+		OutMatrix.M[0][3] = 0.0f;
+		OutMatrix.M[1][3] = 0.0f;
+		OutMatrix.M[2][3] = 0.0f;
+		OutMatrix.M[3][3] = 1.0f;
+
+		return OutMatrix;
+	}
+
 	/** Set this transform to the weighted blend of the supplied two transforms. */
 	FORCEINLINE void Blend(const FTransform& Atom1, const FTransform& Atom2, float Alpha)
 	{

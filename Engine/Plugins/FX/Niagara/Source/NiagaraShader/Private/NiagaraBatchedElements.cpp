@@ -25,7 +25,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntVector4, InAttributeSlices)
-		SHADER_PARAMETER(FMatrix, InColorWeights)
+		SHADER_PARAMETER(FMatrix44f, InColorWeights)
 		SHADER_PARAMETER(float, InGamma)
 		SHADER_PARAMETER_TEXTURE(Texture2D, InTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, InTextureSampler)

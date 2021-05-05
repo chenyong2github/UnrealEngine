@@ -121,8 +121,8 @@ FAutoConsoleVariableRef CVarLumenSceneCardDirectLightingUpdateFrequencyScale(
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLightFunctionParameters, )
 	SHADER_PARAMETER(FVector4, LightFunctionParameters)
-	SHADER_PARAMETER(FMatrix, LightFunctionWorldToLight)
-	SHADER_PARAMETER(FVector, LightFunctionParameters2)
+	SHADER_PARAMETER(FMatrix44f, LightFunctionWorldToLight)
+	SHADER_PARAMETER(FVector3f, LightFunctionParameters2)
 END_SHADER_PARAMETER_STRUCT()
 
 class FLumenCardDirectLightingPS : public FMaterialShader
@@ -157,7 +157,7 @@ class FLumenCardDirectLightingPS : public FMaterialShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLightTileIntersectionParameters, LightTileIntersectionParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldAtlasParameters, DistanceFieldAtlasParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMapSamplingParameters)
-		SHADER_PARAMETER(FMatrix, WorldToShadow)
+		SHADER_PARAMETER(FMatrix44f, WorldToShadow)
 		SHADER_PARAMETER(float, TwoSidedMeshDistanceBias)
 		SHADER_PARAMETER(float, StepFactor)
 		SHADER_PARAMETER(float, TanLightSourceAngle)

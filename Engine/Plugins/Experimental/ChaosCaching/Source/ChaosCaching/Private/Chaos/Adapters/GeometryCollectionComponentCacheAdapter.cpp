@@ -318,7 +318,7 @@ namespace Chaos
 				{
 					if (Particles.IsValidIndex(Event->Index))
 					{
-						Chaos::TPBDRigidClusteredParticleHandle<float, 3>* Particle = Particles[Event->Index];
+						Chaos::FPBDRigidClusteredParticleHandle* Particle = Particles[Event->Index];
 
 						if (Particle)
 						{
@@ -334,7 +334,7 @@ namespace Chaos
 							CachedBreak.Velocity = ComponentToWorld.TransformVector(Event->Velocity);
 							CachedBreak.AngularVelocity = Event->AngularVelocity;
 							CachedBreak.Mass = Event->Mass;
-							CachedBreak.BoundingBox = TAABB<float, 3>(Event->BoundingBoxMin, Event->BoundingBoxMax);
+							CachedBreak.BoundingBox = TAABB<FReal, 3>(Event->BoundingBoxMin, Event->BoundingBoxMax);
 							CachedBreak.BoundingBox = CachedBreak.BoundingBox.TransformedAABB(ComponentToWorld);
 
 							if (!SolverBreakingEventFilter->Enabled() || SolverBreakingEventFilter->Pass(CachedBreak))
@@ -366,7 +366,7 @@ namespace Chaos
 				{
 					if (Particles.IsValidIndex(Event->Index))
 					{
-						Chaos::TPBDRigidClusteredParticleHandle<float, 3>* Particle = Particles[Event->Index];
+						Chaos::FPBDRigidClusteredParticleHandle* Particle = Particles[Event->Index];
 
 						if (Particle)
 						{
@@ -381,7 +381,7 @@ namespace Chaos
 							CachedTrail.Location = ComponentToWorld.TransformPosition(Event->Location);
 							CachedTrail.Velocity = ComponentToWorld.TransformVector(Event->Velocity);
 							CachedTrail.AngularVelocity = Event->AngularVelocity;
-							CachedTrail.BoundingBox = TAABB<float, 3>(Event->BoundingBoxMin, Event->BoundingBoxMax);
+							CachedTrail.BoundingBox = TAABB<FReal, 3>(Event->BoundingBoxMin, Event->BoundingBoxMax);
 							CachedTrail.BoundingBox = CachedTrail.BoundingBox.TransformedAABB(ComponentToWorld);
 
 							if (!SolverTrailingEventFilter->Enabled() || SolverTrailingEventFilter->Pass(CachedTrail))
@@ -413,7 +413,7 @@ namespace Chaos
 				{
 					if (Particles.IsValidIndex(Event->Index))
 					{
-						Chaos::TPBDRigidClusteredParticleHandle<float, 3>* Particle = Particles[Event->Index];
+						Chaos::FPBDRigidClusteredParticleHandle* Particle = Particles[Event->Index];
 
 						if (Particle)
 						{

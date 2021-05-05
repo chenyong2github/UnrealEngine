@@ -127,7 +127,7 @@ bool LUPSolveIterate( const T* RESTRICT A, const T* RESTRICT LU, const uint32* R
 
 
 
-FQuadric::FQuadric( const FVector& fp0, const FVector& fp1, const FVector& fp2 )
+FQuadric::FQuadric( const FVector3f& fp0, const FVector3f& fp1, const FVector3f& fp2 )
 {
 	const QVec3 p0( fp0 );
 	const QVec3 p1( fp1 );
@@ -188,7 +188,7 @@ FQuadric::FQuadric( const FVector& fp0, const FVector& fp1, const FVector& fp2 )
 #endif
 }
 
-FQuadric::FQuadric( const FVector& fp0, const FVector& fp1, const FVector& faceNormal, const float edgeWeight )
+FQuadric::FQuadric( const FVector3f& fp0, const FVector3f& fp1, const FVector3f& faceNormal, const float edgeWeight )
 {
 	if( !faceNormal.IsNormalized() )
 	{
@@ -236,7 +236,7 @@ FQuadric::FQuadric( const FVector& fp0, const FVector& fp1, const FVector& faceN
 	a = 0.0;
 }
 
-float FQuadric::Evaluate( const FVector& Point ) const
+float FQuadric::Evaluate( const FVector3f& Point ) const
 {
 	// Q(v) = vt*A*v + 2*bt*v + c
 	
@@ -285,7 +285,7 @@ float FQuadric::Evaluate( const FVector& Point ) const
 
 
 FQuadricAttr::FQuadricAttr(
-	const FVector& fp0, const FVector& fp1, const FVector& fp2,
+	const FVector3f& fp0, const FVector3f& fp1, const FVector3f& fp2,
 	const float* attr0, const float* attr1, const float* attr2,
 	const float* AttributeWeights, uint32 NumAttributes )
 {
@@ -448,7 +448,7 @@ FQuadricAttr::FQuadricAttr(
 }
 
 void FQuadricAttr::Rebase(
-	const FVector& RESTRICT Point,
+	const FVector3f& RESTRICT Point,
 	const float* RESTRICT Attribute,
 	const float* RESTRICT AttributeWeights,
 	uint32 NumAttributes )
@@ -491,7 +491,7 @@ void FQuadricAttr::Rebase(
 
 void FQuadricAttr::Add(
 	const FQuadricAttr& RESTRICT q,
-	const FVector& RESTRICT Point,
+	const FVector3f& RESTRICT Point,
 	const float* RESTRICT Attribute,
 	const float* RESTRICT AttributeWeights,
 	uint32 NumAttributes )
@@ -612,7 +612,7 @@ void FQuadricAttr::Zero( uint32 NumAttributes )
 #endif
 }
 
-float FQuadricAttr::Evaluate( const FVector& Point, const float* RESTRICT Attributes, const float* RESTRICT AttributeWeights, uint32 NumAttributes ) const
+float FQuadricAttr::Evaluate( const FVector3f& Point, const float* RESTRICT Attributes, const float* RESTRICT AttributeWeights, uint32 NumAttributes ) const
 {
 	// Q(v) = vt*A*v + 2*bt*v + c
 	
@@ -688,7 +688,7 @@ float FQuadricAttr::Evaluate( const FVector& Point, const float* RESTRICT Attrib
 	return Q;
 }
 
-float FQuadricAttr::CalcAttributesAndEvaluate( const FVector& RESTRICT Point, float* RESTRICT Attributes, const float* RESTRICT AttributeWeights, uint32 NumAttributes ) const
+float FQuadricAttr::CalcAttributesAndEvaluate( const FVector3f& RESTRICT Point, float* RESTRICT Attributes, const float* RESTRICT AttributeWeights, uint32 NumAttributes ) const
 {
 	// Q(v) = vt*A*v + 2*bt*v + c
 	
@@ -792,7 +792,7 @@ float FQuadricAttr::CalcAttributesAndEvaluate( const FVector& RESTRICT Point, fl
 
 
 
-bool FQuadricAttrOptimizer::Optimize( FVector& Position ) const
+bool FQuadricAttrOptimizer::Optimize( FVector3f& Position ) const
 {
 	// A * v = -b
 	
@@ -863,7 +863,7 @@ bool FQuadricAttrOptimizer::Optimize( FVector& Position ) const
 	return false;
 }
 
-bool FQuadricAttrOptimizer::OptimizeVolume( FVector& Position ) const
+bool FQuadricAttrOptimizer::OptimizeVolume( FVector3f& Position ) const
 {
 	// A * v = -b
 	
@@ -930,7 +930,7 @@ bool FQuadricAttrOptimizer::OptimizeVolume( FVector& Position ) const
 	return false;
 }
 
-bool FQuadricAttrOptimizer::OptimizeLinear( const FVector& Position0, const FVector& Position1, FVector& Position ) const
+bool FQuadricAttrOptimizer::OptimizeLinear( const FVector3f& Position0, const FVector3f& Position1, FVector3f& Position ) const
 {
 	// Optimize on a line instead of full 3D.
 

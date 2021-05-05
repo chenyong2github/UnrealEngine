@@ -972,9 +972,9 @@ float FStaticMeshSectionAreaWeightedTriangleSampler::GetWeights(TArray<float>& O
 	OutWeights.Empty(Indicies.Num() / 3);
 	for (int32 i = First; i < Last; i+=3)
 	{
-		FVector V0 = Owner->VertexBuffers.PositionVertexBuffer.VertexPosition(Indicies[i]);
-		FVector V1 = Owner->VertexBuffers.PositionVertexBuffer.VertexPosition(Indicies[i + 1]);
-		FVector V2 = Owner->VertexBuffers.PositionVertexBuffer.VertexPosition(Indicies[i + 2]);
+		FVector3f V0 = Owner->VertexBuffers.PositionVertexBuffer.VertexPosition(Indicies[i]);
+		FVector3f V1 = Owner->VertexBuffers.PositionVertexBuffer.VertexPosition(Indicies[i + 1]);
+		FVector3f V2 = Owner->VertexBuffers.PositionVertexBuffer.VertexPosition(Indicies[i + 2]);
 
 		float Area = ((V1 - V0) ^ (V2 - V0)).Size() * 0.5f;
 		OutWeights.Add(Area);
@@ -1051,8 +1051,8 @@ void FStaticMeshVertexBuffers::InitModelBuffers(TArray<FModelVertex>& Vertices)
 		PositionVertexBuffer.Init(1);
 		StaticMeshVertexBuffer.Init(1, 2);
 
-		PositionVertexBuffer.VertexPosition(0) = FVector(0, 0, 0);
-		StaticMeshVertexBuffer.SetVertexTangents(0, FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1));
+		PositionVertexBuffer.VertexPosition(0) = FVector3f(0, 0, 0);
+		StaticMeshVertexBuffer.SetVertexTangents(0, FVector3f(1, 0, 0), FVector3f(0, 1, 0), FVector3f(0, 0, 1));
 		StaticMeshVertexBuffer.SetVertexUV(0, 0, FVector2D(0, 0));
 		StaticMeshVertexBuffer.SetVertexUV(0, 1, FVector2D(0, 0));
 	}
@@ -1139,8 +1139,8 @@ void FStaticMeshVertexBuffers::InitFromDynamicVertex(FLocalVertexFactory* Vertex
 		StaticMeshVertexBuffer.Init(1, 1);
 		ColorVertexBuffer.Init(1);
 
-		PositionVertexBuffer.VertexPosition(0) = FVector(0, 0, 0);
-		StaticMeshVertexBuffer.SetVertexTangents(0, FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1));
+		PositionVertexBuffer.VertexPosition(0) = FVector3f(0, 0, 0);
+		StaticMeshVertexBuffer.SetVertexTangents(0, FVector3f(1, 0, 0), FVector3f(0, 1, 0), FVector3f(0, 0, 1));
 		StaticMeshVertexBuffer.SetVertexUV(0, 0, FVector2D(0, 0));
 		ColorVertexBuffer.VertexColor(0) = FColor(1,1,1,1);
 		NumTexCoords = 1;
@@ -3234,9 +3234,9 @@ static void AccumulateBounds(FBox& Bounds, const FStaticMeshLODResources& LODMod
 		const int32 Index1 = IndexBuffer[SectionInfo.FirstIndex + TriangleIndex * 3 + 1];
 		const int32 Index2 = IndexBuffer[SectionInfo.FirstIndex + TriangleIndex * 3 + 2];
 
-		FVector Pos1 = Transform.TransformPosition(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Index1));
-		FVector Pos2 = Transform.TransformPosition(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Index2));
-		FVector Pos0 = Transform.TransformPosition(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Index0));
+		FVector Pos1 = Transform.TransformPosition(FVector(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Index1)));
+		FVector Pos2 = Transform.TransformPosition(FVector(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Index2)));
+		FVector Pos0 = Transform.TransformPosition(FVector(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Index0)));
 
 		Bounds += Pos0;
 		Bounds += Pos1;
@@ -5456,9 +5456,9 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 	TArray<FStaticMeshBuildVertex> StaticMeshBuildVertices;
 	StaticMeshBuildVertices.SetNum(NumVertexInstances);
 
-	TVertexAttributesConstRef<FVector> VertexPositions = MeshDescriptionAttributes.GetVertexPositions();
-	TVertexInstanceAttributesConstRef<FVector> VertexInstanceNormals = MeshDescriptionAttributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesConstRef<FVector> VertexInstanceTangents = MeshDescriptionAttributes.GetVertexInstanceTangents();
+	TVertexAttributesConstRef<FVector3f> VertexPositions = MeshDescriptionAttributes.GetVertexPositions();
+	TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceNormals = MeshDescriptionAttributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceTangents = MeshDescriptionAttributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesConstRef<float> VertexInstanceBinormalSigns = MeshDescriptionAttributes.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesConstRef<FVector4> VertexInstanceColors = MeshDescriptionAttributes.GetVertexInstanceColors();
 	TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = MeshDescriptionAttributes.GetVertexInstanceUVs();
@@ -5469,7 +5469,7 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 
 		StaticMeshVertex.Position = VertexPositions[MeshDescription.GetVertexInstanceVertex(VertexInstanceID)];
 		StaticMeshVertex.TangentX = VertexInstanceTangents[VertexInstanceID];
-		StaticMeshVertex.TangentY = FVector::CrossProduct(VertexInstanceNormals[VertexInstanceID], VertexInstanceTangents[VertexInstanceID]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceID];
+		StaticMeshVertex.TangentY = FVector3f::CrossProduct(VertexInstanceNormals[VertexInstanceID], VertexInstanceTangents[VertexInstanceID]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceID];
 		StaticMeshVertex.TangentZ = VertexInstanceNormals[VertexInstanceID];
 
 		for (int32 UVIndex = 0; UVIndex < VertexInstanceUVs.GetNumChannels(); ++UVIndex)
@@ -5993,7 +5993,7 @@ FString UStaticMesh::GetDesc()
 }
 
 
-static int32 GetCollisionVertIndexForMeshVertIndex(int32 MeshVertIndex, TMap<int32, int32>& MeshToCollisionVertMap, TArray<FVector>& OutPositions, TArray< TArray<FVector2D> >& OutUVs, FPositionVertexBuffer& InPosVertBuffer, FStaticMeshVertexBuffer& InVertBuffer)
+static int32 GetCollisionVertIndexForMeshVertIndex(int32 MeshVertIndex, TMap<int32, int32>& MeshToCollisionVertMap, TArray<FVector3f>& OutPositions, TArray< TArray<FVector2D> >& OutUVs, FPositionVertexBuffer& InPosVertBuffer, FStaticMeshVertexBuffer& InVertBuffer)
 {
 	int32* CollisionIndexPtr = MeshToCollisionVertMap.Find(MeshVertIndex);
 	if (CollisionIndexPtr != nullptr)
@@ -6360,7 +6360,7 @@ void UStaticMesh::SetVertexColorData(const TMap<FVector, FColor>& VertexColorDat
 			// Build a mapping of vertex positions to vertex colors.
 			for (int32 WedgeIndex = 0; WedgeIndex < Mesh.WedgeIndices.Num(); ++WedgeIndex)
 			{
-				FVector Position = Mesh.VertexPositions[Mesh.WedgeIndices[WedgeIndex]];
+				FVector3f Position = Mesh.VertexPositions[Mesh.WedgeIndices[WedgeIndex]];
 				const FColor* Color = VertexColorData.Find(Position);
 				if (Color)
 				{

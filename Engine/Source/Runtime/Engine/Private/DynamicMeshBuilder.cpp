@@ -421,7 +421,7 @@ public:
 			TextureFormat = PF_G16R16F;
 		}
 
-		PositionBuffer.VertexBufferRHI = DynamicMeshBufferAllocator.AllocVertexBuffer(sizeof(FVector), Vertices.Num());
+		PositionBuffer.VertexBufferRHI = DynamicMeshBufferAllocator.AllocVertexBuffer(sizeof(FVector3f), Vertices.Num());
 		TangentBuffer.VertexBufferRHI  = DynamicMeshBufferAllocator.AllocVertexBuffer(sizeof(FPackedNormal), 2 * Vertices.Num());
 		TexCoordBuffer.VertexBufferRHI = DynamicMeshBufferAllocator.AllocVertexBuffer(TextureStride, NumTexCoords * Vertices.Num());
 		ColorBuffer.VertexBufferRHI    = DynamicMeshBufferAllocator.AllocVertexBuffer(sizeof(FColor), Vertices.Num());
@@ -440,7 +440,7 @@ public:
 		FVector2DHalf* TexCoordBufferData16 = Use16bitTexCoord ? static_cast<FVector2DHalf*>(TexCoordBufferData) : nullptr;
 
 		// Copy the vertex data into the vertex buffers.
-		FVector* PositionBufferData			= static_cast<FVector*>(RHILockBuffer(PositionBuffer.VertexBufferRHI, 0, sizeof(FVector) * Vertices.Num(), RLM_WriteOnly));
+		FVector3f* PositionBufferData			= static_cast<FVector3f*>(RHILockBuffer(PositionBuffer.VertexBufferRHI, 0, sizeof(FVector3f) * Vertices.Num(), RLM_WriteOnly));
 		FPackedNormal* TangentBufferData	= static_cast<FPackedNormal*>(RHILockBuffer(TangentBuffer.VertexBufferRHI, 0, 2 * sizeof(FPackedNormal) * Vertices.Num(), RLM_WriteOnly));	
 		FColor* ColorBufferData				= static_cast<FColor*>(RHILockBuffer(ColorBuffer.VertexBufferRHI, 0, sizeof(FColor) * Vertices.Num(), RLM_WriteOnly));
 
@@ -554,7 +554,7 @@ public:
 			Data.PositionComponent = FVertexStreamComponent(
 				&PooledVertexBuffer->PositionBuffer,
 				0,
-				sizeof(FVector),
+				sizeof(FVector3f),
 				VET_Float3
 			);
 
@@ -680,11 +680,11 @@ FDynamicMeshBuilder::~FDynamicMeshBuilder()
 }
 
 int32 FDynamicMeshBuilder::AddVertex(
-	const FVector& InPosition,
+	const FVector3f& InPosition,
 	const FVector2D& InTextureCoordinate,
-	const FVector& InTangentX,
-	const FVector& InTangentY,
-	const FVector& InTangentZ,
+	const FVector3f& InTangentX,
+	const FVector3f& InTangentY,
+	const FVector3f& InTangentZ,
 	const FColor& InColor
 	)
 {

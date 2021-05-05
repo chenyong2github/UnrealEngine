@@ -56,7 +56,7 @@ void FMovieSceneParameterSectionTemplate::EvaluateCurves(const FMovieSceneContex
 
 	for ( const FVectorParameterNameAndCurves& Vector : Vectors )
 	{
-		FVector Value(ForceInitToZero);
+		FVector3f Value(ForceInitToZero);
 
 		bool bAnyEvaluated = false;
 		bAnyEvaluated |= Vector.XCurve.Evaluate(Time, Value.X);
@@ -87,7 +87,7 @@ void FMovieSceneParameterSectionTemplate::EvaluateCurves(const FMovieSceneContex
 
 	for (const FTransformParameterNameAndCurves& Transform : Transforms)
 	{
-		FVector Translation, Scale(FVector::OneVector);
+		FVector3f Translation, Scale(FVector3f::OneVector);
 		FRotator Rotator;
 		bool bAnyEvaluated = false;
 		bAnyEvaluated |= Transform.Translation[0].Evaluate(Time,Translation[0]);

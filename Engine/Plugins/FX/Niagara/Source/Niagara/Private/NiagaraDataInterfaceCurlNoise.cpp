@@ -206,7 +206,7 @@ struct FNiagaraMatrix3x4
 FNiagaraMatrix3x4 SimplexDSmooth(FNiagaraMatrix4x3 f)
 {
 	const float scale = 1024. / 375.;
-	FVector4 d = FVector4(FVector::DotProduct(f[0], f[0]), FVector::DotProduct(f[1], f[1]), FVector::DotProduct(f[2], f[2]), FVector::DotProduct(f[3], f[3]));
+	FVector4 d = FVector4(FVector3f::DotProduct(f[0], f[0]), FVector3f::DotProduct(f[1], f[1]), FVector3f::DotProduct(f[2], f[2]), FVector3f::DotProduct(f[3], f[3]));
 	FVector4 s = NiagaraVector4Saturate(2 * d);
 	s = -12 * FVector4(scale, scale, scale, scale) + s * (24 * FVector4(scale, scale, scale, scale) - s * 12 * scale);
 
@@ -486,7 +486,7 @@ public:
 		FNiagaraDataInterfaceProxyCurlNoise* CNDI = static_cast<FNiagaraDataInterfaceProxyCurlNoise*>(Context.DataInterface);
 
 		// Set parameters
-		SetShaderValue(RHICmdList, ComputeShaderRHI, OffsetFromSeed, CNDI->OffsetFromSeed);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, OffsetFromSeed, (FVector3f)CNDI->OffsetFromSeed);
 	}
 
 private:

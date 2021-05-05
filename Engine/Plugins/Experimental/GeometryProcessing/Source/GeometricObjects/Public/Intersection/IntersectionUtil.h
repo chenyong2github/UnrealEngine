@@ -34,7 +34,7 @@ namespace IntersectionUtil
 	using namespace UE::Geometry;
 
 	template<typename RealType>
-	bool RayTriangleTest(const UE::Core::TVector<RealType>& RayOrigin, const UE::Core::TVector<RealType>& RayDirection, const UE::Core::TVector<RealType>& V0, const UE::Core::TVector<RealType>& V1, const UE::Core::TVector<RealType>& V2)
+	bool RayTriangleTest(const UE::Math::TVector<RealType>& RayOrigin, const UE::Math::TVector<RealType>& RayDirection, const UE::Math::TVector<RealType>& V0, const UE::Math::TVector<RealType>& V1, const UE::Math::TVector<RealType>& V2)
 	{
 		// same code as IntrRay3Triangle3, but can be called w/o constructing additional data structures
 			
@@ -101,9 +101,9 @@ namespace IntersectionUtil
 	 */
 	template<typename RealType>
 	bool LineSphereTest(
-		const UE::Core::TVector<RealType>& LineOrigin,
-		const UE::Core::TVector<RealType>& LineDirection,
-		const UE::Core::TVector<RealType>& SphereCenter,
+		const UE::Math::TVector<RealType>& LineOrigin,
+		const UE::Math::TVector<RealType>& LineDirection,
+		const UE::Math::TVector<RealType>& SphereCenter,
 		RealType SphereRadius)
 	{
 		// adapted from GeometricTools GTEngine
@@ -130,9 +130,9 @@ namespace IntersectionUtil
 	 */
 	template<typename RealType>
 	bool LineSphereIntersection(
-		const UE::Core::TVector<RealType>& LineOrigin,
-		const UE::Core::TVector<RealType>& LineDirection,
-		const UE::Core::TVector<RealType>& SphereCenter,
+		const UE::Math::TVector<RealType>& LineOrigin,
+		const UE::Math::TVector<RealType>& LineDirection,
+		const UE::Math::TVector<RealType>& SphereCenter,
 		RealType SphereRadius,
 		FLinearIntersection& ResultOut)
 	{
@@ -174,9 +174,9 @@ namespace IntersectionUtil
 
 	template<typename RealType>
 	FLinearIntersection LineSphereIntersection(
-		const UE::Core::TVector<RealType>& LineOrigin,
-		const UE::Core::TVector<RealType>& LineDirection,
-		const UE::Core::TVector<RealType>& SphereCenter,
+		const UE::Math::TVector<RealType>& LineOrigin,
+		const UE::Math::TVector<RealType>& LineDirection,
+		const UE::Math::TVector<RealType>& SphereCenter,
 		RealType SphereRadius)
 	{
 		FLinearIntersection result;
@@ -191,9 +191,9 @@ namespace IntersectionUtil
 	 */
 	template<typename RealType>
 	bool RaySphereTest(
-		const UE::Core::TVector<RealType>& RayOrigin,
-		const UE::Core::TVector<RealType>& RayDirection,
-		const UE::Core::TVector<RealType>& SphereCenter,
+		const UE::Math::TVector<RealType>& RayOrigin,
+		const UE::Math::TVector<RealType>& RayDirection,
+		const UE::Math::TVector<RealType>& SphereCenter,
 		RealType SphereRadius)
 	{
 		// adapted from GeometricTools GTEngine
@@ -229,9 +229,9 @@ namespace IntersectionUtil
 	 */
 	template<typename RealType>
 	bool RaySphereIntersection(
-		const UE::Core::TVector<RealType>& RayOrigin,
-		const UE::Core::TVector<RealType>& RayDirection,
-		const UE::Core::TVector<RealType>& SphereCenter,
+		const UE::Math::TVector<RealType>& RayOrigin,
+		const UE::Math::TVector<RealType>& RayDirection,
+		const UE::Math::TVector<RealType>& SphereCenter,
 		RealType SphereRadius, 
 		FLinearIntersection& Result)
 	{
@@ -260,9 +260,9 @@ namespace IntersectionUtil
 
 	template<typename RealType>
 	FLinearIntersection RaySphereIntersection(
-		const UE::Core::TVector<RealType>& RayOrigin,
-		const UE::Core::TVector<RealType>& RayDirection,
-		const UE::Core::TVector<RealType>& SphereCenter,
+		const UE::Math::TVector<RealType>& RayOrigin,
+		const UE::Math::TVector<RealType>& RayDirection,
+		const UE::Math::TVector<RealType>& SphereCenter,
 		RealType SphereRadius)
 	{
 		FLinearIntersection result;

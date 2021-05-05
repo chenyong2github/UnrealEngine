@@ -24,7 +24,7 @@ struct FTriIndices
 struct FTriMeshCollisionData
 {
 	/** Array of vertices included in the triangle mesh */
-	TArray<FVector> Vertices;
+	TArray<FVector3f> Vertices;
 
 	/** Array of indices defining the ordering of triangles in the mesh */
 	TArray<FTriIndices> Indices;

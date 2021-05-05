@@ -1093,7 +1093,8 @@ bool UWorld::FindTeleportSpot(const AActor* TestActor, FVector& TestLocation, FR
 	}
 
 	// first do only Z
-	const bool bZeroZ = FMath::IsNearlyZero(Adjust.Z, KINDA_SMALL_NUMBER);
+	const FVector::FReal ZeroThreshold = KINDA_SMALL_NUMBER;
+	const bool bZeroZ = FMath::IsNearlyZero(Adjust.Z, ZeroThreshold);
 	if (!bZeroZ)
 	{
 		TestLocation.Z += Adjust.Z;
@@ -1106,8 +1107,8 @@ bool UWorld::FindTeleportSpot(const AActor* TestActor, FVector& TestLocation, FR
 	}
 
 	// now try just XY
-	const bool bZeroX = FMath::IsNearlyZero(Adjust.X, KINDA_SMALL_NUMBER);
-	const bool bZeroY = FMath::IsNearlyZero(Adjust.Y, KINDA_SMALL_NUMBER);
+	const bool bZeroX = FMath::IsNearlyZero(Adjust.X, ZeroThreshold);
+	const bool bZeroY = FMath::IsNearlyZero(Adjust.Y, ZeroThreshold);
 	if (!bZeroX || !bZeroY)
 	{
 		const float X = bZeroX ? 0.f : Adjust.X;

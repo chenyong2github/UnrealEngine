@@ -1062,9 +1062,9 @@ bool ARecastNavMesh::GetRandomReachablePointInRadius(const FVector& Origin, floa
 	{
 		// find starting poly
 		const FVector ProjectionExtent(NavDataConfig.DefaultQueryExtent.X, NavDataConfig.DefaultQueryExtent.Y, BIG_NUMBER);
-		const FVector RcExtent = Unreal2RecastPoint(ProjectionExtent).GetAbs();
+		const FVector3f RcExtent = Unreal2RecastPoint(ProjectionExtent).GetAbs();
 		// convert start/end pos to Recast coords
-		const FVector RecastOrigin = Unreal2RecastPoint(Origin);
+		const FVector3f RecastOrigin = Unreal2RecastPoint(Origin);
 		NavNodeRef OriginPolyID = INVALID_NAVNODEREF;
 		NavQuery.findNearestPoly(&RecastOrigin.X, &RcExtent.X, QueryFilter, &OriginPolyID, nullptr);
 
@@ -1206,14 +1206,14 @@ void ARecastNavMesh::BatchProjectPoints(TArray<FNavigationProjectionWork>& Workl
 	
 	if (ensure(QueryFilter))
 	{
-		const FVector ModifiedExtent = GetModifiedQueryExtent(Extent);
-		FVector RcExtent = Unreal2RecastPoint(ModifiedExtent).GetAbs();
+		const FVector3f ModifiedExtent = GetModifiedQueryExtent(Extent);
+		FVector3f RcExtent = Unreal2RecastPoint(ModifiedExtent).GetAbs();
 		float ClosestPoint[3];
 		dtPolyRef PolyRef;
 
 		for (int32 Idx = 0; Idx < Workload.Num(); Idx++)
 		{
-			FVector RcPoint = Unreal2RecastPoint(Workload[Idx].Point);
+			FVector3f RcPoint = Unreal2RecastPoint(Workload[Idx].Point);
 			if (Workload[Idx].bHintProjection2D)
 			{
 				NavQuery.findNearestPoly2D(&RcPoint.X, &RcExtent.X, QueryFilter, &PolyRef, ClosestPoint);
@@ -1258,10 +1258,10 @@ void ARecastNavMesh::BatchProjectPoints(TArray<FNavigationProjectionWork>& Workl
 		for (FNavigationProjectionWork& Work : Workload)
 		{
 			ensure(Work.ProjectionLimit.IsValid);
-			const FVector RcReferencePoint = Unreal2RecastPoint(Work.Point);
+			const FVector3f RcReferencePoint = Unreal2RecastPoint(Work.Point);
 			const FVector ModifiedExtent = GetModifiedQueryExtent(Work.ProjectionLimit.GetExtent());
-			const FVector RcExtent = Unreal2RecastPoint(ModifiedExtent).GetAbs();
-			const FVector RcBoxCenter = Unreal2RecastPoint(Work.ProjectionLimit.GetCenter());
+			const FVector3f RcExtent = Unreal2RecastPoint(ModifiedExtent).GetAbs();
+			const FVector3f RcBoxCenter = Unreal2RecastPoint(Work.ProjectionLimit.GetCenter());
 
 			if (Work.bHintProjection2D)
 			{
@@ -1306,8 +1306,8 @@ bool ARecastNavMesh::GetPolysInBox(const FBox& Box, TArray<FNavPoly>& Polys, FSh
 	{
 		const FVector ModifiedExtent = GetModifiedQueryExtent(Box.GetExtent());
 
-		const FVector RcPoint = Unreal2RecastPoint( Box.GetCenter() );
-		const FVector RcExtent = Unreal2RecastPoint( ModifiedExtent ).GetAbs();
+		const FVector3f RcPoint = Unreal2RecastPoint( Box.GetCenter() );
+		const FVector3f RcExtent = Unreal2RecastPoint( ModifiedExtent ).GetAbs();
 
 		const int32 MaxHitPolys = 256;
 		dtPolyRef HitPolys[MaxHitPolys];
@@ -1362,7 +1362,7 @@ bool ARecastNavMesh::FindEdges(const NavNodeRef CenterNodeRef, const FVector Cen
 	int32 NumNeis = 0;
 	dtPolyRef NeiPolys[MaxNeis] = { 0 };
 
-	const FVector RcCenter = Unreal2RecastPoint(Center);
+	const FVector3f RcCenter = Unreal2RecastPoint(Center);
 
 	dtStatus Status = NavQuery.findWallsInNeighbourhood(CenterNodeRef, &RcCenter.X, Radius, QueryFilter,
 		NeiPolys, &NumNeis, MaxNeis, WallSegments, WallPolys, &NumWalls, MaxWalls);
@@ -1443,7 +1443,7 @@ bool ARecastNavMesh::DoesNodeContainLocation(NavNodeRef NodeRef, const FVector& 
 		dtNavMeshQuery NavQuery;
 		NavQuery.init(RecastNavMeshImpl->GetRecastMesh(), 0);
 
-		const FVector RcLocation = Unreal2RecastPoint(WorldSpaceLocation);
+		const FVector3f RcLocation = Unreal2RecastPoint(WorldSpaceLocation);
 		if (dtStatusFailed(NavQuery.isPointInsidePoly(NodeRef, &RcLocation.X, bResult)))
 		{
 			bResult = false;
@@ -1487,10 +1487,10 @@ float ARecastNavMesh::FindDistanceToWall(const FVector& StartLoc, FSharedConstNa
 		return 0.f;
 	}
 
-	const FVector NavExtent = GetModifiedQueryExtent(GetDefaultQueryExtent());
+	const FVector3f NavExtent = GetModifiedQueryExtent(GetDefaultQueryExtent());
 	const float Extent[3] = { NavExtent.X, NavExtent.Z, NavExtent.Y };
 
-	const FVector RecastStart = Unreal2RecastPoint(StartLoc);
+	const FVector3f RecastStart = Unreal2RecastPoint(StartLoc);
 
 	NavNodeRef StartNode = INVALID_NAVNODEREF;
 	NavQuery.findNearestPoly(&RecastStart.X, Extent, QueryFilter, &StartNode, NULL);
@@ -2231,14 +2231,14 @@ bool ARecastNavMesh::AdjustLocationWithFilter(const FVector& StartLoc, FVector& 
 {
 	INITIALIZE_NAVQUERY(NavQuery, Filter.GetMaxSearchNodes());
 
-	const FVector NavExtent = GetModifiedQueryExtent(GetDefaultQueryExtent());
+	const FVector3f NavExtent = GetModifiedQueryExtent(GetDefaultQueryExtent());
 	const float Extent[3] = { NavExtent.X, NavExtent.Z, NavExtent.Y };
 
 	const dtQueryFilter* QueryFilter = ((const FRecastQueryFilter*)(Filter.GetImplementation()))->GetAsDetourQueryFilter();
 	ensure(QueryFilter);
 
-	FVector RecastStart = Unreal2RecastPoint(StartLoc);
-	FVector RecastAdjustedPoint = Unreal2RecastPoint(StartLoc);
+	FVector3f RecastStart = Unreal2RecastPoint(StartLoc);
+	FVector3f RecastAdjustedPoint = Unreal2RecastPoint(StartLoc);
 	NavNodeRef StartPolyID = INVALID_NAVNODEREF;
 	NavQuery.findNearestPoly(&RecastStart.X, Extent, QueryFilter, &StartPolyID, &RecastAdjustedPoint.X);
 
@@ -2453,15 +2453,15 @@ void ARecastNavMesh::BatchRaycast(TArray<FNavigationRaycastWork>& Workload, FSha
 		return;
 	}
 	
-	const FVector NavExtent = GetModifiedQueryExtent(GetDefaultQueryExtent());
+	const FVector3f NavExtent = GetModifiedQueryExtent(GetDefaultQueryExtent());
 	const float Extent[3] = { NavExtent.X, NavExtent.Z, NavExtent.Y };
 
 	for (FNavigationRaycastWork& WorkItem : Workload)
 	{
 		ARecastNavMesh::FRaycastResult RaycastResult;
 
-		const FVector RecastStart = Unreal2RecastPoint(WorkItem.RayStart);
-		const FVector RecastEnd = Unreal2RecastPoint(WorkItem.RayEnd);
+		const FVector3f RecastStart = Unreal2RecastPoint(WorkItem.RayStart);
+		const FVector3f RecastEnd = Unreal2RecastPoint(WorkItem.RayEnd);
 
 		NavNodeRef StartNode = INVALID_NAVNODEREF;
 		NavQuery.findNearestContainingPoly(&RecastStart.X, Extent, QueryFilter, &StartNode, NULL);

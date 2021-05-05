@@ -241,7 +241,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyAtmosphereInternalCommonParameters, )
 	SHADER_PARAMETER(float, AerialPespectiveViewDistanceScale)
 	SHADER_PARAMETER(float, FogShowFlagFactor)
 
-	SHADER_PARAMETER(FVector, SkyLuminanceFactor)
+	SHADER_PARAMETER(FVector3f, SkyLuminanceFactor)
 
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -1411,8 +1411,12 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 		const FAtmosphereSetup& AtmosphereSetup = SkyAtmosphereSceneProxy.GetAtmosphereSetup();
 		const FVector SkyViewLutReferentialForward = FVector(1.0f, 0.0f, 0.0f);
 		const FVector SkyViewLutReferentialRight = FVector(0.0f, 1.0f, 0.0f);
+		FVector SkyWorldCameraOrigin;
+		FMatrix SkyViewLutReferential;
 		AtmosphereSetup.ComputeViewData(Scene->SkyLight->CapturePosition, SkyViewLutReferentialForward, SkyViewLutReferentialRight,
-			ReflectionViewParameters.SkyWorldCameraOrigin, ReflectionViewParameters.SkyPlanetCenterAndViewHeight, ReflectionViewParameters.SkyViewLutReferential);
+			SkyWorldCameraOrigin, ReflectionViewParameters.SkyPlanetCenterAndViewHeight, SkyViewLutReferential);
+		ReflectionViewParameters.SkyWorldCameraOrigin = SkyWorldCameraOrigin;
+		ReflectionViewParameters.SkyViewLutReferential = SkyViewLutReferential;
 
 		FVolumetricCloudRenderSceneInfo* CloudInfo = Scene->GetVolumetricCloudSceneInfo();
 		FCloudShadowAOData CloudShadowAOData;

@@ -313,7 +313,7 @@ void FSceneRenderer::InitFogConstants()
 				}
 				
 				// Clamping the observer height to avoid numerical precision issues in the height fog equation. The max observer height is relative to the fog height.
-				const float ObserverHeight = FMath::Min(View.ViewMatrices.GetViewOrigin().Z, MaxObserverHeight);
+				const float ObserverHeight = FMath::Min<float>(View.ViewMatrices.GetViewOrigin().Z, MaxObserverHeight);
 
 				for (int i = 0; i < FExponentialHeightFogSceneInfo::NumFogs; i++)
 				{

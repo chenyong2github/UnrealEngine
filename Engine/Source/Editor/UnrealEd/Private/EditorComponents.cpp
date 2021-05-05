@@ -307,7 +307,7 @@ void FGridWidget::DrawNewGrid(const FSceneView* View, FPrimitiveDrawInterface* P
 	if(bIsPerspective)
 	{
 		// the higher we get the larger we make the geometry to give the illusion of an infinite grid while maintains the precision nearby
-		Radii *= FMath::Max( 1.0f, FMath::Abs(CameraPos.Z) / 1000.0f );
+		Radii *= FMath::Max<float>( 1.0f, FMath::Abs(CameraPos.Z) / 1000.0f );
 	}
 	else
 	{
@@ -533,7 +533,7 @@ void FEditorCommonDrawHelper::DrawOldGrid(const FSceneView* View,FPrimitiveDrawI
 }
 
 
-void FEditorCommonDrawHelper::DrawGridSection(float ViewportGridY,FVector* A,FVector* B,float* AX,float* BX,int32 Axis,const FSceneView* View,FPrimitiveDrawInterface* PDI )
+void FEditorCommonDrawHelper::DrawGridSection(float ViewportGridY,FVector* A,FVector* B, FVector::FReal* AX, FVector::FReal* BX,int32 Axis,const FSceneView* View,FPrimitiveDrawInterface* PDI )
 {
 	if( ViewportGridY == 0 )
 	{
@@ -629,7 +629,7 @@ void FEditorCommonDrawHelper::DrawGridSection(float ViewportGridY,FVector* A,FVe
 }
 
 
-void FEditorCommonDrawHelper::DrawOriginAxisLine(FVector* A,FVector* B,float* AX,float* BX,const FSceneView* View,FPrimitiveDrawInterface* PDI, const FLinearColor& Color)
+void FEditorCommonDrawHelper::DrawOriginAxisLine(FVector* A,FVector* B, FVector::FReal* AX, FVector::FReal* BX,const FSceneView* View,FPrimitiveDrawInterface* PDI, const FLinearColor& Color)
 {
 	// Draw world origin lines.  We draw these last so they appear on top of the other lines.
 	*AX = 0;

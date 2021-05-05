@@ -363,7 +363,7 @@ void FClothConstraints::SetLongRangeConstraints(const TMap<int32, TSet<int32>>& 
 	++NumConstraintRules;
 }
 
-void FClothConstraints::SetMaximumDistanceConstraints(const TConstArrayView<FReal>& MaxDistances)
+void FClothConstraints::SetMaximumDistanceConstraints(const TConstArrayView<FRealSingle>& MaxDistances)
 {
 	MaximumDistanceConstraints = MakeShared<FPBDSphericalConstraint>(
 		ParticleOffset,
@@ -373,7 +373,7 @@ void FClothConstraints::SetMaximumDistanceConstraints(const TConstArrayView<FRea
 	++NumConstraintRules;
 }
 
-void FClothConstraints::SetBackstopConstraints(const TConstArrayView<FReal>& BackstopDistances, const TConstArrayView<FReal>& BackstopRadiuses, bool bUseLegacyBackstop)
+void FClothConstraints::SetBackstopConstraints(const TConstArrayView<FRealSingle>& BackstopDistances, const TConstArrayView<FRealSingle>& BackstopRadiuses, bool bUseLegacyBackstop)
 {
 	BackstopConstraints = MakeShared<FPBDSphericalBackstopConstraint>(
 		ParticleOffset,
@@ -386,7 +386,7 @@ void FClothConstraints::SetBackstopConstraints(const TConstArrayView<FReal>& Bac
 	++NumConstraintRules;
 }
 
-void FClothConstraints::SetAnimDriveConstraints(const TConstArrayView<FReal>& AnimDriveStiffnessMultipliers, const TConstArrayView<FReal>& AnimDriveDampingMultipliers)
+void FClothConstraints::SetAnimDriveConstraints(const TConstArrayView<FRealSingle>& AnimDriveStiffnessMultipliers, const TConstArrayView<FRealSingle>& AnimDriveDampingMultipliers)
 {
 	AnimDriveConstraints = MakeShared<FPBDAnimDriveConstraint>(
 		ParticleOffset,

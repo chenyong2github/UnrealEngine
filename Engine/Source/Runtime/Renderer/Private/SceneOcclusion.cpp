@@ -490,14 +490,14 @@ FRHIRenderQuery* FOcclusionQueryBatcher::BatchPrimitive(const FVector& BoundsOri
 		check(OcclusionQueryPool);
 		CurrentBatchOcclusionQuery = new(BatchOcclusionQueries) FOcclusionBatch;
 		CurrentBatchOcclusionQuery->Query = OcclusionQueryPool->AllocateQuery();
-		CurrentBatchOcclusionQuery->VertexAllocation = DynamicVertexBuffer.Allocate(MaxBatchedPrimitives * 8 * sizeof(FVector));
+		CurrentBatchOcclusionQuery->VertexAllocation = DynamicVertexBuffer.Allocate(MaxBatchedPrimitives * 8 * sizeof(FVector3f));
 		check(CurrentBatchOcclusionQuery->VertexAllocation.IsValid());
 		NumBatchedPrimitives = 0;
 	}
 
 	// Add the primitive's bounding box to the current batch's vertex buffer.
-	const FVector PrimitiveBoxMin = BoundsOrigin - BoundsBoxExtent;
-	const FVector PrimitiveBoxMax = BoundsOrigin + BoundsBoxExtent;
+	const FVector3f PrimitiveBoxMin = FVector3f(BoundsOrigin - BoundsBoxExtent);
+	const FVector3f PrimitiveBoxMax = FVector3f(BoundsOrigin + BoundsBoxExtent);
 	float* RESTRICT Vertices = (float*)CurrentBatchOcclusionQuery->VertexAllocation.Buffer;
 	Vertices[ 0] = PrimitiveBoxMin.X; Vertices[ 1] = PrimitiveBoxMin.Y; Vertices[ 2] = PrimitiveBoxMin.Z;
 	Vertices[ 3] = PrimitiveBoxMin.X; Vertices[ 4] = PrimitiveBoxMin.Y; Vertices[ 5] = PrimitiveBoxMax.Z;
@@ -599,7 +599,7 @@ static void ExecutePointLightShadowOcclusionQuery(FRHICommandList& RHICmdList, F
 	RHICmdList.EndRenderQuery(ShadowOcclusionQuery);
 }
 
-static void PrepareDirectionalLightShadowOcclusionQuery(uint32& BaseVertexIndex, FVector* DestinationBuffer, const FViewInfo& View, const FProjectedShadowInfo& ProjectedShadowInfo)
+static void PrepareDirectionalLightShadowOcclusionQuery(uint32& BaseVertexIndex, FVector3f* DestinationBuffer, const FViewInfo& View, const FProjectedShadowInfo& ProjectedShadowInfo)
 {
 	const FMatrix& ViewMatrix = View.ShadowViewMatrices.GetViewMatrix();
 	const FMatrix& ProjectionMatrix = View.ShadowViewMatrices.GetProjectionMatrix();
@@ -615,7 +615,7 @@ static void PrepareDirectionalLightShadowOcclusionQuery(uint32& BaseVertexIndex,
 	const float StartVerticalLength = StartHorizontalLength / AspectRatio;
 	const FVector StartCameraUpOffset = ViewMatrix.GetColumn(1) * StartVerticalLength;
 
-	FVector Verts[4] =
+	FVector3f Verts[4] =
 	{
 		CameraDirection * SplitNear + StartCameraRightOffset + StartCameraUpOffset,
 		CameraDirection * SplitNear + StartCameraRightOffset - StartCameraUpOffset,
@@ -642,13 +642,13 @@ static void ExecuteDirectionalLightShadowOcclusionQuery(FRHICommandList& RHICmdL
 	RHICmdList.EndRenderQuery(ShadowOcclusionQuery);
 }
 
-static void PrepareProjectedShadowOcclusionQuery(uint32& BaseVertexIndex, FVector* DestinationBuffer, const FViewInfo& View, const FProjectedShadowInfo& ProjectedShadowInfo)
+static void PrepareProjectedShadowOcclusionQuery(uint32& BaseVertexIndex, FVector3f* DestinationBuffer, const FViewInfo& View, const FProjectedShadowInfo& ProjectedShadowInfo)
 {
 	// The shadow transforms and view transforms are relative to different origins, so the world coordinates need to
 	// be translated.
 	const FVector4 PreShadowToPreViewTranslation(View.ViewMatrices.GetPreViewTranslation() - ProjectedShadowInfo.PreShadowTranslation, 0);
 
-	FVector* Vertices = &DestinationBuffer[BaseVertexIndex];
+	FVector3f* Vertices = &DestinationBuffer[BaseVertexIndex];
 	// Generate vertices for the shadow's frustum.
 	for (uint32 Z = 0; Z < 2; Z++)
 	{
@@ -663,7 +663,7 @@ static void PrepareProjectedShadowOcclusionQuery(uint32& BaseVertexIndex, FVecto
 						(Z ?  0.0f : 1.0f),
 						1.0f)
 				);
-				const FVector ProjectedVertex = UnprojectedVertex / UnprojectedVertex.W + PreShadowToPreViewTranslation;
+				const FVector3f ProjectedVertex = UnprojectedVertex / UnprojectedVertex.W + PreShadowToPreViewTranslation;
 				Vertices[GetCubeVertexIndex(X, Y, Z)] = ProjectedVertex;
 			}
 		}
@@ -731,12 +731,12 @@ static bool AllocatePlanarReflectionOcclusionQuery(const FViewInfo& View, const 
 	return bAllowBoundsTest;
 }
 
-static void PreparePlanarReflectionOcclusionQuery(uint32& BaseVertexIndex, FVector* DestinationBuffer, const FViewInfo& View, const FPlanarReflectionSceneProxy* SceneProxy)
+static void PreparePlanarReflectionOcclusionQuery(uint32& BaseVertexIndex, FVector3f* DestinationBuffer, const FViewInfo& View, const FPlanarReflectionSceneProxy* SceneProxy)
 {
 	float* Vertices = (float*)(&DestinationBuffer[BaseVertexIndex]);
 
-	const FVector PrimitiveBoxMin = SceneProxy->WorldBounds.Min + View.ViewMatrices.GetPreViewTranslation();
-	const FVector PrimitiveBoxMax = SceneProxy->WorldBounds.Max + View.ViewMatrices.GetPreViewTranslation();
+	const FVector3f PrimitiveBoxMin = FVector3f(SceneProxy->WorldBounds.Min + View.ViewMatrices.GetPreViewTranslation());
+	const FVector3f PrimitiveBoxMax = FVector3f(SceneProxy->WorldBounds.Max + View.ViewMatrices.GetPreViewTranslation());
 	Vertices[0] = PrimitiveBoxMin.X; Vertices[1] = PrimitiveBoxMin.Y; Vertices[2] = PrimitiveBoxMin.Z;
 	Vertices[3] = PrimitiveBoxMin.X; Vertices[4] = PrimitiveBoxMin.Y; Vertices[5] = PrimitiveBoxMax.Z;
 	Vertices[6] = PrimitiveBoxMin.X; Vertices[7] = PrimitiveBoxMax.Y; Vertices[8] = PrimitiveBoxMin.Z;
@@ -940,7 +940,7 @@ public:
 		const float kHZBTestMaxMipmap = 9.0f;
 
 		const float HZBMipmapCounts = FMath::Log2(FMath::Max<float>(View.HZBMipmap0Size.X, View.HZBMipmap0Size.Y));
-		const FVector HZBUvFactorValue(
+		const FVector3f HZBUvFactorValue(
 			float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
 			float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y),
 			FMath::Max(HZBMipmapCounts - kHZBTestMaxMipmap, 0.0f)
@@ -1339,11 +1339,11 @@ static void BeginOcclusionTests(
 		{
 			uint32 BaseVertexOffset = 0;
 			FRHIResourceCreateInfo CreateInfo(TEXT("ViewOcclusionTests"));
-			FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector) * NumVertices, BUF_Volatile, CreateInfo);
-			void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector) * NumVertices, RLM_WriteOnly);
+			FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector3f) * NumVertices, BUF_Volatile, CreateInfo);
+			void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector3f) * NumVertices, RLM_WriteOnly);
 
 			{
-				FVector* Vertices = reinterpret_cast<FVector*>(VoidPtr);
+				FVector3f* Vertices = reinterpret_cast<FVector3f*>(VoidPtr);
 				for (FProjectedShadowInfo const* Query : ViewQuery.CSMQueryInfos)
 				{
 					PrepareDirectionalLightShadowOcclusionQuery(BaseVertexOffset, Vertices, View, *Query);

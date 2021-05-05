@@ -205,7 +205,7 @@ UMovieScene3DTransformSection* FMovieSceneComponentTransformTrail::GetAbsoluteTr
 
 FTransform FMovieSceneControlTransformTrail::EvaluateChannelsAtTime(TArrayView<FMovieSceneFloatChannel*> Channels, FFrameTime Time) const
 {
-	FVector TempTranslation;
+	FVector3f TempTranslation;
 	Channels[0]->Evaluate(Time, TempTranslation.X);
 	Channels[1]->Evaluate(Time, TempTranslation.Y);
 	Channels[2]->Evaluate(Time, TempTranslation.Z);
@@ -213,7 +213,7 @@ FTransform FMovieSceneControlTransformTrail::EvaluateChannelsAtTime(TArrayView<F
 	Channels[3]->Evaluate(Time, TempRotation.Roll);
 	Channels[4]->Evaluate(Time, TempRotation.Pitch);
 	Channels[5]->Evaluate(Time, TempRotation.Yaw);
-	FVector TempScale3D;
+	FVector3f TempScale3D;
 	Channels[6]->Evaluate(Time, TempScale3D.X);
 	Channels[7]->Evaluate(Time, TempScale3D.Y);
 	Channels[8]->Evaluate(Time, TempScale3D.Z);

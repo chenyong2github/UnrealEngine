@@ -17,7 +17,7 @@ void TryBulkSerializeManagedArray(Chaos::FChaosArchive& Ar, TArray<T>& Array)
 }
 
 //Note: see TArray::BulkSerialize for requirements
-inline void TryBulkSerializeManagedArray(Chaos::FChaosArchive& Ar, TArray<FVector>& Array)
+inline void TryBulkSerializeManagedArray(Chaos::FChaosArchive& Ar, TArray<FVector3f>& Array)
 {
 	Array.BulkSerialize(Ar);
 }

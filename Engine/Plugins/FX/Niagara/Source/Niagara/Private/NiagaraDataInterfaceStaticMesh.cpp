@@ -706,11 +706,11 @@ public:
 			if (Data)
 			{
 				const float InvDeltaTime = Data->DeltaSeconds > 0.0f ? 1.0f / Data->DeltaSeconds : 0.0f;
-				const FVector DeltaPosition = Data->Transform.GetOrigin() - Data->PrevTransform.GetOrigin();
+				const FVector3f DeltaPosition = Data->Transform.GetOrigin() - Data->PrevTransform.GetOrigin();
 
-				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransform, Data->Transform);
-				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransformInverseTransposed, Data->Transform.Inverse().GetTransposed());
-				SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevTransform, Data->PrevTransform);
+				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransform, (FMatrix44f)Data->Transform);
+				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransformInverseTransposed, (FMatrix44f)Data->Transform.Inverse().GetTransposed());
+				SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevTransform, (FMatrix44f)Data->PrevTransform);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceRotation, Data->Rotation);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevRotation, Data->PrevRotation);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceInvDeltaTime, InvDeltaTime);
@@ -719,13 +719,13 @@ public:
 			}
 			else
 			{
-				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransform, FMatrix::Identity);
-				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransformInverseTransposed, FMatrix::Identity);
-				SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevTransform, FMatrix::Identity);
+				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransform, FMatrix44f::Identity);
+				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransformInverseTransposed, FMatrix44f::Identity);
+				SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevTransform, FMatrix44f::Identity);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceRotation, FQuat::Identity);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevRotation, FQuat::Identity);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceInvDeltaTime, 1.0f);
-				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceWorldVelocity, FVector::ZeroVector);
+				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceWorldVelocity, FVector3f::ZeroVector);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, AreaWeightedSampling, 0);
 			}
 

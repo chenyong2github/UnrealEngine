@@ -160,7 +160,11 @@ public:
 			UnoccludedVector += SampleDirections[SampleIndex];
 		}
 
-		float BentNormalNormalizeFactorValue = 1.0f / (UnoccludedVector / NumConeSampleDirections).Size();
+		// LWC_TODO: Was float BentNormalNormalizeFactorValue = 1.0f / (UnoccludedVector / NumConeSampleDirections).Size();
+		// This causes "error C4723: potential divide by 0" in msvc, implying the compiler has managed to evaluate (UnoccludedVector / NumConeSampleDirections).Size() as 0 at compile time.
+		// Ensuring Size() is called in a seperate line stops the warning, but this needs investigating. Clang seems happy with it. Possible compiler bug?
+		float ConeSampleAverageSize = (UnoccludedVector / NumConeSampleDirections).Size();
+		float BentNormalNormalizeFactorValue = ConeSampleAverageSize ? 1.0f / ConeSampleAverageSize : 0.f;
 		SetShaderValue(RHICmdList, ShaderRHI, BentNormalNormalizeFactor, BentNormalNormalizeFactorValue);
 
 		FAOScreenGridResources* ScreenGridResources = View.ViewState->AOScreenGridResources;
@@ -286,7 +290,8 @@ public:
 			UnoccludedVector += SampleDirections[SampleIndex];
 		}
 
-		float BentNormalNormalizeFactorValue = 1.0f / (UnoccludedVector / NumConeSampleDirections).Size();
+		float ConeSampleAverageSize = (UnoccludedVector / NumConeSampleDirections).Size();
+		float BentNormalNormalizeFactorValue = ConeSampleAverageSize ? 1.0f / ConeSampleAverageSize : 0.f;
 		SetShaderValue(RHICmdList, ShaderRHI, BentNormalNormalizeFactor, BentNormalNormalizeFactorValue);
 
 		FAOScreenGridResources* ScreenGridResources = View.ViewState->AOScreenGridResources;
@@ -394,7 +399,8 @@ public:
 			UnoccludedVector += SampleDirections[SampleIndex];
 		}
 
-		float BentNormalNormalizeFactorValue = 1.0f / (UnoccludedVector / NumConeSampleDirections).Size();
+		float ConeSampleAverageSize = (UnoccludedVector / NumConeSampleDirections).Size();
+		float BentNormalNormalizeFactorValue = ConeSampleAverageSize ? 1.0f / ConeSampleAverageSize : 0.f;
 		SetShaderValue(RHICmdList, ShaderRHI, BentNormalNormalizeFactor, BentNormalNormalizeFactorValue);
 
 		FAOScreenGridResources* ScreenGridResources = View.ViewState->AOScreenGridResources;

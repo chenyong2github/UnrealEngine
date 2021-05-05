@@ -743,7 +743,7 @@ private:
 					RHICmdList,
 					ShaderRHI,
 					CloudShadowmapWorldToLightClipMatrix,
-					RenderLightParams->Cloud_WorldToLightClipShadowMatrix);
+					(FMatrix44f)RenderLightParams->Cloud_WorldToLightClipShadowMatrix);
 
 				SetShaderValue(
 					RHICmdList,

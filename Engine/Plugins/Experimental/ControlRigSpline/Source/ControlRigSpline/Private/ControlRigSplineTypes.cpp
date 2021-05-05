@@ -46,7 +46,8 @@ void FControlRigSpline::SetControlPoints(const TArray<FVector>& InPoints, const 
 				// so we need to iterate updating the points one by one.
 				for (int32 i = 0; i < ControlPointsCount; ++i)
 				{
-					ts_bspline_set_control_point_at(SplineData->Spline.data(), i, &InPoints[i].X, nullptr);
+					FVector3f Point = InPoints[i];
+					ts_bspline_set_control_point_at(SplineData->Spline.data(), i, &Point.X, nullptr);
 				}
 
 				break;
@@ -67,9 +68,9 @@ void FControlRigSpline::SetControlPoints(const TArray<FVector>& InPoints, const 
 						// This way the first and last point act as tangents
 						ControlPointsArray[i * 4 + 0] = (i - 1) / (float)(ControlPointsCount - 3);
 
-						ControlPointsArray[i * 4 + 1] = InPoints[i][0];
-						ControlPointsArray[i * 4 + 2] = InPoints[i][1];
-						ControlPointsArray[i * 4 + 3] = InPoints[i][2];
+						ControlPointsArray[i * 4 + 1] = (float)InPoints[i][0];
+						ControlPointsArray[i * 4 + 2] = (float)InPoints[i][1];
+						ControlPointsArray[i * 4 + 3] = (float)InPoints[i][2];
 					}
 
 					SplineData->Spline = tinyspline::BSpline(ControlPointsCount, 4);
@@ -82,9 +83,9 @@ void FControlRigSpline::SetControlPoints(const TArray<FVector>& InPoints, const 
 					ts_bspline_control_point_at(SplineData->Spline.data(), 0, &Ctrlp, nullptr);
 					for (int32 i = 0; i < ControlPointsCount; ++i)
 					{
-						Ctrlp[i * 4 + 1] = InPoints[i][0];
-						Ctrlp[i * 4 + 2] = InPoints[i][1];
-						Ctrlp[i * 4 + 3] = InPoints[i][2];
+						Ctrlp[i * 4 + 1] = (float)InPoints[i][0];
+						Ctrlp[i * 4 + 2] = (float)InPoints[i][1];
+						Ctrlp[i * 4 + 3] = (float)InPoints[i][2];
 					}
 				}
 

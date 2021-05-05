@@ -156,7 +156,7 @@ public:
 		// Shader assumes max 6
 		check(View.ViewFrustum.Planes.Num() <= 6);
 		SetShaderValue(RHICmdList, ShaderRHI, NumConvexHullPlanes, View.ViewFrustum.Planes.Num());
-		SetShaderValueArray(RHICmdList, ShaderRHI, ViewFrustumConvexHull, View.ViewFrustum.Planes.GetData(), View.ViewFrustum.Planes.Num());
+		SetShaderValueArray(RHICmdList, ShaderRHI, ViewFrustumConvexHull, LWC::DemoteArrayType<FPlane4f, FPlane, TInlineAllocator<6>>(View.ViewFrustum.Planes).GetData(), View.ViewFrustum.Planes.Num());	// LWC_TODO: Perf pessimization
 		SetShaderValue(RHICmdList, ShaderRHI, ObjectBoundingGeometryIndexCount, StencilingGeometry::GLowPolyStencilSphereIndexBuffer.GetIndexCount());
 	}
 

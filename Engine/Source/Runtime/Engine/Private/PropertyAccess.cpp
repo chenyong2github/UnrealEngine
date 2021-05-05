@@ -319,6 +319,11 @@ struct FPropertyAccessSystem
 			checkSlow(InDestProperty->IsA<FFloatProperty>());
 			static_cast<const FFloatProperty*>(InDestProperty)->SetPropertyValue(InDestAddr, (float)static_cast<const FBoolProperty*>(InSrcProperty)->GetPropertyValue(InSrcAddr));
 			break;
+		case EPropertyAccessCopyType::PromoteBoolToDouble:
+			checkSlow(InSrcProperty->IsA<FBoolProperty>());
+			checkSlow(InDestProperty->IsA<FDoubleProperty>());
+			static_cast<const FDoubleProperty*>(InDestProperty)->SetPropertyValue(InDestAddr, (double)static_cast<const FBoolProperty*>(InSrcProperty)->GetPropertyValue(InSrcAddr));
+			break;
 		case EPropertyAccessCopyType::PromoteByteToInt32:
 			checkSlow(InSrcProperty->IsA<FByteProperty>());
 			checkSlow(InDestProperty->IsA<FIntProperty>());
@@ -334,6 +339,11 @@ struct FPropertyAccessSystem
 			checkSlow(InDestProperty->IsA<FFloatProperty>());
 			static_cast<const FFloatProperty*>(InDestProperty)->SetPropertyValue(InDestAddr, (float)static_cast<const FByteProperty*>(InSrcProperty)->GetPropertyValue(InSrcAddr));
 			break;
+		case EPropertyAccessCopyType::PromoteByteToDouble:
+			checkSlow(InSrcProperty->IsA<FByteProperty>());
+			checkSlow(InDestProperty->IsA<FDoubleProperty>());
+			static_cast<const FDoubleProperty*>(InDestProperty)->SetPropertyValue(InDestAddr, (double)static_cast<const FByteProperty*>(InSrcProperty)->GetPropertyValue(InSrcAddr));
+			break;
 		case EPropertyAccessCopyType::PromoteInt32ToInt64:
 			checkSlow(InSrcProperty->IsA<FIntProperty>());
 			checkSlow(InDestProperty->IsA<FInt64Property>());
@@ -343,6 +353,21 @@ struct FPropertyAccessSystem
 			checkSlow(InSrcProperty->IsA<FIntProperty>());
 			checkSlow(InDestProperty->IsA<FFloatProperty>());
 			static_cast<const FFloatProperty*>(InDestProperty)->SetPropertyValue(InDestAddr, (float)static_cast<const FIntProperty*>(InSrcProperty)->GetPropertyValue(InSrcAddr));
+			break;
+		case EPropertyAccessCopyType::PromoteInt32ToDouble:
+			checkSlow(InSrcProperty->IsA<FIntProperty>());
+			checkSlow(InDestProperty->IsA<FDoubleProperty>());
+			static_cast<const FDoubleProperty*>(InDestProperty)->SetPropertyValue(InDestAddr, (double)static_cast<const FIntProperty*>(InSrcProperty)->GetPropertyValue(InSrcAddr));
+			break;
+		case EPropertyAccessCopyType::PromoteFloatToDouble:
+			checkSlow(InSrcProperty->IsA<FFloatProperty>());
+			checkSlow(InDestProperty->IsA<FDoubleProperty>());
+			static_cast<const FDoubleProperty*>(InDestProperty)->SetPropertyValue(InDestAddr, (double)static_cast<const FFloatProperty*>(InSrcProperty)->GetPropertyValue(InSrcAddr));
+			break;
+		case EPropertyAccessCopyType::DemoteDoubleToFloat:
+			checkSlow(InSrcProperty->IsA<FDoubleProperty>());
+			checkSlow(InDestProperty->IsA<FFloatProperty>());
+			static_cast<const FFloatProperty*>(InDestProperty)->SetPropertyValue(InDestAddr, (float)static_cast<const FDoubleProperty*>(InSrcProperty)->GetPropertyValue(InSrcAddr));
 			break;
 		default:
 			check(false);

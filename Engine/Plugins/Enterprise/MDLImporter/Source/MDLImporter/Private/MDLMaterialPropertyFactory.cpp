@@ -33,7 +33,7 @@ namespace MDLImporterImpl
 		}
 	};
 
-	void AddValueProperty(const FVector&                VectorProperty,
+	void AddValueProperty(const FVector3f&                VectorProperty,
 	                      const FString&                PropertyName,
 	                      Mat::EMaterialParameter       ParameterType,
 	                      TArray<FMDLMaterialProperty>& MaterialProperties)
@@ -161,7 +161,7 @@ namespace MDLImporterImpl
 		// emission properties
 		if (!AddTextureProperty(Material.Emission.Texture, TEXT("Emission Map"), Mat::EMaterialParameter::EmissionColorMap, MaterialProperties))
 		{
-			FVector EmissionColor = Material.Emission.Value;
+			FVector3f EmissionColor = Material.Emission.Value;
 			if (Material.Emission.WasValueBaked() && Material.EmissionStrength.Value > 0.f && EmissionColor.Size() > 0.1f)
 			{
 				AddValueProperty(

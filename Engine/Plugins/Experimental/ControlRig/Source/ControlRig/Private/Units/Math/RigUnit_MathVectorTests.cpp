@@ -6,11 +6,11 @@
 
 namespace FRigUnit_MathVectorTest_Utils
 {
-	bool IsNearlyEqual(const FVector& A, const FVector& B, float Tolerance = SMALL_NUMBER)
+	bool IsNearlyEqual(const FVector& A, const FVector& B, double Tolerance = SMALL_NUMBER)
 	{
-		return FMath::IsNearlyEqual(A.X, B.X, Tolerance) &&
-			FMath::IsNearlyEqual(A.Y, B.Y, Tolerance) &&
-			FMath::IsNearlyEqual(A.Z, B.Z, Tolerance);
+		return FMath::IsNearlyEqual(A.X, B.X, (FVector::FReal)Tolerance) &&
+			FMath::IsNearlyEqual(A.Y, B.Y, (FVector::FReal)Tolerance) &&
+			FMath::IsNearlyEqual(A.Z, B.Z, (FVector::FReal)Tolerance);
 	}
 };
 

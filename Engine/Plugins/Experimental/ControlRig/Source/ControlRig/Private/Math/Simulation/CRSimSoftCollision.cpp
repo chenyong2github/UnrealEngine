@@ -14,7 +14,7 @@ float FCRSimSoftCollision::CalculateFalloff(const FCRSimSoftCollision& InCollisi
 		case ECRSimSoftCollisionType::Plane:
 		{
 			OutDirection = Transform.TransformVectorNoScale(FVector(0.f, 0.f, 1.f));
-			Distance = FMath::Max(Transform.InverseTransformPosition(InPosition).Z - InSize, 0.f);
+			Distance = FMath::Max<float>(Transform.InverseTransformPosition(InPosition).Z - InSize, 0.f);
 			break;
 		}
 		case ECRSimSoftCollisionType::Sphere:

@@ -43,7 +43,8 @@ namespace Audio
 		int32 PopResult = InternalBuffer.Pop(OutBuffer, NumSamples);
 
 		// Apply gain stage.
-		if (FMath::IsNearlyEqual(TargetGain, PreviousGain))
+		float TG = TargetGain, PG = PreviousGain;
+		if (FMath::IsNearlyEqual(TG, PG))
 		{
 			MultiplyBufferByConstantInPlace(OutBuffer, PopResult, PreviousGain);
 		}
@@ -81,7 +82,8 @@ namespace Audio
 			PopResult = InternalBuffer.Pop(MixingBuffer.GetData(), NumSamples);
 		}
 
-		if (FMath::IsNearlyEqual(TargetGain, PreviousGain))
+		float TG = TargetGain, PG = PreviousGain;
+		if (FMath::IsNearlyEqual(TG, PG))
 		{
 			MixInBufferFast(MixingBuffer.GetData(), OutBuffer, PopResult, PreviousGain);
 		}

@@ -323,9 +323,9 @@ void BuildScaledVertexTable(float CellSize)
 }
 
 /** Applies Marching Cubes algorith to extract mesh information from the given voxelized grid */
-void MarchingCubes(uint8* VoxelizedGrid, int32 GridDimension, float CellSize, FVector VertexOffset, TArray<FVector>& OutVertices)
+void MarchingCubes(uint8* VoxelizedGrid, int32 GridDimension, float CellSize, FVector3f VertexOffset, TArray<FVector3f>& OutVertices)
 {
-	FVector Coords;
+	FVector3f Coords;
 	uint8* Vertices = nullptr;
 
 	const int32 GridDimensionSq = GridDimension * GridDimension;
@@ -375,7 +375,7 @@ void MarchingCubes(uint8* VoxelizedGrid, int32 GridDimension, float CellSize, FV
 				}
 
 				int32 Offset = OutVertices.AddUninitialized(NumVertices);
-				for (FVector* Vertex = OutVertices.GetData() + Offset, *SourceData = (FVector*)(Vertices + 1), *DataEnd = Vertex + NumVertices; Vertex != DataEnd; ++Vertex, ++SourceData)
+				for (FVector3f* Vertex = OutVertices.GetData() + Offset, *SourceData = (FVector3f*)(Vertices + 1), *DataEnd = Vertex + NumVertices; Vertex != DataEnd; ++Vertex, ++SourceData)
 				{
 					*Vertex = Coords + *SourceData;
 				}
@@ -417,7 +417,7 @@ void LidarPointCloudCollision::BuildCollisionMesh(FLidarPointCloudOctree* Octree
 	FThreadSafeCounter SampleIndex = 0;
 
 	// Data storage
-	TArray<TArray<FVector>> Vertices;
+	TArray<TArray<FVector3f>> Vertices;
 	Vertices.AddDefaulted(MaxNumThreads);
 	FThreadSafeCounter NumVertices = 0;
 
@@ -437,7 +437,7 @@ void LidarPointCloudCollision::BuildCollisionMesh(FLidarPointCloudOctree* Octree
 			ThreadResults.Add(Async(EAsyncExecution::TaskGraph, [t, &SampleIndex, &Vertices, &NumVertices, CollisionMesh, BatchSize, TotalNumSamples, NumSamples, BaseSamplingBounds, CellSize, OctreeConst, InversedCellSize, bVisibleOnly, LocationOffset]
 				{
 					// Local caching arrays to reduce number of syncs required
-					TArray<FVector> _Vertices;
+					TArray<FVector3f> _Vertices;
 
 					const int32 NumCellsSq = BatchSize * BatchSize;
 					const int32 NumCellsCu = NumCellsSq * BatchSize;
@@ -514,7 +514,7 @@ void LidarPointCloudCollision::BuildCollisionMesh(FLidarPointCloudOctree* Octree
 
 		for (int32 i = 0, Offset = 0; i < Vertices.Num(); ++i)
 		{
-			for (FVector* Vertex = Vertices[i].GetData(), *DataEnd = Vertex + Vertices[i].Num(); Vertex != DataEnd; ++Vertex, ++Indices)
+			for (FVector3f* Vertex = Vertices[i].GetData(), *DataEnd = Vertex + Vertices[i].Num(); Vertex != DataEnd; ++Vertex, ++Indices)
 			{
 				*Indices = TmpVertexData.Add(*Vertex, &bInSet).AsInteger();
 				if (!bInSet)
@@ -533,7 +533,7 @@ void LidarPointCloudCollision::BuildCollisionMesh(FLidarPointCloudOctree* Octree
 		CollisionMesh->Vertices.Empty(NumVertices.GetValue());
 		CollisionMesh->Vertices.AddUninitialized(NumVertices.GetValue());
 
-		FVector* Dest = CollisionMesh->Vertices.GetData();
+		FVector3f* Dest = CollisionMesh->Vertices.GetData();
 
 		for (int32 i = 0, Offset = 0; i < Vertices.Num(); ++i)
 		{

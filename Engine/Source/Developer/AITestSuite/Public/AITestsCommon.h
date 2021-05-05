@@ -153,15 +153,15 @@ DEFINE_EXPORTED_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(AITESTSUITE_API, FAITest
 //----------------------------------------------------------------------//
 // Specific test types
 //----------------------------------------------------------------------//
-template<class TComponent>
+template<class FReal>
 struct FAITest_SimpleComponentBasedTest : public FAITestBase
 {
 	FTestLogger<int32> Logger;
-	TComponent* Component;
+	FReal* Component;
 
 	FAITest_SimpleComponentBasedTest()
 	{
-		Component = NewAutoDestroyObject<TComponent>();
+		Component = NewAutoDestroyObject<FReal>();
 	}
 
 	virtual void SetTestRunner(FAutomationTestBase& AutomationTestInstance) override

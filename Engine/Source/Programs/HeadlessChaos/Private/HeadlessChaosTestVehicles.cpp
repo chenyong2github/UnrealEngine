@@ -1272,9 +1272,9 @@ namespace ChaosTest
 	}
 
 	float PlaneZPos = 1.0f;
-	bool RayCastPlane(FVec3& RayStart, FVec3& Direction, float Length, float& OutTime, FVec3& OutPosition, FVec3& OutNormal)
+	bool RayCastPlane(FVec3& RayStart, FVec3& Direction, float Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal)
 	{
-		TPlane<float, 3> Plane(FVec3(1), FVec3(0, 0, PlaneZPos));
+		TPlane<FReal, 3> Plane(FVec3(1), FVec3(0, 0, PlaneZPos));
 		int32 FaceIndex;
 
 		return Plane.Raycast(RayStart, Direction, Length, 0, OutTime, OutPosition, OutNormal, FaceIndex);
@@ -1394,7 +1394,7 @@ namespace ChaosTest
 				// raycast
 				FVec3 Start = Trace.Start;
 				FVec3 Dir = Trace.TraceDir();
-				float CurrentLength = Suspension.Setup().MaxLength;
+				FReal CurrentLength = Suspension.Setup().MaxLength;
 
 				FVec3 Position(0,0,0);
 				FVec3 Normal(0,0,0);

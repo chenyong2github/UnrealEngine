@@ -38,9 +38,9 @@ IMPLEMENT_MODULE(FQuadricSimplifierMeshReductionModule, QuadricMeshReduction);
 
 void CorrectAttributes( float* Attributes )
 {
-	FVector& Normal		= *reinterpret_cast< FVector* >( Attributes );
-	FVector& TangentX	= *reinterpret_cast< FVector* >( Attributes + 3 );
-	FVector& TangentY	= *reinterpret_cast< FVector* >( Attributes + 3 + 3 );
+	FVector3f& Normal		= *reinterpret_cast< FVector3f* >( Attributes );
+	FVector3f& TangentX	= *reinterpret_cast< FVector3f* >( Attributes + 3 );
+	FVector3f& TangentY	= *reinterpret_cast< FVector3f* >( Attributes + 3 + 3 );
 	FLinearColor& Color	= *reinterpret_cast< FLinearColor* >( Attributes + 3 + 3 + 3 );
 
 	Normal.Normalize();
@@ -97,9 +97,9 @@ public:
 		int32 NumFaces = InMesh.Triangles().Num();
 		int32 NumWedges = NumFaces * 3;
 		const FStaticMeshConstAttributes InMeshAttribute(InMesh);
-		TVertexAttributesConstRef<FVector> InVertexPositions = InMeshAttribute.GetVertexPositions();
-		TVertexInstanceAttributesConstRef<FVector> InVertexNormals = InMeshAttribute.GetVertexInstanceNormals();
-		TVertexInstanceAttributesConstRef<FVector> InVertexTangents = InMeshAttribute.GetVertexInstanceTangents();
+		TVertexAttributesConstRef<FVector3f> InVertexPositions = InMeshAttribute.GetVertexPositions();
+		TVertexInstanceAttributesConstRef<FVector3f> InVertexNormals = InMeshAttribute.GetVertexInstanceNormals();
+		TVertexInstanceAttributesConstRef<FVector3f> InVertexTangents = InMeshAttribute.GetVertexInstanceTangents();
 		TVertexInstanceAttributesConstRef<float> InVertexBinormalSigns = InMeshAttribute.GetVertexInstanceBinormalSigns();
 		TVertexInstanceAttributesConstRef<FVector4> InVertexColors = InMeshAttribute.GetVertexInstanceColors();
 		TVertexInstanceAttributesConstRef<FVector2D> InVertexUVs = InMeshAttribute.GetVertexInstanceUVs();
@@ -115,7 +115,7 @@ public:
 			const FPolygonGroupID PolygonGroupID = InMesh.GetTrianglePolygonGroup(TriangleID);
 			TArrayView<const FVertexID> VertexIDs = InMesh.GetTriangleVertices(TriangleID);
 
-			FVector CornerPositions[3];
+			FVector3f CornerPositions[3];
 			for (int32 TriVert = 0; TriVert < 3; ++TriVert)
 			{
 				const FVertexID TmpVertexID = VertexIDs[TriVert];
@@ -137,23 +137,23 @@ public:
 			{
 				const FVertexInstanceID VertexInstanceID = InMesh.GetTriangleVertexInstance(TriangleID, TriVert);
 				const int32 VertexInstanceValue = VertexInstanceID.GetValue();
-				const FVector& VertexPosition = CornerPositions[TriVert];
+				const FVector3f& VertexPosition = CornerPositions[TriVert];
 
 				TVertSimp< NumTexCoords > NewVert;
 
 				NewVert.Position = CornerPositions[TriVert];
 				NewVert.Tangents[0] = InVertexTangents[ VertexInstanceID ];
 				NewVert.Normal = InVertexNormals[ VertexInstanceID ];
-				NewVert.Tangents[1] = FVector(0.0f);
+				NewVert.Tangents[1] = FVector3f(0.0f);
 				if (!NewVert.Normal.IsNearlyZero(SMALL_NUMBER) && !NewVert.Tangents[0].IsNearlyZero(SMALL_NUMBER))
 				{
-					NewVert.Tangents[1] = FVector::CrossProduct(NewVert.Normal, NewVert.Tangents[0]).GetSafeNormal() * InVertexBinormalSigns[ VertexInstanceID ];
+					NewVert.Tangents[1] = FVector3f::CrossProduct(NewVert.Normal, NewVert.Tangents[0]).GetSafeNormal() * InVertexBinormalSigns[ VertexInstanceID ];
 				}
 
 				// Fix bad tangents
-				NewVert.Tangents[0] = NewVert.Tangents[0].ContainsNaN() ? FVector::ZeroVector : NewVert.Tangents[0];
-				NewVert.Tangents[1] = NewVert.Tangents[1].ContainsNaN() ? FVector::ZeroVector : NewVert.Tangents[1];
-				NewVert.Normal = NewVert.Normal.ContainsNaN() ? FVector::ZeroVector : NewVert.Normal;
+				NewVert.Tangents[0] = NewVert.Tangents[0].ContainsNaN() ? FVector3f::ZeroVector : NewVert.Tangents[0];
+				NewVert.Tangents[1] = NewVert.Tangents[1].ContainsNaN() ? FVector3f::ZeroVector : NewVert.Tangents[1];
+				NewVert.Normal = NewVert.Normal.ContainsNaN() ? FVector3f::ZeroVector : NewVert.Normal;
 				NewVert.Color = FLinearColor(InVertexColors[ VertexInstanceID ]);
 
 				for (int32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++)
@@ -215,9 +215,9 @@ public:
 			}
 
 			{
-				FVector Edge01 = CornerPositions[1] - CornerPositions[0];
-				FVector Edge12 = CornerPositions[2] - CornerPositions[1];
-				FVector Edge20 = CornerPositions[0] - CornerPositions[2];
+				FVector3f Edge01 = CornerPositions[1] - CornerPositions[0];
+				FVector3f Edge12 = CornerPositions[2] - CornerPositions[1];
+				FVector3f Edge20 = CornerPositions[0] - CornerPositions[2];
 
 				float TriArea = 0.5f * ( Edge01 ^ Edge20 ).Size();
 				SurfaceArea += TriArea;
@@ -236,7 +236,7 @@ public:
 
 #if 0
 		static_assert(NumTexCoords == 8, "NumTexCoords changed, fix AttributeWeights");
-		const uint32 NumAttributes = (sizeof(TVertSimp< NumTexCoords >) - sizeof(FVector)) / sizeof(float);
+		const uint32 NumAttributes = (sizeof(TVertSimp< NumTexCoords >) - sizeof(FVector3f)) / sizeof(float);
 		float AttributeWeights[] =
 		{
 			16.0f, 16.0f, 16.0f,	// Normal
@@ -353,7 +353,7 @@ public:
 			float PositionScale = Scale.FloatValue;
 
 
-			const uint32 NumAttributes = ( sizeof( VertType ) - sizeof( FVector ) ) / sizeof(float);
+			const uint32 NumAttributes = ( sizeof( VertType ) - sizeof( FVector3f ) ) / sizeof(float);
 			float AttributeWeights[ NumAttributes ] =
 			{
 				1.0f, 1.0f, 1.0f,		// Normal
@@ -451,7 +451,7 @@ public:
 				OutPolygonGroupMaterialNames[PolygonGroupID] = InPolygonGroupMaterialNames[PolygonGroupID];
 			}
 
-			TVertexAttributesRef<FVector> OutVertexPositions = OutReducedMesh.GetVertexPositions();
+			TVertexAttributesRef<FVector3f> OutVertexPositions = OutReducedMesh.GetVertexPositions();
 
 			//Fill the vertex array
 			for (int32 VertexIndex = 0; VertexIndex < (int32)NumVerts; ++VertexIndex)
@@ -464,8 +464,8 @@ public:
 			TMap<int32, FPolygonGroupID> PolygonGroupMapping;
 
 			FStaticMeshAttributes Attributes(OutReducedMesh);
-			TVertexInstanceAttributesRef<FVector> OutVertexNormals = Attributes.GetVertexInstanceNormals();
-			TVertexInstanceAttributesRef<FVector> OutVertexTangents = Attributes.GetVertexInstanceTangents();
+			TVertexInstanceAttributesRef<FVector3f> OutVertexNormals = Attributes.GetVertexInstanceNormals();
+			TVertexInstanceAttributesRef<FVector3f> OutVertexTangents = Attributes.GetVertexInstanceTangents();
 			TVertexInstanceAttributesRef<float> OutVertexBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 			TVertexInstanceAttributesRef<FVector4> OutVertexColors = Attributes.GetVertexInstanceColors();
 			TVertexInstanceAttributesRef<FVector2D> OutVertexUVs = Attributes.GetVertexInstanceUVs();
@@ -486,7 +486,7 @@ public:
 					CornerInstanceIDs[CornerIndex] = VertexInstanceID;
 					int32 ControlPointIndex = Indexes[VertexInstanceIndex];
 					const FVertexID VertexID(ControlPointIndex);
-					//FVector VertexPosition = OutReducedMesh.GetVertex(VertexID).VertexPosition;
+					//FVector3f VertexPosition = OutReducedMesh.GetVertex(VertexID).VertexPosition;
 					CornerVerticesIDs[CornerIndex] = VertexID;
 					FVertexInstanceID AddedVertexInstanceId = OutReducedMesh.CreateVertexInstance(VertexID);
 					//Make sure the Added vertex instance ID is matching the expected vertex instance ID

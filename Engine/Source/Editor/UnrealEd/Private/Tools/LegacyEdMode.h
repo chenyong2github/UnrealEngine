@@ -15,7 +15,7 @@ struct FRotator;
 class FEditorModeTools;
 class FEdMode;
 class UTexture2D;
-struct FVector;
+DECLARE_LWC_TYPE(Vector, 3);
 struct FBox;
 struct FRotator;
 class FEditorViewportClient;

@@ -134,7 +134,7 @@ void UAnimCompress::UnalignedWriteToStream(TArray<uint8>& ByteStream, int32& Str
 void UAnimCompress::PackVectorToStream(
 	TArray<uint8>& ByteStream,
 	AnimationCompressionFormat Format,
-	const FVector& Vec,
+	const FVector3f& Vec,
 	const float* Mins,
 	const float* Ranges)
 {
@@ -356,8 +356,8 @@ void UAnimCompress::BitwiseCompressAnimationTracks(
 			// Calculate the bounding box of the translation keys
 			FBox PositionBounds(SrcTrans.PosKeys);
 
-			float TransMins[3] = { PositionBounds.Min.X, PositionBounds.Min.Y, PositionBounds.Min.Z };
-			float TransRanges[3] = { PositionBounds.Max.X - PositionBounds.Min.X, PositionBounds.Max.Y - PositionBounds.Min.Y, PositionBounds.Max.Z - PositionBounds.Min.Z };
+			float TransMins[3] = { (float)PositionBounds.Min.X, (float)PositionBounds.Min.Y, (float)PositionBounds.Min.Z };
+			float TransRanges[3] = { float(PositionBounds.Max.X - PositionBounds.Min.X), float(PositionBounds.Max.Y - PositionBounds.Min.Y), float(PositionBounds.Max.Z - PositionBounds.Min.Z) };
 			if (TransRanges[0] == 0.f) { TransRanges[0] = 1.f; }
 			if (TransRanges[1] == 0.f) { TransRanges[1] = 1.f; }
 			if (TransRanges[2] == 0.f) { TransRanges[2] = 1.f; }
@@ -374,7 +374,7 @@ void UAnimCompress::BitwiseCompressAnimationTracks(
 				// Pack the positions into the stream
 				for (int32 KeyIndex = 0; KeyIndex < NumKeysTrans; ++KeyIndex)
 				{
-					const FVector& Vec = SrcTrans.PosKeys[KeyIndex];
+					const FVector3f& Vec = SrcTrans.PosKeys[KeyIndex];
 					PackVectorToStream(AnimData.CompressedByteStream, TargetTranslationFormat, Vec, TransMins, TransRanges);
 				}
 
@@ -412,7 +412,7 @@ void UAnimCompress::BitwiseCompressAnimationTracks(
 			else if (NumKeysTrans == 1)
 			{
 				// A single translation key gets written out a single uncompressed float[3].
-				UnalignedWriteToStream(AnimData.CompressedByteStream, &(SrcTrans.PosKeys[0]), sizeof(FVector));
+				UnalignedWriteToStream(AnimData.CompressedByteStream, &(SrcTrans.PosKeys[0]), sizeof(FVector3f));
 			}
 			else
 			{
@@ -543,8 +543,8 @@ void UAnimCompress::BitwiseCompressAnimationTracks(
 				// Calculate the bounding box of the Scalelation keys
 				FBox ScaleBoundsBounds(SrcScale.ScaleKeys);
 
-				float ScaleMins[3] = { ScaleBoundsBounds.Min.X, ScaleBoundsBounds.Min.Y, ScaleBoundsBounds.Min.Z };
-				float ScaleRanges[3] = { ScaleBoundsBounds.Max.X - ScaleBoundsBounds.Min.X, ScaleBoundsBounds.Max.Y - ScaleBoundsBounds.Min.Y, ScaleBoundsBounds.Max.Z - ScaleBoundsBounds.Min.Z };
+				float ScaleMins[3] = { (float)ScaleBoundsBounds.Min.X, (float)ScaleBoundsBounds.Min.Y, (float)ScaleBoundsBounds.Min.Z };
+				float ScaleRanges[3] = { float(ScaleBoundsBounds.Max.X - ScaleBoundsBounds.Min.X), float(ScaleBoundsBounds.Max.Y - ScaleBoundsBounds.Min.Y), float(ScaleBoundsBounds.Max.Z - ScaleBoundsBounds.Min.Z) };
 				// @todo - this isn't good for scale 
 				// 			if ( ScaleRanges[0] == 0.f ) { ScaleRanges[0] = 1.f; }
 				// 			if ( ScaleRanges[1] == 0.f ) { ScaleRanges[1] = 1.f; }
@@ -562,7 +562,7 @@ void UAnimCompress::BitwiseCompressAnimationTracks(
 					// Pack the positions into the stream
 					for (int32 KeyIndex = 0; KeyIndex < NumKeysScale; ++KeyIndex)
 					{
-						const FVector& Vec = SrcScale.ScaleKeys[KeyIndex];
+						const FVector3f& Vec = SrcScale.ScaleKeys[KeyIndex];
 						PackVectorToStream(AnimData.CompressedByteStream, TargetScaleFormat, Vec, ScaleMins, ScaleRanges);
 					}
 
@@ -600,7 +600,7 @@ void UAnimCompress::BitwiseCompressAnimationTracks(
 				else if (NumKeysScale == 1)
 				{
 					// A single Scalelation key gets written out a single uncompressed float[3].
-					UnalignedWriteToStream(AnimData.CompressedByteStream, &(SrcScale.ScaleKeys[0]), sizeof(FVector));
+					UnalignedWriteToStream(AnimData.CompressedByteStream, &(SrcScale.ScaleKeys[0]), sizeof(FVector3f));
 				}
 				else
 				{
@@ -725,12 +725,12 @@ void UAnimCompress::FilterTrivialPositionKeys(
 	// Only bother doing anything if we have some keys!
 	if( KeyCount > 1 )
 	{
-		const FVector& FirstPos = Track.PosKeys[0];
+		const FVector3f& FirstPos = Track.PosKeys[0];
 
 		bool bFramesIdentical = true;
 		for(int32 KeyIndex=1; KeyIndex < KeyCount; ++KeyIndex)
 		{
-			const FVector& ThisPos = Track.PosKeys[KeyIndex];
+			const FVector3f& ThisPos = Track.PosKeys[KeyIndex];
 
 			if( FMath::Abs(ThisPos.X - FirstPos.X) > MaxPosDelta || 
 				FMath::Abs(ThisPos.Y - FirstPos.Y) > MaxPosDelta || 
@@ -776,12 +776,12 @@ void UAnimCompress::FilterTrivialScaleKeys(
 	// Only bother doing anything if we have some keys!
 	if( KeyCount > 1 )
 	{
-		const FVector& FirstPos = Track.ScaleKeys[0];
+		const FVector3f& FirstPos = Track.ScaleKeys[0];
 
 		bool bFramesIdentical = true;
 		for(int32 KeyIndex=1; KeyIndex < KeyCount; ++KeyIndex)
 		{
-			const FVector& ThisPos = Track.ScaleKeys[KeyIndex];
+			const FVector3f& ThisPos = Track.ScaleKeys[KeyIndex];
 
 			if( FMath::Abs(ThisPos.X - FirstPos.X) > MaxScaleDelta || 
 				FMath::Abs(ThisPos.Y - FirstPos.Y) > MaxScaleDelta || 
@@ -887,7 +887,7 @@ void UAnimCompress::FilterIntermittentPositionKeys(
 
 	check(Track.Times.Num() == Track.PosKeys.Num());
 
-	TArray<FVector> NewPosKeys;
+	TArray<FVector3f> NewPosKeys;
 	TArray<float> NewTimes;
 
 	NewTimes.Empty(KeyCount);

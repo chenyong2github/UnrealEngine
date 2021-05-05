@@ -41,7 +41,7 @@ struct FFoliageInstancePlacementInfo
 	FVector Location;
 	FRotator Rotation;
 	FRotator PreAlignRotation;
-	FVector DrawScale3D;
+	FVector3f DrawScale3D;
 	float ZOffset;
 	uint32 Flags;
 

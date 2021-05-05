@@ -24,7 +24,7 @@ namespace ChaosTest
 
 	void TestAnglesDeg(const SwingTwistCase& Case, FReal A0, FReal A1, FReal Tolerance)
 	{
-		if (!(FMath::IsNearlyEqual(FMath::Abs(A0 - A1), 0.0f, Tolerance) || FMath::IsNearlyEqual(FMath::Abs(A0 - A1), 360.0f, Tolerance)))
+		if (!(FMath::IsNearlyEqual(FMath::Abs(A0 - A1), (FReal)0., Tolerance) || FMath::IsNearlyEqual(FMath::Abs(A0 - A1), (FReal)360., Tolerance)))
 		{
 			GTEST_FAIL() << "Angle Test Fail: " << A0 << " != " << A1 << " " << Case;
 		}

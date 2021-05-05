@@ -253,7 +253,7 @@ FVector GetWorldVelocityAtPoint(const Chaos::FRigidBodyHandle_Internal* RigidHan
 {
 	if (RigidHandle)
 	{
-		const Chaos::FVec3 COM = RigidHandle ? Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(RigidHandle) : Chaos::FParticleUtilitiesGT::GetActorWorldTransform(RigidHandle).GetTranslation();
+		const Chaos::FVec3 COM = RigidHandle ? Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(RigidHandle) : (Chaos::FVec3)Chaos::FParticleUtilitiesGT::GetActorWorldTransform(RigidHandle).GetTranslation();
 		const Chaos::FVec3 Diff = WorldLocation - COM;
 		return RigidHandle->V() - Chaos::FVec3::CrossProduct(Diff, RigidHandle->W());
 	}
@@ -483,7 +483,7 @@ void UChaosVehicleSimulation::AddForce(const FVector& Force, bool bAllowSubstepp
 			if (bAccelChange)
 			{
 				const float RigidMass = RigidHandle->M();
-				const Chaos::TVector<float, 3> Acceleration = Force * RigidMass;
+				const Chaos::FVec3 Acceleration = Force * RigidMass;
 				RigidHandle->AddForce(Acceleration);
 			}
 			else

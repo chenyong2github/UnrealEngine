@@ -79,8 +79,8 @@ public:
 	TManagedArray<int32> CollisionStructureID;
 	TManagedArray<int32> DynamicState;
 	TManagedArray<FSharedImplicit> Implicits;
-	TManagedArray<FVector> InitialAngularVelocity;
-	TManagedArray<FVector> InitialLinearVelocity;
+	TManagedArray<FVector3f> InitialAngularVelocity;
+	TManagedArray<FVector3f> InitialLinearVelocity;
 	TManagedArray<FTransform> MassToLocal;
 	//TManagedArray<TArray<FCollisionFilterData>> ShapeQueryData;
 	//TManagedArray<TArray<FCollisionFilterData>> ShapeSimData;
@@ -159,7 +159,7 @@ public:
 	TManagedArray<int32> SimulationType;
 	TManagedArray<int32> DynamicState;
 	TManagedArray<float> Mass;
-	TManagedArray<FVector> InertiaTensor;
+	TManagedArray<FVector3f> InertiaTensor;
 
 	TManagedArray<int32> ClusterId;
 

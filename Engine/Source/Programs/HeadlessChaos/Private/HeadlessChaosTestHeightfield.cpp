@@ -293,9 +293,9 @@ namespace ChaosTest {
 		Heights.AddZeroed(Rows * Columns);
 
 		// Stolen from Heightfield.cpp
-		TUniqueFunction<FReal(const uint16)> ConversionFunc = [](const FReal InVal) -> float
+		TUniqueFunction<FReal(const uint16)> ConversionFunc = [](const FReal InVal) -> FReal
 		{
-			return (float)((int32)InVal - 32768);
+			return (FReal)((int32)InVal - 32768);
 		};
 
 
@@ -328,9 +328,9 @@ namespace ChaosTest {
 		Col = 2;
 		ModifiedHeights[Row * (InCols) + Col] = 45000;
 
-		float ExpectedMaxRealHeight = ConversionFunc(45000);
-		float ExpectedMinRealHeight = ConversionFunc(InitialHeight);
-		float ExpectedRange = ExpectedMaxRealHeight - ExpectedMinRealHeight;
+		FReal ExpectedMaxRealHeight = ConversionFunc(45000);
+		FReal ExpectedMinRealHeight = ConversionFunc(InitialHeight);
+		FReal ExpectedRange = ExpectedMaxRealHeight - ExpectedMinRealHeight;
 
 		int32 RowBegin = 3;
 		int32 ColBegin = 4;
@@ -359,10 +359,10 @@ namespace ChaosTest {
 					int32 ModifiedIdx = ModifiedRowIdx * InCols + ModifiedColIdx;
 
 					int32 HeightIdx = RowIdx * Columns + (Columns - 1 - ColIdx); // Remember that modified heights buffer uses inverted col index
-					float HeightReal = GeomData.MinValue + GeomData.Heights[HeightIdx] * GeomData.HeightPerUnit;
+					FReal HeightReal = GeomData.MinValue + GeomData.Heights[HeightIdx] * GeomData.HeightPerUnit;
 
 					uint16 ModifiedHeight = ModifiedHeights[ModifiedIdx];
-					float ModifiedHeightReal = ConversionFunc(ModifiedHeight);
+					FReal ModifiedHeightReal = ConversionFunc(ModifiedHeight);
 					EXPECT_NEAR(ModifiedHeightReal, HeightReal, 1);
 				}
 				else

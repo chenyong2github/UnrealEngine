@@ -54,7 +54,7 @@ public:
 	{
 	}
 
-	FORCEINLINE void Register(const FVector& Coded, const FVector& Original)
+	FORCEINLINE void Register(const FVector3f& Coded, const FVector3f& Original)
 	{
 		SumSquaredX += (Original.X - Coded.X)*(Original.X - Coded.X);
 		SumSquaredY += (Original.Y - Coded.Y)*(Original.Y - Coded.Y);
@@ -65,7 +65,7 @@ public:
 	// Mean Squared Error
 	FORCEINLINE float ReadMSE()
 	{
-		FVector MSE(SumSquaredX / Num, SumSquaredY / Num, SumSquaredZ / Num);
+		FVector3f MSE(SumSquaredX / Num, SumSquaredY / Num, SumSquaredZ / Num);
 		return (MSE.X + MSE.Y + MSE.Z) / 3.0f;
 	}
 
@@ -203,7 +203,7 @@ private:
 	/** Encode a buffer with vertex indices */
 	void EncodeIndexStream(const uint32* Stream, uint64 ElementOffsetBytes, uint32 ElementCount, FStreamEncodingStatistics& Stats);
 	/** Encode a buffer with vertex positions */
-	void EncodePositionStream(const FVector* VertexStream, uint64 VertexElementOffset, uint32 VertexElementCount, FStreamEncodingStatistics& Stats);
+	void EncodePositionStream(const FVector3f* VertexStream, uint64 VertexElementOffset, uint32 VertexElementCount, FStreamEncodingStatistics& Stats);
 	/** Encode a buffer with vertex colors */
 	void EncodeColorStream(const FColor* Stream, uint64 ElementOffsetBytes, uint32 ElementCount, FStreamEncodingStatistics& Stats);
 	/** Encode a buffer with vertex normals */
@@ -211,7 +211,7 @@ private:
 	/** Encode a buffer with vertex texture coordinates */
 	void EncodeUVStream(const FVector2D* Stream, uint64 ElementOffsetBytes, uint32 ElementCount, FStreamEncodingStatistics& Stats);
 	/** Encode a buffer with vertex motion vectors */
-	void EncodeMotionVectorStream(const FVector* Stream, uint64 ElementOffsetBytes, uint32 ElementCount, FStreamEncodingStatistics& Stats);
+	void EncodeMotionVectorStream(const FVector3f* Stream, uint64 ElementOffsetBytes, uint32 ElementCount, FStreamEncodingStatistics& Stats);
 
 	/** Find the best prediction mode for a vertex position and predict according to that mode */
 	FORCEINLINE FIntVector FindModeAndPredictVertex(const FIntVector& ValueToCode, uint32 CornerIndex, uint32 PreviousTriangleRotationOffsets[3], FRingBuffer<FIntVector, VertexStreamCodingVertexHistorySize>& ReconstructedVertexHistory, uint32& ChosenMode);
@@ -303,7 +303,7 @@ private:
 	/** Decode a buffer of vertex indices from abitstream */
 	void DecodeIndexStream(FHuffmanBitStreamReader& Reader, uint32* Stream, uint64 ElementOffset, uint32 ElementCount);
 	/** Decode a buffer of vertex positions from a bitstream */
-	void DecodePositionStream(FHuffmanBitStreamReader& Reader, FVector* VertexStream, uint64 VertexElementOffset, uint32 VertexElementCount);
+	void DecodePositionStream(FHuffmanBitStreamReader& Reader, FVector3f* VertexStream, uint64 VertexElementOffset, uint32 VertexElementCount);
 	/** Decode a buffer of vertex colors from a bitstream */
 	void DecodeColorStream(FHuffmanBitStreamReader& Reader, FColor* Stream, uint64 ElementOffset, uint32 ElementCount);
 	/** Decode a buffer of vertex normals from a bitstream */
@@ -311,7 +311,7 @@ private:
 	/** Decode a buffer of vertex texture coordinates from a bitstream */
 	void DecodeUVStream(FHuffmanBitStreamReader& Reader, FVector2D* Stream, uint64 ElementOffset, uint32 ElementCount);
 	/** Decode a buffer of vertex motion vectors from a bitstream */
-	void DecodeMotionVectorStream(FHuffmanBitStreamReader& Reader, FVector* Stream, uint64 ElementOffset, uint32 ElementCount);
+	void DecodeMotionVectorStream(FHuffmanBitStreamReader& Reader, FVector3f* Stream, uint64 ElementOffset, uint32 ElementCount);
 	
 	/** Initialize and read Huffman tables from a bitstream */
 	void SetupAndReadTables(FHuffmanBitStreamReader& Reader);

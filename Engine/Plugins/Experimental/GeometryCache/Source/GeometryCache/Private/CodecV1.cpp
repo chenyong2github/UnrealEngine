@@ -173,22 +173,22 @@ public:
 
 	/** Initialize with a range and a number of bits. NumBits determines the number of bins we have,
 		and Range determines the sizes of the bins. */
-	FQuantizerVector3(const FVector& Range, int32 Bits) : Quantizer(Range.GetMax(), Bits)
+	FQuantizerVector3(const FVector3f& Range, int32 Bits) : Quantizer(Range.GetMax(), Bits)
 	{
 	}
 
 #if WITH_EDITOR
 	/** Quantize a value */
-	FORCEINLINE FIntVector Quantize(const FVector& Value)
+	FORCEINLINE FIntVector Quantize(const FVector3f& Value)
 	{
 		return FIntVector(Quantizer.QuantizeFloat(Value.X), Quantizer.QuantizeFloat(Value.Y), Quantizer.QuantizeFloat(Value.Z));
 	}
 #endif // WITH_EDITOR
 
 	/** Dequantize a quantized value */
-	FORCEINLINE FVector Dequantize(const FIntVector& Value)
+	FORCEINLINE FVector3f Dequantize(const FIntVector& Value)
 	{
-		return FVector(Quantizer.DequantizeFloat(Value.X), Quantizer.DequantizeFloat(Value.Y), Quantizer.DequantizeFloat(Value.Z));
+		return FVector3f(Quantizer.DequantizeFloat(Value.X), Quantizer.DequantizeFloat(Value.Y), Quantizer.DequantizeFloat(Value.Z));
 	}
 
 private:
@@ -264,7 +264,7 @@ void FCodecV1Encoder::EncodeIndexStream(const uint32* Stream, uint64 ElementOffs
 	Stats = FStreamEncodingStatistics(ByteCounter.Read(), ElementCount * sizeof(uint32), Quality);
 }
 
-void FCodecV1Encoder::EncodePositionStream(const FVector* VertexStream, uint64 VertexElementOffset, uint32 VertexElementCount, FStreamEncodingStatistics& Stats)
+void FCodecV1Encoder::EncodePositionStream(const FVector3f* VertexStream, uint64 VertexElementOffset, uint32 VertexElementCount, FStreamEncodingStatistics& Stats)
 {
 	FBitstreamWriterByteCounter ByteCounter(EncodingContext.Writer);
 
@@ -295,7 +295,7 @@ void FCodecV1Encoder::EncodePositionStream(const FVector* VertexStream, uint64 V
 	for (uint32 ElementIdx = 0; ElementIdx < VertexElementCount; ++ElementIdx)
 	{
 		// Code a newly encountered vertex
-		FVector VertexValue = *(FVector*)RawElementDataVertices;
+		FVector3f VertexValue = *(FVector3f*)RawElementDataVertices;
 		RawElementDataVertices += VertexElementOffset;
 
 		// Quantize
@@ -316,13 +316,13 @@ void FCodecV1Encoder::EncodePositionStream(const FVector* VertexStream, uint64 V
 		FIntVector Reconstructed = Prediction + Residual;
 
 		// Calculate error
-		FVector DequantReconstructed = Quantizer.Dequantize(Reconstructed);
+		FVector3f DequantReconstructed = Quantizer.Dequantize(Reconstructed);
 		QualityMetric.Register(VertexValue, DequantReconstructed);
 		Prediction = Reconstructed;
 	}
 
 	// Gather rate and quality statistics
-	Stats = FStreamEncodingStatistics(ByteCounter.Read(), VertexElementCount * sizeof(FVector), QualityMetric.ReadMSE());
+	Stats = FStreamEncodingStatistics(ByteCounter.Read(), VertexElementCount * sizeof(FVector3f), QualityMetric.ReadMSE());
 }
 
 void FCodecV1Encoder::EncodeColorStream(const FColor* Stream, uint64 ElementOffsetBytes, uint32 ElementCount, FStreamEncodingStatistics& Stats)
@@ -453,7 +453,7 @@ void FCodecV1Encoder::EncodeUVStream(const FVector2D* Stream, uint64 ElementOffs
 	Stats = FStreamEncodingStatistics(ByteCounter.Read(), ElementCount * sizeof(FVector2D), QualityMetric.ReadMSE());
 }
 
-void FCodecV1Encoder::EncodeMotionVectorStream(const FVector* Stream, uint64 ElementOffsetBytes, uint32 ElementCount, FStreamEncodingStatistics& Stats)
+void FCodecV1Encoder::EncodeMotionVectorStream(const FVector3f* Stream, uint64 ElementOffsetBytes, uint32 ElementCount, FStreamEncodingStatistics& Stats)
 {
 	FBitstreamWriterByteCounter ByteCounter(EncodingContext.Writer);
 
@@ -474,7 +474,7 @@ void FCodecV1Encoder::EncodeMotionVectorStream(const FVector* Stream, uint64 Ele
 	for (uint32 ElementIdx = 0; ElementIdx < ElementCount; ++ElementIdx, RawElementData += ElementOffsetBytes)
 	{
 		// Load data
-		FVector& MVValue = *(FVector*)RawElementData;
+		FVector3f& MVValue = *(FVector3f*)RawElementData;
 
 		FIntVector Encoded = Quantizer.Quantize(MVValue);
 
@@ -491,7 +491,7 @@ void FCodecV1Encoder::EncodeMotionVectorStream(const FVector* Stream, uint64 Ele
 		ReconstructedHistory.Push(Reconstructed);
 
 		// Calculate error
-		FVector DequantReconstructed = Quantizer.Dequantize(Reconstructed);
+		FVector3f DequantReconstructed = Quantizer.Dequantize(Reconstructed);
 		QualityMetric.Register(MVValue, DequantReconstructed);
 	}
 
@@ -579,14 +579,14 @@ bool FCodecV1Encoder::EncodeFrameData(FMemoryWriter& Writer, const FGeometryCach
 		WriteTables();
 	}
 
-	const TArray<FVector>& Positions = MeshData.Positions;
+	const TArray<FVector3f>& Positions = MeshData.Positions;
 	const TArray<FVector2D>& TextureCoordinates = MeshData.TextureCoordinates;
 	const TArray<FPackedNormal>& TangentsX = MeshData.TangentsX;
 	const TArray<FPackedNormal>& TangentsZ = MeshData.TangentsZ;
 	const TArray<FColor>& Colors = MeshData.Colors;
 
 	const TArray<uint32>& Indices = MeshData.Indices;
-	const TArray<FVector>& MotionVectors = MeshData.MotionVectors;	
+	const TArray<FVector3f>& MotionVectors = MeshData.MotionVectors;	
 
 	const FGeometryCacheVertexInfo& VertexInfo = MeshData.VertexInfo;
 
@@ -677,7 +677,7 @@ bool FCodecV1Encoder::EncodeFrameData(FMemoryWriter& Writer, const FGeometryCach
 	// Gather stats for all streams
 	const uint32 TotalRawSize =
 		sizeof(uint32) * Indices.Num()	// Indices
-		+ sizeof(FVector) * Positions.Num() // Vertices
+		+ sizeof(FVector3f) * Positions.Num() // Vertices
 		+ sizeof(FColor) * Colors.Num() // Colors
 		+ sizeof(FPackedNormal) * TangentsX.Num() // TangentX
 		+ sizeof(FPackedNormal) * TangentsZ.Num() // TangentY
@@ -848,7 +848,7 @@ void FCodecV1Decoder::DecodeIndexStream(FHuffmanBitStreamReader& Reader, uint32*
 	}
 }
 
-void FCodecV1Decoder::DecodeMotionVectorStream(FHuffmanBitStreamReader& Reader, FVector* Stream, uint64 ElementOffset, uint32 ElementCount)
+void FCodecV1Decoder::DecodeMotionVectorStream(FHuffmanBitStreamReader& Reader, FVector3f* Stream, uint64 ElementOffset, uint32 ElementCount)
 {
 	// Read header
 	FMotionVectorStreamHeader Header;
@@ -869,7 +869,7 @@ void FCodecV1Decoder::DecodeMotionVectorStream(FHuffmanBitStreamReader& Reader, 
 		DecodedResidual.Z = ReadInt32(Reader, DecodingContext.ResidualMotionVectorTable);
 
 		QuantizedValue += DecodedResidual;
-		*(FVector*)RawElementData = Quantizer.Dequantize(QuantizedValue);
+		*(FVector3f*)RawElementData = Quantizer.Dequantize(QuantizedValue);
 	}
 }
 
@@ -954,7 +954,7 @@ void FCodecV1Decoder::DecodeColorStream(FHuffmanBitStreamReader& Reader, FColor*
 	}
 }
 
-void FCodecV1Decoder::DecodePositionStream(FHuffmanBitStreamReader& Reader, FVector* VertexStream, uint64 VertexElementOffset, uint32 VertexElementCount)
+void FCodecV1Decoder::DecodePositionStream(FHuffmanBitStreamReader& Reader, FVector3f* VertexStream, uint64 VertexElementOffset, uint32 VertexElementCount)
 {
 	// Read header
 	FVertexStreamHeader Header;
@@ -978,7 +978,7 @@ void FCodecV1Decoder::DecodePositionStream(FHuffmanBitStreamReader& Reader, FVec
 		QuantizedValue += DecodedResidual;
 
 		// Save result to our list
-		FVector* Value = (FVector*)RawElementDataVertices;
+		FVector3f* Value = (FVector3f*)RawElementDataVertices;
 		*Value = Quantizer.Dequantize(QuantizedValue + Header.Translation);
 		RawElementDataVertices += VertexElementOffset;
 	}

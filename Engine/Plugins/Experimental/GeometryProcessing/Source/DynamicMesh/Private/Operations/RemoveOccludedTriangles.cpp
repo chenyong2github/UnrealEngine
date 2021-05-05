@@ -67,7 +67,7 @@ namespace UE
 				return Mesh->GetVertex(Index);
 			}
 
-			FORCEINLINE void GetTriVertices(int32 TriIndex, UE::Core::TVector<double>& V0, UE::Core::TVector<double>& V1, UE::Core::TVector<double>& V2) const
+			FORCEINLINE void GetTriVertices(int32 TriIndex, UE::Math::TVector<double>& V0, UE::Math::TVector<double>& V1, UE::Math::TVector<double>& V2) const
 			{
 				Mesh->GetTriVertices(Component->Indices[TriIndex], V0, V1, V2);
 			}

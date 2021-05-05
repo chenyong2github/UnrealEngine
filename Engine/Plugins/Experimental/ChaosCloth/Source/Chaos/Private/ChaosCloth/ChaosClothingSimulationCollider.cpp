@@ -604,7 +604,7 @@ void FClothingSimulationCollider::Add(FClothingSimulationSolver* Solver, FClothi
 
 	// Initialize scale
 	const FClothingSimulationContextCommon* const Context = SkeletalMeshComponent ? static_cast<const FClothingSimulationContextCommon*>(SkeletalMeshComponent->GetClothingSimulationContext()) : nullptr;
-	const FVec3 Scale3D = Context ? Context->ComponentToWorld.GetScale3D() : FVec3(1.f);
+	const FVec3 Scale3D = Context ? (FVec3)Context->ComponentToWorld.GetScale3D() : FVec3(1.f);
 	UE_CLOG(FMath::Abs(Scale3D.X - Scale3D.Y) > KINDA_SMALL_NUMBER || FMath::Abs(Scale3D.X - Scale3D.Z) > KINDA_SMALL_NUMBER,
 		LogChaosCloth, Warning, TEXT(
 			"Actor '%s' component '%s' has a non uniform scale, and has a cloth simulation attached. "

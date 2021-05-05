@@ -124,7 +124,8 @@ void FDragTool_ActorFrustumSelect::EndDrag()
 		else
 		{
 			// Extend the endpoint of the rect to get the actual line
-			FIntRect BoxRect( FIntPoint( FMath::Max( 0.0f, Start.X ), FMath::Max( 0.0f, Start.Y ) ), FIntPoint( FMath::Min(ViewportSizeX, FMath::TruncToInt(End.X+1)), FMath::Min( ViewportSizeY, FMath::TruncToInt(End.Y+1) ) ) );
+			// LWC_TODO: Large world scale selection needed.
+			FIntRect BoxRect( FIntPoint( FMath::Max<double>( 0.0, Start.X ), FMath::Max<double>( 0.0, Start.Y ) ), FIntPoint( FMath::Min(ViewportSizeX, FMath::TruncToInt(End.X+1)), FMath::Min( ViewportSizeY, FMath::TruncToInt(End.Y+1) ) ) );
 
 			TSet<AActor*> HitActors;
 			TSet<UModel*> HitModels;

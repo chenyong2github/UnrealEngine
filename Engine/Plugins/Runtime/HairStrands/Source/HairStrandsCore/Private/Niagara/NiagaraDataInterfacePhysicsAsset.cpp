@@ -113,8 +113,8 @@ void FillCurrentTransforms(const FTransform& ElementTransform, uint32& ElementCo
 	TStaticArray<FVector4,PHYSICS_ASSET_MAX_TRANSFORMS>& OutCurrentTransform, TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS>& OutInverseTransform)
 {
 	const uint32 ElementOffset = 3 * ElementCount;
-	const FMatrix ElementMatrix = ElementTransform.ToMatrixWithScale();
-	const FMatrix ElementInverse = ElementMatrix.Inverse();
+	const FMatrix44f ElementMatrix = ElementTransform.ToMatrixWithScale();
+	const FMatrix44f ElementInverse = ElementMatrix.Inverse();
 
 	ElementMatrix.To3x4MatrixTranspose(&OutCurrentTransform[ElementOffset].X);
 	ElementInverse.To3x4MatrixTranspose(&OutInverseTransform[ElementOffset].X);
@@ -541,8 +541,8 @@ public:
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, ElementExtentBuffer, AssetBuffer->ElementExtentBuffer.SRV);
 
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ElementOffsets, ProxyData->AssetArrays.ElementOffsets);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, BoxOrigin, ProxyData->BoxOrigin);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, BoxExtent, ProxyData->BoxExtent);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, BoxOrigin, (FVector3f)ProxyData->BoxOrigin);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, BoxExtent, (FVector3f)ProxyData->BoxExtent);
 		}
 		else
 		{
@@ -556,8 +556,8 @@ public:
 
 			static const FElementOffset DummyOffsets(0, 0, 0, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ElementOffsets, DummyOffsets);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, BoxOrigin, FVector(0, 0, 0));
-			SetShaderValue(RHICmdList, ComputeShaderRHI, BoxExtent, FVector(0, 0, 0));
+			SetShaderValue(RHICmdList, ComputeShaderRHI, BoxOrigin, FVector3f::ZeroVector);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, BoxExtent, FVector3f::ZeroVector);
 		}
 	}
 

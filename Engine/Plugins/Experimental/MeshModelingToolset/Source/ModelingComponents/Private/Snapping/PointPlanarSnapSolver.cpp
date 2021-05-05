@@ -38,7 +38,7 @@ void FPointPlanarSnapSolver::UpdatePointHistory(const TArray<FVector3d>& Points)
 	ResetGenerated();
 }
 
-void FPointPlanarSnapSolver::UpdatePointHistory(const TArray<FVector>& Points)
+void FPointPlanarSnapSolver::UpdatePointHistory(const TArray<FVector3f>& Points)
 {
 	PointHistory.Reset();
 	int Num = Points.Num();

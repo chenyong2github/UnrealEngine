@@ -23,12 +23,12 @@
 
 struct FSoftSkinVertex
 {
-	FVector			Position;
+	FVector3f			Position;
 
 	// Tangent, U-direction
-	FVector			TangentX;
+	FVector3f			TangentX;
 	// Binormal, V-direction
-	FVector			TangentY;
+	FVector3f			TangentY;
 	// Normal
 	FVector4		TangentZ;
 

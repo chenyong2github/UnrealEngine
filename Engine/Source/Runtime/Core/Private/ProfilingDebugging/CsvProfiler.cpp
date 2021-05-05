@@ -3205,6 +3205,12 @@ void FCsvProfiler::RecordCustomStat(const char * StatName, uint32 CategoryIndex,
 	}
 }
 
+void FCsvProfiler::RecordCustomStat(const char* StatName, uint32 CategoryIndex, double Value, const ECsvCustomStatOp CustomStatOp)
+{
+	// LWC_TODO: Double support for FCsvProfiler::RecordCustomStat
+	RecordCustomStat(StatName, CategoryIndex, (float)Value, CustomStatOp);
+}
+
 void FCsvProfiler::RecordCustomStat(const FName& StatName, uint32 CategoryIndex, float Value, const ECsvCustomStatOp CustomStatOp)
 {
 	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CategoryIndex])
@@ -3213,6 +3219,13 @@ void FCsvProfiler::RecordCustomStat(const FName& StatName, uint32 CategoryIndex,
 		FCsvProfilerThreadData::Get().AddCustomStat(StatName, CategoryIndex, Value, CustomStatOp);
 	}
 }
+
+void FCsvProfiler::RecordCustomStat(const FName& StatName, uint32 CategoryIndex, double Value, const ECsvCustomStatOp CustomStatOp)
+{
+	// LWC_TODO: Double support for FCsvProfiler::RecordCustomStat
+	RecordCustomStat(StatName, CategoryIndex, (float)Value, CustomStatOp);
+}
+
 
 void FCsvProfiler::RecordCustomStat(const char * StatName, uint32 CategoryIndex, int32 Value, const ECsvCustomStatOp CustomStatOp)
 {

@@ -38,7 +38,7 @@ static void StaticMeshToSlateRenderData(const UStaticMesh& DataSource, TArray<FS
 			for (uint32 i = 0; i < NumVerts; ++i)
 			{
 				// Copy Position
-				const FVector& Position = LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(i);
+				const FVector3f& Position = LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(i);
 				OutExtentMin.X = FMath::Min(Position.X, OutExtentMin.X);
 				OutExtentMin.Y = FMath::Min(Position.Y, OutExtentMin.Y);
 				OutExtentMax.X = FMath::Max(Position.X, OutExtentMax.X);

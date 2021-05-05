@@ -161,7 +161,7 @@ struct TQuadricError
 	 * Evaluates p*A*p + 2*dot(p,b) + c
 	 * @return 
 	 */
-	RealType Evaluate(const UE::Core::TVector<RealType>& pt) const
+	RealType Evaluate(const UE::Math::TVector<RealType>& pt) const
 	{
 		RealType x = Axx * pt.X + Axy * pt.Y + Axz * pt.Z;
 		RealType y = Axy * pt.X + Ayy * pt.Y + Ayz * pt.Z;
@@ -173,7 +173,7 @@ struct TQuadricError
 	/**
 	 * 
 	 */
-	FVector3<RealType> MultiplyA(const UE::Core::TVector<RealType>& pt) const
+	FVector3<RealType> MultiplyA(const UE::Math::TVector<RealType>& pt) const
 	{
 		RealType x = Axx * pt.X + Axy * pt.Y + Axz * pt.Z;
 		RealType y = Axy * pt.X + Ayy * pt.Y + Ayz * pt.Z;
@@ -182,7 +182,7 @@ struct TQuadricError
 	}
 
 
-	bool SolveAxEqualsb(UE::Core::TVector<RealType>& OutResult, const RealType bvecx, const RealType bvecy, const RealType bvecz, const RealType minThresh = 1000.0*TMathUtil<RealType>::Epsilon) const
+	bool SolveAxEqualsb(UE::Math::TVector<RealType>& OutResult, const RealType bvecx, const RealType bvecy, const RealType bvecz, const RealType minThresh = 1000.0*TMathUtil<RealType>::Epsilon) const
 	{
 		RealType a11 = Azz * Ayy - Ayz * Ayz;
 		RealType a12 = Axz * Ayz - Azz * Axy;
@@ -245,14 +245,14 @@ struct TQuadricError
 
 		return FVector3<RealType>(a, b, c);
 	}
-	static FVector3<RealType> MultiplySymmetricMatrix(const RealType SM[6], const UE::Core::TVector<RealType>& vec)
+	static FVector3<RealType> MultiplySymmetricMatrix(const RealType SM[6], const UE::Math::TVector<RealType>& vec)
 	{
 		RealType vectmp[3] = { vec.X, vec.Y, vec.Z };
 		return MultiplySymmetricMatrix(SM, vectmp);
 	}
 
 
-	bool OptimalPoint(UE::Core::TVector<RealType>& OutResult, RealType minThresh = 1000.0*TMathUtil<RealType>::Epsilon ) const
+	bool OptimalPoint(UE::Math::TVector<RealType>& OutResult, RealType minThresh = 1000.0*TMathUtil<RealType>::Epsilon ) const
 	{
 		return SolveAxEqualsb(OutResult, -bx, -by, -bz, minThresh);
 	}
@@ -383,7 +383,7 @@ public:
 	/**
 	* The optimal point minimizing the quadric error with respect to a volume conserving constraint
 	*/
-	bool OptimalPoint(UE::Core::TVector<RealType>& OutResult, RealType minThresh = 1000.0*TMathUtil<RealType>::Epsilon) const
+	bool OptimalPoint(UE::Math::TVector<RealType>& OutResult, RealType minThresh = 1000.0*TMathUtil<RealType>::Epsilon) const
 	{
 		// Compute the unconstrained optimal point
 		bool bValid = BaseStruct::OptimalPoint(OutResult, minThresh);
@@ -597,7 +597,7 @@ public:
 	/**
 	* The optimal point minimizing the quadric error with respect to a volume conserving constraint
 	*/
-	bool OptimalPoint(UE::Core::TVector<RealType>& OptPoint, RealType minThresh = 1000.0*TMathUtil<RealType>::Epsilon) const
+	bool OptimalPoint(UE::Math::TVector<RealType>& OptPoint, RealType minThresh = 1000.0*TMathUtil<RealType>::Epsilon) const
 	{
 		// Generate symmetric matrix
 		RealType SM[6] = { 0., 0., 0., 0., 0., 0. };

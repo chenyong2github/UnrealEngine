@@ -83,8 +83,8 @@ public:
 	const TAttributesSet<FPolygonGroupID>& PolygonGroupAttributes() const { return GetMeshDescription().PolygonGroupAttributes(); }
 
 	/** Accessors for cached vertex position array */
-	TVertexAttributesRef<FVector> GetVertexPositions() { return GetRequiredAttributes().GetVertexPositions(); }
-	TVertexAttributesConstRef<FVector> GetVertexPositions() const { return GetRequiredAttributes().GetVertexPositions(); }
+	TVertexAttributesRef<FVector3f> GetVertexPositions() { return GetRequiredAttributes().GetVertexPositions(); }
+	TVertexAttributesConstRef<FVector3f> GetVertexPositions() const { return GetRequiredAttributes().GetVertexPositions(); }
 
 public:
 

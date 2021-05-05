@@ -78,7 +78,7 @@ namespace CADLibrary
 		BBox.Min *= ImportParams.ScaleFactor;
 		BBox.Max *= ImportParams.ScaleFactor;
 
-		TVertexAttributesRef<FVector> VertexPositions = MeshDescription.GetVertexPositions();
+		TVertexAttributesRef<FVector3f> VertexPositions = MeshDescription.GetVertexPositions();
 
 		// Create a list of vertex Z/index pairs
 		TArray<FVertexData> VertexDataSet;
@@ -307,8 +307,8 @@ namespace CADLibrary
 
 		// Gather all array data
 		FStaticMeshAttributes Attributes(MeshDescription);
-		TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-		TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+		TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+		TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 		TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 		TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();

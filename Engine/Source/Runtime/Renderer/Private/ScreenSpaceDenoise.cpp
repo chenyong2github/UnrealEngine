@@ -796,7 +796,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSSDCommonParameters, )
 	SHADER_PARAMETER(FIntPoint, ViewportMax)
 	SHADER_PARAMETER(FVector4, ThreadIdToBufferUV)
 	SHADER_PARAMETER(FVector2D, BufferUVToOutputPixelPosition)
-	SHADER_PARAMETER(FMatrix, ScreenToView)
+	SHADER_PARAMETER(FMatrix44f, ScreenToView)
 	SHADER_PARAMETER(FVector2D, BufferUVBilinearCorrection)
 
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)

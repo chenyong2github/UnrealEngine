@@ -10,7 +10,7 @@
 
 // NOTE: new types must be added at the bottom to keep serialization from breaking
 
-MANAGED_ARRAY_TYPE(FVector, Vector)
+MANAGED_ARRAY_TYPE(FVector3f, Vector)
 MANAGED_ARRAY_TYPE(FIntVector, IntVector)
 MANAGED_ARRAY_TYPE(FVector2D, Vector2D)
 MANAGED_ARRAY_TYPE(FLinearColor, LinearColor)
@@ -26,8 +26,8 @@ MANAGED_ARRAY_TYPE(FBox, Box)
 MANAGED_ARRAY_TYPE(TSet<int32>, IntArray)
 MANAGED_ARRAY_TYPE(FGuid, Guid)
 MANAGED_ARRAY_TYPE(uint8, UInt8)
-MANAGED_ARRAY_TYPE(TArray<FVector>*, VectorArrayPointer)
-MANAGED_ARRAY_TYPE(TUniquePtr<TArray<FVector>>, VectorArrayUniquePointer)
+MANAGED_ARRAY_TYPE(TArray<FVector3f>*, VectorArrayPointer)
+MANAGED_ARRAY_TYPE(TUniquePtr<TArray<FVector3f>>, VectorArrayUniquePointer)
 MANAGED_ARRAY_TYPE(Chaos::FImplicitObject3*, FImplicitObject3Pointer)
 MANAGED_ARRAY_TYPE(TUniquePtr<Chaos::FImplicitObject3>, FImplicitObject3UniquePointer)
 MANAGED_ARRAY_TYPE(Chaos::TSerializablePtr<Chaos::FImplicitObject3>, FImplicitObject3SerializablePtr)

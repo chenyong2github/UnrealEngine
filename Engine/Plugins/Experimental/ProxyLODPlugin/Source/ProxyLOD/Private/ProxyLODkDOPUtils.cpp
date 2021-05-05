@@ -40,7 +40,7 @@ void ProxyLOD::BuildkDOPTree(const FMeshDescription& MeshDescription, FkDOPTree&
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ProxyLOD::BuildkDOPTree)
 
-	TArrayView<const FVector> VertexPositions = MeshDescription.GetVertexPositions().GetRawArray();
+	TArrayView<const FVector3f> VertexPositions = MeshDescription.GetVertexPositions().GetRawArray();
 
 	uint32 NumSrcPoly = MeshDescription.Triangles().Num();
 
@@ -85,7 +85,7 @@ void ProxyLOD::BuildkDOPTree(const FVertexDataMesh& SrcVertexDataMesh, ProxyLOD:
 	{
 		FkDOPBuildTriangle* BuildTriangles = BuildTriangleArray.GetData();
 		const uint32* Idxs = SrcVertexDataMesh.Indices.GetData();
-		const FVector* Positions = SrcVertexDataMesh.Points.GetData();
+		const FVector3f* Positions = SrcVertexDataMesh.Points.GetData();
 
 		for (uint32 r = Range.begin(), R = Range.end(); r < R; ++r)
 		{

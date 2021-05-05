@@ -72,7 +72,7 @@ public:
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && !IsConsolePlatform(Parameters.Platform);
 	}
 	
-	void SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue, int32 SizeZ, const FMatrix& ColorWeightsValue, float GammaValue, float MipLevel, float Opacity, const FRotator& TraceOrientation)
+	void SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue, int32 SizeZ, const FMatrix44f& ColorWeightsValue, float GammaValue, float MipLevel, float Opacity, const FRotator& TraceOrientation)
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
@@ -99,7 +99,7 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI,TextureComponentReplicate,TextureValue->bGreyScaleFormat ? FLinearColor(1,0,0,0) : FLinearColor(0,0,0,0));
 		SetShaderValue(RHICmdList, ShaderRHI,TextureComponentReplicateAlpha,TextureValue->bGreyScaleFormat ? FLinearColor(1,0,0,0) : FLinearColor(0,0,0,1));
 
-		const FVector TextureDimension((float)TextureValue->GetSizeX(), (float)TextureValue->GetSizeY(), (float)SizeZ);
+		const FVector3f TextureDimension((float)TextureValue->GetSizeX(), (float)TextureValue->GetSizeY(), (float)SizeZ);
 		const float OneOverMinDimension = 1.f / FMath::Max(TextureDimension.GetMin(), 1.f);
 		SetShaderValue(RHICmdList, ShaderRHI, TraceVolumeScalingParameter, FVector4(
 				TextureDimension.X * OneOverMinDimension, 
@@ -108,9 +108,9 @@ public:
 				TextureDimension.GetMax() * OneOverMinDimension * .5f) // Extent
 			);
 
-		SetShaderValue(RHICmdList, ShaderRHI, TextureDimensionParameter, FVector(TextureDimension.X, TextureDimension.Y, TextureDimension.Z));
+		SetShaderValue(RHICmdList, ShaderRHI, TextureDimensionParameter, FVector3f(TextureDimension.X, TextureDimension.Y, TextureDimension.Z));
 
-		SetShaderValue(RHICmdList, ShaderRHI, TraceViewMatrixParameter, FMatrix(FRotationMatrix::Make(TraceOrientation)));
+		SetShaderValue(RHICmdList, ShaderRHI, TraceViewMatrixParameter, FMatrix44f(FRotationMatrix::Make(TraceOrientation)));
 	}
 
 private:

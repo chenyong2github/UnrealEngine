@@ -24,7 +24,7 @@ public:
 		const int32 InParticleOffset,
 		const int32 InParticleCount,
 		const TMap<int32, TSet<int32>>& PointToNeighbors,
-		const TConstArrayView<FReal>& StiffnessMultipliers,
+		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const int32 MaxNumTetherIslands = 4,
 		const FVec2& InStiffness = FVec2((FReal)1., (FReal)1.),
 		const FReal LimitScale = (FReal)1.,

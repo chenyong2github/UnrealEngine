@@ -149,7 +149,7 @@ public:
 				LocalTargets[Index].W = 0; // Padding
 			}
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, ClipmapBuffer, FieldResource->ClipmapBuffer.SRV);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapCenter, FieldResource->FieldInfos.ClipmapCenter);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapCenter, (FVector3f)FieldResource->FieldInfos.ClipmapCenter);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapDistance, FieldResource->FieldInfos.ClipmapDistance);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapResolution, FieldResource->FieldInfos.ClipmapResolution);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapExponent, FieldResource->FieldInfos.ClipmapExponent);
@@ -161,7 +161,7 @@ public:
 		else
 		{
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, ClipmapBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
-			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapCenter, FVector::ZeroVector);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapCenter, FVector3f::ZeroVector);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapDistance, 1);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapResolution, 2);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapExponent, 1);
@@ -587,7 +587,7 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsIntegerField(FVectorVMConte
 	VectorVM::FUserPtrHandler<FNDIPhysicsFieldData> InstData(Context);
 
 	// Inputs 
-	FNDIInputParam<FVector> SamplePositionParam(Context);
+	FNDIInputParam<FVector3f> SamplePositionParam(Context);
 	FNDIInputParam<EFieldIntegerType> IntegerTargetParam(Context);
 
 	// Outputs...
@@ -648,7 +648,7 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsScalarField(FVectorVMContex
 	VectorVM::FUserPtrHandler<FNDIPhysicsFieldData> InstData(Context);
 
 	// Inputs 
-	FNDIInputParam<FVector> SamplePositionParam(Context);
+	FNDIInputParam<FVector3f> SamplePositionParam(Context);
 	FNDIInputParam<EFieldScalarType> ScalarTargetParam(Context);
 
 	// Outputs...

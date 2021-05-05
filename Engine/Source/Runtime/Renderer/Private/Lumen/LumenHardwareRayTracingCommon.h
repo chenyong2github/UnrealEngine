@@ -39,9 +39,9 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRGSRadianceCacheParameters, )
 	SHADER_PARAMETER_ARRAY(float, RadianceProbeClipmapTMin, [LumenRadianceCache::MaxClipmaps])
 	SHADER_PARAMETER_ARRAY(float, RadianceProbeClipmapSamplingJitter, [LumenRadianceCache::MaxClipmaps])
 	SHADER_PARAMETER_ARRAY(float, WorldPositionToRadianceProbeCoordScale, [LumenRadianceCache::MaxClipmaps])
-	SHADER_PARAMETER_ARRAY(FVector, WorldPositionToRadianceProbeCoordBias, [LumenRadianceCache::MaxClipmaps])
+	SHADER_PARAMETER_ARRAY(FVector3f, WorldPositionToRadianceProbeCoordBias, [LumenRadianceCache::MaxClipmaps])
 	SHADER_PARAMETER_ARRAY(float, RadianceProbeCoordToWorldPositionScale, [LumenRadianceCache::MaxClipmaps])
-	SHADER_PARAMETER_ARRAY(FVector, RadianceProbeCoordToWorldPositionBias, [LumenRadianceCache::MaxClipmaps])
+	SHADER_PARAMETER_ARRAY(FVector3f, RadianceProbeCoordToWorldPositionBias, [LumenRadianceCache::MaxClipmaps])
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 void SetupRGSRadianceCacheParameters(const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,

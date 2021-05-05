@@ -208,8 +208,8 @@ void FAtmosphereSetup::ComputeViewData(const FVector& WorldCameraOrigin, const F
 		const float Sign = Up.Z >= 0.0f ? 1.0f : -1.0f;
 		const float a = -1.0f / (Sign + Up.Z);
 		const float b = Up.X * Up.Y * a;
-		Forward = FVector( 1 + Sign * a * FMath::Pow(Up.X, 2.0f), Sign * b, -Sign * Up.X );
-		Left = FVector(b,  Sign + a * FMath::Pow(Up.Y, 2.0f), -Up.Y );
+		Forward = FVector( 1 + Sign * a * FMath::Pow(Up.X, (FVector::FReal)2.0f), Sign * b, -Sign * Up.X );
+		Left = FVector(b,  Sign + a * FMath::Pow(Up.Y, (FVector::FReal)2.0f), -Up.Y );
 
 		SkyViewLutReferential.SetColumn(0, Forward);
 		SkyViewLutReferential.SetColumn(1, Left);

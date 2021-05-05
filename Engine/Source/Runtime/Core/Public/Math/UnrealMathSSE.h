@@ -10,6 +10,13 @@
 // We require SSE2
 #include <emmintrin.h>
 
+#define UNREALPLATFORMMATH_SSE_USE_SSE4_1 PLATFORM_ALWAYS_HAS_SSE4_1
+
+// If SSE4.1 is enabled, need additional defines.
+#if UNREALPLATFORMMATH_SSE_USE_SSE4_1
+#include <smmintrin.h>
+#endif
+
 #include "Math/sse_mathfun.h"
 
 // We suppress static analysis warnings for the cast from (double*) to (float*) in VectorLoadFloat2
@@ -24,12 +31,116 @@
 /**
  *	float4 vector register type, where the first float (X) is stored in the lowest 32 bits, and so on.
  */
-typedef __m128	VectorRegister;
-typedef __m128i VectorRegisterInt;
-typedef __m128d VectorRegisterDouble;
 
-// for an __m128, we need a single set of braces (for clang)
-#define DECLARE_VECTOR_REGISTER(X, Y, Z, W) { X, Y, Z, W }
+// 4 floats
+typedef __m128	VectorRegister4Float;
+
+// 4 int32s
+typedef __m128i VectorRegister4Int;
+
+// 2 doubles
+typedef __m128d	VectorRegister2Double;
+
+
+// 4 doubles
+struct alignas(16) VectorRegister4Double
+{
+	VectorRegister2Double XY;
+	VectorRegister2Double ZW;
+
+	VectorRegister4Double() = default;
+
+	// Construct from a vector of 4 floats
+	VectorRegister4Double(const VectorRegister4Float& FloatVector)
+	{
+		XY = _mm_cvtps_pd(FloatVector);
+		ZW = _mm_cvtps_pd(_mm_movehl_ps(FloatVector, FloatVector));
+	}
+
+	// Assign from a vector of 4 floats
+	VectorRegister4Double& operator=(const VectorRegister4Float& From)
+	{
+		XY = _mm_cvtps_pd(From);
+		ZW = _mm_cvtps_pd(_mm_movehl_ps(From, From));
+		return *this;
+	}
+
+};
+
+
+// Aliases
+typedef VectorRegister4Int VectorRegister4i;
+typedef VectorRegister4Float VectorRegister4f;
+typedef VectorRegister4Double VectorRegister4d;
+typedef VectorRegister2Double VectorRegister2d;
+
+// LWC: Alias VectorRegister to correct precision based on LWC
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+typedef VectorRegister4Double VectorRegister4;
+#else
+typedef VectorRegister4Float VectorRegister4;
+#endif
+
+// Backwards compatibility
+typedef VectorRegister4 VectorRegister;
+typedef VectorRegister4Int VectorRegisterInt;
+
+
+// Forward declarations
+VectorRegister4Float VectorLoadAligned(const float* Ptr);
+VectorRegister4Double VectorLoadAligned(const double* Ptr);
+void VectorStoreAligned(const VectorRegister4Float& Vec, float* Ptr);
+void VectorStoreAligned(const VectorRegister4Double& Vec, double* Dst);
+
+
+// Helper for conveniently aligning a float array for extraction from VectorRegister4Float
+struct alignas(16) AlignedFloat4
+{
+	float V[4];
+
+	FORCEINLINE AlignedFloat4(const VectorRegister4Float& Vec)
+	{
+		VectorStoreAligned(Vec, V);
+	}
+
+	FORCEINLINE float operator[](int32 Index) const { return V[Index]; }
+	FORCEINLINE float& operator[](int32 Index) { return V[Index]; }
+
+	FORCEINLINE VectorRegister4Float ToVectorRegister() const
+	{
+		return VectorLoadAligned(V);
+	}
+};
+
+
+// Helper for conveniently aligning a double array for extraction from VectorRegister4Double
+struct alignas(16) AlignedDouble4
+{
+	double V[4];
+
+	FORCEINLINE AlignedDouble4(const VectorRegister4Double& Vec)
+	{
+		VectorStoreAligned(Vec, V);
+	}
+
+	FORCEINLINE double operator[](int32 Index) const { return V[Index]; }
+	FORCEINLINE double& operator[](int32 Index)		 { return V[Index]; }
+
+	FORCEINLINE VectorRegister4Double ToVectorRegister() const
+	{
+		return VectorLoadAligned(V);
+	}
+};
+
+// LWC: Alias AlignedRegister4 to correct precision based on LWC
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+typedef AlignedDouble4 AlignedRegister4;
+#else
+typedef AlignedFloat4 AlignedRegister4;
+#endif
+
+
+#define DECLARE_VECTOR_REGISTER(X, Y, Z, W) MakeVectorRegister(X, Y, Z, W)
 
 /**
  * @param A0	Selects which element (0-3) from 'A' into 1st slot in the result
@@ -38,6 +149,24 @@ typedef __m128d VectorRegisterDouble;
  * @param B3	Selects which element (0-3) from 'B' into 4th slot in the result
  */
 #define SHUFFLEMASK(A0,A1,B2,B3) ( (A0) | ((A1)<<2) | ((B2)<<4) | ((B3)<<6) )
+
+#define SHUFFLEMASK2(A0,A1) ((A0) | ((A1)<<1))
+
+
+FORCEINLINE VectorRegister2Double MakeVectorRegister2Double(double X, double Y)
+{
+	return _mm_setr_pd(X, Y);
+}
+
+// Bitwise equivalent from two 64-bit values.
+FORCEINLINE VectorRegister2Double MakeVectorRegister2Double(uint64 X, uint64 Y)
+{
+	union { VectorRegister2Double Vd; __m128i Vi; } Result;
+	// Note: this instruction only exists on 64-bit
+	Result.Vi = _mm_set_epi64x(Y, X); // intentionally (Y,X), there is no 'setr' version.
+	return Result.Vd;
+}
+
 
 /**
  * Returns a bitwise equivalent vector based on 4 DWORDs.
@@ -48,11 +177,24 @@ typedef __m128d VectorRegisterDouble;
  * @param W		4th uint32 component
  * @return		Bitwise equivalent vector with 4 floats
  */
-FORCEINLINE VectorRegister MakeVectorRegister( uint32 X, uint32 Y, uint32 Z, uint32 W )
+FORCEINLINE VectorRegister4Float MakeVectorRegisterFloat( uint32 X, uint32 Y, uint32 Z, uint32 W )
 {
- 	union { VectorRegister v; VectorRegisterInt i; } Tmp;
+ 	union { VectorRegister4Float v; VectorRegister4Int i; } Tmp;
 	Tmp.i = _mm_setr_epi32( X, Y, Z, W );
  	return Tmp.v;
+}
+
+FORCEINLINE VectorRegister4Double MakeVectorRegisterDouble(uint64 X, uint64 Y, uint64 Z, uint64 W)
+{
+	VectorRegister4Double Result;
+	Result.XY = MakeVectorRegister2Double(X, Y);
+	Result.ZW = MakeVectorRegister2Double(Z, W);
+	return Result;
+}
+
+FORCEINLINE VectorRegister4Float MakeVectorRegister(uint32 X, uint32 Y, uint32 Z, uint32 W)
+{
+	return MakeVectorRegisterFloat(X, Y, Z, W);
 }
 
 /**
@@ -64,9 +206,39 @@ FORCEINLINE VectorRegister MakeVectorRegister( uint32 X, uint32 Y, uint32 Z, uin
  * @param W		4th float component
  * @return		Vector of the 4 FLOATs
  */
-FORCEINLINE VectorRegister MakeVectorRegister( float X, float Y, float Z, float W )
+FORCEINLINE VectorRegister4Float MakeVectorRegisterFloat(float X, float Y, float Z, float W)
 {
 	return _mm_setr_ps( X, Y, Z, W );
+}
+
+FORCEINLINE VectorRegister4Double MakeVectorRegisterDouble(double X, double Y, double Z, double W)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_setr_pd(X, Y);
+	Result.ZW = _mm_setr_pd(Z, W);
+	return Result;
+}
+
+FORCEINLINE VectorRegister4Float MakeVectorRegister(float X, float Y, float Z, float W)
+{
+	return MakeVectorRegisterFloat(X, Y, Z, W);
+}
+
+FORCEINLINE VectorRegister4Double MakeVectorRegister(double X, double Y, double Z, double W)
+{
+	return MakeVectorRegisterDouble(X, Y, Z, W);
+}
+
+// Make double register from float register
+FORCEINLINE VectorRegister4Double MakeVectorRegisterDouble(const VectorRegister4Float& From)
+{
+	return VectorRegister4Double(From);
+}
+
+// Lossy conversion: double->float vector
+FORCEINLINE VectorRegister4Float MakeVectorRegisterFloatFromDouble(const VectorRegister4Double& Vec4d)
+{
+	return _mm_movelh_ps(_mm_cvtpd_ps(Vec4d.XY), _mm_cvtpd_ps(Vec4d.ZW));
 }
 
 /**
@@ -78,7 +250,7 @@ FORCEINLINE VectorRegister MakeVectorRegister( float X, float Y, float Z, float 
 * @param W		4th int32 component
 * @return		Vector of the 4 int32
 */
-FORCEINLINE VectorRegisterInt MakeVectorRegisterInt(int32 X, int32 Y, int32 Z, int32 W)
+FORCEINLINE VectorRegister4Int MakeVectorRegisterInt(int32 X, int32 Y, int32 Z, int32 W)
 {
 	return _mm_setr_epi32(X, Y, Z, W);
 }
@@ -96,21 +268,34 @@ FORCEINLINE VectorRegisterInt MakeVectorRegisterInt(int32 X, int32 Y, int32 Z, i
 /**
  * Returns a vector with all zeros.
  *
- * @return		VectorRegister(0.0f, 0.0f, 0.0f, 0.0f)
+ * @return		MakeVectorRegister(0.0f, 0.0f, 0.0f, 0.0f)
  */
-FORCEINLINE VectorRegister VectorZero(void)
+FORCEINLINE VectorRegister4Float VectorZeroFloat(void)
 {
 	return _mm_setzero_ps();
+}
+
+FORCEINLINE VectorRegister4Double VectorZeroDouble(void)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_setzero_pd();
+	Result.ZW = _mm_setzero_pd();
+	return Result;
 }
 
 /**
  * Returns a vector with all ones.
  *
- * @return		VectorRegister(1.0f, 1.0f, 1.0f, 1.0f)
+ * @return		MakeVectorRegister(1.0f, 1.0f, 1.0f, 1.0f)
  */
-FORCEINLINE VectorRegister VectorOne(void)
+FORCEINLINE VectorRegister4Float VectorOneFloat(void)
 {
-	return (GlobalVectorConstants::FloatOne);
+	return GlobalVectorConstants::FloatOne;
+}
+
+FORCEINLINE VectorRegister4Double VectorOneDouble(void)
+{
+	return GlobalVectorConstants::DoubleOne;
 }
 
 /**
@@ -120,77 +305,149 @@ FORCEINLINE VectorRegister VectorOne(void)
  * @param ComponentIndex	Which component to get, X=0, Y=1, Z=2, W=3
  * @return					The component as a float
  */
+
 template <uint32 ComponentIndex>
-FORCEINLINE float VectorGetComponentImpl(VectorRegister Vec)
+FORCEINLINE float VectorGetComponentImpl(const VectorRegister4Float& Vec)
 {
 	return (((float*)&(Vec))[ComponentIndex]);
 }
 
+template <uint32 ComponentIndex>
+FORCEINLINE double VectorGetComponentImpl(const VectorRegister4Double& Vec)
+{
+	// TODO: LWC: verify this is equivalent to _mm_store_pd and a read, or better.
+	return (((double*)&(Vec.XY))[ComponentIndex]);
+
+	/*
+	AlignedDouble4 Components(Vec);
+	return Components[ComponentIndex];
+	*/
+}
+
 #define VectorGetComponent(Vec, ComponentIndex) VectorGetComponentImpl<ComponentIndex>(Vec)
 
-FORCEINLINE float VectorGetComponentDynamic(VectorRegister Vec, uint32 ComponentIndex)
+FORCEINLINE float VectorGetComponentDynamic(const VectorRegister4Float& Vec, uint32 ComponentIndex)
 {
 	return (((float*)&(Vec))[ComponentIndex]);
+}
+
+FORCEINLINE double VectorGetComponentDynamic(const VectorRegister4Double& Vec, uint32 ComponentIndex)
+{
+	return (((double*)&(Vec))[ComponentIndex]);
 }
 
 /**
  * Loads 4 FLOATs from unaligned memory.
  *
  * @param Ptr	Unaligned memory pointer to the 4 FLOATs
- * @return		VectorRegister(Ptr[0], Ptr[1], Ptr[2], Ptr[3])
+ * @return		VectorRegister4Float(Ptr[0], Ptr[1], Ptr[2], Ptr[3])
  */
-FORCEINLINE VectorRegister VectorLoad( const void* Ptr )
+
+FORCEINLINE VectorRegister4Float VectorLoad(const float* Ptr)
 {
 	return _mm_loadu_ps((float*)(Ptr));
 }
 
-/**
- * Loads 3 FLOATs from unaligned memory and leaves W undefined.
- *
- * @param Ptr	Unaligned memory pointer to the 3 FLOATs
- * @return		VectorRegister(Ptr[0], Ptr[1], Ptr[2], undefined)
- */
-#define VectorLoadFloat3( Ptr )			MakeVectorRegister( ((const float*)(Ptr))[0], ((const float*)(Ptr))[1], ((const float*)(Ptr))[2], 0.0f )
+FORCEINLINE VectorRegister4Double VectorLoad(const double* Ptr)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_loadu_pd((double*)(Ptr));
+	Result.ZW = _mm_loadu_pd((double*)(Ptr + 2));
+	return Result;
+}
 
 /**
  * Loads 3 FLOATs from unaligned memory and sets W=0.
  *
  * @param Ptr	Unaligned memory pointer to the 3 FLOATs
- * @return		VectorRegister(Ptr[0], Ptr[1], Ptr[2], 0.0f)
+ * @return		VectorRegister4Float(Ptr[0], Ptr[1], Ptr[2], 0)
  */
-#define VectorLoadFloat3_W0( Ptr )		MakeVectorRegister( ((const float*)(Ptr))[0], ((const float*)(Ptr))[1], ((const float*)(Ptr))[2], 0.0f )
+FORCEINLINE VectorRegister4Double VectorLoadFloat3(const double* Ptr)
+{
+	//return MakeVectorRegisterDouble(Ptr[0], Ptr[1], Ptr[2], 0.0);
+	VectorRegister4Double Result;
+	Result.XY = _mm_loadu_pd((double*)(Ptr));
+	Result.ZW = _mm_load_sd((double*)(Ptr+2));
+	return Result;
+}
 
 /**
  * Loads 3 FLOATs from unaligned memory and sets W=1.
  *
  * @param Ptr	Unaligned memory pointer to the 3 FLOATs
- * @return		VectorRegister(Ptr[0], Ptr[1], Ptr[2], 1.0f)
+ * @return		VectorRegister4Float(Ptr[0], Ptr[1], Ptr[2], 1.0f)
  */
-#define VectorLoadFloat3_W1( Ptr )		MakeVectorRegister( ((const float*)(Ptr))[0], ((const float*)(Ptr))[1], ((const float*)(Ptr))[2], 1.0f )
+FORCEINLINE VectorRegister4Double VectorLoadFloat3_W1(const double* Ptr)
+{
+	//return MakeVectorRegisterDouble(Ptr[0], Ptr[1], Ptr[2], 1.0);
+	VectorRegister4Double Result;
+	Result.XY = _mm_loadu_pd((double*)(Ptr));
+	Result.ZW = MakeVectorRegister2Double(Ptr[2], 1.0);
+	return Result;
+}
 
 /**
  * Loads 4 FLOATs from aligned memory.
  *
  * @param Ptr	Aligned memory pointer to the 4 FLOATs
- * @return		VectorRegister(Ptr[0], Ptr[1], Ptr[2], Ptr[3])
+ * @return		VectorRegister4Float(Ptr[0], Ptr[1], Ptr[2], Ptr[3])
  */
-#define VectorLoadAligned( Ptr )		_mm_load_ps( (const float*)(Ptr) )
+FORCEINLINE VectorRegister4Float VectorLoadAligned(const float* Ptr)
+{
+	return _mm_load_ps((const float*)(Ptr));
+}
+
+FORCEINLINE VectorRegister4Double VectorLoadAligned(const double* Ptr)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_load_pd((const double*)(Ptr));
+	Result.ZW = _mm_load_pd((const double*)(Ptr + 2));
+	return Result;
+}
 
 /**
  * Loads 1 float from unaligned memory and replicates it to all 4 elements.
  *
  * @param Ptr	Unaligned memory pointer to the float
- * @return		VectorRegister(Ptr[0], Ptr[0], Ptr[0], Ptr[0])
+ * @return		VectorRegister4Float(Ptr[0], Ptr[0], Ptr[0], Ptr[0])
  */
-#define VectorLoadFloat1( Ptr )			_mm_load1_ps( (const float*)(Ptr) )
+FORCEINLINE VectorRegister4Float VectorLoadFloat1(const float* Ptr)
+{
+	return _mm_load1_ps(Ptr);
+}
+
+FORCEINLINE VectorRegister4Double VectorLoadFloat1(const double* Ptr)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_load1_pd(Ptr);
+	Result.ZW = Result.XY;
+	return Result;
+}
+
+FORCEINLINE VectorRegister4Double VectorLoadDouble1(const double* Ptr)
+{
+	return VectorLoadFloat1(Ptr);
+}
 
 /**
  * Loads 2 floats from unaligned memory into X and Y and duplicates them in Z and W.
  *
  * @param Ptr	Unaligned memory pointer to the floats
- * @return		VectorRegister(Ptr[0], Ptr[1], Ptr[0], Ptr[1])
+ * @return		VectorRegister4Float(Ptr[0], Ptr[1], Ptr[0], Ptr[1])
  */
-#define VectorLoadFloat2( Ptr )			_mm_castpd_ps(_mm_load1_pd((const double*)(Ptr)))
+FORCEINLINE VectorRegister4Float VectorLoadFloat2(const float* Ptr)
+{
+	// Note: SA warning for this is disabled at top of file.
+	return _mm_castpd_ps(_mm_load1_pd((const double*)(Ptr)));
+}
+
+FORCEINLINE VectorRegister4Double VectorLoadFloat2(const double* Ptr)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_loadu_pd(Ptr);
+	Result.ZW = Result.XY;
+	return Result;
+}
 
 /** 
  * Loads 4 unaligned floats - 2 from the first pointer, 2 from the second, and packs
@@ -200,44 +457,38 @@ FORCEINLINE VectorRegister VectorLoad( const void* Ptr )
  * @param Ptr2	Unaligned memory pointer to the second 2 floats
  * @return		VectorRegister(Ptr1[0], Ptr1[1], Ptr2[0], Ptr2[1])
  */
-FORCEINLINE VectorRegister VectorLoadTwoPairsFloat(const float* Ptr1, const float* Ptr2)
+FORCEINLINE VectorRegister4Float VectorLoadTwoPairsFloat(const float* Ptr1, const float* Ptr2)
 {
 	__m128 Ret = _mm_castpd_ps(_mm_load_sd((double const *)(Ptr1))); // -V615
 	Ret = _mm_loadh_pi(Ret, (__m64 const*)(Ptr2));
 	return Ret;
 }
 
-/**
- * Creates a vector out of three FLOATs and leaves W undefined.
- *
- * @param X		1st float component
- * @param Y		2nd float component
- * @param Z		3rd float component
- * @return		VectorRegister(X, Y, Z, undefined)
- */
-#define VectorSetFloat3( X, Y, Z )		MakeVectorRegister( X, Y, Z, 0.0f )
+FORCEINLINE VectorRegister4Double VectorLoadTwoPairsFloat(const double* Ptr1, const double* Ptr2)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_loadu_pd(Ptr1);
+	Result.ZW = _mm_loadu_pd(Ptr2);
+	return Result;
+}
 
 /**
  * Propagates passed in float to all registers
  *
  * @param F		Float to set
- * @return		VectorRegister(F,F,F,F)
+ * @return		VectorRegister4Float(F,F,F,F)
  */
-#define VectorSetFloat1( F )	_mm_set1_ps( F )
-
-
-/**
- * Creates a vector out of four FLOATs.
- *
- * @param X		1st float component
- * @param Y		2nd float component
- * @param Z		3rd float component
- * @param W		4th float component
- * @return		VectorRegister(X, Y, Z, W)
- */
-FORCEINLINE VectorRegister VectorSet( float X, float Y, float Z, float W )
+FORCEINLINE VectorRegister4Float VectorSetFloat1(float F)
 {
-	return MakeVectorRegister(X, Y, Z, W);
+	return _mm_set1_ps(F);
+}
+
+FORCEINLINE VectorRegister4Double VectorSetFloat1(double D)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_set1_pd(D);
+	Result.ZW = Result.XY;
+	return Result;
 }
 
 /**
@@ -246,7 +497,16 @@ FORCEINLINE VectorRegister VectorSet( float X, float Y, float Z, float W )
  * @param Vec	Vector to store
  * @param Ptr	Aligned memory pointer
  */
-#define VectorStoreAligned( Vec, Ptr )	_mm_store_ps( (float*)(Ptr), Vec )
+FORCEINLINE void VectorStoreAligned(const VectorRegister4Float& Vec, float* Dst)
+{
+	_mm_store_ps(Dst, Vec);
+}
+
+FORCEINLINE void VectorStoreAligned(const VectorRegister4Double& Vec, double* Dst)
+{
+	_mm_store_pd(Dst, Vec.XY);
+	_mm_store_pd(Dst + 2, Vec.ZW);
+}
 
 
 /**
@@ -255,8 +515,25 @@ FORCEINLINE VectorRegister VectorSet( float X, float Y, float Z, float W )
  * @param Vec	Vector to store
  * @param Ptr	Aligned memory pointer
  */
-#define VectorStoreAlignedStreamed( Vec, Ptr )	_mm_stream_ps( (float*)(Ptr), Vec )
+FORCEINLINE void VectorStoreAlignedStreamed(const VectorRegister4Float& Vec, float* Dst)
+{
+	_mm_stream_ps(Dst, Vec);
+}
 
+FORCEINLINE void VectorStoreAlignedStreamed(const VectorRegister4Double& Vec, double* Dst)
+{
+	_mm_stream_pd(Dst, Vec.XY);
+	_mm_stream_pd(Dst + 2, Vec.ZW);
+}
+
+// TODO: this is lossy, would rather not implement.
+/*
+FORCEINLINE void VectorStoreAlignedStreamed(const VectorRegister4Double& Vec, float* Dst)
+{
+	const VectorRegister4Float FloatXYZW = MakeVectorRegisterFloatFromDouble(Vec);
+	VectorStoreAlignedStreamed(FloatXYZW, Dst);
+}
+*/
 
 /**
  * Stores a vector to memory (aligned or unaligned).
@@ -264,9 +541,15 @@ FORCEINLINE VectorRegister VectorSet( float X, float Y, float Z, float W )
  * @param Vec	Vector to store
  * @param Ptr	Memory pointer
  */
-FORCEINLINE void VectorStore( const VectorRegister& Vec, void* Ptr )
+FORCEINLINE void VectorStore(const VectorRegister4Float& Vec, float* Ptr)
 {
-	_mm_storeu_ps((float*)(Ptr), Vec);
+	_mm_storeu_ps(Ptr, Vec);
+}
+
+FORCEINLINE void VectorStore(const VectorRegister4Double& Vec, double* Dst)
+{
+	_mm_storeu_pd(Dst, Vec.XY);
+	_mm_storeu_pd(Dst + 2, Vec.ZW);
 }
 
 /**
@@ -275,14 +558,20 @@ FORCEINLINE void VectorStore( const VectorRegister& Vec, void* Ptr )
  * @param Vec	Vector to store XYZ
  * @param Ptr	Unaligned memory pointer
  */
-FORCEINLINE void VectorStoreFloat3( const VectorRegister& Vec, void* Ptr )
+FORCEINLINE void VectorStoreFloat3( const VectorRegister4Float& Vec, float* Ptr )
 {
-	union { VectorRegister v; float f[4]; } Tmp;
+	union { VectorRegister4Float v; float f[4]; } Tmp;
 	Tmp.v = Vec;
 	float* FloatPtr = (float*)(Ptr);
 	FloatPtr[0] = Tmp.f[0];
 	FloatPtr[1] = Tmp.f[1];
 	FloatPtr[2] = Tmp.f[2];
+}
+
+FORCEINLINE void VectorStoreFloat3(const VectorRegister4Double& Vec, double* Dst)
+{
+	_mm_storeu_pd(Dst, Vec.XY);
+	_mm_store_sd(Dst + 2, Vec.ZW);
 }
 
 /**
@@ -291,44 +580,180 @@ FORCEINLINE void VectorStoreFloat3( const VectorRegister& Vec, void* Ptr )
  * @param Vec	Vector to store X
  * @param Ptr	Unaligned memory pointer
  */
-#define VectorStoreFloat1( Vec, Ptr )	_mm_store_ss((float*)(Ptr), Vec)
+FORCEINLINE void VectorStoreFloat1(const VectorRegister4Float& Vec, float* Ptr)
+{
+	_mm_store_ss(Ptr, Vec);
+}
+
+FORCEINLINE void VectorStoreFloat1(const VectorRegister4Double& Vec, double* Dst)
+{
+	_mm_store_sd(Dst, Vec.XY);
+}
+
+// Templated shuffles required for double shuffles when using __m128d, since we have to break it down in to two separate operations.
+
+// [0,1]:[0,1]
+template<int Index0, int Index1, typename std::enable_if< (Index0 <= 1) && (Index1 <= 1), bool >::type = true>
+FORCEINLINE VectorRegister2Double SelectVectorSwizzle2(const VectorRegister4Double& Vec)
+{
+	VectorRegister2Double Result = _mm_shuffle_pd(Vec.XY, Vec.XY, SHUFFLEMASK2(Index0, Index1));
+	return Result;
+}
+
+// [0,1]:[2,3]
+template<int Index0, int Index1, typename std::enable_if< (Index0 <= 1) && (Index1 > 1), bool >::type = true>
+FORCEINLINE VectorRegister2Double SelectVectorSwizzle2(const VectorRegister4Double& Vec)
+{
+	VectorRegister2Double Result = _mm_shuffle_pd(Vec.XY, Vec.ZW, SHUFFLEMASK2(Index0, Index1 - 2));
+	return Result;
+}
+
+// [2,3]:[0,1]
+template<int Index0, int Index1, typename std::enable_if< (Index0 > 1) && (Index1 <= 1), bool >::type = true>
+FORCEINLINE VectorRegister2Double SelectVectorSwizzle2(const VectorRegister4Double& Vec)
+{
+	VectorRegister2Double Result = _mm_shuffle_pd(Vec.ZW, Vec.XY, SHUFFLEMASK2(Index0 - 2, Index1));
+	return Result;
+}
+
+// [2,3]:[2,3]
+template<int Index0, int Index1, typename std::enable_if< (Index0 > 1) && (Index1 > 1), bool >::type = true>
+FORCEINLINE VectorRegister2Double SelectVectorSwizzle2(const VectorRegister4Double& Vec)
+{
+	VectorRegister2Double Result = _mm_shuffle_pd(Vec.ZW, Vec.ZW, SHUFFLEMASK2(Index0 - 2, Index1 - 2));
+	return Result;
+}
+
+// Double swizzle
+template<int Index0, int Index1, int Index2, int Index3>
+FORCEINLINE VectorRegister4Double VectorSwizzleTemplate(const VectorRegister4Double& Vec)
+{
+	VectorRegister4Double Result;
+	Result.XY = SelectVectorSwizzle2<Index0, Index1>(Vec);
+	Result.ZW = SelectVectorSwizzle2<Index2, Index3>(Vec);
+	return Result;
+}
+
+// Double shuffle
+template<int Index0, int Index1, int Index2, int Index3>
+FORCEINLINE VectorRegister4Double VectorShuffleTemplate(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double Result;
+	Result.XY = SelectVectorSwizzle2<Index0, Index1>(Vec1);
+	Result.ZW = SelectVectorSwizzle2<Index2, Index3>(Vec2);
+	return Result;
+}
+
+
+// Float swizzle
+template<int Index0, int Index1, int Index2, int Index3>
+FORCEINLINE VectorRegister4Float VectorSwizzleTemplate(const VectorRegister4Float& Vec)
+{
+	VectorRegister4Float Result = _mm_shuffle_ps(Vec, Vec, SHUFFLEMASK(Index0, Index1, Index2, Index3));
+	return Result;
+}
+
+// Float shuffle
+template<int Index0, int Index1, int Index2, int Index3>
+FORCEINLINE VectorRegister4Float VectorShuffleTemplate(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
+{
+	VectorRegister4Float Result = _mm_shuffle_ps(Vec1, Vec2, SHUFFLEMASK(Index0, Index1, Index2, Index3));
+	return Result;
+}
 
 /**
  * Replicates one element into all four elements and returns the new vector.
  *
  * @param Vec			Source vector
  * @param ElementIndex	Index (0-3) of the element to replicate
- * @return				VectorRegister( Vec[ElementIndex], Vec[ElementIndex], Vec[ElementIndex], Vec[ElementIndex] )
+ * @return				VectorRegister4Float( Vec[ElementIndex], Vec[ElementIndex], Vec[ElementIndex], Vec[ElementIndex] )
  */
-#define VectorReplicate( Vec, ElementIndex )	_mm_shuffle_ps( Vec, Vec, SHUFFLEMASK(ElementIndex,ElementIndex,ElementIndex,ElementIndex) )
+
+#define VectorReplicate( Vec, ElementIndex )	VectorSwizzleTemplate<ElementIndex, ElementIndex, ElementIndex, ElementIndex>(Vec)
+
+ /**
+  * Swizzles the 4 components of a vector and returns the result.
+  *
+  * @param Vec		Source vector
+  * @param X			Index for which component to use for X (literal 0-3)
+  * @param Y			Index for which component to use for Y (literal 0-3)
+  * @param Z			Index for which component to use for Z (literal 0-3)
+  * @param W			Index for which component to use for W (literal 0-3)
+  * @return			The swizzled vector
+  */
+#define VectorSwizzle( Vec, X, Y, Z, W )		VectorSwizzleTemplate<X,Y,Z,W>( Vec )
+
+  /**
+   * Creates a vector through selecting two components from each vector via a shuffle mask.
+   *
+   * @param Vec1		Source vector1
+   * @param Vec2		Source vector2
+   * @param X			Index for which component of Vector1 to use for X (literal 0-3)
+   * @param Y			Index for which component of Vector1 to use for Y (literal 0-3)
+   * @param Z			Index for which component of Vector2 to use for Z (literal 0-3)
+   * @param W			Index for which component of Vector2 to use for W (literal 0-3)
+   * @return			The swizzled vector
+   */
+#define VectorShuffle( Vec1, Vec2, X, Y, Z, W )		VectorShuffleTemplate<X,Y,Z,W>( Vec1, Vec2 )
+
 
 /**
  * Returns the absolute value (component-wise).
  *
  * @param Vec			Source vector
- * @return				VectorRegister( abs(Vec.x), abs(Vec.y), abs(Vec.z), abs(Vec.w) )
+ * @return				VectorRegister4Float( abs(Vec.x), abs(Vec.y), abs(Vec.z), abs(Vec.w) )
  */
-#define VectorAbs( Vec )				_mm_and_ps(Vec, GlobalVectorConstants::SignMask)
+FORCEINLINE VectorRegister4Float VectorAbs(const VectorRegister4Float& Vec)
+{
+	return _mm_and_ps(Vec, GlobalVectorConstants::SignMask);
+}
+
+FORCEINLINE VectorRegister4Double VectorAbs(const VectorRegister4Double& Vec)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_and_pd(Vec.XY, GlobalVectorConstants::DoubleSignMask2d);
+	Result.ZW = _mm_and_pd(Vec.ZW, GlobalVectorConstants::DoubleSignMask2d);
+	return Result;
+}
 
 /**
  * Returns the negated value (component-wise).
  *
  * @param Vec			Source vector
- * @return				VectorRegister( -Vec.x, -Vec.y, -Vec.z, -Vec.w )
+ * @return				VectorRegister4Float( -Vec.x, -Vec.y, -Vec.z, -Vec.w )
  */
-#define VectorNegate( Vec )				_mm_sub_ps(_mm_setzero_ps(),Vec)
+FORCEINLINE VectorRegister4Float VectorNegate(const VectorRegister4Float& Vec)
+{
+	return _mm_sub_ps(_mm_setzero_ps(), Vec);
+}
+
+FORCEINLINE VectorRegister4Double VectorNegate(const VectorRegister4Double& Vec)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_sub_pd(_mm_setzero_pd(), Vec.XY);
+	Result.ZW = _mm_sub_pd(_mm_setzero_pd(), Vec.ZW);
+	return Result;
+}
 
 /**
  * Adds two vectors (component-wise) and returns the result.
  *
  * @param Vec1	1st vector
  * @param Vec2	2nd vector
- * @return		VectorRegister( Vec1.x+Vec2.x, Vec1.y+Vec2.y, Vec1.z+Vec2.z, Vec1.w+Vec2.w )
+ * @return		VectorRegister4Float( Vec1.x+Vec2.x, Vec1.y+Vec2.y, Vec1.z+Vec2.z, Vec1.w+Vec2.w )
  */
 
-FORCEINLINE VectorRegister VectorAdd( const VectorRegister& Vec1, const VectorRegister& Vec2 )
+FORCEINLINE VectorRegister4Float VectorAdd( const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2 )
 {
 	return _mm_add_ps(Vec1, Vec2);
+}
+
+FORCEINLINE VectorRegister4Double VectorAdd(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_add_pd(Vec1.XY, Vec2.XY);
+	Result.ZW = _mm_add_pd(Vec1.ZW, Vec2.ZW);
+	return Result;
 }
 
 /**
@@ -336,11 +761,19 @@ FORCEINLINE VectorRegister VectorAdd( const VectorRegister& Vec1, const VectorRe
  *
  * @param Vec1	1st vector
  * @param Vec2	2nd vector
- * @return		VectorRegister( Vec1.x-Vec2.x, Vec1.y-Vec2.y, Vec1.z-Vec2.z, Vec1.w-Vec2.w )
+ * @return		VectorRegister4Float( Vec1.x-Vec2.x, Vec1.y-Vec2.y, Vec1.z-Vec2.z, Vec1.w-Vec2.w )
  */
-FORCEINLINE VectorRegister VectorSubtract( const VectorRegister& Vec1, const VectorRegister& Vec2 )
+FORCEINLINE VectorRegister4Float VectorSubtract( const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2 )
 {
 	return _mm_sub_ps(Vec1, Vec2);
+}
+
+FORCEINLINE VectorRegister4Double VectorSubtract(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_sub_pd(Vec1.XY, Vec2.XY);
+	Result.ZW = _mm_sub_pd(Vec1.ZW, Vec2.ZW);
+	return Result;
 }
 
 /**
@@ -348,12 +781,21 @@ FORCEINLINE VectorRegister VectorSubtract( const VectorRegister& Vec1, const Vec
  *
  * @param Vec1	1st vector
  * @param Vec2	2nd vector
- * @return		VectorRegister( Vec1.x*Vec2.x, Vec1.y*Vec2.y, Vec1.z*Vec2.z, Vec1.w*Vec2.w )
+ * @return		VectorRegister4Float( Vec1.x*Vec2.x, Vec1.y*Vec2.y, Vec1.z*Vec2.z, Vec1.w*Vec2.w )
  */
-FORCEINLINE VectorRegister VectorMultiply( const VectorRegister& Vec1, const VectorRegister& Vec2 )
+FORCEINLINE VectorRegister4Float VectorMultiply( const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2 )
 {
 	return _mm_mul_ps(Vec1, Vec2);
 }
+
+FORCEINLINE VectorRegister4Double VectorMultiply(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_mul_pd(Vec1.XY, Vec2.XY);
+	Result.ZW = _mm_mul_pd(Vec1.ZW, Vec2.ZW);
+	return Result;
+}
+
 
 
 /**
@@ -362,14 +804,26 @@ FORCEINLINE VectorRegister VectorMultiply( const VectorRegister& Vec1, const Vec
  * @param Vec1	1st vector
  * @param Vec2	2nd vector
  * @param Vec3	3rd vector
- * @return		VectorRegister( Vec1.x*Vec2.x + Vec3.x, Vec1.y*Vec2.y + Vec3.y, Vec1.z*Vec2.z + Vec3.z, Vec1.w*Vec2.w + Vec3.w )
+ * @return		VectorRegister4Float( Vec1.x*Vec2.x + Vec3.x, Vec1.y*Vec2.y + Vec3.y, Vec1.z*Vec2.z + Vec3.z, Vec1.w*Vec2.w + Vec3.w )
  */
-FORCEINLINE VectorRegister VectorMultiplyAdd(const VectorRegister& Vec1, const VectorRegister& Vec2, const VectorRegister& Vec3)
+FORCEINLINE VectorRegister4Float VectorMultiplyAdd(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2, const VectorRegister4Float& Vec3)
 {
 #if PLATFORM_ALWAYS_HAS_FMA3
 	return _mm_fmadd_ps(Vec1, Vec2, Vec3);
 #else
-	return _mm_add_ps(_mm_mul_ps(Vec1, Vec2), Vec3);
+	return VectorAdd(VectorMultiply(Vec1, Vec2), Vec3);
+#endif
+}
+
+FORCEINLINE VectorRegister4Double VectorMultiplyAdd(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2, const VectorRegister4Double& Vec3)
+{
+#if PLATFORM_ALWAYS_HAS_FMA3
+	VectorRegister4Double Result;
+	Result.XY = _mm_fmadd_pd(Vec1.XY, Vec2.XY, Vec3.XY);
+	Result.ZW = _mm_fmadd_pd(Vec1.ZW, Vec2.ZW, Vec3.ZW);
+	return Result;
+#else
+	return VectorAdd(VectorMultiply(Vec1, Vec2), Vec3);
 #endif
 }
 
@@ -381,41 +835,77 @@ FORCEINLINE VectorRegister VectorMultiplyAdd(const VectorRegister& Vec1, const V
  * @param Vec3	3rd vector
  * @return		VectorRegister( Vec3.x - Vec1.x*Vec2.x, Vec3.y - Vec1.y*Vec2.y, Vec3.z - Vec1.z*Vec2.z, Vec3.w - Vec1.w*Vec2.w )
  */
-FORCEINLINE VectorRegister VectorNegateMultiplyAdd(VectorRegister Vec1, VectorRegister Vec2, VectorRegister Vec3)
+FORCEINLINE VectorRegister4Float VectorNegateMultiplyAdd(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2, const VectorRegister4Float& Vec3)
 {
 #if PLATFORM_ALWAYS_HAS_FMA3
 	return _mm_fnmadd_ps(Vec1, Vec2, Vec3);
 #else
-	return _mm_sub_ps(Vec3, _mm_mul_ps(Vec1, Vec2));
+	return VectorSubtract(Vec3, VectorMultiply(Vec1, Vec2));
+#endif
+}
+
+FORCEINLINE VectorRegister4Double VectorNegateMultiplyAdd(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2, const VectorRegister4Double& Vec3)
+{
+#if PLATFORM_ALWAYS_HAS_FMA3
+	VectorRegister4Double Result;
+	Result.XY = _mm_fnmadd_pd(Vec1.XY, Vec2.XY, Vec3.XY);
+	Result.ZW = _mm_fnmadd_pd(Vec1.ZW, Vec2.ZW, Vec3.ZW);
+	return Result;
+#else
+	return VectorSubtract(Vec3, VectorMultiply(Vec1, Vec2));
 #endif
 }
 
 
 /**
- * Calculates the dot3 product of two vectors and returns a vector with the result in all 4 components.
- * Only really efficient on Xbox 360.
+ * Divides two vectors (component-wise) and returns the result.
  *
  * @param Vec1	1st vector
  * @param Vec2	2nd vector
- * @return		d = dot3(Vec1.xyz, Vec2.xyz), VectorRegister( d, d, d, d )
+ * @return		VectorRegister4Float( Vec1.x/Vec2.x, Vec1.y/Vec2.y, Vec1.z/Vec2.z, Vec1.w/Vec2.w )
  */
-FORCEINLINE VectorRegister VectorDot3( const VectorRegister& Vec1, const VectorRegister& Vec2 )
+FORCEINLINE VectorRegister4Float VectorDivide(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
 {
-	VectorRegister Temp = VectorMultiply( Vec1, Vec2 );
+	return _mm_div_ps(Vec1, Vec2);
+}
+
+FORCEINLINE VectorRegister4Double VectorDivide(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_div_pd(Vec1.XY, Vec2.XY);
+	Result.ZW = _mm_div_pd(Vec1.ZW, Vec2.ZW);
+	return Result;
+}
+
+/**
+ * Calculates the dot3 product of two vectors and returns a vector with the result in all 4 components.
+ *
+ * @param Vec1	1st vector
+ * @param Vec2	2nd vector
+ * @return		d = dot3(Vec1.xyz, Vec2.xyz), VectorRegister4Float( d, d, d, d )
+ */
+FORCEINLINE VectorRegister4Float VectorDot3( const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2 )
+{
+	VectorRegister4Float Temp = VectorMultiply( Vec1, Vec2 );
 	return VectorAdd( VectorReplicate(Temp,0), VectorAdd( VectorReplicate(Temp,1), VectorReplicate(Temp,2) ) );
+}
+
+FORCEINLINE VectorRegister4Double VectorDot3(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double Temp = VectorMultiply(Vec1, Vec2);
+	return VectorAdd(VectorReplicate(Temp,0), VectorAdd(VectorReplicate(Temp,1), VectorReplicate(Temp,2)));
 }
 
 /**
  * Calculates the dot4 product of two vectors and returns a vector with the result in all 4 components.
- * Only really efficient on Xbox 360.
  *
  * @param Vec1	1st vector
  * @param Vec2	2nd vector
- * @return		d = dot4(Vec1.xyzw, Vec2.xyzw), VectorRegister( d, d, d, d )
+ * @return		d = dot4(Vec1.xyzw, Vec2.xyzw), VectorRegister4Float( d, d, d, d )
  */
-FORCEINLINE VectorRegister VectorDot4( const VectorRegister& Vec1, const VectorRegister& Vec2 )
+FORCEINLINE VectorRegister4Float VectorDot4( const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2 )
 {
-	VectorRegister Temp1, Temp2;
+	VectorRegister4Float Temp1, Temp2;
 	Temp1 = VectorMultiply( Vec1, Vec2 );
 	Temp2 = _mm_shuffle_ps( Temp1, Temp1, SHUFFLEMASK(2,3,0,1) );	// (Z,W,X,Y).
 	Temp1 = VectorAdd( Temp1, Temp2 );								// (X*X + Z*Z, Y*Y + W*W, Z*Z + X*X, W*W + Y*Y)
@@ -423,60 +913,148 @@ FORCEINLINE VectorRegister VectorDot4( const VectorRegister& Vec1, const VectorR
 	return VectorAdd( Temp1, Temp2 );								// (X*X + Z*Z + Y*Y + W*W, Y*Y + W*W + Z*Z + X*X, Z*Z + X*X + W*W + Y*Y, W*W + Y*Y + X*X + Z*Z)
 }
 
+FORCEINLINE VectorRegister4Double VectorDot4(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double R;
+	VectorRegister2Double T;
+
+	// (X*X, Y*Y)
+	R.XY = _mm_mul_pd(Vec1.XY, Vec2.XY);
+	// (Z*Z, W*W)
+	R.ZW = _mm_mul_pd(Vec1.ZW, Vec2.ZW);
+
+	// (X*X + Z*Z, Y*Y + W*W)
+	T = _mm_add_pd(R.XY, R.ZW);
+
+	// (Y*Y + W*W, X*X + Z*Z)  // Reverse of T
+	R.ZW = _mm_shuffle_pd(T, T, SHUFFLEMASK2(1, 0));
+
+	// (X*X + Z*Z + Y*Y + W*W, Y*Y + W*W + X*X + Z*Z)
+	R.XY = _mm_add_pd(T, R.ZW);
+	R.ZW = R.XY;
+
+	return R;
+}
 
 /**
  * Creates a four-part mask based on component-wise == compares of the input vectors
  *
  * @param Vec1	1st vector
  * @param Vec2	2nd vector
- * @return		VectorRegister( Vec1.x == Vec2.x ? 0xFFFFFFFF : 0, same for yzw )
+ * @return		VectorRegister4Float( Vec1.x == Vec2.x ? 0xFFFFFFFF : 0, same for yzw )
  */
-#define VectorCompareEQ( Vec1, Vec2 )			_mm_cmpeq_ps( Vec1, Vec2 )
+FORCEINLINE VectorRegister4Float VectorCompareEQ(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
+{
+	return _mm_cmpeq_ps(Vec1, Vec2);
+}
+
+FORCEINLINE VectorRegister4Double VectorCompareEQ(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_cmpeq_pd(Vec1.XY, Vec2.XY);
+	Result.ZW = _mm_cmpeq_pd(Vec1.ZW, Vec2.ZW);
+	return Result;
+}
 
 /**
  * Creates a four-part mask based on component-wise != compares of the input vectors
  *
  * @param Vec1	1st vector
  * @param Vec2	2nd vector
- * @return		VectorRegister( Vec1.x != Vec2.x ? 0xFFFFFFFF : 0, same for yzw )
+ * @return		VectorRegister4Float( Vec1.x != Vec2.x ? 0xFFFFFFFF : 0, same for yzw )
  */
-#define VectorCompareNE( Vec1, Vec2 )			_mm_cmpneq_ps( Vec1, Vec2 )
+FORCEINLINE VectorRegister4Float VectorCompareNE(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
+{
+	return _mm_cmpneq_ps(Vec1, Vec2);
+}
+
+FORCEINLINE VectorRegister4Double VectorCompareNE(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_cmpneq_pd(Vec1.XY, Vec2.XY);
+	Result.ZW = _mm_cmpneq_pd(Vec1.ZW, Vec2.ZW);
+	return Result;
+}
 
 /**
  * Creates a four-part mask based on component-wise > compares of the input vectors
  *
  * @param Vec1	1st vector
  * @param Vec2	2nd vector
- * @return		VectorRegister( Vec1.x > Vec2.x ? 0xFFFFFFFF : 0, same for yzw )
+ * @return		VectorRegister4Float( Vec1.x > Vec2.x ? 0xFFFFFFFF : 0, same for yzw )
  */
-#define VectorCompareGT( Vec1, Vec2 )			_mm_cmpgt_ps( Vec1, Vec2 )
+FORCEINLINE VectorRegister4Float VectorCompareGT(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
+{
+	return _mm_cmpgt_ps(Vec1, Vec2);
+}
+
+FORCEINLINE VectorRegister4Double VectorCompareGT(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_cmpgt_pd(Vec1.XY, Vec2.XY);
+	Result.ZW = _mm_cmpgt_pd(Vec1.ZW, Vec2.ZW);
+	return Result;
+}
 
 /**
  * Creates a four-part mask based on component-wise >= compares of the input vectors
  *
  * @param Vec1	1st vector
  * @param Vec2	2nd vector
- * @return		VectorRegister( Vec1.x >= Vec2.x ? 0xFFFFFFFF : 0, same for yzw )
+ * @return		VectorRegister4Float( Vec1.x >= Vec2.x ? 0xFFFFFFFF : 0, same for yzw )
  */
-#define VectorCompareGE( Vec1, Vec2 )			_mm_cmpge_ps( Vec1, Vec2 )
+FORCEINLINE VectorRegister4Float VectorCompareGE(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
+{
+	return _mm_cmpge_ps(Vec1, Vec2);
+}
+
+FORCEINLINE VectorRegister4Double VectorCompareGE(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_cmpge_pd(Vec1.XY, Vec2.XY);
+	Result.ZW = _mm_cmpge_pd(Vec1.ZW, Vec2.ZW);
+	return Result;
+}
 
  /**
  * Creates a four-part mask based on component-wise < compares of the input vectors
  *
  * @param Vec1	1st vector
  * @param Vec2	2nd vector
- * @return		VectorRegister( Vec1.x < Vec2.x ? 0xFFFFFFFF : 0, same for yzw )
+ * @return		VectorRegister4Float( Vec1.x < Vec2.x ? 0xFFFFFFFF : 0, same for yzw )
  */
-#define VectorCompareLT( Vec1, Vec2 )			_mm_cmplt_ps( Vec1, Vec2 )
+FORCEINLINE VectorRegister4Float VectorCompareLT(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
+{
+	return _mm_cmplt_ps(Vec1, Vec2);
+}
+
+FORCEINLINE VectorRegister4Double VectorCompareLT(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_cmplt_pd(Vec1.XY, Vec2.XY);
+	Result.ZW = _mm_cmplt_pd(Vec1.ZW, Vec2.ZW);
+	return Result;
+}
 
  /**
  * Creates a four-part mask based on component-wise <= compares of the input vectors
  *
  * @param Vec1	1st vector
  * @param Vec2	2nd vector
- * @return		VectorRegister( Vec1.x <= Vec2.x ? 0xFFFFFFFF : 0, same for yzw )
+ * @return		VectorRegister4Float( Vec1.x <= Vec2.x ? 0xFFFFFFFF : 0, same for yzw )
  */
-#define VectorCompareLE( Vec1, Vec2 )			_mm_cmple_ps( Vec1, Vec2 )
+FORCEINLINE VectorRegister4Float VectorCompareLE(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
+{
+	return _mm_cmple_ps(Vec1, Vec2);
+}
+
+FORCEINLINE VectorRegister4Double VectorCompareLE(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_cmple_pd(Vec1.XY, Vec2.XY);
+	Result.ZW = _mm_cmple_pd(Vec1.ZW, Vec2.ZW);
+	return Result;
+}
 
 /**
  * Does a bitwise vector selection based on a mask (e.g., created from VectorCompareXX)
@@ -484,13 +1062,26 @@ FORCEINLINE VectorRegister VectorDot4( const VectorRegister& Vec1, const VectorR
  * @param Mask  Mask (when 1: use the corresponding bit from Vec1 otherwise from Vec2)
  * @param Vec1	1st vector
  * @param Vec2	2nd vector
- * @return		VectorRegister( for each bit i: Mask[i] ? Vec1[i] : Vec2[i] )
+ * @return		VectorRegister4Float( for each bit i: Mask[i] ? Vec1[i] : Vec2[i] )
  *
  */
 
-FORCEINLINE VectorRegister VectorSelect(const VectorRegister& Mask, const VectorRegister& Vec1, const VectorRegister& Vec2 )
+FORCEINLINE VectorRegister4Float VectorSelect(const VectorRegister4Float& Mask, const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2 )
 {
-	return _mm_xor_ps( Vec2, _mm_and_ps( Mask, _mm_xor_ps( Vec1, Vec2 ) ) );
+	return _mm_xor_ps(Vec2, _mm_and_ps(Mask, _mm_xor_ps(Vec1, Vec2)));
+}
+
+FORCEINLINE VectorRegister2Double VectorSelect(const VectorRegister2Double& Mask, const VectorRegister2Double& Vec1, const VectorRegister2Double& Vec2)
+{
+	return _mm_xor_pd(Vec2, _mm_and_pd(Mask, _mm_xor_pd(Vec1, Vec2)));
+}
+
+FORCEINLINE VectorRegister4Double VectorSelect(const VectorRegister4Double& Mask, const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double Result;
+	Result.XY = VectorSelect(Mask.XY, Vec1.XY, Vec2.XY);
+	Result.ZW = VectorSelect(Mask.ZW, Vec1.ZW, Vec2.ZW);
+	return Result;
 }
 
 /**
@@ -498,28 +1089,60 @@ FORCEINLINE VectorRegister VectorSelect(const VectorRegister& Mask, const Vector
  *
  * @param Vec1	1st vector
  * @param Vec2	2nd vector
- * @return		VectorRegister( for each bit i: Vec1[i] | Vec2[i] )
+ * @return		VectorRegister4Float( for each bit i: Vec1[i] | Vec2[i] )
  */
-#define VectorBitwiseOr(Vec1, Vec2)	_mm_or_ps(Vec1, Vec2)
+FORCEINLINE VectorRegister4Float VectorBitwiseOr(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
+{
+	return _mm_or_ps(Vec1, Vec2);
+}
+
+FORCEINLINE VectorRegister4Double VectorBitwiseOr(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_or_pd(Vec1.XY, Vec2.XY);
+	Result.ZW = _mm_or_pd(Vec1.ZW, Vec2.ZW);
+	return Result;
+}
 
 /**
  * Combines two vectors using bitwise AND (treating each vector as a 128 bit field)
  *
  * @param Vec1	1st vector
  * @param Vec2	2nd vector
- * @return		VectorRegister( for each bit i: Vec1[i] & Vec2[i] )
+ * @return		VectorRegister4Float( for each bit i: Vec1[i] & Vec2[i] )
  */
-#define VectorBitwiseAnd(Vec1, Vec2) _mm_and_ps(Vec1, Vec2)
+FORCEINLINE VectorRegister4Float VectorBitwiseAnd(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
+{
+	return _mm_and_ps(Vec1, Vec2);
+}
+
+FORCEINLINE VectorRegister4Double VectorBitwiseAnd(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_and_pd(Vec1.XY, Vec2.XY);
+	Result.ZW = _mm_and_pd(Vec1.ZW, Vec2.ZW);
+	return Result;
+}
 
 /**
  * Combines two vectors using bitwise XOR (treating each vector as a 128 bit field)
  *
  * @param Vec1	1st vector
  * @param Vec2	2nd vector
- * @return		VectorRegister( for each bit i: Vec1[i] ^ Vec2[i] )
+ * @return		VectorRegister4Float( for each bit i: Vec1[i] ^ Vec2[i] )
  */
-#define VectorBitwiseXor(Vec1, Vec2) _mm_xor_ps(Vec1, Vec2)
+FORCEINLINE VectorRegister4Float VectorBitwiseXor(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
+{
+	return _mm_xor_ps(Vec1, Vec2);
+}
 
+FORCEINLINE VectorRegister4Double VectorBitwiseXor(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_xor_pd(Vec1.XY, Vec2.XY);
+	Result.ZW = _mm_xor_pd(Vec1.ZW, Vec2.ZW);
+	return Result;
+}
 
 /**
  * Calculates the cross product of two vectors (XYZ components). W is set to 0.
@@ -528,12 +1151,30 @@ FORCEINLINE VectorRegister VectorSelect(const VectorRegister& Mask, const Vector
  * @param Vec2	2nd vector
  * @return		cross(Vec1.xyz, Vec2.xyz). W is set to 0.
  */
-FORCEINLINE VectorRegister VectorCross( const VectorRegister& Vec1, const VectorRegister& Vec2 )
+FORCEINLINE VectorRegister4Float VectorCross( const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2 )
 {
-	VectorRegister C = VectorMultiply(Vec1, _mm_shuffle_ps(Vec2, Vec2, SHUFFLEMASK(1, 2, 0, 3)));
-	C = VectorNegateMultiplyAdd(_mm_shuffle_ps(Vec1, Vec1, SHUFFLEMASK(1, 2, 0, 3)), Vec2, C);
-	C = _mm_shuffle_ps(C, C, SHUFFLEMASK(1, 2, 0, 3));
-	return C;
+	// YZX
+	VectorRegister4Float A = VectorSwizzle(Vec2, 1, 2, 0, 3);
+	VectorRegister4Float B = VectorSwizzle(Vec1, 1, 2, 0, 3);
+	// XY, YZ, ZX
+	A = VectorMultiply(A, Vec1);
+	// XY-YX, YZ-ZY, ZX-XZ
+	A = VectorNegateMultiplyAdd(B, Vec2, A);
+	// YZ-ZY, ZX-XZ, XY-YX
+	return VectorSwizzle(A, 1, 2, 0, 3);
+}
+
+FORCEINLINE VectorRegister4Double VectorCross(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	// YZX
+	VectorRegister4Double A = VectorSwizzle(Vec2, 1, 2, 0, 3);
+	VectorRegister4Double B = VectorSwizzle(Vec1, 1, 2, 0, 3);
+	// XY, YZ, ZX
+	A = VectorMultiply(A, Vec1);
+	// XY-YX, YZ-ZY, ZX-XZ
+	A = VectorNegateMultiplyAdd(B, Vec2, A);
+	// YZ-ZY, ZX-XZ, XY-YX
+	return VectorSwizzle(A, 1, 2, 0, 3);
 }
 
 /**
@@ -541,56 +1182,98 @@ FORCEINLINE VectorRegister VectorCross( const VectorRegister& Vec1, const Vector
  *
  * @param Base		Base vector
  * @param Exponent	Exponent vector
- * @return			VectorRegister( Base.x^Exponent.x, Base.y^Exponent.y, Base.z^Exponent.z, Base.w^Exponent.w )
+ * @return			VectorRegister4Float( Base.x^Exponent.x, Base.y^Exponent.y, Base.z^Exponent.z, Base.w^Exponent.w )
  */
-FORCEINLINE VectorRegister VectorPow( const VectorRegister& Base, const VectorRegister& Exponent )
+FORCEINLINE VectorRegister4Float VectorPow( const VectorRegister4Float& Base, const VectorRegister4Float& Exponent )
 {
 	// using SseMath library
 	return SseMath_exp_ps(_mm_mul_ps(SseMath_log_ps(Base), Exponent));
 /*
 	// old version, keeping for reference in case something breaks and we need to debug it.
-	union { VectorRegister v; float f[4]; } B, E;
+	union { VectorRegister4Float v; float f[4]; } B, E;
 	B.v = Base;
 	E.v = Exponent;
 	return _mm_setr_ps( powf(B.f[0], E.f[0]), powf(B.f[1], E.f[1]), powf(B.f[2], E.f[2]), powf(B.f[3], E.f[3]) );
 */
 }
 
+FORCEINLINE VectorRegister4Double VectorPow(const VectorRegister4Double& Base, const VectorRegister4Double& Exponent)
+{
+	AlignedDouble4 Values(Base);
+	AlignedDouble4 Exponents(Exponent);
+
+	Values[0] = FMath::Pow(Values[0], Exponents[0]);
+	Values[1] = FMath::Pow(Values[1], Exponents[1]);
+	Values[2] = FMath::Pow(Values[2], Exponents[2]);
+	Values[3] = FMath::Pow(Values[3], Exponents[3]);
+	return Values.ToVectorRegister();
+}
+
 /**
 * Returns an estimate of 1/sqrt(c) for each component of the vector
 *
 * @param Vector		Vector 
-* @return			VectorRegister(1/sqrt(t), 1/sqrt(t), 1/sqrt(t), 1/sqrt(t))
+* @return			VectorRegister4Float(1/sqrt(t), 1/sqrt(t), 1/sqrt(t), 1/sqrt(t))
 */
-#define VectorReciprocalSqrt(Vec)		_mm_rsqrt_ps( Vec )
+//#define VectorReciprocalSqrt(Vec)		_mm_rsqrt_ps( Vec )
+
+FORCEINLINE VectorRegister4Float VectorReciprocalSqrt(const VectorRegister4Float& Vec)
+{
+	return _mm_rsqrt_ps(Vec);
+}
+
+FORCEINLINE VectorRegister4Double VectorReciprocalSqrt(const VectorRegister4Double& Vec)
+{
+	// Not an estimate.
+	VectorRegister4Double Result;
+	Result.XY = _mm_sqrt_pd(Vec.XY);
+	Result.ZW = _mm_sqrt_pd(Vec.ZW);
+	return VectorDivide(GlobalVectorConstants::DoubleOne, Result);
+}
 
 /**
  * Computes an estimate of the reciprocal of a vector (component-wise) and returns the result.
  *
  * @param Vec	1st vector
- * @return		VectorRegister( (Estimate) 1.0f / Vec.x, (Estimate) 1.0f / Vec.y, (Estimate) 1.0f / Vec.z, (Estimate) 1.0f / Vec.w )
+ * @return		VectorRegister4Float( (Estimate) 1.0f / Vec.x, (Estimate) 1.0f / Vec.y, (Estimate) 1.0f / Vec.z, (Estimate) 1.0f / Vec.w )
  */
-#define VectorReciprocal(Vec)			_mm_rcp_ps(Vec)
+
+FORCEINLINE VectorRegister4Float VectorReciprocal(const VectorRegister4Float& Vec)
+{
+	return _mm_rcp_ps(Vec);
+}
+
+FORCEINLINE VectorRegister4Double VectorReciprocal(const VectorRegister4Double& Vec)
+{
+	// Not an estimate.
+	return VectorDivide(GlobalVectorConstants::DoubleOne, Vec);
+}
 
 /**
 * Return Reciprocal Length of the vector (estimate)
 *
 * @param Vector		Vector 
-* @return			VectorRegister(rlen, rlen, rlen, rlen) when rlen = 1/sqrt(dot4(V))
+* @return			VectorRegister4Float(rlen, rlen, rlen, rlen) when rlen = 1/sqrt(dot4(V))
 */
-FORCEINLINE VectorRegister VectorReciprocalLen( const VectorRegister& Vector )
+FORCEINLINE VectorRegister4Float VectorReciprocalLen( const VectorRegister4Float& Vector )
 {
-	VectorRegister RecipLen = VectorDot4( Vector, Vector );
+	VectorRegister4Float RecipLen = VectorDot4( Vector, Vector );
 	return VectorReciprocalSqrt( RecipLen );
+}
+
+FORCEINLINE VectorRegister4Double VectorReciprocalLen(const VectorRegister4Double& Vector)
+{
+	VectorRegister4Double RecipLen = VectorDot4(Vector, Vector);
+	return VectorReciprocalSqrt(RecipLen);
 }
 
 /**
 * Return the reciprocal of the square root of each component
 *
 * @param Vector		Vector 
-* @return			VectorRegister(1/sqrt(Vec.X), 1/sqrt(Vec.Y), 1/sqrt(Vec.Z), 1/sqrt(Vec.W))
+* @return			VectorRegister4Float(1/sqrt(Vec.X), 1/sqrt(Vec.Y), 1/sqrt(Vec.Z), 1/sqrt(Vec.W))
 */
-FORCEINLINE VectorRegister VectorReciprocalSqrtAccurate(const VectorRegister& Vec)
+FORCEINLINE VectorRegister4Float VectorReciprocalSqrtAccurate(const VectorRegister4Float& Vec)
 {
 	// Perform two passes of Newton-Raphson iteration on the hardware estimate
 	//    v^-0.5 = x
@@ -604,32 +1287,40 @@ FORCEINLINE VectorRegister VectorReciprocalSqrtAccurate(const VectorRegister& Ve
 	// => x1 = x0 + 0.5 * (x0 - Vec * x0^3)
 	// => x1 = x0 + x0 * (0.5 - 0.5 * Vec * x0^2)
 
-	const VectorRegister OneHalf = GlobalVectorConstants::FloatOneHalf;
-	const VectorRegister VecDivBy2 = VectorMultiply(Vec, OneHalf);
+	const VectorRegister4Float OneHalf = GlobalVectorConstants::FloatOneHalf;
+	const VectorRegister4Float VecDivBy2 = VectorMultiply(Vec, OneHalf);
 
 	// Initial estimate
-	const VectorRegister x0 = VectorReciprocalSqrt(Vec);
+	const VectorRegister4Float x0 = VectorReciprocalSqrt(Vec);
 
 	// First iteration
-	VectorRegister x1 = VectorMultiply(x0, x0);
+	VectorRegister4Float x1 = VectorMultiply(x0, x0);
 	x1 = VectorSubtract(OneHalf, VectorMultiply(VecDivBy2, x1));
 	x1 = VectorMultiplyAdd(x0, x1, x0);
 
 	// Second iteration
-	VectorRegister x2 = VectorMultiply(x1, x1);
+	VectorRegister4Float x2 = VectorMultiply(x1, x1);
 	x2 = VectorSubtract(OneHalf, VectorMultiply(VecDivBy2, x2));
 	x2 = VectorMultiplyAdd(x1, x2, x1);
 
 	return x2;
 }
 
+FORCEINLINE VectorRegister4Double VectorReciprocalSqrtAccurate(const VectorRegister4Double& Vec)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_sqrt_pd(Vec.XY);
+	Result.ZW = _mm_sqrt_pd(Vec.ZW);
+	return VectorDivide(GlobalVectorConstants::DoubleOne, Result);
+}
+
 /**
  * Computes the reciprocal of a vector (component-wise) and returns the result.
  *
  * @param Vec	1st vector
- * @return		VectorRegister( 1.0f / Vec.x, 1.0f / Vec.y, 1.0f / Vec.z, 1.0f / Vec.w )
+ * @return		VectorRegister4Float( 1.0f / Vec.x, 1.0f / Vec.y, 1.0f / Vec.z, 1.0f / Vec.w )
  */
-FORCEINLINE VectorRegister VectorReciprocalAccurate(const VectorRegister& Vec)
+FORCEINLINE VectorRegister4Float VectorReciprocalAccurate(const VectorRegister4Float& Vec)
 {
 	// Perform two passes of Newton-Raphson iteration on the hardware estimate
 	//   x1 = x0 - f(x0) / f'(x0)
@@ -644,53 +1335,67 @@ FORCEINLINE VectorRegister VectorReciprocalAccurate(const VectorRegister& Vec)
 	// => x1 = x0 - (x0 * Vec - 1) * x0 = 2 * x0 - Vec * x0^2 
 
 	// Initial estimate
-	const VectorRegister x0 = VectorReciprocal(Vec);
+	const VectorRegister4Float x0 = VectorReciprocal(Vec);
 
 	// First iteration
-	const VectorRegister x0Squared = VectorMultiply(x0, x0);
-	const VectorRegister x0Times2 = VectorAdd(x0, x0);
-	const VectorRegister x1 = VectorNegateMultiplyAdd(Vec, x0Squared, x0Times2);
+	const VectorRegister4Float x0Squared = VectorMultiply(x0, x0);
+	const VectorRegister4Float x0Times2 = VectorAdd(x0, x0);
+	const VectorRegister4Float x1 = VectorNegateMultiplyAdd(Vec, x0Squared, x0Times2);
 
 	// Second iteration
-	const VectorRegister x1Squared = VectorMultiply(x1, x1);
-	const VectorRegister x1Times2 = VectorAdd(x1, x1);
-	const VectorRegister x2 = VectorNegateMultiplyAdd(Vec, x1Squared, x1Times2);
+	const VectorRegister4Float x1Squared = VectorMultiply(x1, x1);
+	const VectorRegister4Float x1Times2 = VectorAdd(x1, x1);
+	const VectorRegister4Float x2 = VectorNegateMultiplyAdd(Vec, x1Squared, x1Times2);
 
 	return x2;
 }
 
-/**
-* Normalize vector
-*
-* @param Vector		Vector to normalize
-* @return			Normalized VectorRegister
-*/
-FORCEINLINE VectorRegister VectorNormalize( const VectorRegister& Vector )
+FORCEINLINE VectorRegister4Double VectorReciprocalAccurate(const VectorRegister4Double& Vec)
 {
-	return VectorMultiply( Vector, VectorReciprocalLen( Vector ) );
+	return VectorDivide(GlobalVectorConstants::DoubleOne, Vec);
 }
+
 
 /**
 * Loads XYZ and sets W=0
 *
-* @param Vector	VectorRegister
-* @return		VectorRegister(X, Y, Z, 0.0f)
+* @param Vector	VectorRegister4Float
+* @return		VectorRegister4Float(X, Y, Z, 0.0f)
 */
-#define VectorSet_W0( Vec )		_mm_and_ps( Vec, GlobalVectorConstants::XYZMask )
+FORCEINLINE VectorRegister4Float VectorSet_W0(const VectorRegister4Float& Vec)
+{
+	return _mm_and_ps(Vec, GlobalVectorConstants::XYZMask);
+}
+
+FORCEINLINE VectorRegister4Double VectorSet_W0(const VectorRegister4Double& Vec)
+{
+	VectorRegister4Double Result;
+	Result.XY = Vec.XY;
+	Result.ZW = _mm_castsi128_pd(_mm_move_epi64(_mm_castpd_si128(Vec.ZW)));
+	return Result;
+}
 
 /**
 * Loads XYZ and sets W=1
 *
-* @param Vector	VectorRegister
-* @return		VectorRegister(X, Y, Z, 1.0f)
+* @param Vector	VectorRegister4Float
+* @return		VectorRegister4Float(X, Y, Z, 1.0f)
 */
-FORCEINLINE VectorRegister VectorSet_W1( const VectorRegister& Vector )
+FORCEINLINE VectorRegister4Float VectorSet_W1( const VectorRegister4Float& Vec)
 {
 	// Temp = (Vector[2]. Vector[3], 1.0f, 1.0f)
-	VectorRegister Temp = _mm_movehl_ps( VectorOne(), Vector );
+	VectorRegister4Float Temp = _mm_movehl_ps( VectorOneFloat(), Vec);
 
 	// Return (Vector[0], Vector[1], Vector[2], 1.0f)
-	return _mm_shuffle_ps( Vector, Temp, SHUFFLEMASK(0,1,0,3) );
+	return _mm_shuffle_ps(Vec, Temp, SHUFFLEMASK(0,1,0,3) );
+}
+
+FORCEINLINE VectorRegister4Double VectorSet_W1(const VectorRegister4Double& Vec)
+{
+	VectorRegister4Double Result;
+	Result.XY = Vec.XY;
+	Result.ZW = _mm_move_sd(GlobalVectorConstants::DoubleOne2d, Vec.ZW);
+	return Result;
 }
 
 /**
@@ -700,12 +1405,12 @@ FORCEINLINE VectorRegister VectorSet_W1( const VectorRegister& Vector )
  * @param Matrix1	Pointer to the first matrix
  * @param Matrix2	Pointer to the second matrix
  */
-FORCEINLINE void VectorMatrixMultiply( void *Result, const void* Matrix1, const void* Matrix2 )
+FORCEINLINE void VectorMatrixMultiply(FMatrix44f* Result, const FMatrix44f* Matrix1, const FMatrix44f* Matrix2)
 {
-	const VectorRegister *A	= (const VectorRegister *) Matrix1;
-	const VectorRegister *B	= (const VectorRegister *) Matrix2;
-	VectorRegister *R		= (VectorRegister *) Result;
-	VectorRegister Temp, R0, R1, R2;
+	const VectorRegister4Float* A	= (const VectorRegister4Float*) Matrix1;
+	const VectorRegister4Float* B	= (const VectorRegister4Float*) Matrix2;
+	VectorRegister4Float* R		= (VectorRegister4Float*) Result;
+	VectorRegister4Float Temp, R0, R1, R2;
 
 	// First row of result (Matrix1[0] * Matrix2).
 	Temp	= VectorMultiply( VectorReplicate( A[0], 0 ), B[0] );
@@ -738,20 +1443,59 @@ FORCEINLINE void VectorMatrixMultiply( void *Result, const void* Matrix1, const 
 	R[3] = Temp;
 }
 
+
+FORCEINLINE void VectorMatrixMultiply(FMatrix44d* Result, const FMatrix44d* Matrix1, const FMatrix44d* Matrix2)
+{
+	const VectorRegister4Double* A = (const VectorRegister4Double*)Matrix1;
+	const VectorRegister4Double* B = (const VectorRegister4Double*)Matrix2;
+	VectorRegister4Double* R = (VectorRegister4Double*)Result;
+	VectorRegister4Double Temp, R0, R1, R2;
+
+	// First row of result (Matrix1[0] * Matrix2).
+	Temp = VectorMultiply(VectorReplicate(A[0], 0), B[0]);
+	Temp = VectorMultiplyAdd(VectorReplicate(A[0], 1), B[1], Temp);
+	Temp = VectorMultiplyAdd(VectorReplicate(A[0], 2), B[2], Temp);
+	R0 = VectorMultiplyAdd(VectorReplicate(A[0], 3), B[3], Temp);
+
+	// Second row of result (Matrix1[1] * Matrix2).
+	Temp = VectorMultiply(VectorReplicate(A[1], 0), B[0]);
+	Temp = VectorMultiplyAdd(VectorReplicate(A[1], 1), B[1], Temp);
+	Temp = VectorMultiplyAdd(VectorReplicate(A[1], 2), B[2], Temp);
+	R1 = VectorMultiplyAdd(VectorReplicate(A[1], 3), B[3], Temp);
+
+	// Third row of result (Matrix1[2] * Matrix2).
+	Temp = VectorMultiply(VectorReplicate(A[2], 0), B[0]);
+	Temp = VectorMultiplyAdd(VectorReplicate(A[2], 1), B[1], Temp);
+	Temp = VectorMultiplyAdd(VectorReplicate(A[2], 2), B[2], Temp);
+	R2 = VectorMultiplyAdd(VectorReplicate(A[2], 3), B[3], Temp);
+
+	// Fourth row of result (Matrix1[3] * Matrix2).
+	Temp = VectorMultiply(VectorReplicate(A[3], 0), B[0]);
+	Temp = VectorMultiplyAdd(VectorReplicate(A[3], 1), B[1], Temp);
+	Temp = VectorMultiplyAdd(VectorReplicate(A[3], 2), B[2], Temp);
+	Temp = VectorMultiplyAdd(VectorReplicate(A[3], 3), B[3], Temp);
+
+	// Store result
+	R[0] = R0;
+	R[1] = R1;
+	R[2] = R2;
+	R[3] = Temp;
+}
+
+
 /**
  * Calculate the inverse of an FMatrix.
  *
  * @param DstMatrix		FMatrix pointer to where the result should be stored
  * @param SrcMatrix		FMatrix pointer to the Matrix to be inversed
  */
-// TODO: Vector version of this function that doesn't use D3DX
-FORCEINLINE void VectorMatrixInverse( void* DstMatrix, const void* SrcMatrix )
+FORCEINLINE void VectorMatrixInverse(FMatrix44d* DstMatrix, const FMatrix44d* SrcMatrix)
 {
-	typedef float Float4x4[4][4];
-	const Float4x4& M = *((const Float4x4*) SrcMatrix);
-	Float4x4 Result;
-	float Det[4];
-	Float4x4 Tmp;
+	typedef double Double4x4[4][4];
+	const Double4x4& M = *((const Double4x4*)SrcMatrix);
+	Double4x4 Result;
+	double Det[4];
+	Double4x4 Tmp;
 
 	Tmp[0][0]	= M[2][2] * M[3][3] - M[2][3] * M[3][2];
 	Tmp[0][1]	= M[1][2] * M[3][3] - M[1][3] * M[3][2];
@@ -774,8 +1518,8 @@ FORCEINLINE void VectorMatrixInverse( void* DstMatrix, const void* SrcMatrix )
 	Det[2]		= M[0][1]*Tmp[2][0] - M[1][1]*Tmp[2][1] + M[3][1]*Tmp[2][2];
 	Det[3]		= M[0][1]*Tmp[3][0] - M[1][1]*Tmp[3][1] + M[2][1]*Tmp[3][2];
 
-	float Determinant = M[0][0]*Det[0] - M[1][0]*Det[1] + M[2][0]*Det[2] - M[3][0]*Det[3];
-	const float	RDet = 1.0f / Determinant;
+	const double Determinant = M[0][0]*Det[0] - M[1][0]*Det[1] + M[2][0]*Det[2] - M[3][0]*Det[3];
+	const double	RDet = 1.0 / Determinant;
 
 	Result[0][0] =  RDet * Det[0];
 	Result[0][1] = -RDet * Det[1];
@@ -826,20 +1570,106 @@ FORCEINLINE void VectorMatrixInverse( void* DstMatrix, const void* SrcMatrix )
 		M[2][0] * (M[0][1] * M[1][2] - M[0][2] * M[1][1])
 		);
 
-	memcpy( DstMatrix, &Result, 16*sizeof(float) );
+	memcpy( DstMatrix, &Result, 16*sizeof(double) );
 }
+
+FORCEINLINE void VectorMatrixInverse(FMatrix44f* DstMatrix, const FMatrix44f* SrcMatrix)
+{
+	typedef float Float4x4[4][4];
+	const Float4x4& M = *((const Float4x4*)SrcMatrix);
+	Float4x4 Result;
+	float Det[4];
+	Float4x4 Tmp;
+
+	Tmp[0][0] = M[2][2] * M[3][3] - M[2][3] * M[3][2];
+	Tmp[0][1] = M[1][2] * M[3][3] - M[1][3] * M[3][2];
+	Tmp[0][2] = M[1][2] * M[2][3] - M[1][3] * M[2][2];
+
+	Tmp[1][0] = M[2][2] * M[3][3] - M[2][3] * M[3][2];
+	Tmp[1][1] = M[0][2] * M[3][3] - M[0][3] * M[3][2];
+	Tmp[1][2] = M[0][2] * M[2][3] - M[0][3] * M[2][2];
+
+	Tmp[2][0] = M[1][2] * M[3][3] - M[1][3] * M[3][2];
+	Tmp[2][1] = M[0][2] * M[3][3] - M[0][3] * M[3][2];
+	Tmp[2][2] = M[0][2] * M[1][3] - M[0][3] * M[1][2];
+
+	Tmp[3][0] = M[1][2] * M[2][3] - M[1][3] * M[2][2];
+	Tmp[3][1] = M[0][2] * M[2][3] - M[0][3] * M[2][2];
+	Tmp[3][2] = M[0][2] * M[1][3] - M[0][3] * M[1][2];
+
+	Det[0] = M[1][1] * Tmp[0][0] - M[2][1] * Tmp[0][1] + M[3][1] * Tmp[0][2];
+	Det[1] = M[0][1] * Tmp[1][0] - M[2][1] * Tmp[1][1] + M[3][1] * Tmp[1][2];
+	Det[2] = M[0][1] * Tmp[2][0] - M[1][1] * Tmp[2][1] + M[3][1] * Tmp[2][2];
+	Det[3] = M[0][1] * Tmp[3][0] - M[1][1] * Tmp[3][1] + M[2][1] * Tmp[3][2];
+
+	float Determinant = M[0][0] * Det[0] - M[1][0] * Det[1] + M[2][0] * Det[2] - M[3][0] * Det[3];
+	const float	RDet = 1.0f / Determinant;
+
+	Result[0][0] = RDet * Det[0];
+	Result[0][1] = -RDet * Det[1];
+	Result[0][2] = RDet * Det[2];
+	Result[0][3] = -RDet * Det[3];
+	Result[1][0] = -RDet * (M[1][0] * Tmp[0][0] - M[2][0] * Tmp[0][1] + M[3][0] * Tmp[0][2]);
+	Result[1][1] = RDet * (M[0][0] * Tmp[1][0] - M[2][0] * Tmp[1][1] + M[3][0] * Tmp[1][2]);
+	Result[1][2] = -RDet * (M[0][0] * Tmp[2][0] - M[1][0] * Tmp[2][1] + M[3][0] * Tmp[2][2]);
+	Result[1][3] = RDet * (M[0][0] * Tmp[3][0] - M[1][0] * Tmp[3][1] + M[2][0] * Tmp[3][2]);
+	Result[2][0] = RDet * (
+		M[1][0] * (M[2][1] * M[3][3] - M[2][3] * M[3][1]) -
+		M[2][0] * (M[1][1] * M[3][3] - M[1][3] * M[3][1]) +
+		M[3][0] * (M[1][1] * M[2][3] - M[1][3] * M[2][1])
+		);
+	Result[2][1] = -RDet * (
+		M[0][0] * (M[2][1] * M[3][3] - M[2][3] * M[3][1]) -
+		M[2][0] * (M[0][1] * M[3][3] - M[0][3] * M[3][1]) +
+		M[3][0] * (M[0][1] * M[2][3] - M[0][3] * M[2][1])
+		);
+	Result[2][2] = RDet * (
+		M[0][0] * (M[1][1] * M[3][3] - M[1][3] * M[3][1]) -
+		M[1][0] * (M[0][1] * M[3][3] - M[0][3] * M[3][1]) +
+		M[3][0] * (M[0][1] * M[1][3] - M[0][3] * M[1][1])
+		);
+	Result[2][3] = -RDet * (
+		M[0][0] * (M[1][1] * M[2][3] - M[1][3] * M[2][1]) -
+		M[1][0] * (M[0][1] * M[2][3] - M[0][3] * M[2][1]) +
+		M[2][0] * (M[0][1] * M[1][3] - M[0][3] * M[1][1])
+		);
+	Result[3][0] = -RDet * (
+		M[1][0] * (M[2][1] * M[3][2] - M[2][2] * M[3][1]) -
+		M[2][0] * (M[1][1] * M[3][2] - M[1][2] * M[3][1]) +
+		M[3][0] * (M[1][1] * M[2][2] - M[1][2] * M[2][1])
+		);
+	Result[3][1] = RDet * (
+		M[0][0] * (M[2][1] * M[3][2] - M[2][2] * M[3][1]) -
+		M[2][0] * (M[0][1] * M[3][2] - M[0][2] * M[3][1]) +
+		M[3][0] * (M[0][1] * M[2][2] - M[0][2] * M[2][1])
+		);
+	Result[3][2] = -RDet * (
+		M[0][0] * (M[1][1] * M[3][2] - M[1][2] * M[3][1]) -
+		M[1][0] * (M[0][1] * M[3][2] - M[0][2] * M[3][1]) +
+		M[3][0] * (M[0][1] * M[1][2] - M[0][2] * M[1][1])
+		);
+	Result[3][3] = RDet * (
+		M[0][0] * (M[1][1] * M[2][2] - M[1][2] * M[2][1]) -
+		M[1][0] * (M[0][1] * M[2][2] - M[0][2] * M[2][1]) +
+		M[2][0] * (M[0][1] * M[1][2] - M[0][2] * M[1][1])
+		);
+
+	memcpy(DstMatrix, &Result, 16 * sizeof(float));
+}
+
+
 
 /**
  * Calculate Homogeneous transform.
  *
- * @param VecP			VectorRegister 
+ * @param VecP			VectorRegister4Float 
  * @param MatrixM		FMatrix pointer to the Matrix to apply transform
- * @return VectorRegister = VecP*MatrixM
+ * @return VectorRegister4Float = VecP*MatrixM
  */
-FORCEINLINE VectorRegister VectorTransformVector(const VectorRegister&  VecP,  const void* MatrixM )
+FORCEINLINE VectorRegister4Float VectorTransformVector(const VectorRegister4Float& VecP, const FMatrix44f* MatrixM)
 {
-	const VectorRegister *M	= (const VectorRegister *) MatrixM;
-	VectorRegister VTempX, VTempY, VTempZ, VTempW;
+	const VectorRegister4Float *M	= (const VectorRegister4Float *) MatrixM;
+	VectorRegister4Float VTempX, VTempY, VTempZ, VTempW;
 
 	// Splat x,y,z and w
 	VTempX = VectorReplicate(VecP, 0);
@@ -855,48 +1685,104 @@ FORCEINLINE VectorRegister VectorTransformVector(const VectorRegister&  VecP,  c
 	return VTempX;
 }
 
+FORCEINLINE VectorRegister4Float VectorTransformVector(const VectorRegister4Float& VecP, const FMatrix44d* MatrixM)
+{
+	const VectorRegister4Double* M = (const VectorRegister4Double*) MatrixM;
+	VectorRegister4Double VTempX, VTempY, VTempZ, VTempW;
+	VectorRegister4Double VecPDouble = VecP;
+
+	// Splat x,y,z and w
+	VTempX = VectorReplicate(VecPDouble, 0);
+	VTempY = VectorReplicate(VecPDouble, 1);
+	VTempZ = VectorReplicate(VecPDouble, 2);
+	VTempW = VectorReplicate(VecPDouble, 3);
+	// Mul by the matrix
+	VTempX = VectorMultiply(VTempX, M[0]);
+	VTempX = VectorMultiplyAdd(VTempY, M[1], VTempX);
+	VTempX = VectorMultiplyAdd(VTempZ, M[2], VTempX);
+	VTempX = VectorMultiplyAdd(VTempW, M[3], VTempX);
+
+	// TODO: this will be a lossy conversion.
+	return MakeVectorRegisterFloatFromDouble(VTempX);
+}
+
+FORCEINLINE VectorRegister4Double VectorTransformVector(const VectorRegister4Double& VecP, const FMatrix44d* MatrixM)
+{
+	const VectorRegister4Double* M = (const VectorRegister4Double*) MatrixM;
+	VectorRegister4Double VTempX, VTempY, VTempZ, VTempW;
+
+	// Splat x,y,z and w
+	VTempX = VectorReplicate(VecP, 0);
+	VTempY = VectorReplicate(VecP, 1);
+	VTempZ = VectorReplicate(VecP, 2);
+	VTempW = VectorReplicate(VecP, 3);
+	// Mul by the matrix
+	VTempX = VectorMultiply(VTempX, M[0]);
+	VTempX = VectorMultiplyAdd(VTempY, M[1], VTempX);
+	VTempX = VectorMultiplyAdd(VTempZ, M[2], VTempX);
+	VTempX = VectorMultiplyAdd(VTempW, M[3], VTempX);
+
+	return VTempX;
+}
+
+FORCEINLINE VectorRegister4Double VectorTransformVector(const VectorRegister4Double& VecP, const FMatrix44f* MatrixM)
+{
+	const VectorRegister4Float* M = (const VectorRegister4Float*) MatrixM;
+	VectorRegister4Double VTempX, VTempY, VTempZ, VTempW;
+
+	// Splat x,y,z and w
+	VTempX = VectorReplicate(VecP, 0);
+	VTempY = VectorReplicate(VecP, 1);
+	VTempZ = VectorReplicate(VecP, 2);
+	VTempW = VectorReplicate(VecP, 3);
+	// Mul by the matrix
+	VTempX = VectorMultiply(VTempX, VectorRegister4Double(M[0]));
+	VTempX = VectorMultiplyAdd(VTempY, VectorRegister4Double(M[1]), VTempX);
+	VTempX = VectorMultiplyAdd(VTempZ, VectorRegister4Double(M[2]), VTempX);
+	VTempX = VectorMultiplyAdd(VTempW, VectorRegister4Double(M[3]), VTempX);
+
+	return VTempX;
+}
+
 /**
  * Returns the minimum values of two vectors (component-wise).
  *
  * @param Vec1	1st vector
  * @param Vec2	2nd vector
- * @return		VectorRegister( min(Vec1.x,Vec2.x), min(Vec1.y,Vec2.y), min(Vec1.z,Vec2.z), min(Vec1.w,Vec2.w) )
+ * @return		VectorRegister4Float( min(Vec1.x,Vec2.x), min(Vec1.y,Vec2.y), min(Vec1.z,Vec2.z), min(Vec1.w,Vec2.w) )
  */
-#define VectorMin( Vec1, Vec2 )			_mm_min_ps( Vec1, Vec2 )
+FORCEINLINE VectorRegister4Float VectorMin(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
+{
+	return _mm_min_ps(Vec1, Vec2);
+}
+
+FORCEINLINE VectorRegister4Double VectorMin(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_min_pd(Vec1.XY, Vec2.XY);
+	Result.ZW = _mm_min_pd(Vec1.ZW, Vec2.ZW);
+	return Result;
+}
 
 /**
  * Returns the maximum values of two vectors (component-wise).
  *
  * @param Vec1	1st vector
  * @param Vec2	2nd vector
- * @return		VectorRegister( max(Vec1.x,Vec2.x), max(Vec1.y,Vec2.y), max(Vec1.z,Vec2.z), max(Vec1.w,Vec2.w) )
+ * @return		VectorRegister4Float( max(Vec1.x,Vec2.x), max(Vec1.y,Vec2.y), max(Vec1.z,Vec2.z), max(Vec1.w,Vec2.w) )
  */
-#define VectorMax( Vec1, Vec2 )			_mm_max_ps( Vec1, Vec2 )
+FORCEINLINE VectorRegister4Float VectorMax(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
+{
+	return _mm_max_ps(Vec1, Vec2);
+}
 
-/**
- * Swizzles the 4 components of a vector and returns the result.
- *
- * @param Vec		Source vector
- * @param X			Index for which component to use for X (literal 0-3)
- * @param Y			Index for which component to use for Y (literal 0-3)
- * @param Z			Index for which component to use for Z (literal 0-3)
- * @param W			Index for which component to use for W (literal 0-3)
- * @return			The swizzled vector
- */
-#define VectorSwizzle( Vec, X, Y, Z, W )	_mm_shuffle_ps( Vec, Vec, SHUFFLEMASK(X,Y,Z,W) )
-
-/**
- * Creates a vector through selecting two components from each vector via a shuffle mask. 
- *
- * @param Vec1		Source vector1
- * @param Vec2		Source vector2
- * @param X			Index for which component of Vector1 to use for X (literal 0-3)
- * @param Y			Index for which component of Vector1 to use for Y (literal 0-3)
- * @param Z			Index for which component of Vector2 to use for Z (literal 0-3)
- * @param W			Index for which component of Vector2 to use for W (literal 0-3)
- * @return			The swizzled vector
- */
-#define VectorShuffle( Vec1, Vec2, X, Y, Z, W )	_mm_shuffle_ps( Vec1, Vec2, SHUFFLEMASK(X,Y,Z,W) )
+FORCEINLINE VectorRegister4Double VectorMax(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double Result;
+	Result.XY = _mm_max_pd(Vec1.XY, Vec2.XY);
+	Result.ZW = _mm_max_pd(Vec1.ZW, Vec2.ZW);
+	return Result;
+}
 
 /**
 * Creates a vector by combining two high components from each vector
@@ -905,9 +1791,17 @@ FORCEINLINE VectorRegister VectorTransformVector(const VectorRegister&  VecP,  c
 * @param Vec2		Source vector2
 * @return			The combined vector
 */
-FORCEINLINE VectorRegister VectorCombineHigh(const VectorRegister& Vec1, const VectorRegister& Vec2 )
+FORCEINLINE VectorRegister4Float VectorCombineHigh(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
 {
 	return VectorShuffle(Vec1, Vec2, 2, 3, 2, 3);
+}
+
+FORCEINLINE VectorRegister4Double VectorCombineHigh(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double Result;
+	Result.XY = Vec1.ZW;
+	Result.ZW = Vec2.ZW;
+	return Result;
 }
 
 /**
@@ -917,9 +1811,17 @@ FORCEINLINE VectorRegister VectorCombineHigh(const VectorRegister& Vec1, const V
 * @param Vec2		Source vector2
 * @return			The combined vector
 */
-FORCEINLINE VectorRegister VectorCombineLow(const VectorRegister& Vec1, const VectorRegister& Vec2 )
+FORCEINLINE VectorRegister4Float VectorCombineLow(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
 {
 	return VectorShuffle(Vec1, Vec2, 0, 1, 0, 1);
+}
+
+FORCEINLINE VectorRegister4Double VectorCombineLow(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	VectorRegister4Double Result;
+	Result.XY = Vec1.XY;
+	Result.ZW = Vec2.XY;
+	return Result;
 }
 
 /**
@@ -931,26 +1833,18 @@ FORCEINLINE VectorRegister VectorCombineLow(const VectorRegister& Vec1, const Ve
  * @param OutEvens [Even0, Even1, Even2, Even3]
  * @param OutOdds [Odd0, Odd1, Odd2, Odd3]
 */
-FORCEINLINE void VectorDeinterleave(VectorRegister& OutEvens, VectorRegister& OutOdds, const VectorRegister& Lo, const VectorRegister& Hi)
+FORCEINLINE void VectorDeinterleave(VectorRegister4Float& OutEvens, VectorRegister4Float& OutOdds, const VectorRegister4Float& Lo, const VectorRegister4Float& Hi)
 {
-	OutEvens = _mm_shuffle_ps(Lo, Hi, SHUFFLEMASK(0, 2, 0, 2));
-	OutOdds = _mm_shuffle_ps(Lo, Hi, SHUFFLEMASK(1, 3, 1, 3));
+	OutEvens = VectorShuffle(Lo, Hi, 0, 2, 0, 2);
+	OutOdds = VectorShuffle(Lo, Hi, 1, 3, 1, 3);
 }
 
-/**
- * These functions return a vector mask to indicate which components pass the comparison.
- * Each component is 0xffffffff if it passes, 0x00000000 if it fails.
- *
- * @param Vec1			1st source vector
- * @param Vec2			2nd source vector
- * @return				Vector with a mask for each component.
- */
-#define VectorMask_LT( Vec1, Vec2 )			_mm_cmplt_ps(Vec1, Vec2)
-#define VectorMask_LE( Vec1, Vec2 )			_mm_cmple_ps(Vec1, Vec2)
-#define VectorMask_GT( Vec1, Vec2 )			_mm_cmpgt_ps(Vec1, Vec2)
-#define VectorMask_GE( Vec1, Vec2 )			_mm_cmpge_ps(Vec1, Vec2)
-#define VectorMask_EQ( Vec1, Vec2 )			_mm_cmpeq_ps(Vec1, Vec2)
-#define VectorMask_NE( Vec1, Vec2 )			_mm_cmpneq_ps(Vec1, Vec2)
+FORCEINLINE void VectorDeinterleave(VectorRegister4Double& OutEvens, VectorRegister4Double& OutOdds, const VectorRegister4Double& Lo, const VectorRegister4Double& Hi)
+{
+	OutEvens = VectorShuffle(Lo, Hi, 0, 2, 0, 2);
+	OutOdds = VectorShuffle(Lo, Hi, 1, 3, 1, 3);
+}
+
 
 /**
  * Returns an integer bit-mask (0x00 - 0x0f) based on the sign-bit for each component in a vector.
@@ -958,18 +1852,16 @@ FORCEINLINE void VectorDeinterleave(VectorRegister& OutEvens, VectorRegister& Ou
  * @param VecMask		Vector
  * @return				Bit 0 = sign(VecMask.x), Bit 1 = sign(VecMask.y), Bit 2 = sign(VecMask.z), Bit 3 = sign(VecMask.w)
  */
-#define VectorMaskBits( VecMask )			_mm_movemask_ps( VecMask )
-
-/**
- * Divides two vectors (component-wise) and returns the result.
- *
- * @param Vec1	1st vector
- * @param Vec2	2nd vector
- * @return		VectorRegister( Vec1.x/Vec2.x, Vec1.y/Vec2.y, Vec1.z/Vec2.z, Vec1.w/Vec2.w )
- */
-FORCEINLINE VectorRegister VectorDivide( const VectorRegister& Vec1, const VectorRegister& Vec2 )
+FORCEINLINE int VectorMaskBits(const VectorRegister4Float& VecMask)
 {
-	return _mm_div_ps(Vec1, Vec2);
+	return _mm_movemask_ps(VecMask);
+}
+
+FORCEINLINE int VectorMaskBits(const VectorRegister4Double& VecMask)
+{
+	const int MaskXY = _mm_movemask_pd(VecMask.XY);
+	const int MaskZW = _mm_movemask_pd(VecMask.ZW);
+	return (MaskZW << 2) | (MaskXY);
 }
 
 /**
@@ -977,16 +1869,28 @@ FORCEINLINE VectorRegister VectorDivide( const VectorRegister& Vec1, const Vecto
  *
  * @param VecXYZ	Source vector for XYZ_
  * @param VecW		Source register for ___W (note: the fourth component is used, not the first)
- * @return			VectorRegister(VecXYZ.x, VecXYZ.y, VecXYZ.z, VecW.w)
+ * @return			VectorRegister4Float(VecXYZ.x, VecXYZ.y, VecXYZ.z, VecW.w)
  */
-#define VectorMergeVecXYZ_VecW( VecXYZ, VecW )	VectorSelect( GlobalVectorConstants::XYZMask, VecXYZ, VecW )
+FORCEINLINE VectorRegister4Float VectorMergeVecXYZ_VecW(const VectorRegister4Float& VecXYZ, const VectorRegister4Float& VecW)
+{
+	return VectorSelect(GlobalVectorConstants::XYZMask, VecXYZ, VecW);
+}
+
+FORCEINLINE VectorRegister4Double VectorMergeVecXYZ_VecW(const VectorRegister4Double& VecXYZ, const VectorRegister4Double& VecW)
+{
+	//return VectorSelect(GlobalVectorConstants::DoubleXYZMask, VecXYZ, VecW);
+	VectorRegister4Double Result;
+	Result.XY = VecXYZ.XY;
+	Result.ZW = _mm_move_sd(VecW.ZW, VecXYZ.ZW); //VectorSelect(GlobalVectorConstants::DoubleZMask, VecXYZ.ZW, VecW.ZW);
+	return Result;
+}
 
 /**
  * Loads 4 BYTEs from unaligned memory and converts them into 4 FLOATs.
  * IMPORTANT: You need to call VectorResetFloatRegisters() before using scalar FLOATs after you've used this intrinsic!
  *
  * @param Ptr			Unaligned memory pointer to the 4 BYTEs.
- * @return				VectorRegister( float(Ptr[0]), float(Ptr[1]), float(Ptr[2]), float(Ptr[3]) )
+ * @return				VectorRegister4Float( float(Ptr[0]), float(Ptr[1]), float(Ptr[2]), float(Ptr[3]) )
  */
 // Looks complex but is really quite straightforward:
 // Load as 32-bit value, unpack 4x unsigned bytes to 4x 16-bit ints, then unpack again into 4x 32-bit ints, then convert to 4x floats
@@ -997,11 +1901,11 @@ FORCEINLINE VectorRegister VectorDivide( const VectorRegister& Vec1, const Vecto
 * IMPORTANT: You need to call VectorResetFloatRegisters() before using scalar FLOATs after you've used this intrinsic!
 *
 * @param Ptr			Unaligned memory pointer to the 4 BYTEs.
-* @return				VectorRegister( float(Ptr[0]), float(Ptr[1]), float(Ptr[2]), float(Ptr[3]) )
+* @return				VectorRegister4Float( float(Ptr[0]), float(Ptr[1]), float(Ptr[2]), float(Ptr[3]) )
 */
 // Looks complex but is really quite straightforward:
 // Load as 32-bit value, unpack 4x unsigned bytes to 4x 16-bit ints, then unpack again into 4x 32-bit ints, then convert to 4x floats
-FORCEINLINE VectorRegister VectorLoadSignedByte4(const void* Ptr)
+FORCEINLINE VectorRegister4Float VectorLoadSignedByte4(const void* Ptr)
 {
 	auto Temp = _mm_unpacklo_epi16(_mm_unpacklo_epi8(_mm_cvtsi32_si128(*(int32*)Ptr), _mm_setzero_si128()), _mm_setzero_si128());
 	auto Mask = _mm_cmpgt_epi32(Temp, _mm_set1_epi32(127));
@@ -1014,11 +1918,11 @@ FORCEINLINE VectorRegister VectorLoadSignedByte4(const void* Ptr)
  * IMPORTANT: You need to call VectorResetFloatRegisters() before using scalar FLOATs after you've used this intrinsic!
  *
  * @param Ptr			Unaligned memory pointer to the 4 BYTEs.
- * @return				VectorRegister( float(Ptr[3]), float(Ptr[2]), float(Ptr[1]), float(Ptr[0]) )
+ * @return				VectorRegister4Float( float(Ptr[3]), float(Ptr[2]), float(Ptr[1]), float(Ptr[0]) )
  */
-FORCEINLINE VectorRegister VectorLoadByte4Reverse( void* Ptr )
+FORCEINLINE VectorRegister4Float VectorLoadByte4Reverse( void* Ptr )
 {
-	VectorRegister Temp = VectorLoadByte4(Ptr);
+	VectorRegister4Float Temp = VectorLoadByte4(Ptr);
 	return _mm_shuffle_ps( Temp, Temp, SHUFFLEMASK(3,2,1,0) );
 }
 
@@ -1029,7 +1933,7 @@ FORCEINLINE VectorRegister VectorLoadByte4Reverse( void* Ptr )
  * @param Vec			Vector containing 4 FLOATs
  * @param Ptr			Unaligned memory pointer to store the 4 BYTEs.
  */
-FORCEINLINE void VectorStoreByte4( const VectorRegister& Vec, void* Ptr )
+FORCEINLINE void VectorStoreByte4( const VectorRegister4Float& Vec, void* Ptr )
 {
 	// Looks complex but is really quite straightforward:
 	// Convert 4x floats to 4x 32-bit ints, then pack into 4x 16-bit ints, then into 4x 8-bit unsigned ints, then store as a 32-bit value
@@ -1043,7 +1947,7 @@ FORCEINLINE void VectorStoreByte4( const VectorRegister& Vec, void* Ptr )
 * @param Vec			Vector containing 4 FLOATs
 * @param Ptr			Unaligned memory pointer to store the 4 BYTEs.
 */
-FORCEINLINE void VectorStoreSignedByte4(const VectorRegister& Vec, void* Ptr)
+FORCEINLINE void VectorStoreSignedByte4(const VectorRegister4Float& Vec, void* Ptr)
 {
 	// Looks complex but is really quite straightforward:
 	// Convert 4x floats to 4x 32-bit ints, then pack into 4x 16-bit ints, then into 4x 8-bit unsigned ints, then store as a 32-bit value
@@ -1056,17 +1960,17 @@ FORCEINLINE void VectorStoreSignedByte4(const VectorRegister& Vec, void* Ptr)
 * IMPORTANT: You need to call VectorResetFloatRegisters() before using scalar FLOATs after you've used this intrinsic!
 *
 * @param Ptr			Unaligned memory pointer to the RGB10A2(4 bytes).
-* @return				VectorRegister with 4 FLOATs loaded from Ptr.
+* @return				VectorRegister4Float with 4 FLOATs loaded from Ptr.
 */
-FORCEINLINE VectorRegister VectorLoadURGB10A2N(void* Ptr)
+FORCEINLINE VectorRegister4Float VectorLoadURGB10A2N(void* Ptr)
 {
-	VectorRegister Tmp;
+	VectorRegister4Float Tmp;
 
-	Tmp = _mm_and_ps(_mm_load_ps1((const float *)Ptr), MakeVectorRegister(0x3FFu, 0x3FFu << 10, 0x3FFu << 20, 0x3u << 30));
-	Tmp = _mm_xor_ps(Tmp, VectorSet(0, 0, 0, 0x80000000));
-	Tmp = _mm_cvtepi32_ps(*(const VectorRegisterInt*)&Tmp);
-	Tmp = _mm_add_ps(Tmp, VectorSet(0, 0, 0, 32768.0f*65536.0f));
-	Tmp = _mm_mul_ps(Tmp, VectorSet(1.0f / 1023.0f, 1.0f / (1023.0f*1024.0f), 1.0f / (1023.0f*1024.0f*1024.0f), 1.0f / (3.0f*1024.0f*1024.0f*1024.0f)));
+	Tmp = _mm_and_ps(_mm_load_ps1((const float *)Ptr), MakeVectorRegisterFloat(0x3FFu, 0x3FFu << 10, 0x3FFu << 20, 0x3u << 30));
+	Tmp = _mm_xor_ps(Tmp, MakeVectorRegister(0, 0, 0, 0x80000000));
+	Tmp = _mm_cvtepi32_ps(*(const VectorRegister4Int*)&Tmp);
+	Tmp = _mm_add_ps(Tmp, MakeVectorRegister(0, 0, 0, 32768.0f*65536.0f));
+	Tmp = _mm_mul_ps(Tmp, MakeVectorRegister(1.0f / 1023.0f, 1.0f / (1023.0f*1024.0f), 1.0f / (1023.0f*1024.0f*1024.0f), 1.0f / (3.0f*1024.0f*1024.0f*1024.0f)));
 
 	return Tmp;
 }
@@ -1078,18 +1982,18 @@ FORCEINLINE VectorRegister VectorLoadURGB10A2N(void* Ptr)
 * @param Vec			Vector containing 4 FLOATs
 * @param Ptr			Unaligned memory pointer to store the packed RGBA16(8 bytes).
 */
-FORCEINLINE void VectorStoreURGB10A2N(const VectorRegister& Vec, void* Ptr)
+FORCEINLINE void VectorStoreURGB10A2N(const VectorRegister4Float& Vec, void* Ptr)
 {
-	VectorRegister Tmp;
-	Tmp = _mm_max_ps(Vec, MakeVectorRegister(0.0f, 0.0f, 0.0f, 0.0f));
-	Tmp = _mm_min_ps(Tmp, MakeVectorRegister(1.0f, 1.0f, 1.0f, 1.0f));
-	Tmp = _mm_mul_ps(Tmp, MakeVectorRegister(1023.0f, 1023.0f*1024.0f*0.5f, 1023.0f*1024.0f*1024.0f, 3.0f*1024.0f*1024.0f*1024.0f*0.5f));
+	VectorRegister4Float Tmp;
+	Tmp = _mm_max_ps(Vec, MakeVectorRegisterFloat(0.0f, 0.0f, 0.0f, 0.0f));
+	Tmp = _mm_min_ps(Tmp, MakeVectorRegisterFloat(1.0f, 1.0f, 1.0f, 1.0f));
+	Tmp = _mm_mul_ps(Tmp, MakeVectorRegisterFloat(1023.0f, 1023.0f*1024.0f*0.5f, 1023.0f*1024.0f*1024.0f, 3.0f*1024.0f*1024.0f*1024.0f*0.5f));
 
-	VectorRegisterInt TmpI;
+	VectorRegister4Int TmpI;
 	TmpI = _mm_cvttps_epi32(Tmp);
 	TmpI = _mm_and_si128(TmpI, MakeVectorRegisterInt(0x3FFu, 0x3FFu << (10 - 1), 0x3FFu << 20, 0x3u << (30 - 1)));
 
-	VectorRegisterInt TmpI2;
+	VectorRegister4Int TmpI2;
 	TmpI2 = _mm_shuffle_epi32(TmpI, _MM_SHUFFLE(3, 2, 3, 2));
 	TmpI = _mm_or_si128(TmpI, TmpI2);
 
@@ -1097,7 +2001,7 @@ FORCEINLINE void VectorStoreURGB10A2N(const VectorRegister& Vec, void* Ptr)
 	TmpI2 = _mm_add_epi32(TmpI2, TmpI2);
 	TmpI = _mm_or_si128(TmpI, TmpI2);
 
-	_mm_store_ss((float *)Ptr, *(const VectorRegister*)&TmpI);
+	_mm_store_ss((float *)Ptr, *(const VectorRegister4Float*)&TmpI);
 }
 
 /**
@@ -1105,7 +2009,7 @@ FORCEINLINE void VectorStoreURGB10A2N(const VectorRegister& Vec, void* Ptr)
  * IMPORTANT: You need to call VectorResetFloatRegisters() before using scalar FLOATs after you've used this intrinsic!
  *
  * @param Ptr			Unaligned memory pointer to the RGBA16(8 bytes).
- * @return				VectorRegister with 4 FLOATs loaded from Ptr.
+ * @return				VectorRegister4Float with 4 FLOATs loaded from Ptr.
  */
 #define VectorLoadURGBA16N( Ptr ) _mm_cvtepi32_ps(_mm_unpacklo_epi16(_mm_loadl_epi64((const __m128i*)Ptr), _mm_setzero_si128()))
 
@@ -1114,9 +2018,9 @@ FORCEINLINE void VectorStoreURGB10A2N(const VectorRegister& Vec, void* Ptr)
  * IMPORTANT: You need to call VectorResetFloatRegisters() before using scalar FLOATs after you've used this intrinsic!
  *
  * @param Ptr			Unaligned memory pointer to the RGBA16(8 bytes).
- * @return				VectorRegister with 4 FLOATs loaded from Ptr.
+ * @return				VectorRegister4Float with 4 FLOATs loaded from Ptr.
  */
-FORCEINLINE VectorRegister VectorLoadSRGBA16N(const void* Ptr)
+FORCEINLINE VectorRegister4Float VectorLoadSRGBA16N(const void* Ptr)
 {
 	auto Temp = _mm_unpacklo_epi16(_mm_loadl_epi64((const __m128i*)Ptr), _mm_setzero_si128());
 	auto Mask = _mm_cmpgt_epi32(Temp, _mm_set1_epi32(32767));
@@ -1131,15 +2035,15 @@ FORCEINLINE VectorRegister VectorLoadSRGBA16N(const void* Ptr)
 * @param Vec			Vector containing 4 FLOATs
 * @param Ptr			Unaligned memory pointer to store the packed RGB10A2(4 bytes).
 */
-FORCEINLINE void VectorStoreURGBA16N(const VectorRegister& Vec, void* Ptr)
+FORCEINLINE void VectorStoreURGBA16N(const VectorRegister4Float& Vec, void* Ptr)
 {
 
-	VectorRegister Tmp;
-	Tmp = _mm_max_ps(Vec, MakeVectorRegister(0.0f, 0.0f, 0.0f, 0.0f));
-	Tmp = _mm_min_ps(Tmp, MakeVectorRegister(1.0f, 1.0f, 1.0f, 1.0f));
-	Tmp = _mm_mul_ps(Tmp, MakeVectorRegister(65535.0f, 65535.0f, 65535.0f, 65535.0f));
+	VectorRegister4Float Tmp;
+	Tmp = _mm_max_ps(Vec, MakeVectorRegisterFloat(0.0f, 0.0f, 0.0f, 0.0f));
+	Tmp = _mm_min_ps(Tmp, MakeVectorRegisterFloat(1.0f, 1.0f, 1.0f, 1.0f));
+	Tmp = _mm_mul_ps(Tmp, MakeVectorRegisterFloat(65535.0f, 65535.0f, 65535.0f, 65535.0f));
 
-	VectorRegisterInt TmpI = _mm_cvtps_epi32(Tmp);
+	VectorRegister4Int TmpI = _mm_cvtps_epi32(Tmp);
 
 	uint16* Out = (uint16*)Ptr;
 	Out[0] = static_cast<int16>(_mm_extract_epi16(TmpI, 0));
@@ -1155,7 +2059,15 @@ FORCEINLINE void VectorStoreURGBA16N(const VectorRegister& Vec, void* Ptr)
  * @param Vec2			2nd source vector
  * @return				Non-zero integer if (Vec1.x > Vec2.x) || (Vec1.y > Vec2.y) || (Vec1.z > Vec2.z) || (Vec1.w > Vec2.w)
  */
-#define VectorAnyGreaterThan( Vec1, Vec2 )		_mm_movemask_ps( _mm_cmpgt_ps(Vec1, Vec2) )
+FORCEINLINE int VectorAnyGreaterThan(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
+{
+	return VectorMaskBits(VectorCompareGT(Vec1, Vec2));
+}
+
+FORCEINLINE int VectorAnyGreaterThan(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	return VectorMaskBits(VectorCompareGT(Vec1, Vec2));
+}
 
 /**
  * Resets the floating point registers so that they can be used again.
@@ -1163,6 +2075,7 @@ FORCEINLINE void VectorStoreURGBA16N(const VectorRegister& Vec, void* Ptr)
  */
 // This is no longer necessary now that we don't use MMX instructions
 #define VectorResetFloatRegisters()
+// TODO: LWC: remove?
 
 /**
  * Returns the control register.
@@ -1193,12 +2106,22 @@ FORCEINLINE void VectorStoreURGBA16N(const VectorRegister& Vec, void* Ptr)
 * @param Quat2	Pointer to the second quaternion
 * @return Quat1 * Quat2
 */
-FORCEINLINE VectorRegister VectorQuaternionMultiply2( const VectorRegister& Quat1, const VectorRegister& Quat2 )
+FORCEINLINE VectorRegister4Float VectorQuaternionMultiply2( const VectorRegister4Float& Quat1, const VectorRegister4Float& Quat2 )
 {
-	VectorRegister Result = VectorMultiply(VectorReplicate(Quat1, 3), Quat2);
+	VectorRegister4Float Result = VectorMultiply(VectorReplicate(Quat1, 3), Quat2);
 	Result = VectorMultiplyAdd( VectorMultiply(VectorReplicate(Quat1, 0), VectorSwizzle(Quat2, 3,2,1,0)), GlobalVectorConstants::QMULTI_SIGN_MASK0, Result);
 	Result = VectorMultiplyAdd( VectorMultiply(VectorReplicate(Quat1, 1), VectorSwizzle(Quat2, 2,3,0,1)), GlobalVectorConstants::QMULTI_SIGN_MASK1, Result);
 	Result = VectorMultiplyAdd( VectorMultiply(VectorReplicate(Quat1, 2), VectorSwizzle(Quat2, 1,0,3,2)), GlobalVectorConstants::QMULTI_SIGN_MASK2, Result);
+
+	return Result;
+}
+
+FORCEINLINE VectorRegister4Double VectorQuaternionMultiply2(const VectorRegister4Double& Quat1, const VectorRegister4Double& Quat2)
+{
+	VectorRegister4Double Result = VectorMultiply(VectorReplicate(Quat1, 3), Quat2);
+	Result = VectorMultiplyAdd(VectorMultiply(VectorReplicate(Quat1, 0), VectorSwizzle(Quat2, 3, 2, 1, 0)), GlobalVectorConstants::DOUBLE_QMULTI_SIGN_MASK0, Result);
+	Result = VectorMultiplyAdd(VectorMultiply(VectorReplicate(Quat1, 1), VectorSwizzle(Quat2, 2, 3, 0, 1)), GlobalVectorConstants::DOUBLE_QMULTI_SIGN_MASK1, Result);
+	Result = VectorMultiplyAdd(VectorMultiply(VectorReplicate(Quat1, 2), VectorSwizzle(Quat2, 1, 0, 3, 2)), GlobalVectorConstants::DOUBLE_QMULTI_SIGN_MASK2, Result);
 
 	return Result;
 }
@@ -1213,13 +2136,14 @@ FORCEINLINE VectorRegister VectorQuaternionMultiply2( const VectorRegister& Quat
 * @param Quat1	Pointer to the first quaternion (must not be the destination)
 * @param Quat2	Pointer to the second quaternion (must not be the destination)
 */
-FORCEINLINE void VectorQuaternionMultiply( void* RESTRICT Result, const void* RESTRICT Quat1, const void* RESTRICT Quat2)
+FORCEINLINE void VectorQuaternionMultiply(VectorRegister4Float* RESTRICT Result, const VectorRegister4Float* RESTRICT Quat1, const VectorRegister4Float* RESTRICT Quat2)
 {
-	*((VectorRegister *)Result) = VectorQuaternionMultiply2(*((const VectorRegister *)Quat1), *((const VectorRegister *)Quat2));
+	*Result = VectorQuaternionMultiply2(*Quat1, *Quat2);
 }
+// TODO: LWC: implement for doubles / FQuat
 
 // Returns true if the vector contains a component that is either NAN or +/-infinite.
-FORCEINLINE bool VectorContainsNaNOrInfinite(const VectorRegister& Vec)
+FORCEINLINE bool VectorContainsNaNOrInfinite(const VectorRegister4Float& Vec)
 {
 	// https://en.wikipedia.org/wiki/IEEE_754-1985
 	// Infinity is represented with all exponent bits set, with the correct sign bit.
@@ -1229,94 +2153,255 @@ FORCEINLINE bool VectorContainsNaNOrInfinite(const VectorRegister& Vec)
 	union { float F; uint32 U; } InfUnion;
 	InfUnion.U = 0x7F800000;
 	const float Inf = InfUnion.F;
-	const VectorRegister FloatInfinity = MakeVectorRegister(Inf, Inf, Inf, Inf);
+	const VectorRegister4Float FloatInfinity = MakeVectorRegisterFloat(Inf, Inf, Inf, Inf);
 
 	// Mask off Exponent
-	VectorRegister ExpTest = VectorBitwiseAnd(Vec, FloatInfinity);
+	VectorRegister4Float ExpTest = VectorBitwiseAnd(Vec, FloatInfinity);
 	// Compare to full exponent. If any are full exponent (not finite), the signs copied to the mask are non-zero, otherwise it's zero and finite.
 	bool IsFinite = VectorMaskBits(VectorCompareEQ(ExpTest, FloatInfinity)) == 0;
 	return !IsFinite;
 }
 
-FORCEINLINE VectorRegister VectorTruncate(const VectorRegister& X)
+FORCEINLINE bool VectorContainsNaNOrInfinite(const VectorRegister4Double& Vec)
 {
-	return _mm_cvtepi32_ps(_mm_cvttps_epi32(X));
+	// https://en.wikipedia.org/wiki/IEEE_754-1985
+	// Infinity is represented with all exponent bits set, with the correct sign bit.
+	// NaN is represented with all exponent bits set, plus at least one fraction/significand bit set.
+	// This means finite values will not have all exponent bits set, so check against those bits.
+
+	union { double D; uint64 U; } InfUnion;
+	InfUnion.U = 0x7FF0000000000000;
+	const double Inf = InfUnion.D;
+	const VectorRegister4Double DoubleInfinity = MakeVectorRegisterDouble(Inf, Inf, Inf, Inf);
+
+	// Mask off Exponent
+	VectorRegister4Double ExpTest = VectorBitwiseAnd(Vec, DoubleInfinity);
+	// Compare to full exponent. If any are full exponent (not finite), the signs copied to the mask are non-zero, otherwise it's zero and finite.
+	bool IsFinite = VectorMaskBits(VectorCompareEQ(ExpTest, DoubleInfinity)) == 0;
+	return !IsFinite;
 }
 
-FORCEINLINE VectorRegister VectorFractional(const VectorRegister& X)
+FORCEINLINE VectorRegister4Float VectorTruncate(const VectorRegister4Float& Vec)
 {
-	return VectorSubtract(X, VectorTruncate(X));
+#if UNREALPLATFORMMATH_SSE_USE_SSE4_1
+	return _mm_round_ps(Vec, _MM_FROUND_TRUNC);
+#else
+	return _mm_cvtepi32_ps(_mm_cvttps_epi32(Vec));
+#endif
 }
 
-FORCEINLINE VectorRegister VectorCeil(const VectorRegister& X)
+FORCEINLINE VectorRegister2Double TruncateVectorRegister2d(const VectorRegister2Double& V)
 {
-	const VectorRegister Trunc = VectorTruncate(X);
-	const VectorRegister Frac = VectorSubtract(X, Trunc);
-	const VectorRegister FracMask = VectorCompareGT(Frac, (GlobalVectorConstants::FloatZero));
-	const VectorRegister Add = VectorSelect(FracMask, (GlobalVectorConstants::FloatOne), (GlobalVectorConstants::FloatZero));
+#if UNREALPLATFORMMATH_SSE_USE_SSE4_1
+	return _mm_round_pd(V, _MM_FROUND_TRUNC);
+#else
+	// TODO: LWC: Optimize
+	// Note: SSE2 just has _mm_cvttsd_si64(), which extracts only the truncated lower element, so there is some extra shuffling to get both values out.
+	int64 X = _mm_cvttsd_si64(V);
+	int64 Y = _mm_cvttsd_si64(_mm_shuffle_pd(V, V, SHUFFLEMASK2(1, 0)));
+	VectorRegister2Double A = _mm_cvtsi64_sd(V, X); // Converts to lowest element, copies upper.
+	VectorRegister2Double B = _mm_cvtsi64_sd(V, Y); // Converts to lowest element, copies upper.
+	return _mm_shuffle_pd(A, B, SHUFFLEMASK2(0, 0));
+#endif // UNREALPLATFORMMATH_SSE_USE_SSE4_1	
+}
+
+FORCEINLINE VectorRegister4Double VectorTruncate(const VectorRegister4Double& V)
+{
+	VectorRegister4Double Result;
+	Result.XY = TruncateVectorRegister2d(V.XY);
+	Result.ZW = TruncateVectorRegister2d(V.ZW);
+	return Result;
+}
+
+
+FORCEINLINE VectorRegister4Float VectorCeil(const VectorRegister4Float& V)
+{
+#if UNREALPLATFORMMATH_SSE_USE_SSE4_1
+	return _mm_ceil_ps(V);
+#else
+	const VectorRegister4Float Trunc = VectorTruncate(V);
+	const VectorRegister4Float Frac = VectorSubtract(V, Trunc);
+	const VectorRegister4Float FracMask = VectorCompareGT(Frac, (GlobalVectorConstants::FloatZero));
+	const VectorRegister4Float Add = VectorSelect(FracMask, (GlobalVectorConstants::FloatOne), (GlobalVectorConstants::FloatZero));
 	return VectorAdd(Trunc, Add);
+#endif
 }
 
-FORCEINLINE VectorRegister VectorFloor(const VectorRegister& X)
+FORCEINLINE VectorRegister4Double VectorCeil(const VectorRegister4Double& V)
 {
-	const VectorRegister Trunc = VectorTruncate(X);
-	const VectorRegister Frac = VectorSubtract(X, Trunc);
-	const VectorRegister FracMask = VectorCompareLT(Frac, (GlobalVectorConstants::FloatZero));
-	const VectorRegister Add = VectorSelect(FracMask, (GlobalVectorConstants::FloatMinusOne), (GlobalVectorConstants::FloatZero));
+#if UNREALPLATFORMMATH_SSE_USE_SSE4_1
+	VectorRegister4Double Result;
+	Result.XY = _mm_ceil_pd(V.XY);
+	Result.ZW = _mm_ceil_pd(V.ZW);
+	return Result;
+#else
+	const VectorRegister4Double Trunc = VectorTruncate(V);
+	const VectorRegister4Double Frac = VectorSubtract(V, Trunc);
+	const VectorRegister4Double FracMask = VectorCompareGT(Frac, (GlobalVectorConstants::DoubleZero));
+	const VectorRegister4Double Add = VectorSelect(FracMask, (GlobalVectorConstants::DoubleOne), (GlobalVectorConstants::DoubleZero));
 	return VectorAdd(Trunc, Add);
+#endif
 }
 
-FORCEINLINE VectorRegister VectorMod(const VectorRegister& X, const VectorRegister& Y)
+FORCEINLINE VectorRegister4Float VectorFloor(const VectorRegister4Float& V)
 {
-	VectorRegister Div = VectorDivide(X, Y);
-	// Floats where abs(f) >= 2^23 have no fractional portion, and larger values would overflow VectorTruncate.
-	VectorRegister NoFractionMask = VectorCompareGE(VectorAbs(Div), GlobalVectorConstants::FloatNonFractional);
-	VectorRegister Temp = VectorSelect(NoFractionMask, Div, VectorTruncate(Div));
-	VectorRegister Result = VectorNegateMultiplyAdd(Y, Temp, X);
-	// Clamp to [-AbsY, AbsY] because of possible failures for very large numbers (>1e10) due to precision loss.
-	VectorRegister AbsY = VectorAbs(Y);
-	return VectorMax(VectorNegate(AbsY), VectorMin(Result, AbsY));
+#if UNREALPLATFORMMATH_SSE_USE_SSE4_1
+	return _mm_floor_ps(V);
+#else
+	const VectorRegister4Float Trunc = VectorTruncate(V);
+	const VectorRegister4Float Frac = VectorSubtract(V, Trunc);
+	const VectorRegister4Float FracMask = VectorCompareLT(Frac, (GlobalVectorConstants::FloatZero));
+	const VectorRegister4Float Add = VectorSelect(FracMask, (GlobalVectorConstants::FloatMinusOne), (GlobalVectorConstants::FloatZero));
+	return VectorAdd(Trunc, Add);
+#endif
 }
 
-FORCEINLINE VectorRegister VectorSign(const VectorRegister& X)
+FORCEINLINE VectorRegister4Double VectorFloor(const VectorRegister4Double& V)
 {
-	VectorRegister Mask = VectorCompareGE(X, (GlobalVectorConstants::FloatZero));
-	return VectorSelect(Mask, (GlobalVectorConstants::FloatOne), (GlobalVectorConstants::FloatMinusOne));
+#if UNREALPLATFORMMATH_SSE_USE_SSE4_1
+	VectorRegister4Double Result;
+	Result.XY = _mm_floor_pd(V.XY);
+	Result.ZW = _mm_floor_pd(V.ZW);
+	return Result;
+#else
+	const VectorRegister4Double Trunc = VectorTruncate(V);
+	const VectorRegister4Double Frac = VectorSubtract(V, Trunc);
+	const VectorRegister4Double FracMask = VectorCompareLT(Frac, (GlobalVectorConstants::DoubleZero));
+	const VectorRegister4Double Add = VectorSelect(FracMask, (GlobalVectorConstants::DoubleMinusOne), (GlobalVectorConstants::DoubleZero));
+	return VectorAdd(Trunc, Add);
+#endif
 }
 
-FORCEINLINE VectorRegister VectorStep(const VectorRegister& X)
+FORCEINLINE VectorRegister4Float VectorMod(const VectorRegister4Float& X, const VectorRegister4Float& Y)
 {
-	VectorRegister Mask = VectorCompareGE(X, (GlobalVectorConstants::FloatZero));
-	return VectorSelect(Mask, (GlobalVectorConstants::FloatOne), (GlobalVectorConstants::FloatZero));
+	// Check against invalid divisor
+	VectorRegister4Float InvalidDivisorMask = VectorCompareLE(VectorAbs(Y), GlobalVectorConstants::SmallNumber);
+	// Promote to doubles for better intermediate precision.
+	VectorRegister4Double DoubleX = MakeVectorRegisterDouble(X);
+	VectorRegister4Double DoubleY = MakeVectorRegisterDouble(Y);
+	// R = X - (Y * (Trunc(X / Y))
+	VectorRegister4Double Temp = VectorTruncate(VectorDivide(DoubleX, DoubleY));
+	VectorRegister4Double DoubleResult = VectorNegateMultiplyAdd(DoubleY, Temp, DoubleX);
+	// Convert back to floats. This is safe (in terms of not exceeding [-FLT_MAX,FLT_MAX]) because the answer is less than or equal to Abs(X) by definition.
+	VectorRegister4Float Result = MakeVectorRegisterFloatFromDouble(DoubleResult);
+	// Return 0 where divisor Y was too small	
+	Result = VectorSelect(InvalidDivisorMask, GlobalVectorConstants::FloatZero, Result);
+	return Result;
+}
+
+FORCEINLINE VectorRegister4Double VectorMod(const VectorRegister4Double& X, const VectorRegister4Double& Y)
+{
+	// Check against invalid divisor
+	VectorRegister4Double InvalidDivisorMask = VectorCompareLE(VectorAbs(Y), GlobalVectorConstants::DoubleSmallNumber);
+	// R = X - (Y * (Trunc(X / Y))
+	VectorRegister4Double Temp = VectorTruncate(VectorDivide(X, Y));
+	VectorRegister4Double DoubleResult = VectorNegateMultiplyAdd(Y, Temp, X);
+	// Return 0 where divisor Y was too small
+	VectorRegister4Double Result = VectorSelect(InvalidDivisorMask, GlobalVectorConstants::DoubleZero, DoubleResult);
+	return Result;
+}
+
+FORCEINLINE VectorRegister4Float VectorSign(const VectorRegister4Float& X)
+{
+	VectorRegister4Float Mask = VectorCompareGE(X, GlobalVectorConstants::FloatZero);
+	return VectorSelect(Mask, GlobalVectorConstants::FloatOne, GlobalVectorConstants::FloatMinusOne);
+}
+
+FORCEINLINE VectorRegister4Double VectorSign(const VectorRegister4Double& X)
+{
+	VectorRegister4Double Mask = VectorCompareGE(X, (GlobalVectorConstants::DoubleZero));
+	return VectorSelect(Mask, GlobalVectorConstants::DoubleOne, GlobalVectorConstants::DoubleMinusOne);
+}
+
+FORCEINLINE VectorRegister4Float VectorStep(const VectorRegister4Float& X)
+{
+	VectorRegister4Float Mask = VectorCompareGE(X, GlobalVectorConstants::FloatZero);
+	return VectorSelect(Mask, GlobalVectorConstants::FloatOne, GlobalVectorConstants::FloatZero);
+}
+
+FORCEINLINE VectorRegister4Double VectorStep(const VectorRegister4Double& X)
+{
+	VectorRegister4Double Mask = VectorCompareGE(X, GlobalVectorConstants::DoubleZero);
+	return VectorSelect(Mask, GlobalVectorConstants::DoubleOne, GlobalVectorConstants::DoubleZero);
 }
 
 //TODO: Vectorize
-FORCEINLINE VectorRegister VectorExp(const VectorRegister& X)
+FORCEINLINE VectorRegister4Float VectorExp(const VectorRegister4Float& X)
 {
 	return SseMath_exp_ps(X);
 }
 
-//TODO: Vectorize
-FORCEINLINE VectorRegister VectorExp2(const VectorRegister& X)
+FORCEINLINE VectorRegister4Double VectorExp(const VectorRegister4Double& X)
 {
-	return MakeVectorRegister(FMath::Exp2(VectorGetComponent(X, 0)), FMath::Exp2(VectorGetComponent(X, 1)), FMath::Exp2(VectorGetComponent(X, 2)), FMath::Exp2(VectorGetComponent(X, 3)));
+	AlignedDouble4 Doubles(X);
+	Doubles[0] = FMath::Exp(Doubles[0]);
+	Doubles[1] = FMath::Exp(Doubles[1]);
+	Doubles[2] = FMath::Exp(Doubles[2]);
+	Doubles[3] = FMath::Exp(Doubles[3]);
+	return Doubles.ToVectorRegister();
 }
 
 //TODO: Vectorize
-FORCEINLINE VectorRegister VectorLog(const VectorRegister& X)
+FORCEINLINE VectorRegister4Float VectorExp2(const VectorRegister4Float& X)
+{
+	AlignedFloat4 Floats(X);
+	Floats[0] = FMath::Exp2(Floats[0]);
+	Floats[1] = FMath::Exp2(Floats[1]);
+	Floats[2] = FMath::Exp2(Floats[2]);
+	Floats[3] = FMath::Exp2(Floats[3]);
+	return Floats.ToVectorRegister();
+}
+
+FORCEINLINE VectorRegister4Double VectorExp2(const VectorRegister4Double& X)
+{
+	AlignedDouble4 Doubles(X);
+	Doubles[0] = FMath::Exp2(Doubles[0]);
+	Doubles[1] = FMath::Exp2(Doubles[1]);
+	Doubles[2] = FMath::Exp2(Doubles[2]);
+	Doubles[3] = FMath::Exp2(Doubles[3]);
+	return Doubles.ToVectorRegister();
+}
+
+//TODO: Vectorize
+FORCEINLINE VectorRegister4Float VectorLog(const VectorRegister4Float& X)
 {
 	return SseMath_log_ps(X);
 }
 
-//TODO: Vectorize
-FORCEINLINE VectorRegister VectorLog2(const VectorRegister& X)
+FORCEINLINE VectorRegister4Double VectorLog(const VectorRegister4Double& X)
 {
-	return MakeVectorRegister(FMath::Log2(VectorGetComponent(X, 0)), FMath::Log2(VectorGetComponent(X, 1)), FMath::Log2(VectorGetComponent(X, 2)), FMath::Log2(VectorGetComponent(X, 3)));
+	AlignedDouble4 Doubles(X);
+	Doubles[0] = FMath::Loge(Doubles[0]);
+	Doubles[1] = FMath::Loge(Doubles[1]);
+	Doubles[2] = FMath::Loge(Doubles[2]);
+	Doubles[3] = FMath::Loge(Doubles[3]);
+	return Doubles.ToVectorRegister();
+}
+
+//TODO: Vectorize
+FORCEINLINE VectorRegister4Float VectorLog2(const VectorRegister4Float& X)
+{
+	AlignedFloat4 Floats(X);
+	Floats[0] = FMath::Log2(Floats[0]);
+	Floats[1] = FMath::Log2(Floats[1]);
+	Floats[2] = FMath::Log2(Floats[2]);
+	Floats[3] = FMath::Log2(Floats[3]);
+	return Floats.ToVectorRegister();
+}
+
+FORCEINLINE VectorRegister4Double VectorLog2(const VectorRegister4Double& X)
+{
+	AlignedDouble4 Doubles(X);
+	Doubles[0] = FMath::Log2(Doubles[0]);
+	Doubles[1] = FMath::Log2(Doubles[1]);
+	Doubles[2] = FMath::Log2(Doubles[2]);
+	Doubles[3] = FMath::Log2(Doubles[3]);
+	return Doubles.ToVectorRegister();
 }
 
 
 /**
- * Using "static const float ..." or "static const VectorRegister ..." in functions creates the branch and code to construct those constants.
+ * Using "static const float ..." or "static const VectorRegister4Float ..." in functions creates the branch and code to construct those constants.
  * Doing this in FORCEINLINE not only means you introduce a branch per static, but you bloat the inlined code immensely.
  * Defining these constants at the global scope causes them to be created at startup, and avoids the cost at the function level.
  * Doing it at the function level is okay for anything that is a simple "const float", but usage of "sqrt()" here forces actual function calls.
@@ -1326,11 +2411,11 @@ namespace VectorSinConstantsSSE
 	static const float p = 0.225f;
 	static const float a = (16 * sqrtf(p));
 	static const float b = ((1 - p) / sqrtf(p));
-	static const VectorRegister A = MakeVectorRegister(a, a, a, a);
-	static const VectorRegister B = MakeVectorRegister(b, b, b, b);
+	static const VectorRegister4Float A = MakeVectorRegisterFloat(a, a, a, a);
+	static const VectorRegister4Float B = MakeVectorRegisterFloat(b, b, b, b);
 }
 
-FORCEINLINE VectorRegister VectorSin(const VectorRegister& X)
+FORCEINLINE VectorRegister4Float VectorSin(const VectorRegister4Float& X)
 {
 	//Sine approximation using a squared parabola restrained to f(0) = 0, f(PI) = 0, f(PI/2) = 1.
 	//based on a good discussion here http://forum.devmaster.net/t/fast-and-accurate-sine-cosine/9648
@@ -1347,54 +2432,73 @@ FORCEINLINE VectorRegister VectorSin(const VectorRegister& X)
 	// Also - other platforms (NEON) don't vectorize this as of January 2021,
 	// so you'll get accuracy differences between platforms.
 	//
-	VectorRegister y = VectorMultiply(X, GlobalVectorConstants::OneOverTwoPi);
+	VectorRegister4Float y = VectorMultiply(X, GlobalVectorConstants::OneOverTwoPi);
 	y = VectorSubtract(y, VectorFloor(VectorAdd(y, GlobalVectorConstants::FloatOneHalf)));
 	y = VectorMultiply(VectorSinConstantsSSE::A, VectorMultiply(y, VectorSubtract(GlobalVectorConstants::FloatOneHalf, VectorAbs(y))));
 	return VectorMultiply(y, VectorAdd(VectorSinConstantsSSE::B, VectorAbs(y)));
 }
 
-FORCEINLINE VectorRegister VectorCos(const VectorRegister& X)
+FORCEINLINE VectorRegister4Double VectorSin(const VectorRegister4Double& X)
+{
+	AlignedDouble4 Doubles(X);
+	Doubles[0] = FMath::Sin(Doubles[0]);
+	Doubles[1] = FMath::Sin(Doubles[1]);
+	Doubles[2] = FMath::Sin(Doubles[2]);
+	Doubles[3] = FMath::Sin(Doubles[3]);
+	return Doubles.ToVectorRegister();
+}
+
+FORCEINLINE VectorRegister4Float VectorCos(const VectorRegister4Float& X)
 {
 	return VectorSin(VectorAdd(X, GlobalVectorConstants::PiByTwo));
 }
 
+FORCEINLINE VectorRegister4Double VectorCos(const VectorRegister4Double& X)
+{
+	AlignedDouble4 Doubles(X);
+	Doubles[0] = FMath::Cos(Doubles[0]);
+	Doubles[1] = FMath::Cos(Doubles[1]);
+	Doubles[2] = FMath::Cos(Doubles[2]);
+	Doubles[3] = FMath::Cos(Doubles[3]);
+	return Doubles.ToVectorRegister();
+}
 
 /**
 * Computes the sine and cosine of each component of a Vector.
 *
-* @param VSinAngles	VectorRegister Pointer to where the Sin result should be stored
-* @param VCosAngles	VectorRegister Pointer to where the Cos result should be stored
-* @param VAngles VectorRegister Pointer to the input angles
+* @param VSinAngles	VectorRegister4Float Pointer to where the Sin result should be stored
+* @param VCosAngles	VectorRegister4Float Pointer to where the Cos result should be stored
+* @param VAngles VectorRegister4Float Pointer to the input angles
 */
-FORCEINLINE void VectorSinCos(VectorRegister* RESTRICT VSinAngles, VectorRegister* RESTRICT VCosAngles, const VectorRegister* RESTRICT VAngles)
+FORCEINLINE void VectorSinCos(VectorRegister4Float* RESTRICT VSinAngles, VectorRegister4Float* RESTRICT VCosAngles, const VectorRegister4Float* RESTRICT VAngles)
 {
 	// Map to [-pi, pi]
 	// X = A - 2pi * round(A/2pi)
 	// Note the round(), not truncate(). In this case round() can round halfway cases using round-to-nearest-even OR round-to-nearest.
 
 	// Quotient = round(A/2pi)
-	VectorRegister Quotient = VectorMultiply(*VAngles, GlobalVectorConstants::OneOverTwoPi);
+	VectorRegister4Float Quotient = VectorMultiply(*VAngles, GlobalVectorConstants::OneOverTwoPi);
 	Quotient = _mm_cvtepi32_ps(_mm_cvtps_epi32(Quotient)); // round to nearest even is the default rounding mode but that's fine here.
 	// X = A - 2pi * Quotient
-	VectorRegister X = VectorNegateMultiplyAdd(GlobalVectorConstants::TwoPi, Quotient, *VAngles);
+	VectorRegister4Float X = VectorNegateMultiplyAdd(GlobalVectorConstants::TwoPi, Quotient, *VAngles);
 
 	// Map in [-pi/2,pi/2]
-	VectorRegister sign = VectorBitwiseAnd(X, GlobalVectorConstants::SignBit);
-	VectorRegister c = VectorBitwiseOr(GlobalVectorConstants::Pi, sign);  // pi when x >= 0, -pi when x < 0
-	VectorRegister absx = VectorAbs(X);
-	VectorRegister rflx = VectorSubtract(c, X);
-	VectorRegister comp = VectorCompareGT(absx, GlobalVectorConstants::PiByTwo);
+	VectorRegister4Float sign = VectorBitwiseAnd(X, GlobalVectorConstants::SignBit);
+	VectorRegister4Float c = VectorBitwiseOr(GlobalVectorConstants::Pi, sign);  // pi when x >= 0, -pi when x < 0
+	VectorRegister4Float absx = VectorAbs(X);
+	VectorRegister4Float rflx = VectorSubtract(c, X);
+	VectorRegister4Float comp = VectorCompareGT(absx, GlobalVectorConstants::PiByTwo);
 	X = VectorSelect(comp, rflx, X);
 	sign = VectorSelect(comp, GlobalVectorConstants::FloatMinusOne, GlobalVectorConstants::FloatOne);
 
-	const VectorRegister XSquared = VectorMultiply(X, X);
+	const VectorRegister4Float XSquared = VectorMultiply(X, X);
 
 	// 11-degree minimax approximation
 	//*ScalarSin = (((((-2.3889859e-08f * y2 + 2.7525562e-06f) * y2 - 0.00019840874f) * y2 + 0.0083333310f) * y2 - 0.16666667f) * y2 + 1.0f) * y;
-	const VectorRegister SinCoeff0 = MakeVectorRegister(1.0f, -0.16666667f, 0.0083333310f, -0.00019840874f);
-	const VectorRegister SinCoeff1 = MakeVectorRegister(2.7525562e-06f, -2.3889859e-08f, /*unused*/ 0.f, /*unused*/ 0.f);
+	const VectorRegister4Float SinCoeff0 = MakeVectorRegisterFloat(1.0f, -0.16666667f, 0.0083333310f, -0.00019840874f);
+	const VectorRegister4Float SinCoeff1 = MakeVectorRegisterFloat(2.7525562e-06f, -2.3889859e-08f, /*unused*/ 0.f, /*unused*/ 0.f);
 
-	VectorRegister S;
+	VectorRegister4Float S;
 	S = VectorReplicate(SinCoeff1, 1);
 	S = VectorMultiplyAdd(XSquared, S, VectorReplicate(SinCoeff1, 0));
 	S = VectorMultiplyAdd(XSquared, S, VectorReplicate(SinCoeff0, 3));
@@ -1405,10 +2509,10 @@ FORCEINLINE void VectorSinCos(VectorRegister* RESTRICT VSinAngles, VectorRegiste
 
 	// 10-degree minimax approximation
 	//*ScalarCos = sign * (((((-2.6051615e-07f * y2 + 2.4760495e-05f) * y2 - 0.0013888378f) * y2 + 0.041666638f) * y2 - 0.5f) * y2 + 1.0f);
-	const VectorRegister CosCoeff0 = MakeVectorRegister(1.0f, -0.5f, 0.041666638f, -0.0013888378f);
-	const VectorRegister CosCoeff1 = MakeVectorRegister(2.4760495e-05f, -2.6051615e-07f, /*unused*/ 0.f, /*unused*/ 0.f);
+	const VectorRegister4Float CosCoeff0 = MakeVectorRegisterFloat(1.0f, -0.5f, 0.041666638f, -0.0013888378f);
+	const VectorRegister4Float CosCoeff1 = MakeVectorRegisterFloat(2.4760495e-05f, -2.6051615e-07f, /*unused*/ 0.f, /*unused*/ 0.f);
 
-	VectorRegister C;
+	VectorRegister4Float C;
 	C = VectorReplicate(CosCoeff1, 1);
 	C = VectorMultiplyAdd(XSquared, C, VectorReplicate(CosCoeff1, 0));
 	C = VectorMultiplyAdd(XSquared, C, VectorReplicate(CosCoeff0, 3));
@@ -1418,37 +2522,118 @@ FORCEINLINE void VectorSinCos(VectorRegister* RESTRICT VSinAngles, VectorRegiste
 	*VCosAngles = VectorMultiply(C, sign);
 }
 
-//TODO: Vectorize
-FORCEINLINE VectorRegister VectorTan(const VectorRegister& X)
+FORCEINLINE void VectorSinCos(VectorRegister4Double* RESTRICT VSinAngles, VectorRegister4Double* RESTRICT VCosAngles, const VectorRegister4Double* RESTRICT VAngles)
 {
-	return MakeVectorRegister(FMath::Tan(VectorGetComponent(X, 0)), FMath::Tan(VectorGetComponent(X, 1)), FMath::Tan(VectorGetComponent(X, 2)), FMath::Tan(VectorGetComponent(X, 3)));
+	*VSinAngles = VectorSin(*VAngles);
+	*VCosAngles = VectorCos(*VAngles);
+}
+
+
+//TODO: Vectorize
+FORCEINLINE VectorRegister4Float VectorTan(const VectorRegister4Float& X)
+{
+	AlignedFloat4 Floats(X);
+	Floats[0] = FMath::Tan(Floats[0]);
+	Floats[1] = FMath::Tan(Floats[1]);
+	Floats[2] = FMath::Tan(Floats[2]);
+	Floats[3] = FMath::Tan(Floats[3]);
+	return Floats.ToVectorRegister();
+}
+
+FORCEINLINE VectorRegister4Double VectorTan(const VectorRegister4Double& X)
+{
+	AlignedDouble4 Doubles(X);
+	Doubles[0] = FMath::Tan(Doubles[0]);
+	Doubles[1] = FMath::Tan(Doubles[1]);
+	Doubles[2] = FMath::Tan(Doubles[2]);
+	Doubles[3] = FMath::Tan(Doubles[3]);
+	return Doubles.ToVectorRegister();
 }
 
 //TODO: Vectorize
-FORCEINLINE VectorRegister VectorASin(const VectorRegister& X)
+FORCEINLINE VectorRegister4Float VectorASin(const VectorRegister4Float& X)
 {
-	return MakeVectorRegister(FMath::Asin(VectorGetComponent(X, 0)), FMath::Asin(VectorGetComponent(X, 1)), FMath::Asin(VectorGetComponent(X, 2)), FMath::Asin(VectorGetComponent(X, 3)));
+	AlignedFloat4 Floats(X);
+	Floats[0] = FMath::Asin(Floats[0]);
+	Floats[1] = FMath::Asin(Floats[1]);
+	Floats[2] = FMath::Asin(Floats[2]);
+	Floats[3] = FMath::Asin(Floats[3]);
+	return Floats.ToVectorRegister();
+}
+
+FORCEINLINE VectorRegister4Double VectorASin(const VectorRegister4Double& X)
+{
+	AlignedDouble4 Doubles(X);
+	Doubles[0] = FMath::Asin(Doubles[0]);
+	Doubles[1] = FMath::Asin(Doubles[1]);
+	Doubles[2] = FMath::Asin(Doubles[2]);
+	Doubles[3] = FMath::Asin(Doubles[3]);
+	return Doubles.ToVectorRegister();
 }
 
 //TODO: Vectorize
-FORCEINLINE VectorRegister VectorACos(const VectorRegister& X)
+FORCEINLINE VectorRegister4Float VectorACos(const VectorRegister4Float& X)
 {
-	return MakeVectorRegister(FMath::Acos(VectorGetComponent(X, 0)), FMath::Acos(VectorGetComponent(X, 1)), FMath::Acos(VectorGetComponent(X, 2)), FMath::Acos(VectorGetComponent(X, 3)));
+	AlignedFloat4 Floats(X);
+	Floats[0] = FMath::Acos(Floats[0]);
+	Floats[1] = FMath::Acos(Floats[1]);
+	Floats[2] = FMath::Acos(Floats[2]);
+	Floats[3] = FMath::Acos(Floats[3]);
+	return Floats.ToVectorRegister();
+}
+
+FORCEINLINE VectorRegister4Double VectorACos(const VectorRegister4Double& X)
+{
+	AlignedDouble4 Doubles(X);
+	Doubles[0] = FMath::Acos(Doubles[0]);
+	Doubles[1] = FMath::Acos(Doubles[1]);
+	Doubles[2] = FMath::Acos(Doubles[2]);
+	Doubles[3] = FMath::Acos(Doubles[3]);
+	return Doubles.ToVectorRegister();
 }
 
 //TODO: Vectorize
-FORCEINLINE VectorRegister VectorATan(const VectorRegister& X)
+FORCEINLINE VectorRegister4Float VectorATan(const VectorRegister4Float& X)
 {
-	return MakeVectorRegister(FMath::Atan(VectorGetComponent(X, 0)), FMath::Atan(VectorGetComponent(X, 1)), FMath::Atan(VectorGetComponent(X, 2)), FMath::Atan(VectorGetComponent(X, 3)));
+	AlignedFloat4 Floats(X);
+	Floats[0] = FMath::Atan(Floats[0]);
+	Floats[1] = FMath::Atan(Floats[1]);
+	Floats[2] = FMath::Atan(Floats[2]);
+	Floats[3] = FMath::Atan(Floats[3]);
+	return Floats.ToVectorRegister();
+}
+
+FORCEINLINE VectorRegister4Double VectorATan(const VectorRegister4Double& X)
+{
+	AlignedDouble4 Doubles(X);
+	Doubles[0] = FMath::Atan(Doubles[0]);
+	Doubles[1] = FMath::Atan(Doubles[1]);
+	Doubles[2] = FMath::Atan(Doubles[2]);
+	Doubles[3] = FMath::Atan(Doubles[3]);
+	return Doubles.ToVectorRegister();
 }
 
 //TODO: Vectorize
-FORCEINLINE VectorRegister VectorATan2(const VectorRegister& X, const VectorRegister& Y)
+FORCEINLINE VectorRegister4Float VectorATan2(const VectorRegister4Float& X, const VectorRegister4Float& Y)
 {
-	return MakeVectorRegister(	FMath::Atan2(VectorGetComponent(X, 0), VectorGetComponent(Y, 0)), 
-		FMath::Atan2(VectorGetComponent(X, 1), VectorGetComponent(Y, 1)),
-		FMath::Atan2(VectorGetComponent(X, 2), VectorGetComponent(Y, 2)),
-		FMath::Atan2(VectorGetComponent(X, 3), VectorGetComponent(Y, 3)));
+	AlignedFloat4 FloatsX(X);
+	AlignedFloat4 FloatsY(Y);
+	FloatsX[0] = FMath::Atan2(FloatsX[0], FloatsY[0]);
+	FloatsX[1] = FMath::Atan2(FloatsX[1], FloatsY[1]);
+	FloatsX[2] = FMath::Atan2(FloatsX[2], FloatsY[2]);
+	FloatsX[3] = FMath::Atan2(FloatsX[3], FloatsY[3]);
+	return FloatsX.ToVectorRegister();
+}
+
+FORCEINLINE VectorRegister4Double VectorATan2(const VectorRegister4Double& X, const VectorRegister4Double& Y)
+{
+	AlignedDouble4 DoublesX(X);
+	AlignedDouble4 DoublesY(Y);
+	DoublesX[0] = FMath::Atan2(DoublesX[0], DoublesY[0]);
+	DoublesX[1] = FMath::Atan2(DoublesX[1], DoublesY[1]);
+	DoublesX[2] = FMath::Atan2(DoublesX[2], DoublesY[2]);
+	DoublesX[3] = FMath::Atan2(DoublesX[3], DoublesY[3]);
+	return DoublesX.ToVectorRegister();
 }
 
 // To be continued...
@@ -1478,7 +2663,7 @@ FORCEINLINE VectorRegister VectorATan2(const VectorRegister& X, const VectorRegi
 #define VectorIntCompareLE(A, B)	VectorIntNot(VectorIntCompareGT(A,B))
 
 
-FORCEINLINE VectorRegisterInt VectorIntSelect(const VectorRegisterInt& Mask, const VectorRegisterInt& Vec1, const VectorRegisterInt& Vec2)
+FORCEINLINE VectorRegister4Int VectorIntSelect(const VectorRegister4Int& Mask, const VectorRegister4Int& Vec1, const VectorRegister4Int& Vec2)
 {
 	return _mm_xor_si128(Vec2, _mm_and_si128(Mask, _mm_xor_si128(Vec1, Vec2)));
 }
@@ -1487,7 +2672,7 @@ FORCEINLINE VectorRegisterInt VectorIntSelect(const VectorRegisterInt& Mask, con
 #define VectorIntAdd(A, B)	_mm_add_epi32(A, B)
 #define VectorIntSubtract(A, B)	_mm_sub_epi32(A, B)
 
-FORCEINLINE VectorRegisterInt VectorIntMultiply(const VectorRegisterInt& A, const VectorRegisterInt& B)
+FORCEINLINE VectorRegister4Int VectorIntMultiply(const VectorRegister4Int& A, const VectorRegister4Int& B)
 {
 	//SSE2 doesn't have a multiply op for 4 32bit ints. Ugh.
 	__m128i Temp0 = _mm_mul_epu32(A, B);
@@ -1497,28 +2682,39 @@ FORCEINLINE VectorRegisterInt VectorIntMultiply(const VectorRegisterInt& A, cons
 
 #define VectorIntNegate(A) VectorIntSubtract( GlobalVectorConstants::IntZero, A)
 
-FORCEINLINE VectorRegisterInt VectorIntMin(const VectorRegisterInt& A, const VectorRegisterInt& B)
+FORCEINLINE VectorRegister4Int VectorIntMin(const VectorRegister4Int& A, const VectorRegister4Int& B)
 {
-	VectorRegisterInt Mask = VectorIntCompareLT(A, B);
+	VectorRegister4Int Mask = VectorIntCompareLT(A, B);
 	return VectorIntSelect(Mask, A, B);
 }
 
-FORCEINLINE VectorRegisterInt VectorIntMax(const VectorRegisterInt& A, const VectorRegisterInt& B)
+FORCEINLINE VectorRegister4Int VectorIntMax(const VectorRegister4Int& A, const VectorRegister4Int& B)
 {
-	VectorRegisterInt Mask = VectorIntCompareGT(A, B);
+	VectorRegister4Int Mask = VectorIntCompareGT(A, B);
 	return VectorIntSelect(Mask, A, B);
 }
 
-FORCEINLINE VectorRegisterInt VectorIntAbs(const VectorRegisterInt& A)
+FORCEINLINE VectorRegister4Int VectorIntAbs(const VectorRegister4Int& A)
 {
-	VectorRegisterInt Mask = VectorIntCompareGE(A, GlobalVectorConstants::IntZero);
+	VectorRegister4Int Mask = VectorIntCompareGE(A, GlobalVectorConstants::IntZero);
 	return VectorIntSelect(Mask, A, VectorIntNegate(A));
 }
 
 #define VectorIntSign(A) VectorIntSelect( VectorIntCompareGE(A, GlobalVectorConstants::IntZero), GlobalVectorConstants::IntOne, GlobalVectorConstants::IntMinusOne )
 
 #define VectorIntToFloat(A) _mm_cvtepi32_ps(A)
-#define VectorFloatToInt(A) _mm_cvttps_epi32(A)
+
+FORCEINLINE VectorRegister4Int VectorFloatToInt(const VectorRegister4Float& A)
+{
+	return _mm_cvttps_epi32(A);
+}
+
+// TODO: LWC: potential loss of data
+FORCEINLINE VectorRegister4Int VectorFloatToInt(const VectorRegister4Double& A)
+{
+	return VectorFloatToInt( MakeVectorRegisterFloatFromDouble(A) );
+}
+
 
 //Loads and stores
 
@@ -1528,15 +2724,15 @@ FORCEINLINE VectorRegisterInt VectorIntAbs(const VectorRegisterInt& A)
 * @param Vec	Vector to store
 * @param Ptr	Memory pointer
 */
-#define VectorIntStore( Vec, Ptr )			_mm_storeu_si128( (VectorRegisterInt*)(Ptr), Vec )
+#define VectorIntStore( Vec, Ptr )			_mm_storeu_si128( (VectorRegister4Int*)(Ptr), Vec )
 
 /**
 * Loads 4 int32s from unaligned memory.
 *
 * @param Ptr	Unaligned memory pointer to the 4 int32s
-* @return		VectorRegisterInt(Ptr[0], Ptr[1], Ptr[2], Ptr[3])
+* @return		VectorRegister4Int(Ptr[0], Ptr[1], Ptr[2], Ptr[3])
 */
-#define VectorIntLoad( Ptr )				_mm_loadu_si128( (VectorRegisterInt*)(Ptr) )
+#define VectorIntLoad( Ptr )				_mm_loadu_si128( (VectorRegister4Int*)(Ptr) )
 
 /**
 * Stores a vector to memory (aligned).
@@ -1544,21 +2740,21 @@ FORCEINLINE VectorRegisterInt VectorIntAbs(const VectorRegisterInt& A)
 * @param Vec	Vector to store
 * @param Ptr	Aligned Memory pointer
 */
-#define VectorIntStoreAligned( Vec, Ptr )			_mm_store_si128( (VectorRegisterInt*)(Ptr), Vec )
+#define VectorIntStoreAligned( Vec, Ptr )			_mm_store_si128( (VectorRegister4Int*)(Ptr), Vec )
 
 /**
 * Loads 4 int32s from aligned memory.
 *
 * @param Ptr	Aligned memory pointer to the 4 int32s
-* @return		VectorRegisterInt(Ptr[0], Ptr[1], Ptr[2], Ptr[3])
+* @return		VectorRegister4Int(Ptr[0], Ptr[1], Ptr[2], Ptr[3])
 */
-#define VectorIntLoadAligned( Ptr )				_mm_load_si128( (VectorRegisterInt*)(Ptr) )
+#define VectorIntLoadAligned( Ptr )				_mm_load_si128( (VectorRegister4Int*)(Ptr) )
 
 /**
 * Loads 1 int32 from unaligned memory into all components of a vector register.
 *
 * @param Ptr	Unaligned memory pointer to the 4 int32s
-* @return		VectorRegisterInt(*Ptr, *Ptr, *Ptr, *Ptr)
+* @return		VectorRegister4Int(*Ptr, *Ptr, *Ptr, *Ptr)
 */
 #define VectorIntLoad1( Ptr )	_mm_set1_epi32(*(Ptr))
 #endif

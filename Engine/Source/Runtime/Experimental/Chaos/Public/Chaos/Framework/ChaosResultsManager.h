@@ -18,7 +18,7 @@ namespace Chaos
 	{
 		FDirtyRigidParticleData Prev;
 		FDirtyRigidParticleData Next;
-		FReal LeashAlpha = 1;
+		FRealSingle LeashAlpha = 1;
 	};
 
 	struct CHAOS_API FChaosInterpolationResults

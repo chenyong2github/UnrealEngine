@@ -15,7 +15,7 @@ FPBDLongRangeConstraintsBase::FPBDLongRangeConstraintsBase(
 	const int32 InParticleOffset,
 	const int32 InParticleCount,
 	const TMap<int32, TSet<int32>>& PointToNeighbors,
-	const TConstArrayView<FReal>& StiffnessMultipliers,
+	const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 	const int32 MaxNumTetherIslands,
 	const FVec2& InStiffness,
 	const FReal LimitScale,

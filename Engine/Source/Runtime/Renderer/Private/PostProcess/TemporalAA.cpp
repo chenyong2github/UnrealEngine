@@ -237,7 +237,7 @@ class FTAAStandaloneCS : public FGlobalShader
 		SHADER_PARAMETER(FIntPoint, InputMaxPixelCoord)
 		SHADER_PARAMETER(FVector4, OutputViewportSize)
 		SHADER_PARAMETER(FVector4, OutputViewportRect)
-		SHADER_PARAMETER(FVector, OutputQuantizationError)
+		SHADER_PARAMETER(FVector3f, OutputQuantizationError)
 
 		// History parameters
 		SHADER_PARAMETER(FVector4, HistoryBufferSize)
@@ -417,8 +417,8 @@ class FTSRDecimateHistoryCS : public FTemporalSuperResolutionShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRCommonParameters, CommonParameters)
-		SHADER_PARAMETER(FMatrix, RotationalClipToPrevClip)
-		SHADER_PARAMETER(FVector, OutputQuantizationError)
+		SHADER_PARAMETER(FMatrix44f, RotationalClipToPrevClip)
+		SHADER_PARAMETER(FVector3f, OutputQuantizationError)
 		SHADER_PARAMETER(float, WorldDepthToPixelWorldRadius)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneColorTexture)
@@ -495,7 +495,7 @@ class FTSRFilterFrequenciesCS : public FTemporalSuperResolutionShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRCommonParameters, CommonParameters)
-		SHADER_PARAMETER(FVector, OutputQuantizationError)
+		SHADER_PARAMETER(FVector3f, OutputQuantizationError)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PredictionSceneColorTexture)
@@ -594,7 +594,7 @@ class FTSRUpdateHistoryCS : public FTemporalSuperResolutionShader
 
 		SHADER_PARAMETER(FScreenTransform, HistoryPixelPosToScreenPos)
 		SHADER_PARAMETER(FScreenTransform, HistoryPixelPosToPPCo)
-		SHADER_PARAMETER(FVector, HistoryQuantizationError)
+		SHADER_PARAMETER(FVector3f, HistoryQuantizationError)
 		SHADER_PARAMETER(float, MinTranslucencyRejection)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRPrevHistoryParameters, PrevHistoryParameters)

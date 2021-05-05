@@ -329,7 +329,7 @@ namespace Chaos
 				auto PlaneIntersection = Planes[Idx].FindClosestIntersection(StartPoint, EndPoint, Thickness);
 				if (PlaneIntersection.Second)
 				{
-					Intersections.Add(MakePair((PlaneIntersection.First - StartPoint).SizeSquared(), PlaneIntersection.First));
+					Intersections.Add(MakePair((FReal)(PlaneIntersection.First - StartPoint).SizeSquared(), PlaneIntersection.First));
 				}
 			}
 			Intersections.Sort([](const Pair<FReal, FVec3>& Elem1, const Pair<FReal, FVec3>& Elem2) { return Elem1.First < Elem2.First; });
@@ -470,11 +470,11 @@ namespace Chaos
 				// Move the planes by the margin and recalculate the interection
 				// @todo(chaos): calculate dV/dm per vertex and store it in StructureData
 				FVec3 PlanesPos;
-				FPlane NewPlanes[3] =
+				UE::Math::TPlane<FReal> NewPlanes[3] =
 				{
-					FPlane(Planes[PlaneIndex0].X() - InMargin * Planes[PlaneIndex0].Normal(), Planes[PlaneIndex0].Normal()),
-					FPlane(Planes[PlaneIndex1].X() - InMargin * Planes[PlaneIndex1].Normal(), Planes[PlaneIndex1].Normal()),
-					FPlane(Planes[PlaneIndex2].X() - InMargin * Planes[PlaneIndex2].Normal(), Planes[PlaneIndex2].Normal()),
+					UE::Math::TPlane<FReal>(Planes[PlaneIndex0].X() - InMargin * Planes[PlaneIndex0].Normal(), Planes[PlaneIndex0].Normal()),
+					UE::Math::TPlane<FReal>(Planes[PlaneIndex1].X() - InMargin * Planes[PlaneIndex1].Normal(), Planes[PlaneIndex1].Normal()),
+					UE::Math::TPlane<FReal>(Planes[PlaneIndex2].X() - InMargin * Planes[PlaneIndex2].Normal(), Planes[PlaneIndex2].Normal()),
 				};
 				if (FMath::IntersectPlanes3(PlanesPos, NewPlanes[0], NewPlanes[1], NewPlanes[2]))
 				{
@@ -537,11 +537,11 @@ namespace Chaos
 					FVec3::DotProduct(NewPlaneX, NewPlaneNs[1]) - InMargin,
 					FVec3::DotProduct(NewPlaneX, NewPlaneNs[2]) - InMargin,
 				};
-				FPlane NewPlanes[3] =
+				UE::Math::TPlane<FReal> NewPlanes[3] =
 				{
-					FPlane(NewPlaneNs[0], NewPlaneDs[0]),
-					FPlane(NewPlaneNs[1], NewPlaneDs[1]),
-					FPlane(NewPlaneNs[2], NewPlaneDs[2]),
+					UE::Math::TPlane<FReal>(NewPlaneNs[0], NewPlaneDs[0]),
+					UE::Math::TPlane<FReal>(NewPlaneNs[1], NewPlaneDs[1]),
+					UE::Math::TPlane<FReal>(NewPlaneNs[2], NewPlaneDs[2]),
 				};
 
 				FVec3 AdjustedVertexPos;

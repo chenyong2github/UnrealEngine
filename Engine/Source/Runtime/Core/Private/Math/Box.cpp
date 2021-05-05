@@ -13,7 +13,8 @@
 /* FBox structors
  *****************************************************************************/
 
-FBox::FBox(const FVector* Points, int32 Count)
+ // LWC_TODO: Perf pessimization converting each point for whichever type isn't the FVector alias.
+FBox::FBox(const FVector3f* Points, int32 Count)
 	: Min(0, 0, 0)
 	, Max(0, 0, 0)
 	, IsValid(0)
@@ -24,13 +25,12 @@ FBox::FBox(const FVector* Points, int32 Count)
 	}
 }
 
-
-FBox::FBox(const TArray<FVector>& Points)
+FBox::FBox(const FVector3d* Points, int32 Count)
 	: Min(0, 0, 0)
 	, Max(0, 0, 0)
 	, IsValid(0)
 {
-	for (int32 i = 0; i < Points.Num(); ++i)
+	for (int32 i = 0; i < Count; i++)
 	{
 		*this += Points[i];
 	}
@@ -74,8 +74,8 @@ FBox FBox::TransformBy(const FMatrix& M) const
 	const VectorRegister NewVecMin = VectorSubtract(NewOrigin, NewExtent);
 	const VectorRegister NewVecMax = VectorAdd(NewOrigin, NewExtent);
 	
-	VectorStoreFloat3(NewVecMin, &NewBox.Min );
-	VectorStoreFloat3(NewVecMax, &NewBox.Max );
+	VectorStoreFloat3(NewVecMin, &(NewBox.Min.X) );
+	VectorStoreFloat3(NewVecMax, &(NewBox.Max.X) );
 	
 	NewBox.IsValid = 1;
 

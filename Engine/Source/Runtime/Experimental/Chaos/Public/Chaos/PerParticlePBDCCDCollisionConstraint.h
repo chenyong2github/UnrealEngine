@@ -103,7 +103,7 @@ private:
 						Normals.Emplace(NormalWorld);
 					}
 					const FVec3 Direction = ContactWorld - Particles.P(Index);
-					const FReal Penetration = FMath::Max(0.f, FVec3::DotProduct(NormalWorld, Direction)) + THRESH_POINT_ON_PLANE;
+					const FReal Penetration = FMath::Max((FReal)0., FVec3::DotProduct(NormalWorld, Direction)) + (FReal)THRESH_POINT_ON_PLANE;
 
 					Particles.P(Index) += Penetration * NormalWorld;
 

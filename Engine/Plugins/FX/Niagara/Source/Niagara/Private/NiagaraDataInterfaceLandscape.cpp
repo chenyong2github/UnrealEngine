@@ -1012,11 +1012,11 @@ public:
 			return false;
 		}
 
-		FMatrix WorldToUvTransform(
-			FVector(ProxyData.HeightVirtualTextureWorldToUvParameters[0]),
-			FVector(ProxyData.HeightVirtualTextureWorldToUvParameters[1]),
-			FVector(ProxyData.HeightVirtualTextureWorldToUvParameters[2]),
-			FVector(ProxyData.HeightVirtualTextureWorldToUvParameters[3]));
+		FMatrix44f WorldToUvTransform(
+			FVector3f(ProxyData.HeightVirtualTextureWorldToUvParameters[0]),
+			FVector3f(ProxyData.HeightVirtualTextureWorldToUvParameters[1]),
+			FVector3f(ProxyData.HeightVirtualTextureWorldToUvParameters[2]),
+			FVector3f(ProxyData.HeightVirtualTextureWorldToUvParameters[3]));
 
 		SetSRVParameter(RHICmdList, ComputeShaderRHI, HeightVirtualTextureParam, PhysicalTextureSrv);
 		SetTextureParameter(RHICmdList, ComputeShaderRHI, HeightVirtualTexturePageTableParam, PageTableTexture);
@@ -1042,7 +1042,7 @@ public:
 
 		SetSRVParameter(RHICmdList, ComputeShaderRHI, HeightVirtualTextureParam, GBlackTextureWithSRV->ShaderResourceViewRHI);
 		SetTextureParameter(RHICmdList, ComputeShaderRHI, HeightVirtualTexturePageTableParam, GBlackTexture->TextureRHI);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, HeightVirtualTextureWorldToUvTransformParam, FMatrix::Identity);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, HeightVirtualTextureWorldToUvTransformParam, FMatrix44f::Identity);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, HeightVirtualTextureEnabledParam, 0 /* false */);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, HeightVirtualTexturePageTableUniform0Param, DummyUint4);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, HeightVirtualTexturePageTableUniform1Param, DummyUint4);
@@ -1092,10 +1092,10 @@ public:
 				return false;
 		}
 
-		FMatrix WorldToUvTransform(
-			FVector(ProxyData.NormalVirtualTextureWorldToUvParameters[0]),
-			FVector(ProxyData.NormalVirtualTextureWorldToUvParameters[1]),
-			FVector(ProxyData.NormalVirtualTextureWorldToUvParameters[2]),
+		FMatrix44f WorldToUvTransform(
+			FVector3f(ProxyData.NormalVirtualTextureWorldToUvParameters[0]),
+			FVector3f(ProxyData.NormalVirtualTextureWorldToUvParameters[1]),
+			FVector3f(ProxyData.NormalVirtualTextureWorldToUvParameters[2]),
 			FVector4(0.0f, 0.0f, 0.0f, 1.0f));
 
 		SetSRVParameter(RHICmdList, ComputeShaderRHI, NormalVirtualTexture0Param, PhysicalTextureSrv[0]);
@@ -1122,7 +1122,7 @@ public:
 		SetSRVParameter(RHICmdList, ComputeShaderRHI, NormalVirtualTexture0Param, GBlackTextureWithSRV->ShaderResourceViewRHI);
 		SetSRVParameter(RHICmdList, ComputeShaderRHI, NormalVirtualTexture1Param, GBlackTextureWithSRV->ShaderResourceViewRHI);
 		SetTextureParameter(RHICmdList, ComputeShaderRHI, NormalVirtualTexturePageTableParam, GBlackTexture->TextureRHI);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, NormalVirtualTextureWorldToUvTransformParam, FMatrix::Identity);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, NormalVirtualTextureWorldToUvTransformParam, FMatrix44f::Identity);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, NormalVirtualTextureEnabledParam, 0 /* false */);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, NormalVirtualTextureUnpackModeParam, ENormalUnpackType::None);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, NormalVirtualTexturePageTableUniform0Param, DummyUint4);
@@ -1139,8 +1139,8 @@ public:
 			if (HeightTextureSrv.IsValid())
 			{
 				SetSRVParameter(RHICmdList, ComputeShaderRHI, CachedHeightTextureParam, HeightTextureSrv);
-				SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureWorldToUvTransformParam, ProxyData.CachedHeightTextureWorldToUvTransform);
-				SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureUvToWorldTransformParam, ProxyData.CachedHeightTextureUvToWorldTransform);
+				SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureWorldToUvTransformParam, (FMatrix44f)ProxyData.CachedHeightTextureWorldToUvTransform);
+				SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureUvToWorldTransformParam, (FMatrix44f)ProxyData.CachedHeightTextureUvToWorldTransform);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureUvScaleBiasParam, ProxyData.CachedHeightTextureUvScaleBias);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureGridSizeParam, ProxyData.CachedHeightTextureGridSize);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTexturEnabledParam, 1 /* true */);
@@ -1160,8 +1160,8 @@ public:
 		FVector4 DummyVector4(ForceInitToZero);
 
 		SetSRVParameter(RHICmdList, ComputeShaderRHI, CachedHeightTextureParam, GBlackTextureWithSRV->ShaderResourceViewRHI);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureWorldToUvTransformParam, FMatrix::Identity);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureUvToWorldTransformParam, FMatrix::Identity);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureWorldToUvTransformParam, FMatrix44f::Identity);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureUvToWorldTransformParam, FMatrix44f::Identity);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureUvScaleBiasParam, DummyVector4);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureGridSizeParam, 0.0f);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTexturEnabledParam, 0 /* false */);

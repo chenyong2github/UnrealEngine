@@ -121,10 +121,10 @@ protected:
 
 	FMeshDescription* MeshDescription;
 
-	TVertexAttributesRef<FVector> VertexPositions;
+	TVertexAttributesRef<FVector3f> VertexPositions;
 	TVertexInstanceAttributesRef<FVector2D> InstanceUVs;
-	TVertexInstanceAttributesRef<FVector> InstanceNormals;
-	TVertexInstanceAttributesRef<FVector> InstanceTangents;
+	TVertexInstanceAttributesRef<FVector3f> InstanceNormals;
+	TVertexInstanceAttributesRef<FVector3f> InstanceTangents;
 	TVertexInstanceAttributesRef<float> InstanceBiTangentSign;
 	TVertexInstanceAttributesRef<FVector4> InstanceColors;
 

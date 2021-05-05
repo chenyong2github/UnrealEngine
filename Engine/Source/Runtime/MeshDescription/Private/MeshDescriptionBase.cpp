@@ -475,7 +475,7 @@ FVector UMeshDescriptionBase::GetVertexPosition(FVertexID VertexID) const
 		return FVector::ZeroVector;
 	}
 
-	return GetMeshDescription().VertexAttributes().GetAttribute<FVector>(VertexID, MeshAttribute::Vertex::Position);
+	return GetMeshDescription().VertexAttributes().GetAttribute<FVector3f>(VertexID, MeshAttribute::Vertex::Position);
 }
 
 void UMeshDescriptionBase::SetVertexPosition(FVertexID VertexID, const FVector& Position)
@@ -492,7 +492,7 @@ void UMeshDescriptionBase::SetVertexPosition(FVertexID VertexID, const FVector& 
 		return;
 	}
 
-	GetMeshDescription().VertexAttributes().SetAttribute(VertexID, MeshAttribute::Vertex::Position, 0, Position);
+	GetMeshDescription().VertexAttributes().SetAttribute(VertexID, MeshAttribute::Vertex::Position, 0, FVector3f(Position));
 }
 
 

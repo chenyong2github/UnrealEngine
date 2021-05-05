@@ -25,15 +25,15 @@ namespace Audio
 		checkf(0 == (InNum % 4), TEXT("Buffer length be a multiple of 4."));
 		checkf(IsAligned<float*>(InOutBuffer, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
 
-		const VectorRegister VFMIN = MakeVectorRegister(FLT_MIN, FLT_MIN, FLT_MIN, FLT_MIN);
-		const VectorRegister VNFMIN = MakeVectorRegister(-FLT_MIN, -FLT_MIN, -FLT_MIN, -FLT_MIN);
+		const VectorRegister4Float VFMIN = MakeVectorRegister(FLT_MIN, FLT_MIN, FLT_MIN, FLT_MIN);
+		const VectorRegister4Float VNFMIN = MakeVectorRegister(-FLT_MIN, -FLT_MIN, -FLT_MIN, -FLT_MIN);
 
 		for (int32 i = 0; i < InNum; i += 4)
 		{
-			VectorRegister VInOut = VectorLoadAligned(&InOutBuffer[i]);
+			VectorRegister4Float VInOut = VectorLoadAligned(&InOutBuffer[i]);
 
 			// Create mask of denormal numbers.
-			VectorRegister Mask = VectorBitwiseAnd(VectorCompareGT(VInOut, VNFMIN), VectorCompareLT(VInOut, VFMIN));
+			VectorRegister4Float Mask = VectorBitwiseAnd(VectorCompareGT(VInOut, VNFMIN), VectorCompareLT(VInOut, VFMIN));
 
 			// Choose between zero or original number based upon mask.
 			VInOut = VectorSelect(Mask, GlobalVectorConstants::FloatZero, VInOut);
@@ -54,16 +54,16 @@ namespace Audio
 		checkf(0 == (InNum % 4), TEXT("Buffer length be a multiple of 4."));
 		checkf(IsAligned<float*>(InOutBuffer, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
 
-		const VectorRegister VMinVal = MakeVectorRegister(InMinValue, InMinValue, InMinValue, InMinValue);
-		const VectorRegister VMaxVal = MakeVectorRegister(InMaxValue, InMaxValue, InMaxValue, InMaxValue);
+		const VectorRegister4Float VMinVal = MakeVectorRegister(InMinValue, InMinValue, InMinValue, InMinValue);
+		const VectorRegister4Float VMaxVal = MakeVectorRegister(InMaxValue, InMaxValue, InMaxValue, InMaxValue);
 
 		for (int32 i = 0; i < InNum; i += 4)
 		{
-			VectorRegister VInOut = VectorLoadAligned(&InOutBuffer[i]);
+			VectorRegister4Float VInOut = VectorLoadAligned(&InOutBuffer[i]);
 
 			// Create masks to flag elements outside of range.
-			VectorRegister MinMask = VectorCompareLT(VInOut, VMinVal);
-			VectorRegister MaxMask = VectorCompareGT(VInOut, VMaxVal);
+			VectorRegister4Float MinMask = VectorCompareLT(VInOut, VMinVal);
+			VectorRegister4Float MaxMask = VectorCompareGT(VInOut, VMaxVal);
 
 			// Choose between range extremes or original number based on masks.
 			VInOut = VectorSelect(MinMask, VMinVal, VInOut);
@@ -105,14 +105,14 @@ namespace Audio
 		const int32 NumSamplesToSimd = InNumSamples - NumSamplesRemaining;
 
 		// Load the single value we want to multiply all values by into a vector register
-		const VectorRegister MultiplyValue = VectorLoadFloat1(&InValue);
+		const VectorRegister4Float MultiplyValue = VectorLoadFloat1(&InValue);
 		for (int32 i = 0; i < NumSamplesToSimd; i += 4)
 		{
 			// Load the next 4 samples of the input buffer into a register
-			VectorRegister InputBufferRegister = VectorLoadAligned(&InFloatBuffer[i]);
+			VectorRegister4Float InputBufferRegister = VectorLoadAligned(&InFloatBuffer[i]);
 
 			// Perform the multiply
-			VectorRegister Temp = VectorMultiply(InputBufferRegister, MultiplyValue);
+			VectorRegister4Float Temp = VectorMultiply(InputBufferRegister, MultiplyValue);
 
 			// Store results into the output buffer
 			VectorStoreAligned(Temp, &OutFloatBuffer[i]);
@@ -133,11 +133,11 @@ namespace Audio
 
 	void MultiplyBufferByConstantInPlace(float* RESTRICT InBuffer, int32 NumSamples, float InGain)
 	{
-		const VectorRegister Gain = VectorLoadFloat1(&InGain);
+		const VectorRegister4Float Gain = VectorLoadFloat1(&InGain);
 
 		for (int32 i = 0; i < NumSamples; i += 4)
 		{
-			VectorRegister Output = VectorLoadAligned(&InBuffer[i]);
+			VectorRegister4Float Output = VectorLoadAligned(&InBuffer[i]);
 			Output = VectorMultiply(Output, Gain);
 			VectorStoreAligned(Output, &InBuffer[i]);
 		}
@@ -151,11 +151,11 @@ namespace Audio
 
 	void AddConstantToBufferInplace(float* RESTRICT InBuffer, int32 NumSamples, float InConstant)
 	{
-		const VectorRegister Constant = VectorLoadFloat1(&InConstant);
+		const VectorRegister4Float Constant = VectorLoadFloat1(&InConstant);
 
 		for (int32 i = 0; i < NumSamples; i += 4)
 		{
-			VectorRegister Output = VectorLoadAligned(&InBuffer[i]);
+			VectorRegister4Float Output = VectorLoadAligned(&InBuffer[i]);
 			Output = VectorAdd(Output, Constant);
 			VectorStoreAligned(Output, &InBuffer[i]);
 		}
@@ -172,7 +172,7 @@ namespace Audio
 		checkf(0 == (NumSamples % 4), TEXT("Buffer length be a multiple of 4."));
 		checkf(IsAligned<const float*>(InBuffer, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
 
-		const VectorRegister Constant = VectorLoadFloat1(&InConstant);
+		const VectorRegister4Float Constant = VectorLoadFloat1(&InConstant);
 
 		for (int32 i = 0; i < NumSamples; i += 4)
 		{
@@ -212,20 +212,20 @@ namespace Audio
 		RestrictedPtrAliasCheck(InBuffer1, OutBuffer, InNum);
 		RestrictedPtrAliasCheck(InBuffer2, OutBuffer, InNum);
 
-		VectorRegister Gain1Vector = VectorLoadFloat1(&InGain1);
-		VectorRegister Gain2Vector = VectorLoadFloat1(&InGain2);
+		VectorRegister4Float Gain1Vector = VectorLoadFloat1(&InGain1);
+		VectorRegister4Float Gain2Vector = VectorLoadFloat1(&InGain2);
 
 		for (int32 i = 0; i < InNum; i += 4)
 		{
 			// InBuffer1 x InGain1
-			VectorRegister Input1 = VectorLoadAligned(&InBuffer1[i]);
-			VectorRegister Weighted1 = VectorMultiply(Input1, Gain1Vector);
+			VectorRegister4Float Input1 = VectorLoadAligned(&InBuffer1[i]);
+			VectorRegister4Float Weighted1 = VectorMultiply(Input1, Gain1Vector);
 
 			// InBuffer2 x InGain2
-			VectorRegister Input2 = VectorLoadAligned(&InBuffer2[i]);
-			VectorRegister Weighted2 = VectorMultiply(Input2, Gain2Vector);
+			VectorRegister4Float Input2 = VectorLoadAligned(&InBuffer2[i]);
+			VectorRegister4Float Weighted2 = VectorMultiply(Input2, Gain2Vector);
 
-			VectorRegister Output = VectorAdd(Weighted1, Weighted2);
+			VectorRegister4Float Output = VectorAdd(Weighted1, Weighted2);
 			VectorStoreAligned(Output, &OutBuffer[i]);
 		}
 	}
@@ -242,17 +242,17 @@ namespace Audio
 		RestrictedPtrAliasCheck(InBuffer1, OutBuffer, InNum);
 		RestrictedPtrAliasCheck(InBuffer2, OutBuffer, InNum);
 
-		VectorRegister Gain1Vector = VectorLoadFloat1(&InGain1);
+		VectorRegister4Float Gain1Vector = VectorLoadFloat1(&InGain1);
 
 		for (int32 i = 0; i < InNum; i += 4)
 		{
 			// InBuffer1 x InGain1
-			VectorRegister Input1 = VectorLoadAligned(&InBuffer1[i]);
-			VectorRegister Weighted1 = VectorMultiply(Input1, Gain1Vector);
+			VectorRegister4Float Input1 = VectorLoadAligned(&InBuffer1[i]);
+			VectorRegister4Float Weighted1 = VectorMultiply(Input1, Gain1Vector);
 
-			VectorRegister Input2 = VectorLoadAligned(&InBuffer2[i]);
+			VectorRegister4Float Input2 = VectorLoadAligned(&InBuffer2[i]);
 
-			VectorRegister Output = VectorAdd(Weighted1, Input2);
+			VectorRegister4Float Output = VectorAdd(Weighted1, Input2);
 			VectorStoreAligned(Output, &OutBuffer[i]);
 		}
 	}
@@ -307,11 +307,11 @@ namespace Audio
 			}
 			else
 			{
-				VectorRegister Gain = VectorLoadFloat1(&StartValue);
+				VectorRegister4Float Gain = VectorLoadFloat1(&StartValue);
 
 				for (int32 i = 0; i < NumSamples; i += 4)
 				{
-					VectorRegister Output = VectorLoadAligned(&OutFloatBuffer[i]);
+					VectorRegister4Float Output = VectorLoadAligned(&OutFloatBuffer[i]);
 					Output = VectorMultiply(Output, Gain);
 					VectorStoreAligned(Output, &OutFloatBuffer[i]);
 				}
@@ -321,12 +321,12 @@ namespace Audio
 		{
 			const float DeltaValue = ((EndValue - StartValue) / NumIterations);
 
-			VectorRegister Gain = VectorLoadFloat1(&StartValue);
-			VectorRegister Delta = VectorLoadFloat1(&DeltaValue);
+			VectorRegister4Float Gain = VectorLoadFloat1(&StartValue);
+			VectorRegister4Float Delta = VectorLoadFloat1(&DeltaValue);
 
 			for (int32 i = 0; i < NumSamples; i += 4)
 			{
-				VectorRegister Output = VectorLoadAligned(&OutFloatBuffer[i]);
+				VectorRegister4Float Output = VectorLoadAligned(&OutFloatBuffer[i]);
 				Output = VectorMultiply(Output, Gain);
 				Gain = VectorAdd(Gain, Delta);
 				VectorStoreAligned(Output, &OutFloatBuffer[i]);
@@ -354,12 +354,12 @@ namespace Audio
 			BufferToSumTo[i] += InFloatBuffer[i] * Gain;
 		}
 #else
-		VectorRegister GainVector = VectorLoadFloat1(&Gain);
+		VectorRegister4Float GainVector = VectorLoadFloat1(&Gain);
 
 		for (int32 i = 0; i < NumSamples; i += 4)
 		{
-			VectorRegister Output = VectorLoadAligned(&BufferToSumTo[i]);
-			VectorRegister Input  = VectorLoadAligned(&InFloatBuffer[i]);
+			VectorRegister4Float Output = VectorLoadAligned(&BufferToSumTo[i]);
+			VectorRegister4Float Input  = VectorLoadAligned(&InFloatBuffer[i]);
 			Output = VectorMultiplyAdd(Input, GainVector, Output);
 			VectorStoreAligned(Output, &BufferToSumTo[i]);
 		}
@@ -388,8 +388,8 @@ namespace Audio
 #else
 		for (int32 i = 0; i < NumSamples; i += 4)
 		{
-			VectorRegister Output = VectorLoadAligned(&BufferToSumTo[i]);
-			VectorRegister Input = VectorLoadAligned(&InFloatBuffer[i]);
+			VectorRegister4Float Output = VectorLoadAligned(&BufferToSumTo[i]);
+			VectorRegister4Float Input = VectorLoadAligned(&InFloatBuffer[i]);
 			Output = VectorAdd(Input, Output);
 			VectorStoreAligned(Output, &BufferToSumTo[i]);
 		}
@@ -420,12 +420,12 @@ namespace Audio
 			}
 			else
 			{
-				VectorRegister Gain = VectorLoadFloat1(&StartGain);
+				VectorRegister4Float Gain = VectorLoadFloat1(&StartGain);
 
 				for (int32 i = 0; i < NumSamples; i += 4)
 				{
-					VectorRegister Input = VectorLoadAligned(&InFloatBuffer[i]);
-					VectorRegister Output = VectorLoadAligned(&BufferToSumTo[i]);
+					VectorRegister4Float Input = VectorLoadAligned(&InFloatBuffer[i]);
+					VectorRegister4Float Output = VectorLoadAligned(&BufferToSumTo[i]);
 
 					Input = VectorMultiply(Input, Gain);
 					Output = VectorAdd(Input, Output);
@@ -438,13 +438,13 @@ namespace Audio
 		{
 			const float DeltaValue = ((EndGain - StartGain) / NumIterations);
 
-			VectorRegister Gain = VectorLoadFloat1(&StartGain);
-			VectorRegister Delta = VectorLoadFloat1(&DeltaValue);
+			VectorRegister4Float Gain = VectorLoadFloat1(&StartGain);
+			VectorRegister4Float Delta = VectorLoadFloat1(&DeltaValue);
 
 			for (int32 i = 0; i < NumSamples; i += 4)
 			{
-				VectorRegister Input = VectorLoadAligned(&InFloatBuffer[i]);
-				VectorRegister Output = VectorLoadAligned(&BufferToSumTo[i]);
+				VectorRegister4Float Input = VectorLoadAligned(&InFloatBuffer[i]);
+				VectorRegister4Float Output = VectorLoadAligned(&BufferToSumTo[i]);
 				Input = VectorMultiply(Input, Gain);
 				Output = VectorAdd(Input, Output);
 				
@@ -481,9 +481,9 @@ namespace Audio
 
 		for (int32 i = 0; i < InNum; i += 4)
 		{
-			VectorRegister Input1 = VectorLoadAligned(&InMinuend[i]);
-			VectorRegister Input2 = VectorLoadAligned(&InSubtrahend[i]);
-			VectorRegister Output = VectorSubtract(Input1, Input2);
+			VectorRegister4Float Input1 = VectorLoadAligned(&InMinuend[i]);
+			VectorRegister4Float Input2 = VectorLoadAligned(&InSubtrahend[i]);
+			VectorRegister4Float Output = VectorSubtract(Input1, Input2);
 			VectorStoreAligned(Output, &OutBuffer[i]);
 		}
 	}
@@ -507,10 +507,10 @@ namespace Audio
 
 		for (int32 i = 0; i < InNum; i += 4)
 		{
-			VectorRegister Input1 = VectorLoadAligned(&InMinuend[i]);
-			VectorRegister Input2 = VectorLoadAligned(&InOutSubtrahend[i]);
+			VectorRegister4Float Input1 = VectorLoadAligned(&InMinuend[i]);
+			VectorRegister4Float Input2 = VectorLoadAligned(&InOutSubtrahend[i]);
 
-			VectorRegister Output = VectorSubtract(Input1, Input2);
+			VectorRegister4Float Output = VectorSubtract(Input1, Input2);
 			VectorStoreAligned(Output, &InOutSubtrahend[i]);
 		}
 	}
@@ -534,10 +534,10 @@ namespace Audio
 		
 		for (int32 i = 0; i < InNum; i += 4)
 		{
-			VectorRegister Input1 = VectorLoadAligned(&InOutMinuend[i]);
-			VectorRegister Input2 = VectorLoadAligned(&InSubtrahend[i]);
+			VectorRegister4Float Input1 = VectorLoadAligned(&InOutMinuend[i]);
+			VectorRegister4Float Input2 = VectorLoadAligned(&InSubtrahend[i]);
 
-			VectorRegister Output = VectorSubtract(Input1, Input2);
+			VectorRegister4Float Output = VectorSubtract(Input1, Input2);
 			VectorStoreAligned(Output, &InOutMinuend[i]);
 		}
 	}
@@ -570,10 +570,10 @@ namespace Audio
 #else
 		for (int32 i = 0; i < NumSamples; i += 4)
 		{
-			VectorRegister Input1 = VectorLoadAligned(&InFloatBuffer1[i]);
-			VectorRegister Input2 = VectorLoadAligned(&InFloatBuffer2[i]);
+			VectorRegister4Float Input1 = VectorLoadAligned(&InFloatBuffer1[i]);
+			VectorRegister4Float Input2 = VectorLoadAligned(&InFloatBuffer2[i]);
 
-			VectorRegister Output = VectorAdd(Input1, Input2);
+			VectorRegister4Float Output = VectorAdd(Input1, Input2);
 			VectorStoreAligned(Output, &OutputBuffer[i]);
 		}
 #endif
@@ -594,8 +594,8 @@ namespace Audio
 
 		for (int32 i = 0; i < NumSamples; i += 4)
 		{
-			VectorRegister Input1 = VectorLoadAligned(&InFloatBuffer[i]);
-			VectorRegister Output = VectorLoadAligned(&BufferToMultiply[i]);
+			VectorRegister4Float Input1 = VectorLoadAligned(&InFloatBuffer[i]);
+			VectorRegister4Float Output = VectorLoadAligned(&BufferToMultiply[i]);
 
 			Output = VectorMultiply(Input1, Output);
 			VectorStoreAligned(Output, &BufferToMultiply[i]);
@@ -619,14 +619,14 @@ namespace Audio
 		}
 		return FMath::Sqrt(Sum);
 #else
-		VectorRegister Sum = VectorZero();
+		VectorRegister4Float Sum = VectorZero();
 
 		const float Exponent = 2.0f;
-		VectorRegister ExponentVector = VectorLoadFloat1(&Exponent);
+		VectorRegister4Float ExponentVector = VectorLoadFloat1(&Exponent);
 
 		for (int32 i = 0; i < NumSamples; i += 4)
 		{
-			VectorRegister Input = VectorPow(VectorLoadAligned(&Buffer[i]), ExponentVector);
+			VectorRegister4Float Input = VectorPow(VectorLoadAligned(&Buffer[i]), ExponentVector);
 			Sum = VectorAdd(Sum, Input);
 		}
 
@@ -656,11 +656,11 @@ namespace Audio
 		}
 		return Sum / NumSamples;
 #else
-		VectorRegister Sum = VectorZero();
+		VectorRegister4Float Sum = VectorZero();
 
 		for (int32 i = 0; i < NumSamples; i += 4)
 		{
-			VectorRegister Input = VectorLoadAligned(&Buffer[i]);
+			VectorRegister4Float Input = VectorLoadAligned(&Buffer[i]);
 			Sum = VectorAdd(Sum, Input);
 		}
 
@@ -690,11 +690,11 @@ namespace Audio
 		}
 		return Sum / NumSamples;
 #else
-		VectorRegister Sum = VectorZero();
+		VectorRegister4Float Sum = VectorZero();
 
 		for (int32 i = 0; i < NumSamples; i += 4)
 		{
-			VectorRegister Input = VectorAbs(VectorLoadAligned(&Buffer[i]));
+			VectorRegister4Float Input = VectorAbs(VectorLoadAligned(&Buffer[i]));
 			Sum = VectorAdd(Sum, Input);
 		}
 
@@ -752,8 +752,8 @@ namespace Audio
 	 * 
 	 * DETERMINING THE VECTOR LAYOUT FOR EACH FUNCTION:
 	 * For every variant of Mix[N]ChannelsTo[N]ChannelsFast, we use the least common multiple of the number of output channels and the SIMD vector length (4) to calulate the length of our matrix.
-	 * For example, MixMonoTo4ChannelsFast can use a single VectorRegister for each variable. GainVector's values are [g0, g1, g2, g3], input channels are mapped to [i0, i0, i0, i0], and output channels are mapped to [o0, o1, o2, o3].
-	 * MixMonoTo8ChannelsFast has an LCM of 8, so we use two VectorRegister for each variable. This results in the following layout:
+	 * For example, MixMonoTo4ChannelsFast can use a single VectorRegister4Float for each variable. GainVector's values are [g0, g1, g2, g3], input channels are mapped to [i0, i0, i0, i0], and output channels are mapped to [o0, o1, o2, o3].
+	 * MixMonoTo8ChannelsFast has an LCM of 8, so we use two VectorRegister4Float for each variable. This results in the following layout:
 	 * GainVector1:   [g0, g1, g2, g3] GainVector2:   [g4, g5, g6, g7]
 	 * InputVector1:  [i0, i0, i0, i0] InputVector2:  [i0, i0, i0, i0]
 	 * ResultVector1: [o0, o1, o2, o3] ResultVector2: [o4, o5, o6, o7]
@@ -771,11 +771,11 @@ namespace Audio
 
 	void Apply2ChannelGain(float* RESTRICT StereoBuffer, int32 NumSamples, const float* RESTRICT Gains)
 	{
-		const VectorRegister GainVector = VectorLoadFloat2(Gains);
+		const VectorRegister4Float GainVector = VectorLoadFloat2(Gains);
 		
 		for (int32 i = 0; i < NumSamples; i += 4)
 		{
-			VectorRegister Result = VectorLoadAligned(&StereoBuffer[i]);
+			VectorRegister4Float Result = VectorLoadAligned(&StereoBuffer[i]);
 			Result = VectorMultiply(Result, GainVector);
 			VectorStoreAligned(Result, &StereoBuffer[i]);
 		}
@@ -789,14 +789,14 @@ namespace Audio
 	void Apply2ChannelGain(float* RESTRICT StereoBuffer, int32 NumSamples, const float* RESTRICT StartGains, const float* RESTRICT EndGains)
 	{
 		// Initialize GainVector at StartGains and compute GainDeltasVector:
-		VectorRegister GainVector = VectorLoadFloat2(StartGains);
-		const VectorRegister DestinationVector = VectorLoadFloat2(EndGains);
-		const VectorRegister NumFramesVector = VectorSetFloat1(NumSamples / 4.0f);
-		const VectorRegister GainDeltasVector = VectorDivide(VectorSubtract(DestinationVector, GainVector), NumFramesVector);
+		VectorRegister4Float GainVector = VectorLoadFloat2(StartGains);
+		const VectorRegister4Float DestinationVector = VectorLoadFloat2(EndGains);
+		const VectorRegister4Float NumFramesVector = VectorSetFloat1(NumSamples / 4.0f);
+		const VectorRegister4Float GainDeltasVector = VectorDivide(VectorSubtract(DestinationVector, GainVector), NumFramesVector);
 
 		for (int32 i = 0; i < NumSamples; i += 4)
 		{
-			VectorRegister Result = VectorLoadAligned(&StereoBuffer[i]);
+			VectorRegister4Float Result = VectorLoadAligned(&StereoBuffer[i]);
 			Result = VectorMultiply(Result, GainVector);
 			VectorStoreAligned(Result, &StereoBuffer[i]);
 
@@ -824,10 +824,10 @@ namespace Audio
 	*/
 	void MixMonoTo2ChannelsFast(const float* RESTRICT MonoBuffer, float* RESTRICT DestinationBuffer, int32 NumFrames, const float* RESTRICT Gains)
 	{
-		const VectorRegister GainVector = VectorLoadFloat2(Gains);
+		const VectorRegister4Float GainVector = VectorLoadFloat2(Gains);
 		for (int32 i = 0; i < NumFrames; i += 2)
 		{
-			VectorRegister Result = VectorSet(MonoBuffer[i], MonoBuffer[i], MonoBuffer[i + 1], MonoBuffer[i + 1]);
+			VectorRegister4Float Result = VectorSet(MonoBuffer[i], MonoBuffer[i], MonoBuffer[i + 1], MonoBuffer[i + 1]);
 			Result = VectorMultiply(Result, GainVector);
 			VectorStoreAligned(Result, &DestinationBuffer[i*2]);
 		}
@@ -854,19 +854,19 @@ namespace Audio
 	void MixMonoTo2ChannelsFast(const float* RESTRICT MonoBuffer, float* RESTRICT DestinationBuffer, int32 NumFrames, const float* RESTRICT StartGains, const float* RESTRICT EndGains)
 	{
 		// Initialize GainVector at StartGains and compute GainDeltasVector:
-		VectorRegister GainVector = VectorLoadFloat2(StartGains);
-		const VectorRegister DestinationVector = VectorLoadFloat2(EndGains);
-		const VectorRegister NumFramesVector = VectorSetFloat1(NumFrames / 2.0f);
-		const VectorRegister GainDeltasVector = VectorDivide(VectorSubtract(DestinationVector, GainVector), NumFramesVector);
+		VectorRegister4Float GainVector = VectorLoadFloat2(StartGains);
+		const VectorRegister4Float DestinationVector = VectorLoadFloat2(EndGains);
+		const VectorRegister4Float NumFramesVector = VectorSetFloat1(NumFrames / 2.0f);
+		const VectorRegister4Float GainDeltasVector = VectorDivide(VectorSubtract(DestinationVector, GainVector), NumFramesVector);
 
 		// To help with stair stepping, we initialize the second frame in GainVector to be half a GainDeltas vector higher than the first frame.
-		const VectorRegister VectorOfHalf = VectorSet(0.5f, 0.5f, 1.0f, 1.0f);
-		const VectorRegister HalfOfDeltaVector = VectorMultiply(GainDeltasVector, VectorOfHalf);
+		const VectorRegister4Float VectorOfHalf = VectorSet(0.5f, 0.5f, 1.0f, 1.0f);
+		const VectorRegister4Float HalfOfDeltaVector = VectorMultiply(GainDeltasVector, VectorOfHalf);
 		GainVector = VectorAdd(GainVector, HalfOfDeltaVector);
 
 		for (int32 i = 0; i < NumFrames; i += 2)
 		{
-			VectorRegister Result = VectorSet(MonoBuffer[i], MonoBuffer[i], MonoBuffer[i + 1], MonoBuffer[i + 1]);
+			VectorRegister4Float Result = VectorSet(MonoBuffer[i], MonoBuffer[i], MonoBuffer[i + 1], MonoBuffer[i + 1]);
 			Result = VectorMultiply(Result, GainVector);
 			VectorStoreAligned(Result, &DestinationBuffer[i*2]);
 
@@ -900,8 +900,8 @@ namespace Audio
 		int32 OutPos = 0;
 		for (int32 i = 0; i < InNumFrames; i += 4)
 		{
-			VectorRegister Input = VectorLoadAligned(&MonoBuffer[i]);
-			VectorRegister Output = VectorSwizzle(Input, 0, 0, 1, 1);
+			VectorRegister4Float Input = VectorLoadAligned(&MonoBuffer[i]);
+			VectorRegister4Float Output = VectorSwizzle(Input, 0, 0, 1, 1);
 			VectorStoreAligned(Output, &DestinationBuffer[OutPos]);
 			OutPos += 4;
 			Output = VectorSwizzle(Input, 2, 2, 3, 3);
@@ -935,15 +935,15 @@ namespace Audio
 
 	void Mix2ChannelsTo2ChannelsFast(const float* RESTRICT SourceBuffer, float* RESTRICT DestinationBuffer, int32 NumFrames, const float* RESTRICT Gains)
 	{
-		const VectorRegister GainVector1 = VectorLoadFloat2(Gains);
-		const VectorRegister GainVector2 = VectorLoadFloat2(Gains + 2);
+		const VectorRegister4Float GainVector1 = VectorLoadFloat2(Gains);
+		const VectorRegister4Float GainVector2 = VectorLoadFloat2(Gains + 2);
 
 		for (int32 i = 0; i < NumFrames; i += 2)
 		{
-			const VectorRegister Input1 = VectorSet(SourceBuffer[i * 2], SourceBuffer[i * 2], SourceBuffer[i * 2 + 2], SourceBuffer[i * 2 + 2]);
-			const VectorRegister Input2 = VectorSet(SourceBuffer[i * 2 + 1], SourceBuffer[i * 2 + 1], SourceBuffer[i * 2 + 3], SourceBuffer[i * 2 + 3]);
+			const VectorRegister4Float Input1 = VectorSet(SourceBuffer[i * 2], SourceBuffer[i * 2], SourceBuffer[i * 2 + 2], SourceBuffer[i * 2 + 2]);
+			const VectorRegister4Float Input2 = VectorSet(SourceBuffer[i * 2 + 1], SourceBuffer[i * 2 + 1], SourceBuffer[i * 2 + 3], SourceBuffer[i * 2 + 3]);
 
-			VectorRegister Result = VectorMultiply(Input1, GainVector1);
+			VectorRegister4Float Result = VectorMultiply(Input1, GainVector1);
 			Result = VectorMultiplyAdd(Input2, GainVector2, Result);
 
 			VectorStoreAligned(Result, &DestinationBuffer[i * 2]);
@@ -975,31 +975,31 @@ namespace Audio
 
 	void Mix2ChannelsTo2ChannelsFast(const float* RESTRICT SourceBuffer, float* RESTRICT DestinationBuffer, int32 NumFrames, const float* RESTRICT StartGains, const float* RESTRICT EndGains)
 	{
-		const VectorRegister NumFramesVector = VectorSetFloat1(NumFrames / 2.0f);
+		const VectorRegister4Float NumFramesVector = VectorSetFloat1(NumFrames / 2.0f);
 
-		VectorRegister GainVector1 = VectorLoadFloat2(StartGains);
-		const VectorRegister DestinationVector1 = VectorLoadFloat2(EndGains);
-		const VectorRegister GainDeltasVector1 = VectorDivide(VectorSubtract(DestinationVector1, GainVector1), NumFramesVector);
+		VectorRegister4Float GainVector1 = VectorLoadFloat2(StartGains);
+		const VectorRegister4Float DestinationVector1 = VectorLoadFloat2(EndGains);
+		const VectorRegister4Float GainDeltasVector1 = VectorDivide(VectorSubtract(DestinationVector1, GainVector1), NumFramesVector);
 
 		// To help with stair stepping, we initialize the second frame in GainVector to be half a GainDeltas vector higher than the first frame.
-		const VectorRegister VectorOfHalf = VectorSet(0.5f, 0.5f, 1.0f, 1.0f);
+		const VectorRegister4Float VectorOfHalf = VectorSet(0.5f, 0.5f, 1.0f, 1.0f);
 
-		const VectorRegister HalfOfDeltaVector1 = VectorMultiply(GainDeltasVector1, VectorOfHalf);
+		const VectorRegister4Float HalfOfDeltaVector1 = VectorMultiply(GainDeltasVector1, VectorOfHalf);
 		GainVector1 = VectorAdd(GainVector1, HalfOfDeltaVector1);
 
-		VectorRegister GainVector2 = VectorLoadFloat2(StartGains + 2);
-		const VectorRegister DestinationVector2 = VectorLoadFloat2(EndGains + 2);
-		const VectorRegister GainDeltasVector2 = VectorDivide(VectorSubtract(DestinationVector2, GainVector2), NumFramesVector);
+		VectorRegister4Float GainVector2 = VectorLoadFloat2(StartGains + 2);
+		const VectorRegister4Float DestinationVector2 = VectorLoadFloat2(EndGains + 2);
+		const VectorRegister4Float GainDeltasVector2 = VectorDivide(VectorSubtract(DestinationVector2, GainVector2), NumFramesVector);
 
-		const VectorRegister HalfOfDeltaVector2 = VectorMultiply(GainDeltasVector2, VectorOfHalf);
+		const VectorRegister4Float HalfOfDeltaVector2 = VectorMultiply(GainDeltasVector2, VectorOfHalf);
 		GainVector2 = VectorAdd(GainVector2, HalfOfDeltaVector2);
 
 		for (int32 i = 0; i < NumFrames; i += 2)
 		{
-			const VectorRegister Input1 = VectorSet(SourceBuffer[i * 2], SourceBuffer[i * 2], SourceBuffer[i * 2 + 2], SourceBuffer[i * 2 + 2]);
-			const VectorRegister Input2 = VectorSet(SourceBuffer[i * 2 + 1], SourceBuffer[i * 2 + 1], SourceBuffer[i * 2 + 3], SourceBuffer[i * 2 + 3]);
+			const VectorRegister4Float Input1 = VectorSet(SourceBuffer[i * 2], SourceBuffer[i * 2], SourceBuffer[i * 2 + 2], SourceBuffer[i * 2 + 2]);
+			const VectorRegister4Float Input2 = VectorSet(SourceBuffer[i * 2 + 1], SourceBuffer[i * 2 + 1], SourceBuffer[i * 2 + 3], SourceBuffer[i * 2 + 3]);
 
-			VectorRegister Result = VectorMultiply(Input1, GainVector1);
+			VectorRegister4Float Result = VectorMultiply(Input1, GainVector1);
 			Result = VectorMultiplyAdd(Input2, GainVector2, Result);
 
 			VectorStoreAligned(Result, &DestinationBuffer[i * 2]);
@@ -1016,11 +1016,11 @@ namespace Audio
 
 	void Apply4ChannelGain(float* RESTRICT InterleavedBuffer, int32 NumSamples, const float* RESTRICT Gains)
 	{
-		const VectorRegister GainVector = VectorLoadAligned(Gains);
+		const VectorRegister4Float GainVector = VectorLoadAligned(Gains);
 
 		for (int32 i = 0; i < NumSamples; i += 4)
 		{
-			VectorRegister Result = VectorLoadAligned(&InterleavedBuffer[i]);
+			VectorRegister4Float Result = VectorLoadAligned(&InterleavedBuffer[i]);
 			Result = VectorMultiply(Result, GainVector);
 			VectorStoreAligned(Result, &InterleavedBuffer[i]);
 		}
@@ -1034,14 +1034,14 @@ namespace Audio
 	void Apply4ChannelGain(float* RESTRICT InterleavedBuffer, int32 NumSamples, const float* RESTRICT StartGains, const float* RESTRICT EndGains)
 	{
 		// Initialize GainVector at StartGains and compute GainDeltasVector:
-		VectorRegister GainVector = VectorLoadAligned(StartGains);
-		const VectorRegister DestinationVector = VectorLoadAligned(EndGains);
-		const VectorRegister NumFramesVector = VectorSetFloat1(NumSamples / 4.0f);
-		const VectorRegister GainDeltasVector = VectorDivide(VectorSubtract(DestinationVector, GainVector), NumFramesVector);
+		VectorRegister4Float GainVector = VectorLoadAligned(StartGains);
+		const VectorRegister4Float DestinationVector = VectorLoadAligned(EndGains);
+		const VectorRegister4Float NumFramesVector = VectorSetFloat1(NumSamples / 4.0f);
+		const VectorRegister4Float GainDeltasVector = VectorDivide(VectorSubtract(DestinationVector, GainVector), NumFramesVector);
 
 		for (int32 i = 0; i < NumSamples; i += 4)
 		{
-			VectorRegister Result = VectorLoadAligned(&InterleavedBuffer[i]);
+			VectorRegister4Float Result = VectorLoadAligned(&InterleavedBuffer[i]);
 			Result = VectorMultiply(Result, GainVector);
 			VectorStoreAligned(Result, &InterleavedBuffer[i]);
 
@@ -1070,11 +1070,11 @@ namespace Audio
 
 	void MixMonoTo4ChannelsFast(const float* RESTRICT MonoBuffer, float* RESTRICT DestinationBuffer, int32 NumFrames, const float* RESTRICT Gains)
 	{
-		const VectorRegister GainVector = VectorLoadAligned(Gains);
+		const VectorRegister4Float GainVector = VectorLoadAligned(Gains);
 
 		for (int32 i = 0; i < NumFrames; i++)
 		{
-			VectorRegister Result = VectorLoadFloat1(&MonoBuffer[i]);
+			VectorRegister4Float Result = VectorLoadFloat1(&MonoBuffer[i]);
 			Result = VectorMultiply(Result, GainVector);
 			VectorStoreAligned(Result, &DestinationBuffer[i*4]);
 		}
@@ -1101,14 +1101,14 @@ namespace Audio
 	*/
 	void MixMonoTo4ChannelsFast(const float* RESTRICT MonoBuffer, float* RESTRICT DestinationBuffer, int32 NumFrames, const float* RESTRICT StartGains, const float* RESTRICT EndGains)
 	{
-		VectorRegister GainVector = VectorLoadAligned(StartGains);
-		const VectorRegister DestinationVector = VectorLoadAligned(EndGains);
-		const VectorRegister NumFramesVector = VectorSetFloat1((float) NumFrames);
-		const VectorRegister GainDeltasVector = VectorDivide(VectorSubtract(DestinationVector, GainVector), NumFramesVector);
+		VectorRegister4Float GainVector = VectorLoadAligned(StartGains);
+		const VectorRegister4Float DestinationVector = VectorLoadAligned(EndGains);
+		const VectorRegister4Float NumFramesVector = VectorSetFloat1((float) NumFrames);
+		const VectorRegister4Float GainDeltasVector = VectorDivide(VectorSubtract(DestinationVector, GainVector), NumFramesVector);
 
 		for (int32 i = 0; i < NumFrames; i++)
 		{
-			VectorRegister Result = VectorLoadFloat1(&MonoBuffer[i]);
+			VectorRegister4Float Result = VectorLoadFloat1(&MonoBuffer[i]);
 			Result = VectorMultiply(Result, GainVector);
 			VectorStoreAligned(Result, &DestinationBuffer[i * 4]);
 
@@ -1141,15 +1141,15 @@ namespace Audio
 
 	void Mix2ChannelsTo4ChannelsFast(const float* RESTRICT SourceBuffer, float* RESTRICT DestinationBuffer, int32 NumFrames, const float* RESTRICT Gains)
 	{
-		const VectorRegister GainVector1 = VectorLoadAligned(Gains);
-		const VectorRegister GainVector2 = VectorLoadAligned(Gains + 4);
+		const VectorRegister4Float GainVector1 = VectorLoadAligned(Gains);
+		const VectorRegister4Float GainVector2 = VectorLoadAligned(Gains + 4);
 
 		for (int32 i = 0; i < NumFrames; i++)
 		{
-			const VectorRegister Input1 = VectorLoadFloat1(&SourceBuffer[i * 2]);
-			const VectorRegister Input2 = VectorLoadFloat1(&SourceBuffer[i * 2 + 1]);
+			const VectorRegister4Float Input1 = VectorLoadFloat1(&SourceBuffer[i * 2]);
+			const VectorRegister4Float Input2 = VectorLoadFloat1(&SourceBuffer[i * 2 + 1]);
 
-			VectorRegister Result = VectorMultiply(Input1, GainVector1);
+			VectorRegister4Float Result = VectorMultiply(Input1, GainVector1);
 			Result = VectorMultiplyAdd(Input2, GainVector2, Result);
 			VectorStoreAligned(Result, &DestinationBuffer[i * 4]);
 		}
@@ -1179,22 +1179,22 @@ namespace Audio
 	*/
 	void Mix2ChannelsTo4ChannelsFast(const float* RESTRICT SourceBuffer, float* RESTRICT DestinationBuffer, int32 NumFrames, const float* RESTRICT StartGains, const float* RESTRICT EndGains)
 	{
-		const VectorRegister NumFramesVector = VectorSetFloat1((float) NumFrames);
+		const VectorRegister4Float NumFramesVector = VectorSetFloat1((float) NumFrames);
 
-		VectorRegister GainVector1 = VectorLoadAligned(StartGains);
-		const VectorRegister DestinationVector1 = VectorLoadAligned(EndGains);
-		const VectorRegister GainDeltasVector1 = VectorDivide(VectorSubtract(DestinationVector1, GainVector1), NumFramesVector);
+		VectorRegister4Float GainVector1 = VectorLoadAligned(StartGains);
+		const VectorRegister4Float DestinationVector1 = VectorLoadAligned(EndGains);
+		const VectorRegister4Float GainDeltasVector1 = VectorDivide(VectorSubtract(DestinationVector1, GainVector1), NumFramesVector);
 
-		VectorRegister GainVector2 = VectorLoadAligned(StartGains + 4);
-		const VectorRegister DestinationVector2 = VectorLoadAligned(EndGains + 4);
-		const VectorRegister GainDeltasVector2 = VectorDivide(VectorSubtract(DestinationVector2, GainVector2), NumFramesVector);
+		VectorRegister4Float GainVector2 = VectorLoadAligned(StartGains + 4);
+		const VectorRegister4Float DestinationVector2 = VectorLoadAligned(EndGains + 4);
+		const VectorRegister4Float GainDeltasVector2 = VectorDivide(VectorSubtract(DestinationVector2, GainVector2), NumFramesVector);
 
 		for (int32 i = 0; i < NumFrames; i++)
 		{
-			const VectorRegister Input1 = VectorLoadFloat1(&SourceBuffer[i * 2]);
-			const VectorRegister Input2 = VectorLoadFloat1(&SourceBuffer[i * 2 + 1]);
+			const VectorRegister4Float Input1 = VectorLoadFloat1(&SourceBuffer[i * 2]);
+			const VectorRegister4Float Input2 = VectorLoadFloat1(&SourceBuffer[i * 2 + 1]);
 
-			VectorRegister Result = VectorMultiply(Input1, GainVector1);
+			VectorRegister4Float Result = VectorMultiply(Input1, GainVector1);
 			Result = VectorMultiplyAdd(Input2, GainVector2, Result);
 			VectorStoreAligned(Result, &DestinationBuffer[i * 4]);
 
@@ -1210,13 +1210,13 @@ namespace Audio
 
 	void Apply6ChannelGain(float* RESTRICT InterleavedBuffer, int32 NumSamples, const float* RESTRICT Gains)
 	{
-		const VectorRegister GainVector1 = VectorLoadAligned(Gains);
-		const VectorRegister GainVector2 = VectorSet(Gains[4], Gains[5], Gains[0], Gains[1]);
-		const VectorRegister GainVector3 = VectorLoad(&Gains[2]);
+		const VectorRegister4Float GainVector1 = VectorLoadAligned(Gains);
+		const VectorRegister4Float GainVector2 = VectorSet(Gains[4], Gains[5], Gains[0], Gains[1]);
+		const VectorRegister4Float GainVector3 = VectorLoad(&Gains[2]);
 
 		for (int32 i = 0; i < NumSamples; i += 12)
 		{
-			VectorRegister Result = VectorLoadAligned(&InterleavedBuffer[i]);
+			VectorRegister4Float Result = VectorLoadAligned(&InterleavedBuffer[i]);
 			Result = VectorMultiply(Result, GainVector1);
 			VectorStoreAligned(Result, &InterleavedBuffer[i]);
 
@@ -1237,23 +1237,23 @@ namespace Audio
 
 	void Apply6ChannelGain(float* RESTRICT InterleavedBuffer, int32 NumSamples, const float* RESTRICT StartGains, const float* RESTRICT EndGains)
 	{
-		const VectorRegister NumFramesVector = VectorSetFloat1(NumSamples / 12.0f);
+		const VectorRegister4Float NumFramesVector = VectorSetFloat1(NumSamples / 12.0f);
 
-		VectorRegister GainVector1 = VectorLoadAligned(StartGains);
-		const VectorRegister DestinationVector1 = VectorLoadAligned(EndGains);
-		const VectorRegister GainDeltasVector1 = VectorDivide(VectorSubtract(DestinationVector1, GainVector1), NumFramesVector);
+		VectorRegister4Float GainVector1 = VectorLoadAligned(StartGains);
+		const VectorRegister4Float DestinationVector1 = VectorLoadAligned(EndGains);
+		const VectorRegister4Float GainDeltasVector1 = VectorDivide(VectorSubtract(DestinationVector1, GainVector1), NumFramesVector);
 
-		VectorRegister GainVector2 = VectorSet(StartGains[4], StartGains[5], StartGains[0], StartGains[1]);
-		const VectorRegister DestinationVector2 = VectorSet(EndGains[4], EndGains[5], EndGains[0], EndGains[1]);
-		const VectorRegister GainDeltasVector2 = VectorDivide(VectorSubtract(DestinationVector2, GainVector2), NumFramesVector);
+		VectorRegister4Float GainVector2 = VectorSet(StartGains[4], StartGains[5], StartGains[0], StartGains[1]);
+		const VectorRegister4Float DestinationVector2 = VectorSet(EndGains[4], EndGains[5], EndGains[0], EndGains[1]);
+		const VectorRegister4Float GainDeltasVector2 = VectorDivide(VectorSubtract(DestinationVector2, GainVector2), NumFramesVector);
 
-		VectorRegister GainVector3 = VectorLoad(&StartGains[2]);
-		const VectorRegister DestinationVector3 = VectorLoad(&EndGains[2]);
-		const VectorRegister GainDeltasVector3 = VectorDivide(VectorSubtract(DestinationVector3, GainVector3), NumFramesVector);
+		VectorRegister4Float GainVector3 = VectorLoad(&StartGains[2]);
+		const VectorRegister4Float DestinationVector3 = VectorLoad(&EndGains[2]);
+		const VectorRegister4Float GainDeltasVector3 = VectorDivide(VectorSubtract(DestinationVector3, GainVector3), NumFramesVector);
 
 		for (int32 i = 0; i < NumSamples; i += 12)
 		{
-			VectorRegister Result = VectorLoadAligned(&InterleavedBuffer[i]);
+			VectorRegister4Float Result = VectorLoadAligned(&InterleavedBuffer[i]);
 			Result = VectorMultiply(Result, GainVector1);
 			VectorStoreAligned(Result, &InterleavedBuffer[i]);
 
@@ -1295,17 +1295,17 @@ namespace Audio
 
 	void MixMonoTo6ChannelsFast(const float* RESTRICT MonoBuffer, float* RESTRICT DestinationBuffer, int32 NumFrames, const float* RESTRICT Gains)
 	{
-		const VectorRegister GainVector1 = VectorLoadAligned(Gains);
-		const VectorRegister GainVector2 = VectorSet(Gains[4], Gains[5], Gains[0], Gains[1]);
-		const VectorRegister GainVector3 = VectorLoad(&Gains[2]);
+		const VectorRegister4Float GainVector1 = VectorLoadAligned(Gains);
+		const VectorRegister4Float GainVector2 = VectorSet(Gains[4], Gains[5], Gains[0], Gains[1]);
+		const VectorRegister4Float GainVector3 = VectorLoad(&Gains[2]);
 
 		for (int32 i = 0; i < NumFrames; i += 2)
 		{
-			const VectorRegister Input1 = VectorLoadFloat1(&MonoBuffer[i]);
-			const VectorRegister Input2 = VectorSet(MonoBuffer[i], MonoBuffer[i], MonoBuffer[i + 1], MonoBuffer[i + 1]);
-			const VectorRegister Input3 = VectorLoadFloat1(&MonoBuffer[i + 1]);
+			const VectorRegister4Float Input1 = VectorLoadFloat1(&MonoBuffer[i]);
+			const VectorRegister4Float Input2 = VectorSet(MonoBuffer[i], MonoBuffer[i], MonoBuffer[i + 1], MonoBuffer[i + 1]);
+			const VectorRegister4Float Input3 = VectorLoadFloat1(&MonoBuffer[i + 1]);
 
-			VectorRegister Result = VectorMultiply(Input1, GainVector1);
+			VectorRegister4Float Result = VectorMultiply(Input1, GainVector1);
 			VectorStoreAligned(Result, &DestinationBuffer[i * 6]);
 
 			Result = VectorMultiply(Input2, GainVector2);
@@ -1338,27 +1338,27 @@ namespace Audio
 
 	void MixMonoTo6ChannelsFast(const float* RESTRICT MonoBuffer, float* RESTRICT DestinationBuffer, int32 NumFrames, const float* RESTRICT StartGains, const float* RESTRICT EndGains)
 	{
-		const VectorRegister NumFramesVector = VectorSetFloat1(NumFrames / 2.0f);
+		const VectorRegister4Float NumFramesVector = VectorSetFloat1(NumFrames / 2.0f);
 
-		VectorRegister GainVector1 = VectorLoadAligned(StartGains);
-		const VectorRegister DestinationVector1 = VectorLoadAligned(EndGains);
-		const VectorRegister GainDeltasVector1 = VectorDivide(VectorSubtract(DestinationVector1, GainVector1), NumFramesVector);
+		VectorRegister4Float GainVector1 = VectorLoadAligned(StartGains);
+		const VectorRegister4Float DestinationVector1 = VectorLoadAligned(EndGains);
+		const VectorRegister4Float GainDeltasVector1 = VectorDivide(VectorSubtract(DestinationVector1, GainVector1), NumFramesVector);
 
-		VectorRegister GainVector2 = VectorSet(StartGains[4], StartGains[5], StartGains[0], StartGains[1]);
-		const VectorRegister DestinationVector2 = VectorSet(EndGains[4], EndGains[5], EndGains[0], EndGains[1]);
-		const VectorRegister GainDeltasVector2 = VectorDivide(VectorSubtract(DestinationVector2, GainVector2), NumFramesVector);
+		VectorRegister4Float GainVector2 = VectorSet(StartGains[4], StartGains[5], StartGains[0], StartGains[1]);
+		const VectorRegister4Float DestinationVector2 = VectorSet(EndGains[4], EndGains[5], EndGains[0], EndGains[1]);
+		const VectorRegister4Float GainDeltasVector2 = VectorDivide(VectorSubtract(DestinationVector2, GainVector2), NumFramesVector);
 
-		VectorRegister GainVector3 = VectorLoad(&StartGains[2]);
-		const VectorRegister DestinationVector3 = VectorLoad(&EndGains[2]);
-		const VectorRegister GainDeltasVector3 = VectorDivide(VectorSubtract(DestinationVector3, GainVector3), NumFramesVector);
+		VectorRegister4Float GainVector3 = VectorLoad(&StartGains[2]);
+		const VectorRegister4Float DestinationVector3 = VectorLoad(&EndGains[2]);
+		const VectorRegister4Float GainDeltasVector3 = VectorDivide(VectorSubtract(DestinationVector3, GainVector3), NumFramesVector);
 
 		for (int32 i = 0; i < NumFrames; i += 2)
 		{
-			const VectorRegister Input1 = VectorLoadFloat1(&MonoBuffer[i]);
-			const VectorRegister Input2 = VectorSet(MonoBuffer[i], MonoBuffer[i], MonoBuffer[i + 1], MonoBuffer[i + 1]);
-			const VectorRegister Input3 = VectorLoadFloat1(&MonoBuffer[i + 1]);
+			const VectorRegister4Float Input1 = VectorLoadFloat1(&MonoBuffer[i]);
+			const VectorRegister4Float Input2 = VectorSet(MonoBuffer[i], MonoBuffer[i], MonoBuffer[i + 1], MonoBuffer[i + 1]);
+			const VectorRegister4Float Input3 = VectorLoadFloat1(&MonoBuffer[i + 1]);
 
-			VectorRegister Result = VectorMultiply(Input1, GainVector1);
+			VectorRegister4Float Result = VectorMultiply(Input1, GainVector1);
 			VectorStoreAligned(Result, &DestinationBuffer[i * 6]);
 
 			GainVector1 = VectorAdd(GainVector1, GainDeltasVector1);
@@ -1401,28 +1401,28 @@ namespace Audio
 
 	void Mix2ChannelsTo6ChannelsFast(const float* RESTRICT SourceBuffer, float* RESTRICT DestinationBuffer, int32 NumFrames, const float* RESTRICT Gains)
 	{
-		const VectorRegister GainVector11 = VectorLoadAligned(Gains);
-		const VectorRegister GainVector21 = VectorSet(Gains[4], Gains[5], Gains[0], Gains[1]);
-		const VectorRegister GainVector31 = VectorLoad(&Gains[2]);
+		const VectorRegister4Float GainVector11 = VectorLoadAligned(Gains);
+		const VectorRegister4Float GainVector21 = VectorSet(Gains[4], Gains[5], Gains[0], Gains[1]);
+		const VectorRegister4Float GainVector31 = VectorLoad(&Gains[2]);
 
-		const VectorRegister GainVector12 = VectorLoad(Gains + 6);
-		const VectorRegister GainVector22 = VectorSet(Gains[10], Gains[11], Gains[6], Gains[7]);
-		const VectorRegister GainVector32 = VectorLoadAligned(&Gains[8]);
+		const VectorRegister4Float GainVector12 = VectorLoad(Gains + 6);
+		const VectorRegister4Float GainVector22 = VectorSet(Gains[10], Gains[11], Gains[6], Gains[7]);
+		const VectorRegister4Float GainVector32 = VectorLoadAligned(&Gains[8]);
 
 		for (int32 FrameIndex = 0; FrameIndex < NumFrames; FrameIndex += 2)
 		{
 			const int32 InputIndex = FrameIndex * 2;
 			const int32 OutputIndex = FrameIndex * 6;
 
-			const VectorRegister Input11 = VectorLoadFloat1(&SourceBuffer[InputIndex]);
-			const VectorRegister Input21 = VectorSet(SourceBuffer[InputIndex], SourceBuffer[InputIndex], SourceBuffer[InputIndex + 2], SourceBuffer[InputIndex + 2]);
-			const VectorRegister Input31 = VectorLoadFloat1(&SourceBuffer[InputIndex + 2]);
+			const VectorRegister4Float Input11 = VectorLoadFloat1(&SourceBuffer[InputIndex]);
+			const VectorRegister4Float Input21 = VectorSet(SourceBuffer[InputIndex], SourceBuffer[InputIndex], SourceBuffer[InputIndex + 2], SourceBuffer[InputIndex + 2]);
+			const VectorRegister4Float Input31 = VectorLoadFloat1(&SourceBuffer[InputIndex + 2]);
 
-			const VectorRegister Input12 = VectorLoadFloat1(&SourceBuffer[InputIndex + 1]);
-			const VectorRegister Input22 = VectorSet(SourceBuffer[InputIndex + 1], SourceBuffer[InputIndex + 1], SourceBuffer[InputIndex + 3], SourceBuffer[InputIndex + 3]);
-			const VectorRegister Input32 = VectorLoadFloat1(&SourceBuffer[InputIndex + 3]);
+			const VectorRegister4Float Input12 = VectorLoadFloat1(&SourceBuffer[InputIndex + 1]);
+			const VectorRegister4Float Input22 = VectorSet(SourceBuffer[InputIndex + 1], SourceBuffer[InputIndex + 1], SourceBuffer[InputIndex + 3], SourceBuffer[InputIndex + 3]);
+			const VectorRegister4Float Input32 = VectorLoadFloat1(&SourceBuffer[InputIndex + 3]);
 
-			VectorRegister Result = VectorMultiply(Input11, GainVector11);
+			VectorRegister4Float Result = VectorMultiply(Input11, GainVector11);
 			Result = VectorMultiplyAdd(Input12, GainVector12, Result);
 			VectorStoreAligned(Result, &DestinationBuffer[OutputIndex]);
 
@@ -1462,48 +1462,48 @@ namespace Audio
 
 	void Mix2ChannelsTo6ChannelsFast(const float* RESTRICT SourceBuffer, float* RESTRICT DestinationBuffer, int32 NumFrames, const float* RESTRICT StartGains, const float* RESTRICT EndGains)
 	{
-		const VectorRegister NumFramesVector = VectorSetFloat1(NumFrames / 2.0f);
+		const VectorRegister4Float NumFramesVector = VectorSetFloat1(NumFrames / 2.0f);
 
-		VectorRegister GainVector11 = VectorLoadAligned(StartGains);
-		const VectorRegister DestinationVector11 = VectorLoadAligned(EndGains);
-		const VectorRegister GainDeltasVector11 = VectorDivide(VectorSubtract(DestinationVector11, GainVector11), NumFramesVector);
+		VectorRegister4Float GainVector11 = VectorLoadAligned(StartGains);
+		const VectorRegister4Float DestinationVector11 = VectorLoadAligned(EndGains);
+		const VectorRegister4Float GainDeltasVector11 = VectorDivide(VectorSubtract(DestinationVector11, GainVector11), NumFramesVector);
 
-		VectorRegister GainVector21 = VectorSet(StartGains[4], StartGains[5], StartGains[0], StartGains[1]);
-		const VectorRegister DestinationVector21 = VectorSet(EndGains[4], EndGains[5], EndGains[0], EndGains[1]);
-		const VectorRegister GainDeltasVector21 = VectorDivide(VectorSubtract(DestinationVector21, GainVector21), NumFramesVector);
+		VectorRegister4Float GainVector21 = VectorSet(StartGains[4], StartGains[5], StartGains[0], StartGains[1]);
+		const VectorRegister4Float DestinationVector21 = VectorSet(EndGains[4], EndGains[5], EndGains[0], EndGains[1]);
+		const VectorRegister4Float GainDeltasVector21 = VectorDivide(VectorSubtract(DestinationVector21, GainVector21), NumFramesVector);
 
 		// In order to ease stair stepping, we ensure that the second frame is initialized to half the GainDelta more than the first frame.
 		// This gives us a consistent increment across every frame.
-		const VectorRegister DeltaHalf21 = VectorSet(0.0f, 0.0f, 0.5f, 0.5f);
-		const VectorRegister InitializedDelta21 = VectorMultiply(GainDeltasVector21, DeltaHalf21);
+		const VectorRegister4Float DeltaHalf21 = VectorSet(0.0f, 0.0f, 0.5f, 0.5f);
+		const VectorRegister4Float InitializedDelta21 = VectorMultiply(GainDeltasVector21, DeltaHalf21);
 		GainVector21 = VectorAdd(GainVector21, InitializedDelta21);
 
-		VectorRegister GainVector31 = VectorLoad(&StartGains[2]);
-		const VectorRegister DestinationVector31 = VectorLoad(&EndGains[2]);
-		const VectorRegister GainDeltasVector31 = VectorDivide(VectorSubtract(DestinationVector31, GainVector31), NumFramesVector);
+		VectorRegister4Float GainVector31 = VectorLoad(&StartGains[2]);
+		const VectorRegister4Float DestinationVector31 = VectorLoad(&EndGains[2]);
+		const VectorRegister4Float GainDeltasVector31 = VectorDivide(VectorSubtract(DestinationVector31, GainVector31), NumFramesVector);
 
-		const VectorRegister DeltaHalf31 = VectorSetFloat1(0.5f);
-		const VectorRegister InitializedDelta31 = VectorMultiply(GainDeltasVector31, DeltaHalf31);
+		const VectorRegister4Float DeltaHalf31 = VectorSetFloat1(0.5f);
+		const VectorRegister4Float InitializedDelta31 = VectorMultiply(GainDeltasVector31, DeltaHalf31);
 		GainVector31 = VectorAdd(GainVector31, InitializedDelta31);
 
-		VectorRegister GainVector12 = VectorLoad(StartGains + 6);
-		const VectorRegister DestinationVector12 = VectorLoad(EndGains + 6);
-		const VectorRegister GainDeltasVector12 = VectorDivide(VectorSubtract(DestinationVector12, GainVector12), NumFramesVector);
+		VectorRegister4Float GainVector12 = VectorLoad(StartGains + 6);
+		const VectorRegister4Float DestinationVector12 = VectorLoad(EndGains + 6);
+		const VectorRegister4Float GainDeltasVector12 = VectorDivide(VectorSubtract(DestinationVector12, GainVector12), NumFramesVector);
 
-		VectorRegister GainVector22 = VectorSet(StartGains[10], StartGains[11], StartGains[6], StartGains[7]);
-		const VectorRegister DestinationVector22 = VectorSet(EndGains[10], EndGains[11], EndGains[6], EndGains[7]);
-		const VectorRegister GainDeltasVector22 = VectorDivide(VectorSubtract(DestinationVector22, GainVector22), NumFramesVector);
+		VectorRegister4Float GainVector22 = VectorSet(StartGains[10], StartGains[11], StartGains[6], StartGains[7]);
+		const VectorRegister4Float DestinationVector22 = VectorSet(EndGains[10], EndGains[11], EndGains[6], EndGains[7]);
+		const VectorRegister4Float GainDeltasVector22 = VectorDivide(VectorSubtract(DestinationVector22, GainVector22), NumFramesVector);
 
-		const VectorRegister DeltaHalf22 = VectorSet(0.0f, 0.0f, 0.5f, 0.5f);
-		const VectorRegister InitializedDelta22 = VectorMultiply(GainDeltasVector22, DeltaHalf22);
+		const VectorRegister4Float DeltaHalf22 = VectorSet(0.0f, 0.0f, 0.5f, 0.5f);
+		const VectorRegister4Float InitializedDelta22 = VectorMultiply(GainDeltasVector22, DeltaHalf22);
 		GainVector22 = VectorAdd(GainVector22, InitializedDelta22);
 
-		VectorRegister GainVector32 = VectorLoadAligned(StartGains + 8);
-		const VectorRegister DestinationVector32 = VectorLoadAligned(EndGains + 8);
-		const VectorRegister GainDeltasVector32 = VectorDivide(VectorSubtract(DestinationVector32, GainVector32), NumFramesVector);
+		VectorRegister4Float GainVector32 = VectorLoadAligned(StartGains + 8);
+		const VectorRegister4Float DestinationVector32 = VectorLoadAligned(EndGains + 8);
+		const VectorRegister4Float GainDeltasVector32 = VectorDivide(VectorSubtract(DestinationVector32, GainVector32), NumFramesVector);
 
-		const VectorRegister DeltaHalf32 = VectorSetFloat1(0.5f);
-		const VectorRegister InitializedDelta32 = VectorMultiply(GainDeltasVector32, DeltaHalf32);
+		const VectorRegister4Float DeltaHalf32 = VectorSetFloat1(0.5f);
+		const VectorRegister4Float InitializedDelta32 = VectorMultiply(GainDeltasVector32, DeltaHalf32);
 		GainVector32 = VectorAdd(GainVector32, InitializedDelta32);
 
 		for (int32 FrameIndex = 0; FrameIndex < NumFrames; FrameIndex += 2)
@@ -1511,15 +1511,15 @@ namespace Audio
 			const int32 InputIndex = FrameIndex * 2;
 			const int32 OutputIndex = FrameIndex * 6;
 
-			const VectorRegister Input11 = VectorLoadFloat1(&SourceBuffer[InputIndex]);
-			const VectorRegister Input21 = VectorSet(SourceBuffer[InputIndex], SourceBuffer[InputIndex], SourceBuffer[InputIndex + 2], SourceBuffer[InputIndex + 2]);
-			const VectorRegister Input31 = VectorLoadFloat1(&SourceBuffer[InputIndex + 2]);
+			const VectorRegister4Float Input11 = VectorLoadFloat1(&SourceBuffer[InputIndex]);
+			const VectorRegister4Float Input21 = VectorSet(SourceBuffer[InputIndex], SourceBuffer[InputIndex], SourceBuffer[InputIndex + 2], SourceBuffer[InputIndex + 2]);
+			const VectorRegister4Float Input31 = VectorLoadFloat1(&SourceBuffer[InputIndex + 2]);
 
-			const VectorRegister Input12 = VectorLoadFloat1(&SourceBuffer[InputIndex + 1]);
-			const VectorRegister Input22 = VectorSet(SourceBuffer[InputIndex + 1], SourceBuffer[InputIndex + 1], SourceBuffer[InputIndex + 3], SourceBuffer[InputIndex + 3]);
-			const VectorRegister Input32 = VectorLoadFloat1(&SourceBuffer[InputIndex + 3]);
+			const VectorRegister4Float Input12 = VectorLoadFloat1(&SourceBuffer[InputIndex + 1]);
+			const VectorRegister4Float Input22 = VectorSet(SourceBuffer[InputIndex + 1], SourceBuffer[InputIndex + 1], SourceBuffer[InputIndex + 3], SourceBuffer[InputIndex + 3]);
+			const VectorRegister4Float Input32 = VectorLoadFloat1(&SourceBuffer[InputIndex + 3]);
 
-			VectorRegister Result = VectorMultiply(Input11, GainVector11);
+			VectorRegister4Float Result = VectorMultiply(Input11, GainVector11);
 			Result = VectorMultiplyAdd(Input12, GainVector12, Result);
 			VectorStoreAligned(Result, &DestinationBuffer[OutputIndex]);
 
@@ -1549,12 +1549,12 @@ namespace Audio
 
 	void Apply8ChannelGain(float* RESTRICT InterleavedBuffer, int32 NumSamples, const float* RESTRICT Gains)
 	{
-		const VectorRegister GainVector1 = VectorLoadAligned(Gains);
-		const VectorRegister GainVector2 = VectorLoadAligned(Gains + 4);
+		const VectorRegister4Float GainVector1 = VectorLoadAligned(Gains);
+		const VectorRegister4Float GainVector2 = VectorLoadAligned(Gains + 4);
 
 		for (int32 i = 0; i < NumSamples; i += 8)
 		{
-			VectorRegister Result = VectorLoadAligned(&InterleavedBuffer[i]);
+			VectorRegister4Float Result = VectorLoadAligned(&InterleavedBuffer[i]);
 			Result = VectorMultiply(Result, GainVector1);
 			VectorStoreAligned(Result, &InterleavedBuffer[i]);
 
@@ -1571,19 +1571,19 @@ namespace Audio
 
 	void Apply8ChannelGain(float* RESTRICT InterleavedBuffer, int32 NumSamples, const float* RESTRICT StartGains, const float* RESTRICT EndGains)
 	{
-		const VectorRegister NumFramesVector = VectorSetFloat1(NumSamples / 8.0f);
+		const VectorRegister4Float NumFramesVector = VectorSetFloat1(NumSamples / 8.0f);
 
-		VectorRegister GainVector1 = VectorLoadAligned(StartGains);
-		const VectorRegister DestinationVector1 = VectorLoadAligned(EndGains);
-		const VectorRegister GainDeltasVector1 = VectorDivide(VectorSubtract(DestinationVector1, GainVector1), NumFramesVector);
+		VectorRegister4Float GainVector1 = VectorLoadAligned(StartGains);
+		const VectorRegister4Float DestinationVector1 = VectorLoadAligned(EndGains);
+		const VectorRegister4Float GainDeltasVector1 = VectorDivide(VectorSubtract(DestinationVector1, GainVector1), NumFramesVector);
 
-		VectorRegister GainVector2 = VectorLoadAligned(StartGains + 4);
-		const VectorRegister DestinationVector2 = VectorLoadAligned(EndGains + 4);
-		const VectorRegister GainDeltasVector2 = VectorDivide(VectorSubtract(DestinationVector2, GainVector2), NumFramesVector);
+		VectorRegister4Float GainVector2 = VectorLoadAligned(StartGains + 4);
+		const VectorRegister4Float DestinationVector2 = VectorLoadAligned(EndGains + 4);
+		const VectorRegister4Float GainDeltasVector2 = VectorDivide(VectorSubtract(DestinationVector2, GainVector2), NumFramesVector);
 
 		for (int32 i = 0; i < NumSamples; i += 8)
 		{
-			VectorRegister Result = VectorLoadAligned(&InterleavedBuffer[i]);
+			VectorRegister4Float Result = VectorLoadAligned(&InterleavedBuffer[i]);
 			Result = VectorMultiply(Result, GainVector1);
 			VectorStoreAligned(Result, &InterleavedBuffer[i]);
 
@@ -1618,12 +1618,12 @@ namespace Audio
 
 	void MixMonoTo8ChannelsFast(const float* RESTRICT MonoBuffer, float* RESTRICT DestinationBuffer, int32 NumFrames, const float* RESTRICT Gains)
 	{
-		const VectorRegister GainVector1 = VectorLoadAligned(Gains);
-		const VectorRegister GainVector2 = VectorLoadAligned(Gains + 4);
+		const VectorRegister4Float GainVector1 = VectorLoadAligned(Gains);
+		const VectorRegister4Float GainVector2 = VectorLoadAligned(Gains + 4);
 
 		for (int32 i = 0; i < NumFrames; i++)
 		{
-			VectorRegister Result = VectorLoadFloat1(&MonoBuffer[i]);
+			VectorRegister4Float Result = VectorLoadFloat1(&MonoBuffer[i]);
 			Result = VectorMultiply(Result, GainVector1);
 			VectorStoreAligned(Result, &DestinationBuffer[i * 8]);
 
@@ -1653,20 +1653,20 @@ namespace Audio
 	*/
 	void MixMonoTo8ChannelsFast(const float* RESTRICT MonoBuffer, float* RESTRICT DestinationBuffer, int32 NumFrames, const float* RESTRICT StartGains, const float* RESTRICT EndGains)
 	{
-		const VectorRegister NumFramesVector = VectorSetFloat1((float) NumFrames);
+		const VectorRegister4Float NumFramesVector = VectorSetFloat1((float) NumFrames);
 
-		VectorRegister GainVector1 = VectorLoadAligned(StartGains);
-		const VectorRegister DestinationVector1 = VectorLoadAligned(EndGains);
-		const VectorRegister GainDeltasVector1 = VectorDivide(VectorSubtract(DestinationVector1, GainVector1), NumFramesVector);
+		VectorRegister4Float GainVector1 = VectorLoadAligned(StartGains);
+		const VectorRegister4Float DestinationVector1 = VectorLoadAligned(EndGains);
+		const VectorRegister4Float GainDeltasVector1 = VectorDivide(VectorSubtract(DestinationVector1, GainVector1), NumFramesVector);
 
-		VectorRegister GainVector2 = VectorLoadAligned(StartGains + 4);
-		const VectorRegister DestinationVector2 = VectorLoadAligned(EndGains + 4);
-		const VectorRegister GainDeltasVector2 = VectorDivide(VectorSubtract(DestinationVector2, GainVector2), NumFramesVector);
+		VectorRegister4Float GainVector2 = VectorLoadAligned(StartGains + 4);
+		const VectorRegister4Float DestinationVector2 = VectorLoadAligned(EndGains + 4);
+		const VectorRegister4Float GainDeltasVector2 = VectorDivide(VectorSubtract(DestinationVector2, GainVector2), NumFramesVector);
 
 		for (int32 i = 0; i < NumFrames; i++)
 		{
-			const VectorRegister Input = VectorLoadFloat1(&MonoBuffer[i]);
-			VectorRegister Result = VectorMultiply(Input, GainVector1);
+			const VectorRegister4Float Input = VectorLoadFloat1(&MonoBuffer[i]);
+			VectorRegister4Float Result = VectorMultiply(Input, GainVector1);
 			VectorStoreAligned(Result, &DestinationBuffer[i * 8]);
 
 			GainVector1 = VectorAdd(GainVector1, GainDeltasVector1);
@@ -1704,17 +1704,17 @@ namespace Audio
 
 	void Mix2ChannelsTo8ChannelsFast(const float* RESTRICT SourceBuffer, float* RESTRICT DestinationBuffer, int32 NumFrames, const float* RESTRICT Gains)
 	{
-		const VectorRegister GainVector11 = VectorLoadAligned(Gains);
-		const VectorRegister GainVector21 = VectorLoadAligned(Gains + 4);
-		const VectorRegister GainVector12 = VectorLoadAligned(Gains + 8);
-		const VectorRegister GainVector22 = VectorLoadAligned(Gains + 12);
+		const VectorRegister4Float GainVector11 = VectorLoadAligned(Gains);
+		const VectorRegister4Float GainVector21 = VectorLoadAligned(Gains + 4);
+		const VectorRegister4Float GainVector12 = VectorLoadAligned(Gains + 8);
+		const VectorRegister4Float GainVector22 = VectorLoadAligned(Gains + 12);
 
 		for (int32 i = 0; i < NumFrames; i++)
 		{
-			const VectorRegister Input1 = VectorLoadFloat1(&SourceBuffer[i*2]);
-			const VectorRegister Input2 = VectorLoadFloat1(&SourceBuffer[i * 2 + 1]);
+			const VectorRegister4Float Input1 = VectorLoadFloat1(&SourceBuffer[i*2]);
+			const VectorRegister4Float Input2 = VectorLoadFloat1(&SourceBuffer[i * 2 + 1]);
 
-			VectorRegister Result = VectorMultiply(Input1, GainVector11);
+			VectorRegister4Float Result = VectorMultiply(Input1, GainVector11);
 			Result = VectorMultiplyAdd(Input2, GainVector12, Result);
 
 			VectorStoreAligned(Result, &DestinationBuffer[i * 8]);
@@ -1751,30 +1751,30 @@ namespace Audio
 
 	void Mix2ChannelsTo8ChannelsFast(const float* RESTRICT SourceBuffer, float* RESTRICT DestinationBuffer, int32 NumFrames, const float* RESTRICT StartGains, const float* RESTRICT EndGains)
 	{
-		const VectorRegister NumFramesVector = VectorSetFloat1((float) NumFrames);
+		const VectorRegister4Float NumFramesVector = VectorSetFloat1((float) NumFrames);
 
-		VectorRegister GainVector11 = VectorLoadAligned(StartGains);
-		const VectorRegister DestinationVector11 = VectorLoadAligned(EndGains);
-		const VectorRegister GainDeltasVector11 = VectorDivide(VectorSubtract(DestinationVector11, GainVector11), NumFramesVector);
+		VectorRegister4Float GainVector11 = VectorLoadAligned(StartGains);
+		const VectorRegister4Float DestinationVector11 = VectorLoadAligned(EndGains);
+		const VectorRegister4Float GainDeltasVector11 = VectorDivide(VectorSubtract(DestinationVector11, GainVector11), NumFramesVector);
 
-		VectorRegister GainVector21 = VectorLoadAligned(StartGains + 4);
-		const VectorRegister DestinationVector21 = VectorLoadAligned(EndGains + 4);
-		const VectorRegister GainDeltasVector21 = VectorDivide(VectorSubtract(DestinationVector21, GainVector21), NumFramesVector);
+		VectorRegister4Float GainVector21 = VectorLoadAligned(StartGains + 4);
+		const VectorRegister4Float DestinationVector21 = VectorLoadAligned(EndGains + 4);
+		const VectorRegister4Float GainDeltasVector21 = VectorDivide(VectorSubtract(DestinationVector21, GainVector21), NumFramesVector);
 
-		VectorRegister GainVector12 = VectorLoadAligned(StartGains + 8);
-		const VectorRegister DestinationVector12 = VectorLoadAligned(EndGains + 8);
-		const VectorRegister GainDeltasVector12 = VectorDivide(VectorSubtract(DestinationVector12, GainVector12), NumFramesVector);
+		VectorRegister4Float GainVector12 = VectorLoadAligned(StartGains + 8);
+		const VectorRegister4Float DestinationVector12 = VectorLoadAligned(EndGains + 8);
+		const VectorRegister4Float GainDeltasVector12 = VectorDivide(VectorSubtract(DestinationVector12, GainVector12), NumFramesVector);
 
-		VectorRegister GainVector22 = VectorLoadAligned(StartGains + 12);
-		const VectorRegister DestinationVector22 = VectorLoadAligned(EndGains + 12);
-		const VectorRegister GainDeltasVector22 = VectorDivide(VectorSubtract(DestinationVector22, GainVector22), NumFramesVector);
+		VectorRegister4Float GainVector22 = VectorLoadAligned(StartGains + 12);
+		const VectorRegister4Float DestinationVector22 = VectorLoadAligned(EndGains + 12);
+		const VectorRegister4Float GainDeltasVector22 = VectorDivide(VectorSubtract(DestinationVector22, GainVector22), NumFramesVector);
 
 		for (int32 i = 0; i < NumFrames; i++)
 		{
-			const VectorRegister Input1 = VectorLoadFloat1(&SourceBuffer[i*2]);
-			const VectorRegister Input2 = VectorLoadFloat1(&SourceBuffer[i * 2 + 1]);
+			const VectorRegister4Float Input1 = VectorLoadFloat1(&SourceBuffer[i*2]);
+			const VectorRegister4Float Input2 = VectorLoadFloat1(&SourceBuffer[i * 2 + 1]);
 
-			VectorRegister Result = VectorMultiply(Input1, GainVector11);
+			VectorRegister4Float Result = VectorMultiply(Input1, GainVector11);
 			Result = VectorMultiplyAdd(Input2, GainVector12, Result);
 			VectorStoreAligned(Result, &DestinationBuffer[i * 8]);
 
@@ -1905,14 +1905,14 @@ namespace Audio
 		for (int32 i = 0; i < InNum; i += 4)
 		{
 			// Vector1[L0, L1, L2, L3]
-			VectorRegister Vector1 = VectorLoadAligned(&InBuffer1[i]);
+			VectorRegister4Float Vector1 = VectorLoadAligned(&InBuffer1[i]);
 			// Vector2[R0, R1, R2, R3]
-			VectorRegister Vector2 = VectorLoadAligned(&InBuffer2[i]);
+			VectorRegister4Float Vector2 = VectorLoadAligned(&InBuffer2[i]);
 
 			// HalfInterleaved[L0, L1, R0, R1]
-			VectorRegister HalfInterleaved = VectorShuffle(Vector1, Vector2, 0, 1, 0, 1);
+			VectorRegister4Float HalfInterleaved = VectorShuffle(Vector1, Vector2, 0, 1, 0, 1);
 			// Interleaved[L0, R0, L1, R1]
-			VectorRegister Interleaved = VectorSwizzle(HalfInterleaved, 0, 2, 1, 3);
+			VectorRegister4Float Interleaved = VectorSwizzle(HalfInterleaved, 0, 2, 1, 3);
 			VectorStoreAligned(Interleaved, &OutBuffer[OutPos]);
 			OutPos += 4;
 
@@ -1954,11 +1954,11 @@ namespace Audio
 		for (int32 InPos = 0; InPos < InNum; InPos += 8)
 		{
 			// load 4 frames (2 frames per vector)
-			VectorRegister InVector1 = VectorLoadAligned(&InBuffer[InPos]);
-			VectorRegister InVector2 = VectorLoadAligned(&InBuffer[InPos + 4]);
+			VectorRegister4Float InVector1 = VectorLoadAligned(&InBuffer[InPos]);
+			VectorRegister4Float InVector2 = VectorLoadAligned(&InBuffer[InPos + 4]);
 
 			// Write channel 0
-			VectorRegister OutVector = VectorShuffle(InVector1, InVector2, 0, 2, 0, 2);
+			VectorRegister4Float OutVector = VectorShuffle(InVector1, InVector2, 0, 2, 0, 2);
 			VectorStoreAligned(OutVector, &OutBuffer1[OutPos]);
 
 			// Write channel 1
@@ -1995,19 +1995,19 @@ namespace Audio
 		{
 			// Load 4 frames (2 frames per vector)
 			// Buffer1[L0, R0, L1, R1]
-			VectorRegister Buffer1 = VectorLoadAligned(&InSamples[i]);
+			VectorRegister4Float Buffer1 = VectorLoadAligned(&InSamples[i]);
 			// Buffer2[L2, R2, L3, R3]
-			VectorRegister Buffer2 = VectorLoadAligned(&InSamples[i + 4]);
+			VectorRegister4Float Buffer2 = VectorLoadAligned(&InSamples[i + 4]);
 
 			// Shuffle samples into order
 			// Channel0[L0, L1, L2, L3]
-			VectorRegister Channel0 = VectorShuffle(Buffer1, Buffer2, 0, 2, 0, 2);
+			VectorRegister4Float Channel0 = VectorShuffle(Buffer1, Buffer2, 0, 2, 0, 2);
 			// Channel1[R0, R1, R2, R3]
-			VectorRegister Channel1 = VectorShuffle(Buffer1, Buffer2, 1, 3, 1, 3);
+			VectorRegister4Float Channel1 = VectorShuffle(Buffer1, Buffer2, 1, 3, 1, 3);
 
 			// Sum left and right.
 			// Out[L0 + R0, L1 + R1, L2 + R2, L3 + R3]
-			VectorRegister Out = VectorAdd(Channel0, Channel1);
+			VectorRegister4Float Out = VectorAdd(Channel0, Channel1);
 
 			VectorStoreAligned(Out, &OutSamples[OutPos]);
 			OutPos += 4;
@@ -2040,13 +2040,13 @@ namespace Audio
 
 		for (int32 i = 0; i < InNum; i += 4)
 		{
-			VectorRegister VInReal = VectorLoadAligned(&InRealSamples[i]);
-			VectorRegister VInRealSquared = VectorMultiply(VInReal, VInReal);
+			VectorRegister4Float VInReal = VectorLoadAligned(&InRealSamples[i]);
+			VectorRegister4Float VInRealSquared = VectorMultiply(VInReal, VInReal);
 
-			VectorRegister VInImag = VectorLoadAligned(&InImaginarySamples[i]);
-			VectorRegister VInImagSquared = VectorMultiply(VInImag, VInImag);
+			VectorRegister4Float VInImag = VectorLoadAligned(&InImaginarySamples[i]);
+			VectorRegister4Float VInImagSquared = VectorMultiply(VInImag, VInImag);
 
-			VectorRegister VOut = VectorAdd(VInRealSquared, VInImagSquared);
+			VectorRegister4Float VOut = VectorAdd(VInRealSquared, VInImagSquared);
 
 			VectorStoreAligned(VOut, &OutPowerSamples[i]);
 		}

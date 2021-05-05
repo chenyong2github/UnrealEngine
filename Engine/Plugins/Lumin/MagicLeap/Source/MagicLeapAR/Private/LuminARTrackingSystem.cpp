@@ -614,7 +614,7 @@ void FLuminARImplementation::ARLineTrace(const FVector& Start, const FVector& En
 		const FVector PlaneNormal = LocalToWorld.TransformVectorNoScale(FVector(0, 0, 1));
 		const FVector Dir = End - Start;
 		// check if Dir is parallel to plane, no intersection
-		if (!FMath::IsNearlyZero(Dir | PlaneNormal, KINDA_SMALL_NUMBER))
+		if (!FMath::IsNearlyZero(Dir | PlaneNormal, (FVector::FReal)KINDA_SMALL_NUMBER))
 		{
 			// if T < 0 or > 1 we are outside the line segment, no intersection
 			float T = (((PlaneOrigin - Start) | PlaneNormal) / ((End - Start) | PlaneNormal));

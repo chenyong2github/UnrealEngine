@@ -20,6 +20,7 @@
 #include "Misc/ScopeRWLock.h"
 #include "Templates/IsAbstract.h"
 #include "Templates/IsEnum.h"
+#include "Templates/IsUECoreType.h"
 #include "Templates/Models.h"
 #include "UObject/CoreNative.h"
 #include "UObject/GarbageCollection.h"
@@ -1121,6 +1122,9 @@ public:
 		/** return true if this struct should be memcopied **/
 		virtual bool IsPlainOldData() = 0;
 
+		/** return true if this struct is one of the UE Core types (and is include in CoreMinimal.h) **/
+		virtual bool IsUECoreType() = 0;	// LWC_TODO: This is really only used to identify types that don't need forward declaration in generated.h files. Rename?
+
 		/** return true if this struct can copy **/
 		virtual bool HasCopy() = 0;
 		/** 
@@ -1384,6 +1388,10 @@ public:
 		{
 			return TIsPODType<CPPSTRUCT>::Value;
 		}
+		virtual bool IsUECoreType() override
+		{
+			return TIsUECoreType<CPPSTRUCT>::Value;
+		}
 		virtual bool HasCopy() override
 		{
 			return TTraits::WithCopy;
@@ -1596,6 +1604,7 @@ public:
 	// Required by UHT makefiles for internal data serialization.
 	friend struct FScriptStructArchiveProxy;
 #endif
+	bool CanSerializeAsAlias(const struct FPropertyTag& Tag) const;
 
 protected:
 	/** true if we have performed PrepareCppStructOps **/

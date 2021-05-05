@@ -47,7 +47,7 @@ void FVectorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropert
 	}
 	else if ( bIsVector )
 	{
-		FVector Vector3DValue = PropertyChangedParams.GetPropertyValue<FVector>();
+		FVector3f Vector3DValue = PropertyChangedParams.GetPropertyValue<FVector3f>();
 		VectorValues.X = Vector3DValue.X;
 		VectorValues.Y = Vector3DValue.Y;
 		VectorValues.Z = Vector3DValue.Z;
@@ -165,7 +165,7 @@ bool FVectorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *
 			break;
 		case 3:
 			{
-				FVector Val(InterrogatedValues[0].X, InterrogatedValues[0].Y, InterrogatedValues[0].Z);
+				FVector3f Val(InterrogatedValues[0].X, InterrogatedValues[0].Y, InterrogatedValues[0].Z);
 				FMovieSceneChannelProxy& Proxy = SectionToKey->GetChannelProxy();
 				GeneratedTotalKeys[0]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.X, Weight);
 				GeneratedTotalKeys[1]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.Y, Weight);

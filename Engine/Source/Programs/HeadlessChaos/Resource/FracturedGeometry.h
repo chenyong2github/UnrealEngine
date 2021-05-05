@@ -14,7 +14,7 @@ namespace GeometryCollectionTest
 		FracturedGeometry();
 		~FracturedGeometry();
 
-		static const TArray<Chaos::FReal>	RawVertexArray;
+		static const TArray<float>			RawVertexArray;
 		static const TArray<int32>			RawIndicesArray;
 		static const TArray<int32>			RawBoneMapArray;
 		static const TArray<FTransform>		RawTransformArray;
@@ -34,7 +34,7 @@ namespace GeometryCollectionTest
 		GlobalFracturedGeometry();
 		~GlobalFracturedGeometry();
 
-		TArray<Chaos::FReal>	RawVertexArray;
+		TArray<float>			RawVertexArray;
 		TArray<int32>			RawIndicesArray0; // Randomly coincident to RawIndicesArray1
 		TArray<int32>			RawIndicesArray1; // Unchanged from FracturedGeometry
 		TArray<int32>			RawIndicesArray2; // Offset in Y

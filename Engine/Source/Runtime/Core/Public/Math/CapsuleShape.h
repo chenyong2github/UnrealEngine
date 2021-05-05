@@ -13,13 +13,13 @@
 struct FCapsuleShape
 {
 	/** The capsule's center point. */
-	FVector Center;
+	FVector3f Center;						// LWC_TODO: Precision loss. This (and Orientation) should be FVector but is memcopied to an RHI buffer. See CapsuleShadowRendering.cpp:705
 
 	/** The capsule's radius. */
 	float Radius;
 
 	/** The capsule's orientation in space. */
-	FVector Orientation;
+	FVector3f Orientation;
 
 	/** The capsule's length. */
 	float Length;

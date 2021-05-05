@@ -110,39 +110,39 @@ void FLinearInterpFractionalDelay::ProcessAudioBlock(const float* InSamples, con
 	const float* DelayData = DelayLine->InspectSamples(InNum + MaxDelay + 1);
 	const int32* IntegerDelayOffsetData = IntegerDelayOffsets.GetData();
 
-	const VectorRegister VMaxDelay = MakeVectorRegister((float)MaxDelay, (float)MaxDelay, (float)MaxDelay, (float)MaxDelay);
+	const VectorRegister4Float VMaxDelay = MakeVectorRegister((float)MaxDelay, (float)MaxDelay, (float)MaxDelay, (float)MaxDelay);
 	for (int32 i = 0; i < InNum; i += 4)
 	{
 		
-		VectorRegister VFractionalDelays = VectorLoadAligned(&InDelays[i]);
+		VectorRegister4Float VFractionalDelays = VectorLoadAligned(&InDelays[i]);
 		// Ensure fractional delays are positive
 		VFractionalDelays = VectorMax(VFractionalDelays, GlobalVectorConstants::FloatZero);
 		VFractionalDelays = VectorMin(VFractionalDelays, VMaxDelay);
 
 		// Separate integer from fraction
-		VectorRegister VFloorDelays = VectorFloor(VFractionalDelays);
+		VectorRegister4Float VFloorDelays = VectorFloor(VFractionalDelays);
 
 		// Determine linear weights
-		VectorRegister VUpperCoefficients = VectorSubtract(VFractionalDelays, VFloorDelays);
-		VectorRegister VLowerCoefficients = VectorSubtract(GlobalVectorConstants::FloatOne, VUpperCoefficients);
+		VectorRegister4Float VUpperCoefficients = VectorSubtract(VFractionalDelays, VFloorDelays);
+		VectorRegister4Float VLowerCoefficients = VectorSubtract(GlobalVectorConstants::FloatOne, VUpperCoefficients);
 
 
 		// Make integer locations relative to block
-		VectorRegisterInt VIntegerDelays = VectorFloatToInt(VFloorDelays);
-		VectorRegisterInt VIntegerDelayOffset = VectorIntLoadAligned(&IntegerDelayOffsetData[i]);
+		VectorRegister4Int VIntegerDelays = VectorFloatToInt(VFloorDelays);
+		VectorRegister4Int VIntegerDelayOffset = VectorIntLoadAligned(&IntegerDelayOffsetData[i]);
 		VIntegerDelays = VectorIntSubtract(VIntegerDelayOffset, VIntegerDelays);
 
 		// Lookup samples for interpolation
 		VectorIntStoreAligned(VIntegerDelays, UpperDelayPos);
 		VectorIntStoreAligned(VectorIntAdd(VIntegerDelays, GlobalVectorConstants::IntOne), LowerDelayPos);
 		
-		VectorRegister VLowerSamples = MakeVectorRegister(
+		VectorRegister4Float VLowerSamples = MakeVectorRegister(
 			DelayData[LowerDelayPos[0]],
 			DelayData[LowerDelayPos[1]],
 			DelayData[LowerDelayPos[2]],
 			DelayData[LowerDelayPos[3]]
 		);
-		VectorRegister VUpperSamples = MakeVectorRegister(
+		VectorRegister4Float VUpperSamples = MakeVectorRegister(
 			DelayData[UpperDelayPos[0]],
 			DelayData[UpperDelayPos[1]],
 			DelayData[UpperDelayPos[2]],
@@ -150,7 +150,7 @@ void FLinearInterpFractionalDelay::ProcessAudioBlock(const float* InSamples, con
 		);
 
 		// Interpolate samples
-		VectorRegister VOut = VectorMultiplyAdd(
+		VectorRegister4Float VOut = VectorMultiplyAdd(
 			VLowerSamples,
 			VLowerCoefficients,
 			VectorMultiply(VUpperSamples, VUpperCoefficients));

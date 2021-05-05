@@ -2,7 +2,7 @@
 
 #include "HeadlessChaosTestSerialization.h"
 
-// PRAGMA_DISABLE_OPTIMIZATION
+//PRAGMA_DISABLE_OPTIMIZATION
 
 #include "HeadlessChaos.h"
 #include "Chaos/ChaosArchive.h"
@@ -32,6 +32,48 @@ namespace ChaosTest
 	FString GetSerializedBinaryPath()
 	{
 		return FPaths::EngineDir() / TEXT("Source/Programs/HeadlessChaos/SerializedBinaries");
+	}
+
+	void SimpleTypesSerialization()
+	{
+		FReal Real = 12345.6;
+		FVec2 Vec2 { 12.3, 45.6 };
+		FVec3 Vec3 { 12.3, 45.6, 78.9 };
+		FVec4 Vec4 { 12.3, 45.6, 78.9, 32.1 };
+		FRotation3 Rot3( FQuat{ 0, 0, 0, 1 });
+		FMatrix33 Mat3 = RandomMatrix(-10, 10);
+		FVector FVec{ 12.3, 45.6, 78.9 };
+
+		TArray<uint8> Data;
+		{
+			FMemoryWriter Ar(Data);
+			FChaosArchive Writer(Ar);
+
+			Writer << Real << Vec2 << Vec3 << Vec4 << Rot3 << Mat3 << FVec;
+		}
+
+		{
+			FReal SerializedReal;
+			FVec2 SerializedVec2;
+			FVec3 SerializedVec3;
+			FVec4 SerializedVec4;
+			FRotation3 SerializedRot3;
+			FMatrix33 SerializedMat3;
+			FVector SerializedFVec;
+			{
+				FMemoryReader Ar(Data);
+				FChaosArchive Reader(Ar);
+
+				Reader << SerializedReal << SerializedVec2 << SerializedVec3 << SerializedVec4 << SerializedRot3 << SerializedMat3 << SerializedFVec;
+			}
+			EXPECT_EQ(Real, SerializedReal);
+			EXPECT_EQ(Vec2, SerializedVec2);
+			EXPECT_EQ(Vec3, SerializedVec3);
+			EXPECT_EQ(Vec4, SerializedVec4);
+			EXPECT_EQ(Rot3, SerializedRot3);
+			EXPECT_EQ(Mat3, SerializedMat3);
+			EXPECT_EQ(FVec, SerializedFVec);
+		}
 	}
 
 	void SimpleObjectsSerialization()

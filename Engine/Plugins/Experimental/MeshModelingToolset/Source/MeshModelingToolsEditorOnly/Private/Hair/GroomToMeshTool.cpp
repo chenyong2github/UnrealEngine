@@ -289,7 +289,7 @@ void UGroomToMeshTool::RecalculateMesh()
 
 static void ProcessHairCurvePoints(AGroomActor* GroomActor,
 	bool bUseGuides,
-	TFunctionRef<void(const TArray<FVector>& Positions, const TArray<float>& Radii)> HairCurvePointsFunc)
+	TFunctionRef<void(const TArray<FVector3f>& Positions, const TArray<float>& Radii)> HairCurvePointsFunc)
 {
 	check(GroomActor->GetGroomComponent());
 	check(GroomActor->GetGroomComponent()->GroomAsset);
@@ -311,7 +311,7 @@ static void ProcessHairCurvePoints(AGroomActor* GroomActor,
 		const FHairStrandsDatas& GroupStrandData = (bUseGuides) ? GuidesData : StrandsData;
 
 		const FHairStrandsPoints& GroupStrandPoints = GroupStrandData.StrandsPoints;
-		const TArray<FVector>& Positions = GroupStrandPoints.PointsPosition;
+		const TArray<FVector3f>& Positions = GroupStrandPoints.PointsPosition;
 		const TArray<float>& Radii = GroupStrandPoints.PointsRadius;
 
 		HairCurvePointsFunc(GroupStrandPoints.PointsPosition, GroupStrandPoints.PointsRadius);
@@ -335,7 +335,7 @@ static void ProcessHairCurvePoints(AGroomActor* GroomActor,
 
 static void ProcessHairCurves(AGroomActor* GroomActor,
 	bool bUseGuides,
-	TFunctionRef<void(const TArrayView<FVector>& Positions, const TArrayView<float>& Radii)> HairCurveFunc)
+	TFunctionRef<void(const TArrayView<FVector3f>& Positions, const TArrayView<float>& Radii)> HairCurveFunc)
 {
 	check(GroomActor->GetGroomComponent());
 	check(GroomActor->GetGroomComponent()->GroomAsset);
@@ -357,7 +357,7 @@ static void ProcessHairCurves(AGroomActor* GroomActor,
 		const FHairStrandsDatas& GroupStrandData = (bUseGuides) ? GuidesData : StrandsData;
 
 		const FHairStrandsPoints& GroupStrandPoints = GroupStrandData.StrandsPoints;
-		const TArray<FVector>& Positions = GroupStrandPoints.PointsPosition;
+		const TArray<FVector3f>& Positions = GroupStrandPoints.PointsPosition;
 		const TArray<float>& Radii = GroupStrandPoints.PointsRadius;
 
 		const FHairStrandsCurves& GroupStrandCurves = GroupStrandData.StrandsCurves;
@@ -370,7 +370,7 @@ static void ProcessHairCurves(AGroomActor* GroomActor,
 			int32 Count = (int32)CurvesCounts[CurveIndex];
 			int32 Offset = (int32)CurvesOffsets[CurveIndex];
 
-			TArrayView<FVector> CurvePositions = TArrayView<FVector>( (FVector*)&Positions[Offset], Count );
+			TArrayView<FVector3f> CurvePositions = TArrayView<FVector3f>( (FVector3f*)&Positions[Offset], Count );
 			TArrayView<float> CurveRadii = TArrayView<float>((float*)&Radii[Offset], Count);
 
 			HairCurveFunc(CurvePositions, CurveRadii);
@@ -422,7 +422,7 @@ TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UGroomToMeshTool::UpdateVoxelizat
 	Points->SetExternallyManagedAttributes(PointAttribs.Get());
 
 	FAxisAlignedBox3d Bounds = FAxisAlignedBox3d::Empty();
-	ProcessHairCurvePoints(GroomActor, true, [&](const TArray<FVector>& Positions, const TArray<float>& Radii)
+	ProcessHairCurvePoints(GroomActor, true, [&](const TArray<FVector3f>& Positions, const TArray<float>& Radii)
 	{
 		int32 NumPoints = Positions.Num();
 		for (int32 k = 0; k < NumPoints; ++k)
@@ -446,7 +446,7 @@ TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UGroomToMeshTool::UpdateVoxelizat
 
 	TArray<FSkeletalImplicitLine3d> Lines;
 
-	ProcessHairCurves(GroomActor, true, [&](const TArrayView<FVector>& Positions, const TArrayView<float>& Radii)
+	ProcessHairCurves(GroomActor, true, [&](const TArrayView<FVector3f>& Positions, const TArrayView<float>& Radii)
 	{
 		int32 Count = Positions.Num() - 1;
 		for (int32 k = 0; k < Count; ++k)
@@ -1284,7 +1284,7 @@ void UGroomToMeshTool::UpdateLineSet()
 		AGroomActor* GroomActor = TargetGroom.Get();
 		PreviewGeom->CreateOrUpdateLineSet(GuideCurvesName, 1, [&](int32 CurveIndex, TArray<FRenderableLine>& LinesOut)
 		{
-			ProcessHairCurves(GroomActor, true, [&](const TArrayView<FVector>& Positions, const TArrayView<float>& Radii)
+			ProcessHairCurves(GroomActor, true, [&](const TArrayView<FVector3f>& Positions, const TArrayView<float>& Radii)
 			{
 				int32 Count = Positions.Num() - 1;
 				for (int32 k = 0; k < Count; ++k)

@@ -1275,12 +1275,12 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriCoordSkinnedData(FVectorVMContext&
 	const FSkeletalMeshLODRenderData* LODData = Accessor.LODData;
 	const int32 TriMax = (Accessor.IndexBuffer->Num() / 3) - 1;
 
-	FVector Pos0;		FVector Pos1;		FVector Pos2;
-	FVector Prev0;		FVector Prev1;		FVector Prev2;
+	FVector3f Pos0;		FVector3f Pos1;		FVector3f Pos2;
+	FVector3f Prev0;	FVector3f Prev1;	FVector3f Prev2;
 	int32 Idx0; int32 Idx1; int32 Idx2;
-	FVector Pos;
-	FVector Prev;
-	FVector Velocity;
+	FVector3f Pos;
+	FVector3f Prev;
+	FVector3f Velocity;
 
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
@@ -1294,7 +1294,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriCoordSkinnedData(FVectorVMContext&
 
 		if(MeshTriCoord.Tri < 0 || MeshTriCoord.Tri > TriMax)
 		{
-			MeshTriCoord = FMeshTriCoordinate(0, FVector(1.0f, 0.0f, 0.0f));
+			MeshTriCoord = FMeshTriCoordinate(0, FVector3f(1.0f, 0.0f, 0.0f));
 		}
 
 		SkinningHandler.GetTriangleIndices(Accessor, MeshTriCoord.Tri, Idx0, Idx1, Idx2);
@@ -1335,29 +1335,29 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriCoordSkinnedData(FVectorVMContext&
 		// Do we need the tangent basis?
 		if (bNeedsTangentBasis)
 		{
-			FVector VertexTangentX[3];
-			FVector VertexTangentY[3];
-			FVector VertexTangentZ[3];
+			FVector3f VertexTangentX[3];
+			FVector3f VertexTangentY[3];
+			FVector3f VertexTangentZ[3];
 			SkinningHandler.GetSkinnedTangentBasis(Accessor, Idx0, VertexTangentX[0], VertexTangentY[0], VertexTangentZ[0]);
 			SkinningHandler.GetSkinnedTangentBasis(Accessor, Idx1, VertexTangentX[1], VertexTangentY[1], VertexTangentZ[1]);
 			SkinningHandler.GetSkinnedTangentBasis(Accessor, Idx2, VertexTangentX[2], VertexTangentY[2], VertexTangentZ[2]);
 
-			FVector TangentX = BarycentricInterpolate(MeshTriCoord.BaryCoord, VertexTangentX[0], VertexTangentX[1], VertexTangentX[2]);
-			FVector TangentY = BarycentricInterpolate(MeshTriCoord.BaryCoord, VertexTangentY[0], VertexTangentY[1], VertexTangentY[2]);
-			FVector TangentZ = BarycentricInterpolate(MeshTriCoord.BaryCoord, VertexTangentZ[0], VertexTangentZ[1], VertexTangentZ[2]);
+			FVector3f TangentX = BarycentricInterpolate(MeshTriCoord.BaryCoord, VertexTangentX[0], VertexTangentX[1], VertexTangentX[2]);
+			FVector3f TangentY = BarycentricInterpolate(MeshTriCoord.BaryCoord, VertexTangentY[0], VertexTangentY[1], VertexTangentY[2]);
+			FVector3f TangentZ = BarycentricInterpolate(MeshTriCoord.BaryCoord, VertexTangentZ[0], VertexTangentZ[1], VertexTangentZ[2]);
 
 			if (bInterpolated::Value)
 			{
-				FVector PrevVertexTangentX[3];
-				FVector PrevVertexTangentY[3];
-				FVector PrevVertexTangentZ[3];
+				FVector3f PrevVertexTangentX[3];
+				FVector3f PrevVertexTangentY[3];
+				FVector3f PrevVertexTangentZ[3];
 				SkinningHandler.GetSkinnedPreviousTangentBasis(Accessor, Idx0, PrevVertexTangentX[0], PrevVertexTangentY[0], PrevVertexTangentZ[0]);
 				SkinningHandler.GetSkinnedPreviousTangentBasis(Accessor, Idx1, PrevVertexTangentX[1], PrevVertexTangentY[1], PrevVertexTangentZ[1]);
 				SkinningHandler.GetSkinnedPreviousTangentBasis(Accessor, Idx2, PrevVertexTangentX[2], PrevVertexTangentY[2], PrevVertexTangentZ[2]);
 
-				FVector PrevTangentX = BarycentricInterpolate(MeshTriCoord.BaryCoord, PrevVertexTangentX[0], PrevVertexTangentX[1], PrevVertexTangentX[2]);
-				FVector PrevTangentY = BarycentricInterpolate(MeshTriCoord.BaryCoord, PrevVertexTangentY[0], PrevVertexTangentY[1], PrevVertexTangentY[2]);
-				FVector PrevTangentZ = BarycentricInterpolate(MeshTriCoord.BaryCoord, PrevVertexTangentZ[0], PrevVertexTangentZ[1], PrevVertexTangentZ[2]);
+				FVector3f PrevTangentX = BarycentricInterpolate(MeshTriCoord.BaryCoord, PrevVertexTangentX[0], PrevVertexTangentX[1], PrevVertexTangentX[2]);
+				FVector3f PrevTangentY = BarycentricInterpolate(MeshTriCoord.BaryCoord, PrevVertexTangentY[0], PrevVertexTangentY[1], PrevVertexTangentY[2]);
+				FVector3f PrevTangentZ = BarycentricInterpolate(MeshTriCoord.BaryCoord, PrevVertexTangentZ[0], PrevVertexTangentZ[1], PrevVertexTangentZ[2]);
 
 				TangentX = FMath::Lerp(PrevTangentX, TangentX, Interp);
 				TangentY = FMath::Lerp(PrevTangentY, TangentY, Interp);

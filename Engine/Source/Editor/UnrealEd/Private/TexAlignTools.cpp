@@ -17,7 +17,7 @@
 
 FTexAlignTools GTexAlignTools;
 
-static int32 GetMajorAxis( FVector InNormal, int32 InForceAxis )
+static int32 GetMajorAxis( FVector3f InNormal, int32 InForceAxis )
 {
 	// Figure out the major axis information.
 	int32 Axis = TAXIS_X;
@@ -34,7 +34,7 @@ static int32 GetMajorAxis( FVector InNormal, int32 InForceAxis )
 }
 
 // Checks the normal of the major axis ... if it's negative, returns 1.
-static bool ShouldFlipVectors( FVector InNormal, int32 InAxis )
+static bool ShouldFlipVectors( FVector3f InNormal, int32 InAxis )
 {
 	if( InAxis == TAXIS_X )
 		if( InNormal.X < 0 ) return 1;
@@ -217,8 +217,8 @@ void UTexAlignerDefault::PostInitProperties()
 void UTexAlignerDefault::AlignSurf( ETexAlign InTexAlignType, UModel* InModel, FBspSurfIdx* InSurfIdx, FPoly* InPoly, FVector* InNormal )
 {
 	InPoly->Base = InPoly->Vertices[0];
-	InPoly->TextureU = FVector::ZeroVector;
-	InPoly->TextureV = FVector::ZeroVector;
+	InPoly->TextureU = FVector3f::ZeroVector;
+	InPoly->TextureV = FVector3f::ZeroVector;
 	InPoly->Finalize( NULL, 0 );
 
 	InPoly->TextureU *= UTile;
@@ -256,14 +256,15 @@ void UTexAlignerBox::AlignSurf( ETexAlign InTexAlignType, UModel* InModel, FBspS
 {
 	FVector U, V;
 
-	InNormal->FindBestAxisVectors( V, U );
+	FVector Normal = *InNormal;
+	Normal.FindBestAxisVectors( V, U );
 	U *= -1.0;
 	V *= -1.0;
 
 	U *= UTile;
 	V *= VTile;
 
-	FVector	Base = FVector::ZeroVector;
+	FVector	Base = FVector3f::ZeroVector;
 
 	InSurfIdx->Surf->pBase = FBSPOps::bspAddPoint(InModel,&Base,0);
 	InSurfIdx->Surf->vTextureU = FBSPOps::bspAddVector( InModel, &U, 0 );
@@ -308,7 +309,8 @@ void UTexAlignerFit::AlignSurf( ETexAlign InTexAlignType, UModel* InModel, FBspS
 		FVector UpVec = ( VertexB - VertexA ).GetSafeNormal();
 		FVector RightVec = InPoly->Normal ^ UpVec;
 		WorldToPolyRotationMatrix.SetIdentity();
-		WorldToPolyRotationMatrix.SetAxes( &RightVec, &UpVec, &InPoly->Normal );
+		FVector Normal = InPoly->Normal;
+		WorldToPolyRotationMatrix.SetAxes( &RightVec, &UpVec, &Normal );
 	}
 
 
@@ -374,7 +376,8 @@ void UTexAlignerFit::AlignSurf( ETexAlign InTexAlignType, UModel* InModel, FBspS
 
 	FMatrix WorldToTextureRotationMatrix;
 	WorldToTextureRotationMatrix.SetIdentity();
-	WorldToTextureRotationMatrix.SetAxes( &TextureRightVec, &TextureUpVec, &InPoly->Normal );
+	FVector PolyNormal = InPoly->Normal;
+	WorldToTextureRotationMatrix.SetAxes( &TextureRightVec, &TextureUpVec, &PolyNormal );
 
 
 	// Compute bounds of polygon along plane

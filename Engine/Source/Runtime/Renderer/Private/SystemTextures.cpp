@@ -383,7 +383,7 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 			{
 				float NoV = (float)(x + 0.5f) / Desc.Extent.X;
 
-				FVector V;
+				FVector3f V;
 				V.X = FMath::Sqrt(1.0f - NoV * NoV);	// sin
 				V.Y = 0.0f;
 				V.Z = NoV;								// cos
@@ -405,8 +405,8 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 						float CosTheta = FMath::Sqrt((1.0f - E2) / (1.0f + (m2 - 1.0f) * E2));
 						float SinTheta = FMath::Sqrt(1.0f - CosTheta * CosTheta);
 
-						FVector H(SinTheta * FMath::Cos(Phi), SinTheta * FMath::Sin(Phi), CosTheta);
-						FVector L = 2.0f * (V | H) * H - V;
+						FVector3f H(SinTheta * FMath::Cos(Phi), SinTheta * FMath::Sin(Phi), CosTheta);
+						FVector3f L = 2.0f * (V | H) * H - V;
 
 						float NoL = FMath::Max(L.Z, 0.0f);
 						float NoH = FMath::Max(H.Z, 0.0f);
@@ -433,8 +433,8 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 						float CosTheta = FMath::Sqrt(E2);
 						float SinTheta = FMath::Sqrt(1.0f - CosTheta * CosTheta);
 
-						FVector L(SinTheta * FMath::Cos(Phi), SinTheta * FMath::Sin(Phi), CosTheta);
-						FVector H = (V + L).GetUnsafeNormal();
+						FVector3f L(SinTheta * FMath::Cos(Phi), SinTheta * FMath::Sin(Phi), CosTheta);
+						FVector3f H = (V + L).GetUnsafeNormal();
 
 						float NoL = FMath::Max(L.Z, 0.0f);
 						float NoH = FMath::Max(H.Z, 0.0f);

@@ -383,7 +383,7 @@ namespace Chaos
 		JointConstraints.SetUpdateVelocityInApplyConstraints(true);
 	}
 
-	FReal MaxBoundsForTree = (FReal)10000;
+	FRealSingle MaxBoundsForTree = (FRealSingle)10000;
 	FAutoConsoleVariableRef CVarMaxBoundsForTree(
 		TEXT("p.MaxBoundsForTree"),
 		MaxBoundsForTree,

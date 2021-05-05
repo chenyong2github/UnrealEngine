@@ -193,7 +193,7 @@ FDelegateHandle FTestCloudInterface::WriteNUserCloudFiles(const FUniqueNetId& In
 	{
 		// @todo: make the dummy data size configurable on a per-platform basis, since different platforms (e.g. PS4) have different size limits
 		//WriteRandomFile(DummyData, FMath::TruncToInt(FMath::FRandRange(1024, 100*1024)));
-		WriteRandomFile(DummyData, FMath::TruncToInt(FMath::FRandRange(256, 1024)));
+		WriteRandomFile(DummyData, FMath::TruncToInt(FMath::FRandRange(256.f, 1024.f)));
 		UserCloud->WriteUserFile(InUserId, FString::Printf(TEXT("%s%d.%s"), *FPaths::GetBaseFilename(FileName), FileIdx, *FPaths::GetExtension(FileName)), DummyData);
 	}
 
@@ -213,7 +213,7 @@ FDelegateHandle FTestCloudInterface::WriteNSharedCloudFiles(const FUniqueNetId& 
 	TArray<uint8> DummyData;
 	for (int32 FileIdx=0; FileIdx<FileCount; FileIdx++)
 	{
-		WriteRandomFile(DummyData, FMath::TruncToInt(FMath::FRandRange(1024, 100*1024)));
+		WriteRandomFile(DummyData, FMath::TruncToInt(FMath::FRandRange(1024.f, 100*1024.f)));
 		SharedCloud->WriteSharedFile(InUserId, FString::Printf(TEXT("%s%d.%s"), *FPaths::GetBaseFilename(FileName), FileIdx, *FPaths::GetExtension(FileName)), DummyData);
 	}
 

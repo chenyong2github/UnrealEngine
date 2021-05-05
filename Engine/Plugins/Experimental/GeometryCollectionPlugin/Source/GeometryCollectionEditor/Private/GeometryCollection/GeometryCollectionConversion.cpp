@@ -44,10 +44,10 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 		const FStaticMeshVertexBuffers& VertexBuffer = StaticMesh->GetRenderData()->LODResources[0].VertexBuffers;
 
 		// vertex information
-		TManagedArray<FVector>& Vertex = GeometryCollection->Vertex;
-		TManagedArray<FVector>& TangentU = GeometryCollection->TangentU;
-		TManagedArray<FVector>& TangentV = GeometryCollection->TangentV;
-		TManagedArray<FVector>& Normal = GeometryCollection->Normal;
+		TManagedArray<FVector3f>& Vertex = GeometryCollection->Vertex;
+		TManagedArray<FVector3f>& TangentU = GeometryCollection->TangentU;
+		TManagedArray<FVector3f>& TangentV = GeometryCollection->TangentV;
+		TManagedArray<FVector3f>& Normal = GeometryCollection->Normal;
 		TManagedArray<FVector2D>& UV = GeometryCollection->UV;
 		TManagedArray<FLinearColor>& Color = GeometryCollection->Color;
 		TManagedArray<int32>& BoneMap = GeometryCollection->BoneMap;
@@ -274,19 +274,19 @@ void FGeometryCollectionConversion::AppendGeometryCollection(const UGeometryColl
 	const int32 SectionStart = GeometryCollection->AddElements(SectionCount, FGeometryCollection::MaterialGroup);
 
 	// source vertex information
-	const TManagedArray<FVector>& SourceVertex = SourceGeometryCollectionPtr->Vertex;
-	const TManagedArray<FVector>& SourceTangentU = SourceGeometryCollectionPtr->TangentU;
-	const TManagedArray<FVector>& SourceTangentV = SourceGeometryCollectionPtr->TangentV;
-	const TManagedArray<FVector>& SourceNormal = SourceGeometryCollectionPtr->Normal;
+	const TManagedArray<FVector3f>& SourceVertex = SourceGeometryCollectionPtr->Vertex;
+	const TManagedArray<FVector3f>& SourceTangentU = SourceGeometryCollectionPtr->TangentU;
+	const TManagedArray<FVector3f>& SourceTangentV = SourceGeometryCollectionPtr->TangentV;
+	const TManagedArray<FVector3f>& SourceNormal = SourceGeometryCollectionPtr->Normal;
 	const TManagedArray<FVector2D>& SourceUV = SourceGeometryCollectionPtr->UV;
 	const TManagedArray<FLinearColor>& SourceColor = SourceGeometryCollectionPtr->Color;
 	const TManagedArray<int32>& SourceBoneMap = SourceGeometryCollectionPtr->BoneMap;
 
 	// target vertex information
-	TManagedArray<FVector>& TargetVertex = GeometryCollection->Vertex;
-	TManagedArray<FVector>& TargetTangentU = GeometryCollection->TangentU;
-	TManagedArray<FVector>& TargetTangentV = GeometryCollection->TangentV;
-	TManagedArray<FVector>& TargetNormal = GeometryCollection->Normal;
+	TManagedArray<FVector3f>& TargetVertex = GeometryCollection->Vertex;
+	TManagedArray<FVector3f>& TargetTangentU = GeometryCollection->TangentU;
+	TManagedArray<FVector3f>& TargetTangentV = GeometryCollection->TangentV;
+	TManagedArray<FVector3f>& TargetNormal = GeometryCollection->Normal;
 	TManagedArray<FVector2D>& TargetUV = GeometryCollection->UV;
 	TManagedArray<FLinearColor>& TargetColor = GeometryCollection->Color;
 	TManagedArray<int32>& TargetBoneMap = GeometryCollection->BoneMap;
@@ -620,10 +620,10 @@ void FGeometryCollectionConversion::AppendSkeletalMesh(const USkeletalMesh* Skel
 						//
 						// Vertex Attributes
 						//
-						TManagedArray<FVector>& Vertex = GeometryCollection->Vertex;
-						TManagedArray<FVector>& TangentU = GeometryCollection->TangentU;
-						TManagedArray<FVector>& TangentV = GeometryCollection->TangentV;
-						TManagedArray<FVector>& Normal = GeometryCollection->Normal;
+						TManagedArray<FVector3f>& Vertex = GeometryCollection->Vertex;
+						TManagedArray<FVector3f>& TangentU = GeometryCollection->TangentU;
+						TManagedArray<FVector3f>& TangentV = GeometryCollection->TangentV;
+						TManagedArray<FVector3f>& Normal = GeometryCollection->Normal;
 						TManagedArray<FVector2D>& UV = GeometryCollection->UV;
 						TManagedArray<FLinearColor>& Color = GeometryCollection->Color;
 						TManagedArray<int32>& BoneMap = GeometryCollection->BoneMap;

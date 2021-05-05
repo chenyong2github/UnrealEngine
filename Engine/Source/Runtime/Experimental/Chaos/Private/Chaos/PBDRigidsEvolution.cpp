@@ -38,7 +38,7 @@ namespace Chaos
 		int32 MaxTreeDepth;
 		int32 AABBMaxChildrenInLeaf;
 		int32 AABBMaxTreeDepth;
-		FReal MaxPayloadSize;
+		FRealSingle MaxPayloadSize;
 		int32 IterationsPerTimeSlice;
 
 		FAccelerationConfig()

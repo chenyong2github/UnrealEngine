@@ -18,10 +18,10 @@ class UStaticMesh;
 struct FMorphTargetDelta
 {
 	/** change in position */
-	FVector			PositionDelta;
+	FVector3f			PositionDelta;
 
 	/** Tangent basis normal */
-	FVector			TangentZDelta;
+	FVector3f			TangentZDelta;
 
 	/** index of source vertex to apply deltas to */
 	uint32			SourceIdx;

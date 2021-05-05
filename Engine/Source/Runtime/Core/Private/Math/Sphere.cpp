@@ -109,7 +109,8 @@ FSphere FSphere::TransformBy(const FMatrix& M) const
 {
 	FSphere	Result;
 
-	Result.Center = M.TransformPosition(this->Center);
+	FVector4 TransformedCenter = M.TransformPosition(this->Center);
+	Result.Center = FVector(TransformedCenter.X, TransformedCenter.Y, TransformedCenter.Z);
 
 	const FVector XAxis(M.M[0][0], M.M[0][1], M.M[0][2]);
 	const FVector YAxis(M.M[1][0], M.M[1][1], M.M[1][2]);

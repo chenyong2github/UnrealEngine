@@ -659,9 +659,9 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 		int32 VertexCount = Mesh->GetControlPointsCount();
 		bool OddNegativeScale = IsOddNegativeScale(TotalMatrix);
 
-		TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
-		TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-		TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+		TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
+		TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+		TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 		TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 		TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
@@ -706,7 +706,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 			int32 RealVertexIndex = VertexOffset + VertexIndex;
 			FbxVector4 FbxPosition = Mesh->GetControlPoints()[VertexIndex];
 			FbxPosition = TotalMatrix.MultT(FbxPosition);
-			const FVector VertexPosition = Converter.ConvertPos(FbxPosition);
+			const FVector3f VertexPosition = Converter.ConvertPos(FbxPosition);
 			
 			FVertexID AddedVertexId = MeshDescription->CreateVertex();
 			VertexPositions[AddedVertexId] = VertexPosition;
@@ -792,7 +792,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 			// keep those for all iterations to avoid heap allocations
 			TArray<FVertexInstanceID> CornerInstanceIDs;
 			TArray<FVertexID> CornerVerticesIDs;
-			TArray<FVector, TInlineAllocator<3>> P;
+			TArray<FVector3f, TInlineAllocator<3>> P;
 
 			//Create a slowtask with a granularity of ~5% to avoid entering progress for every polygon.
 			const int32 SlowTaskNumberOfUpdates = 20;
@@ -832,7 +832,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 						P[CornerIndex] = VertexPositions[VertexID];
 					}
 					check(P.Num() > 2); //triangle is the smallest polygon we can have
-					const FVector Normal = ((P[1] - P[2]) ^ (P[0] - P[2])).GetSafeNormal(ComparisonThreshold);
+					const FVector3f Normal = ((P[1] - P[2]) ^ (P[0] - P[2])).GetSafeNormal(ComparisonThreshold);
 					//Check for degenerated polygons, avoid NAN
 					if (Normal.IsNearlyZero(ComparisonThreshold) || Normal.ContainsNaN())
 					{
@@ -935,7 +935,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 					
 						FbxVector4 TempValue = LayerElementNormal->GetDirectArray().GetAt(NormalValueIndex);
 						TempValue = TotalMatrixForNormal.MultT(TempValue);
-						FVector TangentZ = Converter.ConvertDir(TempValue);
+						FVector3f TangentZ = Converter.ConvertDir(TempValue);
 						VertexInstanceNormals[AddedVertexInstanceId] = TangentZ.GetSafeNormal();
 						//tangents and binormals share the same reference, mapping mode and index array
 						if (bHasNTBInformation)
@@ -947,7 +947,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 
 							TempValue = LayerElementTangent->GetDirectArray().GetAt(TangentValueIndex);
 							TempValue = TotalMatrixForNormal.MultT(TempValue);
-							FVector TangentX = Converter.ConvertDir(TempValue);
+							FVector3f TangentX = Converter.ConvertDir(TempValue);
 							VertexInstanceTangents[AddedVertexInstanceId] = TangentX.GetSafeNormal();
 
 							int BinormalMapIndex = (BinormalMappingMode == FbxLayerElement::eByControlPoint) ?
@@ -957,7 +957,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 
 							TempValue = LayerElementBinormal->GetDirectArray().GetAt(BinormalValueIndex);
 							TempValue = TotalMatrixForNormal.MultT(TempValue);
-							FVector TangentY = -Converter.ConvertDir(TempValue);
+							FVector3f TangentY = -Converter.ConvertDir(TempValue);
 							VertexInstanceBinormalSigns[AddedVertexInstanceId] = GetBasisDeterminantSign(TangentX.GetSafeNormal(), TangentY.GetSafeNormal(), TangentZ.GetSafeNormal());
 						}
 					}
@@ -967,7 +967,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 				//TODO check all polygon vertex, not just the first 3 vertex
 				if (!bHasNonDegeneratePolygons)
 				{
-					float PointComparisonThreshold = GetPointComparisonThreshold();
+					FVector::FReal PointComparisonThreshold = GetPointComparisonThreshold();
 					FVector VertexPosition[3];
 					VertexPosition[0] = VertexPositions[CornerVerticesIDs[0]];
 					VertexPosition[1] = VertexPositions[CornerVerticesIDs[1]];
@@ -2665,11 +2665,11 @@ bool UnFbx::FFbxImporter::FillCollisionModelList(FbxNode* Node)
 	return false;
 }
 
-extern bool AddConvexGeomFromVertices( const TArray<FVector>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName );
-extern bool AddSphereGeomFromVerts(const TArray<FVector>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName);
-extern bool AddCapsuleGeomFromVerts(const TArray<FVector>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName);
+extern bool AddConvexGeomFromVertices( const TArray<FVector3f>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName );
+extern bool AddSphereGeomFromVerts(const TArray<FVector3f>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName);
+extern bool AddCapsuleGeomFromVerts(const TArray<FVector3f>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName);
 extern bool AddBoxGeomFromTris(const TArray<FPoly>& Tris, FKAggregateGeom* AggGeom, const TCHAR* ObjName);
-extern bool DecomposeUCXMesh( const TArray<FVector>& CollisionVertices, const TArray<int32>& CollisionFaceIdx, UBodySetup* BodySetup );
+extern bool DecomposeUCXMesh( const TArray<FVector3f>& CollisionVertices, const TArray<int32>& CollisionFaceIdx, UBodySetup* BodySetup );
 
 bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const FbxString& InNodeName)
 {
@@ -2703,7 +2703,7 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 
 	StaticMesh->CreateBodySetup();
 
-	TArray<FVector>	CollisionVertices;
+	TArray<FVector3f>	CollisionVertices;
 	TArray<int32>		CollisionFaceIdx;
 
 	// construct collision model
@@ -2747,7 +2747,7 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 
 		for ( ControlPointsIndex = 0; ControlPointsIndex < ControlPointsCount; ControlPointsIndex++ )
 		{
-			new(CollisionVertices)FVector(Converter.ConvertPos(Matrix.MultT(ControlPoints[ControlPointsIndex])));
+			new(CollisionVertices)FVector3f(Converter.ConvertPos(Matrix.MultT(ControlPoints[ControlPointsIndex])));
 		}
 
 		int32 TriangleCount = FbxMesh->GetPolygonCount();
@@ -2768,9 +2768,9 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 
 			Poly->Init();
 
-			new(Poly->Vertices) FVector( CollisionVertices[CollisionFaceIdx[x + 2]] );
-			new(Poly->Vertices) FVector( CollisionVertices[CollisionFaceIdx[x + 1]] );
-			new(Poly->Vertices) FVector( CollisionVertices[CollisionFaceIdx[x + 0]] );
+			new(Poly->Vertices) FVector3f( CollisionVertices[CollisionFaceIdx[x + 2]] );
+			new(Poly->Vertices) FVector3f( CollisionVertices[CollisionFaceIdx[x + 1]] );
+			new(Poly->Vertices) FVector3f( CollisionVertices[CollisionFaceIdx[x + 0]] );
 			Poly->iLink = x / 3;
 
 			Poly->CalcNormal(1);

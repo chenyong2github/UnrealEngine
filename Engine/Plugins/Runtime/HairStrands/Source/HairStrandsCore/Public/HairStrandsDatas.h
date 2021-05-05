@@ -291,7 +291,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsPoints
 	uint32 Num() const { return PointsPosition.Num();  }
 
 	/** Points position in local space */
-	TArray<FVector> PointsPosition;
+	TArray<FVector3f> PointsPosition;
 
 	/** Normalized radius relative to the max one */
 	TArray<float> PointsRadius; // [0..1]

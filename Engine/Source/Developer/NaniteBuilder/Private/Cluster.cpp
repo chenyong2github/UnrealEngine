@@ -13,7 +13,7 @@ namespace Nanite
 
 void CorrectAttributes( float* Attributes )
 {
-	FVector& Normal = *reinterpret_cast< FVector* >( Attributes );
+	FVector3f& Normal = *reinterpret_cast< FVector3f* >( Attributes );
 	Normal.Normalize();
 }
 
@@ -70,7 +70,7 @@ FCluster::FCluster(
 				const FStaticMeshBuildVertex& InVert = InVerts[ OldIndex ];
 
 				GetPosition( NewIndex ) = InVert.Position;
-				GetNormal( NewIndex ) = InVert.TangentZ.ContainsNaN() ? FVector::UpVector : InVert.TangentZ;
+				GetNormal( NewIndex ) = InVert.TangentZ.ContainsNaN() ? FVector3f::UpVector : InVert.TangentZ;
 	
 				if( bHasColors )
 				{

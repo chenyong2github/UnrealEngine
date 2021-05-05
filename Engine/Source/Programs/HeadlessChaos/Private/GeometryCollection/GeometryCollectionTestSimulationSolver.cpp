@@ -289,7 +289,7 @@ using namespace ChaosTest;
 		FFramework UnitTest;
 		for (int i=0; i<10; i++)
 		{
-			TManagedArray<FReal>& Mass = Collection[i]->RestCollection->template GetAttribute<FReal>("Mass", FTransformCollection::TransformGroup);
+			TManagedArray<float>& Mass = Collection[i]->RestCollection->template GetAttribute<float>("Mass", FTransformCollection::TransformGroup);
 			Mass[0] = i + 1;
 			UnitTest.AddSimulationObject(Collection[i]);
 		}

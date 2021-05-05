@@ -2587,7 +2587,7 @@ namespace UECodeGen_Private
 	{
 		None              = 0x00,
 
-		// First 5 bits are the property type
+		// First 6 bits are the property type
 		Byte              = 0x00,
 		Int8              = 0x01,
 		Int16             = 0x02,
@@ -2620,16 +2620,18 @@ namespace UECodeGen_Private
 		Text              = 0x1D,
 		Enum              = 0x1E,
 		FieldPath         = 0x1F,
+		LargeWorldCoordinatesReal = 0x20,
 
 		// Property-specific flags
-		NativeBool        = 0x20,
-		ObjectPtr         = 0x20,
+		NativeBool        = 0x40,
+		ObjectPtr         = 0x40,
+
 	};
 
 	ENUM_CLASS_FLAGS(EPropertyGenFlags)
 
 	// Value which masks out the type of combined EPropertyGenFlags.
-	constexpr EPropertyGenFlags PropertyTypeMask = (EPropertyGenFlags)0x1F;
+	constexpr EPropertyGenFlags PropertyTypeMask = (EPropertyGenFlags)0x3F;
 
 	enum class EDynamicType
 	{
@@ -2911,6 +2913,7 @@ namespace UECodeGen_Private
 	typedef FGenericPropertyParams FUnsizedFIntPropertyParams;
 	typedef FGenericPropertyParams FFloatPropertyParams;
 	typedef FGenericPropertyParams FDoublePropertyParams;
+	typedef FGenericPropertyParams FLargeWorldCoordinatesRealPropertyParams;
 	typedef FGenericPropertyParams FNamePropertyParams;
 	typedef FGenericPropertyParams FStrPropertyParams;
 	typedef FGenericPropertyParams FSetPropertyParams;

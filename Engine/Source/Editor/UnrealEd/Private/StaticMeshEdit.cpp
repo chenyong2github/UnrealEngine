@@ -54,7 +54,7 @@ static FORCEINLINE bool AreEqual(float a, float b)
 }
 
 /** Returns 1 if vectors are parallel OR anti-parallel */
-static FORCEINLINE bool AreParallel(const FVector& a, const FVector& b)
+static FORCEINLINE bool AreParallel(const FVector3f& a, const FVector3f& b)
 {
 	float Dot = a | b;
 
@@ -71,13 +71,13 @@ static FORCEINLINE bool AreParallel(const FVector& a, const FVector& b)
 /** Utility struct used in AddBoxGeomFromTris. */
 struct FPlaneInfo
 {
-	FVector Normal;
+	FVector3f Normal;
 	int32 DistCount;
 	float PlaneDist[2];
 
 	FPlaneInfo()
 	{
-		Normal = FVector::ZeroVector;
+		Normal = FVector3f::ZeroVector;
 		DistCount = 0;
 		PlaneDist[0] = 0.f;
 		PlaneDist[1] = 0.f;
@@ -86,17 +86,17 @@ struct FPlaneInfo
 
 struct FMeshConnectivityVertex
 {
-	FVector				Position;
+	FVector3f				Position;
 	TArray<int32>		Triangles;
 
 	/** Constructor */
-	FMeshConnectivityVertex( const FVector &v )
+	FMeshConnectivityVertex( const FVector3f &v )
 		: Position( v )
 	{
 	}
 
 	/** Check if this vertex is in the same place as given point */
-	FORCEINLINE bool IsSame( const FVector &v )
+	FORCEINLINE bool IsSame( const FVector3f &v )
 	{
 		const float eps = 0.01f;
 		return v.Equals( Position, eps );
@@ -138,7 +138,7 @@ public:
 
 public:
 	/** Add vertex to connectivity information */
-	int32 AddVertex( const FVector &v )
+	int32 AddVertex( const FVector3f &v )
 	{
 		// Try to find existing vertex
 		// TODO: should use hash map
@@ -156,7 +156,7 @@ public:
 	}
 
 	/** Add triangle to connectivity information */
-	int32 AddTriangle( const FVector &a, const FVector &b, const FVector &c )
+	int32 AddTriangle( const FVector3f &a, const FVector3f &b, const FVector3f &c )
 	{
 		// Map vertices
 		int32 VertexA = AddVertex( a );
@@ -275,7 +275,7 @@ private:
 	}
 };
 
-bool DecomposeUCXMesh( const TArray<FVector>& CollisionVertices, const TArray<int32>& CollisionFaceIdx, UBodySetup* BodySetup )
+bool DecomposeUCXMesh( const TArray<FVector3f>& CollisionVertices, const TArray<int32>& CollisionFaceIdx, UBodySetup* BodySetup )
 {
 	// We keep no ref to this Model, so it will be GC'd at some point after the import.
 	auto TempModel = NewObject<UModel>();
@@ -286,9 +286,9 @@ bool DecomposeUCXMesh( const TArray<FVector>& CollisionVertices, const TArray<in
 	// Send triangles to connectivity builder
 	for(int32 x = 0;x < CollisionFaceIdx.Num();x += 3)
 	{
-		const FVector &VertexA = CollisionVertices[ CollisionFaceIdx[x + 2] ];
-		const FVector &VertexB = CollisionVertices[ CollisionFaceIdx[x + 1] ];
-		const FVector &VertexC = CollisionVertices[ CollisionFaceIdx[x + 0] ];
+		const FVector3f &VertexA = CollisionVertices[ CollisionFaceIdx[x + 2] ];
+		const FVector3f &VertexB = CollisionVertices[ CollisionFaceIdx[x + 1] ];
+		const FVector3f &VertexC = CollisionVertices[ CollisionFaceIdx[x + 0] ];
 		ConnectivityBuilder.AddTriangle( VertexA, VertexB, VertexC );
 	}
 
@@ -315,9 +315,9 @@ bool DecomposeUCXMesh( const TArray<FVector>& CollisionVertices, const TArray<in
 			Poly->iLink = j / 3;
 
 			// Add vertices
-			new( Poly->Vertices ) FVector( ConnectivityBuilder.Vertices[ Triangle.Vertices[0] ].Position );
-			new( Poly->Vertices ) FVector( ConnectivityBuilder.Vertices[ Triangle.Vertices[1] ].Position );
-			new( Poly->Vertices ) FVector( ConnectivityBuilder.Vertices[ Triangle.Vertices[2] ].Position );
+			new( Poly->Vertices ) FVector3f( ConnectivityBuilder.Vertices[ Triangle.Vertices[0] ].Position );
+			new( Poly->Vertices ) FVector3f( ConnectivityBuilder.Vertices[ Triangle.Vertices[1] ].Position );
+			new( Poly->Vertices ) FVector3f( ConnectivityBuilder.Vertices[ Triangle.Vertices[2] ].Position );
 
 			// Update polygon normal
 			Poly->CalcNormal(1);
@@ -421,7 +421,7 @@ bool AddBoxGeomFromTris( const TArray<FPoly>& Tris, FKAggregateGeom* AggGeom, co
 	BoxTM.SetAxis(1, Planes[1].Normal);
 
 	// ensure valid TM by cross-product
-	FVector ZAxis = Planes[0].Normal ^ Planes[1].Normal;
+	FVector3f ZAxis = Planes[0].Normal ^ Planes[1].Normal;
 
 	if( !AreParallel(ZAxis, Planes[2].Normal) )
 	{
@@ -461,7 +461,7 @@ bool AddBoxGeomFromTris( const TArray<FPoly>& Tris, FKAggregateGeom* AggGeom, co
  *	It checks that the AABB is square, and that all vertices are either at the
  *	centre, or within 5% of the radius distance away.
  */
-bool AddSphereGeomFromVerts( const TArray<FVector>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName )
+bool AddSphereGeomFromVerts( const TArray<FVector3f>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName )
 {
 	if(Verts.Num() == 0)
 	{
@@ -494,7 +494,7 @@ bool AddSphereGeomFromVerts( const TArray<FVector>& Verts, FKAggregateGeom* AggG
 	float MinR = BIG_NUMBER;
 	for(int32 i=0; i<Verts.Num(); i++)
 	{
-		FVector CToV = Verts[i] - Center;
+		FVector3f CToV = Verts[i] - Center;
 		float RSqr = CToV.SizeSquared();
 
 		MaxR = FMath::Max(RSqr, MaxR);
@@ -524,14 +524,14 @@ bool AddSphereGeomFromVerts( const TArray<FVector>& Verts, FKAggregateGeom* AggG
 	return true;
 }
 
-bool AddCapsuleGeomFromVerts(const TArray<FVector>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName)
+bool AddCapsuleGeomFromVerts(const TArray<FVector3f>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName)
 {
 	if (Verts.Num() < 3)
 	{
 		return false;
 	}
 
-	FVector AxisStart, AxisEnd;
+	FVector3f AxisStart, AxisEnd;
 	float MaxDistSqr = 0.f;
 
 	for (int32 IndexA = 0; IndexA < Verts.Num() - 1; IndexA++)
@@ -553,8 +553,8 @@ bool AddCapsuleGeomFromVerts(const TArray<FVector>& Verts, FKAggregateGeom* AggG
 	{
 		float MaxRadius = 0.f;
 
-		const FVector LineOrigin = AxisStart;
-		const FVector LineDir = (AxisEnd - AxisStart).GetSafeNormal();
+		const FVector3f LineOrigin = AxisStart;
+		const FVector3f LineDir = (AxisEnd - AxisStart).GetSafeNormal();
 
 		for (int32 IndexA = 0; IndexA < Verts.Num() - 1; IndexA++)
 		{
@@ -570,7 +570,7 @@ bool AddCapsuleGeomFromVerts(const TArray<FVector>& Verts, FKAggregateGeom* AggG
 			// Allocate capsule in array
 			FKSphylElem SphylElem;
 			SphylElem.Center = 0.5f * (AxisStart + AxisEnd);
-			SphylElem.Rotation = FQuat::FindBetweenVectors(FVector(0,0,1), LineDir).Rotator(); // Get quat that takes you from z axis to desired axis
+			SphylElem.Rotation = FQuat::FindBetweenVectors(FVector3f(0,0,1), LineDir).Rotator(); // Get quat that takes you from z axis to desired axis
 			SphylElem.Radius = MaxRadius;
 			SphylElem.Length = FMath::Max(FMath::Sqrt(MaxDistSqr) - (2.f * MaxRadius), 0.f); // subtract two radii from total length to get segment length (ensure > 0)
 			AggGeom->SphylElems.Add(SphylElem);
@@ -583,7 +583,7 @@ bool AddCapsuleGeomFromVerts(const TArray<FVector>& Verts, FKAggregateGeom* AggG
 
 
 /** Utility for adding one convex hull from the given verts */
-bool AddConvexGeomFromVertices( const TArray<FVector>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName )
+bool AddConvexGeomFromVertices( const TArray<FVector3f>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName )
 {
 	if(Verts.Num() == 0)
 	{
@@ -591,7 +591,7 @@ bool AddConvexGeomFromVertices( const TArray<FVector>& Verts, FKAggregateGeom* A
 	}
 
 	FKConvexElem* ConvexElem = new(AggGeom->ConvexElems) FKConvexElem();
-	ConvexElem->VertexData = Verts;
+	ConvexElem->VertexData = LWC::PromoteArrayType<FVector>(Verts);	// LWC_TODO: Perf pessimization
 	ConvexElem->UpdateElemBox();
 
 	return true;
@@ -675,7 +675,7 @@ void MergeStaticMesh(UStaticMesh* DestMesh, UStaticMesh* SourceMesh, const FMerg
 //	FVerticesEqual
 //
 
-inline bool FVerticesEqual(FVector& V1,FVector& V2)
+inline bool FVerticesEqual(FVector3f& V1,FVector3f& V2)
 {
 	if(FMath::Abs(V1.X - V2.X) > THRESH_POINTS_ARE_SAME * 4.0f)
 	{
@@ -698,9 +698,9 @@ inline bool FVerticesEqual(FVector& V1,FVector& V2)
 void GetBrushMesh(ABrush* Brush, UModel* Model, FMeshDescription& MeshDescription, TArray<FStaticMaterial>& OutMaterials)
 {
 	FStaticMeshAttributes Attributes(MeshDescription);
-	TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
-	TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+	TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
@@ -746,13 +746,13 @@ void GetBrushMesh(ABrush* Brush, UModel* Model, FMeshDescription& MeshDescriptio
 		}
 
 		// Cache the texture coordinate system for this polygon.
-		FVector	TextureBase = Polygon.Base - (Brush ? Brush->GetPivotOffset() : FVector::ZeroVector),
+		FVector3f	TextureBase = Polygon.Base - (Brush ? Brush->GetPivotOffset() : FVector::ZeroVector),
 			TextureX = Polygon.TextureU / UModel::GetGlobalBSPTexelScale(),
 			TextureY = Polygon.TextureV / UModel::GetGlobalBSPTexelScale();
 		// For each vertex after the first two vertices...
 		for (int32 VertexIndex = 2; VertexIndex < Polygon.Vertices.Num(); VertexIndex++)
 		{
-			FVector Positions[3];
+			FVector3f Positions[3];
 			Positions[ReverseVertices ? 0 : 2] = ActorToWorld.TransformPosition(Polygon.Vertices[0]) - PostSub;
 			Positions[1] = ActorToWorld.TransformPosition(Polygon.Vertices[VertexIndex - 1]) - PostSub;
 			Positions[ReverseVertices ? 2 : 0] = ActorToWorld.TransformPosition(Polygon.Vertices[VertexIndex]) - PostSub;
@@ -852,24 +852,24 @@ UStaticMesh* CreateStaticMeshFromBrush(UObject* Outer, FName Name, ABrush* Brush
 
 // Accepts a triangle (XYZ and UV values for each point) and returns a poly base and UV vectors
 // NOTE : the UV coords should be scaled by the texture size
-static inline void FTexCoordsToVectors(const FVector& V0, const FVector& UV0,
-									   const FVector& V1, const FVector& InUV1,
-									   const FVector& V2, const FVector& InUV2,
-									   FVector* InBaseResult, FVector* InUResult, FVector* InVResult )
+static inline void FTexCoordsToVectors(const FVector3f& V0, const FVector3f& UV0,
+									   const FVector3f& V1, const FVector3f& InUV1,
+									   const FVector3f& V2, const FVector3f& InUV2,
+									   FVector3f* InBaseResult, FVector3f* InUResult, FVector3f* InVResult )
 {
 	// Create polygon normal.
-	FVector PN = FVector((V0-V1) ^ (V2-V0));
+	FVector3f PN = FVector3f((V0-V1) ^ (V2-V0));
 	PN = PN.GetSafeNormal();
 
-	FVector UV1( InUV1 );
-	FVector UV2( InUV2 );
+	FVector3f UV1( InUV1 );
+	FVector3f UV2( InUV2 );
 
 	// Fudge UV's to make sure no infinities creep into UV vector math, whenever we detect identical U or V's.
 	if( ( UV0.X == UV1.X ) || ( UV2.X == UV1.X ) || ( UV2.X == UV0.X ) ||
 		( UV0.Y == UV1.Y ) || ( UV2.Y == UV1.Y ) || ( UV2.Y == UV0.Y ) )
 	{
-		UV1 += FVector(0.004173f,0.004123f,0.0f);
-		UV2 += FVector(0.003173f,0.003123f,0.0f);
+		UV1 += FVector3f(0.004173f,0.004123f,0.0f);
+		UV2 += FVector3f(0.003173f,0.003123f,0.0f);
 	}
 
 	//
@@ -878,16 +878,16 @@ static inline void FTexCoordsToVectors(const FVector& V0, const FVector& UV0,
 	// then the third assumes we're perpendicular to the normal. 
 	//
 	FMatrix TexEqu = FMatrix::Identity;
-	TexEqu.SetAxis( 0, FVector(	V1.X - V0.X, V1.Y - V0.Y, V1.Z - V0.Z ) );
-	TexEqu.SetAxis( 1, FVector( V2.X - V0.X, V2.Y - V0.Y, V2.Z - V0.Z ) );
-	TexEqu.SetAxis( 2, FVector( PN.X,        PN.Y,        PN.Z        ) );
+	TexEqu.SetAxis( 0, FVector3f(	V1.X - V0.X, V1.Y - V0.Y, V1.Z - V0.Z ) );
+	TexEqu.SetAxis( 1, FVector3f( V2.X - V0.X, V2.Y - V0.Y, V2.Z - V0.Z ) );
+	TexEqu.SetAxis( 2, FVector3f( PN.X,        PN.Y,        PN.Z        ) );
 	TexEqu = TexEqu.InverseFast();
 
-	const FVector UResult( UV1.X-UV0.X, UV2.X-UV0.X, 0.0f );
-	const FVector TUResult = TexEqu.TransformVector( UResult );
+	const FVector3f UResult( UV1.X-UV0.X, UV2.X-UV0.X, 0.0f );
+	const FVector3f TUResult = TexEqu.TransformVector( UResult );
 
-	const FVector VResult( UV1.Y-UV0.Y, UV2.Y-UV0.Y, 0.0f );
-	const FVector TVResult = TexEqu.TransformVector( VResult );
+	const FVector3f VResult( UV1.Y-UV0.Y, UV2.Y-UV0.Y, 0.0f );
+	const FVector3f TVResult = TexEqu.TransformVector( VResult );
 
 	//
 	// Adjust the BASE to account for U0 and V0 automatically, and force it into the same plane.
@@ -895,10 +895,10 @@ static inline void FTexCoordsToVectors(const FVector& V0, const FVector& UV0,
 	FMatrix BaseEqu = FMatrix::Identity;
 	BaseEqu.SetAxis( 0, TUResult );
 	BaseEqu.SetAxis( 1, TVResult ); 
-	BaseEqu.SetAxis( 2, FVector( PN.X, PN.Y, PN.Z ) );
+	BaseEqu.SetAxis( 2, FVector3f( PN.X, PN.Y, PN.Z ) );
 	BaseEqu = BaseEqu.InverseFast();
 
-	const FVector BResult = FVector( UV0.X - ( TUResult|V0 ), UV0.Y - ( TVResult|V0 ),  0.0f );
+	const FVector3f BResult = FVector3f( UV0.X - ( TUResult|V0 ), UV0.Y - ( TVResult|V0 ),  0.0f );
 
 	*InBaseResult = - 1.0f *  BaseEqu.TransformVector( BResult );
 	*InUResult = TUResult;
@@ -932,15 +932,15 @@ void CreateModelFromStaticMesh(UModel* Model,AStaticMeshActor* StaticMeshActor)
 			Polygon->PolyFlags = PF_DefaultFlags;
 			Polygon->SmoothingMask = Triangle.SmoothingMask;
 
-			new(Polygon->Vertices) FVector(ActorToWorld.TransformPosition(Triangle.Vertices[2]));
-			new(Polygon->Vertices) FVector(ActorToWorld.TransformPosition(Triangle.Vertices[1]));
-			new(Polygon->Vertices) FVector(ActorToWorld.TransformPosition(Triangle.Vertices[0]));
+			new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition(Triangle.Vertices[2]));
+			new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition(Triangle.Vertices[1]));
+			new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition(Triangle.Vertices[0]));
 
 			Polygon->CalcNormal(1);
 			Polygon->Finalize(NULL,0);
-			FTexCoordsToVectors(Polygon->Vertices[2],FVector(Triangle.UVs[0][0].X * UModel::GetGlobalBSPTexelScale(),Triangle.UVs[0][0].Y * UModel::GetGlobalBSPTexelScale(),1),
-								Polygon->Vertices[1],FVector(Triangle.UVs[1][0].X * UModel::GetGlobalBSPTexelScale(),Triangle.UVs[1][0].Y * UModel::GetGlobalBSPTexelScale(),1),
-								Polygon->Vertices[0],FVector(Triangle.UVs[2][0].X * UModel::GetGlobalBSPTexelScale(),Triangle.UVs[2][0].Y * UModel::GetGlobalBSPTexelScale(),1),
+			FTexCoordsToVectors(Polygon->Vertices[2],FVector3f(Triangle.UVs[0][0].X * UModel::GetGlobalBSPTexelScale(),Triangle.UVs[0][0].Y * UModel::GetGlobalBSPTexelScale(),1),
+								Polygon->Vertices[1],FVector3f(Triangle.UVs[1][0].X * UModel::GetGlobalBSPTexelScale(),Triangle.UVs[1][0].Y * UModel::GetGlobalBSPTexelScale(),1),
+								Polygon->Vertices[0],FVector3f(Triangle.UVs[2][0].X * UModel::GetGlobalBSPTexelScale(),Triangle.UVs[2][0].Y * UModel::GetGlobalBSPTexelScale(),1),
 								&Polygon->Base,&Polygon->TextureU,&Polygon->TextureV);
 		}
 	}
@@ -1001,7 +1001,7 @@ struct FExistingStaticMeshData
 	UBodySetup*					ExistingBodySetup;
 
 	// A mapping of vertex positions to their color in the existing static mesh
-	TMap<FVector, FColor>		ExistingVertexColorData;
+	TMap<FVector3f, FColor>		ExistingVertexColorData;
 
 	float						LpvBiasMultiplier;
 	bool						bHasNavigationData;
@@ -1020,8 +1020,8 @@ struct FExistingStaticMeshData
 	float						ExistingDistanceFieldSelfShadowBias;
 	bool						ExistingSupportUniformlyDistributedSampling;
 	bool						ExistingAllowCpuAccess;
-	FVector						ExistingPositiveBoundsExtension;
-	FVector						ExistingNegativeBoundsExtension;
+	FVector3f					ExistingPositiveBoundsExtension;
+	FVector3f					ExistingNegativeBoundsExtension;
 
 	UStaticMesh::FOnMeshChanged	ExistingOnMeshChanged;
 	UStaticMesh* ExistingComplexCollisionMesh = nullptr;

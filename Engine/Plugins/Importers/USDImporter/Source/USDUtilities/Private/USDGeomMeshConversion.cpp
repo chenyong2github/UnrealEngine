@@ -371,9 +371,9 @@ namespace UE
 				const FUsdStageInfo StageInfo{ Stage };
 
 				FStaticMeshConstAttributes Attributes(MeshDescription);
-				TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+				TVertexAttributesConstRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 				TPolygonGroupAttributesConstRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
-				TVertexInstanceAttributesConstRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+				TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
 				TVertexInstanceAttributesConstRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 				TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
@@ -569,7 +569,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 	FStaticMeshAttributes StaticMeshAttributes( MeshDescription );
 
 	// Vertex positions
-	TVertexAttributesRef< FVector > MeshDescriptionVertexPositions = StaticMeshAttributes.GetVertexPositions();
+	TVertexAttributesRef< FVector3f > MeshDescriptionVertexPositions = StaticMeshAttributes.GetVertexPositions();
 	{
 		pxr::UsdAttribute Points = UsdMesh.GetPointsAttr();
 		if ( Points )
@@ -711,7 +711,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 			MeshDescriptionUVs.SetNumChannels(NumUVs);
 		}
 
-		TVertexInstanceAttributesRef< FVector > MeshDescriptionNormals = StaticMeshAttributes.GetVertexInstanceNormals();
+		TVertexInstanceAttributesRef< FVector3f > MeshDescriptionNormals = StaticMeshAttributes.GetVertexInstanceNormals();
 
 		MeshDescription.ReserveNewVertexInstances( FaceCounts.size() * 3 );
 		MeshDescription.ReserveNewPolygons( FaceCounts.size() );

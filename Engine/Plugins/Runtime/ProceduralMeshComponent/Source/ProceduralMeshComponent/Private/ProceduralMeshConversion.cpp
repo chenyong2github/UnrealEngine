@@ -56,10 +56,10 @@ void MeshDescriptionToProcMesh( const FMeshDescription& MeshDescription, UProced
 
 	FStaticMeshConstAttributes AttributeGetter(MeshDescription);
 	TPolygonGroupAttributesConstRef<FName> PolygonGroupNames = AttributeGetter.GetPolygonGroupMaterialSlotNames();
-	TVertexAttributesConstRef<FVector> VertexPositions = AttributeGetter.GetVertexPositions();
-	TVertexInstanceAttributesConstRef<FVector> Tangents = AttributeGetter.GetVertexInstanceTangents();
+	TVertexAttributesConstRef<FVector3f> VertexPositions = AttributeGetter.GetVertexPositions();
+	TVertexInstanceAttributesConstRef<FVector3f> Tangents = AttributeGetter.GetVertexInstanceTangents();
 	TVertexInstanceAttributesConstRef<float> BinormalSigns = AttributeGetter.GetVertexInstanceBinormalSigns();
-	TVertexInstanceAttributesConstRef<FVector> Normals = AttributeGetter.GetVertexInstanceNormals();
+	TVertexInstanceAttributesConstRef<FVector3f> Normals = AttributeGetter.GetVertexInstanceNormals();
 	TVertexInstanceAttributesConstRef<FVector4> Colors = AttributeGetter.GetVertexInstanceColors();
 	TVertexInstanceAttributesConstRef<FVector2D> UVs = AttributeGetter.GetVertexInstanceUVs();
 
@@ -112,10 +112,10 @@ FMeshDescription BuildMeshDescription( UProceduralMeshComponent* ProcMeshComp )
 	AttributeGetter.Register();
 
 	TPolygonGroupAttributesRef<FName> PolygonGroupNames = AttributeGetter.GetPolygonGroupMaterialSlotNames();
-	TVertexAttributesRef<FVector> VertexPositions = AttributeGetter.GetVertexPositions();
-	TVertexInstanceAttributesRef<FVector> Tangents = AttributeGetter.GetVertexInstanceTangents();
+	TVertexAttributesRef<FVector3f> VertexPositions = AttributeGetter.GetVertexPositions();
+	TVertexInstanceAttributesRef<FVector3f> Tangents = AttributeGetter.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<float> BinormalSigns = AttributeGetter.GetVertexInstanceBinormalSigns();
-	TVertexInstanceAttributesRef<FVector> Normals = AttributeGetter.GetVertexInstanceNormals();
+	TVertexInstanceAttributesRef<FVector3f> Normals = AttributeGetter.GetVertexInstanceNormals();
 	TVertexInstanceAttributesRef<FVector4> Colors = AttributeGetter.GetVertexInstanceColors();
 	TVertexInstanceAttributesRef<FVector2D> UVs = AttributeGetter.GetVertexInstanceUVs();
 

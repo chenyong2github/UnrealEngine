@@ -121,12 +121,12 @@ public:
 	*/
 	TSet<FPBDRigidParticleHandle*> ReleaseClusterParticles(
 		FPBDRigidClusteredParticleHandle* ClusteredParticle, 
-		const TMap<FGeometryParticleHandle*, FReal>* ExternalStrainMap = nullptr,
+		const TMap<FGeometryParticleHandle*, float>* ExternalStrainMap = nullptr,
 		bool bForceRelease = false);
 
 	TSet<FPBDRigidParticleHandle*> ReleaseClusterParticlesNoInternalCluster(
 		FPBDRigidClusteredParticleHandle* ClusteredParticle,
-		const TMap<FGeometryParticleHandle*, FReal>* ExternalStrainMap = nullptr,
+		const TMap<FGeometryParticleHandle*, float>* ExternalStrainMap = nullptr,
 		bool bForceRelease = false);
 
 	/*
@@ -169,7 +169,7 @@ public:
 	*    the children clusters.
 	*/
 	TMap<FPBDRigidClusteredParticleHandle*, TSet<FPBDRigidParticleHandle*>> BreakingModel(
-		TMap<FGeometryParticleHandle*, FReal>* ExternalStrainMap = nullptr);
+		TMap<FGeometryParticleHandle*, float>* ExternalStrainMap = nullptr);
 
 	/**
 	*  PromoteStrains
@@ -398,7 +398,7 @@ inline TArray<FVec3> CleanCollisionParticles(
 	if (MaxBBoxDim < SnapDistance)
 		return TArray<FVec3>(&Vertices[0], 1);
 
-	BBox.Thicken(FMath::Max(SnapDistance/10, KINDA_SMALL_NUMBER*10)); // 0.001
+	BBox.Thicken(FMath::Max(SnapDistance/10, (FReal)(KINDA_SMALL_NUMBER*10))); // 0.001
 	MaxBBoxDim = BBox.Extents().Max();
 
 	const FVec3 PointsCenter = BBox.Center();
@@ -414,7 +414,7 @@ inline TArray<FVec3> CleanCollisionParticles(
 	Redundant.Reserve(NumPoints); // Excessive, but ensures consistent performance.
 
 	int32 NumCoincident = 0;
-	const int64 Resolution = static_cast<int64>(floor(MaxBBoxDim / FMath::Max(SnapDistance,KINDA_SMALL_NUMBER)));
+	const int64 Resolution = static_cast<int64>(floor(MaxBBoxDim / FMath::Max(SnapDistance,(FReal)KINDA_SMALL_NUMBER)));
 	const FReal CellSize = MaxBBoxDim / Resolution;
 	for (int32 i = 0; i < 2; i++)
 	{

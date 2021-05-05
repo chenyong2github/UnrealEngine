@@ -60,14 +60,16 @@ public:
 	 * @param Points Array of Points to create for the bounding volume.
 	 * @param Count The number of points.
 	 */
-	CORE_API FBox( const FVector* Points, int32 Count );
+	CORE_API FBox(const FVector3f* Points, int32 Count);
+	CORE_API FBox(const FVector3d* Points, int32 Count);
 
 	/**
 	 * Creates and initializes a new box from an array of points.
 	 *
 	 * @param Points Array of Points to create for the bounding volume.
 	 */
-	CORE_API FBox( const TArray<FVector>& Points );
+	CORE_API FBox(const TArray<FVector3f>& Points) : FBox(&Points[0], Points.Num()) {};
+	CORE_API FBox(const TArray<FVector3d>& Points) : FBox(&Points[0], Points.Num()) {};
 
 public:
 

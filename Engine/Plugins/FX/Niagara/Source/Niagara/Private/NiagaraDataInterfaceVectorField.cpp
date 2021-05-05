@@ -383,10 +383,10 @@ void FNiagaraDataInterfaceParametersCS_VectorField::Set(FRHICommandList& RHICmdL
 	SetSamplerParameter(RHICmdList, ComputeShaderRHI, VectorFieldSampler, SamplerState);
 
 	//
-	SetShaderValue(RHICmdList, ComputeShaderRHI, TilingAxes, VFDI->GetTilingAxes());
-	SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, VFDI->Dimensions);
-	SetShaderValue(RHICmdList, ComputeShaderRHI, MinBounds, VFDI->MinBounds);
-	SetShaderValue(RHICmdList, ComputeShaderRHI, MaxBounds, VFDI->MaxBounds);
+	SetShaderValue(RHICmdList, ComputeShaderRHI, TilingAxes, (FVector3f)VFDI->GetTilingAxes());
+	SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, (FVector3f)VFDI->Dimensions);
+	SetShaderValue(RHICmdList, ComputeShaderRHI, MinBounds, (FVector3f)VFDI->MinBounds);
+	SetShaderValue(RHICmdList, ComputeShaderRHI, MaxBounds, (FVector3f)VFDI->MaxBounds);
 }
 
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_VectorField);

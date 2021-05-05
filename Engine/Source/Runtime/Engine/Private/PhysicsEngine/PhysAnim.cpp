@@ -688,8 +688,8 @@ void USkeletalMeshComponent::UpdateKinematicBonesToAnim(const TArray<FTransform>
 			{
 				const FSkeletalMeshLODRenderData& LODData = MeshObject->GetSkeletalMeshRenderData().LODRenderData[0];
 				FSkinWeightVertexBuffer& SkinWeightBuffer = *GetSkinWeightBuffer(0);
-				TArray<FMatrix> RefToLocals;
-				TArray<FVector> NewPositions;
+				TArray<FMatrix44f> RefToLocals;
+				TArray<FVector3f> NewPositions;
 				if (true)
 				{
 					SCOPE_CYCLE_COUNTER(STAT_SkinPerPolyVertices);
@@ -707,7 +707,7 @@ void USkeletalMeshComponent::UpdateKinematicBonesToAnim(const TArray<FTransform>
 						}
 					}
 				}
-				BodyInstance.UpdateTriMeshVertices(NewPositions);
+				BodyInstance.UpdateTriMeshVertices(LWC::PromoteArrayType<FVector>(NewPositions));
 			}
 			
 			BodyInstance.SetBodyTransform(CurrentLocalToWorld, Teleport);

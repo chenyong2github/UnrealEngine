@@ -80,7 +80,7 @@ public:
 
 	/** Point history manipulation functions. All of them remove the currently generated snap*/
 	void UpdatePointHistory(const TArray<FVector3d>& Points);
-	void UpdatePointHistory(const TArray<FVector>& Points);
+	void UpdatePointHistory(const TArray<FVector3f>& Points);
 	void AppendHistoryPoint(const FVector3d& Point);
 	void InsertHistoryPoint(const FVector3d& Point, int32 Index);
 	void RemoveHistoryPoint(int32 Index);

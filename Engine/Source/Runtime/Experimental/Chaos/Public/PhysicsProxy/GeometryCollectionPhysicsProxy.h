@@ -59,7 +59,7 @@ class CHAOS_API FGeometryCollectionPhysicsProxy : public TPhysicsProxy<FGeometry
 public:
 	typedef TPhysicsProxy<FGeometryCollectionPhysicsProxy, FStubGeometryCollectionData> Base;
 	typedef FCollisionStructureManager::FSimplicial FSimplicial;
-	typedef Chaos::TPBDRigidParticleHandle<float, 3> FParticleHandle;
+	typedef Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3> FParticleHandle;
 	typedef Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3> FClusterHandle;
 
 	/** Proxy publics */
@@ -213,7 +213,7 @@ public:
 	*  * Get all the geometry collection particle handles based on the processing resolution
 	 */
 	void GetRelevantParticleHandles(
-		TArray<Chaos::TGeometryParticleHandle<float, 3>*>& Handles,
+		TArray<Chaos::TGeometryParticleHandle<Chaos::FReal, 3>*>& Handles,
 		const Chaos::FPBDRigidsSolver* RigidSolver,
 		EFieldResolutionType ResolutionType);
 
@@ -221,7 +221,7 @@ public:
 	 * Get all the geometry collection particle handles filtered by object state
 	 */
 	void GetFilteredParticleHandles(
-		TArray<Chaos::TGeometryParticleHandle<float, 3>*>& Handles,
+		TArray<Chaos::TGeometryParticleHandle<Chaos::FReal, 3>*>& Handles,
 		const Chaos::FPBDRigidsSolver* RigidSolver,
 		const EFieldFilterType FilterType);
 		
@@ -249,9 +249,9 @@ protected:
 	 *  \P Parameters - uh, yeah...  Other parameters.
 	 */
 
-	Chaos::TPBDRigidClusteredParticleHandle<float, 3>* BuildClusters(
+	Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>* BuildClusters(
 		const uint32 CollectionClusterIndex, 
-		TArray<Chaos::TPBDRigidParticleHandle<float, 3>*>& ChildHandles,
+		TArray<Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>*>& ChildHandles,
 		const TArray<int32>& ChildTransformGroupIndices,
 		const Chaos::FClusterCreationParameters & Parameters,
 		const Chaos::FUniqueIdx* ExistingIndex);

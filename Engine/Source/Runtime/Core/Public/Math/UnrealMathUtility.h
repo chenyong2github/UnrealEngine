@@ -5,8 +5,10 @@
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "HAL/PlatformMath.h"
+#include "Templates/Decay.h"
 #include "Templates/IsFloatingPoint.h"
 #include "Templates/IsIntegral.h"
+//#include "Math/Vector.h"
 
 
 //#define IMPLEMENT_ASSIGNMENT_OPERATOR_MANUALLY
@@ -25,12 +27,12 @@
 -----------------------------------------------------------------------------*/
 
 // Forward declarations.
-struct  FVector;
+DECLARE_LWC_TYPE(Vector, 3);
 struct  FVector4;
-struct  FPlane;
+DECLARE_LWC_TYPE(Plane, 4);
 struct  FBox;
 struct  FRotator;
-struct  FMatrix;
+DECLARE_LWC_TYPE(Matrix, 44);
 struct  FQuat;
 struct  FTwoVectors;
 struct  FTransform;
@@ -52,7 +54,15 @@ class TRange;
 #define EULERS_NUMBER       (2.71828182845904523536f)
 #define UE_GOLDEN_RATIO		(1.6180339887498948482045868343656381f)	/* Also known as divine proportion, golden mean, or golden section - related to the Fibonacci Sequence = (1 + sqrt(5)) / 2 */
 #define FLOAT_NON_FRACTIONAL (8388608.f) /* All single-precision floating point numbers greater than or equal to this have no fractional value. */
-#define DOUBLE_NON_FRACTIONAL (4503599627370496.0) /* All double-precision floating point numbers greater than or equal to this have no fractional value. 2^52 */
+
+
+#define DOUBLE_PI					(3.141592653589793238462643383279502884197169399)
+#define DOUBLE_SMALL_NUMBER			(1.e-8)
+#define DOUBLE_KINDA_SMALL_NUMBER	(1.e-4)
+#define DOUBLE_BIG_NUMBER			(3.4e+38)
+#define DOUBLE_EULERS_NUMBER		(2.7182818284590452353602874713526624977572)
+#define DOUBLE_UE_GOLDEN_RATIO		(1.6180339887498948482045868343656381)	/* Also known as divine proportion, golden mean, or golden section - related to the Fibonacci Sequence = (1 + sqrt(5)) / 2 */
+#define DOUBLE_NON_FRACTIONAL		(4503599627370496.0) /* All double-precision floating point numbers greater than or equal to this have no fractional value. 2^52 */
 
 // Copied from float.h
 #define MAX_FLT 3.402823466e+38F
@@ -60,6 +70,9 @@ class TRange;
 // Aux constants.
 #define INV_PI			(0.31830988618f)
 #define HALF_PI			(1.57079632679f)
+
+#define DOUBLE_INV_PI	(0.31830988618379067154)
+#define DOUBLE_HALF_PI	(1.57079632679489661923)
 
 // Common square roots
 #define UE_SQRT_2		(1.4142135623730950488016887242097f)
@@ -69,15 +82,24 @@ class TRange;
 #define UE_HALF_SQRT_2	(0.70710678118654752440084436210485f)
 #define UE_HALF_SQRT_3	(0.86602540378443864676372317075294f)
 
+#define DOUBLE_UE_SQRT_2		(1.4142135623730950488016887242097)
+#define DOUBLE_UE_SQRT_3		(1.7320508075688772935274463415059)
+#define DOUBLE_UE_INV_SQRT_2	(0.70710678118654752440084436210485)
+#define DOUBLE_UE_INV_SQRT_3	(0.57735026918962576450914878050196)
+#define DOUBLE_UE_HALF_SQRT_2	(0.70710678118654752440084436210485)
+#define DOUBLE_UE_HALF_SQRT_3	(0.86602540378443864676372317075294)
+
 
 // Magic numbers for numerical precision.
 #define DELTA			(0.00001f)
+#define DOUBLE_DELTA	(0.00001 )
 
 /**
  * Lengths of normalized vectors (These are half their maximum values
  * to assure that dot products with normalized vectors don't overflow).
  */
 #define FLOAT_NORMAL_THRESH				(0.0001f)
+#define DOUBLE_NORMAL_THRESH			(0.0001)
 
 //
 // Magic numbers for numerical precision.
@@ -99,6 +121,25 @@ class TRange;
 
 #define THRESH_VECTOR_NORMALIZED		(0.01f)		/** Allowed error for a normalized vector (against squared magnitude) */
 #define THRESH_QUAT_NORMALIZED			(0.01f)		/** Allowed error for a normalized quaternion (against squared magnitude) */
+
+// Double precision values
+#define DOUBLE_THRESH_POINT_ON_PLANE			(0.10)		/* Thickness of plane for front/back/inside test */
+#define DOUBLE_THRESH_POINT_ON_SIDE				(0.20)		/* Thickness of polygon side's side-plane for point-inside/outside/on side test */
+#define DOUBLE_THRESH_POINTS_ARE_SAME			(0.00002)	/* Two points are same if within this distance */
+#define DOUBLE_THRESH_POINTS_ARE_NEAR			(0.015)		/* Two points are near if within this distance and can be combined if imprecise math is ok */
+#define DOUBLE_THRESH_NORMALS_ARE_SAME			(0.00002)	/* Two normal points are same if within this distance */
+#define DOUBLE_THRESH_UVS_ARE_SAME			    (0.0009765625)/* Two UV are same if within this threshold (1.0/1024.0) */
+															/* Making this too large results in incorrect CSG classification and disaster */
+#define DOUBLE_THRESH_VECTORS_ARE_NEAR			(0.0004)	/* Two vectors are near if within this distance and can be combined if imprecise math is ok */
+															/* Making this too large results in lighting problems due to inaccurate texture coordinates */
+#define DOUBLE_THRESH_SPLIT_POLY_WITH_PLANE		(0.25)		/* A plane splits a polygon in half */
+#define DOUBLE_THRESH_SPLIT_POLY_PRECISELY		(0.01)		/* A plane exactly splits a polygon */
+#define DOUBLE_THRESH_ZERO_NORM_SQUARED			(0.0001)	/* Size of a unit normal that is considered "zero", squared */
+#define DOUBLE_THRESH_NORMALS_ARE_PARALLEL		(0.999845)	/* Two unit vectors are parallel if abs(A dot B) is greater than or equal to this. This is roughly cosine(1.0 degrees). */
+#define DOUBLE_THRESH_NORMALS_ARE_ORTHOGONAL	(0.017455)	/* Two unit vectors are orthogonal (perpendicular) if abs(A dot B) is less than or equal this. This is roughly cosine(89.0 degrees). */
+
+#define DOUBLE_THRESH_VECTOR_NORMALIZED			(0.01)		/** Allowed error for a normalized vector (against squared magnitude) */
+#define DOUBLE_THRESH_QUAT_NORMALIZED			(0.01)		/** Allowed error for a normalized quaternion (against squared magnitude) */
 
 /*-----------------------------------------------------------------------------
 	Global functions.
@@ -146,10 +187,21 @@ struct FMath : public FPlatformMath
 		return FRandRange(InMin, InMax);
 	}
 
+	static FORCEINLINE double RandRange(double InMin, double InMax)
+	{
+		return FRandRange(InMin, InMax);
+	}
+
 	/** Util to generate a random number in a range. */
 	static FORCEINLINE float FRandRange(float InMin, float InMax)
 	{
 		return InMin + (InMax - InMin) * FRand();
+	}
+
+	/** Util to generate a random number in a range. */
+	static FORCEINLINE double FRandRange(double InMin, double InMax)
+	{
+		return InMin + (InMax - InMin) * FRand();	// LWC_TODO: Implement FRandDbl() for increased precision
 	}
 
 	/** Util to generate a random boolean. */
@@ -413,6 +465,11 @@ public:
 	{
 		return X<Min ? Min : X<Max ? X : Max;
 	}
+	// LWC_TODO: Simplify code refactoring to avoid double/float mismatches. Should not ship? UE_DEPRECATED warning?
+	UE_NODISCARD static FORCEINLINE double Clamp(const double X, const float Min, const float Max)
+	{
+		return X < Min ? Min : X < Max ? X : Max;
+	}
 
 	/** Wraps X to be between Min and Max, inclusive */
 	template< class T >
@@ -499,22 +556,23 @@ public:
 	* @param ScalarCos	Pointer to where the Cos result should be stored
 	* @param Value  input angles 
 	*/
-	static FORCEINLINE void SinCos( float* ScalarSin, float* ScalarCos, float  Value )
+	template<typename T, TEMPLATE_REQUIRES(TIsFloatingPoint<T>::Value)>
+	static FORCEINLINE void SinCos(typename TDecay<T>::Type* ScalarSin, typename TDecay<T>::Type* ScalarCos, T  Value )
 	{
 		// Map Value to y in [-pi,pi], x = 2*pi*quotient + remainder.
-		float quotient = (INV_PI*0.5f)*Value;
+		T quotient = (INV_PI*0.5f)*Value;
 		if (Value >= 0.0f)
 		{
-			quotient = (float)((int)(quotient + 0.5f));
+			quotient = (T)((int64)(quotient + 0.5f));
 		}
 		else
 		{
-			quotient = (float)((int)(quotient - 0.5f));
+			quotient = (T)((int64)(quotient - 0.5f));
 		}
-		float y = Value - (2.0f*PI)*quotient;
+		T y = Value - (2.0f*PI)*quotient;
 
 		// Map y to [-pi/2,pi/2] with sin(y) = sin(Value).
-		float sign;
+		T sign;
 		if (y > HALF_PI)
 		{
 			y = PI - y;
@@ -530,13 +588,13 @@ public:
 			sign = +1.0f;
 		}
 
-		float y2 = y * y;
+		T y2 = y * y;
 
 		// 11-degree minimax approximation
 		*ScalarSin = ( ( ( ( (-2.3889859e-08f * y2 + 2.7525562e-06f) * y2 - 0.00019840874f ) * y2 + 0.0083333310f ) * y2 - 0.16666667f ) * y2 + 1.0f ) * y;
 
 		// 10-degree minimax approximation
-		float p = ( ( ( ( -2.6051615e-07f * y2 + 2.4760495e-05f ) * y2 - 0.0013888378f ) * y2 + 0.041666638f ) * y2 - 0.5f ) * y2 + 1.0f;
+		T p = ( ( ( ( -2.6051615e-07f * y2 + 2.4760495e-05f ) * y2 - 0.0013888378f ) * y2 + 0.041666638f ) * y2 - 0.5f ) * y2 + 1.0f;
 		*ScalarCos = sign*p;
 	}
 
@@ -697,6 +755,7 @@ public:
 	 * @param	Angle1	The second angle that we may wind relative to the first.
 	 */
 	static CORE_API void WindRelativeAnglesDegrees(float InAngle0, float& InOutAngle1);
+	static CORE_API void WindRelativeAnglesDegrees(double InAngle0, double& InOutAngle1);
 
 	/** Returns a new rotation component value
 	 *
@@ -718,7 +777,8 @@ public:
 	static FORCEINLINE void CartesianToPolar(const FVector2D InCart, FVector2D& OutPolar);
 
 	/** Converts given Polar coordinate pair to Cartesian coordinate system. */
-	static FORCEINLINE void PolarToCartesian(const float Rad, const float Ang, float& OutX, float& OutY)
+	template<typename T>
+	static FORCEINLINE void PolarToCartesian(const T Rad, const T Ang, T& OutX, T& OutY)
 	{
 		OutX = Rad * Cos(Ang);
 		OutY = Rad * Sin(Ang);
@@ -1135,6 +1195,12 @@ public:
 
 	/** Interpolate double from Current to Target. Scaled by distance to Target, so it has a strong start speed and ease out. */
 	static CORE_API double FInterpTo(double Current, double Target, double DeltaTime, double InterpSpeed);
+	
+	/** Overload to resolve type ambiguity */
+	static FORCEINLINE double FInterpTo(double Current, double Target, float DeltaTime, double InterpSpeed)
+	{
+		return FInterpTo(Current, Target, (double)DeltaTime, InterpSpeed);
+	}
 
 	/** Interpolate Linear Color from Current to Target. Scaled by distance to Target, so it has a strong start speed and ease out. */
 	static CORE_API FLinearColor CInterpTo(const FLinearColor& Current, const FLinearColor& Target, float DeltaTime, float InterpSpeed);
@@ -1450,7 +1516,8 @@ public:
 	 *
 	 * @return The point of intersection between the ray and the plane.
 	 */
-	static FVector RayPlaneIntersection( const FVector& RayOrigin, const FVector& RayDirection, const FPlane& Plane );
+	template<typename FReal>
+	static UE::Math::TVector<FReal> RayPlaneIntersection(const UE::Math::TVector<FReal>& RayOrigin, const UE::Math::TVector<FReal>& RayDirection, const UE::Math::TPlane<FReal>& Plane);
 
 	/**
 	 * Find the intersection of a line and an offset plane. Assumes that the
@@ -1464,7 +1531,8 @@ public:
 	 *
 	 * @return The point of intersection between the line and the plane.
 	 */
-	static FVector LinePlaneIntersection( const FVector &Point1, const FVector &Point2, const FVector &PlaneOrigin, const FVector &PlaneNormal);
+	template<typename FReal>
+	static UE::Math::TVector<FReal> LinePlaneIntersection(const UE::Math::TVector<FReal>& Point1, const UE::Math::TVector<FReal>& Point2, const UE::Math::TVector<FReal>& PlaneOrigin, const UE::Math::TVector<FReal>& PlaneNormal);
 
 	/**
 	 * Find the intersection of a line and a plane. Assumes that the line and
@@ -1477,7 +1545,8 @@ public:
 	 *
 	 * @return The point of intersection between the line and the plane.
 	 */
-	static FVector LinePlaneIntersection( const FVector &Point1, const FVector &Point2, const FPlane  &Plane);
+	template<typename FReal>
+	static UE::Math::TVector<FReal> LinePlaneIntersection(const UE::Math::TVector<FReal>& Point1, const UE::Math::TVector<FReal>& Point2, const UE::Math::TPlane<FReal>& Plane);
 
 
 	// @parma InOutScissorRect should be set to View.ViewRect before the call
@@ -1542,7 +1611,8 @@ public:
 	static CORE_API bool LineExtentBoxIntersection(const FBox& inBox, const FVector& Start, const FVector& End, const FVector& Extent, FVector& HitLocation, FVector& HitNormal, float& HitTime);
 
 	/** Determines whether a line intersects a sphere. */
-	static bool LineSphereIntersection(const FVector& Start,const FVector& Dir,float Length,const FVector& Origin,float Radius);
+	template<typename FReal>
+	static bool LineSphereIntersection(const UE::Math::TVector<FReal>& Start,const UE::Math::TVector<FReal>& Dir, FReal Length,const UE::Math::TVector<FReal>& Origin, FReal Radius);
 
 	/**
 	 * Assumes the cone tip is at 0,0,0 (means the SphereCenter is relative to the cone tip)
@@ -1557,13 +1627,15 @@ public:
 	static CORE_API FVector ClosestPointOnInfiniteLine(const FVector& LineStart, const FVector& LineEnd, const FVector& Point);
 
 	/** Compute intersection point of three planes. Return 1 if valid, 0 if infinite. */
-	static bool IntersectPlanes3( FVector& I, const FPlane& P1, const FPlane& P2, const FPlane& P3 );
+	template<typename FReal>
+	static bool IntersectPlanes3(UE::Math::TVector<FReal>& I, const UE::Math::TPlane<FReal>& P1, const UE::Math::TPlane<FReal>& P2, const UE::Math::TPlane<FReal>& P3 );
 
 	/**
 	 * Compute intersection point and direction of line joining two planes.
 	 * Return 1 if valid, 0 if infinite.
 	 */
-	static bool IntersectPlanes2( FVector& I, FVector& D, const FPlane& P1, const FPlane& P2 );
+	template<typename FReal>
+	static bool IntersectPlanes2(UE::Math::TVector<FReal>& I, UE::Math::TVector<FReal>& D, const UE::Math::TPlane<FReal>& P1, const UE::Math::TPlane<FReal>& P2);
 
 	/**
 	 * Calculates the distance of a given Point in world space to a given line,
@@ -1944,44 +2016,20 @@ public:
 	 *
 	 * @return Smoothed value between 0 and 1
 	 */
-	static float SmoothStep(float A, float B, float X)
+	template<typename T>
+	static T SmoothStep(T A, T B, T X)
 	{
 		if (X < A)
 		{
-			return 0.0f;
+			return 0;
 		}
 		else if (X >= B)
 		{
-			return 1.0f;
+			return 1;
 		}
-		const float InterpFraction = (X - A) / (B - A);
+		const T InterpFraction = (X - A) / (B - A);
 		return InterpFraction * InterpFraction * (3.0f - 2.0f * InterpFraction);
 	}
-
-	/** 
-	 * Returns a smooth Hermite interpolation between 0 and 1 for the value X (where X ranges between A and B)
-	 * Clamped to 0 for X <= A and 1 for X >= B.
-	 *
-	 * @param A Minimum value of X
-	 * @param B Maximum value of X
-	 * @param X Parameter
-	 *
-	 * @return Smoothed value between 0 and 1
-	 */
-	static double SmoothStep(double A, double B, double X)
-	{
-		if (X < A)
-		{
-			return 0.0;
-		}
-		else if (X >= B)
-		{
-			return 1.0;
-		}
-		const double InterpFraction = (X - A) / (B - A);
-		return InterpFraction * InterpFraction * (3.0 - 2.0 * InterpFraction);
-	}
-
 
 	/**
 	 * Get a bit in memory created from bitflags (uint32 Value:1), used for EngineShowFlags,
@@ -2100,10 +2148,11 @@ public:
 	 *
 	 * @return the next value in the series
 	 */
-	static CORE_API inline float WeightedMovingAverage(float CurrentSample, float PreviousSample, float Weight)
+	template<typename T>
+	static inline T WeightedMovingAverage(T CurrentSample, T PreviousSample, T Weight)
 	{
-		Weight = Clamp<float>(Weight, 0.f, 1.f);
-		float WAvg = (CurrentSample * Weight) + (PreviousSample * (1.f - Weight));
+		Weight = Clamp<T>(Weight, 0.f, 1.f);
+		T WAvg = (CurrentSample * Weight) + (PreviousSample * (1.f - Weight));
 		return WAvg;
 	}
 
@@ -2120,59 +2169,17 @@ public:
 	 *
 	 * @return the next value in the series
 	 */
-	static CORE_API inline float DynamicWeightedMovingAverage(float CurrentSample, float PreviousSample, float MaxDistance, float MinWeight, float MaxWeight)
+	template<typename T>
+	static  inline T DynamicWeightedMovingAverage(T CurrentSample, T PreviousSample, T MaxDistance, T MinWeight, T MaxWeight)
 	{
 		// We need the distance between samples to determine how much of each weight to use
-		const float Distance = Abs<float>(CurrentSample - PreviousSample);
-		float Weight = MinWeight;
+		const T Distance = Abs<T>(CurrentSample - PreviousSample);
+		T Weight = MinWeight;
 		if (MaxDistance > 0)
 		{
 			// Figure out the lerp value to use between the min/max weights
-			const float LerpAlpha = Clamp<float>(Distance / MaxDistance, 0.f, 1.f);
-			Weight = Lerp<float>(MinWeight, MaxWeight, LerpAlpha);
-		}
-		return WeightedMovingAverage(CurrentSample, PreviousSample, Weight);
-	}
-
-	/**
-	 * Calculates the new value in a weighted moving average series using the previous value and the weight
-	 *
-	 * @param CurrentSample - The value to blend with the previous sample to get a new weighted value
-	 * @param PreviousSample - The last value from the series
-	 * @param Weight - The weight to blend with
-	 *
-	 * @return the next value in the series
-	 */
-	static CORE_API inline double WeightedMovingAverage(double CurrentSample, double PreviousSample, double Weight)
-	{
-		Weight = Clamp<double>(Weight, 0.0, 1.0);
-		double WAvg = (CurrentSample * Weight) + (PreviousSample * (1.0 - Weight));
-		return WAvg;
-	}
-
-	/**
-	 * Calculates the new value in a weighted moving average series using the previous value and a weight range.
-	 * The weight range is used to dynamically adjust based upon distance between the samples
-	 * This allows you to smooth a value more aggressively for small noise and let large movements be smoothed less (or vice versa)
-	 *
-	 * @param CurrentSample - The value to blend with the previous sample to get a new weighted value
-	 * @param PreviousSample - The last value from the series
-	 * @param MaxDistance - Distance to use as the blend between min weight or max weight
-	 * @param MinWeight - The weight use when the distance is small
-	 * @param MaxWeight - The weight use when the distance is large
-	 *
-	 * @return the next value in the series
-	 */
-	static CORE_API inline double DynamicWeightedMovingAverage(double CurrentSample, double PreviousSample, double MaxDistance, double MinWeight, double MaxWeight)
-	{
-		// We need the distance between samples to determine how much of each weight to use
-		const double Distance = Abs<double>(CurrentSample - PreviousSample);
-		double Weight = MinWeight;
-		if (MaxDistance > 0)
-		{
-			// Figure out the lerp value to use between the min/max weights
-			const double LerpAlpha = Clamp<double>(Distance / MaxDistance, 0.0, 1.0);
-			Weight = Lerp<double>(MinWeight, MaxWeight, LerpAlpha);
+			const T LerpAlpha = Clamp<T>(Distance / MaxDistance, 0.f, 1.f);
+			Weight = Lerp<T>(MinWeight, MaxWeight, LerpAlpha);
 		}
 		return WeightedMovingAverage(CurrentSample, PreviousSample, Weight);
 	}
@@ -2181,10 +2188,64 @@ public:
 	// A call is considered ambiguous if it passes no float types, any long double, or multiple mismatched float/double types.
 	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
 	static FORCEINLINE float Log2(T&& Value) { return Log2((float)Value); }
+	//template<typename T1, typename T2, typename T3, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2, T3>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
+	//static FORCEINLINE bool IsNearlyEqual(T1 A, T2 B, T3 ErrorTolerance = SMALL_NUMBER) { return IsNearlyEqual((float)A, (float)B, (float)ErrorTolerance); }
+	//template<typename T1, typename T2, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
+	//static FORCEINLINE bool IsNearlyEqualByULP(T1 A, T2 B, int32 MaxUlps = 4) { return IsNearlyEqualByULP((float)A, (float)B, MaxUlps); }
+	//template<typename T1, typename T2, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
+	//static FORCEINLINE bool IsNearlyZero(T1 Value, T2 ErrorTolerance = SMALL_NUMBER) { return IsNearlyZero((float)Value, (float)ErrorTolerance); }
+	template<typename T1, typename T2, typename T3, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2, T3>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
+	static FORCEINLINE void PolarToCartesian(const T1 Rad, const T2 Ang, T3& OutX, T3& OutY) { float OX, OY; PolarToCartesian((float)Rad, (float)Ang, OX, OY); OutX = OX; OutY = OY; }
+
 	template<typename T1, typename T2, typename T3, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2, T3>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
 	static FORCEINLINE float SmoothStep(T1&& A, T2&& B, T3&& C) { return SmoothStep((float)A, (float)B, (float)C); }
 	template<typename T1, typename T2, typename T3, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2, T3>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
 	static FORCEINLINE float WeightedMovingAverage(T1&& CurrentSample, T2&& PreviousSample, T3&& Weight) { return WeightedMovingAverage((float)CurrentSample, (float)PreviousSample, (float)Weight); }
 	template<typename T1, typename T2, typename T3, typename T4, typename T5, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2, T3, T4, T5>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
 	static FORCEINLINE float DynamicWeightedMovingAverage(T1&& CurrentSample, T2&& PreviousSample, T3&& MaxDistance, T4&& MinWeight, T5&& MaxWeight) { return DynamicWeightedMovingAverage((float)CurrentSample, (float)PreviousSample, (float)MaxDistance, (float)MinWeight, (float)MaxWeight); }
+
+	template<typename T1, typename T2, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
+	static FORCEINLINE float FRandRange(T1&& A, T2&& B) { return FRandRange((float)A, (float)B); }
+
+	// Catch LWC type mismatch issues. TODO: Too verbose
+	UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
+	static FORCEINLINE float GridSnap(float Location, double Grid) { return GridSnap(Location, (float)Grid); }
+	UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
+	static FORCEINLINE float GridSnap(double Location, float Grid) { return GridSnap((float)Location, Grid); }
 };
+
+// LWC Conversion helpers - LWC_TODO: These are temporary and should be removed for UE5.0 final.
+namespace LWC
+{
+
+
+// Convert array via constructor (for float -> double conversions)
+template<typename TDest, typename TSrc, typename InAllocatorType>
+TArray<TDest, InAllocatorType> PromoteArrayType(const TArray<TSrc, InAllocatorType>& From)
+{
+	//static_assert(!std::is_same<TDest, TSrc>::value, "Redundant call to PromoteArrayType");	// Unavoidable if supporting LWC toggle, but a useful check once LWC is locked to enabled.
+	TArray<TDest, InAllocatorType> Converted;
+	Converted.Reserve(From.Num());
+	for (const TSrc& Item : From)
+	{
+		Converted.Add(Item);
+	}
+	return Converted;
+}
+
+
+// Convert array via ToFloatType converter (For double -> float conversions)
+template<typename TDest, typename TSrc, typename InAllocatorType>
+TArray<TDest, InAllocatorType> DemoteArrayType(const TArray<TSrc, InAllocatorType>& From)
+{
+	//static_assert(!std::is_same<TDest, TSrc>::value, "Redundant call to DemoteArrayType");	// Unavoidable if supporting LWC toggle, but a useful check once LWC is locked to enabled.
+	TArray<TDest, InAllocatorType> Converted;
+	Converted.Reserve(From.Num());
+	for (const TSrc& Item : From)
+	{
+		Converted.Add(static_cast<TDest>(Item));
+	}
+	return Converted;
+}
+
+}

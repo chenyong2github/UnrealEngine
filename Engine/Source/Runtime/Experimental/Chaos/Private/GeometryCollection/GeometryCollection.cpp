@@ -52,12 +52,12 @@ void FGeometryCollection::Construct()
 	AddExternalAttribute<int32>("ExemplarIndex", FTransformCollection::TransformGroup, ExemplarIndex);
 
 	// Vertices Group
-	AddExternalAttribute<FVector>("Vertex", FGeometryCollection::VerticesGroup, Vertex);
-	AddExternalAttribute<FVector>("Normal", FGeometryCollection::VerticesGroup, Normal);
+	AddExternalAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup, Vertex);
+	AddExternalAttribute<FVector3f>("Normal", FGeometryCollection::VerticesGroup, Normal);
 	AddExternalAttribute<FVector2D>("UV", FGeometryCollection::VerticesGroup, UV);
 	AddExternalAttribute<FLinearColor>("Color", FGeometryCollection::VerticesGroup, Color);
-	AddExternalAttribute<FVector>("TangentU", FGeometryCollection::VerticesGroup, TangentU);
-	AddExternalAttribute<FVector>("TangentV", FGeometryCollection::VerticesGroup, TangentV);
+	AddExternalAttribute<FVector3f>("TangentU", FGeometryCollection::VerticesGroup, TangentU);
+	AddExternalAttribute<FVector3f>("TangentV", FGeometryCollection::VerticesGroup, TangentV);
 	AddExternalAttribute<int32>("BoneMap", FGeometryCollection::VerticesGroup, BoneMap, TransformDependency);
 
 	// Faces Group
@@ -116,12 +116,12 @@ int32 FGeometryCollection::AppendGeometry(const FGeometryCollection & Element, i
 	check(Element.NumElements(FGeometryCollection::VerticesGroup) > 0);
 
 	int NumNewVertices = Element.NumElements(FGeometryCollection::VerticesGroup);
-	const TManagedArray<FVector>& ElementVertices = Element.Vertex;
-	const TManagedArray<FVector>& ElementNormals = Element.Normal;
+	const TManagedArray<FVector3f>& ElementVertices = Element.Vertex;
+	const TManagedArray<FVector3f>& ElementNormals = Element.Normal;
 	const TManagedArray<FVector2D>& ElementUVs = Element.UV;
 	const TManagedArray<FLinearColor>& ElementColors = Element.Color;
-	const TManagedArray<FVector>& ElementTangentUs = Element.TangentU;
-	const TManagedArray<FVector>& ElementTangentVs = Element.TangentV;
+	const TManagedArray<FVector3f>& ElementTangentUs = Element.TangentU;
+	const TManagedArray<FVector3f>& ElementTangentVs = Element.TangentV;
 	const TManagedArray<int32>& ElementBoneMap = Element.BoneMap;
 
 	const TManagedArray<FIntVector>& ElementIndices = Element.Indices;
@@ -160,12 +160,12 @@ int32 FGeometryCollection::AppendGeometry(const FGeometryCollection & Element, i
 
 	int NumVertices = NumElements(FGeometryCollection::VerticesGroup);
 	int VerticesIndex = AddElements(NumNewVertices, FGeometryCollection::VerticesGroup);
-	TManagedArray<FVector>& Vertices = Vertex;
-	TManagedArray<FVector>& Normals = Normal;
+	TManagedArray<FVector3f>& Vertices = Vertex;
+	TManagedArray<FVector3f>& Normals = Normal;
 	TManagedArray<FVector2D>& UVs = UV;
 	TManagedArray<FLinearColor>& Colors = Color;
-	TManagedArray<FVector>& TangentUs = TangentU;
-	TManagedArray<FVector>& TangentVs = TangentV;
+	TManagedArray<FVector3f>& TangentUs = TangentU;
+	TManagedArray<FVector3f>& TangentVs = TangentV;
 	TManagedArray<int32>& BoneMaps = BoneMap;
 	TManagedArray<FIntVector>& FaceIndices = Indices;
 
@@ -235,7 +235,7 @@ int32 FGeometryCollection::AppendGeometry(const FGeometryCollection & Element, i
 
 		// Find average particle
 		// @todo (CenterOfMass) : This need to be the center of mass instead
-		FVector Center(0);
+		FVector3f Center(0);
 		for (int vdx = VerticesIndex; vdx <  VerticesIndex + NumNewVertices; vdx++)
 		{
 			Center += Vertices[vdx];
@@ -265,7 +265,7 @@ int32 FGeometryCollection::AppendGeometry(const FGeometryCollection & Element, i
 			// Inner/Outer centroid
 			for (int fdx = IndicesIndex; fdx < IndicesIndex+NumNewIndices; fdx++)
 			{
-				FVector Centroid(0);
+				FVector3f Centroid(0);
 				for (int e = 0; e < 3; e++)
 				{
 					Centroid += Vertices[FaceIndices[fdx][e]];
@@ -283,7 +283,7 @@ int32 FGeometryCollection::AppendGeometry(const FGeometryCollection & Element, i
 				for (int e = 0; e < 3; e++)
 				{
 					int i = e, j = (e + 1) % 3;
-					FVector Edge = Vertices[FaceIndices[fdx][i]] + 0.5*(Vertices[FaceIndices[fdx][j]] - Vertices[FaceIndices[fdx][i]]);
+					FVector3f Edge = Vertices[FaceIndices[fdx][i]] + 0.5*(Vertices[FaceIndices[fdx][j]] - Vertices[FaceIndices[fdx][i]]);
 					float Delta = (Center - Edge).Size();
 					InnerR[GeometryIndex] = FMath::Min(InnerR[GeometryIndex], Delta);
 					OuterR[GeometryIndex] = FMath::Max(OuterR[GeometryIndex], Delta);
@@ -1155,10 +1155,10 @@ FGeometryCollection* FGeometryCollection::NewGeometryCollection(const TArray<flo
 	int NumNewParticles = 1; // 1 particle for this geometry structure
 	int ParticlesIndex = RestCollection->AddElements(NumNewParticles, FGeometryCollection::TransformGroup);
 
-	TManagedArray<FVector>& Vertices = RestCollection->Vertex;
-	TManagedArray<FVector>&  Normals = RestCollection->Normal;
-	TManagedArray<FVector>&  TangentU = RestCollection->TangentU;
-	TManagedArray<FVector>&  TangentV = RestCollection->TangentV;
+	TManagedArray<FVector3f>& Vertices = RestCollection->Vertex;
+	TManagedArray<FVector3f>&  Normals = RestCollection->Normal;
+	TManagedArray<FVector3f>&  TangentU = RestCollection->TangentU;
+	TManagedArray<FVector3f>&  TangentV = RestCollection->TangentV;
 	TManagedArray<FVector2D>&  UVs = RestCollection->UV;
 	TManagedArray<FLinearColor>&  Colors = RestCollection->Color;
 	TManagedArray<FIntVector>&  Indices = RestCollection->Indices;
@@ -1168,10 +1168,10 @@ FGeometryCollection* FGeometryCollection::NewGeometryCollection(const TArray<flo
 	TManagedArray<FTransform>&  Transform = RestCollection->Transform;
 
 	// set the vertex information
-	FVector TempVertices(0.f, 0.f, 0.f);
+	FVector3f TempVertices(0.f, 0.f, 0.f);
 	for (int32 Idx = 0; Idx < NumNewVertices; ++Idx)
 	{
-		Vertices[Idx] = FVector(RawVertexArray[3 * Idx], RawVertexArray[3 * Idx + 1], RawVertexArray[3 * Idx + 2]);
+		Vertices[Idx] = FVector3f(RawVertexArray[3 * Idx], RawVertexArray[3 * Idx + 1], RawVertexArray[3 * Idx + 2]);
 		TempVertices += Vertices[Idx];
 
 		UVs[Idx] = FVector2D(0, 0);
@@ -1184,7 +1184,7 @@ FGeometryCollection* FGeometryCollection::NewGeometryCollection(const TArray<flo
 	Transform[0].NormalizeRotation();
 
 	// set the index information
-	TArray<FVector> FaceNormals;
+	TArray<FVector3f> FaceNormals;
 	FaceNormals.SetNum(NumNewIndices);
 	for (int32 Idx = 0; Idx < NumNewIndices; ++Idx)
 	{
@@ -1207,17 +1207,17 @@ FGeometryCollection* FGeometryCollection::NewGeometryCollection(const TArray<flo
 		MaterialID[Idx] = 0;
 		MaterialIndex[Idx] = Idx;
 
-		const FVector Edge1 = Vertices[VertexIdx1] - Vertices[VertexIdx2];
-		const FVector Edge2 = Vertices[VertexIdx1] - Vertices[VertexIdx3];
+		const FVector3f Edge1 = Vertices[VertexIdx1] - Vertices[VertexIdx2];
+		const FVector3f Edge2 = Vertices[VertexIdx1] - Vertices[VertexIdx3];
 		FaceNormals[Idx] = (Edge2 ^ Edge1).GetSafeNormal();
 	}
 
 	// Compute vertexNormals
-	TArray<FVector> VertexNormals;
+	TArray<FVector3f> VertexNormals;
 	VertexNormals.SetNum(NumNewVertices);
 	for (int32 Idx = 0; Idx < NumNewVertices; ++Idx)
 	{
-		VertexNormals[Idx] = FVector(0.f, 0.f, 0.f);
+		VertexNormals[Idx] = FVector3f(0.f, 0.f, 0.f);
 	}
 
 	for (int32 Idx = 0; Idx < NumNewIndices; ++Idx)
@@ -1237,8 +1237,8 @@ FGeometryCollection* FGeometryCollection::NewGeometryCollection(const TArray<flo
 		FIntVector Tri = Indices[IndexIdx];
 		for (int idx = 0; idx < 3; idx++)
 		{
-			const FVector Normal = Normals[Tri[idx]];
-			const FVector Edge = (Vertices[Tri[(idx + 1) % 3]] - Vertices[Tri[idx]]);
+			const FVector3f Normal = Normals[Tri[idx]];
+			const FVector3f Edge = (Vertices[Tri[(idx + 1) % 3]] - Vertices[Tri[idx]]);
 			TangentU[Tri[idx]] = (Edge ^ Normal).GetSafeNormal();
 			TangentV[Tri[idx]] = (Normal ^ TangentU[Tri[idx]]).GetSafeNormal();
 		}
@@ -1289,7 +1289,7 @@ void FGeometryCollection::WriteDataToHeaderFile(const FString &Name, const FStri
 	DataFile << "const TArray<float> " << TCHAR_TO_UTF8(*Name) << "::RawVertexArray = {" << endl;
 
 	int32 NumVertices = NumElements(FGeometryCollection::VerticesGroup);
-	const TManagedArray<FVector>& VertexArray = Vertex;
+	const TManagedArray<FVector3f>& VertexArray = Vertex;
 	for (int32 IdxVertex = 0; IdxVertex < NumVertices; ++IdxVertex)
 	{
 		DataFile << "                                                    " <<
@@ -1326,8 +1326,8 @@ void FGeometryCollection::WriteDataToHeaderFile(const FString &Name, const FStri
 	for (int32 IdxTransform = 0; IdxTransform < NumTransforms; ++IdxTransform)
 	{
 		FQuat Rotation = TransformArray[IdxTransform].GetRotation();
-		FVector Translation = TransformArray[IdxTransform].GetTranslation();
-		FVector Scale3D = TransformArray[IdxTransform].GetScale3D();
+		FVector3f Translation = TransformArray[IdxTransform].GetTranslation();
+		FVector3f Scale3D = TransformArray[IdxTransform].GetScale3D();
 
 		DataFile << "   FTransform(FQuat(" <<
 			Rotation.X << ", " <<
@@ -1372,13 +1372,13 @@ void FGeometryCollection::WriteDataToOBJFile(const FString &Name, const FString 
 	TArray<FTransform> GlobalTransformArray;
 	GeometryCollectionAlgo::GlobalMatrices(Transform, Parent, GlobalTransformArray);
 
-	TArray<FVector> VertexInWorldArray;
+	TArray<FVector3f> VertexInWorldArray;
 	VertexInWorldArray.SetNum(NumVertices);
 
 	for (int32 IdxVertex = 0; IdxVertex < NumVertices; ++IdxVertex)
 	{
 		FTransform LocalTransform = GlobalTransformArray[BoneMap[IdxVertex]];
-		FVector VertexInWorld = LocalTransform.TransformPosition(Vertex[IdxVertex]);
+		FVector3f VertexInWorld = LocalTransform.TransformPosition(Vertex[IdxVertex]);
 
 		VertexInWorldArray[IdxVertex] = VertexInWorld;
 	}
@@ -1469,10 +1469,10 @@ FGeometryCollection* FGeometryCollection::NewGeometryCollection(const TArray<flo
 	int NumNewIndices = RawIndicesArray.Num() / 3;
 	int IndicesIndex = RestCollection->AddElements(NumNewIndices, FGeometryCollection::FacesGroup);
 
-	TManagedArray<FVector>& Vertices = RestCollection->Vertex;
-	TManagedArray<FVector>&  Normals = RestCollection->Normal;
-	TManagedArray<FVector>&  TangentU = RestCollection->TangentU;
-	TManagedArray<FVector>&  TangentV = RestCollection->TangentV;
+	TManagedArray<FVector3f>& Vertices = RestCollection->Vertex;
+	TManagedArray<FVector3f>&  Normals = RestCollection->Normal;
+	TManagedArray<FVector3f>&  TangentU = RestCollection->TangentU;
+	TManagedArray<FVector3f>&  TangentV = RestCollection->TangentV;
 	TManagedArray<FVector2D>&  UVs = RestCollection->UV;
 	TManagedArray<FLinearColor>&  Colors = RestCollection->Color;
 	TManagedArray<int32>& BoneMap = RestCollection->BoneMap;
@@ -1490,7 +1490,7 @@ FGeometryCollection* FGeometryCollection::NewGeometryCollection(const TArray<flo
 	// set the vertex information
 	for (int32 Idx = 0; Idx < NumNewVertices; ++Idx)
 	{
-		Vertices[Idx] = FVector(RawVertexArray[3 * Idx], RawVertexArray[3 * Idx + 1], RawVertexArray[3 * Idx + 2]);
+		Vertices[Idx] = FVector3f(RawVertexArray[3 * Idx], RawVertexArray[3 * Idx + 1], RawVertexArray[3 * Idx + 2]);
 		BoneMap[Idx] = RawBoneMapArray[Idx];
 
 		UVs[Idx] = FVector2D(0, 0);
@@ -1525,7 +1525,7 @@ FGeometryCollection* FGeometryCollection::NewGeometryCollection(const TArray<flo
 	}
 
 	// set the index information
-	TArray<FVector> FaceNormals;
+	TArray<FVector3f> FaceNormals;
 	FaceNormals.SetNum(NumNewIndices);
 	for (int32 Idx = 0; Idx < NumNewIndices; ++Idx)
 	{
@@ -1539,17 +1539,17 @@ FGeometryCollection* FGeometryCollection::NewGeometryCollection(const TArray<flo
 		MaterialID[Idx] = 0;
 		MaterialIndex[Idx] = Idx;
 
-		const FVector Edge1 = Vertices[VertexIdx1] - Vertices[VertexIdx2];
-		const FVector Edge2 = Vertices[VertexIdx1] - Vertices[VertexIdx3];
+		const FVector3f Edge1 = Vertices[VertexIdx1] - Vertices[VertexIdx2];
+		const FVector3f Edge2 = Vertices[VertexIdx1] - Vertices[VertexIdx3];
 		FaceNormals[Idx] = (Edge2 ^ Edge1).GetSafeNormal();
 	}
 
 	// Compute vertexNormals
-	TArray<FVector> VertexNormals;
+	TArray<FVector3f> VertexNormals;
 	VertexNormals.SetNum(NumNewVertices);
 	for (int32 Idx = 0; Idx < NumNewVertices; ++Idx)
 	{
-		VertexNormals[Idx] = FVector(0.f, 0.f, 0.f);
+		VertexNormals[Idx] = FVector3f(0.f, 0.f, 0.f);
 	}
 
 	for (int32 Idx = 0; Idx < NumNewIndices; ++Idx)
@@ -1569,8 +1569,8 @@ FGeometryCollection* FGeometryCollection::NewGeometryCollection(const TArray<flo
 		FIntVector Tri = Indices[IndexIdx];
 		for (int idx = 0; idx < 3; idx++)
 		{
-			const FVector Normal = Normals[Tri[idx]];
-			const FVector Edge = (Vertices[Tri[(idx + 1) % 3]] - Vertices[Tri[idx]]);
+			const FVector3f Normal = Normals[Tri[idx]];
+			const FVector3f Edge = (Vertices[Tri[(idx + 1) % 3]] - Vertices[Tri[idx]]);
 			TangentU[Tri[idx]] = (Edge ^ Normal).GetSafeNormal();
 			TangentV[Tri[idx]] = (Normal ^ TangentU[Tri[idx]]).GetSafeNormal();
 		}

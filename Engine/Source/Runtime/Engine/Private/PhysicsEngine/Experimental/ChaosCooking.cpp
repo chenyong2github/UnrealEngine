@@ -23,7 +23,7 @@ namespace Chaos
 				return nullptr;
 			}
 
-			TArray<FVector> FinalVerts = Desc.Vertices;
+			TArray<FVector3f> FinalVerts = Desc.Vertices;
 
 			// Push indices into one flat array
 			TArray<int32> FinalIndices;
@@ -195,7 +195,7 @@ namespace Chaos
 				return;
 			}
 
-			TArray<FVector> FinalVerts = InParams.TriangleMeshDesc.Vertices;
+			TArray<FVector3f> FinalVerts = InParams.TriangleMeshDesc.Vertices;
 
 			// Push indices into one flat array
 			TArray<int32> FinalIndices;

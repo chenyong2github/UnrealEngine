@@ -39,7 +39,7 @@ namespace GeometryCollectionTest
 		EXPECT_FVECTOR_NEAR(Rot0, FVector(0, 0, 90), 0.0001);
 
 		FVector Rot1 = GlobalTransform[1].GetRotation().Euler();
-		EXPECT_FVECTOR_NEAR(Rot1, FVector(0, 0, -180), 0.0001);
+		EXPECT_TRUE(Rot1.Equals(FVector(0, 0, -180), 0.0001) || Rot1.Equals(FVector(0, 0, 180), 0.0001));
 
 		FVector Rot2 = GlobalTransform[2].GetRotation().Euler();
 		EXPECT_FVECTOR_NEAR(Rot2, FVector(0, 0, -90), 0.0001);
@@ -58,7 +58,8 @@ namespace GeometryCollectionTest
 		EXPECT_FVECTOR_NEAR(Frame.GetTranslation(), FVector(-10, 0, 0), 0.0001);
 
 		Frame = GeometryCollectionAlgo::GlobalMatrix(Collection->Transform, Collection->Parent, 1);
-		EXPECT_FVECTOR_NEAR(Frame.GetRotation().Euler(), FVector(0, 0, -180), 0.0001);
+		FVector FrameRot = Frame.GetRotation().Euler();
+		EXPECT_TRUE(FrameRot.Equals(FVector(0, 0, -180), 0.0001) || FrameRot.Equals(FVector(0, 0, 180), 0.0001));
 		EXPECT_FVECTOR_NEAR(Frame.GetTranslation(), FVector(-10, 10, 0), 0.0001);
 	}
 
@@ -91,7 +92,7 @@ namespace GeometryCollectionTest
 		EXPECT_FVECTOR_NEAR(Rot0, FVector(0, 0, 90), 0.0001);
 
 		FVector Rot1 = GlobalTransform[1].GetRotation().Euler();
-		EXPECT_FVECTOR_NEAR(Rot1, FVector(0, 0, -180), 0.0001);
+		EXPECT_TRUE(Rot1.Equals(FVector(0, 0, -180), 0.0001) || Rot1.Equals(FVector(0, 0, 180), 0.0001));
 
 		FVector Rot2 = GlobalTransform[2].GetRotation().Euler();
 		EXPECT_FVECTOR_NEAR(Rot2, FVector(0, 0, -90), 0.0001);

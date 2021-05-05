@@ -5,7 +5,7 @@
 #include "ScreenPass.h"
 
 BEGIN_SHADER_PARAMETER_STRUCT(FColorRemapParameters, )
-	SHADER_PARAMETER(FVector, MappingPolynomial)
+	SHADER_PARAMETER(FVector3f, MappingPolynomial)
 END_SHADER_PARAMETER_STRUCT()
 
 FColorRemapParameters GetColorRemapParameters();

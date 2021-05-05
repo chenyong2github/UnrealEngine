@@ -690,7 +690,7 @@ void FParticleBeam2EmitterInstance::UpdateBoundingBox(float DeltaTime)
 
 			bool bSkipUpdate = bJustSpawned && bSkipDoubleSpawnUpdate;
 
-			Particle->Location	+= bSkipUpdate ? FVector::ZeroVector : DeltaTime * Particle->Velocity;
+			Particle->Location	+= bSkipUpdate ? FVector3f::ZeroVector : DeltaTime * Particle->Velocity;
 			Particle->Rotation	+= bSkipUpdate ? 0.0f : DeltaTime * Particle->RotationRate;
 			Particle->OldLocation += PositionOffsetThisTick;
 			FVector Size = Particle->Size * Scale;
@@ -709,7 +709,7 @@ void FParticleBeam2EmitterInstance::UpdateBoundingBox(float DeltaTime)
 
 			// Do angular integrator, and wrap result to within +/- 2 PI
 			Particle->Rotation	 = FMath::Fmod(Particle->Rotation, 2.f*(float)PI);
-			MaxSizeScale		 = FMath::Max(MaxSizeScale, Size.GetAbsMax()); //@todo particles: this does a whole lot of compares that can be avoided using SSE/ Altivec.
+			MaxSizeScale		 = FMath::Max<float>(MaxSizeScale, Size.GetAbsMax()); //@todo particles: this does a whole lot of compares that can be avoided using SSE/ Altivec.
 		}
 		if (bUpdateBox)
 		{
@@ -774,7 +774,7 @@ void FParticleBeam2EmitterInstance::ForceUpdateBoundingBox()
 			ParticleBoundingBox += BeamData->TargetPoint + NoiseMin;
 			ParticleBoundingBox += BeamData->TargetPoint + NoiseMax;
 
-			MaxSizeScale = FMath::Max(MaxSizeScale, Size.GetAbsMax()); //@todo particles: this does a whole lot of compares that can be avoided using SSE/ Altivec.
+			MaxSizeScale = FMath::Max<FVector::FReal>(MaxSizeScale, Size.GetAbsMax()); //@todo particles: this does a whole lot of compares that can be avoided using SSE/ Altivec.
 		}
 
 		ParticleBoundingBox = ParticleBoundingBox.ExpandBy(MaxSizeScale);

@@ -1774,21 +1774,27 @@ UObject* UPolysFactory::FactoryCreateText
 		else if( FParse::Command(&Str,TEXT("ORIGIN")) )
 		{
 			GotBase=1;
-			GetFVECTOR( Str, Poly.Base );
+			FVector Base;
+			GetFVECTOR( Str, Base );
+			Poly.Base = Base;
 		}
 		else if( FParse::Command(&Str,TEXT("VERTEX")) )
 		{
 			FVector TempVertex;
 			GetFVECTOR( Str, TempVertex );
-			new(Poly.Vertices) FVector(TempVertex);
+			new(Poly.Vertices) FVector3f(TempVertex);
 		}
 		else if( FParse::Command(&Str,TEXT("TEXTUREU")) )
 		{
-			GetFVECTOR( Str, Poly.TextureU );
+			FVector TextureU;
+			GetFVECTOR( Str, TextureU );
+			Poly.TextureU = TextureU;
 		}
 		else if( FParse::Command(&Str,TEXT("TEXTUREV")) )
 		{
-			GetFVECTOR( Str, Poly.TextureV );
+			FVector TextureV;
+			GetFVECTOR(Str, TextureV);
+			Poly.TextureV = TextureV;
 		}
 		else if( GetEND(&Str,TEXT("POLYGON")) )
 		{

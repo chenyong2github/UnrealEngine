@@ -324,8 +324,8 @@ void FGeometryCacheSceneProxy::CreateMeshBatch(
 {
 	FGeometryCacheVertexFactoryUserData& UserData = UserDataWrapper.Data;
 
-	UserData.MeshExtension = FVector::OneVector;
-	UserData.MeshOrigin = FVector::ZeroVector;
+	UserData.MeshExtension = FVector3f::OneVector;
+	UserData.MeshOrigin = FVector3f::ZeroVector;
 
 	const bool bHasMotionVectors = (
 		TrackProxy->MeshData->VertexInfo.bHasMotionVectors &&
@@ -336,14 +336,14 @@ void FGeometryCacheSceneProxy::CreateMeshBatch(
 	if (!bHasMotionVectors)
 	{
 		const float PreviousPositionScale = (GFrameNumber <= UpdatedFrameNum) ? 1.f : 0.f;
-		UserData.MotionBlurDataExtension = FVector::OneVector * PreviousPositionScale;
-		UserData.MotionBlurDataOrigin = FVector::ZeroVector;
+		UserData.MotionBlurDataExtension = FVector3f::OneVector * PreviousPositionScale;
+		UserData.MotionBlurDataOrigin = FVector3f::ZeroVector;
 		UserData.MotionBlurPositionScale = 1.f - PreviousPositionScale;
 	}
 	else
 	{
-		UserData.MotionBlurDataExtension = FVector::OneVector * PlaybackSpeed * TrackProxy->SubframeInterpolationFactor;
-		UserData.MotionBlurDataOrigin = FVector::ZeroVector;
+		UserData.MotionBlurDataExtension = FVector3f::OneVector * PlaybackSpeed * TrackProxy->SubframeInterpolationFactor;
+		UserData.MotionBlurDataOrigin = FVector3f::ZeroVector;
 		UserData.MotionBlurPositionScale = 1.0f;
 	}
 
@@ -351,8 +351,8 @@ void FGeometryCacheSceneProxy::CreateMeshBatch(
 	{
 		// No vertex manipulation is allowed in the vertex shader
 		// Otherwise we need an additional compute shader pass to execute the vertex shader and dump to a staging buffer
-		check(UserData.MeshExtension == FVector::OneVector);
-		check(UserData.MeshOrigin == FVector::ZeroVector);
+		check(UserData.MeshExtension == FVector3f::OneVector);
+		check(UserData.MeshOrigin == FVector3f::ZeroVector);
 	}
 
 	UserData.PositionBuffer = &TrackProxy->PositionBuffers[TrackProxy->CurrentPositionBufferIndex % 2];
@@ -760,18 +760,18 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 				const float OneMinusInterp = 1.0 - InterpolationFactor;
 				const int32 InterpFixed = (int32)(InterpolationFactor * 255.0f);
 				const int32 OneMinusInterpFixed = 255 - InterpFixed;
-				const VectorRegister WeightA = VectorSetFloat1( OneMinusInterp );
-				const VectorRegister WeightB = VectorSetFloat1( InterpolationFactor );
-				const VectorRegister Half = VectorSetFloat1( 0.5f );
+				const VectorRegister4Float WeightA = VectorSetFloat1( OneMinusInterp );
+				const VectorRegister4Float WeightB = VectorSetFloat1( InterpolationFactor );
+				const VectorRegister4Float Half = VectorSetFloat1( 0.5f );
 
 				#define VALIDATE 0
 				{
 					check(TrackProxy->MeshData->Positions.Num() >= NumVerts);
 					check(TrackProxy->NextFrameMeshData->Positions.Num() >= NumVerts);
 					check(Scratch.InterpolatedPositions.Num() >= NumVerts);
-					const FVector* PositionAPtr = TrackProxy->MeshData->Positions.GetData();
-					const FVector* PositionBPtr = TrackProxy->NextFrameMeshData->Positions.GetData();
-					FVector* InterpolatedPositionsPtr = Scratch.InterpolatedPositions.GetData();
+					const FVector3f* PositionAPtr = TrackProxy->MeshData->Positions.GetData();
+					const FVector3f* PositionBPtr = TrackProxy->NextFrameMeshData->Positions.GetData();
+					FVector3f* InterpolatedPositionsPtr = Scratch.InterpolatedPositions.GetData();
 
 					// Unroll 4 times so we can do 4 wide SIMD
 					{
@@ -782,9 +782,9 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 						int32 Index = 0;
 						for (; Index + 3 < NumVerts; Index += 4)
 						{
-							VectorRegister Pos0xyz_Pos1x = VectorMultiplyAdd(VectorLoad(PositionAPtr4 + 0), WeightA, VectorMultiply(VectorLoad(PositionBPtr4 + 0), WeightB));
-							VectorRegister Pos1yz_Pos2xy = VectorMultiplyAdd(VectorLoad(PositionAPtr4 + 1), WeightA, VectorMultiply(VectorLoad(PositionBPtr4 + 1), WeightB));
-							VectorRegister Pos2z_Pos3xyz = VectorMultiplyAdd(VectorLoad(PositionAPtr4 + 2), WeightA, VectorMultiply(VectorLoad(PositionBPtr4 + 2), WeightB));
+							VectorRegister4Float Pos0xyz_Pos1x = VectorMultiplyAdd(VectorLoad(PositionAPtr4 + 0), WeightA, VectorMultiply(VectorLoad(PositionBPtr4 + 0), WeightB));
+							VectorRegister4Float Pos1yz_Pos2xy = VectorMultiplyAdd(VectorLoad(PositionAPtr4 + 1), WeightA, VectorMultiply(VectorLoad(PositionBPtr4 + 1), WeightB));
+							VectorRegister4Float Pos2z_Pos3xyz = VectorMultiplyAdd(VectorLoad(PositionAPtr4 + 2), WeightA, VectorMultiply(VectorLoad(PositionBPtr4 + 2), WeightB));
 							VectorStore(Pos0xyz_Pos1x, InterpolatedPositionsPtr4 + 0);
 							VectorStore(Pos1yz_Pos2xy, InterpolatedPositionsPtr4 + 1);
 							VectorStore(Pos2z_Pos3xyz, InterpolatedPositionsPtr4 + 2);
@@ -801,7 +801,7 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 #if VALIDATE
 					for (int32 Index = 0; Index < NumVerts; ++Index)
 					{
-						FVector Result = PositionAPtr[Index] * OneMinusInterp + PositionBPtr[Index] * InterpolationFactor;
+						FVector3f Result = PositionAPtr[Index] * OneMinusInterp + PositionBPtr[Index] * InterpolationFactor;
 						check(FMath::Abs(InterpolatedPositionsPtr[Index].X - Result.X) < 0.01f);
 						check(FMath::Abs(InterpolatedPositionsPtr[Index].Y - Result.Y) < 0.01f);
 						check(FMath::Abs(InterpolatedPositionsPtr[Index].Z - Result.Z) < 0.01f);
@@ -840,7 +840,7 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 
 						uint32 TangentXA = TangentXAPtr[Index].Vector.Packed ^ SignMask;
 						uint32 TangentXB = TangentXBPtr[Index].Vector.Packed ^ SignMask;
-						VectorRegister InterpolatedTangentX =	VectorMultiplyAdd(	VectorLoadByte4(&TangentXA), WeightA, 
+						VectorRegister4Float InterpolatedTangentX =	VectorMultiplyAdd(	VectorLoadByte4(&TangentXA), WeightA, 
 																VectorMultiplyAdd(	VectorLoadByte4(&TangentXB), WeightB, Half));	// +0.5f so truncation becomes round to nearest.
 						uint32 PackedInterpolatedTangentX;
 						VectorStoreByte4(InterpolatedTangentX, &PackedInterpolatedTangentX);
@@ -848,7 +848,7 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 
 						uint32 TangentZA = TangentZAPtr[Index].Vector.Packed ^ SignMask;
 						uint32 TangentZB = TangentZBPtr[Index].Vector.Packed ^ SignMask;
-						VectorRegister InterpolatedTangentZ =	VectorMultiplyAdd(	VectorLoadByte4(&TangentZA), WeightA, 
+						VectorRegister4Float InterpolatedTangentZ =	VectorMultiplyAdd(	VectorLoadByte4(&TangentZA), WeightA, 
 																VectorMultiplyAdd(	VectorLoadByte4(&TangentZB), WeightB, Half));	// +0.5f so truncation becomes round to nearest.
 						uint32 PackedInterpolatedTangentZ;
 						VectorStoreByte4(InterpolatedTangentZ, &PackedInterpolatedTangentZ);
@@ -885,7 +885,7 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 
 					for( int32 Index = 0; Index < NumVerts; ++Index )
 					{
-						VectorRegister InterpolatedColor =		VectorMultiplyAdd( VectorLoadByte4( &ColorAPtr[Index] ), WeightA,
+						VectorRegister4Float InterpolatedColor =		VectorMultiplyAdd( VectorLoadByte4( &ColorAPtr[Index] ), WeightA,
 																VectorMultiplyAdd( VectorLoadByte4( &ColorBPtr[Index] ), WeightB, Half ) );	// +0.5f so truncation becomes round to nearest.
 						VectorStoreByte4(InterpolatedColor, &InterpolatedColorsPtr[Index]);
 					}
@@ -917,9 +917,9 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 						int32 Index = 0;
 						for (; Index + 1 < NumVerts; Index += 2)
 						{
-							VectorRegister InterpolatedUVx2 = VectorMultiplyAdd(	VectorLoad(&UVAPtr[Index]), WeightA,
+							VectorRegister4Float InterpolatedUVx2 = VectorMultiplyAdd(	VectorLoad(&UVAPtr[Index]), WeightA,
 																VectorMultiply(		VectorLoad(&UVBPtr[Index]), WeightB));
-							VectorStore(InterpolatedUVx2, &InterpolatedUVsPtr[Index]);
+							VectorStore(InterpolatedUVx2, &(InterpolatedUVsPtr[Index].X));
 						}
 
 						if(Index < NumVerts)
@@ -943,9 +943,9 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 					check(TrackProxy->MeshData->MotionVectors.Num() >= NumVerts);
 					check(TrackProxy->NextFrameMeshData->MotionVectors.Num() >= NumVerts);
 					check(Scratch.InterpolatedMotionVectors.Num() >= NumVerts);
-					const FVector* MotionVectorsAPtr = TrackProxy->MeshData->MotionVectors.GetData();
-					const FVector* MotionVectorsBPtr = TrackProxy->NextFrameMeshData->MotionVectors.GetData();
-					FVector* InterpolatedMotionVectorsPtr = Scratch.InterpolatedMotionVectors.GetData();
+					const FVector3f* MotionVectorsAPtr = TrackProxy->MeshData->MotionVectors.GetData();
+					const FVector3f* MotionVectorsBPtr = TrackProxy->NextFrameMeshData->MotionVectors.GetData();
+					FVector3f* InterpolatedMotionVectorsPtr = Scratch.InterpolatedMotionVectors.GetData();
 
 					// The subframe interpolation factor is the multiplier that should be applied to the motion vectors to account for subframe sampling
 					// It represents the delta interpolation factor between each sub-frame (due to temporal subsampling)
@@ -964,9 +964,9 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 						int32 Index = 0;
 						for (; Index + 3 < NumVerts; Index += 4)
 						{
-							VectorRegister MotionVector0xyz_MotionVector1x = VectorMultiplyAdd(VectorLoad(MotionVectorsAPtr4 + 0), WeightA, VectorMultiply(VectorLoad(MotionVectorsBPtr4 + 0), WeightB));
-							VectorRegister MotionVector1yz_MotionVector2xy = VectorMultiplyAdd(VectorLoad(MotionVectorsAPtr4 + 1), WeightA, VectorMultiply(VectorLoad(MotionVectorsBPtr4 + 1), WeightB));
-							VectorRegister MotionVector2z_MotionVector3xyz = VectorMultiplyAdd(VectorLoad(MotionVectorsAPtr4 + 2), WeightA, VectorMultiply(VectorLoad(MotionVectorsBPtr4 + 2), WeightB));
+							VectorRegister4Float MotionVector0xyz_MotionVector1x = VectorMultiplyAdd(VectorLoad(MotionVectorsAPtr4 + 0), WeightA, VectorMultiply(VectorLoad(MotionVectorsBPtr4 + 0), WeightB));
+							VectorRegister4Float MotionVector1yz_MotionVector2xy = VectorMultiplyAdd(VectorLoad(MotionVectorsAPtr4 + 1), WeightA, VectorMultiply(VectorLoad(MotionVectorsBPtr4 + 1), WeightB));
+							VectorRegister4Float MotionVector2z_MotionVector3xyz = VectorMultiplyAdd(VectorLoad(MotionVectorsAPtr4 + 2), WeightA, VectorMultiply(VectorLoad(MotionVectorsBPtr4 + 2), WeightB));
 							VectorStore(MotionVector0xyz_MotionVector1x, InterpolatedMotionVectorsPtr4 + 0);
 							VectorStore(MotionVector1yz_MotionVector2xy, InterpolatedMotionVectorsPtr4 + 1);
 							VectorStore(MotionVector2z_MotionVector3xyz, InterpolatedMotionVectorsPtr4 + 2);
@@ -983,7 +983,7 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 #if VALIDATE
 					for (int32 Index = 0; Index < NumVerts; ++Index)
 					{
-						FVector Result = (MotionVectorsAPtr[Index] * OneMinusInterp + MotionVectorsBPtr[Index] * InterpolationFactor) * MotionVectorScale;
+						FVector3f Result = (MotionVectorsAPtr[Index] * OneMinusInterp + MotionVectorsBPtr[Index] * InterpolationFactor) * MotionVectorScale;
 						check(FMath::Abs(InterpolatedMotionVectorsPtr[Index].X - Result.X) < 0.01f);
 						check(FMath::Abs(InterpolatedMotionVectorsPtr[Index].Y - Result.Y) < 0.01f);
 						check(FMath::Abs(InterpolatedMotionVectorsPtr[Index].Z - Result.Z) < 0.01f);
@@ -1115,7 +1115,7 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 					}
 					else
 					{
-						TArray<FVector> ScaledMotionVectors;
+						TArray<FVector3f> ScaledMotionVectors;
 						const bool bScaleMotionVectors = !FMath::IsNearlyEqual(MotionVectorScale, 1.0f);
 						if (bScaleMotionVectors)
 						{
@@ -1127,9 +1127,9 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 								});
 						}
 
-						const TArray<FVector>& MotionVectors = bScaleMotionVectors ? ScaledMotionVectors : MeshDataToUse->MotionVectors;
+						const TArray<FVector3f>& MotionVectors = bScaleMotionVectors ? ScaledMotionVectors : MeshDataToUse->MotionVectors;
 
-						TArray<FVector> ExtrapolatedPositions;
+						TArray<FVector3f> ExtrapolatedPositions;
 						if (bExtrapolateFrames)
 						{
 							ExtrapolatedPositions.SetNum(MeshDataToUse->Positions.Num());
@@ -1326,13 +1326,13 @@ void FGeomCacheVertexFactory::Init_RenderThread(const FVertexBuffer* PositionBuf
 
 	// Initialize the vertex factory's stream components.
 	FDataType NewData;
-	NewData.PositionComponent = FVertexStreamComponent(PositionBuffer, 0, sizeof(FVector), VET_Float3);
+	NewData.PositionComponent = FVertexStreamComponent(PositionBuffer, 0, sizeof(FVector3f), VET_Float3);
 
 	NewData.TextureCoordinates.Add(FVertexStreamComponent(TextureCoordinateBuffer, 0, sizeof(FVector2D), VET_Float2));
 	NewData.TangentBasisComponents[0] = FVertexStreamComponent(TangentXBuffer, 0, sizeof(FPackedNormal), VET_PackedNormal);
 	NewData.TangentBasisComponents[1] = FVertexStreamComponent(TangentZBuffer, 0, sizeof(FPackedNormal), VET_PackedNormal);
 	NewData.ColorComponent = FVertexStreamComponent(ColorBuffer, 0, sizeof(FColor), VET_Color);
-	NewData.MotionBlurDataComponent = FVertexStreamComponent(MotionBlurDataBuffer, 0, sizeof(FVector), VET_Float3);
+	NewData.MotionBlurDataComponent = FVertexStreamComponent(MotionBlurDataBuffer, 0, sizeof(FVector3f), VET_Float3);
 
 	SetData(NewData);
 }

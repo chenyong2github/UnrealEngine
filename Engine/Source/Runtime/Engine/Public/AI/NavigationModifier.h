@@ -70,7 +70,7 @@ namespace ENavigationCoordSystem
 /** Area modifier: cylinder shape */
 struct FCylinderNavAreaData
 {
-	FVector Origin;
+	FVector3f Origin;
 	float Radius;
 	float Height;
 };
@@ -78,13 +78,13 @@ struct FCylinderNavAreaData
 /** Area modifier: box shape (AABB) */
 struct FBoxNavAreaData
 {
-	FVector Origin;
-	FVector Extent;
+	FVector3f Origin;
+	FVector3f Extent;
 };
 
 struct FConvexNavAreaData
 {
-	TArray<FVector> Points;
+	TArray<FVector3f> Points;
 	float MinZ;
 	float MaxZ;
 };
@@ -100,9 +100,9 @@ struct ENGINE_API FAreaNavModifier : public FNavigationModifier
 	FAreaNavModifier(float Radius, float Height, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
 	FAreaNavModifier(const FVector& Extent, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
 	FAreaNavModifier(const FBox& Box, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
-	FAreaNavModifier(const TArray<FVector>& Points, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
-	FAreaNavModifier(const TArray<FVector>& Points, const int32 FirstIndex, const int32 LastIndex, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
-	FAreaNavModifier(const TNavStatArray<FVector>& Points, const int32 FirstIndex, const int32 LastIndex, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
+	FAreaNavModifier(const TArray<FVector3f>& Points, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
+	FAreaNavModifier(const TArray<FVector3f>& Points, const int32 FirstIndex, const int32 LastIndex, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
+	FAreaNavModifier(const TNavStatArray<FVector3f>& Points, const int32 FirstIndex, const int32 LastIndex, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
 	FAreaNavModifier(const UBrushComponent* BrushComponent, const TSubclassOf<UNavAreaBase> AreaClass);
 
 	void InitializePerInstanceConvex(const TNavStatArray<FVector>& Points, const int32 FirstIndex, const int32 LastIndex, const TSubclassOf<UNavAreaBase> AreaClass);
@@ -139,7 +139,7 @@ protected:
 	TWeakObjectPtr<UClass> ReplaceAreaClassOb;
 	FBox Bounds;
 	
-	TArray<FVector> Points;
+	TArray<FVector3f> Points;
 	TEnumAsByte<ENavigationShapeType::Type> ShapeType;
 	TEnumAsByte<ENavigationAreaMode::Type> ApplyMode;
 
@@ -154,11 +154,11 @@ protected:
 
 	void Init(const TSubclassOf<UNavAreaBase> InAreaClass);
 	/** @param CoordType specifies which coord system the input data is in */
-	void SetConvex(const FVector* InPoints, const int32 FirstIndex, const int32 LastIndex, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld);
-	void SetPerInstanceConvex(const FVector* InPoints, const int32 InFirstIndex, const int32 InLastIndex);
+	void SetConvex(const FVector3f* InPoints, const int32 FirstIndex, const int32 LastIndex, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld);
+	void SetPerInstanceConvex(const FVector3f* InPoints, const int32 InFirstIndex, const int32 InLastIndex);
 	void SetBox(const FBox& Box, const FTransform& LocalToWorld);
 	
-	static void FillConvexNavAreaData(const FVector* InPoints, const int32 InNumPoints, const FTransform& InLocalToWorld, FConvexNavAreaData& OutConvexData, FBox& OutBounds);
+	static void FillConvexNavAreaData(const FVector3f* InPoints, const int32 InNumPoints, const FTransform& InLocalToWorld, FConvexNavAreaData& OutConvexData, FBox& OutBounds);
 };
 
 /**

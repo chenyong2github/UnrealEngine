@@ -3,9 +3,9 @@
 #pragma once
 
 #include "Math/Vector.h"
-#include "Math/VectorLWC.h"
 #include "MathUtil.h"
 #include "Serialization/Archive.h"
+#include "Templates/UnrealTypeTraits.h"
 #include <sstream>
 
 
@@ -353,57 +353,38 @@ FVector2<T> Lerp(const FVector2<T>& A, const FVector2<T>& B, T Alpha)
  * @todo Possibly can be replaced/merged with Chaos TVector<T,N>
  */
 template <typename T>
-struct FVector3 : public UE::Core::TVector<T>
+struct FVector3 : public UE::Math::TVector<T>
 {
-	using UE::Core::TVector<T>::TVector;
-	using UE::Core::TVector<T>::X;
-	using UE::Core::TVector<T>::Y;
-	using UE::Core::TVector<T>::Z;
+	using UE::Math::TVector<T>::TVector;
+	using UE::Math::TVector<T>::X;
+	using UE::Math::TVector<T>::Y;
+	using UE::Math::TVector<T>::Z;
 
-	FVector3() : UE::Core::TVector<T>((T)0)
+	FVector3() : UE::Math::TVector<T>((T)0)
 	{
 	}
 
-
-	explicit FVector3(const FVector& Vec)
-	{
-		X = (T)Vec.X;
-		Y = (T)Vec.Y;
-		Z = (T)Vec.Z;
-	}
-
-	explicit FVector3(const FVector3f& Vec)
-	{
-		X = (T)Vec.X;
-		Y = (T)Vec.Y;
-		Z = (T)Vec.Z;
-	}
-
-	explicit FVector3(const FVector3d& Vec)
-	{
-		X = (T)Vec.X;
-		Y = (T)Vec.Y;
-		Z = (T)Vec.Z;
-	}
-
-	FVector3(const UE::Core::TVector<T>& Vec)
+	FVector3(const UE::Math::TVector<T>& Vec)
 	{
 		X = Vec.X;
 		Y = Vec.Y;
 		Z = Vec.Z;
 	}
 
-	FVector3& operator=(const UE::Core::TVector<T>& Vec)
+	template<typename OtherType, TEMPLATE_REQUIRES(!std::is_same<T, OtherType>::value)>
+	explicit FVector3(const UE::Math::TVector<OtherType>& Vec)
+	{
+		X = (T)Vec.X;
+		Y = (T)Vec.Y;
+		Z = (T)Vec.Z;
+	}
+
+	FVector3& operator=(const UE::Math::TVector<T>& Vec)
 	{
 		X = Vec.X;
 		Y = Vec.Y;
 		Z = Vec.Z;
 		return *this;
-	}
-
-	explicit operator FVector() const
-	{
-		return FVector((float)X, (float)Y, (float)Z);
 	}
 
 	explicit operator FVector3f() const
@@ -481,14 +462,14 @@ struct FVector3 : public UE::Core::TVector<T>
 		return X * X + Y * Y + Z * Z;
 	}
 
-	T Distance(const UE::Core::TVector<T>& V2) const
+	T Distance(const UE::Math::TVector<T>& V2) const
 	{
 		T dx = V2.X - X;
 		T dy = V2.Y - Y;
 		T dz = V2.Z - Z;
 		return TMathUtil<T>::Sqrt(dx * dx + dy * dy + dz * dz);
 	}
-	T DistanceSquared(const UE::Core::TVector<T>& V2) const
+	T DistanceSquared(const UE::Math::TVector<T>& V2) const
 	{
 		T dx = V2.X - X;
 		T dy = V2.Y - Y;
@@ -501,12 +482,12 @@ struct FVector3 : public UE::Core::TVector<T>
 		return FVector3<T>(-X, -Y, -Z);
 	}
 
-	FVector3<T> operator+(const UE::Core::TVector<T>& V2) const
+	FVector3<T> operator+(const UE::Math::TVector<T>& V2) const
 	{
 		return FVector3<T>(X + V2.X, Y + V2.Y, Z + V2.Z);
 	}
 
-	FVector3<T> operator-(const UE::Core::TVector<T>& V2) const
+	FVector3<T> operator-(const UE::Math::TVector<T>& V2) const
 	{
 		return FVector3<T>(X - V2.X, Y - V2.Y, Z - V2.Z);
 	}
@@ -526,7 +507,7 @@ struct FVector3 : public UE::Core::TVector<T>
 		return FVector3<T>(X * Scalar, Y * Scalar, Z * Scalar);
 	}
 
-	FVector3<T> operator*(const UE::Core::TVector<T>& V2) const // component-wise
+	FVector3<T> operator*(const UE::Math::TVector<T>& V2) const // component-wise
 	{
 		return FVector3<T>(X * V2.X, Y * V2.Y, Z * V2.Z);
 	}
@@ -536,7 +517,7 @@ struct FVector3 : public UE::Core::TVector<T>
 		return FVector3<T>(X / Scalar, Y / Scalar, Z / Scalar);
 	}
 
-	FVector3<T> operator/(const UE::Core::TVector<T>& V2) const // component-wise
+	FVector3<T> operator/(const UE::Math::TVector<T>& V2) const // component-wise
 	{
 		return FVector3<T>(X / V2.X, Y / V2.Y, Z / V2.Z);
 	}
@@ -547,7 +528,7 @@ struct FVector3 : public UE::Core::TVector<T>
 		return FVector3<T>(X * (T)Scalar, Y * (T)Scalar, Z * (T)Scalar);
 	}
 
-	FVector3<T>& operator+=(const UE::Core::TVector<T>& V2)
+	FVector3<T>& operator+=(const UE::Math::TVector<T>& V2)
 	{
 		X += V2.X;
 		Y += V2.Y;
@@ -555,7 +536,7 @@ struct FVector3 : public UE::Core::TVector<T>
 		return *this;
 	}
 
-	FVector3<T>& operator-=(const UE::Core::TVector<T>& V2)
+	FVector3<T>& operator-=(const UE::Math::TVector<T>& V2)
 	{
 		X -= V2.X;
 		Y -= V2.Y;
@@ -579,12 +560,12 @@ struct FVector3 : public UE::Core::TVector<T>
 		return *this;
 	}
 
-	T Dot(const UE::Core::TVector<T>& V2) const
+	T Dot(const UE::Math::TVector<T>& V2) const
 	{
 		return X * V2.X + Y * V2.Y + Z * V2.Z;
 	}
 
-	FVector3<T> Cross(const UE::Core::TVector<T>& V2) const
+	FVector3<T> Cross(const UE::Math::TVector<T>& V2) const
 	{
 		return FVector3(
 			Y * V2.Z - Z * V2.Y,
@@ -599,36 +580,36 @@ struct FVector3 : public UE::Core::TVector<T>
 
 /** @return unit vector along axis X=0, Y=1, Z=2 */
 template <typename T>
-constexpr UE::Core::TVector<T> MakeUnitVector3(int32 Axis)
+constexpr UE::Math::TVector<T> MakeUnitVector3(int32 Axis)
 {
-	UE::Core::TVector<T> UnitVec((T)0, (T)0, (T)0);
+	UE::Math::TVector<T> UnitVec((T)0, (T)0, (T)0);
 	UnitVec[FMath::Clamp(Axis, 0, 2)] = (T)1;
 	return UnitVec;
 }
 
 
 template<typename T>
-T Length(const UE::Core::TVector<T>& V)
+T Length(const UE::Math::TVector<T>& V)
 {
 	return TMathUtil<T>::Sqrt(V.X*V.X + V.Y*V.Y + V.Z*V.Z);
 }
 
 template<typename T>
-T SquaredLength(const UE::Core::TVector<T>& V)
+T SquaredLength(const UE::Math::TVector<T>& V)
 {
 	return V.X*V.X + V.Y*V.Y + V.Z*V.Z;
 }
 
 
 template <typename T>
-constexpr bool IsNormalized(const UE::Core::TVector<T>& Vector, const T Tolerance = TMathUtil<T>::ZeroTolerance)
+constexpr bool IsNormalized(const UE::Math::TVector<T>& Vector, const T Tolerance = TMathUtil<T>::ZeroTolerance)
 {
 	return TMathUtil<T>::Abs((Vector.X*Vector.X + Vector.Y*Vector.Y + Vector.Z*Vector.Z) - 1) < Tolerance;
 }
 
 
 template<typename T>
-T Normalize(UE::Core::TVector<T>& Vector, const T Epsilon = 0)
+T Normalize(UE::Math::TVector<T>& Vector, const T Epsilon = 0)
 {
 	T length = Vector.Length();
 	if (length > Epsilon)
@@ -644,19 +625,19 @@ T Normalize(UE::Core::TVector<T>& Vector, const T Epsilon = 0)
 }
 
 template<typename T>
-constexpr UE::Core::TVector<T> Normalized(const UE::Core::TVector<T>& Vector, const T Epsilon = 0)
+constexpr UE::Math::TVector<T> Normalized(const UE::Math::TVector<T>& Vector, const T Epsilon = 0)
 {
 	T length = Vector.Length();
 	if (length > Epsilon)
 	{
 		T invLength = ((T)1) / length;
-		return UE::Core::TVector<T>(Vector.X*invLength, Vector.Y*invLength, Vector.Z*invLength);
+		return UE::Math::TVector<T>(Vector.X*invLength, Vector.Y*invLength, Vector.Z*invLength);
 	}
-	return UE::Core::TVector<T>((T)0, (T)0, (T)0);
+	return UE::Math::TVector<T>((T)0, (T)0, (T)0);
 }
 
 template<typename T>
-T Distance(const UE::Core::TVector<T>& V1, const UE::Core::TVector<T>& V2)
+T Distance(const UE::Math::TVector<T>& V1, const UE::Math::TVector<T>& V2)
 {
 	T dx = V2.X - V1.X;
 	T dy = V2.Y - V1.Y;
@@ -665,7 +646,7 @@ T Distance(const UE::Core::TVector<T>& V1, const UE::Core::TVector<T>& V2)
 }
 
 template<typename T>
-T DistanceSquared(const UE::Core::TVector<T>& V1, const UE::Core::TVector<T>& V2)
+T DistanceSquared(const UE::Math::TVector<T>& V1, const UE::Math::TVector<T>& V2)
 {
 	T dx = V2.X - V1.X;
 	T dy = V2.Y - V1.Y;
@@ -676,24 +657,24 @@ T DistanceSquared(const UE::Core::TVector<T>& V1, const UE::Core::TVector<T>& V2
 
 
 template<typename T>
-T Dot(const UE::Core::TVector<T>& V1, const UE::Core::TVector<T>& V2)
+T Dot(const UE::Math::TVector<T>& V1, const UE::Math::TVector<T>& V2)
 {
 	return V1.X * V2.X + V1.Y * V2.Y + V1.Z * V2.Z;
 }
 
 template<typename T>
-UE::Core::TVector<T> Cross(const UE::Core::TVector<T>& V1, const UE::Core::TVector<T>& V2)
+UE::Math::TVector<T> Cross(const UE::Math::TVector<T>& V1, const UE::Math::TVector<T>& V2)
 {
-	return UE::Core::TVector<T>(
+	return UE::Math::TVector<T>(
 		V1.Y * V2.Z - V1.Z * V2.Y,
 		V1.Z * V2.X - V1.X * V2.Z,
 		V1.X * V2.Y - V1.Y * V2.X);
 }
 
 template<typename T>
-UE::Core::TVector<T> UnitCross(const UE::Core::TVector<T>& V1, const UE::Core::TVector<T>& V2)
+UE::Math::TVector<T> UnitCross(const UE::Math::TVector<T>& V1, const UE::Math::TVector<T>& V2)
 {
-	UE::Core::TVector<T> N = V1.Cross(V2);
+	UE::Math::TVector<T> N = V1.Cross(V2);
 	return Normalized(N);
 }
 
@@ -702,7 +683,7 @@ UE::Core::TVector<T> UnitCross(const UE::Core::TVector<T>& V1, const UE::Core::T
  * @return the (positive) angle between V1 and V2 in degrees
  */
 template <typename T>
-T AngleD(const UE::Core::TVector<T>& V1, const UE::Core::TVector<T>& V2)
+T AngleD(const UE::Math::TVector<T>& V1, const UE::Math::TVector<T>& V2)
 {
 	T DotVal = V1.Dot(V2);
 	T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
@@ -714,7 +695,7 @@ T AngleD(const UE::Core::TVector<T>& V1, const UE::Core::TVector<T>& V2)
  * @return the (positive) angle between V1 and V2 in radians
  */
 template <typename T>
-T AngleR(const UE::Core::TVector<T>& V1, const UE::Core::TVector<T>& V2)
+T AngleR(const UE::Math::TVector<T>& V1, const UE::Math::TVector<T>& V2)
 {
 	T DotVal = V1.Dot(V2);
 	T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
@@ -722,26 +703,26 @@ T AngleR(const UE::Core::TVector<T>& V1, const UE::Core::TVector<T>& V2)
 }
 
 template <typename T>
-constexpr FVector2<T> GetXY(const UE::Core::TVector<T>& V)
+constexpr FVector2<T> GetXY(const UE::Math::TVector<T>& V)
 {
 	return FVector2<T>(V.X, V.Y);
 }
 
 template <typename T>
-constexpr FVector2<T> GetXZ(const UE::Core::TVector<T>& V)
+constexpr FVector2<T> GetXZ(const UE::Math::TVector<T>& V)
 {
 	return FVector2<T>(V.X, V.Z);
 }
 
 template <typename T>
-constexpr FVector2<T> GetYZ(const UE::Core::TVector<T>& V)
+constexpr FVector2<T> GetYZ(const UE::Math::TVector<T>& V)
 {
 	return FVector2<T>(V.Y, V.Z);
 }
 
 
 template<typename T>
-constexpr FVector3<T> Min(const UE::Core::TVector<T>& V0, const UE::Core::TVector<T>& V1)
+constexpr FVector3<T> Min(const UE::Math::TVector<T>& V0, const UE::Math::TVector<T>& V1)
 {
 	return FVector3<T>(TMathUtil<T>::Min(V0.X, V1.X),
 		TMathUtil<T>::Min(V0.Y, V1.Y),
@@ -749,7 +730,7 @@ constexpr FVector3<T> Min(const UE::Core::TVector<T>& V0, const UE::Core::TVecto
 }
 
 template<typename T>
-constexpr FVector3<T> Max(const UE::Core::TVector<T>& V0, const UE::Core::TVector<T>& V1)
+constexpr FVector3<T> Max(const UE::Math::TVector<T>& V0, const UE::Math::TVector<T>& V1)
 {
 	return FVector3<T>(TMathUtil<T>::Max(V0.X, V1.X),
 		TMathUtil<T>::Max(V0.Y, V1.Y),
@@ -758,59 +739,59 @@ constexpr FVector3<T> Max(const UE::Core::TVector<T>& V0, const UE::Core::TVecto
 
 
 template<typename T>
-constexpr T MaxElement(const UE::Core::TVector<T>& Vector)
+constexpr T MaxElement(const UE::Math::TVector<T>& Vector)
 {
 	return TMathUtil<T>::Max3(Vector.X, Vector.Y, Vector.Z);
 }
 
 /** @return 0/1/2 index of maximum element */
 template<typename T>
-constexpr int32 MaxElementIndex(const UE::Core::TVector<T>& Vector)
+constexpr int32 MaxElementIndex(const UE::Math::TVector<T>& Vector)
 {
 	return TMathUtil<T>::Max3Index(Vector.X, Vector.Y, Vector.Z);
 }
 
 template<typename T>
-constexpr T MinElement(const UE::Core::TVector<T>& Vector)
+constexpr T MinElement(const UE::Math::TVector<T>& Vector)
 {
 	return TMathUtil<T>::Min3(Vector.X, Vector.Y, Vector.Z);
 }
 
 /** @return 0/1/2 index of minimum element */
 template<typename T>
-constexpr int32 MinElementIndex(const UE::Core::TVector<T>& Vector)
+constexpr int32 MinElementIndex(const UE::Math::TVector<T>& Vector)
 {
 	return TMathUtil<T>::Min3Index(Vector.X, Vector.Y, Vector.Z);
 }
 
 template<typename T>
-constexpr T MaxAbsElement(const UE::Core::TVector<T>& Vector)
+constexpr T MaxAbsElement(const UE::Math::TVector<T>& Vector)
 {
 	return TMathUtil<T>::Max3(TMathUtil<T>::Abs(Vector.X), TMathUtil<T>::Abs(Vector.Y), TMathUtil<T>::Abs(Vector.Z));
 }
 
 /** @return 0/1/2 index of maximum absolute-value element */
 template<typename T>
-constexpr T MaxAbsElementIndex(const UE::Core::TVector<T>& Vector)
+constexpr T MaxAbsElementIndex(const UE::Math::TVector<T>& Vector)
 {
 	return TMathUtil<T>::Max3Index(TMathUtil<T>::Abs(Vector.X), TMathUtil<T>::Abs(Vector.Y), TMathUtil<T>::Abs(Vector.Z));
 }
 
 template<typename T>
-constexpr T MinAbsElement(const UE::Core::TVector<T>& Vector)
+constexpr T MinAbsElement(const UE::Math::TVector<T>& Vector)
 {
 	return TMathUtil<T>::Min3(TMathUtil<T>::Abs(Vector.X), TMathUtil<T>::Abs(Vector.Y), TMathUtil<T>::Abs(Vector.Z));
 }
 
 /** @return 0/1/2 index of minimum absolute-value element */
 template<typename T>
-constexpr T MinAbsElementIndex(const UE::Core::TVector<T>& Vector)
+constexpr T MinAbsElementIndex(const UE::Math::TVector<T>& Vector)
 {
 	return TMathUtil<T>::Min3Index(TMathUtil<T>::Abs(Vector.X), TMathUtil<T>::Abs(Vector.Y), TMathUtil<T>::Abs(Vector.Z));
 }
 
 template<typename T>
-constexpr FColor ToFColor(const UE::Core::TVector<T>& Vector)
+constexpr FColor ToFColor(const UE::Math::TVector<T>& Vector)
 {
 	return FColor(
 		FMathf::Clamp((int)((float)Vector.X * 255.0f), 0, 255),
@@ -819,24 +800,24 @@ constexpr FColor ToFColor(const UE::Core::TVector<T>& Vector)
 }
 
 template<typename T>
-constexpr FLinearColor ToLinearColor(const UE::Core::TVector<T>& Vector)
+constexpr FLinearColor ToLinearColor(const UE::Math::TVector<T>& Vector)
 {
 	return FLinearColor((float)Vector.X, (float)Vector.Y, (float)Vector.Z);
 }
 
 template<typename T>
-UE::Core::TVector<T> Lerp(const UE::Core::TVector<T>& A, const UE::Core::TVector<T>& B, T Alpha)
+UE::Math::TVector<T> Lerp(const UE::Math::TVector<T>& A, const UE::Math::TVector<T>& B, T Alpha)
 {
 	T OneMinusAlpha = (T)1 - Alpha;
-	return UE::Core::TVector<T>(OneMinusAlpha * A.X + Alpha * B.X,
+	return UE::Math::TVector<T>(OneMinusAlpha * A.X + Alpha * B.X,
 		OneMinusAlpha * A.Y + Alpha * B.Y,
 		OneMinusAlpha * A.Z + Alpha * B.Z);
 }
 
 template<typename T>
-UE::Core::TVector<T> Blend3(const UE::Core::TVector<T>& A, const UE::Core::TVector<T>& B, const UE::Core::TVector<T>& C, const T& WeightA, const T& WeightB, const T& WeightC)
+UE::Math::TVector<T> Blend3(const UE::Math::TVector<T>& A, const UE::Math::TVector<T>& B, const UE::Math::TVector<T>& C, const T& WeightA, const T& WeightB, const T& WeightC)
 {
-	return UE::Core::TVector<T>(
+	return UE::Math::TVector<T>(
 		WeightA * A.X + WeightB * B.X + WeightC * C.X,
 		WeightA * A.Y + WeightB * B.Y + WeightC * C.Y,
 		WeightA * A.Z + WeightB * B.Z + WeightC * C.Z);
@@ -1224,7 +1205,6 @@ FORCEINLINE uint32 GetTypeHash(const TVector4<T>& Vector)
 } // end namespace UE::Geometry
 } // end namespace UE
 
-
 typedef UE::Geometry::FVector2<float> FVector2f;
 typedef UE::Geometry::FVector2<double> FVector2d;
 
@@ -1233,7 +1213,6 @@ typedef UE::Geometry::FVector2<double> FVector2d;
 
 typedef UE::Geometry::TVector4<float> FVector4f;
 typedef UE::Geometry::TVector4<double> FVector4d;
-
 template<> struct TCanBulkSerialize<FVector2f> { enum { Value = true }; };
 template<> struct TCanBulkSerialize<FVector2d> { enum { Value = true }; };
 

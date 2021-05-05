@@ -31,9 +31,9 @@ DEFINE_LOG_CATEGORY(LogProperty);
 
 // List the core ones here as they have already been included (and can be used without CoreUObject!)
 template<>
-struct TStructOpsTypeTraits<FVector> : public TStructOpsTypeTraitsBase2<FVector>
+struct TStructOpsTypeTraits<FVector3f> : public TStructOpsTypeTraitsBase2<FVector3f>
 {
-	enum 
+	enum
 	{
 		WithIdenticalViaEquality = true,
 		WithNoInitConstructor = true,
@@ -43,7 +43,22 @@ struct TStructOpsTypeTraits<FVector> : public TStructOpsTypeTraitsBase2<FVector>
 		WithStructuredSerializer = true,
 	};
 };
-IMPLEMENT_STRUCT(Vector);
+IMPLEMENT_STRUCT(Vector3f);
+template<>
+struct TStructOpsTypeTraits<FVector3d> : public TStructOpsTypeTraitsBase2<FVector3d>
+{
+	enum
+	{
+		WithIdenticalViaEquality = true,
+		WithNoInitConstructor = true,
+		WithZeroConstructor = true,
+		WithNetSerializer = true,
+		WithNetSharedSerialization = true,
+		WithStructuredSerializer = true,
+	};
+};
+IMPLEMENT_STRUCT(Vector3d);
+IMPLEMENT_STRUCT(Vector);	// Aliased
 
 template<>
 struct TStructOpsTypeTraits<FIntPoint> : public TStructOpsTypeTraitsBase2<FIntPoint>
@@ -100,9 +115,9 @@ struct TStructOpsTypeTraits<FVector4> : public TStructOpsTypeTraitsBase2<FVector
 IMPLEMENT_STRUCT(Vector4);
 
 template<>
-struct TStructOpsTypeTraits<FPlane> : public TStructOpsTypeTraitsBase2<FPlane>
+struct TStructOpsTypeTraits<FPlane4f> : public TStructOpsTypeTraitsBase2<FPlane4f>
 {
-	enum 
+	enum
 	{
 		WithIdenticalViaEquality = true,
 		WithNoInitConstructor = true,
@@ -112,7 +127,22 @@ struct TStructOpsTypeTraits<FPlane> : public TStructOpsTypeTraitsBase2<FPlane>
 		WithSerializer = true,
 	};
 };
-IMPLEMENT_STRUCT(Plane);
+IMPLEMENT_STRUCT(Plane4f);
+template<>
+struct TStructOpsTypeTraits<FPlane4d> : public TStructOpsTypeTraitsBase2<FPlane4d>
+{
+	enum
+	{
+		WithIdenticalViaEquality = true,
+		WithNoInitConstructor = true,
+		WithZeroConstructor = true,
+		WithNetSerializer = true,
+		WithNetSharedSerialization = true,
+		WithSerializer = true,
+	};
+};
+IMPLEMENT_STRUCT(Plane4d);
+IMPLEMENT_STRUCT(Plane);	// Aliased
 
 template<>
 struct TStructOpsTypeTraits<FRotator> : public TStructOpsTypeTraitsBase2<FRotator>
@@ -155,9 +185,9 @@ struct TStructOpsTypeTraits<FBox2D> : public TStructOpsTypeTraitsBase2<FBox2D>
 IMPLEMENT_STRUCT(Box2D);
 
 template<>
-struct TStructOpsTypeTraits<FMatrix> : public TStructOpsTypeTraitsBase2<FMatrix>
+struct TStructOpsTypeTraits<FMatrix44f> : public TStructOpsTypeTraitsBase2<FMatrix44f>
 {
-	enum 
+	enum
 	{
 		WithIdenticalViaEquality = true,
 		WithNoInitConstructor = true,
@@ -165,7 +195,20 @@ struct TStructOpsTypeTraits<FMatrix> : public TStructOpsTypeTraitsBase2<FMatrix>
 		WithSerializer = true,
 	};
 };
-IMPLEMENT_STRUCT(Matrix);
+IMPLEMENT_STRUCT(Matrix44f);
+template<>
+struct TStructOpsTypeTraits<FMatrix44d> : public TStructOpsTypeTraitsBase2<FMatrix44d>
+{
+	enum
+	{
+		WithIdenticalViaEquality = true,
+		WithNoInitConstructor = true,
+		WithZeroConstructor = true,
+		WithSerializer = true,
+	};
+};
+IMPLEMENT_STRUCT(Matrix44d);
+IMPLEMENT_STRUCT(Matrix);	// Aliased
 
 template<>
 struct TStructOpsTypeTraits<FBoxSphereBounds> : public TStructOpsTypeTraitsBase2<FBoxSphereBounds>

@@ -33,9 +33,9 @@ void FDatasmithFacadeMaterialsUtils::FUVEditParameters::SetRotationPivot( float 
 
 void FDatasmithFacadeMaterialsUtils::FUVEditParameters::GetRotationPivot( float& OutX, float& OutY, float& OutZ ) const
 {
-	OutX = UVEditParameters.RotationPivot.X;
-	OutY = UVEditParameters.RotationPivot.Y;
-	OutZ = UVEditParameters.RotationPivot.Z;
+	OutX = (float)UVEditParameters.RotationPivot.X;		// LWC_TODO: Precision loss
+	OutY = (float)UVEditParameters.RotationPivot.Y;
+	OutZ = (float)UVEditParameters.RotationPivot.Z;
 }
 
 void FDatasmithFacadeMaterialsUtils::FUVEditParameters::SetRotationAngle( float Angle )

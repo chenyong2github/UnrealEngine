@@ -26,7 +26,7 @@ class FSlateMaterialShaderVS;
 
 struct FSlateRenderingParams
 {
-	FMatrix ViewProjectionMatrix;
+	FMatrix44f ViewProjectionMatrix;
 	FVector2D ViewOffset;
 	float CurrentWorldTime;
 	float DeltaTimeSeconds;

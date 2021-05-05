@@ -21,10 +21,10 @@ class FPrimitiveDrawInterface;
 struct FDynamicMeshVertex
 {
 	FDynamicMeshVertex() {}
-	FDynamicMeshVertex( const FVector& InPosition ):
+	FDynamicMeshVertex( const FVector3f& InPosition ):
 		Position(InPosition),
-		TangentX(FVector(1,0,0)),
-		TangentZ(FVector(0,0,1)),
+		TangentX(FVector3f(1,0,0)),
+		TangentZ(FVector3f(0,0,1)),
 		Color(FColor(255,255,255)) 
 	{
 		// basis determinant default to +1.0
@@ -36,10 +36,10 @@ struct FDynamicMeshVertex
 		}
 	}
 
-	FDynamicMeshVertex(const FVector& InPosition, const FVector2D& InTexCoord, const FColor& InColor) :
+	FDynamicMeshVertex(const FVector3f& InPosition, const FVector2D& InTexCoord, const FColor& InColor) :
 		Position(InPosition),
-		TangentX(FVector(1, 0, 0)),
-		TangentZ(FVector(0, 0, 1)),
+		TangentX(FVector3f(1, 0, 0)),
+		TangentZ(FVector3f(0, 0, 1)),
 		Color(InColor)
 	{
 		// basis determinant default to +1.0
@@ -51,7 +51,7 @@ struct FDynamicMeshVertex
 		}
 	}
 
-	FDynamicMeshVertex(const FVector& InPosition,const FVector& InTangentX,const FVector& InTangentZ,const FVector2D& InTexCoord, const FColor& InColor):
+	FDynamicMeshVertex(const FVector3f& InPosition,const FVector3f& InTangentX,const FVector3f& InTangentZ,const FVector2D& InTexCoord, const FColor& InColor):
 		Position(InPosition),
 		TangentX(InTangentX),
 		TangentZ(InTangentZ),
@@ -66,10 +66,10 @@ struct FDynamicMeshVertex
 		}
 	}
 
-	FDynamicMeshVertex(const FVector& InPosition, const FVector& LayerTexcoords, const FVector2D& WeightmapTexcoords)
+	FDynamicMeshVertex(const FVector3f& InPosition, const FVector3f& LayerTexcoords, const FVector2D& WeightmapTexcoords)
 		: Position(InPosition)
-		, TangentX(FVector(1, 0, 0))
-		, TangentZ(FVector(0, 0, 1))
+		, TangentX(FVector3f(1, 0, 0))
+		, TangentZ(FVector3f(0, 0, 1))
 		, Color(FColor::White)
 	{
 		// TangentZ.w contains the sign of the tangent basis determinant. Assume +1
@@ -81,7 +81,7 @@ struct FDynamicMeshVertex
 		TextureCoordinate[3] = WeightmapTexcoords;
 	};
 
-	void SetTangents( const FVector& InTangentX, const FVector& InTangentY, const FVector& InTangentZ )
+	void SetTangents( const FVector3f& InTangentX, const FVector3f& InTangentY, const FVector3f& InTangentZ )
 	{
 		TangentX = InTangentX;
 		TangentZ = InTangentZ;
@@ -89,12 +89,12 @@ struct FDynamicMeshVertex
 		TangentZ.Vector.W = GetBasisDeterminantSignByte(InTangentX,InTangentY,InTangentZ);
 	}
 
-	FVector GetTangentY() const
+	FVector3f GetTangentY() const
 	{
 		return GenerateYAxis(TangentX, TangentZ);
 	};
 
-	FVector Position;
+	FVector3f Position;
 	FVector2D TextureCoordinate[MAX_STATIC_TEXCOORDS];
 	FPackedNormal TangentX;
 	FPackedNormal TangentZ;
@@ -169,11 +169,11 @@ public:
 
 	/** Adds a vertex to the mesh. */
 	ENGINE_API int32 AddVertex(
-		const FVector& InPosition,
+		const FVector3f& InPosition,
 		const FVector2D& InTextureCoordinate,
-		const FVector& InTangentX,
-		const FVector& InTangentY,
-		const FVector& InTangentZ,
+		const FVector3f& InTangentX,
+		const FVector3f& InTangentY,
+		const FVector3f& InTangentZ,
 		const FColor& InColor
 		);
 

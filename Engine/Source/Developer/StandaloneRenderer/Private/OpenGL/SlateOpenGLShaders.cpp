@@ -328,7 +328,8 @@ void FSlateOpenGLElementProgram::SetTexture( FSlateOpenGLTexture *Texture, uint3
 
 void FSlateOpenGLElementProgram::SetViewProjectionMatrix( const FMatrix& InVP )
 {
-	const GLfloat* Param = &InVP.M[0][0];
+	FMatrix44f InVPFlt = InVP;	// LWC_TODO: Perf pessimization. Rebase
+	const GLfloat* Param = &InVPFlt.M[0][0];
 	glUniformMatrix4fv( ViewProjectionMatrixParam, 1, GL_FALSE, Param );
 	CHECK_GL_ERRORS;
 }

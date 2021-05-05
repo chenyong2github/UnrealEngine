@@ -97,11 +97,11 @@ private:
 	} VertexFactory;
 	class FLidarPointCloudCollisionVertexBuffer : public FVertexBuffer
 	{
-		const FVector* Data;
+		const FVector3f* Data;
 		int32 DataLength;
 
 	public:
-		void Initialize(const FVector* InData, int32 InDataLength)
+		void Initialize(const FVector3f* InData, int32 InDataLength)
 		{
 			Data = InData;
 			DataLength = InDataLength;
@@ -111,7 +111,7 @@ private:
 
 		virtual void InitRHI() override
 		{
-			const uint32 Size = DataLength * sizeof(FVector);
+			const uint32 Size = DataLength * sizeof(FVector3f);
 
 			FRHIResourceCreateInfo CreateInfo(TEXT("FLidarPointCloudCollisionVertexBuffer"));
 			VertexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
@@ -305,9 +305,9 @@ public:
 		FVector BoundsSize = Component->GetPointCloud()->GetBounds().GetSize();
 
 		// Make sure to apply minimum bounds size
-		BoundsSize.X = FMath::Max(BoundsSize.X, 0.001f);
-		BoundsSize.Y = FMath::Max(BoundsSize.Y, 0.001f);
-		BoundsSize.Z = FMath::Max(BoundsSize.Z, 0.001f);
+		BoundsSize.X = FMath::Max<FVector::FReal>(BoundsSize.X, 0.001);
+		BoundsSize.Y = FMath::Max<FVector::FReal>(BoundsSize.Y, 0.001);
+		BoundsSize.Z = FMath::Max<FVector::FReal>(BoundsSize.Z, 0.001);
 
 		// Update shader parameters
 		UserDataElement.bEditorView = Component->IsOwnedByEditor();

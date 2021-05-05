@@ -1415,6 +1415,27 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 		return;
 	}
 
+	if (FLargeWorldCoordinatesRealProperty* TypedProp = CastField<FLargeWorldCoordinatesRealProperty>(Prop))
+	{
+		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FLargeWorldCoordinatesRealPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
+
+		Out.Logf(
+			TEXT("%sconst UECodeGen_Private::FLargeWorldCoordinatesRealPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::LargeWorldCoordinatesReal, %s, %s, %s, %s };%s\r\n"),
+			Spaces,
+			Name,
+			*PropName,
+			*PropNotifyFunc,
+			PropFlags,
+			FPropertyObjectFlags,
+			*ArrayDim,
+			OffsetStr,
+			*MetaDataParams,
+			*PropTag
+		);
+
+		return;
+	}
+
 	if (FBoolProperty* TypedProp = CastField<FBoolProperty>(Prop))
 	{
 		FString OuterSize;
@@ -2093,13 +2114,13 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 static bool IsAlwaysAccessible(UScriptStruct* Script)
 {
 	FName ToTest = Script->GetFName();
-	if (ToTest == NAME_Matrix)
+	if (ToTest == NAME_Matrix || ToTest == NAME_Matrix44f || ToTest == NAME_Matrix44d)
 	{
 		return false; // special case, the C++ FMatrix does not have the same members.
 	}
 	bool Result = Script->HasDefaults(); // if we have cpp struct ops in it for UHT, then we can assume it is always accessible
-	if( ToTest == NAME_Plane
-		||	ToTest == NAME_Vector
+	if( ToTest == NAME_Plane || ToTest == NAME_Plane4f || ToTest == NAME_Plane4d
+		||	ToTest == NAME_Vector || ToTest == NAME_Vector3f || ToTest == NAME_Vector3d
 		||	ToTest == NAME_Vector4
 		||	ToTest == NAME_Quat
 		||	ToTest == NAME_Color

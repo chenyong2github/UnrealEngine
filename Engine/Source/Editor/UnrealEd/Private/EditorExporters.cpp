@@ -341,13 +341,15 @@ bool UPolysExporterT3D::ExportText( const FExportObjectInnerContext* Context, UO
 		Ar.Logf( TEXT("\r\n") );
 
 		// All coordinates.
-		Ar.Logf( TEXT("%s      Origin   %s\r\n"), FCString::Spc(TextIndent), SetFVECTOR(TempStr,&Poly->Base) );
-		Ar.Logf( TEXT("%s      Normal   %s\r\n"), FCString::Spc(TextIndent), SetFVECTOR(TempStr,&Poly->Normal) );
-		Ar.Logf( TEXT("%s      TextureU %s\r\n"), FCString::Spc(TextIndent), SetFVECTOR(TempStr,&Poly->TextureU) );
-		Ar.Logf( TEXT("%s      TextureV %s\r\n"), FCString::Spc(TextIndent), SetFVECTOR(TempStr,&Poly->TextureV) );
+		FVector Base(Poly->Base), Normal(Poly->Normal), TextureU(Poly->TextureU), TextureV(Poly->TextureV);
+		Ar.Logf( TEXT("%s      Origin   %s\r\n"), FCString::Spc(TextIndent), SetFVECTOR(TempStr,&Base) );
+		Ar.Logf( TEXT("%s      Normal   %s\r\n"), FCString::Spc(TextIndent), SetFVECTOR(TempStr,&Normal) );
+		Ar.Logf( TEXT("%s      TextureU %s\r\n"), FCString::Spc(TextIndent), SetFVECTOR(TempStr,&TextureU) );
+		Ar.Logf( TEXT("%s      TextureV %s\r\n"), FCString::Spc(TextIndent), SetFVECTOR(TempStr,&TextureV) );
 		for( int32 j=0; j<Poly->Vertices.Num(); j++ )
 		{
-			Ar.Logf( TEXT("%s      Vertex   %s\r\n"), FCString::Spc(TextIndent), SetFVECTOR(TempStr,&Poly->Vertices[j]) );
+			FVector Vertex(Poly->Vertices[j]);
+			Ar.Logf( TEXT("%s      Vertex   %s\r\n"), FCString::Spc(TextIndent), SetFVECTOR(TempStr,&Vertex) );
 		}
 		Ar.Logf( TEXT("%s   End Polygon\r\n"), FCString::Spc(TextIndent) );
 	}
@@ -546,11 +548,16 @@ bool ULevelExporterT3D::ExportText( const FExportObjectInnerContext* Context, UO
 	{
 		if (Poly.PolyFlags & PF_Selected )
 		{
+			FVector pBase = Model->Points[Poly.pBase];
+			FVector vTextureU = Model->Vectors[Poly.vTextureU];
+			FVector vTextureV = Model->Vectors[Poly.vTextureV];
+			FVector vNormal = Model->Vectors[Poly.vNormal];
+
 			Ar.Logf(TEXT("%sTEXTURE=%s\r\n"),   FCString::Spc(TextIndent + 3), *Poly.Material->GetPathName());
-			Ar.Logf(TEXT("%sBASE      %s\r\n"), FCString::Spc(TextIndent + 3), SetFVECTOR(TempStr, &(Model->Points[Poly.pBase])));
-			Ar.Logf(TEXT("%sTEXTUREU  %s\r\n"), FCString::Spc(TextIndent + 3), SetFVECTOR(TempStr, &(Model->Vectors[Poly.vTextureU])));
-			Ar.Logf(TEXT("%sTEXTUREV  %s\r\n"), FCString::Spc(TextIndent + 3), SetFVECTOR(TempStr, &(Model->Vectors[Poly.vTextureV])));
-			Ar.Logf(TEXT("%sNORMAL    %s\r\n"), FCString::Spc(TextIndent + 3), SetFVECTOR(TempStr, &(Model->Vectors[Poly.vNormal])));
+			Ar.Logf(TEXT("%sBASE      %s\r\n"), FCString::Spc(TextIndent + 3), SetFVECTOR(TempStr, &pBase));
+			Ar.Logf(TEXT("%sTEXTUREU  %s\r\n"), FCString::Spc(TextIndent + 3), SetFVECTOR(TempStr, &vTextureU));
+			Ar.Logf(TEXT("%sTEXTUREV  %s\r\n"), FCString::Spc(TextIndent + 3), SetFVECTOR(TempStr, &vTextureV));
+			Ar.Logf(TEXT("%sNORMAL    %s\r\n"), FCString::Spc(TextIndent + 3), SetFVECTOR(TempStr, &vNormal));
 			Ar.Logf(TEXT("%sPOLYFLAGS=%d\r\n"), FCString::Spc(TextIndent + 3), Poly.PolyFlags);
 			break;
 		}

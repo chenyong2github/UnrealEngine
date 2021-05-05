@@ -138,7 +138,7 @@ FVector FWheelState::GetVelocityAtPoint(const Chaos::FRigidBodyHandle_Internal* 
 {
 	if (Rigid)
 	{
-		const Chaos::FVec3 COM = Rigid ? Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Rigid) : Chaos::FParticleUtilitiesGT::GetActorWorldTransform(Rigid).GetTranslation();
+		const Chaos::FVec3 COM = Rigid ? Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Rigid) : (Chaos::FVec3)Chaos::FParticleUtilitiesGT::GetActorWorldTransform(Rigid).GetTranslation();
 		const Chaos::FVec3 Diff = InPoint - COM;
 		return Rigid->V() - Chaos::FVec3::CrossProduct(Diff, Rigid->W());
 	}

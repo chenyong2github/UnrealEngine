@@ -17,13 +17,13 @@
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/Convex.h"
 
-inline FArchive& operator<<(FArchive& Ar, TArray<FVector>*& ValueIn)
+inline FArchive& operator<<(FArchive& Ar, TArray<FVector3f>*& ValueIn)
 {
 	check(false);	//We don't serialize raw pointers to arrays. Use unique ptr
 	return Ar;
 }
 
-inline FArchive& operator<<(FArchive& Ar, TUniquePtr<TArray<FVector>>& ValueIn)
+inline FArchive& operator<<(FArchive& Ar, TUniquePtr<TArray<FVector3f>>& ValueIn)
 {
 	bool bExists = ValueIn.Get() != nullptr;
 	Ar << bExists;
@@ -31,7 +31,7 @@ inline FArchive& operator<<(FArchive& Ar, TUniquePtr<TArray<FVector>>& ValueIn)
 	{
 		if (Ar.IsLoading())
 		{
-			ValueIn = MakeUnique<TArray<FVector>>();
+			ValueIn = MakeUnique<TArray<FVector3f>>();
 		}
 		Ar << *ValueIn;
 	}

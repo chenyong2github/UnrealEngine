@@ -501,8 +501,8 @@ namespace GeometryCollectionTest
 		// The bottom boxes should have fallen below the ground level, box 2 now on the ground with box 3 on top
 		auto& Particles = UnitTest.Solver->GetParticles().GetGeometryCollectionParticles();
 		EXPECT_LT(Collection[1]->DynamicCollection->Transform[0].GetTranslation().Z, 0);
-		EXPECT_TRUE(FMath::IsNearlyEqual(Collection[2]->DynamicCollection->Transform[0].GetTranslation().Z, (FReal)100, (FReal)20));
-		EXPECT_TRUE(FMath::IsNearlyEqual(Collection[3]->DynamicCollection->Transform[0].GetTranslation().Z, (FReal)300, (FReal)20));
+		EXPECT_TRUE(FMath::IsNearlyEqual((FReal)Collection[2]->DynamicCollection->Transform[0].GetTranslation().Z, (FReal)100, (FReal)20));
+		EXPECT_TRUE(FMath::IsNearlyEqual((FReal)Collection[3]->DynamicCollection->Transform[0].GetTranslation().Z, (FReal)300, (FReal)20));
 
 	}
 

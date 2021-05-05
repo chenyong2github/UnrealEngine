@@ -181,7 +181,7 @@ float FVoxelBooleanMeshesOp::ComputeVoxelSize() const
 		FVector Scale = PlacedMeshes[i].Transform.GetScale3D();
 		const FMeshDescription&  MeshDescription = *PlacedMeshes[i].Mesh;
 
-		TArrayView<const FVector> VertexPositions = MeshDescription.GetVertexPositions().GetRawArray();
+		TArrayView<const FVector3f> VertexPositions = MeshDescription.GetVertexPositions().GetRawArray();
 		for (const FVertexID VertexID : MeshDescription.Vertices().GetElementIDs())
 		{
 			const FVector& Pos = VertexPositions[VertexID];

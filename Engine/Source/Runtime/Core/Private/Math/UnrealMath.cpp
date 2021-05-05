@@ -8,27 +8,18 @@
 #include "Stats/Stats.h"
 #include "Math/RandomStream.h"
 #include "UObject/PropertyPortFlags.h"
+#include "Math/Vector4.h"
 DEFINE_LOG_CATEGORY(LogUnrealMath);
 
 /*-----------------------------------------------------------------------------
 	Globals
 -----------------------------------------------------------------------------*/
 
-CORE_API const FVector FVector::ZeroVector(0.0f, 0.0f, 0.0f);
-CORE_API const FVector FVector::OneVector(1.0f, 1.0f, 1.0f);
-CORE_API const FVector FVector::UpVector(0.0f, 0.0f, 1.0f);
-CORE_API const FVector FVector::DownVector(0.0f, 0.0f, -1.0f);
-CORE_API const FVector FVector::ForwardVector(1.0f, 0.0f, 0.0f);
-CORE_API const FVector FVector::BackwardVector(-1.0f, 0.0f, 0.0f);
-CORE_API const FVector FVector::RightVector(0.0f, 1.0f, 0.0f);
-CORE_API const FVector FVector::LeftVector(0.0f, -1.0f, 0.0f);
 CORE_API const FVector2D FVector2D::ZeroVector(0.0f, 0.0f);
 CORE_API const FVector2D FVector2D::UnitVector(1.0f, 1.0f);
 CORE_API const FVector2D FVector2D::Unit45Deg(UE_INV_SQRT_2, UE_INV_SQRT_2);
-CORE_API const FRotator FRotator::ZeroRotator(0.f,0.f,0.f);
-CORE_API const FVector FVector::XAxisVector(1.0f, 0.0f, 0.0f);
-CORE_API const FVector FVector::YAxisVector(0.0f, 1.0f, 0.0f);
-CORE_API const FVector FVector::ZAxisVector(0.0f, 0.0f, 1.0f);
+
+CORE_API const FRotator FRotator::ZeroRotator(0.f, 0.f, 0.f);
 
 CORE_API const VectorRegister VECTOR_INV_255 = DECLARE_VECTOR_REGISTER(1.f/255.f, 1.f/255.f, 1.f/255.f, 1.f/255.f);
 
@@ -48,15 +39,6 @@ CORE_API const FIntPoint FIntPoint::ZeroValue(0,0);
 CORE_API const FIntPoint FIntPoint::NoneValue(INDEX_NONE,INDEX_NONE);
 CORE_API const FIntVector FIntVector::ZeroValue(0,0,0);
 CORE_API const FIntVector FIntVector::NoneValue(INDEX_NONE,INDEX_NONE,INDEX_NONE);
-
-/** FVectors NetSerialize without quantization. Use the FVectors_NetQuantize etc (NetSerialization.h) instead. */
-bool FVector::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
-{
-	Ar << X;
-	Ar << Y;
-	Ar << Z;
-	return true;
-}
 
 bool FVector2D::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 {
@@ -186,7 +168,8 @@ void FRotator::SerializeCompressedShort( FArchive& Ar )
 	}
 }
 
-FRotator FVector::ToOrientationRotator() const
+template<>
+FRotator FVector3f::ToOrientationRotator() const
 {
 	FRotator R;
 
@@ -210,7 +193,39 @@ FRotator FVector::ToOrientationRotator() const
 	return R;
 }
 
-FRotator FVector::Rotation() const
+template<>
+FRotator FVector3d::ToOrientationRotator() const
+{
+	FRotator R;
+
+	// Find yaw.
+	R.Yaw = static_cast<float>(FMath::Atan2(Y,X) * (180.0 / PI));
+
+	// Find pitch.
+	R.Pitch = static_cast<float>(FMath::Atan2(Z,FMath::Sqrt(X*X+Y*Y)) * (180.0 / PI));
+
+	// Find roll.
+	R.Roll = 0;
+
+#if ENABLE_NAN_DIAGNOSTIC || (DO_CHECK && !UE_BUILD_SHIPPING)
+	if (R.ContainsNaN())
+	{
+		logOrEnsureNanError(TEXT("FVector::Rotation(): Rotator result %s contains NaN! Input FVector = %s"), *R.ToString(), *this->ToString());
+		R = FRotator::ZeroRotator;
+	}
+#endif
+
+	return R;
+}
+
+template<>
+FRotator FVector3f::Rotation() const
+{
+	return ToOrientationRotator();
+}
+
+template<>
+FRotator FVector3d::Rotation() const
 {
 	return ToOrientationRotator();
 }
@@ -244,7 +259,8 @@ FRotator FVector4::Rotation() const
 	return ToOrientationRotator();
 }
 
-FQuat FVector::ToOrientationQuat() const
+template<>
+FQuat FVector3f::ToOrientationQuat() const
 {
 	// Essentially an optimized Vector->Rotator->Quat made possible by knowing Roll == 0, and avoiding radians->degrees->radians.
 	// This is done to avoid adding any roll (which our API states as a constraint).
@@ -263,6 +279,29 @@ FQuat FVector::ToOrientationQuat() const
 	RotationQuat.Y = -SP*CY;
 	RotationQuat.Z =  CP*SY;
 	RotationQuat.W =  CP*CY;
+	return RotationQuat;
+}
+
+template<>
+FQuat FVector3d::ToOrientationQuat() const
+{
+	// Essentially an optimized Vector->Rotator->Quat made possible by knowing Roll == 0, and avoiding radians->degrees->radians.
+	// This is done to avoid adding any roll (which our API states as a constraint).
+	const double YawRad = FMath::Atan2(Y, X);
+	const double PitchRad = FMath::Atan2(Z, FMath::Sqrt(X * X + Y * Y));
+
+	const double DIVIDE_BY_2 = 0.5;
+	double SP, SY;
+	double CP, CY;
+
+	FMath::SinCos(&SP, &CP, PitchRad * DIVIDE_BY_2);
+	FMath::SinCos(&SY, &CY, YawRad * DIVIDE_BY_2);
+
+	FQuat RotationQuat;
+	RotationQuat.X = static_cast<float>(SP * SY);
+	RotationQuat.Y = static_cast<float>(-SP * CY);
+	RotationQuat.Z = static_cast<float>(CP * SY);
+	RotationQuat.W = static_cast<float>(CP * CY);
 	return RotationQuat;
 }
 
@@ -287,21 +326,6 @@ FQuat FVector4::ToOrientationQuat() const
 	RotationQuat.Z =  CP*SY;
 	RotationQuat.W =  CP*CY;
 	return RotationQuat;
-}
-
-
-void FVector::FindBestAxisVectors( FVector& Axis1, FVector& Axis2 ) const
-{
-	const float NX = FMath::Abs(X);
-	const float NY = FMath::Abs(Y);
-	const float NZ = FMath::Abs(Z);
-
-	// Find best basis vectors.
-	if( NZ>NX && NZ>NY )	Axis1 = FVector(1,0,0);
-	else					Axis1 = FVector(0,0,1);
-
-	Axis1 = (Axis1 - *this * (Axis1 | *this)).GetSafeNormal();
-	Axis2 = Axis1 ^ *this;
 }
 
 FVector FMath::ClosestPointOnLine(const FVector& LineStart, const FVector& LineEnd, const FVector& Point)
@@ -333,38 +357,6 @@ FVector FMath::ClosestPointOnInfiniteLine(const FVector& LineStart, const FVecto
 	const FVector ClosestPoint = LineStart + (T * (LineEnd - LineStart));
 	return ClosestPoint;
 }
-
-void FVector::CreateOrthonormalBasis(FVector& XAxis,FVector& YAxis,FVector& ZAxis)
-{
-	// Project the X and Y axes onto the plane perpendicular to the Z axis.
-	XAxis -= (XAxis | ZAxis) / (ZAxis | ZAxis) * ZAxis;
-	YAxis -= (YAxis | ZAxis) / (ZAxis | ZAxis) * ZAxis;
-
-	// If the X axis was parallel to the Z axis, choose a vector which is orthogonal to the Y and Z axes.
-	if(XAxis.SizeSquared() < DELTA*DELTA)
-	{
-		XAxis = YAxis ^ ZAxis;
-	}
-
-	// If the Y axis was parallel to the Z axis, choose a vector which is orthogonal to the X and Z axes.
-	if(YAxis.SizeSquared() < DELTA*DELTA)
-	{
-		YAxis = XAxis ^ ZAxis;
-	}
-
-	// Normalize the basis vectors.
-	XAxis.Normalize();
-	YAxis.Normalize();
-	ZAxis.Normalize();
-}
-
-void FVector::UnwindEuler()
-{
-	X = FMath::UnwindDegrees(X);
-	Y = FMath::UnwindDegrees(Y);
-	Z = FMath::UnwindDegrees(Z);
-}
-
 
 FRotator::FRotator(const FQuat& Quat)
 {
@@ -521,12 +513,13 @@ void FRotator::GetWindingAndRemainder(FRotator& Winding, FRotator& Remainder) co
 }
 
 
-
-FRotator FMatrix::Rotator() const
+template<>
+FRotator FMatrix44f::Rotator() const
 {
-	const FVector		XAxis	= GetScaledAxis( EAxis::X );
-	const FVector		YAxis	= GetScaledAxis( EAxis::Y );
-	const FVector		ZAxis	= GetScaledAxis( EAxis::Z );
+	using TVector = FVector3f;
+	const TVector		XAxis	= GetScaledAxis( EAxis::X );
+	const TVector		YAxis	= GetScaledAxis( EAxis::Y );
+	const TVector		ZAxis	= GetScaledAxis( EAxis::Z );
 
 	FRotator	Rotator	= FRotator( 
 									FMath::Atan2( XAxis.Z, FMath::Sqrt(FMath::Square(XAxis.X)+FMath::Square(XAxis.Y)) ) * 180.f / PI, 
@@ -534,54 +527,48 @@ FRotator FMatrix::Rotator() const
 									0 
 								);
 	
-	const FVector		SYAxis	= FRotationMatrix( Rotator ).GetScaledAxis( EAxis::Y );
+	const TVector	SYAxis	= (TVector)FRotationMatrix( Rotator ).GetScaledAxis( EAxis::Y );
 	Rotator.Roll		= FMath::Atan2( ZAxis | SYAxis, YAxis | SYAxis ) * 180.f / PI;
 
 	Rotator.DiagnosticCheckNaN();
 	return Rotator;
 }
 
-
-FQuat FMatrix::ToQuat() const
+template<>
+FRotator FMatrix44d::Rotator() const
 {
-	FQuat Result(*this);
-	return Result;
+	using TVector = FVector3d;
+	const TVector		XAxis = GetScaledAxis(EAxis::X);
+	const TVector		YAxis = GetScaledAxis(EAxis::Y);
+	const TVector		ZAxis = GetScaledAxis(EAxis::Z);
+
+	FRotator	Rotator = FRotator(
+		(float)FMath::Atan2(XAxis.Z, FMath::Sqrt(FMath::Square(XAxis.X) + FMath::Square(XAxis.Y))) * 180.f / PI,
+		(float)FMath::Atan2(XAxis.Y, XAxis.X) * 180.f / PI,
+		0
+	);
+
+	const TVector	SYAxis = FRotationMatrix(Rotator).GetScaledAxis(EAxis::Y);
+	Rotator.Roll = (float)FMath::Atan2(ZAxis | SYAxis, YAxis | SYAxis) * 180.f / PI;
+
+	Rotator.DiagnosticCheckNaN();
+	return Rotator;
 }
 
-const FMatrix FMatrix::Identity(FPlane(1,0,0,0),FPlane(0,1,0,0),FPlane(0,0,1,0),FPlane(0,0,0,1));
+template<>
+FQuat FMatrix44f::ToQuat() const
+{
+	return FQuat(*this);
+}
+
+template<>
+FQuat FMatrix44d::ToQuat() const
+{
+	return FQuat(*this);
+}
 
 CORE_API const FQuat FQuat::Identity(0,0,0,1);
 
-FString FMatrix::ToString() const
-{
-	FString Output;
-
-	Output += FString::Printf(TEXT("[%g %g %g %g] "), M[0][0], M[0][1], M[0][2], M[0][3]);
-	Output += FString::Printf(TEXT("[%g %g %g %g] "), M[1][0], M[1][1], M[1][2], M[1][3]);
-	Output += FString::Printf(TEXT("[%g %g %g %g] "), M[2][0], M[2][1], M[2][2], M[2][3]);
-	Output += FString::Printf(TEXT("[%g %g %g %g] "), M[3][0], M[3][1], M[3][2], M[3][3]);
-
-	return Output;
-}
-
-void FMatrix::DebugPrint() const
-{
-	UE_LOG(LogUnrealMath, Log, TEXT("%s"), *ToString());
-}
-
-uint32 FMatrix::ComputeHash() const
-{
-	uint32 Ret = 0;
-
-	const uint32* Data = (uint32*)this;
-
-	for(uint32 i = 0; i < 16; ++i)
-	{
-		Ret ^= Data[i] + i;
-	}
-
-	return Ret;
-}
 
 //////////////////////////////////////////////////////////////////////////
 // FQuat
@@ -722,7 +709,7 @@ FMatrix FRotationMatrix::MakeFromXY(FVector const& XAxis, FVector const& YAxis)
 	FVector Norm = YAxis.GetSafeNormal();
 
 	// if they're almost same, we need to find arbitrary vector
-	if ( FMath::IsNearlyEqual(FMath::Abs(NewX | Norm), 1.f) )
+	if ( FMath::IsNearlyEqual(FMath::Abs(NewX | Norm), FVector::FReal(1.f)) )
 	{
 		// make sure we don't ever pick the same as NewX
 		Norm = ( FMath::Abs(NewX.Z) < (1.f - KINDA_SMALL_NUMBER) ) ? FVector(0,0,1.f) : FVector(1.f,0,0);
@@ -740,7 +727,7 @@ FMatrix FRotationMatrix::MakeFromXZ(FVector const& XAxis, FVector const& ZAxis)
 	FVector Norm = ZAxis.GetSafeNormal();
 
 	// if they're almost same, we need to find arbitrary vector
-	if ( FMath::IsNearlyEqual(FMath::Abs(NewX | Norm), 1.f) )
+	if ( FMath::IsNearlyEqual(FMath::Abs(NewX | Norm), FVector::FReal(1.f)) )
 	{
 		// make sure we don't ever pick the same as NewX
 		Norm = ( FMath::Abs(NewX.Z) < (1.f - KINDA_SMALL_NUMBER) ) ? FVector(0,0,1.f) : FVector(1.f,0,0);
@@ -758,7 +745,7 @@ FMatrix FRotationMatrix::MakeFromYX(FVector const& YAxis, FVector const& XAxis)
 	FVector Norm = XAxis.GetSafeNormal();
 
 	// if they're almost same, we need to find arbitrary vector
-	if ( FMath::IsNearlyEqual(FMath::Abs(NewY | Norm), 1.f) )
+	if ( FMath::IsNearlyEqual(FMath::Abs(NewY | Norm), FVector::FReal(1.f)) )
 	{
 		// make sure we don't ever pick the same as NewX
 		Norm = ( FMath::Abs(NewY.Z) < (1.f - KINDA_SMALL_NUMBER) ) ? FVector(0,0,1.f) : FVector(1.f,0,0);
@@ -776,7 +763,7 @@ FMatrix FRotationMatrix::MakeFromYZ(FVector const& YAxis, FVector const& ZAxis)
 	FVector Norm = ZAxis.GetSafeNormal();
 
 	// if they're almost same, we need to find arbitrary vector
-	if ( FMath::IsNearlyEqual(FMath::Abs(NewY | Norm), 1.f) )
+	if ( FMath::IsNearlyEqual(FMath::Abs(NewY | Norm), FVector::FReal(1.f)) )
 	{
 		// make sure we don't ever pick the same as NewX
 		Norm = ( FMath::Abs(NewY.Z) < (1.f - KINDA_SMALL_NUMBER) ) ? FVector(0,0,1.f) : FVector(1.f,0,0);
@@ -794,7 +781,7 @@ FMatrix FRotationMatrix::MakeFromZX(FVector const& ZAxis, FVector const& XAxis)
 	FVector Norm = XAxis.GetSafeNormal();
 
 	// if they're almost same, we need to find arbitrary vector
-	if ( FMath::IsNearlyEqual(FMath::Abs(NewZ | Norm), 1.f) )
+	if ( FMath::IsNearlyEqual(FMath::Abs(NewZ | Norm), FVector::FReal(1.f)) )
 	{
 		// make sure we don't ever pick the same as NewX
 		Norm = ( FMath::Abs(NewZ.Z) < (1.f - KINDA_SMALL_NUMBER) ) ? FVector(0,0,1.f) : FVector(1.f,0,0);
@@ -812,7 +799,7 @@ FMatrix FRotationMatrix::MakeFromZY(FVector const& ZAxis, FVector const& YAxis)
 	FVector Norm = YAxis.GetSafeNormal();
 
 	// if they're almost same, we need to find arbitrary vector
-	if ( FMath::IsNearlyEqual(FMath::Abs(NewZ | Norm), 1.f) )
+	if ( FMath::IsNearlyEqual(FMath::Abs(NewZ | Norm), FVector::FReal(1.f)) )
 	{
 		// make sure we don't ever pick the same as NewX
 		Norm = ( FMath::Abs(NewZ.Z) < (1.f - KINDA_SMALL_NUMBER) ) ? FVector(0,0,1.f) : FVector(1.f,0,0);
@@ -1133,57 +1120,6 @@ bool FMath::LineExtentBoxIntersection(const FBox& inBox,
 	}
 }
 
-float FVector::EvaluateBezier(const FVector* ControlPoints, int32 NumPoints, TArray<FVector>& OutPoints)
-{
-	check( ControlPoints );
-	check( NumPoints >= 2 );
-
-	// var q is the change in t between successive evaluations.
-	const float q = 1.f/(float)(NumPoints-1); // q is dependent on the number of GAPS = POINTS-1
-
-	// recreate the names used in the derivation
-	const FVector& P0 = ControlPoints[0];
-	const FVector& P1 = ControlPoints[1];
-	const FVector& P2 = ControlPoints[2];
-	const FVector& P3 = ControlPoints[3];
-
-	// coefficients of the cubic polynomial that we're FDing -
-	const FVector a = P0;
-	const FVector b = 3*(P1-P0);
-	const FVector c = 3*(P2-2*P1+P0);
-	const FVector d = P3-3*P2+3*P1-P0;
-
-	// initial values of the poly and the 3 diffs -
-	FVector S  = a;						// the poly value
-	FVector U  = b*q + c*q*q + d*q*q*q;	// 1st order diff (quadratic)
-	FVector V  = 2*c*q*q + 6*d*q*q*q;	// 2nd order diff (linear)
-	FVector W  = 6*d*q*q*q;				// 3rd order diff (constant)
-
-	// Path length.
-	float Length = 0.f;
-
-	FVector OldPos = P0;
-	OutPoints.Add( P0 );	// first point on the curve is always P0.
-
-	for( int32 i = 1 ; i < NumPoints ; ++i )
-	{
-		// calculate the next value and update the deltas
-		S += U;			// update poly value
-		U += V;			// update 1st order diff value
-		V += W;			// update 2st order diff value
-		// 3rd order diff is constant => no update needed.
-
-		// Update Length.
-		Length += FVector::Dist( S, OldPos );
-		OldPos  = S;
-
-		OutPoints.Add( S );
-	}
-
-	// Return path length as experienced in sequence (linear interpolation between points).
-	return Length;
-}
-
 float FLinearColor::EvaluateBezier(const FLinearColor* ControlPoints, int32 NumPoints, TArray<FLinearColor>& OutPoints)
 {
 	check( ControlPoints );
@@ -1329,7 +1265,8 @@ void FQuat::CalcTangents(const FQuat& PrevP, const FQuat& P, const FQuat& NextP,
 	OutTan = P * PreExp.Exp();
 }
 
-static void FindBounds( float& OutMin, float& OutMax,  float Start, float StartLeaveTan, float StartT, float End, float EndArriveTan, float EndT, bool bCurve )
+template<typename T>
+static void FindBounds( T& OutMin, T& OutMax,  T Start, T StartLeaveTan, float StartT, T End, T EndArriveTan, float EndT, bool bCurve )
 {
 	OutMin = FMath::Min( Start, End );
 	OutMax = FMath::Max( Start, End );
@@ -1338,34 +1275,34 @@ static void FindBounds( float& OutMin, float& OutMax,  float Start, float StartL
 	if(bCurve)
 	{
 		// Scale tangents based on time interval, so this code matches the behaviour in FInterpCurve::Eval
-		float Diff = EndT - StartT;
+		T Diff = EndT - StartT;
 		StartLeaveTan *= Diff;
 		EndArriveTan *= Diff;
 
-		const float a = 6.f*Start + 3.f*StartLeaveTan + 3.f*EndArriveTan - 6.f*End;
-		const float b = -6.f*Start - 4.f*StartLeaveTan - 2.f*EndArriveTan + 6.f*End;
-		const float c = StartLeaveTan;
+		const T a = 6.f*Start + 3.f*StartLeaveTan + 3.f*EndArriveTan - 6.f*End;
+		const T b = -6.f*Start - 4.f*StartLeaveTan - 2.f*EndArriveTan + 6.f*End;
+		const T c = StartLeaveTan;
 
-		const float Discriminant = (b*b) - (4.f*a*c);
+		const T Discriminant = (b*b) - (4.f*a*c);
 		if(Discriminant > 0.f && !FMath::IsNearlyZero(a)) // Solving doesn't work if a is zero, which usually indicates co-incident start and end, and zero tangents anyway
 		{
-			const float SqrtDisc = FMath::Sqrt( Discriminant );
+			const T SqrtDisc = FMath::Sqrt( Discriminant );
 
-			const float x0 = (-b + SqrtDisc)/(2.f*a); // x0 is the 'Alpha' ie between 0 and 1
-			const float t0 = StartT + x0*(EndT - StartT); // Then t0 is the actual 'time' on the curve
+			const T x0 = (-b + SqrtDisc)/(2.f*a); // x0 is the 'Alpha' ie between 0 and 1
+			const T t0 = StartT + x0*(EndT - StartT); // Then t0 is the actual 'time' on the curve
 			if(t0 > StartT && t0 < EndT)
 			{
-				const float Val = FMath::CubicInterp( Start, StartLeaveTan, End, EndArriveTan, x0 );
+				const T Val = FMath::CubicInterp( Start, StartLeaveTan, End, EndArriveTan, x0 );
 
 				OutMin = FMath::Min( OutMin, Val );
 				OutMax = FMath::Max( OutMax, Val );
 			}
 
-			const float x1 = (-b - SqrtDisc)/(2.f*a);
-			const float t1 = StartT + x1*(EndT - StartT);
+			const T x1 = (-b - SqrtDisc)/(2.f*a);
+			const T t1 = StartT + x1*(EndT - StartT);
 			if(t1 > StartT && t1 < EndT)
 			{
-				const float Val = FMath::CubicInterp( Start, StartLeaveTan, End, EndArriveTan, x1 );
+				const T Val = FMath::CubicInterp( Start, StartLeaveTan, End, EndArriveTan, x1 );
 
 				OutMin = FMath::Min( OutMin, Val );
 				OutMax = FMath::Max( OutMax, Val );
@@ -1405,7 +1342,7 @@ void CORE_API CurveVectorFindIntervalBounds( const FInterpCurvePoint<FVector>& S
 {
 	const bool bIsCurve = Start.IsCurveKey();
 
-	float OutMin, OutMax;
+	FVector::FReal OutMin, OutMax;
 
 	FindBounds(OutMin, OutMax, Start.OutVal.X, Start.LeaveTangent.X, Start.InVal, End.OutVal.X, End.ArriveTangent.X, End.InVal, bIsCurve);
 	CurrentMin.X = FMath::Min( CurrentMin.X, OutMin );
@@ -1424,8 +1361,7 @@ void CORE_API CurveTwoVectorsFindIntervalBounds(const FInterpCurvePoint<FTwoVect
 {
 	const bool bIsCurve = Start.IsCurveKey();
 
-	float OutMin;
-	float OutMax;
+	FVector::FReal OutMin, OutMax;
 
 	// Do the first curve
 	FindBounds(OutMin, OutMax, Start.OutVal.v1.X, Start.LeaveTangent.v1.X, Start.InVal, End.OutVal.v1.X, End.ArriveTangent.v1.X, End.InVal, bIsCurve);
@@ -1816,7 +1752,7 @@ static bool ComputeProjectedSphereShaft(
 			float Pxa = -Pza * Nza / Nxa;
 			FVector4 P = ProjMatrix.TransformFVector4(FVector4(Axis.X * Pxa,Axis.Y * Pxa,Pza,1));
 			float X = (Dot3(P,Axis) / P.W + 1.0f * AxisSign) / 2.0f * AxisSign;
-			if(FMath::IsNegativeFloat(Nxa) ^ FMath::IsNegativeFloat(AxisSign))
+			if(FMath::IsNegative(Nxa) ^ FMath::IsNegative(AxisSign))
 			{
 				InOutMaxX = FMath::Min<int32>(FMath::CeilToInt(ViewSizeX * X + ViewX),InOutMaxX);
 			}
@@ -2071,7 +2007,7 @@ FVector4 FMath::ComputeBaryCentric3D(const FVector& Point, const FVector& A, con
 	const FVector B3 = (D-A);
 
 	//check co-planarity of A,B,C,D
-	check( fabsf(B1 | (B2 ^ B3)) > SMALL_NUMBER && "Coplanar points in FMath::ComputeBaryCentric3D()");
+	check( FMath::Abs(B1 | (B2 ^ B3)) > SMALL_NUMBER && "Coplanar points in FMath::ComputeBaryCentric3D()");
 
 	//Transform Point into this new space
 	const FVector V = (Point - A);
@@ -2091,7 +2027,7 @@ FVector4 FMath::ComputeBaryCentric3D(const FVector& Point, const FVector& A, con
 FVector FMath::ClosestPointOnTetrahedronToPoint(const FVector& Point, const FVector& A, const FVector& B, const FVector& C, const FVector& D)
 {
 	//Check for coplanarity of all four points
-	check( fabsf((C-A) | ((B-A)^(D-C))) > 0.0001f && "Coplanar points in FMath::ComputeBaryCentric3D()");
+	check(FMath::Abs((C-A) | ((B-A)^(D-C))) > 0.0001f && "Coplanar points in FMath::ComputeBaryCentric3D()");
 
 	//http://osdir.com/ml/games.devel.algorithms/2003-02/msg00394.html
 	//     D
@@ -2782,72 +2718,6 @@ FVector FMath::GetReflectionVector(const FVector& Direction, const FVector& Surf
 	return Direction - 2 * (Direction | SafeNormal) * SafeNormal;
 }
 
-struct FClusterMovedHereToMakeCompile
-{
-	FVector ClusterPosAccum;
-	int32 ClusterSize;
-};
-
-void FVector::GenerateClusterCenters(TArray<FVector>& Clusters, const TArray<FVector>& Points, int32 NumIterations, int32 NumConnectionsToBeValid)
-{
-	// Check we have >0 points and clusters
-	if(Points.Num() == 0 || Clusters.Num() == 0)
-	{
-		return;
-	}
-
-	// Temp storage for each cluster that mirrors the order of the passed in Clusters array
-	TArray<FClusterMovedHereToMakeCompile> ClusterData;
-	ClusterData.AddZeroed( Clusters.Num() );
-
-	// Then iterate
-	for(int32 ItCount=0; ItCount<NumIterations; ItCount++)
-	{
-		// Classify each point - find closest cluster center
-		for(int32 i=0; i<Points.Num(); i++)
-		{
-			const FVector& Pos = Points[i];
-
-			// Iterate over all clusters to find closes one
-			int32 NearestClusterIndex = INDEX_NONE;
-			float NearestClusterDistSqr = BIG_NUMBER;
-			for(int32 j=0; j<Clusters.Num() ; j++)
-			{
-				const float DistSqr = (Pos - Clusters[j]).SizeSquared();
-				if(DistSqr < NearestClusterDistSqr)
-				{
-					NearestClusterDistSqr = DistSqr;
-					NearestClusterIndex = j;
-				}
-			}
-			// Update its info with this point
-			if( NearestClusterIndex != INDEX_NONE )
-			{
-				ClusterData[NearestClusterIndex].ClusterPosAccum += Pos;
-				ClusterData[NearestClusterIndex].ClusterSize++;
-			}
-		}
-
-		// All points classified - update cluster center as average of membership
-		for(int32 i=0; i<Clusters.Num(); i++)
-		{
-			if(ClusterData[i].ClusterSize > 0)
-			{
-				Clusters[i] = ClusterData[i].ClusterPosAccum / (float)ClusterData[i].ClusterSize;
-			}
-		}
-	}
-
-	// so now after we have possible cluster centers we want to remove the ones that are outliers and not part of the main cluster
-	for(int32 i=0; i<ClusterData.Num(); i++)
-	{
-		if(ClusterData[i].ClusterSize < NumConnectionsToBeValid)
-		{
-			Clusters.RemoveAt(i);
-		}
-	}
-}
-
 float FMath::TruncateToHalfIfClose(float F, float Tolerance)
 {
 	float ValueToFudgeIntegralPart = 0.0f;
@@ -3351,9 +3221,19 @@ void FMath::WindRelativeAnglesDegrees(float InAngle0, float& InOutAngle1)
 {
 	const float Diff = InAngle0 - InOutAngle1;
 	const float AbsDiff = Abs(Diff);
-	if(AbsDiff > 180.0f)
+	if (AbsDiff > 180.0f)
 	{
 		InOutAngle1 += 360.0f * Sign(Diff) * FloorToFloat((AbsDiff / 360.0f) + 0.5f);
+	}
+}
+
+void FMath::WindRelativeAnglesDegrees(double InAngle0, double& InOutAngle1)
+{
+	const double Diff = InAngle0 - InOutAngle1;
+	const double AbsDiff = Abs(Diff);
+	if (AbsDiff > 180.0)
+	{
+		InOutAngle1 += 360.0 * Sign(Diff) * FloorToDouble((AbsDiff / 360.0) + 0.5);
 	}
 }
 

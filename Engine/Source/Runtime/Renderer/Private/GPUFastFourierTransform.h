@@ -139,7 +139,7 @@ namespace GPUFFT
 	* When used in TwoForOneRealFFTImage, pixels Luma is limited by MaxLuma
 	* and Luma greater than MinLuma is scaled as Multiplier * (Luma - MinLuma) + MinLuma;
 	*/
-	typedef FVector  FPreFilter;
+	typedef FVector3f  FPreFilter;
 	static bool IsActive(const FPreFilter& Filter) { return (Filter.X < Filter.Y); }
 
 

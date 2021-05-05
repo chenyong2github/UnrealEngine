@@ -14,6 +14,7 @@ END_DEFINE_SPEC(FVectorTypesSpec)
 
 void FVectorTypesSpec::Define()
 {
+	//LWC_TODO: - Update GeometryProcessing vector types tests for FVector3d?
 	using Vec = FVector3<float>;
 	Describe("FVector3<float>", [this]()
 	{
@@ -40,7 +41,7 @@ void FVectorTypesSpec::Define()
 			});
 			It("FVector3<float>(const FVector&)", [this, initialValues]()
 			{
-				FVector fVector{initialValues[0], initialValues[1],
+				FVector3f fVector{initialValues[0], initialValues[1],
 								initialValues[2]};
 				Vec fVector3{fVector};
 				TestEqual("v.X", fVector.X, fVector3.X);
@@ -51,7 +52,7 @@ void FVectorTypesSpec::Define()
 			{
 				FLinearColor fLinearColor{initialValues[0], initialValues[1],
 										  initialValues[2]};
-				Vec fVector3{FVector{fLinearColor}};
+				Vec fVector3{FVector3f{fLinearColor}};
 				TestEqual("v.X", fLinearColor.R, fVector3.X);
 				TestEqual("v.Y", fLinearColor.G, fVector3.Y);
 				TestEqual("v.Z", fLinearColor.B, fVector3.Z);
@@ -89,7 +90,7 @@ void FVectorTypesSpec::Define()
 			{
 				constexpr float initialValues[3]{1.f, 2.f, 3.f};
 				Vec testVec{initialValues};
-				FVector converted = static_cast<FVector>(testVec);
+				FVector3f converted = static_cast<FVector3f>(testVec);
 				for (int index : {0, 1, 2}) {
 					TestEqual(FString::Printf(TEXT("Component %d"), index),
 							  testVec[index], converted[index]);
@@ -99,7 +100,7 @@ void FVectorTypesSpec::Define()
 			{
 				constexpr float initialValues[3]{0.5f, 0.5f, 0.5f};
 				Vec testVec{initialValues};
-				FLinearColor converted = {(FVector)testVec};
+				FLinearColor converted = {(FVector3f)testVec};
 				TestEqual("Color.R", testVec.X, converted.R);
 				TestEqual("Color.G", testVec.Y, converted.G);
 				TestEqual("Color.B", testVec.Z, converted.B);

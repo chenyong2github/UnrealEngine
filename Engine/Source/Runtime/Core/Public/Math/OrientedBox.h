@@ -24,13 +24,13 @@ struct FOrientedBox
 	FVector AxisZ;
 
 	/** Holds the extent of the box along its x-axis. */
-	float ExtentX;
+	FVector::FReal ExtentX;
 	
 	/** Holds the extent of the box along its y-axis. */
-	float ExtentY;
+	FVector::FReal ExtentY;
 
 	/** Holds the extent of the box along its z-axis. */
-	float ExtentZ;
+	FVector::FReal ExtentZ;
 
 public:
 

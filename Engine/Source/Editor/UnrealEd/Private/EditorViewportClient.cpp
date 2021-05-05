@@ -761,7 +761,7 @@ void FEditorViewportClient::ToggleOrbitCamera( bool bEnableOrbitCamera )
 void FEditorViewportClient::FocusViewportOnBox( const FBox& BoundingBox, bool bInstant /* = false */ )
 {
 	const FVector Position = BoundingBox.GetCenter();
-	float Radius = FMath::Max(BoundingBox.GetExtent().Size(), 10.f);
+	float Radius = FMath::Max<FVector::FReal>(BoundingBox.GetExtent().Size(), 10.f);
 
 	float AspectToUse = AspectRatio;
 	FIntPoint ViewportSize = Viewport->GetSizeXY();
@@ -4177,7 +4177,7 @@ void FEditorViewportClient::DrawPreviewLightVisualization(const FSceneView* View
 
 		// Figure out the radius to draw the light preview ray at
 		const FVector LightToMousePos = LastMouseWorldPos - LightLocalToWorld.GetTranslation();
-		const float LightToMouseRadius = FMath::Max(LightToMousePos.Size(), PreviewLightConstants::MinMouseRadius);
+		const float LightToMouseRadius = FMath::Max<FVector::FReal>(LightToMousePos.Size(), PreviewLightConstants::MinMouseRadius);
 
 		const float ArrowLength = FMath::Max(PreviewLightConstants::MinArrowLength, LightToMouseRadius * PreviewLightConstants::MouseLengthToArrowLenghtRatio);
 		const float ArrowSize = PreviewLightConstants::ArrowLengthToSizeRatio * ArrowLength;

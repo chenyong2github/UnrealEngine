@@ -586,7 +586,7 @@ void AEFPerTrackCompressionCodec::GetBoneAtomTranslation(
 #if USE_VECTOR_PTC_DECOMPRESSOR
 		const VectorRegister R0 = DecompressSingleTrackTranslationVectorized(KeyFormat, FormatFlags, TrackData, KeyData0);
 #else
-		FVector R0;
+		FVector3f R0;
 		FAnimationCompression_PerTrackUtils::DecompressTranslation(KeyFormat, FormatFlags, R0, TrackData, KeyData0);
 #endif
 
@@ -603,7 +603,7 @@ void AEFPerTrackCompressionCodec::GetBoneAtomTranslation(
 			const VectorRegister BlendedTranslation = FMath::Lerp(R0, R1, VAlpha);
 			OutAtom.SetTranslation(BlendedTranslation);
 #else
-			FVector R1;
+			FVector3f R1;
 			FAnimationCompression_PerTrackUtils::DecompressTranslation(KeyFormat, FormatFlags, R1, TrackData, KeyData1);
 
 			OutAtom.SetTranslation(FMath::Lerp(R0, R1, Alpha));
@@ -672,7 +672,7 @@ void AEFPerTrackCompressionCodec::GetBoneAtomScale(
 #if USE_VECTOR_PTC_DECOMPRESSOR
 		const VectorRegister R0 = DecompressSingleTrackScaleVectorized(KeyFormat, FormatFlags, TrackData, KeyData0);
 #else
-		FVector R0;
+		FVector3f R0;
 		FAnimationCompression_PerTrackUtils::DecompressScale(KeyFormat, FormatFlags, R0, TrackData, KeyData0);
 #endif
 
@@ -689,7 +689,7 @@ void AEFPerTrackCompressionCodec::GetBoneAtomScale(
 			const VectorRegister BlendedScale = FMath::Lerp(R0, R1, VAlpha);
 			OutAtom.SetScale(BlendedScale);
 #else
-			FVector R1;
+			FVector3f R1;
 			FAnimationCompression_PerTrackUtils::DecompressScale(KeyFormat, FormatFlags, R1, TrackData, KeyData1);
 
 			OutAtom.SetScale3D(FMath::Lerp(R0, R1, Alpha));

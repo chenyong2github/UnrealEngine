@@ -186,7 +186,7 @@ void FScene::Import( FLightmassImporter& Importer )
 	{
 		FVolumetricLightmapDensityVolumeData LMVolumeData;
 		Importer.ImportData(&LMVolumeData);
-		static_assert(sizeof(LMVolumeData) == 40, "Update member copy");
+		static_assert(sizeof(LMVolumeData) == sizeof(FBox) + sizeof(FIntPoint) + sizeof(int32), "Update member copy");
 
 		FVolumetricLightmapDensityVolume LMVolume;
 		LMVolume.Bounds = LMVolumeData.Bounds;

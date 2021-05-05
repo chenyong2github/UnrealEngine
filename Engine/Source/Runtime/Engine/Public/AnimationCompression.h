@@ -68,7 +68,11 @@ namespace AnimationCompressionUtils
 	}
 
 	/** custom instantiation of Interpolate for FVectors */
-	template <> FORCEINLINE FVector Interpolate<FVector>(const FVector& A, const FVector& B, float Alpha)
+	template <> FORCEINLINE FVector3f Interpolate<FVector3f>(const FVector3f& A, const FVector3f& B, float Alpha)
+	{
+		return FMath::Lerp(A, B, Alpha);
+	}
+	template <> FORCEINLINE FVector3d Interpolate<FVector3d>(const FVector3d& A, const FVector3d& B, float Alpha)	// LWC_TODO: double Alpha?
 	{
 		return FMath::Lerp(A, B, Alpha);
 	}
@@ -280,21 +284,21 @@ public:
 	FVectorFixed48()
 	{}
 
-	explicit FVectorFixed48(const FVector& Vec)
+	explicit FVectorFixed48(const FVector3f& Vec)
 	{
 		FromVector( Vec );
 	}
 
-	void FromVector(const FVector& Vec)
+	void FromVector(const FVector3f& Vec)
 	{
-		FVector Temp( Vec / 128.0f );
+		FVector3f Temp( Vec / 128.0f );
 
 		X = (int32)(Temp.X * Quant16BitFactor) + Quant16BitOffs;
 		Y = (int32)(Temp.Y * Quant16BitFactor) + Quant16BitOffs;
 		Z = (int32)(Temp.Z * Quant16BitFactor) + Quant16BitOffs;
 	}
 
-	void ToVector(FVector& Out) const
+	void ToVector(FVector3f& Out) const
 	{
 		const float FX = ((int32)X - (int32)Quant16BitOffs) / Quant16BitDiv;
 		const float FY = ((int32)Y - (int32)Quant16BitOffs) / Quant16BitDiv;
@@ -322,14 +326,14 @@ public:
 	FVectorIntervalFixed32NoW()
 	{}
 
-	explicit FVectorIntervalFixed32NoW(const FVector& Value, const float* Mins, const float *Ranges)
+	explicit FVectorIntervalFixed32NoW(const FVector3f& Value, const float* Mins, const float *Ranges)
 	{
 		FromVector( Value, Mins, Ranges );
 	}
 
-	void FromVector(const FVector& Value, const float* Mins, const float *Ranges)
+	void FromVector(const FVector3f& Value, const float* Mins, const float *Ranges)
 	{
-		FVector Temp( Value );
+		FVector3f Temp( Value );
 
 		Temp.X -= Mins[0];
 		Temp.Y -= Mins[1];
@@ -346,7 +350,7 @@ public:
 	}
 
 	template<bool bIsDataAligned = true>
-	static FVector ToVector(const float* Mins, const float *Ranges, const uint32* PackedValue)
+	static FVector3f ToVector(const float* Mins, const float *Ranges, const uint32* PackedValue)
 	{
 		const uint32 ZShift = 21;
 		const uint32 YShift = 10;
@@ -363,10 +367,10 @@ public:
 		const float Y = ((((int32)UnpackedY - (int32)Quant11BitOffs) / Quant11BitDiv) * Ranges[1] + Mins[1]);
 		const float Z = ((((int32)UnpackedZ - (int32)Quant11BitOffs) / Quant11BitDiv) * Ranges[2] + Mins[2]);
 
-		return FVector(X, Y, Z);
+		return FVector3f(X, Y, Z);
 	}
 
-	void ToVector(FVector& Out, const float* Mins, const float *Ranges) const
+	void ToVector(FVector3f& Out, const float* Mins, const float *Ranges) const
 	{
 		Out = ToVector<true>(Mins, Ranges, &Packed);
 	}
@@ -598,11 +602,11 @@ FORCEINLINE void DecompressRotation(FQuat& Out, const uint8* RESTRICT TopOfStrea
  * @return	None. 
  */
 template <int32 FORMAT, bool bIsDataAligned = true>
-FORCEINLINE void DecompressTranslation(FVector& Out, const uint8* RESTRICT TopOfStream, const uint8* RESTRICT KeyData)
+FORCEINLINE void DecompressTranslation(FVector3f& Out, const uint8* RESTRICT TopOfStream, const uint8* RESTRICT KeyData)
 {
 	if ( (FORMAT == ACF_None) || (FORMAT == ACF_Float96NoW) )
 	{
-		Out = bIsDataAligned ? *((FVector*)KeyData) : AnimationCompressionUtils::UnalignedRead<FVector>(KeyData);
+		Out = bIsDataAligned ? *((FVector3f*)KeyData) : AnimationCompressionUtils::UnalignedRead<FVector3f>(KeyData);
 	}
 	else if ( FORMAT == ACF_IntervalFixed32NoW )
 	{
@@ -612,7 +616,7 @@ FORCEINLINE void DecompressTranslation(FVector& Out, const uint8* RESTRICT TopOf
 	}
 	else if ( FORMAT == ACF_Identity )
 	{
-		Out = FVector::ZeroVector;
+		Out = FVector3f::ZeroVector;
 	}
 	else if ( FORMAT == ACF_Fixed48NoW )
 	{
@@ -622,7 +626,7 @@ FORCEINLINE void DecompressTranslation(FVector& Out, const uint8* RESTRICT TopOf
 	{
 		UE_LOG(LogAnimation, Fatal, TEXT("%i: unknown or unsupported animation compression format"), (int32)FORMAT );
 		// Silence compilers warning about a value potentially not being assigned.
-		Out = FVector::ZeroVector;
+		Out = FVector3f::ZeroVector;
 	}
 }
 
@@ -635,11 +639,11 @@ FORCEINLINE void DecompressTranslation(FVector& Out, const uint8* RESTRICT TopOf
  * @return	None. 
  */
 template <int32 FORMAT, bool bIsDataAligned = true>
-FORCEINLINE void DecompressScale(FVector& Out, const uint8* RESTRICT TopOfStream, const uint8* RESTRICT KeyData)
+FORCEINLINE void DecompressScale(FVector3f& Out, const uint8* RESTRICT TopOfStream, const uint8* RESTRICT KeyData)
 {
 	if ( (FORMAT == ACF_None) || (FORMAT == ACF_Float96NoW) )
 	{
-		Out = bIsDataAligned ? *((FVector*)KeyData) : AnimationCompressionUtils::UnalignedRead<FVector>(KeyData);
+		Out = bIsDataAligned ? *((FVector3f*)KeyData) : AnimationCompressionUtils::UnalignedRead<FVector3f>(KeyData);
 	}
 	else if ( FORMAT == ACF_IntervalFixed32NoW )
 	{
@@ -649,7 +653,7 @@ FORCEINLINE void DecompressScale(FVector& Out, const uint8* RESTRICT TopOfStream
 	}
 	else if ( FORMAT == ACF_Identity )
 	{
-		Out = FVector::ZeroVector;
+		Out = FVector3f::ZeroVector;
 	}
 	else if ( FORMAT == ACF_Fixed48NoW )
 	{
@@ -659,7 +663,7 @@ FORCEINLINE void DecompressScale(FVector& Out, const uint8* RESTRICT TopOfStream
 	{
 		UE_LOG(LogAnimation, Fatal, TEXT("%i: unknown or unsupported animation compression format"), (int32)FORMAT );
 		// Silence compilers warning about a value potentially not being assigned.
-		Out = FVector::ZeroVector;
+		Out = FVector3f::ZeroVector;
 	}
 }
 
@@ -815,14 +819,14 @@ public:
 
 	/** Decompress a single translation key from a single track that was compressed with the PerTrack codec (scalar) */
 	template<bool bIsDataAligned = true>
-	static FORCEINLINE_DEBUGGABLE void DecompressTranslation(int32 Format, int32 FormatFlags, FVector& Out, const uint8* RESTRICT TopOfStream, const uint8* RESTRICT KeyData)
+	static FORCEINLINE_DEBUGGABLE void DecompressTranslation(int32 Format, int32 FormatFlags, FVector3f& Out, const uint8* RESTRICT TopOfStream, const uint8* RESTRICT KeyData)
 	{
 		if( Format == ACF_Float96NoW )
 		{
 			// Legacy Format, all components stored
 			if( (FormatFlags & 7) == 0 )
 			{
-				Out = bIsDataAligned ? *((FVector*)KeyData) : AnimationCompressionUtils::UnalignedRead<FVector>(KeyData);
+				Out = bIsDataAligned ? *((FVector3f*)KeyData) : AnimationCompressionUtils::UnalignedRead<FVector3f>(KeyData);
 			}
 			// Stored per components
 			else
@@ -913,13 +917,13 @@ public:
 		}
 		else if ( Format == ACF_Identity )
 		{
-			Out = FVector::ZeroVector;
+			Out = FVector3f::ZeroVector;
 		}
 		else
 		{
 			UE_LOG(LogAnimation, Fatal, TEXT("%i: unknown or unsupported animation compression format"), (int32)Format );
 			// Silence compilers warning about a value potentially not being assigned.
-			Out = FVector::ZeroVector;
+			Out = FVector3f::ZeroVector;
 		}
 	}
 
@@ -998,14 +1002,14 @@ public:
 
 	/** Decompress a single Scale key from a single track that was compressed with the PerTrack codec (scalar) */
 	template<bool bIsDataAligned = true>
-	static FORCEINLINE_DEBUGGABLE void DecompressScale(int32 Format, int32 FormatFlags, FVector& Out, const uint8* RESTRICT TopOfStream, const uint8* RESTRICT KeyData)
+	static FORCEINLINE_DEBUGGABLE void DecompressScale(int32 Format, int32 FormatFlags, FVector3f& Out, const uint8* RESTRICT TopOfStream, const uint8* RESTRICT KeyData)
 	{
 		if( Format == ACF_Float96NoW )
 		{
 			// Legacy Format, all components stored
 			if( (FormatFlags & 7) == 0 )
 			{
-				Out = bIsDataAligned ? *((FVector*)KeyData) : AnimationCompressionUtils::UnalignedRead<FVector>(KeyData);
+				Out = bIsDataAligned ? *((FVector3f*)KeyData) : AnimationCompressionUtils::UnalignedRead<FVector3f>(KeyData);
 			}
 			// Stored per components
 			else
@@ -1096,13 +1100,13 @@ public:
 		}
 		else if ( Format == ACF_Identity )
 		{
-			Out = FVector::ZeroVector;
+			Out = FVector3f::ZeroVector;
 		}
 		else
 		{
 			UE_LOG(LogAnimation, Fatal, TEXT("%i: unknown or unsupported animation compression format"), (int32)Format );
 			// Silence compilers warning about a value potentially not being assigned.
-			Out = FVector::ZeroVector;
+			Out = FVector3f::ZeroVector;
 		}
 	}
 };

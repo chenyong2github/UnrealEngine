@@ -254,14 +254,14 @@ namespace Chaos
 		FVec3& AxisLocal,
 		FReal& Error)
 	{
-		if (FMath::IsNearlyEqual(SwingLimitY, SwingLimitZ, 1.e-3f))
+		if (FMath::IsNearlyEqual(SwingLimitY, SwingLimitZ, (FReal)1.e-3))
 		{ 
 			GetCircularConeAxisErrorLocal(R0, R1, SwingLimitY, AxisLocal, Error);
 			return;
 		}
 
 		AxisLocal = FJointConstants::Swing1Axis();
-		Error = 0.0f;
+		Error = 0.;
 
 		FRotation3 R01Twist, R01Swing;
 		FPBDJointUtilities::DecomposeSwingTwistLocal(R0, R1, R01Swing, R01Twist);
@@ -317,7 +317,7 @@ namespace Chaos
 		if (Utilities::NormalizeSafe(Axis, KINDA_SMALL_NUMBER))
 		{
 			FReal SwingTwistDot = FVec3::DotProduct(Swing0, Twist1);
-			Angle = FMath::Asin(FMath::Clamp(-SwingTwistDot, -1.0f, 1.0f));
+			Angle = FMath::Asin(FMath::Clamp<FReal>(-SwingTwistDot, -1., 1.));
 		}
 	}
 
@@ -334,7 +334,7 @@ namespace Chaos
 		FRotation3 R01Twist, R01Swing;
 		FPBDJointUtilities::DecomposeSwingTwistLocal(R0, R1, R01Swing, R01Twist);
 		const FReal R01SwingYorZ = (FJointConstants::AxisIndex(SwingConstraintIndex) == 2) ? R01Swing.Z : R01Swing.Y;	// Can't index a quat :(
-		Angle = 4.0f * FMath::Atan2(R01SwingYorZ, 1.0f + R01Swing.W);
+		Angle = 4.0f * FMath::Atan2(R01SwingYorZ, (FReal)(1. + R01Swing.W));
 		const FVec3& AxisLocal = (SwingConstraintIndex == EJointAngularConstraintIndex::Swing1) ? FJointConstants::Swing1Axis() : FJointConstants::Swing2Axis();
 		Axis = R0 * AxisLocal;
 	}
@@ -381,7 +381,7 @@ namespace Chaos
 
 		// Elliptical swing limit
 		// @todo(ccaulfield): do elliptical constraints properly (axis is still for circular limit)
-		if (!FMath::IsNearlyEqual(Swing1Limit, Swing2Limit, KINDA_SMALL_NUMBER))
+		if (!FMath::IsNearlyEqual(Swing1Limit, Swing2Limit, (FReal)KINDA_SMALL_NUMBER))
 		{
 			// Map swing axis to ellipse and calculate limit for this swing axis
 			const FReal DotSwing1 = FMath::Abs(FVec3::DotProduct(SwingAxisLocal, FJointConstants::Swing1Axis()));

@@ -37,7 +37,7 @@ float CalcDelta(const T& A, const T& B)
 }
 
 /** custom instantiation of CalcDelta for FVectors */
-template <> float CalcDelta<FVector>(const FVector& A, const FVector& B)
+template <> float CalcDelta<FVector3f>(const FVector3f& A, const FVector3f& B)
 {
 	return (A - B).Size();
 }
@@ -74,16 +74,16 @@ struct RotationAdapter
 
 struct TranslationAdapter
 {
-	typedef FVector KeyType;
+	typedef FVector3f KeyType;
 
-	static FTransform UpdateBoneAtom(const FTransform& Atom, const FVector& Component) { return FTransform(Atom.GetRotation(), Component, Atom.GetScale3D()); }
+	static FTransform UpdateBoneAtom(const FTransform& Atom, const FVector3f& Component) { return FTransform(Atom.GetRotation(), Component, Atom.GetScale3D()); }
 };
 
 struct ScaleAdapter
 {
-	typedef FVector KeyType;
+	typedef FVector3f KeyType;
 
-	static FTransform UpdateBoneAtom(const FTransform& Atom, const FVector& Component) { return FTransform(Atom.GetRotation(), Atom.GetTranslation(), Component); }
+	static FTransform UpdateBoneAtom(const FTransform& Atom, const FVector3f& Component) { return FTransform(Atom.GetRotation(), Atom.GetTranslation(), Component); }
 };
 
 /**
@@ -503,7 +503,7 @@ void UAnimCompress_RemoveLinearKeys::ConvertToRelativeSpace(FCompressibleAnimDat
 		// @note: we only extract the first frame, as we don't want to induce motion from the base pose
 		// only the motion from the additive data should matter.
 		const FQuat InvRefBoneRotation = BasePoseTrack.RotKeys[0].Inverse();
-		const FVector InvRefBoneTranslation = -BasePoseTrack.PosKeys[0];
+		const FVector3f InvRefBoneTranslation = -BasePoseTrack.PosKeys[0];
 
 		// transform position keys.
 		for (int32 PosIndex = 0; PosIndex < RawTrack.PosKeys.Num(); ++PosIndex)
@@ -521,7 +521,7 @@ void UAnimCompress_RemoveLinearKeys::ConvertToRelativeSpace(FCompressibleAnimDat
 		// scale key
 		if (RawTrack.ScaleKeys.Num() > 0)
 		{
-			const FVector InvRefBoneScale = FTransform::GetSafeScaleReciprocal(BasePoseTrack.ScaleKeys[0]);
+			const FVector3f InvRefBoneScale = FTransform::GetSafeScaleReciprocal(BasePoseTrack.ScaleKeys[0]);
 
 			// transform scale keys.
 			for (int32 ScaleIndex = 0; ScaleIndex < RawTrack.ScaleKeys.Num(); ++ScaleIndex)
@@ -549,7 +549,7 @@ void UAnimCompress_RemoveLinearKeys::ConvertToRelativeSpace(
 		// @note: we only extract the first frame, as we don't want to induce motion from the base pose
 		// only the motion from the additive data should matter.
 		const FQuat InvRefBoneRotation = BasePoseTrack.RotKeys[0].Inverse();
-		const FVector InvRefBoneTranslation = -BasePoseTrack.PosKeys[0];
+		const FVector3f InvRefBoneTranslation = -BasePoseTrack.PosKeys[0];
 
 		// convert the new translation tracks to additive space
 		FTranslationTrack& TranslationTrack = TranslationData[TrackIndex];
@@ -569,7 +569,7 @@ void UAnimCompress_RemoveLinearKeys::ConvertToRelativeSpace(
 		// scale key
 		if (ScaleData.Num() > 0)
 		{
-			const FVector InvRefBoneScale = FTransform::GetSafeScaleReciprocal(BasePoseTrack.ScaleKeys[0]);
+			const FVector3f InvRefBoneScale = FTransform::GetSafeScaleReciprocal(BasePoseTrack.ScaleKeys[0]);
 
 			// convert the new scale tracks to additive space
 			FScaleTrack& ScaleTrack = ScaleData[TrackIndex];
@@ -725,7 +725,7 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 					// adjust all translation keys to align better with the destination
 					for ( int32 KeyIndex = 0; KeyIndex < NumScaleKeys; ++KeyIndex )
 					{
-						FVector& Key= ScaleTrack.ScaleKeys[KeyIndex];
+						FVector3f& Key= ScaleTrack.ScaleKeys[KeyIndex];
 
 						const int32 FrameIndex= FMath::Clamp(KeyIndex, 0, LastFrame);
 						const FTransform& NewWorldParent = NewWorldBones[(ParentBoneIndex*NumKeys) + FrameIndex];
@@ -832,7 +832,7 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 					// adjust all translation keys to align better with the destination
 					for ( int32 KeyIndex = 0; KeyIndex < NumPosKeys; ++KeyIndex )
 					{
-						FVector& Key= TransTrack.PosKeys[KeyIndex];
+						FVector3f& Key= TransTrack.PosKeys[KeyIndex];
 
 						const int32 FrameIndex= FMath::Clamp(KeyIndex, 0, LastFrame);
 						FTransform NewWorldParent = NewWorldBones[(ParentBoneIndex*NumKeys) + FrameIndex];

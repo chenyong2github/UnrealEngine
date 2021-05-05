@@ -156,15 +156,15 @@ void ATriggerBox::EditorApplyScale(const FVector& DeltaScale, const FVector* Piv
 		// can be changed without having to use the non-uniform scaling widget (which is
 		// inaccessable with spacebar widget cycling).
 		FVector Extent = BoxComponent->GetUnscaledBoxExtent() + FVector(0, 0, ModifiedScale.X);
-		Extent.Z = FMath::Max(0.0f, Extent.Z);
+		Extent.Z = FMath::Max<FVector::FReal>(0, Extent.Z);
 		BoxComponent->SetBoxExtent(Extent);
 	}
 	else
 	{
 		FVector Extent = BoxComponent->GetUnscaledBoxExtent() + FVector(ModifiedScale.X, ModifiedScale.Y, ModifiedScale.Z);
-		Extent.X = FMath::Max(0.0f, Extent.X);
-		Extent.Y = FMath::Max(0.0f, Extent.Y);
-		Extent.Z = FMath::Max(0.0f, Extent.Z);
+		Extent.X = FMath::Max<FVector::FReal>(0, Extent.X);
+		Extent.Y = FMath::Max<FVector::FReal>(0, Extent.Y);
+		Extent.Z = FMath::Max<FVector::FReal>(0, Extent.Z);
 		BoxComponent->SetBoxExtent(Extent);
 	}
 }

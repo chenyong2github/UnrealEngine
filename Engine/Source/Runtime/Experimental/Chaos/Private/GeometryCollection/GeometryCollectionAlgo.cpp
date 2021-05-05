@@ -500,12 +500,12 @@ namespace GeometryCollectionAlgo
 		if (Transform.Num())
 		{
 			const TManagedArray<int32>& BoneMap = GeometryCollection->BoneMap;
-			TManagedArray<FVector>& Vertex = GeometryCollection->Vertex;
+			TManagedArray<FVector3f>& Vertex = GeometryCollection->Vertex;
 
 			TArray<int32> SurfaceParticlesCount;
 			SurfaceParticlesCount.AddZeroed(GeometryCollection->NumElements(FGeometryCollection::TransformGroup));
 
-			TArray<FVector> CenterOfMass;
+			TArray<FVector3f> CenterOfMass;
 			CenterOfMass.AddZeroed(GeometryCollection->NumElements(FGeometryCollection::TransformGroup));
 
 			for (int i = 0; i < Vertex.Num(); i++)
@@ -875,7 +875,7 @@ namespace GeometryCollectionAlgo
 	{
 		check(GeometryCollection);
 
-		const TManagedArray<FVector>& VertexArray = GeometryCollection->Vertex;
+		const TManagedArray<FVector3f>& VertexArray = GeometryCollection->Vertex;
 		const TManagedArray<int32>& BoneMapArray = GeometryCollection->BoneMap;
 		const TManagedArray<int32>& TransformIndexArray = GeometryCollection->TransformIndex;
 		int32 NumVertices = GeometryCollection->NumElements(FGeometryCollection::VerticesGroup);
@@ -896,14 +896,14 @@ namespace GeometryCollectionAlgo
 				{
 					if (!LocalVertexToDeleteSet.Contains(IdxVertex))
 					{
-						const FVector& Vertex = VertexArray[IdxVertex];
+						const FVector3f& Vertex = VertexArray[IdxVertex];
 						for (int32 IdxOtherVertex = 0; IdxOtherVertex < NumVertices; ++IdxOtherVertex)
 						{
 							if (BoneMapArray[IdxOtherVertex] == TransformIndex)
 							{
 								if ((IdxVertex != IdxOtherVertex) && !LocalVertexToDeleteSet.Contains(IdxOtherVertex))
 								{
-									const FVector& OtherVertex = VertexArray[IdxOtherVertex];
+									const FVector3f& OtherVertex = VertexArray[IdxOtherVertex];
 									if ((Vertex - OtherVertex).SizeSquared() < ToleranceSquared)
 									{
 										LocalVertexToDeleteSet.Add(IdxOtherVertex);
@@ -963,7 +963,7 @@ namespace GeometryCollectionAlgo
 	{
 		check(GeometryCollection);
 
-		const TManagedArray<FVector>& VertexArray = GeometryCollection->Vertex;
+		const TManagedArray<FVector3f>& VertexArray = GeometryCollection->Vertex;
 		const TManagedArray<FIntVector>& IndicesArray = GeometryCollection->Indices;
 		const TManagedArray<int32>& BoneMapArray = GeometryCollection->BoneMap;
 
@@ -975,9 +975,9 @@ namespace GeometryCollectionAlgo
 			int32 TransformIndex = BoneMapArray[IndicesArray[IdxFace][0]];
 			if (GeometryCollection->IsGeometry(TransformIndex) && !GeometryCollection->IsClustered(TransformIndex))
 			{
-				FVector Vertex0 = VertexArray[IndicesArray[IdxFace][0]];
-				FVector Vertex1 = VertexArray[IndicesArray[IdxFace][1]];
-				FVector Vertex2 = VertexArray[IndicesArray[IdxFace][2]];
+				FVector3f Vertex0 = VertexArray[IndicesArray[IdxFace][0]];
+				FVector3f Vertex1 = VertexArray[IndicesArray[IdxFace][1]];
+				FVector3f Vertex2 = VertexArray[IndicesArray[IdxFace][2]];
 
 				float Area = 0.5f * ((Vertex0 - Vertex1) ^ (Vertex0 - Vertex2)).Size();
 				if (Area < Tolerance)
@@ -1039,7 +1039,7 @@ namespace GeometryCollectionAlgo
 	{
 		check(GeometryCollection);
 
-		const TManagedArray<FVector>& VertexArray = GeometryCollection->Vertex;
+		const TManagedArray<FVector3f>& VertexArray = GeometryCollection->Vertex;
 		const TManagedArray<int32>& BoneMapArray = GeometryCollection->BoneMap;
 		const TManagedArray<int32>& TransformIndexArray = GeometryCollection->TransformIndex;
 		const TManagedArray<FIntVector>& IndicesArray = GeometryCollection->Indices;

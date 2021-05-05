@@ -170,8 +170,8 @@ float FPoly::Area()
 
 int32 FPoly::SplitWithPlane
 (
-	const FVector	&PlaneBase,
-	const FVector	&PlaneNormal,
+	const FVector3f	&PlaneBase,
+	const FVector3f	&PlaneNormal,
 	FPoly			*FrontPoly,
 	FPoly			*BackPoly,
 	int32				VeryPrecise
@@ -249,13 +249,13 @@ int32 FPoly::SplitWithPlane
 					// This point lies on plane.
 					if( PrevStatus == V_FRONT )
 					{
-						new(FrontPoly->Vertices) FVector(Vertices[i]);
-						new(BackPoly->Vertices) FVector(Vertices[i]);
+						new(FrontPoly->Vertices) FVector3f(Vertices[i]);
+						new(BackPoly->Vertices) FVector3f(Vertices[i]);
 					}
 					else
 					{
-						new(BackPoly->Vertices) FVector(Vertices[i]);
-						new(FrontPoly->Vertices) FVector(Vertices[i]);
+						new(BackPoly->Vertices) FVector3f(Vertices[i]);
+						new(FrontPoly->Vertices) FVector3f(Vertices[i]);
 					}
 				}
 				else if( (PrevDist >= -Thresh) && (PrevDist < +Thresh) )
@@ -263,13 +263,13 @@ int32 FPoly::SplitWithPlane
 					// Previous point lies on plane.
 					if (Status == V_FRONT)
 					{
-						new(FrontPoly->Vertices) FVector(Vertices[j]);
-						new(FrontPoly->Vertices) FVector(Vertices[i]);
+						new(FrontPoly->Vertices) FVector3f(Vertices[j]);
+						new(FrontPoly->Vertices) FVector3f(Vertices[i]);
 					}
 					else
 					{
-						new(BackPoly->Vertices) FVector(Vertices[j]);
-						new(BackPoly->Vertices) FVector(Vertices[i]);
+						new(BackPoly->Vertices) FVector3f(Vertices[j]);
+						new(BackPoly->Vertices) FVector3f(Vertices[i]);
 					}
 				}
 				else
@@ -279,22 +279,22 @@ int32 FPoly::SplitWithPlane
 
 					if( PrevStatus == V_FRONT )
 					{
-						new(FrontPoly->Vertices) FVector(Intersection);
-						new(BackPoly->Vertices) FVector(Intersection);
-						new(BackPoly->Vertices) FVector(Vertices[i]);
+						new(FrontPoly->Vertices) FVector3f(Intersection);
+						new(BackPoly->Vertices) FVector3f(Intersection);
+						new(BackPoly->Vertices) FVector3f(Vertices[i]);
 					}
 					else
 					{
-						new(BackPoly->Vertices) FVector(Intersection);
-						new(FrontPoly->Vertices) FVector(Intersection);
-						new(FrontPoly->Vertices) FVector(Vertices[i]);
+						new(BackPoly->Vertices) FVector3f(Intersection);
+						new(FrontPoly->Vertices) FVector3f(Intersection);
+						new(FrontPoly->Vertices) FVector3f(Vertices[i]);
 					}
 				}
 			}
 			else
 			{
-	    		if (Status==V_FRONT) new(FrontPoly->Vertices)FVector(Vertices[i]);
-	    		else                 new(BackPoly->Vertices)FVector(Vertices[i]);
+	    		if (Status==V_FRONT) new(FrontPoly->Vertices)FVector3f(Vertices[i]);
+	    		else                 new(BackPoly->Vertices)FVector3f(Vertices[i]);
 			}
 			j          = i;
 			PrevStatus = Status;
@@ -388,10 +388,10 @@ int32 FPoly::SplitWithPlaneFast
 		// Split.
 		if( FrontPoly )
 		{
-			const FVector *V  = Vertices.GetData();
-			const FVector *W  = V + Vertices.Num()-1;
-			FVector *V1       = FrontPoly->Vertices.GetData();
-			FVector *V2       = BackPoly ->Vertices.GetData();
+			const FVector3f *V  = Vertices.GetData();
+			const FVector3f *W  = V + Vertices.Num()-1;
+			FVector3f *V1       = FrontPoly->Vertices.GetData();
+			FVector3f *V2       = BackPoly ->Vertices.GetData();
 			StatusPtr         = &VertStatus        [0];
 			PrevStatus        = VertStatus         [Vertices.Num()-1];
 
@@ -401,25 +401,25 @@ int32 FPoly::SplitWithPlaneFast
 				if( Status != PrevStatus )
 				{
 					// Crossing.
-					const FVector& Intersection = FMath::LinePlaneIntersection( *W, *V, Plane );
-					new(FrontPoly->Vertices) FVector(Intersection);
-					new(BackPoly->Vertices) FVector(Intersection);
+					const FVector3f& Intersection = FMath::LinePlaneIntersection( *W, *V, (FPlane4f)Plane );
+					new(FrontPoly->Vertices) FVector3f(Intersection);
+					new(BackPoly->Vertices) FVector3f(Intersection);
 					if( PrevStatus == V_FRONT )
 					{
-						new(BackPoly->Vertices) FVector(*V);
+						new(BackPoly->Vertices) FVector3f(*V);
 					}
 					else
 					{
-						new(FrontPoly->Vertices) FVector(*V);
+						new(FrontPoly->Vertices) FVector3f(*V);
 					}
 				}
 				else if( Status==V_FRONT )
 				{
-					new(FrontPoly->Vertices) FVector(*V);
+					new(FrontPoly->Vertices) FVector3f(*V);
 				}
 				else
 				{
-					new(BackPoly->Vertices) FVector(*V);
+					new(BackPoly->Vertices) FVector3f(*V);
 				}
 
 				PrevStatus = Status;
@@ -461,7 +461,7 @@ int32 FPoly::CalcNormal( bool bSilent )
 
 void FPoly::Transform
 (
-	const FVector&		PostAdd
+	const FVector3f&		PostAdd
 )
 {
 	FVector 	Temp;
@@ -500,7 +500,7 @@ void FPoly::Rotate
 
 void FPoly::Scale
 (
-	const FVector&		Scale
+	const FVector3f&		Scale
 )
 {
 	if (Scale.X == 1.f &&
@@ -531,8 +531,8 @@ int32 FPoly::RemoveColinears()
 {
 	FMemStack& LocalMemStack = FMemStack::Get();
 	FMemMark MemMark(LocalMemStack);
-	FVector* SidePlaneNormal = new(LocalMemStack) FVector[Vertices.Num()];
-	FVector  Side;
+	FVector3f* SidePlaneNormal = new(LocalMemStack) FVector3f[Vertices.Num()];
+	FVector3f  Side;
 	int32      i,j;
 	bool Result = true;
 
@@ -564,10 +564,10 @@ int32 FPoly::RemoveColinears()
 		{
 			j=(i+1)%Vertices.Num();
 
-			if( FVector::PointsAreNear(SidePlaneNormal[i],SidePlaneNormal[j],FLOAT_NORMAL_THRESH) )
+			if( FVector3f::PointsAreNear(SidePlaneNormal[i],SidePlaneNormal[j],FLOAT_NORMAL_THRESH) )
 			{
 				// Eliminate colinear points.
-				FMemory::Memcpy (&SidePlaneNormal[i],&SidePlaneNormal[i+1],(Vertices.Num()-(i+1)) * sizeof (FVector));
+				FMemory::Memcpy (&SidePlaneNormal[i],&SidePlaneNormal[i+1],(Vertices.Num()-(i+1)) * sizeof (FVector3f));
 				Vertices.RemoveAt(i,1);
 				if(Vertices.Num() < 3)
 				{
@@ -608,8 +608,8 @@ int32 FPoly::RemoveColinears()
 bool FPoly::DoesLineIntersect( FVector Start, FVector End, FVector* Intersect )
 {
 	// If the ray doesn't cross the plane, don't bother going any further.
-	const float DistStart = FVector::PointPlaneDist( Start, Vertices[0], Normal );
-	const float DistEnd = FVector::PointPlaneDist( End, Vertices[0], Normal );
+	const float DistStart = FVector::PointPlaneDist( Start, (FVector)Vertices[0], (FVector)Normal );
+	const float DistEnd = FVector::PointPlaneDist( End, (FVector)Vertices[0], (FVector)Normal );
 
 	if( (DistStart < 0 && DistEnd < 0) || (DistStart > 0 && DistEnd > 0 ) )
 	{
@@ -617,7 +617,7 @@ bool FPoly::DoesLineIntersect( FVector Start, FVector End, FVector* Intersect )
 	}
 
 	// Get the intersection of the line and the plane.
-	FVector Intersection = FMath::LinePlaneIntersection(Start,End,Vertices[0],Normal);
+	FVector Intersection = FMath::LinePlaneIntersection(Start,End,(FVector)Vertices[0],(FVector)Normal);
 	if( Intersect )	*Intersect = Intersection;
 	if( Intersection == Start || Intersection == End )
 	{
@@ -642,7 +642,7 @@ bool FPoly::OnPoly( FVector InVtx )
 		SidePlaneNormal.Normalize();
 
 		// If point is not behind all the planes created by this polys edges, it's outside the poly.
-		if( FVector::PointPlaneDist( InVtx, Vertices[x], SidePlaneNormal ) > THRESH_POINT_ON_PLANE )
+		if( FVector::PointPlaneDist( InVtx, (FVector)Vertices[x], SidePlaneNormal ) > THRESH_POINT_ON_PLANE )
 		{
 			return 0;
 		}
@@ -701,16 +701,16 @@ bool FPoly::IsConvex()
 
 	for( int32 EdgeVert = 0 ; EdgeVert < Vertices.Num() ; ++EdgeVert )
 	{
-		const FVector& vtx1 = Vertices[EdgeVert];
-		const FVector& vtx2 = Vertices[(EdgeVert + 1) % Vertices.Num()];
-		FVector v2v = vtx2 - vtx1;
+		const FVector3f& vtx1 = Vertices[EdgeVert];
+		const FVector3f& vtx2 = Vertices[(EdgeVert + 1) % Vertices.Num()];
+		FVector3f v2v = vtx2 - vtx1;
 
-		FVector EdgeNormal = v2v ^ Normal;
+		FVector3f EdgeNormal = v2v ^ Normal;
 
 		for( int32 CheckVertLoop = 2 ; CheckVertLoop < Vertices.Num(); ++CheckVertLoop )
 	{
 			int32 CheckVert = (CheckVertLoop + EdgeVert) % Vertices.Num();
-			FVector RelativePos = Vertices[CheckVert] - Vertices[EdgeVert];
+			FVector3f RelativePos = Vertices[CheckVert] - Vertices[EdgeVert];
 
 			if (0.0 < (EdgeNormal | RelativePos))
 			{
@@ -741,9 +741,9 @@ int32 FPoly::Triangulate( ABrush* InOwnerBrush, TArray<FPoly>& OutTriangles )
 		vtx.Pos = Vertices[v];
 
 		// Init other data so that VertsAreEqual won't compare garbage
-		vtx.TangentX = FVector::ZeroVector;
-		vtx.TangentY = FVector::ZeroVector;
-		vtx.TangentZ = FVector::ZeroVector;
+		vtx.TangentX = FVector3f::ZeroVector;
+		vtx.TangentY = FVector3f::ZeroVector;
+		vtx.TangentZ = FVector3f::ZeroVector;
 		vtx.Color = FColor(0, 0, 0);
 		for( int32 uvIndex=0; uvIndex<UE_ARRAY_COUNT(vtx.UVs); ++uvIndex )
 		{
@@ -788,7 +788,7 @@ int32 FPoly::Triangulate( ABrush* InOwnerBrush, TArray<FPoly>& OutTriangles )
 }
 
 
-int32 FPoly::GetVertexIndex( FVector& InVtx )
+int32 FPoly::GetVertexIndex( FVector3f& InVtx )
 {
 	int32 idx = INDEX_NONE;
 
@@ -874,7 +874,7 @@ bool FPoly::OnPlane( FVector InVtx )
 }
 
 
-int32 FPoly::Split( const FVector &InNormal, const FVector &InBase )
+int32 FPoly::Split( const FVector3f &InNormal, const FVector3f &InBase )
 {
 	// Split it.
 	FPoly Front, Back;

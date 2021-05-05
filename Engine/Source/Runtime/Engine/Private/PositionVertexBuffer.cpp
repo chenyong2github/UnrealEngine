@@ -95,7 +95,7 @@ void FPositionVertexBuffer::Init(const FPositionVertexBuffer& InVertexBuffer, bo
 	}
 }
 
-void FPositionVertexBuffer::Init(const TArray<FVector>& InPositions, bool bInNeedsCPUAccess)
+void FPositionVertexBuffer::Init(const TArray<FVector3f>& InPositions, bool bInNeedsCPUAccess)
 {
 	NumVertices = InPositions.Num();
 	bNeedsCPUAccess = bInNeedsCPUAccess;

@@ -119,7 +119,7 @@ Pair<FVec3, bool> FImplicitObject::FindDeepestIntersection(const FImplicitObject
 	FReal Phi = Thickness;
 	if (HasBoundingBox())
 	{
-		FAABB3 ImplicitBox = BoundingBox().TransformedAABB(OtherToLocalTransform.Inverse());
+		FAABB3 ImplicitBox = BoundingBox().TransformedAABB((FMatrix)OtherToLocalTransform.Inverse());
 		ImplicitBox.Thicken(Thickness);
 		TArray<int32> PotentialParticles = Particles->FindAllIntersections(ImplicitBox);
 		for (int32 i : PotentialParticles)

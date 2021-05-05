@@ -92,7 +92,7 @@ bool UFloatingPawnMovement::LimitWorldBounds()
 	const FVector CurrentLocation = UpdatedComponent->GetComponentLocation();
 	if ( CurrentLocation.Z < WorldSettings->KillZ )
 	{
-		Velocity.Z = FMath::Min(GetMaxSpeed(), WorldSettings->KillZ - CurrentLocation.Z + 2.0f);
+		Velocity.Z = FMath::Min<FVector::FReal>(GetMaxSpeed(), WorldSettings->KillZ - CurrentLocation.Z + 2.0f);
 		return true;
 	}
 

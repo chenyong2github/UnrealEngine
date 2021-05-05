@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Misc/Build.h"
+#include "Misc/LargeWorldCoordinates.h"
 
 // define all other platforms to be zero
 //@port Define the platform here to be zero when compiling for other platforms

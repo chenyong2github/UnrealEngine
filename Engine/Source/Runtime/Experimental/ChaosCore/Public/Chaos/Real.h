@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Templates/AreTypesEqual.h"
+#include "Misc/LargeWorldCoordinates.h"
 
 namespace Chaos
 {
@@ -18,7 +19,12 @@ namespace Chaos
 	* precision of type is required most code should use these existing types
 	* (e.g. FVec3) to adapt to global changes in precision.
 	*/
+#if UE_LARGE_WORLD_COORDINATES_DISABLED
 	using FReal = FRealSingle;
+#else
+	//using FReal = FRealSingle;
+	using FReal = FRealDouble;	// LWC_TODO: Requires FVector4 + FVector2D to support doubles
+#endif
 
 	/**
 	* ISPC optimization supports float, this allows classes that uses ISPC to branch to the right implementation 

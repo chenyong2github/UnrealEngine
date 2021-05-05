@@ -273,10 +273,10 @@ void URootMotionModifier_AdjustmentBlendWarp::AdjustmentBlendWarp(const FBoneCon
 		FVector CurrentAdditive = FVector::ZeroVector;
 		for (int32 Idx = 0; Idx < 3; Idx++)
 		{
-			if (!FMath::IsNearlyZero(Total[Idx], 1.f))
+			if (!FMath::IsNearlyZero(Total[Idx], (FVector::FReal)1.f))
 			{
-				const float Percent = Delta[Idx] / Total[Idx];
-				const float AdditiveDelta = FMath::Abs(Additive[Idx]) * Percent;
+				const FVector::FReal Percent = Delta[Idx] / Total[Idx];
+				const FVector::FReal AdditiveDelta = FMath::Abs(Additive[Idx]) * Percent;
 				CurrentAdditive[Idx] = (Additive[Idx] > 0.f) ? PreviousAdditive[Idx] + AdditiveDelta : PreviousAdditive[Idx] - AdditiveDelta;
 			}
 			else

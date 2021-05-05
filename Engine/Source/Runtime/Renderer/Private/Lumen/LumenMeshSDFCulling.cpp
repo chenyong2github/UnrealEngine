@@ -101,7 +101,7 @@ class FMeshSDFObjectCullPS : public FGlobalShader
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER(float, MaxMeshSDFInfluenceRadius)
-		SHADER_PARAMETER(FVector, CardGridZParams)
+		SHADER_PARAMETER(FVector3f, CardGridZParams)
 		SHADER_PARAMETER(uint32, CardGridPixelSizeShift)
 		SHADER_PARAMETER(FIntVector, CullGridSize)
 		SHADER_PARAMETER(float, CardTraceEndDistanceFromCamera)

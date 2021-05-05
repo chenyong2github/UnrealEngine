@@ -21,6 +21,7 @@
 #include "Templates/Models.h"
 
 #include "Templates/IsPODType.h"
+#include "Templates/IsUECoreType.h"
 #include "Templates/IsTriviallyCopyConstructible.h"
 
 /*-----------------------------------------------------------------------------

@@ -46,7 +46,7 @@ FORCEINLINE XrVector3f ToXrVector(FVector Vector, float Scale = 1.0f)
 	if (Vector.IsZero())
 		return XrVector3f{ 0.0f, 0.0f, 0.0f };
 
-	return XrVector3f{ Vector.Y / Scale, Vector.Z / Scale, -Vector.X / Scale };
+	return XrVector3f{ (float)Vector.Y / Scale, (float)Vector.Z / Scale, (float)-Vector.X / Scale };
 }
 
 FORCEINLINE FTransform ToFTransform(XrPosef Transform, float Scale = 1.0f)

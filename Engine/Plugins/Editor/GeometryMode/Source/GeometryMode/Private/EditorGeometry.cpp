@@ -163,7 +163,7 @@ FVector FGeomVertex::GetMidPoint() const
 	return *this;
 }
 
-FVector* FGeomVertex::GetActualVertex( FPolyVertexIndex& InPVI )
+FVector3f* FGeomVertex::GetActualVertex( FPolyVertexIndex& InPVI )
 {
 	return &(GetParentObject()->GetActualBrush()->Brush->Polys->Element[ InPVI.PolyIndex ].Vertices[ InPVI.VertexIndex ]);
 }
@@ -289,12 +289,12 @@ FVector FGeomObject::GetWidgetLocation()
 int32 FGeomObject::AddVertexToPool( int32 InObjectIndex, int32 InParentPolyIndex, int32 InPolyIndex, int32 InVertexIndex )
 {
 	FGeomVertex* gv = NULL;
-	FVector CmpVtx = GetActualBrush()->Brush->Polys->Element[ InPolyIndex ].Vertices[InVertexIndex];
+	FVector3f CmpVtx = GetActualBrush()->Brush->Polys->Element[ InPolyIndex ].Vertices[InVertexIndex];
 
 	// See if the vertex is already in the pool
 	for( int32 x = 0 ; x < VertexPool.Num() ; ++x )
 	{
-		if( FVector::PointsAreNear( VertexPool[x], CmpVtx, 0.5f ) )
+		if( FVector3f::PointsAreNear( VertexPool[x], CmpVtx, 0.5f ) )
 		{
 			gv = &VertexPool[x];
 			gv->ActualVertexIndices.AddUnique( FPolyVertexIndex( InPolyIndex, InVertexIndex ) );
@@ -416,7 +416,7 @@ void FGeomObject::SendToSource()
 			FPolyVertexIndex& PVI = gv->ActualVertexIndices[x];
 			if (ensure(PVI.PolyIndex < Element.Num() && PVI.VertexIndex < Element[PVI.PolyIndex].Vertices.Num()))
 			{
-				FVector* vtx = gv->GetActualVertex(PVI);
+				FVector3f* vtx = gv->GetActualVertex(PVI);
 				vtx->X = gv->X;
 				vtx->Y = gv->Y;
 				vtx->Z = gv->Z;

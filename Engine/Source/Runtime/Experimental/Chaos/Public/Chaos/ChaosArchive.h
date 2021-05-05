@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/Real.h"
 #include "CoreMinimal.h"
 #include "Serializable.h"
 #include "Serialization/ArchiveProxy.h"
@@ -347,6 +348,25 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TArray<T, TAllocator>& Array)
 		Ar << Array[Idx];
 	}
 
+	return Ar;
+}
+
+FORCEINLINE FChaosArchive& operator<<(FChaosArchive& Ar, Chaos::FReal& Real)
+{
+	// we need to check if we are storing doubles or floats
+	if (!Ar.IsPersistent())
+	{
+		// normal umodified type path 
+		operator<<((FArchive&)Ar, Real);
+	}
+	else
+	{
+		// in that case data is stored as float and we need to read it as such		
+		ensure(Ar.IsLoading()); // this case should normally only happening when reading 
+		FRealSingle RealSingle; 
+		operator<<((FArchive&)Ar, RealSingle);
+		Real = (FReal)RealSingle;
+	}
 	return Ar;
 }
 

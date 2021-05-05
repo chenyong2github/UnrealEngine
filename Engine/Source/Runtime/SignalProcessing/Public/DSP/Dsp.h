@@ -107,7 +107,7 @@ namespace Audio
 	* Usage:
 	* 
 	* constexpr const int32 ChunkSampleCount = 480;
-	* alignas (sizeof(VectorRegister)) float ChunkBuffer[ChunkSampleCount];
+	* alignas (sizeof(VectorRegister4Float)) float ChunkBuffer[ChunkSampleCount];
 	* FSinOscBufferGenerator Generator;
 	* Generator.GenerateBuffer(48000, 400, ChunkBuffer, ChunkSampleCount);
 	* 
@@ -179,16 +179,16 @@ namespace Audio
 				PhaseSource[2] = LastPhase + 2 * PhasePerSample;
 				PhaseSource[3] = LastPhase + 3 * PhasePerSample;
 
-				VectorRegister PhaseVec = VectorLoadAligned(PhaseSource);
-				VectorRegister XVector, YVector;
+				VectorRegister4Float PhaseVec = VectorLoadAligned(PhaseSource);
+				VectorRegister4Float XVector, YVector;
 
 				// We need an accurate representation of the delta
 				// vectors since we are integrating it
 				VectorSinCos(&YVector, &XVector, &PhaseVec);
 
 				// Copy to local (the compiler actually didn't do this!)
-				VectorRegister LocalDxVec = QuadDxVec;
-				VectorRegister LocalDyVec = QuadDyVec;
+				VectorRegister4Float LocalDxVec = QuadDxVec;
+				VectorRegister4Float LocalDyVec = QuadDyVec;
 				
 				int32 BlockSampleCount = BufferSampleCount;
 				if (BlockSampleCount > 480)
@@ -201,8 +201,8 @@ namespace Audio
 					VectorStore(YVector, Write);
 
 					// 2D rotation matrix.
-					VectorRegister NewX = VectorSubtract(VectorMultiply(LocalDxVec, XVector), VectorMultiply(LocalDyVec, YVector));
-					VectorRegister NewY = VectorAdd(VectorMultiply(LocalDyVec, XVector), VectorMultiply(LocalDxVec, YVector));
+					VectorRegister4Float NewX = VectorSubtract(VectorMultiply(LocalDxVec, XVector), VectorMultiply(LocalDyVec, YVector));
+					VectorRegister4Float NewY = VectorAdd(VectorMultiply(LocalDyVec, XVector), VectorMultiply(LocalDxVec, YVector));
 
 					XVector = NewX;
 					YVector = NewY;
@@ -236,7 +236,7 @@ namespace Audio
 		} // end GenerateBuffer
 
 	private:
-		VectorRegister QuadDxVec, QuadDyVec;
+		VectorRegister4Float QuadDxVec, QuadDyVec;
 		float LastPhasePerSample;
 		float LastPhase;
 		float Dx, Dy;
@@ -276,15 +276,15 @@ namespace Audio
 	static void ConvertBipolarBufferToUnipolar(float* InAlignedBuffer, int32 NumSamples)
 	{
 		// Make sure buffers are aligned and we can do a whole number of loops.
-		check(IsAligned(InAlignedBuffer, sizeof(VectorRegister)));
+		check(IsAligned(InAlignedBuffer, sizeof(VectorRegister4Float)));
 		check(NumSamples % 4 == 0);
 
-		const VectorRegister Half = VectorSetFloat1(0.5f);
+		const VectorRegister4Float Half = VectorSetFloat1(0.5f);
 
 		// Process buffer 1 vector (4 floats) at a time.
 		for(int32 i = NumSamples / 4; i; --i, InAlignedBuffer += 4)
 		{
-			VectorRegister V = VectorLoadAligned(InAlignedBuffer);
+			VectorRegister4Float V = VectorLoadAligned(InAlignedBuffer);
 			V = VectorMultiply(V, Half);
 			V = VectorAdd(V, Half);
 			VectorStoreAligned(V, InAlignedBuffer);

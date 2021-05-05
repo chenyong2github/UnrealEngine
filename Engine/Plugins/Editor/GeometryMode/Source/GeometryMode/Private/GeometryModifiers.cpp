@@ -773,25 +773,25 @@ bool UGeomModifier_Extrude::OnApply()
 	return true;
 }
 
-void ExtrudePolygonGroup( ABrush* InBrush, FVector InGroupNormal, int32 InStartOffset, int32 InLength, TArray<FPoly>& InPolygonGroup )
+void ExtrudePolygonGroup( ABrush* InBrush, FVector3f InGroupNormal, int32 InStartOffset, int32 InLength, TArray<FPoly>& InPolygonGroup )
 {
-	TArray< TArray<FVector> > Windings;
+	TArray< TArray<FVector3f> > Windings;
 
 	FPoly::GetOutsideWindings( InBrush, InPolygonGroup, Windings );
 
 	for( int32 w = 0 ; w < Windings.Num() ; ++w )
 	{
-		TArray<FVector>* WindingVerts = &Windings[w];
+		TArray<FVector3f>* WindingVerts = &Windings[w];
 
-		FVector Offset = InGroupNormal * InLength;
-		FVector StartOffset = InGroupNormal * InStartOffset;
+		FVector3f Offset = InGroupNormal * InLength;
+		FVector3f StartOffset = InGroupNormal * InStartOffset;
 
 		for( int32 v = 0 ; v < WindingVerts->Num() ; ++v )
 		{
-			FVector vtx0 = StartOffset + (*WindingVerts)[ v ];
-			FVector vtx1 = StartOffset + (*WindingVerts)[ v ] + Offset;
-			FVector vtx2 = StartOffset + (*WindingVerts)[ (v + 1) % WindingVerts->Num() ] + Offset;
-			FVector vtx3 = StartOffset + (*WindingVerts)[ (v + 1) % WindingVerts->Num() ];
+			FVector3f vtx0 = StartOffset + (*WindingVerts)[ v ];
+			FVector3f vtx1 = StartOffset + (*WindingVerts)[ v ] + Offset;
+			FVector3f vtx2 = StartOffset + (*WindingVerts)[ (v + 1) % WindingVerts->Num() ] + Offset;
+			FVector3f vtx3 = StartOffset + (*WindingVerts)[ (v + 1) % WindingVerts->Num() ];
 
 			FPoly NewPoly;
 			NewPoly.Init();
@@ -855,7 +855,7 @@ void UGeomModifier_Extrude::Apply(int32 InLength, int32 InSegments)
 
 				for( int32 v = 0 ; v < Poly->Vertices.Num() ; ++v )
 				{
-					FVector* vtx = &Poly->Vertices[v];
+					FVector3f* vtx = &Poly->Vertices[v];
 
 					*vtx += Normal * (InLength * InSegments);
 				}
@@ -875,7 +875,7 @@ void UGeomModifier_Extrude::Apply(int32 InLength, int32 InSegments)
 			};
 			Polygons.Sort( FCompareFPolyNormal() );
 
-			FVector NormalCompare;
+			FVector3f NormalCompare;
 			TArray<FPoly> PolygonGroup;
 
 			for( int32 p = 0 ; p < Polygons.Num() ; ++p )
@@ -1049,7 +1049,7 @@ void UGeomModifier_Lathe::Apply( int32 InTotalSegments, int32 InSegments, EAxis:
 				continue;
 			}
 
-			TArray< TArray<FVector> > Windings;
+			TArray< TArray<FVector3f> > Windings;
 			FPoly::GetOutsideWindings( BrushShape, BrushShape->Brush->Polys->Element, Windings );
 
 			FVector delta = GeomMode->GetWidgetLocation() - BrushShape->GetActorLocation();
@@ -1065,7 +1065,7 @@ void UGeomModifier_Lathe::Apply( int32 InTotalSegments, int32 InSegments, EAxis:
 
 			for( int32 w = 0 ; w < Windings.Num() ; ++w )
 			{
-				TArray<FVector>* WindingVerts = &Windings[w];
+				TArray<FVector3f>* WindingVerts = &Windings[w];
 
 				TArray<FVector> ShapeVertices;
 
@@ -1139,7 +1139,7 @@ void UGeomModifier_Lathe::Apply( int32 InTotalSegments, int32 InSegments, EAxis:
 			{
 				for( int32 w = 0 ; w < Windings.Num() ; ++w )
 				{
-					TArray<FVector>* WindingVerts = &Windings[w];
+					TArray<FVector3f>* WindingVerts = &Windings[w];
 
 					//
 					// Create the start cap
@@ -1416,7 +1416,7 @@ void UGeomModifier_Pen::Apply()
 						for( int32 v = 0 ; v < poly.Vertices.Num() ; ++v )
 						{
 
-							FVector* vtx = &poly.Vertices[v];
+							FVector3f* vtx = &poly.Vertices[v];
 							*vtx += HalfDelta;
 						}
 
@@ -1429,7 +1429,7 @@ void UGeomModifier_Pen::Apply()
 					{
 						for( int32 v = 0 ; v < poly.Vertices.Num() ; ++v )
 						{
-							FVector* vtx = &poly.Vertices[v];
+							FVector3f* vtx = &poly.Vertices[v];
 							*vtx -= 2.0f * HalfDelta;
 						}
 
@@ -2746,8 +2746,8 @@ bool UGeomModifier_Split::OnApply()
 		FGeomVertex* Vertex0 = &GeomObject->VertexPool[ SelectedEdge->VertexIndices[0] ];
 		FGeomVertex* Vertex1 = &GeomObject->VertexPool[ SelectedEdge->VertexIndices[1] ];
 
-		const FVector Vtx0 = *Vertex0->GetActualVertex( Vertex0->ActualVertexIndices[0] );
-		const FVector Vtx1 = *Vertex1->GetActualVertex( Vertex1->ActualVertexIndices[0] );
+		const FVector3f Vtx0 = *Vertex0->GetActualVertex( Vertex0->ActualVertexIndices[0] );
+		const FVector3f Vtx1 = *Vertex1->GetActualVertex( Vertex1->ActualVertexIndices[0] );
 
 		// Get the selected polygon
 		TArray<FGeomPoly*> Polygons;
@@ -2775,8 +2775,8 @@ bool UGeomModifier_Split::OnApply()
 
 		// Generate a base and a normal for the cutting plane
 
-		const FVector PlaneNormal( (Vtx1 - Vtx0).GetSafeNormal() );
-		const FVector PlaneBase = 0.5f*(Vtx1 + Vtx0);
+		const FVector3f PlaneNormal( (Vtx1 - Vtx0).GetSafeNormal() );
+		const FVector3f PlaneBase = 0.5f*(Vtx1 + Vtx0);
 
 		// Clip the selected polygon against the cutting plane
 
@@ -2795,7 +2795,7 @@ bool UGeomModifier_Split::OnApply()
 
 			// At this point, see if any other polygons in the brush need to have a vertex added to an edge
 
-			FPlane CuttingPlane( PlaneBase, PlaneNormal );
+			FPlane4f CuttingPlane( PlaneBase, PlaneNormal );
 
 			for( int32 p = 0 ; p < Brush->Brush->Polys->Element.Num() ; ++p )
 			{
@@ -2805,14 +2805,14 @@ bool UGeomModifier_Split::OnApply()
 				{
 					for( int32 v = 0 ; v < P->Vertices.Num() ; ++v )
 					{
-						FVector* v0 = &P->Vertices[v];
-						FVector* v1 = &P->Vertices[ (v + 1) % P->Vertices.Num() ];
+						FVector3f* v0 = &P->Vertices[v];
+						FVector3f* v1 = &P->Vertices[ (v + 1) % P->Vertices.Num() ];
 
 						// Make sure the line formed by the edge actually crosses the plane before checking for the intersection point.
 
 						if( FMath::IsNegativeFloat( CuttingPlane.PlaneDot( *v0 ) ) != FMath::IsNegativeFloat( CuttingPlane.PlaneDot( *v1 ) ) )
 						{
-							FVector Intersection = FMath::LinePlaneIntersection( *v0, *v1, CuttingPlane );
+							FVector3f Intersection = FMath::LinePlaneIntersection( *v0, *v1, CuttingPlane );
 
 							// Make sure that the intersection point lies on the same plane as the selected polygon as we only need to add it there and not
 							// to any other edge that might intersect the cutting plane.

@@ -578,9 +578,9 @@ public:
 	{
 		// create a static vertex buffer
 		FRHIResourceCreateInfo CreateInfo(TEXT("FNullVertexBuffer"));
-		VertexBufferRHI = RHICreateBuffer(sizeof(FVector), BUF_Static | BUF_ZeroStride | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
-		FVector* LockedData = (FVector*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector), RLM_WriteOnly);
-		*LockedData = FVector(0.0f);
+		VertexBufferRHI = RHICreateBuffer(sizeof(FVector3f), BUF_Static | BUF_ZeroStride | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+		FVector3f* LockedData = (FVector3f*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector3f), RLM_WriteOnly);
+		*LockedData = FVector3f(0.0f);
 		RHIUnlockBuffer(VertexBufferRHI);
 
 		VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FColor), PF_R8G8B8A8);

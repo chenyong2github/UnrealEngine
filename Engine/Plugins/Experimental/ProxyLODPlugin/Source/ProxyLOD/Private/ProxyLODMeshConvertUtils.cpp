@@ -21,11 +21,11 @@ void ProxyLOD::MixedPolyMeshToRawMesh(const FMixedPolyMesh& SimpleMesh, FMeshDes
 	ResetStaticMeshDescription(DstRawMesh);
 
 	FStaticMeshAttributes Attributes(DstRawMesh);
-	TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+	TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 	TEdgeAttributesRef<bool> EdgeHardnesses = Attributes.GetEdgeHardnesses();
 	TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
-	TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
@@ -65,7 +65,7 @@ void ProxyLOD::MixedPolyMeshToRawMesh(const FMixedPolyMesh& SimpleMesh, FMeshDes
 		{
 			const openvdb::Vec3s& Vertex = SimpleMesh.Points[i];
 			const FVertexID NewVertexID = DstRawMesh.CreateVertex();
-			VertexPositions[NewVertexID] = FVector(Vertex[0], Vertex[1], Vertex[2]);
+			VertexPositions[NewVertexID] = FVector3f(Vertex[0], Vertex[1], Vertex[2]);
 			VertexIDMap.Add(i, NewVertexID);
 		}
 	}
@@ -78,8 +78,8 @@ void ProxyLOD::MixedPolyMeshToRawMesh(const FMixedPolyMesh& SimpleMesh, FMeshDes
 		for (int32 Corner = 0; Corner < 3; ++Corner)
 		{
 			VertexInstanceIDs[Corner] = DstRawMesh.CreateVertexInstance(TriangleIndex[Corner]);
-			VertexInstanceTangents[VertexInstanceIDs[Corner]] = FVector(1, 0, 0);
-			VertexInstanceNormals[VertexInstanceIDs[Corner]] = FVector(0, 0, 1);
+			VertexInstanceTangents[VertexInstanceIDs[Corner]] = FVector3f(1, 0, 0);
+			VertexInstanceNormals[VertexInstanceIDs[Corner]] = FVector3f(0, 0, 1);
 			VertexInstanceBinormalSigns[VertexInstanceIDs[Corner]] = GetBasisDeterminantSign(VertexInstanceTangents[VertexInstanceIDs[Corner]].GetSafeNormal(),
 																							 (VertexInstanceNormals[VertexInstanceIDs[Corner]] ^ VertexInstanceTangents[VertexInstanceIDs[Corner]]).GetSafeNormal(),
 																							 VertexInstanceNormals[VertexInstanceIDs[Corner]].GetSafeNormal());
@@ -136,11 +136,11 @@ void ProxyLOD::AOSMeshToRawMesh(const FAOSMesh& AOSMesh, FMeshDescription& OutRa
 	ResetStaticMeshDescription(OutRawMesh);
 
 	FStaticMeshAttributes Attributes(OutRawMesh);
-	TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+	TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 	TEdgeAttributesRef<bool> EdgeHardnesses = Attributes.GetEdgeHardnesses();
 	TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
-	TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
@@ -172,7 +172,7 @@ void ProxyLOD::AOSMeshToRawMesh(const FAOSMesh& AOSMesh, FMeshDescription& OutRa
 		const auto& AOSVertexes = AOSMesh.Vertexes;
 		for (uint32 i = 0, I = DstNumPositions; i < I; ++i)
 		{
-			const FVector& Position = AOSVertexes[i].GetPos();
+			const FVector3f& Position = AOSVertexes[i].GetPos();
 			const FVertexID NewVertexID = OutRawMesh.CreateVertex();
 			VertexPositions[NewVertexID] = Position;
 			VertexIDMap.Add(i, NewVertexID);
@@ -184,14 +184,14 @@ void ProxyLOD::AOSMeshToRawMesh(const FAOSMesh& AOSMesh, FMeshDescription& OutRa
 	const uint32* AOSIndexes = AOSMesh.Indexes;
 
 	// Connectivity: 
-	auto CreateTriangle = [&OutRawMesh, PolygonGroupID, &VertexInstanceNormals, &VertexInstanceTangents, &VertexInstanceBinormalSigns, &VertexInstanceColors, &VertexInstanceUVs, &EdgeHardnesses](const FVertexID TriangleIndex[3], const FVector Normals[3])
+	auto CreateTriangle = [&OutRawMesh, PolygonGroupID, &VertexInstanceNormals, &VertexInstanceTangents, &VertexInstanceBinormalSigns, &VertexInstanceColors, &VertexInstanceUVs, &EdgeHardnesses](const FVertexID TriangleIndex[3], const FVector3f Normals[3])
 	{
 		TArray<FVertexInstanceID> VertexInstanceIDs;
 		VertexInstanceIDs.SetNum(3);
 		for (int32 Corner = 0; Corner < 3; ++Corner)
 		{
 			VertexInstanceIDs[Corner] = OutRawMesh.CreateVertexInstance(TriangleIndex[Corner]);
-			VertexInstanceTangents[VertexInstanceIDs[Corner]] = FVector(1, 0, 0);
+			VertexInstanceTangents[VertexInstanceIDs[Corner]] = FVector3f(1, 0, 0);
 			VertexInstanceNormals[VertexInstanceIDs[Corner]] = Normals[Corner];
 			VertexInstanceBinormalSigns[VertexInstanceIDs[Corner]] = GetBasisDeterminantSign(VertexInstanceTangents[VertexInstanceIDs[Corner]].GetSafeNormal(),
 																							 (VertexInstanceNormals[VertexInstanceIDs[Corner]] ^ VertexInstanceTangents[VertexInstanceIDs[Corner]]).GetSafeNormal(),
@@ -209,7 +209,7 @@ void ProxyLOD::AOSMeshToRawMesh(const FAOSMesh& AOSMesh, FMeshDescription& OutRa
 		for (uint32 t = 0, T = IndexStop; t < T; ++t)
 		{
 			FVertexID VertexIndexes[3];
-			FVector Normals[3];
+			FVector3f Normals[3];
 			for (int32 Corner = 0; Corner < 3; ++Corner)
 			{
 				VertexIndexes[Corner] = VertexIDMap[AOSIndexes[(t*3) + Corner]];
@@ -227,11 +227,11 @@ void ProxyLOD::VertexDataMeshToRawMesh(const FVertexDataMesh& SrcVertexDataMesh,
 	ResetStaticMeshDescription(OutRawMesh);
 
 	FStaticMeshAttributes Attributes(OutRawMesh);
-	TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+	TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 	TEdgeAttributesRef<bool> EdgeHardnesses = Attributes.GetEdgeHardnesses();
 	TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
-	TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
@@ -256,11 +256,11 @@ void ProxyLOD::VertexDataMeshToRawMesh(const FVertexDataMesh& SrcVertexDataMesh,
 	TMap<int32, FVertexID> VertexIDMap;
 	VertexIDMap.Reserve(DstNumPositions);
 	{
-		const TArray<FVector>& SrcPositions = SrcVertexDataMesh.Points;
+		const TArray<FVector3f>& SrcPositions = SrcVertexDataMesh.Points;
 
 		for (uint32 i = 0, I = DstNumPositions; i < I; ++i)
 		{
-			const FVector& Position = SrcPositions[i];
+			const FVector3f& Position = SrcPositions[i];
 			const FVertexID NewVertexID = OutRawMesh.CreateVertex();
 			VertexPositions[NewVertexID] = Position;
 			VertexIDMap.Add(i, NewVertexID);
@@ -289,17 +289,17 @@ void ProxyLOD::VertexDataMeshToRawMesh(const FVertexDataMesh& SrcVertexDataMesh,
 			//Tangents
 			if (bSrcHasTangentSpace)
 			{
-				FVector Tangent = SrcVertexDataMesh.Tangent[SrcIndex];
-				FVector BiTangent = SrcVertexDataMesh.BiTangent[SrcIndex];
-				FVector Normal = SrcVertexDataMesh.Normal[SrcIndex];
+				FVector3f Tangent = SrcVertexDataMesh.Tangent[SrcIndex];
+				FVector3f BiTangent = SrcVertexDataMesh.BiTangent[SrcIndex];
+				FVector3f Normal = SrcVertexDataMesh.Normal[SrcIndex];
 				VertexInstanceTangents[VertexInstanceIDs[Corner]] = Tangent;
 				VertexInstanceBinormalSigns[VertexInstanceIDs[Corner]] = GetBasisDeterminantSign(Tangent, BiTangent, Normal);
 				VertexInstanceNormals[VertexInstanceIDs[Corner]] = Normal;
 			}
 			else
 			{
-				VertexInstanceTangents[VertexInstanceIDs[Corner]] = FVector(1, 0, 0);
-				VertexInstanceNormals[VertexInstanceIDs[Corner]] = FVector(0, 0, 1);
+				VertexInstanceTangents[VertexInstanceIDs[Corner]] = FVector3f(1, 0, 0);
+				VertexInstanceNormals[VertexInstanceIDs[Corner]] = FVector3f(0, 0, 1);
 				VertexInstanceBinormalSigns[VertexInstanceIDs[Corner]] = GetBasisDeterminantSign(VertexInstanceTangents[VertexInstanceIDs[Corner]].GetSafeNormal(),
 																		 (VertexInstanceNormals[VertexInstanceIDs[Corner]] ^ VertexInstanceTangents[VertexInstanceIDs[Corner]]).GetSafeNormal(),
 																		 VertexInstanceNormals[VertexInstanceIDs[Corner]].GetSafeNormal());
@@ -368,9 +368,9 @@ void ProxyLOD::VertexDataMeshToRawMesh(const FVertexDataMesh& SrcVertexDataMesh,
 void ProxyLOD::RawMeshToVertexDataMesh(const FMeshDescription& SrcRawMesh, FVertexDataMesh& DstVertexDataMesh)
 {
 	FStaticMeshConstAttributes Attributes(SrcRawMesh);
-	TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
-	TVertexInstanceAttributesConstRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesConstRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+	TVertexAttributesConstRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
+	TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesConstRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
@@ -399,13 +399,13 @@ void ProxyLOD::RawMeshToVertexDataMesh(const FMeshDescription& SrcRawMesh, FVert
 	TArray<uint32>& DstIndices = DstVertexDataMesh.Indices;
 	ResizeArray(DstIndices, DstNumIndexes);
 
-	TArray<FVector>& DstTangentArray = DstVertexDataMesh.Tangent;
+	TArray<FVector3f>& DstTangentArray = DstVertexDataMesh.Tangent;
 	ResizeArray(DstTangentArray, DstNumPositions);
 
-	TArray<FVector>& DstBiTangentArray = DstVertexDataMesh.BiTangent;
+	TArray<FVector3f>& DstBiTangentArray = DstVertexDataMesh.BiTangent;
 	ResizeArray(DstBiTangentArray, DstNumPositions);
 
-	TArray<FVector>& DstNormalArray = DstVertexDataMesh.Normal;
+	TArray<FVector3f>& DstNormalArray = DstVertexDataMesh.Normal;
 	ResizeArray(DstNormalArray, DstNumPositions);
 
 	TArray<FVector2D>& DstUVs = DstVertexDataMesh.UVs;
@@ -484,10 +484,10 @@ static void CopyIndexAndPos(const TAOSMesh<AOSVertexType>& AOSMesh, FVertexDataM
 		ProxyLOD::Parallel_For(ProxyLOD::FUIntRange(0, DstNumPositions),
 			[&VertexDataMesh, &AOSMesh](const ProxyLOD::FUIntRange& Range)
 		{
-			FVector* Points = VertexDataMesh.Points.GetData();
+			FVector3f* Points = VertexDataMesh.Points.GetData();
 			for (uint32 i = Range.begin(), I = Range.end(); i < I; ++i)
 			{
-				const FVector& Position = AOSMesh.Vertexes[i].GetPos();
+				const FVector3f& Position = AOSMesh.Vertexes[i].GetPos();
 				Points[i] = Position;
 			}
 		}
@@ -523,7 +523,7 @@ static void CopyNormals(const TAOSMesh<AOSVertexType>& AOSMesh, FVertexDataMesh&
 
 	checkSlow(AOSMesh.GetNumIndexes() % 3 == 0);
 
-	TArray<FVector>& NormalArray = VertexDataMesh.Normal;
+	TArray<FVector3f>& NormalArray = VertexDataMesh.Normal;
 	ResizeArray(NormalArray, DstNumPositions);
 
 

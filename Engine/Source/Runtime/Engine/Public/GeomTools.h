@@ -10,9 +10,9 @@ class UStaticMesh;
 struct ENGINE_API FUtilEdge3D
 {
 	/** Start of edge in 3D space. */
-	FVector V0;
+	FVector3f V0;
 	/** End of edge in 3D space. */
-	FVector V1;
+	FVector3f V1;
 };
 
 /** An edge in 2D space, used by these utility functions. */
@@ -66,10 +66,10 @@ struct ENGINE_API FUtilTri2D
 /** Temp vertex struct for one vert of a static mesh triangle. */
 struct ENGINE_API FClipSMVertex
 {
-	FVector Pos;
-	FVector TangentX;
-	FVector TangentY;
-	FVector TangentZ;
+	FVector3f Pos;
+	FVector3f TangentX;
+	FVector3f TangentY;
+	FVector3f TangentZ;
 	FVector2D UVs[8];
 	FColor Color;
 };
@@ -156,10 +156,10 @@ namespace FGeomTools
 	ENGINE_API void Split2DPolysWithPlane(FUtilPoly2DSet& PolySet, const FPlane& Plane, const FColor& ExteriorVertColor, const FColor& InteriorVertColor);
 
 	/** Given three direction vectors, indicates if A and B are on the same 'side' of Vec. */
-	ENGINE_API bool VectorsOnSameSide(const FVector& Vec, const FVector& A, const FVector& B, const float SameSideDotProductEpsilon = 0.0f );
+	ENGINE_API bool VectorsOnSameSide(const FVector3f& Vec, const FVector3f& A, const FVector3f& B, const float SameSideDotProductEpsilon = 0.0f );
 
 	/** Util to see if P lies within triangle created by A, B and C. */
-	ENGINE_API bool PointInTriangle(const FVector& A, const FVector& B, const FVector& C, const FVector& P, const float InsideTriangleDotProductEpsilon = 0.0f);
+	ENGINE_API bool PointInTriangle(const FVector3f& A, const FVector3f& B, const FVector3f& C, const FVector3f& P, const float InsideTriangleDotProductEpsilon = 0.0f);
 
 };
 

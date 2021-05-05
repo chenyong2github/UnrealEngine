@@ -378,7 +378,8 @@ FArchive& operator<<(FArchive& Ar, FFoliageInfo& Info)
 	{
 		if (Ar.IsTransacting())
 		{
-			Info.Instances.BulkSerialize(Ar);
+			// LWC_TODO: Foliage bulk serialization disabled
+			Info.Instances.BulkSerialize(Ar, true);
 		}
 		else
 		{
@@ -754,7 +755,7 @@ void UFoliageType_InstancedStaticMesh::UpdateBounds()
 		FPositionVertexBuffer& PositionVertexBuffer = Mesh->GetRenderData()->LODResources[0].VertexBuffers.PositionVertexBuffer;
 		for (uint32 Index = 0; Index < PositionVertexBuffer.GetNumVertices(); ++Index)
 		{
-			const FVector& Pos = PositionVertexBuffer.VertexPosition(Index);
+			const FVector3f& Pos = PositionVertexBuffer.VertexPosition(Index);
 			if (Pos.Z < LowBound.Max.Z)
 			{
 				MinX = FMath::Min(MinX, Pos.X);
@@ -4982,7 +4983,7 @@ bool AInstancedFoliageActor::CheckCollisionWithWorld(const UWorld* InWorld, cons
 		for (uint32 i = 0; i < SamplePositionCount; ++i)
 		{
 			FVector SamplePos = InstTransformNoRotation.TransformPosition(Settings->LowBoundOriginRadius + LocalSamplePos[i]);
-			float WorldRadius = (Settings->LowBoundOriginRadius.Z + Settings->LowBoundOriginRadius.Z)*FMath::Max(Inst.DrawScale3D.X, Inst.DrawScale3D.Y);
+			FVector::FReal WorldRadius = (Settings->LowBoundOriginRadius.Z + Settings->LowBoundOriginRadius.Z)*FMath::Max(Inst.DrawScale3D.X, Inst.DrawScale3D.Y);
 			FVector NormalVector = Settings->AlignToNormal ? HitNormal : OriginalTransform.GetRotation().GetUpVector();
 
 			//::DrawDebugSphere(InWorld, SamplePos, 10, 6, FColor::Red, true, 30.0f);

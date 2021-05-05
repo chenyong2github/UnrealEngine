@@ -26,8 +26,8 @@ class TSimpVert
 public:
 					TSimpVert();
 
-	FVector&		GetPos()					{ return vert.GetPos(); }
-	const FVector&	GetPos() const				{ return vert.GetPos(); }
+	FVector3f&		GetPos()					{ return vert.GetPos(); }
+	const FVector3f&	GetPos() const				{ return vert.GetPos(); }
 	float*			GetAttributes()				{ return vert.GetAttributes(); }
 	const float*	GetAttributes() const		{ return vert.GetAttributes(); }
 
@@ -90,9 +90,9 @@ public:
 	bool			TestFlags( uint32 f ) const;
 	
 	bool			HasVertex( const TSimpVert<T>* v ) const;
-	FVector			GetNormal() const;
+	FVector3f			GetNormal() const;
 	
-	bool			ReplaceVertexIsValid( const TSimpVert<T>* oldV, const FVector& pos ) const;
+	bool			ReplaceVertexIsValid( const TSimpVert<T>* oldV, const FVector3f& pos ) const;
 	void			ReplaceVertex( TSimpVert<T>* oldV, TSimpVert<T>* newV );
 
 	TSimpVert<T>*	verts[3];
@@ -325,15 +325,15 @@ FORCEINLINE bool TSimpTri<T>::HasVertex( const TSimpVert<T>* v ) const
 }
 
 template< typename T >
-FORCEINLINE FVector TSimpTri<T>::GetNormal() const
+FORCEINLINE FVector3f TSimpTri<T>::GetNormal() const
 {
-	FVector n = ( verts[2]->GetPos() - verts[0]->GetPos() ) ^ ( verts[1]->GetPos() - verts[0]->GetPos() );
+	FVector3f n = ( verts[2]->GetPos() - verts[0]->GetPos() ) ^ ( verts[1]->GetPos() - verts[0]->GetPos() );
 	n.Normalize();
 	return n;
 }
 
 template< typename T >
-FORCEINLINE bool TSimpTri<T>::ReplaceVertexIsValid( const TSimpVert<T>* oldV, const FVector& pos ) const
+FORCEINLINE bool TSimpTri<T>::ReplaceVertexIsValid( const TSimpVert<T>* oldV, const FVector3f& pos ) const
 {
 	checkSlow( oldV );
 	checkSlow( oldV == verts[0] || oldV == verts[1] || oldV == verts[2] );
@@ -346,16 +346,16 @@ FORCEINLINE bool TSimpTri<T>::ReplaceVertexIsValid( const TSimpVert<T>* oldV, co
 	else
 		k = 2;
 	
-	const FVector& v0 = verts[k]->GetPos();
-	const FVector& v1 = verts[ k = (1 << k) & 3 ]->GetPos();
-	const FVector& v2 = verts[ k = (1 << k) & 3 ]->GetPos();
+	const FVector3f& v0 = verts[k]->GetPos();
+	const FVector3f& v1 = verts[ k = (1 << k) & 3 ]->GetPos();
+	const FVector3f& v2 = verts[ k = (1 << k) & 3 ]->GetPos();
 	
-	const FVector d21 = v2 - v1;
-	const FVector d01 = v0 - v1;
-	const FVector dp1 = pos - v1;
+	const FVector3f d21 = v2 - v1;
+	const FVector3f d01 = v0 - v1;
+	const FVector3f dp1 = pos - v1;
 
-	FVector n0 = d01 ^ d21;
-	FVector n1 = dp1 ^ d21;
+	FVector3f n0 = d01 ^ d21;
+	FVector3f n1 = dp1 ^ d21;
 
 	return (n0 | n1) > 0.0f;
 }

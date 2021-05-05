@@ -84,7 +84,7 @@ void FMeshDescription::Initialize()
 	PolygonPolygonGroups = PolygonElements->Get().GetAttributes().RegisterIndexAttribute<FPolygonGroupID>(MeshAttribute::Polygon::PolygonGroupIndex, 1, EMeshAttributeFlags::Mandatory);
 
 	// Minimal requirement is that vertices have a Position attribute
-	VertexPositions = VertexElements->Get().GetAttributes().RegisterAttribute(MeshAttribute::Vertex::Position, 1, FVector::ZeroVector, EMeshAttributeFlags::Lerpable | EMeshAttributeFlags::Mandatory);
+	VertexPositions = VertexElements->Get().GetAttributes().RegisterAttribute(MeshAttribute::Vertex::Position, 1, FVector3f::ZeroVector, EMeshAttributeFlags::Lerpable | EMeshAttributeFlags::Mandatory);
 
 	// Register UVCoordinates attribute for UVs
 	UVElements->Get().GetAttributes().RegisterAttribute(MeshAttribute::UV::UVCoordinate, 1, FVector2D::ZeroVector, EMeshAttributeFlags::Lerpable | EMeshAttributeFlags::Mandatory);
@@ -152,7 +152,7 @@ void FMeshDescription::Cache()
 	TrianglePolygonGroups = TriangleElements->Get().GetAttributes().GetAttributesRef<FPolygonGroupID>(MeshAttribute::Triangle::PolygonGroupIndex);
 	TriangleUVs = TriangleElements->Get().GetAttributes().GetAttributesRef<TArrayView<FUVID>>(MeshAttribute::Triangle::UVIndex);
 	PolygonPolygonGroups = PolygonElements->Get().GetAttributes().GetAttributesRef<FPolygonGroupID>(MeshAttribute::Polygon::PolygonGroupIndex);
-	VertexPositions = VertexElements->Get().GetAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+	VertexPositions = VertexElements->Get().GetAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Vertex::Position);
 
 	// Associate indexers with element types and their referencing attributes
 	InitializeIndexers();
@@ -1195,10 +1195,10 @@ FPlane FMeshDescription::ComputePolygonPlane(TArrayView<const FVertexInstanceID>
 	for (int32 VertexNumberI = PerimeterVertexInstanceIDs.Num() - 1, VertexNumberJ = 0; VertexNumberJ < PerimeterVertexInstanceIDs.Num(); VertexNumberI = VertexNumberJ, VertexNumberJ++)
 	{
 		const FVertexID VertexIDI = PerimeterVertexInstanceIDs[VertexNumberI];
-		const FVector PositionI = VertexPositions[VertexInstanceVertices[VertexIDI]];
+		const FVector3f PositionI = VertexPositions[VertexInstanceVertices[VertexIDI]];
 
 		const FVertexID VertexIDJ = PerimeterVertexInstanceIDs[VertexNumberJ];
-		const FVector PositionJ = VertexPositions[VertexInstanceVertices[VertexIDJ]];
+		const FVector3f PositionJ = VertexPositions[VertexInstanceVertices[VertexIDJ]];
 
 		Centroid += PositionJ;
 
@@ -1738,7 +1738,7 @@ FBoxSphereBounds FMeshDescription::GetBounds() const
 	{
 		if (!IsVertexOrphaned(VertexID))
 		{
-			BoundingBoxAndSphere.SphereRadius = FMath::Max((VertexPositions[VertexID] - BoundingBoxAndSphere.Origin).Size(), BoundingBoxAndSphere.SphereRadius);
+			BoundingBoxAndSphere.SphereRadius = FMath::Max<FVector::FReal>((VertexPositions[VertexID] - BoundingBoxAndSphere.Origin).Size(), BoundingBoxAndSphere.SphereRadius);
 		}
 	}
 
@@ -2101,7 +2101,7 @@ void FMeshDescriptionBulkData::SaveMeshDescription( FMeshDescription& MeshDescri
 	bBulkDataUpdated = true;
 }
 
-void FMeshDescriptionBulkData::LoadMeshDescription( FMeshDescription& MeshDescription )
+void FMeshDescriptionBulkData::LoadMeshDescription( FMeshDescription& MeshDescription)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshDescriptionBulkData::LoadMeshDescription);
 

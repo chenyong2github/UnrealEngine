@@ -102,7 +102,7 @@ void FDatasmithStaticMeshImporter::CleanupMeshDescriptions(TArray<FMeshDescripti
 	for (FMeshDescription& MeshDescription : MeshDescriptions)
 	{
 		FStaticMeshAttributes Attributes(MeshDescription);
-		const TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+		const TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 		if (VertexPositions.IsValid())
 		{
 			for (const FVertexID VertexID : MeshDescription.Vertices().GetElementIDs())
@@ -256,14 +256,14 @@ UStaticMesh* FDatasmithStaticMeshImporter::ImportStaticMesh(const TSharedRef< ID
 
 bool FDatasmithStaticMeshImporter::ShouldRecomputeNormals(const FMeshDescription& MeshDescription, int32 BuildRequirements)
 {
-	TVertexInstanceAttributesConstRef<FVector> Normals = FStaticMeshConstAttributes(MeshDescription).GetVertexInstanceNormals();
+	TVertexInstanceAttributesConstRef<FVector3f> Normals = FStaticMeshConstAttributes(MeshDescription).GetVertexInstanceNormals();
 	check(Normals.IsValid());
 	return Algo::AnyOf(MeshDescription.VertexInstances().GetElementIDs(), [&](const FVertexInstanceID& InstanceID) { return !Normals[InstanceID].IsNormalized(); }, Algo::NoRef);
 }
 
 bool FDatasmithStaticMeshImporter::ShouldRecomputeTangents(const FMeshDescription& MeshDescription, int32 BuildRequirements)
 {
-	TVertexInstanceAttributesConstRef<FVector> Tangents = FStaticMeshConstAttributes(MeshDescription).GetVertexInstanceTangents();
+	TVertexInstanceAttributesConstRef<FVector3f> Tangents = FStaticMeshConstAttributes(MeshDescription).GetVertexInstanceTangents();
 	check(Tangents.IsValid());
 	return Algo::AnyOf(MeshDescription.VertexInstances().GetElementIDs(), [&](const FVertexInstanceID& InstanceID) { return !Tangents[InstanceID].IsNormalized(); }, Algo::NoRef);
 }

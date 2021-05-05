@@ -22,8 +22,8 @@ struct /*MESHCONVERSION_API*/ FMeshDescriptionTriangleMeshAdapter
 	using FIndex3i = UE::Geometry::FIndex3i;
 protected:
 	const FMeshDescription* Mesh;
-	TVertexAttributesConstRef<FVector> VertexPositions;
-	TVertexInstanceAttributesConstRef<FVector> VertexInstanceNormals;
+	TVertexAttributesConstRef<FVector3f> VertexPositions;
+	TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceNormals;
 
 	FVector3d BuildScale = FVector3d::One();
 	bool bScaleNormals = false;
@@ -142,8 +142,8 @@ struct /*MESHCONVERSION_API*/ FMeshDescriptionEditableTriangleMeshAdapter
 	using FIndex3i = UE::Geometry::FIndex3i;
 protected:
 	FMeshDescription* Mesh;
-	TVertexAttributesRef<FVector> VertexPositions;
-	TVertexInstanceAttributesRef<FVector> VertexInstanceNormals;
+	TVertexAttributesRef<FVector3f> VertexPositions;
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals;
 
 public:
 	FMeshDescriptionEditableTriangleMeshAdapter(FMeshDescription* MeshIn) : Mesh(MeshIn)

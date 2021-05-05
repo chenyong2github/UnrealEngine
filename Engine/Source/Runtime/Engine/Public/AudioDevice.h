@@ -324,12 +324,12 @@ struct FActivatedReverb
 struct FAttenuationListenerData
 {
 	FVector ListenerToSoundDir;
-	float AttenuationDistance;
-	float ListenerToSoundDistance;
+	FVector::FReal AttenuationDistance;
+	FVector::FReal ListenerToSoundDistance;
 
 	// (AudioMixer only)
 	// Non-attenuation distance for calculating surround sound speaker maps for sources w/ spread
-	float ListenerToSoundDistanceForPanning;
+	FVector::FReal ListenerToSoundDistanceForPanning;
 
 	FTransform ListenerTransform;
 	const FTransform SoundTransform;

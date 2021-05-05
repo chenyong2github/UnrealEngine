@@ -3,7 +3,7 @@
 #include "../Resource/EllipsoidGeometry3.h"
 namespace GeometryCollectionTest
 {
-	const TArray<Chaos::FReal> EllipsoidGeometry3::RawVertexArray = {
+	const TArray<float> EllipsoidGeometry3::RawVertexArray = {
 																0.000000, 0.000000, -250.000000,
 																0.000000, 21.962393, -243.896149,
 																31.331211, 6.786763, -243.896179,

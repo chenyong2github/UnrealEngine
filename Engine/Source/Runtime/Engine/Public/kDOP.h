@@ -166,14 +166,14 @@ FORCEINLINE bool appLineCheckTriangle(const FVector4& Start, const FVector4& End
 }
 
 /** ( -0.0001f, -0.0001f, -0.0001f, -0.0001f ) */
-static const VectorRegister GSmallNegativeNumber = { -0.0001f, -0.0001f, -0.0001f, -0.0001f };
+static const VectorRegister GSmallNegativeNumber = MakeVectorRegister(-0.0001f, -0.0001f, -0.0001f, -0.0001f);
 //extern const VectorRegister GSmallNegativeNumber;
 
 /** ( 0.0001f, 0.0001f, 0.0001f, 0.0001f ) */
-static const VectorRegister GSmallNumber = { 0.0001f, 0.0001f, 0.0001f, 0.0001f };
+static const VectorRegister GSmallNumber = MakeVectorRegister( 0.0001f, 0.0001f, 0.0001f, 0.0001f );
 //extern const VectorRegister GSmallNumber;
 
-static const VectorRegister GZeroVectorRegister = { 0, 0, 0, 0 };
+static const VectorRegister GZeroVectorRegister = MakeVectorRegister( 0.f, 0.f, 0.f, 0.f );
 
 static const VectorRegister VectorNegativeOne = MakeVectorRegister( -1.0f, -1.0f, -1.0f, -1.0f );
 
@@ -619,9 +619,9 @@ struct TkDOPNode
 			FBox BoundingVolume(ForceInit);
 			for (int32 TriangleIndex=Start; TriangleIndex<Start + NumTris; TriangleIndex++)
 			{
-				BoundingVolume += BuildTriangles[TriangleIndex].V0;
-				BoundingVolume += BuildTriangles[TriangleIndex].V1;
-				BoundingVolume += BuildTriangles[TriangleIndex].V2;			
+				BoundingVolume += FVector(BuildTriangles[TriangleIndex].V0);
+				BoundingVolume += FVector(BuildTriangles[TriangleIndex].V1);
+				BoundingVolume += FVector(BuildTriangles[TriangleIndex].V2);
 			}
 			BoundingVolumes.SetBox(0,BoundingVolume);
 			BoundingVolumes.SetBox(1,BoundingVolume);

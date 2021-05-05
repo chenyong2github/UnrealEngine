@@ -72,7 +72,7 @@ void UFractureToolResample::FractureContextChanged()
 			FTransform InnerTransform = GeometryCollectionAlgo::GlobalMatrix(Collection.Transform, Collection.Parent, TransformIdx);
 			if (Collection.HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup))
 			{
-				TManagedArray<FVector>& ExplodedVectors = Collection.GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
+				TManagedArray<FVector3f>& ExplodedVectors = Collection.GetAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup);
 				InnerTransform = InnerTransform * FTransform(ExplodedVectors[TransformIdx]);
 			}
 			

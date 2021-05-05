@@ -333,12 +333,12 @@ private:
 	/** Scratch memory for frame update - do not use directly. */
 	struct FScratchMemory
 	{
-		TArray<FVector> InterpolatedPositions;
+		TArray<FVector3f> InterpolatedPositions;
 		TArray<FPackedNormal> InterpolatedTangentX;
 		TArray<FPackedNormal> InterpolatedTangentZ;
 		TArray<FVector2D> InterpolatedUVs;
 		TArray<FColor> InterpolatedColors;
-		TArray<FVector> InterpolatedMotionVectors;
+		TArray<FVector3f> InterpolatedMotionVectors;
 
 		void Prepare(SIZE_T NumVertices, bool bHasMotionVectors)
 		{

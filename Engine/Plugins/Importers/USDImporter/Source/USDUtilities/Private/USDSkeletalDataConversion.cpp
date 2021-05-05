@@ -74,8 +74,8 @@ namespace SkelDataConversionImpl
 	// Adapted from LODUtilities.cpp
 	struct FMeshDataBundle
 	{
-		TArray< FVector > Vertices;
-		TArray< FVector> NormalsPerVertex;
+		TArray< FVector3f > Vertices;
+		TArray< FVector3f> NormalsPerVertex;
 		TArray< uint32 > Indices;
 		TArray< FVector2D > UVs;
 		TArray< uint32 > SmoothingGroups;
@@ -85,8 +85,8 @@ namespace SkelDataConversionImpl
 
 	struct FMorphedMeshBundle
 	{
-		TArray< FVector > Vertices;
-		TArray< FVector> NormalsPerIndex;
+		TArray< FVector3f > Vertices;
+		TArray< FVector3f> NormalsPerIndex;
 		TArray< uint32 > Indices;
 		TArray< FVector2D > UVs;
 		TArray< uint32 > SmoothingGroups;
@@ -543,8 +543,8 @@ namespace UsdToUnrealImpl
 
 		// Calculate base normals for the mesh so that we can compute tangent deltas if we need to
 		ETangentOptions::Type TangentOptions = ( ETangentOptions::Type ) ( ETangentOptions::BlendOverlappingNormals | ETangentOptions::UseMikkTSpace );
-		TArray<FVector> NormalsPerIndex;
-		MeshUtilities.CalculateNormals( UnmorphedShape.Vertices, UnmorphedShape.Indices, UnmorphedShape.UVs, UnmorphedShape.SmoothingGroups, TangentOptions, NormalsPerIndex );
+		TArray<FVector3f> NormalsPerIndex;
+		MeshUtilities.CalculateNormals( UnmorphedShape.Vertices, UnmorphedShape.Indices, UnmorphedShape.UVs, UnmorphedShape.SmoothingGroups, TangentOptions, NormalsPerIndex );	// LWC_TODO: Perf pessimization (ConvertArray)
 
 		// Convert our normals to one normal per vertex, making it faster to unpack the normals we compute in ComputeTangentDeltas
 		// This is possible because we compute them with ETangentOptions::BlendOverlappingNormals, so they are identical for all instances of the vertex
@@ -2131,7 +2131,7 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 			LODImportData.PointToRawMap[ PointIndex ] = PointIndex;
 		}
 
-		TArray<FVector> LODPoints;
+		TArray<FVector3f> LODPoints;
 		TArray<SkeletalMeshImportData::FMeshWedge> LODWedges;
 		TArray<SkeletalMeshImportData::FMeshFace> LODFaces;
 		TArray<SkeletalMeshImportData::FVertInfluence> LODInfluences;

@@ -781,9 +781,9 @@ FVector FWidget::GetAbsoluteTranslationDelta(const FAbsoluteMovementParams& InPa
 	{
 		//DAMPEN ABSOLUTE MOVEMENT when the camera is locked to the object
 		OutDrag *= CAMERA_LOCK_DAMPING_FACTOR;
-		OutDrag.X = FMath::Clamp(OutDrag.X, -MAX_CAMERA_MOVEMENT_SPEED, MAX_CAMERA_MOVEMENT_SPEED);
-		OutDrag.Y = FMath::Clamp(OutDrag.Y, -MAX_CAMERA_MOVEMENT_SPEED, MAX_CAMERA_MOVEMENT_SPEED);
-		OutDrag.Z = FMath::Clamp(OutDrag.Z, -MAX_CAMERA_MOVEMENT_SPEED, MAX_CAMERA_MOVEMENT_SPEED);
+		OutDrag.X = FMath::Clamp<FVector::FReal>(OutDrag.X, -MAX_CAMERA_MOVEMENT_SPEED, MAX_CAMERA_MOVEMENT_SPEED);
+		OutDrag.Y = FMath::Clamp<FVector::FReal>(OutDrag.Y, -MAX_CAMERA_MOVEMENT_SPEED, MAX_CAMERA_MOVEMENT_SPEED);
+		OutDrag.Z = FMath::Clamp<FVector::FReal>(OutDrag.Z, -MAX_CAMERA_MOVEMENT_SPEED, MAX_CAMERA_MOVEMENT_SPEED);
 	}
 
 	//the they requested position snapping and we're not moving with the camera

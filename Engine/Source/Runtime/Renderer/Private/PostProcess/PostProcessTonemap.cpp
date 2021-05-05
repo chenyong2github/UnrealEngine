@@ -258,7 +258,7 @@ bool ShouldCompileDesktopPermutation(const FGlobalShaderPermutationParameters& P
 } // namespace TonemapperPermutation
 } // namespace
 
-void GrainPostSettings(FVector* RESTRICT const Constant, const FPostProcessSettings* RESTRICT const Settings)
+void GrainPostSettings(FVector3f* RESTRICT const Constant, const FPostProcessSettings* RESTRICT const Settings)
 {
 	float GrainJitter = Settings->GrainJitter;
 	float GrainIntensity = Settings->GrainIntensity;
@@ -319,13 +319,13 @@ FTonemapperOutputDeviceParameters GetTonemapperOutputDeviceParameters(const FSce
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FFilmGrainParameters, )
-	SHADER_PARAMETER(FVector, GrainRandomFull)
-	SHADER_PARAMETER(FVector, GrainScaleBiasJitter)
+	SHADER_PARAMETER(FVector3f, GrainRandomFull)
+	SHADER_PARAMETER(FVector3f, GrainScaleBiasJitter)
 END_SHADER_PARAMETER_STRUCT()
 
 FFilmGrainParameters GetFilmGrainParameters(const FViewInfo& View)
 {
-	FVector GrainRandomFullValue;
+	FVector3f GrainRandomFullValue;
 	{
 		uint8 FrameIndexMod8 = 0;
 		if (View.State)
@@ -335,7 +335,7 @@ FFilmGrainParameters GetFilmGrainParameters(const FViewInfo& View)
 		GrainRandomFromFrame(&GrainRandomFullValue, FrameIndexMod8);
 	}
 
-	FVector GrainScaleBiasJitter;
+	FVector3f GrainScaleBiasJitter;
 	GrainPostSettings(&GrainScaleBiasJitter, &View.FinalPostProcessSettings);
 
 	FFilmGrainParameters Parameters;

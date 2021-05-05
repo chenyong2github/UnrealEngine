@@ -254,9 +254,9 @@ void UNiagaraDataInterfaceChaosDestruction::PostEditChangeProperty(struct FPrope
 		}
 		else if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceChaosDestruction, SpatialHashVolumeCellSize))
 		{
-			SpatialHashVolumeCellSize.X = FMath::Max(1.f, SpatialHashVolumeCellSize.X);
-			SpatialHashVolumeCellSize.Y = FMath::Max(1.f, SpatialHashVolumeCellSize.Y);
-			SpatialHashVolumeCellSize.Z = FMath::Max(1.f, SpatialHashVolumeCellSize.Z);
+			SpatialHashVolumeCellSize.X = FMath::Max<FVector::FReal>(1.0, SpatialHashVolumeCellSize.X);
+			SpatialHashVolumeCellSize.Y = FMath::Max<FVector::FReal>(1.0, SpatialHashVolumeCellSize.Y);
+			SpatialHashVolumeCellSize.Z = FMath::Max<FVector::FReal>(1.0, SpatialHashVolumeCellSize.Z);
 		}
 		else if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceChaosDestruction, MaxDataPerCell))
 		{

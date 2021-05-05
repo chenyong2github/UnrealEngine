@@ -93,8 +93,8 @@ public:
 
 	float ClothMeshOpacity;
 
-	TArray<FVector> SkinnedPositions;
-	TArray<FVector> SkinnedNormals;
+	TArray<FVector3f> SkinnedPositions;
+	TArray<FVector3f> SkinnedNormals;
 };
 
 /**
@@ -460,8 +460,8 @@ public:
 	// bInvalidateDerivedDataCache can only be false during previewing as otherwise the changes won't be correctly saved
 	void RebuildClothingSectionsFixedVerts(bool bInvalidateDerivedDataCache = true);
 
-	TArray<FVector> SkinnedSelectedClothingPositions;
-	TArray<FVector> SkinnedSelectedClothingNormals;
+	TArray<FVector3f> SkinnedSelectedClothingPositions;
+	TArray<FVector3f> SkinnedSelectedClothingNormals;
 
 private:
 

@@ -115,10 +115,9 @@ FClothingSimulationSolver::FClothingSimulationSolver()
 			ParticlesInput.X(Index) = NewX;
 			FRotation3 NewR = FQuat::Slerp(OldCollisionTransforms[Index].GetRotation(), CollisionTransforms[Index].GetRotation(), Alpha);
 			FRotation3 Delta = NewR * ParticlesInput.R(Index).Inverse();
-			FVec3 Axis;
-			FReal Angle;
-			Delta.ToAxisAndAngle(Axis, Angle);
-			ParticlesInput.W(Index) = Axis * Angle / Dt;
+			FReal Angle = Delta.GetAngle();
+			FVec3 Axis = Delta.GetRotationAxis();
+			ParticlesInput.W(Index) = (FVec3)Axis * Angle / Dt;
 			ParticlesInput.R(Index) = NewR;
 		});
 }
@@ -520,9 +519,8 @@ void FClothingSimulationSolver::SetReferenceVelocityScale(
 
 	// Apply angular velocity scale
 	FRotation3 DeltaRotation = DeltaTransform.GetRotation();
-	FVec3 Axis;
-	FReal DeltaAngle;
-	DeltaRotation.ToAxisAndAngle(Axis, DeltaAngle);
+	FReal DeltaAngle = DeltaRotation.GetAngle();
+	FVec3 Axis = DeltaRotation.GetRotationAxis();
 	if (DeltaAngle > PI)
 	{
 		DeltaAngle -= 2.f * PI;
@@ -585,7 +583,7 @@ void FClothingSimulationSolver::ParticleMassClampAndEnslave(int32 Offset, int32 
 	FPBDParticles& Particles = Evolution->Particles();
 	for (int32 Index = Offset; Index < Offset + Size; ++Index)
 	{
-		Particles.M(Index) = FMath::Max(Particles.M(Index), MinPerParticleMass);
+		Particles.M(Index) = FMath::Max(Particles.M(Index), (FReal)MinPerParticleMass);
 		Particles.InvM(Index) = KinematicPredicate(Index - Offset) ? 0.f : 1.f / Particles.M(Index);
 	}
 }

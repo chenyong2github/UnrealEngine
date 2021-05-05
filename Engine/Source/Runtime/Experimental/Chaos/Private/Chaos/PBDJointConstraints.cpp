@@ -1444,7 +1444,7 @@ namespace Chaos
 		FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
 		FTransformPair& ConstraintFrame = ConstraintFrames[ConstraintIndex];
 
-		if (!FMath::IsNearlyEqual(JointSettings.LinearPlasticityLimit, FLT_MAX))
+		if (!FMath::IsNearlyEqual(JointSettings.LinearPlasticityLimit, (FReal)FLT_MAX))
 		{
 			FTransform JointTransform = ConstraintFrame[0].GetRelativeTransform(ConstraintFrame[1]);
 			const FReal Delta = LinearDisplacement.Size();
@@ -1461,7 +1461,7 @@ namespace Chaos
 		}
 
 
-		if (!FMath::IsNearlyEqual(JointSettings.AngularPlasticityLimit, FLT_MAX))
+		if (!FMath::IsNearlyEqual(JointSettings.AngularPlasticityLimit, (FReal)FLT_MAX))
 		{
 			const FReal AngleDeg = JointSettings.AngularDrivePositionTarget.AngularDistance(AngularDisplacement);
 			if (AngleDeg > JointSettings.AngularPlasticityLimit)

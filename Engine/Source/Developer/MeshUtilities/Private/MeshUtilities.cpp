@@ -345,10 +345,10 @@ static void SkinnedMeshToRawMeshes(USkinnedMeshComponent* InSkinnedMeshComponent
 					RawMesh.WedgeIndices.Add(BaseVertexIndex + VertexIndexForWedge);
 
 					const FFinalSkinVertex& SkinnedVertex = FinalVertices[VertexIndexForWedge];
-					const FVector TangentX = InComponentToWorld.TransformVector(SkinnedVertex.TangentX.ToFVector());
-					const FVector TangentZ = InComponentToWorld.TransformVector(SkinnedVertex.TangentZ.ToFVector());
+					const FVector3f TangentX = InComponentToWorld.TransformVector(SkinnedVertex.TangentX.ToFVector());
+					const FVector3f TangentZ = InComponentToWorld.TransformVector(SkinnedVertex.TangentZ.ToFVector());
 					const FVector4 UnpackedTangentZ = SkinnedVertex.TangentZ.ToFVector4();
-					const FVector TangentY = (TangentZ ^ TangentX).GetSafeNormal() * UnpackedTangentZ.W;
+					const FVector3f TangentY = (TangentZ ^ TangentX).GetSafeNormal() * UnpackedTangentZ.W;
 
 					RawMesh.WedgeTangentX.Add(TangentX);
 					RawMesh.WedgeTangentY.Add(TangentY);
@@ -935,7 +935,7 @@ static int32 ComputeNumTexCoords(FRawMesh const& RawMesh, int32 MaxSupportedTexC
 	return FMath::Min(NumTexCoords, MaxSupportedTexCoords);
 }
 
-static inline FVector GetPositionForWedge(FRawMesh const& Mesh, int32 WedgeIndex)
+static inline FVector3f GetPositionForWedge(FRawMesh const& Mesh, int32 WedgeIndex)
 {
 	int32 VertexIndex = Mesh.WedgeIndices[WedgeIndex];
 	return Mesh.VertexPositions[VertexIndex];
@@ -971,7 +971,7 @@ protected:
 	/**
 	* List of edges that start with a given vertex
 	*/
-	TMultiMap<FVector, FMeshEdgeDef*> VertexToEdgeList;
+	TMultiMap<FVector3f, FMeshEdgeDef*> VertexToEdgeList;
 
 	/**
 	* This function determines whether a given edge matches or not. It must be
@@ -1130,12 +1130,12 @@ public:
 };
 
 static void ComputeTriangleTangents(
-	const TArray<FVector>& InVertices,
+	const TArray<FVector3f>& InVertices,
 	const TArray<uint32>& InIndices,
 	const TArray<FVector2D>& InUVs,
-	TArray<FVector>& OutTangentX,
-	TArray<FVector>& OutTangentY,
-	TArray<FVector>& OutTangentZ,
+	TArray<FVector3f>& OutTangentX,
+	TArray<FVector3f>& OutTangentY,
+	TArray<FVector3f>& OutTangentZ,
 	float ComparisonThreshold
 	)
 {
@@ -1171,9 +1171,9 @@ static void ComputeTriangleTangents(
 }
 
 static void ComputeTriangleTangents(
-	TArray<FVector>& OutTangentX,
-	TArray<FVector>& OutTangentY,
-	TArray<FVector>& OutTangentZ,
+	TArray<FVector3f>& OutTangentX,
+	TArray<FVector3f>& OutTangentY,
+	TArray<FVector3f>& OutTangentZ,
 	FRawMesh const& RawMesh,
 	float ComparisonThreshold
 	)
@@ -1190,7 +1190,7 @@ static void ComputeTriangleTangents(
 */
 void FMeshUtilities::FindOverlappingCorners(
 	FOverlappingCorners& OutOverlappingCorners,
-	const TArray<FVector>& InVertices,
+	const TArray<FVector3f>& InVertices,
 	const TArray<uint32>& InIndices,
 	float ComparisonThreshold) const
 {
@@ -1225,14 +1225,14 @@ struct FFanFace
 };
 
 static void ComputeTangents(
-	const TArray<FVector>& InVertices,
+	const TArray<FVector3f>& InVertices,
 	const TArray<uint32>& InIndices,
 	const TArray<FVector2D>& InUVs,
 	const TArray<uint32>& SmoothingGroupIndices,
 	const FOverlappingCorners& OverlappingCorners,
-	TArray<FVector>& OutTangentX,
-	TArray<FVector>& OutTangentY,
-	TArray<FVector>& OutTangentZ,
+	TArray<FVector3f>& OutTangentX,
+	TArray<FVector3f>& OutTangentY,
+	TArray<FVector3f>& OutTangentZ,
 	const uint32 TangentOptions
 	)
 {
@@ -1241,9 +1241,9 @@ static void ComputeTangents(
 	float ComparisonThreshold = bIgnoreDegenerateTriangles ? THRESH_POINTS_ARE_SAME : 0.0f;
 
 	// Compute per-triangle tangents.
-	TArray<FVector> TriangleTangentX;
-	TArray<FVector> TriangleTangentY;
-	TArray<FVector> TriangleTangentZ;
+	TArray<FVector3f> TriangleTangentX;
+	TArray<FVector3f> TriangleTangentY;
+	TArray<FVector3f> TriangleTangentZ;
 
 	ComputeTriangleTangents(
 		InVertices,
@@ -1282,16 +1282,16 @@ static void ComputeTangents(
 	for (int32 FaceIndex = 0; FaceIndex < NumFaces; FaceIndex++)
 	{
 		int32 WedgeOffset = FaceIndex * 3;
-		FVector CornerPositions[3];
-		FVector CornerTangentX[3];
-		FVector CornerTangentY[3];
-		FVector CornerTangentZ[3];
+		FVector3f CornerPositions[3];
+		FVector3f CornerTangentX[3];
+		FVector3f CornerTangentY[3];
+		FVector3f CornerTangentZ[3];
 
 		for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
 		{
-			CornerTangentX[CornerIndex] = FVector::ZeroVector;
-			CornerTangentY[CornerIndex] = FVector::ZeroVector;
-			CornerTangentZ[CornerIndex] = FVector::ZeroVector;
+			CornerTangentX[CornerIndex] = FVector3f::ZeroVector;
+			CornerTangentY[CornerIndex] = FVector3f::ZeroVector;
+			CornerTangentZ[CornerIndex] = FVector3f::ZeroVector;
 			CornerPositions[CornerIndex] = InVertices[InIndices[WedgeOffset + CornerIndex]];
 			RelevantFacesForCorner[CornerIndex].Reset();
 		}
@@ -1318,7 +1318,7 @@ static void ComputeTangents(
 		}
 
 		// Calculate smooth vertex normals.
-		float Determinant = FVector::Triple(
+		float Determinant = FVector3f::Triple(
 			TriangleTangentX[FaceIndex],
 			TriangleTangentY[FaceIndex],
 			TriangleTangentZ[FaceIndex]
@@ -1461,7 +1461,7 @@ static void ComputeTangents(
 										// Only blend tangents if there is no UV seam along the edge with this face.
 										if (OtherFace.bBlendTangents && CommonTangentVertices > 1)
 										{
-											float OtherDeterminant = FVector::Triple(
+											float OtherDeterminant = FVector3f::Triple(
 												TriangleTangentX[NextFace.FaceIndex],
 												TriangleTangentY[NextFace.FaceIndex],
 												TriangleTangentZ[NextFace.FaceIndex]
@@ -1570,21 +1570,21 @@ MikkTSpace for computing tangents.
 class MikkTSpace_Mesh
 {
 public:
-	const TArray<FVector>& Vertices;
+	const TArray<FVector3f>& Vertices;
 	const TArray<uint32>& Indices;
 	const TArray<FVector2D>& UVs;
 
-	TArray<FVector>& TangentsX;			//Reference to newly created tangents list.
-	TArray<FVector>& TangentsY;			//Reference to newly created bitangents list.
-	const TArray<FVector>& TangentsZ;	//Reference to computed normals, will be empty otherwise.
+	TArray<FVector3f>& TangentsX;			//Reference to newly created tangents list.
+	TArray<FVector3f>& TangentsY;			//Reference to newly created bitangents list.
+	const TArray<FVector3f>& TangentsZ;	//Reference to computed normals, will be empty otherwise.
 
 	MikkTSpace_Mesh(
-		const TArray<FVector>&		InVertices,
+		const TArray<FVector3f>&		InVertices,
 		const TArray<uint32>&		InIndices,
 		const TArray<FVector2D>&	InUVs,
-		TArray<FVector>&			InOutVertexTangentsX,
-		TArray<FVector>&			InOutVertexTangentsY,
-		const TArray<FVector>&		InVertexTangentsZ
+		TArray<FVector3f>&			InOutVertexTangentsX,
+		TArray<FVector3f>&			InOutVertexTangentsY,
+		const TArray<FVector3f>&		InVertexTangentsZ
 		)
 		:
 		Vertices(InVertices),
@@ -1612,7 +1612,7 @@ static int MikkGetNumVertsOfFace(const SMikkTSpaceContext* Context, const int Fa
 static void MikkGetPosition(const SMikkTSpaceContext* Context, float Position[3], const int FaceIdx, const int VertIdx)
 {
 	MikkTSpace_Mesh *UserData = (MikkTSpace_Mesh*)(Context->m_pUserData);
-	FVector VertexPosition = UserData->Vertices[ UserData->Indices[FaceIdx * 3 + VertIdx] ];
+	FVector3f VertexPosition = UserData->Vertices[ UserData->Indices[FaceIdx * 3 + VertIdx] ];
 	Position[0] = VertexPosition.X;
 	Position[1] = VertexPosition.Y;
 	Position[2] = VertexPosition.Z;
@@ -1621,7 +1621,7 @@ static void MikkGetPosition(const SMikkTSpaceContext* Context, float Position[3]
 static void MikkGetNormal(const SMikkTSpaceContext* Context, float Normal[3], const int FaceIdx, const int VertIdx)
 {
 	MikkTSpace_Mesh *UserData = (MikkTSpace_Mesh*)(Context->m_pUserData);
-	const FVector& VertexNormal = UserData->TangentsZ[FaceIdx * 3 + VertIdx];
+	const FVector3f& VertexNormal = UserData->TangentsZ[FaceIdx * 3 + VertIdx];
 	for (int32 i = 0; i < 3; ++i)
 	{
 		Normal[i] = VertexNormal[i];
@@ -1631,13 +1631,13 @@ static void MikkGetNormal(const SMikkTSpaceContext* Context, float Normal[3], co
 static void MikkSetTSpaceBasic(const SMikkTSpaceContext* Context, const float Tangent[3], const float BitangentSign, const int FaceIdx, const int VertIdx)
 {
 	MikkTSpace_Mesh *UserData = (MikkTSpace_Mesh*)(Context->m_pUserData);
-	FVector &VertexTangent = UserData->TangentsX[FaceIdx * 3 + VertIdx];
+	FVector3f &VertexTangent = UserData->TangentsX[FaceIdx * 3 + VertIdx];
 	for (int32 i = 0; i < 3; ++i)
 	{
 		VertexTangent[i] = Tangent[i];
 	}
-	FVector Bitangent = BitangentSign * FVector::CrossProduct(UserData->TangentsZ[FaceIdx * 3 + VertIdx], VertexTangent);
-	FVector &VertexBitangent = UserData->TangentsY[FaceIdx * 3 + VertIdx];
+	FVector3f Bitangent = BitangentSign * FVector3f::CrossProduct(UserData->TangentsZ[FaceIdx * 3 + VertIdx], VertexTangent);
+	FVector3f &VertexBitangent = UserData->TangentsY[FaceIdx * 3 + VertIdx];
 	for (int32 i = 0; i < 3; ++i)
 	{
 		VertexBitangent[i] = -Bitangent[i];
@@ -1663,20 +1663,20 @@ class MikkTSpace_Skeletal_Mesh
 public:
 	const TArray<SkeletalMeshImportData::FMeshWedge>	&wedges;			//Reference to wedge list.
 	const TArray<SkeletalMeshImportData::FMeshFace>		&faces;				//Reference to face list.	Also contains normal/tangent/bitanget/UV coords for each vertex of the face.
-	const TArray<FVector>		&points;			//Reference to position list.
+	const TArray<FVector3f>		&points;			//Reference to position list.
 	bool						bComputeNormals;	//Copy of bComputeNormals.
-	TArray<FVector>				&TangentsX;			//Reference to newly created tangents list.
-	TArray<FVector>				&TangentsY;			//Reference to newly created bitangents list.
-	TArray<FVector>				&TangentsZ;			//Reference to computed normals, will be empty otherwise.
+	TArray<FVector3f>				&TangentsX;			//Reference to newly created tangents list.
+	TArray<FVector3f>				&TangentsY;			//Reference to newly created bitangents list.
+	TArray<FVector3f>				&TangentsZ;			//Reference to computed normals, will be empty otherwise.
 
 	MikkTSpace_Skeletal_Mesh(
 		const TArray<SkeletalMeshImportData::FMeshWedge>	&Wedges,
 		const TArray<SkeletalMeshImportData::FMeshFace>		&Faces,
-		const TArray<FVector>		&Points,
+		const TArray<FVector3f>		&Points,
 		bool						bInComputeNormals,
-		TArray<FVector>				&VertexTangentsX,
-		TArray<FVector>				&VertexTangentsY,
-		TArray<FVector>				&VertexTangentsZ
+		TArray<FVector3f>				&VertexTangentsX,
+		TArray<FVector3f>				&VertexTangentsY,
+		TArray<FVector3f>				&VertexTangentsZ
 		)
 		:
 		wedges(Wedges),
@@ -1705,7 +1705,7 @@ static int MikkGetNumVertsOfFace_Skeletal(const SMikkTSpaceContext* Context, con
 static void MikkGetPosition_Skeletal(const SMikkTSpaceContext* Context, float Position[3], const int FaceIdx, const int VertIdx)
 {
 	MikkTSpace_Skeletal_Mesh *UserData = (MikkTSpace_Skeletal_Mesh*)(Context->m_pUserData);
-	const FVector &VertexPosition = UserData->points[UserData->wedges[UserData->faces[FaceIdx].iWedge[VertIdx]].iVertex];
+	const FVector3f &VertexPosition = UserData->points[UserData->wedges[UserData->faces[FaceIdx].iWedge[VertIdx]].iVertex];
 	Position[0] = VertexPosition.X;
 	Position[1] = VertexPosition.Y;
 	Position[2] = VertexPosition.Z;
@@ -1716,14 +1716,14 @@ static void MikkGetNormal_Skeletal(const SMikkTSpaceContext* Context, float Norm
 	MikkTSpace_Skeletal_Mesh *UserData = (MikkTSpace_Skeletal_Mesh*)(Context->m_pUserData);
 	// Get different normals depending on whether they've been calculated or not.
 	if (UserData->bComputeNormals) {
-		FVector &VertexNormal = UserData->TangentsZ[FaceIdx * 3 + VertIdx];
+		FVector3f &VertexNormal = UserData->TangentsZ[FaceIdx * 3 + VertIdx];
 		Normal[0] = VertexNormal.X;
 		Normal[1] = VertexNormal.Y;
 		Normal[2] = VertexNormal.Z;
 	}
 	else
 	{
-		const FVector &VertexNormal = UserData->faces[FaceIdx].TangentZ[VertIdx];
+		const FVector3f &VertexNormal = UserData->faces[FaceIdx].TangentZ[VertIdx];
 		Normal[0] = VertexNormal.X;
 		Normal[1] = VertexNormal.Y;
 		Normal[2] = VertexNormal.Z;
@@ -1733,21 +1733,21 @@ static void MikkGetNormal_Skeletal(const SMikkTSpaceContext* Context, float Norm
 static void MikkSetTSpaceBasic_Skeletal(const SMikkTSpaceContext* Context, const float Tangent[3], const float BitangentSign, const int FaceIdx, const int VertIdx)
 {
 	MikkTSpace_Skeletal_Mesh *UserData = (MikkTSpace_Skeletal_Mesh*)(Context->m_pUserData);
-	FVector &VertexTangent = UserData->TangentsX[FaceIdx * 3 + VertIdx];
+	FVector3f &VertexTangent = UserData->TangentsX[FaceIdx * 3 + VertIdx];
 	VertexTangent.X = Tangent[0];
 	VertexTangent.Y = Tangent[1];
 	VertexTangent.Z = Tangent[2];
 
-	FVector Bitangent;
+	FVector3f Bitangent;
 	// Get different normals depending on whether they've been calculated or not.
 	if (UserData->bComputeNormals) {
-		Bitangent = BitangentSign * FVector::CrossProduct(UserData->TangentsZ[FaceIdx * 3 + VertIdx], VertexTangent);
+		Bitangent = BitangentSign * FVector3f::CrossProduct(UserData->TangentsZ[FaceIdx * 3 + VertIdx], VertexTangent);
 	}
 	else
 	{
-		Bitangent = BitangentSign * FVector::CrossProduct(UserData->faces[FaceIdx].TangentZ[VertIdx], VertexTangent);
+		Bitangent = BitangentSign * FVector3f::CrossProduct(UserData->faces[FaceIdx].TangentZ[VertIdx], VertexTangent);
 	}
-	FVector &VertexBitangent = UserData->TangentsY[FaceIdx * 3 + VertIdx];
+	FVector3f &VertexBitangent = UserData->TangentsY[FaceIdx * 3 + VertIdx];
 	// Switch the tangent space swizzle to X+Y-Z+ for legacy reasons.
 	VertexBitangent.X = -Bitangent[0];
 	VertexBitangent.Y = -Bitangent[1];
@@ -1763,12 +1763,12 @@ static void MikkGetTexCoord_Skeletal(const SMikkTSpaceContext* Context, float UV
 }
 
 static void ComputeNormals(
-	const TArray<FVector>& InVertices,
+	const TArray<FVector3f>& InVertices,
 	const TArray<uint32>& InIndices,
 	const TArray<FVector2D>& InUVs,
 	const TArray<uint32>& SmoothingGroupIndices,
 	const FOverlappingCorners& OverlappingCorners,
-	TArray<FVector>& OutTangentZ,
+	TArray<FVector3f>& OutTangentZ,
 	const uint32 TangentOptions
 	)
 {
@@ -1777,9 +1777,9 @@ static void ComputeNormals(
 	float ComparisonThreshold = bIgnoreDegenerateTriangles ? THRESH_POINTS_ARE_SAME : 0.0f;
 
 	// Compute per-triangle tangents.
-	TArray<FVector> TriangleTangentX;
-	TArray<FVector> TriangleTangentY;
-	TArray<FVector> TriangleTangentZ;
+	TArray<FVector3f> TriangleTangentX;
+	TArray<FVector3f> TriangleTangentY;
+	TArray<FVector3f> TriangleTangentZ;
 
 	ComputeTriangleTangents(
 		InVertices,
@@ -1810,12 +1810,12 @@ static void ComputeNormals(
 	for (int32 FaceIndex = 0; FaceIndex < NumFaces; FaceIndex++)
 	{
 		int32 WedgeOffset = FaceIndex * 3;
-		FVector CornerPositions[3];
-		FVector CornerNormal[3];
+		FVector3f CornerPositions[3];
+		FVector3f CornerNormal[3];
 
 		for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
 		{
-			CornerNormal[CornerIndex] = FVector::ZeroVector;
+			CornerNormal[CornerIndex] = FVector3f::ZeroVector;
 			CornerPositions[CornerIndex] = InVertices[InIndices[WedgeOffset + CornerIndex]];
 			RelevantFacesForCorner[CornerIndex].Reset();
 		}
@@ -2018,13 +2018,13 @@ static void ComputeNormals(
 }
 
 static void ComputeTangents_MikkTSpace(
-	const TArray<FVector>& InVertices,
+	const TArray<FVector3f>& InVertices,
 	const TArray<uint32>& InIndices,
 	const TArray<FVector2D>& InUVs,
-	const TArray<FVector>& InNormals,
+	const TArray<FVector3f>& InNormals,
 	bool bIgnoreDegenerateTriangles,
-	TArray<FVector>& OutTangentX,
-	TArray<FVector>& OutTangentY
+	TArray<FVector3f>& OutTangentX,
+	TArray<FVector3f>& OutTangentY
 	)
 {
 	const int32 NumWedges = InIndices.Num();
@@ -2077,14 +2077,14 @@ static void ComputeTangents_MikkTSpace(
 }
 
 static void ComputeTangents_MikkTSpace(
-	const TArray<FVector>& InVertices,
+	const TArray<FVector3f>& InVertices,
 	const TArray<uint32>& InIndices,
 	const TArray<FVector2D>& InUVs,
 	const TArray<uint32>& SmoothingGroupIndices,
 	const FOverlappingCorners& OverlappingCorners,
-	TArray<FVector>& OutTangentX,
-	TArray<FVector>& OutTangentY,
-	TArray<FVector>& OutTangentZ,
+	TArray<FVector3f>& OutTangentX,
+	TArray<FVector3f>& OutTangentY,
+	TArray<FVector3f>& OutTangentZ,
 	const uint32 TangentOptions
 	)
 {
@@ -2185,7 +2185,7 @@ static float GetComparisonThreshold(FMeshBuildSettings const& BuildSettings)
 Static mesh building.
 ------------------------------------------------------------------------------*/
 
-static void BuildStaticMeshVertex(const FRawMesh& RawMesh, const FMatrix& ScaleMatrix, const FVector& Position, int32 WedgeIndex, FStaticMeshBuildVertex& Vertex)
+static void BuildStaticMeshVertex(const FRawMesh& RawMesh, const FMatrix& ScaleMatrix, const FVector3f& Position, int32 WedgeIndex, FStaticMeshBuildVertex& Vertex)
 {
 	Vertex.Position = Position;
 
@@ -2271,7 +2271,7 @@ void FMeshUtilities::BuildStaticMeshVertexAndIndexBuffers(
 	for (int32 FaceIndex = 0; FaceIndex < NumFaces; FaceIndex++)
 	{
 		int32 VertexIndices[3];
-		FVector CornerPositions[3];
+		FVector3f CornerPositions[3];
 
 		for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
 		{
@@ -2440,8 +2440,8 @@ struct FLayoutUVRawMeshView final : FLayoutUV::IMeshView
 	{}
 
 	uint32     GetNumIndices() const override { return RawMesh.WedgeIndices.Num(); }
-	FVector    GetPosition(uint32 Index) const override { return RawMesh.GetWedgePosition(Index); }
-	FVector    GetNormal(uint32 Index) const override { return bNormalsValid ? RawMesh.WedgeTangentZ[Index] : FVector::ZeroVector; }
+	FVector3f    GetPosition(uint32 Index) const override { return RawMesh.GetWedgePosition(Index); }
+	FVector3f    GetNormal(uint32 Index) const override { return bNormalsValid ? RawMesh.WedgeTangentZ[Index] : FVector3f::ZeroVector; }
 	FVector2D  GetInputTexcoord(uint32 Index) const override { return RawMesh.WedgeTexCoords[SrcChannel][Index]; }
 
 	void      InitOutputTexcoords(uint32 Num) override { RawMesh.WedgeTexCoords[DstChannel].SetNumUninitialized( Num ); }
@@ -3075,15 +3075,15 @@ public:
 	virtual uint32 GetWedgeIndex(uint32 FaceIndex, uint32 TriIndex) = 0;
 	virtual uint32 GetVertexIndex(uint32 WedgeIndex) = 0;
 	virtual uint32 GetVertexIndex(uint32 FaceIndex, uint32 TriIndex) = 0;
-	virtual FVector GetVertexPosition(uint32 WedgeIndex) = 0;
-	virtual FVector GetVertexPosition(uint32 FaceIndex, uint32 TriIndex) = 0;
+	virtual FVector3f GetVertexPosition(uint32 WedgeIndex) = 0;
+	virtual FVector3f GetVertexPosition(uint32 FaceIndex, uint32 TriIndex) = 0;
 	virtual FVector2D GetVertexUV(uint32 FaceIndex, uint32 TriIndex, uint32 UVIndex) = 0;
 	virtual uint32 GetFaceSmoothingGroups(uint32 FaceIndex) = 0;
 
 	virtual uint32 GetNumFaces() = 0;
 	virtual uint32 GetNumWedges() = 0;
 
-	virtual TArray<FVector>& GetTangentArray(uint32 Axis) = 0;
+	virtual TArray<FVector3f>& GetTangentArray(uint32 Axis) = 0;
 	virtual void ValidateTangentArraySize() = 0;
 
 	virtual SMikkTSpaceInterface* GetMikkTInterface() = 0;
@@ -3116,7 +3116,7 @@ public:
 		const TArray<SkeletalMeshImportData::FVertInfluence>& InInfluences,
 		const TArray<SkeletalMeshImportData::FMeshWedge>& InWedges,
 		const TArray<SkeletalMeshImportData::FMeshFace>& InFaces,
-		const TArray<FVector>& InPoints,
+		const TArray<FVector3f>& InPoints,
 		const TArray<int32>& InPointToOriginalMap,
 		const IMeshUtilities::MeshBuildOptions& InBuildOptions,
 		TArray<FText>* InWarningMessages,
@@ -3187,12 +3187,12 @@ public:
 		return Wedges[Faces[FaceIndex].iWedge[TriIndex]].iVertex;
 	}
 
-	virtual FVector GetVertexPosition(uint32 WedgeIndex) override
+	virtual FVector3f GetVertexPosition(uint32 WedgeIndex) override
 	{
 		return Points[Wedges[WedgeIndex].iVertex];
 	}
 
-	virtual FVector GetVertexPosition(uint32 FaceIndex, uint32 TriIndex) override
+	virtual FVector3f GetVertexPosition(uint32 FaceIndex, uint32 TriIndex) override
 	{
 		return Points[Wedges[Faces[FaceIndex].iWedge[TriIndex]].iVertex];
 	}
@@ -3217,7 +3217,7 @@ public:
 		return Wedges.Num();
 	}
 
-	virtual TArray<FVector>& GetTangentArray(uint32 Axis) override
+	virtual TArray<FVector3f>& GetTangentArray(uint32 Axis) override
 	{
 		if (Axis == 0)
 		{
@@ -3248,9 +3248,9 @@ public:
 		return (void*)&MikkTUserData;
 	}
 
-	TArray<FVector> TangentX;
-	TArray<FVector> TangentY;
-	TArray<FVector> TangentZ;
+	TArray<FVector3f> TangentX;
+	TArray<FVector3f> TangentY;
+	TArray<FVector3f> TangentZ;
 	TArray<FSkinnedMeshChunk*> Chunks;
 
 	SMikkTSpaceInterface MikkTInterface;
@@ -3261,7 +3261,7 @@ public:
 	const TArray<SkeletalMeshImportData::FVertInfluence>& Influences;
 	const TArray<SkeletalMeshImportData::FMeshWedge>& Wedges;
 	const TArray<SkeletalMeshImportData::FMeshFace>& Faces;
-	const TArray<FVector>& Points;
+	const TArray<FVector3f>& Points;
 	const TArray<int32>& PointToOriginalMap;
 };
 
@@ -3310,8 +3310,8 @@ public:
 				if (FMath::Abs(VertIndexAndZ[j].Z - VertIndexAndZ[i].Z) > ComparisonThreshold)
 					break; // can't be any more dups
 
-				FVector PositionA = BuildData->GetVertexPosition(VertIndexAndZ[i].Index);
-				FVector PositionB = BuildData->GetVertexPosition(VertIndexAndZ[j].Index);
+				FVector3f PositionA = BuildData->GetVertexPosition(VertIndexAndZ[i].Index);
+				FVector3f PositionB = BuildData->GetVertexPosition(VertIndexAndZ[j].Index);
 
 				if (PointsEqual(PositionA, PositionB, ComparisonThreshold))
 				{
@@ -3324,9 +3324,9 @@ public:
 	}
 
 	void Skeletal_ComputeTriangleTangents(
-		TArray<FVector>& TriangleTangentX,
-		TArray<FVector>& TriangleTangentY,
-		TArray<FVector>& TriangleTangentZ,
+		TArray<FVector3f>& TriangleTangentX,
+		TArray<FVector3f>& TriangleTangentY,
+		TArray<FVector3f>& TriangleTangentZ,
 		IMeshBuildData* BuildData,
 		float ComparisonThreshold
 		)
@@ -3445,7 +3445,7 @@ public:
 		}
 	}
 
-	bool IsTriangleMirror(IMeshBuildData* BuildData, const TArray<FVector>& TriangleTangentZ, const uint32 FaceIdxA, const uint32 FaceIdxB)
+	bool IsTriangleMirror(IMeshBuildData* BuildData, const TArray<FVector3f>& TriangleTangentZ, const uint32 FaceIdxA, const uint32 FaceIdxB)
 	{
 		if (FaceIdxA == FaceIdxB)
 		{
@@ -3453,11 +3453,11 @@ public:
 		}
 		for (int32 CornerA = 0; CornerA < 3; ++CornerA)
 		{
-			const FVector& CornerAPosition = BuildData->GetVertexPosition((FaceIdxA * 3) + CornerA);
+			const FVector3f& CornerAPosition = BuildData->GetVertexPosition((FaceIdxA * 3) + CornerA);
 			bool bFoundMatch = false;
 			for (int32 CornerB = 0; CornerB < 3; ++CornerB)
 			{
-				const FVector& CornerBPosition = BuildData->GetVertexPosition((FaceIdxB * 3) + CornerB);
+				const FVector3f& CornerBPosition = BuildData->GetVertexPosition((FaceIdxB * 3) + CornerB);
 				if (PointsEqual(CornerAPosition, CornerBPosition, BuildData->BuildOptions.OverlappingThresholds))
 				{
 					bFoundMatch = true;
@@ -3471,7 +3471,7 @@ public:
 			}
 		}
 		//Check if the triangles normals are opposite and parallel. Dot product equal -1.0f
-		if (FMath::IsNearlyEqual(FVector::DotProduct(TriangleTangentZ[FaceIdxA], TriangleTangentZ[FaceIdxB]), -1.0f, KINDA_SMALL_NUMBER))
+		if (FMath::IsNearlyEqual(FVector3f::DotProduct(TriangleTangentZ[FaceIdxA], TriangleTangentZ[FaceIdxB]), -1.0f, KINDA_SMALL_NUMBER))
 		{
 			return true;
 		}
@@ -3494,9 +3494,9 @@ public:
 		check(NumFaces * 3 <= NumWedges);
 		
 		// Compute per-triangle tangents.
-		TArray<FVector> TriangleTangentX;
-		TArray<FVector> TriangleTangentY;
-		TArray<FVector> TriangleTangentZ;
+		TArray<FVector3f> TriangleTangentX;
+		TArray<FVector3f> TriangleTangentY;
+		TArray<FVector3f> TriangleTangentZ;
 
 		Skeletal_ComputeTriangleTangents(
 			TriangleTangentX,
@@ -3512,9 +3512,9 @@ public:
 		const bool bConnectByEdge = true;
 		Skeletal_FillPolygonPatch(BuildData, FaceIndexToPatchIndex, bConnectByEdge);
 
-		TArray<FVector>& WedgeTangentX = BuildData->GetTangentArray(0);
-		TArray<FVector>& WedgeTangentY = BuildData->GetTangentArray(1);
-		TArray<FVector>& WedgeTangentZ = BuildData->GetTangentArray(2);
+		TArray<FVector3f>& WedgeTangentX = BuildData->GetTangentArray(0);
+		TArray<FVector3f>& WedgeTangentY = BuildData->GetTangentArray(1);
+		TArray<FVector3f>& WedgeTangentZ = BuildData->GetTangentArray(2);
 
 		// Declare these out here to avoid reallocations.
 		TArray<FFanFace> RelevantFacesForCorner[3];
@@ -3543,16 +3543,16 @@ public:
 		{
 			int32 PatchIndex = FaceIndexToPatchIndex[FaceIndex];
 			int32 WedgeOffset = FaceIndex * 3;
-			FVector CornerPositions[3];
-			FVector CornerTangentX[3];
-			FVector CornerTangentY[3];
-			FVector CornerNormal[3];
+			FVector3f CornerPositions[3];
+			FVector3f CornerTangentX[3];
+			FVector3f CornerTangentY[3];
+			FVector3f CornerNormal[3];
 
 			for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
 			{
-				CornerTangentX[CornerIndex] = FVector::ZeroVector;
-				CornerTangentY[CornerIndex] = FVector::ZeroVector;
-				CornerNormal[CornerIndex] = FVector::ZeroVector;
+				CornerTangentX[CornerIndex] = FVector3f::ZeroVector;
+				CornerTangentY[CornerIndex] = FVector3f::ZeroVector;
+				CornerNormal[CornerIndex] = FVector3f::ZeroVector;
 				CornerPositions[CornerIndex] = BuildData->GetVertexPosition(FaceIndex, CornerIndex);
 				RelevantFacesForCorner[CornerIndex].Reset();
 			}
@@ -3586,7 +3586,7 @@ public:
 			}
 
 			// Calculate smooth vertex normals.
-			float Determinant = FVector::Triple(
+			float Determinant = FVector3f::Triple(
 				TriangleTangentX[FaceIndex],
 				TriangleTangentY[FaceIndex],
 				TriangleTangentZ[FaceIndex]
@@ -3733,7 +3733,7 @@ public:
 											// Only blend tangents if there is no UV seam along the edge with this face.
 											if (!bUseMikktSpace && OtherFace.bBlendTangents && CommonTangentVertices > 1)
 											{
-												float OtherDeterminant = FVector::Triple(
+												float OtherDeterminant = FVector3f::Triple(
 													TriangleTangentX[NextFace.FaceIndex],
 													TriangleTangentY[NextFace.FaceIndex],
 													TriangleTangentZ[NextFace.FaceIndex]
@@ -3779,7 +3779,7 @@ public:
 							float CornerWeight = 1.0f;
 							if (bComputeWeightedNormals)
 							{
-								FVector OtherFacePoint[3] = { BuildData->GetVertexPosition(OtherFaceIndex, 0), BuildData->GetVertexPosition(OtherFaceIndex, 1), BuildData->GetVertexPosition(OtherFaceIndex, 2) };
+								FVector3f OtherFacePoint[3] = { BuildData->GetVertexPosition(OtherFaceIndex, 0), BuildData->GetVertexPosition(OtherFaceIndex, 1), BuildData->GetVertexPosition(OtherFaceIndex, 2) };
 								float OtherFaceArea = TriangleUtilities::ComputeTriangleArea(OtherFacePoint[0], OtherFacePoint[1], OtherFacePoint[2]);
 								int32 OtherFaceCornerIndex = RelevantFace.LinkedVertexIndex;
 								float OtherFaceAngle = TriangleUtilities::ComputeTriangleCornerAngle(OtherFacePoint[OtherFaceCornerIndex], OtherFacePoint[(OtherFaceCornerIndex + 1) % 3], OtherFacePoint[(OtherFaceCornerIndex + 2) % 3]);
@@ -3832,11 +3832,11 @@ public:
 				}
 			}
 
-			auto VerifyTangentSpace = [&bIsZeroLengthNormalErrorMessageDisplayed, &BuildData, &SkeletalMeshName](FVector& NormalizedVector)
+			auto VerifyTangentSpace = [&bIsZeroLengthNormalErrorMessageDisplayed, &BuildData, &SkeletalMeshName](FVector3f& NormalizedVector)
 			{
 				if (NormalizedVector.IsNearlyZero() || NormalizedVector.ContainsNaN())
 				{
-					NormalizedVector = FVector::ZeroVector;
+					NormalizedVector = FVector3f::ZeroVector;
 					//We also notify the log that we compute a zero length normals, so the user is aware of it
 					if (!bIsZeroLengthNormalErrorMessageDisplayed)
 					{
@@ -3917,8 +3917,8 @@ public:
 		// Dump normals and tangents if we are recomputing them.
 		if (bRecomputeTangents)
 		{
-			TArray<FVector>& TangentX = BuildData->GetTangentArray(0);
-			TArray<FVector>& TangentY = BuildData->GetTangentArray(1);
+			TArray<FVector3f>& TangentX = BuildData->GetTangentArray(0);
+			TArray<FVector3f>& TangentY = BuildData->GetTangentArray(1);
 
 			TangentX.Empty(NumWedges);
 			TangentX.AddZeroed(NumWedges);
@@ -3927,7 +3927,7 @@ public:
 		}
 		if (bRecomputeNormals)
 		{
-			TArray<FVector>& TangentZ = BuildData->GetTangentArray(2);
+			TArray<FVector3f>& TangentZ = BuildData->GetTangentArray(2);
 			TangentZ.Empty(NumWedges);
 			TangentZ.AddZeroed(NumWedges);
 		}
@@ -4019,7 +4019,7 @@ public:
 
 				Vertex.Position = BuildData.GetVertexPosition(FaceIndex, VertexIndex);
 
-				FVector TangentX, TangentY, TangentZ;
+				FVector3f TangentX, TangentY, TangentZ;
 				TangentX = BuildData.TangentX[WedgeIndex].GetSafeNormal();
 				TangentY = BuildData.TangentY[WedgeIndex].GetSafeNormal();
 				TangentZ = BuildData.TangentZ[WedgeIndex].GetSafeNormal();
@@ -4176,7 +4176,7 @@ private:
 	EStage Stage;
 };
 
-bool FMeshUtilities::BuildSkeletalMesh(FSkeletalMeshLODModel& LODModel,	const FString& SkeletalMeshName, const FReferenceSkeleton& RefSkeleton, const TArray<SkeletalMeshImportData::FVertInfluence>& Influences, const TArray<SkeletalMeshImportData::FMeshWedge>& Wedges, const TArray<SkeletalMeshImportData::FMeshFace>& Faces, const TArray<FVector>& Points, const TArray<int32>& PointToOriginalMap, const MeshBuildOptions& BuildOptions, TArray<FText> * OutWarningMessages, TArray<FName> * OutWarningNames)
+bool FMeshUtilities::BuildSkeletalMesh(FSkeletalMeshLODModel& LODModel,	const FString& SkeletalMeshName, const FReferenceSkeleton& RefSkeleton, const TArray<SkeletalMeshImportData::FVertInfluence>& Influences, const TArray<SkeletalMeshImportData::FMeshWedge>& Wedges, const TArray<SkeletalMeshImportData::FMeshFace>& Faces, const TArray<FVector3f>& Points, const TArray<int32>& PointToOriginalMap, const MeshBuildOptions& BuildOptions, TArray<FText> * OutWarningMessages, TArray<FName> * OutWarningNames)
 {
 #if WITH_EDITORONLY_DATA
 
@@ -4331,8 +4331,8 @@ bool FMeshUtilities::BuildSkeletalMesh(FSkeletalMeshLODModel& LODModel,	const FS
 //The fail safe is there to avoid zeros in the tangents. Even if the fail safe prevent zero NTBs, a warning should be generate by the caller to let the artist know something went wrong
 //Using a fail safe can lead to hard edge where its suppose to be smooth, it can also have some impact on the shading (lighting for tangentZ and normal map for tangentX and Y)
 //Normally because we use the triangle data the tangent space is in a good direction and should give proper result.
-void TangentFailSafe(const FVector &TriangleTangentX, const FVector &TriangleTangentY, const FVector &TriangleTangentZ
-	, FVector &TangentX, FVector &TangentY, FVector &TangentZ)
+void TangentFailSafe(const FVector3f &TriangleTangentX, const FVector3f &TriangleTangentY, const FVector3f &TriangleTangentZ
+	, FVector3f &TangentX, FVector3f &TangentY, FVector3f &TangentZ)
 {
 	bool bTangentXZero = TangentX.IsNearlyZero() || TangentX.ContainsNaN();
 	bool bTangentYZero = TangentY.IsNearlyZero() || TangentY.ContainsNaN();
@@ -4348,12 +4348,12 @@ void TangentFailSafe(const FVector &TriangleTangentX, const FVector &TriangleTan
 		if (!bTangentXZero)
 		{
 			//Valid TangentZ and TangentX, we can recompute TangentY
-			TangentY = FVector::CrossProduct(TangentZ, TangentX).GetSafeNormal();
+			TangentY = FVector3f::CrossProduct(TangentZ, TangentX).GetSafeNormal();
 		}
 		else if (!bTangentYZero)
 		{
 			//Valid TangentZ and TangentY, we can recompute TangentX
-			TangentX = FVector::CrossProduct(TangentY, TangentZ).GetSafeNormal();
+			TangentX = FVector3f::CrossProduct(TangentY, TangentZ).GetSafeNormal();
 		}
 		else
 		{
@@ -4367,7 +4367,7 @@ void TangentFailSafe(const FVector &TriangleTangentX, const FVector &TriangleTan
 		if (!bTangentYZero)
 		{
 			//Valid TangentX and TangentY, we can recompute TangentZ
-			TangentZ = FVector::CrossProduct(TangentX, TangentY).GetSafeNormal();
+			TangentZ = FVector3f::CrossProduct(TangentX, TangentY).GetSafeNormal();
 		}
 		else
 		{
@@ -4390,26 +4390,26 @@ void TangentFailSafe(const FVector &TriangleTangentX, const FVector &TriangleTan
 		TangentZ = TriangleTangentZ.GetSafeNormal();
 	}
 
-	bool bParaXY = FVector::Parallel(TangentX, TangentY);
-	bool bParaYZ = FVector::Parallel(TangentY, TangentZ);
-	bool bParaZX = FVector::Parallel(TangentZ, TangentX);
+	bool bParaXY = FVector3f::Parallel(TangentX, TangentY);
+	bool bParaYZ = FVector3f::Parallel(TangentY, TangentZ);
+	bool bParaZX = FVector3f::Parallel(TangentZ, TangentX);
 	if (bParaXY || bParaYZ || bParaZX)
 	{
 		//In case XY are parallel, use the Z(normal) if valid and not parallel to both X and Y to find the missing component
 		if (bParaXY && !bParaZX)
 		{
-			TangentY = FVector::CrossProduct(TangentZ, TangentX).GetSafeNormal();
+			TangentY = FVector3f::CrossProduct(TangentZ, TangentX).GetSafeNormal();
 		}
 		else if (bParaXY && !bParaYZ)
 		{
-			TangentX = FVector::CrossProduct(TangentY, TangentZ).GetSafeNormal();
+			TangentX = FVector3f::CrossProduct(TangentY, TangentZ).GetSafeNormal();
 		}
 		else
 		{
 			//Degenerated value put something valid
-			TangentX = FVector(1.0f, 0.0f, 0.0f);
-			TangentY = FVector(0.0f, 1.0f, 0.0f);
-			TangentZ = FVector(0.0f, 0.0f, 1.0f);
+			TangentX = FVector3f(1.0f, 0.0f, 0.0f);
+			TangentY = FVector3f(0.0f, 1.0f, 0.0f);
+			TangentZ = FVector3f(0.0f, 0.0f, 1.0f);
 		}
 	}
 	else
@@ -4430,9 +4430,9 @@ void TangentFailSafe(const FVector &TriangleTangentX, const FVector &TriangleTan
 			|| TangentY.IsNearlyZero() || TangentY.ContainsNaN())
 		{
 			//Since the triangle is degenerate this case can cause a hardedge, but will probably have no other impact since the triangle is degenerate (no visible surface)
-			TangentX = FVector(1.0f, 0.0f, 0.0f);
-			TangentY = FVector(0.0f, 1.0f, 0.0f);
-			TangentZ = FVector(0.0f, 0.0f, 1.0f);
+			TangentX = FVector3f(1.0f, 0.0f, 0.0f);
+			TangentY = FVector3f(0.0f, 1.0f, 0.0f);
+			TangentZ = FVector3f(0.0f, 0.0f, 1.0f);
 		}
 	}
 }
@@ -4443,7 +4443,7 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 											, const TArray<SkeletalMeshImportData::FVertInfluence>& Influences
 											, const TArray<SkeletalMeshImportData::FMeshWedge>& Wedges
 											, const TArray<SkeletalMeshImportData::FMeshFace>& Faces
-											, const TArray<FVector>& Points
+											, const TArray<FVector3f>& Points
 											, const TArray<int32>& PointToOriginalMap
 											, const FOverlappingThresholds& OverlappingThresholds
 											, bool bComputeNormals
@@ -4457,8 +4457,8 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 	check(PointToOriginalMap.Num() == Points.Num());
 
 	// Calculate face tangent vectors.
-	TArray<FVector>	FaceTangentX;
-	TArray<FVector>	FaceTangentY;
+	TArray<FVector3f>	FaceTangentX;
+	TArray<FVector3f>	FaceTangentY;
 	FaceTangentX.AddUninitialized(Faces.Num());
 	FaceTangentY.AddUninitialized(Faces.Num());
 
@@ -4466,10 +4466,10 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 	{
 		for (int32 FaceIndex = 0; FaceIndex < Faces.Num(); FaceIndex++)
 		{
-			FVector	P1 = Points[Wedges[Faces[FaceIndex].iWedge[0]].iVertex],
+			FVector3f	P1 = Points[Wedges[Faces[FaceIndex].iWedge[0]].iVertex],
 				P2 = Points[Wedges[Faces[FaceIndex].iWedge[1]].iVertex],
 				P3 = Points[Wedges[Faces[FaceIndex].iWedge[2]].iVertex];
-			FVector	TriangleNormal = FPlane(P3, P2, P1);
+			FVector3f	TriangleNormal = FPlane(P3, P2, P1);
 			if (!TriangleNormal.IsNearlyZero(FLT_MIN))
 			{
 				FMatrix	ParameterToLocal(
@@ -4494,8 +4494,8 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 				);
 
 				FMatrix	TextureToLocal = ParameterToTexture.Inverse() * ParameterToLocal;
-				FVector	TangentX = TextureToLocal.TransformVector(FVector(1, 0, 0)).GetSafeNormal(),
-					TangentY = TextureToLocal.TransformVector(FVector(0, 1, 0)).GetSafeNormal(),
+				FVector3f	TangentX = TextureToLocal.TransformVector(FVector3f(1, 0, 0)).GetSafeNormal(),
+					TangentY = TextureToLocal.TransformVector(FVector3f(0, 1, 0)).GetSafeNormal(),
 					TangentZ;
 
 				TangentX = TangentX - TriangleNormal * (TangentX | TriangleNormal);
@@ -4506,8 +4506,8 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 			}
 			else
 			{
-				FaceTangentX[FaceIndex] = FVector::ZeroVector;
-				FaceTangentY[FaceIndex] = FVector::ZeroVector;
+				FaceTangentX[FaceIndex] = FVector3f::ZeroVector;
+				FaceTangentY[FaceIndex] = FVector3f::ZeroVector;
 			}
 		}
 	}
@@ -4651,7 +4651,7 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 
 		const SkeletalMeshImportData::FMeshFace&	Face = Faces[FaceIndex];
 
-		FVector	VertexTangentX[3],
+		FVector3f	VertexTangentX[3],
 			VertexTangentY[3],
 			VertexTangentZ[3];
 
@@ -4659,17 +4659,17 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 		{
 			for (int32 VertexIndex = 0; VertexIndex < 3; VertexIndex++)
 			{
-				VertexTangentX[VertexIndex] = FVector::ZeroVector;
-				VertexTangentY[VertexIndex] = FVector::ZeroVector;
-				VertexTangentZ[VertexIndex] = FVector::ZeroVector;
+				VertexTangentX[VertexIndex] = FVector3f::ZeroVector;
+				VertexTangentY[VertexIndex] = FVector3f::ZeroVector;
+				VertexTangentZ[VertexIndex] = FVector3f::ZeroVector;
 			}
 
-			FVector	TriangleNormal = FPlane(
+			FVector3f	TriangleNormal = FPlane(
 				Points[Wedges[Face.iWedge[2]].iVertex],
 				Points[Wedges[Face.iWedge[1]].iVertex],
 				Points[Wedges[Face.iWedge[0]].iVertex]
 				);
-			float	Determinant = FVector::Triple(FaceTangentX[FaceIndex], FaceTangentY[FaceIndex], TriangleNormal);
+			float	Determinant = FVector3f::Triple(FaceTangentX[FaceIndex], FaceTangentY[FaceIndex], TriangleNormal);
 
 			// Start building a list of faces adjacent to this triangle
 			AdjacentFaces.Reset();
@@ -4690,21 +4690,21 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 				}
 			}
 
-			FVector FacePoint[3] = { Points[Wedges[Face.iWedge[0]].iVertex], Points[Wedges[Face.iWedge[1]].iVertex], Points[Wedges[Face.iWedge[2]].iVertex] };
+			FVector3f FacePoint[3] = { Points[Wedges[Face.iWedge[0]].iVertex], Points[Wedges[Face.iWedge[1]].iVertex], Points[Wedges[Face.iWedge[2]].iVertex] };
 			// Process adjacent faces
 			for (int32 AdjacentFaceIndex = 0; AdjacentFaceIndex < AdjacentFaces.Num(); AdjacentFaceIndex++)
 			{
 				int32 OtherFaceIndex = AdjacentFaces[AdjacentFaceIndex];
 				const SkeletalMeshImportData::FMeshFace&	OtherFace = Faces[OtherFaceIndex];
 
-				FVector OtherFacePoint[3] = { Points[Wedges[OtherFace.iWedge[0]].iVertex], Points[Wedges[OtherFace.iWedge[1]].iVertex], Points[Wedges[OtherFace.iWedge[2]].iVertex] };
+				FVector3f OtherFacePoint[3] = { Points[Wedges[OtherFace.iWedge[0]].iVertex], Points[Wedges[OtherFace.iWedge[1]].iVertex], Points[Wedges[OtherFace.iWedge[2]].iVertex] };
 				float OtherFaceArea = !bComputeWeightedNormals ? 1.0f : TriangleUtilities::ComputeTriangleArea(OtherFacePoint[0], OtherFacePoint[1], OtherFacePoint[2]);
-				FVector		OtherTriangleNormal = FPlane(
+				FVector3f		OtherTriangleNormal = FPlane(
 					OtherFacePoint[2],
 					OtherFacePoint[1],
 					OtherFacePoint[0]
 					);
-				float		OtherFaceDeterminant = FVector::Triple(FaceTangentX[OtherFaceIndex], FaceTangentY[OtherFaceIndex], OtherTriangleNormal);
+				float		OtherFaceDeterminant = FVector3f::Triple(FaceTangentX[OtherFaceIndex], FaceTangentY[OtherFaceIndex], OtherTriangleNormal);
 
 				for (int32 VertexIndex = 0; VertexIndex < 3; VertexIndex++)
 				{
@@ -4745,7 +4745,7 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 
 			Vertex.Position = Points[Wedges[Face.iWedge[VertexIndex]].iVertex];
 
-			FVector TangentX, TangentY, TangentZ;
+			FVector3f TangentX, TangentY, TangentZ;
 
 			if (bComputeNormals || bComputeTangents)
 			{
@@ -4789,13 +4789,13 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 			if (bTangentXZero || bTangentYZero || bTangentZZero)
 			{
 				NTBErrorCount++;
-				FVector TriangleTangentZ = FPlane(
+				FVector3f TriangleTangentZ = FPlane(
 					Points[Wedges[Face.iWedge[2]].iVertex],
 					Points[Wedges[Face.iWedge[1]].iVertex],
 					Points[Wedges[Face.iWedge[0]].iVertex]
 				);
-				FVector TriangleTangentX = FaceTangentX[FaceIndex];
-				FVector TriangleTangentY = FaceTangentY[FaceIndex];
+				FVector3f TriangleTangentX = FaceTangentX[FaceIndex];
+				FVector3f TriangleTangentY = FaceTangentY[FaceIndex];
 				TangentFailSafe(TriangleTangentX, TriangleTangentY, TriangleTangentZ, TangentX, TangentY, TangentZ);
 			}
 
@@ -5698,7 +5698,7 @@ bool FMeshUtilities::GenerateUniqueUVsForSkeletalMesh(const FSkeletalMeshLODMode
 	return bPackSuccess;
 }
 
-void FMeshUtilities::CalculateTangents(const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<uint32>& InSmoothingGroupIndices, const uint32 InTangentOptions, TArray<FVector>& OutTangentX, TArray<FVector>& OutTangentY, TArray<FVector>& OutNormals) const
+void FMeshUtilities::CalculateTangents(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<uint32>& InSmoothingGroupIndices, const uint32 InTangentOptions, TArray<FVector3f>& OutTangentX, TArray<FVector3f>& OutTangentY, TArray<FVector3f>& OutNormals) const
 {
 	const float ComparisonThreshold = (InTangentOptions & ETangentOptions::IgnoreDegenerateTriangles) ? THRESH_POINTS_ARE_SAME : 0.0f;
 
@@ -5715,12 +5715,12 @@ void FMeshUtilities::CalculateTangents(const TArray<FVector>& InVertices, const 
 	}
 }
 
-void FMeshUtilities::CalculateMikkTSpaceTangents(const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<FVector>& InNormals, bool bIgnoreDegenerateTriangles, TArray<FVector>& OutTangentX, TArray<FVector>& OutTangentY) const
+void FMeshUtilities::CalculateMikkTSpaceTangents(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<FVector3f>& InNormals, bool bIgnoreDegenerateTriangles, TArray<FVector3f>& OutTangentX, TArray<FVector3f>& OutTangentY) const
 {
 	ComputeTangents_MikkTSpace(InVertices, InIndices, InUVs, InNormals, bIgnoreDegenerateTriangles, OutTangentX, OutTangentY);
 }
 
-void FMeshUtilities::CalculateNormals(const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<uint32>& InSmoothingGroupIndices, const uint32 InTangentOptions, TArray<FVector>& OutNormals) const
+void FMeshUtilities::CalculateNormals(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<uint32>& InSmoothingGroupIndices, const uint32 InTangentOptions, TArray<FVector3f>& OutNormals) const
 {
 	const float ComparisonThreshold = (InTangentOptions & ETangentOptions::IgnoreDegenerateTriangles ) ? THRESH_POINTS_ARE_SAME : 0.0f;
 
@@ -5730,7 +5730,7 @@ void FMeshUtilities::CalculateNormals(const TArray<FVector>& InVertices, const T
 	ComputeNormals(InVertices, InIndices, InUVs, InSmoothingGroupIndices, OverlappingCorners, OutNormals, InTangentOptions);
 }
 
-void FMeshUtilities::CalculateOverlappingCorners(const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, bool bIgnoreDegenerateTriangles, FOverlappingCorners& OutOverlappingCorners) const
+void FMeshUtilities::CalculateOverlappingCorners(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, bool bIgnoreDegenerateTriangles, FOverlappingCorners& OutOverlappingCorners) const
 {
 	const float ComparisonThreshold = bIgnoreDegenerateTriangles ? THRESH_POINTS_ARE_SAME : 0.f;
 	FindOverlappingCorners(OutOverlappingCorners, InVertices, InIndices, ComparisonThreshold);
@@ -6295,7 +6295,7 @@ void FMeshUtilities::ConvertActorMeshesToStaticMeshUIAction(const TArray<AActor*
 		if (ACharacter* Character = Cast<ACharacter>(InActor))
 		{
 			RootTransform = Character->GetTransform();
-			RootTransform.SetLocation(RootTransform.GetLocation() - FVector(0.0f, 0.0f, Character->GetCapsuleComponent()->GetScaledCapsuleHalfHeight()));
+			RootTransform.SetLocation(RootTransform.GetLocation() - FVector3f(0.0f, 0.0f, Character->GetCapsuleComponent()->GetScaledCapsuleHalfHeight()));
 		}
 		else
 		{
@@ -6315,8 +6315,8 @@ void FMeshUtilities::ConvertActorMeshesToStaticMeshUIAction(const TArray<AActor*
 	else
 	{
 		// multiple actors use the average of their origins, with Z being the min of all origins. Rotation is identity for simplicity
-		FVector Location(FVector::ZeroVector);
-		float MinZ = FLT_MAX;
+		FVector3f Location(FVector3f::ZeroVector);
+		double MinZ = DBL_MAX;
 		for (AActor* Actor : InActors)
 		{
 			FTransform ActorTransform(GetActorRootTransform(Actor));

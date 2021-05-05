@@ -13,12 +13,12 @@ namespace GeometryCollectionTest
 		CubeGeometry() {}
 		~CubeGeometry() {}
 
-		static const TArray<Chaos::FReal>	RawVertexArray;
-		static const TArray<int32>			RawIndicesArray;
+		static const TArray<float>	RawVertexArray;
+		static const TArray<int32>	RawIndicesArray;
 	};
 
 
-	const TArray<Chaos::FReal> CubeGeometry::RawVertexArray = {
+	const TArray<float> CubeGeometry::RawVertexArray = {
 															50.000000, -50.000000, 50.000000,
 															25.000000, -50.000000, 50.000000,
 															0.000000, -50.000000, 50.000000,

@@ -44,7 +44,7 @@ namespace Chaos
 		int32 Chaos_Collision_UseShockPropagation = 1;
 		FAutoConsoleVariableRef CVarChaosCollisionUseShockPropagation(TEXT("p.Chaos.Collision.UseShockPropagation"), Chaos_Collision_UseShockPropagation, TEXT(""));
 
-		FReal Chaos_Collision_CollisionClipTolerance = 0.01f;
+		FRealSingle Chaos_Collision_CollisionClipTolerance = 0.01f;
 		FAutoConsoleVariableRef CVarChaosCollisionClipTolerance(TEXT("p.Chaos.Collision.ClipTolerance"), Chaos_Collision_CollisionClipTolerance, TEXT(""));
 
 		bool Chaos_Collision_CheckManifoldComplete = false;

@@ -1811,8 +1811,8 @@ FVertexInstanceID ProcessTriangleCorner(
 	const int32 IndexOffset,
 	const int32 NumUVs,
 	const SpeedTree::SRenderState* RenderState,
-	TVertexInstanceAttributesRef<FVector> VertexInstanceNormals,
-	TVertexInstanceAttributesRef<FVector> VertexInstanceTangents,
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals,
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents,
 	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns,
 	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors,
 	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs)
@@ -2113,11 +2113,11 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 						FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(LODIndex);
 						FStaticMeshAttributes Attributes(*MeshDescription);
 						
-						TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+						TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 						TEdgeAttributesRef<bool> EdgeHardnesses = Attributes.GetEdgeHardnesses();
 						TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
-						TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-						TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+						TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+						TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 						TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 						TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 						TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
@@ -2286,11 +2286,11 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 					FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(LODIndex);
 					FStaticMeshAttributes Attributes(*MeshDescription);
 
-					TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+					TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 					TEdgeAttributesRef<bool> EdgeHardnesses = Attributes.GetEdgeHardnesses();
 					TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
-					TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-					TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+					TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+					TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 					TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 					TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 					TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
@@ -2609,11 +2609,11 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 			FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(LODIndex);
 			FStaticMeshAttributes Attributes(*MeshDescription);
 
-			TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+			TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 			TEdgeAttributesRef<bool> EdgeHardnesses = Attributes.GetEdgeHardnesses();
 			TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
-			TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-			TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+			TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+			TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 			TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 			TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 			TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
@@ -2963,11 +2963,11 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary9(UClass* InClass, UObject*
 			FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(LODIndex);
 			FStaticMeshAttributes Attributes(*MeshDescription);
 
-			TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+			TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 			TEdgeAttributesRef<bool> EdgeHardnesses = Attributes.GetEdgeHardnesses();
 			TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
-			TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-			TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+			TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+			TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 			TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 			TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 			TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();

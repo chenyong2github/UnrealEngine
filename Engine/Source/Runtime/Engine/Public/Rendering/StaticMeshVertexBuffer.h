@@ -16,7 +16,7 @@ struct TStaticMeshVertexTangentDatum
 	TangentTypeT TangentX;
 	TangentTypeT TangentZ;
 
-	FORCEINLINE FVector GetTangentX() const
+	FORCEINLINE FVector3f GetTangentX() const
 	{
 		return TangentX.ToFVector();
 	}
@@ -26,15 +26,15 @@ struct TStaticMeshVertexTangentDatum
 		return TangentZ.ToFVector4();
 	}
 
-	FORCEINLINE FVector GetTangentY() const
+	FORCEINLINE FVector3f GetTangentY() const
 	{
 		return GenerateYAxis(TangentX, TangentZ);
 	}
 
-	FORCEINLINE void SetTangents(FVector X, FVector Y, FVector Z)
+	FORCEINLINE void SetTangents(FVector3f X, FVector3f Y, FVector3f Z)
 	{
 		TangentX = X;
-		TangentZ = FVector4(Z, GetBasisDeterminantSign(X, Y, Z));
+		TangentZ = FVector4(Z.X, Z.Y, Z.Z, GetBasisDeterminantSign(X, Y, Z));
 	}
 
 	/**
@@ -192,7 +192,7 @@ public:
 		TangentType* ElementData = reinterpret_cast<TangentType*>(TangentsDataPtr);
 		check((void*)((&ElementData[VertexIndex]) + 1) <= (void*)(TangentsDataPtr + TangentsData->GetResourceSize()));
 		check((void*)((&ElementData[VertexIndex]) + 0) >= (void*)(TangentsDataPtr));
-		return ElementData[VertexIndex].GetTangentX();
+		return FVector4(ElementData[VertexIndex].GetTangentX());
 	}
 
 	FORCEINLINE_DEBUGGABLE FVector4 VertexTangentX(uint32 VertexIndex) const
@@ -216,7 +216,7 @@ public:
 		TangentType* ElementData = reinterpret_cast<TangentType*>(TangentsDataPtr);
 		check((void*)((&ElementData[VertexIndex]) + 1) <= (void*)(TangentsDataPtr + TangentsData->GetResourceSize()));
 		check((void*)((&ElementData[VertexIndex]) + 0) >= (void*)(TangentsDataPtr));
-		return ElementData[VertexIndex].GetTangentZ();
+		return  FVector4(ElementData[VertexIndex].GetTangentZ());
 	}
 
 	FORCEINLINE_DEBUGGABLE FVector4 VertexTangentZ(uint32 VertexIndex) const
@@ -240,7 +240,7 @@ public:
 		TangentType* ElementData = reinterpret_cast<TangentType*>(TangentsDataPtr);
 		check((void*)((&ElementData[VertexIndex]) + 1) <= (void*)(TangentsDataPtr + TangentsData->GetResourceSize()));
 		check((void*)((&ElementData[VertexIndex]) + 0) >= (void*)(TangentsDataPtr));
-		return ElementData[VertexIndex].GetTangentY();
+		return FVector4(ElementData[VertexIndex].GetTangentY());
 	}
 
 	/**
@@ -249,7 +249,7 @@ public:
 	* @param VertexIndex - index into the vertex buffer
 	* @return binormal (TangentY) vector
 	*/
-	FORCEINLINE_DEBUGGABLE FVector VertexTangentY(uint32 VertexIndex) const
+	FORCEINLINE_DEBUGGABLE FVector3f VertexTangentY(uint32 VertexIndex) const
 	{
 		checkSlow(VertexIndex < GetNumVertices());
 
@@ -263,7 +263,7 @@ public:
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void SetVertexTangents(uint32 VertexIndex, FVector X, FVector Y, FVector Z)
+	FORCEINLINE_DEBUGGABLE void SetVertexTangents(uint32 VertexIndex, FVector3f X, FVector3f Y, FVector3f Z)
 	{
 		checkSlow(VertexIndex < GetNumVertices());
 

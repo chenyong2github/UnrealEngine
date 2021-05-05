@@ -1779,7 +1779,7 @@ bool FStaticMeshEditor::CanRemoveCollision()
 }
 
 /** Util for adding vertex to an array if it is not already present. */
-static void AddVertexIfNotPresent(TArray<FVector>& Vertices, const FVector& NewVertex)
+static void AddVertexIfNotPresent(TArray<FVector3f>& Vertices, const FVector3f& NewVertex)
 {
 	bool bIsPresent = false;
 

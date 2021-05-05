@@ -25,7 +25,7 @@ void BindForLegacyShaderParameters(FShader* Shader, int32 PermutationId, const F
  *		SHADER_USE_PARAMETER_STRUCT(FMyShaderClassCS, FGlobalShader);
  *
  *		BEGIN_SHADER_PARAMETER_STRUCT(FParameters)
- *			SHADER_PARAMETER(FMatrix, ViewToClip)
+ *			SHADER_PARAMETER(FMatrix44f, ViewToClip)
  *			//...
  *		END_SHADER_PARAMETER_STRUCT()
  * };

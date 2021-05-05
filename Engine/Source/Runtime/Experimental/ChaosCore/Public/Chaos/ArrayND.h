@@ -161,7 +161,7 @@ class TArrayND<T, 3> : public TArrayNDBase<TArrayND<T, 3>, T, 3>
 #else
 	FORCEINLINE TArrayND() { MCounts = TVec3<int32>(0); }
 #endif
-	FORCEINLINE TArrayND(const TUniformGrid<float, 3>& grid)
+	FORCEINLINE TArrayND(const TUniformGrid<FReal, 3>& grid)
 	{
 		MCounts = grid.Counts();
 		MArray.SetNum(MCounts[0] * MCounts[1] * MCounts[2]);

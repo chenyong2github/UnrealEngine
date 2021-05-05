@@ -538,9 +538,9 @@ FORCEINLINE FRotator FRotator::operator-=( const FRotator& R )
 FORCEINLINE bool FRotator::IsNearlyZero(float Tolerance) const
 {
 #if PLATFORM_ENABLE_VECTORINTRINSICS
-	const VectorRegister RegA = VectorLoadFloat3_W0(this);
-	const VectorRegister Norm = VectorNormalizeRotator(RegA);
-	const VectorRegister AbsNorm = VectorAbs(Norm);
+	const VectorRegister4Float RegA = VectorLoadFloat3_W0(this);
+	const VectorRegister4Float Norm = VectorNormalizeRotator(RegA);
+	const VectorRegister4Float AbsNorm = VectorAbs(Norm);
 	return !VectorAnyGreaterThan(AbsNorm, VectorLoadFloat1(&Tolerance));
 #else
 	return
@@ -560,10 +560,10 @@ FORCEINLINE bool FRotator::IsZero() const
 FORCEINLINE bool FRotator::Equals(const FRotator& R, float Tolerance) const
 {
 #if PLATFORM_ENABLE_VECTORINTRINSICS
-	const VectorRegister RegA = VectorLoadFloat3_W0(this);
-	const VectorRegister RegB = VectorLoadFloat3_W0(&R);
-	const VectorRegister NormDelta = VectorNormalizeRotator(VectorSubtract(RegA, RegB));
-	const VectorRegister AbsNormDelta = VectorAbs(NormDelta);
+	const VectorRegister4Float RegA = VectorLoadFloat3_W0(this);
+	const VectorRegister4Float RegB = VectorLoadFloat3_W0(&R);
+	const VectorRegister4Float NormDelta = VectorNormalizeRotator(VectorSubtract(RegA, RegB));
+	const VectorRegister4Float AbsNormDelta = VectorAbs(NormDelta);
 	return !VectorAnyGreaterThan(AbsNormDelta, VectorLoadFloat1(&Tolerance));
 #else
 	return (FMath::Abs(NormalizeAxis(Pitch - R.Pitch)) <= Tolerance) 
@@ -679,7 +679,7 @@ FORCEINLINE FRotator FRotator::GetDenormalized() const
 FORCEINLINE void FRotator::Normalize()
 {
 #if PLATFORM_ENABLE_VECTORINTRINSICS
-	VectorRegister VRotator = VectorLoadFloat3_W0(this);
+	VectorRegister4Float VRotator = VectorLoadFloat3_W0(this);
 	VRotator = VectorNormalizeRotator(VRotator);
 	VectorStoreFloat3(VRotator, this);
 #else
@@ -802,6 +802,7 @@ FORCEINLINE void FRotator::SetClosestToMe(FRotator& MakeClosest) const
 }
 
 template<> struct TIsPODType<FRotator> { enum { Value = true }; };
+template<> struct TIsUECoreType<FRotator> { enum { Value = true }; };
 
 
 /* FMath inline functions

@@ -14,7 +14,7 @@
 //Currently disabled because FBoneAtom became FTransform and we want to iterate quickly on it.
 #define ENABLE_VECTORIZED_TRANSFORM		PLATFORM_ENABLE_VECTORINTRINSICS
 
-#if ENABLE_VECTORIZED_TRANSFORM		
+#if ENABLE_VECTORIZED_TRANSFORM
 
 /**
 * The ScalarRegister class wraps the concept of a 'float-in-vector', allowing common scalar operations like bone

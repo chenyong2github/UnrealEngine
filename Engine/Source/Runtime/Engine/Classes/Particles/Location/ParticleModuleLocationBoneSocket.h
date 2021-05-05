@@ -203,9 +203,9 @@ struct FModuleLocationBoneSocketInstancePayload
 	/** The last selected index into the socket array */
 	int32 LastSelectedIndex;
 	/** The position of each bone/socket from the previous tick. Used to calculate the inherited bone velocity when spawning particles. */
-	TPreallocatedArrayProxy<FVector> PrevFrameBoneSocketPositions;
+	TPreallocatedArrayProxy<FVector3f> PrevFrameBoneSocketPositions;
 	/** The velocity of each bone/socket. Used to calculate the inherited bone velocity when spawning particles. */
-	TPreallocatedArrayProxy<FVector> BoneSocketVelocities;
+	TPreallocatedArrayProxy<FVector3f> BoneSocketVelocities;
 	/** The pre selected bone socket indices. */
 	TPreallocatedArrayProxy<int32> PreSelectedBoneSocketIndices;
 
@@ -215,11 +215,11 @@ struct FModuleLocationBoneSocketInstancePayload
 		// Calculate offsets into instance data buffer for the arrays and initialize the buffer proxies. The allocation 
 		// size for these arrays is calculated in RequiredBytesPerInstance.
 		const uint32 StructSize = sizeof(FModuleLocationBoneSocketInstancePayload);
-		PrevFrameBoneSocketPositions = TPreallocatedArrayProxy<FVector>((uint8*)this + StructSize, FixedArraySize);
+		PrevFrameBoneSocketPositions = TPreallocatedArrayProxy<FVector3f>((uint8*)this + StructSize, FixedArraySize);
 
-		uint32 StructOffset = StructSize + (FixedArraySize*sizeof(FVector));
-		BoneSocketVelocities = TPreallocatedArrayProxy<FVector>((uint8*)this + StructOffset, FixedArraySize);
-		StructOffset += (FixedArraySize*sizeof(FVector));
+		uint32 StructOffset = StructSize + (FixedArraySize*sizeof(FVector3f));
+		BoneSocketVelocities = TPreallocatedArrayProxy<FVector3f>((uint8*)this + StructOffset, FixedArraySize);
+		StructOffset += (FixedArraySize*sizeof(FVector3f));
 
 		PreSelectedBoneSocketIndices = TPreallocatedArrayProxy<int32>((uint8*)this + StructOffset, FixedArraySize);
 		StructOffset += (FixedArraySize*sizeof(int32));

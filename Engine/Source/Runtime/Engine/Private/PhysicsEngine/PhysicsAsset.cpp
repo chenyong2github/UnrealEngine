@@ -357,17 +357,17 @@ FBox UPhysicsAsset::CalcAABB(const USkinnedMeshComponent* MeshComp, const FTrans
 					// @TODO: Maybe CalcAABB should handle that inside and never return a reversed FBox
 					if (BodySetupBounds.Min.X > BodySetupBounds.Max.X)
 					{
-						Swap<float>(BodySetupBounds.Min.X, BodySetupBounds.Max.X);
+						Swap(BodySetupBounds.Min.X, BodySetupBounds.Max.X);
 					}
 
 					if (BodySetupBounds.Min.Y > BodySetupBounds.Max.Y)
 					{
-						Swap<float>(BodySetupBounds.Min.Y, BodySetupBounds.Max.Y);
+						Swap(BodySetupBounds.Min.Y, BodySetupBounds.Max.Y);
 					}
 
 					if (BodySetupBounds.Min.Z > BodySetupBounds.Max.Z)
 					{
-						Swap<float>(BodySetupBounds.Min.Z, BodySetupBounds.Max.Z);
+						Swap(BodySetupBounds.Min.Z, BodySetupBounds.Max.Z);
 					}
 
 					Box += BodySetupBounds;
@@ -390,7 +390,7 @@ FBox UPhysicsAsset::CalcAABB(const USkinnedMeshComponent* MeshComp, const FTrans
 
 	if(BoxSize.GetMin() < MinBoundSize)
 	{
-		const FVector ExpandByDelta ( FMath::Max(0.f, MinBoundSize - BoxSize.X), FMath::Max(0.f, MinBoundSize - BoxSize.Y), FMath::Max(0.f, MinBoundSize - BoxSize.Z) );
+		const FVector ExpandByDelta ( FMath::Max<FVector::FReal>(0, MinBoundSize - BoxSize.X), FMath::Max<FVector::FReal>(0, MinBoundSize - BoxSize.Y), FMath::Max<FVector::FReal>(0, MinBoundSize - BoxSize.Z) );
 		Box = Box.ExpandBy(ExpandByDelta * 0.5f);	//expand by applies to both directions with GetSize applies to total size so divide by 2
 	}
 

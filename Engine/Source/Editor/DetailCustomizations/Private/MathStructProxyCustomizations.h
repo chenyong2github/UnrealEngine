@@ -237,13 +237,13 @@ public:
 		, CachedRotationPitch(MakeShareable( new TProxyProperty<FRotator, float>(CachedRotation, CachedRotation->Get().Pitch)))
 		, CachedRotationRoll(MakeShareable( new TProxyProperty<FRotator, float>(CachedRotation, CachedRotation->Get().Roll)))
 		, CachedTranslation(MakeShareable( new TProxyValue<FVector>(FVector::ZeroVector)))
-		, CachedTranslationX(MakeShareable( new TProxyProperty<FVector, float>(CachedTranslation, CachedTranslation->Get().X)))
-		, CachedTranslationY(MakeShareable( new TProxyProperty<FVector, float>(CachedTranslation, CachedTranslation->Get().Y)))
-		, CachedTranslationZ(MakeShareable( new TProxyProperty<FVector, float>(CachedTranslation, CachedTranslation->Get().Z)))
+		, CachedTranslationX(MakeShareable( new TProxyProperty<FVector, FVector::FReal>(CachedTranslation, CachedTranslation->Get().X)))
+		, CachedTranslationY(MakeShareable( new TProxyProperty<FVector, FVector::FReal>(CachedTranslation, CachedTranslation->Get().Y)))
+		, CachedTranslationZ(MakeShareable( new TProxyProperty<FVector, FVector::FReal>(CachedTranslation, CachedTranslation->Get().Z)))
 		, CachedScale(MakeShareable( new TProxyValue<FVector>(FVector::ZeroVector)))
-		, CachedScaleX(MakeShareable( new TProxyProperty<FVector, float>(CachedScale, CachedScale->Get().X)))
-		, CachedScaleY(MakeShareable( new TProxyProperty<FVector, float>(CachedScale, CachedScale->Get().Y)))
-		, CachedScaleZ(MakeShareable( new TProxyProperty<FVector, float>(CachedScale, CachedScale->Get().Z)))
+		, CachedScaleX(MakeShareable( new TProxyProperty<FVector, FVector::FReal>(CachedScale, CachedScale->Get().X)))
+		, CachedScaleY(MakeShareable( new TProxyProperty<FVector, FVector::FReal>(CachedScale, CachedScale->Get().Y)))
+		, CachedScaleZ(MakeShareable( new TProxyProperty<FVector, FVector::FReal>(CachedScale, CachedScale->Get().Z)))
 	{
 	}
 
@@ -285,15 +285,15 @@ protected:
 
 	/** Cached translation values */
 	mutable TSharedRef< TProxyValue<FVector> > CachedTranslation;
-	mutable TSharedRef< TProxyProperty<FVector, float> > CachedTranslationX;
-	mutable TSharedRef< TProxyProperty<FVector, float> > CachedTranslationY;
-	mutable TSharedRef< TProxyProperty<FVector, float> > CachedTranslationZ;
+	mutable TSharedRef< TProxyProperty<FVector, FVector::FReal> > CachedTranslationX;
+	mutable TSharedRef< TProxyProperty<FVector, FVector::FReal> > CachedTranslationY;
+	mutable TSharedRef< TProxyProperty<FVector, FVector::FReal> > CachedTranslationZ;
 
 	/** Cached scale values */
 	mutable TSharedRef< TProxyValue<FVector> > CachedScale;
-	mutable TSharedRef< TProxyProperty<FVector, float> > CachedScaleX;
-	mutable TSharedRef< TProxyProperty<FVector, float> > CachedScaleY;
-	mutable TSharedRef< TProxyProperty<FVector, float> > CachedScaleZ;
+	mutable TSharedRef< TProxyProperty<FVector, FVector::FReal> > CachedScaleX;
+	mutable TSharedRef< TProxyProperty<FVector, FVector::FReal> > CachedScaleY;
+	mutable TSharedRef< TProxyProperty<FVector, FVector::FReal> > CachedScaleZ;
 };
 
 /** 

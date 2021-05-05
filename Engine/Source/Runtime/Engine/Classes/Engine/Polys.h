@@ -38,12 +38,12 @@ class FPoly
 {
 public:
 	// Store up to 16 vertices inline.
-	typedef TArray<FVector,TInlineAllocator<16> > VerticesArrayType;
+	typedef TArray<FVector3f,TInlineAllocator<16> > VerticesArrayType;
 
-	FVector				Base;					// Base point of polygon.
-	FVector				Normal;					// Normal of polygon.
-	FVector				TextureU;				// Texture U vector.
-	FVector				TextureV;				// Texture V vector.
+	FVector3f				Base;					// Base point of polygon.
+	FVector3f				Normal;					// Normal of polygon.
+	FVector3f				TextureU;				// Texture U vector.
+	FVector3f				TextureV;				// Texture V vector.
 	VerticesArrayType	Vertices;
 	uint32				PolyFlags;				// FPoly & Bsp poly bit flags (PF_).
 	ABrush*				Actor;					// Brush where this originated, or NULL.
@@ -79,7 +79,7 @@ public:
 	/**
 	 * Transform an editor polygon with a post-transformation addition.
 	 */
-	ENGINE_API void Transform(const FVector &PostAdd);
+	ENGINE_API void Transform(const FVector3f &PostAdd);
 
 	/**
 	 * Rotate an editor polygon.
@@ -89,7 +89,7 @@ public:
 	/**
 	 * Scale an editor polygon.
 	 */
-	ENGINE_API void Scale(const FVector &Scale);
+	ENGINE_API void Scale(const FVector3f &Scale);
 
 	/**
 	 * Fix up an editor poly by deleting vertices that are identical.  Sets
@@ -107,7 +107,7 @@ public:
 	/**
 	 * Split with plane. Meant to be numerically stable.
 	 */
-	ENGINE_API int32 SplitWithPlane(const FVector &InBase,const FVector &InNormal,FPoly *FrontPoly,FPoly *BackPoly,int32 VeryPrecise) const;
+	ENGINE_API int32 SplitWithPlane(const FVector3f &InBase,const FVector3f &InNormal,FPoly *FrontPoly,FPoly *BackPoly,int32 VeryPrecise) const;
 
 	/** Split with a Bsp node. */
 	ENGINE_API int32 SplitWithNode(const UModel *Model,int32 iNode,FPoly *FrontPoly,FPoly *BackPoly,int32 VeryPrecise) const;
@@ -119,7 +119,7 @@ public:
 	ENGINE_API int32 SplitWithPlaneFast(const FPlane& Plane,FPoly *FrontPoly,FPoly *BackPoly) const;
 
 	/** Split a poly and keep only the front half. Returns number of vertices, 0 if clipped away. */
-	ENGINE_API int32 Split(const FVector &InNormal, const FVector &InBase );
+	ENGINE_API int32 Split(const FVector3f &InNormal, const FVector3f &InBase );
 
 	/** Remove colinear vertices and check convexity.  Returns 1 if convex, 0 if nonconvex or collapsed. */
 	ENGINE_API int32 RemoveColinears();
@@ -184,7 +184,7 @@ public:
 	 *
 	 * @return	The index of the vertex, if found.  Otherwise INDEX_NONE.
 	 */
-	ENGINE_API int32 GetVertexIndex( FVector& InVtx );
+	ENGINE_API int32 GetVertexIndex( FVector3f& InVtx );
 
 	/** Computes the mid point of the polygon (in local space). */
 	ENGINE_API FVector GetMidPoint();
@@ -241,17 +241,17 @@ public:
 						// See if PolyNeighbor is sharing an edge with Poly
 
 						int32 Index1 = INDEX_NONE, Index2 = INDEX_NONE;
-						FVector EdgeVtx1(0), EdgeVtx2(0);
+						FVector3f EdgeVtx1(0), EdgeVtx2(0);
 
 						for( int32 v = 0 ; v < PolyMain->Vertices.Num() ; ++v )
 						{
-							FVector vtx = PolyMain->Vertices[v];
+							FVector3f vtx = PolyMain->Vertices[v];
 
 							int32 idx = INDEX_NONE;
 
 							for( int32 v2 = 0 ; v2 < PolyNeighbor->Vertices.Num() ; ++v2 )
 							{
-								const FVector* vtx2 = &PolyNeighbor->Vertices[v2];
+								const FVector3f* vtx2 = &PolyNeighbor->Vertices[v2];
 
 								if( vtx.Equals( *vtx2 ) )
 								{
@@ -286,8 +286,8 @@ public:
 
 							for( int32 v = 0 ; v < PolyMain->Vertices.Num() ; ++v )
 							{
-								const FVector* vtx1 = &PolyMain->Vertices[v];
-								const FVector* vtx2 = &PolyMain->Vertices[(v+1)%PolyMain->Vertices.Num()];
+								const FVector3f* vtx1 = &PolyMain->Vertices[v];
+								const FVector3f* vtx2 = &PolyMain->Vertices[(v+1)%PolyMain->Vertices.Num()];
 
 								if( (vtx1->Equals( EdgeVtx1 ) && vtx2->Equals( EdgeVtx2 ) )
 									|| (vtx1->Equals( EdgeVtx2 ) && vtx2->Equals( EdgeVtx1 ) ) )
@@ -302,8 +302,8 @@ public:
 
 							for( int32 v = 0 ; v < PolyNeighbor->Vertices.Num() ; ++v )
 							{
-								const FVector* vtx1 = &PolyNeighbor->Vertices[v];
-								const FVector* vtx2 = &PolyNeighbor->Vertices[(v+1)%PolyNeighbor->Vertices.Num()];
+								const FVector3f* vtx1 = &PolyNeighbor->Vertices[v];
+								const FVector3f* vtx2 = &PolyNeighbor->Vertices[(v+1)%PolyNeighbor->Vertices.Num()];
 
 								if( (vtx1->Equals( EdgeVtx1 ) && vtx2->Equals( EdgeVtx2 ) )
 									|| (vtx1->Equals( EdgeVtx2 ) && vtx2->Equals( EdgeVtx1 ) ) )
@@ -359,7 +359,7 @@ public:
 
 								for( int32 v = 0 ; v < PolyMerged.Vertices.Num() ; ++v )
 								{
-									FVector* vtx = &PolyMerged.Vertices[v];
+									FVector3f* vtx = &PolyMerged.Vertices[v];
 									*vtx = vtx->GridSnap( 1.0f );
 								}
 
@@ -410,10 +410,10 @@ public:
 	* @param	InWindings		The resulting sets of vertices that represent the windings
 	*/
 	template<typename ArrayType>
-	static void GetOutsideWindings( ABrush* InOwnerBrush, ArrayType& InPolygons, TArray< TArray<FVector> >& InWindings )
+	static void GetOutsideWindings( ABrush* InOwnerBrush, ArrayType& InPolygons, TArray< TArray<FVector3f> >& InWindings )
 	{
 		InWindings.Empty();
-		FVector SaveNormal(0);
+		FVector3f SaveNormal(0);
 
 		// Break up every polygon passed into triangles
 
@@ -443,8 +443,8 @@ public:
 
 			for( int32 v = 0 ; v < Poly->Vertices.Num() ; ++v )
 			{
-				const FVector vtx0 = Poly->Vertices[v];
-				const FVector vtx1 = Poly->Vertices[ (v+1) % Poly->Vertices.Num() ];
+				const FVector3f vtx0 = Poly->Vertices[v];
+				const FVector3f vtx1 = Poly->Vertices[ (v+1) % Poly->Vertices.Num() ];
 
 				FEdge Edge( vtx0, vtx1 );
 
@@ -542,7 +542,7 @@ public:
 
 			// Create the winding array
 
-			TArray<FVector> WindingVerts;
+			TArray<FVector3f> WindingVerts;
 			for( int32 e = 0 ; e < OrderedEdges.Num() ; ++e )
 			{
 				FEdge* Edge = &OrderedEdges[e];
@@ -559,7 +559,7 @@ public:
 	ENGINE_API friend FArchive& operator<<( FArchive& Ar, FPoly& Poly );
 
 	// Inlines.
-	int32 IsBackfaced( const FVector &Point ) const
+	int32 IsBackfaced( const FVector3f &Point ) const
 		{return ((Point-Base) | Normal) < 0.f;}
 	int32 IsCoplanar( const FPoly &Test ) const
 		{return FMath::Abs((Base - Test.Base)|Normal)<0.01f && FMath::Abs(Normal|Test.Normal)>0.9999f;}

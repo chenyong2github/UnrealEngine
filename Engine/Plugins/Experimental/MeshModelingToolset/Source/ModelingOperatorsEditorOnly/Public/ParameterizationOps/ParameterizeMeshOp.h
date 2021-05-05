@@ -90,7 +90,7 @@ protected:
 
 		// Stripped down mesh
 		TArray<int32>   IndexBuffer;
-		TArray<FVector> VertexBuffer;
+		TArray<FVector3f> VertexBuffer;
 
 		// Map from offset in the VertexBuffer to the VertexID in the FDynamicMesh
 		TArray<int32> VertToID;

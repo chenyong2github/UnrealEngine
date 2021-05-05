@@ -711,7 +711,7 @@ void AGeometryCollectionDebugDrawActor::DrawVertices(const TArray<FTransform>& G
 	check(World);
 
 	const TManagedArray<int32>& TransformIndexArray = GeometryCollectionComponent->GetTransformIndexArray();
-	const TManagedArray<FVector>& VertexArray = GeometryCollectionComponent->GetVertexArray();
+	const TManagedArray<FVector3f>& VertexArray = GeometryCollectionComponent->GetVertexArray();
 	const TManagedArray<int32>& VertexStartArray = GeometryCollectionComponent->GetVertexStartArray();
 	const TManagedArray<int32>& VertexCountArray = GeometryCollectionComponent->GetVertexCountArray();
 
@@ -775,7 +775,7 @@ void AGeometryCollectionDebugDrawActor::DrawVertices(const TArray<FTransform>& G
 	// Debug draw this geometry
 	if (GeometryIndex != INDEX_NONE && (bIsLeafNodeRest || bDebugDrawHierarchy))
 	{
-		const TManagedArray<FVector>& VertexArray = GeometryCollectionComponent->GetVertexArray();
+		const TManagedArray<FVector3f>& VertexArray = GeometryCollectionComponent->GetVertexArray();
 		const TManagedArray<int32>& VertexStartArray = GeometryCollectionComponent->GetVertexStartArray();
 		const TManagedArray<int32>& VertexCountArray = GeometryCollectionComponent->GetVertexCountArray();
 		const int32 VertexStart = VertexStartArray[GeometryIndex];
@@ -813,7 +813,7 @@ void AGeometryCollectionDebugDrawActor::DrawVertexIndices(const TArray<FTransfor
 	check(World);
 
 	const TManagedArray<int32>& TransformIndexArray = GeometryCollectionComponent->GetTransformIndexArray();
-	const TManagedArray<FVector>& VertexArray = GeometryCollectionComponent->GetVertexArray();
+	const TManagedArray<FVector3f>& VertexArray = GeometryCollectionComponent->GetVertexArray();
 	const TManagedArray<int32>& VertexStartArray = GeometryCollectionComponent->GetVertexStartArray();
 	const TManagedArray<int32>& VertexCountArray = GeometryCollectionComponent->GetVertexCountArray();
 
@@ -879,7 +879,7 @@ void AGeometryCollectionDebugDrawActor::DrawVertexIndices(const TArray<FTransfor
 	{
 		const FTransform& Transform = GlobalTransforms[TransformIndex];
 
-		const TManagedArray<FVector>& VertexArray = GeometryCollectionComponent->GetVertexArray();
+		const TManagedArray<FVector3f>& VertexArray = GeometryCollectionComponent->GetVertexArray();
 		const TManagedArray<int32>& VertexStartArray = GeometryCollectionComponent->GetVertexStartArray();
 		const TManagedArray<int32>& VertexCountArray = GeometryCollectionComponent->GetVertexCountArray();
 		const int32 VertexStart = VertexStartArray[GeometryIndex];
@@ -915,8 +915,8 @@ void AGeometryCollectionDebugDrawActor::DrawVertexNormals(const TArray<FTransfor
 	check(World);
 
 	const TManagedArray<int32>& TransformIndexArray = GeometryCollectionComponent->GetTransformIndexArray();
-	const TManagedArray<FVector>& VertexArray = GeometryCollectionComponent->GetVertexArray();
-	const TManagedArray<FVector>& NormalArray = GeometryCollectionComponent->GetNormalArray();
+	const TManagedArray<FVector3f>& VertexArray = GeometryCollectionComponent->GetVertexArray();
+	const TManagedArray<FVector3f>& NormalArray = GeometryCollectionComponent->GetNormalArray();
 	const TManagedArray<int32>& VertexStartArray = GeometryCollectionComponent->GetVertexStartArray();
 	const TManagedArray<int32>& VertexCountArray = GeometryCollectionComponent->GetVertexCountArray();
 
@@ -984,8 +984,8 @@ void AGeometryCollectionDebugDrawActor::DrawVertexNormals(const TArray<FTransfor
 	{
 		const FTransform& Transform = GlobalTransforms[TransformIndex];
 
-		const TManagedArray<FVector>& VertexArray = GeometryCollectionComponent->GetVertexArray();
-		const TManagedArray<FVector>& NormalArray = GeometryCollectionComponent->GetNormalArray();
+		const TManagedArray<FVector3f>& VertexArray = GeometryCollectionComponent->GetVertexArray();
+		const TManagedArray<FVector3f>& NormalArray = GeometryCollectionComponent->GetNormalArray();
 		const TManagedArray<int32>& VertexStartArray = GeometryCollectionComponent->GetVertexStartArray();
 		const TManagedArray<int32>& VertexCountArray = GeometryCollectionComponent->GetVertexCountArray();
 		const int32 VertexStart = VertexStartArray[GeometryIndex];
@@ -1023,7 +1023,7 @@ void AGeometryCollectionDebugDrawActor::DrawFaces(const TArray<FTransform>& Glob
 	const UWorld* const World = GetWorld();
 	check(World);
 
-	const TManagedArray<FVector>& VertexArray = GeometryCollectionComponent->GetVertexArray();
+	const TManagedArray<FVector3f>& VertexArray = GeometryCollectionComponent->GetVertexArray();
 	const TManagedArray<FIntVector>& IndicesArray = GeometryCollectionComponent->GetIndicesArray();
 	const TManagedArray<int32>& TransformIndexArray = GeometryCollectionComponent->GetTransformIndexArray();
 	const TManagedArray<int32>& FaceStartArray = GeometryCollectionComponent->GetFaceStartArray();
@@ -1096,7 +1096,7 @@ void AGeometryCollectionDebugDrawActor::DrawFaces(const TArray<FTransform>& Glob
 	{
 		const FTransform& Transform = GlobalTransforms[TransformIndex];
 
-		const TManagedArray<FVector>& VertexArray = GeometryCollectionComponent->GetVertexArray();
+		const TManagedArray<FVector3f>& VertexArray = GeometryCollectionComponent->GetVertexArray();
 		const TManagedArray<FIntVector>& IndicesArray = GeometryCollectionComponent->GetIndicesArray();
 		const TManagedArray<int32>& FaceStartArray = GeometryCollectionComponent->GetFaceStartArray();
 		const TManagedArray<int32>& FaceCountArray = GeometryCollectionComponent->GetFaceCountArray();
@@ -1137,7 +1137,7 @@ void AGeometryCollectionDebugDrawActor::DrawFaceIndices(const TArray<FTransform>
 	const UWorld* const World = GetWorld();
 	check(World);
 
-	const TManagedArray<FVector>& VertexArray = GeometryCollectionComponent->GetVertexArray();
+	const TManagedArray<FVector3f>& VertexArray = GeometryCollectionComponent->GetVertexArray();
 	const TManagedArray<FIntVector>& IndicesArray = GeometryCollectionComponent->GetIndicesArray();
 	const TManagedArray<int32>& TransformIndexArray = GeometryCollectionComponent->GetTransformIndexArray();
 	const TManagedArray<int32>& FaceStartArray = GeometryCollectionComponent->GetFaceStartArray();
@@ -1212,7 +1212,7 @@ void AGeometryCollectionDebugDrawActor::DrawFaceIndices(const TArray<FTransform>
 
 		const FTransform& Transform = GlobalTransforms[TransformIndex];
 
-		const TManagedArray<FVector>& VertexArray = GeometryCollectionComponent->GetVertexArray();
+		const TManagedArray<FVector3f>& VertexArray = GeometryCollectionComponent->GetVertexArray();
 		const TManagedArray<FIntVector>& IndicesArray = GeometryCollectionComponent->GetIndicesArray();
 		const TManagedArray<int32>& FaceStartArray = GeometryCollectionComponent->GetFaceStartArray();
 		const TManagedArray<int32>& FaceCountArray = GeometryCollectionComponent->GetFaceCountArray();
@@ -1253,7 +1253,7 @@ void AGeometryCollectionDebugDrawActor::DrawFaceNormals(const TArray<FTransform>
 	const UWorld* const World = GetWorld();
 	check(World);
 
-	const TManagedArray<FVector>& VertexArray = GeometryCollectionComponent->GetVertexArray();
+	const TManagedArray<FVector3f>& VertexArray = GeometryCollectionComponent->GetVertexArray();
 	const TManagedArray<FIntVector>& IndicesArray = GeometryCollectionComponent->GetIndicesArray();
 	const TManagedArray<int32>& TransformIndexArray = GeometryCollectionComponent->GetTransformIndexArray();
 	const TManagedArray<int32>& FaceStartArray = GeometryCollectionComponent->GetFaceStartArray();
@@ -1333,7 +1333,7 @@ void AGeometryCollectionDebugDrawActor::DrawFaceNormals(const TArray<FTransform>
 	{
 		const FTransform& Transform = GlobalTransforms[TransformIndex];
 
-		const TManagedArray<FVector>& VertexArray = GeometryCollectionComponent->GetVertexArray();
+		const TManagedArray<FVector3f>& VertexArray = GeometryCollectionComponent->GetVertexArray();
 		const TManagedArray<FIntVector>& IndicesArray = GeometryCollectionComponent->GetIndicesArray();
 		const TManagedArray<int32>& FaceStartArray = GeometryCollectionComponent->GetFaceStartArray();
 		const TManagedArray<int32>& FaceCountArray = GeometryCollectionComponent->GetFaceCountArray();
@@ -1384,7 +1384,7 @@ void AGeometryCollectionDebugDrawActor::DrawSingleFace(const TArray<FTransform>&
 	const int32 NumFaces = GeometryCollectionComponent->GetNumElements(FGeometryCollection::FacesGroup);
 	if (FaceIndex < 0 || FaceIndex >= NumFaces) { return; }
 
-	const TManagedArray<FVector>& VertexArray = GeometryCollectionComponent->GetVertexArray();
+	const TManagedArray<FVector3f>& VertexArray = GeometryCollectionComponent->GetVertexArray();
 	const TManagedArray<int32>& BoneMapArray = GeometryCollectionComponent->GetBoneMapArray();
 	const TManagedArray<FIntVector>& IndicesArray = GeometryCollectionComponent->GetIndicesArray();
 
@@ -1981,19 +1981,19 @@ FTransform AGeometryCollectionDebugDrawActor::GetParticleTransformNoChecks(const
 
 	// Retrieve particle transform
 	Chaos::FVec3 Translation = Chaos::FVec3::ZeroVector;
-	Chaos::TRotation<float, 3> Rotation = Chaos::TRotation<float, 3>::Identity;
+	Chaos::FRotation3 Rotation = Chaos::FRotation3::Identity;
 #if GEOMETRYCOLLECTION_DEBUG_DRAW && ENABLE_DRAW_DEBUG
 	int32 Index;
 	for (Index = TransformIndex;
 		ParentArray[Index] != FGeometryCollection::Invalid;
 		Index = ParentArray[Index])
 	{
-		const Chaos::TRigidTransform<float, 3>& ChildToParentTransform = ParticlesData.GetChildToParentMap(Index);
+		const Chaos::FRigidTransform3& ChildToParentTransform = ParticlesData.GetChildToParentMap(Index);
 		Translation = ChildToParentTransform.GetTranslation() + ChildToParentTransform.GetRotation().RotateVector(Translation);
 		Rotation = ChildToParentTransform.GetRotation() * Rotation;
 	}
 	const Chaos::FVec3& RootTranslation = ParticlesData.GetX(Index);
-	const Chaos::TRotation<float, 3>& RootRotation = ParticlesData.GetR(Index);
+	const Chaos::FRotation3& RootRotation = ParticlesData.GetR(Index);
 	Translation = RootTranslation + RootRotation.RotateVector(Translation);
 	Rotation = RootRotation * Rotation;
 #endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW && ENABLE_DRAW_DEBUG
@@ -2293,7 +2293,7 @@ void AGeometryCollectionDebugDrawActor::DrawRigidBodyInertiaNoChecks(const UGeom
 	const FColor ActiveColor = bIsDisabled ? FColor::Black : Color;
 
 	// Draw transform
-	const Chaos::PMatrix<float, 3, 3>& Inertia = ParticlesData.GetI(TransformIndex);
+	const Chaos::FMatrix33& Inertia = ParticlesData.GetI(TransformIndex);
 	const FVector Side(
 		FMath::Sqrt(6.f * Inertia.M[1][1] + 6.f * Inertia.M[2][2] - 6.f * Inertia.M[0][0]),
 		FMath::Sqrt(6.f * Inertia.M[0][0] + 6.f * Inertia.M[2][2] - 6.f * Inertia.M[1][1]),

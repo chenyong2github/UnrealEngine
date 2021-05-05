@@ -151,7 +151,7 @@ namespace Chaos
 		T MaxRadiusSquared = MaxRadius * MaxRadius;
 		for (auto& Elem : ClosestPoints)
 		{
-			FVector Diff = Particle - MParticles[Elem];
+			TVector<T, 3> Diff = Particle - MParticles[Elem];
 			if (Diff.SizeSquared() > MaxRadiusSquared)
 			{
 				PointsToRemove.Add(Elem);
@@ -194,7 +194,7 @@ namespace Chaos
 		T MaxRadiusSquared = MaxRadius * MaxRadius;
 		for (auto& Elem : ClosestPoints)
 		{
-			FVector Diff = Particle - MParticles[Elem];
+			TVector<T, 3> Diff = Particle - MParticles[Elem];
 			if (Diff.SizeSquared() > MaxRadiusSquared)
 			{
 				PointsToRemove.Add(Elem);
@@ -371,7 +371,7 @@ namespace Chaos
 	void TSpatialHash<T>::ComputeGridXYZ(const TVector<T, 3>& Particle, int32& XIndex, int32& YIndex, int32& ZIndex)
 	{
 		T CellSizeInv = 1.0 / MCellSize;
-		FVector Location = Particle - MBoundingBox.Min() + TVector<T, 3>(0.5 * MCellSize);
+		TVector<T, 3> Location = Particle - MBoundingBox.Min() + TVector<T, 3>(0.5 * MCellSize);
 		XIndex = (int32)(Location.X * CellSizeInv);
 		YIndex = (int32)(Location.Y * CellSizeInv);
 		ZIndex = (int32)(Location.Z * CellSizeInv);

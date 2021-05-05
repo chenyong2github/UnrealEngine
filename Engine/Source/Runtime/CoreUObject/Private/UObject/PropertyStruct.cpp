@@ -251,6 +251,12 @@ FString FStructProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uint32 
 
 FString FStructProperty::GetCPPTypeForwardDeclaration() const
 {
+	// Core type structs don't need to forward declare in UHT as every generated.h indirectly includes CoreMinimal.h
+	if (Struct->GetCppStructOps() && Struct->GetCppStructOps()->IsUECoreType())
+	{
+		return FString();
+	}
+
 	return FString::Printf(TEXT("struct F%s;"), *Struct->GetName());
 }
 
@@ -344,6 +350,11 @@ EConvertFromTypeResult FStructProperty::ConvertFromType(const FPropertyTag& Tag,
 
 	auto CanSerializeFromStructWithDifferentName = [](const FArchive& InAr, const FPropertyTag& PropertyTag, const FStructProperty* StructProperty)
 	{
+		if (StructProperty && StructProperty->Struct && StructProperty->Struct->CanSerializeAsAlias(PropertyTag))
+		{
+			return true;
+		}
+
 		if (InAr.UEVer() < VER_UE4_STRUCT_GUID_IN_PROPERTY_TAG)
 		{
 			// Old Implementation

@@ -68,7 +68,7 @@ namespace XAtlasWrapper
 
 
 	bool GEOMETRYALGORITHMS_API ComputeUVs(const TArray<int32>& IndexBuffer,
-										   const TArray<FVector>& VertexBuffer,
+										   const TArray<FVector3f>& VertexBuffer,
 										   const XAtlasChartOptions& ChartOptions,
 										   const XAtlasPackOptions& PackOptions,
 										   TArray<FVector2D>& UVVertexBuffer,

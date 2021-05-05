@@ -117,7 +117,7 @@ struct FPolyVertexIndex
 /**
  * A 3D position.
  */
-class FGeomVertex : public FGeomBase, public FVector
+class FGeomVertex : public FGeomBase, public FVector3f
 {
 public:
 	FGeomVertex();
@@ -132,7 +132,7 @@ public:
 
 	/** The list of vertices that this vertex represents. */
 	TArray<FPolyVertexIndex> ActualVertexIndices;
-	FVector* GetActualVertex( FPolyVertexIndex& InPVI );
+	FVector3f* GetActualVertex( FPolyVertexIndex& InPVI );
 
 	/**
 	 * Indices into the parent poly pool. A vertex can belong to more 
@@ -141,7 +141,7 @@ public:
 	TArray<int32> ParentPolyIndices;
 
 	/** Assignment simply copies off the vertex position. */
-	FGeomVertex& operator=( const FVector& In )
+	FGeomVertex& operator=( const FVector3f& In )
 	{
 		X = In.X;
 		Y = In.Y;

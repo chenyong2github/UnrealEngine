@@ -10,14 +10,14 @@ class TVertSimp
 {
 	typedef TVertSimp< NumTexCoords > VertType;
 public:
-	FVector			Position;
-	FVector			Normal;
-	FVector			Tangents[2];
+	FVector3f			Position;
+	FVector3f			Normal;
+	FVector3f			Tangents[2];
 	FLinearColor	Color;
 	FVector2D		TexCoords[ NumTexCoords ];
 
-	FVector&		GetPos()					{ return Position; }
-	const FVector&	GetPos() const				{ return Position; }
+	FVector3f&		GetPos()					{ return Position; }
+	const FVector3f&	GetPos() const				{ return Position; }
 	float*			GetAttributes()				{ return (float*)&Normal; }
 	const float*	GetAttributes() const		{ return (const float*)&Normal; }
 

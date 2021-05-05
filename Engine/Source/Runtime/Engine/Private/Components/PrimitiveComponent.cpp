@@ -1805,7 +1805,8 @@ void UPrimitiveComponent::SetCustomPrimitiveDataVector2(int32 DataIndex, FVector
 
 void UPrimitiveComponent::SetCustomPrimitiveDataVector3(int32 DataIndex, FVector Value)
 {
-	SetCustomPrimitiveDataInternal(DataIndex, {Value.X, Value.Y, Value.Z});
+	FVector3f ValueFlt(Value);
+	SetCustomPrimitiveDataInternal(DataIndex, {ValueFlt.X, ValueFlt.Y, ValueFlt.Z});
 }
 
 void UPrimitiveComponent::SetCustomPrimitiveDataVector4(int32 DataIndex, FVector4 Value)
@@ -1825,7 +1826,8 @@ void UPrimitiveComponent::SetDefaultCustomPrimitiveDataVector2(int32 DataIndex, 
 
 void UPrimitiveComponent::SetDefaultCustomPrimitiveDataVector3(int32 DataIndex, FVector Value)
 {
-	SetDefaultCustomPrimitiveData(DataIndex, { Value.X, Value.Y, Value.Z });
+	FVector3f ValueFlt(Value);
+	SetDefaultCustomPrimitiveData(DataIndex, { ValueFlt.X, ValueFlt.Y, ValueFlt.Z });
 }
 
 void UPrimitiveComponent::SetDefaultCustomPrimitiveDataVector4(int32 DataIndex, FVector4 Value)

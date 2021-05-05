@@ -1807,7 +1807,7 @@ namespace ChaosTest
 		FReal OutTime = -1;
 		FVec3 OutPos(0, 0, 0);
 		int32 OutFaceIdx = -1;
-		const bool bSuccess = GJKRaycast2(ScaledConvex, Sphere, StartTM, Dir, Length, OutTime, OutPos, OutNormal, 0.f, true);
+		const bool bSuccess = GJKRaycast2(ScaledConvex, Sphere, StartTM, Dir, Length, OutTime, OutPos, OutNormal, (FReal)0., true);
 		EXPECT_TRUE(bSuccess);
 	}
 
@@ -1843,7 +1843,7 @@ namespace ChaosTest
 		FReal OutTime = -1;
 		FVec3 OutPos(0, 0, 0);
 		int32 OutFaceIdx = -1;
-		const bool bSuccess = GJKRaycast2(CoreConvex, Sphere, StartTM, Dir, Length, OutTime, OutPos, OutNormal, 0.f, true);
+		const bool bSuccess = GJKRaycast2(CoreConvex, Sphere, StartTM, Dir, Length, OutTime, OutPos, OutNormal, (FReal)0., true);
 		EXPECT_TRUE(bSuccess);
 	}
 

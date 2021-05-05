@@ -281,13 +281,13 @@ namespace Chaos
 				for (int32 i = 0; i < d; ++i)
 				{
 					auto PlaneIntersection = TPlane<T, d>(MMin - Thickness, -TVector<T, d>::AxisVector(i)).FindClosestPoint(Result, 0);
-					Intersections.Add(MakePair((PlaneIntersection - Result).Size(), -TVector<T, d>::AxisVector(i)));
+					Intersections.Add(MakePair((FReal)(PlaneIntersection - Result).Size(), -TVector<T, d>::AxisVector(i)));
 					PlaneIntersection = TPlane<T, d>(MMax + Thickness, TVector<T, d>::AxisVector(i)).FindClosestPoint(Result, 0);
-					Intersections.Add(MakePair((PlaneIntersection - Result).Size(), TVector<T, d>::AxisVector(i)));
+					Intersections.Add(MakePair((FReal)(PlaneIntersection - Result).Size(), TVector<T, d>::AxisVector(i)));
 				}
 				Intersections.Sort([](const Pair<T, TVector<T, d>>& Elem1, const Pair<T, TVector<T, d>>& Elem2) { return Elem1.First < Elem2.First; });
 
-				if (!FMath::IsNearlyEqual(Intersections[0].First, 0.f))
+				if (!FMath::IsNearlyEqual(Intersections[0].First, (FReal)0.))
 				{
 					T SmallestDistance = Intersections[0].First;
 					Result += Intersections[0].Second * Intersections[0].First;
@@ -307,10 +307,10 @@ namespace Chaos
 			{
 				auto PlaneIntersection = TPlane<T, d>(MMin - Thickness, -TVector<T, d>::AxisVector(i)).FindClosestIntersection(StartPoint, EndPoint, 0);
 				if (PlaneIntersection.Second)
-					Intersections.Add(MakePair((PlaneIntersection.First - StartPoint).Size(), PlaneIntersection.First));
+					Intersections.Add(MakePair((FReal)(PlaneIntersection.First - StartPoint).Size(), PlaneIntersection.First));
 				PlaneIntersection = TPlane<T, d>(MMax + Thickness, TVector<T, d>::AxisVector(i)).FindClosestIntersection(StartPoint, EndPoint, 0);
 				if (PlaneIntersection.Second)
-					Intersections.Add(MakePair((PlaneIntersection.First - StartPoint).Size(), PlaneIntersection.First));
+					Intersections.Add(MakePair((FReal)(PlaneIntersection.First - StartPoint).Size(), PlaneIntersection.First));
 			}
 			Intersections.Sort([](const Pair<T, TVector<T, d>>& Elem1, const Pair<T, TVector<T, d>>& Elem2) { return Elem1.First < Elem2.First; });
 			for (const auto& Elem : Intersections)
@@ -489,6 +489,12 @@ namespace Chaos
 		FORCEINLINE static TAABB<T, d> ZeroAABB() { return TAABB<T, d>(TVector<T, d>((T)0), TVector<T, d>((T)0)); }
 		FORCEINLINE static TAABB<T, d> FullAABB() { return TAABB<T, d>(TVector<T, d>(-TNumericLimits<T>::Max()), TVector<T, d>(TNumericLimits<T>::Max())); }
 
+		FORCEINLINE void Serialize(FChaosArchive& Ar)
+		{
+			// LWC : this method exists in order to properly call the << operator using FChaosArchive on Chaos::TVector 
+			Ar << MMin << MMax;
+		}
+
 		FORCEINLINE void Serialize(FArchive &Ar) 
 		{
 			Ar << MMin << MMax;
@@ -496,7 +502,7 @@ namespace Chaos
 
 		FORCEINLINE uint32 GetTypeHash() const
 		{
-			return HashCombine(::GetTypeHash(MMin), ::GetTypeHash(MMax));
+			return HashCombine(UE::Math::GetTypeHash(MMin), UE::Math::GetTypeHash(MMax));
 		}
 
 		FORCEINLINE PMatrix<T, d, d> GetInertiaTensor(const T Mass) const { return GetInertiaTensor(Mass, Extents()); }

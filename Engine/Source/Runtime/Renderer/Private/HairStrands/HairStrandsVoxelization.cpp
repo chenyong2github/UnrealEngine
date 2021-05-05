@@ -208,8 +208,8 @@ class FVoxelAllocatePageIndexCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, MacroGroupCount)
 		SHADER_PARAMETER(uint32, IndirectDispatchGroupSize)
 
-		SHADER_PARAMETER(FVector, CPU_MinAABB)
-		SHADER_PARAMETER(FVector, CPU_MaxAABB)
+		SHADER_PARAMETER(FVector3f, CPU_MinAABB)
+		SHADER_PARAMETER(FVector3f, CPU_MaxAABB)
 		SHADER_PARAMETER(FIntVector, CPU_PageIndexResolution)
 		SHADER_PARAMETER(uint32, CPU_bUseCPUData)
 
@@ -311,9 +311,9 @@ class FVoxelMarkValidPageIndexCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntVector, CPU_PageIndexResolution)
-		SHADER_PARAMETER(FVector, CPU_MinAABB)
+		SHADER_PARAMETER(FVector3f, CPU_MinAABB)
 		SHADER_PARAMETER(uint32, MaxClusterCount)
-		SHADER_PARAMETER(FVector, CPU_MaxAABB)
+		SHADER_PARAMETER(FVector3f, CPU_MaxAABB)
 		SHADER_PARAMETER(uint32, CPU_PageIndexOffset)
 		SHADER_PARAMETER(uint32, MacroGroupId)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, ClusterAABBsBuffer)
@@ -371,9 +371,9 @@ class FVoxelAddNodeDescCS : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<FGPUDriven>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector, CPU_MinAABB)
+		SHADER_PARAMETER(FVector3f, CPU_MinAABB)
 		SHADER_PARAMETER(uint32, CPU_PageIndexOffset)
-		SHADER_PARAMETER(FVector, CPU_MaxAABB)
+		SHADER_PARAMETER(FVector3f, CPU_MaxAABB)
 		SHADER_PARAMETER(uint32, MacroGroupId)
 		SHADER_PARAMETER(FIntVector, CPU_PageIndexResolution)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, MacroGroupAABBBuffer)
@@ -1016,9 +1016,9 @@ class FVoxelRasterComputeCS : public FGlobalShader
 		SHADER_PARAMETER(float,   HairStrandsVF_Radius)
 		SHADER_PARAMETER(float,   HairStrandsVF_RootScale)
 		SHADER_PARAMETER(float,   HairStrandsVF_TipScale)
-		SHADER_PARAMETER(FVector, HairStrandsVF_PositionOffset)
+		SHADER_PARAMETER(FVector3f, HairStrandsVF_PositionOffset)
 		SHADER_PARAMETER(uint32,  HairStrandsVF_VertexCount)
-		SHADER_PARAMETER(FMatrix, HairStrandsVF_LocalToWorldPrimitiveTransform)
+		SHADER_PARAMETER(FMatrix44f, HairStrandsVF_LocalToWorldPrimitiveTransform)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_PositionBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_PositionOffsetBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_CullingIndirectBuffer)

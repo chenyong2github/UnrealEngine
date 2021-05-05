@@ -116,14 +116,14 @@ int32 GenerateKDopAsSimpleCollision(UStaticMesh* StaticMesh, const TArray<FVecto
 	}
 
 	// Now we have the planes of the kdop, we work out the face polygons.
-	TArray<FPlane> planes;
+	TArray<FPlane4f> planes;
 	for(int32 i=0; i<kCount; i++)
-		planes.Add( FPlane(Dirs[i], maxDist[i]) );
+		planes.Add( FPlane4f(Dirs[i], maxDist[i]) );
 
 	for(int32 i=0; i<planes.Num(); i++)
 	{
 		FPoly*	Polygon = new(TempModel->Polys->Element) FPoly();
-		FVector Base, AxisX, AxisY;
+		FVector3f Base, AxisX, AxisY;
 
 		Polygon->Init();
 		Polygon->Normal = planes[i];
@@ -131,16 +131,16 @@ int32 GenerateKDopAsSimpleCollision(UStaticMesh* StaticMesh, const TArray<FVecto
 
 		Base = planes[i] * planes[i].W;
 
-		new(Polygon->Vertices) FVector(Base + AxisX * HALF_WORLD_MAX + AxisY * HALF_WORLD_MAX);
-		new(Polygon->Vertices) FVector(Base + AxisX * HALF_WORLD_MAX - AxisY * HALF_WORLD_MAX);
-		new(Polygon->Vertices) FVector(Base - AxisX * HALF_WORLD_MAX - AxisY * HALF_WORLD_MAX);
-		new(Polygon->Vertices) FVector(Base - AxisX * HALF_WORLD_MAX + AxisY * HALF_WORLD_MAX);
+		new(Polygon->Vertices) FVector3f(Base + AxisX * HALF_WORLD_MAX + AxisY * HALF_WORLD_MAX);
+		new(Polygon->Vertices) FVector3f(Base + AxisX * HALF_WORLD_MAX - AxisY * HALF_WORLD_MAX);
+		new(Polygon->Vertices) FVector3f(Base - AxisX * HALF_WORLD_MAX - AxisY * HALF_WORLD_MAX);
+		new(Polygon->Vertices) FVector3f(Base - AxisX * HALF_WORLD_MAX + AxisY * HALF_WORLD_MAX);
 
 		for(int32 j=0; j<planes.Num(); j++)
 		{
 			if(i != j)
 			{
-				if(!Polygon->Split(-FVector(planes[j]), planes[j] * planes[j].W))
+				if(!Polygon->Split(-FVector3f(planes[j]), planes[j] * planes[j].W))
 				{
 					Polygon->Vertices.Empty();
 					break;
@@ -252,7 +252,7 @@ static void CalcBoundingSphere(const FMeshDescription* MeshDescription, FSphere&
 
 	FStaticMeshConstAttributes Attributes(*MeshDescription);
 
-	TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+	TVertexAttributesConstRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 
 	bool bFirstVertex = true;
 	for (const FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())
@@ -367,7 +367,7 @@ static void CalcBoundingSphere2(const FMeshDescription* MeshDescription, FSphere
 	sphere.W = 0.0f;
 
 	FStaticMeshConstAttributes Attributes(*MeshDescription);
-	TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+	TVertexAttributesConstRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 
 	for (const FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())
 	{
@@ -466,7 +466,7 @@ static void CalcBoundingSphyl(const FMeshDescription* MeshDescription, FSphere& 
 	float r2 = FMath::Square(r);
 	
 	FStaticMeshConstAttributes Attributes(*MeshDescription);
-	TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+	TVertexAttributesConstRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 
 	// Now check each point lies within this the radius. If not - expand it a bit.
 	for (const FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())
@@ -510,7 +510,7 @@ static void CalcBoundingSphyl(const FMeshDescription* MeshDescription, FSphere& 
 				FMath::SphereDistToLine(cOrigin, r, cToP, (bFlip ? FVector(0.f, 0.f, 1.f) : FVector(0.f, 0.f, -1.f)), cPoint);
 
 				// Don't accept zero as a valid diff when we know it's outside the sphere (saves needless retest on further iterations of like points)
-				hl += FMath::Max(FMath::Abs(cToP.Z - cPoint.Z), 1.e-6f);
+				hl += FMath::Max<float>(FMath::Abs(cToP.Z - cPoint.Z), 1.e-6f);
 			}
 		}
 	}

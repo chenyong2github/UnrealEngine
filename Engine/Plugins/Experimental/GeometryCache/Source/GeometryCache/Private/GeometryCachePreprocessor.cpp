@@ -77,8 +77,8 @@ bool FOptimizeGeometryCachePreprocessor::AreIndexedVerticesEqual(int32 IndexBuff
 	// Ok do the real equality test across all buffered frames
 	for (int32 Frame = 0; Frame < NumFramesInBuffer; Frame++)
 	{
-		const FVector& PositionA = BufferedFrames[Frame].MeshData.Positions[VertexIndexA];
-		const FVector& PositionB = BufferedFrames[Frame].MeshData.Positions[VertexIndexB];
+		const FVector3f& PositionA = BufferedFrames[Frame].MeshData.Positions[VertexIndexA];
+		const FVector3f& PositionB = BufferedFrames[Frame].MeshData.Positions[VertexIndexB];
 
 		if (!PointsEqual(PositionA, PositionB, true))
 		{
@@ -154,7 +154,7 @@ void FOptimizeGeometryCachePreprocessor::FlushBufferedFrames()
 		// as we only look at frame 0 but we use it as a quick way to reject vertices which certainly don't match.
 		FOverlappingCorners OverlappingCorners;
 		
-		const TArray<FVector>& Positions = BufferedFrames[0].MeshData.Positions;
+		const TArray<FVector3f>& Positions = BufferedFrames[0].MeshData.Positions;
 		const int32 NumVertices = Positions.Num();
 		const TArray<uint32>& Indices = BufferedFrames[0].MeshData.Indices;		
 		const int32 NumIndices = Indices.Num();
@@ -323,7 +323,7 @@ void FOptimizeGeometryCachePreprocessor::FlushBufferedFrames()
 				NewMesh.MotionVectors[i] = OldMesh.MotionVectors[NewVerticesReordered[i]];
 				if (NewMesh.MotionVectors[i].ContainsNaN())
 				{
-					NewMesh.MotionVectors[i] = i > 0 ? NewMesh.MotionVectors[i - 1] : FVector::ZeroVector;
+					NewMesh.MotionVectors[i] = i > 0 ? NewMesh.MotionVectors[i - 1] : FVector3f::ZeroVector;
 				}
 			}
 			Bounds += NewMesh.Positions[i];

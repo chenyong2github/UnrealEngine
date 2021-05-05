@@ -36,23 +36,23 @@ FORCEINLINE FRotationTranslationMatrix::FRotationTranslationMatrix(const FRotato
 	const VectorRegister Angles = MakeVectorRegister(Rot.Pitch, Rot.Yaw, Rot.Roll, 0.0f);
 	const VectorRegister HalfAngles = VectorMultiply(Angles, GlobalVectorConstants::DEG_TO_RAD);
 
-	union { VectorRegister v; float f[4]; } SinAngles, CosAngles;
+	union { VectorRegister v; FMatrix::FReal f[4]; } SinAngles, CosAngles;
 	VectorSinCos(&SinAngles.v, &CosAngles.v, &HalfAngles);
 
-	const float	SP	= SinAngles.f[0];
-	const float	SY	= SinAngles.f[1];
-	const float	SR	= SinAngles.f[2];
-	const float	CP	= CosAngles.f[0];
-	const float	CY	= CosAngles.f[1];
-	const float	CR	= CosAngles.f[2];
+	const FMatrix::FReal SP	= SinAngles.f[0];
+	const FMatrix::FReal SY	= SinAngles.f[1];
+	const FMatrix::FReal SR	= SinAngles.f[2];
+	const FMatrix::FReal CP	= CosAngles.f[0];
+	const FMatrix::FReal CY	= CosAngles.f[1];
+	const FMatrix::FReal CR	= CosAngles.f[2];
 
 #else
 	
-	float SP, SY, SR;
-	float CP, CY, CR;
-	FMath::SinCos(&SP, &CP, FMath::DegreesToRadians(Rot.Pitch));
-	FMath::SinCos(&SY, &CY, FMath::DegreesToRadians(Rot.Yaw));
-	FMath::SinCos(&SR, &CR, FMath::DegreesToRadians(Rot.Roll));
+	FMatrix::FReal SP, SY, SR;
+	FMatrix::FReal CP, CY, CR;
+	FMath::SinCos(&SP, &CP, (FMatrix::FReal) FMath::DegreesToRadians(Rot.Pitch));
+	FMath::SinCos(&SY, &CY, (FMatrix::FReal) FMath::DegreesToRadians(Rot.Yaw));
+	FMath::SinCos(&SR, &CR, (FMatrix::FReal) FMath::DegreesToRadians(Rot.Roll));
 
 #endif // PLATFORM_ENABLE_VECTORINTRINSICS
 

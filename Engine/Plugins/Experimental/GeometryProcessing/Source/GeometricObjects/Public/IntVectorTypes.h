@@ -254,10 +254,6 @@ struct FVector3i
 		return &X;
 	}
 
-	explicit operator FVector() const
-	{
-		return FVector((float)X, (float)Y, (float)Z);
-	}
 	explicit operator FVector3f() const
 	{
 		return FVector3f((float)X, (float)Y, (float)Z);
@@ -265,11 +261,6 @@ struct FVector3i
 	explicit operator FVector3d() const
 	{
 		return FVector3d((double)X, (double)Y, (double)Z);
-	}
-
-	explicit FVector3i(const FVector& Vec)
-		: X((int32)Vec.X), Y((int32)Vec.Y), Z((int32)Vec.Z)
-	{
 	}
 
 	explicit FVector3i(const FVector3f& Vec)

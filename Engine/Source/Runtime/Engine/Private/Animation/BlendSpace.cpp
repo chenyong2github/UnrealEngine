@@ -1469,11 +1469,11 @@ FVector UBlendSpace::GetClampedAndWrappedBlendInput(const FVector& BlendInput) c
 	{
 		if (BlendParameters[iAxis].bWrapInput)
 		{
-			AdjustedInput[iAxis] = FMath::Wrap(AdjustedInput[iAxis], BlendParameters[iAxis].Min, BlendParameters[iAxis].Max);
+			AdjustedInput[iAxis] = FMath::Wrap<FVector::FReal>(AdjustedInput[iAxis], BlendParameters[iAxis].Min, BlendParameters[iAxis].Max);
 		}
 		else
 		{
-			AdjustedInput[iAxis] = FMath::Clamp(AdjustedInput[iAxis], BlendParameters[iAxis].Min, BlendParameters[iAxis].Max);
+			AdjustedInput[iAxis] = FMath::Clamp<FVector::FReal>(AdjustedInput[iAxis], BlendParameters[iAxis].Min, BlendParameters[iAxis].Max);
 		}
 	}
 	return AdjustedInput;
@@ -1730,9 +1730,9 @@ bool UBlendSpace::ContainsMatchingSamples(EAdditiveAnimationType AdditiveType) c
 bool UBlendSpace::IsSameSamplePoint(const FVector& SamplePointA, const FVector& SamplePointB) const
 {
 #if 1
-	return FMath::IsNearlyEqual(SamplePointA.X, SamplePointB.X, KINDA_SMALL_NUMBER)
-		&& FMath::IsNearlyEqual(SamplePointA.Y, SamplePointB.Y, KINDA_SMALL_NUMBER)
-		&& FMath::IsNearlyEqual(SamplePointA.Z, SamplePointB.Z, KINDA_SMALL_NUMBER);
+	return FMath::IsNearlyEqual(SamplePointA.X, SamplePointB.X, (FVector::FReal)KINDA_SMALL_NUMBER)
+		&& FMath::IsNearlyEqual(SamplePointA.Y, SamplePointB.Y, (FVector::FReal)KINDA_SMALL_NUMBER)
+		&& FMath::IsNearlyEqual(SamplePointA.Z, SamplePointB.Z, (FVector::FReal)KINDA_SMALL_NUMBER);
 #else
 	if (DimensionIndices.Num() == 0 || DimensionIndices.Num() > 3)
 	{

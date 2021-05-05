@@ -87,7 +87,7 @@ void UE::GroomQueries::ExtractAllHairCards(AGroomActor* GroomActor,
 			int32 NewVID = MeshOut.AppendVertex((FVector3d)CardGeo.Positions[k]);
 			MapV[k] = NewVID;
 
-			int32 NewNormID = Normals->AppendElement(&CardGeo.Normals[k].X);
+			int32 NewNormID = Normals->AppendElement((FVector3f)CardGeo.Normals[k]);
 			MapN[k] = NewNormID;
 
 			int32 NewUVID = UVs->AppendElement( FVector2f(CardGeo.UVs[k].X, CardGeo.UVs[k].Y) );
@@ -510,7 +510,7 @@ void UE::GroomQueries::ExtractCardCurves(
 
 void UE::GroomQueries::ProcessHairCurves(AGroomActor* GroomActor,
 	bool bUseGuides,
-	TFunctionRef<void(const TArrayView<FVector>& Positions, const TArrayView<float>& Radii)> HairCurveFunc)
+	TFunctionRef<void(const TArrayView<FVector3f>& Positions, const TArrayView<float>& Radii)> HairCurveFunc)
 {
 	check(GroomActor->GetGroomComponent());
 	check(GroomActor->GetGroomComponent()->GroomAsset);
@@ -533,7 +533,7 @@ void UE::GroomQueries::ProcessHairCurves(AGroomActor* GroomActor,
 		const FHairStrandsDatas& GroupStrandData = (bUseGuides) ? GuidesData : StrandsData;
 
 		const FHairStrandsPoints& GroupStrandPoints = GroupStrandData.StrandsPoints;
-		const TArray<FVector>& Positions = GroupStrandPoints.PointsPosition;
+		const TArray<FVector3f>& Positions = GroupStrandPoints.PointsPosition;
 		const TArray<float>& Radii = GroupStrandPoints.PointsRadius;
 
 		const FHairStrandsCurves& GroupStrandCurves = GroupStrandData.StrandsCurves;
@@ -546,7 +546,7 @@ void UE::GroomQueries::ProcessHairCurves(AGroomActor* GroomActor,
 			int32 Count = (int32)CurvesCounts[CurveIndex];
 			int32 Offset = (int32)CurvesOffsets[CurveIndex];
 
-			TArrayView<FVector> CurvePositions = TArrayView<FVector>((FVector*)&Positions[Offset], Count);
+			TArrayView<FVector3f> CurvePositions = TArrayView<FVector3f>((FVector3f*)&Positions[Offset], Count);
 			TArrayView<float> CurveRadii = TArrayView<float>((float*)&Radii[Offset], Count);
 
 			HairCurveFunc(CurvePositions, CurveRadii);

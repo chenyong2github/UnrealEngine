@@ -29,9 +29,9 @@ namespace ClothingMeshUtils
 				const uint32 IB = TmData->Indices[TriBaseIdx + 1];
 				const uint32 IC = TmData->Indices[TriBaseIdx + 2];
 
-				const FVector& A = TmData->Positions[IA];
-				const FVector& B = TmData->Positions[IB];
-				const FVector& C = TmData->Positions[IC];
+				const FVector3f& A = TmData->Positions[IA];
+				const FVector3f& B = TmData->Positions[IB];
+				const FVector3f& C = TmData->Positions[IC];
 
 				Chaos::FAABB3 Bounds(A, A);
 
@@ -53,7 +53,7 @@ namespace ClothingMeshUtils
 			}
 		};
 
-		ClothMeshDesc(TArrayView<const FVector> InPositions, TArrayView<const FVector> InNormals, TArrayView<const uint32> InIndices)
+		ClothMeshDesc(TArrayView<const FVector3f> InPositions, TArrayView<const FVector3f> InNormals, TArrayView<const uint32> InIndices)
 			: Positions(InPositions)
 			, Normals(InNormals)
 			, Indices(InIndices)
@@ -68,8 +68,8 @@ namespace ClothingMeshUtils
 
 		TArray<int32> FindCandidateTriangles(const FVector Point);
 
-		TArrayView<const FVector> Positions;
-		TArrayView<const FVector> Normals;
+		TArrayView<const FVector3f> Positions;
+		TArrayView<const FVector3f> Normals;
 		TArrayView<const uint32> Indices;
 
 		bool bHasValidBVH;
@@ -85,10 +85,10 @@ namespace ClothingMeshUtils
 		const TArray<int32>& BoneMap, // UClothingAssetCommon::UsedBoneIndices
 		const FClothPhysicalMeshData& InMesh, 
 		const FTransform& PostTransform, // Final transform to apply to component space positions and normals
-		const FMatrix* InBoneMatrices, 
+		const FMatrix44f* InBoneMatrices, 
 		const int32 InNumBoneMatrices, 
-		TArray<FVector>& OutPositions, 
-		TArray<FVector>& OutNormals,
+		TArray<FVector3f>& OutPositions, 
+		TArray<FVector3f>& OutNormals,
 		uint32 ArrayOffset = 0); // Used for Chaos Cloth
 
 	/**
@@ -102,7 +102,7 @@ namespace ClothingMeshUtils
 	void CLOTHINGSYSTEMRUNTIMECOMMON_API GenerateMeshToMeshSkinningData(
 		TArray<FMeshToMeshVertData>& OutSkinningData,
 		const ClothMeshDesc& TargetMesh,
-		const TArray<FVector>* TargetTangents,
+		const TArray<FVector3f>* TargetTangents,
 		const ClothMeshDesc& SourceMesh,
 		bool bUseMultipleInfluences,
 		float KernelMaxDistance);
@@ -116,7 +116,7 @@ namespace ClothingMeshUtils
 	 */
 	void CLOTHINGSYSTEMRUNTIMECOMMON_API GenerateEmbeddedPositions(
 		const ClothMeshDesc& SourceMesh, 
-		TArrayView<const FVector> Positions, 
+		TArrayView<const FVector3f> Positions, 
 		TArray<FVector4>& OutEmbeddedPositions, 
 		TArray<int32>& OutSourceIndices);
 
@@ -133,13 +133,13 @@ namespace ClothingMeshUtils
 	* @param Point	- Point to calculate Bary+Dist for
 	*/
 	FVector4 GetPointBaryAndDist(
-		const FVector& A,
-		const FVector& B,
-		const FVector& C,
-		const FVector& NA,
-		const FVector& NB,
-		const FVector& NC,
-		const FVector& Point);
+		const FVector3f& A,
+		const FVector3f& B,
+		const FVector3f& C,
+		const FVector3f& NA,
+		const FVector3f& NB,
+		const FVector3f& NC,
+		const FVector3f& Point);
 
 	/** 
 	 * Object used to map vertex parameters between two meshes using the
@@ -151,10 +151,10 @@ namespace ClothingMeshUtils
 		FVertexParameterMapper() = delete;
 		FVertexParameterMapper(const FVertexParameterMapper& Other) = delete;
 
-		FVertexParameterMapper(TArrayView<const FVector> InMesh0Positions,
-			TArrayView<const FVector> InMesh0Normals,
-			TArrayView<const FVector> InMesh1Positions,
-			TArrayView<const FVector> InMesh1Normals,
+		FVertexParameterMapper(TArrayView<const FVector3f> InMesh0Positions,
+			TArrayView<const FVector3f> InMesh0Normals,
+			TArrayView<const FVector3f> InMesh1Positions,
+			TArrayView<const FVector3f> InMesh1Normals,
 			TArrayView<const uint32> InMesh1Indices)
 			: Mesh0Positions(InMesh0Positions)
 			, Mesh0Normals(InMesh0Normals)
@@ -171,7 +171,7 @@ namespace ClothingMeshUtils
 		{
 			// Enforce the interp func signature (returns T and takes a bary and 3 Ts)
 			// If you hit this then either the return type isn't T or your arguments aren't convertible to T
-			static_assert(TAreTypesEqual<T, typename TDecay<decltype(Func(DeclVal<FVector>(), DeclVal<T>(), DeclVal<T>(), DeclVal<T>()))>::Type>::Value, "Invalid Lambda signature passed to Map");
+			static_assert(TAreTypesEqual<T, typename TDecay<decltype(Func(DeclVal<FVector3f>(), DeclVal<T>(), DeclVal<T>(), DeclVal<T>()))>::Type>::Value, "Invalid Lambda signature passed to Map");
 
 			const int32 NumMesh0Positions = Mesh0Positions.Num();
 			const int32 NumMesh0Normals = Mesh0Normals.Num();
@@ -238,10 +238,10 @@ namespace ClothingMeshUtils
 
 	private:
 
-		TArrayView<const FVector> Mesh0Positions;
-		TArrayView<const FVector> Mesh0Normals;
-		TArrayView<const FVector> Mesh1Positions;
-		TArrayView<const FVector> Mesh1Normals;
+		TArrayView<const FVector3f> Mesh0Positions;
+		TArrayView<const FVector3f> Mesh0Normals;
+		TArrayView<const FVector3f> Mesh1Positions;
+		TArrayView<const FVector3f> Mesh1Normals;
 		TArrayView<const uint32> Mesh1Indices;
 	};
 }

@@ -305,7 +305,7 @@ struct  FQuadricSkeletalMeshReduction::FSkeletalMeshData
 	TArray<SkeletalMeshImportData::FVertInfluence> Influences;
 	TArray<SkeletalMeshImportData::FMeshWedge> Wedges;
 	TArray<SkeletalMeshImportData::FMeshFace> Faces;
-	TArray<FVector> Points;
+	TArray<FVector3f> Points;
 	uint32 TexCoordCount;
 };
 
@@ -484,12 +484,12 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh( const FSkelet
 		bool bHasBadNTB =  ( Vertex.TangentX.ContainsNaN() || Vertex.TangentY.ContainsNaN() || Vertex.TangentZ.ContainsNaN() );
 
 		// transform position
-		FVector WeightedPosition = XForm.TransformPosition(Vertex.Position);
+		FVector3f WeightedPosition = XForm.TransformPosition(Vertex.Position);
 
 		// transform tangent space
-		FVector WeightedTangentX(1.f, 0.f, 0.f);
-		FVector WeightedTangentY(0.f, 1.f, 0.f);
-		FVector WeightedTangentZ(0.f, 0.f, 1.f);
+		FVector3f WeightedTangentX(1.f, 0.f, 0.f);
+		FVector3f WeightedTangentY(0.f, 1.f, 0.f);
+		FVector3f WeightedTangentZ(0.f, 0.f, 1.f);
 
 		if (!bHasBadNTB)
 		{
@@ -1152,7 +1152,7 @@ void FQuadricSkeletalMeshReduction::ExtractFSkeletalData(const SkeletalSimplifie
 	MeshData.Faces.AddZeroed(NumTris);
 	MeshData.Wedges.AddZeroed(NumIndices);
 
-	TArray<FVector> PointNormals;
+	TArray<FVector3f> PointNormals;
 	TArray<uint32> PointList;
 	TArray<uint32> PointInfluenceMap;  // index into MeshData.Influences.   Id = PointInfluenceMap[v];  first_influence_for_vert 'v' = MeshData.Influences[Id] 
 
@@ -1231,7 +1231,7 @@ void FQuadricSkeletalMeshReduction::ExtractFSkeletalData(const SkeletalSimplifie
 			const uint32 vertId = SkinnedMesh.IndexBuffer[wedgeId];
 			const auto& SimpVertex = SkinnedMesh.VertexBuffer[vertId];
 
-			FVector WedgeNormal = SimpVertex.BasicAttributes.Normal;
+			FVector3f WedgeNormal = SimpVertex.BasicAttributes.Normal;
 			WedgeNormal.Normalize();
 
 			Face.TangentX[c] = SimpVertex.BasicAttributes.Tangent;
@@ -1244,7 +1244,7 @@ void FQuadricSkeletalMeshReduction::ExtractFSkeletalData(const SkeletalSimplifie
 
 			//
 			uint32 tmpVertId = vertId;
-			FVector PointNormal = PointNormals[tmpVertId];
+			FVector3f PointNormal = PointNormals[tmpVertId];
 
 			if (PointNormal.SizeSquared() < KINDA_SMALL_NUMBER) // the array starts with 0'd out normals
 			{
@@ -1252,7 +1252,7 @@ void FQuadricSkeletalMeshReduction::ExtractFSkeletalData(const SkeletalSimplifie
 			}
 			else // we have already visited this vert ..
 			{
-				while (FVector::DotProduct(PointNormal, WedgeNormal) - 1.f < -KINDA_SMALL_NUMBER)
+				while (FVector3f::DotProduct(PointNormal, WedgeNormal) - 1.f < -KINDA_SMALL_NUMBER)
 				{
 					tmpVertId = PointList[tmpVertId];
 					if (tmpVertId == INDEX_NONE)
@@ -1266,7 +1266,7 @@ void FQuadricSkeletalMeshReduction::ExtractFSkeletalData(const SkeletalSimplifie
 				if (tmpVertId == INDEX_NONE)
 				{
 					// Add a copy of this point.. 
-					FVector Point = MeshData.Points[vertId];
+					FVector3f Point = MeshData.Points[vertId];
 					tmpVertId = MeshData.Points.Add(Point);
 
 					PointNormals.Add(WedgeNormal);

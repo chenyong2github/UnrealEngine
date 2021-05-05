@@ -153,6 +153,8 @@ namespace
 		FMatrix mat5;
 		FQuat quat5;
 
+		// TODO: LWC: these cause compiler errors about imminent stack overflow in the Concatenate() function for FMatrix.
+		/*
 		mat5 = Concatenate(uniScale4, trans4);
 		mat5 = Concatenate(trans4, uniScale4);
 		mat5 = Concatenate(uniScale4, quat4);
@@ -180,6 +182,7 @@ namespace
 		mat5 = Concatenate(Inverse(trans), rot, trans);
 
 		mat5 = Concatenate(Inverse(trans), rot, uniScale, trans);
+		*/
 
 		FScale2D scale2D(1.4f, 3.2f);
 		FShear2D shear2D(-3.5f, -4.6f);

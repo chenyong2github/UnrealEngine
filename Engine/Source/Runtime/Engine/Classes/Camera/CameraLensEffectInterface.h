@@ -11,7 +11,7 @@
 class AActor;
 class APlayerCameraManager;
 
-struct FVector;
+DECLARE_LWC_TYPE(Vector, 3);
 struct FRotator;
 class UFXSystemComponent;
 

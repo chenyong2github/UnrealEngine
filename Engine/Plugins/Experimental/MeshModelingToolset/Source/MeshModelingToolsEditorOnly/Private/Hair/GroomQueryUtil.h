@@ -87,7 +87,7 @@ namespace UE
 
 		void ProcessHairCurves(AGroomActor* GroomActor,
 			bool bUseGuides,
-			TFunctionRef<void(const TArrayView<FVector>& Positions, const TArrayView<float>& Radii)> HairCurveFunc);
+			TFunctionRef<void(const TArrayView<FVector3f>& Positions, const TArrayView<float>& Radii)> HairCurveFunc);
 
 
 	}

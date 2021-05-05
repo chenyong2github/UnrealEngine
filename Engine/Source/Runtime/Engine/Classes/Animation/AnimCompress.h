@@ -542,7 +542,7 @@ protected:
 	static void PackVectorToStream(
 		TArray<uint8>& ByteStream,
 		AnimationCompressionFormat Format,
-		const FVector& Vec,
+		const FVector3f& Vec,
 		const float* Mins,
 		const float* Ranges);
 

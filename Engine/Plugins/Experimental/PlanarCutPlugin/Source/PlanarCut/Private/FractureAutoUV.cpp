@@ -261,7 +261,7 @@ struct FGeomMesh : public UE::Geometry::FUVPacker::IUVMeshView
 		return 0;
 	}
 
-	inline void GetTriVertices(int TID, UE::Core::TVector<double>& V0, UE::Core::TVector<double>& V1, UE::Core::TVector<double>& V2) const
+	inline void GetTriVertices(int TID, UE::Math::TVector<double>& V0, UE::Math::TVector<double>& V1, UE::Math::TVector<double>& V2) const
 	{
 		FIntVector TriRaw = Collection->Indices[TID];
 
@@ -332,7 +332,7 @@ struct FGeomFlatUVMesh
 		return 0;
 	}
 
-	inline void GetTriVertices(int TID, UE::Core::TVector<double>& V0, UE::Core::TVector<double>& V1, UE::Core::TVector<double>& V2) const
+	inline void GetTriVertices(int TID, UE::Math::TVector<double>& V0, UE::Math::TVector<double>& V1, UE::Math::TVector<double>& V2) const
 	{
 		FIntVector TriRaw = Collection->Indices[TID];
 

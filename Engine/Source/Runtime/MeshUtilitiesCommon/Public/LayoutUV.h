@@ -45,8 +45,8 @@ public:
 		virtual ~IMeshView() {}
 
 		virtual uint32      GetNumIndices() const = 0;
-		virtual FVector     GetPosition(uint32 Index) const = 0;
-		virtual FVector     GetNormal(uint32 Index) const = 0;
+		virtual FVector3f   GetPosition(uint32 Index) const = 0;
+		virtual FVector3f   GetNormal(uint32 Index) const = 0;
 		virtual FVector2D   GetInputTexcoord(uint32 Index) const = 0;
 
 		virtual void        InitOutputTexcoords(uint32 Num) = 0;

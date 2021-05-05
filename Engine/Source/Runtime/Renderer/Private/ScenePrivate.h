@@ -751,7 +751,7 @@ public:
 	float		LastRenderTimeDelta;
 	float		MotionBlurTimeScale;
 	float		MotionBlurTargetDeltaTime;
-	FMatrix		PrevViewMatrixForOcclusionQuery;
+	FMatrix44f	PrevViewMatrixForOcclusionQuery;
 	FVector		PrevViewOriginForOcclusionQuery;
 
 #if RHI_RAYTRACING

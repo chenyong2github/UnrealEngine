@@ -293,15 +293,15 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_DistributeRotation)
 
 	FVector Euler = FVector::ZeroVector;
 	Euler = FControlRigMathLibrary::EulerFromQuat(Hierarchy->GetLocalTransform(0).GetRotation(), EControlRigRotationOrder::XYZ);
-	AddErrorIfFalse(FMath::IsNearlyEqual(Euler.Y, 0.f, 0.1f), TEXT("unexpected rotation Y"));
+	AddErrorIfFalse(FMath::IsNearlyEqual((double)Euler.Y, 0.0, 0.1), TEXT("unexpected rotation Y"));
 	Euler = FControlRigMathLibrary::EulerFromQuat(Hierarchy->GetLocalTransform(1).GetRotation(), EControlRigRotationOrder::XYZ);
-	AddErrorIfFalse(FMath::IsNearlyEqual(Euler.Y, 45.f, 0.1f), TEXT("unexpected rotation Y"));
+	AddErrorIfFalse(FMath::IsNearlyEqual((double)Euler.Y, 45.0, 0.1), TEXT("unexpected rotation Y"));
 	Euler = FControlRigMathLibrary::EulerFromQuat(Hierarchy->GetLocalTransform(2).GetRotation(), EControlRigRotationOrder::XYZ);
-	AddErrorIfFalse(FMath::IsNearlyEqual(Euler.Y, 90.f, 0.1f), TEXT("unexpected rotation Y"));
+	AddErrorIfFalse(FMath::IsNearlyEqual((double)Euler.Y, 90.0, 0.1), TEXT("unexpected rotation Y"));
 	Euler = FControlRigMathLibrary::EulerFromQuat(Hierarchy->GetLocalTransform(3).GetRotation(), EControlRigRotationOrder::XYZ);
-	AddErrorIfFalse(FMath::IsNearlyEqual(Euler.Y, 45.f, 0.1f), TEXT("unexpected rotation Y"));
+	AddErrorIfFalse(FMath::IsNearlyEqual((double)Euler.Y, 45.0, 0.1), TEXT("unexpected rotation Y"));
 	Euler = FControlRigMathLibrary::EulerFromQuat(Hierarchy->GetLocalTransform(4).GetRotation(), EControlRigRotationOrder::XYZ);
-	AddErrorIfFalse(FMath::IsNearlyEqual(Euler.Y, 0.f, 0.1f), TEXT("unexpected rotation Y"));
+	AddErrorIfFalse(FMath::IsNearlyEqual((double)Euler.Y, 0.0, 0.1), TEXT("unexpected rotation Y"));
 
 	return true;
 }

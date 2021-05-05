@@ -750,11 +750,11 @@ namespace Test
 	}
 
 	FPhaseModulator::OscData::OscData(float InMaxAmp)
-		: Phase(FMath::FRandRange(0.0f, 2.0 * PI))
+		: Phase(FMath::FRandRange(0.0f, 2.f * PI))
 		, Delta(0.01f)
 		, TargetDelta(Delta)
 		, DeltaEase(0.001f)
-		, SweepPhase(FMath::FRandRange(0.0f, 2.0 * PI))
+		, SweepPhase(FMath::FRandRange(0.0f, 2.f * PI))
 		, SweepDelta(0.0f)
 		, Amp(0.0f)
 		, MaxAmp(InMaxAmp)

@@ -17,7 +17,7 @@ public:
 	FVector Center;
 
 	/** The sphere's radius. */
-	float W;
+	FVector::FReal W;
 
 public:
 
@@ -40,7 +40,7 @@ public:
 	 * @param InV Center of sphere.
 	 * @param InW Radius of sphere.
 	 */
-	FSphere(FVector InV, float InW)
+	FSphere(FVector InV, typename FVector::FReal InW)
 		: Center(InV)
 		, W(InW)
 	{ }
@@ -178,7 +178,19 @@ public:
 	 */
 	friend FArchive& operator<<(FArchive& Ar, FSphere& Sphere)
 	{
-		Ar << Sphere.Center << Sphere.W;
+		Ar << Sphere.Center;
+
+		// LWC_TODO: Serializer
+		//if (!Ar.IsPersistent())
+		//{
+		//	Ar << Sphere.W;
+		//}
+		//else
+		{
+			float SW = (float)Sphere.W;
+			Ar << SW;
+			Sphere.W = SW;
+		}
 
 		return Ar;
 	}
@@ -192,7 +204,7 @@ public:
  */
 FORCEINLINE bool FMath::SphereAABBIntersection(const FSphere& Sphere,const FBox& AABB)
 {
-	float RadiusSquared = FMath::Square(Sphere.W);
+	FVector::FReal RadiusSquared = FMath::Square(Sphere.W);
 	// If the distance is less than or equal to the radius, they intersect
 	return SphereAABBIntersection(Sphere.Center,RadiusSquared,AABB);
 }

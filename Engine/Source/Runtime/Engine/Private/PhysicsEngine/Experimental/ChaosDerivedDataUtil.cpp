@@ -21,9 +21,9 @@ namespace Chaos
 		FAABB3 BoundingBox() const { return FAABB3(Vert, Vert); }
 	};
 
-	void CleanTrimesh(TArray<FVector>& InOutVertices, TArray<int32>& InOutIndices, TArray<int32>* OutOptFaceRemap, TArray<int32>* OutOptVertexRemap)
+	void CleanTrimesh(TArray<FVector3f>& InOutVertices, TArray<int32>& InOutIndices, TArray<int32>* OutOptFaceRemap, TArray<int32>* OutOptVertexRemap)
 	{
-		TArray<FVector> LocalSourceVerts = InOutVertices;
+		TArray<FVector3f> LocalSourceVerts = InOutVertices;
 		TArray<int32> LocalSourceIndices = InOutIndices;
 		
 		const int32 NumSourceVerts = LocalSourceVerts.Num();
@@ -36,7 +36,7 @@ namespace Chaos
 		}
 
 		// New condensed list of unique verts from the trimesh
-		TArray<FVector> LocalUniqueVerts;
+		TArray<FVector3f> LocalUniqueVerts;
 		// New condensed list of indices after cleaning
 		TArray<int32> LocalUniqueIndices;
 		// Array mapping unique vertex index back to source data index
@@ -49,9 +49,9 @@ namespace Chaos
 
 		auto ValidateTrianglesPre = [&InOutVertices](int32 A, int32 B, int32 C) -> bool
 		{
-			const FVector v0 = InOutVertices[A];
-			const FVector v1 = InOutVertices[B];
-			const FVector v2 = InOutVertices[C];
+			const FVector3f v0 = InOutVertices[A];
+			const FVector3f v1 = InOutVertices[B];
+			const FVector3f v2 = InOutVertices[C];
 			return v0 != v1 && v0 != v2 && v1 != v2;
 		};
 
@@ -88,7 +88,7 @@ namespace Chaos
 				continue;
 			}
 
-			const FVector& SourceVert = LocalSourceVerts[SourceVertIndex];
+			const FVector3f& SourceVert = LocalSourceVerts[SourceVertIndex];
 
 			TArray<int32> Duplicates = Accel.FindAllIntersections(FAABB3(SourceVert - WeldThresholdSq, SourceVert + WeldThresholdSq));
 			ensure(Duplicates.Num() > 0);	//Should always find at least original vert
@@ -116,9 +116,9 @@ namespace Chaos
 			return A != B && A != C && B != C;
 		};
 
-		auto ValidateTriangleArea = [](const FVector& A, const FVector& B, const FVector& C)
+		auto ValidateTriangleArea = [](const FVector3f& A, const FVector3f& B, const FVector3f& C)
 		{
-			const float AreaSq = FVector::CrossProduct(A - B, A - C).SizeSquared();
+			const float AreaSq = FVector3f::CrossProduct(A - B, A - C).SizeSquared();
 
 			return AreaSq > SMALL_NUMBER;
 		};
@@ -140,9 +140,9 @@ namespace Chaos
 			const int32 RemappedBIndex = LocalVertexRemap[OrigBIndex];
 			const int32 RemappedCIndex = LocalVertexRemap[OrigCIndex];
 
-			const FVector& A = LocalUniqueVerts[RemappedAIndex];
-			const FVector& B = LocalUniqueVerts[RemappedBIndex];
-			const FVector& C = LocalUniqueVerts[RemappedCIndex];
+			const FVector3f& A = LocalUniqueVerts[RemappedAIndex];
+			const FVector3f& B = LocalUniqueVerts[RemappedBIndex];
+			const FVector3f& C = LocalUniqueVerts[RemappedCIndex];
 
 			// Only consider triangles that are actually valid for collision
 			// #BG Consider being able to fix small triangles by collapsing them if we hit this a lot

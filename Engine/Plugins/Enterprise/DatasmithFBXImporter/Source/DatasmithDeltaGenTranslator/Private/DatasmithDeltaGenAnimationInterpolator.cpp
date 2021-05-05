@@ -322,11 +322,11 @@ namespace DeltaGen
 		// Early out if we can to avoid SolveCubic. Also because if our X is exactly the same
 		// as one of the points we might run into some precision problems within SolveCubic
 		// e.g. the valid solution is -1.9E-20 and is discarded because its less than zero
-		if (FMath::IsNearlyEqual(P0.X, X))
+		if (FMath::IsNearlyEqual(P0.X, (FVector::FReal)X))
 		{
 			return P0;
 		}
-		else if (FMath::IsNearlyEqual(P3.X, X))
+		else if (FMath::IsNearlyEqual(P3.X, (FVector::FReal)X))
 		{
 			return P3;
 		}

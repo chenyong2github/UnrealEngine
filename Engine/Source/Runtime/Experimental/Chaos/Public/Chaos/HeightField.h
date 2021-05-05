@@ -339,7 +339,7 @@ namespace Chaos
 					{
 						// todo(chaos) this may not matter if the Vector types are handling serialization properly 
 						// legacy, need to keep the inner box type as float ( not FReal ) 
-						TArray<TBox<float, 3>> CellBounds;
+						TArray<FBoxFloat3> CellBounds;
 						Ar << CellBounds;
 					}
 					else if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::HeightfieldUsesHeightsDirectly)

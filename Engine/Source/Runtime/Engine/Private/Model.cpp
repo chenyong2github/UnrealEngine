@@ -193,8 +193,8 @@ void UModel::Serialize( FArchive& Ar )
 
 	if (Ar.IsLoading() && Ar.UEVer() < VER_UE4_BSP_UNDO_FIX )
 	{
-		TTransArray<FVector> OldVectors(this);
-		TTransArray<FVector> OldPoints(this);
+		TTransArray<FVector3f> OldVectors(this);
+		TTransArray<FVector3f> OldPoints(this);
 		TTransArray<FBspNode> OldNodes(this);
 		OldVectors.BulkSerialize(Ar);
 		OldPoints.BulkSerialize(Ar);

@@ -306,8 +306,8 @@ void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutD
 
 	// Set width and height to best match the runtime virtual texture volume's aspect ratio.
 	const FVector VolumeSize = VolumeToWorld.GetScale3D();
-	const float VolumeSizeX = FMath::Max(FMath::Abs(VolumeSize.X), 0.0001f);
-	const float VolumeSizeY = FMath::Max(FMath::Abs(VolumeSize.Y), 0.0001f);
+	const FVector::FReal VolumeSizeX = FMath::Max<FVector::FReal>(FMath::Abs(VolumeSize.X), 0.0001f);
+	const FVector::FReal VolumeSizeY = FMath::Max<FVector::FReal>(FMath::Abs(VolumeSize.Y), 0.0001f);
 	const float AspectRatioLog2 = FMath::Log2(VolumeSizeX / VolumeSizeY);
 
 	uint32 WidthInTiles, HeightInTiles;
@@ -507,7 +507,7 @@ void URuntimeVirtualTexture::Initialize(IVirtualTexture* InProducer, FVTProducer
 	WorldToUVTransformParameters[1] = InVolumeToWorld.GetUnitAxis(EAxis::X) * 1.f / InVolumeToWorld.GetScale3D().X;
 	WorldToUVTransformParameters[2] = InVolumeToWorld.GetUnitAxis(EAxis::Y) * 1.f / InVolumeToWorld.GetScale3D().Y;
 
-	const float HeightRange = FMath::Max(InWorldBounds.Max.Z - InWorldBounds.Min.Z, 1.f);
+	const FVector::FReal HeightRange = FMath::Max<FVector::FReal>(InWorldBounds.Max.Z - InWorldBounds.Min.Z, 1.f);
 	WorldHeightUnpackParameter = FVector4(HeightRange, InWorldBounds.Min.Z, 0.f, 0.f);
 
 	InitResource(InProducer, InProducerDesc);

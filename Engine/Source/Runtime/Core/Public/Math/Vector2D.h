@@ -88,7 +88,15 @@ public:
 	 *
 	 * @param V Vector to copy from.
 	 */
-	explicit FORCEINLINE FVector2D(const FVector& V);
+	explicit FORCEINLINE FVector2D(const FVector3d& V);
+
+	/**
+	 * Constructs a vector from an FVector.
+	 * Copies the X and Y components from the FVector.
+	 *
+	 * @param V Vector to copy from.
+	 */
+	explicit FORCEINLINE FVector2D(const FVector3f& V);
 
 	/**
 	 * Constructs a vector from an FVector4.
@@ -614,6 +622,7 @@ FORCEINLINE FVector2D operator*(float Scale, const FVector2D& V)
 }
 
 template <> struct TIsPODType<FVector2D> { enum { Value = true }; };
+template <> struct TIsUECoreType<FVector2D> { enum { Value = true }; };
 
 
 FORCEINLINE FVector2D::FVector2D(float InX,float InY)

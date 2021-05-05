@@ -274,7 +274,9 @@ bool UDataprepMergeActorsOperation::MergeStaticMeshActors(UWorld* World, const T
 
 	TArray<UObject*> CreatedAssets;
 	const float ScreenAreaSize = TNumericLimits<float>::Max();
-	MeshUtilities.MergeComponentsToStaticMesh( PrimitiveComponentsToMerge, World, MergeSettings, nullptr, GetTransientPackage(), FString(), CreatedAssets, MergedMeshWorldLocation, ScreenAreaSize, true);
+	FVector MMWL;
+	MeshUtilities.MergeComponentsToStaticMesh( PrimitiveComponentsToMerge, World, MergeSettings, nullptr, GetTransientPackage(), FString(), CreatedAssets, MMWL, ScreenAreaSize, true);
+	MergedMeshWorldLocation = MMWL;
 
 	UStaticMesh* UtilitiesMergedMesh = nullptr;
 	if (!CreatedAssets.FindItemByClass(&UtilitiesMergedMesh))

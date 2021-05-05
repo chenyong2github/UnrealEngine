@@ -130,17 +130,17 @@ bool FInputModifierScalarTest::RunTest(const FString& Parameters)
 		WHEN(AKeyIsActuated(Data, TestAxis, TestValue));
 		Scalar->Scalar = FVector::OneVector * 1.f;
 		AND(InputIsTicked(Data));
-		TestEqual(TEXT("Input value (new)"), GetActionValue(Data, TestAction), TestValue * Scalar->Scalar.X);
+		TestEqual(TEXT("Input value (new)"), GetActionValue(Data, TestAction), TestValue * (float)Scalar->Scalar.X);
 
 		// Test 3 - Modify scalar on the fly.
 		Scalar->Scalar = FVector::OneVector * 0.5f;
 		WHEN(InputIsTicked(Data));
-		TestEqual(TEXT("Input value (modify)"), GetActionValue(Data, TestAction), TestValue * Scalar->Scalar.X);
+		TestEqual(TEXT("Input value (modify)"), GetActionValue(Data, TestAction), TestValue * (float)Scalar->Scalar.X);
 
 		// Test 4 - negate
 		Scalar->Scalar = FVector::OneVector * -2.f;
 		WHEN(InputIsTicked(Data));
-		TestEqual(TEXT("Input value (negate)"), GetActionValue(Data, TestAction), TestValue * Scalar->Scalar.X);
+		TestEqual(TEXT("Input value (negate)"), GetActionValue(Data, TestAction), TestValue * (float)Scalar->Scalar.X);
 	}
 
 	return true;

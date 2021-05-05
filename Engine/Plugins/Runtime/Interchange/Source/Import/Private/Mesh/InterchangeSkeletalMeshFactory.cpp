@@ -147,12 +147,12 @@ namespace UE
 						continue;
 					}
 
-					TArray<FVector> CompressPoints;
+					TArray<FVector3f> CompressPoints;
 					CompressPoints.Reserve(DestinationSkeletalMeshImportData.Points.Num());
 
 					const FMeshDescription& SourceMeshDescription = Pair.Value;
 					FStaticMeshConstAttributes Attributes(SourceMeshDescription);
-					TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+					TVertexAttributesConstRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 
 					//Create the morph target source data
 					FString& MorphTargetName = DestinationSkeletalMeshImportData.MorphTargetNames.AddDefaulted_GetRef();

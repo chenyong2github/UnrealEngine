@@ -12,8 +12,7 @@ namespace Chaos
 
 	template <typename T, int d>
 	class TGeometryParticle;
-
-	using TGeometryParticleFloat3 = TGeometryParticle<float, 3>;
+	//using TGeometryParticleFloat3 = TGeometryParticle<float, 3>;
 
 	template <typename T, int d, bool bProcessing>
 	class TGeometryParticleHandleImp;
@@ -52,7 +51,7 @@ namespace Chaos
 
 	template <typename T, int d>
 	using TPBDRigidParticleHandle = TPBDRigidParticleHandleImp<T, d, true>;
-	using TPBDRigidParticleHandleFloat3 = TPBDRigidParticleHandle<float, 3>;
+	//using TPBDRigidParticleHandleFloat3 = TPBDRigidParticleHandle<float, 3>;
 
 	using FPBDRigidParticleHandle = TPBDRigidParticleHandle<FReal, 3>;
 
@@ -68,7 +67,7 @@ namespace Chaos
 
 	template <typename T, int d>
 	using TPBDRigidClusteredParticleHandle = TPBDRigidClusteredParticleHandleImp<T, d, true>;
-	using TPBDRigidClusteredParticleHandleFloat3 = TPBDRigidClusteredParticleHandle<float, 3>;
+	//using TPBDRigidClusteredParticleHandleFloat3 = TPBDRigidClusteredParticleHandle<float, 3>;
 
 	using FPBDRigidClusteredParticleHandle = TPBDRigidClusteredParticleHandle<FReal, 3>;
 
@@ -86,7 +85,7 @@ namespace Chaos
 
 	template <typename T, int d>
 	using TPBDGeometryCollectionParticleHandle = TPBDGeometryCollectionParticleHandleImp<T, d, true>;
-	using TPBDGeometryCollectionParticleHandleFloat3 = TPBDGeometryCollectionParticleHandle<float, 3>;
+	//using TPBDGeometryCollectionParticleHandleFloat3 = TPBDGeometryCollectionParticleHandle<float, 3>;
 
 	using FPBDGeometryCollectionParticleHandle = TPBDGeometryCollectionParticleHandle<FReal, 3>;
 

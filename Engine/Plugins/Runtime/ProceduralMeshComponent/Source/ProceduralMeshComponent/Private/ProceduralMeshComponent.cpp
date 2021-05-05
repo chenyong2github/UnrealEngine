@@ -783,7 +783,7 @@ void UProceduralMeshComponent::AddCollisionConvexMesh(TArray<FVector> ConvexVert
 		// Copy in vertex info
 		NewConvexElem.VertexData = ConvexVerts;
 		// Update bounding box
-		NewConvexElem.ElemBox = FBox(NewConvexElem.VertexData);
+		NewConvexElem.ElemBox = FBox(ConvexVerts);
 		// Add to array of convex elements
 		CollisionConvexElems.Add(NewConvexElem);
 		// Refresh collision
@@ -826,7 +826,7 @@ void UProceduralMeshComponent::UpdateLocalBounds()
 		LocalBox += Section.SectionLocalBox;
 	}
 
-	LocalBounds = LocalBox.IsValid ? FBoxSphereBounds(LocalBox) : FBoxSphereBounds(FVector(0, 0, 0), FVector(0, 0, 0), 0); // fallback to reset box sphere bounds
+	LocalBounds = LocalBox.IsValid ? FBoxSphereBounds(LocalBox) : FBoxSphereBounds(FVector3f(0, 0, 0), FVector3f(0, 0, 0), 0); // fallback to reset box sphere bounds
 
 	// Update global bounds
 	UpdateBounds();

@@ -34,15 +34,15 @@ void FMovieSceneNiagaraVectorParameterSectionTemplate::GetParameterValue(FFrameT
 	}
 	else if (ChannelsUsed == 3)
 	{
-		FVector const* CurrentValue = (FVector const*)InCurrentValueData.GetData();
-		FVector AnimatedValue = *CurrentValue;
+		FVector3f const* CurrentValue = (FVector3f const*)InCurrentValueData.GetData();
+		FVector3f AnimatedValue = *CurrentValue;
 
 		VectorChannels[0].Evaluate(InTime, AnimatedValue.X);
 		VectorChannels[1].Evaluate(InTime, AnimatedValue.Y);
 		VectorChannels[2].Evaluate(InTime, AnimatedValue.Z);
 
-		OutAnimatedValueData.AddUninitialized(sizeof(FVector));
-		FMemory::Memcpy(OutAnimatedValueData.GetData(), (uint8*)&AnimatedValue, sizeof(FVector));
+		OutAnimatedValueData.AddUninitialized(sizeof(FVector3f));
+		FMemory::Memcpy(OutAnimatedValueData.GetData(), (uint8*)&AnimatedValue, sizeof(FVector3f));
 	}
 	else if (ChannelsUsed == 4)
 	{

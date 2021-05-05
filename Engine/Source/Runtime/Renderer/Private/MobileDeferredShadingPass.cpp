@@ -47,9 +47,9 @@ class FMobileDirectLightFunctionPS : public FMaterialShader
 		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionsParameters)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCaptureData)
 		SHADER_PARAMETER_STRUCT_REF(FPlanarReflectionUniformParameters, PlanarReflection) // Single global planar reflection.
-		SHADER_PARAMETER(FMatrix, WorldToLight)
+		SHADER_PARAMETER(FMatrix44f, WorldToLight)
 		SHADER_PARAMETER(FVector4, LightFunctionParameters)
-		SHADER_PARAMETER(FVector, LightFunctionParameters2)
+		SHADER_PARAMETER(FVector3f, LightFunctionParameters2)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -131,9 +131,9 @@ public:
 	using FPermutationDomain = TShaderPermutationDomain<FSpotLightDim, FInverseSquaredDim, FIESProfileDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FMatrix, WorldToLight)
+		SHADER_PARAMETER(FMatrix44f, WorldToLight)
 		SHADER_PARAMETER(FVector4, LightFunctionParameters)
-		SHADER_PARAMETER(FVector, LightFunctionParameters2)
+		SHADER_PARAMETER(FVector3f, LightFunctionParameters2)
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLightUniforms)
 		SHADER_PARAMETER_TEXTURE(Texture2D, IESTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, IESTextureSampler)

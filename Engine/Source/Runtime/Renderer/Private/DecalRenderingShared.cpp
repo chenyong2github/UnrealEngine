@@ -52,7 +52,7 @@ public:
 		FrustumComponentToClip.Bind(Initializer.ParameterMap, TEXT("FrustumComponentToClip"));
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FMatrix& InFrustumComponentToClip)
+	void SetParameters(FRHICommandList& RHICmdList, const FMatrix44f& InFrustumComponentToClip)
 	{
 		FRHIVertexShader* ShaderRHI = RHICmdList.GetBoundVertexShader();
 		SetShaderValue(RHICmdList, ShaderRHI, FrustumComponentToClip, InFrustumComponentToClip);
@@ -105,7 +105,7 @@ public:
 
 		FTransform ComponentTrans = DecalProxy.ComponentTrans;
 
-		FMatrix WorldToComponent = ComponentTrans.ToInverseMatrixWithScale();
+		FMatrix44f WorldToComponent = ComponentTrans.ToInverseMatrixWithScale();
 
 		// Set the transform from screen space to light space.
 		if(SvPositionToDecal.IsBound())
@@ -124,7 +124,7 @@ public:
 			float Ay = 1.0f + 2.0f * View.ViewRect.Min.Y * InvViewSize.Y;
 
 			// todo: we could use InvTranslatedViewProjectionMatrix and TranslatedWorldToComponent for better quality
-			const FMatrix SvPositionToDecalValue = 
+			const FMatrix44f SvPositionToDecalValue = 
 				FMatrix(
 					FPlane(Mx,  0,   0,  0),
 					FPlane( 0, My,   0,  0),
@@ -138,7 +138,7 @@ public:
 		// Set the transform from light space to world space
 		if(DecalToWorld.IsBound())
 		{
-			const FMatrix DecalToWorldValue = ComponentTrans.ToMatrixWithScale();
+			const FMatrix44f DecalToWorldValue = ComponentTrans.ToMatrixWithScale();
 			
 			SetShaderValue(RHICmdList, ShaderRHI, DecalToWorld, DecalToWorldValue);
 		}
@@ -148,7 +148,7 @@ public:
 		if (DecalOrientation.IsBound())
 		{
 			// can get DecalOrientation form DecalToWorld matrix, but it will require binding whole matrix and normalizing axis in the shader
-			SetShaderValue(RHICmdList, ShaderRHI, DecalOrientation, ComponentTrans.GetUnitAxis(EAxis::X));
+			SetShaderValue(RHICmdList, ShaderRHI, DecalOrientation, FVector3f(ComponentTrans.GetUnitAxis(EAxis::X)));
 		}
 		
 		float LifetimeAlpha = 1.0f;

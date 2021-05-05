@@ -75,7 +75,7 @@ void UStaticMeshDescription::CreateCube(FVector Center, FVector HalfExtents, FPo
 										FPolygonID& PolygonID_MinusZ)
 {
 	FMeshDescription& MeshDescription = GetMeshDescription();
-	TVertexAttributesRef<FVector> Positions = GetVertexPositions();
+	TVertexAttributesRef<FVector3f> Positions = GetVertexPositions();
 
 	FVertexID VertexIDs[8];
 

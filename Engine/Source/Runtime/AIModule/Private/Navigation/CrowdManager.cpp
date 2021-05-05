@@ -459,7 +459,7 @@ bool UCrowdManager::SetAgentMoveTarget(const UCrowdFollowingComponent* AgentComp
 		DetourCrowd->updateAgentFilter(AgentData->AgentIndex, DetourFilter);
 		DetourCrowd->updateAgentState(AgentData->AgentIndex, false);
 
-		const FVector RcTargetPos = Unreal2RecastPoint(MoveTarget);
+		const FVector3f RcTargetPos = Unreal2RecastPoint(MoveTarget);
 		bSuccess = DetourCrowd->requestMoveTarget(AgentData->AgentIndex, ProjectedLoc.NodeRef, &RcTargetPos.X);
 	}
 #endif
@@ -479,7 +479,7 @@ bool UCrowdManager::SetAgentMoveDirection(const UCrowdFollowingComponent* AgentC
 	{
 		DetourCrowd->updateAgentState(AgentData->AgentIndex, false);
 
-		const FVector RcTargetVelocity = Unreal2RecastPoint(MoveDirection * AgentComponent->GetCrowdAgentMaxSpeed());
+		const FVector3f RcTargetVelocity = Unreal2RecastPoint(MoveDirection * AgentComponent->GetCrowdAgentMaxSpeed());
 		bSuccess = DetourCrowd->requestMoveVelocity(AgentData->AgentIndex, &RcTargetVelocity.X);
 	}
 #endif
@@ -519,7 +519,7 @@ bool UCrowdManager::SetAgentMovePath(const UCrowdFollowingComponent* AgentCompon
 		DetourCrowd->updateAgentFilter(AgentData->AgentIndex, DetourFilter);
 		DetourCrowd->updateAgentState(AgentData->AgentIndex, false);
 
-		const FVector RcTargetPos = Unreal2RecastPoint(TargetPos);
+		const FVector3f RcTargetPos = Unreal2RecastPoint(TargetPos);
 		bSuccess = DetourCrowd->requestMoveTarget(AgentData->AgentIndex, PathRefs.Last(), &RcTargetPos.X);
 		if (bSuccess)
 		{
@@ -724,7 +724,7 @@ void UCrowdManager::AddAgent(const ICrowdAgentInterface* Agent, FCrowdAgentData&
 
 	Params.linkFilter = MyLinkFilter;
 
-	const FVector RcAgentPos = Unreal2RecastPoint(Agent->GetCrowdAgentLocation());
+	const FVector3f RcAgentPos = Unreal2RecastPoint(Agent->GetCrowdAgentLocation());
 	const dtQueryFilter* DefaultFilter = ((const FRecastQueryFilter*)MyNavData->GetDefaultQueryFilterImpl())->GetAsDetourQueryFilter();
 
 	AgentData.AgentIndex = DetourCrowd->addAgent(&RcAgentPos.X, Params, DefaultFilter);
@@ -788,8 +788,8 @@ void UCrowdManager::PrepareAgentStep(const ICrowdAgentInterface* Agent, FCrowdAg
 	dtCrowdAgent* ag = (dtCrowdAgent*)DetourCrowd->getAgent(AgentData.AgentIndex);
 	ag->params.maxSpeed = Agent->GetCrowdAgentMaxSpeed();
 
-	FVector RcLocation = Unreal2RecastPoint(Agent->GetCrowdAgentLocation());
-	FVector RcVelocity = Unreal2RecastPoint(Agent->GetCrowdAgentVelocity());
+	FVector3f RcLocation = Unreal2RecastPoint(Agent->GetCrowdAgentLocation());
+	FVector3f RcVelocity = Unreal2RecastPoint(Agent->GetCrowdAgentVelocity());
 
 	dtVcopy(ag->npos, &RcLocation.X);
 	dtVcopy(ag->vel, &RcVelocity.X);
@@ -1441,7 +1441,7 @@ void UCrowdManager::PostMovePointUpdate()
 
 			const dtCrowdAgent* Agent = DetourCrowd->getAgent(AgentData.AgentIndex);
 			dtCrowdAgent* MutableAgent = (dtCrowdAgent*)Agent;
-			const FVector RcTargetPos = Unreal2RecastPoint(NewGoalPosition);
+			const FVector3f RcTargetPos = Unreal2RecastPoint(NewGoalPosition);
 		
 			dtVcopy(MutableAgent->targetPos, &RcTargetPos.X);
 			AgentFlags[AgentData.AgentIndex] |= UpdateDestinationFlag;

@@ -103,14 +103,14 @@ struct FMixedPolyMesh
 struct FVertexDataMesh
 {
 	TArray<uint32>    Indices;
-	TArray<FVector>   Points;
+	TArray<FVector3f>   Points;
 
-	TArray<FVector>   Normal;
-	TArray<FVector>   Tangent;
-	TArray<FVector>   BiTangent;
+	TArray<FVector3f>   Normal;
+	TArray<FVector3f>   Tangent;
+	TArray<FVector3f>   BiTangent;
 
 	// Optional. Used for ray shooting when transfering materials.
-	TArray<FVector>   TransferNormal;
+	TArray<FVector3f>   TransferNormal;
 
 	// stores information about the tangentspace
 	// 1 = right handed.  -1 left handed
@@ -156,7 +156,7 @@ public:
 	openvdb::Vec3I GetFace(int32 FaceNumber) const;
 	
 	// Get an array of positions only.
-	void GetPosArray(std::vector<FVector>& PosArray) const;
+	void GetPosArray(std::vector<FVector3f>& PosArray) const;
 	
 
 	// This method is for testing only.  Not designed for perf.
@@ -234,7 +234,7 @@ private:
 	//Cache data
 	void InitializeCacheData();
 	uint32 TriangleCount;
-	TVertexAttributesConstRef<FVector> VertexPositions;
+	TVertexAttributesConstRef<FVector3f> VertexPositions;
 	// Local version of the index array.  The FMeshDescription doesn't really have one.
 	TArray<FVertexInstanceID> IndexBuffer;
 
@@ -332,11 +332,11 @@ public:
 		int32   FaceMaterialIndex;
 
 		uint32  FaceSmoothingMask;
-		FVector VertexPositions[3];
+		FVector3f VertexPositions[3];
 
-		FVector   WedgeTangentX[3];
-		FVector   WedgeTangentY[3];
-		FVector   WedgeTangentZ[3];
+		FVector3f   WedgeTangentX[3];
+		FVector3f   WedgeTangentY[3];
+		FVector3f   WedgeTangentZ[3];
 
 		FVector2D WedgeTexCoords[MAX_MESH_TEXTURE_COORDS_MD][3];
 
@@ -361,9 +361,9 @@ public:
 			FaceSmoothingMasks.AddZeroed(TriangleCount);
 			FStaticMeshOperations::ConvertHardEdgesToSmoothGroup(*MeshDescription, FaceSmoothingMasks);
 		}
-		TVertexAttributesConstRef<FVector> VertexPositions;
-		TVertexInstanceAttributesConstRef<FVector> VertexInstanceNormals;
-		TVertexInstanceAttributesConstRef<FVector> VertexInstanceTangents;
+		TVertexAttributesConstRef<FVector3f> VertexPositions;
+		TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceNormals;
+		TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceTangents;
 		TVertexInstanceAttributesConstRef<float> VertexInstanceBinormalSigns;
 		TVertexInstanceAttributesConstRef<FVector4> VertexInstanceColors;
 		TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs;
@@ -500,7 +500,7 @@ public:
 		* @return FRawyPoly  Stuct holding all the data associated with the closest poly in the reference geometry.
 		*/
 		FMeshDescriptionArrayAdapter::FRawPoly  Get(const openvdb::Vec3d& WorldPos, bool& bSuccess) const;
-		FMeshDescriptionArrayAdapter::FRawPoly  Get(const FVector& WorldPos, bool& bSuccess) const
+		FMeshDescriptionArrayAdapter::FRawPoly  Get(const FVector3f& WorldPos, bool& bSuccess) const
 		{
 			return this->Get(openvdb::Vec3d(WorldPos.X, WorldPos.Y, WorldPos.Z), bSuccess);
 		}
@@ -644,7 +644,7 @@ openvdb::Vec3I TAOSMesh<SimplifierVertexType>::GetFace(int32 FaceNumber) const
 }
 
 template <typename SimplifierVertexType>
-void TAOSMesh<SimplifierVertexType>::GetPosArray(std::vector<FVector>& PosArray) const
+void TAOSMesh<SimplifierVertexType>::GetPosArray(std::vector<FVector3f>& PosArray) const
 {
 	// resize the target array
 	PosArray.resize(NumVertexes);
@@ -652,7 +652,7 @@ void TAOSMesh<SimplifierVertexType>::GetPosArray(std::vector<FVector>& PosArray)
 	// copy the data over.
 	ProxyLOD::Parallel_For(ProxyLOD::FUIntRange(0, NumVertexes), [this, &PosArray](const ProxyLOD::FUIntRange& Range)
 	{
-		FVector* Pos = PosArray.data();
+		FVector3f* Pos = PosArray.data();
 		FPositionNormalVertex* VertexArray = this->Vertexes;
 
 

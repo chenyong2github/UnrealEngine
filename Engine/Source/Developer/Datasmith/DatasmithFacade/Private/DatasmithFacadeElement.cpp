@@ -94,7 +94,7 @@ FVector FDatasmithFacadeElement::ConvertTranslation(
 	FVector const& InVertex
 )
 {
-	return ConvertPosition(InVertex.X, InVertex.Y, InVertex.Z);
+	return ConvertPosition((float)InVertex.X, (float)InVertex.Y, (float)InVertex.Z);	// LWC_TODO: Precision loss
 }
 
 void FDatasmithFacadeElement::ExportAsset(

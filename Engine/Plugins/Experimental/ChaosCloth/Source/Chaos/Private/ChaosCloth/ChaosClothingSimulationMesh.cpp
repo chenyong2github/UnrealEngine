@@ -205,7 +205,7 @@ bool FClothingSimulationMesh::WrapDeformLOD(
 }
 
 // Inline function used to force the unrolling of the skinning loop
-FORCEINLINE static void AddInfluence(FVector& OutPosition, FVector& OutNormal, const FVector& RefParticle, const FVector& RefNormal, const FMatrix& BoneMatrix, const FRealSingle Weight)
+FORCEINLINE static void AddInfluence(FVector& OutPosition, FVector& OutNormal, const FVector3f& RefParticle, const FVector3f& RefNormal, const FMatrix44f& BoneMatrix, const FRealSingle Weight)
 {
 	OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
 	OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
@@ -232,7 +232,7 @@ void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const FVec3& Local
 	FMemory::Memzero((uint8*)OutNormals, NumPoints * sizeof(FVec3));    // instead of changing this function to work with uninitialized memory
 
 	const int32* const RESTRICT BoneMap = Asset->UsedBoneIndices.GetData();
-	const FMatrix* const RESTRICT BoneMatrices = Context->RefToLocals.GetData();
+	const FMatrix44f* const RESTRICT BoneMatrices = Context->RefToLocals.GetData();
 		
 	static const uint32 MinParallelVertices = 500;  // 500 seems to be the lowest threshold still giving gains even on profiled assets that are only using a small number of influences
 

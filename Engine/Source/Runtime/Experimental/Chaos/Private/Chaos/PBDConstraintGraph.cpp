@@ -177,7 +177,7 @@ void FPBDConstraintGraph::InitializeGraph(const TParticleView<FGeometryParticles
 		// Update nodes may contain duplicate entries. To process in parallel we either need to prevent that, 
 		// or ensure we only process the first entry of a dupe. We are doing the latter for now...
 		UpdatedNodes.Sort();
-		ParallelFor(UpdatedNodes.Num(), 
+		PhysicsParallelFor(UpdatedNodes.Num(), 
 			[&](int32 Index)
 			{
 				if ((Index == 0) || (UpdatedNodes[Index] != UpdatedNodes[Index - 1]))
@@ -378,7 +378,7 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<FPBDRigidParticles>
 	}
 
 	// Instead of iterating over every node to reset Island, only iterate over the ones we care about for the following ComputeIslands algorithm to work 
-	ParallelFor(Edges.Num(), [&](int32 Idx)
+	PhysicsParallelFor(Edges.Num(), [&](int32 Idx)
 	{
 		const FGraphEdge& Edge = Edges[Idx];
 		Nodes[Edge.FirstNode].Island = INDEX_NONE;
@@ -753,8 +753,8 @@ bool FPBDConstraintGraph::SleepInactive(const int32 Island, const TArrayCollecti
 
 				if (!bThresholdsSet)
 				{
-					LinearSleepingThreshold = FMath::Min(LinearSleepingThreshold, ChaosSolverCollisionDefaultLinearSleepThresholdCVar);
-					AngularSleepingThreshold = FMath::Min(AngularSleepingThreshold, ChaosSolverCollisionDefaultAngularSleepThresholdCVar);
+					LinearSleepingThreshold = FMath::Min(LinearSleepingThreshold, (FReal)ChaosSolverCollisionDefaultLinearSleepThresholdCVar);
+					AngularSleepingThreshold = FMath::Min(AngularSleepingThreshold, (FReal)ChaosSolverCollisionDefaultAngularSleepThresholdCVar);
 					SleepCounterThreshold = FMath::Max(SleepCounterThreshold, ChaosSolverCollisionDefaultSleepCounterThresholdCVar);
 				}
 			}

@@ -4003,8 +4003,8 @@ public:
 			bool bCorrupted = false;
 			if (GPakCache_ForceDecompressionFails && FMath::FRand() < 0.001f)
 			{
-				int32 CorruptOffset = FMath::Clamp(int32(FMath::FRandRange(0, Block.RawSize - 1)), 0, Block.RawSize - 1);
-				uint8 CorruptValue = uint8(FMath::Clamp(int32(FMath::FRandRange(0, 255)), 0, 255));
+				int32 CorruptOffset = FMath::Clamp(int32(FMath::FRandRange(0.f, Block.RawSize - 1.f)), 0, Block.RawSize - 1);
+				uint8 CorruptValue = uint8(FMath::Clamp(int32(FMath::FRandRange(0.f, 255.f)), 0, 255));
 				if (Block.Raw[CorruptOffset] != CorruptValue)
 				{
 					UE_LOG(LogPakFile, Error, TEXT("Forcing corruption of decompression source data (predecryption) to verify panic read recovery.  Offset = %d, Value = 0x%x"), CorruptOffset, int32(CorruptValue));

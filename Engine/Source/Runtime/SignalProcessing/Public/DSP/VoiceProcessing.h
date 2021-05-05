@@ -47,15 +47,15 @@ namespace Audio
 		FMovingVectorAverager(uint32 NumSamples);
 
 		// Returns average amplitude across the internal buffer, and fills Output with the delay line output.
-		float ProcessAudio(const VectorRegister& Input, VectorRegister& Output);
+		float ProcessAudio(const VectorRegister4Float& Input, VectorRegister4Float& Output);
 
 	private:
 		FMovingVectorAverager();
 
-		TArray<VectorRegister> AudioBuffer;
+		TArray<VectorRegister4Float> AudioBuffer;
 		int32 BufferCursor;
 
-		VectorRegister AccumulatedSum;
+		VectorRegister4Float AccumulatedSum;
 
 		// Contended by ProcessInput and SetNumSamples.
 		FCriticalSection ProcessCriticalSection;

@@ -103,31 +103,31 @@ bool FCameraShakeSingleInstanceRestartTest::RunTest(const FString& Parameters)
 	FMinimalViewInfo ViewInfo;
 	TestShake->StartShake(nullptr, 1.f, ECameraShakePlaySpace::CameraLocal);
 
-	const float Tolerance =	KINDA_SMALL_NUMBER;
+	const FVector::FReal Tolerance =	KINDA_SMALL_NUMBER;
 
 	// Go to 0.25sec.
 	ViewInfo.Location = FVector::ZeroVector;
 	ViewInfo.Rotation = FRotator::ZeroRotator;
 	TestShake->UpdateAndApplyCameraShake(0.25f, 1.f, ViewInfo);
-	UTEST_EQUAL_TOLERANCE("First update", ViewInfo.Location.X, 0.25f * 8.f * FMath::Sin(PI / 2.f), Tolerance);
+	UTEST_EQUAL_TOLERANCE("First update", ViewInfo.Location.X, 0.25f * 8.f * (FVector::FReal)FMath::Sin(PI / 2.f), Tolerance);
 
 	// Go to 0.5sec.
 	ViewInfo.Location = FVector::ZeroVector;
 	ViewInfo.Rotation = FRotator::ZeroRotator;
 	TestShake->UpdateAndApplyCameraShake(0.25f, 1.f, ViewInfo);
-	UTEST_EQUAL_TOLERANCE("Second update", ViewInfo.Location.X, 0.5f * 8.f * FMath::Sin(PI), Tolerance);
+	UTEST_EQUAL_TOLERANCE("Second update", ViewInfo.Location.X, 0.5f * 8.f * (FVector::FReal)FMath::Sin(PI), Tolerance);
 
 	// Go to 1sec.
 	ViewInfo.Location = FVector::ZeroVector;
 	ViewInfo.Rotation = FRotator::ZeroRotator;
 	TestShake->UpdateAndApplyCameraShake(0.5f, 1.f, ViewInfo);
-	UTEST_EQUAL_TOLERANCE("Third update", ViewInfo.Location.X, 8.f * FMath::Sin(2.f * PI), Tolerance);
+	UTEST_EQUAL_TOLERANCE("Third update", ViewInfo.Location.X, 8.f * (FVector::FReal)FMath::Sin(2.f * PI), Tolerance);
 
 	// Go to 4sec.
 	ViewInfo.Location = FVector::ZeroVector;
 	ViewInfo.Rotation = FRotator::ZeroRotator;
 	TestShake->UpdateAndApplyCameraShake(3.f, 1.f, ViewInfo);
-	UTEST_EQUAL_TOLERANCE("Fourth update", ViewInfo.Location.X, 0.5f * 8.f * FMath::Sin(8.f * PI), Tolerance);
+	UTEST_EQUAL_TOLERANCE("Fourth update", ViewInfo.Location.X, 0.5f * 8.f * (FVector::FReal)FMath::Sin(8.f * PI), Tolerance);
 
 	// Restart in the middle of the blend-out... we were at 50% so it should reset us
 	// at the equivalent point in the blend-in.
@@ -137,13 +137,13 @@ bool FCameraShakeSingleInstanceRestartTest::RunTest(const FString& Parameters)
 	ViewInfo.Location = FVector::ZeroVector;
 	ViewInfo.Rotation = FRotator::ZeroRotator;
 	TestShake->UpdateAndApplyCameraShake(0.25f, 1.f, ViewInfo);
-	UTEST_EQUAL_TOLERANCE("Fifth update", ViewInfo.Location.X, 0.75f * 8.f * FMath::Sin(PI / 2.f), Tolerance);
+	UTEST_EQUAL_TOLERANCE("Fifth update", ViewInfo.Location.X, 0.75f * 8.f * (FVector::FReal)FMath::Sin(PI / 2.f), Tolerance);
 
 	// Go to 0.5sec (but now the blend-in is finished).
 	ViewInfo.Location = FVector::ZeroVector;
 	ViewInfo.Rotation = FRotator::ZeroRotator;
 	TestShake->UpdateAndApplyCameraShake(0.25f, 1.f, ViewInfo);
-	UTEST_EQUAL_TOLERANCE("Sixth update", ViewInfo.Location.X, 8.f * FMath::Sin(PI), Tolerance);
+	UTEST_EQUAL_TOLERANCE("Sixth update", ViewInfo.Location.X, 8.f * (FVector::FReal)FMath::Sin(PI), Tolerance);
 
 	return true;
 }

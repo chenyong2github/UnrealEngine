@@ -43,9 +43,9 @@ void FMeshCreator::SetFrontAndBevelTextureCoordinates(const float Bevel)
 	const int32 FirstVertex = Groups[GroupIndex].FirstVertex;
 	const int32 LastVertex = Groups[GroupIndex + 1].FirstVertex;
 
-	TVertexAttributesConstRef<FVector> Positions = Glyph->GetStaticMeshAttributes().GetVertexPositions();
+	TVertexAttributesConstRef<FVector3f> Positions = Glyph->GetStaticMeshAttributes().GetVertexPositions();
 
-	const FVector& FirstPosition = Positions[FVertexID(FirstVertex)];
+	const FVector3f& FirstPosition = Positions[FVertexID(FirstVertex)];
 	const FVector2D PositionFlat = { FirstPosition.Y, FirstPosition.Z };
 
 	Box.Min = PositionFlat;
@@ -54,7 +54,7 @@ void FMeshCreator::SetFrontAndBevelTextureCoordinates(const float Bevel)
 
 	for (int32 VertexIndex = FirstVertex + 1; VertexIndex < LastVertex; VertexIndex++)
 	{
-		const FVector& Position = Positions[FVertexID(VertexIndex)];
+		const FVector3f& Position = Positions[FVertexID(VertexIndex)];
 
 		Box.Min.X = FMath::Min(Box.Min.X, Position.Y);
 		Box.Min.Y = FMath::Min(Box.Min.Y, Position.Z);
@@ -63,7 +63,7 @@ void FMeshCreator::SetFrontAndBevelTextureCoordinates(const float Bevel)
 	}
 
 	FStaticMeshAttributes& StaticMeshAttributes = Glyph->GetStaticMeshAttributes();
-	TVertexAttributesRef<FVector> VertexPositions = StaticMeshAttributes.GetVertexPositions();
+	TVertexAttributesRef<FVector3f> VertexPositions = StaticMeshAttributes.GetVertexPositions();
 	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = StaticMeshAttributes.GetVertexInstanceUVs();
 
 	auto SetTextureCoordinates = [Groups, VertexPositions, VertexInstanceUVs, &Box](const EText3DGroupType Type)
@@ -313,9 +313,9 @@ void FMeshCreator::MirrorGroup(const EText3DGroupType TypeIn, const EText3DGroup
 	Data->AddVertices(VerticesInNum);
 
 	FStaticMeshAttributes& StaticMeshAttributes = Glyph->GetStaticMeshAttributes();
-	TVertexAttributesRef<FVector> VertexPositions = StaticMeshAttributes.GetVertexPositions();
-	TVertexInstanceAttributesRef<FVector> VertexNormals = StaticMeshAttributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesRef<FVector> VertexTangents = StaticMeshAttributes.GetVertexInstanceTangents();
+	TVertexAttributesRef<FVector3f> VertexPositions = StaticMeshAttributes.GetVertexPositions();
+	TVertexInstanceAttributesRef<FVector3f> VertexNormals = StaticMeshAttributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesRef<FVector3f> VertexTangents = StaticMeshAttributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<FVector2D> VertexUVs = StaticMeshAttributes.GetVertexInstanceUVs();
 
 	for (int32 VertexIndex = 0; VertexIndex < VerticesInNum; VertexIndex++)

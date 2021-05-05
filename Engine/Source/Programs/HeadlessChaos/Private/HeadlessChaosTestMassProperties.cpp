@@ -145,7 +145,7 @@ namespace ChaosTest {
 						for (int InputInertiaAxisIndex = 0; InputInertiaAxisIndex < 3; ++InputInertiaAxisIndex)
 						{
 							FReal Dot = FVector::DotProduct(InputInertiaAxes[InputInertiaAxisIndex], OutputInertiaAxes[OutputInertiaAxisIndex]);
-							if (FMath::IsNearlyEqual(FMath::Abs(Dot), 1.0f, KINDA_SMALL_NUMBER))
+							if (FMath::IsNearlyEqual((FReal)FMath::Abs(Dot), (FReal)1., (FReal)KINDA_SMALL_NUMBER))
 							{
 								// We should only find each axis zero or one times
 								EXPECT_TRUE(MatchedInertiaAxis[InputInertiaAxisIndex] == INDEX_NONE);

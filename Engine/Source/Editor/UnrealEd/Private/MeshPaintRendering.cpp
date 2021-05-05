@@ -42,7 +42,7 @@ namespace MeshPaintRendering
 			TransformParameter.Bind( Initializer.ParameterMap, TEXT( "c_Transform" ) );
 		}
 
-		void SetParameters(FRHICommandList& RHICmdList, const FMatrix& InTransform )
+		void SetParameters(FRHICommandList& RHICmdList, const FMatrix44f& InTransform )
 		{
 			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), TransformParameter, InTransform );
 		}
@@ -97,7 +97,7 @@ namespace MeshPaintRendering
 				TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI(),
 				InShaderParams.CloneTexture->GetRenderTargetResource()->TextureRHI );
 
-			SetShaderValue(RHICmdList, ShaderRHI, WorldToBrushMatrixParameter, InShaderParams.WorldToBrushMatrix );
+			SetShaderValue(RHICmdList, ShaderRHI, WorldToBrushMatrixParameter, (FMatrix44f)InShaderParams.WorldToBrushMatrix );
 
 			FVector4 BrushMetrics;
 			BrushMetrics.X = InShaderParams.BrushRadius;
@@ -179,7 +179,7 @@ namespace MeshPaintRendering
 			TransformParameter.Bind( Initializer.ParameterMap, TEXT( "c_Transform" ) );
 		}
 
-		void SetParameters(FRHICommandList& RHICmdList, const FMatrix& InTransform )
+		void SetParameters(FRHICommandList& RHICmdList, const FMatrix44f& InTransform )
 		{
 			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), TransformParameter, InTransform );
 		}

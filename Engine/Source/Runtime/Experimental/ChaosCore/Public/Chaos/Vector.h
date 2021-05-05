@@ -79,7 +79,14 @@ namespace Chaos
 
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
 		template <int N=d, typename std::enable_if<N==3, int>::type = 0>
-		TVector(const FVector& Other)
+		TVector(const FVector3f& Other)	// LWC_TODO: Make this explicit for FReal = double
+		{
+			V[0] = static_cast<FElement>(Other.X);
+			V[1] = static_cast<FElement>(Other.Y);
+			V[2] = static_cast<FElement>(Other.Z); //-V557
+		}
+		template <int N = d, typename std::enable_if<N == 3, int>::type = 0>
+		TVector(const FVector3d& Other)
 		{
 			V[0] = static_cast<FElement>(Other.X);
 			V[1] = static_cast<FElement>(Other.Y);
@@ -365,38 +372,41 @@ namespace Chaos
 	};
 
 	template<>
-	class TVector<FReal, 3> : public FVector
+	class TVector<FReal, 3> : public UE::Math::TVector<FReal>
 	{
 	public:
-		using FVector::X;
-		using FVector::Y;
-		using FVector::Z;
+		using UE::Math::TVector<FReal>::X;
+		using UE::Math::TVector<FReal>::Y;
+		using UE::Math::TVector<FReal>::Z;
 
 		TVector()
-		    : FVector() {}
+		    : UE::Math::TVector<FReal>() {}
 		explicit TVector(const FReal x)
-		    : FVector(x, x, x) {}
+		    : UE::Math::TVector<FReal>(x, x, x) {}
 		TVector(const FReal x, const FReal y, const FReal z)
-		    : FVector(x, y, z) {}
-		TVector(const FVector& vec)
-		    : FVector(vec) {}
+		    : UE::Math::TVector<FReal>(x, y, z) {}
+		TVector(const UE::Math::TVector<FRealSingle>& vec)
+		    : UE::Math::TVector<FReal>((UE::Math::TVector<FReal>)vec) {}
+		TVector(const UE::Math::TVector<FRealDouble>& vec)					// LWC_TODO: Precision loss. Make explicit for FReal = FRealSingle?
+			: UE::Math::TVector<FReal>((UE::Math::TVector<FReal>)vec) {}
 		TVector(const FVector4& vec)
-		    : FVector(vec.X, vec.Y, vec.Z) {}
+		    : UE::Math::TVector<FReal>(vec.X, vec.Y, vec.Z) {}
 		TVector(std::istream& Stream)
 		{
 			Stream.read(reinterpret_cast<char*>(&X), sizeof(X));
 			Stream.read(reinterpret_cast<char*>(&Y), sizeof(Y));
 			Stream.read(reinterpret_cast<char*>(&Z), sizeof(Z));
 		}
+		//operator UE::Math::TVector<FRealDouble>() const { return UE::Math::TVector<FRealDouble>((FRealDouble)X, (FRealDouble)Y, (FRealDouble)Z); }
 		void Write(std::ostream& Stream) const
 		{
 			Stream.write(reinterpret_cast<const char*>(&X), sizeof(X));
 			Stream.write(reinterpret_cast<const char*>(&Y), sizeof(Y));
 			Stream.write(reinterpret_cast<const char*>(&Z), sizeof(Z));
 		}
-		static inline TVector<FReal, 3> Lerp(const TVector<FReal, 3>& V1, const TVector<FReal, 3>& V2, const FReal F) { return FMath::Lerp<FVector, FReal>(V1, V2, F); }
-		static inline TVector<FReal, 3> CrossProduct(const TVector<FReal, 3>& V1, const TVector<FReal, 3>& V2) { return FVector::CrossProduct(V1, V2); }
-		static inline FReal DotProduct(const TVector<FReal, 3>& V1, const TVector<FReal, 3>& V2) { return FVector::DotProduct(V1, V2); }
+		static inline TVector<FReal, 3> Lerp(const TVector<FReal, 3>& V1, const TVector<FReal, 3>& V2, const FReal F) { return FMath::Lerp<UE::Math::TVector<FReal>, FReal>(V1, V2, F); }
+		static inline TVector<FReal, 3> CrossProduct(const TVector<FReal, 3>& V1, const TVector<FReal, 3>& V2) { return UE::Math::TVector<FReal>::CrossProduct(V1, V2); }
+		static inline FReal DotProduct(const TVector<FReal, 3>& V1, const TVector<FReal, 3>& V2) { return UE::Math::TVector<FReal>::DotProduct(V1, V2); }
 		bool operator<=(const TVector<FReal, 3>& V) const
 		{
 			return X <= V.X && Y <= V.Y && Z <= V.Z;
@@ -619,11 +629,11 @@ namespace Chaos
 			const TVector<FReal, 2> max = Max(V1, V2);
 			if (max.X > max.Y)
 			{
-				return MakePair(max.X, 0);
+				return MakePair((FReal)max.X, 0);
 			}
 			else
 			{
-				return MakePair(max.Y, 1);
+				return MakePair((FReal)max.Y, 1);
 			}
 		}
 		template<class T2>
@@ -659,7 +669,7 @@ namespace Chaos
 		FORCEINLINE int32 Num() const { return 3; }
 		FORCEINLINE bool operator==(const TVector<T, 3>& Other) const { return X == Other.X && Y == Other.Y && Z == Other.Z; }
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
-		FORCEINLINE TVector(const FVector& Other)
+		FORCEINLINE TVector(const UE::Math::TVector<FReal>& Other)
 		{
 			X = static_cast<T>(Other.X);
 			Y = static_cast<T>(Other.Y);
@@ -938,9 +948,26 @@ namespace Chaos
 	template<typename T, int d>
 	FArchive& operator<<(FArchive& Ar, TVector<T, d>& ValueIn)
 	{
-		for (int32 Idx = 0; Idx < d; ++Idx)
+		constexpr bool bIsTypeReal = (TAreTypesEqual<FReal, T>::Value == true);
+		if(!Ar.IsPersistent())
 		{
-			Ar << ValueIn[Idx];
+			// unchanged type code path 
+			for (int32 Idx = 0; Idx < d; ++Idx)
+			{
+				Ar << ValueIn[Idx];
+			}
+
+		}
+		else 
+		{
+			// in that case data is stored as float and we need to read it as such		
+			ensure(Ar.IsLoading()); // this case should normally only happening when reading 
+			for (int32 Idx = 0; Idx < d; ++Idx)
+			{
+				FRealSingle RealSingle;
+				Ar << RealSingle;
+				ValueIn[Idx] = RealSingle;
+			}
 		}
 		return Ar;
 	}
@@ -954,3 +981,7 @@ namespace Chaos
 //	Seed ^= GetTypeHash(V[1]) + 0x9e3779b9 + (Seed << 6) + (Seed >> 2);
 //	return Seed;
 //}
+
+// LWC_TODO: UE::Math::TVector<FReal> construction from a chaos float vec3
+//inline UE::Math::TVector<FReal>::UE::Math::TVector<FReal>(const Chaos::TVector<float, 3>& ChaosVector) : X(ChaosVector.X), Y(ChaosVector.Y), Z(ChaosVector.Z) {}
+

@@ -20,6 +20,7 @@ struct FVector
 #endif
 };
 
+
 #ifndef EXPLICIT_VECTOR4
 #define EXPLICIT_VECTOR4 0
 #endif

@@ -854,4 +854,3 @@ void ConvertToMeshDescription(
 	FDynamicMeshToMeshDescription Converter;
 	Converter.Convert(&CombinedMesh, MeshOut, true);
 }
-

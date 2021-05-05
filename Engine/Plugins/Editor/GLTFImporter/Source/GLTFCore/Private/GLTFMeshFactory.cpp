@@ -27,8 +27,8 @@ namespace GLTF
 			int32                                          NumUVs,
 			bool                                           bMeshHasTagents,
 			bool                                           bMeshHasColors,
-			const TVertexInstanceAttributesRef<FVector>&   VertexInstanceNormals,
-			const TVertexInstanceAttributesRef<FVector>&   VertexInstanceTangents,
+			const TVertexInstanceAttributesRef<FVector3f>&   VertexInstanceNormals,
+			const TVertexInstanceAttributesRef<FVector3f>&   VertexInstanceTangents,
 			const TVertexInstanceAttributesRef<float>&     VertexInstanceBinormalSigns,
 			const TVertexInstanceAttributesRef<FVector2D>& VertexInstanceUVs,
 			const TVertexInstanceAttributesRef<FVector4>&  VertexInstanceColors,
@@ -163,11 +163,11 @@ namespace GLTF
 		const int32 NumUVs = FMath::Max(1, GetNumUVs(Mesh));
 
 		FStaticMeshAttributes StaticMeshAttributes(*MeshDescription);
-		TVertexAttributesRef<FVector> VertexPositions = StaticMeshAttributes.GetVertexPositions();
+		TVertexAttributesRef<FVector3f> VertexPositions = StaticMeshAttributes.GetVertexPositions();
 		TEdgeAttributesRef<bool>  EdgeHardnesses = StaticMeshAttributes.GetEdgeHardnesses();
 		TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = StaticMeshAttributes.GetPolygonGroupMaterialSlotNames();
-		TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = StaticMeshAttributes.GetVertexInstanceNormals();
-		TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = StaticMeshAttributes.GetVertexInstanceTangents();
+		TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = StaticMeshAttributes.GetVertexInstanceNormals();
+		TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = StaticMeshAttributes.GetVertexInstanceTangents();
 		TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = StaticMeshAttributes.GetVertexInstanceBinormalSigns();
 		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = StaticMeshAttributes.GetVertexInstanceUVs();
 		TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = StaticMeshAttributes.GetVertexInstanceColors();
@@ -245,8 +245,8 @@ namespace GLTF
 		int32                                          NumUVs,
 		bool                                           bMeshHasTagents,
 		bool                                           bMeshHasColors,
-		const TVertexInstanceAttributesRef<FVector>&   VertexInstanceNormals,
-		const TVertexInstanceAttributesRef<FVector>&   VertexInstanceTangents,
+		const TVertexInstanceAttributesRef<FVector3f>&   VertexInstanceNormals,
+		const TVertexInstanceAttributesRef<FVector3f>&   VertexInstanceTangents,
 		const TVertexInstanceAttributesRef<float>&     VertexInstanceBinormalSigns,
 		const TVertexInstanceAttributesRef<FVector2D>& VertexInstanceUVs,
 		const TVertexInstanceAttributesRef<FVector4>&  VertexInstanceColors,

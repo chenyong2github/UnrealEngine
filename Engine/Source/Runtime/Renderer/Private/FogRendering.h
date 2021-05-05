@@ -19,7 +19,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FFogUniformParameters,)
 	SHADER_PARAMETER(FVector4, InscatteringLightDirection) // non negative DirectionalInscatteringStartDistance in .W
 	SHADER_PARAMETER(FVector4, DirectionalInscatteringColor)
 	SHADER_PARAMETER(FVector2D, SinCosInscatteringColorCubemapRotation)
-	SHADER_PARAMETER(FVector, FogInscatteringTextureParameters)
+	SHADER_PARAMETER(FVector3f, FogInscatteringTextureParameters)
 	SHADER_PARAMETER(float, ApplyVolumetricFog)
 	SHADER_PARAMETER_TEXTURE(TextureCube, FogInscatteringColorCubemap)
 	SHADER_PARAMETER_SAMPLER(SamplerState, FogInscatteringColorSampler)

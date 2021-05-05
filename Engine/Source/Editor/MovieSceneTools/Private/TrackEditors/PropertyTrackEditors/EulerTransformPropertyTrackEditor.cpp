@@ -203,7 +203,7 @@ void FEulerTransformPropertyTrackEditor::GenerateKeysFromPropertyChanged( const 
 	FEulerTransform Transform           = PropertyChangedParams.GetPropertyValue<FEulerTransform>();
 	FEulerTransform RecomposedTransform = RecomposeTransform(Transform, PropertyChangedParams.ObjectsThatChanged[0], SectionToKey);
 
-	FVector Translation = RecomposedTransform.Location;
+	FVector3f Translation = RecomposedTransform.Location;
 	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(0, Translation.X, bKeyChannels[0]));
 	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(1, Translation.Y, bKeyChannels[1]));
 	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(2, Translation.Z, bKeyChannels[2]));
@@ -213,7 +213,7 @@ void FEulerTransformPropertyTrackEditor::GenerateKeysFromPropertyChanged( const 
 	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(4, Rotator.Pitch, bKeyChannels[4]));
 	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(5, Rotator.Yaw,   bKeyChannels[5]));
 
-	FVector Scale = RecomposedTransform.Scale;
+	FVector3f Scale = RecomposedTransform.Scale;
 	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(6, Scale.X, bKeyChannels[6]));
 	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(7, Scale.Y, bKeyChannels[7]));
 	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(8, Scale.Z, bKeyChannels[8]));

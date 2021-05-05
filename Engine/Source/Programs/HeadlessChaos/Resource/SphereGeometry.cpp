@@ -4,7 +4,7 @@
 namespace GeometryCollectionTest
 {
 
-	const TArray<Chaos::FReal> SphereGeometry::RawVertexArray = {
+	const TArray<float> SphereGeometry::RawVertexArray = {
 															0.000000, 0.000000, -100.000000,
 															0.000000, 21.962393, -97.558456,
 															20.887474, 6.786763, -97.558472,

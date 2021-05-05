@@ -556,7 +556,7 @@ bool PointInTriangle(const FVector2D& A, const FVector2D& B, const FVector2D& C,
 }
 
 /** Given three direction vectors, indicates if A and B are on the same 'side' of Vec. */
-bool VectorsOnSameSide(const FVector& Vec, const FVector& A, const FVector& B, const float SameSideDotProductEpsilon)
+bool VectorsOnSameSide(const FVector3f& Vec, const FVector3f& A, const FVector3f& B, const float SameSideDotProductEpsilon)
 {
 	const FVector CrossA = Vec ^ A;
 	const FVector CrossB = Vec ^ B;
@@ -565,7 +565,7 @@ bool VectorsOnSameSide(const FVector& Vec, const FVector& A, const FVector& B, c
 }
 
 /** Util to see if P lies within triangle created by A, B and C. */
-bool PointInTriangle(const FVector& A, const FVector& B, const FVector& C, const FVector& P)
+bool PointInTriangle(const FVector3f& A, const FVector3f& B, const FVector3f& C, const FVector3f& P)
 {
 	// Cross product indicates which 'side' of the vector the point is on
 	// If its on the same side as the remaining vert for all edges, then its inside.	
@@ -578,26 +578,26 @@ bool PointInTriangle(const FVector& A, const FVector& B, const FVector& C, const
 	return false;
 }
 
-FVector GetBaryCentric(const FVector& Point, const FVector& A, const FVector& B, const FVector& C)
+FVector3f GetBaryCentric(const FVector3f& Point, const FVector3f& A, const FVector3f& B, const FVector3f& C)
 {
 	// Compute the normal of the triangle
-	const FVector TriNorm = (B - A) ^ (C - A);
+	const FVector3f TriNorm = (B - A) ^ (C - A);
 
 	//check collinearity of A,B,C
 	if (TriNorm.SizeSquared() <= SMALL_NUMBER)
 	{
-		float DistA = FVector::DistSquared(Point, A);
-		float DistB = FVector::DistSquared(Point, B);
-		float DistC = FVector::DistSquared(Point, C);
+		float DistA = FVector3f::DistSquared(Point, A);
+		float DistB = FVector3f::DistSquared(Point, B);
+		float DistC = FVector3f::DistSquared(Point, C);
 		if(DistA <= DistB && DistA <= DistC)
 		{
-			return FVector(1.0f, 0.0f, 0.0f);
+			return FVector3f(1.0f, 0.0f, 0.0f);
 		}
 		if (DistB <= DistC)
 		{
-			return FVector(0.0f, 1.0f, 0.0f);
+			return FVector3f(0.0f, 1.0f, 0.0f);
 		}
-		return FVector(0.0f, 0.0f, 1.0f);
+		return FVector3f(0.0f, 0.0f, 1.0f);
 	}
 	return FMath::ComputeBaryCentric2D(Point, A, B, C);
 }
@@ -818,8 +818,8 @@ void ProjectTargetOnBase(const TArray<FSoftSkinVertex>& BaseVertices, const TArr
 				check(FoundIndexMatch != INDEX_NONE);
 				FTriangleElement& BestTriangle = Triangles[FoundIndexMatch];
 				//Found the surface area of the 3 barycentric triangles from the UVs
-				FVector BarycentricWeight;
-				BarycentricWeight = GetBaryCentric(FVector(TargetUV, 0.0f), FVector(BestTriangle.Vertices[0].UVs[0], 0.0f), FVector(BestTriangle.Vertices[1].UVs[0], 0.0f), FVector(BestTriangle.Vertices[2].UVs[0], 0.0f));
+				FVector3f BarycentricWeight;
+				BarycentricWeight = GetBaryCentric(FVector3f(TargetUV, 0.0f), FVector3f(BestTriangle.Vertices[0].UVs[0], 0.0f), FVector3f(BestTriangle.Vertices[1].UVs[0], 0.0f), FVector3f(BestTriangle.Vertices[2].UVs[0], 0.0f));
 				//Fill the target match
 				for (int32 Corner = 0; Corner < 3; ++Corner)
 				{
@@ -871,7 +871,7 @@ void CreateLODMorphTarget(USkeletalMesh* SkeletalMesh, FReductionBaseSkeletalMes
 		const TMap<uint32, uint32>& BaseIndexToMorphTargetDelta = PerMorphTargetBaseIndexToMorphTargetDelta[MorphTarget];
 		TArray<FMorphTargetDelta> NewMorphTargetDeltas;
 		TSet<uint32> CreatedTargetIndex;
-		TMap<FVector, TArray<uint32>> MorphTargetPerPosition;
+		TMap<FVector3f, TArray<uint32>> MorphTargetPerPosition;
 		const FMorphTargetLODModel& BaseMorphModel = MorphTarget->MorphLODModels[SourceLOD];
 		//Iterate each original morph target source index to fill the NewMorphTargetDeltas array with the TargetMatchData.
 		const TArray<FMorphTargetDelta>& Vertices = bUseBaseMorphDelta ? *BaseMorphDeltas : BaseMorphModel.Vertices;
@@ -892,7 +892,7 @@ void CreateLODMorphTarget(USkeletalMesh* SkeletalMesh, FReductionBaseSkeletalMes
 					continue;
 				}
 				CreatedTargetIndex.Add(TargetIndex);
-				const FVector& SearchPosition = TargetVertices[TargetIndex].Position;
+				const FVector3f& SearchPosition = TargetVertices[TargetIndex].Position;
 				FMorphTargetDelta MatchMorphDelta;
 				MatchMorphDelta.SourceIdx = TargetIndex;
 
@@ -907,8 +907,8 @@ void CreateLODMorphTarget(USkeletalMesh* SkeletalMesh, FReductionBaseSkeletalMes
 					if (BaseMorphTargetIndexPtr != nullptr && Vertices.IsValidIndex(*BaseMorphTargetIndexPtr))
 					{
 						const FMorphTargetDelta& BaseMorphTargetDelta = Vertices[*BaseMorphTargetIndexPtr];
-						FVector BasePositionDelta = !BaseMorphTargetDelta.PositionDelta.ContainsNaN() ? BaseMorphTargetDelta.PositionDelta : FVector(0.0f);
-						FVector BaseTangentZDelta = !BaseMorphTargetDelta.TangentZDelta.ContainsNaN() ? BaseMorphTargetDelta.TangentZDelta : FVector(0.0f);
+						FVector3f BasePositionDelta = !BaseMorphTargetDelta.PositionDelta.ContainsNaN() ? BaseMorphTargetDelta.PositionDelta : FVector3f(0.0f);
+						FVector3f BaseTangentZDelta = !BaseMorphTargetDelta.TangentZDelta.ContainsNaN() ? BaseMorphTargetDelta.TangentZDelta : FVector3f(0.0f);
 						MatchMorphDelta.PositionDelta += BasePositionDelta * TargetMatch.BarycentricWeight[Corner];
 						MatchMorphDelta.TangentZDelta += BaseTangentZDelta * TargetMatch.BarycentricWeight[Corner];
 					}
@@ -922,8 +922,8 @@ void CreateLODMorphTarget(USkeletalMesh* SkeletalMesh, FReductionBaseSkeletalMes
 				if (MorphTargetsIndexUsingPosition != nullptr)
 				{
 					//Get the maximum position/tangent delta for the existing matched morph delta
-					FVector PositionDelta = MatchMorphDelta.PositionDelta;
-					FVector TangentZDelta = MatchMorphDelta.TangentZDelta;
+					FVector3f PositionDelta = MatchMorphDelta.PositionDelta;
+					FVector3f TangentZDelta = MatchMorphDelta.TangentZDelta;
 					for (uint32 ExistingMorphTargetIndex : *MorphTargetsIndexUsingPosition)
 					{
 						const FMorphTargetDelta& ExistingMorphDelta = NewMorphTargetDeltas[ExistingMorphTargetIndex];
@@ -1669,10 +1669,10 @@ void MatchVertexIndexUsingPosition(
 
 	//This lambda store a source vertex index -> source wedge index destination triangle.
 	//It use a barycentric function to determine the impact on the 3 corner of the triangle.
-	auto AddMatchTriangle = [&ImportDataDest, &TrianglesDest, &VertexIndexSrcToVertexIndexDestMatches](const FTriangleElement& BestTriangle, const FVector& Position, const uint32 VertexIndexSrc)
+	auto AddMatchTriangle = [&ImportDataDest, &TrianglesDest, &VertexIndexSrcToVertexIndexDestMatches](const FTriangleElement& BestTriangle, const FVector3f& Position, const uint32 VertexIndexSrc)
 	{
 		//Found the surface area of the 3 barycentric triangles from the UVs
-		FVector BarycentricWeight;
+		FVector3f BarycentricWeight;
 		BarycentricWeight = GetBaryCentric(Position, BestTriangle.Vertices[0].Position, BestTriangle.Vertices[1].Position, BestTriangle.Vertices[2].Position);
 		//Fill the match
 		VertexMatchNameSpace::FVertexMatchResult& VertexMatchDest = VertexIndexSrcToVertexIndexDestMatches.FindOrAdd(VertexIndexSrc);
@@ -1696,7 +1696,7 @@ void MatchVertexIndexUsingPosition(
 
 	for (int32 VertexIndexSrc : VertexIndexToMatchWithPositions)
 	{
-		FVector PositionSrc = ImportDataSrc.Points[VertexIndexSrc];
+		FVector3f PositionSrc = ImportDataSrc.Points[VertexIndexSrc];
 		OcTreeTriangleResults.Reset();
 
 		//Use the OcTree to find closest triangle
@@ -1876,7 +1876,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	// Sort the vertices by z value
 	VertIndexAndZ.Sort(FCompareIndexAndZ());
 	
-	auto FindSimilarPosition = [&VertIndexAndZ, &ImportDataDest](const FVector& Position, TArray<int32>& PositionMatches, const float ComparisonThreshold)
+	auto FindSimilarPosition = [&VertIndexAndZ, &ImportDataDest](const FVector3f& Position, TArray<int32>& PositionMatches, const float ComparisonThreshold)
 	{
 		PositionMatches.Reset();
 		FIndexAndZ PositionZ = FIndexAndZ(0, Position);
@@ -1892,7 +1892,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 				break;
 			}
 
-			const FVector& PositionA = ImportDataDest.Points[VertIndexAndZ[i].Index];
+			const FVector3f& PositionA = ImportDataDest.Points[VertIndexAndZ[i].Index];
 			if (PointsEqual(PositionA, Position, ComparisonThreshold))
 			{
 				PositionMatches.Add(VertIndexAndZ[i].Index);
@@ -1901,11 +1901,11 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	};
 
 	//Create a map linking all similar Position of destination vertex index
-	TMap<FVector, TArray<uint32>> PositionToVertexIndexDest;
+	TMap<FVector3f, TArray<uint32>> PositionToVertexIndexDest;
 	PositionToVertexIndexDest.Reserve(VertexNumberSrc);
 	for (int32 VertexIndex = 0; VertexIndex < VertexNumberDest; ++VertexIndex)
 	{
-		const FVector& Position = ImportDataDest.Points[VertexIndex];
+		const FVector3f& Position = ImportDataDest.Points[VertexIndex];
 		TArray<uint32>& VertexIndexArray = PositionToVertexIndexDest.FindOrAdd(Position);
 		VertexIndexArray.Add(VertexIndex);
 	}
@@ -1921,7 +1921,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	// Match all source vertex with destination vertex
 	for (int32 VertexIndexSrc = 0; VertexIndexSrc < PointNumberSrc; ++VertexIndexSrc)
 	{
-		const FVector& PositionSrc = ImportDataSrc.Points[VertexIndexSrc];
+		const FVector3f& PositionSrc = ImportDataSrc.Points[VertexIndexSrc];
 		
 		TArray<int32> SimilarDestinationVertex;
 		FindSimilarPosition(PositionSrc, SimilarDestinationVertex, KINDA_SMALL_NUMBER);
@@ -2123,7 +2123,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	//Prepare the build data to rebuild the asset with the alternate influences
 	//The chunking can be different when we have alternate influences
 	//Grab the build data from ImportDataDest
-	TArray<FVector> LODPointsDest;
+	TArray<FVector3f> LODPointsDest;
 	TArray<SkeletalMeshImportData::FMeshWedge> LODWedgesDest;
 	TArray<SkeletalMeshImportData::FMeshFace> LODFacesDest;
 	TArray<SkeletalMeshImportData::FVertInfluence> LODInfluencesDest;
@@ -2438,7 +2438,7 @@ void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 L
 
 struct FMeshDataBundle
 {
-	TArray< FVector > Vertices;
+	TArray< FVector3f > Vertices;
 	TArray< uint32 > Indices;
 	TArray< FVector2D > UVs;
 	TArray< uint32 > SmoothingGroups;
@@ -2471,10 +2471,10 @@ static void ConvertImportDataToMeshData(const FSkeletalMeshImportData& ImportDat
 class FAsyncImportMorphTargetWork : public FNonAbandonableTask
 {
 public:
-	FAsyncImportMorphTargetWork(FSkeletalMeshLODModel* InLODModel, const FReferenceSkeleton& InRefSkeleton, const FSkeletalMeshImportData& InBaseImportData, TArray<FVector>&& InMorphLODPoints,
+	FAsyncImportMorphTargetWork(FSkeletalMeshLODModel* InLODModel, const FReferenceSkeleton& InRefSkeleton, const FSkeletalMeshImportData& InBaseImportData, TArray<FVector3f>&& InMorphLODPoints,
 		TArray< FMorphTargetDelta >& InMorphDeltas, TArray<uint32>& InBaseIndexData, TArray< uint32 >& InBaseWedgePointIndices,
 		TMap<uint32, uint32>& InWedgePointToVertexIndexMap, const FOverlappingCorners& InOverlappingCorners,
-		const TSet<uint32> InModifiedPoints, const TMultiMap< int32, int32 >& InWedgeToFaces, const FMeshDataBundle& InMeshDataBundle, const TArray<FVector>& InTangentZ,
+		const TSet<uint32> InModifiedPoints, const TMultiMap< int32, int32 >& InWedgeToFaces, const FMeshDataBundle& InMeshDataBundle, const TArray<FVector3f>& InTangentZ,
 		bool InShouldImportNormals, bool InShouldImportTangents, bool InbUseMikkTSpace, const FOverlappingThresholds InThresholds)
 		: LODModel(InLODModel)
 		, RefSkeleton(InRefSkeleton)
@@ -2501,7 +2501,7 @@ public:
 	//Decompress the shape points data
 	void DecompressData()
 	{
-		const TArray<FVector>& BaseMeshPoints = BaseImportData.Points;
+		const TArray<FVector3f>& BaseMeshPoints = BaseImportData.Points;
 		MorphLODPoints = BaseMeshPoints;
 		int32 ModifiedPointIndex = 0;
 		for (uint32 PointIndex : ModifiedPoints)
@@ -2695,8 +2695,8 @@ private:
 	// @todo not thread safe
 	const FReferenceSkeleton& RefSkeleton;
 	const FSkeletalMeshImportData& BaseImportData;
-	const TArray<FVector> CompressMorphLODPoints;
-	TArray<FVector> MorphLODPoints;
+	const TArray<FVector3f> CompressMorphLODPoints;
+	TArray<FVector3f> MorphLODPoints;
 
 	IMeshUtilities* MeshUtilities;
 
@@ -2710,8 +2710,8 @@ private:
 	const TMultiMap< int32, int32 >& WedgeToFaces;
 	const FMeshDataBundle& MeshDataBundle;
 
-	const TArray<FVector>& BaseTangentZ;
-	TArray<FVector> TangentZ;
+	const TArray<FVector3f>& BaseTangentZ;
+	TArray<FVector3f> TangentZ;
 	bool ShouldImportNormals;
 	bool ShouldImportTangents;
 	bool bUseMikkTSpace;
@@ -2743,7 +2743,7 @@ void FLODUtilities::BuildMorphTargets(USkeletalMesh* BaseSkelMesh, FSkeletalMesh
 	FOverlappingCorners OverlappingVertices;
 	MeshUtilities.CalculateOverlappingCorners(MeshDataBundle.Vertices, MeshDataBundle.Indices, false, OverlappingVertices);
 
-	TArray<FVector> TangentZ;
+	TArray<FVector3f> TangentZ;
 	MeshUtilities.CalculateNormals(MeshDataBundle.Vertices, MeshDataBundle.Indices, MeshDataBundle.UVs, MeshDataBundle.SmoothingGroups, TangentOptions, TangentZ);
 
 	TArray< uint32 > BaseWedgePointIndices;

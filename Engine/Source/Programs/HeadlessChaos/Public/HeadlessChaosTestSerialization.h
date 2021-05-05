@@ -7,6 +7,8 @@
 
 namespace ChaosTest {
 
+	void SimpleTypesSerialization();
+
 	void SimpleObjectsSerialization();
 
 	void SharedObjectsSerialization();

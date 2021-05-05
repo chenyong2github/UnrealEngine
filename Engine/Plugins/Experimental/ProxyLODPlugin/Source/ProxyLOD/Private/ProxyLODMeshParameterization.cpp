@@ -14,7 +14,7 @@ THIRD_PARTY_INCLUDES_END
 
 
 bool ProxyLOD::GenerateUVs(const FTextureAtlasDesc& TextureAtlasDesc,
-	                       const TArray<FVector>&   VertexBuffer, 
+	                       const TArray<FVector3f>&   VertexBuffer, 
 	                       const TArray<int32>&     IndexBuffer, 
 						   const TArray<int32>&     AdjacencyBuffer,
 	                       TFunction<bool(float)>&  Callback, 
@@ -33,7 +33,7 @@ bool ProxyLOD::GenerateUVs(const FTextureAtlasDesc& TextureAtlasDesc,
 	PosArray.Empty(NumVerts);
 	for (int32 i = 0; i < NumVerts; ++i)
 	{
-		const FVector& Vertex = VertexBuffer[i];
+		const FVector3f& Vertex = VertexBuffer[i];
 		PosArray.Emplace(DirectX::XMFLOAT3(Vertex.X, Vertex.Y, Vertex.Z));
 	}
 	
@@ -250,7 +250,7 @@ bool ProxyLOD::GenerateUVs(FVertexDataMesh& InOutMesh, const FTextureAtlasDesc& 
 	{
 		// per-triangle IMT from per-vertex data(normal). 
 
-		const TArray<FVector>& Normals = InOutMesh.Normal;
+		const TArray<FVector3f>& Normals = InOutMesh.Normal;
 		const float* PerVertSignal = (float*)Normals.GetData();
 		size_t SignalStride = 3 * sizeof(float);
 		HRESULT IMTResult = UVAtlasComputeIMTFromPerVertexSignal(Pos, NumVerts, indices, DXGI_FORMAT_R32_UINT, NumFaces, PerVertSignal, 3, SignalStride, StatusCallBack, pIMTArray);
@@ -338,11 +338,11 @@ bool ProxyLOD::GenerateUVs(FVertexDataMesh& InOutMesh, const FTextureAtlasDesc& 
 		check(!bReducedVertCount);
 
 		// Copy the New Verts into a TArray so we can do a swap.
-		TArray<FVector> NewVertArray;
+		TArray<FVector3f> NewVertArray;
 		ResizeArray(NewVertArray, NumNewVerts);
 
 		// re-order the verts 
-		DirectX::UVAtlasApplyRemap(InOutMesh.Points.GetData(), sizeof(FVector), NumVerts, NumNewVerts, vertexRemapArray.data(), NewVertArray.GetData());
+		DirectX::UVAtlasApplyRemap(InOutMesh.Points.GetData(), sizeof(FVector3f), NumVerts, NumNewVerts, vertexRemapArray.data(), NewVertArray.GetData());
 
 		// swap the data into the raw mesh 
 		Swap(NewVertArray, InOutMesh.Points);
@@ -352,11 +352,11 @@ bool ProxyLOD::GenerateUVs(FVertexDataMesh& InOutMesh, const FTextureAtlasDesc& 
 	TaskGroup.Run([&]()
 	{
 		const size_t NumNewVerts = vb.size();
-		TArray<FVector> NewNormalsArray;
+		TArray<FVector3f> NewNormalsArray;
 		ResizeArray(NewNormalsArray, NumNewVerts);
 
 		// re-order the verts 
-		DirectX::UVAtlasApplyRemap(InOutMesh.Normal.GetData(), sizeof(FVector), NumVerts, NumNewVerts, vertexRemapArray.data(), NewNormalsArray.GetData());
+		DirectX::UVAtlasApplyRemap(InOutMesh.Normal.GetData(), sizeof(FVector3f), NumVerts, NumNewVerts, vertexRemapArray.data(), NewNormalsArray.GetData());
 
 		// swap the data into the raw mesh 
 		Swap(NewNormalsArray, InOutMesh.Normal);
@@ -367,11 +367,11 @@ bool ProxyLOD::GenerateUVs(FVertexDataMesh& InOutMesh, const FTextureAtlasDesc& 
 	TaskGroup.Run([&]()
 	{
 		const size_t NumNewVerts = vb.size();
-		TArray<FVector> NewTransferNormalsArray;
+		TArray<FVector3f> NewTransferNormalsArray;
 		ResizeArray(NewTransferNormalsArray, NumNewVerts);
 
 		// re-order the verts 
-		DirectX::UVAtlasApplyRemap(InOutMesh.TransferNormal.GetData(), sizeof(FVector), NumVerts, NumNewVerts, vertexRemapArray.data(), NewTransferNormalsArray.GetData());
+		DirectX::UVAtlasApplyRemap(InOutMesh.TransferNormal.GetData(), sizeof(FVector3f), NumVerts, NumNewVerts, vertexRemapArray.data(), NewTransferNormalsArray.GetData());
 
 		// swap the data into the raw mesh 
 		Swap(NewTransferNormalsArray, InOutMesh.TransferNormal);
@@ -382,11 +382,11 @@ bool ProxyLOD::GenerateUVs(FVertexDataMesh& InOutMesh, const FTextureAtlasDesc& 
 	TaskGroup.Run([&]()
 	{
 		const size_t NumNewVerts = vb.size();
-		TArray<FVector> NewTangentArray;
+		TArray<FVector3f> NewTangentArray;
 		ResizeArray(NewTangentArray, NumNewVerts);
 
 		// re-order the verts 
-		DirectX::UVAtlasApplyRemap(InOutMesh.Tangent.GetData(), sizeof(FVector), NumVerts, NumNewVerts, vertexRemapArray.data(), NewTangentArray.GetData());
+		DirectX::UVAtlasApplyRemap(InOutMesh.Tangent.GetData(), sizeof(FVector3f), NumVerts, NumNewVerts, vertexRemapArray.data(), NewTangentArray.GetData());
 
 		// swap the data into the raw mesh 
 		Swap(NewTangentArray, InOutMesh.Tangent);
@@ -396,11 +396,11 @@ bool ProxyLOD::GenerateUVs(FVertexDataMesh& InOutMesh, const FTextureAtlasDesc& 
 	TaskGroup.Run([&]()
 	{
 		const size_t NumNewVerts = vb.size();
-		TArray<FVector> NewBiTangentArray;
+		TArray<FVector3f> NewBiTangentArray;
 		ResizeArray(NewBiTangentArray, NumNewVerts);
 
 		// re-order the verts 
-		DirectX::UVAtlasApplyRemap(InOutMesh.BiTangent.GetData(), sizeof(FVector), NumVerts, NumNewVerts, vertexRemapArray.data(), NewBiTangentArray.GetData());
+		DirectX::UVAtlasApplyRemap(InOutMesh.BiTangent.GetData(), sizeof(FVector3f), NumVerts, NumNewVerts, vertexRemapArray.data(), NewBiTangentArray.GetData());
 
 		// swap the data into the raw mesh 
 		Swap(NewBiTangentArray, InOutMesh.BiTangent);
@@ -438,7 +438,7 @@ void ProxyLOD::GenerateAdjacency(const FAOSMesh& AOSMesh, std::vector<uint32>& A
 	const uint32 AdjacencySize = AOSMesh.GetNumIndexes(); // = 3 for each face.
 
 														  // Get the positions as a single array.
-	std::vector<FVector> PosArray;
+	std::vector<FVector3f> PosArray;
 	AOSMesh.GetPosArray(PosArray);
 
 	// Allocate adjacency
@@ -456,7 +456,7 @@ void ProxyLOD::GenerateAdjacency(const FVertexDataMesh& Mesh, std::vector<uint32
 	const uint32 AdjacencySize = Mesh.Indices.Num(); // = 3 for each face.
 
 													 // Get the positions as a single array.
-	const FVector* PosArray = Mesh.Points.GetData();
+	const FVector3f* PosArray = Mesh.Points.GetData();
 	const uint32 NumPos = Mesh.Points.Num();
 
 	// Allocate adjacency
@@ -478,8 +478,8 @@ void ProxyLOD::GenerateAdjacency(const FMeshDescription& RawMesh, std::vector<ui
 
 	// @todo: possibility to pass the vertex position raw array directly into the below function.
 	// Can it be assumed that it is not sparse? 
-	TArrayView<const FVector> VertexPositionsAttribute = RawMesh.GetVertexPositions().GetRawArray();
-	TArray<FVector> VertexPositions;
+	TArrayView<const FVector3f> VertexPositionsAttribute = RawMesh.GetVertexPositions().GetRawArray();
+	TArray<FVector3f> VertexPositions;
 	VertexPositions.AddZeroed(NumVerts);
 	for (const FVertexID VertexID : RawMesh.Vertices().GetElementIDs())
 	{
@@ -531,11 +531,11 @@ bool ProxyLOD::GenerateAdjacenyAndCleanMesh(FVertexDataMesh& InOutMesh, std::vec
 					const uint32 TriIds[3] = { InOutMesh.Indices[3 * f], InOutMesh.Indices[3 * f + 1], InOutMesh.Indices[3 * f + 2] };
 
 					// compute center of this face
-					FVector CenterOfFace = InOutMesh.Points[TriIds[0]] + InOutMesh.Points[TriIds[1]] + InOutMesh.Points[TriIds[2]];
+					FVector3f CenterOfFace = InOutMesh.Points[TriIds[0]] + InOutMesh.Points[TriIds[1]] + InOutMesh.Points[TriIds[2]];
 					CenterOfFace /= 3.f;
 
 					// Vector to center
-					FVector PointToCenter = (InOutMesh.Points[Idx] - CenterOfFace);
+					FVector3f PointToCenter = (InOutMesh.Points[Idx] - CenterOfFace);
 					PointToCenter.Normalize();
 
 					// move vert towards center

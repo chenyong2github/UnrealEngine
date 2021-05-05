@@ -1494,7 +1494,7 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 		}
 		for (int32 Index = 0; Index < Vectors.Num(); ++Index)
 		{
-			FVector Value(ForceInitToZero);
+			FVector3f Value(ForceInitToZero);
 
 			const FVectorParameterNameAndCurves& Vector = Vectors[Index];
 			if (HACK_ChannelMasks->VectorCurveMask[Index])
@@ -1525,7 +1525,7 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 		EMovieSceneTransformChannel ChannelMask = Section->GetTransformMask().GetChannels();
 		for (int32 Index = 0; Index < Transforms.Num(); ++Index)
 		{
-			FVector Translation(ForceInitToZero), Scale(FVector::OneVector);
+			FVector3f Translation(ForceInitToZero), Scale(FVector3f::OneVector);
 			FRotator Rotator(0.0f, 0.0f, 0.0f);
 
 			const FTransformParameterNameAndCurves& Transform = Transforms[Index];

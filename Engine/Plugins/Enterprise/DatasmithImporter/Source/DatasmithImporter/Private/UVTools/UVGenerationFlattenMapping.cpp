@@ -1122,8 +1122,8 @@ TArray<FUVGenerationFlattenMappingInternal::FaceStruct> FUVGenerationFlattenMapp
 
 	TArray< FUVGenerationFlattenMappingInternal::FaceStruct > FlattenFaces;
 	FlattenFaces.Reserve(NumTris);
-	const TVertexAttributesConstRef<FVector> VertexPositions = InMesh.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-	const TVertexInstanceAttributesConstRef<FVector> Normals = InMesh.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+	const TVertexAttributesConstRef<FVector3f> VertexPositions = InMesh.VertexAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Vertex::Position);
+	const TVertexInstanceAttributesConstRef<FVector3f> Normals = InMesh.VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Normal);
 
 	const FVertexInstanceArray& Instances = InMesh.VertexInstances();
 	check(InstanceIDMapping.Num() == 0 || InstanceIDMapping.Num() == Instances.GetArraySize());

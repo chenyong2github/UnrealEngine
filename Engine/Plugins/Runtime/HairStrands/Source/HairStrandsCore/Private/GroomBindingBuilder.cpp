@@ -139,12 +139,12 @@ public:
 class IMeshLODData
 {
 public:
-	virtual const FVector* GetVerticesBuffer() const = 0;
+	virtual const FVector3f* GetVerticesBuffer() const = 0;
 	virtual uint32 GetNumVertices() const = 0;
 	virtual const TArray<uint32>& GetIndexBuffer() const = 0;
 	virtual const int32 GetNumSections() const = 0;
 	virtual const IMeshSectionData& GetSection(uint32 SectionIndex) const = 0;
-	virtual const FVector& GetVertexPosition(uint32 VertexIndex) const = 0;
+	virtual const FVector3f& GetVertexPosition(uint32 VertexIndex) const = 0;
 	virtual FVector2D GetVertexUV(uint32 VertexIndex, uint32 ChannelIndex) const = 0;
 	virtual void GetSectionFromVertexIndex(uint32 InVertIndex, int32& OutSectionIndex) const = 0;
 	virtual ~IMeshLODData() {}
@@ -210,9 +210,9 @@ public:
 		}
 	}
 
-	virtual const FVector* GetVerticesBuffer() const override
+	virtual const FVector3f* GetVerticesBuffer() const override
 	{
-		return static_cast<FVector*>(MeshLODData.StaticVertexBuffers.PositionVertexBuffer.GetVertexData());
+		return static_cast<FVector3f*>(MeshLODData.StaticVertexBuffers.PositionVertexBuffer.GetVertexData());
 	}
 
 	virtual uint32 GetNumVertices() const override
@@ -235,7 +235,7 @@ public:
 		return Sections[SectionIndex];
 	}
 
-	virtual const FVector& GetVertexPosition(uint32 VertexIndex) const override
+	virtual const FVector3f& GetVertexPosition(uint32 VertexIndex) const override
 	{
 		return MeshLODData.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
 	}
@@ -399,7 +399,7 @@ public:
 		return *this;
 	}
 
-	virtual const FVector* GetVerticesBuffer() const override
+	virtual const FVector3f* GetVerticesBuffer() const override
 	{
 		return MeshData.Positions.GetData();
 	}
@@ -424,7 +424,7 @@ public:
 		return Sections[SectionIndex];
 	}
 
-	virtual const FVector& GetVertexPosition(uint32 VertexIndex) const override
+	virtual const FVector3f& GetVertexPosition(uint32 VertexIndex) const override
 	{
 		return MeshData.Positions[VertexIndex];
 	}
@@ -477,13 +477,13 @@ namespace GroomBinding_RBFWeighting
 {
 	struct FPointsSampler
 	{
-		FPointsSampler(TArray<bool>& ValidPoints, const FVector* PointPositions, const int32 NumSamples);
+		FPointsSampler(TArray<bool>& ValidPoints, const FVector3f* PointPositions, const int32 NumSamples);
 
 		/** Build the sample position from the sample indices */
-		void BuildPositions(const FVector* PointPositions);
+		void BuildPositions(const FVector3f* PointPositions);
 
 		/** Compute the furthest point */
-		void FurthestPoint(const int32 NumPoints, const FVector* PointPositions, const uint32 SampleIndex, TArray<bool>& ValidPoints, TArray<float>& PointsDistance);
+		void FurthestPoint(const int32 NumPoints, const FVector3f* PointPositions, const uint32 SampleIndex, TArray<bool>& ValidPoints, TArray<float>& PointsDistance);
 
 		/** Compute the starting point */
 		int32 StartingPoint(const TArray<bool>& ValidPoints, int32& NumPoints) const;
@@ -492,7 +492,7 @@ namespace GroomBinding_RBFWeighting
 		TArray<uint32> SampleIndices;
 
 		/** List of sampled positions */
-		TArray<FVector> SamplePositions;
+		TArray<FVector3f> SamplePositions;
 	};
 
 	int32 FPointsSampler::StartingPoint(const TArray<bool>& ValidPoints, int32& NumPoints) const
@@ -513,7 +513,7 @@ namespace GroomBinding_RBFWeighting
 		return StartIndex;
 	}
 
-	void FPointsSampler::BuildPositions(const FVector* PointPositions)
+	void FPointsSampler::BuildPositions(const FVector3f* PointPositions)
 	{
 		SamplePositions.SetNum(SampleIndices.Num());
 		for (int32 i = 0; i < SampleIndices.Num(); ++i)
@@ -522,7 +522,7 @@ namespace GroomBinding_RBFWeighting
 		}
 	}
 
-	void FPointsSampler::FurthestPoint(const int32 NumPoints, const FVector* PointPositions, const uint32 SampleIndex, TArray<bool>& ValidPoints, TArray<float>& PointsDistance)
+	void FPointsSampler::FurthestPoint(const int32 NumPoints, const FVector3f* PointPositions, const uint32 SampleIndex, TArray<bool>& ValidPoints, TArray<float>& PointsDistance)
 	{
 		float FurthestDistance = 0.0;
 		uint32 PointIndex = 0;
@@ -542,7 +542,7 @@ namespace GroomBinding_RBFWeighting
 		SampleIndices[SampleIndex] = PointIndex;
 	}
 
-	FPointsSampler::FPointsSampler(TArray<bool>& ValidPoints, const FVector* PointPositions, const int32 NumSamples)
+	FPointsSampler::FPointsSampler(TArray<bool>& ValidPoints, const FVector3f* PointPositions, const int32 NumSamples)
 	{
 		int32 NumPoints = 0;
 		int32 StartIndex = StartingPoint(ValidPoints, NumPoints);
@@ -568,7 +568,7 @@ namespace GroomBinding_RBFWeighting
 	struct FWeightsBuilder
 	{
 		FWeightsBuilder(const uint32 NumRows, const uint32 NumColumns,
-			const FVector* SourcePositions, const FVector* TargetPositions);
+			const FVector3f* SourcePositions, const FVector3f* TargetPositions);
 
 		using EigenMatrix = Eigen::Map<Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>;
 
@@ -583,7 +583,7 @@ namespace GroomBinding_RBFWeighting
 	};
 
 	FWeightsBuilder::FWeightsBuilder(const uint32 NumRows, const uint32 NumColumns,
-		const FVector* SourcePositions, const FVector* TargetPositions)
+		const FVector3f* SourcePositions, const FVector3f* TargetPositions)
 	{
 		const uint32 PolyRows = NumRows + 4;
 		const uint32 PolyColumns = NumColumns + 4;
@@ -723,7 +723,7 @@ namespace GroomBinding_RBFWeighting
 		}
 	}
 
-	void ComputeInterpolationWeights(UGroomBindingAsset* BindingAsset, IMeshData* MeshData, TArray<TArray<FVector>>& TransferedPositions)
+	void ComputeInterpolationWeights(UGroomBindingAsset* BindingAsset, IMeshData* MeshData, TArray<TArray<FVector3f>>& TransferedPositions)
 	{
 		UGroomAsset* GroomAsset = BindingAsset->Groom;
 
@@ -739,7 +739,7 @@ namespace GroomBinding_RBFWeighting
 
 			int32 TargetSection = -1;
 			bool GlobalSamples = false;
-			const FVector* PositionsPointer = nullptr;
+			const FVector3f* PositionsPointer = nullptr;
 			if (TransferedPositions.Num() == MeshLODCount)
 			{
 				PositionsPointer = TransferedPositions[LODIndex].GetData();
@@ -1092,7 +1092,7 @@ namespace GroomBinding_RootProjection
 	static bool Project(
 		const FHairStrandsDatas& InStrandsData,
 		const IMeshData* InMeshData,
-		const TArray<TArray<FVector>>& InTransferredPositions,
+		const TArray<TArray<FVector3f>>& InTransferredPositions,
 		FHairStrandsRootData& OutRootData)
 	{
 		// 2. Project root for each mesh LOD
@@ -1599,7 +1599,7 @@ namespace GroomBinding_Transfer
 	bool Transfer(
 		const IMeshData* InSourceMeshData,
 		const IMeshData* InTargetMeshData,
-		TArray<TArray<FVector>>& OutTransferredPositions, const int32 MatchingSection)
+		TArray<TArray<FVector3f>>& OutTransferredPositions, const int32 MatchingSection)
 	{
 
 		// 1. Insert triangles into a 2D UV grid
@@ -1734,7 +1734,7 @@ namespace GroomBinding_Transfer
 				TargetMeshLODData.GetSectionFromVertexIndex(TargetVertexIt, SectionIt);
 				if (SectionIt != LocalTargetSectionId)
 				{
-					OutTransferredPositions[TargetLODIndex][TargetVertexIt] = FVector(0,0,0);
+					OutTransferredPositions[TargetLODIndex][TargetVertexIt] = FVector3f(0,0,0);
 #if BINDING_PARALLEL_BUILDING
 					return;
 #else
@@ -1742,11 +1742,11 @@ namespace GroomBinding_Transfer
 #endif
 				}
 
-				const FVector Target_P    = TargetMeshLODData.GetVertexPosition(TargetVertexIt);
+				const FVector3f Target_P    = TargetMeshLODData.GetVertexPosition(TargetVertexIt);
 				const FVector2D Target_UV = TargetMeshLODData.GetVertexUV(TargetVertexIt, ChannelIndex);
 
 				// 2.1 Query closest triangles
-				FVector RetargetedVertexPosition = Target_P;
+				FVector3f RetargetedVertexPosition = Target_P;
 				FTriangleGrid2D::FCells Cells = Grid.ToCells(Target_UV);
 
 				// 2.2 Compute the closest triangle and comput the retarget position 
@@ -1900,7 +1900,7 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, bool bIni
 	FScopedSlowTask SlowTask(WorkItemCount, LOCTEXT("BuildBindingData", "Building groom binding data"));
 	SlowTask.MakeDialog();
 
-	TArray<TArray<FVector>> TransferredPositions;
+	TArray<TArray<FVector3f>> TransferredPositions;
 	if (bNeedTransferPosition)
 	{
 		bool bSucceed = GroomBinding_Transfer::Transfer( 
@@ -2119,8 +2119,8 @@ namespace GroomBinding_GPU
 			int32 TargetSection = -1;
 			bool GlobalSamples = false;
 
-			TArray<FVector> SourcePositions;
-			FVector* PositionsPointer = nullptr;
+			TArray<FVector3f> SourcePositions;
+			FVector3f* PositionsPointer = nullptr;
 			if (TransferedPositions.Num() == MeshLODCount)
 			{
 				ReadbackBuffer(SourcePositions, TransferedPositions[LODIndex]);
@@ -2131,7 +2131,7 @@ namespace GroomBinding_GPU
 			else
 			{
 				FPositionVertexBuffer& VertexBuffer = LODRenderData.StaticVertexBuffers.PositionVertexBuffer;
-				PositionsPointer = static_cast<FVector*>(VertexBuffer.GetVertexData());
+				PositionsPointer = static_cast<FVector3f*>(VertexBuffer.GetVertexData());
 			}
 
 			if (LocalSamples)

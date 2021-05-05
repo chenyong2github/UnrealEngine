@@ -317,7 +317,7 @@ namespace GeometryCollectionTest
 
 			if (Frame == 2)
 			{
-				TMap<FGeometryParticleHandle*, FReal> ExternalStrains = { {ParticleHandles[0], 50.0f} };
+				TMap<FGeometryParticleHandle*, float> ExternalStrains = { {ParticleHandles[0], 50.0f} };
 				Clustering.BreakingModel(&ExternalStrains);
 			}
 
@@ -981,8 +981,21 @@ namespace GeometryCollectionTest
 					FVector X1 = ParticleHandles[1]->X();
 					FVector X6 = ParticleHandles[6]->X();
 
+					FVector X00 = Ref0;
+					FVector X11 = Ref1;
+					FVector X66 = Ref6;
+
+
+					//check(!X0.ContainsNaN());
+					//check(!Ref0.ContainsNaN());
+					//check(FMath::IsFinite(X0.Size()));
+					//check(FMath::IsFinite(Ref0.Size()));
+					//check(FMath::IsFinite(X0.Size() - Ref0.Size()));
+					check(FMath::IsFinite(FMath::Abs(X0.Size() - X00.Size())));
 					EXPECT_NEAR(FMath::Abs(X0.Size() - Ref0.Size()), 0, KINDA_SMALL_NUMBER);// << *FString("Kinematic body1 moved");
+					check(FMath::IsFinite(FMath::Abs(X1.Size() - X11.Size())));
 					EXPECT_NEAR(FMath::Abs(X1.Size() - Ref1.Size()), 0, KINDA_SMALL_NUMBER);// << *FString("Kinematic body2 moved");
+					check(FMath::IsFinite(FMath::Abs(X6.Size() - X66.Size())));
 					EXPECT_NEAR(FMath::Abs(X6.Size() - Ref6.Size()), 0, KINDA_SMALL_NUMBER);// << *FString("Kinematic body7 moved");
 
 					// Test kinematic particles have valid (0.0) inverse mass and have the kinematic object state set

@@ -61,11 +61,11 @@ public:
 	TVertexInstanceAttributesRef<FVector2D> GetVertexInstanceUVs() { return GetRequiredAttributes().GetVertexInstanceUVs(); }
 	TVertexInstanceAttributesConstRef<FVector2D> GetVertexInstanceUVs() const { return GetRequiredAttributes().GetVertexInstanceUVs(); }
 
-	TVertexInstanceAttributesRef<FVector> GetVertexInstanceNormals() { return GetRequiredAttributes().GetVertexInstanceNormals(); }
-	TVertexInstanceAttributesConstRef<FVector> GetVertexInstanceNormals() const { return GetRequiredAttributes().GetVertexInstanceNormals(); }
+	TVertexInstanceAttributesRef<FVector3f> GetVertexInstanceNormals() { return GetRequiredAttributes().GetVertexInstanceNormals(); }
+	TVertexInstanceAttributesConstRef<FVector3f> GetVertexInstanceNormals() const { return GetRequiredAttributes().GetVertexInstanceNormals(); }
 
-	TVertexInstanceAttributesRef<FVector> GetVertexInstanceTangents() { return GetRequiredAttributes().GetVertexInstanceTangents(); }
-	TVertexInstanceAttributesConstRef<FVector> GetVertexInstanceTangents() const { return GetRequiredAttributes().GetVertexInstanceTangents(); }
+	TVertexInstanceAttributesRef<FVector3f> GetVertexInstanceTangents() { return GetRequiredAttributes().GetVertexInstanceTangents(); }
+	TVertexInstanceAttributesConstRef<FVector3f> GetVertexInstanceTangents() const { return GetRequiredAttributes().GetVertexInstanceTangents(); }
 
 	TVertexInstanceAttributesRef<float> GetVertexInstanceBinormalSigns() { return GetRequiredAttributes().GetVertexInstanceBinormalSigns(); }
 	TVertexInstanceAttributesConstRef<float> GetVertexInstanceBinormalSigns() const { return GetRequiredAttributes().GetVertexInstanceBinormalSigns(); }

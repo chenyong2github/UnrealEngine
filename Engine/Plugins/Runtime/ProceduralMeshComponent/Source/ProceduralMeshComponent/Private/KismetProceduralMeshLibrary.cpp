@@ -267,7 +267,7 @@ void UKismetProceduralMeshLibrary::CalculateTangentsForMesh(const TArray<FVector
 	TMultiMap<int32, int32> VertToTriSmoothMap;
 
 	// Normal/tangents for each face
-	TArray<FVector> FaceTangentX, FaceTangentY, FaceTangentZ;
+	TArray<FVector3f> FaceTangentX, FaceTangentY, FaceTangentZ;
 	FaceTangentX.AddUninitialized(NumTris);
 	FaceTangentY.AddUninitialized(NumTris);
 	FaceTangentZ.AddUninitialized(NumTris);
@@ -276,7 +276,7 @@ void UKismetProceduralMeshLibrary::CalculateTangentsForMesh(const TArray<FVector
 	for (int TriIdx = 0; TriIdx < NumTris; TriIdx++)
 	{
 		int32 CornerIndex[3];
-		FVector P[3];
+		FVector3f P[3];
 
 		for (int32 CornerIdx = 0; CornerIdx < 3; CornerIdx++)
 		{
@@ -314,9 +314,9 @@ void UKismetProceduralMeshLibrary::CalculateTangentsForMesh(const TArray<FVector
 		}
 
 		// Calculate triangle edge vectors and normal
-		const FVector Edge21 = P[1] - P[2];
-		const FVector Edge20 = P[0] - P[2];
-		const FVector TriNormal = (Edge21 ^ Edge20).GetSafeNormal();
+		const FVector3f Edge21 = P[1] - P[2];
+		const FVector3f Edge20 = P[0] - P[2];
+		const FVector3f TriNormal = (Edge21 ^ Edge20).GetSafeNormal();
 
 		// If we have UVs, use those to calc 
 		if (UVs.Num() == Vertices.Num())
@@ -342,8 +342,8 @@ void UKismetProceduralMeshLibrary::CalculateTangentsForMesh(const TArray<FVector
 			// Use InverseSlow to catch singular matrices.  Inverse can miss this sometimes.
 			const FMatrix TextureToLocal = ParameterToTexture.Inverse() * ParameterToLocal;
 
-			FaceTangentX[TriIdx] = TextureToLocal.TransformVector(FVector(1, 0, 0)).GetSafeNormal();
-			FaceTangentY[TriIdx] = TextureToLocal.TransformVector(FVector(0, 1, 0)).GetSafeNormal();
+			FaceTangentX[TriIdx] = TextureToLocal.TransformVector(FVector3f(1, 0, 0)).GetSafeNormal();
+			FaceTangentY[TriIdx] = TextureToLocal.TransformVector(FVector3f(0, 1, 0)).GetSafeNormal();
 		}
 		else
 		{
@@ -356,7 +356,7 @@ void UKismetProceduralMeshLibrary::CalculateTangentsForMesh(const TArray<FVector
 
 
 	// Arrays to accumulate tangents into
-	TArray<FVector> VertexTangentXSum, VertexTangentYSum, VertexTangentZSum;
+	TArray<FVector3f> VertexTangentXSum, VertexTangentYSum, VertexTangentZSum;
 	VertexTangentXSum.AddZeroed(NumVerts);
 	VertexTangentYSum.AddZeroed(NumVerts);
 	VertexTangentZSum.AddZeroed(NumVerts);
@@ -396,9 +396,9 @@ void UKismetProceduralMeshLibrary::CalculateTangentsForMesh(const TArray<FVector
 
 	for (int VertxIdx = 0; VertxIdx < NumVerts; VertxIdx++)
 	{
-		FVector& TangentX = VertexTangentXSum[VertxIdx];
-		FVector& TangentY = VertexTangentYSum[VertxIdx];
-		FVector& TangentZ = VertexTangentZSum[VertxIdx];
+		FVector3f& TangentX = VertexTangentXSum[VertxIdx];
+		FVector3f& TangentY = VertexTangentYSum[VertxIdx];
+		FVector3f& TangentZ = VertexTangentZSum[VertxIdx];
 
 		TangentX.Normalize();
 		TangentZ.Normalize();
@@ -595,10 +595,10 @@ int32 BoxPlaneCompare(FBox InBox, const FPlane& InPlane)
 	InBox.GetCenterAndExtents(BoxCenter, BoxExtents);
 
 	// Find distance of box center from plane
-	float BoxCenterDist = InPlane.PlaneDot(BoxCenter);
+	FVector::FReal BoxCenterDist = InPlane.PlaneDot(BoxCenter);
 
 	// See size of box in plane normal direction
-	float BoxSize = FVector::BoxPushOut(InPlane, BoxExtents);
+	FVector::FReal BoxSize = FVector::BoxPushOut(InPlane, BoxExtents);
 
 	if (BoxCenterDist > BoxSize)
 	{
@@ -646,7 +646,7 @@ FProcMeshVertex InterpolateVert(const FProcMeshVertex& V0, const FProcMeshVertex
 /** Transform triangle from 2D to 3D static-mesh triangle. */
 void Transform2DPolygonTo3D(const FUtilPoly2D& InPoly, const FMatrix& InMatrix, TArray<FProcMeshVertex>& OutVerts, FBox& OutBox)
 {
-	FVector PolyNormal = -InMatrix.GetUnitAxis(EAxis::Z);
+	FVector3f PolyNormal = -InMatrix.GetUnitAxis(EAxis::Z);
 	FProcMeshTangent PolyTangent(InMatrix.GetUnitAxis(EAxis::X), false);
 
 	for (int32 VertexIndex = 0; VertexIndex < InPoly.Verts.Num(); VertexIndex++)
@@ -655,7 +655,7 @@ void Transform2DPolygonTo3D(const FUtilPoly2D& InPoly, const FMatrix& InMatrix, 
 
 		FProcMeshVertex NewVert;
 
-		NewVert.Position = InMatrix.TransformPosition(FVector(InVertex.Pos.X, InVertex.Pos.Y, 0.f));
+		NewVert.Position = InMatrix.TransformPosition(FVector3f(InVertex.Pos.X, InVertex.Pos.Y, 0.f));
 		NewVert.Normal = PolyNormal;
 		NewVert.Tangent = PolyTangent;
 		NewVert.Color = InVertex.Color;
@@ -669,7 +669,7 @@ void Transform2DPolygonTo3D(const FUtilPoly2D& InPoly, const FMatrix& InMatrix, 
 }
 
 /** Given a polygon, decompose into triangles. */
-bool TriangulatePoly(TArray<uint32>& OutTris, const TArray<FProcMeshVertex>& PolyVerts, int32 VertBase, const FVector& PolyNormal)
+bool TriangulatePoly(TArray<uint32>& OutTris, const TArray<FProcMeshVertex>& PolyVerts, int32 VertBase, const FVector3f& PolyNormal)
 {
 	// Can't work if not enough verts for 1 triangle
 	int32 NumVerts = PolyVerts.Num() - VertBase;
@@ -711,8 +711,8 @@ bool TriangulatePoly(TArray<uint32>& OutTris, const TArray<FProcMeshVertex>& Pol
 			const FProcMeshVertex& CVert = PolyVerts[VertIndices[CIndex]];
 
 			// Check that this vertex is convex (cross product must be positive)
-			const FVector ABEdge = BVert.Position - AVert.Position;
-			const FVector ACEdge = CVert.Position - AVert.Position;
+			const FVector3f ABEdge = BVert.Position - AVert.Position;
+			const FVector3f ACEdge = CVert.Position - AVert.Position;
 			const float TriangleDeterminant = (ABEdge ^ ACEdge) | PolyNormal;
 			if (TriangleDeterminant > 0.f)
 			{
@@ -775,7 +775,7 @@ void SliceConvexElem(const FKConvexElem& InConvex, const FPlane& SlicePlane, TAr
 
 		// Create output convex based on new set of planes
 		FKConvexElem SlicedElem;
-		bool bSuccess = SlicedElem.HullFromPlanes(ConvexPlanes, InConvex.VertexData);		
+		bool bSuccess = SlicedElem.HullFromPlanes(ConvexPlanes, InConvex.VertexData);
 		if (bSuccess)
 		{
 			OutConvexVerts = SlicedElem.VertexData;
@@ -1173,7 +1173,7 @@ void UKismetProceduralMeshLibrary::SliceProceduralMesh(UProceduralMeshComponent*
 			// If box totally valid, just keep mesh as is
 			else if (BoxCompare == 1)
 			{
-				SlicedCollision.Add(BaseConvex.VertexData);
+				SlicedCollision.Add(BaseConvex.VertexData);				// LWC_TODO: Perf pessimization
 			}
 			// Need to actually slice the convex shape
 			else

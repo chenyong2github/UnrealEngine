@@ -20,15 +20,19 @@ struct FNiagaraDataInterfaceProxy;
 
 struct FNDITransformHandlerNoop
 {
-	FORCEINLINE void TransformPosition(FVector& V, const FMatrix& M) { }
-	FORCEINLINE void TransformVector(FVector& V, const FMatrix& M) { }
+	FORCEINLINE void TransformPosition(FVector3f& V, const FMatrix44f& M) { }
+	FORCEINLINE void TransformPosition(FVector3d& V, const FMatrix44d& M) { }
+	FORCEINLINE void TransformVector(FVector3f& V, const FMatrix44f& M) { }
+	FORCEINLINE void TransformVector(FVector3d& V, const FMatrix44d& M) { }
 	FORCEINLINE void TransformRotation(FQuat& Q1, const FQuat& Q2) { }
 };
 
 struct FNDITransformHandler
 {
-	FORCEINLINE void TransformPosition(FVector& P, const FMatrix& M) { P = M.TransformPosition(P); }
-	FORCEINLINE void TransformVector(FVector& V, const FMatrix& M) { V = M.TransformVector(V).GetUnsafeNormal3(); }
+	FORCEINLINE void TransformPosition(FVector3f& P, const FMatrix44f& M) { P = M.TransformPosition(P); }
+	FORCEINLINE void TransformPosition(FVector3d& P, const FMatrix44d& M) { P = M.TransformPosition(P); }
+	FORCEINLINE void TransformVector(FVector3f& V, const FMatrix44f& M) { V = M.TransformVector(V).GetUnsafeNormal3(); }
+	FORCEINLINE void TransformVector(FVector3d& V, const FMatrix44d& M) { V = M.TransformVector(V).GetUnsafeNormal3(); }
 	FORCEINLINE void TransformRotation(FQuat& Q1, const FQuat& Q2) { Q1 = Q2 * Q1; }
 };
 
@@ -713,13 +717,13 @@ struct FNDIInputParam<FVector2D>
 };
 
 template<>
-struct FNDIInputParam<FVector>
+struct FNDIInputParam<FVector3f>
 {
 	VectorVM::FExternalFuncInputHandler<float> X;
 	VectorVM::FExternalFuncInputHandler<float> Y;
 	VectorVM::FExternalFuncInputHandler<float> Z;
 	FNDIInputParam(FVectorVMContext& Context) : X(Context), Y(Context), Z(Context) {}
-	FORCEINLINE FVector GetAndAdvance() { return FVector(X.GetAndAdvance(), Y.GetAndAdvance(), Z.GetAndAdvance()); }
+	FORCEINLINE FVector3f GetAndAdvance() { return FVector3f(X.GetAndAdvance(), Y.GetAndAdvance(), Z.GetAndAdvance()); }
 };
 
 template<>

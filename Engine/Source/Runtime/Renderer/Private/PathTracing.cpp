@@ -363,7 +363,7 @@ class FPathTracingSkylightPrepareCS : public FGlobalShader
 		SHADER_PARAMETER(float, SkylightInvResolution)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SkylightTextureOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SkylightTexturePdf)
-		SHADER_PARAMETER(FVector, SkyColor)
+		SHADER_PARAMETER(FVector3f, SkyColor)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_SHADER_TYPE(, FPathTracingSkylightPrepareCS, TEXT("/Engine/Private/PathTracing/PathTracingSkylightPrepare.usf"), TEXT("PathTracingSkylightPrepareCS"), SF_Compute);
@@ -390,7 +390,7 @@ class FPathTracingSkylightMISCompensationCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, SkylightTexturePdfAverage)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SkylightTextureOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SkylightTexturePdf)
-		SHADER_PARAMETER(FVector, SkyColor)
+		SHADER_PARAMETER(FVector3f, SkyColor)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_SHADER_TYPE(, FPathTracingSkylightMISCompensationCS, TEXT("/Engine/Private/PathTracing/PathTracingSkylightMISCompensation.usf"), TEXT("PathTracingSkylightMISCompensationCS"), SF_Compute);
@@ -398,8 +398,8 @@ IMPLEMENT_SHADER_TYPE(, FPathTracingSkylightMISCompensationCS, TEXT("/Engine/Pri
 // this struct holds a light grid for both building or rendering
 BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingLightGrid,)
 	SHADER_PARAMETER(uint32, SceneInfiniteLightCount)
-	SHADER_PARAMETER(FVector, SceneLightsBoundMin)
-	SHADER_PARAMETER(FVector, SceneLightsBoundMax)
+	SHADER_PARAMETER(FVector3f, SceneLightsBoundMin)
+	SHADER_PARAMETER(FVector3f, SceneLightsBoundMax)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, LightGrid)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, LightGridData)
 	SHADER_PARAMETER(unsigned, LightGridResolution)

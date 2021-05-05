@@ -306,7 +306,7 @@ bool FStridedViewTest::RunTest(const FString& Parameters)
 	// Test iterating through nested fields
 
 	{
-		TStridedView<float> ViewOfZs = MakeStridedView((int32)sizeof(Structs[0]), &Structs[0].Position.Z, Num);
+		TStridedView<FVector::FReal> ViewOfZs = MakeStridedView((int32)sizeof(Structs[0]), &Structs[0].Position.Z, Num);
 		float ExpectedSum = 0.0;
 		for (int32 i = 0; i < Num; ++i)
 		{

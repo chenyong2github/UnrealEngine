@@ -111,14 +111,14 @@ struct GEOMETRYCACHE_API FGeometryCacheMeshData
 	}
 	
 	/** Draw-able vertex data */
-	TArray<FVector> Positions;
+	TArray<FVector3f> Positions;
 	TArray<FVector2D> TextureCoordinates;
 	TArray<FPackedNormal> TangentsX;
 	TArray<FPackedNormal> TangentsZ;
 	TArray<FColor> Colors;
 
 	/** Motion vector for each vertex. The number of motion vectors should be zero (= no motion vectors) or identical to the number of vertices. */
-	TArray<FVector> MotionVectors;
+	TArray<FVector3f> MotionVectors;
 	/** Array of per-batch info structs*/
 	TArray<FGeometryCacheMeshBatchInfo> BatchesInfo;
 	/** Bounding box for this sample in the track */
@@ -141,14 +141,14 @@ struct GEOMETRYCACHE_API FGeometryCacheMeshData
 	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const
 	{
 		// Calculate resource size according to what is actually serialized
-		CumulativeResourceSize.AddUnknownMemoryBytes(Positions.Num() * sizeof(FVector));
+		CumulativeResourceSize.AddUnknownMemoryBytes(Positions.Num() * sizeof(FVector3f));
 		CumulativeResourceSize.AddUnknownMemoryBytes(TextureCoordinates.Num() * sizeof(FVector2D));
 		CumulativeResourceSize.AddUnknownMemoryBytes(TangentsX.Num() * sizeof(FPackedNormal));
 		CumulativeResourceSize.AddUnknownMemoryBytes(TangentsZ.Num() * sizeof(FPackedNormal));
 		CumulativeResourceSize.AddUnknownMemoryBytes(Colors.Num() * sizeof(FColor));
 
 
-		CumulativeResourceSize.AddUnknownMemoryBytes(MotionVectors.Num() * sizeof(FVector));
+		CumulativeResourceSize.AddUnknownMemoryBytes(MotionVectors.Num() * sizeof(FVector3f));
 		CumulativeResourceSize.AddUnknownMemoryBytes(BatchesInfo.Num() * sizeof(FGeometryCacheMeshBatchInfo));
 
 		CumulativeResourceSize.AddUnknownMemoryBytes(sizeof(Positions));

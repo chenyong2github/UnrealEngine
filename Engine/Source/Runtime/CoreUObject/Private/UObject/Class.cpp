@@ -6397,6 +6397,16 @@ IMPLEMENT_CORE_INTRINSIC_CLASS(UDynamicClass, UClass,
 }
 );
 
+bool UScriptStruct::CanSerializeAsAlias(const FPropertyTag& Tag) const
+{
+	// LWC_TODO: Do core types via STRUCT_SerializeFromMismatchedTag for speed? Not supported for TArrays.	
+	return (
+		(Tag.StructName == NAME_Vector && (GetFName() == NAME_Vector3f || GetFName() == NAME_Vector3d)) ||
+		(Tag.StructName == NAME_Plane && (GetFName() == NAME_Plane4f || GetFName() == NAME_Plane4d)) ||
+		(Tag.StructName == NAME_Matrix && (GetFName() == NAME_Matrix44f || GetFName() == NAME_Matrix44d))
+		);
+}
+
 #if defined(_MSC_VER) && _MSC_VER == 1900
 	#ifdef PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS
 		PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS

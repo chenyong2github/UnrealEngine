@@ -15,6 +15,7 @@
 
 #include "../Resource/SphereGeometry.h"
 
+using namespace UE::Geometry;
 
 using namespace UE::Geometry;
 
@@ -88,8 +89,8 @@ namespace GeometryCollectionTest
 
 	TSharedPtr<FGeometryCollection> MakeCubeElement(FTransform RootTranform, FTransform GeomTransform)
 	{
-		const TArray<FVector> PointsIn = { FVector(-1,1,-1), FVector(1,1,-1), FVector(1,-1,-1), FVector(-1,-1,-1), FVector(-1,1,1), FVector(1,1,1), FVector(1,-1,1), FVector(-1,-1,1) };
-		const TArray<FVector> NormalsIn = { FVector(-1,1,-1).GetSafeNormal(), FVector(1,1,-1).GetSafeNormal(), FVector(1,-1,-1).GetSafeNormal(), FVector(-1,-1,-1).GetSafeNormal(), FVector(-1,1,1).GetSafeNormal(), FVector(1,1,1).GetSafeNormal(), FVector(1,-1,1).GetSafeNormal(), FVector(-1,-1,1).GetSafeNormal() };
+		const TArray<FVector3f> PointsIn = { FVector3f(-1,1,-1), FVector3f(1,1,-1), FVector3f(1,-1,-1), FVector3f(-1,-1,-1), FVector3f(-1,1,1), FVector3f(1,1,1), FVector3f(1,-1,1), FVector3f(-1,-1,1) };
+		const TArray<FVector3f> NormalsIn = { FVector3f(-1,1,-1).GetSafeNormal(), FVector3f(1,1,-1).GetSafeNormal(), FVector3f(1,-1,-1).GetSafeNormal(), FVector3f(-1,-1,-1).GetSafeNormal(), FVector3f(-1,1,1).GetSafeNormal(), FVector3f(1,1,1).GetSafeNormal(), FVector3f(1,-1,1).GetSafeNormal(), FVector3f(-1,-1,1).GetSafeNormal() };
 		const TArray<FVector3i> TrianglesIn = { FVector3i(0,1,2),FVector3i(0,2,3), FVector3i(2,1,6),FVector3i(1,5,6),FVector3i(2,6,7),FVector3i(3,2,7),FVector3i(4,7,3),FVector3i(4,0,3),FVector3i(4,1,0),FVector3i(4,5,1),FVector3i(5,4,7),FVector3i(5,7,6) };
 		const TArray<FVector2f> UVsIn = { FVector2f(0.f,0.f), FVector2f(0.f,0.f), FVector2f(0.f,0.f), FVector2f(0.f,0.f),FVector2f(0.f,0.f), FVector2f(0.f,0.f), FVector2f(0.f,0.f), FVector2f(0.f,0.f) };
 		return GeometryCollection::MakeMeshElement(PointsIn, NormalsIn, TrianglesIn, UVsIn, RootTranform, GeomTransform);
@@ -97,8 +98,8 @@ namespace GeometryCollectionTest
 
 	TSharedPtr<FGeometryCollection> MakeTetrahedronElement(FTransform RootTranform, FTransform GeomTransform)
 	{
-		const TArray<FVector> PointsIn = { FVector(-1,1,-1), FVector(-1,-1,1), FVector(1,-1,-1), FVector(1,1,1) };
-		const TArray<FVector> NormalsIn = { FVector(-1,1,-1).GetSafeNormal(), FVector(-1,-1,1).GetSafeNormal(), FVector(1,-1,-1).GetSafeNormal(), FVector(1,1,1).GetSafeNormal() };
+		const TArray<FVector3f> PointsIn = { FVector3f(-1,1,-1), FVector3f(-1,-1,1), FVector3f(1,-1,-1), FVector3f(1,1,1) };
+		const TArray<FVector3f> NormalsIn = { FVector3f(-1,1,-1).GetSafeNormal(), FVector3f(-1,-1,1).GetSafeNormal(), FVector3f(1,-1,-1).GetSafeNormal(), FVector3f(1,1,1).GetSafeNormal() };
 		const TArray<FVector3i> TrianglesIn = { FVector3i(1,0,2), FVector3i(2,1,3), FVector3i(3,2,0), FVector3i(3,0,1) };
 		const TArray<FVector2f> UVsIn = { FVector2f(0.f,0.f), FVector2f(0.f,0.f), FVector2f(0.f,0.f), FVector2f(0.f,0.f) };
 		return GeometryCollection::MakeMeshElement(PointsIn, NormalsIn, TrianglesIn, UVsIn, RootTranform, GeomTransform);
@@ -107,7 +108,7 @@ namespace GeometryCollectionTest
 	TSharedPtr<FGeometryCollection> MakeImportedSphereElement(FTransform RootTranform, FTransform GeomTransform)
 	{
 		FGeometryCollection* Collection = FGeometryCollection::NewGeometryCollection(SphereGeometry::RawVertexArray, SphereGeometry::RawIndicesArray);
-		TManagedArray<FVector>& Vertices = Collection->Vertex;
+		TManagedArray<FVector3f>& Vertices = Collection->Vertex;
 		for (int i = 0; i < Vertices.Num(); i++) Vertices[i] = GeomTransform.TransformPosition(Vertices[i]);
 		return TSharedPtr<FGeometryCollection>(Collection);
 	}

@@ -20,7 +20,7 @@ class TVolumeLightingSample
 {
 public:
 	/** World space position of the sample. */
-	FVector Position;
+	FVector3f Position;	// LWC_TODO: Update to FVector once FVector4 supports doubles
 	/** World space radius that determines how far the sample can be interpolated. */
 	float Radius;
 
@@ -72,6 +72,7 @@ struct FLightVolumeOctreeSemantics
 	/** Using the heap allocator instead of an inline allocator to trade off add/remove performance for memory. */
 	typedef FDefaultAllocator ElementAllocator;
 
+	// LWC_TODO: Update to return FVector::FReal once FVector4 supports doubles
 	FORCEINLINE static const float* GetBoundingBox(const FVolumeLightingSample& Sample)
 	{
 		FPlatformMisc::Prefetch( &Sample, PLATFORM_CACHE_LINE_SIZE );

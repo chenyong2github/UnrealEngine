@@ -219,7 +219,7 @@ void UParticleModuleSizeMultiplyLife::Update(FParticleEmitterInstance* Owner, in
 	{
 		if (FastDistribution)
 		{
-			FVector SizeScale;
+			FVector3f SizeScale;
 			// fast path
 			BEGIN_UPDATE_LOOP;
 				FastDistribution->GetValue3None(Particle.RelativeTime, &SizeScale.X);
@@ -234,7 +234,7 @@ void UParticleModuleSizeMultiplyLife::Update(FParticleEmitterInstance* Owner, in
 		{
 			BEGIN_UPDATE_LOOP
 			{
-				FVector SizeScale = LifeMultiplier.GetValue(Particle.RelativeTime, Owner->Component);
+				FVector3f SizeScale = LifeMultiplier.GetValue(Particle.RelativeTime, Owner->Component);
 				FPlatformMisc::Prefetch(ParticleData, (ParticleIndices[i+1] * ParticleStride));
 				FPlatformMisc::Prefetch(ParticleData, (ParticleIndices[i+1] * ParticleStride) + PLATFORM_CACHE_LINE_SIZE);
 				Particle.Size.X *= SizeScale.X;
@@ -266,7 +266,7 @@ void UParticleModuleSizeMultiplyLife::Update(FParticleEmitterInstance* Owner, in
 		{
 			BEGIN_UPDATE_LOOP
 			{
-				FVector SizeScale = LifeMultiplier.GetValue(Particle.RelativeTime, Owner->Component);
+				FVector3f SizeScale = LifeMultiplier.GetValue(Particle.RelativeTime, Owner->Component);
 				FPlatformMisc::Prefetch(ParticleData, (ParticleIndices[i+1] * ParticleStride));
 				FPlatformMisc::Prefetch(ParticleData, (ParticleIndices[i+1] * ParticleStride) + PLATFORM_CACHE_LINE_SIZE);
 				if(MultiplyX)

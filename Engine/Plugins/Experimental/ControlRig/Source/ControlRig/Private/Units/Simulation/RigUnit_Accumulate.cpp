@@ -237,20 +237,21 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_AccumulateFloatAdd)
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_AccumulateVectorAdd)
 {
+	using TFloat = decltype(Unit.Result.X);
 	Context.DeltaTime = 0.5f;
 
 	Unit.Increment = FVector(1.0f, 0.f, 0.f);
 	InitAndExecute();
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, 1.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, (TFloat)1.f), TEXT("unexpected accumulate result"));
 	InitAndExecute();
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, 1.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, (TFloat)1.f), TEXT("unexpected accumulate result"));
 	Execute();
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, 2.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, (TFloat)2.f), TEXT("unexpected accumulate result"));
 	Execute();
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, 3.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, (TFloat)3.f), TEXT("unexpected accumulate result"));
 	Unit.bIntegrateDeltaTime = true;
 	Execute();
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, 3.5f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, (TFloat)3.5f), TEXT("unexpected accumulate result"));
 	return true;
 }
 
@@ -270,15 +271,16 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_AccumulateFloatMul)
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_AccumulateVectorMul)
 {
+	using TFloat = decltype(Unit.Result.X);
 	Unit.Multiplier = FVector(2.f, 2.f, 2.f);
 	InitAndExecute();
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, 2.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, (TFloat)2.f), TEXT("unexpected accumulate result"));
 	InitAndExecute();
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, 2.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, (TFloat)2.f), TEXT("unexpected accumulate result"));
 	Execute();
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, 4.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, (TFloat)4.f), TEXT("unexpected accumulate result"));
 	Execute();
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, 8.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, (TFloat)8.f), TEXT("unexpected accumulate result"));
 	return true;
 }
 
@@ -300,17 +302,18 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_AccumulateFloatLerp)
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_AccumulateVectorLerp)
 {
+	using TFloat = decltype(Unit.Result.X);
 	Unit.InitialValue = FVector::ZeroVector;
 	Unit.TargetValue = FVector(8.f, 0.f, 0.f);
 	Unit.Blend = 0.5f;
 	InitAndExecute();
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, 4.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, (TFloat)4.f), TEXT("unexpected accumulate result"));
 	InitAndExecute();
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, 4.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, (TFloat)4.f), TEXT("unexpected accumulate result"));
 	Execute();
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, 6.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, (TFloat)6.f), TEXT("unexpected accumulate result"));
 	Execute();
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, 7.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result.X, (TFloat)7.f), TEXT("unexpected accumulate result"));
 	return true;
 }
 
@@ -341,38 +344,39 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_AccumulateFloatRange)
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_AccumulateVectorRange)
 {
+	using TFloat = decltype(Unit.Minimum.X);
 	Unit.Value = FVector(3.f, 4.f, 5.f);
 	InitAndExecute();
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.X, 3.f), TEXT("unexpected accumulate result"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.Y, 4.f), TEXT("unexpected accumulate result"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.Z, 5.f), TEXT("unexpected accumulate result"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.X, 3.f), TEXT("unexpected accumulate result"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.Y, 4.f), TEXT("unexpected accumulate result"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.Z, 5.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.X, (TFloat)3.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.Y, (TFloat)4.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.Z, (TFloat)5.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.X, (TFloat)3.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.Y, (TFloat)4.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.Z, (TFloat)5.f), TEXT("unexpected accumulate result"));
 	Unit.Value = FVector(5.f, 6.f, 7.f);
 	InitAndExecute();
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.X, 5.f), TEXT("unexpected accumulate result"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.Y, 6.f), TEXT("unexpected accumulate result"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.Z, 7.f), TEXT("unexpected accumulate result"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.X, 5.f), TEXT("unexpected accumulate result"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.Y, 6.f), TEXT("unexpected accumulate result"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.Z, 7.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.X, (TFloat)5.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.Y, (TFloat)6.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.Z, (TFloat)7.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.X, (TFloat)5.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.Y, (TFloat)6.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.Z, (TFloat)7.f), TEXT("unexpected accumulate result"));
 	Unit.Value = FVector(1.f, 2.f, 3.f);
 	Execute();
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.X, 1.f), TEXT("unexpected accumulate result"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.Y, 2.f), TEXT("unexpected accumulate result"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.Z, 3.f), TEXT("unexpected accumulate result"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.X, 5.f), TEXT("unexpected accumulate result"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.Y, 6.f), TEXT("unexpected accumulate result"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.Z, 7.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.X, (TFloat)1.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.Y, (TFloat)2.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.Z, (TFloat)3.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.X, (TFloat)5.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.Y, (TFloat)6.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.Z, (TFloat)7.f), TEXT("unexpected accumulate result"));
 	Unit.Value = FVector(1.f, 12.f, 13.f);
 	Execute();
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.X, 1.f), TEXT("unexpected accumulate result"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.Y, 2.f), TEXT("unexpected accumulate result"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.Z, 3.f), TEXT("unexpected accumulate result"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.X, 5.f), TEXT("unexpected accumulate result"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.Y, 12.f), TEXT("unexpected accumulate result"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.Z, 13.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.X, (TFloat)1.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.Y, (TFloat)2.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Minimum.Z, (TFloat)3.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.X, (TFloat)5.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.Y, (TFloat)12.f), TEXT("unexpected accumulate result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Maximum.Z, (TFloat)13.f), TEXT("unexpected accumulate result"));
 	return true;
 }
 

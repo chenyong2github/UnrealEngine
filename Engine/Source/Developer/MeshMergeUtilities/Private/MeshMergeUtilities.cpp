@@ -2998,7 +2998,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 				if (bContainsImposters)
 				{
 					// Merge imposter meshes to rawmesh
-					FMeshMergeHelpers::MergeImpostersToMesh(ImposterComponents, MergedMeshLOD, MergedAssetPivot, UniqueMaterials.Num(), ImposterMaterials);					
+					FMeshMergeHelpers::MergeImpostersToMesh(ImposterComponents, MergedMeshLOD, MergedAssetPivot, UniqueMaterials.Num(), ImposterMaterials);
 
 					const FTransform PivotTransform = FTransform(MergedAssetPivot);
 					for (const UStaticMeshComponent* Component : ImposterComponents)

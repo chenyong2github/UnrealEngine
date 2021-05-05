@@ -36,7 +36,7 @@ namespace GeometryCollectionTest
 	Chaos::FParticles
 	BuildParticlesFeomGeomCollection(FGeometryCollection *TestCollection)
 	{
-		TManagedArray<FVector> &Vertex = TestCollection->Vertex;
+		TManagedArray<FVector3f> &Vertex = TestCollection->Vertex;
 		const int numParticles = Vertex.Num();
 		Chaos::FParticles particles;
 		particles.AddParticles(numParticles);

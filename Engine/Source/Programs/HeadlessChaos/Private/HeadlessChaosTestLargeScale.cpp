@@ -87,7 +87,7 @@ namespace ChaosTest {
 		FReal Distance;
 		FVec3 Position, Normal;
 		const FRigidTransform3 BTtoAT = BT.GetRelativeTransform(AT);
-		bool bResult = GJKRaycast2(A, B, BTtoAT, RayDir, RayLength, Distance, Position, Normal, 0.0f, false, InitialDir, 0.0f);
+		bool bResult = GJKRaycast2(A, B, BTtoAT, RayDir, RayLength, Distance, Position, Normal, (FReal)0., false, InitialDir, (FReal)0.);
 
 		// Verify results
 		const FReal MaxTimeError = 1.e-4f;

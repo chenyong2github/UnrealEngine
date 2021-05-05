@@ -163,7 +163,7 @@ void UOculusSceneCaptureCubemap::Tick(float DeltaTime)
 void UOculusSceneCaptureCubemap::CaptureCubemapCommandHandler(const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
 {
 	bool bCreateOculusMobileCubemap = false;
-	FVector CaptureOffset(FVector::ZeroVector);
+	FVector3f CaptureOffset(FVector3f::ZeroVector);
 	float Yaw = 0.f;
 	for (const FString& Arg : Args)
 	{

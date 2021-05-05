@@ -619,9 +619,9 @@ struct TkDOPNode
 			FBox BoundingVolume(ForceInit);
 			for (int32 TriangleIndex=Start; TriangleIndex<Start + NumTris; TriangleIndex++)
 			{
-				BoundingVolume += BuildTriangles[TriangleIndex].V0;
-				BoundingVolume += BuildTriangles[TriangleIndex].V1;
-				BoundingVolume += BuildTriangles[TriangleIndex].V2;			
+				BoundingVolume += FVector(BuildTriangles[TriangleIndex].V0);
+				BoundingVolume += FVector(BuildTriangles[TriangleIndex].V1);
+				BoundingVolume += FVector(BuildTriangles[TriangleIndex].V2);
 			}
 			BoundingVolumes.SetBox(0,BoundingVolume);
 			BoundingVolumes.SetBox(1,BoundingVolume);

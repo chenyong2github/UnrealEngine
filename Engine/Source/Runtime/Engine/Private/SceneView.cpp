@@ -540,14 +540,14 @@ void FViewMatrices::Init(const FMinimalInitializer& Initializer)
 #if WITH_EDITOR
 	else if (Initializer.bUseFauxOrthoViewPos)
 	{
-		float DistanceToViewOrigin = WORLD_MAX;
-		ViewOrigin = FVector4(InvViewMatrix.TransformVector(FVector(0, 0, -1)).GetSafeNormal() * DistanceToViewOrigin, 1) + LocalViewOrigin;
+		auto DistanceToViewOrigin = WORLD_MAX;
+		ViewOrigin = FVector(InvViewMatrix.TransformVector(FVector(0, 0, -1).GetSafeNormal())) * DistanceToViewOrigin + LocalViewOrigin;
 		bViewOriginIsFudged = true;
 	}
 #endif
 	else
 	{
-		this->ViewOrigin = FVector4(InvViewMatrix.TransformVector(FVector(0, 0, -1)).GetSafeNormal(), 0);
+		this->ViewOrigin = FVector(InvViewMatrix.TransformVector(FVector(0, 0, -1).GetSafeNormal()));
 		// to avoid issues with view dependent effect (e.g. Frensel)
 		bApplyPreViewTranslation = false;
 	}
@@ -657,7 +657,9 @@ static void SetupViewFrustum(FSceneView& View)
 
 	// Derive the view's near clipping distance and plane.
 	static_assert((int32)ERHIZBuffer::IsInverted != 0, "Fix Near Clip distance!");
-	View.bHasNearClippingPlane = View.ViewMatrices.GetViewProjectionMatrix().GetFrustumNearPlane(View.NearClippingPlane);
+	FPlane NearClippingPlane;
+	View.bHasNearClippingPlane = View.ViewMatrices.GetViewProjectionMatrix().GetFrustumNearPlane(NearClippingPlane);
+	View.NearClippingPlane = NearClippingPlane;
 	if (View.ViewMatrices.GetProjectionMatrix().M[2][3] > DELTA)
 	{
 		// Infinite projection with reversed Z.
@@ -987,11 +989,11 @@ void FViewMatrices::UpdateViewMatrix(const FVector& ViewLocation, const FRotator
 {
 	ViewOrigin = ViewLocation;
 
-	FMatrix ViewPlanesMatrix = FMatrix(
-		FPlane(0, 0, 1, 0),
-		FPlane(1, 0, 0, 0),
-		FPlane(0, 1, 0, 0),
-		FPlane(0, 0, 0, 1));
+	FMatrix44f ViewPlanesMatrix = FMatrix44f(
+		FPlane4f(0, 0, 1, 0),
+		FPlane4f(1, 0, 0, 0),
+		FPlane4f(0, 1, 0, 0),
+		FPlane4f(0, 0, 0, 1));
 
 	const FMatrix ViewRotationMatrix = FInverseRotationMatrix(ViewRotation) * ViewPlanesMatrix;
 
@@ -1040,10 +1042,10 @@ void FSceneView::UpdateViewMatrix()
 void FViewMatrices::UpdatePlanarReflectionViewMatrix(const FSceneView& SourceView, const FMirrorMatrix& MirrorMatrix)
 {
 	// This is a subset of the FSceneView ctor that recomputes the transforms changed by late updating the parent camera (in UpdateViewMatrix)
-	const FMatrix LocalViewMatrix(MirrorMatrix * SourceView.ViewMatrices.GetViewMatrix());
+	const FMatrix44f LocalViewMatrix(MirrorMatrix * SourceView.ViewMatrices.GetViewMatrix());
 	HMDViewMatrixNoRoll = LocalViewMatrix.RemoveTranslation();
 
-	ViewOrigin = LocalViewMatrix.InverseTransformPosition(FVector::ZeroVector);
+	ViewOrigin = LocalViewMatrix.InverseTransformPosition(FVector3f::ZeroVector);
 	PreViewTranslation = -ViewOrigin;
 
 	ViewMatrix = FTranslationMatrix(-ViewOrigin) * HMDViewMatrixNoRoll;

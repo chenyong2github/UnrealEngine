@@ -1918,6 +1918,9 @@ namespace UnrealBuildTool
 		/// <param name="LinkEnvironment">The link environment for this target</param>
 		public override void SetUpEnvironment(ReadOnlyTargetRules Target, CppCompileEnvironment CompileEnvironment, LinkEnvironment LinkEnvironment)
 		{
+			// LWC_TODO: Disable "possible loss of data" conversion warnings (double -> float)
+			CompileEnvironment.AdditionalArguments += "/wd4244";
+
 			// @todo Remove this hack to work around broken includes
 			CompileEnvironment.Definitions.Add("NDIS_MINIPORT_MAJOR_VERSION=0");
 

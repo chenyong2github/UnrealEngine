@@ -940,7 +940,7 @@ bool UEditorEngine::Exec_Brush( UWorld* InWorld, const TCHAR* Str, FOutputDevice
 			const FScopedBusyCursor BusyCursor;
 
 			ResetTransaction( NSLOCTEXT("UnrealEd", "LoadingBrush", "Loading Brush") );
-			const FVector TempVector = WorldBrush->GetActorLocation();
+			const FVector3f TempVector = WorldBrush->GetActorLocation();
 			LoadPackage( InWorld->GetOutermost(), *TempFname, 0 );
 			WorldBrush->SetActorLocation(TempVector, false);
 			FBSPOps::bspValidateBrush( WorldBrush->Brush, 0, 1 );

@@ -254,7 +254,7 @@ public:
 		const FVector ViewSpaceBoundingSphereCenter = View.ViewMatrices.GetViewMatrix().TransformPosition(BoundingSphere.Center);
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewSpaceBoundingSphere, FVector4(ViewSpaceBoundingSphereCenter, BoundingSphere.W));
 
-		const FMatrix ProjectionMatrix = View.ViewMatrices.ComputeProjectionNoAAMatrix();
+		const FMatrix44f ProjectionMatrix = View.ViewMatrices.ComputeProjectionNoAAMatrix();
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewToVolumeClip, ProjectionMatrix);
 
 		VolumetricFogParameters.Set(RHICmdList, RHICmdList.GetBoundVertexShader(), View, IntegrationData);
@@ -360,7 +360,7 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, InverseSquaredLightDistanceBiasScale, GInverseSquaredLightDistanceBiasScale);
 
 		SetShaderValue(RHICmdList, ShaderRHI, LightFunctionAtlasTileMinMaxUvBoundParam, LightFunctionAtlasTileMinMaxUvBound);
-		SetShaderValue(RHICmdList, ShaderRHI, LightFunctionMatrixParam, LightFunctionMatrix);
+		SetShaderValue(RHICmdList, ShaderRHI, LightFunctionMatrixParam, (FMatrix44f)LightFunctionMatrix);
 		if (LightFunctionAtlasTextureParam.IsBound())
 		{
 			SetTextureParameter(RHICmdList, ShaderRHI, LightFunctionAtlasTextureParam, LightFunctionAtlasSamplerParam,
@@ -876,7 +876,7 @@ public:
 		const FExponentialHeightFogSceneInfo& FogInfo,
 		FRHITexture* LightScatteringHistoryTexture,
 		bool bUseDirectionalLightShadowing,
-		const FMatrix& DirectionalLightFunctionWorldToShadowValue,
+		const FMatrix44f& DirectionalLightFunctionWorldToShadowValue,
 		const int AtmosphericDirectionalLightIndex,
 		const FLightSceneProxy* AtmosphereLightProxy,
 		const FVolumetricCloudRenderSceneInfo* CloudInfo)
@@ -984,7 +984,7 @@ public:
 				RHICmdList,
 				ShaderRHI,
 				CloudShadowmapWorldToLightClipMatrix,
-				CloudWorldToLightClipShadowMatrix);
+				(FMatrix44f)CloudWorldToLightClipShadowMatrix);
 
 			SetShaderValue(
 				RHICmdList,
@@ -1158,21 +1158,21 @@ void SetupVolumetricFogGlobalData(const FViewInfo& View, FVolumetricFogGlobalDat
 	const FIntVector VolumetricFogGridSize = GetVolumetricFogGridSize(View.ViewRect.Size(), VolumetricFogGridPixelSize);
 
 	Parameters.GridSizeInt = VolumetricFogGridSize;
-	Parameters.GridSize = FVector(VolumetricFogGridSize);
+	Parameters.GridSize = FVector3f(VolumetricFogGridSize);
 
 	FVector ZParams = GetVolumetricFogGridZParams(View.NearClippingDistance, FogInfo.VolumetricFogDistance, VolumetricFogGridSize.Z);
 	Parameters.GridZParams = ZParams;
 
-	Parameters.SVPosToVolumeUV = FVector2D(1.0f, 1.0f) / (FVector2D(Parameters.GridSize) * VolumetricFogGridPixelSize);
+	Parameters.SVPosToVolumeUV = FVector2D(1.0f, 1.0f) / (FVector2D(VolumetricFogGridSize.X, VolumetricFogGridSize.Y) * VolumetricFogGridPixelSize);
 	Parameters.FogGridToPixelXY = FIntPoint(VolumetricFogGridPixelSize, VolumetricFogGridPixelSize);
 	Parameters.MaxDistance = FogInfo.VolumetricFogDistance;
 
 	Parameters.HeightFogInscatteringColor = View.ExponentialFogColor;
 
-	Parameters.HeightFogDirectionalLightInscatteringColor = FVector::ZeroVector;
+	Parameters.HeightFogDirectionalLightInscatteringColor = FVector3f::ZeroVector;
 	if (OverrideDirectionalLightInScatteringUsingHeightFog(View, FogInfo))
 	{
-		Parameters.HeightFogDirectionalLightInscatteringColor = FVector(View.DirectionalInscatteringColor);
+		Parameters.HeightFogDirectionalLightInscatteringColor = FVector3f(View.DirectionalInscatteringColor);
 	}
 }
 

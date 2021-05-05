@@ -81,11 +81,11 @@ public:
 /** Immutable rendering data (kind of) */
 struct FGeometryCollectionConstantData
 {
-	TArray<FVector> Vertices;
+	TArray<FVector3f> Vertices;
 	TArray<FIntVector> Indices;
-	TArray<FVector> Normals;
-	TArray<FVector> TangentU;
-	TArray<FVector> TangentV;
+	TArray<FVector3f> Normals;
+	TArray<FVector3f> TangentU;
+	TArray<FVector3f> TangentV;
 	TArray<FVector2D> UVs;
 	TArray<FLinearColor> Colors;
 	TArray<int32> BoneMap;

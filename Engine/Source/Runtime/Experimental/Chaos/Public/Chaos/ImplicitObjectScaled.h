@@ -527,7 +527,7 @@ public:
 	virtual bool Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const override
 	{
 		ensure(Length > 0);
-		ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
+		ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), (FReal)1, (FReal)KINDA_SMALL_NUMBER));
 		ensure(Thickness == 0 || (FMath::IsNearlyEqual(MScale[0], MScale[1]) && FMath::IsNearlyEqual(MScale[0], MScale[2])));	//non uniform turns sphere into an ellipsoid so no longer a raycast and requires a more expensive sweep
 
 		const TVector<T, d> UnscaledStart = MInvScale * StartPoint;
@@ -565,7 +565,7 @@ public:
 	bool LowLevelSweepGeom(const QueryGeomType& B, const TRigidTransform<T, d>& BToATM, const TVector<T, d>& LocalDir, const T Length, T& OutTime, TVector<T, d>& LocalPosition, TVector<T, d>& LocalNormal, int32& OutFaceIndex, T Thickness = 0, bool bComputeMTD = false) const
 	{
 		ensure(Length > 0);
-		ensure(FMath::IsNearlyEqual(LocalDir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
+		ensure(FMath::IsNearlyEqual(LocalDir.SizeSquared(), (T)1, (T)KINDA_SMALL_NUMBER));
 		ensure(Thickness == 0 || (FMath::IsNearlyEqual(MScale[0], MScale[1]) && FMath::IsNearlyEqual(MScale[0], MScale[2])));
 
 		const TVector<T, d> UnscaledDirDenorm = MInvScale * LocalDir;
@@ -695,7 +695,7 @@ public:
 
 	virtual int32 FindMostOpposingFace(const TVector<T, d>& Position, const TVector<T, d>& UnitDir, int32 HintFaceIndex, T SearchDist) const override
 	{
-		ensure(FMath::IsNearlyEqual(UnitDir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
+		ensure(FMath::IsNearlyEqual(UnitDir.SizeSquared(), (FReal)1, (FReal)KINDA_SMALL_NUMBER));
 		return MObject->FindMostOpposingFaceScaled(Position, UnitDir, HintFaceIndex, SearchDist, MScale);
 	}
 
@@ -703,7 +703,7 @@ public:
 	{
 		// @todo(chaos): we need a virtual FindGeometryOpposingNormal. Some types (Convex, Box) can just return the
 		// normal from the face index without needing calculating the unscaled normals.
-		ensure(FMath::IsNearlyEqual(OriginalNormal.SizeSquared(), 1, KINDA_SMALL_NUMBER));
+		ensure(FMath::IsNearlyEqual(OriginalNormal.SizeSquared(), (FReal)1, (FReal)KINDA_SMALL_NUMBER));
 
 		// Get unscaled dir and normal
 		const TVector<T, 3> LocalDenormDir = DenormDir * MScale;
@@ -843,7 +843,7 @@ public:
 
 	virtual uint32 GetTypeHash() const override
 	{
-		return HashCombine(MObject->GetTypeHash(), ::GetTypeHash(MScale));
+		return HashCombine(MObject->GetTypeHash(), UE::Math::GetTypeHash(MScale));
 	}
 
 	virtual uint16 GetMaterialIndex(uint32 HintIndex) const override

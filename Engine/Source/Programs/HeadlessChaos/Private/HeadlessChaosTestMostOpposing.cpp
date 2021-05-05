@@ -96,7 +96,7 @@ namespace ChaosTest
 		EXPECT_FLOAT_EQ(Position.Y, 2);
 		EXPECT_FLOAT_EQ(Position.Z, 1);
 		EXPECT_EQ(FaceIndex, INDEX_NONE);	//convex should not compute its own face index as this is too expensive
-		EXPECT_EQ(Convex.FindMostOpposingFace(Position, FVec3(0, 0, -1), FaceIndex, 0.01), 1);	//front face, just so happens that convex hull generates the planes in this order
+		EXPECT_EQ(Convex.FindMostOpposingFace(Position, FVec3(0, 0, -1), FaceIndex, 0.01 + SMALL_NUMBER), 1);	//front face, just so happens that convex hull generates the planes in this order
 
 		//simple into second triangle
 		bHit = Convex.Raycast(FVec3(0, 2, 0), FVec3(1, 0, 0), 2, 0, Time, Position, Normal, FaceIndex);
@@ -111,15 +111,15 @@ namespace ChaosTest
 		bHit = Convex.Raycast(FVec3(0, 2, 0.99), FVec3(1, 0, 0), 2, 0, Time, Position, Normal, FaceIndex);
 		EXPECT_TRUE(bHit);
 		EXPECT_EQ(FaceIndex, INDEX_NONE);
-		EXPECT_EQ(Convex.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 3);
-		EXPECT_EQ(Convex.FindMostOpposingFace(Position, FVec3(0, 0, -1), FaceIndex, 0.01), 1);
+		EXPECT_EQ(Convex.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01 + SMALL_NUMBER), 3);
+		EXPECT_EQ(Convex.FindMostOpposingFace(Position, FVec3(0, 0, -1), FaceIndex, 0.01 + SMALL_NUMBER), 1);
 
 		//again but far enough away from edge
 		bHit = Convex.Raycast(FVec3(0, 2, 0.9), FVec3(1, 0, 0), 2, 0, Time, Position, Normal, FaceIndex);
 		EXPECT_TRUE(bHit);
 		EXPECT_EQ(FaceIndex, INDEX_NONE);
-		EXPECT_EQ(Convex.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 3);
-		EXPECT_EQ(Convex.FindMostOpposingFace(Position, FVec3(0, 0, -1), FaceIndex, 0.01), 3);	//too far to care about other face
+		EXPECT_EQ(Convex.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01 + SMALL_NUMBER), 3);
+		EXPECT_EQ(Convex.FindMostOpposingFace(Position, FVec3(0, 0, -1), FaceIndex, 0.01 + SMALL_NUMBER), 3);	//too far to care about other face
 	}
 
 

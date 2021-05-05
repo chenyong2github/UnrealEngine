@@ -55,7 +55,7 @@ public:
 	void SetX(const FVec3& InX){ MX = InX; }
 
 	const FRotation3& R() const { return MR; }
-	void SetR(const FRotation3& InR){ MR = InR; }
+	void SetR(const FRotation3& InR) { MR = InR; }
 	
 private:
 	FVec3 MX;

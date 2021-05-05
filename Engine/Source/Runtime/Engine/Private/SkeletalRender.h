@@ -27,7 +27,7 @@ extern const float MaxMorphTargetBlendWeight;
 * @param	LODIndex - each LOD has its own mapping of bones to update
 * @param	ExtraRequiredBoneIndices - any extra bones apart from those active in the LOD that we'd like to update
 */
-ENGINE_API void UpdateRefToLocalMatrices( TArray<FMatrix>& ReferenceToLocal, const USkinnedMeshComponent* InMeshComponent, const FSkeletalMeshRenderData* InSkeletalMeshRenderData, int32 LODIndex, const TArray<FBoneIndexType>* ExtraRequiredBoneIndices=NULL );
+ENGINE_API void UpdateRefToLocalMatrices( TArray<FMatrix44f>& ReferenceToLocal, const USkinnedMeshComponent* InMeshComponent, const FSkeletalMeshRenderData* InSkeletalMeshRenderData, int32 LODIndex, const TArray<FBoneIndexType>* ExtraRequiredBoneIndices=NULL );
 
 /**
 * Utility function that fills in the array of ref-pose to local-space matrices using 
@@ -38,7 +38,7 @@ ENGINE_API void UpdateRefToLocalMatrices( TArray<FMatrix>& ReferenceToLocal, con
 * @param	LODIndex - each LOD has its own mapping of bones to update
 * @param	ExtraRequiredBoneIndices - any extra bones apart from those active in the LOD that we'd like to update
 */
-ENGINE_API void UpdatePreviousRefToLocalMatrices(TArray<FMatrix>& ReferenceToLocal, const USkinnedMeshComponent* InMeshComponent, const FSkeletalMeshRenderData* InSkeletalMeshRenderData, int32 LODIndex, const TArray<FBoneIndexType>* ExtraRequiredBoneIndices = NULL);
+ENGINE_API void UpdatePreviousRefToLocalMatrices(TArray<FMatrix44f>& ReferenceToLocal, const USkinnedMeshComponent* InMeshComponent, const FSkeletalMeshRenderData* InSkeletalMeshRenderData, int32 LODIndex, const TArray<FBoneIndexType>* ExtraRequiredBoneIndices = NULL);
 
 
 extern ENGINE_API const VectorRegister		VECTOR_0001;
@@ -62,10 +62,16 @@ static FORCEINLINE VectorRegister Unpack3( const uint32 *PackedNormal )
 * @param Normal - source vector register with floats
 * @param PackedNormal - destination vector packed with byte components
 */
-static FORCEINLINE void Pack3( VectorRegister Normal, uint32 *PackedNormal )
+static FORCEINLINE void Pack3( VectorRegister4Float Normal, uint32 *PackedNormal )
 {
 	Normal = VectorMultiply(Normal, VectorSetFloat3(127.0f, 127.0f, 127.0f));
 	VectorStoreSignedByte4( Normal, PackedNormal );
+}
+
+static FORCEINLINE void Pack3(VectorRegister4Double Normal, uint32* PackedNormal)
+{
+	Normal = VectorMultiply(Normal, VectorSetFloat3(127.0f, 127.0f, 127.0f));
+	VectorStoreSignedByte4(MakeVectorRegisterFloatFromDouble(Normal), PackedNormal);
 }
 
 /**
@@ -87,9 +93,16 @@ static FORCEINLINE VectorRegister Unpack4( const uint32 *PackedNormal )
 * @param Normal - source vector register with floats
 * @param PackedNormal - destination vector packed with byte components
 */
-static FORCEINLINE void Pack4( VectorRegister Normal, uint32 *PackedNormal )
+static FORCEINLINE void Pack4( VectorRegister4Float Normal, uint32 *PackedNormal )
 {
 	Normal = VectorMultiply(Normal, VectorSetFloat1(127.0f));
 	VectorStoreSignedByte4( Normal, PackedNormal );
 }
+
+static FORCEINLINE void Pack4(VectorRegister4Double Normal, uint32* PackedNormal)
+{
+	Normal = VectorMultiply(Normal, VectorSetFloat1(127.0f));
+	VectorStoreSignedByte4(MakeVectorRegisterFloatFromDouble(Normal), PackedNormal);
+}
+
 

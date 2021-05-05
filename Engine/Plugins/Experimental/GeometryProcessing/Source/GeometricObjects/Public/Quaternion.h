@@ -232,7 +232,7 @@ TQuaternion<RealType> operator -(const TQuaternion<RealType>& A, const TQuaterni
 }
 
 template<typename RealType>
-FVector3<RealType> operator*(const TQuaternion<RealType>& Q, const UE::Core::TVector<RealType>& V)
+FVector3<RealType> operator*(const TQuaternion<RealType>& Q, const UE::Math::TVector<RealType>& V)
 {
 	//return q.ToRotationMatrix() * v;
 	// inline-expansion of above:

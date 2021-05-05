@@ -136,8 +136,8 @@ void FSkeletalMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particle
 			const FTransform* WorldTransform = Parameters.BoneHierarchy.GetAnimWorldSpaceTransformsForBone(BoneIndex);
 			check(WorldTransform);
 
-			float TotalMass = 0.f;
-			const float DensityKgCm3 = Parameters.Density / 1000.0f;
+			Chaos::FReal TotalMass = 0.;
+			const Chaos::FReal DensityKgCm3 = Parameters.Density / 1000.;
 			Chaos::FMassProperties MassProperties = Group->BuildMassProperties(DensityKgCm3, TotalMass);
 
 			const bool DoCollisionGeom = Parameters.CollisionType == ECollisionTypeEnum::Chaos_Surface_Volumetric;
@@ -233,7 +233,7 @@ void FSkeletalMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particle
 			Particles.P(RigidBodyId) = Particles.X(RigidBodyId);
 			Particles.Q(RigidBodyId) = Particles.R(RigidBodyId);
 
-			Particles.M(RigidBodyId) = FMath::Clamp(TotalMass, Parameters.MinMass, Parameters.MaxMass);
+			Particles.M(RigidBodyId) = FMath::Clamp(TotalMass, (Chaos::FReal)Parameters.MinMass, (Chaos::FReal)Parameters.MaxMass);
 			Particles.InvM(RigidBodyId) = Particles.M(RigidBodyId) < KINDA_SMALL_NUMBER ?  BIG_NUMBER/2 : 1.f / Particles.M(RigidBodyId);
 			Particles.I(RigidBodyId) = MassProperties.InertiaTensor;
 			Particles.InvI(RigidBodyId) = MassProperties.InertiaTensor.Inverse();
@@ -500,7 +500,7 @@ void FSkeletalMeshPhysicsProxy::CaptureInputs(const float Dt, const FInputFunc& 
 				{
 					PhysicsInputs.Transforms[TransformIndex] = *PrevBoneWorldTransform;
 					PhysicsInputs.LinearVelocities[TransformIndex] = (BoneWorldTransform.GetTranslation() - PrevBoneWorldTransform->GetTranslation()) / Dt;
-					PhysicsInputs.AngularVelocities[TransformIndex] = Chaos::TRotation<float, 3>::CalculateAngularVelocity(PrevBoneWorldTransform->GetRotation(), BoneWorldTransform.GetRotation(), Dt);
+					PhysicsInputs.AngularVelocities[TransformIndex] = Chaos::FRotation3::CalculateAngularVelocity(PrevBoneWorldTransform->GetRotation(), BoneWorldTransform.GetRotation(), Dt);
 				}
 				else
 				{

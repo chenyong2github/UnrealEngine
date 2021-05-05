@@ -30,11 +30,11 @@ struct FClusterNode_DEPRECATED
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	FVector BoundMin;
+	FVector3f BoundMin;
 	UPROPERTY()
 	int32 FirstChild;
 	UPROPERTY()
-	FVector BoundMax;
+	FVector3f BoundMax;
 	UPROPERTY()
 	int32 LastChild;
 	UPROPERTY()
@@ -74,11 +74,11 @@ struct FClusterNode
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	FVector BoundMin;
+	FVector3f BoundMin;
 	UPROPERTY()
 	int32 FirstChild;
 	UPROPERTY()
-	FVector BoundMax;
+	FVector3f BoundMax;
 	UPROPERTY()
 	int32 LastChild;
 	UPROPERTY()
@@ -87,9 +87,9 @@ struct FClusterNode
 	int32 LastInstance;
 
 	UPROPERTY()
-	FVector MinInstanceScale;
+	FVector3f MinInstanceScale;
 	UPROPERTY()
-	FVector MaxInstanceScale;
+	FVector3f MaxInstanceScale;
 
 	FClusterNode()
 		: BoundMin(MAX_flt, MAX_flt, MAX_flt)

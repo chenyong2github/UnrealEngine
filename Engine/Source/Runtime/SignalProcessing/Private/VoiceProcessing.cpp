@@ -50,9 +50,9 @@ namespace Audio
 		AudioBuffer.AddZeroed(NumVectors);
 	}
 
-	float FMovingVectorAverager::ProcessAudio(const VectorRegister& Input, VectorRegister& Output)
+	float FMovingVectorAverager::ProcessAudio(const VectorRegister4Float& Input, VectorRegister4Float& Output)
 	{
-		VectorRegister* BufferPtr = AudioBuffer.GetData();
+		VectorRegister4Float* BufferPtr = AudioBuffer.GetData();
 		Output = BufferPtr[BufferCursor];
 		BufferPtr[BufferCursor] = Input;
 		BufferCursor = (BufferCursor + 1) % AudioBuffer.Num();
@@ -60,9 +60,9 @@ namespace Audio
 		// Instead of summing our entire buffer every tick, we simply add the incoming sample amplitude, and subtract the outgoing amplitude.
 		// TODO: With this approach AccumulatedSum will start to slowly drift over time from accumulated rounding error. Every so often we will need to
 		// reset AccumulatedSum to the actual sum of AudioBuffer.
-		const VectorRegister AbsInput = VectorAbs(Input);
-		const VectorRegister AbsOutput = VectorAbs(Output);
-		const VectorRegister TotalAccumulation = VectorSubtract(AbsInput, AbsOutput);
+		const VectorRegister4Float AbsInput = VectorAbs(Input);
+		const VectorRegister4Float AbsOutput = VectorAbs(Output);
+		const VectorRegister4Float TotalAccumulation = VectorSubtract(AbsInput, AbsOutput);
 		AccumulatedSum = VectorAdd(AccumulatedSum, TotalAccumulation);
 
 		alignas(16) float PartionedSums[4];
@@ -93,8 +93,8 @@ namespace Audio
 			// stop outputting audio then.
 			for (int32 InSampleIndex = 0; InSampleIndex < NumSamples; InSampleIndex += 4)
 			{
-				const VectorRegister InputVector = VectorLoadAligned(&InAudio[InSampleIndex]);
-				VectorRegister OutputVector;
+				const VectorRegister4Float InputVector = VectorLoadAligned(&InAudio[InSampleIndex]);
+				VectorRegister4Float OutputVector;
 				float InstantaneousAmplitude = Averager.ProcessAudio(InputVector, OutputVector);
 				CurrentAmplitude = ReleaseTau * (CurrentAmplitude - InstantaneousAmplitude) + InstantaneousAmplitude;
 				VectorStore(OutputVector, &OutAudio[InSampleIndex]);
@@ -121,8 +121,8 @@ namespace Audio
 			float InstantaneousAmplitude = 0.0f;
 			for (int32 InSampleIndex = 0; InSampleIndex < NumSamples; InSampleIndex += 4)
 			{
-				const VectorRegister InputVector = VectorLoadAligned(&InAudio[InSampleIndex]);
-				VectorRegister OutputVector;
+				const VectorRegister4Float InputVector = VectorLoadAligned(&InAudio[InSampleIndex]);
+				VectorRegister4Float OutputVector;
 				InstantaneousAmplitude = Averager.ProcessAudio(InputVector, OutputVector);
 
 				if (bHitThreshold)
@@ -231,19 +231,19 @@ namespace Audio
 		float* DeltaImagBuffer = WeightDeltas.Imag.GetData();
 
 		// Our convergence rate is 1 / our NumConvergence steps.
-		const VectorRegister ConvergenceRate = VectorSetFloat1(InLearningRate);
+		const VectorRegister4Float ConvergenceRate = VectorSetFloat1(InLearningRate);
 		CurrentStepsUntilConvergence = FMath::CeilToInt(1.0f / InLearningRate);
 		
 		for (int32 WeightIndex = 0; WeightIndex < NumWeights; WeightIndex+= 4)
 		{
-			VectorRegister TargetReal = VectorLoadAligned(&InWeightsReal[WeightIndex]);
-			VectorRegister CurrentReal = VectorLoadAligned(&CurrentRealBuffer[WeightIndex]);
-			const VectorRegister DeltaReal = VectorMultiply(VectorSubtract(TargetReal, CurrentReal), ConvergenceRate);
+			VectorRegister4Float TargetReal = VectorLoadAligned(&InWeightsReal[WeightIndex]);
+			VectorRegister4Float CurrentReal = VectorLoadAligned(&CurrentRealBuffer[WeightIndex]);
+			const VectorRegister4Float DeltaReal = VectorMultiply(VectorSubtract(TargetReal, CurrentReal), ConvergenceRate);
 			VectorStoreAligned(DeltaReal, &DeltaRealBuffer[WeightIndex]);
 
-			VectorRegister TargetImag = VectorLoadAligned(&InWeightsImag[WeightIndex]);
-			VectorRegister CurrentImag = VectorLoadAligned(&CurrentImagBuffer[WeightIndex]);
-			const VectorRegister DeltaImag = VectorMultiply(VectorSubtract(TargetImag, CurrentImag), ConvergenceRate);
+			VectorRegister4Float TargetImag = VectorLoadAligned(&InWeightsImag[WeightIndex]);
+			VectorRegister4Float CurrentImag = VectorLoadAligned(&CurrentImagBuffer[WeightIndex]);
+			const VectorRegister4Float DeltaImag = VectorMultiply(VectorSubtract(TargetImag, CurrentImag), ConvergenceRate);
 			VectorStoreAligned(DeltaImag, &DeltaImagBuffer[WeightIndex]);
 		}
 	}
@@ -259,13 +259,13 @@ namespace Audio
 
 		for (int32 WeightIndex = 0; WeightIndex < NumWeights; WeightIndex += 4)
 		{
-			VectorRegister DeltaReal = VectorLoadAligned(&DeltasRealBuffer[WeightIndex]);
-			VectorRegister CurrentReal = VectorLoadAligned(&CurrentRealBuffer[WeightIndex]);
+			VectorRegister4Float DeltaReal = VectorLoadAligned(&DeltasRealBuffer[WeightIndex]);
+			VectorRegister4Float CurrentReal = VectorLoadAligned(&CurrentRealBuffer[WeightIndex]);
 			CurrentReal = VectorAdd(CurrentReal, DeltaReal);
 			VectorStoreAligned(CurrentReal, &CurrentRealBuffer[WeightIndex]);
 
-			VectorRegister DeltaImag = VectorLoadAligned(&DeltasImagBuffer[WeightIndex]);
-			VectorRegister CurrentImag = VectorLoadAligned(&CurrentImagBuffer[WeightIndex]);
+			VectorRegister4Float DeltaImag = VectorLoadAligned(&DeltasImagBuffer[WeightIndex]);
+			VectorRegister4Float CurrentImag = VectorLoadAligned(&CurrentImagBuffer[WeightIndex]);
 			CurrentImag = VectorAdd(CurrentImag, DeltaImag);
 			VectorStoreAligned(CurrentImag, &CurrentImagBuffer[WeightIndex]);
 		}

@@ -15,10 +15,10 @@
 #include "LocalVertexFactory.h"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FGeometryCacheVertexFactoryUniformBufferParameters, ENGINE_API)
-	SHADER_PARAMETER(FVector, MeshOrigin)
-	SHADER_PARAMETER(FVector, MeshExtension)
-	SHADER_PARAMETER(FVector, MotionBlurDataOrigin)
-	SHADER_PARAMETER(FVector, MotionBlurDataExtension)
+	SHADER_PARAMETER(FVector3f, MeshOrigin)
+	SHADER_PARAMETER(FVector3f, MeshExtension)
+	SHADER_PARAMETER(FVector3f, MotionBlurDataOrigin)
+	SHADER_PARAMETER(FVector3f, MotionBlurDataExtension)
 	SHADER_PARAMETER(float, MotionBlurPositionScale)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -44,12 +44,12 @@ struct FGeometryCacheVertexFactoryUserData
 	const FVertexBuffer* MotionBlurDataBuffer;
 
 	// Gpu vertex decompression parameters
-	FVector MeshOrigin;
-	FVector MeshExtension;
+	FVector3f MeshOrigin;
+	FVector3f MeshExtension;
 
 	// Motion blur parameters
-	FVector MotionBlurDataOrigin;
-	FVector MotionBlurDataExtension;
+	FVector3f MotionBlurDataOrigin;
+	FVector3f MotionBlurDataExtension;
 	float MotionBlurPositionScale;
 
 	FGeometryCacheVertexFactoryUniformBufferParametersRef UniformBuffer;

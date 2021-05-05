@@ -122,8 +122,8 @@ namespace Chaos
 
 		static bool RaycastFast(FReal MRadius, FReal MHeight, const FVec3& MVector, const FVec3& X1, const FVec3& X2, const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex)
 		{
-			ensure(FMath::IsNearlyEqual(MVector.SizeSquared(), 1, KINDA_SMALL_NUMBER));
-			ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
+			ensure(FMath::IsNearlyEqual(MVector.SizeSquared(), (FReal)1, (FReal)KINDA_SMALL_NUMBER));
+			ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), (FReal)1, (FReal)KINDA_SMALL_NUMBER));
 			ensure(Length > 0);
 
 			const FReal R = MRadius + Thickness;
@@ -373,7 +373,7 @@ namespace Chaos
 
 		virtual uint32 GetTypeHash() const override
 		{
-			return HashCombine(::GetTypeHash(GetX1()), ::GetTypeHash(GetAxis()));
+			return HashCombine(UE::Math::GetTypeHash(GetX1()), UE::Math::GetTypeHash(GetAxis()));
 		}
 
 	private:

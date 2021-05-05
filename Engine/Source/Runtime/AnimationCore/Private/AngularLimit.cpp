@@ -10,9 +10,9 @@ namespace AnimationCore
 		FQuat DeltaQuat = InRefRotation * InOutQuatRotation.Inverse();
 		FRotator DeltaRotator = DeltaQuat.Rotator();
 		FRotator NewRotator;
-		NewRotator.Pitch = FMath::Clamp(DeltaRotator.Pitch, InLimitMinDegrees.Y, InLimitMaxDegrees.Y);
-		NewRotator.Yaw = FMath::Clamp(DeltaRotator.Yaw, InLimitMinDegrees.X, InLimitMaxDegrees.X);
-		NewRotator.Roll = FMath::Clamp(DeltaRotator.Roll, InLimitMinDegrees.Z, InLimitMaxDegrees.Z);
+		NewRotator.Pitch = FMath::Clamp<float>(DeltaRotator.Pitch, InLimitMinDegrees.Y, InLimitMaxDegrees.Y);
+		NewRotator.Yaw = FMath::Clamp<float>(DeltaRotator.Yaw, InLimitMinDegrees.X, InLimitMaxDegrees.X);
+		NewRotator.Roll = FMath::Clamp<float>(DeltaRotator.Roll, InLimitMinDegrees.Z, InLimitMaxDegrees.Z);
 		DeltaQuat = FQuat(NewRotator);
 
 		InOutQuatRotation = DeltaQuat.Inverse() * InRefRotation;

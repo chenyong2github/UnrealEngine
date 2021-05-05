@@ -1367,14 +1367,14 @@ void FRootMotionSourceGroup::CleanUpInvalidRootMotion(float DeltaTime, const ACh
 			{
 				// For Z, only clamp positive values to prevent shooting off, we don't want to slow down a fall.
 				MoveComponent.Velocity = MoveComponent.Velocity.GetClampedToMaxSize2D(RootSource->FinishVelocityParams.ClampVelocity);
-				MoveComponent.Velocity.Z = FMath::Min(MoveComponent.Velocity.Z, RootSource->FinishVelocityParams.ClampVelocity);
+				MoveComponent.Velocity.Z = FMath::Min<FVector::FReal>(MoveComponent.Velocity.Z, RootSource->FinishVelocityParams.ClampVelocity);
 
 				// if we have additive velocity applied, LastPreAdditiveVelocity will stomp velocity, so make sure it gets clamped too.
 				if (bIsAdditiveVelocityApplied)
 				{
 					// For Z, only clamp positive values to prevent shooting off, we don't want to slow down a fall.
 					LastPreAdditiveVelocity = LastPreAdditiveVelocity.GetClampedToMaxSize2D(RootSource->FinishVelocityParams.ClampVelocity);
-					LastPreAdditiveVelocity.Z = FMath::Min(LastPreAdditiveVelocity.Z, RootSource->FinishVelocityParams.ClampVelocity);
+					LastPreAdditiveVelocity.Z = FMath::Min<FVector::FReal>(LastPreAdditiveVelocity.Z, RootSource->FinishVelocityParams.ClampVelocity);
 				}
 			}
 			else if (RootSource->FinishVelocityParams.Mode == ERootMotionFinishVelocityMode::SetVelocity)

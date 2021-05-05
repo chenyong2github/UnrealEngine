@@ -190,7 +190,7 @@ FCollisionStructureManager::NewImplicit(
 	const Chaos::FParticles& MeshParticles,
 	const Chaos::FTriangleMesh& TriMesh,
 	const FBox& CollisionBounds,
-	const Chaos::FReal Radius,
+	const float Radius,
 	const int32 MinRes,
 	const int32 MaxRes,
 	const float CollisionObjectReduction,
@@ -228,7 +228,7 @@ FCollisionStructureManager::NewImplicitBox(
 
 FCollisionStructureManager::FImplicit*
 FCollisionStructureManager::NewImplicitSphere(
-	const Chaos::FReal Radius,
+	const float Radius,
 	const float CollisionObjectReduction,
 	const ECollisionTypeEnum CollisionType)
 {
@@ -345,7 +345,7 @@ Chaos::FLevelSet* FCollisionStructureManager::NewLevelset(
 FVector 
 FCollisionStructureManager::CalculateUnitMassInertiaTensor(
 	const FBox& Bounds,
-	const Chaos::FReal Radius,
+	const float Radius,
 	const EImplicitTypeEnum ImplicitType
 )
 {	
@@ -354,7 +354,7 @@ FCollisionStructureManager::CalculateUnitMassInertiaTensor(
 	{
 		const Chaos::FVec3 Size = Bounds.GetSize();
 		const Chaos::FMatrix33 I = Chaos::FAABB3::GetInertiaTensor(1.0, Size);
-		Tensor = { I.M[0][0], I.M[1][1], I.M[2][2] };
+		Tensor = FVector(I.M[0][0], I.M[1][1], I.M[2][2]);
 	}
 	else if (ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Sphere)
 	{
@@ -364,10 +364,10 @@ FCollisionStructureManager::CalculateUnitMassInertiaTensor(
 	return Tensor;
 }
 
-Chaos::FReal
+float
 FCollisionStructureManager::CalculateVolume(
 	const FBox& Bounds,
-	const Chaos::FReal Radius,
+	const float Radius,
 	const EImplicitTypeEnum ImplicitType
 )
 {

@@ -692,16 +692,16 @@ const int32 GMaxForwardShadowCascades = 4;
 	SHADER_PARAMETER(FIntVector, CulledGridSize) \
 	SHADER_PARAMETER(uint32, MaxCulledLightsPerCell) \
 	SHADER_PARAMETER(uint32, LightGridPixelSizeShift) \
-	SHADER_PARAMETER(FVector, LightGridZParams) \
-	SHADER_PARAMETER(FVector, DirectionalLightDirection) \
-	SHADER_PARAMETER(FVector, DirectionalLightColor) \
+	SHADER_PARAMETER(FVector3f, LightGridZParams) \
+	SHADER_PARAMETER(FVector3f, DirectionalLightDirection) \
+	SHADER_PARAMETER(FVector3f, DirectionalLightColor) \
 	SHADER_PARAMETER(float, DirectionalLightVolumetricScatteringIntensity) \
 	SHADER_PARAMETER(uint32, DirectionalLightShadowMapChannelMask) \
 	SHADER_PARAMETER(FVector2D, DirectionalLightDistanceFadeMAD) \
 	SHADER_PARAMETER(uint32, NumDirectionalLightCascades) \
 	SHADER_PARAMETER(int32, DirectionalLightVSM) \
 	SHADER_PARAMETER(FVector4, CascadeEndDepths) \
-	SHADER_PARAMETER_ARRAY(FMatrix, DirectionalLightWorldToShadowMatrix, [GMaxForwardShadowCascades]) \
+	SHADER_PARAMETER_ARRAY(FMatrix44f, DirectionalLightWorldToShadowMatrix, [GMaxForwardShadowCascades]) \
 	SHADER_PARAMETER_ARRAY(FVector4, DirectionalLightShadowmapMinMax, [GMaxForwardShadowCascades]) \
 	SHADER_PARAMETER(FVector4, DirectionalLightShadowmapAtlasBufferSize) \
 	SHADER_PARAMETER(float, DirectionalLightDepthBias) \
@@ -709,7 +709,7 @@ const int32 GMaxForwardShadowCascades = 4;
 	SHADER_PARAMETER(uint32, SimpleLightsEndIndex) \
 	SHADER_PARAMETER(uint32, ClusteredDeferredSupportedEndIndex) \
 	SHADER_PARAMETER(FVector4, DirectionalLightStaticShadowBufferSize) \
-	SHADER_PARAMETER(FMatrix, DirectionalLightWorldToStaticShadow) \
+	SHADER_PARAMETER(FMatrix44f, DirectionalLightWorldToStaticShadow) \
 	SHADER_PARAMETER(uint32, DirectLightingShowFlag) \
 	SHADER_PARAMETER_TEXTURE(Texture2D, DirectionalLightShadowmapAtlas) \
 	SHADER_PARAMETER_SAMPLER(SamplerState, ShadowmapSampler) \
@@ -767,13 +767,13 @@ public:
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FVolumetricFogGlobalData,) 
 	SHADER_PARAMETER(FIntVector, GridSizeInt)
-	SHADER_PARAMETER(FVector, GridSize)
-	SHADER_PARAMETER(FVector, GridZParams)
+	SHADER_PARAMETER(FVector3f, GridSize)
+	SHADER_PARAMETER(FVector3f, GridZParams)
 	SHADER_PARAMETER(FVector2D, SVPosToVolumeUV)
 	SHADER_PARAMETER(FIntPoint, FogGridToPixelXY)
 	SHADER_PARAMETER(float, MaxDistance)
-	SHADER_PARAMETER(FVector, HeightFogInscatteringColor)
-	SHADER_PARAMETER(FVector, HeightFogDirectionalLightInscatteringColor)
+	SHADER_PARAMETER(FVector3f, HeightFogInscatteringColor)
+	SHADER_PARAMETER(FVector3f, HeightFogDirectionalLightInscatteringColor)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 extern void SetupVolumetricFogGlobalData(const FViewInfo& View, FVolumetricFogGlobalData& Parameters);
@@ -854,7 +854,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FReflectionCaptureShaderData,)
 	SHADER_PARAMETER_ARRAY(FVector4,CaptureProperties,[GMaxNumReflectionCaptures])
 	SHADER_PARAMETER_ARRAY(FVector4,CaptureOffsetAndAverageBrightness,[GMaxNumReflectionCaptures])
 	// Stores the box transform for a box shape, other data is packed for other shapes
-	SHADER_PARAMETER_ARRAY(FMatrix,BoxTransform,[GMaxNumReflectionCaptures])
+	SHADER_PARAMETER_ARRAY(FMatrix44f,BoxTransform,[GMaxNumReflectionCaptures])
 	SHADER_PARAMETER_ARRAY(FVector4,BoxScales,[GMaxNumReflectionCaptures])
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -2467,8 +2467,7 @@ enum class EGPUSkinCacheTransition
 extern bool IsStaticLightingAllowed();
 
 /* Run GPU skin cache resource transitions */
-void RunGPUSkinCacheTransition(class FRHICommandList& RHICmdList, class FScene* Scene, EGPUSkinCacheTransition Type);
-/** Resolves the view rect of scene color or depth using either a custom resolve or hardware resolve. */
+void RunGPUSkinCacheTransition(class FRHICommandList& RHICmdList, class FScene* Scene, EGPUSkinCacheTransition Type);/** Resolves the view rect of scene color or depth using either a custom resolve or hardware resolve. */
 void AddResolveSceneColorPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureMSAA SceneColor);
 void AddResolveSceneDepthPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureMSAA SceneDepth);
 

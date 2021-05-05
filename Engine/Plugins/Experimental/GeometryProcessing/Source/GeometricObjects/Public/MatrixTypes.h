@@ -39,7 +39,7 @@ struct TMatrix3
 	 * Construct outer-product of U*transpose(V) of U and V
 	 * result is that Mij = u_i * v_j
 	 */
-	TMatrix3<RealType>(const UE::Core::TVector<RealType>& U, const UE::Core::TVector<RealType>& V)
+	TMatrix3<RealType>(const UE::Math::TVector<RealType>& U, const UE::Math::TVector<RealType>& V)
 		: Row0(U.X * V.X, U.X * V.Y, U.X * V.Z),
 		  Row1(U.Y * V.X, U.Y * V.Y, U.Y * V.Z),
 		  Row2(U.Z * V.X, U.Z * V.Y, U.Z * V.Z)
@@ -53,7 +53,7 @@ struct TMatrix3
 	{
 	}
 
-	TMatrix3(const UE::Core::TVector<RealType>& V1, const UE::Core::TVector<RealType>& V2, const UE::Core::TVector<RealType>& V3, bool bRows)
+	TMatrix3(const UE::Math::TVector<RealType>& V1, const UE::Math::TVector<RealType>& V2, const UE::Math::TVector<RealType>& V3, bool bRows)
 	{
 		if (bRows)
 		{
@@ -111,7 +111,7 @@ struct TMatrix3
 			Row2.X * Scale, Row2.Y * Scale, Row2.Z * Scale);
 	}
 
-	FVector3<RealType> operator*(const UE::Core::TVector<RealType>& V) const
+	FVector3<RealType> operator*(const UE::Math::TVector<RealType>& V) const
 	{
 		return FVector3<RealType>(
 			Row0.X * V.X + Row0.Y * V.Y + Row0.Z * V.Z,
@@ -241,7 +241,7 @@ struct TMatrix3
 			   VectorUtil::EpsilonEqual(Row2, Mat2.Row2, Epsilon);
 	}
 
-	static TMatrix3<RealType> AxisAngleR(const UE::Core::TVector<RealType>& Axis, RealType AngleRad)
+	static TMatrix3<RealType> AxisAngleR(const UE::Math::TVector<RealType>& Axis, RealType AngleRad)
 	{
 		RealType cs = TMathUtil<RealType>::Cos(AngleRad);
 		RealType sn = TMathUtil<RealType>::Sin(AngleRad);
@@ -261,7 +261,7 @@ struct TMatrix3
 			xzm - ySin, yzm + xSin, z2 * oneMinusCos + cs);
 	}
 
-	static TMatrix3<RealType> AxisAngleD(const UE::Core::TVector<RealType>& Axis, RealType AngleDeg)
+	static TMatrix3<RealType> AxisAngleD(const UE::Math::TVector<RealType>& Axis, RealType AngleDeg)
 	{
 		return AxisAngleR(Axis, TMathUtil<RealType>::DegreesToRadians(AngleDeg));
 	}
@@ -467,7 +467,7 @@ inline TMatrix2<RealType> operator*(RealType Scale, const TMatrix2<RealType>& Ma
 
 // Skew-Symmetric matrix such that A X B = CrossProductMatrix(A) * B;
 template <typename RealType>
-inline static TMatrix3<RealType> CrossProductMatrix(const UE::Core::TVector<RealType>& A)
+inline static TMatrix3<RealType> CrossProductMatrix(const UE::Math::TVector<RealType>& A)
 {
 	RealType Zero(0);
 

@@ -644,8 +644,15 @@ public:
 	// Serializer.
 	inline friend FArchive& operator<<(FArchive& Ar,FTransform& M)
 	{
-		//@TODO: This is an unpleasant cast
+		//@TODO: fix this mess when FQuat finally are double and serialization does the right thing
+		// right now we cast rotation to 4 floats and the rest to 4 float/double depending on the LWC switch
+#if UE_LARGE_WORLD_COORDINATES_DISABLED
 		Ar << *reinterpret_cast<FVector4*>(&(M.Rotation));
+#else
+		VectorRegister4Float SerializedRotation = MakeVectorRegisterFloatFromDouble(M.Rotation);
+		Ar << *reinterpret_cast<FVector4*>(&(SerializedRotation));
+		M.Rotation = MakeVectorRegisterDouble(SerializedRotation);
+#endif
 		Ar << *reinterpret_cast<FVector*>(&(M.Translation));
 		Ar << *reinterpret_cast<FVector*>(&(M.Scale3D));
 		
@@ -1127,8 +1134,8 @@ public:
 		// Blend translation and scale
 		//    BlendedAtom.Translation = Lerp(Zero, SourceAtom.Translation, Alpha);
 		//    BlendedAtom.Scale = Lerp(0, SourceAtom.Scale, Alpha);
-		const VectorRegister BlendedTranslation	= FMath::Lerp(VectorZero(), SourceAtom.Translation, BlendWeight.Value);
-		const VectorRegister BlendedScale3D	= FMath::Lerp(VectorZero(), SourceAtom.Scale3D, BlendWeight.Value);
+		const VectorRegister BlendedTranslation	= FMath::Lerp<VectorRegister>(VectorZero(), SourceAtom.Translation, BlendWeight.Value);
+		const VectorRegister BlendedScale3D	= FMath::Lerp<VectorRegister>(VectorZero(), SourceAtom.Scale3D, BlendWeight.Value);
 
 		// Apply translation and scale to final atom
 		//     FinalAtom.Translation += BlendedAtom.Translation

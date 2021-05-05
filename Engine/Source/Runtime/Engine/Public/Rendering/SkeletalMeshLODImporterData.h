@@ -330,7 +330,7 @@ class ENGINE_API FSkeletalMeshImportData
 {
 public:
 	TArray <SkeletalMeshImportData::FMaterial> Materials;
-	TArray <FVector> Points;
+	TArray <FVector3f> Points;
 	TArray <SkeletalMeshImportData::FVertex> Wedges;
 	TArray <SkeletalMeshImportData::FTriangle> Faces;
 	TArray <SkeletalMeshImportData::FBone> RefBonesBinary;
@@ -387,7 +387,7 @@ public:
 	* @param LODInfluences - weights/ influences to static LOD level.
 	*/
 	void CopyLODImportData(
-		TArray<FVector>& LODPoints,
+		TArray<FVector3f>& LODPoints,
 		TArray<SkeletalMeshImportData::FMeshWedge>& LODWedges,
 		TArray<SkeletalMeshImportData::FMeshFace>& LODFaces,
 		TArray<SkeletalMeshImportData::FVertInfluence>& LODInfluences,
@@ -564,7 +564,7 @@ public:
 
 namespace FWedgePositionHelper
 {
-	inline bool PointsEqual(const FVector& V1, const FVector& V2, float ComparisonThreshold)
+	inline bool PointsEqual(const FVector3f& V1, const FVector3f& V2, float ComparisonThreshold)
 	{
 		if (FMath::Abs(V1.X - V2.X) > ComparisonThreshold
 			|| FMath::Abs(V1.Y - V2.Y) > ComparisonThreshold
@@ -659,7 +659,7 @@ public:
 	* SearchPosition: The reference vertex position use to search the wedges
 	* OutNearestWedges: The nearest wedge indexes to SearchPosition
 	*/
-	ENGINE_API void FindNearestWedgeIndexes(const FVector& SearchPosition, TArray<FWedgeInfo>& OutNearestWedges);
+	ENGINE_API void FindNearestWedgeIndexes(const FVector3f& SearchPosition, TArray<FWedgeInfo>& OutNearestWedges);
 private:
 	const TWedgeInfoPosOctree *WedgePosOctree;
 };
@@ -694,21 +694,21 @@ struct FWedgePosition
 	 * OutResults: The wedge indexes that fit the Position parameter
 	 * ComparisonThreshold: The threshold use to exactly match the Position. Not use when bExactMatch is false
 	 */
-	void FindMatchingPositionWegdeIndexes(const FVector &Position, float ComparisonThreshold, TArray<int32>& OutResults);
+	void FindMatchingPositionWegdeIndexes(const FVector3f &Position, float ComparisonThreshold, TArray<int32>& OutResults);
 
 	// Fill the data:
 	// Create the SortedPosition use to find exact match (position)
 	// Create the wedge position octree to find the closest position, we use this when there is no exact match
 	static void FillWedgePosition(
 		FWedgePosition& OutOverlappingPosition,
-		const TArray<FVector>& Positions,
+		const TArray<FVector3f>& Positions,
 		const TArray<SkeletalMeshImportData::FVertex> Wedges,
 		float ComparisonThreshold);
 
 private:
 	TArray<FWedgePositionHelper::FIndexAndZ> SortedPositions;
 	TWedgeInfoPosOctree *WedgePosOctree;
-	TArray<FVector> Points;
+	TArray<FVector3f> Points;
 	TArray<SkeletalMeshImportData::FVertex> Wedges;
 };
 

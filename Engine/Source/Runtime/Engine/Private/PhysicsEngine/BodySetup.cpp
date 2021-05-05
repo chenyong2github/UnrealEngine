@@ -1862,9 +1862,9 @@ void FKConvexElem::ScaleElem(FVector DeltaSize, float MinSize)
 // References: 
 // http://amp.ece.cmu.edu/Publication/Cha/icip01_Cha.pdf
 // http://stackoverflow.com/questions/1406029/how-to-calculate-the-volume-of-a-3d-mesh-object-the-surface-of-which-is-made-up
-float SignedVolumeOfTriangle(const FVector& p1, const FVector& p2, const FVector& p3) 
+float SignedVolumeOfTriangle(const FVector3f& p1, const FVector3f& p2, const FVector3f& p3) 
 {
-	return FVector::DotProduct(p1, FVector::CrossProduct(p2, p3)) / 6.0f;
+	return FVector3f::DotProduct(p1, FVector3f::CrossProduct(p2, p3)) / 6.0f;
 }
 #if PHYSICS_INTERFACE_PHYSX
 physx::PxConvexMesh* FKConvexElem::GetConvexMesh() const
@@ -1913,7 +1913,7 @@ float FKConvexElem::GetVolume(const FVector& Scale) const
 					// Grab triangle indices that we hit
 					int32 I0 = Indices[PolyData.mIndexBase + 0];
 					int32 I1 = Indices[PolyData.mIndexBase + (VertIdx - 1)];
-					int32 I2 = Indices[PolyData.mIndexBase + VertIdx];
+					int32 I2 = Indices[PolyData.mIndexBase + VecubemapunwraprtIdx];
 
 
 					Volume += SignedVolumeOfTriangle(ScaleTransform.TransformPosition(P2UVector(Vertices[I0])), 
@@ -2077,9 +2077,9 @@ void FKBoxElem::FixupDeprecated( FArchive& Ar )
 void FKBoxElem::ScaleElem(FVector DeltaSize, float MinSize)
 {
 	// Sizes are lengths, so we double the delta to get similar increase in size.
-	X = FMath::Max(X + 2 * DeltaSize.X, MinSize);
-	Y = FMath::Max(Y + 2 * DeltaSize.Y, MinSize);
-	Z = FMath::Max(Z + 2 * DeltaSize.Z, MinSize);
+	X = FMath::Max<FVector::FReal>(X + 2 * DeltaSize.X, MinSize);
+	Y = FMath::Max<FVector::FReal>(Y + 2 * DeltaSize.Y, MinSize);
+	Z = FMath::Max<FVector::FReal>(Z + 2 * DeltaSize.Z, MinSize);
 }
 
 
@@ -2111,7 +2111,7 @@ float FKBoxElem::GetShortestDistanceToPoint(const FVector& WorldPosition, const 
 
 	const FVector HalfPoint(ScaledBox.X*0.5f, ScaledBox.Y*0.5f, ScaledBox.Z*0.5f);
 	const FVector Delta = LocalPositionAbs - HalfPoint;
-	const FVector Errors = FVector(FMath::Max(Delta.X, 0.f), FMath::Max(Delta.Y, 0.f), FMath::Max(Delta.Z, 0.f));
+	const FVector Errors = FVector(FMath::Max<FVector::FReal>(Delta.X, 0), FMath::Max<FVector::FReal>(Delta.Y, 0), FMath::Max<FVector::FReal>(Delta.Z, 0));
 	const float Error = Errors.Size();
 
 	return Error > SMALL_NUMBER ? Error : 0.f;
@@ -2127,7 +2127,7 @@ float FKBoxElem::GetClosestPointAndNormal(const FVector& WorldPosition, const FT
 	const float HalfY = ScaledBox.Y * 0.5f;
 	const float HalfZ = ScaledBox.Z * 0.5f;
 	
-	const FVector ClosestLocalPosition(FMath::Clamp(LocalPosition.X, -HalfX, HalfX), FMath::Clamp(LocalPosition.Y, -HalfY, HalfY), FMath::Clamp(LocalPosition.Z, -HalfZ, HalfZ));
+	const FVector ClosestLocalPosition(FMath::Clamp<FVector::FReal>(LocalPosition.X, -HalfX, HalfX), FMath::Clamp<FVector::FReal>(LocalPosition.Y, -HalfY, HalfY), FMath::Clamp<double>(LocalPosition.Z, -HalfZ, HalfZ));
 	ClosestWorldPosition = LocalToWorldTM.TransformPositionNoScale(ClosestLocalPosition);
 
 	const FVector LocalDelta = LocalPosition - ClosestLocalPosition;
@@ -2207,12 +2207,12 @@ float FKSphylElem::GetScaledRadius(const FVector& Scale3D) const
 
 float FKSphylElem::GetScaledCylinderLength(const FVector& Scale3D) const
 {
-	return FMath::Max(0.1f, (GetScaledHalfLength(Scale3D) - GetScaledRadius(Scale3D)) * 2.f);
+	return FMath::Max<float>(0.1f, (GetScaledHalfLength(Scale3D) - GetScaledRadius(Scale3D)) * 2.f);
 }
 
 float FKSphylElem::GetScaledHalfLength(const FVector& Scale3D) const
 {
-	return FMath::Max((Length + Radius * 2.0f) * FMath::Abs(Scale3D.Z) * 0.5f, 0.1f);
+	return FMath::Max<float>((Length + Radius * 2.0f) * FMath::Abs(Scale3D.Z) * 0.5f, 0.1f);
 }
 
 float FKSphylElem::GetShortestDistanceToPoint(const FVector& WorldPosition, const FTransform& BoneToWorldTM) const
@@ -2225,7 +2225,7 @@ float FKSphylElem::GetShortestDistanceToPoint(const FVector& WorldPosition, cons
 	const FVector LocalPositionAbs = LocalPosition.GetAbs();
 	
 	
-	const FVector Target(LocalPositionAbs.X, LocalPositionAbs.Y, FMath::Max(LocalPositionAbs.Z - ScaledSphyl.Length * 0.5f, 0.f));	//If we are above half length find closest point to cap, otherwise to cylinder
+	const FVector Target(LocalPositionAbs.X, LocalPositionAbs.Y, FMath::Max<FVector::FReal>(LocalPositionAbs.Z - ScaledSphyl.Length * 0.5f, 0.f));	//If we are above half length find closest point to cap, otherwise to cylinder
 	const float Error = FMath::Max(Target.Size() - ScaledSphyl.Radius, 0.f);
 
 	return Error > SMALL_NUMBER ? Error : 0.f;
@@ -2240,7 +2240,7 @@ float FKSphylElem::GetClosestPointAndNormal(const FVector& WorldPosition, const 
 	const FVector LocalPosition = LocalToWorldTM.InverseTransformPositionNoScale(WorldPosition);
 	
 	const float HalfLength = 0.5f * ScaledSphyl.Length;
-	const float TargetZ = FMath::Clamp(LocalPosition.Z, -HalfLength, HalfLength);	//We want to move to a sphere somewhere along the capsule axis
+	const float TargetZ = FMath::Clamp<FVector::FReal>(LocalPosition.Z, -HalfLength, HalfLength);	//We want to move to a sphere somewhere along the capsule axis
 
 	const FVector WorldSphere = LocalToWorldTM.TransformPositionNoScale(FVector(0.f, 0.f, TargetZ));
 	const FVector Dir = WorldSphere - WorldPosition;
@@ -2316,7 +2316,7 @@ float FKTaperedCapsuleElem::GetScaledCylinderLength(const FVector& Scale3D) cons
 
 float FKTaperedCapsuleElem::GetScaledHalfLength(const FVector& Scale3D) const
 {
-	return FMath::Max((Length + Radius0 + Radius1) * FMath::Abs(Scale3D.Z) * 0.5f, 0.1f);
+	return FMath::Max<float>((Length + Radius0 + Radius1) * FMath::Abs(Scale3D.Z) * 0.5f, 0.1f);
 }
 
 class UPhysicalMaterial* UBodySetup::GetPhysMaterial() const

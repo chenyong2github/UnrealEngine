@@ -116,7 +116,7 @@ class FStrataTilePassVS : public FGlobalShader
 		// We should not add it here to now have duplicated input UB.
 		SHADER_PARAMETER(FVector4, OutputViewSizeAndInvSize)
 		SHADER_PARAMETER(FVector4, OutputBufferSizeAndInvSize)
-		SHADER_PARAMETER(FMatrix, ViewScreenToTranslatedWorld)
+		SHADER_PARAMETER(FMatrix44f, ViewScreenToTranslatedWorld)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, TileListBuffer)
 		RDG_BUFFER_ACCESS(TileIndirectBuffer, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()

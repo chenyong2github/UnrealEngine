@@ -296,11 +296,11 @@ void FMeshMergeHelpers::RetrieveMesh(const USkeletalMeshComponent* SkeletalMeshC
 		OutMeshDescription.Empty();
 
 		FStaticMeshAttributes Attributes(OutMeshDescription);
-		TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+		TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 		TEdgeAttributesRef<bool> EdgeHardnesses = Attributes.GetEdgeHardnesses();
 		TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
-		TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-		TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+		TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+		TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 		TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 		TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
@@ -441,11 +441,11 @@ void FMeshMergeHelpers::ExportStaticMeshLOD(const FStaticMeshLODResources& Stati
 	}
 
 	FStaticMeshAttributes Attributes(OutMeshDescription);
-	TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+	TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 	TEdgeAttributesRef<bool> EdgeHardnesses = Attributes.GetEdgeHardnesses();
 	TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
-	TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
@@ -619,14 +619,14 @@ void FMeshMergeHelpers::CullTrianglesFromVolumesAndUnderLandscapes(const UWorld*
 		}
 	}
 
-	TVertexAttributesConstRef<FVector> VertexPositions = InOutMeshDescription.GetVertexPositions();
+	TVertexAttributesConstRef<FVector3f> VertexPositions = InOutMeshDescription.GetVertexPositions();
 
 	TMap<FVertexID, bool> VertexVisible;
 	VertexVisible.Reserve(InOutMeshDescription.Vertices().Num());
 	int32 Index = 0;
 	for(const FVertexID VertexID : InOutMeshDescription.Vertices().GetElementIDs())
 	{
-		const FVector& Position = VertexPositions[VertexID];
+		const FVector3f& Position = VertexPositions[VertexID];
 		// Start with setting visibility to true on all vertices
 		VertexVisible.Add(VertexID, true);
 
@@ -727,9 +727,9 @@ void FMeshMergeHelpers::PropagateSplineDeformationToMesh(const USplineMeshCompon
 {
 	FStaticMeshAttributes Attributes(InOutMeshDescription);
 
-	TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
-	TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+	TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 
 	// Apply spline deformation for each vertex's tangents
@@ -855,7 +855,7 @@ void FMeshMergeHelpers::RetrieveCullingLandscapeAndVolumes(UWorld* InWorld, cons
 
 		// Offset vertices to correct world position;
 		FVector VolumeLocation = Volume->GetActorLocation();
-		TVertexAttributesRef<FVector> VertexPositions = MeshAttributes.GetVertexPositions();
+		TVertexAttributesRef<FVector3f> VertexPositions = MeshAttributes.GetVertexPositions();
 		for(const FVertexID VertexID : VolumeMesh->Vertices().GetElementIDs())
 		{
 			VertexPositions[VertexID] += VolumeLocation;
@@ -1178,7 +1178,7 @@ void FMeshMergeHelpers::MergeImpostersToMesh(TArray<const UStaticMeshComponent*>
 		else if (!InPivot.IsZero())
 		{
 			// Apply pivot offset if non null
-			TVertexAttributesRef<FVector> ImposterMeshVertexPositions = ImposterMesh.GetVertexPositions();
+			TVertexAttributesRef<FVector3f> ImposterMeshVertexPositions = ImposterMesh.GetVertexPositions();
 			for (FVertexID VertexID : ImposterMesh.Vertices().GetElementIDs())
 			{
 				ImposterMeshVertexPositions[VertexID] -= InPivot;

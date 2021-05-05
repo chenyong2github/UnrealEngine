@@ -781,11 +781,11 @@ bool FProjectedShadowInfo::SetupPerObjectProjection(
 
 		const FBox ShadowSubjectBounds = Initializer.SubjectBounds.GetBox().TransformBy( TranslatedWorldToView );
 
-		MinSubjectZ = FMath::Max(Initializer.MinLightW, ShadowSubjectBounds.Min.Z);
+		MinSubjectZ = FMath::Max<float>(Initializer.MinLightW, ShadowSubjectBounds.Min.Z);
 		float MaxReceiverZ = FMath::Min(MinSubjectZ + Initializer.MaxDistanceToCastInLightW, (float)HALF_WORLD_MAX);
 		// Max can end up smaller than min due to the clamp to HALF_WORLD_MAX above
 		MaxReceiverZ = FMath::Max(MaxReceiverZ, MinSubjectZ + 1);
-		MaxSubjectZ = FMath::Max(ShadowSubjectBounds.Max.Z, MinSubjectZ + 1);
+		MaxSubjectZ = FMath::Max<float>(ShadowSubjectBounds.Max.Z, MinSubjectZ + 1);
 
 		const FVector2D ProjectedExtent = MaxProjected - MinProjected;
 		const float AspectRatio = ProjectedExtent.X / ProjectedExtent.Y;
@@ -921,8 +921,8 @@ void FProjectedShadowInfo::SetupWholeSceneProjection(
 		// This corresponds to the maximum kernel filter size used by subsurface shadows in ShadowProjectionPixelShader.usf
 		const int32 MaxDownsampleFactor = 4;
 		// Determine the distance necessary to snap the shadow's position to the nearest texel
-		const float SnapX = FMath::Fmod(TransformedPosition.X, 2.0f * MaxDownsampleFactor / InSnapResolutionX);
-		const float SnapY = FMath::Fmod(TransformedPosition.Y, 2.0f * MaxDownsampleFactor / InSnapResolutionY);
+		const float SnapX = FMath::Fmod(TransformedPosition.X, (FVector::FReal)2.0f * MaxDownsampleFactor / InSnapResolutionX);
+		const float SnapY = FMath::Fmod(TransformedPosition.Y, (FVector::FReal)2.0f * MaxDownsampleFactor / InSnapResolutionY);
 		// Snap the shadow's position and transform it back into world space
 		// This snapping prevents sub-texel camera movements which removes view dependent aliasing from the final shadow result
 		// This only maintains stable shadows under camera translation and rotation

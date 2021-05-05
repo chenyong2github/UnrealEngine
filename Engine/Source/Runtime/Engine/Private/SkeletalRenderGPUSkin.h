@@ -64,10 +64,10 @@ public:
 		);
 
 	/** ref pose to local space transforms */
-	TArray<FMatrix> ReferenceToLocal;
+	TArray<FMatrix44f> ReferenceToLocal;
 
 	/** Previous ref pose to local space transform */
-	TArray<FMatrix> PreviousReferenceToLocal;
+	TArray<FMatrix44f> PreviousReferenceToLocal;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) 
 	/** component space bone transforms*/
@@ -94,8 +94,8 @@ public:
 	/** a weight factor to blend between simulated positions and skinned positions */	
 	float ClothBlendWeight;
 
-	TArray<FVector> PreSkinningOffsets;
-	TArray<FVector> PostSkinningOffsets;
+	TArray<FVector3f> PreSkinningOffsets;
+	TArray<FVector3f> PostSkinningOffsets;
 
 	/**
 	* Compare the given set of active morph targets with the current list to check if different
@@ -129,13 +129,13 @@ public:
 struct FMorphGPUSkinVertex
 {
 	// Changes to this struct must be reflected in MorphTargets.usf!
-	FVector			DeltaPosition;
-	FVector			DeltaTangentZ;
+	FVector3f			DeltaPosition;
+	FVector3f			DeltaTangentZ;
 
 	FMorphGPUSkinVertex() {};
 	
 	/** Construct for special case **/
-	FMorphGPUSkinVertex(const FVector& InDeltaPosition, const FVector& InDeltaTangentZ)
+	FMorphGPUSkinVertex(const FVector3f& InDeltaPosition, const FVector3f& InDeltaTangentZ)
 	{
 		DeltaPosition = InDeltaPosition;
 		DeltaTangentZ = InDeltaTangentZ;
@@ -284,7 +284,7 @@ class FVertexOffsetBuffers
 {
 public:
 
-	void Init(uint32 Usage, const TArray<FVector>& PreSkinningOffsets, const TArray<FVector>& PostSkinningOffsets)
+	void Init(uint32 Usage, const TArray<FVector3f>& PreSkinningOffsets, const TArray<FVector3f>& PostSkinningOffsets)
 	{
 		if (Usage & uint32(EVertexOffsetUsageType::PreSkinningOffset))
 		{
@@ -308,12 +308,12 @@ public:
 
 		if (PreSkinningOffsetsVertexBuffer.VertexBufferRHI)
 		{
-			ResourceSize += PreSkinningOffsetsVertexBuffer.GetNumVertices() * sizeof(FVector);
+			ResourceSize += PreSkinningOffsetsVertexBuffer.GetNumVertices() * sizeof(FVector3f);
 		}
 
 		if (PostSkinningOffsetsVertexBuffer.VertexBufferRHI)
 		{
-			ResourceSize += PostSkinningOffsetsVertexBuffer.GetNumVertices() * sizeof(FVector);
+			ResourceSize += PostSkinningOffsetsVertexBuffer.GetNumVertices() * sizeof(FVector3f);
 		}
 
 		return ResourceSize;
@@ -373,7 +373,7 @@ public:
 	virtual void CacheVertices(int32 LODIndex, bool bForce) const override {}
 	virtual bool IsCPUSkinned() const override { return false; }
 	virtual TArray<FTransform>* GetComponentSpaceTransforms() const override;
-	virtual const TArray<FMatrix>& GetReferenceToLocalMatrices() const override;
+	virtual const TArray<FMatrix44f>& GetReferenceToLocalMatrices() const override;
 
 #if RHI_RAYTRACING
 	/** Geometry for ray tracing. */

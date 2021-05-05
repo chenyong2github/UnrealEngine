@@ -41,7 +41,7 @@ FHairStrandsProjectionMeshData::Section ConvertMeshSection(const FCachedGeometry
 static void BuildBoneMatrices(USkeletalMeshComponent* SkeletalMeshComponent, const FSkeletalMeshLODRenderData& LODData,
 	const uint32 LODIndex, TArray<uint32>& MatrixOffsets, TArray<FVector4>& BoneMatrices)
 {
-	TArray<FMatrix> BoneTransforms;
+	TArray<FMatrix44f> BoneTransforms;
 	SkeletalMeshComponent->GetCurrentRefToLocalMatrices(BoneTransforms, LODIndex);
 
 	MatrixOffsets.SetNum(LODData.GetNumVertices());

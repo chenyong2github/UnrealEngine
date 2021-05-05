@@ -227,7 +227,7 @@ public:
 	/** calculated cost of given segment if traversed on specified poly. Function measures distance between specified points
 	 *	and returns cost of traversing this distance on given poly.
 	 *	@note no check if segment is on poly is performed. */
-	float CalcSegmentCostOnPoly(NavNodeRef PolyID, const dtQueryFilter* Filter, const FVector& StartLoc, const FVector& EndLoc) const;
+	float CalcSegmentCostOnPoly(NavNodeRef PolyID, const dtQueryFilter* Filter, const FVector3f& StartLoc, const FVector3f& EndLoc) const;
 
 	ARecastNavMesh* NavMeshOwner;
 	
@@ -253,15 +253,15 @@ public:
 	/** Initialize data for pathfinding */
 	bool InitPathfinding(const FVector& UnrealStart, const FVector& UnrealEnd, 
 		const dtNavMeshQuery& Query, const dtQueryFilter* Filter,
-		FVector& RecastStart, dtPolyRef& StartPoly,
-		FVector& RecastEnd, dtPolyRef& EndPoly) const;
+		FVector3f& RecastStart, dtPolyRef& StartPoly,
+		FVector3f& RecastEnd, dtPolyRef& EndPoly) const;
 
 	/** Marks path flags, perform string pulling if needed */
 	void PostProcessPath(dtStatus PathfindResult, FNavMeshPath& Path,
 		const dtNavMeshQuery& Query, const dtQueryFilter* Filter,
 		NavNodeRef StartNode, NavNodeRef EndNode,
-		FVector UnrealStart, FVector UnrealEnd,
-		FVector RecastStart, FVector RecastEnd,
+		FVector3f UnrealStart, FVector3f UnrealEnd,
+		FVector3f RecastStart, FVector3f RecastEnd,
 		dtQueryResult& PathResult) const;
 
 	void GetDebugPolyEdges(const dtMeshTile& Tile, bool bInternalEdges, bool bNavMeshEdges, TArray<FVector>& InternalEdgeVerts, TArray<FVector>& NavMeshEdgeVerts) const;
@@ -278,7 +278,7 @@ protected:
 	ENavigationQueryResult::Type PostProcessPathInternal(dtStatus FindPathStatus, FNavMeshPath& Path, 
 		const dtNavMeshQuery& NavQuery, const dtQueryFilter* QueryFilter, 
 		NavNodeRef StartPolyID, NavNodeRef EndPolyID, 
-		const FVector& RecastStartPos, const FVector& RecastEndPos, 
+		const FVector3f& RecastStartPos, const FVector3f& RecastEndPos, 
 		dtQueryResult& PathResult) const;
 };
 

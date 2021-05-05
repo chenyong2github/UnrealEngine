@@ -33,7 +33,7 @@ public:
 	virtual bool IsCPUSkinned() const override { return true; }
 	virtual const FVertexFactory* GetSkinVertexFactory(const FSceneView* View, int32 LODIndex, int32 ChunkIdx) const override;
 	virtual TArray<FTransform>* GetComponentSpaceTransforms() const override;
-	virtual const TArray<FMatrix>& GetReferenceToLocalMatrices() const override;
+	virtual const TArray<FMatrix44f>& GetReferenceToLocalMatrices() const override;
 
 	virtual int32 GetLOD() const override
 	{

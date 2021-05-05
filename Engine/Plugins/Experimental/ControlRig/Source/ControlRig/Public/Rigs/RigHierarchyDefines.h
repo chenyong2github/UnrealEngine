@@ -522,6 +522,15 @@ public:
 				return FMath::Clamp<float>(Value, Maximum, Minimum);
 			}
 
+			FORCEINLINE static double Clamp(const double Value, const double Minimum, const double Maximum)
+			{
+				if (Minimum < Maximum)
+				{
+					return FMath::Clamp<double>(Value, Minimum, Maximum);
+				}
+				return FMath::Clamp<double>(Value, Maximum, Minimum);
+			}
+
 			FORCEINLINE static int32 Clamp(const int32 Value, const int32 Minimum, const int32 Maximum)
 			{
 				if (Minimum < Maximum)

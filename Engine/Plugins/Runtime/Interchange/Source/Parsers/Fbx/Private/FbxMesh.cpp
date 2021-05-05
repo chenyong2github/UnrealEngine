@@ -244,7 +244,7 @@ namespace UE
 
 					int32 VertexCount = GeoBase->GetControlPointsCount();
 
-					TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+					TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 					int32 VertexOffset = MeshDescription->Vertices().Num();
 					// The below code expects Num() to be equivalent to GetArraySize(), i.e. that all added elements are appended, not inserted into existing gaps
 					check(VertexOffset == MeshDescription->Vertices().GetArraySize());
@@ -493,9 +493,9 @@ namespace UE
 					int32 VertexCount = Mesh->GetControlPointsCount();
 					bool OddNegativeScale = IsOddNegativeScale(TotalMatrix);
 
-					TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
-					TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-					TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+					TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
+					TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+					TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 					TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 					TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 					TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();

@@ -1331,7 +1331,7 @@ FORCEINLINE_DEBUGGABLE void ExportComponent(UActorComponent* Component, FRecastG
 	}
 }
 
-FORCEINLINE void TransformVertexSoupToRecast(const TArray<FVector>& VertexSoup, TNavStatArray<FVector>& Verts, TNavStatArray<int32>& Faces)
+FORCEINLINE void TransformVertexSoupToRecast(const TArray<FVector>& VertexSoup, TNavStatArray<FVector3f>& Verts, TNavStatArray<int32>& Faces)
 {
 	if (VertexSoup.Num() == 0)
 	{
@@ -1477,7 +1477,7 @@ void FRecastGeometryExport::SetNavDataPerInstanceTransformDelegate(const FNavDat
 	Data->NavDataPerInstanceTransformDelegate = InDelegate;
 }
 
-FORCEINLINE void GrowConvexHull(const float ExpandBy, const TArray<FVector>& Verts, TArray<FVector>& OutResult)
+FORCEINLINE void GrowConvexHull(const float ExpandBy, const TArray<FVector3f>& Verts, TArray<FVector3f>& OutResult)
 {
 	if (Verts.Num() < 3)
 	{
@@ -1958,8 +1958,9 @@ void FRecastTileGenerator::Setup(const FRecastNavMeshGenerator& ParentGenerator,
 	TileBB = CalculateTileBounds(TileX, TileY, RcNavMeshOrigin, NavTotalBounds, TileCellSize);
 	TileBBExpandedForAgent = TileBB.ExpandBy(NavDataConfig.AgentRadius * 2 + TileConfig.cs);
 	const FBox RCBox = Unreal2RecastBox(TileBB);
-	rcVcopy(TileConfig.bmin, &RCBox.Min.X);
-	rcVcopy(TileConfig.bmax, &RCBox.Max.X);
+	FVector3f Min32(RCBox.Min), Max32(RCBox.Max);
+	rcVcopy(TileConfig.bmin, &Min32.X);
+	rcVcopy(TileConfig.bmax, &Max32.X);
 			
 	// from passed in boxes pick the ones overlapping with tile bounds
 	bFullyEncapsulatedByInclusionBounds = true;
@@ -4187,8 +4188,9 @@ void FRecastTileGenerator::MarkRasterizationMask(rcContext* /*BuildContext*/, rc
 		FVector RecastPos;
 		FVector RecastExtent;
 		RecastBox.GetCenterAndExtents(RecastPos, RecastExtent);
+		FVector3f RecastPosFloat(RecastPos), RecastExtentFloat(RecastExtent);
 		check(OutMaskArray.Num() == SolidHF->width*SolidHF->height);
-		MarkBoxMask(&(RecastPos.X), &(RecastExtent.X), Mask, *SolidHF, OutMaskArray.GetData());
+		MarkBoxMask(&(RecastPosFloat.X), &(RecastExtentFloat.X), Mask, *SolidHF, OutMaskArray.GetData());
 	}
 	break;
 
@@ -4196,7 +4198,7 @@ void FRecastTileGenerator::MarkRasterizationMask(rcContext* /*BuildContext*/, rc
 	{
 		FConvexNavAreaData ConvexData;
 		Modifier.GetConvex(ConvexData);
-		TArray<FVector> ConvexVerts;
+		TArray<FVector3f> ConvexVerts;
 		const float Expand = 0.f;
 		GrowConvexHull(Expand, ConvexData.Points, ConvexVerts);
 		if (ConvexVerts.Num())
@@ -4261,7 +4263,7 @@ void FRecastTileGenerator::MarkDynamicArea(const FAreaNavModifier& Modifier, con
 			CylinderData.Height += FMath::Abs(OffsetZMid) * 2.f;
 			CylinderData.Radius += ExpandBy;
 			
-			FVector RecastPos = Unreal2RecastPoint(CylinderData.Origin);
+			FVector3f RecastPos = Unreal2RecastPoint(CylinderData.Origin);
 
 			if (ReplaceIDPtr)
 			{
@@ -4287,9 +4289,10 @@ void FRecastTileGenerator::MarkDynamicArea(const FAreaNavModifier& Modifier, con
 			WorldBox.Max.Z += OffsetZMax;
 
 			const FBox RecastBox = Unreal2RecastBox(WorldBox);
-			FVector RecastPos;
-			FVector RecastExtent;
-			RecastBox.GetCenterAndExtents(RecastPos, RecastExtent);
+			FVector RecastPosVec, RecastExtentVec;
+			RecastBox.GetCenterAndExtents(RecastPosVec, RecastExtentVec);
+			FVector3f RecastPos = RecastPosVec;
+			FVector3f RecastExtent = RecastExtentVec;
 				
 			if (ReplaceIDPtr)
 			{
@@ -4317,7 +4320,7 @@ void FRecastTileGenerator::MarkDynamicArea(const FAreaNavModifier& Modifier, con
 				Modifier.GetConvex(ConvexData);
 			}
 
-			TArray<FVector> ConvexVerts;
+			TArray<FVector3f> ConvexVerts;
 			GrowConvexHull(ExpandBy, ConvexData.Points, ConvexVerts);
 			ConvexData.MinZ -= OffsetZMin;
 			ConvexData.MaxZ += OffsetZMax;
@@ -4585,7 +4588,7 @@ void FRecastNavMeshGenerator::Init()
 			}
 			else
 			{
-				const float TileDim = Config.tileSize * Config.cs;
+				const FVector::FReal TileDim = Config.tileSize * Config.cs;
 				if (SavedNavParams->tileHeight == TileDim && SavedNavParams->tileWidth == TileDim)
 				{
 					const FVector Orig = Recast2UnrealPoint(SavedNavParams->orig);
@@ -4690,7 +4693,8 @@ bool FRecastNavMeshGenerator::ConstructTiledNavMesh()
 		dtNavMeshParams TiledMeshParameters;
 		FMemory::Memzero(TiledMeshParameters);	
 
-		rcVcopy(TiledMeshParameters.orig, &RcNavMeshOrigin.X);
+		FVector3f NMOrigin = RcNavMeshOrigin;
+		rcVcopy(TiledMeshParameters.orig, &NMOrigin.X);
 
 		TiledMeshParameters.tileWidth = Config.tileSize * Config.cs;
 		TiledMeshParameters.tileHeight = Config.tileSize * Config.cs;
@@ -6242,7 +6246,7 @@ void FRecastNavMeshGenerator::ExportRigidBodyGeometry(UBodySetup& BodySetup, TNa
 	OutTriMeshVertexBuffer.Reserve(OutTriMeshVertexBuffer.Num() + (VertCoords.Num() / 3));
 	for (int32 i = 0; i < VertCoords.Num(); i += 3)
 	{
-		OutTriMeshVertexBuffer.Add(FVector(VertCoords[i + 0], VertCoords[i + 1], VertCoords[i + 2]));
+		OutTriMeshVertexBuffer.Add(FVector3f(VertCoords[i + 0], VertCoords[i + 1], VertCoords[i + 2]));
 	}
 
 	const int32 NumExistingVerts = OutConvexVertexBuffer.Num();
@@ -6422,7 +6426,7 @@ void FRecastNavMeshGenerator::GrabDebugSnapshot(struct FVisualLogEntry* Snapshot
 				}
 				else
 				{
-					TArray<FVector> Verts;
+					TArray<FVector3f> Verts;
 					for (const FAreaNavModifier& AreaMod : Element.Data->Modifiers.GetAreas())
 					{
 						ENavigationShapeType::Type ShapeType = AreaMod.GetShapeType();
@@ -6459,8 +6463,10 @@ void FRecastNavMeshGenerator::GrabDebugSnapshot(struct FVisualLogEntry* Snapshot
 
 								if (Verts.Num())
 								{
+									TArray<FVector> VertsFVec;
+									for (FVector3f& v : Verts) VertsFVec.Add(v);
 									Snapshot->AddElement(
-										Verts,
+										VertsFVec,
 										InConvexNavAreaData.MinZ - NavData->CellHeight,
 										InConvexNavAreaData.MaxZ + NavData->CellHeight,
 										CategoryName, NavAreaVerbosity, PolygonColor.WithAlpha(255));
@@ -6579,7 +6585,7 @@ void FRecastNavMeshGenerator::ExportNavigationData(const FString& FileName) cons
 
 							auto AddAreaExportDataFunc = [&](const FConvexNavAreaData& InConvexNavAreaData)
 							{
-								TArray<FVector> ConvexVerts;
+								TArray<FVector3f> ConvexVerts;
 								GrowConvexHull(NavData->AgentRadius, ExportInfo.Convex.Points, ConvexVerts);
 								if (ConvexVerts.Num())
 								{
@@ -6621,7 +6627,7 @@ void FRecastNavMeshGenerator::ExportNavigationData(const FString& FileName) cons
 				const TArray<FVector>* LevelGeom = Level->GetStaticNavigableGeometry();
 				if (LevelGeom != NULL && LevelGeom->Num() > 0)
 				{
-					TNavStatArray<FVector> Verts;
+					TNavStatArray<FVector3f> Verts;
 					TNavStatArray<int32> Faces;
 					// For every ULevel in World take its pre-generated static geometry vertex soup
 					RecastGeometryExport::TransformVertexSoupToRecast(*LevelGeom, Verts, Faces);

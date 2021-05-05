@@ -10,11 +10,11 @@ public:
 	TestGeometry2();
 	~TestGeometry2() {};
 
-	static const TArray<Chaos::FReal>	RawVertexArray;
+	static const TArray<float>	RawVertexArray;
 	static const TArray<int32>	RawIndicesArray;
 };
 
-const TArray<Chaos::FReal> TestGeometry2::RawVertexArray = {
+const TArray<float> TestGeometry2::RawVertexArray = {
 														0.073882, -51.063614, 187.396667,
 														0.392873, -53.486588, 188.051514,
 														0.711864, -55.909561, 187.396667,

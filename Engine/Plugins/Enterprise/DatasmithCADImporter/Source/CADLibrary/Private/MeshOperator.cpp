@@ -116,7 +116,7 @@ bool MeshOperator::OrientMesh(FMeshDescription& MeshDescription)
 			if (HighestVertex[0] != INDEX_NONE)
 			{
 				FStaticMeshConstAttributes StaticMeshAttributes( MeshDescription );
-				TVertexInstanceAttributesConstRef<FVector> Normals = StaticMeshAttributes.GetVertexInstanceNormals();
+				TVertexInstanceAttributesConstRef<FVector3f> Normals = StaticMeshAttributes.GetVertexInstanceNormals();
 
 				for (int32 VertexIndex = 0; VertexIndex < 3; VertexIndex++)
 				{

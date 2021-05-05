@@ -868,12 +868,12 @@ struct ENGINE_API FRawAnimSequenceTrack
 	// Serializer.
 	friend FArchive& operator<<(FArchive& Ar, FRawAnimSequenceTrack& T)
 	{
-		T.PosKeys.BulkSerialize(Ar);
-		T.RotKeys.BulkSerialize(Ar);
+		T.PosKeys.BulkSerialize(Ar, !UE_LARGE_WORLD_COORDINATES_DISABLED);	// LWC_TODO: Need to force per element with LWC-on as we're serializing FVector arrays.
+		T.RotKeys.BulkSerialize(Ar, !UE_LARGE_WORLD_COORDINATES_DISABLED);	// LWC_TODO: Not necessary! Just a safety measure in case FQuat gets LWCified.
 
 		if (Ar.UEVer() >= VER_UE4_ANIM_SUPPORT_NONUNIFORM_SCALE_ANIMATION)
 		{
-			T.ScaleKeys.BulkSerialize(Ar);
+			T.ScaleKeys.BulkSerialize(Ar, !UE_LARGE_WORLD_COORDINATES_DISABLED);
 		}
 
 		return Ar;
@@ -890,7 +890,7 @@ class FBoneData
 {
 public:
 	FQuat		Orientation;
-	FVector		Position;
+	FVector3f		Position;
 	/** Bone name. */
 	FName		Name;
 	/** Direct descendants.  Empty for end effectors. */

@@ -77,7 +77,7 @@ bool FloatArrayToTransform(const TArray<float>& Floats, FTransform& Transform)
 		return false;
 	}
 
-	FMatrix matrix = FMatrix();
+	FMatrix44f matrix = FMatrix44f();
 	float (*matrixData)[4] = matrix.M;
 
 	const float* floatsData = Floats.GetData();

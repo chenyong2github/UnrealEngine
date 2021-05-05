@@ -559,17 +559,17 @@ public:
 	}
 
 	/** Returns the position of this vertex */
-	FVector GetVertexPosition(const FVertexID VertexID) const
+	FVector3f GetVertexPosition(const FVertexID VertexID) const
 	{
 		return VertexPositions[VertexID];
 	}
 
-	TVertexAttributesRef<FVector> GetVertexPositions()
+	TVertexAttributesRef<FVector3f> GetVertexPositions()
 	{
 		return VertexPositions;
 	}
 
-	TVertexAttributesRef<const FVector> GetVertexPositions() const
+	TVertexAttributesRef<const FVector3f> GetVertexPositions() const
 	{
 		return VertexPositions;
 	}
@@ -1265,7 +1265,7 @@ private:
 	TMeshAttributesArray<TArrayView<FUVID>> TriangleUVs;
 	TMeshAttributesArray<FPolygonGroupID> TrianglePolygonGroups;
 	TMeshAttributesArray<FPolygonGroupID> PolygonPolygonGroups;
-	TMeshAttributesArray<FVector> VertexPositions;
+	TMeshAttributesArray<FVector3f> VertexPositions;
 
 	// The indexers are all mutable because they may be rebuilt during what is essentially a get operation
 	mutable FMeshElementIndexer VertexToVertexInstances;

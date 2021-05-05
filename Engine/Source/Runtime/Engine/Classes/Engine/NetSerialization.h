@@ -18,6 +18,7 @@
 #include "Containers/ArrayView.h"
 #include "Net/GuidReferences.h"
 #include "HAL/IConsoleManager.h"
+
 #include "NetSerialization.generated.h"
 
 class Error;
@@ -1758,8 +1759,9 @@ bool FFastArraySerializer::FastArrayDeltaSerialize_DeltaSerializeStructs(TArray<
  *
 */
 
+// LWC_TODO: Proper double FVector serialization required.
 template<int32 ScaleFactor, int32 MaxBitsPerComponent>
-bool WritePackedVector(FVector Value, FArchive& Ar)	// Note Value is intended to not be a reference since we are scaling it before serializing!
+bool WritePackedVector(FVector3f Value, FArchive& Ar)	// Note Value is intended to not be a reference since we are scaling it before serializing!
 {
 	check(Ar.IsSaving());
 
@@ -1776,7 +1778,7 @@ bool WritePackedVector(FVector Value, FArchive& Ar)	// Note Value is intended to
 	}
 
 	// Some platforms have RoundToInt implementations that essentially reduces the allowed inputs to 2^31.
-	const FVector ClampedValue = ClampVector(Value, FVector(-1073741824.0f), FVector(1073741760.0f));
+	const FVector3f ClampedValue = ClampVector(Value, FVector3f(-1073741824.0f), FVector3f(1073741760.0f));
 	bool bClamp = ClampedValue != Value;
 
 	// Do basically FVector::SerializeCompressed
@@ -1807,7 +1809,7 @@ bool WritePackedVector(FVector Value, FArchive& Ar)	// Note Value is intended to
 }
 
 template<uint32 ScaleFactor, int32 MaxBitsPerComponent>
-bool ReadPackedVector(FVector &Value, FArchive& Ar)
+bool ReadPackedVector(FVector3f &Value, FArchive& Ar)
 {
 	uint32 Bits	= 0;
 
@@ -1834,12 +1836,22 @@ bool ReadPackedVector(FVector &Value, FArchive& Ar)
 	return true;
 }
 
+template<uint32 ScaleFactor, int32 MaxBitsPerComponent>
+bool ReadPackedVector(FVector3d& Value, FArchive& Ar)
+{
+	// LWC_TODO: Proper double FVector serialization required.
+	FVector3f AsFloat;
+	bool bRet = ReadPackedVector<ScaleFactor, MaxBitsPerComponent>(AsFloat, Ar);
+	Value = AsFloat;
+	return bRet;
+}
+
 // ScaleFactor is multiplied before send and divided by post receive. A higher ScaleFactor means more precision.
 // MaxBitsPerComponent is the maximum number of bits to use per component. This is only a maximum. A header is
 // written (size = Log2 (MaxBitsPerComponent)) to indicate how many bits are actually used. 
 
 template<uint32 ScaleFactor, int32 MaxBitsPerComponent>
-bool SerializePackedVector(FVector &Vector, FArchive& Ar)
+bool SerializePackedVector(FVector3f &Vector, FArchive& Ar)
 {
 	if (Ar.IsSaving())
 	{
@@ -1848,6 +1860,16 @@ bool SerializePackedVector(FVector &Vector, FArchive& Ar)
 
 	ReadPackedVector<ScaleFactor, MaxBitsPerComponent>(Vector, Ar);
 	return true;
+}
+
+template<uint32 ScaleFactor, int32 MaxBitsPerComponent>
+bool SerializePackedVector(FVector3d& Vector, FArchive& Ar)
+{
+	// LWC_TODO: Proper double FVector serialization required.
+	FVector3f AsFloat(Vector);
+	bool bRet = SerializePackedVector<ScaleFactor, MaxBitsPerComponent>(AsFloat, Ar);
+	Vector = AsFloat;
+	return bRet;
 }
 
 // --------------------------------------------------------------
@@ -1948,7 +1970,7 @@ bool ReadFixedCompressedFloat(float &Value, FArchive& Ar)
 //
 // So passing in NumBits = 8, and MaxValue = 2^8, you will scale down to fit into 7 bits so you can leave 1 for the sign bit.
 template<int32 MaxValue, int32 NumBits>
-bool SerializeFixedVector(FVector &Vector, FArchive& Ar)
+bool SerializeFixedVector(FVector3f &Vector, FArchive& Ar)
 {
 	if (Ar.IsSaving())
 	{
@@ -1965,6 +1987,15 @@ bool SerializeFixedVector(FVector &Vector, FArchive& Ar)
 	return true;
 }
 
+template<int32 MaxValue, int32 NumBits>
+bool SerializeFixedVector(FVector3d& Vector, FArchive& Ar)
+{
+	// LWC_TODO: SerializeFixedVector workaround. Double versions of Read/WriteFixedCompressedFloat for improved performance?
+	FVector3f AsFloat(Vector);
+	bool bResult = SerializeFixedVector<MaxValue, NumBits>(AsFloat, Ar);
+	Vector = AsFloat;
+	return bResult;
+}
 // --------------------------------------------------------------
 
 /**
@@ -2085,16 +2116,14 @@ struct FVector_NetQuantize100 : public FVector
 	: FVector(InX, InY, InZ)
 	{}
 
-	FORCEINLINE FVector_NetQuantize100(const FVector &InVec)
-	{
-		FVector::operator=(InVec);
-	}
+	FORCEINLINE FVector_NetQuantize100(const FVector3f& InVec) : FVector(InVec) {}
+	FORCEINLINE FVector_NetQuantize100(const FVector3d& InVec) : FVector(InVec) {}
 
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
 		bOutSuccess = SerializePackedVector<100, 30>(*this, Ar);
 		return true;
-	}
+	}	
 };
 
 template<>

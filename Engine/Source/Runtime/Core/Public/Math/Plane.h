@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -8,31 +9,63 @@
 #include "Math/Vector4.h"
 #include "UObject/ObjectVersion.h"
 
+#ifdef _MSC_VER
+#pragma warning (push)
+// Ensure template functions don't generate shadowing warnings against global variables at the point of instantiation.
+#pragma warning (disable : 4459)
+#endif
+
 /**
  * Structure for three dimensional planes.
  *
  * Stores the coeffecients as Xx+Yy+Zz=W.
  * Note that this is different from many other Plane classes that use Xx+Yy+Zz+W=0.
  */
-MS_ALIGN(16) struct FPlane
-	: public FVector
+
+namespace UE
+{
+namespace Math
+{
+
+template<typename T>
+struct MS_ALIGN(16) TPlane
+	: public TVector<T>
 {
 public:
+	using FReal = T;
+	using TVector<T>::X;
+	using TVector<T>::Y;
+	using TVector<T>::Z;
 
 	/** The w-component. */
-	float W;
+	T W;
+
+
+
+#if ENABLE_NAN_DIAGNOSTIC
+	FORCEINLINE void DiagnosticCheckNaN() const
+	{
+		if (TVector<T>::ContainsNaN() || !FMath::IsFinite(W))
+		{
+			logOrEnsureNanError(TEXT("FPlane contains NaN: %s W=%3.3f"), *TVector<T>::ToString(), W);
+			*const_cast<TPlane<T>*>(static_cast<const TPlane<T>*>(this)) = TPlane<T>(ForceInitToZero);
+		}
+	}
+#else
+	FORCEINLINE void DiagnosticCheckNaN() const {}
+#endif
 
 public:
 
 	/** Default constructor (no initialization). */
-	FORCEINLINE FPlane();
+	FORCEINLINE TPlane();
 
 	/**
 	 * Constructor.
 	 *
 	 * @param V 4D vector to set up plane.
 	 */
-	FORCEINLINE FPlane(const FVector4& V);
+	FORCEINLINE TPlane(const FVector4& V);
 
 	/**
 	 * Constructor.
@@ -42,7 +75,7 @@ public:
 	 * @param InZ Z-coefficient.
 	 * @param InW W-coefficient.
 	 */
-	FORCEINLINE FPlane(float InX, float InY, float InZ, float InW);
+	FORCEINLINE TPlane(T InX, T InY, T InZ, T InW);
 
 	/**
 	 * Constructor.
@@ -50,7 +83,7 @@ public:
 	 * @param InNormal Plane Normal Vector.
 	 * @param InW Plane W-coefficient.
 	 */
-	FORCEINLINE FPlane(FVector InNormal, float InW);
+	FORCEINLINE TPlane(TVector<T> InNormal, T InW);
 
 	/**
 	 * Constructor.
@@ -58,7 +91,7 @@ public:
 	 * @param InBase Base point in plane.
 	 * @param InNormal Plane Normal Vector.
 	 */
-	FORCEINLINE FPlane(FVector InBase, const FVector &InNormal);
+	FORCEINLINE TPlane(TVector<T> InBase, const TVector<T>& InNormal);
 
 	/**
 	 * Constructor.
@@ -67,17 +100,17 @@ public:
 	 * @param B Second point in the plane.
 	 * @param C Third point in the plane.
 	 */
-	FPlane(FVector A, FVector B, FVector C);
+	TPlane(TVector<T> A, TVector<T> B, TVector<T> C);
 
 	/**
 	 * Constructor
 	 *
 	 * @param EForceInit Force Init Enum.
 	 */
-	explicit FORCEINLINE FPlane(EForceInit);
+	explicit FORCEINLINE TPlane(EForceInit);
 
 	// Functions.
-	
+
 	/**
 	 * Checks if this plane is valid (ie: if it has a non-zero normal).
 	 *
@@ -90,14 +123,14 @@ public:
 	 *
 	 * @return The origin (base point) of this plane.
 	 */
-	FORCEINLINE FVector GetOrigin() const;
+	FORCEINLINE TVector<T> GetOrigin() const;
 
 	/**
 	 * Get the normal of this plane.
 	 *
 	 * @return The normal of this plane.
 	 */
-	FORCEINLINE const FVector& GetNormal() const;
+	FORCEINLINE const TVector<T>& GetNormal() const;
 
 
 	/**
@@ -106,7 +139,7 @@ public:
 	 * @param P The other point.
 	 * @return The distance from the plane to the point. 0: Point is on the plane. >0: Point is in front of the plane. <0: Point is behind the plane.
 	 */
-	FORCEINLINE float PlaneDot(const FVector &P) const;
+	FORCEINLINE T PlaneDot(const TVector<T>& P) const;
 
 	/**
 	 * Normalize this plane in-place if it is larger than a given tolerance. Leaves it unchanged if not.
@@ -114,14 +147,14 @@ public:
 	 * @param Tolerance Minimum squared length of vector for normalization.
 	 * @return true if the plane was normalized correctly, false otherwise.
 	 */
-	bool Normalize(float Tolerance=SMALL_NUMBER);
+	bool Normalize(T Tolerance = SMALL_NUMBER);
 
 	/**
 	 * Get a flipped version of the plane.
 	 *
 	 * @return A flipped version of the plane.
 	 */
-	FPlane Flip() const;
+	TPlane<T> Flip() const;
 
 	/**
 	 * Get the result of transforming the plane by a Matrix.
@@ -129,7 +162,7 @@ public:
 	 * @param M The matrix to transform plane with.
 	 * @return The result of transform.
 	 */
-	FPlane TransformBy(const FMatrix& M) const;
+	TPlane<T> TransformBy(const TMatrix<T>& M) const;
 
 	/**
 	 * You can optionally pass in the matrices transpose-adjoint, which save it recalculating it.
@@ -141,7 +174,7 @@ public:
 	 * @param TA Transpose-adjoint of Matrix.
 	 * @return The result of transform.
 	 */
-	FPlane TransformByUsingAdjointT(const FMatrix& M, float DetM, const FMatrix& TA) const;
+	TPlane<T> TransformByUsingAdjointT(const TMatrix<T>& M, T DetM, const TMatrix<T>& TA) const;
 
 	/**
 	 * Check if two planes are identical.
@@ -149,7 +182,7 @@ public:
 	 * @param V The other plane.
 	 * @return true if planes are identical, otherwise false.
 	 */
-	bool operator==(const FPlane& V) const;
+	bool operator==(const TPlane<T>& V) const;
 
 	/**
 	 * Check if two planes are different.
@@ -157,7 +190,7 @@ public:
 	 * @param V The other plane.
 	 * @return true if planes are different, otherwise false.
 	 */
-	bool operator!=(const FPlane& V) const;
+	bool operator!=(const TPlane<T>& V) const;
 
 	/**
 	 * Checks whether two planes are equal within specified tolerance.
@@ -166,7 +199,7 @@ public:
 	 * @param Tolerance Error Tolerance.
 	 * @return true if the two planes are equal within specified tolerance, otherwise false.
 	 */
-	bool Equals(const FPlane& V, float Tolerance=KINDA_SMALL_NUMBER) const;
+	bool Equals(const TPlane<T>& V, T Tolerance = KINDA_SMALL_NUMBER) const;
 
 	/**
 	 * Calculates dot product of two planes.
@@ -174,7 +207,7 @@ public:
 	 * @param V The other plane.
 	 * @return The dot product.
 	 */
-	FORCEINLINE float operator|(const FPlane& V) const;
+	FORCEINLINE T operator|(const TPlane<T>& V) const;
 
 	/**
 	 * Gets result of adding a plane to this.
@@ -182,7 +215,7 @@ public:
 	 * @param V The other plane.
 	 * @return The result of adding a plane to this.
 	 */
-	FPlane operator+(const FPlane& V) const;
+	TPlane<T> operator+(const TPlane<T>& V) const;
 
 	/**
 	 * Gets result of subtracting a plane from this.
@@ -190,7 +223,7 @@ public:
 	 * @param V The other plane.
 	 * @return The result of subtracting a plane from this.
 	 */
-	FPlane operator-(const FPlane& V) const;
+	TPlane<T> operator-(const TPlane<T>& V) const;
 
 	/**
 	 * Gets result of dividing a plane.
@@ -198,7 +231,7 @@ public:
 	 * @param Scale What to divide by.
 	 * @return The result of division.
 	 */
-	FPlane operator/(float Scale) const;
+	TPlane<T> operator/(T Scale) const;
 
 	/**
 	 * Gets result of scaling a plane.
@@ -206,7 +239,7 @@ public:
 	 * @param Scale The scaling factor.
 	 * @return The result of scaling.
 	 */
-	FPlane operator*(float Scale) const;
+	TPlane<T> operator*(T Scale) const;
 
 	/**
 	 * Gets result of multiplying a plane with this.
@@ -214,7 +247,7 @@ public:
 	 * @param V The other plane.
 	 * @return The result of multiplying a plane with this.
 	 */
-	FPlane operator*(const FPlane& V);
+	TPlane<T> operator*(const TPlane<T>& V);
 
 	/**
 	 * Add another plane to this.
@@ -222,7 +255,7 @@ public:
 	 * @param V The other plane.
 	 * @return Copy of plane after addition.
 	 */
-	FPlane operator+=(const FPlane& V);
+	TPlane<T> operator+=(const TPlane<T>& V);
 
 	/**
 	 * Subtract another plane from this.
@@ -230,7 +263,7 @@ public:
 	 * @param V The other plane.
 	 * @return Copy of plane after subtraction.
 	 */
-	FPlane operator-=(const FPlane& V);
+	TPlane<T> operator-=(const TPlane<T>& V);
 
 	/**
 	 * Scale this plane.
@@ -238,7 +271,7 @@ public:
 	 * @param Scale The scaling factor.
 	 * @return Copy of plane after scaling.
 	 */
-	FPlane operator*=(float Scale);
+	TPlane<T> operator*=(T Scale);
 
 	/**
 	 * Multiply another plane with this.
@@ -246,7 +279,7 @@ public:
 	 * @param V The other plane.
 	 * @return Copy of plane after multiplication.
 	 */
-	FPlane operator*=(const FPlane& V);
+	TPlane<T> operator*=(const TPlane<T>& V);
 
 	/**
 	 * Divide this plane.
@@ -254,28 +287,16 @@ public:
 	 * @param V What to divide by.
 	 * @return Copy of plane after division.
 	 */
-	FPlane operator/=(float V);
-
-	/**
-	 * Serializer.
-	 *
-	 * @param Ar Serialization Archive.
-	 * @param P Plane to serialize.
-	 * @return Reference to Archive after serialization.
-	 */
-	friend FArchive& operator<<(FArchive& Ar, FPlane &P)
-	{
-		return Ar << (FVector&)P << P.W;
-	}
+	TPlane<T> operator/=(T V);
 
 	bool Serialize(FArchive& Ar)
 	{
-		if (Ar.UEVer() >= VER_UE4_ADDED_NATIVE_SERIALIZATION_FOR_IMMUTABLE_STRUCTURES)
+		//if (Ar.UEVer() >= VER_UE4_ADDED_NATIVE_SERIALIZATION_FOR_IMMUTABLE_STRUCTURES)
 		{
-			Ar << *this;
+			Ar << (TPlane<T>&)*this;
 			return true;
 		}
-		return false;
+		//return false;
 	}
 
 	/**
@@ -285,11 +306,11 @@ public:
 	 */
 	bool NetSerialize(FArchive& Ar, class UPackageMap*, bool& bOutSuccess)
 	{
-		if(Ar.IsLoading())
+		if (Ar.IsLoading())
 		{
 			int16 iX, iY, iZ, iW;
 			Ar << iX << iY << iZ << iW;
-			*this = FPlane(iX,iY,iZ,iW);
+			*this = TPlane<T>(iX, iY, iZ, iW);
 		}
 		else
 		{
@@ -302,265 +323,368 @@ public:
 		bOutSuccess = true;
 		return true;
 	}
+
+	// Conversion to other type. TODO: explicit!
+	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	TPlane(const TPlane<FArg>& From) : TPlane<T>((T)From.X, (T)From.Y, (T)From.Z, (T)From.W) {}
+
 } GCC_ALIGN(16);
 
-/* FMath inline functions
+
+/**
+ * Serializer.
+ *
+ * @param Ar Serialization Archive.
+ * @param P Plane to serialize.
+ * @return Reference to Archive after serialization.
+ */
+inline FArchive& operator<<(FArchive& Ar, TPlane<float>& P)
+{
+	Ar << (TVector<float>&)P << P.W;
+	P.DiagnosticCheckNaN();
+	return Ar;
+}
+
+/**
+ * Serializer.
+ *
+ * @param Ar Serialization Archive.
+ * @param P Plane to serialize.
+ * @return Reference to Archive after serialization.
+ */
+inline FArchive& operator<<(FArchive& Ar, TPlane<double>& P)
+{
+	Ar << (TVector<double>&)P;
+
+	// LWC_TODO: Serializer
+	//if (!Ar.IsPersistent())
+	//{
+	//	Ar << P.W;
+	//}
+	//else
+	{
+		// Stored as floats, so serialize float and copy.
+		float SW = (float)P.W;
+		Ar << SW;
+		P.W = SW;
+	}
+
+	P.DiagnosticCheckNaN();
+	return Ar;
+}
+
+
+/* TPlane inline functions
  *****************************************************************************/
 
-inline FVector FMath::RayPlaneIntersection( const FVector& RayOrigin, const FVector& RayDirection, const FPlane& Plane )
-{
-	const FVector PlaneNormal = FVector( Plane.X, Plane.Y, Plane.Z );
-	const FVector PlaneOrigin = PlaneNormal * Plane.W;
-
-	const float Distance = FVector::DotProduct( ( PlaneOrigin - RayOrigin ), PlaneNormal ) / FVector::DotProduct( RayDirection, PlaneNormal );
-	return RayOrigin + RayDirection * Distance;
-}
-
-
-inline FVector FMath::LinePlaneIntersection
-	(
-	const FVector &Point1,
-	const FVector &Point2,
-	const FPlane  &Plane
-	)
-{
-	return
-		Point1
-		+	(Point2-Point1)
-		*	((Plane.W - (Point1|Plane))/((Point2 - Point1)|Plane));
-}
-
-inline bool FMath::IntersectPlanes3( FVector& I, const FPlane& P1, const FPlane& P2, const FPlane& P3 )
-{
-	// Compute determinant, the triple product P1|(P2^P3)==(P1^P2)|P3.
-	const float Det = (P1 ^ P2) | P3;
-	if( Square(Det) < Square(0.001f) )
-	{
-		// Degenerate.
-		I = FVector::ZeroVector;
-		return 0;
-	}
-	else
-	{
-		// Compute the intersection point, guaranteed valid if determinant is nonzero.
-		I = (P1.W*(P2^P3) + P2.W*(P3^P1) + P3.W*(P1^P2)) / Det;
-	}
-	return 1;
-}
-
-inline bool FMath::IntersectPlanes2( FVector& I, FVector& D, const FPlane& P1, const FPlane& P2 )
-{
-	// Compute line direction, perpendicular to both plane normals.
-	D = P1 ^ P2;
-	const float DD = D.SizeSquared();
-	if( DD < Square(0.001f) )
-	{
-		// Parallel or nearly parallel planes.
-		D = I = FVector::ZeroVector;
-		return 0;
-	}
-	else
-	{
-		// Compute intersection.
-		I = (P1.W*(P2^D) + P2.W*(D^P1)) / DD;
-		D.Normalize();
-		return 1;
-	}
-}
-
-/* FVector inline functions
- *****************************************************************************/
-
-inline FVector FVector::MirrorByPlane( const FPlane& Plane ) const
-{
-	return *this - Plane * (2.f * Plane.PlaneDot(*this) );
-}
-
-inline FVector FVector::PointPlaneProject(const FVector& Point, const FPlane& Plane)
-{
-	//Find the distance of X from the plane
-	//Add the distance back along the normal from the point
-	return Point - Plane.PlaneDot(Point) * Plane;
-}
-
-inline FVector FVector::PointPlaneProject(const FVector& Point, const FVector& A, const FVector& B, const FVector& C)
-{
-	//Compute the plane normal from ABC
-	FPlane Plane(A, B, C);
-
-	//Find the distance of X from the plane
-	//Add the distance back along the normal from the point
-	return Point - Plane.PlaneDot(Point) * Plane;
-}
-
-/* FPlane inline functions
- *****************************************************************************/
-
-FORCEINLINE FPlane::FPlane()
+template<typename T>
+FORCEINLINE TPlane<T>::TPlane()
 {}
 
 
-FORCEINLINE FPlane::FPlane(const FVector4& V)
-	:	FVector(V)
-	,	W(V.W)
+template<typename T>
+FORCEINLINE TPlane<T>::TPlane(const FVector4& V)
+	: TVector<T>(V)
+	, W(V.W)
 {}
 
 
-FORCEINLINE FPlane::FPlane(float InX, float InY, float InZ, float InW)
-	:	FVector(InX,InY,InZ)
-	,	W(InW)
-{}
+template<typename T>
+FORCEINLINE TPlane<T>::TPlane(T InX, T InY, T InZ, T InW)
+	: TVector<T>(InX, InY, InZ)
+	, W(InW)
+{
+	DiagnosticCheckNaN();
+}
 
 
-FORCEINLINE FPlane::FPlane(FVector InNormal, float InW)
-	:	FVector(InNormal), W(InW)
-{}
+template<typename T>
+FORCEINLINE TPlane<T>::TPlane(TVector<T> InNormal, T InW)
+	: TVector<T>(InNormal), W(InW)
+{
+	DiagnosticCheckNaN();
+}
+
+template<typename T>
+FORCEINLINE TPlane<T>::TPlane(TVector<T> InBase, const TVector<T>& InNormal)
+	: TVector<T>(InNormal)
+	, W(InBase | InNormal)
+{
+	DiagnosticCheckNaN();
+}
 
 
-FORCEINLINE FPlane::FPlane(FVector InBase, const FVector &InNormal)
-	:	FVector(InNormal)
-	,	W(InBase | InNormal)
-{}
-
-
-FORCEINLINE FPlane::FPlane(FVector A, FVector B, FVector C)
-	:	FVector(((B-A)^(C-A)).GetSafeNormal())
+template<typename T>
+FORCEINLINE TPlane<T>::TPlane(TVector<T> A, TVector<T> B, TVector<T> C)
+	: TVector<T>(((B - A) ^ (C - A)).GetSafeNormal())
 {
 	W = A | (FVector)(*this);
+	DiagnosticCheckNaN();
 }
 
 
-FORCEINLINE FPlane::FPlane(EForceInit)
-	: FVector(ForceInit), W(0.f)
+template<typename T>
+FORCEINLINE TPlane<T>::TPlane(EForceInit)
+	: TVector<T>(ForceInit), W(0.f)
 {}
 
-FORCEINLINE bool FPlane::IsValid() const
+template<typename T>
+FORCEINLINE bool TPlane<T>::IsValid() const
 {
-	return !IsNearlyZero();
+	return !this->IsNearlyZero();
 }
 
-FORCEINLINE const FVector& FPlane::GetNormal() const
+template<typename T>
+FORCEINLINE const TVector<T>& TPlane<T>::GetNormal() const
 {
 	return *this;
 }
 
-FORCEINLINE FVector FPlane::GetOrigin() const
+template<typename T>
+FORCEINLINE TVector<T> TPlane<T>::GetOrigin() const
 {
 	return GetNormal() * W;
 }
 
-
-FORCEINLINE float FPlane::PlaneDot(const FVector &P) const
+template<typename T>
+FORCEINLINE T TPlane<T>::PlaneDot(const TVector<T>& P) const
 {
 	return X * P.X + Y * P.Y + Z * P.Z - W;
 }
 
-FORCEINLINE bool FPlane::Normalize(float Tolerance)
+template<typename T>
+FORCEINLINE bool TPlane<T>::Normalize(T Tolerance)
 {
-	const float SquareSum = X*X + Y*Y + Z*Z;
-	if(SquareSum > Tolerance)
+	const T SquareSum = X * X + Y * Y + Z * Z;
+	if (SquareSum > Tolerance)
 	{
-		const float Scale = FMath::InvSqrt(SquareSum);
+		const T Scale = FMath::InvSqrt(SquareSum);
 		X *= Scale; Y *= Scale; Z *= Scale; W *= Scale;
 		return true;
 	}
 	return false;
 }
 
-FORCEINLINE FPlane FPlane::Flip() const
+template<typename T>
+FORCEINLINE TPlane<T> TPlane<T>::Flip() const
 {
-	return FPlane(-X, -Y, -Z, -W);
+	return TPlane<T>(-X, -Y, -Z, -W);
 }
 
-FORCEINLINE bool FPlane::operator==(const FPlane& V) const
+template<typename T>
+FORCEINLINE bool TPlane<T>::operator==(const TPlane<T>& V) const
 {
 	return (X == V.X) && (Y == V.Y) && (Z == V.Z) && (W == V.W);
 }
 
 
-FORCEINLINE bool FPlane::operator!=(const FPlane& V) const
+template<typename T>
+FORCEINLINE bool TPlane<T>::operator!=(const TPlane<T>& V) const
 {
 	return (X != V.X) || (Y != V.Y) || (Z != V.Z) || (W != V.W);
 }
 
 
-FORCEINLINE bool FPlane::Equals(const FPlane& V, float Tolerance) const
+template<typename T>
+FORCEINLINE bool TPlane<T>::Equals(const TPlane<T>& V, T Tolerance) const
 {
 	return (FMath::Abs(X - V.X) < Tolerance) && (FMath::Abs(Y - V.Y) < Tolerance) && (FMath::Abs(Z - V.Z) < Tolerance) && (FMath::Abs(W - V.W) < Tolerance);
 }
 
 
-FORCEINLINE float FPlane::operator|(const FPlane& V) const
+template<typename T>
+FORCEINLINE T TPlane<T>::operator|(const TPlane<T>& V) const
 {
 	return X * V.X + Y * V.Y + Z * V.Z + W * V.W;
 }
 
 
-FORCEINLINE FPlane FPlane::operator+(const FPlane& V) const
+template<typename T>
+FORCEINLINE TPlane<T> TPlane<T>::operator+(const TPlane<T>& V) const
 {
-	return FPlane(X + V.X, Y + V.Y, Z + V.Z, W + V.W);
+	return TPlane<T>(X + V.X, Y + V.Y, Z + V.Z, W + V.W);
 }
 
 
-FORCEINLINE FPlane FPlane::operator-(const FPlane& V) const
+template<typename T>
+FORCEINLINE TPlane<T> TPlane<T>::operator-(const TPlane<T>& V) const
 {
-	return FPlane(X - V.X, Y - V.Y, Z - V.Z, W - V.W);
+	return TPlane<T>(X - V.X, Y - V.Y, Z - V.Z, W - V.W);
 }
 
 
-FORCEINLINE FPlane FPlane::operator/(float Scale) const
+template<typename T>
+FORCEINLINE TPlane<T> TPlane<T>::operator/(T Scale) const
 {
-	const float RScale = 1.f / Scale;
-	return FPlane(X * RScale, Y * RScale, Z * RScale, W * RScale);
+	const T RScale = 1 / Scale;
+	return TPlane<T>(X * RScale, Y * RScale, Z * RScale, W * RScale);
 }
 
 
-FORCEINLINE FPlane FPlane::operator*(float Scale) const
+template<typename T>
+FORCEINLINE TPlane<T> TPlane<T>::operator*(T Scale) const
 {
-	return FPlane(X * Scale, Y * Scale, Z * Scale, W * Scale);
+	return TPlane<T>(X * Scale, Y * Scale, Z * Scale, W * Scale);
 }
 
 
-FORCEINLINE FPlane FPlane::operator*(const FPlane& V)
+template<typename T>
+FORCEINLINE TPlane<T> TPlane<T>::operator*(const TPlane<T>& V)
 {
-	return FPlane (X * V.X, Y * V.Y, Z * V.Z, W * V.W);
+	return TPlane<T>(X * V.X, Y * V.Y, Z * V.Z, W * V.W);
 }
 
 
-FORCEINLINE FPlane FPlane::operator+=(const FPlane& V)
+template<typename T>
+FORCEINLINE TPlane<T> TPlane<T>::operator+=(const TPlane<T>& V)
 {
 	X += V.X; Y += V.Y; Z += V.Z; W += V.W;
 	return *this;
 }
 
 
-FORCEINLINE FPlane FPlane::operator-=(const FPlane& V)
+template<typename T>
+FORCEINLINE TPlane<T> TPlane<T>::operator-=(const TPlane<T>& V)
 {
 	X -= V.X; Y -= V.Y; Z -= V.Z; W -= V.W;
 	return *this;
 }
 
 
-FORCEINLINE FPlane FPlane::operator*=(float Scale)
+template<typename T>
+FORCEINLINE TPlane<T> TPlane<T>::operator*=(T Scale)
 {
 	X *= Scale; Y *= Scale; Z *= Scale; W *= Scale;
 	return *this;
 }
 
 
-FORCEINLINE FPlane FPlane::operator*=(const FPlane& V)
+template<typename T>
+FORCEINLINE TPlane<T> TPlane<T>::operator*=(const TPlane<T>& V)
 {
 	X *= V.X; Y *= V.Y; Z *= V.Z; W *= V.W;
 	return *this;
 }
 
 
-FORCEINLINE FPlane FPlane::operator/=(float V)
+template<typename T>
+FORCEINLINE TPlane<T> TPlane<T>::operator/=(T V)
 {
-	const float RV = 1.f / V;
+	const T RV = 1 / V;
 	X *= RV; Y *= RV; Z *= RV; W *= RV;
 	return *this;
 }
 
 
-template <> struct TIsPODType<FPlane> { enum { Value = true }; };
+/* TVector inline functions
+ *****************************************************************************/
+
+template<typename T>
+inline TVector<T> TVector<T>::MirrorByPlane(const TPlane<T>& Plane) const
+{
+	return *this - Plane * (2.f * Plane.PlaneDot(*this));
+}
+
+template<typename T>
+inline TVector<T> TVector<T>::PointPlaneProject(const TVector<T>& Point, const TPlane<T>& Plane)
+{
+	//Find the distance of X from the plane
+	//Add the distance back along the normal from the point
+	return Point - Plane.PlaneDot(Point) * Plane;
+}
+
+template<typename T>
+inline TVector<T> TVector<T>::PointPlaneProject(const TVector<T>& Point, const TVector<T>& A, const TVector<T>& B, const TVector<T>& C)
+{
+	//Compute the plane normal from ABC
+	TPlane<T> Plane(A, B, C);
+
+	//Find the distance of X from the plane
+	//Add the distance back along the normal from the point
+	return Point - Plane.PlaneDot(Point) * Plane;
+}
+
+}	// namespace UE::Core
+}	// namespace UE
+
+
+/* FMath inline functions
+ *****************************************************************************/
+
+template<typename T>
+inline UE::Math::TVector<T> FMath::RayPlaneIntersection(const UE::Math::TVector<T>& RayOrigin, const UE::Math::TVector<T>& RayDirection, const UE::Math::TPlane<T>& Plane)
+{
+	using TVector = UE::Math::TVector<T>;
+	const TVector PlaneNormal = TVector(Plane.X, Plane.Y, Plane.Z);
+	const TVector PlaneOrigin = PlaneNormal * Plane.W;
+
+	const T Distance = TVector::DotProduct((PlaneOrigin - RayOrigin), PlaneNormal) / TVector::DotProduct(RayDirection, PlaneNormal);
+	return RayOrigin + RayDirection * Distance;
+}
+
+
+template<typename T>
+inline UE::Math::TVector<T> FMath::LinePlaneIntersection
+(
+	const UE::Math::TVector<T>& Point1,
+	const UE::Math::TVector<T>& Point2,
+	const UE::Math::TPlane<T>& Plane
+)
+{
+	return
+		Point1
+		+ (Point2 - Point1)
+		* ((Plane.W - (Point1 | Plane)) / ((Point2 - Point1) | Plane));
+}
+
+template<typename T>
+inline bool FMath::IntersectPlanes3(UE::Math::TVector<T>& I, const UE::Math::TPlane<T>& P1, const UE::Math::TPlane<T>& P2, const UE::Math::TPlane<T>& P3)
+{
+	// Compute determinant, the triple product P1|(P2^P3)==(P1^P2)|P3.
+	const T Det = (P1 ^ P2) | P3;
+	if (Square(Det) < Square(0.001f))
+	{
+		// Degenerate.
+		I = UE::Math::TVector<T>::ZeroVector;
+		return 0;
+	}
+	else
+	{
+		// Compute the intersection point, guaranteed valid if determinant is nonzero.
+		I = (P1.W * (P2 ^ P3) + P2.W * (P3 ^ P1) + P3.W * (P1 ^ P2)) / Det;
+	}
+	return 1;
+}
+
+template<typename T>
+inline bool FMath::IntersectPlanes2(UE::Math::TVector<T>& I, UE::Math::TVector<T>& D, const UE::Math::TPlane<T>& P1, const UE::Math::TPlane<T>& P2)
+{
+	// Compute line direction, perpendicular to both plane normals.
+	D = P1 ^ P2;
+	const T DD = D.SizeSquared();
+	if (DD < Square(0.001f))
+	{
+		// Parallel or nearly parallel planes.
+		D = I = UE::Math::TVector<T>::ZeroVector;
+		return 0;
+	}
+	else
+	{
+		// Compute intersection.
+		I = (P1.W * (P2 ^ D) + P2.W * (D ^ P1)) / DD;
+		D.Normalize();
+		return 1;
+	}
+}
+
+
+DECLARE_LWC_TYPE(Plane,4);
+template<> struct TIsPODType<FPlane4f> { enum { Value = true }; };
+template<> struct TIsUECoreType<FPlane4f> { enum { Value = true }; };
+
+template<> struct TIsPODType<FPlane4d> { enum { Value = true }; };
+template<> struct TIsUECoreType<FPlane4d> { enum { Value = true }; };
+
+#ifdef _MSC_VER
+#pragma warning (pop)
+#endif

@@ -825,10 +825,10 @@ bool USplineMeshComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* C
 	{
 		GetStaticMesh()->GetPhysicsTriMeshData(CollisionData, InUseAllTriData);
 
-		FVector Mask = FVector(1, 1, 1);
+		FVector3f Mask = FVector3f(1, 1, 1);
 		GetAxisValue(Mask, ForwardAxis) = 0;
 
-		for (FVector& CollisionVert : CollisionData->Vertices)
+		for (FVector3f& CollisionVert : CollisionData->Vertices)
 		{
 			CollisionVert = CalcSliceTransform(GetAxisValue(CollisionVert, ForwardAxis)).TransformPosition(CollisionVert * Mask);
 		}
@@ -1160,7 +1160,7 @@ FStaticMeshStaticLightingMesh* USplineMeshComponent::AllocateStaticLightingMesh(
 
 float USplineMeshComponent::GetTextureStreamingTransformScale() const
 {
-	float SplineDeformFactor = 1.f;
+	FVector::FReal SplineDeformFactor = 1;
 
 	if (GetStaticMesh())
 	{

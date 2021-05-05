@@ -53,9 +53,9 @@ struct FLinearColor;
 template<> struct TRigVMIsBaseStructure<FLinearColor> { enum { Value = true }; };
 struct FColor;
 template<> struct TRigVMIsBaseStructure<FColor> { enum { Value = true }; };
-struct FPlane;
+
 template<> struct TRigVMIsBaseStructure<FPlane> { enum { Value = true }; };
-struct FVector;
+
 template<> struct TRigVMIsBaseStructure<FVector> { enum { Value = true }; };
 struct FVector2D;
 template<> struct TRigVMIsBaseStructure<FVector2D> { enum { Value = true }; };

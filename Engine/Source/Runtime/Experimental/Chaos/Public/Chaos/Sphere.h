@@ -93,7 +93,7 @@ namespace Chaos
 
 		virtual bool Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const override
 		{
-			ensure(FMath::IsNearlyEqual(Dir.SizeSquared(),1, KINDA_SMALL_NUMBER));
+			ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), (FReal)1, (FReal)KINDA_SMALL_NUMBER));
 			ensure(Length > 0);
 			OutFaceIndex = INDEX_NONE;
 
@@ -336,7 +336,7 @@ namespace Chaos
 
 		virtual uint32 GetTypeHash() const override
 		{
-			const uint32 CenterHash = ::GetTypeHash(Center);
+			const uint32 CenterHash = UE::Math::GetTypeHash(Center);
 			const uint32 RadiusHash = ::GetTypeHash(GetRadius());
 			return HashCombine(CenterHash, RadiusHash);
 		}

@@ -104,10 +104,10 @@ namespace ProxyLOD
 #define PROXYLOD_CLOCKWISE_TRIANGLES  1
 #endif
 
-static FVector ComputeNormal(const FVector(&Tri)[3])
+static FVector3f ComputeNormal(const FVector3f(&Tri)[3])
 {
 
-	FVector N = FVector::CrossProduct(Tri[1] - Tri[0], Tri[2] - Tri[0]);
+	FVector3f N = FVector3f::CrossProduct(Tri[1] - Tri[0], Tri[2] - Tri[0]);
 	N.Normalize();
 #if	(PROXYLOD_CLOCKWISE_TRIANGLES == 1)
 	return -N;
@@ -146,7 +146,7 @@ void ProxyLOD::MixedPolyMeshToAOSMesh(const FMixedPolyMesh& MixedPolyMesh, TAOSM
 			for (uint32 i = Range.begin(), I = Range.end(); i < I; ++i)
 			{
 				const openvdb::Vec3s& Point = MixedPolyMesh.Points[i];
-				DstAOSMesh.Vertexes[i].Position = FVector(Point[0], Point[1], Point[2]);
+				DstAOSMesh.Vertexes[i].Position = FVector3f(Point[0], Point[1], Point[2]);
 				DstAOSMesh.Vertexes[i].MaterialIndex = 0;
 			}
 		});

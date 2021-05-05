@@ -184,7 +184,7 @@ void ExtractAttribList(FMeshDescription* Mesh, AttribSetType& AttribSet, EAttrib
 		{
 			AttribInfo.DataType = EAttributeEditorAttribType::Vector2;
 		}
-		else if (AttribSet.template HasAttributeOfType<FVector>(AttributeName))
+		else if (AttribSet.template HasAttributeOfType<FVector3f>(AttributeName))
 		{
 			AttribInfo.DataType = EAttributeEditorAttribType::Vector3;
 		}
@@ -256,7 +256,7 @@ static bool AddAttribute(FMeshDescription* Mesh, EAttributeEditorElementType Ele
 			AttribSetBase->RegisterAttribute<FVector2D>(AttributeName, 1, FVector2D::ZeroVector, EMeshAttributeFlags::Lerpable);
 			return true;
 		case EAttributeEditorAttribType::Vector3:
-			AttribSetBase->RegisterAttribute<FVector>(AttributeName, 1, FVector::ZeroVector, EMeshAttributeFlags::Lerpable);
+			AttribSetBase->RegisterAttribute<FVector3f>(AttributeName, 1, FVector3f::ZeroVector, EMeshAttributeFlags::Lerpable);
 			return true;
 		case EAttributeEditorAttribType::Vector4:
 			AttribSetBase->RegisterAttribute<FVector4>(AttributeName, 1, FVector4(0,0,0,1), EMeshAttributeFlags::Lerpable);

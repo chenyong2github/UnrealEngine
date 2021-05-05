@@ -159,7 +159,7 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 	TRACE_CPUPROFILER_EVENT_SCOPE(RebuildWaterMesh);
 
 	// Position snapped to the grid
-	const FVector2D GridPosition = FVector2D(FMath::GridSnap(GetComponentLocation().X, InTileSize), FMath::GridSnap(GetComponentLocation().Y, InTileSize)); 
+	const FVector2D GridPosition = FVector2D(FMath::GridSnap<FVector::FReal>(GetComponentLocation().X, InTileSize), FMath::GridSnap<FVector::FReal>(GetComponentLocation().Y, InTileSize));
 	const FVector2D WorldExtent = FVector2D(InTileSize * InExtentInTiles.X, InTileSize * InExtentInTiles.Y);
 
 	const FBox2D WaterWorldBox = FBox2D(-WorldExtent + GridPosition, WorldExtent + GridPosition);

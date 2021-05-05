@@ -22,9 +22,9 @@
 
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FCCRRegionDataInputParameter, )
-	SHADER_PARAMETER(FVector, Rotate)
-	SHADER_PARAMETER(FVector, Translate)
-	SHADER_PARAMETER(FVector, Scale)
+	SHADER_PARAMETER(FVector3f, Rotate)
+	SHADER_PARAMETER(FVector3f, Translate)
+	SHADER_PARAMETER(FVector3f, Scale)
 
 	SHADER_PARAMETER(float, WhiteTemp)
 	SHADER_PARAMETER(float, Inner)

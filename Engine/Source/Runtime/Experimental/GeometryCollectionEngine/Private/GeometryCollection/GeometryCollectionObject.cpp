@@ -631,12 +631,12 @@ TUniquePtr<FGeometryCollectionNaniteData> UGeometryCollection::CreateNaniteData(
 	const TManagedArray<int32>& StatusFlagsArray = Collection->StatusFlags;
 
 	// Vertices Group
-	const TManagedArray<FVector>& VertexArray = Collection->Vertex;
+	const TManagedArray<FVector3f>& VertexArray = Collection->Vertex;
 	const TManagedArray<FVector2D>& UVArray = Collection->UV;
 	const TManagedArray<FLinearColor>& ColorArray = Collection->Color;
-	const TManagedArray<FVector>& TangentUArray = Collection->TangentU;
-	const TManagedArray<FVector>& TangentVArray = Collection->TangentV;
-	const TManagedArray<FVector>& NormalArray = Collection->Normal;
+	const TManagedArray<FVector3f>& TangentUArray = Collection->TangentU;
+	const TManagedArray<FVector3f>& TangentVArray = Collection->TangentV;
+	const TManagedArray<FVector3f>& NormalArray = Collection->Normal;
 	const TManagedArray<int32>& BoneMapArray = Collection->BoneMap;
 
 	// Faces Group
@@ -680,8 +680,8 @@ TUniquePtr<FGeometryCollectionNaniteData> UGeometryCollection::CreateNaniteData(
 			FStaticMeshBuildVertex& Vertex = BuildVertices.Emplace_GetRef();
 			Vertex.Position = VertexArray[VertexStart + VertexIndex];
 			Vertex.Color = bHasColors ? ColorArray[VertexStart + VertexIndex].ToFColor(false /* sRGB */) : FColor::White;
-			Vertex.TangentX = FVector::ZeroVector;
-			Vertex.TangentY = FVector::ZeroVector;
+			Vertex.TangentX = FVector3f::ZeroVector;
+			Vertex.TangentY = FVector3f::ZeroVector;
 			Vertex.TangentZ = NormalArray[VertexStart + VertexIndex];
 			Vertex.UVs[0] = UVArray[VertexStart + VertexIndex];
 			if (Vertex.UVs[0].ContainsNaN())
@@ -757,7 +757,7 @@ TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> UGeometryCollection::Genera
 
 	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> DuplicateGeometryCollection(new FGeometryCollection());
 	DuplicateGeometryCollection->AddAttribute<bool>(FGeometryCollection::SimulatableParticlesAttribute, FTransformCollection::TransformGroup);
-	DuplicateGeometryCollection->AddAttribute<FVector>("InertiaTensor", FGeometryCollection::TransformGroup);
+	DuplicateGeometryCollection->AddAttribute<FVector3f>("InertiaTensor", FGeometryCollection::TransformGroup);
 	DuplicateGeometryCollection->AddAttribute<float>("Mass", FGeometryCollection::TransformGroup);
 	DuplicateGeometryCollection->AddAttribute<FTransform>("MassToLocal", FGeometryCollection::TransformGroup);
 	DuplicateGeometryCollection->AddAttribute<FGeometryDynamicCollection::FSharedImplicit>(

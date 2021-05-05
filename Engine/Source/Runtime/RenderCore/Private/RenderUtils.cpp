@@ -694,10 +694,10 @@ FTexture* GBlackUintTexture = new TGlobalResource< FUintTexture<PF_R32G32B32A32_
 /**
 *	operator FVector - unpacked to -1 to 1
 */
-FPackedPosition::operator FVector() const
+FPackedPosition::operator FVector3f() const
 {
 
-	return FVector(Vector.X/1023.f, Vector.Y/1023.f, Vector.Z/511.f);
+	return FVector3f(Vector.X/1023.f, Vector.Y/1023.f, Vector.Z/511.f);
 }
 
 /**
@@ -705,7 +705,7 @@ FPackedPosition::operator FVector() const
 */
 VectorRegister FPackedPosition::GetVectorRegister() const
 {
-	FVector UnpackedVect = *this;
+	FVector3f UnpackedVect = *this;
 
 	VectorRegister VectorToUnpack = VectorLoadFloat3_W0(&UnpackedVect);
 
@@ -715,7 +715,7 @@ VectorRegister FPackedPosition::GetVectorRegister() const
 /**
 * Pack this vector(-1 to 1 for XYZ) to 4 bytes XYZ(11:11:10)
 */
-void FPackedPosition::Set( const FVector& InVector )
+void FPackedPosition::Set( const FVector3f& InVector )
 {
 	check (FMath::Abs<float>(InVector.X) <= 1.f && FMath::Abs<float>(InVector.Y) <= 1.f &&  FMath::Abs<float>(InVector.Z) <= 1.f);
 	
@@ -729,6 +729,12 @@ void FPackedPosition::Set( const FVector& InVector )
 	Vector.Y = FMath::Clamp<int32>(FMath::TruncToInt(InVector.Y * 1023.0f),-1023,1023);
 	Vector.Z = FMath::Clamp<int32>(FMath::TruncToInt(InVector.Z * 511.0f),-511,511);
 #endif
+}
+
+// LWC_TODO: Perf pessimization
+void FPackedPosition::Set(const FVector3d& InVector)
+{
+	Set(FVector3f(InVector));
 }
 
 /**
@@ -1045,7 +1051,7 @@ public:
 	virtual void InitRHI() override
 	{
 		FVertexDeclarationElementList Elements;
-		Elements.Add(FVertexElement(0, 0, VET_Float3, 0, sizeof(FVector)));
+		Elements.Add(FVertexElement(0, 0, VET_Float3, 0, sizeof(FVector3f)));
 		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 	}
 	virtual void ReleaseRHI() override

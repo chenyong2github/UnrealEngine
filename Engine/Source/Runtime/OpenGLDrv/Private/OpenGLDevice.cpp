@@ -1245,6 +1245,7 @@ void FOpenGLDynamicRHI::RHIAcquireThreadOwnership()
 	PlatformRenderingContextSetup(PlatformDevice);
 	PlatformRebindResources(PlatformDevice);
 	bIsRenderingContextAcquired = true;
+	FTaskTagScope Scope(ETaskTag::ERenderingThread);
 	VERIFY_GL(RHIAcquireThreadOwnership);
 	{
 		FScopeLock lock(&CustomPresentSection);
@@ -1264,6 +1265,7 @@ void FOpenGLDynamicRHI::RHIReleaseThreadOwnership()
 			CustomPresent->OnReleaseThreadOwnership();
 		}
 	}
+	FTaskTagScope Scope(ETaskTag::ERhiThread);
 	VERIFY_GL(RHIReleaseThreadOwnership);
 	bIsRenderingContextAcquired = false;
 	PlatformNULLContextSetup();

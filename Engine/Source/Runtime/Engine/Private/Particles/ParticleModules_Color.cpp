@@ -561,7 +561,7 @@ void UParticleModuleColorScaleOverLife::Update(FParticleEmitterInstance* Owner, 
 { 
 	const FRawDistribution* FastColorScaleOverLife = ColorScaleOverLife.GetFastRawDistribution();
 	const FRawDistribution* FastAlphaScaleOverLife = AlphaScaleOverLife.GetFastRawDistribution();
-	FVector ColorVec;
+	FVector3f ColorVec;	// LWC_TODO: WRONG? Force ColorVec to floats for serialization. Particle.Color is FVector. Update to FVector3f also?
 	float	fAlpha;
 	if( FastColorScaleOverLife && FastAlphaScaleOverLife )
 	{

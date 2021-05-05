@@ -344,8 +344,11 @@ public:
 	 */
 	FTransform CalcSliceTransformAtSplineOffset(const float Alpha) const;
 
-	inline static const float& GetAxisValue(const FVector& InVector, ESplineMeshAxis::Type InAxis);
-	inline static float& GetAxisValue(FVector& InVector, ESplineMeshAxis::Type InAxis);
+	inline static const double& GetAxisValue(const FVector3d& InVector, ESplineMeshAxis::Type InAxis);
+	inline static double& GetAxisValue(FVector3d& InVector, ESplineMeshAxis::Type InAxis);
+
+	inline static const float& GetAxisValue(const FVector3f& InVector, ESplineMeshAxis::Type InAxis);
+	inline static float& GetAxisValue(FVector3f& InVector, ESplineMeshAxis::Type InAxis);
 
 	/** Returns a vector which, when componentwise-multiplied by another vector, will zero all the components not corresponding to the supplied ESplineMeshAxis */
 	inline static FVector GetAxisMask(ESplineMeshAxis::Type InAxis);
@@ -392,7 +395,7 @@ public:
 	FVector EndTangent = FVector::ZeroVector;
 };
 
-const float& USplineMeshComponent::GetAxisValue(const FVector& InVector, ESplineMeshAxis::Type InAxis)
+const double& USplineMeshComponent::GetAxisValue(const FVector3d& InVector, ESplineMeshAxis::Type InAxis)
 {
 	switch (InAxis)
 	{
@@ -408,7 +411,40 @@ const float& USplineMeshComponent::GetAxisValue(const FVector& InVector, ESpline
 	}
 }
 
-float& USplineMeshComponent::GetAxisValue(FVector& InVector, ESplineMeshAxis::Type InAxis)
+double& USplineMeshComponent::GetAxisValue(FVector3d& InVector, ESplineMeshAxis::Type InAxis)
+{
+	switch (InAxis)
+	{
+	case ESplineMeshAxis::X:
+		return InVector.X;
+	case ESplineMeshAxis::Y:
+		return InVector.Y;
+	case ESplineMeshAxis::Z:
+		return InVector.Z;
+	default:
+		check(0);
+		return InVector.Z;
+	}
+}
+
+
+const float& USplineMeshComponent::GetAxisValue(const FVector3f& InVector, ESplineMeshAxis::Type InAxis)
+{
+	switch (InAxis)
+	{
+	case ESplineMeshAxis::X:
+		return InVector.X;
+	case ESplineMeshAxis::Y:
+		return InVector.Y;
+	case ESplineMeshAxis::Z:
+		return InVector.Z;
+	default:
+		check(0);
+		return InVector.Z;
+	}
+}
+
+float& USplineMeshComponent::GetAxisValue(FVector3f& InVector, ESplineMeshAxis::Type InAxis)
 {
 	switch (InAxis)
 	{

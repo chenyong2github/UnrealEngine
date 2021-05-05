@@ -25,14 +25,14 @@ enum class ETonemapperOutputDevice
 };
 
 BEGIN_SHADER_PARAMETER_STRUCT(FTonemapperOutputDeviceParameters, )
-	SHADER_PARAMETER(FVector, InverseGamma)
+	SHADER_PARAMETER(FVector3f, InverseGamma)
 	SHADER_PARAMETER(uint32, OutputDevice)
 	SHADER_PARAMETER(uint32, OutputGamut)
 END_SHADER_PARAMETER_STRUCT()
 
 FTonemapperOutputDeviceParameters GetTonemapperOutputDeviceParameters(const FSceneViewFamily& Family);
 
-static void GrainRandomFromFrame(FVector* RESTRICT const Constant, uint32 FrameNumber)
+static void GrainRandomFromFrame(FVector3f* RESTRICT const Constant, uint32 FrameNumber)
 {
 	Constant->X = Halton(FrameNumber & 1023, 2);
 	Constant->Y = Halton(FrameNumber & 1023, 3);

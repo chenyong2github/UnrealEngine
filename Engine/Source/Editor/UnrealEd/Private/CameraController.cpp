@@ -288,7 +288,7 @@ void FEditorCameraController::UpdateRotation( const FCameraControllerUserImpulse
 	for( int32 CurRotationAxis = 0; CurRotationAxis < 3; ++CurRotationAxis )
 	{
 		// This will serve as both our source and destination rotation value
-		float& RotationVelocity = RotationVelocityEuler[ CurRotationAxis ];
+		FVector::FReal& RotationVelocity = RotationVelocityEuler[ CurRotationAxis ];
 
 		const float RotationImpulse = RotateImpulseEuler[ CurRotationAxis ];
 		const float RotationVelocityModifier = RotateVelocityModifierEuler[ CurRotationAxis ];
@@ -346,7 +346,7 @@ void FEditorCameraController::UpdateRotation( const FCameraControllerUserImpulse
 		if( CurRotationAxis == 1 )		// 1 == pitch
 		{
 			// Normalize the angle to -180 to 180.
-			float Angle = FMath::Fmod(InOutCameraEuler[ CurRotationAxis ], 360.0f);
+			float Angle = FMath::Fmod((float)InOutCameraEuler[ CurRotationAxis ], 360.0f);
 			if (Angle > 180.f)
 			{
 				Angle -= 360.f;

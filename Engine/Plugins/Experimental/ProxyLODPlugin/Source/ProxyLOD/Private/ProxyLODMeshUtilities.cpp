@@ -40,7 +40,7 @@ void ProxyLOD::ComputeTangentSpace(FMeshDescription& RawMesh, const bool bRecomp
 void ProxyLOD::ComputeVertexNormals(FVertexDataMesh& InOutMesh, const ENormalComputationMethod Method)
 {
 	// Note:
-	// This code relies on the fact that a FVector can be cast as a XMFLOAT3, and a FVector2D can be cast as a XMFLOAT2
+	// This code relies on the fact that a FVector3f can be cast as a XMFLOAT3, and a FVector2D can be cast as a XMFLOAT2
 
 	// Data from the existing mesh
 
@@ -91,7 +91,7 @@ void ProxyLOD::ComputeTangentSpace( FVertexDataMesh& InOutMesh, const bool bReco
 {
 
 	// Note:
-	// This code relies on the fact that a FVector can be cast as a XMFLOAT3, and a FVector2D can be cast as a XMFLOAT2
+	// This code relies on the fact that a FVector3f can be cast as a XMFLOAT3, and a FVector2D can be cast as a XMFLOAT2
 
 	// Data from the existing mesh
 
@@ -147,7 +147,7 @@ void ProxyLOD::ComputeTangentSpace( FVertexDataMesh& InOutMesh, const bool bReco
 
 		TangentHanded[v] = (TangentX[v].w > 0) ? 1 : -1;
 
-		TangentArray[v] = FVector(TangentX[v].x, TangentX[v].y, TangentX[v].z);
+		TangentArray[v] = FVector3f(TangentX[v].x, TangentX[v].y, TangentX[v].z);
 	}
 
 	if (TangentX) delete[] TangentX;
@@ -449,7 +449,7 @@ private:
 };
 
 //This assumes the the number of Faces = NumIndices / 3
-void ProxyLOD::SplitHardAngles(const float HardAngleRadians, const TArray<FVector>& FaceNormals, const int32 NumVerts, TArray<uint32>& Indices, std::vector<uint32_t>& AdditionalVertices)
+void ProxyLOD::SplitHardAngles(const float HardAngleRadians, const TArray<FVector3f>& FaceNormals, const int32 NumVerts, TArray<uint32>& Indices, std::vector<uint32_t>& AdditionalVertices)
 {
 
 	const uint32 NumIndices = Indices.Num();
@@ -489,10 +489,10 @@ void ProxyLOD::SplitHardAngles(const float HardAngleRadians, const TArray<FVecto
 
 			if (Faces.Num() == 2)
 			{
-				const FVector& N0 = FaceNormals[Faces[0]];
-				const FVector& N1 = FaceNormals[Faces[1]];
+				const FVector3f& N0 = FaceNormals[Faces[0]];
+				const FVector3f& N1 = FaceNormals[Faces[1]];
 
-				const float CosOfAngle = FMath::Clamp(FVector::DotProduct(N0, N1), -1.f, 1.f);
+				const float CosOfAngle = FMath::Clamp(FVector3f::DotProduct(N0, N1), -1.f, 1.f);
 				const float AngleInRadians = FMath::Acos(CosOfAngle); // Note this is in Radians in the range [0:Pi]
 
 				EdgeAngleArray[edgeIdx] = AngleInRadians;
@@ -938,7 +938,7 @@ void ProxyLOD::SplitHardAngles(const float HardAngleDegrees, FVertexDataMesh& In
 
 	// Allocate space for the face normals
 
-	TArray<FVector>  FaceNormals;
+	TArray<FVector3f>  FaceNormals;
 	ResizeArray(FaceNormals, NumTriangles);
 
 	// Compute face normals in parallel
@@ -947,7 +947,7 @@ void ProxyLOD::SplitHardAngles(const float HardAngleDegrees, FVertexDataMesh& In
 	{
 		const uint32* Indices = InOutMesh.Indices.GetData();
 
-		FVector Pos[3];
+		FVector3f Pos[3];
 		for (uint32 f = Range.begin(), F = Range.end(); f < F; ++f)
 		{
 			const uint32 offset = 3 * f;
@@ -1035,7 +1035,7 @@ void ProxyLOD::SplitVertices(FVertexDataMesh& InOutMesh, const std::vector<uint3
 void ProxyLOD::CacheNormals(FVertexDataMesh& InMesh)
 {
 	const int32 NumNormals = InMesh.Normal.Num();
-	TArray<FVector>& CachedNormals = InMesh.TransferNormal;
+	TArray<FVector3f>& CachedNormals = InMesh.TransferNormal;
 	ResizeArray(CachedNormals, NumNormals);
 
 	for (int32 i = 0; i < NumNormals; ++i)
@@ -1096,11 +1096,11 @@ void ProxyLOD::ComputeFaceAveragedVertexNormals(FAOSMesh& InOutMesh)
 	uint32 NumFaces = InOutMesh.GetNumIndexes() / 3;
 
 	// Generate face normals.
-	FVector* FaceNormals = new FVector[NumFaces];
+	FVector3f* FaceNormals = new FVector3f[NumFaces];
 
 	ProxyLOD::Parallel_For(ProxyLOD::FUIntRange(0, NumFaces), [&InOutMesh, FaceNormals](const ProxyLOD::FUIntRange& Range)
 	{
-		FVector Pos[3];
+		FVector3f Pos[3];
 		for (uint32 f = Range.begin(), F = Range.end(); f < F; ++f)
 		{
 			const openvdb::Vec3I Tri = InOutMesh.GetFace(f);
@@ -1123,7 +1123,7 @@ void ProxyLOD::ComputeFaceAveragedVertexNormals(FAOSMesh& InOutMesh)
 			auto& AOSVertex = InOutMesh.Vertexes[v];
 
 			// zero the associated normal
-			AOSVertex.Normal = FVector(0.f, 0.f, 0.f);
+			AOSVertex.Normal = FVector3f(0.f, 0.f, 0.f);
 
 			// loop over all the faces that share this vertex, accumulating the normal
 			const auto& AdjFaces = AdjacencyData.VertexToFaces[v];
@@ -1131,7 +1131,7 @@ void ProxyLOD::ComputeFaceAveragedVertexNormals(FAOSMesh& InOutMesh)
 
 			if (AdjFaces.Num() != 0)
 			{
-				FVector Pos[3];
+				FVector3f Pos[3];
 				for (auto FaceId: AdjFaces)
 				{
 					checkSlow(FaceId > -1);
@@ -1154,9 +1154,9 @@ void ProxyLOD::AddDefaultTangentSpace(FVertexDataMesh& VertexDataMesh)
 
 	const uint32 DstNumPositions = VertexDataMesh.Points.Num();
 
-	TArray<FVector>& NormalArray = VertexDataMesh.Normal;
-	TArray<FVector>& TangetArray = VertexDataMesh.Tangent;
-	TArray<FVector>& BiTangetArray = VertexDataMesh.BiTangent;
+	TArray<FVector3f>& NormalArray = VertexDataMesh.Normal;
+	TArray<FVector3f>& TangetArray = VertexDataMesh.Tangent;
+	TArray<FVector3f>& BiTangetArray = VertexDataMesh.BiTangent;
 
 	// Allocate space
 	ProxyLOD::FTaskGroup TaskGroup;
@@ -1186,7 +1186,7 @@ void ProxyLOD::AddDefaultTangentSpace(FVertexDataMesh& VertexDataMesh)
 		{
 			for (uint32 i = Range.begin(), I = Range.end(); i < I; ++i)
 			{
-				NormalArray[i] = FVector(0, 0, 1);
+				NormalArray[i] = FVector3f(0, 0, 1);
 			}
 		}
 		);
@@ -1199,7 +1199,7 @@ void ProxyLOD::AddDefaultTangentSpace(FVertexDataMesh& VertexDataMesh)
 		{
 			for (uint32 i = Range.begin(), I = Range.end(); i < I; ++i)
 			{
-				TangetArray[i] = FVector(1, 0, 0);
+				TangetArray[i] = FVector3f(1, 0, 0);
 			}
 		}
 		);
@@ -1210,7 +1210,7 @@ void ProxyLOD::AddDefaultTangentSpace(FVertexDataMesh& VertexDataMesh)
 		{
 			for (uint32 i = Range.begin(), I = Range.end(); i < I; ++i)
 			{
-				BiTangetArray[i] = FVector(0, 1, 0);
+				BiTangetArray[i] = FVector3f(0, 1, 0);
 			}
 		}
 		);
@@ -1231,9 +1231,9 @@ void ProxyLOD::ComputeBogusTangentAndBiTangent(FVertexDataMesh& VertexDataMesh)
 		for (int32 i = Range.begin(), I = Range.end(); i < I; ++i)
 		{
 
-			TangentArray[i] = FVector(1, 0, 0);
-			BiTangentArray[i] = FVector::CrossProduct(NormalArray[i], TangentArray[i]);
-			TangentArray[i] = FVector::CrossProduct(BiTangentArray[i], NormalArray[i]);
+			TangentArray[i] = FVector3f(1, 0, 0);
+			BiTangentArray[i] = FVector3f::CrossProduct(NormalArray[i], TangentArray[i]);
+			TangentArray[i] = FVector3f::CrossProduct(BiTangentArray[i], NormalArray[i]);
 
 		}
 
@@ -1262,9 +1262,9 @@ void ProxyLOD::ComputeBogusNormalTangentAndBiTangent(FVertexDataMesh& VertexData
 		for (int32 i = Range.begin(), I = Range.end(); i < I; ++i)
 		{
 
-			TangentArray[i] = FVector(1, 0, 0);
-			BiTangentArray[i] = FVector(0, 1, 0);
-			NormalArray[i] = FVector(0, 0, 1);
+			TangentArray[i] = FVector3f(1, 0, 0);
+			BiTangentArray[i] = FVector3f(0, 1, 0);
+			NormalArray[i] = FVector3f(0, 0, 1);
 			H[i] = 1;
 		}
 
@@ -1305,7 +1305,7 @@ void ProxyLOD::AddNormals(TAOSMesh<FPositionOnlyVertex>& InOutMesh)
 	*/
 	int32 CorrectCollapsedWalls( const ProxyLOD::FkDOPTree& kDOPTree, 
 		                         const TArray<uint32>& IndexArray, 
-		                         TArray<FVector>& PositionArray,
+		                         TArray<FVector3f>& PositionArray,
 		                         const float VoxelSize)
 	{
 		typedef uint32 EdgeIdType;
@@ -1326,7 +1326,7 @@ void ProxyLOD::AddNormals(TAOSMesh<FPositionOnlyVertex>& InOutMesh)
 		auto* Pos           = PositionArray.GetData();
 
 		// loop over the polys and collect the names of the faces that intersect.
-		auto GetFace = [Indices, Pos](int32 FaceIdx, FVector(&Verts)[3])
+		auto GetFace = [Indices, Pos](int32 FaceIdx, FVector3f(&Verts)[3])
 		{
 			const uint32 Idx[3] = { Indices[3 * FaceIdx], Indices[3 * FaceIdx + 1], Indices[3 * FaceIdx + 2] };
 
@@ -1335,9 +1335,9 @@ void ProxyLOD::AddNormals(TAOSMesh<FPositionOnlyVertex>& InOutMesh)
 			Verts[2] = Pos[Idx[2]];
 		};
 
-		auto GetFaceNormal = [&GetFace](int32 FaceIdx)->FVector
+		auto GetFaceNormal = [&GetFace](int32 FaceIdx)->FVector3f
 		{
-			FVector Verts[3];
+			FVector3f Verts[3];
 			GetFace(FaceIdx, Verts);
 
 			return ComputeNormal(Verts);
@@ -1347,10 +1347,10 @@ void ProxyLOD::AddNormals(TAOSMesh<FPositionOnlyVertex>& InOutMesh)
 		for (int32 FaceIdx = 0; FaceIdx < NumEdges / 3; ++FaceIdx)
 		{
 
-			FVector Verts[3];
+			FVector3f Verts[3];
 			GetFace(FaceIdx, Verts);
 
-			const FVector FaceNormal = ComputeNormal(Verts);
+			const FVector3f FaceNormal = ComputeNormal(Verts);
 
 			// loop over these three edges.
 			for (int32 j = 0; j < 3; ++j)
@@ -1382,8 +1382,8 @@ void ProxyLOD::AddNormals(TAOSMesh<FPositionOnlyVertex>& InOutMesh)
 					}
 
 					// We only care about faces pointing in opposing directions
-					const FVector HitFaceNormal = GetFaceNormal(HitTriId);
-					if (FVector::DotProduct(FaceNormal, HitFaceNormal) > -0.94f) // not in 160 to 200 degrees
+					const FVector3f HitFaceNormal = GetFaceNormal(HitTriId);
+					if (FVector3f::DotProduct(FaceNormal, HitFaceNormal) > -0.94f) // not in 160 to 200 degrees
 					{
 						continue;
 					}
@@ -1414,11 +1414,11 @@ void ProxyLOD::AddNormals(TAOSMesh<FPositionOnlyVertex>& InOutMesh)
 			for (auto ListMapIter = IntersectionListMap.begin(); ListMapIter != IntersectionListMap.end(); ++ListMapIter)
 			{
 				int32 FaceIdx = ListMapIter->first;
-				const FVector TriNormal = GetFaceNormal(FaceIdx);
+				const FVector3f TriNormal = GetFaceNormal(FaceIdx);
 
 				// Scale by a small amount
 
-				const FVector NormDisplacement = TriNormal * (VoxelSize / 7.f);
+				const FVector3f NormDisplacement = TriNormal * (VoxelSize / 7.f);
 				const uint32 Idx[3] = { Indices[3 * FaceIdx], Indices[3 * FaceIdx + 1], Indices[3 * FaceIdx + 2] };
 
 				Pos[Idx[0]] += NormDisplacement;
@@ -1445,7 +1445,7 @@ int32 CorrectCollapsedWalls(const ProxyLOD::FkDOPTree& kDOPTree,
 {
 	typedef uint32 EdgeIdType;
 	typedef uint32 FaceIdType;
-	TVertexAttributesRef<FVector> VertexPositions = MeshDescription.GetVertexPositions();
+	TVertexAttributesRef<FVector3f> VertexPositions = MeshDescription.GetVertexPositions();
 
 	ProxyLOD::FUnitTransformDataProvider kDOPDataProvider(kDOPTree);
 
@@ -1460,7 +1460,7 @@ int32 CorrectCollapsedWalls(const ProxyLOD::FkDOPTree& kDOPTree,
 	//auto* Pos = PositionArray.GetData();
 
 	// loop over the polys and collect the names of the faces that intersect.
-	auto GetFace = [&MeshDescription, &VertexPositions](int32 FaceIdx, FVector(&Verts)[3])
+	auto GetFace = [&MeshDescription, &VertexPositions](int32 FaceIdx, FVector3f(&Verts)[3])
 	{
 		const FVertexID Idx[3] = { MeshDescription.GetVertexInstanceVertex(FVertexInstanceID(3 * FaceIdx)),
 								MeshDescription.GetVertexInstanceVertex(FVertexInstanceID(3 * FaceIdx + 1)),
@@ -1471,9 +1471,9 @@ int32 CorrectCollapsedWalls(const ProxyLOD::FkDOPTree& kDOPTree,
 		Verts[2] = VertexPositions[Idx[2]];
 	};
 
-	auto GetFaceNormal = [&GetFace](int32 FaceIdx)->FVector
+	auto GetFaceNormal = [&GetFace](int32 FaceIdx)->FVector3f
 	{
-		FVector Verts[3];
+		FVector3f Verts[3];
 		GetFace(FaceIdx, Verts);
 
 		return ComputeNormal(Verts);
@@ -1482,10 +1482,10 @@ int32 CorrectCollapsedWalls(const ProxyLOD::FkDOPTree& kDOPTree,
 	int32 TestCount = 0;
 	for (int32 FaceIdx = 0; FaceIdx < NumTriangle; ++FaceIdx)
 	{
-		FVector Verts[3];
+		FVector3f Verts[3];
 		GetFace(FaceIdx, Verts);
 
-		const FVector FaceNormal = ComputeNormal(Verts);
+		const FVector3f FaceNormal = ComputeNormal(Verts);
 
 		// loop over these three edges.
 		for (int32 j = 0; j < 3; ++j)
@@ -1517,8 +1517,8 @@ int32 CorrectCollapsedWalls(const ProxyLOD::FkDOPTree& kDOPTree,
 				}
 
 				// We only care about faces pointing in opposing directions
-				const FVector HitFaceNormal = GetFaceNormal(HitTriId);
-				if (FVector::DotProduct(FaceNormal, HitFaceNormal) > -0.94f) // not in 160 to 200 degrees
+				const FVector3f HitFaceNormal = GetFaceNormal(HitTriId);
+				if (FVector3f::DotProduct(FaceNormal, HitFaceNormal) > -0.94f) // not in 160 to 200 degrees
 				{
 					continue;
 				}
@@ -1549,11 +1549,11 @@ int32 CorrectCollapsedWalls(const ProxyLOD::FkDOPTree& kDOPTree,
 		for (auto ListMapIter = IntersectionListMap.begin(); ListMapIter != IntersectionListMap.end(); ++ListMapIter)
 		{
 			int32 FaceIdx = ListMapIter->first;
-			const FVector TriNormal = GetFaceNormal(FaceIdx);
+			const FVector3f TriNormal = GetFaceNormal(FaceIdx);
 
 			// Scale by a small amount
 
-			const FVector NormDisplacement = TriNormal * (VoxelSize / 7.f);
+			const FVector3f NormDisplacement = TriNormal * (VoxelSize / 7.f);
 
 			const FVertexID Idx[3] = {	MeshDescription.GetVertexInstanceVertex(FVertexInstanceID(3 * FaceIdx)),
 										MeshDescription.GetVertexInstanceVertex(FVertexInstanceID(3 * FaceIdx + 1)),
@@ -1725,17 +1725,17 @@ static void TMakeCube(TAOSMesh<T>& Mesh, float Length)
 
 	// The 8 corners of unit cube
 
-	FVector Pos[8];
+	FVector3f Pos[8];
 
-	Pos[0] = FVector(0, 0, 1);
-	Pos[1] = FVector(1, 0, 1);
-	Pos[2] = FVector(1, 0, 0);
-	Pos[3] = FVector(0, 0, 0);
+	Pos[0] = FVector3f(0, 0, 1);
+	Pos[1] = FVector3f(1, 0, 1);
+	Pos[2] = FVector3f(1, 0, 0);
+	Pos[3] = FVector3f(0, 0, 0);
 
-	Pos[4] = FVector(0, 1, 1);
-	Pos[5] = FVector(1, 1, 1);
-	Pos[6] = FVector(1, 1, 0);
-	Pos[7] = FVector(0, 1, 0);
+	Pos[4] = FVector3f(0, 1, 1);
+	Pos[5] = FVector3f(1, 1, 1);
+	Pos[6] = FVector3f(1, 1, 0);
+	Pos[7] = FVector3f(0, 1, 0);
 
 
 	const uint32 IndexList[36] = {
@@ -1813,7 +1813,7 @@ static void ComputeRawMeshNormals(FMeshDescription& InOutMesh)
 		auto& WedgeToPos = InOutMesh.WedgeIndices;
 		// loop over these faces
 		uint32  WIdxs[3];
-		FVector Verts[3];
+		FVector3f Verts[3];
 		for (uint32 f = Range.begin(), F = Range.end(); f < F; ++f)
 		{
 			// get the three corners for this face
@@ -1827,7 +1827,7 @@ static void ComputeRawMeshNormals(FMeshDescription& InOutMesh)
 
 			// Compute the face normal
 			// NB: this assumes a counter clockwise orientation.
-			FVector FaceNormal = ComputeNormal(Verts);
+			FVector3f FaceNormal = ComputeNormal(Verts);
 
 			// Assign this to all the corners (wedges)
 			Normal[WIdxs[0]] = FaceNormal;
@@ -1857,7 +1857,7 @@ static void ComputeAngleAveragedNormal(FVertexDataMesh& VertexDataMesh)
 	// - Compute array of face normals.
 
 	// FaceNormals 
-	TArray<FVector> FaceNormalArray;
+	TArray<FVector3f> FaceNormalArray;
 	FaceNormalArray.Empty(NumFaces);
 	FaceNormalArray.AddUninitialized(NumFaces);
 
@@ -1867,7 +1867,7 @@ static void ComputeAngleAveragedNormal(FVertexDataMesh& VertexDataMesh)
 		const auto& Indices = VertexDataMesh.Indices;
 		const auto& Pos = VertexDataMesh.Points;
 
-		FVector Verts[3];
+		FVector3f Verts[3];
 		for (int32 f = Range.begin(), F = Range.end(); f < F; ++f)
 		{
 			int32 Idx0 = f * 3;
@@ -1895,7 +1895,7 @@ static void ComputeAngleAveragedNormal(FVertexDataMesh& VertexDataMesh)
 		for (int32 v = Range.begin(), V = Range.end(); v < V; ++v)
 		{
 			// zero the associated normal
-			VertexNormalArray[v] = FVector(0.f, 0.f, 0.f);
+			VertexNormalArray[v] = FVector3f(0.f, 0.f, 0.f);
 
 			// loop over all the faces that share this vertex, accumulating the normal
 			const auto& AdjFaces = AdjacencyData.VertexAdjacentFaceArray[v];
@@ -1911,8 +1911,8 @@ static void ComputeAngleAveragedNormal(FVertexDataMesh& VertexDataMesh)
 					{
 						int32 Idx = FaceIdx * 3;
 
-						FVector NextMinusCurrent;
-						FVector PrevMinusCurrent;
+						FVector3f NextMinusCurrent;
+						FVector3f PrevMinusCurrent;
 
 						if (v == Indices[Idx + 0])
 						{
@@ -1940,7 +1940,7 @@ static void ComputeAngleAveragedNormal(FVertexDataMesh& VertexDataMesh)
 						PrevMinusCurrent.Normalize();
 
 						// compute the angle
-						float CosAngle = FVector::DotProduct(NextMinusCurrent, PrevMinusCurrent);
+						float CosAngle = FVector3f::DotProduct(NextMinusCurrent, PrevMinusCurrent);
 						CosAngle = FMath::Clamp(CosAngle, -1.f, 1.f);
 						const float Angle = FMath::Acos(CosAngle);
 
@@ -1957,10 +1957,10 @@ static void ComputeAngleAveragedNormal(FVertexDataMesh& VertexDataMesh)
 		}
 	});
 
-	TArray<FVector> TestVertexNormalArray;
+	TArray<FVector3f> TestVertexNormalArray;
 	ResizeArray(TestVertexNormalArray, NumVerts);
 
-	for (int32 v = 0; v < NumVerts; ++v)  TestVertexNormalArray[v] = FVector(0, 0, 0);
+	for (int32 v = 0; v < NumVerts; ++v)  TestVertexNormalArray[v] = FVector3f(0, 0, 0);
 	// Testing. Loop over all the verts and make sure they are mostly in the same direction as the face normals.
 	for (int32 face = 0; face < NumFaces; ++face)
 	{
@@ -1982,7 +1982,7 @@ static void ComputeAngleAveragedNormal(FVertexDataMesh& VertexDataMesh)
 		const auto& vertexNormal = VertexNormalArray[v];
 		const auto& testVertexNormal = TestVertexNormalArray[v];
 
-		checkSlow(FVector::DotProduct(vertexNormal, testVertexNormal) > 0.99);
+		checkSlow(FVector3f::DotProduct(vertexNormal, testVertexNormal) > 0.99);
 
 	}
 
@@ -1997,7 +1997,7 @@ static void ComputeAngleAveragedNormal(FVertexDataMesh& VertexDataMesh)
 			uint32 v = VertexDataMesh.Indices[i];
 			const auto& vertexNormal = VertexNormalArray[v];
 
-			//	checkSlow(FVector::DotProduct(vertexNormal, faceNormal) > 0.3);
+			//	checkSlow(FVector3f::DotProduct(vertexNormal, faceNormal) > 0.3);
 		}
 	}
 
@@ -2013,14 +2013,14 @@ static void ComputeAngleAveragedNormal(FVertexDataMesh& VertexDataMesh)
 
 		for (int32 i = Range.begin(), I = Range.end(); i < I; ++i)
 		{
-			const FVector& Normal = NormalArray[i];
-			FVector Tangent(1, 0, 0);
-			Tangent = Tangent - Normal * FVector::DotProduct(Normal, Tangent);
+			const FVector3f& Normal = NormalArray[i];
+			FVector3f Tangent(1, 0, 0);
+			Tangent = Tangent - Normal * FVector3f::DotProduct(Normal, Tangent);
 			Tangent.Normalize();
 
-			FVector BiTangent(0, 1, 0);
-			BiTangent = BiTangent - Normal * FVector::DotProduct(Normal, BiTangent);
-			BiTangent = BiTangent - Tangent * FVector::DotProduct(Tangent, BiTangent);
+			FVector3f BiTangent(0, 1, 0);
+			BiTangent = BiTangent - Normal * FVector3f::DotProduct(Normal, BiTangent);
+			BiTangent = BiTangent - Tangent * FVector3f::DotProduct(Tangent, BiTangent);
 			BiTangent.Normalize();
 
 			TangentArray[i] = Tangent;

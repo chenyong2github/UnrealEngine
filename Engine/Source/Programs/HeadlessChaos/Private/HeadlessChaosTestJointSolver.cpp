@@ -222,7 +222,7 @@ namespace ChaosTest
 
 			// Check for settling
 			//UE_LOG(LogChaos, Warning, TEXT("%d: %f %f %f: %f"), It, OutDelta1.X, OutDelta1.Y, OutDelta1.Z, AverageOutDelta1Z);
-			if ((It > 20) && FMath::IsNearlyEqual(AverageOutDelta1Z, OutDelta1.Z, KINDA_SMALL_NUMBER))
+			if ((It > 20) && FMath::IsNearlyEqual(AverageOutDelta1Z, (FReal)OutDelta1.Z, (FReal)KINDA_SMALL_NUMBER))
 			{
 				break;
 			}
@@ -286,7 +286,7 @@ namespace ChaosTest
 
 			// Check for settling
 			//UE_LOG(LogChaos, Warning, TEXT("%d: %f %f %f: %f"), It, OutDelta1.X, OutDelta1.Y, OutDelta1.Z, AverageOutDelta1Z);
-			if ((It > 20) && FMath::IsNearlyEqual(AverageOutDelta1Z, OutDelta1.Z, KINDA_SMALL_NUMBER))
+			if ((It > 20) && FMath::IsNearlyEqual(AverageOutDelta1Z, (FReal)OutDelta1.Z, (FReal)KINDA_SMALL_NUMBER))
 			{
 				break;
 			}
@@ -434,7 +434,7 @@ namespace ChaosTest
 
 			// Check for settling
 			//UE_LOG(LogChaos, Warning, TEXT("%d: %f deg : %f deg/s"), It, FMath::RadiansToDegrees(OutAngles1.Y), FMath::RadiansToDegrees(SolverTestA.W1.Y));
-			if ((It > 20) && FMath::IsNearlyEqual(SolverTestA.W1.Y, 0.0f, KINDA_SMALL_NUMBER) && FMath::IsNearlyEqual(AverageW.Y, 0.0f, KINDA_SMALL_NUMBER))
+			if ((It > 20) && FMath::IsNearlyEqual(SolverTestA.W1.Y, (FReal)0., (FReal)KINDA_SMALL_NUMBER) && FMath::IsNearlyEqual(AverageW.Y, (FReal)0., (FReal)KINDA_SMALL_NUMBER))
 			{
 				break;
 			}
@@ -619,7 +619,7 @@ namespace ChaosTest
 
 			// Check for settling
 			//UE_LOG(LogChaos, Warning, TEXT("%d: %f deg : %f deg/s"), It, FMath::RadiansToDegrees(OutAngles1.Y), FMath::RadiansToDegrees(SolverTestA.W1.Y));
-			if ((It > 20) && FMath::IsNearlyEqual(SolverTestA.W1.Y, 0.0f, KINDA_SMALL_NUMBER) && FMath::IsNearlyEqual(AverageW.Y, 0.0f, KINDA_SMALL_NUMBER))
+			if ((It > 20) && FMath::IsNearlyEqual(SolverTestA.W1.Y, (FReal)0., (FReal)KINDA_SMALL_NUMBER) && FMath::IsNearlyEqual(AverageW.Y, (FReal)0., (FReal)KINDA_SMALL_NUMBER))
 			{
 				break;
 			}

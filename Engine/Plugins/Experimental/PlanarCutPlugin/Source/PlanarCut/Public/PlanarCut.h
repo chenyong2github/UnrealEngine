@@ -219,7 +219,6 @@ int32 PLANARCUT_API CutMultipleWithMultiplePlanes(
  */
 void PLANARCUT_API RecomputeNormalsAndTangents(bool bOnlyTangents, FGeometryCollection& Collection, const TArrayView<const int32>& TransformIndices = TArrayView<const int32>(),
 	bool bOnlyOddMaterials = true, const TArrayView<const int32>& WhichMaterials = TArrayView<const int32>());
-
 /**
  * Scatter additional vertices (w/ no associated triangle) as needed to satisfy minimum point spacing
  * 

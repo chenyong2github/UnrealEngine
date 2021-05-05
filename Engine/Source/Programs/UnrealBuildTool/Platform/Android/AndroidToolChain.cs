@@ -1325,11 +1325,6 @@ namespace UnrealBuildTool
 						default: throw new BuildException($"Unknown arch {Arch}");
 					}
 
-					if (Arch == "-arm64")
-					{
-						Arguments += " -DPLATFORM_ENABLE_VECTORINTRINSICS_NEON=1 -DPLATFORM_ENABLE_VECTORINTRINSICS=1";
-					}
-
 					if(CompileEnvironment.bCompileISPC)
 					{
 						Arguments += " -DINTEL_ISPC=1";

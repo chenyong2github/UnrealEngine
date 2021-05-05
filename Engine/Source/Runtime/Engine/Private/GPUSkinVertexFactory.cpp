@@ -228,7 +228,7 @@ static bool DeferSkeletalLockAndFillToRHIThread()
 	return IsRunningRHIInSeparateThread() && CVarRHICmdDeferSkeletalLockAndFillToRHIThread.GetValueOnRenderThread() > 0;
 }
 
-bool FGPUBaseSkinVertexFactory::FShaderDataType::UpdateBoneData(FRHICommandListImmediate& RHICmdList, const TArray<FMatrix>& ReferenceToLocalMatrices,
+bool FGPUBaseSkinVertexFactory::FShaderDataType::UpdateBoneData(FRHICommandListImmediate& RHICmdList, const TArray<FMatrix44f>& ReferenceToLocalMatrices,
 	const TArray<FBoneIndexType>& BoneMap, uint32 RevisionNumber, bool bPrevious, ERHIFeatureLevel::Type InFeatureLevel, bool bUseSkinCache)
 {
 	// stat disabled by default due to low-value/high-frequency
@@ -288,7 +288,7 @@ bool FGPUBaseSkinVertexFactory::FShaderDataType::UpdateBoneData(FRHICommandListI
 						FPlatformMisc::Prefetch(ReferenceToLocalMatrices.GetData() + RefToLocalIdx + PreFetchStride, PLATFORM_CACHE_LINE_SIZE);
 
 						FMatrix3x4& BoneMat = LambdaChunkMatrices[BoneIdx];
-						const FMatrix& RefToLocal = ReferenceToLocalMatrices[RefToLocalIdx];
+						const FMatrix44f& RefToLocal = ReferenceToLocalMatrices[RefToLocalIdx];
 						RefToLocal.To3x4MatrixTranspose((float*)BoneMat.M);
 					}
 					InRHICmdList.UnlockBuffer(VertexBuffer);
@@ -337,7 +337,7 @@ bool FGPUBaseSkinVertexFactory::FShaderDataType::UpdateBoneData(FRHICommandListI
 				FPlatformMisc::Prefetch(ReferenceToLocalMatrices.GetData() + RefToLocalIdx + PreFetchStride, PLATFORM_CACHE_LINE_SIZE);
 
 				FMatrix3x4& BoneMat = ChunkMatrices[BoneIdx];
-				const FMatrix& RefToLocal = ReferenceToLocalMatrices[RefToLocalIdx];
+				const FMatrix44f& RefToLocal = ReferenceToLocalMatrices[RefToLocalIdx];
 				RefToLocal.To3x4MatrixTranspose((float*)BoneMat.M);
 			}
 		}

@@ -13,7 +13,6 @@ class UStaticMesh;
 struct FMeshDescription;
 struct FMeshTriangle;
 struct FRawMesh;
-struct FVector;
 
 namespace DatasmithMeshHelper
 {

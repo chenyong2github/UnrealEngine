@@ -234,7 +234,7 @@ void FParticleTrailsEmitterInstance_Base::UpdateBoundingBox(float DeltaTime)
 
 				//Don't update position for newly spawned particles. They already have a partial update applied during spawn.
 				bool bSkipUpdate = bJustSpawned && bSkipDoubleSpawnUpdate;
-				Particle->Location	+= bSkipUpdate ? FVector::ZeroVector : DeltaTime * Particle->Velocity;
+				Particle->Location	+= bSkipUpdate ? FVector3f::ZeroVector : DeltaTime * Particle->Velocity;
 				Particle->Rotation	+= bSkipUpdate ? 0.0f : DeltaTime * Particle->RotationRate;
 				Particle->Location	+= PositionOffsetThisTick;
 				FPlatformMisc::Prefetch(ParticleData, (ParticleIndices[i+1] * ParticleStride));
@@ -2959,7 +2959,7 @@ void FParticleAnimTrailEmitterInstance::RecalculateTangentAndInterpolationParam(
 {
 	check(CurrParticle);
 	check(PrevParticle || NextParticle);
-	FVector Tangent;
+	FVector3f Tangent;
 	float SegmentDistance;
 	
 	if( PrevParticle )
@@ -3616,7 +3616,7 @@ void FParticleAnimTrailEmitterInstance::UpdateBoundingBox(float DeltaTime)
 				//Don't update position for newly spawned particles. They already have a partial update applied during spawn.
 				bool bSkipUpdate = bJustSpawned && bSkipDoubleSpawnUpdate;
 				// Do linear integrator and update bounding box
-				Particle->Location	+= bSkipUpdate ? FVector::ZeroVector : DeltaTime * Particle->Velocity;
+				Particle->Location	+= bSkipUpdate ? FVector3f::ZeroVector : DeltaTime * Particle->Velocity;
 				Particle->Rotation	+= bSkipUpdate ? 0.0f : DeltaTime * Particle->RotationRate;
 				Particle->Location	+= PositionOffsetThisTick;
 				

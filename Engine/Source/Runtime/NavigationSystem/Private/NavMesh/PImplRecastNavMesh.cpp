@@ -822,11 +822,11 @@ void FPImplRecastNavMesh::Raycast(const FVector& StartLoc, const FVector& EndLoc
 	FRecastSpeciaLinkFilter LinkFilter(FNavigationSystem::GetCurrent<UNavigationSystemV1>(NavMeshOwner->GetWorld()), Owner);
 	INITIALIZE_NAVQUERY(NavQuery, InQueryFilter.GetMaxSearchNodes(), LinkFilter);
 
-	const FVector NavExtent = NavMeshOwner->GetModifiedQueryExtent(NavMeshOwner->GetDefaultQueryExtent());
+	const FVector3f NavExtent = NavMeshOwner->GetModifiedQueryExtent(NavMeshOwner->GetDefaultQueryExtent());
 	const float Extent[3] = { NavExtent.X, NavExtent.Z, NavExtent.Y };
 
-	const FVector RecastStart = Unreal2RecastPoint(StartLoc);
-	const FVector RecastEnd = Unreal2RecastPoint(EndLoc);
+	const FVector3f RecastStart = Unreal2RecastPoint(StartLoc);
+	const FVector3f RecastEnd = Unreal2RecastPoint(EndLoc);
 
 	if (StartNode == INVALID_NAVNODEREF)
 	{
@@ -888,7 +888,7 @@ ENavigationQueryResult::Type FPImplRecastNavMesh::FindPath(const FVector& StartL
 	FRecastSpeciaLinkFilter LinkFilter(FNavigationSystem::GetCurrent<UNavigationSystemV1>(NavMeshOwner->GetWorld()), Owner);
 	INITIALIZE_NAVQUERY(NavQuery, InQueryFilter.GetMaxSearchNodes(), LinkFilter);
 
-	FVector RecastStartPos, RecastEndPos;
+	FVector3f RecastStartPos, RecastEndPos;
 	NavNodeRef StartPolyID, EndPolyID;
 	const bool bCanSearch = InitPathfinding(StartLoc, EndLoc, NavQuery, QueryFilter, RecastStartPos, StartPolyID, RecastEndPos, EndPolyID);
 	if (!bCanSearch)
@@ -907,7 +907,7 @@ ENavigationQueryResult::Type FPImplRecastNavMesh::FindPath(const FVector& StartL
 ENavigationQueryResult::Type FPImplRecastNavMesh::PostProcessPathInternal(dtStatus FindPathStatus, FNavMeshPath& Path, 
 	const dtNavMeshQuery& NavQuery, const dtQueryFilter* QueryFilter, 
 	NavNodeRef StartPolyID, NavNodeRef EndPolyID, 
-	const FVector& RecastStartPos, const FVector& RecastEndPos, 
+	const FVector3f& RecastStartPos, const FVector3f& RecastEndPos, 
 	dtQueryResult& PathResult) const
 {
 	// check for special case, where path has not been found, and starting polygon
@@ -916,7 +916,7 @@ ENavigationQueryResult::Type FPImplRecastNavMesh::PostProcessPathInternal(dtStat
 	{
 		// in this case we find a point on starting polygon, that's closest to destination
 		// and store it as path end
-		FVector RecastHandPlacedPathEnd;
+		FVector3f RecastHandPlacedPathEnd;
 		NavQuery.closestPointOnPolyBoundary(StartPolyID, &RecastEndPos.X, &RecastHandPlacedPathEnd.X);
 
 		new(Path.GetPathPoints()) FNavPathPoint(Recast2UnrVector(&RecastStartPos.X), StartPolyID);
@@ -969,7 +969,7 @@ ENavigationQueryResult::Type FPImplRecastNavMesh::TestPath(const FVector& StartL
 	FRecastSpeciaLinkFilter LinkFilter(FNavigationSystem::GetCurrent<UNavigationSystemV1>(NavMeshOwner->GetWorld()), Owner);
 	INITIALIZE_NAVQUERY(NavQuery, InQueryFilter.GetMaxSearchNodes(), LinkFilter);
 
-	FVector RecastStartPos, RecastEndPos;
+	FVector3f RecastStartPos, RecastEndPos;
 	NavNodeRef StartPolyID, EndPolyID;
 	const bool bCanSearch = InitPathfinding(StartLoc, EndLoc, NavQuery, QueryFilter, RecastStartPos, StartPolyID, RecastEndPos, EndPolyID);
 	if (!bCanSearch)
@@ -994,7 +994,7 @@ ENavigationQueryResult::Type FPImplRecastNavMesh::TestPath(const FVector& StartL
 #if WITH_NAVMESH_CLUSTER_LINKS
 ENavigationQueryResult::Type FPImplRecastNavMesh::TestClusterPath(const FVector& StartLoc, const FVector& EndLoc, int32* NumVisitedNodes) const
 {
-	FVector RecastStartPos, RecastEndPos;
+	FVector3f RecastStartPos, RecastEndPos;
 	NavNodeRef StartPolyID, EndPolyID;
 	const dtQueryFilter* ClusterFilter = ((const FRecastQueryFilter*)NavMeshOwner->GetDefaultQueryFilterImpl())->GetAsDetourQueryFilter();
 
@@ -1018,14 +1018,14 @@ ENavigationQueryResult::Type FPImplRecastNavMesh::TestClusterPath(const FVector&
 
 bool FPImplRecastNavMesh::InitPathfinding(const FVector& UnrealStart, const FVector& UnrealEnd,
 	const dtNavMeshQuery& Query, const dtQueryFilter* Filter,
-	FVector& RecastStart, dtPolyRef& StartPoly,
-	FVector& RecastEnd, dtPolyRef& EndPoly) const
+	FVector3f& RecastStart, dtPolyRef& StartPoly,
+	FVector3f& RecastEnd, dtPolyRef& EndPoly) const
 {
-	const FVector NavExtent = NavMeshOwner->GetModifiedQueryExtent(NavMeshOwner->GetDefaultQueryExtent());
+	const FVector3f NavExtent = NavMeshOwner->GetModifiedQueryExtent(NavMeshOwner->GetDefaultQueryExtent());
 	const float Extent[3] = { NavExtent.X, NavExtent.Z, NavExtent.Y };
 
-	const FVector RecastStartToProject = Unreal2RecastPoint(UnrealStart);
-	const FVector RecastEndToProject = Unreal2RecastPoint(UnrealEnd);
+	const FVector3f RecastStartToProject = Unreal2RecastPoint(UnrealStart);
+	const FVector3f RecastEndToProject = Unreal2RecastPoint(UnrealEnd);
 
 	StartPoly = INVALID_NAVNODEREF;
 	Query.findNearestPoly(&RecastStartToProject.X, Extent, Filter, &StartPoly, &RecastStart.X);
@@ -1054,7 +1054,7 @@ bool FPImplRecastNavMesh::InitPathfinding(const FVector& UnrealStart, const FVec
 	return true;
 }
 
-float FPImplRecastNavMesh::CalcSegmentCostOnPoly(NavNodeRef PolyID, const dtQueryFilter* Filter, const FVector& StartLoc, const FVector& EndLoc) const
+float FPImplRecastNavMesh::CalcSegmentCostOnPoly(NavNodeRef PolyID, const dtQueryFilter* Filter, const FVector3f& StartLoc, const FVector3f& EndLoc) const
 {
 	uint8 AreaID = RECAST_DEFAULT_AREA;
 	DetourNavMesh->getPolyArea(PolyID, &AreaID);
@@ -1066,8 +1066,8 @@ float FPImplRecastNavMesh::CalcSegmentCostOnPoly(NavNodeRef PolyID, const dtQuer
 void FPImplRecastNavMesh::PostProcessPath(dtStatus FindPathStatus, FNavMeshPath& Path,
 	const dtNavMeshQuery& NavQuery, const dtQueryFilter* Filter,
 	NavNodeRef StartPolyID, NavNodeRef EndPolyID,
-	FVector StartLoc, FVector EndLoc,
-	FVector RecastStartPos, FVector RecastEndPos,
+	FVector3f StartLoc, FVector3f EndLoc,
+	FVector3f RecastStartPos, FVector3f RecastEndPos,
 	dtQueryResult& PathResult) const
 {
 	check(Filter);
@@ -1185,8 +1185,8 @@ bool FPImplRecastNavMesh::FindStraightPath(const FVector& StartLoc, const FVecto
 {
 	INITIALIZE_NAVQUERY_SIMPLE(NavQuery, RECAST_MAX_SEARCH_NODES);
 
-	const FVector RecastStartPos = Unreal2RecastPoint(StartLoc);
-	const FVector RecastEndPos = Unreal2RecastPoint(EndLoc);
+	const FVector3f RecastStartPos = Unreal2RecastPoint(StartLoc);
+	const FVector3f RecastEndPos = Unreal2RecastPoint(EndLoc);
 	bool bResult = false;
 
 	dtQueryResult StringPullResult;
@@ -1375,7 +1375,7 @@ int32 FPImplRecastNavMesh::DebugPathfinding(const FVector& StartLoc, const FVect
 	FRecastSpeciaLinkFilter LinkFilter(FNavigationSystem::GetCurrent<UNavigationSystemV1>(NavMeshOwner->GetWorld()), Owner);
 	INITIALIZE_NAVQUERY(NavQuery, Filter.GetMaxSearchNodes(), LinkFilter);
 
-	FVector RecastStartPos, RecastEndPos;
+	FVector3f RecastStartPos, RecastEndPos;
 	NavNodeRef StartPolyID, EndPolyID;
 	const bool bCanSearch = InitPathfinding(StartLoc, EndLoc, NavQuery, QueryFilter, RecastStartPos, StartPolyID, RecastEndPos, EndPolyID);
 	if (!bCanSearch)
@@ -1491,8 +1491,8 @@ bool FPImplRecastNavMesh::FindMoveAlongSurface(const FNavLocation& StartLocation
 		return false;
 	}
 
-	FVector RcStartPos = Unreal2RecastPoint(StartLocation.Location);
-	FVector RcEndPos = Unreal2RecastPoint(TargetPosition);
+	FVector3f RcStartPos = Unreal2RecastPoint(StartLocation.Location);
+	FVector3f RcEndPos = Unreal2RecastPoint(TargetPosition);
 
 	float Result[3];
 	static const int MAX_VISITED = 16;
@@ -1540,9 +1540,9 @@ bool FPImplRecastNavMesh::ProjectPointToNavMesh(const FVector& Point, FNavLocati
 		float ClosestPoint[3];
 
 		const FVector ModifiedExtent = NavMeshOwner->GetModifiedQueryExtent(Extent);
-		FVector RcExtent = Unreal2RecastPoint(ModifiedExtent).GetAbs();
+		FVector3f RcExtent = Unreal2RecastPoint(ModifiedExtent).GetAbs();
 	
-		FVector RcPoint = Unreal2RecastPoint(Point);
+		FVector3f RcPoint = Unreal2RecastPoint(Point);
 		dtPolyRef PolyRef;
 		NavQuery.findNearestPoly2D(&RcPoint.X, &RcExtent.X, QueryFilter, &PolyRef, ClosestPoint);
 
@@ -1586,8 +1586,8 @@ bool FPImplRecastNavMesh::ProjectPointMulti(const FVector& Point, TArray<FNavLoc
 		const FVector AdjustedPoint(Point.X, Point.Y, (MaxZ + MinZ) * 0.5f);
 		const FVector AdjustedExtent(ModifiedExtent.X, ModifiedExtent.Y, (MaxZ - MinZ) * 0.5f);
 
-		const FVector RcPoint = Unreal2RecastPoint( AdjustedPoint );
-		const FVector RcExtent = Unreal2RecastPoint( AdjustedExtent ).GetAbs();
+		const FVector3f RcPoint = Unreal2RecastPoint( AdjustedPoint );
+		const FVector3f RcExtent = Unreal2RecastPoint( AdjustedExtent ).GetAbs();
 
 		const int32 MaxHitPolys = 256;
 		dtPolyRef HitPolys[MaxHitPolys];
@@ -1734,7 +1734,7 @@ bool FPImplRecastNavMesh::GetPolysWithinPathingDistance(FVector const& StartLoc,
 	}
 
 	// @todo this should be configurable in some kind of FindPathQuery structure
-	const FVector NavExtent = NavMeshOwner->GetModifiedQueryExtent(NavMeshOwner->GetDefaultQueryExtent());
+	const FVector3f NavExtent = NavMeshOwner->GetModifiedQueryExtent(NavMeshOwner->GetDefaultQueryExtent());
 	const float Extent[3] = { NavExtent.X, NavExtent.Z, NavExtent.Y };
 
 	float RecastStartPos[3];
@@ -2730,7 +2730,7 @@ bool FPImplRecastNavMesh::GetNavMeshTileXY(const FVector& Point, int32& OutX, in
 		// workaround for privacy issue in the recast API
 		dtNavMesh const* const ConstRecastNavMesh = DetourNavMesh;
 
-		const FVector RecastPt = Unreal2RecastPoint(Point);
+		const FVector3f RecastPt = Unreal2RecastPoint(Point);
 		int32 TileX = 0;
 		int32 TileY = 0;
 
@@ -2876,7 +2876,7 @@ void FPImplRecastNavMesh::ApplyWorldOffset(const FVector& InOffset, bool bWorldS
 	if (DetourNavMesh != NULL)
 	{
 		// transform offset to Recast space
-		const FVector OffsetRC = Unreal2RecastPoint(InOffset);
+		const FVector3f OffsetRC = Unreal2RecastPoint(InOffset);
 		// apply offset
 		DetourNavMesh->applyWorldOffset(&OffsetRC.X);
 	}

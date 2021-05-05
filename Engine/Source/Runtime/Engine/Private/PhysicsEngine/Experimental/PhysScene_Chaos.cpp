@@ -100,15 +100,16 @@ public:
 
 	}
 
-	virtual void Box(const Chaos::FAABB3& InBox, const Chaos::FVec3& InLinearColor, Chaos::FReal InThickness) override
+	virtual void Box(const Chaos::FAABB3& InBox, const Chaos::FVec3& InLinearColor, float InThickness) override
 	{
-		DrawDebugBox(World, InBox.Center(), InBox.Extents(), FQuat::Identity, FLinearColor(InLinearColor).ToFColor(true), false, -1.0f, SDPG_Foreground, InThickness);
+		// LWC_TODO: Remove FVector cast here.
+		DrawDebugBox(World, InBox.Center(), InBox.Extents(), FQuat::Identity, FLinearColor(FVector(InLinearColor)).ToFColor(true), false, -1.0f, SDPG_Foreground, InThickness);
 	}
 
 
-	virtual void Line(const Chaos::FVec3& InBegin, const Chaos::FVec3& InEnd, const Chaos::FVec3& InLinearColor, Chaos::FReal InThickness) override
+	virtual void Line(const Chaos::FVec3& InBegin, const Chaos::FVec3& InEnd, const Chaos::FVec3& InLinearColor, float InThickness) override
 	{
-		DrawDebugLine(World, InBegin, InEnd, FLinearColor(InLinearColor).ToFColor(true), false, -1.0f, SDPG_Foreground, InThickness);
+		DrawDebugLine(World, InBegin, InEnd, FLinearColor(FVector(InLinearColor)).ToFColor(true), false, -1.0f, SDPG_Foreground, InThickness);
 	}
 
 private:
