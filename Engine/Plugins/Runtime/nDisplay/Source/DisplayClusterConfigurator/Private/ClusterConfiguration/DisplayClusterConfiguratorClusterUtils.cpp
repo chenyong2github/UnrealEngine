@@ -401,7 +401,7 @@ FVector2D FDisplayClusterConfiguratorClusterUtils::FindNextAvailablePositionForC
 
 	FBox2D DesiredBounds = FBox2D(DesiredPosition, DesiredPosition + DesiredSize);
 	TArray<FBox2D> ClusterNodeBounds;
-	for (const TPair<FString, UDisplayClusterConfigurationClusterNode*> ClusterNodeKeyPair : ExistingClusterNodes)
+	for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& ClusterNodeKeyPair : ExistingClusterNodes)
 	{
 		const FDisplayClusterConfigurationRectangle& WindowRect = ClusterNodeKeyPair.Value->WindowRect;
 		ClusterNodeBounds.Add(FBox2D(FVector2D(WindowRect.X, WindowRect.Y), FVector2D(WindowRect.X + WindowRect.W, WindowRect.Y + WindowRect.H)));
@@ -419,7 +419,7 @@ FVector2D FDisplayClusterConfiguratorClusterUtils::FindNextAvailablePositionForV
 
 	FBox2D DesiredBounds = FBox2D(DesiredPosition, DesiredPosition + DesiredSize);
 	TArray<FBox2D> ViewportBounds;
-	for (const TPair<FString, UDisplayClusterConfigurationViewport*> ViewportKeyPair : ClusterNode->Viewports)
+	for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportKeyPair : ClusterNode->Viewports)
 	{
 		const FDisplayClusterConfigurationRectangle& Region = ViewportKeyPair.Value->Region;
 		ViewportBounds.Add(FBox2D(FVector2D(Region.X, Region.Y), FVector2D(Region.X + Region.W, Region.Y + Region.H)));
@@ -501,7 +501,7 @@ FString FDisplayClusterConfiguratorClusterUtils::GetUniqueNameForHost(FString In
 	}
 
 	TArray<FString> UsedNames;
-	for (TPair<FString, UDisplayClusterConfigurationHostDisplayData*> HostPair : ParentCluster->HostDisplayData)
+	for (TPair<FString, UDisplayClusterConfigurationHostDisplayData*>& HostPair : ParentCluster->HostDisplayData)
 	{
 		UsedNames.Add(HostPair.Value->HostName.ToString());
 	}

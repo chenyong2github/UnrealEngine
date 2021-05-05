@@ -84,7 +84,7 @@ void FDMXDisplayClusterModule::OnClusterEventReceived(const FDisplayClusterClust
 		DMXSignal->Serialize(Reader);
 
 		// forward the signal to all of the InputPorts
-		for (const FDMXInputPortSharedRef DMXInputPortRef : FDMXPortManager::Get().GetInputPorts())
+		for (const FDMXInputPortSharedRef& DMXInputPortRef : FDMXPortManager::Get().GetInputPorts())
 		{
 			DMXInputPortRef->SingleProducerInputDMXSignal(DMXSignal);
 		}
