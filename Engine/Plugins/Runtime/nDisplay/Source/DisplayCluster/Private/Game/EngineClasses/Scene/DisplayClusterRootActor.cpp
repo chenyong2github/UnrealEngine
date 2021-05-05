@@ -44,6 +44,7 @@
 
 ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, bFollowLocalPlayerCamera(false)
 	, bExitOnEsc(true)
 	, OperationMode(EDisplayClusterOperationMode::Disabled)
 {
@@ -592,10 +593,14 @@ void ADisplayClusterRootActor::Tick(float DeltaSeconds)
 			APlayerController* const CurPlayerController = CurWorld->GetFirstPlayerController();
 			if (CurPlayerController)
 			{
-				APlayerCameraManager* const CurPlayerCameraManager = CurPlayerController->PlayerCameraManager;
-				if (CurPlayerCameraManager)
+				// Depending on the flag state the DCRA follows or not the current player's camera
+				if (bFollowLocalPlayerCamera)
 				{
-					SetActorLocationAndRotation(CurPlayerCameraManager->GetCameraLocation(), CurPlayerCameraManager->GetCameraRotation());
+					APlayerCameraManager* const CurPlayerCameraManager = CurPlayerController->PlayerCameraManager;
+					if (CurPlayerCameraManager)
+					{
+						SetActorLocationAndRotation(CurPlayerCameraManager->GetCameraLocation(), CurPlayerCameraManager->GetCameraRotation());
+					}
 				}
 
 				if (bExitOnEsc)
