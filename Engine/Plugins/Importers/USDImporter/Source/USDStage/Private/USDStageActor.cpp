@@ -1428,6 +1428,7 @@ void AUsdStageActor::UnloadUsdStage()
 		LevelSequence = nullptr;
 	}
 	LevelSequenceHelper.Clear();
+	LevelSequenceHelper.Init( UE::FUsdStage() ); // Drop the helper's reference to the stage
 
 	if ( RootUsdTwin )
 	{
