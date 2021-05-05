@@ -362,7 +362,7 @@ bool TraceAndCalculateRayTracedLightingFromSurfaceCache(
 	if (bHit)
 	{
 		TraceHitDistance = Payload.HitT;
-		int DFObjectIndex = Payload.GetDistanceFieldObjectIndex();
+		int DFObjectIndex = GetLumenDistanceFieldObjectIndex(Payload.GetPrimitiveIndex(), Payload.GetInstanceIndex());
 		if (DFObjectIndex != INVALID_DISTANCE_FIELD_OBJECT_INDEX)
 		{
 			Radiance = CalculateRayTracedLightingFromSurfaceCache(Ray, Context, Payload, TraceHitDistance, DFObjectIndex);

@@ -63,7 +63,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindLumenHardwareRayTra
 
 	Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
-	Initializer.MaxPayloadSizeInBytes = 16; // sizeof FLumenMinimalPayload
+	Initializer.MaxPayloadSizeInBytes = 20; // sizeof FLumenMinimalPayload
 
 	// Get the ray tracing materials
 	auto ClosestHitShader = View.ShaderMap->GetShader<FLumenHardwareRayTracingMaterialCHS>();

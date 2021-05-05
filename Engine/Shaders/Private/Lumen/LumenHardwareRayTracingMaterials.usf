@@ -14,9 +14,10 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(LumenHardwareRayTracingMaterialCHS,
 	Payload.HitT = RayTCurrent();
 
 	const int Primitive = GetInstanceUserData();
+	Payload.SetPrimitiveIndex(Primitive);
+
 	const int PrimitiveInstanceIndex = InstanceIndex() - GetBaseInstanceIndex();
-	int DistanceFieldObjectIndex = GetLumenDistanceFieldObjectIndex(Primitive, PrimitiveInstanceIndex);
-	Payload.SetDistanceFieldObjectIndex(DistanceFieldObjectIndex);
+	Payload.SetInstanceIndex(PrimitiveInstanceIndex);
 
 	uint bIsTranslucent = GetHitGroupUserData() & 0x1;
 	Payload.SetIsTranslucent(bIsTranslucent);

@@ -129,42 +129,52 @@ struct FDeferredMaterialPayload : FMinimalPayload
 
 struct FLumenMinimalPayload : FMinimalPayload
 {
-	uint PackedData[3];
-
-	void SetDistanceFieldObjectIndex(int DistanceFieldObjectIndex)
-	{
-		PackedData[0] = asuint(DistanceFieldObjectIndex);
-	}
-
-	int GetDistanceFieldObjectIndex()
-	{
-		return asint(PackedData[0]);
-	}
+	uint PackedData[4];
 
 	void SetIsTranslucent(uint bIsTranslucent)
 	{
-		PackedData[2] = (PackedData[2] & 0x7FFFFFFF) | ((bIsTranslucent & 0x01) << 31);
+		PackedData[3] = (PackedData[3] & 0x7FFFFFFF) | ((bIsTranslucent & 0x01) << 31);
 	}
 
 	uint IsTranslucent()
 	{
-		uint bIsTranslucent = (PackedData[2] >> 31) & 0x1;
+		uint bIsTranslucent = (PackedData[3] >> 31) & 0x1;
 		return bIsTranslucent;
 	}
 
 	void SetWorldNormal(float3 WorldNormal)
 	{
-		PackedData[1] = (f32tof16(WorldNormal.x) << 16) | f32tof16(WorldNormal.y);
-		PackedData[2] = (PackedData[2] & 0xFFFF0000) | f32tof16(WorldNormal.z);
+		PackedData[2] = (f32tof16(WorldNormal.x) << 16) | f32tof16(WorldNormal.y);
+		PackedData[3] = (PackedData[3] & 0xFFFF0000) | f32tof16(WorldNormal.z);
 	}
 
 	float3 GetWorldNormal()
 	{
 		float3 WorldNormal;
-		WorldNormal.x = f16tof32(PackedData[1] >> 16);
-		WorldNormal.y = f16tof32(PackedData[1]);
-		WorldNormal.z = f16tof32(PackedData[2]);
+		WorldNormal.x = f16tof32(PackedData[2] >> 16);
+		WorldNormal.y = f16tof32(PackedData[2]);
+		WorldNormal.z = f16tof32(PackedData[3]);
 		return WorldNormal;
+	}
+
+	void SetPrimitiveIndex(int PrimitiveIndex)
+	{
+		PackedData[0] = PrimitiveIndex;
+	}
+
+	int GetPrimitiveIndex()
+	{
+		return asint(PackedData[0]);
+	}
+
+	void SetInstanceIndex(int InstanceIndex)
+	{
+		PackedData[1] = InstanceIndex;
+	}
+
+	int GetInstanceIndex()
+	{
+		return PackedData[1];
 	}
 };
 
