@@ -140,7 +140,20 @@ int32 FRgbaInputFile::GetNumChannels() const
 	int32 NumChannels = 3;
 	switch (Channels)
 	{
+	case Imf::RgbaChannels::WRITE_R:
+	case Imf::RgbaChannels::WRITE_G:
+	case Imf::RgbaChannels::WRITE_B:
+	case Imf::RgbaChannels::WRITE_A:
+	case Imf::RgbaChannels::WRITE_Y:
+	case Imf::RgbaChannels::WRITE_C:
+		NumChannels = 1;
+		break;
+	case Imf::RgbaChannels::WRITE_YC:
+	case Imf::RgbaChannels::WRITE_YA:
+		NumChannels = 2;
+		break;
 	case Imf::RgbaChannels::WRITE_RGB:
+	case Imf::RgbaChannels::WRITE_YCA:
 		NumChannels = 3;
 		break;
 	case Imf::RgbaChannels::WRITE_RGBA:
