@@ -226,6 +226,11 @@ public:
 	static constexpr int32 ExportHashCount = 256;
 	TUniquePtr<int32[]> ExportHash;
 
+	FORCEINLINE static int32 GetHashBucket(FName Object)
+	{
+		return GetTypeHash(Object.GetComparisonIndex()) & (ExportHashCount - 1);
+	}
+
 	/**
 	* List of imports and exports that must be serialized before other exports...all packed together, see FirstExportDependency
 	*/
