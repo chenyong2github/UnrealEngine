@@ -165,11 +165,11 @@ FText FClothPaintingModule::GetPaintToolsButtonToolTip(TWeakPtr<ISkeletalMeshEdi
 	{
 		if(ClothTab->IsPaintModeActive())
 		{
-			return LOCTEXT("ToggleButton_Deactivate", "Deactivate the cloth paint tool, and go back to the current selection mode.");
+			return LOCTEXT("ToggleButton_Deactivate_ToolTip", "Deactivate the cloth paint tool, and go back to the current selection mode.");
 		}
 	}
 
-	return LOCTEXT("ToggleButton_Activate", "Activate the cloth paint tool, and open the Clothing window to allow selection of the clothing assets and of their paint targets.");
+	return LOCTEXT("ToggleButton_Activate_ToolTip", "Activate the cloth paint tool, and open the Clothing window to allow selection of the clothing assets and of their paint targets.");
 }
 
 bool FClothPaintingModule::GetIsPaintToolsButtonChecked(TWeakPtr<ISkeletalMeshEditor> InSkeletalMeshEditor) const
