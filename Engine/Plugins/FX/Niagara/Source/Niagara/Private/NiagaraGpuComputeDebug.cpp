@@ -137,7 +137,8 @@ void FNiagaraGpuComputeDebug::AddAttributeTexture(FRHICommandList& RHICmdList, F
 	FRHITexture2D* SrcTexture2D = Texture->GetTexture2D();
 	FRHITexture2DArray* SrcTexture2DArray = Texture->GetTexture2DArray();
 	FRHITexture3D* SrcTexture3D = Texture->GetTexture3D();
-	if ( (SrcTexture2D == nullptr) && (SrcTexture2DArray == nullptr) && (SrcTexture3D == nullptr) )
+	FRHITextureCube* SrcTextureCube = Texture->GetTextureCube();
+	if ( (SrcTexture2D == nullptr) && (SrcTexture2DArray == nullptr) && (SrcTexture3D == nullptr) && (SrcTextureCube == nullptr) )
 	{
 		return;
 	}
@@ -183,6 +184,12 @@ void FNiagaraGpuComputeDebug::AddAttributeTexture(FRHICommandList& RHICmdList, F
 		{
 			FRHIResourceCreateInfo CreateInfo;
 			Destination = RHICreateTexture3D(SrcSize.X, SrcSize.Y, SrcSize.Z, SrcFormat, 1, TexCreate_ShaderResource, CreateInfo);
+			VisualizeEntry->Texture = Destination;
+		}
+		else if (SrcTextureCube != nullptr)
+		{
+			FRHIResourceCreateInfo CreateInfo;
+			Destination = RHICreateTextureCube(SrcSize.X, SrcFormat, 1, TexCreate_ShaderResource, CreateInfo);
 			VisualizeEntry->Texture = Destination;
 		}
 	}
