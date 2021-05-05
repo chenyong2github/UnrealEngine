@@ -419,6 +419,14 @@ void SDisplayClusterConfiguratorViewTree::OnSelectionChanged(TSharedPtr<IDisplay
 	}
 }
 
+void SDisplayClusterConfiguratorViewTree::OnTreeDoubleClick(TSharedPtr<IDisplayClusterConfiguratorTreeItem> InItem)
+{
+	if (InItem.IsValid())
+	{
+		InItem->OnItemDoubleClicked();
+	}
+}
+
 void SDisplayClusterConfiguratorViewTree::SetTreeItemExpansionRecursive(TSharedPtr<IDisplayClusterConfiguratorTreeItem> TreeItem, bool bInExpansionState) const
 {
 	ConfigTreeView->SetItemExpansion(TreeItem, bInExpansionState);

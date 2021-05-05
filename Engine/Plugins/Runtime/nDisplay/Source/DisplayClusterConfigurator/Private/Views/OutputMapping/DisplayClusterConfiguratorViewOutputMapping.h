@@ -41,6 +41,9 @@ public:
 	virtual FNodeAlignmentSettings& GetNodeAlignmentSettings() override { return NodeAlignmentSettings; }
 
 	virtual void FindAndSelectObjects(const TArray<UObject*>& ObjectsToSelect) override;
+
+	virtual void JumpToObject(UObject* InObject) override;
+
 	//~ End IDisplayClusterConfiguratorView Interface
 
 	void RefreshNodePositions();

@@ -107,7 +107,7 @@ protected:
 	virtual void OnItemScrolledIntoView(TSharedPtr<IDisplayClusterConfiguratorTreeItem> InItem, const TSharedPtr<ITableRow>& InWidget) {}
 
 	/** Callback for when the user double-clicks on an item in the tree */
-	virtual void OnTreeDoubleClick(TSharedPtr<IDisplayClusterConfiguratorTreeItem> InItem) {}
+	virtual void OnTreeDoubleClick(TSharedPtr<IDisplayClusterConfiguratorTreeItem> InItem);
 
 	/** Handle recursive expansion/contraction of the tree */
 	virtual void SetTreeItemExpansionRecursive(TSharedPtr<IDisplayClusterConfiguratorTreeItem> TreeItem, bool bInExpansionState) const;

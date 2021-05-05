@@ -27,8 +27,6 @@ void FDisplayClusterConfiguratorCommands::RegisterCommands()
 	UI_COMMAND(ToggleAdjacentEdgeSnapping, "Toggle Adjacent Edge Snapping", "Enables or disables snapping adjacent viewport edges together", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ToggleSameEdgeSnapping, "Toggle Same Edge Snapping", "Enables or disables snapping equivalent viewport edges together", EUserInterfaceActionType::ToggleButton, FInputChord());
 
-	UI_COMMAND(ToggleZoomToSelectedItems, "Zoom to Selected Cluster Items", "Enables or disables zooming to cluster items in the Output Mapping graph editor when they are selected ", EUserInterfaceActionType::ToggleButton, FInputChord());
-
 	UI_COMMAND(FillParentNode, "Fill Parent", "Resizes and positions this node to fill its parent", EUserInterfaceActionType::Button, FInputChord(EKeys::F, EModifierKey::Shift));
 	UI_COMMAND(SizeToChildNodes, "Size to Children", "Resizes this node to completely wrap its children", EUserInterfaceActionType::Button, FInputChord(EKeys::C, EModifierKey::Shift));
 
