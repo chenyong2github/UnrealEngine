@@ -7,7 +7,7 @@
 
 #define LOCTEXT_NAMESPACE "FMediaMovieStreamerModule"
 
-TSharedPtr<FMediaMovieStreamer> MovieStreamer;
+TSharedPtr<FMediaMovieStreamer, ESPMode::ThreadSafe> MovieStreamer;
 TWeakObjectPtr<UMediaMovieAssets> MovieAssets;
 
 UMediaMovieAssets* FMediaMovieStreamerModule::GetMovieAssets()
@@ -15,7 +15,7 @@ UMediaMovieAssets* FMediaMovieStreamerModule::GetMovieAssets()
 	return MovieAssets.Get();
 }
 
-const TSharedPtr<FMediaMovieStreamer> FMediaMovieStreamerModule::GetMovieStreamer()
+const TSharedPtr<FMediaMovieStreamer, ESPMode::ThreadSafe> FMediaMovieStreamerModule::GetMovieStreamer()
 {
 	return MovieStreamer;
 }

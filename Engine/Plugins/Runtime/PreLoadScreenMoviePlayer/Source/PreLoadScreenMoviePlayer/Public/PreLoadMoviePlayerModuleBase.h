@@ -18,8 +18,8 @@ public:
         return true;
     }
 
-    virtual void RegisterMovieStreamer(TSharedPtr<class IMovieStreamer> InMovieStreamer);
-    virtual void UnRegisterMovieStreamer(TSharedPtr<class IMovieStreamer> InMovieStreamer);
+    virtual void RegisterMovieStreamer(TSharedPtr<class IMovieStreamer, ESPMode::ThreadSafe> InMovieStreamer);
+    virtual void UnRegisterMovieStreamer(TSharedPtr<class IMovieStreamer, ESPMode::ThreadSafe> InMovieStreamer);
     virtual void CleanUpMovieStreamer();
 
 private:

@@ -94,11 +94,12 @@ public:
 	// Callback for handling an error
 	DECLARE_MULTICAST_DELEGATE(FOnHandleSystemError);
 
+	typedef TSharedPtr<class IMovieStreamer, ESPMode::ThreadSafe> FMovieStreamerPtr;
     // Delegate used to register a movie streamer with any movie player modules that bind to this delegate
-    DECLARE_MULTICAST_DELEGATE_OneParam(FRegisterMovieStreamerDelegate, TSharedPtr<class IMovieStreamer>);
+    DECLARE_MULTICAST_DELEGATE_OneParam(FRegisterMovieStreamerDelegate, FMovieStreamerPtr);
 
     // Delegate used to un-register a movie streamer with any movie player modules that bind to this delegate
-    DECLARE_MULTICAST_DELEGATE_OneParam(FUnRegisterMovieStreamerDelegate, TSharedPtr<class IMovieStreamer>);
+    DECLARE_MULTICAST_DELEGATE_OneParam(FUnRegisterMovieStreamerDelegate, FMovieStreamerPtr);
 
 	// Callback for handling user login/logout.  first int is UserID, second int is UserIndex
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnUserLoginChangedEvent, bool, int32, int32);
