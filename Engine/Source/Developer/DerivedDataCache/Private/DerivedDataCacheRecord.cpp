@@ -196,7 +196,7 @@ void FCacheRecordBuilderInternal::SetMeta(FCbObject&& InMeta)
 FPayloadId FCacheRecordBuilderInternal::SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id)
 {
 	FCompressedBuffer CompressedBuffer = FCompressedBuffer::Compress(NAME_Default, Buffer);
-	const FPayloadId ValueId = GetOrCreatePayloadId(Id, FIoHash(CompressedBuffer.GetRawHash()));
+	const FPayloadId ValueId = GetOrCreatePayloadId(Id, CompressedBuffer.GetRawHash());
 	return SetValue(FPayload(ValueId, MoveTemp(CompressedBuffer)));
 }
 
@@ -213,7 +213,7 @@ FPayloadId FCacheRecordBuilderInternal::SetValue(FPayload&& Payload)
 FPayloadId FCacheRecordBuilderInternal::AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id)
 {
 	FCompressedBuffer CompressedBuffer = FCompressedBuffer::Compress(NAME_Default, Buffer);
-	const FPayloadId AttachmentId = GetOrCreatePayloadId(Id, FIoHash(CompressedBuffer.GetRawHash()));
+	const FPayloadId AttachmentId = GetOrCreatePayloadId(Id, CompressedBuffer.GetRawHash());
 	return AddAttachment(FPayload(AttachmentId, MoveTemp(CompressedBuffer)));
 }
 

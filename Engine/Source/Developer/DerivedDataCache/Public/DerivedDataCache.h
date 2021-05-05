@@ -131,11 +131,11 @@ public:
 	 * The callback will always be called for every key, and may be called from an arbitrary thread.
 	 * Records may finish storing in any order, and from multiple threads concurrently.
 	 *
-	 * @param Records The cache records to store. Must have a key.
-	 * @param Context A description of the request. An object path is typically sufficient.
-	 * @param Policy Flags to control the behavior of the request. See ECachePolicy.
-	 * @param Priority A priority to consider when scheduling the request. See EPriority.
-	 * @param OnComplete A callback invoked for every key in the batch as it completes or is canceled.
+	 * @param Records      The cache records to store. Must have a key.
+	 * @param Context      A description of the request. An object path is typically sufficient.
+	 * @param Policy       Flags to control the behavior of the request. See ECachePolicy.
+	 * @param Priority     A priority to consider when scheduling the request. See EPriority.
+	 * @param OnComplete   A callback invoked for every record as it completes or is canceled.
 	 */
 	virtual FRequest Put(
 		TConstArrayView<FCacheRecord> Records,
@@ -150,11 +150,11 @@ public:
 	 * The callback will always be called for every key, and may be called from an arbitrary thread.
 	 * Records may become available in any order, and from multiple threads concurrently.
 	 *
-	 * @param Keys The keys identifying the cache records to query.
-	 * @param Context A description of the request. An object path is typically sufficient.
-	 * @param Policy Flags to control the behavior of the request. See ECachePolicy.
-	 * @param Priority A priority to consider when scheduling the request. See EPriority.
-	 * @param OnComplete A callback invoked for every key in the batch as it completes or is canceled.
+	 * @param Keys         The keys identifying the cache records to query.
+	 * @param Context      A description of the request. An object path is typically sufficient.
+	 * @param Policy       Flags to control the behavior of the request. See ECachePolicy.
+	 * @param Priority     A priority to consider when scheduling the request. See EPriority.
+	 * @param OnComplete   A callback invoked for every key as it completes or is canceled.
 	 */
 	virtual FRequest Get(
 		TConstArrayView<FCacheKey> Keys,
@@ -169,11 +169,11 @@ public:
 	 * The callback will always be called for every key, and may be called from an arbitrary thread.
 	 * Payloads may become available in any order, and from multiple threads concurrently.
 	 *
-	 * @param Keys The keys identifying the cache record payloads to query.
-	 * @param Context A description of the request. An object path is typically sufficient.
-	 * @param Policy Flags to control the behavior of the request. See ECachePolicy.
-	 * @param Priority A priority to consider when scheduling the request. See EPriority.
-	 * @param OnComplete A callback invoked for every key in the batch as it completes or is canceled.
+	 * @param Keys         The keys identifying the cache record payloads to query.
+	 * @param Context      A description of the request. An object path is typically sufficient.
+	 * @param Policy       Flags to control the behavior of the request. See ECachePolicy.
+	 * @param Priority     A priority to consider when scheduling the request. See EPriority.
+	 * @param OnComplete   A callback invoked for every key as it completes or is canceled.
 	 */
 	virtual FRequest GetPayload(
 		TConstArrayView<FCachePayloadKey> Keys,
@@ -228,7 +228,7 @@ struct FCacheGetCompleteParams
 	 * The key is always populated. The remainder of the record is populated when Status is Ok.
 	 *
 	 * The value, attachments, and metadata may be skipped based on cache policy flags. When a value
-	 * or attachment has been skipped, it will have a payload but its buffers will be null.
+	 * or attachment has been skipped, it will have a payload but its buffer will be null.
 	 */
 	FCacheRecord&& Record;
 
@@ -245,7 +245,9 @@ struct FCacheGetPayloadCompleteParams
 	/**
 	 * Payload for the part of the payload request that completed or was canceled.
 	 *
-	 * The ID is always populated. The hash and buffer are populated when Status is Ok.
+	 * The ID is always populated.
+	 * The hash and size are populated when Status is Ok.
+	 * The buffer is populated when Status is Ok and the data was not skipped by the cache policy.
 	 */
 	FPayload&& Payload;
 

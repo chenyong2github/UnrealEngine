@@ -67,18 +67,17 @@ namespace UE::DerivedData
  * A build definition references a build function and the inputs to that build function.
  *
  * The purpose of a definition is to capture everything required to execute a derived data build.
- * Inputs to the build are partly static (constants and input hashes) and partly variable (files,
- * bulk data, payloads from other builds); and the build function is referenced by name, but does
- * not correspond to a fixed version of the build function.
+ * The definition is partly fixed (function name, constants, input hashes) and is partly variable
+ * (function version, build dependencies, bulk data, files), and the variable components mean the
+ * output from building the definition can vary depending on the versions of those components.
  *
- * The key for the definition uniquely identifies the definition and is derived from its function
- * and inputs, such that any definition with the same function and inputs will have the same key.
+ * The key for the definition uniquely identifies the definition using the hash of the serialized
+ * compact binary representation of the definition.
  *
- * The keys for constants and inputs are names that are unique within the build definition across
- * every type of constant and input.
+ * The keys for constants and inputs are names that are unique within the build definition.
  *
  * To build a definition against a specific version of the function and inputs, queue it to build
- * on FBuildSession, which uses IBuildInputProvider to fetch the inputs at the expected versions.
+ * on a build session, which uses its build input provider to convert it to a build action.
  *
  * Build definitions are immutable, and are created by a builder from IBuild::CreateDefinition().
  *

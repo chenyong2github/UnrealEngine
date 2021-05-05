@@ -130,7 +130,7 @@ public:
 	/**
 	 * Set the priority of the request.
 	 *
-	 * @param Priority The new priority for the request. May be higher or lower than the original.
+	 * @param Priority   The priority, which may be higher or lower than the existing priority.
 	 */
 	inline void SetPriority(EPriority Priority)
 	{

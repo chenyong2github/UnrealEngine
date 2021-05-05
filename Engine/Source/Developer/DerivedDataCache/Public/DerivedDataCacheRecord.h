@@ -73,8 +73,8 @@ namespace UE::DerivedData
  * of the payloads are exposed by the cache record.
  *
  * The value, attachments, and metadata are optional and can be skipped when requesting a record.
- * When the value or attachments have been skipped, the record will contain a payload with the ID
- * and hash, but no buffer containing the associated data.
+ * When the value or attachments have been skipped, the record will contain a payload with a null
+ * buffer but will otherwise be populated.
  */
 class FCacheRecord
 {
@@ -145,7 +145,7 @@ public:
 	/**
 	 * Set the metadata for the cache record.
 	 *
-	 * The metadata is cloned if not owned.
+	 * @param Meta   The metadata, which is cloned if not owned.
 	 */
 	inline void SetMeta(FCbObject&& Meta)
 	{
@@ -155,9 +155,9 @@ public:
 	/**
 	 * Set the value for the cache record.
 	 *
-	 * @param Buffer The value, which is cloned if not owned, and is compressed by the builder.
-	 * @param Id An ID for the value that is unique within the scope of the cache record. If omitted
-	 *           the builder will create an ID by hashing the buffer.
+	 * @param Buffer   The value, which is compressed by the builder, and cloned if not owned.
+	 * @param Id       An ID for the value that is unique within this cache record. When omitted,
+	 *                 the buffer will be hashed to create an ID.
 	 * @return The ID that was provided or created.
 	 */
 	inline FPayloadId SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id = FPayloadId())
@@ -168,7 +168,7 @@ public:
 	/**
 	 * Set the value for the cache record.
 	 *
-	 * @param Payload The value payload, which is reset to null.
+	 * @param Payload   The value payload, which must have a buffer.
 	 * @return The ID that was provided. Unique within the scope of the cache record.
 	 */
 	inline FPayloadId SetValue(FPayload&& Payload)
@@ -179,9 +179,9 @@ public:
 	/**
 	 * Add an attachment to the cache record.
 	 *
-	 * @param Buffer The attachment, which is cloned if not owned, and is compressed by the builder.
-	 * @param Id An ID for the attachment that is unique within the scope of the cache record. If it
-	 *           is omitted the builder will create an ID by hashing the buffer.
+	 * @param Buffer   The attachment, which is compressed by the builder, and cloned if not owned.
+	 * @param Id       An ID for the attachment that is unique within this cache record. When omitted,
+	 *                 the buffer will be hashed to create an ID.
 	 * @return The ID that was provided or created.
 	 */
 	inline FPayloadId AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id = FPayloadId())
@@ -192,7 +192,7 @@ public:
 	/**
 	 * Add an attachment to the cache record.
 	 *
-	 * @param Payload The attachment payload, which is reset to null.
+	 * @param Payload   The attachment payload, which must have a buffer.
 	 * @return The ID that was provided. Unique within the scope of the cache record.
 	 */
 	inline FPayloadId AddAttachment(FPayload&& Payload)
