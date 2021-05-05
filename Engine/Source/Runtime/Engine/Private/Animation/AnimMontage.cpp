@@ -1156,9 +1156,10 @@ void UAnimMontage::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotify
 	//if (ensure (Context.IsLeader()))
 	if ((Context.IsLeader()))
 	{
+		check(Instance.DeltaTimeRecord);
 		const float CurrentTime = Instance.Montage.CurrentPosition;
-		const float PreviousTime = Instance.Montage.PreviousPosition;
-		const float MoveDelta = Instance.Montage.MoveDelta;
+		const float PreviousTime = Instance.DeltaTimeRecord->Previous;
+		const float MoveDelta = Instance.DeltaTimeRecord->Delta;
 
 		Context.SetLeaderDelta(MoveDelta);
 		Context.SetPreviousAnimationPositionRatio(PreviousTime / GetPlayLength());
@@ -1324,8 +1325,6 @@ FAnimMontageInstance::FAnimMontageInstance()
 	, bInterrupted(false)
 	, PreviousWeight(0.f)
 	, NotifyWeight(0.f)
-	, DeltaMoved(0.f)
-	, PreviousPosition(0.f)
 	, BlendStartAlpha(0.0f)
 	, SyncGroupName(NAME_None)
 	, ActiveBlendProfile(nullptr)
@@ -1349,8 +1348,6 @@ FAnimMontageInstance::FAnimMontageInstance(UAnimInstance * InAnimInstance)
 	, bInterrupted(false)
 	, PreviousWeight(0.f)
 	, NotifyWeight(0.f)
-	, DeltaMoved(0.f)
-	, PreviousPosition(0.f)
 	, BlendStartAlpha(0.0f)
 	, SyncGroupName(NAME_None)
 	, ActiveBlendProfile(nullptr)
@@ -2311,8 +2308,8 @@ void FAnimMontageInstance::Advance(float DeltaTime, struct FRootMotionMovementPa
 		{
 			const bool bExtractRootMotion = (OutRootMotionParams != nullptr) && Montage->HasRootMotion();
 			
-			DeltaMoved = 0.f;
-			PreviousPosition = Position;
+			DeltaTimeRecord.Delta = 0.f;
+			DeltaTimeRecord.Previous = Position;
 
 			bDidUseMarkerSyncThisTick = CanUseMarkerSync();
 			if (bDidUseMarkerSyncThisTick)
@@ -2353,7 +2350,7 @@ void FAnimMontageInstance::Advance(float DeltaTime, struct FRootMotionMovementPa
 				}
 
 				const float SubStepDeltaMove = MontageSubStepper.GetDeltaMove();
-				DeltaMoved += SubStepDeltaMove;
+				DeltaTimeRecord.Delta += SubStepDeltaMove;
 				const bool bPlayingForward = MontageSubStepper.GetbPlayingForward();
 
 				// If current section is last one, check to trigger a blend out and if it hasn't stopped yet, see if we should stop

@@ -21,4 +21,5 @@ class UAnimGraphNode_MotionMatching : public UAnimGraphNode_Base
 	virtual FText GetTooltipText() const override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FText GetMenuCategory() const override;
+	virtual void GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const override;
 };

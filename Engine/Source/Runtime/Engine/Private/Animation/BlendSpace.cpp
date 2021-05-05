@@ -279,7 +279,13 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 	TArray<FBlendSampleData>& SampleDataList = *Instance.BlendSpace.BlendSampleDataCache;
 
 	const float DeltaTime = Context.GetDeltaTime();
-	float MoveDelta = Instance.PlayRateMultiplier * DeltaTime;
+
+	check(Instance.DeltaTimeRecord);
+	// The blend space delta time record isn't currently used directly
+	// Instead, the blend sample time record's are used to drive pose evaluation
+	// As a consequence, we currently follow the convention that TimeAccumulator and Previous are normalized
+	Instance.DeltaTimeRecord->Previous = *(Instance.TimeAccumulator);
+	Instance.DeltaTimeRecord->Delta = Instance.PlayRateMultiplier * DeltaTime; // Referenced as MoveDelta within comments and logging
 
 	// this happens even if MoveDelta == 0.f. This still should happen if it is being interpolated
 	// since we allow setting position of blendspace, we can't ignore MoveDelta == 0.f
@@ -350,7 +356,7 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 					}
 				}
 
-				MoveDelta *= FilterMultiplier;
+				Instance.DeltaTimeRecord->Delta *= FilterMultiplier;
 				UE_LOG(LogAnimation, Log, TEXT("BlendSpace(%s) - FilteredBlendInput(%s) : FilteredBlendInput(%s), FilterMultiplier(%0.2f)"), *GetName(), *BlendSpacePosition.ToString(), *FilteredBlendInput.ToString(), FilterMultiplier);
 			}
 
@@ -378,7 +384,7 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 
 			if (PreInterpAnimLength > 0.f && NewAnimLength > 0.f)
 			{
-				MoveDelta *= PreInterpAnimLength / NewAnimLength;
+				Instance.DeltaTimeRecord->Delta *= PreInterpAnimLength / NewAnimLength;
 			}
 
 			float& NormalizedCurrentTime = *(Instance.TimeAccumulator);
@@ -444,9 +450,9 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 				{
 					// Advance time using current/new anim length
 					float CurrentTime = NormalizedCurrentTime * NewAnimLength;
-					FAnimationRuntime::AdvanceTime(Instance.bLooping, MoveDelta, /*inout*/ CurrentTime, NewAnimLength);
+					FAnimationRuntime::AdvanceTime(Instance.bLooping, Instance.DeltaTimeRecord->Delta, /*inout*/ CurrentTime, NewAnimLength);
 					NormalizedCurrentTime = NewAnimLength ? (CurrentTime / NewAnimLength) : 0.0f;
-					UE_LOG(LogAnimMarkerSync, Log, TEXT("Leader (%s) (bCanDoMarkerSync == false)  - PreviousTime (%0.2f), CurrentTime (%0.2f), MoveDelta (%0.2f) "), *GetName(), NormalizedPreviousTime, NormalizedCurrentTime, MoveDelta);
+					UE_LOG(LogAnimMarkerSync, Log, TEXT("Leader (%s) (bCanDoMarkerSync == false)  - PreviousTime (%0.2f), CurrentTime (%0.2f), MoveDelta (%0.2f) "), *GetName(), NormalizedPreviousTime, NormalizedCurrentTime, Instance.DeltaTimeRecord->Delta);
 				}
 
 				Context.SetAnimationPositionRatio(NormalizedCurrentTime);
@@ -480,7 +486,7 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 				{
 					NormalizedPreviousTime = Context.GetPreviousAnimationPositionRatio();
 					NormalizedCurrentTime = Context.GetAnimationPositionRatio();
-					UE_LOG(LogAnimMarkerSync, Log, TEXT("Follower (%s) (bCanDoMarkerSync == false) - PreviousTime (%0.2f), CurrentTime (%0.2f), MoveDelta (%0.2f) "), *GetName(), NormalizedPreviousTime, NormalizedCurrentTime, MoveDelta);
+					UE_LOG(LogAnimMarkerSync, Log, TEXT("Follower (%s) (bCanDoMarkerSync == false) - PreviousTime (%0.2f), CurrentTime (%0.2f), MoveDelta (%0.2f) "), *GetName(), NormalizedPreviousTime, NormalizedCurrentTime, Instance.DeltaTimeRecord->Delta);
 				}
 			}
 
@@ -525,7 +531,7 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 
 							// Figure out delta time 
 							float DeltaTimePosition = CurrentSampleDataTime - PrevSampleDataTime;
-							const float SampleMoveDelta = MoveDelta * MultipliedSampleRateScale;
+							const float SampleMoveDelta = Instance.DeltaTimeRecord->Delta * MultipliedSampleRateScale;
 
 							// if we went against play rate, then loop around.
 							if ((SampleMoveDelta * DeltaTimePosition) < 0.f)
@@ -544,6 +550,9 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 								Context.RootMotionMovementParams.AccumulateWithBlend(Sample.Animation->ExtractRootMotion(PrevSampleDataTime, DeltaTimePosition, Instance.bLooping), SampleEntry.GetWeight());
 							}
 
+							// Capture the final adjusted delta time and previous frame time as an asset player record
+							SampleEntry.DeltaTimeRecord.Previous = PrevSampleDataTime;
+							SampleEntry.DeltaTimeRecord.Delta = DeltaTimePosition;
 
 							UE_LOG(LogAnimation, Verbose, TEXT("%d. Blending animation(%s) with %f weight at time %0.2f"), I + 1, *Sample.Animation->GetName(), SampleEntry.GetWeight(), CurrentSampleDataTime);
 						}
@@ -687,25 +696,38 @@ void UBlendSpace::ResetToRefPose(FCompactPose& OutPose) const
 	}
 }
 
+static const FAnimExtractContext DefaultBlendSpaceExtractionContext = { 0.f, true, {}, false };
+
 void UBlendSpace::GetAnimationPose(TArray<FBlendSampleData>& BlendSampleDataCache, /*out*/ FCompactPose& OutPose, /*out*/ FBlendedCurve& OutCurve) const
 {
 	UE::Anim::FStackAttributeContainer TempAttributes;
 	FAnimationPoseData AnimationPoseData = { OutPose, OutCurve, TempAttributes };
-	GetAnimationPose(BlendSampleDataCache, AnimationPoseData);
+	GetAnimationPose(BlendSampleDataCache, DefaultBlendSpaceExtractionContext, AnimationPoseData);
 }
 
 void UBlendSpace::GetAnimationPose(TArray<FBlendSampleData>& BlendSampleDataCache, /*out*/ FAnimationPoseData& OutAnimationPoseData) const
 {
-	GetAnimationPose_Internal(BlendSampleDataCache, TArrayView<FPoseLink>(), nullptr, false, OutAnimationPoseData);
+	GetAnimationPose_Internal(BlendSampleDataCache, TArrayView<FPoseLink>(), nullptr, false, DefaultBlendSpaceExtractionContext, OutAnimationPoseData);
 }
 
 void UBlendSpace::GetAnimationPose(TArray<FBlendSampleData>& BlendSampleDataCache, TArrayView<FPoseLink> InPoseLinks, /*out*/ FPoseContext& Output) const
 {
 	FAnimationPoseData AnimationPoseData(Output);
-	GetAnimationPose_Internal(BlendSampleDataCache, InPoseLinks, Output.AnimInstanceProxy, Output.ExpectsAdditivePose(), AnimationPoseData);
+	GetAnimationPose_Internal(BlendSampleDataCache, InPoseLinks, Output.AnimInstanceProxy, Output.ExpectsAdditivePose(), DefaultBlendSpaceExtractionContext, AnimationPoseData);
 }
 
-void UBlendSpace::GetAnimationPose_Internal(TArray<FBlendSampleData>& BlendSampleDataCache, TArrayView<FPoseLink> InPoseLinks, FAnimInstanceProxy* InProxy, bool bInExpectsAdditivePose, /*out*/ FAnimationPoseData& OutAnimationPoseData) const
+void UBlendSpace::GetAnimationPose(TArray<FBlendSampleData>& BlendSampleDataCache, const FAnimExtractContext& ExtractionContext, /*out*/ FAnimationPoseData& OutAnimationPoseData) const
+{
+	GetAnimationPose_Internal(BlendSampleDataCache, TArrayView<FPoseLink>(), nullptr, false, ExtractionContext, OutAnimationPoseData);
+}
+
+void UBlendSpace::GetAnimationPose(TArray<FBlendSampleData>& BlendSampleDataCache, TArrayView<FPoseLink> InPoseLinks, const FAnimExtractContext& ExtractionContext, /*out*/ FPoseContext& Output) const
+{
+	FAnimationPoseData AnimationPoseData(Output);
+	GetAnimationPose_Internal(BlendSampleDataCache, InPoseLinks, Output.AnimInstanceProxy, Output.ExpectsAdditivePose(), ExtractionContext, AnimationPoseData);
+}
+
+void UBlendSpace::GetAnimationPose_Internal(TArray<FBlendSampleData>& BlendSampleDataCache, TArrayView<FPoseLink> InPoseLinks, FAnimInstanceProxy* InProxy, bool bInExpectsAdditivePose, const FAnimExtractContext& ExtractionContext, /*out*/ FAnimationPoseData& OutAnimationPoseData) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_BlendSpace_GetAnimPose);
 	FScopeCycleCounterUObject BlendSpaceScope(this);
@@ -776,7 +798,7 @@ void UBlendSpace::GetAnimationPose_Internal(TArray<FBlendSampleData>& BlendSampl
 
 					FAnimationPoseData ChildAnimationPoseData = { Pose, ChildrenCurves[I], ChildrenAttributes[I] };
 					// first one always fills up the source one
-					Sample.Animation->GetAnimationPose(ChildAnimationPoseData, FAnimExtractContext(Time, true));
+					Sample.Animation->GetAnimationPose(ChildAnimationPoseData, FAnimExtractContext(Time, ExtractionContext.bExtractRootMotion, BlendSampleDataCache[I].DeltaTimeRecord, ExtractionContext.bLooping));
 				}
 				else
 				{

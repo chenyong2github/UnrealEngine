@@ -117,12 +117,10 @@ UAnimInstance::UAnimInstance(const FObjectInitializer& ObjectInitializer)
 }
 
 // this is only used by montage marker based sync
-void UAnimInstance::MakeMontageTickRecord(FAnimTickRecord& TickRecord, class UAnimMontage* Montage, float CurrentPosition, float PreviousPosition, float MoveDelta, float Weight, TArray<FPassedMarker>& MarkersPassedThisTick, FMarkerTickRecord& MarkerTickRecord)
+void UAnimInstance::MakeMontageTickRecord(FAnimTickRecord& TickRecord, class UAnimMontage* Montage, float CurrentPosition, float Weight, TArray<FPassedMarker>& MarkersPassedThisTick, FMarkerTickRecord& MarkerTickRecord)
 {
 	TickRecord.SourceAsset = Montage;
 	TickRecord.Montage.CurrentPosition = CurrentPosition;
-	TickRecord.Montage.PreviousPosition = PreviousPosition;
-	TickRecord.Montage.MoveDelta = MoveDelta;
 	TickRecord.Montage.MarkersPassedThisTick = &MarkersPassedThisTick;
 	TickRecord.MarkerTickRecord = &MarkerTickRecord;
 	TickRecord.PlayRateMultiplier = 1.f; // we don't care here, this is alreayd applied in the montageinstance::Advance
@@ -373,9 +371,15 @@ void UAnimInstance::UpdateMontageSyncGroup()
 			if (ensure(GroupNameToUse != NAME_None))
 			{
 				bRecordNeedsResetting = false;
-				FAnimTickRecord TickRecord(MontageInstance->Montage, MontageInstance->GetPosition(),
-					MontageInstance->GetPreviousPosition(), MontageInstance->GetDeltaMoved(), MontageInstance->GetWeight(),
-					MontageInstance->MarkersPassedThisTick, MontageInstance->MarkerTickRecord);
+				FAnimTickRecord TickRecord(
+					MontageInstance->Montage,
+					MontageInstance->GetPosition(),
+					MontageInstance->GetWeight(),
+					MontageInstance->MarkersPassedThisTick,
+					MontageInstance->MarkerTickRecord
+				);
+				TickRecord.DeltaTimeRecord = &MontageInstance->DeltaTimeRecord;
+
 				UE::Anim::FAnimSyncParams Params(GroupNameToUse);
 				GetProxyOnGameThread<FAnimInstanceProxy>().AddTickRecord(TickRecord, Params);
 
@@ -3324,6 +3328,7 @@ void UAnimInstance::UpdateMontageEvaluationData()
 				(
 					MontageInstance->Montage,
 					MontageInstance->GetPosition(),
+					MontageInstance->DeltaTimeRecord,
 					MontageInstance->bPlaying,
 					MontageInstance->IsActive(),
 					MontageInstance->GetBlend(),

@@ -39,8 +39,10 @@ void FAnimNode_SequenceEvaluatorBase::UpdateAssetPlayer(const FAnimationUpdateCo
 		// Clamp input to a valid position on this sequence's time line.
 		CurrentExplicitTime = FMath::Clamp(CurrentExplicitTime, 0.f, CurrentSequence->GetPlayLength());
 
-		if ((!GetTeleportToExplicitTime() || (GetGroupName() != NAME_None)) && (Context.AnimInstanceProxy->IsSkeletonCompatible(CurrentSequence->GetSkeleton())))
+		if ((!GetTeleportToExplicitTime() || (GetGroupName() != NAME_None) || (GetGroupMethod() == EAnimSyncMethod::Graph)) && (Context.AnimInstanceProxy->IsSkeletonCompatible(CurrentSequence->GetSkeleton())))
 		{
+			DeltaTimeRecord.Previous = InternalTimeAccumulator;
+
 			if (bReinitialized)
 			{
 				switch (GetReinitializationBehavior())
@@ -52,22 +54,7 @@ void FAnimNode_SequenceEvaluatorBase::UpdateAssetPlayer(const FAnimationUpdateCo
 				InternalTimeAccumulator = FMath::Clamp(InternalTimeAccumulator, 0.f, CurrentSequence->GetPlayLength());
 			}
 
-			float TimeJump = CurrentExplicitTime - InternalTimeAccumulator;
-			const bool bCurrentShouldLoop = GetShouldLoop();
-			if (bCurrentShouldLoop)
-			{
-				if (FMath::Abs(TimeJump) > (CurrentSequence->GetPlayLength() * 0.5f))
-				{
-					if (TimeJump > 0.f)
-					{
-						TimeJump -= CurrentSequence->GetPlayLength();
-					}
-					else
-					{
-						TimeJump += CurrentSequence->GetPlayLength();
-					}
-				}
-			}
+			const float TimeJump = GetEffectiveDeltaTime(CurrentExplicitTime, InternalTimeAccumulator);
 
 			// if you jump from front to end or end to front, your time jump is 0.f, so nothing moves
 			// to prevent that from happening, we set current accumulator to explicit time
@@ -75,11 +62,13 @@ void FAnimNode_SequenceEvaluatorBase::UpdateAssetPlayer(const FAnimationUpdateCo
 			{
 				InternalTimeAccumulator = CurrentExplicitTime;
 			}
-			
+
+			DeltaTimeRecord.Delta = TimeJump;
+
 			const float DeltaTime = Context.GetDeltaTime();
 			const float RateScale = CurrentSequence->RateScale;
 			const float PlayRate = FMath::IsNearlyZero(DeltaTime) || FMath::IsNearlyZero(RateScale) ? 0.f : (TimeJump / (DeltaTime * RateScale));
-			CreateTickRecordForNode(Context, CurrentSequence, bCurrentShouldLoop, PlayRate);
+			CreateTickRecordForNode(Context, CurrentSequence, GetShouldLoop(), PlayRate);
 		}
 		else
 		{
@@ -103,7 +92,7 @@ void FAnimNode_SequenceEvaluatorBase::Evaluate_AnyThread(FPoseContext& Output)
 	if ((CurrentSequence != nullptr) && (Output.AnimInstanceProxy->IsSkeletonCompatible(CurrentSequence->GetSkeleton())))
 	{
 		FAnimationPoseData AnimationPoseData(Output);
-		CurrentSequence->GetAnimationPose(AnimationPoseData, FAnimExtractContext(InternalTimeAccumulator, Output.AnimInstanceProxy->ShouldExtractRootMotion()));
+		CurrentSequence->GetAnimationPose(AnimationPoseData, FAnimExtractContext(InternalTimeAccumulator, Output.AnimInstanceProxy->ShouldExtractRootMotion(), DeltaTimeRecord, GetShouldLoop()));
 	}
 	else
 	{
@@ -118,6 +107,28 @@ void FAnimNode_SequenceEvaluatorBase::GatherDebugData(FNodeDebugData& DebugData)
 	
 	DebugLine += FString::Printf(TEXT("('%s' InputTime: %.3f, Time: %.3f)"), *GetNameSafe(GetSequence()), GetExplicitTime(), InternalTimeAccumulator);
 	DebugData.AddDebugItem(DebugLine, true);
+}
+
+float FAnimNode_SequenceEvaluatorBase::GetEffectiveDeltaTime(float ExplicitTime, float PrevExplicitTime) const
+{
+	float DeltaTime = ExplicitTime - PrevExplicitTime;
+
+	if (GetShouldLoop())
+	{
+		if (FMath::Abs(DeltaTime) > (GetSequence()->GetPlayLength() * 0.5f))
+		{
+			if (DeltaTime > 0.f)
+			{
+				DeltaTime -= GetSequence()->GetPlayLength();
+			}
+			else
+			{
+				DeltaTime += GetSequence()->GetPlayLength();
+			}
+		}
+	}
+
+	return DeltaTime;
 }
 
 void FAnimNode_SequenceEvaluator::SetSequence(UAnimSequenceBase* InSequence)

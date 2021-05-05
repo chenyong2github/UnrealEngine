@@ -4,6 +4,7 @@
 
 #include "EditorCategoryUtils.h"
 #include "Animation/AnimAttributes.h"
+#include "Animation/AnimRootMotionProvider.h"
 
 #define LOCTEXT_NAMESPACE "AnimGraphNode_RandomPlayer"
 
@@ -31,6 +32,11 @@ void UAnimGraphNode_RandomPlayer::GetOutputLinkAttributes(FNodeAttributeArray& O
 {
 	OutAttributes.Add(UE::Anim::FAttributes::Curves);
 	OutAttributes.Add(UE::Anim::FAttributes::Attributes);
+
+	if (UE::Anim::IAnimRootMotionProvider::Get())
+	{
+		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::RootMotionDeltaAttributeName);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

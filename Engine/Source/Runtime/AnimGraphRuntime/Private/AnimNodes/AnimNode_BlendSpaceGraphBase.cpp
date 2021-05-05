@@ -87,7 +87,7 @@ void FAnimNode_BlendSpaceGraphBase::Evaluate_AnyThread(FPoseContext& Output)
 
 	check(BlendSpace != nullptr);
 
-	BlendSpace->GetAnimationPose(BlendSampleDataCache, SamplePoseLinks, Output);
+	BlendSpace->GetAnimationPose(BlendSampleDataCache, SamplePoseLinks, {}/** unused parameter **/, Output);
 }
 
 void FAnimNode_BlendSpaceGraphBase::GatherDebugData(FNodeDebugData& DebugData)

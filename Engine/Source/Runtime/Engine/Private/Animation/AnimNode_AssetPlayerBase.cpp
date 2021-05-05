@@ -45,6 +45,7 @@ void FAnimNode_AssetPlayerBase::CreateTickRecordForNode(const FAnimationUpdateCo
 		Context.GetSharedContext()->MessageStack.MakeEventContextData(TickRecord.ContextData);
 	}
 	TickRecord.RootMotionWeightModifier = Context.GetRootMotionWeightModifier();
+	TickRecord.DeltaTimeRecord = &DeltaTimeRecord;
 
 	SyncScope.AddTickRecord(TickRecord, SyncParams, UE::Anim::FAnimSyncDebugInfo(Context));
 
@@ -61,7 +62,7 @@ float FAnimNode_AssetPlayerBase::GetAccumulatedTime() const
 	return InternalTimeAccumulator;
 }
 
-void FAnimNode_AssetPlayerBase::SetAccumulatedTime(const float& NewTime)
+void FAnimNode_AssetPlayerBase::SetAccumulatedTime(float NewTime)
 {
 	InternalTimeAccumulator = NewTime;
 }

@@ -23,6 +23,7 @@
 #include "AnimationRuntime.h"
 #include "Animation/AnimCompress.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimRootMotionProvider.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/BlendSpace.h"
 #include "Animation/Rig.h"
@@ -1391,6 +1392,15 @@ void UAnimSequence::GetAnimationPose(FAnimationPoseData& OutAnimationPoseData, c
 	else
 	{
 		GetBonePose(OutAnimationPoseData, ExtractionContext);
+	}
+
+	// If the sequence has root motion enabled, allow sampling of a root motion delta into the custom attribute container of the outgoing pose
+	if (HasRootMotion())
+	{
+		if (const UE::Anim::IAnimRootMotionProvider* RootMotionProvider = UE::Anim::IAnimRootMotionProvider::Get())
+		{
+			RootMotionProvider->SampleRootMotion(ExtractionContext.DeltaTimeRecord, *this, ExtractionContext.bLooping, OutAnimationPoseData.GetAttributes());
+		}
 	}
 
 	// Check that all bone atoms coming from animation are normalized

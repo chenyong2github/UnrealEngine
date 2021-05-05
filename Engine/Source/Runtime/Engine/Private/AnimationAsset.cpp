@@ -205,12 +205,15 @@ FAnimTickRecord::FAnimTickRecord(UBlendSpace* InBlendSpace, const FVector& InBle
 	bLooping = bInLooping;
 }
 
-FAnimTickRecord::FAnimTickRecord(UAnimMontage* InMontage, float InCurrentPosition, float InPreviousPosition, float InMoveDelta, float InWeight, TArray<FPassedMarker>& InMarkersPassedThisTick, FMarkerTickRecord& InMarkerTickRecord)
+FAnimTickRecord::FAnimTickRecord(UAnimMontage* InMontage, float InCurrentPosition, float, float, float InWeight, TArray<FPassedMarker>& InMarkersPassedThisTick, FMarkerTickRecord& InMarkerTickRecord)
+	: FAnimTickRecord(InMontage, InCurrentPosition, InWeight, InMarkersPassedThisTick, InMarkerTickRecord)
+{
+}
+
+FAnimTickRecord::FAnimTickRecord(UAnimMontage* InMontage, float InCurrentPosition, float InWeight, TArray<FPassedMarker>& InMarkersPassedThisTick, FMarkerTickRecord& InMarkerTickRecord)
 {
 	SourceAsset = InMontage;
 	Montage.CurrentPosition = InCurrentPosition;
-	Montage.PreviousPosition = InPreviousPosition;
-	Montage.MoveDelta = InMoveDelta;
 	Montage.MarkersPassedThisTick = &InMarkersPassedThisTick;
 	MarkerTickRecord = &InMarkerTickRecord;
 	PlayRateMultiplier = 1.f; // we don't care here, this is alreayd applied in the montageinstance::Advance

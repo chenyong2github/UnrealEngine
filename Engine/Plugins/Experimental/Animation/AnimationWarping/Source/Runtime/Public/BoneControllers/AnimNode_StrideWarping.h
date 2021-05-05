@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "BoneControllers/BoneControllerTypes.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "Engine/SpringInterpolator.h"
 #include "AnimNode_StrideWarping.generated.h"
@@ -66,63 +67,67 @@ struct ANIMATIONWARPINGRUNTIME_API FAnimNode_StrideWarping : public FAnimNode_Sk
 
 	FAnimInstanceProxy* MyAnimInstanceProxy;
 
-	/** IKFoot Root Bone. **/
-	UPROPERTY(EditAnywhere, Category = "Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Evaluation, meta = (PinHiddenByDefault))
+	EWarpingEvaluationMode Mode;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Evaluation, meta = (PinHiddenByDefault))
+	FVector ManualStrideWarpingDir;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Evaluation, meta = (PinHiddenByDefault))
+	float ManualStrideScaling;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Evaluation, meta = (PinHiddenByDefault))
+	float LocomotionSpeed;
+
+	UPROPERTY(EditAnywhere, Category = Settings)
 	FBoneReference IKFootRootBone;
 
-	UPROPERTY(EditAnywhere, Category = "Settings")
+	UPROPERTY(EditAnywhere, Category = Settings)
 	TArray<FStrideWarpingFootDefinition> FeetDefinitions;
 
 	UPROPERTY(Transient)
 	TArray<FStrideWarpingFootData> FeetData;
 
-	/** Pelvis Bone. **/
-	UPROPERTY(EditAnywhere, Category = "Settings")
+	UPROPERTY(EditAnywhere, Category = Settings)
 	FBoneReference PelvisBone;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	EStrideWarpingAxisMode StrideWarpingAxisMode;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	EStrideWarpingAxisMode FloorNormalAxisMode;
 
 	/** Direction vector for adjusting hips up and down. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	EStrideWarpingAxisMode GravityDirAxisMode;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta = (PinShownByDefault))
-	float StrideScaling;
 
 	// Additional scaling, offsetting and clamping of PlayRate input.
 	// Performed after PlayRateBasis.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	FInputScaleBiasClamp StrideScalingScaleBiasClamp;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta = (PinHiddenByDefault))
-	FVector ManualStrideWarpingDir;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
 	FVector ManualFloorNormalInput;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
 	FVector ManualGravityDirInput;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	float PelvisPostAdjustmentAlpha;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	int32 PelvisAdjustmentMaxIter;
 
-	UPROPERTY(EditAnywhere, Category = "Settings")
+	UPROPERTY(EditAnywhere, Category = Settings)
 	FVectorRK4SpringInterpolator PelvisAdjustmentInterp;
 
-	UPROPERTY(EditAnywhere, Category = "Settings")
+	UPROPERTY(EditAnywhere, Category = Settings)
 	uint32 bAdjustThighBonesRotation : 1;
 
-	UPROPERTY(EditAnywhere, Category = "Settings")
+	UPROPERTY(EditAnywhere, Category = Settings)
 	uint32 bClampIKUsingFKLeg : 1;
 
-	UPROPERTY(EditAnywhere, Category = "Settings")
+	UPROPERTY(EditAnywhere, Category = Settings)
 	uint32 bOrientStrideWarpingAxisBasedOnFloorNormal : 1;
 
 	UPROPERTY(Transient)

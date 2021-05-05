@@ -5716,6 +5716,8 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 		Set("AnimGraph.Attribute.Attributes.Color", FStyleColors::AccentYellow);
 		Set("AnimGraph.Attribute.Sync.Icon", new IMAGE_BRUSH("Icons/icon_tab_TimecodeProvider_16x", Icon10x10));
 		Set("AnimGraph.Attribute.Sync.Color", FStyleColors::AccentBlue);
+		Set("AnimGraph.Attribute.RootMotionDelta.Icon", new IMAGE_BRUSH("Icons/icon_axis_local_16px", Icon12x12));
+		Set("AnimGraph.Attribute.RootMotionDelta.Color", FStyleColors::AccentGreen);
 		Set("AnimGraph.Attribute.InertialBlending.Icon", new IMAGE_BRUSH("Icons/icon_tab_TimecodeProvider_16x", Icon10x10));
 		Set("AnimGraph.Attribute.InertialBlending.Color", FStyleColors::AccentOrange);
 	}	

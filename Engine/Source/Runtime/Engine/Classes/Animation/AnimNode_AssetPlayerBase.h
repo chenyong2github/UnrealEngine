@@ -28,7 +28,7 @@ struct ENGINE_API FAnimNode_AssetPlayerBase : public FAnimNode_Base
 	virtual float GetAccumulatedTime() const;
 
 	/** Override the currently accumulated time */
-	virtual void SetAccumulatedTime(const float& NewTime);
+	virtual void SetAccumulatedTime(float NewTime);
 
 	/** Get the animation asset associated with the node, derived classes should implement this */
 	virtual UAnimationAsset* GetAnimAsset() const;
@@ -96,6 +96,9 @@ protected:
 	/** Accumulated time used to reference the asset in this node */
 	UPROPERTY(BlueprintReadWrite, Transient, Category=DoNotEdit)
 	float InternalTimeAccumulator = 0.0f;
+	
+	/** Previous frame InternalTimeAccumulator value and effective delta time leading into the current frame */
+	FDeltaTimeRecord DeltaTimeRecord;
 
 	/** Track whether we have been full weight previously. Reset when we reach 0 weight*/
 	bool bHasBeenFullWeight = false;

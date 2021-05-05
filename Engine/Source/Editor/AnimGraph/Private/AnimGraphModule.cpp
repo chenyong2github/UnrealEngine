@@ -28,6 +28,7 @@
 #include "AnimGraphAttributes.h"
 #include "Animation/AnimSync.h"
 #include "Animation/AnimNode_Inertialization.h"
+#include "Animation/AnimRootMotionProvider.h"
 
 IMPLEMENT_MODULE(FAnimGraphModule, AnimGraph);
 
@@ -104,6 +105,17 @@ void FAnimGraphModule::StartupModule()
 			LOCTEXT("Sync", "Sync"),
 			LOCTEXT("SyncToolTip", "Sync: Synchronization between the playback of different assets present in the graph, not blendable"),
 			FEditorStyle::Get().GetSlateColor("AnimGraph.Attribute.Sync.Color"),
+			EAnimGraphAttributesDisplayMode::Automatic)
+	);
+
+	AnimGraphAttributes->Register(
+		FAnimGraphAttributeDesc(
+			UE::Anim::IAnimRootMotionProvider::RootMotionDeltaAttributeName,
+			EAnimGraphAttributeBlend::Blendable,
+			*FEditorStyle::Get().GetBrush("AnimGraph.Attribute.RootMotionDelta.Icon"),
+			LOCTEXT("RootMotionDelta", "Root Motion Delta"),
+			LOCTEXT("RootMotionDeltaToolTip", "Root Motion Delta: Per-frame root motion delta transform, blendable"),
+			FEditorStyle::Get().GetSlateColor("AnimGraph.Attribute.RootMotionDelta.Color"),
 			EAnimGraphAttributesDisplayMode::Automatic)
 	);
 

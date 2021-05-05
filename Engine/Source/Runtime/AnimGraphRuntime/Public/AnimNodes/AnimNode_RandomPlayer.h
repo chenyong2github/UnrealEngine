@@ -76,8 +76,8 @@ struct FRandomAnimPlayData
 	// The time at which the animation is currently playing.
 	float CurrentPlayTime = 0.0f;
 
-	// The previous tick's update time.
-	float PreviousPlayTime = 0.0f;
+	// Delta time record for this play through
+	FDeltaTimeRecord DeltaTimeRecord;
 
 	// Calculated play rate
 	float PlayRate = 0.0f;

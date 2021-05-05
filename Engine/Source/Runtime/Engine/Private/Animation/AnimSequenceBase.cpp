@@ -424,31 +424,30 @@ void UAnimSequenceBase::RemapTracksToNewSkeleton(USkeleton* NewSkeleton, bool bC
 
 void UAnimSequenceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQueue& NotifyQueue, FAnimAssetTickContext& Context) const
 {
-	float& CurrentTime = *(Instance.TimeAccumulator);
+	float CurrentTime = *(Instance.TimeAccumulator);
 	float PreviousTime = CurrentTime;
-	const float PlayRate = Instance.PlayRateMultiplier * this->RateScale;
+	float DeltaTime = 0.f;
 
-	float MoveDelta = 0.f;
+	const float PlayRate = Instance.PlayRateMultiplier * this->RateScale;
 
 	if( Context.IsLeader() )
 	{
-		const float DeltaTime = Context.GetDeltaTime();
-		MoveDelta = PlayRate * DeltaTime;
+		DeltaTime = PlayRate * Context.GetDeltaTime();
 
-		Context.SetLeaderDelta(MoveDelta);
+		Context.SetLeaderDelta(DeltaTime);
 		Context.SetPreviousAnimationPositionRatio(PreviousTime / GetPlayLength());
 
-		if (MoveDelta != 0.f)
+		if (DeltaTime != 0.f)
 		{
 			if (Instance.bCanUseMarkerSync && Context.CanUseMarkerPosition())
 			{
-				TickByMarkerAsLeader(*Instance.MarkerTickRecord, Context.MarkerTickContext, CurrentTime, PreviousTime, MoveDelta, Instance.bLooping, Instance.MirrorDataTable);
+				TickByMarkerAsLeader(*Instance.MarkerTickRecord, Context.MarkerTickContext, CurrentTime, PreviousTime, DeltaTime, Instance.bLooping, Instance.MirrorDataTable);
 			}
 			else
 			{
 				// Advance time
-				FAnimationRuntime::AdvanceTime(Instance.bLooping, MoveDelta, CurrentTime, GetPlayLength());
-				UE_LOG(LogAnimMarkerSync, Log, TEXT("Leader (%s) (normal advance)  - PreviousTime (%0.2f), CurrentTime (%0.2f), MoveDelta (%0.2f), Looping (%d) "), *GetName(), PreviousTime, CurrentTime, MoveDelta, Instance.bLooping ? 1 : 0);
+				FAnimationRuntime::AdvanceTime(Instance.bLooping, DeltaTime, CurrentTime, GetPlayLength());
+				UE_LOG(LogAnimMarkerSync, Log, TEXT("Leader (%s) (normal advance)  - PreviousTime (%0.2f), CurrentTime (%0.2f), MoveDelta (%0.2f), Looping (%d) "), *GetName(), PreviousTime, CurrentTime, DeltaTime, Instance.bLooping ? 1 : 0);
 			}
 		}
 
@@ -465,18 +464,17 @@ void UAnimSequenceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimN
 			}
 			else
 			{
-				const float DeltaTime = Context.GetDeltaTime();
-				const float MyMoveDelta = PlayRate * DeltaTime;
+				DeltaTime = PlayRate * Context.GetDeltaTime();
 				// If leader is not valid, advance time as normal, do not jump position and pop.
-				FAnimationRuntime::AdvanceTime(Instance.bLooping, MyMoveDelta, CurrentTime, GetPlayLength());
-				UE_LOG(LogAnimMarkerSync, Log, TEXT("Follower (%s) (normal advance)  - PreviousTime (%0.2f), CurrentTime (%0.2f), MoveDelta (%0.2f), Looping (%d) "), *GetName(), PreviousTime, CurrentTime, MoveDelta, Instance.bLooping ? 1 : 0);
+				FAnimationRuntime::AdvanceTime(Instance.bLooping, DeltaTime, CurrentTime, GetPlayLength());
+				UE_LOG(LogAnimMarkerSync, Log, TEXT("Follower (%s) (normal advance) - PreviousTime (%0.2f), CurrentTime (%0.2f), MoveDelta (%0.2f), Looping (%d) "), *GetName(), PreviousTime, CurrentTime, DeltaTime, Instance.bLooping ? 1 : 0);
 			}
 		}
 		else
 		{
 			PreviousTime = Context.GetPreviousAnimationPositionRatio() * GetPlayLength();
 			CurrentTime = Context.GetAnimationPositionRatio() * GetPlayLength();
-			UE_LOG(LogAnimMarkerSync, Log, TEXT("Follower (%s) (normalized position advance) - PreviousTime (%0.2f), CurrentTime (%0.2f), MoveDelta (%0.2f), Looping (%d) "), *GetName(), PreviousTime, CurrentTime, MoveDelta, Instance.bLooping ? 1 : 0);
+			UE_LOG(LogAnimMarkerSync, Log, TEXT("Follower (%s) (normalized position advance) - PreviousTime (%0.2f), CurrentTime (%0.2f), MoveDelta (%0.2f), Looping (%d) "), *GetName(), PreviousTime, CurrentTime, DeltaTime, Instance.bLooping ? 1 : 0);
 		}
 
 		//@TODO: NOTIFIES: Calculate AdvanceType based on what the new delta time is
@@ -484,16 +482,24 @@ void UAnimSequenceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimN
 		if( CurrentTime != PreviousTime )
 		{
 			// Figure out delta time 
-			MoveDelta = CurrentTime - PreviousTime;
+			DeltaTime = CurrentTime - PreviousTime;
 			// if we went against play rate, then loop around.
-			if( (MoveDelta * PlayRate) < 0.f )
+			if( (DeltaTime * PlayRate) < 0.f )
 			{
-				MoveDelta += FMath::Sign<float>(PlayRate) * GetPlayLength();
+				DeltaTime += FMath::Sign<float>(PlayRate) * GetPlayLength();
 			}
 		}
 	}
 
-	HandleAssetPlayerTickedInternal(Context, PreviousTime, MoveDelta, Instance, NotifyQueue);
+	// Assign the instance's TimeAccumulator after all side effects on CurrentTime have been applied
+	*(Instance.TimeAccumulator) = CurrentTime;
+
+	// Capture the final adjusted delta time and previous frame time as an asset player record
+	check(Instance.DeltaTimeRecord);
+	Instance.DeltaTimeRecord->Previous = PreviousTime;
+	Instance.DeltaTimeRecord->Delta = DeltaTime;
+
+	HandleAssetPlayerTickedInternal(Context, PreviousTime, DeltaTime, Instance, NotifyQueue);
 }
 
 void UAnimSequenceBase::TickByMarkerAsFollower(FMarkerTickRecord &Instance, FMarkerTickContext &MarkerContext, float& CurrentTime, float& OutPreviousTime, const float MoveDelta, const bool bLooping, const UMirrorDataTable* MirrorTable) const
@@ -939,7 +945,7 @@ void UAnimSequenceBase::Serialize(FArchive& Ar)
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
-void UAnimSequenceBase::GetAnimationPose(struct FCompactPose& OutPose, FBlendedCurve & OutCurve, const FAnimExtractContext & ExtractionContext) const
+void UAnimSequenceBase::GetAnimationPose(struct FCompactPose& OutPose, FBlendedCurve & OutCurve, const FAnimExtractContext& ExtractionContext) const
 {
 	UE::Anim::FStackAttributeContainer TempAttributes;
 	FAnimationPoseData OutAnimationPoseData(OutPose, OutCurve, TempAttributes);

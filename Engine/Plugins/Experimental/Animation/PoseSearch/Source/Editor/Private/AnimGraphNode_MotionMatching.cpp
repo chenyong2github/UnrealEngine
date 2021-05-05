@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_MotionMatching.h"
+#include "Animation/AnimRootMotionProvider.h"
 
 #define LOCTEXT_NAMESPACE "AnimGraphNode_MotionMatching"
 
@@ -25,5 +26,12 @@ FText UAnimGraphNode_MotionMatching::GetMenuCategory() const
 	return LOCTEXT("NodeCategory", "Pose Search");
 }
 
+void UAnimGraphNode_MotionMatching::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const
+{
+	if (UE::Anim::IAnimRootMotionProvider::Get())
+	{
+		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::RootMotionDeltaAttributeName);
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

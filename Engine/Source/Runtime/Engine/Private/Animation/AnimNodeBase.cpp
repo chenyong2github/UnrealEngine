@@ -7,6 +7,7 @@
 #include "UObject/CoreObjectVersion.h"
 #include "Animation/AnimAttributes.h"
 #include "Animation/AnimSubsystem_Base.h"
+#include "Animation/AnimRootMotionProvider.h"
 
 /////////////////////////////////////////////////////
 // FAnimationBaseContext
@@ -364,6 +365,15 @@ void FPoseLink::Evaluate(FPoseContext& Output)
 			if(Output.CustomAttributes.ContainsData())
 			{
 				Output.AnimInstanceProxy->RecordNodeAttribute(*Output.AnimInstanceProxy, SourceID, LinkID, UE::Anim::FAttributes::Attributes);
+
+				TArray<FName, TInlineAllocator<8>> AttributeKeyNames;
+				if (Output.CustomAttributes.GetAllKeyNames(AttributeKeyNames))
+				{
+					for (const FName& AttributeKeyName : AttributeKeyNames)
+					{
+						Output.AnimInstanceProxy->RecordNodeAttribute(*Output.AnimInstanceProxy, SourceID, LinkID, AttributeKeyName);
+					}
+				}
 			}
 			if(Output.Curve.NumValid() > 0)
 			{
@@ -465,6 +475,15 @@ void FComponentSpacePoseLink::EvaluateComponentSpace(FComponentSpacePoseContext&
 			if(Output.CustomAttributes.ContainsData())
 			{
 				Output.AnimInstanceProxy->RecordNodeAttribute(*Output.AnimInstanceProxy, SourceID, LinkID, UE::Anim::FAttributes::Attributes);
+
+				TArray<FName, FAnimStackAllocator> AttributeKeyNames;
+				if (Output.CustomAttributes.GetAllKeyNames(AttributeKeyNames))
+				{
+					for (const FName& AttributeKeyName : AttributeKeyNames)
+					{
+						Output.AnimInstanceProxy->RecordNodeAttribute(*Output.AnimInstanceProxy, SourceID, LinkID, AttributeKeyName);
+					}
+				}
 			}
 			if(Output.Curve.NumValid() > 0)
 			{

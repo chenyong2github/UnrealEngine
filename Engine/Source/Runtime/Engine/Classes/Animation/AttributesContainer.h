@@ -614,6 +614,30 @@ namespace UE
 			*/
 			const TArray<TWeakObjectPtr<const UScriptStruct>, InAllocator>& GetUniqueTypes() const { return UniqueTypes; }
 
+			/*
+			* Populate out parameter OutAttributeKeyNames for all contained attribute key names
+			* 
+			* @return bool, whether or not any attribute key names were present 
+			*/
+			template<typename ArrayAllocator>
+			bool GetAllKeyNames(TArray<FName, ArrayAllocator>& OutAttributeKeyNames) const
+			{
+				if (!AttributeIdentifiers.IsEmpty())
+				{
+					for (const TArray<FAttributeId, InAllocator>& AttributeTypeEntry : AttributeIdentifiers)
+					{
+						for (const FAttributeId& AttributeId : AttributeTypeEntry)
+						{
+							OutAttributeKeyNames.AddUnique(AttributeId.GetName());
+						}
+					}
+
+					return true;
+				}
+
+				return false;
+			}
+
 		public:
 			/* Deprecated API */
 			template<typename DataType> 

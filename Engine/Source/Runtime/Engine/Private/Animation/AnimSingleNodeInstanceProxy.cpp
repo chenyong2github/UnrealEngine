@@ -29,7 +29,9 @@ void FAnimSingleNodeInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 
 	// it's already doing it when evaluate
 	BlendSpacePosition = FVector::ZeroVector;
+
 	CurrentTime = 0.f;
+	DeltaTimeRecord = FDeltaTimeRecord();
 
 	// initialize node manually 
 	FAnimationInitializeContext InitContext(this);
@@ -160,6 +162,8 @@ void FAnimSingleNodeInstanceProxy::InternalBlendSpaceEvaluatePose(class UBlendSp
 {
 	FAnimationPoseData AnimationPoseData = { OutContext.Pose, OutContext.Curve, OutContext.CustomAttributes };
 
+	FAnimExtractContext ExtractionContext(CurrentTime, ShouldExtractRootMotion(), DeltaTimeRecord, bLooping);
+
 	if (BlendSpace->IsValidAdditive())
 	{
 		FCompactPose& OutPose = OutContext.Pose;
@@ -182,14 +186,14 @@ void FAnimSingleNodeInstanceProxy::InternalBlendSpaceEvaluatePose(class UBlendSp
 		}
 
 		FAnimationPoseData AdditiveAnimationPoseData = { AdditivePose, AdditiveCurve, AdditiveAttributes };
-		BlendSpace->GetAnimationPose(BlendSampleDataCache, AdditiveAnimationPoseData);
+		BlendSpace->GetAnimationPose(BlendSampleDataCache, ExtractionContext, AdditiveAnimationPoseData);
 
 		enum EAdditiveAnimationType AdditiveType = BlendSpace->bRotationBlendInMeshSpace? AAT_RotationOffsetMeshSpace : AAT_LocalSpaceBase;
 		FAnimationRuntime::AccumulateAdditivePose(AnimationPoseData, AdditiveAnimationPoseData, 1.f, AdditiveType);
 	}
 	else
 	{
-		BlendSpace->GetAnimationPose(BlendSampleDataCache, AnimationPoseData);
+		BlendSpace->GetAnimationPose(BlendSampleDataCache, ExtractionContext, AnimationPoseData);
 	}
 }
 
@@ -303,10 +307,10 @@ void FAnimNode_SingleNode::Evaluate_AnyThread(FPoseContext& Output)
 		}
 		else if (UAnimSequence* Sequence = Cast<UAnimSequence>(Proxy->CurrentAsset))
 		{
+			FAnimExtractContext ExtractionContext(Proxy->CurrentTime, Sequence->bEnableRootMotion, Proxy->DeltaTimeRecord, Proxy->bLooping);
+
 			if (Sequence->IsValidAdditive())
 			{
-				FAnimExtractContext ExtractionContext(Proxy->CurrentTime, Sequence->bEnableRootMotion);
-
 				if (bCanProcessAdditiveAnimationsLocal)
 				{
 					Sequence->GetAdditiveBasePose(OutputAnimationPoseData, ExtractionContext);
@@ -331,7 +335,7 @@ void FAnimNode_SingleNode::Evaluate_AnyThread(FPoseContext& Output)
 			else
 			{
 				// if SkeletalMesh isn't there, we'll need to use skeleton
-				Sequence->GetAnimationPose(OutputAnimationPoseData, FAnimExtractContext(Proxy->CurrentTime, Sequence->bEnableRootMotion));
+				Sequence->GetAnimationPose(OutputAnimationPoseData, ExtractionContext);
 			}
 		}
 		else if (UAnimStreamable* Streamable = Cast<UAnimStreamable>(Proxy->CurrentAsset))
@@ -362,12 +366,12 @@ void FAnimNode_SingleNode::Evaluate_AnyThread(FPoseContext& Output)
 			else*/
 			{
 				// if SkeletalMesh isn't there, we'll need to use skeleton
-				Streamable->GetAnimationPose(OutputAnimationPoseData, FAnimExtractContext(Proxy->CurrentTime, Streamable->bEnableRootMotion));
+				Streamable->GetAnimationPose(OutputAnimationPoseData, FAnimExtractContext(Proxy->CurrentTime, Streamable->bEnableRootMotion, Proxy->DeltaTimeRecord, Proxy->bLooping));
 			}
 		}
 		else if (UAnimComposite* Composite = Cast<UAnimComposite>(Proxy->CurrentAsset))
 		{
-			FAnimExtractContext ExtractionContext(Proxy->CurrentTime, Proxy->ShouldExtractRootMotion());
+			FAnimExtractContext ExtractionContext(Proxy->CurrentTime, Proxy->ShouldExtractRootMotion(), Proxy->DeltaTimeRecord, Proxy->bLooping);
 			const FAnimTrack& AnimTrack = Composite->AnimationTrack;
 
 			// find out if this is additive animation
@@ -555,6 +559,8 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 		if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(Proxy->CurrentAsset))
 		{
 			FAnimTickRecord TickRecord(BlendSpace, Proxy->BlendSpacePosition, Proxy->BlendSampleData, Proxy->BlendFilter, Proxy->bLooping, NewPlayRate, 1.f, /*inout*/ Proxy->CurrentTime, Proxy->MarkerTickRecord);
+			TickRecord.DeltaTimeRecord = &(Proxy->DeltaTimeRecord);
+			
 			SyncScope.AddTickRecord(TickRecord);
 
 			TRACE_ANIM_TICK_RECORD(Context, TickRecord);
@@ -565,6 +571,8 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 		else if (UAnimSequence* Sequence = Cast<UAnimSequence>(Proxy->CurrentAsset))
 		{
 			FAnimTickRecord TickRecord(Sequence, Proxy->bLooping, NewPlayRate, 1.f, /*inout*/ Proxy->CurrentTime, Proxy->MarkerTickRecord);
+			TickRecord.DeltaTimeRecord = &(Proxy->DeltaTimeRecord);
+			
 			SyncScope.AddTickRecord(TickRecord);
 
 			TRACE_ANIM_TICK_RECORD(Context, TickRecord);
@@ -582,6 +590,8 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 		else if (UAnimStreamable* Streamable = Cast<UAnimStreamable>(Proxy->CurrentAsset))
 		{
 			FAnimTickRecord TickRecord(Streamable, Proxy->bLooping, NewPlayRate, 1.f, /*inout*/ Proxy->CurrentTime, Proxy->MarkerTickRecord);
+			TickRecord.DeltaTimeRecord = &(Proxy->DeltaTimeRecord);
+			
 			SyncScope.AddTickRecord(TickRecord);
 
 			TRACE_ANIM_TICK_RECORD(Context, TickRecord);
@@ -599,6 +609,8 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 		else if(UAnimComposite* Composite = Cast<UAnimComposite>(Proxy->CurrentAsset))
 		{
 			FAnimTickRecord TickRecord(Composite, Proxy->bLooping, NewPlayRate, 1.f, /*inout*/ Proxy->CurrentTime, Proxy->MarkerTickRecord);
+			TickRecord.DeltaTimeRecord = &(Proxy->DeltaTimeRecord);
+			
 			SyncScope.AddTickRecord(TickRecord);
 
 			TRACE_ANIM_TICK_RECORD(Context, TickRecord);
@@ -626,6 +638,7 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 			if (ActiveMontageEvaluationState)
 			{
 				Proxy->CurrentTime = ActiveMontageEvaluationState->MontagePosition;
+				Proxy->DeltaTimeRecord = ActiveMontageEvaluationState->DeltaTimeRecord;
 			}
 			else if (Proxy->bPlaying)
 			{
@@ -638,6 +651,8 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 		else if (UPoseAsset* PoseAsset = Cast<UPoseAsset>(Proxy->CurrentAsset))
 		{
 			FAnimTickRecord TickRecord(PoseAsset, 1.f);
+			TickRecord.DeltaTimeRecord = &(Proxy->DeltaTimeRecord);
+
 			SyncScope.AddTickRecord(TickRecord);
 
 			TRACE_ANIM_TICK_RECORD(Context, TickRecord);

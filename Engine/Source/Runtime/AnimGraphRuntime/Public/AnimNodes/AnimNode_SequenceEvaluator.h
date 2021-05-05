@@ -49,11 +49,14 @@ public:
 
 	// FAnimNode_AssetPlayerBase Interface
 	virtual float GetAccumulatedTime() const {return GetExplicitTime();}
-	virtual void SetAccumulatedTime(const float& NewTime) { SetExplicitTime(NewTime); }
+	virtual void SetAccumulatedTime(float NewTime) { SetExplicitTime(NewTime); }
 	virtual UAnimationAsset* GetAnimAsset() const { return GetSequence(); }
 	// End of FAnimNode_AssetPlayerBase Interface
 
 	void SetExplicitPreviousTime(float PreviousTime) { InternalTimeAccumulator = PreviousTime; }
+
+	// Get the effective delta time between the previous and current frame internal time
+	virtual float GetEffectiveDeltaTime(float ExplicitTime, float PrevExplicitTime) const;
 
 	// Set the animation sequence asset to evaluate
 	virtual void SetSequence(UAnimSequenceBase* InSequence) {}

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "BoneControllers/BoneControllerTypes.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "Engine/SpringInterpolator.h"
 #include "AnimNode_SlopeWarping.generated.h"
@@ -70,6 +71,9 @@ struct ANIMATIONWARPINGRUNTIME_API FAnimNode_SlopeWarping : public FAnimNode_Ske
 	USkeletalMeshComponent* MySkelMeshComponent;
 	UCharacterMovementComponent* MyMovementComponent;
 	FAnimInstanceProxy* MyAnimInstanceProxy;
+
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = Evaluation, meta = (PinHiddenByDefault))
+	EWarpingEvaluationMode Mode;
 
 	/** IKFoot Root Bone. **/
 	UPROPERTY(EditAnywhere, Category = "Settings")

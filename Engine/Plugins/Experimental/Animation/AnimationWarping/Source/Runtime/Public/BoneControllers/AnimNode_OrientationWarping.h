@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "BoneControllers/BoneControllerTypes.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "Animation/AnimNodeBase.h"
 #include "AnimNode_OrientationWarping.generated.h"
@@ -49,12 +50,12 @@ struct FOrientationWarpingSettings
 	GENERATED_USTRUCT_BODY()
 
 	/** Rotation Axis used to rotate mesh. */
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	TEnumAsByte<EAxis::Type> YawRotationAxis;
+	UPROPERTY(EditAnywhere, Category = Settings)
+	TEnumAsByte<EAxis::Type> YawRotationAxis = EAxis::Z;
 
 	/** How much of rotation is on whole body versus on IK Feet. */
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	float BodyOrientationAlpha;
+	float BodyOrientationAlpha = 0.5f;
 
 	/** Spine bones countering the rotation of the body, so character keeps aiming straight ahead. */
 	UPROPERTY(EditAnywhere, Category = "Settings")
@@ -67,11 +68,6 @@ struct FOrientationWarpingSettings
 	/** IK Foot Bones. To be rotated if 'BodyOrientationAlpha' is less than 1.f */
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	TArray<FBoneReference> IKFootBones;
-
-	FOrientationWarpingSettings()
-		: YawRotationAxis(EAxis::Z)
-		, BodyOrientationAlpha(0.5f)
-	{}
 };
 
 USTRUCT(BlueprintInternalUseOnly)
@@ -79,10 +75,13 @@ struct ANIMATIONWARPINGRUNTIME_API FAnimNode_OrientationWarping : public FAnimNo
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta = (PinShownByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Evaluation, meta = (PinHiddenByDefault))
+	EWarpingEvaluationMode Mode;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinShownByDefault))
 	float LocomotionAngle;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
 	FOrientationWarpingSettings Settings;
 
 	UPROPERTY(Transient)
@@ -91,9 +90,6 @@ struct ANIMATIONWARPINGRUNTIME_API FAnimNode_OrientationWarping : public FAnimNo
 	TArray<FCompactPoseBoneIndex> IKFootBoneIndexArray;
 
 	FCompactPoseBoneIndex IKFootRootBoneIndex;
-
-	UPROPERTY(Transient)
-	float CachedDeltaTime;
 
 public:
 	FAnimNode_OrientationWarping();

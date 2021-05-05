@@ -17,6 +17,7 @@
 #include "Animation/AnimComposite.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimPoseSearchProvider.h"
+#include "Animation/AnimRootMotionProvider.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "IAnimBlueprintNodeOverrideAssetsContext.h"
 
@@ -366,6 +367,16 @@ EAnimAssetHandlerType UAnimGraphNode_SequencePlayer::SupportsAssetClass(const UC
 	else
 	{
 		return EAnimAssetHandlerType::NotSupported;
+	}
+}
+
+void UAnimGraphNode_SequencePlayer::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const
+{
+	Super::GetOutputLinkAttributes(OutAttributes);
+
+	if (UE::Anim::IAnimRootMotionProvider::Get())
+	{
+		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::RootMotionDeltaAttributeName);
 	}
 }
 

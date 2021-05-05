@@ -22,6 +22,7 @@ class UAnimGraphNode_BlendSpaceBase : public UAnimGraphNode_AssetPlayerBase
 	ANIMGRAPH_API virtual void CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex) const override;
 	ANIMGRAPH_API virtual void PreloadRequiredAssets() override;
 	ANIMGRAPH_API virtual void PostProcessPinName(const UEdGraphPin* Pin, FString& DisplayName) const override;
+	ANIMGRAPH_API virtual void GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const;
 	// End of UAnimGraphNode_Base interface
 
 protected:

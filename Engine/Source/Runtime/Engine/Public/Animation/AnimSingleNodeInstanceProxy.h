@@ -60,6 +60,7 @@ public:
 		, CurrentAsset(nullptr)
 		, BlendSpacePosition(0.0f, 0.0f, 0.0f)
 		, CurrentTime(0.0f)
+		, DeltaTimeRecord()
 #if WITH_EDITORONLY_DATA
 		, PreviewPoseCurrentTime(0.0f)
 #endif
@@ -219,6 +220,8 @@ private:
 
 	/** Shared parameters for previewing blendspace or animsequence **/
 	float CurrentTime;
+
+	FDeltaTimeRecord DeltaTimeRecord;
 
 #if WITH_EDITORONLY_DATA
 	float PreviewPoseCurrentTime;

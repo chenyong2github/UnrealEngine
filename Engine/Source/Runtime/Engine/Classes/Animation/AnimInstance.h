@@ -330,15 +330,17 @@ struct FMontageActiveSlotTracker
 
 struct FMontageEvaluationState
 {
-	FMontageEvaluationState(UAnimMontage* InMontage, float InPosition, bool bInIsPlaying, bool bInIsActive, const FAlphaBlend& InBlendInfo, const UBlendProfile* InActiveBlendProfile, float InBlendStartAlpha) 
+	FMontageEvaluationState(UAnimMontage* InMontage, float InPosition, FDeltaTimeRecord InDeltaTimeRecord, bool bInIsPlaying, bool bInIsActive, const FAlphaBlend& InBlendInfo, const UBlendProfile* InActiveBlendProfile, float InBlendStartAlpha)
 		: Montage(InMontage)
 		, BlendInfo(InBlendInfo)
 		, ActiveBlendProfile(InActiveBlendProfile)
 		, MontagePosition(InPosition)
+		, DeltaTimeRecord(InDeltaTimeRecord)
 		, BlendStartAlpha(InBlendStartAlpha)
 		, bIsPlaying(bInIsPlaying)
 		, bIsActive(bInIsActive)
-	{}
+	{
+	}
 
 	// The montage to evaluate
 	TWeakObjectPtr<UAnimMontage> Montage;
@@ -351,6 +353,9 @@ struct FMontageEvaluationState
 
 	// The position to evaluate this montage at
 	float MontagePosition;
+	
+	// The previous MontagePosition and delta leading into current
+	FDeltaTimeRecord DeltaTimeRecord;
 
 	// The linear alpha value where to start blending from. So not the blended value that already has been curve sampled.
 	float BlendStartAlpha;
@@ -468,7 +473,7 @@ private:
 public:
 
 	// @todo document
-	void MakeMontageTickRecord(FAnimTickRecord& TickRecord, class UAnimMontage* Montage, float CurrentPosition, float PreviousPosition, float MoveDelta, float Weight, TArray<FPassedMarker>& MarkersPassedThisTick, FMarkerTickRecord& MarkerTickRecord);
+	void MakeMontageTickRecord(FAnimTickRecord& TickRecord, class UAnimMontage* Montage, float MoveDelta, float Weight, TArray<FPassedMarker>& MarkersPassedThisTick, FMarkerTickRecord& MarkerTickRecord);
 
 	/** Get global weight in AnimGraph for this slot node.
 	* Note: this is the weight of the node, not the weight of any potential montage it is playing. */

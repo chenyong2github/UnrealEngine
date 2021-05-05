@@ -72,6 +72,22 @@ struct FMarkerTickRecord
 	}
 };
 
+/**
+ * Used when sampling a given animation asset, this structure will contain the previous frame's
+ * internal sample time alongside the 'effective' delta time leading into the current frame.
+ * 
+ * An 'effective' delta time represents a value that has undergone all side effects present in the
+ * corresponding asset's TickAssetPlayer call including but not limited to syncing, play rate 
+ * adjustment, looping, etc.
+ * 
+ * For montages Delta isn't always abs(CurrentPosition-PreviousPosition) because a Montage can jump or repeat or loop
+ */
+struct FDeltaTimeRecord
+{
+	float Previous = 0.f;
+	float Delta = 0.f;
+};
+
 /** Transform definition */
 USTRUCT(BlueprintType)
 struct FBlendSampleData
@@ -102,6 +118,8 @@ struct FBlendSampleData
 	UPROPERTY()
 	float SamplePlayRate;
 
+	FDeltaTimeRecord DeltaTimeRecord;
+
 	FMarkerTickRecord MarkerTickRecord;
 
 	// transient per-bone interpolation data
@@ -118,7 +136,10 @@ struct FBlendSampleData
 		, Time(0.f)
 		, PreviousTime(0.f)
 		, SamplePlayRate(0.0f)
-	{}
+		, DeltaTimeRecord()
+	{
+	}
+
 	FBlendSampleData(int32 Index)
 		: SampleDataIndex(Index)
 		, Animation(nullptr)
@@ -127,7 +148,10 @@ struct FBlendSampleData
 		, Time(0.f)
 		, PreviousTime(0.f)
 		, SamplePlayRate(0.0f)
-	{}
+		, DeltaTimeRecord()
+	{
+	}
+
 	bool operator==( const FBlendSampleData& Other ) const 
 	{
 		// if same position, it's same point
@@ -196,11 +220,17 @@ struct FPoseCurve
 /** Animation Extraction Context */
 struct FAnimExtractContext
 {
-	/** Is Root Motion being extracted? */
-	bool bExtractRootMotion;
-
 	/** Position in animation to extract pose from */
 	float CurrentTime;
+
+	/** Is root motion being extracted? */
+	bool bExtractRootMotion;
+
+	/** Delta time range required for root motion extraction **/
+	FDeltaTimeRecord DeltaTimeRecord;
+
+	/** Is the current animation asset marked as looping? **/
+	bool bLooping;
 
 	/** 
 	 * Pose Curve Values to extract pose from pose assets. 
@@ -215,21 +245,13 @@ struct FAnimExtractContext
 	 */
 	TArray<bool> BonesRequired;
 
-	FAnimExtractContext()
-		: bExtractRootMotion(false)
-		, CurrentTime(0.f)
-	{
-	}
-
-	FAnimExtractContext(float InCurrentTime)
-		: bExtractRootMotion(false)
-		, CurrentTime(InCurrentTime)
-	{
-	}
-
-	FAnimExtractContext(float InCurrentTime, bool InbExtractRootMotion)
-		: bExtractRootMotion(InbExtractRootMotion)
-		, CurrentTime(InCurrentTime)
+	FAnimExtractContext(float InCurrentTime = 0.f, bool InbExtractRootMotion = false, FDeltaTimeRecord InDeltaTimeRecord = {}, bool InbLooping = false)
+		: CurrentTime(InCurrentTime)
+		, bExtractRootMotion(InbExtractRootMotion)
+		, DeltaTimeRecord(InDeltaTimeRecord)
+		, bLooping(InbLooping)
+		, PoseCurves()
+		, BonesRequired()
 	{
 	}
 
@@ -239,6 +261,7 @@ struct FAnimExtractContext
 		{
 			return true;
 		}
+
 		return BonesRequired[BoneIndex];
 	}
 };
@@ -326,11 +349,13 @@ struct FAnimTickRecord
 		struct
 		{
 			float CurrentPosition;  // montage doesn't use accumulator, but this
-			float PreviousPosition;
-			float MoveDelta; // MoveDelta isn't always abs(CurrentPosition-PreviousPosition) because Montage can jump or repeat or loop
 			TArray<FPassedMarker>* MarkersPassedThisTick;
 		} Montage;
 	};
+
+	// Asset players (and other nodes) have ownership of their respective DeltaTimeRecord value/state,
+	// while an asset's tick update will forward the time-line through the tick record
+	FDeltaTimeRecord* DeltaTimeRecord = nullptr;
 
 	// marker sync related data
 	FMarkerTickRecord* MarkerTickRecord = nullptr;
@@ -348,6 +373,7 @@ public:
 		, EffectiveBlendWeight(0.f)
 		, RootMotionWeightModifier(1.f)
 		, bLooping(false)
+		, DeltaTimeRecord(nullptr)
 		, MarkerTickRecord(nullptr)
 		, bCanUseMarkerSync(false)
 		, LeaderScore(0.f)
@@ -361,7 +387,11 @@ public:
 	ENGINE_API FAnimTickRecord(UBlendSpace* InBlendSpace, const FVector& InBlendInput, TArray<FBlendSampleData>& InBlendSampleDataCache, FBlendFilter& InBlendFilter, bool bInLooping, float InPlayRate, float InFinalBlendWeight, float& InCurrentTime, FMarkerTickRecord& InMarkerTickRecord);
 
 	// Create a tick record for a montage
+	UE_DEPRECATED(5.0, "Please use the montage FAnimTickRecord constructor which removes InPreviousPosition and InMoveDelta")
 	ENGINE_API FAnimTickRecord(UAnimMontage* InMontage, float InCurrentPosition, float InPreviousPosition, float InMoveDelta, float InWeight, TArray<FPassedMarker>& InMarkersPassedThisTick, FMarkerTickRecord& InMarkerTickRecord);
+
+	// Create a tick record for a montage
+	ENGINE_API FAnimTickRecord(UAnimMontage* InMontage, float InCurrentPosition, float InWeight, TArray<FPassedMarker>& InMarkersPassedThisTick, FMarkerTickRecord& InMarkerTickRecord);
 
 	// Create a tick record for a pose asset
 	ENGINE_API FAnimTickRecord(UPoseAsset* InPoseAsset, float InFinalBlendWeight);

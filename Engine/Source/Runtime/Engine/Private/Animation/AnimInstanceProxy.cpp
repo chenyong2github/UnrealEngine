@@ -689,6 +689,9 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MakeSequenceTickRecord(TickRecord, Sequence, bLooping, PlayRate, /*FinalBlendWeight=*/ 1.0f, CurrentTime, MarkerTickRecord);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+	FDeltaTimeRecord DeltaTimeRecord;
+	TickRecord.DeltaTimeRecord = &DeltaTimeRecord;
+
 	FAnimAssetTickContext TickContext(DeltaSeconds, RootMotionMode, true);
 	TickRecord.SourceAsset->TickAssetPlayer(TickRecord, NotifyQueue, TickContext);
 }
@@ -699,6 +702,9 @@ void FAnimInstanceProxy::BlendSpaceAdvanceImmediate(class UBlendSpace* BlendSpac
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MakeBlendSpaceTickRecord(TickRecord, BlendSpace, BlendInput, BlendSampleDataCache, BlendFilter, bLooping, PlayRate, /*FinalBlendWeight=*/ 1.0f, CurrentTime, MarkerTickRecord);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	FDeltaTimeRecord DeltaTimeRecord;
+	TickRecord.DeltaTimeRecord = &DeltaTimeRecord;
 
 	FAnimAssetTickContext TickContext(DeltaSeconds, RootMotionMode, true);
 	TickRecord.SourceAsset->TickAssetPlayer(TickRecord, NotifyQueue, TickContext);
@@ -1359,7 +1365,7 @@ void FAnimInstanceProxy::SlotEvaluatePoseWithBlendProfiles(const FName& SlotNode
 			NewPose.Curve.InitFrom(RequiredBones);
 
 			// Extract pose from Track.
-			FAnimExtractContext ExtractionContext(EvalState.MontagePosition, Montage->HasRootMotion() && RootMotionMode != ERootMotionMode::NoRootMotionExtraction);
+			FAnimExtractContext ExtractionContext(EvalState.MontagePosition, Montage->HasRootMotion() && RootMotionMode != ERootMotionMode::NoRootMotionExtraction, EvalState.DeltaTimeRecord);
 			FAnimationPoseData NewAnimationPoseData(NewPose);
 			AnimTrack->GetAnimationPose(NewAnimationPoseData, ExtractionContext);
 
@@ -1698,7 +1704,7 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FAnim
 			NewPose.Curve.InitFrom(RequiredBones);
 
 			// Extract pose from Track
-			FAnimExtractContext ExtractionContext(EvalState.MontagePosition, Montage->HasRootMotion() && RootMotionMode != ERootMotionMode::NoRootMotionExtraction);
+			FAnimExtractContext ExtractionContext(EvalState.MontagePosition, Montage->HasRootMotion() && RootMotionMode != ERootMotionMode::NoRootMotionExtraction, EvalState.DeltaTimeRecord);
 
 			FAnimationPoseData NewAnimationPoseData(NewPose);
 			AnimTrack->GetAnimationPose(NewAnimationPoseData, ExtractionContext);

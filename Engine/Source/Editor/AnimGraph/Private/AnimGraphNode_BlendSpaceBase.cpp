@@ -7,6 +7,7 @@
 #include "Animation/AimOffsetBlendSpace.h"
 #include "Animation/BlendSpace1D.h"
 #include "Animation/AimOffsetBlendSpace1D.h"
+#include "Animation/AnimRootMotionProvider.h"
 
 #define LOCTEXT_NAMESPACE "AnimGraphNode_BlendSpaceBase"
 
@@ -77,6 +78,16 @@ void UAnimGraphNode_BlendSpaceBase::PostProcessPinName(const UEdGraphPin* Pin, F
 	}
 
 	Super::PostProcessPinName(Pin, DisplayName);
+}
+
+void UAnimGraphNode_BlendSpaceBase::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const
+{
+	Super::GetOutputLinkAttributes(OutAttributes);
+
+	if (UE::Anim::IAnimRootMotionProvider::Get())
+	{
+		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::RootMotionDeltaAttributeName);
+	}
 }
 
 FText UAnimGraphNode_BlendSpaceBase::GetMenuCategory() const

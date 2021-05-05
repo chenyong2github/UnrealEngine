@@ -335,6 +335,9 @@ struct ENGINE_API FAnimMontageInstance
 	UPROPERTY(transient)
 	float DefaultBlendTimeMultiplier;
 
+	// transient value of time position and delta in the last frame known
+	FDeltaTimeRecord DeltaTimeRecord;
+
 	// marker tick record
 	FMarkerTickRecord MarkerTickRecord;
 
@@ -389,12 +392,6 @@ private:
 	// transient NotifyWeight   - Weight for spawned notifies, modified slightly to make sure
 	//                          - we spawn all notifies
 	float NotifyWeight;
-
-	// transient value of Delta Moved in the last frame known
-	float DeltaMoved;
-
-	// transient value of previous position before move
-	float PreviousPosition;
 
 	// The current start linear alpha value of the blend. This is not stored inside the FAlphaBlend struct.
 	float BlendStartAlpha;
@@ -516,8 +513,8 @@ public:
 	int32 GetInstanceID() const { return InstanceID; }
 	float GetPosition() const { return Position; };
 	float GetPlayRate() const { return PlayRate; }
-	float GetDeltaMoved() const { return DeltaMoved; }
-	float GetPreviousPosition() const { return PreviousPosition;  }
+	float GetDeltaMoved() const { return DeltaTimeRecord.Delta; }
+	float GetPreviousPosition() const { return DeltaTimeRecord.Previous;  }
 	float GetBlendStartAlpha() const { return BlendStartAlpha; }
 	const FAnimMontageInstance* GetMontageSyncLeader() const { return MontageSyncLeader; } 
 	const UBlendProfile* GetActiveBlendProfile() const { return ActiveBlendProfile; }

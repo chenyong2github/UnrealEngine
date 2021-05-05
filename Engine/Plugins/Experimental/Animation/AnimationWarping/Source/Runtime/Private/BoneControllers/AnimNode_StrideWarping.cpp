@@ -5,6 +5,7 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "DrawDebugHelpers.h"
 #include "Animation/InputScaleBias.h"
+#include "Animation/AnimRootMotionProvider.h"
 
 #if ENABLE_ANIM_DEBUG
 TAutoConsoleVariable<int32> CVarAnimNodeStrideWarpingDebug(TEXT("a.AnimNode.StrideWarping.Debug"), 0, TEXT("Turn on debug for AnimNode_StrideWarping"));
@@ -15,11 +16,13 @@ TAutoConsoleVariable<int32> CVarStrideWarpingEnable(TEXT("a.AnimNode.StrideWarpi
 DECLARE_CYCLE_STAT(TEXT("StrideWarping Eval"), STAT_StrideWarping_Eval, STATGROUP_Anim);
 
 FAnimNode_StrideWarping::FAnimNode_StrideWarping()
-	: StrideWarpingAxisMode(EStrideWarpingAxisMode::ActorSpaceVectorInput)
+	: Mode(EWarpingEvaluationMode::Manual)
+	, ManualStrideWarpingDir(ForceInitToZero)
+	, ManualStrideScaling(1.f)
+	, LocomotionSpeed(0.f)
+	, StrideWarpingAxisMode(EStrideWarpingAxisMode::ActorSpaceVectorInput)
 	, FloorNormalAxisMode(EStrideWarpingAxisMode::IKFootRootLocalZ)
 	, GravityDirAxisMode(EStrideWarpingAxisMode::ComponentSpaceVectorInput)
-	, StrideScaling(1.f)
-	, ManualStrideWarpingDir(ForceInitToZero)
 	, ManualFloorNormalInput(ForceInitToZero)
 	, ManualGravityDirInput(-FVector::UpVector)
 	, PelvisPostAdjustmentAlpha(0.4f)
@@ -56,7 +59,7 @@ void FAnimNode_StrideWarping::UpdateInternal(const FAnimationUpdateContext& Cont
 {
 	FAnimNode_SkeletalControlBase::UpdateInternal(Context);
 
-	CachedDeltaTime += Context.GetDeltaTime();
+	CachedDeltaTime = Context.GetDeltaTime();
 }
 
 FVector FAnimNode_StrideWarping::GetAxisModeValue(const EStrideWarpingAxisMode& AxisMode, const FTransform& IKFootRootCSTransform, const FVector& UserSuppliedVector) const
@@ -83,9 +86,23 @@ FVector FAnimNode_StrideWarping::GetAxisModeValue(const EStrideWarpingAxisMode& 
 void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
 	SCOPE_CYCLE_COUNTER(STAT_StrideWarping_Eval);
-
 	check(OutBoneTransforms.Num() == 0);
+
 	const FBoneContainer& RequiredBones = Output.Pose.GetPose().GetBoneContainer();
+
+	FTransform RootMotionTransformDelta;
+	const UE::Anim::IAnimRootMotionProvider* RootMotionProvider = UE::Anim::IAnimRootMotionProvider::Get();
+	bool bGraphDrivenWarping = RootMotionProvider && Mode == EWarpingEvaluationMode::Graph;
+
+	if (bGraphDrivenWarping)
+	{
+		// Graph driven stride warping will override the manual stride direction with the intent of the current animation sub-graph's accumulated root motion
+		bGraphDrivenWarping = RootMotionProvider->ExtractRootMotion(Output.CustomAttributes, RootMotionTransformDelta);
+		if (bGraphDrivenWarping)
+		{
+			ManualStrideWarpingDir = RootMotionTransformDelta.GetTranslation().GetSafeNormal2D();
+		}
+	}
 
 	FTransform IKFootRootTransform = Output.Pose.GetComponentSpaceTransform(IKFootRootBone.GetCompactPoseIndex(RequiredBones));
 	FVector StrideWarpingPlaneNormal = GetAxisModeValue(StrideWarpingAxisMode, IKFootRootTransform, ManualStrideWarpingDir);
@@ -124,8 +141,38 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 #endif
 	}
 
+	float ComputedStrideScaling = ManualStrideScaling;
+	if (bGraphDrivenWarping)
+	{
+		// Early out when stride warping will have minimal pose contribution
+		if (FMath::IsNearlyZero(CachedDeltaTime, KINDA_SMALL_NUMBER))
+		{
+			return;
+		}
+
+		const float RootMotionSpeed = RootMotionTransformDelta.GetTranslation().Size() / CachedDeltaTime;
+		if (FMath::IsNearlyZero(RootMotionSpeed, KINDA_SMALL_NUMBER))
+		{
+			return;
+		}
+
+		// Graph driven stride scale factor will be determined by the ratio of the
+		// locomotion (capsule/physics) speed against the animation root motion speed
+		ComputedStrideScaling = LocomotionSpeed / RootMotionSpeed;
+	}
+
+	// Allow the opportunity for stride scale clamping and biasing regardless of evaluation mode
+	ComputedStrideScaling = StrideScalingScaleBiasClamp.ApplyTo(ComputedStrideScaling, CachedDeltaTime);
+
+	if (bGraphDrivenWarping)
+	{
+		// Forward the side effects of stride warping on the root motion contribution for this sub-graph
+		RootMotionTransformDelta.ScaleTranslation(ComputedStrideScaling);
+		const bool bRootMotionOverridden = RootMotionProvider->OverrideRootMotion(RootMotionTransformDelta, Output.CustomAttributes);
+		ensure(bRootMotionOverridden);
+	}
+
 	// Scale IK feet bones along Stride Warping Axis, from the hip bone location.
-	const float ActualStrideScaling = StrideScalingScaleBiasClamp.ApplyTo(StrideScaling, CachedDeltaTime);
 	for (auto& FootData : FeetData)
 	{
 		// Stride Warping along Stride Warping Axis
@@ -140,7 +187,7 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		const FVector ScaleOrigin = FVector::PointPlaneProject(IKFootLocation, StrideWarpingPlaneOrigin, StrideWarpingPlaneNormal);
 
 		// Now the ScaleOrigin and IKFootLocation are forming a line parallel to the floor, and we can scale the IK foot.
-		const FVector WarpedLocation = ScaleOrigin + (IKFootLocation - ScaleOrigin) * ActualStrideScaling;
+		const FVector WarpedLocation = ScaleOrigin + (IKFootLocation - ScaleOrigin) * ComputedStrideScaling;
 		FootData.IKBoneTransform.SetLocation(WarpedLocation);
 
 #if ENABLE_ANIM_DEBUG
@@ -296,9 +343,6 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 	// Sort OutBoneTransforms so indices are in increasing order.
 	OutBoneTransforms.Sort(FCompareBoneTransformIndex());
-
-	// Clear time accumulator, to be filled during next update.
-	CachedDeltaTime = 0.f;
 }
 
 bool FAnimNode_StrideWarping::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones)
@@ -307,7 +351,7 @@ bool FAnimNode_StrideWarping::IsValidToEvaluate(const USkeleton* Skeleton, const
 	return bIsEnabled && (FeetData.Num() > 0) 
 		&& (PelvisBone.GetCompactPoseIndex(RequiredBones) != INDEX_NONE) 
 		&& (IKFootRootBone.GetCompactPoseIndex(RequiredBones) != INDEX_NONE) 
-		&& (!FMath::IsNearlyEqual(StrideScalingScaleBiasClamp.ApplyTo(StrideScaling, 0.f), 1.f, 0.001f) || PelvisAdjustmentInterp.IsInMotion());
+		&& (!FMath::IsNearlyEqual(StrideScalingScaleBiasClamp.ApplyTo(ManualStrideScaling, 0.f), 1.f, 0.001f) || PelvisAdjustmentInterp.IsInMotion() || Mode == EWarpingEvaluationMode::Graph);
 }
 
 FCompactPoseBoneIndex FAnimNode_StrideWarping::FindHipBoneIndex(const FCompactPoseBoneIndex& InFootBoneIndex, const int32& NumBonesInLimb, const FBoneContainer& RequiredBones) const

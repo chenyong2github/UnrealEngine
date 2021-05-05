@@ -129,7 +129,7 @@ void FAnimNode_RandomPlayer::Update_AnyThread(const FAnimationUpdateContext& Con
 
 	// If we looped around, adjust the previous play time to always be before the current playtime,
 	// since we can assume modulo. This makes the crossing check for the start time a lot simpler.
-	float AdjustedPreviousPlayTime = CurrentData->PreviousPlayTime;
+	float AdjustedPreviousPlayTime = CurrentData->DeltaTimeRecord.Previous;
 	if (CurrentData->CurrentPlayTime < AdjustedPreviousPlayTime)
 	{
 		AdjustedPreviousPlayTime -= CurrentSequence->GetPlayLength();
@@ -218,8 +218,8 @@ void FAnimNode_RandomPlayer::Update_AnyThread(const FAnimationUpdateContext& Con
 	}
 
 	// Cache time to detect loops
-	CurrentData->PreviousPlayTime = CurrentData->CurrentPlayTime;
-	NextData->PreviousPlayTime = NextData->CurrentPlayTime;
+	CurrentData->DeltaTimeRecord.Previous = CurrentData->CurrentPlayTime;
+	NextData->DeltaTimeRecord.Previous = NextData->CurrentPlayTime;
 
 	if (bAdvanceToNextEntry)
 	{
@@ -231,7 +231,8 @@ void FAnimNode_RandomPlayer::Update_AnyThread(const FAnimationUpdateContext& Con
 	}
 
 	FAnimTickRecord TickRecord(CurrentData->Entry->Sequence, true, CurrentData->PlayRate, CurrentData->BlendWeight, CurrentData->CurrentPlayTime, CurrentData->MarkerTickRecord);
-	
+	TickRecord.DeltaTimeRecord = &CurrentData->DeltaTimeRecord;
+
 	if(Context.GetSharedContext())
 	{
 		Context.GetSharedContext()->MessageStack.MakeEventContextData(TickRecord.ContextData);
@@ -244,6 +245,7 @@ void FAnimNode_RandomPlayer::Update_AnyThread(const FAnimationUpdateContext& Con
 	if (FAnimationRuntime::HasWeight(NextData->BlendWeight))
 	{
 		FAnimTickRecord NextTickRecord(NextData->Entry->Sequence, true, NextData->PlayRate, NextData->BlendWeight, NextData->CurrentPlayTime, NextData->MarkerTickRecord);
+		NextTickRecord.DeltaTimeRecord = &NextData->DeltaTimeRecord;
 
 		if(Context.GetSharedContext())
 		{
@@ -296,12 +298,11 @@ void FAnimNode_RandomPlayer::Evaluate_AnyThread(FPoseContext& Output)
 
 		UAnimSequence* NextSequence = NextData.Entry->Sequence;
 
-
 		FAnimationPoseData CurrentPoseData(Poses[0], Curves[0], Attributes[0]);
 		FAnimationPoseData NextPoseData(Poses[1], Curves[1], Attributes[1]);
 
-		CurrentSequence->GetAnimationPose(CurrentPoseData, FAnimExtractContext(CurrentData.CurrentPlayTime, AnimProxy->ShouldExtractRootMotion()));
-		NextSequence->GetAnimationPose(NextPoseData, FAnimExtractContext(NextData.CurrentPlayTime, AnimProxy->ShouldExtractRootMotion()));
+		CurrentSequence->GetAnimationPose(CurrentPoseData, FAnimExtractContext(CurrentData.CurrentPlayTime, AnimProxy->ShouldExtractRootMotion(), CurrentData.DeltaTimeRecord, CurrentData.RemainingLoops > 0));
+		NextSequence->GetAnimationPose(NextPoseData, FAnimExtractContext(NextData.CurrentPlayTime, AnimProxy->ShouldExtractRootMotion(), NextData.DeltaTimeRecord, NextData.RemainingLoops > 0));
 
 		FAnimationPoseData AnimationPoseData(Output);
 		FAnimationRuntime::BlendPosesTogether(Poses, Curves, Attributes, Weights, AnimationPoseData);
@@ -310,7 +311,7 @@ void FAnimNode_RandomPlayer::Evaluate_AnyThread(FPoseContext& Output)
 	{
 		// Single animation, no blending needed.
 		FAnimationPoseData AnimationPoseData(Output);
-		CurrentSequence->GetAnimationPose(AnimationPoseData, FAnimExtractContext(CurrentData.CurrentPlayTime, Output.AnimInstanceProxy->ShouldExtractRootMotion()));
+		CurrentSequence->GetAnimationPose(AnimationPoseData, FAnimExtractContext(CurrentData.CurrentPlayTime, Output.AnimInstanceProxy->ShouldExtractRootMotion(), CurrentData.DeltaTimeRecord, CurrentData.RemainingLoops > 0));
 	}
 }
 
@@ -375,7 +376,8 @@ void FAnimNode_RandomPlayer::InitPlayData(FRandomAnimPlayData& Data, int32 Valid
 
 	Data.PlayStartTime = 0.0f;
 	Data.CurrentPlayTime = 0.0f;
-	Data.PreviousPlayTime = 0.0f;
+	Data.DeltaTimeRecord.Previous = 0.0f;
+	Data.DeltaTimeRecord.Delta = 0.0f;
 	Data.MarkerTickRecord.Reset();
 }
 

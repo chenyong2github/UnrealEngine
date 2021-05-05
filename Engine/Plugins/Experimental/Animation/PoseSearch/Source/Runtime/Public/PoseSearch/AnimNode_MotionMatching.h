@@ -17,7 +17,7 @@ public:
 	FPoseLink Source;
 
 	// Collection of animations for motion matching
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinShownByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinHiddenByDefault))
 	const UPoseSearchDatabase* Database = nullptr;
 
 	// Motion matching goal

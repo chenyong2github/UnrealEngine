@@ -569,14 +569,13 @@ void FAnimTrack::GetAnimationPose(FAnimationPoseData& OutAnimationPoseData, cons
 	{
 		if (AnimSegment->bValid)
 		{
-			float PositionInAnim = 0.f;
-			if (const UAnimSequenceBase* const AnimRef = AnimSegment->GetAnimationData(ClampedTime, PositionInAnim))
+			// Copy passed in Extraction Context, but override position and root motion parameters.
+			FAnimExtractContext SequenceExtractionContext(ExtractionContext);
+			if (const UAnimSequenceBase* const AnimRef = AnimSegment->GetAnimationData(ClampedTime, SequenceExtractionContext.CurrentTime))
 			{
-				// Copy passed in Extraction Context, but override position and root motion parameters.
-				FAnimExtractContext SequenceExtractionContext(ExtractionContext);
-				SequenceExtractionContext.CurrentTime = PositionInAnim;
+				SequenceExtractionContext.DeltaTimeRecord.Previous = SequenceExtractionContext.CurrentTime - SequenceExtractionContext.DeltaTimeRecord.Delta;
 				SequenceExtractionContext.bExtractRootMotion &= AnimRef->HasRootMotion();
-
+				SequenceExtractionContext.bLooping = AnimSegment->LoopingCount > 1;
 				AnimRef->GetAnimationPose(OutAnimationPoseData, SequenceExtractionContext);
 				bExtractedPose = true;
 			}

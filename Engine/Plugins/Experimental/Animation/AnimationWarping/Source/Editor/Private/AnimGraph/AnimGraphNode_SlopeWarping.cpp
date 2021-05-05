@@ -2,6 +2,7 @@
 
 
 #include "AnimGraph/AnimGraphNode_SlopeWarping.h"
+#include "Animation/AnimRootMotionProvider.h"
 
 #define LOCTEXT_NAMESPACE "MomentumNodes"
 
@@ -22,6 +23,22 @@ FText UAnimGraphNode_SlopeWarping::GetTooltipText() const
 FText UAnimGraphNode_SlopeWarping::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	return GetControllerDescription();
+}
+
+void UAnimGraphNode_SlopeWarping::GetInputLinkAttributes(FNodeAttributeArray& OutAttributes) const
+{
+	if (Node.Mode == EWarpingEvaluationMode::Graph)
+	{
+		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::RootMotionDeltaAttributeName);
+	}
+}
+
+void UAnimGraphNode_SlopeWarping::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const
+{
+	if (Node.Mode == EWarpingEvaluationMode::Graph)
+	{
+		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::RootMotionDeltaAttributeName);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
