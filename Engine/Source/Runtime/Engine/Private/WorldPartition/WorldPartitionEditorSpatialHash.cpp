@@ -40,7 +40,7 @@ void UWorldPartitionEditorSpatialHash::Initialize()
 
 void UWorldPartitionEditorSpatialHash::SetDefaultValues()
 {
-	CellSize = 51200;
+	CellSize = 12800;
 }
 
 FName UWorldPartitionEditorSpatialHash::GetWorldPartitionEditorName()
