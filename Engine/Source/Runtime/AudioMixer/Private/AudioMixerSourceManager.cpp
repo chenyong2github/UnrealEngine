@@ -636,6 +636,7 @@ namespace Audio
 			// Unregister these source effect instances from their owning USoundEffectInstance on the next audio thread tick.
 			FAudioThread::RunCommandOnAudioThread([SourceEffects = MoveTemp(SourceInfo.SourceEffects)]() mutable
 			{
+				FTaskTagScope Scope(ETaskTag::EAudioThread);
 				for (int32 i = 0; i < SourceEffects.Num(); ++i)
 				{
 					USoundEffectPreset::UnregisterInstance(SourceEffects[i]);
