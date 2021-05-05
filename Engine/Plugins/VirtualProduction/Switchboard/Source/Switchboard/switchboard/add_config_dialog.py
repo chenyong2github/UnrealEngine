@@ -410,7 +410,10 @@ class AddConfigDialog(QtWidgets.QDialog):
                     
                     # split the cmdline as a list of the original arguments
                     try:
-                        argv = shlex.split(line)
+                        # Replacing \ with / will alter command line arguments in general, but is expected to be ok
+                        # because we only look at the first two arguments and only interpret them as potential paths.
+                        # This was done to work around shlex mis-parsing back-slashes on paths without double quotes.
+                        argv = shlex.split(line.replace('\\','/'))
                     except ValueError:
                         continue
 
@@ -418,15 +421,15 @@ class AddConfigDialog(QtWidgets.QDialog):
                     if len(argv) < 2:
                         continue
                     
-                    editorpath = argv[0]
-                    projectpath = argv[1]
+                    editorpath = os.path.normpath(argv[0])
+                    projectpath = os.path.normpath(argv[1])
 
-                    if editorpath.lower().endswith(UEname.lower()):
+                    if editorpath.lower().endswith(UEname.lower()) and os.path.exists(editorpath):
                         editors.append(editorpath)
                     else:
                         editors.append('')
 
-                    if projectpath.lower().endswith('.uproject'):
+                    if projectpath.lower().endswith('.uproject') and os.path.exists(projectpath):
                         projects.append(projectpath)
                     else:
                         projects.append('')
