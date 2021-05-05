@@ -31,7 +31,6 @@ public:
 
 	void Release(FVirtualTextureSystem* System);
 
-	inline void IncrementRefCount() { RefCount.Increment(); }
 	inline uint32 GetFrameAllocated() const { return FrameAllocated; }
 
 	void AssignVirtualAddress(uint32 vAddress);
@@ -47,7 +46,7 @@ public:
 	virtual FRHIShaderResourceView* GetPhysicalTextureSRV(uint32 InLayerIndex, bool bSRGB) const override;
 	virtual void GetPackedPageTableUniform(FUintVector4* OutUniform) const override;
 	virtual void GetPackedUniform(FUintVector4* OutUniform, uint32 LayerIndex) const override;
-	virtual void Destroy(FVirtualTextureSystem* System) override;
+	virtual void Destroy(FVirtualTextureSystem* InSystem) override;
 	// end IAllocatedVirtualTexture
 
 	inline FVirtualTextureSpace* GetSpace() const { return Space; }
@@ -66,7 +65,6 @@ private:
 	uint32 AddUniqueProducer(FVirtualTextureProducerHandle const& InHandle, const FVirtualTextureProducer* InProducer);
 	uint32 AddUniquePhysicalSpace(FVirtualTexturePhysicalSpace* InPhysicalSpace, uint32 InUniqueProducerIndex, uint32 InProducerPhysicalSpaceIndex);
 
-	FThreadSafeCounter RefCount;
 	uint32 FrameAllocated;
 
 	FVirtualTextureSpace* Space;

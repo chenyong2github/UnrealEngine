@@ -333,6 +333,8 @@ public:
 		, WidthInBlocks(InWidthInBlocks)
 		, HeightInBlocks(InHeightInBlocks)
 		, DepthInTiles(InDepthInTiles)
+		, FrameDeleted(0u)
+		, NumRefs(0)
 		, PageTableFormat(EVTPageTableFormat::UInt32)
 		, SpaceID(~0u)
 		, MaxLevel(0u)
@@ -382,7 +384,7 @@ public:
 
 protected:
 	friend class FVirtualTextureSystem;
-	virtual void Destroy(class FVirtualTextureSystem* System) = 0;
+	virtual void Destroy(FVirtualTextureSystem* InSystem) = 0;
 	virtual ~IAllocatedVirtualTexture() {}
 
 	FAllocatedVTDescription Description;
@@ -391,7 +393,8 @@ protected:
 	uint32 WidthInBlocks;
 	uint32 HeightInBlocks;
 	uint32 DepthInTiles;
-	
+	uint32 FrameDeleted;
+	int32 NumRefs;
 
 	// should be set explicitly by derived class constructor
 	EVTPageTableFormat PageTableFormat;

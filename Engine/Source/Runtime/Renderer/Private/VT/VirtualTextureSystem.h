@@ -44,8 +44,6 @@ public:
 
 	IAllocatedVirtualTexture* AllocateVirtualTexture(const FAllocatedVTDescription& Desc);
 	void DestroyVirtualTexture(IAllocatedVirtualTexture* AllocatedVT);
-	void ReleaseVirtualTexture(FAllocatedVirtualTexture* AllocatedVT);
-	void RemoveAllocatedVT(FAllocatedVirtualTexture* AllocatedVT);
 
 	FVirtualTextureProducerHandle RegisterProducer(const FVTProducerDescription& InDesc, IVirtualTexture* InProducer);
 	void ReleaseProducer(const FVirtualTextureProducerHandle& Handle);
@@ -82,7 +80,7 @@ private:
 	FVirtualTextureSystem();
 	~FVirtualTextureSystem();
 
-	void DestroyPendingVirtualTextures();
+	void DestroyPendingVirtualTextures(bool bForceDestroyAll);
 	void ReleasePendingSpaces();
 
 	void RequestTilesForRegionInternal(const IAllocatedVirtualTexture* AllocatedVT, const FVector2D& InScreenSpaceSize, const FVector2D& InViewportPosition, const FVector2D& InViewportSize, const FVector2D& InUV0, const FVector2D& InUV1, int32 InMipLevel);
@@ -120,8 +118,8 @@ private:
 	TArray<FVirtualTexturePhysicalSpace*> PhysicalSpaces;
 	FVirtualTextureProducerCollection Producers;
 
-	FCriticalSection PendingDeleteLock;
-	TArray<FAllocatedVirtualTexture*> PendingDeleteAllocatedVTs;
+	FCriticalSection AllocatedVTLock;
+	TArray<IAllocatedVirtualTexture*> PendingDeleteAllocatedVTs;
 
 	TMap<FAllocatedVTDescription, FAllocatedVirtualTexture*> AllocatedVTs;
 
@@ -151,7 +149,6 @@ private:
 	TSet<FVirtualTextureLocalTile> ContinuousUpdateTilesToProduce;
 	TSet<FVirtualTextureLocalTile> MappedTilesToProduce;
 	TArray<FVirtualTextureLocalTile> TransientCollectedPages;
-	TArray<FAllocatedVirtualTexture*> AllocatedVTsToMap;
 	TArray<IVirtualTextureFinalizer*> Finalizers;
 };
 

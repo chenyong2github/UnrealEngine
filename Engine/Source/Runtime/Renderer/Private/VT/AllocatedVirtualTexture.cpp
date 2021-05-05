@@ -18,7 +18,6 @@ FAllocatedVirtualTexture::FAllocatedVirtualTexture(FVirtualTextureSystem* InSyst
 	uint32 InHeightInBlocks,
 	uint32 InDepthInTiles)
 	: IAllocatedVirtualTexture(InDesc, InBlockWidthInTiles, InBlockHeightInTiles, InWidthInBlocks, InHeightInBlocks, InDepthInTiles)
-	, RefCount(1)
 	, FrameAllocated(InFrame)
 	, Space(nullptr)
 {
@@ -106,18 +105,8 @@ void FAllocatedVirtualTexture::AssignVirtualAddress(uint32 vAddress)
 
 void FAllocatedVirtualTexture::Destroy(FVirtualTextureSystem* System)
 {
-	const int32 NewRefCount = RefCount.Decrement();
-	check(NewRefCount >= 0);
-	if (NewRefCount == 0)
-	{
-		System->ReleaseVirtualTexture(this);
-	}
-}
-
-void FAllocatedVirtualTexture::Release(FVirtualTextureSystem* System)
-{
 	check(IsInRenderingThread());
-	check(RefCount.GetValue() == 0);
+	check(NumRefs == 0);
 
 	// Unlock any locked tiles
 	LockOrUnlockTiles(System, false);
@@ -175,10 +164,7 @@ void FAllocatedVirtualTexture::Release(FVirtualTextureSystem* System)
 	}
 
 	Space->FreeVirtualTexture(this);
-	System->RemoveAllocatedVT(this);
 	System->ReleaseSpace(Space);
-
-	delete this;
 }
 
 void FAllocatedVirtualTexture::LockOrUnlockTiles(FVirtualTextureSystem* InSystem, bool bLock) const
