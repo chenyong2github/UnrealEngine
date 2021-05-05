@@ -1172,6 +1172,7 @@ private:
 
 		Writer.BeginObject();
 		Writer.AddObjectId("Id"_ASV, FCbObjectId(Payload.GetId().GetView()));
+		Writer.AddInteger("RawSize"_ASV, CompressedBuffer.GetRawSize());
 		if (bStoreInline)
 		{
 			Writer.AddHash("RawHash"_ASV, RawHash);
@@ -1189,18 +1190,19 @@ private:
 	FPayload GetCachePayload(const FCacheKey& Key, FStringView Context, ECachePolicy Policy, const FCbObject& Object, bool bAlwaysLoadInlineData = false) const
 	{
 		const FPayloadId Id(Object.FindView("Id"_ASV).AsObjectId().GetView());
+		const uint64 RawSize = Object.FindView("RawSize"_ASV).AsUInt64(MAX_uint64);
 		const FIoHash RawHash = Object.FindView("RawHash"_ASV).AsHash();
 		FIoHash CompressedHash = Object.FindView("CompressedHash"_ASV).AsHash();
 		FSharedBuffer CompressedData = Object["CompressedData"_ASV].AsBinary();
 
-		if (Id.IsNull() || RawHash.IsZero() || !(CompressedHash.IsZero() == CompressedData.IsNull()))
+		if (Id.IsNull() || RawSize == MAX_uint64 || RawHash.IsZero() || !(CompressedHash.IsZero() == CompressedData.IsNull()))
 		{
 			UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with invalid record format for %s from '%.*s'"),
 				*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
 			return FPayload();
 		}
 
-		FPayload Payload(Id, RawHash);
+		FPayload Payload(Id, RawHash, RawSize);
 
 		if (CompressedData)
 		{
