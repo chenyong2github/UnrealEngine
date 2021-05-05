@@ -247,9 +247,9 @@ public:
 	FNiagaraSystemToolkitParameterPanelViewModel(const TSharedPtr<FNiagaraSystemViewModel>& InSystemViewModel);
 	FNiagaraSystemToolkitParameterPanelViewModel(const TSharedPtr<FNiagaraSystemViewModel>& InSystemViewModel, const TWeakPtr<FNiagaraSystemGraphSelectionViewModel>& InSystemGraphSelectionViewModelWeak);
 
-	~FNiagaraSystemToolkitParameterPanelViewModel();
-
 	void Init(const FSystemToolkitUIContext& InUIContext);
+
+	void Cleanup();
 
 	//~ Begin INiagaraImmutableParameterPanelViewModel interface
 	virtual const TArray<UNiagaraGraph*> GetEditableGraphsConst() const override { return GetEditableGraphs(); };
@@ -316,6 +316,8 @@ private:
 	TSharedPtr<FNiagaraSystemViewModel> SystemViewModel;
 	TWeakPtr<FNiagaraSystemGraphSelectionViewModel> SystemGraphSelectionViewModelWeak;
 
+	FDelegateHandle UserParameterStoreChangedHandle;
+
 	mutable FSystemToolkitUIContext UIContext;
 
 	mutable TArray<FNiagaraParameterPanelCategory> CachedCurrentCategories;
@@ -330,9 +332,9 @@ public:
 	/** Construct a ScriptToolkit Parameter Panel View Model from a Script View Model. */
 	FNiagaraScriptToolkitParameterPanelViewModel(TSharedPtr<FNiagaraScriptViewModel> InScriptViewModel);
 
-	~FNiagaraScriptToolkitParameterPanelViewModel();
-
 	void Init(const FScriptToolkitUIContext& InUIContext);
+
+	void Cleanup();
 
 	//~ Begin INiagaraImmutableParameterPanelViewModel interface
 	virtual const TArray<UNiagaraGraph*> GetEditableGraphsConst() const override { return GetEditableGraphs(); };

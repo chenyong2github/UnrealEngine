@@ -49,9 +49,9 @@ class FNiagaraScriptToolkitParameterDefinitionsPanelViewModel : public INiagaraP
 public:
 	FNiagaraScriptToolkitParameterDefinitionsPanelViewModel(const TSharedPtr<FNiagaraStandaloneScriptViewModel>& InScriptViewModel);
 
-	virtual ~FNiagaraScriptToolkitParameterDefinitionsPanelViewModel();
-
 	void Init(const FScriptToolkitUIContext& InUIContext);
+
+	void Cleanup();
 
 	//~ Begin INiagaraImmutableParameterPanelViewModel interface
 	virtual const TArray<UNiagaraGraph*> GetEditableGraphsConst() const override;
@@ -84,9 +84,9 @@ public:
 	FNiagaraSystemToolkitParameterDefinitionsPanelViewModel(const TSharedPtr<FNiagaraSystemViewModel>& InSystemViewModel, const TWeakPtr<FNiagaraSystemGraphSelectionViewModel>& SystemGraphSelectionViewModelWeak);
 	FNiagaraSystemToolkitParameterDefinitionsPanelViewModel(const TSharedPtr<FNiagaraSystemViewModel>& InSystemViewModel);
 
-	virtual ~FNiagaraSystemToolkitParameterDefinitionsPanelViewModel();
-
 	void Init(const FSystemToolkitUIContext& InUIContext);
+
+	void Cleanup();
 
 	//~ Begin INiagaraImmutableParameterPanelViewModel interface
 	virtual const TArray<UNiagaraGraph*> GetEditableGraphsConst() const override;

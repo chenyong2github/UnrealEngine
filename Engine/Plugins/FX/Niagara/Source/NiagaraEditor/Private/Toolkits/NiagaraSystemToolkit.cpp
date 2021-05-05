@@ -207,6 +207,16 @@ void FNiagaraSystemToolkit::UnregisterTabSpawners(const TSharedRef<class FTabMan
 
 FNiagaraSystemToolkit::~FNiagaraSystemToolkit()
 {
+	// Cleanup viewmodels that use the system viewmodel before cleaning up the system viewmodel itself.
+	if (ParameterPanelViewModel.IsValid())
+	{
+		ParameterPanelViewModel->Cleanup();
+	}
+	if (ParameterDefinitionsPanelViewModel.IsValid())
+	{
+		ParameterDefinitionsPanelViewModel->Cleanup();
+	}
+
 	if (SystemViewModel.IsValid())
 	{
 		if (SystemViewModel->GetSelectionViewModel() != nullptr)

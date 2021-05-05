@@ -645,10 +645,10 @@ FNiagaraSystemToolkitParameterPanelViewModel::FNiagaraSystemToolkitParameterPane
 	: FNiagaraSystemToolkitParameterPanelViewModel(InSystemViewModel, nullptr)
 {}
 
-FNiagaraSystemToolkitParameterPanelViewModel::~FNiagaraSystemToolkitParameterPanelViewModel()
+void FNiagaraSystemToolkitParameterPanelViewModel::Cleanup()
 {
-	//@todo(ng) must invoke this before systemviewmodel is brought down
-	//SystemViewModel->GetOnSubscribedParameterDefinitionsChangedDelegate().RemoveAll(this);
+	SystemViewModel->GetOnSubscribedParameterDefinitionsChangedDelegate().RemoveAll(this);
+	SystemViewModel->GetSystem().GetExposedParameters().RemoveOnChangedHandler(UserParameterStoreChangedHandle);
 }
 
 void FNiagaraSystemToolkitParameterPanelViewModel::Init(const FSystemToolkitUIContext& InUIContext)
@@ -689,6 +689,13 @@ void FNiagaraSystemToolkitParameterPanelViewModel::Init(const FSystemToolkitUICo
 	if (SystemViewModel->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset && ensureMsgf(SystemGraphSelectionViewModelWeak.IsValid(), TEXT("SystemGraphSelectionViewModel was null for System edit mode!")))
 	{
 		SystemGraphSelectionViewModelWeak.Pin()->GetOnSelectedEmitterScriptGraphsRefreshedDelegate().AddSP(this, &FNiagaraSystemToolkitParameterPanelViewModel::Refresh);
+	}
+
+	// Bind OnChanged() for System Exposed Parameters (User Parameters).
+	if (SystemViewModel->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
+	{
+		UserParameterStoreChangedHandle = System.GetExposedParameters().AddOnChangedHandler(
+			FNiagaraParameterStore::FOnChanged::FDelegate::CreateSP(this, &FNiagaraSystemToolkitParameterPanelViewModel::Refresh));
 	}
 
 	// Bind OnChanged() bindings for compilation and external parameter modifications.
@@ -1684,7 +1691,7 @@ FNiagaraScriptToolkitParameterPanelViewModel::FNiagaraScriptToolkitParameterPane
 	VariableObjectSelection = ScriptViewModel->GetVariableSelection();
 }
 
-FNiagaraScriptToolkitParameterPanelViewModel::~FNiagaraScriptToolkitParameterPanelViewModel()
+void FNiagaraScriptToolkitParameterPanelViewModel::Cleanup()
 {
 	UNiagaraGraph* NiagaraGraph = static_cast<UNiagaraGraph*>(ScriptViewModel->GetGraphViewModel()->GetGraph());
 	NiagaraGraph->RemoveOnGraphChangedHandler(OnGraphChangedHandle);
