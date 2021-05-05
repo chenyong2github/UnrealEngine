@@ -101,3 +101,5 @@ public:
 private:
 	FCompositeBuffer CompressedData;
 };
+
+CORE_API FArchive& operator<<(FArchive& Ar, FCompressedBuffer& Buffer);

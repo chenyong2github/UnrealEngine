@@ -705,3 +705,21 @@ FCompositeBuffer FCompressedBuffer::DecompressToComposite() const
 	}
 	return FCompositeBuffer();
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FArchive& operator<<(FArchive& Ar, FCompressedBuffer& Buffer)
+{
+	if (Ar.IsLoading())
+	{
+		Buffer = FCompressedBuffer::FromCompressed(Ar);
+	}
+	else
+	{
+		for (const FSharedBuffer& Segment : Buffer.GetCompressed().GetSegments())
+		{
+			Ar.Serialize(const_cast<void*>(Segment.GetData()), static_cast<int64>(Segment.GetSize()));
+		}
+	}
+	return Ar;
+}
