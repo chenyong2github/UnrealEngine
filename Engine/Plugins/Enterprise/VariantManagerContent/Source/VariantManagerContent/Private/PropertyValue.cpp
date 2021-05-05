@@ -1073,17 +1073,7 @@ void UPropertyValue::SetRecordedData(const uint8* NewDataBytes, int32 NumBytes, 
 			if (PropClass && PropClass->IsChildOf(FObjectPropertyBase::StaticClass()))
 			{
 				UObject* Obj = *( ( UObject** ) ValueBytes.GetData() );
-				if ( Obj && Obj->IsValidLowLevel() )
-				{
-					TempObjPtr = Obj;
-				}
-				else
-				{
-					// Somehow our ValueBytes that was just set doesn't match an UObject, so reset it to "nullptr"
-					ValueBytes.SetNumUninitialized( GetValueSizeInBytes() );
-					FMemory::Memset( ValueBytes.GetData(), 0, ValueBytes.Num() );
-					bHasRecordedData = false;
-				}
+				TempObjPtr = Obj;
 			}
 
 			if (UEnum* Enum = GetEnumPropertyEnum())
