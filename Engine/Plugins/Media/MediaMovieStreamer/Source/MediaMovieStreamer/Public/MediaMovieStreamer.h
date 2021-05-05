@@ -42,6 +42,11 @@ public:
 	 */
 	MEDIAMOVIESTREAMER_API void SetMediaTexture(UMediaTexture* InMediaTexture);
 
+	/**
+	 * Called from UMediaMovieAssets when the media ends.
+	 */
+	void OnMediaEnd();
+
 	/** IMovieStreamer interface */
 	virtual bool Init(const TArray<FString>& InMoviePaths, TEnumAsByte<EMoviePlaybackType> InPlaybackType) override;
 	virtual void ForceCompletion() override;
@@ -76,4 +81,7 @@ private:
 
 	/** Gets the media module to interface with MediaFramework. */
 	IMediaModule* GetMediaModule();
+
+	/** True if the media is still playing. */
+	bool bIsPlaying;
 };

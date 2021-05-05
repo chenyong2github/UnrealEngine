@@ -15,6 +15,7 @@
 DEFINE_LOG_CATEGORY(LogMediaMovieStreamer);
 
 FMediaMovieStreamer::FMediaMovieStreamer()
+	: bIsPlaying(false)
 {
 	MovieViewport = MakeShareable(new FMovieViewport());
 }
@@ -30,7 +31,7 @@ void FMediaMovieStreamer::SetMediaPlayer(UMediaPlayer* InMediaPlayer)
 	UMediaMovieAssets* MovieAssets = FMediaMovieStreamerModule::GetMovieAssets();
 	if (MovieAssets != nullptr)
 	{
-		MovieAssets->SetMediaPlayer(InMediaPlayer);
+		MovieAssets->SetMediaPlayer(InMediaPlayer, this);
 	}
 
 	MediaPlayer = InMediaPlayer;
@@ -60,6 +61,11 @@ void FMediaMovieStreamer::SetMediaTexture(UMediaTexture* InMediaTexture)
 	MediaTexture = InMediaTexture;
 }
 
+void FMediaMovieStreamer::OnMediaEnd()
+{
+	bIsPlaying = false;
+}
+
 bool FMediaMovieStreamer::Init(const TArray<FString>& InMoviePaths, TEnumAsByte<EMoviePlaybackType> InPlaybackType)
 {
 	MovieViewport->SetTexture(nullptr);
@@ -79,6 +85,7 @@ bool FMediaMovieStreamer::Init(const TArray<FString>& InMoviePaths, TEnumAsByte<
 	}
 
 	// Play source.
+	bIsPlaying = true;
 	MediaPlayer->OpenSource(MediaSource.Get());
 
 	Texture = MakeShareable(new FSlateTexture2DRHIRef(nullptr, 0, 0));
@@ -126,7 +133,7 @@ bool FMediaMovieStreamer::Tick(float DeltaTime)
 		}
 	}
 
-	return false;
+	return !bIsPlaying;
 }
 
 TSharedPtr<class ISlateViewport> FMediaMovieStreamer::GetViewportInterface()
@@ -155,7 +162,7 @@ void FMediaMovieStreamer::Cleanup()
 	UMediaMovieAssets* MovieAssets = FMediaMovieStreamerModule::GetMovieAssets();
 	if (MovieAssets != nullptr)
 	{
-		MovieAssets->SetMediaPlayer(nullptr);
+		MovieAssets->SetMediaPlayer(nullptr, nullptr);
 		MovieAssets->SetMediaSource(nullptr);
 	}
 
