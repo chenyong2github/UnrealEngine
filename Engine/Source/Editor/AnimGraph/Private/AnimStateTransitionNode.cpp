@@ -641,6 +641,12 @@ void UAnimStateTransitionNode::ValidateNodeDuringCompilation(class FCompilerResu
 	}
 }
 
+UObject* UAnimStateTransitionNode::GetJumpTargetForDoubleClick() const
+{
+	// Our base class uses GetSubGraphs. Since we explicitly ignore a shared bound graph, use BoundGraph directly instead.
+	return BoundGraph;
+}
+
 TArray<UEdGraph*> UAnimStateTransitionNode::GetSubGraphs() const
 { 
 	TArray<UEdGraph*> SubGraphs;

@@ -124,6 +124,7 @@ class UAnimStateTransitionNode : public UAnimStateNodeBase
 	virtual void PostPlacedNewNode() override;
 	virtual void DestroyNode() override;
 	virtual void ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const override;
+	virtual UObject* GetJumpTargetForDoubleClick() const override;
 	virtual TArray<UEdGraph*> GetSubGraphs() const override;
 	//~ End UEdGraphNode Interface
 
