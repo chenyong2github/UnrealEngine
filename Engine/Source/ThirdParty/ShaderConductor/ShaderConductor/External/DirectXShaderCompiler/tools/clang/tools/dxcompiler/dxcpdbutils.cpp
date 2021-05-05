@@ -26,6 +26,7 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include "dxc/dxcapi.h"
+#include "dxc/dxcapi.internal.h"
 #include "dxc/dxcpix.h"
 #include "dxc/Support/microcom.h"
 #include "dxc/DxilContainer/DxilContainer.h"
@@ -37,6 +38,7 @@
 #include "dxc/Support/HLSLOptions.h"
 
 #include "dxcshadersourceinfo.h"
+#include "dxc/Support/dxcfilesystem.h"
 
 #include <vector>
 #include <locale>
@@ -78,6 +80,8 @@ static HRESULT CopyWstringToBSTR(const std::wstring &str, BSTR *pResult) {
 }
 
 static std::wstring NormalizePath(const WCHAR *path) {
+  std::wstring PathStorage;
+  dxcutil::MakeAbsoluteOrCurDirRelativeW(path, PathStorage);
   std::string FilenameStr8 = Unicode::UTF16ToUTF8StringOrThrow(path);
   llvm::SmallString<128> NormalizedPath;
   llvm::sys::path::native(FilenameStr8, NormalizedPath);
@@ -92,55 +96,37 @@ static bool IsBitcode(const void *ptr, size_t size) {
   return !memcmp(ptr, pattern, _countof(pattern));
 }
 
-static void ComputeFlagsBasedOnArgs(ArrayRef<std::wstring> args, std::vector<std::wstring> *outFlags, std::vector<std::wstring> *outDefines, std::wstring *outTargetProfile, std::wstring *outEntryPoint) {
+static std::vector<std::pair<std::wstring, std::wstring> > ComputeArgPairs(ArrayRef<std::string> args) {
+  std::vector<std::pair<std::wstring, std::wstring> > ret;
+
   const llvm::opt::OptTable *optionTable = hlsl::options::getHlslOptTable();
   assert(optionTable);
   if (optionTable) {
-    std::vector<std::string> argUtf8List;
-    for (unsigned i = 0; i < args.size(); i++) {
-      argUtf8List.push_back(ToUtf8String(args[i]));
-    }
-
     std::vector<const char *> argPointerList;
-    for (unsigned i = 0; i < argUtf8List.size(); i++) {
-      argPointerList.push_back(argUtf8List[i].c_str());
+    for (unsigned i = 0; i < args.size(); i++) {
+      argPointerList.push_back(args[i].c_str());
     }
 
     unsigned missingIndex = 0;
     unsigned missingCount = 0;
     llvm::opt::InputArgList argList = optionTable->ParseArgs(argPointerList, missingIndex, missingCount);
     for (llvm::opt::Arg *arg : argList) {
-      if (arg->getOption().matches(hlsl::options::OPT_D)) {
-        std::wstring def = ToWstring(arg->getValue());
-        if (outDefines)
-          outDefines->push_back(def);
-        continue;
-      }
-      else if (arg->getOption().matches(hlsl::options::OPT_target_profile)) {
-        if (outTargetProfile)
-          *outTargetProfile = ToWstring(arg->getValue());
-        continue;
-      }
-      else if (arg->getOption().matches(hlsl::options::OPT_entrypoint)) {
-        if (outEntryPoint)
-          *outEntryPoint = ToWstring(arg->getValue());
-        continue;
+      std::pair<std::wstring, std::wstring> newPair;
+      newPair.first = ToWstring( arg->getOption().getName() );
+      if (arg->getNumValues() > 0) {
+        newPair.second = ToWstring( arg->getValue() );
       }
 
-      if (outFlags) {
-        llvm::StringRef Name = arg->getOption().getName();
-        if (Name.size()) {
-          outFlags->push_back(std::wstring(L"-") + ToWstring(Name));
-        }
-        if (arg->getNumValues() > 0) {
-          outFlags->push_back(ToWstring(arg->getValue()));
-        }
-      }
+      ret.push_back(std::move(newPair));
     }
   }
+  return ret;
 }
 
-struct DxcPdbVersionInfo : public IDxcVersionInfo2 {
+struct DxcPdbVersionInfo :
+  public IDxcVersionInfo2,
+  public IDxcVersionInfo3
+{
 private:
   DXC_MICROCOM_TM_REF_FIELDS()
 
@@ -152,9 +138,22 @@ public:
 
   hlsl::DxilCompilerVersion m_Version = {};
   std::string m_VersionCommitSha = {};
+  std::string m_VersionString = {};
+
+  static HRESULT CopyStringToOutStringPtr(const std::string &Str, _Out_ char **ppOutString) {
+    *ppOutString = nullptr;
+    char *const pString = (char *)CoTaskMemAlloc(Str.size() + 1);
+    if (pString == nullptr)
+      return E_OUTOFMEMORY;
+    std::memcpy(pString, Str.data(), Str.size());
+    pString[Str.size()] = 0;
+
+    *ppOutString = pString;
+    return S_OK;
+  }
 
   HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void **ppvObject) override {
-    return DoBasicQueryInterface<IDxcVersionInfo, IDxcVersionInfo2>(this, iid, ppvObject);
+    return DoBasicQueryInterface<IDxcVersionInfo, IDxcVersionInfo2, IDxcVersionInfo3>(this, iid, ppvObject);
   }
 
   virtual HRESULT STDMETHODCALLTYPE GetVersion(_Out_ UINT32 *pMajor, _Out_ UINT32 *pMinor) override {
@@ -171,21 +170,20 @@ public:
     return S_OK;
   }
 
-  virtual HRESULT STDMETHODCALLTYPE GetCommitInfo(_Out_ UINT32 *pCommitCount, _Out_ char **pCommitHash) {
+  virtual HRESULT STDMETHODCALLTYPE GetCommitInfo(_Out_ UINT32 *pCommitCount, _Outptr_result_z_ char **pCommitHash) {
     if (!pCommitHash)
       return E_POINTER;
 
-    *pCommitHash = nullptr;
-
-    char *const hash = (char *)CoTaskMemAlloc(m_VersionCommitSha.size() + 1);
-    if (hash == nullptr)
-      return E_OUTOFMEMORY;
-    std::memcpy(hash, m_VersionCommitSha.data(), m_VersionCommitSha.size());
-    hash[m_VersionCommitSha.size()] = 0;
-
-    *pCommitHash = hash;
+    IFR(CopyStringToOutStringPtr(m_VersionCommitSha, pCommitHash));
     *pCommitCount = m_Version.CommitCount;
 
+    return S_OK;
+  }
+
+  virtual HRESULT STDMETHODCALLTYPE GetCustomVersionString(_Outptr_result_z_ char **pVersionString) {
+    if (!pVersionString)
+      return E_POINTER;
+    IFR(CopyStringToOutStringPtr(m_VersionString, pVersionString));
     return S_OK;
   }
 };
@@ -222,14 +220,18 @@ struct PdbRecompilerIncludeHandler : public IDxcIncludeHandler {
       return E_POINTER;
     *ppIncludeSource = nullptr;
 
-    auto it = m_FileMap.find(NormalizePath(pFilename));
+    std::wstring Filename = NormalizePath(pFilename);
+    auto it = m_FileMap.find(Filename);
     if (it == m_FileMap.end())
       return E_FAIL;
 
-    CComPtr<IDxcBlobEncoding> pEncoding;
-    IFR(m_pPdbUtils->GetSource(it->second, &pEncoding));
+    CComPtr<IDxcBlobEncoding> pSource;
+    IFR(m_pPdbUtils->GetSource(it->second, &pSource));
 
-    return pEncoding.QueryInterface(ppIncludeSource);
+    CComPtr<IDxcBlobEncoding> pOutBlob;
+    IFR(hlsl::DxcCreateBlobEncodingFromBlob(pSource, 0, pSource->GetBufferSize(), /*encoding Known*/true, CP_UTF8, m_pMalloc, &pOutBlob));
+
+    return pOutBlob.QueryInterface(ppIncludeSource);
   }
 };
 
@@ -240,16 +242,14 @@ private:
 
   struct Source_File {
     std::wstring Name;
-    CComPtr<IDxcBlobEncoding> Content;
+    CComPtr<IDxcBlob> Content;
   };
 
   CComPtr<IDxcBlob> m_InputBlob;
   CComPtr<IDxcBlob> m_pDebugProgramBlob;
   CComPtr<IDxcBlob> m_ContainerBlob;
   std::vector<Source_File> m_SourceFiles;
-  std::vector<std::wstring> m_Defines;
-  std::vector<std::wstring> m_Args;
-  std::vector<std::wstring> m_Flags;
+
   std::wstring m_EntryPoint;
   std::wstring m_TargetProfile;
   std::wstring m_Name;
@@ -259,23 +259,35 @@ private:
   hlsl::DxilCompilerVersion m_VersionInfo;
   std::string m_VersionCommitSha;
   std::string m_VersionString;
+  CComPtr<IDxcResult> m_pCachedRecompileResult;
+
+  // NOTE: This is not set to null by Reset() since it doesn't
+  // necessarily change across different PDBs.
+  CComPtr<IDxcCompiler3> m_pCompiler;
 
   struct ArgPair {
     std::wstring Name;
     std::wstring Value;
   };
   std::vector<ArgPair> m_ArgPairs;
+  std::vector<std::wstring> m_Defines;
+  std::vector<std::wstring> m_Args;
+  std::vector<std::wstring> m_Flags;
+
+  void ResetAllArgs() {
+    m_ArgPairs.clear();
+    m_Defines.clear();
+    m_Args.clear();
+    m_Flags.clear();
+    m_EntryPoint.clear();
+    m_TargetProfile.clear();
+  }
 
   void Reset() {
     m_pDebugProgramBlob = nullptr;
     m_InputBlob = nullptr;
     m_ContainerBlob = nullptr;
     m_SourceFiles.clear();
-    m_Defines.clear();
-    m_Args.clear();
-    m_Flags.clear();
-    m_EntryPoint.clear();
-    m_TargetProfile.clear();
     m_Name.clear();
     m_MainFileName.clear();
     m_HashBlob = nullptr;
@@ -283,7 +295,8 @@ private:
     m_VersionInfo = {};
     m_VersionCommitSha.clear();
     m_VersionString.clear();
-    m_ArgPairs.clear();
+    m_pCachedRecompileResult = nullptr;
+    ResetAllArgs();
   }
 
   bool HasSources() const {
@@ -353,24 +366,12 @@ private:
           file.Name = ToWstring(md_name->getString());
 
           // File content
-          IFR(hlsl::DxcCreateBlobWithEncodingOnHeapCopy(
+          IFR(hlsl::DxcCreateBlobOnHeapCopy(
             md_content->getString().data(),
             md_content->getString().size(),
-            CP_ACP, // NOTE: ACP instead of UTF8 because it's possible for compiler implementations to
-                    // inject non-UTF8 data here.
             &file.Content));
 
           m_SourceFiles.push_back(std::move(file));
-        }
-      }
-      // dx.source.defines
-      else if (node_name == hlsl::DxilMDHelper::kDxilSourceDefinesMDName ||
-               node_name == hlsl::DxilMDHelper::kDxilSourceDefinesOldMDName)
-      {
-        MDTuple *tup = cast<MDTuple>(node.getOperand(0));
-        for (unsigned i = 0; i < tup->getNumOperands(); i++) {
-          StringRef define = cast<MDString>(tup->getOperand(i))->getString();
-          m_Defines.push_back(ToWstring(define));
         }
       }
       // dx.source.mainFileName
@@ -386,13 +387,20 @@ private:
                node_name == hlsl::DxilMDHelper::kDxilSourceArgsOldMDName)
       {
         MDTuple *tup = cast<MDTuple>(node.getOperand(0));
+        std::vector<std::string> args;
         // Args
         for (unsigned i = 0; i < tup->getNumOperands(); i++) {
           StringRef arg = cast<MDString>(tup->getOperand(i))->getString();
-          m_Args.push_back(ToWstring(arg));
+          args.push_back(arg.str());
         }
 
-        ComputeFlagsBasedOnArgs(m_Args, &m_Flags, nullptr, nullptr, nullptr);
+        std::vector<std::pair<std::wstring, std::wstring> > Pairs = ComputeArgPairs(args);
+        for (std::pair<std::wstring, std::wstring> &p : Pairs) {
+          ArgPair newPair;
+          newPair.Name  = std::move(p.first);
+          newPair.Value = std::move(p.second);
+          AddArgPair(std::move(newPair));
+        }
       }
     }
 
@@ -430,30 +438,33 @@ private:
         m_HasVersionInfo = true;
 
         const char *ptr = (const char *)(header+1);
-        unsigned commitShaLength = 0;
         unsigned i = 0;
 
-        const char *commitSha = (const char *)(header+1) + i;
-        for (; i < header->VersionStringListSizeInBytes; i++) {
-          if (ptr[i] == 0) {
-            commitShaLength = i;
-            i++;
-            break;
+        {
+          unsigned commitShaLength = 0;
+          const char *commitSha = (const char *)(header+1) + i;
+          for (; i < header->VersionStringListSizeInBytes; i++) {
+            if (ptr[i] == 0) {
+              i++;
+              break;
+            }
+            commitShaLength++;
           }
+          m_VersionCommitSha.assign(commitSha, commitShaLength);
         }
 
-        const char *versionString = (const char *)(header+1) + i;
-        unsigned versionStringLength = 0;
-        for (; i < header->VersionStringListSizeInBytes; i++) {
-          if (ptr[i] == 0) {
-            commitShaLength = i;
-            i++;
-            break;
+        {
+          const char *versionString = (const char *)(header+1) + i;
+          unsigned versionStringLength = 0;
+          for (; i < header->VersionStringListSizeInBytes; i++) {
+            if (ptr[i] == 0) {
+              i++;
+              break;
+            }
+            versionStringLength++;
           }
+          m_VersionString.assign(versionString, versionStringLength);
         }
-
-        m_VersionCommitSha.assign(commitSha, commitShaLength);
-        m_VersionString.assign(versionString, versionStringLength);
 
       } break;
 
@@ -474,38 +485,12 @@ private:
             newPair.Name = ToWstring(pair.Name);
             newPair.Value = ToWstring(pair.Value);
           }
+          AddArgPair(std::move(newPair));
+        }
 
-          bool excludeFromFlags = false;
-          if (newPair.Name == L"E") {
-            m_EntryPoint = newPair.Value;
-            excludeFromFlags = true;
-          }
-          else if (newPair.Name == L"T") {
-            m_TargetProfile = newPair.Value;
-            excludeFromFlags = true;
-          }
-          else if (newPair.Name == L"D") {
-            m_Defines.push_back(newPair.Value);
-            excludeFromFlags = true;
-          }
-
-          std::wstring nameWithDash;
-          if (newPair.Name.size())
-            nameWithDash = std::wstring(L"-") + newPair.Name;
-
-          if (!excludeFromFlags) {
-            if (nameWithDash.size())
-              m_Flags.push_back(nameWithDash);
-            if (newPair.Value.size())
-              m_Flags.push_back(newPair.Value);
-          }
-
-          if (nameWithDash.size())
-            m_Args.push_back(nameWithDash);
-          if (newPair.Value.size())
-            m_Args.push_back(newPair.Value);
-
-          m_ArgPairs.push_back( std::move(newPair) );
+        // Entry point might have been omitted. Set it to main by default.
+        if (m_EntryPoint.empty()) {
+          m_EntryPoint = L"main";
         }
 
         // Sources
@@ -514,11 +499,9 @@ private:
 
           Source_File source;
           source.Name = ToWstring(source_data.Name);
-          IFR(hlsl::DxcCreateBlobWithEncodingOnHeapCopy(
+          IFR(hlsl::DxcCreateBlobOnHeapCopy(
             source_data.Content.data(),
             source_data.Content.size(),
-            CP_ACP, // NOTE: ACP instead of UTF8 because it's possible for compiler implementations to
-                    // inject non-UTF8 data here.
             &source.Content));
 
           // First file is the main file
@@ -548,8 +531,8 @@ private:
       {
         const hlsl::DxilProgramHeader *program_header = (const hlsl::DxilProgramHeader *)(part+1);
 
-        CComPtr<IDxcBlobEncoding> pProgramHeaderBlob;
-        IFR(hlsl::DxcCreateBlobWithEncodingFromPinned(program_header, program_header->SizeInUint32*sizeof(UINT32), CP_ACP, &pProgramHeaderBlob));
+        CComPtr<IDxcBlob> pProgramHeaderBlob;
+        IFR(hlsl::DxcCreateBlobFromPinned(program_header, program_header->SizeInUint32*sizeof(UINT32), &pProgramHeaderBlob));
         IFR(pProgramHeaderBlob.QueryInterface(ppDebugProgramBlob));
 
       } break; // hlsl::DFCC_ShaderDebugInfoDXIL
@@ -557,6 +540,63 @@ private:
     } // For each part
 
     return S_OK;
+  }
+
+  void AddArgPair(ArgPair &&newPair) {
+    const llvm::opt::OptTable *optTable = hlsl::options::getHlslOptTable();
+
+    if (newPair.Name.size() && newPair.Value.size()) {
+      // Handling case where old positional arguments used to have
+      // <input> written as the option name.
+      if (newPair.Name == L"<input>") {
+        newPair.Name.clear();
+      }
+      // Check if the option and its value must be merged. Newer compiler
+      // pre-merge them before writing them to the PDB, but older PDBs might
+      // have them separated.
+      else {
+        std::string NameUtf8 = ToUtf8String(newPair.Name);
+        llvm::opt::Option opt = optTable->findOption(NameUtf8.c_str());
+        if (opt.isValid()) {
+          if (opt.getKind() == llvm::opt::Option::JoinedClass) {
+            newPair.Name += newPair.Value;
+            newPair.Value.clear();
+          }
+        }
+      }
+    }
+
+    bool excludeFromFlags = false;
+    if (newPair.Name == L"E") {
+      m_EntryPoint = newPair.Value;
+      excludeFromFlags = true;
+    }
+    else if (newPair.Name == L"T") {
+      m_TargetProfile = newPair.Value;
+      excludeFromFlags = true;
+    }
+    else if (newPair.Name == L"D") {
+      m_Defines.push_back(newPair.Value);
+      excludeFromFlags = true;
+    }
+
+    std::wstring nameWithDash;
+    if (newPair.Name.size())
+      nameWithDash = std::wstring(L"-") + newPair.Name;
+
+    if (!excludeFromFlags) {
+      if (nameWithDash.size())
+        m_Flags.push_back(nameWithDash);
+      if (newPair.Value.size())
+        m_Flags.push_back(newPair.Value);
+    }
+
+    if (nameWithDash.size())
+      m_Args.push_back(nameWithDash);
+    if (newPair.Value.size())
+      m_Args.push_back(newPair.Value);
+
+    m_ArgPairs.push_back( std::move(newPair) );
   }
 
 public:
@@ -570,24 +610,25 @@ public:
   }
 
   HRESULT STDMETHODCALLTYPE Load(_In_ IDxcBlob *pPdbOrDxil) override {
-    DxcThreadMalloc TM(m_pMalloc);
-
-    ::llvm::sys::fs::MSFileSystem *msfPtr = nullptr;
-    IFT(CreateMSFileSystemForDisk(&msfPtr));
-    std::unique_ptr<::llvm::sys::fs::MSFileSystem> msf(msfPtr);
-  
-    ::llvm::sys::fs::AutoPerThreadSystem pts(msf.get());
-    IFTLLVM(pts.error_code());
 
     if (!pPdbOrDxil)
       return E_POINTER;
 
-    // Remove all the data
-    Reset();
-
-    m_InputBlob = pPdbOrDxil;
-
     try {
+      DxcThreadMalloc TM(m_pMalloc);
+
+      ::llvm::sys::fs::MSFileSystem *msfPtr = nullptr;
+      IFT(CreateMSFileSystemForDisk(&msfPtr));
+      std::unique_ptr<::llvm::sys::fs::MSFileSystem> msf(msfPtr);
+
+      ::llvm::sys::fs::AutoPerThreadSystem pts(msf.get());
+      IFTLLVM(pts.error_code());
+
+      // Remove all the data
+      Reset();
+
+      m_InputBlob = pPdbOrDxil;
+
       CComPtr<IStream> pStream;
       IFR(hlsl::CreateReadOnlyBlobStream(pPdbOrDxil, &pStream));
 
@@ -614,10 +655,11 @@ public:
       }
       // DXIL program header or bitcode
       else {
-        CComPtr<IDxcBlobEncoding> pProgramHeaderBlob;
-        IFR(hlsl::DxcCreateBlobWithEncodingFromPinned(
+        CComPtr<IDxcBlob> pProgramHeaderBlob;
+        IFR(hlsl::DxcCreateBlobFromPinned(
           (hlsl::DxilProgramHeader *)pPdbOrDxil->GetBufferPointer(),
-          pPdbOrDxil->GetBufferSize(), CP_ACP, &pProgramHeaderBlob));
+          pPdbOrDxil->GetBufferSize(), &pProgramHeaderBlob));
+
         IFR(pProgramHeaderBlob.QueryInterface(&m_pDebugProgramBlob));
         IFR(PopulateSourcesFromProgramHeaderOrBitcode(m_pDebugProgramBlob));
       }
@@ -702,38 +744,108 @@ public:
     return m_pDebugProgramBlob != nullptr;
   }
 
-  virtual HRESULT STDMETHODCALLTYPE GetFullPDB(_COM_Outptr_ IDxcBlob **ppFullPDB) override {
+  virtual HRESULT STDMETHODCALLTYPE OverrideArgs(_In_ DxcArgPair *pArgPairs, UINT32 uNumArgPairs) override {
+    try {
+      DxcThreadMalloc TM(m_pMalloc);
+
+      ResetAllArgs();
+
+      for (UINT32 i = 0; i < uNumArgPairs; i++) {
+        ArgPair newPair;
+        newPair.Name  = pArgPairs[i].pName ? pArgPairs[i].pName : L"";
+        newPair.Value = pArgPairs[i].pValue ? pArgPairs[i].pValue : L"";
+        AddArgPair(std::move(newPair));
+      }
+
+      // Clear the cached compile result
+      m_pCachedRecompileResult = nullptr;
+    }
+    CATCH_CPP_RETURN_HRESULT()
+
+    return S_OK;
+  }
+
+  virtual HRESULT STDMETHODCALLTYPE OverrideRootSignature(_In_ const WCHAR *pRootSignature) override {
+    try {
+      DxcThreadMalloc TM(m_pMalloc);
+
+      std::vector<ArgPair> newArgPairs;
+      for (ArgPair &pair : m_ArgPairs) {
+        if (pair.Name == L"rootsig-define") {
+          continue;
+        }
+        newArgPairs.push_back(pair);
+      }
+
+      ResetAllArgs();
+
+      for (ArgPair &newArg : newArgPairs) {
+        AddArgPair(std::move(newArg));
+      }
+
+      ArgPair rsPair;
+      rsPair.Name = L"rootsig-define";
+      rsPair.Value = L"__DXC_RS_DEFINE";
+      AddArgPair(std::move(rsPair));
+
+      ArgPair defPair;
+      defPair.Name = L"D";
+      defPair.Value = std::wstring(L"__DXC_RS_DEFINE=") + pRootSignature;
+      AddArgPair(std::move(defPair));
+
+      // Clear the cached compile result
+      m_pCachedRecompileResult = nullptr;
+    }
+    CATCH_CPP_RETURN_HRESULT()
+
+    return S_OK;
+  }
+
+  virtual HRESULT STDMETHODCALLTYPE CompileForFullPDB(_COM_Outptr_ IDxcResult **ppResult) {
+    if (!ppResult) return E_POINTER;
+    *ppResult = nullptr;
+
     if (!m_InputBlob)
       return E_FAIL;
 
-    if (!ppFullPDB) return E_POINTER;
-
-    *ppFullPDB = nullptr;
-
-    // If we are already a full pdb, just return the input blob
-    if (IsFullPDB()) {
-      return m_InputBlob.QueryInterface(ppFullPDB);
-    }
-
-    CComPtr<IDxcCompiler3> pCompiler;
-    IFR(DxcCreateInstance2(m_pMalloc, CLSID_DxcCompiler, IID_PPV_ARGS(&pCompiler)));
+    if (m_pCachedRecompileResult)
+      return m_pCachedRecompileResult.QueryInterface(ppResult);
 
     DxcThreadMalloc TM(m_pMalloc);
 
-    std::vector<const WCHAR *> new_args;
-    for (unsigned i = 0; i < m_Args.size(); i++) {
-      if (m_Args[i] == L"/Qsource_only_debug" || m_Args[i] == L"-Qsource_only_debug")
-        continue;
-      new_args.push_back(m_Args[i].c_str());
+    // Fail early if there are no source files.
+    if (m_SourceFiles.empty())
+      return E_FAIL;
+
+    if (!m_pCompiler)
+      IFR(DxcCreateInstance2(m_pMalloc, CLSID_DxcCompiler, IID_PPV_ARGS(&m_pCompiler)));
+
+    std::vector<std::wstring> new_args_storage;
+    for (unsigned i = 0; i < m_ArgPairs.size(); i++) {
+      std::wstring name  = m_ArgPairs[i].Name;
+      std::wstring value = m_ArgPairs[i].Value;
+
+      if (name == L"Zs") continue;
+      if (name == L"Zi") continue;
+
+      if (name.size()) {
+        name.insert(name.begin(), L'-');
+        new_args_storage.push_back(std::move(name));
+      }
+      if (value.size()) {
+        new_args_storage.push_back(std::move(value));
+      }
     }
-    new_args.push_back(L"-Qfull_debug");
+    new_args_storage.push_back(L"-Zi");
+
+    std::vector<const WCHAR *> new_args;
+    for (std::wstring &arg : new_args_storage) {
+      new_args.push_back(arg.c_str());
+    }
 
     assert(m_MainFileName.size());
     if (m_MainFileName.size())
       new_args.push_back(m_MainFileName.c_str());
-
-    if (m_SourceFiles.empty())
-      return E_FAIL;
 
     CComPtr<PdbRecompilerIncludeHandler> pIncludeHandler = CreateOnMalloc<PdbRecompilerIncludeHandler>(m_pMalloc);
     if (!pIncludeHandler)
@@ -745,16 +857,33 @@ public:
       pIncludeHandler->m_FileMap.insert(std::pair<std::wstring, unsigned>(NormalizedName, i));
     }
 
-    IDxcBlobEncoding *main_file = m_SourceFiles[0].Content;
+    IDxcBlob *main_file = m_SourceFiles[0].Content;
 
     DxcBuffer source_buf = {};
     source_buf.Ptr = main_file->GetBufferPointer();
     source_buf.Size = main_file->GetBufferSize();
-    BOOL bEndodingKnown = FALSE;
-    IFR(main_file->GetEncoding(&bEndodingKnown, &source_buf.Encoding));
+    source_buf.Encoding = CP_UTF8;
 
     CComPtr<IDxcResult> pResult;
-    IFR(pCompiler->Compile(&source_buf, new_args.data(), new_args.size(), pIncludeHandler, IID_PPV_ARGS(&pResult)));
+    IFR(m_pCompiler->Compile(&source_buf, new_args.data(), new_args.size(), pIncludeHandler, IID_PPV_ARGS(&m_pCachedRecompileResult)));
+
+    CComPtr<IDxcOperationResult> pOperationResult;
+    return m_pCachedRecompileResult.QueryInterface(ppResult);
+  }
+
+  virtual HRESULT STDMETHODCALLTYPE GetFullPDB(_COM_Outptr_ IDxcBlob **ppFullPDB) override {
+    if (!m_InputBlob)
+      return E_FAIL;
+    if (!ppFullPDB) return E_POINTER;
+    *ppFullPDB = nullptr;
+    // If we are already a full pdb, just return the input blob
+    if (IsFullPDB()) {
+      return m_InputBlob.QueryInterface(ppFullPDB);
+    }
+
+    CComPtr<IDxcResult> pResult;
+
+    IFR(CompileForFullPDB(&pResult));
 
     CComPtr<IDxcOperationResult> pOperationResult;
     IFR(pResult.QueryInterface(&pOperationResult));
@@ -829,7 +958,14 @@ public:
     }
     result->m_Version = m_VersionInfo;
     result->m_VersionCommitSha = m_VersionCommitSha;
+    result->m_VersionString = m_VersionString;
     *ppVersionInfo = result.Detach();
+    return S_OK;
+  }
+
+  virtual HRESULT STDMETHODCALLTYPE SetCompiler(_In_ IDxcCompiler3 *pCompiler) override {
+    m_pCompiler = pCompiler;
+    m_pCachedRecompileResult = nullptr; // Clear the previously compiled result
     return S_OK;
   }
 };

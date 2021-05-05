@@ -20,6 +20,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
+#include "llvm/IR/DerivedTypes.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
 
@@ -292,6 +293,35 @@ void ReplaceBoolVectorSubscript(Function *F) {
   }
 }
 
+// Returns a valid field annotation (if present) for the matrix type of templated
+// resource on matrix type.
+// Example:-
+// AppendStructuredBuffer<float4x4> abuf;
+// Return the field annotation of the matrix type in the above decl.
+static DxilFieldAnnotation* GetTemplatedResMatAnnotation(Function *F, unsigned argOpIdx,
+  unsigned matAnnotationIdx) {
+  for (User* U : F->users()) {
+    if (CallInst* CI = dyn_cast<CallInst>(U)) {
+      if (argOpIdx >= CI->getNumArgOperands())
+        continue;
+      Value *resArg = CI->getArgOperand(argOpIdx);
+      Type* resArgTy = resArg->getType();
+      if (resArgTy->isPointerTy())
+        resArgTy = cast<PointerType>(resArgTy)->getPointerElementType();
+      if (isa<StructType>(resArgTy)) {
+        DxilTypeSystem& TS = F->getParent()->GetHLModule().GetTypeSystem();
+        auto *SA = TS.GetStructAnnotation(cast<StructType>(resArgTy));
+        auto *FA = &(SA->GetFieldAnnotation(matAnnotationIdx));
+        if (FA && FA->HasMatrixAnnotation()) {
+          return FA;
+        }
+      }
+    }
+  }
+
+  return nullptr;
+}
+
 // Add function body for intrinsic if possible.
 Function *CreateOpFunction(llvm::Module &M, Function *F,
                            llvm::FunctionType *funcTy, HLOpcodeGroup group,
@@ -370,6 +400,10 @@ Function *CreateOpFunction(llvm::Module &M, Function *F,
       Value *subscript =
           Builder.CreateCall(subscriptFunc, {subscriptOpArg, thisArg, counter});
 
+      constexpr unsigned kArgIdx = 0;
+      constexpr unsigned kMatAnnotationIdx = 0;
+      DxilFieldAnnotation* MatAnnotation = HLMatrixType::isa(valTy) ? 
+        GetTemplatedResMatAnnotation(F, kArgIdx, kMatAnnotationIdx) : nullptr;
       if (bAppend) {
         Argument *valArg = argIter;
         // Buf[counter] = val;
@@ -377,8 +411,53 @@ Function *CreateOpFunction(llvm::Module &M, Function *F,
           unsigned size = M.getDataLayout().getTypeAllocSize(
               subscript->getType()->getPointerElementType());
           Builder.CreateMemCpy(subscript, valArg, size, 1);
-        } else {
-          Value *storedVal = valArg;
+        } else if (MatAnnotation) {
+          // If the to-be-stored value is a matrix then we need to generate
+          // an HL matrix store which is then handled appropriately in HLMatrixLowerPass.
+          bool isRowMajor = MatAnnotation->GetMatrixAnnotation().Orientation == MatrixOrientation::RowMajor;
+          Value* matStoreVal = valArg;
+
+          // The in-reg matrix orientation is always row-major.
+          // If the in-memory matrix orientation is col-major, then we
+          // need to change the orientation to col-major before storing
+          // to memory
+          if (!isRowMajor) {
+            unsigned castOpCode = (unsigned)HLCastOpcode::RowMatrixToColMatrix;
+
+            // Construct signature of the function that is used for converting
+            // orientation of a matrix from row-major to col-major.
+            FunctionType* MatCastFnType = FunctionType::get(
+              matStoreVal->getType(), { Builder.getInt32Ty(), matStoreVal->getType() },
+              /* isVarArg */ false);
+
+            // Create the conversion function.
+            Function* MatCastFn = GetOrCreateHLFunction(
+              M, MatCastFnType, HLOpcodeGroup::HLCast, castOpCode);
+            Value* MatCastOpCode = ConstantInt::get(Builder.getInt32Ty(), castOpCode);
+
+            // Insert call to the conversion function.
+            matStoreVal = Builder.CreateCall(MatCastFn, { MatCastOpCode, matStoreVal });
+          }
+
+          unsigned storeOpCode = isRowMajor ? (unsigned) HLMatLoadStoreOpcode::RowMatStore
+            : (unsigned) HLMatLoadStoreOpcode::ColMatStore;
+
+          // Construct signature of the function that is used for storing
+          // the matrix value to the memory.
+          FunctionType* MatStFnType = FunctionType::get(
+            Builder.getVoidTy(), { Builder.getInt32Ty(), subscriptTy, matStoreVal->getType() },
+            /* isVarArg */ false);
+
+          // Create the matrix store function.
+          Function* MatStFn = GetOrCreateHLFunction(
+            M, MatStFnType, HLOpcodeGroup::HLMatLoadStore, storeOpCode);
+          Value* MatStOpCode = ConstantInt::get(Builder.getInt32Ty(), storeOpCode);
+
+          // Insert call to the matrix store function.
+          Builder.CreateCall(MatStFn, { MatStOpCode, subscript, matStoreVal });
+        }
+        else {
+          Value* storedVal = valArg;
           // Convert to memory representation
           if (isBoolScalarOrVector)
             storedVal = Builder.CreateZExt(
@@ -390,6 +469,51 @@ Function *CreateOpFunction(llvm::Module &M, Function *F,
         // return Buf[counter];
         if (valTy->isPointerTy())
           Builder.CreateRet(subscript);
+        else if (MatAnnotation) {
+          // If the to-be-loaded value is a matrix then we need to generate
+          // an HL matrix load which is then handled appropriately in HLMatrixLowerPass.
+          bool isRowMajor = MatAnnotation->GetMatrixAnnotation().Orientation == MatrixOrientation::RowMajor;
+
+          unsigned loadOpCode = isRowMajor ? (unsigned)HLMatLoadStoreOpcode::RowMatLoad
+            : (unsigned)HLMatLoadStoreOpcode::ColMatLoad;
+
+          // Construct signature of the function that is used for loading
+          // the matrix value from the memory.
+          FunctionType* MatLdFnType = FunctionType::get(valTy, { Builder.getInt32Ty(), subscriptTy },
+            /* isVarArg */ false);
+
+          // Create the matrix load function.
+          Function* MatLdFn = GetOrCreateHLFunction(
+            M, MatLdFnType, HLOpcodeGroup::HLMatLoadStore, loadOpCode);
+          Value* MatStOpCode = ConstantInt::get(Builder.getInt32Ty(), loadOpCode);
+
+          // Insert call to the matrix load function.
+          Value *matLdVal = Builder.CreateCall(MatLdFn, { MatStOpCode, subscript });
+
+          // The in-reg matrix orientation is always row-major.
+          // If the in-memory matrix orientation is col-major, then we
+          // need to change the orientation to row-major after loading
+          // from memory.
+          if (!isRowMajor) {
+            unsigned castOpCode = (unsigned)HLCastOpcode::ColMatrixToRowMatrix;
+
+            // Construct signature of the function that is used for converting
+            // orientation of a matrix from col-major to row-major.
+            FunctionType* MatCastFnType = FunctionType::get(
+              matLdVal->getType(), { Builder.getInt32Ty(), matLdVal->getType() },
+              /* isVarArg */ false);
+
+            // Create the conversion function.
+            Function* MatCastFn = GetOrCreateHLFunction(
+              M, MatCastFnType, HLOpcodeGroup::HLCast, castOpCode);
+            Value* MatCastOpCode = ConstantInt::get(Builder.getInt32Ty(), castOpCode);
+
+            // Insert call to the conversion function.
+            matLdVal = Builder.CreateCall(MatCastFn, { MatCastOpCode, matLdVal });
+
+          }
+          Builder.CreateRet(matLdVal);
+        }
         else {
           Value *retVal = Builder.CreateLoad(subscript);
           // Convert to register representation
@@ -1336,6 +1460,10 @@ typedef APInt(__cdecl *IntBinaryEvalFuncType)(const APInt &, const APInt &);
 typedef float(__cdecl *FloatBinaryEvalFuncType)(float, float);
 typedef double(__cdecl *DoubleBinaryEvalFuncType)(double, double);
 
+typedef APInt(__cdecl *IntTernaryEvalFuncType)(const APInt &, const APInt &, const APInt &);
+typedef float(__cdecl *FloatTernaryEvalFuncType)(float, float, float);
+typedef double(__cdecl *DoubleTernaryEvalFuncType)(double, double, double);
+
 Value *EvalUnaryIntrinsic(ConstantFP *fpV, FloatUnaryEvalFuncType floatEvalFunc,
                           DoubleUnaryEvalFuncType doubleEvalFunc) {
   llvm::Type *Ty = fpV->getType();
@@ -1381,6 +1509,45 @@ Value *EvalBinaryIntrinsic(Constant *cV0, Constant *cV1,
     const APInt &iV0 = ciV0->getValue();
     const APInt &iV1 = ciV1->getValue();
     Value *dResult = ConstantInt::get(Ty, intEvalFunc(iV0, iV1));
+    Result = dResult;
+  }
+  return Result;
+}
+
+Value *EvalTernaryIntrinsic(Constant *cV0, Constant *cV1, Constant *cV2,
+                             FloatTernaryEvalFuncType floatEvalFunc,
+                             DoubleTernaryEvalFuncType doubleEvalFunc,
+                             IntTernaryEvalFuncType intEvalFunc) {
+  llvm::Type *Ty = cV0->getType();
+  Value *Result = nullptr;
+  if (Ty->isDoubleTy()) {
+    ConstantFP *fpV0 = cast<ConstantFP>(cV0);
+    ConstantFP *fpV1 = cast<ConstantFP>(cV1);
+    ConstantFP *fpV2 = cast<ConstantFP>(cV2);
+    double dV0 = fpV0->getValueAPF().convertToDouble();
+    double dV1 = fpV1->getValueAPF().convertToDouble();
+    double dV2 = fpV2->getValueAPF().convertToDouble();
+    Value *dResult = ConstantFP::get(Ty, doubleEvalFunc(dV0, dV1, dV2));
+    Result = dResult;
+  } else if (Ty->isFloatTy()) {
+    ConstantFP *fpV0 = cast<ConstantFP>(cV0);
+    ConstantFP *fpV1 = cast<ConstantFP>(cV1);
+    ConstantFP *fpV2 = cast<ConstantFP>(cV2);
+    float fV0 = fpV0->getValueAPF().convertToFloat();
+    float fV1 = fpV1->getValueAPF().convertToFloat();
+    float fV2 = fpV2->getValueAPF().convertToFloat();
+    Value *dResult = ConstantFP::get(Ty, floatEvalFunc(fV0, fV1, fV2));
+    Result = dResult;
+  } else {
+    DXASSERT_NOMSG(Ty->isIntegerTy());
+    DXASSERT_NOMSG(intEvalFunc);
+    ConstantInt *ciV0 = cast<ConstantInt>(cV0);
+    ConstantInt *ciV1 = cast<ConstantInt>(cV1);
+    ConstantInt *ciV2 = cast<ConstantInt>(cV2);
+    const APInt &iV0 = ciV0->getValue();
+    const APInt &iV1 = ciV1->getValue();
+    const APInt &iV2 = ciV2->getValue();
+    Value *dResult = ConstantInt::get(Ty, intEvalFunc(iV0, iV1, iV2));
     Result = dResult;
   }
   return Result;
@@ -1432,6 +1599,43 @@ Value *EvalBinaryIntrinsic(CallInst *CI, FloatBinaryEvalFuncType floatEvalFunc,
     Constant *cV0 = cast<Constant>(V0);
     Constant *cV1 = cast<Constant>(V1);
     Result = EvalBinaryIntrinsic(cV0, cV1, floatEvalFunc, doubleEvalFunc,
+                                 intEvalFunc);
+  }
+  CI->replaceAllUsesWith(Result);
+  CI->eraseFromParent();
+  return Result;
+
+  CI->eraseFromParent();
+  return Result;
+}
+
+Value *EvalTernaryIntrinsic(CallInst *CI, FloatTernaryEvalFuncType floatEvalFunc,
+                             DoubleTernaryEvalFuncType doubleEvalFunc,
+                             IntTernaryEvalFuncType intEvalFunc = nullptr) {
+  Value *V0 = CI->getArgOperand(0);
+  Value *V1 = CI->getArgOperand(1);
+  Value *V2 = CI->getArgOperand(2);
+  llvm::Type *Ty = CI->getType();
+  Value *Result = nullptr;
+  if (llvm::VectorType *VT = dyn_cast<llvm::VectorType>(Ty)) {
+    Result = UndefValue::get(Ty);
+    Constant *CV0 = cast<Constant>(V0);
+    Constant *CV1 = cast<Constant>(V1);
+    Constant *CV2 = cast<Constant>(V2);
+    IRBuilder<> Builder(CI);
+    for (unsigned i = 0; i < VT->getNumElements(); i++) {
+      Constant *cV0 = cast<Constant>(CV0->getAggregateElement(i));
+      Constant *cV1 = cast<Constant>(CV1->getAggregateElement(i));
+      Constant *cV2 = cast<Constant>(CV2->getAggregateElement(i));
+      Value *EltResult = EvalTernaryIntrinsic(cV0, cV1, cV2, floatEvalFunc,
+                                             doubleEvalFunc, intEvalFunc);
+      Result = Builder.CreateInsertElement(Result, EltResult, i);
+    }
+  } else {
+    Constant *cV0 = cast<Constant>(V0);
+    Constant *cV1 = cast<Constant>(V1);
+    Constant *cV2 = cast<Constant>(V2);
+    Result = EvalTernaryIntrinsic(cV0, cV1, cV2, floatEvalFunc, doubleEvalFunc,
                                  intEvalFunc);
   }
   CI->replaceAllUsesWith(Result);
@@ -1664,6 +1868,18 @@ Value *TryEvalIntrinsic(CallInst *CI, IntrinsicOp intriOp,
     CI->replaceAllUsesWith(cNan);
     CI->eraseFromParent();
     return cNan;
+  } break;
+  case IntrinsicOp::IOP_clamp: {
+    auto clampF = [](float a, float b, float c) {
+      return a < b ? b : a > c ? c : a;
+    };
+    auto clampD = [](double a, double b, double c) {
+      return a < b ? b : a > c ? c : a;
+    };
+    auto clampI = [](const APInt &a, const APInt &b, const APInt &c) -> APInt {
+      return a.slt(b) ? b : a.sgt(c) ? c : a;
+    };
+    return EvalTernaryIntrinsic(CI, clampF, clampD, clampI);
   } break;
   default:
     return nullptr;

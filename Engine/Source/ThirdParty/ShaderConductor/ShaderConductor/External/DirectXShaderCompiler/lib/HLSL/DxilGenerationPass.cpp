@@ -201,7 +201,7 @@ public:
 
     // Load up debug information, to cross-reference values and the instructions
     // used to load them.
-    m_HasDbgInfo = getDebugMetadataVersionFromModule(M) != 0;
+    m_HasDbgInfo = hasDebugInfo(M);
 
     // EntrySig for shader functions.
     DxilEntryPropsMap EntryPropsMap;
@@ -209,7 +209,7 @@ public:
     if (!SM->IsLib()) {
       Function *EntryFn = m_pHLModule->GetEntryFunction();
       if (!m_pHLModule->HasDxilFunctionProps(EntryFn)) {
-        dxilutil::EmitErrorOnFunction(EntryFn, "Entry function don't have property.");
+        dxilutil::EmitErrorOnFunction(M.getContext(), EntryFn, "Entry function don't have property.");
         return false;
       }
       DxilFunctionProps &props = m_pHLModule->GetDxilFunctionProps(EntryFn);
@@ -261,7 +261,7 @@ public:
           if (F.user_empty()) {
             F.eraseFromParent();
           } else {
-            dxilutil::EmitErrorOnFunction(&F, "Fail to lower createHandle.");
+            dxilutil::EmitErrorOnFunction(M.getContext(), &F, "Fail to lower createHandle.");
           }
         }
       }

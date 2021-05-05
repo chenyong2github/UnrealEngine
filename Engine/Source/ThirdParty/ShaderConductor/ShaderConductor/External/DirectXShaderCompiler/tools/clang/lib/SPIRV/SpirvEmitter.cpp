@@ -492,17 +492,10 @@ SpirvEmitter::SpirvEmitter(CompilerInstance &ci)
     spirvOptions.sBufferLayoutRule = SpirvLayoutRule::Scalar;
     spirvOptions.ampPayloadLayoutRule = SpirvLayoutRule::Scalar;
   } else if (spirvOptions.ue5Layout) {
-#if 1//WIP
     spirvOptions.cBufferLayoutRule = SpirvLayoutRule::RelaxedGLSLStd430;
     spirvOptions.tBufferLayoutRule = SpirvLayoutRule::RelaxedGLSLStd430;
     spirvOptions.sBufferLayoutRule = SpirvLayoutRule::RelaxedGLSLStd430;
     spirvOptions.ampPayloadLayoutRule = SpirvLayoutRule::RelaxedGLSLStd430;
-#elif 1
-    spirvOptions.cBufferLayoutRule = SpirvLayoutRule::FxcCTBuffer; // RelaxedGLSLStd430 makes objects disappear; RelaxedGLSLStd140 causes memory corruption; GLSLStd140 causes wrong results as well;
-    spirvOptions.tBufferLayoutRule = SpirvLayoutRule::RelaxedGLSLStd430;
-    spirvOptions.sBufferLayoutRule = SpirvLayoutRule::RelaxedGLSLStd430;
-    spirvOptions.ampPayloadLayoutRule = SpirvLayoutRule::RelaxedGLSLStd430;
-#endif
   } else {
     spirvOptions.cBufferLayoutRule = SpirvLayoutRule::RelaxedGLSLStd140;
     spirvOptions.tBufferLayoutRule = SpirvLayoutRule::RelaxedGLSLStd430;
@@ -1334,6 +1327,32 @@ bool SpirvEmitter::validateVKAttributes(const NamedDecl *decl) {
     }
   }
 
+  // vk::shader_record_ext is supported only on cbuffer/ConstantBuffer
+  if (const auto *srbAttr = decl->getAttr<VKShaderRecordEXTAttr>()) {
+    const auto loc = srbAttr->getLocation();
+    const HLSLBufferDecl *bufDecl = nullptr;
+    bool isValidType = false;
+    if ((bufDecl = dyn_cast<HLSLBufferDecl>(decl)))
+      isValidType = bufDecl->isCBuffer();
+    else if ((bufDecl = dyn_cast<HLSLBufferDecl>(decl->getDeclContext())))
+      isValidType = bufDecl->isCBuffer();
+    else if (isa<VarDecl>(decl))
+      isValidType = isConstantBuffer(dyn_cast<VarDecl>(decl)->getType());
+
+    if (!isValidType) {
+      emitError(
+          "vk::shader_record_ext can be applied only to cbuffer/ConstantBuffer",
+          loc);
+      success = false;
+    }
+    if (decl->hasAttr<VKBindingAttr>()) {
+      emitError("vk::shader_record_ext attribute cannot be used together with "
+                "vk::binding attribute",
+                loc);
+      success = false;
+    }
+  }
+
   return success;
 }
 
@@ -1363,7 +1382,12 @@ void SpirvEmitter::doHLSLBufferDecl(const HLSLBufferDecl *bufferDecl) {
   if (!validateVKAttributes(bufferDecl))
     return;
   if (bufferDecl->hasAttr<VKShaderRecordNVAttr>()) {
-    (void)declIdMapper.createShaderRecordBufferNV(bufferDecl);
+    (void)declIdMapper.createShaderRecordBuffer(
+        bufferDecl, DeclResultIdMapper::ContextUsageKind::ShaderRecordBufferNV);
+  } else if (bufferDecl->hasAttr<VKShaderRecordEXTAttr>()) {
+    (void)declIdMapper.createShaderRecordBuffer(
+        bufferDecl,
+        DeclResultIdMapper::ContextUsageKind::ShaderRecordBufferEXT);
   } else {
     (void)declIdMapper.createCTBuffer(bufferDecl);
   }
@@ -1445,7 +1469,14 @@ void SpirvEmitter::doVarDecl(const VarDecl *decl) {
   }
 
   if (decl->hasAttr<VKShaderRecordNVAttr>()) {
-    (void)declIdMapper.createShaderRecordBufferNV(decl);
+    (void)declIdMapper.createShaderRecordBuffer(
+        decl, DeclResultIdMapper::ContextUsageKind::ShaderRecordBufferNV);
+    return;
+  }
+
+  if (decl->hasAttr<VKShaderRecordEXTAttr>()) {
+    (void)declIdMapper.createShaderRecordBuffer(
+        decl, DeclResultIdMapper::ContextUsageKind::ShaderRecordBufferEXT);
     return;
   }
 
@@ -4404,6 +4435,17 @@ SpirvInstruction *SpirvEmitter::createImageSample(
     SpirvInstruction *minLod, SpirvInstruction *residencyCodeId,
     SourceLocation loc) {
 
+  // UE Change Begin: Offset can be optimized during function inlining
+  #if 0
+  if (varOffset) {
+    emitError("Use constant value for offset (SPIR-V spec does not accept a "
+              "variable offset for OpImage* instructions other than "
+              "OpImage*Gather)", loc);
+    return nullptr;
+  }
+  #endif
+  // UE Change End: Offset can be optimized during function inlining
+
   // SampleDref* instructions in SPIR-V always return a scalar.
   // They also have the correct type in HLSL.
   if (compareVal) {
@@ -4835,6 +4877,18 @@ SpirvEmitter::processBufferTextureLoad(const CXXMemberCallExpr *expr) {
       if (hasOffsetArg)
         handleOffsetInMethodCall(expr, 1, &constOffset, &varOffset);
     }
+
+    // UE Change Begin: Offset can be optimized during function inlining
+    #if 0
+    if (hasOffsetArg && varOffset) {
+      emitError("Use constant value for offset (SPIR-V spec does not accept a "
+                "variable offset for OpImage* instructions other than "
+                "OpImage*Gather)",
+                expr->getArg(textureMS ? 2 : 1)->getExprLoc());
+      return nullptr;
+    }
+    #endif
+    // UE Change End: Offset can be optimized during function inlining
 
     return processBufferTextureLoad(object, coordinate, constOffset, varOffset,
                                     lod, status, loc);

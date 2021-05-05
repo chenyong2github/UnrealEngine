@@ -74,11 +74,12 @@ const char *hlsl::GetValidationRuleText(ValidationRule value) {
     case hlsl::ValidationRule::ContainerPartMissing: return "Missing part '%0' required by module.";
     case hlsl::ValidationRule::ContainerPartInvalid: return "Unknown part '%0' found in DXIL container.";
     case hlsl::ValidationRule::ContainerRootSignatureIncompatible: return "Root Signature in DXIL container is not compatible with shader.";
-    case hlsl::ValidationRule::MetaRequired: return "TODO - Required metadata missing.";
+    case hlsl::ValidationRule::MetaRequired: return "Required metadata missing.";
     case hlsl::ValidationRule::MetaKnown: return "Named metadata '%0' is unknown.";
     case hlsl::ValidationRule::MetaUsed: return "All metadata must be used by dxil.";
     case hlsl::ValidationRule::MetaTarget: return "Unknown target triple '%0'.";
-    case hlsl::ValidationRule::MetaWellFormed: return "TODO - Metadata must be well-formed in operand count and types.";
+    case hlsl::ValidationRule::MetaWellFormed: return "Metadata must be well-formed in operand count and types.";
+    case hlsl::ValidationRule::MetaVersionSupported: return "%0 version in metadata (%1.%2) is not supported; maximum: (%3.%4).";
     case hlsl::ValidationRule::MetaSemanticLen: return "Semantic length must be at least 1 and at most 64.";
     case hlsl::ValidationRule::MetaInterpModeValid: return "Invalid interpolation mode for '%0'.";
     case hlsl::ValidationRule::MetaSemaKindValid: return "Semantic kind for '%0' is invalid.";
@@ -208,7 +209,7 @@ const char *hlsl::GetValidationRuleText(ValidationRule value) {
     case hlsl::ValidationRule::TypesNoPtrToPtr: return "Pointers to pointers, or pointers in structures are not allowed.";
     case hlsl::ValidationRule::TypesI8: return "I8 can only be used as immediate value for intrinsic or as i8* via bitcast by lifetime intrinsics.";
     case hlsl::ValidationRule::SmName: return "Unknown shader model '%0'.";
-    case hlsl::ValidationRule::SmDxilVersion: return "Shader model requires Dxil Version %0,%1.";
+    case hlsl::ValidationRule::SmDxilVersion: return "Shader model requires Dxil Version %0.%1.";
     case hlsl::ValidationRule::SmOpcode: return "Opcode %0 not valid in shader model %1.";
     case hlsl::ValidationRule::SmOperand: return "Operand must be defined in target shader model.";
     case hlsl::ValidationRule::SmSemantic: return "Semantic '%0' is invalid as %1 %2.";
@@ -219,6 +220,7 @@ const char *hlsl::GetValidationRuleText(ValidationRule value) {
     case hlsl::ValidationRule::SmThreadGroupChannelRange: return "Declared Thread Group %0 size %1 outside valid range [%2..%3].";
     case hlsl::ValidationRule::SmMaxTheadGroup: return "Declared Thread Group Count %0 (X*Y*Z) is beyond the valid maximum of %1.";
     case hlsl::ValidationRule::SmMaxTGSMSize: return "Total Thread Group Shared Memory storage is %0, exceeded %1.";
+    case hlsl::ValidationRule::SmTGSMUnsupported: return "Thread Group Shared Memory not supported %0.";
     case hlsl::ValidationRule::SmWaveSizeValue: return "Declared WaveSize %0 outside valid range [%1..%2], or not a power of 2.";
     case hlsl::ValidationRule::SmWaveSizeNeedsDxil16Plus: return "WaveSize is valid only for DXIL version 1.6 and higher.";
     case hlsl::ValidationRule::SmROVOnlyInPS: return "RasterizerOrdered objects are only allowed in 5.0+ pixel shaders.";
@@ -260,6 +262,7 @@ const char *hlsl::GetValidationRuleText(ValidationRule value) {
     case hlsl::ValidationRule::SmCSNoSignatures: return "Compute shaders must not have shader signatures.";
     case hlsl::ValidationRule::SmCBufferTemplateTypeMustBeStruct: return "D3D12 constant/texture buffer template element can only be a struct.";
     case hlsl::ValidationRule::SmResourceRangeOverlap: return "Resource %0 with base %1 size %2 overlap with other resource with base %3 size %4 in space %5.";
+    case hlsl::ValidationRule::SmCBufferSize: return "CBuffer size is %0 bytes, exceeding maximum of 65536 bytes.";
     case hlsl::ValidationRule::SmCBufferOffsetOverlap: return "CBuffer %0 has offset overlaps at %1.";
     case hlsl::ValidationRule::SmCBufferElementOverflow: return "CBuffer %0 size insufficient for element at offset %1.";
     case hlsl::ValidationRule::SmCBufferArrayOffsetAlignment: return "CBuffer %0 has unaligned array offset at %1.";
@@ -599,7 +602,6 @@ struct ValidationContext {
         }
       }
     }
-    Type *ResPropTy = hlslOP->GetResourcePropertiesType();
     const ShaderModel &SM = *DxilMod.GetShaderModel();
 
     for (auto &it : hlslOP->GetOpFuncList(DXIL::OpCode::AnnotateHandle)) {
@@ -611,7 +613,7 @@ struct ValidationContext {
         CallInst *CI = cast<CallInst>(U);
         DxilInst_AnnotateHandle hdl(CI);
         DxilResourceProperties RP =
-            resource_helper::loadPropsFromAnnotateHandle(hdl, ResPropTy, SM);
+            resource_helper::loadPropsFromAnnotateHandle(hdl, SM);
         if (RP.getResourceKind() == DXIL::ResourceKind::Invalid) {
           EmitInstrError(CI, ValidationRule::InstrOpConstRange);
           continue;
@@ -636,7 +638,7 @@ struct ValidationContext {
     FormatRuleText(ruleText, args);
     if (pDebugModule)
       GV = pDebugModule->getGlobalVariable(GV->getName());
-    dxilutil::EmitErrorOnGlobalVariable(GV, ruleText);
+    dxilutil::EmitErrorOnGlobalVariable(M.getContext(), GV, ruleText);
     Failed = true;
   }
 
@@ -686,8 +688,49 @@ struct ValidationContext {
     Failed = true;
   }
 
+  // Use this instead of DxilResourceBase::GetGlobalName
+  std::string GetResourceName(const hlsl::DxilResourceBase *Res) {
+    if (!Res)
+      return "nullptr";
+    std::string resName = Res->GetGlobalName();
+    if (!resName.empty())
+      return resName;
+    if (pDebugModule) {
+      DxilModule &DM = pDebugModule->GetOrCreateDxilModule();
+      switch (Res->GetClass()) {
+      case DXIL::ResourceClass::CBuffer:  return DM.GetCBuffer(Res->GetID()).GetGlobalName();
+      case DXIL::ResourceClass::Sampler:  return DM.GetSampler(Res->GetID()).GetGlobalName();
+      case DXIL::ResourceClass::SRV:      return DM.GetSRV(Res->GetID()).GetGlobalName();
+      case DXIL::ResourceClass::UAV:      return DM.GetUAV(Res->GetID()).GetGlobalName();
+      default: return "Invalid Resource";
+      }
+    }
+    // When names have been stripped, use class and binding location to
+    // identify the resource.  Format is roughly:
+    // Allocated:   (CB|T|U|S)<ID>: <ResourceKind> ((cb|t|u|s)<LB>[<RangeSize>] space<SpaceID>)
+    // Unallocated: (CB|T|U|S)<ID>: <ResourceKind> (no bind location)
+    // Example: U0: TypedBuffer (u5[2] space1)
+    // [<RangeSize>] and space<SpaceID> skipped if 1 and 0 respectively.
+    return (Twine(Res->GetResIDPrefix()) + Twine(Res->GetID()) + ": " +
+            Twine(Res->GetResKindName()) +
+            (Res->IsAllocated()
+                 ? (" (" + Twine(Res->GetResBindPrefix()) +
+                    Twine(Res->GetLowerBound()) +
+                    (Res->IsUnbounded()
+                         ? Twine("[unbounded]")
+                         : (Res->GetRangeSize() != 1)
+                               ? "[" + Twine(Res->GetRangeSize()) + "]"
+                               : Twine()) +
+                    ((Res->GetSpaceID() != 0)
+                         ? " space" + Twine(Res->GetSpaceID())
+                         : Twine()) +
+                    ")")
+                 : Twine(" (no bind location)")))
+        .str();
+  }
+
   void EmitResourceError(const hlsl::DxilResourceBase *Res, ValidationRule rule) {
-    std::string QuotedRes = " '" + Res->GetGlobalName() + "'";
+    std::string QuotedRes = " '" + GetResourceName(Res) + "'";
     dxilutil::EmitErrorOnContext(M.getContext(), GetValidationRuleText(rule) + QuotedRes);
     Failed = true;
   }
@@ -695,7 +738,7 @@ struct ValidationContext {
   void EmitResourceFormatError(const hlsl::DxilResourceBase *Res,
                                ValidationRule rule,
                                ArrayRef<StringRef> args) {
-    std::string QuotedRes = " '" + Res->GetGlobalName() + "'";
+    std::string QuotedRes = " '" + GetResourceName(Res) + "'";
     std::string ruleText = GetValidationRuleText(rule);
     FormatRuleText(ruleText, args);
     dxilutil::EmitErrorOnContext(M.getContext(), ruleText + QuotedRes);
@@ -805,8 +848,9 @@ struct ValidationContext {
 
   void EmitFnError(Function *F, ValidationRule rule) {
     if (pDebugModule)
-      F = pDebugModule->getFunction(F->getName());
-    dxilutil::EmitErrorOnFunction(F, GetValidationRuleText(rule));
+      if (Function *dbgF = pDebugModule->getFunction(F->getName()))
+        F = dbgF;
+    dxilutil::EmitErrorOnFunction(M.getContext(), F, GetValidationRuleText(rule));
     Failed = true;
   }
 
@@ -814,8 +858,9 @@ struct ValidationContext {
     std::string ruleText = GetValidationRuleText(rule);
     FormatRuleText(ruleText, args);
     if (pDebugModule)
-      F = pDebugModule->getFunction(F->getName());
-    dxilutil::EmitErrorOnFunction(F, ruleText);
+      if (Function *dbgF = pDebugModule->getFunction(F->getName()))
+        F = dbgF;
+    dxilutil::EmitErrorOnFunction(M.getContext(), F, ruleText);
     Failed = true;
   }
 
@@ -972,6 +1017,9 @@ static bool ValidateOpcodeInProfile(DXIL::OpCode opcode,
   // CreateHandleFromHeap=218, Unpack4x8=219, Pack4x8=220, IsHelperLane=221
   if ((216 <= op && op <= 221))
     return (major > 6 || (major == 6 && minor >= 6));
+  // Instructions: TextureGatherImm=222, TextureGatherCmpImm=223
+  if ((222 <= op && op <= 223))
+    return (major > 6 || (major == 6 && minor >= 15));
   return true;
   // VALOPCODESM-TEXT:END
 }
@@ -1231,7 +1279,6 @@ static void ValidateCalcLODResourceDimensionCoord(CallInst *CI, DXIL::ResourceKi
 static void ValidateResourceOffset(CallInst *CI, DXIL::ResourceKind resKind,
                                    ArrayRef<Value *> offsets,
                                    ValidationContext &ValCtx) {
-  const unsigned kMaxNumOffsets = 3;
   unsigned numOffsets = DxilResource::GetNumOffsets(resKind);
   bool hasOffset = !isa<UndefValue>(offsets[0]);
 
@@ -1250,7 +1297,7 @@ static void ValidateResourceOffset(CallInst *CI, DXIL::ResourceKind resKind,
     validateOffset(offsets[0]);
   }
 
-  for (unsigned i = 1; i < kMaxNumOffsets; i++) {
+  for (unsigned i = 1; i < offsets.size(); i++) {
     if (i < numOffsets) {
       if (hasOffset) {
         if (isa<UndefValue>(offsets[i]))
@@ -1390,8 +1437,11 @@ static void ValidateGather(CallInst *CI, Value *srvHandle, Value *samplerHandle,
   default:
     // Invalid resource type for gather.
     ValCtx.EmitInstrError(CI, ValidationRule::InstrResourceKindForGather);
-    break;
+    return;
   }
+  if (OP::IsDxilOpFuncCallInst(CI, DXIL::OpCode::TextureGatherImm) ||
+      OP::IsDxilOpFuncCallInst(CI, DXIL::OpCode::TextureGatherCmpImm))
+    ValidateResourceOffset(CI, resKind, offsets, ValCtx);
 }
 
 static unsigned StoreValueToMask(ArrayRef<Value *> vals) {
@@ -1940,6 +1990,7 @@ static void ValidateResourceDxilOp(CallInst *CI, DXIL::OpCode opcode,
 
     ValidateDerivativeOp(CI, ValCtx);
   } break;
+  case DXIL::OpCode::TextureGatherImm:
   case DXIL::OpCode::TextureGather: {
     DxilInst_TextureGather gather(CI);
     ValidateGather(CI, gather.get_srv(), gather.get_sampler(),
@@ -1948,6 +1999,7 @@ static void ValidateResourceDxilOp(CallInst *CI, DXIL::OpCode opcode,
                    {gather.get_offset0(), gather.get_offset1()},
                    /*IsSampleC*/ false, ValCtx);
   } break;
+  case DXIL::OpCode::TextureGatherCmpImm:
   case DXIL::OpCode::TextureGatherCmp: {
     DxilInst_TextureGatherCmp gather(CI);
     ValidateGather(CI, gather.get_srv(), gather.get_sampler(),
@@ -2199,8 +2251,11 @@ static void ValidateResourceDxilOp(CallInst *CI, DXIL::OpCode opcode,
     default:
       ValCtx.EmitInstrError(CI,
                             ValidationRule::InstrResourceKindForTextureLoad);
-      break;
+      return;
     }
+
+    ValidateResourceOffset(CI, resKind, {texLd.get_offset0(), texLd.get_offset1(),
+                                         texLd.get_offset2()}, ValCtx);
   } break;
   case DXIL::OpCode::CBufferLoad: {
     DxilInst_CBufferLoad CBLoad(CI);
@@ -2378,6 +2433,8 @@ static void ValidateDxilOperationCallInProfile(CallInst *CI,
   case DXIL::OpCode::CalculateLOD:
   case DXIL::OpCode::TextureGather:
   case DXIL::OpCode::TextureGatherCmp:
+  case DXIL::OpCode::TextureGatherImm:
+  case DXIL::OpCode::TextureGatherCmpImm:
   case DXIL::OpCode::Sample:
   case DXIL::OpCode::SampleCmp:
   case DXIL::OpCode::SampleCmpLevelZero:
@@ -2510,6 +2567,17 @@ static void ValidateDxilOperationCallInProfile(CallInst *CI,
       ValCtx.EmitInstrFormatError(CI, ValidationRule::SmOpcodeInInvalidFunction,
                                   {"64-bit atomic operations", "Shader Model 6.6+"});
   } break;
+  case DXIL::OpCode::CreateHandle:
+    if (ValCtx.isLibProfile) {
+      ValCtx.EmitInstrFormatError(CI, ValidationRule::SmOpcodeInInvalidFunction,
+                                  {"CreateHandle", "non-library targets"});
+    }
+    // CreateHandle should not be used in SM 6.6 and above:
+    if (DXIL::CompareVersions(ValCtx.m_DxilMajor, ValCtx.m_DxilMinor, 1, 5) > 0) {
+      ValCtx.EmitInstrFormatError(CI, ValidationRule::SmOpcodeInInvalidFunction,
+                                  {"CreateHandle", "Shader model 6.5 and below"});
+    }
+    break;
   default:
     // TODO: make sure every opcode is checked.
     // Skip opcodes don't need special check.
@@ -3767,12 +3835,33 @@ static void ValidateTGSMRaceCondition(std::vector<StoreInst *> &fixAddrTGSMList,
 static void ValidateGlobalVariables(ValidationContext &ValCtx) {
   DxilModule &M = ValCtx.DxilMod;
 
+  const ShaderModel *pSM = ValCtx.DxilMod.GetShaderModel();
+  bool TGSMAllowed = pSM->IsCS() || pSM->IsAS() || pSM->IsMS() || pSM->IsLib();
+
   unsigned TGSMSize = 0;
   std::vector<StoreInst*> fixAddrTGSMList;
   const DataLayout &DL = M.GetModule()->getDataLayout();
   for (GlobalVariable &GV : M.GetModule()->globals()) {
     ValidateGlobalVariable(GV, ValCtx);
     if (GV.getType()->getAddressSpace() == DXIL::kTGSMAddrSpace) {
+      if (!TGSMAllowed)
+        ValCtx.EmitGlobalVariableFormatError(&GV, ValidationRule::SmTGSMUnsupported,
+                                             { std::string("in Shader Model ") + M.GetShaderModel()->GetName() });
+      // Lib targets need to check the usage to know if it's allowed
+      if (pSM->IsLib()) {
+        for (User *U : GV.users()) {
+          if (Instruction *I = dyn_cast<Instruction>(U)) {
+            llvm::Function *F = I->getParent()->getParent();
+            if (M.HasDxilEntryProps(F)) {
+              DxilFunctionProps &props = M.GetDxilEntryProps(F).props;
+              if (!props.IsCS() && !props.IsAS() && !props.IsMS()) {
+                ValCtx.EmitInstrFormatError(I, ValidationRule::SmTGSMUnsupported,
+                                            { "from non-compute entry points" });
+              }
+            }
+          }
+        }
+      }
       TGSMSize += DL.getTypeAllocSize(GV.getType()->getElementType());
       CollectFixAddressAccess(&GV, fixAddrTGSMList);
     }
@@ -3822,6 +3911,12 @@ static void ValidateValidatorVersion(ValidationContext &ValCtx) {
         // depending on the degree of compat across versions.
         if (majorVer == curMajor && minorVer <= curMinor) {
           return;
+        } else {
+          ValCtx.EmitFormatError(
+              ValidationRule::MetaVersionSupported,
+              {"Validator", std::to_string(majorVer), std::to_string(minorVer),
+               std::to_string(curMajor), std::to_string(curMinor)});
+          return;
         }
       }
     }
@@ -3843,8 +3938,14 @@ static void ValidateDxilVersion(ValidationContext &ValCtx) {
           GetNodeOperandAsInt(ValCtx, pVerValues, 1, &minorVer)) {
         // This will need to be updated as dxil major/minor versions evolve,
         // depending on the degree of compat across versions.
-        if ((majorVer == 1 && minorVer <= DXIL::kDxilMinor) &&
+        if ((majorVer == DXIL::kDxilMajor && minorVer <= DXIL::kDxilMinor) &&
             (majorVer == ValCtx.m_DxilMajor && minorVer == ValCtx.m_DxilMinor)) {
+          return;
+        } else {
+          ValCtx.EmitFormatError(
+              ValidationRule::MetaVersionSupported,
+              {"Dxil", std::to_string(majorVer), std::to_string(minorVer),
+               std::to_string(DXIL::kDxilMajor), std::to_string(DXIL::kDxilMinor)});
           return;
         }
       }
@@ -3887,6 +3988,9 @@ static void ValidateBitcode(ValidationContext &ValCtx) {
 }
 
 static void ValidateMetadata(ValidationContext &ValCtx) {
+  ValidateValidatorVersion(ValCtx);
+  ValidateDxilVersion(ValCtx);
+
   Module *pModule = &ValCtx.M;
   const std::string &target = pModule->getTargetTriple();
   if (target != "dxil-ms-dx") {
@@ -3934,8 +4038,6 @@ static void ValidateMetadata(ValidationContext &ValCtx) {
     }
   }
 
-  ValidateDxilVersion(ValCtx);
-  ValidateValidatorVersion(ValCtx);
   ValidateTypeAnnotation(ValCtx);
 }
 
@@ -3960,7 +4062,7 @@ static void ValidateResourceOverlap(
   if (conflictRes) {
     ValCtx.EmitFormatError(
         ValidationRule::SmResourceRangeOverlap,
-        {res.GetGlobalName(), std::to_string(base),
+        {ValCtx.GetResourceName(&res), std::to_string(base),
          std::to_string(size),
          std::to_string(conflictRes->GetLowerBound()),
          std::to_string(conflictRes->GetRangeSize()),
@@ -4153,6 +4255,12 @@ static void ValidateCBuffer(DxilCBuffer &cb, ValidationContext &ValCtx) {
                              ValidationRule::SmCBufferTemplateTypeMustBeStruct);
     return;
   }
+  if (cb.GetSize() > (DXIL::kMaxCBufferSize << 4)) {
+    ValCtx.EmitResourceFormatError(&cb,
+                             ValidationRule::SmCBufferSize,
+                             {std::to_string(cb.GetSize())});
+    return;
+  }
   StructType *ST = cast<StructType>(Ty);
   DxilTypeSystem &typeSys = ValCtx.DxilMod.GetTypeSystem();
   DxilStructAnnotation *annotation = typeSys.GetStructAnnotation(ST);
@@ -4166,7 +4274,7 @@ static void ValidateCBuffer(DxilCBuffer &cb, ValidationContext &ValCtx) {
       DXIL::kMaxCBufferSize << 4);
   CollectCBufferRanges(annotation, constAllocator,
                        0, typeSys,
-                       cb.GetGlobalName(), ValCtx);
+                       ValCtx.GetResourceName(&cb), ValCtx);
 }
 
 static void ValidateResources(ValidationContext &ValCtx) {
@@ -4198,7 +4306,7 @@ static void ValidateResources(ValidationContext &ValCtx) {
     if (uav->HasCounter() && uav->IsGloballyCoherent())
       ValCtx.EmitResourceFormatError(uav.get(),
                                      ValidationRule::MetaGlcNotOnAppendConsume,
-                                     {uav.get()->GetGlobalName()});
+                                     {ValCtx.GetResourceName(uav.get())});
 
     ValidateResource(*uav, ValCtx);
     ValidateResourceOverlap(*uav, uavAllocator, ValCtx);
@@ -6204,6 +6312,8 @@ _Use_decl_annotations_ HRESULT ValidateLoadModuleFromContainerLazy(
 _Use_decl_annotations_
 HRESULT ValidateDxilContainer(const void *pContainer,
                               uint32_t ContainerSize,
+                              const void *pOptDebugBitcode,
+                              uint32_t OptDebugBitcodeSize,
                               llvm::raw_ostream &DiagStream) {
   LLVMContext Ctx, DbgCtx;
   std::unique_ptr<llvm::Module> pModule, pDebugModule;
@@ -6218,6 +6328,12 @@ HRESULT ValidateDxilContainer(const void *pContainer,
   IFR(ValidateLoadModuleFromContainer(pContainer, ContainerSize, pModule, pDebugModule,
       Ctx, DbgCtx, DiagStream));
 
+  if (!pDebugModule && pOptDebugBitcode) {
+    // TODO: lazy load for perf
+    IFR(ValidateLoadModule((const char *)pOptDebugBitcode, OptDebugBitcodeSize,
+                           pDebugModule, DbgCtx, DiagStream, /*bLazyLoad*/false));
+  }
+
   // Validate DXIL Module
   IFR(ValidateDxilModule(pModule.get(), pDebugModule.get()));
 
@@ -6229,4 +6345,10 @@ HRESULT ValidateDxilContainer(const void *pContainer,
     IsDxilContainerLike(pContainer, ContainerSize), ContainerSize);
 }
 
+_Use_decl_annotations_
+HRESULT ValidateDxilContainer(const void *pContainer,
+                              uint32_t ContainerSize,
+                              llvm::raw_ostream &DiagStream) {
+  return ValidateDxilContainer(pContainer, ContainerSize, nullptr, 0, DiagStream);
+}
 } // namespace hlsl

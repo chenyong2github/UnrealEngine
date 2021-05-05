@@ -82,10 +82,10 @@ namespace dxilutil {
 
   void EmitErrorOnInstruction(llvm::Instruction *I, llvm::Twine Msg);
   void EmitWarningOnInstruction(llvm::Instruction *I, llvm::Twine Msg);
-  void EmitErrorOnFunction(llvm::Function *F, llvm::Twine Msg);
-  void EmitWarningOnFunction(llvm::Function *F, llvm::Twine Msg);
-  void EmitErrorOnGlobalVariable(llvm::GlobalVariable *GV, llvm::Twine Msg);
-  void EmitWarningOnGlobalVariable(llvm::GlobalVariable *GV, llvm::Twine Msg);
+  void EmitErrorOnFunction(llvm::LLVMContext &Ctx, llvm::Function *F, llvm::Twine Msg);
+  void EmitWarningOnFunction(llvm::LLVMContext &Ctx, llvm::Function *F, llvm::Twine Msg);
+  void EmitErrorOnGlobalVariable(llvm::LLVMContext &Ctx, llvm::GlobalVariable *GV, llvm::Twine Msg);
+  void EmitWarningOnGlobalVariable(llvm::LLVMContext &Ctx, llvm::GlobalVariable *GV, llvm::Twine Msg);
   void EmitErrorOnContext(llvm::LLVMContext &Ctx, llvm::Twine Msg);
   void EmitWarningOnContext(llvm::LLVMContext &Ctx, llvm::Twine Msg);
   void EmitNoteOnContext(llvm::LLVMContext &Ctx, llvm::Twine Msg);
@@ -152,6 +152,9 @@ namespace dxilutil {
 
   void ReplaceRawBufferLoad64Bit(llvm::Function *F, llvm::Type *EltTy, hlsl::OP *hlslOP);
   void ReplaceRawBufferStore64Bit(llvm::Function *F, llvm::Type *ETy, hlsl::OP *hlslOP);
+
+  bool IsConvergentMarker(llvm::Value *V);
+  llvm::Value *GetConvergentSource(llvm::Value *V);
 }
 
 }

@@ -658,6 +658,9 @@ TEST_F(FileTest, SemanticVertexIDVS) {
 TEST_F(FileTest, SemanticInstanceIDVS) {
   runFileTest("semantic.instance-id.vs.hlsl");
 }
+TEST_F(FileTest, SemanticNonzeroBaseInstanceVS) {
+  runFileTest("semantic.nonzero-base-instance.vs.hlsl");
+}
 TEST_F(FileTest, SemanticInstanceIDHS) {
   runFileTest("semantic.instance-id.hs.hlsl");
 }
@@ -865,6 +868,9 @@ TEST_F(FileTest, TextureArraySample) {
 }
 TEST_F(FileTest, TextureLoad) { runFileTest("texture.load.hlsl"); }
 TEST_F(FileTest, TextureArrayLoad) { runFileTest("texture.array.load.hlsl"); }
+TEST_F(FileTest, TextureLoadInvalidOffsetOperand) {
+  runFileTest("texture.load-invalid-offset-operand.hlsl", Expect::Failure);
+}
 TEST_F(FileTest, TextureGetDimensions) {
   runFileTest("texture.get-dimensions.hlsl");
 }
@@ -946,6 +952,9 @@ TEST_F(FileTest, TextureArraySampleCmpLevelZero) {
 }
 TEST_F(FileTest, TextureSampleInvalidImplicitLod) {
   runFileTest("texture.sample-invalid-implicit-lod.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, TextureSampleInvalidOffsetOperand) {
+  runFileTest("texture.sample-invalid-offset-operand.hlsl", Expect::Failure);
 }
 TEST_F(FileTest, TextureInvalidTex2D) {
   runFileTest("texture.sample.invalid.tex2d.hlsl", Expect::Failure);
@@ -1695,6 +1704,17 @@ TEST_F(FileTest, VulkanAttributePushConstantInvalidUsages) {
 TEST_F(FileTest, VulkanAttributeShaderRecordNVInvalidUsages) {
   runFileTest("vk.attribute.shader-record-nv.invalid.hlsl", Expect::Failure);
 }
+TEST_F(FileTest, VulkanAttributeShaderRecordEXTInvalidUsages) {
+  runFileTest("vk.attribute.shader-record-ext.invalid.hlsl", Expect::Failure);
+}
+
+TEST_F(FileTest, VulkanAttributeImageFormat) {
+  runFileTest("vk.attribute.image-format.hlsl", Expect::Success,
+              /*runValidation*/ false);
+}
+TEST_F(FileTest, VulkanAttributeImageFormatO3) {
+  runFileTest("vk.attribute.image-format.o3.hlsl");
+}
 
 TEST_F(FileTest, VulkanCLOptionInvertYVS) {
   runFileTest("vk.cloption.invert-y.vs.hlsl");
@@ -2334,6 +2354,18 @@ TEST_F(FileTest, VulkanLayoutShaderRecordBufferNVStd430) {
 TEST_F(FileTest, VulkanShaderRecordBufferNVOffset) {
   // Checks the behavior of [[vk::offset]] with [[vk::shader_record_nv]]
   runFileTest("vk.shader-record-nv.offset.hlsl");
+}
+// Tests for [[vk::shader_record_ext]]
+TEST_F(FileTest, VulkanShaderRecordBufferEXT) {
+  runFileTest("vk.shader-record-ext.hlsl");
+}
+TEST_F(FileTest, VulkanLayoutShaderRecordBufferEXTStd430) {
+  setGlLayout();
+  runFileTest("vk.layout.shader-record-ext.std430.hlsl");
+}
+TEST_F(FileTest, VulkanShaderRecordBufferEXTOffset) {
+  // Checks the behavior of [[vk::offset]] with [[vk::shader_record_ext]]
+  runFileTest("vk.shader-record-ext.offset.hlsl");
 }
 TEST_F(FileTest, VulkanShadingRate) { runFileTest("vk.shading-rate.hlsl"); }
 TEST_F(FileTest, VulkanShadingRateError) {

@@ -64,6 +64,7 @@ struct SpirvCodeGenOptions {
   // UE Change End: Use custom layout rules for UE5.
   bool flattenResourceArrays;
   bool autoShiftBindings;
+  bool supportNonzeroBaseInstance;
   SpirvLayoutRule cBufferLayoutRule;
   SpirvLayoutRule sBufferLayoutRule;
   SpirvLayoutRule tBufferLayoutRule;

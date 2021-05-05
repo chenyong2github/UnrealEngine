@@ -381,6 +381,29 @@ public:
     }
   }
 
+  // Replace all fromOpcode call instructions with toOpcode equivalents
+  void ReplaceIntrinsics(Module &M, hlsl::OP *hlslOp, DXIL::OpCode fromOpcode, DXIL::OpCode toOpcode) {
+    for (auto it : hlslOp->GetOpFuncList(fromOpcode)) {
+      Function *F = it.second;
+      if (!F)
+        continue;
+      Type *Ty = OP::GetOverloadType(fromOpcode, F);
+      for (auto uit = F->user_begin(); uit != F->user_end(); uit++) {
+        CallInst *CI = cast<CallInst>(*uit);
+        IRBuilder<> Builder(CI);
+        std::vector<Value*> args;
+        args.emplace_back(hlslOp->GetU32Const((unsigned)toOpcode));
+        for (unsigned i = 1; i < CI->getNumArgOperands(); i++)
+          args.emplace_back(CI->getOperand(i));
+
+        Function *newF = hlslOp->GetOpFunc(toOpcode, Ty);
+        CallInst *NewCI = Builder.CreateCall(newF, args);
+        CI->replaceAllUsesWith(NewCI);
+        CI->eraseFromParent();
+      }
+    }
+  }
+
   ///////////////////////////////////////////////////
   // IsHelperLane() lowering for SM < 6.6
 
@@ -493,9 +516,11 @@ public:
     }
   }
 
+  GlobalVariable *GetIsHelperGV(Module &M) {
+    return M.getGlobalVariable(DXIL::kDxIsHelperGlobalName, /*AllowLocal*/ true);
+  }
   GlobalVariable *GetOrCreateIsHelperGV(Module &M, hlsl::OP *hlslOP) {
-    GlobalVariable *GV =
-        M.getGlobalVariable(DXIL::kDxIsHelperGlobalName, /*AllowLocal*/ true);
+    GlobalVariable *GV = GetIsHelperGV(M);
     if (GV)
       return GV;
     DxilModule &DM = M.GetDxilModule();
@@ -570,7 +595,11 @@ public:
       for (auto uit = F->user_begin(); uit != F->user_end();) {
         CallInst *CI = cast<CallInst>(*(uit++));
         if (!GV)
-          GV = GetOrCreateIsHelperGV(*F->getParent(), hlslOP);
+          GV = GetIsHelperGV(*F->getParent());
+        // If we don't already have a global for this,
+        // we didn't have any IsHelper() calls, so no need to add one now.
+        if (!GV)
+          return;
         IRBuilder<> Builder(CI);
         Value *Cond =
             Builder.CreateZExt(DxilInst_Discard(CI).get_condition(), I32Ty);
@@ -595,7 +624,7 @@ public:
       // in an exported function linked to a PS in another library in this case.
       // But it won't pass validation otherwise.
       if (pSM->IsLib() && DXIL::CompareVersions(ValMajor, ValMinor, 1, 6) < 1) {
-        if (GlobalVariable *GV = M.getGlobalVariable(DXIL::kDxIsHelperGlobalName, /*AllowLocal*/ true)) {
+        if (GlobalVariable *GV = GetIsHelperGV(M)) {
           GV->setLinkage(GlobalValue::InternalLinkage);
         }
       }
@@ -732,6 +761,13 @@ public:
       if (DXIL::CompareVersions(DxilMajor, DxilMinor, 1, 6) < 0) {
         patchDxil_1_6(M, hlslOP, ValMajor, ValMinor);
       }
+
+      // Patch all existing dxil versions for some future one
+      // that differentiates immediate and programmable gathers
+      ReplaceIntrinsics(M, hlslOP, OP::OpCode::TextureGatherImm, OP::OpCode::TextureGather);
+      ReplaceIntrinsics(M, hlslOP, OP::OpCode::TextureGatherCmpImm, OP::OpCode::TextureGatherCmp);
+
+
       // Remove store undef output.
       RemoveStoreUndefOutput(M, hlslOP);
 
@@ -1432,13 +1468,20 @@ public:
       if (F.isDeclaration())
         continue;
 
-      SmallVector<CallInst *, 16> localGradientOps;
+      DenseSet<Instruction *> localGradientArgs;
       for (CallInst *CI : gradientOps) {
-        if (CI->getParent()->getParent() == &F)
-          localGradientOps.emplace_back(CI);
+        if (CI->getParent()->getParent() == &F) {
+          for (Value *V : CI->arg_operands()) {
+            // TODO: only check operand which used for gradient calculation.
+            Instruction *vI = dyn_cast<Instruction>(V);
+            if (!vI)
+              continue;
+            localGradientArgs.insert(vI);
+          }
+        }
       }
 
-      if (localGradientOps.empty())
+      if (localGradientArgs.empty())
         continue;
 
       PostDominatorTree PDT;
@@ -1447,9 +1490,10 @@ public:
           WaveSensitivityAnalysis::create(PDT));
 
       WaveVal->Analyze(&F);
-      for (CallInst *op : localGradientOps) {
-        if (WaveVal->IsWaveSensitive(op)) {
-          dxilutil::EmitWarningOnInstruction(op,
+      for (Instruction *gradArg : localGradientArgs) {
+        // Check operand of gradient ops, not gradientOps itself.
+        if (WaveVal->IsWaveSensitive(gradArg)) {
+          dxilutil::EmitWarningOnInstruction(gradArg,
                                              UniNoWaveSensitiveGradientErrMsg);
         }
       }
