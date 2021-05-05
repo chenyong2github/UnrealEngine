@@ -4,6 +4,7 @@
 
 #include "MaterialExporterUSDOptions.h"
 #include "UnrealUSDWrapper.h"
+#include "USDConversionUtils.h"
 #include "USDMemory.h"
 #include "USDShadeConversion.h"
 
@@ -91,7 +92,7 @@ bool UMaterialExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type, FAr
 		return false;
 	}
 
-	FString RootPrimPath = ( TEXT( "/" ) + Material->GetName() );
+	FString RootPrimPath = ( TEXT( "/" ) + UsdUtils::SanitizeUsdIdentifier( *Material->GetName() ) );
 
 	UE::FUsdPrim RootPrim = UsdStage.DefinePrim( UE::FSdfPath( *RootPrimPath ), TEXT( "Material" ) );
 	if ( !RootPrim )
