@@ -3,6 +3,7 @@
 
 #include "InteractiveToolsContext.h"
 #include "ToolTargetManager.h"
+#include "ContextObjectStore.h"
 
 UInteractiveToolsContext::UInteractiveToolsContext()
 {
@@ -27,6 +28,8 @@ void UInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* QueriesAPI, I
 	GizmoManager->Initialize(QueriesAPI, TransactionsAPI, InputRouter);
 
 	GizmoManager->RegisterDefaultGizmos();
+
+	ContextObjectStore = NewObject<UContextObjectStore>(this);
 }
 
 
@@ -42,6 +45,9 @@ void UInteractiveToolsContext::Shutdown()
 
 	ToolManager->Shutdown();
 	ToolManager = nullptr;
+
+	ContextObjectStore->Shutdown();
+	ContextObjectStore = nullptr;
 }
 
 void UInteractiveToolsContext::DeactivateActiveTool(EToolSide WhichSide, EToolShutdownType ShutdownType)

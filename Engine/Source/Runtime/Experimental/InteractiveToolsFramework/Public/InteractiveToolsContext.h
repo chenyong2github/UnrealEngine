@@ -8,6 +8,7 @@
 #include "InteractiveToolsContext.generated.h"
 
 class UToolTargetManager;
+class UContextObjectStore;
 
 /**
  * InteractiveToolsContext owns a ToolManager and an InputRouter. This is just a top-level 
@@ -71,6 +72,13 @@ public:
 	/** current UInteractiveGizmoManager for this Context */
 	UPROPERTY()
 	TObjectPtr<UInteractiveGizmoManager> GizmoManager;
+
+	/** 
+	 * Current Context Object Store for this Context.
+	 * Stores arbitrary objects which share data or expose APIs across interactive tools and managers belonging to this context.
+	 */
+	UPROPERTY()
+	TObjectPtr<UContextObjectStore> ContextObjectStore;
 
 protected:
 	UPROPERTY()

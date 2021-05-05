@@ -5,6 +5,7 @@
 #include "Engine/Engine.h"
 #include "InteractiveToolsContext.h"
 #include "InteractiveToolsSelectionStoreSubsystem.h"
+#include "ContextObjectStore.h"
 
 #define LOCTEXT_NAMESPACE "UInteractiveToolManager"
 
@@ -365,6 +366,11 @@ void UInteractiveToolManager::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* R
 UInteractiveGizmoManager* UInteractiveToolManager::GetPairedGizmoManager()
 {
 	return Cast<UInteractiveToolsContext>(GetOuter())->GizmoManager;
+}
+
+UContextObjectStore* UInteractiveToolManager::GetContextObjectStore() const
+{
+	return Cast<UInteractiveToolsContext>(GetOuter())->ContextObjectStore;
 }
 
 void UInteractiveToolManager::DisplayMessage(const FText& Message, EToolMessageLevel Level)

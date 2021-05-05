@@ -12,6 +12,7 @@
 #include "InteractiveToolManager.generated.h"
 
 class UInteractiveToolStorableSelection;
+class UContextObjectStore;
 
 /** A Tool can be activated on a particular input device, currently identified by a "side" */
 UENUM()
@@ -263,6 +264,10 @@ public:
 
 	UInteractiveGizmoManager* GetPairedGizmoManager();
 
+	/**
+	 * @return the context object store from the owning tools context.
+	 */
+	UContextObjectStore* GetContextObjectStore() const;
 
 public:
 	/** Currently-active Left Tool, or null if no Tool is active */
