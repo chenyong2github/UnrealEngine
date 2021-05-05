@@ -37,7 +37,7 @@ public:
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraVisualizeTexturePS, FGlobalShader);
 
 	class FIntegerTexture : SHADER_PERMUTATION_BOOL("TEXTURE_INTEGER");
-	class FTextureType : SHADER_PERMUTATION_INT("TEXTURE_TYPE", 3);
+	class FTextureType : SHADER_PERMUTATION_INT("TEXTURE_TYPE", 4);
 
 	using FPermutationDomain = TShaderPermutationDomain<FIntegerTexture, FTextureType>;
 
@@ -61,6 +61,7 @@ public:
 		SHADER_PARAMETER_TEXTURE(Texture2D, Texture2DObject)
 		SHADER_PARAMETER_TEXTURE(Texture2DArray, Texture2DArrayObject)
 		SHADER_PARAMETER_TEXTURE(Texture3D, Texture3DObject)
+		SHADER_PARAMETER_TEXTURE(TextureCube, TextureCubeObject)
 		SHADER_PARAMETER_SAMPLER(SamplerState, TextureSampler)
 
 		RENDER_TARGET_BINDING_SLOTS()
@@ -315,6 +316,7 @@ void NiagaraDebugShaders::VisualizeTexture(
 	FRHITexture2D* Texture2D = Texture->GetTexture2D();
 	FRHITexture2DArray* Texture2DArray = Texture->GetTexture2DArray();
 	FRHITexture3D* Texture3D = Texture->GetTexture3D();
+	FRHITextureCube* TextureCube = Texture->GetTextureCube();
 
 	// Set Shaders & State
 	FNiagaraVisualizeTexturePS::FPermutationDomain PermutationVector;
@@ -329,6 +331,11 @@ void NiagaraDebugShaders::VisualizeTexture(
 	else if (Texture3D != nullptr)
 	{
 		PermutationVector.Set<FNiagaraVisualizeTexturePS::FTextureType>(2);
+	}
+	else if (TextureCube != nullptr)
+	{
+		PermutationVector.Set<FNiagaraVisualizeTexturePS::FTextureType>(3);
+		TextureSize.X *= 3;
 	}
 	else
 	{
@@ -388,6 +395,7 @@ void NiagaraDebugShaders::VisualizeTexture(
 			PassParameters->Texture2DObject = Texture2D;
 			PassParameters->Texture2DArrayObject = Texture2DArray;
 			PassParameters->Texture3DObject = Texture3D;
+			PassParameters->TextureCubeObject = TextureCube;
 			PassParameters->TextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
 			PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 		}
