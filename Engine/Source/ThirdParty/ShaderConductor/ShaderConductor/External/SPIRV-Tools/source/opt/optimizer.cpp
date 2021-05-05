@@ -155,7 +155,8 @@ Optimizer& Optimizer::RegisterLegalizationPasses() {
           .RegisterPass(CreateVectorDCEPass())
           .RegisterPass(CreateDeadInsertElimPass())
           .RegisterPass(CreateReduceLoadSizePass())
-          .RegisterPass(CreateAggressiveDCEPass());
+          .RegisterPass(CreateAggressiveDCEPass())
+          .RegisterPass(CreateInterpolateFixupPass());
 }
 
 Optimizer& Optimizer::RegisterPerformancePasses() {
@@ -511,6 +512,8 @@ bool Optimizer::RegisterPassFromFlag(const std::string& flag) {
     RegisterPass(CreateWrapOpKillPass());
   } else if (pass_name == "amd-ext-to-khr") {
     RegisterPass(CreateAmdExtToKhrPass());
+  } else if (pass_name == "interpolate-fixup") {
+    RegisterPass(CreateInterpolateFixupPass());
   } else {
     Errorf(consumer(), nullptr, {},
            "Unknown flag '--%s'. Use --help for a list of valid flags",
@@ -940,6 +943,11 @@ Optimizer::PassToken CreateWrapOpKillPass() {
 Optimizer::PassToken CreateAmdExtToKhrPass() {
   return MakeUnique<Optimizer::PassToken::Impl>(
       MakeUnique<opt::AmdExtensionToKhrPass>());
+}
+
+Optimizer::PassToken CreateInterpolateFixupPass() {
+  return MakeUnique<Optimizer::PassToken::Impl>(
+      MakeUnique<opt::InterpFixupPass>());
 }
 
 // UE Change Begin: Implement a fused-multiply-add pass to reduce the
