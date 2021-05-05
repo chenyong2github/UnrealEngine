@@ -1059,7 +1059,7 @@ TArray<UNiagaraEditorParametersAdapterBase*> UNiagaraEmitter::GetEditorOnlyParam
 {
 	return { GetEditorParameters() };
 }
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 bool UNiagaraEmitter::IsEnabledOnPlatform(const FString& PlatformName)const
 {
