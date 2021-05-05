@@ -3,6 +3,7 @@
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODSubsystem.h"
 #include "Components/PrimitiveComponent.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartition.h"
@@ -47,6 +48,19 @@ void AWorldPartitionHLOD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	GetWorld()->GetSubsystem<UHLODSubsystem>()->UnregisterHLODActor(this);
 	Super::EndPlay(EndPlayReason);
+}
+
+void AWorldPartitionHLOD::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	Super::Serialize(Ar);
+
+#if WITH_EDITOR
+	if(Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionStreamingCellsNamingShortened)
+	{
+		SourceCell = SourceCell.ToString().Replace(TEXT("WPRT_"), TEXT(""), ESearchCase::CaseSensitive).Replace(TEXT("Cell_"), TEXT(""), ESearchCase::CaseSensitive);
+	}
+#endif
 }
 
 void AWorldPartitionHLOD::RerunConstructionScripts()

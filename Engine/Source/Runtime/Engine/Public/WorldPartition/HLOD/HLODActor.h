@@ -59,6 +59,7 @@ public:
 
 protected:
 	//~ Begin UObject Interface.
+	virtual void Serialize(FArchive& Ar) override;
 	virtual void RerunConstructionScripts() override;
 	//~ End UObject Interface.
 

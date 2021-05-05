@@ -15453,10 +15453,12 @@ int32 UEngine::RenderStatLevels(UWorld* World, FViewport* Viewport, FCanvas* Can
 	Canvas->DrawShadowedString(X, Y, TEXT("Levels"), GetSmallFont(), FLinearColor::White);
 	Y += 12;
 
+	FString MapShortName;
 	if (SubLevelsStatusList.Num())
 	{
 		// First entry - always persistent level
 		FString MapName	= SubLevelsStatusList[0].PackageName.ToString();
+		MapShortName = FPackageName::GetShortName(MapName);
 		UPackage* LevelPackage = FindObjectFast<UPackage>(NULL, SubLevelsStatusList[0].PackageName);
 		if (SubLevelsStatusList[0].bPlayerInside)
 		{
@@ -15493,7 +15495,22 @@ int32 UEngine::RenderStatLevels(UWorld* World, FViewport* Viewport, FCanvas* Can
 
 		FColor	Color = ULevelStreaming::GetLevelStreamingStatusColor(LevelStatus.StreamingStatus);
 		const TCHAR* StatusDisplayName = ULevelStreaming::GetLevelStreamingStatusDisplayName(LevelStatus.StreamingStatus);
-		FString DisplayName = LevelStatus.PackageName.ToString();
+		FString LevelPackageName = LevelStatus.PackageName.ToString();
+		FString DisplayName = LevelPackageName;
+
+		if (World->GetWorldPartition())
+		{
+			int32 CutPos = LevelPackageName.Find(*MapShortName);
+			if (CutPos != INDEX_NONE)
+			{
+				CutPos += MapShortName.Len();
+				while (LevelPackageName[CutPos] == TEXT('_'))
+				{
+					CutPos++;
+				}
+				DisplayName = LevelPackageName.Right(LevelPackageName.Len() - CutPos);
+			}
+		}
 
 		if (LevelStatus.LODIndex != INDEX_NONE)
 		{

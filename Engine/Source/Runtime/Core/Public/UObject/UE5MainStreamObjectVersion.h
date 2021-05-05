@@ -127,6 +127,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Made directional lights be atmosphere lights by default
 		DirLightsAreAtmosphereLightsByDefault,
 
+		// Changed how world partition streaming cells are named
+		WorldPartitionStreamingCellsNamingShortened,
+
         // -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
