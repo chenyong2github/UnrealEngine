@@ -171,6 +171,12 @@ public:
 	 */
 	bool CanToggleViewportNames() const;
 
+	/** @return The current preview scale. */
+	TOptional<float> GetPreviewResolutionScale() const;
+
+	/** Sets the preview scale. */
+	void SetPreviewResolutionScale(float InScale);
+	
 	/** @return The current xform gizmo scale. */
 	TOptional<float> GetXformGizmoScale() const;
 

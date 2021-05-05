@@ -391,6 +391,19 @@ UDisplayClusterConfigurationData* FDisplayClusterConfiguratorBlueprintEditor::Ge
 	return nullptr;
 }
 
+ADisplayClusterRootActor* FDisplayClusterConfiguratorBlueprintEditor::GetDefaultRootActor() const
+{
+	if (UBlueprint* Blueprint = GetBlueprintObj())
+	{
+		if (Blueprint->GeneratedClass)
+		{
+			return Cast<ADisplayClusterRootActor>(Blueprint->GeneratedClass->ClassDefaultObject);
+		}
+	}
+
+	return nullptr;
+}
+
 TSharedRef<IDisplayClusterConfiguratorViewOutputMapping> FDisplayClusterConfiguratorBlueprintEditor::GetViewOutputMapping() const
 {
 	return ViewOutputMapping.ToSharedRef();

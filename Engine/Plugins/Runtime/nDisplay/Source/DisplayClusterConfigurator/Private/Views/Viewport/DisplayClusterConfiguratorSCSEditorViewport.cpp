@@ -259,9 +259,53 @@ public:
 		const bool bInShouldCloseWindowAfterMenuSelection = true;
 		FMenuBuilder ViewportsMenuBuilder(bInShouldCloseWindowAfterMenuSelection, CommandList);
 
-		ViewportsMenuBuilder.AddMenuEntry(FDisplayClusterConfiguratorCommands::Get().ShowPreview);
-		ViewportsMenuBuilder.AddMenuEntry(FDisplayClusterConfiguratorCommands::Get().Show3DViewportNames);
+		ViewportsMenuBuilder.BeginSection(TEXT("PreviewScale"), LOCTEXT("PreviewScaleSection", "Preview"));
+		{
+			ViewportsMenuBuilder.AddMenuEntry(FDisplayClusterConfiguratorCommands::Get().ShowPreview);
+			ViewportsMenuBuilder.AddMenuEntry(FDisplayClusterConfiguratorCommands::Get().Show3DViewportNames);
 
+			ViewportsMenuBuilder.AddWidget(
+				SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(FMargin(0.f, 0.f, 5.f, 0.f))
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("PreviewResolution_Label", "Preview Resolution"))
+				]
+
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Bottom)
+				.AutoWidth()
+				[
+					SNew(SBox)
+					.MinDesiredWidth(64)
+					[
+						SNew(SNumericEntryBox<float>)
+						.Value(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::GetPreviewResolutionScale)
+						.OnValueChanged(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::SetPreviewResolutionScale)
+						.OnValueCommitted_Lambda([this](const float InValue, ETextCommit::Type)
+						{
+							if (ViewportClient.IsValid())
+							{
+								ViewportClient->Invalidate();
+							}
+						})
+
+						.MinValue(0.05f)
+						.MaxValue(1.f)
+						.MinSliderValue(0.05f)
+						.MaxSliderValue(1.f)
+						.AllowSpin(true)
+					]
+				],
+				FText::GetEmpty()
+		);
+		}
+		ViewportsMenuBuilder.EndSection();
+		
 		ViewportsMenuBuilder.BeginSection(TEXT("XformGizmo"), LOCTEXT("XformGizmoSection", "Xform"));
 		{
 			ViewportsMenuBuilder.AddMenuEntry(FDisplayClusterConfiguratorCommands::Get().ToggleShowXformGizmos);
@@ -271,6 +315,7 @@ public:
 
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
+				.VAlign(VAlign_Center)
 				.Padding(FMargin(0.f, 0.f, 5.f, 0.f))
 				[
 					SNew(STextBlock)
