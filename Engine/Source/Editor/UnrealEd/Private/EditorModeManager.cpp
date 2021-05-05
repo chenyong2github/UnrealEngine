@@ -40,6 +40,8 @@
 #include "CanvasItem.h"
 #include "Engine/StaticMeshActor.h"
 #include "EngineUtils.h"
+#include "Tools/AssetEditorContextObject.h"
+#include "ContextObjectStore.h"
 
 /*------------------------------------------------------------------------------
 	FEditorModeTools.
@@ -152,6 +154,13 @@ void FEditorModeTools::SetToolkitHost(TSharedRef<class IToolkitHost> InHost)
 {
 	checkf(!ToolkitHost.IsValid(), TEXT("SetToolkitHost can only be called once"));
 	ToolkitHost = InHost;
+
+	if (HasToolkitHost())
+	{
+		UAssetEditorContextObject* AssetEditorContextObject = NewObject<UAssetEditorContextObject>(InteractiveToolsContext->ToolManager);
+		AssetEditorContextObject->SetToolkitHost(GetToolkitHost().Get());
+		InteractiveToolsContext->ContextObjectStore->AddContextObject(AssetEditorContextObject);
+	}
 }
 
 USelection* FEditorModeTools::GetSelectedActors() const

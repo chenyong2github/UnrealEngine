@@ -12,6 +12,7 @@
 #include "Selection.h"
 #include "EngineUtils.h"
 
+#include "Tools/AssetEditorContextInterface.h"
 #include "Tools/PlacementSelectTool.h"
 #include "Tools/PlacementLassoSelectTool.h"
 #include "Tools/PlacementPlaceTool.h"
@@ -21,14 +22,12 @@
 #include "Factories/AssetFactoryInterface.h"
 #include "Elements/Actor/ActorElementData.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementCommonActions.h"
 #include "Elements/Framework/TypedElementRegistry.h"
-#include "Elements/Interfaces/TypedElementAssetDataInterface.h"
-#include "Elements/Interfaces/TypedElementObjectInterface.h"
 
 #include "Settings/LevelEditorMiscSettings.h"
 #include "Modes/PlacementModeSubsystem.h"
 
-#include "Subsystems/EditorActorSubsystem.h"
 #include "InstancedFoliageActor.h"
 
 #define LOCTEXT_NAMESPACE "AssetPlacementEdMode"
@@ -215,31 +214,9 @@ void UAssetPlacementEdMode::DeleteSelection()
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("PlacementDeleteAllSelected", "Delete Selected Assets"));
 
-	// Todo - replace with delete in world interface and replace foliage with element handles
-	UEditorActorSubsystem* ActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
-	auto DeleteSelectedElement = [ActorSubsystem](const TTypedElement<UTypedElementObjectInterface>& InElementInterface)
+	if (UTypedElementCommonActions* CommonActions = Owner->GetToolkitHost()->GetCommonActions())
 	{
-		if (InElementInterface.IsSet())
-		{
-			if (AActor* Actor = InElementInterface.GetObjectAs<AActor>())
-			{
-				if (ActorSubsystem)
-				{
-					ActorSubsystem->DestroyActor(Actor);
-				}
-			}
-		}
-	};
-
-	// Gather a copy of the selected handles, since the delete operation will remove them from the selection set.
-	TArray<FTypedElementHandle> SelectedElementHandles;
-	Owner->GetEditorSelectionSet()->GetSelectedElementHandles(SelectedElementHandles, UTypedElementObjectInterface::StaticClass());
-	for (const FTypedElementHandle& ElementHandle : SelectedElementHandles)
-	{
-		if (TTypedElement<UTypedElementObjectInterface> ObjectInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementObjectInterface>(ElementHandle))
-		{
-			DeleteSelectedElement(ObjectInterface);
-		}
+		CommonActions->DeleteSelectedElements(Owner->GetEditorSelectionSet(), GetWorld(), FTypedElementDeletionOptions());
 	}
 
 	for (TActorIterator<AInstancedFoliageActor> It(GetWorld()); It; ++It)

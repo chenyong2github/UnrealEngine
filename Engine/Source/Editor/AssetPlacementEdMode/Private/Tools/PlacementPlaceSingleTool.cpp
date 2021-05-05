@@ -19,6 +19,10 @@
 #include "Modes/PlacementModeSubsystem.h"
 #include "Subsystems/PlacementSubsystem.h"
 #include "UObject/Object.h"
+#include "Tools/AssetEditorContextInterface.h"
+#include "EditorModeManager.h"
+#include "Toolkits/IToolkitHost.h"
+#include "ContextObjectStore.h"
 
 constexpr TCHAR UPlacementModePlaceSingleTool::ToolName[];
 
@@ -310,19 +314,27 @@ void UPlacementModePlaceSingleTool::EnterTweakState(TArrayView<const FTypedEleme
 		return;
 	}
 
-	FToolBuilderState SelectionState;
-	GetToolManager()->GetContextQueriesAPI()->GetCurrentSelectionState(SelectionState);
-	SelectionState.TypedElementSelectionSet->SetSelection(InElementHandles, FTypedElementSelectionOptions());
-	bIsTweaking = true;
+	if (IAssetEditorContextInterface* AssetEditorContext = GetToolManager()->GetContextObjectStore()->FindContext<IAssetEditorContextInterface>())
+	{
+		if (UTypedElementSelectionSet* SelectionSet = AssetEditorContext->GetMutableSelectionSet())
+		{
+			SelectionSet->SetSelection(InElementHandles, FTypedElementSelectionOptions());
+			bIsTweaking = true;
+		}
+	}
 }
 
 void UPlacementModePlaceSingleTool::ExitTweakState(bool bClearSelectionSet)
 {
 	if (bClearSelectionSet)
 	{
-		FToolBuilderState SelectionState;
-		GetToolManager()->GetContextQueriesAPI()->GetCurrentSelectionState(SelectionState);
-		SelectionState.TypedElementSelectionSet->ClearSelection(FTypedElementSelectionOptions());
+		if (IAssetEditorContextInterface* AssetEditorContext = GetToolManager()->GetContextObjectStore()->FindContext<IAssetEditorContextInterface>())
+		{
+			if (UTypedElementSelectionSet* SelectionSet = AssetEditorContext->GetMutableSelectionSet())
+			{
+				SelectionSet->ClearSelection(FTypedElementSelectionOptions());
+			}
+		}
 	}
 
 	bIsTweaking = false;
@@ -356,16 +368,24 @@ void UPlacementModePlaceSingleTool::NotifyMovementStarted(TArrayView<const FType
 
 void UPlacementModePlaceSingleTool::NotifyMovementEnded(TArrayView<const FTypedElementHandle> InElements)
 {
-	FToolBuilderState SelectionState;
-	GetToolManager()->GetContextQueriesAPI()->GetCurrentSelectionState(SelectionState);
-	check(SelectionState.TypedElementSelectionSet.IsValid());	// Placement tools expect a valid selection set.
+	IAssetEditorContextInterface* AssetEditorContext = GetToolManager()->GetContextObjectStore()->FindContext<IAssetEditorContextInterface>();
+	if (!AssetEditorContext)
+	{
+		return;
+	}
+
+	UTypedElementSelectionSet* SelectionSet = AssetEditorContext->GetMutableSelectionSet();
+	if (!SelectionSet)
+	{
+		return;
+	}
 
 	for (const FTypedElementHandle& PreviewElement : PreviewElements)
 	{
 		if (TTypedElement<UTypedElementWorldInterface> WorldInterfaceElement = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementWorldInterface>(PreviewElement))
 		{
 			WorldInterfaceElement.NotifyMovementEnded();
-			WorldInterfaceElement.DeleteElement(WorldInterfaceElement.GetOwnerWorld(), SelectionState.TypedElementSelectionSet.Get(), FTypedElementDeletionOptions());
+			WorldInterfaceElement.DeleteElement(WorldInterfaceElement.GetOwnerWorld(), SelectionSet, FTypedElementDeletionOptions());
 		}
 	}
 }

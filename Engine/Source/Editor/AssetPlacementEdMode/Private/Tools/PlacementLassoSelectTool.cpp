@@ -16,6 +16,9 @@
 #include "BaseBehaviors/KeyAsModifierInputBehavior.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Modes/PlacementModeSubsystem.h"
+#include "Tools/AssetEditorContextInterface.h"
+#include "EditorModeManager.h"
+#include "ContextObjectStore.h"
 
 constexpr TCHAR UPlacementModeLassoSelectTool::ToolName[];
 
@@ -41,6 +44,18 @@ void UPlacementModeLassoSelectTool::OnEndDrag(const FRay& Ray)
 void UPlacementModeLassoSelectTool::OnTick(float DeltaTime)
 {
 	if (!bInBrushStroke)
+	{
+		return;
+	}
+
+	IAssetEditorContextInterface* AssetEditorContext = GetToolManager()->GetContextObjectStore()->FindContext<IAssetEditorContextInterface>();
+	if (!AssetEditorContext)
+	{
+		return;
+	}
+
+	UTypedElementSelectionSet* SelectionSet = AssetEditorContext->GetMutableSelectionSet();
+	if (!SelectionSet)
 	{
 		return;
 	}
@@ -72,18 +87,13 @@ void UPlacementModeLassoSelectTool::OnTick(float DeltaTime)
 			}
 		}
 
-		FToolBuilderState SelectionState;
-		GetToolManager()->GetContextQueriesAPI()->GetCurrentSelectionState(SelectionState);
-		if (SelectionState.TypedElementSelectionSet.IsValid())
+		if (bSelectElements)
 		{
-			if (bSelectElements)
-			{
-				SelectionState.TypedElementSelectionSet->SelectElement(HitElement, FTypedElementSelectionOptions());
-			}
-			else
-			{
-				SelectionState.TypedElementSelectionSet->DeselectElement(HitElement, FTypedElementSelectionOptions());
-			}
+			SelectionSet->SelectElement(HitElement, FTypedElementSelectionOptions());
+		}
+		else
+		{
+			SelectionSet->DeselectElement(HitElement, FTypedElementSelectionOptions());
 		}
 	}
 }

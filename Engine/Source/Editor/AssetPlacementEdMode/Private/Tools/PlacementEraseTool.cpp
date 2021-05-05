@@ -4,16 +4,21 @@
 #include "UObject/Object.h"
 #include "ToolContextInterfaces.h"
 #include "InteractiveToolManager.h"
-#include "Subsystems/EditorActorSubsystem.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementCommonActions.h"
 #include "Elements/Framework/TypedElementHandle.h"
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Interfaces/TypedElementObjectInterface.h"
+#include "Tools/AssetEditorContextInterface.h"
 #include "Editor.h"
 #include "InstancedFoliageActor.h"
 #include "AssetPlacementEdMode.h"
 #include "AssetPlacementSettings.h"
 #include "Modes/PlacementModeSubsystem.h"
+#include "Toolkits/IToolkitHost.h"
+#include "UObject/GCObjectScopeGuard.h"
+#include "EditorModeManager.h"
+#include "ContextObjectStore.h"
 
 constexpr TCHAR UPlacementModeEraseTool::ToolName[];
 
@@ -43,20 +48,27 @@ void UPlacementModeEraseTool::OnTick(float DeltaTime)
 		return;
 	}
 
-	UEditorActorSubsystem* ActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
+	IAssetEditorContextInterface* AssetEditorContext = GetToolManager()->GetContextObjectStore()->FindContext<IAssetEditorContextInterface>();
+	if (!AssetEditorContext)
+	{
+		return;
+	}
+
+	UTypedElementCommonActions* ElementCommonActions = AssetEditorContext->GetCommonActions();
+	if (!ElementCommonActions)
+	{
+		return;
+	}
+
+	TGCObjectScopeGuard<UTypedElementList> ElementsToDelete(UTypedElementRegistry::GetInstance()->CreateElementList());
+
 	TArray<FTypedElementHandle> HitElements = GetElementsInBrushRadius();
 	for (const FTypedElementHandle& HitElement : HitElements)
 	{
 		if (TTypedElement<UTypedElementObjectInterface> ObjectInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementObjectInterface>(HitElement))
 		{
-			AActor* Actor = ObjectInterface.GetObjectAs<AActor>();
-			if (!Actor)
-			{
-				continue;
-			}
-
 			// Since the foliage static mesh instances do not currently operate with element handles, we have to drill in manually here.
-			if (AInstancedFoliageActor* FoliageActor = Cast<AInstancedFoliageActor>(Actor))
+			if (AInstancedFoliageActor* FoliageActor = ObjectInterface.GetObjectAs<AInstancedFoliageActor>())
 			{
 				FoliageActor->ForEachFoliageInfo([this](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
 				{
@@ -68,13 +80,22 @@ void UPlacementModeEraseTool::OnTick(float DeltaTime)
 						FoliageInfo.GetInstancesInsideSphere(SphereToCheck, Instances);
 						FoliageInfo.RemoveInstances(Instances, true);
 					}
-					return true; // continue iteraton
+					return true; // continue iteration
 				});
 			}
-			else if (ActorSubsystem)
+			else
 			{
-				ActorSubsystem->DestroyActor(Actor);
+				ElementsToDelete.Get()->Add(HitElement);
 			}
+		}
+	}
+
+	if (ElementsToDelete.Get()->HasElements())
+	{
+		UTypedElementSelectionSet* SelectionSet = AssetEditorContext->GetMutableSelectionSet();
+		if (SelectionSet)
+		{
+			ElementCommonActions->DeleteElementsInList(ElementsToDelete.Get(), AssetEditorContext->GetEditingWorld(), SelectionSet, FTypedElementDeletionOptions());
 		}
 	}
 }
