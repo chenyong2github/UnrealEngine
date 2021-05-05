@@ -445,9 +445,17 @@ uint GetStrataSubsurfaceProfile(float NormalizedId)
 	return uint(NormalizedId * 255.0f + 0.5f);
 
 }
+
 FStrataData GetInitialisedStrataData()
 {
 	FStrataData StrataData = (FStrataData)0;
+	return StrataData;
+}
+FStrataData GetInitialisedStrataDataWithReservedFirstSlot()
+{
+	FStrataData StrataData = GetInitialisedStrataData();
+	StrataData.LayerCount++;
+	StrataData.Layers[0].BSDFCount++;
 	return StrataData;
 }
 
@@ -462,8 +470,7 @@ FStrataData GetStrataSlabBSDF(
 	float Thickness, 
 	uint SharedNormalIndex, inout uint SharedNormalTypes)
 {
-	FStrataData StrataData = GetInitialisedStrataData();
-	StrataData.LayerCount++;
+	FStrataData StrataData = GetInitialisedStrataDataWithReservedFirstSlot();
 
 	const uint bHasEdgeColor = any(EdgeColor < 1);
 	const uint bHasHaziness = Haziness > 0.0f ? 1 : 0;
@@ -491,7 +498,6 @@ FStrataData GetStrataSlabBSDF(
 	//  - We also only enabled thin lighting is the MFP input pin is plugged in.
 	//  - It will only be ran for the bottom layer only. Otherwise, the simple volume should be used. As such, Two-sided lighting can also be disabled later if part of the bottom layer.
 
-	StrataData.Layers[0].BSDFCount++;
 	BSDF_SETTYPE			(StrataData.Layers[0].BSDFs[0],		STRATA_BSDF_TYPE_SLAB);
 	BSDF_SETNORMALID		(StrataData.Layers[0].BSDFs[0],		SharedNormalIndex);
 	BSDF_SETEMISSIVE		(StrataData.Layers[0].BSDFs[0],		Emissive);
@@ -540,9 +546,7 @@ FStrataData GetStrataSlabBSDF(
 
 FStrataData GetStrataVolumeFogCloudBSDF(float3 Albedo, float3 Extinction, float3 Emissive, float AmbientOcclusion)
 {
-	FStrataData StrataData = GetInitialisedStrataData();
-	StrataData.LayerCount++;
-	StrataData.Layers[0].BSDFCount++;
+	FStrataData StrataData = GetInitialisedStrataDataWithReservedFirstSlot();
 
 	BSDF_SETTYPE					(StrataData.Layers[0].BSDFs[0], STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD);
 	BSDF_SETEMISSIVE				(StrataData.Layers[0].BSDFs[0], Emissive);
@@ -557,9 +561,7 @@ FStrataData GetStrataVolumeFogCloudBSDF(float3 Albedo, float3 Extinction, float3
 
 FStrataData GetStrataUnlitBSDF(float3 Emissive, float3 TransmittanceColor)
 {
-	FStrataData StrataData = GetInitialisedStrataData();
-	StrataData.LayerCount++;
-	StrataData.Layers[0].BSDFCount++;
+	FStrataData StrataData = GetInitialisedStrataDataWithReservedFirstSlot();
 
 	BSDF_SETTYPE					(StrataData.Layers[0].BSDFs[0], STRATA_BSDF_TYPE_UNLIT);
 	BSDF_SETEMISSIVE				(StrataData.Layers[0].BSDFs[0], Emissive);
@@ -572,9 +574,7 @@ FStrataData GetStrataUnlitBSDF(float3 Emissive, float3 TransmittanceColor)
 
 FStrataData GetStrataHairBSDF(float3 BaseColor, float Scatter, float Specular, float Roughness, float Backlit, float3 Emissive, uint SharedNormalIndex)
 {
-	FStrataData StrataData = GetInitialisedStrataData();
-	StrataData.LayerCount++;
-	StrataData.Layers[0].BSDFCount++;
+	FStrataData StrataData = GetInitialisedStrataDataWithReservedFirstSlot();
 
 	BSDF_SETTYPE					(StrataData.Layers[0].BSDFs[0], STRATA_BSDF_TYPE_HAIR);
 	BSDF_SETNORMALID				(StrataData.Layers[0].BSDFs[0], SharedNormalIndex);
@@ -594,9 +594,7 @@ FStrataData GetStrataSingleLayerWaterBSDF(
 	float3 BaseColor, float Metallic, float Specular, float Roughness, float3 Emissive, float TopMaterialOpacity,
 	float3 WaterAlbedo, float3 WaterExtinction, float WaterPhaseG, float3 ColorScaleBehindWater, uint SharedNormalIndex)
 {
-	FStrataData StrataData = GetInitialisedStrataData();
-	StrataData.LayerCount++;
-	StrataData.Layers[0].BSDFCount++;
+	FStrataData StrataData = GetInitialisedStrataDataWithReservedFirstSlot();
 
 	BSDF_SETTYPE					(StrataData.Layers[0].BSDFs[0], STRATA_BSDF_TYPE_SINGLELAYERWATER);
 	BSDF_SETNORMALID				(StrataData.Layers[0].BSDFs[0], SharedNormalIndex);
@@ -874,6 +872,78 @@ FStrataData StrataVerticalLayering(FStrataData Top, FStrataData Base)
 	return StrataData;
 }
 
+// Note about parameter blending
+//  - We can only parameter blend Slab nodes. This error is handled in the compiler.
+//  - We can only parameter blend one BSDF into another single BSDF. More complex topology are not handled and result in a compiler error. This could be extended to a single BSDF per layer.
+//  - Maybe at some point we can propose a concatenate node, compressing a complex topology into a single one.
+//  - Slab node with SSSprofile cannot be blendend. Those will have to be specifically handled by the user and not mixed with any other slab if it can be demoted to parameter blending
+
+FStrataData StrataHorizontalMixingParameterBlending(FStrataData Foreground, FStrataData Background, float Mix, uint NewNormalIndex)
+{
+	const float ForegroundMixFactor = saturate(Mix);
+	const float BackgroundMixFactor = 1.0 - ForegroundMixFactor;
+
+	// This function can only parameter blend two BSDF and not more. We cannot blend complex topology.
+	// However, maybe at some point we will
+	// This function only blend one we only parameter blend one slab with anothe
+
+	FStrataData Result = GetInitialisedStrataDataWithReservedFirstSlot();
+#define ResultBSDF		Result.Layers[0].BSDFs[0]
+#define ForegroundBSDF	Foreground.Layers[0].BSDFs[0]
+#define BackgroundBSDF	Background.Layers[0].BSDFs[0]
+
+	// We can only parameter blend the slab 
+	BSDF_SETTYPE(ResultBSDF,			STRATA_BSDF_TYPE_SLAB);
+	BSDF_SETNORMALID(ResultBSDF,		NewNormalIndex);
+
+	BSDF_SETISTOPLAYER(ResultBSDF,		0);
+	BSDF_SETANISOTROPY(ResultBSDF,		BSDF_GETANISOTROPY(ForegroundBSDF)				| BSDF_GETANISOTROPY(BackgroundBSDF));
+	BSDF_SETHASSSS(ResultBSDF,			BSDF_GETHASSSS(ForegroundBSDF)					| BSDF_GETHASSSS(BackgroundBSDF));
+	BSDF_SETHASSSSPROFILE(ResultBSDF,	BSDF_GETHASSSSPROFILE(ForegroundBSDF)			| BSDF_GETHASSSSPROFILE(BackgroundBSDF));	// Problem: cannot blend SSS profiles...
+	BSDF_SETISTHIN(ResultBSDF,			BSDF_GETISTHIN(ForegroundBSDF)					| BSDF_GETISTHIN(BackgroundBSDF));			// STRATA_TODO fix the MPF/DMFP situation for that to really work
+	BSDF_SETHASDMFP(ResultBSDF,			BSDF_GETHASDMFP(ForegroundBSDF)					| BSDF_GETHASDMFP(BackgroundBSDF));
+	BSDF_SETHASHAZINESS(ResultBSDF,		BSDF_GETHASHAZINESS(ForegroundBSDF)				| BSDF_GETHASHAZINESS(BackgroundBSDF));
+	BSDF_SETHASEDGECOLOR(ResultBSDF,	BSDF_GETHASEDGECOLOR(ForegroundBSDF)			| BSDF_GETHASEDGECOLOR(BackgroundBSDF));
+	BSDF_SETHASTHINFILM(ResultBSDF,		BSDF_GETHASTHINFILM(ForegroundBSDF)				| BSDF_GETHASTHINFILM(BackgroundBSDF));
+	BSDF_SETHASFUZZ(ResultBSDF,			BSDF_GETHASFUZZ(ForegroundBSDF)					| BSDF_GETHASFUZZ(BackgroundBSDF));
+	BSDF_SETEMISSIVE(ResultBSDF,		lerp(BSDF_GETEMISSIVE(BackgroundBSDF),			BSDF_GETEMISSIVE(ForegroundBSDF),			ForegroundMixFactor));
+	BSDF_SETTHICKNESSCM(ResultBSDF,		lerp(BSDF_GETTHICKNESSCM(BackgroundBSDF),		BSDF_GETTHICKNESSCM(ForegroundBSDF),		ForegroundMixFactor));
+
+	SLAB_BASECOLOR(ResultBSDF) =		lerp(SLAB_BASECOLOR(BackgroundBSDF),			SLAB_BASECOLOR(ForegroundBSDF),				ForegroundMixFactor);
+	SLAB_EDGECOLOR(ResultBSDF)=			lerp(SLAB_EDGECOLOR(BackgroundBSDF),			SLAB_EDGECOLOR(ForegroundBSDF),				ForegroundMixFactor);
+	SLAB_SPECULAR(ResultBSDF) =			lerp(SLAB_SPECULAR(BackgroundBSDF),				SLAB_SPECULAR(ForegroundBSDF),				ForegroundMixFactor);
+	SLAB_METALLIC(ResultBSDF) =			lerp(SLAB_METALLIC(BackgroundBSDF),				SLAB_METALLIC(ForegroundBSDF),				ForegroundMixFactor);
+	SLAB_ROUGHNESSX(ResultBSDF) =		lerp(SLAB_ROUGHNESSX(BackgroundBSDF),			SLAB_ROUGHNESSX(ForegroundBSDF),			ForegroundMixFactor);
+	SLAB_ROUGHNESSY(ResultBSDF) =		lerp(SLAB_ROUGHNESSY(BackgroundBSDF),			SLAB_ROUGHNESSY(ForegroundBSDF),			ForegroundMixFactor);
+	SLAB_HAZINESS(ResultBSDF) =			lerp(SLAB_HAZINESS(BackgroundBSDF),				SLAB_HAZINESS(ForegroundBSDF),				ForegroundMixFactor);
+	SLAB_THINFILM_THICKNESS(ResultBSDF)=lerp(SLAB_THINFILM_THICKNESS(BackgroundBSDF),	SLAB_THINFILM_THICKNESS(ForegroundBSDF),	ForegroundMixFactor);
+	SLAB_FUZZ_AMOUNT(ResultBSDF) =		lerp(SLAB_FUZZ_AMOUNT(BackgroundBSDF),			SLAB_FUZZ_AMOUNT(ForegroundBSDF),			ForegroundMixFactor);
+	SLAB_FUZZ_COLOR(ResultBSDF)	=		lerp(SLAB_FUZZ_COLOR(BackgroundBSDF),			SLAB_FUZZ_COLOR(ForegroundBSDF),			ForegroundMixFactor);
+
+	if (BSDF_GETHASSSSPROFILE(ResultBSDF))
+	{
+		// As mentioned above, we cannot blend SSSProfiles.
+		SLAB_SSSPROFILEID(ResultBSDF) = SLAB_SSSPROFILEID(ForegroundBSDF);
+		SLAB_SSSPROFILERADIUSSCALE(ResultBSDF) = SLAB_SSSPROFILERADIUSSCALE(ForegroundBSDF);
+	}
+	else
+	{
+		SLAB_SSSDMFP(ResultBSDF) = lerp(SLAB_SSSDMFP(BackgroundBSDF),				SLAB_SSSDMFP(ForegroundBSDF),				ForegroundMixFactor);
+	}
+
+
+#if STRATA_INLINE_SHADING
+	// At this stage we do not know if this strata BSDF is going to be using simple volume lighting so always store the DMFP on the side to not override SSSPROFILE data.
+	ResultBSDF.TmpDMFP =				lerp(BackgroundBSDF.TmpDMFP,					ForegroundBSDF.TmpDMFP,						ForegroundMixFactor);
+#endif
+
+	ResultBSDF.Weight =					lerp(BackgroundBSDF.Weight,						ForegroundBSDF.Weight,						ForegroundMixFactor);
+
+#undef ResultBSDF
+#undef ForegroundBSDF
+#undef BackgroundBSDF
+	return Result;
+}
 
 
 ///////////////////////////////////////////////////////////////////////////////

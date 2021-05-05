@@ -43,24 +43,35 @@ static void UpdateTotalBSDFCount(FMaterialCompiler* Compiler, FStrataMaterialCom
 	}
 }
 
-
-uint8 StrataCompilationInfoCreateSharedNormal(FMaterialCompiler* Compiler, int32 NormalCodeChunk)
+FStrataRegisteredSharedNormal StrataCompilationInfoCreateNullSharedNormal()
 {
-	return Compiler->StrataCompilationInfoRegisterSharedNormalIndex(NormalCodeChunk);
+	FStrataRegisteredSharedNormal FakeSharedNormal;
+	FakeSharedNormal.NormalCodeChunk = INDEX_NONE;
+	FakeSharedNormal.TangentCodeChunk = INDEX_NONE;
+	FakeSharedNormal.NormalCodeChunkHash = 0;
+	FakeSharedNormal.TangentCodeChunkHash = 0;
+	FakeSharedNormal.GraphSharedNormalIndex = 0;
+	return FakeSharedNormal;
 }
 
-uint8 StrataCompilationInfoCreateSharedNormal(FMaterialCompiler* Compiler, int32 NormalCodeChunk, int32 TangentCodeChunk)
+FStrataRegisteredSharedNormal StrataCompilationInfoCreateSharedNormal(FMaterialCompiler* Compiler, int32 NormalCodeChunk, int32 TangentCodeChunk)
 {
-	return Compiler->StrataCompilationInfoRegisterSharedNormalIndex(NormalCodeChunk, TangentCodeChunk);
+	if (TangentCodeChunk == INDEX_NONE)
+	{
+		return Compiler->StrataCompilationInfoRegisterSharedNormal(NormalCodeChunk);
+	}
+	return Compiler->StrataCompilationInfoRegisterSharedNormal(NormalCodeChunk, TangentCodeChunk);
 }
 
-void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk, uint8 SharedNormalIndex, uint8 BSDFType, bool bHasSSS, bool bHasDMFPPluggedIn, bool bHasEdgeColor, bool bHasThinFilm, bool bHasFuzz)
+void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk,
+	const FStrataRegisteredSharedNormal& RegisteredSharedNormal,
+	uint8 BSDFType, bool bHasSSS, bool bHasDMFPPluggedIn, bool bHasEdgeColor, bool bHasThinFilm, bool bHasFuzz)
 {
 	FStrataMaterialCompilationInfo StrataInfo;
 	StrataInfo.LayerCount = 1;
 	StrataInfo.Layers[0].BSDFCount = 1;
 	StrataInfo.Layers[0].BSDFs[0].Type = BSDFType;
-	StrataInfo.Layers[0].BSDFs[0].SharedNormalIndex = SharedNormalIndex;
+	StrataInfo.Layers[0].BSDFs[0].RegisteredSharedNormal = RegisteredSharedNormal;
 	StrataInfo.Layers[0].BSDFs[0].bHasSSS = bHasSSS;
 	StrataInfo.Layers[0].BSDFs[0].bHasDMFPPluggedIn = bHasDMFPPluggedIn;
 	StrataInfo.Layers[0].BSDFs[0].bHasEdgeColor = bHasEdgeColor;
@@ -119,6 +130,28 @@ FStrataMaterialCompilationInfo StrataCompilationInfoMultiply(FMaterialCompiler* 
 FStrataMaterialCompilationInfo StrataCompilationInfoHorizontalMixing(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B)
 {
 	return StrataCompilationInfoAdd(Compiler, A, B); // Mixing is a similar operation to Add when it comes to bsdf count
+}
+
+
+FStrataMaterialCompilationInfo StrataCompilationInfoHorizontalMixingParamBlend(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B, const FStrataRegisteredSharedNormal& RegisteredSharedNormal)
+{
+	check(A.TotalBSDFCount == 1);
+	check(B.TotalBSDFCount == 1);
+
+	FStrataMaterialCompilationInfo StrataInfo = A;
+	FStrataMaterialCompilationInfo::FBSDF& NewBSDF = StrataInfo.Layers[0].BSDFs[0];
+	const FStrataMaterialCompilationInfo::FBSDF& OtherBSDF = B.Layers[0].BSDFs[0];
+
+	NewBSDF.RegisteredSharedNormal = RegisteredSharedNormal;
+
+	// When parameter blending is used, we take the union of all the features activated by input BSDFs.
+	NewBSDF.bHasSSS				|=	OtherBSDF.bHasSSS;
+	NewBSDF.bHasDMFPPluggedIn	|=	OtherBSDF.bHasDMFPPluggedIn;
+	NewBSDF.bHasEdgeColor		|=	OtherBSDF.bHasEdgeColor;
+	NewBSDF.bHasThinFilm		|=	OtherBSDF.bHasThinFilm;
+	NewBSDF.bHasFuzz			|=	OtherBSDF.bHasFuzz;
+	UpdateTotalBSDFCount(Compiler, StrataInfo);
+	return StrataInfo;
 }
 
 

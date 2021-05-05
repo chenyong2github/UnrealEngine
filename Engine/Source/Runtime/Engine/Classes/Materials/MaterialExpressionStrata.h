@@ -401,6 +401,9 @@ class UMaterialExpressionStrataHorizontalMixing : public UMaterialExpressionStra
 	UPROPERTY()
 	FExpressionInput Mix;
 
+	UPROPERTY(EditAnywhere, Category = Mode)
+	uint32 bUseParameterBlending : 1;
+
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;

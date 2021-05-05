@@ -392,18 +392,27 @@ protected:
 	/** Will contain all the shading models picked up from the material expression graph */
 	FMaterialShadingModelField ShadingModelsFromCompilation;
 
-	/** Tracks shared normal & tangent for strata materials. */
-	TMap<int32, FStrataMaterialCompilationInfo> CodeChunkToStrataCompilationInfoMap; // Mapping from node output to StrataMaterial
+	/** Maps a code chunk to a Strata material topology, if the code chunk represent a StrataData. */
+	TMap<int32, FStrataMaterialCompilationInfo> CodeChunkToStrataCompilationInfoMap;
+	/** Only valid after Translate() is called. This is the code chunk representing the front material. It can be used to recover the material topology. */
+	int32 StrataValidFrontMaterialCodeChunkPostTranslate;
+	/** The code initializing the array of shared normal/tangent. */
+	FString StrataPixelNormalInitializerValues;
+	/** The next free index that can be used to represent a unique macros pointing to he shared normal position in the array of shared normal written to memory once the shader is executed. */
 	uint8 NextFreeStrataShaderNormalIndex;
+	/** The effective final shared normal count used by the final shader. */
+	uint8 FinalUsedSharedNormalCount;
+	/** Represent a shared normal description with its associated code. */
 	struct FStrataSharedNormalInfo
 	{
-		int32 NormalCodeChunk;
-		int32 TangentCodeChunk;
-		uint8 SharedNormalIndex;
+		FStrataRegisteredSharedNormal SharedData;
 		FString SharedNormalCode;
 		FString SharedTangentCode;
 	};
-	TMultiMap<uint64, FStrataSharedNormalInfo> CodeChunkToStrataSharedNormal; // Stored into to a multi-map as a normal can be shared accross several tangent basis (i.e. having different tangent)
+	/** Tracks shared normal & tangent used by strata materials, mapping a normal code chunk hash to a SharedMaterialInfo.
+	 * A normal code chunk hash can point to multiple shared info in case it is paired with different tangents. */
+	TMultiMap<uint64, FStrataSharedNormalInfo> CodeChunkToStrataSharedNormal;
+	/** The final material topology and memory analysis that can be feedback to the user in the editor UI */
 	FStrataMaterialAnalysisResult StrataMaterialAnalysis;
 
 	/** Tracks the total number of vt samples in the shader. */
@@ -975,27 +984,32 @@ protected:
 		int32 ThinFilmThickness, 
 		int32 FuzzAmount, int32 FuzzColor, 
 		int32 Thickness,
-		int32 Normal, int32 Tangent, uint8 SharedNormalIndex) override;
-	virtual int32 StrataSheenBSDF(int32 BaseColor, int32 Roughness, int32 Normal, uint8 SharedNormalIndex) override;
+		int32 Normal, int32 Tangent, const FString& SharedNormalIndexMacro) override;
+	virtual int32 StrataSheenBSDF(int32 BaseColor, int32 Roughness, int32 Normal, const FString& SharedNormalIndexMacro) override;
 	virtual int32 StrataVolumetricFogCloudBSDF(int32 Albedo, int32 Extinction, int32 EmissiveColor, int32 AmbientOcclusion) override;
 	virtual int32 StrataUnlitBSDF(int32 EmissiveColor, int32 TransmittanceColor) override;
-	virtual int32 StrataHairBSDF(int32 BaseColor, int32 Scatter, int32 Specular, int32 Roughness, int32 Backlit, int32 EmissiveColor, int32 Tangent, uint8 SharedNormalIndex) override;
+	virtual int32 StrataHairBSDF(int32 BaseColor, int32 Scatter, int32 Specular, int32 Roughness, int32 Backlit, int32 EmissiveColor, int32 Tangent, const FString& SharedNormalIndexMacro) override;
 	virtual int32 StrataSingleLayerWaterBSDF(
 		int32 BaseColor, int32 Metallic, int32 Specular, int32 Roughness, 
 		int32 EmissiveColor, int32 TopMaterialOpacity, int32 WaterAlbedo, int32 WaterExtinction, int32 WaterPhaseG, 
-		int32 ColorScaleBehindWater, int32 Normal, uint8 SharedNormalIndex) override;
+		int32 ColorScaleBehindWater, int32 Normal, const FString& SharedNormalIndexMacro) override;
 	virtual int32 StrataHorizontalMixing(int32 Foreground, int32 Background, int32 Mix) override;
+	virtual int32 StrataHorizontalMixingParameterBlending(int32 Foreground, int32 Background, int32 Mix, const FString& SharedNormalIndexMacro) override;
 	virtual int32 StrataVerticalLayering(int32 Top, int32 Base) override;
+	// STRATA_TODO virtual int32 StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedNormalIndexMacro) override;
 	virtual int32 StrataAdd(int32 A, int32 B) override;
+	// STRATA_TODO virtual int32 StrataAddParameterBlending(int32 A, int32 B, const FString& SharedNormalIndexMacro) override;
 	virtual int32 StrataMultiply(int32 A, int32 Weight) override;
 	virtual int32 StrataTransmittanceToMFP(int32 TransmittanceColor, int32 DesiredThickness, int32 OutputIndex) override;
 
 	virtual void StrataCompilationInfoRegisterCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) override;
 	virtual bool StrataCompilationInfoContainsCodeChunk(int32 CodeChunk) override;
 	virtual const FStrataMaterialCompilationInfo& GetStrataCompilationInfo(int32 CodeChunk) override;
-	virtual uint8 StrataCompilationInfoRegisterSharedNormalIndex(int32 NormalCodeChunk) override;
-	virtual uint8 StrataCompilationInfoRegisterSharedNormalIndex(int32 NormalCodeChunk, int32 TangentCodeChunk) override;
+	virtual FStrataRegisteredSharedNormal StrataCompilationInfoRegisterSharedNormal(int32 NormalCodeChunk) override;
+	virtual FStrataRegisteredSharedNormal StrataCompilationInfoRegisterSharedNormal(int32 NormalCodeChunk, int32 TangentCodeChunk) override;
 	virtual uint8 StrataCompilationInfoGetSharedNormalCount() override;
+
+	FStrataSharedNormalInfo StrataCompilationInfoGetMatchingSharedNormalInfo(const FStrataRegisteredSharedNormal& SearchedSharedNormal);
 
 #if HANDLE_CUSTOM_OUTPUTS_AS_MATERIAL_ATTRIBUTES
 	/** Used to translate code for custom output attributes such as ClearCoatBottomNormal */

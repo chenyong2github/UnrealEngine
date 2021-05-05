@@ -158,7 +158,9 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 ,	AllocatedUserTexCoords()
 ,	AllocatedUserVertexTexCoords()
 ,	DynamicParticleParameterMask(0)
+,	StrataValidFrontMaterialCodeChunkPostTranslate(INDEX_NONE)
 ,	NextFreeStrataShaderNormalIndex(0)
+,	FinalUsedSharedNormalCount(0)
 ,	NumVtSamples(0)
 ,	TargetPlatform(InTargetPlatform)
 {
@@ -1201,7 +1203,8 @@ bool FHLSLMaterialTranslator::Translate()
 		bool bStrataFrontMaterialIsValid = bStrataFrontMaterialProvided;
 		if (bStrataFrontMaterialIsValid)
 		{
-			const FStrataMaterialCompilationInfo& StrataCompilationInfo = CodeChunkToStrataCompilationInfoMap[Chunk[MP_FrontMaterial]];
+			StrataValidFrontMaterialCodeChunkPostTranslate = Chunk[MP_FrontMaterial];
+			const FStrataMaterialCompilationInfo& StrataCompilationInfo = CodeChunkToStrataCompilationInfoMap[StrataValidFrontMaterialCodeChunkPostTranslate];
 
 			// The material can be null when some entries are automatically generated, for instance in the material layer blending system
 			const bool bIsNullMaterial = (StrataCompilationInfo.LayerCount == 0 && StrataCompilationInfo.TotalBSDFCount == 0);
@@ -1211,7 +1214,7 @@ bool FHLSLMaterialTranslator::Translate()
 		if (bStrataFrontMaterialIsValid)
 		{
 			bMaterialIsStrata = true;
-			const FStrataMaterialCompilationInfo& StrataCompilationInfo = CodeChunkToStrataCompilationInfoMap[Chunk[MP_FrontMaterial]];
+			const FStrataMaterialCompilationInfo& StrataCompilationInfo = CodeChunkToStrataCompilationInfoMap[StrataValidFrontMaterialCodeChunkPostTranslate];
 
 			// VolumetricFogCloud must be used in isolation
 			if (StrataMaterialContainsAnyBSDF(this, StrataCompilationInfo, STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD))
@@ -1277,7 +1280,7 @@ bool FHLSLMaterialTranslator::Translate()
 				const FStrataMaterialCompilationInfo::FLayer& Layer = StrataCompilationInfo.Layers[LayerIt];
 				for (uint32 BSDFIt = 0; BSDFIt < Layer.BSDFCount; ++BSDFIt)
 				{
-					StrataMaterialDescription += FString::Printf(TEXT("     - %s - SharedNormalIndex = %u \r\n"), *GetStrataBSDFName(Layer.BSDFs[BSDFIt].Type), Layer.BSDFs[BSDFIt].SharedNormalIndex);
+					StrataMaterialDescription += FString::Printf(TEXT("     - %s - SharedNormalIndexMacro = %s \r\n"), *GetStrataBSDFName(Layer.BSDFs[BSDFIt].Type), *GetStrataSharedNormalIndexMacro(Layer.BSDFs[BSDFIt].RegisteredSharedNormal));
 				}
 			}
 
@@ -1682,6 +1685,113 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 		OutEnvironment.SetDefine(TEXT("STRATA_CLAMPED_LAYER_COUNT"), StrataMaterialAnalysis.ClampedLayerCount);
 	}
 
+	if (bMaterialIsStrata)
+	{
+		StrataPixelNormalInitializerValues += FString::Printf(TEXT("\n\n\n\t// Strata normal and tangent\n"));
+		FinalUsedSharedNormalCount = 0;
+		FStrataRegisteredSharedNormal UsedSharedNormalInfo[STRATA_MAX_SHARED_NORMAL_REGISTERS];
+
+
+		/*
+		* The final output code/workflow for shared tangent basis should look like
+		*
+		* #define NORMAL_INDEX_0 0		// default, unused
+		* #define NORMAL_INDEX_1 0		// default, unused
+		* #define NORMAL_INDEX_2 0
+		*
+		* FStrataData BSDF0 = GetStrataSlabBSDF(... NORMAL_INDEX_0, NormalCode0 ...)
+		* FStrataData BSDF1 = GetStrataSlabBSDF(... NORMAL_INDEX_1, NormalCode1 ...)
+		*
+		* float3 NormalCode2 = lerp(NormalCode0, NormalCode1, mix)
+		* FStrataData BSDF2 = StrataHorizontalMixingParameterBlending(BSDF0, BSDF1, mix, NormalCode2, NORMAL_INDEX_2) // will internally create NormalCode2
+		*
+		* tParameters.SharedNormals.Normals[NORMAL_INDEX_2] = NormalCode2;
+		* #if MATERIAL_TANGENTSPACENORMAL
+		* Parameters.SharedNormals.Normals[NORMAL_INDEX_2] *= Parameters.TwoSidedSign;
+		* #endif
+		*/
+
+
+		// We go over all output BSDF and reserve actualspace for there shared tangent basis. Only up to STRATA_MAX_SHARED_NORMAL_REGISTERS.
+		// When we know we will need a basis, it is allocated as FinalSharedNormalIndex. A macro is created with propoer output index for the correct value to be output ot the correct slot by the BSDF.
+		// If too many output are required, we faile the compilation.
+		// STRATA_TODO: parameter blend in case it is not possible to output according to per pixel cost retriction.
+		const FStrataMaterialCompilationInfo& StrataCompilationInfo = CodeChunkToStrataCompilationInfoMap[StrataValidFrontMaterialCodeChunkPostTranslate];
+		for (uint32 LayerIt = 0; LayerIt < StrataCompilationInfo.LayerCount; ++LayerIt)
+		{
+			const FStrataMaterialCompilationInfo::FLayer& Layer = StrataCompilationInfo.Layers[LayerIt];
+			for (uint32 BSDFIt = 0; BSDFIt < Layer.BSDFCount; ++BSDFIt)
+			{
+				const FStrataMaterialCompilationInfo::FBSDF& BSDF = Layer.BSDFs[BSDFIt];
+				if (BSDF.RegisteredSharedNormal.NormalCodeChunk == INDEX_NONE && BSDF.RegisteredSharedNormal.TangentCodeChunk == INDEX_NONE)
+				{
+					// We skip null normal on certain BSDF, for instance unlit.
+					continue;
+				}
+
+				const FStrataSharedNormalInfo StrataSharedNormalInfo = StrataCompilationInfoGetMatchingSharedNormalInfo(BSDF.RegisteredSharedNormal);
+
+				// First, we check that the normal/tangent has not already written out (avoid 2 BSDFs sharing the same normal to note generate the same code twice)
+				bool bAlreadyProcessed = false;
+				for (uint8 i = 0; i < FinalUsedSharedNormalCount; ++i)
+				{
+					if (UsedSharedNormalInfo[i].NormalCodeChunkHash == StrataSharedNormalInfo.SharedData.NormalCodeChunkHash &&
+						(UsedSharedNormalInfo[i].TangentCodeChunkHash == StrataSharedNormalInfo.SharedData.TangentCodeChunkHash || BSDF.RegisteredSharedNormal.TangentCodeChunk == INDEX_NONE))
+					{
+						bAlreadyProcessed = true;
+						break;
+					}
+				}
+				if (bAlreadyProcessed)
+				{
+					continue;
+				}
+
+				check(FinalUsedSharedNormalCount < STRATA_MAX_SHARED_NORMAL_REGISTERS);
+				const uint8 FinalSharedNormalIndex = FinalUsedSharedNormalCount++;
+				UsedSharedNormalInfo[FinalSharedNormalIndex] = StrataSharedNormalInfo.SharedData;
+
+				// Write out normals
+				StrataPixelNormalInitializerValues += FString::Printf(TEXT("\tParameters.SharedNormals.Normals[%u] = %s;\n"), FinalSharedNormalIndex, *StrataSharedNormalInfo.SharedNormalCode);
+				StrataPixelNormalInitializerValues += FString::Printf(TEXT("\t#if MATERIAL_TANGENTSPACENORMAL\n"));
+				StrataPixelNormalInitializerValues += FString::Printf(TEXT("\tParameters.SharedNormals.Normals[%u] *= Parameters.TwoSidedSign;\n"), FinalSharedNormalIndex);
+				StrataPixelNormalInitializerValues += FString::Printf(TEXT("\t#endif\n"));
+
+				// Write out tangents
+				if (StrataSharedNormalInfo.SharedData.TangentCodeChunk != INDEX_NONE)
+				{
+					StrataPixelNormalInitializerValues += FString::Printf(TEXT("\tParameters.SharedNormals.Tangents[%u] = %s;\n"), FinalSharedNormalIndex, *StrataSharedNormalInfo.SharedTangentCode);
+				}
+				else
+				{
+					StrataPixelNormalInitializerValues += FString::Printf(TEXT("\tParameters.SharedNormals.Tangents[%u] = float3(1,0,0);\n"), FinalSharedNormalIndex);
+				}
+				StrataPixelNormalInitializerValues += FString::Printf(TEXT("\t#if MATERIAL_TANGENTSPACENORMAL\n"));
+				StrataPixelNormalInitializerValues += FString::Printf(TEXT("\tParameters.SharedNormals.Tangents[%u] *= Parameters.TwoSidedSign;\n"), FinalSharedNormalIndex);
+				StrataPixelNormalInitializerValues += FString::Printf(TEXT("\t#endif\n"));
+			}
+		}
+		StrataPixelNormalInitializerValues += FString::Printf(TEXT("\tParameters.SharedNormals.NormalCount = %u;\n"), FinalUsedSharedNormalCount);
+
+		// Now write out all the macros, them mapping from the BSDF to the effective position/index in the shared normal array they should write to.
+		for (TMultiMap<uint64, FStrataSharedNormalInfo>::TIterator It(CodeChunkToStrataSharedNormal); It; ++It)
+		{
+			// The default linear output index will be 0 by default, and different if in fact the shared normal point to one that is effectively in used in the array of shared normals.
+			uint8 LinearIndex = 0;
+			for (uint8 i = 0; i < FinalUsedSharedNormalCount; ++i)
+			{
+				if (UsedSharedNormalInfo[i].NormalCodeChunkHash == It->Value.SharedData.NormalCodeChunkHash &&
+					(UsedSharedNormalInfo[i].TangentCodeChunkHash == It->Value.SharedData.TangentCodeChunkHash || It->Value.SharedData.TangentCodeChunk == INDEX_NONE))
+				{
+					LinearIndex = i;
+					break;
+				}
+			}
+
+			OutEnvironment.SetDefine(*GetStrataSharedNormalIndexMacro(It->Value.SharedData), LinearIndex);
+		}
+	}
+
 	OutEnvironment.SetDefine(TEXT("TEXTURE_SAMPLE_DEBUG"), IsDebugTextureSampleEnabled() ? TEXT("1") : TEXT("0"));
 }
 
@@ -1811,31 +1921,7 @@ void FHLSLMaterialTranslator::GetSharedInputsMaterialCode(FString& PixelMembersD
 
 		if (CodeChunkToStrataSharedNormal.Num() > 0)
 		{
-			// Generate code to fill up the array containing normal shared between Strata BSDFs
-			for (TMultiMap<uint64, FStrataSharedNormalInfo>::TIterator It(CodeChunkToStrataSharedNormal); It; ++It)
-			{
-				PixelInputInitializerValues += FString::Printf(TEXT("\tParameters.SharedNormals.Normals[%u] = %s;\n"), It->Value.SharedNormalIndex, *It->Value.SharedNormalCode);
-
-				PixelInputInitializerValues += FString::Printf(TEXT("\t#if MATERIAL_TANGENTSPACENORMAL\n"));
-				PixelInputInitializerValues += FString::Printf(TEXT("\tParameters.SharedNormals.Normals[%u] *= Parameters.TwoSidedSign;\n"), It->Value.SharedNormalIndex);
-				PixelInputInitializerValues += FString::Printf(TEXT("\t#endif\n"));
-			}
-			for (TMultiMap<uint64, FStrataSharedNormalInfo>::TIterator It(CodeChunkToStrataSharedNormal); It; ++It)
-			{
-				if (It->Value.TangentCodeChunk != -1)
-				{
-					PixelInputInitializerValues += FString::Printf(TEXT("\tParameters.SharedNormals.Tangents[%u] = %s;\n"), It->Value.SharedNormalIndex, *It->Value.SharedTangentCode);
-				}
-				else
-				{
-					PixelInputInitializerValues += FString::Printf(TEXT("\tParameters.SharedNormals.Tangents[%u] = float3(1,0,0);\n"), It->Value.SharedNormalIndex);
-				}
-
-				PixelInputInitializerValues += FString::Printf(TEXT("\t#if MATERIAL_TANGENTSPACENORMAL\n"));
-				PixelInputInitializerValues += FString::Printf(TEXT("\tParameters.SharedNormals.Tangents[%u] *= Parameters.TwoSidedSign;\n"), It->Value.SharedNormalIndex);
-				PixelInputInitializerValues += FString::Printf(TEXT("\t#endif\n"));
-			}
-			PixelInputInitializerValues += FString::Printf(TEXT("\tParameters.SharedNormals.NormalCount = %u;\n"), CodeChunkToStrataSharedNormal.Num());
+			PixelInputInitializerValues += StrataPixelNormalInitializerValues;
 		}
 
 		PixelMembersInitializationEpilog += PixelInputInitializerValues;
@@ -8761,79 +8847,98 @@ const FStrataMaterialCompilationInfo& FHLSLMaterialTranslator::GetStrataCompilat
 	return CodeChunkToStrataCompilationInfoMap[CodeChunk];
 }
 
-uint8 FHLSLMaterialTranslator::StrataCompilationInfoRegisterSharedNormalIndex(int32 NormalCodeChunk)
+FStrataRegisteredSharedNormal FHLSLMaterialTranslator::StrataCompilationInfoRegisterSharedNormal(int32 NormalCodeChunk)
 {
 	check(NormalCodeChunk != INDEX_NONE);
 	check(NextFreeStrataShaderNormalIndex < 255);	// Out of shared normal slots
-	check(NextFreeStrataShaderNormalIndex < STRATA_MAX_SHARED_NORMAL_REGISTERS);	// This is the size of the HLSL array limiting the maximum shared normal count.
 
-	const uint64 NormalCodeChunkHash = GetParameterHash(NormalCodeChunk);
+	FStrataRegisteredSharedNormal StrataRegisteredSharedNormal;
+	StrataRegisteredSharedNormal.NormalCodeChunk		= NormalCodeChunk;
+	StrataRegisteredSharedNormal.NormalCodeChunkHash	= GetParameterHash(NormalCodeChunk); 
+	StrataRegisteredSharedNormal.TangentCodeChunk		= INDEX_NONE;
+	StrataRegisteredSharedNormal.TangentCodeChunkHash	= GetParameterHash(INDEX_NONE);
+	StrataRegisteredSharedNormal.GraphSharedNormalIndex = NextFreeStrataShaderNormalIndex++;
 
 	// Find any basis which match the Normal code chunk
 	// A normal can be duplicated when it is paired with different tangent, so find the first one which matches
 	TArray<FStrataSharedNormalInfo*> NormalInfos;
-	CodeChunkToStrataSharedNormal.MultiFindPointer(NormalCodeChunkHash, NormalInfos);
+	CodeChunkToStrataSharedNormal.MultiFindPointer(StrataRegisteredSharedNormal.NormalCodeChunkHash, NormalInfos);
 	if (NormalInfos.Num() == 0)
 	{
-		// Allocate a new slot for a new shared normal
-		uint8 NewSharedNormalIndex = NextFreeStrataShaderNormalIndex++;
-		CodeChunkToStrataSharedNormal.Add(NormalCodeChunkHash, { NormalCodeChunk , INDEX_NONE, NewSharedNormalIndex, *GetParameterCode(NormalCodeChunk), FString() });
-		return NewSharedNormalIndex;
+		CodeChunkToStrataSharedNormal.Add(StrataRegisteredSharedNormal.NormalCodeChunkHash, { StrataRegisteredSharedNormal, *GetParameterCode(StrataRegisteredSharedNormal.NormalCodeChunk), FString() });
+		return StrataRegisteredSharedNormal;
 	}
 	// Return the first existing code chunk which match the normal chunk code
-	return NormalInfos[0]->SharedNormalIndex;
+	return NormalInfos[0]->SharedData;
 }
 
-uint8 FHLSLMaterialTranslator::StrataCompilationInfoRegisterSharedNormalIndex(int32 NormalCodeChunk, int32 TangentCodeChunk)
+FStrataRegisteredSharedNormal FHLSLMaterialTranslator::StrataCompilationInfoRegisterSharedNormal(int32 NormalCodeChunk, int32 TangentCodeChunk)
 {
 	check(NormalCodeChunk != INDEX_NONE);
-	check(TangentCodeChunk != INDEX_NONE);
 	check(NextFreeStrataShaderNormalIndex < 255);	// Out of shared normal slots
-	check(NextFreeStrataShaderNormalIndex < STRATA_MAX_SHARED_NORMAL_REGISTERS);	// This is the size of the HLSL array limiting the maximum shared normal count.
+	
 
-	const uint64 NormalCodeChunkHash = GetParameterHash(NormalCodeChunk);
-	const uint64 TangentCodeChunkHash = GetParameterHash(TangentCodeChunk);
+	FStrataRegisteredSharedNormal StrataRegisteredSharedNormal;
+	StrataRegisteredSharedNormal.NormalCodeChunk		= NormalCodeChunk;
+	StrataRegisteredSharedNormal.NormalCodeChunkHash	= GetParameterHash(NormalCodeChunk); 
+	StrataRegisteredSharedNormal.TangentCodeChunk		= TangentCodeChunk;
+	StrataRegisteredSharedNormal.TangentCodeChunkHash	= GetParameterHash(TangentCodeChunk);
+	StrataRegisteredSharedNormal.GraphSharedNormalIndex = NextFreeStrataShaderNormalIndex++;
 
 	// Find a basis which matches both the Normal & the Tangent code chunks
 	TArray<FStrataSharedNormalInfo*> NormalInfos;
-	CodeChunkToStrataSharedNormal.MultiFindPointer(NormalCodeChunkHash, NormalInfos);
-	bool bFound = false;
-	uint8 SharedNormalIndex = 0;
+	CodeChunkToStrataSharedNormal.MultiFindPointer(StrataRegisteredSharedNormal.NormalCodeChunkHash, NormalInfos);
 	for (FStrataSharedNormalInfo* NormalInfo : NormalInfos)
 	{
 		// * Either we find a perfect match (normal & tangent matches)
 		// * Or we find a normal which doesn't have a tangent associated with, and we set the tangent for code
-		if (TangentCodeChunkHash == GetParameterHash(NormalInfo->TangentCodeChunk))
+		if (StrataRegisteredSharedNormal.TangentCodeChunkHash == NormalInfo->SharedData.TangentCodeChunk)
 		{
-			SharedNormalIndex = NormalInfo->SharedNormalIndex;
-			bFound = true;
+			return NormalInfo->SharedData;
 			break;
 		}
-		else if (NormalInfo->TangentCodeChunk == INDEX_NONE)
+		else if (NormalInfo->SharedData.TangentCodeChunk == INDEX_NONE)
 		{
-			NormalInfo->TangentCodeChunk = TangentCodeChunk;
-			NormalInfo->SharedTangentCode = *GetParameterCode(TangentCodeChunk);
-			SharedNormalIndex = NormalInfo->SharedNormalIndex;
-			bFound = true;
+			NormalInfo->SharedData.TangentCodeChunk		= TangentCodeChunk;
+			NormalInfo->SharedData.TangentCodeChunkHash = StrataRegisteredSharedNormal.TangentCodeChunkHash;
+			NormalInfo->SharedTangentCode				= *GetParameterCode(TangentCodeChunk);
+			return NormalInfo->SharedData;
 			break;
 		}
-	}
-	
-	if (NormalInfos.Num() == 0 || !bFound)
-	{
-		// Allocate a new slot for a new shared normal & tangent
-		uint8 NewSharedNormalIndex = NextFreeStrataShaderNormalIndex++;
-		CodeChunkToStrataSharedNormal.Add(NormalCodeChunkHash, { NormalCodeChunk , TangentCodeChunk, NewSharedNormalIndex, *GetParameterCode(NormalCodeChunk), *GetParameterCode(TangentCodeChunk) });
-		return NewSharedNormalIndex;
 	}
 
-	// Return the existing code chunk
-	return SharedNormalIndex;
+	// Allocate a new slot for a new shared normal & tangent
+	const FString NewSharedNormalIndex = GetStrataSharedNormalIndexMacro(StrataRegisteredSharedNormal);
+	CodeChunkToStrataSharedNormal.Add(StrataRegisteredSharedNormal.NormalCodeChunkHash, { StrataRegisteredSharedNormal, *GetParameterCode(StrataRegisteredSharedNormal.NormalCodeChunk), *GetParameterCode(StrataRegisteredSharedNormal.TangentCodeChunk) });
+	return StrataRegisteredSharedNormal;
+}
+
+FHLSLMaterialTranslator::FStrataSharedNormalInfo FHLSLMaterialTranslator::StrataCompilationInfoGetMatchingSharedNormalInfo(const FStrataRegisteredSharedNormal& SearchedSharedNormal)
+{
+	check(NextFreeStrataShaderNormalIndex < 255);	// Out of shared normal slots
+
+	// Find a basis which matches both the Normal & the Tangent code chunks
+	TArray<FStrataSharedNormalInfo*> NormalInfos;
+	CodeChunkToStrataSharedNormal.MultiFindPointer(SearchedSharedNormal.NormalCodeChunkHash, NormalInfos);
+
+	// We first try to find a perfect match for normal and tangent from all the registered element.
+	for (FStrataSharedNormalInfo* NormalInfo : NormalInfos)
+	{
+		if (SearchedSharedNormal.TangentCodeChunk == INDEX_NONE ||											// We selected the first available normal if there is no tangent specified on the material.
+			SearchedSharedNormal.TangentCodeChunkHash == NormalInfo->SharedData.TangentCodeChunkHash)		// Otherwise we select the normal+tangent that exactly matches the request.
+		{
+			return *NormalInfo;
+			break;
+		}
+	}
+
+	check(0);	// When the compiler is querying, this is to get a result to generate code from a fully processed graph. No result means a bug happened during graph processing.
+	return FStrataSharedNormalInfo();
 }
 
 uint8 FHLSLMaterialTranslator::StrataCompilationInfoGetSharedNormalCount()
 {
-	return CodeChunkToStrataSharedNormal.Num();
+	return FinalUsedSharedNormalCount;
 }
 
 int32 FHLSLMaterialTranslator::StrataCreateAndRegisterNullMaterial()
@@ -8852,10 +8957,10 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 	int32 ThinFilmThickness, 
 	int32 FuzzAmount, int32 FuzzColor,
 	int32 Thickness, 
-	int32 Normal, int32 Tangent, uint8 SharedNormalIndex)
+	int32 Normal, int32 Tangent, const FString& SharedNormalIndexMacro)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataSlabBSDF(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %u, Parameters.SharedNormals.NormalTypes) /* Normal = %s ; Tangent = %s */"),
+		MCT_Strata, TEXT("GetStrataSlabBSDF(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedNormals.NormalTypes) /* Normal = %s ; Tangent = %s */"),
 		*GetParameterCode(BaseColor),
 		*GetParameterCode(EdgeColor),
 		*GetParameterCode(Specular),
@@ -8871,19 +8976,19 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 		*GetParameterCode(FuzzAmount),
 		*GetParameterCode(FuzzColor),
 		*GetParameterCode(Thickness),
-		SharedNormalIndex,
+		*SharedNormalIndexMacro,
 		*GetParameterCode(Normal),
-		*GetParameterCode(Tangent)
+		Tangent!=INDEX_NONE ? *GetParameterCode(Tangent) : TEXT("NONE")
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataSheenBSDF(int32 BaseColor, int32 Roughness, int32 Normal, uint8 SharedNormalIndex)
+int32 FHLSLMaterialTranslator::StrataSheenBSDF(int32 BaseColor, int32 Roughness, int32 Normal, const FString& SharedNormalIndexMacro)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataSheenBSDF(%s, %s, %u) /* %s */"),
+		MCT_Strata, TEXT("GetStrataSheenBSDF(%s, %s, %s) /* %s */"),
 		*GetParameterCode(BaseColor),
 		*GetParameterCode(Roughness),
-		SharedNormalIndex,
+		*SharedNormalIndexMacro,
 		*GetParameterCode(Normal)
 	);
 }
@@ -8908,27 +9013,27 @@ int32 FHLSLMaterialTranslator::StrataUnlitBSDF(int32 EmissiveColor, int32 Transm
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataHairBSDF(int32 BaseColor, int32 Scatter, int32 Specular, int32 Roughness, int32 Backlit, int32 EmissiveColor, int32 Tangent, uint8 SharedNormalIndex)
+int32 FHLSLMaterialTranslator::StrataHairBSDF(int32 BaseColor, int32 Scatter, int32 Specular, int32 Roughness, int32 Backlit, int32 EmissiveColor, int32 Tangent, const FString& SharedNormalIndexMacro)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataHairBSDF(%s, %s, %s, %s, %s, %s, %u) /* %s */"),
+		MCT_Strata, TEXT("GetStrataHairBSDF(%s, %s, %s, %s, %s, %s, %s) /* %s */"),
 		*GetParameterCode(BaseColor),
 		*GetParameterCode(Scatter),
 		*GetParameterCode(Specular),
 		*GetParameterCode(Roughness),
 		*GetParameterCode(Backlit),
 		*GetParameterCode(EmissiveColor),
-		SharedNormalIndex,
+		*SharedNormalIndexMacro,
 		*GetParameterCode(Tangent)
 	);
 }
 
 int32 FHLSLMaterialTranslator::StrataSingleLayerWaterBSDF(
 	int32 BaseColor, int32 Metallic, int32 Specular, int32 Roughness, int32 EmissiveColor, int32 TopMaterialOpacity,
-	int32 WaterAlbedo, int32 WaterExtinction, int32 WaterPhaseG, int32 ColorScaleBehindWater, int32 Normal, uint8 SharedNormalIndex)
+	int32 WaterAlbedo, int32 WaterExtinction, int32 WaterPhaseG, int32 ColorScaleBehindWater, int32 Normal, const FString& SharedNormalIndexMacro)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataSingleLayerWaterBSDF(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %u) /* %s */"),
+		MCT_Strata, TEXT("GetStrataSingleLayerWaterBSDF(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) /* %s */"),
 		*GetParameterCode(BaseColor),
 		*GetParameterCode(Metallic),
 		*GetParameterCode(Specular),
@@ -8939,7 +9044,7 @@ int32 FHLSLMaterialTranslator::StrataSingleLayerWaterBSDF(
 		*GetParameterCode(WaterExtinction),
 		*GetParameterCode(WaterPhaseG),
 		*GetParameterCode(ColorScaleBehindWater),
-		SharedNormalIndex,
+		*SharedNormalIndexMacro,
 		*GetParameterCode(Normal)
 	);
 }
@@ -8958,6 +9063,21 @@ int32 FHLSLMaterialTranslator::StrataHorizontalMixing(int32 Foreground, int32 Ba
 	);
 }
 
+int32 FHLSLMaterialTranslator::StrataHorizontalMixingParameterBlending(int32 Foreground, int32 Background, int32 Mix, const FString& SharedNormalIndexMacro)
+{
+	if (Foreground == INDEX_NONE || Background == INDEX_NONE || Mix == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+	return AddCodeChunk(
+		MCT_Strata, TEXT("StrataHorizontalMixingParameterBlending(%s, %s, %s, %s)"),
+		*GetParameterCode(Foreground),
+		*GetParameterCode(Background),
+		*GetParameterCode(Mix),
+		*SharedNormalIndexMacro
+	);
+}
+
 int32 FHLSLMaterialTranslator::StrataVerticalLayering(int32 Top, int32 Base)
 {
 	if (Top == INDEX_NONE || Base == INDEX_NONE)
@@ -8971,6 +9091,11 @@ int32 FHLSLMaterialTranslator::StrataVerticalLayering(int32 Top, int32 Base)
 	);
 }
 
+//virtual int32 FHLSLMaterialTranslator::StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedNormalIndexMacro)
+//{
+//	// STRATA_TODO
+//}
+
 int32 FHLSLMaterialTranslator::StrataAdd(int32 A, int32 B)
 {
 	if (A == INDEX_NONE || B == INDEX_NONE)
@@ -8983,6 +9108,11 @@ int32 FHLSLMaterialTranslator::StrataAdd(int32 A, int32 B)
 		*GetParameterCode(B)
 	);
 }
+
+//virtual int32 FHLSLMaterialTranslator::StrataAddParameterBlending(int32 A, int32 B, const FString& SharedNormalIndexMacro)
+//{
+//	// STRATA_TODO
+//}
 
 int32 FHLSLMaterialTranslator::StrataMultiply(int32 A, int32 Weight)
 {
