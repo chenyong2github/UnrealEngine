@@ -391,12 +391,14 @@ public:
 	 */
 	virtual void ReleaseRenderBufferSet(FMeshRenderBufferSet* BufferSet)
 	{
-		AllocatedSetsLock.Lock();
-		check(AllocatedBufferSets.Contains(BufferSet));
-		AllocatedBufferSets.Remove(BufferSet);
-		AllocatedSetsLock.Unlock();
+		FScopeLock Lock(&AllocatedSetsLock);
+		if (ensure(AllocatedBufferSets.Contains(BufferSet)))
+		{
+			AllocatedBufferSets.Remove(BufferSet);
+			Lock.Unlock();
 
-		FMeshRenderBufferSet::DestroyRenderBufferSet(BufferSet);
+			FMeshRenderBufferSet::DestroyRenderBufferSet(BufferSet);
+		}
 	}
 
 
@@ -546,8 +548,10 @@ public:
 		const FDynamicMesh3* Mesh,
 		bool bDuplicate)
 	{
-		check(bUseSecondaryTriBuffers == true);
-		check(RenderBuffers->Triangles.IsSet());
+		if (ensure(bUseSecondaryTriBuffers == true && RenderBuffers->Triangles.IsSet()) == false)
+		{
+			return;
+		}
 
 		const TArray<int32>& TriangleIDs = RenderBuffers->Triangles.GetValue();
 		int NumTris = TriangleIDs.Num();
@@ -592,7 +596,10 @@ public:
 		{
 			return;
 		}
-		check(RenderBuffers->Triangles.IsSet() && RenderBuffers->Triangles->Num() > 0);
+		if (ensure(RenderBuffers->Triangles.IsSet() && RenderBuffers->Triangles->Num() > 0) == false)
+		{
+			return;
+		}
 
 		//bool bDuplicate = false;		// flag for future use, in case we want to draw all triangles in primary and duplicates in secondary...
 		RenderBuffers->IndexBuffer.Indices.Reset();
@@ -648,14 +655,11 @@ public:
 		bool bHaveColors = (ColorOverlay != nullptr) && (bIgnoreVertexColors == false);
 
 		int NumVertices = NumTriangles * 3;
-		check(RenderBuffers->PositionVertexBuffer.GetNumVertices() == NumVertices);
-		if (bUpdateNormals)
+		if ( (bUpdatePositions && ensure(RenderBuffers->PositionVertexBuffer.GetNumVertices() == NumVertices) == false )
+			|| (bUpdateNormals && ensure(RenderBuffers->StaticMeshVertexBuffer.GetNumVertices() == NumVertices) == false )
+			|| (bUpdateColors && ensure(RenderBuffers->ColorVertexBuffer.GetNumVertices() == NumVertices) == false ) )
 		{
-			check(RenderBuffers->StaticMeshVertexBuffer.GetNumVertices() == NumVertices);
-		}
-		if (bUpdateColors)
-		{
-			check(RenderBuffers->ColorVertexBuffer.GetNumVertices() == NumVertices);
+			return;
 		}
 
 		int VertIdx = 0;
@@ -721,7 +725,10 @@ public:
 			return;
 		}
 		int NumVertices = NumTriangles * 3;
-		check(RenderBuffers->StaticMeshVertexBuffer.GetNumVertices() == NumVertices);
+		if ( ensure(RenderBuffers->StaticMeshVertexBuffer.GetNumVertices() == NumVertices) == false)
+		{
+			return;
+		}
 
 		int VertIdx = 0;
 		for (int TriangleID : Enumerable)
