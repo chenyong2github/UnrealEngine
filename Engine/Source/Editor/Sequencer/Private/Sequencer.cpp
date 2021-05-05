@@ -2665,7 +2665,7 @@ void FSequencer::SetSelectionRangeEnd()
 
 	if (GetSelectionRange().GetLowerBoundValue() >= LocalTime)
 	{
-		SetSelectionRange(TRange<FFrameNumber>(LocalTime));
+		SetSelectionRange(TRange<FFrameNumber>(LocalTime - 1, LocalTime));
 	}
 	else
 	{
@@ -2680,7 +2680,7 @@ void FSequencer::SetSelectionRangeStart()
 
 	if (GetSelectionRange().GetUpperBoundValue() <= LocalTime)
 	{
-		SetSelectionRange(TRange<FFrameNumber>(LocalTime));
+		SetSelectionRange(TRange<FFrameNumber>(LocalTime, LocalTime + 1));
 	}
 	else
 	{
@@ -2823,8 +2823,25 @@ void FSequencer::SetPlaybackRange(TRange<FFrameNumber> Range)
 			UMovieScene* FocusedMovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
 			if (FocusedMovieScene)
 			{
+				TRange<FFrameNumber> CurrentRange = FocusedMovieScene->GetPlaybackRange();
+
 				const FScopedTransaction Transaction(LOCTEXT("SetPlaybackRange_Transaction", "Set Playback Range"));
+
 				FocusedMovieScene->SetPlaybackRange(Range);
+
+				// If we're in a subsequence, compensate the start offset, so that it appears decoupled from the 
+				// playback range (ie. the cut in frame remains the same)
+				if (ActiveTemplateIDs.Num() > 1)
+				{
+					if (UMovieSceneSubSection* SubSection = FindSubSection(ActiveTemplateIDs.Last()))
+					{
+						FFrameNumber LowerBoundDiff = Range.GetLowerBoundValue() - CurrentRange.GetLowerBoundValue();
+						FFrameNumber StartFrameOffset = SubSection->Parameters.StartFrameOffset - LowerBoundDiff;
+
+						SubSection->Modify();
+						SubSection->Parameters.StartFrameOffset = StartFrameOffset;
+					}
+				}
 
 				bNeedsEvaluate = true;
 				NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
@@ -13430,8 +13447,7 @@ void FSequencer::BindCommands()
 
 	SequencerCommandBindings->MapAction(
 		Commands.SetStartPlaybackRange,
-		FExecuteAction::CreateLambda([this] { SetPlaybackStart(); }),
-		FCanExecuteAction::CreateSP( this, &FSequencer::IsViewingMasterSequence ) );
+		FExecuteAction::CreateLambda([this] { SetPlaybackStart(); }) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.ResetViewRange,
@@ -13455,8 +13471,7 @@ void FSequencer::BindCommands()
 
 	SequencerCommandBindings->MapAction(
 		Commands.SetEndPlaybackRange,
-		FExecuteAction::CreateLambda([this] { SetPlaybackEnd(); }),
-		FCanExecuteAction::CreateSP( this, &FSequencer::IsViewingMasterSequence ) );
+		FExecuteAction::CreateLambda([this] { SetPlaybackEnd(); }) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.SetSelectionRangeToNextShot,
