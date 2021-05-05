@@ -175,7 +175,7 @@ public:
 			&& (ContainerType == Other.ContainerType)
 			&& (bIsReference == Other.bIsReference)
 			&& (bIsWeakPointer == Other.bIsWeakPointer)
-			&& (bIsUObjectWrapper == Other.bIsUObjectWrapper)
+			//&& (bIsUObjectWrapper == Other.bIsUObjectWrapper)
 			&& (PinSubCategoryMemberReference == Other.PinSubCategoryMemberReference)
 			&& (bIsConst == Other.bIsConst);
 	}
