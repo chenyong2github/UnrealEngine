@@ -463,12 +463,18 @@ bool UNiagaraNodeFunctionCall::FixupPinNames()
 					{
 						if (Entry.Value && Entry.Key.IsInNameSpace(FNiagaraConstants::OutputNamespace))
 						{
-							FName MetadataName = FNiagaraParameterHandle(Entry.Key.GetName()).GetName();
-							FString AliasedNamespace = *FString::Printf(TEXT("%s.%s"), *FNiagaraConstants::OutputNamespace.ToString(), *FunctionNode->GetFunctionName());
-							FNiagaraParameterHandle AliasedFunctionInputHandle(FName(AliasedNamespace), MetadataName);
-							FNiagaraVariable OutputVar = Entry.Key;
-							OutputVar.SetName(AliasedFunctionInputHandle.GetParameterHandleString());
-							GraphVariablesGuidMapping.FindOrAdd(Entry.Value->Metadata.GetVariableGuid()).Add(OutputVar);
+							TArray<FName> HandleParts = FNiagaraParameterHandle(Entry.Key.GetName()).GetHandleParts();
+							if (HandleParts.Num() >= 3 && HandleParts[1] == FNiagaraConstants::ModuleNamespace)
+							{
+								FString AliasedName = *FString::Printf(TEXT("%s.%s"), *FNiagaraConstants::OutputNamespace.ToString(), *FunctionNode->GetFunctionName());
+								for (int i = 2; i < HandleParts.Num(); i++)
+								{
+									AliasedName.Appendf(TEXT(".%s"), *HandleParts[i].ToString());
+								}
+								FNiagaraVariable OutputVar = Entry.Key;
+								OutputVar.SetName(FName(AliasedName));
+								GraphVariablesGuidMapping.FindOrAdd(Entry.Value->Metadata.GetVariableGuid()).Add(OutputVar);
+							}
 						}
 					}
 				}
