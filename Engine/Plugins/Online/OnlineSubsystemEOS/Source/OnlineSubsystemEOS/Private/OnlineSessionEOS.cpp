@@ -840,7 +840,7 @@ bool FOnlineSessionEOS::CreateSession(int32 HostingPlayerNum, FName SessionName,
 				// Create Internet or LAN match
 				if (!NewSessionSettings.bIsLANMatch)
 				{
-					if (Session->SessionSettings.bUsesPresence)
+					if (Session->SessionSettings.bUseLobbiesIfAvailable)
 					{
 						Result = CreateLobbySession(HostingPlayerNum, Session);
 					}
