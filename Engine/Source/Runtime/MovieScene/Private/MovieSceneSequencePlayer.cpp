@@ -423,6 +423,14 @@ void UMovieSceneSequencePlayer::StopInternal(FFrameTime TimeToResetTo)
 
 		RunLatentActions();
 	}
+	else if (RootTemplateInstance.IsValid() && RootTemplateInstance.HasEverUpdated())
+	{
+		if (PlaybackSettings.bRestoreState)
+		{
+			RestorePreAnimatedState();
+		}
+		RootTemplateInstance.Finish(*this);
+	}
 }
 
 void UMovieSceneSequencePlayer::GoToEndAndStop()
