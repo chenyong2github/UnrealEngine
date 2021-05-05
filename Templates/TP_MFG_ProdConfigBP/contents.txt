@@ -1,0 +1,4 @@
+../../../Templates/TP_ProductConfigBP/manifest.json
+../../../Templates/TP_ProductConfigBP/Config/config.ini
+../../../Templates/TP_ProductConfigBP/Media/TP_ProductConfigBP.png
+../../../Templates/TP_ProductConfigBP/Media/TP_ProductConfigBP_Preview.png
