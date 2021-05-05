@@ -141,7 +141,7 @@ FDefaultGameMoviePlayer::~FDefaultGameMoviePlayer()
 	FlushRenderingCommands();
 }
 
-void FDefaultGameMoviePlayer::RegisterMovieStreamer(TSharedPtr<IMovieStreamer> InMovieStreamer)
+void FDefaultGameMoviePlayer::RegisterMovieStreamer(TSharedPtr<IMovieStreamer, ESPMode::ThreadSafe> InMovieStreamer)
 {
 	if (InMovieStreamer.IsValid() && !MovieStreamers.Contains(InMovieStreamer))
 	{
@@ -354,7 +354,7 @@ bool FDefaultGameMoviePlayer::PlayMovie()
 		ActiveMovieStreamer.Reset();
 		if (MovieStreamingIsPrepared())
 		{
-			for (TSharedPtr<IMovieStreamer> MovieStreamer : MovieStreamers)
+			for (TSharedPtr<IMovieStreamer, ESPMode::ThreadSafe> MovieStreamer : MovieStreamers)
 			{
 				if (MovieStreamer->Init(LoadingScreenAttributes.MoviePaths, LoadingScreenAttributes.PlaybackType))
 				{

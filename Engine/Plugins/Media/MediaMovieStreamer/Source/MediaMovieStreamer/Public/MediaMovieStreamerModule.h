@@ -19,7 +19,7 @@ public:
 	/**
 	 * Call this to get the MovieStreamer.
 	 */
-	MEDIAMOVIESTREAMER_API static const TSharedPtr<FMediaMovieStreamer> GetMovieStreamer();
+	MEDIAMOVIESTREAMER_API static const TSharedPtr<FMediaMovieStreamer, ESPMode::ThreadSafe> GetMovieStreamer();
 
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
