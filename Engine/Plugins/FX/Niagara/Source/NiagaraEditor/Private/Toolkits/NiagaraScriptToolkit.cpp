@@ -66,6 +66,16 @@ FNiagaraScriptToolkit::FNiagaraScriptToolkit()
 
 FNiagaraScriptToolkit::~FNiagaraScriptToolkit()
 {
+	// Cleanup viewmodels that use the script viewmodel before cleaning up the script viewmodel itself.
+	if (ParameterPanelViewModel.IsValid())
+	{
+		ParameterPanelViewModel->Cleanup();
+	}
+	if (ParameterDefinitionsPanelViewModel.IsValid())
+	{
+		ParameterDefinitionsPanelViewModel->Cleanup();
+	}
+
 	EditedNiagaraScript.Script->OnVMScriptCompiled().RemoveAll(this);
 	ScriptViewModel->GetGraphViewModel()->GetGraph()->RemoveOnGraphNeedsRecompileHandler(OnEditedScriptGraphChangedHandle);
 

@@ -40,6 +40,15 @@ void UNiagaraScriptVariable::Init(const FNiagaraVariable& InVar, const FNiagaraV
 	Variable = InVar;
 	Metadata = InVarMetaData;
 	AllocateData();
+
+	if (!Metadata.GetVariableGuid().IsValid())
+	{
+		Metadata.CreateNewGuid();
+	}
+	if (ChangeId.IsValid() == false)
+	{
+		UpdateChangeId();
+	}
 }
 
 void UNiagaraScriptVariable::PostLoad()

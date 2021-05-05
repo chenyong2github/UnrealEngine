@@ -70,10 +70,9 @@ FNiagaraScriptToolkitParameterDefinitionsPanelViewModel::FNiagaraScriptToolkitPa
 	VariableObjectSelection = ScriptViewModel->GetVariableSelection();
 }
 
-FNiagaraScriptToolkitParameterDefinitionsPanelViewModel::~FNiagaraScriptToolkitParameterDefinitionsPanelViewModel()
+void FNiagaraScriptToolkitParameterDefinitionsPanelViewModel::Cleanup()
 {
-	//@todo(ng) must invoke this before scriptviewmodel is brought down
-	//ScriptViewModel->GetOnSubscribedParameterDefinitionsChangedDelegate().RemoveAll(this);
+	ScriptViewModel->GetOnSubscribedParameterDefinitionsChangedDelegate().RemoveAll(this);
 }
 
 void FNiagaraScriptToolkitParameterDefinitionsPanelViewModel::Init(const FScriptToolkitUIContext& InUIContext)
@@ -214,10 +213,9 @@ FNiagaraSystemToolkitParameterDefinitionsPanelViewModel::FNiagaraSystemToolkitPa
 	: FNiagaraSystemToolkitParameterDefinitionsPanelViewModel(InSystemViewModel, nullptr)
 {}
 
-FNiagaraSystemToolkitParameterDefinitionsPanelViewModel::~FNiagaraSystemToolkitParameterDefinitionsPanelViewModel()
+void FNiagaraSystemToolkitParameterDefinitionsPanelViewModel::Cleanup()
 {
-	//@todo(ng) must invoke this before systemviewmodel is brought down
-	//SystemViewModel->GetOnSubscribedParameterDefinitionsChangedDelegate().RemoveAll(this);
+	SystemViewModel->GetOnSubscribedParameterDefinitionsChangedDelegate().RemoveAll(this);
 }
 
 void FNiagaraSystemToolkitParameterDefinitionsPanelViewModel::Init(const FSystemToolkitUIContext& InUIContext)
