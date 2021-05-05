@@ -97,10 +97,16 @@ public:
 	/** Single path wrapper */
 	virtual int32 ScanPathForPrimaryAssets(FPrimaryAssetType PrimaryAssetType, const FString& Path, UClass* BaseClass, bool bHasBlueprintClasses, bool bIsEditorOnly = false, bool bForceSynchronousScan = true);
 	
-	/** Call this before many calls to ScanPaths to improve load performance. It will defer expensive updates until StopBulkScanning is called */
+	/** Call before many calls to ScanPaths to improve load performance. Match each call with PopBulkScanning(). */
+	void PushBulkScanning();
+	void PopBulkScanning();
+
+protected:
 	virtual void StartBulkScanning();
 	virtual void StopBulkScanning();
+	bool IsBulkScanning() const { return NumBulkScanRequests > 0 ; }
 
+public:
 	/** 
 	 * Adds or updates a Dynamic asset, which is a runtime-specified asset that has no on disk representation, so has no FAssetData. But it can have bundle state and a path.
 	 *
@@ -738,9 +744,9 @@ protected:
 	UPROPERTY()
 	bool bOnlyCookProductionAssets;
 
-	/** True if we are currently in bulk scanning mode */
+	/** >0 if we are currently in bulk scanning mode */
 	UPROPERTY()
-	bool bIsBulkScanning;
+	int32 NumBulkScanRequests;
 
 	/** True if asset data is current, if false it will need to rescan before PIE */
 	UPROPERTY()
