@@ -49,20 +49,20 @@ void UInteractiveToolsContext::DeactivateActiveTool(EToolSide WhichSide, EToolSh
 	ToolManager->DeactivateTool(WhichSide, ShutdownType);
 }
 
-void UInteractiveToolsContext::DeactivateAllActiveTools()
+void UInteractiveToolsContext::DeactivateAllActiveTools(EToolShutdownType ShutdownType)
 {
-	if (ToolManager->HasActiveTool(EToolSide::Left))
-	{
-		EToolShutdownType ShutdownType = ToolManager->CanAcceptActiveTool(EToolSide::Left) ?
-			EToolShutdownType::Accept : EToolShutdownType::Cancel;
-		ToolManager->DeactivateTool(EToolSide::Left, ShutdownType);
-	}
-	if (ToolManager->HasActiveTool(EToolSide::Right))
-	{
-		EToolShutdownType ShutdownType = ToolManager->CanAcceptActiveTool(EToolSide::Right) ?
-			EToolShutdownType::Accept : EToolShutdownType::Cancel;
-		ToolManager->DeactivateTool(EToolSide::Right, ShutdownType);
-	}
+	auto DeactivateTool = [this, ShutdownType](EToolSide WhichSide) {
+		if (ToolManager->HasActiveTool(WhichSide))
+		{
+			const EToolShutdownType AcceptOrCancel =
+				ShutdownType != EToolShutdownType::Cancel && ToolManager->CanAcceptActiveTool(WhichSide)
+				? EToolShutdownType::Accept : EToolShutdownType::Cancel;
+			ToolManager->DeactivateTool(WhichSide, AcceptOrCancel);
+		}
+	};
+	
+	DeactivateTool(EToolSide::Left);
+	DeactivateTool(EToolSide::Right);
 }
 
 

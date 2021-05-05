@@ -97,7 +97,7 @@ protected:
 	virtual void Shutdown() override;
 
 	virtual void DeactivateActiveTool(EToolSide WhichSide, EToolShutdownType ShutdownType);
-	virtual void DeactivateAllActiveTools();
+	virtual void DeactivateAllActiveTools(EToolShutdownType ShutdownType);
 
 public:
 	UPROPERTY()

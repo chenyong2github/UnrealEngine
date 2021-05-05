@@ -590,7 +590,7 @@ void UEdModeInteractiveToolsContext::Shutdown()
 		GEditor->OnViewportClientListChanged().Remove(ViewportClientListChangedHandle);
 
 		// auto-accept any in-progress tools
-		DeactivateAllActiveTools();
+		DeactivateAllActiveTools(EToolShutdownType::Accept);
 
 		UInteractiveToolsContext::Shutdown();
 	}
@@ -652,15 +652,15 @@ void UEdModeInteractiveToolsContext::ShutdownContext()
 
 void UEdModeInteractiveToolsContext::TerminateActiveToolsOnPIEStart()
 {
-	DeactivateAllActiveTools();
+	DeactivateAllActiveTools(EToolShutdownType::Accept);
 }
 void UEdModeInteractiveToolsContext::TerminateActiveToolsOnSaveWorld()
 {
-	DeactivateAllActiveTools();
+	DeactivateAllActiveTools(EToolShutdownType::Accept);
 }
 void UEdModeInteractiveToolsContext::TerminateActiveToolsOnWorldTearDown()
 {
-	DeactivateAllActiveTools();
+	DeactivateAllActiveTools(EToolShutdownType::Cancel);
 }
 
 void UEdModeInteractiveToolsContext::PostInvalidation()
@@ -1213,9 +1213,9 @@ void UEdModeInteractiveToolsContext::DeactivateActiveTool(EToolSide WhichSide, E
 	RestoreEditorState();
 }
 
-void UEdModeInteractiveToolsContext::DeactivateAllActiveTools()
+void UEdModeInteractiveToolsContext::DeactivateAllActiveTools(EToolShutdownType ShutdownType)
 {
-	UInteractiveToolsContext::DeactivateAllActiveTools();
+	UInteractiveToolsContext::DeactivateAllActiveTools(ShutdownType);
 	RestoreEditorState();
 }
 

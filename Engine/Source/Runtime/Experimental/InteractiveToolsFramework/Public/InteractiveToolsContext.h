@@ -33,7 +33,7 @@ public:
 	virtual void Shutdown();
 
 	virtual void DeactivateActiveTool(EToolSide WhichSide, EToolShutdownType ShutdownType);
-	virtual void DeactivateAllActiveTools();
+	virtual void DeactivateAllActiveTools(EToolShutdownType ShutdownType);
 
 	bool CanStartTool(EToolSide WhichSide, const FString& ToolTypeIdentifier) const;
 	bool HasActiveTool(EToolSide WhichSide) const;
