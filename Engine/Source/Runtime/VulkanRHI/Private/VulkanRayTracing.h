@@ -36,13 +36,42 @@ struct FVkRtAllocation
 	VkDevice Device = VK_NULL_HANDLE;
 	VkDeviceMemory Memory = VK_NULL_HANDLE;
 	VkBuffer Buffer = VK_NULL_HANDLE;
-	VkDeviceAddress Address = {};
+	VkDeviceAddress Address = 0;
+};
+
+struct FVkRtTLASBuildData
+{
+	FVkRtTLASBuildData()
+	{
+		ZeroVulkanStruct(Geometry, VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR);
+		ZeroVulkanStruct(GeometryInfo, VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR);
+		ZeroVulkanStruct(SizesInfo, VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR);
+	}
+
+	VkAccelerationStructureGeometryKHR Geometry;
+	VkAccelerationStructureBuildGeometryInfoKHR GeometryInfo;
+	VkAccelerationStructureBuildSizesInfoKHR SizesInfo;
+};
+
+struct FVkRtBLASBuildData
+{
+	FVkRtBLASBuildData()
+	{
+		ZeroVulkanStruct(GeometryInfo, VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR);
+		ZeroVulkanStruct(SizesInfo, VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR);
+	}
+
+	TArray<VkAccelerationStructureGeometryKHR, TInlineAllocator<1>> Segments;
+	TArray<VkAccelerationStructureBuildRangeInfoKHR, TInlineAllocator<1>> Ranges;
+	TArray<uint32, TInlineAllocator<1>> VertexCounts;
+	VkAccelerationStructureBuildGeometryInfoKHR GeometryInfo;
+	VkAccelerationStructureBuildSizesInfoKHR SizesInfo;
 };
 
 class FVulkanRayTracingGeometry : public FRHIRayTracingGeometry
 {
 public:
-	FVulkanRayTracingGeometry(const FRayTracingGeometryInitializer& Initializer);
+	FVulkanRayTracingGeometry(const FRayTracingGeometryInitializer& Initializer, const FVulkanDevice* InDevice);
 	~FVulkanRayTracingGeometry();
 
 	void BuildAccelerationStructure(FVulkanCommandListContext& CommandContext, EAccelerationStructureBuildMode BuildMode);
@@ -69,12 +98,13 @@ private:
 	TArray<FRayTracingGeometrySegment> Segments;
 
 	FName DebugName;
+	const FVulkanDevice* Device = nullptr;
 };
 
 class FVulkanRayTracingScene : public FRHIRayTracingScene
 {
 public:
-	FVulkanRayTracingScene(const FRayTracingSceneInitializer& Initializer);
+	FVulkanRayTracingScene(const FRayTracingSceneInitializer& Initializer, const FVulkanDevice* InDevice);
 	~FVulkanRayTracingScene();
 
 	void BuildAccelerationStructure(FVulkanCommandListContext& CommandContext);
@@ -82,11 +112,16 @@ public:
 	VkAccelerationStructureKHR Handle = VK_NULL_HANDLE;
 	FVkRtAllocation Allocation;
 	FVkRtAllocation Scratch;
+	FVkRtAllocation InstanceBuffer;
 
 	TArray<VkAccelerationStructureInstanceKHR> InstanceDescs;
 	TArray<const FVulkanRayTracingGeometry*> InstanceGeometry;
 	TArray<TRefCountPtr<const FVulkanRayTracingGeometry>> ReferencedGeometry;
 	FName DebugName;
+	uint32 NumInstances = 0;
+
+private:
+	const FVulkanDevice* Device = nullptr;
 };
 
 #endif // #if VULKAN_RHI_RAYTRACING

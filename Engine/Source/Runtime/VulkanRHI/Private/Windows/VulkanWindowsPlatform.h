@@ -19,8 +19,7 @@
 
 #define	UE_VK_API_VERSION							VK_API_VERSION_1_1
 
-//#define VULKAN_RHI_RAYTRACING (RHI_RAYTRACING)
-#define VULKAN_RHI_RAYTRACING 0 // Disabled for development
+#define VULKAN_RHI_RAYTRACING (RHI_RAYTRACING)
 #define VULKAN_SUPPORTS_SCALAR_BLOCK_LAYOUT (VULKAN_RHI_RAYTRACING)
 
 // 32-bit windows has warnings on custom mem mgr callbacks
