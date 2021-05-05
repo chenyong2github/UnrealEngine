@@ -110,10 +110,11 @@ void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene
 	check(!CullingIntermediate.InstanceIdOutOffsetBuffer);
 	check(!CullingIntermediate.VisibleInstanceFlags);
 
+	FRDGBufferUploader BufferUploader;
+
 	TArray<uint32> NullArray;
 	NullArray.AddZeroed(1);
-
-	CullingIntermediate.InstanceIdOutOffsetBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.OutputOffsetBufferOut"), NullArray);
+	CullingIntermediate.InstanceIdOutOffsetBuffer = CreateStructuredBuffer(GraphBuilder, BufferUploader, TEXT("InstanceCulling.OutputOffsetBufferOut"), NullArray);
 
 	int32 NumInstanceFlagWords = FMath::DivideAndRoundUp(NumInstances, int32(sizeof(uint32) * 8));
 
@@ -138,13 +139,15 @@ void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene
 			PassParameters->NumInstances = NumInstances;
 			PassParameters->NumInstanceFlagWords = NumInstanceFlagWords;
 
-			PassParameters->InViews = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.CullingViews"), CullingViews));
+			PassParameters->InViews = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, BufferUploader, TEXT("InstanceCulling.CullingViews"), CullingViews));
 			PassParameters->NumViews = NumViews;
 
 
 			PassParameters->InstanceVisibilityFlagsOut = VisibleInstanceFlagsUAV;
 
 			auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FCullInstancesCs>();
+
+			BufferUploader.Submit(GraphBuilder);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
@@ -160,5 +163,7 @@ void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene
 			AddClearUAVPass(GraphBuilder, VisibleInstanceFlagsUAV, 0xFFFFFFFF);
 		}
 	}
+
+	BufferUploader.Submit(GraphBuilder);
 #endif // GPUCULL_TODO
 }

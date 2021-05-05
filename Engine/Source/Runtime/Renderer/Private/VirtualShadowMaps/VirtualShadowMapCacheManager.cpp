@@ -453,6 +453,11 @@ void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRDGBu
 	PrevUniformParameters.PhysicalPagePool = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 	PrevUniformParameters.PhysicalPagePoolHw = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 
+	FRDGBufferUploader BufferUploader;
+	FRDGBufferRef InstanceRangesSmallRDG = !InstanceRangesSmall.IsEmpty() ? CreateStructuredBuffer(GraphBuilder, BufferUploader, TEXT("Shadow.Virtual.InstanceRangesSmall"), InstanceRangesSmall) : nullptr;
+	FRDGBufferRef InstanceRangesLargeRDG = !InstanceRangesLarge.IsEmpty() ? CreateStructuredBuffer(GraphBuilder, BufferUploader, TEXT("Shadow.Virtual.InstanceRangesSmall"), InstanceRangesLarge) : nullptr;
+	BufferUploader.Submit(GraphBuilder);
+
 	if (InstanceRangesSmall.Num())
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "ProcessInstanceRangeInvalidation [%d small-ranges]", InstanceRangesSmall.Num());
@@ -460,8 +465,8 @@ void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRDGBu
 		FVirtualSmInvalidateInstancePagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmInvalidateInstancePagesCS::FParameters>();
 
 		PassParameters->VirtualShadowMap = GetPreviousUniformBuffer(GraphBuilder);
-		FRDGBufferRef InstanceRangesRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.InstanceRangesSmall"), InstanceRangesSmall);
-		PassParameters->InstanceRanges = GraphBuilder.CreateSRV(InstanceRangesRDG);
+		
+		PassParameters->InstanceRanges = GraphBuilder.CreateSRV(InstanceRangesSmallRDG);
 		PassParameters->NumRemovedItems = InstanceRangesSmall.Num();
 
 		PassParameters->PageFlags = RegExtCreateSrv(PrevBuffers.PageFlags, TEXT("Shadow.Virtual.PrevPageFlags"));
@@ -496,8 +501,7 @@ void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRDGBu
 		FVirtualSmInvalidateInstancePagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmInvalidateInstancePagesCS::FParameters>();
 
 		PassParameters->VirtualShadowMap = GetPreviousUniformBuffer(GraphBuilder);
-		FRDGBufferRef InstanceRangesRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.InstanceRangesSmall"), InstanceRangesLarge);
-		PassParameters->InstanceRanges = GraphBuilder.CreateSRV(InstanceRangesRDG);
+		PassParameters->InstanceRanges = GraphBuilder.CreateSRV(InstanceRangesLargeRDG);
 		PassParameters->NumRemovedItems = InstanceRangesLarge.Num();
 
 		PassParameters->PageFlags = RegExtCreateSrv(PrevBuffers.PageFlags, TEXT("Shadow.Virtual.PrevPageFlags"));

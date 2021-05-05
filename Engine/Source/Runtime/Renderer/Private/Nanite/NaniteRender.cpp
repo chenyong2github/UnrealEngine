@@ -3215,9 +3215,11 @@ void CullRasterize(
 	//check(Views.Num() == 1 || !CullingContext.PrevHZB);	// HZB not supported with multi-view, yet
 	ensure(Views.Num() > 0 && Views.Num() <= MAX_VIEWS_PER_CULL_RASTERIZE_PASS);
 
+	FRDGBufferUploader BufferUploader;
+
 	{
 		const uint32 ViewsBufferElements = FMath::RoundUpToPowerOfTwo(Views.Num());
-		CullingContext.ViewsBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("Nanite.Views"), Views.GetTypeSize(), ViewsBufferElements, Views.GetData(), Views.Num() * Views.GetTypeSize());
+		CullingContext.ViewsBuffer = CreateStructuredBuffer(GraphBuilder, BufferUploader, TEXT("Nanite.Views"), Views.GetTypeSize(), ViewsBufferElements, Views.GetData(), Views.Num() * Views.GetTypeSize());
 	}
 
 	if (OptionalInstanceDraws)
@@ -3226,6 +3228,7 @@ void CullRasterize(
 		CullingContext.InstanceDrawsBuffer = CreateStructuredBuffer
 		(
 			GraphBuilder,
+			BufferUploader,
 			TEXT("Nanite.InstanceDraws"),
 			OptionalInstanceDraws->GetTypeSize(),
 			InstanceDrawsBufferElements,
@@ -3258,7 +3261,7 @@ void CullRasterize(
 		Stats.NumPrimaryViews			= 0;
 		Stats.NumTotalViews				= 0;
 
-		CullingContext.StatsBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("Nanite.StatsBuffer"), sizeof(FNaniteStats), 1, &Stats, sizeof(FNaniteStats));
+		CullingContext.StatsBuffer = CreateStructuredBuffer(GraphBuilder, BufferUploader, TEXT("Nanite.StatsBuffer"), sizeof(FNaniteStats), 1, &Stats, sizeof(FNaniteStats));
 	}
 	else
 	{
@@ -3318,7 +3321,9 @@ void CullRasterize(
 		// just an atomic counter that needs to be zero
 		// NOTE: must be static since we're passing a reference to RDG
 		const static uint32 TheZeros[2] = { 0U, 0U };
-		FRDGBufferRef CompactedViewsAllocation = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.CompactedViewsAllocation"), sizeof(uint32), 2, TheZeros, sizeof(TheZeros), ERDGInitialDataFlags::NoCopy);
+		FRDGBufferRef CompactedViewsAllocation = CreateStructuredBuffer(GraphBuilder, BufferUploader, TEXT("Shadow.Virtual.CompactedViewsAllocation"), sizeof(uint32), 2, TheZeros, sizeof(TheZeros), ERDGInitialDataFlags::NoCopy);
+		BufferUploader.Submit(GraphBuilder);
+
 		{
 			FCompactViewsVSM_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FCompactViewsVSM_CS::FParameters >();
 
@@ -3349,6 +3354,9 @@ void CullRasterize(
 		CullingParameters.CompactedViewInfo = GraphBuilder.CreateSRV(CompactedViewInfo);
 		CullingParameters.CompactedViewsAllocation = GraphBuilder.CreateSRV(CompactedViewsAllocation);
 	}
+
+	BufferUploader.Submit(GraphBuilder);
+
 	{
 		FInitArgs_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInitArgs_CS::FParameters >();
 

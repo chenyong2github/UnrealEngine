@@ -1084,25 +1084,29 @@ FRDGBufferRef GetInternalDefaultBuffer(
 	FRDGBufferRef Buffer = nullptr; 
 	if (bIsStructuredBuffer)
 	{
-		Buffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(NumBytePerElement, NumElements), TEXT("DefaultBuffer"), ERDGBufferFlags::MultiFrame);
+		Buffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(NumBytePerElement, NumElements), TEXT("DefaultBuffer"));
 	}
 	else
 	{
-		Buffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(NumBytePerElement, NumElements), TEXT("DefaultStructuredBuffer"), ERDGBufferFlags::MultiFrame);
+		Buffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(NumBytePerElement, NumElements), TEXT("DefaultStructuredBuffer"));
 	}
+
+	FRDGBufferUploader BufferUploader;
 
 	// Initialize the entire buffer with the provided data
 	if (Value)
 	{
-		AddBufferUploadPass(GraphBuilder, Buffer, Value, NumElements * NumBytePerElement, ERDGInitialDataFlags::None);
+		BufferUploader.Upload(GraphBuilder, Buffer, Value, NumElements * NumBytePerElement);
 	}
 	// Initialize buffer to 0
 	else
 	{
 		TArray<uint8> DefaultValue;
 		DefaultValue.Init(0u, NumElements * NumBytePerElement);
-		AddBufferUploadPass(GraphBuilder, Buffer, DefaultValue.GetData(), DefaultValue.Num(), ERDGInitialDataFlags::None);
+		BufferUploader.Upload(GraphBuilder, Buffer, DefaultValue.GetData(), DefaultValue.Num());
 	}
+
+	BufferUploader.Submit(GraphBuilder);
 
 	FDefaultBuffer Entry;
 	Entry.Key = Key;

@@ -288,6 +288,9 @@ static void InternalBuildFollicleTexture_GPU(
 	uint32 KernelSizeInPixels = ~0;
 	TArray<FRDGBufferRef> RootUVBuffers[4];
 	bool bCopyDataBackToCPU = false;
+
+	FRDGBufferUploader BufferUploader;
+
 	for (const FFollicleInfo& Info : InInfos)
 	{
 		if (!Info.GroomAsset || Info.GroomAsset->GetNumHairGroups() == 0)
@@ -319,6 +322,7 @@ static void InternalBuildFollicleTexture_GPU(
 			const FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(sizeof(FVector2D), DataCount);
 			FRDGBufferRef RootBuffer = CreateVertexBuffer(
 				GraphBuilder, 
+				BufferUploader,
 				TEXT("RootUVBuffer"),
 				Desc,
 				StrandsData.StrandsCurves.CurvesRootUV.GetData(),
@@ -329,6 +333,8 @@ static void InternalBuildFollicleTexture_GPU(
 			GroupIndex++;
 		}
 	}
+
+	BufferUploader.Submit(GraphBuilder);
 
 	const EPixelFormat Format = bCopyDataBackToCPU ? PF_B8G8R8A8 : PF_R8G8B8A8;		 
 	InternalGenerateFollicleTexture_GPU(GraphBuilder, ShaderMap, bCopyDataBackToCPU, Resolution, MipCount, Format, KernelSizeInPixels, RootUVBuffers[0], RootUVBuffers[1], RootUVBuffers[2], RootUVBuffers[3], OutTexture);

@@ -176,9 +176,9 @@ void SetupShadowDepthPassUniformBuffer(
 	ShadowDepthPassParameters.bRenderToVirtualShadowMap = false;
 	ShadowDepthPassParameters.bInstancePerPage = false;
 	ShadowDepthPassParameters.bAtomicWrites = false;
-	ShadowDepthPassParameters.VirtualSmPageTable = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("Dummy-VirtualSmPageTable"), TArray<uint32>()));
-	ShadowDepthPassParameters.PackedNaniteViews = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("Dummy-PackedNaniteViews"), TArray<Nanite::FPackedView>()));
-	ShadowDepthPassParameters.PageRectBounds = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("Dummy-PageRectBounds"), TArray<FIntVector4>()));
+	ShadowDepthPassParameters.VirtualSmPageTable = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(uint32)));
+	ShadowDepthPassParameters.PackedNaniteViews = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(Nanite::FPackedView)));
+	ShadowDepthPassParameters.PageRectBounds = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FIntVector4)));
 
 	FRDGTextureRef DepthBuffer = GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D( FIntPoint(4,4), PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV ), TEXT("Dummy-OutDepthBuffer") );
 

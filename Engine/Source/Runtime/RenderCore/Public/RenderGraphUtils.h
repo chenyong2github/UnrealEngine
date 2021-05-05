@@ -602,18 +602,46 @@ enum class ERDGInitialDataFlags : uint8
 };
 ENUM_CLASS_FLAGS(ERDGInitialDataFlags)
 
-/** Adds a buffer initial data upload pass. */
-RENDERCORE_API void AddBufferUploadPass(
+class RENDERCORE_API FRDGBufferUploader
+{
+public:
+	void Upload(FRDGBuilder& GraphBuilder, FRDGBufferRef Buffer, const void* InitialData, uint64 InitialDataSize, ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None);
+
+	void Submit(FRDGBuilder& GraphBuilder);
+
+private:
+	struct FInitialData
+	{
+		FInitialData(const void* InInitialData, uint64 InInitialDataSize)
+			: Ptr(InInitialData)
+			, Size(InInitialDataSize)
+		{}
+
+		const void* Ptr;
+		uint64 Size;
+	};
+
+	TArray<FInitialData, TInlineAllocator<1, FRDGArrayAllocator>> Datas;
+	FRDGBufferAccessArray Buffers;
+};
+
+UE_DEPRECATED(5.0, "Please use FRDGBufferUploader to batch uploads.")
+inline void AddBufferUploadPass(
 	FRDGBuilder& GraphBuilder,
 	FRDGBufferRef Buffer,
 	const void* InitialData,
 	uint64 InitialDataSize,
-	ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None);
-
+	ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None)
+{
+	FRDGBufferUploader BufferUploader;
+	BufferUploader.Upload(GraphBuilder, Buffer, InitialData, InitialDataSize, InitialDataFlags);
+	BufferUploader.Submit(GraphBuilder);
+}
 
 /** Creates a structured buffer with initial data by creating an upload pass. */
 RENDERCORE_API FRDGBufferRef CreateStructuredBuffer(
 	FRDGBuilder& GraphBuilder,
+	FRDGBufferUploader& BufferUploader,
 	const TCHAR* Name,
 	uint32 BytesPerElement,
 	uint32 NumElements,
@@ -621,6 +649,20 @@ RENDERCORE_API FRDGBufferRef CreateStructuredBuffer(
 	uint64 InitialDataSize,
 	ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None);
 
+inline FRDGBufferRef CreateStructuredBuffer(
+	FRDGBuilder& GraphBuilder,
+	const TCHAR* Name,
+	uint32 BytesPerElement,
+	uint32 NumElements,
+	const void* InitialData,
+	uint64 InitialDataSize,
+	ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None)
+{
+	FRDGBufferUploader BufferUploader;
+	FRDGBufferRef Buffer = CreateStructuredBuffer(GraphBuilder, BufferUploader, Name, BytesPerElement, NumElements, InitialData, InitialDataSize, InitialDataFlags);
+	BufferUploader.Submit(GraphBuilder);
+	return Buffer;
+}
 
 /**
  * Helper to create a structured buffer with initial data from a TArray.
@@ -628,6 +670,7 @@ RENDERCORE_API FRDGBufferRef CreateStructuredBuffer(
 template <typename ElementType, typename AllocatorType>
 FORCEINLINE FRDGBufferRef CreateStructuredBuffer(
 	FRDGBuilder& GraphBuilder,
+	FRDGBufferUploader& BufferUploader,
 	const TCHAR* Name,
 	const TArray<ElementType, AllocatorType>& InitialData,
 	ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None)
@@ -635,20 +678,34 @@ FORCEINLINE FRDGBufferRef CreateStructuredBuffer(
 	static const ElementType DummyElement = ElementType();
 	if (InitialData.Num() == 0)
 	{
-		return CreateStructuredBuffer(GraphBuilder, Name, InitialData.GetTypeSize(), 1, &DummyElement, InitialData.GetTypeSize());
+		return CreateStructuredBuffer(GraphBuilder, BufferUploader, Name, InitialData.GetTypeSize(), 1, &DummyElement, InitialData.GetTypeSize());
 	}
-	return CreateStructuredBuffer(GraphBuilder, Name, InitialData.GetTypeSize(), InitialData.Num(), InitialData.GetData(), InitialData.Num() * InitialData.GetTypeSize(), InitialDataFlags);
+	return CreateStructuredBuffer(GraphBuilder, BufferUploader, Name, InitialData.GetTypeSize(), InitialData.Num(), InitialData.GetData(), InitialData.Num() * InitialData.GetTypeSize(), InitialDataFlags);
 }
-
 
 /** Creates a vertex buffer with initial data by creating an upload pass. */
 RENDERCORE_API FRDGBufferRef CreateVertexBuffer(
 	FRDGBuilder& GraphBuilder,
+	FRDGBufferUploader& BufferUploader,
 	const TCHAR* Name,
 	const FRDGBufferDesc& Desc,
 	const void* InitialData,
 	uint64 InitialDataSize,
 	ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None);
+
+inline FRDGBufferRef CreateVertexBuffer(
+	FRDGBuilder& GraphBuilder,
+	const TCHAR* Name,
+	const FRDGBufferDesc& Desc,
+	const void* InitialData,
+	uint64 InitialDataSize,
+	ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None)
+{
+	FRDGBufferUploader BufferUploader;
+	FRDGBufferRef Buffer = CreateVertexBuffer(GraphBuilder, BufferUploader, Name, Desc, InitialData, InitialDataSize, InitialDataFlags);
+	BufferUploader.Submit(GraphBuilder);
+	return Buffer;
+}
 
 /** Helper functions to add parameterless passes to the graph. */
 template <typename ExecuteLambdaType>

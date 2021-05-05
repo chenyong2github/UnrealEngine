@@ -199,15 +199,18 @@ static void SetCacheDataShaderParameters(FRDGBuilder& GraphBuilder, const TArray
 			ShadowMapCacheData[SmIndex].DepthOffset = 0.0f;
 		}
 	}
-	CacheDataParameters.ShadowMapCacheData = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.ShadowMapCacheData"), ShadowMapCacheData));
+	FRDGBufferUploader BufferUploader;
+	CacheDataParameters.ShadowMapCacheData = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, BufferUploader, TEXT("Shadow.Virtual.ShadowMapCacheData"), ShadowMapCacheData));
 	CacheDataParameters.PrevPageFlags = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PageFlags, TEXT("Shadow.Virtual.PrevPageFlags")));
 	CacheDataParameters.PrevPageTable = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PageTable, TEXT("Shadow.Virtual.PrevPageTable")));
 	CacheDataParameters.PrevPhysicalPageMetaData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PhysicalPageMetaData, TEXT("Shadow.Virtual.PrevPhysicalPageMetaData")));
 	CacheDataParameters.PrevDynamicCasterPageFlags = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.DynamicCasterPageFlags, TEXT("Shadow.Virtual.PrevDynamicCasterPageFlags")));
+	BufferUploader.Submit(GraphBuilder);
 }
 
 static FRDGBufferRef CreateProjectionDataBuffer(
 	FRDGBuilder& GraphBuilder,
+	FRDGBufferUploader& BufferUploader,
 	const TCHAR* Name,
 	const TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator>& InitialData)
 {
@@ -220,7 +223,7 @@ static FRDGBufferRef CreateProjectionDataBuffer(
 	Desc.NumElements = DataSize / 4;
 
 	FRDGBufferRef Buffer = GraphBuilder.CreateBuffer(Desc, Name);
-	AddBufferUploadPass(GraphBuilder, Buffer, InitialData.GetData(), DataSize);
+	BufferUploader.Upload(GraphBuilder, Buffer, InitialData.GetData(), DataSize);
 	return Buffer;
 }
 
@@ -260,13 +263,9 @@ void FVirtualShadowMapArray::Initialize(FRDGBuilder& GraphBuilder, FVirtualShado
 	UniformParameters.PhysicalPoolSizePages = FIntPoint( PhysicalPagesX, PhysicalPagesY );
 
 	// Reference dummy data in the UB initially
-	TArray<uint32, SceneRenderingAllocator> DummyPageTable;
-	DummyPageTable.Add(0xFFFFFFFF);
-	UniformParameters.PageTable = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.DummyPageTable"), DummyPageTable));
-
-	TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator> ProjectionData;
-	ProjectionData.AddDefaulted(1);
-	UniformParameters.ProjectionData = GraphBuilder.CreateSRV(CreateProjectionDataBuffer(GraphBuilder, TEXT("Shadow.Virtual.DummyProjectionData"), ProjectionData));
+	const uint32 DummyPageElement = 0xFFFFFFFF;
+	UniformParameters.PageTable = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(DummyPageElement), DummyPageElement));
+	UniformParameters.ProjectionData = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FVirtualShadowMapProjectionShaderData)));
 
 	UniformParameters.PhysicalPagePool = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 	UniformParameters.PhysicalPagePoolHw = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
@@ -639,8 +638,9 @@ void FVirtualShadowMapArray::MarkPhysicalPagesRendered(FRDGBuilder& GraphBuilder
 
 	{
 		// One launch per All SMs, since they share page table data structure.
-		FRDGBufferRef VirtualShadowMapFlagsRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.Flags"), VirtualShadowMapFlags);
-
+		FRDGBufferUploader BufferUploader;
+		FRDGBufferRef VirtualShadowMapFlagsRDG = CreateStructuredBuffer(GraphBuilder, BufferUploader, TEXT("Shadow.Virtual.Flags"), VirtualShadowMapFlags);
+		BufferUploader.Submit(GraphBuilder);
 
 		FMarkRenderedPhysicalPagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FMarkRenderedPhysicalPagesCS::FParameters >();
 		PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
@@ -821,7 +821,10 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 		UniformParameters.NumShadowMaps = ShadowMaps.Num();
 		UniformParameters.NumDirectionalLights = DirectionalLightSmInds.Num();
 
-		ShadowMapProjectionDataRDG = CreateProjectionDataBuffer(GraphBuilder, TEXT("Shadow.Virtual.ProjectionData"), ShadowMapProjectionData);
+		FRDGBufferUploader BufferUploader;
+		ShadowMapProjectionDataRDG = CreateProjectionDataBuffer(GraphBuilder, BufferUploader, TEXT("Shadow.Virtual.ProjectionData"), ShadowMapProjectionData);
+		BufferUploader.Submit(GraphBuilder);
+
 		UniformParameters.ProjectionData = GraphBuilder.CreateSRV(ShadowMapProjectionDataRDG);
 
 		if (CVarShowStats.GetValueOnRenderThread() || (CacheManager && CacheManager->IsAccumulatingStats()))
@@ -898,8 +901,10 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 				}
 			}
 
+			VirtualShadowMapIdRemapRDG.Add( CreateStructuredBuffer(GraphBuilder, BufferUploader, TEXT("Shadow.Virtual.IdRemap"), VirtualShadowMapIdRemap) );
+			BufferUploader.Submit(GraphBuilder);
+
 			const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
-			VirtualShadowMapIdRemapRDG.Add( CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.IdRemap"), VirtualShadowMapIdRemap) );
 			FRDGTextureRef VisBuffer64 = NaniteVisBuffer64 != nullptr ? NaniteVisBuffer64 : SystemTextures.Black;
 
 			FRDGBufferRef ScreenSpaceGridBoundsRDG = nullptr;
@@ -1677,10 +1682,12 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 			FSceneRenderer::GetLightNameForDrawEvent(ProjectedShadowInfo->GetLightSceneInfo().Proxy, LightNameWithLevel);
 			RDG_EVENT_SCOPE(GraphBuilder, "%s", *LightNameWithLevel);
 
+			FRDGBufferUploader BufferUploader;
+
 			TArray<int32, SceneRenderingAllocator> DrawCommandInstanceCountTmp;
 			DrawCommandInstanceCountTmp.AddZeroed(NumDrawCommands);
-			FRDGBufferRef DrawCommandInstanceCountRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.DrawCommandInstanceCount"), DrawCommandInstanceCountTmp);
-			FRDGBufferRef TmpInstanceIdOffsetBufferRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.TmpInstanceIdOffsetBuffer"), DrawCommandInstanceCountTmp);
+			FRDGBufferRef DrawCommandInstanceCountRDG = CreateStructuredBuffer(GraphBuilder, BufferUploader, TEXT("Shadow.Virtual.DrawCommandInstanceCount"), DrawCommandInstanceCountTmp);
+			FRDGBufferRef TmpInstanceIdOffsetBufferRDG = CreateStructuredBuffer(GraphBuilder, BufferUploader, TEXT("Shadow.Virtual.TmpInstanceIdOffsetBuffer"), DrawCommandInstanceCountTmp);
 			//AddBuildInstanceListPass(GraphBuilder, GPUScene, InstanceIdBuffer, InstanceCountBuffer);
 			// 2. Run page culling & command building pass(es)
 			// This takes the per high-level view instance list and performs page overlap tests and amplification/compaction for all target mip levels OR clip levels.
@@ -1688,14 +1695,15 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 			// AddPageRenderCommandPass(GraphBuilder, GPUScene, InstanceIdBuffer, InstanceCountBuffer, ShadowMapViews);
 			// 2.1. Pass to perform the culling & replication to each page, store 
 			const uint32 MaxNumInstancesPerPass = NumDrawCommands * FInstanceCullingManager::MaxAverageInstanceFactor * 64u;
-			FRDGBufferRef VisibleInstancesRdg = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.VisibleInstances"), sizeof(FVisibleInstanceCmd), MaxNumInstancesPerPass, nullptr, 0);
+			FRDGBufferRef VisibleInstancesRdg = CreateStructuredBuffer(GraphBuilder, BufferUploader, TEXT("Shadow.Virtual.VisibleInstances"), sizeof(FVisibleInstanceCmd), MaxNumInstancesPerPass, nullptr, 0);
 
 			TArray<uint32> NullArray;
 			NullArray.AddZeroed(1);
-			FRDGBufferRef VisibleInstanceWriteOffsetRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.VisibleInstanceWriteOffset"), NullArray);
-			FRDGBufferRef OutputOffsetBufferRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.OutputOffsetBuffer"), NullArray);
-			FRDGBufferRef VirtualShadowViewsRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.VirtualShadowViews"), VirtualShadowViews);
+			FRDGBufferRef VisibleInstanceWriteOffsetRDG = CreateStructuredBuffer(GraphBuilder, BufferUploader, TEXT("Shadow.Virtual.VisibleInstanceWriteOffset"), NullArray);
+			FRDGBufferRef OutputOffsetBufferRDG = CreateStructuredBuffer(GraphBuilder, BufferUploader, TEXT("Shadow.Virtual.OutputOffsetBuffer"), NullArray);
+			FRDGBufferRef VirtualShadowViewsRDG = CreateStructuredBuffer(GraphBuilder, BufferUploader, TEXT("Shadow.Virtual.VirtualShadowViews"), VirtualShadowViews);
 
+			BufferUploader.Submit(GraphBuilder);
 
 			// TODO: Remove this when everything is properly RDG'd
 			AddPass(GraphBuilder, [](FRHICommandList& RHICmdList)
