@@ -14,6 +14,7 @@
 #include "MeshUtilities.h"
 #include "MeshMergingTool/MeshMergingTool.h"
 #include "MeshProxyTool/MeshProxyTool.h"
+#include "MeshApproximationTool/MeshApproximationTool.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "IMeshReductionManagerModule.h"
 #include "MeshInstancingTool/MeshInstancingTool.h"
@@ -131,6 +132,8 @@ void FMergeActorsModule::StartupModule()
 	}
 
 	ensure(RegisterMergeActorsTool(MakeUnique<FMeshInstancingTool>()));
+
+	ensure(RegisterMergeActorsTool(MakeUnique<FMeshApproximationTool>()));
 }
 
 

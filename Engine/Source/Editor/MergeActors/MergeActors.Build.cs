@@ -25,7 +25,8 @@ public class MergeActors : ModuleRules
                 "WorkspaceMenuStructure",
                 "MeshReductionInterface",
                 "MeshMergeUtilities",
-            }
+				"GeometryProcessingInterfaces"
+			}
 		);
 
 		PrivateDependencyModuleNames.AddRange(
@@ -50,6 +51,7 @@ public class MergeActors : ModuleRules
                 "MeshUtilities",
                 "MeshMergeUtilities",
                 "MeshReductionInterface",
+				"GeometryProcessingInterfaces"
             }
 		);
 	}

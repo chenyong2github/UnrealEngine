@@ -1,0 +1,230 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MeshApproximationTool/MeshApproximationTool.h"
+#include "Misc/Paths.h"
+#include "Misc/FeedbackContext.h"
+#include "Modules/ModuleManager.h"
+#include "UObject/Package.h"
+#include "Misc/PackageName.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "GameFramework/Actor.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
+#include "Components/SplineMeshComponent.h"
+#include "Engine/StaticMeshActor.h"
+#include "Materials/Material.h"
+#include "Engine/Selection.h"
+#include "Editor.h"
+#include "Misc/MessageDialog.h"
+#include "MeshApproximationTool/SMeshApproximationDialog.h"
+#include "MeshUtilities.h"
+#include "IContentBrowserSingleton.h"
+#include "ContentBrowserModule.h"
+#include "AssetRegistryModule.h"
+#include "IMeshReductionInterfaces.h"
+#include "IMeshMergeUtilities.h"
+#include "MeshMergeModule.h"
+
+#include "AssetRegistryModule.h"
+#include "AssetToolsModule.h"
+
+
+#include "IGeometryProcessingInterfacesModule.h"
+#include "GeometryProcessingInterfaces/ApproximateActors.h"
+
+#include "SMeshApproximationDialog.h"
+
+#define LOCTEXT_NAMESPACE "MeshApproximationTool"
+
+bool UMeshApproximationSettingsObject::bInitialized = false;
+UMeshApproximationSettingsObject* UMeshApproximationSettingsObject::DefaultSettings = nullptr;
+
+
+
+FMeshApproximationTool::FMeshApproximationTool()
+{
+	SettingsObject = UMeshApproximationSettingsObject::Get();
+}
+
+FMeshApproximationTool::~FMeshApproximationTool()
+{
+	UMeshApproximationSettingsObject::Destroy();
+	SettingsObject = nullptr;
+}
+
+TSharedRef<SWidget> FMeshApproximationTool::GetWidget()
+{
+	SAssignNew(ProxyDialog, SMeshApproximationDialog, this);
+	return ProxyDialog.ToSharedRef();
+}
+
+FText FMeshApproximationTool::GetTooltipText() const
+{
+	return LOCTEXT("MeshApproximationToolTooltip", "Approximate selected Actors with combined Actors");
+}
+
+FString FMeshApproximationTool::GetDefaultPackageName() const
+{
+	FString PackageName;
+
+	USelection* SelectedActors = GEditor->GetSelectedActors();
+
+	// Iterate through selected actors and find first static mesh asset
+	// Use this static mesh path as destination package name for a merged mesh
+	for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
+	{
+		AActor* Actor = Cast<AActor>(*Iter);
+		if (Actor)
+		{
+			TInlineComponentArray<UStaticMeshComponent*> SMComponets;
+			Actor->GetComponents<UStaticMeshComponent>(SMComponets);
+			for (UStaticMeshComponent* Component : SMComponets)
+			{
+				if (Component->GetStaticMesh())
+				{
+					PackageName = FPackageName::GetLongPackagePath(Component->GetStaticMesh()->GetOutermost()->GetName());
+					PackageName += FString(TEXT("/APPROX_")) + Component->GetStaticMesh()->GetName();
+					break;
+				}
+			}
+		}
+
+		if (!PackageName.IsEmpty())
+		{
+			break;
+		}
+	}
+
+	if (PackageName.IsEmpty())
+	{
+		PackageName = FPackageName::FilenameToLongPackageName(FPaths::ProjectContentDir() + TEXT("APPROX"));
+		PackageName = MakeUniqueObjectName(NULL, UPackage::StaticClass(), *PackageName).ToString();
+	}
+
+	return PackageName;
+}
+
+
+const TArray<TSharedPtr<FMergeComponentData>>& FMeshApproximationTool::GetSelectedComponentsInWidget() const
+{
+	return ProxyDialog->GetSelectedComponents();
+}
+
+
+static void ReplaceSourceActorsByApproximationMeshes(TArray<UObject*>& NewAssetsToSync, ULevel* Level, TArray<AActor*>& Actors)
+{
+	UStaticMesh* MergedMesh = nullptr;
+	if (NewAssetsToSync.FindItemByClass(&MergedMesh))
+	{
+		Level->Modify();
+
+		UWorld* World = Level->OwningWorld;
+		FActorSpawnParameters Params;
+		Params.OverrideLevel = Level;
+		FRotator MergedActorRotation(ForceInit);
+		// The pivot of the merged mesh is always at the origin
+		FVector MergedActorLocation(0, 0, 0);
+
+		AStaticMeshActor* MergedActor = World->SpawnActor<AStaticMeshActor>(MergedActorLocation, MergedActorRotation, Params);
+		MergedActor->GetStaticMeshComponent()->SetStaticMesh(MergedMesh);
+		MergedActor->SetActorLabel(MergedMesh->GetName());
+		World->UpdateCullDistanceVolumes(MergedActor, MergedActor->GetStaticMeshComponent());
+		GEditor->SelectNone(true, true);
+		GEditor->SelectActor(MergedActor, true, true);
+
+		// Remove source actors
+		for (AActor* Actor : Actors)
+		{
+			Actor->Destroy();
+		}
+	}
+}
+
+bool FMeshApproximationTool::RunMerge(const FString& PackageName, const TArray<TSharedPtr<FMergeComponentData>>& SelectedComponents)
+{
+	TArray<AActor*> Actors;
+	TArray<ULevel*> UniqueLevels;
+	TArray<UObject*> AssetsToSync;
+
+	BuildActorsListFromMergeComponentsData(SelectedComponents, Actors, bReplaceSourceActors ? &UniqueLevels : nullptr);
+
+	// This restriction is only for replacement of selected actors with merged mesh actor
+	if (UniqueLevels.Num() > 1 && bReplaceSourceActors)
+	{
+		FText Message = NSLOCTEXT("UnrealEd", "FailedToMergeActorsSublevels_Msg", "The selected actors should be in the same level");
+		const FText Title = NSLOCTEXT("UnrealEd", "FailedToMergeActors_Title", "Unable to merge actors");
+		FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
+		return false;
+	}
+
+	const FMeshApproximationToolSettings& UseSettings = SettingsObject->Settings;
+
+	IGeometryProcessingInterfacesModule& GeomProcInterfaces = FModuleManager::Get().LoadModuleChecked<IGeometryProcessingInterfacesModule>("GeometryProcessingInterfaces");
+	IGeometryProcessing_ApproximateActors* ApproxActorsAPI = GeomProcInterfaces.GetApproximateActorsImplementation();
+
+	//
+	// Construct options for ApproximateActors operation
+	//
+
+	IGeometryProcessing_ApproximateActors::FOptions Options;
+	Options.BasePackagePath = PackageName;
+	Options.WorldSpaceApproximationAccuracyMeters = UseSettings.ApproximationAccuracy;
+	Options.ClampVoxelDimension = UseSettings.ClampVoxelDimension;
+	Options.WindingThreshold = UseSettings.WindingThreshold;
+	Options.bApplyMorphology = UseSettings.bFillGaps;
+	Options.MorphologyDistanceMeters = UseSettings.GapDistance;
+	Options.FixedTriangleCount = UseSettings.TargetTriCount;
+	if (UseSettings.SimplifyMethod == EMeshApproximationSimplificationPolicy::TrianglesPerArea)
+	{
+		Options.MeshSimplificationPolicy = IGeometryProcessing_ApproximateActors::ESimplificationPolicy::TrianglesPerUnitSqMeter;
+		Options.SimplificationTargetMetric = UseSettings.TrianglesPerM;
+	}
+	else
+	{
+		Options.MeshSimplificationPolicy = IGeometryProcessing_ApproximateActors::ESimplificationPolicy::FixedTriangleCount;
+	}
+
+	Options.TextureImageSize = UseSettings.MaterialSettings.TextureSize.X;
+	Options.AntiAliasMultiSampling = FMath::Max(1, UseSettings.MultiSamplingAA);
+
+	Options.RenderCaptureImageSize = (UseSettings.RenderCaptureResolution == 0) ?
+		Options.TextureImageSize : UseSettings.RenderCaptureResolution;
+	Options.FieldOfViewDegrees = UseSettings.CaptureFieldOfView;
+	Options.NearPlaneDist = UseSettings.NearPlaneDist;
+
+
+	// run actor approximation computation
+	IGeometryProcessing_ApproximateActors::FResults Results;
+	ApproxActorsAPI->ApproximateActors(Actors, Options, Results);
+
+	// Notify Asset Browser about new Assets
+	for (UStaticMesh* StaticMesh : Results.NewMeshAssets)
+	{
+		FAssetRegistryModule::AssetCreated(StaticMesh);
+	}
+	for (UMaterial* Material : Results.NewMaterials)
+	{
+		FAssetRegistryModule::AssetCreated(Material);
+	}
+	for (UTexture2D* Texture : Results.NewTextures)
+	{
+		FAssetRegistryModule::AssetCreated(Texture);
+	}
+
+	if (ensure(Results.NewMeshAssets.Num() == 1))
+	{
+		TArray<UObject*> NewAssetsToSync;
+		NewAssetsToSync.Add(Results.NewMeshAssets[0]);
+		if (bReplaceSourceActors && UniqueLevels[0])
+		{
+			ReplaceSourceActorsByApproximationMeshes(NewAssetsToSync, UniqueLevels[0], Actors);
+		}
+	}
+
+	return true;
+}
+
+
+
+#undef LOCTEXT_NAMESPACE
+
