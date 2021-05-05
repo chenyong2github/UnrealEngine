@@ -129,8 +129,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bVisibleInRayTracing(InComponent->bVisibleInRayTracing)
 ,	bRenderInDepthPass(InComponent->bRenderInDepthPass)
 ,	bRenderInMainPass(InComponent->bRenderInMainPass)
-,	bRequiresVisibleLevelToRender(false)
-,	bIsComponentLevelVisible(false)
+,	bForceHidden(false)
 ,	bCollisionEnabled(InComponent->IsCollisionEnabled())
 ,	bTreatAsBackgroundForOcclusion(InComponent->bTreatAsBackgroundForOcclusion)
 ,	bCanSkipRedundantTransformUpdates(true)
@@ -164,7 +163,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bSupportsDistanceFieldRepresentation(false)
 ,	bSupportsMeshCardRepresentation(false)
 ,	bSupportsHeightfieldRepresentation(false)
-,	bNeedsLevelAddedToWorldNotification(false)
+,	bShouldNotifyOnWorldAddRemove(false)
 ,	bWantsSelectionOutline(true)
 ,	bVerifyUsedMaterials(true)
 ,   bHasPrevInstanceTransforms(false)
@@ -251,13 +250,6 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 		bIsFoliage = FFoliageHelper::IsOwnedByFoliage(InComponent->GetOwner());
 #endif
 	}
-	
-	// 
-	// Flag components to render only after level will be fully added to the world
-	//
-	ULevel* ComponentLevel = InComponent->GetComponentLevel();
-	bRequiresVisibleLevelToRender = (ComponentLevel && ComponentLevel->bRequireFullVisibilityToRender);
-	bIsComponentLevelVisible = (!ComponentLevel || ComponentLevel->bIsVisible);
 
 	// Setup the runtime virtual texture information
 	if (UseVirtualTexturing(GetScene().GetFeatureLevel()))
@@ -805,8 +797,8 @@ bool FPrimitiveSceneProxy::IsShown(const FSceneView* View) const
 		return false;
 	}
 
-	// if primitive requires component level to be visible
-	if (bRequiresVisibleLevelToRender && !bIsComponentLevelVisible)
+	// If primitive is forcibly hidden
+	if (bForceHidden)
 	{
 		return false;
 	}
@@ -926,8 +918,8 @@ bool FPrimitiveSceneProxy::IsShadowCast(const FSceneView* View) const
 		}
 #endif	//#if WITH_EDITOR
 
-		// if primitive requires component level to be visible
-		if (bRequiresVisibleLevelToRender && !bIsComponentLevelVisible)
+		// If primitive is forcibly hidden
+		if (bForceHidden)
 		{
 			return false;
 		}

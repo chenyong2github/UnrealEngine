@@ -678,6 +678,20 @@ struct FLandscapeRenderSystem
 
 extern TMap<FLandscapeNeighborInfo::FLandscapeKey, FLandscapeRenderSystem*> LandscapeRenderSystems;
 
+class FLandscapeVisibilityHelper
+{
+public:
+	void Init(UPrimitiveComponent* LandscapeComponent, FPrimitiveSceneProxy* ProxyIn);
+	bool OnAddedToWorld();
+	bool OnRemoveFromWorld();
+	bool ShouldBeVisible() const { return !bRequiresVisibleLevelToRender || bIsComponentLevelVisible; }
+	bool RequiresVisibleLevelToRender() const { return bRequiresVisibleLevelToRender; }
+private:
+	bool bRequiresVisibleLevelToRender = false;
+	bool bIsComponentLevelVisible = false;
+	FPrimitiveSceneProxy* Proxy = nullptr;
+};
+
 //
 // FLandscapeMeshProxySceneProxy
 //
@@ -690,9 +704,12 @@ public:
 	FLandscapeMeshProxySceneProxy(UStaticMeshComponent* InComponent, const FGuid& InGuid, const TArray<FIntPoint>& InProxyComponentBases, int8 InProxyLOD);
 	virtual void CreateRenderThreadResources() override;
 	virtual void DestroyRenderThreadResources() override;
-	virtual void OnLevelAddedToWorld() override;
-};
+	virtual bool OnLevelAddedToWorld_RenderThread() override;
+	virtual void OnLevelRemovedFromWorld_RenderThread() override;
 
+private:
+	FLandscapeVisibilityHelper VisibilityHelper;
+};
 
 //
 // FLandscapeComponentSceneProxy
@@ -888,6 +905,8 @@ protected:
 	TArray<FPrimitiveInstance> Instances;
 #endif // GPUCULL_TODO
 
+	FLandscapeVisibilityHelper VisibilityHelper;
+
 protected:
 	virtual ~FLandscapeComponentSceneProxy();
 	
@@ -914,7 +933,8 @@ public:
 	virtual void OnTransformChanged() override;
 	virtual void CreateRenderThreadResources() override;
 	virtual void DestroyRenderThreadResources() override;
-	virtual void OnLevelAddedToWorld() override;
+	virtual bool OnLevelAddedToWorld_RenderThread() override;
+	virtual void OnLevelRemovedFromWorld_RenderThread() override;
 	
 	friend class ULandscapeComponent;
 	friend class FLandscapeVertexFactoryVertexShaderParameters;

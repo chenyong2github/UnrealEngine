@@ -3730,18 +3730,16 @@ void FScene::OnLevelAddedToWorld_RenderThread(FName InLevelName)
 	// Mark level primitives
 	TArray<FPrimitiveSceneInfo*> PrimitivesToAdd;
 
-	for (auto It = Primitives.CreateIterator(); It; ++It)
+	if (const TArray<FPrimitiveSceneInfo*>* LevelPrimitives = PrimitivesNeedingLevelUpdateNotification.Find(InLevelName))
 	{
-		FPrimitiveSceneProxy* Proxy = (*It)->Proxy;
-		if (Proxy->LevelName == InLevelName)
+		for (FPrimitiveSceneInfo* Primitive : *LevelPrimitives)
 		{
-			Proxy->bIsComponentLevelVisible = true;
-			if (Proxy->NeedsLevelAddedToWorldNotification())
+			// If the primitive proxy returns true, it needs it's static meshes added to the scene
+			if (Primitive->Proxy->OnLevelAddedToWorld_RenderThread())
 			{
-				// The only type of SceneProxy using this is landscape
-				(*It)->RemoveStaticMeshes();
-				Proxy->OnLevelAddedToWorld();
-				PrimitivesToAdd.Add(*It);
+				// Remove static meshes and cached commands for any primitives that need to be added
+				Primitive->RemoveStaticMeshes();
+				PrimitivesToAdd.Add(Primitive);
 			}
 		}
 	}
@@ -3770,12 +3768,11 @@ void FScene::OnLevelRemovedFromWorld_RenderThread(FName InLevelName)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FScene::OnLevelRemovedFromWorld_RenderThread);
 
-	for (auto It = Primitives.CreateIterator(); It; ++It)
+	if (TArray<FPrimitiveSceneInfo*>* LevelPrimitives = PrimitivesNeedingLevelUpdateNotification.Find(InLevelName))
 	{
-		FPrimitiveSceneProxy* Proxy = (*It)->Proxy;
-		if (Proxy->LevelName == InLevelName)
+		for (FPrimitiveSceneInfo* Primitive : *LevelPrimitives)
 		{
-			Proxy->bIsComponentLevelVisible = false;
+			Primitive->Proxy->OnLevelRemovedFromWorld_RenderThread();
 		}
 	}
 }

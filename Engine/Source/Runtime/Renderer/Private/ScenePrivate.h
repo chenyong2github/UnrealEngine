@@ -2618,6 +2618,8 @@ public:
 	TArray<ERayTracingPrimitiveFlags> PrimitiveRayTracingFlags;
 #endif
 
+	TMap<FName, TArray<FPrimitiveSceneInfo*>> PrimitivesNeedingLevelUpdateNotification;
+
 #if WITH_EDITOR
 	/** Packed bit array of primitives which are selected in the editor. */
 	TBitArray<> PrimitivesSelected;

@@ -374,7 +374,7 @@ void FLandscapeComponentSceneProxyMobile::CreateRenderThreadResources()
 {
 	LLM_SCOPE(ELLMTag::Landscape);
 
-	if (IsComponentLevelVisible())
+	if (VisibilityHelper.ShouldBeVisible())
 	{
 		RegisterNeighbors(this);
 	}

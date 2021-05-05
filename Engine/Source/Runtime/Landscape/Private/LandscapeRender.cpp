@@ -1068,6 +1068,37 @@ public:
 
 } LandscapePersistentViewUniformBufferExtension;
 
+
+void FLandscapeVisibilityHelper::Init(UPrimitiveComponent* LandscapeComponent, FPrimitiveSceneProxy* ProxyIn)
+{
+	// Flag components to render only after level will be fully added to the world
+	ULevel* ComponentLevel = LandscapeComponent->GetComponentLevel();
+	bRequiresVisibleLevelToRender = (ComponentLevel && ComponentLevel->bRequireFullVisibilityToRender);
+	bIsComponentLevelVisible = (!ComponentLevel || ComponentLevel->bIsVisible);
+}
+
+bool FLandscapeVisibilityHelper::OnAddedToWorld()
+{
+	if (bIsComponentLevelVisible)
+	{
+		return false;
+	}
+	
+	bIsComponentLevelVisible = true;
+	return true;
+}
+
+bool FLandscapeVisibilityHelper::OnRemoveFromWorld()
+{
+	if (!bIsComponentLevelVisible)
+	{
+		return false;
+	}
+
+	bIsComponentLevelVisible = false;
+	return true;
+}
+
 FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent* InComponent)
 	: FPrimitiveSceneProxy(InComponent, NAME_LandscapeResourceNameForDebugging)
 	, FLandscapeNeighborInfo(InComponent->GetWorld(), InComponent->GetLandscapeProxy()->GetLandscapeGuid(), InComponent->GetSectionBase() / InComponent->ComponentSizeQuads, InComponent->GetHeightmap(), InComponent->ForcedLOD, InComponent->LODBias)
@@ -1112,6 +1143,19 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	, LightMapResolution(InComponent->GetStaticLightMapResolution())
 #endif
 {
+
+	VisibilityHelper.Init(InComponent, this);
+
+	if (!VisibilityHelper.ShouldBeVisible())
+	{
+		SetForceHidden(true);
+	}
+
+	if (VisibilityHelper.RequiresVisibleLevelToRender())
+	{
+		bShouldNotifyOnWorldAddRemove = true;
+	}
+
 #if GPUCULL_TODO
 	// GPUCULL_TODO: Move to base proxy
 	bVFRequiresPrimitiveUniformBuffer = !UseGPUScene(GMaxRHIShaderPlatform, GetScene().GetFeatureLevel());
@@ -1137,11 +1181,6 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 
 	LODIndexToMaterialIndex = InComponent->LODIndexToMaterialIndex;
 	check(LODIndexToMaterialIndex.Num() == MaxLOD+1);
-
-	if (!IsComponentLevelVisible())
-	{
-		bNeedsLevelAddedToWorldNotification = true;
-	}
 
 	SetLevelColor(FLinearColor(1.f, 1.f, 1.f));
 
@@ -1346,6 +1385,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	Instance.LocalBounds = Instance.RenderBounds;
 	bSupportsInstanceDataBuffer = true;
 #endif // GPUCULL_TODO
+
 }
 
 void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
@@ -1354,7 +1394,7 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 
 	check(HeightmapTexture != nullptr);
 
-	if (IsComponentLevelVisible())
+	if (VisibilityHelper.ShouldBeVisible())
 	{
 		RegisterNeighbors(this);
 	}
@@ -1522,9 +1562,23 @@ void FLandscapeComponentSceneProxy::DestroyRenderThreadResources()
 	UnregisterNeighbors(this);
 }
 
-void FLandscapeComponentSceneProxy::OnLevelAddedToWorld()
+bool FLandscapeComponentSceneProxy::OnLevelAddedToWorld_RenderThread()
 {
-	RegisterNeighbors(this);
+	if (VisibilityHelper.OnAddedToWorld())
+	{
+		SetForceHidden(false);
+		RegisterNeighbors(this);
+		return true;
+	}
+	return false;
+}
+
+void FLandscapeComponentSceneProxy::OnLevelRemovedFromWorld_RenderThread()
+{
+	if (VisibilityHelper.OnRemoveFromWorld())
+	{
+		SetForceHidden(true);
+	}
 }
 
 FLandscapeComponentSceneProxy::~FLandscapeComponentSceneProxy()
@@ -4131,9 +4185,11 @@ void FLandscapeNeighborInfo::UnregisterNeighbors(FLandscapeComponentSceneProxy* 
 FLandscapeMeshProxySceneProxy::FLandscapeMeshProxySceneProxy(UStaticMeshComponent* InComponent, const FGuid& InGuid, const TArray<FIntPoint>& InProxyComponentBases, int8 InProxyLOD)
 	: FStaticMeshSceneProxy(InComponent, false)
 {
-	if (!IsComponentLevelVisible())
+	VisibilityHelper.Init(InComponent, this);
+
+	if (VisibilityHelper.RequiresVisibleLevelToRender())
 	{
-		bNeedsLevelAddedToWorldNotification = true;
+		bShouldNotifyOnWorldAddRemove = true;
 	}
 
 	ProxyNeighborInfos.Empty(InProxyComponentBases.Num());
@@ -4154,7 +4210,7 @@ void FLandscapeMeshProxySceneProxy::CreateRenderThreadResources()
 {
 	FStaticMeshSceneProxy::CreateRenderThreadResources();
 
-	if (IsComponentLevelVisible())
+	if (VisibilityHelper.ShouldBeVisible())
 	{
 		for (FLandscapeNeighborInfo& Info : ProxyNeighborInfos)
 		{
@@ -4163,11 +4219,27 @@ void FLandscapeMeshProxySceneProxy::CreateRenderThreadResources()
 	}
 }
 
-void FLandscapeMeshProxySceneProxy::OnLevelAddedToWorld()
+bool FLandscapeMeshProxySceneProxy::OnLevelAddedToWorld_RenderThread()
 {
-	for (FLandscapeNeighborInfo& Info : ProxyNeighborInfos)
+	if (VisibilityHelper.OnAddedToWorld())
 	{
-		Info.RegisterNeighbors();
+		SetForceHidden(false);
+
+		for (FLandscapeNeighborInfo& Info : ProxyNeighborInfos)
+		{
+			Info.RegisterNeighbors();
+		}
+		return true;
+	}
+
+	return false;
+}
+
+void FLandscapeMeshProxySceneProxy::OnLevelRemovedFromWorld_RenderThread()
+{
+	if (VisibilityHelper.OnRemoveFromWorld())
+	{
+		SetForceHidden(true);
 	}
 }
 

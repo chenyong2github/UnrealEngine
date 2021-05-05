@@ -116,11 +116,11 @@ FPrimitiveFlagsCompact::FPrimitiveFlagsCompact(const FPrimitiveSceneProxy* Proxy
 {}
 
 FPrimitiveSceneInfoCompact::FPrimitiveSceneInfoCompact(FPrimitiveSceneInfo* InPrimitiveSceneInfo) :
+	Bounds(PrimitiveSceneInfo->Proxy->GetBounds()),
 	PrimitiveFlagsCompact(InPrimitiveSceneInfo->Proxy)
 {
 	PrimitiveSceneInfo = InPrimitiveSceneInfo;
 	Proxy = PrimitiveSceneInfo->Proxy;
-	Bounds = PrimitiveSceneInfo->Proxy->GetBounds();
 	MinDrawDistance = PrimitiveSceneInfo->Proxy->GetMinDrawDistance();
 	MaxDrawDistance = PrimitiveSceneInfo->Proxy->GetMaxDrawDistance();
 
@@ -1198,6 +1198,16 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, FScen
 		FPrimitiveSceneProxy* Proxy = SceneInfo->Proxy;
 		INC_MEMORY_STAT_BY(STAT_PrimitiveInfoMemory, sizeof(*SceneInfo) + SceneInfo->StaticMeshes.GetAllocatedSize() + SceneInfo->StaticMeshRelevances.GetAllocatedSize() + Proxy->GetMemoryFootprint());
 	}
+
+	// Some primitive types cannot add their meshes until the level is added to the world.
+	for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
+	{
+		if (SceneInfo->Proxy->ShouldNotifyOnWorldAddRemove())
+		{
+			TArray<FPrimitiveSceneInfo*>& LevelNotifyPrimitives = Scene->PrimitivesNeedingLevelUpdateNotification.FindOrAdd(SceneInfo->Proxy->GetLevelName());
+			LevelNotifyPrimitives.Add(SceneInfo);
+		}
+	}	
 }
 
 void FPrimitiveSceneInfo::RemoveStaticMeshes()
@@ -1291,6 +1301,19 @@ void FPrimitiveSceneInfo::RemoveFromScene(bool bUpdateStaticDrawLists)
 	{
 		FVirtualTextureSystem::Get().RemoveAllProducerDestroyedCallbacks(this);
 		bRegisteredVirtualTextureProducerCallback = false;
+	}
+
+	if (Proxy->ShouldNotifyOnWorldAddRemove())
+	{
+		TArray<FPrimitiveSceneInfo*>* LevelNotifyPrimitives = Scene->PrimitivesNeedingLevelUpdateNotification.Find(Proxy->GetLevelName());
+		if (LevelNotifyPrimitives != nullptr)
+		{
+			LevelNotifyPrimitives->Remove(this);
+			if (LevelNotifyPrimitives->Num() == 0)
+			{
+				Scene->PrimitivesNeedingLevelUpdateNotification.Remove(Proxy->GetLevelName());
+			}
+		}
 	}
 }
 
