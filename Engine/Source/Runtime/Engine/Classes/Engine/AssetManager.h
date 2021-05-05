@@ -102,7 +102,9 @@ public:
 	void PopBulkScanning();
 
 protected:
+	/** Should only be called from PushBulkScanning() and override */
 	virtual void StartBulkScanning();
+	/** Should only be called from PopBulkScanning() and override */
 	virtual void StopBulkScanning();
 	bool IsBulkScanning() const { return NumBulkScanRequests > 0 ; }
 

@@ -243,7 +243,7 @@ public:
 		}
 		else
 		{
-			++Scanner; // Avoid starting bulk scan after OnPostEngineInit
+			Scanner = reinterpret_cast<UAssetManager*>(8); // Avoid starting bulk scan after OnPostEngineInit
 		}
 	}
 }
