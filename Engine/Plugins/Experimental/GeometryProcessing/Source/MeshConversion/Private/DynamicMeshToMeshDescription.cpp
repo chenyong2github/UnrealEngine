@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
 #include "DynamicMeshToMeshDescription.h"
-#include "StaticMeshAttributes.h"
+#include "SkeletalMeshAttributes.h"
 #include "DynamicMeshAttributeSet.h"
+
 #include "DynamicMeshOverlay.h"
+#include "DynamicVertexSkinWeightsAttribute.h"
 #include "MeshDescriptionBuilder.h"
 #include "MeshTangents.h"
 
@@ -845,6 +847,30 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 	// convert polygroup layers
 	ConvertPolygroupLayers(MeshIn, MeshOut, IndexToTriangleIDMap);
 
+	// Convert all attached skin weights, if we're converting a mesh description that originated from
+	// a USkeletalMesh.
+	FSkeletalMeshAttributes MeshOutAttributes(MeshOut);
+	for (const TTuple<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttributeInfo: MeshIn->Attributes()->GetSkinWeightsAttributes())
+	{
+		FName ProfileName = AttributeInfo.Key;
+
+		MeshOutAttributes.RegisterSkinWeightAttribute(ProfileName);
+
+		const FDynamicMeshVertexSkinWeightsAttribute *MeshSkinWeights = AttributeInfo.Value.Get();
+		
+		FSkinWeightsVertexAttributesRef VertexBoneWeights = MeshOutAttributes.GetVertexSkinWeights(ProfileName);
+
+		for (int32 VertexIndex = 0; VertexIndex < MapV.Num(); VertexIndex++)
+		{
+			if (const FVertexID VertexID = MapV[VertexIndex]; VertexID != INDEX_NONE)
+			{
+				UE::AnimationCore::FBoneWeights BW;
+				MeshSkinWeights->GetValue(VertexIndex, BW);
+				VertexBoneWeights.Set(VertexID, BW);
+			}
+		}
+	}
+	
 	Builder.ResumeMeshDescriptionIndexing();
 }
 

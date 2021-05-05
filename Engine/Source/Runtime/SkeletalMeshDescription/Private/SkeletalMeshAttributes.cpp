@@ -55,7 +55,6 @@ TArray<FName> FSkeletalMeshAttributesShared::GetSkinWeightProfileNames() const
 	MeshDescriptionShared.VertexAttributes().GetAttributeNames(AllAttributeNames);
 
 	TArray<FName> SkinWeightProfileNames;
-	const FString Prefix = SkinWeightAttributeNamePrefix();
 	bool bHasDefault = false; 
 
 	for (const FName AttributeName: AllAttributeNames)
@@ -64,11 +63,9 @@ TArray<FName> FSkeletalMeshAttributesShared::GetSkinWeightProfileNames() const
 		{
 			bHasDefault = true;
 		}
-		else if (AttributeName.ToString().StartsWith(Prefix))
+		else if (IsSkinWeightAttribute(AttributeName))
 		{
-			FName ProfileName = FName(AttributeName.ToString().Mid(Prefix.Len()));
-
-			SkinWeightProfileNames.Add(ProfileName);
+			SkinWeightProfileNames.Add(GetProfileNameFromAttribute(AttributeName));
 		}
 	}
 
@@ -90,6 +87,24 @@ bool FSkeletalMeshAttributesShared::IsSkinWeightAttribute(const FName InAttribut
 {
 	return InAttributeName == MeshAttribute::Vertex::SkinWeights ||
 		   InAttributeName.ToString().StartsWith(SkinWeightAttributeNamePrefix());
+}
+
+FName FSkeletalMeshAttributesShared::GetProfileNameFromAttribute(const FName InAttributeName)
+{
+	if (InAttributeName == MeshAttribute::Vertex::SkinWeights)
+	{
+		return DefaultSkinWeightProfileName;
+	}
+	
+	const FString Prefix = SkinWeightAttributeNamePrefix();
+	if (InAttributeName.ToString().StartsWith(Prefix))
+	{
+		return FName(InAttributeName.ToString().Mid(Prefix.Len()));
+	}
+	else
+	{
+		return NAME_None;
+	}
 }
 
 FName FSkeletalMeshAttributesShared::CreateSkinWeightAttributeName(const FName InProfileName)

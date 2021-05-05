@@ -29,6 +29,7 @@ public class MeshModelingToolsEditorOnly : ModuleRules
                 "InteractiveToolsFramework",
                 "MeshDescription",
 				"StaticMeshDescription",
+				"SkeletalMeshDescription",
 				"GeometricObjects",
 				"DynamicMesh",
 				"MeshConversion",

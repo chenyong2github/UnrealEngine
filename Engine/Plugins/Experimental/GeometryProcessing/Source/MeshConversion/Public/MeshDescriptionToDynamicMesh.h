@@ -79,12 +79,4 @@ public:
 	 * @warning Convert() must have been used to create the TargetMesh before calling this function
 	 */
 	void CopyTangents(const FMeshDescription* SourceMesh, const FDynamicMesh3* TargetMesh, UE::Geometry::TMeshTangents<double>* TangentsOut);
-
-
-public:
-
-	/**
-	 * @return true if the Name is the name of a reserved FMeshDescription attribute
-	 */
-	static bool IsReservedAttributeName(FName Name);
 };

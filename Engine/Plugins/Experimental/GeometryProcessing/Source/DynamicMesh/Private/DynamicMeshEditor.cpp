@@ -6,6 +6,7 @@
 #include "Util/BufferUtil.h"
 #include "MeshRegionBoundaryLoops.h"
 #include "DynamicSubmesh3.h"
+#include "DynamicVertexSkinWeightsAttribute.h"
 #include "MeshNormals.h"
 #include "MeshQueries.h"
 #include "Selections/MeshConnectedComponents.h"
@@ -1567,6 +1568,15 @@ void FDynamicMeshEditor::AppendMesh(const FDynamicMesh3* AppendMesh,
 			}
 		}
 
+		for (const TPair<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttribPair : AppendMesh->Attributes()->GetSkinWeightsAttributes())
+		{
+			FDynamicMeshVertexSkinWeightsAttribute* ToAttrib = Mesh->Attributes()->GetSkinWeightsAttribute(AttribPair.Key);
+			if (ToAttrib)
+			{
+				ToAttrib->CopyThroughMapping(AttribPair.Value.Get(), IndexMapsOut);
+			}
+		}
+		
 		for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : AppendMesh->Attributes()->GetAttachedAttributes())
 		{
 			if (Mesh->Attributes()->HasAttachedAttribute(AttribPair.Key))
@@ -1830,7 +1840,16 @@ static void AppendGenericAttributes(const FDynamicMesh3* FromMesh, FDynamicMesh3
 		return;
 	}
 
-	// copy generic attributes after full IndexMaps have been created
+	// Copy skin weight and generic attributes after full IndexMaps have been created. 	
+	for (const TPair<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttribPair : FromMesh->Attributes()->GetSkinWeightsAttributes())
+	{
+		FDynamicMeshVertexSkinWeightsAttribute* ToAttrib = ToMesh->Attributes()->GetSkinWeightsAttribute(AttribPair.Key);
+		if (ToAttrib)
+		{
+			ToAttrib->CopyThroughMapping(AttribPair.Value.Get(), IndexMaps);
+		}
+	}
+	
 	for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : FromMesh->Attributes()->GetAttachedAttributes())
 	{
 		if (ToMesh->Attributes()->HasAttachedAttribute(AttribPair.Key))

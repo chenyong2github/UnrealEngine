@@ -14,6 +14,7 @@ public class MeshConversion : ModuleRules
 				"Engine",
                 "MeshDescription",
 				"StaticMeshDescription",
+				"SkeletalMeshDescription",
 				"GeometricObjects",
 				"DynamicMesh"
             }

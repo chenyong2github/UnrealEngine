@@ -1,12 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DynamicMeshAttributeSet.h"
+
+#include "DynamicVertexSkinWeightsAttribute.h"
 #include "IndexTypes.h"
 #include "Async/Async.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+
 using namespace UE::Geometry;
 
+
+FDynamicMeshAttributeSet::FDynamicMeshAttributeSet(FDynamicMesh3* Mesh)
+	: ParentMesh(Mesh)
+{
+	FDynamicMeshAttributeSet::SetNumUVLayers(1);
+	FDynamicMeshAttributeSet::SetNumNormalLayers(1);
+}
+
+FDynamicMeshAttributeSet::FDynamicMeshAttributeSet(FDynamicMesh3* Mesh, int32 NumUVLayers, int32 NumNormalLayers)
+	: ParentMesh(Mesh)
+{
+	FDynamicMeshAttributeSet::SetNumUVLayers(NumUVLayers);
+	FDynamicMeshAttributeSet::SetNumNormalLayers(NumNormalLayers);
+}
+
+FDynamicMeshAttributeSet::~FDynamicMeshAttributeSet()
+{
+}
 
 void FDynamicMeshAttributeSet::Copy(const FDynamicMeshAttributeSet& Copy)
 {
@@ -45,8 +66,16 @@ void FDynamicMeshAttributeSet::Copy(const FDynamicMeshAttributeSet& Copy)
 		PolygroupLayers[GroupIdx].Copy(Copy.PolygroupLayers[GroupIdx]);
 	}
 
-	GenericAttributes.Reset();
 	ResetRegisteredAttributes();
+
+	SkinWeightAttributes.Reset();
+	for (const TPair<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttribPair : Copy.SkinWeightAttributes)
+	{
+		AttachSkinWeightsAttribute(AttribPair.Key,
+			static_cast<FDynamicMeshVertexSkinWeightsAttribute *>(AttribPair.Value->MakeCopy(ParentMesh)));
+	}
+	
+	GenericAttributes.Reset();
 	for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : Copy.GenericAttributes)
 	{
 		AttachAttribute(AttribPair.Key, AttribPair.Value->MakeCopy(ParentMesh));
@@ -124,8 +153,16 @@ void FDynamicMeshAttributeSet::CompactCopy(const FCompactMaps& CompactMaps, cons
 		PolygroupLayers[GroupIdx].CompactCopy(CompactMaps, Copy.PolygroupLayers[GroupIdx]);
 	}
 
-	GenericAttributes.Reset();
 	ResetRegisteredAttributes();
+
+	SkinWeightAttributes.Reset();
+	for (const TPair<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttribPair : Copy.SkinWeightAttributes)
+	{
+		AttachSkinWeightsAttribute(AttribPair.Key,
+			static_cast<FDynamicMeshVertexSkinWeightsAttribute *>(AttribPair.Value->MakeCompactCopy(CompactMaps, ParentMesh)));
+	}
+	
+	GenericAttributes.Reset();
 	for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : Copy.GenericAttributes)
 	{
 		AttachAttribute(AttribPair.Key, AttribPair.Value->MakeCompactCopy(CompactMaps, ParentMesh));
@@ -161,6 +198,11 @@ void FDynamicMeshAttributeSet::CompactInPlace(const FCompactMaps& CompactMaps)
 		PolygroupLayers[GroupIdx].CompactInPlace(CompactMaps);
 	}
 
+	for (const TPair<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttribPair : SkinWeightAttributes)
+	{
+		AttribPair.Value->CompactInPlace(CompactMaps);
+	}
+	
 	for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : GenericAttributes)
 	{
 		AttribPair.Value->CompactInPlace(CompactMaps);
@@ -252,8 +294,16 @@ void FDynamicMeshAttributeSet::EnableMatchingAttributes(const FDynamicMeshAttrib
 		PolygroupLayers[GroupIdx].Initialize((int32)0);
 	}
 
-	GenericAttributes.Reset();
 	ResetRegisteredAttributes();
+	
+	SkinWeightAttributes.Reset();
+	for (const TPair<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttribPair : ToMatch.SkinWeightAttributes)
+	{
+		AttachSkinWeightsAttribute(AttribPair.Key,
+			static_cast<FDynamicMeshVertexSkinWeightsAttribute *>(AttribPair.Value->MakeNew(ParentMesh)));
+	}
+
+	GenericAttributes.Reset();
 	for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : ToMatch.GenericAttributes)
 	{
 		AttachAttribute(AttribPair.Key, AttribPair.Value->MakeNew(ParentMesh));
@@ -289,6 +339,11 @@ void FDynamicMeshAttributeSet::Reparent(FDynamicMesh3* NewParent)
 		PolygroupLayers[GroupIdx].Reparent(NewParent);
 	}
 
+	for (const TPair<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttribPair : SkinWeightAttributes)
+	{
+		AttribPair.Value.Get()->Reparent(NewParent);
+	}
+	
 	for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : GenericAttributes)
 	{
 		AttribPair.Value->Reparent(NewParent);
@@ -415,6 +470,25 @@ void FDynamicMeshAttributeSet::DisableMaterialID()
 	MaterialIDAttrib.Reset();
 }
 
+void FDynamicMeshAttributeSet::AttachSkinWeightsAttribute(FName InProfileName, FDynamicMeshVertexSkinWeightsAttribute* InAttribute)
+{
+	RemoveSkinWeightsAttribute(InProfileName);
+
+	// Ensure proper ownership.
+	static_cast<FDynamicMeshAttributeBase *>(InAttribute)->Reparent(ParentMesh);
+	SkinWeightAttributes.Add(InProfileName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>(InAttribute));
+
+	RegisterExternalAttribute(InAttribute);
+}
+
+void FDynamicMeshAttributeSet::RemoveSkinWeightsAttribute(FName InProfileName)
+{
+	if (SkinWeightAttributes.Contains(InProfileName))
+	{
+		UnregisterExternalAttribute(SkinWeightAttributes[InProfileName].Get());
+		SkinWeightAttributes.Remove(InProfileName);
+	}
+}
 
 
 bool FDynamicMeshAttributeSet::IsSeamEdge(int eid) const

@@ -3,9 +3,12 @@
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshAttributeSet.h"
 #include "DynamicMeshOverlay.h"
+#include "DynamicVertexAttribute.h"
 #include "MeshTangents.h"
 #include "MeshDescriptionBuilder.h"
 #include "StaticMeshAttributes.h"
+#include "SkeletalMeshAttributes.h"
+#include "DynamicVertexSkinWeightsAttribute.h"
 #include "Async/Async.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
@@ -159,17 +162,15 @@ public:
 };
 
 
-
-
-
-
-
-
-
+struct FSkinWeightsAttribCopyInfo
+{
+	FSkinWeightsVertexAttributesConstRef MeshDescAttribRef;
+	FDynamicMeshVertexSkinWeightsAttribute* DynaMeshAttribRef = nullptr;
+};
 
 
 void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDynamicMesh3& MeshOut, bool bCopyTangents )
-{ 
+{
 	TriIDMap.Reset();
 	VertIDMap.Reset();
 
@@ -189,7 +190,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 
 	// look up vertex-instance UVs and normals
 	// @todo: does the MeshDescription always have UVs and Normals?
-	FStaticMeshConstAttributes Attributes(*MeshIn);
+	FSkeletalMeshConstAttributes Attributes(*MeshIn);
 	TVertexInstanceAttributesConstRef<FVector2D> InstanceUVs = Attributes.GetVertexInstanceUVs();
 	TVertexInstanceAttributesConstRef<FVector> InstanceNormals = Attributes.GetVertexInstanceNormals();
 	TVertexInstanceAttributesConstRef<FVector> InstanceTangents = Attributes.GetVertexInstanceTangents();
@@ -345,7 +346,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 		
 		TriIDMap[NewTriangleID] = TriangleID;
 	
-	}
+		}
 
 	int32 MaxTriID = MeshOut.MaxTriangleID(); // really MaxTriID+1
 	// if the source mesh had duplicates then TriIDMap will be too long, this will trim excess
@@ -386,8 +387,8 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	FDynamicMeshNormalOverlay* TangentOverlay = nullptr;
 	FDynamicMeshNormalOverlay* BiTangentOverlay = nullptr;
 	FDynamicMeshMaterialAttribute* MaterialIDAttrib = nullptr;
-	
 
+	TArray<FSkinWeightsAttribCopyInfo> SkinWeightAttribs;
 	if (!bDisableAttributes)
 	{
 		MeshOut.EnableAttributes(); // by default 1-UV layer and 1-normal layer
@@ -419,7 +420,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 		{
 			MeshOut.Attributes()->GetUVLayer(i)->InitializeTriangles(MeshOut.MaxTriangleID());
 		}
-
+	
 		if (InstanceColors.IsValid())
 		{
 			MeshOut.Attributes()->EnablePrimaryColors();
@@ -430,6 +431,23 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 		// always enable Material ID if there are any attributes
 		MeshOut.Attributes()->EnableMaterialID();
 		MaterialIDAttrib = MeshOut.Attributes()->GetMaterialID();
+
+		// Copy all skin weight attributes, if they exist.
+		MeshIn->VertexAttributes().ForEach([&](const FName InAttributeName, auto InAttributesRef)
+		{
+			if (FSkeletalMeshAttributes::IsSkinWeightAttribute(InAttributeName))
+			{
+				const FName ProfileName = FSkeletalMeshAttributes::GetProfileNameFromAttribute(InAttributeName);
+				
+                FDynamicMeshVertexSkinWeightsAttribute *VertexSkinWeightsAttrib = new FDynamicMeshVertexSkinWeightsAttribute(&MeshOut);
+
+                SkinWeightAttribs.Add({
+                    Attributes.GetVertexSkinWeightsFromAttributeName(InAttributeName),
+                	VertexSkinWeightsAttrib                    
+                });
+				MeshOut.Attributes()->AttachSkinWeightsAttribute(ProfileName, VertexSkinWeightsAttrib);
+			}
+		});
 	}
 
 
@@ -439,7 +457,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	TArray<FName> PolygroupAttribNames;
 	TriAttribsSet.ForEach([&](const FName AttributeName, auto AttributesRef)
 	{
-		if (IsReservedAttributeName(AttributeName)) return;
+		if (FSkeletalMeshAttributes::IsReservedAttributeName(AttributeName)) return;
 
 		if (TriAttribsSet.template HasAttributeOfType<int32>(AttributeName))
 		{
@@ -447,8 +465,6 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 			PolygroupAttribNames.Add(AttributeName);
 		}
 	});
-
-	
 
 	if (!bDisableAttributes)
 	{
@@ -747,6 +763,19 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 			Pending.Add(MoveTemp(MaterialFuture));
 		}
 
+		for (const FSkinWeightsAttribCopyInfo& SkinWeightAttribInfo: SkinWeightAttribs)
+		{
+			auto SkinWeightsFuture = Async(EAsyncExecution::ThreadPool, [&, SkinWeightAttribInfo]() -> void
+            {
+                for (int32 VertexID: MeshOut.VertexIndicesItr())
+                {
+                	SkinWeightAttribInfo.DynaMeshAttribRef->SetValue(VertexID, SkinWeightAttribInfo.MeshDescAttribRef.Get(VertIDMap[VertexID]));
+                }
+				
+            });
+			Pending.Add(MoveTemp(SkinWeightsFuture));
+		}
+		
 		// initialize polygroup layers
 		for (int32 GroupLayerIdx = 0; GroupLayerIdx < PolygroupAttribs.Num(); GroupLayerIdx++)
 		{
@@ -856,35 +885,3 @@ void FMeshDescriptionToDynamicMesh::CopyTangents(const FMeshDescription* SourceM
 	if (!ensureMsgf(TriIDMap.Num() == TargetMesh->TriangleCount(), TEXT("Tried to CopyTangents to mesh with different triangle count"))) return;
 	CopyTangents_Internal<double>(SourceMesh, TargetMesh, TangentsOut, TriIDMap);
 }
-
-
-
-
-bool FMeshDescriptionToDynamicMesh::IsReservedAttributeName(FName AttributeName)
-{
-	// @todo: use FAttributesSetBase::DoesAttributeHaveAnyFlags(EMeshAttributeFlags::Mandatory) to determine this
-	// will need a way to look up MeshDescription attribute sets from their category.
-	return (AttributeName == MeshAttribute::Vertex::Position)
-		|| (AttributeName == MeshAttribute::VertexInstance::VertexIndex)
-		|| (AttributeName == MeshAttribute::VertexInstance::TextureCoordinate)
-		|| (AttributeName == MeshAttribute::VertexInstance::Normal)
-		|| (AttributeName == MeshAttribute::VertexInstance::Tangent)
-		|| (AttributeName == MeshAttribute::VertexInstance::BinormalSign)
-		|| (AttributeName == MeshAttribute::VertexInstance::Color)
-		|| (AttributeName == MeshAttribute::Edge::IsHard)
-		|| (AttributeName == MeshAttribute::Edge::VertexIndex)
-		|| (AttributeName == MeshAttribute::Triangle::VertexInstanceIndex)
-		|| (AttributeName == MeshAttribute::Triangle::PolygonIndex)
-		|| (AttributeName == MeshAttribute::Triangle::EdgeIndex)
-		|| (AttributeName == MeshAttribute::Triangle::VertexIndex)
-		|| (AttributeName == MeshAttribute::Triangle::UVIndex)
-		|| (AttributeName == MeshAttribute::Triangle::PolygonGroupIndex)
-		|| (AttributeName == MeshAttribute::Triangle::Normal)
-		|| (AttributeName == MeshAttribute::Triangle::Tangent)
-		|| (AttributeName == MeshAttribute::Triangle::Binormal)
-		|| (AttributeName == MeshAttribute::UV::UVCoordinate)
-		|| (AttributeName == MeshAttribute::Polygon::PolygonGroupIndex)
-		|| (AttributeName == MeshAttribute::PolygonGroup::ImportedMaterialSlotName)
-		|| (AttributeName == ExtendedMeshAttribute::PolyTriGroups);
-}
-

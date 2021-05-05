@@ -37,6 +37,10 @@ public:
 	/// Helper function that indicates whether an attribute name represents a skin weight attribute.
 	static bool IsSkinWeightAttribute(const FName InAttributeName);
 
+	/// Returns a skin profile name from the attribute name, if the attribute name is a valid skin weights
+	/// attribute.
+	static FName GetProfileNameFromAttribute(const FName InAttributeName);
+
 	FSkinWeightsVertexAttributesConstRef GetVertexSkinWeights(const FName InProfileName = NAME_None) const
 	{
 		return MeshDescriptionShared.VertexAttributes().GetAttributesRef<TArrayAttribute<int32>>(CreateSkinWeightAttributeName(InProfileName));

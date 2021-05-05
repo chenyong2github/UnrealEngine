@@ -10,7 +10,7 @@
 #include "AssetUtils/MeshDescriptionUtil.h"
 
 #include "MeshDescription.h"
-#include "StaticMeshAttributes.h"
+#include "SkeletalMeshAttributes.h"
 #include "StaticMeshOperations.h"
 
 // for lightmap access
@@ -718,11 +718,11 @@ void UAttributeEditorTool::DeleteAttribute()
 	FMeshDescription* CurMesh = TargetMeshProviderInterface(0)->GetMeshDescription();
 	FName SelectedName(ModifyAttributeProps->Attribute);
 
-	// @todo: use FAttributesSetBase::DoesAttributeHaveAnyFlags(EMeshAttributeFlags::Mandatory) to determine this ?
-	// @todo: introduce 'reserved' attribute flag which we can check here
-	if (FMeshDescriptionToDynamicMesh::IsReservedAttributeName(SelectedName))
+	// We check on the skeletal mesh attributes because it is a superset of the static mesh
+	// attributes.
+	if (FSkeletalMeshAttributes::IsReservedAttributeName(SelectedName))
 	{
-		GetToolManager()->DisplayMessage(LOCTEXT("CannotDeleteReservedNameError", "Cannot delete required mesh Attributes"), EToolMessageLevel::UserWarning);
+		GetToolManager()->DisplayMessage(LOCTEXT("CannotDeleteReservedNameError", "Cannot delete reserved mesh Attributes"), EToolMessageLevel::UserWarning);
 		return;
 	}
 

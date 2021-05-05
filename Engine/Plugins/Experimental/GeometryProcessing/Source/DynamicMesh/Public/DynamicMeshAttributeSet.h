@@ -27,6 +27,11 @@ typedef TDynamicMeshScalarTriangleAttribute<int32> FDynamicMeshMaterialAttribute
 /** Per-triangle integer polygroup ID */
 typedef TDynamicMeshScalarTriangleAttribute<int32> FDynamicMeshPolygroupAttribute;
 
+/** Forward declarations */
+template<typename ParentType>
+class TDynamicVertexSkinWeightsAttribute;
+using FDynamicMeshVertexSkinWeightsAttribute = TDynamicVertexSkinWeightsAttribute<FDynamicMesh3>;
+	
 /**
  * FDynamicMeshAttributeSet manages a set of extended attributes for a FDynamicMesh3.
  * This includes UV and Normal overlays, etc.
@@ -39,24 +44,11 @@ typedef TDynamicMeshScalarTriangleAttribute<int32> FDynamicMeshPolygroupAttribut
 class DYNAMICMESH_API FDynamicMeshAttributeSet : public FDynamicMeshAttributeSetBase
 {
 public:
+	FDynamicMeshAttributeSet(FDynamicMesh3* Mesh);
 
-	FDynamicMeshAttributeSet(FDynamicMesh3* Mesh)
-		: ParentMesh(Mesh)
-	{
-		SetNumUVLayers(1);
-		SetNumNormalLayers(1);
-	}
+	FDynamicMeshAttributeSet(FDynamicMesh3* Mesh, int32 NumUVLayers, int32 NumNormalLayers);
 
-	FDynamicMeshAttributeSet(FDynamicMesh3* Mesh, int32 NumUVLayers, int32 NumNormalLayers)
-		: ParentMesh(Mesh)
-	{
-		SetNumUVLayers(NumUVLayers);
-		SetNumNormalLayers(NumNormalLayers);
-	}
-
-	virtual ~FDynamicMeshAttributeSet()
-	{
-	}
+	virtual ~FDynamicMeshAttributeSet() override;
 
 	void Copy(const FDynamicMeshAttributeSet& Copy);
 
@@ -303,6 +295,41 @@ public:
 		return MaterialIDAttrib.Get();
 	}
 
+	/** Skin weights */
+
+	/// Create a new skin weights attribute with a given skin weights profile name. If an attribute already exists with
+	/// that name, that existing attribute will be deleted.
+	void AttachSkinWeightsAttribute(FName InProfileName, FDynamicMeshVertexSkinWeightsAttribute* InAttribute);
+
+	/// Remove a skin weights attribute matching the given profile name.
+	void RemoveSkinWeightsAttribute(FName InProfileName);
+
+	/// Returns true if the list of skin weight attributes includes the given profile name.
+	bool HasSkinWeightsAttribute(FName InProfileName) const
+	{
+		return SkinWeightAttributes.Contains(InProfileName);
+	}
+
+	/// Returns a pointer to a skin weight attribute of the given profile name. If the attribute
+	/// does not exist, a nullptr is returned.
+	FDynamicMeshVertexSkinWeightsAttribute *GetSkinWeightsAttribute(FName InProfileName) const
+	{
+		if (SkinWeightAttributes.Contains(InProfileName))
+		{
+			return SkinWeightAttributes[InProfileName].Get();
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+	
+	/// Returns a map of all skin weight attributes.
+	const TMap<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& GetSkinWeightsAttributes() const
+	{
+		return SkinWeightAttributes;
+	}
+	
 	// Attach a new attribute (and transfer ownership of it to the attribute set)
 	void AttachAttribute(FName AttribName, FDynamicMeshAttributeBase* Attribute)
 	{
@@ -377,8 +404,10 @@ protected:
 
 	TIndirectArray<FDynamicMeshPolygroupAttribute> PolygroupLayers;
 
+	TMap<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>> SkinWeightAttributes;
+	
 	TMap<FName, TUniquePtr<FDynamicMeshAttributeBase>> GenericAttributes;
-
+	
 protected:
 	friend class FDynamicMesh3;
 
