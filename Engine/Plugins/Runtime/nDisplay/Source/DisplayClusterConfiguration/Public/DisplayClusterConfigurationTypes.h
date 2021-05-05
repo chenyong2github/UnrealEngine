@@ -23,10 +23,10 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationInfo
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(VisibleAnywhere, Category = nDisplay)
+	UPROPERTY(VisibleAnywhere, Category = NDisplay)
 	FString Description;
 
-	UPROPERTY(VisibleAnywhere, Category = nDisplay)
+	UPROPERTY(VisibleAnywhere, Category = NDisplay)
 	FString Version;
 };
 
@@ -51,19 +51,19 @@ public:
 	{ }
 
 public:
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FString ParentId;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FVector Location;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FRotator Rotation;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FString TrackerId;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	int32 TrackerChannel;
 };
 
@@ -100,7 +100,7 @@ public:
 	{ }
 
 public:
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FVector2D Size;
 };
 
@@ -124,13 +124,13 @@ public:
 	{ }
 
 public:
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	float InterpupillaryDistance;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	bool bSwapEyes;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	EDisplayClusterConfigurationEyeStereoOffset StereoOffset;
 };
 
@@ -163,7 +163,7 @@ public:
 	FString AssetPath;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	UStaticMesh* Asset;
 #endif
 };
@@ -204,16 +204,16 @@ public:
 	FDisplayClusterConfigurationMasterNodePorts();
 
 public:
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	uint16 ClusterSync;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	uint16 RenderSync;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	uint16 ClusterEventsJson;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	uint16 ClusterEventsBinary;
 };
 
@@ -226,7 +226,7 @@ public:
 	UPROPERTY()
 	FString Id;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FDisplayClusterConfigurationMasterNodePorts Ports;
 };
 
@@ -253,10 +253,10 @@ public:
 	FDisplayClusterConfigurationClusterSync();
 	
 public:
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FDisplayClusterConfigurationRenderSyncPolicy RenderSyncPolicy;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FDisplayClusterConfigurationInputSyncPolicy InputSyncPolicy;
 };
 
@@ -270,22 +270,22 @@ public:
 	FDisplayClusterConfigurationNetworkSettings();
 
 public:
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	uint32 ConnectRetriesAmount;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	uint32 ConnectRetryDelay;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	uint32 GameStartBarrierTimeout;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	uint32 FrameStartBarrierTimeout;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	uint32 FrameEndBarrierTimeout;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	uint32 RenderSyncBarrierTimeout;
 };
 
@@ -304,7 +304,7 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationExternalImage
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FString ImagePath;
 };
 
@@ -333,37 +333,37 @@ private:
 #endif
 
 public:
-	UPROPERTY(EditAnywhere, Category = nDisplay, meta = (DisplayName = "Host IP"))
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (DisplayName = "Host IP"))
 	FString Host;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	bool bIsSoundEnabled;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	bool bIsFullscreen;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FDisplayClusterConfigurationRectangle WindowRect;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	bool bFixedAspectRatio;
 #endif
 
-	UPROPERTY(VisibleInstanceOnly, EditFixedSize, Instanced, Category = nDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
+	UPROPERTY(VisibleInstanceOnly, EditFixedSize, Instanced, Category = NDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
 	TMap<FString, UDisplayClusterConfigurationViewport*> Viewports;
 
-	UPROPERTY(VisibleInstanceOnly, Category = nDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
+	UPROPERTY(VisibleInstanceOnly, Category = NDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
 	TMap<FString, FDisplayClusterConfigurationPostprocess> Postprocess;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditDefaultsOnly, Category = "nDisplay", meta = (nDisplayHidden))
+	UPROPERTY(EditDefaultsOnly, Category = "NDisplay", meta = (nDisplayHidden))
 	bool bIsVisible;
 
-	UPROPERTY(EditDefaultsOnly, Category = "nDisplay", meta = (nDisplayHidden))
+	UPROPERTY(EditDefaultsOnly, Category = "NDisplay", meta = (nDisplayHidden))
 	bool bIsEnabled;
 
-	UPROPERTY(EditDefaultsOnly, Category = nDisplay)
+	UPROPERTY(EditDefaultsOnly, Category = NDisplay)
 	FDisplayClusterConfigurationExternalImage PreviewImage;
 #endif
 
@@ -392,25 +392,25 @@ private:
 	#endif
 
 public:
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FText HostName;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay, meta = (EditCondition = "bAllowManualPlacement"))
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (EditCondition = "bAllowManualPlacement"))
 	FVector2D Position;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	bool bAllowManualPlacement;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay, meta = (EditCondition = "bAllowManualSizing"))
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (EditCondition = "bAllowManualSizing"))
 	FVector2D HostResolution;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	bool bAllowManualSizing;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FVector2D Origin;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FLinearColor Color;
 	
 	UPROPERTY()
@@ -427,24 +427,24 @@ class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationCluster
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FDisplayClusterConfigurationMasterNode MasterNode;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FDisplayClusterConfigurationClusterSync Sync;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FDisplayClusterConfigurationNetworkSettings Network;
 
-	UPROPERTY(VisibleInstanceOnly, EditFixedSize, Instanced, Category = nDisplay, meta = (DisplayThumbnail = false, nDisplayInstanceOnly, ShowInnerProperties))
+	UPROPERTY(VisibleInstanceOnly, EditFixedSize, Instanced, Category = NDisplay, meta = (DisplayThumbnail = false, nDisplayInstanceOnly, ShowInnerProperties))
 	TMap<FString, UDisplayClusterConfigurationClusterNode*> Nodes;
 
 	// Apply the global cluster post process settings to all viewports
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	bool bUseOverallClusterPostProcess = false;
 
 	// Global cluster post process settings
-	UPROPERTY(EditAnywhere, Category = nDisplay, meta = (EditCondition = "bUseOverallClusterPostProcess"))
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (EditCondition = "bUseOverallClusterPostProcess"))
 	FDisplayClusterConfigurationViewport_PerViewportSettings OverallClusterPostProcessSettings;
 
 
@@ -467,13 +467,13 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationDiagnostics
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	bool bSimulateLag;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	float MinLagTime;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	float MaxLagTime;
 };
 
@@ -510,19 +510,19 @@ public:
 public:
 	FDisplayClusterConfigurationDataMetaInfo Meta;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FDisplayClusterConfigurationInfo Info;
 
 	UPROPERTY()
 	UDisplayClusterConfigurationScene* Scene;
 
-	UPROPERTY(VisibleInstanceOnly, Instanced, Category = nDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties))
+	UPROPERTY(VisibleInstanceOnly, Instanced, Category = NDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties))
 	UDisplayClusterConfigurationCluster* Cluster;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	TMap<FString, FString> CustomParameters;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FDisplayClusterConfigurationDiagnostics Diagnostics;
 
 	/** Create empty config data. */

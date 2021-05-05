@@ -9,7 +9,7 @@
 /**
  * Helper component to trigger nDisplay sync for Tick sync group
  */
-UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent))
+UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent, DisplayName = "NDisplay Sync Tick"))
 class DISPLAYCLUSTER_API UDisplayClusterSyncTickComponent
 	: public UActorComponent
 {

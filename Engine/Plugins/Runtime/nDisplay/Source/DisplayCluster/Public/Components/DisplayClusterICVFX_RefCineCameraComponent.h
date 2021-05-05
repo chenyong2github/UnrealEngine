@@ -13,7 +13,7 @@
 /**
  * ICVFX camera with configuration
  */
-UCLASS(ClassGroup = (DisplayCluster))
+UCLASS(ClassGroup = (DisplayCluster), meta = (DisplayName="NDisplay ICVFX_RefCineCamera"))
 class DISPLAYCLUSTER_API UDisplayClusterICVFX_RefCineCameraComponent 
 	: public USceneComponent
 {
@@ -23,10 +23,10 @@ public:
 	UDisplayClusterICVFX_RefCineCameraComponent(const FObjectInitializer& ObjectInitializer);
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Display Cluster ICVFX")
+	UPROPERTY(EditAnywhere, Category = "NDisplay ICVFX")
 	UDisplayClusterConfigurationICVFX_CameraSettings* IncameraSettings;
 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster ICVFX")
+	UPROPERTY(EditAnywhere, Category = "NDisplay ICVFX")
 	TSoftObjectPtr<ACineCameraActor> CineCameraActor;
 
 public:

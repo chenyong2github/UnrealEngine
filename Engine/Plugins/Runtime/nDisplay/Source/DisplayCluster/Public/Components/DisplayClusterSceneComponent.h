@@ -59,7 +59,7 @@ protected:
 	virtual void ApplyConfigurationData();
 
 protected:
-	UPROPERTY(BlueprintReadOnly, Category = "DisplayCluster")
+	UPROPERTY(BlueprintReadOnly, Category = "NDisplay")
 	FString SyncId;
 
 protected:

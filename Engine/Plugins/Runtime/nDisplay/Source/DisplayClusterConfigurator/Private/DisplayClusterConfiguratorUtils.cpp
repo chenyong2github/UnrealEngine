@@ -215,4 +215,10 @@ FName FDisplayClusterConfiguratorUtils::CreateUniqueName(const FName& TargetName
 	return *UniqueCandidateName;
 }
 
+FString FDisplayClusterConfiguratorUtils::FormatNDisplayComponentName(UClass* ComponentClass)
+{
+	check(ComponentClass);
+	return ComponentClass->GetDisplayNameText().ToString().Replace(TEXT(" "), TEXT("")).Replace(TEXT("NDisplay"), TEXT("nDisplay"));
+}
+
 #undef LOCTEXT_NAMESPACE

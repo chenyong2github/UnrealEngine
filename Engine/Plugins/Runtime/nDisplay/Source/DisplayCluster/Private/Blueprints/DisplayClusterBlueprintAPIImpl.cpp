@@ -130,7 +130,7 @@ void UDisplayClusterBlueprintAPIImpl::SendClusterEventBinaryTo(const FString& Ad
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Config API
 //////////////////////////////////////////////////////////////////////////////////////////////
-UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get config"), Category = "DisplayCluster|Config")
+UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get config"), Category = "NDisplay|Config")
 UDisplayClusterConfigurationData* UDisplayClusterBlueprintAPIImpl::GetConfig() const
 {
 	return const_cast<UDisplayClusterConfigurationData*>(IDisplayCluster::Get().GetConfigMgr()->GetConfig());
