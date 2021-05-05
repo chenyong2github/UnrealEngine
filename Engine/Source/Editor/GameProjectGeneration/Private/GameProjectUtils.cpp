@@ -293,7 +293,7 @@ namespace
 			ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
 				TEXT("/Script/WorldPartitionEditor.WorldPartitionEditorSettings"),
 				TEXT("bEnableWorldPartition"),
-				TEXT("True"),
+				TEXT("False"),
 				true /* ShouldReplaceExistingValue */);
 
 			ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
