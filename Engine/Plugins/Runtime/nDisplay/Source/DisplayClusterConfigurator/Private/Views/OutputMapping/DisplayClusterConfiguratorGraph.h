@@ -45,6 +45,9 @@ public:
 	/** Recomputes the global positions of all graph nodes. */
 	void RefreshNodePositions();
 
+	/** Gets the graph node that contains the specified object. */
+	UDisplayClusterConfiguratorBaseNode* GetNodeFromObject(UObject* InObject);
+
 	/** @return The root canvas node of the graph. */
 	UDisplayClusterConfiguratorCanvasNode* GetRootNode() const;
 

@@ -39,8 +39,6 @@ public:
 	TSharedPtr<FUICommandInfo> ToggleAdjacentEdgeSnapping;
 	TSharedPtr<FUICommandInfo> ToggleSameEdgeSnapping;
 
-	TSharedPtr<FUICommandInfo> ToggleZoomToSelectedItems;
-
 	TSharedPtr<FUICommandInfo> FillParentNode;
 	TSharedPtr<FUICommandInfo> SizeToChildNodes;
 

@@ -16,7 +16,6 @@ struct FOutputMappingSettings
 	bool bKeepClusterNodesInHosts;
 	bool bLockViewports;
 	bool bLockClusterNodes;
-	bool bZoomToSelectedClusterItems;
 	bool bTintSelectedViewports;
 	float ViewScale;
 
@@ -29,7 +28,6 @@ struct FOutputMappingSettings
 		bKeepClusterNodesInHosts(true),
 		bLockViewports(false),
 		bLockClusterNodes(false),
-		bZoomToSelectedClusterItems(true),
 		bTintSelectedViewports(true),
 		ViewScale(1.0f)
 	{ }
@@ -98,4 +96,6 @@ public:
 	virtual void UnregisterOnOutputMappingBuilt(FDelegateHandle DelegateHandle) = 0;
 
 	virtual void FindAndSelectObjects(const TArray<UObject*>& ObjectsToSelect) = 0;
+
+	virtual void JumpToObject(UObject* InObject) = 0;
 };

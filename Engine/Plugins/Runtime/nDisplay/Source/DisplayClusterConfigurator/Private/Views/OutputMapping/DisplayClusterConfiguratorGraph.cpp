@@ -91,6 +91,22 @@ void UDisplayClusterConfiguratorGraph::RefreshNodePositions()
 	});
 }
 
+UDisplayClusterConfiguratorBaseNode* UDisplayClusterConfiguratorGraph::GetNodeFromObject(UObject* InObject)
+{
+	for (UEdGraphNode* Node : Nodes)
+	{
+		if (UDisplayClusterConfiguratorBaseNode* BaseNode = Cast<UDisplayClusterConfiguratorBaseNode>(Node))
+		{
+			if (BaseNode->GetObject() == InObject)
+			{
+				return BaseNode;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 UDisplayClusterConfiguratorCanvasNode* UDisplayClusterConfiguratorGraph::GetRootNode() const
 {
 	for (UEdGraphNode* Node : Nodes)
