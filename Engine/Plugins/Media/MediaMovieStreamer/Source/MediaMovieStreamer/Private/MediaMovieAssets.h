@@ -8,12 +8,15 @@
 
 #include "MediaMovieAssets.generated.h"
 
+class FMediaMovieStreamer;
 class UMediaPlayer;
 class UMediaSource;
 class UMediaTexture;
 
 /**
  * Keeps assets alive during level loading so they don't get garbage collected while we are using them.
+ * Also handles other UObject functionality like hooking into the UMediaPlayer callbacks
+ * which require a UObject.
  */
 UCLASS(Transient, NotPlaceable)
 class UMediaMovieAssets : public UObject
@@ -28,8 +31,9 @@ public:
 	 * Sets which media player we are using.
 	 *
 	 * @param InMediaPlayer
+	 * @param InMovieStreamer Movie streamer that is using the media player.
 	 */
-	void SetMediaPlayer(UMediaPlayer* InMediaPlayer);
+	void SetMediaPlayer(UMediaPlayer* InMediaPlayer, FMediaMovieStreamer* InMovieStreamer);
 
 
 	/**
@@ -47,6 +51,12 @@ public:
 	void SetMediaTexture(UMediaTexture* InMediaTexture);
 	
 private:
+	/**
+	 * Called by the media player when the video ends.
+	 */
+	UFUNCTION()
+	void OnMediaEnd();
+
 	/** Holds the player we are using. */
 	UPROPERTY()
 	UMediaPlayer* MediaPlayer;
@@ -58,4 +68,7 @@ private:
 	/** Holds the media texture we are using. */
 	UPROPERTY()
 	UMediaTexture* MediaTexture;
+
+	/** Holds the movie streamer. */
+	FMediaMovieStreamer* MovieStreamer;
 };
