@@ -872,10 +872,21 @@ FReply STakeRecorderCockpit::OnAddMarkedFrame()
 		
 		ULevelSequence* LevelSequence = LevelSequenceAttribute.Get();
 		UMovieScene* MovieScene = LevelSequence->GetMovieScene();
+		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+		FFrameRate TickResolution = MovieScene->GetTickResolution();
 
 		FMovieSceneMarkedFrame MarkedFrame;
-		MarkedFrame.FrameNumber = ConvertFrameTime(ElapsedFrame, MovieScene->GetDisplayRate(), MovieScene->GetTickResolution()).CeilToFrame();
 
+		UTakeRecorderSources* Sources = LevelSequence ? LevelSequence->FindMetaData<UTakeRecorderSources>() : nullptr;
+		if (Sources && Sources->GetSettings().bStartAtCurrentTimecode)
+		{
+			MarkedFrame.FrameNumber = FFrameRate::TransformTime(FFrameTime(FApp::GetTimecode().ToFrameNumber(DisplayRate)), DisplayRate, TickResolution).FloorToFrame();
+		}
+		else
+		{
+			MarkedFrame.FrameNumber = ConvertFrameTime(ElapsedFrame, DisplayRate, TickResolution).CeilToFrame();
+		}
+		
 		int32 MarkedFrameIndex = MovieScene->AddMarkedFrame(MarkedFrame);
 		UTakeRecorderBlueprintLibrary::OnTakeRecorderMarkedFrameAdded(MovieScene->GetMarkedFrames()[MarkedFrameIndex]);
 	}
