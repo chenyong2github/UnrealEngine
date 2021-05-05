@@ -1022,16 +1022,15 @@ FNiagaraParameterUtilities::EParameterContext FNiagaraSystemToolkitParameterPane
 
 const TArray<FNiagaraParameterPanelCategory>& FNiagaraSystemToolkitParameterPanelViewModel::GetDefaultCategories() const
 {
-	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
-	const bool bShowAdvanced = NiagaraEditorSettings->GetDisplayAdvancedParameterPanelCategories();
-	if (bShowAdvanced)
-	{
-		CachedCurrentCategories = FNiagaraSystemToolkitParameterPanelViewModel::DefaultAdvancedCategories;
-		return FNiagaraSystemToolkitParameterPanelViewModel::DefaultAdvancedCategories;
-	}
+//	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
+//	const bool bShowAdvanced = NiagaraEditorSettings->GetDisplayAdvancedParameterPanelCategories();
+// 	if (bShowAdvanced)
+// 	{
+// 		CachedCurrentCategories = FNiagaraSystemToolkitParameterPanelViewModel::DefaultAdvancedCategories;
+// 		return FNiagaraSystemToolkitParameterPanelViewModel::DefaultAdvancedCategories;
+// 	}
 	// For now always show advanced.
 	CachedCurrentCategories = FNiagaraSystemToolkitParameterPanelViewModel::DefaultAdvancedCategories;
-	//CachedCurrentCategories = FNiagaraSystemToolkitParameterPanelViewModel::DefaultCategories;
 	return FNiagaraSystemToolkitParameterPanelViewModel::DefaultAdvancedCategories;
 }
 
@@ -2004,16 +2003,15 @@ void FNiagaraScriptToolkitParameterPanelViewModel::OnParameterItemSelected(const
 
 const TArray<FNiagaraParameterPanelCategory>& FNiagaraScriptToolkitParameterPanelViewModel::GetDefaultCategories() const
 {
-	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
-	const bool bShowAdvanced = NiagaraEditorSettings->GetDisplayAdvancedParameterPanelCategories();
-	if (bShowAdvanced)
-	{
-		CachedCurrentCategories = FNiagaraScriptToolkitParameterPanelViewModel::DefaultAdvancedCategories;
-		return FNiagaraScriptToolkitParameterPanelViewModel::DefaultAdvancedCategories;
-	}
+// 	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
+// 	const bool bShowAdvanced = NiagaraEditorSettings->GetDisplayAdvancedParameterPanelCategories();
+// 	if (bShowAdvanced)
+// 	{
+// 		CachedCurrentCategories = FNiagaraScriptToolkitParameterPanelViewModel::DefaultAdvancedCategories;
+// 		return FNiagaraScriptToolkitParameterPanelViewModel::DefaultAdvancedCategories;
+// 	}
 	// For now always show advanced.
 	CachedCurrentCategories = FNiagaraScriptToolkitParameterPanelViewModel::DefaultAdvancedCategories;
-	//CachedCurrentCategories = FNiagaraScriptToolkitParameterPanelViewModel::DefaultCategories;
 	return FNiagaraScriptToolkitParameterPanelViewModel::DefaultAdvancedCategories;
 }
 
