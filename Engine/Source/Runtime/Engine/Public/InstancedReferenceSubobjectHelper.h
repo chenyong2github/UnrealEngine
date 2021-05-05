@@ -17,25 +17,26 @@ struct FInstancedPropertyPath
 private:
 	struct FPropertyLink
 	{
-		FPropertyLink(const FProperty* Property, int32 ArrayIndexIn = INDEX_NONE)
-			: PropertyPtr(Property), ArrayIndex(ArrayIndexIn)
+		FPropertyLink(const FProperty* Property, int32 ArrayIndexIn, bool bIsMapValueIn)
+			: PropertyPtr(Property), ArrayIndex(ArrayIndexIn), bIsMapValue(bIsMapValueIn)
 		{}
 
 		const FProperty* PropertyPtr;
 		int32            ArrayIndex;
+		bool             bIsMapValue;
 	};
 
 public:
 	//--------------------------------------------------------------------------
-	FInstancedPropertyPath(FProperty* RootProperty, int32 ArrayIndex = INDEX_NONE)
+	FInstancedPropertyPath(FProperty* RootProperty, int32 ArrayIndex = INDEX_NONE, bool bIsMapValue = false)
 	{
-		Push(RootProperty, ArrayIndex);
+		Push(RootProperty, ArrayIndex, bIsMapValue);
 	}
 
 	//--------------------------------------------------------------------------
-	void Push(const FProperty* Property, int32 ArrayIndex = INDEX_NONE)
+	void Push(const FProperty* Property, int32 ArrayIndex = INDEX_NONE, bool bIsMapValue = false)
 	{
-		PropertyChain.Add(FPropertyLink(Property, ArrayIndex));		
+		PropertyChain.Add(FPropertyLink(Property, ArrayIndex, bIsMapValue));		
 	}
 
 	//--------------------------------------------------------------------------

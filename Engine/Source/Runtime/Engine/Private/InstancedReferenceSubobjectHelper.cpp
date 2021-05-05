@@ -23,11 +23,17 @@ UObject* FInstancedPropertyPath::Resolve(const UObject* Container) const
 
 	for (int32 ChainIndex = 1; CurrentProp && ChainIndex < PropertyChain.Num(); ++ChainIndex)
 	{
+		const FPropertyLink& PropertyLink = PropertyChain[ChainIndex];
+
 		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(CurrentProp))
 		{
-			check(PropertyChain[ChainIndex].PropertyPtr == ArrayProperty->Inner);
+			if (!PropertyLink.PropertyPtr->SameType(ArrayProperty->Inner))
+			{
+				CurrentProp = nullptr;
+				break;
+			}
 
-			int32 TargetIndex = PropertyChain[ChainIndex].ArrayIndex;
+			const int32 TargetIndex = PropertyLink.ArrayIndex;
 			check(TargetIndex != INDEX_NONE);
 
 			FScriptArrayHelper ArrayHelper(ArrayProperty, ValuePtr);
@@ -42,9 +48,13 @@ UObject* FInstancedPropertyPath::Resolve(const UObject* Container) const
 		}
 		else if (const FSetProperty* SetProperty = CastField<FSetProperty>(CurrentProp))
 		{
-			check(PropertyChain[ChainIndex].PropertyPtr == SetProperty->ElementProp);
+			if (!PropertyLink.PropertyPtr->SameType(SetProperty->ElementProp))
+			{
+				CurrentProp = nullptr;
+				break;
+			}
 
-			int32 TargetIndex = PropertyChain[ChainIndex].ArrayIndex;
+			const int32 TargetIndex = PropertyLink.ArrayIndex;
 			check(TargetIndex != INDEX_NONE);
 
 			FScriptSetHelper SetHelper(SetProperty, ValuePtr);
@@ -59,19 +69,25 @@ UObject* FInstancedPropertyPath::Resolve(const UObject* Container) const
 		}
 		else if (const FMapProperty* MapProperty = CastField<FMapProperty>(CurrentProp))
 		{
-			int32 TargetIndex = PropertyChain[ChainIndex].ArrayIndex;
+			const int32 TargetIndex = PropertyLink.ArrayIndex;
 			check(TargetIndex != INDEX_NONE);
 				
 			FScriptMapHelper MapHelper(MapProperty, ValuePtr);
-			if(PropertyChain[ChainIndex].PropertyPtr == MapProperty->KeyProp)
+
+			if (!PropertyLink.bIsMapValue && PropertyLink.PropertyPtr->SameType(MapProperty->KeyProp))
 			{
 				ValuePtr = MapHelper.GetKeyPtr(TargetIndex);
+				CurrentProp = MapProperty->KeyProp;
 			}
-			else if(ensure(PropertyChain[ChainIndex].PropertyPtr == MapProperty->ValueProp))
+			else if (PropertyLink.bIsMapValue && PropertyLink.PropertyPtr->SameType(MapProperty->ValueProp))
 			{
 				ValuePtr = MapHelper.GetValuePtr(TargetIndex);
+				CurrentProp = MapProperty->ValueProp;
 			}
-			CurrentProp = PropertyChain[ChainIndex].PropertyPtr;
+			else
+			{
+				CurrentProp = nullptr;
+			}
 		}
 		else
 		{
@@ -135,7 +151,7 @@ void FFindInstancedReferenceSubobjectHelper::ForEachInstancedSubObject(FInstance
 			ForEachInstancedSubObject(PropertyPath, KeyAddress, ObjRefFunc);
 			PropertyPath.Pop();
 
-			PropertyPath.Push(MapProperty->ValueProp, ElementIndex);
+			PropertyPath.Push(MapProperty->ValueProp, ElementIndex, true);
 			ForEachInstancedSubObject(PropertyPath, ValueAddress, ObjRefFunc);
 			PropertyPath.Pop();
 		}
