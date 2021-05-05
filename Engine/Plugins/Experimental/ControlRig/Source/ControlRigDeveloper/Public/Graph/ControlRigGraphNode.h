@@ -184,6 +184,9 @@ protected:
 
 private:
 
+	FORCEINLINE int32 GetNodeTopologyVersion() const { return NodeTopologyVersion; }
+	int32 NodeTopologyVersion;
+
 	FLinearColor CachedTitleColor;
 	FLinearColor CachedNodeColor;
 

@@ -96,7 +96,27 @@ void FControlRigConnectionDrawingPolicy::DrawPinGeometries(TMap<TSharedRef<SWidg
 				{
 					FConnectionParams Params;
 					DetermineWiringStyle(ThePin, TargetPin, /*inout*/ Params);
-					DrawSplineWithArrow(LinkStartWidgetGeometry->Geometry, LinkEndWidgetGeometry->Geometry, Params);
+
+					if(UseLowDetailConnections())
+					{
+						const float StartFudgeX = 4.0f;
+						const float EndFudgeX = 4.0f;
+
+						const FVector2D StartPoint = FGeometryHelper::VerticalMiddleRightOf(LinkStartWidgetGeometry->Geometry) - FVector2D(StartFudgeX, 0.0f);
+						const FVector2D EndPoint = FGeometryHelper::VerticalMiddleLeftOf(LinkEndWidgetGeometry->Geometry) - FVector2D(EndFudgeX, 0);
+						const FVector2D FakeTangent = (EndPoint - StartPoint).GetSafeNormal();
+
+						static TArray<FVector2D> LinePoints;
+						LinePoints.SetNum(2);
+						LinePoints[0] = StartPoint;
+						LinePoints[1] = EndPoint;
+
+						FSlateDrawElement::MakeLines(DrawElementsList, WireLayerID, FPaintGeometry(), LinePoints, ESlateDrawEffect::None, Params.WireColor);
+					}
+					else
+					{
+						DrawSplineWithArrow(LinkStartWidgetGeometry->Geometry, LinkEndWidgetGeometry->Geometry, Params);
+					}
 				}
 			}
 		}
@@ -223,7 +243,7 @@ bool FControlRigConnectionDrawingPolicy::GetAverageConnectedPositionForPin(UEdGr
 void FControlRigConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, /*inout*/ FConnectionParams& Params)
 {
 	FKismetConnectionDrawingPolicy::DetermineWiringStyle(OutputPin, InputPin, Params);
-	if (OutputPin == nullptr || InputPin == nullptr)
+	if (OutputPin == nullptr || InputPin == nullptr || UseLowDetailConnections())
 	{
 		return;
 	}

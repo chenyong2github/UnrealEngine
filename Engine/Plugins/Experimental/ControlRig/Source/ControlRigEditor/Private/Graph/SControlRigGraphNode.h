@@ -34,7 +34,6 @@ public:
 
 	// SGraphNode interface
 	virtual TSharedRef<SWidget> CreateTitleWidget(TSharedPtr<SNodeTitle> InNodeTitle) override;
-	virtual bool UseLowDetailNodeTitles() const override;
 	virtual void EndUserInteraction() const override;
 	virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter) override;
 	virtual void AddPin( const TSharedRef<SGraphPin>& PinToAdd ) override;
@@ -56,10 +55,12 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
-	bool ParentUseLowDetailNodeTitles() const
-	{
-		return SGraphNode::UseLowDetailNodeTitles();
-	}
+
+	bool UseLowDetailPinContent() const;
+
+	bool UseLowDetailNodeContent() const;
+
+	TOptional<FVector2D> GetLowDetailDesiredSize() const;
 
 	EVisibility GetTitleVisibility() const;
 
@@ -96,6 +97,9 @@ private:
 	FText GetInstructionCountText() const;
 
 private:
+
+	int32 GetNodeTopologyVersion() const;
+	
 	/** Cached widget title area */
 	TSharedPtr<SOverlay> TitleAreaWidget;
 
@@ -135,4 +139,6 @@ private:
 	TSharedPtr<SNodeTitle> NodeTitle;
 
 	TWeakObjectPtr<UControlRigBlueprint> Blueprint;
+
+	FVector2D LastHighDetailSize;
 };

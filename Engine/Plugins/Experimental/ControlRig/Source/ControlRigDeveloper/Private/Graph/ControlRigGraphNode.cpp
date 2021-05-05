@@ -40,6 +40,7 @@ UControlRigGraphNode::UControlRigGraphNode()
 , FullNodeTitle(FText::GetEmpty())
 , CachedTitleColor(FLinearColor(0.f, 0.f, 0.f, 0.f))
 , CachedNodeColor(FLinearColor(0.f, 0.f, 0.f, 0.f))
+, NodeTopologyVersion(INDEX_NONE)
 {
 	bHasCompilerMessage = false;
 	ErrorType = (int32)EMessageSeverity::Info + 1;

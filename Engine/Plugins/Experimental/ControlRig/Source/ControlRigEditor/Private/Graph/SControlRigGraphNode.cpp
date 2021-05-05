@@ -10,6 +10,10 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBar.h"
+#include "SLevelOfDetailBranchNode.h"
+#include "SGraphPanel.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Fonts/FontMeasure.h"
 #include "GraphEditorSettings.h"
 #include "ControlRigEditorStyle.h"
 #include "Widgets/Layout/SWrapBox.h"
@@ -29,6 +33,7 @@
 #include "DetailLayoutBuilder.h"
 #include "EditorStyleSet.h"
 #include "SControlRigGraphPinVariableBinding.h"
+#include "Slate/SlateTextures.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -203,6 +208,8 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 	.ToolTipText(LOCTEXT("NodeHitCountToolTip", "This number represents the hit count for a node.\nFor functions / collapse nodes it represents the sum of all hit counts of contained nodes.\n\nYou can enable / disable the display of the number in the Class Settings\n(Rig Graph Display Settings -> Show Node Run Counts)"));
 
 	ControlRigGraphNode->GetNodeTitleDirtied().BindSP(this, &SControlRigGraphNode::HandleNodeTitleDirtied);
+
+	LastHighDetailSize = FVector2D::ZeroVector;
 }
 
 TSharedRef<SWidget> SControlRigGraphNode::CreateNodeContentArea()
@@ -222,6 +229,29 @@ TSharedRef<SWidget> SControlRigGraphNode::CreateNodeContentArea()
 				SAssignNew(LeftNodeBox, SVerticalBox)
 			]
 		];
+}
+
+bool SControlRigGraphNode::UseLowDetailPinContent() const
+{
+	if (const SGraphPanel* MyOwnerPanel = GetOwnerPanel().Get())
+	{
+		return (MyOwnerPanel->GetCurrentLOD() <= EGraphRenderingLOD::MediumDetail);
+	}
+	return false;
+}
+
+bool SControlRigGraphNode::UseLowDetailNodeContent() const
+{
+	if (const SGraphPanel* MyOwnerPanel = GetOwnerPanel().Get())
+	{
+		return (MyOwnerPanel->GetCurrentLOD() <= EGraphRenderingLOD::LowestDetail);
+	}
+	return false;
+}
+
+TOptional<FVector2D> SControlRigGraphNode::GetLowDetailDesiredSize() const
+{
+	return LastHighDetailSize;
 }
 
 TSharedPtr<SGraphPin> SControlRigGraphNode::GetHoveredPin(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) const
@@ -330,7 +360,7 @@ void SControlRigGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 
 const FSlateBrush * SControlRigGraphNode::GetNodeBodyBrush() const
 {
-	return FEditorStyle::GetBrush("Graph.Node.TintedBody");
+	return FEditorStyle::GetBrush("Graph.Node.Body");
 }
 
 FReply SControlRigGraphNode::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -367,14 +397,9 @@ FReply SControlRigGraphNode::OnMouseButtonDoubleClick(const FGeometry& InMyGeome
 	return SGraphNode::OnMouseButtonDoubleClick(InMyGeometry, InMouseEvent);
 }
 
-bool SControlRigGraphNode::UseLowDetailNodeTitles() const
-{
-	return ParentUseLowDetailNodeTitles();
-}
-
 EVisibility SControlRigGraphNode::GetTitleVisibility() const
 {
-	return ParentUseLowDetailNodeTitles() ? EVisibility::Hidden : EVisibility::Visible;
+	return UseLowDetailNodeTitles() ? EVisibility::Hidden : EVisibility::Visible;
 }
 
 EVisibility SControlRigGraphNode::GetExecutionTreeVisibility() const
@@ -519,7 +544,7 @@ public:
 	SLATE_BEGIN_ARGS(SControlRigPinTreeRow) {}
 
 	SLATE_ARGUMENT(bool, LeftAligned)
-
+	
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
@@ -618,7 +643,7 @@ public:
 
 		this->ChildSlot
 		[
-			ContentBox
+            ContentBox
 		];
 
 		InnerContentSlot = InnerContentSlotNativePtr;
@@ -785,10 +810,15 @@ TSharedRef<ITableRow> SControlRigGraphNode::MakePinTableRowWidget(URigVMPin* InI
 	{
 		TWeakPtr<SGraphPin> WeakPin = InputPinWidget.IsValid() ? InputPinWidget : OutputPinWidget;
 
-		TSharedRef<SWidget> LabelWidget = SNew(STextBlock)
+		TSharedPtr<STextBlock> LabelTextBlock;
+		TSharedRef<SWidget> LabelWidget = SAssignNew(LabelTextBlock, STextBlock)
 		.Text(this, &SControlRigGraphNode::GetPinLabel, WeakPin)
 		.TextStyle(FEditorStyle::Get(), NAME_DefaultPinLabelStyle)
+		.SimpleTextMode(true)
 		.ColorAndOpacity(this, &SControlRigGraphNode::GetPinTextColor, WeakPin);
+
+		const FText PinLabel = GetPinLabel(WeakPin);
+		const FVector2D LabelTextSize = FSlateApplication::Get().GetRenderer()->GetFontMeasureService()->Measure(PinLabel, IDetailLayoutBuilder::GetDetailFont()) * FVector2D(1.f, 0.2f);
 
 		// add to mapping that allows labels to act as hover widgets
 		if(InputPinWidget.IsValid())
@@ -807,14 +837,36 @@ TSharedRef<ITableRow> SControlRigGraphNode::MakePinTableRowWidget(URigVMPin* InI
 		if(OutputPinWidget.IsValid() && !InputPinWidget.IsValid())
 		{
 			TSharedRef<SWidget> InputWidget = 
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Center)
-				.FillWidth(1.0f)
-				.Padding(50.0f, 2.0f, 2.0f, 2.0f)
-				[
-					LabelWidget
+                SNew(SHorizontalBox)
+                +SHorizontalBox::Slot()
+                .HAlign(HAlign_Right)
+                .VAlign(VAlign_Center)
+                .FillWidth(1.0f)
+                .Padding(50.0f, 2.0f, 2.0f, 2.0f)
+                [
+                    SNew(SLevelOfDetailBranchNode)
+                    .UseLowDetailSlot(this, &SControlRigGraphNode::UseLowDetailNodeContent)
+                    .LowDetail()
+                    [
+                    	SNew(SSpacer)
+                    ]
+                    .HighDetail()
+                    [
+                        SNew(SLevelOfDetailBranchNode)
+                        .UseLowDetailSlot(this, &SControlRigGraphNode::UseLowDetailPinContent)
+                        .LowDetail()
+                        [
+                            // replacement rectangle in the color of the text
+                            SNew(SImage)
+                            .DesiredSizeOverride(LabelTextSize)
+                            .Image(FEditorStyle::GetBrush("WhiteBrush"))
+                            .ColorAndOpacity(FEditorStyle::GetSlateColor("DefaultForeground"))
+                        ]
+                        .HighDetail()
+                        [
+                            LabelWidget
+                        ]
+					]
 				];
 
 			TSharedRef<SWidget> OutputWidget = 
@@ -849,7 +901,26 @@ TSharedRef<ITableRow> SControlRigGraphNode::MakePinTableRowWidget(URigVMPin* InI
 						InputPinWidget.IsValid() ? StaticCastSharedRef<SWidget>(InputPinWidget.ToSharedRef()) : StaticCastSharedRef<SWidget>(SNew(SSpacer).Size(FVector2D(16.0f, 14.0f)))
 					]
 				];
-				
+
+			TSharedPtr<SWidget> InputValueWrapperWidget;
+			if(InputPinValueWidget.IsValid())
+			{
+				InputValueWrapperWidget = SNew(SLevelOfDetailBranchNode)
+				.UseLowDetailSlot(this, &SControlRigGraphNode::UseLowDetailPinContent)
+				.LowDetail()
+				[
+					SNew(SSpacer)
+				]
+				.HighDetail()
+				[
+					InputPinValueWidget.ToSharedRef()
+				];
+			}
+			else
+			{
+				InputValueWrapperWidget = SNew(SSpacer);
+			}
+
 			TSharedRef<SWidget> OutputWidget = 
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
@@ -858,15 +929,37 @@ TSharedRef<ITableRow> SControlRigGraphNode::MakePinTableRowWidget(URigVMPin* InI
 				.AutoWidth()
 				.Padding(2.0f)
 				[
-					LabelWidget
-				]
+					SNew(SLevelOfDetailBranchNode)
+	                .UseLowDetailSlot(this, &SControlRigGraphNode::UseLowDetailNodeContent)
+	                .LowDetail()
+	                [
+	                    SNew(SSpacer)
+	                ]
+	                .HighDetail()
+	                [
+		                SNew(SLevelOfDetailBranchNode)
+		                .UseLowDetailSlot(this, &SControlRigGraphNode::UseLowDetailPinContent)
+		                .LowDetail()
+		                [
+		                    // replacement rectangle in the color of the text
+		                    SNew(SImage)
+		                    .DesiredSizeOverride(LabelTextSize)
+		                    .Image(FEditorStyle::GetBrush("WhiteBrush"))
+		                    .ColorAndOpacity(FEditorStyle::GetSlateColor("DefaultForeground"))
+		                ]
+		                .HighDetail()
+		                [
+		                    LabelWidget
+		                ]
+		            ]
+	            ]
 				+SHorizontalBox::Slot()
 				.AutoWidth()
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Center)
 				.Padding(2.0f, 2.0f, 18.0f, 2.0f)
 				[
-					InputPinValueWidget.IsValid() ? InputPinValueWidget.ToSharedRef() : SNew(SSpacer)
+					InputValueWrapperWidget.ToSharedRef()
 				]
 				+SHorizontalBox::Slot()
 				.FillWidth(1.0f)
@@ -1273,6 +1366,11 @@ void SControlRigGraphNode::Tick(const FGeometry& AllottedGeometry, const double 
 		GraphNode->NodeHeight = (int32)AllottedGeometry.Size.Y;
 		RefreshErrorInfo();
 	}
+
+	if((!UseLowDetailNodeContent()) && (LeftNodeBox != nullptr))
+	{
+		LastHighDetailSize = LeftNodeBox->GetTickSpaceGeometry().Size;
+	}
 }
 
 void SControlRigGraphNode::HandleNodeTitleDirtied()
@@ -1307,6 +1405,15 @@ FText SControlRigGraphNode::GetInstructionCountText() const
 	}
 
 	return FText();
+}
+
+int32 SControlRigGraphNode::GetNodeTopologyVersion() const
+{
+	if(UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(GraphNode))
+	{
+		return ControlRigGraphNode->GetNodeTopologyVersion();
+	}
+	return INDEX_NONE;
 }
 
 #undef LOCTEXT_NAMESPACE

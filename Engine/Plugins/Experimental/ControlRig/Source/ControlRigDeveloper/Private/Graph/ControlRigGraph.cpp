@@ -189,6 +189,25 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 		return;
 	}
 
+	// increment the node topology version for any interaction
+	// with a node.
+	{
+		UControlRigGraphNode* EdNode = nullptr;
+		if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
+		{
+			EdNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelNode->GetFName()));
+		}
+		else if (URigVMPin* ModelPin = Cast<URigVMPin>(InSubject))
+		{
+			EdNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelPin->GetNode()->GetFName()));
+		}
+
+		if(EdNode)
+		{
+			EdNode->NodeTopologyVersion++;
+		}
+	}
+
 	switch (InNotifType)
 	{
 		case ERigVMGraphNotifType::GraphChanged:

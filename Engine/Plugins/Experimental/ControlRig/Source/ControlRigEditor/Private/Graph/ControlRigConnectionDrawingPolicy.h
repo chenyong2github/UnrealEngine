@@ -31,6 +31,8 @@ private:
 	// Each time a reroute node is encountered, input geometry is compared to output geometry to see if the pins on the reroute node need to be reversed
 	TMap<UControlRigGraphNode*, bool> RerouteNodeToReversedDirectionMap;
 
+	FORCEINLINE bool UseLowDetailConnections() const { return ZoomFactor <= 0.175f; /* zoom level -9 */ }
+
 	bool ShouldChangeTangentForReouteControlPoint(UControlRigGraphNode* Node);
 	// Average of the positions of all pins connected to InPin
 	bool GetAverageConnectedPositionForPin(UEdGraphPin* InPin, FVector2D& OutPos) const;
