@@ -241,6 +241,9 @@ public:
 	/** Returns the number of texture parameters present on the layout. */
 	uint32 GetTextureParameterCount() const { return Layout->GraphTextures.Num(); }
 
+	/** Returns the number of RDG uniform buffers present in the layout. */
+	uint32 GetUniformBufferParameterCount() const { return Layout->GraphUniformBuffers.Num(); }
+
 	/** Returns the render target binding slots. Asserts if they don't exist. */
 	const FRenderTargetBindingSlots& GetRenderTargets() const
 	{

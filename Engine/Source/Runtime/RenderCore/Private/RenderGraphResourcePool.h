@@ -36,6 +36,7 @@ private:
 
 	/** Elements can be 0, we compact the buffer later. */
 	TArray<TRefCountPtr<FRDGPooledBuffer>> AllocatedBuffers;
+	TArray<uint64> AllocatedBufferHashes;
 
 	uint32 FrameCounter = 0;
 

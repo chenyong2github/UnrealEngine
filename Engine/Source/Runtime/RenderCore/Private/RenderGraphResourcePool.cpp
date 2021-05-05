@@ -7,6 +7,11 @@
 #include "RenderGraphResourcePool.h"
 #include "RenderGraphResources.h"
 
+uint64 ComputeHash(const FRDGBufferDesc& Desc)
+{
+	return CityHash64((const char*)&Desc, sizeof(FRDGBufferDesc));
+}
+
 FRenderGraphResourcePool::FRenderGraphResourcePool()
 { }
 
@@ -26,23 +31,31 @@ TRefCountPtr<FRDGPooledBuffer> FRenderGraphResourcePool::FindFreeBufferInternal(
 	const FRDGBufferDesc& Desc,
 	const TCHAR* InDebugName)
 {
+	const uint64 BufferHash = ComputeHash(Desc);
+
 	// First find if available.
-	for (auto& PooledBuffer : AllocatedBuffers)
+	for (int32 Index = 0; Index < AllocatedBufferHashes.Num(); ++Index)
 	{
+		if (AllocatedBufferHashes[Index] != BufferHash)
+		{
+			continue;
+		}
+
+		const auto& PooledBuffer = AllocatedBuffers[Index];
+
 		// Still being used outside the pool.
 		if (PooledBuffer->GetRefCount() > 1)
 		{
 			continue;
 		}
 
-		if (PooledBuffer->Desc == Desc)
-		{
-			PooledBuffer->LastUsedFrame = FrameCounter;
-			PooledBuffer->ViewCache.SetDebugName(InDebugName);
-			PooledBuffer->Name = InDebugName;
+		check(PooledBuffer->Desc == Desc);
 
-			return PooledBuffer;
-		}
+		PooledBuffer->LastUsedFrame = FrameCounter;
+		PooledBuffer->ViewCache.SetDebugName(InDebugName);
+		PooledBuffer->Name = InDebugName;
+
+		return PooledBuffer;
 	}
 
 	// Allocate new one
@@ -71,11 +84,11 @@ TRefCountPtr<FRDGPooledBuffer> FRenderGraphResourcePool::FindFreeBufferInternal(
 			check(0);
 		}
 
-		TRefCountPtr<FRDGPooledBuffer> PooledBuffer = new FRDGPooledBuffer(MoveTemp(BufferRHI), Desc);
+		TRefCountPtr<FRDGPooledBuffer> PooledBuffer = new FRDGPooledBuffer(MoveTemp(BufferRHI), Desc, InDebugName);
 		AllocatedBuffers.Add(PooledBuffer);
+		AllocatedBufferHashes.Add(BufferHash);
 		check(PooledBuffer->GetRefCount() == 2);
 
-		PooledBuffer->Name = InDebugName;
 		PooledBuffer->LastUsedFrame = FrameCounter;
 
 		return PooledBuffer;
@@ -103,8 +116,8 @@ void FRenderGraphResourcePool::TickPoolElements()
 
 		if (bIsUnused && bNotRequestedRecently)
 		{
-			Swap(Buffer, AllocatedBuffers.Last());
-			AllocatedBuffers.Pop();
+			AllocatedBuffers.RemoveAtSwap(BufferIndex);
+			AllocatedBufferHashes.RemoveAtSwap(BufferIndex);
 		}
 		else
 		{

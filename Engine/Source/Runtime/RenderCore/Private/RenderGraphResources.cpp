@@ -40,11 +40,6 @@ FRDGParentResource::~FRDGParentResource()
 	check(IsImmediateMode() || ReferenceCount == 0);
 }
 
-void FRDGParentResource::SetPassthroughRHI(FRHIResource* InResourceRHI)
-{
-	ResourceRHI = InResourceRHI;
-}
-
 bool FRDGProducerState::IsDependencyRequired(FRDGProducerState LastProducer, ERHIPipeline LastPipeline, FRDGProducerState NextState, ERHIPipeline NextPipeline)
 {
 	/** This function determines whether a producer-consumer relationship exists in the graph, which is used for culling and

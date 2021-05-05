@@ -59,6 +59,11 @@ public:
 	void Submit(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline);
 	void Submit(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline, FRDGTransitionQueue& TransitionsToBegin);
 
+	void Reserve(uint32 TransitionCount)
+	{
+		Transitions.Reserve(TransitionCount);
+	}
+
 private:
 	const FRHITransition* Transition = nullptr;
 	TArray<FRHITransitionInfo, TInlineAllocator<1, FRDGArrayAllocator>> Transitions;
@@ -97,6 +102,11 @@ public:
 	void AddDependency(FRDGBarrierBatchBegin* BeginBatch);
 
 	void Submit(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline);
+
+	void Reserve(uint32 TransitionBatchCount)
+	{
+		Dependencies.Reserve(TransitionBatchCount);
+	}
 
 private:
 	TArray<FRDGBarrierBatchBegin*, TInlineAllocator<1, FRDGArrayAllocator>> Dependencies;
@@ -309,6 +319,9 @@ protected:
 			/** Whether the pass uses the immediate command list. */
 			uint32 bImmediateCommandList : 1;
 
+			/** Whether this pass has non-RDG UAV outputs. */
+			uint32 bHasExternalOutputs : 1;
+
 			/** Whether this pass allocated a texture through the pool. */
 			IF_RDG_ENABLE_DEBUG(uint32 bFirstTextureAllocated : 1);
 		};
@@ -332,26 +345,44 @@ protected:
 
 	struct FTextureState
 	{
-		FTextureState()
+		FTextureState() = default;
+
+		FTextureState(FRDGTextureRef InTexture)
+			: Texture(InTexture)
+			, TextureHandle(InTexture->GetHandle())
 		{
-			InitAsWholeResource(State);
+			const uint32 SubresourceCount = Texture->GetSubresourceCount();
+			State.SetNum(SubresourceCount);
+			MergeState.SetNum(SubresourceCount);
 		}
 
+		FRDGTextureRef Texture = nullptr;
 		FRDGTextureTransientSubresourceState State;
 		FRDGTextureTransientSubresourceStateIndirect MergeState;
+		FRDGTextureHandle TextureHandle;
 		uint16 ReferenceCount = 0;
 	};
 
 	struct FBufferState
 	{
+		FBufferState() = default;
+
+		FBufferState(FRDGBufferRef InBuffer)
+			: Buffer(InBuffer)
+			, BufferHandle(InBuffer->GetHandle())
+		{}
+
+		FRDGBufferRef Buffer = nullptr;
 		FRDGSubresourceState State;
 		FRDGSubresourceState* MergeState = nullptr;
+		FRDGBufferHandle BufferHandle;
 		uint16 ReferenceCount = 0;
 	};
 
 	/** Maps textures / buffers to information on how they are used in the pass. */
-	TSortedMap<FRDGTexture*, FTextureState, FRDGArrayAllocator> TextureStates;
-	TSortedMap<FRDGBuffer*, FBufferState, FRDGArrayAllocator> BufferStates;
+	TArray<FTextureState, FRDGArrayAllocator> TextureStates;
+	TArray<FBufferState, FRDGArrayAllocator> BufferStates;
+	TArray<FRDGViewHandle, FRDGArrayAllocator> Views;
 
 	/** Lists of pass parameters scheduled for begin during execution of this pass. */
 	TArray<FRDGPass*, TInlineAllocator<1, FRDGArrayAllocator>> ResourcesToBegin;
@@ -363,7 +394,7 @@ protected:
 	FRDGBarrierBatchBegin* EpilogueBarriersToBeginForGraphics = nullptr;
 	FRDGBarrierBatchBegin* EpilogueBarriersToBeginForAsyncCompute = nullptr;
 	FRDGBarrierBatchBegin* EpilogueBarriersToBeginForAll = nullptr;
-	TArray<FRDGBarrierBatchBegin*> SharedEpilogueBarriersToBegin;
+	TArray<FRDGBarrierBatchBegin*, FRDGArrayAllocator> SharedEpilogueBarriersToBegin;
 	FRDGBarrierBatchEnd* EpilogueBarriersToEnd = nullptr;
 
 	EAsyncComputeBudget AsyncComputeBudget = EAsyncComputeBudget::EAll_4;

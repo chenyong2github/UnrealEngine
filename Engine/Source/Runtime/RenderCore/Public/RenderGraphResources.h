@@ -273,12 +273,12 @@ protected:
 	/** If true, the resource has been used on an async compute pass and may have async compute states. */
 	uint8 bUsedByAsyncComputePass : 1;
 
-	/** Assigns this resource as a simple passthrough container for an RHI resource. */
-	void SetPassthroughRHI(FRHIResource* InResourceRHI);
-
 private:
 	/** Number of references in passes and deferred queries. */
 	uint16 ReferenceCount = 0;
+
+	/** Scratch index allocated for the resource in the pass being setup. */
+	uint16 PassStateIndex = 0;
 
 	/** The initial and final states of the resource assigned by the user, if known. */
 	ERHIAccess AccessInitial = ERHIAccess::Unknown;
@@ -327,6 +327,7 @@ protected:
 
 private:
 	FRDGViewHandle Handle;
+	FRDGPassHandle LastPass;
 
 	friend FRDGBuilder;
 	friend FRDGViewRegistry;
@@ -421,6 +422,11 @@ public:
 		return FRDGTextureSubresourceRange(Layout);
 	}
 
+	FORCEINLINE uint32 GetSubresourceCount() const
+	{
+		return Layout.GetSubresourceCount();
+	}
+
 	FRDGTextureSubresourceRange GetSubresourceRangeSRV() const;
 
 private:
@@ -431,8 +437,9 @@ private:
 		, RenderTargetTexture(InRenderTargetTexture)
 		, Layout(InDesc)
 	{
-		InitAsWholeResource(MergeState);
-		InitAsWholeResource(LastProducers);
+		const uint32 SubresourceCount = GetSubresourceCount();
+		MergeState.SetNum(SubresourceCount);
+		LastProducers.SetNum(SubresourceCount);
 	}
 
 	/** Assigns a pooled render target as the backing RHI resource. */
@@ -839,9 +846,10 @@ class RENDERCORE_API FRDGPooledBuffer final
 	: public FRefCountedObject
 {
 public:
-	FRDGPooledBuffer(TRefCountPtr<FRHIBuffer> InBuffer, const FRDGBufferDesc& InDesc)
+	FRDGPooledBuffer(TRefCountPtr<FRHIBuffer> InBuffer, const FRDGBufferDesc& InDesc, const TCHAR* InName)
 		: Desc(InDesc)
 		, Buffer(MoveTemp(InBuffer))
+		, Name(InName)
 	{}
 
 	const FRDGBufferDesc Desc;

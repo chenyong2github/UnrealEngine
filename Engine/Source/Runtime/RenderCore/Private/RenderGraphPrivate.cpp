@@ -306,7 +306,7 @@ FAutoConsoleVariableRef CVarRDGUseTransientAllocator(
 	ECVF_RenderThreadSafe);
 
 #if CSV_PROFILER
-int32 GRDGVerboseCSVStats = 0;
+int32 GRDGVerboseCSVStats = 1;
 FAutoConsoleVariableRef CVarRDGVerboseCSVStats(
 	TEXT("r.RDG.VerboseCSVStats"),
 	GRDGVerboseCSVStats,
@@ -323,7 +323,10 @@ int32 GRDGStatPassCullCount = 0;
 int32 GRDGStatPassDependencyCount = 0;
 int32 GRDGStatRenderPassMergeCount = 0;
 int32 GRDGStatTextureCount = 0;
+int32 GRDGStatTextureReferenceCount = 0;
 int32 GRDGStatBufferCount = 0;
+int32 GRDGStatBufferReferenceCount = 0;
+int32 GRDGStatViewCount = 0;
 int32 GRDGStatTransientTextureCount = 0;
 int32 GRDGStatTransientBufferCount = 0;
 int32 GRDGStatTransitionCount = 0;
@@ -337,12 +340,18 @@ DEFINE_STAT(STAT_RDG_PassCullCount);
 DEFINE_STAT(STAT_RDG_RenderPassMergeCount);
 DEFINE_STAT(STAT_RDG_PassDependencyCount);
 DEFINE_STAT(STAT_RDG_TextureCount);
+DEFINE_STAT(STAT_RDG_TextureReferenceCount);
+DEFINE_STAT(STAT_RDG_TextureReferenceAverage);
 DEFINE_STAT(STAT_RDG_BufferCount);
+DEFINE_STAT(STAT_RDG_BufferReferenceCount);
+DEFINE_STAT(STAT_RDG_BufferReferenceAverage);
+DEFINE_STAT(STAT_RDG_ViewCount);
 DEFINE_STAT(STAT_RDG_TransientTextureCount);
 DEFINE_STAT(STAT_RDG_TransientBufferCount);
 DEFINE_STAT(STAT_RDG_TransitionCount);
 DEFINE_STAT(STAT_RDG_AliasingCount);
 DEFINE_STAT(STAT_RDG_TransitionBatchCount);
+DEFINE_STAT(STAT_RDG_SetupTime);
 DEFINE_STAT(STAT_RDG_CompileTime);
 DEFINE_STAT(STAT_RDG_CollectResourcesTime);
 DEFINE_STAT(STAT_RDG_CollectBarriersTime);

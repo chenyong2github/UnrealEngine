@@ -388,6 +388,9 @@ private:
 	/** Passes that don't have any parameters. */
 	FRDGPassBitArray PassesWithEmptyParameters;
 
+	/** Uniform buffers which were used in a pass. */
+	FRDGUniformBufferBitArray UniformBuffersToCreate;
+
 	/** Tracks external resources to their registered render graph counterparts for de-duplication. */
 	TSortedMap<FRHITexture*, FRDGTexture*, FRDGArrayAllocator> ExternalTextures;
 	TSortedMap<const FRDGPooledBuffer*, FRDGBuffer*, FRDGArrayAllocator> ExternalBuffers;
@@ -458,6 +461,7 @@ private:
 	private:
 		FRHICommandListImmediate& RHICmdList;
 		IRHITransientResourceAllocator* Allocator = nullptr;
+		bool bCreateAttempted = false;
 	};
 
 	void Compile();
@@ -465,11 +469,12 @@ private:
 
 	void BeginResourceRHI(FRDGUniformBuffer* UniformBuffer);
 	void BeginResourceRHI(FTransientResourceAllocator*, FRDGPassHandle, FRDGTexture* Texture);
-	void BeginResourceRHI(FTransientResourceAllocator*, FRDGPassHandle, FRDGTextureSRV* SRV);
-	void BeginResourceRHI(FTransientResourceAllocator*, FRDGPassHandle, FRDGTextureUAV* UAV);
+	void BeginResourceRHI(FRDGPassHandle, FRDGTextureSRV* SRV);
+	void BeginResourceRHI(FRDGPassHandle, FRDGTextureUAV* UAV);
 	void BeginResourceRHI(FTransientResourceAllocator*, FRDGPassHandle, FRDGBuffer* Buffer);
-	void BeginResourceRHI(FTransientResourceAllocator*, FRDGPassHandle, FRDGBufferSRV* SRV);
-	void BeginResourceRHI(FTransientResourceAllocator*, FRDGPassHandle, FRDGBufferUAV* UAV);
+	void BeginResourceRHI(FRDGPassHandle, FRDGBufferSRV* SRV);
+	void BeginResourceRHI(FRDGPassHandle, FRDGBufferUAV* UAV);
+	void BeginResourceRHI(FRDGPassHandle, FRDGView* View);
 
 	void EndResourceRHI(FTransientResourceAllocator&, FRDGPassHandle, FRDGTexture* Texture, uint32 ReferenceCount);
 	void EndResourceRHI(FTransientResourceAllocator&, FRDGPassHandle, FRDGBuffer* Buffer, uint32 ReferenceCount);

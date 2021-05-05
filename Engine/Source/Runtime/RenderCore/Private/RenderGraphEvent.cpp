@@ -26,7 +26,6 @@ FRDGEventName::FRDGEventName(const TCHAR* InEventFormat, ...)
 {
 	check(InEventFormat);
 
-	if (GetEmitRDGEvents())
 	{
 		va_list VAList;
 		va_start(VAList, InEventFormat);
