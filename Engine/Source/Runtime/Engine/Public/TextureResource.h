@@ -297,6 +297,7 @@ public:
 	virtual class FTextureRenderTarget2DResource* GetTextureRenderTarget2DResource() { return nullptr; }
 	virtual class FTextureRenderTarget2DArrayResource* GetTextureRenderTarget2DArrayResource() { return nullptr; }
 	virtual class FTextureRenderTargetVolumeResource* GetTextureRenderTargetVolumeResource() { return nullptr; }
+	virtual class FTextureRenderTargetCubeResource* GetTextureRenderTargetCubeResource() { return nullptr; }
 
 	virtual void ClampSize(int32 SizeX,int32 SizeY) {}
 
@@ -512,6 +513,11 @@ public:
 	 */
 	FTextureCubeRHIRef GetTextureRHI() { return TextureCubeRHI; }
 
+	/**
+	 * @return UnorderedAccessView for rendering
+	 */
+	FUnorderedAccessViewRHIRef GetUnorderedAccessViewRHI() { return UnorderedAccessViewRHI; }
+
 	/** 
 	* Render target resource should be sampled in linear color space
 	*
@@ -543,6 +549,7 @@ protected:
 	* Optionally clears each face of the render target to green.
 	* This is only called by the rendering thread.
 	*/
+	friend class UTextureRenderTargetCube;
 	virtual void UpdateDeferredResource(FRHICommandListImmediate& RHICmdList, bool bClearRenderTarget=true) override;
 
 private:
@@ -555,6 +562,9 @@ private:
 
 	/** Represents the current render target (from one of the cube faces)*/
 	FTextureCubeRHIRef RenderTargetCubeRHI;
+
+	/** Optional Unordered Access View for the resource, automatically created if bCanCreateUAV is true */
+	FUnorderedAccessViewRHIRef UnorderedAccessViewRHI;
 
 	/** Face currently used for target surface */
 	ECubeFace CurrentTargetFace;
