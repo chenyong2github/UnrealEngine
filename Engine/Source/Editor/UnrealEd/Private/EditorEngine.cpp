@@ -895,11 +895,7 @@ void UEditorEngine::InitializeObjectReferences()
 
 bool UEditorEngine::ShouldDrawBrushWireframe( AActor* InActor )
 {
-	bool bResult = true;
-
-	bResult = GLevelEditorModeTools().ShouldDrawBrushWireframe( InActor );
-	
-	return bResult;
+	return !IsRunningCommandlet() ? GLevelEditorModeTools().ShouldDrawBrushWireframe(InActor) : false;
 }
 
 //
