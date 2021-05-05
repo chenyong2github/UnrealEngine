@@ -25,14 +25,8 @@ void UBaseMediaSource::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) 
 	{
 		OutTags.Add(FAssetRegistryTag("Url", Url, FAssetRegistryTag::TT_Alphabetical));
 	}
+	Super::GetAssetRegistryTags(OutTags);
 }
-
-
-#if WITH_EDITOR
-void UBaseMediaSource::GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMetadata>& OutMetadata) const
-{
-}
-#endif
 
 void UBaseMediaSource::PreSave(const class ITargetPlatform* TargetPlatform)
 {
