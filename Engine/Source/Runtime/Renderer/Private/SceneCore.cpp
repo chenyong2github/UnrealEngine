@@ -310,11 +310,14 @@ void FLightPrimitiveInteraction::FlushCachedShadowMapData()
 	{
 		if (bCastShadow && !PrimitiveSceneInfo->Proxy->IsMeshShapeOftenMoving())
 		{
-			FCachedShadowMapData* CachedShadowMapData = PrimitiveSceneInfo->Scene->CachedShadowMaps.Find(LightSceneInfo->Id);
+			TArray<FCachedShadowMapData>* CachedShadowMapDatas = PrimitiveSceneInfo->Scene->GetCachedShadowMapDatas(LightSceneInfo->Id);
 
-			if (CachedShadowMapData)
+			if (CachedShadowMapDatas)
 			{
-				CachedShadowMapData->ShadowMap.Release();
+				for (auto& CachedShadowMapData : *CachedShadowMapDatas)
+				{
+					CachedShadowMapData.InvalidateCachedShadow();
+				}
 			}
 		}
 	}

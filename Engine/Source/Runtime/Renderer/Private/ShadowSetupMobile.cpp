@@ -245,20 +245,15 @@ void FMobileSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdLi
 	// initialize CSMVisibilityInfo for each eligible light.
 	for (FLightSceneInfo* MobileDirectionalLightSceneInfo : Scene->MobileDirectionalLights)
 	{
-		const FLightSceneProxy* LightSceneProxy = MobileDirectionalLightSceneInfo ? MobileDirectionalLightSceneInfo->Proxy : nullptr;
-		if (LightSceneProxy)
-		{
-			bool bLightHasCombinedStaticAndCSMEnabled = bCombinedStaticAndCSMEnabled && LightSceneProxy->UseCSMForDynamicObjects();
-			bool bMovableLightUsingCSM = bMobileEnableMovableLightCSMShaderCulling && LightSceneProxy->IsMovable() && MobileDirectionalLightSceneInfo->ShouldRenderViewIndependentWholeSceneShadows();
+		const bool bShouldRecordShadowSubjectsForMobile = MobileDirectionalLightSceneInfo ? MobileDirectionalLightSceneInfo->ShouldRecordShadowSubjectsForMobile() : false;
 
-			if (bLightHasCombinedStaticAndCSMEnabled || bMovableLightUsingCSM)
+		if (bShouldRecordShadowSubjectsForMobile)
+		{
+			int32 PrimitiveCount = Scene->Primitives.Num();
+			for (auto& View : Views)
 			{
-				int32 PrimitiveCount = Scene->Primitives.Num();
-				for (auto& View : Views)
-				{
-					FMobileCSMSubjectPrimitives& MobileCSMSubjectPrimitives = View.VisibleLightInfos[MobileDirectionalLightSceneInfo->Id].MobileCSMSubjectPrimitives;
-					MobileCSMSubjectPrimitives.InitShadowSubjectPrimitives(PrimitiveCount);
-				}
+				FMobileCSMSubjectPrimitives& MobileCSMSubjectPrimitives = View.VisibleLightInfos[MobileDirectionalLightSceneInfo->Id].MobileCSMSubjectPrimitives;
+				MobileCSMSubjectPrimitives.InitShadowSubjectPrimitives(PrimitiveCount);
 			}
 		}
 	}

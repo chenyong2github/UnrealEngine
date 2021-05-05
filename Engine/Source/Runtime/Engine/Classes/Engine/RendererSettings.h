@@ -580,6 +580,11 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 	uint32 bEarlyZPassOnlyMaterialMasking : 1;
 
+	UPROPERTY(config, EditAnywhere, Category = Optimizations, meta = (
+		ConsoleVariable = "r.Shadow.CSMCaching", DisplayName = "Enable CSM Caching",
+		ToolTip = "Enable caching CSM to reduce draw calls for casting CSM and probably improve performance."))
+		uint32 bEnableCSMCaching : 1;
+
 	UPROPERTY(config, EditAnywhere, Category=MiscLighting, meta=(
 		ConsoleVariable="r.DBuffer",DisplayName="DBuffer Decals",
 		ToolTip="Whether to accumulate decal properties to a buffer before the base pass.  DBuffer decals correctly affect lightmap and sky lighting, unlike regular deferred decals.  DBuffer enabled forces a full prepass.  Changing this setting requires restarting the editor.",

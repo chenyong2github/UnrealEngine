@@ -252,7 +252,7 @@ void SetupMobileDirectionalLightUniformParameters(
 			{
 				const FProjectedShadowInfo* ShadowInfo = DirectionalLightShadowInfos[i];
 
-				if (ShadowInfo->ShadowDepthView && !ShadowInfo->bRayTracedDistanceField)
+				if (ShadowInfo->ShadowDepthView && !ShadowInfo->bRayTracedDistanceField && ShadowInfo->CacheMode != SDCM_StaticPrimitivesOnly)
 				{
 					if (OutShadowIndex == 0)
 					{

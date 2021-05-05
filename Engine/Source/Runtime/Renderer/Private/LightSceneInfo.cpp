@@ -385,6 +385,35 @@ void FLightSceneInfo::ConditionalUpdateMobileMovablePointLightUniformBuffer(cons
 	}
 }
 
+bool FLightSceneInfo::ShouldRecordShadowSubjectsForMobile() const
+{
+	if (Proxy == nullptr)
+	{
+		return false;
+	}
+
+	// record shadow casters if CSM culling is enabled for the light's mobility type and the culling mode requires the list of casters.
+	static auto* MyCVarMobileEnableStaticAndCSMShadowReceivers = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.EnableStaticAndCSMShadowReceivers"));
+	const bool bCombinedStaticAndCSMEnabled = MyCVarMobileEnableStaticAndCSMShadowReceivers->GetValueOnAnyThread() != 0;
+
+	static auto* CVarMobileEnableMovableLightCSMShaderCulling = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.EnableMovableLightCSMShaderCulling"));
+	const bool bMobileEnableMovableLightCSMShaderCulling = CVarMobileEnableMovableLightCSMShaderCulling->GetValueOnAnyThread() == 1;
+
+	static auto* CVarMobileCSMShaderCullingMethod = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.Shadow.CSMShaderCullingMethod"));
+	const uint32 MobileCSMCullingMode = CVarMobileCSMShaderCullingMethod->GetValueOnAnyThread() & 0xF;
+
+	const FLightSceneProxy* LightSceneProxy = Proxy;
+
+	bool bRenderMovableDirectionalLightCSM = LightSceneProxy->IsMovable() && ShouldRenderViewIndependentWholeSceneShadows();
+
+	bool bLightHasCombinedStaticAndCSMEnabled = bCombinedStaticAndCSMEnabled && LightSceneProxy->UseCSMForDynamicObjects();
+	bool bMovableLightUsingCSM = bMobileEnableMovableLightCSMShaderCulling && bRenderMovableDirectionalLightCSM;
+
+	bool bShouldRecordShadowSubjectsForMobile = (MobileCSMCullingMode == 2 || MobileCSMCullingMode == 3) && (bLightHasCombinedStaticAndCSMEnabled || bMovableLightUsingCSM);
+
+	return bShouldRecordShadowSubjectsForMobile;
+}
+
 /** Determines whether two bounding spheres intersect. */
 FORCEINLINE bool AreSpheresNotIntersecting(
 	const VectorRegister& A_XYZ,

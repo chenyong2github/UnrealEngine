@@ -143,6 +143,7 @@ enum EShadowDepthCacheMode
 {
 	SDCM_MovablePrimitivesOnly,
 	SDCM_StaticPrimitivesOnly,
+	SDCM_CSMScrolling,
 	SDCM_Uncached
 };
 
@@ -390,6 +391,15 @@ public:
 	/** Controls fading out of per-object shadows in the distance to avoid casting super-sharp shadows far away. */
 	float PerObjectShadowFadeStart;
 	float InvPerObjectShadowFadeLength;
+
+	/** The Z offset in shadow light coordinate of the cached shadow bound center and current shadow bound center when scrolling the cached shadow map. */
+	float CSMScrollingZOffset;
+
+	FVector4 OverlappedUVOnCachedShadowMap;
+	FVector4 OverlappedUVOnCurrentShadowMap;
+
+	/** The extra culling planes to cull the static meshes which already in the overlapped area when scrolling the cached shadow map. */
+	TArray<FPlane, TInlineAllocator<4>> CSMScrollingExtraCullingPlanes;
 
 	/** Projection index for light types that use multiple projections for shadows. */
 	int32 ProjectionIndex = 0;

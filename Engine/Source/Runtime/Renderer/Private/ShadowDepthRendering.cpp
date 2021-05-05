@@ -147,12 +147,16 @@ void SetupShadowDepthPassUniformBuffer(
 	const FViewInfo& View,
 	FShadowDepthPassUniformParameters& ShadowDepthPassParameters)
 {
+	static const auto CSMCachingCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.CSMCaching"));
+	const bool bCSMCachingEnabled = CSMCachingCVar && CSMCachingCVar->GetValueOnAnyThread() != 0;
+
 	SetupSceneTextureUniformParameters(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::None, ShadowDepthPassParameters.SceneTextures);
 
 	ShadowDepthPassParameters.ProjectionMatrix = FTranslationMatrix(ShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation()) * ShadowInfo->TranslatedWorldToClipOuterMatrix;	
 	ShadowDepthPassParameters.ViewMatrix = ShadowInfo->TranslatedWorldToView;
 
-	ShadowDepthPassParameters.ShadowParams = FVector4(ShadowInfo->GetShaderDepthBias(), ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderMaxSlopeDepthBias(), ShadowInfo->bOnePassPointLightShadow ? 1 : ShadowInfo->InvMaxSubjectDepth);
+	// Disable the SlopeDepthBias because we couldn't reconstruct the depth offset if it is not 0.0f when scrolling the cached shadow map.
+	ShadowDepthPassParameters.ShadowParams = FVector4(ShadowInfo->GetShaderDepthBias(), bCSMCachingEnabled ? 0.0f : ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderMaxSlopeDepthBias(), ShadowInfo->bOnePassPointLightShadow ? 1 : ShadowInfo->InvMaxSubjectDepth);
 	ShadowDepthPassParameters.bClampToNearPlane = ShadowInfo->ShouldClampToNearPlane() ? 1.0f : 0.0f;
 
 	if (ShadowInfo->bOnePassPointLightShadow)
@@ -900,6 +904,29 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FCopyShadowMaps2DPS, "/Engine/Private/CopyShadowMaps.usf", "Copy2DDepthPS", SF_Pixel);
 
+/** */
+class FScrollingShadowMaps2DPS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FScrollingShadowMaps2DPS);
+	SHADER_USE_PARAMETER_STRUCT(FScrollingShadowMaps2DPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ShadowDepthTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, ShadowDepthSampler)
+		SHADER_PARAMETER(FVector4, DepthOffsetScale)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return true;
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FScrollingShadowMaps2DPS, "/Engine/Private/CopyShadowMaps.usf", "Scrolling2DDepthPS", SF_Pixel);
+
 void FProjectedShadowInfo::CopyCachedShadowMap(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
@@ -907,8 +934,8 @@ void FProjectedShadowInfo::CopyCachedShadowMap(
 	const FRenderTargetBindingSlots& RenderTargetBindingSlots,
 	const FMeshPassProcessorRenderState& DrawRenderState)
 {
-	check(CacheMode == SDCM_MovablePrimitivesOnly);
-	const FCachedShadowMapData& CachedShadowMapData = SceneRenderer->Scene->CachedShadowMaps.FindChecked(GetLightSceneInfo().Id);
+	check(CacheMode == SDCM_MovablePrimitivesOnly || CacheMode == SDCM_CSMScrolling);
+	const FCachedShadowMapData& CachedShadowMapData = SceneRenderer->Scene->GetCachedShadowMapDataRef(GetLightSceneInfo().Id, FMath::Max(CascadeSettings.ShadowSplitIndex, 0));
 
 	if (CachedShadowMapData.bCachedShadowMapHasPrimitives && CachedShadowMapData.ShadowMap.IsValid())
 	{
@@ -927,98 +954,162 @@ void FProjectedShadowInfo::CopyCachedShadowMap(
 		extern TGlobalResource<FFilterVertexDeclaration> GFilterVertexDeclaration;
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 
-		if (bOnePassPointLightShadow)
+		if (CacheMode == SDCM_MovablePrimitivesOnly)
 		{
-			TShaderRef<FScreenVS> ScreenVertexShader;
-			TShaderMapRef<FCopyShadowMapsCubePS> PixelShader(View.ShaderMap);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-
-			int32 InstanceCount = 1;
-
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-			if (RHISupportsGeometryShaders(GShaderPlatformForFeatureLevel[SceneRenderer->FeatureLevel]))
+			if (bOnePassPointLightShadow)
 			{
-				TShaderMapRef<TScreenVSForGS<false>> VertexShader(View.ShaderMap);
-				TShaderMapRef<FCopyShadowMapsCubeGS> GeometryShader(View.ShaderMap);
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-				GraphicsPSOInit.BoundShaderState.GeometryShaderRHI = GeometryShader.GetGeometryShader();
-				ScreenVertexShader = VertexShader;
+				TShaderRef<FScreenVS> ScreenVertexShader;
+				TShaderMapRef<FCopyShadowMapsCubePS> PixelShader(View.ShaderMap);
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+
+				int32 InstanceCount = 1;
+
+	#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+				if (RHISupportsGeometryShaders(GShaderPlatformForFeatureLevel[SceneRenderer->FeatureLevel]))
+				{
+					TShaderMapRef<TScreenVSForGS<false>> VertexShader(View.ShaderMap);
+					TShaderMapRef<FCopyShadowMapsCubeGS> GeometryShader(View.ShaderMap);
+					GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+					GraphicsPSOInit.BoundShaderState.GeometryShaderRHI = GeometryShader.GetGeometryShader();
+					ScreenVertexShader = VertexShader;
+				}
+				else
+	#endif
+				{
+					check(RHISupportsVertexShaderLayer(GShaderPlatformForFeatureLevel[SceneRenderer->FeatureLevel]));
+					TShaderMapRef<TScreenVSForGS<true>> VertexShader(View.ShaderMap);
+					GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+					ScreenVertexShader = VertexShader;
+
+					InstanceCount = 6;
+				}
+
+				auto* PassParameters = GraphBuilder.AllocParameters<FCopyShadowMapsCubePS::FParameters>();
+				PassParameters->RenderTargets = RenderTargetBindingSlots;
+				PassParameters->ShadowDepthCubeTexture = ShadowDepthTexture;
+				PassParameters->ShadowDepthSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+				GraphBuilder.AddPass(
+					RDG_EVENT_NAME("CopyCachedShadowMap"),
+					PassParameters,
+					ERDGPassFlags::Raster,
+					[this, ScreenVertexShader, PixelShader, GraphicsPSOInit, PassParameters, ShadowDepthExtent, InstanceCount, StencilRef](FRHICommandList& RHICmdList) mutable
+				{
+					SetStateForView(RHICmdList);
+					RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+					SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+					RHICmdList.SetStencilRef(StencilRef);
+
+					FIntPoint ResolutionWithBorder = FIntPoint(ResolutionX + 2 * BorderSize, ResolutionY + 2 * BorderSize);
+
+					DrawRectangle(
+						RHICmdList,
+						0, 0,
+						ResolutionWithBorder.X, ResolutionWithBorder.Y,
+						0, 0,
+						ResolutionWithBorder.X, ResolutionWithBorder.Y,
+						ResolutionWithBorder,
+						ShadowDepthExtent,
+						ScreenVertexShader,
+						EDRF_Default,
+						InstanceCount);
+				});
 			}
 			else
-#endif
 			{
-				check(RHISupportsVertexShaderLayer(GShaderPlatformForFeatureLevel[SceneRenderer->FeatureLevel]));
-				TShaderMapRef<TScreenVSForGS<true>> VertexShader(View.ShaderMap);
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-				ScreenVertexShader = VertexShader;
+				TShaderMapRef<FScreenVS> ScreenVertexShader(View.ShaderMap);
+				TShaderMapRef<FCopyShadowMaps2DPS> PixelShader(View.ShaderMap);
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = ScreenVertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
-				InstanceCount = 6;
+				auto* PassParameters = GraphBuilder.AllocParameters<FCopyShadowMaps2DPS::FParameters>();
+				PassParameters->RenderTargets = RenderTargetBindingSlots;
+				PassParameters->ShadowDepthTexture = ShadowDepthTexture;
+				PassParameters->ShadowDepthSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+				GraphBuilder.AddPass(
+					RDG_EVENT_NAME("CopyCachedShadowMap"),
+					PassParameters,
+					ERDGPassFlags::Raster,
+					[this, ScreenVertexShader, PixelShader, GraphicsPSOInit, PassParameters, ShadowDepthExtent, StencilRef](FRHICommandList& RHICmdList) mutable
+				{
+					SetStateForView(RHICmdList);
+					RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+					SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+					RHICmdList.SetStencilRef(StencilRef);
+
+					FIntPoint ResolutionWithBorder = FIntPoint(ResolutionX + 2 * BorderSize, ResolutionY + 2 * BorderSize);
+
+					DrawRectangle(
+						RHICmdList,
+						0, 0,
+						ResolutionWithBorder.X, ResolutionWithBorder.Y,
+						0, 0,
+						ResolutionWithBorder.X, ResolutionWithBorder.Y,
+						ResolutionWithBorder,
+						ShadowDepthExtent,
+						ScreenVertexShader,
+						EDRF_Default);
+				});
 			}
-
-			auto* PassParameters = GraphBuilder.AllocParameters<FCopyShadowMapsCubePS::FParameters>();
-			PassParameters->RenderTargets = RenderTargetBindingSlots;
-			PassParameters->ShadowDepthCubeTexture = ShadowDepthTexture;
-			PassParameters->ShadowDepthSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-
-			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("CopyCachedShadowMap"),
-				PassParameters,
-				ERDGPassFlags::Raster,
-				[this, ScreenVertexShader, PixelShader, GraphicsPSOInit, PassParameters, ShadowDepthExtent, InstanceCount, StencilRef](FRHICommandList& RHICmdList) mutable
-			{
-				SetStateForView(RHICmdList);
-				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
-				RHICmdList.SetStencilRef(StencilRef);
-
-				FIntPoint ResolutionWithBorder = FIntPoint(ResolutionX + 2 * BorderSize, ResolutionY + 2 * BorderSize);
-
-				DrawRectangle(
-					RHICmdList,
-					0, 0,
-					ResolutionWithBorder.X, ResolutionWithBorder.Y,
-					0, 0,
-					ResolutionWithBorder.X, ResolutionWithBorder.Y,
-					ResolutionWithBorder,
-					ShadowDepthExtent,
-					ScreenVertexShader,
-					EDRF_Default,
-					InstanceCount);
-			});
 		}
-		else
+		else // CacheMode == SDCM_CSMScrolling
 		{
 			TShaderMapRef<FScreenVS> ScreenVertexShader(View.ShaderMap);
-			TShaderMapRef<FCopyShadowMaps2DPS> PixelShader(View.ShaderMap);
+			TShaderMapRef<FScrollingShadowMaps2DPS> PixelShader(View.ShaderMap);
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = ScreenVertexShader.GetVertexShader();
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
-			auto* PassParameters = GraphBuilder.AllocParameters<FCopyShadowMaps2DPS::FParameters>();
+			auto* PassParameters = GraphBuilder.AllocParameters<FScrollingShadowMaps2DPS::FParameters>();
 			PassParameters->RenderTargets = RenderTargetBindingSlots;
 			PassParameters->ShadowDepthTexture = ShadowDepthTexture;
 			PassParameters->ShadowDepthSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			/** According to the implementation in ShadowDepthVertexShader.usf, the formula is DeviceZ = 1 - ((MaxZ - SceneDepth) / (MaxZ - MinZ)) * InvMaxSubjectDepth + SlopeDepthBias * Slope + ConstantDepthBias;
+			For short C0 = InvMaxSubjectDepth; C1 = 1 + SlopeDepthBias * Slope + ConstantDepthBias;
+			So the SceneDepth0 = MaxZ0 - (C1 - DeviceZ0) * (MaxZ0 - MinZ0) / C0 ;
+			SceneDepth1 = SceneDepth0 + ZOffset;
+			The reconstruct DeviceZ1 = C1 - ((MaxZ1 - SceneDepth1) / (MaxZ1 - MinZ1)) * C0;
+			So DeviceZ1 = DeviceZ0 * (MaxZ0 - MinZ0) / (MaxZ1 - MinZ1) + (C0 * (MaxZ0 + ZOffset - MaxZ1) - C1 * (MaxZ0 - MinZ0)) / (MaxZ1 - MinZ1) + C1;
+			*/
+			float MaxZ0MinusMinZ0 = CachedShadowMapData.MaxSubjectZ - CachedShadowMapData.MinSubjectZ;
+			float MaxZ1MinusMinZ1 = MaxSubjectZ - MinSubjectZ;
+			float MaxZ0PlusZOffsetMinusMaxZ1 = CachedShadowMapData.MaxSubjectZ + CSMScrollingZOffset - MaxSubjectZ;
+			float C1 = 1 + GetShaderDepthBias();
+			PassParameters->DepthOffsetScale = FVector4((InvMaxSubjectDepth * MaxZ0PlusZOffsetMinusMaxZ1 - C1 * MaxZ0MinusMinZ0) / MaxZ1MinusMinZ1 + C1, MaxZ0MinusMinZ0 / MaxZ1MinusMinZ1, 0.0f, 0.0f);
 
 			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("CopyCachedShadowMap"),
+				RDG_EVENT_NAME("ScrollingCachedWholeSceneDirectionalShadowMap"),
 				PassParameters,
 				ERDGPassFlags::Raster,
 				[this, ScreenVertexShader, PixelShader, GraphicsPSOInit, PassParameters, ShadowDepthExtent, StencilRef](FRHICommandList& RHICmdList) mutable
 			{
+				checkSlow(OverlappedUVOnCachedShadowMap != FVector4(-1.0f, -1.0f, -1.0f, -1.0f));
+				checkSlow(OverlappedUVOnCurrentShadowMap != FVector4(-1.0f, -1.0f, -1.0f, -1.0f));
+
+				FIntPoint ResolutionWithBorder = FIntPoint(ResolutionX + 2 * BorderSize, ResolutionY + 2 * BorderSize);
+
+				uint32 UStart = OverlappedUVOnCachedShadowMap.X * ResolutionWithBorder.X + 0.5f;
+				uint32 USize = (OverlappedUVOnCachedShadowMap.Z - OverlappedUVOnCachedShadowMap.X) * ResolutionWithBorder.X + 0.5f;
+
+				uint32 VStart = OverlappedUVOnCachedShadowMap.Y * ResolutionWithBorder.Y + 0.5f;
+				uint32 VSize = (OverlappedUVOnCachedShadowMap.W - OverlappedUVOnCachedShadowMap.Y) * ResolutionWithBorder.Y + 0.5f;
+
+				FIntVector4 OutputViewport = FIntVector4(OverlappedUVOnCurrentShadowMap.X * ResolutionWithBorder.X + 0.5f, OverlappedUVOnCurrentShadowMap.Y * ResolutionWithBorder.Y + 0.5f, OverlappedUVOnCurrentShadowMap.Z * ResolutionWithBorder.X + 0.5f, OverlappedUVOnCurrentShadowMap.W * ResolutionWithBorder.Y + 0.5f);
+
 				SetStateForView(RHICmdList);
 				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 				RHICmdList.SetStencilRef(StencilRef);
 
-				FIntPoint ResolutionWithBorder = FIntPoint(ResolutionX + 2 * BorderSize, ResolutionY + 2 * BorderSize);
-
 				DrawRectangle(
 					RHICmdList,
-					0, 0,
-					ResolutionWithBorder.X, ResolutionWithBorder.Y,
-					0, 0,
-					ResolutionWithBorder.X, ResolutionWithBorder.Y,
+					OutputViewport.X, OutputViewport.Y,
+					OutputViewport.Z - OutputViewport.X, OutputViewport.W - OutputViewport.Y,
+					UStart, VStart,
+					USize, VSize,
 					ResolutionWithBorder,
 					ShadowDepthExtent,
 					ScreenVertexShader,
@@ -1096,7 +1187,7 @@ void FProjectedShadowInfo::RenderDepth(
 		ERenderTargetLoadAction::ENoAction,
 		FExclusiveDepthStencil::DepthWrite_StencilNop);
 
-	if (CacheMode == SDCM_MovablePrimitivesOnly)
+	if (CacheMode == SDCM_MovablePrimitivesOnly || CacheMode == SDCM_CSMScrolling)
 	{
 		// Copy in depths of static primitives before we render movable primitives.
 		FMeshPassProcessorRenderState DrawRenderState;
@@ -1273,7 +1364,7 @@ FRHIGPUMask FSceneRenderer::GetGPUMaskForShadow(FProjectedShadowInfo* ProjectedS
 	}
 	// SDCM_StaticPrimitivesOnly shadows don't update every frame so we need to render
 	// their depths on all possible GPUs.
-	else if (ProjectedShadowInfo->CacheMode == SDCM_StaticPrimitivesOnly)
+	else if (!ProjectedShadowInfo->IsWholeSceneDirectionalShadow() && ProjectedShadowInfo->CacheMode == SDCM_StaticPrimitivesOnly)
 	{
 		// Cached whole scene shadows shouldn't be view dependent.
 		checkSlow(ProjectedShadowInfo->DependentView == nullptr);
@@ -1892,8 +1983,10 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 		GetLightNameForDrawEvent(ProjectedShadowInfo->GetLightSceneInfo().Proxy, LightNameWithLevel);
 		RDG_EVENT_SCOPE(GraphBuilder, "Cubemap %s %u^2", *LightNameWithLevel, TargetSize.X, TargetSize.Y);
 
+		const FCachedShadowMapData& CachedShadowMapData = Scene->GetCachedShadowMapDataRef(ProjectedShadowInfo->GetLightSceneInfo().Id, FMath::Max(ProjectedShadowInfo->CascadeSettings.ShadowSplitIndex, 0));
+
 		// Only clear when we're not copying from a cached shadow map.
-		if (ProjectedShadowInfo->CacheMode != SDCM_MovablePrimitivesOnly || !Scene->CachedShadowMaps.FindChecked(ProjectedShadowInfo->GetLightSceneInfo().Id).bCachedShadowMapHasPrimitives)
+		if (ProjectedShadowInfo->CacheMode != SDCM_MovablePrimitivesOnly || !CachedShadowMapData.bCachedShadowMapHasPrimitives)
 		{
 			AddClearShadowDepthPass(GraphBuilder, ShadowDepthTexture);
 		}

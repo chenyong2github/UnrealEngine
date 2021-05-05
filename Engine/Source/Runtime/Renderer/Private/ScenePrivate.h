@@ -2460,6 +2460,9 @@ private:
 	void HideNodeChildren(FSceneViewState* ViewState, FLODSceneNode& Node);
 };
 
+// Enable the DEBUG_CSM_CACHING to make the debugging CSM caching with RenderDoc more easier
+#define DEBUG_CSM_CACHING 0
+
 class FCachedShadowMapData
 {
 public:
@@ -2468,6 +2471,28 @@ public:
 	float LastUsedTime;
 	bool bCachedShadowMapHasPrimitives;
 	bool bCachedShadowMapHasNaniteGeometry;
+
+	/**
+	* The static meshes cast shadow on this cached csm
+	*/
+	TBitArray<> StaticShadowSubjectMap;
+
+	FIntPoint ShadowBufferResolution;
+	FVector PreShadowTranslation;
+	float MaxSubjectZ;
+	float MinSubjectZ;
+
+	/**
+	* The extra static meshes cast shadow in last frame, if it exceeds the r.Shadow.MaxCSMScrollingStaticShadowSubjects, the cached csm should be rebuilt.
+	*/
+	int32 LastFrameExtraStaticShadowSubjects;
+
+	void InvalidateCachedShadow()
+	{
+		ShadowMap.Release();
+
+		StaticShadowSubjectMap.SetRange(0, StaticShadowSubjectMap.Num(), false);
+	}
 
 	FCachedShadowMapData(const FWholeSceneProjectedShadowInitializer& InInitializer, float InLastUsedTime) :
 		Initializer(InInitializer),
@@ -2739,7 +2764,7 @@ public:
 	FNaniteMaterialTables MaterialTables[ENaniteMeshPass::Num];
 
 	/** Map from light id to the cached shadowmap data for that light. */
-	TMap<int32, FCachedShadowMapData> CachedShadowMaps;
+	TMap<int32, TArray<FCachedShadowMapData>> CachedShadowMaps;
 	
 	/** Atlas HZB textures from the previous render. */
 	TArray<TRefCountPtr<IPooledRenderTarget>>	PrevAtlasHZBs;
@@ -3159,6 +3184,38 @@ public:
 	void DumpMeshDrawCommandMemoryStats();
 
 	void CreateLightPrimitiveInteractionsForPrimitive(FPrimitiveSceneInfo* PrimitiveInfo, bool bAsyncCreateLPIs);
+
+	FORCEINLINE TArray<FCachedShadowMapData>* GetCachedShadowMapDatas(int32 LightID)
+	{
+		return CachedShadowMaps.Find(LightID);
+	}
+
+	FORCEINLINE FCachedShadowMapData& GetCachedShadowMapDataRef(int32 LightID, int32 ShadowMapIndex = 0)
+	{
+		TArray<FCachedShadowMapData>& CachedShadowMapDatas = CachedShadowMaps.FindChecked(LightID);
+
+		checkSlow(ShadowMapIndex >= 0 && ShadowMapIndex < CachedShadowMapDatas.Num());
+
+		return CachedShadowMapDatas[ShadowMapIndex];
+	}
+
+	FORCEINLINE const FCachedShadowMapData& GetCachedShadowMapDataRef(int32 LightID, int32 ShadowMapIndex = 0) const
+	{
+		const TArray<FCachedShadowMapData>& CachedShadowMapDatas = CachedShadowMaps.FindChecked(LightID);
+
+		checkSlow(ShadowMapIndex >= 0 && ShadowMapIndex < CachedShadowMapDatas.Num());
+
+		return CachedShadowMapDatas[ShadowMapIndex];
+	}
+
+	FORCEINLINE const FCachedShadowMapData* GetCachedShadowMapData(int32 LightID, int32 ShadowMapIndex = 0) const
+	{
+		const TArray<FCachedShadowMapData>& CachedShadowMapDatas = CachedShadowMaps.FindChecked(LightID);
+
+		checkSlow(ShadowMapIndex >= 0 && ShadowMapIndex < CachedShadowMapDatas.Num());
+
+		return &CachedShadowMapDatas[ShadowMapIndex];
+	}
 
 	bool IsPrimitiveBeingRemoved(FPrimitiveSceneInfo* PrimitiveSceneInfo) const;
 

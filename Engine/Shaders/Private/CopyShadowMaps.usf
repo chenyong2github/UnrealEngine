@@ -96,3 +96,18 @@ void CopyCubeDepthPS(
 	OutColor = 0;
 	OutDepth = TextureCubeSampleDepthLevel(ShadowDepthCubeTexture, ShadowDepthSampler, CubeCoordinates, 0);
 }
+
+float4 DepthOffsetScale;
+
+void Scrolling2DDepthPS(
+	FScreenVertexOutput Input,
+	out float OutDepth : SV_DEPTH,
+	out float4 OutColor : SV_Target0
+)
+{
+	OutColor = 0;
+	
+	OutDepth = Texture2DSampleLevel(ShadowDepthTexture, ShadowDepthSampler, Input.UV, 0).x;
+
+	OutDepth = OutDepth < 1.0f ? OutDepth * DepthOffsetScale.y + DepthOffsetScale.x : 1.0f;
+}

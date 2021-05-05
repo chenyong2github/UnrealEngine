@@ -2358,13 +2358,16 @@ int64 FScene::GetCachedWholeSceneShadowMapsSize() const
 {
 	int64 CachedShadowmapMemory = 0;
 
-	for (TMap<int32, FCachedShadowMapData>::TConstIterator CachedShadowMapIt(CachedShadowMaps); CachedShadowMapIt; ++CachedShadowMapIt)
+	for (TMap<int32, TArray<FCachedShadowMapData>>::TConstIterator CachedShadowMapIt(CachedShadowMaps); CachedShadowMapIt; ++CachedShadowMapIt)
 	{
-		const FCachedShadowMapData& ShadowMapData = CachedShadowMapIt.Value();
+		const TArray<FCachedShadowMapData>& ShadowMapDatas = CachedShadowMapIt.Value();
 
-		if (ShadowMapData.ShadowMap.IsValid())
+		for (const auto& ShadowMapData : ShadowMapDatas)
 		{
-			CachedShadowmapMemory += ShadowMapData.ShadowMap.ComputeMemorySize();
+			if (ShadowMapData.ShadowMap.IsValid())
+			{
+				CachedShadowmapMemory += ShadowMapData.ShadowMap.ComputeMemorySize();
+			}
 		}
 	}
 
@@ -3959,6 +3962,19 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 						#endif
 							TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
 
+							for (TMap<int32, TArray<FCachedShadowMapData>>::TIterator CachedShadowMapIt(CachedShadowMaps); CachedShadowMapIt; ++CachedShadowMapIt)
+							{
+								TArray<FCachedShadowMapData>& ShadowMapDatas = CachedShadowMapIt.Value();
+
+								for (auto& ShadowMapData : ShadowMapDatas)
+								{
+									if (ShadowMapData.StaticShadowSubjectMap.Num() > 0)
+									{
+										TBitArraySwapElements(ShadowMapData.StaticShadowSubjectMap, DestIndex, SourceIndex);
+									}
+								}
+							}
+
 							GPUScene.AddPrimitiveToUpdate(SourceIndex);
 							GPUScene.AddPrimitiveToUpdate(DestIndex);
 
@@ -4056,6 +4072,36 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				LumenSceneData->RemovePrimitive(PrimitiveSceneInfo, PrimitiveIndex);
 
 				DeletedSceneInfos.Add(PrimitiveSceneInfo);
+
+				for (const FLightSceneInfo* LightSceneInfo : DirectionalLights)
+				{
+					TArray<FCachedShadowMapData>* CachedShadowMapDatas = GetCachedShadowMapDatas(LightSceneInfo->Id);
+
+					if (CachedShadowMapDatas)
+					{
+						for (auto& CachedShadowMapData : *CachedShadowMapDatas)
+						{
+							if (CachedShadowMapData.StaticShadowSubjectMap[PrimitiveIndex] == true)
+							{
+								CachedShadowMapData.InvalidateCachedShadow();
+							}
+						}
+					}
+				}
+			}
+
+			for (TMap<int32, TArray<FCachedShadowMapData>>::TIterator CachedShadowMapIt(CachedShadowMaps); CachedShadowMapIt; ++CachedShadowMapIt)
+			{
+				TArray<FCachedShadowMapData>& ShadowMapDatas = CachedShadowMapIt.Value();
+
+				for (auto& ShadowMapData : ShadowMapDatas)
+				{
+					if (ShadowMapData.StaticShadowSubjectMap.Num() > 0)
+					{
+						ShadowMapData.StaticShadowSubjectMap.RemoveAt(SourceIndex, RemoveCount);
+						check(Primitives.Num() == ShadowMapData.StaticShadowSubjectMap.Num());
+					}
+				}
 			}
 			RemovedLocalPrimitiveSceneInfos.RemoveAt(StartIndex, RemovedLocalPrimitiveSceneInfos.Num() - StartIndex, false);
 		}
@@ -4085,6 +4131,19 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 			PrimitiveRayTracingFlags.Reserve(PrimitiveRayTracingFlags.Num() + AddedLocalPrimitiveSceneInfos.Num());
 		#endif
 			PrimitivesNeedingStaticMeshUpdate.Reserve(PrimitivesNeedingStaticMeshUpdate.Num() + AddedLocalPrimitiveSceneInfos.Num());
+
+			for (TMap<int32, TArray<FCachedShadowMapData>>::TIterator CachedShadowMapIt(CachedShadowMaps); CachedShadowMapIt; ++CachedShadowMapIt)
+			{
+				TArray<FCachedShadowMapData>& ShadowMapDatas = CachedShadowMapIt.Value();
+
+				for (auto& ShadowMapData : ShadowMapDatas)
+				{
+					if (ShadowMapData.StaticShadowSubjectMap.Num() > 0)
+					{
+						ShadowMapData.StaticShadowSubjectMap.Reserve(ShadowMapData.StaticShadowSubjectMap.Num() + AddedLocalPrimitiveSceneInfos.Num());
+					}
+				}
+			}
 		}
 
 		while (AddedLocalPrimitiveSceneInfos.Num())
@@ -4120,6 +4179,19 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				PrimitiveRayTracingFlags.AddZeroed();
 			#endif
 				PrimitivesNeedingStaticMeshUpdate.Add(false);
+
+				for (TMap<int32, TArray<FCachedShadowMapData>>::TIterator CachedShadowMapIt(CachedShadowMaps); CachedShadowMapIt; ++CachedShadowMapIt)
+				{
+					TArray<FCachedShadowMapData>& ShadowMapDatas = CachedShadowMapIt.Value();
+
+					for (auto& ShadowMapData : ShadowMapDatas)
+					{
+						if (ShadowMapData.StaticShadowSubjectMap.Num() > 0)
+						{
+							ShadowMapData.StaticShadowSubjectMap.Add(false);
+						}
+					}
+				}
 
 				const int32 SourceIndex = PrimitiveSceneProxies.Num() - 1;
 				PrimitiveSceneInfo->PackedIndex = SourceIndex;
@@ -4206,6 +4278,19 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 							TArraySwapElements(PrimitiveRayTracingFlags, DestIndex, SourceIndex);
 						#endif
 							TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
+
+							for (TMap<int32, TArray<FCachedShadowMapData>>::TIterator CachedShadowMapIt(CachedShadowMaps); CachedShadowMapIt; ++CachedShadowMapIt)
+							{
+								TArray<FCachedShadowMapData>& ShadowMapDatas = CachedShadowMapIt.Value();
+
+								for (auto& ShadowMapData : ShadowMapDatas)
+								{
+									if (ShadowMapData.StaticShadowSubjectMap.Num() > 0)
+									{
+										TBitArraySwapElements(ShadowMapData.StaticShadowSubjectMap, DestIndex, SourceIndex);
+									}
+								}
+							}
 
 							GPUScene.AddPrimitiveToUpdate(DestIndex);
 							LumenSceneData->AddPrimitiveToUpdate(DestIndex);
