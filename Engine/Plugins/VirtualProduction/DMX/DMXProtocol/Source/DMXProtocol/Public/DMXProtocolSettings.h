@@ -24,7 +24,6 @@ UCLASS(Config = Engine, DefaultConfig, Meta = (DisplayName = "DMX"))
 class DMXPROTOCOL_API UDMXProtocolSettings 
 	: public UObject
 {
-	DECLARE_MULTICAST_DELEGATE(FDMXOnPortConfigsChangedDelegate);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FDMXOnSendDMXEnabled, bool /** bEnabled */);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FDMXOnReceiveDMXEnabled, bool /** bEnabled */);
 
@@ -80,9 +79,6 @@ public:
 	/** Rate at which DMX is received, in Hz from 1 to 1000. 44Hz is recommended */
 	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "ReceivingRefreshRate is deprecated without replacement. It would deter timestamps on the receivers. Instead use a per object rate where desired."))
 	uint32 ReceivingRefreshRate;
-
-	/** Broadcast when ports configs changed in project settings */
-	FDMXOnPortConfigsChangedDelegate OnPortConfigsChanged;
 
 	/** Broadcast when send DMX is enabled or disabled */
 	FDMXOnSendDMXEnabled OnSetSendDMXEnabled;

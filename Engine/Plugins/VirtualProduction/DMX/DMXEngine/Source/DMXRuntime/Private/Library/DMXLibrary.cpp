@@ -22,7 +22,7 @@ UDMXLibrary::UDMXLibrary()
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
-		ProtocolSettings->OnPortConfigsChanged.AddUObject(this, &UDMXLibrary::UpdatePorts);
+		FDMXPortManager::Get().OnPortsChanged.AddUObject(this, &UDMXLibrary::UpdatePorts);
 
 		UpdatePorts();
 	}
@@ -36,9 +36,9 @@ void UDMXLibrary::PostLoad()
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
-		if (!ProtocolSettings->OnPortConfigsChanged.IsBoundToObject(this))
+		if (!FDMXPortManager::Get().OnPortsChanged.IsBoundToObject(this))
 		{
-			ProtocolSettings->OnPortConfigsChanged.AddUObject(this, &UDMXLibrary::UpdatePorts);
+			FDMXPortManager::Get().OnPortsChanged.AddUObject(this, &UDMXLibrary::UpdatePorts);
 		}
 
 		UpdatePorts();
@@ -543,11 +543,17 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 					OutputPortConfigNames.Add(OutputPortConfig.PortName);
 				}
 
+				// The 4.26 libraries held ambigous values (default vs user set) for controllers, we mend it here to the best possible
+				const int32 FixedLocalUniverseStart = FMath::Max(VoidController->UniverseLocalStart + GlobalUniverseOffset_DEPRECATED, 1 + GlobalUniverseOffset_DEPRECATED);
+				const int32 FixedLocalUniverseEnd = FMath::Max(VoidController->UniverseLocalEnd + GlobalUniverseOffset_DEPRECATED, 1 + GlobalUniverseOffset_DEPRECATED);
+				const int32 FixedExternUniverseStart = FMath::Max(VoidController->UniverseRemoteStart + GlobalUniverseOffset_DEPRECATED, 1 + GlobalUniverseOffset_DEPRECATED);
+
 				// Convert the controller to an input port	
-				FDMXInputPortConfig* ExistingInputPortConfigPtr = ProtocolSettings->FindInputPortConfig([VoidController, &InterfaceIPAddress_DEPRECATED, &ProtocolName](FDMXInputPortConfig& InputPortConfig) {
+				FDMXInputPortConfig* ExistingInputPortConfigPtr = ProtocolSettings->FindInputPortConfig([VoidController, &InterfaceIPAddress_DEPRECATED, &ProtocolName, FixedExternUniverseStart](FDMXInputPortConfig& InputPortConfig) {
 					return
 						InputPortConfig.DeviceAddress == InterfaceIPAddress_DEPRECATED &&
-						InputPortConfig.ProtocolName == ProtocolName;
+						InputPortConfig.ProtocolName == ProtocolName &&
+						InputPortConfig.ExternUniverseStart == FixedExternUniverseStart;
 				});
 
 				if (ExistingInputPortConfigPtr)
@@ -555,14 +561,14 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 					EDMXCommunicationType CommunicationType = EDMXCommunicationType::InternalOnly;
 					ExistingInputPortConfigPtr->CommunicationType = CommunicationType;
 
-					int32 LocalUniverseStart = FMath::Min(ExistingInputPortConfigPtr->LocalUniverseStart, VoidController->UniverseLocalStart + GlobalUniverseOffset_DEPRECATED);
-					ExistingInputPortConfigPtr->LocalUniverseStart = LocalUniverseStart;
+					const int32 LowerLocalUniverseStart = FMath::Min(ExistingInputPortConfigPtr->LocalUniverseStart, FixedLocalUniverseStart);
+					ExistingInputPortConfigPtr->LocalUniverseStart = LowerLocalUniverseStart;
 
-					int32 NumUniverses = FMath::Max(ExistingInputPortConfigPtr->NumUniverses, VoidController->UniverseLocalEnd - VoidController->UniverseLocalStart + GlobalUniverseOffset_DEPRECATED + 1);
-					ExistingInputPortConfigPtr->NumUniverses = NumUniverses;
+					const int32 LargerNumUniverses = FMath::Max(ExistingInputPortConfigPtr->NumUniverses, FixedLocalUniverseEnd - FixedLocalUniverseStart + 1);
+					ExistingInputPortConfigPtr->NumUniverses = LargerNumUniverses;
 
-					int32 ExternUniverseStart = FMath::Max(ExistingInputPortConfigPtr->ExternUniverseStart, VoidController->UniverseRemoteStart + GlobalUniverseOffset_DEPRECATED);
-					ExistingInputPortConfigPtr->ExternUniverseStart = ExternUniverseStart;
+					const int32 HigherExternUniverseStart = FMath::Max(ExistingInputPortConfigPtr->ExternUniverseStart, FixedExternUniverseStart);
+					ExistingInputPortConfigPtr->ExternUniverseStart = HigherExternUniverseStart;
 
 					Local::EnableInputPortRef(this, ExistingInputPortConfigPtr->GetPortGuid());
 				}
@@ -574,9 +580,9 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 					InputPortConfig.DeviceAddress = InterfaceIPAddress_DEPRECATED;
 					InputPortConfig.PortName = FDMXProtocolUtils::GenerateUniqueNameFromExisting(InputPortConfigNames, TEXT("Generated_InputPort"));
 					InputPortConfig.CommunicationType = EDMXCommunicationType::InternalOnly;
-					InputPortConfig.LocalUniverseStart = VoidController->UniverseLocalStart + GlobalUniverseOffset_DEPRECATED;
-					InputPortConfig.NumUniverses = VoidController->UniverseLocalEnd - VoidController->UniverseLocalStart + 1;
-					InputPortConfig.ExternUniverseStart = VoidController->UniverseRemoteStart + GlobalUniverseOffset_DEPRECATED;
+					InputPortConfig.LocalUniverseStart = FixedLocalUniverseStart;
+					InputPortConfig.NumUniverses = FixedLocalUniverseEnd - FixedLocalUniverseStart + 1;
+					InputPortConfig.ExternUniverseStart = FixedExternUniverseStart;
 
 					FDMXInputPortSharedRef InputPort = FDMXPortManager::Get().GetOrCreateInputPortFromConfig(InputPortConfig);
 
@@ -588,27 +594,37 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 				// Convert the controller to output ports
 
 				// Add a port for the default output
-				FDMXOutputPortConfig* ExistingOutputPortConfigPtr = ProtocolSettings->FindOutputPortConfig([VoidController, &InterfaceIPAddress_DEPRECATED, &ProtocolName](FDMXOutputPortConfig& OutputPortConfig) {
+				FDMXOutputPortConfig* ExistingOutputPortConfigPtr = ProtocolSettings->FindOutputPortConfig([VoidController, &InterfaceIPAddress_DEPRECATED, &ProtocolName, FixedExternUniverseStart](FDMXOutputPortConfig& OutputPortConfig) {
 					return
 						OutputPortConfig.DeviceAddress == InterfaceIPAddress_DEPRECATED &&
 						OutputPortConfig.ProtocolName == ProtocolName &&
-						OutputPortConfig.CommunicationType == VoidController->CommunicationMode;
+						OutputPortConfig.CommunicationType == VoidController->CommunicationMode &&
+						OutputPortConfig.ExternUniverseStart == FixedExternUniverseStart;
+
 				});
 
 				if (ExistingOutputPortConfigPtr)
 				{
-					ExistingOutputPortConfigPtr->CommunicationType = VoidController->CommunicationMode;
+					ExistingOutputPortConfigPtr->CommunicationType = [VoidController]()
+					{
+						if (VoidController->DeviceProtocol == "Art-Net")
+						{
+							return EDMXCommunicationType::Broadcast;
+						}
 
-					int32 LocalUniverseStart = FMath::Min(ExistingOutputPortConfigPtr->LocalUniverseStart, VoidController->UniverseLocalStart + GlobalUniverseOffset_DEPRECATED);
-					ExistingOutputPortConfigPtr->LocalUniverseStart = LocalUniverseStart;
+						return EDMXCommunicationType::Multicast;
+					}();
 
-					int32 NumUniverses = FMath::Max(ExistingOutputPortConfigPtr->NumUniverses, VoidController->UniverseLocalEnd - VoidController->UniverseLocalStart + GlobalUniverseOffset_DEPRECATED + 1);
-					ExistingOutputPortConfigPtr->NumUniverses = NumUniverses;
+					const int32 LowerLocalUniverseStart = FMath::Min(ExistingOutputPortConfigPtr->LocalUniverseStart, FixedLocalUniverseStart);
+					ExistingOutputPortConfigPtr->LocalUniverseStart = LowerLocalUniverseStart;
 
-					int32 ExternUniverseStart = FMath::Max(ExistingOutputPortConfigPtr->ExternUniverseStart, VoidController->UniverseRemoteStart + GlobalUniverseOffset_DEPRECATED);
-					ExistingOutputPortConfigPtr->ExternUniverseStart = ExternUniverseStart;
+					const int32 LargerNumUniverses = FMath::Max(ExistingOutputPortConfigPtr->NumUniverses, FixedLocalUniverseEnd - FixedLocalUniverseStart + 1);
+					ExistingOutputPortConfigPtr->NumUniverses = LargerNumUniverses;
 
-					ExistingOutputPortConfigPtr->bLoopbackToEngine = VoidController->CommunicationMode != EDMXCommunicationType::Broadcast;
+					const int32 HigherExternUniverseStart = FMath::Max(ExistingOutputPortConfigPtr->ExternUniverseStart, FixedExternUniverseStart);
+					ExistingOutputPortConfigPtr->ExternUniverseStart = HigherExternUniverseStart;
+
+					ExistingOutputPortConfigPtr->bLoopbackToEngine = false;
 
 					Local::EnableOutputPortRef(this, ExistingOutputPortConfigPtr->GetPortGuid());
 				}
@@ -620,9 +636,9 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 					OutputPortConfig.DeviceAddress = InterfaceIPAddress_DEPRECATED;
 					OutputPortConfig.PortName = FDMXProtocolUtils::GenerateUniqueNameFromExisting(OutputPortConfigNames, TEXT("Generated_OutputPort"));
 					OutputPortConfig.CommunicationType = VoidController->CommunicationMode;
-					OutputPortConfig.LocalUniverseStart = VoidController->UniverseLocalStart + GlobalUniverseOffset_DEPRECATED;
-					OutputPortConfig.NumUniverses = VoidController->UniverseLocalEnd - VoidController->UniverseLocalStart + 1;
-					OutputPortConfig.ExternUniverseStart = VoidController->UniverseRemoteStart + GlobalUniverseOffset_DEPRECATED;
+					OutputPortConfig.LocalUniverseStart = FixedLocalUniverseStart;
+					OutputPortConfig.NumUniverses = FixedLocalUniverseEnd - FixedLocalUniverseStart + 1;
+					OutputPortConfig.ExternUniverseStart = FixedExternUniverseStart;
 					OutputPortConfig.bLoopbackToEngine = VoidController->CommunicationMode != EDMXCommunicationType::Broadcast;
 
 					FDMXOutputPortSharedRef OutputPort = FDMXPortManager::Get().GetOrCreateOutputPortFromConfig(OutputPortConfig);
@@ -646,14 +662,14 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 					{
 						ExistingOutputPortConfigPtr->CommunicationType = EDMXCommunicationType::Unicast;
 
-						int32 LocalUniverseStart = FMath::Min(ExistingOutputPortConfigPtr->LocalUniverseStart, VoidController->UniverseLocalStart + GlobalUniverseOffset_DEPRECATED);
-						ExistingOutputPortConfigPtr->LocalUniverseStart = LocalUniverseStart;
+						const int32 LowerLocalUniverseStart = FMath::Min(ExistingOutputPortConfigPtr->LocalUniverseStart, FixedLocalUniverseStart);
+						ExistingOutputPortConfigPtr->LocalUniverseStart = LowerLocalUniverseStart;
 
-						int32 NumUniverses = FMath::Max(ExistingOutputPortConfigPtr->NumUniverses, VoidController->UniverseLocalEnd - VoidController->UniverseLocalStart + GlobalUniverseOffset_DEPRECATED + 1);
-						ExistingOutputPortConfigPtr->NumUniverses = NumUniverses;
+						const int32 LargerNumUniverses = FMath::Max(ExistingOutputPortConfigPtr->NumUniverses, FixedLocalUniverseEnd - FixedLocalUniverseStart + 1);
+						ExistingOutputPortConfigPtr->NumUniverses = LargerNumUniverses;
 
-						int32 ExternUniverseStart = FMath::Max(ExistingOutputPortConfigPtr->ExternUniverseStart, VoidController->UniverseRemoteStart + GlobalUniverseOffset_DEPRECATED);
-						ExistingOutputPortConfigPtr->ExternUniverseStart = ExternUniverseStart;
+						const int32 HigherExternUniverseStart = FMath::Max(ExistingOutputPortConfigPtr->ExternUniverseStart, FixedExternUniverseStart);
+						ExistingOutputPortConfigPtr->ExternUniverseStart = HigherExternUniverseStart;
 
 						ExistingOutputPortConfigPtr->bLoopbackToEngine = false;
 
@@ -667,9 +683,9 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 						OutputPortConfig.DeviceAddress = InterfaceIPAddress_DEPRECATED;
 						OutputPortConfig.PortName = FDMXProtocolUtils::GenerateUniqueNameFromExisting(OutputPortConfigNames, TEXT("Generated_OutputPort"));
 						OutputPortConfig.CommunicationType = EDMXCommunicationType::Unicast;
-						OutputPortConfig.LocalUniverseStart = VoidController->UniverseLocalStart + GlobalUniverseOffset_DEPRECATED;
-						OutputPortConfig.NumUniverses = VoidController->UniverseLocalEnd - VoidController->UniverseLocalStart + 1;
-						OutputPortConfig.ExternUniverseStart = VoidController->UniverseRemoteStart + GlobalUniverseOffset_DEPRECATED;
+						OutputPortConfig.LocalUniverseStart = FixedLocalUniverseStart;
+						OutputPortConfig.NumUniverses = FixedLocalUniverseEnd - FixedLocalUniverseStart + 1;
+						OutputPortConfig.ExternUniverseStart = FixedExternUniverseStart;
 						OutputPortConfig.bLoopbackToEngine = false;
 
 						FDMXOutputPortSharedRef OutputPort = FDMXPortManager::Get().GetOrCreateOutputPortFromConfig(OutputPortConfig);
