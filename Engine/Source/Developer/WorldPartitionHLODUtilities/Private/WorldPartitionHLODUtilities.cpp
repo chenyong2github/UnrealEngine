@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "WorldPartition/HLOD/HLODBuilder.h"
+#include "WorldPartitionHLODUtilities.h"
 
 #if WITH_EDITOR
 
@@ -427,7 +427,7 @@ class FHLODBuilder_MeshSimplify : public FHLODBuilder
 	}
 };
 
-TArray<AWorldPartitionHLOD*> FHLODBuilderUtilities::CreateHLODActors(FHLODCreationContext& InCreationContext, const FHLODCreationParams& InCreationParams, const TSet<FActorInstance>& InActors, const TArray<const UDataLayer*>& InDataLayers)
+TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLODCreationContext& InCreationContext, const FHLODCreationParams& InCreationParams, const TSet<FActorInstance>& InActors, const TArray<const UDataLayer*>& InDataLayers)
 {
 	TMap<UHLODLayer*, TArray<FGuid>> HLODLayersActors;
 	for (const FActorInstance& ActorInstance : InActors)
@@ -561,7 +561,7 @@ TArray<AWorldPartitionHLOD*> FHLODBuilderUtilities::CreateHLODActors(FHLODCreati
 	return HLODActors;
 }
 
-uint32 FHLODBuilderUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
+uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 {
 	TArray<FWorldPartitionReference> ActorReferences;
 	TArray<const AActor*> SubActors;

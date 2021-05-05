@@ -5,7 +5,7 @@
 #include "WorldPartition/DataLayer/DataLayer.h"
 
 #if WITH_EDITOR
-class FDataLayersID
+class ENGINE_API FDataLayersID
 {
 public:
 	FDataLayersID();

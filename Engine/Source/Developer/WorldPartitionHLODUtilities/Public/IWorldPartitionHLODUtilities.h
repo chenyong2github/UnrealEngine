@@ -2,8 +2,6 @@
 
 #pragma once
 
-#if WITH_EDITOR
-
 #include "CoreMinimal.h"
 #include "Containers/Array.h"
 #include "WorldPartition/WorldPartitionHandle.h"
@@ -40,18 +38,20 @@ struct ENGINE_API FHLODCreationParams
 /**
  * Tools for building HLODs in WorldPartition
  */
-class FHLODBuilderUtilities
+class WORLDPARTITIONHLODUTILITIES_API IWorldPartitionHLODUtilities
 {
 public:
+	virtual ~IWorldPartitionHLODUtilities() {}
+
 	/**
 	 * Create HLOD actors for a given cell
-	 * 
+	 *
 	 * @param	InCreationContext	HLOD creation context object
 	 * @param	InCreationParams	HLOD creation parameters object
 	 * @param	InActors			The actors for which we'll build an HLOD representation
 	 * @param	InDataLayers		The data layers to assign to the newly created HLOD actors
 	 */
-	static TArray<AWorldPartitionHLOD*> CreateHLODActors(FHLODCreationContext& InCreationContext, const FHLODCreationParams& InCreationParams, const TSet<FActorInstance>& InActors, const TArray<const UDataLayer*>& InDataLayers);
+	virtual TArray<AWorldPartitionHLOD*> CreateHLODActors(FHLODCreationContext& InCreationContext, const FHLODCreationParams& InCreationParams, const TSet<FActorInstance>& InActors, const TArray<const UDataLayer*>& InDataLayers) = 0;
 
 	/**
 	 * Build HLOD for the specified AWorldPartitionHLOD actor.
@@ -59,7 +59,5 @@ public:
 	 * @param 	InHLODActor		The HLOD actor for which we'll build the HLOD
 	 * @return An hash that represent the content used to build this HLOD.
 	 */
-	static uint32 BuildHLOD(AWorldPartitionHLOD* InHLODActor);
+	virtual uint32 BuildHLOD(AWorldPartitionHLOD* InHLODActor) = 0;
 };
-
-#endif

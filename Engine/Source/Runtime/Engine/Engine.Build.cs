@@ -234,6 +234,9 @@ public class Engine : ModuleRules
 			
 			PublicIncludePathModuleNames.Add("AnimationDataController");
 			DynamicallyLoadedModuleNames.Add("AnimationDataController");
+			
+			PrivateIncludePathModuleNames.Add("WorldPartitionHLODUtilities");
+			DynamicallyLoadedModuleNames.Add("WorldPartitionHLODUtilities");
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
