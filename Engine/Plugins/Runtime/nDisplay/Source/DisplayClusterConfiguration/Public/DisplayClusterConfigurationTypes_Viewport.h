@@ -22,19 +22,19 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Cust
 
 public:
 	// Enable custom postprocess
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	bool bIsEnabled = false;
 
 	// Apply postprocess for one frame
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	bool bIsOneFrame = false;
 
 	// Custom postprocess settings
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	FPostProcessSettings PostProcessSettings;
 
 	// Override blend weight
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	float BlendWeight = 1;
 };
 
@@ -61,24 +61,24 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Over
 
 public:
 	// Allow Render overscan
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	EDisplayClusterConfigurationViewportOverscanMode Mode = EDisplayClusterConfigurationViewportOverscanMode::None;
 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	float Left = 0;
 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	float Right = 0;
 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	float Top  = 0;
 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	float Bottom = 0;
 
 	// If true (increased RTT size, same image quality) - increase the RTT size from overscan_pixel or overscan_percent (of actual size)
 	// If false (same RTT size, loss of image quality) - use the original viewport size to render overscan, but finally the small inner rectangle copy into the frame 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	bool bOversize = true;
 };
 
@@ -91,15 +91,15 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_ICVF
 
 public:
 	// Allow use ICVFX for this viewport (Must be supported by projection policy)
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	bool bAllowICVFX = true;
 
 	// Disable incamera render to this viewport
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	EDisplayClusterConfigurationICVFX_OverrideCameraRenderMode CameraRenderMode = EDisplayClusterConfigurationICVFX_OverrideCameraRenderMode::Default;
 
 	// Use unique lightcard mode for this viewport
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	EDisplayClusterConfigurationICVFX_OverrideLightcardRenderMode LightcardRenderMode = EDisplayClusterConfigurationICVFX_OverrideLightcardRenderMode::Default;
 };
 
@@ -110,43 +110,43 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Rend
 
 public:
 	// Allow ScreenPercentage 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "10.0", UIMax = "10.0"))
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "10.0", UIMax = "10.0"))
 	float BufferRatio = 1;
 
 	// Experimental: Overscan rendering
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	FDisplayClusterConfigurationViewport_Overscan Overscan;
 
 	UPROPERTY()
 	FDisplayClusterConfigurationViewport_CustomPostprocess CustomPostprocess;
 
 	// Override viewport render from source texture
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	FDisplayClusterConfigurationPostRender_Override Override;
 
 	// Add postprocess blur to viewport
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	FDisplayClusterConfigurationPostRender_BlurPostprocess PostprocessBlur;
 
 	// Generate Mips texture for this viewport (used, only if projection policy supports this feature)
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	FDisplayClusterConfigurationPostRender_GenerateMips GenerateMips;
 
 	// Performance: force monoscopic render, resolved to stereo viewport
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	EDisplayClusterConfigurationViewport_StereoMode StereoMode = EDisplayClusterConfigurationViewport_StereoMode::Default;
 
 	// Performance, Multi-GPU: Customize GPU for stereo mode second view (EYE_RIGHT GPU)
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	int StereoGPUIndex = -1;
 
 	// Performance: Render to scale RTT, resolved with shader to viewport (Custom value)
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	float RenderTargetRatio = 1;
 
 	// Experimental: Support special frame builder mode - merge viewports to single viewfamily by group num
 	// [not implemented yet]
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	int RenderFamilyGroup = -1;
 };
 
@@ -277,53 +277,55 @@ private:
 
 public:
 	// MultiUser : control this viewport rendering
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	bool bAllowRendering = true;
 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	FString Camera;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Display Cluster Viewport")
+	UPROPERTY(EditDefaultsOnly, Category = "NDisplay Viewport")
 	FDisplayClusterConfigurationProjection ProjectionPolicy;
 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
-	FDisplayClusterConfigurationRectangle Region;
-
-	// Performance, Multi-GPU: Asign GPU for viewport rendering. The Value '-1' used to default gpu mapping (EYE_LEFT and EYE_RIGHT GPU)
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
-	int GPUIndex = -1;
-
-	// Viewport can overlap each other on backbuffer. This value uses to sorting order
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
-	int OverlapOrder = 0;
-
-	// Configure render for this viewport
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
-	FDisplayClusterConfigurationViewport_RenderSettings RenderSettings;
-
-	// Configure ICVFX for this viewport
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
-	FDisplayClusterConfigurationViewport_ICVFX ICVFX;
-
-	// OCIO Display look configuration 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
-	FOpenColorIODisplayConfiguration OCIO_Configuration;
-
-	// Per viewport post processing
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
-	FDisplayClusterConfigurationViewport_PostProcessSettings PostProcessSettings;
-
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport", meta = (DisplayName = "Shared Texture"))
 	bool bIsShared = false;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditDefaultsOnly, Category = "nDisplay", meta = (nDisplayHidden))
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	bool bFixedAspectRatio;
+#endif
+	
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	FDisplayClusterConfigurationRectangle Region;
+
+	// Performance, Multi-GPU: Asign GPU for viewport rendering. The Value '-1' used to default gpu mapping (EYE_LEFT and EYE_RIGHT GPU)
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	int GPUIndex = -1;
+
+	// Viewport can overlap each other on backbuffer. This value uses to sorting order
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	int OverlapOrder = 0;
+
+	// Configure render for this viewport
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	FDisplayClusterConfigurationViewport_RenderSettings RenderSettings;
+
+	// Configure ICVFX for this viewport
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	FDisplayClusterConfigurationViewport_ICVFX ICVFX;
+
+	// OCIO Display look configuration 
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	FOpenColorIODisplayConfiguration OCIO_Configuration;
+
+	// Per viewport post processing
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	FDisplayClusterConfigurationViewport_PostProcessSettings PostProcessSettings;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditDefaultsOnly, Category = "NDisplay", meta = (nDisplayHidden))
 	bool bIsEnabled = true;
 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
-	bool bFixedAspectRatio;
-
-	UPROPERTY(EditDefaultsOnly, Category = "nDisplay", meta = (nDisplayHidden))
+	UPROPERTY(EditDefaultsOnly, Category = "NDisplay", meta = (nDisplayHidden))
 	bool bIsVisible = true;
 #endif
 };
@@ -341,34 +343,34 @@ public:
 
 public:
 	// Performance: Allow change global MGPU settings
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
 	EDisplayClusterConfigurationRenderMGPUMode MultiGPUMode = EDisplayClusterConfigurationRenderMGPUMode::Enabled;
 
 	// Performance: Allow merge multiple viewports on single RTT with atlasing (required for bAllowViewFamilyMergeOptimization)
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
 	bool bAllowRenderTargetAtlasing = false;
 
 	// Performance: Allow viewfamily merge optimization (render multiple viewports contexts within single family)
 	// [not implemented yet] Experimental
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
 	EDisplayClusterConfigurationRenderFamilyMode ViewFamilyMode = EDisplayClusterConfigurationRenderFamilyMode::None;
 
 	// Performance: Allow to use parent ViewFamily from parent viewport 
 	// (icvfx has child viewports: lightcard and chromakey with prj_view matrices copied from parent viewport. May sense to use same viewfamily?)
 	// [not implemented yet] Experimental
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
 	bool bShouldUseParentViewportRenderFamily = false;
 
 	// Multiply all downscale ratio inside all viewports settings for whole cluster
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Render", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
 	float ClusterRenderTargetRatioMult = 1.f;
 
 	// Multiply all buffer ratios for whole cluster by this value
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Render", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
 	float ClusterBufferRatioMult = 1.f;
 
 	// Allow warpblend render
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
 	bool bAllowWarpBlend = true;
 };
 
@@ -383,19 +385,19 @@ public:
 
 public:
 	// Allow preview render
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
 	bool bEnable = true;
 
 	// Render single node preview or whole cluster
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
 	FString PreviewNodeId = DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll;
 
 	// Update preview texture period in tick
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)", meta = (ClampMin = "1", UIMin = "1", ClampMax = "200", UIMax = "200"))
+	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)", meta = (ClampMin = "1", UIMin = "1", ClampMax = "200", UIMax = "200"))
 	int TickPerFrame = 1;
 
 	// Preview texture size get from viewport, and scaled by this value
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
+	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
 	float PreviewRenderTargetRatioMult = 0.25;
 };
 

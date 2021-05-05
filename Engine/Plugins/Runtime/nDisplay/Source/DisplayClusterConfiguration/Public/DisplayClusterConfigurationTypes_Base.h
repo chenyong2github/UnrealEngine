@@ -28,16 +28,16 @@ public:
 	FIntRect ToRect() const;
 
 public:
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	int32 X;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	int32 Y;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	int32 W;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	int32 H;
 };
 
@@ -71,11 +71,11 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPolymorphicEn
 
 public:
 	// Polymorphic entity type
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FString Type;
 
 	// Generic parameters map
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	TMap<FString, FString> Parameters;
 
 #if WITH_EDITORONLY_DATA
@@ -88,7 +88,7 @@ public:
 	 * EditAnywhere is required so we can manipulate the property
 	 * through a handle. Details will hide it from showing.
 	 */
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	bool bIsCustom = false;
 #endif
 };

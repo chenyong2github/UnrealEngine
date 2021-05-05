@@ -73,7 +73,7 @@ void FDisplayClusterConfiguratorDetailCustomization::CustomizeDetails(IDetailLay
 	check(RootActorPtr.IsValid() || ToolkitPtr.IsValid());
 	
 	LayoutBuilder = &InLayoutBuilder;
-	NDisplayCategory = &LayoutBuilder->EditCategory("nDisplay", FText::GetEmpty());
+	NDisplayCategory = &LayoutBuilder->EditCategory("NDisplay", FText::GetEmpty());
 	NDisplayCategory->InitiallyCollapsed(false);
 
 	// Hide properties that should only be visible on the instance. VisibleInstanceOnly doesn't work with these properties.

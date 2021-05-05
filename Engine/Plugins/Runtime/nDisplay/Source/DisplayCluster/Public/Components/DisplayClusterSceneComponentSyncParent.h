@@ -9,7 +9,7 @@
 /**
  * Synchronization component. Synchronizes parent scene component.
  */
-UCLASS(ClassGroup = (DisplayCluster), Blueprintable, meta = (BlueprintSpawnableComponent))
+UCLASS(ClassGroup = (DisplayCluster), Blueprintable, meta = (BlueprintSpawnableComponent, DisplayName = "NDisplay Sync Parent"))
 class DISPLAYCLUSTER_API UDisplayClusterSceneComponentSyncParent
 	: public UDisplayClusterSceneComponentSync
 {
