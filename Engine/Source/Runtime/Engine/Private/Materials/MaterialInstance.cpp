@@ -2099,7 +2099,7 @@ void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticP
 			ParentParameter.bOverride = false;
 			ParentParameter.ParameterInfo = ParameterInfo;
 
-			Parent->GetStaticSwitchParameterValue(ParameterInfo, ParentParameter.Value, ExpressionId);
+			GetStaticSwitchParameterValue(ParameterInfo, ParentParameter.Value, ExpressionId);
 
 			ParentParameter.ExpressionGUID = Guids[ParameterIdx];
 
@@ -2132,7 +2132,7 @@ void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticP
 			ParentParameter.bOverride = false;
 			ParentParameter.ParameterInfo = ParameterInfo;
 			
-			Parent->GetStaticComponentMaskParameterValue(ParameterInfo, ParentParameter.R, ParentParameter.G, ParentParameter.B, ParentParameter.A, ExpressionId);
+			GetStaticComponentMaskParameterValue(ParameterInfo, ParentParameter.R, ParentParameter.G, ParentParameter.B, ParentParameter.A, ExpressionId);
 
 			ParentParameter.ExpressionGUID = Guids[ParameterIdx];
 			
