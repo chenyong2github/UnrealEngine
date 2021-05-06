@@ -102,7 +102,7 @@ bool FDisplayClusterViewportManager::UpdatePreviewConfiguration(class UDisplayCl
 	return Configuration->UpdatePreviewConfiguration(PreviewConfiguration);
 }
 
-bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderFrame& InRenderFrame, FRHITexture2D* FrameOutputRTT)
+bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderFrame& InRenderFrame, FViewport* InViewport)
 {
 	UWorld* CurrentWorld = GetCurrentWorld();
 	if (CurrentWorld == nullptr)
@@ -188,7 +188,7 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 		FinalizeNewFrame();
 
 		// After all render target rendered call nDisplay frame rendering:
-		RenderFrame(InRenderFrame.bWarpBlendEnabled, FrameOutputRTT);
+		RenderFrame(InRenderFrame.bWarpBlendEnabled, InViewport);
 
 		return true;
 	}
