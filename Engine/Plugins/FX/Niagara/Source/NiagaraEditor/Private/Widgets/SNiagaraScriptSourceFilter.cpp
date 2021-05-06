@@ -163,7 +163,7 @@ void SNiagaraSourceFilterBox::Construct(const FArguments& Args)
                         {
                             bChecked &= SourceState[(EScriptSource) ScriptSourceEnum->GetValueByIndex(SourceIndex)];
                         }
-                        return bChecked ? FLinearColor::Black : FLinearColor::White;
+                        return bChecked ? FLinearColor::Black : FLinearColor::Gray;
                     })
                     .TextStyle(FNiagaraEditorStyle::Get(), "GraphActionMenu.ActionFilterTextBlock")
                 ]
