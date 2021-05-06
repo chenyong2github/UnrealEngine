@@ -607,7 +607,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 		SceneCanvas->Flush_GameThread();
 
 		// After all render target rendered call nDisplay frame rendering
-		RenderFrame.ViewportManager->RenderFrame(CVarWarpBlendEnabled.GetValueOnGameThread() != 0, InViewport->GetRenderTargetTexture());
+		RenderFrame.ViewportManager->RenderFrame(CVarWarpBlendEnabled.GetValueOnGameThread() != 0, InViewport);
 
 		OnDrawn().Broadcast();
 
@@ -706,7 +706,7 @@ bool UDisplayClusterViewportClient::Draw_PIE(FViewport* InViewport, FCanvas* Sce
 		return false;
 	}
 
-	if (ViewportManager->RenderInEditor(RenderFrame, InViewport->GetRenderTargetTexture()) == false)
+	if (ViewportManager->RenderInEditor(RenderFrame, InViewport) == false)
 	{
 		return false;
 	}
