@@ -566,6 +566,8 @@ public:
 
 		bool bTFODoLog;
 		// choose log verbosity :
+		// @todo Oodle : make this a log level selection in the ini Config 
+		//		and change default to no logging?
 		#if 0
 		// verbose logging ; logs for every mip
 		bTFODoLog = true;
@@ -590,12 +592,28 @@ public:
 		// for all others we must convert to 8 bit to get Gamma correction
 		// because Unreal only does Gamma correction on the 8 bit conversion
 		//	(this loses precision for BC4,5 which would like 16 bit input)
+		
+		EGammaSpace Gamma = InBuildSettings.GetGammaSpace();		
+		// note in unreal if Gamma == Pow22 due to legacy Gamma,
+		//	we still want to encode to sRGB
+		// (CopyTo does that even without this change, but let's make it explicit)
+		if ( Gamma == EGammaSpace::Pow22 ) Gamma = EGammaSpace::sRGB;
 
+		if ( ( OodleBCN == OodleTex_BC4U || OodleBCN == OodleTex_BC5U || OodleBCN == OodleTex_BC6U ) &&
+			Gamma != EGammaSpace::Linear )
+		{
+			// BC4,5,6 should always be encoded to linear gamma
+			
+			UE_LOG(LogTextureFormatOodle, Display, TEXT("Image format %s (Oodle %s) encoded with non-Linear Gamma"), \
+				*TextureFormatName.ToString(), *FString(OodleTex_BC_GetName(OodleBCN)) );
+		}
+
+		// @todo Oodle get rid of this temp Image, just point at InImage
 		FImage Image;
 		OodleTex_PixelFormat OodlePF;
 		if ( OodleBCN == OodleTex_BC6U )
 		{
-			// could avoid this copy most of the time
+			// @todo Oodle avoid this copy, just point at InImage
 			InImage.CopyTo(Image, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
 			OodlePF = OodleTex_PixelFormat_4_F32_RGBA;
 
@@ -604,28 +622,35 @@ public:
 		}
 		else
 		{
-			// @todo Oodle for BC4/5 we'd prefer 16 bit over 8
-
-			EGammaSpace Gamma = InBuildSettings.GetGammaSpace();
-			// note in unreal if Gamma == Pow22 due to legacy Gamma,
-			//	we still want to encode to sRGB
-			// (CopyTo does that even without this change, but let's make it explicit)
-			if ( Gamma == EGammaSpace::Pow22 ) Gamma = EGammaSpace::sRGB;
-
-			InImage.CopyTo(Image, ERawImageFormat::BGRA8, Gamma);
-
-			// if requested format was DXT1
-			// Unreal assumes that will not encode any alpha channel in the source
-			//	(Unreal's "compress without alpha" just selects DXT1)
-			// the legacy NVTT behavior for DXT1 was to always encode opaque pixels
-			// for DXT1 we use BC1_WithTransparency which will preserve the input A transparency bit
-			//	so we need to force the A's to be 255 coming into Oodle
-			//	so for DXT1 we force bHasAlpha = false
-			// force Oodle to ignore input alpha :
-			if ( bHasAlpha )
-				OodlePF = OodleTex_PixelFormat_4_U8_BGRA;
+			if ( Gamma == EGammaSpace::Linear && 
+				( OodleBCN == OodleTex_BC4U || OodleBCN == OodleTex_BC5U ) &&
+				! bDebugColor )
+			{
+				// for BC4/5 use 16-bit :
+				//	BC4/5 should always have linear gamma
+				// @todo we only need 1 or 2 channel 16-bit, not all 4; use our own converter
+				//	or just let our encoder take F32 input?
+				InImage.CopyTo(Image, ERawImageFormat::RGBA16, EGammaSpace::Linear);
+				
+				OodlePF = OodleTex_PixelFormat_4_U16;
+			}
 			else
-				OodlePF = OodleTex_PixelFormat_4_U8_BGRx; // makes Oodle read A=255 even if source has other
+			{
+				InImage.CopyTo(Image, ERawImageFormat::BGRA8, Gamma);
+
+				// if requested format was DXT1
+				// Unreal assumes that will not encode any alpha channel in the source
+				//	(Unreal's "compress without alpha" just selects DXT1)
+				// the legacy NVTT behavior for DXT1 was to always encode opaque pixels
+				// for DXT1 we use BC1_WithTransparency which will preserve the input A transparency bit
+				//	so we need to force the A's to be 255 coming into Oodle
+				//	so for DXT1 we force bHasAlpha = false
+				// force Oodle to ignore input alpha :
+				if ( bHasAlpha )
+					OodlePF = OodleTex_PixelFormat_4_U8_BGRA;
+				else
+					OodlePF = OodleTex_PixelFormat_4_U8_BGRx; // makes Oodle read A=255 even if source has other
+			}
 		}
 		
 		// verify OodlePF matches Image :
