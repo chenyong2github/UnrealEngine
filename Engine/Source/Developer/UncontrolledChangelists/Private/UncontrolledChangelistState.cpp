@@ -4,7 +4,7 @@
 
 #include "Algo/Transform.h"
 #include "Dom/JsonObject.h"
-#include "Dom/JSonValue.h"
+#include "Dom/JsonValue.h"
 #include "ISourceControlModule.h"
 #include "ISourceControlProvider.h"
 #include "SourceControlOperations.h"
