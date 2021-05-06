@@ -14,14 +14,37 @@ uint VisualizationMode;
 uint ShouldUsePreExposure;
 uint OpaqueOnly;
 
-RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
+// TODO: move MurmurMix and IntToColor into a common header, shared with Nanite/Visualize.usf
+
+uint MurmurMix(uint Hash)
+{
+	Hash ^= Hash >> 16;
+	Hash *= 0x85ebca6b;
+	Hash ^= Hash >> 13;
+	Hash *= 0xc2b2ae35;
+	Hash ^= Hash >> 16;
+	return Hash;
+}
+
+float3 IntToColor(uint Index)
+{
+	uint Hash = MurmurMix(Index);
+
+	float3 Color = float3
+	(
+		(Hash >> 0) & 255,
+		(Hash >> 8) & 255,
+		(Hash >> 16) & 255
+	);
+
+	return Color * (1.0f / 255.0f);
+}
+
+float4 DebugRayTracingMaterial(RayDesc Ray)
 {
 	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
 
-	float2 RenderTargetUV = (float2(PixelCoord) + .5f) * View.BufferSizeAndInvSize.zw;
-
-	RayDesc Ray = CreatePrimaryRay(RenderTargetUV);
-    FRayCone RayCone = (FRayCone)0;
+	FRayCone RayCone = (FRayCone)0;
 	RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 
 	const uint RayFlags = 0;
@@ -113,6 +136,58 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 			}
 		}
 	}
+	return Result;
+}
+
+struct FRayTracingDebugPayload : FMinimalPayload
+{
+	uint InstanceHash;
+};
+
+float4 DebugRayTracingInstance(RayDesc Ray)
+{
+	float4 Result = (float4)0;
+
+	FRayTracingDebugPayload Payload = (FRayTracingDebugPayload)0;
+	Payload.SetMiss();
+
+	TraceRay(
+		TLAS,
+		0 /*RayFlags*/,
+		0xff /*InstanceInclusionMask*/,
+		0 /*RayContributionToHitGroupIndex*/,
+		RAY_TRACING_NUM_SHADER_SLOTS /*MultiplierForGeometryContributionToShaderIndex*/,
+		0 /*MissShaderIndex*/,
+		Ray,
+		Payload);
+
+	if (Payload.IsHit())
+	{
+		Result.rgb = IntToColor(Payload.InstanceHash);
+		Result.a = 1;
+	}
+
+	return Result;
+}
+
+RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
+{
+	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
+
+	float2 RenderTargetUV = (float2(PixelCoord) + .5f) * View.BufferSizeAndInvSize.zw;
+
+	RayDesc Ray = CreatePrimaryRay(RenderTargetUV);
+
+	float4 Result = (float4)0;
+
+	if (VisualizationMode == RAY_TRACING_DEBUG_VIZ_INSTANCES)
+	{
+		Result = DebugRayTracingInstance(Ray);
+	}
+	else
+	{
+		Result = DebugRayTracingMaterial(Ray);
+	}
 
 	if (ShouldUsePreExposure)
 	{
@@ -121,4 +196,27 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 	}
 
 	Output[PixelCoord] = Result;
+}
+
+RAY_TRACING_ENTRY_CLOSEST_HIT(RayTracingDebugMainCHS,
+	FRayTracingDebugPayload, Payload,
+	FDefaultAttributes, Attributes)
+{
+	Payload.HitT = RayTCurrent();
+
+	// Can't use InstanceIndex() because it's not stable due to culling.
+	// Instad we can use InstanceID() (user data on the instance) combined with
+	// a hash of the instance transform. This gives us a reasonable overall instance hash
+	// that can be used for debug visualizations. 
+	// Dynamic objects can't be visualized in a stable way, as their transform is constantly updated.
+
+	Payload.InstanceHash = InstanceID();
+	float4x3 Mat = ObjectToWorld4x3();
+	for (int i = 0; i < 4; ++i)
+	{
+		for (int j = 0; j < 3; ++j)
+		{
+			Payload.InstanceHash += MurmurMix(asuint(Mat[i][j]));
+		}
+	}
 }

@@ -53,6 +53,7 @@ void FRayTracingDebugVisualizationMenuCommands::CreateRayTracingDebugVisualizati
 	RayTracingDebugModeNames.Add(LOCTEXT("PrimaryRays", "PrimaryRays"));
 	RayTracingDebugModeNames.Add(LOCTEXT("World Tangent", "World Tangent"));
 	RayTracingDebugModeNames.Add(LOCTEXT("Anisotropy", "Anisotropy"));
+	RayTracingDebugModeNames.Add(LOCTEXT("Instances", "Instances"));
 
 	for ( int32 RayTracingDebugIndex = 0; RayTracingDebugIndex < RayTracingDebugModeNames.Num(); ++RayTracingDebugIndex)
 	{
