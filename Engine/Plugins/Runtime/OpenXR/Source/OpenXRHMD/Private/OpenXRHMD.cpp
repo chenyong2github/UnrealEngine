@@ -2171,6 +2171,7 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 	TArray<FOpenXRLayer> StereoLayers;
 	CopySortedLayers(StereoLayers);
 	PipelinedLayerStateRendering.QuadLayers.Reset(StereoLayers.Num());
+	PipelinedLayerStateRendering.QuadSwapchains.Reset(StereoLayers.Num());
 	for (const FOpenXRLayer& Layer : StereoLayers)
 	{
 		const bool bNoAlpha = Layer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_NO_ALPHA_CHANNEL;
