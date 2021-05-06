@@ -4,6 +4,7 @@
 
 #include "Render/Containers/DisplayClusterRender_MeshResources.h"
 #include "Render/Containers/DisplayClusterRender_MeshGeometry.h"
+#include "Misc/DisplayClusterLog.h"
 
 TGlobalResource<FDisplayClusterMeshVertexDeclaration> GDisplayClusterMeshVertexDeclaration;
 
@@ -206,7 +207,12 @@ void FDisplayClusterRender_MeshComponentProxy::UpdateRHI_RenderThread(FRHIComman
 		{
 		FRHIResourceCreateInfo CreateInfo;
 		size_t VertexDataSize = sizeof(FDisplayClusterMeshVertex) * NumVertices;
-
+		if (VertexDataSize == 0)
+		{
+			UE_LOG(LogDisplayClusterRender, Warning, TEXT("MeshComponent has a vertex size of 0, please make sure a mesh is assigned."))
+			return;
+		}
+		
 		VertexBufferRHI = RHICreateVertexBuffer(VertexDataSize, Usage, CreateInfo);
 		FDisplayClusterMeshVertex* DestVertexData = reinterpret_cast<FDisplayClusterMeshVertex*>(RHILockVertexBuffer(VertexBufferRHI, 0, VertexDataSize, RLM_WriteOnly));
 		if (DestVertexData)
