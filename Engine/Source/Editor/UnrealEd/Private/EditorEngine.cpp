@@ -4975,7 +4975,9 @@ AActor* UEditorEngine::UseActorFactory( UActorFactory* Factory, const FAssetData
 				const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "CreateActor", "Create Actor") );
 
 				// Create the actor.
-				Actor = Factory->CreateActor( Asset, DesiredLevel, ActorTransform, InObjectFlags );
+				FActorSpawnParameters SpawnParams;
+				SpawnParams.ObjectFlags = InObjectFlags;
+				Actor = Factory->CreateActor( Asset, DesiredLevel, ActorTransform, SpawnParams );
 				if(Actor != NULL)
 				{
 					SelectNone( false, true );
@@ -5284,7 +5286,7 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 		const FTransform OldTransform = OldActor->ActorToWorld();
 
 		// create the actor
-		NewActor = Factory->CreateActor( Asset, Level, OldTransform );
+		NewActor = Factory->CreateActor(Asset, Level, OldTransform);
 		// For blueprints, try to copy over properties
 		if (Factory->IsA(UActorFactoryBlueprint::StaticClass()))
 		{

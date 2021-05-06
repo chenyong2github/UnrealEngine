@@ -604,10 +604,13 @@ static AActor* PrivateAddActor( UObject* Asset, UActorFactory* Factory, bool Sel
 	if(bSpawnActor)
 	{
 		FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "CreateActor", "Create Actor"), (ObjectFlags & RF_Transactional) != 0 );
-
+		
 		// Create the actor.
-		Actor = Factory->CreateActor( Asset, DesiredLevel, ActorTransform, ObjectFlags, Name );
-		if(Actor)
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.ObjectFlags = ObjectFlags;
+		SpawnParams.Name = Name;
+		Actor = Factory->CreateActor(Asset, DesiredLevel, ActorTransform, SpawnParams);
+		if (Actor)
 		{
 			if ( SelectActor )
 			{

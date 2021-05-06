@@ -36,8 +36,6 @@ private:
 
 	void OnLevelActorAddedToWorld(AActor* Actor);
 
-	void OnMapLoaded(const FString& /* Filename */, bool /*bAsTemplate*/);
-
 private:
 	/** Array of component class names we have registered, so we know what to unregister afterwards */
 	TArray<FName> RegisteredComponentClassNames;
