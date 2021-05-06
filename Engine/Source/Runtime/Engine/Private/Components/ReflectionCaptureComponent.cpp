@@ -655,7 +655,6 @@ void GenerateEncodedHDRTextureCube(UMapBuildDataRegistry* Registry, FReflectionC
 {
 #if WITH_EDITOR
 	UTextureFactory* TextureFactory = NewObject<UTextureFactory>();
-	TextureFactory->SuppressImportOverwriteDialog();
 
 	TextureFactory->CompressionSettings = TC_ReflectionCapture;
 	UTextureCube* TextureCube = TextureFactory->CreateTextureCube(Registry, FName(TextureName), RF_Public);
