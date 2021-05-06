@@ -60,10 +60,9 @@ bool IsHitIgnored(const FHitResult& InHit, const FSceneView& InSceneView)
 	// we're also accessing UObjects, the game thread should be blocked during this call.
 	check(IsInParallelRenderingThread());
 	const FActorInstanceHandle& HitObjHandle = InHit.HitObjectHandle;
-	AActor* Actor = HitObjHandle.FetchActor();
 	
 	// Try and find a primitive component for the hit
-	const UPrimitiveComponent* PrimitiveComponent = Actor ? Cast<UPrimitiveComponent>(Actor->GetRootComponent()) : nullptr;
+	const UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(HitObjHandle.GetRootComponent());
 
 	if (!PrimitiveComponent)
 	{
@@ -150,7 +149,7 @@ FActorPositionTraceResult FActorPositioning::TraceWorldForPosition(const UWorld&
 				Results.Location = Hit.Location;
 				Results.SurfaceNormal = Hit.Normal.GetSafeNormal();
 				Results.State = FActorPositionTraceResult::HitSuccess;
-				Results.HitActor = Hit.HitObjectHandle.FetchActor();
+				Results.HitActor = Hit.HitObjectHandle.GetManagingActor();
 			}
 		}
 	}

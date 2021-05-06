@@ -2047,6 +2047,7 @@ struct ENGINE_API FActorInstanceHandle
 
 	friend struct FLightWeightInstanceSubsystem;
 	friend class ALightWeightInstanceManager;
+	friend class UActorInstanceHandleInterface;
 
 	FActorInstanceHandle();
 
@@ -2071,7 +2072,13 @@ struct ENGINE_API FActorInstanceHandle
 	FName GetFName() const;
 	FString GetName() const;
 
-	// Returns the actor specified by this handle. This may require loading and creating the actor object.
+	/** If this handle has a valid actor, return it; otherwise return the actor responsible for managing the instances. */
+	AActor* GetManagingActor() const;
+
+	/** Returns either the actor's root component or the root component for the manager associated with the handle */
+	USceneComponent* GetRootComponent() const;
+
+	/** Returns the actor specified by this handle. This may require loading and creating the actor object. */
 	AActor* FetchActor() const;
 	template <typename T>
 	T* FetchActor() const;

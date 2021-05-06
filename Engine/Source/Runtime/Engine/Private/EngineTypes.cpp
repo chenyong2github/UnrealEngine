@@ -385,6 +385,27 @@ FString FActorInstanceHandle::GetName() const
 	return FString();
 }
 
+AActor* FActorInstanceHandle::GetManagingActor() const
+{
+	if (Actor.IsValid())
+	{
+		return Actor.Get();
+	}
+
+	return const_cast<ALightWeightInstanceManager*>(FLightWeightInstanceSubsystem::Get().GetManagerAt(ManagerIndex));
+}
+
+USceneComponent* FActorInstanceHandle::GetRootComponent() const
+{
+	if (Actor.IsValid())
+	{
+		return Actor->GetRootComponent();
+	}
+
+	const AActor* Manager = FLightWeightInstanceSubsystem::Get().GetManagerAt(ManagerIndex);
+	return Manager ? Manager->GetRootComponent() : nullptr;
+}
+
 AActor* FActorInstanceHandle::FetchActor() const
 {
 	if (Actor.IsValid())
@@ -411,6 +432,12 @@ bool FActorInstanceHandle::operator==(const AActor* OtherActor) const
 	if (Actor.IsValid())
 	{
 		return Actor.Get() == OtherActor;
+	}
+
+	// if OtherActor is null then we're only equal if this doesn't refer to a valid instance
+	if (OtherActor == nullptr)
+	{
+		return ManagerIndex == INDEX_NONE && InstanceIndex == INDEX_NONE;
 	}
 
 	// we don't have an actor so see if we can look up an instance associated with OtherActor and see if we refer to the same instance
