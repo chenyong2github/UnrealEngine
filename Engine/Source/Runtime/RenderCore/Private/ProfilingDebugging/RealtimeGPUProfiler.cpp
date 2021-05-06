@@ -772,6 +772,8 @@ void FRealtimeGPUProfiler::Cleanup()
 	}
 	Frames.Empty();
 	RenderQueryPool.SafeRelease();
+	
+	TRACE_GPUPROFILER_DEINITIALIZE();
 }
 
 #if UE_TRACE_ENABLED

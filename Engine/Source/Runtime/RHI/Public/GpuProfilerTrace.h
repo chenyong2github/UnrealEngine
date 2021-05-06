@@ -24,6 +24,7 @@ struct FGpuProfilerTrace
 	RHI_API static void BeginEventByName(const FName& Name, uint32 FrameNumber, uint64 TimestampMicroseconds);
 	RHI_API static void EndEvent(uint64 TimestampMicroseconds);
 	RHI_API static void EndFrame(uint32 GPUIndex);
+	RHI_API static void Deinitialize();
 };
 
 #define TRACE_GPUPROFILER_DEFINE_EVENT_TYPE(Name) \
@@ -47,6 +48,9 @@ struct FGpuProfilerTrace
 #define TRACE_GPUPROFILER_END_FRAME() \
 	FGpuProfilerTrace::EndFrame();
 
+#define TRACE_GPUPROFILER_DEINITIALIZE() \
+	FGpuProfilerTrace::Deinitialize();
+
 #else
 
 struct FGpuProfilerTrace
@@ -64,5 +68,6 @@ struct FGpuProfilerTrace
 #define TRACE_GPUPROFILER_BEGIN_EVENT(...)
 #define TRACE_GPUPROFILER_END_EVENT(...)
 #define TRACE_GPUPROFILER_END_FRAME(...)
+#define TRACE_GPUPROFILER_DEINITIALIZE(...)
 
 #endif
