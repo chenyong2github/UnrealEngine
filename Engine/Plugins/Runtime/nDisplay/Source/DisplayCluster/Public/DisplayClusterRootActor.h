@@ -163,10 +163,10 @@ public:
 	UDisplayClusterSceneComponent* GetComponentById(const FString& ComponentId) const;
 
 public:
-	UPROPERTY(EditAnywhere, Category = "NDisplay|Settings")
+	UPROPERTY(EditAnywhere, Category = "NDisplay|Settings", NoClear)
 	UDisplayClusterConfigurationICVFX_StageSettings* StageSettings;
 
-	UPROPERTY(EditAnywhere, Category = "NDisplay|Settings")
+	UPROPERTY(EditAnywhere, Category = "NDisplay|Settings", NoClear)
 	UDisplayClusterConfigurationRenderFrame* RenderFrameSettings;
 
 	IDisplayClusterViewportManager* GetViewportManager() const
