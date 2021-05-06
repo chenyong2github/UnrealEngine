@@ -24,7 +24,7 @@ int32 FLightWeightInstanceSubsystem::GetManagerIndex(const ALightWeightInstanceM
 
 const ALightWeightInstanceManager* FLightWeightInstanceSubsystem::GetManagerAt(int32 Index) const
 {
-	return Index < LWInstanceManagers.Num() ? LWInstanceManagers[Index] : nullptr;
+	return (Index >= 0 && Index < LWInstanceManagers.Num()) ? LWInstanceManagers[Index] : nullptr;
 }
 
 ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInstanceManager(const FActorInstanceHandle& Handle) const
