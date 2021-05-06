@@ -184,6 +184,10 @@ FAutoConsoleVariableRef CVarGeometryCollectionNanite(
 float GGeometryCollectionNavigationSizeThreshold = 20.0f;
 FAutoConsoleVariableRef CVarGeometryCollectionNavigationSizeThreshold(TEXT("p.GeometryCollectionNavigationSizeThreshold"), GGeometryCollectionNavigationSizeThreshold, TEXT("Size in CM used as a threshold for whether a geometry in the collection is collected and exported for navigation purposes. Measured as the diagonal of the leaf node bounds."));
 
+// Single-Threaded Bounds
+bool bGeometryCollectionSingleThreadedBoundsCalculation = false;
+FAutoConsoleVariableRef CVarGeometryCollectionSingleThreadedBoundsCalculation(TEXT("p.GeometryCollectionSingleThreadedBoundsCalculation"), bGeometryCollectionSingleThreadedBoundsCalculation, TEXT("[Debug Only] Single threaded bounds calculation. [def:false]"));
+
 
 
 FGeomComponentCacheParameters::FGeomComponentCacheParameters()
@@ -441,6 +445,19 @@ FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& Loca
 				if(RestCollection->GetGeometryCollection()->IsGeometry(TransformIndex))
 				{
 					BoundingBox += BoundingBoxes[BoxIdx].TransformBy(TmpGlobalMatrices[TransformIndex] * LocalToWorldWithScale);
+				}
+			}
+		}
+		else if (bGeometryCollectionSingleThreadedBoundsCalculation)
+		{
+			CHAOS_ENSURE(false); // this is slower and only enabled through a pvar debugging, disable bGeometryCollectionSingleThreadedBoundsCalculation in a production environment. 
+			for (int32 BoxIdx = 0; BoxIdx < NumBoxes; ++BoxIdx)
+			{
+				const int32 TransformIndex = TransformIndices[BoxIdx];
+
+				if (RestCollection->GetGeometryCollection()->IsGeometry(TransformIndex))
+				{
+					BoundingBox += BoundingBoxes[BoxIdx].TransformBy(GlobalMatrices[TransformIndex] * LocalToWorldWithScale);
 				}
 			}
 		}
