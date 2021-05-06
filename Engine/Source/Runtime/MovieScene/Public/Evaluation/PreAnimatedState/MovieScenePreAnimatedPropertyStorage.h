@@ -110,7 +110,7 @@ struct TPreAnimatedPropertyStorageImpl<PropertyTraits, TPropertyMetaData<MetaDat
 		const FEntityAllocation* Allocation = Item.GetAllocation();
 
 		TTuple< TComponentReader<MetaDataTypes>... > MetaData(
-			Allocation->ReadComponents(MetaDataComponents[MetaDataIndices].ReinterpretCast<MetaDataTypes>())...
+			Allocation->ReadComponents(MetaDataComponents[MetaDataIndices].template ReinterpretCast<MetaDataTypes>())...
 			);
 
 		const uint16* Fast = Properties.Get<1>();
