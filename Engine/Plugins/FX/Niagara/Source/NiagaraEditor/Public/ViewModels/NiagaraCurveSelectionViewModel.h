@@ -173,6 +173,10 @@ public:
 
 	void Refresh();
 
+	void RefreshDeferred();
+
+	void Tick();
+
 	FSimpleMulticastDelegate& OnRefreshed();
 
 	FOnRequestSelectNode& OnRequestSelectNode();
@@ -213,4 +217,6 @@ private:
 	FOnRequestSelectNode OnRequestSelectNodeDelegate;
 
 	mutable bool bHandlingInternalCurveChanged;
+
+	bool bRefreshPending;
 };
