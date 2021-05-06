@@ -261,7 +261,10 @@ public:
 		LayerType* Found = FindLayerById(LayerId, FoundLevel);
 		if (Found)
 		{
+			FLayerDesc LayerDesc;
+			GetLayerDescMember(*Found, LayerDesc);
 			MarkLayerTextureForUpdate(*Found);
+			UpdateLayer(*Found, LayerId, true);
 		}
 	}
 
