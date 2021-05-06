@@ -138,62 +138,64 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 		RootBoneTransform.SetRotation(RootRotation * RootBoneTransform.GetRotation());
 		RootBoneTransform.NormalizeRotation();
 		Output.Pose.SetComponentSpaceTransform(RootBoneIndex, RootBoneTransform);
+	}
+		
+	const int32 NumSpineBones = SpineBoneDataArray.Num();
+	const bool bBodyOrientationAlpha = !FMath::IsNearlyZero(BodyOrientationAlpha, KINDA_SMALL_NUMBER);
+	const bool bUpdateSpineBones = (NumSpineBones > 0) && bBodyOrientationAlpha;
 
-		const float IKFootRootOrientationAlpha = 1.f - BodyOrientationAlpha;
-		const int32 NumSpineBones = SpineBoneDataArray.Num();
+	if (bUpdateSpineBones)
+	{
+		// Spine bones counter rotate body orientation evenly across all bones.
+		for (int32 ArrayIndex = 0; ArrayIndex < NumSpineBones; ArrayIndex++)
+		{
+			const FOrientationWarpingSpineBoneData& BoneData = SpineBoneDataArray[ArrayIndex];
+			const FQuat SpineBoneCounterRotation = FQuat(LocomotionRotationAxis, -LocomotionRotationAngle * BodyOrientationAlpha * BoneData.Weight);
+			check(BoneData.Weight > 0.f);
+
+			FTransform SpineBoneTransform(Output.Pose.GetComponentSpaceTransform(BoneData.BoneIndex));
+			SpineBoneTransform.SetRotation((SpineBoneCounterRotation * SpineBoneTransform.GetRotation()));
+			SpineBoneTransform.NormalizeRotation();
+			Output.Pose.SetComponentSpaceTransform(BoneData.BoneIndex, SpineBoneTransform);
+		}
+	}
+
+	const float IKFootRootOrientationAlpha = 1.f - BodyOrientationAlpha;
+	const bool bUpdateIKFootRoot = (IKFootRootBoneIndex != FCompactPoseBoneIndex(INDEX_NONE)) && !FMath::IsNearlyZero(IKFootRootOrientationAlpha, KINDA_SMALL_NUMBER);
+
+	// Rotate IK Foot Root
+	if (bUpdateIKFootRoot)
+	{
+		const FQuat BoneRotation = FQuat(LocomotionRotationAxis, LocomotionRotationAngle * IKFootRootOrientationAlpha);
+
+		FTransform IKFootRootTransform(Output.Pose.GetComponentSpaceTransform(IKFootRootBoneIndex));
+		IKFootRootTransform.SetRotation(BoneRotation * IKFootRootTransform.GetRotation());
+		IKFootRootTransform.NormalizeRotation();
+		Output.Pose.SetComponentSpaceTransform(IKFootRootBoneIndex, IKFootRootTransform);
+
+		// IK Feet 
+		// These match the root orientation, so don't rotate them. Just preserve root rotation. 
+		// We need to update their translation though, since we rotated their parent (the IK Foot Root bone).
 		const int32 NumIKFootBones = IKFootBoneIndexArray.Num();
-		const bool bBodyOrientationAlpha = !FMath::IsNearlyZero(BodyOrientationAlpha, KINDA_SMALL_NUMBER);
-		const bool bUpdateSpineBones = (NumSpineBones > 0) && bBodyOrientationAlpha;
-		const bool bUpdateIKFootRoot = (IKFootRootBoneIndex != FCompactPoseBoneIndex(INDEX_NONE)) && !FMath::IsNearlyZero(IKFootRootOrientationAlpha, KINDA_SMALL_NUMBER);
 		const bool bUpdateIKFootBones = bUpdateIKFootRoot && (NumIKFootBones > 0);
 
-		if (bUpdateSpineBones)
+		if (bUpdateIKFootBones)
 		{
-			// Spine bones counter rotate body orientation evenly across all bones.
-			for (int32 ArrayIndex = 0; ArrayIndex < NumSpineBones; ArrayIndex++)
-			{
-				const FOrientationWarpingSpineBoneData& BoneData = SpineBoneDataArray[ArrayIndex];
-				const FQuat SpineBoneCounterRotation = FQuat(LocomotionRotationAxis, -LocomotionRotationAngle * BodyOrientationAlpha * BoneData.Weight);
-				check(BoneData.Weight > 0.f);
+			const FQuat IKFootRotation = FQuat(LocomotionRotationAxis, -LocomotionRotationAngle * IKFootRootOrientationAlpha);
 
-				FTransform SpineBoneTransform(Output.Pose.GetComponentSpaceTransform(BoneData.BoneIndex));
-				SpineBoneTransform.SetRotation((SpineBoneCounterRotation * SpineBoneTransform.GetRotation()));
-				SpineBoneTransform.NormalizeRotation();
-				Output.Pose.SetComponentSpaceTransform(BoneData.BoneIndex, SpineBoneTransform);
+			for (int32 ArrayIndex = 0; ArrayIndex < NumIKFootBones; ArrayIndex++)
+			{
+				const FCompactPoseBoneIndex& IKFootBoneIndex = IKFootBoneIndexArray[ArrayIndex];
+
+				FTransform IKFootBoneTransform(Output.Pose.GetComponentSpaceTransform(IKFootBoneIndex));
+				IKFootBoneTransform.SetRotation(IKFootRotation * IKFootBoneTransform.GetRotation());
+				IKFootBoneTransform.NormalizeRotation();
+				Output.Pose.SetComponentSpaceTransform(IKFootBoneIndex, IKFootBoneTransform);
 			}
 		}
-
-		// Rotate IK Foot Root
-		if (bUpdateIKFootRoot)
-		{
-			const FQuat BoneRotation = FQuat(LocomotionRotationAxis, LocomotionRotationAngle * IKFootRootOrientationAlpha);
-
-			FTransform IKFootRootTransform(Output.Pose.GetComponentSpaceTransform(IKFootRootBoneIndex));
-			IKFootRootTransform.SetRotation(BoneRotation * IKFootRootTransform.GetRotation());
-			IKFootRootTransform.NormalizeRotation();
-			Output.Pose.SetComponentSpaceTransform(IKFootRootBoneIndex, IKFootRootTransform);
-
-			// IK Feet 
-			// These match the root orientation, so don't rotate them. Just preserve root rotation. 
-			// We need to update their translation though, since we rotated their parent (the IK Foot Root bone).
-			if (bUpdateIKFootBones)
-			{
-				const FQuat IKFootRotation = FQuat(LocomotionRotationAxis, -LocomotionRotationAngle * IKFootRootOrientationAlpha);
-
-				for (int32 ArrayIndex = 0; ArrayIndex < NumIKFootBones; ArrayIndex++)
-				{
-					const FCompactPoseBoneIndex& IKFootBoneIndex = IKFootBoneIndexArray[ArrayIndex];
-
-					FTransform IKFootBoneTransform(Output.Pose.GetComponentSpaceTransform(IKFootBoneIndex));
-					IKFootBoneTransform.SetRotation(IKFootRotation * IKFootBoneTransform.GetRotation());
-					IKFootBoneTransform.NormalizeRotation();
-					Output.Pose.SetComponentSpaceTransform(IKFootBoneIndex, IKFootBoneTransform);
-				}
-			}
-		}
-
-		OutBoneTransforms.Sort(FCompareBoneTransformIndex());
 	}
+
+	OutBoneTransforms.Sort(FCompareBoneTransformIndex());
 }
 
 bool FAnimNode_OrientationWarping::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones)
