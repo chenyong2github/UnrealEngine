@@ -681,7 +681,7 @@ void FNiagaraRendererMeshes::InitializeSortInfo(
 
 	auto GetViewMatrices = [](const FSceneView& View, FVector& OutViewOrigin) -> const FViewMatrices&
 	{
-		OutViewOrigin = View.ViewLocation;
+		OutViewOrigin = View.ViewMatrices.GetViewOrigin();
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		const FSceneViewState* ViewState = View.State != nullptr ? View.State->GetConcreteViewState() : nullptr;
