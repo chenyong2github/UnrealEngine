@@ -452,7 +452,7 @@ namespace Gauntlet
 				}
 			}
 
-			Reasons.Add(string.Format("No build at {0} that matches {1}", string.Join(",", BuildPaths), Role.ToString()));
+			Reasons.Add(string.Format("No build at {0} that matches {1} (RequiredFlags={2})", string.Join(",", BuildPaths), Role.ToString(), Role.RequiredBuildFlags.ToString()));
 
 			return false;
 		}
