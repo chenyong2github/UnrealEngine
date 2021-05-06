@@ -258,7 +258,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 	int32 VirtualShadowMapId = INDEX_NONE)
 {
 	// Use hair strands data (i.e., hair voxel tracing) only for Gbuffer input for casting hair shadow onto opaque geometry.
-	const bool bHasHairStrandsData = InputType == EVirtualShadowMapProjectionInputType::GBuffer && HairStrands::HasViewHairStrandsData(View);
+	const bool bHasHairStrandsData = HairStrands::HasViewHairStrandsData(View);
 
 	FVirtualShadowMapProjectionCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FVirtualShadowMapProjectionCS::FParameters >();
 	PassParameters->SamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
@@ -269,9 +269,9 @@ static void RenderVirtualShadowMapProjectionCommon(
 	PassParameters->ContactShadowLength = CVarContactShadowLength.GetValueOnRenderThread();
 	PassParameters->NormalBias = GetNormalBiasForShader();
 	PassParameters->InputType = uint32(InputType);
-	PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 	if (bHasHairStrandsData)
 	{
+		PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 		PassParameters->HairStrandsVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
 	}
 
