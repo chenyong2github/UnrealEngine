@@ -21,6 +21,7 @@
 
 struct FCustomPropertyListNode;
 struct FObjectInstancingGraph;
+class FObjectPreSaveContext;
 struct FObjectPtr;
 struct FStaticConstructObjectParameters;
 template <typename T>
@@ -2361,9 +2362,13 @@ struct COREUOBJECT_API FCoreUObjectDelegates
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnObjectsReplaced, const FReplacementObjectMap&);
 	static FOnObjectsReplaced OnObjectsReplaced;
 
-	/** Callback for when an asset is saved. This is called from UObject::PreSave before it is actually written to disk, for every object saved */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnObjectSaved, UObject*);
+	UE_DEPRECATED(5.0, "Use OnObjectPreSave instead.")
 	static FOnObjectSaved OnObjectSaved;
+
+	/** Callback for when an asset is saved. This is called from UObject::PreSave before it is actually written to disk, for every object saved */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnObjectPreSave, UObject*, FObjectPreSaveContext);
+	static FOnObjectPreSave OnObjectPreSave;
 
 	/** Callback for when an asset is loaded. This gets called in both the editor and standalone game editor builds, but only for objects that return true for IsAsset() */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnAssetLoaded, UObject*);

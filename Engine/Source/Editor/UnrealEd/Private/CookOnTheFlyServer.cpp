@@ -3466,11 +3466,11 @@ void UCookOnTheFlyServer::OnObjectPropertyChanged(UObject* ObjectBeingModified, 
 	OnObjectUpdated( ObjectBeingModified );
 }
 
-void UCookOnTheFlyServer::OnObjectSaved( UObject* ObjectSaved )
+void UCookOnTheFlyServer::OnObjectSaved( UObject* ObjectSaved, FObjectPreSaveContext SaveContext)
 {
-	if (GIsCookerLoadingPackage)
+	if (SaveContext.IsProceduralSave() )
 	{
-		// This is the cooker saving a cooked package, ignore
+		// This is a procedural save (e.g. our own saving of the cooked package) rather than a user save, ignore
 		return;
 	}
 
@@ -4370,7 +4370,7 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 	{
 		FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &UCookOnTheFlyServer::OnObjectPropertyChanged);
 		FCoreUObjectDelegates::OnObjectModified.AddUObject(this, &UCookOnTheFlyServer::OnObjectModified);
-		FCoreUObjectDelegates::OnObjectSaved.AddUObject(this, &UCookOnTheFlyServer::OnObjectSaved);
+		FCoreUObjectDelegates::OnObjectPreSave.AddUObject(this, &UCookOnTheFlyServer::OnObjectSaved);
 
 		FCoreDelegates::OnTargetPlatformChangedSupportedFormats.AddUObject(this, &UCookOnTheFlyServer::OnTargetPlatformChangedSupportedFormats);
 	}

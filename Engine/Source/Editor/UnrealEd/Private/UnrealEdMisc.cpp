@@ -251,7 +251,7 @@ void FUnrealEdMisc::OnInit()
 	FEditorSupportDelegates::RedrawAllViewports.AddRaw(this, &FUnrealEdMisc::CB_RedrawAllViewports);
 	GEngine->OnLevelActorAdded().AddRaw( this, &FUnrealEdMisc::CB_LevelActorsAdded );
 
-	FCoreUObjectDelegates::OnObjectSaved.AddRaw(this, &FUnrealEdMisc::OnObjectSaved);
+	FCoreUObjectDelegates::OnObjectPreSave.AddRaw(this, &FUnrealEdMisc::OnObjectSaved);
 
 #if USE_UNIT_TESTS
 	FAutomationTestFramework::Get().PreTestingEvent.AddRaw(this, &FUnrealEdMisc::CB_PreAutomationTesting);
@@ -1163,7 +1163,7 @@ void FUnrealEdMisc::CB_RefreshEditor()
 
 void FUnrealEdMisc::PreSaveWorld(UWorld* World, FObjectPreSaveContext ObjectSaveContext)
 {
-	LogAssetUpdate(World);
+	LogAssetUpdate(World, ObjectSaveContext);
 	const bool bAutosaveOrPIE = (ObjectSaveContext.GetSaveFlags() & SAVE_FromAutosave) != 0;
 	if (bAutosaveOrPIE || !World || World != GEditor->GetEditorWorldContext().World() || !FEngineAnalytics::IsAvailable())
 	{
@@ -1711,22 +1711,22 @@ void FUnrealEdMisc::OnGotoAsset(const FString& InAssetPath) const
 	}	
 }
 
-void FUnrealEdMisc::OnObjectSaved(UObject* SavedObject)
+void FUnrealEdMisc::OnObjectSaved(UObject* SavedObject, FObjectPreSaveContext SaveContext)
 {
 	// Ensure the saved object is a non-UWorld asset (UWorlds are handled separately)
 	if (!SavedObject->IsA<UWorld>() && SavedObject->IsAsset())
 	{
-		LogAssetUpdate(SavedObject);
+		LogAssetUpdate(SavedObject, SaveContext);
 	}
 }
 
-void FUnrealEdMisc::LogAssetUpdate(UObject* UpdatedAsset)
+void FUnrealEdMisc::LogAssetUpdate(UObject* UpdatedAsset, FObjectPreSaveContext SaveContext)
 {
 	UPackage* AssetPackage = UpdatedAsset->GetOutermost();
 	const bool bIsPIESave = AssetPackage->RootPackageHasAnyFlags(PKG_PlayInEditor);
 	const bool bIsAutosave = GUnrealEd->GetPackageAutoSaver().IsAutoSaving();
 
-	if (!bIsPIESave && !bIsAutosave && !GIsAutomationTesting)
+	if (!bIsPIESave && !bIsAutosave && !GIsAutomationTesting && !SaveContext.IsProceduralSave())
 	{
 		uint32& NumUpdates = NumUpdatesByAssetName.FindOrAdd(UpdatedAsset->GetClass()->GetFName());
 		NumUpdates++;

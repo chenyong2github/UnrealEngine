@@ -12,6 +12,7 @@
 class IMovieScenePlayer;
 class ISequencer;
 class UMovieScene;
+class FObjectPreSaveContext;
 
 /**
  * Spawn register used in the editor to add some usability features like maintaining selection states, and projecting spawned state onto spawnable defaults
@@ -61,7 +62,7 @@ private:
 	void OnObjectModified(UObject* ModifiedObject);
 
 	/** Called before an object is saved in the editor */
-	void OnPreObjectSaved(UObject* Object);
+	void OnPreObjectSaved(UObject* Object, FObjectPreSaveContext SaveContext);
 
 private:
 
@@ -102,6 +103,6 @@ private:
 	/** Handle to a delegate that is bound to FCoreUObjectDelegates::OnObjectModified to harvest changes to spawned objects. */
 	FDelegateHandle OnObjectModifiedHandle;
 
-	/** Handle to a delegate that is bound to FCoreUObjectDelegates::OnObjectSaved to harvest changes to spawned objects. */
+	/** Handle to a delegate that is bound to FCoreUObjectDelegates::OnObjectPreSave to harvest changes to spawned objects. */
 	FDelegateHandle OnObjectSavedHandle;
 };

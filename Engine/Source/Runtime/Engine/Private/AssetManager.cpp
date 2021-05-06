@@ -10,6 +10,7 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Interfaces/IPluginManager.h"
 #include "UObject/ConstructorHelpers.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectHash.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ScopedSlowTask.h"
@@ -293,7 +294,7 @@ void UAssetManager::PostInitProperties()
 
 		FEditorDelegates::PreBeginPIE.AddUObject(this, &UAssetManager::PreBeginPIE);
 		FEditorDelegates::EndPIE.AddUObject(this, &UAssetManager::EndPIE);
-		FCoreUObjectDelegates::OnObjectSaved.AddUObject(this, &UAssetManager::OnObjectPreSave);
+		FCoreUObjectDelegates::OnObjectPreSave.AddUObject(this, &UAssetManager::OnObjectPreSave);
 
 		// In editor builds guess the type/name if allowed
 		bShouldGuessTypeAndName = Settings.bShouldGuessTypeAndNameInEditor;
@@ -4155,7 +4156,7 @@ void UAssetManager::OnInMemoryAssetDeleted(UObject *Object)
 	RemovePrimaryAssetId(PrimaryAssetId);
 }
 
-void UAssetManager::OnObjectPreSave(UObject* Object)
+void UAssetManager::OnObjectPreSave(UObject* Object, FObjectPreSaveContext SaveContext)
 {
 	// If this is in the asset manager dictionary, make sure it actually has a primary asset id that matches
 	const bool bIsAssetOrClass = Object->IsAsset() || Object->IsA(UClass::StaticClass()); 

@@ -17,6 +17,7 @@
 #include "EntitySystem/MovieSceneSpawnablesSystem.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "Sections/MovieScene3DTransformSection.h"
+#include "UObject/ObjectSaveContext.h"
 
 #define LOCTEXT_NAMESPACE "LevelSequenceEditorSpawnRegister"
 
@@ -34,7 +35,7 @@ FLevelSequenceEditorSpawnRegister::FLevelSequenceEditorSpawnRegister()
 	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FLevelSequenceEditorSpawnRegister::OnObjectsReplaced);
 
 	OnObjectModifiedHandle = FCoreUObjectDelegates::OnObjectModified.AddRaw(this, &FLevelSequenceEditorSpawnRegister::OnObjectModified);
-	OnObjectSavedHandle    = FCoreUObjectDelegates::OnObjectSaved.AddRaw(this, &FLevelSequenceEditorSpawnRegister::OnPreObjectSaved);
+	OnObjectSavedHandle    = FCoreUObjectDelegates::OnObjectPreSave.AddRaw(this, &FLevelSequenceEditorSpawnRegister::OnPreObjectSaved);
 #endif
 }
 
@@ -56,7 +57,7 @@ FLevelSequenceEditorSpawnRegister::~FLevelSequenceEditorSpawnRegister()
 #if WITH_EDITOR
 	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 	FCoreUObjectDelegates::OnObjectModified.Remove(OnObjectModifiedHandle);
-	FCoreUObjectDelegates::OnObjectSaved.Remove(OnObjectSavedHandle);
+	FCoreUObjectDelegates::OnObjectPreSave.Remove(OnObjectSavedHandle);
 #endif
 }
 
@@ -275,7 +276,7 @@ void FLevelSequenceEditorSpawnRegister::OnObjectModified(UObject* ModifiedObject
 	}
 }
 
-void FLevelSequenceEditorSpawnRegister::OnPreObjectSaved(UObject* Object)
+void FLevelSequenceEditorSpawnRegister::OnPreObjectSaved(UObject* Object, FObjectPreSaveContext SaveContext)
 {
 	UMovieSceneSequence* SequenceBeingSaved = Cast<UMovieSceneSequence>(Object);
 	if (SequenceBeingSaved && SequencesWithModifiedObjects.Contains(SequenceBeingSaved))

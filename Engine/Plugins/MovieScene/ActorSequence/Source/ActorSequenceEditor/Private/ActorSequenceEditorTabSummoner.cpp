@@ -18,6 +18,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ActorSequenceEditorStyle.h"
+#include "UObject/ObjectSaveContext.h"
 
 #define LOCTEXT_NAMESPACE "ActorSequenceEditorSummoner"
 
@@ -214,7 +215,7 @@ public:
 
 		GEditor->UnregisterForUndo(this);
 		GEditor->OnBlueprintPreCompile().Remove(OnBlueprintPreCompileHandle);
-		FCoreUObjectDelegates::OnObjectSaved.Remove(OnObjectSavedHandle);
+		FCoreUObjectDelegates::OnObjectPreSave.Remove(OnObjectSavedHandle);
 	}
 
 	~SActorSequenceEditorWidgetImpl()
@@ -236,7 +237,7 @@ public:
 	void Construct(const FArguments&, TWeakPtr<FBlueprintEditor> InBlueprintEditor)
 	{
 		OnBlueprintPreCompileHandle = GEditor->OnBlueprintPreCompile().AddSP(this, &SActorSequenceEditorWidgetImpl::OnBlueprintPreCompile);
-		OnObjectSavedHandle = FCoreUObjectDelegates::OnObjectSaved.AddSP(this, &SActorSequenceEditorWidgetImpl::OnObjectPreSave);
+		OnObjectSavedHandle = FCoreUObjectDelegates::OnObjectPreSave.AddSP(this, &SActorSequenceEditorWidgetImpl::OnObjectPreSave);
 
 		WeakBlueprintEditor = InBlueprintEditor;
 
@@ -410,7 +411,7 @@ public:
 		}
 	}
 
-	void OnObjectPreSave(UObject* InObject)
+	void OnObjectPreSave(UObject* InObject, FObjectPreSaveContext SaveContext)
 	{
 		TSharedPtr<FBlueprintEditor> BlueprintEditor = WeakBlueprintEditor.Pin();
 		if (Sequencer.IsValid() && BlueprintEditor.IsValid() && InObject && InObject == BlueprintEditor->GetBlueprintObj())

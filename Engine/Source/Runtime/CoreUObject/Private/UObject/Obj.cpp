@@ -1218,7 +1218,10 @@ void UObject::PreSave(FObjectPreSaveContext SaveContext)
 {
 	SaveContext.Data.bBaseClassCalled = true;
 #if WITH_EDITOR
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FCoreUObjectDelegates::OnObjectSaved.Broadcast(this);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	FCoreUObjectDelegates::OnObjectPreSave.Broadcast(this, SaveContext);
 #endif
 }
 

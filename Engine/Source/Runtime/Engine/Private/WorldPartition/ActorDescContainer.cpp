@@ -7,6 +7,7 @@
 #include "AssetRegistryModule.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "Misc/Base64.h"
+#include "UObject/ObjectSaveContext.h"
 #endif
 
 UActorDescContainer::UActorDescContainer(const FObjectInitializer& ObjectInitializer)
@@ -162,8 +163,15 @@ bool UActorDescContainer::ShouldHandleActorEvent(const AActor* Actor)
 	return false;
 }
 
-void UActorDescContainer::OnObjectPreSave(UObject* Object)
+void UActorDescContainer::OnObjectPreSave(UObject* Object, FObjectPreSaveContext SaveContext)
 {
+	if (SaveContext.IsProceduralSave())
+	{
+		// Do not delete and recreate FWorldPartitionActorDesc when making a procedural save. Procedural saves such as
+		// EditorDomain saves can occur during a load package, and FWorldPartitionReferenceImpl::IncRefCount 
+		// can load (and therefore save) an actor package while holding a pointer to the FWorldPartitionActorDesc. 
+		return;
+	}
 	if (const AActor* Actor = Cast<AActor>(Object))
 	{
 		if (ShouldHandleActorEvent(Actor))
@@ -290,7 +298,7 @@ void UActorDescContainer::RegisterEditorDelegates()
 {
 	if (GEditor && !IsTemplate() && !World->IsGameWorld())
 	{
-		FCoreUObjectDelegates::OnObjectSaved.AddUObject(this, &UActorDescContainer::OnObjectPreSave);
+		FCoreUObjectDelegates::OnObjectPreSave.AddUObject(this, &UActorDescContainer::OnObjectPreSave);
 		FEditorDelegates::OnPackageDeleted.AddUObject(this, &UActorDescContainer::OnPackageDeleted);
 		FCoreUObjectDelegates::OnObjectsReplaced.AddUObject(this, &UActorDescContainer::OnObjectsReplaced);
 	}
@@ -300,7 +308,7 @@ void UActorDescContainer::UnregisterEditorDelegates()
 {
 	if (GEditor && !IsTemplate() && !World->IsGameWorld())
 	{
-		FCoreUObjectDelegates::OnObjectSaved.RemoveAll(this);
+		FCoreUObjectDelegates::OnObjectPreSave.RemoveAll(this);
 		FEditorDelegates::OnPackageDeleted.RemoveAll(this);
 		FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 	}

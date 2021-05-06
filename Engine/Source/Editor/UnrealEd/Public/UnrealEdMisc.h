@@ -288,10 +288,10 @@ public:
 	void OnGotoAsset(const FString& InAssetPath) const;
 
 	/** Delegate used to update the map of asset update counts */
-	void OnObjectSaved(UObject* SavedObject);
+	void OnObjectSaved(UObject* SavedObject, FObjectPreSaveContext SaveContext);
 
 	/** Logs an update to an asset */
-	void LogAssetUpdate(UObject* UpdatedAsset);
+	void LogAssetUpdate(UObject* UpdatedAsset, FObjectPreSaveContext SaveContext);
 
 	/** Initialize engine analytics */
 	void InitEngineAnalytics();

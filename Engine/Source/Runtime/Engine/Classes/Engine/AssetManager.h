@@ -648,7 +648,7 @@ protected:
 	virtual void OnInMemoryAssetDeleted(UObject *Object);
 
 	/** Called when object is saved */
-	virtual void OnObjectPreSave(UObject* Object);
+	virtual void OnObjectPreSave(UObject* Object, FObjectPreSaveContext SaveContext);
 
 	/** When asset is renamed */
 	virtual void OnAssetRenamed(const FAssetData& NewData, const FString& OldPath);
