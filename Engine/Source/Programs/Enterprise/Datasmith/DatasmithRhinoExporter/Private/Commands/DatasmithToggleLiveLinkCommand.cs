@@ -4,6 +4,7 @@ using DatasmithRhino.DirectLink;
 using Rhino;
 using Rhino.Commands;
 
+#if DATASMITHRHINO_EXPERIMENTAL
 namespace DatasmithRhino.Commands
 {
 	/**
@@ -57,3 +58,4 @@ namespace DatasmithRhino.Commands
 		}
 	}
 }
+#endif //DATASMITHRHINO_EXPERIMENTAL
