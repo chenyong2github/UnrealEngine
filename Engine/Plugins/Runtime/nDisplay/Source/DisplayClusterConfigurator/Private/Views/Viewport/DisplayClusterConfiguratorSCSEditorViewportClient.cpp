@@ -42,7 +42,6 @@ FDisplayClusterConfiguratorSCSEditorViewportClient::FDisplayClusterConfiguratorS
 {
 	WidgetMode = FWidget::WM_Translate;
 	WidgetCoordSystem = COORD_Local;
-	EngineShowFlags.DisableAdvancedFeatures();
 
 	check(Widget);
 	Widget->SetSnapEnabled(true);
@@ -62,6 +61,7 @@ FDisplayClusterConfiguratorSCSEditorViewportClient::FDisplayClusterConfiguratorS
 	SyncEditorSettings();
 
 	EngineShowFlags.AntiAliasing = DisplayClusterSettings->bEditorEnableAA;
+	EngineShowFlags.EyeAdaptation = false;
 	
 	//OverrideNearClipPlane(1.0f);
 	bUsingOrbitCamera = true;
