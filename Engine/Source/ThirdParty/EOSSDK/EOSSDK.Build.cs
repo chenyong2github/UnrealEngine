@@ -47,7 +47,11 @@ public class EOSSDK : ModuleRules
 	{
 		get
 		{
-			if(Target.Platform == UnrealTargetPlatform.IOS)
+			if (Target.Platform == UnrealTargetPlatform.Android)
+			{
+				return Path.Combine(SDKBinariesDir, "include");
+			}
+			else if(Target.Platform == UnrealTargetPlatform.IOS)
             {
 				return Path.Combine(SDKBinariesDir, "EOSSDK.framework", "Headers");
 			}
@@ -71,6 +75,10 @@ public class EOSSDK : ModuleRules
 			{
 				return Path.Combine(SDKBaseDir, "Bin", "IOS");
 			}
+			else if (Target.Platform == UnrealTargetPlatform.Android)
+            {
+				return Path.Combine(SDKBaseDir, "Bin", "Android");
+            }
 			return Path.Combine(SDKBaseDir, "Bin");
 		}
 	}
@@ -87,6 +95,11 @@ public class EOSSDK : ModuleRules
 	{
 		get
 		{
+			if(Target.Platform == UnrealTargetPlatform.Android)
+            {
+				return "EOSSDK";
+            }
+
 			return String.Format("EOSSDK-{0}-Shipping", Target.Platform.ToString());
 		}
 	}
@@ -99,7 +112,7 @@ public class EOSSDK : ModuleRules
 			{
 				return Path.Combine(SDKBinariesDir, "lib" + LibraryLinkNameBase + ".dylib");
 			}
-			else if (Target.Platform.IsInGroup(UnrealPlatformGroup.Unix))
+			else if(Target.Platform.IsInGroup(UnrealPlatformGroup.Unix))
 			{
 				return Path.Combine(SDKBinariesDir, "lib" + LibraryLinkNameBase + ".so");
 			}
@@ -107,6 +120,7 @@ public class EOSSDK : ModuleRules
 			{
 				return Path.Combine(SDKLibsDir, LibraryLinkNameBase + ".lib");
 			}
+			// Android has one .so per architecture, so just deal with that below.
 			// Other platforms will override this property.
 
 			throw new BuildException("Unsupported platform");
@@ -125,7 +139,8 @@ public class EOSSDK : ModuleRules
 			{
 				return LibraryLinkNameBase + ".framework";
 			}
-			else if (Target.Platform.IsInGroup(UnrealPlatformGroup.Unix))
+			else if (Target.Platform == UnrealTargetPlatform.Android ||
+				Target.Platform.IsInGroup(UnrealPlatformGroup.Unix))
 			{
 				return "lib" + LibraryLinkNameBase + ".so";
 			}
@@ -158,25 +173,27 @@ public class EOSSDK : ModuleRules
 		PublicDefinitions.Add(String.Format("EOSSDK_RUNTIME_LOAD_REQUIRED={0}", bRequiresRuntimeLoad ? 1 : 0));
 		PublicDefinitions.Add(String.Format("EOSSDK_RUNTIME_LIBRARY_NAME=\"{0}\"", RuntimeLibraryFileName));
 
-		if (Target.Platform == UnrealTargetPlatform.IOS)
+		if (Target.Platform == UnrealTargetPlatform.Android)
+		{
+			PublicIncludePaths.Add(Path.Combine(SDKIncludesDir, "Android"));
+			PublicAdditionalLibraries.Add(Path.Combine(SDKBinariesDir, "libs", "armeabi-v7a", RuntimeLibraryFileName));
+			PublicAdditionalLibraries.Add(Path.Combine(SDKBinariesDir, "libs", "arm64-v8a", RuntimeLibraryFileName));
+
+			string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
+			AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "EOSSDK_UPL.xml"));
+		}
+		else if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
 			PublicAdditionalFrameworks.Add(new Framework("EOSSDK", SDKBinariesDir, "", true));
 		}
 		else
 		{
-			PublicSystemLibraryPaths.Add(SDKBinariesDir);
-			PublicAdditionalLibraries.Add(LibraryLinkName);
-
-			string RuntimeLibrarySourcePath = Path.Combine(SDKBinariesDir, RuntimeLibraryFileName);
-			string RuntimeLibraryTargetPath = Path.Combine(EngineBinariesDir, RuntimeLibraryFileName);
-			RuntimeDependencies.Add(
-				RuntimeLibraryTargetPath,
-				RuntimeLibrarySourcePath,
-				StagedFileType.NonUFS);
+			PublicAdditionalLibraries.Add(Path.Combine(SDKBinariesDir, LibraryLinkName));
+			
+			RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", RuntimeLibraryFileName), Path.Combine(SDKBinariesDir, RuntimeLibraryFileName));
 
 			if (bRequiresRuntimeLoad)
 			{
-				PublicRuntimeLibraryPaths.Add(EngineBinariesDir);
 				PublicDelayLoadDLLs.Add(RuntimeLibraryFileName);
 			}
 		}
