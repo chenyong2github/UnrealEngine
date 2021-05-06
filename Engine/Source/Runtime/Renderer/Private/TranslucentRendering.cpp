@@ -330,7 +330,7 @@ FSeparateTranslucencyDimensions UpdateTranslucencyTimers(FRHICommandListImmediat
 
 	FSeparateTranslucencyDimensions Dimensions;
 	Dimensions.Extent = GetScaledExtent(SceneContext.GetBufferSizeXY(), EffectiveScale);
-	Dimensions.NumSamples = SceneContext.GetSceneColorSurface()->GetNumSamples();
+	Dimensions.NumSamples = SceneContext.GetSceneDepthSurface()->GetNumSamples();
 	Dimensions.Scale = EffectiveScale;
 	return Dimensions;
 }
