@@ -23,6 +23,11 @@
 #include "DisplayNodes/SequencerObjectBindingNode.h"
 #include "ScopedTransaction.h"
 #include "UObject/Package.h"
+#include "AssetRegistryModule.h"
+#include "FileHelpers.h"
+#include "LevelSequence.h"
+
+
 
 #define LOCTEXT_NAMESPACE "FSequencerUtilities"
 
@@ -288,5 +293,37 @@ FName FSequencerUtilities::GetUniqueName( FName CandidateName, const TArray<FNam
 
 	return UniqueName;
 }
+
+TArray<FString> FSequencerUtilities::GetAssociatedMapPackages(const ULevelSequence* InSequence)
+{
+	if (!InSequence)
+	{
+		return TArray<FString>();
+	}
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	const FName LSMapPathName = *InSequence->GetOutermost()->GetPathName();
+
+	TArray<FString> AssociatedMaps;
+	TArray<FAssetIdentifier> AssociatedAssets;
+
+	// This makes the assumption these functions will append the array, and not clear it.
+	AssetRegistryModule.Get().GetReferencers(LSMapPathName, AssociatedAssets);
+	AssetRegistryModule.Get().GetDependencies(LSMapPathName, AssociatedAssets);
+
+	for (FAssetIdentifier& AssociatedMap : AssociatedAssets)
+	{
+		FString MapFilePath;
+		FString LevelPath = AssociatedMap.PackageName.ToString();
+		if (FEditorFileUtils::IsMapPackageAsset(LevelPath, MapFilePath))
+		{
+			AssociatedMaps.AddUnique(LevelPath);
+		}
+	}
+
+	AssociatedMaps.Sort([](const FString& One, const FString& Two) { return FPaths::GetBaseFilename(One) < FPaths::GetBaseFilename(Two); });
+	return AssociatedMaps;
+}
+
 
 #undef LOCTEXT_NAMESPACE
