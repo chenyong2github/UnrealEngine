@@ -61,6 +61,9 @@ public:
 	void OnComponentsUpdated();
 	/** Called by the engine when an actor is deleted */
 	void OnLevelActorDeleted(AActor* Actor);
+	
+	/** Called when an actor desc is removed */
+	void OnActorDescRemoved(FWorldPartitionActorDesc* InActorDesc);
 
 	/** Called by engine when edit cut actors begins */
 	void OnEditCutActorsBegin();
@@ -112,11 +115,16 @@ private:
 	void TogglePinnedColumn();
 	bool IsPinnedColumnActive() const { return bPinnedColumnActive; }
 private:
-	/** Number of actors which have passed through the filters */
+	/** Number of actors (including unloaded) which have passed through the filters */
 	uint32 FilteredActorCount = 0;
+	/** Number of unloaded actors which have passed through all the filters */
+	uint32 FilteredUnloadedActorCount = 0;
+	/** List of unloaded actors which passed through the regular filters and may or may not have passed the search filter */
+	TSet<const FWorldPartitionActorDesc*> ApplicableUnloadedActors;
 	/** List of actors which passed the regular filters and may or may not have passed the search filter */
 	TSet<TWeakObjectPtr<AActor>> ApplicableActors;
 
+	bool bRepresentingWorldPartitionedWorld = false;
 	bool bActorSCCStatusColumnActive = false;
 	bool bPinnedColumnActive = false;
 };

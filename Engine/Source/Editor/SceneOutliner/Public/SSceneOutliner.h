@@ -117,8 +117,8 @@ struct FSceneOutlinerItemSelection
 		return SelectedItems.Num();
 	}
 
-	/** Returns the number of items of a specific type in the selection */
-	template <typename TreeType>
+	/** Returns the number of items of the specified types in the selection */
+	template <typename ...TreeTypes>
 	uint32 Num() const
 	{
 		uint32 Result = 0;
@@ -126,7 +126,7 @@ struct FSceneOutlinerItemSelection
 		{
 			if (const auto ItemPtr = Item.Pin())
 			{
-				if (ItemPtr->IsA<TreeType>())
+				if ((ItemPtr->IsA<TreeTypes>() || ...))
 				{
 					++Result;
 				}

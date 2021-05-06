@@ -164,6 +164,13 @@ FActorBrowsingMode::FActorBrowsingMode(SSceneOutliner* InSceneOutliner, TWeakObj
 
 FActorBrowsingMode::~FActorBrowsingMode()
 {
+	if (RepresentingWorld.IsValid())
+	{
+		if (UWorldPartition* const WorldPartition = RepresentingWorld->GetWorldPartition())
+		{
+			WorldPartition->OnActorDescRemovedEvent.RemoveAll(this);
+		}
+	}
 	FSceneOutlinerDelegates::Get().OnComponentsUpdated.RemoveAll(this);
 
 	GEngine->OnLevelActorDeleted().RemoveAll(this);
@@ -182,14 +189,30 @@ FActorBrowsingMode::~FActorBrowsingMode()
 
 void FActorBrowsingMode::Rebuild()
 {
+	// If we used to be representing a wp world, unbind delegates before rebuilding begins
+	if (RepresentingWorld.IsValid())
+	{
+		if (UWorldPartition* const WorldPartition = RepresentingWorld->GetWorldPartition())
+		{
+			WorldPartition->OnActorDescRemovedEvent.RemoveAll(this);
+		}
+	}
+	
 	FActorMode::Rebuild();
 
 	FilteredActorCount = 0;
+	FilteredUnloadedActorCount = 0;
+	ApplicableUnloadedActors.Empty();
 	ApplicableActors.Empty();
 
-	// Enable the pinned column by default on WP worlds
-	if (RepresentingWorld.IsValid() && RepresentingWorld->GetWorldPartition() != nullptr)
+	bRepresentingWorldPartitionedWorld = RepresentingWorld.IsValid() && RepresentingWorld->GetWorldPartition() != nullptr;
+
+	if (bRepresentingWorldPartitionedWorld)
 	{
+		UWorldPartition* const WorldPartition = RepresentingWorld->GetWorldPartition();
+		WorldPartition->OnActorDescRemovedEvent.AddRaw(this, &FActorBrowsingMode::OnActorDescRemoved);
+
+		// Enable the pinned column by default on WP worlds
 		if (!bPinnedColumnActive)
 		{
 			TogglePinnedColumn();
@@ -209,14 +232,22 @@ FText FActorBrowsingMode::GetStatusText() const
 		return FText();
 	}
 
-	const int32 TotalActorCount = ApplicableActors.Num();
-	const int32 SelectedActorCount = SceneOutliner->GetSelection().Num<FActorTreeItem>();
+	// The number of actors in the outliner before applying the text filter
+	const int32 TotalActorCount = ApplicableActors.Num() + ApplicableUnloadedActors.Num();
+	const int32 SelectedActorCount = SceneOutliner->GetSelection().Num<FActorTreeItem, FActorDescTreeItem>();
 
 	if (!SceneOutliner->IsTextFilterActive())
 	{
 		if (SelectedActorCount == 0) //-V547
 		{
-			return FText::Format(LOCTEXT("ShowingAllActorsFmt", "{0} actors"), FText::AsNumber(FilteredActorCount));
+			if (bRepresentingWorldPartitionedWorld)
+			{
+				return FText::Format(LOCTEXT("ShowingAllActorsFmt", "{0} actors ({1} loaded)"), FText::AsNumber(FilteredActorCount), FText::AsNumber(FilteredActorCount - FilteredUnloadedActorCount));
+			}
+			else
+			{
+				return FText::Format(LOCTEXT("ShowingAllActorsFmt", "{0} actors"), FText::AsNumber(FilteredActorCount));
+			}
 		}
 		else
 		{
@@ -560,15 +591,31 @@ void FActorBrowsingMode::OnItemAdded(FSceneOutlinerTreeItemPtr Item)
 			}
 		}
 	}
+	else if (Item->IsA<FActorDescTreeItem>())
+	{
+		if (!Item->Flags.bIsFilteredOut)
+		{
+			++FilteredActorCount;
+			++FilteredUnloadedActorCount;
+		}
+	}
 }
 
 void FActorBrowsingMode::OnItemRemoved(FSceneOutlinerTreeItemPtr Item)
 {
-	if (const FActorTreeItem* ActorItem = Item->CastTo<FActorTreeItem>())
+	if (Item->IsA<FActorTreeItem>())
 	{
-		if (!ActorItem->Flags.bIsFilteredOut)
+		if (!Item->Flags.bIsFilteredOut)
 		{
 			--FilteredActorCount;
+		}
+	}
+	else if (Item->IsA<FActorDescTreeItem>())
+	{
+		if (!Item->Flags.bIsFilteredOut)
+		{
+			--FilteredActorCount;
+			--FilteredUnloadedActorCount;
 		}
 	}
 }
@@ -581,6 +628,11 @@ void FActorBrowsingMode::OnComponentsUpdated()
 void FActorBrowsingMode::OnLevelActorDeleted(AActor* Actor)
 {
 	ApplicableActors.Remove(Actor);
+}
+
+void FActorBrowsingMode::OnActorDescRemoved(FWorldPartitionActorDesc* InActorDesc)
+{
+	ApplicableUnloadedActors.Remove(InActorDesc);
 }
 
 void FActorBrowsingMode::OnItemSelectionChanged(FSceneOutlinerTreeItemPtr TreeItem, ESelectInfo::Type SelectionType, const FSceneOutlinerItemSelection& Selection)
@@ -731,9 +783,13 @@ void FActorBrowsingMode::OnFilterTextCommited(FSceneOutlinerItemSelection& Selec
 
 void FActorBrowsingMode::OnItemPassesFilters(const ISceneOutlinerTreeItem& Item)
 {
-	if (const FActorTreeItem* ActorItem = Item.CastTo<FActorTreeItem>())
+	if (const FActorTreeItem* const ActorItem = Item.CastTo<FActorTreeItem>())
 	{
 		ApplicableActors.Add(ActorItem->Actor);
+	}
+	else if (const FActorDescTreeItem* const ActorDescItem = Item.CastTo<FActorDescTreeItem>(); ActorDescItem && ActorDescItem->IsValid())
+	{
+		ApplicableUnloadedActors.Add(ActorDescItem->ActorDescHandle.GetActorDesc());
 	}
 }
 
