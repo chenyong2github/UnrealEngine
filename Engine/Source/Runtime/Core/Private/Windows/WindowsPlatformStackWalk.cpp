@@ -370,7 +370,19 @@ uint32 FWindowsPlatformStackWalk::CaptureStackBackTrace( uint64* BackTrace, uint
 			DetermineMaxCallstackDepth();
 		}
 		PVOID WinBackTrace[MAX_CALLSTACK_DEPTH];
-		uint16 NumFrames = RtlCaptureStackBackTrace(0, FMath::Min<ULONG>(GMaxCallstackDepth, MaxDepth), WinBackTrace, NULL);
+		ULONG RequestedDepth = FMath::Min<ULONG>(GMaxCallstackDepth, MaxDepth);
+		uint16 NumFrames = RtlCaptureStackBackTrace(0, RequestedDepth, WinBackTrace, NULL);
+		if (NumFrames == 0 && RequestedDepth > 0)
+		{
+			// RtlCaptureStackBackTrace sometimes returns 0, which NTAPI Undocumented Functions says is the value it returns to indicate an error
+			// In all the cases we have tested, calling it again after it returns 0 will make it succeed and return non-zero
+			NumFrames = RtlCaptureStackBackTrace(0, RequestedDepth, WinBackTrace, NULL);
+			if (NumFrames == 0)
+			{
+				// Don't send a log since this might be called from inside the log system
+				FPlatformMisc::LocalPrint(TEXT("RtlCaptureStackBackTrace failed; returning an empty backtrace."));
+			}
+		}
 		Depth = NumFrames;
 		for (uint16 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex)
 		{

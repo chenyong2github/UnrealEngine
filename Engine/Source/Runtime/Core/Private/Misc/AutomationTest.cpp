@@ -1057,7 +1057,7 @@ void FAutomationTestExecutionInfo::AddEvent(const FAutomationEvent& Event, int S
 	int32 EntryIndex = 0;
 	if (FAutomationTestFramework::Get().GetCaptureStack())
 	{
-		TArray<FProgramCounterSymbolInfo> Stack = FPlatformStackWalk::GetStack(StackOffset + 1, 1);
+		SAFE_GETSTACK(Stack, StackOffset + 1, 1);
 		EntryIndex = Entries.Add(FAutomationExecutionEntry(Event, Stack[0].Filename, Stack[0].LineNumber));
 	}
 	else
