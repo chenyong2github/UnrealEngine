@@ -749,6 +749,12 @@ void UNiagaraSystem::PostLoad()
 		bBakeOutRapidIteration = true;
 		RequestCompile(false);
 	}
+
+	// see the equivalent in NiagaraEmitter for details
+	if(bIsTemplateAsset_DEPRECATED)
+	{
+		TemplateSpecification = bIsTemplateAsset_DEPRECATED ? ENiagaraScriptTemplateSpecification::Template : ENiagaraScriptTemplateSpecification::None;
+	}
 #endif // WITH_EDITORONLY_DATA
 
 	if ( FPlatformProperties::RequiresCookedData() )
@@ -1106,7 +1112,10 @@ void UNiagaraSystem::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 		++StringIter;
 	}
 
-
+	// TemplateSpecialization
+	FName TemplateSpecificationName = GET_MEMBER_NAME_CHECKED(UNiagaraSystem, TemplateSpecification);
+	FText TemplateSpecializationValueString = StaticEnum<ENiagaraScriptTemplateSpecification>()->GetDisplayNameTextByValue((int64) TemplateSpecification);
+	OutTags.Add(FAssetRegistryTag(TemplateSpecificationName, TemplateSpecializationValueString.ToString(), FAssetRegistryTag::TT_Alphabetical));
 
 	/*for (const UNiagaraDataInterface* DI : DataInterfaces)
 	{
@@ -1708,9 +1717,9 @@ FNiagaraEmitterHandle UNiagaraSystem::AddEmitterHandle(UNiagaraEmitter& InEmitte
 {
 	UNiagaraEmitter* NewEmitter = UNiagaraEmitter::CreateWithParentAndOwner(InEmitter, this, EmitterName, ~(RF_Public | RF_Standalone));
 	FNiagaraEmitterHandle EmitterHandle(*NewEmitter);
-	if (InEmitter.bIsTemplateAsset)
+	if (InEmitter.TemplateSpecification == ENiagaraScriptTemplateSpecification::Template || InEmitter.TemplateSpecification == ENiagaraScriptTemplateSpecification::Behavior)
 	{
-		NewEmitter->bIsTemplateAsset = false;
+		NewEmitter->TemplateSpecification = ENiagaraScriptTemplateSpecification::None;
 		NewEmitter->TemplateAssetDescription = FText();
 		NewEmitter->RemoveParent();
 	}

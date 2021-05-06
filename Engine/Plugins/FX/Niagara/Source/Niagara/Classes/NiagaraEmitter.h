@@ -438,10 +438,13 @@ public:
 	/* If this emitter is exposed to the library. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
 	bool bExposeToLibrary;
+	
+	UPROPERTY()
+	bool bIsTemplateAsset_DEPRECATED;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
-	bool bIsTemplateAsset;
-
+	ENiagaraScriptTemplateSpecification TemplateSpecification;
+	
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
 	FText TemplateAssetDescription;
 

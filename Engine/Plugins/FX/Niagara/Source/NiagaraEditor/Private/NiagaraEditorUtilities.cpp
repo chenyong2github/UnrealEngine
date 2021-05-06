@@ -1580,6 +1580,37 @@ ENiagaraScriptLibraryVisibility FNiagaraEditorUtilities::GetScriptAssetVisibilit
 	return ScriptVisibility;
 }
 
+// this function is used as an overload inside FAssetData.GetTagValue for the ENiagaraScriptTemplateSpecification enum
+void LexFromString(ENiagaraScriptTemplateSpecification& OutValue, const TCHAR* Buffer)
+{
+	OutValue = (ENiagaraScriptTemplateSpecification) StaticEnum<ENiagaraScriptTemplateSpecification>()->GetValueByName(FName(Buffer));
+}
+
+bool FNiagaraEditorUtilities::GetTemplateSpecificationFromTag(const FAssetData& Data, ENiagaraScriptTemplateSpecification& OutTemplateSpecification)
+{
+	ENiagaraScriptTemplateSpecification TemplateSpecification = ENiagaraScriptTemplateSpecification::None;
+	bool bTemplateEnumTagFound = Data.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, TemplateSpecification), TemplateSpecification);
+
+	if(bTemplateEnumTagFound)
+	{
+		OutTemplateSpecification = TemplateSpecification;
+		return true;
+	}
+	else
+	{
+		bool bIsTemplateAsset = false;
+		bool bDeprecatedTemplateTagFound = Data.GetTagValue(FName(TEXT("bIsTemplateAsset")), bIsTemplateAsset);
+
+		if(bDeprecatedTemplateTagFound)
+		{
+			bIsTemplateAsset ? OutTemplateSpecification = ENiagaraScriptTemplateSpecification::Template : OutTemplateSpecification = ENiagaraScriptTemplateSpecification::None;
+			return true;
+		}		
+	}
+
+	return false;
+}
+
 bool FNiagaraEditorUtilities::IsScriptAssetInLibrary(const FAssetData& ScriptAssetData)
 {
 	return GetScriptAssetVisibility(ScriptAssetData) == ENiagaraScriptLibraryVisibility::Library;
@@ -1823,7 +1854,7 @@ bool FNiagaraEditorUtilities::DoesItemMatchFilterText(const FText& FilterText, c
 	{
 		return true;
 	}
-	
+
 	TArray<FString> KeywordArray;
 	Item->Keywords.ToString().ParseIntoArray(KeywordArray, TEXT(" "));
 	for(int32 FilterIndex = 0; FilterIndex < FilterTerms.Num(); FilterIndex++)

@@ -59,7 +59,7 @@
 #include "NiagaraScriptStatsViewModel.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
-#include "SNiagaraAssetPickerList.h"
+#include "NiagaraEditor/Private/SNiagaraAssetPickerList.h"
 #include "Widgets/SNiagaraParameterDefinitionsPanel.h"
 #include "ViewModels/NiagaraParameterDefinitionsPanelViewModel.h"
 
@@ -96,9 +96,6 @@ static FAutoConsoleVariableRef CVarSuppressNiagaraSystems(
 	TEXT("If > 0 Niagara Systems will be written to a text format when opened and closed in the editor. \n"),
 	ECVF_Default
 );
-
-bool FNiagaraSystemToolkit::bShowLibraryOnly = false;
-bool FNiagaraSystemToolkit::bShowTemplateOnly = false;
 
 void FNiagaraSystemToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
@@ -1234,123 +1231,31 @@ TSharedRef<SWidget> FNiagaraSystemToolkit::CreateAddEmitterMenuContent()
 	RefreshItemSelectorDelegates.Add(&RefreshItemSelector);
 	FNiagaraAssetPickerListViewOptions ViewOptions;
 	ViewOptions.SetCategorizeUserDefinedCategory(true);
+	ViewOptions.SetCategorizeLibraryAssets(true);
+	ViewOptions.SetAddLibraryOnlyCheckbox(true);
+
+	FNiagaraAssetPickerTabOptions TabOptions;
+	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Template, true);
+	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::None, true);
+	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Behavior, true);
 
 	return SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.Padding(3)
-		.AutoHeight()
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-			.FillWidth(1.0f)
-			.HAlign(HAlign_Right)
-			[
-				SNew(SCheckBox)
-				.OnCheckStateChanged(this, &FNiagaraSystemToolkit::TemplateCheckBoxStateChanged)
-				.IsChecked(this, &FNiagaraSystemToolkit::GetTemplateCheckBoxState)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("TemplateOnly", "Template Only"))
-				]
-			]
-			+ SHorizontalBox::Slot()
-			.Padding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-			.AutoWidth()
-			.HAlign(HAlign_Right)
-			[
-				SNew(SCheckBox)
-		 		.OnCheckStateChanged(this, &FNiagaraSystemToolkit::LibraryCheckBoxStateChanged)
-				.IsChecked(this, &FNiagaraSystemToolkit::GetLibraryCheckBoxState)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("LibraryOnly", "Library Only"))
-				]
-			]
-		]
 		+SVerticalBox::Slot()
 		.FillHeight(1.0f)
 		[
 			SNew(SBox)
-			.HeightOverride(300.f)
-			.WidthOverride(300.f)
+			.WidthOverride(450.f)
+			.HeightOverride(500.f)
 			[
 				SNew(SNiagaraAssetPickerList, UNiagaraEmitter::StaticClass())
 				.ClickActivateMode(EItemSelectorClickActivateMode::SingleClick)
 				.ViewOptions(ViewOptions)
-				.OnDoesAssetPassCustomFilter(this, &FNiagaraSystemToolkit::ShouldFilterEmitter)
+				.TabOptions(TabOptions)
 				.RefreshItemSelectorDelegates(RefreshItemSelectorDelegates)
 				.OnTemplateAssetActivated(this, &FNiagaraSystemToolkit::EmitterAssetSelected)
 			]
 		];
 }
-
-void FNiagaraSystemToolkit::LibraryCheckBoxStateChanged(ECheckBoxState InCheckbox)
-{
-	FNiagaraSystemToolkit::bShowLibraryOnly = (InCheckbox == ECheckBoxState::Checked);
-	RefreshItemSelector.ExecuteIfBound();
-}
-
-ECheckBoxState FNiagaraSystemToolkit::GetLibraryCheckBoxState() const
-{
-	return FNiagaraSystemToolkit::bShowLibraryOnly ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-}
-
-void FNiagaraSystemToolkit::TemplateCheckBoxStateChanged(ECheckBoxState InCheckbox)
-{
-	FNiagaraSystemToolkit::bShowTemplateOnly = (InCheckbox == ECheckBoxState::Checked);
-	RefreshItemSelector.ExecuteIfBound();
-}
-
-ECheckBoxState FNiagaraSystemToolkit::GetTemplateCheckBoxState() const
-{
-	return FNiagaraSystemToolkit::bShowTemplateOnly ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-}
-
-bool FNiagaraSystemToolkit::ShouldFilterEmitter(const FAssetData& AssetData)
-{
-	// Check if library script
-	bool bScriptAllowed = true;
-	bool bInLibrary = false;
-	bool bIsTemplate = false;
-	if (FNiagaraSystemToolkit::bShowLibraryOnly == true)
-	{
-		bool bFoundLibraryTag = AssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bExposeToLibrary), bInLibrary);
-
-		if (bFoundLibraryTag == false)
-		{
-			if (AssetData.IsAssetLoaded())
-			{
-				UNiagaraEmitter* EmitterAsset = static_cast<UNiagaraEmitter*>(AssetData.GetAsset());
-				if (EmitterAsset != nullptr)
-				{
-					bInLibrary = EmitterAsset->bExposeToLibrary;
-				}
-			}
-		}
-		bScriptAllowed &= bInLibrary;
-	}
-	if (FNiagaraSystemToolkit::bShowTemplateOnly == true)
-	{
-		bool bFoundTemplateTag = AssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bIsTemplateAsset), bIsTemplate);
-
-		if (bFoundTemplateTag == false)
-		{
-			if (AssetData.IsAssetLoaded())
-			{
-				UNiagaraEmitter* EmitterAsset = static_cast<UNiagaraEmitter*>(AssetData.GetAsset());
-				if (EmitterAsset != nullptr)
-				{
-					bIsTemplate = EmitterAsset->bIsTemplateAsset;
-				}
-			}
-		}
-		bScriptAllowed &= bIsTemplate;
-	}
-
-	return bScriptAllowed;
-}
-
 
 TSharedRef<SWidget> FNiagaraSystemToolkit::GenerateCompileMenuContent()
 {

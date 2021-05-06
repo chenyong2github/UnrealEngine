@@ -59,12 +59,6 @@ private:
 	void OnDistributeNodesH();
 	void OnDistributeNodesV();
 
-	void LibraryCheckBoxStateChanged(ECheckBoxState InCheckbox);
-	ECheckBoxState GetLibraryCheckBoxState() const;
-	void TemplateCheckBoxStateChanged(ECheckBoxState InCheckbox);
-	ECheckBoxState GetTemplateCheckBoxState() const;
-
-	bool ShouldFilterEmitter(const FAssetData& AssetData);
 private:
 	TSharedPtr<FNiagaraOverviewGraphViewModel> ViewModel;
 	TSharedPtr<SGraphEditor> GraphEditor;
@@ -73,7 +67,4 @@ private:
 	bool bUpdatingGraphSelectionFromViewModel;
 
 	int32 ZoomToFitFrameDelay;
-
-	static bool bShowLibraryOnly;
-	static bool bShowTemplateOnly;
 };
