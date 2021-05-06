@@ -71,6 +71,12 @@ namespace SUSDStageImpl
 			}
 		}
 
+		// Don't deselect anything if we're not going to select anything
+		if ( ActorsToSelect.Num() == 0 && ComponentsToSelect.Num() == 0 )
+		{
+			return;
+		}
+
 		const bool bSelected = true;
 		const bool bNotifySelectionChanged = true;
 		const bool bDeselectBSPSurfs = true;
@@ -868,10 +874,17 @@ void SUsdStage::OnViewportSelectionChanged( UObject* NewSelection )
 	TArray<FString> PrimPaths;
 	for ( USceneComponent* Component : SelectedComponents )
 	{
-		PrimPaths.Add( StageActor->GetSourcePrimPath( Component ) );
+		FString FoundPrimPath = StageActor->GetSourcePrimPath( Component );
+		if ( !FoundPrimPath.IsEmpty() )
+		{
+			PrimPaths.Add( FoundPrimPath );
+		}
 	}
 
-	UsdStageTreeView->SelectPrims( PrimPaths );
+	if ( PrimPaths.Num() > 0 )
+	{
+		UsdStageTreeView->SelectPrims( PrimPaths );
+	}
 }
 
 #endif // #if USE_USD_SDK
