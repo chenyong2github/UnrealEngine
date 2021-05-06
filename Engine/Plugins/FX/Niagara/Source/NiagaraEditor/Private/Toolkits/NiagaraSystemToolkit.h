@@ -138,11 +138,6 @@ private:
 
 	void GetSequencerAddMenuContent(FMenuBuilder& MenuBuilder, TSharedRef<ISequencer> Sequencer);
 	TSharedRef<SWidget> CreateAddEmitterMenuContent();
-	void LibraryCheckBoxStateChanged(ECheckBoxState InCheckbox);
-	ECheckBoxState GetLibraryCheckBoxState() const;
-	void TemplateCheckBoxStateChanged(ECheckBoxState InCheckbox);
-	ECheckBoxState GetTemplateCheckBoxState() const;
-	bool ShouldFilterEmitter(const FAssetData& AssetData);
 	TSharedRef<SWidget> GenerateCompileMenuContent();
 
 	void EmitterAssetSelected(const FAssetData& AssetData);
@@ -238,8 +233,4 @@ public:
 	static const FName ScratchPadTabID;
 	static const FName ScriptStatsTabID;
 	static const FName BakerTabID;
-
-private:
-	static bool bShowLibraryOnly;
-	static bool bShowTemplateOnly;
 };

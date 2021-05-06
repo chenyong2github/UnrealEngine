@@ -77,6 +77,14 @@ enum class ENiagaraScriptLibraryVisibility : uint8
 	Hidden UMETA(DisplayName = "Hidden")
 };
 
+UENUM()
+enum class ENiagaraScriptTemplateSpecification : uint8
+{
+	None,
+	Template,
+	Behavior UMETA(DisplayName = "Behavior Example")
+};
+
 USTRUCT()
 struct FNiagaraModuleDependency
 {

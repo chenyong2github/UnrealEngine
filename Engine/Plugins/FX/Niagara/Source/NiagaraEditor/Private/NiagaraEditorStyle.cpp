@@ -145,7 +145,13 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	FTextBlockStyle ActionMenuFilterText = FTextBlockStyle(NormalText)
         .SetColorAndOpacity(FSlateColor::UseForeground())
 		.SetHighlightColor(FLinearColor(0.02f, 0.3f, 0.0f))
+		.SetShadowOffset(FVector2D(1.f, 1.f))
         .SetFont(DEFAULT_FONT("Bold", 8));
+        
+	FTextBlockStyle TemplateTabText = FTextBlockStyle(NormalText)
+		.SetColorAndOpacity(FSlateColor::UseForeground())
+		.SetHighlightColor(FLinearColor(0.02f, 0.3f, 0.0f))
+		.SetFont(DEFAULT_FONT("Bold", 11));
 
 	const FCheckBoxStyle NiagaraGraphActionMenuFilterCheckBox = FCheckBoxStyle()
             .SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
@@ -184,6 +190,8 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	Style->Set("GraphActionMenu.ActionSourceTextBlock", ActionMenuSourceText);
 
 	Style->Set("GraphActionMenu.ActionFilterTextBlock", ActionMenuFilterText);
+
+	Style->Set("GraphActionMenu.TemplateTabTextBlock", TemplateTabText);
 	
 	Style->Set( "GraphActionMenu.FilterCheckBox", NiagaraGraphActionMenuFilterCheckBox );
 	
