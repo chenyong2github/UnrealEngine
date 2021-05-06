@@ -100,7 +100,7 @@ public:
 	void Destroy();
 
 
-protected:
+public:
 
 
 	/**

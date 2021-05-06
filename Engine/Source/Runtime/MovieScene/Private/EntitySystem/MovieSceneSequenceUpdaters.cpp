@@ -248,6 +248,7 @@ void FSequenceUpdater_Flat::Update(UMovieSceneEntitySystemLinker* Linker, FInsta
 
 		FEntityImportSequenceParams Params;
 		Params.InstanceHandle = InstanceHandle;
+		Params.RootInstanceHandle = InstanceHandle;
 		Params.DefaultCompletionMode = Sequence->DefaultCompletionMode;
 		Params.HierarchicalBias = 0;
 
@@ -264,6 +265,7 @@ void FSequenceUpdater_Flat::Update(UMovieSceneEntitySystemLinker* Linker, FInsta
 		{
 			FEntityImportSequenceParams Params;
 			Params.InstanceHandle = InstanceHandle;
+			Params.RootInstanceHandle = InstanceHandle;
 			Params.DefaultCompletionMode = Sequence->DefaultCompletionMode;
 			Params.HierarchicalBias = 0;
 
@@ -467,6 +469,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 
 				FEntityImportSequenceParams Params;
 				Params.InstanceHandle = RootInstanceHandle;
+				Params.RootInstanceHandle = RootInstanceHandle;
 				Params.DefaultCompletionMode = RootSequence->DefaultCompletionMode;
 				Params.HierarchicalBias = 0;
 
@@ -483,6 +486,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 				{
 					FEntityImportSequenceParams Params;
 					Params.InstanceHandle = RootInstanceHandle;
+					Params.RootInstanceHandle = RootInstanceHandle;
 					Params.DefaultCompletionMode = RootSequence->DefaultCompletionMode;
 					Params.HierarchicalBias = 0;
 
@@ -565,6 +569,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 
 				FEntityImportSequenceParams Params;
 				Params.InstanceHandle = SubSequenceHandle;
+				Params.RootInstanceHandle = RootInstanceHandle;
 				Params.DefaultCompletionMode = SubSequence->DefaultCompletionMode;
 				Params.HierarchicalBias = SubData->HierarchicalBias;
 				Params.bPreRoll  = bIsPreRoll;

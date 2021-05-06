@@ -282,8 +282,6 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 	check(IndexOfOne != INDEX_NONE);
 	CurrentSpeedIndex = IndexOfOne;
 
-	PreAnimatedState.EnableGlobalCapture();
-
 	if (InitParams.SpawnRegister.IsValid())
 	{
 		SpawnRegister = InitParams.SpawnRegister;
@@ -347,7 +345,7 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 			// Restore pre animate state since objects will be reinstanced and current cached state will no longer be valid.
 			if (InBlueprint && InBlueprint->GeneratedClass.Get())
 			{
-				RestorePreAnimatedState(InBlueprint->GeneratedClass.Get());
+				PreAnimatedState.RestorePreAnimatedState(InBlueprint->GeneratedClass.Get());
 			}
 		});
 		AcquiredResources.Add([=] { GEditor->OnBlueprintPreCompile().Remove(OnBlueprintPreCompileHandle); });
@@ -432,6 +430,8 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 	ActiveTemplateIDs.Add(MovieSceneSequenceID::Root);
 	ActiveTemplateStates.Add(true);
 	RootTemplateInstance.Initialize(*InitParams.RootSequence, *this, CompiledDataManager);
+
+	RootTemplateInstance.EnableGlobalPreAnimatedStateCapture();
 
 	InitialValueCache = UE::MovieScene::FInitialValueCache::GetGlobalInitialValues();
 	RootTemplateInstance.GetEntitySystemLinker()->AddExtension(InitialValueCache.Get());
@@ -5480,7 +5480,7 @@ FGuid FSequencer::AddSpawnable(UObject& Object, UActorFactory* ActorFactory)
 	// MovieScene asset.
 	UMovieScene* OwnerMovieScene = Sequence->GetMovieScene();
 
-	TValueOrError<FNewSpawnable, FText> Result = SpawnRegister->CreateNewSpawnableType(Object, *OwnerMovieScene, ActorFactory);
+	TValueOrError<FNewSpawnable, FText> Result = SpawnRegister->CreateNewSpawnableType(Object, *OwnerMovieScene, nullptr);
 	if (!Result.IsValid())
 	{
 		FNotificationInfo Info(Result.GetError());
@@ -5694,28 +5694,18 @@ bool FSequencer::OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> N
 			UMovieSceneEntitySystemLinker* EntitySystemLinker = RootTemplateInstance.GetEntitySystemLinker();
 			check(EntitySystemLinker);
 
-			UMovieSceneRestorePreAnimatedStateSystem* RestorePreAnimatedStateSystem = EntitySystemLinker->FindSystem<UMovieSceneRestorePreAnimatedStateSystem>();
-
 			for (TWeakObjectPtr<> WeakObject : FindBoundObjects(BindingToRemove, ActiveTemplateIDs.Top()))
 			{
 				TArray<UObject*> SubObjects;
 				GetObjectsWithOuter(WeakObject.Get(), SubObjects);
 
 				PreAnimatedState.DiscardAndRemoveEntityTokensForObject(*WeakObject.Get());
-				if (RestorePreAnimatedStateSystem)
-				{
-					RestorePreAnimatedStateSystem->DiscardPreAnimatedStateForObject(*WeakObject.Get());
-				}
 
 				for (UObject* SubObject : SubObjects)
 				{
 					if (SubObject)
 					{
 						PreAnimatedState.DiscardAndRemoveEntityTokensForObject(*SubObject);
-						if (RestorePreAnimatedStateSystem)
-						{
-							RestorePreAnimatedStateSystem->DiscardPreAnimatedStateForObject(*SubObject);
-						}
 					}
 				}
 			}
@@ -7924,12 +7914,12 @@ void FSequencer::RemoveActorsFromBinding(FGuid InObjectBinding, const TArray<AAc
 		{
 			if (Component)
 			{
-				RestorePreAnimatedState(*Component);
+				PreAnimatedState.RestorePreAnimatedState(*Component);
 			}
 		}
 
 		// Restore state on the object itself
-		RestorePreAnimatedState(*ActorToRemove);
+		PreAnimatedState.RestorePreAnimatedState(*ActorToRemove);
 
 		ActorToRemove->Modify();
 

@@ -53,9 +53,9 @@ struct FSlomoPreAnimatedGlobalToken : FSlomoTrackToken, IMovieScenePreAnimatedGl
 		: FSlomoTrackToken(InSlomoValue)
 	{}
 
-	virtual void RestoreState(IMovieScenePlayer& Player) override
+	virtual void RestoreState(const UE::MovieScene::FRestoreStateParams& Params) override
 	{
-		Apply(Player);
+		Apply(*Params.GetTerminalPlayer());
 	}
 };
 

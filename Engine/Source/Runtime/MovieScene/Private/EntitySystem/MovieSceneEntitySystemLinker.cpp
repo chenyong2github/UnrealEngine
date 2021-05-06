@@ -121,20 +121,6 @@ void UMovieSceneEntitySystemLinker::InvalidateObjectBinding(const FGuid& ObjectB
 	}
 }
 
-TSharedRef<bool> UMovieSceneEntitySystemLinker::CaptureGlobalState()
-{
-	TSharedPtr<bool> Pinned = GlobalStateCaptureToken.Pin();
-	if (!Pinned)
-	{
-		Pinned = MakeShared<bool>();
-		GlobalStateCaptureToken = Pinned;
-
-		LinkSystem<UMovieSceneCachePreAnimatedStateSystem>();
-	}
-
-	return Pinned.ToSharedRef();
-}
-
 void UMovieSceneEntitySystemLinker::SystemLinked(UMovieSceneEntitySystem* InSystem)
 {
 	const uint16 GlobalID = InSystem->GetGlobalDependencyGraphID();

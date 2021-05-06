@@ -32,7 +32,7 @@ struct FPreAnimatedNiagaraComponentToken : IMovieScenePreAnimatedToken
 		, bComponentLockDesiredAgeDeltaTimeToSeekDelta(bInComponentLockDesiredAgeDeltaTimeToSeekDelta)
 	{ }
 
-	virtual void RestoreState(UObject& InObject, IMovieScenePlayer& InPlayer)
+	virtual void RestoreState(UObject& InObject, const UE::MovieScene::FRestoreStateParams& Params)
 	{
 		UNiagaraComponent* NiagaraComponent = CastChecked<UNiagaraComponent>(&InObject);
 		FNiagaraSystemInstance* SystemInstance = NiagaraComponent->GetSystemInstance();
@@ -109,8 +109,12 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 			UObject* ObjectPtr = Object.Get();
 			UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(ObjectPtr);
 
-			static FMovieSceneAnimTypeID TypeID = TMovieSceneAnimTypeID<FNiagaraSystemUpdateDesiredAgeExecutionToken, 0>();
-			Player.SavePreAnimatedState(*NiagaraComponent, TypeID, FPreAnimatedNiagaraComponentTokenProducer(), PersistentData.GetTrackKey());
+			{
+				static FMovieSceneAnimTypeID TypeID = TMovieSceneAnimTypeID<FNiagaraSystemUpdateDesiredAgeExecutionToken, 0>();
+
+				FScopedPreAnimatedCaptureSource CaptureSource(&Player.PreAnimatedState, PersistentData.GetTrackKey(), true);
+				Player.PreAnimatedState.SavePreAnimatedState(*NiagaraComponent, TypeID, FPreAnimatedNiagaraComponentTokenProducer());
+			}
 
 			NiagaraComponent->SetForceSolo(true);
 			NiagaraComponent->SetAgeUpdateMode(AgeUpdateMode);

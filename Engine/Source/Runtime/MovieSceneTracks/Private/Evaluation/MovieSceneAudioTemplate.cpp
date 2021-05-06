@@ -53,7 +53,7 @@ struct FStopAudioPreAnimatedToken : IMovieScenePreAnimatedToken
 		return TMovieSceneAnimTypeID<FStopAudioPreAnimatedToken>();
 	}
 
-	virtual void RestoreState(UObject& InObject, IMovieScenePlayer& Player) override
+	virtual void RestoreState(UObject& InObject, const UE::MovieScene::FRestoreStateParams& Params) override
 	{
 		UAudioComponent* AudioComponent = CastChecked<UAudioComponent>(&InObject);
 		if (AudioComponent)
@@ -80,7 +80,7 @@ struct FDestroyAudioPreAnimatedToken : IMovieScenePreAnimatedToken
 		return TMovieSceneAnimTypeID<FDestroyAudioPreAnimatedToken>();
 	}
 
-	virtual void RestoreState(UObject& InObject, IMovieScenePlayer& Player) override
+	virtual void RestoreState(UObject& InObject, const UE::MovieScene::FRestoreStateParams& Params) override
 	{
 		UAudioComponent* AudioComponent = CastChecked<UAudioComponent>(&InObject);
 		if (AudioComponent)

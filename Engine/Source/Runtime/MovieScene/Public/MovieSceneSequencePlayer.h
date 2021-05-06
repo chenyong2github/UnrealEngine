@@ -361,6 +361,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
 	void SetPlaybackPosition(FMovieSceneSequencePlaybackParams PlaybackParams);
 
+	/**
+	 * Restore any changes made by this player to their original state
+	 */
+	UFUNCTION(BlueprintCallable, Category="Game|Cinematic")
+	void RestoreState();
+
 public:
 
 	UE_DEPRECATED(4.26, "PlayToFrame is deprecated, use SetPlaybackPosition.")

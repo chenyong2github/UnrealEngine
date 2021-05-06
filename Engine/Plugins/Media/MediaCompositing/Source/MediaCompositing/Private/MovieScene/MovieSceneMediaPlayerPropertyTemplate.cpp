@@ -12,7 +12,7 @@
 
 struct FMediaPlayerPreAnimatedState : IMovieScenePreAnimatedToken
 {
-	virtual void RestoreState(UObject& Object, IMovieScenePlayer& Player)
+	virtual void RestoreState(UObject& Object, const UE::MovieScene::FRestoreStateParams& Params)
 	{
 		CastChecked<UMediaPlayer>(&Object)->Close();
 	}
@@ -109,7 +109,10 @@ struct FMediaPlayerSectionExecutionToken : IMovieSceneExecutionToken
 				continue;
 			}
 
-			Player.SavePreAnimatedState(*MediaPlayer, TMovieSceneAnimTypeID<FMediaPlayerSectionExecutionToken>(), TStatelessPreAnimatedTokenProducer<FMediaPlayerPreAnimatedState>(), PersistentData.GetSectionKey());
+			{
+				FScopedPreAnimatedCaptureSource CaptureSource(&Player.PreAnimatedState, PersistentData.GetSectionKey(), true);
+				Player.PreAnimatedState.SavePreAnimatedState(*MediaPlayer, TMovieSceneAnimTypeID<FMediaPlayerSectionExecutionToken>(), TStatelessPreAnimatedTokenProducer<FMediaPlayerPreAnimatedState>());
+			}
 
 			// Ensure the media player is playing this media
 			const int32 PlaylistIndex = MediaPlayer->GetPlaylistIndex();

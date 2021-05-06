@@ -22,6 +22,7 @@ namespace MovieScene
 
 struct ISequenceUpdater;
 struct FSequenceInstance;
+struct FPreAnimatedStateExtension;
 struct FCompiledDataVolatilityManager;
 struct FSubSequencePath;
 
@@ -86,6 +87,13 @@ public:
 	 * @param Linker     The linker that owns this sequence instance
 	 */
 	void PostEvaluation(UMovieSceneEntitySystemLinker* Linker);
+
+	/**
+	 * Indicate that this sequence instance should capture any and all changes of state so they can be restored later
+	 *
+	 * @param Linker     The linker that owns this sequence instance
+	 */
+	void EnableGlobalPreAnimatedStateCapture(UMovieSceneEntitySystemLinker* Linker);
 
 public:
 
@@ -262,7 +270,7 @@ private:
 	/** For top-level sequences only - a utility class that is used to ensure that volatile sequences are up to date. Only valid in editor, or for sequences that have the volatile flag. */
 	TUniquePtr<FCompiledDataVolatilityManager> VolatilityManager;
 	/** For top-level sequences only - a marker that keeps this instance's linker saving global preanimated state. */
-	TSharedPtr<bool> GlobalStateMarker;
+	TSharedPtr<FPreAnimatedStateExtension> GlobalPreAnimatedState;
 
 
 	/** Delegate Binding for when an object binding is invalidated in this instance . */
