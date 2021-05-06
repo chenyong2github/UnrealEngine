@@ -3,9 +3,9 @@
 using System.IO;
 using UnrealBuildTool;
 
-public class MetalRHI : ModuleRules
+public class AGXRHI : ModuleRules
 {	
-	public MetalRHI(ReadOnlyTargetRules Target) : base(Target)
+	public AGXRHI(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PublicIncludePaths.Add("Runtime/Apple/Common/Public");
 
@@ -23,7 +23,7 @@ public class MetalRHI : ModuleRules
 		AddEngineThirdPartyPrivateStaticDependencies(Target,
 			"MTLPP"
 		);
-			
+
 		PublicWeakFrameworks.Add("Metal");
 
 		if (Target.Platform == UnrealTargetPlatform.Mac)

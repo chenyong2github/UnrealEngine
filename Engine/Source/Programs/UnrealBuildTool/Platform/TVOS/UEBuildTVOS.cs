@@ -58,6 +58,7 @@ namespace UnrealBuildTool
 				Target.GlobalDefinitions.Remove("HAS_METAL=0");
 				Target.GlobalDefinitions.Add("HAS_METAL=1");
 				Target.ExtraModuleNames.Add("MetalRHI");
+				Target.ExtraModuleNames.Add("AGXRHI");
 			}
 		}
 
