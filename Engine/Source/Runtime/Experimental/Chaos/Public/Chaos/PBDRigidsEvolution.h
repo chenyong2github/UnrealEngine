@@ -895,7 +895,8 @@ protected:
 			, FAccelerationStructure* InInternalAccelerationStructure
 			, FAccelerationStructure* InExternalAccelerationStructure
 			, bool InForceFullBuild
-			, bool InIsSingleThreaded);
+			, bool InIsSingleThreaded
+			, bool bNeedsReset);
 		static FORCEINLINE TStatId GetStatId();
 		static FORCEINLINE ENamedThreads::Type GetDesiredThread();
 		static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode();
@@ -907,6 +908,7 @@ protected:
 		FAccelerationStructure* ExternalStructure;
 		bool IsForceFullBuild;
 		bool bIsSingleThreaded;
+		bool bNeedsReset;
 
 	private:
 		void UpdateStructure(FAccelerationStructure* AccelerationStructure);

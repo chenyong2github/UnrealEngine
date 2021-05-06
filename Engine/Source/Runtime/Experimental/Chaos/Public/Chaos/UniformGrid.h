@@ -72,6 +72,14 @@ class CHAOS_API TUniformGridBase
 		return MDx * Face.Second + MMinCorner + (TVector<T, d>(1) - TVector<T, d>::AxisVector(Face.First)) * (MDx / 2);
 	}
 
+	void Reset()
+	{
+		MMinCorner = TVector<T, d>(0);
+		MMaxCorner = TVector<T, d>(0);
+		MCells = TVector<int32, d>(0);
+		MDx = TVector<T, d>(0);
+	}
+
 #ifdef PLATFORM_COMPILER_CLANG
 	// Disable optimization (-ffast-math) since its currently causing regressions.
 	//		freciprocal-math:
