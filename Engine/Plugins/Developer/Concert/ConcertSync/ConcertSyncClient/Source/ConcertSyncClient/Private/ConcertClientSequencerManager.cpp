@@ -422,8 +422,7 @@ void FConcertClientSequencerManager::ApplyEventToSequencers(const FConcertSequen
 
 		// If the event is coming from a sequencer that is playing back, we are a slave to its updates until it stops
 		// We also apply any latency compensation when playing back
-		if (EventState.PlayerStatus == EConcertMovieScenePlayerStatus::Playing ||
-			EventState.PlayerStatus == EConcertMovieScenePlayerStatus::Recording)
+		if (EventState.PlayerStatus == EConcertMovieScenePlayerStatus::Playing)
 		{
 			OpenSequencer->PlaybackMode = EPlaybackMode::Slave;
 
@@ -524,8 +523,7 @@ void FConcertClientSequencerManager::ApplyEventToPlayers(const FConcertSequencer
 
 		// If the event is coming from a sequencer that is playing back, we are a slave to its updates until it stops
 		// We also apply any latency compensation when playing back
-		if (EventState.PlayerStatus == EConcertMovieScenePlayerStatus::Playing ||
-			EventState.PlayerStatus == EConcertMovieScenePlayerStatus::Recording)
+		if (EventState.PlayerStatus == EConcertMovieScenePlayerStatus::Playing)
 		{
 			FFrameTime CurrentTime = Player->GetCurrentTime().Time;
 
