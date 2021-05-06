@@ -15,6 +15,7 @@
 #include "ISourceControlProvider.h"
 #include "SourceControlOperations.h"
 
+#include "AssetRegistryModule.h"
 #include "DerivedDataCacheInterface.h"
 
 #include "WorldPartition/WorldPartition.h"
@@ -966,6 +967,10 @@ bool UWorldPartitionHLODsBuilder::CopyFilesFromWorkingDir(const FString& SourceD
 			}
 		}
 	}
+
+	// Force a rescan of the updated files
+	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+	AssetRegistry.ScanPathsSynchronous(ModifiedFiles.Array(), /*bForceRescan*/true, /*bIgnoreBlackListScanFilters*/true);
 
 	return true;
 }
