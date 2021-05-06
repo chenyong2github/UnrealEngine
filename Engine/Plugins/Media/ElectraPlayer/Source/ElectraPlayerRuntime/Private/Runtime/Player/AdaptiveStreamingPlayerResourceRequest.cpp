@@ -26,7 +26,7 @@ FHTTPResourceRequest::~FHTTPResourceRequest()
 	Cancel();
 	if (bWasAdded && Request.IsValid())
 	{
-		PlayerSessionServices->GetHTTPManager()->RemoveRequest(Request);
+		PlayerSessionServices->GetHTTPManager()->RemoveRequest(Request, true);
 	}
 	Request.Reset();
 }
@@ -45,7 +45,7 @@ void FHTTPResourceRequest::StartGet(IPlayerSessionServices* InPlayerSessionServi
 	else
 	{
 		bWasAdded = true;
-		PlayerSessionServices->GetHTTPManager()->AddRequest(Request);
+		PlayerSessionServices->GetHTTPManager()->AddRequest(Request, false);
 	}
 }
 
@@ -56,7 +56,7 @@ void FHTTPResourceRequest::Cancel()
 	ReceiveBuffer.Reset();
 	if (bWasAdded && Request.IsValid())
 	{
-		PlayerSessionServices->GetHTTPManager()->RemoveRequest(Request);
+		PlayerSessionServices->GetHTTPManager()->RemoveRequest(Request, true);
 		bWasAdded = false;
 	}
 }
@@ -71,7 +71,7 @@ void FHTTPResourceRequest::StaticDataReady()
 		{
 			// Do the actual HTTP request now.
 			bWasAdded = true;
-			PlayerSessionServices->GetHTTPManager()->AddRequest(Request);
+			PlayerSessionServices->GetHTTPManager()->AddRequest(Request, false);
 		}
 		else
 		{

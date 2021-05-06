@@ -9,6 +9,7 @@
 #include "Player/PlayerLicenseKey.h"
 #include "Player/AdaptivePlayerOptionKeynames.h"
 #include "Utilities/Utilities.h"
+#include "Player/DRM/DRMManager.h"
 
 #include "HAL/LowLevelMemTracker.h"
 
@@ -182,6 +183,9 @@ bool FAdaptiveStreamingPlayer::Initialize(const FParamDict& Options)
 
 	// Get the HTTP manager. This is a shared instance for all players.
 	HttpManager = IElectraHttpManager::Create();
+
+	// Create the DRM manager.
+	DrmManager = FDRMManager::Create(this);
 
 	// Create an entity cache.
 	EntityCache = IPlayerEntityCache::Create(this, Options);
@@ -877,6 +881,13 @@ FParamDict& FAdaptiveStreamingPlayer::GetOptions()
 	return PlayerOptions;
 }
 
+TSharedPtrTS<FDRMManager> FAdaptiveStreamingPlayer::GetDRMManager()
+{
+	return DrmManager;
+}
+
+
+
 void FAdaptiveStreamingPlayer::GetStreamBufferStats(FAccessUnitBufferInfo& OutBufferStats, EStreamType ForStream)
 {
 	FMediaCriticalSection::ScopedLock lock(DiagnosticsCriticalSection);
@@ -1356,6 +1367,11 @@ void FAdaptiveStreamingPlayer::WorkerThreadFN()
 			if (EntityCache.IsValid())
 			{
 				EntityCache->HandleEntityExpiration();
+			}
+			// Handle completed DRM requests.
+			if (DrmManager.IsValid())
+			{
+				DrmManager->Tick();
 			}
 		}
 	}
@@ -3169,6 +3185,12 @@ void FAdaptiveStreamingPlayer::InternalClose()
 	// after a Stop() can be considered at least weird practice.
 	//PlaybackState.Reset();
 	Manifest.Reset();
+
+	if (DrmManager.IsValid())
+	{
+		DrmManager->Close();
+		DrmManager.Reset();
+	}
 
 	HttpManager.Reset();
 	EntityCache.Reset();

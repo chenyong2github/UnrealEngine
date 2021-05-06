@@ -12,17 +12,10 @@
 #define INTERNAL_ERROR_INIT_SEGMENT_PARSE_ERROR						2
 #define INTERNAL_ERROR_INIT_SEGMENT_LICENSEKEY_ERROR				10
 
-#define PERMIT_INSECURE_SEGMENT_DEMOTING 0
+
 
 namespace Electra
 {
-
-//! (bool) if false and media segment is using EXT-X-KEY encryption fetch it via http even if it should be https, otherwise keep the original scheme.
-const FString FStreamReaderHLSfmp4::OptionKeyDontUseInsecureForEncryptedMediaSegments("dont_use_insecure_for_media_segments");
-
-//! (bool) if false the init segment is fetched via http even if it should be https, otherwise keep the original scheme.
-const FString FStreamReaderHLSfmp4::OptionKeyDontUseInsecureForInitSegments("dont_use_insecure_for_init_segments");
-
 
 FStreamSegmentRequestHLSfmp4::FStreamSegmentRequestHLSfmp4()
 {
@@ -396,35 +389,6 @@ void FStreamReaderHLSfmp4::FStreamHandler::HTTPUpdateStats(const FTimeValue& Cur
 }
 
 
-FString FStreamReaderHLSfmp4::FStreamHandler::DemoteInitURLToHTTP(const FString& InURL, bool bIsEncrypted)
-{
-	FString NewUrl(InURL);
-#if PERMIT_INSECURE_SEGMENT_DEMOTING
-	if (bIsEncrypted &&
-		Parameters.Options.GetValue(OptionKeyDontUseInsecureForInitSegments).SafeGetBool(false) == false &&
-		NewUrl.Left(8) == TEXT("https://"))
-	{
-		// Remove the 's'
-		NewUrl.RemoveAt(4);
-	}
-#endif
-	return NewUrl;
-}
-
-FString FStreamReaderHLSfmp4::FStreamHandler::DemoteMediaURLToHTTP(const FString& InURL, bool bIsEncrypted)
-{
-	FString NewUrl(InURL);
-#if PERMIT_INSECURE_SEGMENT_DEMOTING
-if (bIsEncrypted &&
-		Parameters.Options.GetValue(OptionKeyDontUseInsecureForEncryptedMediaSegments).SafeGetBool(false) == false &&
-		NewUrl.Left(8) == TEXT("https://"))
-	{
-		// Remove the 's'
-		NewUrl.RemoveAt(4);
-	}
-#endif
-	return NewUrl;
-}
 
 
 FStreamReaderHLSfmp4::FStreamHandler::ELicenseKeyResult FStreamReaderHLSfmp4::FStreamHandler::GetLicenseKey(FErrorDetail& OutErrorDetail, TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe>& OutLicenseKeyData, const TSharedPtrTS<FStreamSegmentRequestHLSfmp4>& InRequest, const TSharedPtr<const FManifestHLSInternal::FMediaStream::FDRMKeyInfo, ESPMode::ThreadSafe>& LicenseKeyInfo)
@@ -488,7 +452,7 @@ FStreamReaderHLSfmp4::FStreamHandler::ELicenseKeyResult FStreamReaderHLSfmp4::FS
 				ProgressListener->ProgressDelegate   = Electra::MakeDelegate(this, &FStreamHandler::HTTPProgressCallback);
 				ProgressListener->CompletionDelegate = Electra::MakeDelegate(this, &FStreamHandler::HTTPCompletionCallback);
 				HTTP->ProgressListener = ProgressListener;
-				PlayerSessionService->GetHTTPManager()->AddRequest(HTTP);
+				PlayerSessionService->GetHTTPManager()->AddRequest(HTTP, false);
 				while(!HasReadBeenAborted())
 				{
 					if (DownloadCompleteSignal.WaitTimeout(1000 * 100))
@@ -498,7 +462,7 @@ FStreamReaderHLSfmp4::FStreamHandler::ELicenseKeyResult FStreamReaderHLSfmp4::FS
 				}
 				ProgressListener.Reset();
 				// Note: It is only safe to access the connection info when the HTTP request has completed or the request been removed.
-				PlayerSessionService->GetHTTPManager()->RemoveRequest(HTTP);
+				PlayerSessionService->GetHTTPManager()->RemoveRequest(HTTP, false);
 			}
 
 			InRequest->ConnectionInfo = HTTP->ConnectionInfo;
@@ -572,10 +536,7 @@ FStreamReaderHLSfmp4::FStreamHandler::EInitSegmentResult FStreamReaderHLSfmp4::F
 			ReadBuffer.Reset();
 			ReadBuffer.ReceiveBuffer = MakeSharedTS<IElectraHttpManager::FReceiveBuffer>();
 
-			// FIXME: Presently we demote init segments to HTTP unless explicitly forbidden to do so.
-			//        Since they are not encrypted we have no reliable way to know if the content itself is encrypted.
-			//        We say it is if _any_ segment in the playlist is using encryption, whichever one that is.
-			FString RequestURL = DemoteInitURLToHTTP(Request->InitSegmentInfo->URI, Request->bHasEncryptedSegments);
+			FString RequestURL = Request->InitSegmentInfo->URI;
 
 			Metrics::FSegmentDownloadStats& ds = Request->DownloadStats;
 			ds.URL  	   = RequestURL;
@@ -592,7 +553,7 @@ FStreamReaderHLSfmp4::FStreamHandler::EInitSegmentResult FStreamReaderHLSfmp4::F
 
 			ProgressReportCount = 0;
 			DownloadCompleteSignal.Reset();
-			PlayerSessionService->GetHTTPManager()->AddRequest(HTTP);
+			PlayerSessionService->GetHTTPManager()->AddRequest(HTTP, false);
 
 			while(!HasReadBeenAborted())
 			{
@@ -604,7 +565,7 @@ FStreamReaderHLSfmp4::FStreamHandler::EInitSegmentResult FStreamReaderHLSfmp4::F
 
 			ProgressListener.Reset();
 			// Note: It is only safe to access the connection info when the HTTP request has completed or the request been removed.
-			PlayerSessionService->GetHTTPManager()->RemoveRequest(HTTP);
+			PlayerSessionService->GetHTTPManager()->RemoveRequest(HTTP, false);
 			Request->ConnectionInfo = HTTP->ConnectionInfo;
 			if (!HTTP->ConnectionInfo.StatusInfo.ErrorDetail.IsError())
 			{
@@ -789,15 +750,15 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 				{
 					if (LicenseKeyData.IsValid())
 					{
-						IStreamDecrypterAES128::EResult DecrypterResult;
-						Decrypter = IStreamDecrypterAES128::Create();
+						ElectraCDM::IStreamDecrypterAES128::EResult DecrypterResult;
+						Decrypter = ElectraCDM::IStreamDecrypterAES128::Create();
 
 						// Set up the IV for this segment which is either explicitly provided or the media sequence number.
 						TArray<uint8> IV;
 						if (Request->LicenseKeyInfo->IV.Len())
 						{
-							DecrypterResult = IStreamDecrypterAES128::ConvHexStringToBin(IV, TCHAR_TO_ANSI(*Request->LicenseKeyInfo->IV));
-							if (DecrypterResult != IStreamDecrypterAES128::EResult::Ok)
+							DecrypterResult = ElectraCDM::IStreamDecrypterAES128::ConvHexStringToBin(IV, TCHAR_TO_ANSI(*Request->LicenseKeyInfo->IV));
+							if (DecrypterResult != ElectraCDM::IStreamDecrypterAES128::EResult::Ok)
 							{
 								ds.FailureReason = FString::Printf(TEXT("Bad explicit IV value"));
 								LogMessage(IInfoLog::ELevel::Error, ds.FailureReason);
@@ -806,12 +767,12 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 						}
 						else
 						{
-							IStreamDecrypterAES128::MakePaddedIVFromUInt64(IV, Request->MediaSequence);
+							ElectraCDM::IStreamDecrypterAES128::MakePaddedIVFromUInt64(IV, Request->MediaSequence);
 						}
 						if (!bHasErrored)
 						{
 							DecrypterResult = Decrypter->CBCInit(*LicenseKeyData, &IV);
-							if (DecrypterResult != IStreamDecrypterAES128::EResult::Ok)
+							if (DecrypterResult != ElectraCDM::IStreamDecrypterAES128::EResult::Ok)
 							{
 								ds.FailureReason = FString::Printf(TEXT("Received bad license key"));
 								LogMessage(IInfoLog::ELevel::Error, ds.FailureReason);
@@ -834,7 +795,7 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 				ReadBuffer.ReceiveBuffer = MakeSharedTS<IElectraHttpManager::FReceiveBuffer>();
 
 				// Start downloading the segment. Clear any stats that may have been set by the init segment download.
-				FString RequestURL = DemoteMediaURLToHTTP(Request->URL, Decrypter.IsValid());
+				FString RequestURL = Request->URL;
 
 				ds.FailureReason.Empty();
 				ds.URL  			   = RequestURL;
@@ -866,7 +827,7 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 
 				ProgressReportCount = 0;
 				DownloadCompleteSignal.Reset();
-				PlayerSessionService->GetHTTPManager()->AddRequest(HTTP);
+				PlayerSessionService->GetHTTPManager()->AddRequest(HTTP, false);
 
 				MP4Parser = IParserISO14496_12::CreateParser();
 				NumMOOFBoxesFound = 0;
@@ -1051,7 +1012,7 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 				}
 				ProgressListener.Reset();
 				// Note: It is only safe to access the connection info when the HTTP request has completed or the request been removed.
-				PlayerSessionService->GetHTTPManager()->RemoveRequest(HTTP);
+				PlayerSessionService->GetHTTPManager()->RemoveRequest(HTTP, false);
 				CurrentRequest->ConnectionInfo = HTTP->ConnectionInfo;
 				HTTP.Reset();
 			}
@@ -1382,11 +1343,11 @@ int64 FStreamReaderHLSfmp4::FStreamHandler::ReadData(void* IntoBuffer, int64 Num
 						}
 
 						// Decrypt data in place
-						IStreamDecrypterAES128::EResult DecrypterResult;
+						ElectraCDM::IStreamDecrypterAES128::EResult DecrypterResult;
 						int32 NumDecryptedBytes = 0;
 						DecrypterResult = Decrypter->CBCDecryptInPlace(NumDecryptedBytes, EncryptedData, EncryptedSize, bIsFinalBlock);
 						// This cannot fail since we ensured it to be set up correctly and pass only properly aligned data, but just in case.
-						if (DecrypterResult == IStreamDecrypterAES128::EResult::Ok)
+						if (DecrypterResult == ElectraCDM::IStreamDecrypterAES128::EResult::Ok)
 						{
 							// Advance the decrypted pos by the entire encrypted block size, not the amount of decrypted bytes!
 							// This is required for the RequiredEncryptedSize test above to work correctly.
@@ -1402,7 +1363,7 @@ int64 FStreamReaderHLSfmp4::FStreamHandler::ReadData(void* IntoBuffer, int64 Num
 						else
 						{
 							SourceBuffer.Unlock();
-							LogMessage(IInfoLog::ELevel::Error, FString::Printf(TEXT("Failed to decrypt (%s)"), IStreamDecrypterAES128::GetResultText(DecrypterResult)));
+							LogMessage(IInfoLog::ELevel::Error, FString::Printf(TEXT("Failed to decrypt (%s)"), ElectraCDM::IStreamDecrypterAES128::GetResultText(DecrypterResult)));
 							return -1;
 						}
 					}

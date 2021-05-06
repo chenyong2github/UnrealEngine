@@ -14,6 +14,7 @@
 #include "Player/DASH/OptionKeynamesDASH.h"
 #include "Player/DASH/PlayerEventDASH.h"
 #include "Player/DASH/PlayerEventDASH_Internal.h"
+#include "Player/DRM/DRMManager.h"
 #include "Utilities/Utilities.h"
 
 #define INTERNAL_ERROR_INIT_SEGMENT_DOWNLOAD_ERROR					1
@@ -716,7 +717,7 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 
 			ProgressReportCount = 0;
 			DownloadCompleteSignal.Reset();
-			PlayerSessionService->GetHTTPManager()->AddRequest(HTTP);
+			PlayerSessionService->GetHTTPManager()->AddRequest(HTTP, false);
 
 			MP4Parser = IParserISO14496_12::CreateParser();
 			NumMOOFBoxesFound = 0;
@@ -725,6 +726,20 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 			uint32 TrackTimescale = 0;
 			bool bDone = false;
 			bool bIsFirstAU = true;
+
+			// Encrypted?
+			TSharedPtr<ElectraCDM::IMediaCDMDecrypter, ESPMode::ThreadSafe> Decrypter;
+			if (Request->DrmClient.IsValid())
+			{
+				if (Request->DrmClient->CreateDecrypter(Decrypter, Request->DrmMimeType) != ElectraCDM::ECDMError::Success)
+				{
+					bDone = true;
+					bHasErrored = true;
+					ds.FailureReason = FString::Printf(TEXT("Failed to create decrypter for segment. %s"), *Request->DrmClient->GetLastErrorMessage());
+					LogMessage(IInfoLog::ELevel::Error, ds.FailureReason);
+				}
+			}
+
 			while(!bDone && !HasErrored() && !HasReadBeenAborted())
 			{
 				UEMediaError parseError = MP4Parser->ParseHeader(this, this, PlayerSessionService, MP4InitSegment.Get());
@@ -764,6 +779,14 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 										Request->bWarnedAboutTimescale = true;
 										LogMessage(IInfoLog::ELevel::Warning, FString::Printf(TEXT("Track timescale %u differs from timescale of %u in MPD or segment index. This may cause playback problems!"), TrackTimescale, Request->Segment.Timescale));
 									}
+								}
+
+								// If the track uses encryption we update the DRM system with the PSSH boxes that are currently in use.
+								if (Decrypter.IsValid())
+								{
+									TArray<TArray<uint8>> PSSHBoxes;
+									Track->GetPSSHBoxes(PSSHBoxes, true, true);
+									Decrypter->UpdateInitDataFromMultiplePSSH(PSSHBoxes);
 								}
 
 								for(Error = TrackIterator->StartAtFirst(false); Error == UEMEDIA_ERROR_OK; Error = TrackIterator->Next())
@@ -823,22 +846,8 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 									AccessUnit->PTS.SetFromND(AUPTS, TrackTimescale);
 									AccessUnit->PTS += TimeOffset;
 
-									#if 0
-									LogMessage(IInfoLog::ELevel::Verbose, FString::Printf(TEXT("[%s] %lld/%d/%u: DTS=%lld, PTS=%lld, dur=%lld, scale=%u, sync:%d, size=%lld, off=%lld"), GetStreamTypeName(Request->GetType()), (long long int)Request->Segment.Number, NumMOOFBoxesFound, TrackIterator->GetSampleNumber(),
-										#if 1
-										(long long int)AUDTS,
-										(long long int)AUPTS,
-										(long long int)AUDuration,
-										#else
-										(long long int)TrackIterator->GetDTS(),
-										(long long int)TrackIterator->GetPTS(),
-										(long long int)TrackIterator->GetDuration(),
-										#endif
-										TrackIterator->GetTimescale(),
-										TrackIterator->IsSyncSample()?1:0,
-										(long long int)TrackIterator->GetSampleSize(),
-										(long long int)TrackIterator->GetSampleFileOffset()));
-									#endif
+									ElectraCDM::FMediaCDMSampleInfo SampleEncryptionInfo;
+									bool bIsSampleEncrypted = TrackIterator->GetEncryptionInfo(SampleEncryptionInfo);
 
 									// There should not be any gaps!
 									int64 NumBytesToSkip = TrackIterator->GetSampleFileOffset() - GetCurrentOffset();
@@ -874,6 +883,31 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 										NextExpectedDTS = AccessUnit->DTS + Duration;
 										LastKnownAUDuration = Duration;
 										LastSuccessfulFilePos = GetCurrentOffset();
+
+										// If we need to decrypt we have to wait for the decrypter to become ready.
+										if (bIsSampleEncrypted && Decrypter.IsValid())
+										{
+											while(!bTerminate && !HasReadBeenAborted() && 
+												  (Decrypter->GetState() == ElectraCDM::ECDMState::WaitingForKey || Decrypter->GetState() == ElectraCDM::ECDMState::Idle))
+											{
+												FMediaRunnable::SleepMilliseconds(100);
+											}
+											ElectraCDM::ECDMError DecryptResult = ElectraCDM::ECDMError::Failure;
+											if (Decrypter->GetState() == ElectraCDM::ECDMState::Ready)
+											{
+												DecryptResult = Decrypter->DecryptInPlace((uint8*) AccessUnit->AUData, (int32) AccessUnit->AUSize, SampleEncryptionInfo);
+											}
+											if (DecryptResult != ElectraCDM::ECDMError::Success)
+											{
+												FAccessUnit::Release(AccessUnit);
+												AccessUnit = nullptr;
+												ds.FailureReason = FString::Printf(TEXT("Failed to decrypt segment \"%s\" with error %d (%s)"), *RequestURL, (int32)DecryptResult, *Decrypter->GetLastErrorMessage());
+												LogMessage(IInfoLog::ELevel::Error, ds.FailureReason);
+												bHasErrored = true;
+												bDone = true;
+												break;
+											}
+										}
 									}
 									else
 									{
@@ -968,7 +1002,7 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 			}
 			ProgressListener.Reset();
 			// Note: It is only safe to access the connection info when the HTTP request has completed or the request been removed.
-			PlayerSessionService->GetHTTPManager()->RemoveRequest(HTTP);
+			PlayerSessionService->GetHTTPManager()->RemoveRequest(HTTP, false);
 			CurrentRequest->ConnectionInfo = HTTP->ConnectionInfo;
 			HTTP.Reset();
 		}

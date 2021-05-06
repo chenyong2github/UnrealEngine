@@ -10,7 +10,6 @@
 #include "Renderer/RendererVideo.h"
 #include "Renderer/RendererAudio.h"
 #include "VideoDecoderResourceDelegate.h"
-#include "Crypto/StreamCryptoAES128.h"
 #include "Utilities/Utilities.h"
 
 #include "Async/Async.h"
@@ -2336,12 +2335,10 @@ void FElectraPlayer::FAdaptiveStreamingPlayerResourceProvider::ProcessPendingSta
 					if (!LicenseKeyData.IsEmpty() && LicenseKeyData != InOutRequest->GetResourceURL())
 					{
 						TArray<uint8> BinKey;
-						IStreamDecrypterAES128::EResult DecrypterResult = IStreamDecrypterAES128::ConvHexStringToBin(BinKey, TCHAR_TO_UTF8(*LicenseKeyData));
-						if (DecrypterResult == IStreamDecrypterAES128::EResult::Ok)
-						{
-							TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> ResponseDataPtr = MakeShared<TArray<uint8>, ESPMode::ThreadSafe>(BinKey);
-							InOutRequest->SetPlaybackData(ResponseDataPtr);
-						}
+						BinKey.AddUninitialized(LicenseKeyData.Len());
+						BinKey.SetNum(HexToBytes(LicenseKeyData, BinKey.GetData()));
+						TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> ResponseDataPtr = MakeShared<TArray<uint8>, ESPMode::ThreadSafe>(BinKey);
+						InOutRequest->SetPlaybackData(ResponseDataPtr);
 					}
 				}
 			}

@@ -400,7 +400,7 @@ void FStreamReaderMP4::WorkerThread()
 
 		HTTP->ReceiveBuffer 				= ReadBuffer.ReceiveBuffer;
 		HTTP->ProgressListener  			= ProgressListener;
-		PlayerSessionServices->GetHTTPManager()->AddRequest(HTTP);
+		PlayerSessionServices->GetHTTPManager()->AddRequest(HTTP, false);
 
 
 		FTimeValue DurationSuccessfullyDelivered(FTimeValue::GetZero());
@@ -619,7 +619,7 @@ void FStreamReaderMP4::WorkerThread()
 
 		// Remove the download request.
 		ProgressListener.Reset();
-		PlayerSessionServices->GetHTTPManager()->RemoveRequest(HTTP);
+		PlayerSessionServices->GetHTTPManager()->RemoveRequest(HTTP, false);
 		Request->ConnectionInfo = HTTP->ConnectionInfo;
 		HTTP.Reset();
 

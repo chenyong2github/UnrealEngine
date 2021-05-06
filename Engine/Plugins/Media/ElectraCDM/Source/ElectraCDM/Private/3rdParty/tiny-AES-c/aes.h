@@ -21,9 +21,9 @@ namespace TinyAES128
 //  #define TINYAES_ECB 1
 //#endif
 
-#ifndef TINYAES_CTR
-  #define TINYAES_CTR 1
-#endif
+//#ifndef TINYAES_CTR
+//  #define TINYAES_CTR 1
+//#endif
 
 
 #define TINYAES_AES128 1

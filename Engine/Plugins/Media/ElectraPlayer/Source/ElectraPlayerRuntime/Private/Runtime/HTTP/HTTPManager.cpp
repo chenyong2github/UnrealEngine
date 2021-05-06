@@ -49,8 +49,8 @@ namespace Electra
 		virtual ~FElectraHttpManager();
 		void Initialize();
 
-		virtual void AddRequest(TSharedPtrTS<FRequest> Request) override;
-		virtual void RemoveRequest(TSharedPtrTS<FRequest> Request) override;
+		virtual void AddRequest(TSharedPtrTS<FRequest> Request, bool bAutoRemoveWhenComplete) override;
+		virtual void RemoveRequest(TSharedPtrTS<FRequest> Request, bool bDoNotWaitForRemoval) override;
 
 	private:
 		struct FLocalByteStream
@@ -392,27 +392,44 @@ namespace Electra
 		bThreadStarted = true;
 	}
 
-	void FElectraHttpManager::AddRequest(TSharedPtrTS<FRequest> Request)
+	void FElectraHttpManager::AddRequest(TSharedPtrTS<FRequest> Request, bool bAutoRemoveWhenComplete)
 	{
 		FScopeLock lock(&Lock);
 		if (!bTerminate)
 		{
+			// Not currently supported. Reserved for future use.
+			check(bAutoRemoveWhenComplete == false);
+			//Request->bAutoRemoveWhenComplete = bAutoRemoveWhenComplete;
 			RequestsToAdd.Enqueue(Request);
 			RequestChangesEvent.Signal();
 		}
 	}
 
-	void FElectraHttpManager::RemoveRequest(TSharedPtrTS<FRequest> Request)
+	void FElectraHttpManager::RemoveRequest(TSharedPtrTS<FRequest> Request, bool bDoNotWaitForRemoval)
 	{
-		TSharedPtrTS<FMediaEvent> WaitingEvent = MakeSharedTS<FMediaEvent>();
-		FRemoveRequest Remove;
-		Remove.Request = Request;
-		Remove.WaitingEvent = WaitingEvent;
-		Lock.Lock();
-		RequestsToRemove.Enqueue(MoveTemp(Remove));
-		RequestChangesEvent.Signal();
-		Lock.Unlock();
-		WaitingEvent->Wait();
+		if (bDoNotWaitForRemoval)
+		{
+			Request->ReceiveBuffer.Reset();
+			Request->ProgressListener.Reset();
+			FRemoveRequest Remove;
+			Remove.Request = Request;
+			Lock.Lock();
+			RequestsToRemove.Enqueue(MoveTemp(Remove));
+			RequestChangesEvent.Signal();
+			Lock.Unlock();
+		}
+		else
+		{
+			TSharedPtrTS<FMediaEvent> WaitingEvent = MakeSharedTS<FMediaEvent>();
+			FRemoveRequest Remove;
+			Remove.Request = Request;
+			Remove.WaitingEvent = WaitingEvent;
+			Lock.Lock();
+			RequestsToRemove.Enqueue(MoveTemp(Remove));
+			RequestChangesEvent.Signal();
+			Lock.Unlock();
+			WaitingEvent->Wait();
+		}
 	}
 
 	FElectraHttpManager::FHandle* FElectraHttpManager::CreateLocalFileHandle(const FTimeValue& Now, FTransportError& OutError, const TSharedPtrTS<IElectraHttpManager::FRequest>& Request)
@@ -472,11 +489,17 @@ namespace Electra
 		if (!Request->Parameters.Verb.IsEmpty())
 		{
 			Handle->HttpRequest->SetVerb(Request->Parameters.Verb);
+			// Add POST data
+			if (Request->Parameters.Verb.Equals(TEXT("POST")))
+			{
+				Handle->HttpRequest->SetContent(MoveTemp(Request->Parameters.PostData));
+			}
 		}
 		else
 		{
 			Handle->HttpRequest->SetVerb(TEXT("GET"));
 		}
+
 		Handle->HttpRequest->SetHeader(TEXT("User-Agent"), "X-UnrealEngine-Agent");
 		// Set accepted encoding first. If this is also present in custom headers let those overwrite it.
 		if (Request->Parameters.AcceptEncoding.IsSet())

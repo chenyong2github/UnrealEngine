@@ -31,9 +31,14 @@ namespace Electra
 		template <typename T>
 		T ValueFromBigEndian(const T value)
 		{
-			return MEDIA_TO_BIG_ENDIAN(value);
+			return MEDIA_FROM_BIG_ENDIAN(value);
 		}
 
+		template <typename T>
+		T ValueToBigEndian(const T value)
+		{
+			return MEDIA_TO_BIG_ENDIAN(value);
+		}
 	}
 
 	class FMP4Box;
@@ -659,6 +664,11 @@ private:
 		static const IParserISO14496_12::FBoxType kSample_encv = MAKE_BOX_ATOM('e', 'n', 'c', 'v');
 
 		/**
+		 * Sample grouping types
+		 */
+		static const IParserISO14496_12::FBoxType kGrouping_seig = MAKE_BOX_ATOM('s', 'e', 'i', 'g');
+
+		/**
 		 * Encryption scheme types
 		 */
 		static const IParserISO14496_12::FBoxType kEncryptionScheme_cenc = MAKE_BOX_ATOM('c', 'e', 'n', 'c');
@@ -767,6 +777,16 @@ private:
 			uint32 VersionAndFlags = 0;
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(ParseInfo->Reader()->Read(VersionAndFlags));
+			Version = VersionAndFlags >> 24;
+			Flags = VersionAndFlags & 0x00ffffff;
+			return Error;
+		}
+
+		UEMediaError ReadAndParseAttributes(FMP4BoxReader& Reader)
+		{
+			uint32 VersionAndFlags = 0;
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+			RETURN_IF_ERROR(Reader.Read(VersionAndFlags));
 			Version = VersionAndFlags >> 24;
 			Flags = VersionAndFlags & 0x00ffffff;
 			return Error;
@@ -3429,6 +3449,22 @@ private:
 		{
 		}
 
+		const TArray<uint8>& GetBoxData()  const
+		{
+			return BoxData;
+		}
+		const TArray<uint8>& GetSystemID() const
+		{
+			return SystemID;
+		}
+		const TArray<TArray<uint8>>& GetKIDs() const
+		{
+			return KIDs;
+		}
+		const TArray<uint8>& GetData() const
+		{
+			return Data;
+		}
 	private:
 		FMP4BoxPSSH() = delete;
 		FMP4BoxPSSH(const FMP4BoxPSSH&) = delete;
@@ -3437,32 +3473,46 @@ private:
 		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
-			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
+			// We need to retain the box as a whole since some DRM systems need it to be passed in verbatim.
+			// In order to do that we read it into a buffer first, which can be handed out later if needed
+			// and parse the box from the buffer.
+			uint32 BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
+			BoxData.AddUninitialized(8 + BytesRemaining);
+			RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(BoxData.GetData() + 8, BytesRemaining));
+			uint32* RawBox = (uint32*)BoxData.GetData();
+			RawBox[0] = Utils::ValueToBigEndian((uint32)(BytesRemaining+8));
+			RawBox[1] = Utils::ValueToBigEndian(kBox_pssh);
+
+			FDataBufferReader BufferReader(BoxData);
+			FMP4BoxReader Reader(&BufferReader, nullptr);
+			Reader.ReadBytes(nullptr, 8);
+
+			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(Reader));
 
 			SystemID.AddUninitialized(16);
-			RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(SystemID.GetData(), 16));		// SystemID
+			RETURN_IF_ERROR(Reader.ReadBytes(SystemID.GetData(), 16));		// SystemID
 			if (Version > 0)
 			{
 				uint32 KID_count = 0;
-				RETURN_IF_ERROR(ParseInfo->Reader()->Read(KID_count));						// KID_count
+				RETURN_IF_ERROR(Reader.Read(KID_count));					// KID_count
 				for(uint32 i=0; i<KID_count; ++i)
 				{
 					TArray<uint8>& kid = KIDs.AddDefaulted_GetRef();
 					kid.AddUninitialized(16);
-					RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(kid.GetData(), 16));		// KID
+					RETURN_IF_ERROR(Reader.ReadBytes(kid.GetData(), 16));	// KID
 				}
 			}
 			uint32 DataSize = 0;
-			RETURN_IF_ERROR(ParseInfo->Reader()->Read(DataSize));							// DataSize
+			RETURN_IF_ERROR(Reader.Read(DataSize));							// DataSize
 			if (DataSize)
 			{
 				Data.AddUninitialized(DataSize);
-				RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(Data.GetData(), DataSize));	// Data
+				RETURN_IF_ERROR(Reader.ReadBytes(Data.GetData(), DataSize));// Data
 			}
 			return Error;
 		}
-
 	private:
+		TArray<uint8>			BoxData;
 		TArray<uint8>			SystemID;
 		TArray<TArray<uint8>>	KIDs;
 		TArray<uint8>			Data;
@@ -3767,10 +3817,10 @@ private:
 			if (EntryCount)
 			{
 				Offsets.AddUninitialized(EntryCount);
+				uint64* Offs = Offsets.GetData();
 				if (Version == 0)
 				{
 					uint32 Value32 = 0;
-					uint64* Offs = Offsets.GetData();
 					for(uint32 i=0; i<EntryCount; ++i)
 					{
 						RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value32));					// offset
@@ -3779,7 +3829,12 @@ private:
 				}
 				else
 				{
-					RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(Offsets.GetData(), EntryCount));// offset
+					uint64 Value64 = 0;
+					for(uint32 i=0; i<EntryCount; ++i)
+					{
+						RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value64));					// offset
+						*Offs++ = Value64;
+					}
 				}
 			}
 			return Error;
@@ -3811,12 +3866,7 @@ private:
 		struct FEntry
 		{
 			TArray<uint8> IV;
-			struct FSubSample
-			{
-				uint16	BytesOfClearData;
-				uint32	BytesOfProtectedData;
-			};
-			TArray<FSubSample> SubSamples;
+			TArray<ElectraCDM::FMediaCDMSampleInfo::FSubSample> SubSamples;
 		};
 
 		const TArray<FEntry>& GetEntries() const
@@ -3855,9 +3905,9 @@ private:
 						RETURN_IF_ERROR(Reader.Read(SubSampleCount));
 						for(int32 j=0; j<SubSampleCount; ++j)
 						{
-							FEntry::FSubSample& SubSample = Entry.SubSamples.AddDefaulted_GetRef();
-							RETURN_IF_ERROR(Reader.Read(SubSample.BytesOfClearData));
-							RETURN_IF_ERROR(Reader.Read(SubSample.BytesOfProtectedData));
+							ElectraCDM::FMediaCDMSampleInfo::FSubSample& SubSample = Entry.SubSamples.AddDefaulted_GetRef();
+							RETURN_IF_ERROR(Reader.Read(SubSample.NumClearBytes));
+							RETURN_IF_ERROR(Reader.Read(SubSample.NumEncryptedBytes));
 						}
 					}
 				}
@@ -3901,6 +3951,181 @@ private:
 	};
 
 
+	/**
+	 * 'sbgp' box. ISO/IEC 14496-12:2015 - 8.9.2 Sample to Group Box
+	 */
+	class FMP4BoxSBGP : public FMP4BoxFull
+	{
+	public:
+		FMP4BoxSBGP(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox)
+			: FMP4BoxFull(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
+			, GroupingType(0), GroupingTypeParameter(0)
+		{
+		}
+
+		virtual ~FMP4BoxSBGP()
+		{
+		}
+
+		struct FEntry
+		{
+			uint32 SampleCount;
+			uint32 GroupDescriptionIndex;
+		};
+
+		uint32 GetGroupingType() const
+		{ return GroupingType; }
+
+		uint32 GetGroupingTypeParameter() const
+		{ return GroupingTypeParameter; }
+
+		int32 GetNumberOfEntries() const
+		{ return Entries.Num(); }
+		
+		const FEntry& GetEntry(int32 Index) const
+		{ return Entries[Index]; }
+
+	private:
+		FMP4BoxSBGP() = delete;
+		FMP4BoxSBGP(const FMP4BoxSBGP&) = delete;
+
+	protected:
+		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		{
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
+
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(GroupingType));						// grouping_type
+			if (Version == 1)
+			{
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(GroupingTypeParameter));			// grouping_type_parameter
+			}
+			uint32 EntryCount = 0;
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(EntryCount));							// entry_count
+			for(uint32 i=0; i<EntryCount; ++i)
+			{
+				FEntry& Entry = Entries.AddDefaulted_GetRef();
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Entry.SampleCount));				// sample_count
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Entry.GroupDescriptionIndex));	// group_description_index
+			}
+			return Error;
+		}
+
+	private:
+		uint32	GroupingType;
+		uint32	GroupingTypeParameter;
+		TArray<FEntry> Entries;
+	};
+
+
+
+	/**
+	 * Base class of a sample group description entry. ISO/IEC 14496-12:2016 - 8.9.3.2 Sample Group Description Box, Syntax
+	 */
+	struct FSampleGroupDescriptionEntry
+	{
+		TArray<uint8> Data;
+	};
+
+	/**
+	 * 'seig' group type entry. ISO/IEC 23007-1:2016 - 6 Encryption parameters shared by groups of samples
+	 */
+	struct FCencSampleEncryptionInformationGroupEntry : FSampleGroupDescriptionEntry
+	{
+		uint8 GetCryptByteBlock() const { return Data[1] >> 4; }
+		uint8 GetSkipByteBlock() const { return Data[1] & 0x0f; }
+		uint8 GetIsProtected() const { return Data[2]; }
+		uint8 GetPerSampleIVSize() const { return Data[3]; }
+		TArray<uint8> GetKID() const { return TArray<uint8>(Data.GetData() + 4, 16); }
+		uint8 GetConstantIVSize() const { return GetIsProtected() && GetPerSampleIVSize() == 0 ? Data[20] : 0; }
+		TArray<uint8> GetConstantIV() const { uint8 civSize = GetConstantIVSize(); return civSize == 0 ? TArray<uint8>() : TArray<uint8>(Data.GetData() + 21, civSize); }
+	};
+
+	/**
+	 * 'sgpd' box. ISO/IEC 14496-12:2015 - 8.9.3 Sample Group Description Box
+	 */
+	class FMP4BoxSGPD : public FMP4BoxFull
+	{
+	public:
+		FMP4BoxSGPD(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox)
+			: FMP4BoxFull(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
+			, GroupingType(0), DefaultLength(0), DefaultSampleDescriptionIndex(0)
+		{
+		}
+
+		virtual ~FMP4BoxSGPD()
+		{
+		}
+
+		uint32 GetGroupingType() const
+		{ return GroupingType; }
+
+		uint32 GetDefaultSampleDescriptionIndex() const
+		{ return DefaultSampleDescriptionIndex; }
+
+		int32 GetNumberOfEntries() const
+		{ return Entries.Num(); }
+		
+		const FSampleGroupDescriptionEntry& GetEntry(int32 Index) const
+		{ return Entries[Index]; }
+
+	private:
+		FMP4BoxSGPD() = delete;
+		FMP4BoxSGPD(const FMP4BoxSGPD&) = delete;
+
+	protected:
+		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		{
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
+
+			// Version 0 of this box type has been deprecated.
+			if (Version == 0)
+			{
+				// Skip over the contents of this box.
+				uint32 BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
+				if (BytesRemaining)
+				{
+					RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(nullptr, BytesRemaining));
+				}
+				return Error;
+			}
+
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(GroupingType));							// grouping_type
+			
+			if (Version == 1)
+			{
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(DefaultLength));						// default_length
+			}
+			if (Version >= 2)
+			{
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(DefaultSampleDescriptionIndex));		// default_sample_description_index
+			}
+
+			uint32 EntryCount = 0;
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(EntryCount));								// entry_count
+			for(uint32 i=0; i<EntryCount; ++i)
+			{
+				uint32 EntrySize = DefaultLength;
+				if (Version == 1 && DefaultLength == 0)
+				{
+					RETURN_IF_ERROR(ParseInfo->Reader()->Read(EntrySize));						// description_length
+				}
+
+				// The actual sample group entry now follows.
+				FSampleGroupDescriptionEntry& Entry = Entries.AddDefaulted_GetRef();
+				Entry.Data.AddUninitialized(EntrySize);
+				RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(Entry.Data.GetData(), EntrySize));
+			}
+			return Error;
+		}
+
+	private:
+		uint32 GroupingType;
+		uint32 DefaultLength;
+		uint32 DefaultSampleDescriptionIndex;
+		TArray<FSampleGroupDescriptionEntry> Entries;
+	};
 
 
 	FMP4ParseInfo::~FMP4ParseInfo()
@@ -4196,6 +4421,12 @@ private:
 						case FMP4Box::kBox_saio:
 							NextBox = new FMP4BoxSAIO(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
+						case FMP4Box::kBox_sbgp:
+							NextBox = new FMP4BoxSBGP(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
+							break;
+						case FMP4Box::kBox_sgpd:
+							NextBox = new FMP4BoxSGPD(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
+							break;
 						// Boxes we ignore for now.
 						case FMP4Box::kBox_tref:
 						case FMP4Box::kBox_colr:
@@ -4429,6 +4660,7 @@ private:
 			virtual int64 GetRawPTS() const override;
 			virtual int64 GetCompositionTimeEdit() const override;
 			virtual int64 GetEmptyEditOffset() const override;
+			virtual bool GetEncryptionInfo(ElectraCDM::FMediaCDMSampleInfo& OutSampleEncryptionInfo) const override;
 
 			UEMediaError StartAtFirstInteral();
 			void SetTrack(const FTrack* InTrack);
@@ -4533,6 +4765,7 @@ private:
 			virtual const FStreamCodecInformation& GetCodecInformation() const override;
 			virtual const FBitrateInfo& GetBitrateInfo() const override;
 			virtual const FString GetLanguage() const override;
+			virtual void GetPSSHBoxes(TArray<TArray<uint8>>& OutBoxes, bool bFromMOOV, bool bFromMOOF) const override;
 
 			//private:
 			const FMP4BoxMVHD* MVHDBox = nullptr;
@@ -4550,6 +4783,7 @@ private:
 			const FMP4BoxSTCO* STCOBox = nullptr;
 			const FMP4BoxSTSS* STSSBox = nullptr;
 			// Encryption
+			TArray<const FMP4BoxPSSH*>	PSSHBoxesFromInit;
 			TArray<const FMP4BoxPSSH*>	PSSHBoxes;
 			const FMP4BoxSCHM* SCHMBox = nullptr;
 			const FMP4BoxTENC* TENCBox = nullptr;
@@ -4776,6 +5010,23 @@ private:
 		return MDHDBox ? MDHDBox->GetLanguage() : FString(TEXT("und"));
 	}
 
+	void FParserISO14496_12::FTrack::GetPSSHBoxes(TArray<TArray<uint8>>& OutBoxes, bool bFromMOOV, bool bFromMOOF) const
+	{
+		if (bFromMOOV)
+		{
+			for(int32 i=0; i<PSSHBoxesFromInit.Num(); ++i)
+			{
+				OutBoxes.Add(PSSHBoxesFromInit[i]->GetBoxData());
+			}
+		}
+		if (bFromMOOF)
+		{
+			for(int32 i=0; i<PSSHBoxes.Num(); ++i)
+			{
+				OutBoxes.Add(PSSHBoxes[i]->GetBoxData());
+			}
+		}
+	}
 
 	/***************************************************************************************************************************************************/
 	/***************************************************************************************************************************************************/
@@ -5407,6 +5658,28 @@ private:
 		return EmptyEditDurationInMediaTimeUnits;
 	}
 
+	bool FParserISO14496_12::FTrackIterator::GetEncryptionInfo(ElectraCDM::FMediaCDMSampleInfo& OutSampleEncryptionInfo) const
+	{
+		if (!Track || !Track->SENCBox)
+		{
+			return false;
+		}
+		if (Track->TENCBox)
+		{
+			OutSampleEncryptionInfo.DefaultKID = Track->TENCBox->GetDefaultKID();
+		}
+	
+		const TArray<FMP4BoxSENC::FEntry>& SencEntries = Track->SENCBox->GetEntries();
+		check((int32) SampleNumberInTRUN < SencEntries.Num());
+		if ((int32) SampleNumberInTRUN >= SencEntries.Num())
+		{
+			return false;
+		}
+		OutSampleEncryptionInfo.IV = SencEntries[SampleNumberInTRUN].IV;
+		OutSampleEncryptionInfo.SubSamples = SencEntries[SampleNumberInTRUN].SubSamples;
+		return true;
+	}
+
 
 	/***************************************************************************************************************************************************/
 	/***************************************************************************************************************************************************/
@@ -5974,12 +6247,24 @@ private:
 									Track->SAIZBox = static_cast<const FMP4BoxSAIZ*>(Box->FindBox(FMP4Box::kBox_saiz, 0));
 									Track->SAIOBox = static_cast<const FMP4BoxSAIO*>(Box->FindBox(FMP4Box::kBox_saio, 0));
 									Track->SENCBox = static_cast<const FMP4BoxSENC*>(Box->FindBox(FMP4Box::kBox_senc, 0));
-									// Get the PSSH boxes from the track fragment.
+
+									// Get the PSSH boxes from the init segment.
 									TArray<const FMP4Box*> AllPSSHBoxes;
-									Box->GetAllBoxInstances(AllPSSHBoxes, FMP4Box::kBox_pssh);
-									for(int32 nTruns=0; nTruns<AllPSSHBoxes.Num(); ++nTruns)
+									if (MOOVBox)
 									{
-										Track->PSSHBoxes.Add(static_cast<const FMP4BoxPSSH*>(AllPSSHBoxes[nTruns]));
+										MOOVBox->GetAllBoxInstances(AllPSSHBoxes, FMP4Box::kBox_pssh);
+										for(int32 nPSSHs=0; nPSSHs<AllPSSHBoxes.Num(); ++nPSSHs)
+										{
+											Track->PSSHBoxesFromInit.Add(static_cast<const FMP4BoxPSSH*>(AllPSSHBoxes[nPSSHs]));
+										}
+										AllPSSHBoxes.Empty();
+									}
+
+									// Get the PSSH boxes from the track fragment.
+									Box->GetAllBoxInstances(AllPSSHBoxes, FMP4Box::kBox_pssh);
+									for(int32 nPSSHs=0; nPSSHs<AllPSSHBoxes.Num(); ++nPSSHs)
+									{
+										Track->PSSHBoxes.Add(static_cast<const FMP4BoxPSSH*>(AllPSSHBoxes[nPSSHs]));
 									}
 									// Now that we have the information needed to parse the senc box, do it.
 									if (Track->SENCBox)

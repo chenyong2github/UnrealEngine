@@ -68,12 +68,18 @@ public:
 
 	virtual FHTTPResourceRequest& Verb(const FString& InVerb)
 	{ Request->Parameters.Verb = InVerb; return *this; }
+
+	virtual FHTTPResourceRequest& PostData(TArray<uint8> InPostData)
+	{ Request->Parameters.PostData = MoveTemp(InPostData); return *this; }
 	
 	virtual FHTTPResourceRequest& Range(const FString& InRange)
 	{ Request->Parameters.Range.Set(InRange); return *this; }
 	
 	virtual FHTTPResourceRequest& Headers(const TArray<HTTP::FHTTPHeader>& InHeaders)
 	{ Request->Parameters.RequestHeaders = InHeaders; return *this; }
+
+	virtual FHTTPResourceRequest& Headers(const TArray<FString>& InHeaders)
+	{ Request->Parameters.AddFromHeaderList(InHeaders); return *this; }
 	
 	virtual FHTTPResourceRequest& AcceptEncoding(const FString& InAcceptEncoding)
 	{ Request->Parameters.AcceptEncoding.Set(InAcceptEncoding); return *this; }

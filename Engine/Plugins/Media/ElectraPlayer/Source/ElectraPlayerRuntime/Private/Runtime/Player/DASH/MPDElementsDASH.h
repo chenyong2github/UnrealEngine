@@ -359,7 +359,15 @@ public:
 	const FString& GetValue() const			{ return Value; }
 	const FString& GetID() const			{ return ID; }
 
-	const TArray<TSharedPtrTS<IDashMPDElement>>& GetWellKnownDescriptors() const	{ return WellKnownDescriptors; }
+	const TArray<TSharedPtrTS<IDashMPDElement>>& GetWellKnownDescriptors() const
+	{ return WellKnownDescriptors; }
+
+	// Non-DASH attributes and other XML elements as JSON. Used for <ContentProtection> elements
+	// where these elements need to be passed to a CDM system.
+	const FString& GetCustomElementAndAttributeJSON() const
+	{ return CustomElementAndAttributeJSON; }
+	void SetCustomElementAndAttributeJSON(const FString& InCustomElementAndAttributeJSON)
+	{ CustomElementAndAttributeJSON = InCustomElementAndAttributeJSON; }
 
 private:
 	virtual bool ProcessElement(FManifestParserDASH* Builder, const TCHAR* ElementName, const TCHAR* ElementData, int32 XmlFileLineNumber) override;
@@ -371,6 +379,8 @@ private:
 	FString SchemeIdUri;
 	FString Value;
 	FString ID;
+
+	FString CustomElementAndAttributeJSON;
 };
 
 

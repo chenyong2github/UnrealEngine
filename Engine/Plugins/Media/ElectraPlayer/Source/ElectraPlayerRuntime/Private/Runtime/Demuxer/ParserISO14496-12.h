@@ -10,6 +10,9 @@
 #include "StreamTypes.h"
 #include "ParameterDictionary.h"
 
+#include "ElectraEncryptedSampleInfo.h"
+
+
 namespace Electra
 {
 	//
@@ -191,6 +194,8 @@ namespace Electra
 			virtual int64 GetRawPTS() const = 0;
 			virtual int64 GetCompositionTimeEdit() const = 0;
 			virtual int64 GetEmptyEditOffset() const = 0;
+
+			virtual bool GetEncryptionInfo(ElectraCDM::FMediaCDMSampleInfo& OutSampleEncryptionInfo) const = 0;
 		};
 
 		class ITrack
@@ -219,6 +224,7 @@ namespace Electra
 			virtual const FStreamCodecInformation& GetCodecInformation() const = 0;
 			virtual const FBitrateInfo& GetBitrateInfo() const = 0;
 			virtual const FString GetLanguage() const = 0;
+			virtual void GetPSSHBoxes(TArray<TArray<uint8>>& OutBoxes, bool bFromMOOV, bool bFromMOOF) const = 0;
 		};
 
 
