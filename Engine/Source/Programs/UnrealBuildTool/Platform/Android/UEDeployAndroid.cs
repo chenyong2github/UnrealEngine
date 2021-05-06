@@ -82,6 +82,7 @@ namespace UnrealBuildTool
 		private bool FacebookPluginEnabled = false;
 		private bool OculusMobilePluginEnabled = false;
 		private bool GoogleVRPluginEnabled = false;
+		private bool EOSSDKPluginEnabled = false;
 
 		public void SetAndroidPluginData(List<string> Architectures, List<string> inPluginExtraData)
 		{
@@ -97,8 +98,9 @@ namespace UnrealBuildTool
 			// check if certain plugins are enabled
 			ARCorePluginEnabled = false;
 			FacebookPluginEnabled = false;
-			GoogleVRPluginEnabled = false;
 			OculusMobilePluginEnabled = false;
+			GoogleVRPluginEnabled = false;
+			EOSSDKPluginEnabled = false;
 			ActiveUPLFiles = "";
 			foreach (string Plugin in inPluginExtraData)
 			{
@@ -131,6 +133,13 @@ namespace UnrealBuildTool
 					GoogleVRPluginEnabled = true;
 					continue;
 				}
+
+				// check if the EOSShared plugin was enabled
+				if (Plugin.Contains("EOSSDK"))
+				{
+					EOSSDKPluginEnabled = true;
+					continue;
+				}
 			}
 
 			UPL = new UnrealPluginLanguage(ProjectFile, inPluginExtraData, NDKArches, "http://schemas.android.com/apk/res/android", "xmlns:android=\"http://schemas.android.com/apk/res/android\"", UnrealTargetPlatform.Android);
@@ -147,6 +156,10 @@ namespace UnrealBuildTool
 			if (ARCorePluginEnabled)
 			{
 				MinimumSDKLevelForGradle = Math.Max(MinimumSDKLevelForGradle, 19);
+			}
+			if(EOSSDKPluginEnabled)
+			{
+				MinimumSDKLevelForGradle = Math.Max(MinimumSDKLevelForGradle, 23);
 			}
 		}
 
@@ -3280,6 +3293,7 @@ namespace UnrealBuildTool
 			GradleProperties.AppendLine("org.gradle.daemon=false");
 			GradleProperties.AppendLine("org.gradle.jvmargs=-XX:MaxHeapSize=4096m -Xmx9216m");
 			GradleProperties.AppendLine("android.injected.testOnly=false");
+			GradleProperties.AppendLine("android.useAndroidX=true");
 			GradleProperties.AppendLine(string.Format("COMPILE_SDK_VERSION={0}", CompileSDKVersion));
 			GradleProperties.AppendLine(string.Format("BUILD_TOOLS_VERSION={0}", BuildToolsVersion));
 			GradleProperties.AppendLine(string.Format("PACKAGE_NAME={0}", PackageName));

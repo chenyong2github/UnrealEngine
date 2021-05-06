@@ -19,7 +19,8 @@
 			"WhitelistPlatforms": [
 				"Win64",
 				"Win32",
-				"Mac"
+				"Mac",
+				"Android"
 			]
 		},
 		{
@@ -29,7 +30,8 @@
 			"WhitelistPlatforms": [
 				"Win64",
 				"Win32",
-				"Mac"
+				"Mac",
+				"Android"
 			]
 		}
 	],

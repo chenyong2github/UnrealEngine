@@ -6,6 +6,12 @@
 
 #include "EOSSDKManager.h"
 
-using FPlatformEOSSDKManager = FEOSSDKManager;
+class FAndroidEOSSDKManager : public FEOSSDKManager
+{
+public:
+	virtual EOS_EResult EOSInitialize(EOS_InitializeOptions& Options) override;
+};
+
+using FPlatformEOSSDKManager = FAndroidEOSSDKManager;
 
 #endif // WITH_EOS_SDK
