@@ -635,6 +635,8 @@ static void RunHairLODSelection(FRDGBuilder& GraphBuilder, const FHairStrandsIns
 		// Note: Allocation will only be done if the resources it not yet initialized.
 		if (Instance->Guides.Data)
 		{
+			if (Instance->Guides.RestRootResource)		Instance->Guides.RestRootResource->Allocate(GraphBuilder);
+			if (Instance->Guides.RestResource)			Instance->Guides.RestResource->Allocate(GraphBuilder);
 			if (Instance->Guides.DeformedRootResource)	Instance->Guides.DeformedRootResource->Allocate(GraphBuilder);
 			if (Instance->Guides.DeformedResource)		Instance->Guides.DeformedResource->Allocate(GraphBuilder);
 		}
@@ -664,10 +666,15 @@ static void RunHairLODSelection(FRDGBuilder& GraphBuilder, const FHairStrandsIns
 		}
 		else if (GeometryType == EHairGeometryType::Strands)
 		{
-			if (Instance->Strands.DeformedRootResource)	Instance->Strands.DeformedRootResource->Allocate(GraphBuilder);
-			if (Instance->Strands.DeformedResource)		Instance->Strands.DeformedResource->Allocate(GraphBuilder);
+			if (Instance->Strands.RestRootResource)			Instance->Strands.RestRootResource->Allocate(GraphBuilder);
+			if (Instance->Strands.RestResource)				Instance->Strands.RestResource->Allocate(GraphBuilder);
+			if (Instance->Strands.ClusterCullingResource)	Instance->Strands.ClusterCullingResource->Allocate(GraphBuilder);
+			if (Instance->Strands.InterpolationResource)	Instance->Strands.InterpolationResource->Allocate(GraphBuilder);
+
+			if (Instance->Strands.DeformedRootResource)		Instance->Strands.DeformedRootResource->Allocate(GraphBuilder);
+			if (Instance->Strands.DeformedResource)			Instance->Strands.DeformedResource->Allocate(GraphBuilder);
 			#if RHI_RAYTRACING
-			if (Instance->Strands.RenRaytracingResource)Instance->Strands.RenRaytracingResource->Allocate(GraphBuilder);
+			if (Instance->Strands.RenRaytracingResource)	Instance->Strands.RenRaytracingResource->Allocate(GraphBuilder);
 			#endif
 			Instance->Strands.VertexFactory->InitResources();
 		}

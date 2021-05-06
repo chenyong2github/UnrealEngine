@@ -568,7 +568,7 @@ void FHairMeshesDeformedResource::InternalRelease()
 /////////////////////////////////////////////////////////////////////////////////////////
 
 FHairStrandsRestResource::FHairStrandsRestResource(const FHairStrandsBulkData& InBulkData, EHairStrandsResourcesType InCurveType) :
-	FHairCommonResource(EHairStrandsAllocationType::Immediate),
+	FHairCommonResource(EHairStrandsAllocationType::Deferred),
 	PositionBuffer(), AttributeBuffer(), MaterialBuffer(), BulkData(InBulkData), CurveType(InCurveType)
 {}
 
@@ -697,7 +697,7 @@ void FHairStrandsClusterCullingData::Serialize(FArchive& Ar)
 }
 
 FHairStrandsClusterCullingResource::FHairStrandsClusterCullingResource(const FHairStrandsClusterCullingData& InData): 
-	FHairCommonResource(EHairStrandsAllocationType::Immediate),
+	FHairCommonResource(EHairStrandsAllocationType::Deferred),
 	Data(InData) 
 {
 
@@ -727,7 +727,7 @@ void FHairStrandsClusterCullingResource::InternalRelease()
 /////////////////////////////////////////////////////////////////////////////////////////
 
 FHairStrandsRestRootResource::FHairStrandsRestRootResource(const FHairStrandsRootData& InRootData, EHairStrandsResourcesType InCurveType) :
-	FHairCommonResource(EHairStrandsAllocationType::Immediate),
+	FHairCommonResource(EHairStrandsAllocationType::Deferred),
 	RootData(InRootData), CurveType(InCurveType)
 {
 	PopulateFromRootData();
@@ -995,7 +995,7 @@ void FHairStrandsRootData::Reset()
 /////////////////////////////////////////////////////////////////////////////////////////
 
 FHairStrandsInterpolationResource::FHairStrandsInterpolationResource(const FHairStrandsInterpolationBulkData& InBulkData) :
-	FHairCommonResource(EHairStrandsAllocationType::Immediate),
+	FHairCommonResource(EHairStrandsAllocationType::Deferred),
 	Interpolation0Buffer(), Interpolation1Buffer(), BulkData(InBulkData)
 {
 }
