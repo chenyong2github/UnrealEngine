@@ -427,14 +427,17 @@ public:
 			Particles.SetDynamicParticleSOA(Particle);
 		}
 
-		if (InitialState == EObjectStateType::Sleeping && InitialState != ObjectState && !Particle->Disabled())
+		if (InitialState != ObjectState && !Particle->Disabled())
 		{
-			if (Particle->Island() != INDEX_NONE)
+			if (InitialState == EObjectStateType::Sleeping)
 			{
-				// GT has forced a wake so have to wake everything in the island
-				IslandsToWake.Enqueue(Particle->Island());
+				if (Particle->Island() != INDEX_NONE)
+				{
+					// GT has forced a wake so have to wake everything in the island
+					IslandsToWake.Enqueue(Particle->Island());
+				}
 			}
-			else if(ObjectState != EObjectStateType::Dynamic)
+			else if (ObjectState != EObjectStateType::Dynamic)
 			{
 				// even though we went to sleep, we should still report info back to GT
 				Particles.MarkTransientDirtyParticle(Particle);

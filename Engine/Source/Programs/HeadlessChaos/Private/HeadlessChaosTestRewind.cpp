@@ -402,7 +402,7 @@ namespace ChaosTest {
 			});
 	}
 
-	GTEST_TEST(AllTraits, DISABLED_RewindTest_ResimSleepChange)
+	GTEST_TEST(AllTraits, RewindTest_ResimSleepChange)
 	{
 		//change object state on physics thread, and make sure the state change is properly recorded in rewind data
 		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
