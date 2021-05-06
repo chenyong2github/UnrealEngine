@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ElectraCDM.h"
+#include "ElectraCDMSystem.h"
 //#include "ClearKey/ClearKeyCDM.h"
 #include "HAL/CriticalSection.h"
 #include "Misc/ScopeLock.h"
