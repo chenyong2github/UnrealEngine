@@ -92,6 +92,15 @@ void FPackageStoreOptimizer::Initialize(const ITargetPlatform* TargetPlatform)
 	FindScriptObjects(TargetPlatform);
 }
 
+FPackageStorePackage* FPackageStoreOptimizer::CreateMissingPackage(const FName& Name) const
+{
+	FPackageStorePackage* Package = new FPackageStorePackage();
+	Package->Name = Name;
+	Package->Id = FPackageId::FromName(Name);
+	Package->SourceName = *RemapLocalizationPathIfNeeded(Name.ToString(), &Package->Region);
+	return Package;
+}
+
 FPackageStorePackage* FPackageStoreOptimizer::CreatePackageFromCookedHeader(const FName& Name, const FIoBuffer& CookedHeaderBuffer) const
 {
 	FPackageStorePackage* Package = new FPackageStorePackage();

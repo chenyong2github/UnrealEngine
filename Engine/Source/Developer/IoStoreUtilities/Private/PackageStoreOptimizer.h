@@ -319,6 +319,7 @@ public:
 		bIncrementalResolveEnabled = true;
 	}
 
+	FPackageStorePackage* CreateMissingPackage(const FName& Name) const;
 	FPackageStorePackage* CreatePackageFromCookedHeader(const FName& Name, const FIoBuffer& CookedHeaderBuffer) const;
 	void BeginResolvePackage(FPackageStorePackage* Package);
 	void Flush(bool bAllowMissingImports, TFunction<void(FPackageStorePackage*)> ResolvedPackageCallback = TFunction<void(FPackageStorePackage*)>());

@@ -736,8 +736,15 @@ static void ParsePackageAssets(TArray<FLegacyCookedPackage*>& Packages, const FP
 			uint8* PackageBuffer = PackageAssetBuffers[Index];
 			FLegacyCookedPackage* Package = Packages[Index];
 
-			FIoBuffer CookedHeaderBuffer = FIoBuffer(FIoBuffer::Wrap, PackageBuffer, Package->UAssetSize);
-			Package->OptimizedPackage = PackageStoreOptimizer.CreatePackageFromCookedHeader(Package->PackageName, CookedHeaderBuffer);
+			if (Package->UAssetSize)
+			{
+				FIoBuffer CookedHeaderBuffer = FIoBuffer(FIoBuffer::Wrap, PackageBuffer, Package->UAssetSize);
+				Package->OptimizedPackage = PackageStoreOptimizer.CreatePackageFromCookedHeader(Package->PackageName, CookedHeaderBuffer);
+			}
+			else
+			{
+				Package->OptimizedPackage = PackageStoreOptimizer.CreateMissingPackage(Package->PackageName);
+			}
 			check(Package->OptimizedPackage->GetId() == Package->GlobalPackageId);
 		}, EParallelForFlags::Unbalanced);
 	}
