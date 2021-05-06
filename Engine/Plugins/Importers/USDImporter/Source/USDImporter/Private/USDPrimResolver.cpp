@@ -296,7 +296,7 @@ AActor* UDEPRECATED_UUSDPrimResolver::SpawnActor(FUSDSceneImportContext& ImportC
 			else
 			{
 				// We'll set the name later by using the ActorLabels cache
-				SpawnedActor = ActorFactory->CreateActor(ActorAsset, ImportContext.World->GetCurrentLevel(), FTransform::Identity, RF_Transactional);
+				SpawnedActor = ActorFactory->CreateActor(ActorAsset, ImportContext.World->GetCurrentLevel(), FTransform::Identity);
 
 				// For empty group actors set their initial mobility to static
 				if ( ActorFactory == ImportContext.EmptyActorFactory )

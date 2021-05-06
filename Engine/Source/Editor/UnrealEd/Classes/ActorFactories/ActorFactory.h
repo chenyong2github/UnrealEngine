@@ -8,12 +8,14 @@
 #include "UObject/Object.h"
 #include "Templates/SubclassOf.h"
 #include "Factories/AssetFactoryInterface.h"
+#include "Engine/World.h"
 
 #include "ActorFactory.generated.h"
 
 UNREALED_API DECLARE_LOG_CATEGORY_EXTERN(LogActorFactory, Log, All);
 
 class AActor;
+struct FActorSpawnParameters;
 struct FAssetData;
 class UBlueprint;
 class ULevel;
@@ -51,7 +53,9 @@ class UNREALED_API UActorFactory : public UObject, public IAssetFactoryInterface
 	FVector SpawnPositionOffset;
 
 	/** Called to actual create an actor with the supplied transform (scale is ignored), using the properties in the ActorFactory */
-	AActor* CreateActor( UObject* Asset, ULevel* InLevel, FTransform Transform, EObjectFlags InObjectFlags = RF_Transactional, const FName InName = NAME_None );
+	UE_DEPRECATED(5.0, "This function has been deprecated in favor of the other version that takes a FActorSpawnParameters in parameter")
+	AActor* CreateActor(UObject* Asset, ULevel* InLevel, const FTransform& Transform, EObjectFlags InObjectFlags, const FName InName = NAME_None);
+	AActor* CreateActor(UObject* InAsset, ULevel* InLevel, const FTransform& InTransform, const FActorSpawnParameters& InSpawnParams = FActorSpawnParameters());
 
 	/** Called to create a blueprint class that can be used to spawn an actor from this factory */
 	UE_DEPRECATED(5.0, "This function is no longer used. See FKismetEditorUtilities::CreateBlueprint.")
@@ -90,8 +94,14 @@ class UNREALED_API UActorFactory : public UObject, public IAssetFactoryInterface
 
 protected:
 
+	/** Validates the input params for SpawnActor and returns the appropriate level to use depending on whether InLevel and/or InSpawnParams.OverrideLevel is passed : */
+	ULevel* ValidateSpawnActorLevel(ULevel* InLevel, const FActorSpawnParameters& InSpawnParams) const;
+
 	virtual bool PreSpawnActor( UObject* Asset, FTransform& InOutLocation);
-	virtual AActor* SpawnActor( UObject* Asset, ULevel* InLevel, const FTransform& Transform, EObjectFlags ObjectFlags, const FName Name );
+
+	UE_DEPRECATED(5.0, "This function has been deprecated in favor of the other version that takes a FActorSpawnParameters in parameter")
+	virtual AActor* SpawnActor(UObject* Asset, ULevel* InLevel, const FTransform& Transform, EObjectFlags ObjectFlags, const FName Name ) final;
+	virtual AActor* SpawnActor(UObject* InAsset, ULevel* InLevel, const FTransform& InTransform, const FActorSpawnParameters& InSpawnParams);
 
 	/** Subclasses may implement this to modify the actor after it has been spawned 
 	    IMPORTANT: If you override this, you should usually also override PostCreateBlueprint()! */

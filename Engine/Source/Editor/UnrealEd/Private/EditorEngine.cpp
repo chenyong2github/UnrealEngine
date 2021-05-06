@@ -5034,7 +5034,7 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 		const FTransform OldTransform = OldActor->ActorToWorld();
 
 		// create the actor
-		NewActor = Factory->CreateActor( Asset, Level, OldTransform );
+		NewActor = Factory->CreateActor(Asset, Level, OldTransform);
 		// For blueprints, try to copy over properties
 		if (Factory->IsA(UActorFactoryBlueprint::StaticClass()))
 		{

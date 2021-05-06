@@ -145,7 +145,7 @@ bool UActorFactoryDatasmithScene::CanCreateActorFrom(const FAssetData& AssetData
 	return true;
 }
 
-AActor* UActorFactoryDatasmithScene::SpawnActor( UObject* Asset, ULevel* InLevel, const FTransform& Transform, EObjectFlags InObjectFlags, const FName Name )
+AActor* UActorFactoryDatasmithScene::SpawnActor( UObject* Asset, ULevel* InLevel, const FTransform& Transform, const FActorSpawnParameters& InSpawnParams)
 {
 	UDatasmithScene* DatasmithScene = Cast< UDatasmithScene >( Asset );
 
@@ -156,13 +156,13 @@ AActor* UActorFactoryDatasmithScene::SpawnActor( UObject* Asset, ULevel* InLevel
 
 	AActor* ResultingActor = nullptr;
 
-	if ( InObjectFlags & RF_Transient )
+	if (InSpawnParams.ObjectFlags & RF_Transient)
 	{
 		// This is a hack for drag and drop so that we don't spawn all the actors for the preview actor since it gets deleted right after.
-		FActorSpawnParameters SpawnParameters;
-		SpawnParameters.ObjectFlags = InObjectFlags;
 
-		AStaticMeshActor* DragActor = Cast< AStaticMeshActor >( InLevel->GetWorld()->SpawnActor( AStaticMeshActor::StaticClass(), &Transform, SpawnParameters ) );
+		FActorSpawnParameters SpawnInfo(InSpawnParams);
+		SpawnInfo.OverrideLevel = InLevel;
+		AStaticMeshActor* DragActor = Cast< AStaticMeshActor >( InLevel->GetWorld()->SpawnActor( AStaticMeshActor::StaticClass(), &Transform, SpawnInfo) );
 		DragActor->GetStaticMeshComponent()->SetStaticMesh( Cast< UStaticMesh >( FSoftObjectPath( TEXT("StaticMesh'/Engine/EditorMeshes/EditorSphere.EditorSphere'") ).TryLoad() ) );
 		DragActor->SetActorScale3D( FVector( 0.1f ) );
 
@@ -170,7 +170,7 @@ AActor* UActorFactoryDatasmithScene::SpawnActor( UObject* Asset, ULevel* InLevel
 	}
 	else
 	{
-		ResultingActor = UActorFactoryDatasmithSceneImpl::ImportActors( DatasmithScene, nullptr, Transform, InObjectFlags, false );
+		ResultingActor = UActorFactoryDatasmithSceneImpl::ImportActors( DatasmithScene, nullptr, Transform, InSpawnParams.ObjectFlags, false );
 	}
 
 	return ResultingActor;

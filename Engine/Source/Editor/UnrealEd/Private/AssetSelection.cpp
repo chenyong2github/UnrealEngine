@@ -638,7 +638,10 @@ static AActor* PrivateAddActor( UObject* Asset, UActorFactory* Factory, bool Sel
 		
 		if (!Actor)
 		{
-			Actor = Factory->CreateActor(Asset, DesiredLevel, ActorTransform, ObjectFlags, Name);
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.ObjectFlags = ObjectFlags;
+			SpawnParams.Name = Name;
+			Actor = Factory->CreateActor(Asset, DesiredLevel, ActorTransform, SpawnParams);
 		}
 
 		if (Actor)

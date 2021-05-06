@@ -6,6 +6,8 @@
 
 #include "ActorFactoryDatasmithScene.generated.h"
 
+struct FActorSpawnParameters;
+
 UCLASS(MinimalAPI)
 class UActorFactoryDatasmithScene : public UActorFactory
 {
@@ -18,6 +20,6 @@ public:
 	virtual bool CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg ) override;
 
 protected:
-	virtual AActor* SpawnActor( UObject* Asset, ULevel* InLevel, const FTransform& Transform, EObjectFlags InObjectFlags, const FName Name ) override;
+	virtual AActor* SpawnActor( UObject* Asset, ULevel* InLevel, const FTransform& Transform, const FActorSpawnParameters& InSpawnParams) override;
 	//~ End UActorFactory Interface
 };

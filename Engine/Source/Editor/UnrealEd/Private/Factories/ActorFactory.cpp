@@ -303,7 +303,9 @@ bool UActorFactory::PrePlaceAsset(FAssetPlacementInfo& InPlacementInfo, const FP
 TArray<FTypedElementHandle> UActorFactory::PlaceAsset(const FAssetPlacementInfo& InPlacementInfo, const FPlacementOptions& InPlacementOptions)
 {
 	TArray<FTypedElementHandle> PlacedActorHandles;
-	AActor* NewActor = CreateActor(InPlacementInfo.AssetToPlace.GetAsset(), InPlacementInfo.PreferredLevel.Get(), InPlacementInfo.FinalizedTransform, RF_Transactional, InPlacementInfo.NameOverride);
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Name = InPlacementInfo.NameOverride;
+	AActor* NewActor = CreateActor(InPlacementInfo.AssetToPlace.GetAsset(), InPlacementInfo.PreferredLevel.Get(), InPlacementInfo.FinalizedTransform, SpawnParams);
 	if (NewActor)
 	{
 		PlacedActorHandles.Add(UEngineElementsLibrary::AcquireEditorActorElementHandle(NewActor));
@@ -384,22 +386,31 @@ void UActorFactory::EndPlacement(TArrayView<const FTypedElementHandle> InPlacedE
 {
 }
 
-AActor* UActorFactory::CreateActor( UObject* Asset, ULevel* InLevel, FTransform SpawnTransform, EObjectFlags InObjectFlags, const FName Name )
+AActor* UActorFactory::CreateActor( UObject* Asset, ULevel* InLevel, const FTransform& SpawnTransform, EObjectFlags InObjectFlags, const FName Name)
+{
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.ObjectFlags = InObjectFlags;
+	SpawnParams.Name = Name;
+	return CreateActor(Asset, InLevel, SpawnTransform, SpawnParams);
+}
+
+AActor* UActorFactory::CreateActor(UObject* InAsset, ULevel* InLevel, const FTransform& InTransform, const FActorSpawnParameters& InSpawnParams)
 {
 	AActor* NewActor = nullptr;
 
-	if ( PreSpawnActor(Asset, SpawnTransform) )
+	FTransform Transform(InTransform);
+	if (PreSpawnActor(InAsset, Transform))
 	{
-		NewActor = SpawnActor(Asset, InLevel, SpawnTransform, InObjectFlags, Name);
+		NewActor = SpawnActor(InAsset, InLevel, Transform, InSpawnParams);
 
-		if ( NewActor )
+		if (NewActor)
 		{
-			PostSpawnActor(Asset, NewActor);
+			PostSpawnActor(InAsset, NewActor);
 
 			// Only do this if the actor wasn't already given a name
-			if (Name == NAME_None && Asset)
+			if ((InAsset != nullptr) && (InSpawnParams.Name == NAME_None))
 			{
-				FActorLabelUtilities::SetActorLabelUnique(NewActor, Asset->GetName());
+				FActorLabelUtilities::SetActorLabelUnique(NewActor, InAsset->GetName());
 			}
 
 			NewActor->PostEditChange();
@@ -421,21 +432,47 @@ UBlueprint* UActorFactory::CreateBlueprint( UObject* Asset, UObject* Outer, cons
 	return NewBlueprint;
 }
 
+ULevel* UActorFactory::ValidateSpawnActorLevel(ULevel* InLevel, const FActorSpawnParameters& InSpawnParams) const
+{
+	ULevel* LocalLevel = InLevel;
+	if (InLevel != nullptr)
+	{
+		// If InLevel is passed, then InSpawnParams.OverrideLevel shouldn't be used or be identical to that level, because in the end, InLevel will be the one we'll use :
+		ensure((InSpawnParams.OverrideLevel == nullptr) || (InSpawnParams.OverrideLevel == InLevel));
+	}
+	else
+	{
+		// If InLevel is not passed then the level should at least be specified in InSpawnParams.OverrideLevel :
+		ensure(InSpawnParams.OverrideLevel != nullptr);
+		LocalLevel = InSpawnParams.OverrideLevel;
+	}
+
+	return LocalLevel;
+}
+
 bool UActorFactory::PreSpawnActor( UObject* Asset, FTransform& InOutLocation)
 {
 	// Subclasses may implement this to set up a spawn or to adjust the spawn location or rotation.
 	return true;
 }
 
-AActor* UActorFactory::SpawnActor( UObject* Asset, ULevel* InLevel, const FTransform& Transform, EObjectFlags InObjectFlags, const FName Name )
+AActor* UActorFactory::SpawnActor( UObject* InAsset, ULevel* InLevel, const FTransform& Transform, EObjectFlags InObjectFlags, const FName Name )
 {
-	AActor* DefaultActor = GetDefaultActor( FAssetData( Asset ) );
-	if ( DefaultActor )
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.ObjectFlags = InObjectFlags;
+	SpawnParams.Name = Name;
+	return SpawnActor(InAsset, InLevel, Transform, SpawnParams);
+}
+
+AActor* UActorFactory::SpawnActor(UObject* InAsset, ULevel* InLevel, const FTransform& InTransform, const FActorSpawnParameters& InSpawnParams)
+{
+	ULevel* LocalLevel = ValidateSpawnActorLevel(InLevel, InSpawnParams);
+
+	AActor* DefaultActor = GetDefaultActor(FAssetData(InAsset));
+	if ((DefaultActor != nullptr) && (LocalLevel != nullptr))
 	{
-		FActorSpawnParameters SpawnInfo;
-		SpawnInfo.OverrideLevel = InLevel;
-		SpawnInfo.ObjectFlags = InObjectFlags;
-		SpawnInfo.Name = Name;
+		FActorSpawnParameters SpawnParamsCopy(InSpawnParams);
+		SpawnParamsCopy.OverrideLevel = LocalLevel;
 
 		const bool bIsCreatingPreviewElements = FLevelEditorViewportClient::IsDroppingPreviewActor();
 		bool bIsPlacementSystemCreatingPreviewElements = false;
@@ -443,10 +480,10 @@ AActor* UActorFactory::SpawnActor( UObject* Asset, ULevel* InLevel, const FTrans
 		{
 			bIsPlacementSystemCreatingPreviewElements = PlacementSubsystem->IsCreatingPreviewElements();
 		}
-		SpawnInfo.bTemporaryEditorActor = bIsCreatingPreviewElements || bIsPlacementSystemCreatingPreviewElements;
-		SpawnInfo.bHideFromSceneOutliner = bIsPlacementSystemCreatingPreviewElements;
+		SpawnParamsCopy.bTemporaryEditorActor = bIsCreatingPreviewElements || bIsPlacementSystemCreatingPreviewElements;
+		SpawnParamsCopy.bHideFromSceneOutliner = bIsPlacementSystemCreatingPreviewElements;
 
-		return InLevel->OwningWorld->SpawnActor( DefaultActor->GetClass(), &Transform, SpawnInfo );
+		return LocalLevel->OwningWorld->SpawnActor(DefaultActor->GetClass(), &InTransform, SpawnParamsCopy);
 	}
 
 	return nullptr;
@@ -1336,17 +1373,17 @@ bool UActorFactoryEmptyActor::CanCreateActorFrom( const FAssetData& AssetData, F
 	return AssetData.ObjectPath == FName(*AActor::StaticClass()->GetPathName());
 }
 
-AActor* UActorFactoryEmptyActor::SpawnActor( UObject* Asset, ULevel* InLevel, const FTransform& Transform, EObjectFlags InObjectFlags, const FName Name )
+AActor* UActorFactoryEmptyActor::SpawnActor(UObject* InAsset, ULevel* InLevel, const FTransform& InTransform, const FActorSpawnParameters& InSpawnParams)
 {
 	AActor* NewActor = nullptr;
 	{
 		// Spawn a temporary actor for dragging around
-		NewActor = Super::SpawnActor(Asset, InLevel, Transform, InObjectFlags, Name);
+		NewActor = Super::SpawnActor(InAsset, InLevel, InTransform, InSpawnParams);
 
 		USceneComponent* RootComponent = NewObject<USceneComponent>(NewActor, USceneComponent::GetDefaultSceneRootVariableName(), RF_Transactional);
 		RootComponent->Mobility = EComponentMobility::Movable;
 		RootComponent->bVisualizeComponent = bVisualizeActor;
-		RootComponent->SetWorldTransform(Transform);
+		RootComponent->SetWorldTransform(InTransform);
 
 		NewActor->SetRootComponent(RootComponent);
 		NewActor->AddInstanceComponent(RootComponent);
@@ -1504,17 +1541,15 @@ bool UActorFactoryClass::PreSpawnActor( UObject* Asset, FTransform& InOutLocatio
 	return false;
 }
 
-AActor* UActorFactoryClass::SpawnActor( UObject* Asset, ULevel* InLevel, const FTransform& Transform, EObjectFlags InObjectFlags, const FName Name )
+AActor* UActorFactoryClass::SpawnActor( UObject* Asset, ULevel* InLevel, const FTransform& Transform, const FActorSpawnParameters& InSpawnParams)
 {
 	UClass* ActualClass = Cast<UClass>(Asset);
 
 	if ( (nullptr != ActualClass) && ActualClass->IsChildOf(AActor::StaticClass()) )
 	{
-		FActorSpawnParameters SpawnInfo;
+		FActorSpawnParameters SpawnInfo(InSpawnParams);
 		SpawnInfo.OverrideLevel = InLevel;
-		SpawnInfo.ObjectFlags = InObjectFlags;
-		SpawnInfo.Name = Name;
-		return InLevel->OwningWorld->SpawnActor( ActualClass, &Transform, SpawnInfo );
+		return InLevel->OwningWorld->SpawnActor(ActualClass, &Transform, SpawnInfo);
 	}
 
 	return nullptr;
@@ -2073,13 +2108,13 @@ bool UActorFactoryLevelSequence::CanCreateActorFrom( const FAssetData& AssetData
 	return true;
 }
 
-AActor* UActorFactoryLevelSequence::SpawnActor( UObject* Asset, ULevel* InLevel, const FTransform& Transform, EObjectFlags InObjectFlags, const FName Name )
+AActor* UActorFactoryLevelSequence::SpawnActor(UObject* InAsset, ULevel* InLevel, const FTransform& InTransform, const FActorSpawnParameters& InSpawnParams)
 {
-	ALevelSequenceActor* NewActor = Cast<ALevelSequenceActor>(Super::SpawnActor(Asset, InLevel, Transform, InObjectFlags, Name));
+	ALevelSequenceActor* NewActor = Cast<ALevelSequenceActor>(Super::SpawnActor(InAsset, InLevel, InTransform, InSpawnParams));
 
 	if (NewActor)
 	{
-		if (ULevelSequence* LevelSequence = Cast<ULevelSequence>(Asset))
+		if (ULevelSequence* LevelSequence = Cast<ULevelSequence>(InAsset))
 		{
 			NewActor->SetSequence(LevelSequence);
 		}
