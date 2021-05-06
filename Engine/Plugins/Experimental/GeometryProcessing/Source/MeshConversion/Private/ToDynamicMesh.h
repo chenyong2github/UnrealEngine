@@ -394,6 +394,7 @@ protected:
 		// create color overlay
 		MeshOut.Attributes()->EnablePrimaryColors();
 		ColorOverlay = MeshOut.Attributes()->PrimaryColors();
+		ColorOverlay->InitializeTriangles(MeshOut.MaxTriangleID());
 
 		// always enable Material ID if there are any attributes
 		MeshOut.Attributes()->EnableMaterialID();
