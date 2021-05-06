@@ -846,10 +846,11 @@ class RENDERCORE_API FRDGPooledBuffer final
 	: public FRefCountedObject
 {
 public:
-	FRDGPooledBuffer(TRefCountPtr<FRHIBuffer> InBuffer, const FRDGBufferDesc& InDesc, const TCHAR* InName)
+	FRDGPooledBuffer(TRefCountPtr<FRHIBuffer> InBuffer, const FRDGBufferDesc& InDesc, uint32 InNumAllocatedElements, const TCHAR* InName)
 		: Desc(InDesc)
 		, Buffer(MoveTemp(InBuffer))
 		, Name(InName)
+		, NumAllocatedElements(InNumAllocatedElements)
 	{}
 
 	const FRDGBufferDesc Desc;
@@ -885,10 +886,18 @@ private:
 		State.Finalize();
 	}
 
+	FRDGBufferDesc GetAlignedDesc() const
+	{
+		FRDGBufferDesc AlignedDesc = Desc;
+		AlignedDesc.NumElements = NumAllocatedElements;
+		return AlignedDesc;
+	}
+
 	const TCHAR* Name = nullptr;
 	FRDGBufferRef Owner = nullptr;
 	FRDGSubresourceState State;
 
+	const uint32 NumAllocatedElements;
 	uint32 LastUsedFrame = 0;
 
 	friend FRenderGraphResourcePool;

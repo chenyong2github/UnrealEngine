@@ -2517,11 +2517,6 @@ void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator* TransientResourc
 	check(TransientResourceAllocator || Buffer->bExternal);
 	check(Buffer->ReferenceCount > 0 || Buffer->bExternal || IsImmediateMode());
 
-	const uint64 BufferPageSize = 64 * 1024;
-
-	FRDGBufferDesc SnappedBufferDesc = Buffer->Desc;
-	SnappedBufferDesc.NumElements = Align(SnappedBufferDesc.BytesPerElement * SnappedBufferDesc.NumElements, BufferPageSize) / SnappedBufferDesc.BytesPerElement;
-
 	// If transient then create the resource on the transient allocator. External or extracted resource can't be transient because of lifetime tracking issues.
 	if (IsTransient(Buffer))
 	{
@@ -2529,7 +2524,7 @@ void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator* TransientResourc
 
 		if (IRHITransientResourceAllocator* AllocatorRHI = TransientResourceAllocator->GetOrCreate())
 		{
-			if (FRHITransientBuffer* TransientBuffer = AllocatorRHI->CreateBuffer(Translate(SnappedBufferDesc), Buffer->Name))
+			if (FRHITransientBuffer* TransientBuffer = AllocatorRHI->CreateBuffer(Translate(Buffer->Desc), Buffer->Name))
 			{
 				Buffer->SetRHI(TransientBuffer, Allocator);
 
@@ -2553,7 +2548,7 @@ void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator* TransientResourc
 
 	if (!Buffer->bTransient)
 	{
-		Buffer->SetRHI(GRenderGraphResourcePool.FindFreeBufferInternal(RHICmdList, SnappedBufferDesc, Buffer->Name));
+		Buffer->SetRHI(GRenderGraphResourcePool.FindFreeBufferInternal(RHICmdList, Buffer->Desc, Buffer->Name));
 	}
 
 	Buffer->FirstPass = PassHandle;

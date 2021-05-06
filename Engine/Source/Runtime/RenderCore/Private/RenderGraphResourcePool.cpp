@@ -31,7 +31,11 @@ TRefCountPtr<FRDGPooledBuffer> FRenderGraphResourcePool::FindFreeBufferInternal(
 	const FRDGBufferDesc& Desc,
 	const TCHAR* InDebugName)
 {
-	const uint64 BufferHash = ComputeHash(Desc);
+	const uint64 BufferPageSize = 64 * 1024;
+
+	FRDGBufferDesc AlignedDesc = Desc;
+	AlignedDesc.NumElements = Align(AlignedDesc.BytesPerElement * AlignedDesc.NumElements, BufferPageSize) / AlignedDesc.BytesPerElement;
+	const uint64 BufferHash = ComputeHash(AlignedDesc);
 
 	// First find if available.
 	for (int32 Index = 0; Index < AllocatedBufferHashes.Num(); ++Index)
@@ -49,11 +53,14 @@ TRefCountPtr<FRDGPooledBuffer> FRenderGraphResourcePool::FindFreeBufferInternal(
 			continue;
 		}
 
-		check(PooledBuffer->Desc == Desc);
+		check(PooledBuffer->GetAlignedDesc() == AlignedDesc);
 
 		PooledBuffer->LastUsedFrame = FrameCounter;
 		PooledBuffer->ViewCache.SetDebugName(InDebugName);
 		PooledBuffer->Name = InDebugName;
+
+		// We need the external-facing desc to match what the user requested.
+		const_cast<FRDGBufferDesc&>(PooledBuffer->Desc).NumElements = Desc.NumElements;
 
 		return PooledBuffer;
 	}
@@ -62,7 +69,7 @@ TRefCountPtr<FRDGPooledBuffer> FRenderGraphResourcePool::FindFreeBufferInternal(
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FRenderGraphResourcePool::CreateBuffer);
 
-		uint32 NumBytes = Desc.GetTotalNumBytes();
+		const uint32 NumBytes = AlignedDesc.GetTotalNumBytes();
 
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		TRefCountPtr<FRHIBuffer> BufferRHI;
@@ -84,7 +91,7 @@ TRefCountPtr<FRDGPooledBuffer> FRenderGraphResourcePool::FindFreeBufferInternal(
 			check(0);
 		}
 
-		TRefCountPtr<FRDGPooledBuffer> PooledBuffer = new FRDGPooledBuffer(MoveTemp(BufferRHI), Desc, InDebugName);
+		TRefCountPtr<FRDGPooledBuffer> PooledBuffer = new FRDGPooledBuffer(MoveTemp(BufferRHI), Desc, AlignedDesc.NumElements, InDebugName);
 		AllocatedBuffers.Add(PooledBuffer);
 		AllocatedBufferHashes.Add(BufferHash);
 		check(PooledBuffer->GetRefCount() == 2);
