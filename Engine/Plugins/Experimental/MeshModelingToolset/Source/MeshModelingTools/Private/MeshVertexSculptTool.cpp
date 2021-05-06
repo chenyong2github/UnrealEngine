@@ -631,7 +631,22 @@ TFuture<void> UMeshVertexSculptTool::ApplyStamp()
 
 
 
+bool UMeshVertexSculptTool::IsHitTriangleBackFacing(int32 TriangleID, const FDynamicMesh3* QueryMesh)
+{
+	if (TriangleID != IndexConstants::InvalidID)
+	{
+		FViewCameraState StateOut;
+		GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(StateOut);
+		FVector3d LocalEyePosition(CurTargetTransform.InverseTransformPosition((FVector3d)StateOut.Position));
 
+		FVector3d Normal, Centroid;
+		double Area;
+		QueryMesh->GetTriInfo(TriangleID, Normal, Area, Centroid);
+
+		return (Normal.Dot((Centroid - LocalEyePosition)) >= 0);
+	}
+	return false;
+}
 
 
 int32 UMeshVertexSculptTool::FindHitSculptMeshTriangle(const FRay3d& LocalRay)
@@ -639,53 +654,22 @@ int32 UMeshVertexSculptTool::FindHitSculptMeshTriangle(const FRay3d& LocalRay)
 	// need this to finish before we can touch Octree
 	WaitForPendingStampUpdate();
 
-	if (GetBrushCanHitBackFaces())
+	int32 HitTID = Octree.FindNearestHitObject(LocalRay);
+	if (GetBrushCanHitBackFaces() == false && IsHitTriangleBackFacing(HitTID, GetSculptMesh()))
 	{
-		return Octree.FindNearestHitObject(LocalRay);
+		HitTID = IndexConstants::InvalidID;
 	}
-	else
-	{
-		FDynamicMesh3* Mesh = GetSculptMesh();
-
-		FViewCameraState StateOut;
-		GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(StateOut);
-		FVector3d LocalEyePosition(CurTargetTransform.InverseTransformPosition((FVector3d)StateOut.Position));
-		int HitTID = Octree.FindNearestHitObject(LocalRay,
-			[this, Mesh, &LocalEyePosition](int TriangleID) {
-			FVector3d Normal, Centroid;
-			double Area;
-			Mesh->GetTriInfo(TriangleID, Normal, Area, Centroid);
-			return Normal.Dot((Centroid - LocalEyePosition)) < 0;
-		});
-		return HitTID;
-	}
+	return HitTID;
 }
 
 int32 UMeshVertexSculptTool::FindHitTargetMeshTriangle(const FRay3d& LocalRay)
 {
-	IMeshSpatial::FQueryOptions RaycastOptions;
-
-	if (GetBrushCanHitBackFaces())
+	int32 HitTID = BaseMeshSpatial.FindNearestHitObject(LocalRay);
+	if (GetBrushCanHitBackFaces() == false && IsHitTriangleBackFacing(HitTID, GetBaseMesh()))
 	{
-		FDynamicMesh3* Mesh = GetSculptMesh();
-
-		FViewCameraState StateOut;
-		GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(StateOut);
-		FVector3d LocalEyePosition(CurTargetTransform.InverseTransformPosition((FVector3d)StateOut.Position));
-
-		RaycastOptions.TriangleFilterF = [this, Mesh, LocalEyePosition](int TriangleID) {
-			FVector3d Normal, Centroid;
-			double Area;
-			Mesh->GetTriInfo(TriangleID, Normal, Area, Centroid);
-			return Normal.Dot((Centroid - LocalEyePosition)) < 0;
-		};
-
-		return BaseMeshSpatial.FindNearestHitObject(LocalRay, RaycastOptions.TriangleFilterF);
+		HitTID = IndexConstants::InvalidID;
 	}
-	else
-	{
-		return BaseMeshSpatial.FindNearestHitObject(LocalRay);
-	}
+	return HitTID;
 }
 
 

@@ -413,6 +413,7 @@ private:
 
 	int FindHitSculptMeshTriangle(const FRay3d& LocalRay);
 	int FindHitTargetMeshTriangle(const FRay3d& LocalRay);
+	bool IsHitTriangleBackFacing(int32 TriangleID, const FDynamicMesh3* QueryMesh);
 
 	bool UpdateBrushPosition(const FRay& WorldRay);
 	bool UpdateBrushPositionOnActivePlane(const FRay& WorldRay);

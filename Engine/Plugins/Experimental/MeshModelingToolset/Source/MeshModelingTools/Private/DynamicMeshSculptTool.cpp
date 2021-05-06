@@ -1231,54 +1231,42 @@ bool UDynamicMeshSculptTool::ApplyScaleKelvinBrush(const FRay& WorldRay)
 	return true;
 }
 
-int UDynamicMeshSculptTool::FindHitSculptMeshTriangle(const FRay3d& LocalRay)
+bool UDynamicMeshSculptTool::IsHitTriangleBackFacing(int32 TriangleID, const FDynamicMesh3* QueryMesh)
 {
-	if (BrushProperties->bHitBackFaces)
+	if (TriangleID != IndexConstants::InvalidID)
 	{
-		return DynamicMeshComponent->GetOctree()->FindNearestHitObject(LocalRay);
-	}
-	else
-	{
-		FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
-
 		FViewCameraState StateOut;
 		GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(StateOut);
 		FVector3d LocalEyePosition(CurTargetTransform.InverseTransformPosition((FVector3d)StateOut.Position));
-		int HitTID = DynamicMeshComponent->GetOctree()->FindNearestHitObject(LocalRay,
-			[this, Mesh, &LocalEyePosition](int TriangleID) {
-			FVector3d Normal, Centroid;
-			double Area;
-			Mesh->GetTriInfo(TriangleID, Normal, Area, Centroid);
-			return Normal.Dot((Centroid - LocalEyePosition)) < 0;
-		});
-		return HitTID;
+
+		FVector3d Normal, Centroid;
+		double Area;
+		QueryMesh->GetTriInfo(TriangleID, Normal, Area, Centroid);
+
+		return (Normal.Dot((Centroid - LocalEyePosition)) >= 0);
 	}
+	return false;
+}
+
+int UDynamicMeshSculptTool::FindHitSculptMeshTriangle(const FRay3d& LocalRay)
+{
+	int32 HitTID = DynamicMeshComponent->GetOctree()->FindNearestHitObject(LocalRay);
+	if (BrushProperties->bHitBackFaces == false && IsHitTriangleBackFacing(HitTID, DynamicMeshComponent->GetMesh()) )
+	{
+		HitTID = IndexConstants::InvalidID;
+	}
+	return HitTID;
 }
 
 int UDynamicMeshSculptTool::FindHitTargetMeshTriangle(const FRay3d& LocalRay)
 {
 	PendingTargetUpdate.Wait();
 
-	IMeshSpatial::FQueryOptions RaycastOptions;
-
-	if (BrushProperties->bHitBackFaces == false)
+	int32 HitTID = BrushTargetMeshSpatial.FindNearestHitTriangle(LocalRay);
+	if (BrushProperties->bHitBackFaces == false && IsHitTriangleBackFacing(HitTID, &BrushTargetMesh))
 	{
-		FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
-
-		FViewCameraState StateOut;
-		GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(StateOut);
-		FVector3d LocalEyePosition(CurTargetTransform.InverseTransformPosition((FVector3d)StateOut.Position));
-
-		RaycastOptions.TriangleFilterF = [this, Mesh, LocalEyePosition](int TriangleID) {
-			FVector3d Normal, Centroid;
-			double Area;
-			Mesh->GetTriInfo(TriangleID, Normal, Area, Centroid);
-			return Normal.Dot((Centroid - LocalEyePosition)) < 0;
-		};
+		HitTID = IndexConstants::InvalidID;
 	}
-
-	int HitTID =  BrushTargetMeshSpatial.FindNearestHitTriangle(LocalRay, RaycastOptions);
-
 	return HitTID;
 }
 

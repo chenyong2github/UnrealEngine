@@ -221,6 +221,7 @@ protected:
 
 	virtual int32 FindHitSculptMeshTriangle(const FRay3d& LocalRay) override;
 	virtual int32 FindHitTargetMeshTriangle(const FRay3d& LocalRay) override;
+	bool IsHitTriangleBackFacing(int32 TriangleID, const FDynamicMesh3* QueryMesh);
 
 	virtual void OnBeginStroke(const FRay& WorldRay) override;
 	virtual void OnEndStroke() override;
