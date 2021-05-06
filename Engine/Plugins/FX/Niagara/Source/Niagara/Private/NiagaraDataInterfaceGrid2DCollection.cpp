@@ -302,7 +302,7 @@ public:
 			}
 			else
 			{
-				InputGridBuffer = FNiagaraRenderer::GetDummyTextureReadBuffer2D();
+				InputGridBuffer = FNiagaraRenderer::GetDummyTextureReadBuffer2DArray();
 			}
 			SetSRVParameter(RHICmdList, Context.Shader.GetComputeShader(), GridParam, InputGridBuffer);
 		}
@@ -316,7 +316,7 @@ public:
 			}
 			else
 			{
-				OutputGridUAV = Context.Batcher->GetEmptyRWTextureFromPool(RHICmdList, PF_R32_FLOAT);
+				OutputGridUAV = Context.Batcher->GetEmptyUAVFromPool(RHICmdList, PF_R32_FLOAT, ENiagaraEmptyUAVType::Texture2DArray);
 			}
 			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutputGridParam.GetUAVIndex(), OutputGridUAV);
 		}

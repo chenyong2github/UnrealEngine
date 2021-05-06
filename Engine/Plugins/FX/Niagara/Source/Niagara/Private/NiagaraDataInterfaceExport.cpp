@@ -246,7 +246,7 @@ public:
 			if (InstanceData->WeakCallbackHandler.IsExplicitlyNull())
 			{
 				WriteBufferSize = 0;
-				RHICmdList.SetUAVParameter(Context.Shader.GetComputeShader(), WriteBufferParam.GetUAVIndex(), Context.Batcher->GetEmptyRWBufferFromPool(RHICmdList, PF_R32_UINT));
+				RHICmdList.SetUAVParameter(Context.Shader.GetComputeShader(), WriteBufferParam.GetUAVIndex(), Context.Batcher->GetEmptyUAVFromPool(RHICmdList, PF_R32_UINT, ENiagaraEmptyUAVType::Buffer));
 			}
 			else
 			{

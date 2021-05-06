@@ -1819,7 +1819,7 @@ void NiagaraEmitterInstanceBatcher::GenerateSortKeys(FRHICommandListImmediate& R
 	{
 		// Note: We don't care that the buffer will be allowed to be reused
 		FNiagaraUAVPoolAccessScope UAVPoolAccessScope(*this);
-		Params.OutCulledParticleCounts = GetEmptyRWBufferFromPool(RHICmdList, PF_R32_UINT);
+		Params.OutCulledParticleCounts = GetEmptyUAVFromPool(RHICmdList, PF_R32_UINT, ENiagaraEmptyUAVType::Buffer);
 	}
 
 	RHICmdList.BeginUAVOverlap(MakeArrayView(OverlapUAVs, NumOverlapUAVs));
@@ -1958,62 +1958,78 @@ void NiagaraEmitterInstanceBatcher::AddDebugReadback(FNiagaraSystemInstanceID In
 }
 #endif
 
-NiagaraEmitterInstanceBatcher::DummyUAV::~DummyUAV()
+NiagaraEmitterInstanceBatcher::FDummyUAV::~FDummyUAV()
 {
 	UAV.SafeRelease();
 	Buffer.SafeRelease();
 	Texture.SafeRelease();
 }
 
-void NiagaraEmitterInstanceBatcher::DummyUAV::Init(FRHICommandList& RHICmdList, EPixelFormat Format, bool IsTexture, const TCHAR* DebugName)
+void NiagaraEmitterInstanceBatcher::FDummyUAV::Init(FRHICommandList& RHICmdList, EPixelFormat Format, ENiagaraEmptyUAVType Type, const TCHAR* DebugName)
 {
 	checkSlow(IsInRenderingThread());
 
 	FRHIResourceCreateInfo CreateInfo;
 	CreateInfo.DebugName = DebugName;
 
-	if (IsTexture)
+	switch(Type)
 	{
-		Texture = RHICreateTexture2D(1, 1, Format, 1, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
-		UAV = RHICreateUnorderedAccessView(Texture, 0);
-	}
-	else
-	{
-		uint32 BytesPerElement = GPixelFormats[Format].BlockBytes;
-		Buffer = RHICreateVertexBuffer(BytesPerElement, BUF_UnorderedAccess | BUF_ShaderResource, CreateInfo);
-		UAV = RHICreateUnorderedAccessView(Buffer, Format);
+		case ENiagaraEmptyUAVType::Buffer:
+		{
+			uint32 BytesPerElement = GPixelFormats[Format].BlockBytes;
+			Buffer = RHICreateVertexBuffer(BytesPerElement, BUF_UnorderedAccess | BUF_ShaderResource, CreateInfo);
+			UAV = RHICreateUnorderedAccessView(Buffer, Format);
+			break;
+		}
+
+		case ENiagaraEmptyUAVType::Texture2D:
+		{
+			Texture = RHICreateTexture2D(1, 1, Format, 1, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
+			UAV = RHICreateUnorderedAccessView(Texture, 0);
+			break;
+		}
+
+		case ENiagaraEmptyUAVType::Texture2DArray:
+		{
+			Texture = RHICreateTexture2DArray(1, 1, 1, Format, 1, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
+			UAV = RHICreateUnorderedAccessView(Texture, 0);
+			break;
+		}
+
+		case ENiagaraEmptyUAVType::Texture3D:
+		{
+			Texture = RHICreateTexture3D(1, 1, 1, Format, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
+			UAV = RHICreateUnorderedAccessView(Texture, 0);
+			break;
+		}
+
+		default:
+		{
+			checkNoEntry();
+			return;
+		}
 	}
 
 	RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 }
 
-NiagaraEmitterInstanceBatcher::DummyUAVPool::~DummyUAVPool()
+NiagaraEmitterInstanceBatcher::FDummyUAVPool::~FDummyUAVPool()
 {
 	UE_CLOG(NextFreeIndex != 0, LogNiagara, Warning, TEXT("DummyUAVPool is potentially in use during destruction."));
 	DEC_DWORD_STAT_BY(STAT_NiagaraDummyUAVPool, UAVs.Num());
 }
 
-FRHIUnorderedAccessView* NiagaraEmitterInstanceBatcher::GetEmptyRWBufferFromPool(FRHICommandList& RHICmdList, EPixelFormat Format) const
-{
-	return GetEmptyUAVFromPool(RHICmdList, Format, false);
-}
-
-FRHIUnorderedAccessView* NiagaraEmitterInstanceBatcher::GetEmptyRWTextureFromPool(FRHICommandList& RHICmdList, EPixelFormat Format) const
-{
-	return GetEmptyUAVFromPool(RHICmdList, Format, true);
-}
-
-FRHIUnorderedAccessView* NiagaraEmitterInstanceBatcher::GetEmptyUAVFromPool(FRHICommandList& RHICmdList, EPixelFormat Format, bool IsTexture) const
+FRHIUnorderedAccessView* NiagaraEmitterInstanceBatcher::GetEmptyUAVFromPool(FRHICommandList& RHICmdList, EPixelFormat Format, ENiagaraEmptyUAVType Type) const
 {
 	checkf(DummyUAVAccessCounter != 0, TEXT("Accessing Niagara's UAV Pool while not within a scope, this could result in a memory leak!"));
 
-	TMap<EPixelFormat, DummyUAVPool>& UAVMap = IsTexture ? DummyTexturePool : DummyBufferPool;
-	DummyUAVPool& Pool = UAVMap.FindOrAdd(Format);
+	TMap<EPixelFormat, FDummyUAVPool>& UAVMap = DummyUAVPools[(int)Type];
+	FDummyUAVPool& Pool = UAVMap.FindOrAdd(Format);
 	checkSlow(Pool.NextFreeIndex <= Pool.UAVs.Num());
 	if (Pool.NextFreeIndex == Pool.UAVs.Num())
 	{
-		DummyUAV& NewUAV = Pool.UAVs.AddDefaulted_GetRef();
-		NewUAV.Init(RHICmdList, Format, IsTexture, TEXT("NiagaraEmitterInstanceBatcher::DummyUAV"));
+		FDummyUAV& NewUAV = Pool.UAVs.AddDefaulted_GetRef();
+		NewUAV.Init(RHICmdList, Format, Type, TEXT("NiagaraEmitterInstanceBatcher::DummyUAV"));
 		// Dispatches which use dummy UAVs are allowed to overlap, since we don't care about the contents of these buffers.
 		// We never need to calll EndUAVOverlap() on these.
 		RHICmdList.BeginUAVOverlap(NewUAV.UAV);
@@ -2026,18 +2042,15 @@ FRHIUnorderedAccessView* NiagaraEmitterInstanceBatcher::GetEmptyUAVFromPool(FRHI
 	return UAV;
 }
 
-void NiagaraEmitterInstanceBatcher::ResetEmptyUAVPool(TMap<EPixelFormat, DummyUAVPool>& UAVMap)
-{
-	for (TPair<EPixelFormat, DummyUAVPool>& Entry : UAVMap)
-	{
-		Entry.Value.NextFreeIndex = 0;
-	}
-}
-
 void NiagaraEmitterInstanceBatcher::ResetEmptyUAVPools()
 {
-	ResetEmptyUAVPool(DummyBufferPool);
-	ResetEmptyUAVPool(DummyTexturePool);
+	for (int Type = 0; Type < UE_ARRAY_COUNT(DummyUAVPools); ++Type)
+	{
+		for (TPair<EPixelFormat, FDummyUAVPool>& Entry : DummyUAVPools[Type])
+		{
+			Entry.Value.NextFreeIndex = 0;
+		}
+	}
 }
 
 bool NiagaraEmitterInstanceBatcher::ShouldDebugDraw_RenderThread() const

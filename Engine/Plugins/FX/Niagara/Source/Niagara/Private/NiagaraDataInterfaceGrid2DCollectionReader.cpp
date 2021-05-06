@@ -67,7 +67,7 @@ public:
 			FRHISamplerState* SamplerState = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			SetSamplerParameter(RHICmdList, ComputeShaderRHI, SamplerParam, SamplerState);
 			
-			FRHIShaderResourceView* InputGridBuffer = FNiagaraRenderer::GetDummyTextureReadBuffer2D();				
+			FRHIShaderResourceView* InputGridBuffer = FNiagaraRenderer::GetDummyTextureReadBuffer2DArray();				
 			SetSRVParameter(RHICmdList, Context.Shader.GetComputeShader(), GridParam, InputGridBuffer);			
 
 			return;
@@ -95,7 +95,7 @@ public:
 			}
 			else
 			{
-				InputGridBuffer = FNiagaraRenderer::GetDummyTextureReadBuffer2D();
+				InputGridBuffer = FNiagaraRenderer::GetDummyTextureReadBuffer2DArray();
 			}
 			SetSRVParameter(RHICmdList, Context.Shader.GetComputeShader(), GridParam, InputGridBuffer);
 		}

@@ -168,7 +168,7 @@ public:
 			}
 			else
 			{
-				OutputUAV = Context.Batcher->GetEmptyRWTextureFromPool(RHICmdList, EPixelFormat::PF_A16B16G16R16);
+				OutputUAV = Context.Batcher->GetEmptyUAVFromPool(RHICmdList, EPixelFormat::PF_A16B16G16R16, ENiagaraEmptyUAVType::Texture2D);
 			}
 
 			RHICmdList.SetUAVParameter(ComputeShaderRHI, TextureUAVParam.GetUAVIndex(), OutputUAV);
