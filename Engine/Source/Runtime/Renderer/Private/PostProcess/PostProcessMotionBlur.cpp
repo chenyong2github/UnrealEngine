@@ -7,7 +7,7 @@
 #include "SpriteIndexBuffer.h"
 #include "PostProcessing.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
+
 namespace
 {
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -883,4 +883,4 @@ FScreenPassTexture AddMotionBlurPass(FRDGBuilder& GraphBuilder, const FViewInfo&
 
 	return Output;
 }
-PRAGMA_ENABLE_OPTIMIZATION
+
