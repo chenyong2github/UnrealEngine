@@ -112,6 +112,7 @@ void FAnalysisSession::Start()
 
 void FAnalysisSession::Stop(bool bAndWait) const
 {
+	DataStream->Close();
 	Processor.Stop();
 	if (bAndWait)
 	{
