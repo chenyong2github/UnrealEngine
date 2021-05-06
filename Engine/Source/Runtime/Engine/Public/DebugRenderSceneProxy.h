@@ -178,7 +178,7 @@ public:
 
 		FString Text;
 		FVector Location;
-		FLinearColor Color;
+		FColor Color;
 	};
 
 	struct FCone
