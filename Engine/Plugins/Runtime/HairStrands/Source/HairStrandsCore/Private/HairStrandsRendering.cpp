@@ -843,7 +843,8 @@ static void AddHairClusterAABBPass(
 		check(ClusterData->ClusterCount == ClusterIdBuffer->Desc.NumElements);
 		check(ClusterData->ClusterCount == ClusterIndexOffsetBuffer->Desc.NumElements);
 		check(ClusterData->ClusterCount == ClusterIndexCountBuffer->Desc.NumElements);
-		check(ClusterData->ClusterCount * 6 == ClusterAABBData.ClusterAABBBuffer.Buffer->Desc.NumElements);
+		// Currently disabled this sanity check as the RDG allocation can return a larger buffer (for reuse purpose)
+		//check(ClusterData->ClusterCount * 6 == ClusterAABBData.ClusterAABBBuffer.Buffer->Desc.NumElements);
 	}
 	Parameters->HairStrandsVF_CullingIndirectBuffer = DrawIndirectRasterComputeBuffer; // Used for checking max vertex count
 	Parameters->OutClusterAABBBuffer = ClusterAABBData.ClusterAABBBuffer.UAV;
