@@ -34,7 +34,7 @@ public:
 
 	bool IsShouldUseICVFX() const
 	{
-		return IncameraSettings->bEnable && IsCineCameraActorValid();
+		return IsCineCameraActorValid() && IncameraSettings->bEnable;
 	}
 
 	// Return unique camera name
