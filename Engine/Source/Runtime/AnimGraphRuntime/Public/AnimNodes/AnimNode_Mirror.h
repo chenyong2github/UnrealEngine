@@ -46,6 +46,15 @@ private:
 	UPROPERTY(EditAnywhere,  Category = Settings, meta = (PinShownByDefault))
 	bool bMirror;
 
+	UPROPERTY(EditAnywhere, Category = MirroredChannels, meta=(DisplayName="Bone"))
+	bool bBoneMirroring;
+
+	UPROPERTY(EditAnywhere, Category = MirroredChannels, meta=(DisplayName = "Curve"))
+	bool bCurveMirroring;
+
+	UPROPERTY(EditAnywhere, Category = MirroredChannels, meta=(DisplayName = "Attributes"))
+	bool bAttributeMirroring;
+
 	// Whether to reset (reinitialize) the child (source) pose when the mirror state changes
 	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bResetChildOnMirrorStateChange;

@@ -31,6 +31,8 @@ struct FAnimatedBoneAttribute;
 struct FCompactPoseBoneIndex;
 struct FAnimExtractContext;
 
+class UMirrorDataTable;
+
 namespace UE
 {
 	namespace Anim
@@ -38,6 +40,17 @@ namespace UE
 		struct ENGINE_API FStackAttributeContainer : public TAttributeContainer<FCompactPoseBoneIndex, FAnimStackAllocator> {};
 		struct ENGINE_API FHeapAttributeContainer : public TAttributeContainer<FCompactPoseBoneIndex, FDefaultAllocator> {};
 
+		/** Accessor for internal data of the TAttributeContainer.  The TAttributeContainer methods are preferred - this accessor should only be used in limited situations */
+		template<class BoneIndexType, typename InAllocator>
+        struct TAttributeContainerAccessor
+		{
+			static TArray<TWrappedAttribute<InAllocator>, InAllocator>& GetValues(TAttributeContainer<BoneIndexType, InAllocator>& Attributes,  int32 TypeIndex) {return Attributes.GetValuesInternal(TypeIndex);}
+			static TArray<FAttributeId, InAllocator>& GetKeys(TAttributeContainer<BoneIndexType, InAllocator>& Attributes,  int32 TypeIndex) {return Attributes.GetKeysInternal(TypeIndex);}
+		};
+
+		struct ENGINE_API FStackAttributeContainerAccessor : public TAttributeContainerAccessor<FCompactPoseBoneIndex, FAnimStackAllocator> {};
+		struct ENGINE_API FHeapAttributeContainerAccessor : public TAttributeContainerAccessor<FCompactPoseBoneIndex, FDefaultAllocator> {};
+		
 		/** Helper functionality for attributes animation runtime */
 		struct ENGINE_API Attributes
 		{
@@ -81,6 +94,9 @@ namespace UE
 			/** Interpolates between two sets of attributes */
 			static void InterpolateAttributes(FHeapAttributeContainer& FromAttributes, const FHeapAttributeContainer& ToAttributes, float Alpha);
 
+			/** Mirror (swap) attributes with the specified MirrorDataTable. Attributes are swapped using the bone mapping such that bones which are mirrored swap attributes */
+			static void MirrorAttributes(FStackAttributeContainer& Attributes, const UMirrorDataTable& MirrorDataTable);
+			
 			/** Helper functionality to retrieve the correct blend type (from UAnimationSettings) for the provided attribute name */
 			static ECustomAttributeBlendType GetAttributeBlendType(const FName& InName);
 

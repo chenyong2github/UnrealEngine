@@ -638,6 +638,11 @@ namespace UE
 				return false;
 			}
 
+		/*
+		* @return Unique bone indices for all contained entries of a specific attribute type
+		*/
+		const TArray<int32, InAllocator>& GetUniqueTypedBoneIndices(int32 TypeIndex) const { return UniqueTypedBoneIndices[TypeIndex]; }
+
 		public:
 			/* Deprecated API */
 			template<typename DataType> 
@@ -693,6 +698,17 @@ namespace UE
 				return Array;
 			}
 		protected:
+
+			/*
+			* @return Array of all the contained values for the provided TypeIndex
+			*/
+			TArray<TWrappedAttribute<InAllocator>, InAllocator>& GetValuesInternal(int32 TypeIndex)  { return Values[TypeIndex]; }
+
+			/*
+			* @return Array of all the contained keys for the provided TypeIndex
+			*/
+			TArray<FAttributeId, InAllocator>& GetKeysInternal(int32 TypeIndex) { return AttributeIdentifiers[TypeIndex]; }
+			
 			/** Find or add a new root-level entry for the provided attribute data type, returning the index into the arrays representing the type */
 			int32 FindOrAddTypeIndex(const UScriptStruct* InScriptStruct)
 			{
@@ -720,6 +736,9 @@ namespace UE
 
 			template <typename OtherBoneIndexType, typename OtherAllocator>
 			friend struct TAttributeContainer;
+
+			template<class OtherBoneIndexType, typename OtherAllocator>
+			friend struct TAttributeContainerAccessor;
 		};
 	}
 }

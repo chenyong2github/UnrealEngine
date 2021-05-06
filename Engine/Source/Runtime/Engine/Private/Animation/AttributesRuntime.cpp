@@ -5,6 +5,7 @@
 #include "Animation/AnimTypes.h"
 #include "Animation/AnimationSettings.h"
 #include "Animation/AnimationAsset.h"
+#include "Animation/MirrorDataTable.h"
 #include "AnimationRuntime.h"
 
 #include "Containers/UnrealString.h"
@@ -438,6 +439,110 @@ void Attributes::BlendAttributesPerBoneFilter(const FStackAttributeContainer& Ba
 		const IAttributeBlendOperator* Operator = AttributeTypes::GetTypeOperator(WeakScriptStruct);
 		FAttributeBlendData AttributeBlendData = FAttributeBlendData::PerBoneFilteredWeighted(BaseAttributes, BlendAttributes, BoneBlendWeights, WeakScriptStruct.Get());
 		Operator->BlendPerBone(AttributeBlendData, &OutAttributes);
+	}
+}
+
+void Attributes::MirrorAttributes(FStackAttributeContainer& CustomAttributes, const UMirrorDataTable& MirrorTable)
+{
+	struct FMirrorSet
+	{
+		/** Pointers to attribute values */
+		TArray<uint8*, FAnimStackAllocator> DataPtrsA;
+		TArray<uint8*, FAnimStackAllocator> DataPtrsB;
+		/** Identifier of the attribute */
+		TArray <const FAttributeId*, FAnimStackAllocator> IdentifiersA;
+		TArray <const FAttributeId*, FAnimStackAllocator> IdentifiersB;
+		int32 MirrorIndexA;
+		int32 MirrorIndexB;
+		void Reset() { DataPtrsA.Reset(); DataPtrsB.Reset(), IdentifiersA.Reset(); IdentifiersB.Reset(); }
+	};
+
+	TArray<FMirrorSet, FAnimStackAllocator> MirrorSets;
+
+	auto AddUnique = [&MirrorSets](int32 IndexA, int32 IndexB) -> bool
+	{
+		for (FMirrorSet& CurSet : MirrorSets)
+		{
+			if ( (CurSet.MirrorIndexA == IndexA && CurSet.MirrorIndexB == IndexB) ||
+				 (CurSet.MirrorIndexB == IndexA && CurSet.MirrorIndexA == IndexB) )
+			{
+				return false;
+			}
+		}
+		FMirrorSet& NewSet = MirrorSets.Emplace_GetRef();
+		NewSet.MirrorIndexA = IndexA;
+		NewSet.MirrorIndexB = IndexB;
+		return true;
+	};
+
+	for (const TWeakObjectPtr<const UScriptStruct>& WeakScriptStruct : CustomAttributes.GetUniqueTypes())
+	{
+		const int32 TypeIndex = CustomAttributes.FindTypeIndex(WeakScriptStruct.Get());
+		if (TypeIndex != INDEX_NONE)
+		{
+			MirrorSets.Reset();
+			const TArray<int32, FAnimStackAllocator>& UniqueBoneIndices = CustomAttributes.GetUniqueTypedBoneIndices(TypeIndex);
+			TArray<int32, FAnimStackAllocator> SortedBoneIndices(UniqueBoneIndices); 
+			SortedBoneIndices.Sort();
+
+			for (int32 CurBoneIndex : UniqueBoneIndices)
+			{
+				int32 MirrorBoneIndex = MirrorTable.BoneToMirrorBoneIndex[CurBoneIndex];
+				int32 SwapCheckBoneIndex = MirrorTable.BoneToMirrorBoneIndex[MirrorBoneIndex];
+
+				// only handle simple swaps - both entries exist and are different
+				if (MirrorBoneIndex != INDEX_NONE && CurBoneIndex != INDEX_NONE && CurBoneIndex != MirrorBoneIndex &&
+					SwapCheckBoneIndex == CurBoneIndex && Algo::BinarySearch(SortedBoneIndices, MirrorBoneIndex))
+				{
+					AddUnique(CurBoneIndex, MirrorBoneIndex);
+				}
+			}
+
+			TArray<TWrappedAttribute<FAnimStackAllocator>, FAnimStackAllocator>& ValuesArray = FStackAttributeContainerAccessor::GetValues(CustomAttributes, TypeIndex);
+			const TArray<FAttributeId, FAnimStackAllocator>& AttributeIdentifiers = CustomAttributes.GetKeys(TypeIndex);
+
+			// gather attributes that are on mirrored bones 
+			for (int32 AttributeIndex = 0; AttributeIndex < AttributeIdentifiers.Num(); ++AttributeIndex)
+			{
+				const FAttributeId& AttributeIdentifier = AttributeIdentifiers[AttributeIndex];
+				uint8* DataPtr = ValuesArray[AttributeIndex].GetPtr<uint8>();
+				for (FMirrorSet& CurSet : MirrorSets)
+				{
+					if (CurSet.MirrorIndexA == AttributeIdentifier.GetIndex())
+					{
+						CurSet.IdentifiersA.Emplace(&AttributeIdentifier);
+						CurSet.DataPtrsA.Emplace(DataPtr);
+					}
+					else if (CurSet.MirrorIndexB == AttributeIdentifier.GetIndex())
+					{
+						CurSet.IdentifiersB.Emplace(&AttributeIdentifier);
+						CurSet.DataPtrsB.Emplace(DataPtr);
+					}
+				}
+			}
+
+			for (FMirrorSet& CurSet : MirrorSets)
+			{
+				for (int32 IndexA = 0; IndexA < CurSet.IdentifiersA.Num(); ++IndexA)
+				{
+					const FAttributeId* IndexAId = CurSet.IdentifiersA[IndexA];
+					uint8* IndexADataPtr = CurSet.DataPtrsA[IndexA];
+					for (int32 IndexB = 0; IndexB < CurSet.IdentifiersB.Num(); ++IndexB)
+					{
+						const FAttributeId* IndexBId = CurSet.IdentifiersB[IndexB];
+						if (IndexAId->GetName() == IndexBId->GetName() && IndexAId->GetNamespace() == IndexBId->GetNamespace())
+						{
+							uint8* IndexBDataPtr = CurSet.DataPtrsB[IndexB];
+							TWrappedAttribute<FAnimStackAllocator> SwapStruct(WeakScriptStruct.Get());
+							WeakScriptStruct->CopyScriptStruct(SwapStruct.GetPtr<void>(), IndexADataPtr);
+							WeakScriptStruct->CopyScriptStruct(IndexADataPtr, IndexBDataPtr);
+							WeakScriptStruct->CopyScriptStruct(IndexBDataPtr, SwapStruct.GetPtr<void>());
+							break;
+						}
+					}
+				}
+			}
+		} 
 	}
 }
 

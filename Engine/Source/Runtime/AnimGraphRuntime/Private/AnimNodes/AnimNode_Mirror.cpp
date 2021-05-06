@@ -4,6 +4,7 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNode_Inertialization.h"
 #include "AnimationRuntime.h"
+#include "Animation/AttributesRuntime.h"
 #include "Animation/MirrorSyncScope.h"
 
 #define LOCTEXT_NAMESPACE "AnimNode_Mirror"
@@ -12,6 +13,9 @@ FAnimNode_Mirror::FAnimNode_Mirror()
 	: MirrorDataTable(nullptr)
 	, BlendTimeOnMirrorStateChange(0.0f)
 	, bMirror(true)
+	, bBoneMirroring(true)
+	, bCurveMirroring(true)
+	, bAttributeMirroring(true)
 	, bResetChildOnMirrorStateChange(false)
 	, bMirrorState(false)
 	, bMirrorStateIsValid(false)
@@ -119,8 +123,20 @@ void FAnimNode_Mirror::Evaluate_AnyThread(FPoseContext& Output)
 
 	if (bMirrorState && MirrorDataTable)
 	{
-		FAnimationRuntime::MirrorPose(Output.Pose, MirrorDataTable->MirrorAxis, CompactPoseMirrorBones, ComponentSpaceRefRotations);
-		FAnimationRuntime::MirrorCurves(Output.Curve, *MirrorDataTable);
+		if (bBoneMirroring)
+		{
+			FAnimationRuntime::MirrorPose(Output.Pose, MirrorDataTable->MirrorAxis, CompactPoseMirrorBones, ComponentSpaceRefRotations);
+		}
+
+		if (bCurveMirroring)
+		{
+			FAnimationRuntime::MirrorCurves(Output.Curve, *MirrorDataTable);
+		}
+
+		if (bAttributeMirroring)
+		{
+			UE::Anim::Attributes::MirrorAttributes(Output.CustomAttributes, *MirrorDataTable);
+		}
 	}
 }
 
