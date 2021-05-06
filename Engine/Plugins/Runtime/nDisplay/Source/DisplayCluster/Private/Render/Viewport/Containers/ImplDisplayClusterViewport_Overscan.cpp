@@ -43,7 +43,7 @@ bool FImplDisplayClusterViewport_Overscan::UpdateProjectionAngles(float& InOutLe
 	return false;
 }
 
-void FImplDisplayClusterViewport_Overscan::Update(FIntRect& InOutRenderTargetRect)
+void FImplDisplayClusterViewport_Overscan::Update(FDisplayClusterViewport& Viewport, FIntRect& InOutRenderTargetRect)
 {
 	// Disable overscane feature from console
 	if (CVarDisplayClusterRenderOverscanEnable.GetValueOnGameThread() == 0)
@@ -92,6 +92,13 @@ void FImplDisplayClusterViewport_Overscan::Update(FIntRect& InOutRenderTargetRec
 		RuntimeSettings.OverscanPixels.Bottom = Size.Y * RuntimeSettings.OverscanPercent.Bottom;
 
 		FIntPoint OverscanSize = Size + RuntimeSettings.OverscanPixels.Size();
+		FIntPoint ValidOverscanSize = Viewport.GetValidRect(FIntRect(FIntPoint(0, 0), OverscanSize), TEXT("Overscan")).Size();
+
+		if (OverscanSize != ValidOverscanSize)
+		{
+			// can't use overscan with extra size, disable oversize
+			OverscanSettings.bOversize = false;
+		}
 
 		if (OverscanSettings.bOversize)
 		{

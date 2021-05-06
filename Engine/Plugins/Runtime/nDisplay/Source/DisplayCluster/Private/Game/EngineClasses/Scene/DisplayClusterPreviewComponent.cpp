@@ -228,6 +228,20 @@ void UDisplayClusterPreviewComponent::UpdatePreviewRenderTarget()
 			RenderTarget->TargetGamma = TextureGamma;
 		}
 	}
+	else
+	{
+		//@todo: disable this viewport
+		if (RenderTarget)
+		{
+			// clear preview RTT to black in this case
+			FTextureRenderTarget2DResource* TexResource = (FTextureRenderTarget2DResource*)RenderTarget->Resource;
+			if (TexResource)
+			{
+				FCanvas Canvas(TexResource, NULL, 0, 0, 0, GMaxRHIFeatureLevel);
+				Canvas.Clear(FLinearColor::Black);
+			}
+		}
+	}
 }
 
 bool UDisplayClusterPreviewComponent::GetPreviewTextureSettings(FIntPoint& OutSize, float& OutGamma) const
@@ -235,33 +249,26 @@ bool UDisplayClusterPreviewComponent::GetPreviewTextureSettings(FIntPoint& OutSi
 	IDisplayClusterViewport* Viewport = GetCurrentViewport();
 	if (Viewport != nullptr)
 	{
-		float PreviewScale = RootActor->GetPreviewRenderTargetRatioMult();
-
-		FIntPoint ViewportSize = Viewport->GetRenderSettings().Rect.Size();
-		OutSize = FIntPoint(ViewportSize.X * PreviewScale, ViewportSize.Y * PreviewScale);
-
-		// Need to clamp the texture size to the engine's max 2D texture dimension, while preserving the original aspect ratio
-		const uint32 MaxDimension = FMath::Min(GetMax2DTextureDimension(), MaxRenderTargetDimension);
-		if ((uint32)OutSize.X > MaxDimension)
+		// The viewport size is already capped for RenderSettings
+		const TArray<FDisplayClusterViewport_Context>& Contexts = Viewport->GetContexts();
+		if (Contexts.Num() > 0)
 		{
-			OutSize.Y = OutSize.Y * MaxDimension / (float)OutSize.X;
-			OutSize.X = MaxDimension;
+			OutSize = Contexts[0].FrameTargetRect.Size();
+
+			//! Debug purpose
+			// The int casts above can sometimes cause the OutSize to have a zero in one or both its components, which will cause crashes when
+			// creating the render target on the preview component. Clamp OutSize so that it always has a size of at least 1 in each coordinate
+			static const int32 MaxTextureSize = 1 << (GMaxTextureMipCount - 1);
+			check(OutSize.X <= MaxTextureSize);
+			check(OutSize.Y <= MaxTextureSize);
+			check(OutSize.X > 0);
+			check(OutSize.Y > 0);
+
+			//! Get gamma from current FViewport
+			OutGamma = 2.2f;
+
+			return true;
 		}
-		if ((uint32)OutSize.Y > MaxDimension)
-		{
-			OutSize.X = OutSize.X * MaxDimension / (float)OutSize.Y;
-			OutSize.Y = MaxDimension;
-		}
-
-		// The int casts above can sometimes cause the OutSize to have a zero in one or both its components, which will cause crashes when
-		// creating the render target on the preview component. Clamp OutSize so that it always has a size of at least 1 in each coordinate
-		OutSize.X = FMath::Max(OutSize.X, 1);
-		OutSize.Y = FMath::Max(OutSize.Y, 1);
-
-		//! Get gamma from current FViewport
-		OutGamma = 2.2f;
-
-		return true;
 	}
 
 	return false;
