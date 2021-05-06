@@ -301,6 +301,7 @@ void UNiagaraCurveSelectionViewModel::Initialize(TSharedRef<FNiagaraSystemViewMo
 		FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraCurveSelectionViewModel::UserParametersChanged));
 	RootCurveSelectionTreeNode = MakeShared<FNiagaraCurveSelectionTreeNode>();
 	bHandlingInternalCurveChanged = false;
+	bRefreshPending = true;
 }
 
 void UNiagaraCurveSelectionViewModel::Finalize()
@@ -825,7 +826,21 @@ void UNiagaraCurveSelectionViewModel::Refresh()
 	RootCurveSelectionTreeNode->UpdateSortIndices(0);
 	RootCurveSelectionTreeNode->ResetCachedEnabledState();
 
+	bRefreshPending = false;
 	OnRefreshedDelegate.Broadcast();
+}
+
+void UNiagaraCurveSelectionViewModel::RefreshDeferred()
+{
+	bRefreshPending = true;
+}
+
+void UNiagaraCurveSelectionViewModel::Tick()
+{
+	if (bRefreshPending)
+	{
+		Refresh();
+	}
 }
 
 FSimpleMulticastDelegate& UNiagaraCurveSelectionViewModel::OnRefreshed()

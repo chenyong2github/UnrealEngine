@@ -685,6 +685,11 @@ void FNiagaraSystemViewModel::Tick(float DeltaTime)
 		SelectionViewModel->Tick();
 	}
 
+	if (CurveSelectionViewModel != nullptr)
+	{
+		CurveSelectionViewModel->Tick();
+	}
+
 	if (bPendingAssetMessagesChanged)
 	{
 		bPendingAssetMessagesChanged = false;
@@ -1673,7 +1678,9 @@ void FNiagaraSystemViewModel::EmitterScriptGraphChanged(const FEdGraphEditAction
 	// Remove from cache on graph change 
 	GuidToCachedStackModuleData.Remove(OwningEmitterHandleId);
 	InvalidateCachedCompileStatus();
-	CurveSelectionViewModel->Refresh();
+
+	// Do a deferred refresh when responding to graph changes since we may be mid change and the graph could be invalid.
+	CurveSelectionViewModel->RefreshDeferred();
 
 	bPendingAssetMessagesChanged = true;
 }
@@ -1682,7 +1689,8 @@ void FNiagaraSystemViewModel::SystemScriptGraphChanged(const FEdGraphEditAction&
 {
 	GuidToCachedStackModuleData.Empty();
 	InvalidateCachedCompileStatus();
-	CurveSelectionViewModel->Refresh();
+	// Do a deferred refresh when responding to graph changes since we may be mid change and the graph could be invalid.
+	CurveSelectionViewModel->RefreshDeferred();
 	bPendingAssetMessagesChanged = true;
 }
 
