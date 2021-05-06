@@ -624,6 +624,7 @@ inline bool UseGPUScene(const FStaticShaderPlatform Platform, const FStaticFeatu
 		&& !IsOpenGLPlatform(Platform)
 		&& !IsSwitchPlatform(Platform)
 		&& !IsVulkanMobileSM5Platform(Platform)
+        && !IsMetalMobileSM5Platform(Platform)
 		// we only check DDSPI for platforms that have been read in - IsValid() can go away once ALL platforms are converted over to this system
 		&& (!FDataDrivenShaderPlatformInfo::IsValid(Platform) || FDataDrivenShaderPlatformInfo::GetSupportsGPUScene(Platform));
 }

@@ -1780,6 +1780,11 @@ inline bool IsVulkanMobileSM5Platform(const EShaderPlatform Platform)
 	return Platform == SP_VULKAN_SM5_ANDROID;
 }
 
+inline bool IsMetalMobileSM5Platform(const EShaderPlatform Platform)
+{
+    return Platform == SP_METAL_MRT;
+}
+
 inline bool IsAndroidOpenGLESPlatform(const FStaticShaderPlatform Platform)
 {
 	return Platform == SP_OPENGL_ES3_1_ANDROID || FDataDrivenShaderPlatformInfo::GetIsAndroidOpenGLES(Platform);
