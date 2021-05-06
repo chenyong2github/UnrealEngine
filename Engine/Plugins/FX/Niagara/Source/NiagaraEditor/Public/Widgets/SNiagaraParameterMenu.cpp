@@ -211,6 +211,14 @@ void SNiagaraAddParameterFromPanelMenu::AddParameterGroup(
 		{
 			Tooltip = VariableStruct->GetToolTipText(true);
 		}
+		if (const FNiagaraVariableMetaData* VariableMetaData = FNiagaraConstants::GetConstantMetaData(Variable))
+		{
+			FText Text = VariableMetaData->Description;
+			if (Text.IsEmptyOrWhitespace() == false)
+			{
+				Tooltip = Text;
+			}
+		}
 
 		FText SubCategory = FNiagaraEditorUtilities::GetVariableTypeCategory(Variable);
 		FText FullCategory = SubCategory.IsEmpty() ? Category : FText::Format(FText::FromString("{0}|{1}"), Category, SubCategory);

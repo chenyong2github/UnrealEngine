@@ -522,6 +522,13 @@ void UNiagaraNodeParameterMapGet::GatherExternalDependencyData(ENiagaraScriptUsa
 
 void UNiagaraNodeParameterMapGet::GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const
 {
+	FText Text;
+	if (GetTooltipTextForKnownPin(Pin, Text))
+	{
+		HoverTextOut = Text.ToString();
+		return;
+	}
+	
 	// Get hover text from metadata description.
 	const UNiagaraGraph* NiagaraGraph = GetNiagaraGraph();
 	if (NiagaraGraph)

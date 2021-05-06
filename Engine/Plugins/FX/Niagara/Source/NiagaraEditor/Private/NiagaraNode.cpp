@@ -10,6 +10,7 @@
 #include "ToolMenuSection.h"
 #include "ToolMenu.h"
 #include "GraphEditorActions.h"
+#include "NiagaraConstants.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
 #include "NiagaraEditorUtilities.h"
 #include "ScopedTransaction.h"
@@ -470,6 +471,12 @@ TSharedPtr<SGraphNode> UNiagaraNode::CreateVisualWidget()
 
 void UNiagaraNode::GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const
 {
+	FText Text;
+	if (GetTooltipTextForKnownPin(Pin, Text))
+	{
+		HoverTextOut = Text.ToString();
+		return;
+	}
 	
 	const UNiagaraGraph* NiagaraGraph = Cast<UNiagaraGraph>(GetGraph());
 	if (NiagaraGraph)
@@ -478,7 +485,6 @@ void UNiagaraNode::GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut
 		if (Schema)
 		{
 			FNiagaraTypeDefinition TypeDef = Schema->PinToTypeDefinition(&Pin);
-			FText Text;
 			if (Pin.PinToolTip.IsEmpty())
 			{
 				Text = FText::Format(LOCTEXT("PinHoverTooltip", "Name: \"{0}\"\nType: {1}"),
@@ -871,6 +877,30 @@ void UNiagaraNode::RouteParameterMapAroundMe(FNiagaraParameterMapHistoryBuilder&
 		OutHistory.RegisterParameterMapPin(PMIdx, OutputPin);
 	}
 }
+
+bool UNiagaraNode::GetTooltipTextForKnownPin(const UEdGraphPin& Pin, FText& OutTooltip) const
+{
+	const UNiagaraGraph* NiagaraGraph = Cast<UNiagaraGraph>(GetGraph());
+	const UEdGraphSchema_Niagara* Schema = Cast<UEdGraphSchema_Niagara>(NiagaraGraph->GetSchema());
+	if (Schema)
+	{
+		FNiagaraTypeDefinition TypeDef = Schema->PinToTypeDefinition(&Pin);
+		FNiagaraVariable Var(TypeDef, Pin.PinName);
+
+		// check for known engine constants
+		if (const FNiagaraVariableMetaData* VariableMetaData = FNiagaraConstants::GetConstantMetaData(Var))
+		{
+			FText Text = VariableMetaData->Description;
+			if (Text.IsEmptyOrWhitespace() == false)
+			{
+				OutTooltip = FText::Format(LOCTEXT("KnownPinHoverTooltip", "{0}\nType: {1}"), Text, TypeDef.GetNameText());
+			}
+		}
+		return true;
+	}
+	return false;
+}
+
 UNiagaraNode::FOnNodeVisualsChanged& UNiagaraNode::OnVisualsChanged()
 {
 	return VisualsChangedDelegate;
