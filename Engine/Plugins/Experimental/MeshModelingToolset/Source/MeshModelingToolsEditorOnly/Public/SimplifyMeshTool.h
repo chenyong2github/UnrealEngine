@@ -75,10 +75,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Display)
 	bool bShowGroupColors = false;
 
-	/** Display constrained edges */
-	UPROPERTY(EditAnywhere, Category = Display)
-	bool bShowConstraintEdges = false;
-
+	/** Display seams in first UV channel */
+	UPROPERTY(EditAnywhere, Category = Display, DisplayName ="Show UV Seams")
+	bool bShowUVSeams = false;
+	
 	/** Enable projection back to input mesh */
 	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
 	bool bReproject;
