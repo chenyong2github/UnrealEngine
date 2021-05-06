@@ -33,6 +33,8 @@ protected:
 	void ReleaseRenderTargetResources(TArray<FDisplayClusterRenderTargetResource*>& InOutResources);
 	void ReleaseTextureResources(TArray<FDisplayClusterTextureResource*>& InOutResources);
 
+	bool IsTextureSizeValid(const FIntPoint& InSize) const;
+
 private:
 	// Current render target settings (initialize from BeginReallocateRenderTargetResources)
 	FDisplayClusterViewportResourceSettings* pRenderTargetResourceSettings = nullptr;

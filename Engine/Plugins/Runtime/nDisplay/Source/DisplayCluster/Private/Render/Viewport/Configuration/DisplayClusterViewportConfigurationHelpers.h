@@ -284,7 +284,7 @@ public:
 				DstViewport.PostRenderSettings.Override.TextureRHI = TextureRHI;
 				FIntVector Size = TextureRHI->GetSizeXYZ();
 
-				DstViewport.PostRenderSettings.Override.Rect = (InOverride.bShouldUseTextureRegion) ? InOverride.TextureRegion.ToRect() : FIntRect(FIntPoint(0, 0), FIntPoint(Size.X, Size.Y));
+				DstViewport.PostRenderSettings.Override.Rect = DstViewport.GetValidRect((InOverride.bShouldUseTextureRegion) ? InOverride.TextureRegion.ToRect() : FIntRect(FIntPoint(0, 0), FIntPoint(Size.X, Size.Y)), TEXT("Configuration Override"));
 			}
 		}
 	};
@@ -376,7 +376,7 @@ public:
 			}
 
 			DstViewport.RenderSettings.CameraId = InConfigurationViewport.Camera;
-			DstViewport.RenderSettings.Rect = InConfigurationViewport.Region.ToRect();
+			DstViewport.RenderSettings.Rect = DstViewport.GetValidRect(InConfigurationViewport.Region.ToRect(), TEXT("Configuration Region"));
 
 			DstViewport.RenderSettings.GPUIndex = InConfigurationViewport.GPUIndex;
 			DstViewport.RenderSettings.OverlapOrder = InConfigurationViewport.OverlapOrder;
@@ -505,7 +505,7 @@ public:
 			DesiredSize.X = FMath::Max(16, DesiredSize.X);
 			DesiredSize.Y = FMath::Max(16, DesiredSize.Y);
 
-			DstViewport.RenderSettings.Rect = FIntRect(FIntPoint(0, 0), DesiredSize);
+			DstViewport.RenderSettings.Rect = DstViewport.GetValidRect(FIntRect(FIntPoint(0, 0), DesiredSize), TEXT("Configuration Camera Frame Size"));
 
 			UpdateViewportSetting_CustomPostprocess(DstViewport, InCameraRenderSettings.CustomPostprocess);
 
