@@ -17,13 +17,11 @@ class FTabManager;
 class FUICommandList;
 class IDetailsView;
 class SBox;
+class SSCSEditor;
 class SSplitter;
 class UBlueprint;
 class FDetailsViewObjectFilter;
 class UTypedElementSelectionSet;
-class SSubobjectEditor;
-class ISCSEditorUICustomization;
-class FSubobjectEditorTreeNode;
 
 /**
  * Wraps a details panel customized for viewing actors
@@ -67,25 +65,21 @@ public:
 	 */
 	void SetActorDetailsRootCustomization(TSharedPtr<FDetailsViewObjectFilter> ActorDetailsObjectFilter, TSharedPtr<class IDetailRootObjectCustomization> ActorDetailsRootCustomization);
 
-	UE_DEPRECATED(5.0, "SetSCSEditorUICustomization is deprecated, please use SetSubobjectEditorUICustomization instead.")
-	void SetSCSEditorUICustomization(TSharedPtr<ISCSEditorUICustomization> ActorDetailsSCSEditorUICustomization) { SetSubobjectEditorUICustomization(ActorDetailsSCSEditorUICustomization); }
-	
-	/** Sets the UI customization of the Suobject inside this details panel. */
-	void SetSubobjectEditorUICustomization(TSharedPtr<ISCSEditorUICustomization> ActorDetailsSCSEditorUICustomization);
+	/** Sets the UI customization of the SCSEditor inside this details panel. */
+	void SetSCSEditorUICustomization(TSharedPtr<class ISCSEditorUICustomization> ActorDetailsSCSEditorUICustomization);
 
 private:
 	void RefreshTopLevelElements(TArrayView<const TTypedElement<UTypedElementDetailsInterface>> InDetailsElements, const bool bForceRefresh, const bool bOverrideLock);
-	void RefreshSubobjectTreeElements(TArrayView<const TSharedPtr<FSubobjectEditorTreeNode>> InSelectedNodes, const bool bForceRefresh, const bool bOverrideLock);
+	void RefreshSCSTreeElements(TArrayView<const TSharedPtr<class FSCSEditorTreeNode>> InSelectedNodes, const bool bForceRefresh, const bool bOverrideLock);
 	void SetElementDetailsObjects(TArrayView<const TUniquePtr<ITypedElementDetailsObject>> InElementDetailsObjects, const bool bForceRefresh, const bool bOverrideLock);
 
 	AActor* GetActorContext() const;
-	UObject* GetObjectContext() const;
 	bool GetAllowComponentTreeEditing() const;
 
 	void OnComponentsEditedInWorld();
-	void OnSubobjectEditorTreeViewSelectionChanged(const TArray<TSharedPtr<FSubobjectEditorTreeNode> >& SelectedNodes);
-	void OnSubobjectEditorTreeViewItemDoubleClicked(const TSharedPtr<FSubobjectEditorTreeNode> ClickedNode);
-	void OnSubobjectEditorTreeViewObjectReplaced();
+	void OnSCSEditorTreeViewSelectionChanged(const TArray<TSharedPtr<class FSCSEditorTreeNode> >& SelectedNodes);
+	void OnSCSEditorTreeViewItemDoubleClicked(const TSharedPtr<class FSCSEditorTreeNode> ClickedNode);
+	void OnSCSEditorTreeViewObjectReplaced();
 	void UpdateComponentTreeFromEditorSelection();
 
 	bool IsPropertyReadOnly(const struct FPropertyAndParent& PropertyAndParent) const;
@@ -106,9 +100,7 @@ private:
 	TSharedPtr<SSplitter> DetailsSplitter;
 	TSharedPtr<class IDetailsView> DetailsView;
 	TSharedPtr<SBox> ComponentsBox;
-
-	/** The subobject editor provides a tree widget that allows for editing of subobjects */
-	TSharedPtr<SSubobjectEditor> SubobjectEditor;
+	TSharedPtr<class SSCSEditor> SCSEditor;
 
 	// The selection set this details panel is observing
 	UTypedElementSelectionSet* SelectionSet = nullptr;
@@ -120,9 +112,9 @@ private:
 	// Array of top-level elements that are currently being edited
 	TArray<TUniquePtr<ITypedElementDetailsObject>> TopLevelElements;
 
-	// Array of component elements that are being edited from the Subobject tree selection
-	TArray<TUniquePtr<ITypedElementDetailsObject>> SubobjectTreeElements;
-	
+	// Array of component elements that are being edited from the SCS tree selection
+	TArray<TUniquePtr<ITypedElementDetailsObject>> SCSTreeElements;
+
 	// The current component blueprint selection
 	TWeakObjectPtr<UBlueprint> SelectedBPComponentBlueprint;
 	bool bSelectedComponentRecompiled = false;

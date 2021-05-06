@@ -1969,7 +1969,7 @@ TSharedRef<SWidget> SLevelEditor::CreateActorDetails( const FName TabIdentifier 
 	TSharedRef<SActorDetails> ActorDetails = SNew( SActorDetails, GetMutableElementSelectionSet(), TabIdentifier, LevelEditorCommands, GetTabManager() );
 
 	ActorDetails->SetActorDetailsRootCustomization(ActorDetailsObjectFilter, ActorDetailsRootCustomization);
-	ActorDetails->SetSubobjectEditorUICustomization(ActorDetailsSCSEditorUICustomization);
+	ActorDetails->SetSCSEditorUICustomization(ActorDetailsSCSEditorUICustomization);
 
 	AllActorDetailPanels.Add( ActorDetails );
 	return ActorDetails;
@@ -2018,7 +2018,7 @@ void SLevelEditor::SetActorDetailsSCSEditorUICustomization(TSharedPtr<ISCSEditor
 
 	for (TSharedRef<SActorDetails> ActorDetails : GetAllActorDetails())
 	{
-		ActorDetails->SetSubobjectEditorUICustomization(ActorDetailsSCSEditorUICustomization);
+		ActorDetails->SetSCSEditorUICustomization(ActorDetailsSCSEditorUICustomization);
 	}
 }
 
