@@ -12,7 +12,7 @@
 class FUncontrolledChangelistState : public TSharedFromThis<FUncontrolledChangelistState, ESPMode::ThreadSafe>
 {
 public:
-	static constexpr TCHAR* FILES_NAME = TEXT("files");
+	static constexpr const TCHAR* FILES_NAME = TEXT("files");
 
 	enum class ECheckFlags
 	{

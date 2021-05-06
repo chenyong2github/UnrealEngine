@@ -9,8 +9,8 @@
 class FUncontrolledChangelist : public TSharedFromThis<FUncontrolledChangelist, ESPMode::ThreadSafe>
 {
 public:
-	static constexpr TCHAR* GUID_NAME = TEXT("guid");
-	static constexpr TCHAR* NAME_NAME = TEXT("name");
+	static constexpr const TCHAR* GUID_NAME = TEXT("guid");
+	static constexpr const TCHAR* NAME_NAME = TEXT("name");
 	static const FGuid DEFAULT_UNCONTROLLED_CHANGELIST_GUID;
 	static const FText DEFAULT_UNCONTROLLED_CHANGELIST_NAME;
 

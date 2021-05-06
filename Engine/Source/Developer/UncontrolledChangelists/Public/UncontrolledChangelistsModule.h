@@ -17,8 +17,8 @@ class UNCONTROLLEDCHANGELISTS_API FUncontrolledChangelistsModule : public IModul
 	typedef TMap<FUncontrolledChangelist, TSharedRef<class FUncontrolledChangelistState, ESPMode::ThreadSafe>> FUncontrolledChangelistsStateCache;
 
 public:
-	static constexpr TCHAR* VERSION_NAME = TEXT("version");
-	static constexpr TCHAR* CHANGELISTS_NAME = TEXT("changelists");
+	static constexpr const TCHAR* VERSION_NAME = TEXT("version");
+	static constexpr const TCHAR* CHANGELISTS_NAME = TEXT("changelists");
 	static constexpr uint32 VERSION_NUMBER = 0;
 
 public:
