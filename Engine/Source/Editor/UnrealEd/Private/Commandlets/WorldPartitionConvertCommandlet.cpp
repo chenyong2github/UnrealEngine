@@ -989,11 +989,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 					// Only override default grid placement on actors that are not marked as always loaded
 					else if (Actor->GetGridPlacement() != EActorGridPlacement::AlwaysLoaded)
 					{
-						FVector BoundsLocation;
-						FVector BoundsExtent;
-						Actor->GetActorLocationBounds(/*bOnlyCollidingComponents*/false, BoundsLocation, BoundsExtent, /*bIncludeFromChildActors*/true);
-
-						const FBox ActorBounds(BoundsLocation - BoundsExtent, BoundsLocation + BoundsExtent);
+						const FBox ActorBounds = Actor->GetStreamingBounds();
 
 						if (!WorldBounds.IsInside(ActorBounds))
 						{

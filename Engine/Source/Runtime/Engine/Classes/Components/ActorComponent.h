@@ -884,6 +884,7 @@ public:
 	virtual void PostEditUndo() override;
 	virtual bool IsSelectedInEditor() const override;
 	virtual void SetPackageExternal(bool bExternal, bool bShouldDirty) {}
+	virtual FBox GetStreamingBounds() const { return FBox(ForceInit); }
 #endif // WITH_EDITOR
 	//~ End UObject Interface.
 

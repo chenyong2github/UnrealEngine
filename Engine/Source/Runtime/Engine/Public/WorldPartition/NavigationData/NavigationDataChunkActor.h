@@ -31,7 +31,7 @@ public:
 
 	//~ Begin AActor Interface.
 	virtual EActorGridPlacement GetDefaultGridPlacement() const override;
-	virtual void GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& OutOrigin, FVector& OutBoxExtent, bool bIncludeFromChildActors) const override;
+	virtual FBox GetStreamingBounds() const override;
 	//~ End AActor Interface.
 #endif // WITH_EDITOR
 	

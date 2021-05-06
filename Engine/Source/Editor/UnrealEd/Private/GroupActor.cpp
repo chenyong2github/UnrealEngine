@@ -252,10 +252,30 @@ void AGroupActor::GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin,
 	Bounds.GetCenterAndExtents(Origin, BoxExtent);
 }
 
-void AGroupActor::GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const
+#if WITH_EDITOR
+FBox AGroupActor::GetStreamingBounds() const
 {
-	GetActorBounds(bOnlyCollidingComponents, Origin, BoxExtent, bIncludeFromChildActors);
+	FBox StreamingBounds = Super::GetStreamingBounds();
+
+	for (AActor* Actor : GroupActors)
+	{
+		if (Actor)
+		{
+			StreamingBounds += Actor->GetStreamingBounds();
+		}
+	}
+
+	for (AGroupActor* SubGroupActor : SubGroups)
+	{
+		if (SubGroupActor)
+		{
+			StreamingBounds += SubGroupActor->GetStreamingBounds();
+		}
+	}
+
+	return StreamingBounds;
 }
+#endif
 
 void GetBoundingVectorsForGroup(AGroupActor* GroupActor, FViewport* Viewport, FVector& OutVectorMin, FVector& OutVectorMax)
 {

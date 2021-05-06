@@ -2052,7 +2052,7 @@ public:
 	 *
 	 * @see GetActorBounds()
 	 */
-	virtual void GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors = false) const;
+	virtual FBox GetStreamingBounds() const;
 #endif
 
 

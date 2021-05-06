@@ -983,18 +983,50 @@ void AActor::ProcessEvent(UFunction* Function, void* Parameters)
 }
 
 #if WITH_EDITOR
-void AActor::GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const
+FBox AActor::GetStreamingBounds() const
 {
-	// Only PrimitiveComponents provides bounds contribution
-	if (FindComponentByClass<UPrimitiveComponent>())
+	FBox StreamingBounds(ForceInit);
+
+	auto IsComponentRelevant = [this](const UActorComponent* Component)
 	{
-		GetActorBounds(bOnlyCollidingComponents, Origin, BoxExtent, bIncludeFromChildActors);
-	}
-	else
+		if (!Component->IsRegistered())
+		{
+			return false;
+		}
+
+		if (Component->HasAnyFlags(RF_Transient))
+		{
+			return false;
+		}
+
+		if (!IsEditorOnly() && Component->IsEditorOnly())
+		{
+			return false;
+		}
+
+		return true;
+	};
+
+	ForEachComponent<UPrimitiveComponent>(true, [this, &StreamingBounds, &IsComponentRelevant](UActorComponent* Component)
 	{
-		Origin = GetActorLocation();
-		BoxExtent = FVector(ForceInitToZero);
+		if (IsComponentRelevant(Component))
+		{
+			StreamingBounds += Component->GetStreamingBounds();
+		}
+	});
+
+	if (!StreamingBounds.IsValid)
+	{
+		for (UActorComponent* Component : OwnedComponents)
+		{
+			if (IsComponentRelevant(Component))
+			{
+				StreamingBounds += Component->GetStreamingBounds();
+			}
+		}
 	}
+
+	return StreamingBounds;
 }
 #endif
 

@@ -29,23 +29,11 @@ public:
 	: FWorldPartitionActorDescView(InActorDesc)
 	{}
 
-	FVector GetOrigin() const
-	{
-		if (AActor* Actor = ActorDesc->GetActor())
-		{
-			return Actor->GetActorLocation();
-		}
-		return ActorDesc->GetOrigin();
-	}
-
 	FBox GetBounds() const
 	{
 		if (AActor* Actor = ActorDesc->GetActor())
 		{
-			FVector BoundsLocation;
-			FVector BoundsExtent;
-			Actor->GetActorLocationBounds(/*bOnlyCollidingComponents*/false, BoundsLocation, BoundsExtent, /*bIncludeFromChildActors*/true);
-			return FBox(BoundsLocation - BoundsExtent, BoundsLocation + BoundsExtent);
+			return Actor->GetStreamingBounds();
 		}
 
 		return ActorDesc->GetBounds();
@@ -424,7 +412,7 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 
 			const float MinimumAreaCull = 32.0f;
 			const float AreaFadeDistance = 128.0f;
-			if (ActorViewBox.Intersect(ViewRect) && (ActorViewBox.GetArea() > MinimumAreaCull))
+			if (ActorViewBox.Intersect(ViewRect) && ((Extent.Size2D() < KINDA_SMALL_NUMBER) || ActorViewBox.GetArea() > MinimumAreaCull))
 			{
 				FPaintGeometry ActorGeometry = AllottedGeometry.ToPaintGeometry(TopLeft, BottomRight - TopLeft);
 				float ActorColorGradient = FMath::Min((ActorViewBox.GetArea() - MinimumAreaCull) / AreaFadeDistance, 1.0f);
@@ -444,7 +432,7 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 						FSlateDrawElement::MakeText(
 							OutDrawElements,
 							++LayerId,
-							ActorGeometry,
+							AllottedGeometry.ToPaintGeometry(TopLeft, FVector2D(1,1)),
 							ActorLabel.ToString(),
 							SmallLayoutFont,
 							ESlateDrawEffect::None,
@@ -697,11 +685,7 @@ FReply SWorldPartitionEditorGrid2D::FocusSelection()
 		{
 			if (AActor* Actor = Cast<AActor>(*It))
 			{
-				FVector Origin;
-				FVector Extent;
-				Actor->GetActorBounds(false, Origin, Extent);
-
-				SelectionBox += FBox(Origin - Extent, Origin + Extent);
+				SelectionBox += Actor->GetStreamingBounds();
 			}
 		}
 	}
@@ -718,16 +702,17 @@ void SWorldPartitionEditorGrid2D::FocusBox(const FBox& Box) const
 {
 	check(ScreenRect.bIsValid);
 
-	if (Box.GetVolume() > 0.0f)
+	const FBox2D Box2D(FVector2D(Box.Min), FVector2D(Box.Max));
+	Trans = -FVector2D(Box2D.GetCenter());
+
+	if (Box2D.GetArea() > 0.0f)
 	{
 		const FVector2D ScreenExtent = ScreenRect.GetExtent();
-		const FVector2D SelectExtent = FVector2D(Box.GetExtent());
-
-		Trans = -FVector2D(Box.GetCenter());
+		const FVector2D SelectExtent = FVector2D(Box2D.GetExtent());
 		Scale = (ScreenExtent / SelectExtent).GetMin() * 0.75f;
+	}
 
-		UpdateTransform();
-	}	
+	UpdateTransform();
 }
 
 void SWorldPartitionEditorGrid2D::UpdateTransform() const

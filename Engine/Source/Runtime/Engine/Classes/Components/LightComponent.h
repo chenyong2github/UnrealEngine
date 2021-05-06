@@ -347,6 +347,13 @@ public:
 		return FSphere(FVector::ZeroVector, WORLD_MAX);
 	}
 
+#if WITH_EDITOR
+	virtual FBox GetStreamingBounds() const override
+	{
+		return GetBoundingBox();
+	}
+#endif // WITH_EDITOR
+
 	/**
 	 * Return the homogenous position of the light.
 	 */

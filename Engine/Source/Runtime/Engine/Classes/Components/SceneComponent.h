@@ -868,6 +868,10 @@ public:
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
 	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
+#if WITH_EDITOR
+	virtual FBox GetStreamingBounds() const override;
+#endif // WITH_EDITOR
+
 	//~ End ActorComponent Interface
 
 	//~ Begin UObject Interface

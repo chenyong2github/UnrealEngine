@@ -44,8 +44,10 @@ class AGroupActor : public AActor
 	virtual void PostActorCreated() override;
 	virtual void SetIsTemporarilyHiddenInEditor( bool bIsHidden ) override;
 	virtual void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const override;
-	virtual void GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const override;
 	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::None; }
+#if WITH_EDITOR
+	virtual FBox GetStreamingBounds() const override;
+#endif
 	//~ End AActor Interface
 
 	// @todo document

@@ -40,6 +40,7 @@ class ENGINE_API USpotLightComponent : public UPointLightComponent
 	virtual float ComputeLightBrightness() const override;
 #if WITH_EDITOR
 	virtual void SetLightBrightness(float InBrightness) override;
+	virtual FBox GetStreamingBounds() const override;
 #endif
 
 	float GetHalfConeAngle() const;

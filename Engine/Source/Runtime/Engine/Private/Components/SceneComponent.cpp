@@ -2343,6 +2343,13 @@ TStructOnScope<FActorComponentInstanceData> USceneComponent::GetComponentInstanc
 	return MakeStructOnScope<FActorComponentInstanceData, FSceneComponentInstanceData>(this);;
 }
 
+#if WITH_EDITOR
+FBox USceneComponent::GetStreamingBounds() const
+{
+	return Bounds.GetBox();
+}
+#endif
+
 void USceneComponent::UpdateChildTransforms(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateChildTransforms);

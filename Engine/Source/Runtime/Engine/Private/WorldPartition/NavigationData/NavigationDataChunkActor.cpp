@@ -129,8 +129,8 @@ EActorGridPlacement ANavigationDataChunkActor::GetDefaultGridPlacement() const
 	return EActorGridPlacement::Bounds;
 }
 
-void ANavigationDataChunkActor::GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& OutOrigin, FVector& OutBoxExtent, bool bIncludeFromChildActors) const
+FBox ANavigationDataChunkActor::GetStreamingBounds() const
 {
-	GetActorBounds(bOnlyCollidingComponents, OutOrigin, OutBoxExtent, bIncludeFromChildActors);
+	return DataChunkActorBounds;
 }
 #endif // WITH_EDITOR

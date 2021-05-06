@@ -618,10 +618,8 @@ void ALevelInstance::OnLevelInstanceLoaded()
 	}
 }
 
-void ALevelInstance::GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const
+FBox ALevelInstance::GetStreamingBounds() const
 {
-	Super::GetActorLocationBounds(bOnlyCollidingComponents, Origin, BoxExtent, bIncludeFromChildActors);
-
 	// Add Level Bounds
 	if (SupportsLoading())
 	{
@@ -630,10 +628,12 @@ void ALevelInstance::GetActorLocationBounds(bool bOnlyCollidingComponents, FVect
 			FBox LevelInstanceBounds;
 			if (LevelInstanceSubsystem->GetLevelInstanceBounds(this, LevelInstanceBounds))
 			{
-				LevelInstanceBounds.GetCenterAndExtents(Origin, BoxExtent);
+				return LevelInstanceBounds;
 			}
 		}
 	}
+
+	return Super::GetStreamingBounds();
 }
 
 bool ALevelInstance::IsLockLocation() const

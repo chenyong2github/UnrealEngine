@@ -130,6 +130,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Changed how world partition streaming cells are named
 		WorldPartitionStreamingCellsNamingShortened,
 
+		// Changed how actor descriptors compute their bounds
+		WorldPartitionActorDescGetStreamingBounds,
+
         // -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

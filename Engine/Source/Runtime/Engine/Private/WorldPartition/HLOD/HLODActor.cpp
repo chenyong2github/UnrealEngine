@@ -156,9 +156,9 @@ void AWorldPartitionHLOD::GetActorBounds(bool bOnlyCollidingComponents, FVector&
 	HLODBounds.GetCenterAndExtents(Origin, BoxExtent);
 }
 
-void AWorldPartitionHLOD::GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const
+FBox AWorldPartitionHLOD::GetStreamingBounds() const
 {
-	GetActorBounds(bOnlyCollidingComponents, Origin, BoxExtent, bIncludeFromChildActors);
+	return HLODBounds;
 }
 
 uint32 AWorldPartitionHLOD::GetHLODHash() const

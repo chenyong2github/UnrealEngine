@@ -43,12 +43,8 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 
 	ActorPtr = (AActor*)InActor;
 
-	FVector NewBoundsLocation;
-	FVector NewBoundsExtent;
-	InActor->GetActorLocationBounds(/*bOnlyCollidingComponents*/false, NewBoundsLocation, NewBoundsExtent, /*bIncludeFromChildActors*/true);
-
-	BoundsLocation = NewBoundsLocation;
-	BoundsExtent = NewBoundsExtent;
+	const FBox StreamingBounds = InActor->GetStreamingBounds();
+	StreamingBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
 
 	const EActorGridPlacement DefaultGridPlacement = InActor->GetDefaultGridPlacement();
 	if (DefaultGridPlacement != EActorGridPlacement::None)

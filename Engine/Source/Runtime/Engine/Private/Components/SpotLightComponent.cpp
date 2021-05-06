@@ -242,6 +242,12 @@ void USpotLightComponent::SetLightBrightness(float InBrightness)
 		ULightComponent::SetLightBrightness(InBrightness);
 	}
 }
+
+FBox USpotLightComponent::GetStreamingBounds() const
+{
+	const FSphere BoundingSphere = GetBoundingSphere();
+	return FBox(BoundingSphere.Center - BoundingSphere.W, BoundingSphere.Center + BoundingSphere.W);
+}
 #endif // WITH_EDITOR
 
 static bool IsSpotLightSupported(const USpotLightComponent* InLight)
