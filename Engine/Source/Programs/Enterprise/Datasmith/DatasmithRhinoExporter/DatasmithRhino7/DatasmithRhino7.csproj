@@ -50,11 +50,13 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform_OS)' == 'Win64'">
-    <DefineConstants>$(DefineConstants)WIN64_OS</DefineConstants>
+    <DefineConstants>$(DefineConstants);WIN64_OS</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform_OS)' == 'Mac'">
-    <DefineConstants>$(DefineConstants)MAC_OS</DefineConstants>
+    <DefineConstants>$(DefineConstants);MAC_OS</DefineConstants>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(DATASMITHRHINO_EXPERIMENTAL)' == 'TRUE'">
+    <DefineConstants>$(DefineConstants);DATASMITHRHINO_EXPERIMENTAL</DefineConstants>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
