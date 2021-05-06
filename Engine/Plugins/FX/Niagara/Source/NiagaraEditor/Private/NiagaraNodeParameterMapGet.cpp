@@ -176,7 +176,11 @@ void UNiagaraNodeParameterMapGet::OnNewTypedPinAdded(UEdGraphPin*& NewPin)
 		FPinCollectorArray OutputPins;
 		GetOutputPins(OutputPins);
 
-		FName NewPinName = NewPin->PinName;
+		// Use the friendly name to build the new parameter name since it's what is displayed in the UI.
+		FName NewPinName = NewPin->PinFriendlyName.IsEmpty() == false
+			? *NewPin->PinFriendlyName.ToString()
+			: NewPin->GetFName();
+
 		FName PinNameWithoutNamespace;
 		if (FNiagaraEditorUtilities::DecomposeVariableNamespace(NewPinName, PinNameWithoutNamespace).Num() == 0)
 		{
@@ -194,6 +198,7 @@ void UNiagaraNodeParameterMapGet::OnNewTypedPinAdded(UEdGraphPin*& NewPin)
 		const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(NewPinName, Names);
 
 		NewPin->PinName = NewUniqueName;
+		NewPin->PinFriendlyName = FText::FromName(NewPin->PinName);
 
 		UEdGraphPin* MatchingDefault = GetDefaultPin(NewPin);
 		if (MatchingDefault == nullptr)
