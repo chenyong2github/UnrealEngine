@@ -30,6 +30,7 @@ UControlRigGraph::UControlRigGraph()
 	bSuspendModelNotifications = false;
 	bIsTemporaryGraphForCopyPaste = false;
 	bIsSelecting = false;
+	LastHierarchyTopologyVersion = INDEX_NONE;
 	bIsFunctionDefinition = false;
 }
 
@@ -88,29 +89,34 @@ void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FControl
 	check(InHierarchy);
 	check(DrawContainer);
 
-	ElementNameLists.FindOrAdd(ERigElementType::All);
-	ElementNameLists.FindOrAdd(ERigElementType::Bone);
-	ElementNameLists.FindOrAdd(ERigElementType::Null);
-	ElementNameLists.FindOrAdd(ERigElementType::Control);
-	ElementNameLists.FindOrAdd(ERigElementType::Curve);
-	ElementNameLists.FindOrAdd(ERigElementType::RigidBody);
-	ElementNameLists.FindOrAdd(ERigElementType::Socket);
+	if(LastHierarchyTopologyVersion != InHierarchy->GetTopologyVersion())
+	{
+		ElementNameLists.FindOrAdd(ERigElementType::All);
+		ElementNameLists.FindOrAdd(ERigElementType::Bone);
+		ElementNameLists.FindOrAdd(ERigElementType::Null);
+		ElementNameLists.FindOrAdd(ERigElementType::Control);
+		ElementNameLists.FindOrAdd(ERigElementType::Curve);
+		ElementNameLists.FindOrAdd(ERigElementType::RigidBody);
+		ElementNameLists.FindOrAdd(ERigElementType::Socket);
 
-	TArray<TSharedPtr<FString>>& AllNameList = ElementNameLists.FindChecked(ERigElementType::All);
-	TArray<TSharedPtr<FString>>& BoneNameList = ElementNameLists.FindChecked(ERigElementType::Bone);
-	TArray<TSharedPtr<FString>>& NullNameList = ElementNameLists.FindChecked(ERigElementType::Null);
-	TArray<TSharedPtr<FString>>& ControlNameList = ElementNameLists.FindChecked(ERigElementType::Control);
-	TArray<TSharedPtr<FString>>& CurveNameList = ElementNameLists.FindChecked(ERigElementType::Curve);
-	TArray<TSharedPtr<FString>>& RigidBodyNameList = ElementNameLists.FindChecked(ERigElementType::RigidBody);
-	TArray<TSharedPtr<FString>>& SocketNameList = ElementNameLists.FindChecked(ERigElementType::Socket);
-	
-	CacheNameListForHierarchy<FRigBaseElement>(InHierarchy, AllNameList);
-	CacheNameListForHierarchy<FRigBoneElement>(InHierarchy, BoneNameList);
-	CacheNameListForHierarchy<FRigNullElement>(InHierarchy, NullNameList);
-	CacheNameListForHierarchy<FRigControlElement>(InHierarchy, ControlNameList);
-	CacheNameListForHierarchy<FRigCurveElement>(InHierarchy, CurveNameList);
-	CacheNameListForHierarchy<FRigRigidBodyElement>(InHierarchy, RigidBodyNameList);
-	CacheNameListForHierarchy<FRigSocketElement>(InHierarchy, SocketNameList);
+		TArray<TSharedPtr<FString>>& AllNameList = ElementNameLists.FindChecked(ERigElementType::All);
+		TArray<TSharedPtr<FString>>& BoneNameList = ElementNameLists.FindChecked(ERigElementType::Bone);
+		TArray<TSharedPtr<FString>>& NullNameList = ElementNameLists.FindChecked(ERigElementType::Null);
+		TArray<TSharedPtr<FString>>& ControlNameList = ElementNameLists.FindChecked(ERigElementType::Control);
+		TArray<TSharedPtr<FString>>& CurveNameList = ElementNameLists.FindChecked(ERigElementType::Curve);
+		TArray<TSharedPtr<FString>>& RigidBodyNameList = ElementNameLists.FindChecked(ERigElementType::RigidBody);
+		TArray<TSharedPtr<FString>>& SocketNameList = ElementNameLists.FindChecked(ERigElementType::Socket);
+		
+		CacheNameListForHierarchy<FRigBaseElement>(InHierarchy, AllNameList);
+		CacheNameListForHierarchy<FRigBoneElement>(InHierarchy, BoneNameList);
+		CacheNameListForHierarchy<FRigNullElement>(InHierarchy, NullNameList);
+		CacheNameListForHierarchy<FRigControlElement>(InHierarchy, ControlNameList);
+		CacheNameListForHierarchy<FRigCurveElement>(InHierarchy, CurveNameList);
+		CacheNameListForHierarchy<FRigRigidBodyElement>(InHierarchy, RigidBodyNameList);
+		CacheNameListForHierarchy<FRigSocketElement>(InHierarchy, SocketNameList);
+
+		LastHierarchyTopologyVersion = InHierarchy->GetTopologyVersion();
+	}
 	CacheNameList<FControlRigDrawContainer>(*DrawContainer, DrawingNameList);
 }
 

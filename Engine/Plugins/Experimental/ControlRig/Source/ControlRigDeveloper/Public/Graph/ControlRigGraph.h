@@ -126,6 +126,7 @@ private:
 
 	TMap<ERigElementType, TArray<TSharedPtr<FString>>> ElementNameLists;
 	TArray<TSharedPtr<FString>> DrawingNameList;
+	int32 LastHierarchyTopologyVersion;
 
 	bool bIsSelecting;
 

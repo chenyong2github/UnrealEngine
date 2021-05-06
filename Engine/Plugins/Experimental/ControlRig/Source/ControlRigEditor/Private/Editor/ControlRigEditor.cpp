@@ -3560,7 +3560,10 @@ void FControlRigEditor::OnHierarchyChanged()
 	CacheNameLists();
 	if (UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint())
 	{
-		ControlRigBP->PropagateHierarchyFromBPToInstances();
+		{
+			TGuardValue<bool> GuardNotifs(ControlRigBP->bSuspendAllNotifications, true);
+			ControlRigBP->PropagateHierarchyFromBPToInstances();
+		}
 
 		FBlueprintEditorUtils::MarkBlueprintAsModified(GetControlRigBlueprint());
 		
@@ -3726,6 +3729,13 @@ void FControlRigEditor::OnHierarchyModified(ERigHierarchyNotification InNotif, U
 					continue;
 				}
 
+				URigVMController* Controller = RigGraph->GetController();
+				if(Controller == nullptr)
+				{
+					continue;
+				}
+
+				RigBlueprint->IncrementVMRecompileBracket();
 				for (UEdGraphNode* Node : RigGraph->Nodes)
 				{
 					if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
@@ -3742,7 +3752,7 @@ void FControlRigEditor::OnHierarchyModified(ERigHierarchyNotification InNotif, U
 								{
 									if (ModelPin->GetDefaultValue() == OldNameStr)
 									{
-										GetFocusedController()->SetPinDefaultValue(ModelPin->GetPinPath(), NewNameStr, false);
+										Controller->SetPinDefaultValue(ModelPin->GetPinPath(), NewNameStr, false);
 									}
 								}
 								else if (ModelPin->GetCPPTypeObject() == FRigElementKey::StaticStruct())
@@ -3758,7 +3768,7 @@ void FControlRigEditor::OnHierarchyModified(ERigHierarchyNotification InNotif, U
 												FString NameStr = NamePin->GetDefaultValue();
 												if (NameStr == OldNameStr)
 												{
-													GetFocusedController()->SetPinDefaultValue(NamePin->GetPinPath(), NewNameStr);
+													Controller->SetPinDefaultValue(NamePin->GetPinPath(), NewNameStr);
 												}
 											}
 										}
@@ -3768,6 +3778,7 @@ void FControlRigEditor::OnHierarchyModified(ERigHierarchyNotification InNotif, U
 						}
 					}
 				}
+				RigBlueprint->DecrementVMRecompileBracket();
 			}
 				
 			CacheNameLists();
@@ -3823,10 +3834,21 @@ void FControlRigEditor::OnHierarchyModified_AnyThread(ERigHierarchyNotification 
 		Key = InElement->GetKey();
 	}
 
+	if(IsInGameThread())
+	{
+		UControlRigBlueprint* RigBlueprint = GetControlRigBlueprint();
+		check(RigBlueprint);
+
+		if(RigBlueprint->bSuspendAllNotifications)
+		{
+			return;
+		}
+	}
+
 	TWeakObjectPtr<URigHierarchy> WeakHierarchy = InHierarchy;
 	FFunctionGraphTask::CreateAndDispatchWhenReady([this, InNotif, WeakHierarchy, Key]()
     {
-    	if(!WeakHierarchy.IsValid())
+		if(!WeakHierarchy.IsValid())
     	{
     		return;
     	}
@@ -3839,9 +3861,13 @@ void FControlRigEditor::OnHierarchyModified_AnyThread(ERigHierarchyNotification 
 			case ERigHierarchyNotification::ElementRemoved:
 			case ERigHierarchyNotification::ElementRenamed:
 			case ERigHierarchyNotification::ParentChanged:
-			case ERigHierarchyNotification::HierarchyReset:
+            case ERigHierarchyNotification::HierarchyReset:
 			{
-				CacheNameLists();
+				// only recache the name lists of this is the main hierarchy
+				if(WeakHierarchy.Get()->GetOuter()->IsA<UControlRigBlueprint>())
+				{
+					CacheNameLists();
+				}
 				break;
 			}
 			case ERigHierarchyNotification::ControlSettingChanged:
