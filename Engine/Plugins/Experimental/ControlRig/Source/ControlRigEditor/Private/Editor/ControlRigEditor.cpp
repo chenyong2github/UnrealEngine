@@ -2666,7 +2666,7 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 					{
 						if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph))
 						{
-							const TArray<TSharedPtr<FString>>* BoneNameList = &RigGraph->GetBoneNameList();
+							const TArray<TSharedPtr<FString>>* BoneNameList = RigGraph->GetBoneNameList();
 
 							InMenuBuilder.AddWidget(
 								SNew(SBox)
@@ -3557,7 +3557,6 @@ void FControlRigEditor::OnHierarchyChanged()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	CacheNameLists();
 	if (UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint())
 	{
 		{
@@ -3603,6 +3602,8 @@ void FControlRigEditor::OnHierarchyChanged()
 	{
 		ClearDetailObject();
 	}
+	
+	CacheNameLists();
 }
 
 
@@ -3781,7 +3782,6 @@ void FControlRigEditor::OnHierarchyModified(ERigHierarchyNotification InNotif, U
 				RigBlueprint->DecrementVMRecompileBracket();
 			}
 				
-			CacheNameLists();
 			OnHierarchyChanged();
 
 			break;

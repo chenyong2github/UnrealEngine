@@ -1357,6 +1357,7 @@ bool URigHierarchyController::RenameElement(FRigBaseElement* InElement, const FN
 	}
 	
 	Hierarchy->PreviousNameMap.FindOrAdd(NewKey) = OldKey;
+	Hierarchy->TopologyVersion++;
 	Notify(ERigHierarchyNotification::ElementRenamed, InElement);
 
 	return true;

@@ -13,7 +13,7 @@ class SControlRigGraphPinNameList : public SGraphPin
 {
 public:
 
-	DECLARE_DELEGATE_RetVal_OneParam( const TArray<TSharedPtr<FString>>&, FOnGetNameListContent, URigVMPin*);
+	DECLARE_DELEGATE_RetVal_OneParam( const TArray<TSharedPtr<FString>>*, FOnGetNameListContent, URigVMPin*);
 
 	SLATE_BEGIN_ARGS(SControlRigGraphPinNameList)
 		: _MarkupInvalidItems(true)
@@ -32,7 +32,7 @@ protected:
 	virtual TSharedRef<SWidget>	GetDefaultValueWidget() override;
 	//~ End SGraphPin Interface
 
-	const TArray<TSharedPtr<FString>>& GetNameList() const;
+	const TArray<TSharedPtr<FString>>* GetNameList() const;
 	FText GetNameListText() const;
 	FSlateColor GetNameColor() const;
 	virtual void SetNameListText(const FText& NewTypeInValue, ETextCommit::Type CommitInfo);
@@ -45,6 +45,6 @@ protected:
 	URigVMPin* ModelPin;
 	TSharedPtr<SControlRigGraphPinNameListValueWidget> NameListComboBox;
 	TArray<TSharedPtr<FString>> EmptyList;
-	TArray<TSharedPtr<FString>> CurrentList;
+	const TArray<TSharedPtr<FString>>* CurrentList;
 	bool bMarkupInvalidItems;
 };

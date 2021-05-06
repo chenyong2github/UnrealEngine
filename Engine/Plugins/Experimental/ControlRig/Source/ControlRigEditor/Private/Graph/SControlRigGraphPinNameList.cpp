@@ -22,7 +22,8 @@ void SControlRigGraphPinNameList::Construct(const FArguments& InArgs, UEdGraphPi
 TSharedRef<SWidget>	SControlRigGraphPinNameList::GetDefaultValueWidget()
 {
 	TSharedPtr<FString> InitialSelected;
-	for (TSharedPtr<FString> Item : GetNameList())
+	const TArray<TSharedPtr<FString>>* List = GetNameList();
+	for (TSharedPtr<FString> Item : (*List))
 	{
 		if (Item->Equals(GetNameListText().ToString()))
 		{
@@ -35,7 +36,7 @@ TSharedRef<SWidget>	SControlRigGraphPinNameList::GetDefaultValueWidget()
 		[
 			SAssignNew(NameListComboBox, SControlRigGraphPinNameListValueWidget)
 				.Visibility(this, &SGraphPin::GetDefaultValueVisibility)
-				.OptionsSource(&CurrentList)
+				.OptionsSource(CurrentList)
 				.OnGenerateWidget(this, &SControlRigGraphPinNameList::MakeNameListItemWidget)
 				.OnSelectionChanged(this, &SControlRigGraphPinNameList::OnNameListChanged)
 				.OnComboBoxOpening(this, &SControlRigGraphPinNameList::OnNameListComboBox)
@@ -49,13 +50,20 @@ TSharedRef<SWidget>	SControlRigGraphPinNameList::GetDefaultValueWidget()
 		];
 }
 
-const TArray<TSharedPtr<FString>>& SControlRigGraphPinNameList::GetNameList() const
+const TArray<TSharedPtr<FString>>* SControlRigGraphPinNameList::GetNameList() const
 {
+	const TArray<TSharedPtr<FString>>* Result = nullptr;
 	if (OnGetNameListContent.IsBound())
 	{
-		return OnGetNameListContent.Execute(ModelPin);
+		Result = OnGetNameListContent.Execute(ModelPin);
 	}
-	return EmptyList;
+
+	if(Result == nullptr)
+	{
+		Result = &EmptyList;
+	}
+
+	return Result;
 }
 
 FText SControlRigGraphPinNameList::GetNameListText() const
@@ -80,7 +88,7 @@ FSlateColor SControlRigGraphPinNameList::GetNameColor() const
 		FString CurrentItem = GetNameListText().ToString();
 		
 		bool bFound = false;
-		for (TSharedPtr<FString> Item : CurrentList)
+		for (TSharedPtr<FString> Item : (*CurrentList))
 		{
 			if (Item->Equals(CurrentItem))
 			{
@@ -119,7 +127,7 @@ void SControlRigGraphPinNameList::OnNameListComboBox()
 {
 	CurrentList = GetNameList();
 	TSharedPtr<FString> CurrentlySelected;
-	for (TSharedPtr<FString> Item : CurrentList)
+	for (TSharedPtr<FString> Item : (*CurrentList))
 	{
 		if (Item->Equals(GetNameListText().ToString()))
 		{

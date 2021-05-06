@@ -242,7 +242,7 @@ void FRigElementKeyDetails::UpdateElementNameList()
 		{
 			if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph))
 			{
-				ElementNameList = RigGraph->GetElementNameList(GetElementType());
+				ElementNameList = *RigGraph->GetElementNameList(GetElementType());
 				return;
 			}
 		}
@@ -346,19 +346,19 @@ void FRigUnitDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 				const TArray<TSharedPtr<FString>>* NameList = nullptr;
 				if (CustomWidgetName == TEXT("BoneName"))
 				{
-					NameList = &GraphBeingCustomized->GetBoneNameList();
+					NameList = GraphBeingCustomized->GetBoneNameList();
 				}
 				else if (CustomWidgetName == TEXT("ControlName"))
 				{
-					NameList = &GraphBeingCustomized->GetControlNameList();
+					NameList = GraphBeingCustomized->GetControlNameList();
 				}
 				else if (CustomWidgetName == TEXT("SpaceName"))
 				{
-					NameList = &GraphBeingCustomized->GetNullNameList();
+					NameList = GraphBeingCustomized->GetNullNameList();
 				}
 				else if (CustomWidgetName == TEXT("CurveName"))
 				{
-					NameList = &GraphBeingCustomized->GetCurveNameList();
+					NameList = GraphBeingCustomized->GetCurveNameList();
 				}
 
 				if (NameList)

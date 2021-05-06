@@ -40,27 +40,27 @@ public:
 #endif
 #if WITH_EDITOR
 
-	FORCEINLINE const TArray<TSharedPtr<FString>>& GetBoneNameList(URigVMPin* InPin = nullptr) const
+	FORCEINLINE const TArray<TSharedPtr<FString>>* GetBoneNameList(URigVMPin* InPin = nullptr) const
 	{
 		return GetElementNameList(ERigElementType::Bone);
 	}
-	FORCEINLINE const TArray<TSharedPtr<FString>>& GetControlNameList(URigVMPin* InPin = nullptr) const
+	FORCEINLINE const TArray<TSharedPtr<FString>>* GetControlNameList(URigVMPin* InPin = nullptr) const
 	{
 		return GetElementNameList(ERigElementType::Control);
 	}
-	FORCEINLINE const TArray<TSharedPtr<FString>>& GetNullNameList(URigVMPin* InPin = nullptr) const
+	FORCEINLINE const TArray<TSharedPtr<FString>>* GetNullNameList(URigVMPin* InPin = nullptr) const
 	{
 		return GetElementNameList(ERigElementType::Null);
 	}
-	FORCEINLINE const TArray<TSharedPtr<FString>>& GetCurveNameList(URigVMPin* InPin = nullptr) const
+	FORCEINLINE const TArray<TSharedPtr<FString>>* GetCurveNameList(URigVMPin* InPin = nullptr) const
 	{
 		return GetElementNameList(ERigElementType::Curve);
 	}
 
 	void CacheNameLists(URigHierarchy* InHierarchy, const FControlRigDrawContainer* DrawContainer);
-	const TArray<TSharedPtr<FString>>& GetElementNameList(ERigElementType InElementType = ERigElementType::Bone) const;
-	const TArray<TSharedPtr<FString>>& GetElementNameList(URigVMPin* InPin = nullptr) const;
-	const TArray<TSharedPtr<FString>>& GetDrawingNameList(URigVMPin* InPin = nullptr) const;
+	const TArray<TSharedPtr<FString>>* GetElementNameList(ERigElementType InElementType = ERigElementType::Bone) const;
+	const TArray<TSharedPtr<FString>>* GetElementNameList(URigVMPin* InPin = nullptr) const;
+	const TArray<TSharedPtr<FString>>* GetDrawingNameList(URigVMPin* InPin = nullptr) const;
 
 	bool bSuspendModelNotifications;
 	bool bIsTemporaryGraphForCopyPaste;

@@ -120,7 +120,7 @@ void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FControl
 	CacheNameList<FControlRigDrawContainer>(*DrawContainer, DrawingNameList);
 }
 
-const TArray<TSharedPtr<FString>>& UControlRigGraph::GetElementNameList(ERigElementType InElementType) const
+const TArray<TSharedPtr<FString>>* UControlRigGraph::GetElementNameList(ERigElementType InElementType) const
 {
 	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
 	{
@@ -129,7 +129,7 @@ const TArray<TSharedPtr<FString>>& UControlRigGraph::GetElementNameList(ERigElem
 	
 	if(InElementType == ERigElementType::None)
 	{
-		return EmptyElementNameList;
+		return &EmptyElementNameList;
 	}
 	
 	if(!ElementNameLists.Contains(InElementType))
@@ -137,16 +137,16 @@ const TArray<TSharedPtr<FString>>& UControlRigGraph::GetElementNameList(ERigElem
 		UControlRigBlueprint* Blueprint = GetBlueprint();
 		if(Blueprint == nullptr)
 		{
-			return EmptyElementNameList;
+			return &EmptyElementNameList;
 		}
 
 		UControlRigGraph* MutableThis = (UControlRigGraph*)this;
 		MutableThis->CacheNameLists(Blueprint->Hierarchy, &Blueprint->DrawContainer);
 	}
-	return ElementNameLists.FindChecked(InElementType);
+	return &ElementNameLists.FindChecked(InElementType);
 }
 
-const TArray<TSharedPtr<FString>>& UControlRigGraph::GetElementNameList(URigVMPin* InPin) const
+const TArray<TSharedPtr<FString>>* UControlRigGraph::GetElementNameList(URigVMPin* InPin) const
 {
 	if (InPin)
 	{
@@ -170,13 +170,13 @@ const TArray<TSharedPtr<FString>>& UControlRigGraph::GetElementNameList(URigVMPi
 	return GetBoneNameList(nullptr);
 }
 
-const TArray<TSharedPtr<FString>>& UControlRigGraph::GetDrawingNameList(URigVMPin* InPin) const
+const TArray<TSharedPtr<FString>>* UControlRigGraph::GetDrawingNameList(URigVMPin* InPin) const
 {
 	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
 	{
 		return OuterGraph->GetDrawingNameList(InPin);
 	}
-	return DrawingNameList;
+	return &DrawingNameList;
 }
 
 void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)
