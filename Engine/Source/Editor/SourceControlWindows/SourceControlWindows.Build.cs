@@ -20,6 +20,7 @@ public class SourceControlWindows : ModuleRules
 				"SlateCore",
                 "EditorStyle",
 				"SourceControl", 
+				"UncontrolledChangelists",
 				"AssetTools",
 				"EditorFramework",
 				"WorkspaceMenuStructure",

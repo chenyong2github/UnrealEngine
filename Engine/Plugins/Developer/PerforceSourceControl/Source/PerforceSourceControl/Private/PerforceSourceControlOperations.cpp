@@ -6,6 +6,7 @@
 #include "Misc/Paths.h"
 #include "Misc/EngineVersion.h"
 #include "Modules/ModuleManager.h"
+#include "SourceControlHelpers.h"
 #include "SourceControlOperations.h"
 #include "PerforceSourceControlRevision.h"
 #include "PerforceSourceControlCommand.h"
@@ -174,6 +175,10 @@ static void ParseRecordSetForState(const FP4RecordSet& InRecords, TMap<FString, 
 			else if(Action == TEXT("branch"))
 			{
 				OutResults.Add(FullPath, EPerforceState::Branched);
+			}
+			else if (Action == TEXT("cleared"))
+			{
+				OutResults.Add(FullPath, EPerforceState::ReadOnly);
 			}
 		}
 	}
@@ -657,6 +662,11 @@ bool FPerforceRevertWorker::Execute(FPerforceSourceControlCommand& InCommand)
 		else
 		{
 			AppendChangelistParameter(Parameters);
+		}
+
+		if (StaticCastSharedRef<FRevert>(InCommand.Operation)->IsSoftRevert())
+		{
+			Parameters.Add(TEXT("-k"));
 		}
 
 		if (InCommand.Files.Num() != 0)
@@ -2055,6 +2065,89 @@ bool FPerforceResolveWorker::UpdateStates() const
 	}
 
 	return UpdatedFiles.Num() > 0;
+}
+
+FName FPerforceStatusWorker::GetName() const
+{
+	return "Status";
+}
+
+bool FPerforceStatusWorker::Execute(class FPerforceSourceControlCommand& InCommand)
+{
+	FScopedPerforceConnection ScopedConnection(InCommand);
+	
+	if (!InCommand.IsCanceled() && ScopedConnection.IsValid() && (!InCommand.Files.IsEmpty()))
+	{
+		FPerforceConnection& Connection = ScopedConnection.GetConnection();
+
+		TArray<FString> Parameters;
+		Parameters.Append(InCommand.Files);
+
+		RequestedFileStatus = SourceControlHelpers::AbsoluteFilenames(InCommand.Files);
+
+		FP4RecordSet Records;
+		InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("status"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+		
+		if (InCommand.bCommandSuccessful)
+		{
+			for (const FP4Record& Record : Records)
+			{
+				FString Filename = Record(TEXT("clientFile"));
+				FString Status = Record(TEXT("action"));
+
+				// Here we use the same method as PerforceSourceControlProvider::GetState to be sure to not create duplicates
+				TArray<FString> AbsoluteFilenames = SourceControlHelpers::AbsoluteFilenames({ Filename });
+
+				if (AbsoluteFilenames.IsEmpty() || Status.IsEmpty())
+					continue;
+
+				if (Status.Equals(TEXT("add")))
+				{
+					UpdatedFileStatus.Emplace(AbsoluteFilenames[0], EAction::Add);
+				}
+				else if (Status.Equals(TEXT("edit")))
+				{
+					UpdatedFileStatus.Emplace(AbsoluteFilenames[0], EAction::Edit);
+				}
+				else if (Status.Equals(TEXT("delete")))
+				{
+					UpdatedFileStatus.Emplace(AbsoluteFilenames[0], EAction::Delete);
+				}
+			}
+		}
+	}
+
+	return InCommand.bCommandSuccessful;
+}
+
+bool FPerforceStatusWorker::UpdateStates() const
+{
+	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
+	
+	for (const FString& Filename : RequestedFileStatus)
+	{
+		const FFilenameStatusCache::ValueType* StatusPtr = UpdatedFileStatus.Find(Filename);
+		TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> FileState = PerforceSourceControl.GetProvider().GetStateInternal(Filename);
+
+		if ((StatusPtr == nullptr) || (*StatusPtr == EAction::None))
+		{
+			FileState->bModifed = false;
+		}
+		else if (*StatusPtr == EAction::Edit)
+		{
+			FileState->bModifed = true;
+		}
+		else if (*StatusPtr == EAction::Add)
+		{
+			
+		}
+		else if (*StatusPtr == EAction::Delete)
+		{
+
+		}
+	}
+
+	return true;
 }
 
 FName FPerforceChangeStatusWorker::GetName() const

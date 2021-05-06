@@ -6,6 +6,7 @@
 #include "Styling/SlateColor.h"
 #include "Styling/SlateTypes.h"
 #include "ISourceControlProvider.h"
+#include "UncontrolledChangelistState.h"
 
 struct FAssetData;
 struct IChangelistTreeItem;
@@ -18,6 +19,7 @@ struct IChangelistTreeItem : TSharedFromThis<IChangelistTreeItem>
 	{
 		Invalid,
 		Changelist,
+		UncontrolledChangelist,
 		File,
 		ShelvedChangelist, // container for shelved files
 		ShelvedFile
@@ -70,6 +72,27 @@ struct FChangelistTreeItem : public IChangelistTreeItem
 	}
 
 	FSourceControlChangelistStateRef ChangelistState;
+};
+
+struct FUncontrolledChangelistTreeItem : public IChangelistTreeItem
+{
+	FUncontrolledChangelistTreeItem(FUncontrolledChangelistStateRef InUncontrolledChangelistState)
+		: UncontrolledChangelistState(InUncontrolledChangelistState)
+	{
+		Type = IChangelistTreeItem::UncontrolledChangelist;
+	}
+
+	FText GetDisplayText() const
+	{
+		return UncontrolledChangelistState->GetDisplayText();
+	}
+
+	FText GetDescriptionText() const
+	{
+		return UncontrolledChangelistState->GetDescriptionText();
+	}
+
+	FUncontrolledChangelistStateRef UncontrolledChangelistState;
 };
 
 struct FShelvedChangelistTreeItem : public IChangelistTreeItem

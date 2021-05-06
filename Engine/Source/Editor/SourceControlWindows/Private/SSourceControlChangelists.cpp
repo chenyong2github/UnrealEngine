@@ -18,6 +18,7 @@
 
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
+#include "UncontrolledChangelistsModule.h"
 #include "SourceControlOperations.h"
 #include "ToolMenus.h"
 #include "Widgets/Images/SLayeredImage.h"
@@ -195,6 +196,9 @@ void SSourceControlChangelistsWidget::RequestRefresh()
 
 		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 		SourceControlProvider.Execute(UpdatePendingChangelistsOperation, EConcurrency::Asynchronous);
+
+		FUncontrolledChangelistsModule& UncontrolledChangelistModule = FUncontrolledChangelistsModule::Get();
+		UncontrolledChangelistModule.UpdateStatus();
 	}
 	else
 	{
@@ -238,7 +242,9 @@ void SSourceControlChangelistsWidget::Refresh()
 		SaveExpandedState(ExpandedStates);
 
 		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+		FUncontrolledChangelistsModule& UncontrolledChangelistModule = FUncontrolledChangelistsModule::Get();
 		TArray<FSourceControlChangelistRef> Changelists = SourceControlProvider.GetChangelists(EStateCacheUsage::Use);
+		TArray<FUncontrolledChangelistStateRef> UncontrolledChangelistStates = UncontrolledChangelistModule.GetChangelistStates();
 
 		TArray<FSourceControlChangelistStateRef> ChangelistsStates;
 		SourceControlProvider.GetState(Changelists, ChangelistsStates, EStateCacheUsage::Use);
@@ -247,10 +253,17 @@ void SSourceControlChangelistsWidget::Refresh()
 
 		// Count number of steps for slow task...
 		int32 ElementsToProcess = ChangelistsStates.Num();
+		ElementsToProcess += UncontrolledChangelistStates.Num();
+
 		for (FSourceControlChangelistStateRef ChangelistState : ChangelistsStates)
 		{
 			ElementsToProcess += ChangelistState->GetFilesStates().Num();
 			ElementsToProcess += ChangelistState->GetShelvedFilesStates().Num();
+		}
+
+		for (FUncontrolledChangelistStateRef UncontrolledChangelistState : UncontrolledChangelistStates)
+		{
+			ElementsToProcess += UncontrolledChangelistState->GetFilesStates().Num();
 		}
 
 		FScopedSlowTask SlowTask(ElementsToProcess, LOCTEXT("SourceControl_RebuildTree", "Beautifying Changelist Tree Items Paths"));
@@ -285,6 +298,23 @@ void SSourceControlChangelistsWidget::Refresh()
 			}
 
 			ChangelistsNodes.Add(ChangelistTreeItem);
+			SlowTask.EnterProgressFrame();
+			bBeautifyPaths &= !SlowTask.ShouldCancel();
+		}
+
+		for (FUncontrolledChangelistStateRef UncontrolledChangelistState : UncontrolledChangelistStates)
+		{
+			FChangelistTreeItemRef UncontrolledChangelistTreeItem = MakeShareable(new FUncontrolledChangelistTreeItem(UncontrolledChangelistState));
+			
+			for (FSourceControlStateRef FileRef : UncontrolledChangelistState->GetFilesStates())
+			{
+				FChangelistTreeItemRef FileTreeItem = MakeShareable(new FFileTreeItem(FileRef, bBeautifyPaths));
+				UncontrolledChangelistTreeItem->AddChild(FileTreeItem);
+				SlowTask.EnterProgressFrame();
+				bBeautifyPaths &= !SlowTask.ShouldCancel();
+			}
+
+			ChangelistsNodes.Add(UncontrolledChangelistTreeItem);
 			SlowTask.EnterProgressFrame();
 			bBeautifyPaths &= !SlowTask.ShouldCancel();
 		}
@@ -1105,7 +1135,8 @@ public:
 	{
 		if (ColumnName == TEXT("Change"))
 		{
-			const FSlateBrush* IconBrush = FEditorStyle::GetBrush("SourceControl.Changelist");
+			const FSlateBrush* IconBrush = (TreeItem != nullptr) ? FEditorStyle::GetBrush(TreeItem->ChangelistState->GetSmallIconName())
+																 : FEditorStyle::GetBrush("SourceControl.Changelist");
 
 			return SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -1189,6 +1220,125 @@ protected:
 private:
 	/** The info about the widget that we are visualizing. */
 	FChangelistTreeItem* TreeItem;
+};
+
+class SUncontrolledChangelistTableRow : public SMultiColumnTableRow<FChangelistTreeItemPtr>
+{
+public:
+	SLATE_BEGIN_ARGS(SUncontrolledChangelistTableRow)
+		: _TreeItemToVisualize()
+	{
+	}
+	SLATE_ARGUMENT(FChangelistTreeItemPtr, TreeItemToVisualize)
+	SLATE_END_ARGS()
+
+public:
+	/**
+	* Construct child widgets that comprise this widget.
+	*
+	* @param InArgs Declaration from which to construct this widget.
+	*/
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwner)
+	{
+		TreeItem = static_cast<FUncontrolledChangelistTreeItem*>(InArgs._TreeItemToVisualize.Get());
+
+		auto Args = FSuperRowType::FArguments();
+		SMultiColumnTableRow<FChangelistTreeItemPtr>::Construct(Args, InOwner);
+	}
+
+	// SMultiColumnTableRow overrides
+	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override
+	{
+		if (ColumnName == TEXT("Change"))
+		{
+			const FSlateBrush* IconBrush = (TreeItem != nullptr) ? FEditorStyle::GetBrush(TreeItem->UncontrolledChangelistState->GetSmallIconName())
+				: FEditorStyle::GetBrush("SourceControl.Changelist");
+
+			return SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(SExpanderArrow, SharedThis(this))
+				]
+
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(SImage)
+					.Image(IconBrush)
+				]
+
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2.0f, 0.0f)
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(this, &SUncontrolledChangelistTableRow::GetChangelistText)
+				];
+		}
+		else if (ColumnName == TEXT("Description"))
+		{
+			return SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2.0f, 0.0f)
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(this, &SUncontrolledChangelistTableRow::GetChangelistDescriptionText)
+				];
+		}
+		else
+		{
+			return SNullWidget::NullWidget;
+		}
+	}
+
+	FText GetChangelistText() const
+	{
+		return TreeItem->GetDisplayText();
+	}
+
+	FText GetChangelistDescriptionText() const
+	{
+		FString DescriptionString = TreeItem->GetDescriptionText().ToString();
+		// Here we'll both remove \r\n (when edited from the dialog) and \n (when we get it from the SCC)
+		DescriptionString.ReplaceInline(TEXT("\r"), TEXT(""));
+		DescriptionString.ReplaceInline(TEXT("\n"), TEXT(" "));
+		DescriptionString.TrimEndInline();
+		return FText::FromString(DescriptionString);
+	}
+
+protected:
+	//~ Begin STableRow Interface.
+	virtual FReply OnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent) override
+	{
+		TSharedPtr<FSCCFileDragDropOp> Operation = InDragDropEvent.GetOperationAs<FSCCFileDragDropOp>();
+		
+		if (Operation.IsValid())
+		{
+			TArray<FString> Files;
+			Algo::Transform(Operation->Files, Files, [](const FSourceControlStateRef& State) { return State->GetFilename(); });
+
+			ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+			auto RevertOperation = ISourceControlOperation::Create<FRevert>();
+
+			RevertOperation->SetSoftRevert(true);
+			SourceControlProvider.Execute(RevertOperation, Files);
+
+			FUncontrolledChangelistsModule::Get().OnFilesMovedToUncontrolledChangelist(Files, TreeItem->UncontrolledChangelistState->Changelist);
+		}
+
+		return FReply::Handled();
+	}
+	//~ End STableRow Interface.
+
+private:
+	/** The info about the widget that we are visualizing. */
+	FUncontrolledChangelistTreeItem* TreeItem;
 };
 
 class SFileTableRow : public SMultiColumnTableRow<FChangelistTreeItemPtr>
@@ -1380,6 +1530,10 @@ TSharedRef<ITableRow> SSourceControlChangelistsWidget::OnGenerateRow(FChangelist
 	{
 	case IChangelistTreeItem::Changelist:
 		return SNew(SChangelistTableRow, OwnerTable)
+			.TreeItemToVisualize(InTreeItem);
+
+	case IChangelistTreeItem::UncontrolledChangelist:
+		return SNew(SUncontrolledChangelistTableRow, OwnerTable)
 			.TreeItemToVisualize(InTreeItem);
 
 	case IChangelistTreeItem::File:

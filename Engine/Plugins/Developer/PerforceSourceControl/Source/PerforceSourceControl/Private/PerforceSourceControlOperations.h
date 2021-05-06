@@ -196,6 +196,31 @@ private:
 	TArray< FString > UpdatedFiles;
 };
 
+class FPerforceStatusWorker : public IPerforceSourceControlWorker
+{
+public:
+	enum class EAction
+	{
+		None = 0,
+		Add,
+		Edit,
+		Delete
+	};
+
+	typedef TMap<FString, EAction> FFilenameStatusCache;
+
+public:
+	virtual ~FPerforceStatusWorker() {}
+	// IPerforceSourceControlWorker interface
+	virtual FName GetName() const override;
+	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() const override;
+
+private:
+	TArray<FString> RequestedFileStatus;
+	FFilenameStatusCache UpdatedFileStatus;
+};
+
 class FPerforceChangeStatusWorker : public IPerforceSourceControlWorker
 {
 public:

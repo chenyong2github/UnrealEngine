@@ -24,6 +24,7 @@
 #include "Engine/MapBuildDataRegistry.h"
 #include "Editor/EditorEngine.h"
 #include "ISourceControlModule.h"
+#include "UncontrolledChangelistsModule.h"
 #include "SourceControlOperations.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Settings/EditorLoadingSavingSettings.h"
@@ -1617,6 +1618,7 @@ bool FEditorFileUtils::PromptToCheckoutPackages(bool bCheckDirty, const TArray<U
 	bool bResult = true;
 
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	FUncontrolledChangelistsModule& UncontrolledChangelistModule = FUncontrolledChangelistsModule::Get();
 	
 	// The checkout dialog to show users if any packages need to be checked out
 	const FText DialogTitle = NSLOCTEXT("PackagesDialogModule", "CheckoutPackagesDialogTitle", "Check Out Assets");
@@ -1730,6 +1732,8 @@ bool FEditorFileUtils::PromptToCheckoutPackages(bool bCheckDirty, const TArray<U
 						// Knock off the read only flag from the current file attributes
 						if (FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*Filename, false))
 						{
+							UncontrolledChangelistModule.OnMakeWritable(Filename);
+
 							PackagesNotToPromptAnyMore.Add(PackageToMakeWritable->GetName());
 							if (OutPackagesCheckedOutOrMadeWritable)
 							{

@@ -88,6 +88,7 @@ public class UnrealEd : ModuleRules
 				"EditorFramework",
 				"EditorStyle",
 				"SourceControl",
+				"UncontrolledChangelists",
 				"UnrealEdMessages",
 				"GameplayDebugger",
 				"BlueprintGraph",
@@ -327,6 +328,7 @@ public class UnrealEd : ModuleRules
 				"AIModule",
 				"Engine",
 				"SourceControl",
+				"UncontrolledChangelists",
 			}
 		);
 

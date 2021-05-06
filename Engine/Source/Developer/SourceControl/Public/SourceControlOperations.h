@@ -168,6 +168,19 @@ public:
 	{
 		return LOCTEXT("SourceControl_Revert", "Reverting file(s) in Source Control...");
 	}
+
+	void SetSoftRevert(const bool bInSoftRevert)
+	{
+		bIsSoftRevert = bInSoftRevert;
+	}
+
+	bool IsSoftRevert() const
+	{
+		return bIsSoftRevert;
+	}
+
+protected:
+	bool	bIsSoftRevert = false;
 };
 
 /**
@@ -614,6 +627,24 @@ public:
 	virtual FText GetInProgressString() const override
 	{
 		return LOCTEXT("SourceControl_DeleteShelvedOperation", "Deleting shelved files from changelist...");
+	}
+};
+
+/**
+ * Operation used to get the status of files
+ */
+class FStatus : public FSourceControlOperationBase
+{
+public:
+	// ISourceControlOperation interface
+	virtual FName GetName() const override
+	{
+		return "Status";
+	}
+
+	virtual FText GetInProgressString() const override
+	{
+		return LOCTEXT("SourceControl_StatusOperation", "Retrieving files status...");
 	}
 };
 

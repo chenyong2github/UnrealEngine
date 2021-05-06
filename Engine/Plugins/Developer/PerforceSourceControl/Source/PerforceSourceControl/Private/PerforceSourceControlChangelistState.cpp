@@ -12,12 +12,12 @@ FPerforceSourceControlChangelistState::FPerforceSourceControlChangelistState(con
 
 FName FPerforceSourceControlChangelistState::GetIconName() const
 {
-	return FName("Perforce.CheckedOut");
+	return FName("SourceControl.Changelist");
 }
 
 FName FPerforceSourceControlChangelistState::GetSmallIconName() const
 {
-	return FName("Perforce.CheckedOut_Small");
+	return FName("SourceControl.Changelist");
 }
 
 FText FPerforceSourceControlChangelistState::GetDisplayText() const
