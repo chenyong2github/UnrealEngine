@@ -186,9 +186,7 @@ private:
 	void ResetRayTracingSceneInfo();
 #endif
 
-	bool UseOverlapCompute();
 	void FinishDispatches();
-	void ReleaseTicks();
 
 	void UpdateFreeIDsListSizesBuffer(FRHICommandList& RHICmdList, uint32 NumInstances);
 	void UpdateFreeIDBuffers(FRHICommandList& RHICmdList, TConstArrayView<FNiagaraComputeExecutionContext*> Instances);
