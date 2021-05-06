@@ -25,6 +25,7 @@
 #include "Elements/SMInstance/SMInstanceElementData.h"
 #include "Elements/SMInstance/SMInstanceElementWorldInterface.h"
 #include "Elements/SMInstance/SMInstanceElementSelectionInterface.h"
+#include "Elements/SMInstance/SMInstanceElementAssetDataInterface.h"
 
 #include "Modules/ModuleManager.h"
 
@@ -71,6 +72,7 @@ void RegisterEngineSMInstanceElements()
 	Registry->RegisterElementType<FSMInstanceElementData>(NAME_SMInstance);
 	Registry->RegisterElementInterface<UTypedElementWorldInterface>(NAME_SMInstance, NewObject<USMInstanceElementWorldInterface>());
 	Registry->RegisterElementInterface<UTypedElementSelectionInterface>(NAME_SMInstance, NewObject<USMInstanceElementSelectionInterface>());
+	Registry->RegisterElementInterface<UTypedElementAssetDataInterface>(NAME_SMInstance, NewObject<USMInstanceElementAssetDataInterface>());
 }
 
 void RegisterEngineElements()
