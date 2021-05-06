@@ -11,6 +11,7 @@
 class FDataLayerMode;
 class UDataLayer;
 class UWorld;
+class FWorldPartitionActorDesc;
 
 class FDataLayerHierarchy : public ISceneOutlinerHierarchy
 {
