@@ -32,7 +32,11 @@ namespace Private
 ////////////////////////////////////////////////////////////////////////////////
 struct FTidPacketBase
 {
-	enum : uint16 { EncodedMarker = 0x8000 };
+	enum : uint16
+	{
+		EncodedMarker = 0x8000,
+		ThreadIdMask  = EncodedMarker - 1,
+	};
 
 	uint16 PacketSize;
 	uint16 ThreadId;

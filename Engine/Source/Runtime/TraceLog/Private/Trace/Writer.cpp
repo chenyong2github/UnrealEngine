@@ -278,7 +278,7 @@ void Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
 		Data -= sizeof(FTidPacket);
 		Size += sizeof(FTidPacket);
 		auto* Packet = (FTidPacket*)Data;
-		Packet->ThreadId = uint16(ThreadId & 0x7fff);
+		Packet->ThreadId = uint16(ThreadId & FTidPacketBase::ThreadIdMask);
 		Packet->PacketSize = uint16(Size);
 
 		Writer_SendDataImpl(Data, Size);
@@ -290,7 +290,8 @@ void Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
 	// per LZ4_COMPRESSBOUND.
 	TTidPacketEncoded<8192 + 64> Packet;
 
-	Packet.ThreadId = 0x8000 | uint16(ThreadId & 0x7fff);
+	Packet.ThreadId = FTidPacketBase::EncodedMarker;
+	Packet.ThreadId |= uint16(ThreadId & FTidPacketBase::ThreadIdMask);
 	Packet.DecodedSize = uint16(Size);
 	Packet.PacketSize = Encode(Data, Packet.DecodedSize, Packet.Data, sizeof(Packet.Data));
 	Packet.PacketSize += sizeof(FTidPacketEncoded);

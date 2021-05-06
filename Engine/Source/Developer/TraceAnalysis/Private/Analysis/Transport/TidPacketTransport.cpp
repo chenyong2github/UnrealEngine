@@ -38,7 +38,7 @@ bool FTidPacketTransport::ReadPacket()
 
 	FTransport::Advance(PacketBase->PacketSize);
 
-	uint32 ThreadId = PacketBase->ThreadId & ~0x8000;
+	uint32 ThreadId = PacketBase->ThreadId & FTidPacketBase::ThreadIdMask;
 	FThreadStream& Thread = FindOrAddThread(ThreadId);
 
 	uint32 DataSize = PacketBase->PacketSize - sizeof(FTidPacketBase);
