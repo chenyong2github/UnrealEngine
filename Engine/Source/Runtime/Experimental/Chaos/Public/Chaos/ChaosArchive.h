@@ -353,17 +353,18 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TArray<T, TAllocator>& Array)
 
 FORCEINLINE FChaosArchive& operator<<(FChaosArchive& Ar, Chaos::FReal& Real)
 {
+	// LWC_TODO: Serializer
 	// we need to check if we are storing doubles or floats
-	if (!Ar.IsPersistent())
-	{
-		// normal umodified type path 
-		operator<<((FArchive&)Ar, Real);
-	}
-	else
+	//if (!Ar.IsPersistent())
+	//{
+	//	// normal umodified type path 
+	//	operator<<((FArchive&)Ar, Real);
+	//}
+	//else
 	{
 		// in that case data is stored as float and we need to read it as such		
-		ensure(Ar.IsLoading()); // this case should normally only happening when reading 
-		FRealSingle RealSingle; 
+		//ensure(Ar.IsLoading()); // this case should normally only happening when reading 
+		FRealSingle RealSingle = (FRealSingle)Real; 
 		operator<<((FArchive&)Ar, RealSingle);
 		Real = (FReal)RealSingle;
 	}

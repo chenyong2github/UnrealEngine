@@ -948,25 +948,26 @@ namespace Chaos
 	template<typename T, int d>
 	FArchive& operator<<(FArchive& Ar, TVector<T, d>& ValueIn)
 	{
-		constexpr bool bIsTypeReal = (TAreTypesEqual<FReal, T>::Value == true);
-		if(!Ar.IsPersistent())
-		{
-			// unchanged type code path 
-			for (int32 Idx = 0; Idx < d; ++Idx)
-			{
-				Ar << ValueIn[Idx];
-			}
+		// LWC_TODO: Serializer
+		//constexpr bool bIsTypeReal = (TAreTypesEqual<FReal, T>::Value == true);
+		//if(!Ar.IsPersistent())
+		//{
+		//	// unchanged type code path 
+		//	for (int32 Idx = 0; Idx < d; ++Idx)
+		//	{
+		//		Ar << ValueIn[Idx];
+		//	}
 
-		}
-		else 
+		//}
+		//else
 		{
 			// in that case data is stored as float and we need to read it as such		
-			ensure(Ar.IsLoading()); // this case should normally only happening when reading 
+			//ensure(Ar.IsLoading()); // this case should normally only happening when reading 
 			for (int32 Idx = 0; Idx < d; ++Idx)
 			{
-				FRealSingle RealSingle;
+				FRealSingle RealSingle = (FRealSingle)ValueIn[Idx];
 				Ar << RealSingle;
-				ValueIn[Idx] = RealSingle;
+				ValueIn[Idx] = (T)RealSingle;
 			}
 		}
 		return Ar;
