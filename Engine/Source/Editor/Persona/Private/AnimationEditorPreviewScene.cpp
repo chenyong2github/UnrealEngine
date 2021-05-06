@@ -53,6 +53,7 @@ FAnimationEditorPreviewScene::FAnimationEditorPreviewScene(const ConstructionVal
 	, bSelecting(false)
 	, bAllowAdditionalMeshes(true)
 	, bAdditionalMeshesSelectable(true)
+	, bUsePhysicsBodiesForBoneSelection(true)
 {
 	if (GEditor)
 	{
@@ -1099,6 +1100,16 @@ AActor* FAnimationEditorPreviewScene::GetActor() const
 bool FAnimationEditorPreviewScene::AllowMeshHitProxies() const
 {
 	return bEnableMeshHitProxies;
+}
+
+bool FAnimationEditorPreviewScene::UsePhysicsBodiesForBoneSelection() const
+{
+	return bUsePhysicsBodiesForBoneSelection;
+}
+
+void FAnimationEditorPreviewScene::SetUsePhysicsBodiesForBoneSelection(bool bUsePhysicsBodies)
+{
+	bUsePhysicsBodiesForBoneSelection = bUsePhysicsBodies;
 }
 
 void FAnimationEditorPreviewScene::SetAllowMeshHitProxies(bool bState)

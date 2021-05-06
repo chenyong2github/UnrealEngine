@@ -197,6 +197,7 @@ private:
 
 	/** Toolbar/menu command methods */
 	bool HasSelectedBodyAndIsNotSimulation() const;
+	bool HasOneSelectedBodyAndIsNotSimulation() const;
 	bool CanEditConstraintProperties() const;
 	bool HasSelectedConstraintAndIsNotSimulation() const;
 	void OnChangeDefaultMesh(USkeletalMesh* OldPreviewMesh, USkeletalMesh* NewPreviewMesh);
@@ -286,6 +287,7 @@ private:
 	void OnToggleShowSelected();
 	void OnShowSelected();
 	void OnHideSelected();
+	void OnToggleShowOnlyColliding();
 	void OnToggleShowOnlySelected();
 	void OnShowAll();
 	void OnHideAll();
@@ -317,6 +319,9 @@ private:
 
 	/** Customize the filter label */
 	void HandleGetFilterLabel(TArray<FText>& InOutItems) const;
+
+	/** refresh filter after changing filter settings */
+	void RefreshFilter();
 
 	/** Invalidate convex meshes and recreate the physics state. Performed on property changes (etc) */
 	void RecreatePhysicsState();

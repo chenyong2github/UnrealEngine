@@ -632,6 +632,7 @@ void FPhysicsAssetEditor::ExtendMenu()
 			MenuBarBuilder.AddMenuEntry(Commands.ShowSelected);
 			MenuBarBuilder.AddMenuEntry(Commands.HideSelected);
 			MenuBarBuilder.AddMenuEntry(Commands.ToggleShowOnlySelected);
+			MenuBarBuilder.AddMenuEntry(Commands.ToggleShowOnlyColliding);
 			MenuBarBuilder.AddMenuEntry(Commands.ShowAll);
 			MenuBarBuilder.AddMenuEntry(Commands.HideAll);
 			MenuBarBuilder.AddMenuEntry(Commands.DeselectAll);
@@ -935,6 +936,11 @@ void FPhysicsAssetEditor::BindCommands()
 		Commands.HideSelected,
 		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnHideSelected),
 		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::IsNotSimulation));
+
+	ToolkitCommands->MapAction(
+		Commands.ToggleShowOnlyColliding,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnToggleShowOnlyColliding),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::HasOneSelectedBodyAndIsNotSimulation));
 
 	ToolkitCommands->MapAction(
 		Commands.ToggleShowOnlySelected,
@@ -1385,6 +1391,7 @@ void FPhysicsAssetEditor::BuildMenuWidgetSelection(FMenuBuilder& InMenuBuilder)
 		InMenuBuilder.AddMenuEntry( Commands.ShowSelected );
 		InMenuBuilder.AddMenuEntry( Commands.HideSelected );
 		InMenuBuilder.AddMenuEntry( Commands.ToggleShowOnlySelected );
+		InMenuBuilder.AddMenuEntry( Commands.ToggleShowOnlyColliding );
 		InMenuBuilder.AddMenuEntry( Commands.ShowAll );
 		InMenuBuilder.AddMenuEntry( Commands.HideAll );
 		InMenuBuilder.EndSection();
@@ -1778,6 +1785,11 @@ bool FPhysicsAssetEditor::IsNotSimulation() const
 bool FPhysicsAssetEditor::HasSelectedBodyAndIsNotSimulation() const
 {
 	return IsNotSimulation() && (SharedData->GetSelectedBody());
+}
+
+bool FPhysicsAssetEditor::HasOneSelectedBodyAndIsNotSimulation() const
+{
+	return IsNotSimulation() && (SharedData->SelectedBodies.Num() == 1);
 }
 
 bool FPhysicsAssetEditor::CanEditConstraintProperties() const
@@ -2881,6 +2893,11 @@ void FPhysicsAssetEditor::OnHideSelected()
 	SharedData->HideSelected();
 }
 
+void FPhysicsAssetEditor::OnToggleShowOnlyColliding()
+{
+	SharedData->ToggleShowOnlyColliding();
+}
+
 void FPhysicsAssetEditor::OnToggleShowOnlySelected()
 {
 	SharedData->ToggleShowOnlySelected();
@@ -3119,6 +3136,7 @@ void FPhysicsAssetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 	InPersonaPreviewScene->SetPreviewMeshComponent(SharedData->EditorSkelComp);
 	InPersonaPreviewScene->AddComponent(SharedData->EditorSkelComp, FTransform::Identity);
 	InPersonaPreviewScene->SetAdditionalMeshesSelectable(false);
+	InPersonaPreviewScene->SetUsePhysicsBodiesForBoneSelection(false);
 	// set root component, so we can attach to it. 
 	Actor->SetRootComponent(SharedData->EditorSkelComp);
 
@@ -3201,31 +3219,31 @@ void FPhysicsAssetEditor::HandleExtendFilterMenu(FMenuBuilder& InMenuBuilder)
 void FPhysicsAssetEditor::HandleToggleShowBodies()
 {
 	SkeletonTreeBuilder->bShowBodies = !SkeletonTreeBuilder->bShowBodies;
-	SkeletonTree->RefreshFilter();
+	RefreshFilter();
 }
 
 void FPhysicsAssetEditor::HandleToggleShowSimulatedBodies()
 {
 	SkeletonTreeBuilder->bShowSimulatedBodies = !SkeletonTreeBuilder->bShowSimulatedBodies;
-	SkeletonTree->RefreshFilter();
+	RefreshFilter();
 }
 
 void FPhysicsAssetEditor::HandleToggleShowKinematicBodies()
 {
 	SkeletonTreeBuilder->bShowKinematicBodies = !SkeletonTreeBuilder->bShowKinematicBodies;
-	SkeletonTree->RefreshFilter();
+	RefreshFilter();
 }
 
 void FPhysicsAssetEditor::HandleToggleShowConstraints()
 {
 	SkeletonTreeBuilder->bShowConstraints = !SkeletonTreeBuilder->bShowConstraints;
-	SkeletonTree->RefreshFilter();
+	RefreshFilter();
 }
 
 void FPhysicsAssetEditor::HandleToggleShowPrimitives()
 {
 	SkeletonTreeBuilder->bShowPrimitives = !SkeletonTreeBuilder->bShowPrimitives;
-	SkeletonTree->RefreshFilter();
+	RefreshFilter();
 }
 
 ECheckBoxState FPhysicsAssetEditor::GetShowBodiesChecked() const
@@ -3269,6 +3287,13 @@ void FPhysicsAssetEditor::HandleGetFilterLabel(TArray<FText>& InOutItems) const
 	{
 		InOutItems.Add(LOCTEXT("PrimitivesFilterLabel", "Primitives"));
 	}
+}
+
+void FPhysicsAssetEditor::RefreshFilter()
+{
+	SkeletonTree->RefreshFilter();
+	// make sure we resynchronize the list 
+	HandleViewportSelectionChanged(SharedData->SelectedBodies, SharedData->SelectedConstraints);
 }
 
 void FPhysicsAssetEditor::HandleCreateNewConstraint(int32 BodyIndex0, int32 BodyIndex1)
