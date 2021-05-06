@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "/Engine/Public/Platform.ush"
-#include "HairStrandsDebugCommon.ush"
+#include "../ColorMap.ush"
 #include "HairStrandsAABBCommon.ush"
 #include "HairStrandsClusterCommon.ush"
 
@@ -457,7 +457,7 @@ void MainDrawDebugAABBCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			}
 
 			float SelectedLod = float(DebugInfo.LOD) / D_LOD_DEBUG_SCALE;
-			Color = float4(GetColorCode(SelectedLod), 0.05f);
+			Color = float4(GetHSVDebugColor(SelectedLod), 0.05f);
 		}
 		#endif
 

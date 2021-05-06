@@ -4,7 +4,6 @@
 
 #include "../Common.ush"
 #include "HairStrandsMeshProjectionCommon.ush"
-#include "HairStrandsDebugCommon.ush"
 
 float4x4 LocalToWorld;
 uint VertexOffset;

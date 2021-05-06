@@ -35,7 +35,6 @@
 #include "../ReflectionEnvironmentComposite.ush"
 
 #include "../HairBsdf.ush"
-#include "HairStrandsDebugCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsEnvironmentLightingCommon.ush"
 #include "HairStrandsVoxelPageCommon.ush"

@@ -9,7 +9,6 @@
 #define SUPPORT_CONTACT_SHADOWS 0
 
 #include "../SceneTexturesCommon.ush"
-#include "HairStrandsDebugCommon.ush"
 #include "HairStrandsDeepShadowCommon.ush"
 #include "../DeferredShadingCommon.ush"
 #include "../ShadingModels.ush"

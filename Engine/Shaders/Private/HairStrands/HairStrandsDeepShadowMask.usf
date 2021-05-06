@@ -12,7 +12,6 @@
 #include "HairStrandsVoxelPageCommon.ush"
 
 #include "HairStrandsCommon.ush"
-#include "HairStrandsDebugCommon.ush"
 #include "HairStrandsDeepShadowCommon.ush"
 #include "HairStrandsDeepTransmittanceCommon.ush"
 

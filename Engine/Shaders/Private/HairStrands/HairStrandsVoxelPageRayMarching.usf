@@ -10,7 +10,7 @@
 #include "../ShaderPrintCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsVoxelPageCommon.ush"
-#include "HairStrandsDebugCommon.ush"  
+#include "../ColorMap.ush"  
 
 #define VOXEL_TRAVERSAL_DEBUG_PAGEOCCUPANCY 0
 #define VOXEL_TRAVERSAL_DEBUG 0
@@ -607,7 +607,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 				VirtualVoxel.PageTexture,
 				TraversalSettings);
 
-			HitColor = GetColorCode(saturate(TraversalResult.HairCount / 16));
+			HitColor = GetHSVDebugColor(saturate(TraversalResult.HairCount / 16));
 			bIsValid = TraversalResult.HairCount > 0;
 		}
 

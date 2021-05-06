@@ -4,7 +4,6 @@
 #include "../ShaderPrintCommon.ush"
 #include "../ShaderDrawDebug.ush"
 #include "HairStrandsVisibilityCommon.ush"
-#include "HairStrandsDebugCommon.ush"
 #include "HairStrandsAABBCommon.ush" 
 
 int2 PixelCoord;

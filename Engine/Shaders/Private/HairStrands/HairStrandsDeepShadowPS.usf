@@ -6,7 +6,6 @@
 #include "../Common.ush"
 
 #include "../SceneTexturesCommon.ush"
-#include "HairStrandsDebugCommon.ush"
 #include "HairStrandsDeepShadowCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsVoxelPageCommon.ush"

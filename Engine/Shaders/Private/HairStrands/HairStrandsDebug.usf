@@ -2,7 +2,7 @@
 
 #include "../Common.ush"
 #include "HairStrandsVisibilityCommon.ush"
-#include "HairStrandsDebugCommon.ush"
+#include "../ColorMap.ush"
 
 float2 OutputResolution;
 uint FastResolveMask;
@@ -47,7 +47,7 @@ void MainPS(
 	//		discard;
 	//	OutColor = float4(float3(1, 0, 0), 1);
 	//
-	//	OutColor = float4(GetColorCode(HairCount / float(32)), 1);
+	//	OutColor = float4(GetHSVDebugColor(HairCount / float(32)), 1);
 	//
 	//	return;
 	//}
@@ -61,7 +61,7 @@ void MainPS(
 	float Alpha = 1;
 	if (DebugMode == DEBUG_MODE_SAMPLE_COUNT)
 	{
-		Color = GetColorCode(CatData.SampleCount/float(MaxSampleCount));
+		Color = GetHSVDebugColor(CatData.SampleCount/float(MaxSampleCount));
 	}
 
 	if (DebugMode == DEBUG_MODE_COVERAGE_TYPE)
@@ -79,7 +79,7 @@ void MainPS(
 
 	if (DebugMode == DEBUG_MODE_COVERAGE)
 	{
-		Color = GetColorCode(saturate(CatData.PixelCoverage));
+		Color = GetHSVDebugColor(saturate(CatData.PixelCoverage));
 	}
 
 	const bool bIsDebugModeMaterial =

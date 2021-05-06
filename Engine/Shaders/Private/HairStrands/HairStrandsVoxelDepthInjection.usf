@@ -10,7 +10,6 @@
 #include "../ShaderPrintCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsVoxelPageCommon.ush"
-#include "HairStrandsDebugCommon.ush"  
 #include "HairStrandsDeepShadowCommonStruct.ush"
 
 #include "HairStrandsVoxelPageCommon.ush"

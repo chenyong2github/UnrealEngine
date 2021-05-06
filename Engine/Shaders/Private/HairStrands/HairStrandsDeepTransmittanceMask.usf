@@ -8,7 +8,6 @@
 #include "../SceneTextureParameters.ush"
 #include "../DeferredShadingCommon.ush"
 #include "../ShadowFilteringCommon.ush"
-#include "HairStrandsDebugCommon.ush"
 #include "HairStrandsDeepShadowCommon.ush"
 #include "HairStrandsCommon.ush"
 #include "HairStrandsDeepTransmittanceCommon.ush"

@@ -3,7 +3,6 @@
 //#define SCENE_TEXTURES_DISABLED 1
 
 #include "../Common.ush"
-#include "HairStrandsDebugCommon.ush"
 #include "HairStrandsMeshProjectionCommon.ush" 
 
 #define INPUT_ROOT_FRAME 0

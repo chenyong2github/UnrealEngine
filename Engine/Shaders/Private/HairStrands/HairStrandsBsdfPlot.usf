@@ -6,7 +6,6 @@
 #include "../DeferredShadingCommon.ush"
 #include "../HairBsdf.ush"
 #include "HairStrandsCommon.ush"
-#include "HairStrandsDebugCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsEnvironmentLightingCommon.ush"
 #include "HairStrandsDeepShadowCommon.ush"

@@ -78,3 +78,15 @@ float3 ColorMapTurbo(float t)
     t = saturate(t);
     return c0+t*(c1+t*(c2+t*(c3+t*(c4+t*(c5+t*c6)))));
 }
+
+/*=============================================================================================
+	Additional color maps (not coming from the ShaderToy mentioned above)
+===============================================================================================*/
+
+#include "ColorSpace.ush"  
+
+float3 GetHSVDebugColor(float x)
+{
+	float c = (1 - saturate(x)) * 0.6; // Remap [0,1] to Blue-Red
+	return x > 0 ? HSV_2_LinearRGB(float3(c, 1, 1)) : float3(0, 0, 0);
+}
