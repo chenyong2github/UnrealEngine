@@ -458,16 +458,16 @@ void SRCPanelExposedField::ConstructFunctionWidget()
 
 	if (TSharedPtr<FRemoteControlFunction> RCFunction = RCPreset->GetExposedEntity<FRemoteControlFunction>(FieldId).Pin())
 	{
-		if (RCFunction->Function && RCFunction->GetBoundObjects().Num())
+		if (RCFunction->GetFunction() && RCFunction->GetBoundObjects().Num())
 		{
 			RowGenerator->SetStructure(RCFunction->FunctionArguments);
 			
 			if (bDisplayValues)
 			{
 				TArray<TSharedPtr<SRCPanelFieldChildNode>> ChildNodes;
-				for (TFieldIterator<FProperty> It(RCFunction->Function); It; ++It)
+				for (TFieldIterator<FProperty> It(RCFunction->GetFunction()); It; ++It)
 				{
-					bool bMustHaveParmFlag = !RCFunction->Function->HasAnyFunctionFlags(FUNC_Native);
+					bool bMustHaveParmFlag = !RCFunction->GetFunction()->HasAnyFunctionFlags(FUNC_Native);
 					const bool Param = It->HasAnyPropertyFlags(CPF_Parm);
 					const bool OutParam = It->HasAnyPropertyFlags(CPF_OutParm) && !It->HasAnyPropertyFlags(CPF_ConstParm);
 					const bool ReturnParam = It->HasAnyPropertyFlags(CPF_ReturnParm);
@@ -530,7 +530,7 @@ FReply SRCPanelExposedField::OnClickFunctionButton()
 			{
 				if (Function->FunctionArguments && Function->FunctionArguments->IsValid())
 				{
-					Object->ProcessEvent(Function->Function, Function->FunctionArguments->GetStructMemory());
+					Object->ProcessEvent(Function->GetFunction(), Function->FunctionArguments->GetStructMemory());
 				}
 				else
 				{

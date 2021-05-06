@@ -246,7 +246,7 @@ struct FRCExposedFunctionDescription
 	FRCExposedFunctionDescription(const FRemoteControlFunction& Function)
 		: DisplayName(Function.GetLabel())
 		, Id(Function.GetId().ToString())
-		, UnderlyingFunction(Function.Function)
+		, UnderlyingFunction(Function.GetFunction())
 	{
 	}
 
@@ -379,7 +379,7 @@ private:
 		}
 		else if (TSharedPtr<const FRemoteControlFunction> RCFunction = Preset->GetExposedEntity<FRemoteControlFunction>(FieldId).Pin())
 		{
-			if (RCFunction->Function)
+			if (RCFunction->GetFunction())
 			{
 				ExposedFunctions.Emplace(*RCFunction);
 			}
