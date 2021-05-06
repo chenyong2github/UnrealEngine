@@ -516,7 +516,7 @@ TOptional<FExposedFunction> FRemoteControlTarget::ResolveExposedFunction(FGuid F
 	if (TOptional<FRemoteControlFunction> RCFunction = GetFunction(FunctionId))
 	{
 		FExposedFunction ExposedFunction;
-		ExposedFunction.Function = RCFunction->Function;
+		ExposedFunction.Function = RCFunction->GetFunction();
 		ExposedFunction.DefaultParameters = RCFunction->FunctionArguments;
 		ExposedFunction.OwnerObjects = ResolveBoundObjects();
 		OptionalExposedFunction = MoveTemp(ExposedFunction);
@@ -967,7 +967,7 @@ TOptional<FExposedFunction> URemoteControlPreset::ResolveExposedFunction(FName F
 		OptionalExposedFunction = FExposedFunction();
 		OptionalExposedFunction->DefaultParameters = RCProp->FunctionArguments;
 		OptionalExposedFunction->OwnerObjects = RCProp->GetBoundObjects();
-		OptionalExposedFunction->Function = RCProp->Function;
+		OptionalExposedFunction->Function = RCProp->GetFunction();
 	}
 
 	return OptionalExposedFunction;
