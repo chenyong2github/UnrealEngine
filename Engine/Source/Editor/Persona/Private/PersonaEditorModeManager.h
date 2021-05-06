@@ -12,4 +12,7 @@ public:
 	/** IPersonaEditorModeManager interface  */
 	virtual bool GetCameraTarget(FSphere& OutTarget) const override;
 	virtual void GetOnScreenDebugInfo(TArray<FText>& OutDebugText) const override;
+
+	// FAssetEditorModeManager overrides
+	virtual void SetPreviewScene(FPreviewScene* NewPreviewScene) override;
 };

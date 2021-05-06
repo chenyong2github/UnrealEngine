@@ -29,8 +29,6 @@ FAssetEditorModeManager::FAssetEditorModeManager()
 
 FAssetEditorModeManager::~FAssetEditorModeManager()
 {
-	SetPreviewScene(nullptr);
-
 	// We may be destroyed after the UObject system has already shutdown, 
 	// which would mean that these instances will be garbage
 	if (UObjectInitialized())
@@ -45,10 +43,7 @@ FAssetEditorModeManager::~FAssetEditorModeManager()
 		}
 
 		ActorSet->RemoveFromRoot();
-		ActorSet = nullptr;
-
 		ComponentSet->RemoveFromRoot();
-		ComponentSet = nullptr;
 
 		if (!ObjectSet->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
 		{
@@ -59,7 +54,6 @@ FAssetEditorModeManager::~FAssetEditorModeManager()
 		}
 
 		ObjectSet->RemoveFromRoot();
-		ObjectSet = nullptr;
 	}
 }
 
@@ -83,7 +77,7 @@ UWorld* FAssetEditorModeManager::GetWorld() const
 	return (PreviewScene != nullptr) ? PreviewScene->GetWorld() : GEditor->GetEditorWorldContext().World();
 }
 
-void FAssetEditorModeManager::SetPreviewScene(class FPreviewScene* NewPreviewScene)
+void FAssetEditorModeManager::SetPreviewScene(FPreviewScene* NewPreviewScene)
 {
 	PreviewScene = NewPreviewScene;
 }

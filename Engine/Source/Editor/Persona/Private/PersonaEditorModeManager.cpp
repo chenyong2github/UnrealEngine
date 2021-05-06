@@ -2,6 +2,10 @@
 
 #include "PersonaEditorModeManager.h"
 #include "IPersonaEditMode.h"
+#include "IPersonaPreviewScene.h"
+#include "Selection.h"
+#include "Animation/DebugSkelMeshComponent.h"
+
 
 bool FPersonaEditorModeManager::GetCameraTarget(FSphere& OutTarget) const
 {
@@ -32,4 +36,20 @@ void FPersonaEditorModeManager::GetOnScreenDebugInfo(TArray<FText>& OutDebugText
 			EditMode->GetOnScreenDebugInfo(OutDebugText);
 		}
 	}
+}
+
+
+void FPersonaEditorModeManager::SetPreviewScene(FPreviewScene* NewPreviewScene)
+{
+	const IPersonaPreviewScene *PersonaPreviewScene = static_cast<const IPersonaPreviewScene *>(NewPreviewScene);
+
+	if (PersonaPreviewScene && PersonaPreviewScene->GetPreviewMeshComponent())
+	{
+		ComponentSet->BeginBatchSelectOperation();
+		ComponentSet->DeselectAll();
+		ComponentSet->Select(PersonaPreviewScene->GetPreviewMeshComponent(), true);
+		ComponentSet->EndBatchSelectOperation();
+	}
+
+	FAssetEditorModeManager::SetPreviewScene(NewPreviewScene);
 }
