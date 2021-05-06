@@ -1931,6 +1931,14 @@ void FOpenXRHMD::DestroySession()
 	{
 		FlushRenderingCommands();
 
+		// We need to reset all swapchain references to ensure there are no attempts
+		// to destroy swapchain handles after the session is already destroyed.
+		ForEachLayer([&](uint32 /* unused */, FOpenXRLayer& Layer)
+		{
+			Layer.Swapchain.Reset();
+			Layer.LeftSwapchain.Reset();
+		});
+
 		Swapchain.Reset();
 		DepthSwapchain.Reset();
 
