@@ -208,6 +208,16 @@ public:
 		return Results;
 	}
 
+	virtual void Reset() override
+	{
+		MGlobalPayloads.Reset();
+		MGrid.Reset();
+		MElements.Reset();
+		MDirtyElements.Reset();
+		MPayloadInfo.Reset();
+		bIsEmpty = true;
+	}
+
 	virtual void RemoveElement(const TPayloadType& Payload) override
 	{
 		SCOPE_CYCLE_COUNTER(STAT_BoundingVolumeRemoveElement);
