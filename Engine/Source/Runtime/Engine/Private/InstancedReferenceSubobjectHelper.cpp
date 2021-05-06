@@ -58,14 +58,15 @@ UObject* FInstancedPropertyPath::Resolve(const UObject* Container) const
 			check(TargetIndex != INDEX_NONE);
 
 			FScriptSetHelper SetHelper(SetProperty, ValuePtr);
-			if (TargetIndex >= SetHelper.Num())
+			if (SetHelper.IsValidIndex(TargetIndex))
+			{
+				CurrentProp = SetProperty->ElementProp;
+				ValuePtr = SetHelper.GetElementPtr(TargetIndex);
+			}
+			else
 			{
 				CurrentProp = nullptr;
-				break;
 			}
-
-			CurrentProp = SetProperty->ElementProp;
-			ValuePtr    = SetHelper.GetElementPtr(TargetIndex);
 		}
 		else if (const FMapProperty* MapProperty = CastField<FMapProperty>(CurrentProp))
 		{
@@ -73,8 +74,11 @@ UObject* FInstancedPropertyPath::Resolve(const UObject* Container) const
 			check(TargetIndex != INDEX_NONE);
 				
 			FScriptMapHelper MapHelper(MapProperty, ValuePtr);
-
-			if (!PropertyLink.bIsMapValue && PropertyLink.PropertyPtr->SameType(MapProperty->KeyProp))
+			if (!MapHelper.IsValidIndex(TargetIndex))
+			{
+				CurrentProp = nullptr;
+			}
+			else if (!PropertyLink.bIsMapValue && PropertyLink.PropertyPtr->SameType(MapProperty->KeyProp))
 			{
 				ValuePtr = MapHelper.GetKeyPtr(TargetIndex);
 				CurrentProp = MapProperty->KeyProp;
@@ -142,18 +146,21 @@ void FFindInstancedReferenceSubobjectHelper::ForEachInstancedSubObject(FInstance
 		}
 
 		FScriptMapHelper MapHelper(MapProperty, ContainerAddress);
-		for (int32 ElementIndex = 0; ElementIndex < MapHelper.Num(); ++ElementIndex)
+		for (int32 ElementIndex = 0; ElementIndex < MapHelper.GetMaxIndex(); ++ElementIndex)
 		{
-			T KeyAddress = MapHelper.GetKeyPtr(ElementIndex);
-			T ValueAddress = MapHelper.GetValuePtr(ElementIndex);
+			if (MapHelper.IsValidIndex(ElementIndex))
+			{
+				T KeyAddress = MapHelper.GetKeyPtr(ElementIndex);
+				T ValueAddress = MapHelper.GetValuePtr(ElementIndex);
 
-			PropertyPath.Push(MapProperty->KeyProp, ElementIndex);
-			ForEachInstancedSubObject(PropertyPath, KeyAddress, ObjRefFunc);
-			PropertyPath.Pop();
+				PropertyPath.Push(MapProperty->KeyProp, ElementIndex);
+				ForEachInstancedSubObject(PropertyPath, KeyAddress, ObjRefFunc);
+				PropertyPath.Pop();
 
-			PropertyPath.Push(MapProperty->ValueProp, ElementIndex, true);
-			ForEachInstancedSubObject(PropertyPath, ValueAddress, ObjRefFunc);
-			PropertyPath.Pop();
+				PropertyPath.Push(MapProperty->ValueProp, ElementIndex, true);
+				ForEachInstancedSubObject(PropertyPath, ValueAddress, ObjRefFunc);
+				PropertyPath.Pop();
+			}
 		}
 	}
 	else if (const FSetProperty* SetProperty = CastField<const FSetProperty>(TargetProp))
@@ -165,13 +172,16 @@ void FFindInstancedReferenceSubobjectHelper::ForEachInstancedSubObject(FInstance
 		}
 
 		FScriptSetHelper SetHelper(SetProperty, ContainerAddress);
-		for (int32 ElementIndex = 0; ElementIndex < SetHelper.Num(); ++ElementIndex)
+		for (int32 ElementIndex = 0; ElementIndex < SetHelper.GetMaxIndex(); ++ElementIndex)
 		{
-			T ValueAddress = SetHelper.GetElementPtr(ElementIndex);
+			if (SetHelper.IsValidIndex(ElementIndex))
+			{
+				T ValueAddress = SetHelper.GetElementPtr(ElementIndex);
 
-			PropertyPath.Push(SetProperty->ElementProp, ElementIndex);
-			ForEachInstancedSubObject(PropertyPath, ValueAddress, ObjRefFunc);
-			PropertyPath.Pop();
+				PropertyPath.Push(SetProperty->ElementProp, ElementIndex);
+				ForEachInstancedSubObject(PropertyPath, ValueAddress, ObjRefFunc);
+				PropertyPath.Pop();
+			}
 		}
 	}
 	else if (const FStructProperty* StructProperty = CastField<const FStructProperty>(TargetProp))
