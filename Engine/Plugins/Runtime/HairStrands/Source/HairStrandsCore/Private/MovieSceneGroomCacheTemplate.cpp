@@ -19,7 +19,7 @@ struct FPreAnimatedGroomCacheTokenProducer : IMovieScenePreAnimatedTokenProducer
 				bInManualTick = InComponent->GetManualTick();
 			}
 
-			virtual void RestoreState(UObject& ObjectToRestore, IMovieScenePlayer& Player)
+			virtual void RestoreState(UObject& ObjectToRestore, const UE::MovieScene::FRestoreStateParams& Params)
 			{
 				UGroomComponent* Component = CastChecked<UGroomComponent>(&ObjectToRestore);
 				Component->SetManualTick(bInManualTick);
