@@ -211,7 +211,7 @@ void FVirtualTextureChunkDDCCache::Initialize()
 	const FTimespan UnusedFileTime = FTimespan(UnusedFileAge, 0, 0, 0);
 
 	// find all files in the directory
-	IPlatformFile::FDirectoryStatVisitorFunc CacheCleanupFunc = [UnusedFileTime](const TCHAR* FileName, const FFileStatData& Stat)
+	IFileManager::Get().IterateDirectoryStatRecursively(*AbsoluteCachePath, [UnusedFileTime](const TCHAR* FileName, const FFileStatData& Stat)
 	{
 		if (!Stat.bIsDirectory && (Stat.AccessTime != FDateTime::MinValue() || Stat.ModificationTime != FDateTime::MinValue()))
 		{
@@ -226,8 +226,7 @@ void FVirtualTextureChunkDDCCache::Initialize()
 		}
 
 		return true;
-	};
-	IFileManager::Get().IterateDirectoryStatRecursively(*AbsoluteCachePath, CacheCleanupFunc);
+	});
 }
 
 void FVirtualTextureChunkDDCCache::ShutDown()
