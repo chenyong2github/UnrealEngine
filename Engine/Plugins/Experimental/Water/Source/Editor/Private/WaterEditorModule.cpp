@@ -63,7 +63,6 @@ void FWaterEditorModule::StartupModule()
 
 	GEngine->OnLevelActorAdded().AddRaw(this, &FWaterEditorModule::OnLevelActorAddedToWorld);
 
-	FEditorDelegates::OnMapOpened.AddRaw(this, &FWaterEditorModule::OnMapLoaded);
 	RegisterComponentVisualizer(UWaterSplineComponent::StaticClass()->GetFName(), MakeShareable(new FWaterSplineComponentVisualizer));
 
 	if (GEditor)
@@ -165,9 +164,9 @@ void FWaterEditorModule::OnLevelActorAddedToWorld(AActor* Actor)
 						FName BrushActorName = MakeUniqueObjectName(Landscape->GetOuter(), WaterBrushClassPtr, FName(BrushActorString));
 						FActorSpawnParameters SpawnParams;
 						SpawnParams.Name = BrushActorName;
-						SpawnParams.OverrideLevel = Landscape->GetLevel();
+						SpawnParams.bAllowDuringConstructionScript = true; // This can be called by construction script if the actor being added to the world is part of a blueprint, for example : 
 						AWaterLandscapeBrush* NewBrush = (WaterBrushActorFactory != nullptr) 
-							? CastChecked<AWaterLandscapeBrush>(WaterBrushActorFactory->CreateActor(ActorWorld, SpawnParams.OverrideLevel, FTransform::Identity, RF_Transactional, BrushActorName))
+							? Cast<AWaterLandscapeBrush>(WaterBrushActorFactory->CreateActor(ActorWorld, Landscape->GetLevel(), FTransform::Identity, SpawnParams))
 							: ActorWorld->SpawnActor<AWaterLandscapeBrush>(WaterBrushClassPtr, SpawnParams);
 						if (NewBrush)
 						{
@@ -190,35 +189,9 @@ void FWaterEditorModule::OnLevelActorAddedToWorld(AActor* Actor)
 			{
 				FActorSpawnParameters SpawnParams;
 				SpawnParams.OverrideLevel = ActorWorld->PersistentLevel;
+				SpawnParams.bAllowDuringConstructionScript = true; // This can be called by construction script if the actor being added to the world is part of a blueprint, for example : 
 				ActorWorld->SpawnActor<AWaterMeshActor>(AWaterMeshActor::StaticClass(), SpawnParams);
 			}
-		}
-	}
-}
-
-void FWaterEditorModule::OnMapLoaded(const FString& /* Filename */, bool /*bAsTemplate*/)
-{
-	UWorld* EditorWorld = GWorld;
-	TActorIterator<AWaterLandscapeBrush> BrushIterator(EditorWorld);
-
-	AWaterLandscapeBrush* WaterManagerActor = nullptr;
-	if (BrushIterator)
-	{
-		WaterManagerActor = *BrushIterator;
-	}
-
-	if (WaterManagerActor)
-	{
-		const bool bHasMeshActor = !!TActorIterator<AWaterMeshActor>(EditorWorld);
-
-		if (!bHasMeshActor)
-		{
-			FActorSpawnParameters SpawnParams;
-			SpawnParams.OverrideLevel = WaterManagerActor->GetLevel();
-			EditorWorld->SpawnActor<AWaterMeshActor>(AWaterMeshActor::StaticClass(), SpawnParams);
-
-			// If the texture is newly created force an update to get textures into the water mesh actor
-			WaterManagerActor->ForceWaterTextureUpdate();
 		}
 	}
 }

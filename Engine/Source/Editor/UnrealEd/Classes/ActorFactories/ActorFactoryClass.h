@@ -11,6 +11,7 @@
 class AActor;
 struct FAssetData;
 class ULevel;
+struct FActorSpawnParameters;
 
 UCLASS(MinimalAPI, config=Editor, collapsecategories, hidecategories=Object)
 class UActorFactoryClass : public UActorFactory
@@ -24,5 +25,5 @@ class UActorFactoryClass : public UActorFactory
 	//~ End UActorFactory Interface	
 
 protected:
-	virtual AActor* SpawnActor( UObject* Asset, ULevel* InLevel, const FTransform& Transform, EObjectFlags ObjectFlags, const FName Name ) override;
+	virtual AActor* SpawnActor( UObject* Asset, ULevel* InLevel, const FTransform& Transform, const FActorSpawnParameters& InSpawnParams) override;
 };
