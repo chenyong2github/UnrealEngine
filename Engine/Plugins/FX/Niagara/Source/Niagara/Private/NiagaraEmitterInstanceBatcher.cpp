@@ -1720,10 +1720,6 @@ void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRDGBuilder& GraphBuilder, 
 			FinishDispatches();
 
 			ProcessDebugReadbacks(RHICmdList, false);
-
-#if RHI_RAYTRACING
-			ResetRayTracingSceneInfo();
-#endif
 		}
 
 	if (!GPUInstanceCounterManager.HasPendingGPUReadback() && bRequiresReadback)

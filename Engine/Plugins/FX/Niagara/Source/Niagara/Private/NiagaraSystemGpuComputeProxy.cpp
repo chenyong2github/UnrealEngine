@@ -16,6 +16,7 @@ FNiagaraSystemGpuComputeProxy::FNiagaraSystemGpuComputeProxy(FNiagaraSystemInsta
 	bRequiresDepthBuffer = OwnerInstance->RequiresDepthBuffer();
 	bRequiresEarlyViewData = OwnerInstance->RequiresEarlyViewData();
 	bRequiresViewUniformBuffer = OwnerInstance->RequiresViewUniformBuffer();
+	bRequiresRayTracingScene = OwnerInstance->RequiresRayTracingScene();
 
 	// Gather all emitter compute contexts
 	for ( auto& Emitter : OwnerInstance->GetEmitters() )
@@ -27,7 +28,7 @@ FNiagaraSystemGpuComputeProxy::FNiagaraSystemGpuComputeProxy(FNiagaraSystemInsta
 	}
 
 	// Calculate Tick Stage
-	if (bRequiresDistanceFieldData || bRequiresDepthBuffer)
+	if (bRequiresDistanceFieldData || bRequiresDepthBuffer || bRequiresRayTracingScene)
 	{
 		ComputeTickStage = ENiagaraGpuComputeTickStage::PostOpaqueRender;
 	}
