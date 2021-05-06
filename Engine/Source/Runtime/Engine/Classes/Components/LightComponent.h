@@ -498,7 +498,7 @@ struct FPrecomputedLightInstanceData : public FSceneComponentInstanceData
 	FGuid LightGuid;
 
 	UPROPERTY()
-	int32 PreviewShadowMapChannel;
+	int32 PreviewShadowMapChannel = 0;
 };
 
 
