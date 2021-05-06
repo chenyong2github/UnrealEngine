@@ -64,12 +64,7 @@ namespace LowLevelTasks
 		CORE_API void StopWorkers();
 
 		//try to launch the task, the return value will specify if the task was in the ready state and has been launced
-		inline bool TryLaunch(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference, bool bWakeUpWorker = true);
-		
-		//try to cancel the task and launching it if the task was in ready state
-		//you still need to wait for task completion before recycling the handle
-		//you can alternatively use FTask::TryCancel if you want to launch the task manually
-		inline bool TryCancelAndLaunchContinuation(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference);		
+		inline bool TryLaunch(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference, bool bWakeUpWorker = true);	
 
 		//tries to do some work until the Task is completed
 		template<typename TaskType>
@@ -152,13 +147,11 @@ namespace LowLevelTasks
 
 			void Push(FSleepEvent* Item)
 			{
-#if defined(_MSC_VER) && USING_CODE_ANALYSIS
-#pragma warning(push)
-#pragma warning(disable:6011) // Dereferencing NULL pointer 'Item'
-#endif
-				check(Item != nullptr);
+				checkSlow(Item != nullptr);
+#if !USING_CODE_ANALYSIS //MS SA thowing warning C6011 on Item->Next access, even when it is validated or branched over
 				checkSlow(reinterpret_cast<uintptr_t>(Item) < (1ull << 48));
 				checkSlow((reinterpret_cast<uintptr_t>(Item) & 0x7) == 0);
+#endif
 				checkSlow(Item->Next == nullptr);
 			
 				FTopNode LocalTop = Top.load(std::memory_order_relaxed);
@@ -178,9 +171,6 @@ namespace LowLevelTasks
 #endif
 				}
 			}
-#if defined(_MSC_VER) && USING_CODE_ANALYSIS
-#pragma warning(pop)
-#endif
 		};
 
 	public:
@@ -213,11 +203,6 @@ namespace LowLevelTasks
 		return FScheduler::Get().TryLaunch(Task, QueuePreference, bWakeUpWorker);
 	}
 
-	FORCEINLINE_DEBUGGABLE bool TryCancelAndLaunchContinuation(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference)
-	{
-		return FScheduler::Get().TryCancelAndLaunchContinuation(Task, QueuePreference);
-	}
-
 	FORCEINLINE_DEBUGGABLE void BusyWaitForTask(const FTask& Task)
 	{
 		FScheduler::Get().BusyWait(Task);
@@ -246,17 +231,6 @@ namespace LowLevelTasks
 			return true;
 		}
 		return false;
-	}
-
-	inline bool FScheduler::TryCancelAndLaunchContinuation(FTask& Task, EQueuePreference QueuePreference)
-	{
-		bool WasCanceled = Task.TryCancel();
-		if(WasCanceled && Task.TryPrepareLaunch())
-		{
-			Task.ExecuteTask();
-			return true;
-		}
-		return WasCanceled;
 	}
 
 	inline uint32 FScheduler::GetNumWorkers() const

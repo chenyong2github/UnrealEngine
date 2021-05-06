@@ -15,8 +15,8 @@ namespace LowLevelTasks
 		High,
 		Normal,
 		Default = Normal,
-		BackgroundHigh,
-		ForegroundCount = BackgroundHigh,
+		ForegroundCount,
+		BackgroundHigh = ForegroundCount,
 		BackgroundNormal,
 		BackgroundLow,
 		Count
@@ -171,10 +171,11 @@ namespace LowLevelTasks
 		}
 
 		
-		//try to cancel the task without launching it. Even if the task is canceled it sill needs to be launched manually
-		//to launch the task manually you use FScheduler::TryLaunch
-		//you can alternatively use FScheduler::TryCancelAndLaunch if you want to launch the task in this case automatically
+		//try to cancel the task if it has not been launched yet the continuation will run immediately.
 		inline bool TryCancel();
+
+		//try to execute the task if it has not been launched yet the task will execute immediately.
+		inline bool TryExecute();
 
 		template<typename TRunnable, typename TContinuation>
 		inline void Init(const TCHAR* InDebugName, ETaskPriority InPriority, TRunnable&& InRunnable, TContinuation&& InContinuation, bool bAllowBusyWaiting);
@@ -335,8 +336,25 @@ namespace LowLevelTasks
 		FPackedData ScheduledState(LocalPackedData, ETaskState::Scheduled);
 		//we can use memory_order_relaxed in this case because, when a task is canceled it does not launch the task
 		//to launch a canceled  task it has to go though TryPrepareLaunch which is doing the memory_order_acquire
-		return PackedData.compare_exchange_strong(ReadyState, FPackedData(LocalPackedData, ETaskState::CanceledAndReady), std::memory_order_relaxed)
+		bool WasCanceled = PackedData.compare_exchange_strong(ReadyState, FPackedData(LocalPackedData, ETaskState::CanceledAndReady), std::memory_order_relaxed)
 			|| PackedData.compare_exchange_strong(ScheduledState, FPackedData(LocalPackedData, ETaskState::Canceled), std::memory_order_relaxed);
+
+		if(WasCanceled && TryPrepareLaunch())
+		{
+			ExecuteTask();
+			return true;
+		}
+		return WasCanceled;
+	}
+
+	inline bool FTask::TryExecute()
+	{
+		if(TryPrepareLaunch())
+		{
+			ExecuteTask();
+			return true;
+		}
+		return false;
 	}
 
 	inline void FTask::ExecuteTask()

@@ -260,8 +260,8 @@ namespace AwaitableTask_Detail
 			int LocalCounter = ReferenceCounter.fetch_sub(1, std::memory_order_release);
 			if (LocalCounter == 2 && !IsLaunched()) //this is 2 because fetch_sub returns the value before the decrement (value is actually 1)
 			{
-				//Cancel the Task and Try to Launch the Continuation if we are the last reference
-				verify(LowLevelTasks::TryCancelAndLaunchContinuation(Task));
+				//Cancel the Task and Try to run the Continuation if we are the last reference
+				verify(Task.TryCancel());
 			}
 			else if (LocalCounter == 1) //this is 1 because fetch_sub returns the value before the decrement (value is actually 0)
 			{
@@ -271,7 +271,7 @@ namespace AwaitableTask_Detail
 
 		inline ReturnType GetResult()
 		{
-			if (LowLevelTasks::TryCancelAndLaunchContinuation(Task))
+			if (Task.TryCancel())
 			{
 				Execute();
 				return ReturnValue;
@@ -344,7 +344,7 @@ namespace AwaitableTask_Detail
 			if (LocalCounter == 2 && !IsLaunched()) //this is 2 because fetch_sub returns the value before the decrement (value is actually 1)
 			{
 				//Cancel the Task and Try to Launch the Continuation if we are the last reference
-				verify(LowLevelTasks::TryCancelAndLaunchContinuation(Task));
+				verify(Task.TryCancel());
 			}
 			else if (LocalCounter == 1) //this is 1 because fetch_sub returns the value before the decrement (value is actually 0)
 			{
@@ -354,7 +354,7 @@ namespace AwaitableTask_Detail
 
 		inline void GetResult()
 		{
-			if (LowLevelTasks::TryCancelAndLaunchContinuation(Task))
+			if (Task.TryCancel())
 			{
 				Execute();
 			}

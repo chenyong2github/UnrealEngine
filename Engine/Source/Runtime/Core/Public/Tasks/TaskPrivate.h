@@ -137,7 +137,7 @@ namespace UE { namespace Tasks
 				// the task skip waiting in the scheduler's queue.
 				// we can't retract it right here because it can be not scheduled yet (e.g. when it's blocked by a pipe), so we need to wait for this
 				LowLevelTasks::BusyWaitUntil([this] { return !LowLevelTask.IsReady(); }); // `!IsReady()` here means "the task is scheduled"
-				LowLevelTasks::TryCancelAndLaunchContinuation(LowLevelTask);
+				LowLevelTask.TryCancel(); //This will try to cancel the task and run it's continuation (thereby executing the workload) 
 				LowLevelTasks::BusyWaitUntil([this] { return LowLevelTask.IsCompleted(); });
 			}
 
@@ -152,7 +152,7 @@ namespace UE { namespace Tasks
 					return false;
 				}
 
-				LowLevelTasks::TryCancelAndLaunchContinuation(LowLevelTask);
+				LowLevelTask.TryCancel(); //This will try to cancel the task and run it's continuation (thereby executing the workload) 
 				LowLevelTasks::BusyWaitUntil([this, Timeout] { return LowLevelTask.IsCompleted() || Timeout; });
 				return LowLevelTask.IsCompleted();
 			}
@@ -171,7 +171,7 @@ namespace UE { namespace Tasks
 					return false;
 				}
 
-				LowLevelTasks::TryCancelAndLaunchContinuation(LowLevelTask);
+				LowLevelTask.TryCancel(); //This will try to cancel the task and run it's continuation (thereby executing the workload) 
 				LowLevelTasks::BusyWaitUntil(
 					[this, Condition = Forward<ConditionType>(Condition)] { return LowLevelTask.IsCompleted() || Condition(); }
 				);
