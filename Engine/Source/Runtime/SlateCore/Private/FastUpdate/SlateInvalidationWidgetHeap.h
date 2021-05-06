@@ -8,6 +8,9 @@
 #include "FastUpdate/SlateInvalidationWidgetList.h"
 #include "FastUpdate/SlateInvalidationWidgetSortOrder.h"
 
+#ifndef UE_SLATE_WITH_INVALIDATIONWIDGETHEAP_DEBUGGING
+	#define UE_SLATE_WITH_INVALIDATIONWIDGETHEAP_DEBUGGING DO_CHECK
+#endif
 
 namespace UE
 {
@@ -15,6 +18,10 @@ namespace Slate
 {
 namespace Private
 {
+#if UE_SLATE_WITH_INVALIDATIONWIDGETHEAP_DEBUGGING
+	extern bool GSlateInvalidationWidgetHeapVerifyWidgetContains;
+#endif
+
 	/**
 	* Ordered list of WidgetIndex. The order is based on the WidgetSortIndex.
 	*/
@@ -65,7 +72,7 @@ public:
 	void HeapPushUnique(FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget)
 	{
 		check(InvalidationWidget.Index != FSlateInvalidationWidgetIndex::Invalid);
-		check(Contains_Debug(InvalidationWidget.Index) == InvalidationWidget.bContainedByWidgetPreHeap);
+		VerifyContainsFlag(InvalidationWidget);
 
 		if (!InvalidationWidget.bContainedByWidgetPreHeap)
 		{
@@ -177,6 +184,16 @@ public:
 	}
 
 private:
+	void VerifyContainsFlag(const FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget)
+	{
+#if UE_SLATE_WITH_INVALIDATIONWIDGETHEAP_DEBUGGING
+		if (UE::Slate::Private::GSlateInvalidationWidgetHeapVerifyWidgetContains)
+		{
+			check(Contains_Debug(InvalidationWidget.Index) == InvalidationWidget.bContainedByWidgetPostHeap);
+		}
+#endif
+	}
+
 	FElementContainer Heap;
 	FSlateInvalidationWidgetList& OwnerList;
 };
@@ -211,8 +228,7 @@ public:
 	{
 		check(bIsHeap);
 		check(InvalidationWidget.Index != FSlateInvalidationWidgetIndex::Invalid);
-		check(Contains_Debug(InvalidationWidget.Index) == InvalidationWidget.bContainedByWidgetPostHeap
-			|| WidgetCannotBeAdded == InvalidationWidget.Index);
+		VerifyContainsFlag(InvalidationWidget);
 
 		if (!InvalidationWidget.bContainedByWidgetPostHeap)
 		{
@@ -226,8 +242,7 @@ public:
 	{
 		check(bIsHeap == false);
 		check(InvalidationWidget.Index != FSlateInvalidationWidgetIndex::Invalid);
-		check(Contains_Debug(InvalidationWidget.Index) == InvalidationWidget.bContainedByWidgetPostHeap
-			|| WidgetCannotBeAdded == InvalidationWidget.Index);
+		VerifyContainsFlag(InvalidationWidget);
 
 		if (!InvalidationWidget.bContainedByWidgetPostHeap)
 		{
@@ -369,6 +384,17 @@ public:
 	};
 
 private:
+	void VerifyContainsFlag(const FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget)
+	{
+#if UE_SLATE_WITH_INVALIDATIONWIDGETHEAP_DEBUGGING
+		if (UE::Slate::Private::GSlateInvalidationWidgetHeapVerifyWidgetContains)
+		{
+			check(Contains_Debug(InvalidationWidget.Index) == InvalidationWidget.bContainedByWidgetPostHeap
+				|| WidgetCannotBeAdded == InvalidationWidget.Index);
+		}
+#endif
+	}
+
 	FElementContainer Heap;
 	FSlateInvalidationWidgetList& OwnerList;
 	FSlateInvalidationWidgetIndex WidgetCannotBeAdded;
