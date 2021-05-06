@@ -298,4 +298,10 @@ public:
 	virtual void FlagTickable() = 0;
 	/** Handle syncing selection with the skeleton tree */
 	virtual void HandleSkeletonTreeSelectionChanged(const TArrayView<TSharedPtr<ISkeletonTreeItem>>& InSelectedItems, ESelectInfo::Type InSelectInfo) = 0;
+
+	/** Get whether bones can be selected by their physics bodies */
+	virtual bool UsePhysicsBodiesForBoneSelection() const = 0;
+
+	/** Set whether bones can be selected by their physics bodies */
+	virtual void SetUsePhysicsBodiesForBoneSelection(bool bUsePhysicsBodies) = 0;
 };

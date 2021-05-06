@@ -145,6 +145,7 @@ public:
 	void ToggleShowSelected();
 	void ShowAll();
 	void HideAll();
+	void ToggleShowOnlyColliding();
 	void ToggleShowOnlySelected();
 	void ShowSelected();
 	void HideSelected();

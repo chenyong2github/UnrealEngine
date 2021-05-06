@@ -558,8 +558,9 @@ bool FSkeletonSelectionEditMode::HandleClick(FEditorViewportClient* InViewportCl
 			MeshComponent->SetSelectedEditorSection(INDEX_NONE);
 		}
 	}
-	
-	if ( !bHandled && !bSelectingSections )
+
+	const bool bUsePhysicsBodiesForBoneSelection = GetAnimPreviewScene().UsePhysicsBodiesForBoneSelection();
+	if ( !bHandled && !bSelectingSections && bUsePhysicsBodiesForBoneSelection)
 	{
 		// Cast for phys bodies if we didn't get any hit proxies
 		FHitResult Result(1.0f);
