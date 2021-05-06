@@ -3621,8 +3621,14 @@ void UStaticMesh::BeginDestroy()
 
 bool UStaticMesh::IsReadyForFinishDestroy()
 {
+	// Tick base class to make progress on the streaming before calling HasPendingInitOrStreaming().
+	if (!Super::IsReadyForFinishDestroy())
+	{
+		return false;
+	}
+
 	// Match BeginDestroy() by checking for HasPendingInitOrStreaming().
-	if (HasPendingInitOrStreaming() || !Super::IsReadyForFinishDestroy())
+	if (HasPendingInitOrStreaming())
 	{
 		return false;
 	}
