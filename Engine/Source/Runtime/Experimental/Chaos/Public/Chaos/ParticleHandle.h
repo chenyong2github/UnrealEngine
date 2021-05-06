@@ -413,6 +413,13 @@ public:
 #endif
 	}
 
+	bool HasCollision() const { return GeometryParticles->HasCollision(ParticleIdx); }
+
+	void SetHasCollision(const bool bHasCollision)
+	{
+		GeometryParticles->HasCollision(ParticleIdx) = bHasCollision;
+	}
+
 	ESyncState SyncState() const
 	{
 		return GeometryParticles->SyncState(ParticleIdx);

@@ -179,6 +179,8 @@ namespace Chaos
 			CollisionData.Modify(true,DirtyFlags,Proxy, ShapeIdx,[InTraceFlag](FCollisionData& Data){ Data.CollisionTraceType = InTraceFlag; });
 		}
 
+		const FCollisionData& GetCollisionData() const { return CollisionData.Read(); }
+
 		void SetCollisionData(const FCollisionData& Data)
 		{
 			CollisionData.Write(Data,true,DirtyFlags,Proxy, ShapeIdx);
@@ -339,6 +341,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MSharedGeometry);
 			TArrayCollection::AddArray(&MDynamicGeometry);
 			TArrayCollection::AddArray(&MParticleIDs);
+			TArrayCollection::AddArray(&MHasCollision);
 			TArrayCollection::AddArray(&MShapesArray);
 			TArrayCollection::AddArray(&ImplicitShapeMap);
 			TArrayCollection::AddArray(&MLocalBounds);
@@ -371,6 +374,7 @@ namespace Chaos
 			, MDynamicGeometry(MoveTemp(Other.MDynamicGeometry))
 			, MGeometryParticleHandle(MoveTemp(Other.MGeometryParticleHandle))
 			, MGeometryParticle(MoveTemp(Other.MGeometryParticle))
+			, MHasCollision(MoveTemp(Other.MHasCollision))
 			, MShapesArray(MoveTemp(Other.MShapesArray))
 			, ImplicitShapeMap(MoveTemp(Other.ImplicitShapeMap))
 			, MLocalBounds(MoveTemp(Other.MLocalBounds))
@@ -392,6 +396,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MGeometry);
 			TArrayCollection::AddArray(&MSharedGeometry);
 			TArrayCollection::AddArray(&MDynamicGeometry);
+			TArrayCollection::AddArray(&MHasCollision);
 			TArrayCollection::AddArray(&MShapesArray);
 			TArrayCollection::AddArray(&ImplicitShapeMap);
 			TArrayCollection::AddArray(&MLocalBounds);
@@ -428,6 +433,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MGeometry);
 			TArrayCollection::AddArray(&MSharedGeometry);
 			TArrayCollection::AddArray(&MDynamicGeometry);
+			TArrayCollection::AddArray(&MHasCollision);
 			TArrayCollection::AddArray(&MShapesArray);
 			TArrayCollection::AddArray(&ImplicitShapeMap);
 			TArrayCollection::AddArray(&MLocalBounds);
@@ -470,6 +476,9 @@ namespace Chaos
 		CHAOS_API const TUniquePtr<FImplicitObject>& DynamicGeometry(const int32 Index) const { return MDynamicGeometry[Index]; }
 
 		CHAOS_API const TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>& SharedGeometry(const int32 Index) const { return MSharedGeometry[Index]; }
+
+		CHAOS_API bool HasCollision(const int32 Index) const { return MHasCollision[Index]; }
+		CHAOS_API bool& HasCollision(const int32 Index) { return MHasCollision[Index]; }
 
 		CHAOS_API const FShapesArray& ShapesArray(const int32 Index) const { return MShapesArray[Index]; }
 
@@ -739,6 +748,7 @@ public:
 		TArrayCollectionArray<TUniquePtr<FImplicitObject>> MDynamicGeometry;
 		TArrayCollectionArray<TSerializablePtr<TGeometryParticleHandle<T, d>>> MGeometryParticleHandle;
 		TArrayCollectionArray<TGeometryParticle<T, d>*> MGeometryParticle;
+		TArrayCollectionArray<bool> MHasCollision;
 		TArrayCollectionArray<FShapesArray> MShapesArray;
 		TArrayCollectionArray<TMap<const FImplicitObject*, int32>> ImplicitShapeMap;
 		TArrayCollectionArray<TAABB<T,d>> MLocalBounds;

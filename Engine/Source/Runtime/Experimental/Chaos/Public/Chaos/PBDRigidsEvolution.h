@@ -373,16 +373,20 @@ public:
 			}
 		}
 
-		//TODO: distinguish between new particles and dirty particles
-		const FUniqueIdx UniqueIdx = Particle.UniqueIdx();
-		FPendingSpatialData& SpatialData = InternalAccelerationQueue.FindOrAdd(UniqueIdx);
-		ensure(SpatialData.bDelete == false);
-		SpatialData.AccelerationHandle = FAccelerationStructureHandle(Particle);
-		SpatialData.SpatialIdx = Particle.SpatialIdx();
+		//only add to acceleration structure if it has collision
+		if (Particle.HasCollision())
+		{
+			//TODO: distinguish between new particles and dirty particles
+			const FUniqueIdx UniqueIdx = Particle.UniqueIdx();
+			FPendingSpatialData& SpatialData = InternalAccelerationQueue.FindOrAdd(UniqueIdx);
+			ensure(SpatialData.bDelete == false);
+			SpatialData.AccelerationHandle = FAccelerationStructureHandle(Particle);
+			SpatialData.SpatialIdx = Particle.SpatialIdx();
 
-		auto& AsyncSpatialData = AsyncAccelerationQueue.FindOrAdd(UniqueIdx);
-		ensure(SpatialData.bDelete == false);
-		AsyncSpatialData = SpatialData;
+			auto& AsyncSpatialData = AsyncAccelerationQueue.FindOrAdd(UniqueIdx);
+			ensure(SpatialData.bDelete == false);
+			AsyncSpatialData = SpatialData;
+		}
 	}
 
 	CHAOS_API void DestroyParticle(FGeometryParticleHandle* Particle)
@@ -735,6 +739,7 @@ protected:
 		return NumConstraints;
 	}
 
+public:
 	template <bool bPersistent>
 	FORCEINLINE_DEBUGGABLE void RemoveParticleFromAccelerationStructure(TGeometryParticleHandleImp<FReal, 3, bPersistent>& ParticleHandle)
 	{
@@ -754,6 +759,8 @@ protected:
 		//TODO: if we distinguished between first time adds we could avoid this. We could also make the RemoveElementFrom more strict and ensure when it fails
 		InternalAcceleration->RemoveElementFrom(SpatialData.AccelerationHandle, SpatialData.SpatialIdx);
 	}
+
+protected:
 
 	void UpdateConstraintPositionBasedState(FReal Dt)
 	{
