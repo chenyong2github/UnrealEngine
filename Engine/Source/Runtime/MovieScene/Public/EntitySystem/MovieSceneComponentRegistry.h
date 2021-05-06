@@ -60,15 +60,12 @@ public:
 	void NewPropertyType(TPropertyComponents<PropertyTraits>& OutComponents, const TCHAR* DebugName)
 	{
 #if UE_MOVIESCENE_ENTITY_DEBUG
-		FString PreAnimatedDebugName = FString(TEXT("Pre Animated ")) + DebugName;
 		FString InitialValueDebugName = FString(TEXT("Initial ")) + DebugName;
 
 		OutComponents.PropertyTag = NewTag(DebugName, EComponentTypeFlags::CopyToChildren);
-		NewComponentType(&OutComponents.PreAnimatedValue, *PreAnimatedDebugName, EComponentTypeFlags::Preserved | EComponentTypeFlags::MigrateToOutput);
 		NewComponentType(&OutComponents.InitialValue, *InitialValueDebugName, EComponentTypeFlags::Preserved);
 #else
 		OutComponents.PropertyTag = NewTag(nullptr, EComponentTypeFlags::CopyToChildren);
-		NewComponentType(&OutComponents.PreAnimatedValue, nullptr, EComponentTypeFlags::Preserved | EComponentTypeFlags::MigrateToOutput);
 		NewComponentType(&OutComponents.InitialValue, nullptr, EComponentTypeFlags::Preserved);
 #endif
 	}

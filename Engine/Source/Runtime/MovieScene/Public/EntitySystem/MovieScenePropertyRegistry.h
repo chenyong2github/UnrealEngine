@@ -53,14 +53,13 @@ struct FPropertyDefinition
 
 	FPropertyDefinition(
 			uint16 InVariableSizeCompositeOffset, uint16 InSizeofStorageType, uint16 InAlignofStorageType,
-			FComponentTypeID InPropertyType, FComponentTypeID InPreAnimatedValue, FComponentTypeID InInitialValueType)
+			FComponentTypeID InPropertyType, FComponentTypeID InInitialValueType)
 		: CustomPropertyRegistration(nullptr)
 		, FloatCompositeMask(0)
 		, VariableSizeCompositeOffset(InVariableSizeCompositeOffset)
 		, CompositeSize(0)
 		, StorageType{ InSizeofStorageType, InAlignofStorageType }
 		, PropertyType(InPropertyType)
-		, PreAnimatedValue(InPreAnimatedValue)
 		, InitialValueType(InInitialValueType)
 	{
 	}
@@ -100,9 +99,6 @@ struct FPropertyDefinition
 
 	/** The component type or tag of the property itself */
 	FComponentTypeID PropertyType;
-
-	/** (OPTIONAL) The component type for the property's pre-animated value */
-	FComponentTypeID PreAnimatedValue;
 
 	/** The component type for this property's inital value (used for relative and/or additive blending) */
 	FComponentTypeID InitialValueType;
@@ -257,7 +253,6 @@ private:
 			CompositeOffset, 
 			sizeof(StorageType), alignof(StorageType),
 			InOutPropertyComponents.PropertyTag,
-			InOutPropertyComponents.PreAnimatedValue,
 			InOutPropertyComponents.InitialValue);
 
 		NewDefinition.MetaDataTypes = InOutPropertyComponents.MetaDataComponents.GetTypes();

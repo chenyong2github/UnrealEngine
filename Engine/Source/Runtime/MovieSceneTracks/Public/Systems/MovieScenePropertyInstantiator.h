@@ -9,7 +9,6 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieScenePropertyRegistry.h"
 #include "EntitySystem/MovieScenePropertyComponentHandler.h"
-#include "EntitySystem/MovieScenePreAnimatedStateSystem.h"
 
 #include "Misc/TVariant.h"
 #include "Misc/Optional.h"
@@ -37,7 +36,6 @@ class UMovieSceneBlenderSystem;
 UCLASS()
 class MOVIESCENETRACKS_API UMovieScenePropertyInstantiatorSystem
 	: public UMovieSceneEntityInstantiatorSystem
-	, public IMovieScenePreAnimatedStateSystemInterface
 {
 public:
 
@@ -104,15 +102,6 @@ private:
 
 private:
 
-	virtual void SavePreAnimatedState(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
-	virtual void SaveGlobalPreAnimatedState(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
-
-	virtual void RestorePreAnimatedState(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
-
-	virtual void DiscardPreAnimatedStateForObject(UObject& Object) override;
-
-private:
-
 	using FChannelMask     = TBitArray<TFixedAllocator< 1 >>;
 	using FSlowPropertyPtr = TSharedPtr<FTrackInstancePropertyBindings>;
 
@@ -170,9 +159,6 @@ private:
 
 	void InitializePropertyMetaData(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
 
-	void AssignPreAnimatedValues(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
-	void RestorePreAnimatedValues(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
-
 	void CleanTaggedGarbage(UMovieSceneEntitySystemLinker*);
 
 private:
@@ -194,8 +180,6 @@ private:
 
 	TBitArray<> InitializePropertyMetaDataTasks;
 	TBitArray<> SaveGlobalStateTasks;
-	TBitArray<> CachePreAnimatedStateTasks;
-	TBitArray<> RestorePreAnimatedStateTasks;
 
 	UE::MovieScene::FBuiltInComponentTypes* BuiltInComponents;
 	 

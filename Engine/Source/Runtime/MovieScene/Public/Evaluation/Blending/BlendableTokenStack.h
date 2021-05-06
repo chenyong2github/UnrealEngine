@@ -169,13 +169,11 @@ private:
 		{
 			if (CompletionModeOverride.Get(Token->AnimatingScope.CompletionMode) == EMovieSceneCompletionMode::RestoreState)
 			{
-				Player.PreAnimatedState.SetCaptureEntity(Token->AnimatingScope.Key, EMovieSceneCompletionMode::RestoreState);
+				FScopedPreAnimatedCaptureSource CaptureSource(&Player.PreAnimatedState, Token->AnimatingScope.Key, true);
 				Player.SavePreAnimatedState(Forward<T>(Args)...);
 				bSavedState = true;
 			}
 		}
-
-		Player.PreAnimatedState.SetCaptureEntity(FMovieSceneEvaluationKey(), EMovieSceneCompletionMode::KeepState);
 
 		// Save global state if nothing else did
 		if (!bSavedState)

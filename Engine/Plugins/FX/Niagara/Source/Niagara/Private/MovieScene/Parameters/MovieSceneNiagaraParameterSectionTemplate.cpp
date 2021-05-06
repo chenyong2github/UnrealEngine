@@ -24,7 +24,7 @@ struct FPreAnimatedParameterValueToken : IMovieScenePreAnimatedToken
 	{
 	}
 
-	virtual void RestoreState(UObject& InObject, IMovieScenePlayer& InPlayer)
+	virtual void RestoreState(UObject& InObject, const UE::MovieScene::FRestoreStateParams& Params)
 	{
 		UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(&InObject);
 		if (PreviousValueData.IsSet() == false)

@@ -224,7 +224,7 @@ void FSequencerUtilities::PopulateMenu_SetBlendType(FMenuBuilder& MenuBuilder, c
 
 				for (UObject* ObjectToRestore : ObjectsToRestore)
 				{
-					Sequencer->RestorePreAnimatedState(*ObjectToRestore);
+					Sequencer->PreAnimatedState.RestorePreAnimatedState(*ObjectToRestore);
 				}
 			}
 

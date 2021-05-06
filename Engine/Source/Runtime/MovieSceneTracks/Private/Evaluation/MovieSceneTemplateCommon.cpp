@@ -13,7 +13,7 @@ struct FMobilityPreAnimatedToken : IMovieScenePreAnimatedToken
 		Mobility = SceneComponent.Mobility;
 	}
 
-	virtual void RestoreState(UObject& InObject, IMovieScenePlayer& Player) override
+	virtual void RestoreState(UObject& InObject, const UE::MovieScene::FRestoreStateParams& Params) override
 	{
 		USceneComponent* SceneComponent = CastChecked<USceneComponent>(&InObject);
 		SceneComponent->SetMobility(Mobility);
@@ -76,7 +76,7 @@ struct F3DTransformTrackPreAnimatedToken : F3DTransformTrackToken, IMovieScenePr
 		Scale = ExistingTransform.GetScale3D();
 	}
 
-	virtual void RestoreState(UObject& InObject, IMovieScenePlayer& Player) override
+	virtual void RestoreState(UObject& InObject, const UE::MovieScene::FRestoreStateParams& Params) override
 	{
 		USceneComponent* SceneComponent = CastChecked<USceneComponent>(&InObject);
 

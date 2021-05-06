@@ -66,6 +66,7 @@ struct FEntityImportSequenceParams
 	int32 HierarchicalBias;
 
 	FInstanceHandle InstanceHandle;
+	FInstanceHandle RootInstanceHandle;
 
 	EMovieSceneCompletionMode DefaultCompletionMode;
 

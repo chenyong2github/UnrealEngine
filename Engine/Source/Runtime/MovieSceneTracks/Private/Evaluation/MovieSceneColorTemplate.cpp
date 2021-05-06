@@ -156,7 +156,7 @@ struct FColorTrackPreAnimatedState : IMovieScenePreAnimatedToken
 	{
 	}
 
-	virtual void RestoreState(UObject& Object, IMovieScenePlayer& Player) override
+	virtual void RestoreState(UObject& Object, const UE::MovieScene::FRestoreStateParams& Params) override
 	{
 		Token.Apply(Object, Bindings);
 	}

@@ -109,7 +109,7 @@ struct FTempCameraPreAnimatedStateProducer : IMovieScenePreAnimatedTokenProducer
 	{
 		struct FTempCameraPreAnimatedState : IMovieScenePreAnimatedToken
 		{
-			virtual void RestoreState(UObject& InObject, IMovieScenePlayer& InPlayer)
+			virtual void RestoreState(UObject& InObject, const UE::MovieScene::FRestoreStateParams& Params)
 			{
 				AActor* Actor = CastChecked<AActor>(&InObject);
 				Actor->Destroy(false, false);
@@ -153,7 +153,7 @@ ACameraActor* FMovieSceneMatineeCameraData::GetTempCameraActor(IMovieScenePlayer
 			{
 				FDestroyTempObject(AActor& InActor) : TempActor(&InActor) {}
 
-				virtual void RestoreState(IMovieScenePlayer& InPlayer)
+				virtual void RestoreState(const UE::MovieScene::FRestoreStateParams& Params)
 				{
 					AActor* Actor = TempActor.Get();
 					if (Actor)
@@ -186,7 +186,7 @@ struct FPreAnimatedCameraTransformTokenProducer : IMovieScenePreAnimatedTokenPro
 	{
 		struct FRestoreToken : IMovieScenePreAnimatedToken
 		{
-			virtual void RestoreState(UObject& InObject, IMovieScenePlayer& Player) override
+			virtual void RestoreState(UObject& InObject, const UE::MovieScene::FRestoreStateParams& Params) override
 			{
 				UCameraComponent* CameraComponent = CastChecked<UCameraComponent>(&InObject);
 				CameraComponent->ClearAdditiveOffset();
@@ -204,7 +204,7 @@ struct FPreAnimatedPostProcessingBlendsTokenProducer : IMovieScenePreAnimatedTok
 	{
 		struct FRestoreToken : IMovieScenePreAnimatedToken
 		{
-			virtual void RestoreState(UObject& InObject, IMovieScenePlayer& Player) override
+			virtual void RestoreState(UObject& InObject, const UE::MovieScene::FRestoreStateParams& Params) override
 			{
 				UCameraComponent* CameraComponent = CastChecked<UCameraComponent>(&InObject);
 				CameraComponent->ClearExtraPostProcessBlends();
@@ -340,7 +340,7 @@ struct FPreAnimatedCameraAnimTokenProducer : IMovieScenePreAnimatedTokenProducer
 	{
 		struct FRestoreToken : IMovieScenePreAnimatedToken
 		{
-			virtual void RestoreState(UObject& InObject, IMovieScenePlayer& Player) override
+			virtual void RestoreState(UObject& InObject, const UE::MovieScene::FRestoreStateParams& Params) override
 			{
 				UCameraAnimInst* CameraAnim = CastChecked<UCameraAnimInst>(&InObject);
 				CameraAnim->Stop(true);
@@ -382,8 +382,12 @@ struct FCameraAnimExecutionToken : TAccumulateCameraAnimExecutionToken<FCameraAn
 				CameraAnimInstance->SetStopAutomatically(false);
 
 				// Store the anim instance with the section and always remove it when we've finished evaluating
-				static FMovieSceneAnimTypeID AnimTypeID = TMovieSceneAnimTypeID<FCameraAnimExecutionToken, 0>();
-				Player.SavePreAnimatedState(*CameraAnimInstance, AnimTypeID, FPreAnimatedCameraAnimTokenProducer(), PersistentData.GetSectionKey());
+				{
+					static FMovieSceneAnimTypeID AnimTypeID = TMovieSceneAnimTypeID<FCameraAnimExecutionToken, 0>();
+
+					FScopedPreAnimatedCaptureSource CaptureSource(&Player.PreAnimatedState, PersistentData.GetSectionKey(), true);
+					Player.PreAnimatedState.SavePreAnimatedState(*CameraAnimInstance, AnimTypeID, FPreAnimatedCameraAnimTokenProducer());
+				}
 
 				// We use the global temp actor from the shared data (shared across all additive camera effects for this operand)
 				ACameraActor* TempCameraActor = FMovieSceneMatineeCameraData::Get(Operand, PersistentData).GetTempCameraActor(Player);
@@ -481,7 +485,7 @@ struct FPreAnimatedCameraShakeTokenProducer : IMovieScenePreAnimatedTokenProduce
 	{
 		struct FRestoreToken : IMovieScenePreAnimatedToken
 		{
-			virtual void RestoreState(UObject& InObject, IMovieScenePlayer& Player) override
+			virtual void RestoreState(UObject& InObject, const UE::MovieScene::FRestoreStateParams& Params) override
 			{
 				UCameraShakeBase* CameraShake = CastChecked<UCameraShakeBase>(&InObject);
 				CameraShake->StopShake(true);
@@ -518,8 +522,12 @@ struct FCameraShakeExecutionToken : TAccumulateCameraAnimExecutionToken<FCameraS
 			if (CameraShakeInstance)
 			{
 				// Store the anim instance with the section and always remove it when we've finished evaluating
-				FMovieSceneAnimTypeID AnimTypeID = TMovieSceneAnimTypeID<FCameraShakeExecutionToken>();
-				Player.SavePreAnimatedState(*CameraShakeInstance, AnimTypeID, FPreAnimatedCameraShakeTokenProducer(), PersistentData.GetSectionKey());
+				{
+					FMovieSceneAnimTypeID AnimTypeID = TMovieSceneAnimTypeID<FCameraShakeExecutionToken>();
+
+					FScopedPreAnimatedCaptureSource CaptureSource(&Player.PreAnimatedState, PersistentData.GetSectionKey(), true);
+					Player.PreAnimatedState.SavePreAnimatedState(*CameraShakeInstance, AnimTypeID, FPreAnimatedCameraShakeTokenProducer());
+				}
 
 				// Custom logic, if any.
 				UMovieSceneCameraShakeEvaluator* CameraShakeEvaluator = FMovieSceneCameraShakeEvaluatorRegistry::BuildShakeEvaluator(CameraShakeInstance);

@@ -92,10 +92,10 @@ namespace MovieScene
 			return TMovieSceneAnimTypeID<FCameraCutPreAnimatedToken>();
 		}
 
-		virtual void RestoreState(IMovieScenePlayer& Player) override
+		virtual void RestoreState(const UE::MovieScene::FRestoreStateParams& RestoreParams) override
 		{
 			EMovieSceneCameraCutParams Params;
-			Player.UpdateCameraCut(nullptr, Params);
+			RestoreParams.GetTerminalPlayer()->UpdateCameraCut(nullptr, Params);
 		}
 	};
 

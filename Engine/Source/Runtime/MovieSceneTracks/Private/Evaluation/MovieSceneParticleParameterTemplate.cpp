@@ -22,7 +22,7 @@ struct FParticleParameterPreAnimatedToken : IMovieScenePreAnimatedToken
 	FParticleParameterPreAnimatedToken(FParticleParameterPreAnimatedToken&&) = default;
 	FParticleParameterPreAnimatedToken& operator=(FParticleParameterPreAnimatedToken&&) = default;
 
-	virtual void RestoreState(UObject& Object, IMovieScenePlayer& Player) override
+	virtual void RestoreState(UObject& Object, const UE::MovieScene::FRestoreStateParams& Params) override
 	{
 		UParticleSystemComponent* ParticleSystemComponent = CastChecked<UParticleSystemComponent>(&Object);
 

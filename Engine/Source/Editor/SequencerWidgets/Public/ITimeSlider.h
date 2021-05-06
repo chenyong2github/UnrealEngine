@@ -11,6 +11,7 @@
 #include "Widgets/Input/NumericTypeInterface.h"
 #include "Editor/Sequencer/Public/ISequencerInputHandler.h"
 #include "IMovieScenePlayer.h"
+#include "MovieScene.h"
 
 class FSlateWindowElementList;
 

@@ -7,6 +7,7 @@
 #include "Math/Vector4.h"
 #include "Math/Rotator.h"
 #include "Math/Color.h"
+#include "EulerTransform.h"
 #include "Styling/SlateColor.h"
 #include "EntitySystem/MovieSceneComponentDebug.h"
 
@@ -155,8 +156,8 @@ struct FIntermediate3DTransform
 	MOVIESCENETRACKS_API void ApplyTo(USceneComponent* SceneComponent) const;
 };
 
-
-
+MOVIESCENETRACKS_API FIntermediate3DTransform GetComponentTransform(const UObject* Object);
+MOVIESCENETRACKS_API void SetComponentTransform(USceneComponent* SceneComponent, const FIntermediate3DTransform& InTransform);
 
 MOVIESCENETRACKS_API void ConvertOperationalProperty(const FIntermediate3DTransform& In, FEulerTransform& Out);
 MOVIESCENETRACKS_API void ConvertOperationalProperty(const FEulerTransform& In, FIntermediate3DTransform& Out);

@@ -851,9 +851,9 @@ void UTakeRecorder::Start(const FTimecode& InTimecodeSource)
 	// Discard any entity tokens we have so that restore state does not take effect when we delete any sections that recording will be replacing.
 	if (Sequencer.IsValid())
 	{
-		Sequencer->DiscardEntityTokens();
+		Sequencer->PreAnimatedState.DiscardEntityTokens();
 	}
-		
+
 	UMovieScene* MovieScene = SequenceAsset->GetMovieScene();
 	if (MovieScene)
 	{
