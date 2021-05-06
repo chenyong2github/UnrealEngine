@@ -17,6 +17,16 @@ static uint64 GenerateCommandListID()
 	return FPlatformAtomics::InterlockedIncrement(&GCommandListIDCounter);
 }
 
+void FD3D12CommandListHandle::AddPendingResourceBarrier(FD3D12Resource* Resource, D3D12_RESOURCE_STATES State, uint32 SubResource)
+{
+	check(CommandListData);
+
+	FD3D12PendingResourceBarrier PRB = { Resource, State, SubResource };
+
+	CommandListData->PendingResourceBarriers.Add(PRB);
+	CommandListData->CurrentOwningContext->numPendingBarriers++;
+}
+
 void FD3D12CommandListHandle::AddTransitionBarrier(FD3D12Resource* pResource, D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES After, uint32 Subresource)
 {
 	check(CommandListData);
