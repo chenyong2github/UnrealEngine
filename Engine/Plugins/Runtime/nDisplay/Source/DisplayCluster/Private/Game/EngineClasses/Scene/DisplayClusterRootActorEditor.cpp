@@ -413,7 +413,7 @@ void ADisplayClusterRootActor::ReleasePreviewComponents()
 
 FString ADisplayClusterRootActor::GeneratePreviewComponentName(const FString& NodeId, const FString& ViewportId) const
 {
-	return FString::Printf(TEXT("%s - %s"), *NodeId, *ViewportId);
+	return FString::Printf(TEXT("%s_%s"), *NodeId, *ViewportId);
 }
 
 UDisplayClusterPreviewComponent* ADisplayClusterRootActor::GetPreviewComponent(const FString& NodeId, const FString& ViewportId)
