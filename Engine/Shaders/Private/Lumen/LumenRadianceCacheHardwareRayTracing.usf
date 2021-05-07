@@ -100,7 +100,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadianceCacheHardwareRayTracingRGS)
 			{
 				FConeTraceResult TraceResult = (FConeTraceResult)0;
 				TraceResult.Transparency = 1;
-				EvaluateSkyRadianceForCone(Ray.Direction, 0.0f, TraceResult);
+				EvaluateSkyRadianceForCone(Ray.Direction, tan(ConeHalfAngle), TraceResult);
 				SampleRadiance = TraceResult.Lighting;
 				SampleHitDistance = MaxTraceDistance;
 			}
