@@ -1213,7 +1213,9 @@ void UK2Node_CallFunction::NotifyPinConnectionListChanged(UEdGraphPin* Pin)
 	FCustomStructureParamHelper::UpdateCustomStructurePins(GetTargetFunction(), this, Pin);
 
 	// Refresh the node to hide internal-only pins once the [invalid] connection has been broken
-	if (Pin->bHidden && Pin->bNotConnectable && Pin->LinkedTo.Num() == 0)
+	// If the pin was a container then it needs to be refreshed to get the correct pin literal text boxes
+	// for its default value
+	if (Pin->PinType.IsContainer() || (Pin->bHidden && Pin->bNotConnectable && Pin->LinkedTo.Num() == 0))
 	{
 		GetGraph()->NotifyGraphChanged();
 	}
