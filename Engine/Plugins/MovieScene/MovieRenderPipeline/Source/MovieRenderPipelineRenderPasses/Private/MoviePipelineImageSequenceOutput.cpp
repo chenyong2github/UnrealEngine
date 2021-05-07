@@ -21,6 +21,7 @@
 #include "MoviePipelineWidgetRenderSetting.h"
 #include "MoviePipelineUtils.h"
 #include "HAL/PlatformTime.h"
+#include "Misc/Paths.h"
 
 DECLARE_CYCLE_STAT(TEXT("ImgSeqOutput_RecieveImageData"), STAT_ImgSeqRecieveImageData, STATGROUP_MoviePipeline);
 
