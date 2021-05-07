@@ -1029,7 +1029,10 @@ void FNiagaraSystemInstance::ReInitInternal()
 	if (!System->IsValid())
 	{
 		SetRequestedExecutionState(ENiagaraExecutionState::Disabled);
-		UE_LOG(LogNiagara, Warning, TEXT("Failed to activate Niagara System due to invalid asset! System(%s) Component(%s)"), *System->GetName(), *GetFullNameSafe(AttachComponent.Get()));
+		if ( Emitters.Num() != 0 )
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("Failed to activate Niagara System due to invalid asset! System(%s) Component(%s)"), *System->GetName(), *GetFullNameSafe(AttachComponent.Get()));
+		}
 		return;
 	}
 
