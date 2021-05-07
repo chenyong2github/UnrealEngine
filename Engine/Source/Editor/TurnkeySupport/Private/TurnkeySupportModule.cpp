@@ -1343,9 +1343,54 @@ static void GenerateDeviceProxyMenuParams(TSharedPtr<ITargetDeviceProxy> DeviceP
 
 		// ... create an action...
 	OutAction = FUIAction(
-		FExecuteAction::CreateLambda([DeviceProxy, ExternalOnClickDelegate]()
+		FExecuteAction::CreateLambda([DeviceProxy, PlatformName, ExternalOnClickDelegate]()
 			{
-				FString DeviceId = DeviceProxy->GetTargetDeviceId(NAME_None);
+				// only game and client devices are supported for launch on but devices only signal if they target client builds by their name e.g. "PS4Client"
+				// if the user has a EBuildTargetType::Client target selected we will launch on a client device, otherwise we fall back to the default game device
+
+				// We need to use flavors to launch on correctly on Android_ASTC / Android_ETC2, etc
+				const PlatformInfo::FTargetPlatformInfo* PlatformInfo = nullptr;
+				if (FApp::IsInstalled())
+				{
+					PlatformInfo = PlatformInfo::FindPlatformInfo(PlatformName);
+				}
+				else
+				{
+					PlatformInfo = PlatformInfo::FindPlatformInfo(GetDefault<UProjectPackagingSettings>()->GetTargetFlavorForPlatform(PlatformName));
+				}
+
+				FString VariantName = PlatformInfo->Name.ToString();
+
+				// find out if the user selected a client build target 
+				IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+				if (DesktopPlatform->GetTargetsForCurrentProject().Num() > 0)
+				{
+					TArray<FTargetInfo> Targets = DesktopPlatform->GetTargetsForCurrentProject();
+
+					const TArray<FTargetInfo> ClientTargets = Targets.FilterByPredicate([](const FTargetInfo& Target)
+						{
+							return Target.Type == EBuildTargetType::Client;
+						});
+
+					// we just want to know if any client build is selected, the correct flavor was picked above
+					for (const auto& Target : ClientTargets)
+					{
+						if (GetDefault<UProjectPackagingSettings>()->GetBuildTargetForPlatform(PlatformName) == Target.Name)
+						{
+							VariantName += "Client";
+							break;
+						}
+					}
+				}
+
+				// If the variant is not found it will fall back to default (NAME_None)
+				FName DeviceVariantName = NAME_None;
+				if (DeviceProxy->HasVariant(*VariantName))
+				{
+					DeviceVariantName = *VariantName;
+				}
+
+				FString DeviceId = DeviceProxy->GetTargetDeviceId(DeviceVariantName);
 				HandleLaunchOnDeviceActionExecute(DeviceId, DeviceProxy->GetName(), true);
 				ExternalOnClickDelegate.ExecuteIfBound(DeviceId);
 			}

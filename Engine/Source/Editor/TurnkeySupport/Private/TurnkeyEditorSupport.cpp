@@ -22,6 +22,7 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "ToolMenus.h"
 #include "FileHelpers.h"
+#include "Settings/ProjectPackagingSettings.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "FTurnkeyEditorSupport"
@@ -87,7 +88,16 @@ void FTurnkeyEditorSupport::LaunchRunningMap(const FString& DeviceId, const FStr
 	FTargetDeviceId TargetDeviceId;
 	if (FTargetDeviceId::Parse(DeviceId, TargetDeviceId))
 	{
-		const PlatformInfo::FTargetPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(*TargetDeviceId.GetPlatformName());
+		const PlatformInfo::FTargetPlatformInfo* PlatformInfo = nullptr;
+		if (FApp::IsInstalled())
+		{
+			PlatformInfo = PlatformInfo::FindPlatformInfo(*TargetDeviceId.GetPlatformName());
+		}
+		else
+		{
+			PlatformInfo = PlatformInfo::FindPlatformInfo(GetDefault<UProjectPackagingSettings>()->GetTargetFlavorForPlatform(*TargetDeviceId.GetPlatformName()));
+		}
+					
 		FString UBTPlatformName = PlatformInfo->DataDrivenPlatformInfo->UBTPlatformString;
 		FString IniPlatformName = PlatformInfo->IniPlatformName.ToString();
 
@@ -120,7 +130,7 @@ void FTurnkeyEditorSupport::LaunchRunningMap(const FString& DeviceId, const FStr
 			// if we want to check device flash before we start cooking, kick it off now. we could delay this 
 			if (bUseTurnkey)
 			{
-				FString CommandLine = FString::Printf(TEXT("Turnkey -command=VerifySdk -UpdateIfNeeded -platform=%s -EditorIO -noturnkeyvariables -device=%s -utf8output -WaitForUATMutex"), *UBTPlatformName, *TargetDeviceId.GetDeviceName());
+				FString CommandLine = FString::Printf(TEXT("Turnkey -command=VerifySdk -UpdateIfNeeded -platform=%s -EditorIO -noturnkeyvariables -device=%s -utf8output -WaitForUATMutex %s"), *UBTPlatformName, *TargetDeviceId.GetDeviceName(), *PlatformInfo->UATCommandLine);
 				if (!ProjectPath.IsEmpty())
 				{
 					CommandLine = FString::Printf(TEXT(" -ScriptsForProject=\"%s\" %s -project=\"%s\""), *ProjectPath, *CommandLine, *ProjectPath);
