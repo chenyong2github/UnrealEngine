@@ -11,6 +11,10 @@ public class DisplayClusterMessageInterception : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"Concert",
+				"ConcertSyncClient",
+				"ConcertSyncCore",
+				"ConcertTransport",
 				"DisplayCluster",
 				"Engine",
 				"Messaging"
