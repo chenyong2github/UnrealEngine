@@ -124,8 +124,17 @@ void FRemeshMeshOp::CalculateResult(FProgressCancel* Progress)
 		ProjectionTargetSpatial = OriginalMeshSpatial.Get();
 	}
 
-	FMeshProjectionTarget ProjTarget(ProjectionTarget, ProjectionTargetSpatial);
-	Remesher->SetProjectionTarget(&ProjTarget);
+	TUniquePtr<IProjectionTarget> ProjTarget;
+	if (bUseWorldSpace)
+	{
+		ProjTarget = MakeUnique<FWorldSpaceProjectionTarget>(ProjectionTarget, ProjectionTargetSpatial, TargetMeshLocalToWorld, ToolMeshLocalToWorld);
+	}
+	else
+	{
+		ProjTarget = MakeUnique<FMeshProjectionTarget>(ProjectionTarget, ProjectionTargetSpatial);
+	}
+	Remesher->SetProjectionTarget(ProjTarget.Get());
+
 
 	Remesher->Progress = Progress;
 

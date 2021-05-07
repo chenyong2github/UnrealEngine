@@ -64,6 +64,12 @@ void UProjectToTargetTool::Setup()
 
 TUniquePtr<FDynamicMeshOperator> UProjectToTargetTool::MakeNewOperator()
 {
+	UProjectToTargetToolProperties* ProjectProperties = Cast<UProjectToTargetToolProperties>(BasicProperties);
+	if (!ensure(ProjectProperties))
+	{
+		return nullptr;
+	}
+
 	TUniquePtr<FDynamicMeshOperator> Op = URemeshMeshTool::MakeNewOperator();
 
 	FDynamicMeshOperator* RawOp = Op.Get();
@@ -72,6 +78,10 @@ TUniquePtr<FDynamicMeshOperator> UProjectToTargetTool::MakeNewOperator()
 
 	RemeshOp->ProjectionTarget = ProjectionTarget.Get();
 	RemeshOp->ProjectionTargetSpatial = ProjectionTargetSpatial.Get();
+
+	RemeshOp->ToolMeshLocalToWorld = FTransform3d(Cast<IPrimitiveComponentBackedTarget>(Targets[0])->GetWorldTransform());
+	RemeshOp->TargetMeshLocalToWorld = FTransform3d(Cast<IPrimitiveComponentBackedTarget>(Targets[1])->GetWorldTransform());
+	RemeshOp->bUseWorldSpace = ProjectProperties->bWorldSpace;
 
 	return Op;
 }

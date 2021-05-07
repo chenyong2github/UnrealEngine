@@ -69,6 +69,10 @@ public:
 	FDynamicMesh3* ProjectionTarget = nullptr;
 	FDynamicMeshAABBTree3* ProjectionTargetSpatial = nullptr;
 
+	FTransform3d TargetMeshLocalToWorld;
+	FTransform3d ToolMeshLocalToWorld;
+	bool bUseWorldSpace = false;
+
 	void SetTransform(const FTransform& Transform);
 
 	//

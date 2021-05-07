@@ -25,11 +25,8 @@ public:
 	/** An AABBTree for Mesh */
 	FDynamicMeshAABBTree3* Spatial = nullptr;
 
-	~FMeshProjectionTarget() {}
-
-	FMeshProjectionTarget()
-	{
-	}
+	virtual ~FMeshProjectionTarget() = default;
+	FMeshProjectionTarget() = default;
 
 	FMeshProjectionTarget(const FDynamicMesh3* MeshIn, FDynamicMeshAABBTree3* SpatialIn)
 	{
@@ -50,6 +47,71 @@ public:
 
 
 };
+
+
+class DYNAMICMESH_API FWorldSpaceProjectionTarget : public FMeshProjectionTarget
+{
+public:
+
+	virtual ~FWorldSpaceProjectionTarget() = default;
+	FWorldSpaceProjectionTarget() = default;
+
+	FWorldSpaceProjectionTarget(const FDynamicMesh3* MeshIn, 
+								FDynamicMeshAABBTree3* SpatialIn,
+								const FTransform3d& TargetMeshLocalToWorldIn,
+								const FTransform3d& ToolMeshLocalToWorldIn) :
+		FMeshProjectionTarget(MeshIn, SpatialIn),
+		TargetMeshLocalToWorld(TargetMeshLocalToWorldIn),
+		ToolMeshLocalToWorld(ToolMeshLocalToWorldIn)
+	{}
+
+	/**
+	 * @return Projection of Point onto this target
+	*/
+	virtual FVector3d Project(const FVector3d& Point, int Identifier = -1) override
+	{
+		// Put query point in Target space
+		FVector3d TransformedPoint = Point;
+		TransformedPoint = ToolMeshLocalToWorld.TransformPosition(TransformedPoint);
+		TransformedPoint = TargetMeshLocalToWorld.InverseTransformPosition(TransformedPoint);
+
+		FVector3d ProjectedPosition = FMeshProjectionTarget::Project(TransformedPoint, Identifier);
+
+		// ProjectedPosition is in Target space, put it in Tool space
+		ProjectedPosition = TargetMeshLocalToWorld.TransformPosition(ProjectedPosition);
+		ProjectedPosition = ToolMeshLocalToWorld.InverseTransformPosition(ProjectedPosition);
+
+		return ProjectedPosition;
+	}
+
+	/**
+	 * @return Projection of Point onto this target, and set ProjectNormalOut to the triangle normal at the returned point (*not* interpolated vertex normal)
+	 */
+	virtual FVector3d Project(const FVector3d& Point, FVector3d& ProjectNormalOut, int Identifier = -1) override
+	{
+		// Put query point in Target space
+		FVector3d TransformedPoint = Point;
+		TransformedPoint = ToolMeshLocalToWorld.TransformPosition(TransformedPoint);
+		TransformedPoint = TargetMeshLocalToWorld.InverseTransformPosition(TransformedPoint);
+
+		FVector3d ProjectedPosition = FMeshProjectionTarget::Project(TransformedPoint, ProjectNormalOut, Identifier);
+
+		// ProjectedPosition and ProjectedNormal are in Target space, put them in Tool space
+		ProjectedPosition = TargetMeshLocalToWorld.TransformPosition(ProjectedPosition);
+		ProjectedPosition = ToolMeshLocalToWorld.InverseTransformPosition(ProjectedPosition);
+
+		ProjectNormalOut = TargetMeshLocalToWorld.TransformNormal(ProjectNormalOut);
+		ProjectNormalOut = ToolMeshLocalToWorld.InverseTransformNormal(ProjectNormalOut);
+
+		return ProjectedPosition;
+	}
+
+protected:
+	FTransform3d TargetMeshLocalToWorld;
+	FTransform3d ToolMeshLocalToWorld;
+
+};
+
 
 
 } // end namespace UE::Geometry

@@ -37,8 +37,12 @@ class MESHMODELINGTOOLS_API UProjectToTargetToolProperties : public URemeshMeshT
 
 public:
 
+	UPROPERTY(EditAnywhere, Category = ProjectionSpace)
+	bool bWorldSpace = true;
+
 	UProjectToTargetToolProperties() :
-		URemeshMeshToolProperties()
+		URemeshMeshToolProperties(),
+		bWorldSpace(true)
 	{
 		bPreserveSharpEdges = false;
 		RemeshType = ERemeshType::NormalFlow;
