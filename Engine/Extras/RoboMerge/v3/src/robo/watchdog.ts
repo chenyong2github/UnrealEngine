@@ -13,6 +13,8 @@ import { VersionReader } from '../common/version';
 import { branchesRequests, RoboServer } from './roboserver';
 import { Session } from './session';
 
+const tlsKeyFilename = 'rm-2021-05.key'
+
 // Begin by intializing our logger and version reader
 const watchdogStartupLogger = new ContextualLogger('Watchdog Startup')
 VersionReader.init(watchdogStartupLogger)
@@ -186,28 +188,14 @@ class Watchdog {
 	startServer() {
 		// for now, require HTTPS vault settings - eventually have a proper dev
 		// setting that can allow local testing without
-		let filesInVault: string[]
 		try {
-
-			filesInVault = fs.readdirSync(Session.VAULT_PATH)
+			fs.readdirSync(Session.VAULT_PATH)
 		}
 		catch (err) {
 			this.statusServer.open(8877, 'http').then(() => 
 				this.watchdogLogger.warn(`HTTP web server opened on port 8877`)
 			)
 			return
-		}
-
-		let tlsKeyFilename: string | null = null
-		for (const fn of filesInVault) {
-			if (fn.endsWith('.key')) {
-				tlsKeyFilename = fn
-				break
-			}
-		}
-
-		if (!tlsKeyFilename) {
-			throw new Error('TLS private key not found in vault')
 		}
 
 		const certFiles = {
