@@ -3,6 +3,7 @@
 #include "SSubobjectBlueprintEditor.h"
 #include "ScopedTransaction.h"
 #include "IDocumentation.h"
+#include "Widgets/SToolTip.h"
 #include "GraphEditorActions.h"
 #include "Editor/EditorEngine.h"
 #include "ISCSEditorUICustomization.h"	// #TODO_BH Rename this to subobject
