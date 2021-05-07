@@ -32,7 +32,7 @@ private:
 	};
 
 	bool					ReadPacket();
-	FThreadStream&			FindOrAddThread(uint32 ThreadId);
+	FThreadStream*			FindOrAddThread(uint32 ThreadId, bool bAddIfNotFound);
 	TArray<FThreadStream>	Threads = {
 								{ {}, ETransportTid::Events },
 								{ {}, ETransportTid::Importants },
