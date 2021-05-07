@@ -27,6 +27,8 @@ public:
 	//~ End IDisplayClusterConfiguratorView Interface
 
 	//~ Begin IDisplayClusterConfiguratorView Interface
+	virtual void Cleanup() override;
+
 	virtual FOnOutputMappingBuilt& GetOnOutputMappingBuiltDelegate() override { return OnOutputMappingBuilt; }
 	virtual FDelegateHandle RegisterOnOutputMappingBuilt(const FOnOutputMappingBuiltDelegate& Delegate) override;
 	virtual void UnregisterOnOutputMappingBuilt(FDelegateHandle DelegateHandle) override;

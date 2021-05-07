@@ -24,6 +24,15 @@ void UDisplayClusterConfiguratorViewportNode::Initialize(const FString& InNodeNa
 	ViewportVM = MakeShareable(new FDisplayClusterConfiguratorViewportViewModel(CfgViewport));
 }
 
+void UDisplayClusterConfiguratorViewportNode::Cleanup()
+{
+	if (ObjectToEdit.IsValid())
+	{
+		UDisplayClusterConfigurationViewport* CfgViewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
+		CfgViewport->OnPostEditChangeChainProperty.RemoveAll(this);
+	}
+}
+
 TSharedPtr<SGraphNode> UDisplayClusterConfiguratorViewportNode::CreateVisualWidget()
 {
 	return SNew(SDisplayClusterConfiguratorViewportNode, this, ToolkitPtr.Pin().ToSharedRef());;
@@ -103,6 +112,13 @@ UTexture* UDisplayClusterConfiguratorViewportNode::GetPreviewTexture() const
 
 void UDisplayClusterConfiguratorViewportNode::OnPostEditChangeChainProperty(const FPropertyChangedChainEvent& PropertyChangedEvent)
 {
+	// If the pointer to the blueprint editor is no longer valid, its likely that the editor this node was created for was closed,
+	// and this node is orphaned and will eventually be GCed.
+	if (!ToolkitPtr.IsValid())
+	{
+		return;
+	}
+
 	const UDisplayClusterConfigurationViewport* CfgViewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
 
 	const FName& PropertyName = PropertyChangedEvent.GetPropertyName();

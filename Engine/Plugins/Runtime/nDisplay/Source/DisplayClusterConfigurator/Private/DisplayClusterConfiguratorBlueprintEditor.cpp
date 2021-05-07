@@ -89,9 +89,14 @@ TSharedPtr<FDisplayClusterBlueprintEditorSCSEditorUICustomization> FDisplayClust
 
 FDisplayClusterConfiguratorBlueprintEditor::~FDisplayClusterConfiguratorBlueprintEditor()
 {
-	if (UpdateOutputMappingHandle.IsValid() && ViewOutputMapping.IsValid())
+	if (ViewOutputMapping.IsValid())
 	{
-		ViewOutputMapping->UnregisterOnOutputMappingBuilt(UpdateOutputMappingHandle);
+		ViewOutputMapping->Cleanup();
+
+		if (UpdateOutputMappingHandle.IsValid())
+		{
+			ViewOutputMapping->UnregisterOnOutputMappingBuilt(UpdateOutputMappingHandle);
+		}
 	}
 
 	if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(GetPreviewActor()))

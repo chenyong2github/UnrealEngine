@@ -64,6 +64,14 @@ void FDisplayClusterConfiguratorViewOutputMapping::SetEnabled(bool bInEnabled)
 	}
 }
 
+void FDisplayClusterConfiguratorViewOutputMapping::Cleanup()
+{
+	if (GraphObj.IsValid())
+	{
+		GraphObj->Cleanup();
+	}
+}
+
 FDelegateHandle FDisplayClusterConfiguratorViewOutputMapping::RegisterOnOutputMappingBuilt(const FOnOutputMappingBuiltDelegate& Delegate)
 {
 	return OnOutputMappingBuilt.Add(Delegate);

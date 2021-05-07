@@ -82,6 +82,8 @@ public:
 	using FOnOutputMappingBuiltDelegate = FOnOutputMappingBuilt::FDelegate;
 
 public:
+	virtual void Cleanup() = 0;
+
 	virtual const FOutputMappingSettings& GetOutputMappingSettings() const = 0;
 	virtual FOutputMappingSettings& GetOutputMappingSettings() = 0;
 

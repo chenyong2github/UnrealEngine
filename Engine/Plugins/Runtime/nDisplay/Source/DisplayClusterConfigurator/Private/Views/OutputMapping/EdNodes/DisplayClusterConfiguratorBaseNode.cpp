@@ -16,6 +16,12 @@ void UDisplayClusterConfiguratorBaseNode::Initialize(const FString& InNodeName, 
 	ToolkitPtr = InToolkit;
 }
 
+void UDisplayClusterConfiguratorBaseNode::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	Cleanup();
+}
 
 #if WITH_EDITOR
 void UDisplayClusterConfiguratorBaseNode::PostEditUndo()

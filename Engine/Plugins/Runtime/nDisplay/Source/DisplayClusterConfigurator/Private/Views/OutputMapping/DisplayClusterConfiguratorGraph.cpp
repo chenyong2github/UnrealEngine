@@ -27,6 +27,17 @@ void UDisplayClusterConfiguratorGraph::PostEditUndo()
 	NotifyGraphChanged();
 }
 
+void UDisplayClusterConfiguratorGraph::Cleanup()
+{
+	for (UEdGraphNode* Node : Nodes)
+	{
+		if (UDisplayClusterConfiguratorBaseNode* BaseNode = Cast<UDisplayClusterConfiguratorBaseNode>(Node))
+		{
+			BaseNode->Cleanup();
+		}
+	}
+}
+
 void UDisplayClusterConfiguratorGraph::Empty()
 {
 	// Manually remove nodes here instead of using built in RemoveNode method to avoid invoking any GraphChanged delegates for node removal.
