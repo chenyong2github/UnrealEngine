@@ -280,7 +280,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 
 bool FDisplayClusterConfigurationJsonParser::ConvertDataToExternalTypes(const UDisplayClusterConfigurationData* Config)
 {
-	if (!(Config && Config->Scene && Config->Cluster))
+	if (!(Config && Config->Cluster))
 	{
 		UE_LOG(LogDisplayClusterConfiguration, Error, TEXT("nullptr detected in the configuration data"));
 		return false;
@@ -293,6 +293,7 @@ bool FDisplayClusterConfigurationJsonParser::ConvertDataToExternalTypes(const UD
 	Json.Version     = Config->Info.Version;
 
 	// Scene
+	if(Config->Scene)
 	{
 		// Xforms
 		for (const auto& CfgComp : Config->Scene->Xforms)
