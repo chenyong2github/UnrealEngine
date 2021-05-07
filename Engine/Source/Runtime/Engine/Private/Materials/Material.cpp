@@ -3687,11 +3687,11 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			MoveConnectionTo(BaseColor, SlabBSDF, 0);		// BaseColor
 			MoveConnectionTo(Metallic, SlabBSDF, 2);		// Metallic
 			MoveConnectionTo(Specular, SlabBSDF, 3);		// Specular
-			MoveConnectionTo(Roughness, SlabBSDF, 4);		// Roughness
-			MoveConnectionTo(Anisotropy, SlabBSDF, 5);		// Anisotropy
-			MoveConnectionTo(Normal, SlabBSDF, 6);			// Normal
-			MoveConnectionTo(Tangent, SlabBSDF, 7);			// Tangent
-			MoveConnectionTo(EmissiveColor, SlabBSDF, 10);	// Emissive
+			MoveConnectionTo(Roughness, SlabBSDF, 7);		// Roughness
+			MoveConnectionTo(Anisotropy, SlabBSDF, 8);		// Anisotropy
+			MoveConnectionTo(Normal, SlabBSDF, 9);			// Normal
+			MoveConnectionTo(Tangent, SlabBSDF, 10);		// Tangent
+			MoveConnectionTo(EmissiveColor, SlabBSDF, 13);	// Emissive
 
 			FrontMaterial.Connect(0, SlabBSDF);
 		}
@@ -3705,17 +3705,17 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			MoveConnectionTo(Roughness, SlabBSDF, 4);		// Roughness
 			if (Anisotropy.IsConnected())
 			{
-				MoveConnectionTo(Anisotropy, SlabBSDF, 5);	// Anisotropy
+				MoveConnectionTo(Anisotropy, SlabBSDF, 8);	// Anisotropy
 			}
-			MoveConnectionTo(Normal, SlabBSDF, 6);			// Normal
-			MoveConnectionTo(Tangent, SlabBSDF, 7);			// Tangent
+			MoveConnectionTo(Normal, SlabBSDF, 9);			// Normal
+			MoveConnectionTo(Tangent, SlabBSDF, 10);		// Tangent
 			
 			// SSS connections
 			if (ShadingModel == MSM_SubsurfaceProfile)
 			{
 				MoveConnectionTo(BaseColor, SlabBSDF, 0);		// BaseColor
 				SlabBSDF->SubsurfaceProfile = SubsurfaceProfile;// SSS Profile
-				MoveConnectionTo(Opacity, SlabBSDF, 9);			// SSSDMFPScale
+				MoveConnectionTo(Opacity, SlabBSDF, 12);		// SSSDMFPScale
 			}
 			else if (ShadingModel == MSM_Subsurface || ShadingModel == MSM_PreintegratedSkin)
 			{	
@@ -3763,13 +3763,13 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			MoveConnectionTo(BaseColor, SlabBSDF, 0);		// BaseColor
 			MoveConnectionTo(Metallic, SlabBSDF, 2);		// Metallic
 			MoveConnectionTo(Specular, SlabBSDF, 3);		// Specular
-			MoveConnectionTo(Roughness, SlabBSDF, 4);		// Roughness
-			MoveConnectionTo(Anisotropy, SlabBSDF, 5);		// Anisotropy
-			MoveConnectionTo(Normal, SlabBSDF, 6);			// Normal
-			MoveConnectionTo(Tangent, SlabBSDF, 7);			// Tangent
-			MoveConnectionTo(EmissiveColor, SlabBSDF, 10);	// Emissive
-			MoveConnectionTo(ClearCoat, SlabBSDF, 14);		// FuzzAMount
-			MoveConnectionTo(SubsurfaceColor, SlabBSDF, 15);// FuzzColor
+			MoveConnectionTo(Roughness, SlabBSDF, 7);		// Roughness
+			MoveConnectionTo(Anisotropy, SlabBSDF, 8);		// Anisotropy
+			MoveConnectionTo(Normal, SlabBSDF, 9);			// Normal
+			MoveConnectionTo(Tangent, SlabBSDF, 10);		// Tangent
+			MoveConnectionTo(EmissiveColor, SlabBSDF, 13);	// Emissive
+			MoveConnectionTo(ClearCoat, SlabBSDF, 17);		// FuzzAMount
+			MoveConnectionTo(SubsurfaceColor, SlabBSDF, 18);// FuzzColor
 
 			FrontMaterial.Connect(0, SlabBSDF);
 		}
@@ -3780,17 +3780,16 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			MoveConnectionTo(BaseColor, SlabBSDF, 0);		// BaseColor
 			MoveConnectionTo(Metallic, SlabBSDF, 2);		// Metallic
 			MoveConnectionTo(Specular, SlabBSDF, 3);		// Specular
-			MoveConnectionTo(Roughness, SlabBSDF, 4);		// Roughness
-			MoveConnectionTo(Anisotropy, SlabBSDF, 5);		// Anisotropy
-			MoveConnectionTo(Normal, SlabBSDF, 6);			// Normal
-			MoveConnectionTo(Tangent, SlabBSDF, 7);			// Tangent
-			MoveConnectionTo(EmissiveColor, SlabBSDF, 10);	// Emissive
-			MoveConnectionTo(Tangent, SlabBSDF, 7);			// Tangent
+			MoveConnectionTo(Roughness, SlabBSDF, 7);		// Roughness
+			MoveConnectionTo(Anisotropy, SlabBSDF, 8);		// Anisotropy
+			MoveConnectionTo(Normal, SlabBSDF, 9);			// Normal
+			MoveConnectionTo(Tangent, SlabBSDF, 10);		// Tangent
+			MoveConnectionTo(EmissiveColor, SlabBSDF, 13);	// Emissive
 
 			UMaterialExpressionStrataTransmittanceToMFP* TransmittanceToMFP = NewObject<UMaterialExpressionStrataTransmittanceToMFP>(this);
 			MoveConnectionTo(SubsurfaceColor, TransmittanceToMFP, 0);	// SubsurfaceColor -> TransmittanceColor
-			SlabBSDF->GetInput(8)->Connect(0, TransmittanceToMFP);		// MFP -> MFP
-			SlabBSDF->GetInput(13)->Connect(1, TransmittanceToMFP);		// Thickness -> Thickness
+			SlabBSDF->GetInput(11)->Connect(0, TransmittanceToMFP);		// MFP -> MFP
+			SlabBSDF->GetInput(16)->Connect(1, TransmittanceToMFP);		// Thickness -> Thickness
 
 			// Set a thickness that will enabled the thin lighting model (corresponding to the legacy two-sided lighting model)
 			UMaterialExpressionConstant* ThicknessConstant = NewObject<UMaterialExpressionConstant>(this);
@@ -3864,9 +3863,9 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			MoveConnectionTo(BaseColor, TopSlabBSDF, 0);								// BaseColor
 			MoveConnectionTo(Metallic, TopSlabBSDF, 2);									// Metallic
 			CopyConnectionTo(Specular, TopSlabBSDF, 3);									// Specular
-			CopyConnectionTo(Roughness, TopSlabBSDF, 4);								// Roughness
-			CopyConnectionTo(Normal, TopSlabBSDF, 6);									// Normal
-			MoveConnectionTo(EmissiveColor, TopSlabBSDF, 10);							// Emissive
+			CopyConnectionTo(Roughness, TopSlabBSDF, 7);								// Roughness
+			CopyConnectionTo(Normal, TopSlabBSDF, 9);									// Normal
+			MoveConnectionTo(EmissiveColor, TopSlabBSDF, 13);							// Emissive
 
 			// Now weight the top base material by opacity
 			UMaterialExpressionStrataMultiply* TopMaterialWithCoverage = NewObject<UMaterialExpressionStrataMultiply>(this);
@@ -3877,8 +3876,8 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			UMaterialExpressionStrataSlabBSDF* BottomSlabBSDF = NewObject<UMaterialExpressionStrataSlabBSDF>(this);
 			// Assign specular properties shared with the top layer.
 			MoveConnectionTo(Specular, BottomSlabBSDF, 3);								// Specular
-			MoveConnectionTo(Roughness, BottomSlabBSDF, 4);								// Roughness
-			MoveConnectionTo(Normal, BottomSlabBSDF, 6);								// Normal
+			MoveConnectionTo(Roughness, BottomSlabBSDF, 7);								// Roughness
+			MoveConnectionTo(Normal, BottomSlabBSDF, 9);								// Normal
 
 			TArray<class UMaterialExpressionCustomOutput*> CustomOutputExpressions;
 			GetAllCustomOutputExpressions(CustomOutputExpressions);
@@ -3895,8 +3894,8 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			{
 				UMaterialExpressionStrataTransmittanceToMFP* TransToMDFP = NewObject<UMaterialExpressionStrataTransmittanceToMFP>(this);
 				MoveConnectionTo(*TTCustomOutput->GetInput(0), TransToMDFP, 0);			// TransmittanceColor -> TransmittanceColor
-				BottomSlabBSDF->GetInput(8 )->Connect(0, TransToMDFP);					// MFP -> MFP
-				BottomSlabBSDF->GetInput(13)->Connect(1, TransToMDFP);					// Thickness -> Thickness
+				BottomSlabBSDF->GetInput(11)->Connect(0, TransToMDFP);					// MFP -> MFP
+				BottomSlabBSDF->GetInput(16)->Connect(1, TransToMDFP);					// Thickness -> Thickness
 
 				UMaterialExpressionStrataVerticalLayering* VerticalLayering = NewObject<UMaterialExpressionStrataVerticalLayering>(this);
 				VerticalLayering->GetInput(0)->Connect(0, TopMaterialWithCoverage);		// Top -> Top
@@ -3917,18 +3916,18 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			MoveConnectionTo(BaseColor, BottomSlabBSDF, 0);								// BaseColor
 			MoveConnectionTo(Metallic, BottomSlabBSDF, 2);								// Metallic
 			MoveConnectionTo(Specular, BottomSlabBSDF, 3);								// Specular
-			MoveConnectionTo(Roughness, BottomSlabBSDF, 4);								// Roughness
-			CopyConnectionTo(Anisotropy, BottomSlabBSDF, 5);							// Anisotropy
-			CopyConnectionTo(Normal, BottomSlabBSDF, 6);								// Normal
-			CopyConnectionTo(Tangent, BottomSlabBSDF, 7);								// Tangent
+			MoveConnectionTo(Roughness, BottomSlabBSDF, 7);								// Roughness
+			CopyConnectionTo(Anisotropy, BottomSlabBSDF, 8);							// Anisotropy
+			CopyConnectionTo(Normal, BottomSlabBSDF, 9);								// Normal
+			CopyConnectionTo(Tangent, BottomSlabBSDF, 10);								// Tangent
 
 			// Now weight the top base material by opacity.
 			UMaterialExpressionStrataSlabBSDF* TopSlabBSDF = NewObject<UMaterialExpressionStrataSlabBSDF>(this);
-			MoveConnectionTo(EmissiveColor, TopSlabBSDF, 10);							// Emissive
-			MoveConnectionTo(ClearCoatRoughness, TopSlabBSDF, 4);						// ClearCoatRoughness => Roughness
-			MoveConnectionTo(Anisotropy, TopSlabBSDF, 5);								// Anisotropy
-			MoveConnectionTo(Normal, TopSlabBSDF, 6);									// Normal
-			MoveConnectionTo(Tangent, TopSlabBSDF, 7);									// Tangent
+			MoveConnectionTo(EmissiveColor, TopSlabBSDF, 13);							// Emissive
+			MoveConnectionTo(ClearCoatRoughness, TopSlabBSDF, 7);						// ClearCoatRoughness => Roughness
+			MoveConnectionTo(Anisotropy, TopSlabBSDF, 8);								// Anisotropy
+			MoveConnectionTo(Normal, TopSlabBSDF, 9);									// Normal
+			MoveConnectionTo(Tangent, TopSlabBSDF, 10);									// Tangent
 
 			//  The top layer has a hard coded specular value of 0.5 (F0 = 0.04)
 			UMaterialExpressionConstant* ConstantHalf = NewObject<UMaterialExpressionConstant>(this);
@@ -3947,8 +3946,8 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			Constant075->R = 0.75f;
 			UMaterialExpressionStrataTransmittanceToMFP* TransToMDFP = NewObject<UMaterialExpressionStrataTransmittanceToMFP>(this);
 			TransToMDFP->GetInput(0)->Connect(0, Constant075);
-			TopSlabBSDF->GetInput(8)->Connect(0, TransToMDFP);							// MFP -> MFP
-			TopSlabBSDF->GetInput(13)->Connect(1, TransToMDFP);							// Thickness -> Thickness
+			TopSlabBSDF->GetInput(11)->Connect(0, TransToMDFP);							// MFP -> MFP
+			TopSlabBSDF->GetInput(16)->Connect(1, TransToMDFP);							// Thickness -> Thickness
 
 			// Connect the extra bottom normal if specified
 			TArray<class UMaterialExpressionCustomOutput*> CustomOutputExpressions;

@@ -420,7 +420,10 @@ public:
 	// Strata
 	virtual int32 StrataCreateAndRegisterNullMaterial() = 0;
 	virtual int32 StrataSlabBSDF(
-		int32 BaseColor, int32 EdgeColor, int32 Specular, int32 Metallic, int32 Roughness, int32 Anisotropy, 
+		int32 UseMetalness,
+		int32 BaseColor, int32 EdgeColor, int32 Specular, int32 Metallic,
+		int32 DiffuseAlbedo, int32 F0, int32 F90,
+		int32 Roughness, int32 Anisotropy,
 		int32 SSSProfileId, int32 SSSDMFP, int32 SSSDMFPScale,
 		int32 EmissiveColor, 
 		int32 Haziness, 
@@ -914,7 +917,10 @@ public:
 	}
 
 	virtual int32 StrataSlabBSDF(
-		int32 BaseColor, int32 EdgeColor, int32 Specular, int32 Metallic, int32 Roughness, int32 Anisotropy,
+		int32 UseMetalness,
+		int32 BaseColor, int32 EdgeColor, int32 Specular, int32 Metallic,
+		int32 DiffuseAlbedo, int32 F0, int32 F90,
+		int32 Roughness, int32 Anisotropy,
 		int32 SSSProfileId, int32 SSSDMFP, int32 SSSDMFPScale,
 		int32 EmissiveColor, 
 		int32 Haziness, 
@@ -924,7 +930,10 @@ public:
 		int32 Normal, int32 Tangent, const FString& SharedNormalIndexMacro) override
 	{
 		return Compiler->StrataSlabBSDF(
-			BaseColor, EdgeColor, Specular, Metallic, Roughness, Anisotropy,
+			UseMetalness,
+			BaseColor, EdgeColor, Specular, Metallic,
+			DiffuseAlbedo, F0, F90,
+			Roughness, Anisotropy,
 			SSSProfileId, SSSDMFP, SSSDMFPScale,
 			EmissiveColor, 
 			Haziness, 

@@ -52,6 +52,7 @@ void MainPS(
 		}
 	}
 
+#if 1
 	// Draw a simple 2D grid of spheres 
 	if (bEvaluate)
 	{
@@ -139,7 +140,7 @@ void MainPS(
 			BSDF_SETNORMALID(BSDF, 0);
 			BSDF_SETANISOTROPY(BSDF, Anisoptropy != 0 ? 1 : 0);
 			BSDF_SETISTOPLAYER(BSDF, 1);
-			BSDF_SETHASEDGECOLOR(BSDF, 0);
+			BSDF_SETHASF90(BSDF, 0);
 			BSDF_SETHASSSS(BSDF, 0);
 			BSDF_SETHASSSSPROFILE(BSDF, 0);
 			BSDF_SETHASHAZINESS(BSDF, Haziness != 0 ? 1 : 0);
@@ -148,12 +149,14 @@ void MainPS(
 
 			const float2 RoughnessXY = GetAnisotropicRoughness(Roughness, Anisoptropy);
 
-			SLAB_BASECOLOR(BSDF)	= BaseColor;
-			SLAB_EDGECOLOR(BSDF)	= EdgeColor;
+			const float3 F0 = ComputeF0(Specular.x, BaseColor, Metallic);
+			const float3 F90 = ComputeF90(F0, EdgeColor, Metallic);
+			SLAB_DIFFUSEALBEDO(BSDF)= BaseColor - BaseColor * Metallic;
+			SLAB_F0(BSDF)			= F0;
+			SLAB_F90(BSDF)			= F90;
+			SLAB_METALLIC(BSDF)		= Metallic;
 			SLAB_ROUGHNESSX(BSDF)	= RoughnessXY.x;
 			SLAB_ROUGHNESSY(BSDF)	= RoughnessXY.y;
-			SLAB_SPECULAR(BSDF)		= Specular;
-			SLAB_METALLIC(BSDF)		= Metallic;
 			SLAB_HAZINESS(BSDF)		= Haziness;
 		}
 
@@ -238,6 +241,8 @@ void MainPS(
 				DiffuseSkyLighting;;
 		}
 	}
+#endif
+
 }
 
 #endif // SHADER_FURNACE_ANALYTIC

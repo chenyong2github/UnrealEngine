@@ -8951,8 +8951,10 @@ int32 FHLSLMaterialTranslator::StrataCreateAndRegisterNullMaterial()
 }
 
 int32 FHLSLMaterialTranslator::StrataSlabBSDF(
-	int32 BaseColor, int32 EdgeColor, int32 Specular, int32 Metallic, int32 Roughness, 
-	int32 Anisotropy,
+	int32 UseMetalness,
+	int32 BaseColor, int32 EdgeColor, int32 Specular, int32 Metallic,
+	int32 DiffuseAlbedo, int32 F0, int32 F90,
+	int32 Roughness, int32 Anisotropy,
 	int32 SSSProfileId, int32 SSSDMFP, int32 SSSDMFPScale, 
 	int32 EmissiveColor,	
 	int32 Haziness, 
@@ -8961,25 +8963,24 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 	int32 Thickness, 
 	int32 Normal, int32 Tangent, const FString& SharedNormalIndexMacro)
 {
+	const FString NormalCode = GetParameterCode(Normal);
+
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataSlabBSDF(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedNormals.NormalTypes) /* Normal = %s ; Tangent = %s */"),
-		*GetParameterCode(BaseColor),
-		*GetParameterCode(EdgeColor),
-		*GetParameterCode(Specular),
-		*GetParameterCode(Metallic),
-		*GetParameterCode(Roughness),
-		*GetParameterCode(Anisotropy),
+		MCT_Strata, TEXT("GetStrataSlabBSDF(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedNormals.NormalTypes) /* Normal = %s ; Tangent = %s */"),
+		* GetParameterCode(UseMetalness),
+		*GetParameterCode(BaseColor),		*GetParameterCode(EdgeColor),	*GetParameterCode(Specular), *GetParameterCode(Metallic),
+		*GetParameterCode(DiffuseAlbedo),	*GetParameterCode(F0),			*GetParameterCode(F90),
+		*GetParameterCode(Roughness),		*GetParameterCode(Anisotropy),
 		*GetParameterCode(SSSProfileId),
 		*GetParameterCode(SSSDMFP),
 		*GetParameterCode(SSSDMFPScale),
 		*GetParameterCode(EmissiveColor),
 		*GetParameterCode(Haziness),
 		*GetParameterCode(ThinFilmThickness),
-		*GetParameterCode(FuzzAmount),
-		*GetParameterCode(FuzzColor),
+		*GetParameterCode(FuzzAmount),		*GetParameterCode(FuzzColor),
 		*GetParameterCode(Thickness),
 		*SharedNormalIndexMacro,
-		*GetParameterCode(Normal),
+		*NormalCode,
 		Tangent!=INDEX_NONE ? *GetParameterCode(Tangent) : TEXT("NONE")
 	);
 }

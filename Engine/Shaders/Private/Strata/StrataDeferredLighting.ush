@@ -71,7 +71,7 @@ void StrataPreprocessAreaLightIntegration(
 			{
 				SafeRoughnessX = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDFContext.BSDF), View.MinRoughness);
 				SafeRoughnessY = MakeRoughnessSafe(SLAB_ROUGHNESSY(BSDFContext.BSDF), View.MinRoughness);
-				SpecularColor = ComputeF0(SLAB_SPECULAR(BSDFContext.BSDF), SLAB_BASECOLOR(BSDFContext.BSDF), SLAB_METALLIC(BSDFContext.BSDF));
+				SpecularColor = SLAB_F0(BSDFContext.BSDF);
 			}
 			break;
 		}

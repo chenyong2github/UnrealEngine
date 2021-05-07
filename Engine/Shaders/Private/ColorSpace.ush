@@ -206,3 +206,20 @@ float3 HSV_2_LinearRGB(in float3 HSV)
 	float3 RGB = HUE_2_LinearRGB(HSV.x);
 	return ((RGB - 1) * HSV.y + 1) * HSV.z;
 }
+
+float3 RGB_2_HCV(in float3 RGB)
+{
+	// Based on work by Sam Hocevar and Emil Persson
+	float4 P = (RGB.g < RGB.b)	? float4(RGB.bg, -1.0f, 2.0f / 3.0f): float4(RGB.gb, 0.0f, -1.0f / 3.0f);
+	float4 Q = (RGB.r < P.x)	? float4(P.xyw, RGB.r)				: float4(RGB.r, P.yzx);
+	float Chroma = Q.x - min(Q.w, Q.y);
+	float Hue = abs((Q.w - Q.y) / (6.0f * Chroma + 1e-10f) + Q.z);
+	return float3(Hue, Chroma, Q.x);
+}
+
+float3 LinearRGB_2_HSV(in float3 RGB)
+{
+	float3 HCV = RGB_2_HCV(RGB);
+	float s = HCV.y / (HCV.z + 1e-10f);
+	return float3(HCV.x, s, HCV.z);
+}

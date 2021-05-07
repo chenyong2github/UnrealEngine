@@ -910,6 +910,8 @@ void FPixelShaderInOut_MainPS(
 	}
 #endif
 
+	const float Dither = InterleavedGradientNoise(MaterialParameters.SvPosition.xy, View.StateFrameIndexMod8);
+
 #if !STRATA_ENABLED
 	// Store the results in local variables and reuse instead of calling the functions multiple times.
 	half3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
@@ -1056,7 +1058,6 @@ void FPixelShaderInOut_MainPS(
 	GBuffer.PrecomputedShadowFactors = GetPrecomputedShadowMasks(LightmapVTPageTableResult, Interpolants, MaterialParameters.PrimitiveId, MaterialParameters.AbsoluteWorldPosition, VolumetricLightmapBrickTextureUVs);
 
 #if !STRATA_ENABLED || STRATA_INLINE_SINGLELAYERWATER
-	const float GBufferDither = InterleavedGradientNoise(MaterialParameters.SvPosition.xy, View.StateFrameIndexMod8);
 	// Use GBuffer.ShadingModelID after SetGBufferForShadingModel(..) because the ShadingModel input might not be the same as the output
 	SetGBufferForShadingModel(
 		GBuffer,
@@ -1069,7 +1070,7 @@ void FPixelShaderInOut_MainPS(
 		Anisotropy,
 		SubsurfaceColor,
 		SubsurfaceProfile,
-		GBufferDither,
+		Dither,
 		ShadingModel
 		);
 #endif // !STRATA_ENABLED
@@ -1303,7 +1304,6 @@ void FPixelShaderInOut_MainPS(
 				GridIndex = ComputeLightGridCellIndex((uint2)((MaterialParameters.SvPosition.xy - ResolvedView.ViewRectMin.xy) * View.LightProbeSizeRatioAndInvSizeRatio.zw), MaterialParameters.SvPosition.w, EyeIndex);
 
 				#if FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-					const float Dither = InterleavedGradientNoise(MaterialParameters.SvPosition.xy, View.StateFrameIndexMod8);
 					FDeferredLightingSplit ForwardDirectLighting = GetForwardDirectLightingSplit(GridIndex, MaterialParameters.AbsoluteWorldPosition, MaterialParameters.CameraVector, GBuffer, NearestResolvedDepthScreenUV, MaterialParameters.PrimitiveId, EyeIndex, Dither, DirectionalLightShadow);
 					
 					#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
@@ -1571,7 +1571,7 @@ void FPixelShaderInOut_MainPS(
 	float3 EmissiveLuminance = 0.0f;
 	const float3 VertexNormal = MaterialParameters.TangentToWorld[2].xyz;
 	PackStrataOut(
-		OpaqueBasePass.Strata.MaterialLobesBufferUAV, 
+		OpaqueBasePass.Strata.MaterialLobesBufferUAV, Dither,
 		GetStrataPixelDataByteOffset(PixelPos, uint2(ResolvedView.BufferSizeAndInvSize.xy), OpaqueBasePass.Strata.MaxBytesPerPixel),
 		StrataPixelHeader, StrataData, MaterialParameters.CameraVector, bStrataSubsurfaceEnable, EmissiveLuminance);
 

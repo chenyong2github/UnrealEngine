@@ -74,9 +74,8 @@ void ComputePostProcessBSDFData(
 		{
 			Classification.bHasSubsurface = true;
 
-			SSS.BaseColor = SLAB_BASECOLOR(BSDF);
-			SSS.Specular  = SLAB_SPECULAR(BSDF);
-			// STRATA_TODO when layered translucency is figured out once again, only bottom layer should run SSS
+			SSS.BaseColor = SLAB_DIFFUSEALBEDO(BSDF);
+			SSS.Specular  = SLAB_F0(BSDF);				// STRATA_TODO: Specular or F0?
 
 			// Profile ID: we only keep the latest ID, and profile will overtake any non-profile based SSS
 			SSS.bIsValid			= true;
