@@ -1866,9 +1866,14 @@ void FSceneRenderer::RenderShadowProjections(
 		}
 
 		FShadowProjectionPassParameters CommonPassParameters;
-		CommonPassParameters.SceneTextures = GetSceneTextureShaderParameters(SceneTextures.UniformBuffer);
+		CommonPassParameters.SceneTextures = SceneTextures.GetSceneTextureShaderParameters(View.FeatureLevel);
 		CommonPassParameters.HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
-		CommonPassParameters.Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+
+		if (Strata::IsStrataEnabled())
+		{
+			CommonPassParameters.Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+		}
+		
 		CommonPassParameters.RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
 		CommonPassParameters.RenderTargets.DepthStencil =
 			bSubPixelShadow ?
@@ -1900,7 +1905,7 @@ void FSceneRenderer::RenderShadowProjections(
 	}
 }
 
-void FDeferredShadingSceneRenderer::RenderShadowProjections(
+void FSceneRenderer::RenderShadowProjections(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
 	FRDGTextureRef ScreenShadowMaskTexture,
@@ -2275,12 +2280,9 @@ void InitMobileSDFShadowingOutputs(FRHICommandListImmediate& RHICmdList, const F
 	}
 }
 
-void RenderMobileSDFShadowing(
+void FMobileSceneRenderer::RenderMobileShadowProjections(
 	FRDGBuilder& GraphBuilder, 
-	FRDGTextureRef SceneDepthTexture, 
-	const FScene* Scene,
-	const TArrayView<const FViewInfo> Views,
-	const TArrayView<const FVisibleLightInfo> VisibleLightInfos)
+	FRDGTextureRef SceneDepthTexture)
 {
 	FRDGTextureRef ScreenShadowMaskTexture = GraphBuilder.RegisterExternalTexture(GScreenSpaceShadowMaskTextureMobileOutputs.ScreenSpaceShadowMaskTextureMobile, TEXT("ScreenSpaceShadowMaskTextureMobile"));
 	AddClearRenderTargetPass(GraphBuilder, ScreenShadowMaskTexture);
@@ -2294,52 +2296,11 @@ void RenderMobileSDFShadowing(
 		const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
 		const FLightSceneProxy* LightSceneProxy = LightSceneInfo->Proxy;
 
-		// Allocate arrays using the graph allocator so we can safely reference them in passes.
-		using FProjectedShadowInfoArray = TArray<const FProjectedShadowInfo*, SceneRenderingAllocator>;
-		auto& DistanceFieldShadows = *GraphBuilder.AllocObject<FProjectedShadowInfoArray>();
-
-		for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightInfo.ShadowsToProject.Num(); ShadowIndex++)
-		{
-			const FProjectedShadowInfo* ProjectedShadowInfo = VisibleLightInfo.ShadowsToProject[ShadowIndex];
-			if (ProjectedShadowInfo->bRayTracedDistanceField)
-			{
-				DistanceFieldShadows.Add(ProjectedShadowInfo);
-			}
-		}
-
-		if (DistanceFieldShadows.Num() > 0)
-		{
-			RDG_EVENT_SCOPE(GraphBuilder, "DistanceFieldShadows");
-
-			// Distance field shadows need to be renderer last as they blend over far shadow cascades.
-			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-			{
-				const FViewInfo& View = Views[ViewIndex];
-				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-
-				FIntRect ScissorRect;
-				if (!LightSceneProxy->GetScissorRect(ScissorRect, View, View.ViewRect))
-				{
-					ScissorRect = View.ViewRect;
-				}
-
-				if (ScissorRect.Area() > 0)
-				{
-					for (int32 ShadowIndex = 0; ShadowIndex < DistanceFieldShadows.Num(); ShadowIndex++)
-					{
-						const FProjectedShadowInfo* ProjectedShadowInfo = DistanceFieldShadows[ShadowIndex];
-						ProjectedShadowInfo->RenderRayTracedDistanceFieldProjection(
-							GraphBuilder,
-							SceneTextures,
-							ScreenShadowMaskTexture,
-							View,
-							ScissorRect,
-							false);
-					}
-				}
-			}
-		}
+		RenderShadowProjections(GraphBuilder, SceneTextures,
+			ScreenShadowMaskTexture,
+			nullptr,
+			LightSceneInfo,
+			false);
 	}
 }
 

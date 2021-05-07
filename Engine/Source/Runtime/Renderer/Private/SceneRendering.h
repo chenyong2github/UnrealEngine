@@ -1981,6 +1981,15 @@ protected:
 		bool bProjectingForForwardShading,
 		bool bMobileModulatedProjections);
 
+
+	void RenderShadowProjections(
+		FRDGBuilder& GraphBuilder,
+		const FMinimalSceneTextures& SceneTextures,
+		FRDGTextureRef ScreenShadowMaskTexture,
+		FRDGTextureRef ScreenShadowMaskSubPixelTexture,
+		const FLightSceneInfo* LightSceneInfo,
+		bool bProjectingForForwardShading);
+
 	/** Finds a matching cached preshadow, if one exists. */
 	TRefCountPtr<FProjectedShadowInfo> GetCachedPreshadow(
 		const FLightPrimitiveInteraction* InParentInteraction,
@@ -2283,6 +2292,8 @@ protected:
 
 	/** Before SetupMobileBasePassAfterShadowInit, we need to update the uniform buffer and shadow info for all movable point lights.*/
 	void UpdateMovablePointLightUniformBufferAndShadowInfo();
+
+	void RenderMobileShadowProjections(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture);
 private:
 	const bool bGammaSpace;
 	const bool bDeferredShading;

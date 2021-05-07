@@ -791,8 +791,8 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		if (bRequiresDistanceFieldShadowingPass)
 		{
-			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderSDFShadowing);
-			RenderMobileSDFShadowing(GraphBuilder, SceneTextures.Depth.Resolve, Scene, Views, VisibleLightInfos);
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderMobileShadowProjections);
+			RenderMobileShadowProjections(GraphBuilder, SceneTextures.Depth.Resolve);
 		}
 
 		if (bShouldRenderHZB)

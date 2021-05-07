@@ -58,11 +58,6 @@ void OverrideWithDefaultMaterialForShadowDepth(
 	);
 
 void InitMobileSDFShadowingOutputs(FRHICommandListImmediate& RHICmdList, const FIntPoint& Extent);
-void RenderMobileSDFShadowing(FRDGBuilder& GraphBuilder, 
-	FRDGTextureRef SceneDepthTexture, 
-	const FScene* Scene,
-	const TArrayView<const FViewInfo> Views,
-	const TArrayView<const FVisibleLightInfo> VisibleLightInfos);
 void ReleaseMobileSDFShadowingOutputs();
 
 enum EShadowDepthRenderMode
@@ -1140,7 +1135,8 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5)
+			|| (bUseTransmission == 0 && SubPixelShadow == 0 && IsMobileDistanceFieldEnabled(Parameters.Platform));
 	}
 
 	/**

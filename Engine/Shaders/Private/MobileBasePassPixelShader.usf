@@ -752,7 +752,7 @@ void Main(
 	IndirectIrradiance *= MaterialAO;
 
 	float  ShadowPositionZ = 0;
-#if DIRECTIONAL_LIGHT_CSM && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+#if DIRECTIONAL_LIGHT_CSM && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER && !APPLY_DISTANCE_FIELD
 	// Cascaded Shadow Map
 	if (IsCSMEnabled())
 	{
