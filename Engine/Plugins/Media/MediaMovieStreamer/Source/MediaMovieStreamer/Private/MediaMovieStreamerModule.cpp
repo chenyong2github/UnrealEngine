@@ -4,6 +4,7 @@
 
 #include "MediaMovieAssets.h"
 #include "MediaMovieStreamer.h"
+#include "Misc/CoreDelegates.h"
 
 #define LOCTEXT_NAMESPACE "FMediaMovieStreamerModule"
 

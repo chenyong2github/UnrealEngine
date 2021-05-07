@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Render/Containers/DisplayClusterRender_MeshComponentRef.h"
-
+#include "Engine/StaticMesh.h"
 
 //*************************************************************************
 //* FDisplayClusterRender_MeshComponentRef
