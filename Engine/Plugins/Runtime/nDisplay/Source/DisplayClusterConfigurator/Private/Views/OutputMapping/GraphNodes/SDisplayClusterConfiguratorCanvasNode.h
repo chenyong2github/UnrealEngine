@@ -32,7 +32,7 @@ public:
 	//~ End SGraphNode interface
 
 	//~ Begin SDisplayClusterConfiguratorBaseNode interface
-	virtual int32 GetNodeLayerIndex() const override { return DefaultZOrder; }
+	virtual bool CanNodeBeResized() const { return false; }
 	//~ End of SDisplayClusterConfiguratorBaseNode interface
 
 private:
@@ -44,7 +44,4 @@ private:
 	TSharedPtr<SWidget> CanvasSizeTextWidget;
 
 	FMargin CanvasPadding;
-
-public:
-	static int32 const DefaultZOrder;
 };

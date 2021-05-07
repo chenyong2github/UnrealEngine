@@ -8,10 +8,11 @@
 
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
 
-void UDisplayClusterConfiguratorBaseNode::Initialize(const FString& InNodeName, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
+void UDisplayClusterConfiguratorBaseNode::Initialize(const FString& InNodeName, int32 InNodeZIndex, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
 {
 	ObjectToEdit = InObject;
 	NodeName = InNodeName;
+	NodeZIndex = InNodeZIndex;
 	ToolkitPtr = InToolkit;
 }
 
@@ -178,6 +179,55 @@ FNodeAlignmentAnchors UDisplayClusterConfiguratorBaseNode::GetNodeAlignmentAncho
 	Anchors.Right = Anchors.Center + FVector2D(NodeExtent.X, 0);
 
 	return Anchors;
+}
+
+int32 UDisplayClusterConfiguratorBaseNode::GetNodeLayer(const TSet<UObject*>& SelectionSet, bool bIncludeZIndex) const
+{
+	int32 ZIndex = 0;
+	if (bIncludeZIndex)
+	{
+		// Don't let the z-index exceed a value that would push the node into the next layer.
+		ZIndex = FMath::Min(NodeZIndex * DisplayClusterConfiguratorGraphLayers::ZIndexSize, DisplayClusterConfiguratorGraphLayers::LayerSize - DisplayClusterConfiguratorGraphLayers::ZIndexSize);
+	}
+
+	bool bIsSelected = SelectionSet.Contains(this);
+
+	if (Parent.IsValid())
+	{
+		int32 LayerIndex = Parent->GetNodeLayer(SelectionSet, false) + DisplayClusterConfiguratorGraphLayers::LayerSize + ZIndex;
+
+		if (bIsSelected && LayerIndex < DisplayClusterConfiguratorGraphLayers::SelectedLayerIndex)
+		{
+			LayerIndex += DisplayClusterConfiguratorGraphLayers::SelectedLayerIndex;
+		}
+
+		return LayerIndex;
+	}
+
+	return bIsSelected ? DisplayClusterConfiguratorGraphLayers::SelectedLayerIndex + ZIndex : DisplayClusterConfiguratorGraphLayers::BaseLayerIndex + ZIndex;
+}
+
+int32 UDisplayClusterConfiguratorBaseNode::GetAuxiliaryLayer(const TSet<UObject*>& SelectionSet) const
+{
+	bool bIsChildSelected = false;
+	for (UDisplayClusterConfiguratorBaseNode* Child : Children)
+	{
+		if (SelectionSet.Contains(Child))
+		{
+			bIsChildSelected = true;
+			break;
+		}
+	}
+
+	int32 LayerIndex = GetNodeLayer(SelectionSet);
+	int32 AuxLayerIndex = DisplayClusterConfiguratorGraphLayers::AuxiliaryLayerIndex;
+
+	if (LayerIndex >= DisplayClusterConfiguratorGraphLayers::SelectedLayerIndex || bIsChildSelected)
+	{
+		AuxLayerIndex += DisplayClusterConfiguratorGraphLayers::SelectedLayerIndex;
+	}
+
+	return AuxLayerIndex;
 }
 
 void UDisplayClusterConfiguratorBaseNode::FillParent(bool bRepositionNode)

@@ -16,9 +16,9 @@ const float UDisplayClusterConfiguratorHostNode::DefaultSpaceBetweenHosts = 40.0
 const float UDisplayClusterConfiguratorHostNode::HorizontalSpanBetweenHosts = VisualMargin.Left + VisualMargin.Right + DefaultSpaceBetweenHosts;
 const float UDisplayClusterConfiguratorHostNode::VerticalSpanBetweenHosts = VisualMargin.Top + VisualMargin.Bottom + DefaultSpaceBetweenHosts;
 
-void UDisplayClusterConfiguratorHostNode::Initialize(const FString& InNodeName, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
+void UDisplayClusterConfiguratorHostNode::Initialize(const FString& InNodeName, int32 InNodeZIndex, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
 {
-	UDisplayClusterConfiguratorBaseNode::Initialize(InNodeName, InObject, InToolkit);
+	UDisplayClusterConfiguratorBaseNode::Initialize(InNodeName, InNodeZIndex, InObject, InToolkit);
 
 	UDisplayClusterConfigurationHostDisplayData* HostDisplayData = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
 	HostDisplayData->OnPostEditChangeChainProperty.Add(UDisplayClusterConfigurationHostDisplayData::FOnPostEditChangeChainProperty::FDelegate::CreateUObject(this, &UDisplayClusterConfiguratorHostNode::OnPostEditChangeChainProperty));

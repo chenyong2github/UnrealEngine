@@ -13,6 +13,34 @@ class FDisplayClusterConfiguratorBlueprintEditor;
 class IDisplayClusterConfiguratorOutputMappingSlot;
 class IDisplayClusterConfiguratorTreeItem;
 
+namespace DisplayClusterConfiguratorGraphLayers
+{
+	// Layer size is set to 1000 because the graph nodes rely on SOverlay widgets for rendering, and every slot in an overlay
+	// increments the render layer by 10. Using a layer size smaller than 1000 can easily cause elements of nodes to bleed into 
+	// layers above them. For a similar reason, the ZIndexSize must be big enough to give every node room in the layer to render 
+	// all of its components without overlapping other nodes.
+	const int32 BaseLayerIndex = 0;
+	const int32 LayerSize = 1000;
+	const int32 ZIndexSize = 30;
+
+	// There are five default layers:
+	// - Canvas
+	// - Host
+	// - Window
+	// - Viewport
+	// - Auxiliary
+	// which are computed by the nodes themselves using their position in the hierarchy (see UDisplayClusterConfiguratorBaseNode::GetNodeLayer)
+
+	// The auxiliary layer is meant for widgets that are always displayed on top of the viewport layer, such as window titlebars. 
+	const int32 AuxiliaryLayerIndex = BaseLayerIndex + LayerSize * 4;
+
+	// When a node is selected, a fixed value is added to its layer index to elevate it and its children above the normal layers.
+	const int32 SelectedLayerIndex = BaseLayerIndex + LayerSize * 5;
+
+	// The ornament layer is meant for widgets such as the resize handler that should sit above everything in the layer stack, even selected items.
+	const int32 OrnamentLayerIndex = SelectedLayerIndex + LayerSize * 5;
+}
+
 UCLASS(MinimalAPI)
 class UDisplayClusterConfiguratorBaseNode
 	: public UEdGraphNode 
@@ -21,7 +49,7 @@ class UDisplayClusterConfiguratorBaseNode
 	GENERATED_BODY()
 
 public:
-	virtual void Initialize(const FString& InNodeName, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit);
+	virtual void Initialize(const FString& InNodeName, int32 InNodeZIndex, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit);
 
 	//~ Begin UObject Interface
 #if WITH_EDITOR
@@ -63,6 +91,8 @@ public:
 	virtual FVector2D GetNodeSize() const;
 	virtual FVector2D GetNodeLocalSize() const;
 	virtual FNodeAlignmentAnchors GetNodeAlignmentAnchors(bool bAsParent = false) const;
+	virtual int32 GetNodeLayer(const TSet<UObject*>& SelectionSet, bool bIncludeZIndex = true) const;
+	virtual int32 GetAuxiliaryLayer(const TSet<UObject*>& SelectionSet) const;
 	virtual bool IsNodeVisible() const { return true; }
 	virtual bool IsNodeEnabled() const { return true; }
 	virtual bool IsNodeAutoPositioned() const { return false; }
@@ -135,6 +165,7 @@ protected:
 	TArray<UDisplayClusterConfiguratorBaseNode*> Children;
 
 	FString NodeName;
+	int32 NodeZIndex;
 
 	bool bIsUserInteractingWithNode;
 };

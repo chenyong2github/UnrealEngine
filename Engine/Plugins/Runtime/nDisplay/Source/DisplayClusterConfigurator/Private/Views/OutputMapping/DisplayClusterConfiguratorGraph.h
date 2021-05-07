@@ -62,9 +62,9 @@ public:
 
 private:
 	UDisplayClusterConfiguratorCanvasNode* BuildCanvasNode(UDisplayClusterConfigurationCluster* ClusterConfig);
-	UDisplayClusterConfiguratorHostNode* BuildHostNode(UDisplayClusterConfiguratorBaseNode* ParentNode, UDisplayClusterConfigurationHostDisplayData* HostDisplayData, FString NodeName);
-	UDisplayClusterConfiguratorWindowNode* BuildWindowNode(UDisplayClusterConfiguratorBaseNode* ParentNode, FString NodeName, UDisplayClusterConfigurationClusterNode* ClusterNodeConfig);
-	UDisplayClusterConfiguratorViewportNode* BuildViewportNode(UDisplayClusterConfiguratorBaseNode* ParentNode, FString NodeName, UDisplayClusterConfigurationViewport* ViewportConfig);
+	UDisplayClusterConfiguratorHostNode* BuildHostNode(UDisplayClusterConfiguratorBaseNode* ParentNode, FString NodeName, int32 NodeIndex, UDisplayClusterConfigurationHostDisplayData* HostDisplayData);
+	UDisplayClusterConfiguratorWindowNode* BuildWindowNode(UDisplayClusterConfiguratorBaseNode* ParentNode, FString NodeName, int32 NodeIndex, UDisplayClusterConfigurationClusterNode* ClusterNodeConfig);
+	UDisplayClusterConfiguratorViewportNode* BuildViewportNode(UDisplayClusterConfiguratorBaseNode* ParentNode, FString NodeName, int32 NodeIndex, UDisplayClusterConfigurationViewport* ViewportConfig);
 
 private:
 	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
