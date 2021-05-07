@@ -172,7 +172,7 @@ void FPreAnimatedStateExtension::UpdateMetaData(const FPreAnimatedStateMetaData&
 	FPreAnimatedGroupMetaData&          Group     = GroupMetaData[MetaData.Entry.GroupHandle.Value];
 	FAggregatePreAnimatedStateMetaData* Aggregate = Algo::FindBy(Group.AggregateMetaData, MetaData.Entry.ValueHandle, &FAggregatePreAnimatedStateMetaData::ValueHandle);
 
-	if (!ensure(Aggregate))
+	if (ensure(Aggregate))
 	{
 		if (MetaData.bWantsRestoreState)
 		{
