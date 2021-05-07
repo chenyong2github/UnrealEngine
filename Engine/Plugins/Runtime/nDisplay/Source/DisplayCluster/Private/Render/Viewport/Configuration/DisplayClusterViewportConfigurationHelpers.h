@@ -31,7 +31,7 @@ class DisplayClusterViewportConfigurationHelpers
 public:
 	static void UpdateViewportOCIOConfiguration(FDisplayClusterViewport& DstViewport, const FOpenColorIODisplayConfiguration& InOCIO_Configuration)
 	{
-		if (InOCIO_Configuration.bIsEnabled)
+		if (InOCIO_Configuration.bIsEnabled && InOCIO_Configuration.ColorConfiguration.IsValid())
 		{
 			// Create/Update OCIO:
 			if (DstViewport.OpenColorIODisplayExtension.IsValid() == false)
