@@ -97,6 +97,18 @@ FAutoConsoleVariableRef CVarLumenMeshCardsCullFaces(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenMeshCardsCullOrientation = -1;
+FAutoConsoleVariableRef CVarLumenMeshCardsCullOrientation(
+	TEXT("r.LumenScene.SurfaceCache.MeshCardsCullOrientation"),
+	GLumenMeshCardsCullOrientation,
+	TEXT("Cull all mesh cards to a single orientation for debugging."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
+	ECVF_RenderThreadSafe
+);
+
 extern int32 GLumenSceneUploadEveryFrame;
 
 class FLumenCardGPUData
@@ -653,10 +665,8 @@ bool MeshCardCullTest(const FLumenCardBuildData& CardBuildData, const int32 LODL
 	const bool bCardPassedCulling = (!GLumenMeshCardsCullFaces || AxisSurfaceArea > MinFaceSurfaceArea);
 	const bool bCardPassedLODTest = CardBuildData.LODLevel == LODLevel;
 
-#if 0
-	static int32 GDebugMinCardOrientation = 5;
-	static int32 GDebugMaxCardOrientation = 5;
-	if (CardBuildData.Orientation < GDebugMinCardOrientation || CardBuildData.Orientation > GDebugMaxCardOrientation)
+#if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
+	if (GLumenMeshCardsCullOrientation >= 0 && CardBuildData.Orientation != GLumenMeshCardsCullOrientation)
 	{
 		return false;
 	}
