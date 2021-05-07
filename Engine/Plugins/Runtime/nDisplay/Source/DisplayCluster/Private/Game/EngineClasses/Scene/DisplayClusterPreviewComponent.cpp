@@ -19,6 +19,7 @@
 #include "Engine/RendererSettings.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/Texture2D.h"
+#include "CanvasTypes.h"
 
 #include "IDisplayClusterProjection.h"
 #include "Render/Viewport/IDisplayClusterViewport.h"
