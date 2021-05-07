@@ -5004,6 +5004,21 @@ bool UMaterial::GetAllReferencedExpressions(TArray<UMaterialExpression*>& OutExp
 				}
 			}
 		}
+
+		bool bMobileUseVirtualTexturing = UseVirtualTexturing(ERHIFeatureLevel::ES3_1);
+		if (bMobileUseVirtualTexturing)
+		{
+			TArray<class UMaterialExpressionCustomOutput*> CustomOutputExpressions;
+			GetAllCustomOutputExpressions(CustomOutputExpressions);
+			for (UMaterialExpressionCustomOutput* Expression : CustomOutputExpressions)
+			{
+				if (Expression->IsA<UMaterialExpressionRuntimeVirtualTextureOutput>())
+				{
+					TArray<FExpressionInput*> ProcessedInputs;
+					RecursiveGetExpressionChain(Expression, ProcessedInputs, OutExpressions, InStaticParameterSet, InFeatureLevel, InQuality, InShadingPath);
+				}
+			}
+		}
 	}
 	else
 	{
