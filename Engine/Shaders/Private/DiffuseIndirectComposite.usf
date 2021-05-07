@@ -123,8 +123,12 @@ float3 CombineRoughSpecular(FGBufferData GBuffer, float NoV, float3 RayTracedRef
 
 void MainPS(
 	float4 SvPosition : SV_POSITION
+#if DIM_APPLY_DIFFUSE_INDIRECT
 	, out float4 OutAddColor      DUAL_SOURCE_BLENDING_SLOT(0) : SV_Target0
 	, out float4 OutMultiplyColor DUAL_SOURCE_BLENDING_SLOT(1) : SV_Target1
+#else
+	, out float4 OutMultiplyColor : SV_Target0
+#endif
 )
 {
 	float2 SceneBufferUV = SvPositionToBufferUV(SvPosition);
@@ -147,7 +151,7 @@ void MainPS(
 	float NoV = saturate(dot(N, V));
 
 	// Apply diffuse indirect.
-#if DIM_APPLY_DIFFUSE_INDIRECT
+	#if DIM_APPLY_DIFFUSE_INDIRECT
 	{
 		float3 DiffuseIndirectLighting = 0;
 		float3 RoughSpecularIndirectLighting = 0;
@@ -294,10 +298,6 @@ void MainPS(
 			1.0f,
 			bNeedsSeparateSubsurfaceLightAccumulation);
 		OutAddColor = LightAccumulator_GetResult(LightAccumulator);
-	}
-	#else
-	{
-		OutAddColor = 0;
 	}
 	#endif
 
