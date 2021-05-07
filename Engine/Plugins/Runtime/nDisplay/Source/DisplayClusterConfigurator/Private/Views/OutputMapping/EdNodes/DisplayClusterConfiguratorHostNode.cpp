@@ -24,6 +24,15 @@ void UDisplayClusterConfiguratorHostNode::Initialize(const FString& InNodeName, 
 	HostDisplayData->OnPostEditChangeChainProperty.Add(UDisplayClusterConfigurationHostDisplayData::FOnPostEditChangeChainProperty::FDelegate::CreateUObject(this, &UDisplayClusterConfiguratorHostNode::OnPostEditChangeChainProperty));
 }
 
+void UDisplayClusterConfiguratorHostNode::Cleanup()
+{
+	if (ObjectToEdit.IsValid())
+	{
+		UDisplayClusterConfigurationHostDisplayData* HostDisplayData = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
+		HostDisplayData->OnPostEditChangeChainProperty.RemoveAll(this);
+	}
+}
+
 TSharedPtr<SGraphNode> UDisplayClusterConfiguratorHostNode::CreateVisualWidget()
 {
 	return SNew(SDisplayClusterConfiguratorHostNode, this, ToolkitPtr.Pin().ToSharedRef())
@@ -202,6 +211,13 @@ void UDisplayClusterConfiguratorHostNode::ReadNodeStateFromObject()
 
 void UDisplayClusterConfiguratorHostNode::OnPostEditChangeChainProperty(const FPropertyChangedChainEvent& PropertyChangedEvent)
 {
+	// If the pointer to the blueprint editor is no longer valid, its likely that the editor this node was created for was closed,
+	// and this node is orphaned and will eventually be GCed.
+	if (!ToolkitPtr.IsValid())
+	{
+		return;
+	}
+
 	UDisplayClusterConfigurationHostDisplayData* HostDisplayData = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
 
 	const FName& PropertyName = PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue()->GetFName();

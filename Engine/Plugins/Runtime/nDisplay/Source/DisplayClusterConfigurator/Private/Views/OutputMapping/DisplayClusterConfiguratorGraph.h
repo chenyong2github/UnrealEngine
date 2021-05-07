@@ -33,6 +33,9 @@ public:
 	virtual void PostEditUndo() override;
 	// End UObject Interface
 
+	/** Cleans up the graph and its nodes. */
+	void Cleanup();
+
 	/** Removes all nodes from the graph. */
 	void Empty();
 

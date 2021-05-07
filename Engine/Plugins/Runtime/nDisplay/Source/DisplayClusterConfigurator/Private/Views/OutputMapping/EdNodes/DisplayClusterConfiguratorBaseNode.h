@@ -50,8 +50,11 @@ class UDisplayClusterConfiguratorBaseNode
 
 public:
 	virtual void Initialize(const FString& InNodeName, int32 InNodeZIndex, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit);
+	virtual void Cleanup() { }
 
 	//~ Begin UObject Interface
+	virtual void BeginDestroy() override;
+
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 #endif
