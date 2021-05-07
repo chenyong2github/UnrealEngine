@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/Array.h"
+#include "Templates/TypeHash.h"
 #include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStorageID.h"
 
