@@ -2222,7 +2222,7 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 
 #if !NO_LOGGING
 	// Sanity check
-	if (NumChannels > 2 && WaveInstance->GetUseSpatialization() && !WaveInstance->bReportedSpatializationWarning)
+	if (NumChannels > 2 && !WaveInstance->bIsAmbisonics && WaveInstance->GetUseSpatialization() && !WaveInstance->bReportedSpatializationWarning)
 	{
 		static TSet<USoundWave*> ReportedSounds;
 		if (!ReportedSounds.Contains(this))
