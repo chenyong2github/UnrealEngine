@@ -340,7 +340,7 @@ TSharedRef<SWidget> SDataprepPalette::OnCreateWidgetForAction(FCreateWidgetForAc
 				SNew(SOverlay)
 
 				+ SOverlay::Slot()
-				.Padding(FMargin(1.f, 2.f, 1.f, 2.f))
+				.Padding(FMargin(1.f, 2.f, 2.f, 2.f))
 				.VAlign(VAlign_Fill)
 				.HAlign(HAlign_Fill)
 				[
@@ -348,7 +348,7 @@ TSharedRef<SWidget> SDataprepPalette::OnCreateWidgetForAction(FCreateWidgetForAc
 				]
 
 				+ SOverlay::Slot()
-				.Padding(FMargin(6.f, 2.f, 6.f, 2.f))
+				.Padding(FMargin(6.f, 2.f, 1.f, 2.f))
 				.VAlign(VAlign_Fill)
 				.HAlign(HAlign_Fill)
 				[
@@ -361,6 +361,7 @@ TSharedRef<SWidget> SDataprepPalette::OnCreateWidgetForAction(FCreateWidgetForAc
 				.HAlign(HAlign_Fill)
 				[
 					SNew( SVerticalBox )
+					.Clipping(EWidgetClipping::ClipToBounds)
 					+ SVerticalBox::Slot()
 					.AutoHeight()
 					[
@@ -383,7 +384,8 @@ TSharedRef<SWidget> SDataprepPalette::OnCreateWidgetForAction(FCreateWidgetForAc
 						.Padding(5.f, 5.0f, 0.0f, 5.0f)
 						.VAlign(VAlign_Center)
 						[
-							SNew(STextBlock).Text(Category)
+							SNew(STextBlock)
+							.Text(Category)
 							.Font(FCoreStyle::GetDefaultFontStyle("Regular", 9))
 							.ColorAndOpacity(FLinearColor::Gray)
 						]
