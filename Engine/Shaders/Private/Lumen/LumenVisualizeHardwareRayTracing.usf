@@ -96,7 +96,46 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 			bool bUseMinimalPayload = (DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE) && (DIM_DEFERRED_MATERIAL_MODE == 0);
 			if (bUseMinimalPayload)
 			{
-				bHit = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context, HitDistance, Radiance);
+				FLumenMinimalPayload Payload = (FLumenMinimalPayload)0;
+				bHit = TraceLumenMinimalRay(Ray, Context, Payload);
+
+				int TranslucentSkipCount = 0;
+				while (bHit && Payload.IsTranslucent() && TranslucentSkipCount < Context.TranslucentSkipCountMax)
+				{
+					float Epsilon = 0.01;
+					Ray.TMin = Payload.HitT + Epsilon;
+					bHit = TraceLumenMinimalRay(Ray, Context, Payload);
+					TranslucentSkipCount++;
+				}
+
+				if (bHit)
+				{
+					float3 WorldPosition = Ray.Origin + Ray.Direction * Payload.HitT;
+
+					if (VisualizeMode == VISUALIZE_MODE_LOCAL_POSITION)
+					{
+						uint GPUSceneInstanceIndex = GetGPUSceneInstanceIndex(Payload.GetPrimitiveIndex(), Payload.GetInstanceIndex());
+						float3 LocalPosition = CalcLocalPositionFromGPUSceneInstanceIndex(WorldPosition, GPUSceneInstanceIndex);
+						// Debug: Modify visualization remapping here
+						LocalPosition = frac(LocalPosition * 0.001);
+						Radiance = abs(LocalPosition);
+					}
+					else if (VisualizeMode == VISUALIZE_MODE_VELOCITY)
+					{
+						uint GPUSceneInstanceIndex = GetGPUSceneInstanceIndex(Payload.GetPrimitiveIndex(), Payload.GetInstanceIndex());
+						float3 Velocity = CalcVelocityFromGPUSceneInstanceIndex(WorldPosition, GPUSceneInstanceIndex);
+						// Debug: Modify visualization remapping here
+						Radiance = abs(Velocity);
+					}
+					else // Visualize surface-cache property
+					{
+						int DFObjectIndex = GetLumenDistanceFieldObjectIndex(Payload.GetPrimitiveIndex(), Payload.GetInstanceIndex());
+						if (DFObjectIndex != INVALID_DISTANCE_FIELD_OBJECT_INDEX)
+						{
+							Radiance = CalculateRayTracedLightingFromSurfaceCache(Ray, Context, Payload, Payload.HitT, DFObjectIndex);
+						}
+					}
+				}
 			}
 			else
 			{

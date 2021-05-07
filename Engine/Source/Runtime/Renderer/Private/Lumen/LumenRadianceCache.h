@@ -83,6 +83,7 @@ extern void RenderRadianceCache(
 
 extern void RenderLumenHardwareRayTracingRadianceCache(
 	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,

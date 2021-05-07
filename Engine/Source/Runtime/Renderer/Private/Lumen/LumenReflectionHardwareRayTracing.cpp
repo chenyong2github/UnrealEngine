@@ -251,6 +251,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflectionsLum
 void RenderLumenHardwareRayTracingReflections(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,
+	const FScene* Scene,
 	const FViewInfo& View,
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
@@ -278,6 +279,7 @@ void RenderLumenHardwareRayTracingReflections(
 			GraphBuilder,
 			SceneTextures,
 			View,
+			Scene->GPUScene,
 			TracingInputs,
 			&PassParameters->DeferredMaterialParameters.SharedParameters);
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
@@ -339,6 +341,7 @@ void RenderLumenHardwareRayTracingReflections(
 			GraphBuilder,
 			SceneTextures,
 			View,
+			Scene->GPUScene,
 			TracingInputs,
 			&PassParameters->SharedParameters
 		);

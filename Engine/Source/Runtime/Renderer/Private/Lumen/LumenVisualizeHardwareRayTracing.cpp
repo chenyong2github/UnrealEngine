@@ -136,6 +136,13 @@ class FLumenVisualizeHardwareRayTracingDeferredMaterialRGS : public FLumenHardwa
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingDeferredMaterialRGS::FDeferredMaterialParameters, DeferredMaterialParameters)
 	END_SHADER_PARAMETER_STRUCT()
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FLumenHardwareRayTracingRGS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		OutEnvironment.SetDefine(TEXT("ENABLE_VISUALIZE_MODE"), 1);
+	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FLumenVisualizeHardwareRayTracingDeferredMaterialRGS, "/Engine/Private/Lumen/LumenVisualizeHardwareRayTracing.usf", "LumenVisualizeHardwareRayTracingDeferredMaterialRGS", SF_RayGen);
@@ -216,6 +223,7 @@ void VisualizeHardwareRayTracing(
 			GraphBuilder,
 			SceneTextures,
 			View,
+			Scene->GPUScene,
 			TracingInputs,
 			&PassParameters->DeferredMaterialParameters.SharedParameters);
 
@@ -258,6 +266,7 @@ void VisualizeHardwareRayTracing(
 			GraphBuilder,
 			SceneTextures,
 			View,
+			Scene->GPUScene,
 			TracingInputs,
 			&PassParameters->SharedParameters);
 		PassParameters->DeferredMaterialBuffer = GraphBuilder.CreateSRV(DeferredMaterialBuffer);

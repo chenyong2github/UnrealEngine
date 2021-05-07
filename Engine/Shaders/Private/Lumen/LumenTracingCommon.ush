@@ -37,6 +37,8 @@ Texture2D DepthAtlas;
 	#define VISUALIZE_MODE_EMISSIVE 4
 	#define VISUALIZE_MODE_OPACITY 5
 	#define VISUALIZE_CARD_WEIGHTS 6
+	#define VISUALIZE_MODE_LOCAL_POSITION 7
+	#define VISUALIZE_MODE_VELOCITY 8
 
 	uint VisualizeMode;
 #endif

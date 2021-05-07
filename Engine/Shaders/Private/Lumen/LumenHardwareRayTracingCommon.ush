@@ -13,6 +13,7 @@
 #define PreIntegratedGF				ReflectionStruct.PreIntegratedGF
 #define PreIntegratedGFSampler		GlobalBilinearClampedSampler
 
+#include "../SceneData.ush"
 #include "../RayTracing/RayTracingCommon.ush"
 #include "../RayTracing/RayTracingDeferredMaterials.ush"
 #include "../RayTracing/RayTracingDeferredShadingCommon.ush"
@@ -374,4 +375,31 @@ bool TraceAndCalculateRayTracedLightingFromSurfaceCache(
 	}
 
 	return bHit;
+}
+
+// GPU Scene ray-gen utilities
+uint GetGPUSceneInstanceIndex(uint PrimitiveIndex, uint InstanceIndex)
+{
+	// Matching auto-instancing workaround in CL 16210643
+	if (GetPrimitiveData(PrimitiveIndex).NumInstanceDataEntries == 1)
+	{
+		InstanceIndex = 0;
+	}
+
+	return GetPrimitiveData(PrimitiveIndex).InstanceDataOffset + InstanceIndex;
+}
+
+float3 CalcVelocityFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPUSceneInstanceIndex)
+{
+	FInstanceSceneData InstanceSceneData = GetInstanceData(GPUSceneInstanceIndex, View.InstanceDataSOAStride);
+	float4 LocalPosition = mul(float4(WorldPosition, 1), InstanceSceneData.WorldToLocal);
+	float3 PrevWorldPosition = mul(LocalPosition, InstanceSceneData.PrevLocalToWorld).xyz;
+	return WorldPosition - PrevWorldPosition;
+}
+
+float3 CalcLocalPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPUSceneInstanceIndex)
+{
+	FInstanceSceneData InstanceSceneData = GetInstanceData(GPUSceneInstanceIndex, View.InstanceDataSOAStride);
+	float3 LocalPosition = mul(float4(WorldPosition, 1), InstanceSceneData.WorldToLocal).xyz;
+	return LocalPosition;
 }

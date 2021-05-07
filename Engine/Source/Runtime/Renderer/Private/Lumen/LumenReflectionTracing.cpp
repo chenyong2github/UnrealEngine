@@ -420,6 +420,7 @@ void TraceReflections(
 		RenderLumenHardwareRayTracingReflections(
 			GraphBuilder,
 			SceneTextureParameters,
+			Scene,
 			View,
 			ReflectionTracingParameters,
 			ReflectionTileParameters,

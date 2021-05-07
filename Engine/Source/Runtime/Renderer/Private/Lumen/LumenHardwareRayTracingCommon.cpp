@@ -60,6 +60,7 @@ void SetLumenHardwareRayTracingSharedParameters(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
+	const FGPUScene& GPUScene,
 	const FLumenCardTracingInputs& TracingInputs,
 	FLumenHardwareRayTracingRGS::FSharedParameters* SharedParameters
 )
@@ -68,6 +69,10 @@ void SetLumenHardwareRayTracingSharedParameters(
 	//SharedParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	checkf(View.HasRayTracingScene(), TEXT("TLAS does not exist. Verify that the current pass is represented in Lumen::AnyLumenHardwareRayTracingPassEnabled()."));
 	SharedParameters->TLAS = View.GetRayTracingSceneViewChecked();
+
+	// GPU Scene
+	SharedParameters->GPUSceneInstanceSceneData = GPUScene.InstanceDataBuffer.SRV;
+	SharedParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
 
 	// Lighting data
 	SharedParameters->LightDataPacked = View.RayTracingLightData.UniformBuffer;

@@ -1484,6 +1484,7 @@ void RenderRadianceCache(
 			float DiffuseConeHalfAngle = -1.0f;
 			RenderLumenHardwareRayTracingRadianceCache(
 				GraphBuilder,
+				Scene,
 				GetSceneTextureParameters(GraphBuilder),
 				View,
 				TracingInputs,

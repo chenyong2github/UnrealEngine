@@ -62,6 +62,7 @@ class FLumenReflectionTileParameters;
 extern void RenderLumenHardwareRayTracingReflections(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,
+	const FScene* Scene,
 	const FViewInfo& View,
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
 	const FLumenReflectionTileParameters& ReflectionTileParameters,

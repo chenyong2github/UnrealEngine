@@ -55,6 +55,10 @@ public:
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 
+		// GPU Scene
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
+
 		// Lighting structures
 		SHADER_PARAMETER_STRUCT_REF(FRaytracingLightDataPacked, LightDataPacked)
 		SHADER_PARAMETER_SRV(StructuredBuffer<FRTLightingData>, LightDataBuffer)
@@ -74,6 +78,10 @@ public:
 	{
 		OutEnvironment.SetDefine(TEXT("LUMEN_HARDWARE_RAYTRACING"), 1);
 		OutEnvironment.SetDefine(TEXT("DIFFUSE_TRACE_CARDS"), 1);
+
+		// GPU Scene definitions
+		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
+		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -112,6 +120,7 @@ void SetLumenHardwareRayTracingSharedParameters(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
+	const FGPUScene& GPUScene,
 	const FLumenCardTracingInputs& TracingInputs,
 	FLumenHardwareRayTracingRGS::FSharedParameters* SharedParameters);
 

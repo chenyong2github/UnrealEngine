@@ -197,6 +197,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingRadianceCacheL
 
 void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,
@@ -241,6 +242,7 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 			GraphBuilder,
 			SceneTextures,
 			View,
+			Scene->GPUScene,
 			TracingInputs,
 			&PassParameters->SharedParameters);
 
@@ -319,6 +321,7 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 
 void RenderLumenHardwareRayTracingRadianceCache(
 	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,
@@ -338,6 +341,7 @@ void RenderLumenHardwareRayTracingRadianceCache(
 #if RHI_RAYTRACING
 	return RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 		GraphBuilder,
+		Scene,
 		SceneTextures,
 		View,
 		TracingInputs,

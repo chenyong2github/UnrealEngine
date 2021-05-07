@@ -261,6 +261,7 @@ void RenderHardwareRayTracingScreenProbe(
 			GraphBuilder,
 			SceneTextures,
 			View,
+			Scene->GPUScene,
 			TracingInputs,
 			&PassParameters->DeferredMaterialParameters.SharedParameters);
 
@@ -320,6 +321,7 @@ void RenderHardwareRayTracingScreenProbe(
 			GraphBuilder,
 			SceneTextures,
 			View,
+			Scene->GPUScene,
 			TracingInputs,
 			&PassParameters->SharedParameters
 		);
