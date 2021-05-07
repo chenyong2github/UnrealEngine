@@ -70,6 +70,14 @@ private:
 
 	FMargin GetBlockPadding();
 
+	FMargin GetArrowPadding();
+
+	bool IsLastStep() const;
+
+	bool IsSelected() const;
+
+	EVisibility GetDisabledOverlayVisbility() const;
+
 private:
 	/** Pointer to the widget displaying the actual filter or operation */
 	TSharedPtr<SDataprepActionBlock> ActionStepBlockPtr;
