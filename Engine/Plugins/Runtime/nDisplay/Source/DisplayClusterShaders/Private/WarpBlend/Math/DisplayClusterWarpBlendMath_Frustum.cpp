@@ -11,6 +11,8 @@
 
 #include "Render/Viewport/IDisplayClusterViewport.h"
 
+#include "StaticMeshResources.h"
+
 FMatrix GetProjectionMatrixAssymetric(IDisplayClusterViewport* InViewport, const uint32 InContextNum, const FDisplayClusterWarpEye& InEye, const FDisplayClusterWarpContext& InContext)
 {
 	const float Left   = InContext.ProjectionAngles.Left;

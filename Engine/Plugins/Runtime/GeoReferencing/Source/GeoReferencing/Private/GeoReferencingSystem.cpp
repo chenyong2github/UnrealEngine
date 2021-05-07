@@ -7,7 +7,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
-
+#include "Engine/Engine.h"
+#include "Engine/World.h"
 #include "proj.h"
 
 #if WITH_EDITOR

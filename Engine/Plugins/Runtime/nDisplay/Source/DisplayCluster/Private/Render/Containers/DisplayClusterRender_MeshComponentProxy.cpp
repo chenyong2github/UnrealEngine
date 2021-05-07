@@ -5,6 +5,9 @@
 #include "Render/Containers/DisplayClusterRender_MeshResources.h"
 #include "Render/Containers/DisplayClusterRender_MeshGeometry.h"
 
+#include "Engine/StaticMesh.h"
+#include "StaticMeshResources.h"
+
 TGlobalResource<FDisplayClusterMeshVertexDeclaration> GDisplayClusterMeshVertexDeclaration;
 
 //*************************************************************************
