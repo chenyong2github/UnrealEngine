@@ -150,6 +150,8 @@ void FDataprepEditorStyle::Initialize()
 				.SetShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.7f));
 			StyleSet->Set("DataprepActionBlock.PreviewTextBlockStyle", TilteTextBlockStyle);
 		}
+
+		StyleSet->Set("DataprepEditor.ActionStepNode.ArrowNext", new IMAGE_PLUGIN_BRUSH("Triangle", FVector2D(60.0f, 20.0f)));
 	}
 
 	// DataprepGraphEditor
