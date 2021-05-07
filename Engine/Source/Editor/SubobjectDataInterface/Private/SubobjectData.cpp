@@ -44,6 +44,15 @@ bool FSubobjectData::CanEdit() const
 	{
 		return true;
 	}
+	// If this is an instance-added component, then we can edit it. We know this isn't inherted because it would
+	// be a FInheritedSubobjectData
+	else if(const UActorComponent* Component = GetComponentTemplate())
+	{
+		if(Component->CreationMethod == EComponentCreationMethod::Instance)
+		{
+			return true;
+		}
+	}
 	return false;
 }
 
