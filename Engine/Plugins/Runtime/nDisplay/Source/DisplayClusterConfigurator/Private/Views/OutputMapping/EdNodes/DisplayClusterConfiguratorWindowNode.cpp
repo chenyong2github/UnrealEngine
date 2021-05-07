@@ -11,9 +11,9 @@
 
 #include "DisplayClusterConfigurationTypes.h"
 
-void UDisplayClusterConfiguratorWindowNode::Initialize(const FString& InNodeName, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
+void UDisplayClusterConfiguratorWindowNode::Initialize(const FString& InNodeName, int32 InNodeZIndex, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
 {
-	UDisplayClusterConfiguratorBaseNode::Initialize(InNodeName, InObject, InToolkit);
+	UDisplayClusterConfiguratorBaseNode::Initialize(InNodeName, InNodeZIndex, InObject, InToolkit);
 
 	UDisplayClusterConfigurationClusterNode* CfgNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
 	CfgNode->OnPostEditChangeChainProperty.Add(UDisplayClusterConfigurationViewport::FOnPostEditChangeChainProperty::FDelegate::CreateUObject(this, &UDisplayClusterConfiguratorWindowNode::OnPostEditChangeChainProperty));

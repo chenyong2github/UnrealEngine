@@ -13,8 +13,6 @@
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorCanvasNode"
 
-int32 const SDisplayClusterConfiguratorCanvasNode::DefaultZOrder = 0;
-
 void SDisplayClusterConfiguratorCanvasNode::Construct(const FArguments& InArgs, UDisplayClusterConfiguratorCanvasNode* InNode, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
 {	
 	SDisplayClusterConfiguratorBaseNode::Construct(SDisplayClusterConfiguratorBaseNode::FArguments(), InNode, InToolkit);

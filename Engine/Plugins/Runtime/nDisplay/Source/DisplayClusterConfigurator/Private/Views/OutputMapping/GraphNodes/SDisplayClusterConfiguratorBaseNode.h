@@ -105,11 +105,6 @@ public:
 	virtual bool IsNodeEnabled() const;
 
 	/**
-	 * @return The depth index of the layer the node belongs to. 
-	 */
-	virtual int32 GetNodeLayerIndex() const { return 0; }
-
-	/**
 	 * @return The intended size of the node, taken from the backing EdGraphNode 
 	 */
 	virtual FVector2D GetSize() const;
@@ -134,10 +129,22 @@ public:
 	 */
 	virtual bool CanNodeBeSnapAligned() const { return false; }
 
+	/** @return Whether this node can be resized using the resize widget. */
+	virtual bool CanNodeBeResized() const { return true; }
+
+	/** @return Whether this node's size is fixed to a specific aspect ratio. */
+	virtual bool IsAspectRatioFixed() const { return false; }
+
 protected:
 	EVisibility GetNodeVisibility() const;
 	EVisibility GetSelectionVisibility() const;
 	TOptional<EMouseCursor::Type> GetCursor() const;
+
+	virtual int32 GetNodeLogicalLayer() const;
+	virtual int32 GetNodeVisualLayer() const;
+
+	FVector2D GetReizeHandleOffset() const;
+	EVisibility GetResizeHandleVisibility() const;
 
 	bool CanSnapAlign() const;
 	void UpdateAlignmentTarget(FAlignmentRulerTarget& OutTarget, const FNodeAlignment& Alignment, bool bIsTargetingParent);
@@ -151,9 +158,6 @@ protected:
 		return CastedNode;
 	}
 
-public:
-	int32 ZIndex;
-
 protected:
 	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
 
@@ -163,4 +167,7 @@ protected:
 	// These need to be mutable so they can be cleared in the node's EndUserInteraction call, which is a const function
 	mutable FAlignmentRulerTarget XAlignmentTarget;
 	mutable FAlignmentRulerTarget YAlignmentTarget;
+
+private:
+	static const float ResizeHandleSize;
 };
