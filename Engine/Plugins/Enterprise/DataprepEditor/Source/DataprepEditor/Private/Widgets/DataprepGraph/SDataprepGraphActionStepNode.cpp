@@ -22,6 +22,7 @@
 #include "Widgets/DataprepGraph/SDataprepSelectionTransform.h"
 
 // Engine Includes
+#include "DragAndDrop/AssetDragDropOp.h"
 #include "Editor.h"
 #include "Framework/Application/SlateApplication.h"
 #include "SGraphPanel.h"
@@ -372,6 +373,12 @@ void SDataprepGraphActionStepNode::OnDragEnter(const FGeometry& MyGeometry, cons
 
 FReply SDataprepGraphActionStepNode::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
+	TSharedPtr<FAssetDragDropOp> AssetOp = DragDropEvent.GetOperationAs<FAssetDragDropOp>();
+	if (AssetOp.IsValid())
+	{
+		return FReply::Handled();
+	}
+
 	// Is someone dragging a node?
 	TSharedPtr<FDataprepDragDropOp> DragNodeOp = DragDropEvent.GetOperationAs<FDataprepDragDropOp>();
 	if (DragNodeOp.IsValid())
