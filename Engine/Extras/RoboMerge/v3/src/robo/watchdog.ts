@@ -189,9 +189,11 @@ class Watchdog {
 		// for now, require HTTPS vault settings - eventually have a proper dev
 		// setting that can allow local testing without
 		try {
+			this.watchdogLogger.info('Checking for files in ' + Session.VAULT_PATH)
 			fs.readdirSync(Session.VAULT_PATH)
 		}
 		catch (err) {
+			console.log(err)
 			this.statusServer.open(8877, 'http').then(() => 
 				this.watchdogLogger.warn(`HTTP web server opened on port 8877`)
 			)
