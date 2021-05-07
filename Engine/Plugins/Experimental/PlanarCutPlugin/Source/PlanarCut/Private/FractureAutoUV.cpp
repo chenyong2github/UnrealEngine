@@ -504,13 +504,11 @@ void TextureInternalSurfaces(
 	int AmbientIdx = BakeAttributes.IndexOf((int)EBakeAttributes::AmbientOcclusion);
 	int CurvatureIdx = BakeAttributes.IndexOf((int)EBakeAttributes::Curvature);
 	int NormalZIdx = BakeAttributes.IndexOf((int)EBakeAttributes::NormalZ);
-	int PosZIdx = BakeAttributes.IndexOf((int)EBakeAttributes::PositionZ);
-	
-	if (OutsideSpatial.GetBoundingBox().Depth() == 0)
-	{
-		PosZIdx = -1; // if everything has same Z, can just leave PosZ values as default value
-	}
 
+	FAxisAlignedBox3d Box = OutsideSpatial.GetBoundingBox();
+	int PosXIdx = Box.Width() > 0 ? BakeAttributes.IndexOf((int)EBakeAttributes::PositionX) : -1;
+	int PosYIdx = Box.Height() > 0 ? BakeAttributes.IndexOf((int)EBakeAttributes::PositionY) : -1;
+	int PosZIdx = Box.Depth() > 0 ? BakeAttributes.IndexOf((int)EBakeAttributes::PositionZ) : -1;
 
 	bool bNeedsDynamicMeshes = AmbientIdx > -1 || CurvatureIdx > -1;
 
@@ -675,7 +673,7 @@ void TextureInternalSurfaces(
 
 	ParallelFor(OccupancyMap.Dimensions.GetHeight(),
 		[&AttributeSettings, &TextureOut, &UVMesh, &OccupancyMap, &InsideMesh, &OutsideSpatial,
-		 &DistanceToExternalIdx, &AmbientIdx, &NormalZIdx, &PosZIdx](int32 Y)
+		 &DistanceToExternalIdx, &AmbientIdx, &NormalZIdx, &PosXIdx, &PosYIdx, &PosZIdx](int32 Y)
 	{
 		for (int32 X = 0; X < OccupancyMap.Dimensions.GetWidth(); X++)
 		{
@@ -697,7 +695,7 @@ void TextureInternalSurfaces(
 					Normal = InsideMesh.GetInterpolatedNormal(TID, Bary);
 				}
 
-				if (DistanceToExternalIdx > -1 || PosZIdx > -1)
+				if (DistanceToExternalIdx > -1 || PosXIdx > -1 || PosYIdx > -1 || PosZIdx > -1)
 				{
 					FTriangle3d Tri;
 					InsideMesh.GetTriVertices(TID, Tri.V[0], Tri.V[1], Tri.V[2]);
@@ -711,13 +709,19 @@ void TextureInternalSurfaces(
 						checkSlow(FMath::IsFinite(PercentDistance));
 						OutColor[DistanceToExternalIdx] = PercentDistance;
 					}
-					if (PosZIdx > -1)
+					auto SetSpatial = [&OutsideSpatial, &InsidePoint, &OutColor](int TargetIdx, int Dim)
 					{
-						double MinZ = OutsideSpatial.GetBoundingBox().Min.Z, MaxZ = OutsideSpatial.GetBoundingBox().Max.Z;
-						checkSlow(MinZ != MaxZ);
-						float PercentHeight = (float)(InsidePoint.Z - MinZ) / (MaxZ - MinZ);
-						OutColor[PosZIdx] = PercentHeight;
-					}
+						if (TargetIdx > -1)
+						{
+							double Min = OutsideSpatial.GetBoundingBox().Min[Dim], Max = OutsideSpatial.GetBoundingBox().Max[Dim];
+							checkSlow(Min != Max);
+							float PercentAlong = (float)(InsidePoint[Dim] - Min) / (Max - Min);
+							OutColor[TargetIdx] = PercentAlong;
+						}
+					};
+					SetSpatial(PosXIdx, 0);
+					SetSpatial(PosYIdx, 1);
+					SetSpatial(PosZIdx, 2);
 				}
 				if (NormalZIdx > -1)
 				{

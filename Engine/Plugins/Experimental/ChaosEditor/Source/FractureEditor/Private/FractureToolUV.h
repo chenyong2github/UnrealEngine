@@ -23,6 +23,12 @@ enum class EAutoUVTextureResolution : int32
 	Resolution8192 = 8192 UMETA(DisplayName = "8192 x 8192")
 };
 
+UENUM()
+enum class ETextureType
+{
+	ThicknessAndSurfaceAttributes,
+	SpatialGradients
+};
 
 /** Settings specifically related to the one-time destructive fracturing of a mesh **/
 UCLASS(config = EditorPerProjectUserSettings)
@@ -35,6 +41,10 @@ public:
 	UFractureAutoUVSettings(const FObjectInitializer& ObjInit)
 		: Super(ObjInit)
 	{}
+
+	/** Whether to layout UVs (to ensure unique texels for each face), or just use the existing UVs */
+	UPROPERTY(EditAnywhere, Category = Atlas)
+	bool bDoUVLayout = true;
 
 	/** The pixel resolution of the generated map */
 	UPROPERTY(EditAnywhere, Category = MapSettings)
@@ -52,59 +62,63 @@ public:
 	UPROPERTY(EditAnywhere, Category = MapSettings)
 	bool bPromptToSave = true;
 
-	/** Bake the distance to the external surface to a texture channel (red) */
+	/** Which standard set of texture channels to bake */
 	UPROPERTY(EditAnywhere, Category = AttributesToBake)
+	ETextureType BakeTextureType = ETextureType::ThicknessAndSurfaceAttributes;
+
+	/** Bake the distance to the external surface to a texture channel (red) */
+	UPROPERTY(EditAnywhere, Category = AttributesToBake, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes", EditConditionHides))
 	bool bDistToOuter = true;
 
 	/** Bake the ambient occlusion of each bone (considered separately) to a texture channel (green) */
-	UPROPERTY(EditAnywhere, Category = AttributesToBake)
+	UPROPERTY(EditAnywhere, Category = AttributesToBake, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes", EditConditionHides))
 	bool bAmbientOcclusion = true;
 
 	/**
 	 * Bake a smoothed curvature metric to a texture channel (blue)
 	 * Specifically, this is the mean curvature of a smoothed copy of each fractured piece, baked back to the respective fracture piece.
 	 */
-	UPROPERTY(EditAnywhere, Category = AttributesToBake)
+	UPROPERTY(EditAnywhere, Category = AttributesToBake, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes", EditConditionHides))
 	bool bSmoothedCurvature = true;
 
 	/** Bake the Z-component of the normal to a texture channel (alpha) */
-	UPROPERTY(EditAnywhere, Category = AttributesToBake)
+	UPROPERTY(EditAnywhere, Category = AttributesToBake, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes", EditConditionHides))
 	bool bZNormal = true;
 
 	/** Max distance to search for the outer mesh surface */
-	UPROPERTY(EditAnywhere, Category = DistToOuterSettings, meta = (EditCondition = "bDistToOuter", EditConditionHides, UIMin = "1", UIMax = "100", ClampMin = ".01", ClampMax = "1000"))
+	UPROPERTY(EditAnywhere, Category = DistToOuterSettings, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes && bDistToOuter", EditConditionHides, UIMin = "1", UIMax = "100", ClampMin = ".01", ClampMax = "1000"))
 	double MaxDistance = 100;
 
 	/** Number of occlusion rays */
-	UPROPERTY(EditAnywhere, Category = AmbientOcclusionSettings, meta = (EditCondition = "bAmbientOcclusion", EditConditionHides, UIMin = "1", UIMax = "1024", ClampMin = "0", ClampMax = "50000"))
+	UPROPERTY(EditAnywhere, Category = AmbientOcclusionSettings, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes && bAmbientOcclusion", EditConditionHides, UIMin = "1", UIMax = "1024", ClampMin = "0", ClampMax = "50000"))
 	int OcclusionRays = 16;
 
 	/** Pixel Radius of Gaussian Blur Kernel applied to AO map (0 will apply no blur) */
-	UPROPERTY(EditAnywhere, Category = AmbientOcclusionSettings, meta = (EditCondition = "bAmbientOcclusion", EditConditionHides, UIMin = "0", UIMax = "10.0", ClampMin = "0", ClampMax = "100.0"))
+	UPROPERTY(EditAnywhere, Category = AmbientOcclusionSettings, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes && bAmbientOcclusion", EditConditionHides, UIMin = "0", UIMax = "10.0", ClampMin = "0", ClampMax = "100.0"))
 	double OcclusionBlurRadius = 2.25;
 
 	/** Pixel Radius of Gaussian Blur Kernel applied to Curvature map (0 will apply no blur) */
-	UPROPERTY(EditAnywhere, Category = SmoothedCurvatureSettings, meta = (EditCondition = "bSmoothedCurvature", EditConditionHides, UIMin = "0", UIMax = "10.0", ClampMin = "0", ClampMax = "100.0"))
+	UPROPERTY(EditAnywhere, Category = SmoothedCurvatureSettings, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes && bSmoothedCurvature", EditConditionHides, UIMin = "0", UIMax = "10.0", ClampMin = "0", ClampMax = "100.0"))
 	double CurvatureBlurRadius = 2.25;
 
 	/** Voxel resolution of smoothed shape representation */
-	UPROPERTY(EditAnywhere, Category = SmoothedCurvatureSettings, meta = (EditCondition = "bSmoothedCurvature", EditConditionHides, UIMin = "8", UIMax = "512", ClampMin = "4", ClampMax = "1024"))
+	UPROPERTY(EditAnywhere, Category = SmoothedCurvatureSettings, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes && bSmoothedCurvature", EditConditionHides, UIMin = "8", UIMax = "512", ClampMin = "4", ClampMax = "1024"))
 	int VoxelResolution = 128;
 
 	/** Amount of smoothing iterations to apply before computing curvature */
-	UPROPERTY(EditAnywhere, Category = SmoothedCurvatureSettings, meta = (EditCondition = "bSmoothedCurvature", EditConditionHides, UIMin = "2", UIMax = "100", ClampMin = "2", ClampMax = "1000"))
+	UPROPERTY(EditAnywhere, Category = SmoothedCurvatureSettings, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes && bSmoothedCurvature", EditConditionHides, UIMin = "2", UIMax = "100", ClampMin = "2", ClampMax = "1000"))
 	int SmoothingIterations = 10;
 
 	/** Distance to search for correspondence between fractured shape and smoothed shape, as factor of voxel size */
-	UPROPERTY(EditAnywhere, Category = SmoothedCurvatureSettings, meta = (EditCondition = "bSmoothedCurvature", EditConditionHides, UIMin = "2", UIMax = "10.0", ClampMin = "1", ClampMax = "100.0"))
+	UPROPERTY(EditAnywhere, Category = SmoothedCurvatureSettings, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes && bSmoothedCurvature", EditConditionHides, UIMin = "2", UIMax = "10.0", ClampMin = "1", ClampMax = "100.0"))
 	double ThicknessFactor = 4;
 
 	/** Curvatures in the range [-MaxCurvature, MaxCurvature] will be mapped from [0,1]. Values outside that range will be clamped. */
-	UPROPERTY(EditAnywhere, Category = SmoothedCurvatureSettings, meta = (EditCondition = "bSmoothedCurvature", EditConditionHides, UIMin = ".01", UIMax = "1", ClampMin = ".0001", ClampMax = "10"))
+	UPROPERTY(EditAnywhere, Category = SmoothedCurvatureSettings, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes && bSmoothedCurvature", EditConditionHides, UIMin = ".01", UIMax = "1", ClampMin = ".0001", ClampMax = "10"))
 	double MaxCurvature = .1;
 
 	/** Whether to use the absolute value of the Z-Component of the normal */
-	UPROPERTY(EditAnywhere, Category = ZNormalSettings, meta = (EditCondition = "bZNormal", EditConditionHides))
+	UPROPERTY(EditAnywhere, Category = ZNormalSettings, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes && bZNormal", EditConditionHides))
 	bool bUseAbsoluteValue = true;
 
 };

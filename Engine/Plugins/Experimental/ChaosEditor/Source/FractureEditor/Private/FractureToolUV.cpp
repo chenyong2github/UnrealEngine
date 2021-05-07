@@ -193,20 +193,23 @@ bool UFractureToolAutoUV::SaveGeneratedTexture(UTexture2D* GeneratedTexture, FSt
 
 int32 UFractureToolAutoUV::ExecuteFracture(const FFractureToolContext& FractureContext)
 {
-	if (FractureContext.IsValid())
+	if (FractureContext.GetGeometryCollection().IsValid())
 	{
-		FScopedSlowTask UVTask(3, LOCTEXT("StartingAutoUV", "Automatically laying out and texturing internal surfaces"));
+		FScopedSlowTask UVTask(AutoUVSettings->bDoUVLayout ? 3 : 2, LOCTEXT("StartingAutoUV", "Automatically laying out and texturing internal surfaces"));
 		UVTask.MakeDialog();
 
 		FGeometryCollection& Collection = *FractureContext.GetGeometryCollection();
 		
 		int32 OutputRes = (int32)AutoUVSettings->Resolution;
 
-		UVTask.EnterProgressFrame(1, LOCTEXT("LayOutUVIslands", "Laying out UV islands"));
-		if (!UE::PlanarCut::UVLayout(Collection, OutputRes, AutoUVSettings->GutterSize))
+		if (AutoUVSettings->bDoUVLayout)
 		{
-			// failed to do layout
-			return INDEX_NONE;
+			UVTask.EnterProgressFrame(1, LOCTEXT("LayOutUVIslands", "Laying out UV islands"));
+			if (!UE::PlanarCut::UVLayout(Collection, OutputRes, AutoUVSettings->GutterSize))
+			{
+				// failed to do layout
+				return INDEX_NONE;
+			}
 		}
 
 		UVTask.EnterProgressFrame(1, LOCTEXT("TexturingSurfaces", "Texturing internal surfaces"));
@@ -220,14 +223,27 @@ int32 UFractureToolAutoUV::ExecuteFracture(const FFractureToolContext& FractureC
 		ImageBuilder.Clear(FVector4f(0, 0, 0, 0));
 
 		typedef UE::PlanarCut::EBakeAttributes EBakeAttributes;
+		FIndex4i Attributes;
 		// Note: Ordering of these attributes should match the order and comments in the AutoUVSettings struct
 		//		 Update the order and comments there if you change the ordering here.
-		FIndex4i Attributes(
-			AutoUVSettings->bDistToOuter ? (int32)EBakeAttributes::DistanceToExternal : 0, 
-			AutoUVSettings->bAmbientOcclusion ? (int32)EBakeAttributes::AmbientOcclusion : 0, 
-			AutoUVSettings->bSmoothedCurvature ? (int32)EBakeAttributes::Curvature : 0,
-			AutoUVSettings->bZNormal ? (int32)EBakeAttributes::NormalZ : 0
-		);
+		if (AutoUVSettings->BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes)
+		{
+			Attributes = FIndex4i(
+				AutoUVSettings->bDistToOuter ? (int32)EBakeAttributes::DistanceToExternal : 0,
+				AutoUVSettings->bAmbientOcclusion ? (int32)EBakeAttributes::AmbientOcclusion : 0,
+				AutoUVSettings->bSmoothedCurvature ? (int32)EBakeAttributes::Curvature : 0,
+				AutoUVSettings->bZNormal ? (int32)EBakeAttributes::NormalZ : 0
+			);
+		}
+		else
+		{
+			Attributes = FIndex4i(
+				(int32)EBakeAttributes::PositionX,
+				(int32)EBakeAttributes::PositionY,
+				(int32)EBakeAttributes::PositionZ,
+				0
+			);
+		}
 		UE::PlanarCut::FTextureAttributeSettings AttribSettings;
 		AttribSettings.ToExternal_MaxDistance = AutoUVSettings->MaxDistance;
 		AttribSettings.AO_Rays = AutoUVSettings->OcclusionRays;

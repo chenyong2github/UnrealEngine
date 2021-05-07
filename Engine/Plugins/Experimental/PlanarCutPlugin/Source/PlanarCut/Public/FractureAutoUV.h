@@ -36,6 +36,8 @@ enum class EBakeAttributes : int32
 	AmbientOcclusion,
 	Curvature,
 	NormalZ,
+	PositionX,
+	PositionY,
 	PositionZ
 };
 
