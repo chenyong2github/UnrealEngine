@@ -112,6 +112,17 @@ public:
 
 	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override { return SectionArray; }
 
+	virtual bool IsEmpty() const override;
+	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
+	virtual void AddSection(UMovieSceneSection& Section) override;
+	virtual UMovieSceneSection* CreateNewSection() override;
+	virtual bool HasSection(const UMovieSceneSection& Section) const override;
+	virtual void RemoveSection(UMovieSceneSection& Section) override;
+	virtual void RemoveSectionAt(int32 SectionIndex) override;
+#if WITH_EDITORONLY_DATA
+	virtual FText GetDisplayName() const override { return FText(); }
+#endif
+
 	UPROPERTY()
 	TArray<UMovieSceneSection*> SectionArray;
 };
