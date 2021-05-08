@@ -1312,6 +1312,8 @@ bool GRHISupportsPixelShaderUAVs = true;
 
 bool GRHISupportsMeshShaders = false;
 
+bool GRHISupportsShaderTimestamp = false;
+
 FVertexElementTypeSupportInfo GVertexElementTypeSupport;
 
 RHI_API int32 volatile GCurrentTextureMemorySize = 0;

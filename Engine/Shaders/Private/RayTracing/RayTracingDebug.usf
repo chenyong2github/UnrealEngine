@@ -2,6 +2,8 @@
 
 #include "../Common.ush"
 #include "../ShadingCommon.ush"
+#include "../ColorMap.ush"
+
 #include "RayTracingCommon.ush"
 #include "RayTracingHitGroupCommon.ush"
 
@@ -13,6 +15,7 @@ RaytracingAccelerationStructure TLAS;
 uint VisualizationMode;
 uint ShouldUsePreExposure;
 uint OpaqueOnly;
+float TimingScale;
 
 // TODO: move MurmurMix and IntToColor into a common header, shared with Nanite/Visualize.usf
 
@@ -52,6 +55,10 @@ float4 DebugRayTracingMaterial(RayDesc Ray)
 	const bool bEnableSkyLightContribution = true;
 	const bool bIgnoreTranslucentMaterials = false;
 
+#if PLATFORM_SUPPORTS_SHADER_TIMESTAMP
+	uint64_t TimeBegin = GetShaderTimestamp();
+#endif
+
 	FMaterialClosestHitPayload Payload = TraceMaterialRay(
 		TLAS,
 		RayFlags,
@@ -61,6 +68,10 @@ float4 DebugRayTracingMaterial(RayDesc Ray)
 		PixelCoord,
 		bEnableSkyLightContribution,
 		bIgnoreTranslucentMaterials);
+
+#if PLATFORM_SUPPORTS_SHADER_TIMESTAMP
+	uint64_t TimeEnd = GetShaderTimestamp();
+#endif
 
 	float4 Result = float4(0, 0, 0, 1);
 
@@ -134,6 +145,11 @@ float4 DebugRayTracingMaterial(RayDesc Ray)
 			Result = float4(0.0, pow(AniG, 2.2), pow(AniB, 2.2), 1.0f);
 			break;
 			}
+		#if PLATFORM_SUPPORTS_SHADER_TIMESTAMP
+		case RAY_TRACING_DEBUG_VIZ_PERFORMANCE:
+			Result.rgb = ColorMapInferno(float(TimeEnd - TimeBegin) * TimingScale);
+			break;
+		#endif // PLATFORM_SUPPORTS_SHADER_TIMESTAMP
 		}
 	}
 	return Result;
@@ -194,7 +210,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 		// Only  when the output is tonemapped
 		Result *= View.PreExposure;
 	}
-
+	
 	Output[PixelCoord] = Result;
 }
 

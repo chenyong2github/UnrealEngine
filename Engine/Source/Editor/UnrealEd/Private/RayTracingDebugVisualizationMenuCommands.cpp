@@ -55,6 +55,11 @@ void FRayTracingDebugVisualizationMenuCommands::CreateRayTracingDebugVisualizati
 	RayTracingDebugModeNames.Add(LOCTEXT("Anisotropy", "Anisotropy"));
 	RayTracingDebugModeNames.Add(LOCTEXT("Instances", "Instances"));
 
+	if (GRHISupportsShaderTimestamp)
+	{
+		RayTracingDebugModeNames.Add(LOCTEXT("Performance", "Performance"));
+	}
+
 	for ( int32 RayTracingDebugIndex = 0; RayTracingDebugIndex < RayTracingDebugModeNames.Num(); ++RayTracingDebugIndex)
 	{
 		const FText CommandNameText = RayTracingDebugModeNames[RayTracingDebugIndex];

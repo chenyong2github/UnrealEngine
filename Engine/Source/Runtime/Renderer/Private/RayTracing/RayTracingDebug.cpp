@@ -32,6 +32,12 @@ TAutoConsoleVariable<int32> CVarRayTracingDebugModeOpaqueOnly(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<float> CVarRayTracingDebugTimingScale(
+	TEXT("r.RayTracing.DebugTimingScale"),
+	1.0f,
+	TEXT("Scaling factor for ray timing heat map visualization. (default = 1)\n")
+);
+
 class FRayTracingDebugRGS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FRayTracingDebugRGS)
@@ -40,6 +46,7 @@ class FRayTracingDebugRGS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, VisualizationMode)
 		SHADER_PARAMETER(int32, ShouldUsePreExposure)
+		SHADER_PARAMETER(float, TimingScale)
 		SHADER_PARAMETER(int32, OpaqueOnly)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, Output)
@@ -115,6 +122,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("World Tangent", "World Tangent").ToString()),									RAY_TRACING_DEBUG_VIZ_WORLD_TANGENT);
 		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("Anisotropy", "Anisotropy").ToString()),										RAY_TRACING_DEBUG_VIZ_ANISOTROPY);
 		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("Instances", "Instances").ToString()),											RAY_TRACING_DEBUG_VIZ_INSTANCES);
+		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("Performance", "Performance").ToString()),										RAY_TRACING_DEBUG_VIZ_PERFORMANCE);
 	}
 
 	uint32 DebugVisualizationMode;
@@ -179,6 +187,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 
 	RayGenParameters->VisualizationMode = DebugVisualizationMode;
 	RayGenParameters->ShouldUsePreExposure = View.Family->EngineShowFlags.Tonemapper;
+	RayGenParameters->TimingScale = CVarRayTracingDebugTimingScale.GetValueOnAnyThread() / 25000.0f;
 	RayGenParameters->OpaqueOnly = CVarRayTracingDebugModeOpaqueOnly.GetValueOnRenderThread();
 	RayGenParameters->TLAS = View.GetRayTracingSceneViewChecked();
 	RayGenParameters->ViewUniformBuffer = View.ViewUniformBuffer;

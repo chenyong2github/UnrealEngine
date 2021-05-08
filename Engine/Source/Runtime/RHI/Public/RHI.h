@@ -684,6 +684,12 @@ extern RHI_API bool GRHISupportsConservativeRasterization;
 /** true if the RHI supports Mesh and Amplification shaders */
 extern RHI_API bool GRHISupportsMeshShaders;
 
+/**
+* True if the RHI supports reading system timer in shaders via GetShaderTimestamp().
+* Individual shaders must be compiled with an appropriate vendor extension and check PLATFORM_SUPPORTS_SHADER_TIMESTAMP.
+*/
+extern RHI_API bool GRHISupportsShaderTimestamp;
+
 /** Tables of all MSAA sample offset for all MSAA supported. Use GetMSAASampleOffsets() to read it. */
 extern RHI_API FVector2D GRHIDefaultMSAASampleOffsets[1 + 2 + 4 + 8 + 16];
 
