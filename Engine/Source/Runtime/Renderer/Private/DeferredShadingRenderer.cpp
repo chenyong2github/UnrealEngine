@@ -2404,7 +2404,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	const bool bStrataEnabled = Strata::IsStrataEnabled();
 	Strata::InitialiseStrataFrameSceneData(*this, GraphBuilder);
 
-	if (GetCustomDepthPassLocation() == ECustomDepthPassLocation::BeforeBasePass)
+	const ECustomDepthPassLocation CustomDepthPassLocation = GetCustomDepthPassLocation(ShaderPlatform);
+	if (CustomDepthPassLocation == ECustomDepthPassLocation::BeforeBasePass)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_CustomDepthPass_BeforeBasePass);
 		if (RenderCustomDepthPass(GraphBuilder, SceneTextures.CustomDepth, SceneTextures.GetSceneTextureShaderParameters(FeatureLevel)))
@@ -2654,7 +2655,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		bAsyncComputeVolumetricCloud = RenderVolumetricCloud(GraphBuilder, SceneTextures, bSkipVolumetricRenderTarget, bSkipPerPixelTracing, HalfResolutionDepthCheckerboardMinMaxTexture, true, InstanceCullingManager);
 	}
 
-	if (GetCustomDepthPassLocation() == ECustomDepthPassLocation::AfterBasePass)
+	if (CustomDepthPassLocation == ECustomDepthPassLocation::AfterBasePass)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_CustomDepthPass_AfterBasePass);
 		if (RenderCustomDepthPass(GraphBuilder, SceneTextures.CustomDepth, SceneTextures.GetSceneTextureShaderParameters(FeatureLevel)))

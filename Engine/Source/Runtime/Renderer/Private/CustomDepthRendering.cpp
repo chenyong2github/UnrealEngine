@@ -19,10 +19,11 @@ static TAutoConsoleVariable<int32> CVarCustomDepth(
 
 static TAutoConsoleVariable<int32> CVarCustomDepthOrder(
 	TEXT("r.CustomDepth.Order"),
-	1,
+	2,
 	TEXT("When CustomDepth (and CustomStencil) is getting rendered\n")
-	TEXT("  0: Before Base Pass (can be more efficient with AsyncCompute, allows using it in DBuffer pass, no GBuffer blending decals allow GBuffer compression)\n")
-	TEXT("  1: After Base Pass (default)"),
+	TEXT("  0: Before Base Pass (Allows samping in DBuffer pass. Can be more efficient with AsyncCompute.)\n")
+	TEXT("  1: After Base Pass\n")
+	TEXT("  2: Default (Before Base Pass if DBuffer enabled.)\n"),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarMobileCustomDepthDownSample(
@@ -41,13 +42,11 @@ static TAutoConsoleVariable<int32> CVarCustomDepthTemporalAAJitter(
 
 DECLARE_GPU_STAT_NAMED(CustomDepth, TEXT("Custom Depth"));
 
-ECustomDepthPassLocation GetCustomDepthPassLocation()
+ECustomDepthPassLocation GetCustomDepthPassLocation(EShaderPlatform Platform)
 {
-	switch (CVarCustomDepthOrder.GetValueOnRenderThread())
-	{
-	case 0: return ECustomDepthPassLocation::BeforeBasePass;
-	}
-	return ECustomDepthPassLocation::AfterBasePass;
+	const int32 CustomDepthOrder = CVarCustomDepthOrder.GetValueOnRenderThread();
+	const bool bCustomDepthBeforeBasePase = CustomDepthOrder == 0 || (CustomDepthOrder == 2 && IsUsingDBuffers(Platform));
+	return bCustomDepthBeforeBasePase ? ECustomDepthPassLocation::BeforeBasePass : ECustomDepthPassLocation::AfterBasePass;
 }
 
 ECustomDepthMode GetCustomDepthMode()

@@ -14,7 +14,7 @@ enum class ECustomDepthPassLocation : uint32
 };
 
 // Returns the location in the frame where custom depth is rendered.
-extern RENDERER_API ECustomDepthPassLocation GetCustomDepthPassLocation();
+extern ECustomDepthPassLocation GetCustomDepthPassLocation(EShaderPlatform Platform);
 
 enum class ECustomDepthMode : uint32
 {
@@ -29,20 +29,17 @@ enum class ECustomDepthMode : uint32
 };
 
 // The custom depth mode currently configured.
-extern RENDERER_API ECustomDepthMode GetCustomDepthMode();
-
-// Whether custom depth passes should write stencil.
-extern RENDERER_API bool IsCustomDepthPassWritingStencil(ERHIFeatureLevel::Type InFeatureLevel);
+extern ECustomDepthMode GetCustomDepthMode();
 
 // Returns the requested downsample factor for custom depth textures.
-extern RENDERER_API uint32 GetCustomDepthDownsampleFactor(ERHIFeatureLevel::Type InFeatureLevel);
+extern uint32 GetCustomDepthDownsampleFactor(ERHIFeatureLevel::Type InFeatureLevel);
 
 inline bool IsCustomDepthPassEnabled()
 {
 	return GetCustomDepthMode() != ECustomDepthMode::Disabled;
 }
 
-struct RENDERER_API FCustomDepthTextures
+struct FCustomDepthTextures
 {
 	static FCustomDepthTextures Create(FRDGBuilder& GraphBuilder, FIntPoint Extent, ERHIFeatureLevel::Type FeatureLevel, uint32 DownsampleFactor);
 
