@@ -1001,7 +1001,7 @@ protected:
 	virtual int32 StrataVerticalLayering(int32 Top, int32 Base) override;
 	// STRATA_TODO virtual int32 StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedNormalIndexMacro) override;
 	virtual int32 StrataAdd(int32 A, int32 B) override;
-	// STRATA_TODO virtual int32 StrataAddParameterBlending(int32 A, int32 B, const FString& SharedNormalIndexMacro) override;
+	virtual int32 StrataAddParameterBlending(int32 A, int32 B, const FString& SharedNormalIndexMacro) override;
 	virtual int32 StrataMultiply(int32 A, int32 Weight) override;
 	virtual int32 StrataTransmittanceToMFP(int32 TransmittanceColor, int32 DesiredThickness, int32 OutputIndex) override;
 

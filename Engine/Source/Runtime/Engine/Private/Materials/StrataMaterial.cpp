@@ -90,6 +90,13 @@ void  StrataCompilationInfoCreateNullBSDF(FMaterialCompiler* Compiler, int32 Cod
 }
 
 
+FStrataMaterialCompilationInfo StrataCompilationInfoMultiply(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A)
+{
+	FStrataMaterialCompilationInfo StrataInfo = A;
+	return StrataInfo;
+}
+
+
 FStrataMaterialCompilationInfo StrataCompilationInfoAdd(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B)
 {
 	FStrataMaterialCompilationInfo StrataInfo = A;
@@ -120,9 +127,24 @@ FStrataMaterialCompilationInfo StrataCompilationInfoAdd(FMaterialCompiler* Compi
 }
 
 
-FStrataMaterialCompilationInfo StrataCompilationInfoMultiply(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A)
+FStrataMaterialCompilationInfo StrataCompilationInfoAddParamBlend(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B, const FStrataRegisteredSharedNormal& RegisteredSharedNormal)
 {
+	check(A.TotalBSDFCount == 1);
+	check(B.TotalBSDFCount == 1);
+
 	FStrataMaterialCompilationInfo StrataInfo = A;
+	FStrataMaterialCompilationInfo::FBSDF& NewBSDF = StrataInfo.Layers[0].BSDFs[0];
+	const FStrataMaterialCompilationInfo::FBSDF& OtherBSDF = B.Layers[0].BSDFs[0];
+
+	NewBSDF.RegisteredSharedNormal = RegisteredSharedNormal;
+
+	// When parameter blending is used, we take the union of all the features activated by input BSDFs.
+	NewBSDF.bHasSSS				|=	OtherBSDF.bHasSSS;
+	NewBSDF.bHasDMFPPluggedIn	|=	OtherBSDF.bHasDMFPPluggedIn;
+	NewBSDF.bHasEdgeColor		|=	OtherBSDF.bHasEdgeColor;
+	NewBSDF.bHasThinFilm		|=	OtherBSDF.bHasThinFilm;
+	NewBSDF.bHasFuzz			|=	OtherBSDF.bHasFuzz;
+	UpdateTotalBSDFCount(Compiler, StrataInfo);
 	return StrataInfo;
 }
 

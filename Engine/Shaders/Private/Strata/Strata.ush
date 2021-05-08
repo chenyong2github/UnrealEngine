@@ -908,10 +908,6 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Foreground, FStr
 	const float ForegroundMixFactor = saturate(Mix);
 	const float BackgroundMixFactor = 1.0 - ForegroundMixFactor;
 
-	// This function can only parameter blend two BSDF and not more. We cannot blend complex topology.
-	// However, maybe at some point we will
-	// This function only blend one we only parameter blend one slab with anothe
-
 	FStrataData Result = GetInitialisedStrataDataWithReservedFirstSlot();
 #define ResultBSDF		Result.Layers[0].BSDFs[0]
 #define ForegroundBSDF	Foreground.Layers[0].BSDFs[0]
@@ -953,7 +949,7 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Foreground, FStr
 	}
 	else
 	{
-		SLAB_SSSDMFP(ResultBSDF) = lerp(SLAB_SSSDMFP(BackgroundBSDF),				SLAB_SSSDMFP(ForegroundBSDF),				ForegroundMixFactor);
+		SLAB_SSSDMFP(ResultBSDF) = lerp(SLAB_SSSDMFP(BackgroundBSDF),				SLAB_SSSDMFP(ForegroundBSDF),					ForegroundMixFactor);
 	}
 
 
@@ -967,6 +963,71 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Foreground, FStr
 #undef ResultBSDF
 #undef ForegroundBSDF
 #undef BackgroundBSDF
+	return Result;
+}
+
+FStrataData StrataAddParameterBlending(FStrataData A, FStrataData B, uint NewNormalIndex)
+{
+	const float MixFactor = 0.5f;
+
+	FStrataData Result = GetInitialisedStrataDataWithReservedFirstSlot();
+#define ResultBSDF		Result.Layers[0].BSDFs[0]
+#define ABSDF			A.Layers[0].BSDFs[0]
+#define BBSDF			B.Layers[0].BSDFs[0]
+
+	// We can only parameter blend the slab 
+	BSDF_SETTYPE(ResultBSDF,			STRATA_BSDF_TYPE_SLAB);
+	BSDF_SETNORMALID(ResultBSDF,		NewNormalIndex);
+
+	BSDF_SETISTOPLAYER(ResultBSDF,		0);
+	BSDF_SETANISOTROPY(ResultBSDF,		BSDF_GETANISOTROPY(ABSDF)						| BSDF_GETANISOTROPY(BBSDF));
+	BSDF_SETHASSSS(ResultBSDF,			BSDF_GETHASSSS(ABSDF)							| BSDF_GETHASSSS(BBSDF));
+	BSDF_SETHASSSSPROFILE(ResultBSDF,	BSDF_GETHASSSSPROFILE(ABSDF)					| BSDF_GETHASSSSPROFILE(BBSDF));	// Problem: cannot blend SSS profiles...
+	BSDF_SETISTHIN(ResultBSDF,			BSDF_GETISTHIN(ABSDF)							| BSDF_GETISTHIN(BBSDF));			// STRATA_TODO fix the MPF/DMFP situation for that to really work
+	BSDF_SETHASDMFP(ResultBSDF,			BSDF_GETHASDMFP(ABSDF)							| BSDF_GETHASDMFP(BBSDF));
+	BSDF_SETHASHAZINESS(ResultBSDF,		BSDF_GETHASHAZINESS(ABSDF)						| BSDF_GETHASHAZINESS(BBSDF));
+	BSDF_SETHASF90(ResultBSDF,			BSDF_GETHASF90(ABSDF)							| BSDF_GETHASF90(BBSDF));
+	BSDF_SETHASTHINFILM(ResultBSDF,		BSDF_GETHASTHINFILM(ABSDF)						| BSDF_GETHASTHINFILM(BBSDF));
+	BSDF_SETHASFUZZ(ResultBSDF,			BSDF_GETHASFUZZ(ABSDF)							| BSDF_GETHASFUZZ(BBSDF));
+	BSDF_SETEMISSIVE(ResultBSDF,		BSDF_GETEMISSIVE(BBSDF)							+ BSDF_GETEMISSIVE(ABSDF));
+	BSDF_SETTHICKNESSCM(ResultBSDF,		BSDF_GETTHICKNESSCM(BBSDF)						+ BSDF_GETTHICKNESSCM(ABSDF));
+
+	// Some parameters will contribute to added luminance: in this case we add them together and saturate to not go out of the safe range
+	// Some parameters are not contributing to added luminance: in this case we simply lerp them
+	SLAB_DIFFUSEALBEDO(ResultBSDF) =	saturate(SLAB_DIFFUSEALBEDO(BBSDF)				+ SLAB_DIFFUSEALBEDO(ABSDF));
+	SLAB_F0(ResultBSDF) =				saturate(SLAB_F0(BBSDF)							+ SLAB_F0(ABSDF));
+	SLAB_F90(ResultBSDF) =				saturate(SLAB_F90(BBSDF)						+ SLAB_F90(ABSDF));
+	SLAB_METALLIC(ResultBSDF) =			lerp(SLAB_METALLIC(BBSDF),						SLAB_METALLIC(ABSDF),						MixFactor);
+	SLAB_ROUGHNESSX(ResultBSDF) =		lerp(SLAB_ROUGHNESSX(BBSDF),					SLAB_ROUGHNESSX(ABSDF),						MixFactor);
+	SLAB_ROUGHNESSY(ResultBSDF) =		lerp(SLAB_ROUGHNESSY(BBSDF),					SLAB_ROUGHNESSY(ABSDF),						MixFactor);
+	SLAB_HAZINESS(ResultBSDF) =			lerp(SLAB_HAZINESS(BBSDF),						SLAB_HAZINESS(ABSDF),						MixFactor);
+	SLAB_THINFILM_THICKNESS(ResultBSDF)=lerp(SLAB_THINFILM_THICKNESS(BBSDF),			SLAB_THINFILM_THICKNESS(ABSDF),				MixFactor);
+	SLAB_FUZZ_AMOUNT(ResultBSDF) =		lerp(SLAB_FUZZ_AMOUNT(BBSDF),					SLAB_FUZZ_AMOUNT(ABSDF),					MixFactor);
+	SLAB_FUZZ_COLOR(ResultBSDF) =		saturate(SLAB_FUZZ_COLOR(BBSDF)					+ SLAB_FUZZ_COLOR(ABSDF));
+
+	if (BSDF_GETHASSSSPROFILE(ResultBSDF))
+	{
+		// As mentioned above, we cannot blend SSSProfiles.
+		SLAB_SSSPROFILEID(ResultBSDF) = SLAB_SSSPROFILEID(ABSDF);
+		SLAB_SSSPROFILERADIUSSCALE(ResultBSDF) = SLAB_SSSPROFILERADIUSSCALE(ABSDF);
+	}
+	else
+	{
+		SLAB_SSSDMFP(ResultBSDF) =		lerp(SLAB_SSSDMFP(BBSDF),						SLAB_SSSDMFP(ABSDF),						MixFactor);
+	}
+
+
+#if STRATA_INLINE_SHADING
+	// At this stage we do not know if this strata BSDF is going to be using simple volume lighting so always store the DMFP on the side to not override SSSPROFILE data.
+	ResultBSDF.TmpDMFP =				lerp(BBSDF.TmpDMFP,								ABSDF.TmpDMFP,								MixFactor);
+#endif
+
+	// When it comes to adding the visual contribution, it is tricky to find a matching operator for coverage. We simply lerp for now.
+	ResultBSDF.Weight =					lerp(BBSDF.Weight,								ABSDF.Weight,								MixFactor);
+
+#undef ResultBSDF
+#undef ABSDF
+#undef BBSDF
 	return Result;
 }
 

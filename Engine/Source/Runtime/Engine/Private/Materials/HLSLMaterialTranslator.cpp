@@ -9112,10 +9112,19 @@ int32 FHLSLMaterialTranslator::StrataAdd(int32 A, int32 B)
 	);
 }
 
-//virtual int32 FHLSLMaterialTranslator::StrataAddParameterBlending(int32 A, int32 B, const FString& SharedNormalIndexMacro)
-//{
-//	// STRATA_TODO
-//}
+int32 FHLSLMaterialTranslator::StrataAddParameterBlending(int32 A, int32 B, const FString& SharedNormalIndexMacro)
+{
+	if (A == INDEX_NONE || B == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+	return AddCodeChunk(
+		MCT_Strata, TEXT("StrataAddParameterBlending(%s, %s, %s)"),
+		*GetParameterCode(A),
+		*GetParameterCode(B),
+		*SharedNormalIndexMacro
+	);
+}
 
 int32 FHLSLMaterialTranslator::StrataMultiply(int32 A, int32 Weight)
 {
