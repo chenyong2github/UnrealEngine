@@ -114,6 +114,7 @@ class FLumenVisualizeHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
 		SHADER_PARAMETER(int, VisualizeHiResSurface)
 		SHADER_PARAMETER(int, VisualizeMode)
+		SHADER_PARAMETER(float, MaxTraceDistance)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -277,6 +278,7 @@ void VisualizeHardwareRayTracing(
 		PassParameters->MaxTranslucentSkipCount = CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 		PassParameters->VisualizeHiResSurface = GVisualizeLumenSceneHiResSurface ? 1 : 0;
 		PassParameters->VisualizeMode = GLumenVisualizeMode;
+		PassParameters->MaxTraceDistance = IndirectTracingParameters.MaxTraceDistance;
 
 		// Output..
 		PassParameters->RWRadiance = GraphBuilder.CreateUAV(SceneColor);

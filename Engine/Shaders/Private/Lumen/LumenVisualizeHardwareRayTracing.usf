@@ -6,6 +6,7 @@
 #include "../Common.ush"
 #include "../MonteCarlo.ush"
 #include "../SceneTextureParameters.ush"
+#include "../VelocityCommon.ush"
 
 #include "LumenCardCommon.ush"
 #include "LumenTracingCommon.ush"
@@ -30,6 +31,7 @@ int LightingMode;
 int MaxTranslucentSkipCount;
 int bIsDeferredMaterial;
 int VisualizeHiResSurface;
+float MaxTraceDistance;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 {
@@ -57,6 +59,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 	{
 		float2 ScreenUV = (TraceCoord + 0.5) * View.BufferSizeAndInvSize.zw;
 		RayDesc Ray = CreatePrimaryRay(ScreenUV);
+		Ray.TMax = min(Ray.TMax, MaxTraceDistance);
 
 		FRayCone RayCone = (FRayCone)0;
 		RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
@@ -119,13 +122,19 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 						// Debug: Modify visualization remapping here
 						LocalPosition = frac(LocalPosition * 0.001);
 						Radiance = abs(LocalPosition);
+						Radiance *= View.OneOverPreExposure;
 					}
 					else if (VisualizeMode == VISUALIZE_MODE_VELOCITY)
 					{
 						uint GPUSceneInstanceIndex = GetGPUSceneInstanceIndex(Payload.GetPrimitiveIndex(), Payload.GetInstanceIndex());
-						float3 Velocity = CalcVelocityFromGPUSceneInstanceIndex(WorldPosition, GPUSceneInstanceIndex);
-						// Debug: Modify visualization remapping here
-						Radiance = abs(Velocity);
+						//float3 WorldVelocity = CalcVelocityFromGPUSceneInstanceIndex(WorldPosition, GPUSceneInstanceIndex);
+						float3 PrevWorldPosition = CalcPrevWorldPositionFromGPUSceneInstanceIndex(WorldPosition, GPUSceneInstanceIndex);
+
+						float4 ScreenPosition = mul(float4(WorldPosition, 1.0), View.WorldToClip);
+						float4 PrevScreenPosition = mul(float4(PrevWorldPosition, 1.0), View.WorldToClip);
+						float3 ScreenVelocity = Calculate3DVelocity(ScreenPosition, PrevScreenPosition);
+						Radiance = EncodeVelocityToTexture(ScreenVelocity);
+						Radiance *= View.OneOverPreExposure;
 					}
 					else // Visualize surface-cache property
 					{
@@ -143,8 +152,8 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 			}
 		}
 
-		// Apply SkyLight
-		if (!bHit)
+		// Apply SkyLight when visualizing final lighting
+		if (!bHit && VisualizeMode == 0)
 		{
 			FConeTraceResult TraceResult = (FConeTraceResult)0;
 			TraceResult.Transparency = 1;

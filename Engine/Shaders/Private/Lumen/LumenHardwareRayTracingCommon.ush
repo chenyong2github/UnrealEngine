@@ -403,3 +403,11 @@ float3 CalcLocalPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPU
 	float3 LocalPosition = mul(float4(WorldPosition, 1), InstanceSceneData.WorldToLocal).xyz;
 	return LocalPosition;
 }
+
+float3 CalcPrevWorldPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPUSceneInstanceIndex)
+{
+	FInstanceSceneData InstanceSceneData = GetInstanceData(GPUSceneInstanceIndex, View.InstanceDataSOAStride);
+	float4 LocalPosition = mul(float4(WorldPosition, 1), InstanceSceneData.WorldToLocal);
+	float3 PrevWorldPosition = mul(LocalPosition, InstanceSceneData.PrevLocalToWorld).xyz;
+	return PrevWorldPosition;
+}
