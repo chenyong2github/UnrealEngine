@@ -554,6 +554,7 @@ public:
 		NumUsedCustomInterpolatorScalars(0),
 		StrataMaterialDescription(),
 #endif
+		UsedDBufferTextures(0),
 		RuntimeVirtualTextureOutputAttributeMask(0),
 		bNeedsSceneTextures(false),
 		bUsesEyeAdaptation(false),
@@ -568,6 +569,8 @@ public:
 
 	ENGINE_API bool IsSceneTextureUsed(ESceneTextureId TexId) const { return (UsedSceneTextures & (1 << TexId)) != 0; }
 	ENGINE_API void SetIsSceneTextureUsed(ESceneTextureId TexId) { UsedSceneTextures |= (1 << TexId); }
+
+	ENGINE_API void SetIsDBufferTextureUsed(int32 TextureIndex) { UsedDBufferTextures |= (1 << TextureIndex); }
 
 	/** Indicates whether the material uses scene color. */
 	ENGINE_API bool RequiresSceneColorCopy() const { return IsSceneTextureUsed(PPI_SceneColor); }
@@ -622,6 +625,9 @@ public:
 
 	/** The Strata material layout */
 	LAYOUT_FIELD_EDITORONLY(FMemoryImageString, StrataMaterialDescription);
+
+	/** Bitfield of used DBuffer textures . */
+	LAYOUT_FIELD(uint8, UsedDBufferTextures);
 
 	/** Bitfield of runtime virtual texture output attributes. */
 	LAYOUT_FIELD(uint8, RuntimeVirtualTextureOutputAttributeMask);

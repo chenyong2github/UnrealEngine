@@ -1033,7 +1033,7 @@ void FPixelShaderInOut_MainPS(
 			{
 				float2 NDC = MaterialParameters.ScreenPosition.xy / MaterialParameters.ScreenPosition.w;
 				float2 ScreenUV = NDC * ResolvedView.ScreenPositionScaleBias.xy + ResolvedView.ScreenPositionScaleBias.wz;
-				FDBufferData DBufferData = GetDBufferData(ScreenUV, DBufferMask);
+				FDBufferData DBufferData = GetDBufferData(ScreenUV, DBufferMask & MATERIALDECALRESPONSEMASK);
 
 				ApplyDBufferData(DBufferData, MaterialParameters.WorldNormal, SubsurfaceColor, Roughness, BaseColor, Metallic, Specular);
 				DBufferOpacity = (DBufferData.ColorOpacity + DBufferData.NormalOpacity + DBufferData.RoughnessOpacity) * (1.0f / 3.0f);

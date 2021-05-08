@@ -18,6 +18,8 @@
 #include "/Engine/Private/HairShadingCommon.ush"
 #include "/Engine/Private/HairStrands/HairCardsAttributeCommon.ush"
 #include "/Engine/Private/HairStrands/HairStrandsAttributeCommon.ush"
+#include "/Engine/Private/DeferredShadingCommon.ush"
+#include "/Engine/Private/DBufferDecalShared.ush"
 
 #define USE_ANALYTIC_DERIVATIVES	(VF_NANITE)
 
@@ -1929,9 +1931,6 @@ MaterialFloat4 MobileSceneTextureLookup(inout FMaterialPixelParameters Parameter
 
 #if SHADING_PATH_DEFERRED
 
-#include "/Engine/Private/DeferredShadingCommon.ush"		// GetGBufferData()
-
-
 #if POST_PROCESS_MATERIAL
 /** Samples the screen-space velocity for the specified UV coordinates. */
 float2 PostProcessVelocityLookup(float Depth, float2 UV)
@@ -2077,6 +2076,18 @@ float3 DecodeSceneColorForMaterialNode(float2 ScreenUV)
 
 #endif // SHADING_PATH_DEFERRED
 
+float4 MaterialExpressionDBufferTextureLookup(float2 UV, int DBufferTextureIndex)
+{
+	FDBufferData DBufferData = GetDBufferData(UV, 0x07);
+	switch (DBufferTextureIndex)
+	{
+	case 0:	return float4(DBufferData.PreMulColor, DBufferData.ColorOpacity);
+	case 1:	return float4(DBufferData.PreMulWorldNormal, DBufferData.NormalOpacity);
+	case 2:	return float4(DBufferData.PreMulRoughness, DBufferData.PreMulMetallic, DBufferData.PreMulSpecular, DBufferData.RoughnessOpacity);
+	}
+
+	return float4(0, 0, 0, 1);
+}
 
 // DERIV_BASE_VALUE() is a disgusting macro to manage backwards compatibility while changing the generated materials. The existing nodes are not "aware"
 // of partial derivatives, and will use sprintf() to put the same line in both CalcPixelMaterialInputs() and CalcPixelMaterialInputsAnalyticDerivatives().
