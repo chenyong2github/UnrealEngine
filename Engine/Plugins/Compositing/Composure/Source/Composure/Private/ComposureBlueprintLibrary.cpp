@@ -7,7 +7,7 @@
 #include "CameraCalibrationSubsystem.h"
 #include "CineCameraComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
-#include "ComposureLayersEditor/Private/ICompElementManager.h"
+#include "ComposureLayersEditor/Public/ICompElementManager.h"
 #include "ComposureLayersEditor/Public/CompElementEditorModule.h"
 #include "ComposurePlayerCompositingTarget.h"
 #include "ComposureUtils.h"
