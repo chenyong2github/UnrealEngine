@@ -226,6 +226,8 @@ public:
 	int CompressEffortLevel_NoEditor; // how much time to spend encoding to get higher quality 
 	int CompressEffortLevel_Editor; // CompressEffortLevel in Editor
 	bool bDebugColor; // color textures by their BCN, for data discovery
+	bool bDebugDump; // dump textures that were encoded
+	int LogVerbosity; // 0-2 ; 0=never, 1=large only, 2=always
 	// if no lambda is set on Texture or lodgroup, fall through to this global default :
 	int DefaultRDOLambda;
 	// after lambda is set, multiply by this scale factor :
@@ -240,6 +242,8 @@ public:
 		CompressEffortLevel_NoEditor(OodleTex_EncodeEffortLevel_High),
 		CompressEffortLevel_Editor(OodleTex_EncodeEffortLevel_Normal),
 		bDebugColor(false),
+		bDebugDump(false),
+		LogVerbosity(0),
 		DefaultRDOLambda(OodleTex_RDOLagrangeLambda_Default),
 		GlobalLambdaMultiplier(1.f)
 	{
@@ -279,6 +283,8 @@ public:
 			GConfig->SetInt(OODLETEXTURE_INI_SECTION, TEXT("CompressEffortLevel_NoEditor"), CompressEffortLevel_NoEditor, GEngineIni);
 			GConfig->SetInt(OODLETEXTURE_INI_SECTION, TEXT("CompressEffortLevel_Editor"), CompressEffortLevel_Editor, GEngineIni);
 			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bDebugColor"), bDebugColor, GEngineIni);
+			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bDebugDump"), bDebugDump, GEngineIni);
+			GConfig->SetInt(OODLETEXTURE_INI_SECTION, TEXT("LogVerbosity"), LogVerbosity, GEngineIni);
 			GConfig->SetFloat(OODLETEXTURE_INI_SECTION, TEXT("GlobalLambdaMultiplier"), GlobalLambdaMultiplier, GEngineIni);
 			GConfig->SetInt(OODLETEXTURE_INI_SECTION, TEXT("DefaultRDOLambda"), DefaultRDOLambda, GEngineIni);
 
@@ -293,6 +299,8 @@ public:
 		GConfig->GetInt(OODLETEXTURE_INI_SECTION, TEXT("CompressEffortLevel_NoEditor"), CompressEffortLevel_NoEditor, GEngineIni);
 		GConfig->GetInt(OODLETEXTURE_INI_SECTION, TEXT("CompressEffortLevel_Editor"), CompressEffortLevel_Editor, GEngineIni);
 		GConfig->GetBool(OODLETEXTURE_INI_SECTION, TEXT("bDebugColor"), bDebugColor, GEngineIni);
+		GConfig->GetBool(OODLETEXTURE_INI_SECTION, TEXT("bDebugDump"), bDebugDump, GEngineIni);
+		GConfig->GetInt(OODLETEXTURE_INI_SECTION, TEXT("LogVerbosity"), LogVerbosity, GEngineIni);
 		GConfig->GetFloat(OODLETEXTURE_INI_SECTION, TEXT("GlobalLambdaMultiplier"), GlobalLambdaMultiplier, GEngineIni);
 		GConfig->GetInt(OODLETEXTURE_INI_SECTION, TEXT("DefaultRDOLambda"), DefaultRDOLambda, GEngineIni);
 
@@ -564,22 +572,12 @@ public:
 		
 		FName TextureFormatName = InBuildSettings.TextureFormatName;
 
-		bool bTFODoLog;
-		// choose log verbosity :
-		// @todo Oodle : make this a log level selection in the ini Config 
-		//		and change default to no logging?
-		#if 0
-		// verbose logging ; logs for every mip
-		bTFODoLog = true;
-		#elif 1
-		// only log large mips
-		bTFODoLog = InImage.SizeX >= 1024 || InImage.SizeY >= 1024;
-		#else
-		// no logging
-		bTFODoLog = false;
-		#endif
+		// LogVerbosity 0 : never
+		// LogVerbosity 1 : only large mips
+		// LogVerbosity 2 : always
+		bool bIsLargeMip = InImage.SizeX >= 1024 || InImage.SizeY >= 1024;
 
-		if ( bTFODoLog )
+		if ( LogVerbosity >= 2 || (LogVerbosity && bIsLargeMip) )
 		{
 			UE_LOG(LogTextureFormatOodle, Display, TEXT("%s encode %i x %i x %i to format %s (Oodle %s) lambda=%i effort=%i "), \
 				RDOLambda ? TEXT("RDO") : TEXT("non-RDO"), InImage.SizeX, InImage.SizeY, InImage.NumSlices, 
@@ -773,6 +771,11 @@ public:
 		{
 			InSurf.pixels = ImageBasePtr + Slice * InBytesPerSlice;
 			uint8 * OutSlicePtr = OutBlocksBasePtr + Slice * OutBytesPerSlice;
+
+			if ( bDebugDump )
+			{
+				// @todo Ooodle save InSurf to file
+			}
 
 			OodleTex_Err OodleErr;
 			if (RDOLambda == 0)
