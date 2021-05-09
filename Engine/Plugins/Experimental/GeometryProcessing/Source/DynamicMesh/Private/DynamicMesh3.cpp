@@ -144,7 +144,7 @@ FDynamicMesh3::FDynamicMesh3(const FMeshShapeGenerator* Generator)
 	Copy(Generator);
 }
 
-void FDynamicMesh3::Copy(const FMeshShapeGenerator* Generator)
+bool FDynamicMesh3::Copy(const FMeshShapeGenerator* Generator)
 {
 	Clear();
 
@@ -161,6 +161,7 @@ void FDynamicMesh3::Copy(const FMeshShapeGenerator* Generator)
 		AppendVertex(Generator->Vertices[i]);
 	}
 
+	int NumTris = Generator->Triangles.Num();
 	if (Generator->HasAttributes())
 	{
 		FDynamicMeshUVOverlay* UVOverlay = Attributes()->PrimaryUV();
@@ -176,36 +177,35 @@ void FDynamicMesh3::Copy(const FMeshShapeGenerator* Generator)
 			NormalOverlay->AppendElement(Generator->Normals[i]);
 		}
 
-		int NumTris = Generator->Triangles.Num();
 		for (int i = 0; i < NumTris; ++i)
 		{
 			int PolyID = Generator->TrianglePolygonIDs.Num() > 0 ? 1 + Generator->TrianglePolygonIDs[i] : 0;
 			int tid = AppendTriangle(Generator->Triangles[i], PolyID);
-			check(tid == i);
-			UVOverlay->SetTriangle(tid, Generator->TriangleUVs[i]);
-			NormalOverlay->SetTriangle(tid, Generator->TriangleNormals[i]);
+			if (ensure(tid == i))
+			{
+				UVOverlay->SetTriangle(tid, Generator->TriangleUVs[i]);
+				NormalOverlay->SetTriangle(tid, Generator->TriangleNormals[i]);
+			}
 		}
 	}
 	else if (Generator->TrianglePolygonIDs.Num()) // no attributes, yes polygon ids
 	{
-		int NumTris = Generator->Triangles.Num();
 		for (int i = 0; i < NumTris; ++i)
 		{
 			int tid = AppendTriangle(Generator->Triangles[i], 1 + Generator->TrianglePolygonIDs[i]);
-			check(tid == i);
+			ensure(tid == i);
 		}
 	}
 	else // no attribute and no polygon ids
 	{
-		int NumTris = Generator->Triangles.Num();
 		for (int i = 0; i < NumTris; ++i)
 		{
 			int tid = AppendTriangle(Generator->Triangles[i], 0);
-			check(tid == i);
+			ensure(tid == i);
 		}
 	}
 
-
+	return (TriangleCount() == NumTris);
 }
 
 void FDynamicMesh3::Copy(const FDynamicMesh3& copy, bool bNormals, bool bColors, bool bUVs, bool bAttributes)
@@ -641,37 +641,43 @@ FIndex3i FDynamicMesh3::GetTriNeighbourTris(int tID) const
 
 void FDynamicMesh3::GetVertexOneRingTriangles(int VertexID, TArray<int>& TrianglesOut) const
 {
-	check(VertexRefCounts.IsValid(VertexID));
-	VertexEdgeLists.Enumerate(VertexID, [&](int32 EdgeID)
+	checkSlow(VertexRefCounts.IsValid(VertexID));
+	if (VertexRefCounts.IsValid(VertexID))
 	{
-		FIndex2i EdgePair = GetOrderedOneRingEdgeTris(VertexID, EdgeID);
-		if (EdgePair.A != InvalidID)
+		VertexEdgeLists.Enumerate(VertexID, [&](int32 EdgeID)
 		{
-			TrianglesOut.Add(EdgePair.A);
-		}
-		if (EdgePair.B != InvalidID)
-		{
-			TrianglesOut.Add(EdgePair.B);
-		}
-	});
+			FIndex2i EdgePair = GetOrderedOneRingEdgeTris(VertexID, EdgeID);
+			if (EdgePair.A != InvalidID)
+			{
+				TrianglesOut.Add(EdgePair.A);
+			}
+			if (EdgePair.B != InvalidID)
+			{
+				TrianglesOut.Add(EdgePair.B);
+			}
+		});
+	}
 }
 
 
 void FDynamicMesh3::EnumerateVertexTriangles(int32 VertexID, TFunctionRef<void(int32)> ApplyFunc) const
 {
-	check(VertexRefCounts.IsValid(VertexID));
-	VertexEdgeLists.Enumerate(VertexID, [&](int32 EdgeID)
+	checkSlow(VertexRefCounts.IsValid(VertexID));
+	if (VertexRefCounts.IsValid(VertexID))
 	{
-		FIndex2i EdgePair = GetOrderedOneRingEdgeTris(VertexID, EdgeID);
-		if (EdgePair.A != InvalidID)
+		VertexEdgeLists.Enumerate(VertexID, [&](int32 EdgeID)
 		{
-			ApplyFunc(EdgePair.A);
-		}
-		if (EdgePair.B != InvalidID)
-		{
-			ApplyFunc(EdgePair.B);
-		}
-	});
+			FIndex2i EdgePair = GetOrderedOneRingEdgeTris(VertexID, EdgeID);
+			if (EdgePair.A != InvalidID)
+			{
+				ApplyFunc(EdgePair.A);
+			}
+			if (EdgePair.B != InvalidID)
+			{
+				ApplyFunc(EdgePair.B);
+			}
+		});
+	}
 }
 
 
@@ -1166,8 +1172,8 @@ int32 FDynamicMesh3::FindEdgeInternal(int32 vA, int32 vB, bool& bIsBoundary) con
 
 int FDynamicMesh3::FindEdge(int vA, int vB) const
 {
-	check(IsVertex(vA));
-	check(IsVertex(vB));
+	checkSlow(IsVertex(vA));
+	checkSlow(IsVertex(vB));
 	if (vA == vB)
 	{
 		// self-edges are not allowed, and if we fall through to the search below on a self edge we will incorrectly
@@ -1182,10 +1188,17 @@ int FDynamicMesh3::FindEdge(int vA, int vB) const
 	{
 		vMax = vB; vMin = vA;
 	}
-	return VertexEdgeLists.Find(vMin, [&](int32 eid)
+	if (IsVertex(vMin))
 	{
-		return (Edges[eid].Vert[1] == vMax);
-	}, InvalidID);
+		return VertexEdgeLists.Find(vMin, [&](int32 eid)
+		{
+			return (Edges[eid].Vert[1] == vMax);
+		}, InvalidID);
+	}
+	else
+	{
+		return InvalidID;
+	}
 
 	// this is slower, likely because it creates func<> every time. can we do w/o that?
 	//return VertexEdgeLists.Find(vI, (eid) => { return Edges[4 * eid + 1] == vO; }, InvalidID);

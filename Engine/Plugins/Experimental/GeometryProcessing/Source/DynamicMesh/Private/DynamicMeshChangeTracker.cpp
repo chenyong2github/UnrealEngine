@@ -114,7 +114,7 @@ void TDynamicMeshAttributeChange<RealType,ElementSize>::ApplyReplaceChange(TDyna
 		{
 			const RealType* Data = &InsertElementData[ElemInfo.DataIndex];
 			EMeshResult Result = Overlay->InsertElement(ElemInfo.ElementID, Data, bUseUnsafe);
-			check(Result == EMeshResult::Ok);
+			ensure(Result == EMeshResult::Ok);
 		}
 		else
 		{
@@ -130,10 +130,10 @@ void TDynamicMeshAttributeChange<RealType,ElementSize>::ApplyReplaceChange(TDyna
 	// set new element triangles
 	for (const FChangeTriangle& TriInfo : InsertTris)
 	{
-		check(Overlay->GetParentMesh()->IsTriangle(TriInfo.TriangleID));
+		checkSlow(Overlay->GetParentMesh()->IsTriangle(TriInfo.TriangleID));
 		// existing overlay triangle should be empty...
 		EMeshResult Result = Overlay->SetTriangle(TriInfo.TriangleID, TriInfo.Elements);
-		check(Result == EMeshResult::Ok);
+		ensure(Result == EMeshResult::Ok);
 	}
 }
 
@@ -249,7 +249,7 @@ void FDynamicMeshChange::ApplyReplaceChange(FDynamicMesh3* Mesh,
 	for (const FChangeTriangle& TriInfo : RemoveTris)
 	{
 		EMeshResult Result = Mesh->RemoveTriangle(TriInfo.TriangleID);
-		check(Result == EMeshResult::Ok);
+		ensure(Result == EMeshResult::Ok);
 	}
 
 	// if this is true, we use unsafe insert, which means we take shortcuts
@@ -269,7 +269,7 @@ void FDynamicMeshChange::ApplyReplaceChange(FDynamicMesh3* Mesh,
 		if (Mesh->IsVertex(VertInfo.VertexID) == false)
 		{
 			EMeshResult Result = Mesh->InsertVertex(VertInfo.VertexID, VertInfo.Info, bUseUnsafe);
-			check(Result == EMeshResult::Ok);
+			ensure(Result == EMeshResult::Ok);
 		}
 		else
 		{
@@ -301,7 +301,7 @@ void FDynamicMeshChange::ApplyReplaceChange(FDynamicMesh3* Mesh,
 	for (const FChangeTriangle& TriInfo : InsertTris)
 	{
 		EMeshResult Result = Mesh->InsertTriangle(TriInfo.TriangleID, TriInfo.Vertices, TriInfo.GroupID, bUseUnsafe);
-		check(Result == EMeshResult::Ok);
+		ensure(Result == EMeshResult::Ok);
 	}
 	if (bUseUnsafe)
 	{
@@ -331,9 +331,9 @@ void FDynamicMeshChange::VerifySaveState() const
 
 	for (const FChangeTriangle& TriInfo : OldTriangles)
 	{
-		check(SavedVertexIDs.Contains(TriInfo.Vertices.A));
-		check(SavedVertexIDs.Contains(TriInfo.Vertices.B));
-		check(SavedVertexIDs.Contains(TriInfo.Vertices.C));
+		ensure(SavedVertexIDs.Contains(TriInfo.Vertices.A));
+		ensure(SavedVertexIDs.Contains(TriInfo.Vertices.B));
+		ensure(SavedVertexIDs.Contains(TriInfo.Vertices.C));
 	}
 }
 
@@ -358,7 +358,7 @@ FDynamicMeshAttributeSetChangeTracker::FDynamicMeshAttributeSetChangeTracker(con
 void FDynamicMeshAttributeSetChangeTracker::BeginChange()
 {
 	// initialize new attribute set change
-	check(Change == nullptr);
+	ensure(Change == nullptr);
 	Change = new FDynamicMeshAttributeChangeSet();
 	int NumUVLayers = Attribs->NumUVLayers();
 	Change->UVChanges.SetNum(NumUVLayers);
@@ -625,7 +625,8 @@ void FDynamicMeshAttributeSetChangeTracker::StoreAllFinalVertices(const TArray<i
 bool FDynamicMeshAttributeChangeSet::Apply(FDynamicMeshAttributeSet* Attributes, bool bRevert) const
 {
 	int NumUVLayers = Attributes->NumUVLayers();
-	check(NumUVLayers == UVChanges.Num());
+	ensure(NumUVLayers == UVChanges.Num());
+	NumUVLayers = FMath::Min(NumUVLayers, UVChanges.Num());
 	for (int k = 0; k < NumUVLayers; ++k)
 	{
 		FDynamicMeshUVOverlay* UVLayer = Attributes->GetUVLayer(k);
@@ -633,7 +634,8 @@ bool FDynamicMeshAttributeChangeSet::Apply(FDynamicMeshAttributeSet* Attributes,
 	}
 
 	int NumNormalLayers = Attributes->NumNormalLayers();
-	check(NumNormalLayers == NormalChanges.Num());
+	ensure(NumNormalLayers == NormalChanges.Num());
+	NumNormalLayers = FMath::Min(NumNormalLayers, NormalChanges.Num());
 	for (int k = 0; k < NumNormalLayers; ++k)
 	{
 		FDynamicMeshNormalOverlay* NormalLayer = Attributes->GetNormalLayer(k);
@@ -700,7 +702,7 @@ FDynamicMeshChangeTracker::~FDynamicMeshChangeTracker()
 
 void FDynamicMeshChangeTracker::BeginChange()
 {
-	check(Change == nullptr);
+	ensure(Change == nullptr);
 	Change = new FDynamicMeshChange();
 
 	// @todo should we do this on EndChange() so that delay is at end of stroke instead of beginning?

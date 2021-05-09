@@ -369,7 +369,7 @@ void FDynamicMeshAttributeSet::SetNumUVLayers(int Num)
 	{
 		UVLayers.RemoveAt(Num, UVLayers.Num() - Num);
 	}
-	check(UVLayers.Num() == Num);
+	ensure(UVLayers.Num() == Num);
 }
 
 
@@ -402,7 +402,7 @@ void FDynamicMeshAttributeSet::SetNumNormalLayers(int Num)
 	{
 		NormalLayers.RemoveAt(Num, UVLayers.Num() - Num);
 	}
-	check(NormalLayers.Num() == Num);
+	ensure(NormalLayers.Num() == Num);
 }
 
 void FDynamicMeshAttributeSet::EnablePrimaryColors()
@@ -441,7 +441,7 @@ void FDynamicMeshAttributeSet::SetNumPolygroupLayers(int32 Num)
 	{
 		PolygroupLayers.RemoveAt(Num, PolygroupLayers.Num() - Num);
 	}
-	check(PolygroupLayers.Num() == Num);
+	ensure(PolygroupLayers.Num() == Num);
 }
 
 FDynamicMeshPolygroupAttribute* FDynamicMeshAttributeSet::GetPolygroupLayer(int Index)
@@ -600,17 +600,21 @@ bool FDynamicMeshAttributeSet::IsMaterialBoundaryEdge(int EdgeID) const
 	{
 		return false;
 	}
-	check(ParentMesh->IsEdge(EdgeID));
-	const FDynamicMesh3::FEdge Edge = ParentMesh->GetEdge(EdgeID);
-	const int Tri0 = Edge.Tri[0];
-	const int Tri1 = Edge.Tri[1];
-	if (( Tri0 == IndexConstants::InvalidID ) || (Tri1 == IndexConstants::InvalidID))
+	checkSlow(ParentMesh->IsEdge(EdgeID));
+	if (ParentMesh->IsEdge(EdgeID))
 	{
-		return false;
+		const FDynamicMesh3::FEdge Edge = ParentMesh->GetEdge(EdgeID);
+		const int Tri0 = Edge.Tri[0];
+		const int Tri1 = Edge.Tri[1];
+		if ((Tri0 == IndexConstants::InvalidID) || (Tri1 == IndexConstants::InvalidID))
+		{
+			return false;
+		}
+		const int MatID0 = MaterialIDAttrib->GetValue(Tri0);
+		const int MatID1 = MaterialIDAttrib->GetValue(Tri1);
+		return MatID0 != MatID1;
 	}
-	const int MatID0 = MaterialIDAttrib->GetValue(Tri0);
-	const int MatID1 = MaterialIDAttrib->GetValue(Tri1);
-	return MatID0 != MatID1;
+	return false;
 }
 
 void FDynamicMeshAttributeSet::OnNewVertex(int VertexID, bool bInserted)

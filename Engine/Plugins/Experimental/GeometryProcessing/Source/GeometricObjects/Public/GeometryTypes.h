@@ -40,7 +40,8 @@ enum class EMeshResult
 	Failed_TriangleAlreadyExists = 51,
 	Failed_CannotAllocateTriangle = 52,
 
-	Failed_UnrecoverableError = 1000
+	Failed_UnrecoverableError = 1000,
+	Failed_Unsupported = 1001
 };
 
 

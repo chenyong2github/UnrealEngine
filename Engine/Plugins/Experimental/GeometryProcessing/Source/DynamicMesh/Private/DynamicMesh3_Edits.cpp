@@ -152,7 +152,7 @@ int FDynamicMesh3::AppendTriangle(const FIndex3i& tv, int gid)
 {
 	if (IsVertex(tv[0]) == false || IsVertex(tv[1]) == false || IsVertex(tv[2]) == false)
 	{
-		check(false);
+		checkSlow(false);
 		return InvalidID;
 	}
 	if (!ensure(tv[0] != tv[1] && tv[0] != tv[2] && tv[1] != tv[2]))
@@ -227,12 +227,12 @@ EMeshResult FDynamicMesh3::InsertTriangle(int tid, const FIndex3i& tv, int gid, 
 
 	if (IsVertex(tv[0]) == false || IsVertex(tv[1]) == false || IsVertex(tv[2]) == false)
 	{
-		check(false);
+		checkSlow(false);
 		return EMeshResult::Failed_NotAVertex;
 	}
 	if (tv[0] == tv[1] || tv[0] == tv[2] || tv[1] == tv[2])
 	{
-		check(false);
+		checkSlow(false);
 		return EMeshResult::Failed_InvalidNeighbourhood;
 	}
 
@@ -534,7 +534,7 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 
 	if (HasAttributes())
 	{
-		check(CompactInfo);
+		checkSlow(CompactInfo);		// can this ever fail?
 		AttributeSet->CompactInPlace(*CompactInfo);
 	}
 
@@ -638,7 +638,7 @@ EMeshResult FDynamicMesh3::RemoveVertex(int vID, bool bRemoveAllTriangles, bool 
 	}
 
 	VertexRefCounts.Decrement(vID);
-	check(VertexRefCounts.IsValid(vID) == false);
+	ensure(VertexRefCounts.IsValid(vID) == false);
 	VertexEdgeLists.Clear(vID);
 
 	UpdateTimeStamp(true, true);
@@ -656,7 +656,7 @@ EMeshResult FDynamicMesh3::RemoveTriangle(int tID, bool bRemoveIsolatedVertices,
 {
 	if (!TriangleRefCounts.IsValid(tID))
 	{
-		check(false);
+		ensure(false);
 		return EMeshResult::Failed_NotATriangle;
 	}
 
@@ -701,7 +701,7 @@ EMeshResult FDynamicMesh3::RemoveTriangle(int tID, bool bRemoveIsolatedVertices,
 
 	// free this triangle
 	TriangleRefCounts.Decrement(tID);
-	check(TriangleRefCounts.IsValid(tID) == false);
+	checkSlow(TriangleRefCounts.IsValid(tID) == false);
 
 	// Decrement vertex refcounts. If any hit 1 and we got remove-isolated flag,
 	// we need to remove that vertex
@@ -712,7 +712,7 @@ EMeshResult FDynamicMesh3::RemoveTriangle(int tID, bool bRemoveIsolatedVertices,
 		if (bRemoveIsolatedVertices && VertexRefCounts.GetRefCount(vid) == 1)
 		{
 			VertexRefCounts.Decrement(vid);
-			check(VertexRefCounts.IsValid(vid) == false);
+			checkSlow(VertexRefCounts.IsValid(vid) == false);
 			VertexEdgeLists.Clear(vid);
 		}
 	}
@@ -735,7 +735,10 @@ EMeshResult FDynamicMesh3::RemoveTriangle(int tID, bool bRemoveIsolatedVertices,
 EMeshResult FDynamicMesh3::SetTriangle(int tID, const FIndex3i& newv, bool bRemoveIsolatedVertices)
 {
 	// @todo support this.
-	check(HasAttributes() == false);
+	if (ensure(HasAttributes()) == false)
+	{
+		return EMeshResult::Failed_Unsupported;
+	}
 
 	FIndex3i tv = GetTriangle(tID);
 	FIndex3i te = GetTriEdges(tID);
@@ -754,17 +757,17 @@ EMeshResult FDynamicMesh3::SetTriangle(int tID, const FIndex3i& newv, bool bRemo
 
 	if (!TriangleRefCounts.IsValid(tID))
 	{
-		check(false);
+		checkSlow(false);
 		return EMeshResult::Failed_NotATriangle;
 	}
 	if (IsVertex(newv[0]) == false || IsVertex(newv[1]) == false || IsVertex(newv[2]) == false)
 	{
-		check(false);
+		checkSlow(false);
 		return EMeshResult::Failed_NotAVertex;
 	}
 	if (newv[0] == newv[1] || newv[0] == newv[2] || newv[1] == newv[2])
 	{
-		check(false);
+		checkSlow(false);
 		return EMeshResult::Failed_BrokenTopology;
 	}
 	// look up edges. if any already have two triangles, this would
@@ -817,7 +820,7 @@ EMeshResult FDynamicMesh3::SetTriangle(int tID, const FIndex3i& newv, bool bRemo
 		if (bRemoveIsolatedVertices && VertexRefCounts.GetRefCount(vid) == 1)
 		{
 			VertexRefCounts.Decrement(vid);
-			check(VertexRefCounts.IsValid(vid) == false);
+			checkSlow(VertexRefCounts.IsValid(vid) == false);
 			VertexEdgeLists.Clear(vid);
 		}
 	}
@@ -1129,12 +1132,12 @@ EMeshResult FDynamicMesh3::FlipEdge(int eab, FEdgeFlipInfo& FlipInfo)
 	// update the two other edges whose triangle nbrs have changed
 	if (ReplaceEdgeTriangle(eca, t0, t1) == -1)
 	{
-		checkf(false, TEXT("FDynamicMesh3.FlipEdge: first ReplaceEdgeTriangle failed"));
+		checkfSlow(false, TEXT("FDynamicMesh3.FlipEdge: first ReplaceEdgeTriangle failed"));
 		return EMeshResult::Failed_UnrecoverableError;
 	}
 	if (ReplaceEdgeTriangle(edb, t1, t0) == -1)
 	{
-		checkf(false, TEXT("FDynamicMesh3.FlipEdge: second ReplaceEdgeTriangle failed"));
+		checkfSlow(false, TEXT("FDynamicMesh3.FlipEdge: second ReplaceEdgeTriangle failed"));
 		return EMeshResult::Failed_UnrecoverableError;
 	}
 
@@ -1145,19 +1148,19 @@ EMeshResult FDynamicMesh3::FlipEdge(int eab, FEdgeFlipInfo& FlipInfo)
 	// remove old eab from verts a and b, and Decrement ref counts
 	if (VertexEdgeLists.Remove(a, eab) == false)
 	{
-		checkf(false, TEXT("FDynamicMesh3.FlipEdge: first edge list remove failed"));
+		checkfSlow(false, TEXT("FDynamicMesh3.FlipEdge: first edge list remove failed"));
 		return EMeshResult::Failed_UnrecoverableError;
 	}
 	if (VertexEdgeLists.Remove(b, eab) == false)
 	{
-		checkf(false, TEXT("FDynamicMesh3.FlipEdge: second edge list remove failed"));
+		checkfSlow(false, TEXT("FDynamicMesh3.FlipEdge: second edge list remove failed"));
 		return EMeshResult::Failed_UnrecoverableError;
 	}
 	VertexRefCounts.Decrement(a);
 	VertexRefCounts.Decrement(b);
 	if (IsVertex(a) == false || IsVertex(b) == false)
 	{
-		checkf(false, TEXT("FDynamicMesh3.FlipEdge: either a or b is not a vertex?"));
+		checkfSlow(false, TEXT("FDynamicMesh3.FlipEdge: either a or b is not a vertex?"));
 		return EMeshResult::Failed_UnrecoverableError;
 	}
 
@@ -1430,7 +1433,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 		{
 			if (VertexEdgeLists.Remove(b, eid) != true)
 			{
-				checkf(false, TEXT("FDynamicMesh3::CollapseEdge: failed at remove case o == b"));
+				checkfSlow(false, TEXT("FDynamicMesh3::CollapseEdge: failed at remove case o == b"));
 				return EMeshResult::Failed_UnrecoverableError;
 			}
 		}
@@ -1438,7 +1441,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 		{
 			if (VertexEdgeLists.Remove(c, eid) != true)
 			{
-				checkf(false, TEXT("FDynamicMesh3::CollapseEdge: failed at remove case o == c"));
+				checkfSlow(false, TEXT("FDynamicMesh3::CollapseEdge: failed at remove case o == c"));
 				return EMeshResult::Failed_UnrecoverableError;
 			}
 			tac = GetOtherEdgeTriangle(eid, t0);
@@ -1447,7 +1450,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 		{
 			if (VertexEdgeLists.Remove(d, eid) != true)
 			{
-				checkf(false, TEXT("FDynamicMesh3::CollapseEdge: failed at remove case o == c, step 1"));
+				checkfSlow(false, TEXT("FDynamicMesh3::CollapseEdge: failed at remove case o == c, step 1"));
 				return EMeshResult::Failed_UnrecoverableError;
 			}
 			tad = GetOtherEdgeTriangle(eid, t1);
@@ -1456,7 +1459,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 		{
 			if (ReplaceEdgeVertex(eid, a, b) == -1)
 			{
-				checkf(false, TEXT("FDynamicMesh3::CollapseEdge: failed at remove case else"));
+				checkfSlow(false, TEXT("FDynamicMesh3::CollapseEdge: failed at remove case else"));
 				return EMeshResult::Failed_UnrecoverableError;
 			}
 			VertexEdgeLists.Insert(b, eid);
@@ -1473,7 +1476,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 				{
 					if (ReplaceTriangleVertex(t_j, a, b) == -1)
 					{
-						checkf(false, TEXT("FDynamicMesh3::CollapseEdge: failed at remove last check"));
+						checkfSlow(false, TEXT("FDynamicMesh3::CollapseEdge: failed at remove last check"));
 						return EMeshResult::Failed_UnrecoverableError;
 					}
 					VertexRefCounts.Increment(b);
@@ -1487,9 +1490,9 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 	{
 		// remove all edges from vtx a, then remove vtx a
 		VertexEdgeLists.Clear(a);
-		check(VertexRefCounts.GetRefCount(a) == 3);		// in t0,t1, and initial ref
+		checkSlow(VertexRefCounts.GetRefCount(a) == 3);		// in t0,t1, and initial ref
 		VertexRefCounts.Decrement(a, 3);
-		check(VertexRefCounts.IsValid(a) == false);
+		checkSlow(VertexRefCounts.IsValid(a) == false);
 
 		// remove triangles T0 and T1, and update b/c/d refcounts
 		TriangleRefCounts.Decrement(t0);
@@ -1497,16 +1500,16 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 		VertexRefCounts.Decrement(c);
 		VertexRefCounts.Decrement(d);
 		VertexRefCounts.Decrement(b, 2);
-		check(TriangleRefCounts.IsValid(t0) == false);
-		check(TriangleRefCounts.IsValid(t1) == false);
+		checkSlow(TriangleRefCounts.IsValid(t0) == false);
+		checkSlow(TriangleRefCounts.IsValid(t1) == false);
 
 		// remove edges ead, eab, eac
 		EdgeRefCounts.Decrement(ead);
 		EdgeRefCounts.Decrement(eab);
 		EdgeRefCounts.Decrement(eac);
-		check(EdgeRefCounts.IsValid(ead) == false);
-		check(EdgeRefCounts.IsValid(eab) == false);
-		check(EdgeRefCounts.IsValid(eac) == false);
+		checkSlow(EdgeRefCounts.IsValid(ead) == false);
+		checkSlow(EdgeRefCounts.IsValid(eab) == false);
+		checkSlow(EdgeRefCounts.IsValid(eac) == false);
 
 		// replace t0 and t1 in edges ebd and ebc that we kept
 		ebd = FindEdgeFromTri(b, d, t1);
@@ -1517,13 +1520,13 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 
 		if (ReplaceEdgeTriangle(ebd, t1, tad) == -1)
 		{
-			checkf(false, TEXT("FDynamicMesh3::CollapseEdge: failed at isboundary=false branch, ebd replace triangle"));
+			checkfSlow(false, TEXT("FDynamicMesh3::CollapseEdge: failed at isboundary=false branch, ebd replace triangle"));
 			return EMeshResult::Failed_UnrecoverableError;
 		}
 
 		if (ReplaceEdgeTriangle(ebc, t0, tac) == -1)
 		{
-			checkf(false, TEXT("FDynamicMesh3::CollapseEdge: failed at isboundary=false branch, ebc replace triangle"));
+			checkfSlow(false, TEXT("FDynamicMesh3::CollapseEdge: failed at isboundary=false branch, ebc replace triangle"));
 			return EMeshResult::Failed_UnrecoverableError;
 		}
 
@@ -1532,7 +1535,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 		{
 			if (ReplaceTriangleEdge(tad, ead, ebd) == -1)
 			{
-				checkf(false, TEXT("FDynamicMesh3::CollapseEdge: failed at isboundary=false branch, ebd replace triangle"));
+				checkfSlow(false, TEXT("FDynamicMesh3::CollapseEdge: failed at isboundary=false branch, ebd replace triangle"));
 				return EMeshResult::Failed_UnrecoverableError;
 			}
 		}
@@ -1540,7 +1543,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 		{
 			if (ReplaceTriangleEdge(tac, eac, ebc) == -1)
 			{
-				checkf(false, TEXT("FDynamicMesh3::CollapseEdge: failed at isboundary=false branch, ebd replace triangle"));
+				checkfSlow(false, TEXT("FDynamicMesh3::CollapseEdge: failed at isboundary=false branch, ebd replace triangle"));
 				return EMeshResult::Failed_UnrecoverableError;
 			}
 		}
@@ -1552,27 +1555,27 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 
 		// remove all edges from vtx a, then remove vtx a
 		VertexEdgeLists.Clear(a);
-		check(VertexRefCounts.GetRefCount(a) == 2);		// in t0 and initial ref
+		checkSlow(VertexRefCounts.GetRefCount(a) == 2);		// in t0 and initial ref
 		VertexRefCounts.Decrement(a, 2);
-		check(VertexRefCounts.IsValid(a) == false);
+		checkSlow(VertexRefCounts.IsValid(a) == false);
 
 		// remove triangle T0 and update b/c refcounts
 		TriangleRefCounts.Decrement(t0);
 		VertexRefCounts.Decrement(c);
 		VertexRefCounts.Decrement(b);
-		check(TriangleRefCounts.IsValid(t0) == false);
+		checkSlow(TriangleRefCounts.IsValid(t0) == false);
 
 		// remove edges eab and eac
 		EdgeRefCounts.Decrement(eab);
 		EdgeRefCounts.Decrement(eac);
-		check(EdgeRefCounts.IsValid(eab) == false);
-		check(EdgeRefCounts.IsValid(eac) == false);
+		checkSlow(EdgeRefCounts.IsValid(eab) == false);
+		checkSlow(EdgeRefCounts.IsValid(eac) == false);
 
 		// replace t0 in edge ebc that we kept
 		ebc = FindEdgeFromTri(b, c, t0);
 		if (ReplaceEdgeTriangle(ebc, t0, tac) == -1)
 		{
-			checkf(false, TEXT("FDynamicMesh3::CollapseEdge: failed at isboundary=false branch, ebc replace triangle"));
+			checkfSlow(false, TEXT("FDynamicMesh3::CollapseEdge: failed at isboundary=false branch, ebc replace triangle"));
 			return EMeshResult::Failed_UnrecoverableError;
 		}
 
@@ -1581,7 +1584,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 		{
 			if (ReplaceTriangleEdge(tac, eac, ebc) == -1)
 			{
-				checkf(false, TEXT("FDynamicMesh3::CollapseEdge: failed at isboundary=true branch, ebd replace triangle"));
+				checkfSlow(false, TEXT("FDynamicMesh3::CollapseEdge: failed at isboundary=true branch, ebd replace triangle"));
 				return EMeshResult::Failed_UnrecoverableError;
 			}
 		}

@@ -48,8 +48,7 @@ int FDynamicMesh3::GetVtxBoundaryEdges(int vID, int& e0, int& e1) const
 		}
 		return count;
 	}
-	check(false);
-	return -1;
+	return 0;
 }
 
 
@@ -68,8 +67,7 @@ int FDynamicMesh3::GetAllVtxBoundaryEdges(int vID, TArray<int>& EdgeListOut) con
 		}
 		return count;
 	}
-	check(false);
-	return -1;
+	return 0;
 }
 
 
@@ -278,8 +276,11 @@ EMeshResult FDynamicMesh3::GetVtxContiguousTriangles(int VertexID, TArray<int>& 
 			if (NextTriID == InvalidID)
 			{
 				// remove the corresponding boundary
-				check(StartEdgeIDs.Num() > 0);
-				StartEdgeIDs.RemoveSingleSwap(NextEID);
+				checkSlow(StartEdgeIDs.Num() > 0);
+				if (StartEdgeIDs.Num() > 0)
+				{
+					StartEdgeIDs.RemoveSingleSwap(NextEID);
+				}
 				break;
 			}
 			WalkTri = NextTriID;
@@ -288,19 +289,20 @@ EMeshResult FDynamicMesh3::GetVtxContiguousTriangles(int VertexID, TArray<int>& 
 		SpanLengths.Add(TrianglesOut.Num() - SpanStart);
 	}
 
-	check(SpanLengths.Num() == IsLoop.Num());
-
-	return EMeshResult::Ok;
+	return ensure(SpanLengths.Num() == IsLoop.Num()) ? EMeshResult::Ok : EMeshResult::Failed_InvalidNeighbourhood;
 }
 
 bool FDynamicMesh3::IsBoundaryVertex(int vID) const
 {
-	check(IsVertex(vID));
-	for (int eid : VertexEdgeLists.Values(vID))
+	checkSlow(IsVertex(vID));
+	if ( IsVertex(vID) )
 	{
-		if (Edges[eid].Tri[1] == InvalidID)
+		for (int eid : VertexEdgeLists.Values(vID))
 		{
-			return true;
+			if (Edges[eid].Tri[1] == InvalidID)
+			{
+				return true;
+			}
 		}
 	}
 	return false;
@@ -308,9 +310,16 @@ bool FDynamicMesh3::IsBoundaryVertex(int vID) const
 
 bool FDynamicMesh3::IsBoundaryTriangle(int tID) const
 {
-	check(IsTriangle(tID));
-	const FIndex3i& TriEdgeIDs = TriangleEdges[tID];
-	return IsBoundaryEdge(TriEdgeIDs[0]) || IsBoundaryEdge(TriEdgeIDs[1]) || IsBoundaryEdge(TriEdgeIDs[2]);
+	checkSlow(IsTriangle(tID));
+	if (IsTriangle(tID))
+	{
+		const FIndex3i& TriEdgeIDs = TriangleEdges[tID];
+		return IsBoundaryEdge(TriEdgeIDs[0]) || IsBoundaryEdge(TriEdgeIDs[1]) || IsBoundaryEdge(TriEdgeIDs[2]);
+	}
+	else
+	{
+		return false;
+	}
 }
 
 FIndex2i FDynamicMesh3::GetOrientedBoundaryEdgeV(int eID) const
@@ -327,7 +336,7 @@ FIndex2i FDynamicMesh3::GetOrientedBoundaryEdgeV(int eID) const
 			return FIndex2i(tri[ai], tri[(ai + 1) % 3]);
 		}
 	}
-	check(false);
+	checkSlow(false);
 	return InvalidEdge;
 }
 
@@ -489,7 +498,11 @@ bool FDynamicMesh3::GetAllVertexGroups(int vID, TArray<int>& GroupsOut) const
  */
 bool FDynamicMesh3::IsBowtieVertex(int vID) const
 {
-	check(VertexRefCounts.IsValid(vID));
+	checkSlow(VertexRefCounts.IsValid(vID));
+	if (VertexRefCounts.IsValid(vID) == false)
+	{
+		return false;
+	}
 
 	int nEdges = VertexEdgeLists.GetCount(vID);
 	if (nEdges == 0)
@@ -690,7 +703,7 @@ FVector3d FDynamicMesh3::GetEdgeNormal(int eID) const
 		}
 		return n;
 	}
-	check(false);
+	checkSlow(false);
 	return FVector3d::Zero();
 }
 
@@ -705,7 +718,7 @@ FVector3d FDynamicMesh3::GetEdgePoint(int eID, double t) const
 		double mt = 1.0 - t;
 		return mt*Vertices[iv0] + t * Vertices[iv1];
 	}
-	check(false);
+	checkSlow(false);
 	return FVector3d::Zero();
 }
 
@@ -732,7 +745,10 @@ void FDynamicMesh3::GetVtxOneRingCentroid(int vID, FVector3d& centroid) const
 
 FFrame3d FDynamicMesh3::GetVertexFrame(int vID, bool bFrameNormalY) const
 {
-	check(HasVertexNormals());
+	if (ensure(HasVertexNormals()) == false)
+	{
+		return FFrame3d();
+	}
 
 	FVector3d v = Vertices[vID];
 	const TDynamicVector<FVector3f>& Normals = VertexNormals.GetValue();
@@ -793,12 +809,16 @@ FVector3d FDynamicMesh3::GetTriBaryPoint(int tID, double bary0, double bary1, do
 
 FVector3d FDynamicMesh3::GetTriBaryNormal(int tID, double bary0, double bary1, double bary2) const
 {
-	check(HasVertexNormals());
-	const FIndex3i& tIDs = Triangles[tID];
-	const TDynamicVector<FVector3f>& normalsR = VertexNormals.GetValue();
-	FVector3d n = FVector3d(bary0 * normalsR[tIDs[0]] + bary1 * normalsR[tIDs[1]] + bary2 * normalsR[tIDs[2]]);
-	Normalize(n);
-	return n;
+	checkSlow(HasVertexNormals());
+	if (HasVertexNormals())
+	{
+		const FIndex3i& tIDs = Triangles[tID];
+		const TDynamicVector<FVector3f>& normalsR = VertexNormals.GetValue();
+		FVector3d n = FVector3d(bary0 * normalsR[tIDs[0]] + bary1 * normalsR[tIDs[1]] + bary2 * normalsR[tIDs[2]]);
+		Normalize(n);
+		return n;
+	}
+	return FVector3d::Zero();
 }
 
 FVector3d FDynamicMesh3::GetTriCentroid(int tID) const

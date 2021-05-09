@@ -118,8 +118,10 @@ public:
 			{
 				continue;
 			}
-			check(ToVID <= VID);
-			CopyValue(VID, ToVID);
+			if (ensure(ToVID <= VID))
+			{
+				CopyValue(VID, ToVID);
+			}
 		}
 		AttribValues.Resize(Parent->MaxVertexID() * AttribDimension);
 	}
@@ -435,8 +437,12 @@ bool TDynamicVertexAttributeChange<AttribValueType, AttribDimension, ParentType>
 	TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>* AttribCast = static_cast<TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>*>(Attribute);
 	for (const FChangeVertexAttribute& Change : *Changes)
 	{
-		check(AttribCast->GetParent()->IsVertex(Change.VertexID));
-		AttribCast->SetValue(Change.VertexID, Change.Data);
+		bool bIsVertex = AttribCast->GetParent()->IsVertex(Change.VertexID);
+		check(bIsVertex);
+		if (bIsVertex)
+		{
+			AttribCast->SetValue(Change.VertexID, Change.Data);
+		}
 	}
 	return true;
 }

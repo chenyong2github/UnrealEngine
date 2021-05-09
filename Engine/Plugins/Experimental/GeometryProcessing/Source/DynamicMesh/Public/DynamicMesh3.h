@@ -219,8 +219,11 @@ public:
 	void Copy(const FDynamicMesh3& CopyMesh, bool bNormals = true, bool bColors = true, bool bUVs = true,
 	          bool bAttributes = true);
 
-	/** Initialize mesh from the output of a MeshShapeGenerator (assumes Generate() was already called) */
-	void Copy(const FMeshShapeGenerator* Generator);
+	/** 
+	  * Initialize mesh from the output of a MeshShapeGenerator (assumes Generate() was already called) 
+	  * @return false if any triangles defined in Generator were skipped due to invalid topology
+	  */
+	bool Copy(const FMeshShapeGenerator* Generator);
 
 	/** 
 	 * Copy input mesh while compacting, i.e. removing unused vertices/triangles/edges. 

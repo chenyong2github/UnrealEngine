@@ -131,8 +131,10 @@ public:
 			{
 				continue;
 			}
-			check(ToTID <= TID);
-			CopyValue(TID, ToTID);
+			if (ensure(ToTID <= TID))
+			{
+				CopyValue(TID, ToTID);
+			}
 		}
 		AttribValues.Resize(ParentMesh->MaxTriangleID() * AttribDimension);
 	}
@@ -443,8 +445,12 @@ bool FDynamicMeshTriangleAttributeChange<AttribValueType, AttribDimension>::Appl
 	const TArray<FChangeTriangleAttribute> *Changes = bRevert ? &OldTriangleAttributes : &NewTriangleAttributes;
 	for (const FChangeTriangleAttribute& Change : *Changes)
 	{
-		check(AttribCast->GetParentMesh()->IsTriangle(Change.TriangleID));
-		AttribCast->SetValue(Change.TriangleID, Change.Data);
+		bool bIsTriangle = AttribCast->GetParentMesh()->IsTriangle(Change.TriangleID);
+		checkSlow(bIsTriangle);
+		if (bIsTriangle)
+		{
+			AttribCast->SetValue(Change.TriangleID, Change.Data);
+		}
 	}
 	return true;
 }

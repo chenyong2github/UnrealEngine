@@ -271,7 +271,10 @@ void TDynamicMeshOverlay<RealType, ElementSize>::SplitBowties()
 		{
 			bool bIsLoop = GroupIsLoop[GroupIdx];
 			int TriInGroupNum = ContiguousGroupLengths[GroupIdx];
-			check(TriInGroupNum > 0);
+			if (ensure(TriInGroupNum > 0) == false)
+			{
+				continue;
+			}
 			int TriSubEnd = TriSubStart + TriInGroupNum;
 			
 			GroupElementIDs.Reset();
@@ -364,12 +367,12 @@ EMeshResult TDynamicMeshOverlay<RealType, ElementSize>::SetTriangle(int tid, con
 {
 	if (IsElement(tv[0]) == false || IsElement(tv[1]) == false || IsElement(tv[2]) == false)
 	{
-		check(false);
+		checkSlow(false);
 		return EMeshResult::Failed_NotAVertex;
 	}
 	if (tv[0] == tv[1] || tv[0] == tv[2] || tv[1] == tv[2]) 
 	{
-		check(false);
+		checkSlow(false);
 		return EMeshResult::Failed_InvalidNeighbourhood;
 	}
 
@@ -404,7 +407,10 @@ void TDynamicMeshOverlay<RealType, ElementSize>::UnsetTriangle(int TriangleID)
 template<typename RealType, int ElementSize>
 void TDynamicMeshOverlay<RealType, ElementSize>::InternalSetTriangle(int tid, const FIndex3i& tv, bool bIncrementRefCounts)
 {
-	check(ParentMesh);
+	if (ensure(ParentMesh) == false)
+	{
+		return;
+	}
 
 	int i = 3 * tid;
 	ElementTriangles.InsertAt(tv[2], i + 2);
@@ -746,15 +752,18 @@ int TDynamicMeshOverlay<RealType, ElementSize>::CountVertexElements(int vid, boo
 template<typename RealType, int ElementSize>
 void TDynamicMeshOverlay<RealType, ElementSize>::GetElementTriangles(int ElementID, TArray<int>& OutTriangles) const
 {
-	check(ElementsRefCounts.IsValid(ElementID));
-	int VertexID = ParentVertices[ElementID];
-
-	for (int TriangleID : ParentMesh->VtxTrianglesItr(VertexID))
+	checkSlow(ElementsRefCounts.IsValid(ElementID));
+	if (ElementsRefCounts.IsValid(ElementID))
 	{
-		int i = 3 * TriangleID;
-		if (ElementTriangles[i] == ElementID || ElementTriangles[i+1] == ElementID || ElementTriangles[i+2] == ElementID)
+		int VertexID = ParentVertices[ElementID];
+
+		for (int TriangleID : ParentMesh->VtxTrianglesItr(VertexID))
 		{
-			OutTriangles.Add(TriangleID);
+			int i = 3 * TriangleID;
+			if (ElementTriangles[i] == ElementID || ElementTriangles[i+1] == ElementID || ElementTriangles[i+2] == ElementID)
+			{
+				OutTriangles.Add(TriangleID);
+			}
 		}
 	}
 }
@@ -781,7 +790,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnRemoveTriangle(int TriangleID
 		{
 			ElementsRefCounts.Decrement(elemid);
 			ParentVertices[elemid] = FDynamicMesh3::InvalidID;
-			check(ElementsRefCounts.IsValid(elemid) == false);
+			ensure(ElementsRefCounts.IsValid(elemid) == false);
 		}
 	}
 }
@@ -904,7 +913,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnFlipEdge(const FDynamicMesh3:
 	bool bT0Set = IsSetTriangle(orig_t0), bT1Set = IsSetTriangle(orig_t1);
 	if (!bT0Set)
 	{
-		check(!bT1Set); // flipping across a set/unset boundary is not allowed?
+		ensure(!bT1Set); // flipping across a set/unset boundary is not allowed?
 		return; // nothing to do on the overlay if both triangles are unset
 	}
 
@@ -928,12 +937,12 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnFlipEdge(const FDynamicMesh3:
 	int idx_base_d = IndexUtil::GetOtherTriIndex(idx_base_a2, idx_base_b2);
 
 	// sanity checks
-	check(idx_base_c == BaseTriangle0.IndexOf(base_c));
-	check(idx_base_d == BaseTriangle1.IndexOf(base_d));
+	checkSlow(idx_base_c == BaseTriangle0.IndexOf(base_c));
+	checkSlow(idx_base_d == BaseTriangle1.IndexOf(base_d));
 
 	// we should not have been called on a non-shared edge!!
 	bool bHasSharedUVEdge = IndexUtil::SamePairUnordered(Triangle0[idx_base_a1], Triangle0[idx_base_b1], Triangle1[idx_base_a2], Triangle1[idx_base_b2]);
-	check(bHasSharedUVEdge);
+	checkSlow(bHasSharedUVEdge);
 
 	int A = Triangle0[idx_base_a1];
 	int B = Triangle0[idx_base_b1];
@@ -1170,7 +1179,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnCollapseEdge(const FDynamicMe
 		if (removed_elemid[k] != FDynamicMesh3::InvalidID)
 	{
 			int rc = ElementsRefCounts.GetRefCount(removed_elemid[k]);
-			check(rc == 1);
+			ensure(rc == 1);
 			ElementsRefCounts.Decrement(removed_elemid[k]);
 			ParentVertices[removed_elemid[k]] = FDynamicMesh3::InvalidID;
 		}
