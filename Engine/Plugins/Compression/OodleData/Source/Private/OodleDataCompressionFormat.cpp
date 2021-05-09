@@ -186,6 +186,12 @@ struct FOodleDataCompressionFormat : ICompressionFormat
 		}
 		return TEXT("Unknown");
 	}
+	
+	virtual bool DoesOwnWorthDecompressingCheck() override
+	{
+		// Oodle does own "worth it" check internally, don't add one
+		return true;
+	}
 
 	virtual FName GetCompressionFormatName() override
 	{

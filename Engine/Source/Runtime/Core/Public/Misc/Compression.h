@@ -53,6 +53,8 @@ struct FCompression
 	/**
 	 * Thread-safe abstract compression routine. Compresses memory from uncompressed buffer and writes it to compressed
 	 * buffer. Updates CompressedSize with size of compressed data. Compression controlled by the passed in flags.
+	 * CompressMemory is expected to return true and write valid data even if it expanded bytes.
+	 * Always check CompressedSize >= UncompressedSize and fall back to uncompressed, or use CompressMemoryIfWorthDecompressing
 	 *
 	 * @param	Flags						Flags to control what method to use and optionally control memory vs speed
 	 * @param	CompressedBuffer			Buffer compressed data is going to be written to
@@ -63,6 +65,21 @@ struct FCompression
 	 * @return true if compression succeeds, false if it fails because CompressedBuffer was too small or other reasons
 	 */
 	CORE_API static bool CompressMemory(FName FormatName, void* CompressedBuffer, int32& CompressedSize, const void* UncompressedBuffer, int32 UncompressedSize, ECompressionFlags Flags=COMPRESS_NoFlags, int32 CompressionData=0);
+	
+	/**
+	* Same as CompressMemory but evaluates if the compression gain is worth the runtime decode time
+	* returns false if the size saving is not worth it (also if CompressedSize >= UncompressedSize)
+	* if false is returned, send the data uncompressed instead
+	 *
+	 * @param	Flags						Flags to control what method to use and optionally control memory vs speed
+	 * @param	CompressedBuffer			Buffer compressed data is going to be written to
+	 * @param	CompressedSize	[in/out]	Size of CompressedBuffer, at exit will be size of compressed data
+	 * @param	UncompressedBuffer			Buffer containing uncompressed data
+	 * @param	UncompressedSize			Size of uncompressed data in bytes
+	 * @param	BitWindow					Bit window to use in compression
+	 * @return true if compression succeeds, false if it fails because CompressedBuffer was too small or other reasons
+	 */
+	CORE_API static bool CompressMemoryIfWorthDecompressing(FName FormatName, void* CompressedBuffer, int32& CompressedSize, const void* UncompressedBuffer, int32 UncompressedSize, ECompressionFlags Flags=COMPRESS_NoFlags, int32 CompressionData=0);
 
 	/**
 	 * Thread-safe abstract decompression routine. Uncompresses memory from compressed buffer and writes it to uncompressed

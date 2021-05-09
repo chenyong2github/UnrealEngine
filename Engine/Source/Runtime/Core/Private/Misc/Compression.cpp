@@ -529,6 +529,86 @@ int32 FCompression::CompressMemoryBound(FName FormatName, int32 UncompressedSize
 }
 
 
+
+bool FCompression::CompressMemoryIfWorthDecompressing(FName FormatName, void* CompressedBuffer, int32& CompressedSize, const void* UncompressedBuffer, int32 UncompressedSize, ECompressionFlags Flags, int32 CompressionData)
+{
+	// returns false if we could compress,
+	//	but it's not worth the time to decompress
+	//	you should store the data uncompressed instead
+
+	const int MinBytesSaved = 1024; // @todo make this configurable?
+	if ( UncompressedSize <= MinBytesSaved )
+	{
+		// if input size is smaller than the number of bytes we need to save
+		// no need to even try encoding
+		// also saves encode time
+		return false;
+	}
+	
+	bool bNeedsWorthItCheck = false;
+	if (FormatName == NAME_Zlib)
+	{
+		// hardcoded zlib
+		bNeedsWorthItCheck = true;
+	}
+	else if (FormatName == NAME_Gzip)
+	{
+		// hardcoded gzip
+		bNeedsWorthItCheck = true;
+	}
+	else if (FormatName == NAME_LZ4)
+	{
+		// hardcoded lz4
+		bNeedsWorthItCheck = true;
+	}
+	else
+	{
+		ICompressionFormat* Format = GetCompressionFormat(FormatName);
+
+		if ( ! Format ) return false;
+
+		bNeedsWorthItCheck = ! Format->DoesOwnWorthDecompressingCheck();
+	}
+
+	bool bCompressSucceeded = CompressMemory(FormatName,CompressedBuffer,CompressedSize,UncompressedBuffer,UncompressedSize,Flags,CompressionData);
+
+	if ( ! bCompressSucceeded )
+	{
+		// compression actually failed
+		return false;
+	}
+
+	if ( ! bNeedsWorthItCheck )
+	{
+		// ICompressionFormat does own "worth it" check, don't do our own
+		// do check for expansion because that's how they signal "not worth it"
+		//	(CompressMemory is not allowed to return false)
+		return ( CompressedSize < UncompressedSize );
+	}
+
+	// we got compression, but do we want it ?
+	
+	// check if the decode time on load is worth the size savings
+	// Oodle uses much more sophisticated models for this
+	// here we replicate the Pak file logic :
+
+	// must save at least MinBytesSaved regardless of percentage (for small files)
+	// also checks CompressedSize >= UncompressedSize
+	int32 BytesSaved = UncompressedSize - CompressedSize;
+	if ( BytesSaved < MinBytesSaved )
+	{
+		return false;
+	}
+
+	// Check the compression ratio, if it's too low just store uncompressed. 
+	// 	saving 64 KB per 1 MB is 6%
+	// @todo make this configurable?
+	float PercentSaved = ((float)BytesSaved * 100.f / (float)UncompressedSize);
+	bool bWorthIt = PercentSaved >= 5.f;
+
+	return bWorthIt;
+}
+
 bool FCompression::CompressMemory(FName FormatName, void* CompressedBuffer, int32& CompressedSize, const void* UncompressedBuffer, int32 UncompressedSize, ECompressionFlags Flags, int32 CompressionData)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FCompression::CompressMemory);

@@ -2060,16 +2060,15 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 					if ( CompressionMethod == NAME_Zlib )
 					{
 						// for forced-Zlib files still use the old heuristic :
-						// TODO : move this inside the zlib compressor
 
 						// Zlib must save at least 1K regardless of percentage (for small files)
 						bNotEnoughCompression = (OriginalFileSize - CompressedFileBuffer.TotalCompressedSize) < 1024;
 						if ( ! bNotEnoughCompression )
 						{
-					// Check the compression ratio, if it's too low just store uncompressed. Also take into account read size
-					// if we still save 64KB it's probably worthwhile compressing, as that saves a file read operation in the runtime.
-								// TODO: drive this threshold from the command line
-					float PercentLess = ((float)CompressedFileBuffer.TotalCompressedSize / (OriginalFileSize / 100.f));
+							// Check the compression ratio, if it's too low just store uncompressed. Also take into account read size
+							// if we still save 64KB it's probably worthwhile compressing, as that saves a file read operation in the runtime.
+							// TODO: drive this threshold from the command line
+							float PercentLess = ((float)CompressedFileBuffer.TotalCompressedSize / (OriginalFileSize / 100.f));
 							bNotEnoughCompression = (PercentLess > 90.f) && ((OriginalFileSize - CompressedFileBuffer.TotalCompressedSize) < 65536);
 						}
 					}				

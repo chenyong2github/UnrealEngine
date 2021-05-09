@@ -19,4 +19,5 @@ struct ICompressionFormat : public IModularFeature, public IModuleInterface
 	virtual int32 GetCompressedBufferSize(int32 UncompressedSize, int32 CompressionData) = 0;
 	virtual uint32 GetVersion() = 0;
 	virtual FString GetDDCKeySuffix() = 0;
+	virtual bool DoesOwnWorthDecompressingCheck() = 0;
 };
