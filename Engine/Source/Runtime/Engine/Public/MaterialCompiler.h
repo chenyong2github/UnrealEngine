@@ -442,6 +442,7 @@ public:
 	virtual int32 StrataHorizontalMixing(int32 Foreground, int32 Background, int32 Mix) = 0;
 	virtual int32 StrataHorizontalMixingParameterBlending(int32 Foreground, int32 Background, int32 Mix, const FString& SharedNormalIndexMacro) = 0;
 	virtual int32 StrataVerticalLayering(int32 Top, int32 Base) = 0;
+	virtual int32 StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedNormalIndexMacro, int32 TopBSDFNormalCodeChunk) = 0;
 	virtual int32 StrataAdd(int32 A, int32 B) = 0;
 	virtual int32 StrataAddParameterBlending(int32 A, int32 B, const FString& SharedNormalIndexMacro) = 0;
 	virtual int32 StrataMultiply(int32 A, int32 Weight) = 0;
@@ -988,6 +989,11 @@ public:
 	virtual int32 StrataVerticalLayering(int32 Top, int32 Base) override
 	{
 		return Compiler->StrataVerticalLayering(Top, Base);
+	}
+
+	virtual int32 StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedNormalIndexMacro, int32 TopBSDFNormalCodeChunk) override
+	{
+		return Compiler->StrataVerticalLayeringParameterBlending(Top, Base, SharedNormalIndexMacro, TopBSDFNormalCodeChunk);
 	}
 
 	virtual int32 StrataAdd(int32 A, int32 B) override

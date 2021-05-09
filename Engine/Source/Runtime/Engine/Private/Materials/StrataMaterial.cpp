@@ -127,6 +127,7 @@ FStrataMaterialCompilationInfo StrataCompilationInfoAdd(FMaterialCompiler* Compi
 }
 
 
+// ==> NOTE: Always pair with the shader behavior in StrataAddParameterBlending.
 FStrataMaterialCompilationInfo StrataCompilationInfoAddParamBlend(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B, const FStrataRegisteredSharedNormal& RegisteredSharedNormal)
 {
 	check(A.TotalBSDFCount == 1);
@@ -155,6 +156,7 @@ FStrataMaterialCompilationInfo StrataCompilationInfoHorizontalMixing(FMaterialCo
 }
 
 
+// ==> NOTE: Always pair with the shader behavior in StrataHorizontalMixingParameterBlending
 FStrataMaterialCompilationInfo StrataCompilationInfoHorizontalMixingParamBlend(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B, const FStrataRegisteredSharedNormal& RegisteredSharedNormal)
 {
 	check(A.TotalBSDFCount == 1);
@@ -194,6 +196,29 @@ FStrataMaterialCompilationInfo StrataCompilationInfoVerticalLayering(FMaterialCo
 		StrataInfo.Layers[TopLayerCount + LayerIt] = Base.Layers[LayerIt];
 	}
 	StrataInfo.LayerCount += Base.LayerCount;
+
+	UpdateTotalBSDFCount(Compiler, StrataInfo);
+	return StrataInfo;
+}
+
+
+// ==> NOTE: Always pair with the shader behavior in StrataVerticalLayeringParameterBlending
+FStrataMaterialCompilationInfo StrataCompilationInfoVerticalLayeringParamBlend(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Top, const FStrataMaterialCompilationInfo& Base, const FStrataRegisteredSharedNormal& RegisteredSharedNormal)
+{
+	check(Top.TotalBSDFCount == 1);
+	check(Base.TotalBSDFCount == 1);
+
+	FStrataMaterialCompilationInfo StrataInfo = Base;
+	FStrataMaterialCompilationInfo::FBSDF& NewBSDF = StrataInfo.Layers[0].BSDFs[0];
+	const FStrataMaterialCompilationInfo::FBSDF& TopBSDF = Top.Layers[0].BSDFs[0];
+
+	NewBSDF.RegisteredSharedNormal = RegisteredSharedNormal;
+
+//	NewBSDF.bHasSSS				= TopBSDF.bHasSSS;				// We keep SSS only if the base layer has it. Otherwise it will be simple volume and the throughput wll be applied on the parameters.
+//	NewBSDF.bHasDMFPPluggedIn	= TopBSDF.bHasDMFPPluggedIn;	// Idem
+	NewBSDF.bHasEdgeColor		|= TopBSDF.bHasEdgeColor;		// We keep the union of both, even though it will be hard to get a perfect match.
+	NewBSDF.bHasFuzz			|= TopBSDF.bHasFuzz;			// Idem
+	NewBSDF.bHasThinFilm		 = TopBSDF.bHasThinFilm;		// We only keep thin film from the top layer, because its color is otherwise not controlable
 
 	UpdateTotalBSDFCount(Compiler, StrataInfo);
 	return StrataInfo;

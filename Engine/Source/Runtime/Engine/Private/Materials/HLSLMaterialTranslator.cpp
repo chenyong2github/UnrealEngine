@@ -9134,10 +9134,21 @@ int32 FHLSLMaterialTranslator::StrataVerticalLayering(int32 Top, int32 Base)
 	);
 }
 
-//virtual int32 FHLSLMaterialTranslator::StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedNormalIndexMacro)
-//{
-//	// STRATA_TODO
-//}
+int32 FHLSLMaterialTranslator::StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedNormalIndexMacro, int32 TopBSDFNormalCodeChunk)
+{
+	if (Top == INDEX_NONE || Base == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+	return AddCodeChunk(
+		MCT_Strata, TEXT("StrataVerticalLayeringParameterBlending(%s, %s, %s, dot(%s, %s))"),
+		*GetParameterCode(Top),
+		*GetParameterCode(Base),
+		*SharedNormalIndexMacro,
+		*GetParameterCode(TopBSDFNormalCodeChunk),
+		*GetParameterCode(CameraVector())
+	);
+}
 
 int32 FHLSLMaterialTranslator::StrataAdd(int32 A, int32 B)
 {
