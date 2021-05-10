@@ -280,9 +280,7 @@ FRCFieldPathSegment::FRCFieldPathSegment(FStringView SegmentName)
 bool FRCFieldPathSegment::IsResolved() const
 {
 	const bool bMapKeyResolved = MapKey.IsEmpty() || (!MapKey.IsEmpty() && ResolvedData.MapIndex != INDEX_NONE);
-	return ResolvedData.Field != nullptr
-		&& ResolvedData.ContainerAddress != nullptr
-		&& ResolvedData.Struct != nullptr
+	return ResolvedData.IsValid()
 		&& bMapKeyResolved;
 }
 
