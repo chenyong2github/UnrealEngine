@@ -57,7 +57,7 @@ extern bool ShouldRenderRayTracingTranslucency(const FViewInfo& View);
 extern bool ShouldRenderRayTracingShadows();
 extern bool ShouldRenderRayTracingShadowsForLight(const FLightSceneProxy& LightProxy);
 extern bool ShouldRenderRayTracingShadowsForLight(const FLightSceneInfoCompact& LightInfo);
-extern bool CanOverlayRayTracingOutput(const FViewInfo& View);
+extern bool HasRayTracedOverlay(const FSceneViewFamily& ViewFamily);
 
 extern bool EnableRayTracingShadowTwoSidedGeometry();
 extern float GetRaytracingMaxNormalBias();
@@ -116,9 +116,9 @@ FORCEINLINE bool ShouldRenderRayTracingShadowsForLight(const FLightSceneInfoComp
 	return false;
 }
 
-FORCEINLINE bool CanOverlayRayTracingOutput(const FViewInfo& View)
+FORCEINLINE bool HasRayTracedOverlay(const FSceneViewFamily& ViewFamily)
 {
-	return true;
+	return false;
 }
 
 FORCEINLINE bool CanUseRayTracingAMDHitToken()

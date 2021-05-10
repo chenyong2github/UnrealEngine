@@ -178,9 +178,46 @@ TAutoConsoleVariable<int32> CVarPathTracingLightGridVisualize(
 	ECVF_RenderThreadSafe
 );
 
+// Store the rendering options used on the previous frame so we can correctly invalidate when things change
+struct FPathTracingConfig
+{
+	FPathTracingData PathTracingData;
+	FIntRect ViewRect;
+	int LightShowFlags;
+	int LightGridResolution;
+	int LightGridMaxCount;
+	bool VisibleLights;
+	bool UseMISCompensation;
+	bool LockedSamplingPattern;
+
+	bool IsDifferent(const FPathTracingConfig& Other) const
+	{
+		// If any of these parameters if different, we will need to restart path tracing accuulation
+		return
+			PathTracingData.MaxSamples != Other.PathTracingData.MaxSamples ||
+			PathTracingData.MaxBounces != Other.PathTracingData.MaxBounces ||
+			PathTracingData.MaxSSSBounces != Other.PathTracingData.MaxSSSBounces ||
+			PathTracingData.MISMode != Other.PathTracingData.MISMode ||
+			PathTracingData.SamplerType != Other.PathTracingData.SamplerType ||
+			PathTracingData.ApproximateCaustics != Other.PathTracingData.ApproximateCaustics ||
+			PathTracingData.EnableCameraBackfaceCulling != Other.PathTracingData.EnableCameraBackfaceCulling ||
+			PathTracingData.EnableDirectLighting != Other.PathTracingData.EnableDirectLighting ||
+			PathTracingData.EnableEmissive != Other.PathTracingData.EnableEmissive ||
+			PathTracingData.VisualizeLightGrid != Other.PathTracingData.VisualizeLightGrid ||
+			PathTracingData.MaxPathIntensity != Other.PathTracingData.MaxPathIntensity ||
+			PathTracingData.FilterWidth != Other.PathTracingData.FilterWidth ||
+			ViewRect != Other.ViewRect ||
+			LightShowFlags != Other.LightShowFlags ||
+			LightGridResolution != Other.LightGridResolution ||
+			LightGridMaxCount != Other.LightGridMaxCount ||
+			VisibleLights != Other.VisibleLights ||
+			UseMISCompensation != Other.UseMISCompensation ||
+			LockedSamplingPattern != Other.LockedSamplingPattern;
+	}
+};
 
 // This function prepares the portion of shader arguments that may involve invalidating the path traced state
-static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTracingData) {
+static void PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTracingData) {
 	PathTracingData.EnableDirectLighting = true;
 	int32 MaxBounces = CVarPathTracingMaxBounces.GetValueOnRenderThread();
 	if (MaxBounces < 0)
@@ -213,7 +250,6 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	PathTracingData.MaxSSSBounces = CVarPathTracingMaxSSSBounces.GetValueOnRenderThread();
 	PathTracingData.MaxNormalBias = GetRaytracingMaxNormalBias();
 	PathTracingData.MISMode = CVarPathTracingMISMode.GetValueOnRenderThread();
-	uint32 VisibleLights = CVarPathTracingVisibleLights.GetValueOnRenderThread();
 	PathTracingData.MaxPathIntensity = CVarPathTracingMaxPathIntensity.GetValueOnRenderThread();
 	if (PathTracingData.MaxPathIntensity <= 0)
 	{
@@ -232,109 +268,6 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 		FilterWidth = View.FinalPostProcessSettings.PathTracingFilterWidth;
 	}
 	PathTracingData.FilterWidth = FilterWidth;
-
-	bool NeedInvalidation = false;
-
-	// If any of the parameters above changed since last time -- reset the accumulation
-	// TODO: find something cleaner than just using static variables here. Should all
-	// the state used for comparison go into ViewState?
-	static uint32 PrevMaxBounces = PathTracingData.MaxBounces;
-	if (PathTracingData.MaxBounces != PrevMaxBounces)
-	{
-		NeedInvalidation = true;
-		PrevMaxBounces = PathTracingData.MaxBounces;
-	}
-
-	// Changing the number of SSS bounces requires starting over
-	static uint32 PrevMaxSSSBounces = PathTracingData.MaxSSSBounces;
-	if (PathTracingData.MaxSSSBounces != PrevMaxSSSBounces)
-	{
-		NeedInvalidation = true;
-		PrevMaxSSSBounces = PathTracingData.MaxSSSBounces;
-	}
-
-	// Changing MIS mode requires starting over
-	static uint32 PreviousMISMode = PathTracingData.MISMode;
-	if (PreviousMISMode != PathTracingData.MISMode)
-	{
-		NeedInvalidation = true;
-		PreviousMISMode = PathTracingData.MISMode;
-	}
-
-	// Changing VisibleLights requires starting over
-	static uint32 PreviousVisibleLights = VisibleLights;
-	if (PreviousVisibleLights != VisibleLights)
-	{
-		NeedInvalidation = true;
-		PreviousVisibleLights = VisibleLights;
-	}
-
-	// Changing MaxPathIntensity requires starting over
-	static float PreviousMaxPathIntensity = PathTracingData.MaxPathIntensity;
-	if (PreviousMaxPathIntensity != PathTracingData.MaxPathIntensity)
-	{
-		NeedInvalidation = true;
-		PreviousMaxPathIntensity = PathTracingData.MaxPathIntensity;
-	}
-
-	// Changing approximate caustics requires starting over
-	static uint32 PreviousApproximateCaustics = PathTracingData.ApproximateCaustics;
-	if (PreviousApproximateCaustics != PathTracingData.ApproximateCaustics)
-	{
-		NeedInvalidation = true;
-		PreviousApproximateCaustics = PathTracingData.ApproximateCaustics;
-	}
-
-	// Changing filter width requires starting over
-	static float PreviousFilterWidth = PathTracingData.FilterWidth;
-	if (PreviousFilterWidth != PathTracingData.FilterWidth)
-	{
-		NeedInvalidation = true;
-		PreviousFilterWidth = PathTracingData.FilterWidth;
-	}
-
-	// Changing backface culling status requires starting over
-	static uint32 PreviousBackfaceCulling = PathTracingData.EnableCameraBackfaceCulling;
-	if (PreviousBackfaceCulling != PathTracingData.EnableCameraBackfaceCulling)
-	{
-		NeedInvalidation = true;
-		PreviousBackfaceCulling = PathTracingData.EnableCameraBackfaceCulling;
-	}
-
-	// Changing direct lighting requires starting over
-	static uint32 PreviousEnableDirectLighting = PathTracingData.EnableDirectLighting;
-	if (PreviousEnableDirectLighting != PathTracingData.EnableDirectLighting)
-	{
-		NeedInvalidation = true;
-		PreviousEnableDirectLighting = PathTracingData.EnableDirectLighting;
-	}
-
-	// Changing enable emissive requires starting over
-	static uint32 PreviousEnableEmissive = PathTracingData.EnableEmissive;
-	if (PreviousEnableEmissive != PathTracingData.EnableEmissive)
-	{
-		NeedInvalidation = true;
-		PreviousEnableEmissive = PathTracingData.EnableEmissive;
-	}
-
-	// Changing sampler type requires starting over
-	static uint32 PreviousSamplerType = PathTracingData.SamplerType;
-	if (PreviousSamplerType != PathTracingData.SamplerType)
-	{
-		NeedInvalidation = true;
-		PreviousSamplerType = PathTracingData.SamplerType;
-	}
-
-	// Changing visualization mode requires starting over
-	static int32 PreviousVisualizeLightGrid = PathTracingData.VisualizeLightGrid;
-	if (PreviousVisualizeLightGrid != PathTracingData.VisualizeLightGrid)
-	{
-		NeedInvalidation = true;
-		PreviousVisualizeLightGrid = PathTracingData.VisualizeLightGrid;
-	}
-
-	// the rest of PathTracingData and AdaptiveSamplingData is filled in by SetParameters below
-	return NeedInvalidation;
 }
 
 class FPathTracingSkylightPrepareCS : public FGlobalShader
@@ -1099,13 +1032,13 @@ class FPathTracingCompositorPS : public FGlobalShader
 };
 IMPLEMENT_SHADER_TYPE(, FPathTracingCompositorPS, TEXT("/Engine/Private/PathTracing/PathTracingCompositingPixelShader.usf"), TEXT("CompositeMain"), SF_Pixel);
 
-void FDeferredShadingSceneRenderer::PreparePathTracing(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
+void FDeferredShadingSceneRenderer::PreparePathTracing(const FSceneViewFamily& ViewFamily, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	if (View.RayTracingRenderMode == ERayTracingRenderMode::PathTracing
-		&& FDataDrivenShaderPlatformInfo::GetSupportsPathTracing(View.GetShaderPlatform()))
+	if (ViewFamily.EngineShowFlags.PathTracing
+		&& FDataDrivenShaderPlatformInfo::GetSupportsPathTracing(ViewFamily.GetShaderPlatform()))
 	{
 		// Declare all RayGen shaders that require material closest hit shaders to be bound
-		auto RayGenShader = View.ShaderMap->GetShader<FPathTracingRG>();
+		auto RayGenShader = GetGlobalShaderMap(ViewFamily.GetShaderPlatform())->GetShader<FPathTracingRG>();
 		OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
 	}
 }
@@ -1132,97 +1065,72 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		return;
 	}
 
-	bool bArgsChanged = false;
+	FPathTracingConfig Config = {};
 
 	// Get current value of MaxSPP and reset render if it has changed
 	// NOTE: we ignore the CVar when using offline rendering
 	int32 SamplesPerPixelCVar = View.bIsOfflineRender ? -1 : CVarPathTracingSamplesPerPixel.GetValueOnRenderThread();
 	uint32 MaxSPP = SamplesPerPixelCVar > -1 ? SamplesPerPixelCVar : View.FinalPostProcessSettings.PathTracingSamplesPerPixel;
 	MaxSPP = FMath::Max(MaxSPP, 1u);
-	if (View.ViewState->PathTracingTargetSPP != MaxSPP)
-	{
-		// Store MaxSPP in the view state because we may have multiple views, each targetting a different sample count
-		View.ViewState->PathTracingTargetSPP = MaxSPP;
-		bArgsChanged = true;
-	}
-	// Changing FrameIndependentTemporalSeed requires starting over
-	bool LockedSamplingPattern = CVarPathTracingFrameIndependentTemporalSeed.GetValueOnRenderThread() == 0;
-	static bool PreviousLockedSamplingPattern = LockedSamplingPattern;
-	if (PreviousLockedSamplingPattern != LockedSamplingPattern)
-	{
-		PreviousLockedSamplingPattern = LockedSamplingPattern;
-		bArgsChanged = true;
-	}
+	Config.LockedSamplingPattern = CVarPathTracingFrameIndependentTemporalSeed.GetValueOnRenderThread() == 0;
+
 
 	// compute an integer code of what show flags related to lights are currently enabled so we can detect changes
-	int CurrentLightShowFlags = 0;
-	CurrentLightShowFlags |= View.Family->EngineShowFlags.SkyLighting           ? 1 << 0 : 0;
-	CurrentLightShowFlags |= View.Family->EngineShowFlags.DirectionalLights     ? 1 << 1 : 0;
-	CurrentLightShowFlags |= View.Family->EngineShowFlags.RectLights            ? 1 << 2 : 0;
-	CurrentLightShowFlags |= View.Family->EngineShowFlags.SpotLights            ? 1 << 3 : 0;
-	CurrentLightShowFlags |= View.Family->EngineShowFlags.PointLights           ? 1 << 4 : 0;
-	CurrentLightShowFlags |= View.Family->EngineShowFlags.TexturedLightProfiles ? 1 << 5 : 0;
+	Config.LightShowFlags = 0;
+	Config.LightShowFlags |= View.Family->EngineShowFlags.SkyLighting           ? 1 << 0 : 0;
+	Config.LightShowFlags |= View.Family->EngineShowFlags.DirectionalLights     ? 1 << 1 : 0;
+	Config.LightShowFlags |= View.Family->EngineShowFlags.RectLights            ? 1 << 2 : 0;
+	Config.LightShowFlags |= View.Family->EngineShowFlags.SpotLights            ? 1 << 3 : 0;
+	Config.LightShowFlags |= View.Family->EngineShowFlags.PointLights           ? 1 << 4 : 0;
+	Config.LightShowFlags |= View.Family->EngineShowFlags.TexturedLightProfiles ? 1 << 5 : 0;
 
-	static int PreviousLightShowFlags = CurrentLightShowFlags;
-	if (PreviousLightShowFlags != CurrentLightShowFlags)
+	PrepareShaderArgs(View, Config.PathTracingData);
+
+	Config.VisibleLights = CVarPathTracingVisibleLights.GetValueOnRenderThread() != 0;
+	Config.UseMISCompensation = Config.PathTracingData.MISMode == 2 && CVarPathTracingMISCompensation.GetValueOnRenderThread() != 0;
+
+	Config.ViewRect = View.ViewRect;
+
+	Config.LightGridResolution = FMath::RoundUpToPowerOfTwo(CVarPathTracingLightGridResolution.GetValueOnRenderThread());
+	Config.LightGridMaxCount = FMath::Clamp(CVarPathTracingLightGridMaxCount.GetValueOnRenderThread(), 1, RAY_TRACING_LIGHT_COUNT_MAXIMUM);
+
+	Config.PathTracingData.MaxSamples = MaxSPP;
+
+	bool FirstTime = false;
+	if (!View.ViewState->PathTracingLastConfig.IsValid())
 	{
-		PreviousLightShowFlags = CurrentLightShowFlags;
-		bArgsChanged = true;
+		View.ViewState->PathTracingLastConfig = MakePimpl<FPathTracingConfig>();
+		FirstTime = true; // we just initialized the option state for this view -- don't bother comparing in this case
 	}
 
-	bool UseMISCompensation = CVarPathTracingMISMode.GetValueOnRenderThread() == 2 && CVarPathTracingMISCompensation.GetValueOnRenderThread() != 0;
-	static bool PreviousUseMISCompensation = UseMISCompensation;
-	if (PreviousUseMISCompensation != UseMISCompensation)
+	if (FirstTime || Config.UseMISCompensation != View.ViewState->PathTracingLastConfig->UseMISCompensation)
 	{
-		PreviousUseMISCompensation = UseMISCompensation;
-		bArgsChanged = true;
 		// if the mode changes we need to rebuild the importance table
 		Scene->PathTracingSkylightTexture.SafeRelease();
 		Scene->PathTracingSkylightPdf.SafeRelease();
 	}
 
-	const uint32 LightGridResolution = FMath::RoundUpToPowerOfTwo(CVarPathTracingLightGridResolution.GetValueOnRenderThread());
-	const uint32 LightGridMaxCount = FMath::Clamp(CVarPathTracingLightGridMaxCount.GetValueOnRenderThread(), 1, RAY_TRACING_LIGHT_COUNT_MAXIMUM);
-
-	static uint32 PreviousLightGridResolution = LightGridResolution;
-	if (PreviousLightGridResolution != LightGridResolution)
-	{
-		PreviousLightGridResolution = LightGridResolution;
-		bArgsChanged = true;
-	}
-
-	static uint32_t PreviousLightGridMaxCount = LightGridMaxCount;
-	if (PreviousLightGridMaxCount != LightGridMaxCount)
-	{
-		PreviousLightGridMaxCount = LightGridMaxCount;
-		bArgsChanged = true;
-	}
-
-	// Get other basic path tracing settings and see if we need to invalidate the current state
-	FPathTracingData PathTracingData;
-	bArgsChanged |= PrepareShaderArgs(View, PathTracingData);
-
 	// If the scene has changed in some way (camera move, object movement, etc ...)
 	// we must invalidate the ViewState to start over from scratch
-	if (bArgsChanged || View.ViewState->PathTracingRect != View.ViewRect)
+	if (FirstTime || Config.IsDifferent(*View.ViewState->PathTracingLastConfig))
 	{
+		// remember the options we used for next time
+		*View.ViewState->PathTracingLastConfig = Config;
 		View.ViewState->PathTracingInvalidate();
-		View.ViewState->PathTracingRect = View.ViewRect;
 	}
 
 	// Setup temporal seed _after_ invalidation in case we got reset
-	if (LockedSamplingPattern)
+	if (Config.LockedSamplingPattern)
 	{
 		// Count samples from 0 for deterministic results
-		PathTracingData.TemporalSeed = View.ViewState->PathTracingSampleIndex;
+		Config.PathTracingData.TemporalSeed = View.ViewState->PathTracingSampleIndex;
 	}
 	else
 	{
 		// Count samples from an ever-increasing counter to avoid screen-door effect
-		PathTracingData.TemporalSeed = View.ViewState->PathTracingFrameIndex;
+		Config.PathTracingData.TemporalSeed = View.ViewState->PathTracingFrameIndex;
 	}
-	PathTracingData.Iteration = View.ViewState->PathTracingSampleIndex;
-	PathTracingData.MaxSamples = MaxSPP;
+	Config.PathTracingData.Iteration = View.ViewState->PathTracingSampleIndex;
 
 	// Prepare radiance buffer (will be shared with display pass)
 	FRDGTexture* RadianceTexture = nullptr;
@@ -1241,17 +1149,17 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 			TexCreate_ShaderResource | TexCreate_UAV);
 		RadianceTexture = GraphBuilder.CreateTexture(RadianceTextureDesc, TEXT("PathTracer.Radiance"), ERDGTextureFlags::MultiFrame);
 	}
-	bool NeedsMoreRays = PathTracingData.Iteration < MaxSPP;
+	const bool bNeedsMoreRays = Config.PathTracingData.Iteration < MaxSPP;
 
-	if (NeedsMoreRays)
+	if (bNeedsMoreRays)
 	{
 		FPathTracingRG::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingRG::FParameters>();
 		PassParameters->TLAS = View.GetRayTracingSceneViewChecked();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-		PassParameters->PathTracingData = PathTracingData;
+		PassParameters->PathTracingData = Config.PathTracingData;
 		// upload sky/lights data
-		SetLightParameters(GraphBuilder, PassParameters, Scene, View, UseMISCompensation);
-		if (PathTracingData.EnableDirectLighting == 0)
+		SetLightParameters(GraphBuilder, PassParameters, Scene, View, Config.UseMISCompensation);
+		if (Config.PathTracingData.EnableDirectLighting == 0)
 		{
 			PassParameters->SceneVisibleLightCount = 0;
 		}
@@ -1299,7 +1207,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	// now add a pixel shader pass to display our Radiance buffer
 
 	FPathTracingCompositorPS::FParameters* DisplayParameters = GraphBuilder.AllocParameters<FPathTracingCompositorPS::FParameters>();
-	DisplayParameters->Iteration = PathTracingData.Iteration;
+	DisplayParameters->Iteration = Config.PathTracingData.Iteration;
 	DisplayParameters->MaxSamples = MaxSPP;
 	DisplayParameters->ProgressDisplayEnabled = CVarPathTracingProgressDisplay.GetValueOnRenderThread();
 	DisplayParameters->ViewUniformBuffer = View.ViewUniformBuffer;

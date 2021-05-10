@@ -1541,10 +1541,6 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 								}
 							}
 						}
-
-					#if RHI_RAYTRACING
-						View->SetupRayTracedRendering();
-					#endif
 					}
 
 					// Add view information for resource streaming. Allow up to 5X boost for small FOV.

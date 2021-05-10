@@ -14,13 +14,14 @@ class RENDERER_API FRayTracingMeshProcessor
 {
 public:
 
-	FRayTracingMeshProcessor(FRayTracingMeshCommandContext* InCommandContext, const FScene* InScene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassProcessorRenderState InPassDrawRenderState)
+	FRayTracingMeshProcessor(FRayTracingMeshCommandContext* InCommandContext, const FScene* InScene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassProcessorRenderState InPassDrawRenderState, ERayTracingMeshCommandsMode InRayTracingMeshCommandsMode)
 		:
 		CommandContext(InCommandContext),
 		Scene(InScene),
 		ViewIfDynamicMeshCommand(InViewIfDynamicMeshCommand),
 		FeatureLevel(InScene ? InScene->GetFeatureLevel() : ERHIFeatureLevel::SM5),
-		PassDrawRenderState(InPassDrawRenderState)
+		PassDrawRenderState(InPassDrawRenderState),
+		RayTracingMeshCommandsMode(InRayTracingMeshCommandsMode)
 	{}
 
 	virtual ~FRayTracingMeshProcessor() = default;
@@ -33,6 +34,7 @@ protected:
 	const FSceneView* ViewIfDynamicMeshCommand;
 	ERHIFeatureLevel::Type FeatureLevel;
 	FMeshPassProcessorRenderState PassDrawRenderState;
+	ERayTracingMeshCommandsMode RayTracingMeshCommandsMode;
 
 	virtual bool Process(
 		const FMeshBatch& RESTRICT MeshBatch,

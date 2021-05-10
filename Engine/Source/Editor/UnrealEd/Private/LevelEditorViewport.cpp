@@ -1909,10 +1909,6 @@ FSceneView* FLevelEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFami
 	View->bCameraCut = bEditorCameraCut;
 	View->bHasSelectedComponents = GEditor->GetSelectedComponentCount() > 0;
 
-#if RHI_RAYTRACING
-	View->SetupRayTracedRendering();
-#endif
-
 	return View;
 
 }

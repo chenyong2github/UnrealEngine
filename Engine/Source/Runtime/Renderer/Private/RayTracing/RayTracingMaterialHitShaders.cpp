@@ -392,7 +392,9 @@ bool FRayTracingMeshProcessor::TryAddMeshBatch(
 		// Check for a cached light-map.
 		const bool bIsLitMaterial = ShadingModels.IsLit();
 		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
-		const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnRenderThread() != 0);
+		// NOTE: path tracing is not interested in baked static lighting (TODO: introduce a call for path tracer specific materials)
+		const bool bAllowStaticLighting = RayTracingMeshCommandsMode == ERayTracingMeshCommandsMode::RAY_TRACING &&
+			(!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnRenderThread() != 0);
 
 		const FLightMapInteraction LightMapInteraction = (bAllowStaticLighting && MeshBatch.LCI && bIsLitMaterial)
 			? MeshBatch.LCI->GetLightMapInteraction(FeatureLevel)
@@ -540,7 +542,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::BindRayTracingMaterialPipeline);
 	SCOPE_CYCLE_COUNTER(STAT_BindRayTracingPipeline);
 
-	const bool bIsPathTracing = View.RayTracingRenderMode == ERayTracingRenderMode::PathTracing;
+	const bool bIsPathTracing = ViewFamily.EngineShowFlags.PathTracing;
 
 	FRayTracingPipelineStateInitializer Initializer;
 

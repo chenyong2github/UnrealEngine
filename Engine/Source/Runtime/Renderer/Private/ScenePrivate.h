@@ -89,6 +89,7 @@ class FLumenSceneData;
 class FVirtualShadowMapArrayCacheManager;
 class FComputeFramework;
 struct FHairStrandsInstance;
+struct FPathTracingConfig;
 
 /** Holds information about a single primitive's occlusion. */
 class FPrimitiveOcclusionHistory
@@ -980,10 +981,8 @@ public:
 
 	// Reference path tracing cached results
 	TRefCountPtr<IPooledRenderTarget> PathTracingRadianceRT;
-	// Keep track of the rectangle of pixels the Radiance texture is valid for so that path tracing can restart if this changes
-	FIntRect PathTracingRect;
-	// Target sampling count for the path tracer - to allow different views to target different quality levels
-	uint32   PathTracingTargetSPP;
+	// Keeps track of the internal path tracer options relevant to detecting when to restart the path tracer accumulation
+	TPimplPtr<FPathTracingConfig> PathTracingLastConfig;
 
 	// Current sample index to be rendered by the path tracer - this gets incremented each time the path tracer accumulates a frame of samples
 	uint32 PathTracingSampleIndex;
@@ -2552,6 +2551,12 @@ struct FMeshComputeDispatchCommand
 	uint32 NumMaxVertices;
 	FRWBuffer* TargetBuffer;
 };
+
+enum class ERayTracingMeshCommandsMode : uint8 {
+	RAY_TRACING,
+	PATH_TRACING
+};
+
 #endif
 
 /** 
@@ -2578,6 +2583,9 @@ public:
 
 #if RHI_RAYTRACING
 	FCachedRayTracingMeshCommandStorage CachedRayTracingMeshCommands;
+
+	/** This method is meant to be used when transitioning to and from path traced rendering since shader bindings must be updated in the cached commands. */
+	void RefreshRayTracingMeshCommandCache(FRHICommandListImmediate& RHICmdList, ERayTracingMeshCommandsMode Mode);
 #endif
 	/** Nanite state buckets. These are stored on the scene as they are computed at FPrimitiveSceneInfo::AddToScene time. */
 	FRWLock NaniteDrawCommandLock[ENaniteMeshPass::Num];
@@ -2667,6 +2675,9 @@ public:
 	/** True if a change to the scene that requires to invalidate the path tracer buffers has happened. */
 	bool bPathTracingNeedsInvalidation;
 
+	/** What mode where the cached RT commands prepared for last? */
+	ERayTracingMeshCommandsMode CachedRayTracingMeshCommandsMode;
+
 	/** The scene's sky light, if any. */
 	FSkyLightSceneProxy* SkyLight;
 
@@ -2705,7 +2716,7 @@ public:
 	/**
 	 * The path tracer uses its own representation of the skylight. These textures
 	 * are updated lazily by the path tracer when missing. Any code that modifies
-	 * the skylight appearance should simplify reset these pointers.
+	 * the skylight appearance should simply reset these pointers.
 	 */
 	TRefCountPtr<IPooledRenderTarget> PathTracingSkylightTexture;
 	TRefCountPtr<IPooledRenderTarget> PathTracingSkylightPdf;

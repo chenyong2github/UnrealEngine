@@ -664,24 +664,39 @@ void FPrimitiveSceneInfo::RemoveCachedNaniteDrawCommands()
 }
 
 #if RHI_RAYTRACING
+void FScene::RefreshRayTracingMeshCommandCache(FRHICommandListImmediate& RHICmdList, ERayTracingMeshCommandsMode Mode)
+{
+	if (Mode != CachedRayTracingMeshCommandsMode)
+	{
+		// remember if were using path tracing or not when caching the commands
+		CachedRayTracingMeshCommandsMode = Mode;
+		// get rid of all existing cached commands
+		CachedRayTracingMeshCommands.Empty(CachedRayTracingMeshCommands.Num());
+		// re-cache all current primitives
+		FPrimitiveSceneInfo::CacheRayTracingPrimitives(RHICmdList, this, Primitives);
+	}
+}
+
+
+// TODO: Remove RHICmdList argument? It does not appear to be used
 void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos)
 {
 	if (IsRayTracingEnabled() && !(Scene->World->WorldType == EWorldType::EditorPreview || Scene->World->WorldType == EWorldType::GamePreview))
 	{
 		checkf(RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform), TEXT("Raytracing code needs the ability to create shaders from task threads."));
 
-		FCachedRayTracingMeshCommandContext CommandContext(Scene->CachedRayTracingMeshCommands);
+		FCachedRayTracingMeshCommandStorage& CachedRayTracingMeshCommands = Scene->CachedRayTracingMeshCommands;
+		FCachedRayTracingMeshCommandContext CommandContext(CachedRayTracingMeshCommands);
 		FMeshPassProcessorRenderState PassDrawRenderState(Scene->UniformBuffers.ViewUniformBuffer);
-		FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, nullptr, PassDrawRenderState);
+		FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, nullptr, PassDrawRenderState, Scene->CachedRayTracingMeshCommandsMode);
 
 		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
 		{
 			if (SceneInfo->RayTracingGeometries.Num() > 0 && SceneInfo->StaticMeshes.Num() > 0)
 			{
 				int32 MaxLOD = -1;
-				for (int32 MeshIndex = 0; MeshIndex < SceneInfo->StaticMeshes.Num(); MeshIndex++)
+				for (const FStaticMeshBatch& Mesh : SceneInfo->StaticMeshes)
 				{
-					FStaticMeshBatch& Mesh = SceneInfo->StaticMeshes[MeshIndex];
 					MaxLOD = MaxLOD < Mesh.LODIndex ? Mesh.LODIndex : MaxLOD;
 				}
 
@@ -691,17 +706,18 @@ void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FRHICommandListImmediate& RH
 				SceneInfo->CachedRayTracingMeshCommandsHashPerLOD.Empty(MaxLOD + 1);
 				SceneInfo->CachedRayTracingMeshCommandsHashPerLOD.AddZeroed(MaxLOD + 1);
 
-				for (int32 MeshIndex = 0; MeshIndex < SceneInfo->StaticMeshes.Num(); MeshIndex++)
+				for (const FStaticMeshBatch& Mesh : SceneInfo->StaticMeshes)
 				{
-					FStaticMeshBatch& Mesh = SceneInfo->StaticMeshes[MeshIndex];
-
-					RayTracingMeshProcessor.AddMeshBatch(Mesh, ~0ull, SceneInfo->Proxy);
+					// Why do we pass a full mask here when the dynamic case only uses a mask of 1?
+					// Also note that the code below assumes only a single command was generated per batch.
+					const uint64 BatchElementMask = ~0ull;
+					RayTracingMeshProcessor.AddMeshBatch(Mesh, BatchElementMask, SceneInfo->Proxy);
 
 					if (CommandContext.CommandIndex >= 0)
 					{
 						uint64& Hash = SceneInfo->CachedRayTracingMeshCommandsHashPerLOD[Mesh.LODIndex];
 						Hash <<= 1;
-						Hash ^= Scene->CachedRayTracingMeshCommands[CommandContext.CommandIndex].ShaderBindings.GetDynamicInstancingHash();
+						Hash ^= CachedRayTracingMeshCommands[CommandContext.CommandIndex].ShaderBindings.GetDynamicInstancingHash();
 
 						SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[Mesh.LODIndex].Add(CommandContext.CommandIndex);
 						CommandContext.CommandIndex = -1;
@@ -743,16 +759,19 @@ void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FRHICommandListImmediate& RH
 				SceneInfo->CachedRayTracingMeshCommandsHashPerLOD.Empty(1);
 				SceneInfo->CachedRayTracingMeshCommandsHashPerLOD.AddZeroed(1);
 
-				for (FMeshBatch& Mesh : CachedRayTracingInstance.Materials)
+				for (const FMeshBatch& Mesh : CachedRayTracingInstance.Materials)
 				{
-					RayTracingMeshProcessor.AddMeshBatch(Mesh, ~0ull, SceneInfo->Proxy);
+					// Why do we pass a full mask here when the dynamic case only uses a mask of 1?
+					// Also note that the code below assumes only a single command was generated per batch.
+					const uint64 BatchElementMask = ~0ull;
+					RayTracingMeshProcessor.AddMeshBatch(Mesh, BatchElementMask, SceneInfo->Proxy);
 
 					// The material section must emit a command. Otherwise, it should have been excluded earlier
 					check(CommandContext.CommandIndex >= 0);
 
 					uint64& Hash = SceneInfo->CachedRayTracingMeshCommandsHashPerLOD[Mesh.LODIndex];
 					Hash <<= 1;
-					Hash ^= Scene->CachedRayTracingMeshCommands[CommandContext.CommandIndex].ShaderBindings.GetDynamicInstancingHash();
+					Hash ^= CachedRayTracingMeshCommands[CommandContext.CommandIndex].ShaderBindings.GetDynamicInstancingHash();
 
 					SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[Mesh.LODIndex].Add(CommandContext.CommandIndex);
 					CommandContext.CommandIndex = -1;
@@ -1378,6 +1397,7 @@ void FPrimitiveSceneInfo::UpdateStaticMeshes(FRHICommandListImmediate& RHICmdLis
 
 		SceneInfo->RemoveCachedMeshDrawCommands();
 		SceneInfo->RemoveCachedNaniteDrawCommands();
+		SceneInfo->RemoveCachedRayTracingPrimitives();
 	}
 
 	if (bReAddToDrawLists)

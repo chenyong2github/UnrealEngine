@@ -355,12 +355,6 @@ public:
 	FRayTracingGeometryInstance CachedRayTracingInstance;
 	TArray<FMatrix> CachedRayTracingInstanceLocalTransforms;
 	TArray<FMatrix> CachedRayTracingInstanceWorldTransforms;
-
-	struct FStaticMeshOrCommandIndex
-	{
-		int32 StaticMeshIndex;
-		int32 CommandIndex;
-	};
 #endif
 
 	/** Initialization constructor. */

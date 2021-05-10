@@ -2696,29 +2696,6 @@ FSceneViewFamilyContext::~FSceneViewFamilyContext()
 	}
 }
 
-#if RHI_RAYTRACING
-void FSceneView::SetupRayTracedRendering()
-{
-	RayTracingRenderMode = ERayTracingRenderMode::Disabled;
-
-	if (!IsRayTracingEnabled())
-	{
-		return;
-	}
-
-	const FEngineShowFlags& ShowFlags = Family->EngineShowFlags;
-
-	if (ShowFlags.PathTracing && FDataDrivenShaderPlatformInfo::GetSupportsPathTracing(GetShaderPlatform()))
-	{
-		RayTracingRenderMode = ERayTracingRenderMode::PathTracing;
-	}	
-	else if (ShowFlags.RayTracingDebug)
-	{
-		RayTracingRenderMode = ERayTracingRenderMode::RayTracingDebug;
-	}
-}
-#endif // RHI_RAYTRACING
-
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 EDebugViewShaderMode FSceneViewFamily::ChooseDebugViewShaderMode() const

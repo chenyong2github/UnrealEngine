@@ -72,7 +72,7 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingTranslucency(const FViewInf
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound.
 	// NOTE: Translucency shader may be used for primary ray debug view mode.
-	if (GetRayTracingTranslucencyOptions().bEnabled || View.RayTracingRenderMode == ERayTracingRenderMode::RayTracingDebug)
+	if (GetRayTracingTranslucencyOptions().bEnabled || View.Family->EngineShowFlags.RayTracingDebug)
 	{
 		FRayTracingPrimaryRaysRGS::FPermutationDomain PermutationVector;
 

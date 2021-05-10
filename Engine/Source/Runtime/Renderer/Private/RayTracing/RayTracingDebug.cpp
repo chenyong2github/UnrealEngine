@@ -84,12 +84,12 @@ public:
 IMPLEMENT_SHADER_TYPE(, FRayTracingDebugCHS, TEXT("/Engine/Private/RayTracing/RayTracingDebug.usf"), TEXT("RayTracingDebugMainCHS"), SF_RayHitGroup);
 
 
-void FDeferredShadingSceneRenderer::PrepareRayTracingDebug(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
+void FDeferredShadingSceneRenderer::PrepareRayTracingDebug(const FSceneViewFamily& ViewFamily, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
-	if (View.RayTracingRenderMode == ERayTracingRenderMode::RayTracingDebug)
+	if (ViewFamily.EngineShowFlags.RayTracingDebug)
 	{
-		auto RayGenShader = View.ShaderMap->GetShader<FRayTracingDebugRGS>();
+		auto RayGenShader = GetGlobalShaderMap(ViewFamily.GetShaderPlatform())->GetShader<FRayTracingDebugRGS>();
 		OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
 	}
 }

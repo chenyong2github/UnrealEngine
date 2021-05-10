@@ -82,9 +82,6 @@ TSharedPtr<FSceneViewFamilyContext> UMoviePipelineImagePassBase::CalculateViewFa
 
 	// View is added as a child of the OutViewFamily-> 
 	FSceneView* View = GetSceneViewForSampleState(OutViewFamily.Get(), /*InOut*/ InOutSampleState);
-#if RHI_RAYTRACING
-	View->SetupRayTracedRendering();
-#endif
 	
 	SetupViewForViewModeOverride(View);
 

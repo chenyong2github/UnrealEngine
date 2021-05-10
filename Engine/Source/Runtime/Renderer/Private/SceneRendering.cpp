@@ -2579,7 +2579,7 @@ void FSceneRenderer::PrepareViewRectsForRendering()
 			const bool bWillApplyTemporalAA = (IsPostProcessingEnabled(View) || View.bIsPlanarReflection)
 #if RHI_RAYTRACING
 				// path tracer does its own anti-aliasing
-				&& (View.RayTracingRenderMode != ERayTracingRenderMode::PathTracing)
+				&& (!ViewFamily.EngineShowFlags.PathTracing)
 #endif
 			;
 

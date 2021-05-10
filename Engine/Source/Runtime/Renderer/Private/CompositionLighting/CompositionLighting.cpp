@@ -556,12 +556,11 @@ void ProcessAfterBasePass(
 	const FAsyncResults& AsyncResults,
 	bool bEnableSSAO)
 {
-	if (!CanOverlayRayTracingOutput(View))
+	const FSceneViewFamily& ViewFamily = *View.Family;
+	if (HasRayTracedOverlay(ViewFamily))
 	{
 		return;
 	}
-
-	const FSceneViewFamily& ViewFamily = *View.Family;
 
 	RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 	RDG_EVENT_SCOPE(GraphBuilder, "LightCompositionTasks_PreLighting");
@@ -640,17 +639,15 @@ void ProcessAfterBasePass(
 
 bool CanProcessAsync(TArrayView<const FViewInfo> Views)
 {
-	bool bAnyAsyncSSAO = true;
-	for (int32 i = 0; i < Views.Num(); ++i)
+	for (const FViewInfo& View : Views)
 	{
-		uint32 Levels = FSSAOHelper::ComputeAmbientOcclusionPassCount(Views[i]);
-		if (!FSSAOHelper::IsAmbientOcclusionAsyncCompute(Views[i], Levels) || !CanOverlayRayTracingOutput(Views[i]))
+		uint32 Levels = FSSAOHelper::ComputeAmbientOcclusionPassCount(View);
+		if (!FSSAOHelper::IsAmbientOcclusionAsyncCompute(View, Levels) || HasRayTracedOverlay(*View.Family))
 		{
-			bAnyAsyncSSAO = false;
-			break;
+			return false;
 		}
 	}
-	return bAnyAsyncSSAO;
+	return true;
 }
 
 FAsyncResults ProcessAsync(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, const FMinimalSceneTextures& SceneTextures)

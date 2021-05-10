@@ -4694,12 +4694,12 @@ void FDeferredShadingSceneRenderer::InitViewsPossiblyAfterPrepass(FRDGBuilder& G
 
 	FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
 
-	const bool bCanOverlayRayTracingOutput = CanOverlayRayTracingOutput(Views[0]);// #dxr_todo: UE-72557 multi-view case
+	const bool bHasRayTracedOverlay = HasRayTracedOverlay(ViewFamily);
 
 	if (ViewFamily.EngineShowFlags.DynamicShadows 
 		&& !IsSimpleForwardShadingEnabled(ShaderPlatform)
 		&& !ViewFamily.EngineShowFlags.HitProxies
-		&& bCanOverlayRayTracingOutput)
+		&& !bHasRayTracedOverlay)
 	{
 		// Setup dynamic shadows.
 		InitDynamicShadows(RHICmdList, DynamicIndexBufferForInitShadows, DynamicVertexBufferForInitShadows, DynamicReadBufferForInitShadows, InstanceCullingManager);

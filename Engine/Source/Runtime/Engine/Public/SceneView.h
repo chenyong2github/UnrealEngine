@@ -29,13 +29,6 @@ class FVolumetricFogViewResources;
 class FIESLightProfileResource;
 class ITemporalUpscaler;
 
-enum class ERayTracingRenderMode
-{
-	Disabled			= 0,
-	PathTracing			= 1,
-	RayTracingDebug		= 2,
-};
-
 // Projection data for a FSceneView
 struct FSceneViewProjectionData
 {
@@ -1383,11 +1376,6 @@ public:
 		const FViewMatrices& InPrevViewMatrices) const;
 
 #if RHI_RAYTRACING
-	/** Setup ray tracing based rendering */
-	void SetupRayTracedRendering();
-
-	ERayTracingRenderMode RayTracingRenderMode = ERayTracingRenderMode::Disabled;
-
 	/** Current ray tracing debug visualization mode */
 	FName CurrentRayTracingDebugVisualizationMode;
 #endif

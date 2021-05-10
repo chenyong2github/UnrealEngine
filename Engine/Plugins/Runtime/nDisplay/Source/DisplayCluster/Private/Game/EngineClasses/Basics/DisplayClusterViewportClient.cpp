@@ -416,11 +416,6 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 										}
 									}
 								}
-
-#if RHI_RAYTRACING
-								View->SetupRayTracedRendering();
-#endif
-
 							}
 
 							// Add view information for resource streaming. Allow up to 5X boost for small FOV.
