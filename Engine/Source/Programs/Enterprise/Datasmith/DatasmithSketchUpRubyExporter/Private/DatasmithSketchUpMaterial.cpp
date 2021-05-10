@@ -5,6 +5,7 @@
 #include "DatasmithSketchUpCommon.h"
 #include "DatasmithSketchUpComponent.h"
 #include "DatasmithSketchUpExportContext.h"
+#include "DatasmithSketchUpMetadata.h"
 #include "DatasmithSketchUpMesh.h"
 #include "DatasmithSketchUpString.h"
 #include "DatasmithSketchUpSummary.h"
@@ -158,17 +159,37 @@ namespace DatasmithSketchUp
 		{
 			FTexture* Texture = (InMaterial.SourceType == SUMaterialType::SUMaterialType_ColorizedTexture)
 				? Context.Textures.AddColorizedTexture(InMaterial.TextureRef, InMaterial.SketchupSourceName)
-				: Context.Textures.AddTexture(InMaterial.TextureRef);
+				: Context.Textures.AddTexture(InMaterial.TextureRef, InMaterial.SketchupSourceName);
 
-			DatasmithMaterialsUtils::FUVEditParameters UVParameters;
-			if (bInScaleTexture)
+			IDatasmithMaterialExpressionTexture* ExpressionTexture = DatasmithMaterialElementPtr->AddMaterialExpression< IDatasmithMaterialExpressionTexture >();
+			ExpressionTexture->SetName(TEXT("Texture"));
+			ExpressionTexture->SetTexturePathName(Texture->GetDatasmithElementName());
+
+			// Apply texture scaling
+			if (bInScaleTexture && !Texture->TextureScale.Equals(FVector2D::UnitVector))
 			{
-				UVParameters.UVTiling = Texture->TextureScale;
+				IDatasmithMaterialExpressionFunctionCall* UVEditExpression = DatasmithMaterialElementPtr->AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >();
+				UVEditExpression->SetFunctionPathName(TEXT("/DatasmithContent/Materials/UVEdit.UVEdit"));
+
+				UVEditExpression->ConnectExpression(ExpressionTexture->GetInputCoordinate());
+
+				// Tiling
+				IDatasmithMaterialExpressionColor* TilingValue = DatasmithMaterialElementPtr->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
+				TilingValue->SetName(TEXT("UV Tiling"));
+				TilingValue->GetColor() = FLinearColor(Texture->TextureScale.X, Texture->TextureScale.Y, 0.f);
+
+				TilingValue->ConnectExpression(*UVEditExpression->GetInput(2));
+
+				//IDatasmithMaterialExpressionColor* OffsetValue = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
+				//OffsetValue->SetName(TEXT("UV Offset"));
+				//OffsetValue->GetColor() = FLinearColor(0.f, 0.f, 0.f);
+				//OffsetValue->ConnectExpression(*UVEditExpression->GetInput(7));
+
+				IDatasmithMaterialExpressionTextureCoordinate* TextureCoordinateExpression = DatasmithMaterialElementPtr->AddMaterialExpression< IDatasmithMaterialExpressionTextureCoordinate >();
+				TextureCoordinateExpression->SetCoordinateIndex(0);
+				TextureCoordinateExpression->ConnectExpression(*UVEditExpression->GetInput(0));
 			}
 
-			IDatasmithMaterialExpressionTexture* ExpressionTexture = DatasmithMaterialsUtils::CreateTextureExpression(DatasmithMaterialElementPtr, TEXT("Texture"), Texture->GetDatasmithElementName(), UVParameters);
-
-			// todo: multiply or replace base color with texture?
 			ExpressionTexture->ConnectExpression(DatasmithMaterialElementPtr->GetBaseColor());
 
 			bTranslucent = bTranslucent || Texture->GetTextureUseAlphaChannel();

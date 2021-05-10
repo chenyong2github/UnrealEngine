@@ -15,51 +15,19 @@
 
 class IDatasmithMetaDataElement;
 
-
-class FDatasmithSketchUpMetadata : FNoncopyable
+namespace DatasmithSketchUp
+{
+class FMetadata : FNoncopyable
 {
 public:
 
-	// Add a new entry into the dictionary of metadata definitions.
-	static void AddMetadataDefinition(
-		SUModelRef InSModelRef // source SketchUp model
-	);
-
-	// Add a new entry into the dictionary of metadata definitions.
-	static void AddMetadataDefinition(
-		SUComponentDefinitionRef InSComponentDefinitionRef // valid SketckUp component definition
-	);
-
-	// Add a new entry into the dictionary of metadata definitions.
-	static void AddMetadataDefinition(
-		SUComponentInstanceRef InSComponentInstanceRef // valid SketckUp component instance
-	);
-
-	// Clear the dictionary of metadata definitions.
-	static void ClearMetadataDefinitionMap();
-
-	// Create a Datasmith metadata element for a SketckUp component instance metadata definition.
-	static TSharedPtr<IDatasmithMetaDataElement> CreateMetadataElement(
-		SUComponentInstanceRef InSComponentInstanceRef, // valid SketckUp component instance
-		FString const&         InMetadataElementName    // metadata element name sanitized for Datasmith
-	);
-
-private:
-
 	static int32 const MODEL_METADATA_ID = 0;
 
-private:
-
-	// Add a new entry into the dictionary of metadata definitions.
-	static void AddMetadataDefinition(
-		SUEntityRef InSEntityRef // valid SketckUp entity
-	);
-
-	FDatasmithSketchUpMetadata(
+	FMetadata(
 		SUModelRef InSModelRef // source SketchUp model
 	);
 
-	FDatasmithSketchUpMetadata(
+	FMetadata(
 		SUEntityRef InSEntityRef // valid SketckUp entity
 	);
 
@@ -78,9 +46,6 @@ private:
 		SUTypedValueRef InSTypedValueRef // valid SketchUp attribute value
 	);
 
-	// Return whether or not the dictionary of metadata contains key-value pairs.
-	bool ContainsMetadata() const;
-
 	// Add the metadata key-value pairs into a Datasmith metadata element.
 	void AddMetadata(
 		TSharedPtr<IDatasmithMetaDataElement> IODMetaDataElementPtr // Datasmith metadata element to populate
@@ -91,18 +56,11 @@ private:
 	// Set of names of the interesting SketchUp attribute dictionaries.
 	static TSet<FString> const InterestingAttributeDictionarySet;
 
-	// Dictionary of metadata definitions indexed by the SketchUp metadata IDs.
-	static TMap<int32, TSharedPtr<FDatasmithSketchUpMetadata>> MetadataDefinitionMap;
-
 	// Source SketchUp metadata ID.
 	int32 SketchupSourceID;
 
 	// Dictionary of metadata key-value pairs.
 	TMap<FString, FString> MetadataKeyValueMap;
 };
-
-
-inline bool FDatasmithSketchUpMetadata::ContainsMetadata() const
-{
-	return (MetadataKeyValueMap.Num() > 0);
+	
 }
