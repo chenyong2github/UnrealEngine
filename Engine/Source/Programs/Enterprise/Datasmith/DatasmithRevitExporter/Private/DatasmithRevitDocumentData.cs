@@ -297,7 +297,11 @@ namespace DatasmithRevitExporter
 					if (CurrentElement.GetType() == typeof(Wall)
 						|| CurrentElement.GetType() == typeof(ModelText)
 						|| CurrentElement.GetType().IsSubclassOf(typeof(MEPCurve))
-						|| CurrentElement.GetType() == typeof(StructuralConnectionHandler))
+						|| CurrentElement.GetType() == typeof(StructuralConnectionHandler)
+						|| CurrentElement.GetType() == typeof(Floor)
+						|| CurrentElement.GetType() == typeof(Ceiling)
+						|| CurrentElement.GetType() == typeof(RoofBase)
+						|| CurrentElement.GetType().IsSubclassOf(typeof(RoofBase)))
 					{
 						MeshPointsTransform = PivotTransform.Inverse;
 					}
@@ -347,6 +351,17 @@ namespace DatasmithRevitExporter
 				else if (InElement.GetType() == typeof(StructuralConnectionHandler))
 				{
 					Translation = (InElement as StructuralConnectionHandler).GetOrigin();
+				}
+				else if (InElement.GetType() == typeof(Floor) 
+					|| InElement.GetType() == typeof(Ceiling) 
+					|| InElement.GetType() == typeof(RoofBase)
+					|| InElement.GetType().IsSubclassOf(typeof(RoofBase)))
+				{
+					BoundingBoxXYZ BoundingBox = InElement.get_BoundingBox(InElement.Document.ActiveView);
+					if (BoundingBox != null)
+					{
+						Translation = BoundingBox.Min;
+					}
 				}
 				else if (InElement.Location != null)
 				{
@@ -451,6 +466,15 @@ namespace DatasmithRevitExporter
 				{
 					BasisX = (InElement as FlexPipe).StartTangent;
 					ComputeBasis(BasisX, ref BasisY, ref BasisZ);
+				}
+				else if (InElement.GetType() == typeof(Floor) 
+					|| InElement.GetType() == typeof(Ceiling)
+					|| InElement.GetType() == typeof(RoofBase)
+					|| InElement.GetType().IsSubclassOf(typeof(RoofBase)))
+				{
+					BasisX = XYZ.BasisX;
+					BasisY = XYZ.BasisY;
+					BasisZ = XYZ.BasisZ;
 				}
 				else if (InElement.Location.GetType() == typeof(LocationCurve))
 				{
