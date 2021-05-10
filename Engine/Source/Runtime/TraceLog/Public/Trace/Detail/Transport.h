@@ -35,7 +35,8 @@ struct FTidPacketBase
 	enum : uint16
 	{
 		EncodedMarker = 0x8000,
-		ThreadIdMask  = EncodedMarker - 1,
+		PartialMarker = 0x4000,
+		ThreadIdMask  = PartialMarker - 1,
 	};
 
 	uint16 PacketSize;
