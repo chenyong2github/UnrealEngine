@@ -11,13 +11,20 @@ public class DisplayClusterMessageInterception : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"Concert",
-				"ConcertSyncClient",
-				"ConcertSyncCore",
-				"ConcertTransport",
 				"DisplayCluster",
 				"Engine",
 				"Messaging"
 			});
+		if (Target.Type == TargetType.Editor || Target.Type == TargetType.Program)
+		{
+			PrivateDefinitions.Add("WITH_CONCERT=1");
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"Concert",
+					"ConcertSyncClient",
+					"ConcertSyncCore",
+					"ConcertTransport"
+				});
+		}
 	}
 }
