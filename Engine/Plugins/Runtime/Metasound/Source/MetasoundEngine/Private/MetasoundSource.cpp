@@ -111,6 +111,7 @@ float UMetaSoundSource::GetDuration()
 ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorInitParams& InParams)
 {
 	using namespace Metasound;
+	using namespace Metasound::Frontend;
 
 	Duration = INDEFINITELY_LOOPING_DURATION;
 	bLooping = true;
@@ -153,7 +154,7 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	ensure(CopyDocumentAndInjectReceiveNodes(InParams.InstanceID, *OriginalDoc, DocumentWithInjectedReceives));
 
 	// Create handles for new root graph
-	Frontend::FConstDocumentHandle NewDocumentHandle = Frontend::IDocumentController::CreateDocumentHandle(Frontend::MakeAccessPtr<const FMetasoundFrontendDocument>(DocumentWithInjectedReceives.AccessPoint, DocumentWithInjectedReceives));
+	FConstDocumentHandle NewDocumentHandle = IDocumentController::CreateDocumentHandle(MakeAccessPtr<FConstDocumentAccessPtr>(DocumentWithInjectedReceives.AccessPoint, DocumentWithInjectedReceives));
 
 	FMetasoundGeneratorInitParams InitParams = 
 	{
@@ -215,11 +216,12 @@ Metasound::Frontend::FNodeHandle UMetaSoundSource::AddInputPinForSendAddress(con
 bool UMetaSoundSource::CopyDocumentAndInjectReceiveNodes(uint64 InInstanceID, const FMetasoundFrontendDocument& InSourceDoc, FMetasoundFrontendDocument& OutDestDoc) const
 {
 	using namespace Metasound;
+	using namespace Metasound::Frontend;
 
 	OutDestDoc = InSourceDoc;
 
-	Frontend::FDocumentHandle Document = Frontend::IDocumentController::CreateDocumentHandle(Frontend::MakeAccessPtr(OutDestDoc.AccessPoint, OutDestDoc));
-	Frontend::FGraphHandle RootGraph = Document->GetRootGraph();
+	FDocumentHandle Document = IDocumentController::CreateDocumentHandle(MakeAccessPtr<FDocumentAccessPtr>(OutDestDoc.AccessPoint, OutDestDoc));
+	FGraphHandle RootGraph = Document->GetRootGraph();
 
 	TArray<FSendInfoAndVertexName> SendInfoAndVertexes = GetSendInfos(InInstanceID);
 
@@ -235,19 +237,19 @@ bool UMetaSoundSource::CopyDocumentAndInjectReceiveNodes(uint64 InInstanceID, co
 			// TODO: log warning
 			continue;
 		}
-		Frontend::FNodeHandle ReceiveNode = RootGraph->AddNode(ReceiveNodeMetadata);
+		FNodeHandle ReceiveNode = RootGraph->AddNode(ReceiveNodeMetadata);
 
 		// Add receive node address to graph
-		Frontend::FNodeHandle AddressNode = UMetaSoundSource::AddInputPinForSendAddress(InfoAndVertexName.SendInfo, RootGraph);
-		TArray<Frontend::FOutputHandle> AddressNodeOutputs = AddressNode->GetOutputs();
+		FNodeHandle AddressNode = UMetaSoundSource::AddInputPinForSendAddress(InfoAndVertexName.SendInfo, RootGraph);
+		TArray<FOutputHandle> AddressNodeOutputs = AddressNode->GetOutputs();
 		if (AddressNodeOutputs.Num() != 1)
 		{
 			// TODO: log warning
 			continue;
 		}
 
-		Frontend::FOutputHandle AddressOutput = AddressNodeOutputs[0];
-		TArray<Frontend::FInputHandle> ReceiveAddressInput = ReceiveNode->GetInputsWithVertexName(Metasound::FReceiveNodeNames::GetAddressInputName());
+		FOutputHandle AddressOutput = AddressNodeOutputs[0];
+		TArray<FInputHandle> ReceiveAddressInput = ReceiveNode->GetInputsWithVertexName(Metasound::FReceiveNodeNames::GetAddressInputName());
 		if (ReceiveAddressInput.Num() != 1)
 		{
 			// TODO: log error
@@ -259,29 +261,29 @@ bool UMetaSoundSource::CopyDocumentAndInjectReceiveNodes(uint64 InInstanceID, co
 
 
 		// Swap input node connections with receive node connections
-		Frontend::FNodeHandle InputNode = RootGraph->GetInputNodeWithName(InfoAndVertexName.VertexName);
+		FNodeHandle InputNode = RootGraph->GetInputNodeWithName(InfoAndVertexName.VertexName);
 		if (!ensure(InputNode->GetOutputs().Num() == 1))
 		{
 			// TODO: handle input node with varying number of outputs or varying output types.
 			continue;
 		}
 
-		Frontend::FOutputHandle InputNodeOutput = InputNode->GetOutputs()[0];
+		FOutputHandle InputNodeOutput = InputNode->GetOutputs()[0];
 
 		if (ensure(ReceiveNode->IsValid()))
 		{
-			TArray<Frontend::FOutputHandle> ReceiveNodeOutputs = ReceiveNode->GetOutputs();
+			TArray<FOutputHandle> ReceiveNodeOutputs = ReceiveNode->GetOutputs();
 			if (!ensure(ReceiveNodeOutputs.Num() == 1))
 			{
 				// TODO: handle array outputs and receive nodes of varying formats.
 				continue;
 			}
 
-			TArray<Frontend::FInputHandle> ReceiveDefaultInputs = ReceiveNode->GetInputsWithVertexName(Metasound::FReceiveNodeNames::GetDefaultDataInputName());
+			TArray<FInputHandle> ReceiveDefaultInputs = ReceiveNode->GetInputsWithVertexName(Metasound::FReceiveNodeNames::GetDefaultDataInputName());
 			if (ensure(ReceiveDefaultInputs.Num() == 1))
 			{
-				Frontend::FOutputHandle ReceiverNodeOutput = ReceiveNodeOutputs[0];
-				for (Frontend::FInputHandle NodeInput : InputNodeOutput->GetCurrentlyConnectedInputs())
+				FOutputHandle ReceiverNodeOutput = ReceiveNodeOutputs[0];
+				for (FInputHandle NodeInput : InputNodeOutput->GetCurrentlyConnectedInputs())
 				{
 					// Swap connections to receiver node
 					ensure(InputNodeOutput->Disconnect(*NodeInput));

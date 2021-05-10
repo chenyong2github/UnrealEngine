@@ -35,16 +35,16 @@ namespace Metasound
 			return FInvalidDocumentController::GetInvalid();
 		}
 			
-		FDocumentHandle IDocumentController::CreateDocumentHandle(TAccessPtr<FMetasoundFrontendDocument> InDocument)
+		FDocumentHandle IDocumentController::CreateDocumentHandle(FDocumentAccessPtr InDocument)
 		{
 			// Create using standard document controller.
 			return FDocumentController::CreateDocumentHandle(InDocument);
 		}
 
-		FConstDocumentHandle IDocumentController::CreateDocumentHandle(TAccessPtr<const FMetasoundFrontendDocument> InDocument)
+		FConstDocumentHandle IDocumentController::CreateDocumentHandle(FConstDocumentAccessPtr InDocument)
 		{
 			// Create using standard document controller. 
-			return FDocumentController::CreateDocumentHandle(ConstCastAccessPtr<FMetasoundFrontendDocument>(InDocument));
+			return FDocumentController::CreateDocumentHandle(ConstCastAccessPtr<FDocumentAccessPtr>(InDocument));
 		}
 	}
 }

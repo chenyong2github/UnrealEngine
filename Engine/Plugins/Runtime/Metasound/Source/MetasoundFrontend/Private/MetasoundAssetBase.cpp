@@ -148,7 +148,7 @@ Metasound::Frontend::FConstGraphHandle FMetasoundAssetBase::GetRootGraphHandle()
 
 bool FMetasoundAssetBase::ImportFromJSON(const FString& InJSON)
 {
-	Metasound::Frontend::TAccessPtr<FMetasoundFrontendDocument> Document = GetDocument();
+	Metasound::Frontend::FDocumentAccessPtr Document = GetDocument();
 	if (ensure(Document.IsValid()))
 	{
 		bool bSuccess = Metasound::Frontend::ImportJSONToMetasound(InJSON, *Document);
@@ -165,7 +165,7 @@ bool FMetasoundAssetBase::ImportFromJSON(const FString& InJSON)
 
 bool FMetasoundAssetBase::ImportFromJSONAsset(const FString& InAbsolutePath)
 {
-	Metasound::Frontend::TAccessPtr<FMetasoundFrontendDocument> Document = GetDocument();
+	Metasound::Frontend::FDocumentAccessPtr Document = GetDocument();
 	if (ensure(Document.IsValid()))
 	{
 		bool bSuccess = Metasound::Frontend::ImportJSONAssetToMetasound(InAbsolutePath, *Document);
@@ -182,7 +182,7 @@ bool FMetasoundAssetBase::ImportFromJSONAsset(const FString& InAbsolutePath)
 
 FMetasoundFrontendDocument& FMetasoundAssetBase::GetDocumentChecked()
 {
-	Metasound::Frontend::TAccessPtr<FMetasoundFrontendDocument> DocAccessPtr = GetDocument();
+	Metasound::Frontend::FDocumentAccessPtr DocAccessPtr = GetDocument();
 
 	check(DocAccessPtr.IsValid());
 	return *DocAccessPtr;
@@ -190,7 +190,7 @@ FMetasoundFrontendDocument& FMetasoundAssetBase::GetDocumentChecked()
 
 const FMetasoundFrontendDocument& FMetasoundAssetBase::GetDocumentChecked() const
 {
-	Metasound::Frontend::TAccessPtr<const FMetasoundFrontendDocument> DocAccessPtr = GetDocument();
+	Metasound::Frontend::FConstDocumentAccessPtr DocAccessPtr = GetDocument();
 
 	check(DocAccessPtr.IsValid());
 	return *DocAccessPtr;

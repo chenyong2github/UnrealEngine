@@ -139,18 +139,20 @@ public:
 
 protected:
 
-	Metasound::Frontend::TAccessPtr<FMetasoundFrontendDocument> GetDocument() override
+	Metasound::Frontend::FDocumentAccessPtr GetDocument() override
 	{
+		using namespace Metasound::Frontend;
 		// Return document using FAccessPoint to inform the TAccessPtr when the 
 		// object is no longer valid.
-		return Metasound::Frontend::MakeAccessPtr<FMetasoundFrontendDocument>(RootMetasoundDocument.AccessPoint, RootMetasoundDocument);
+		return MakeAccessPtr<FDocumentAccessPtr>(RootMetasoundDocument.AccessPoint, RootMetasoundDocument);
 	}
 
-	Metasound::Frontend::TAccessPtr<const FMetasoundFrontendDocument> GetDocument() const override
+	Metasound::Frontend::FConstDocumentAccessPtr GetDocument() const override
 	{
+		using namespace Metasound::Frontend;
 		// Return document using FAccessPoint to inform the TAccessPtr when the 
 		// object is no longer valid.
-		return Metasound::Frontend::MakeAccessPtr<const FMetasoundFrontendDocument>(RootMetasoundDocument.AccessPoint, RootMetasoundDocument);
+		return MakeAccessPtr<FConstDocumentAccessPtr>(RootMetasoundDocument.AccessPoint, RootMetasoundDocument);
 	}
 
 private:
