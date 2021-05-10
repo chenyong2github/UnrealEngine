@@ -3,6 +3,7 @@
 #include "Tracks/MovieSceneEventTrack.h"
 #include "MovieSceneCommonHelpers.h"
 #include "Sections/MovieSceneEventSection.h"
+#include "Sections/MovieSceneEventSectionBase.h"
 #include "Sections/MovieSceneEventTriggerSection.h"
 #include "Sections/MovieSceneEventRepeaterSection.h"
 #include "Evaluation/MovieSceneEventTemplate.h"
@@ -32,6 +33,22 @@ void UMovieSceneEventTrack::Serialize(FArchive& Ar)
 	}
 
 	Super::Serialize(Ar);
+}
+
+void UMovieSceneEventTrack::PostRename(UObject* OldOuter, const FName OldName)
+{
+	if (OldOuter != GetOuter())
+	{
+		Super::PostRename(OldOuter, OldName);
+
+		for (UMovieSceneSection* Section : Sections)
+		{
+			if (UMovieSceneEventSectionBase* EventSection = Cast<UMovieSceneEventSectionBase>(Section))
+			{
+				EventSection->PostDuplicateSectionEvent.Execute(EventSection);
+			}
+		}
+	}
 }
 #endif// WITH_EDITOR
 
