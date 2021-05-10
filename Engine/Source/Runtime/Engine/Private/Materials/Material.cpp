@@ -2985,8 +2985,14 @@ UE_TRACE_EVENT_END()
 void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId, EMaterialShaderPrecompileMode PrecompileMode)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UMaterial::CacheResourceShadersForRendering);
+
+	FString TraceMaterialName;
+	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
+	{
+		TraceMaterialName = GetFullName();
+	}
 	UE_TRACE_LOG_SCOPED_T(Cpu, CacheResourceShadersForRendering, CpuChannel)
-		<< CacheResourceShadersForRendering.MaterialName(*GetFullName());
+		<< CacheResourceShadersForRendering.MaterialName(*TraceMaterialName);
 
 #if WITH_EDITOR
 	// Always rebuild the shading model field on recompile

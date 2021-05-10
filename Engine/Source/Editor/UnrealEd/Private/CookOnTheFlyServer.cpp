@@ -3021,8 +3021,13 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 		TArray<bool> SucceededSavePackage;
 		TArray<FSavePackageResultStruct> SavePackageResults;
 		{
+			TStringBuilder<512> PackageDataFileName;
+			if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CookChannel))
+			{
+				PackageData.GetFileName().ToString(PackageDataFileName);
+			}
 			UE_SCOPED_HIERARCHICAL_CUSTOM_COOKTIMER_AND_DURATION(SaveCookedPackage, DetailedCookStats::TickCookOnTheSideSaveCookedPackageTimeSec)
-				UE_ADD_CUSTOM_COOKTIMER_META(SaveCookedPackage, PackageName, *PackageData.GetFileName().ToString());
+				UE_ADD_CUSTOM_COOKTIMER_META(SaveCookedPackage, PackageName, *PackageDataFileName);
 
 			uint32 SaveFlags = SAVE_KeepGUID | (bSaveAsyncAllowed ? SAVE_Async : SAVE_None) | (IsCookFlagSet(ECookInitializationFlags::Unversioned) ? SAVE_Unversioned : 0);
 

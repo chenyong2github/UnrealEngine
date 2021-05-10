@@ -1105,8 +1105,14 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 	const FLinkerInstancingContext* InstancingContext, const FPackagePath* DiffPackagePath)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("LoadPackageInternal"), STAT_LoadPackageInternal, STATGROUP_ObjectVerbose);
+
+	FString TracePackageName;
+	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(LoadTimeChannel))
+	{
+		TracePackageName = PackagePath.GetPackageNameOrFallback();
+	}
 	SCOPED_CUSTOM_LOADTIMER(LoadPackageInternal)
-		ADD_CUSTOM_LOADTIMER_META(LoadPackageInternal, PackageName, *PackagePath.GetPackageNameOrFallback());
+		ADD_CUSTOM_LOADTIMER_META(LoadPackageInternal, PackageName, *TracePackageName);
 
 	if (PackagePath.IsEmpty())
 	{
