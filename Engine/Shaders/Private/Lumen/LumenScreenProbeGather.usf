@@ -14,6 +14,7 @@
 #include "../FastMath.ush"
 #include "../ClearCoatCommon.ush"
 #include "LumenRadianceCacheCommon.ush"
+#include "../TextureSampling.ush"
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 1
@@ -119,7 +120,7 @@ void CalculateUniformUpsampleInterpolationWeights(
 	uint2 ScreenProbeFullResScreenCoord = clamp(SVPosition.xy - View.ViewRectMin.xy - (int2)GetScreenTileJitter(SCREEN_TEMPORAL_INDEX) + NoiseOffset, 0, (int2)View.ViewSizeAndInvSize.xy - 1);
 	ScreenTileCoord00 = min(ScreenProbeFullResScreenCoord / ScreenProbeDownsampleFactor, (uint2)ScreenProbeViewSize - 2);
 
-	uint BilinearExpand = 0;
+	uint BilinearExpand = 1;
 	float2 BilinearWeights = (ScreenProbeFullResScreenCoord - ScreenTileCoord00 * ScreenProbeDownsampleFactor + BilinearExpand) / (float)(ScreenProbeDownsampleFactor + 2 * BilinearExpand);
 
 	float4 CornerDepths;
@@ -556,13 +557,6 @@ FThreeBandSHVectorRGB GetScreenProbeSH(uint2 ScreenProbeAtlasCoord, float Interp
 	return LightingSH;
 }
 
-Buffer<float> ScreenProbeMoving;
-
-float GetScreenProbeMoving(uint2 ScreenProbeAtlasCoord, float InterpolationWeight)
-{
-	return ScreenProbeMoving[ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x] * InterpolationWeight;
-}
-
 // Bias the important sampling of SampleBxDF(SHADING_TERM_SPECULAR, ....)
 float4 BiasBSDFImportantSample(float4 E)
 {
@@ -608,7 +602,7 @@ void DebugVisualizeScreenProbePlacement(uint2 SVPosition, inout float3 DiffuseIn
 
 		if (all(UniformScreenProbeScreenPosition == SVPosition) && GetScreenProbeDepth(ScreenTileCoord) >= 0)
 		{
-			DiffuseIndirectOutput = float3(20, 0, 20);
+			DiffuseIndirectOutput = float3(200, 0, 200);
 		}
 
 		uint NumAdaptiveProbes = ScreenTileAdaptiveProbeHeader[ScreenTileCoord];
@@ -623,7 +617,7 @@ void DebugVisualizeScreenProbePlacement(uint2 SVPosition, inout float3 DiffuseIn
 
 			if (all(ScreenProbeScreenPosition == SVPosition))
 			{
-				DiffuseIndirectOutput = float3(20, 0, 20);
+				DiffuseIndirectOutput = float3(200, 0, 200);
 			}
 		}
 
@@ -670,6 +664,32 @@ float3 DistantIlluminationRescale(float3 DiffuseColor, float AO)
 	float Tau = 1 - F1 / max(1 - F0, 0.00001f);
 
 	return F0 + DiffuseColor / max(1 - DiffuseColor * Tau, 0.00001f) * F1;
+}
+
+#define TONEMAP_DURING_INTEGRATION 1
+
+float Luma(float3 Color) 
+{
+	// Rec 709 function for luma.
+	return dot(Color, float3(0.2126f, 0.7152f, 0.0722f));
+}
+
+float3 TonemapLighting(float3 Lighting)
+{
+#if TONEMAP_DURING_INTEGRATION
+	return Lighting / (1.0f + Luma(Lighting));
+#else
+	return Lighting;
+#endif
+}
+
+float3 InverseTonemapLighting(float3 TonemappedLighting)
+{
+#if TONEMAP_DURING_INTEGRATION
+	return TonemappedLighting / (1.0f - Luma(TonemappedLighting));
+#else
+	return TonemappedLighting;
+#endif
 }
 
 RWTexture2D<float4> RWDiffuseIndirect;
@@ -794,7 +814,6 @@ void ScreenProbeIndirectCS(
 				const uint TermMask = SHADING_TERM_DIFFUSE | SHADING_TERM_HAIR_R | SHADING_TERM_HAIR_TT | SHADING_TERM_HAIR_TRT;
 				//@todo - calculate based on solid angle
 				float DiffuseMipLevel = ScreenProbeGatherMaxMip;
-				float VisibilityThreshold = InterleavedGradientNoise(DispatchThreadId.xy, GENERAL_TEMPORAL_INDEX);
 				FSphericalGaussian HemisphereSG = Hemisphere_ToSphericalGaussian(GBufferData.WorldNormal);
 				FSphericalGaussian VisibleSG = BentNormalAO_ToSphericalGaussian(UnitBentNormal, AO);
 
@@ -814,7 +833,7 @@ void ScreenProbeIndirectCS(
 
 					#if SCREEN_SPACE_BENT_NORMAL
 						float LVisibility = saturate(Evaluate(VisibleSG, BxDFSample.L) / Evaluate(HemisphereSG, BxDFSample.L));
-						DirectionVisibility *= LVisibility < VisibilityThreshold ? 0 : 1;
+						DirectionVisibility *= LVisibility;
 					#endif
 
 					DiffuseLighting += InterpolatedRadiance * BxDFSample.Weight * DirectionVisibility;
@@ -887,9 +906,8 @@ void ScreenProbeIndirectCS(
 							float DirectionalOcclusion = 1.0f;
 
 							#if SCREEN_SPACE_BENT_NORMAL
-								float VisibilityThreshold = InterleavedGradientNoise(DispatchThreadId.xy * float2(ScreenProbeResolutionFloat, ScreenProbeResolutionFloat) + float2(X, Y), GENERAL_TEMPORAL_INDEX);
 								float LVisibility = saturate(Evaluate(VisibleSG, WorldConeDirection) / Evaluate(HemisphereSG, WorldConeDirection));
-								DirectionalOcclusion *= LVisibility < VisibilityThreshold ? 0 : 1;
+								DirectionalOcclusion *= LVisibility;
 							#endif
 
 							DiffuseLighting += InterpolatedRadiance * SampleWeight * DirectionalOcclusion;
@@ -912,14 +930,20 @@ void ScreenProbeIndirectCS(
 			}
 			#endif
 
-			float LightingIsMoving = GetScreenProbeMoving(ScreenProbeAtlasCoord[0], InterpolationWeights.x)
-				+ GetScreenProbeMoving(ScreenProbeAtlasCoord[1], InterpolationWeights.y)
-				+ GetScreenProbeMoving(ScreenProbeAtlasCoord[2], InterpolationWeights.z)
-				+ GetScreenProbeMoving(ScreenProbeAtlasCoord[3], InterpolationWeights.w);
+			float LightingIsMoving = GetScreenProbeMoving(ScreenProbeAtlasCoord[0]) * InterpolationWeights.x
+				+ GetScreenProbeMoving(ScreenProbeAtlasCoord[1]) * InterpolationWeights.y
+				+ GetScreenProbeMoving(ScreenProbeAtlasCoord[2]) * InterpolationWeights.z
+				+ GetScreenProbeMoving(ScreenProbeAtlasCoord[3]) * InterpolationWeights.w;
 
 			float EncodedAlpha = (bLightingIsValid ? 1.0f : -1.0f) * max(LightingIsMoving, .001f);
 
 			float3 DiffuseIndirectOutput = DiffuseLighting * (bLightingIsValid ? 1.0f : 0.0f) * Diffuse_Lambert(float3(1, 1, 1));
+
+
+			///////////////////////
+			//DiffuseIndirectOutput = (dot(InterpolationWeights > Epsilon ? 1 : 0, 1)) / 4.0f;
+			//DiffuseIndirectOutput = dot(InterpolationWeights > Epsilon ? 1 : 0, 1) > 2 + Epsilon;
+			//DiffuseIndirectOutput = InterpolationWeights.x > Epsilon ? 1 : 0;
 
 			DebugVisualizeScreenProbePlacement(DispatchThreadId, DiffuseIndirectOutput);
 
@@ -959,6 +983,8 @@ void ScreenProbeIndirectCS(
 				float CosConeHalfAngle = 1.0 - SolidAngleSample / (2.0 * PI);
 				float NumTexels = sqrt(1.0f - CosConeHalfAngle) * ScreenProbeGatherOctahedronResolution;
 				float MipLevel = clamp(log2(NumTexels), 0, ScreenProbeGatherMaxMip);
+				FSphericalGaussian HemisphereSG = Hemisphere_ToSphericalGaussian(GBufferData.WorldNormal);
+				FSphericalGaussian VisibleSG = BentNormalAO_ToSphericalGaussian(UnitBentNormal, AO);
 
 				for (uint TracingRayIndex = 0; TracingRayIndex < NumSpecularSamples; TracingRayIndex++)
 				{
@@ -967,13 +993,23 @@ void ScreenProbeIndirectCS(
 					E = BiasBSDFImportantSample(E);
 
 					FBxDFSample BxDFSample = SampleBxDF(SHADING_TERM_SPECULAR, GBufferData, V, E);
+					float3 InterpolatedRadiance = InterpolateFromScreenProbes(BxDFSample.L, MipLevel, ScreenProbeAtlasCoord, InterpolationWeights);
 
-					SpecularLighting += InterpolateFromScreenProbes(BxDFSample.L, MipLevel, ScreenProbeAtlasCoord, InterpolationWeights);
+					float DirectionVisibility = 1.0f;
+
+					#if SCREEN_SPACE_BENT_NORMAL
+						float LVisibility = saturate(Evaluate(VisibleSG, BxDFSample.L) / Evaluate(HemisphereSG, BxDFSample.L));
+						DirectionVisibility *= LVisibility;
+					#endif
+
+					SpecularLighting += TonemapLighting(InterpolatedRadiance * BxDFSample.Weight * DirectionVisibility);
 				}
+
+				SpecularLighting = InverseTonemapLighting(SpecularLighting / (float)NumSpecularSamples);
 			}
 
 			//@todo - replace with SH fit of GGX
-			SpecularLighting = lerp(SpecularLighting / (float)NumSpecularSamples, DiffuseLighting / PI, DiffuseLerp);
+			SpecularLighting = lerp(SpecularLighting, DiffuseLighting / PI, DiffuseLerp);
 #endif
 			RWRoughSpecularIndirect[DispatchThreadId.xy] = SpecularLighting;
 		}
@@ -985,21 +1021,6 @@ void ScreenProbeIndirectCS(
 	}
 }
 
-float HistoryDistanceThreshold;
-
-float ComputeHistoryWeightBasedOnPosition(float2 ScreenPosition, float SceneDepth, float2 OldScreenPosition, float HistoryCameraDepth, float Noise)
-{
-	float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
-
-	float3 PrevPositionTranslatedWorld = mul(float4(OldScreenPosition * HistoryCameraDepth, HistoryCameraDepth, 1), View.PrevScreenToTranslatedWorld).xyz;
-	float3 PrevWorldPosition = PrevPositionTranslatedWorld - View.PrevPreViewTranslation;
-
-	float DistanceToHistoryValue = length(PrevWorldPosition - WorldPosition);
-	float RelativeHistoryDistanceThreshold = HistoryDistanceThreshold * lerp(.5f, 1.5f, Noise) / 1000.0f;
-
-	return DistanceToHistoryValue / SceneDepth > RelativeHistoryDistanceThreshold ? 0.0f : 1.0f;
-}
-
 Texture2D DiffuseIndirect;
 Texture2D RoughSpecularIndirect;
 Texture2D DiffuseIndirectHistory;
@@ -1009,15 +1030,19 @@ Texture2D HistoryConvergence;
 
 float HistoryWeight;
 float HistoryConvergenceWeight;
+float HistoryDistanceThreshold;
 
 float4 HistoryScreenPositionScaleBias;
 float4 HistoryUVMinMax;
+uint4 HistoryViewportMinMax;
+float2 InvDiffuseIndirectBufferSize;
 
 Texture2D VelocityTexture;
 SamplerState VelocityTextureSampler;
 
 float PrevInvPreExposure;
 float InvFractionOfLightingMovingForFullNeighborhoodClamp;
+float MaxNeighborhoodClampAmount;
 
 static const int2 kOffsets3x3[8] =
 {
@@ -1123,18 +1148,37 @@ void ScreenProbeTemporalReprojectionDepthRejectionPS(
 	float EffectiveConvergenceWeight = HistoryConvergenceWeight;
 	float NewConvergence = 1;
 
-	float EffectiveHistoryWeight = bLightingIsValid ? HistoryWeight : 1.0f;
-
 	if (bHistoryWasOffscreen)
 	{ 
 		EffectiveConvergenceWeight = 0;
 		NewConvergence = 0;
-		EffectiveHistoryWeight = 0;
 	}
 
-	float Noise = InterleavedGradientNoise(SVPosition.xy, View.StateFrameIndexMod8);
-	float HistoryDepth = ConvertFromDeviceZ(Texture2DSampleLevel(DiffuseIndirectDepthHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).x);
-	float PositionWeight = ComputeHistoryWeightBasedOnPosition(ScreenPosition, SceneDepth, HistoryScreenPosition.xy, HistoryDepth, Noise);
+	float PositionWeight = 1.0;
+
+	{
+		// Calculate the expected depth of the pixel last frame
+		// This uses velocity depth to correctly handle moving objects, see FVelocityRendering::GetFormat
+		float PrevSceneDepth = ConvertFromDeviceZ(HistoryScreenPosition.z);
+
+		// Lookup the actual depth at the same screen position last frame
+		float HistoryDepth = ConvertFromDeviceZ(Texture2DSampleLevel(DiffuseIndirectDepthHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).x);
+
+		float Noise = InterleavedGradientNoise(SVPosition.xy, View.StateFrameIndexMod8);
+		float RelativeHistoryDistanceThreshold = HistoryDistanceThreshold * lerp(.5f, 1.5f, Noise) / 1000.0f;
+
+		{
+			FGBufferData GBufferData = GetGBufferDataFromSceneTextures(ScreenUV);
+			float3 TranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+			float3 V = normalize(-TranslatedWorldPosition);
+			// Raise the threshold at grazing angles to compensate for TAA jitter causing a depth mismatch dependent on the angle
+			// This also introduces some ghosting, needs a better solution
+			RelativeHistoryDistanceThreshold /= clamp(saturate(dot(V, GBufferData.WorldNormal)), .1f, 1.0f); 
+		}
+
+		float DistanceToHistoryValue = abs(HistoryDepth - PrevSceneDepth);
+		PositionWeight = DistanceToHistoryValue / PrevSceneDepth > RelativeHistoryDistanceThreshold ? 0.0f : 1.0f;
+	}
 
 	EffectiveConvergenceWeight *= PositionWeight;
 	NewConvergence *= PositionWeight;
@@ -1149,7 +1193,8 @@ void ScreenProbeTemporalReprojectionDepthRejectionPS(
 	// Compute the amount of neighborhood clamp history rejection to apply based on what fraction of the probe directions hit fast moving objects
 	float NeighborhoodClampAmount = saturate(LightingIsMoving * InvFractionOfLightingMovingForFullNeighborhoodClamp);
 	// For performance, skip neighborhood clamp when it would have had a small contribution
-	NeighborhoodClampAmount = saturate((NeighborhoodClampAmount - .2f) / .8f);
+	NeighborhoodClampAmount = saturate(min((NeighborhoodClampAmount - .2f) / .8f, MaxNeighborhoodClampAmount));
+	float EffectiveHistoryWeight = HistoryWeight;
 
 	if (NeighborhoodClampAmount > 0)
 	{
@@ -1165,8 +1210,24 @@ void ScreenProbeTemporalReprojectionDepthRejectionPS(
 	UpdatedConvergence = min(UpdatedConvergence, 1.0f - .5f * NeighborhoodClampAmount);
 	EffectiveHistoryWeight *= UpdatedConvergence * lerp(PositionWeight, 1.0f, NeighborhoodClampAmount);
 
+	if (bHistoryWasOffscreen)
+	{ 
+		EffectiveHistoryWeight = 0;
+	}
+
+	if (!bLightingIsValid)
+	{
+		EffectiveHistoryWeight = 1.0f;
+	}
+
 	OutDiffuseIndirect = float4(lerp(NewDiffuseLighting.rgb, HistoryDiffuseIndirect.rgb, EffectiveHistoryWeight), 0);
 	OutRoughSpecularIndirect = float4(lerp(NewRoughSpecularLighting.rgb, HistoryRoughSpecularIndirect.rgb, EffectiveHistoryWeight), 0);
+
+
+
+	/////////////////
+	//OutDiffuseIndirect.xyz = NeighborhoodClampAmount;
+	//OutRoughSpecularIndirect.xyz = bHistoryWasOffscreen ? 0 : PositionWeight;
 
 	OutDiffuseIndirect.rgb = -min(-OutDiffuseIndirect.rgb, 0.0f);
 	OutRoughSpecularIndirect.rgb = -min(-OutRoughSpecularIndirect.rgb, 0.0f);

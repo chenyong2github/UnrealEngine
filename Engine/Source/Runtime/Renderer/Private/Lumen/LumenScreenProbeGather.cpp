@@ -161,6 +161,14 @@ FAutoConsoleVariableRef CVarLumenScreenProbeFractionOfLightingMovingForFullNeigh
 	ECVF_RenderThreadSafe
 	);
 
+float GLumenScreenProbeTemporalMaxNeighborhoodClampAmount = .4f;
+FAutoConsoleVariableRef CVarLumenScreenProbeTemporalMaxNeighborhoodClampAmount(
+	TEXT("r.Lumen.ScreenProbeGather.Temporal.MaxNeighborhoodClampAmount"),
+	GLumenScreenProbeTemporalMaxNeighborhoodClampAmount,
+	TEXT("Maximum amount of fast-responding temporal filter to use when traces hit a moving object.  Values closer to 1 cause more noise, but also faster reaction to scene changes."),
+	ECVF_RenderThreadSafe
+	);
+
 float GLumenScreenProbeRelativeSpeedDifferenceToConsiderLightingMoving = .005f;
 FAutoConsoleVariableRef CVarLumenScreenProbeRelativeSpeedDifferenceToConsiderLightingMoving(
 	TEXT("r.Lumen.ScreenProbeGather.Temporal.RelativeSpeedDifferenceToConsiderLightingMoving"),
@@ -696,9 +704,11 @@ class FScreenProbeTemporalReprojectionDepthRejectionPS : public FGlobalShader
 		SHADER_PARAMETER(float,HistoryConvergenceWeight)
 		SHADER_PARAMETER(float,PrevInvPreExposure)
 		SHADER_PARAMETER(float,InvFractionOfLightingMovingForFullNeighborhoodClamp)
+		SHADER_PARAMETER(float,MaxNeighborhoodClampAmount)
 		SHADER_PARAMETER(FVector2D,InvDiffuseIndirectBufferSize)
 		SHADER_PARAMETER(FVector4,HistoryScreenPositionScaleBias)
 		SHADER_PARAMETER(FVector4,HistoryUVMinMax)
+		SHADER_PARAMETER(FIntVector4,HistoryViewportMinMax)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, VelocityTextureSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DiffuseIndirect)
@@ -856,6 +866,7 @@ void UpdateHistoryScreenProbeGather(
 				PassParameters->HistoryConvergenceWeight = GLumenScreenProbeHistoryConvergenceWeight;
 				PassParameters->PrevInvPreExposure = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
 				PassParameters->InvFractionOfLightingMovingForFullNeighborhoodClamp = 1.0f / FMath::Max(GLumenScreenProbeFractionOfLightingMovingForFullNeighborhoodClamp, .001f);
+				PassParameters->MaxNeighborhoodClampAmount = GLumenScreenProbeTemporalMaxNeighborhoodClampAmount;
 				const FVector2D InvBufferSize(1.0f / BufferSize.X, 1.0f / BufferSize.Y);
 				PassParameters->InvDiffuseIndirectBufferSize = InvBufferSize;
 				PassParameters->HistoryScreenPositionScaleBias = *DiffuseIndirectHistoryScreenPositionScaleBias;
@@ -866,6 +877,12 @@ void UpdateHistoryScreenProbeGather(
 					(DiffuseIndirectHistoryViewRect->Min.Y + 0.5f) * InvBufferSize.Y,
 					(DiffuseIndirectHistoryViewRect->Max.X - 0.5f) * InvBufferSize.X,
 					(DiffuseIndirectHistoryViewRect->Max.Y - 0.5f) * InvBufferSize.Y);
+
+				PassParameters->HistoryViewportMinMax = FIntVector4(
+					DiffuseIndirectHistoryViewRect->Min.X, 
+					DiffuseIndirectHistoryViewRect->Min.Y, 
+					DiffuseIndirectHistoryViewRect->Max.X,
+					DiffuseIndirectHistoryViewRect->Max.Y);
 
 				PassParameters->VelocityTexture = SceneTextures.Velocity;
 				PassParameters->VelocityTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
@@ -1080,8 +1097,15 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	ScreenProbeParameters.ScreenTraceNoFallbackThicknessScale = Lumen::UseHardwareRayTracedScreenProbeGather() ? 1.0f : GLumenScreenProbeScreenTracesThicknessScaleWhenNoFallback;
 	ScreenProbeParameters.NumUniformScreenProbes = ScreenProbeParameters.ScreenProbeViewSize.X * ScreenProbeParameters.ScreenProbeViewSize.Y;
 	ScreenProbeParameters.MaxNumAdaptiveProbes = FMath::TruncToInt(ScreenProbeParameters.NumUniformScreenProbes * GLumenScreenProbeGatherAdaptiveProbeAllocationFraction);
+	
+	ScreenProbeParameters.FixedJitterIndex = GLumenScreenProbeFixedJitterIndex;
+
 	extern int32 GLumenScreenProbeGatherVisualizeTraces;
-	ScreenProbeParameters.FixedJitterIndex = GLumenScreenProbeGatherVisualizeTraces == 0 ? GLumenScreenProbeFixedJitterIndex : 6;
+	// Automatically set a fixed jitter if we are visualizing, but don't override existing fixed jitter
+	if (GLumenScreenProbeGatherVisualizeTraces != 0 && ScreenProbeParameters.FixedJitterIndex < 0)
+	{
+		ScreenProbeParameters.FixedJitterIndex = 6;
+	}
 
 	FRDGTextureDesc DownsampledDepthDesc(FRDGTextureDesc::Create2D(ScreenProbeParameters.ScreenProbeAtlasBufferSize, PF_R32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	ScreenProbeParameters.ScreenProbeSceneDepth = GraphBuilder.CreateTexture(DownsampledDepthDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeSceneDepth"));

@@ -56,6 +56,7 @@ Texture2D<uint> ScreenTileAdaptiveProbeIndices;
 uint2 GetScreenTileJitter(uint TemporalIndex)
 {
 	return Hammersley16(TemporalIndex, 8, 0) * ScreenProbeDownsampleFactor;
+	//return R2Sequence(TemporalIndex) * ScreenProbeDownsampleFactor;
 }
 
 float2 GetProbeTexelCenter(uint2 ScreenTileCoord)
@@ -133,7 +134,9 @@ uint2 GetScreenTileCoord(uint2 ScreenProbeScreenPosition)
 
 uint2 GetUniformScreenProbeScreenPosition(uint2 ScreenTileCoord)
 {
-	return ScreenTileCoord * ScreenProbeDownsampleFactor + GetScreenTileJitter(SCREEN_TEMPORAL_INDEX) + (uint2)View.ViewRectMin.xy;
+	uint2 ScreenJitter = GetScreenTileJitter(SCREEN_TEMPORAL_INDEX);
+	uint2 ScreenProbeScreenPosition = min((uint2)(ScreenTileCoord * ScreenProbeDownsampleFactor + ScreenJitter), (uint2)(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy) - 1);
+	return ScreenProbeScreenPosition;
 }
 
 float2 GetScreenTileCoordFromScreenUV(float2 ScreenUV, uint TemporalIndex)
@@ -161,7 +164,7 @@ float3 GetWorldPositionFromScreenUV(float2 ScreenUV, float SceneDepth)
 	return WorldPosition;
 }
 
-float3 GetHistoryScreenPosition(float2 ScreenPosition, float2 ScreenUV, float DeviceZ)
+float3 GetHistoryScreenPosition(float2 ScreenPosition, float2 ScreenUV, float DeviceZ, out float3 ScreenVelocity)
 {
 	float3 HistoryScreenPosition = float3(ScreenPosition, DeviceZ);
 	bool bIsDynamicPixel = false;
@@ -179,10 +182,17 @@ float3 GetHistoryScreenPosition(float2 ScreenPosition, float2 ScreenUV, float De
 			Velocity = DecodeVelocityFromTexture(EncodedVelocity);
 		}
 
+		ScreenVelocity = Velocity;
 		HistoryScreenPosition -= Velocity;
 	}
 
 	return HistoryScreenPosition;
+}
+
+float3 GetHistoryScreenPosition(float2 ScreenPosition, float2 ScreenUV, float DeviceZ)
+{
+	float3 ScreenVelocity;
+	return GetHistoryScreenPosition(ScreenPosition, ScreenUV, DeviceZ, ScreenVelocity);
 }
 
 float3 GetPrevTranslatedWorldPosition(float3 HistoryScreenPosition)
@@ -236,6 +246,13 @@ float DecodeProbeRayDistance(uint Encoded)
 	bool bHit;
 	bool bMoving;
 	return DecodeProbeRayDistance(Encoded, bHit, bMoving);
+}
+
+Buffer<float> ScreenProbeMoving;
+
+float GetScreenProbeMoving(uint2 ScreenProbeAtlasCoord)
+{
+	return ScreenProbeMoving[ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x];
 }
 
 float EncodeProbeHitDistanceForFiltering(float HitDistance)

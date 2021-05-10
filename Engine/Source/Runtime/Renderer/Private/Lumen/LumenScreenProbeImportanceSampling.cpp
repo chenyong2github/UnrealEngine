@@ -116,7 +116,7 @@ class FScreenProbeComputeLightingProbabilityDensityFunctionCS : public FGlobalSh
 		SHADER_PARAMETER(float, PrevInvPreExposure)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, HistoryScreenProbeRadiance)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryScreenProbeSceneDepth)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTexture)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static uint32 GetThreadGroupSize(uint32 TracingResolution)
@@ -317,6 +317,7 @@ void GenerateImportanceSamplingRays(
 			PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 			PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 			PassParameters->View = View.ViewUniformBuffer;
+			PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures.UniformBuffer);
 
 			if (bUseProbeRadianceHistory)
 			{
@@ -334,8 +335,6 @@ void GenerateImportanceSamplingRays(
 					(ScreenProbeGatherState.ImportanceSamplingHistoryViewRect.Min.Y + 0.5f) * InvBufferSize.Y,
 					(ScreenProbeGatherState.ImportanceSamplingHistoryViewRect.Max.X - 0.5f) * InvBufferSize.X,
 					(ScreenProbeGatherState.ImportanceSamplingHistoryViewRect.Max.Y - 0.5f) * InvBufferSize.Y);
-
-				PassParameters->VelocityTexture = GetIfProduced(SceneTextures.Velocity, SystemTextures.Black);
 
 				PassParameters->ImportanceSamplingHistoryDistanceThreshold = GLumenScreenProbeImportanceSamplingHistoryDistanceThreshold;
 				PassParameters->HistoryScreenProbeRadiance = GraphBuilder.RegisterExternalTexture(ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeRadiance);

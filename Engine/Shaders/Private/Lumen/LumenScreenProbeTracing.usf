@@ -329,6 +329,7 @@ void TraceMeshSDFs(
 		float3 SceneNormal = DecodeNormal(SceneTexturesStruct.GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
 
 		bool bHit = false;
+		bool bMoving = false;
 
 		{
 			float2 ProbeUV;
@@ -359,6 +360,9 @@ void TraceMeshSDFs(
 			float Transparency = TraceResult.Transparency;
 			float OpaqueHitDistance = TraceResult.OpaqueHitDistance;
 
+			//@todo - compare velocities
+			//bMoving = TraceResult.bOftenMoving;
+
 			float DistanceFromViewpoint = length(View.WorldCameraOrigin - WorldPosition);
 			float DistanceFade = saturate(6 * DistanceFromViewpoint / CardTraceEndDistanceFromCamera - 5);
 
@@ -382,7 +386,7 @@ void TraceMeshSDFs(
 		}
 
 		//@todo - set bMoving based on hit object velocity
-		RWTraceHit[TraceCoord] = EncodeProbeRayDistance(TraceHitDistance, bHit, false);
+		RWTraceHit[TraceCoord] = EncodeProbeRayDistance(TraceHitDistance, bHit, bMoving);
 	}
 }
 

@@ -322,25 +322,7 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 			// Interpolate from neighboring probes last frame lighting, with position error weight
 
 			float2 ScreenPosition = (ScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-			float3 HistoryScreenPosition = float3(ScreenPosition, ConvertToDeviceZ(SceneDepth));
-			bool bIsDynamicPixel = false;
-
-			{
-				float4 ThisClip = float4(HistoryScreenPosition, 1);
-				float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
-				float3 PrevScreen = PrevClip.xyz / PrevClip.w;
-				float3 Velocity = HistoryScreenPosition - PrevScreen;
-				float4 EncodedVelocity = VelocityTexture.SampleLevel(GlobalPointClampedSampler, ScreenUV, 0);
-				bIsDynamicPixel = EncodedVelocity.x > 0.0;
-
-				if (bIsDynamicPixel)
-				{
-					Velocity = DecodeVelocityFromTexture(EncodedVelocity);
-				}
-
-				HistoryScreenPosition -= Velocity;
-			}
-
+			float3 HistoryScreenPosition = GetHistoryScreenPosition(ScreenPosition, ScreenUV, ConvertToDeviceZ(SceneDepth));
 			float2 HistoryScreenUV = HistoryScreenPosition.xy * ImportanceSamplingHistoryScreenPositionScaleBias.xy + ImportanceSamplingHistoryScreenPositionScaleBias.wz;
 
 			float EffectiveHistoryWeight = 1.0f;

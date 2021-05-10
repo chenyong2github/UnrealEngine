@@ -343,6 +343,7 @@ struct FConeTraceResult
 	float NumOverlaps;
 	float OpaqueHitDistance;
 	float3 Debug;
+	bool bOftenMoving;
 };
 
 void ConeTraceSingleLumenCard(
@@ -1213,6 +1214,7 @@ void ConeTraceMeshSDFsAndInterpolateFromCards(
 			TraceInput.bHiResSurface,
 			AtlasId);
 		OutResult.Transparency = 0;
+		OutResult.bOftenMoving = LoadDFObjectBounds(TraceMeshSDFResult.HitObject).OftenMoving != 0;
 	}
 
 	OutResult.OpaqueHitDistance = TraceMeshSDFResult.HitDistance;
