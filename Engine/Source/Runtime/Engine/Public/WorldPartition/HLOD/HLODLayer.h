@@ -9,6 +9,7 @@
 
 #if WITH_EDITOR
 #include "Engine/MeshMerging.h"
+#include "Engine/MeshMerging.h"
 #endif
 
 #include "HLODLayer.generated.h"
@@ -19,9 +20,10 @@ class AActor;
 UENUM()
 enum class EHLODLayerType : uint8
 {
-	Instancing = 0		UMETA(DisplayName = "Instancing"),
-	MeshMerge = 1		UMETA(DisplayName = "Merged Mesh"),
-	MeshSimplify = 2	UMETA(DisplayName = "Simplified Mesh")
+	Instancing = 0			UMETA(DisplayName = "Instancing"),
+	MeshMerge = 1			UMETA(DisplayName = "Merged Mesh"),
+	MeshSimplify = 2		UMETA(DisplayName = "Simplified Mesh"),
+	MeshApproximate = 3		UMETA(DisplayName = "Approximated Mesh"),
 };
 
 UCLASS(Blueprintable, Config=Engine, PerObjectConfig)
@@ -41,6 +43,7 @@ public:
 	EHLODLayerType GetLayerType() const { return LayerType; }
 	const FMeshMergingSettings& GetMeshMergeSettings() const { return MeshMergeSettings; }
 	const FMeshProxySettings& GetMeshSimplifySettings() const { return MeshSimplifySettings; }
+	const FMeshApproximationSettings& GetMeshApproximationSettings() const { return MeshApproximationSettings; }
 	const TSoftObjectPtr<UMaterial>& GetHLODMaterial() const { return HLODMaterial; }
 	FName GetRuntimeGrid(uint32 InHLODLevel) const;
 	int32 GetCellSize() const { return bAlwaysLoaded ? 0 : CellSize; }
@@ -64,6 +67,10 @@ private:
 	/** Simplified mesh generation settings - Used when this layer is of type EHLODLayerType::MeshSimplify */
 	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "LayerType == EHLODLayerType::MeshSimplify"))
 	FMeshProxySettings MeshSimplifySettings;
+
+	/** Mesh approximation settings - Used when this layer is of type EHLODLayerType::MeshApproximation */
+	UPROPERTY(EditAnywhere, Config, Category = HLOD, meta = (EditConditionHides, EditCondition = "LayerType == EHLODLayerType::MeshApproximate"))
+	FMeshApproximationSettings MeshApproximationSettings;
 
 	/** Material that will be used by the generated HLOD static mesh */
 	UPROPERTY(EditAnywhere, Config, AdvancedDisplay, Category=HLOD, meta = (EditConditionHides, EditCondition = "LayerType == EHLODLayerType::MeshMerge || LayerType == EHLODLayerType::MeshSimplify"))

@@ -57,6 +57,11 @@ uint32 UHLODLayer::GetCRC() const
 		Ar << This.MeshSimplifySettings;
 		UE_LOG(LogHLODLayer, VeryVerbose, TEXT(" - MeshSimplifySettings = %d"), Ar.GetCrc());
 	}
+	else if (LayerType == EHLODLayerType::MeshApproximate)
+	{
+		Ar << This.MeshApproximationSettings;
+		UE_LOG(LogHLODLayer, VeryVerbose, TEXT(" - MeshApproximationSettings = %d"), Ar.GetCrc());
+	}
 
 	Ar << This.CellSize;
 	UE_LOG(LogHLODLayer, VeryVerbose, TEXT(" - CellSize = %d"), Ar.GetCrc());

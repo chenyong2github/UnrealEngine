@@ -27,10 +27,11 @@ public class WorldPartitionHLODUtilities : ModuleRules
 			}
         );
 
-        PrivateIncludePaths.AddRange(
+        PrivateIncludePathModuleNames.AddRange(
             new string[]
             {
-            }
+				"GeometryProcessingInterfaces",
+			}
         );
 
         DynamicallyLoadedModuleNames.AddRange(
@@ -39,7 +40,8 @@ public class WorldPartitionHLODUtilities : ModuleRules
                 "MeshUtilities",
                 "MeshMergeUtilities",
                 "MeshReductionInterface",
-            }
+				"GeometryProcessingInterfaces",
+			}
         );
 	}
 }

@@ -12,16 +12,9 @@
 
 #include "ISMPartition/ISMComponentDescriptor.h"
 
-#include "Algo/ForEach.h"
-#include "Algo/RemoveIf.h"
-#include "Algo/Transform.h"
-#include "Misc/HashBuilder.h"
 #include "Serialization/ArchiveCrc32.h"
 #include "Templates/UniquePtr.h"
 
-#include "IMeshMergeUtilities.h"
-#include "MeshMergeModule.h"
-#include "Modules/ModuleManager.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/HLODProxy.h"
 #include "Materials/Material.h"
@@ -30,402 +23,125 @@
 #include "LevelInstance/LevelInstanceActor.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogHLODBuilder, Log, All);
+#include "HLODBuilder.h"
+#include "HLODBuilderInstancing.h"
+#include "HLODBuilderMeshMerge.h"
+#include "HLODBuilderMeshSimplify.h"
+#include "HLODBuilderMeshApproximate.h"
 
-/**
- * Base class for all HLODBuilders
- */
-class FHLODBuilder
+static bool LoadSubActors(AWorldPartitionHLOD* InHLODActor, TArray<FWorldPartitionReference>& OutActors)
 {
-public:
-	virtual ~FHLODBuilder() {}
+	OutActors.Reserve(InHLODActor->GetSubActors().Num());
 
-	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) = 0;
+	UWorld* World = InHLODActor->GetWorld();
+	UWorldPartition* WorldPartition = World->GetWorldPartition();
+	check(WorldPartition);
 
-	void Build(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<const AActor*>& InSubActors)
+	bool bIsDirty = false;
+
+	// Gather (and potentially load) actors
+	for (const FGuid& SubActorGuid : InHLODActor->GetSubActors())
 	{
-		TArray<UPrimitiveComponent*> SubComponents = GatherPrimitiveComponents(InSubActors);
-		if (SubComponents.IsEmpty())
+		FWorldPartitionReference ActorRef(WorldPartition, SubActorGuid);
+
+		if (ActorRef.IsValid())
 		{
-			return;
+			AActor* LoadedActor = ActorRef.Get()->GetActor();
+
+			// Load level instances
+			if (ALevelInstance* LevelInstance = Cast<ALevelInstance>(LoadedActor))
+			{
+				// Wait for level instance loading
+				if (LevelInstance->SupportsLoading())
+				{
+					LevelInstance->GetLevelInstanceSubsystem()->BlockLoadLevelInstance(LevelInstance);
+				}
+			}
+
+			OutActors.Add(MoveTemp(ActorRef));
 		}
-
-		TArray<UPrimitiveComponent*> HLODPrimitives = CreateComponents(InHLODActor, InHLODLayer, SubComponents);
-		HLODPrimitives.RemoveSwap(nullptr);
-
-		if (!HLODPrimitives.IsEmpty())
+		else
 		{
-			InHLODActor->Modify();
-			InHLODActor->SetHLODPrimitives(HLODPrimitives);
+			bIsDirty = true;
 		}
 	}
 
-	static bool LoadSubActors(AWorldPartitionHLOD* InHLODActor, TArray<const AActor*>& OutActors, TArray<FWorldPartitionReference>& OutActorReferences)
+	// Wait for compilation to finish
+	FStaticMeshCompilingManager::Get().FinishAllCompilation();
+
+	return !bIsDirty;
+}
+
+static uint32 ComputeHLODHash(AWorldPartitionHLOD* InHLODActor, const TArray<FWorldPartitionReference>& InActors)
+{
+	FArchiveCrc32 Ar;
+
+	// Base key, changing this will force a rebuild of all HLODs
+	FString HLODBaseKey = "5184EABE2BEF440DB5A461554A28A3E4";
+	Ar << HLODBaseKey;
+
+	// HLOD Layer
+	uint32 HLODLayerHash = InHLODActor->GetSubActorsHLODLayer()->GetCRC();
+	UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - HLODLayer (%s) = %x"), *InHLODActor->GetSubActorsHLODLayer()->GetName(), HLODLayerHash);
+	Ar << HLODLayerHash;
+
+	// We get the CRC of each component
+	TArray<uint32> ComponentsCRCs;
+	for (UPrimitiveComponent* Component : FHLODBuilder::GatherPrimitiveComponents(InActors))
 	{
-		OutActors.Reserve(InHLODActor->GetSubActors().Num());
-		OutActorReferences.Reserve(InHLODActor->GetSubActors().Num());
-
-		UWorld* World = InHLODActor->GetWorld();
-		UWorldPartition* WorldPartition = World->GetWorldPartition();
-		check(WorldPartition);
-
-		bool bIsDirty = false;
-
-		// Gather (and potentially load) actors
-		for (const FGuid& SubActorGuid : InHLODActor->GetSubActors())
+		if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
 		{
-			FWorldPartitionReference ActorRef(WorldPartition, SubActorGuid);
+			uint32 ComponentCRC = 0;
 
-			if (ActorRef.IsValid())
+			UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - Component \'%s\' from actor \'%s\'"), *Component->GetName(), *Component->GetOwner()->GetName());
+
+			// CRC component
+			uint32 StaticMeshComponentCRC = UHLODProxy::GetCRC(StaticMeshComponent);
+			UE_LOG(LogHLODBuilder, VeryVerbose, TEXT("     - StaticMeshComponent (%s) = %x"), *StaticMeshComponent->GetName(), StaticMeshComponentCRC);
+			ComponentCRC = HashCombine(ComponentCRC, StaticMeshComponentCRC);
+
+			if (UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
 			{
-				AActor* LoadedActor = ActorRef.Get()->GetActor();
+				// CRC static mesh
+				int32 StaticMeshCRC = UHLODProxy::GetCRC(StaticMesh);
+				UE_LOG(LogHLODBuilder, VeryVerbose, TEXT("     - StaticMesh (%s) = %x"), *StaticMesh->GetName(), StaticMeshCRC);
+				ComponentCRC = HashCombine(ComponentCRC, StaticMeshCRC);
 
-				// Load level instances
-				if (ALevelInstance* LevelInstance = Cast<ALevelInstance>(LoadedActor))
+				// CRC materials
+				const int32 NumMaterials = StaticMeshComponent->GetNumMaterials();
+				for (int32 MaterialIndex = 0; MaterialIndex < NumMaterials; ++MaterialIndex)
 				{
-					// Wait for level instance loading
-					if (LevelInstance->SupportsLoading())
+					UMaterialInterface* MaterialInterface = StaticMeshComponent->GetMaterial(MaterialIndex);
+					if (MaterialInterface)
 					{
-						LevelInstance->GetLevelInstanceSubsystem()->BlockLoadLevelInstance(LevelInstance);
-					}
-				}
+						uint32 MaterialInterfaceCRC = UHLODProxy::GetCRC(MaterialInterface);
+						UE_LOG(LogHLODBuilder, VeryVerbose, TEXT("     - MaterialInterface (%s) = %x"), *MaterialInterface->GetName(), MaterialInterfaceCRC);
+						ComponentCRC = HashCombine(ComponentCRC, MaterialInterfaceCRC);
 
-				OutActors.Add(LoadedActor);
-				OutActorReferences.Add(MoveTemp(ActorRef));
-			}
-			else
-			{
-				bIsDirty = true;
-			}
-		}
-
-		// Wait for compilation to finish
-		FStaticMeshCompilingManager::Get().FinishAllCompilation();
-
-		return !bIsDirty;
-	}
-
-	static TArray<UPrimitiveComponent*> GatherPrimitiveComponents(const TArray<const AActor*>& InActors)
-	{
-		TArray<UPrimitiveComponent*> PrimitiveComponents;
-
-		auto GatherPrimitivesFromActor = [&PrimitiveComponents](const AActor* Actor, const AActor* ParentActor = nullptr)
-		{
-			const TCHAR* Padding = ParentActor ? TEXT("    ") : TEXT("");
-			UE_LOG(LogHLODBuilder, Verbose, TEXT("%s* Adding components from actor %s"), Padding, *Actor->GetName());
-			for (UActorComponent* SubComponent : Actor->GetComponents())
-			{
-				if (SubComponent && SubComponent->IsHLODRelevant())
-				{
-					if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(SubComponent))
-					{
-						PrimitiveComponents.Add(PrimitiveComponent);
-
-						if (UInstancedStaticMeshComponent* ISMC = Cast<UInstancedStaticMeshComponent>(PrimitiveComponent))
+						TArray<UTexture*> Textures;
+						MaterialInterface->GetUsedTextures(Textures, EMaterialQualityLevel::High, true, ERHIFeatureLevel::SM5, true);
+						for (UTexture* Texture : Textures)
 						{
-							UE_LOG(LogHLODBuilder, Verbose, TEXT("%s    * %s [%d instances]"), Padding, *ISMC->GetStaticMesh()->GetName(), ISMC->GetInstanceCount());
-						}
-						else if (UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(PrimitiveComponent))
-						{
-							UE_LOG(LogHLODBuilder, Verbose, TEXT("%s    * %s"), Padding, *SMC->GetStaticMesh()->GetName());
-						}
-					}
-					else
-					{
-						UE_LOG(LogHLODBuilder, Warning, TEXT("Component \"%s\" is marked as HLOD-relevant but this type of component currently unsupported."), *SubComponent->GetFullName());
-					}
-				}
-			}
-		};
-
-		TSet<AActor*> UnderlyingActors;
-
-		for (const AActor* Actor : InActors)
-		{
-			// Gather primitives from the Actor
-			GatherPrimitivesFromActor(Actor);
-
-			// Retrieve all underlying actors (ex: all sub actors of a LevelInstance)
-			UnderlyingActors.Reset();
-			Actor->EditorGetUnderlyingActors(UnderlyingActors);
-
-			// Gather primitives from underlying actors
-			for (const AActor* UnderlyingActor : UnderlyingActors)
-			{
-				if (UnderlyingActor->IsHLODRelevant())
-				{
-					GatherPrimitivesFromActor(UnderlyingActor, Actor);
-				}
-			}
-		}
-
-		return PrimitiveComponents;
-	}
-
-	static uint32 ComputeHLODHash(AWorldPartitionHLOD* InHLODActor, const TArray<const AActor*>& InActors)
-	{
-		FArchiveCrc32 Ar;
-
-		// Base key, changing this will force a rebuild of all HLODs
-		FString HLODBaseKey = "5184EABE2BEF440DB5A461554A28A3E4";
-		Ar << HLODBaseKey;
-
-		// HLOD Layer
-		uint32 HLODLayerHash = InHLODActor->GetSubActorsHLODLayer()->GetCRC();
-		UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - HLODLayer (%s) = %x"), *InHLODActor->GetSubActorsHLODLayer()->GetName(), HLODLayerHash);
-		Ar << HLODLayerHash;
-
-		// We get the CRC of each component
-		TArray<uint32> ComponentsCRCs;
-		for (UPrimitiveComponent* Component : GatherPrimitiveComponents(InActors))
-		{
-			if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
-			{
-				uint32 ComponentCRC = 0;
-
-				UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - Component \'%s\' from actor \'%s\'"), *Component->GetName(), *Component->GetOwner()->GetName());
-
-				// CRC component
-				uint32 StaticMeshComponentCRC = UHLODProxy::GetCRC(StaticMeshComponent);
-				UE_LOG(LogHLODBuilder, VeryVerbose, TEXT("     - StaticMeshComponent (%s) = %x"), *StaticMeshComponent->GetName(), StaticMeshComponentCRC);
-				ComponentCRC = HashCombine(ComponentCRC, StaticMeshComponentCRC);
-
-				if (UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
-				{
-					// CRC static mesh
-					int32 StaticMeshCRC = UHLODProxy::GetCRC(StaticMesh);
-					UE_LOG(LogHLODBuilder, VeryVerbose, TEXT("     - StaticMesh (%s) = %x"), *StaticMesh->GetName(), StaticMeshCRC);
-					ComponentCRC = HashCombine(ComponentCRC, StaticMeshCRC);
-
-					// CRC materials
-					const int32 NumMaterials = StaticMeshComponent->GetNumMaterials();
-					for (int32 MaterialIndex = 0; MaterialIndex < NumMaterials; ++MaterialIndex)
-					{
-						UMaterialInterface* MaterialInterface = StaticMeshComponent->GetMaterial(MaterialIndex);
-						if (MaterialInterface)
-						{
-							uint32 MaterialInterfaceCRC = UHLODProxy::GetCRC(MaterialInterface);
-							UE_LOG(LogHLODBuilder, VeryVerbose, TEXT("     - MaterialInterface (%s) = %x"), *MaterialInterface->GetName(), MaterialInterfaceCRC);
-							ComponentCRC = HashCombine(ComponentCRC, MaterialInterfaceCRC);
-
-							TArray<UTexture*> Textures;
-							MaterialInterface->GetUsedTextures(Textures, EMaterialQualityLevel::High, true, ERHIFeatureLevel::SM5, true);
-							for (UTexture* Texture : Textures)
-							{
-								uint32 TextureCRC = UHLODProxy::GetCRC(Texture);
-								UE_LOG(LogHLODBuilder, VeryVerbose, TEXT("     - Texture (%s) = %x"), *Texture->GetName(), TextureCRC);
-								ComponentCRC = HashCombine(ComponentCRC, TextureCRC);
-							}
+							uint32 TextureCRC = UHLODProxy::GetCRC(Texture);
+							UE_LOG(LogHLODBuilder, VeryVerbose, TEXT("     - Texture (%s) = %x"), *Texture->GetName(), TextureCRC);
+							ComponentCRC = HashCombine(ComponentCRC, TextureCRC);
 						}
 					}
 				}
-
-				ComponentsCRCs.Add(ComponentCRC);
 			}
+
+			ComponentsCRCs.Add(ComponentCRC);
 		}
-
-		// Sort the components CRCs to ensure the order of components won't have an impact on the final CRC
-		ComponentsCRCs.Sort();
-
-		// Append all components CRCs
-		Ar << ComponentsCRCs;
-			
-		return Ar.GetCrc();
 	}
 
-	void DisableCollisions(UPrimitiveComponent* Component)
-	{
-		Component->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
-		Component->SetGenerateOverlapEvents(false);
-		Component->SetCanEverAffectNavigation(false);
-		Component->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
-		Component->SetCanEverAffectNavigation(false);
-		Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	}
-};
+	// Sort the components CRCs to ensure the order of components won't have an impact on the final CRC
+	ComponentsCRCs.Sort();
 
+	// Append all components CRCs
+	Ar << ComponentsCRCs;
 
-/**
- * Build a AWorldPartitionHLOD whose components are ISMC
- */
-class FHLODBuilder_Instancing : public FHLODBuilder
-{
-	// We want to merge all SMC that are using the same static mesh
-	// However, we must also take material overiddes into account.
-	struct FInstancingKey
-	{
-		FInstancingKey(const UStaticMeshComponent* SMC)
-		{
-			FHashBuilder HashBuilder;
-
-			StaticMesh = SMC->GetStaticMesh();
-			HashBuilder << StaticMesh;
-
-			const int32 NumMaterials = SMC->GetNumMaterials();
-			Materials.Reserve(NumMaterials);
-
-			for (int32 MaterialIndex = 0; MaterialIndex < NumMaterials; ++MaterialIndex)
-			{
-				UMaterialInterface* Material = SMC->GetMaterial(MaterialIndex);
-
-				Materials.Add(Material);
-				HashBuilder << Material;
-			}
-
-			Hash = HashBuilder.GetHash();
-		}
-
-		void ApplyTo(UStaticMeshComponent* SMC) const
-		{
-			// Set static mesh
-			SMC->SetStaticMesh(StaticMesh);
-			
-			// Set material overrides
-			for (int32 MaterialIndex = 0; MaterialIndex < Materials.Num(); ++MaterialIndex)
-			{
-				SMC->SetMaterial(MaterialIndex, Materials[MaterialIndex]);
-			}
-		}
-
-		friend uint32 GetTypeHash(const FInstancingKey& Key)
-		{
-			return Key.Hash;
-		}
-
-		bool operator==(const FInstancingKey& Other) const
-		{
-			return Hash == Other.Hash && StaticMesh == Other.StaticMesh && Materials == Other.Materials;
-		}
-
-	private:
-		UStaticMesh*				StaticMesh;
-		TArray<UMaterialInterface*>	Materials;
-		uint32						Hash;
-	};
-
-	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) override
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FHLODBuilder_Instancing::CreateComponents);
-
-		TArray<UPrimitiveComponent*> Components;
-
-		// Gather all meshes to instantiate along with their transforms
-		TMap<FInstancingKey, TArray<UPrimitiveComponent*>> Instances;
-		for (UPrimitiveComponent* Primitive : InSubComponents)
-		{
-			if (UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(Primitive))
-			{
-				Instances.FindOrAdd(FInstancingKey(SMC)).Add(SMC);
-			}
-		}
-
-		// Create an ISMC for each SM asset we found
-		for (const auto& Entry : Instances)
-		{
-			const FInstancingKey EntryInstancingKey = Entry.Key;
-			const TArray<UPrimitiveComponent*>& EntryComponents = Entry.Value;
-			
-			UInstancedStaticMeshComponent* Component = NewObject<UInstancedStaticMeshComponent>(InHLODActor);
-			EntryInstancingKey.ApplyTo(Component);
-			Component->SetForcedLodModel(Component->GetStaticMesh()->GetNumLODs());
-
-			DisableCollisions(Component);
-
-			// Add all instances
-			for (UPrimitiveComponent* SMC : EntryComponents)
-			{
-				// If we have an ISMC, retrieve all instances
-				if (UInstancedStaticMeshComponent* InstancedStaticMeshComponent = Cast<UInstancedStaticMeshComponent>(SMC))
-				{
-					for (int32 InstanceIdx = 0; InstanceIdx < InstancedStaticMeshComponent->GetInstanceCount(); InstanceIdx++)
-					{
-						FTransform InstanceTransform;
-						InstancedStaticMeshComponent->GetInstanceTransform(InstanceIdx, InstanceTransform, true);
-						Component->AddInstanceWorldSpace(InstanceTransform);
-					}
-				}
-				else
-				{
-					Component->AddInstanceWorldSpace(SMC->GetComponentTransform());
-				}
-			}
-
-			Components.Add(Component);
-		};
-
-		return Components;
-	}
-};
-
-
-/**
- * Build a merged mesh using geometry from the provided actors
- */
-class FHLODBuilder_MeshMerge : public FHLODBuilder
-{
-	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) override
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FHLODBuilder_MeshMerge::CreateComponents);
-
-		TArray<UObject*> Assets;
-		FVector MergedActorLocation;
-
-		const IMeshMergeUtilities& MeshMergeUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
-		MeshMergeUtilities.MergeComponentsToStaticMesh(InSubComponents, InHLODActor->GetWorld(), InHLODLayer->GetMeshMergeSettings(), InHLODLayer->GetHLODMaterial().LoadSynchronous(), InHLODActor->GetPackage(), InHLODActor->GetActorLabel(), Assets, MergedActorLocation, 0.25f, false);
-
-		UStaticMeshComponent* Component = nullptr;
-		Algo::ForEach(Assets, [this, InHLODActor, &Component, &MergedActorLocation](UObject* Asset)
-		{
-			Asset->ClearFlags(RF_Public | RF_Standalone);
-
-			if (Cast<UStaticMesh>(Asset))
-			{
-				Component = NewObject<UStaticMeshComponent>(InHLODActor);
-				Component->SetStaticMesh(static_cast<UStaticMesh*>(Asset));
-				Component->SetWorldLocation(MergedActorLocation);
-				DisableCollisions(Component);
-			}
-		});
-
-		return TArray<UPrimitiveComponent*>({ Component });
-	}
-};
-
-/**
- * Build a simplified mesh using geometry from the provided actors
- */
-class FHLODBuilder_MeshSimplify : public FHLODBuilder
-{
-	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) override
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FHLODBuilder_MeshSimplify::CreateComponents);
-
-		TArray<UObject*> Assets;
-		FCreateProxyDelegate ProxyDelegate;
-		ProxyDelegate.BindLambda([&Assets](const FGuid Guid, TArray<UObject*>& InAssetsCreated) { Assets = InAssetsCreated; });
-
-		TArray<UStaticMeshComponent*> StaticMeshComponents;
-		Algo::TransformIf(InSubComponents, StaticMeshComponents, [](UPrimitiveComponent* InPrimitiveComponent) { return InPrimitiveComponent->IsA<UStaticMeshComponent>(); }, [](UPrimitiveComponent* InPrimitiveComponent) { return Cast<UStaticMeshComponent>(InPrimitiveComponent); });
-
-		const IMeshMergeUtilities& MeshMergeUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
-		MeshMergeUtilities.CreateProxyMesh(StaticMeshComponents, InHLODLayer->GetMeshSimplifySettings(), InHLODLayer->GetHLODMaterial().LoadSynchronous(), InHLODActor->GetPackage(), InHLODActor->GetActorLabel(), FGuid::NewGuid(), ProxyDelegate, true);
-
-		UStaticMeshComponent* Component = nullptr;
-		Algo::ForEach(Assets, [this, InHLODActor, &Component](UObject* Asset)
-		{
-			Asset->ClearFlags(RF_Public | RF_Standalone);
-
-			if (Cast<UStaticMesh>(Asset))
-			{
-				Component = NewObject<UStaticMeshComponent>(InHLODActor);
-				Component->SetStaticMesh(static_cast<UStaticMesh*>(Asset));
-				DisableCollisions(Component);
-			}
-		});
-
-		return TArray<UPrimitiveComponent*>({ Component });
-	}
-};
+	return Ar.GetCrc();
+}
 
 TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLODCreationContext& InCreationContext, const FHLODCreationParams& InCreationParams, const TSet<FActorInstance>& InActors, const TArray<const UDataLayer*>& InDataLayers)
 {
@@ -563,17 +279,16 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 
 uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 {
-	TArray<FWorldPartitionReference> ActorReferences;
-	TArray<const AActor*> SubActors;
+	TArray<FWorldPartitionReference> SubActors;
 	
-	bool bIsDirty = !FHLODBuilder::LoadSubActors(InHLODActor, SubActors, ActorReferences);
+	bool bIsDirty = !LoadSubActors(InHLODActor, SubActors);
 	if (bIsDirty)
 	{
 		UE_LOG(LogHLODBuilder, Warning, TEXT("HLOD actor \"%s\" needs to be rebuilt as it references actors that have been deleted."), *InHLODActor->GetActorLabel());
 	}
 
 	uint32 OldHLODHash = bIsDirty ? 0 : InHLODActor->GetHLODHash();
-	uint32 NewHLODHash = FHLODBuilder::ComputeHLODHash(InHLODActor, SubActors);
+	uint32 NewHLODHash = ComputeHLODHash(InHLODActor, SubActors);
 
 	if (OldHLODHash == NewHLODHash)
 	{
@@ -596,6 +311,10 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 
 	case EHLODLayerType::MeshSimplify:
 		HLODBuilder = TUniquePtr<FHLODBuilder>(new FHLODBuilder_MeshSimplify());
+		break;
+
+	case EHLODLayerType::MeshApproximate:
+		HLODBuilder = TUniquePtr<FHLODBuilder>(new FHLODBuilder_MeshApproximate());
 		break;
 
 	default:
