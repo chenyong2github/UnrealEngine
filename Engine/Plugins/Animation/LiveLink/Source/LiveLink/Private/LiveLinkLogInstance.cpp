@@ -428,7 +428,14 @@ TSharedPtr<FTokenizedMessage> FLiveLinkLogInstance::CreateTokenizedMessage(EMess
 void FLiveLinkLogInstance::LogMessage(EMessageSeverity::Type Severity, const FString& Message)
 {
 	// The regular editor message log already outputs to UE_LOG(), so if we're in editor, we don't want to do it twice.
-#if !WITH_EDITOR
+	// GIsEditor will be false if in -game and MessageLog won't take care of it so need to process it in this case.
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		return;
+	}
+#endif
+
 	switch (Severity)
 	{
 	case EMessageSeverity::CriticalError:
@@ -443,7 +450,6 @@ void FLiveLinkLogInstance::LogMessage(EMessageSeverity::Type Severity, const FSt
 		UE_LOG(LogLiveLink, Log, TEXT("%s"), *Message);
 		break;
 	}
-#endif	// !WITH_EDITOR
 }
 
 
