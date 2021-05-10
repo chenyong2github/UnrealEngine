@@ -6,6 +6,7 @@
 #include "Misc/Guid.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/GCObject.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 
 class UNiagaraDataInterface;
