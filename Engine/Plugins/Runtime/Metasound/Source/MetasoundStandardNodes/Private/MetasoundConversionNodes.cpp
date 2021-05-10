@@ -152,8 +152,8 @@ namespace Metasound
 		{
 			using namespace ConversionNodeVertexNames;
 
-			static FText InputDesc = FText::Format(LOCTEXT("ConvDisplayNamePatternFrom", "Input {0} value."), FText::FromString(GetMetasoundDataTypeString<FromType>()));
-			static FText OutputDesc = FText::Format(LOCTEXT("ConvDisplayNamePatternTo", "Ouput {0} value."), FText::FromString(GetMetasoundDataTypeString<ToType>()));
+			static FText InputDesc = FText::Format(LOCTEXT("ConvDisplayNamePatternFrom", "Input {0} value."), GetMetasoundDataTypeDisplayText<FromType>());
+			static FText OutputDesc = FText::Format(LOCTEXT("ConvDisplayNamePatternTo", "Ouput {0} value."), GetMetasoundDataTypeDisplayText<ToType>());
 
 			static const FVertexInterface DefaultInterface(
 				FInputVertexInterface(
@@ -171,14 +171,18 @@ namespace Metasound
 		{
 			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
-				FString FromTypeString = GetMetasoundDataTypeString<FromType>();
-				FString ToTypeString = GetMetasoundDataTypeString<ToType>();
-				FName ClassName = *FString::Format(TEXT("Conversion{0}To{1}"), { FromTypeString, ToTypeString });
-				FText NodeDisplayName = FText::Format(LOCTEXT("ConverterNodeDisplayName", "{0} To {1}"), FText::FromString(FromTypeString), FText::FromString(ToTypeString));
-				FText NodeDescription = FText::Format(LOCTEXT("ConverterNodeDesc", "Converts from {0} to {1}."), FText::FromString(FromTypeString), FText::FromString(ToTypeString));
+				const FText& FromTypeText = GetMetasoundDataTypeDisplayText<FromType>();
+				const FText& ToTypeText = GetMetasoundDataTypeDisplayText<ToType>();
+
+				const FString& FromTypeString = GetMetasoundDataTypeString<FromType>();
+				const FString& ToTypeString = GetMetasoundDataTypeString<ToType>();
+
+				const FName ClassName = *FString::Format(TEXT("Conversion{0}To{1}"), { FromTypeString, ToTypeString });
+				const FText NodeDisplayName = FText::Format(LOCTEXT("ConverterNodeDisplayName", "{0} To {1}"), FromTypeText, ToTypeText);
+				const FText NodeDescription = FText::Format(LOCTEXT("ConverterNodeDesc", "Converts from {0} to {1}."), FromTypeText, ToTypeText);
 
 				FNodeClassMetadata Info;
-				Info.ClassName = { Metasound::StandardNodes::Namespace, ClassName, TEXT("") };
+				Info.ClassName = { Metasound::StandardNodes::Namespace, ClassName, "" };
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
 				Info.DisplayName = NodeDisplayName;

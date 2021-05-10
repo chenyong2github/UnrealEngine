@@ -5,7 +5,6 @@
 #include "MetasoundNode.h"
 
 // Forward Declarations
-class FText;
 
 
 namespace Metasound

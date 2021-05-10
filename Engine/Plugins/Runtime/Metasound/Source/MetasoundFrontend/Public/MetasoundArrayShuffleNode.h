@@ -168,11 +168,11 @@ namespace Metasound
 		{
 			auto CreateNodeClassMetadata = []() -> FNodeClassMetadata
 			{
-				FName DataTypeName = GetMetasoundDataTypeName<ArrayType>();
-				FName OperatorName = TEXT("Shuffle");
-				FText NodeDisplayName = FText::Format(LOCTEXT("ArrayOpArrayShuffleDisplayNamePattern", "Shuffle ({0})"), FText::FromString(GetMetasoundDataTypeString<ArrayType>()));
-				FText NodeDescription = LOCTEXT("ArrayOpArrayShuffleDescription", "Output next element of a shuffled array on trigger.");
-				FVertexInterface NodeInterface = GetDefaultInterface();
+				const FName DataTypeName = GetMetasoundDataTypeName<ArrayType>();
+				const FName OperatorName = "Shuffle";
+				const FText NodeDisplayName = FText::Format(LOCTEXT("ArrayOpArrayShuffleDisplayNamePattern", "Shuffle ({0})"), GetMetasoundDataTypeDisplayText<ArrayType>());
+				const FText NodeDescription = LOCTEXT("ArrayOpArrayShuffleDescription", "Output next element of a shuffled array on trigger.");
+				const FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return MetasoundArrayNodesPrivate::CreateArrayNodeClassMetadata(DataTypeName, OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
 			};

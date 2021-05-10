@@ -89,11 +89,11 @@ namespace Metasound
 		{
 			auto CreateNodeClassMetadata = []() -> FNodeClassMetadata
 			{
-				FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
-				FName OperatorName = TEXT("Clamp");
-				FText NodeDisplayName = FText::Format(LOCTEXT("TriggerCompareDisplayPattern", "Trigger Compare ({0})"), FText::FromString(GetMetasoundDataTypeString<ValueType>()));
-				FText NodeDescription = LOCTEXT("TriggerCompareDisc", "Output triggers (True or False) based on comparing inputs, A and B.");
-				FVertexInterface NodeInterface = GetDefaultInterface();
+				const FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
+				const FName OperatorName = TEXT("Clamp");
+				const FText NodeDisplayName = FText::Format(LOCTEXT("TriggerCompareDisplayPattern", "Trigger Compare ({0})"), GetMetasoundDataTypeDisplayText<ValueType>());
+				const FText NodeDescription = LOCTEXT("TriggerCompareDisc", "Output triggers (True or False) based on comparing inputs, A and B.");
+				const FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return MetasoundTriggerCompareNodePrivate::CreateNodeClassMetadata(DataTypeName, OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
 			};

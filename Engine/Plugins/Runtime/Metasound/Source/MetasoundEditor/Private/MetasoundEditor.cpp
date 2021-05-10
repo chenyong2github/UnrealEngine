@@ -349,6 +349,15 @@ namespace Metasound
 
 			Metasound = ObjectToEdit;
 
+			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
+			if (!MetasoundAsset->GetGraph())
+			{
+				UMetasoundEditorGraph* Graph = NewObject<UMetasoundEditorGraph>(Metasound, FName(), RF_Transactional);
+				Graph->Schema = UMetasoundEditorGraphSchema::StaticClass();
+				MetasoundAsset->SetGraph(Graph);
+				FGraphBuilder::SynchronizeGraph(*Metasound);
+			}
+
 			GEditor->RegisterForUndo(this);
 
 			FGraphEditorCommands::Register();

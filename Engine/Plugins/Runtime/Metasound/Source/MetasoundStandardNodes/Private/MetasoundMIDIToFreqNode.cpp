@@ -148,10 +148,10 @@ namespace Metasound
 	{
 		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
-			FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
-			FName OperatorName = TEXT("MIDI To Frequency");
-			FText NodeDisplayName = FText::Format(LOCTEXT("RandomGetArrayOpDisplayNamePattern", "MIDI To Frequency ({0})"), FText::FromString(GetMetasoundDataTypeString<ValueType>()));
-			FText NodeDescription = LOCTEXT("Metasound_MidiToFreqNodeDescription", "Converts a Midi note value to a frequency (hz) value.");
+			const FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
+			const FName OperatorName = TEXT("MIDI To Frequency");
+			const FText NodeDisplayName = FText::Format(LOCTEXT("RandomGetArrayOpDisplayNamePattern", "MIDI To Frequency ({0})"), GetMetasoundDataTypeDisplayText<ValueType>());
+			const FText NodeDescription = LOCTEXT("Metasound_MidiToFreqNodeDescription", "Converts a Midi note value to a frequency (hz) value.");
 
 			FNodeClassMetadata Info;
 			Info.ClassName = { Metasound::StandardNodes::Namespace, OperatorName, DataTypeName };

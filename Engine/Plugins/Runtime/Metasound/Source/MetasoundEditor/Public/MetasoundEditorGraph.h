@@ -166,9 +166,6 @@ private:
 	uint32 PreviewID = INDEX_NONE;
 
 	UPROPERTY()
-	TObjectPtr<UObject> ParentMetasound;
-
-	UPROPERTY()
 	TArray<TObjectPtr<UMetasoundEditorGraphInput>> Inputs;
 
 	UPROPERTY()

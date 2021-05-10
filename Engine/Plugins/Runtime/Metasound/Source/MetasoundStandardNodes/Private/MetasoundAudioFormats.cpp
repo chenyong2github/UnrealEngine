@@ -182,10 +182,10 @@ namespace Metasound
 		{
 			FNodeClassMetadata Info;
 
-			Info.ClassName = {TEXT("Output"), GetMetasoundDataTypeName<FStereoAudioFormat>(), TEXT("")};
+			Info.ClassName = { "Output", GetMetasoundDataTypeName<FStereoAudioFormat>(), "" };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = FText::Format(LOCTEXT("Metasound_OutputNodeDisplayNameFormat", "Output {0}"), FText::FromString(GetMetasoundDataTypeString<FStereoAudioFormat>()));
+			Info.DisplayName = FText::Format(LOCTEXT("Metasound_OutputNodeDisplayNameFormat", "Output {0}"), GetMetasoundDataTypeDisplayText<FStereoAudioFormat>());
 			Info.Description = LOCTEXT("Metasound_OutputNodeDescription", "Output from the parent Metasound graph.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -321,10 +321,10 @@ namespace Metasound
 		{
 			FNodeClassMetadata Info;
 
-			Info.ClassName = {TEXT("Input"), GetMetasoundDataTypeName<FStereoAudioFormat>(), TEXT("")};
+			Info.ClassName = { "Input", GetMetasoundDataTypeName<FStereoAudioFormat>(), "" };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = FText::Format(LOCTEXT("Metasound_InputNodeDisplayNameFormat", "Input {0}"), FText::FromString(GetMetasoundDataTypeString<FStereoAudioFormat>()));
+			Info.DisplayName = FText::Format(LOCTEXT("Metasound_InputNodeDisplayNameFormat", "Input {0}"), GetMetasoundDataTypeDisplayText<FStereoAudioFormat>());
 			Info.Description = LOCTEXT("Metasound_InputNodeDescription", "Input from the parent Metasound graph.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -455,10 +455,10 @@ namespace Metasound
 		{
 			FNodeClassMetadata Info;
 
-			Info.ClassName = {TEXT("Output"), GetMetasoundDataTypeName<FMonoAudioFormat>(), TEXT("")};
+			Info.ClassName = { "Output", GetMetasoundDataTypeName<FMonoAudioFormat>(), "" };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = FText::Format(LOCTEXT("Metasound_OutputNodeDisplayNameFormat", "Output {0}"), FText::FromString(GetMetasoundDataTypeString<FMonoAudioFormat>()));
+			Info.DisplayName = FText::Format(LOCTEXT("Metasound_OutputNodeDisplayNameFormat", "Output {0}"), GetMetasoundDataTypeDisplayText<FMonoAudioFormat>());
 			Info.Description = LOCTEXT("Metasound_OutputNodeDescription", "Output from the parent Metasound graph.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -588,10 +588,10 @@ namespace Metasound
 		{
 			FNodeClassMetadata Info;
 
-			Info.ClassName = {TEXT("Input"), GetMetasoundDataTypeName<FMonoAudioFormat>(), TEXT("")};
+			Info.ClassName = { "Input", GetMetasoundDataTypeName<FMonoAudioFormat>(), "" };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = FText::Format(LOCTEXT("Metasound_InputNodeDisplayNameFormat", "Input {0}"), FText::FromString(GetMetasoundDataTypeString<FMonoAudioFormat>()));
+			Info.DisplayName = FText::Format(LOCTEXT("Metasound_InputNodeDisplayNameFormat", "Input {0}"), GetMetasoundDataTypeDisplayText<FMonoAudioFormat>());
 			Info.Description = LOCTEXT("Metasound_InputNodeDescription", "Input from the parent Metasound graph.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;

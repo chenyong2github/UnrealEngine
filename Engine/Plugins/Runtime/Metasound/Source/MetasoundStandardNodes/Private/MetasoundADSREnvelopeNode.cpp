@@ -356,13 +356,13 @@ namespace Metasound
 		{
 			auto CreateNodeClassMetadata = []() -> FNodeClassMetadata
 			{
-				FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
-				FName OperatorName = TEXT("ADSR Envelope");
-				FText NodeDisplayName = FText::Format(LOCTEXT("ADSREnvelopeDisplayNamePattern", "ADSR Envelope ({0})"), FText::FromString(GetMetasoundDataTypeString<ValueType>()));
-				FText NodeDescription = LOCTEXT("ADSREnevelopeDesc", "Generates an attack-decay-sustain-release envelope value output when triggered.");
-				FVertexInterface NodeInterface = GetDefaultInterface();
+				const FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
+				const FName OperatorName = "ADSR Envelope";
+				const FText NodeDisplayName = FText::Format(LOCTEXT("ADSREnvelopeDisplayNamePattern", "ADSR Envelope ({0})"), GetMetasoundDataTypeDisplayText<ValueType>());
+				const FText NodeDescription = LOCTEXT("ADSREnevelopeDesc", "Generates an attack-decay-sustain-release envelope value output when triggered.");
+				const FVertexInterface NodeInterface = GetDefaultInterface();
 
-				FNodeClassMetadata Metadata
+				const FNodeClassMetadata Metadata
 				{
 					FNodeClassName{FName("ADSR Envelope"), OperatorName, DataTypeName},
 					1, // Major Version

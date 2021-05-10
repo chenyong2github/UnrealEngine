@@ -27,6 +27,9 @@ class METASOUNDENGINE_API UMetasoundEditorGraphBase : public UEdGraph
 	GENERATED_BODY()
 
 public:
+	virtual bool IsEditorOnly() const override { return true; }
+	virtual bool NeedsLoadForEditorGame() const override { return false; }
+
 	virtual void Synchronize() { }
 };
 
@@ -43,7 +46,7 @@ protected:
 	FMetasoundFrontendDocument RootMetasoundDocument;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = CustomView)
+	UPROPERTY(Transient)
 	UMetasoundEditorGraphBase* Graph;
 #endif // WITH_EDITORONLY_DATA
 

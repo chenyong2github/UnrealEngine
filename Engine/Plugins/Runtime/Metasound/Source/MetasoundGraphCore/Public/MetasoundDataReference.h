@@ -6,6 +6,7 @@
 #include "MetasoundOperatorSettings.h"
 #include <type_traits>
 
+
 /** Macro to make declaring a metasound parameter simple.  */
 // Declares a metasound parameter type by
 // - Adding typedefs for commonly used template types.
@@ -15,6 +16,7 @@
 	struct ::Metasound::TDataReferenceTypeInfo<DataType> \
 	{ \
 		static ModuleApi const TCHAR* TypeName; \
+		static ModuleApi const FText& GetTypeDisplayText(); \
 		static ModuleApi const FMetasoundDataTypeId TypeId; \
 		\
 		private: \
@@ -30,6 +32,7 @@
 	struct ::Metasound::TDataReferenceTypeInfo<TArray<DataType>> \
 	{ \
 		static ModuleApi const TCHAR* TypeName; \
+		static ModuleApi const FText& GetTypeDisplayText(); \
 		static ModuleApi const FMetasoundDataTypeId TypeId; \
 		\
 		private: \
@@ -39,11 +42,21 @@
 
 // This only needs to be called if you don't plan on calling REGISTER_METASOUND_DATATYPE.
 #define DEFINE_METASOUND_DATA_TYPE(DataType, DataTypeName) \
-	const TCHAR*  				::Metasound::TDataReferenceTypeInfo<DataType>::TypeName = TEXT(DataTypeName); \
+	const TCHAR* ::Metasound::TDataReferenceTypeInfo<DataType>::TypeName = TEXT(DataTypeName); \
+	const FText& ::Metasound::TDataReferenceTypeInfo<DataType>::GetTypeDisplayText() \
+	{ \
+		static const FText DisplayText = NSLOCTEXT("MetaSoundCore_DataReference", DataTypeName, DataTypeName); \
+		return DisplayText; \
+	} \
 	const DataType* const ::Metasound::TDataReferenceTypeInfo<DataType>::TypePtr = nullptr; \
 	const void* const ::Metasound::TDataReferenceTypeInfo<DataType>::TypeId = static_cast<const FMetasoundDataTypeId>(&::Metasound::TDataReferenceTypeInfo<DataType>::TypePtr); \
-	/* Array definition */\
-	const TCHAR*  				::Metasound::TDataReferenceTypeInfo<TArray<DataType>>::TypeName = TEXT(DataTypeName ":Array"); \
+	/* Array definition */ \
+	const TCHAR* ::Metasound::TDataReferenceTypeInfo<TArray<DataType>>::TypeName = TEXT(DataTypeName ":Array"); \
+	const FText& ::Metasound::TDataReferenceTypeInfo<TArray<DataType>>::GetTypeDisplayText() \
+	{ \
+		static const FText DisplayText = NSLOCTEXT("MetaSoundCore_DataReference", DataTypeName "_Array", DataTypeName ":Array"); \
+		return DisplayText; \
+	} \
 	const TArray<DataType>* const ::Metasound::TDataReferenceTypeInfo<TArray<DataType>>::TypePtr = nullptr; \
 	const void* const ::Metasound::TDataReferenceTypeInfo<TArray<DataType>>::TypeId = static_cast<const FMetasoundDataTypeId>(&::Metasound::TDataReferenceTypeInfo<TArray<DataType>>::TypePtr);
 
@@ -94,12 +107,19 @@ namespace Metasound
 		return TypeString;
 	}
 
-	/** Return the data type ID for a registered data type. 
+	/** Return the display text for a registered data type. */
+	template<typename DataType>
+	const FText& GetMetasoundDataTypeDisplayText()
+	{
+		return TDataReferenceTypeInfo<std::decay_t<DataType>>::GetTypeDisplayText();
+	}
+
+	/** Return the data type ID for a registered data type.
 	 *
 	 * This ID is runtime constant but may change between executions and builds.
 	 */
 	template<typename DataType>
-	const void* const GetMetasoundDataTypeId() 
+	const void* const GetMetasoundDataTypeId()
 	{
 		return TDataReferenceTypeInfo<std::decay_t<DataType>>::TypeId;
 	}
@@ -110,6 +130,7 @@ namespace Metasound
 	{
 		static METASOUNDGRAPHCORE_API const TCHAR* TypeName;
 		static METASOUNDGRAPHCORE_API const void* const TypeId;
+		static METASOUNDGRAPHCORE_API const FText& GetTypeDisplayText();
 
 		private:
 
@@ -394,4 +415,3 @@ namespace Metasound
 			}
 	};
 }
-

@@ -368,18 +368,19 @@ Metasound::Frontend::FGraphHandle UMetasoundEditorGraph::GetGraphHandle() const
 
 UObject* UMetasoundEditorGraph::GetMetasound() const
 {
-	return ParentMetasound;
+	return GetOuter();
 }
 
 UObject& UMetasoundEditorGraph::GetMetasoundChecked() const
 {
+	UObject* ParentMetasound = GetOuter();
 	check(ParentMetasound);
 	return *ParentMetasound;
 }
 
 void UMetasoundEditorGraph::Synchronize()
 {
-	if (ParentMetasound)
+	if (UObject* ParentMetasound = GetOuter())
 	{
 		Metasound::Editor::FGraphBuilder::SynchronizeGraph(*ParentMetasound);
 	}

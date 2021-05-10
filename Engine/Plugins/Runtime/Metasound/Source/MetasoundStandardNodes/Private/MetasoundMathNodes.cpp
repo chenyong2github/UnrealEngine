@@ -54,7 +54,7 @@ namespace Metasound
 		template<typename DataType>
 		const FText GetAddDisplayName()
 		{
-			static const FText DisplayName = FText::Format(LOCTEXT("AddNodeDisplayNamePattern", "Add ({0})"), FText::FromString(GetMetasoundDataTypeString<DataType>()));
+			static const FText DisplayName = FText::Format(LOCTEXT("AddNodeDisplayNamePattern", "Add ({0})"), GetMetasoundDataTypeDisplayText<DataType>());
 			return DisplayName;
 		}
 
@@ -63,15 +63,15 @@ namespace Metasound
 		{
 			static const FText DisplayName = FText::Format(
 				LOCTEXT("AddNodeDisplayNamePattern", "Add ({0} to {1})"),
-				FText::FromString(GetMetasoundDataTypeString<OperandDataType>()),
-				FText::FromString(GetMetasoundDataTypeString<DataType>()));
+				GetMetasoundDataTypeDisplayText<OperandDataType>(),
+				GetMetasoundDataTypeDisplayText<DataType>());
 			return DisplayName;
 		}
 
 		template<typename DataType>
 		const FText GetSubtractDisplayName()
 		{
-			static const FText DisplayName = FText::Format(LOCTEXT("SubtractNodeDisplayNamePattern", "Subtract ({0})"), FText::FromString(GetMetasoundDataTypeString<DataType>()));
+			static const FText DisplayName = FText::Format(LOCTEXT("SubtractNodeDisplayNamePattern", "Subtract ({0})"), GetMetasoundDataTypeDisplayText<DataType>());
 			return DisplayName;
 		}
 
@@ -80,15 +80,15 @@ namespace Metasound
 		{
 			static const FText DisplayName = FText::Format(
 				LOCTEXT("SubtractNodeOperandTypedDisplayNamePattern", "Subtract ({0} from {1})"),
-				FText::FromString(GetMetasoundDataTypeString<OperandDataType>()),
-				FText::FromString(GetMetasoundDataTypeString<DataType>()));
+				GetMetasoundDataTypeDisplayText<OperandDataType>(),
+				GetMetasoundDataTypeDisplayText<DataType>());
 			return DisplayName;
 		}
 
 		template<typename DataType>
 		const FText GetMultiplyDisplayName()
 		{
-			static const FText DisplayName = FText::Format(LOCTEXT("MultiplyNodeDisplayNamePattern", "Multiply ({0})"), FText::FromString(GetMetasoundDataTypeString<DataType>()));
+			static const FText DisplayName = FText::Format(LOCTEXT("MultiplyNodeDisplayNamePattern", "Multiply ({0})"), GetMetasoundDataTypeDisplayText<DataType>());
 			return DisplayName;
 		}
 
@@ -97,15 +97,15 @@ namespace Metasound
 		{
 			static const FText DisplayName = FText::Format(
 				LOCTEXT("MultiplyNodeOperandTypedDisplayNamePattern", "Multiply ({0} by {1})"),
-				FText::FromString(GetMetasoundDataTypeString<DataType>()),
-				FText::FromString(GetMetasoundDataTypeString<OperandDataType>()));
+				GetMetasoundDataTypeDisplayText<DataType>(),
+				GetMetasoundDataTypeDisplayText<OperandDataType>());
 			return DisplayName;
 		}
 
 		template<typename DataType>
 		const FText GetDivideDisplayName()
 		{
-			static const FText DisplayName = FText::Format(LOCTEXT("DivideNodeDisplayNamePattern", "Divide ({0})"), FText::FromString(GetMetasoundDataTypeString<DataType>()));
+			static const FText DisplayName = FText::Format(LOCTEXT("DivideNodeDisplayNamePattern", "Divide ({0})"), GetMetasoundDataTypeDisplayText<DataType>());
 			return DisplayName;
 		}
 
@@ -114,15 +114,15 @@ namespace Metasound
 		{
 			static const FText DisplayName = FText::Format(
 				LOCTEXT("DivideNodeOperandTypedDisplayNamePattern", "Divide ({0} by {1})"),
-				FText::FromString(GetMetasoundDataTypeString<DataType>()),
-				FText::FromString(GetMetasoundDataTypeString<OperandDataType>()));
+				GetMetasoundDataTypeDisplayText<DataType>(),
+				GetMetasoundDataTypeDisplayText<OperandDataType>());
 			return DisplayName;
 		}
 
 		template<typename DataType>
 		const FText GetModuloDisplayName()
 		{
-			static const FText DisplayName = FText::Format(LOCTEXT("ModuloNodeDisplayNamePattern", "Modulo ({0})"), FText::FromString(GetMetasoundDataTypeString<DataType>()));
+			static const FText DisplayName = FText::Format(LOCTEXT("ModuloNodeDisplayNamePattern", "Modulo ({0})"), GetMetasoundDataTypeDisplayText<DataType>());
 			return DisplayName;
 		}
 
@@ -131,15 +131,15 @@ namespace Metasound
 		{
 			static const FText DisplayName = FText::Format(
 				LOCTEXT("ModuloNodeOperandTypedDisplayNamePattern", "Modulo ({0} by {1})"),
-				FText::FromString(GetMetasoundDataTypeString<DataType>()),
-				FText::FromString(GetMetasoundDataTypeString<OperandDataType>()));
+				GetMetasoundDataTypeDisplayText<DataType>(),
+				GetMetasoundDataTypeDisplayText<OperandDataType>());
 			return DisplayName;
 		}
 
 		template<typename DataType>
 		const FText GetPowerDisplayName()
 		{
-			static const FText DisplayName = FText::Format(LOCTEXT("PowerNodeDisplayNamePattern", "Power ({0})"), FText::FromString(GetMetasoundDataTypeString<DataType>()));
+			static const FText DisplayName = FText::Format(LOCTEXT("PowerNodeDisplayNamePattern", "Power ({0})"), GetMetasoundDataTypeDisplayText<DataType>());
 			return DisplayName;
 		}
 
@@ -148,15 +148,15 @@ namespace Metasound
 		{
 			static const FText DisplayName = FText::Format(
 				LOCTEXT("PowerNodeOperandTypedDisplayNamePattern", "Power ({0} to the power of {1})"),
-				FText::FromString(GetMetasoundDataTypeString<DataType>()),
-				FText::FromString(GetMetasoundDataTypeString<OperandDataType>()));
+				GetMetasoundDataTypeDisplayText<DataType>(),
+				GetMetasoundDataTypeDisplayText<OperandDataType>());
 			return DisplayName;
 		}
 
 		template<typename DataType>
 		const FText GetLogarithmDisplayName()
 		{
-			static const FText DisplayName = FText::Format(LOCTEXT("LogNodeDisplayNamePattern", "Log ({0})"), FText::FromString(GetMetasoundDataTypeString<DataType>()));
+			static const FText DisplayName = FText::Format(LOCTEXT("LogNodeDisplayNamePattern", "Log ({0})"), GetMetasoundDataTypeDisplayText<DataType>());
 			return DisplayName;
 		}
 
@@ -165,8 +165,8 @@ namespace Metasound
 		{
 			static const FText DisplayName = FText::Format(
 				LOCTEXT("LogarithmNodeOperandTypedDisplayNamePattern", "Log ({0}-Base logarithm of {1})"),
-				FText::FromString(GetMetasoundDataTypeString<DataType>()),
-				FText::FromString(GetMetasoundDataTypeString<OperandDataType>()));
+				GetMetasoundDataTypeDisplayText<DataType>(),
+				GetMetasoundDataTypeDisplayText<OperandDataType>());
 			return DisplayName;
 		}
 	}

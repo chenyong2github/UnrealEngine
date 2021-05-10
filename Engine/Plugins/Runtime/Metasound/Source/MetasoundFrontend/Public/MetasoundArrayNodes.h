@@ -88,11 +88,11 @@ namespace Metasound
 		{
 			auto CreateNodeClassMetadata = []() -> FNodeClassMetadata
 			{
-				FName DataTypeName = GetMetasoundDataTypeName<ArrayType>();
-				FName OperatorName = TEXT("Num"); 
-				FText NodeDisplayName = FText::Format(LOCTEXT("ArrayOpArrayNumDisplayNamePattern", "Num ({0})"), FText::FromString(GetMetasoundDataTypeString<ArrayType>()));
-				FText NodeDescription = LOCTEXT("ArrayOpArrayNumDescription", "Number of elements in the array");
-				FVertexInterface NodeInterface = GetDefaultInterface();
+				const FName DataTypeName = GetMetasoundDataTypeName<ArrayType>();
+				const FName OperatorName = TEXT("Num");
+				const FText NodeDisplayName = FText::Format(LOCTEXT("ArrayOpArrayNumDisplayNamePattern", "Num ({0})"), GetMetasoundDataTypeDisplayText<ArrayType>());
+				const FText NodeDescription = LOCTEXT("ArrayOpArrayNumDescription", "Number of elements in the array");
+				const FVertexInterface NodeInterface = GetDefaultInterface();
 			
 				return MetasoundArrayNodesPrivate::CreateArrayNodeClassMetadata(DataTypeName, OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
 			};
@@ -202,11 +202,11 @@ namespace Metasound
 		{
 			auto CreateNodeClassMetadata = []() -> FNodeClassMetadata
 			{
-				FName DataTypeName = GetMetasoundDataTypeName<ArrayType>();
-				FName OperatorName = TEXT("Get"); 
-				FText NodeDisplayName = FText::Format(LOCTEXT("ArrayOpArrayGetDisplayNamePattern", "Get ({0})"), FText::FromString(GetMetasoundDataTypeString<ArrayType>()));
-				FText NodeDescription = LOCTEXT("ArrayOpArrayGetDescription", "Get element at index in array.");
-				FVertexInterface NodeInterface = GetDefaultInterface();
+				const FName DataTypeName = GetMetasoundDataTypeName<ArrayType>();
+				const FName OperatorName = TEXT("Get"); 
+				const FText NodeDisplayName = FText::Format(LOCTEXT("ArrayOpArrayGetDisplayNamePattern", "Get ({0})"), GetMetasoundDataTypeDisplayText<ArrayType>());
+				const FText NodeDescription = LOCTEXT("ArrayOpArrayGetDescription", "Get element at index in array.");
+				const FVertexInterface NodeInterface = GetDefaultInterface();
 			
 				return MetasoundArrayNodesPrivate::CreateArrayNodeClassMetadata(DataTypeName, OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
 			};
@@ -340,11 +340,11 @@ namespace Metasound
 		{
 			auto CreateNodeClassMetadata = []() -> FNodeClassMetadata
 			{
-				FName DataTypeName = GetMetasoundDataTypeName<ArrayType>();
-				FName OperatorName = TEXT("Set"); 
-				FText NodeDisplayName = FText::Format(LOCTEXT("ArrayOpArraySetDisplayNamePattern", "Set ({0})"), FText::FromString(GetMetasoundDataTypeString<ArrayType>()));
-				FText NodeDescription = LOCTEXT("ArrayOpArraySetDescription", "Set element at index in array.");
-				FVertexInterface NodeInterface = GetDefaultInterface();
+				const FName DataTypeName = GetMetasoundDataTypeName<ArrayType>();
+				const FName OperatorName = TEXT("Set"); 
+				const FText NodeDisplayName = FText::Format(LOCTEXT("ArrayOpArraySetDisplayNamePattern", "Set ({0})"), GetMetasoundDataTypeDisplayText<ArrayType>());
+				const FText NodeDescription = LOCTEXT("ArrayOpArraySetDescription", "Set element at index in array.");
+				const FVertexInterface NodeInterface = GetDefaultInterface();
 			
 				return MetasoundArrayNodesPrivate::CreateArrayNodeClassMetadata(DataTypeName, OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
 			};
@@ -480,11 +480,11 @@ namespace Metasound
 		{
 			auto CreateNodeClassMetadata = []() -> FNodeClassMetadata
 			{
-				FName DataTypeName = GetMetasoundDataTypeName<ArrayType>();
-				FName OperatorName = TEXT("Concat"); 
-				FText NodeDisplayName = FText::Format(LOCTEXT("ArrayOpArrayConcatDisplayNamePattern", "Concatenate ({0})"), FText::FromString(GetMetasoundDataTypeString<ArrayType>()));
-				FText NodeDescription = LOCTEXT("ArrayOpArrayConcatDescription", "Concatenates two arrays on trigger.");
-				FVertexInterface NodeInterface = GetDefaultInterface();
+				const FName DataTypeName = GetMetasoundDataTypeName<ArrayType>();
+				const FName OperatorName = TEXT("Concat"); 
+				const FText NodeDisplayName = FText::Format(LOCTEXT("ArrayOpArrayConcatDisplayNamePattern", "Concatenate ({0})"), GetMetasoundDataTypeDisplayText<ArrayType>());
+				const FText NodeDescription = LOCTEXT("ArrayOpArrayConcatDescription", "Concatenates two arrays on trigger.");
+				const FVertexInterface NodeInterface = GetDefaultInterface();
 			
 				return MetasoundArrayNodesPrivate::CreateArrayNodeClassMetadata(DataTypeName, OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
 			};
@@ -606,11 +606,11 @@ namespace Metasound
 		{
 			auto CreateNodeClassMetadata = []() -> FNodeClassMetadata
 			{
-				FName DataTypeName = GetMetasoundDataTypeName<ArrayType>();
-				FName OperatorName = TEXT("Subset"); 
-				FText NodeDisplayName = FText::Format(LOCTEXT("ArrayOpArraySubsetDisplayNamePattern", "Subset ({0})"), FText::FromString(GetMetasoundDataTypeString<ArrayType>()));
-				FText NodeDescription = LOCTEXT("ArrayOpArraySubsetDescription", "Subset array on trigger.");
-				FVertexInterface NodeInterface = GetDefaultInterface();
+				const FName DataTypeName = GetMetasoundDataTypeName<ArrayType>();
+				const FName OperatorName = TEXT("Subset"); 
+				const FText NodeDisplayName = FText::Format(LOCTEXT("ArrayOpArraySubsetDisplayNamePattern", "Subset ({0})"), GetMetasoundDataTypeDisplayText<ArrayType>());
+				const FText NodeDescription = LOCTEXT("ArrayOpArraySubsetDescription", "Subset array on trigger.");
+				const FVertexInterface NodeInterface = GetDefaultInterface();
 			
 				return MetasoundArrayNodesPrivate::CreateArrayNodeClassMetadata(DataTypeName, OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
 			};

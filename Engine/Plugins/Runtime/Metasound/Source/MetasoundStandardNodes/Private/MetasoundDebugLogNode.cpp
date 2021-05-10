@@ -92,7 +92,7 @@ namespace Metasound
 				{
 					FName DataTypeName = GetMetasoundDataTypeName<PrintLogType>();
 					FName OperatorName = TEXT("Print Log");
-					FText NodeDisplayName = FText::Format(LOCTEXT("PrintLogDisplayNamePattern", "Print Log ({0})"), FText::FromString(GetMetasoundDataTypeString<PrintLogType>()));
+					FText NodeDisplayName = FText::Format(LOCTEXT("PrintLogDisplayNamePattern", "Print Log ({0})"), GetMetasoundDataTypeDisplayText<PrintLogType>());
 					FText NodeDescription = LOCTEXT("PrintLogOpDescription", "Used to record values to the log, on trigger");
 					FVertexInterface NodeInterface = GetDefaultInterface();
 

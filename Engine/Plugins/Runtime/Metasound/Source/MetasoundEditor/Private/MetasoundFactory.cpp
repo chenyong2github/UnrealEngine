@@ -86,8 +86,6 @@ UObject* UMetasoundSourceFactory::FactoryCreateNew(UClass* InClass, UObject* InP
 	UMetaSoundSource* MetasoundSource = NewObject<UMetaSoundSource>(InParent, Name, Flags);
 	Metasound::Editor::FactoryPrivate::InitMetasound(MetasoundSource, Flags);
 
-	CastChecked<UMetasoundEditorGraph>(&MetasoundSource->GetGraphChecked())->ParentMetasound = MetasoundSource;
-
 	FGraphBuilder::ConstructGraph(*MetasoundSource);
 	FGraphBuilder::SynchronizeGraph(*MetasoundSource);
 

@@ -450,8 +450,9 @@ const FMetasoundFrontendArchetype& UMetaSoundSource::GetBaseArchetype()
 		
 		FMetasoundFrontendClassVertex OnPlayTrigger;
 		OnPlayTrigger.Name = UMetaSoundSource::GetOnPlayInputName();
-		OnPlayTrigger.Metadata.DisplayName = FText::FromString(OnPlayTrigger.Name);
+
 		OnPlayTrigger.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FTrigger>();
+		OnPlayTrigger.Metadata.DisplayName = LOCTEXT("OnPlay", "On Play");
 		OnPlayTrigger.Metadata.Description = LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played.");
 		OnPlayTrigger.VertexID = FGuid::NewGuid();
 
@@ -459,8 +460,9 @@ const FMetasoundFrontendArchetype& UMetaSoundSource::GetBaseArchetype()
 
 		FMetasoundFrontendClassVertex OnFinished;
 		OnFinished.Name = UMetaSoundSource::GetIsFinishedOutputName();
-		OnFinished.Metadata.DisplayName = FText::FromString(OnFinished.Name);
+
 		OnFinished.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FTrigger>();
+		OnFinished.Metadata.DisplayName = LOCTEXT("OnFinished", "On Finished");
 		OnFinished.Metadata.Description = LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source.");
 		OnFinished.VertexID = FGuid::NewGuid();
 

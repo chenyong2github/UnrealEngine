@@ -183,7 +183,7 @@ namespace Metasound
 			{
 				FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
 				FName OperatorName = *FString::Printf(TEXT("Trigger Route (%s, %d)"), *DataTypeName.ToString(), NumInputs);
-				FText NodeDisplayName = FText::Format(LOCTEXT("CrossfadeDisplayNamePattern", "Crossfade ({0}, {1})"), FText::FromString(GetMetasoundDataTypeString<ValueType>()), NumInputs);
+				FText NodeDisplayName = FText::Format(LOCTEXT("CrossfadeDisplayNamePattern", "Crossfade ({0}, {1})"), GetMetasoundDataTypeDisplayText<ValueType>(), NumInputs);
 				FText NodeDescription = LOCTEXT("CrossfadeDescription", "Crossfades inputs to outputs.");
 				FVertexInterface NodeInterface = GetVertexInterface();
 

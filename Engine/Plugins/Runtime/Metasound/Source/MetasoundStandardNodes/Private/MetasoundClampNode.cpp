@@ -173,11 +173,11 @@ namespace Metasound
 		{
 			auto CreateNodeClassMetadata = []() -> FNodeClassMetadata
 			{
-				FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
-				FName OperatorName = TEXT("Clamp");
-				FText NodeDisplayName = FText::Format(LOCTEXT("ClampDisplayNamePattern", "Clamp ({0})"), FText::FromString(GetMetasoundDataTypeString<ValueType>()));
-				FText NodeDescription = LOCTEXT("ClampDesc", "Returns the clamped value of the input within the given value range.");
-				FVertexInterface NodeInterface = GetDefaultInterface();
+				const FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
+				const FName OperatorName = "Clamp";
+				const FText NodeDisplayName = FText::Format(LOCTEXT("ClampDisplayNamePattern", "Clamp ({0})"), GetMetasoundDataTypeDisplayText<ValueType>());
+				const FText NodeDescription = LOCTEXT("ClampDesc", "Returns the clamped value of the input within the given value range.");
+				const FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return MetasoundClampNodePrivate::CreateNodeClassMetadata(DataTypeName, OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
 			};

@@ -153,11 +153,11 @@ namespace Metasound
 		{
 			auto CreateNodeClassMetadata = []() -> FNodeClassMetadata
 			{
-				FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
-				FName OperatorName = TEXT("Max");
-				FText NodeDisplayName = FText::Format(LOCTEXT("MaxDisplayNamePattern", "Max ({0})"), FText::FromString(GetMetasoundDataTypeString<ValueType>()));
-				FText NodeDescription = LOCTEXT("MaxDesc", "Returns the max of A and B.");
-				FVertexInterface NodeInterface = GetDefaultInterface();
+				const FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
+				const FName OperatorName = TEXT("Max");
+				const FText NodeDisplayName = FText::Format(LOCTEXT("MaxDisplayNamePattern", "Max ({0})"), GetMetasoundDataTypeDisplayText<ValueType>());
+				const FText NodeDescription = LOCTEXT("MaxDesc", "Returns the max of A and B.");
+				const FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return MetasoundMaxNodePrivate::CreateNodeClassMetadata(DataTypeName, OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
 			};

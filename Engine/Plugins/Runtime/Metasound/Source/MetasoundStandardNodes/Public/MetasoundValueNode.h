@@ -60,11 +60,11 @@ namespace Metasound
 		{
 			auto CreateNodeClassMetadata = []() -> FNodeClassMetadata
 			{
-				FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
-				FName OperatorName = TEXT("Value");
-				FText NodeDisplayName = FText::Format(LOCTEXT("ValueDisplayNamePattern", "Value ({0})"), FText::FromString(GetMetasoundDataTypeString<ValueType>()));
-				FText NodeDescription = LOCTEXT("ValueDescription", "Allows setting a value to output on trigger.");
-				FVertexInterface NodeInterface = GetDefaultInterface();
+				const FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
+				const FName OperatorName = "Value";
+				const FText NodeDisplayName = FText::Format(LOCTEXT("ValueDisplayNamePattern", "Value ({0})"), GetMetasoundDataTypeDisplayText<ValueType>());
+				const FText NodeDescription = LOCTEXT("ValueDescription", "Allows setting a value to output on trigger.");
+				const FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return MetasoundValueNodePrivate::CreateNodeClassMetadata(DataTypeName, OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
 			};

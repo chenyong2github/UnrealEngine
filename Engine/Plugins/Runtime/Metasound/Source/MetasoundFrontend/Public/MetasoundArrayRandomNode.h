@@ -140,8 +140,8 @@ namespace Metasound
 			auto CreateNodeClassMetadata = []() -> FNodeClassMetadata
 			{
 				FName DataTypeName = GetMetasoundDataTypeName<ArrayType>();
-				FName OperatorName = TEXT("Random Get");
-				FText NodeDisplayName = FText::Format(LOCTEXT("RandomGetArrayOpDisplayNamePattern", "Random Get ({0})"), FText::FromString(GetMetasoundDataTypeString<ArrayType>()));
+				FName OperatorName = "Random Get";
+				FText NodeDisplayName = FText::Format(LOCTEXT("RandomGetArrayOpDisplayNamePattern", "Random Get ({0})"), GetMetasoundDataTypeDisplayText<ArrayType>());
 				FText NodeDescription = LOCTEXT("RandomGetArrayDescription", "Randomly retrieve data from input array using the supplied weights.");
 				FVertexInterface NodeInterface = GetDefaultInterface();
 
