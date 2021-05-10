@@ -8,6 +8,7 @@
 #include "Tracks/MovieSceneSpawnTrack.h"
 #include "MovieSceneObjectBindingID.h"
 #include "Compilation/IMovieSceneTrackTemplateProducer.h"
+#include "Compilation/IMovieSceneDeterminismSource.h"
 #include "MovieSceneEventTrack.generated.h"
 
 struct FMovieSceneEvaluationTrack;
@@ -31,6 +32,7 @@ UCLASS(MinimalAPI)
 class UMovieSceneEventTrack
 	: public UMovieSceneNameableTrack
 	, public IMovieSceneTrackTemplateProducer
+	, public IMovieSceneDeterminismSource
 {
 	GENERATED_BODY()
 
@@ -64,6 +66,8 @@ public:
 	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
 	virtual void PostCompile(FMovieSceneEvaluationTrack& Track, const FMovieSceneTrackCompilerArgs& Args) const override;
 	virtual bool SupportsMultipleRows() const override { return true; }
+
+	virtual void PopulateDeterminismData(FMovieSceneDeterminismData& OutData, const TRange<FFrameNumber>& Range) const override;
 
 #if WITH_EDITORONLY_DATA
 	virtual void Serialize(FArchive& Ar) override;

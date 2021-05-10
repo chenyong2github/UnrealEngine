@@ -129,6 +129,12 @@ void UMovieSceneEventTrack::PostCompile(FMovieSceneEvaluationTrack& Track, const
 	Track.SetEvaluationMethod(EEvaluationMethod::Swept);
 }
 
+void UMovieSceneEventTrack::PopulateDeterminismData(FMovieSceneDeterminismData& OutData, const TRange<FFrameNumber>& Range) const
+{
+	OutData.bParentSequenceRequiresLowerFence = true;
+	OutData.bParentSequenceRequiresUpperFence = true;
+}
+
 #if WITH_EDITORONLY_DATA
 
 FText UMovieSceneEventTrack::GetDefaultDisplayName() const
