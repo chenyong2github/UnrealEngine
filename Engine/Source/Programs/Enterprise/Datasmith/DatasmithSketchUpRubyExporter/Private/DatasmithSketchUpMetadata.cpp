@@ -20,123 +20,16 @@
 #include "Containers/Array.h"
 #include "DatasmithSceneFactory.h"
 
+using namespace DatasmithSketchUp;
 
-TSet<FString> const FDatasmithSketchUpMetadata::InterestingAttributeDictionarySet =
+
+TSet<FString> const FMetadata::InterestingAttributeDictionarySet =
 {
 	FString(TEXT("SU_DefinitionSet")),
 	FString(TEXT("SU_InstanceSet"))
 };
 
-TMap<int32, TSharedPtr<FDatasmithSketchUpMetadata>> FDatasmithSketchUpMetadata::MetadataDefinitionMap;
-
-void FDatasmithSketchUpMetadata::AddMetadataDefinition(
-	SUModelRef InSModelRef
-)
-{
-	// Create a new metadata definition.
-	TSharedPtr<FDatasmithSketchUpMetadata> MetadataPtr = TSharedPtr<FDatasmithSketchUpMetadata>(new FDatasmithSketchUpMetadata(InSModelRef));
-
-	if (!MetadataDefinitionMap.Contains(MetadataPtr->SketchupSourceID))
-	{
-		// Add the metadata definition to our dictionary.
-		MetadataDefinitionMap.Add(MetadataPtr->SketchupSourceID, MetadataPtr);
-	}
-}
-
-void FDatasmithSketchUpMetadata::AddMetadataDefinition(
-	SUComponentDefinitionRef InSComponentDefinitionRef
-)
-{
-	AddMetadataDefinition(SUComponentDefinitionToEntity(InSComponentDefinitionRef));
-}
-
-void FDatasmithSketchUpMetadata::AddMetadataDefinition(
-	SUComponentInstanceRef InSComponentInstanceRef
-)
-{
-	AddMetadataDefinition(SUComponentInstanceToEntity(InSComponentInstanceRef));
-}
-
-void FDatasmithSketchUpMetadata::ClearMetadataDefinitionMap()
-{
-	// Remove all entries from our dictionary of metadata definitions.
-	MetadataDefinitionMap.Empty();
-}
-
-TSharedPtr<IDatasmithMetaDataElement> FDatasmithSketchUpMetadata::CreateMetadataElement(
-	SUComponentInstanceRef InSComponentInstanceRef,
-	FString const&         InMetadataElementName
-	)
-{
-	// Retrieve the component definition of the SketchUp component instance.
-	SUComponentDefinitionRef SComponentDefinitionRef = SU_INVALID;
-	SUComponentInstanceGetDefinition(InSComponentInstanceRef, &SComponentDefinitionRef); // we can ignore the returned SU_RESULT
-
-	// Get the SketckUp metadata ID of the SketckUp component definition.
-	int32 SComponentDefinitionID = 0;
-	SUEntityGetID(SUComponentDefinitionToEntity(SComponentDefinitionRef), &SComponentDefinitionID); // we can ignore the returned SU_RESULT
-
-	// Retrieve the component definition metadata in our dictionary of metadata definitions.
-	TSharedPtr<FDatasmithSketchUpMetadata> ComponentDefinitionMetadataPtr;
-	bool bComponentDefinitionHasMetadata = false;
-	if (MetadataDefinitionMap.Contains(SComponentDefinitionID))
-	{
-		ComponentDefinitionMetadataPtr = MetadataDefinitionMap[SComponentDefinitionID];
-		bComponentDefinitionHasMetadata = ComponentDefinitionMetadataPtr->ContainsMetadata();
-	}
-
-	// Get the SketckUp metadata ID of the SketckUp component instance.
-	int32 SComponentInstanceID = 0;
-	SUEntityGetID(SUComponentInstanceToEntity(InSComponentInstanceRef), &SComponentInstanceID); // we can ignore the returned SU_RESULT
-
-	// Retrieve the component instance metadata in our dictionary of metadata definitions.
-	TSharedPtr<FDatasmithSketchUpMetadata> ComponentInstanceMetadataPtr;
-	bool bComponentInstanceHasMetadata = false;
-	if (MetadataDefinitionMap.Contains(SComponentInstanceID))
-	{
-		ComponentInstanceMetadataPtr = MetadataDefinitionMap[SComponentInstanceID];
-		bComponentInstanceHasMetadata = ComponentInstanceMetadataPtr->ContainsMetadata();
-	}
-
-	if (!bComponentDefinitionHasMetadata && !bComponentInstanceHasMetadata)
-	{
-		return TSharedPtr<IDatasmithMetaDataElement>();
-	}																						
-
-	// Create a Datasmith metadata element for the metadata definition.
-	TSharedPtr<IDatasmithMetaDataElement> DMetadataElementPtr = FDatasmithSceneFactory::CreateMetaData(*InMetadataElementName);
-
-	if (bComponentDefinitionHasMetadata)
-	{
-		// Add the component definition metadata key-value pairs into the Datasmith metadata element.
-		ComponentDefinitionMetadataPtr->AddMetadata(DMetadataElementPtr);
-	}
-
-	if (bComponentInstanceHasMetadata)
-	{
-		// Add the component instance metadata key-value pairs into the Datasmith metadata element.
-		ComponentInstanceMetadataPtr->AddMetadata(DMetadataElementPtr);
-	}
-
-	// Return the Datasmith metadata element.
-	return DMetadataElementPtr;
-}
-
-void FDatasmithSketchUpMetadata::AddMetadataDefinition(
-	SUEntityRef InSEntityRef
-)
-{
-	// Create a new metadata definition.
-	TSharedPtr<FDatasmithSketchUpMetadata> MetadataPtr = TSharedPtr<FDatasmithSketchUpMetadata>(new FDatasmithSketchUpMetadata(InSEntityRef));
-
-	if (!MetadataDefinitionMap.Contains(MetadataPtr->SketchupSourceID))
-	{
-		// Add the metadata definition to our dictionary.
-		MetadataDefinitionMap.Add(MetadataPtr->SketchupSourceID, MetadataPtr);
-	}
-}
-
-FDatasmithSketchUpMetadata::FDatasmithSketchUpMetadata(
+FMetadata::FMetadata(
 	SUModelRef InSModelRef
 ) :
 	SketchupSourceID(MODEL_METADATA_ID)
@@ -161,7 +54,7 @@ FDatasmithSketchUpMetadata::FDatasmithSketchUpMetadata(
 	}
 }
 
-FDatasmithSketchUpMetadata::FDatasmithSketchUpMetadata(
+FMetadata::FMetadata(
 	SUEntityRef InSEntityRef
 )
 {
@@ -215,7 +108,7 @@ FDatasmithSketchUpMetadata::FDatasmithSketchUpMetadata(
 	}
 }
 
-void FDatasmithSketchUpMetadata::ScanAttributeDictionary(
+void FMetadata::ScanAttributeDictionary(
 	SUAttributeDictionaryRef InSAttributeDictionaryRef
 )
 {
@@ -272,7 +165,7 @@ void FDatasmithSketchUpMetadata::ScanAttributeDictionary(
 	}
 }
 
-void FDatasmithSketchUpMetadata::ScanClassificationSchema(
+void FMetadata::ScanClassificationSchema(
 	SUClassificationAttributeRef InSSchemaAttributeRef
 )
 {
@@ -309,7 +202,7 @@ void FDatasmithSketchUpMetadata::ScanClassificationSchema(
 	}
 }
 
-FString FDatasmithSketchUpMetadata::GetAttributeValue(
+FString FMetadata::GetAttributeValue(
 	SUTypedValueRef InSTypedValueRef
 )
 {
@@ -439,7 +332,7 @@ FString FDatasmithSketchUpMetadata::GetAttributeValue(
 	return SAttributeValue;
 }
 
-void FDatasmithSketchUpMetadata::AddMetadata(
+void FMetadata::AddMetadata(
 	TSharedPtr<IDatasmithMetaDataElement> IODMetaDataElementPtr
 ) const
 {
