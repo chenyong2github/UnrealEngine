@@ -2295,7 +2295,7 @@ void FNiagaraScriptToolkitParameterPanelViewModel::RemoveParameterDefinitions(co
 
 void FNiagaraScriptToolkitParameterPanelViewModel::OnGraphChanged(const struct FEdGraphEditAction& InAction) const
 {
-	Refresh();
+	RefreshNextTick();
 }
 
 void FNiagaraScriptToolkitParameterPanelViewModel::OnGraphSubObjectSelectionChanged(const UObject* Obj) const
