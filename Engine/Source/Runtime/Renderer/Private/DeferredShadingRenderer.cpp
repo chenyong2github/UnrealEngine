@@ -82,7 +82,7 @@ static TAutoConsoleVariable<int32> CVarIrisNormal(
 	TEXT(" 1: on"),
 	ECVF_ReadOnly);
 
-int32 GbEnableAsyncComputeTranslucencyLightingVolumeClear = 1;
+int32 GbEnableAsyncComputeTranslucencyLightingVolumeClear = 0; // @todo: disabled due to GPU crashes
 static FAutoConsoleVariableRef CVarEnableAsyncComputeTranslucencyLightingVolumeClear(
 	TEXT("r.EnableAsyncComputeTranslucencyLightingVolumeClear"),
 	GbEnableAsyncComputeTranslucencyLightingVolumeClear,
