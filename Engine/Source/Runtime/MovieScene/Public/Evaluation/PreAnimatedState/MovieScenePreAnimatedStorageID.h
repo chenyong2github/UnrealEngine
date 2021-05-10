@@ -23,7 +23,7 @@ public:
 
 	friend uint32 GetTypeHash(FPreAnimatedStorageID In)
 	{
-		return GetTypeHash(In.TypeID);
+		return ::GetTypeHash(In.TypeID);
 	}
 
 	friend bool operator<(FPreAnimatedStorageID A, FPreAnimatedStorageID B)
