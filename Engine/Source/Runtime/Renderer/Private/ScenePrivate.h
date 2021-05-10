@@ -12,6 +12,7 @@
 #include "Misc/Guid.h"
 #include "Math/RandomStream.h"
 #include "Engine/EngineTypes.h"
+#include "Templates/PimplPtr.h"
 #include "RHI.h"
 #include "RenderResource.h"
 #include "RenderingThread.h"
