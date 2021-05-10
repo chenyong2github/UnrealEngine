@@ -18,6 +18,7 @@
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
+#include "ViewModels/NiagaraPlaceholderDataInterfaceManager.h"
 #include "NiagaraSystemScriptViewModel.h"
 #include "NiagaraScriptGraphViewModel.h"
 #include "NiagaraSequence.h"
@@ -126,6 +127,8 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	CurveSelectionViewModel = NewObject<UNiagaraCurveSelectionViewModel>(GetTransientPackage());
 	CurveSelectionViewModel->Initialize(this->AsShared());
 
+	PlaceholderDataInterfaceManager = MakeShared<FNiagaraPlaceholderDataInterfaceManager>(this->AsShared());
+
 	SetupPreviewComponentAndInstance();
 	SetupSequencer();
 	RefreshAll();
@@ -218,6 +221,11 @@ void FNiagaraSystemViewModel::Cleanup()
 	{
 		CurveSelectionViewModel->Finalize();
 		CurveSelectionViewModel = nullptr;
+	}
+
+	if (PlaceholderDataInterfaceManager.IsValid())
+	{
+		PlaceholderDataInterfaceManager.Reset();
 	}
 
 	System = nullptr;
@@ -860,6 +868,11 @@ TArray<float> FNiagaraSystemViewModel::OnGetPlaybackSpeeds() const
 TStatId FNiagaraSystemViewModel::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraSystemViewModel, STATGROUP_Tickables);
+}
+
+TSharedRef<FNiagaraPlaceholderDataInterfaceManager> FNiagaraSystemViewModel::GetPlaceholderDataInterfaceManager()
+{
+	return PlaceholderDataInterfaceManager.ToSharedRef();
 }
 
 void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const

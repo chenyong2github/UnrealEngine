@@ -6,13 +6,15 @@
 #include "UObject/ObjectKey.h"
 #include "NiagaraCurveSelectionViewModel.generated.h"
 
-class FNiagaraSystemViewModel;
+class FCompileConstantResolver;
 class UNiagaraDataInterfaceCurveBase;
-class UNiagaraSystem;
+struct FNiagaraEmitterHandle;
 class UNiagaraNodeFunctionCall;
+class FNiagaraPlaceholderDataInterfaceHandle;
 class UNiagaraScript;
 class UNiagaraStackEditorData;
-struct FNiagaraEmitterHandle;
+class UNiagaraSystem;
+class FNiagaraSystemViewModel;
 struct FRichCurve;
 
 struct NIAGARAEDITOR_API FNiagaraCurveSelectionTreeNodeDataId
@@ -96,6 +98,8 @@ public:
 
 	void SetCurveDataInterface(UNiagaraDataInterfaceCurveBase* InCurveDataInterface);
 
+	void SetPlaceholderDataInterfaceHandle(TSharedPtr<FNiagaraPlaceholderDataInterfaceHandle> InPlaceholderDataInterfaceHandle);
+
 	void SetCurveData(UNiagaraDataInterfaceCurveBase* InCurveDataInterface, FRichCurve* InCurve, FName InCurveName, FLinearColor InCurveColor);
 
 	const TOptional<FObjectKey>& GetDisplayedObjectKey() const;
@@ -135,6 +139,7 @@ private:
 	TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>> ChildNodes;
 
 	TWeakObjectPtr<UNiagaraDataInterfaceCurveBase> CurveDataInterface;
+	TSharedPtr<FNiagaraPlaceholderDataInterfaceHandle> PlaceholderDataInterfaceHandle;
 	FRichCurve* Curve;
 	FName CurveName;
 	FLinearColor CurveColor;
@@ -190,12 +195,14 @@ private:
 		const TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>> OldParentChildNodes,
 		UNiagaraNodeFunctionCall& FunctionCallNode, UNiagaraStackEditorData& StackEditorData,
 		FName ExecutionCategory, FName ExecutionSubCategory,
-		FName InputName, bool bIsParameterDynamicInput) const;
+		FName InputName, bool bIsParameterDynamicInput,
+		FCompileConstantResolver& ConstantResolver, FGuid& OwningEmitterHandleId) const;
 
 	TSharedPtr<FNiagaraCurveSelectionTreeNode> CreateNodeForScript(
 		TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>> OldParentChildNodes,
 		UNiagaraScript& Script, FString ScriptDisplayName, UNiagaraStackEditorData& StackEditorData,
-		FName ExecutionCategory, FName ExecutionSubcategory) const;
+		FName ExecutionCategory, FName ExecutionSubcategory,
+		const FNiagaraEmitterHandle* OwningEmitterHandle) const;
 
 	TSharedPtr<FNiagaraCurveSelectionTreeNode> CreateNodeForSystem(TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>> OldParentChildNodes, UNiagaraSystem& System) const;
 

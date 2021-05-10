@@ -2,6 +2,7 @@
 
 #include "ViewModels/NiagaraCurveSelectionViewModel.h"
 
+#include "EdGraphSchema_Niagara.h"
 #include "NiagaraDataInterfaceCurveBase.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraEmitterEditorData.h"
@@ -22,6 +23,7 @@
 #include "Toolkits/NiagaraSystemToolkit.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
+#include "ViewModels/NiagaraPlaceholderDataInterfaceManager.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
@@ -192,6 +194,11 @@ bool FNiagaraCurveSelectionTreeNode::GetCurveIsReadOnly() const
 void FNiagaraCurveSelectionTreeNode::SetCurveDataInterface(UNiagaraDataInterfaceCurveBase* InCurveDataInterface)
 {
 	CurveDataInterface = InCurveDataInterface;
+}
+
+void FNiagaraCurveSelectionTreeNode::SetPlaceholderDataInterfaceHandle(TSharedPtr<FNiagaraPlaceholderDataInterfaceHandle> InPlaceholderDataInterfaceHandle)
+{
+	PlaceholderDataInterfaceHandle = InPlaceholderDataInterfaceHandle;
 }
 
 void FNiagaraCurveSelectionTreeNode::SetCurveData(UNiagaraDataInterfaceCurveBase* InCurveDataInterface, FRichCurve* InCurve, FName InCurveName, FLinearColor InCurveColor)
@@ -449,7 +456,8 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 	const TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>> OldParentChildNodes,
 	UNiagaraNodeFunctionCall& FunctionCallNode, UNiagaraStackEditorData& StackEditorData,
 	FName ExecutionCategory, FName ExecutionSubCategory,
-	FName InputName, bool bIsParameterDynamicInput) const
+	FName InputName, bool bIsParameterDynamicInput,
+	FCompileConstantResolver& ConstantResolver, FGuid& OwningEmitterHandleId) const
 {
 	TSharedPtr<FNiagaraCurveSelectionTreeNode> NewFunctionNode;
 
@@ -463,6 +471,10 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 		OldFunctionChildNodes = OldFunctionNode->GetChildNodes();
 	}
 
+	bool bIsParameterInput = FunctionCallNode.IsA<UNiagaraNodeAssignment>();
+
+	// Handle dynamic inputs and collect override curve data interfaces by name.
+	TMap<FName, UNiagaraDataInterfaceCurveBase*> InputNameToOverrideCurveDataInterface;
 	UNiagaraNodeParameterMapSet* OverrideNode = FNiagaraStackGraphUtilities::GetStackFunctionOverrideNode(FunctionCallNode);
 	if (OverrideNode != nullptr)
 	{
@@ -471,37 +483,84 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 		{
 			if (OverridePin->LinkedTo.Num() == 1)
 			{
-				TSharedPtr<FNiagaraCurveSelectionTreeNode> FunctionInputNode;
 				FNiagaraParameterHandle InputHandle(OverridePin->PinName);
-				bool bIsParameterInput = FunctionCallNode.IsA<UNiagaraNodeAssignment>();
-
 				UNiagaraNodeFunctionCall* InputFunctionCallNode = Cast<UNiagaraNodeFunctionCall>(OverridePin->LinkedTo[0]->GetOwningNode());
-				if(InputFunctionCallNode != nullptr)
+				if (InputFunctionCallNode != nullptr)
 				{
-					FunctionInputNode = CreateNodeForFunction(OldFunctionChildNodes, *InputFunctionCallNode, StackEditorData, NAME_None, NAME_None, InputHandle.GetName(), bIsParameterInput);
+					TSharedPtr<FNiagaraCurveSelectionTreeNode> FunctionInputNode = CreateNodeForFunction(
+						OldFunctionChildNodes, *InputFunctionCallNode, StackEditorData, 
+						NAME_None, NAME_None, InputHandle.GetName(), bIsParameterInput,
+						ConstantResolver, OwningEmitterHandleId);
+					if(FunctionInputNode.IsValid())
+					{
+						NewFunctionChildNodes.Add(FunctionInputNode.ToSharedRef());
+					}
 				}
 				else
 				{
 					UNiagaraNodeInput* InputNode = Cast<UNiagaraNodeInput>(OverridePin->LinkedTo[0]->GetOwningNode());
 					if (InputNode != nullptr && InputNode->GetDataInterface() != nullptr && InputNode->GetDataInterface()->IsA<UNiagaraDataInterfaceCurveBase>())
 					{
-						UNiagaraDataInterfaceCurveBase* InputCurveDataInterface = CastChecked<UNiagaraDataInterfaceCurveBase>(InputNode->GetDataInterface());
-						FNiagaraCurveSelectionTreeNodeDataId InputCurveDataInterfaceDataId = FNiagaraCurveSelectionTreeNodeDataId::FromObject(InputCurveDataInterface);
-						FunctionInputNode = FNiagaraCurveSelectionTreeNode::FindNodeWithDataId(OldFunctionChildNodes, InputCurveDataInterfaceDataId);
-						if(FunctionInputNode.IsValid() == false)
-						{
-							FunctionInputNode = CreateNodeForCurveDataInterface(InputCurveDataInterfaceDataId, *InputCurveDataInterface, bIsParameterInput);
-						}
-						FunctionInputNode->SetDisplayName(FText::FromName(InputHandle.GetName()));
-						FunctionInputNode->SetSecondDisplayName(InputCurveDataInterface->GetClass()->GetDisplayNameText());
+						InputNameToOverrideCurveDataInterface.Add(InputHandle.GetName(), CastChecked<UNiagaraDataInterfaceCurveBase>(InputNode->GetDataInterface()));
 					}
 				}
+			}
+		}
+	}
 
-				if (FunctionInputNode.IsValid())
+	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
+	TArray<const UEdGraphPin*> InputPins;
+	TSet<const UEdGraphPin*> HiddenPins;
+	FNiagaraStackGraphUtilities::GetStackFunctionInputPins(FunctionCallNode, InputPins, HiddenPins, ConstantResolver);
+	for (const UEdGraphPin* InputPin : InputPins)
+	{
+		if (HiddenPins.Contains(InputPin))
+		{
+			continue;
+		}
+
+		FNiagaraVariable InputVariable = NiagaraSchema->PinToNiagaraVariable(InputPin);
+		if (InputVariable.IsValid() && InputVariable.GetType().IsDataInterface() && InputVariable.GetType().GetClass()->IsChildOf(UNiagaraDataInterfaceCurveBase::StaticClass()))
+		{
+			UNiagaraDataInterfaceCurveBase* DataInterfaceToDisplay = nullptr;
+			TSharedPtr<FNiagaraPlaceholderDataInterfaceHandle> PlaceholderDataInterfaceHandle;
+
+			TSharedPtr<FNiagaraSystemViewModel> SystemViewModel = SystemViewModelWeak.Pin();
+			FNiagaraParameterHandle InputHandle(InputVariable.GetName());
+			UNiagaraDataInterfaceCurveBase** OverrideCurveDataInterfacePtr = InputNameToOverrideCurveDataInterface.Find(InputHandle.GetName());
+			if (OverrideCurveDataInterfacePtr != nullptr)
+			{
+				PlaceholderDataInterfaceHandle = SystemViewModel->GetPlaceholderDataInterfaceManager()->GetPlaceholderDataInterface(OwningEmitterHandleId, FunctionCallNode, InputHandle);
+				if(PlaceholderDataInterfaceHandle.IsValid())
 				{
-					NewFunctionChildNodes.Add(FunctionInputNode.ToSharedRef());
+					// If there is an active placeholder data interface, display and edit it to keep other views consistent.  Changes to it will be copied to the target data interface
+					// by the placeholder manager.
+					DataInterfaceToDisplay = CastChecked<UNiagaraDataInterfaceCurveBase>(PlaceholderDataInterfaceHandle->GetDataInterface());
+				}
+				else
+				{
+					DataInterfaceToDisplay = *OverrideCurveDataInterfacePtr;
 				}
 			}
+			else
+			{
+				PlaceholderDataInterfaceHandle = SystemViewModel->GetPlaceholderDataInterfaceManager()->GetOrCreatePlaceholderDataInterface(
+					OwningEmitterHandleId, FunctionCallNode, InputHandle, InputVariable.GetType().GetClass());
+				DataInterfaceToDisplay = CastChecked<UNiagaraDataInterfaceCurveBase>(PlaceholderDataInterfaceHandle->GetDataInterface());
+			}
+
+			FNiagaraCurveSelectionTreeNodeDataId InputCurveDataInterfaceDataId = FNiagaraCurveSelectionTreeNodeDataId::FromObject(DataInterfaceToDisplay);
+			TSharedPtr<FNiagaraCurveSelectionTreeNode> FunctionInputNode = FNiagaraCurveSelectionTreeNode::FindNodeWithDataId(OldFunctionChildNodes, InputCurveDataInterfaceDataId);
+			if (FunctionInputNode.IsValid() == false)
+			{
+				FunctionInputNode = CreateNodeForCurveDataInterface(InputCurveDataInterfaceDataId, *DataInterfaceToDisplay, bIsParameterInput);
+			}
+
+			FunctionInputNode->SetPlaceholderDataInterfaceHandle(PlaceholderDataInterfaceHandle);
+			FunctionInputNode->SetDisplayName(FText::FromName(InputHandle.GetName()));
+			FunctionInputNode->SetSecondDisplayName(DataInterfaceToDisplay->GetClass()->GetDisplayNameText());
+
+			NewFunctionChildNodes.Add(FunctionInputNode.ToSharedRef());
 		}
 	}
 
@@ -558,7 +617,8 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::CreateNodeForScript(
 	TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>> OldParentChildNodes,
 	UNiagaraScript& Script, FString ScriptDisplayName, UNiagaraStackEditorData& StackEditorData,
-	FName ExecutionCategory, FName ExecutionSubcategory) const
+	FName ExecutionCategory, FName ExecutionSubcategory,
+	const FNiagaraEmitterHandle* OwningEmitterHandle) const
 {
 	TSharedPtr<FNiagaraCurveSelectionTreeNode> NewScriptNode;
 
@@ -578,6 +638,11 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 		UNiagaraNodeOutput* OutputNode = ScriptSource->NodeGraph->FindEquivalentOutputNode(Script.GetUsage(), Script.GetUsageId());
 		if (OutputNode != nullptr)
 		{
+			FCompileConstantResolver ConstantResolver = OwningEmitterHandle == nullptr
+				? FCompileConstantResolver(&SystemViewModelWeak.Pin()->GetSystem(), Script.GetUsage())
+				: FCompileConstantResolver(OwningEmitterHandle->GetInstance(), Script.GetUsage());
+			FGuid OwningEmitterHandleId = OwningEmitterHandle != nullptr ? OwningEmitterHandle->GetId() : FGuid();
+
 			TArray<FNiagaraStackGraphUtilities::FStackNodeGroup> ScriptGroups;
 			FNiagaraStackGraphUtilities::GetStackNodeGroups(*OutputNode, ScriptGroups);
 
@@ -586,7 +651,9 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 				UNiagaraNodeFunctionCall* ModuleFunctionCallNode = Cast<UNiagaraNodeFunctionCall>(ScriptGroup.EndNode);
 				if (ModuleFunctionCallNode != nullptr)
 				{
-					TSharedPtr<FNiagaraCurveSelectionTreeNode> ModuleNode = CreateNodeForFunction(OldScriptChildNodes, *ModuleFunctionCallNode, StackEditorData, ExecutionCategory, ExecutionSubcategory, NAME_None, false);
+					TSharedPtr<FNiagaraCurveSelectionTreeNode> ModuleNode = CreateNodeForFunction(
+						OldScriptChildNodes, *ModuleFunctionCallNode, StackEditorData,
+						ExecutionCategory, ExecutionSubcategory, NAME_None, false, ConstantResolver, OwningEmitterHandleId);
 					if (ModuleNode.IsValid())
 					{
 						NewScriptChildNodes.Add(ModuleNode.ToSharedRef());
@@ -639,7 +706,8 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 
 	TSharedPtr<FNiagaraCurveSelectionTreeNode> SystemSpawnNode = CreateNodeForScript(
 		OldSystemChildNodes, *System.GetSystemSpawnScript(), TEXT("System Spawn"), StackEditorData,
-		UNiagaraStackEntry::FExecutionCategoryNames::System, UNiagaraStackEntry::FExecutionSubcategoryNames::Spawn);
+		UNiagaraStackEntry::FExecutionCategoryNames::System, UNiagaraStackEntry::FExecutionSubcategoryNames::Spawn,
+		nullptr);
 	if (SystemSpawnNode.IsValid())
 	{
 		NewSystemChildNodes.Add(SystemSpawnNode.ToSharedRef());
@@ -647,7 +715,8 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 
 	TSharedPtr<FNiagaraCurveSelectionTreeNode> SystemUpdateNode = CreateNodeForScript(
 		OldSystemChildNodes, *System.GetSystemUpdateScript(), TEXT("System Update"), StackEditorData,
-		UNiagaraStackEntry::FExecutionCategoryNames::System, UNiagaraStackEntry::FExecutionSubcategoryNames::Update);
+		UNiagaraStackEntry::FExecutionCategoryNames::System, UNiagaraStackEntry::FExecutionSubcategoryNames::Update,
+		nullptr);
 	if (SystemUpdateNode.IsValid())
 	{
 		NewSystemChildNodes.Add(SystemUpdateNode.ToSharedRef());
@@ -704,7 +773,8 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 	UNiagaraStackEditorData& StackEditorData = CastChecked<UNiagaraEmitterEditorData>(EmitterHandle.GetInstance()->GetEditorData())->GetStackEditorData();
 	TSharedPtr<FNiagaraCurveSelectionTreeNode> EmitterSpawnNode = CreateNodeForScript(
 		OldEmitterChildNodes, *Emitter->EmitterSpawnScriptProps.Script, TEXT("Emitter Spawn"), StackEditorData,
-		UNiagaraStackEntry::FExecutionCategoryNames::Emitter, UNiagaraStackEntry::FExecutionSubcategoryNames::Spawn);
+		UNiagaraStackEntry::FExecutionCategoryNames::Emitter, UNiagaraStackEntry::FExecutionSubcategoryNames::Spawn,
+		&EmitterHandle);
 	if (EmitterSpawnNode.IsValid())
 	{
 		NewEmitterChildNodes.Add(EmitterSpawnNode.ToSharedRef());
@@ -712,7 +782,8 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 
 	TSharedPtr<FNiagaraCurveSelectionTreeNode> EmitterUpdateNode = CreateNodeForScript(
 		OldEmitterChildNodes, *Emitter->EmitterUpdateScriptProps.Script, TEXT("Emitter Update"), StackEditorData,
-		UNiagaraStackEntry::FExecutionCategoryNames::Emitter, UNiagaraStackEntry::FExecutionSubcategoryNames::Update);
+		UNiagaraStackEntry::FExecutionCategoryNames::Emitter, UNiagaraStackEntry::FExecutionSubcategoryNames::Update,
+		&EmitterHandle);
 	if (EmitterUpdateNode.IsValid())
 	{
 		NewEmitterChildNodes.Add(EmitterUpdateNode.ToSharedRef());
@@ -720,7 +791,8 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 
 	TSharedPtr<FNiagaraCurveSelectionTreeNode> ParticleSpawnNode = CreateNodeForScript(
 		OldEmitterChildNodes, *Emitter->SpawnScriptProps.Script, TEXT("Particle Spawn"), StackEditorData,
-		UNiagaraStackEntry::FExecutionCategoryNames::Particle, UNiagaraStackEntry::FExecutionSubcategoryNames::Spawn);
+		UNiagaraStackEntry::FExecutionCategoryNames::Particle, UNiagaraStackEntry::FExecutionSubcategoryNames::Spawn,
+		&EmitterHandle);
 	if (ParticleSpawnNode.IsValid())
 	{
 		NewEmitterChildNodes.Add(ParticleSpawnNode.ToSharedRef());
@@ -728,7 +800,8 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 
 	TSharedPtr<FNiagaraCurveSelectionTreeNode> ParticleUpdateNode = CreateNodeForScript(
 		OldEmitterChildNodes, *Emitter->UpdateScriptProps.Script, TEXT("Particle Update"), StackEditorData,
-		UNiagaraStackEntry::FExecutionCategoryNames::Particle, UNiagaraStackEntry::FExecutionSubcategoryNames::Update);
+		UNiagaraStackEntry::FExecutionCategoryNames::Particle, UNiagaraStackEntry::FExecutionSubcategoryNames::Update,
+		&EmitterHandle);
 	if (ParticleUpdateNode.IsValid())
 	{
 		NewEmitterChildNodes.Add(ParticleUpdateNode.ToSharedRef());
@@ -738,7 +811,8 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 	{
 		TSharedPtr<FNiagaraCurveSelectionTreeNode> EmitterEventNode = CreateNodeForScript(
 			OldEmitterChildNodes, *EventScriptProps.Script, FString::Printf(TEXT("Event Handler - %s"), *EventScriptProps.SourceEventName.ToString()), StackEditorData,
-			UNiagaraStackEntry::FExecutionCategoryNames::Particle, UNiagaraStackEntry::FExecutionSubcategoryNames::Event);
+			UNiagaraStackEntry::FExecutionCategoryNames::Particle, UNiagaraStackEntry::FExecutionSubcategoryNames::Event,
+			&EmitterHandle);
 		if (EmitterEventNode.IsValid())
 		{
 			NewEmitterChildNodes.Add(EmitterEventNode.ToSharedRef());
@@ -749,7 +823,8 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 	{
 		TSharedPtr<FNiagaraCurveSelectionTreeNode> EmitterSimulationStageNode = CreateNodeForScript(
 			OldEmitterChildNodes, *SimulationStage->Script, FString::Printf(TEXT("Simulation Stage - %s"), *SimulationStage->SimulationStageName.ToString()), StackEditorData,
-			UNiagaraStackEntry::FExecutionCategoryNames::Particle, UNiagaraStackEntry::FExecutionSubcategoryNames::SimulationStage);
+			UNiagaraStackEntry::FExecutionCategoryNames::Particle, UNiagaraStackEntry::FExecutionSubcategoryNames::SimulationStage,
+			&EmitterHandle);
 		if (EmitterSimulationStageNode.IsValid())
 		{
 			NewEmitterChildNodes.Add(EmitterSimulationStageNode.ToSharedRef());
