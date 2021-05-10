@@ -2,6 +2,8 @@
 
 #include "SRCPanelExposedEntity.h"
 
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "RemoteControlEntity.h"
 #include "RemoteControlField.h"
 #include "SceneOutlinerFilters.h"
@@ -17,8 +19,8 @@ class FIsActorBindableFilter : public SceneOutliner::FOutlinerFilter, public TSh
 {
 public:
 	FIsActorBindableFilter(const TSharedPtr<FRemoteControlEntity>& InEntity)
-        : FOutlinerFilter(SceneOutliner::EDefaultFilterBehaviour::Fail)
-        , WeakEntity(InEntity)
+		: FOutlinerFilter(SceneOutliner::EDefaultFilterBehaviour::Fail)
+		, WeakEntity(InEntity)
 	{}
 
 	//~ Begin SceneOutliner::FOutlinerFilter interface
@@ -37,20 +39,25 @@ private:
 	TWeakPtr<FRemoteControlEntity> WeakEntity;
 };
 
+TSharedPtr<SWidget> SRCPanelExposedEntity::GetContextMenu()
+{
+	FMenuBuilder MenuBuilder(true, TSharedPtr<const FUICommandList>());
+	MenuBuilder.AddSubMenu(
+		LOCTEXT("EntityRebindSubmenuLabel", "Rebind"),
+		LOCTEXT("EntityRebindSubmenuToolTip", "Pick an object to rebind this exposed entity."),
+		FNewMenuDelegate::CreateLambda([this](FMenuBuilder& SubMenuBuilder)
+		{
+			constexpr bool bNoIndent = true;
+			SubMenuBuilder.AddWidget(CreateRebindMenuContent(), FText::GetEmpty(), bNoIndent);
+		}));
+	return MenuBuilder.MakeWidget();
+}
+
 TSharedRef<SWidget> SRCPanelExposedEntity::CreateInvalidWidget()
 {
-	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
-	SceneOutliner::FInitializationOptions Options;
-	Options.Filters = MakeShared<SceneOutliner::FOutlinerFilters>();
-
-	if (TSharedPtr<FRemoteControlEntity> Entity = GetEntity())
-	{
-		Options.Filters->Add(MakeShared<FIsActorBindableFilter>(Entity));
-	}
-
 	return SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
-	    .AutoWidth()
+		.AutoWidth()
 		[
 			SNew(SComboButton)
 			.ButtonContent()
@@ -64,10 +71,30 @@ TSharedRef<SWidget> SRCPanelExposedEntity::CreateInvalidWidget()
 				.MaxDesiredHeight(400.0f)
 				.WidthOverride(300.0f)
 				[
-					SceneOutlinerModule.CreateSceneOutliner(Options, FOnActorPicked::CreateRaw(this, &SRCPanelExposedEntity::OnActorSelected))
+					CreateRebindMenuContent()
 				]
 			]
 		];
+}
+
+TSharedRef<SWidget> SRCPanelExposedEntity::CreateRebindMenuContent()
+{
+	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
+	SceneOutliner::FInitializationOptions Options;
+	Options.bFocusSearchBoxWhenOpened = true;
+	Options.Filters = MakeShared<SceneOutliner::FOutlinerFilters>();
+
+	if (TSharedPtr<FRemoteControlEntity> Entity = GetEntity())
+	{
+		Options.Filters->Add(MakeShared<FIsActorBindableFilter>(Entity));
+	}
+	
+	return SNew(SBox)
+	.MaxDesiredHeight(400.0f)
+	.WidthOverride(300.0f)
+	[
+		SceneOutlinerModule.CreateSceneOutliner(Options, FOnActorPicked::CreateRaw(this, &SRCPanelExposedEntity::OnActorSelected))
+	];
 }
 
 void SRCPanelExposedEntity::OnActorSelected(AActor* InActor) const
@@ -76,6 +103,8 @@ void SRCPanelExposedEntity::OnActorSelected(AActor* InActor) const
 	{
 		Entity->BindObject(InActor);
 	}
+
+	FSlateApplication::Get().DismissAllMenus();
 }
 
 #undef LOCTEXT_NAMESPACE

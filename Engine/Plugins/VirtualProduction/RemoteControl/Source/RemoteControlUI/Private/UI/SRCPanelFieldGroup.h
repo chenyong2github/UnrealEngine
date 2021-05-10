@@ -20,18 +20,18 @@ class SInlineEditableTextBlock;
 class URemoteControlPreset;
 
 /** Widget representing a group. */
-class SFieldGroup : public SRCPanelTreeNode, public SCompoundWidget
+class SRCPanelGroup : public SRCPanelTreeNode, public SCompoundWidget
 {
 public:
 	using SWidget::SharedThis;
 	using SWidget::AsShared;
 
 public:
-	DECLARE_DELEGATE_RetVal_ThreeParams(FReply, FOnFieldDropEvent, const TSharedPtr<FDragDropOperation>& /* Event */, const TSharedPtr<SRCPanelTreeNode>& /* TargetField */, const TSharedPtr<SFieldGroup>& /* DragTargetGroup */);
+	DECLARE_DELEGATE_RetVal_ThreeParams(FReply, FOnFieldDropEvent, const TSharedPtr<FDragDropOperation>& /* Event */, const TSharedPtr<SRCPanelTreeNode>& /* TargetField */, const TSharedPtr<SRCPanelGroup>& /* DragTargetGroup */);
 	DECLARE_DELEGATE_RetVal_OneParam(FGuid, FOnGetGroupId, const FGuid& /* EntityId */);
-	DECLARE_DELEGATE_OneParam(FOnDeleteGroup, const TSharedPtr<SFieldGroup>&);
+	DECLARE_DELEGATE_OneParam(FOnDeleteGroup, const TSharedPtr<SRCPanelGroup>&);
 
-	SLATE_BEGIN_ARGS(SFieldGroup)
+	SLATE_BEGIN_ARGS(SRCPanelGroup)
 		: _EditMode(true)
 	{}
 		SLATE_ARGUMENT(FGuid, Id)
@@ -60,7 +60,7 @@ public:
 	virtual void GetNodeChildren(TArray<TSharedPtr<SRCPanelTreeNode>>& OutChildren) const override;
 	virtual FGuid GetId() const override;
 	virtual ENodeType GetType() const override;
-	virtual TSharedPtr<SFieldGroup> AsGroup() override;
+	virtual TSharedPtr<SRCPanelGroup> AsGroup() override;
 
 private:
 	//~ Handle drag/drop events
@@ -110,9 +110,9 @@ class FFieldGroupDragDropOp : public FDecoratedDragDropOp
 public:
 	DRAG_DROP_OPERATOR_TYPE(FFieldGroupDragDropOp, FDragDropOperation)
 
-	using WidgetType = SFieldGroup;
+	using WidgetType = SRCPanelGroup;
 
-	FFieldGroupDragDropOp(TSharedPtr<SFieldGroup> InWidget, FGuid InId)
+	FFieldGroupDragDropOp(TSharedPtr<SRCPanelGroup> InWidget, FGuid InId)
 		: Id(MoveTemp(InId))
 	{
 		DecoratorWidget = SNew(SBorder)

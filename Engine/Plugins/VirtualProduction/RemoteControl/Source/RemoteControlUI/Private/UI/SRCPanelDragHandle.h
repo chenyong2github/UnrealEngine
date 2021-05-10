@@ -8,7 +8,7 @@
 #include "Styling/CoreStyle.h"
 #include "Input/DragAndDrop.h"
 
-class SFieldGroup;
+class SRCPanelGroup;
 class FExposedEntityDragDrop;
 class FFieldGroupDragDropOp;
 

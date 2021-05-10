@@ -6,8 +6,8 @@
 #include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
 #include "Framework/SlateDelegates.h"
+#include "RCPanelWidgetRegistry.h"
 #include "IDetailTreeNode.h"
-#include "IPropertyRowGenerator.h"
 #include "Layout/Visibility.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyHandle.h"
@@ -29,77 +29,6 @@
 
 namespace ExposedFieldUtils
 {
-	bool FindPropertyHandleRecursive(const TSharedPtr<IPropertyHandle>& PropertyHandle, const FString& QualifiedPropertyName, bool bRequiresMatchingPath)
-	{
-		if (PropertyHandle && PropertyHandle->IsValidHandle())
-		{
-			uint32 ChildrenCount = 0;
-			PropertyHandle->GetNumChildren(ChildrenCount);
-			for (uint32 Index = 0; Index < ChildrenCount; ++Index)
-			{
-				TSharedPtr<IPropertyHandle> ChildHandle = PropertyHandle->GetChildHandle(Index);
-				if (FindPropertyHandleRecursive(ChildHandle, QualifiedPropertyName, bRequiresMatchingPath))
-				{
-					return true;
-				}
-			}
-
-			if (PropertyHandle->GetProperty())
-			{
-				if (bRequiresMatchingPath)
-				{
-					if (PropertyHandle->GeneratePathToProperty() == QualifiedPropertyName)
-					{
-						return true;
-					}
-				}
-				else if (PropertyHandle->GetProperty()->GetName() == QualifiedPropertyName)
-				{
-					return true;
-				}
-			}
-		}
-
-		return false;
-	}
-
-	TSharedPtr<IDetailTreeNode> FindTreeNodeRecursive(const TSharedRef<IDetailTreeNode>& RootNode, const FString& QualifiedPropertyName, bool bRequiresMatchingPath)
-	{
-		TArray<TSharedRef<IDetailTreeNode>> Children;
-		RootNode->GetChildren(Children);
-		for (TSharedRef<IDetailTreeNode>& Child : Children)
-		{
-			TSharedPtr<IDetailTreeNode> FoundNode = FindTreeNodeRecursive(Child, QualifiedPropertyName, bRequiresMatchingPath);
-			if (FoundNode.IsValid())
-			{
-				return FoundNode;
-			}
-		}
-
-		TSharedPtr<IPropertyHandle> Handle = RootNode->CreatePropertyHandle();
-		if (FindPropertyHandleRecursive(Handle, QualifiedPropertyName, bRequiresMatchingPath))
-		{
-			return RootNode;
-		}
-
-		return nullptr;
-	}
-
-	/** Find a node by its name in a detail tree node hierarchy. */
-	TSharedPtr<IDetailTreeNode> FindNode(const TArray<TSharedRef<IDetailTreeNode>>& RootNodes, const FString& QualifiedPropertyName, bool bRequiresMatchingPath)
-	{
-		for (const TSharedRef<IDetailTreeNode>& CategoryNode : RootNodes)
-		{
-			TSharedPtr<IDetailTreeNode> FoundNode = FindTreeNodeRecursive(CategoryNode, QualifiedPropertyName, bRequiresMatchingPath);
-			if (FoundNode.IsValid())
-			{
-				return FoundNode;
-			}
-		}
-
-		return nullptr;
-	}
-
 	TSharedRef<SWidget> CreateNodeValueWidget(const TSharedPtr<IDetailTreeNode>& Node)
 	{
 		FNodeWidgets NodeWidgets = Node->CreateNodeWidgets();
@@ -217,7 +146,6 @@ void SRCPanelExposedField::Refresh()
 	if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
 	{
 		CachedLabel = Field->GetLabel();
-		RowGenerator->SetObjects(Field->GetBoundObjects());
 
 		// Don't update the function row needlessly.
 		if (Field->FieldType == EExposedFieldType::Property)
@@ -241,9 +169,11 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 	{
 		if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
 		{
-			if (GetFieldType() == EExposedFieldType::Property && RowGenerator->GetSelectedObjects().Num())
+			// For the moment, just use the first object.
+			TArray<UObject*> Objects = Field->GetBoundObjects();
+			if (GetFieldType() == EExposedFieldType::Property && Objects.Num() > 0)
 			{
-				if (TSharedPtr<IDetailTreeNode> Node = ExposedFieldUtils::FindNode(RowGenerator->GetRootTreeNodes(), Field->FieldPathInfo.ToPathPropertyString(), true))
+				if (TSharedPtr<IDetailTreeNode> Node = FRCPanelWidgetRegistry::Get().GetObjectTreeNode(Objects[0], Field->FieldPathInfo.ToPathPropertyString(), ERCFindNodeMethod::Path))
 				{
 					TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
 					Node->GetChildren(ChildNodes);
@@ -317,6 +247,7 @@ TSharedRef<SWidget> SRCPanelExposedField::MakeFieldWidget(const TSharedRef<SWidg
 		];
 
 	Args.NameWidget = SNew(SHorizontalBox)
+		.Clipping(EWidgetClipping::OnDemand)
 		+ SHorizontalBox::Slot()
 		.VAlign(VAlign_Center)
 		.Padding(0.f, 0.f, 2.0f, 0.f)
@@ -330,6 +261,7 @@ TSharedRef<SWidget> SRCPanelExposedField::MakeFieldWidget(const TSharedRef<SWidg
             .Text(FEditorFontGlyphs::Exclamation_Triangle)
 		]
 		+ SHorizontalBox::Slot()
+		.AutoWidth()
 		[
 			SAssignNew(NameTextBox, SInlineEditableTextBlock)
 			.Text(FText::FromName(CachedLabel))
@@ -430,25 +362,12 @@ void SRCPanelExposedField::OnLabelCommitted(const FText& InLabel, ETextCommit::T
 
 void SRCPanelExposedField::ConstructPropertyWidget()
 {
-	RowGenerator = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreatePropertyRowGenerator(FPropertyRowGeneratorArgs());
-
-	if (URemoteControlPreset* RCPreset = Preset.Get())
-	{
-		if (TSharedPtr<FRemoteControlProperty> Property = RCPreset->GetExposedEntity<FRemoteControlProperty>(FieldId).Pin())
-		{
-			RowGenerator->SetObjects(Property->GetBoundObjects());
-		}
-	}
-
 	ChildSlot.AttachWidget(ConstructWidget());
 }
 
 void SRCPanelExposedField::ConstructFunctionWidget()
 {
 	TSharedPtr<SRCPanelExposedField> ExposedFieldWidget;
-	FPropertyRowGeneratorArgs GeneratorArgs;
-	GeneratorArgs.bShouldShowHiddenProperties = true;
-	RowGenerator = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreatePropertyRowGenerator(GeneratorArgs);
 
 	URemoteControlPreset* RCPreset = Preset.Get();
 	if (!RCPreset)
@@ -460,8 +379,6 @@ void SRCPanelExposedField::ConstructFunctionWidget()
 	{
 		if (RCFunction->GetFunction() && RCFunction->GetBoundObjects().Num())
 		{
-			RowGenerator->SetStructure(RCFunction->FunctionArguments);
-			
 			if (bDisplayValues)
 			{
 				TArray<TSharedPtr<SRCPanelFieldChildNode>> ChildNodes;
@@ -477,7 +394,7 @@ void SRCPanelExposedField::ConstructFunctionWidget()
 						continue;
 					}
 
-					if (TSharedPtr<IDetailTreeNode> PropertyNode = ExposedFieldUtils::FindNode(RowGenerator->GetRootTreeNodes(), It->GetFName().ToString(), false))
+					if (TSharedPtr<IDetailTreeNode> PropertyNode = FRCPanelWidgetRegistry::Get().GetStructTreeNode(RCFunction->FunctionArguments, It->GetFName().ToString(), ERCFindNodeMethod::Name))
 					{
 						ChildNodes.Add(SNew(SRCPanelFieldChildNode, PropertyNode.ToSharedRef(), ColumnSizeData));
 					}

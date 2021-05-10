@@ -2,7 +2,9 @@
 
 #include "SRCPanelTreeNode.h"
 
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanelNode"
@@ -38,6 +40,7 @@ TSharedRef<SWidget> SRCPanelTreeNode::MakeNodeWidget(const FMakeNodeWidgetArgs& 
 
 	TSharedRef<SWidget> LeftColumn = 
 		SNew(SHorizontalBox)
+		.Clipping(EWidgetClipping::OnDemand)
 		// Drag and drop handle
 		+ SHorizontalBox::Slot()
 		.HAlign(HAlign_Left)
@@ -62,23 +65,29 @@ TSharedRef<SWidget> SRCPanelTreeNode::MakeNodeWidget(const FMakeNodeWidgetArgs& 
 		];
 
 	TSharedRef<SWidget> RightColumn =
-		SNew(SHorizontalBox)
-		// Field value
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Left)
-		.FillWidth(1.0f)
+		SNew(SOverlay)
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Fill)
 		[
-			WidgetOrNull(Args.ValueWidget)
+			SNew(SBox)
+			.HAlign(HAlign_Left)
+			[
+				WidgetOrNull(Args.ValueWidget)			
+			]
 		]
-		// Unexpose button
-		+ SHorizontalBox::Slot()
+
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Center)
-		.AutoWidth()
 		[
-			WidgetOrNull(Args.UnexposeButton)
+			SNew(SBorder)
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.Padding(0.f)
+			[
+				WidgetOrNull(Args.UnexposeButton)
+			]
 		];
-	
+		
 	return MakeSplitRow(LeftColumn, RightColumn);
 }
 
