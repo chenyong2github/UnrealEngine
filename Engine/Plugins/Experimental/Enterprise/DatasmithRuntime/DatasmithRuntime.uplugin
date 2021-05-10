@@ -27,7 +27,10 @@
 		},
 		{
 			"Name": "DatasmithCADImporter",
-			"Enabled": true
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64"
+			]
 		},
 		{
 			"Name": "RuntimePhysXCooking",
