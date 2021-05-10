@@ -86,6 +86,8 @@ void FDisplayClusterConfiguratorUtils::AddRootActorComponentsToBlueprint(UDispla
 	// Already added as default subobjects.
 	AllComponents.Remove(RootActor->GetRootComponent());
 	AllComponents.Remove(RootActor->GetSyncTickComponent());
+	AllComponents.Remove(RootActor->GetRenderFrameSettings());
+	AllComponents.Remove(RootActor->GetStageSettings());
 	
 	if (NewRootNode == nullptr)
 	{
