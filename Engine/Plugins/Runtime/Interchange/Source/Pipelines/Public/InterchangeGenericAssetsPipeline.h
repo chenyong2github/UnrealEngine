@@ -16,6 +16,7 @@ class UInterchangeTextureFactoryNode;
 class UInterchangeMaterialNode;
 class UInterchangeMaterialFactoryNode;
 class UInterchangeMeshNode;
+class UInterchangePipelineMeshesUtilities;
 class UInterchangeSceneNode;
 class UInterchangeSkeletalMeshFactoryNode;
 class UInterchangeSkeletalMeshLodDataNode;
@@ -77,7 +78,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_MESHES_CATEGORY, meta = (editcondition = "bBakeMeshes"))
 	bool bImportLods = true;
 
-	/** If enable, meshes will be baked with the hierarchy transform, if there is multiple instances, the mesh will incorporate all instance. */
+	/** If enable, meshes will be baked with the hierarchy transform. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = COMMON_MESHES_CATEGORY)
 	bool bBakeMeshes = true;
 
@@ -148,57 +149,63 @@ protected:
 	//virtual bool ExecuteExportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer) override;
 private:
 
-	TObjectPtr<UInterchangeBaseNodeContainer> BaseNodeContainer;
+	UInterchangeBaseNodeContainer* BaseNodeContainer;
 	TArray<const UInterchangeSourceData*> SourceDatas;
 
 	
 	/** Texture translated assets nodes */
-	TArray<TObjectPtr<UInterchangeTextureNode>> TextureNodes;
+	TArray<UInterchangeTextureNode*> TextureNodes;
 
 	/** Texture factory assets nodes */
-	TArray<TObjectPtr<UInterchangeTextureFactoryNode>> TextureFactoryNodes;
+	TArray<UInterchangeTextureFactoryNode*> TextureFactoryNodes;
 
-	TObjectPtr<UInterchangeTextureFactoryNode> CreateTexture2DFactoryNode(const TObjectPtr<UInterchangeTextureNode> TextureNode);
+	UInterchangeTextureFactoryNode* CreateTexture2DFactoryNode(const UInterchangeTextureNode* TextureNode);
 
 	
 	/** Material translated assets nodes */
-	TArray<TObjectPtr<UInterchangeMaterialNode>> MaterialNodes;
+	TArray<UInterchangeMaterialNode*> MaterialNodes;
 	
 	/** Material factory assets nodes */
-	TArray<TObjectPtr<UInterchangeMaterialFactoryNode>> MaterialFactoryNodes;
+	TArray<UInterchangeMaterialFactoryNode*> MaterialFactoryNodes;
 	
-	TObjectPtr<UInterchangeMaterialFactoryNode> CreateMaterialFactoryNode(const TObjectPtr<UInterchangeMaterialNode> MaterialNode);
+	UInterchangeMaterialFactoryNode* CreateMaterialFactoryNode(const UInterchangeMaterialNode* MaterialNode);
 
 	
 	/** Mesh translated assets nodes */
-	TArray<TObjectPtr<UInterchangeMeshNode>> MeshNodes;
+	TArray<UInterchangeMeshNode*> MeshNodes;
 	
 	/** Skeleton factory assets nodes */
-	TArray<TObjectPtr<UInterchangeSkeletonFactoryNode>> SkeletonFactoryNodes;
+	TArray<UInterchangeSkeletonFactoryNode*> SkeletonFactoryNodes;
 
 	/** Create a UInterchangeSkeletonFactorynode */
-	TObjectPtr<UInterchangeSkeletonFactoryNode> CreateSkeletonFactoryNode(const FString& RootJointUid);
+	UInterchangeSkeletonFactoryNode* CreateSkeletonFactoryNode(const FString& RootJointUid);
 	
 	/** Skeletal mesh factory assets nodes */
-	TArray<TObjectPtr<UInterchangeSkeletalMeshFactoryNode>> SkeletalMeshFactoryNodes;
+	TArray<UInterchangeSkeletalMeshFactoryNode*> SkeletalMeshFactoryNodes;
 	
 	/** Static mesh factory assets nodes */
-	//TArray<TObjectPtr<UInterchangeStaticMeshFactoryNode>> StaticMeshFactoryNodes;
+	//TArray<UInterchangeStaticMeshFactoryNode*> StaticMeshFactoryNodes;
 	
-	/** This function can create a UInterchangeSkeletalMeshFactoryNode */
-	TObjectPtr<UInterchangeSkeletalMeshFactoryNode> CreateSkeletalMeshFactoryNode(const FString& RootJointUid, TArray<FString>& MeshNodeUids, const bool bUseSourceNameForAsset);
+	/**
+	 * This function can create a UInterchangeSkeletalMeshFactoryNode
+	 * @param MeshUidsPerLodIndex - The MeshUids can represent a SceneNode pointing on a MeshNode or directly a MeshNode
+	 */
+	UInterchangeSkeletalMeshFactoryNode* CreateSkeletalMeshFactoryNode(const FString& RootJointUid, const TMap<int32, TArray<FString>> MeshUidsPerLodIndex);
 	
 	/** This function can create a UInterchangeSkeletalMeshLodDataNode which represent the LOD data need by the factory to create a lod mesh */
-	TObjectPtr<UInterchangeSkeletalMeshLodDataNode> CreateSkeletalMeshLodDataNode(const FString& NodeName, const FString& NodeUniqueID);
+	UInterchangeSkeletalMeshLodDataNode* CreateSkeletalMeshLodDataNode(const FString& NodeName, const FString& NodeUniqueID);
 
-	/** This function add all lod data node to the skeletal mesh, it handle instancing/combine and baking pipeline settings */
-	void AddLodDataToSkeletalMesh(const UInterchangeSkeletonFactoryNode* SkeletonFactoryNode, UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode, const TMap<int32, TArray<FString>>& SceneInstanceUidsPerLodIndex);
-
-	/** This function add one lod data node (the base lod) to the skeletal mesh. It is use when we do not bake the data, like for a scene import, or if a mesh is not reference by a scene node. */
-	void AddLodDataToSkeletalMesh(const UInterchangeSkeletonFactoryNode* SkeletonFactoryNode, UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode, const UInterchangeMeshNode* MeshNode);
+	/**
+	 * This function add all lod data node to the skeletal mesh.
+	 * @param NodeUidsPerLodIndex - The NodeUids can be a UInterchangeSceneNode or a UInterchangeMeshNode. The scene node can bake each instance of the mesh versus the mesh node will import only the modelled mesh.
+	 */
+	void AddLodDataToSkeletalMesh(const UInterchangeSkeletonFactoryNode* SkeletonFactoryNode, UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode, const TMap<int32, TArray<FString>>& NodeUidsPerLodIndex);
 
 	/** Translated scene nodes */
-	TArray<TObjectPtr<UInterchangeSceneNode>> SceneNodes;
+	TArray<UInterchangeSceneNode*> SceneNodes;
+
+	/* Meshes utilities, to parse the translated graph and extract the meshes informations. */
+	UInterchangePipelineMeshesUtilities* PipelineMeshesUtilities;
 };
 
 

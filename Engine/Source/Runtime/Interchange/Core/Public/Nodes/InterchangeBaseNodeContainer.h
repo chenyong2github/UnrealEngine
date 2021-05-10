@@ -41,15 +41,15 @@ public:
 	bool IsNodeUidValid(const FString& NodeUniqueID) const;
 
 	/** Unordered iteration of the all nodes */
-	void IterateNodes(TFunctionRef<void(const FString&, UInterchangeBaseNode*)> IterationLambda);
+	void IterateNodes(TFunctionRef<void(const FString&, UInterchangeBaseNode*)> IterationLambda) const;
 
 	/** Return all nodes that do not have any parent */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	void GetRoots(TArray<FString>& RootNodes);
+	void GetRoots(TArray<FString>& RootNodes) const;
 
 	/** Return all nodes that are of the ClassNode type*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	void GetNodes(UClass* ClassNode, TArray<FString>& OutNodes);
+	void GetNodes(const UClass* ClassNode, TArray<FString>& OutNodes) const;
 
 	/** Get an node pointer */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")

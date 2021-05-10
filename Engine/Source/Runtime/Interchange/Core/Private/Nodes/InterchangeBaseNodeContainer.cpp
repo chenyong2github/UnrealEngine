@@ -57,7 +57,7 @@ bool UInterchangeBaseNodeContainer::IsNodeUidValid(const FString& NodeUniqueID) 
 	return Nodes.Contains(NodeUniqueID);
 }
 
-void UInterchangeBaseNodeContainer::IterateNodes(TFunctionRef<void(const FString&, UInterchangeBaseNode*)> IterationLambda)
+void UInterchangeBaseNodeContainer::IterateNodes(TFunctionRef<void(const FString&, UInterchangeBaseNode*)> IterationLambda) const
 {
 	for (auto& NodeKeyValue : Nodes)
 	{
@@ -65,7 +65,7 @@ void UInterchangeBaseNodeContainer::IterateNodes(TFunctionRef<void(const FString
 	}
 }
 
-void UInterchangeBaseNodeContainer::GetRoots(TArray<FString>& RootNodes)
+void UInterchangeBaseNodeContainer::GetRoots(TArray<FString>& RootNodes) const
 {
 	for (auto& NodeKeyValue : Nodes)
 	{
@@ -76,7 +76,7 @@ void UInterchangeBaseNodeContainer::GetRoots(TArray<FString>& RootNodes)
 	}
 }
 
-void UInterchangeBaseNodeContainer::GetNodes(UClass* ClassNode, TArray<FString>& OutNodes)
+void UInterchangeBaseNodeContainer::GetNodes(const UClass* ClassNode, TArray<FString>& OutNodes) const
 {
 	OutNodes.Empty();
 	IterateNodes([&ClassNode, &OutNodes](const FString& NodeUid, UInterchangeBaseNode* Node)

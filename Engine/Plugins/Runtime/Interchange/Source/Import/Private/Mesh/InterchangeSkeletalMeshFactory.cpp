@@ -136,21 +136,23 @@ namespace UE
 			}
 
 
-			bool CopyBlendShapesMeshDescriptionToSkeletalMeshImportData(const TArray<FString>& BlendShapeToImport, const TMap<FString, FMeshDescription>& LodBlendShapeMeshDescriptions, FSkeletalMeshImportData& DestinationSkeletalMeshImportData)
+			bool CopyBlendShapesMeshDescriptionToSkeletalMeshImportData(const TMap<FString, TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>>& LodBlendShapeMeshDescriptions, FSkeletalMeshImportData& DestinationSkeletalMeshImportData)
 			{
-				for (const TPair<FString, FMeshDescription>& Pair : LodBlendShapeMeshDescriptions)
+				for (const TPair<FString, TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>>& Pair : LodBlendShapeMeshDescriptions)
 				{
-					FString BlendShapeName(Pair.Key);
-					//Skip blend shape that is not define in the BlendShapeToImport array
-					if (!BlendShapeToImport.Contains(BlendShapeName))
+					const FString BlendShapeName(Pair.Key);
+					const TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>& BlendShapePayloadData = Pair.Value;
+					if (!BlendShapePayloadData.IsSet())
 					{
+						UE_LOG(LogInterchangeImport, Error, TEXT("Empty blend shape optional payload data [%s]"), *BlendShapeName);
 						continue;
 					}
 
+					FTransform GlobalTransform = BlendShapePayloadData->GlobalTransform.IsSet() ? BlendShapePayloadData->GlobalTransform.GetValue() : FTransform::Identity;
 					TArray<FVector3f> CompressPoints;
 					CompressPoints.Reserve(DestinationSkeletalMeshImportData.Points.Num());
 
-					const FMeshDescription& SourceMeshDescription = Pair.Value;
+					const FMeshDescription& SourceMeshDescription = BlendShapePayloadData.GetValue().LodMeshDescription;
 					FStaticMeshConstAttributes Attributes(SourceMeshDescription);
 					TVertexAttributesConstRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 
@@ -166,7 +168,7 @@ namespace UE
 					for (FVertexID VertexID : SourceMeshDescription.Vertices().GetElementIDs())
 					{
 						//We can use GetValue because the Meshdescription was compacted before the copy
-						MorphTargetData.Points[VertexID.GetValue()] = VertexPositions[VertexID];
+						MorphTargetData.Points[VertexID.GetValue()] = GlobalTransform.TransformPosition(VertexPositions[VertexID]);
 					}
 
 					for (int32 PointIdx = 0; PointIdx < DestinationSkeletalMeshImportData.Points.Num(); ++PointIdx)
@@ -561,7 +563,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 				{
 					const UInterchangeMeshNode* MeshNode = nullptr;
 					const UInterchangeSceneNode* SceneNode = nullptr;
-					FTransform SceneGlobalTransform = FTransform::Identity;
+					TOptional<FTransform> SceneGlobalTransform;
 					FString TranslatorPayloadKey;
 				};
 				TArray<FMeshNodeContext> MeshReferences;
@@ -587,7 +589,11 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 							MeshReference.SceneNode->GetCustomMeshDependencyUid(MeshDependencyUid);
 							MeshReference.MeshNode = Cast<UInterchangeMeshNode>(Arguments.NodeContainer->GetNode(MeshDependencyUid));
 							//Cache the scene node global matrix, we will use this matrix to bake the vertices
-							MeshReference.SceneNode->GetCustomGlobalTransform(MeshReference.SceneGlobalTransform);
+							FTransform SceneNodeGlobalTransform;
+							if (MeshReference.SceneNode->GetCustomGlobalTransform(SceneNodeGlobalTransform))
+							{
+								MeshReference.SceneGlobalTransform = SceneNodeGlobalTransform;
+							}
 						}
 						if (!ensure(MeshReference.MeshNode != nullptr))
 						{
@@ -656,6 +662,10 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 				{
 					AppendSettings.bMergeUVChannels[ChannelIdx] = true;
 				}
+				
+				//Blend shape MeshDescriptions
+				TMap<FString, TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>> BlendShapeMeshDescriptionsPerBlendShapeName;
+
 				//Fill the lod mesh description using all combined mesh part
 				for (const FMeshNodeContext& MeshNodeContext : MeshReferences)
 				{
@@ -666,8 +676,6 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 						continue;
 					}
 					const int32 VertexOffset = LodMeshDescription.Vertices().Num();
-					const int32 VertexInstanceOffset = LodMeshDescription.VertexInstances().Num();
-					const int32 TriangleOffset = LodMeshDescription.Triangles().Num();
 					
 					FSkeletalMeshOperations::FSkeletalMeshAppendSettings SkeletalMeshAppendSettings;
 					SkeletalMeshAppendSettings.SourceVertexIDOffset = VertexOffset;
@@ -695,49 +703,58 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 						}
 					}
 
+					//Bake the payload, with the provide transform
+					if (MeshNodeContext.SceneGlobalTransform.IsSet())
+					{
+						AppendSettings.MeshTransform = MeshNodeContext.SceneGlobalTransform;
+					}
+					else
+					{
+						AppendSettings.MeshTransform.Reset();
+					}
 					FStaticMeshOperations::AppendMeshDescription(LodMeshPayload->LodMeshDescription, LodMeshDescription, AppendSettings);
 					FSkeletalMeshOperations::AppendSkinWeight(LodMeshPayload->LodMeshDescription, LodMeshDescription, SkeletalMeshAppendSettings);
 
-					/*
-					TArray<FString> BlendShapeToImport;
-					MeshNodeContext.MeshNode->GetShapeDependencies(BlendShapeToImport);
-					for(const FString)
-					//Copy also the blend shapes data (we need to pass the offset in the Main MeshDescription, so we have the correct vertex index mapping)
-					UE::Interchange::Private::CopyBlendShapesMeshDescriptionToSkeletalMeshImportData(BlendShapeToImport, LodMeshPayload->LodBlendShapeMeshDescriptions, SkeletalMeshImportData);
-					*/
+
 					
+					TArray<FString> BlendShapeUids;
+					MeshNodeContext.MeshNode->GetShapeDependencies(BlendShapeUids);
+					for (const FString& BlendShapeUid : BlendShapeUids)
+					{
+						if (const UInterchangeMeshNode* BlendShapeMeshNode = Cast<UInterchangeMeshNode>(Arguments.NodeContainer->GetNode(BlendShapeUid)))
+						{
+							TOptional<FString> BlendShapePayloadKey = BlendShapeMeshNode->GetPayLoadKey();
+							if (!BlendShapePayloadKey.IsSet())
+							{
+								UE_LOG(LogInterchangeImport, Warning, TEXT("Empty LOD morph target mesh reference payload when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+								continue;
+							}
+							TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>& BlendShapeMeshPayload = BlendShapeMeshDescriptionsPerBlendShapeName.Add(BlendShapeUid);
+							BlendShapeMeshPayload = SkeletalMeshTranslatorPayloadInterface->GetSkeletalMeshBlendShapePayloadData(BlendShapePayloadKey.GetValue());
+							if (!BlendShapeMeshPayload.IsSet())
+							{
+								BlendShapeMeshDescriptionsPerBlendShapeName.Remove(BlendShapeUid);
+								UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeletal mesh morph target payload key [%s] SkeletalMesh asset %s"), *BlendShapePayloadKey.GetValue(), *Arguments.AssetName);
+								continue;
+							}
+							//Use the Mesh node parent bake transform
+							if (MeshNodeContext.SceneGlobalTransform.IsSet())
+							{
+								BlendShapeMeshPayload->GlobalTransform = MeshNodeContext.SceneGlobalTransform;
+							}
+							else
+							{
+								BlendShapeMeshPayload->GlobalTransform.Reset();
+							}
+						}
+					}
 				}
 
 				SkeletalMeshImportData = FSkeletalMeshImportData::CreateFromMeshDescription(LodMeshDescription);
 				SkeletalMeshImportData.RefBonesBinary = RefBonesBinary;
-/*
 
-				//Use the first geo LOD since we are suppose to have only one Key
-				if(TranslatorMeshKeys.IsValidIndex(0))
-				{
-					int32 MeshLodIndex = 0;
-
-					TOptional<UE::Interchange::FSkeletalMeshLodPayloadData> LodMeshPayload = SkeletalMeshTranslatorPayloadInterface->GetSkeletalMeshLodPayloadData(TranslatorMeshKeys[MeshLodIndex]);
-					if (!LodMeshPayload.IsSet())
-					{
-						UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeletal mesh payload key [%s] SkeletalMesh asset %s"), *TranslatorMeshKeys[MeshLodIndex], *Arguments.AssetName);
-						break;
-					}
-					//TODO use the mesh description as the source import data for skeletalmesh
-					//Convert the meshdescription to skeletalmesh import data and set the data for the LOD, so the build will work
-					//Make sure all IDs are compact so we can use them directly when copying the data
-					FElementIDRemappings ElementIDRemappings;
-					LodMeshPayload->LodMeshDescription.Compact(ElementIDRemappings);
-					UE::Interchange::Private::CopyMeshDescriptionToSkeletalMeshImportData(LodMeshPayload->LodMeshDescription, SkeletalMeshImportData);
-					SkeletalMeshImportData.RefBonesBinary = RefBonesBinary;
-
-					//Pipeline can remove names from the list to control which blendshapes they import
-					TArray<FString> BlendShapeToImport;
-					LodDataNode->GetBlendShapes(BlendShapeToImport);
-					//Copy also the blend shapes data
-					UE::Interchange::Private::CopyBlendShapesMeshDescriptionToSkeletalMeshImportData(BlendShapeToImport, LodMeshPayload->LodBlendShapeMeshDescriptions, SkeletalMeshImportData);
-				}
-*/
+				//Copy all the lod blend shapes data to the SkeletalMeshImportData.
+				UE::Interchange::Private::CopyBlendShapesMeshDescriptionToSkeletalMeshImportData(BlendShapeMeshDescriptionsPerBlendShapeName, SkeletalMeshImportData);
 
 				ensure(ImportedResource->LODModels.Add(new FSkeletalMeshLODModel()) == CurrentLodIndex);
 				FSkeletalMeshLODModel& LODModel = ImportedResource->LODModels[CurrentLodIndex];

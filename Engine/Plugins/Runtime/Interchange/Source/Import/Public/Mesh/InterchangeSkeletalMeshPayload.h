@@ -17,5 +17,12 @@ namespace UE
 			//This map the indice use in the meshdescription to the bone name, so we can use this information to remap properly the skinning when we merge the meshdescription
 			TArray<FString> JointNames;
 		};
+
+		struct FSkeletalMeshBlendShapePayloadData
+		{
+			//BlendShape payload is a MeshDescription containing at least the vertex position.
+			FMeshDescription LodMeshDescription;
+			TOptional<FTransform> GlobalTransform;
+		};
 	}//ns Interchange
 }//ns UE

@@ -31,7 +31,16 @@ public:
 	 * @param PayloadKey - The key to retrieve the a particular payload contain into the specified source data.
 	 * @return a PayloadData containing the data point by the payload key. The TOptional will not be set if there is an error.
 	 */
-	virtual TOptional<UE::Interchange::FSkeletalMeshLodPayloadData> GetSkeletalMeshLodPayloadData(const FString& PayloadKey) const = 0;
+	virtual TOptional<UE::Interchange::FSkeletalMeshLodPayloadData> GetSkeletalMeshLodPayloadData(const FString& PayLoadKey) const = 0;
+
+	/**
+	 * Once the translation is done, the import process need a way to retrieve payload data.
+	 * This payload will be use by the factories to create the morph target shapes.
+	 *
+	 * @param PayloadKey - The key to retrieve the a particular payload contain into the specified source data.
+	 * @return a PayloadData containing the data point by the payload key. The TOptional will not be set if there is an error.
+	 */
+	virtual TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData> GetSkeletalMeshBlendShapePayloadData(const FString& PayLoadKey) const = 0;
 };
 
 

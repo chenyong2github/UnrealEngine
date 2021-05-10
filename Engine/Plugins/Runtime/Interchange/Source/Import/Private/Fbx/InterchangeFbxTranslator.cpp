@@ -214,6 +214,61 @@ TOptional<UE::Interchange::FSkeletalMeshLodPayloadData> UInterchangeFbxTranslato
 	return SkeletalMeshLodPayload;
 }
 
+TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData> UInterchangeFbxTranslator::GetSkeletalMeshBlendShapePayloadData(const FString& PayLoadKey) const
+{
+	if (!Dispatcher.IsValid())
+	{
+		return TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>();
+	}
+
+	//Create a json command to read the fbx file
+	FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
+	int32 TaskIndex = Dispatcher->AddTask(JsonCommand);
+
+	//Blocking call until all tasks are executed
+	Dispatcher->WaitAllTaskToCompleteExecution();
+
+	UE::Interchange::ETaskState TaskState;
+	FString JsonResult;
+	TArray<FString> JSonMessages;
+	Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JSonMessages);
+
+	//TODO: Parse the JSonMessage and add the message to the interchange not yet develop error messaging
+
+	if (TaskState != UE::Interchange::ETaskState::ProcessOk)
+	{
+		return TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>();
+	}
+	//Grab the result file and fill the BaseNodeContainer
+	UE::Interchange::FJsonFetchPayloadCmd::JsonResultParser ResultParser;
+	ResultParser.FromJson(JsonResult);
+	FString SkeletalMeshPayloadFilename = ResultParser.GetResultFilename();
+
+	if (!ensure(FPaths::FileExists(SkeletalMeshPayloadFilename)))
+	{
+		//TODO log an error saying the payload file do not exist even if the get payload command succeed
+		return TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>();
+	}
+	UE::Interchange::FSkeletalMeshBlendShapePayloadData SkeletalMeshBlendShapePayload;
+	SkeletalMeshBlendShapePayload.LodMeshDescription.Empty();
+	//All sub object should be gone with the reset
+	TArray64<uint8> Buffer;
+	FFileHelper::LoadFileToArray(Buffer, *SkeletalMeshPayloadFilename);
+	uint8* FileData = Buffer.GetData();
+	int64 FileDataSize = Buffer.Num();
+	if (FileDataSize < 1)
+	{
+		//Nothing to load from this file
+		return TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>();
+	}
+
+	//Buffer keep the ownership of the data, the large memory reader is use to serialize the TMap
+	FLargeMemoryReader Ar(FileData, FileDataSize);
+	SkeletalMeshBlendShapePayload.LodMeshDescription.Serialize(Ar);
+
+	return SkeletalMeshBlendShapePayload;
+}
+
 FString UInterchangeFbxTranslator::CreateLoadFbxFileCommand(const FString& FbxFilePath) const
 {
 	UE::Interchange::FJsonLoadSourceCmd LoadSourceCommand(TEXT("FBX"), FbxFilePath);
