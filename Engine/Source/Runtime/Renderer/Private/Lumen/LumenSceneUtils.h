@@ -328,7 +328,7 @@ class FLumenCardTracingInputs
 {
 public:
 
-	FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View);
+	FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, bool bSurfaceCachaFeedback = true);
 
 	FRDGTextureRef FinalLightingAtlas;
 	FRDGTextureRef IrradianceAtlas;

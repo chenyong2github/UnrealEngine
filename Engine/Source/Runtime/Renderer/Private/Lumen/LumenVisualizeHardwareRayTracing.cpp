@@ -122,6 +122,7 @@ class FLumenVisualizeHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 		FLumenHardwareRayTracingRGS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
 		OutEnvironment.SetDefine(TEXT("ENABLE_VISUALIZE_MODE"), 1);
+		OutEnvironment.SetDefine(TEXT("SURFACE_CACHE_FEEDBACK"), 1);
 	}
 };
 

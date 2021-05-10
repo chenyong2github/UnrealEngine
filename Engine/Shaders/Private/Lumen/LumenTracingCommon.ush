@@ -1101,18 +1101,20 @@ float4 SampleLumenMeshCardsWithWeight(uint2 ScreenCoord, uint DFObjectIndex, flo
 	}
 
 	#if SURFACE_CACHE_FEEDBACK
-	// Write every n-th element
-	if (all((ScreenCoord & SurfaceCacheFeedbackBufferTileWrapMask) == SurfaceCacheFeedbackBufferTileJitter)
-		&& SurfaceCacheFeedbackBufferSize > 0
-		&& StochasticCardSample.Weight > 0.1f
-		&& StochasticCardSample.PackedFeedback.x > 0)
 	{
-		uint WriteOffset = 0;
-		InterlockedAdd(RWSurfaceCacheFeedbackBufferAllocator[0], 1, WriteOffset);
-
-		if (WriteOffset < SurfaceCacheFeedbackBufferSize)
+		// Write every n-th element
+		if (all((ScreenCoord & SurfaceCacheFeedbackBufferTileWrapMask) == SurfaceCacheFeedbackBufferTileJitter)
+			&& SurfaceCacheFeedbackBufferSize > 0
+			&& StochasticCardSample.Weight > 0.1f
+			&& StochasticCardSample.PackedFeedback.x > 0)
 		{
-			RWSurfaceCacheFeedbackBuffer[WriteOffset] = StochasticCardSample.PackedFeedback;
+			uint WriteOffset = 0;
+			InterlockedAdd(RWSurfaceCacheFeedbackBufferAllocator[0], 1, WriteOffset);
+
+			if (WriteOffset < SurfaceCacheFeedbackBufferSize)
+			{
+				RWSurfaceCacheFeedbackBuffer[WriteOffset] = StochasticCardSample.PackedFeedback;
+			}
 		}
 	}
 	#endif

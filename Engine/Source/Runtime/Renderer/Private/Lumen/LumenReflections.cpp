@@ -599,13 +599,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 			0);
 	}
 
-	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View);
-
-	// Disable feedback buffer for reflections if needed
-	if (GLumenReflectionsSurfaceCacheFeedback == 0)
-	{
-		TracingInputs.SurfaceCacheFeedbackBufferSize = 0;
-	}
+	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View, /*bSurfaceCachaFeedback*/ GLumenReflectionsSurfaceCacheFeedback != 0);
 
 	FRDGTextureDesc TraceRadianceDesc(FRDGTextureDesc::Create2D(ReflectionTracingParameters.ReflectionTracingBufferSize, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	ReflectionTracingParameters.TraceRadiance = GraphBuilder.CreateTexture(TraceRadianceDesc, TEXT("Lumen.Reflections.ReflectionTraceRadiance"));

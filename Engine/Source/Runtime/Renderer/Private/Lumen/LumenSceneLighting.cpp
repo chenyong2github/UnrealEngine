@@ -59,7 +59,7 @@ namespace Lumen
 	}
 }
 
-FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View)
+FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, bool bSurfaceCachaFeedback)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
@@ -111,7 +111,7 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 		NumClipmapLevels = 0;
 	}
 
-	if (LumenSceneData.SurfaceCacheFeedbackResources.Buffer)
+	if (LumenSceneData.SurfaceCacheFeedbackResources.Buffer && bSurfaceCachaFeedback)
 	{
 		SurfaceCacheFeedbackBufferAllocatorUAV = GraphBuilder.CreateUAV(LumenSceneData.SurfaceCacheFeedbackResources.BufferAllocator, PF_R32_UINT);
 		SurfaceCacheFeedbackBufferUAV = GraphBuilder.CreateUAV(LumenSceneData.SurfaceCacheFeedbackResources.Buffer, PF_R32G32_UINT);

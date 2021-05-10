@@ -377,7 +377,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 
 		RenderScreenProbeGatherVisualizeTraces(GraphBuilder, View, SceneTextures);
 
-		FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View);
+		FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View, /*bSurfaceCachaFeedback*/ GVisualizeLumenSceneSurfaceCacheFeedback != 0);
 
 		/* Texture Level-of-Detail Strategies for Real-Time Ray Tracing https://developer.nvidia.com/raytracinggems Equation 20 */
 		const float RadFOV = (PI / 180.0f) * View.FOV;
