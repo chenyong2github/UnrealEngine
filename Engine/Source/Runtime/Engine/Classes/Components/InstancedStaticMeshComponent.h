@@ -448,6 +448,11 @@ protected:
 	friend FStaticLightingTextureMapping_InstancedStaticMesh;
 	friend FInstancedLightMap2D;
 	friend FInstancedShadowMap2D;
+
+#if STATS
+	/** Used for dynamic stats */
+	TStatId StatId;
+#endif
 };
 
 /** InstancedStaticMeshInstance hit proxy */
