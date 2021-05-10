@@ -94,7 +94,7 @@ struct FVehicleDebugParams
 	float ForceDebugScaling = 0.0006f;
 	float SleepCounterThreshold = 15;
 	bool DisableVehicleSleep = false;
-	bool EnableMultithreading = false;
+	bool EnableMultithreading = true;
 	float SetMaxMPH = 0.0f;
 };
 
