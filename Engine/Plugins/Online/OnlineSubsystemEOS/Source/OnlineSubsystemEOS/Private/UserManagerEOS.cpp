@@ -1751,7 +1751,7 @@ bool FUserManagerEOS::GetFriendsList(int32 LocalUserNum, const FString& ListName
 			if (APres.bIsOnline == BPres.bIsOnline)
 			{
 				// If they are the same, then sort by name
-				if (APres.bIsPlayingThisGame == APres.bIsPlayingThisGame)
+				if (APres.bIsPlayingThisGame == BPres.bIsPlayingThisGame)
 				{
 					const EInviteStatus::Type AFriendStatus = A->GetInviteStatus();
 					const EInviteStatus::Type BFriendStatus = B->GetInviteStatus();
@@ -1858,8 +1858,12 @@ void FUserManagerEOS::DumpRecentPlayers() const
 
 struct FPresenceStrings
 {
-	char Key[EOS_PRESENCE_DATA_MAX_KEY_LENGTH];
-	char Value[EOS_PRESENCE_DATA_MAX_VALUE_LENGTH];
+	FPresenceStrings(const FString& InKey, const FString& InValue)
+		: Key(*InKey), Value(*InValue)
+	{
+	}
+	FTCHARToUTF8 Key;
+	FTCHARToUTF8 Value;
 };
 
 struct FRichTextOptions :
@@ -1914,21 +1918,18 @@ void FUserManagerEOS::SetPresence(const FUniqueNetId& UserId, const FOnlineUserP
 		UE_LOG_ONLINE(Error, TEXT("EOS_PresenceModification_SetRawRichText() failed with result code (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(SetRichTextResult)));
 	}
 
-	FPresenceStrings RawStrings[EOS_PRESENCE_DATA_MAX_KEYS];
+	TArray<FPresenceStrings, TInlineAllocator<EOS_PRESENCE_DATA_MAX_KEYS>> RawStrings;
 	TArray<EOS_Presence_DataRecord, TInlineAllocator<EOS_PRESENCE_DATA_MAX_KEYS>> Records;
 	int32 CurrentIndex = 0;
 	// Loop through the properties building records
 	for (FPresenceProperties::TConstIterator It(Status.Properties); It && CurrentIndex < EOS_PRESENCE_DATA_MAX_KEYS; ++It, ++CurrentIndex)
 	{
-		// Since the TCHAR_TO_UTF8 macros are scoped, we need to copy to a chunk of memory while building the data up
-		FCStringAnsi::Strncpy(RawStrings[CurrentIndex].Key, TCHAR_TO_UTF8(*It.Key()), EOS_PRESENCE_DATA_MAX_KEY_LENGTH);
-		FCStringAnsi::Strncpy(RawStrings[CurrentIndex].Value, TCHAR_TO_UTF8(*It.Value().ToString()), EOS_PRESENCE_DATA_MAX_VALUE_LENGTH);
+		const FPresenceStrings& RawString = RawStrings.Emplace_GetRef(It.Key(), It.Value().ToString());
 
-		EOS_Presence_DataRecord Record;
+		EOS_Presence_DataRecord& Record = Records.Emplace_GetRef();
 		Record.ApiVersion = EOS_PRESENCE_DATARECORD_API_LATEST;
-		Record.Key = RawStrings[CurrentIndex].Key;
-		Record.Value = RawStrings[CurrentIndex].Value;
-		Records.Add(Record);
+		Record.Key = RawString.Key.Get();
+		Record.Value = RawString.Value.Get();
 	}
 	EOS_PresenceModification_SetDataOptions DataOptions = { };
 	DataOptions.ApiVersion = EOS_PRESENCE_SETDATA_API_LATEST;
