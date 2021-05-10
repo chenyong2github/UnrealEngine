@@ -106,6 +106,21 @@ namespace Audio
 		Error = InputSoundDataReader->ReadSamples(ProcessBuffer.GetData(), ProcessBufferSamples, InputSamplesRead);
 		check(Error == ESoundFileError::Type::NONE);
 
+		// ... normalize the samples if we're told to
+		if (bPerformPeakNormalization)
+		{
+			for (int32 Sample = 0; Sample < InputSamplesRead; ++Sample)
+			{
+				ProcessBuffer[Sample] /= MaxValue;
+			}
+		}
+
+		// clamp the output
+		for (int32 Sample = 0; Sample < InputSamplesRead; ++Sample)
+		{
+			ProcessBuffer[Sample] = FMath::Clamp(ProcessBuffer[Sample], -1.0f, 1.0f);
+		}
+
 		SoundFileCount SamplesWritten = 0;
 
 		while (InputSamplesRead == ProcessBuffer.Num())
@@ -125,6 +140,12 @@ namespace Audio
 				{
 					ProcessBuffer[Sample] /= MaxValue;
 				}
+			}
+
+			// clamp the output
+			for (int32 Sample = 0; Sample < InputSamplesRead; ++Sample)
+			{
+				ProcessBuffer[Sample] = FMath::Clamp(ProcessBuffer[Sample], -1.0f, 1.0f);
 			}
 		}
 
