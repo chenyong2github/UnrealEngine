@@ -61,6 +61,8 @@ void FEdGraphSchemaAction::UpdateSearchText()
 		SearchText += Entry;
 	}
 
+	SearchText.Append(LINE_TERMINATOR);
+
 	for (FString& Entry : FullSearchTitlesArray)
 	{
 		Entry.ToLowerInline();
