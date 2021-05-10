@@ -291,6 +291,9 @@ public:
 	virtual void OnEndDrag(const FRay& Ray) override;
 	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
 
+	// IInteractiveToolCameraFocusAPI implementation
+	virtual FBox GetWorldSpaceFocusBox() override;
+
 public:
 
 	virtual void RequestAction(EMeshSelectionToolActions ActionType);

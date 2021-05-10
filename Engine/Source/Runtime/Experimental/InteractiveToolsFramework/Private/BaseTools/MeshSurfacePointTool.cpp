@@ -96,6 +96,19 @@ bool UMeshSurfacePointTool::HitTest(const FRay& Ray, FHitResult& OutHit)
 }
 
 
+bool UMeshSurfacePointTool::GetWorldSpaceFocusPoint(const FRay& WorldRay, FVector& PointOut)
+{
+	FHitResult HitResult;
+	if (HitTest(WorldRay, HitResult))
+	{
+		PointOut = HitResult.ImpactPoint;
+		return true;
+	}
+	return false;
+}
+
+
+
 void UMeshSurfacePointTool::OnBeginDrag(const FRay& Ray)
 {
 

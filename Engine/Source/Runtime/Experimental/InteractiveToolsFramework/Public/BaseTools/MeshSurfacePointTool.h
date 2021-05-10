@@ -115,6 +115,8 @@ public:
 	virtual void OnEndHover() override {}
 
 
+	// IInteractiveToolCameraFocusAPI implementation
+	virtual bool GetWorldSpaceFocusPoint(const FRay& WorldRay, FVector& PointOut) override;
 
 
 	/** Called by registered InputBehaviors to set the state of the "shift" button (or device equivalent) */

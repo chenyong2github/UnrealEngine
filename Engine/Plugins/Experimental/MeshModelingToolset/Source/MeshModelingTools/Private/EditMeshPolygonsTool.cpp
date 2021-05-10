@@ -653,6 +653,34 @@ void UEditMeshPolygonsTool::UpdateMultiTransformerFrame(const FFrame3d* UseFrame
 }
 
 
+FBox UEditMeshPolygonsTool::GetWorldSpaceFocusBox()
+{
+	if (SelectionMechanic && SelectionMechanic->HasSelection())
+	{
+		FAxisAlignedBox3d Bounds = SelectionMechanic->GetSelectionBounds(true);
+		return (FBox)Bounds;
+	}
+	return UMeshSurfacePointTool::GetWorldSpaceFocusBox();
+}
+
+bool UEditMeshPolygonsTool::GetWorldSpaceFocusPoint(const FRay& WorldRay, FVector& PointOut)
+{
+	FRay3d LocalRay(WorldTransform.InverseTransformPosition((FVector3d)WorldRay.Origin),
+		WorldTransform.InverseTransformNormal((FVector3d)WorldRay.Direction));
+	UE::Geometry::Normalize(LocalRay.Direction);
+
+	int32 HitTID = GetSpatial().FindNearestHitTriangle(LocalRay);
+	if (HitTID != IndexConstants::InvalidID)
+	{
+		FIntrRay3Triangle3d TriHit = TMeshQueries<FDynamicMesh3>::TriangleIntersection(*GetSpatial().GetMesh(), HitTID, LocalRay);
+		FVector3d LocalPos = LocalRay.PointAt(TriHit.RayParameter);
+		PointOut = (FVector)WorldTransform.TransformPosition(LocalPos);
+		return true;
+	}
+	return false;
+}
+
+
 void UEditMeshPolygonsTool::OnSelectionModifiedEvent()
 {
 	FVector3d LocalLastHitPosition, LocalLastHitNormal;

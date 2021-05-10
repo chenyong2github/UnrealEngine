@@ -5,6 +5,7 @@
 #include "InteractiveTool.h"
 #include "ComponentSourceInterfaces.h"
 #include "ToolTargets/ToolTarget.h"
+#include "InteractiveToolQueryInterfaces.h"
 
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
@@ -14,7 +15,7 @@
 #include "MultiSelectionTool.generated.h"
 
 UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UMultiSelectionTool : public UInteractiveTool
+class INTERACTIVETOOLSFRAMEWORK_API UMultiSelectionTool : public UInteractiveTool, public IInteractiveToolCameraFocusAPI
 {
 GENERATED_BODY()
 public:
@@ -87,6 +88,13 @@ protected:
 	 * Helper to cast a Target into the IMaterialProvider interface.
 	 */
 	IMaterialProvider* TargetMaterialInterface(int32 ComponentIdx) const;
+
+public:
+	// IInteractiveToolCameraFocusAPI implementation
+	virtual bool SupportsWorldSpaceFocusBox() override;
+	virtual FBox GetWorldSpaceFocusBox() override;
+	virtual bool SupportsWorldSpaceFocusPoint() override;
+	virtual bool GetWorldSpaceFocusPoint(const FRay& WorldRay, FVector& PointOut) override;
 };
 
 inline IPrimitiveComponentBackedTarget* UMultiSelectionTool::TargetComponentInterface(int32 TargetIdx) const

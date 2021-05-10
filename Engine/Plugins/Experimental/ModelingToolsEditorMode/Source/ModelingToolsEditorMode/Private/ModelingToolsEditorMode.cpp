@@ -779,16 +779,70 @@ void UModelingToolsEditorMode::FocusCameraAtCursorHotkey()
 {
 	FRay Ray = ToolsContext->GetLastWorldRay();
 
-	FHitResult HitResult;
-	bool bHitWorld = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(GetWorld(), HitResult, Ray.Origin, Ray.PointAt(HALF_WORLD_MAX));
-	if (bHitWorld)
+	double NearestHitDist = (double)HALF_WORLD_MAX;
+	FVector HitPoint = FVector::ZeroVector;
+
+	// cast ray against visible objects
+	FHitResult WorldHitResult;
+	if (ToolSceneQueriesUtil::FindNearestVisibleObjectHit(GetWorld(), WorldHitResult, Ray.Origin, Ray.PointAt(HALF_WORLD_MAX)))
 	{
-		FVector HitPoint = HitResult.ImpactPoint;
-		if (GCurrentLevelEditingViewportClient)
+		HitPoint = WorldHitResult.ImpactPoint;
+		NearestHitDist = (double)Ray.GetParameter(HitPoint);
+	}
+
+	// cast ray against tool
+	if (GetToolManager()->HasAnyActiveTool())
+	{
+		UInteractiveTool* Tool = GetToolManager()->GetActiveTool(EToolSide::Mouse);
+		IInteractiveToolCameraFocusAPI* FocusAPI = Cast<IInteractiveToolCameraFocusAPI>(Tool);
+		if (FocusAPI && FocusAPI->SupportsWorldSpaceFocusPoint())
 		{
-			GCurrentLevelEditingViewportClient->CenterViewportAtPoint(HitPoint, false);
+			FVector ToolHitPoint;
+			if (FocusAPI->GetWorldSpaceFocusPoint(Ray, ToolHitPoint))
+			{
+				double HitDepth = (double)Ray.GetParameter(ToolHitPoint);
+				if (HitDepth < NearestHitDist)
+				{
+					NearestHitDist = HitDepth;
+					HitPoint = ToolHitPoint;
+				}
+			}
 		}
 	}
+
+
+	if (NearestHitDist < (double)HALF_WORLD_MAX && GCurrentLevelEditingViewportClient)
+	{
+		GCurrentLevelEditingViewportClient->CenterViewportAtPoint(HitPoint, false);
+	}
+}
+
+
+bool UModelingToolsEditorMode::ComputeBoundingBoxForViewportFocus(AActor* Actor, UPrimitiveComponent* PrimitiveComponent, FBox& InOutBox) const
+{
+	if (GetToolManager()->HasAnyActiveTool())
+	{
+		UInteractiveTool* Tool = GetToolManager()->GetActiveTool(EToolSide::Mouse);
+		IInteractiveToolCameraFocusAPI* FocusAPI = Cast<IInteractiveToolCameraFocusAPI>(Tool);
+		if (FocusAPI && FocusAPI->SupportsWorldSpaceFocusBox() )
+		{
+			InOutBox = FocusAPI->GetWorldSpaceFocusBox();
+			if (InOutBox.IsValid)
+			{
+				float MaxDimension = InOutBox.GetExtent().GetMax();
+				if (MaxDimension > SMALL_NUMBER)
+				{
+					InOutBox.ExpandBy(MaxDimension * 0.2f);
+				}
+				else
+				{
+					InOutBox.ExpandBy(25);
+				}
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 

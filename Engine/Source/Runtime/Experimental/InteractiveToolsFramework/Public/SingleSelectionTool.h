@@ -5,11 +5,12 @@
 #include "InteractiveTool.h"
 #include "ComponentSourceInterfaces.h"
 #include "ToolTargets/ToolTarget.h"
+#include "InteractiveToolQueryInterfaces.h"
 
 #include "SingleSelectionTool.generated.h"
 
 UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API USingleSelectionTool : public UInteractiveTool
+class INTERACTIVETOOLSFRAMEWORK_API USingleSelectionTool : public UInteractiveTool, public IInteractiveToolCameraFocusAPI
 {
 GENERATED_BODY()
 public:
@@ -36,4 +37,14 @@ public:
 protected:
 	UPROPERTY()
 	TObjectPtr<UToolTarget> Target;
+
+
+
+public:
+	// IInteractiveToolCameraFocusAPI implementation
+	virtual bool SupportsWorldSpaceFocusBox() override;
+	virtual FBox GetWorldSpaceFocusBox() override;
+	virtual bool SupportsWorldSpaceFocusPoint() override;
+	virtual bool GetWorldSpaceFocusPoint(const FRay& WorldRay, FVector& PointOut) override;
+
 };

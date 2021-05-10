@@ -663,6 +663,34 @@ bool UMeshSelectionTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 }
 
 
+FBox UMeshSelectionTool::GetWorldSpaceFocusBox()
+{
+	TArray<int32> SelectedFaces = Selection->GetElements(EMeshSelectionElementType::Face);
+	if (SelectedFaces.Num() > 0)
+	{
+		FAxisAlignedBox3d Bounds = FAxisAlignedBox3d::Empty();
+
+		const FDynamicMesh3* Mesh = PreviewMesh->GetMesh();
+		FTransform3d Transform(PreviewMesh->GetTransform());
+		for (int32 tid : SelectedFaces)
+		{
+			FIndex3i Tri = Mesh->GetTriangle(tid);
+			for (int32 j = 0; j < 3; ++j)
+			{
+				Bounds.Contain(Transform.TransformPosition(Mesh->GetVertex(Tri[j])));
+			}
+		}
+
+		if (Bounds.MaxDim() > FMathf::ZeroTolerance)
+		{
+			return (FBox)Bounds;
+		}
+	}
+
+	return PreviewMesh->GetActor()->GetComponentsBoundingBox();
+}
+
+
 
 
 void UMeshSelectionTool::OnRegionHighlightUpdated()

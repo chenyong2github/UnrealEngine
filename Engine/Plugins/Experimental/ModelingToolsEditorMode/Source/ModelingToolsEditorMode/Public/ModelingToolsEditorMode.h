@@ -40,6 +40,8 @@ public:
 
 	virtual bool CanAutoSave() const override;
 
+	virtual bool ComputeBoundingBoxForViewportFocus(AActor* Actor, UPrimitiveComponent* PrimitiveComponent, FBox& InOutBox) const override;
+
 	virtual bool GetPivotForOrbit(FVector& OutPivot) const override;
 
 	/*
