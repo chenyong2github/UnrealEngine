@@ -15,11 +15,13 @@
 #include "IMessageBus.h"
 #include "IMessagingModule.h"
 
+#if defined(WITH_CONCERT)
 #include "IConcertClient.h"
 #include "IConcertSyncClient.h"
 #include "IConcertSession.h"
 #include "IConcertClientWorkspace.h"
 #include "IConcertSyncClientModule.h"
+#endif
 
 #if WITH_EDITOR
 	#include "ISettingsModule.h"
@@ -84,6 +86,7 @@ public:
 		}
 #endif
 
+#if defined(WITH_CONCERT)
 		if (IConcertSyncClientModule::IsAvailable())
 		{
 			if (TSharedPtr<IConcertSyncClient> ConcertSyncClient = IConcertSyncClientModule::Get().GetClient(TEXT("MultiUser")))
@@ -92,8 +95,8 @@ public:
 				ConcertClient->OnSessionStartup().RemoveAll(this);
 				ConcertClient->OnSessionShutdown().RemoveAll(this);
 			}
-
 		}
+#endif
 
 		if (IDisplayCluster::IsAvailable())
 		{
@@ -119,6 +122,7 @@ private:
 
 	void SetupForMultiUser()
 	{
+#if defined(WITH_CONCERT)
 		if (TSharedPtr<IConcertSyncClient> ConcertSyncClient = IConcertSyncClientModule::Get().GetClient(TEXT("MultiUser")))
 		{
 			TSharedPtr<IConcertClientWorkspace> Workspace = ConcertSyncClient->GetWorkspace();
@@ -138,7 +142,9 @@ private:
 		{
 			UE_LOG(LogDisplayClusterInterception, Display, TEXT("No multi-user detected. Not intercepting initial activity sync."));
 		}
-
+#else
+		UE_LOG(LogDisplayClusterInterception, Display, TEXT("No multi-user available."));
+#endif
 	}
 	void OnNewSceneEvent()
 	{
@@ -197,6 +203,7 @@ private:
 		return bCanFinalizeWorkspace || bWasEverDisconnected;
 	}
 
+#if defined(WITH_CONCERT)
 	void OnSessionConnectionChanged(IConcertClientSession& InSession, EConcertConnectionStatus ConnectionStatus)
 	{
 		TSharedPtr<IConcertSyncClient> ConcertSyncClient = IConcertSyncClientModule::Get().GetClient(TEXT("MultiUser"));
@@ -237,6 +244,7 @@ private:
 	{
 		bCanFinalizeWorkspace = true;
 	}
+#endif
 
 	void OnDisplayClusterStartSession()
 	{
