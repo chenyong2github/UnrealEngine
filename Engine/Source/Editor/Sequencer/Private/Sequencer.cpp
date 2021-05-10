@@ -256,17 +256,6 @@ public:
 	}
 };
 
-/**
- * HACK Fix for previewing camera blends in editor without touching the header for the next 4.26 patch release.
- */
-struct FSequencerViewModifierInfo
-{
-	bool bApplyViewModifier = false;
-	float BlendFactor = 1.f;
-	TWeakObjectPtr<AActor> PreviousCamera;
-	TWeakObjectPtr<AActor> NextCamera;
-};
-
 void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSharedRef<ISequencerObjectChangeListener>& InObjectChangeListener, const TArray<FOnCreateTrackEditor>& TrackEditorDelegates, const TArray<FOnCreateEditorObjectBinding>& EditorObjectBindingDelegates)
 {
 	bIsEditingWithinLevelEditor = InitParams.bEditWithinLevelEditor;
@@ -440,17 +429,6 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 
 	UpdateTimeBases();
 	PlayPosition.Reset(GetPlaybackRange().GetLowerBoundValue());
-
-	{
-		static_assert(sizeof(FSequencerViewModifierInfo) <= sizeof(FSequencer::FViewModifierInfo),
-			"We need to stomp the FViewModifierInfo objects with something new as a patch fix");
-
-		FSequencerViewModifierInfo& VMI = reinterpret_cast<FSequencerViewModifierInfo&>(ViewModifierInfo);
-		VMI = FSequencerViewModifierInfo();
-
-		FSequencerViewModifierInfo& CachedVMI = reinterpret_cast<FSequencerViewModifierInfo&>(CachedViewModifierInfo);
-		CachedVMI = FSequencerViewModifierInfo();
-	}
 
 	// Make internal widgets
 	SequencerWidget = SNew( SSequencer, SharedThis( this ) )
@@ -3581,16 +3559,14 @@ void FSequencer::SetPerspectiveViewportCameraCutEnabled(bool bEnabled)
 
 void FSequencer::ModifyViewportClientView(FEditorViewportViewModifierParams& Params)
 {
-	const FSequencerViewModifierInfo& VMI = reinterpret_cast<FSequencerViewModifierInfo&>(ViewModifierInfo);
-
-	if (!VMI.bApplyViewModifier)
+	if (!ViewModifierInfo.bApplyViewModifier)
 	{
 		return;
 	}
 
-	const float BlendFactor = VMI.BlendFactor;
-	AActor* CameraActor = VMI.NextCamera.Get();
-	AActor* PreviousCameraActor = VMI.PreviousCamera.Get();
+	const float BlendFactor = ViewModifierInfo.BlendFactor;
+	AActor* CameraActor = ViewModifierInfo.NextCamera.Get();
+	AActor* PreviousCameraActor = ViewModifierInfo.PreviousCamera.Get();
 	
 	UCameraComponent* CameraComponent = MovieSceneHelpers::CameraComponentFromRuntimeObject(CameraActor);
 	UCameraComponent* PreviousCameraComponent = MovieSceneHelpers::CameraComponentFromRuntimeObject(PreviousCameraActor);
@@ -3797,9 +3773,7 @@ void FSequencer::EnterSilentMode()
 {
 	if (SilentModeCount == 0)
 	{
-		FSequencerViewModifierInfo& VMI = reinterpret_cast<FSequencerViewModifierInfo&>(ViewModifierInfo);
-		FSequencerViewModifierInfo& CachedVMI = reinterpret_cast<FSequencerViewModifierInfo&>(CachedViewModifierInfo);
-		CachedVMI = VMI;
+		CachedViewModifierInfo = ViewModifierInfo;
 	}
 	++SilentModeCount;
 }
@@ -3810,9 +3784,7 @@ void FSequencer::ExitSilentMode()
 	ensure(SilentModeCount >= 0);
 	if (SilentModeCount == 0)
 	{
-		FSequencerViewModifierInfo& VMI = reinterpret_cast<FSequencerViewModifierInfo&>(ViewModifierInfo);
-		FSequencerViewModifierInfo& CachedVMI = reinterpret_cast<FSequencerViewModifierInfo&>(CachedViewModifierInfo);
-		VMI = CachedVMI;
+		ViewModifierInfo = CachedViewModifierInfo;
 	}
 }
 
@@ -6033,11 +6005,10 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 			(CameraActor != nullptr || PreviousCameraActor != nullptr));
 
 	// To preview blending we'll have to offset the viewport camera using the view modifiers API.
-	FSequencerViewModifierInfo& VMI = reinterpret_cast<FSequencerViewModifierInfo&>(ViewModifierInfo);
-	VMI.bApplyViewModifier = bIsBlending && !IsInSilentMode();
-	VMI.BlendFactor = BlendFactor;
-	VMI.NextCamera = CameraActor;
-	VMI.PreviousCamera = PreviousCameraActor;
+	ViewModifierInfo.bApplyViewModifier = bIsBlending && !IsInSilentMode();
+	ViewModifierInfo.BlendFactor = BlendFactor;
+	ViewModifierInfo.NextCamera = CameraActor;
+	ViewModifierInfo.PreviousCamera = PreviousCameraActor;
 
 	bool bCameraHasBeenCut = CameraCutParams.bJumpCut;
 

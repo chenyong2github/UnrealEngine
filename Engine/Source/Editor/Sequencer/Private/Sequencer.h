@@ -1480,9 +1480,9 @@ private:
 	struct FViewModifierInfo
 	{
 		bool bApplyViewModifier = false;
-		FVector ViewModifierLocation = FVector::ZeroVector;
-		FRotator ViewModifierRotation = FRotator::ZeroRotator;
-		float ViewModifierFOV = 0.f;
+		float BlendFactor = 1.f;
+		TWeakObjectPtr<AActor> PreviousCamera;
+		TWeakObjectPtr<AActor> NextCamera;
 	};
 	/** Information for previewing camera cut blends. This will be applied to the editor viewport during blends. */
 	FViewModifierInfo ViewModifierInfo;
