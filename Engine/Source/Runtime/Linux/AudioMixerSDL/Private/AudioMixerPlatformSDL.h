@@ -37,6 +37,7 @@ namespace Audio
 		FName GetRuntimeFormat(USoundWave* InSoundWave) override;
 		bool HasCompressedAudioInfoClass(USoundWave* InSoundWave) override;
 		ICompressedAudioInfo* CreateCompressedAudioInfo(USoundWave* InSoundWave) override;
+		ICompressedAudioInfo* CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave) override;
 		FString GetDefaultDeviceName() override;
 		FAudioPlatformSettings GetPlatformSettings() const override;
 		void ResumeContext() override;

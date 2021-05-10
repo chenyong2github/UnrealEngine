@@ -382,6 +382,26 @@ namespace Audio
 #endif // WITH_ENGINE
 	}
 
+	ICompressedAudioInfo* FMixerPlatformSDL::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
+	{
+#if WITH_ENGINE
+		if (InSoundWave->IsStreaming())
+		{
+			if (InSoundWave->IsSeekableStreaming())
+			{
+				return new FADPCMAudioInfo();
+			}
+
+			return new FOpusAudioInfo();
+		}
+
+		return nullptr;
+#else
+		checkNoEntry();
+		return nullptr;
+#endif // WITH_ENGINE
+	}
+
 	FString FMixerPlatformSDL::GetDefaultDeviceName()
 	{
 		static FString DefaultName(TEXT("Default SDL Audio Device."));
