@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <atomic>
+
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "HAL/UnrealMemory.h"
@@ -20,8 +22,8 @@
 #include "Hash/CityHash.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Serialization/MemoryImage.h"
-
-#define DISABLE_RHI_DEFFERED_DELETE 0
+#include "Experimental/Containers/HazardPointer.h"
+#include "Containers/ClosableMpscQueue.h"
 
 #ifndef RHI_WANT_RESOURCE_INFO
 #define RHI_WANT_RESOURCE_INFO 0
@@ -52,7 +54,9 @@ public:
 
 	virtual ~FRHIResource()
 	{
-		check(PlatformNeedsExtraDeletionLatency() || (NumRefs.GetValue() == 0 && (CurrentlyDeleting == this || bDoNotDeferDelete || Bypass()))); // this should not have any outstanding refs
+		check(IsEngineExitRequested() || CurrentlyDeleting == this);
+		check(NumRefs.load(std::memory_order_relaxed) == 0); // this should not have any outstanding refs
+		CurrentlyDeleting = nullptr;
 
 #if RHI_WANT_RESOURCE_INFO
 		EndTrackingResource(this);
@@ -61,24 +65,27 @@ public:
 
 	FORCEINLINE_DEBUGGABLE uint32 AddRef() const
 	{
-		int32 NewValue = NumRefs.Increment();
+		int32 NewValue = NumRefs.fetch_add(1, std::memory_order_acquire) + 1;
 		checkSlow(NewValue > 0); 
 		return uint32(NewValue);
 	}
 	FORCEINLINE_DEBUGGABLE uint32 Release() const
 	{
-		int32 NewValue = NumRefs.Decrement();
+		int32 NewValue = NumRefs.fetch_sub(1, std::memory_order_release) - 1;
+		check(NewValue >= 0);
+
 		if (NewValue == 0)
 		{
-			if (!DeferDelete())
-			{ 
-				delete this;
-			}
-			else
+			if (MarkedForDelete.exchange(1, std::memory_order_release) == 0)
 			{
-				if (FPlatformAtomics::InterlockedCompareExchange(&MarkedForDelete, 1, 0) == 0)
+				while(true)
 				{
-					PendingDeletes.Push(const_cast<FRHIResource*>(this));
+					auto HP = MakeHazardPointer(PendingDeletes, PendingDeletesHPC);
+					TClosableMpscQueue<FRHIResource*>* PendingDeletesPtr = HP.Get();
+					if(PendingDeletesPtr->Enqueue(const_cast<FRHIResource*>(this)))
+					{
+						break;
+					}
 				}
 			}
 		}
@@ -87,24 +94,12 @@ public:
 	}
 	FORCEINLINE_DEBUGGABLE uint32 GetRefCount() const
 	{
-		int32 CurrentValue = NumRefs.GetValue();
+		int32 CurrentValue = NumRefs.load(std::memory_order_relaxed);
 		checkSlow(CurrentValue >= 0); 
 		return uint32(CurrentValue);
 	}
-	void DoNoDeferDelete()
-	{
-		check(!MarkedForDelete);
-		bDoNotDeferDelete = true;
-		FPlatformMisc::MemoryBarrier();
-		check(!MarkedForDelete);
-	}
 
-	static void FlushPendingDeletes(bool bFlushDeferredDeletes = false);
-
-	FORCEINLINE static bool PlatformNeedsExtraDeletionLatency()
-	{
-		return GRHINeedsExtraDeletionLatency && GIsRHIInitialized;
-	}
+	static void FlushPendingDeletes();
 
 	static bool Bypass();
 
@@ -123,7 +118,14 @@ public:
 
 	bool IsValid() const
 	{
-		return !MarkedForDelete && NumRefs.GetValue() > 0;
+		return !MarkedForDelete.load(std::memory_order_relaxed) && NumRefs.load(std::memory_order_relaxed) > 0;
+	}
+
+	void Delete()
+	{
+		verify(MarkedForDelete.fetch_add(1, std::memory_order_acquire) == 0);
+		CurrentlyDeleting = this;
+		delete this;
 	}
 
 	inline ERHIResourceType GetType() const { return ResourceType; }
@@ -142,30 +144,17 @@ public:
 #endif
 
 private:
-	mutable FThreadSafeCounter NumRefs;
-	mutable int32 MarkedForDelete{ 0 };
-
+	mutable std::atomic_int NumRefs { 0 };
+	mutable std::atomic_int MarkedForDelete { 0 };
 	const ERHIResourceType ResourceType;
-
-	bool bDoNotDeferDelete{ false };
-	bool bCommitted{ true };
+	bool bCommitted { true };
 #if RHI_WANT_RESOURCE_INFO
-	bool bBeingTracked{ false };
+	bool bBeingTracked { false };
 #endif
 
-	static TLockFreePointerListUnordered<FRHIResource, PLATFORM_CACHE_LINE_SIZE> PendingDeletes;
+	static std::atomic<TClosableMpscQueue<FRHIResource*>*> PendingDeletes;
+	static FHazardPointerCollection PendingDeletesHPC;
 	static FRHIResource* CurrentlyDeleting;
-
-	FORCEINLINE bool DeferDelete() const
-	{
-#if DISABLE_RHI_DEFFERED_DELETE
-		checkf(!GRHIValidationEnabled, TEXT("RHI validation is not supported when DISABLE_RHI_DEFERRED_DELETE flag is set."));
-		return false;
-#else
-		// Defer if GRHINeedsExtraDeletionLatency or we are doing threaded rendering (unless otherwise requested).
-		return !bDoNotDeferDelete && (GRHINeedsExtraDeletionLatency || !Bypass());
-#endif
-	}
 
 	// Some APIs don't do internal reference counting, so we have to wait an extra couple of frames before deleting resources
 	// to ensure the GPU has completely finished with them. This avoids expensive fences, etc.
@@ -174,9 +163,6 @@ private:
 		TArray<FRHIResource*>	Resources;
 		uint32					FrameDeleted{};
 	};
-
-	static TArray<ResourcesToDelete> DeferredDeletionQueue;
-	static uint32 CurrentFrame;
 };
 
 class FExclusiveDepthStencil

@@ -296,3 +296,9 @@ public:
 		return Hazard != nullptr && Record != nullptr;
 	}
 };
+
+template<typename H>
+THazardPointer<H, false> MakeHazardPointer(std::atomic<H*>& InHazard, FHazardPointerCollection& Collection)
+{
+	return {InHazard, Collection};
+}

@@ -334,13 +334,6 @@ FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFor
 		FD3D12ShaderResourceView* WrappedShaderResourceView = new FD3D12ShaderResourceView(Device, SRVDesc, NewTexture);
 		NewTexture->SetShaderResourceView(WrappedShaderResourceView);
 
-		if (Device->GetGPUIndex() == Parent->GetGPUIndex())
-		{
-			NewTexture->DoNoDeferDelete();
-			BackBufferRenderTargetView->DoNoDeferDelete();
-			WrappedShaderResourceView->DoNoDeferDelete();
-		}
-
 		return NewTexture;
 	});
 
@@ -362,7 +355,6 @@ FD3D12Texture2D* FD3D12Viewport::CreateDummyBackBufferTextures(FD3D12Adapter* In
 	FD3D12Texture2D* Result = InAdapter->CreateLinkedObject<FD3D12Texture2D>(FRHIGPUMask::All(), [&](FD3D12Device* Device)
 	{
 		FD3D12Texture2D* NewTexture = new FD3D12BackBufferReferenceTexture2D(this, bInIsSDR, Device, InSizeX, InSizeY, PixelFormat);
-		NewTexture->DoNoDeferDelete();
 		return NewTexture;
 	});
 	return Result;
@@ -370,7 +362,7 @@ FD3D12Texture2D* FD3D12Viewport::CreateDummyBackBufferTextures(FD3D12Adapter* In
 
 FD3D12Viewport::~FD3D12Viewport()
 {
-	check(IsInRenderingThread());
+	check(IsInRHIThread() || IsInRenderingThread());
 
 #if !PLATFORM_HOLOLENS && D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 	// If the swap chain was in fullscreen mode, switch back to windowed before releasing the swap chain.
@@ -486,7 +478,6 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 
 			for (FD3D12TextureBase& Tex : *BackBuffers[i])
 			{
-				static_cast<FD3D12Texture2D&>(Tex).DoNoDeferDelete();
 				Tex.GetResource()->DoNotDeferDelete();
 			}
 		}
@@ -504,7 +495,6 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 
 			for (FD3D12TextureBase& Tex : *SDRBackBuffers[i])
 			{
-				static_cast<FD3D12Texture2D&>(Tex).DoNoDeferDelete();
 				Tex.GetResource()->DoNotDeferDelete();
 			}
 		}
@@ -512,6 +502,11 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 		SDRBackBuffers[i].SafeRelease();
 		check(SDRBackBuffers[i] == nullptr);
 	}
+
+	// Flush the outstanding GPU work and wait for it to complete.
+	FlushRenderingCommands();
+	FRHICommandListExecutor::CheckNoOutstandingCmdLists();
+	Adapter->BlockUntilIdle();
 
 	// Keep the current pixel format if one wasn't specified.
 	if (PreferredPixelFormat == PF_Unknown)

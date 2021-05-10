@@ -3945,8 +3945,7 @@ namespace EImmediateFlushType
 		DispatchToRHIThread, 
 		WaitForDispatchToRHIThread,
 		FlushRHIThread,
-		FlushRHIThreadFlushResources,
-		FlushRHIThreadFlushResourcesFlushDeferredDeletes
+		FlushRHIThreadFlushResources
 	};
 };
 

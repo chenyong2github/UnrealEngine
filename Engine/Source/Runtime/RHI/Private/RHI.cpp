@@ -293,10 +293,10 @@ const FClearValueBinding FClearValueBinding::Green(FLinearColor(0.0f, 1.0f, 0.0f
 // Note: this is used as the default normal for DBuffer decals.  It must decode to a value of 0 in DecodeDBufferData.
 const FClearValueBinding FClearValueBinding::DefaultNormal8Bit(FLinearColor(128.0f / 255.0f, 128.0f / 255.0f, 128.0f / 255.0f, 1.0f));
 
-TLockFreePointerListUnordered<FRHIResource, PLATFORM_CACHE_LINE_SIZE> FRHIResource::PendingDeletes;
+std::atomic<TClosableMpscQueue<FRHIResource*>*> FRHIResource::PendingDeletes { new TClosableMpscQueue<FRHIResource*>() };
+FHazardPointerCollection FRHIResource::PendingDeletesHPC;
 FRHIResource* FRHIResource::CurrentlyDeleting = nullptr;
-TArray<FRHIResource::ResourcesToDelete> FRHIResource::DeferredDeletionQueue;
-uint32 FRHIResource::CurrentFrame = 0;
+
 RHI_API FDrawCallCategoryName* FDrawCallCategoryName::Array[FDrawCallCategoryName::MAX_DRAWCALL_CATEGORY];
 RHI_API int32 FDrawCallCategoryName::DisplayCounts[FDrawCallCategoryName::MAX_DRAWCALL_CATEGORY][MAX_NUM_GPUS];
 RHI_API int32 FDrawCallCategoryName::NumCategory = 0;
@@ -964,7 +964,7 @@ bool FRHIResource::Bypass()
 
 DECLARE_CYCLE_STAT(TEXT("Delete Resources"), STAT_DeleteResources, STATGROUP_RHICMDLIST);
 
-void FRHIResource::FlushPendingDeletes(bool bFlushDeferredDeletes)
+void FRHIResource::FlushPendingDeletes()
 {
 	SCOPE_CYCLE_COUNTER(STAT_DeleteResources);
 
@@ -979,97 +979,36 @@ void FRHIResource::FlushPendingDeletes(bool bFlushDeferredDeletes)
 		RHICmdList.SubmitCommandsHint();
 	}
 #endif
-	RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-	FRHICommandListExecutor::CheckNoOutstandingCmdLists();
-	if (GDynamicRHI)
-	{
-		GDynamicRHI->RHIPerFrameRHIFlushComplete();
-	}
 
-	auto Delete = [](TArray<FRHIResource*>& ToDelete)
+	TArray<FRHIResource*> DeletedResources;
+	TClosableMpscQueue<FRHIResource*>* PendingDeletesPtr = PendingDeletes.exchange(new TClosableMpscQueue<FRHIResource*>());
+	PendingDeletesPtr->Close([&DeletedResources](FRHIResource* Resource)
+	{	
+		DeletedResources.Push(Resource);		
+	});
+	PendingDeletesHPC.Delete(PendingDeletesPtr);
+
+	RHICmdList.EnqueueLambda([DeletedResources = MoveTemp(DeletedResources)](FRHICommandListImmediate& RHICmdList) mutable
 	{
-		for (int32 Index = 0; Index < ToDelete.Num(); Index++)
+		if (GDynamicRHI)
 		{
-			FRHIResource* Ref = ToDelete[Index];
-			check(Ref->MarkedForDelete == 1);
-			if (Ref->GetRefCount() == 0) // caches can bring dead objects back to life
+			GDynamicRHI->RHIPerFrameRHIFlushComplete();
+		}
+
+		for (FRHIResource* Resource : DeletedResources)
+		{
+			check(Resource->MarkedForDelete.load(std::memory_order_relaxed) == 1);
+			if (Resource->NumRefs.load(std::memory_order_acquire) == 0) // caches can bring dead objects back to life
 			{
-				CurrentlyDeleting = Ref;
-				delete Ref;
-				CurrentlyDeleting = nullptr;
+				FRHIResource::CurrentlyDeleting = Resource;
+				delete Resource;
 			}
 			else
 			{
-				Ref->MarkedForDelete = 0;
-				FPlatformMisc::MemoryBarrier();
-			}
+				verify(Resource->MarkedForDelete.exchange(0, std::memory_order_release) == 1);	
+			}	
 		}
-	};
-
-	while (1)
-	{
-		if (PendingDeletes.IsEmpty())
-		{
-			break;
-		}
-		if (PlatformNeedsExtraDeletionLatency())
-		{
-			const int32 Index = DeferredDeletionQueue.AddDefaulted();
-			ResourcesToDelete& ResourceBatch = DeferredDeletionQueue[Index];
-			ResourceBatch.FrameDeleted = CurrentFrame;
-			PendingDeletes.PopAll(ResourceBatch.Resources);
-			check(ResourceBatch.Resources.Num());
-		}
-		else
-		{
-			TArray<FRHIResource*> ToDelete;
-			PendingDeletes.PopAll(ToDelete);
-			check(ToDelete.Num());
-			Delete(ToDelete);
-		}
-	}
-
-	const uint32 NumFramesToExpire = RHIRESOURCE_NUM_FRAMES_TO_EXPIRE;
-
-	if (DeferredDeletionQueue.Num())
-	{
-		if (bFlushDeferredDeletes)
-		{
-			FRHICommandListExecutor::GetImmediateCommandList().BlockUntilGPUIdle();
-
-			for (int32 Idx = 0; Idx < DeferredDeletionQueue.Num(); ++Idx)
-			{
-				ResourcesToDelete& ResourceBatch = DeferredDeletionQueue[Idx];
-				Delete(ResourceBatch.Resources);
-			}
-
-			DeferredDeletionQueue.Empty();
-		}
-		else
-		{
-			int32 DeletedBatchCount = 0;
-			while (DeletedBatchCount < DeferredDeletionQueue.Num())
-			{
-				ResourcesToDelete& ResourceBatch = DeferredDeletionQueue[DeletedBatchCount];
-				if (((ResourceBatch.FrameDeleted + NumFramesToExpire) < CurrentFrame) || !GIsRHIInitialized)
-				{
-					Delete(ResourceBatch.Resources);
-					++DeletedBatchCount;
-				}
-				else
-				{
-					break;
-				}
-			}
-
-			if (DeletedBatchCount)
-			{
-				DeferredDeletionQueue.RemoveAt(0, DeletedBatchCount);
-			}
-		}
-
-		++CurrentFrame;
-	}
+	});
 }
 
 static_assert(ERHIZBuffer::FarPlane != ERHIZBuffer::NearPlane, "Near and Far planes must be different!");

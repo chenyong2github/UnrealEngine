@@ -335,7 +335,7 @@ void RHIExit()
 	else if (GUsingNullRHI)
 	{
 		// If we are using NullRHI flush the command list here in case somethings has been added to the command list during exit calls
-		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResourcesFlushDeferredDeletes);
+		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 	}
 }
 
@@ -488,7 +488,7 @@ FDefaultRHIRenderQueryPool::FDefaultRHIRenderQueryPool(ERenderQueryType InQueryT
 
 FDefaultRHIRenderQueryPool::~FDefaultRHIRenderQueryPool()
 {
-	check(IsInRenderingThread());
+	check(IsInRHIThread() || IsInRenderingThread());
 	checkf(AllocatedQueries == Queries.Num(), TEXT("Querypool deleted before all Queries have been released"));
 }
 

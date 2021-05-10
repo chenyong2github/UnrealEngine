@@ -210,7 +210,7 @@ void FD3D12DynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRH
 
 FD3D12UniformBuffer::~FD3D12UniformBuffer()
 {
-	check(!GRHISupportsRHIThread || IsInRenderingThread());
+	check(IsInRHIThread() || IsInRenderingThread());
 
 	int64 BufferSize = ResourceLocation.GetSize();
 	UpdateBufferStats(GET_STATFNAME(STAT_UniformBufferMemory), -BufferSize);

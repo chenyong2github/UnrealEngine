@@ -225,11 +225,6 @@ void FStreamableTextureResource::FinalizeStreaming(FRHITexture* InTextureRHI)
 		STAT(IncrementTextureStats());
 	}
 
-	if (GRHIForceNoDeletionLatencyForStreamingTextures && !GRHIValidationEnabled)
-	{
-		TextureRHI->DoNoDeferDelete();
-	}
-
 	TextureRHI = InTextureRHI;
 	if (ensure(TextureReferenceRHI.IsValid()))
 	{

@@ -1768,7 +1768,7 @@ FVulkanRHIGraphicsPipelineState* FVulkanPipelineStateCacheManager::RHICreateGrap
 			FVulkanRHIGraphicsPipelineState** MapPSO = GraphicsPSOLockedMap.Find(Key);
 			if(MapPSO)//another thread could end up creating it.
 			{
-				delete NewPSO;
+				NewPSO->Delete();
 				NewPSO = *MapPSO;
 			}
 			else

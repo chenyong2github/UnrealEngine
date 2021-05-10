@@ -1253,7 +1253,7 @@ void FRenderCommandFence::Wait(bool bProcessGameThreadTasks) const
 /**
  * Waits for the rendering thread to finish executing all pending rendering commands.  Should only be used from the game thread.
  */
-void FlushRenderingCommands(bool bFlushDeferredDeletes)
+void FlushRenderingCommands()
 {
 	if (!GIsRHIInitialized)
 	{
@@ -1273,13 +1273,9 @@ void FlushRenderingCommands(bool bFlushDeferredDeletes)
 		FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread_Local);
 	}
 
-	ENQUEUE_RENDER_COMMAND(FlushPendingDeleteRHIResourcesCmd)(
-		[bFlushDeferredDeletes](FRHICommandListImmediate& RHICmdList)
+	ENQUEUE_RENDER_COMMAND(FlushPendingDeleteRHIResourcesCmd)([](FRHICommandListImmediate& RHICmdList)
 	{
-		RHICmdList.ImmediateFlush(
-			bFlushDeferredDeletes ?
-			EImmediateFlushType::FlushRHIThreadFlushResourcesFlushDeferredDeletes :
-			EImmediateFlushType::FlushRHIThreadFlushResources);
+		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 	});
 
 	// Find the objects which may be cleaned up once the rendering thread command queue has been flushed.

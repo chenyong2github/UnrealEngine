@@ -204,8 +204,6 @@ FD3D11Texture2D* FD3D11Viewport::GetSwapChainSurface(FD3D11DynamicRHI* D3DRHI, E
 
 	D3D11TextureAllocated2D(*NewTexture);
 
-	NewTexture->DoNoDeferDelete();
-
 	return NewTexture;
 }
 
@@ -267,6 +265,10 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 		checkComRefCount(BackBuffer->GetShaderResourceView(),1);
 	}
 	BackBuffer.SafeRelease();
+
+	// Flush the outstanding GPU work and wait for it to complete.
+	FlushRenderingCommands();
+	FRHICommandListExecutor::CheckNoOutstandingCmdLists();
 
 	// Make sure we use a format the current device supports.
 	PreferredPixelFormat = D3DRHI->GetDisplayFormat(PreferredPixelFormat);

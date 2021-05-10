@@ -28,7 +28,7 @@ bool RunOnRenderThreadSynchronous(TFunctionRef<bool(FRHICommandListImmediate&)> 
 	});
 
 	// Flush to wait for the above rendering command to complete.
-	FlushRenderingCommands(true);
+	FlushRenderingCommands();
 
 	return bResult;
 }

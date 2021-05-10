@@ -80,7 +80,7 @@ class FRHIBufferTests
 		FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(VertexBuffer, GPixelFormats[Format].BlockBytes, Format);
 		bool bResult = RunTest_UAVClear_Buffer(RHICmdList, TestName, VertexBuffer.GetReference(), UAV, BufferSize, ClearValue, ClearPtr, TestValue);
 
-		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResourcesFlushDeferredDeletes);
+		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 
 		return bResult;
 	}
@@ -102,7 +102,7 @@ class FRHIBufferTests
 		FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(VertexBuffer, GPixelFormats[Format].BlockBytes, Format);
 		bool bResult = RunTest_UAVClear_Buffer(RHICmdList, TestName, VertexBuffer.GetReference(), UAV, BufferSize, ClearValue, ClearPtr, TestValue);
 
-		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResourcesFlushDeferredDeletes);
+		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 
 		return bResult;
 	}
@@ -120,7 +120,7 @@ class FRHIBufferTests
 		FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(StructuredBuffer);
 		bool bResult = RunTest_UAVClear_Buffer(RHICmdList, TestName, StructuredBuffer.GetReference(), UAV, BufferSize, ClearValue, ClearPtr, TestValue);
 
-		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResourcesFlushDeferredDeletes);
+		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 
 		return bResult;
 	}

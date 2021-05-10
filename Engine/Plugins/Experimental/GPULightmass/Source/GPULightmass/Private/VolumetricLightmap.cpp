@@ -106,7 +106,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 	ReleaseBrickData(VolumetricLightmapData.BrickData);
 	ReleaseBrickData( AccumulationBrickData);
 
-	FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResourcesFlushDeferredDeletes);
+	FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 
 	VolumeMin = CombinedImportanceVolume.Min;
 

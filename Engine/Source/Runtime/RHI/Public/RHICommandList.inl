@@ -90,6 +90,14 @@ FORCEINLINE_DEBUGGABLE void FRHICommandListImmediate::ImmediateFlush(EImmediateF
 			WaitForDispatch();
 		}
 		break;
+
+	case EImmediateFlushType::FlushRHIThreadFlushResources:
+		{
+			CSV_SCOPED_TIMING_STAT(RHITFlushes, FlushRHIThreadFlushResourcesTotal);
+			PipelineStateCache::FlushResources();
+			FRHIResource::FlushPendingDeletes();
+		}
+	//this fall-through is intentional
 	case EImmediateFlushType::FlushRHIThread:
 		{
 			CSV_SCOPED_TIMING_STAT(RHITFlushes, FlushRHIThreadTotal);
@@ -103,21 +111,6 @@ FORCEINLINE_DEBUGGABLE void FRHICommandListImmediate::ImmediateFlush(EImmediateF
 				WaitForRHIThreadTasks();
 			}
 			WaitForTasks(true); // these are already done, but this resets the outstanding array
-		}
-		break;
-	case EImmediateFlushType::FlushRHIThreadFlushResources:
-	case EImmediateFlushType::FlushRHIThreadFlushResourcesFlushDeferredDeletes:
-		{
-			CSV_SCOPED_TIMING_STAT(RHITFlushes, FlushRHIThreadFlushResourcesTotal);
-			if (HasCommands())
-			{
-				GRHICommandList.ExecuteList(*this);
-			}
-			WaitForDispatch();
-			WaitForRHIThreadTasks();
-			WaitForTasks(true); // these are already done, but this resets the outstanding array
-			PipelineStateCache::FlushResources();
-			FRHIResource::FlushPendingDeletes(FlushType == EImmediateFlushType::FlushRHIThreadFlushResourcesFlushDeferredDeletes);
 		}
 		break;
 	default:

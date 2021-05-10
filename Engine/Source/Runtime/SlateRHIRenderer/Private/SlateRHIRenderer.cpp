@@ -515,7 +515,7 @@ void FSlateRHIRenderer::OnWindowDestroyed(const TSharedRef<SWindow>& InWindow)
 
 		// Need to flush rendering commands as the viewport may be in use by the render thread
 		// and the rendering resources must be released on the render thread before the viewport can be deleted
-		FlushRenderingCommands(true /* bFlushDeferredDeletes */);
+		FlushRenderingCommands();
 
 		delete *ViewportInfoPtr;
 	}

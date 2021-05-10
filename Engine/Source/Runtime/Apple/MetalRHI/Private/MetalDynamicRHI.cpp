@@ -51,8 +51,7 @@ FGraphicsPipelineStateRHIRef FMetalDynamicRHI::RHICreateGraphicsPipelineState(co
 		if(!State->Compile())
 		{
 			// Compilation failures are propagated up to the caller.
-			State->DoNoDeferDelete();
-			delete State;
+			State->Delete();
 			return nullptr;
 		}
 
