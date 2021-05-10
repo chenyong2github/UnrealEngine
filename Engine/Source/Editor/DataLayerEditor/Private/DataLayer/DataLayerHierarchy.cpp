@@ -197,24 +197,67 @@ FSceneOutlinerTreeItemPtr FDataLayerHierarchy::CreateParentItem(const FSceneOutl
 	return nullptr;
 }
 
-void FDataLayerHierarchy::OnLevelActorAdded(AActor* InActor)
+void FDataLayerHierarchy::OnLevelActorsAdded(const TArray<AActor*>& InActors)
 {
-	if (InActor && RepresentingWorld.Get() == InActor->GetWorld())
+	if (UWorld* CurrentWorld = RepresentingWorld.Get())
 	{
-		if (InActor->HasDataLayers())
-		{
-			FSceneOutlinerHierarchyChangedData EventData;
-			EventData.Type = FSceneOutlinerHierarchyChangedData::Added;
+		FSceneOutlinerHierarchyChangedData EventData;
+		EventData.Type = FSceneOutlinerHierarchyChangedData::Added;
 
-			TArray<const UDataLayer*> DataLayers = InActor->GetDataLayerObjects();
-			EventData.Items.Reserve(DataLayers.Num());
-			for (const UDataLayer* DataLayer : DataLayers)
+		for (AActor* Actor : InActors)
+		{
+			if (Actor != nullptr && Actor->HasDataLayers() && Actor->GetWorld() == CurrentWorld)
 			{
-				EventData.Items.Add(Mode->CreateItemFor<FDataLayerActorTreeItem>(FDataLayerActorTreeItemData(InActor, const_cast<UDataLayer*>(DataLayer))));
+				TArray<const UDataLayer*> DataLayers = Actor->GetDataLayerObjects();
+				EventData.Items.Reserve(DataLayers.Num());
+				for (const UDataLayer* DataLayer : DataLayers)
+				{
+					EventData.Items.Add(Mode->CreateItemFor<FDataLayerActorTreeItem>(FDataLayerActorTreeItemData(Actor, const_cast<UDataLayer*>(DataLayer))));
+				}
 			}
+		}
+
+		if (!EventData.Items.IsEmpty())
+		{
 			HierarchyChangedEvent.Broadcast(EventData);
 		}
 	}
+}
+
+void FDataLayerHierarchy::OnLevelActorsRemoved(const TArray<AActor*>& InActors)
+{
+	if(UWorld* CurrentWorld = RepresentingWorld.Get())
+	{
+		FSceneOutlinerHierarchyChangedData EventData;
+		EventData.Type = FSceneOutlinerHierarchyChangedData::Removed;
+
+		if (AWorldDataLayers* WorldDataLayers = CurrentWorld->GetWorldDataLayers())
+		{
+			for (AActor* Actor : InActors)
+			{
+				if (Actor != nullptr && Actor->HasDataLayers())
+				{
+					// It is possible here that Actor doesn't have world anymore
+					const TArray<const UDataLayer*> DataLayers = Actor->GetDataLayerObjects(WorldDataLayers);
+					EventData.ItemIDs.Reserve(DataLayers.Num());
+					for (const UDataLayer* DataLayer : DataLayers)
+					{
+						EventData.ItemIDs.Add(FDataLayerActorTreeItem::ComputeTreeItemID(Actor, DataLayer));
+					}
+				}
+			}
+		}
+
+		if (!EventData.ItemIDs.IsEmpty())
+		{
+			HierarchyChangedEvent.Broadcast(EventData);
+		}
+	}
+}
+
+void FDataLayerHierarchy::OnLevelActorAdded(AActor* InActor)
+{
+	OnLevelActorsAdded({ InActor });
 }
 
 void FDataLayerHierarchy::OnActorDataLayersChanged(const TWeakObjectPtr<AActor>& InActor)
@@ -242,22 +285,7 @@ void FDataLayerHierarchy::OnDataLayerBrowserModeChanged(EDataLayerBrowserMode In
 
 void FDataLayerHierarchy::OnLevelActorDeleted(AActor* InActor)
 {
-	if (RepresentingWorld.Get() == InActor->GetWorld())
-	{
-		if (InActor->HasDataLayers())
-		{
-			FSceneOutlinerHierarchyChangedData EventData;
-			EventData.Type = FSceneOutlinerHierarchyChangedData::Removed;
-
-			const TArray<const UDataLayer*> DataLayers = InActor->GetDataLayerObjects();
-			EventData.ItemIDs.Reserve(DataLayers.Num());
-			for (const UDataLayer* DataLayer : DataLayers)
-			{
-				EventData.ItemIDs.Add(FDataLayerActorTreeItem::ComputeTreeItemID(InActor, DataLayer));
-			}
-			HierarchyChangedEvent.Broadcast(EventData);
-		}
-	}
+	OnLevelActorsRemoved({ InActor });
 }
 
 void FDataLayerHierarchy::OnLevelActorListChanged()
@@ -267,17 +295,17 @@ void FDataLayerHierarchy::OnLevelActorListChanged()
 
 void FDataLayerHierarchy::OnLevelAdded(ULevel* InLevel, UWorld* InWorld)
 {
-	if (RepresentingWorld.Get() == InWorld)
+	if (InLevel != nullptr && RepresentingWorld.Get() == InWorld)
 	{
-		FullRefreshEvent();
+		OnLevelActorsAdded(InLevel->Actors);
 	}
 }
 
 void FDataLayerHierarchy::OnLevelRemoved(ULevel* InLevel, UWorld* InWorld)
 {
-	if (RepresentingWorld.Get() == InWorld)
+	if (InLevel != nullptr && RepresentingWorld.Get() == InWorld)
 	{
-		FullRefreshEvent();
+		OnLevelActorsRemoved(InLevel->Actors);
 	}
 }
 

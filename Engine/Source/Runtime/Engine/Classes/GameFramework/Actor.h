@@ -39,6 +39,7 @@ struct FAttachedActorInfo;
 struct FNetViewer;
 struct FNetworkObjectInfo;
 class UDataLayer;
+class AWorldDataLayers;
 
 /** Chooses a method for actors to update overlap state (objects it is touching) on initialization, currently only used during level streaming. */
 UENUM(BlueprintType)
@@ -1081,6 +1082,7 @@ public:
 	bool HasAnyOfDataLayers(const TArray<FName>& DataLayerNames) const;
 	TArray<FName> GetDataLayerNames() const;
 	TArray<const UDataLayer*> GetDataLayerObjects() const;
+	TArray<const UDataLayer*> GetDataLayerObjects(const AWorldDataLayers* WorldDataLayers) const;
 	bool IsPropertyChangedAffectingDataLayers(FPropertyChangedEvent& PropertyChangedEvent) const;
 	bool IsValidForDataLayer() const;
 	void FixupDataLayers();
