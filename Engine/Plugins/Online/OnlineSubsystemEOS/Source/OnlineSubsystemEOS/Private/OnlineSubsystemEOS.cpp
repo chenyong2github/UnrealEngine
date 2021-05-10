@@ -166,7 +166,7 @@ bool FOnlineSubsystemEOS::Init()
 	FString PlatformOSS;
 	GConfig->GetString(TEXT("OnlineSubsystem"), TEXT("NativePlatformService"), PlatformOSS, GEngineIni);
 	bIsDefaultOSS = DefaultOSS == TEXT("EOS");
-	bIsPlatformOSS = DefaultOSS == TEXT("EOS");
+	bIsPlatformOSS = PlatformOSS == TEXT("EOS");
 
 	// Check for being launched by EGS
 	bWasLaunchedByEGS = FParse::Param(FCommandLine::Get(), TEXT("EpicPortal"));
