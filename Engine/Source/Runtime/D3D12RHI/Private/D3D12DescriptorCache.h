@@ -455,6 +455,9 @@ private:
 
 	TQueue<FD3D12GlobalHeapBlock*> FreeBlocks;
 	TArray<FD3D12GlobalHeapBlock*> ReleasedBlocks;
+	
+	FD3D12DescriptorHandleSRV* pNullSRV;
+	TArray<D3D12_CPU_DESCRIPTOR_HANDLE> EmptyDescriptors;
 
 	FCriticalSection CriticalSection;
 };
@@ -488,7 +491,7 @@ private:
 
 	D3D12_DESCRIPTOR_HEAP_TYPE HeapType = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
 	FD3D12GlobalHeapBlock* CurrentBlock = nullptr;
-
+	
 	FD3D12DescriptorCache* DescriptorCache = nullptr;
 	FD3D12CommandListHandle CurrentCommandList;
 };
