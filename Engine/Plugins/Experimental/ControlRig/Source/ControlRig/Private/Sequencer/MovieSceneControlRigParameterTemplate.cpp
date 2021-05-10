@@ -956,29 +956,26 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 		if (Section->GetControlRig())
 		{
 			Section->GetControlRig()->SetAbsoluteTime((float)Context.GetFrameRate().AsSeconds(Context.GetTime()));
-			if (Section->bAdditive == false)
+			for (const FBoolParameterStringAndValue& BoolNameAndValue : BoolValues)
 			{
-				for (const FBoolParameterStringAndValue& BoolNameAndValue : BoolValues)
+				if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(BoolNameAndValue.ParameterName))
 				{
-					if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(BoolNameAndValue.ParameterName))
+					FRigControl* RigControl = Section->GetControlRig()->FindControl(BoolNameAndValue.ParameterName);
+					if (RigControl && RigControl->ControlType == ERigControlType::Bool)
 					{
-						FRigControl* RigControl = Section->GetControlRig()->FindControl(BoolNameAndValue.ParameterName);
-						if (RigControl && RigControl->ControlType == ERigControlType::Bool)
-						{
-							Section->GetControlRig()->SetControlValue<bool>(BoolNameAndValue.ParameterName, BoolNameAndValue.Value, true, EControlRigSetKey::Never);
-						}
+						Section->GetControlRig()->SetControlValue<bool>(BoolNameAndValue.ParameterName, BoolNameAndValue.Value, true, EControlRigSetKey::Never);
 					}
 				}
+			}
 
-				for (const FIntegerParameterStringAndValue& IntegerNameAndValue : IntegerValues)
+			for (const FIntegerParameterStringAndValue& IntegerNameAndValue : IntegerValues)
+			{
+				if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(IntegerNameAndValue.ParameterName))
 				{
-					if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(IntegerNameAndValue.ParameterName))
+					FRigControl* RigControl = Section->GetControlRig()->FindControl(IntegerNameAndValue.ParameterName);
+					if (RigControl && RigControl->ControlType == ERigControlType::Integer)
 					{
-						FRigControl* RigControl = Section->GetControlRig()->FindControl(IntegerNameAndValue.ParameterName);
-						if (RigControl && RigControl->ControlType == ERigControlType::Integer)
-						{
-							Section->GetControlRig()->SetControlValue<int32>(IntegerNameAndValue.ParameterName, IntegerNameAndValue.Value, true, EControlRigSetKey::Never);
-						}
+						Section->GetControlRig()->SetControlValue<int32>(IntegerNameAndValue.ParameterName, IntegerNameAndValue.Value, true, EControlRigSetKey::Never);
 					}
 				}
 			}
