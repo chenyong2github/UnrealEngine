@@ -358,29 +358,7 @@ public:
 
 	void ExportCurrentDatasmithScene()
 	{
-		// NOTE: FDatasmithSceneUtils::CleanUpScene is called from FDatasmithSceneExporter::Export
 		ExportedScene.GetSceneExporterRef()->Export(ExportedScene.GetDatasmithSceneRef());
-
-		TSharedRef<IDatasmithScene> DatasmithScene = ExportedScene.GetDatasmithSceneRef();
-
-		// Convert paths back to absolute(they were changes by Export)
-		FString AbsoluteDir = FString(ExportedScene.GetSceneExporterRef()->GetOutputPath()) + TEXT("/");
-		for (int32 MeshIndex = 0; MeshIndex < DatasmithScene->GetMeshesCount(); ++MeshIndex)
-		{
-			TSharedPtr< IDatasmithMeshElement > Mesh = DatasmithScene->GetMesh(MeshIndex);
-
-			FString RelativePath = Mesh->GetFile();
-			Mesh->SetFile(*FPaths::ConvertRelativePathToFull(AbsoluteDir, *RelativePath));
-		}
-
-		for (int32 TextureIndex = 0; TextureIndex < DatasmithScene->GetTexturesCount(); ++TextureIndex)
-		{
-			TSharedPtr< IDatasmithTextureElement > Texture = DatasmithScene->GetTexture(TextureIndex);
-
-			FString RelativePath = Texture->GetFile();
-			
-			Texture->SetFile(*FPaths::ConvertRelativePathToFull(AbsoluteDir, *RelativePath));
-		}
 	}
 
 	void SetSceneModified()
