@@ -660,8 +660,6 @@ void URemoteControlPreset::PostLoad()
 
 	CacheFieldLayoutData();
 
-	RebindingManager->Rebind(this);
-
 	InitializeEntitiesMetadata();
 
 	RegisterEntityDelegates();
@@ -1052,6 +1050,12 @@ TArray<UObject*> URemoteControlPreset::ResolvedBoundObjects(FName FieldLabel)
 	}
 
 	return Objects;
+}
+
+void URemoteControlPreset::RebindUnboundEntities()
+{
+	RebindingManager->Rebind(this);
+	Algo::Transform(Registry->GetExposedEntities(), PerFrameUpdatedEntities, [](const TSharedPtr<FRemoteControlEntity>& Entity) { return Entity->GetId(); });
 }
 
 void URemoteControlPreset::NotifyExposedPropertyChanged(FName PropertyLabel)
@@ -1697,10 +1701,9 @@ void URemoteControlPreset::OnEndFrame()
 
 void URemoteControlPreset::OnMapChange(uint32)
 {
-	// Delay the rebinding in order for the old actor points to be invalid, and for the new actors to be valid in the current map.
+	// Delay the refresh in order for the old actor points to be invalid.
 	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this]()
 		{
-			RebindingManager->Rebind(this);
 			Algo::Transform(Registry->GetExposedEntities(), PerFrameUpdatedEntities, [](const TSharedPtr<FRemoteControlEntity>& Entity) { return Entity->GetId(); });
 		}));
 }

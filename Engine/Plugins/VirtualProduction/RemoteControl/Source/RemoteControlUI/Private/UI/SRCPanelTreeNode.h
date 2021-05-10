@@ -9,7 +9,7 @@
 #include "Widgets/Layout/SSplitter.h"
 
 class SWidget;
-class SFieldGroup;
+class SRCPanelGroup;
 struct SRCPanelExposedField;
 struct SRCPanelExposedActor;
 
@@ -47,11 +47,13 @@ struct SRCPanelTreeNode
 	virtual ENodeType GetType() const { return Invalid; };
 	/** Refresh the node. */
 	virtual void Refresh() {};
+	/** Get the context menu for this node. */
+	virtual TSharedPtr<SWidget> GetContextMenu() { return nullptr; }
 
 	//~ Utiliy methods for not having to downcast 
 	virtual TSharedPtr<SRCPanelExposedField> AsField() { return nullptr; }
 	virtual TSharedPtr<SWidget> AsFieldChild() { return nullptr; }
-	virtual TSharedPtr<SFieldGroup> AsGroup() { return nullptr; }
+	virtual TSharedPtr<SRCPanelGroup> AsGroup() { return nullptr; }
 	virtual TSharedPtr<SRCPanelExposedActor> AsActor() { return nullptr; }
 
 protected:

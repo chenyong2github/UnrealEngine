@@ -21,6 +21,7 @@
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyHandle.h"
 #include "PropertyEditorModule.h"
+#include "RCPanelWidgetRegistry.h"
 #include "RemoteControlActor.h"
 #include "RemoteControlEntity.h"
 #include "RemoteControlField.h"
@@ -86,7 +87,8 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 {
 	OnEditModeChange = InArgs._OnEditModeChange;
 	Preset = TStrongObjectPtr<URemoteControlPreset>(InPreset);
-
+	UpdateRebindButtonVisibility();
+	
 	TArray<TSharedRef<SWidget>> ExtensionWidgets;
 	FRemoteControlUIModule::Get().GetExtensionGenerators().Broadcast(ExtensionWidgets);
 
@@ -96,6 +98,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	
 	EntityList = SNew(SRCPanelExposedEntitiesList, Preset.Get())
 		.DisplayValues(true)
+		.OnEntityListUpdated_Lambda([this] () { UpdateRebindButtonVisibility(); })
 		.EditMode_Lambda([this](){ return bIsInEditMode; });
 	
 	EntityList->OnSelectionChange().AddSP(this, &SRemoteControlPanel::UpdateEntityDetailsView);
@@ -137,7 +140,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			[
 				CreateExposeButton()
 			]
-
+			// Right aligned widgets
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Right)
@@ -145,6 +148,20 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			.Padding(0, 7.0f)
 			[
 				SAssignNew(TopExtensions, SHorizontalBox)
+				// Rebind button
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.Visibility_Lambda([this]() { return bShowRebindButton ? EVisibility::Visible : EVisibility::Collapsed; })
+					.OnClicked_Raw(this, &SRemoteControlPanel::OnClickRebindAllButton)
+					[
+						SNew(STextBlock)
+						.ToolTipText(LOCTEXT("RebindButtonToolTip", "Attempt to rebind all unbound entites of the preset."))
+						.Text(LOCTEXT("RebindButtonText", "Rebind All"))
+					]
+				]
 				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
 				.Padding(4.0f, 0)
@@ -183,6 +200,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 				+ SWidgetSwitcher::Slot()
 				[
 					SNew(SSplitter)
+					.Orientation(EOrientation::Orient_Vertical)
 					+ SSplitter::Slot()
 					.Value(0.7f)
 					[
@@ -238,6 +256,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 SRemoteControlPanel::~SRemoteControlPanel()
 {
 	UnregisterEvents();
+	FRCPanelWidgetRegistry::Get().Clear();
 }
 
 void SRemoteControlPanel::PostUndo(bool bSuccess)
@@ -252,6 +271,11 @@ void SRemoteControlPanel::PostRedo(bool bSuccess)
 
 bool SRemoteControlPanel::IsExposed(const TSharedPtr<IPropertyHandle>& PropertyHandle)
 {
+	if (CachedExposedProperties.Contains(TWeakPtr<IPropertyHandle>{PropertyHandle}))
+	{
+		return true;
+	}
+	
 	TArray<UObject*> OuterObjects;
 	PropertyHandle->GetOuterObjects(OuterObjects);
 
@@ -287,6 +311,11 @@ bool SRemoteControlPanel::IsExposed(const TSharedPtr<IPropertyHandle>& PropertyH
 		bAllObjectsExposed &= bFoundPropForObject;
 	}
 
+	if (bAllObjectsExposed)
+	{
+		CachedExposedProperties.Emplace(PropertyHandle);
+	}
+	
 	return bAllObjectsExposed;
 }
 
@@ -307,7 +336,6 @@ void SRemoteControlPanel::ToggleProperty(const TSharedPtr<IPropertyHandle>& Prop
 	{
 		FScopedTransaction Transaction(LOCTEXT("ExposeProperty", "Expose Property"));
 		Preset->Modify();
-
 		for (UObject* Object : OuterObjects)
 		{
 			if (Object)
@@ -316,6 +344,8 @@ void SRemoteControlPanel::ToggleProperty(const TSharedPtr<IPropertyHandle>& Prop
 				ExposeProperty(Object, FRCFieldPathInfo{PropertyHandle->GeneratePathToProperty(), bCleanDuplicates});
 			}
 		}
+		
+		CachedExposedProperties.Emplace(PropertyHandle);
 	}
 }
 
@@ -364,6 +394,8 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateExposeButton()
 {	
 	FMenuBuilder MenuBuilder(true, nullptr);
 
+	
+	
 	SAssignNew(BlueprintPicker, SRCPanelFunctionPicker)
 		.AllowDefaultObjects(true)
 		.Label(LOCTEXT("FunctionLibrariesLabel", "Function Libraries"))
@@ -437,6 +469,7 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateExposeButton()
 	MenuBuilder.EndSection();
 	
 	return SAssignNew(ExposeComboButton, SComboButton)
+	.Visibility_Lambda([this]() { return this->bIsInEditMode ? EVisibility::Visible : EVisibility::Collapsed; })
 	.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
 	.ForegroundColor(FSlateColor::UseForeground())
 	.CollapseMenuOnParentFocus(true)
@@ -569,6 +602,8 @@ void SRemoteControlPanel::OnMapChange(uint32)
 	{
 		ClassPicker->Refresh();	
 	}
+
+	UpdateRebindButtonVisibility();
 }
 
 void SRemoteControlPanel::RegisterEvents()
@@ -584,10 +619,16 @@ void SRemoteControlPanel::RegisterEvents()
 	{
 		GEngine->OnLevelActorAdded().AddSP(this, &SRemoteControlPanel::OnActorAddedToLevel);
 	}
+
+	Preset->OnEntityExposed().AddSP(this, &SRemoteControlPanel::OnEntityExposed);
+	Preset->OnEntityUnexposed().AddSP(this, &SRemoteControlPanel::OnEntityUnexposed);
 }
 
 void SRemoteControlPanel::UnregisterEvents()
 {
+	Preset->OnEntityExposed().RemoveAll(this);
+	Preset->OnEntityUnexposed().RemoveAll(this);
+	
 	if (GEngine)
 	{
 		GEngine->OnLevelActorAdded().RemoveAll(this);
@@ -785,6 +826,47 @@ void SRemoteControlPanel::UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeN
 			EntityProtocolDetails->SetContent(ProtocolWidgetsModule.GenerateDetailsForEntity(Preset.Get(), SelectedEntity->GetId(), FieldType));	
 		}
 	}
+}
+
+void SRemoteControlPanel::UpdateRebindButtonVisibility()
+{
+	if (URemoteControlPreset* PresetPtr = Preset.Get())
+	{
+		for (TWeakPtr<FRemoteControlEntity> WeakEntity : PresetPtr->GetExposedEntities<FRemoteControlEntity>())
+		{
+			if (TSharedPtr<FRemoteControlEntity> Entity = WeakEntity.Pin())
+			{
+				if (!Entity->IsBound())
+				{
+					bShowRebindButton = true;
+					return;
+				}
+			}
+		}
+	}
+
+	bShowRebindButton = false;
+}
+
+FReply SRemoteControlPanel::OnClickRebindAllButton()
+{
+	if (URemoteControlPreset* PresetPtr = Preset.Get())
+	{
+		PresetPtr->RebindUnboundEntities();
+
+		UpdateRebindButtonVisibility();
+	}
+	return FReply::Handled();
+}
+
+void SRemoteControlPanel::OnEntityExposed(URemoteControlPreset* InPreset, const FGuid& InEntityId)
+{
+	CachedExposedProperties.Empty();
+}
+
+void SRemoteControlPanel::OnEntityUnexposed(URemoteControlPreset* InPreset, const FGuid& InEntityId)
+{
+	CachedExposedProperties.Empty();
 }
 
 #undef LOCTEXT_NAMESPACE /*RemoteControlPanel*/

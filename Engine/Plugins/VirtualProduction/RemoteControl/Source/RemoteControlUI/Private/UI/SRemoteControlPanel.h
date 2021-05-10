@@ -153,6 +153,16 @@ private:
 	
 	/** Update the details view following entity selection change.  */
 	void UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeNode>& SelectedNode);
+
+	/** Returns whether the preset has any unbound property or function. */
+	void UpdateRebindButtonVisibility();
+
+	/** Handle user clicking on the rebind all button. */
+	FReply OnClickRebindAllButton();
+
+	//~ Handlers called in order to clear the exposed property cache.
+	void OnEntityExposed(URemoteControlPreset* InPreset, const FGuid& InEntityId);
+	void OnEntityUnexposed(URemoteControlPreset* InPreset, const FGuid& InEntityId);
 private:
 	/** Holds the preset asset. */
 	TStrongObjectPtr<URemoteControlPreset> Preset;
@@ -185,4 +195,8 @@ private:
 	 * Used in order to ensure that the generated details view keeps a valid pointer to the selected entity.
 	 */
 	TSharedPtr<FRemoteControlEntity> SelectedEntity;
+	/** Whether to show the rebind all button. */
+	bool bShowRebindButton = false;
+	/** Cache of exposed properties. */
+	TSet<TWeakPtr<IPropertyHandle>> CachedExposedProperties;
 };
