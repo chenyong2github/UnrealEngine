@@ -319,7 +319,7 @@ void FNDIHairStrandsBuffer::Update(
 
 void FNDIHairStrandsBuffer::Transfer(const TStaticArray<float, 32 * NumScales>& InParamsScale)
 {
-	if (SourceRestResources != nullptr)
+	if (SourceRestResources != nullptr && ParamsScaleBuffer.Buffer.IsValid())
 	{
 		const uint32 ScaleCount = 32 * NumScales;
 		const uint32 ScaleBytes = sizeof(float) * ScaleCount;

@@ -97,7 +97,7 @@ void CreateInternalBuffer(FRWBuffer& OutputBuffer)
 template<typename BufferType, EPixelFormat PixelFormat, uint32 ElementCount>
 void UpdateInternalBuffer(const TStaticArray<BufferType,ElementCount>& InputData, FRWBuffer& OutputBuffer)
 {
-	if (ElementCount > 0)
+	if (ElementCount > 0 && OutputBuffer.Buffer.IsValid())
 	{
 		const uint32 BufferCount = ElementCount;
 		const uint32 BufferBytes = sizeof(BufferType) * BufferCount;
