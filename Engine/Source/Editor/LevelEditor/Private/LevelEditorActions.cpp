@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelEditorActions.h"
+#include "Algo/Unique.h"
 #include "SceneView.h"
 #include "Factories/Factory.h"
 #include "Animation/AnimSequence.h"
@@ -2649,6 +2650,64 @@ void FLevelEditorActionCallbacks::CopyActorFilePathtoClipboard_Clicked()
 	}
 }
 
+static TArray<FString> GetSelectedActorsPackageFullpath()
+{
+	TArray<FString> PackageFullpaths;
+
+	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+	{
+		const AActor* Actor = Cast<AActor>(*It);
+
+		if (Actor == nullptr)
+		{
+			continue;
+		}
+
+		const UPackage* Package = Actor->GetPackage();
+
+		if (Package == nullptr)
+		{
+			continue;
+		}
+
+		const FString LocalFullPath(Package->GetLoadedPath().GetLocalFullPath());
+
+		if (LocalFullPath.IsEmpty())
+		{
+			continue;
+		}
+
+		PackageFullpaths.Add(FPaths::ConvertRelativePathToFull(LocalFullPath));
+	}
+
+	return PackageFullpaths;
+}
+
+void FLevelEditorActionCallbacks::ShowActorHistory_Clicked()
+{
+	TArray<FString> PackageFullpaths = GetSelectedActorsPackageFullpath();
+
+	// Sort then remove consecutive identical elements to avoid displaying multiple times the same history.
+	PackageFullpaths.Sort();
+	PackageFullpaths.SetNum(Algo::Unique(PackageFullpaths));
+
+	FSourceControlWindows::DisplayRevisionHistory(PackageFullpaths);
+}
+
+bool FLevelEditorActionCallbacks::ShowActorHistory_CanExecute()
+{
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+
+	if (!SourceControlProvider.IsEnabled())
+	{
+		return false;
+	}
+
+	TArray<FString> PackageFullpaths = GetSelectedActorsPackageFullpath();
+
+	return PackageFullpaths.Num() > 0;
+}
+
 void FLevelEditorActionCallbacks::OnEnableActorSnap()
 {
 	FSnappingUtils::EnableActorSnap( !FSnappingUtils::IsSnapToActorEnabled() );
@@ -3265,7 +3324,8 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND( SnapCameraToObject, "Snap View to Object", "Snaps the view to the selected object", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( SnapObjectToCamera, "Snap Object to View", "Snaps the selected object to the view", EUserInterfaceActionType::Button, FInputChord() );
 
-	UI_COMMAND( CopyActorFilePathtoClipboard, "Copy Actor File Path", "Copy the file path where this actor is saved", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND(CopyActorFilePathtoClipboard, "Copy Actor File Path", "Copy the file path where this actor is saved", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ShowActorHistory, "Show Actor History", "Shows the history of the file containing the actor.", EUserInterfaceActionType::Button, FInputChord());
 
 	UI_COMMAND( GoToCodeForActor, "Go to C++ Code for Actor", "Opens a code editing IDE and navigates to the source file associated with the seleced actor", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( GoToDocsForActor, "Go to Documentation for Actor", "Opens documentation for the Actor in the default web browser", EUserInterfaceActionType::Button, FInputChord() );

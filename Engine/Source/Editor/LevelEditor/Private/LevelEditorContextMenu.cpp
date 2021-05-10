@@ -136,6 +136,20 @@ public:
 	 */
 	static void FillMergeActorsMenu(UToolMenu* Menu);
 
+	/**
+	 * Adds the Source Control SubMenu to the provided Section.
+	 *
+	 * @param Section	The menu to add items to
+	 */
+	static void AddSourceControlMenu(FToolMenuSection& Section);
+
+	/**
+	 * Fills in menu options for the source control menu
+	 *
+	 * @param MenuBuilder	The menu to add items to
+	 */
+	static void FillSourceControlMenu(UToolMenu* Menu);
+
 private:
 	/**
 	 * Fills in menu options for the matinee selection menu
@@ -204,6 +218,8 @@ void FLevelEditorContextMenu::RegisterComponentContextMenu()
 			Section.AddMenuEntry(FLevelEditorCommands::Get().SnapCameraToObject);
 			Section.AddMenuEntry(FLevelEditorCommands::Get().SnapObjectToCamera);
 			Section.AddMenuEntry(FLevelEditorCommands::Get().CopyActorFilePathtoClipboard);
+
+			FLevelEditorContextMenuImpl::AddSourceControlMenu(Section);
 		}
 
 		FComponentEditorUtils::FillComponentContextMenuOptions(InMenu, SelectedComponents);
@@ -290,6 +306,8 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 			Section.AddMenuEntry(FLevelEditorCommands::Get().SnapCameraToObject);
 			Section.AddMenuEntry(FLevelEditorCommands::Get().SnapObjectToCamera);
 			Section.AddMenuEntry(FLevelEditorCommands::Get().CopyActorFilePathtoClipboard);
+			
+			FLevelEditorContextMenuImpl::AddSourceControlMenu(Section);
 
 			if (SelectedActors.Num() == 1)
 			{
@@ -1404,6 +1422,20 @@ void FLevelEditorContextMenuImpl::FillMergeActorsMenu(UToolMenu* Menu)
 		LOCTEXT("OpenMergeActor", "Merge Actors Settings"),
 		LOCTEXT("OpenMergeActor_ToolTip", "Click to open the Merge Actor panel"),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.GameSettings"));
+}
+
+void FLevelEditorContextMenuImpl::AddSourceControlMenu(FToolMenuSection& Section)
+{
+	Section.AddSubMenu(TEXT("SourceControlSubMenu"), LOCTEXT("SourceControlSubMenu", "Source Control"),
+					   LOCTEXT("SourceControlSubMenu_ToolTip", "Opens the Source Control sub menu"),
+					   FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillSourceControlMenu));
+}
+
+void FLevelEditorContextMenuImpl::FillSourceControlMenu(UToolMenu* Menu)
+{
+	FToolMenuSection& Section = Menu->AddSection(TEXT("Source Control"));
+
+	Section.AddMenuEntry(FLevelEditorCommands::Get().ShowActorHistory);
 }
 
 void FLevelScriptEventMenuHelper::FillLevelBlueprintEventsMenu(UToolMenu* Menu, const TArray<AActor*>& SelectedActors)
