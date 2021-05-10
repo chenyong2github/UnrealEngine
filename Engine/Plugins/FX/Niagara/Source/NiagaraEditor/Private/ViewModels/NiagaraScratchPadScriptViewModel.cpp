@@ -179,29 +179,10 @@ void FNiagaraScratchPadScriptViewModel::ApplyChanges()
 	TArray<UNiagaraNodeFunctionCall*> FunctionCallNodesToRefresh;
 	FNiagaraEditorUtilities::GetReferencingFunctionCallNodes(OriginalScript, FunctionCallNodesToRefresh);
 
-	TArray<UNiagaraStackFunctionInputCollection*> InputCollectionsToRefresh;
-	if (FunctionCallNodesToRefresh.Num())
-	{
-		for (TObjectIterator<UNiagaraStackFunctionInputCollection> It; It; ++It)
-		{
-			UNiagaraStackFunctionInputCollection* StackFunctionInputCollection = *It;
-			if (StackFunctionInputCollection->IsFinalized() == false && FunctionCallNodesToRefresh.Contains(StackFunctionInputCollection->GetInputFunctionCallNode()))
-			{
-				InputCollectionsToRefresh.Add(StackFunctionInputCollection);
-			}
-		}
-	}
-
 	for (UNiagaraNodeFunctionCall* FunctionCallNodeToRefresh : FunctionCallNodesToRefresh)
 	{
 		FunctionCallNodeToRefresh->RefreshFromExternalChanges();
 		FunctionCallNodeToRefresh->MarkNodeRequiresSynchronization(TEXT("ScratchPadChangesApplied"), true);
-	}
-
-	for (UNiagaraStackFunctionInputCollection* InputCollectionToRefresh : InputCollectionsToRefresh)
-	{
-		InputCollectionToRefresh->RefreshChildren();
-		InputCollectionToRefresh->ApplyModuleChanges();
 	}
 
 	OnChangesAppliedDelegate.Broadcast();

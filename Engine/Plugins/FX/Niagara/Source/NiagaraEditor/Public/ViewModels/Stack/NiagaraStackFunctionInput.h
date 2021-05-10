@@ -22,6 +22,7 @@ enum class EStackParameterBehavior;
 class UNiagaraClipboardFunctionInput;
 class UNiagaraClipboardFunction;
 class UNiagaraScriptVariable;
+class FNiagaraPlaceholderDataInterfaceHandle;
 
 /** Represents a single module input in the module stack view model. */
 UCLASS()
@@ -174,9 +175,6 @@ public:
 
 	/** Resets the value and handle of this input to the value and handle defined in the module. */
 	void Reset();
-
-	/** Checks if any data needs a fixup after the module definition changed. */
-	void ApplyModuleChanges();
 
 	/** Determine if this field is editable */
 	bool IsEditable() const;
@@ -349,8 +347,6 @@ private:
 
 	TArray<UNiagaraStackFunctionInput*> GetChildInputs() const;
 
-	void ResetDataInterfaceOverride();
-
 private:
 	/** The module function call which owns this input entry. NOTE: This input might not be an input to the module function
 		call, it may be an input to a dynamic input function call which is owned by the module. */
@@ -401,6 +397,8 @@ private:
 
 	/** Pointers and handles to the various values this input can have. */
 	FInputValues InputValues;
+
+	TSharedPtr<FNiagaraPlaceholderDataInterfaceHandle> PlaceholderDataInterfaceHandle;
 
 	/** A cached pointer to the override node for this input if it exists.  This value is cached here since the
 	  * UI reads this value every frame due to attribute updates. */

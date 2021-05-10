@@ -46,6 +46,7 @@ class UNiagaraEditorParametersAdapter;
 
 class INiagaraParameterDefinitionsSubscriber;
 
+class FNiagaraPlaceholderDataInterfaceManager;
 
 /** Defines different editing modes for this system view model. */
 enum class NIAGARAEDITOR_API ENiagaraSystemViewModelEditMode
@@ -368,6 +369,9 @@ public:
 
 	FOnExternalRenameParameter& OnParameterRenamedExternally() { return OnExternalRenameDelegate; }
 	FOnExternalRemoveParameter& OnParameterRemovedExternally() { return OnExternalRemoveDelegate; }
+
+	TSharedRef<FNiagaraPlaceholderDataInterfaceManager> GetPlaceholderDataInterfaceManager();
+
 private:
 	/** Sends message jobs to FNiagaraMessageManager for all compile events from the last compile. */
 	void SendLastCompileMessageJobs() const;
@@ -626,6 +630,8 @@ private:
 	UNiagaraScratchPadViewModel* ScriptScratchPadViewModel;
 
 	UNiagaraCurveSelectionViewModel* CurveSelectionViewModel;
+
+	TSharedPtr<FNiagaraPlaceholderDataInterfaceManager> PlaceholderDataInterfaceManager;
 
 	TArray<UNiagaraScript*> ScriptsToCheckForStatus;
 	TArray<ENiagaraScriptCompileStatus> ScriptCompileStatuses;
