@@ -117,7 +117,7 @@ void FAnimNode_BlendSpacePlayer::UpdateInternal(const FAnimationUpdateContext& C
 
 void FAnimNode_BlendSpacePlayer::Evaluate_AnyThread(FPoseContext& Output)
 {
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread) 
 
 	UBlendSpace* CurrentBlendSpace = GetBlendSpace();
 	if ((CurrentBlendSpace != nullptr) && (Output.AnimInstanceProxy->IsSkeletonCompatible(CurrentBlendSpace->GetSkeleton())))
@@ -244,7 +244,7 @@ FName FAnimNode_BlendSpacePlayer::GetGroupName() const
 
 EAnimGroupRole::Type FAnimNode_BlendSpacePlayer::GetGroupRole() const
 {
-	return GET_ANIM_NODE_DATA(EAnimGroupRole::Type, GroupRole);
+	return GET_ANIM_NODE_DATA(TEnumAsByte<EAnimGroupRole::Type>, GroupRole);
 }
 
 EAnimSyncMethod FAnimNode_BlendSpacePlayer::GetGroupMethod() const

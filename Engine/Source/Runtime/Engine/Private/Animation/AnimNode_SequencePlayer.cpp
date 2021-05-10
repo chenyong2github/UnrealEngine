@@ -179,13 +179,13 @@ void FAnimNode_SequencePlayer::SetSequence(UAnimSequenceBase* InSequence)
 void FAnimNode_SequencePlayer::SetLoopAnimation(bool bInLoopAnimation)
 {
 #if WITH_EDITORONLY_DATA
-	bLoopAnimation = bInLoopAnimation;
+	bLoopAnimation = bInLoopAnimation; 
 #endif
 }
 
 UAnimSequenceBase* FAnimNode_SequencePlayer::GetSequence() const
 {
-	return GET_ANIM_NODE_DATA(UAnimSequenceBase*, Sequence);
+	return GET_ANIM_NODE_DATA(TObjectPtr<UAnimSequenceBase>, Sequence);
 }
 
 float FAnimNode_SequencePlayer::GetPlayRateBasis() const

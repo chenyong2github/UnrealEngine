@@ -953,6 +953,12 @@ private:
 	const FAnimNodeData* NodeData = nullptr;
 };
 
+#if WITH_EDITORONLY_DATA
+#define VERIFY_ANIM_NODE_MEMBER_TYPE(Type, Identifier) static_assert(TIsSame<decltype(Identifier), Type>::Value, "Incorrect return type used");
+#else
+#define VERIFY_ANIM_NODE_MEMBER_TYPE(Type, Identifier)
+#endif
+
 // Get some (potentially folded) anim node data. Only usable from within an anim node.
 // This caches the node data ID in static contained in a local lambda for improved performance
 #define GET_ANIM_NODE_DATA(Type, Identifier) \
@@ -960,6 +966,7 @@ private:
 		GetData<Type>( \
 			[this]() -> UE::Anim::FNodeDataId \
 			{ \
+				VERIFY_ANIM_NODE_MEMBER_TYPE(Type, Identifier) \
 				static UE::Anim::FNodeDataId CachedId_##Identifier; \
 				if(!CachedId_##Identifier.IsValid()) \
 				{ \
@@ -977,6 +984,7 @@ private:
 		GetMutableData<Type>( \
 			[this]() -> UE::Anim::FNodeDataId \
 			{ \
+				VERIFY_ANIM_NODE_MEMBER_TYPE(Type, Identifier) \
 				static UE::Anim::FNodeDataId CachedId_##Identifier; \
 				if(!CachedId_##Identifier.IsValid()) \
 				{ \

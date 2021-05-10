@@ -109,7 +109,7 @@ void FAnimNode_SequenceEvaluatorBase::GatherDebugData(FNodeDebugData& DebugData)
 	DebugData.AddDebugItem(DebugLine, true);
 }
 
-float FAnimNode_SequenceEvaluatorBase::GetEffectiveDeltaTime(float ExplicitTime, float PrevExplicitTime) const
+float FAnimNode_SequenceEvaluatorBase::GetEffectiveDeltaTime(float ExplicitTime, float PrevExplicitTime) const 
 {
 	float DeltaTime = ExplicitTime - PrevExplicitTime;
 
@@ -176,7 +176,7 @@ FName FAnimNode_SequenceEvaluator::GetGroupName() const
 
 EAnimGroupRole::Type FAnimNode_SequenceEvaluator::GetGroupRole() const
 {
-	return GET_ANIM_NODE_DATA(EAnimGroupRole::Type, GroupRole);
+	return GET_ANIM_NODE_DATA(TEnumAsByte<EAnimGroupRole::Type>, GroupRole);
 }
 
 EAnimSyncMethod FAnimNode_SequenceEvaluator::GetGroupMethod() const
