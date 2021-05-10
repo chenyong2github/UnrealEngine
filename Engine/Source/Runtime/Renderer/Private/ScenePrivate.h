@@ -2676,8 +2676,10 @@ public:
 	/** True if a change to the scene that requires to invalidate the path tracer buffers has happened. */
 	bool bPathTracingNeedsInvalidation;
 
+#if RHI_RAYTRACING
 	/** What mode where the cached RT commands prepared for last? */
 	ERayTracingMeshCommandsMode CachedRayTracingMeshCommandsMode;
+#endif
 
 	/** The scene's sky light, if any. */
 	FSkyLightSceneProxy* SkyLight;

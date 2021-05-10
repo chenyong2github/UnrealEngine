@@ -1397,7 +1397,9 @@ void FPrimitiveSceneInfo::UpdateStaticMeshes(FRHICommandListImmediate& RHICmdLis
 
 		SceneInfo->RemoveCachedMeshDrawCommands();
 		SceneInfo->RemoveCachedNaniteDrawCommands();
+	#if RHI_RAYTRACING
 		SceneInfo->RemoveCachedRayTracingPrimitives();
+	#endif
 	}
 
 	if (bReAddToDrawLists)
