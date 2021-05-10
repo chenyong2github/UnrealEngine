@@ -422,8 +422,36 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 	TextureData.Init(Texture, BuildSettingsPerLayer.GetData(), bAllowAsyncLoading);
 	if (Texture.CompositeTexture && Texture.CompositeTextureMode != CTM_Disabled)
 	{
-		const FIntPoint CompositeSourceSize = Texture.CompositeTexture->Source.GetLogicalSize();
-		if (FMath::IsPowerOfTwo(CompositeSourceSize.X) && FMath::IsPowerOfTwo(CompositeSourceSize.Y))
+		bool bCompositeTextureMatching = Texture.CompositeTexture->Source.GetNumBlocks() == Texture.Source.GetNumBlocks();
+		bool bOnlyPowerOfTwoSize = true;
+		if (bCompositeTextureMatching)
+		{
+			for (int32 BlockIdx = 0; BlockIdx < Texture.Source.GetNumBlocks(); ++BlockIdx)
+			{
+				FTextureSourceBlock TextureBlock;
+				Texture.Source.GetBlock(BlockIdx, TextureBlock);
+				FTextureSourceBlock CompositeTextureBlock;
+				Texture.CompositeTexture->Source.GetBlock(BlockIdx, CompositeTextureBlock);
+
+				bCompositeTextureMatching = bCompositeTextureMatching
+					&& TextureBlock.BlockX == CompositeTextureBlock.BlockX
+					&& TextureBlock.BlockY == CompositeTextureBlock.BlockY
+					&& TextureBlock.SizeX == CompositeTextureBlock.SizeX
+					&& TextureBlock.SizeY == CompositeTextureBlock.SizeY;
+
+				bOnlyPowerOfTwoSize = bOnlyPowerOfTwoSize && FMath::IsPowerOfTwo(TextureBlock.SizeX) && FMath::IsPowerOfTwo(TextureBlock.SizeY);
+			}
+		}
+		if (!bOnlyPowerOfTwoSize)
+		{
+			UE_LOG(LogTexture, Warning, TEXT("Issue while building %s : Some blocks (UDIMs) have a non power of two size. Composite texture will be ignored"), *Texture.GetPathName());
+		}
+		else if (!bCompositeTextureMatching)
+		{
+			UE_LOG(LogTexture, Warning, TEXT("Issue while building %s : Composite texture resolution/UDIMs do not match. Composite texture will be ignored"), *Texture.GetPathName());
+		}
+
+		if (bCompositeTextureMatching && bOnlyPowerOfTwoSize)
 		{
 			CompositeTextureData.Init(*Texture.CompositeTexture, BuildSettingsPerLayer.GetData(), bAllowAsyncLoading);
 		}
