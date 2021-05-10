@@ -72,7 +72,7 @@ struct FPreAnimatedStorageIndex
 
 	friend uint32 GetTypeHash(const FPreAnimatedStorageIndex& InIndex)
 	{
-		return GetTypeHash(InIndex.Value);
+		return ::GetTypeHash(InIndex.Value);
 	}
 	friend bool operator==(const FPreAnimatedStorageIndex& A, const FPreAnimatedStorageIndex& B)
 	{
@@ -116,7 +116,7 @@ struct FPreAnimatedStorageGroupHandle
 
 	friend uint32 GetTypeHash(const FPreAnimatedStorageGroupHandle& InHandle)
 	{
-		return GetTypeHash(InHandle.Value);
+		return ::GetTypeHash(InHandle.Value);
 	}
 	friend bool operator==(const FPreAnimatedStorageGroupHandle& A, const FPreAnimatedStorageGroupHandle& B)
 	{
