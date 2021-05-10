@@ -1,0 +1,33 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+NiagaraDataInterfacePhysicsField.ush 
+=============================================================================*/
+
+#pragma once
+
+/* -----------------------------------------------------------------
+ * Rendering code for simulation stages
+ * -----------------------------------------------------------------
+ */
+
+
+#define MARCH_SINGLE_RAY(RayStart, RayDir, UnitStepSize, LocalStepSize, NumSteps, Volume, RetV) \
+RetV = float4(0,0,0,0); \
+float Transmittance = 1; \
+int Steps = ceil(NumSteps); \
+if(Steps >= 1.0 ) Steps += 1.0; \
+[loop] \
+for (int i = 0; i < Steps && Transmittance > 1e-5; i++) \
+{ \
+float Extinction; \
+float Scattering; \
+float3 Luminance; \
+Volume.ComputeStep(RayStart, RayDir, Extinction, Scattering, Luminance); \
+float StepTransmittance = exp(-Extinction * LocalStepSize); \
+Transmittance *= StepTransmittance; \
+RetV.rgb += Luminance * Transmittance * Scattering * LocalStepSize; \
+if(i == Steps-2) UnitStepSize, LocalStepSize *= frac(NumSteps); \
+RayStart += RayDir * UnitStepSize; \
+} \
+RetV.a = 1. - Transmittance; \

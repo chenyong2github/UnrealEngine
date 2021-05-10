@@ -14,9 +14,16 @@
 	"IsBetaVersion": false,
 	"IsExperimentalVersion": true,
 	"Installed": false,
-    "Plugins": [
+	"Modules": [
+		{
+			"Name": "NiagaraSimulationStages",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],    
+	"Plugins": [
         {
-            "Name": "Niagara",
+            "Name": "Niagara",			
             "Enabled": true
         }
 	]
