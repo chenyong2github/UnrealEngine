@@ -131,7 +131,7 @@ void FSequencerTrailHierarchy::Destroy()
 	for (const TPair<UMovieSceneSection*, FControlRigDelegateHandles>& SectionHandlesPair : ControlRigDelegateHandles)
 	{
 		UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(SectionHandlesPair.Key);
-		FRigHierarchyContainer* RigHierarchy = Section->ControlRig->GetHierarchy();
+		FRigHierarchyContainer* RigHierarchy = Section->GetControlRig()->GetHierarchy();
 		RigHierarchy->OnElementAdded.Remove(SectionHandlesPair.Value.OnControlAddedHandle);
 		RigHierarchy->OnElementRemoved.Remove(SectionHandlesPair.Value.OnControlRemovedHandle);
 		RigHierarchy->OnElementReparented.Remove(SectionHandlesPair.Value.OnControlReparentedHandle);
@@ -687,7 +687,7 @@ void FSequencerTrailHierarchy::AddControlsToHierarchy(class USkeletalMeshCompone
 	UMovieSceneControlRigParameterSection* CRParamSection = Cast<UMovieSceneControlRigParameterSection>(Sections[0]);
 	check(CRParamSection);
 
-	FRigHierarchyContainer* RigHierarchy = CRParamSection->ControlRig->GetHierarchy();
+	FRigHierarchyContainer* RigHierarchy = CRParamSection->GetControlRig()->GetHierarchy();
 	if (!ControlRigDelegateHandles.Contains(CRParamSection))
 	{
 		RegisterControlRigDelegates(CompToAdd, CRParamSection);
@@ -696,7 +696,7 @@ void FSequencerTrailHierarchy::AddControlsToHierarchy(class USkeletalMeshCompone
 	CRParamSection->ReconstructChannelProxy(true);
 
 	TArray<FRigControl> SortedControls;
-	CRParamSection->ControlRig->GetControlsInOrder(SortedControls);
+	CRParamSection->GetControlRig()->GetControlsInOrder(SortedControls);
 	for (const TPair<FName, FChannelMapInfo>& NameInfoPair : CRParamSection->ControlChannelMap)
 	{
 		const FRigControl& Control = SortedControls[NameInfoPair.Value.ControlIndex];
@@ -724,7 +724,7 @@ void FSequencerTrailHierarchy::AddControlsToHierarchy(class USkeletalMeshCompone
 
 void FSequencerTrailHierarchy::RegisterControlRigDelegates(USkeletalMeshComponent* Component, class UMovieSceneControlRigParameterSection* CRParamSection)
 {
-	FRigHierarchyContainer* RigHierarchy = CRParamSection->ControlRig->GetHierarchy();
+	FRigHierarchyContainer* RigHierarchy = CRParamSection->GetControlRig()->GetHierarchy();
 	FControlRigDelegateHandles& DelegateHandles = ControlRigDelegateHandles.Add(CRParamSection);
 	DelegateHandles.OnControlAddedHandle = RigHierarchy->OnElementAdded.AddLambda(
 		[this, RigHierarchy, Component, CRParamSection](FRigHierarchyContainer*, const FRigElementKey& NewElemKey) {

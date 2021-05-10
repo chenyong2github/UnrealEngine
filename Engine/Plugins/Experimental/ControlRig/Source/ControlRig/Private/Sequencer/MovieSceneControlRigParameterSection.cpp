@@ -765,7 +765,7 @@ void UMovieSceneControlRigParameterSection::PostEditImport()
 	Super::PostEditImport();
 	if (UMovieSceneControlRigParameterTrack* Track = Cast< UMovieSceneControlRigParameterTrack>(GetOuter()))
 	{
-		ControlRig = Track->GetControlRig();
+		SetControlRig(Track->GetControlRig());
 	}
 	ReconstructChannelProxy(true);
 }
@@ -1690,7 +1690,7 @@ float UMovieSceneControlRigParameterSection::GetTotalWeightValue(FFrameTime InTi
 
 void UMovieSceneControlRigParameterSection::RecreateWithThisControlRig(UControlRig* InControlRig, bool bSetDefault)
 {
-	ControlRig = InControlRig;
+	SetControlRig(InControlRig);
 	/* Don't delete old tracks but eventually show that they aren't associated.. but
 	then how to delete?
 	BoolParameterNamesAndCurves.Empty();
@@ -1823,6 +1823,12 @@ void UMovieSceneControlRigParameterSection::RecreateWithThisControlRig(UControlR
 		}
 	}
 	ReconstructChannelProxy(true);
+}
+
+void UMovieSceneControlRigParameterSection::SetControlRig(UControlRig* InControlRig)
+{
+	ControlRig = InControlRig;
+	ControlRigClass = ControlRig->GetClass();
 }
 
 #if WITH_EDITOR

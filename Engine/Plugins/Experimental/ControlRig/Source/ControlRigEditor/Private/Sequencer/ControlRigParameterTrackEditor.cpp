@@ -1373,7 +1373,7 @@ void FControlRigParameterTrackEditor::OnAddTransformKeysForSelectedObjects(EMovi
 void FControlRigParameterTrackEditor::OnChannelChanged(const FMovieSceneChannelMetaData* MetaData, UMovieSceneSection* InSection)
 {
 	UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(InSection);
-	if (Section && Section->ControlRig && MetaData)
+	if (Section && Section->GetControlRig() && MetaData)
 	{
 		Section->ControlsToSet.Empty();
 		TArray<FString> StringArray;
@@ -1383,9 +1383,9 @@ void FControlRigParameterTrackEditor::OnChannelChanged(const FMovieSceneChannelM
 		{
 			FName ControlName(*StringArray[0]);
 			Section->ControlsToSet.Add(ControlName);
-			FControlRigInteractionScope InteractionScope(Section->ControlRig);
+			FControlRigInteractionScope InteractionScope(Section->GetControlRig());
 			GetSequencer()->ForceEvaluate(); //now run sequencer...
-			Section->ControlRig->Evaluate_AnyThread();
+			Section->GetControlRig()->Evaluate_AnyThread();
 			Section->ControlsToSet.Empty();
 		}
 	}
@@ -1515,7 +1515,7 @@ void FControlRigParameterTrackEditor::OnCurveDisplayChanged(FCurveModel* CurveMo
 		UMovieSceneControlRigParameterSection* MovieSection = Cast<UMovieSceneControlRigParameterSection>(CurveModel->GetOwningObject());
 		if (MovieSection)
 		{
-			ControlRig = MovieSection->ControlRig;
+			ControlRig = MovieSection->GetControlRig();
 			//Only create the edit mode if we have a  curve selected and it's not set and we have some boundobjects.
 			if (!ControlRigEditMode)
 			{
@@ -1721,7 +1721,7 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 		UMovieSceneControlRigParameterSection* MovieSection = Cast<UMovieSceneControlRigParameterSection>(KeyArea->GetOwningSection());
 		if (MovieSection)
 		{
-			ControlRig = MovieSection->ControlRig;
+			ControlRig = MovieSection->GetControlRig();
 			//Only create the edit mode if we have a KeyAra selected and it's not set and we have some boundobjects.
 			if (!ControlRigEditMode)
 			{
@@ -2515,7 +2515,7 @@ void FControlRigParameterTrackEditor::ToggleFKControlRig(UMovieSceneControlRigPa
 			{
 				Section->Modify();
 				CRSection->ClearAllParameters();
-				CRSection->RecreateWithThisControlRig(CRSection->ControlRig, true);
+				CRSection->RecreateWithThisControlRig(CRSection->GetControlRig(), true);
 			}
 		}
 	}
@@ -2832,7 +2832,7 @@ void FControlRigParameterSection::BuildSectionContextMenu(FMenuBuilder& MenuBuil
 	UMovieSceneControlRigParameterSection* ParameterSection = CastChecked<UMovieSceneControlRigParameterSection>(WeakSection.Get());
 	TSharedPtr<ISequencer> SequencerPtr = WeakSequencer.Pin();
 
-	UControlRig* ControlRig = ParameterSection->ControlRig;
+	UControlRig* ControlRig = ParameterSection->GetControlRig();
 
 	if (ControlRig)
 	{
