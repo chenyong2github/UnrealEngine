@@ -154,7 +154,7 @@ class FGameFeaturesEditorModule : public FDefaultModuleImpl
 	virtual void ShutdownModule() override
 	{
 		// Remove the customization
-		if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
+		if (UObjectInitialized() && FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
 		{
 			FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 			PropertyModule.UnregisterCustomClassLayout(UGameFeatureData::StaticClass()->GetFName());

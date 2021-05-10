@@ -63,8 +63,11 @@ void FLevelSnapshotsEditorModule::ShutdownModule()
 
 	FLevelSnapshotsEditorStyle::Shutdown();
 
-	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyModule.UnregisterCustomClassLayout(UNegatableFilter::StaticClass()->GetFName());
+	if (UObjectInitialized())
+	{
+		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyModule.UnregisterCustomClassLayout(UNegatableFilter::StaticClass()->GetFName());
+	}
 	
 	FLevelSnapshotsEditorCommands::Unregister();
 
