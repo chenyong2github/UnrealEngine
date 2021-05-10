@@ -39,7 +39,8 @@ bool FTidPacketTransport::ReadPacket()
 	FTransport::Advance(PacketBase->PacketSize);
 
 	uint32 ThreadId = PacketBase->ThreadId & FTidPacketBase::ThreadIdMask;
-	FThreadStream* Thread = FindOrAddThread(ThreadId, true);
+	bool bIsPartial = !!(PacketBase->ThreadId & FTidPacketBase::PartialMarker);
+	FThreadStream* Thread = FindOrAddThread(ThreadId, !bIsPartial);
 	if (Thread == nullptr)
 	{
 		return true;
