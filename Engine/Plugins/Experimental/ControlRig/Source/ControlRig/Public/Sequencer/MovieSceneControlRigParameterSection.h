@@ -178,18 +178,6 @@ public:
 	UPROPERTY()
 	FMovieSceneTransformMask TransformMask;
 
-	/** Blend this track in additively (using the reference pose as a base) */
-	UPROPERTY(EditAnywhere, Category = "Animation")
-	bool bAdditive;
-
-	/** Only apply bones that are in the filter */
-	UPROPERTY(EditAnywhere, Category = "Animation")
-	bool bApplyBoneFilter;
-
-	/** Per-bone filter to apply to our animation */
-	UPROPERTY(EditAnywhere, Category = "Animation", meta=(EditCondition=bApplyBoneFilter))
-	FInputBlendPose BoneFilter;
-
 	/** The weight curve for this animation controller section */
 	UPROPERTY()
 	FMovieSceneFloatChannel Weight;
