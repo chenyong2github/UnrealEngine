@@ -158,7 +158,7 @@ namespace UnrealBuildTool.Rules
 				{
 					// The multiple nested folders make sure that the USD plugin plugInfo.json files can reference their library dlls in the engine folder or in the packaged game folder with the same relative path
 					RuntimeDependencies.Add(
-						Path.Combine("$(ProjectDir)", "Resources", "RequiredNestedFolder", "RequiredNestedFolder", "RequiredNestedFolder", "UsdResources", Target.Platform.ToString()),
+						Path.Combine("$(ProjectDir)", "Resources", "F", "F", "F", "UsdResources", Target.Platform.ToString()),
 						Path.Combine("$(PluginDir)", "Resources", "UsdResources", Target.Platform.ToString(), "...") // Moves everything that's inside the Windows folder
 					);
 				}
