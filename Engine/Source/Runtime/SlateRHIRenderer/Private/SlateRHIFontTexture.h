@@ -63,7 +63,7 @@ public:
 	/**
 	 * FSlateFontAtlas interface 
 	 */
-	virtual class FSlateShaderResource* GetSlateTexture() override { return FontTexture.Get(); }
+	virtual class FSlateShaderResource* GetSlateTexture() const override { return FontTexture.Get(); }
 	virtual class FTextureResource* GetEngineTexture() override { return FontTexture.Get(); }
 	virtual void ConditionalUpdateTexture()  override;
 	virtual void ReleaseResources() override;
@@ -83,10 +83,15 @@ public:
 	/**
 	 * ISlateFontTexture interface 
 	 */
-	virtual class FSlateShaderResource* GetSlateTexture() override { return FontTexture.Get(); }
+	virtual class FSlateShaderResource* GetSlateTexture() const override { return FontTexture.Get(); }
 	virtual class FTextureResource* GetEngineTexture() override { return FontTexture.Get(); }
 	virtual bool IsGrayscale() const override { return FontTexture->IsGrayscale(); }
-	virtual void ReleaseResources() override;
+	virtual void ReleaseRenderingResources() override
+	{
+		ReleaseResources();
+	}
+
+	void ReleaseResources();
 private:
 	void UpdateTextureFromSource(const uint32 SourceWidth, const uint32 SourceHeight, const TArray<uint8>& SourceData);
 private:

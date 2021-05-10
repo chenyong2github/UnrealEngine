@@ -7,6 +7,4 @@
 class IEditorStyleModule : public IModuleInterface
 {
 public:
-
-	virtual TSharedRef< class FSlateStyleSet > CreateEditorStyleInstance() const = 0;
 };

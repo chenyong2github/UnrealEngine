@@ -9,7 +9,7 @@ const FSlateFontInfo FStyleDefaults::GetFontInfo(uint16 Size)
 }
 
 float FStyleDefaults::DefaultFloat = 0.0f;
-FVector2D FStyleDefaults::DefaultFVector2D = FVector2D( 66.0f, 66.0f );
+FVector2D FStyleDefaults::DefaultFVector2D = FVector2D( 0, 0 );
 FLinearColor FStyleDefaults::DefaultColor = FLinearColor( 1, 1, 1 );
 FMargin FStyleDefaults::DefaultMargin = 0.0f;
 FSlateSound FStyleDefaults::DefaultSound;

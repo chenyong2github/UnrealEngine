@@ -6,9 +6,10 @@
 #include "IWebBrowserWindow.h"
 #include "IWebBrowserPopupFeatures.h"
 #include "IWebBrowserDialog.h"
-#include "Framework/Application/SWindowTitleBar.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Misc/ScopeLock.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBorder.h"
 
 class SLoginFlowImpl 
 	: public SLoginFlow
@@ -364,13 +365,13 @@ private:
 						.HAlign(HAlign_Fill)
 						.Padding(0)
 						[
-						SAssignNew(BrowserWidget, SWebBrowser, NewBrowserWindowSP)
-						.ShowControls(PopupFeaturesSP->IsToolBarVisible())
-						.ShowAddressBar(PopupFeaturesSP->IsLocationBarVisible())
-						.OnCreateWindow(this, &SLoginFlowImpl::HandleBrowserCreateWindow)
-						.OnCloseWindow(this, &SLoginFlowImpl::HandleBrowserCloseWindow)
-						.OnShowDialog(this, &SLoginFlowImpl::HandleShowDialog)
-					]);
+							SAssignNew(BrowserWidget, SWebBrowser, NewBrowserWindowSP)
+							.ShowControls(PopupFeaturesSP->IsToolBarVisible())
+							.ShowAddressBar(PopupFeaturesSP->IsLocationBarVisible())
+							.OnCreateWindow(this, &SLoginFlowImpl::HandleBrowserCreateWindow)
+							.OnCloseWindow(this, &SLoginFlowImpl::HandleBrowserCloseWindow)
+							.OnShowDialog(this, &SLoginFlowImpl::HandleShowDialog)
+						]);
 
 				// Setup some OnClose stuff.
 			{

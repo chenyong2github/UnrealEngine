@@ -9,7 +9,7 @@
 #include "Input/Reply.h"
 #include "Widgets/SWidget.h"
 #include "Styling/SlateTypes.h"
-#include "Styling/CoreStyle.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SMenuAnchor.h"
 
@@ -23,15 +23,15 @@ class SLATE_API SComboButton : public SMenuAnchor
 public:
 
 	SLATE_BEGIN_ARGS( SComboButton )
-		: _ComboButtonStyle( &FCoreStyle::Get().GetWidgetStyle< FComboButtonStyle >( "ComboButton" ) )
+		: _ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle< FComboButtonStyle >( "ComboButton" ))
 		, _ButtonStyle(nullptr)
 		, _ButtonContent()
 		, _MenuContent()
 		, _IsFocusable(true)
 		, _HasDownArrow(true)
-		, _ForegroundColor(FCoreStyle::Get().GetSlateColor("InvertedForeground"))
+		, _ForegroundColor(FSlateColor::UseStyle())
 		, _ButtonColorAndOpacity(FLinearColor::White)
-		, _ContentPadding(FMargin(5))
+		, _ContentPadding(_ComboButtonStyle->ContentPadding)
 		, _MenuPlacement(MenuPlacement_ComboBox)
 		, _HAlign(HAlign_Fill)
 		, _VAlign(VAlign_Center)

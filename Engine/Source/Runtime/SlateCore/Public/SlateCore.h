@@ -89,6 +89,7 @@ MONOLITHIC_HEADER_BOILERPLATE()
 // Brushes
 #include "Brushes/SlateBorderBrush.h"
 #include "Brushes/SlateBoxBrush.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "Brushes/SlateColorBrush.h"
 #include "Brushes/SlateDynamicImageBrush.h"
 #include "Brushes/SlateImageBrush.h"

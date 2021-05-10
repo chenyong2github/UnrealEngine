@@ -21,7 +21,7 @@ public:
 	 *
 	 * @param	InHeadingText	Heading text
 	 */
-	FHeadingBlock( const FName& InExtensionHook, const TAttribute< FText >& InHeadingText );
+	FHeadingBlock( const FName& InExtensionHook, const FText& InHeadingText );
 
 
 private:
@@ -36,7 +36,7 @@ private:
 	friend class SHeadingBlock;
 
 	/** Text for this heading */
-	TAttribute< FText > HeadingText;
+	FText HeadingText;
 };
 
 
@@ -68,7 +68,4 @@ public:
 	 * @param	InArgs	The declaration data for this widget
 	 */
 	void Construct( const FArguments& InArgs );
-
-private:
-
 };

@@ -40,7 +40,7 @@ public:
 	 */
 	static const FSlateBrush* FindIconBrushForClass(const UClass* InClass, const FName& InDefaultName = FName())
 	{
-		return FindIconForClass(InClass, InDefaultName).GetOptionalIcon();
+		return FindIconForClass(InClass, InDefaultName).GetIcon();
 	}
 	
 	/**
@@ -53,7 +53,7 @@ public:
 	 */
 	static const FSlateBrush* FindCustomIconBrushForClass(const UClass* InClass, const TCHAR* StyleBasePath, const FName& InDefaultName = FName())
 	{
-		return FindCustomIconForClass(InClass, StyleBasePath, InDefaultName).GetOptionalIcon();
+		return FindCustomIconForClass(InClass, StyleBasePath, InDefaultName).GetIcon();
 	}
 
 	/**

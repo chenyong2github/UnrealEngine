@@ -4,22 +4,39 @@
 
 DECLARE_CYCLE_STAT(TEXT("GetResourceHandle Time"), STAT_SlateGetResourceHandle, STATGROUP_Slate);
 
-FSlateResourceHandle FSlateShaderResourceManager::GetResourceHandle( const FSlateBrush& InBrush )
+FSlateResourceHandle FSlateShaderResourceManager::GetResourceHandle(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale)
 {
 	SCOPE_CYCLE_COUNTER(STAT_SlateGetResourceHandle);
 
-	FSlateShaderResourceProxy* Proxy = GetShaderResource( InBrush );
+	FSlateShaderResourceProxy* Proxy = GetShaderResource(Brush, LocalSize, DrawScale);
 
-	FSlateResourceHandle NewHandle;
-	if( Proxy )
+	const FSlateResourceHandle& ExistingHandle = Brush.ResourceHandle;
+
+	// validates we rasterized the svg at the correct size
+	//check(Brush.GetImageType() != ESlateBrushImageType::Vector || Proxy->ActualSize == (LocalSize * DrawScale).IntPoint());
+
+	if(Proxy != ExistingHandle.GetResourceProxy())
 	{
-		if( !Proxy->HandleData.IsValid() )
+		FSlateResourceHandle NewHandle;
+		if (Proxy)
 		{
-			Proxy->HandleData = MakeShareable( new FSlateSharedHandleData( Proxy ) );
+			if (!Proxy->HandleData.IsValid())
+			{
+				Proxy->HandleData = MakeShareable(new FSlateSharedHandleData(Proxy));
+			}
+
+			NewHandle.Data = Proxy->HandleData;
 		}
 
-		NewHandle.Data = Proxy->HandleData;
+		return NewHandle;
 	}
+	else
+	{
+		return ExistingHandle;
+	}
+}
 
-	return NewHandle;
+FSlateResourceHandle FSlateShaderResourceManager::GetResourceHandle(const FSlateBrush& Brush)
+{
+	return GetResourceHandle(Brush, FVector2D::ZeroVector, 1.0f);
 }
