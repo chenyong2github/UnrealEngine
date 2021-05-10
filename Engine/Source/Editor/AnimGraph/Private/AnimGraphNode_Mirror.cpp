@@ -51,6 +51,16 @@ void UAnimGraphNode_Mirror::GetOutputLinkAttributes(FNodeAttributeArray& OutAttr
 	}
 }
 
+void UAnimGraphNode_Mirror::PreloadRequiredAssets()
+{
+	if (Node.GetMirrorDataTable())
+	{
+		PreloadObject(Node.GetMirrorDataTable());
+		PreloadObject(Node.GetMirrorDataTable()->Skeleton);
+	}
+	Super::PreloadRequiredAssets();
+}
+
 void UAnimGraphNode_Mirror::ValidateAnimNodeDuringCompilation(class USkeleton* ForSkeleton, class FCompilerResultsLog& MessageLog)
 {
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
@@ -61,7 +71,8 @@ void UAnimGraphNode_Mirror::ValidateAnimNodeDuringCompilation(class USkeleton* F
 	}
 	else if (ForSkeleton)
 	{
-		if (!ForSkeleton->IsCompatible(Node.GetMirrorDataTable()->Skeleton))
+		const USkeleton* MirrorTableSkeleton = Node.GetMirrorDataTable()->Skeleton;
+		if (!ForSkeleton->IsCompatible(MirrorTableSkeleton))
 		{
 			MessageLog.Error(TEXT("@@ has a mirror data table that is not compatible with the current skeleton. Please update the table or create a new table for the skeleton."), this);
 		}
