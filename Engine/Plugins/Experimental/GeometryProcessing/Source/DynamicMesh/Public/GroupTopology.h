@@ -380,6 +380,12 @@ public:
 	FFrame3d GetSelectionFrame(const FGroupTopologySelection& Selection, FFrame3d* InitialLocalFrame = nullptr) const;
 
 	/**
+	 * @return A Bounding Box for the vertices of the current selection, with TransformFunc applied
+	 */
+	FAxisAlignedBox3d GetSelectionBounds(const FGroupTopologySelection& Selection, TFunctionRef<FVector3d(const FVector3d&)> TransformFunc) const;
+
+
+	/**
 	 * Get the set of selected triangles for a given GroupTopologySelection
 	 */
 	void GetSelectedTriangles(const FGroupTopologySelection& Selection, TArray<int32>& Triangles) const;

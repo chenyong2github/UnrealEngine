@@ -739,7 +739,44 @@ FFrame3d FGroupTopology::GetSelectionFrame(const FGroupTopologySelection& Select
 
 
 
+FAxisAlignedBox3d FGroupTopology::GetSelectionBounds(
+	const FGroupTopologySelection& Selection,
+	TFunctionRef<FVector3d(const FVector3d&)> TransformFunc) const
+{
+	if (ensure(!Selection.IsEmpty()) == false)
+	{
+		return Mesh->GetBounds();
+	}
 
+	FAxisAlignedBox3d Bounds = FAxisAlignedBox3d::Empty();
+
+	for (int32 CornerID : Selection.SelectedCornerIDs)
+	{
+		Bounds.Contain(TransformFunc(Mesh->GetVertex(GetCornerVertexID(CornerID))));
+	}
+
+	for (int32 EdgeID : Selection.SelectedEdgeIDs)
+	{
+		const FGroupEdge& Edge = Edges[EdgeID];
+		for (int32 vid : Edge.Span.Vertices)
+		{
+			Bounds.Contain(TransformFunc(Mesh->GetVertex(vid)));
+		}
+	}
+
+	for (int32 GroupID : Selection.SelectedGroupIDs)
+	{
+		for (int32 TriangleID : GetGroupTriangles(GroupID))
+		{
+			FIndex3i TriVerts = Mesh->GetTriangle(TriangleID);
+			Bounds.Contain(TransformFunc(Mesh->GetVertex(TriVerts.A)));
+			Bounds.Contain(TransformFunc(Mesh->GetVertex(TriVerts.B)));
+			Bounds.Contain(TransformFunc(Mesh->GetVertex(TriVerts.C)));
+		}
+	}
+
+	return Bounds;
+}
 
 void FGroupTopology::GetSelectedTriangles(const FGroupTopologySelection& Selection, TArray<int32>& Triangles) const
 {

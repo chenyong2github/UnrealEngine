@@ -83,6 +83,7 @@ class MODELINGCOMPONENTS_API UPolygonSelectionMechanic : public UInteractionMech
 	GENERATED_BODY()
 	using FFrame3d = UE::Geometry::FFrame3d;
 	using FTransform3d = UE::Geometry::FTransform3d;	
+	using FAxisAlignedBox3d = UE::Geometry::FAxisAlignedBox3d;
 public:
 
 	virtual ~UPolygonSelectionMechanic();
@@ -262,6 +263,12 @@ public:
 	 * @param bWorld if true, local-to-world transform of the target MeshComponent is applied to the frame
 	 */
 	FFrame3d GetSelectionFrame(bool bWorld, FFrame3d* InitialLocalFrame = nullptr) const;
+
+	/**
+	 * @return Bounding box for the current selection
+	 * @param bWorld if true, the box is in world space, otherwise it is in local space of the target MeshComponent
+	 */
+	FAxisAlignedBox3d GetSelectionBounds(bool bWorld) const;
 
 	//
 	// Change Tracking

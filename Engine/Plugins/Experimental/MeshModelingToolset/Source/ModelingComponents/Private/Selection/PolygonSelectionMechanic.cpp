@@ -695,6 +695,25 @@ FFrame3d UPolygonSelectionMechanic::GetSelectionFrame(bool bWorld, FFrame3d* Ini
 	return UseFrame;
 }
 
+FAxisAlignedBox3d UPolygonSelectionMechanic::GetSelectionBounds(bool bWorld) const
+{
+	if ( ! PersistentSelection.IsEmpty() )
+	{
+		if (bWorld)
+		{
+			return Topology->GetSelectionBounds(PersistentSelection, [this](const FVector3d& Pos) { return TargetTransform.TransformPosition(Pos); });
+		}
+		else
+		{
+			return Topology->GetSelectionBounds(PersistentSelection, [this](const FVector3d& Pos) { return Pos; });
+		}
+	}
+	else 
+	{
+		return Mesh->GetBounds();
+	}
+}
+
 
 
 void FPolygonSelectionMechanicSelectionChange::Apply(UObject* Object)
