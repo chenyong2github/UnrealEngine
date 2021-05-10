@@ -85,6 +85,26 @@ struct FMovieSceneSequenceCompilerMaskStruct
 	uint8 bEntityComponentField : 1;
 };
 
+/** Flags generated at compile time for a given sequence */
+USTRUCT()
+struct FMovieSceneCompiledSequenceFlagStruct
+{
+	GENERATED_BODY()
+
+	FMovieSceneCompiledSequenceFlagStruct()
+		: bParentSequenceRequiresLowerFence(0)
+		, bParentSequenceRequiresUpperFence(0)
+	{}
+
+	/** True if this sequence should include a fence on the lower bound of any sub sequence's that include it */
+	UPROPERTY()
+	uint8 bParentSequenceRequiresLowerFence : 1;
+
+	/** True if this sequence should include a fence on the upper bound of any sub sequence's that include it */
+	UPROPERTY()
+	uint8 bParentSequenceRequiresUpperFence : 1;
+};
+
 
 /** Used for serialization only */
 UCLASS()
@@ -139,6 +159,9 @@ private:
 	/** 1 Byte */
 	UPROPERTY()
 	EMovieSceneSequenceFlags AccumulatedFlags;
+
+	/** 1 Byte */
+	FMovieSceneCompiledSequenceFlagStruct CompiledFlags;
 };
 
 
@@ -164,7 +187,13 @@ struct FMovieSceneCompiledDataEntry
 	EMovieSceneSequenceFlags AccumulatedFlags;
 
 	/** 1 Byte */
+	EMovieSceneSequenceCompilerMask AllocatedMask;
+
+	/** 1 Byte */
 	EMovieSceneSequenceCompilerMask AccumulatedMask;
+
+	/** 1 Byte */
+	FMovieSceneCompiledSequenceFlagStruct CompiledFlags;
 };
 
 UCLASS()
