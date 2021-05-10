@@ -160,6 +160,13 @@ public:
 		return DetailLevels[0].Events[InIndex]; 
 	}
 
+	virtual void FindNearestEvents(double InTime, const EventType*& OutPrecedingEvent, double& OutPrecedingEventTime, const EventType*& OutFollowingEvent, double& OutFollowingEventTime) const override
+	{
+		// not implemented
+		OutPrecedingEvent =  nullptr;
+		OutFollowingEvent =  nullptr;
+	}
+
 	virtual double GetStartTime() const override
 	{
 		return DetailLevels[0].ScopeEntries.Num() > 0 ? FMath::Abs(DetailLevels[0].ScopeEntries[0].Time) : 0.0;

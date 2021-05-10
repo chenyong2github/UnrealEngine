@@ -28,6 +28,12 @@
 			"Name": "GameplayInsightsEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "RewindDebugger",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
+
 	]
 }

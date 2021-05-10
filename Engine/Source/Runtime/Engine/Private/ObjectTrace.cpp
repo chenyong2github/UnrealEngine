@@ -5,6 +5,7 @@
 #if OBJECT_TRACE_ENABLED
 
 #include "CoreMinimal.h"
+#include "GameFramework/WorldSettings.h"
 #include "Trace/Trace.inl"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
@@ -48,6 +49,14 @@ UE_TRACE_EVENT_BEGIN(Object, World)
 	UE_TRACE_EVENT_FIELD(bool, IsSimulating)
 UE_TRACE_EVENT_END()
 
+UE_TRACE_EVENT_BEGIN(Object, RecordingInfo)
+	UE_TRACE_EVENT_FIELD(uint64, WorldId)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint32, RecordingIndex)
+	UE_TRACE_EVENT_FIELD(uint32, FrameIndex)
+	UE_TRACE_EVENT_FIELD(double, ElapsedTime)
+UE_TRACE_EVENT_END()
+
 // Object annotations used for tracing
 struct FTracedObjectAnnotation
 {
@@ -75,18 +84,31 @@ FUObjectAnnotationSparse<FTracedObjectAnnotation, true> GObjectTraceAnnotations;
 // Handle used to hook to world tick
 static FDelegateHandle WorldTickStartHandle;
 
-void FObjectTrace::Init()
+void TickObjectTraceWorldSubsystem(UWorld* InWorld, ELevelTick InTickType, float InDeltaSeconds)
 {
-	WorldTickStartHandle = FWorldDelegates::OnWorldTickStart.AddLambda([](UWorld* InWorld, ELevelTick InTickType, float InDeltaSeconds)
+	if(InTickType == LEVELTICK_All)
 	{
-		if(InTickType == LEVELTICK_All)
+		if (!InWorld->IsPaused())
 		{
 			if(UObjectTraceWorldSubsystem* Subsystem = UWorld::GetSubsystem<UObjectTraceWorldSubsystem>(InWorld))
 			{
 				Subsystem->FrameIndex++;
+				Subsystem->ElapsedTime += InDeltaSeconds;
+
+				UE_TRACE_LOG(Object, RecordingInfo, ObjectChannel)
+		            << RecordingInfo.WorldId(FObjectTrace::GetObjectId(InWorld))
+					<< RecordingInfo.Cycle(FPlatformTime::Cycles64())
+					<< RecordingInfo.ElapsedTime(Subsystem->ElapsedTime)
+					<< RecordingInfo.FrameIndex(Subsystem->FrameIndex)
+					<< RecordingInfo.RecordingIndex(Subsystem->RecordingIndex); 
 			}
 		}
-	});
+	}
+}
+
+void FObjectTrace::Init()
+{
+	WorldTickStartHandle = FWorldDelegates::OnWorldTickStart.AddStatic(&TickObjectTraceWorldSubsystem);
 }
 
 void FObjectTrace::Destroy()
@@ -129,6 +151,72 @@ uint64 FObjectTrace::GetObjectId(const UObject* InObject)
 	return Id | (OuterId << 32);
 }
 
+void FObjectTrace::ResetWorldElapsedTime(const UWorld* World)
+{
+	if(UObjectTraceWorldSubsystem* WorldSubsystem = UWorld::GetSubsystem<UObjectTraceWorldSubsystem>(World))
+	{
+		WorldSubsystem->ElapsedTime = 0;
+	}
+}
+
+double FObjectTrace::GetWorldElapsedTime(const UWorld* World)
+{
+	if(UObjectTraceWorldSubsystem* WorldSubsystem = UWorld::GetSubsystem<UObjectTraceWorldSubsystem>(World))
+	{
+		return WorldSubsystem->ElapsedTime;
+	}
+	return 0;
+}
+
+double FObjectTrace::GetObjectWorldElapsedTime(const UObject* InObject)
+{
+	if(InObject != nullptr)
+	{
+		if(UWorld* World = InObject->GetWorld())
+		{
+			if(UObjectTraceWorldSubsystem* WorldSubsystem = UWorld::GetSubsystem<UObjectTraceWorldSubsystem>(World))
+			{
+				return WorldSubsystem->ElapsedTime;
+			}
+		}
+	}
+
+	return 0;
+}
+
+void FObjectTrace::SetWorldRecordingIndex(const UWorld* World, uint16 Index)
+{
+	if(UObjectTraceWorldSubsystem* WorldSubsystem = UWorld::GetSubsystem<UObjectTraceWorldSubsystem>(World))
+	{
+		WorldSubsystem->RecordingIndex = Index;
+	}
+}
+
+uint16 FObjectTrace::GetWorldRecordingIndex(const UWorld* World)
+{
+	if(UObjectTraceWorldSubsystem* WorldSubsystem = UWorld::GetSubsystem<UObjectTraceWorldSubsystem>(World))
+	{
+		return WorldSubsystem->RecordingIndex;
+	}
+	return 0;
+}
+
+uint16 FObjectTrace::GetObjectWorldRecordingIndex(const UObject* InObject)
+{
+	if(InObject != nullptr)
+	{
+		if(UWorld* World = InObject->GetWorld())
+		{
+			if(UObjectTraceWorldSubsystem* WorldSubsystem = UWorld::GetSubsystem<UObjectTraceWorldSubsystem>(World))
+			{
+				return WorldSubsystem->RecordingIndex;
+			}
+		}
+	}
+
+	return 0;
+}
+
 uint16 FObjectTrace::GetObjectWorldTickCounter(const UObject* InObject)
 {
 	if(InObject != nullptr)
@@ -152,6 +240,8 @@ void FObjectTrace::OutputClass(const UClass* InClass)
 	{
 		return;
 	}
+
+	OutputClass(InClass->GetSuperClass());
 
 	FTracedObjectAnnotation Annotation = GObjectTraceAnnotations.GetAnnotation(InClass);
 	if(Annotation.bTraced)
@@ -177,6 +267,7 @@ void FObjectTrace::OutputClass(const UClass* InClass)
 		<< Class.Id(GetObjectId(InClass))
 		<< Class.SuperId(GetObjectId(InClass->GetSuperClass()))
 		<< Class.Attachment(StringCopyFunc);
+
 }
 
 void FObjectTrace::OutputObject(const UObject* InObject)
@@ -203,6 +294,8 @@ void FObjectTrace::OutputObject(const UObject* InObject)
 		// Already traced, so skip
 		return;
 	}
+
+	OutputObject(InObject->GetOuter());
 
 	Annotation.bTraced = true;
 	GObjectTraceAnnotations.AddAnnotation(InObject, MoveTemp(Annotation));

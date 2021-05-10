@@ -669,8 +669,18 @@ void FAnimationSharedData::OpenAnimGraphTab(uint64 InAnimInstanceId) const
 				});
 			})
 		);
+		
+		TSharedPtr<SAnimGraphSchematicView> AnimGraphView = SNew(SAnimGraphSchematicView, InAnimInstanceId, TimingViewSession->GetTimeMarker(), *AnalysisSession);
+		TimingViewSession->OnTimeMarkerChanged().AddLambda(
+			[AnimGraphViewWeakPtr = TWeakPtr<SAnimGraphSchematicView>(AnimGraphView)](Insights::ETimeChangedFlags InFlags, double TimeMarker)
+			{
+				if (AnimGraphViewWeakPtr.IsValid())
+				{
+					AnimGraphViewWeakPtr.Pin()->SetTimeMarker(TimeMarker);
+				}
+			});
 
-		Tab->SetContent(SNew(SAnimGraphSchematicView, InAnimInstanceId, *TimingViewSession, *AnalysisSession));
+		Tab->SetContent(AnimGraphView.ToSharedRef());
 		WeakAnimGraphDocumentTabs.Add(Tab);
 
 		const FGameplayProvider* GameplayProvider = AnalysisSession->ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);

@@ -76,6 +76,71 @@ public:
 			}
 		}
 	}
+
+	virtual void FindNearestEvents(double InTime, const EventType*& OutPrecedingEvent, double& OutPrecedingEventTime, const EventType*& OutFollowingEvent, double& OutFollowingEventTime) const override
+	{
+		OutPrecedingEvent =  nullptr;
+		OutFollowingEvent =  nullptr;
+
+		if (Events.Num() == 0)
+		{
+			return;
+		}
+
+		auto EventIterator = Events.GetIteratorFromPage(0);
+		const FEventInternal* Event = EventIterator.GetCurrentItem();
+		const FEventPage* Page = EventIterator.GetCurrentPage();
+
+		while(Event != nullptr && InTime > Page->EndTime)
+		{
+			EventIterator.NextPage();
+			Page = EventIterator.GetCurrentPage();
+			Event = EventIterator.GetCurrentItem();
+		}
+
+		if (Event == nullptr)
+		{
+			// InTime is past the end, so just output the last event and no following event
+			const FEventInternal& LastEvent = Events.Last();
+			OutPrecedingEvent = &LastEvent.Event;
+			OutPrecedingEventTime = LastEvent.StartTime;
+			return;
+		}
+		if (Event->StartTime > InTime)
+		{
+			// first event on page is past our time, so it will be the following event, preceding event is the last event from the previous page
+			OutFollowingEvent = &Event->Event;
+			OutFollowingEventTime = Event->StartTime;
+
+			EventIterator.PrevPage();
+			if (Event == EventIterator.GetCurrentItem())
+			{
+				OutPrecedingEvent = &Event->Event;
+				OutPrecedingEventTime = Event->StartTime;
+			}
+
+			return;
+		}
+
+		// normal case, just find the event before and after InTime on this page
+		while(Event != nullptr)
+		{
+			const FEventInternal* NextEvent = EventIterator.NextItem();
+			if (NextEvent)
+			{
+				if (NextEvent->StartTime > InTime)
+				{
+					OutPrecedingEvent = &Event->Event;
+					OutPrecedingEventTime = Event->StartTime;
+					OutFollowingEvent = &NextEvent->Event;
+					OutFollowingEventTime = Event->StartTime;
+					return;
+				}
+
+			}
+			Event = NextEvent;
+		}
+	}
 	
 	uint64 AppendBeginEvent(double StartTime, const EventType& Event)
 	{

@@ -772,6 +772,22 @@ void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 	}
 }
 
+#if WITH_EDITOR
+void USkeletalMeshComponent::ApplyEditedComponentSpaceTransforms()
+{
+	// Flip buffers once to copy the directly-written component space transforms
+	bNeedToFlipSpaceBaseBuffers = true;
+	bHasValidBoneTransform = false;
+	FlipEditableSpaceBases();
+	bHasValidBoneTransform = true;
+
+	InvalidateCachedBounds();
+	UpdateBounds();
+	MarkRenderTransformDirty();
+	MarkRenderDynamicDataDirty();
+}
+#endif
+
 bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit, bool bInDeferRootNodeInitialization)
 {
 	bool bInitializedMainInstance = false;

@@ -28,6 +28,7 @@ private:
 		RouteId_PropertiesStart,
 		RouteId_PropertiesEnd,
 		RouteId_PropertyValue,
+		RouteId_RecordingInfo,
 	};
 
 	TraceServices::IAnalysisSession& Session;

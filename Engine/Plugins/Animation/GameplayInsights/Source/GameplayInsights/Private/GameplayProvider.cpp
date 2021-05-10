@@ -336,6 +336,42 @@ void FGameplayProvider::AppendWorld(uint64 InObjectId, int32 InPIEInstanceId, ui
 	}
 }
 
+void FGameplayProvider::AppendRecordingInfo(uint64 InWorldId, double InProfileTime, uint32 InRecordingIndex, uint32 InFrameIndex, double InElapsedTime)
+{
+	Session.WriteAccessCheck();
+
+	FRecordingInfoMessage NewRecordingInfo;
+	NewRecordingInfo.WorldId = InWorldId;
+	NewRecordingInfo.ProfileTime = InProfileTime;
+	NewRecordingInfo.RecordingIndex = InRecordingIndex;
+	NewRecordingInfo.FrameIndex = InFrameIndex;
+	NewRecordingInfo.ElapsedTime = InElapsedTime;
+
+	if(TSharedRef<TraceServices::TPointTimeline<FRecordingInfoMessage>>* ExistingRecording = Recordings.Find(InRecordingIndex))
+	{
+		(*ExistingRecording)->AppendEvent(InProfileTime, NewRecordingInfo);
+	}
+	else
+	{
+		TSharedPtr<TraceServices::TPointTimeline<FRecordingInfoMessage>> NewRecording = MakeShared<TraceServices::TPointTimeline<FRecordingInfoMessage>>(Session.GetLinearAllocator());
+		NewRecording->AppendEvent(InProfileTime, NewRecordingInfo);
+		Recordings.Add(InRecordingIndex, NewRecording.ToSharedRef());
+	}
+}
+
+
+const FGameplayProvider::RecordingInfoTimeline* FGameplayProvider::GetRecordingInfo(uint32 RecordingId) const  
+{
+	Session.ReadAccessCheck();
+
+	if(const TSharedRef<TraceServices::TPointTimeline<FRecordingInfoMessage>>* Recording = Recordings.Find(RecordingId))
+	{
+		return &(*Recording).Get();
+	}
+
+	return nullptr;
+}
+
 void FGameplayProvider::AppendClassPropertyStringId(uint32 InStringId, const FStringView& InString)
 {
 	Session.WriteAccessCheck();

@@ -2384,6 +2384,11 @@ public:
 	/** Consume and return pending root motion from our internal anim instances (main, sub and post) */
 	FRootMotionMovementParams ConsumeRootMotion();
 
+#if WITH_EDITOR
+	/** Called after modifying Component Space Transforms externally */
+	void ApplyEditedComponentSpaceTransforms();
+#endif
+
 protected:
 
 	/** Consume and return pending root motion from our internal anim instances (main, sub and post) */

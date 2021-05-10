@@ -35,6 +35,7 @@ public:
 	virtual const FObjectInfo& GetObjectInfo(uint64 InObjectId) const override;
 	virtual FOnObjectEndPlay& OnObjectEndPlay() override { return OnObjectEndPlayDelegate; }
 	virtual const TCHAR* GetPropertyName(uint32 InPropertyStringId) const override;
+	virtual const RecordingInfoTimeline* GetRecordingInfo(uint32 RecordingId) const override; 
 
 	/** Add a class message */
 	void AppendClass(uint64 InClassId, uint64 InSuperId, const TCHAR* InClassName, const TCHAR* InClassPathName);
@@ -47,6 +48,9 @@ public:
 
 	/** Add a world message */
 	void AppendWorld(uint64 InObjectId, int32 InPIEInstanceId, uint8 InType, uint8 InNetMode, bool bInIsSimulating);
+
+	/** Add a recording info message */
+	void AppendRecordingInfo(uint64 InWorldId, double InProfileTime, uint32 InRecordingIndex, uint32 InFrameIndex, double InElapsedTime);
 
 	/** Add a class property string ID message */
 	void AppendClassPropertyStringId(uint32 InStringId, const FStringView& InString);
@@ -118,6 +122,9 @@ private:
 
 	/** Map from string ID to stored string */
 	TMap<uint32, const TCHAR*> PropertyStrings;
+
+	/** Map of RecordingInfo Timelines by RecordingId - Each timeline is a mapping from Gameplay Elapsed time to Profiler Elapsed Time for one recording session */
+	TMap<uint32, TSharedRef<TraceServices::TPointTimeline<FRecordingInfoMessage>>> Recordings;
 
 	/** Whether we have any data */
 	bool bHasAnyData;

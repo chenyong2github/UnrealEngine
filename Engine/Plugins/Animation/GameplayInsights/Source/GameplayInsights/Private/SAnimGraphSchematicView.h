@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IAnimGraphSchematicView.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STreeView.h"
 
@@ -19,17 +20,17 @@ class SComboButton;
 class SSplitter;
 enum class EAnimGraphSchematicFilterState;
 
-class SAnimGraphSchematicView : public SCompoundWidget
+class SAnimGraphSchematicView : public IAnimGraphSchematicView
 {
-public:
 	SLATE_BEGIN_ARGS(SAnimGraphSchematicView) {}
-
 	SLATE_END_ARGS()
+public:
+	void Construct(const FArguments& InArgs, uint64 InAnimInstanceId, double InTimeMarker, const TraceServices::IAnalysisSession& InAnalysisSession);
 
-	void Construct(const FArguments& InArgs, uint64 InAnimInstanceId, Insights::ITimingViewSession& InTimingViewSession, const TraceServices::IAnalysisSession& InAnalysisSession);
-
+	virtual void SetAnimInstanceId(uint64 InAnimInstanceId) override;
 	uint64 GetAnimInstanceId() const { return AnimInstanceId; }
 
+	virtual void SetTimeMarker(double InTimeMarker) override;
 private:
 	// Generate a row widget for an item
 	TSharedRef<ITableRow> HandleGenerateRow(TSharedRef<FAnimGraphSchematicNode> Item, const TSharedRef<STableViewBase>& OwnerTable);
@@ -72,8 +73,6 @@ private:
 
 private:
 	const TraceServices::IAnalysisSession* AnalysisSession;
-
-	Insights::ITimingViewSession* TimingViewSession;
 
 	TSharedPtr<SSearchBox> SearchBox;
 

@@ -17,6 +17,7 @@
 #include "Trace/StoreClient.h"
 #include "Stats/Stats.h"
 #include "ObjectPropertyTrace.h"
+#include "SAnimGraphSchematicView.h"
 
 #if WITH_EDITOR
 #include "IAnimationBlueprintEditorModule.h"
@@ -36,6 +37,11 @@
 #define LOCTEXT_NAMESPACE "GameplayInsightsModule"
 
 const FName GameplayInsightsTabs::DocumentTab("DocumentTab");
+
+TSharedRef<IAnimGraphSchematicView> FGameplayInsightsModule::CreateAnimGraphSchematicView(uint64 InAnimInstanceId, double InTimeMarker, const TraceServices::IAnalysisSession& InAnalysisSession)
+{
+	return SNew(SAnimGraphSchematicView, InAnimInstanceId, InTimeMarker, InAnalysisSession);
+}
 
 void FGameplayInsightsModule::StartupModule()
 {

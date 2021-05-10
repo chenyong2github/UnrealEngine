@@ -50,6 +50,15 @@ struct FObjectEventMessage
 	const TCHAR* Name = nullptr;
 };
 
+struct FRecordingInfoMessage
+{
+	uint64 WorldId;
+	double ProfileTime;
+	double ElapsedTime;
+	uint32 FrameIndex;
+	uint32 RecordingIndex;
+};
+
 
 struct FWorldInfo
 {
@@ -92,6 +101,7 @@ class IGameplayProvider : public TraceServices::IProvider
 public:
 	typedef TraceServices::ITimeline<FObjectEventMessage> ObjectEventsTimeline;
 	typedef TraceServices::ITimeline<FObjectPropertiesMessage> ObjectPropertiesTimeline;
+	typedef TraceServices::ITimeline<FRecordingInfoMessage> RecordingInfoTimeline;
 
 	virtual bool ReadObjectEventsTimeline(uint64 InObjectId, TFunctionRef<void(const ObjectEventsTimeline&)> Callback) const = 0;
 	virtual bool ReadObjectEvent(uint64 InObjectId, uint64 InMessageId, TFunctionRef<void(const FObjectEventMessage&)> Callback) const = 0;
@@ -109,4 +119,6 @@ public:
 	virtual const FObjectInfo& GetObjectInfo(uint64 InObjectId) const = 0;
 	virtual FOnObjectEndPlay& OnObjectEndPlay() = 0;
 	virtual const TCHAR* GetPropertyName(uint32 InPropertyStringId) const = 0;
+	virtual const RecordingInfoTimeline* GetRecordingInfo(uint32 RecordingId) const = 0; 
 };
+

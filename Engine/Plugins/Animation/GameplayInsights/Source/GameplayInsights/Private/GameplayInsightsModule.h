@@ -20,7 +20,7 @@ namespace Trace
 }
 }
 
-class FGameplayInsightsModule : public IModuleInterface
+class FGameplayInsightsModule : public IGameplayInsightsModule
 {
 public:
 	// IModuleInterface interface
@@ -29,6 +29,8 @@ public:
 
 	// Spawn a document tab
 	TSharedRef<SDockTab> SpawnTimingProfilerDocumentTab(const FTabManager::FSearchPreference& InSearchPreference);
+
+	virtual TSharedRef<IAnimGraphSchematicView> CreateAnimGraphSchematicView(uint64 InAnimInstanceId, double InTimeMarker, const TraceServices::IAnalysisSession& InAnalysisSession) override;
 
 protected:
 	void RegisterTimingProfilerLayoutExtensions(FInsightsMajorTabExtender& InOutExtender);

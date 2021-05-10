@@ -4,7 +4,6 @@
 #include "AnimationProvider.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "TraceServices/Model/AnalysisSession.h"
-#include "Insights/ITimingViewSession.h"
 #include "GameplayProvider.h"
 #include "TraceServices/Model/Frames.h"
 #include "Widgets/Layout/SBorder.h"
@@ -444,14 +443,11 @@ class SAnimGraphSchematicNode : public SMultiColumnTableRow<TSharedRef<FAnimGrap
 	TAttribute<FText> FilterText;
 };
 
-void SAnimGraphSchematicView::Construct(const FArguments& InArgs, uint64 InAnimInstanceId, Insights::ITimingViewSession& InTimingViewSession, const TraceServices::IAnalysisSession& InAnalysisSession)
+void SAnimGraphSchematicView::Construct(const FArguments& InArgs, uint64 InAnimInstanceId, double InTimeMarker, const TraceServices::IAnalysisSession& InAnalysisSession)
 {
 	AnimInstanceId = InAnimInstanceId;
-	TimingViewSession = &InTimingViewSession;
+	TimeMarker = InTimeMarker;
 	AnalysisSession = &InAnalysisSession;
-	TimeMarker = InTimingViewSession.GetTimeMarker();
-
-	InTimingViewSession.OnTimeMarkerChanged().AddSP(this, &SAnimGraphSchematicView::HandleTimeMarkerChanged);
 
 	// Create header row and add default columns
 	HeaderRow = SNew(SHeaderRow);
@@ -817,11 +813,22 @@ void SAnimGraphSchematicView::RefreshFilter()
 	TreeView->RequestTreeRefresh();
 }
 
-void SAnimGraphSchematicView::HandleTimeMarkerChanged(Insights::ETimeChangedFlags InFlags, double InTimeMarker)
+void SAnimGraphSchematicView::SetTimeMarker(double InTimeMarker)
 {
-	TimeMarker = InTimeMarker;
+	if (TimeMarker != InTimeMarker)
+	{
+		TimeMarker = InTimeMarker;
+		RefreshNodes();
+	}
+}
 
-	RefreshNodes();
+void SAnimGraphSchematicView::SetAnimInstanceId(uint64 InAnimInstanceId)
+{
+	if (AnimInstanceId != InAnimInstanceId)
+	{
+		AnimInstanceId = InAnimInstanceId;
+		RefreshNodes();
+	}
 }
 
 TSharedRef<SWidget> SAnimGraphSchematicView::HandleGetViewMenuContent()

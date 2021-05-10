@@ -14,6 +14,7 @@ void FGameplayAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 {
 	auto& Builder = Context.InterfaceBuilder;
 
+	Builder.RouteEvent(RouteId_RecordingInfo, "Object", "RecordingInfo");
 	Builder.RouteEvent(RouteId_Class, "Object", "Class");
 	Builder.RouteEvent(RouteId_Object, "Object", "Object");
 	Builder.RouteEvent(RouteId_ObjectEvent, "Object", "ObjectEvent");
@@ -40,6 +41,16 @@ bool FGameplayAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 		uint8 NetMode = EventData.GetValue<uint8>("NetMode");
 		bool bIsSimulating = EventData.GetValue<bool>("IsSimulating");
 		GameplayProvider.AppendWorld(Id, PIEInstanceId, Type, NetMode, bIsSimulating);
+		break;
+	}
+	case RouteId_RecordingInfo:
+	{
+		uint64 WorldId = EventData.GetValue<uint64>("WorldId");
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+		uint32 RecordingIndex = EventData.GetValue<uint32>("RecordingIndex");
+		uint32 FrameIndex = EventData.GetValue<uint32>("FrameIndex");
+		double ElapsedTime = EventData.GetValue<double>("ElapsedTime");
+		GameplayProvider.AppendRecordingInfo(WorldId, Context.EventTime.AsSeconds(Cycle), RecordingIndex, FrameIndex, ElapsedTime);
 		break;
 	}
 	case RouteId_Class:

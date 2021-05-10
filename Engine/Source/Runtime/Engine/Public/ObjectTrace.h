@@ -22,18 +22,23 @@ class UObjectTraceWorldSubsystem : public UWorldSubsystem
 	GENERATED_BODY()
 
 	UObjectTraceWorldSubsystem()
-		: FrameIndex(0)
+		: FrameIndex(0), RecordingIndex(0), ElapsedTime(0.0) 
 	{}
 
 public:
 	// The frame index incremented each tick
 	uint16 FrameIndex;
+	// Trace Recording identifier  (set by RewindDebugger or 0)
+	uint16 RecordingIndex;
+	// Elapsed time since recording started  (or since start of game if RewindDebugger didn't start the trace)
+	double ElapsedTime;
 };
 
 #if OBJECT_TRACE_ENABLED
 
 class UClass;
 class UObject;
+class UWorld;
 
 struct FObjectTrace
 {
@@ -58,8 +63,27 @@ struct FObjectTrace
 	/** Helper function to get an object's world's tick counter */
 	ENGINE_API static uint16 GetObjectWorldTickCounter(const UObject* InObject);
 
+	/** reset the world elapsed time to 0 */
+	ENGINE_API static void ResetWorldElapsedTime(const UWorld* InWorld);
+
+	/** Helper function to get a world's elapsed time */
+	ENGINE_API static double GetWorldElapsedTime(const UWorld* InWorld);
+
+	/** Helper function to get an object's world's elapsed time */
+	ENGINE_API static double GetObjectWorldElapsedTime(const UObject* InObject);
+
+	/** Helper function to set a world's recording index */
+	ENGINE_API static void SetWorldRecordingIndex(const UWorld *World, uint16 Index);
+
+	/** Helper function to get a world's recording index */
+	ENGINE_API static uint16 GetWorldRecordingIndex(const UWorld *InWorld);
+
+	/** Helper function to get an object's world's recording index */
+	ENGINE_API static uint16 GetObjectWorldRecordingIndex(const UObject* InObject);
+
 	/** Helper function to output a world */
 	ENGINE_API static void OutputWorld(const UWorld* InWorld);
+
 };
 
 #define TRACE_CLASS(Class) \
