@@ -7,6 +7,7 @@
 #include "UObject/Object.h"
 #include "UObject/WeakObjectPtr.h"
 
+
 #include "MIDIDeviceController.generated.h"
 
 
@@ -14,7 +15,7 @@ UENUM(BlueprintType)
 enum class EMIDIEventType : uint8
 {
 	/** Unrecognized MIDI event type.  You can look at Raw Event Type to see what it is. */
-	Unknown,
+	Unknown			UMETA(Hidden),
 
 	/** Note is released.  Velocity will contain the key pressure for devices that support that. */
 	NoteOff = 8,
