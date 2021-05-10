@@ -35,7 +35,14 @@ bool FGeomCacheTrackUsdProxy::GetMeshData(int32 SampleIndex, FGeometryCacheMeshD
 
 bool FGeomCacheTrackUsdProxy::IsTopologyCompatible(int32 SampleIndexA, int32 SampleIndexB)
 {
-	// No support for interpolation for now (assume the topology is variable)
+	if (UGeometryCacheTrackUsd* UsdTrack = Cast<UGeometryCacheTrackUsd>(Track))
+	{
+		// The boolean argument is not actually used
+		const int32 NumVerticesA = UsdTrack->GetSampleInfo(SampleIndexA, false).NumVertices;
+		const int32 NumVerticesB = UsdTrack->GetSampleInfo(SampleIndexB, false).NumVertices;
+
+		return NumVerticesA == NumVerticesB;
+	}
 	return false;
 }
 
@@ -53,7 +60,7 @@ void FGeomCacheTrackUsdProxy::FindSampleIndexesFromTime(float Time, bool bLoopin
 		int32 LastFrameIndex = UsdTrack->GetEndFrameIndex();
 		OutFrameIndex = ThisFrameIndex;
 		OutNextFrameIndex = OutFrameIndex + 1;
-		InInterpolationFactor = 0.f;
+		InInterpolationFactor = Time - ThisFrameIndex;
 
 		// If playing backwards the logical order of previous and next is reversed
 		if (bIsPlayingBackwards)
