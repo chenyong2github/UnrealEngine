@@ -43,6 +43,12 @@ static FAutoConsoleCommand CVarDrawRuntimeCellsDetails(
 	TEXT("Toggles debug display of world partition runtime streaming cells."),
 	FConsoleCommandDelegate::CreateLambda([] { GDrawRuntimeCellsDetails = !GDrawRuntimeCellsDetails; }));
 
+static int32 GDrawDataLayers = 0;
+static FAutoConsoleCommand CVarDrawDataLayers(
+	TEXT("wp.Runtime.ToggleDrawDataLayers"),
+	TEXT("Toggles debug display of active data layers."),
+	FConsoleCommandDelegate::CreateLambda([] { GDrawDataLayers = !GDrawDataLayers; }));
+
 UWorldPartitionSubsystem::UWorldPartitionSubsystem()
 {}
 
@@ -253,7 +259,7 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 		}
 	}
 
-	if (GDrawStreamingSources)
+	if (GDrawStreamingSources || GDrawRuntimeHash2D)
 	{
 		const UWorldPartition* WorldPartition = GetMainWorldPartition();
 		const TArray<FWorldPartitionStreamingSource>* StreamingSources = WorldPartition ? &WorldPartition->GetStreamingSources() : nullptr;
@@ -282,19 +288,13 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 	{
 		UDataLayerSubsystem* DataLayerSubsystem = WorldPartition->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
 
-		if (GDrawLegends)
+		if (GDrawLegends || GDrawRuntimeHash2D)
 		{
 			// Streaming Status Legend
 			WorldPartition->DrawStreamingStatusLegend(Canvas, CurrentOffset);
-
-			// DataLayers Legend
-			if (DataLayerSubsystem)
-			{
-				DataLayerSubsystem->DrawDataLayersLegend(Canvas, CurrentOffset);
-			}
 		}
 
-		if (DataLayerSubsystem)
+		if (DataLayerSubsystem && (GDrawDataLayers || GDrawRuntimeHash2D))
 		{
 			DataLayerSubsystem->DrawDataLayersStatus(Canvas, CurrentOffset);
 		}

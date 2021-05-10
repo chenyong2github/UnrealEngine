@@ -13,12 +13,6 @@
 #include "WorldPartition/DataLayer/IDataLayerEditorModule.h"
 #endif
 
-static int32 GDrawDataLayers = 0;
-static FAutoConsoleCommand CVarDrawDataLayers(
-	TEXT("wp.Runtime.ToggleDrawDataLayers"),
-	TEXT("Toggles debug display of active data layers."),
-	FConsoleCommandDelegate::CreateLambda([] { GDrawDataLayers = !GDrawDataLayers; }));
-
 UDataLayerSubsystem::UDataLayerSubsystem()
 {}
 
@@ -212,7 +206,7 @@ bool UDataLayerSubsystem::IsAnyDataLayerInState(const TArray<FName>& InDataLayer
 
 void UDataLayerSubsystem::DrawDataLayersStatus(UCanvas* Canvas, FVector2D& Offset) const
 {
-	if (!GDrawDataLayers || !Canvas || !Canvas->SceneView)
+	if (!Canvas || !Canvas->SceneView)
 	{
 		return;
 	}
@@ -220,18 +214,21 @@ void UDataLayerSubsystem::DrawDataLayersStatus(UCanvas* Canvas, FVector2D& Offse
 	FVector2D Pos = Offset;
 	float MaxTextWidth = 0.f;
 
-	auto DrawLayerNames = [this, Canvas, &Pos, &MaxTextWidth](const FString& Title, FColor Color, const TSet<FName>& LayerNames)
+	TMap<FName, FColor> ColorMapping;
+	GetDataLayerDebugColors(ColorMapping);
+
+	auto DrawLayerNames = [this, Canvas, &Pos, &MaxTextWidth, &ColorMapping](const FString& Title, FColor Color, const TSet<FName>& LayerNames)
 	{
 		if (LayerNames.Num() > 0)
 		{
-			FWorldPartitionDebugHelper::DrawText(Canvas, Title, GEngine->GetSmallFont(), FColor::Yellow, Pos, &MaxTextWidth);
+			FWorldPartitionDebugHelper::DrawText(Canvas, Title, GEngine->GetSmallFont(), Color, Pos, &MaxTextWidth);
+
 			UFont* DataLayerFont = GEngine->GetTinyFont();
 			for (const FName& DataLayerName : LayerNames)
 			{
 				if (UDataLayer* DataLayer = GetDataLayerFromName(DataLayerName))
 				{
-					const FString Text = DataLayer->GetDataLayerLabel().ToString();
-					FWorldPartitionDebugHelper::DrawText(Canvas, Text, DataLayerFont, Color, Pos, &MaxTextWidth);
+					FWorldPartitionDebugHelper::DrawLegendItem(Canvas, *DataLayer->GetDataLayerLabel().ToString(), DataLayerFont, ColorMapping[DataLayerName], Pos, &MaxTextWidth);
 				}
 			}
 		}
@@ -355,33 +352,4 @@ void UDataLayerSubsystem::GetDataLayerDebugColors(TMap<FName, FColor>& OutMappin
 		OutMapping.Add(DataLayer->GetFName(), DataLayer->GetDebugColor());
 		return true;
 	});
-}
-
-void UDataLayerSubsystem::DrawDataLayersLegend(UCanvas* Canvas, FVector2D& Offset) const
-{
-	check(Canvas);
-
-	const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
-	if (!WorldDataLayers)
-	{
-		return;
-	}
-
-	TMap<FName, FColor> ColorMapping;
-	GetDataLayerDebugColors(ColorMapping);
-
-	float MaxItemWidth = 0;
-	FVector2D Pos = Offset;
-	FWorldPartitionDebugHelper::DrawText(Canvas, TEXT("DataLayers Legend"), GEngine->GetSmallFont(), FColor::Yellow, Pos, &MaxItemWidth);
-	
-	for (auto& It : ColorMapping)
-	{
-		if (const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(It.Key))
-		{
-			FString StateString = StaticEnum<EDataLayerState>()->GetDisplayNameTextByValue((int64)GetDataLayerState(DataLayer)).ToString();
-			FWorldPartitionDebugHelper::DrawLegendItem(Canvas, *FString::Printf(TEXT("%s (%s)"), *DataLayer->GetDataLayerLabel().ToString(), *StateString), GEngine->GetTinyFont(), It.Value, Pos, &MaxItemWidth);
-		}
-	}
-
-	Offset.X += MaxItemWidth + 10;
 }

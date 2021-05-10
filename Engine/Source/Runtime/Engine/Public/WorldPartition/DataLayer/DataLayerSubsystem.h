@@ -91,7 +91,6 @@ public:
 	bool IsAnyDataLayerInState(const TArray<FName>& InDataLayerNames, EDataLayerState InState) const;
 	
 	void GetDataLayerDebugColors(TMap<FName, FColor>& OutMapping) const;
-	void DrawDataLayersLegend(UCanvas* Canvas, FVector2D& Offset) const;
 	void DrawDataLayersStatus(UCanvas* Canvas, FVector2D& Offset) const;
 	static TArray<UDataLayer*> ConvertArgsToDataLayers(UWorld* World, const TArray<FString>& InArgs);
 
