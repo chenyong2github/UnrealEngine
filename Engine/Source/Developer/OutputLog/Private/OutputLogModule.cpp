@@ -76,7 +76,6 @@ static TWeakPtr<SOutputLog> OutputLog;
 TSharedRef<SDockTab> SpawnOutputLog(const FSpawnTabArgs& Args)
 {
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("Log.TabIcon"))
 		.TabRole(ETabRole::NomadTab)
 		.Label(NSLOCTEXT("OutputLog", "TabTitle", "Output Log"))
 		[
@@ -87,7 +86,6 @@ TSharedRef<SDockTab> SpawnOutputLog(const FSpawnTabArgs& Args)
 TSharedRef<SDockTab> SpawnDeviceOutputLog(const FSpawnTabArgs& Args)
 {
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("Log.TabIcon"))
 		.TabRole(ETabRole::NomadTab)
 		.Label(NSLOCTEXT("OutputLog", "DeviceTabTitle", "Device Output Log"))
 		[

@@ -225,9 +225,7 @@ public:
 	
 	TSharedRef<SDockTab> SpawnCurveEditorTab(const FSpawnTabArgs&)
 	{
-		const FSlateIcon SequencerGraphIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCurveEditor.TabIcon");
 		return SNew(SDockTab)
-			.Icon(SequencerGraphIcon.GetIcon())
 			.Label(NSLOCTEXT("Sequencer", "SequencerMainGraphEditorTitle", "Sequencer Curves"))
 			[
 				SNullWidget::NullWidget
@@ -243,12 +241,14 @@ public:
 
 		{
 			const FName CurveEditorTabName = FName(TEXT("SequencerGraphEditor"));
+			const FSlateIcon SequencerGraphIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCurveEditor.TabIcon");
 			if (WeakBlueprintEditor.IsValid() && !WeakBlueprintEditor.Pin()->GetTabManager()->HasTabSpawner(CurveEditorTabName))
 			{
 				// Register an empty tab to spawn the Curve Editor in so that layouts restore properly.
 				WeakBlueprintEditor.Pin()->GetTabManager()->RegisterTabSpawner(CurveEditorTabName,
 					FOnSpawnTab::CreateSP(this, &SActorSequenceEditorWidgetImpl::SpawnCurveEditorTab))
-					.SetMenuType(ETabSpawnerMenuType::Type::Hidden);
+					.SetMenuType(ETabSpawnerMenuType::Type::Hidden)
+					.SetIcon(SequencerGraphIcon);
 			}
 		}
 

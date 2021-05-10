@@ -276,7 +276,6 @@ TSharedRef<SDockTab> FCurveAssetEditor::SpawnTab_CurveAsset( const FSpawnTabArgs
 	
 
 	TSharedRef<SDockTab> NewDockTab = SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("CurveAssetEditor.Tabs.Properties"))
 		.Label(FText::Format(LOCTEXT("CurveAssetEditorTitle", "{0} Curve Asset"), FText::FromString(GetTabPrefix())))
 		.TabColorScale(GetTabColorScale())
 		[
@@ -311,7 +310,6 @@ TSharedRef<SDockTab> FCurveAssetEditor::SpawnTab_ColorCurveEditor(const FSpawnTa
 
 
 	TSharedRef<SDockTab> NewDockTab = SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("CurveAssetEditor.Tabs.Properties"))
 		.Label(LOCTEXT("ColorCurveEditor", "Color Curve Editor"))
 		.TabColorScale(GetTabColorScale())
 		[

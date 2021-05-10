@@ -539,7 +539,6 @@ void SDockTab::Construct( const FArguments& InArgs )
 	this->OnPersistVisualState = InArgs._OnPersistVisualState;
 	this->TabLabel = InArgs._Label;
 	this->TabLabelSuffix = InArgs._LabelSuffix;
-	this->TabIcon = InArgs._Icon;
 	this->bShouldAutosize = InArgs._ShouldAutosize;
 	this->TabColorScale = InArgs._TabColorScale;
 	

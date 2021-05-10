@@ -194,7 +194,6 @@ TSharedRef<SDockTab> FPropertyEditorToolkit::SpawnTab_PropertyTree( const FSpawn
 	check( Args.GetTabId() == TreeTabId );
 
 	TSharedRef<SDockTab> TreeToolkitTab = SNew(SDockTab)
-		.Icon( FEditorStyle::GetBrush("PropertyEditor.Properties.TabIcon") )
 		.Label( LOCTEXT("GenericDetailsTitle", "Display") )
 		.TabColorScale( GetTabColorScale() )
 		.Content()
@@ -218,7 +217,6 @@ TSharedRef<SDockTab> FPropertyEditorToolkit::SpawnTab_PropertyTable( const FSpaw
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>( "PropertyEditor" );
 	TSharedRef<SDockTab> GridToolkitTab = SNew(SDockTab)
-		.Icon( FEditorStyle::GetBrush("PropertyEditor.Grid.TabIcon") )
 		.Label( LOCTEXT("GenericGridTitle", "Grid") )
 		.TabColorScale( GetTabColorScale() )
 		.Content()
@@ -277,7 +275,6 @@ TSharedRef<SDockTab> FPropertyEditorToolkit::SpawnTab_DetailsPanel(const FSpawnT
 	check(Args.GetTabId() == DetailsTabId);
 
 	TSharedPtr<SDockTab> DetailsTab = SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Details"))
 		.Label(LOCTEXT("GenericDetailsPanel", "Property Editor"))
 		[
 			DetailsView.ToSharedRef()

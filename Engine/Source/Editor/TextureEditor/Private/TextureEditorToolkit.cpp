@@ -1506,7 +1506,6 @@ TSharedRef<SDockTab> FTextureEditorToolkit::HandleTabSpawnerSpawnProperties( con
 	check(Args.GetTabId() == PropertiesTabId);
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("TextureEditor.Tabs.Properties"))
 		.Label(LOCTEXT("TexturePropertiesTitle", "Details"))
 		[
 			TextureProperties.ToSharedRef()

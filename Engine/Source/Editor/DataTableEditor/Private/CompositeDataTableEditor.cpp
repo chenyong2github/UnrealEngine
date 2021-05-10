@@ -146,7 +146,6 @@ TSharedRef<SDockTab> FCompositeDataTableEditor::SpawnTab_Stack(const FSpawnTabAr
 	check(Args.GetTabId().TabType == StackTabId);
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("DataTableEditor.Tabs.Properties"))
 		.Label(LOCTEXT("StackTitle", "Datatable Stack"))
 		.TabColorScale(GetTabColorScale())
 		[
@@ -166,7 +165,6 @@ TSharedRef<SDockTab> FCompositeDataTableEditor::SpawnTab_Properties(const FSpawn
 	check(Args.GetTabId().TabType == PropertiesTabId);
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("DataTableEditor.Tabs.Properties"))
 		.Label(LOCTEXT("PropertiesTitle", "Properties"))
 		.TabColorScale(GetTabColorScale())
 		[

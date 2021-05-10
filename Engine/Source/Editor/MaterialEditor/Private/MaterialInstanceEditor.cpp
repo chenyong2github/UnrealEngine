@@ -925,7 +925,6 @@ TSharedRef<SDockTab> FMaterialInstanceEditor::SpawnTab_Properties( const FSpawnT
 	check( Args.GetTabId().TabType == PropertiesTabId );
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Icon(FAppStyle::Get().GetBrush("LevelEditor.Tabs.Details"))
 		.Label(LOCTEXT("MaterialPropertiesTitle", "Details"))
 		[
 			SNew(SBorder)
@@ -946,7 +945,6 @@ TSharedRef<SDockTab> FMaterialInstanceEditor::SpawnTab_LayerProperties(const FSp
 	check(Args.GetTabId().TabType == LayerPropertiesTabId);
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Icon(FAppStyle::Get().GetBrush("LevelEditor.Tabs.Details"))
 		.Label(LOCTEXT("MaterialLayerPropertiesTitle", "Layer Parameters"))
 		[
 			SNew(SBorder)
@@ -972,7 +970,6 @@ TSharedRef<SDockTab> FMaterialInstanceEditor::SpawnTab_PreviewSettings(const FSp
 	}
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Details"))
 		.Label(LOCTEXT("PreviewSceneSettingsTab", "Preview Scene Settings"))
 		[
 			SNew(SBox)

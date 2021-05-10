@@ -57,7 +57,6 @@ private:
 	TSharedRef<SDockTab> SpawnProjectLauncherTab(const FSpawnTabArgs& SpawnTabArgs)
 	{
 		const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
-			.Icon(FEditorStyle::GetBrush("Launcher.TabIcon"))
 			.TabRole(ETabRole::NomadTab);
 
 		ILauncherServicesModule& ProjectLauncherServicesModule = FModuleManager::LoadModuleChecked<ILauncherServicesModule>("LauncherServices");

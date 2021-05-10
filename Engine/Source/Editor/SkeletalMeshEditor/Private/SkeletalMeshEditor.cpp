@@ -357,7 +357,6 @@ TSharedRef<SDockTab> FSkeletalMeshEditor::SpawnToolboxTab(const FSpawnTabArgs& A
 	ToolboxWidget = SNew(SSkeletalMeshEditorToolbox, SharedThis<ISkeletalMeshEditor>(this));
 
 	TSharedRef<SDockTab> DockTab = SNew(SDockTab)
-	    .Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Modes"))
 	    .Label(LOCTEXT("ToolboxTab", "Toolbox"))
 		[
 			SNew(SBox)

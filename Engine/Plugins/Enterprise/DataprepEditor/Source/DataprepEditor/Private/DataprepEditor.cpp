@@ -1054,7 +1054,6 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabScenePreview(const FSpawnTabArgs &
 	check(Args.GetTabId() == ScenePreviewTabId);
 
 	return SNew(SDockTab)
-		//.Icon(FDataprepEditorStyle::Get()->GetBrush("DataprepEditor.Tabs.ScenePreview"))
 		.Label(LOCTEXT("DataprepEditor_ScenePreviewTab_Title", "Scene Preview"))
 		[
 			ScenePreviewView.ToSharedRef()
@@ -1066,7 +1065,6 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabAssetPreview(const FSpawnTabArgs &
 	check(Args.GetTabId() == AssetPreviewTabId);
 
 	return SNew(SDockTab)
-		//.Icon(FDataprepEditorStyle::Get()->GetBrush("DataprepEditor.Tabs.AssetPreview"))
 		.Label(LOCTEXT("DataprepEditor_AssetPreviewTab_Title", "Asset Preview"))
 		[
 			SNew(SBorder)
@@ -1248,7 +1246,6 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabPalette(const FSpawnTabArgs & Args
 	if(!bIsDataprepInstance)
 	{
 		return SNew(SDockTab)
-			.Icon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.Palette").GetIcon())
 			.Label(LOCTEXT("PaletteTab", "Palette"))
 			[
 				SNew(SDataprepPalette)
@@ -1332,7 +1329,6 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabStatistics(const FSpawnTabArgs & A
 
 	TSharedRef<SDockTab> StatsTab = SNew(SDockTab)
 		.Label(LOCTEXT("DataprepEditor_StatisticsTab_Title", "Statistics"))
-		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.StatsViewer"))
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
@@ -1385,7 +1381,6 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabGraphEditor(const FSpawnTabArgs & 
 	if(!bIsDataprepInstance)
 	{
 		return SNew(SDockTab)
-			//.Icon(FDataprepEditorStyle::Get()->GetBrush("DataprepEditor.Tabs.Pipeline"))
 			.Label(LOCTEXT("DataprepEditor_GraphEditorTab_Title", "Recipe Graph"))
 			[
 				GraphEditor.ToSharedRef()

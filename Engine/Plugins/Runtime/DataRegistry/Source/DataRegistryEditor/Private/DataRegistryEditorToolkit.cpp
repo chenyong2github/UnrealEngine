@@ -995,7 +995,6 @@ TSharedRef<SDockTab> FDataRegistryEditorToolkit::SpawnTab_RowList(const FSpawnTa
 	}
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("DataTableEditor.Tabs.Properties"))
 		.Label(LOCTEXT("RowListTitle", "Registry Preview"))
 		.TabColorScale(GetTabColorScale())
 		[
@@ -1013,7 +1012,6 @@ TSharedRef<SDockTab> FDataRegistryEditorToolkit::SpawnTab_Properties(const FSpaw
 	check(Args.GetTabId().TabType == PropertiesTabId);
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("DataTableEditor.Tabs.Properties"))
 		.Label(LOCTEXT("PropertiesTitle", "Properties"))
 		.TabColorScale(GetTabColorScale())
 		[

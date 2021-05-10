@@ -160,7 +160,6 @@ TSharedRef<SDockTab> FPluginBrowserModule::HandleSpawnPluginBrowserTab(const FSp
 {
 	const TSharedRef<SDockTab> MajorTab = 
 		SNew( SDockTab )
-		.Icon( FPluginStyle::Get()->GetBrush("Plugins.TabIcon") )
 		.TabRole( ETabRole::MajorTab );
 
 	MajorTab->SetContent( SNew( SPluginBrowser ) );

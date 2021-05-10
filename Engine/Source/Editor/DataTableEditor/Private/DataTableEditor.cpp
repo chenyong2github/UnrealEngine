@@ -1297,7 +1297,6 @@ TSharedRef<SDockTab> FDataTableEditor::SpawnTab_RowEditor(const FSpawnTabArgs& A
 	check(Args.GetTabId().TabType == RowEditorTabId);
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("DataTableEditor.Tabs.Properties"))
 		.Label(LOCTEXT("RowEditorTitle", "Row Editor"))
 		.TabColorScale(GetTabColorScale())
 		[
@@ -1326,7 +1325,6 @@ TSharedRef<SDockTab> FDataTableEditor::SpawnTab_DataTable( const FSpawnTabArgs& 
 	}
 
 	return SNew(SDockTab)
-		.Icon( FEditorStyle::GetBrush("DataTableEditor.Tabs.Properties") )
 		.Label( LOCTEXT("DataTableTitle", "Data Table") )
 		.TabColorScale( GetTabColorScale() )
 		[
@@ -1346,7 +1344,6 @@ TSharedRef<SDockTab> FDataTableEditor::SpawnTab_DataTableDetails(const FSpawnTab
 	PropertyView->SetObject(GetEditableDataTable());
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("DataTableEditor.Tabs.Properties"))
 		.Label(LOCTEXT("DataTableDetails", "Data Table Details"))
 		.TabColorScale(GetTabColorScale())
 		[

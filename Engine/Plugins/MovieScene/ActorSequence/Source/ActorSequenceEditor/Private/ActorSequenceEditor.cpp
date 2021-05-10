@@ -64,7 +64,6 @@ public:
 
 				return SNew(SDockTab)
 					.Label(&Widget.Get(), &SActorSequenceEditorWidget::GetDisplayLabel)
-					.Icon(FActorSequenceEditorStyle::Get().GetBrush("ClassIcon.ActorSequence"))
 					[
 						Widget
 					];

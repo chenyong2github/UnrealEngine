@@ -246,7 +246,6 @@ TSharedRef<SDockTab> FTileMapEditor::SpawnTab_ToolboxHost(const FSpawnTabArgs& A
 
 	// Spawn the tab
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Modes"))
 		.Label(LOCTEXT("ToolboxHost_Title", "Toolbox"))
 		[
 			ToolboxPtr.ToSharedRef()
@@ -259,7 +258,6 @@ TSharedRef<SDockTab> FTileMapEditor::SpawnTab_Details(const FSpawnTabArgs& Args)
 
 	// Spawn the tab
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Details"))
 		.Label(LOCTEXT("DetailsTab_Title", "Details"))
 		[
 			SNew(STileMapPropertiesTabBody, TileMapEditorPtr)

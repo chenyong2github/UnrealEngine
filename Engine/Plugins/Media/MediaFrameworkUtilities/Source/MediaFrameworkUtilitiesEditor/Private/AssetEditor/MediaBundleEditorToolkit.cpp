@@ -160,7 +160,6 @@ TSharedRef<SDockTab> FMediaBundleEditorToolkit::SpawnPropertiesTab(const FSpawnT
 	check(Args.GetTabId() == MediaBundleEditorToolkit::PropertiesTabId);
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("GenericEditor.Tabs.Properties"))
 		.Label(LOCTEXT("GenericDetailsTitle", "Details"))
 		.TabColorScale(GetTabColorScale())
 		[

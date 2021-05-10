@@ -34,7 +34,6 @@ namespace Metasound
 				check(Args.GetTabId() == Names::Analyzers);
 
 				return SNew(SDockTab)
-					.Icon(FEditorStyle::GetBrush("Kismet.Tabs.Palette"))
 					.Label(LOCTEXT("MetasoundAnalyzersTitle", "Analyzers"))
 					[
 						InAudioMeter.ToSharedRef()
@@ -61,7 +60,6 @@ namespace Metasound
 				check(Args.GetTabId() == Names::Inspector);
 
 				return SNew(SDockTab)
-					.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Details"))
 					.Label(LOCTEXT("MetaSoundInspectorTitle", "Inspector"))
 					[
 						DetailsView.ToSharedRef()
@@ -91,7 +89,6 @@ namespace Metasound
 				check(Args.GetTabId() == Names::Palette);
 
 				return SNew(SDockTab)
-					.Icon(FEditorStyle::GetBrush("Kismet.Tabs.Palette"))
 					.Label(LOCTEXT("MetaSoundPaletteTitle", "Palette"))
 					[
 						Palette.ToSharedRef()

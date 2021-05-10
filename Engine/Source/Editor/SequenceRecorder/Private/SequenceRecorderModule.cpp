@@ -833,7 +833,6 @@ class FSequenceRecorderModule : public ISequenceRecorder, private FSelfRegisteri
 	{
 		TSharedPtr<SDockTab> MajorTab;
 		SAssignNew(MajorTab, SDockTab)
-			.Icon(FEditorStyle::Get().GetBrush("SequenceRecorder.TabIcon"))
 			.TabRole(ETabRole::NomadTab);
 
 		MajorTab->SetContent(SNew(SSequenceRecorder));

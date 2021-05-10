@@ -91,7 +91,6 @@ void FSourceControlWindowsModule::ShutdownModule()
 TSharedRef<SDockTab> FSourceControlWindowsModule::CreateChangelistsTab(const FSpawnTabArgs & Args)
 {
 	return SAssignNew(ChangelistsTab, SDockTab)
-		.Icon(FEditorStyle::Get().GetBrush("SourceControl.ChangelistsTab"))
 		.TabRole(ETabRole::NomadTab)
 		[
 			CreateChangelistsUI().ToSharedRef()

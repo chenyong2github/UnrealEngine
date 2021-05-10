@@ -424,7 +424,6 @@ TSharedRef<SDockTab> FUserDefinedStructureEditor::SpawnStructureTab(const FSpawn
 	}
 
 	return SNew(SDockTab)
-		.Icon( FEditorStyle::GetBrush("GenericEditor.Tabs.Properties") )
 		.Label( LOCTEXT("UserDefinedStructureEditor", "Structure Editor") )
 		.TabColorScale( GetTabColorScale() )
 		[

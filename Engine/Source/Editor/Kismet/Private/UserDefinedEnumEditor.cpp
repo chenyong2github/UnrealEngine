@@ -305,7 +305,6 @@ TSharedRef<SDockTab> FUserDefinedEnumEditor::SpawnEnumeratorsTab(const FSpawnTab
 	PropertyView->SetObject(EditedEnum);
 
 	return SNew(SDockTab)
-		.Icon( FEditorStyle::GetBrush("GenericEditor.Tabs.Properties") )
 		.Label( LOCTEXT("EnumeratorEditor", "Enumerators") )
 		.TabColorScale( GetTabColorScale() )
 		[

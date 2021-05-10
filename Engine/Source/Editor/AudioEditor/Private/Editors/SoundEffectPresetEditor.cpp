@@ -247,7 +247,6 @@ TSharedRef<SDockTab> FSoundEffectPresetEditor::SpawnTab_Properties(const FSpawnT
 	check(Args.GetTabId() == PropertiesTabId);
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Details"))
 		.Label(LOCTEXT("SoundSoundEffectDetailsTitle", "Details"))
 		[
 			PropertiesView.ToSharedRef()
@@ -267,14 +266,15 @@ TSharedRef<SDockTab> FSoundEffectPresetEditor::SpawnTab_UserWidgetEditor(const F
 	FText Label = FText::FromString(SoundEffectPreset->GetName());
 	if (UserWidgets.Num() < WidgetIndex)
 	{
-		return SNew(SDockTab)
-			.Icon(IconBrush)
+		TSharedPtr<SDockTab> NewTab = SNew(SDockTab)
 			.Label(Label)
 			.TabColorScale(GetTabColorScale())
 			[
 				SNew(STextBlock)
 					.Text(LOCTEXT("InvalidPresetEditor", "No editor available for SoundEffectPreset.  Widget Blueprint not found."))
 			];
+		NewTab->SetTabIcon(IconBrush);
+		return NewTab.ToSharedRef();
 	}
 
 	const FText CustomLabel = ISoundEffectPresetWidgetInterface::Execute_GetEditorName(UserWidgets[WidgetIndex].Get());
@@ -283,8 +283,7 @@ TSharedRef<SDockTab> FSoundEffectPresetEditor::SpawnTab_UserWidgetEditor(const F
 		Label = CustomLabel;
 	}
 
-	return SNew(SDockTab)
-		.Icon(IconBrush)
+	TSharedPtr<SDockTab> NewTab = SNew(SDockTab)
 		.Label(Label)
 		.TabColorScale(GetTabColorScale())
 		[
@@ -295,6 +294,8 @@ TSharedRef<SDockTab> FSoundEffectPresetEditor::SpawnTab_UserWidgetEditor(const F
 				UserWidgets[WidgetIndex]->TakeWidget()
 			]
 		];
+	NewTab->SetTabIcon(IconBrush);
+	return NewTab.ToSharedRef();
 }
 
 void FSoundEffectPresetEditor::PostUndo(bool bSuccess)

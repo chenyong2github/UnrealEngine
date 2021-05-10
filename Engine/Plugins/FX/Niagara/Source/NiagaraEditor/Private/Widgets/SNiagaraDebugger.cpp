@@ -772,7 +772,6 @@ void SNiagaraDebugger::UnregisterTabSpawner()
 TSharedRef<SDockTab> SNiagaraDebugger::SpawnNiagaraDebugger(const FSpawnTabArgs& Args)
 {
 	auto NomadTab = SNew(SDockTab)
-		.Icon(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Debugger.TabIcon"))
 		.TabRole(ETabRole::NomadTab)
 		.Label(NSLOCTEXT("NiagaraDebugger", "NiagaraDebuggerTabTitle", "Niagara Debugger"));
 

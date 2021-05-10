@@ -90,7 +90,6 @@ TSharedRef<SDockTab> FGPULightmassEditorModule::SpawnSettingsTab(const FSpawnTab
 	}
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("Level.LightingScenarioIcon16x"))
 		.Label(NSLOCTEXT("GPULightmass", "GPULightmassSettingsTabTitle", "GPU Lightmass"))
 		[
 			SNew(SVerticalBox)

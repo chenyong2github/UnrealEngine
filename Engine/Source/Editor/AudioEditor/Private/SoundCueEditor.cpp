@@ -228,7 +228,6 @@ TSharedRef<SDockTab> FSoundCueEditor::SpawnTab_Properties(const FSpawnTabArgs& A
 	check( Args.GetTabId() == PropertiesTabId );
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Details"))
 		.Label(LOCTEXT("SoundCueDetailsTitle", "Details"))
 		[
 			SoundCueProperties.ToSharedRef()
@@ -240,7 +239,6 @@ TSharedRef<SDockTab> FSoundCueEditor::SpawnTab_Palette(const FSpawnTabArgs& Args
 	check( Args.GetTabId() == PaletteTabId );
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("Kismet.Tabs.Palette"))
 		.Label(LOCTEXT("SoundCuePaletteTitle", "Palette"))
 		[
 			Palette.ToSharedRef()

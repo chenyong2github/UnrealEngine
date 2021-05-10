@@ -328,7 +328,6 @@ TSharedRef<SDockTab> FFontEditor::SpawnTab_Preview( const FSpawnTabArgs& Args )
 	check( Args.GetTabId().TabType == PreviewTabId );
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("FontEditor.Tabs.Preview"))
 		.Label(LOCTEXT("FontPreviewTitle", "Preview"))
 		[
 			FontPreview.ToSharedRef()
@@ -344,7 +343,6 @@ TSharedRef<SDockTab> FFontEditor::SpawnTab_Properties( const FSpawnTabArgs& Args
 	check( Args.GetTabId().TabType == PropertiesTabId );
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("FontEditor.Tabs.Properties"))
 		.Label(LOCTEXT("FontPropertiesTitle", "Details"))
 		[
 			FontProperties.ToSharedRef()
@@ -360,7 +358,6 @@ TSharedRef<SDockTab> FFontEditor::SpawnTab_PageProperties( const FSpawnTabArgs& 
 	check( Args.GetTabId().TabType == PagePropertiesTabId );
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("FontEditor.Tabs.PageProperties"))
 		.Label(LOCTEXT("FontPagePropertiesTitle", "Page Details"))
 		[
 			FontPageProperties.ToSharedRef()

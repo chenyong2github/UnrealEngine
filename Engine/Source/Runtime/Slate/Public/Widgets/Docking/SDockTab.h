@@ -73,7 +73,6 @@ public:
 		, _TabRole(ETabRole::PanelTab)
 		, _Label()
 		, _LabelSuffix()
-		, _Icon( FStyleDefaults::GetNoBrush() )
 		, _OnTabClosed()
 		, _OnTabActivated()
 		, _OnTabRelocated()
@@ -92,7 +91,12 @@ public:
 		SLATE_ARGUMENT( ETabRole, TabRole )
 		SLATE_ATTRIBUTE( FText, Label )
 		SLATE_ATTRIBUTE(FText, LabelSuffix)
-		SLATE_ATTRIBUTE( const FSlateBrush*, Icon )
+		UE_DEPRECATED(5.0, "Tab icons are now being managed by tab spawners and toolkits. In the rare case you need to set an icon manually, use SetTabIcon() instead")
+		FArguments& Icon(const FSlateBrush* InIcon)
+		{
+			return Me();
+		}
+
 		SLATE_EVENT( FOnTabClosedCallback, OnTabClosed )
 		SLATE_EVENT( FOnTabActivatedCallback, OnTabActivated )
 		SLATE_EVENT( FSimpleDelegate, OnTabRelocated )
@@ -105,6 +109,8 @@ public:
 		SLATE_ATTRIBUTE( FLinearColor, TabColorScale )
 		SLATE_ATTRIBUTE( FSlateColor, ForegroundColor )
 	SLATE_END_ARGS()
+
+
 
 	/** Construct the widget from the declaration. */
 	void Construct( const FArguments& InArgs );
@@ -276,9 +282,6 @@ public:
 	/** Provide a default tab label in case the spawner did not set one. */
 	void ProvideDefaultLabel( const FText& InDefaultLabel );
 
-	/** Provide a default tab icon in case the spawner did not set one. */
-	void ProvideDefaultIcon( const FSlateBrush* InDefaultIcon );
-
 	/** Play an animation showing this tab as opening */
 	void PlaySpawnAnim();
 
@@ -308,6 +311,8 @@ public:
 	}
 
 protected:
+	/** Provide a default tab icon. */
+	void ProvideDefaultIcon(const FSlateBrush* InDefaultIcon);
 
 	/** @return the style currently applied to the dock tab */
 	const FDockTabStyle& GetCurrentStyle() const;

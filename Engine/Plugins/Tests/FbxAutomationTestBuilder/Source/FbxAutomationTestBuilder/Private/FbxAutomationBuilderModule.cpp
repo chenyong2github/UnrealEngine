@@ -78,7 +78,6 @@ void FFbxAutomationBuilderModule::UnregisterTabSpawner()
 TSharedRef<SDockTab> FFbxAutomationBuilderModule::MakeFbxAutomationBuilderTab(const FSpawnTabArgs&)
 {
 	TSharedRef<SDockTab> FbxAutomationBuilderTab = SNew(SDockTab)
-	.Icon(FFbxAutomationBuilderStyle::Get()->GetBrush("FbxAutomationBuilder.TabIcon"))
 	.TabRole(ETabRole::NomadTab);
 	FbxAutomationBuilderTab->SetContent(CreateFbxAutomationBuilderWidget());
 	return FbxAutomationBuilderTab;

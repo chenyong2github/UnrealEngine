@@ -1480,7 +1480,6 @@ TSharedRef<SDockTab> FCascade::SpawnTab(const FSpawnTabArgs& SpawnTabArgs, FName
 	else if(TabIdentifier == FName(TEXT("Cascade_Properties")))
 	{
 		TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-			.Icon(FEditorStyle::GetBrush("Cascade.Tabs.Properties"))
 			.Label(NSLOCTEXT("Cascade", "CascadePropertiesTitle", "Details"))
 			[
 				Details.ToSharedRef()

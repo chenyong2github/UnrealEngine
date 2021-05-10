@@ -54,13 +54,16 @@ TSharedRef<SDockTab> FWorkflowTabFactory::SpawnTab(const FWorkflowTabSpawnInfo& 
 	// Spawn the tab
 	TSharedRef<SDockTab> NewTab = SNew(SDockTab)
 		.TabRole(this->TabRole)
-		.Icon(GetTabIcon(Info))
 		.Label(ConstructTabName(Info))
 		.ShouldAutosize(bShouldAutosize)
 		[
 			TabBody
 		];
-
+	const TAttribute<const FSlateBrush*> TabIconAttribute = TAttribute<const FSlateBrush*>::CreateLambda([this, Info]()
+		{
+			return GetTabIcon(Info);
+		});
+	NewTab->SetTabIcon(TabIconAttribute);
 	NewTab->SetTabToolTipWidget(CreateTabToolTipWidget(Info));
 
 	return NewTab;

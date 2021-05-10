@@ -243,7 +243,6 @@ TSharedRef<SDockTab> FEnvironmentQueryEditor::SpawnTab_Properties(const FSpawnTa
 	CreateInternalWidgets();
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Icon( FEditorStyle::GetBrush("SoundClassEditor.Tabs.Properties") )
 		.Label(NSLOCTEXT("EnvironmentQueryEditor", "PropertiesTab", "Details"))
 		[
 			DetailsView.ToSharedRef()
@@ -261,7 +260,6 @@ TSharedRef<SDockTab> FEnvironmentQueryEditor::SpawnTab_Profiler(const FSpawnTabA
 		.OnDataChanged(FSimpleDelegate::CreateSP(this, &FEnvironmentQueryEditor::OnStatsDataChange));
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("SoundClassEditor.Tabs.Properties"))
 		.Label(NSLOCTEXT("EnvironmentQueryEditor", "ProfilerTab", "Profiler"))
 		[
 			ProfilerView.ToSharedRef()

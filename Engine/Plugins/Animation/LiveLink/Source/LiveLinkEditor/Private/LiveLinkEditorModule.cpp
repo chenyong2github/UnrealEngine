@@ -167,11 +167,8 @@ public:
 	{
 		FLiveLinkClient* Client = &IModularFeatures::Get().GetModularFeature<FLiveLinkClient>(FLiveLinkClient::ModularFeatureName);
 
-		const FSlateBrush* IconBrush = InStyleSet->GetBrush("LiveLinkClient.Common.Icon.Small");
-
 		const TSharedRef<SDockTab> MajorTab =
 			SNew(SDockTab)
-			.Icon(IconBrush)
 			.TabRole(ETabRole::NomadTab);
 
 		MajorTab->SetContent(SNew(SLiveLinkClientPanel, Client));

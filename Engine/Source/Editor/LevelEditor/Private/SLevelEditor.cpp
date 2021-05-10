@@ -686,7 +686,6 @@ TSharedRef<SDockTab> SLevelEditor::SummonDetailsPanel( FName TabIdentifier )
 	const FText Label = NSLOCTEXT( "LevelEditor", "DetailsTabTitle", "Details" );
 
 	TSharedRef<SDockTab> DocTab = SNew(SDockTab)
-		.Icon( FEditorStyle::GetBrush( "LevelEditor.Tabs.Details" ) )
 		.Label( Label )
 		.ToolTip( IDocumentation::Get()->CreateToolTip( Label, nullptr, "Shared/LevelEditor", "DetailsTab" ) )
 		.OnTabDrawerClosed_Lambda([ActorDetailsWeakPtr]()
@@ -745,7 +744,6 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 		TSharedRef<SLevelEditorToolBox> NewToolBox = StaticCastSharedRef<SLevelEditorToolBox>( CreateToolBox() );
 
 		TSharedRef<SDockTab> DockTab = SNew( SDockTab )
-			.Icon( FEditorStyle::GetBrush( "LevelEditor.Tabs.Modes" ) )
 			.Label( NSLOCTEXT( "LevelEditor", "ToolsTabTitle", "Toolbox" ) )
 			.OnTabClosed(this, &SLevelEditor::OnToolboxTabClosed)
 			[
@@ -763,7 +761,6 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	else if (TabIdentifier == LevelEditorTabIds::PlacementBrowser)
 	{
 		TSharedRef<SDockTab> DockTab = SNew(SDockTab)
-			.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.PlacementBrowser"))
 			.Label(NSLOCTEXT("LevelEditor", "PlacementBrowserTitle", "Place Actors"))
 			.AddMetaData<FTutorialMetaData>(FTutorialMetaData(TEXT("PlacementBrowser"), TEXT("PlacementBrowser")));
 
@@ -776,7 +773,6 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 		TSharedRef<SLevelEditorBuildAndSubmit> NewBuildAndSubmit = SNew( SLevelEditorBuildAndSubmit, SharedThis( this ) );
 
 		TSharedRef<SDockTab> NewTab = SNew( SDockTab )
-			.Icon( FEditorStyle::GetBrush( "LevelEditor.Tabs.BuildAndSubmit" ) )
 			.Label( NSLOCTEXT("LevelEditor", "BuildAndSubmitTabTitle", "Build and Submit") )
 			[
 				NewBuildAndSubmit
@@ -830,7 +826,6 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 		SceneOutlinerPtr = SceneOutlinerRef;
 
 		return SNew( SDockTab )
-			.Icon( FEditorStyle::GetBrush( "LevelEditor.Tabs.Outliner" ) )
 			.Label( Label )
 			.ToolTip( IDocumentation::Get()->CreateToolTip( Label, nullptr, "Shared/LevelEditor", "SceneOutlinerTab" ) )
 			[
@@ -847,7 +842,6 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	{
 		FLayersModule& LayersModule = FModuleManager::LoadModuleChecked<FLayersModule>( "Layers" );
 		return SNew( SDockTab )
-			.Icon( FEditorStyle::GetBrush( "LevelEditor.Tabs.Layers" ) )
 			.Label( NSLOCTEXT("LevelEditor", "LayersTabTitle", "Layers") )
 			[
 				SNew(SBorder)
@@ -865,7 +859,6 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 
 		FHierarchicalLODOutlinerModule& HLODModule = FModuleManager::LoadModuleChecked<FHierarchicalLODOutlinerModule>("HierarchicalLODOutliner");
 		return SNew(SDockTab)
-			.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.HLOD"))
 			.Label(Label)
 			.ToolTip(IDocumentation::Get()->CreateToolTip(Label, nullptr, "Shared/Editor/HLOD", "main"))
 			[
@@ -876,7 +869,6 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	{
 		FWorldBrowserModule& WorldBrowserModule = FModuleManager::LoadModuleChecked<FWorldBrowserModule>( "WorldBrowser" );
 		return SNew( SDockTab )
-			.Icon( FEditorStyle::GetBrush( "LevelEditor.Tabs.WorldBrowser" ) )
 			.Label( NSLOCTEXT("LevelEditor", "WorldBrowserHierarchyTabTitle", "Levels") )
 			[
 				WorldBrowserModule.CreateWorldBrowserHierarchy()
@@ -886,7 +878,6 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	{
 		FWorldBrowserModule& WorldBrowserModule = FModuleManager::LoadModuleChecked<FWorldBrowserModule>( "WorldBrowser" );
 		return SNew( SDockTab )
-			.Icon( FEditorStyle::GetBrush( "LevelEditor.Tabs.WorldBrowserDetails" ) )
 			.Label( NSLOCTEXT("LevelEditor", "WorldBrowserDetailsTabTitle", "Level Details") )
 			[
 				WorldBrowserModule.CreateWorldBrowserDetails()
@@ -896,7 +887,6 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	{
 		FWorldBrowserModule& WorldBrowserModule = FModuleManager::LoadModuleChecked<FWorldBrowserModule>( "WorldBrowser" );
 		return SNew( SDockTab )
-			.Icon( FEditorStyle::GetBrush( "LevelEditor.Tabs.WorldBrowserComposition" ) )
 			.Label( NSLOCTEXT("LevelEditor", "WorldBrowserCompositionTabTitle", "World Composition") )
 			[
 				WorldBrowserModule.CreateWorldBrowserComposition()
@@ -906,7 +896,6 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	{
 		FWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<FWorldPartitionEditorModule>( "WorldPartitionEditor" );
 		return SNew( SDockTab )
-			.Icon( FEditorStyle::GetBrush( "LevelEditor.Tabs.WorldPartition" ) )
 			.Label( NSLOCTEXT("LevelEditor", "WorldBrowserPartitionTabTitle", "World Partition") )
 			[
 				WorldPartitionEditorModule.CreateWorldPartitionEditor()
@@ -916,7 +905,6 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	{
 		FDataLayerEditorModule& DataLayerEditorModule = FModuleManager::LoadModuleChecked<FDataLayerEditorModule>( "DataLayerEditor" );
 		return SNew(SDockTab)
-			.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.DataLayers"))
 			.Label(NSLOCTEXT("LevelEditor", "DataLayersTabTitle", "Data Layers"))
 			[
 				SNew(SBorder)
@@ -934,7 +922,6 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 		{
 			// @todo sequencer: remove when world-centric mode is added
 			return SNew(SDockTab)
-				.Icon(FSlateStyleRegistry::FindSlateStyle("LevelSequenceEditorStyle")->GetBrush("LevelSequenceEditor.Tabs.Sequencer"))
 				.Label(NSLOCTEXT("Sequencer", "SequencerMainTitle", "Sequencer"))
 				[
 					SNullWidget::NullWidget
@@ -943,10 +930,8 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	}
 	else if(TabIdentifier == LevelEditorTabIds::SequencerGraphEditor )
 	{
-		const FSlateIcon SequencerGraphIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCurveEditor.TabIcon");
 		// @todo sequencer: remove when world-centric mode is added
 		return SNew(SDockTab)
-			.Icon(SequencerGraphIcon.GetIcon())
 			.Label(NSLOCTEXT("Sequencer", "SequencerMainGraphEditorTitle", "Sequencer Curves"))
 			[
 				SNullWidget::NullWidget
@@ -956,7 +941,6 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	{
 		FStatsViewerModule& StatsViewerModule = FModuleManager::Get().LoadModuleChecked<FStatsViewerModule>( "StatsViewer" );
 		return SNew( SDockTab )
-			.Icon( FEditorStyle::GetBrush( "LevelEditor.Tabs.StatsViewer" ) )
 			.Label( NSLOCTEXT("LevelEditor", "StatsViewerTabTitle", "Statistics") )
 			[
 				StatsViewerModule.CreateStatsViewer()
@@ -977,7 +961,6 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 		}
 
 		return SNew( SDockTab )
-			.Icon( FEditorStyle::GetBrush( "LevelEditor.WorldProperties.Tab" ) )
 			.Label( NSLOCTEXT("LevelEditor", "WorldSettingsTabTitle", "World Settings") )
 			.AddMetaData<FTutorialMetaData>(FTutorialMetaData(TEXT("WorldSettings"), TEXT("WorldSettingsTab")))
 			[
@@ -988,7 +971,6 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	{
 		FEnvironmentLightingViewerModule& EnvironmentLightingViewerModule = FModuleManager::Get().LoadModuleChecked<FEnvironmentLightingViewerModule>( "EnvironmentLightingViewer" );
 		return SNew(SDockTab)
-			.Icon(FEditorStyle::GetBrush("EditorViewport.ReflectionOverrideMode"))
 			.Label(NSLOCTEXT("LevelEditor", "EnvironmentLightingViewerTitle", "Env. Light Mixer"))
 			[
 				EnvironmentLightingViewerModule.CreateEnvironmentLightingViewer()
@@ -1075,7 +1057,6 @@ TSharedRef<SDockTab> SLevelEditor::BuildViewportTab( const FText& Label, const F
 	TSharedRef< SDockTab > DockableTab =
 		SNew(SDockTab)
 		.Label(Label)
-		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Viewports"))
 		.OnTabClosed(this, &SLevelEditor::OnViewportTabClosed);
 		
 	// Create a new tab
@@ -1384,7 +1365,8 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 			// @todo remove when world-centric mode is added
 			const FSlateIcon SequencerGraphIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCurveEditor.TabIcon");
 			LevelEditorTabManager->RegisterTabSpawner(LevelEditorTabIds::SequencerGraphEditor, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, LevelEditorTabIds::SequencerGraphEditor, FString()))
-				.SetMenuType(ETabSpawnerMenuType::Type::Hidden);
+				.SetMenuType(ETabSpawnerMenuType::Type::Hidden)
+				.SetIcon(SequencerGraphIcon);
 		}
 
 		{

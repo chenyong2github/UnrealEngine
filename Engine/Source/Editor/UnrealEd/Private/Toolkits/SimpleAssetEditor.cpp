@@ -235,7 +235,6 @@ TSharedRef<SDockTab> FSimpleAssetEditor::SpawnPropertiesTab( const FSpawnTabArgs
 	check( Args.GetTabId() == PropertiesTabId );
 
 	return SNew(SDockTab)
-		.Icon( FEditorStyle::GetBrush("GenericEditor.Tabs.Properties") )
 		.Label( LOCTEXT("GenericDetailsTitle", "Details") )
 		.TabColorScale( GetTabColorScale() )
 		[

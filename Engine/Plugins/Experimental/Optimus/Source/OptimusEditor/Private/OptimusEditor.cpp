@@ -385,7 +385,6 @@ TSharedRef<SDockTab> FOptimusEditor::SpawnTab_Preview(const FSpawnTabArgs& Args)
 TSharedRef<SDockTab> FOptimusEditor::SpawnTab_Palette(const FSpawnTabArgs& Args)
 {
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("Kismet.Tabs.Palette"))
 		.Label(LOCTEXT("NodePaletteTitle", "Palette"))
 		[
 			SNew(SBox)
@@ -400,7 +399,6 @@ TSharedRef<SDockTab> FOptimusEditor::SpawnTab_Palette(const FSpawnTabArgs& Args)
 TSharedRef<SDockTab> FOptimusEditor::SpawnTab_Explorer(const FSpawnTabArgs& Args)
 {
 	return SNew(SDockTab)
-	    .Icon(FEditorStyle::GetBrush("ClassIcon.BlueprintCore"))
 	    .Label(LOCTEXT("GraphExplorerTitle", "Explorer"))
 		[
 			SNew(SBox)
@@ -425,7 +423,6 @@ TSharedRef<SDockTab> FOptimusEditor::SpawnTab_GraphArea(const FSpawnTabArgs& Arg
 TSharedRef<SDockTab> FOptimusEditor::SpawnTab_PropertyDetails(const FSpawnTabArgs& Args)
 {
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Details"))
 		.Label(LOCTEXT("Settings", "Settings"))
 		[
 			PropertyDetailsWidget.ToSharedRef()
@@ -444,7 +441,6 @@ TSharedRef<SDockTab> FOptimusEditor::SpawnTab_PreviewSettings(const FSpawnTabArg
 	}
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Details"))
 		.Label(LOCTEXT("PreviewSceneSettingsTab", "Preview Scene Settings"))
 		[
 			SNew(SBox)
@@ -460,7 +456,6 @@ TSharedRef<SDockTab> FOptimusEditor::SpawnTab_PreviewSettings(const FSpawnTabArg
 TSharedRef<SDockTab> FOptimusEditor::SpawnTab_Output(const FSpawnTabArgs& Args)
 {
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("Kismet.Tabs.CompilerResults"))
 		.Label(LOCTEXT("CompilerOutput", "Compiler Output"))
 		[
 			SNullWidget::NullWidget // OutputTabId().ToSharedRef()

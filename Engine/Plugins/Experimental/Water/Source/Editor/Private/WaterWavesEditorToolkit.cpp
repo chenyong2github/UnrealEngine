@@ -146,7 +146,6 @@ TSharedRef<SDockTab> FWaterWavesEditorToolkit::SpawnTab_Properties(const FSpawnT
 	check(Args.GetTabId() == PropertiesTabId);
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Details"))
 		.Label(LOCTEXT("WaterWavesEditorProperties_TabTitle", "Details"))
 		[
 			WaterWavesDetailsView.ToSharedRef()
@@ -156,8 +155,7 @@ TSharedRef<SDockTab> FWaterWavesEditorToolkit::SpawnTab_Properties(const FSpawnT
 TSharedRef<SDockTab> FWaterWavesEditorToolkit::SpawnTab_Viewport(const FSpawnTabArgs& Args)
 {
 	TSharedRef< SDockTab > DockableTab =
-		SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Viewports"));
+		SNew(SDockTab);
 
 	ViewportTabContent = MakeShareable(new FEditorViewportTabContent());
 

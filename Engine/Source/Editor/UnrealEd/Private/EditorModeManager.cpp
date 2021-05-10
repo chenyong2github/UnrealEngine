@@ -963,7 +963,6 @@ TSharedRef<SDockTab> FEditorModeTools::MakeModeToolbarTab()
 		SNew(SDockTab)
 		.Label(NSLOCTEXT("EditorModes", "EditorModesToolbarTitle", "Mode Toolbar"))
 		.ContentPadding(0.0f)
-		.Icon(FStyleDefaults::GetNoBrush())
 		[
 			SAssignNew(ModeToolbarBox, SVerticalBox)	
 		];

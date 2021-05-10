@@ -188,8 +188,7 @@ void FStaticMeshEditor::InitEditorForStaticMesh(UStaticMesh* ObjectToEdit)
 
 	// The tab must be created before the viewport layout because the layout needs them
 	TSharedRef< SDockTab > DockableTab =
-		SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Viewports"));
+		SNew(SDockTab);
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
 
@@ -489,8 +488,7 @@ void FStaticMeshEditor::AddReferencedObjects( FReferenceCollector& Collector )
 TSharedRef<SDockTab> FStaticMeshEditor::SpawnTab_Viewport( const FSpawnTabArgs& Args )
 {
 	TSharedRef< SDockTab > DockableTab =
-		SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Viewports"));
+		SNew(SDockTab);
 
 	TWeakPtr<IStaticMeshEditor> WeakSharedThis(SharedThis(this));
 	MakeViewportFunc = [WeakSharedThis](const FAssetEditorViewportConstructionArgs& InArgs)
@@ -514,7 +512,6 @@ TSharedRef<SDockTab> FStaticMeshEditor::SpawnTab_Properties( const FSpawnTabArgs
 	check( Args.GetTabId() == PropertiesTabId );
 
 	return SNew(SDockTab)
-		.Icon( FEditorStyle::GetBrush("StaticMeshEditor.Tabs.Properties") )
 		.Label( LOCTEXT("StaticMeshProperties_TabTitle", "Details") )
 		[
 			StaticMeshDetailsView.ToSharedRef()
@@ -574,7 +571,6 @@ TSharedRef<SDockTab> FStaticMeshEditor::SpawnTab_SecondaryToolbar( const FSpawnT
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
 		.Label( TabLabel )
-		.Icon( FEditorStyle::GetBrush("LevelEditor.Tabs.Toolbar") )
 		.ShouldAutosize( true )
 		[
 			SAssignNew(SecondaryToolbarWidgetContent, SBorder)

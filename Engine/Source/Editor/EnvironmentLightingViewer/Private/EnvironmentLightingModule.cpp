@@ -31,7 +31,6 @@ TSharedRef<SDockTab> CreateEnvLightTab(const FSpawnTabArgs& Args)
 {
 	return SNew(SDockTab)
 		.TabRole(ETabRole::NomadTab)
-		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.EnvironmentLightingViewer"))
 		[
 			SNew(SEnvironmentLightingViewer)
 		];

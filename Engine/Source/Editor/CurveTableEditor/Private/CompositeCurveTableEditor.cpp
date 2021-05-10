@@ -51,7 +51,6 @@ TSharedRef<SDockTab> FCompositeCurveTableEditor::SpawnTab_Properties(const FSpaw
 	check(Args.GetTabId().TabType == PropertiesTabId);
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("CurveTableEditor.Tabs.Properties"))
 		.Label(LOCTEXT("PropertiesTitle", "Properties"))
 		.TabColorScale(GetTabColorScale())
 		[

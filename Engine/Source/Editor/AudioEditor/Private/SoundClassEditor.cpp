@@ -238,7 +238,6 @@ TSharedRef<SDockTab> FSoundClassEditor::SpawnTab_Properties(const FSpawnTabArgs&
 	check( Args.GetTabId() == PropertiesTabId );
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Icon( FEditorStyle::GetBrush("SoundClassEditor.Tabs.Properties") )
 		.Label( LOCTEXT( "SoundClassPropertiesTitle", "Details" ) )
 		[
 			DetailsView.ToSharedRef()

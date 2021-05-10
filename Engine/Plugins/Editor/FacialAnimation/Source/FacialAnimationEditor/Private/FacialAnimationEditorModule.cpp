@@ -58,7 +58,6 @@ void FFacialAnimationEditorModule::StartupModule()
 		{
 			const TSharedRef<SDockTab> Tab =
 				SNew(SDockTab)
-				.Icon(FAppStyle::Get().GetBrush("Icons.Import"))
 				.TabRole(ETabRole::NomadTab);
 
 			Tab->SetContent(SNew(SFacialAnimationBulkImporter));

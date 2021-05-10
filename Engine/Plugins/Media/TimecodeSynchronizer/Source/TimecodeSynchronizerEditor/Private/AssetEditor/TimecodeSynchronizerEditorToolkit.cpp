@@ -199,7 +199,6 @@ TSharedRef<SDockTab> FTimecodeSynchronizerEditorToolkit::SpawnPropertiesTab(cons
 	check(Args.GetTabId() == TimecodeSynchronizerEditorToolkit::PropertiesTabId);
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("GenericEditor.Tabs.Properties"))
 		.Label(LOCTEXT("GenericDetailsTitle", "Details"))
 		.TabColorScale(GetTabColorScale())
 		[
@@ -258,7 +257,6 @@ TSharedRef<SDockTab> FTimecodeSynchronizerEditorToolkit::SpawnSourceViewerTab(co
 	TSharedPtr<SWidget> TabWidget = SNew(STimecodeSynchronizerSourceViewer, *GetTimecodeSynchronizer());
 
 	return SNew(SDockTab)
-		.Icon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports").GetIcon())
 		.Label(LOCTEXT("GenericSourceViewerTitle", "Sources"))
 		.TabColorScale(GetTabColorScale())
 		[
@@ -273,7 +271,6 @@ TSharedRef<SDockTab> FTimecodeSynchronizerEditorToolkit::SpawnSynchronizerWidget
 	TSharedPtr<SWidget> TabWidget = SNew(STimecodeSynchronizerWidget, *GetTimecodeSynchronizer());
 
 	return SNew(SDockTab)
-		.Icon(FSlateIcon(FTimecodeSynchronizerEditorStyle::GetStyleSetName(), "SynchronizationWidget.small").GetIcon())
 		.Label(LOCTEXT("SynchronizerWidget", "Synchronization"))
 		.TabColorScale(GetTabColorScale())
 		[

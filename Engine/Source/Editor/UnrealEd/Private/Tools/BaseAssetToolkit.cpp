@@ -89,8 +89,7 @@ const TSharedRef<FTabManager::FLayout> FBaseAssetToolkit::GetDefaultLayout() con
 TSharedRef<SDockTab> FBaseAssetToolkit::SpawnTab_Viewport(const FSpawnTabArgs& Args)
 {
 	TSharedRef< SDockTab > DockableTab =
-		SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Viewports"));
+		SNew(SDockTab);
 
 	const FString LayoutId = FString("BaseAssetViewport");
 	ViewportTabContent->Initialize(ViewportDelegate, DockableTab, LayoutId);
@@ -100,7 +99,6 @@ TSharedRef<SDockTab> FBaseAssetToolkit::SpawnTab_Viewport(const FSpawnTabArgs& A
 TSharedRef<SDockTab>  FBaseAssetToolkit::SpawnTab_Details(const FSpawnTabArgs& Args)
 {
 	TSharedPtr<SDockTab> DetailsTab = SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Details"))
 		.Label(LOCTEXT("BaseDetailsTitle", "Details"))
 		[
 			DetailsView.ToSharedRef()

@@ -914,7 +914,6 @@ TSharedRef<SDockTab> FMaterialStats::SpawnTab_Stats(const FSpawnTabArgs& Args)
 	FString TabName = FString::Printf(TEXT(""), *GetMaterialName().ToString());
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Icon(FAppStyle::Get().GetBrush("MaterialEditor.TogglePlatformStats.Tab"))
 		.Label(LOCTEXT("Platform Stats", "Platform Stats"))
 		.OnTabClosed_Lambda([&bShowStats = bShowStats](TSharedRef<SDockTab>) { bShowStats = false; })
 		[
@@ -938,7 +937,6 @@ TSharedRef<SDockTab> FMaterialStats::SpawnTab_OldStats(const FSpawnTabArgs& Args
 	check(Args.GetTabId() == OldStatsTabId);
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Icon(FAppStyle::Get().GetBrush("MaterialEditor.ToggleMaterialStats.Tab"))
 		.Label(LOCTEXT("Stats", "Stats"))
 		.OnTabClosed_Lambda([&bShowStats = bShowOldStats](TSharedRef<SDockTab>) { bShowStats = false; })
 		[

@@ -31,6 +31,8 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Logging/LogMacros.h"
 #include "AssetEditorModeManager.h"
+#include "Misc/Attribute.h"
+#include "Textures/SlateIcon.h"
 
 #define LOCTEXT_NAMESPACE "AssetEditorToolkit"
 
@@ -112,11 +114,11 @@ void FAssetEditorToolkit::InitAssetEditor( const EToolkitMode::Type Mode, const 
 			.ContentPadding(0.0f)
 			.TabRole(ETabRole::MajorTab)
 			.ToolTip(IDocumentation::Get()->CreateToolTip(ToolTipText, nullptr, DocLink, GetToolkitFName().ToString()))
-			.Icon(this, &FAssetEditorToolkit::GetDefaultTabIcon)
 			.TabColorScale(this, &FAssetEditorToolkit::GetDefaultTabColor)
 			.Label(Label)
 			.LabelSuffix(LabelSuffix);
-
+		const TAttribute<const FSlateBrush*> TabIcon = TAttribute<const FSlateBrush*>::CreateSP(this, &FAssetEditorToolkit::GetDefaultTabIcon);
+		NewMajorTab->SetTabIcon(TabIcon);
 		{
 			static_assert(sizeof(EAssetEditorToolkitTabLocation) == sizeof(int32), "EAssetEditorToolkitTabLocation is the incorrect size");
 
@@ -936,7 +938,6 @@ TSharedRef<SDockTab> FAssetEditorToolkit::SpawnTab_Toolbar( const FSpawnTabArgs&
 
 	TSharedRef<SDockTab> DockTab = SNew(SDockTab)
 		.Label( NSLOCTEXT("AssetEditorToolkit", "Toolbar_TabTitle", "Toolbar") )
-		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Toolbar"))
 		.ShouldAutosize(true)
 		[
 			SAssignNew(ToolbarWidgetContent, SBorder)

@@ -40,6 +40,8 @@
 #include "ContentBrowserModule.h"
 
 #include "SerializedRecorder.h"
+#include "Misc/Attribute.h"
+#include "Textures/SlateIcon.h"
 
 #define LOCTEXT_NAMESPACE "TakeRecorderModule"
 
@@ -115,13 +117,18 @@ namespace
 	static TSharedRef<SDockTab> SpawnTakeRecorderTab(const FSpawnTabArgs& SpawnTabArgs)
 	{
 		TSharedRef<STakeRecorderTabContent> Content = SNew(STakeRecorderTabContent);
-		return SNew(SDockTab)
+		TSharedPtr<SDockTab> ContentTab = SNew(SDockTab)
 			.Label(Content, &STakeRecorderTabContent::GetTitle)
-			.Icon(Content, &STakeRecorderTabContent::GetIcon)
 			.TabRole(ETabRole::NomadTab)
 			[
 				Content
 			];
+		const TAttribute<const FSlateBrush*> TabIcon = TAttribute<const FSlateBrush*>::CreateLambda([Content]()
+			{
+				return Content->GetIcon();
+			});
+		ContentTab->SetTabIcon(TabIcon);
+		return ContentTab.ToSharedRef();
 	}
 
 	static void RegisterLevelEditorLayout(FLayoutExtender& Extender)

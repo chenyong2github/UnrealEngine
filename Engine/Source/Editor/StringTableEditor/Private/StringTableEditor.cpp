@@ -255,7 +255,6 @@ TSharedRef<SDockTab> FStringTableEditor::SpawnTab_StringTable(const FSpawnTabArg
 	})));
 
 	TSharedRef<SDockTab> StringTableTab = SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("StringTableEditor.Tabs.Properties"))
 		.Label(LOCTEXT("StringTableTitle", "String Table"))
 		.TabColorScale(GetTabColorScale())
 		[

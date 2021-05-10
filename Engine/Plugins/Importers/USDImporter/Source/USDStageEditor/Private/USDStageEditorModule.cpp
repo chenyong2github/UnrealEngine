@@ -27,7 +27,6 @@ public:
 	{
 		return SNew(SDockTab)
 			.TabRole(ETabRole::NomadTab)
-			.Icon( FEditorStyle::GetBrush("LevelEditor.Tabs.USDStage") )
 			.Label( LOCTEXT( "USDStage", "USD Stage" ) )
 			[
 				SNew(SBorder)

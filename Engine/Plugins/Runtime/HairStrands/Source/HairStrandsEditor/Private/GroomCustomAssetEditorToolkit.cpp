@@ -593,7 +593,6 @@ TSharedRef<SDockTab> FGroomCustomAssetEditorToolkit::SpawnTab_CardsProperties(co
 	check(Args.GetTabId() == TabId_CardsProperties);
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("GenericEditor.Tabs.Properties"))
 		.Label(LOCTEXT("CardsPropertiesTab", "Cards"))
 		.TabColorScale(GetTabColorScale())
 		[
@@ -606,7 +605,6 @@ TSharedRef<SDockTab> FGroomCustomAssetEditorToolkit::SpawnTab_MeshesProperties(c
 	check(Args.GetTabId() == TabId_MeshesProperties);
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("GenericEditor.Tabs.Properties"))
 		.Label(LOCTEXT("MeshesPropertiesTab", "Meshes"))
 		.TabColorScale(GetTabColorScale())
 		[
@@ -619,7 +617,6 @@ TSharedRef<SDockTab> FGroomCustomAssetEditorToolkit::SpawnTab_MaterialProperties
 	check(Args.GetTabId() == TabId_MaterialProperties);
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("GenericEditor.Tabs.Properties"))
 		.Label(LOCTEXT("MaterialPropertiesTab", "Material"))
 		.TabColorScale(GetTabColorScale())
 		[
@@ -632,7 +629,6 @@ TSharedRef<SDockTab> FGroomCustomAssetEditorToolkit::SpawnTab_PhysicsProperties(
 	check(Args.GetTabId() == TabId_PhysicsProperties);
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("GenericEditor.Tabs.Properties"))
 		.Label(LOCTEXT("PhysicsPropertiesTab", "Physics"))
 		.TabColorScale(GetTabColorScale())
 		[
@@ -645,7 +641,6 @@ TSharedRef<SDockTab> FGroomCustomAssetEditorToolkit::SpawnTab_RenderingPropertie
 	check(Args.GetTabId() == TabId_RenderingProperties);
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("GenericEditor.Tabs.Properties"))
 		.Label(LOCTEXT("RenderingPropertiesTab", "Strands"))
 		.TabColorScale(GetTabColorScale())
 		[
@@ -658,7 +653,6 @@ TSharedRef<SDockTab>  FGroomCustomAssetEditorToolkit::SpawnTab_InterpolationProp
 	check(Args.GetTabId() == TabId_InterpolationProperties);
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("GenericEditor.Tabs.Properties"))
 		.Label(LOCTEXT("InterpolationPropertiesTab", "Interpolation"))
 		.TabColorScale(GetTabColorScale())
 		[
@@ -671,7 +665,6 @@ TSharedRef<SDockTab>  FGroomCustomAssetEditorToolkit::SpawnTab_LODProperties(con
 	check(Args.GetTabId() == TabId_LODProperties);
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("GenericEditor.Tabs.Properties"))
 		.Label(LOCTEXT("LODPropertiesTab", "LOD"))
 		.TabColorScale(GetTabColorScale())
 		[
@@ -684,7 +677,6 @@ TSharedRef<SDockTab> FGroomCustomAssetEditorToolkit::SpawnTab_PreviewGroomCompon
 	check(Args.GetTabId() == TabId_PreviewGroomComponent);
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("GenericEditor.Tabs.Properties"))
 		.Label(LOCTEXT("GroomComponentTab", "Component"))
 		.TabColorScale(GetTabColorScale())
 		[
@@ -719,7 +711,6 @@ TSharedRef<SDockTab> FGroomCustomAssetEditorToolkit::SpawnViewportTab(const FSpa
 	ViewportTab->SetSkeletalMeshComponent(GetPreview_SkeletalMeshComponent());
 
 	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("GenericEditor.Tabs.Render"))
 		.Label(LOCTEXT("RenderTitle", "Render"))
 		.TabColorScale(GetTabColorScale())
 		[

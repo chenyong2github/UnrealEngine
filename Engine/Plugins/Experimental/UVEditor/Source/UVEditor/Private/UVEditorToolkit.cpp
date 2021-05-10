@@ -186,7 +186,6 @@ void FUVEditorToolkit::SaveAsset_Execute()
 TSharedRef<SDockTab> FUVEditorToolkit::SpawnTab_InteractiveToolsPanel(const FSpawnTabArgs& Args)
 {
 	ToolsPanel = SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Details")) // We'll use the same icon as a details panel
 		.Label(LOCTEXT("UVToolPanelTitle", "UV Tools"));
 
 	return ToolsPanel.ToSharedRef();

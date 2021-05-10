@@ -314,7 +314,6 @@ TSharedRef<SDockTab> FCurveTableEditor::SpawnTab_CurveTable( const FSpawnTabArgs
 	RefreshCachedCurveTable();
 
 	return SNew(SDockTab)
-		.Icon( FEditorStyle::GetBrush("CurveTableEditor.Tabs.Properties") )
 		.Label( LOCTEXT("CurveTableTitle", "Curve Table") )
 		.TabColorScale( GetTabColorScale() )
 		[

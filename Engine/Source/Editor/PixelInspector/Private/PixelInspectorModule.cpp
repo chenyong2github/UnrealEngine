@@ -166,7 +166,6 @@ void FPixelInspectorModule::UnregisterTabSpawner()
 TSharedRef<SDockTab> FPixelInspectorModule::MakePixelInspectorTab(const FSpawnTabArgs&)
 {
 	TSharedRef<SDockTab> PixelInspectorTab = SNew(SDockTab)
-	.Icon(FAppStyle::Get().GetBrush("PixelInspector.TabIcon"))
 	.TabRole(ETabRole::NomadTab);
 	
 	PixelInspectorTab->SetContent(CreatePixelInspectorWidget());
