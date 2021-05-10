@@ -57,6 +57,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(DATASMITHRHINO_EXPERIMENTAL)' == 'TRUE'">
     <DefineConstants>$(DefineConstants);DATASMITHRHINO_EXPERIMENTAL</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
