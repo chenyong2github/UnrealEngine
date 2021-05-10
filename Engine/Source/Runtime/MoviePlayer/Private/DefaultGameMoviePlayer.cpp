@@ -382,7 +382,7 @@ bool FDefaultGameMoviePlayer::PlayMovie()
 		
 			{
 				FScopeLock SyncMechanismLock(&SyncMechanismCriticalSection);
-				SyncMechanism = new FSlateLoadingSynchronizationMechanism(WidgetRenderer);
+				SyncMechanism = new FSlateLoadingSynchronizationMechanism(WidgetRenderer, ActiveMovieStreamer);
 				SyncMechanism->Initialize();
 			}
 

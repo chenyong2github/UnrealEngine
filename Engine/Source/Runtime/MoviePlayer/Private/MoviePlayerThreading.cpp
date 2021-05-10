@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MoviePlayerThreading.h"
+#include "MoviePlayer.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
 #include "Misc/ScopeLock.h"
@@ -37,8 +38,11 @@ private:
 
 
 
-FSlateLoadingSynchronizationMechanism::FSlateLoadingSynchronizationMechanism(TSharedPtr<FMoviePlayerWidgetRenderer, ESPMode::ThreadSafe> InWidgetRenderer)
+FSlateLoadingSynchronizationMechanism::FSlateLoadingSynchronizationMechanism(
+	TSharedPtr<FMoviePlayerWidgetRenderer, ESPMode::ThreadSafe> InWidgetRenderer, 
+	const TSharedPtr<IMovieStreamer, ESPMode::ThreadSafe>& InMovieStreamer)
 	: WidgetRenderer(InWidgetRenderer)
+	, MovieStreamer(InMovieStreamer)
 {
 }
 
@@ -138,12 +142,25 @@ void FSlateLoadingSynchronizationMechanism::SlateThreadRunMainLoop()
 
 		if (FSlateApplication::IsInitialized() && !IsSlateDrawPassEnqueued())
 		{
+			// Tick engine stuff.
+			if (MovieStreamer.IsValid())
+			{
+				MovieStreamer->TickPreEngine();
+				MovieStreamer->TickPostEngine();
+			}
+
 			FSlateRenderer* MainSlateRenderer = FSlateApplication::Get().GetRenderer();
 			FScopeLock ScopeLock(MainSlateRenderer->GetResourceCriticalSection());
 
 			WidgetRenderer->DrawWindow(DeltaTime);
 
 			SetSlateDrawPassEnqueued();
+
+			// Tick after rendering.
+			if (MovieStreamer.IsValid())
+			{
+				MovieStreamer->TickPostRender();
+			}
 		}
 
 		LastTime = CurrentTime;
