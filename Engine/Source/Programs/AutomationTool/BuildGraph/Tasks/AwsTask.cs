@@ -10,12 +10,12 @@ using System.Xml;
 namespace AutomationTool.Tasks
 {
 	/// <summary>
-	/// Parameters for a Docker task
+	/// Parameters for an AWS CLI task
 	/// </summary>
-	public class DockerTaskParameters
+	public class AwsTaskParameters
 	{
 		/// <summary>
-		/// Docker command line arguments
+		/// AWS command line arguments
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Arguments;
@@ -33,34 +33,40 @@ namespace AutomationTool.Tasks
 		public int ErrorLevel = 1;
 
 		/// <summary>
-		/// Whether or not to show the console output from the Docker command.
+		/// Whether or not to show the console output from the AWS CLI command.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public bool Verbose = false;
 
 		/// <summary>
-		/// Path to a file containing the credentials needed to run the Docker command
+		/// Path to a file containing the credentials needed to run the AWS command
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string CredentialsFile;
+
+		/// <summary>
+		/// Path to a file to store any JSON output by the command.
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public string OutputFile;
 	}
 
 	/// <summary>
-	/// Spawns Docker and waits for it to complete.
+	/// Spawns AWS CLI and waits for it to complete.
 	/// </summary>
-	[TaskElement("Docker", typeof(DockerTaskParameters))]
-	public class DockerTask : CustomTask
+	[TaskElement("Aws", typeof(AwsTaskParameters))]
+	public class AwsTask : CustomTask
 	{
 		/// <summary>
 		/// Parameters for this task
 		/// </summary>
-		DockerTaskParameters Parameters;
+		AwsTaskParameters Parameters;
 
 		/// <summary>
-		/// Construct a Docker task
+		/// Construct an AWS CLI task
 		/// </summary>
 		/// <param name="InParameters">Parameters for the task</param>
-		public DockerTask(DockerTaskParameters InParameters)
+		public AwsTask(AwsTaskParameters InParameters)
 		{
 			Parameters = InParameters;
 		}
@@ -73,14 +79,14 @@ namespace AutomationTool.Tasks
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
 		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
-			FileReference ToolFile = CommandUtils.FindToolInPath("docker");
+			FileReference ToolFile = CommandUtils.FindToolInPath("aws");
 			if(ToolFile == null)
 			{
-				throw new AutomationException("Unable to find path to Docker. Check you have it installed, and it is on your PATH.");
+				throw new AutomationException("Unable to find path to AWS CLI. Check you have it installed, and it is on your PATH.");
 			}
 
-			string DockerArgs = Parameters.Arguments;
-			string CmdString = $"{ToolFile.FullName} {DockerArgs}";
+			string AWSArgs = Parameters.Arguments;
+			Dictionary<string, string> EnvVars = new Dictionary<string, string>();
 			if (!string.IsNullOrWhiteSpace(Parameters.CredentialsFile))
 			{
 				if (!File.Exists(Parameters.CredentialsFile))
@@ -88,19 +94,9 @@ namespace AutomationTool.Tasks
 					throw new AutomationException("Credentials file {0} could not be found.", Parameters.CredentialsFile);
 				}
 
-				// First see if it is JSON.
-				string CredentialString = "";
 				string[] CredentialTokens = File.ReadAllText(Parameters.CredentialsFile).Split(':');
-				if (CredentialTokens.Length == 1)
-				{
-					CredentialString = $"--password {CredentialTokens[0]}";
-				}
-				else
-				{
-					CredentialString = $"--username {CredentialTokens[0]} --password {CredentialTokens[1]}";
-				}
-				
-				DockerArgs = $"{DockerArgs} {CredentialString}";
+				EnvVars.Add("AWS_ACCESS_KEY_ID", CredentialTokens[0]);
+				EnvVars.Add("AWS_SECRET_ACCESS_KEY", CredentialTokens[1]);
 			}
 
 			CommandUtils.ERunOptions Options = CommandUtils.ERunOptions.AppMustExist;
@@ -108,10 +104,14 @@ namespace AutomationTool.Tasks
 			{
 				Options |= CommandUtils.ERunOptions.AllowSpew;
 			}
-			IProcessResult Result = CommandUtils.Run(ToolFile.FullName, DockerArgs, WorkingDir: Parameters.BaseDir, Options: Options);
+			IProcessResult Result = CommandUtils.Run(ToolFile.FullName, AWSArgs, WorkingDir: Parameters.BaseDir, Env: EnvVars, Options: Options);
+			if (!string.IsNullOrWhiteSpace(Parameters.OutputFile))
+			{
+				File.WriteAllText(Parameters.OutputFile, Result.Output);
+			}
 			if (Result.ExitCode < 0 || Result.ExitCode >= Parameters.ErrorLevel)
 			{
-				throw new AutomationException("Docker terminated with an exit code indicating an error ({0})", Result.ExitCode);
+				throw new AutomationException("AWS terminated with an exit code indicating an error ({0})", Result.ExitCode);
 			}
 		}
 
