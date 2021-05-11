@@ -139,7 +139,7 @@ void FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(ULevel* InLevel, UWor
 /**
  * Creates an empty Level used in World Partition
  */
-ULevel* FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(const UWorld* InWorld, const FString& InWorldAssetName, UPackage* InPackage)
+ULevel* FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(UWorld* InWorld, const FString& InWorldAssetName, UPackage* InPackage)
 {
 	// Create or use given package
 	UPackage* CellPackage = nullptr;
@@ -180,6 +180,10 @@ ULevel* FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(const UWorld*
 	check(NewLevel->OwningWorld == NewWorld);
 	check(NewLevel->Model);
 	check(!NewLevel->bIsVisible);
+
+	// Update the persistent level's owning world to the correct world.
+	NewLevel->OwningWorld = InWorld;
+
 	return NewLevel;
 }
 
