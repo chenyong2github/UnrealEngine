@@ -113,6 +113,8 @@ void RenderLandscapeMaterialForLightmass(const FLandscapeStaticLightingMesh* Lan
 	ENQUEUE_RENDER_COMMAND(CanvasFlushSetupCommand)(
 		[RenderTarget, &DynamicMeshBuilder, ViewInitOptions, MaterialProxy](FRHICommandListImmediate& RHICmdList)
 		{
+			FMemMark Mark(FMemStack::Get());
+
 			FMeshBatch Mesh;
 			FMeshBuilderOneFrameResources OneFrameResource;
 			DynamicMeshBuilder.GetMeshElement(FMatrix::Identity, MaterialProxy, SDPG_Foreground, true, false, 0, OneFrameResource, Mesh);
