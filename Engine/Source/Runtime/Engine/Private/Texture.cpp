@@ -129,20 +129,32 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 
 const FTextureResource* UTexture::GetResource() const
 {
-	if (IsInActualRenderingThread() || IsInRHIThread())
+	if (IsInParallelGameThread() || IsInGameThread())
+	{
+		return PrivateResource;
+	}
+	else if (IsInParallelRenderingThread() || IsInRHIThread())
 	{
 		return PrivateResourceRenderThread;
 	}
-	return PrivateResource;
+
+	UE_LOG(LogTexture, Error, TEXT("Attempted to access a texture resource from an unkown thread."));
+	return nullptr;
 }
 
 FTextureResource* UTexture::GetResource()
 {
-	if (IsInActualRenderingThread() || IsInRHIThread())
+	if (IsInParallelGameThread() || IsInGameThread())
+	{
+		return PrivateResource;
+	}
+	else if (IsInParallelRenderingThread() || IsInRHIThread())
 	{
 		return PrivateResourceRenderThread;
 	}
-	return PrivateResource;
+
+	UE_LOG(LogTexture, Error, TEXT("Attempted to access a texture resource from an unkown thread."));
+	return nullptr;
 }
 
 void UTexture::SetResource(FTextureResource* InResource)
