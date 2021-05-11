@@ -82,7 +82,7 @@ void UWorldPartitionLevelStreamingDynamic::CreateRuntimeLevel()
 {
 	check(PendingUnloadLevel == nullptr);
 	check(RuntimeLevel == nullptr);
-	const UWorld* PlayWorld = GetWorld();
+	UWorld* PlayWorld = GetWorld();
 	check(PlayWorld && PlayWorld->IsGameWorld());
 
 	// Create streaming cell Level package
