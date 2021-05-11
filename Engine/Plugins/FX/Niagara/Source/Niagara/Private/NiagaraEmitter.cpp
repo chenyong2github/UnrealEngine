@@ -66,6 +66,33 @@ static FAutoConsoleVariableRef CVarNiagaraDebugForcedMaxGPUBufferElements(
 	ECVF_Default
 );
 
+/**
+Game thread task to do any outstanding work on the loaded emitter
+*/
+struct FNiagaraEmitterUpdateTask
+{
+	FNiagaraEmitterUpdateTask(TWeakObjectPtr<UNiagaraEmitter> InEmitter) : WeakEmitter(InEmitter)
+	{
+	}
+
+	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraEmitterUpdateTask, STATGROUP_TaskGraphTasks); }
+	static FORCEINLINE ENamedThreads::Type GetDesiredThread() { return ENamedThreads::GameThread; }
+	static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		UNiagaraEmitter* Emitter = WeakEmitter.Get();
+		if (Emitter == nullptr)
+		{
+			// probably got garbage collected in the meantime
+			return;
+		}
+		Emitter->UpdateEmitterAfterLoad();
+	}
+
+	TWeakObjectPtr<UNiagaraEmitter> WeakEmitter;
+};
+
 FNiagaraDetailsLevelScaleOverrides::FNiagaraDetailsLevelScaleOverrides()
 {
 	Low = 0.125f;
@@ -357,34 +384,6 @@ void UNiagaraEmitter::PostLoad()
 		SetFlags(RF_Transactional);
 	}
 
-	for (int32 RendererIndex = RendererProperties.Num() - 1; RendererIndex >= 0; --RendererIndex)
-	{
-		if (RendererProperties[RendererIndex] == nullptr)
-		{
-#if WITH_EDITORONLY_DATA
-			//In cooked builds these can be cooked out and null on purpose.
-			ensureMsgf(IsCooked, TEXT("Null renderer found in %s at index %i, removing it to prevent crashes."), *GetPathName(), RendererIndex);
-#endif
-			RendererProperties.RemoveAt(RendererIndex);
-		}
-		else
-		{
-			RendererProperties[RendererIndex]->ConditionalPostLoad();
-		}
-	}
-
-	for (int32 SimulationStageIndex = SimulationStages.Num() - 1; SimulationStageIndex >= 0; --SimulationStageIndex)
-	{
-		if (ensureMsgf(SimulationStages[SimulationStageIndex] != nullptr && SimulationStages[SimulationStageIndex]->Script != nullptr, TEXT("Null simulation stage, or simulation stage with a null script found in %s at index %i, removing it to prevent crashes."), *GetPathName(), SimulationStageIndex) == false)
-		{
-			SimulationStages.RemoveAt(SimulationStageIndex);
-		}
-		else
-		{
-			SimulationStages[SimulationStageIndex]->ConditionalPostLoad();
-		}
-	}
-
 	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 	if (NiagaraVer < FNiagaraCustomVersion::PlatformScalingRefactor)
 	{
@@ -440,8 +439,47 @@ void UNiagaraEmitter::PostLoad()
 		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
 		EditorParameters = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorParameters(this);
 	}
+
+	// this can only ever be true for old assets that haven't been loaded yet, so this won't overwrite subsequent changes to the template specification
+	if(bIsTemplateAsset_DEPRECATED)
+	{
+		TemplateSpecification = ENiagaraScriptTemplateSpecification::Template;
+	}
 #endif
 
+	for (int32 RendererIndex = RendererProperties.Num() - 1; RendererIndex >= 0; --RendererIndex)
+	{
+		if (RendererProperties[RendererIndex] == nullptr)
+		{
+#if WITH_EDITORONLY_DATA
+			//In cooked builds these can be cooked out and null on purpose.
+			ensureMsgf(IsCooked, TEXT("Null renderer found in %s at index %i, removing it to prevent crashes."), *GetPathName(), RendererIndex);
+#endif
+			RendererProperties.RemoveAt(RendererIndex);
+		}
+		else
+		{
+			RendererProperties[RendererIndex]->ConditionalPostLoad();
+		}
+	}
+
+	for (int32 SimulationStageIndex = SimulationStages.Num() - 1; SimulationStageIndex >= 0; --SimulationStageIndex)
+	{
+		if (ensureMsgf(SimulationStages[SimulationStageIndex] != nullptr && SimulationStages[SimulationStageIndex]->Script != nullptr, TEXT("Null simulation stage, or simulation stage with a null script found in %s at index %i, removing it to prevent crashes."), *GetPathName(), SimulationStageIndex) == false)
+		{
+			SimulationStages.RemoveAt(SimulationStageIndex);
+		}
+		else
+		{
+			SimulationStages[SimulationStageIndex]->ConditionalPostLoad();
+		}
+	}
+
+	if (SpawnScriptProps.Script)
+	{
+		SpawnScriptProps.Script->ConditionalPostLoad();
+	}
+	
 #if WITH_EDITORONLY_DATA
 	if (!GPUComputeScript)
 	{
@@ -449,13 +487,8 @@ void UNiagaraEmitter::PostLoad()
 		GPUComputeScript->SetUsage(ENiagaraScriptUsage::ParticleGPUComputeScript);
 		GPUComputeScript->SetLatestSource(SpawnScriptProps.Script ? SpawnScriptProps.Script->GetLatestSource() : nullptr);
 	}
-
 	GPUComputeScript->OnGPUScriptCompiled().AddUObject(this, &UNiagaraEmitter::RaiseOnEmitterGPUCompiled);
-#else
-	check(GPUComputeScript == nullptr || SimTarget == ENiagaraSimTarget::GPUComputeSim);
-#endif
 
-#if WITH_EDITORONLY_DATA
 	if (EmitterSpawnScriptProps.Script == nullptr || EmitterUpdateScriptProps.Script == nullptr)
 	{
 		EmitterSpawnScriptProps.Script = NewObject<UNiagaraScript>(this, "EmitterSpawnScript", EObjectFlags::RF_Transactional);
@@ -470,48 +503,13 @@ void UNiagaraEmitter::PostLoad()
 			EmitterUpdateScriptProps.Script->SetLatestSource(SpawnScriptProps.Script->GetLatestSource());
 		}
 	}
-#endif
-
-	//Temporarily disabling interpolated spawn if the script type and flag don't match.
-	if (SpawnScriptProps.Script)
-	{
-		SpawnScriptProps.Script->ConditionalPostLoad();
-		bool bActualInterpolatedSpawning = SpawnScriptProps.Script->IsInterpolatedParticleSpawnScript();
-		if (bInterpolatedSpawning != bActualInterpolatedSpawning)
-		{
-			bInterpolatedSpawning = false;
-			if (bActualInterpolatedSpawning)
-			{
-#if WITH_EDITORONLY_DATA
-				SpawnScriptProps.Script->InvalidateCompileResults(TEXT("Interpolated spawn changed."));//clear out the script as it was compiled with interpolated spawn.
-#endif
-				SpawnScriptProps.Script->SetUsage(ENiagaraScriptUsage::ParticleSpawnScript);
-			}
-			UE_LOG(LogNiagara, Warning, TEXT("Disabling interpolated spawn because emitter flag and script type don't match. Did you adjust this value in the UI? Emitter may need recompile.. %s"), *GetFullName());
-		}
-	}
-
-#if WITH_EDITORONLY_DATA
-	if (GetOuter()->IsA<UNiagaraEmitter>())
-	{
-		// If this emitter is owned by another emitter, remove it's inheritance information so that it doesn't try to merge changes.
-		Parent = nullptr;
-		ParentAtLastMerge = nullptr;
-	}
 
 	if (!GetOutermost()->bIsCookedForEditor)
 	{
 		GraphSource->ConditionalPostLoad();
 		GraphSource->PostLoadFromEmitter(*this);
-	}
-#endif
-
-	EnsureScriptsPostLoaded();
-
-#if WITH_EDITORONLY_DATA
-	if (!GetOutermost()->bIsCookedForEditor)
-	{
-		// Handle emitter inheritance.
+		
+		// Prepare for emitter inheritance.
 		if (Parent != nullptr)
 		{
 			Parent->ConditionalPostLoad();
@@ -537,128 +535,39 @@ void UNiagaraEmitter::PostLoad()
 			}
 		}
 
-		// Synchronize with definitions before merging.
-		const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
-		check(Settings);
-		TArray<FGuid> DefaultDefinitionsUniqueIds;
-		for (const FSoftObjectPath& DefaultLinkedParameterDefinitionObjPath : Settings->DefaultLinkedParameterDefinitions)
-		{
-			UNiagaraParameterDefinitionsBase* DefaultLinkedParameterDefinitions = CastChecked<UNiagaraParameterDefinitionsBase>(DefaultLinkedParameterDefinitionObjPath.TryLoad());
-			DefaultDefinitionsUniqueIds.Add(DefaultLinkedParameterDefinitions->GetDefinitionsUniqueId());
-			const bool bDoNotAssertIfAlreadySubscribed = true;
-			SubscribeToParameterDefinitions(DefaultLinkedParameterDefinitions, bDoNotAssertIfAlreadySubscribed);
-		}
-		FSynchronizeWithParameterDefinitionsArgs Args;
-		Args.SpecificDefinitionsUniqueIds = DefaultDefinitionsUniqueIds;
-		Args.bForceSynchronizeDefinitions = true;
-		Args.bSubscribeAllNameMatchParameters = true;
-		SynchronizeWithParameterDefinitions(Args);
-		InitParameterDefinitionsSubscriptions();
-
 		if (IsSynchronizedWithParent() == false)
 		{
 			// Modify here so that the asset will be marked dirty when using the resave commandlet.  This will be ignored during regular post load.
 			Modify();
-			MergeChangesFromParent();
-		}
-
-		// Reset scripts if recompile is forced.
-		bool bGenerateNewChangeId = false;
-		FString GenerateNewChangeIdReason;
-		if (GetForceCompileOnLoad())
-		{
-			// If we are a standalone emitter, then we invalidate id's, which should cause systems dependent on us to regenerate.
-			UObject* OuterObj = GetOuter();
-			if (OuterObj == GetOutermost())
-			{
-				GraphSource->ForceGraphToRecompileOnNextCheck();
-				bGenerateNewChangeId = true;
-				GenerateNewChangeIdReason = TEXT("PostLoad - Force compile on load");
-				if (GEnableVerboseNiagaraChangeIdLogging)
-				{
-					UE_LOG(LogNiagara, Log, TEXT("InvalidateCachedCompileIds for %s because GbForceNiagaraCompileOnLoad = %d"), *GetPathName(), GbForceNiagaraCompileOnLoad);
-				}
-			}
-		}
-	
-		if (ChangeId.IsValid() == false)
-		{
-			// If the change id is already invalid we need to generate a new one, and can skip checking the owned scripts.
-			bGenerateNewChangeId = true;
-			GenerateNewChangeIdReason = TEXT("PostLoad - Change id was invalid.");
-			if (GEnableVerboseNiagaraChangeIdLogging)
-			{
-				UE_LOG(LogNiagara, Log, TEXT("Change ID updated for emitter %s because the ID was invalid."), *GetPathName());
-			}
-		}
-
-		if (bGenerateNewChangeId)
-		{
-			UpdateChangeId(GenerateNewChangeIdReason);
-		}
-
-		GraphSource->OnChanged().AddUObject(this, &UNiagaraEmitter::GraphSourceChanged);
-
-		EmitterSpawnScriptProps.Script->RapidIterationParameters.AddOnChangedHandler(
-			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
-		EmitterUpdateScriptProps.Script->RapidIterationParameters.AddOnChangedHandler(
-			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
-
-		if (SpawnScriptProps.Script)
-		{
-			SpawnScriptProps.Script->RapidIterationParameters.AddOnChangedHandler(
-				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
-		}
-	
-		if (UpdateScriptProps.Script)
-		{
-			UpdateScriptProps.Script->RapidIterationParameters.AddOnChangedHandler(
-				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
-		}
-
-		for (FNiagaraEventScriptProperties& EventScriptProperties : EventHandlerScriptProps)
-		{
-			EventScriptProperties.Script->RapidIterationParameters.AddOnChangedHandler(
-				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
-		}
-
-		for (UNiagaraSimulationStageBase* SimulationStage : SimulationStages)
-		{
-			SimulationStage->OnChanged().AddUObject(this, &UNiagaraEmitter::SimulationStageChanged);
-			SimulationStage->Script->RapidIterationParameters.AddOnChangedHandler(
-				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
-		}
-
-		for (UNiagaraRendererProperties* Renderer : RendererProperties)
-		{
-			Renderer->OnChanged().AddUObject(this, &UNiagaraEmitter::RendererChanged);
-		}
-
-		if (EditorData != nullptr)
-		{
-			EditorData->OnPersistentDataChanged().AddUObject(this, &UNiagaraEmitter::PersistentEditorDataChanged);
 		}
 	}
-
-	// this can only ever be true for old assets that haven't been loaded yet, so this won't overwrite subsequent changes to the template specification
-	if(bIsTemplateAsset_DEPRECATED)
-	{
-		TemplateSpecification = ENiagaraScriptTemplateSpecification::Template;
-	}
-	
+#else
+	check(GPUComputeScript == nullptr || SimTarget == ENiagaraSimTarget::GPUComputeSim);
 #endif
 
-	ResolveScalabilitySettings();
-
-#if !UE_BUILD_SHIPPING
-	DebugSimName.Empty();
-	if (const UNiagaraSystem* SystemOwner = Cast<const UNiagaraSystem>(GetOuter()))
+	//Temporarily disabling interpolated spawn if the script type and flag don't match.
+	if (SpawnScriptProps.Script)
 	{
-		DebugSimName = SystemOwner->GetName();
-		DebugSimName.AppendChar(':');
-	}
-	DebugSimName.Append(GetName());
+		bool bActualInterpolatedSpawning = SpawnScriptProps.Script->IsInterpolatedParticleSpawnScript();
+		if (bInterpolatedSpawning != bActualInterpolatedSpawning)
+		{
+			bInterpolatedSpawning = false;
+			if (bActualInterpolatedSpawning)
+			{
+#if WITH_EDITORONLY_DATA
+				//clear out the script as it was compiled with interpolated spawn.
+				SpawnScriptProps.Script->InvalidateCompileResults(TEXT("Interpolated spawn changed."));
 #endif
+				SpawnScriptProps.Script->SetUsage(ENiagaraScriptUsage::ParticleSpawnScript);
+			}
+			UE_LOG(LogNiagara, Warning, TEXT("Disabling interpolated spawn because emitter flag and script type don't match. Did you adjust this value in the UI? Emitter may need recompile.. %s"), *GetFullName());
+		}
+	}
+
+	EnsureScriptsPostLoaded();
+	
+	// we are not yet finished, but we do the rest of the work after postload in a separate task
+	UpdateTaskRef = TGraphTask<FNiagaraEmitterUpdateTask>::CreateTask().ConstructAndDispatchWhenReady(this);
 }
 
 bool UNiagaraEmitter::IsEditorOnly() const
@@ -1314,6 +1223,118 @@ void UNiagaraEmitter::CacheFromShaderCompiled()
 			}
 		}
 	}
+}
+
+void UNiagaraEmitter::UpdateEmitterAfterLoad()
+{
+#if WITH_EDITORONLY_DATA
+	check(IsInGameThread());
+	if (GetOuter()->IsA<UNiagaraEmitter>())
+	{
+		// If this emitter is owned by another emitter, remove it's inheritance information so that it doesn't try to merge changes.
+		Parent = nullptr;
+		ParentAtLastMerge = nullptr;
+	}
+	
+	if (!GetOutermost()->bIsCookedForEditor)
+	{
+		if (IsSynchronizedWithParent() == false)
+		{
+			// Modify here so that the asset will be marked dirty when using the resave commandlet.  This will be ignored during regular post load.
+			MergeChangesFromParent();
+		}
+
+		// Reset scripts if recompile is forced.
+		bool bGenerateNewChangeId = false;
+		FString GenerateNewChangeIdReason;
+		if (GetForceCompileOnLoad())
+		{
+			// If we are a standalone emitter, then we invalidate id's, which should cause systems dependent on us to regenerate.
+			UObject* OuterObj = GetOuter();
+			if (OuterObj == GetOutermost())
+			{
+				GraphSource->ForceGraphToRecompileOnNextCheck();
+				bGenerateNewChangeId = true;
+				GenerateNewChangeIdReason = TEXT("PostLoad - Force compile on load");
+				if (GEnableVerboseNiagaraChangeIdLogging)
+				{
+					UE_LOG(LogNiagara, Log, TEXT("InvalidateCachedCompileIds for %s because GbForceNiagaraCompileOnLoad = %d"), *GetPathName(), GbForceNiagaraCompileOnLoad);
+				}
+			}
+		}
+	
+		if (ChangeId.IsValid() == false)
+		{
+			// If the change id is already invalid we need to generate a new one, and can skip checking the owned scripts.
+			bGenerateNewChangeId = true;
+			GenerateNewChangeIdReason = TEXT("PostLoad - Change id was invalid.");
+			if (GEnableVerboseNiagaraChangeIdLogging)
+			{
+				UE_LOG(LogNiagara, Log, TEXT("Change ID updated for emitter %s because the ID was invalid."), *GetPathName());
+			}
+		}
+
+		if (bGenerateNewChangeId)
+		{
+			UpdateChangeId(GenerateNewChangeIdReason);
+		}
+
+		GraphSource->OnChanged().AddUObject(this, &UNiagaraEmitter::GraphSourceChanged);
+
+		EmitterSpawnScriptProps.Script->RapidIterationParameters.AddOnChangedHandler(
+			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
+		EmitterUpdateScriptProps.Script->RapidIterationParameters.AddOnChangedHandler(
+			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
+
+		if (SpawnScriptProps.Script)
+		{
+			SpawnScriptProps.Script->RapidIterationParameters.AddOnChangedHandler(
+				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
+		}
+	
+		if (UpdateScriptProps.Script)
+		{
+			UpdateScriptProps.Script->RapidIterationParameters.AddOnChangedHandler(
+				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
+		}
+
+		for (FNiagaraEventScriptProperties& EventScriptProperties : EventHandlerScriptProps)
+		{
+			EventScriptProperties.Script->RapidIterationParameters.AddOnChangedHandler(
+				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
+		}
+
+		for (UNiagaraSimulationStageBase* SimulationStage : SimulationStages)
+		{
+			SimulationStage->OnChanged().AddUObject(this, &UNiagaraEmitter::SimulationStageChanged);
+			SimulationStage->Script->RapidIterationParameters.AddOnChangedHandler(
+				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
+		}
+
+		for (UNiagaraRendererProperties* Renderer : RendererProperties)
+		{
+			Renderer->OnChanged().AddUObject(this, &UNiagaraEmitter::RendererChanged);
+		}
+
+		if (EditorData != nullptr)
+		{
+			EditorData->OnPersistentDataChanged().AddUObject(this, &UNiagaraEmitter::PersistentEditorDataChanged);
+		}
+	}
+#endif
+
+	ResolveScalabilitySettings();
+
+#if !UE_BUILD_SHIPPING
+	DebugSimName.Empty();
+	if (const UNiagaraSystem* SystemOwner = Cast<const UNiagaraSystem>(GetOuter()))
+	{
+		DebugSimName = SystemOwner->GetName();
+		DebugSimName.AppendChar(':');
+	}
+	DebugSimName.Append(GetName());
+#endif
+
 }
 
 bool UNiagaraEmitter::IsAllowedByScalability()const

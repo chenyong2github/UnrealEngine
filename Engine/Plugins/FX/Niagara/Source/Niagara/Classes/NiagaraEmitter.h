@@ -393,6 +393,11 @@ public:
 	void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData);
 	void CacheFromShaderCompiled();
 
+	// Reference to the async update task that is responsible to do any outstanding work like emitter merging on the game thread
+	FGraphEventRef UpdateTaskRef;
+
+	void UpdateEmitterAfterLoad();
+
 #if WITH_EDITORONLY_DATA
 	/** 'Source' data/graphs for the scripts used by this emitter. */
 	UPROPERTY()
