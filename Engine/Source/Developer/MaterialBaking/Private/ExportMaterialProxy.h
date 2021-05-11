@@ -457,10 +457,8 @@ public:
 	}
 	virtual EMaterialDomain GetMaterialDomain() const override
 	{
-		if (Material)
-		{
-			return Material->MaterialDomain;
-		}
+		// Because the baking module applies the material to a plane (or mesh),
+		// it needs to be a surface material.
 		return MD_Surface;
 	}
 	virtual bool IsTwoSided() const  override
@@ -489,7 +487,10 @@ public:
 	}
 	virtual bool IsDeferredDecal() const override
 	{
-		return Material && Material->MaterialDomain == MD_DeferredDecal;
+		// Decals are tricky. Since they mix with the underlying material
+		// and can't be applied to meshes, they can't really be baked 1:1.
+		// Instead we'll just bake them as surface materials.
+		return false;
 	}
 	virtual bool IsVolumetricPrimitive() const override
 	{
