@@ -49,6 +49,14 @@ static FAutoConsoleVariableRef CVarSlateInvalidationRootDumpPreInvalidationList(
 );
 void LogPreInvalidationItem(const FSlateInvalidationWidgetList& FastWidgetPathList, FSlateInvalidationWidgetIndex WidgetIndex);
 
+bool GSlateInvalidationRootDumpPrepassInvalidationList = false;
+static FAutoConsoleVariableRef CVarSlateInvalidationRootDumpPrepassInvalidationList(
+	TEXT("Slate.InvalidationRoot.DumpPrepassInvalidationList"),
+	GSlateInvalidationRootDumpPrepassInvalidationList,
+	TEXT("Each frame, log the widgets that are processed in the prepass update phase.")
+);
+void LogPrepassInvalidationItem(const FSlateInvalidationWidgetList& FastWidgetPathList, FSlateInvalidationWidgetIndex WidgetIndex);
+
 bool GSlateInvalidationRootDumpPostInvalidationList = false;
 static FAutoConsoleVariableRef CVarSlateInvalidationRootDumpPostInvalidationList(
 	TEXT("Slate.InvalidationRoot.DumpPostInvalidationList"),
@@ -168,12 +176,11 @@ FSlateInvalidationRoot::FSlateInvalidationRoot()
 	: CachedElementData(new FSlateCachedElementData)
 	, InvalidationRootWidget(nullptr)
 	, RootHittestGrid(nullptr)
-	, FastPathGenerationNumber(INDEX_NONE)
 	, CachedMaxLayerId(0)
-	, bChildOrderInvalidated(false)
 	, bNeedsSlowPath(true)
 	, bNeedScreenPositionShift(false)
 	, bProcessingPreUpdate(false)
+	, bProcessingPrepassUpdate(false)
 	, bProcessingPostUpdate(false)
 	, bBuildingWidgetList(false)
 	, bProcessingChildOrderInvalidation(false)
@@ -187,6 +194,7 @@ FSlateInvalidationRoot::FSlateInvalidationRoot()
 	const FSlateInvalidationWidgetList::FArguments Arg = { GSlateInvalidationWidgetListMaxArrayElements, GSlateInvalidationWidgetListNumberElementLeftBeforeSplitting };
 	FastWidgetPathList = MakeUnique<FSlateInvalidationWidgetList>(InvalidationRootHandle, Arg);
 	WidgetsNeedingPreUpdate = MakeUnique<FSlateInvalidationWidgetPreHeap>(*FastWidgetPathList);
+	WidgetsNeedingPrepassUpdate = MakeUnique<FSlateInvalidationWidgetPrepassHeap>(*FastWidgetPathList);
 	WidgetsNeedingPostUpdate = MakeUnique<FSlateInvalidationWidgetPostHeap>(*FastWidgetPathList);
 
 #if WITH_SLATE_DEBUGGING
@@ -233,9 +241,6 @@ void FSlateInvalidationRoot::InvalidateRoot(const SWidget* Investigator)
 
 void FSlateInvalidationRoot::InvalidateRootChildOrder(const SWidget* Investigator)
 {
-	// Update the generation number. This will effectively invalidate all proxy handles
-	++FastPathGenerationNumber;
-
 	// Invalidate all proxy handles
 	FastWidgetPathList->Reset();
 	InvalidationRootWidget->Invalidate(EInvalidateWidgetReason::Prepass);
@@ -250,7 +255,7 @@ void FSlateInvalidationRoot::InvalidateRootChildOrder(const SWidget* Investigato
 void FSlateInvalidationRoot::InvalidateRootLayout(const SWidget* Investigator)
 {
 	InvalidationRootWidget->Invalidate(EInvalidateWidgetReason::Prepass);
-	bNeedsSlowPath = true;
+	bNeedsSlowPath = true; // with the loop before it should only do one slateprepass
 
 #if WITH_SLATE_DEBUGGING
 	FSlateDebugging::BroadcastInvalidationRootInvalidate(InvalidationRootWidget, Investigator, ESlateDebuggingInvalidateRootReason::Root);
@@ -265,27 +270,14 @@ void FSlateInvalidationRoot::InvalidateWidget(FWidgetProxy& Proxy, EInvalidateWi
 	if (!bNeedsSlowPath)
 	{
 		Proxy.CurrentInvalidateReason |= InvalidateReason;
-		if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidgetReason::ChildOrder))
+		if (Slate::EInvalidateWidgetReason_HasPreUpdateFlag(InvalidateReason))
 		{
 			WidgetsNeedingPreUpdate->HeapPushUnique(Proxy);
-
-			if (!bChildOrderInvalidated)
-			{
-				bChildOrderInvalidated = true;
-				if (!InvalidationRootWidget->Advanced_IsWindow())
-				{
-					InvalidationRootWidget->MarkPrepassAsDirty();
-				}
-
-				if (!GSlateEnableGlobalInvalidation && !InvalidationRootWidget->Advanced_IsWindow())
-				{
-					InvalidationRootWidget->Invalidate(EInvalidateWidgetReason::Layout);
-				}
-			}
 		}
-		else if (Slate::EInvalidateWidgetReason_HasPreUpdateFlag(InvalidateReason))
+
+		if (!bProcessingPrepassUpdate && EnumHasAnyFlags(InvalidateReason, EInvalidateWidgetReason::Prepass))
 		{
-			WidgetsNeedingPreUpdate->HeapPushUnique(Proxy);
+			WidgetsNeedingPrepassUpdate->PushBackUnique(Proxy);
 		}
 
 		if (Slate::EInvalidateWidgetReason_HasPostUpdateFlag(InvalidateReason))
@@ -358,7 +350,6 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 
 		GSlateIsOnFastUpdatePath = false;
 		bNeedsSlowPath = false;
-		bChildOrderInvalidated = false;
 
 		{
 			if (Context.bAllowFastPathUpdate)
@@ -434,23 +425,37 @@ bool FSlateInvalidationRoot::PaintFastPath(const FSlateInvalidationContext& Cont
 #endif
 
 		TGuardValue<bool> OnFastPathGuard(GSlateIsOnFastUpdatePath, true);
+		FSlateInvalidationWidgetList::FIndexRange PreviousPaintedWidgetRange;
 
 		// The update list is put in reverse order by ProcessInvalidation
 		for (int32 ListIndex = FinalUpdateList.Num() - 1; ListIndex >= 0; --ListIndex)
 		{
 			const FSlateInvalidationWidgetIndex MyIndex = FinalUpdateList[ListIndex];
+			if (PreviousPaintedWidgetRange.IsValid())
+			{
+				// It's already been processed by the previous draw
+				if (PreviousPaintedWidgetRange.Include(FSlateInvalidationWidgetSortOrder{*FastWidgetPathList , MyIndex}))
+				{
+					continue;
+				}
+			}
+
 			FWidgetProxy& WidgetProxy = (*FastWidgetPathList)[MyIndex];
+			SWidget* WidgetPtr = WidgetProxy.GetWidget();
 
 			// Check visibility, it may have been in the update list but a parent who was also in the update list already updated it.
-			SWidget* WidgetPtr = WidgetProxy.GetWidget();
-			if (!WidgetProxy.bUpdatedSinceLastInvalidate && WidgetProxy.Visibility.IsVisible() && WidgetPtr)
+			if (WidgetProxy.Visibility.IsVisible() && WidgetPtr)
 			{
-				bWidgetsNeededRepaint = bWidgetsNeededRepaint || WidgetPtr->HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsRepaint | EWidgetUpdateFlags::NeedsVolatilePaint);
+				const bool bNeedPaint = WidgetPtr->HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsRepaint | EWidgetUpdateFlags::NeedsVolatilePaint);
+				bWidgetsNeededRepaint = bWidgetsNeededRepaint || bNeedPaint;
+
+				if (bNeedPaint)
+				{
+					PreviousPaintedWidgetRange = FSlateInvalidationWidgetList::FIndexRange(*FastWidgetPathList, WidgetProxy.Index, WidgetProxy.LeafMostChildIndex);
+				}
 
 				const int32 NewLayerId = WidgetProxy.Update(*Context.PaintArgs, *Context.WindowElementList);
 				CachedMaxLayerId = FMath::Max(NewLayerId, CachedMaxLayerId);
-
-				WidgetProxy.MarkProxyUpdatedThisFrame(*WidgetsNeedingPostUpdate);
 
 				if (bNeedsSlowPath)
 				{
@@ -490,6 +495,7 @@ void FSlateInvalidationRoot::BuildFastPathWidgetList(TSharedRef<SWidget> RootWid
 
 	// We do not care if update are requested. We need to redo all the data.
 	WidgetsNeedingPreUpdate->Reset(false);
+	WidgetsNeedingPrepassUpdate->Reset(false);
 	WidgetsNeedingPostUpdate->Reset(false);
 	FinalUpdateList.Reset();
 
@@ -519,21 +525,11 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 
 		// Add the root to the update list (to prepass and paint it)
 		check(RootWidget->GetProxyHandle().IsValid(&RootWidget.Get()));
+		WidgetsNeedingPostUpdate->Reset(true); // we can clear the post list, because all widgets will be updated
 		RootWidget->Invalidate(EInvalidateWidgetReason::Prepass);
 	}
 	else
 	{
-		// Put Widget waiting for update back in WidgetsNeedingPostUpdate to ensure index order
-		//and just in case Prepass need to be reexecuted.
-		{
-			for (FSlateInvalidationWidgetIndex WidgetIndex : FinalUpdateList)
-			{
-				FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget = (*FastWidgetPathList)[WidgetIndex];
-				WidgetsNeedingPostUpdate->PushBackUnique(InvalidationWidget);
-			}
-			FinalUpdateList.Reset(WidgetsNeedingPostUpdate->Num());
-		}
-
 		{
 #if WITH_SLATE_DEBUGGING
 			if (GSlateInvalidationRootDumpPreInvalidationList)
@@ -551,16 +547,19 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 				FChildOriderInvalidationCallbackImpl(
 					const FSlateInvalidationWidgetList& InWidgetList
 					, FSlateInvalidationWidgetPreHeap& InPreUpdate
+					, FSlateInvalidationWidgetPrepassHeap& InPrepassUpdate
 					, FSlateInvalidationWidgetPostHeap& InPostUpdate
 					, FSlateInvalidationWidgetList::FWidgetAttributeIterator& InAttributeItt)
 					: WidgetList(InWidgetList)
 					, PreUpdate(InPreUpdate)
+					, PrepassUpdate(InPrepassUpdate)
 					, PostUpdate(InPostUpdate)
 					, AttributeItt(InAttributeItt)
 				{}
 				virtual ~FChildOriderInvalidationCallbackImpl() = default;
 				const FSlateInvalidationWidgetList& WidgetList;
 				FSlateInvalidationWidgetPreHeap& PreUpdate;
+				FSlateInvalidationWidgetPrepassHeap& PrepassUpdate;
 				FSlateInvalidationWidgetPostHeap& PostUpdate;
 				FSlateInvalidationWidgetList::FWidgetAttributeIterator& AttributeItt;
 				TArray<FSlateInvalidationWidgetPreHeap::FElement*> WidgetToResort;
@@ -571,6 +570,7 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 					//Also, their index will not be valid after this function.
 					PreUpdate.RemoveRange(Range);
 					PostUpdate.RemoveRange(Range);
+					PrepassUpdate.RemoveRange(Range);
 					AttributeItt.PreChildRemove(Range);
 				}
 				using FReIndexOperation = FSlateInvalidationWidgetList::IProcessChildOrderInvalidationCallback::FReIndexOperation;
@@ -588,6 +588,7 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 					};
 					PreUpdate.ForEachIndexes(ReIndexIfNeeded);
 					PostUpdate.ForEachIndexes(ReIndexIfNeeded);
+					PrepassUpdate.ForEachIndexes(ReIndexIfNeeded);
 					AttributeItt.ReIndexed(Operation);
 				}
 				using FReSortOperation = FSlateInvalidationWidgetList::IProcessChildOrderInvalidationCallback::FReSortOperation;
@@ -604,6 +605,7 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 					};
 					PreUpdate.ForEachIndexes(ReSortIfNeeded);
 					PostUpdate.ForEachIndexes(ReSortIfNeeded);
+					PrepassUpdate.ForEachIndexes(ReSortIfNeeded);
 				}
 				virtual void ProxiesPostResort()
 				{
@@ -619,7 +621,7 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 					AttributeItt.ProxiesBuilt(Range);
 				}
 
-			}  ChildOriderInvalidationCallback{ *FastWidgetPathList, *WidgetsNeedingPreUpdate, *WidgetsNeedingPostUpdate, AttributeItt };
+			}  ChildOrderInvalidationCallback{ *FastWidgetPathList, *WidgetsNeedingPreUpdate, *WidgetsNeedingPrepassUpdate, *WidgetsNeedingPostUpdate, AttributeItt };
 
 			while((AttributeItt.IsValid() || WidgetsNeedingPreUpdate->Num() > 0) && !bNeedsSlowPath)
 			{
@@ -716,13 +718,20 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 #if 0
 							FMemMark Mark(FMemStack::Get());
 							TArray<TTuple<FSlateInvalidationWidgetIndex, FSlateInvalidationWidgetSortOrder, TWeakPtr<SWidget>>, TMemStackAllocator<>> PreviousPreUpdate;
+							TArray<TTuple<FSlateInvalidationWidgetIndex, FSlateInvalidationWidgetSortOrder, TWeakPtr<SWidget>>, TMemStackAllocator<>> PreviousPrepassUpdate;
 							TArray<TTuple<FSlateInvalidationWidgetIndex, FSlateInvalidationWidgetSortOrder, TWeakPtr<SWidget>>, TMemStackAllocator<>> PreviousPostUpdate;
 							PreviousPreUpdate.Reserve(WidgetsNeedingPreUpdate->Num());
+							PreviousPrepassUpdate.Reserve(WidgetsNeedingPrepassUpdate->Num());
 							PreviousPostUpdate.Reserve(WidgetsNeedingPostUpdate->Num());
 							for (const auto& Element : WidgetsNeedingPreUpdate->GetRaw())
 							{
 								ensureAlwaysMsgf(FastWidgetPathList->IsValidIndex(Element.GetWidgetIndex()), TEXT("The element is invalid"));
 								PreviousPreUpdate.Emplace(Element.GetWidgetIndex(), Element.GetWidgetSortOrder(), (*FastWidgetPathList)[Element.GetWidgetIndex()].GetWidgetAsShared());
+							}
+							for (const auto& Element : WidgetsNeedingPrepassUpdate->GetRaw())
+							{
+								ensureAlwaysMsgf(FastWidgetPathList->IsValidIndex(Element.GetWidgetIndex()), TEXT("The element is invalid."));
+								PreviousPrepassUpdate.Emplace(Element.GetWidgetIndex(), Element.GetWidgetSortOrder(), (*FastWidgetPathList)[Element.GetWidgetIndex()].GetWidgetAsShared());
 							}
 							for (const auto& Element : WidgetsNeedingPostUpdate->GetRaw())
 							{
@@ -732,7 +741,7 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 #endif
 
 							TGuardValue<bool> ProcessChildOrderInvalidationGuardValue(bProcessingChildOrderInvalidation, true);
-							FastWidgetPathList->ProcessChildOrderInvalidation(InvalidationWidget, ChildOriderInvalidationCallback);
+							FastWidgetPathList->ProcessChildOrderInvalidation(InvalidationWidget, ChildOrderInvalidationCallback);
 
 							// This widget may not be valid anymore (got removed because it doesn't fulfill the requirement anymore ie. NullWidget).
 
@@ -765,10 +774,57 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 #endif //UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
 }
 
+void FSlateInvalidationRoot::ProcessPrepassUpdate()
+{
+	TGuardValue<bool> Tmp(bProcessingPrepassUpdate, true);
+
+#if WITH_SLATE_DEBUGGING
+	if (GSlateInvalidationRootDumpPostInvalidationList)
+	{
+		UE_LOG(LogSlate, Log, TEXT("Dumping Prepass Invalidation List"));
+		UE_LOG(LogSlate, Log, TEXT("-------------------"));
+	}
+#endif
+
+	FSlateInvalidationWidgetList::FIndexRange PreviousInvalidationWidgetRange;
+
+	// It update forward (smallest index to biggest )
+	while (WidgetsNeedingPrepassUpdate->Num())
+	{
+		const FSlateInvalidationWidgetPrepassHeap::FElement WidgetElement = WidgetsNeedingPrepassUpdate->HeapPop();
+		if (PreviousInvalidationWidgetRange.IsValid())
+		{
+			// It's already been processed by the previous slate prepass
+			if (PreviousInvalidationWidgetRange.Include(WidgetElement.GetWidgetSortOrder()))
+			{
+				continue;
+			}
+		}
+		FWidgetProxy& WidgetProxy = (*FastWidgetPathList)[WidgetElement.GetWidgetIndex()];
+		PreviousInvalidationWidgetRange = FSlateInvalidationWidgetList::FIndexRange(*FastWidgetPathList, WidgetProxy.Index, WidgetProxy.LeafMostChildIndex);
+
+		// Widget could be null if it was removed and we are on the slow path
+		if (SWidget* WidgetPtr = WidgetProxy.GetWidget())
+		{
+#if WITH_SLATE_DEBUGGING
+			if (GSlateInvalidationRootDumpPrepassInvalidationList)
+			{
+				LogPrepassInvalidationItem(*FastWidgetPathList, WidgetElement.GetWidgetIndex());
+			}
+#endif
+
+			if (!WidgetProxy.Visibility.IsCollapsed() && WidgetPtr->HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePrepass))
+			{
+				WidgetPtr->MarkPrepassAsDirty();
+			}
+			WidgetProxy.ProcessLayoutInvalidation(*WidgetsNeedingPostUpdate, *FastWidgetPathList, *this);
+		}
+	}
+	WidgetsNeedingPrepassUpdate->Reset(true);
+}
+
 bool FSlateInvalidationRoot::ProcessPostUpdate()
 {
-	WidgetsNeedingPostUpdate->Heapify();
-
 #if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
 	if (GSlateInvalidationRootVerifyWidgetsUpdateList)
 	{
@@ -793,10 +849,6 @@ bool FSlateInvalidationRoot::ProcessPostUpdate()
 		const FSlateInvalidationWidgetIndex WidgetIndex = WidgetsNeedingPostUpdate->HeapPop();
 		FWidgetProxy& WidgetProxy = (*FastWidgetPathList)[WidgetIndex];
 
-		// Reset each widgets paint state
-		// Must be done before actual painting because children can repaint 
-		WidgetProxy.bUpdatedSinceLastInvalidate = false;
-
 		// Widget could be null if it was removed and we are on the slow path
 		if (SWidget* WidgetPtr = WidgetProxy.GetWidget())
 		{
@@ -807,22 +859,8 @@ bool FSlateInvalidationRoot::ProcessPostUpdate()
 			}
 #endif
 
-			if (WidgetProxy.Visibility.IsVisible())
-			{
-				const bool bIsInvalidationRoot = WidgetPtr->Advanced_IsInvalidationRoot();
-				if (bIsInvalidationRoot && WidgetPtr != InvalidationRootWidget)
-				{
-					FSlateInvalidationRoot* InvalidationRoot = const_cast<FSlateInvalidationRoot*>(WidgetPtr->Advanced_AsInvalidationRoot());
-					check(InvalidationRoot);
-					// Prevent reentering call
-					FSlateInvalidationWidgetPostHeap::FScopeWidgetCannotBeAdded Guard{ *WidgetsNeedingPostUpdate, WidgetProxy };
-					InvalidationRoot->ProcessInvalidation();
-				}
-			}
-
 			bWidgetsNeedRepaint |= WidgetProxy.ProcessPostInvalidation(*WidgetsNeedingPostUpdate, *FastWidgetPathList, *this);
-
-			if (WidgetPtr->HasAnyUpdateFlags(EWidgetUpdateFlags::AnyUpdate))
+			if (WidgetPtr->HasAnyUpdateFlags(EWidgetUpdateFlags::AnyUpdate) && WidgetProxy.Visibility.IsVisible())
 			{
 				FinalUpdateList.Add(WidgetIndex);
 			}
@@ -850,6 +888,7 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 	if (!bNeedsSlowPath)
 	{
 		check(WidgetsNeedingPreUpdate);
+		check(WidgetsNeedingPrepassUpdate);
 		check(WidgetsNeedingPostUpdate);
 
 		ProcessPreUpdate();
@@ -860,11 +899,46 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 			ensureMsgf(FastWidgetPathList->VerifyProxiesWidget(), TEXT("We failed to verify that every WidgetProxy has a valid SWidget"));
 		}
 #endif //UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
+	}
 
+	if (!bNeedsSlowPath)
+	{
+		// Put all widgets in the VolatileUpdate list in the WidgetsNeedingPostUpdate
+		WidgetsNeedingPrepassUpdate->Heapify();
+		WidgetsNeedingPostUpdate->Heapify();
+		{
+			for (FSlateInvalidationWidgetList::FWidgetVolatileUpdateIterator Iterator = FastWidgetPathList->CreateWidgetVolatileUpdateIterator(true);
+				Iterator.IsValid();
+				Iterator.Advance())
+			{
+				FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget = (*FastWidgetPathList)[Iterator.GetCurrentIndex()];
+				WidgetsNeedingPostUpdate->HeapPushUnique(InvalidationWidget);
+				if (InvalidationWidget.bIsVolatilePrepass)
+				{
+					WidgetsNeedingPrepassUpdate->HeapPushUnique(InvalidationWidget);
+				}
+			}
+		}
+	}
+
+	if (!bNeedsSlowPath)
+	{
+		ProcessPrepassUpdate();
+	}
+
+	if (!bNeedsSlowPath)
+	{
+		FinalUpdateList.Reset(WidgetsNeedingPostUpdate->Num());
 		bWidgetsNeedRepaint = ProcessPostUpdate();
 	}
-	else
+	
+	if (bNeedsSlowPath)
 	{
+		WidgetsNeedingPreUpdate->Reset(true);
+		WidgetsNeedingPrepassUpdate->Reset(true);
+		WidgetsNeedingPostUpdate->Reset(true);
+		FinalUpdateList.Reset();
+		CachedElementData->Empty();
 		bWidgetsNeedRepaint = true;
 	}
 
@@ -918,6 +992,7 @@ void FSlateInvalidationRoot::ClearAllFastPathData(bool bClearResourcesImmediatel
 #endif
 
 	WidgetsNeedingPreUpdate->Reset(false);
+	WidgetsNeedingPrepassUpdate->Reset(false);
 	WidgetsNeedingPostUpdate->Reset(false);
 	FastWidgetPathList->Empty();
 	CachedElementData->Empty();
@@ -1000,6 +1075,12 @@ void LogPreInvalidationItem(const FSlateInvalidationWidgetList& FastWidgetPathLi
 	{
 		UE_LOG(LogSlate, Log, TEXT("  [?] %s"), *FReflectionMetaData::GetWidgetDebugInfo(Proxy.GetWidget()));
 	}
+}
+
+void LogPrepassInvalidationItem(const FSlateInvalidationWidgetList& FastWidgetPathList, FSlateInvalidationWidgetIndex WidgetIndex)
+{
+	const FWidgetProxy& Proxy = FastWidgetPathList[WidgetIndex];
+	UE_LOG(LogSlate, Log, TEXT("  Prepass %s"), *FReflectionMetaData::GetWidgetDebugInfo(Proxy.GetWidget()));
 }
 
 void LogPostInvalidationItem(const FSlateInvalidationWidgetList& FastWidgetPathList, FSlateInvalidationWidgetIndex WidgetIndex)

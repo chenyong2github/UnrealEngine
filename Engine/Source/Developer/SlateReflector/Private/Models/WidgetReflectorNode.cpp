@@ -745,7 +745,11 @@ TSharedRef<FWidgetReflectorNodeBase> FWidgetReflectorNodeUtils::NewNodeTreeFrom(
 	TSharedRef<FWidgetReflectorNodeBase> NewNodeInstance = NewNode(InNodeType, InWidgetGeometry);
 
 	TSharedRef<SWidget> CurWidgetParent = InWidgetGeometry.Widget;
-	FChildren* Children = CurWidgetParent->Advanced_IsInvalidationRoot() ? CurWidgetParent->GetAllChildren() : CurWidgetParent->GetChildren();
+#if WITH_SLATE_DEBUGGING
+	FChildren* Children = CurWidgetParent->Debug_GetChildrenForReflector();
+#else
+	FChildren* Children = CurWidgetParent->GetChildren();
+#endif
 
 	auto BuildChild = [NewNodeInstance, CurWidgetParent, InNodeType](const TSharedRef<SWidget>& ChildWidget)
 	{

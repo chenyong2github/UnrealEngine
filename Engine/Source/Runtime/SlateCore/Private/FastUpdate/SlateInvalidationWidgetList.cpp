@@ -256,30 +256,136 @@ void FSlateInvalidationWidgetList::FWidgetAttributeIterator::Clear()
 
 
 /** */
+FSlateInvalidationWidgetList::FWidgetVolatileUpdateIterator::FWidgetVolatileUpdateIterator(const FSlateInvalidationWidgetList& InWidgetList, bool bInSkipCollapsed)
+	: WidgetList(InWidgetList)
+	, CurrentWidgetIndex(FSlateInvalidationWidgetIndex::Invalid)
+	, AttributeIndex(0)
+	, bSkipCollapsed(bInSkipCollapsed)
+{
+	AdvanceArray(WidgetList.FirstArrayIndex);
+	if (bSkipCollapsed)
+	{
+		SkipToNextExpend();
+	}
+}
+
+void FSlateInvalidationWidgetList::FWidgetVolatileUpdateIterator::Advance()
+{
+	Internal_Advance();
+	if (bSkipCollapsed)
+	{
+		SkipToNextExpend();
+	}
+}
+
+
+void FSlateInvalidationWidgetList::FWidgetVolatileUpdateIterator::Internal_Advance()
+{
+	++AttributeIndex;
+
+	const FArrayNode& ArrayNode = WidgetList.Data[CurrentWidgetIndex.ArrayIndex];
+	if (AttributeIndex >= ArrayNode.ElementIndexList_VolatileUpdateWidget.Num())
+	{
+		AttributeIndex = 0;
+		CurrentWidgetIndex = FSlateInvalidationWidgetIndex::Invalid;
+		AdvanceArray(ArrayNode.NextArrayIndex);
+	}
+	else
+	{
+		int32 ArrayIndex = CurrentWidgetIndex.ArrayIndex;
+		CurrentWidgetIndex = FSlateInvalidationWidgetIndex{ (IndexType)ArrayIndex, ArrayNode.ElementIndexList_VolatileUpdateWidget[AttributeIndex] };;
+	}
+}
+
+
+void FSlateInvalidationWidgetList::FWidgetVolatileUpdateIterator::SkipToNextExpend()
+{
+	while (CurrentWidgetIndex != FSlateInvalidationWidgetIndex::Invalid && WidgetList[CurrentWidgetIndex].Visibility.IsCollapsed())
+	{
+		const FSlateInvalidationWidgetIndex SeekToIndex = WidgetList.IncrementIndex(WidgetList[CurrentWidgetIndex].LeafMostChildIndex);
+		if (SeekToIndex != FSlateInvalidationWidgetIndex::Invalid)
+		{
+			Seek(SeekToIndex);
+		}
+		else
+		{
+			AttributeIndex = 0;
+			CurrentWidgetIndex = FSlateInvalidationWidgetIndex::Invalid;
+			break;
+		}
+	}
+}
+
+
+void FSlateInvalidationWidgetList::FWidgetVolatileUpdateIterator::Seek(FSlateInvalidationWidgetIndex SeekTo)
+{
+	check(SeekTo != FSlateInvalidationWidgetIndex::Invalid);
+
+	const FArrayNode& ArrayNode = WidgetList.Data[SeekTo.ArrayIndex];
+	AttributeIndex = ArrayNode.ElementIndexList_VolatileUpdateWidget.FindLowerBound(SeekTo.ElementIndex);
+	if (AttributeIndex == INDEX_NONE)
+	{
+		AttributeIndex = 0;
+		CurrentWidgetIndex = FSlateInvalidationWidgetIndex::Invalid;
+		AdvanceArray(ArrayNode.NextArrayIndex);
+	}
+	else
+	{
+		CurrentWidgetIndex = FSlateInvalidationWidgetIndex{ (IndexType)SeekTo.ArrayIndex, ArrayNode.ElementIndexList_VolatileUpdateWidget[AttributeIndex] };
+	}
+}
+
+
+void FSlateInvalidationWidgetList::FWidgetVolatileUpdateIterator::AdvanceArray(int32 ArrayIndex)
+{
+	while (ArrayIndex != INDEX_NONE)
+	{
+		const FArrayNode& NewArrayNode = WidgetList.Data[ArrayIndex];
+		if (NewArrayNode.ElementIndexList_VolatileUpdateWidget.Num() > 0)
+		{
+			CurrentWidgetIndex = FSlateInvalidationWidgetIndex{ (IndexType)ArrayIndex, NewArrayNode.ElementIndexList_VolatileUpdateWidget[0] };
+			break;
+		}
+		ArrayIndex = NewArrayNode.NextArrayIndex;
+	}
+}
+
+
+/** */
 void FSlateInvalidationWidgetList::FArrayNode::RemoveElementIndexBiggerOrEqualThan(IndexType ElementIndex)
 {
-	const int32 FoundIndex = ElementIndexList_WidgetWithRegisteredSlateAttribute.FindLowerBound(ElementIndex);
-	if (ElementIndexList_WidgetWithRegisteredSlateAttribute.IsValidIndex(FoundIndex))
+	auto RemoveLowerBound = [ElementIndex](WidgetListType& ListType)
 	{
-		ElementIndexList_WidgetWithRegisteredSlateAttribute.RemoveAt(FoundIndex, ElementIndexList_WidgetWithRegisteredSlateAttribute.Num() - FoundIndex);
-	}
+		const int32 FoundIndex = ListType.FindLowerBound(ElementIndex);
+		if (ListType.IsValidIndex(FoundIndex))
+		{
+			ListType.RemoveAt(FoundIndex, ListType.Num() - FoundIndex);
+		}
+	};
+	RemoveLowerBound(ElementIndexList_WidgetWithRegisteredSlateAttribute);
+	RemoveLowerBound(ElementIndexList_VolatileUpdateWidget);
 }
 
 void FSlateInvalidationWidgetList::FArrayNode::RemoveElementIndexBetweenOrEqualThan(IndexType StartElementIndex, IndexType EndElementIndex)
 {
-	const int32 StartFoundIndex = ElementIndexList_WidgetWithRegisteredSlateAttribute.FindLowerBound(StartElementIndex);
-	if (ElementIndexList_WidgetWithRegisteredSlateAttribute.IsValidIndex(StartFoundIndex))
+	auto RemoveBound = [StartElementIndex, EndElementIndex](WidgetListType& ListType)
 	{
-		const int32 EndFoundIndex = ElementIndexList_WidgetWithRegisteredSlateAttribute.FindUpperBound(EndElementIndex);
-		if (ElementIndexList_WidgetWithRegisteredSlateAttribute.IsValidIndex(EndFoundIndex))
+		const int32 StartFoundIndex = ListType.FindLowerBound(StartElementIndex);
+		if (ListType.IsValidIndex(StartFoundIndex))
 		{
-			ElementIndexList_WidgetWithRegisteredSlateAttribute.RemoveAt(StartFoundIndex, EndFoundIndex - StartFoundIndex);
+			const int32 EndFoundIndex = ListType.FindUpperBound(EndElementIndex);
+			if (ListType.IsValidIndex(EndFoundIndex))
+			{
+				ListType.RemoveAt(StartFoundIndex, EndFoundIndex - StartFoundIndex);
+			}
+			else
+			{
+				ListType.RemoveAt(StartFoundIndex, ListType.Num() - StartFoundIndex);
+			}
 		}
-		else
-		{
-			ElementIndexList_WidgetWithRegisteredSlateAttribute.RemoveAt(StartFoundIndex, ElementIndexList_WidgetWithRegisteredSlateAttribute.Num() - StartFoundIndex);
-		}
-	}
+	};
+	RemoveBound(ElementIndexList_WidgetWithRegisteredSlateAttribute);
+	RemoveBound(ElementIndexList_VolatileUpdateWidget);
 }
 
 
@@ -334,6 +440,11 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::Internal_BuildWidget
 		}
 	}
 
+	if (ShouldBeAddedToVolatileUpdateList(Widget))
+	{		// The list is already sorted at this point. Add to the end.
+		Data[LastestIndex].ElementIndexList_VolatileUpdateWidget.AddUnsorted(NewIndex.ElementIndex);
+	}
+
 	const bool bIsInvalidationRoot = Widget->Advanced_IsInvalidationRoot();
 
 	{
@@ -343,6 +454,7 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::Internal_BuildWidget
 		WidgetProxy.LeafMostChildIndex = LeafMostChildIndex;
 		WidgetProxy.Visibility = NewVisibility;
 		WidgetProxy.bIsInvalidationRoot = bIsInvalidationRoot;
+		WidgetProxy.bIsVolatilePrepass = Widget->HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePrepass);
 #if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
 		WidgetProxy.bDebug_AttributeUpdated = bUpdateSlateAttribute;
 #endif
@@ -353,7 +465,7 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::Internal_BuildWidget
 #endif
 	{
 		const FSlateInvalidationWidgetSortOrder SortIndex = { *this, NewIndex };
-		Widget->SetFastPathProxyHandle(FWidgetProxyHandle{ Owner, NewIndex, SortIndex, GenerationNumber }, NewVisibility, bParentVolatile);
+		Widget->SetFastPathProxyHandle(FWidgetProxyHandle{ Owner, NewIndex, SortIndex }, NewVisibility, bParentVolatile);
 	}
 
 	const bool bParentOrSelfVolatile = bParentVolatile || Widget->IsVolatile();
@@ -391,11 +503,6 @@ void FSlateInvalidationWidgetList::BuildWidgetList(TSharedRef<SWidget> InRoot)
 
 	Reset();
 	Root = InRoot;
-	FSlateInvalidationRoot*  InvalidationRoot = Owner.GetInvalidationRoot();
-	if (InvalidationRoot)
-	{
-		GenerationNumber = InvalidationRoot->GetFastPathGenerationNumber();
-	}
 	const bool bShouldAdd = ShouldBeAdded(InRoot);
 	if (bShouldAdd)
 	{
@@ -629,6 +736,24 @@ void FSlateInvalidationWidgetList::ProcessAttributeRegistrationInvalidation(cons
 	}
 }
 
+
+void FSlateInvalidationWidgetList::ProcessVolatileUpdateInvalidation(InvalidationWidgetType& InvalidationWidget)
+{
+	SWidget* WidgetPtr = InvalidationWidget.GetWidget();
+	check(WidgetPtr);
+
+	if (ShouldBeAddedToVolatileUpdateList(WidgetPtr))
+	{
+		Data[InvalidationWidget.Index.ArrayIndex].ElementIndexList_VolatileUpdateWidget.InsertUnique(InvalidationWidget.Index.ElementIndex);
+	}
+	else
+	{
+		Data[InvalidationWidget.Index.ArrayIndex].ElementIndexList_VolatileUpdateWidget.RemoveSingle(InvalidationWidget.Index.ElementIndex);
+	}
+	InvalidationWidget.bIsVolatilePrepass = WidgetPtr->HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePrepass);
+}
+
+
 namespace InvalidationList
 {
 	template<typename TSlateInvalidationWidgetList, typename Predicate>
@@ -746,7 +871,6 @@ void FSlateInvalidationWidgetList::Reset()
 	Root.Reset();
 	FirstArrayIndex = INDEX_NONE;
 	LastArrayIndex = INDEX_NONE;
-	GenerationNumber = INDEX_NONE;
 }
 
 
@@ -988,6 +1112,7 @@ void FSlateInvalidationWidgetList::RemoveDataNode(IndexType Index)
 	}
 	ArrayNode.ElementList.Empty();
 	ArrayNode.ElementIndexList_WidgetWithRegisteredSlateAttribute.Empty();
+	ArrayNode.ElementIndexList_VolatileUpdateWidget.Empty();
 	Data.RemoveAt(Index);
 
 	// No need to rebuild the order when we remove.
@@ -1074,7 +1199,7 @@ void FSlateInvalidationWidgetList::Internal_RemoveRangeFromSameParent(const FInd
 		|| (bRangeIsInSameElementArray && Data[Range.GetInclusiveMinWidgetIndex().ArrayIndex].StartIndex != Range.GetInclusiveMinWidgetIndex().ElementIndex);
 	if (bShouldCutArray)
 	{
-		_CutArray(Range.GetInclusiveMaxWidgetIndex());
+		Internal_CutArray(Range.GetInclusiveMaxWidgetIndex());
 	}
 
 	// Destroy/Remove the data that is not needed anymore
@@ -1196,7 +1321,7 @@ void FSlateInvalidationWidgetList::Internal_RemoveRangeFromSameParent(const FInd
 
 FSlateInvalidationWidgetList::FCutResult FSlateInvalidationWidgetList::CutArray(const FSlateInvalidationWidgetIndex WhereToCut)
 {
-	FCutResult CutResult = _CutArray(WhereToCut);
+	FCutResult CutResult = Internal_CutArray(WhereToCut);
 
 	// Remove the old data that is now moved to the new array
 	if (CutResult.OldElementIndexStart != INDEX_NONE)
@@ -1218,7 +1343,7 @@ FSlateInvalidationWidgetList::FCutResult FSlateInvalidationWidgetList::CutArray(
 }
 
 
-FSlateInvalidationWidgetList::FCutResult FSlateInvalidationWidgetList::_CutArray(const FSlateInvalidationWidgetIndex WhereToCut)
+FSlateInvalidationWidgetList::FCutResult FSlateInvalidationWidgetList::Internal_CutArray(const FSlateInvalidationWidgetIndex WhereToCut)
 {
 	FCutResult Result;
 	// Widget proxies that got moved/re-indexed by the operation.
@@ -1310,12 +1435,16 @@ FSlateInvalidationWidgetList::FCutResult FSlateInvalidationWidgetList::_CutArray
 			if (SWidget* Widget = NewInvalidationWidget.GetWidget())
 			{
 				FSlateInvalidationWidgetSortOrder SortIndex = { *this, NewWidgetIndex };
-				Widget->SetFastPathProxyHandle(FWidgetProxyHandle{ Owner, NewWidgetIndex, SortIndex, GenerationNumber });
+				Widget->SetFastPathProxyHandle(FWidgetProxyHandle{ Owner, NewWidgetIndex, SortIndex });
 
 				// Check for ElementIndexList
 				if (ShouldBeAddedToAttributeList(Widget))
 				{
 					Data[NewArrayIndex].ElementIndexList_WidgetWithRegisteredSlateAttribute.AddUnsorted(NewElementIndex);
+				}
+				if (ShouldBeAddedToVolatileUpdateList(Widget))
+				{
+					Data[NewArrayIndex].ElementIndexList_VolatileUpdateWidget.AddUnsorted(NewElementIndex);
 				}
 			}
 		}

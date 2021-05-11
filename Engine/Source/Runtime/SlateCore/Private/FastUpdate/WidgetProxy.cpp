@@ -25,7 +25,10 @@ FWidgetProxy::FWidgetProxy(TSharedRef<SWidget>& InWidget)
 	, LeafMostChildIndex(FSlateInvalidationWidgetIndex::Invalid)
 	, CurrentInvalidateReason(EInvalidateWidgetReason::None)
 	, Visibility()
-	, PrivateFlags(false)
+	, PrivateFlags(0)
+#if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
+	, PrivateDebugFlags(0)
+#endif
 {
 #if UE_SLATE_WITH_WIDGETPROXY_WIDGETTYPE
 	WidgetName = GetWidget()->GetType();
@@ -80,6 +83,62 @@ int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, FSlateWindowElementList&
 	return OutgoingLayerId;
 }
 
+void FWidgetProxy::ProcessLayoutInvalidation(FSlateInvalidationWidgetPostHeap& UpdateList, FSlateInvalidationWidgetList& FastWidgetPathList, FSlateInvalidationRoot& Root)
+{
+	SWidget* WidgetPtr = GetWidget();
+	SCOPE_CYCLE_SWIDGET(WidgetPtr);
+	// When layout changes compute a new desired size for this widget
+	const FVector2D CurrentDesiredSize = WidgetPtr->GetDesiredSize();
+	FVector2D NewDesiredSize = FVector2D::ZeroVector;
+	if (!Visibility.IsCollapseDirectly())
+	{
+		if (WidgetPtr->NeedsPrepass())
+		{
+			WidgetPtr->SlatePrepass(WidgetPtr->PrepassLayoutScaleMultiplier.Get(1.0f));
+		}
+		else
+		{
+			WidgetPtr->CacheDesiredSize(WidgetPtr->PrepassLayoutScaleMultiplier.Get(1.0f));
+		}
+
+		NewDesiredSize = WidgetPtr->GetDesiredSize();
+	}
+
+	// Note even if volatile we need to recompute desired size. We do not need to invalidate parents though if they are volatile since they will naturally redraw this widget
+	if (!WidgetPtr->IsVolatileIndirectly() && Visibility.IsVisible())
+	{
+		// Set the value directly instead of calling AddUpdateFlags as an optimization
+		WidgetPtr->UpdateFlags |= EWidgetUpdateFlags::NeedsRepaint;
+	}
+
+	// If the desired size changed, invalidate the parent if it is visible
+	if (NewDesiredSize != CurrentDesiredSize || EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidgetReason::Visibility | EInvalidateWidgetReason::RenderTransform))
+	{
+		if (ParentIndex != FSlateInvalidationWidgetIndex::Invalid)
+		{
+			FWidgetProxy& ParentProxy = FastWidgetPathList[ParentIndex];
+			if (ParentIndex == FastWidgetPathList.FirstIndex())
+			{
+				// root of the invalidation panel just invalidate the whole thing
+				Root.InvalidateRootLayout(WidgetPtr);
+			}
+			else if (!ParentProxy.Visibility.IsCollapseDirectly())
+			{
+				ParentProxy.CurrentInvalidateReason |= EInvalidateWidgetReason::Layout;
+#if WITH_SLATE_DEBUGGING
+				FSlateDebugging::BroadcastWidgetInvalidate(ParentProxy.GetWidget(), WidgetPtr, EInvalidateWidgetReason::Layout);
+#endif
+				UE_TRACE_SLATE_WIDGET_INVALIDATED(ParentProxy.GetWidget(), WidgetPtr, EInvalidateWidgetReason::Layout);
+				UpdateList.PushBackOrHeapUnique(ParentProxy);
+			}
+		}
+		else if (TSharedPtr<SWidget> ParentWidget = WidgetPtr->GetParentWidget())
+		{
+			ParentWidget->Invalidate(EInvalidateWidgetReason::Layout);
+		}
+	}
+}
+
 bool FWidgetProxy::ProcessPostInvalidation(FSlateInvalidationWidgetPostHeap& UpdateList, FSlateInvalidationWidgetList& FastWidgetPathList, FSlateInvalidationRoot& Root)
 {
 	bool bWidgetNeedsRepaint = false;
@@ -102,60 +161,11 @@ bool FWidgetProxy::ProcessPostInvalidation(FSlateInvalidationWidgetPostHeap& Upd
 		}
 		bWidgetNeedsRepaint = true;
 	}
-	else if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidgetReason::RenderTransform | EInvalidateWidgetReason::Layout | EInvalidateWidgetReason::Visibility | EInvalidateWidgetReason::ChildOrder))
+	else if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidgetReason::RenderTransform | EInvalidateWidgetReason::Layout | EInvalidateWidgetReason::Visibility | EInvalidateWidgetReason::ChildOrder)
+		|| WidgetPtr->HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePrepass))
 	{
-		SCOPE_CYCLE_SWIDGET(WidgetPtr);
-		// When layout changes compute a new desired size for this widget
-		FVector2D CurrentDesiredSize = WidgetPtr->GetDesiredSize();
-		FVector2D NewDesiredSize = FVector2D::ZeroVector;
-		if (!Visibility.IsCollapsed())
-		{
-			if (WidgetPtr->NeedsPrepass())
-			{
-				WidgetPtr->SlatePrepass(WidgetPtr->PrepassLayoutScaleMultiplier.Get(1.0f));
-			}
-			else
-			{
-				WidgetPtr->CacheDesiredSize(WidgetPtr->PrepassLayoutScaleMultiplier.Get(1.0f));
-			}
-
-			NewDesiredSize = WidgetPtr->GetDesiredSize();
-		}
-
-		// Note even if volatile we need to recompute desired size. We do not need to invalidate parents though if they are volatile since they will naturally redraw this widget
-		if (!WidgetPtr->IsVolatileIndirectly() && Visibility.IsVisible())
-		{
-			// Set the value directly instead of calling AddUpdateFlags as an optimization
-			WidgetPtr->UpdateFlags |= EWidgetUpdateFlags::NeedsRepaint;
-		}
-
-		// If the desired size changed, invalidate the parent if it is visible
-		if (NewDesiredSize != CurrentDesiredSize || EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidgetReason::Visibility|EInvalidateWidgetReason::RenderTransform))
-		{
-			if (ParentIndex != FSlateInvalidationWidgetIndex::Invalid)
-			{
-				FWidgetProxy& ParentProxy = FastWidgetPathList[ParentIndex];
-				if (ParentIndex == FastWidgetPathList.FirstIndex())
-				{
-					// root of the invalidation panel just invalidate the whole thing
-					Root.InvalidateRootLayout(WidgetPtr);
-				}
-				else if (ParentProxy.Visibility.IsVisible())
-				{
-					ParentProxy.CurrentInvalidateReason |= EInvalidateWidgetReason::Layout;
-#if WITH_SLATE_DEBUGGING
-					FSlateDebugging::BroadcastWidgetInvalidate(ParentProxy.GetWidget(), WidgetPtr, EInvalidateWidgetReason::Layout);
-#endif
-					UE_TRACE_SLATE_WIDGET_INVALIDATED(ParentProxy.GetWidget(), WidgetPtr, EInvalidateWidgetReason::Layout);
-					UpdateList.HeapPushUnique(ParentProxy);
-				}
-			}
-			else if (TSharedPtr<SWidget> ParentWidget = WidgetPtr->GetParentWidget())
-			{
-				ParentWidget->Invalidate(EInvalidateWidgetReason::Layout);
-			}
-		}
-
+		ProcessLayoutInvalidation(UpdateList, FastWidgetPathList, Root);
+		
 		bWidgetNeedsRepaint = true;
 	}
 	else if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidgetReason::Paint) && !WidgetPtr->IsVolatileIndirectly())
@@ -174,8 +184,6 @@ bool FWidgetProxy::ProcessPostInvalidation(FSlateInvalidationWidgetPostHeap& Upd
 
 void FWidgetProxy::MarkProxyUpdatedThisFrame(FSlateInvalidationWidgetPostHeap& PostUpdateList)
 {
-	bUpdatedSinceLastInvalidate = true;
-
 	SWidget* WidgetPtr = GetWidget();
 	if (WidgetPtr && Visibility.IsVisible() && WidgetPtr->HasAnyUpdateFlags(EWidgetUpdateFlags::AnyUpdate))
 	{
@@ -239,11 +247,10 @@ int32 FWidgetProxy::Repaint(const FPaintArgs& PaintArgs, FSlateWindowElementList
 	return NewLayerId;
 }
 
-FWidgetProxyHandle::FWidgetProxyHandle(const FSlateInvalidationRootHandle& InInvalidationRoot, FSlateInvalidationWidgetIndex InIndex, FSlateInvalidationWidgetSortOrder InSortIndex, int32 InGenerationNumber)
+FWidgetProxyHandle::FWidgetProxyHandle(const FSlateInvalidationRootHandle& InInvalidationRoot, FSlateInvalidationWidgetIndex InIndex, FSlateInvalidationWidgetSortOrder InSortIndex)
 	: InvalidationRootHandle(InInvalidationRoot)
 	, WidgetIndex(InIndex)
 	, WidgetSortOrder(InSortIndex)
-	, GenerationNumber(InGenerationNumber)
 {
 }
 
@@ -251,7 +258,6 @@ FWidgetProxyHandle::FWidgetProxyHandle(FSlateInvalidationWidgetIndex InIndex)
 	: InvalidationRootHandle()
 	, WidgetIndex(InIndex)
 	, WidgetSortOrder()
-	, GenerationNumber(INDEX_NONE)
 {
 }
 
@@ -259,16 +265,6 @@ bool FWidgetProxyHandle::IsValid(const SWidget* Widget) const
 {
 	FSlateInvalidationRoot* InvalidationRoot = InvalidationRootHandle.GetInvalidationRoot();
 	return InvalidationRoot
-		&& InvalidationRoot->GetFastPathGenerationNumber() == GenerationNumber
-		&& InvalidationRoot->GetFastPathWidgetList().IsValidIndex(WidgetIndex)
-		&& InvalidationRoot->GetFastPathWidgetList()[WidgetIndex].GetWidget() == Widget;
-}
-
-bool FWidgetProxyHandle::HasValidInvalidationRootOwnership(const SWidget* Widget) const
-{
-	FSlateInvalidationRoot* InvalidationRoot = InvalidationRootHandle.GetInvalidationRoot();
-	return InvalidationRoot
-		&& InvalidationRoot->GetFastPathWidgetList().GetGenerationNumber() == GenerationNumber
 		&& InvalidationRoot->GetFastPathWidgetList().IsValidIndex(WidgetIndex)
 		&& InvalidationRoot->GetFastPathWidgetList()[WidgetIndex].GetWidget() == Widget;
 }
@@ -284,33 +280,37 @@ FSlateInvalidationWidgetVisibility FWidgetProxyHandle::GetWidgetVisibility(const
 
 FWidgetProxy& FWidgetProxyHandle::GetProxy()
 {
-	return GetInvalidationRoot()->GetFastPathWidgetList()[WidgetIndex];
+	return GetInvalidationRoot_NoCheck()->GetFastPathWidgetList()[WidgetIndex];
 }
 
 const FWidgetProxy& FWidgetProxyHandle::GetProxy() const
 {
-	return GetInvalidationRoot()->GetFastPathWidgetList()[WidgetIndex];
+	return GetInvalidationRoot_NoCheck()->GetFastPathWidgetList()[WidgetIndex];
 }
 
-void FWidgetProxyHandle::MarkWidgetUpdatedThisFrame()
+void FWidgetProxyHandle::MarkWidgetDirty_NoCheck(EInvalidateWidgetReason InvalidateReason)
 {
-	GetInvalidationRoot()->GetFastPathWidgetList()[WidgetIndex].MarkProxyUpdatedThisFrame(*GetInvalidationRoot()->WidgetsNeedingPostUpdate);
+	FWidgetProxy& Proxy = GetInvalidationRoot_NoCheck()->GetFastPathWidgetList()[WidgetIndex];
+	GetInvalidationRoot_NoCheck()->InvalidateWidget(Proxy, InvalidateReason);
 }
 
-void FWidgetProxyHandle::MarkWidgetDirty(EInvalidateWidgetReason InvalidateReason)
+void FWidgetProxyHandle::MarkWidgetDirty_NoCheck(FWidgetProxy& Proxy)
 {
-	FWidgetProxy& Proxy = GetInvalidationRoot()->GetFastPathWidgetList()[WidgetIndex];
-	GetInvalidationRoot()->InvalidateWidget(Proxy, InvalidateReason);
+	GetInvalidationRoot_NoCheck()->InvalidateWidget(Proxy, Proxy.CurrentInvalidateReason);
 }
 
-void FWidgetProxyHandle::UpdateWidgetFlags(const SWidget* Widget, EWidgetUpdateFlags NewFlags)
+void FWidgetProxyHandle::UpdateWidgetFlags(const SWidget* Widget, EWidgetUpdateFlags PreviousFlags, EWidgetUpdateFlags NewFlags)
 {
-	if (Widget->HasAnyUpdateFlags(EWidgetUpdateFlags::AnyUpdate) && IsValid(Widget))
+	if (PreviousFlags != NewFlags)
 	{
-		FWidgetProxy& Proxy = GetInvalidationRoot()->GetFastPathWidgetList()[WidgetIndex];
-		if (Proxy.Visibility.IsVisible())
+		if ( FSlateInvalidationWidgetList::HasVolatileUpdateFlags(PreviousFlags) != FSlateInvalidationWidgetList::HasVolatileUpdateFlags(NewFlags)
+			|| EnumHasAnyFlags(PreviousFlags, EWidgetUpdateFlags::NeedsVolatilePrepass) != EnumHasAnyFlags(NewFlags, EWidgetUpdateFlags::NeedsVolatilePrepass))
 		{
-			GetInvalidationRoot()->WidgetsNeedingPostUpdate->PushBackOrHeapUnique(Proxy);
+			if (IsValid(Widget))
+			{
+				FWidgetProxy& Proxy = GetProxy();
+				GetInvalidationRoot_NoCheck()->GetFastPathWidgetList().ProcessVolatileUpdateInvalidation(Proxy);
+			}
 		}
 	}
 }

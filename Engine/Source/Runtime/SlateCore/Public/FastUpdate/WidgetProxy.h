@@ -57,10 +57,14 @@ public:
 	bool IsVisible() const { return bAncestorsVisible && bVisible; }
 	/** @returns true when all the widget ancestors are visible but the widget itself may not be visible. */
 	bool AreAncestorsVisible() const { return bAncestorsVisible; }
+	/** @returns true when the widget itself is visible (but may have invisible ancestors). */
+	bool IsVisibleDirectly() const { return bVisible; }
 	/** @returns true when at least one of the widget's ancestor is collapse or the widget itself is collapse. */
 	bool IsCollapsed() const { return bAncestorCollapse || bCollapse; }
 	/** @returns true when at least one of the widget's ancestor is collapse but the widget itself may not be collapse. */
 	bool IsCollapseIndirectly() const { return bAncestorCollapse; }
+	/** @returns true the widget itself is collapse. */
+	bool IsCollapseDirectly() const { return bCollapse; }
 
 	void SetVisibility(FSlateInvalidationWidgetVisibility ParentFlags, EVisibility InVisibility)
 	{
@@ -111,6 +115,7 @@ public:
 
 	int32 Update(const FPaintArgs& PaintArgs, FSlateWindowElementList& OutDrawElements);
 
+	void ProcessLayoutInvalidation(FSlateInvalidationWidgetPostHeap& UpdateList, FSlateInvalidationWidgetList& FastPathWidgetList, FSlateInvalidationRoot& Root);
 	bool ProcessPostInvalidation(FSlateInvalidationWidgetPostHeap& UpdateList, FSlateInvalidationWidgetList& FastPathWidgetList, FSlateInvalidationRoot& Root);
 
 	void MarkProxyUpdatedThisFrame(FSlateInvalidationWidgetPostHeap& UpdateList);
@@ -166,28 +171,35 @@ public:
 		struct
 		{
 		public:
-			/** Used to make sure we don't double process a widget that is invalidated.  (a widget can invalidate itself but an ancestor can end up painting that widget first thus rendering the child's own invalidate unnecessary */
-			uint8 bUpdatedSinceLastInvalidate : 1;
-			/** Is the widget already in a pending pre update list.  If it already is in an update list we don't bother adding it again */
+			/** Is the widget in the pre update list. */
 			uint8 bContainedByWidgetPreHeap : 1;
-			/** Is the widget already in a pending post update list.  If it already is in an update list we don't bother adding it again */
+			/** Is the widget in the post update list. */
 			uint8 bContainedByWidgetPostHeap : 1;
-			/** Is the widget an Invalidation Root. Cached value of SWidget::Advanced_IsInvalidationRoot */
-			uint8 bContainedByWidgetVolatileList : 1;
+			/** Is the widget in a pending prepass list. */
+			uint8 bContainedByWidgetPrepassList : 1;
 			/** Is the widget an Invalidation Root. Cached value of SWidget::Advanced_IsInvalidationRoot */
 			uint8 bIsInvalidationRoot : 1;
+			/** Is the widget has volatile prepass flag. */
+			uint8 bIsVolatilePrepass : 1;
+		};
+		uint8 PrivateFlags;
+	};
 
-		public:
 #if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
+	union
+	{
+		struct
+		{
+		public:
 			/** Use with "Slate.InvalidationRoot.VerifyWidgetVisibility". Cached the last FastPathVisible value to find widgets that do not call Invalidate properly. */
 			uint8 bDebug_LastFrameVisible : 1;
 			uint8 bDebug_LastFrameVisibleSet : 1;
 			/** Use with "Slate.InvalidationRoot.VerifyWidgetAttribute". */
 			uint8 bDebug_AttributeUpdated : 1;
-#endif
 		};
-		uint8 PrivateFlags;
+		uint8 PrivateDebugFlags;
 	};
+#endif
 };
 
 #if !UE_SLATE_WITH_WIDGETPROXY_WIDGETTYPE
@@ -242,15 +254,10 @@ class FWidgetProxyHandle
 public:
 	FWidgetProxyHandle()
 		: WidgetIndex(FSlateInvalidationWidgetIndex::Invalid)
-		, GenerationNumber(INDEX_NONE)
 	{}
 
 	/** @returns true if it has a valid InvalidationRoot and Index. */
 	SLATECORE_API bool IsValid(const SWidget* Widget) const;
-	/**
-	 * @returns true if it has a valid InvalidationRoot owner
-	 * but it could be consider invalid because the InvalidationRoot needs to be rebuilt. */
-	SLATECORE_API bool HasValidInvalidationRootOwnership(const SWidget* Widget) const;
 
 	FSlateInvalidationRootHandle GetInvalidationRootHandle() const { return InvalidationRootHandle; }
 
@@ -263,21 +270,14 @@ public:
 	const FWidgetProxy& GetProxy() const;
 
 private:
-	bool HasValidIndexAndInvalidationRootHandle() const;
-	FSlateInvalidationRoot* GetInvalidationRoot() const { return InvalidationRootHandle.Advanced_GetInvalidationRootNoCheck(); }
-
-	/**
-	 * Marks the widget as updated this frame
-	 * Note: If the widget still has update flags (e.g it ticks or is volatile or something during update added new flags)
-	 * it will remain in the update list
-	 */
-	void MarkWidgetUpdatedThisFrame();
+	FSlateInvalidationRoot* GetInvalidationRoot_NoCheck() const { return InvalidationRootHandle.Advanced_GetInvalidationRootNoCheck(); }
 	
-	void MarkWidgetDirty(EInvalidateWidgetReason InvalidateReason);
-	SLATECORE_API void UpdateWidgetFlags(const SWidget* Widget, EWidgetUpdateFlags NewFlags);
+	void MarkWidgetDirty_NoCheck(FWidgetProxy& Proxy);
+	void MarkWidgetDirty_NoCheck(EInvalidateWidgetReason InvalidateReason);
+	SLATECORE_API void UpdateWidgetFlags(const SWidget* Widget, EWidgetUpdateFlags Previous, EWidgetUpdateFlags NewFlags);
 
 private:
-	FWidgetProxyHandle(const FSlateInvalidationRootHandle& InInvalidationRoot, FSlateInvalidationWidgetIndex InIndex, FSlateInvalidationWidgetSortOrder InSortIndex, int32 InGenerationNumber);
+	FWidgetProxyHandle(const FSlateInvalidationRootHandle& InInvalidationRoot, FSlateInvalidationWidgetIndex InIndex, FSlateInvalidationWidgetSortOrder InSortIndex);
 	FWidgetProxyHandle(FSlateInvalidationWidgetIndex InIndex);
 
 private:
@@ -287,6 +287,4 @@ private:
 	FSlateInvalidationWidgetIndex WidgetIndex;
 	/** Order of the widget in the fast path list. */
 	FSlateInvalidationWidgetSortOrder WidgetSortOrder;
-	/** This serves as an efficient way to test for validity which does not require invalidating all handles directly. */
-	int32 GenerationNumber;
 };
