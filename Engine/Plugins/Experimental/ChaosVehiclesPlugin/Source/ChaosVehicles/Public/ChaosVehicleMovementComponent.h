@@ -1331,5 +1331,6 @@ private:
 		PAerodynamicsSetup.AreaMetresSquared = Chaos::Cm2ToM2(this->DragArea);
 	}
 	Chaos::FSimpleAerodynamicsConfig PAerodynamicsSetup;
+	int32 TargetGear;
 
 };
