@@ -48,6 +48,10 @@
 		{
 			"Name": "ElectraUtil",
 			"Enabled": true
+		},
+		{
+			"Name": "ElectraCDM",
+			"Enabled": true
 		}
 	]
 }

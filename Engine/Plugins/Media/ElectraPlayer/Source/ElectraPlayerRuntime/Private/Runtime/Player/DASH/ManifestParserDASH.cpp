@@ -3255,5 +3255,176 @@ static bool ParseUIntArray(TArray<uint32>& OutArray, const TCHAR* Delimiter, FMa
 
 } // namespace anonymous
 
+
+/*********************************************************************************************************************/
+/*********************************************************************************************************************/
+/*********************************************************************************************************************/
+
+namespace IManifestParserDASH
+{
+namespace
+{
+	FString RemoveNamespacePrefix(const FString& InString, bool bRemoveNS)
+	{
+		int32 ColonPos;
+		if (bRemoveNS && InString.FindLastChar(TCHAR(':'), ColonPos))
+		{
+			return InString.RightChop(ColonPos + 1);
+		}
+		return InString;
+	}
+
+	FString MakeJSONElement(const FString& Key, const FString& Value, bool bRemoveNamespaces, const TCHAR* Prefix)
+	{
+		return FString::Printf(TEXT("\"%s%s\":\"%s\""), Prefix, *RemoveNamespacePrefix(Key, bRemoveNamespaces), *Value.ReplaceQuotesWithEscapedQuotes());
+	}
+
+	FString MakeJSONAttribute(const IDashMPDElement::FXmlAttribute& Attribute, bool bRemoveNamespaces, const TCHAR* Prefix)
+	{
+		return MakeJSONElement(Attribute.GetName(), Attribute.GetValue(), bRemoveNamespaces, Prefix);
+	}
+
+	void BuildJSONFromElementRec(FString& OutJSON, TSharedPtrTS<IDashMPDElement> InElement, bool bRemoveNamespaces, bool bForce1ElementArrays, bool bTerseObjects, const TCHAR* AttributePrefix, const TCHAR* TextPropertyName)
+	{
+		const TArray<TSharedPtrTS<FDashMPD_OtherType>>& Children = InElement->GetOtherChildren();
+		const TArray<IDashMPDElement::FXmlAttribute>& Attributes = InElement->GetOtherAttributes();
+		bool bCanBeTerse = Children.Num() == 0 && Attributes.Num() == 0;
+
+		bool bNeedElementBraces = !bCanBeTerse || !bTerseObjects;
+
+		if (bNeedElementBraces)
+		{
+			OutJSON.AppendChar(TCHAR('{'));
+		}
+
+		// Add attributes
+		for(int32 i=0; i<Attributes.Num(); ++i)
+		{
+			OutJSON.Append(MakeJSONAttribute(Attributes[i], bRemoveNamespaces, AttributePrefix));
+			if (i+1 <Attributes.Num())
+			{
+				OutJSON.AppendChar(TCHAR(','));
+			}
+		}
+
+		// Add element data if it exists.
+		bool bNeedComma = Attributes.Num() > 0;
+		if (InElement->GetData().Len())
+		{
+			if (bNeedComma)
+			{
+				OutJSON.AppendChar(TCHAR(','));
+			}
+			if (bNeedElementBraces)
+			{
+				OutJSON.Append(MakeJSONElement(TextPropertyName, InElement->GetData(), false, TEXT("")));
+			}
+			else
+			{
+				OutJSON.Append(FString::Printf(TEXT("\"%s\""), *InElement->GetData().ReplaceQuotesWithEscapedQuotes()));
+			}
+			bNeedComma = true;
+		}
+		else if (!bNeedElementBraces)
+		{
+			// Need to add an empty string
+			OutJSON.Append(TEXT("\"\""));
+		}
+
+
+		// Collect the children into a "map" in order to create a JSON array for those that have the same name.
+		// As we need to maintain string case we can't use a TMap to do this.
+		struct FCaseSensitiveChildElements
+		{
+			FString Key;
+			TArray<TSharedPtrTS<FDashMPD_OtherType>> List;
+		};
+		TArray<FCaseSensitiveChildElements> ChildrenMap;
+		for(int32 i=0; i<Children.Num(); ++i)
+		{
+			FString CaseKey = RemoveNamespacePrefix(Children[i]->GetName(), bRemoveNamespaces);
+			bool bFound = false;
+			for(int32 j=0; j<ChildrenMap.Num(); ++j)
+			{
+				if (ChildrenMap[j].Key.Equals(CaseKey, ESearchCase::CaseSensitive))
+				{
+					bFound = true;
+					ChildrenMap[j].List.Add(Children[i]);
+					break;
+				}
+			}
+			if (!bFound)
+			{
+				FCaseSensitiveChildElements NewCaseSensitiveList;
+				NewCaseSensitiveList.Key = CaseKey;
+				NewCaseSensitiveList.List.Add(Children[i]);
+				ChildrenMap.Emplace(MoveTemp(NewCaseSensitiveList));
+			}
+		}
+
+		for(int32 nC=0; nC<ChildrenMap.Num(); ++nC)
+		{
+			if (bNeedComma)
+			{
+				OutJSON.AppendChar(TCHAR(','));
+			}
+			bNeedComma = true;
+			const TArray<TSharedPtrTS<FDashMPD_OtherType>>& ArrayElements = ChildrenMap[nC].List;
+			int32 NumArrayElements = ArrayElements.Num();
+			if (NumArrayElements == 1 && !bForce1ElementArrays)
+			{
+				OutJSON.Append(FString::Printf(TEXT("\"%s\":"), *ChildrenMap[nC].Key));
+			}
+			else
+			{
+				OutJSON.Append(FString::Printf(TEXT("\"%s\":["), *ChildrenMap[nC].Key));
+			}
+			for(int32 i=0; i<NumArrayElements; ++i)
+			{
+				BuildJSONFromElementRec(OutJSON, ArrayElements[i], bRemoveNamespaces, bForce1ElementArrays, bTerseObjects, AttributePrefix, TextPropertyName);
+				if (i+1 < NumArrayElements)
+				{
+					OutJSON.AppendChar(TCHAR(','));
+				}
+			}
+			if (!(NumArrayElements == 1 && !bForce1ElementArrays))
+			{
+				OutJSON.AppendChar(TCHAR(']'));
+			}
+		}
+
+		if (bNeedElementBraces)
+		{
+			OutJSON.AppendChar(TCHAR('}'));
+		}
+	}
+}
+
+void BuildJSONFromCustomElement(FString& OutJSON, TSharedPtrTS<IDashMPDElement> InElement, bool bIncludeStartElement, bool bRemoveNamespaces, bool bForce1ElementArrays, bool bTerseObjects, const TCHAR* AttributePrefix, const TCHAR* TextPropertyName)
+{
+	check(AttributePrefix);
+	check(TextPropertyName);
+	if (InElement.IsValid())
+	{
+		if (bIncludeStartElement)
+		{
+			OutJSON.Append(FString::Printf(TEXT("{\"%s\":"), *RemoveNamespacePrefix(InElement->GetName(), bRemoveNamespaces)));
+		}
+
+		BuildJSONFromElementRec(OutJSON, InElement, bRemoveNamespaces, bForce1ElementArrays, bTerseObjects, AttributePrefix, TextPropertyName);
+
+		if (bIncludeStartElement)
+		{
+			OutJSON.AppendChar(TCHAR('}'));
+		}
+	}
+	else
+	{
+		OutJSON.Append(TEXT("{}"));
+	}
+}
+
+}
+
 } // namespace Electra
 

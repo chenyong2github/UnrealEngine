@@ -228,6 +228,7 @@ public:
 		void GetSegmentInformation(TArray<IManifest::IPlayPeriod::FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet);
 
 
+
 		//----------------------------------------------
 		// Methods from IPlaybackAssetRepresentation
 		//
@@ -314,6 +315,30 @@ public:
 			return nullptr;
 		}
 
+		struct FContentProtection
+		{
+			TSharedPtrTS<FDashMPD_DescriptorType> Descriptor;
+			FString DefaultKID;
+			FString CommonScheme;
+		};
+		FString GetMimeType()
+		{
+			TSharedPtrTS<FDashMPD_AdaptationSetType> MPDAdaptationSet = AdaptationSet.Pin();
+			return MPDAdaptationSet.IsValid() ? MPDAdaptationSet->GetMimeType() : FString();
+		}
+		FString GetMimeTypeWithCodecs()
+		{
+			TSharedPtrTS<FDashMPD_AdaptationSetType> MPDAdaptationSet = AdaptationSet.Pin();
+			if (MPDAdaptationSet.IsValid())
+			{
+				return FString::Printf(TEXT("%s; codecs=\"%s\""), *MPDAdaptationSet->GetMimeType(), *GetListOfCodecs());
+			}
+			return FString();
+		}
+		const TArray<FContentProtection>& GetPossibleContentProtections() const { return PossibleContentProtections; }
+		const FString& GetCommonEncryptionScheme() const { return CommonEncryptionScheme; }
+		const FString& GetDefaultKID() const { return DefaultKID; }
+
 		//----------------------------------------------
 		// Methods from IPlaybackAssetAdaptationSet
 		//
@@ -358,6 +383,10 @@ public:
 		int32 IndexOfSelf = 0;
 		bool bIsUsable = false;
 		bool bIsEnabled = true;
+		// Encryption related
+		TArray<FContentProtection> PossibleContentProtections;
+		FString CommonEncryptionScheme;
+		FString DefaultKID;
 	};
 
 	class FPeriod : public ITimelineMediaAsset
@@ -635,6 +664,8 @@ private:
 
 	FTimeValue CalculateDistanceToLiveEdge() const;
 	FTimeRange GetPlayTimesFromURI() const;
+
+	bool CanUseEncryptedAdaptation(const TSharedPtrTS<FAdaptationSet>& InAdaptationSet);
 
 	IPlayerSessionServices* PlayerSessionServices = nullptr;
 

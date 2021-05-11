@@ -16,6 +16,7 @@
 #include "Player/DASH/OptionKeynamesDASH.h"
 #include "Player/PlayerEntityCache.h"
 #include "Player/AdaptivePlayerOptionKeynames.h"
+#include "Player/DRM/DRMManager.h"
 
 
 namespace Electra
@@ -23,6 +24,7 @@ namespace Electra
 
 #define ERRCODE_DASH_MPD_INTERNAL						1
 #define ERRCODE_DASH_MPD_BAD_REPRESENTATION				1000
+#define ERRCODE_DASH_DRM_ERROR							2000
 
 
 namespace DashUtils
@@ -95,6 +97,10 @@ public:
 
 	virtual ~FDASHPlayPeriod()
 	{
+		if (DrmClient.IsValid())
+		{
+			DrmClient->UnregisterEventListener(PlayerSessionServices->GetDRMManager());
+		}
 	}
 
 	//----------------------------------------------
@@ -126,6 +132,9 @@ private:
 	};
 	IManifest::FResult GetNextOrRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> InCurrentSegment, ENextSegType InNextType);
 
+	bool PrepareDRM(const TArray<FManifestDASHInternal::FAdaptationSet::FContentProtection>& InContentProtections);
+
+
 	IPlayerSessionServices* PlayerSessionServices = nullptr;
 	EReadyState ReadyState = EReadyState::NotReady;
 	FStreamPreferences StreamPreferences;
@@ -139,6 +148,8 @@ private:
 
 	FString ActiveVideoRepresentationID;
 	FString ActiveAudioRepresentationID;
+
+	TSharedPtr<ElectraCDM::IMediaCDMClient, ESPMode::ThreadSafe> DrmClient;
 };
 
 /***************************************************************************************************************************************************/
@@ -458,6 +469,8 @@ void FDASHPlayPeriod::PrepareForPlay()
 	TSharedPtrTS<FManifestDASHInternal::FPeriod> Period = Manifest.IsValid() ? Manifest->GetPeriodByUniqueID(PeriodID) : nullptr;
 	if (Period.IsValid())
 	{
+		TArray<FManifestDASHInternal::FAdaptationSet::FContentProtection> ContentProtections;
+
 		// Prepare the adaptation sets and periods.
 		Manifest->PreparePeriodAdaptationSets(Period, false);
 	
@@ -471,6 +484,10 @@ void FDASHPlayPeriod::PrepareForPlay()
 
 			TSharedPtrTS<IPlaybackAssetRepresentation> VideoRepr = GetRepresentationFromAdaptationByMaxBandwidth(VideoAS, 2*1000*1000);
 			ActiveVideoRepresentationID = VideoRepr->GetUniqueIdentifier();
+			
+			// Add encryption schemes, if any.
+			const FManifestDASHInternal::FAdaptationSet* Adapt = static_cast<const FManifestDASHInternal::FAdaptationSet*>(VideoAS.Get());
+			ContentProtections.Append(Adapt->GetPossibleContentProtections());
 		}
 
 		int32 NumAudioAdaptationSets = Period->GetNumberOfAdaptationSets(EStreamType::Audio);
@@ -482,15 +499,63 @@ void FDASHPlayPeriod::PrepareForPlay()
 
 			TSharedPtrTS<IPlaybackAssetRepresentation> AudioRepr = GetRepresentationFromAdaptationByMaxBandwidth(AudioAS, 128 * 1000);
 			ActiveAudioRepresentationID = AudioRepr->GetUniqueIdentifier();
+
+			// Add encryption schemes, if any.
+			const FManifestDASHInternal::FAdaptationSet* Adapt = static_cast<const FManifestDASHInternal::FAdaptationSet*>(AudioAS.Get());
+			ContentProtections.Append(Adapt->GetPossibleContentProtections());
 		}
 
 		// Emit all <EventStream> events of the period to the AEMS event handler.
 		Manifest->SendEventsFromAllPeriodEventStreams(Period);
 
-	//	ReadyState = EReadyState::Preparing;
-		ReadyState = EReadyState::IsReady;
+		// Prepare the DRM system for decryption.
+		if (PrepareDRM(ContentProtections))
+		{
+			//ReadyState = EReadyState::Preparing;
+			ReadyState = EReadyState::IsReady;
+		}
+		else
+		{
+			// Set state to preparing to prevent the player from progressing while
+			// the posted error works its magic.
+			ReadyState = EReadyState::Preparing;
+		}
 	}
 }
+
+bool FDASHPlayPeriod::PrepareDRM(const TArray<FManifestDASHInternal::FAdaptationSet::FContentProtection>& InContentProtections)
+{
+	if (InContentProtections.Num())
+	{
+		static const TCHAR* const Delimiters[] { TEXT(" "), TEXT("\t"), TEXT("\n"), TEXT("\r") };
+		// Set up DRM CRM candidates and settle on one.
+		TArray<ElectraCDM::IMediaCDM::FCDMCandidate> Candidates;
+		ElectraCDM::IMediaCDM::FCDMCandidate cand;
+		for(int32 i=0; i<InContentProtections.Num(); ++i)
+		{
+			cand.SchemeId = InContentProtections[i].Descriptor->GetSchemeIdUri();
+			cand.Value = InContentProtections[i].Descriptor->GetValue();
+			cand.CommonScheme = InContentProtections[i].CommonScheme;
+			cand.AdditionalElements = InContentProtections[i].Descriptor->GetCustomElementAndAttributeJSON();
+			InContentProtections[i].DefaultKID.ParseIntoArray(cand.DefaultKIDs, Delimiters, UE_ARRAY_COUNT(Delimiters), true);
+			Candidates.Emplace(MoveTemp(cand));
+		}
+		ElectraCDM::ECDMError Result = PlayerSessionServices->GetDRMManager()->CreateDRMClient(DrmClient, Candidates);
+		if (Result == ElectraCDM::ECDMError::Success && DrmClient.IsValid())
+		{
+			DrmClient->RegisterEventListener(PlayerSessionServices->GetDRMManager());
+			DrmClient->PrepareLicenses();
+			return true;
+		}
+		else
+		{
+			PostError(PlayerSessionServices, FString::Printf(TEXT("Failed to create DRM client with error %d"), (int32)Result), ERRCODE_DASH_DRM_ERROR);
+			return false;
+		}
+	}
+	return true;
+}
+
 
 TSharedPtrTS<ITimelineMediaAsset> FDASHPlayPeriod::GetMediaAsset() const
 {
@@ -707,6 +772,10 @@ IManifest::FResult FDASHPlayPeriod::GetStartingSegment(TSharedPtrTS<IStreamSegme
 					StartSegmentRequest->SAET = SegmentRequest->SAET;
 				}
 
+				// Encryption stuff
+				SegmentRequest->DrmClient = DrmClient;
+				SegmentRequest->DrmMimeType = Repr->GetCodecInformation().GetMimeTypeWithCodecAndFeatures();
+
 				StartSegmentRequest->DependentStreams.Emplace(MoveTemp(SegmentRequest));
 				bAllStreamsAtEOS = false;
 			}
@@ -894,6 +963,10 @@ IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSe
 		{
 			SegmentRequest->bWarnedAboutTimescale = Current->bWarnedAboutTimescale;
 		}
+
+		// Encryption stuff
+		SegmentRequest->DrmClient = DrmClient;
+		SegmentRequest->DrmMimeType = Repr->GetCodecInformation().GetMimeTypeWithCodecAndFeatures();
 
 		SegmentRequest->Segment = MoveTemp(SegmentInfo);
 		OutSegment = MoveTemp(SegmentRequest);

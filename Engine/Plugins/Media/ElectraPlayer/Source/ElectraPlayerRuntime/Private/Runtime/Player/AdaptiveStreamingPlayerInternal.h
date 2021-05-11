@@ -18,6 +18,8 @@
 #include "Player/PlayerStreamFilter.h"
 #include "Player/PlayerEntityCache.h"
 
+#include "ElectraCDM.h"
+
 #include "InfoLog.h"
 
 #define INTERR_ALL_STREAMS_HAVE_FAILED			1
@@ -726,6 +728,7 @@ private:
 	virtual TSharedPtrTS<IPlayerEntityCache> GetEntityCache() override;
 	virtual IAdaptiveStreamingPlayerAEMSHandler* GetAEMSEventHandler() override;
 	virtual FParamDict& GetOptions() override;
+	virtual TSharedPtrTS<FDRMManager> GetDRMManager() override;
 
 	// Methods from IPlayerStreamFilter
 	virtual bool CanDecodeStream(const FStreamCodecInformation& InStreamCodecInfo) const override;
@@ -1347,6 +1350,7 @@ private:
 	TSharedPtrTS<IElectraHttpManager>									HttpManager;
 	TSharedPtrTS<IPlayerEntityCache>									EntityCache;
 
+	TSharedPtrTS<FDRMManager>											DrmManager;
 
 	TMediaQueueDynamic<TSharedPtrTS<FErrorDetail>>						ErrorQueue;
 
@@ -1392,7 +1396,6 @@ private:
 	int32																BitrateCeiling;
 	int32																VideoResolutionLimitWidth;
 	int32																VideoResolutionLimitHeight;
-	int32																MaxVideoTextureResolutionLimitHeight;
 
 	FStreamBitrateInfo													CurrentVideoStreamBitrate;
 

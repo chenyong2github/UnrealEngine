@@ -288,7 +288,7 @@ void FPlaylistReaderMP4::ClearRequest()
 	ReceiveBuffer.Reset();
 	if (Request.IsValid())
 	{
-		PlayerSessionServices->GetHTTPManager()->RemoveRequest(Request);
+		PlayerSessionServices->GetHTTPManager()->RemoveRequest(Request, false);
 		Request.Reset();
 	}
 }
@@ -323,7 +323,7 @@ void FPlaylistReaderMP4::ReadNextChunk(int64 InFromOffset, int64 ChunkSize)
 	Request->Parameters.Range.SetEndIncluding(LastByte);
 	Request->ReceiveBuffer = ReceiveBuffer;
 	Request->ProgressListener = ProgressListener;
-	PlayerSessionServices->GetHTTPManager()->AddRequest(Request);
+	PlayerSessionServices->GetHTTPManager()->AddRequest(Request, false);
 }
 
 

@@ -8,6 +8,7 @@
 #include "Player/DASH/PlayerEventDASH.h"
 #include "Demuxer/ParserISO14496-12.h"
 #include "HTTP/HTTPManager.h"
+#include "Player/DRM/DRMManager.h"
 
 namespace Electra
 {
@@ -54,6 +55,11 @@ public:
 	FTimeValue												ASAST;
 	FTimeValue												SAET;
 	FTimeValue												DownloadDelayTime;
+
+	// Encryption
+	TSharedPtrTS<ElectraCDM::IMediaCDMClient>				DrmClient;
+	FString													DrmMimeType;
+
 
 	// Internal work variables
 	FPlayerLoopState										PlayerLoopState;
