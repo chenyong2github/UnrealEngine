@@ -150,9 +150,15 @@ bool UMetasoundEditorGraphVariable::CanRename(const FText& InNewName, FText& Out
 	}
 
 	FConstNodeHandle NodeHandle = GetConstNodeHandle();
-	FConstGraphHandle GraphHandle = NodeHandle->GetOwningGraph();
+
+	if (NodeHandle->IsRequired())
+	{
+		OutError = FText::Format(LOCTEXT("VariableRenameInvalid_VariableRequired", "{0} is required and cannot be renamed."), InNewName);
+		return false;
+	}
 
 	bool bIsNameValid = true;
+	FConstGraphHandle GraphHandle = NodeHandle->GetOwningGraph();
 	GraphHandle->IterateConstNodes([&](FConstNodeHandle NodeToCompare)
 	{
 		if (NodeID != NodeToCompare->GetID())
@@ -165,7 +171,7 @@ bool UMetasoundEditorGraphVariable::CanRename(const FText& InNewName, FText& Out
 		}
 	}, GetClassType());
 
-		return bIsNameValid;
+	return bIsNameValid;
 }
 
 #if WITH_EDITORONLY_DATA
