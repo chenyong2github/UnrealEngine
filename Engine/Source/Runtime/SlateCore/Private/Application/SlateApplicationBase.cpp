@@ -201,7 +201,7 @@ void FSlateApplicationBase::ResetCustomSafeZone()
 bool FSlateApplicationBase::IsCustomSafeZoneSet() const
 {
 	return CustomSafeZoneState == ECustomSafeZoneState::Set 
-		|| CustomSafeZoneState == ECustomSafeZoneState::Debug && CustomSafeZoneRatio != FMargin();
+		|| (CustomSafeZoneState == ECustomSafeZoneState::Debug && CustomSafeZoneRatio != FMargin());
 }
 
 void FSlateApplicationBase::SetCustomSafeZone(const FMargin& InSafeZone)
