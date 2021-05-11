@@ -3,6 +3,7 @@
 using HordeServer.Models;
 using HordeServer.Services;
 using HordeServer.Utilities;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
@@ -19,7 +20,7 @@ namespace HordeServer.Collections.Impl
 	/// <summary>
 	/// Manages user documents
 	/// </summary>
-	class UserCollectionV2 : IUserCollection
+	class UserCollectionV2 : IUserCollection, IDisposable
 	{
 		class UserDocument : IUser
 		{
@@ -146,6 +147,8 @@ namespace HordeServer.Collections.Impl
 
 		ILogger<UserCollectionV2> Logger;
 
+		MemoryCache UserCache;
+
 		/// <summary>
 		/// Static constructor
 		/// </summary>
@@ -176,12 +179,41 @@ namespace HordeServer.Collections.Impl
 				Users.Indexes.CreateOne(new CreateIndexModel<UserDocument>(Builders<UserDocument>.IndexKeys.Ascending(x => x.LoginUpper), new CreateIndexOptions { Unique = true }));
 				Users.Indexes.CreateOne(new CreateIndexModel<UserDocument>(Builders<UserDocument>.IndexKeys.Ascending(x => x.EmailUpper)));
 			}
+
+			MemoryCacheOptions Options = new MemoryCacheOptions();
+			UserCache = new MemoryCache(Options);
+		}
+
+		/// <inheritdoc/>
+		public void Dispose()
+		{
+			UserCache.Dispose();
 		}
 
 		/// <inheritdoc/>
 		public async Task<IUser?> GetUserAsync(ObjectId Id)
 		{
-			return await Users.Find(x => x.Id == Id).FirstOrDefaultAsync();
+			IUser? User = await Users.Find(x => x.Id == Id).FirstOrDefaultAsync();
+			using (ICacheEntry Entry = UserCache.CreateEntry(Id))
+			{
+				Entry.SetValue(User);
+				Entry.SetSlidingExpiration(TimeSpan.FromMinutes(30.0));
+			}
+			return User;
+		}
+
+		/// <inheritdoc/>
+		public Task<IUser?> GetCachedUserAsync(ObjectId Id)
+		{
+			IUser? User;
+			if (UserCache.TryGetValue(Id, out User))
+			{
+				return Task.FromResult(User);
+			}
+			else
+			{
+				return GetUserAsync(Id);
+			}
 		}
 
 		/// <inheritdoc/>

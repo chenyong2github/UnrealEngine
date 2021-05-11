@@ -48,7 +48,7 @@ namespace HordeServer.Utilities
 		/// <inheritdoc/>
 		public void Serialize(BsonSerializationContext Context, BsonSerializationArgs Args, ContentHash Value)
 		{
-			Context.Writer.WriteString(((ContentHash)Value).ToString());
+			Context.Writer.WriteString(Value.ToString());
 		}
 	}
 }

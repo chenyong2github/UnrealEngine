@@ -18,7 +18,7 @@ namespace HordeServer.Collections
 		/// <param name="SecretToken">Secret token used for identifying this service account</param>
 		/// <param name="Claims">Dictionary of claims to assign</param>
 		/// <param name="Description">Description of the account</param>
-		Task<IServiceAccount> AddAsync(string SecretToken, Dictionary<string, string> Claims, string Description);
+		Task<IServiceAccount> AddAsync(string SecretToken, List<string> Claims, string Description);
 
 		/// <summary>
 		/// Get service account via ID
@@ -43,7 +43,7 @@ namespace HordeServer.Collections
 		/// <param name="Enabled">If set, enabled flag will be set</param>
 		/// <param name="Description">If set, description will be set</param>
 		/// <returns>Async task</returns>
-		Task UpdateAsync(ObjectId Id, string? SecretToken, Dictionary<string, string>? Claims, bool? Enabled, string? Description);
+		Task UpdateAsync(ObjectId Id, string? SecretToken, List<string>? Claims, bool? Enabled, string? Description);
 
 		/// <summary>
 		/// Delete a service account from the collection

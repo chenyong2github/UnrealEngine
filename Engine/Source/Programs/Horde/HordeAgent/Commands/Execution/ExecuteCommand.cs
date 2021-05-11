@@ -20,6 +20,7 @@ using System.Text.Json;
 using HordeAgent.Services;
 using Grpc.Net.Client;
 using System.Linq;
+using System.Net.Http.Headers;
 using Grpc.Core;
 using Google.LongRunning;
 using Microsoft.Extensions.Hosting;
@@ -162,6 +163,29 @@ namespace HordeAgent.Commands
 		/// </summary>
 		[CommandLine("-Salt=")]
 		public string? Salt = null;
+		
+		/// <summary>
+		/// gRPC URL for the content-addressable storage service.
+		///
+		/// If empty, Horde's built-in storage will be used.
+		/// The URL must match what has been configured for the instance name in Horde server settings.
+		/// </summary>
+		[CommandLine("-CasUrl=")]
+		public string? CasUrl = null;
+		
+		/// <summary>
+		/// Auth token to use for accessing CAS service
+		/// </summary>
+		[CommandLine("-CasAuthToken=")]
+		public string? CasAuthToken = null;
+		
+		/// <summary>
+		/// Instance name to use
+		///
+		/// See RE API specification for description.
+		/// </summary>
+		[CommandLine("-InstanceName=")]
+		public string? InstanceName = null;
 
 		/// <inheritdoc/>
 		public override async Task<int> ExecuteAsync(ILogger Logger)
@@ -208,10 +232,19 @@ namespace HordeAgent.Commands
 
 				using (GrpcChannel Channel = GrpcService.CreateGrpcChannel())
 				{
-					ContentAddressableStorage.ContentAddressableStorageClient StorageClient = new ContentAddressableStorage.ContentAddressableStorageClient(Channel);
+					GrpcChannel GetChannel()
+					{
+						if (CasUrl == null) return Channel;
+						if (CasAuthToken != null) return GrpcService.CreateGrpcChannel(CasUrl, new AuthenticationHeaderValue("ServiceAccount", CasAuthToken));
+						return GrpcService.CreateGrpcChannel(CasUrl, null);
+					}
+
+					using GrpcChannel CasChannel = GetChannel();
+					ContentAddressableStorage.ContentAddressableStorageClient StorageClient = new ContentAddressableStorage.ContentAddressableStorageClient(CasChannel);
 
 					// Find the missing blobs and upload them
 					FindMissingBlobsRequest MissingBlobsRequest = new FindMissingBlobsRequest();
+					MissingBlobsRequest.InstanceName = InstanceName;
 					MissingBlobsRequest.BlobDigests.Add(UploadList.Blobs.Values.Select(x => x.Digest));
 
 					FindMissingBlobsResponse MissingBlobs = await StorageClient.FindMissingBlobsAsync(MissingBlobsRequest);
@@ -220,8 +253,24 @@ namespace HordeAgent.Commands
 						foreach (Digest MissingBlobDigest in MissingBlobs.MissingBlobDigests)
 						{
 							BatchUpdateBlobsRequest UpdateRequest = new BatchUpdateBlobsRequest();
+							UpdateRequest.InstanceName = InstanceName;
 							UpdateRequest.Requests.Add(UploadList.Blobs[MissingBlobDigest.Hash]);
-							await StorageClient.BatchUpdateBlobsAsync(UpdateRequest);
+							BatchUpdateBlobsResponse UpdateResponse = await StorageClient.BatchUpdateBlobsAsync(UpdateRequest);
+							
+							bool UpdateFailed = false;
+							foreach (var Response in UpdateResponse.Responses)
+							{
+								if (Response.Status.Code != (int) Google.Rpc.Code.Ok)
+								{
+									Console.WriteLine($"Upload failed for {Response.Digest}. Code: {Response.Status.Code} Message: {Response.Status.Message}");
+									UpdateFailed = true;
+								}
+							}
+
+							if (UpdateFailed)
+							{
+								throw new Exception("Failed updating blobs in CAS service");
+							}
 						}
 					}
 
@@ -230,6 +279,10 @@ namespace HordeAgent.Commands
 
 					ExecuteRequest ExecuteRequest = new ExecuteRequest();
 					ExecuteRequest.ActionDigest = ActionDigest;
+					if (InstanceName != null)
+					{
+						ExecuteRequest.InstanceName = InstanceName;
+					}
 
 					using (AsyncServerStreamingCall<Operation> Call = ExecutionClient.Execute(ExecuteRequest))
 					{
@@ -266,6 +319,7 @@ namespace HordeAgent.Commands
 
 								// Print the result
 								BatchReadBlobsRequest BatchReadRequest = new BatchReadBlobsRequest();
+								BatchReadRequest.InstanceName = InstanceName;
 								if (ActionResult.StdoutDigest != null && ActionResult.StdoutDigest.SizeBytes > 0)
 								{
 									BatchReadRequest.Digests.Add(ActionResult.StdoutDigest);

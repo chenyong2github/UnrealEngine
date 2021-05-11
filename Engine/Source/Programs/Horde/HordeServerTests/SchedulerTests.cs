@@ -383,7 +383,7 @@ namespace HordeServerTests
 		[TestMethod]
 		public async Task StreamPausing()
 		{
-			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
+			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Utc); // Friday Jan 1, 2021 
 			TestSetup.Clock.UtcNow = StartTime;
 			
 			Schedule Schedule = new Schedule();

@@ -47,6 +47,11 @@ namespace HordeServer.Controllers
 		private readonly StreamService StreamService;
 
 		/// <summary>
+		/// 
+		/// </summary>
+		private readonly IUserCollection UserCollection;
+
+		/// <summary>
 		/// Collection of events
 		/// </summary>
 		private readonly ILogEventCollection LogEventCollection;
@@ -62,13 +67,15 @@ namespace HordeServer.Controllers
 		/// <param name="IssueService">The issue service</param>
 		/// <param name="JobService">The job service</param>
 		/// <param name="StreamService">The stream service</param>
+		/// <param name="UserCollection"></param>
 		/// <param name="LogEventCollection">The event collection</param>
 		/// <param name="LogFileService">The log file service</param>
-		public IssuesController(IIssueService IssueService, JobService JobService, StreamService StreamService, ILogEventCollection LogEventCollection, ILogFileService LogFileService)
+		public IssuesController(IIssueService IssueService, JobService JobService, StreamService StreamService, IUserCollection UserCollection, ILogEventCollection LogEventCollection, ILogFileService LogFileService)
 		{
 			this.IssueService = IssueService;
 			this.JobService = JobService;
 			this.StreamService = StreamService;
+			this.UserCollection = UserCollection;
 			this.LogEventCollection = LogEventCollection;
 			this.LogFileService = LogFileService;
 		}
@@ -96,6 +103,21 @@ namespace HordeServer.Controllers
 		[ProducesResponseType(typeof(List<GetIssueResponse>), 200)]
 		public async Task<ActionResult<object>> FindIssuesAsync([FromQuery(Name = "Id")] int[]? Ids = null, [FromQuery] string? StreamId = null, [FromQuery] int? Change = null, [FromQuery] int? MinChange = null, [FromQuery] int? MaxChange = null, [FromQuery] string? JobId = null, [FromQuery] string? BatchId = null, [FromQuery] string? StepId = null, [FromQuery(Name = "label")] int? LabelIdx = null, [FromQuery] string? User = null, [FromQuery] bool? Resolved = null, [FromQuery] int Index = 0, [FromQuery] int Count = 10, [FromQuery] PropertyFilter? Filter = null)
 		{
+			if(Ids != null && Ids.Length == 0)
+			{
+				Ids = null;
+			}
+
+			ObjectId? UserIdValue = null;
+			if (User != null)
+			{
+				UserIdValue = (await UserCollection.FindUserByLoginAsync(User))?.Id;
+				if (UserIdValue == null)
+				{
+					return new List<IIssue>();
+				}
+			}
+
 			List<IIssue> Issues;
 			if (JobId == null)
 			{
@@ -105,7 +127,7 @@ namespace HordeServer.Controllers
 					StreamIdValue = new StreamId(StreamId);
 				}
 
-				Issues = await IssueService.FindIssuesAsync(Ids, StreamIdValue, MinChange ?? Change, MaxChange ?? Change, Resolved, Index, Count);
+				Issues = await IssueService.FindIssuesAsync(Ids, UserIdValue, StreamIdValue, MinChange ?? Change, MaxChange ?? Change, Resolved, Index, Count);
 			}
 			else
 			{
@@ -122,7 +144,7 @@ namespace HordeServer.Controllers
 				}
 
 				IGraph Graph = await JobService.GetGraphAsync(Job);
-				Issues = await IssueService.FindIssuesForJobAsync(Ids, Job, Graph, StepId?.ToSubResourceId(), BatchId?.ToSubResourceId(), LabelIdx, Resolved, Index, Count);
+				Issues = await IssueService.FindIssuesForJobAsync(Ids, Job, Graph, StepId?.ToSubResourceId(), BatchId?.ToSubResourceId(), LabelIdx, UserIdValue, Resolved, Index, Count);
 			}
 
 			StreamPermissionsCache PermissionsCache = new StreamPermissionsCache();
@@ -130,15 +152,12 @@ namespace HordeServer.Controllers
 			List<object> Responses = new List<object>();
 			foreach (IIssue Issue in Issues)
 			{
-				if (User == null || IncludeIssueForUser(Issue, User))
+				IIssueDetails Details = await IssueService.GetIssueDetailsAsync(Issue);
+				if (await AuthorizeIssue(Details, PermissionsCache))
 				{
-					IIssueDetails Details = await IssueService.GetIssueDetailsAsync(Issue);
-					if (await AuthorizeIssue(Details, PermissionsCache))
-					{
-						bool bShowDesktopAlerts = IssueService.ShowDesktopAlertsForIssue(Issue, Details.Spans);
-						GetIssueResponse Response = await CreateIssueResponseAsync(Details, bShowDesktopAlerts);
-						Responses.Add(PropertyFilter.Apply(Response, Filter));
-					}
+					bool bShowDesktopAlerts = IssueService.ShowDesktopAlertsForIssue(Issue, Details.Spans);
+					GetIssueResponse Response = await CreateIssueResponseAsync(Details, bShowDesktopAlerts);
+					Responses.Add(PropertyFilter.Apply(Response, Filter));
 				}
 			}
 			return Responses;
@@ -372,24 +391,6 @@ namespace HordeServer.Controllers
 		}
 
 		/// <summary>
-		/// Determines whether to include an issue for a particular user
-		/// </summary>
-		/// <param name="Issue"></param>
-		/// <param name="User"></param>
-		/// <returns></returns>
-		static bool IncludeIssueForUser(IIssue Issue, string User)
-		{
-			if (Issue.Owner != null)
-			{
-				return Issue.Owner.Equals(User, StringComparison.OrdinalIgnoreCase);
-			}
-			else
-			{
-				return Issue.Suspects.Any(x => x.Author.Equals(User, StringComparison.OrdinalIgnoreCase));
-			}
-		}
-
-		/// <summary>
 		/// Update an issue
 		/// </summary>
 		/// <param name="IssueId">Id of the issue to get information about</param>
@@ -399,12 +400,31 @@ namespace HordeServer.Controllers
 		[Route("/api/v1/issues/{IssueId}")]
 		public async Task<ActionResult> UpdateIssueAsync(int IssueId, [FromBody] UpdateIssueRequest Request)
 		{
-			string? DeclinedBy = null;
-			if(Request.Declined ?? false)
+			ObjectId? NewOwnerId = null;
+			if (Request.Owner != null)
 			{
-				DeclinedBy = User.GetPerforceUser();
+				NewOwnerId = (await UserCollection.FindOrAddUserByLoginAsync(Request.Owner))?.Id;
 			}
-			if (!await IssueService.UpdateIssueAsync(IssueId, Request.Summary, Request.Owner, Request.NominatedBy, Request.Acknowledged, DeclinedBy, Request.FixChange, Request.Resolved))
+
+			ObjectId? NewNominatedById = null;
+			if (Request.NominatedBy != null)
+			{
+				NewNominatedById = (await UserCollection.FindOrAddUserByLoginAsync(Request.NominatedBy))?.Id;
+			}
+
+			ObjectId? NewDeclinedById = null;
+			if (Request.Declined ?? false)
+			{
+				NewDeclinedById = User.GetUserId();
+			}
+
+			ObjectId? NewResolvedById = null;
+			if (Request.Resolved.HasValue)
+			{
+				NewResolvedById = Request.Resolved.Value ? User.GetUserId() : ObjectId.Empty;
+			}
+
+			if (!await IssueService.UpdateIssueAsync(IssueId, Request.Summary, NewOwnerId, NewNominatedById, Request.Acknowledged, NewDeclinedById, Request.FixChange, NewResolvedById))
 			{
 				return NotFound();
 			}

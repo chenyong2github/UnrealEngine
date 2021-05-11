@@ -635,7 +635,7 @@ namespace HordeServer.Services
 				}
 				else
 				{
-					Logger.LogDebug("Added new chunk at offset {Offset} to log {LogId}", State.Offset, LogFile.Id);
+					// Logger.LogDebug("Added new chunk at offset {Offset} to log {LogId}", State.Offset, LogFile.Id);
 					LogFile = NewLogFile;
 				}
 			}

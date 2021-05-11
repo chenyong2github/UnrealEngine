@@ -73,6 +73,16 @@
     <ProjectReference Include="..\..\Shared\EpicGames.Core\EpicGames.Core.csproj" />
     <ProjectReference Include="..\..\Shared\EpicGames.Perforce\EpicGames.Perforce.csproj" />
     <ProjectReference Include="..\HordeCommon\HordeCommon.csproj" />
+    <ProjectReference Include="..\ThirdParty\P4Api.Net\P4Api.Net.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\ThirdParty\P4Api.Net\Native\Windows\Release\p4bridge.*" Condition=" '$(OS)' == 'Windows_NT' ">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\ThirdParty\P4Api.Net\Native\Linux\Release\p4bridge.*" Condition="$([MSBuild]::IsOSPlatform('Linux'))" >
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>	
   </ItemGroup>
 
 </Project>

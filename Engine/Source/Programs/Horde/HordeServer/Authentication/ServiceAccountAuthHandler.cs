@@ -60,7 +60,7 @@ namespace HordeServer.Authentication
 
 			List<Claim> Claims = new List<Claim>(10);
 			Claims.Add(new Claim(ClaimTypes.Name, AuthenticationScheme));
-			Claims.AddRange(ServiceAccount.Claims.Select(ClaimPair => new Claim(ClaimPair.Key, ClaimPair.Value)));
+			Claims.AddRange(ServiceAccount.GetClaims().Select(ClaimPair => new Claim(ClaimPair.Type, ClaimPair.Value)));
 
 			ClaimsIdentity Identity = new ClaimsIdentity(Claims, Scheme.Name);
 			ClaimsPrincipal Principal = new ClaimsPrincipal(Identity);

@@ -892,7 +892,7 @@ namespace HordeServer.Tasks.Impl
 		/// <returns>Async task</returns>
 		public async Task UpdateUgsBadges(IJob Job, IGraph Graph, IReadOnlyList<(LabelState, LabelOutcome)> OldLabelStates, IReadOnlyList<(LabelState, LabelOutcome)> NewLabelStates)
 		{
-			if (!Job.ShowUgsBadges)
+			if (!Job.ShowUgsBadges || Job.PreflightChange != 0)
 			{
 				return;
 			}

@@ -47,6 +47,16 @@ namespace HordeServer.Models
 	public interface IIssue
 	{
 		/// <summary>
+		/// Id for resolved by system
+		/// </summary>
+		static ObjectId ResolvedByTimeoutId { get; } = ObjectId.Parse("609592712b5c90b5bcf88c48");
+
+		/// <summary>
+		/// Id for resolved by unknown user
+		/// </summary>
+		static ObjectId ResolvedByUnknownId { get; } = ObjectId.Parse("609593b83e9b0b6dde620cf3");
+
+		/// <summary>
 		/// The unique object id
 		/// </summary>
 		public int Id { get; }
@@ -72,19 +82,9 @@ namespace HordeServer.Models
 		public IssueSeverity Severity { get; }
 
 		/// <summary>
-		/// Current owner of this issue
-		/// </summary>
-		public string? Owner { get; }
-
-		/// <summary>
 		/// User id of the owner
 		/// </summary>
 		public ObjectId? OwnerId { get; }
-
-		/// <summary>
-		/// User that nominated the current owner
-		/// </summary>
-		public string? NominatedBy { get; }
 
 		/// <summary>
 		/// User id of the person that nominated the owner
@@ -112,19 +112,34 @@ namespace HordeServer.Models
 		public DateTime? ResolvedAt { get; }
 
 		/// <summary>
+		/// User that resolved the issue
+		/// </summary>
+		public ObjectId? ResolvedById { get; }
+
+		/// <summary>
+		/// Time at which the issue was verified fixed
+		/// </summary>
+		public DateTime? VerifiedAt { get; }
+
+		/// <summary>
+		/// Time at which the issue was last seen.
+		/// </summary>
+		public DateTime LastSeenAt { get; }
+
+		/// <summary>
 		/// Fix changelist for this issue
 		/// </summary>
 		public int? FixChange { get; }
 
 		/// <summary>
+		/// List of streams affected by this issue
+		/// </summary>
+		public IReadOnlyList<IIssueStream> Streams { get; }
+
+		/// <summary>
 		/// Whether all suspects should be notified about this issue
 		/// </summary>
 		public bool NotifySuspects { get; }
-
-		/// <summary>
-		/// Suspects for this issue
-		/// </summary>
-		public IReadOnlyList<IIssueSuspect> Suspects { get; }
 
 		/// <summary>
 		/// Update index for this instance
@@ -133,14 +148,35 @@ namespace HordeServer.Models
 	}
 
 	/// <summary>
+	/// Information about a stream affected by an issue
+	/// </summary>
+	public interface IIssueStream
+	{
+		/// <summary>
+		/// The stream id
+		/// </summary>
+		StreamId StreamId { get; }
+
+		/// <summary>
+		/// Whether this stream contains the fix change
+		/// </summary>
+		bool? ContainsFix { get; }
+	}
+
+	/// <summary>
 	/// Suspect for an issue
 	/// </summary>
 	public interface IIssueSuspect
 	{
 		/// <summary>
-		/// Author of the change
+		/// Unique id for this suspect
 		/// </summary>
-		string Author { get; }
+		ObjectId Id { get; }
+
+		/// <summary>
+		/// Issue that this suspect belongs to
+		/// </summary>
+		int IssueId { get; }
 
 		/// <summary>
 		/// The user id of the change's author
@@ -156,5 +192,53 @@ namespace HordeServer.Models
 		/// Time at which the author declined the issue
 		/// </summary>
 		DateTime? DeclinedAt { get; }
+	}
+
+	/// <summary>
+	/// Extension methods for issues
+	/// </summary>
+	static class IssueExtensions
+	{
+		/// <summary>
+		/// Creates a lookup from stream id to whether it's fixed
+		/// </summary>
+		/// <param name="Issue"></param>
+		/// <returns></returns>
+		public static Dictionary<StreamId, bool> GetFixStreamIds(this IIssue Issue)
+		{
+			Dictionary<StreamId, bool> FixStreamIds = new Dictionary<StreamId, bool>();
+			foreach (IIssueStream Stream in Issue.Streams)
+			{
+				if (Stream.ContainsFix.HasValue)
+				{
+					FixStreamIds[Stream.StreamId] = Stream.ContainsFix.Value;
+				}
+			}
+			return FixStreamIds;
+		}
+
+		/// <summary>
+		/// Find the first fix-failed step for this issue
+		/// </summary>
+		/// <param name="Issue"></param>
+		/// <param name="Spans"></param>
+		/// <returns></returns>
+		public static IIssueStep? FindFixFailedStep(this IIssue Issue, IEnumerable<IIssueSpan> Spans)
+		{
+			IIssueStep? FixFailedStep = null;
+			if (Issue.FixChange != null && Issue.FixChange.Value >= 0)
+			{
+				foreach (IIssueSpan Span in Spans)
+				{
+					IIssueStream? Stream = Issue.Streams.FirstOrDefault(x => x.StreamId == Span.StreamId);
+					if(Stream != null && (Stream.ContainsFix ?? false) && Span.LastFailure.Change >= Issue.FixChange.Value)
+					{
+						FixFailedStep = Span.LastFailure;
+						break;
+					}
+				}
+			}
+			return FixFailedStep;
+		}
 	}
 }

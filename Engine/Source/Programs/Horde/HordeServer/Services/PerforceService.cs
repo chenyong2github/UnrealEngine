@@ -443,17 +443,13 @@ namespace HordeServer.Services
 		/// <inheritdoc/>
 		public async override Task<PerforceUserInfo?> GetUserInfoAsync(string UserName)
 		{
-			PerforceResponseList<UserRecord> UserResponse = await Perforce.TryGetUserAsync(UserName, CancellationToken.None);
-			if (UserResponse.Succeeded)
+			PerforceResponse<UserRecord> UserResponse = await Perforce.TryGetUserAsync(UserName, CancellationToken.None);
+			if (UserResponse.Succeeded && UserResponse.Data.Access != default)
 			{
-				UserRecord? UserRecord = UserResponse.Data.FirstOrDefault();
-				if (UserRecord != null)
-				{
-					PerforceUserInfo UserInfo = new PerforceUserInfo();
-					UserInfo.Name = UserRecord.FullName;
-					UserInfo.Email = UserRecord.Email;
-					return UserInfo;
-				}
+				PerforceUserInfo UserInfo = new PerforceUserInfo();
+				UserInfo.Name = UserResponse.Data.FullName;
+				UserInfo.Email = UserResponse.Data.Email;
+				return UserInfo;
 			}
 			return null;
 		}

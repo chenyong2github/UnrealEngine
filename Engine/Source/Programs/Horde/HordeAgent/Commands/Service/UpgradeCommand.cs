@@ -101,6 +101,15 @@ namespace HordeAgent.Commands
 				{
 					UpgradeMacService(Logger, OtherProcess, TargetFiles, RenameFiles);
 				}
+				else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+				{
+					UpgradeLinuxService(Logger, OtherProcess, TargetFiles, RenameFiles);
+				}
+				else
+				{
+					Logger.LogError("Agent is not running a platform that supports Upgrades. Platform: {0}", RuntimeInformation.OSDescription);
+					return Task.FromResult(-1);
+				}
 			}
 			Logger.LogInformation("Upgrade complete");
 			return Task.FromResult(0);
@@ -125,6 +134,13 @@ namespace HordeAgent.Commands
 		}
 
 		void UpgradeMacService(ILogger Logger, Process OtherProcess, HashSet<string> TargetFiles, List<Tuple<string, string>> RenameFiles)
+		{
+			UpgradeFilesInPlace(Logger, TargetFiles, RenameFiles);
+			Logger.LogDebug("Upgrade completed, restarting...");
+			OtherProcess.Kill();
+		}
+
+		void UpgradeLinuxService(ILogger Logger, Process OtherProcess, HashSet<string> TargetFiles, List<Tuple<string, string>> RenameFiles)
 		{
 			UpgradeFilesInPlace(Logger, TargetFiles, RenameFiles);
 			Logger.LogDebug("Upgrade completed, restarting...");

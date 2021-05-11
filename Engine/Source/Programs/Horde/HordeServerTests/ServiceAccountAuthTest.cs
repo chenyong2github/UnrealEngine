@@ -29,7 +29,7 @@ namespace HordeServerTests
 		{
 			DatabaseService DatabaseService = GetDatabaseService();
 			ServiceAccounts = new ServiceAccountCollection(DatabaseService);
-			ServiceAccount = ServiceAccounts.AddAsync("mytoken", new Dictionary<string, string> {{"myclaim", "myvalue"}, {"foo", "bar"}}, "mydesc").Result;
+			ServiceAccount = ServiceAccounts.AddAsync("mytoken", new List<string> {"myclaim###myvalue", "foo###bar"}, "mydesc").Result;
  		}
 
 		private async Task<ServiceAccountAuthHandler> GetAuthHandlerAsync(string? HeaderValue)

@@ -24,9 +24,11 @@ namespace HordeServer.Rpc
 
 			Capabilities.CacheCapabilities = new CacheCapabilities();
 			Capabilities.CacheCapabilities.DigestFunction.Add(DigestFunction.Types.Value.Sha256);
+			Capabilities.CacheCapabilities.DigestFunction.Add(DigestFunction.Types.Value.Epiciohash);
 
 			Capabilities.ExecutionCapabilities = new ExecutionCapabilities();
 			Capabilities.ExecutionCapabilities.DigestFunction = DigestFunction.Types.Value.Sha256;
+			Capabilities.ExecutionCapabilities.DigestFunction = DigestFunction.Types.Value.Epiciohash;
 			Capabilities.ExecutionCapabilities.ExecEnabled = true;
 
 			return Task.FromResult(Capabilities);

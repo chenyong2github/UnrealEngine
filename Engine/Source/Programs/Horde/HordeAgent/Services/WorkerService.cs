@@ -771,9 +771,26 @@ namespace HordeAgent.Services
 				DirectoryReference LeaseDir = DirectoryReference.Combine(WorkingDir, "Remote", LeaseId);
 				DirectoryReference.CreateDirectory(LeaseDir);
 
+				GrpcChannel GetChannel(string? Url, string? Token)
+				{
+					if (string.IsNullOrEmpty(Url)) return Client.Channel;
+					if (!string.IsNullOrEmpty(Token))
+						return GrpcService.CreateGrpcChannel(Url, new AuthenticationHeaderValue("ServiceAccount", Token));
+					
+					return GrpcChannel.ForAddress(Url);
+				}
+
+				GrpcChannel CasChannel = GetChannel(ActionTask.CasUrl, ActionTask.ServiceAccountToken);// == null ? Client.Channel : GrpcChannel.ForAddress(ActionTask.CasUrl);
+				GrpcChannel ActionCacheChannel = GetChannel(ActionTask.ActionCacheUrl, ActionTask.ServiceAccountToken);//ActionTask.ActionCacheUrl == null ? Client.Channel : GrpcChannel.ForAddress(ActionTask.ActionCacheUrl);
+				GrpcChannel ActionRpcChannel = Client.Channel;
+
+				Logger.LogDebug("CasChannel={CasChannel}", CasChannel.Target);
+				Logger.LogDebug("ActionCacheChannel={ActionCacheChannel}", ActionCacheChannel.Target);
+				Logger.LogDebug("ActionRpcChannel={ActionRpcChannel}", ActionRpcChannel.Target);
+
 				try
 				{
-					ActionExecutor Executor = new ActionExecutor(Client.Channel, Logger);
+					ActionExecutor Executor = new ActionExecutor(ActionTask.InstanceName, CasChannel, ActionCacheChannel, ActionRpcChannel, Logger);
 					await Executor.ExecuteActionAsync(LeaseId, ActionTask, LeaseDir);
 				}
 				finally
@@ -1374,21 +1391,21 @@ namespace HordeAgent.Services
 					}
 				}
 
-				// Add a flag for EC2 instances
-				using (ManagementObjectSearcher Searcher = new ManagementObjectSearcher("select uuid from Win32_ComputerSystemProduct"))
-				{
-					foreach (ManagementObject Row in Searcher.Get())
-					{
-						string? Uuid = Row.GetPropertyValue("uuid") as string;
-						if (Uuid != null && Uuid.StartsWith("EC2", StringComparison.OrdinalIgnoreCase))
-						{
-							PrimaryDevice.Properties.Add("EC2=1");
-							break;
-						}
-					}
-				}
+				// Add EC2 properties if needed
+				await AddAwsProperties(PrimaryDevice.Properties, Logger);
 
-				// Add other EC2 properties
+				// Add session information
+				PrimaryDevice.Properties.Add($"User={Environment.UserName}");
+				PrimaryDevice.Properties.Add($"Domain={Environment.UserDomainName}");
+				PrimaryDevice.Properties.Add($"Interactive={Environment.UserInteractive}");
+				PrimaryDevice.Properties.Add($"Elevated={BuildGraphExecutor.IsUserAdministrator()}");
+			}
+			else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+			{
+				PrimaryDevice.Properties.Add("OSFamily=Linux");
+				PrimaryDevice.Properties.Add("OSVersion=Linux");
+
+				// Add EC2 properties if needed
 				await AddAwsProperties(PrimaryDevice.Properties, Logger);
 
 				// Add session information
@@ -1573,6 +1590,7 @@ namespace HordeAgent.Services
 		{
 			if (EC2InstanceMetadata.IdentityDocument != null)
 			{
+				Properties.Add("EC2=1");
 				AddAwsProperty("aws-instance-id", "/instance-id", Properties);
 				AddAwsProperty("aws-instance-type", "/instance-type", Properties);
 				AddAwsProperty("aws-region", "/region", Properties);
