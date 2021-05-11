@@ -45,6 +45,9 @@ struct CORE_API FPhysicsObjectVersion
 		// Fix corrupted LOD transition maps
 		ChaosClothFixLODTransitionMaps,
 
+		// Convex structure data is now an index-based half-edge structure
+		ConvexUsesHalfEdges,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
