@@ -228,7 +228,7 @@ namespace EpicGame
 			if (ConfigRole.RoleType.IsClient() || RequiresLogin)
 			{
 				// select an account
-				if (NoMCP == false && ConfigRole.Platform != UnrealTargetPlatform.PS4 && ConfigRole.Platform != UnrealTargetPlatform.XboxOne && PreAssignAccount == true)
+				if (NoMCP == false && ConfigRole.Platform != UnrealTargetPlatform.PS4 && PreAssignAccount == true)
 				{
 					Account UserAccount = AccountPool.Instance.ReserveAccount();
 					UserAccount.ApplyToConfig(AppConfig);
