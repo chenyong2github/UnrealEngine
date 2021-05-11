@@ -457,6 +457,9 @@ public:
 	/** Update the contents of the Subobject Tree based on the current context */
 	void UpdateTree(bool bRegenerateTreeNodes = true);
 
+	/** Dumps out the tree view contents to the log (used to assist with debugging widget hierarchy issues) */
+	void DumpTree();
+	
 	/** Forces the details panel to refresh on the same objects */
 	void RefreshSelectionDetails();
 
@@ -649,9 +652,6 @@ protected:
 	
 	/** Handler for recursively expanding/collapsing items */
 	void SetItemExpansionRecursive(FSubobjectEditorTreeNodePtrType Model, bool bInExpansionState);
-
-	/** Dumps out the tree view contents to the log (used to assist with debugging widget hierarchy issues) */
-	void DumpTree();
 
 	/** Registers context menu by name for later access */
 	void RegisterContextMenu();
