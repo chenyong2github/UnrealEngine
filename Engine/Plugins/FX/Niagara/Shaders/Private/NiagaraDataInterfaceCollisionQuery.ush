@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "/Engine/Private/RayTracing/RayTracingCommon.ush"
 #include "NiagaraRayTracingCommon.ush"
 
 #define NDICOLLISIONQUERY_USE_GBUFFER_NORMAL    (FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
