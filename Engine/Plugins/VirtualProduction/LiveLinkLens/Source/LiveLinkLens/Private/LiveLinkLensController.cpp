@@ -3,12 +3,23 @@
 #include "LiveLinkLensController.h"
 
 #include "CameraCalibrationSubsystem.h"
+#include "Engine/Engine.h"
+#include "Engine/World.h"
+#include "LiveLinkComponentController.h"
 #include "LiveLinkLensRole.h"
 #include "LiveLinkLensTypes.h"
 #include "Logging/LogMacros.h"
 
+
 DEFINE_LOG_CATEGORY_STATIC(LogLiveLinkLensController, Log, All);
 
+ULiveLinkLensController::ULiveLinkLensController() 
+{
+	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
+	{
+		DistortionProducerID = FGuid::NewGuid();
+	}
+}
 
 void ULiveLinkLensController::Tick(float DeltaTime, const FLiveLinkSubjectFrameData& SubjectData)
 {
@@ -19,10 +30,16 @@ void ULiveLinkLensController::Tick(float DeltaTime, const FLiveLinkSubjectFrameD
 	{
 		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(AttachedComponent))
 		{
-			UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
-			TSubclassOf<ULensModel> LensModel = SubSystem->GetRegisteredLensModel(StaticData->LensModel);
-			LensDistortionHandler = SubSystem->FindOrCreateDistortionModelHandler(CineCameraComponent, LensModel, EHandlerOverrideMode::SoftOverride);
+			UCameraCalibrationSubsystem* const SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
+			const TSubclassOf<ULensModel> LensModel = SubSystem->GetRegisteredLensModel(StaticData->LensModel);
 
+			const FName SubjectName = SelectedSubject.Subject.Name;
+			const FText RoleName = SelectedSubject.Role->GetDefaultObject<ULiveLinkRole>()->GetDisplayName();
+			const FString HandlerDisplayName = FString::Format(TEXT("'{0}' LiveLink Subject ({1} Role)"), { SubjectName.ToString(), RoleName.ToString() });
+
+			FDistortionHandlerPicker DistortionHandlerPicker = { CineCameraComponent, DistortionProducerID, HandlerDisplayName };
+			LensDistortionHandler = SubSystem->FindOrCreateDistortionModelHandler(DistortionHandlerPicker, LensModel);
+			
 			//To keep track of an updated MID from the handler
 			UMaterialInstanceDynamic* NewDistortionMID = nullptr;
 
@@ -134,6 +151,37 @@ void ULiveLinkLensController::SetAttachedComponent(UActorComponent* ActorCompone
 void ULiveLinkLensController::Cleanup()
 {
 	CleanupDistortion();
+
+	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(AttachedComponent))
+	{
+		if (UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>())
+		{
+			SubSystem->UnregisterDistortionModelHandler(CineCameraComponent, LensDistortionHandler);
+		}
+	}
+}
+
+void ULiveLinkLensController::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+
+	// When this controller is duplicated (e.g. for PIE), the duplicated controller needs a new unique ID
+	if (!DistortionProducerID.IsValid())
+	{
+		DistortionProducerID = FGuid::NewGuid();
+	}
+}
+
+void ULiveLinkLensController::PostEditImport()
+{
+	Super::PostEditImport();
+
+	// PostDuplicate is not called on components during actor duplication, such as alt-drag and copy-paste, so PostEditImport covers those duplication cases
+	// When this controller is duplicated in those cases, the duplicated controller needs a new unique ID
+	if (!DistortionProducerID.IsValid())
+	{
+		DistortionProducerID = FGuid::NewGuid();
+	}
 }
 
 #if WITH_EDITOR
@@ -161,10 +209,16 @@ void ULiveLinkLensController::PostEditChangeProperty(struct FPropertyChangedEven
 			{
 				// Static lens model data may not be available because the controller may not be ticking, so query the subsystem for any distortion handler
 				UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
-				ULensDistortionModelHandlerBase* Handler = SubSystem->GetDistortionModelHandler(CineCameraComponent);
+				FDistortionHandlerPicker DistortionHandlerPicker;
+				DistortionHandlerPicker.TargetCameraComponent = CineCameraComponent;
+				DistortionHandlerPicker.DistortionProducerID = DistortionProducerID;
+				ULensDistortionModelHandlerBase* Handler = SubSystem->FindDistortionModelHandler(DistortionHandlerPicker);
 
 				// Try to remove the post-process material from the cine camera's blendables. 
-				CineCameraComponent->RemoveBlendable(Handler->GetDistortionMID());
+				if (Handler)
+				{
+					CineCameraComponent->RemoveBlendable(Handler->GetDistortionMID());
+				}
 
 				// Restore the original FOV of the 
 				const float OriginalFOV = FMath::RadiansToDegrees(2.0f * FMath::Atan(CineCameraComponent->Filmback.SensorWidth / (2.0f * UndistortedFocalLength)));

@@ -3,14 +3,13 @@
 #include "CameraCalibrationSubsystem.h"
 
 #include "CameraCalibrationLog.h"
-#include "Components/ActorComponent.h"
+#include "CineCameraComponent.h"
 #include "Engine/TimecodeProvider.h"
-#include "Interfaces/Interface_AssetUserData.h"
 #include "UObject/UObjectIterator.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
-#endif
+#endif // WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "CameraCalibrationSubsystem"
 
@@ -43,88 +42,83 @@ ULensFile* UCameraCalibrationSubsystem::GetLensFile(const FLensFilePicker& Picke
 	return ReturnedLens;
 }
 
-ULensDistortionModelHandlerBase* UCameraCalibrationSubsystem::GetDistortionModelHandler(UActorComponent* Component)
+TArray<ULensDistortionModelHandlerBase*> UCameraCalibrationSubsystem::GetDistortionModelHandlers(UCineCameraComponent* Component)
 {
-	if (IInterface_AssetUserData* AssetUserData = Cast<IInterface_AssetUserData>(Component))
+	TArray<ULensDistortionModelHandlerBase*> Handlers;
+	LensDistortionHandlerMap.MultiFind(Component, Handlers);
+
+	return Handlers;
+}
+
+ULensDistortionModelHandlerBase* UCameraCalibrationSubsystem::FindDistortionModelHandler(FDistortionHandlerPicker& DistortionHandlerPicker, bool bUpdatePicker) const
+{
+	TArray<ULensDistortionModelHandlerBase*> Handlers;
+	LensDistortionHandlerMap.MultiFind(DistortionHandlerPicker.TargetCameraComponent, Handlers);
+
+	// Look through the available handlers to find the one driven by the distortion source's producer
+	for (ULensDistortionModelHandlerBase* Handler : Handlers)
 	{
-		return Cast<ULensDistortionModelHandlerBase>(AssetUserData->GetAssetUserDataOfClass(ULensDistortionModelHandlerBase::StaticClass()));
+		if (Handler->GetDistortionProducerID() == DistortionHandlerPicker.DistortionProducerID)
+		{
+			// Reassign the input handler picker's display name to that of the found handler
+			if (bUpdatePicker)
+			{
+				DistortionHandlerPicker.HandlerDisplayName = Handler->GetDisplayName();
+			}
+			return Handler;
+		}
+	}
+
+	// Look through the available handlers to find one with the same name as the input handler picker's display name
+	for (ULensDistortionModelHandlerBase* Handler : Handlers)
+	{
+		if (Handler->GetDisplayName() == DistortionHandlerPicker.HandlerDisplayName)
+		{
+			// Reassign the input handler picker's producer to that of the found handler
+			if (bUpdatePicker)
+			{
+				DistortionHandlerPicker.DistortionProducerID = Handler->GetDistortionProducerID();
+			}
+			return Handler;
+		}
 	}
 
 	return nullptr;
 }
 
-ULensDistortionModelHandlerBase* UCameraCalibrationSubsystem::FindOrCreateDistortionModelHandler(UActorComponent* Component, TSubclassOf<ULensModel> LensModelClass, EHandlerOverrideMode OverrideMode)
+ULensDistortionModelHandlerBase* UCameraCalibrationSubsystem::FindOrCreateDistortionModelHandler(FDistortionHandlerPicker& DistortionHandlerPicker, const TSubclassOf<ULensModel> LensModelClass)
 {
 	if (LensModelClass == nullptr)
 	{
 		return nullptr;
 	}
 
-	// Get the current model handler on the input component (if it exists)
-	if (ULensDistortionModelHandlerBase* Handler = GetDistortionModelHandler(Component))
+	// Attempt to find a handler associated with the input distortion source
+	if (ULensDistortionModelHandlerBase* Handler = FindDistortionModelHandler(DistortionHandlerPicker, false))
 	{
 		// If the existing handler supports the input model, simply return it
 		if (Handler->IsModelSupported(LensModelClass))
 		{
+			// The display name may have changed, even if the handler already exists, so update the display name of the existing handler to match the distortion source
+			Handler->SetDisplayName(DistortionHandlerPicker.HandlerDisplayName);
 			return Handler;
 		}
-		else if (OverrideMode == EHandlerOverrideMode::NoOverride)
+		else
 		{
-			return nullptr;
-		}
-
-		UActorComponent* ComponentToCheck = Component;
-#if WITH_EDITOR
-		// Actors are duplicated in PIE, so their components will not appear in the subsystem's set of components with authoritative models
-		// Therefore, the component to check should be the editor world counterpart to the input component
-		if (Component->GetWorld() && (Component->GetWorld()->WorldType == EWorldType::PIE))
-		{
-			if (AActor* PIEOwner = EditorUtilities::GetEditorWorldCounterpartActor(Component->GetOwner()))
-			{
-				ComponentToCheck = PIEOwner->GetComponentByClass(Component->GetClass());
-			}
-		}
-#endif
-
-		if (OverrideMode == EHandlerOverrideMode::SoftOverride)
-		{
-			// If the input component already has an authoritative model, do not override the existing handler
-			if (ComponentsWithAuthoritativeModels.Contains(FObjectKey(ComponentToCheck))
-				&& (ComponentsWithAuthoritativeModels[ComponentToCheck] != LensModelClass))
-			{
-				return nullptr;
-			}
-			// Mark the input component as having an authoritative model and remove the existing handler
-			else
-			{
-				ComponentsWithAuthoritativeModels.Add(FObjectKey(ComponentToCheck), LensModelClass);
-				Component->RemoveUserDataOfClass(ULensDistortionModelHandlerBase::StaticClass());
-			}
-		}
-		// Mark the input component as having an authoritative model and remove the existing handler
-		else if (OverrideMode == EHandlerOverrideMode::ForceOverride)
-		{
-			// Override the authoritative model for this component, if it already has one
-			if (ComponentsWithAuthoritativeModels.Contains(FObjectKey(ComponentToCheck))
-				&& (ComponentsWithAuthoritativeModels[ComponentToCheck] != LensModelClass))
-			{
-				ComponentsWithAuthoritativeModels[ComponentToCheck] = LensModelClass;
-			}
-			else
-			{
-				ComponentsWithAuthoritativeModels.Add(FObjectKey(ComponentToCheck), LensModelClass);
-			}
-
-			Component->RemoveUserDataOfClass(ULensDistortionModelHandlerBase::StaticClass());
+			// If the input distortion source has an existing handler, but model does not match the input model, remove the old handler from the map
+			LensDistortionHandlerMap.Remove(DistortionHandlerPicker.TargetCameraComponent, Handler);
 		}
 	}
 
+	// If no handler exists for the input distortion source, create a new one
 	const TSubclassOf<ULensDistortionModelHandlerBase> HandlerClass = ULensModel::GetHandlerClass(LensModelClass);
 	ULensDistortionModelHandlerBase* NewHandler = nullptr;
 	if(HandlerClass)
 	{
-		NewHandler = NewObject<ULensDistortionModelHandlerBase>(Component, HandlerClass);
-    	Component->AddAssetUserData(NewHandler);
+		NewHandler = NewObject<ULensDistortionModelHandlerBase>(DistortionHandlerPicker.TargetCameraComponent, HandlerClass);
+		NewHandler->SetDistortionProducerID(DistortionHandlerPicker.DistortionProducerID);
+		NewHandler->SetDisplayName(DistortionHandlerPicker.HandlerDisplayName);
+		LensDistortionHandlerMap.Add(FObjectKey(DistortionHandlerPicker.TargetCameraComponent), NewHandler);
 	}
 	else
 	{
@@ -133,6 +127,12 @@ ULensDistortionModelHandlerBase* UCameraCalibrationSubsystem::FindOrCreateDistor
 
 	return NewHandler;
 }
+
+void UCameraCalibrationSubsystem::UnregisterDistortionModelHandler(UCineCameraComponent* Component, ULensDistortionModelHandlerBase* Handler)
+{
+	LensDistortionHandlerMap.Remove(Component, Handler);
+}
+
 
 void UCameraCalibrationSubsystem::RegisterDistortionModel(TSubclassOf<ULensModel> LensModel)
 {
@@ -144,7 +144,7 @@ void UCameraCalibrationSubsystem::UnregisterDistortionModel(TSubclassOf<ULensMod
 	LensModelMap.Remove(LensModel->GetDefaultObject<ULensModel>()->GetModelName());
 }
 
-TSubclassOf<ULensModel> UCameraCalibrationSubsystem::GetRegisteredLensModel(FName ModelName)
+TSubclassOf<ULensModel> UCameraCalibrationSubsystem::GetRegisteredLensModel(FName ModelName) const
 {
 	if (LensModelMap.Contains(ModelName))
 	{

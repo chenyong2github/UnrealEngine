@@ -19,7 +19,7 @@ class LIVELINKLENS_API ULiveLinkLensController : public ULiveLinkControllerBase
 	GENERATED_BODY()
 
 public:
-	ULiveLinkLensController() {}
+	ULiveLinkLensController();
 
 	//~ Begin ULiveLinkControllerBase interface
 	virtual void Tick(float DeltaTime, const FLiveLinkSubjectFrameData& SubjectData) override;
@@ -30,6 +30,8 @@ public:
 	//~ End ULiveLinkControllerBase interface
 
 	//~ Begin UObject Interface
+	virtual void PostDuplicate(bool bDuplicateForPIE) override;
+	virtual void PostEditImport() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
@@ -48,11 +50,11 @@ protected:
 
 protected:
 	/** Whether or not to apply a post-process distortion effect directly to the attached CineCamera */
-	UPROPERTY(EditAnywhere, Category = "Lens Distortion")
+	UPROPERTY(EditAnywhere, Category = "Camera Calibration")
 	bool bApplyDistortion = false;
 
 	/** Cached distortion handler associated with attached camera component */
-	UPROPERTY(EditAnywhere, Category = "Lens Distortion", Transient)
+	UPROPERTY(EditAnywhere, Category = "Camera Calibration", Transient)
 	ULensDistortionModelHandlerBase* LensDistortionHandler = nullptr;
 
 	/** Cached distortion MID the handler produced. Used to clean up old one in case it changes */
@@ -63,9 +65,13 @@ protected:
  	UPROPERTY()
 	float UndistortedFocalLength = 50.0f;
 
+	/** Unique identifier representing the source of distortion data */
+	UPROPERTY(DuplicateTransient)
+	FGuid DistortionProducerID;
+
 	/** Keep track of what needs to be setup to apply distortion */
 	bool bIsDistortionSetup = false;
 
-	//Last value used to detect changes made by the user and update our original caches
+	/** Last value used to detect changes made by the user and update our original caches */
 	float LastFocalLength = -1.0f;
 };

@@ -17,6 +17,7 @@ class LIVELINKCOMPONENTS_API ULiveLinkComponentController : public UActorCompone
 	
 public:
 	ULiveLinkComponentController();
+	~ULiveLinkComponentController();
 
 public:
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category="LiveLink")
@@ -70,6 +71,11 @@ public:
 	/** Used to notify that the subject role has changed. Mainly from Customization or C++ modification to the subject's Role */
 	void OnSubjectRoleChanged();
 
+#if WITH_EDITOR
+	/** Used to cleanup controllers when exiting PIE */
+	void OnEndPIE(bool bIsSimulating);
+#endif //WITH_EDITOR
+
 	//~ Begin UActorComponent interface
 	virtual void OnRegister() override;
 	virtual void DestroyComponent(bool bPromoteChildren = false) override;
@@ -88,6 +94,9 @@ protected:
 	/** Returns an array representing the class hierarchy of the given class */
 	TArray<TSubclassOf<ULiveLinkRole>> GetSelectedRoleHierarchyClasses(const TSubclassOf<ULiveLinkRole> InCurrentRoleClass) const;
 	TSubclassOf<ULiveLinkControllerBase> GetControllerClassForRoleClass(const TSubclassOf<ULiveLinkRole> RoleClass) const;
+
+	/** Loops through the controller map and calls Cleanup() on each entry */
+	void CleanupControllersInMap();
 
 #if WITH_EDITOR
 	/** Called during loading to convert old data to new scheme. */

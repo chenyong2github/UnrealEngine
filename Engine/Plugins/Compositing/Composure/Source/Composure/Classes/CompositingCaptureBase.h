@@ -4,6 +4,7 @@
 
 #include "CompositingElement.h"
 
+#include "CameraCalibrationTypes.h"
 #include "LensDistortionModelHandlerBase.h"
 
 #include "CompositingCaptureBase.generated.h"
@@ -28,12 +29,16 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Composure|LensDistortion")
 	bool bApplyDistortion = false;
 
-	/** Pointer to the Lens Distortion Data Handler that belongs to the CameraComponent of the TargetCameraActor */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Composure|LensDistortion", Transient)
-	ULensDistortionModelHandlerBase* LensDistortionHandler = nullptr;
+	/** Structure used to query the camera calibration subsystem for a lens distortion model handler */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Composure|LensDistortion")
+	FDistortionHandlerPicker DistortionSource;
+
+	/** Value used to augment the FOV of the scene capture to produce a CG image with enough data to distort */
+	UPROPERTY(BlueprintReadOnly, Category = "Composure|LensDistortion")
+	float OverscanFactor = 1.0f;
 
 	/** Cached distortion MID produced by the Lens Distortion Handler, used to clean up the post-process materials in the case that the the MID changes */
-	UPROPERTY(Transient)
+	UPROPERTY()
 	UMaterialInstanceDynamic* LastDistortionMID = nullptr;
 
 public:
