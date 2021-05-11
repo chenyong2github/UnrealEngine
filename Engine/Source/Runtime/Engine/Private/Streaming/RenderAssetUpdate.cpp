@@ -288,6 +288,7 @@ void FRenderAssetUpdate::ScheduleAsyncTask()
 
 void FRenderAssetUpdate::FMipUpdateTask::DoWork()
 {
+	FTaskTagScope Scope(ETaskTag::EParallelGameThread);
 	check(PendingUpdate.IsValid());
 
 #if !UE_BUILD_SHIPPING
