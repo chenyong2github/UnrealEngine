@@ -67,6 +67,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
 #endif
 
 #if WITH_EDITORONLY_DATA
