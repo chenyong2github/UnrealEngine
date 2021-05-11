@@ -1349,7 +1349,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 					if (bHasRotation)
 					{
 						FQuat InstanceQuat = GetInstanceQuat(InstanceIndex);
-						FTransform RotationTransform(InstanceQuat/*.GetNormalized()*/);
+						FTransform RotationTransform(InstanceQuat.GetNormalized());
 						FMatrix RotationMatrix = RotationTransform.ToMatrixWithScale();
 						InstanceTransform = RotationMatrix * InstanceTransform;
 					}
