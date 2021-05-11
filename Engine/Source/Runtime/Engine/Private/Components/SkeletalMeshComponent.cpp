@@ -4063,7 +4063,11 @@ void USkeletalMeshComponent::FinalizeBoneTransform()
 
 	ConditionallyDispatchQueuedAnimEvents();
 
-	OnBoneTransformsFinalized.Broadcast();
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	OnBoneTransformsFinalized.Broadcast();  // Deprecated in 4.27
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	OnBoneTransformsFinalizedMC.Broadcast();
 
 	TRACE_SKELETAL_MESH_COMPONENT(this);
 }
@@ -4138,6 +4142,15 @@ void USkeletalMeshComponent::UnregisterOnTeleportDelegate(const FDelegateHandle&
 	OnSkelMeshPhysicsTeleported.Remove(DelegateHandle);
 }
 
+FDelegateHandle USkeletalMeshComponent::RegisterOnBoneTransformsFinalizedDelegate(const FOnBoneTransformsFinalizedMultiCast::FDelegate& Delegate)
+{
+	return OnBoneTransformsFinalizedMC.Add(Delegate);
+}
+
+void USkeletalMeshComponent::UnregisterOnBoneTransformsFinalizedDelegate(const FDelegateHandle& DelegateHandle)
+{
+	OnBoneTransformsFinalizedMC.Remove(DelegateHandle);
+}
 
 bool USkeletalMeshComponent::MoveComponentImpl(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* OutHit /*= nullptr*/, EMoveComponentFlags MoveFlags /*= MOVECOMP_NoFlags*/, ETeleportType Teleport /*= ETeleportType::None*/)
 {

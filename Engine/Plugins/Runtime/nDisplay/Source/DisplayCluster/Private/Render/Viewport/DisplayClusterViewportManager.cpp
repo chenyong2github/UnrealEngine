@@ -275,9 +275,9 @@ void FDisplayClusterViewportManager::ConfigureViewFamily(const FDisplayClusterRe
 	}
 }
 
-void FDisplayClusterViewportManager::RenderFrame(const bool bWarpBlendEnabled, FRHITexture2D* FrameOutputRTT)
+void FDisplayClusterViewportManager::RenderFrame(const bool bWarpBlendEnabled, FViewport* InViewport)
 {
-	ViewportManagerProxy->ImplRenderFrame(bWarpBlendEnabled, FrameOutputRTT);
+	ViewportManagerProxy->ImplRenderFrame(bWarpBlendEnabled, InViewport);
 }
 
 bool FDisplayClusterViewportManager::CreateViewport(const FString& InViewportId, const class UDisplayClusterConfigurationViewport* ConfigurationViewport)
