@@ -91,6 +91,29 @@ static inline void ConvertRawB8G8R8A8DataToFColor(uint32 Width, uint32 Height, u
 	}
 }
 
+static inline void ConvertRawR16G16B16A16FDataToFFloat16Color(uint32 Width, uint32 Height, uint8* In, uint32 SrcPitch, FFloat16Color* Out)
+{
+	const uint32 DstPitch = Width * sizeof(FFloat16Color);
+
+	// If source & dest pitch matches, perform a single memcpy.
+	if (DstPitch == SrcPitch)
+	{
+		FPlatformMemory::Memcpy(Out, In, Width * Height * sizeof(FFloat16Color));
+	}
+	else
+	{
+		check(SrcPitch > DstPitch);
+
+		// Need to copy row wise since the Pitch does not match the Width.
+		for (uint32 Y = 0; Y < Height; Y++)
+		{
+			FFloat16Color* SrcPtr = (FFloat16Color*)(In + Y * SrcPitch);
+			FFloat16Color* DestPtr = Out + Y * Width;
+			FMemory::Memcpy(DestPtr, SrcPtr, DstPitch);
+		}
+	}
+}
+
 static inline void ConvertRawR10G10B10A2DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out)
 {
 	for (uint32 Y = 0; Y < Height; Y++)

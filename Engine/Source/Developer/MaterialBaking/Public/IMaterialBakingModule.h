@@ -31,4 +31,10 @@ public:
 
 	/** Promps a slate window to allow the user to populate specific material baking settings used while baking out materials */
 	virtual  bool SetupMaterialBakeSettings(TArray<TWeakObjectPtr<UObject>>& OptionObjects, int32 NumLODs) = 0;
+
+	/** Outputs true HDR version of emissive color */
+	virtual void SetEmissiveHDR(bool bHDR) = 0;
+
+	/** Bakes all material properties to linear textures, except for colors */
+	virtual void SetLinearBake(bool bCorrectLinear) = 0;
 };
