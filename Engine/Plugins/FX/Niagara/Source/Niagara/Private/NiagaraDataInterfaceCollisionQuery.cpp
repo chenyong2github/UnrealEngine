@@ -33,6 +33,7 @@ namespace NDICollisionQueryLocal
 	static const FName ReserveAsyncRayTraceName(TEXT("ReserveAsyncRayTraceGpu"));
 	static const FName ReadAsyncRayTraceName(TEXT("ReadAsyncRayTraceGpu"));
 
+	static const FString RayTracingEnabledParamName(TEXT("RayTracingEnabled_"));
 	static const FString MaxRayTraceCountParamName(TEXT("MaxRayTraceCount_"));
 	static const FString RayRequestsParamName(TEXT("RayRequests_"));
 	static const FString IntersectionResultsParamName(TEXT("IntersectionResults_"));
@@ -690,6 +691,14 @@ bool UNiagaraDataInterfaceCollisionQuery::AppendCompileHash(FNiagaraCompileHashV
 
 	return true;
 }
+
+void UNiagaraDataInterfaceCollisionQuery::ModifyCompilationEnvironment(EShaderPlatform ShaderPlatform, FShaderCompilerEnvironment& OutEnvironment) const
+{
+	Super::ModifyCompilationEnvironment(ShaderPlatform, OutEnvironment);
+
+	OutEnvironment.SetDefine(TEXT("NIAGARA_SUPPORTS_RAY_TRACING"), ShouldCompileRayTracingShadersForProject(ShaderPlatform) ? 1 : 0);
+}
+
 #endif
 
 void UNiagaraDataInterfaceCollisionQuery::PerformQuerySyncCPU(FVectorVMContext & Context)
@@ -982,6 +991,7 @@ public:
 	{
 		GlobalDistanceFieldParameters.Bind(ParameterMap);
 #if RHI_RAYTRACING
+		RayTracingEnabledParam.Bind(ParameterMap, *(NDICollisionQueryLocal::RayTracingEnabledParamName + ParameterInfo.DataInterfaceHLSLSymbol));
 		MaxRayTraceCountParam.Bind(ParameterMap, *(NDICollisionQueryLocal::MaxRayTraceCountParamName + ParameterInfo.DataInterfaceHLSLSymbol));
 		RayRequestsParam.Bind(ParameterMap, *(NDICollisionQueryLocal::RayRequestsParamName + ParameterInfo.DataInterfaceHLSLSymbol));
 		IntersectionResultsParam.Bind(ParameterMap, *(NDICollisionQueryLocal::IntersectionResultsParamName + ParameterInfo.DataInterfaceHLSLSymbol));
@@ -1003,6 +1013,7 @@ public:
 		}
 
 #if RHI_RAYTRACING
+		SetShaderValue(RHICmdList, ComputeShaderRHI, RayTracingEnabledParam, IsRayTracingEnabled() ? 1 : 0);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, MaxRayTraceCountParam, QueryDI->MaxRayTraceCount);
 
 		if (RayRequestsParam.IsUAVBound())
@@ -1044,6 +1055,7 @@ private:
 	LAYOUT_FIELD(FGlobalDistanceFieldParameters, GlobalDistanceFieldParameters);
 
 #if RHI_RAYTRACING
+	LAYOUT_FIELD(FShaderParameter, RayTracingEnabledParam);
 	LAYOUT_FIELD(FShaderParameter, MaxRayTraceCountParam);
 	LAYOUT_FIELD(FRWShaderParameter, RayRequestsParam);
 	LAYOUT_FIELD(FShaderResourceParameter, IntersectionResultsParam);

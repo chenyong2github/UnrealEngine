@@ -57,11 +57,11 @@ bool FNiagaraShaderScript::ShouldCache(EShaderPlatform Platform, const FShaderTy
 	return true;
 }
 
-void FNiagaraShaderScript::ModifyCompilationEnvironment(struct FShaderCompilerEnvironment& OutEnvironment) const
+void FNiagaraShaderScript::ModifyCompilationEnvironment(EShaderPlatform Platform, struct FShaderCompilerEnvironment& OutEnvironment) const
 {
 	if ( BaseVMScript )
 	{
-		BaseVMScript->ModifyCompilationEnvironment(OutEnvironment);
+		BaseVMScript->ModifyCompilationEnvironment(Platform, OutEnvironment);
 	}
 }
 
