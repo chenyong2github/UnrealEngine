@@ -163,6 +163,8 @@ private:
 	//~ Handlers called in order to clear the exposed property cache.
 	void OnEntityExposed(URemoteControlPreset* InPreset, const FGuid& InEntityId);
 	void OnEntityUnexposed(URemoteControlPreset* InPreset, const FGuid& InEntityId);
+	/** Toggles the logging part of UI */
+	void OnLogCheckboxToggle(ECheckBoxState State);
 private:
 	/** Holds the preset asset. */
 	TStrongObjectPtr<URemoteControlPreset> Preset;
