@@ -162,6 +162,8 @@ public:
 
 	virtual float GetWorldToMetersScale() const override;
 
+	virtual FVector2D GetPlayAreaBounds(EHMDTrackingOrigin::Type Origin) const override;
+
 protected:
 
 	bool StartSession();
