@@ -285,9 +285,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Clustering")
 	EClusterConnectionTypeEnum ClusterConnectionType;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
 	TArray<FGeometryCollectionSource> GeometrySource;
-	
+#endif
+
 	UPROPERTY(EditAnywhere, Category = "Materials")
 	TArray<TObjectPtr<UMaterialInterface>> Materials;
 
