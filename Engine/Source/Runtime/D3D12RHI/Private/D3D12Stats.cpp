@@ -385,7 +385,15 @@ bool D3D12RHI::FD3DGPUProfiler::CheckGpuHeartbeat() const
 						UE_LOG(LogRHI, Error, TEXT("[Aftermath] Faulting resource dims: %d x %d x %d"), FaultInformation.resourceDesc.width, FaultInformation.resourceDesc.height, FaultInformation.resourceDesc.depth);
 						UE_LOG(LogRHI, Error, TEXT("[Aftermath] Faulting result size: %llu bytes"), FaultInformation.resourceDesc.size);
 						UE_LOG(LogRHI, Error, TEXT("[Aftermath] Faulting resource mips: %d"), FaultInformation.resourceDesc.mipLevels);
-						UE_LOG(LogRHI, Error, TEXT("[Aftermath] Faulting resource format: 0x%x"), FaultInformation.resourceDesc.format);
+
+						DXGI_FORMAT ResourceFormat = (DXGI_FORMAT)FaultInformation.resourceDesc.format;
+						const TCHAR* FormatStr = LexToString(ResourceFormat);
+						const TCHAR* FormatPrefix = TEXT("DXGI_FORMAT_");
+						if (FCString::Strstr(FormatStr, FormatPrefix) == FormatStr)
+						{
+							FormatStr += FCString::Strlen(FormatPrefix);
+						}
+						UE_LOG(LogRHI, Error, TEXT("[Aftermath] Faulting resource format: %s (0x%x)"), FormatStr, (int32)ResourceFormat);
 					}
 					else
 					{
