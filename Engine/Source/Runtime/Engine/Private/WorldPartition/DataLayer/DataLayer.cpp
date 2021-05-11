@@ -16,8 +16,6 @@ UDataLayer::UDataLayer(const FObjectInitializer& ObjectInitializer)
 , bIsInitiallyVisible(true)
 , bIsDynamicallyLoadedInEditor(true)
 , bIsLocked(false)
-, bGeneratesHLODs(true)
-, DefaultHLODLayer()
 #endif
 , DataLayerLabel(GetFName())
 , InitialState(EDataLayerState::Unloaded)

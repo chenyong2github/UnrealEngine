@@ -16,7 +16,6 @@
 
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogHLODLayer, Log, All);
@@ -94,16 +93,6 @@ UHLODLayer* UHLODLayer::GetHLODLayer(const AActor* InActor)
 	bool bIsHLOD0 = !InActor->IsA<AWorldPartitionHLOD>();
 	if (bIsHLOD0) 
 	{
-		// Check if this actor is part of a DataLayer that has a default HLOD layer
-		for(const UDataLayer* DataLayer : InActor->GetDataLayerObjects())
-		{
-			UHLODLayer* HLODLayer = DataLayer ? DataLayer->GetDefaultHLODLayer() : nullptr;
-			if (HLODLayer)
-			{
-				return HLODLayer;
-			}
-		}
-
 		// Fallback to the world partition default HLOD layer
 		if (UWorldPartition* WorldPartition = InActor->GetWorld()->GetWorldPartition())
 		{
@@ -127,22 +116,6 @@ UHLODLayer* UHLODLayer::GetHLODLayer(const FWorldPartitionActorDesc& InActorDesc
 	bool bIsHLOD0 = !InActorDesc.GetActorClass()->IsChildOf<AWorldPartitionHLOD>();
 	if (bIsHLOD0)
 	{
-		if (UDataLayerSubsystem* DataLayerSubsystem = InWorldPartition->GetWorld()->GetSubsystem<UDataLayerSubsystem>())
-		{
-			if (const AWorldDataLayers* WorldDataLayers = InWorldPartition->GetWorld()->GetWorldDataLayers())
-			{
-				for (const FName& DataLayerName : InActorDesc.GetDataLayers())
-				{
-					const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(DataLayerName);
-					UHLODLayer* HLODLayer = DataLayer ? DataLayer->GetDefaultHLODLayer() : nullptr;
-					if (HLODLayer)
-					{
-						return HLODLayer;
-					}
-				}
-			}
-		}
-
 		// Fallback to the world partition default HLOD layer
 		return InWorldPartition->DefaultHLODLayer;
 	}
