@@ -149,11 +149,14 @@ struct FPrimitiveFlagsCompact
 {
 	/** True if the primitive casts dynamic shadows. */
 	uint8 bCastDynamicShadow : 1;
+
 	/** True if the primitive will cache static lighting. */
 	uint8 bStaticLighting : 1;
+
 	/** True if the primitive casts static shadows. */
 	uint8 bCastStaticShadow : 1;
-	/** True if the primitive is a nanite mesh. */
+
+	/** True if the primitive is a Nanite mesh. */
 	uint8 bIsNaniteMesh : 1;
 
 	FPrimitiveFlagsCompact(const FPrimitiveSceneProxy* Proxy);
@@ -427,7 +430,7 @@ public:
 	void UnlinkAttachmentGroup();
 
 	/** Adds a request to update GPU scene representation. */
-	RENDERER_API void RequestGPUSceneUpdate();
+	RENDERER_API bool RequestGPUSceneUpdate();
 
 	/** 
 	 * Builds an array of all primitive scene info's in this primitive's attachment group. 

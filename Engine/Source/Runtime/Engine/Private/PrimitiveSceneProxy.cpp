@@ -157,6 +157,8 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bSingleSampleShadowFromStationaryLights(InComponent->bSingleSampleShadowFromStationaryLights)
 ,	bStaticElementsAlwaysUseProxyPrimitiveUniformBuffer(false)
 ,	bVFRequiresPrimitiveUniformBuffer(true)
+,	bIsNaniteMesh(false)
+,	bAlwaysVisible(false)
 ,	bSupportsInstanceDataBuffer(false)
 ,	bShouldUpdateGPUSceneTransforms(true)
 ,	bAlwaysHasVelocity(false)

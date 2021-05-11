@@ -660,17 +660,17 @@ public:
 	/**
 	* Returns whether this proxy is a Nanite mesh.
 	*/
-	virtual bool IsNaniteMesh() const
+	inline bool IsNaniteMesh() const
 	{
-		return false;
+		return bIsNaniteMesh;
 	}
 
 	/**
 	* Returns whether this proxy is always visible.
 	*/
-	virtual bool IsAlwaysVisible() const
+	inline bool IsAlwaysVisible() const
 	{
-		return false;
+		return bAlwaysVisible;
 	}
 
 	/**
@@ -1013,6 +1013,12 @@ protected:
 	 * When false, updating the primitive uniform buffer can be skipped since vertex factories always use GPUScene instead.
 	 */
 	uint8 bVFRequiresPrimitiveUniformBuffer : 1;
+
+	/** Whether this proxy is a Nanite mesh. */
+	uint8 bIsNaniteMesh : 1;
+
+	/** Whether this proxy is always visible. */
+	uint8 bAlwaysVisible : 1;
 
 	/** Whether the primitive supports the GPUScene instance data buffer. */
 	uint8 bSupportsInstanceDataBuffer : 1;

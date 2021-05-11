@@ -1532,12 +1532,15 @@ void FPrimitiveSceneInfo::UnlinkAttachmentGroup()
 	}
 }
 
-void FPrimitiveSceneInfo::RequestGPUSceneUpdate()
+bool FPrimitiveSceneInfo::RequestGPUSceneUpdate()
 {
 	if (Scene && IsIndexValid())
 	{
 		Scene->GPUScene.AddPrimitiveToUpdate(GetIndex());
+		return true;
 	}
+
+	return false;
 }
 
 void FPrimitiveSceneInfo::GatherLightingAttachmentGroupPrimitives(TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator>& OutChildSceneInfos)
