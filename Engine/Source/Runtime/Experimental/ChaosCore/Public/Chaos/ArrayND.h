@@ -94,6 +94,12 @@ class TArrayNDBase
 	FORCEINLINE int32 Num() const { return MArray.Num(); }
 	FORCEINLINE TVector<int32, d> Counts() const { return MCounts; }
 
+	FORCEINLINE void Reset()
+	{
+		MCounts = TVector<int32, d>(0);
+		MArray.Reset();
+	}
+
   protected:
 	TVector<int32, d> MCounts;
 	TArray<T> MArray;

@@ -266,24 +266,12 @@ FChildren* SBoxPanel::GetChildren()
 
 int32 SBoxPanel::RemoveSlot( const TSharedRef<SWidget>& SlotWidget )
 {
-	for (int32 SlotIdx = 0; SlotIdx < Children.Num(); ++SlotIdx)
-	{
-		if ( SlotWidget == Children[SlotIdx].GetWidget() )
-		{
-			Children.RemoveAt(SlotIdx);
-			Invalidate(EInvalidateWidget::Layout);
-			return SlotIdx;
-		}
-	}
-
-	return -1;
+	return Children.Remove(SlotWidget);
 }
 
 void SBoxPanel::ClearChildren()
 {
 	Children.Empty();
-
-	Invalidate(EInvalidateWidget::Layout);
 }
 
 /**

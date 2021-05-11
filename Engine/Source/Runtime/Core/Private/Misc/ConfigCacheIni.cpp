@@ -24,6 +24,8 @@
 #include "Serialization/LargeMemoryReader.h"
 #include "Async/Async.h"
 
+#include <limits>
+
 #if WITH_EDITOR
 	#define INI_CACHE 1
 #else
@@ -1889,6 +1891,17 @@ bool FConfigFile::GetFloat(const TCHAR* Section, const TCHAR* Key, float& Value)
 	return false;
 }
 
+bool FConfigFile::GetDouble(const TCHAR* Section, const TCHAR* Key, double& Value) const
+{
+	FString Text;
+	if (GetString(Section, Key, Text))
+	{
+		Value = FCString::Atod(*Text);
+		return true;
+	}
+	return false;
+}
+
 bool FConfigFile::GetInt64( const TCHAR* Section, const TCHAR* Key, int64& Value ) const
 {
 	FString Text; 
@@ -1967,6 +1980,20 @@ void FConfigFile::SetText( const TCHAR* Section, const TCHAR* Key, const FText& 
 		Dirty = true;
 		*ConfigValue = FConfigValue(StrValue);
 	}
+}
+
+void FConfigFile::SetFloat(const TCHAR* Section, const TCHAR* Key, float Value)
+{
+	TCHAR Text[MAX_SPRINTF] = TEXT("");
+	FCString::Sprintf(Text, TEXT("%.*g"), std::numeric_limits<float>::max_digits10, Value);
+	SetString(Section, Key, Text);
+}
+
+void FConfigFile::SetDouble(const TCHAR* Section, const TCHAR* Key, double Value)
+{
+	TCHAR Text[MAX_SPRINTF] = TEXT("");
+	FCString::Sprintf(Text, TEXT("%.*g"), std::numeric_limits<double>::max_digits10, Value);
+	SetString(Section, Key, Text);
 }
 
 void FConfigFile::SetInt64( const TCHAR* Section, const TCHAR* Key, int64 Value )
@@ -3076,9 +3103,13 @@ void FConfigCacheIni::SetFloat
 	const FString&	Filename
 )
 {
-	TCHAR Text[MAX_SPRINTF]=TEXT("");
-	FCString::Sprintf( Text, TEXT("%f"), Value );
-	SetString( Section, Key, Text, Filename );
+	FConfigFile* File = Find(Filename);
+	if (!File)
+	{
+		return;
+	}
+
+	File->SetFloat(Section, Key, Value);
 }
 void FConfigCacheIni::SetDouble
 (
@@ -3088,9 +3119,13 @@ void FConfigCacheIni::SetDouble
 	const FString&	Filename
 )
 {
-	TCHAR Text[MAX_SPRINTF]=TEXT("");
-	FCString::Sprintf( Text, TEXT("%f"), Value );
-	SetString( Section, Key, Text, Filename );
+	FConfigFile* File = Find(Filename);
+	if (!File)
+	{
+		return;
+	}
+
+	File->SetDouble(Section, Key, Value);
 }
 void FConfigCacheIni::SetBool
 (

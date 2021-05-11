@@ -200,6 +200,10 @@ public:
 	void ResetPrivacySettings();
 	const FPartyPrivacySettings& GetPrivacySettings() const;
 
+	virtual bool ShouldAlwaysJoinPlatformSession(const FSessionId& SessionId) const;
+
+	virtual void JoinSessionCompleteAnalytics(const FSessionId& SessionId, const FString& JoinBootableGroupSessionResult);
+
 PACKAGE_SCOPE:
 	void InitializeParty(const TSharedRef<const FOnlineParty>& InOssParty);
 	bool IsInitialized() const;

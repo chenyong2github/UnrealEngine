@@ -70,9 +70,7 @@ FMovieSceneUMGComponentTypes::FMovieSceneUMGComponentTypes()
 {
 	FComponentRegistry* ComponentRegistry = UMovieSceneEntitySystemLinker::GetComponents();
 
-	WidgetTransform.PropertyTag = ComponentRegistry->NewTag(TEXT("FWidgetTransform Property"),  EComponentTypeFlags::CopyToChildren);
-	ComponentRegistry->NewComponentType(&WidgetTransform.PreAnimatedValue, TEXT("Pre-Animated 2D Transform"),     EComponentTypeFlags::Preserved);
-	ComponentRegistry->NewComponentType(&WidgetTransform.InitialValue,     TEXT("Initial 2D Transform"),          EComponentTypeFlags::Preserved);
+	ComponentRegistry->NewPropertyType(WidgetTransform, TEXT("FWidgetTransform Property"));
 
 	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 

@@ -122,7 +122,7 @@ UObject* UNiagaraEmitterFactoryNew::FactoryCreateNew(UClass* Class, UObject* InP
 
 	if (EmitterToCopy != nullptr)
 	{
-		if (bUseInheritance && EmitterToCopy->bIsTemplateAsset == false)
+		if (bUseInheritance && EmitterToCopy->TemplateSpecification == ENiagaraScriptTemplateSpecification::None)
 		{
 			NewEmitter = UNiagaraEmitter::CreateWithParentAndOwner(*EmitterToCopy, InParent, Name, Flags);
 		}
@@ -132,7 +132,7 @@ UObject* UNiagaraEmitterFactoryNew::FactoryCreateNew(UClass* Class, UObject* InP
 			NewEmitter->SetUniqueEmitterName(Name.GetPlainNameString());
 		}
 
-		NewEmitter->bIsTemplateAsset = false;
+		NewEmitter->TemplateSpecification = ENiagaraScriptTemplateSpecification::None;
 		NewEmitter->TemplateAssetDescription = FText();
 	}
 	else
@@ -208,6 +208,7 @@ UObject* UNiagaraEmitterFactoryNew::FactoryCreateNew(UClass* Class, UObject* InP
 		FNiagaraStackGraphUtilities::RelayoutGraph(*Source->NodeGraph);
 		NewEmitter->bInterpolatedSpawning = true;
 		NewEmitter->bDeterminism = false; // NOTE: Default to non-determinism
+		NewEmitter->TemplateSpecification = ENiagaraScriptTemplateSpecification::None;
 		NewEmitter->SpawnScriptProps.Script->SetUsage(ENiagaraScriptUsage::ParticleSpawnScriptInterpolated);
 	}
 	

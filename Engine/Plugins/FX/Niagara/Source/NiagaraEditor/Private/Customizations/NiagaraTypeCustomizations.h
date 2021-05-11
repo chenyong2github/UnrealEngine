@@ -15,8 +15,34 @@ class FDetailWidgetRow;
 class FNiagaraScriptViewModel;
 class IPropertyHandle;
 class IPropertyHandleArray;
+class UNiagaraGraph;
+class UNiagaraParameterDefinitions;
+class UNiagaraScriptVariable;
 
 enum class ECheckBoxState : uint8;
+
+
+// Args struct for binding parameter definitions names
+struct FScriptVarBindingNameSubscriptionArgs
+{
+	FScriptVarBindingNameSubscriptionArgs()
+		: SourceParameterDefinitions(nullptr)
+		, SourceScriptVar(nullptr)
+		, DestScriptVar(nullptr)
+	{
+	}
+
+	FScriptVarBindingNameSubscriptionArgs(UNiagaraParameterDefinitions* InSourceParameterDefinitions, const UNiagaraScriptVariable* InSourceScriptVar, const UNiagaraScriptVariable* InDestScriptVar)
+		: SourceParameterDefinitions(InSourceParameterDefinitions)
+		, SourceScriptVar(InSourceScriptVar)
+		, DestScriptVar(InDestScriptVar)
+	{
+	}
+
+	UNiagaraParameterDefinitions* SourceParameterDefinitions;
+	const UNiagaraScriptVariable* SourceScriptVar;
+	const UNiagaraScriptVariable* DestScriptVar;
+};
 
 class FNiagaraNumericCustomization : public IPropertyTypeCustomization
 {
@@ -79,6 +105,8 @@ struct FNiagaraStackAssetAction_VarBind : public FEdGraphSchemaAction
 	GENERATED_USTRUCT_BODY();
 
 	FName VarName;
+	FScriptVarBindingNameSubscriptionArgs LibraryNameSubscriptionArgs;
+	const UNiagaraScriptVariable* BaseScriptVar;
 	FNiagaraVariableBase BaseVar;
 	FNiagaraVariableBase ChildVar;
 
@@ -91,9 +119,28 @@ struct FNiagaraStackAssetAction_VarBind : public FEdGraphSchemaAction
 	{}
 
 	FNiagaraStackAssetAction_VarBind(FName InVarName,
-		FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords)
-		: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping, MoveTemp(InKeywords)),
-		VarName(InVarName)
+		FText InNodeCategory,
+		FText InMenuDesc,
+		FText InToolTip,
+		const int32 InGrouping,
+		FText InKeywords
+	)
+		: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping, MoveTemp(InKeywords))
+		, VarName(InVarName)
+		, LibraryNameSubscriptionArgs(FScriptVarBindingNameSubscriptionArgs())
+	{}
+
+	FNiagaraStackAssetAction_VarBind(FName InVarName,
+		FText InNodeCategory,
+		FText InMenuDesc,
+		FText InToolTip,
+		const int32 InGrouping,
+		FText InKeywords,
+		FScriptVarBindingNameSubscriptionArgs InLibraryNameSubscriptionArgs
+	)
+		: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping, MoveTemp(InKeywords))
+		, VarName(InVarName)
+		, LibraryNameSubscriptionArgs(InLibraryNameSubscriptionArgs)
 	{}
 
 	//~ Begin FEdGraphSchemaAction Interface
@@ -270,7 +317,9 @@ private:
 	FText GetCurrentText() const;
 	FText GetTooltipText() const;
 	TSharedRef<SWidget> OnGetMenuContent() const;
-	TArray<FName> GetNames() const;
+	TArray<TSharedPtr<FEdGraphSchemaAction>> GetGraphParameterBindingActions(const UNiagaraGraph* Graph);
+	TArray<TSharedPtr<FEdGraphSchemaAction>> GetEngineConstantBindingActions();
+	TArray<TSharedPtr<FEdGraphSchemaAction>> GetLibraryParameterBindingActions();
 	void ChangeSource(FName InVarName);
 	void CollectAllActions(FGraphActionListBuilderBase& OutAllActions);
 	TSharedRef<SWidget> OnCreateWidgetForAction(struct FCreateWidgetForActionData* const InCreateData);
@@ -279,6 +328,22 @@ private:
 	/** State */
 	TSharedPtr<IPropertyHandle> PropertyHandle;
 	class UNiagaraGraph* BaseGraph;
+	class UNiagaraParameterDefinitions* BaseLibrary;
 	class UNiagaraScriptVariable* BaseScriptVariable;
 	struct FNiagaraScriptVariableBinding* TargetVariableBinding;
+};
+
+
+//** Properties customization for FNiagaraVariableMetadata to hide fields that are not relevant when editing parameter definitions. */
+class FNiagaraVariableMetaDataCustomization : public IPropertyTypeCustomization
+{
+public:
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	{
+		return MakeShared<FNiagaraVariableMetaDataCustomization>();
+	}
+
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) {};
+
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils);
 };

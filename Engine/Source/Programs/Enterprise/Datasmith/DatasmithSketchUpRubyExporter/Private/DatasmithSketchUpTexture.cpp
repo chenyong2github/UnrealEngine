@@ -46,7 +46,7 @@ TSharedPtr<FTexture> FTextureCollection::FindOrAdd(SUTextureRef TextureRef)
 	return Texture;
 }
 
-FTexture* FTextureCollection::AddTexture(SUTextureRef TextureRef)
+FTexture* FTextureCollection::AddTexture(SUTextureRef TextureRef, FString MaterialName)
 {
 	TSharedPtr<FTexture> Texture = FindOrAdd(TextureRef);
 	if (!Texture->TextureImageFile.IsValid())
@@ -54,6 +54,9 @@ FTexture* FTextureCollection::AddTexture(SUTextureRef TextureRef)
 		Texture->SourceTextureFileName = SuGetString(SUTextureGetFileName, TextureRef);
 		Texture->TextureBaseName = FPaths::GetBaseFilename(Texture->SourceTextureFileName);
 
+		// Set texture to be material-specific. SketchUp allows to have different material have different texture images under the same name
+		Texture->TextureBaseName = Texture->TextureBaseName + TEXT('-') + MaterialName;
+		
 		AddImageFileForTexture(Texture);
 	}
 	return Texture.Get();

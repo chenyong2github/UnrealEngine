@@ -254,7 +254,7 @@ void FAsyncRenderAssetStreamingData::UpdatePerfectWantedMips_Async(FStreamingRen
 
 			// Ignore bUseUnkownRefHeuristic if they haven't been used in the last 90 sec.
 			// If critical, it must be implemented using the ForceFullyLoad logic.
-			if (StreamingRenderAsset.bUseUnkownRefHeuristic && StreamingRenderAsset.LastRenderTime < 90.0f)
+			if (StreamingRenderAsset.bUseUnkownRefHeuristic && StreamingRenderAsset.LastRenderTime < 90.0f && (Settings.DropMips != 3 || AssetType == EStreamableRenderAssetType::Texture))
 			{
 				if (bOutputToLog) UE_LOG(LogContentStreaming, Log,  TEXT("  UnkownRef"));
 				MaxSize = FMath::Max<int32>(MaxSize, MaxAllowedSize); // affected by HiddenPrimitiveScale

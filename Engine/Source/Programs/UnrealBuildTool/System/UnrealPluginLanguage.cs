@@ -2007,6 +2007,17 @@ namespace UnrealBuildTool
 						}
 						break;
 
+					case "setBoolFileExists":
+						{
+							string Result = GetAttribute(CurrentContext, Node, "result");
+							string FilePath = GetAttribute(CurrentContext, Node, "file");
+							if (Result != null && FilePath != null)
+							{
+								CurrentContext.BoolVariables[Result] = File.Exists(FilePath);
+							}
+						}
+						break;
+
 					case "setInt":
 						{
 							string Result = GetAttribute(CurrentContext, Node, "result");

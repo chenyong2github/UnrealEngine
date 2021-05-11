@@ -245,9 +245,96 @@ public class SplashActivity extends Activity
 				if (conditionalIndex > 1)
 				{
 					String conditions[] = required.substring(1, conditionalIndex-1).split(",");
-					for (String make : conditions)
+					for (String condition : conditions)
 					{
-						if (make.equals(manufacturer))
+						String make = condition;
+
+						// check for Android version requirements first; can be <, <=, ==, !=, >=, >
+						try
+						{
+							int compareIndex = condition.indexOf("<=");
+							if (compareIndex > 0)
+							{
+								make = condition.substring(0, compareIndex);
+								int version = Integer.parseInt(condition.substring(compareIndex+1));
+								if (android.os.Build.VERSION.SDK_INT > version)
+								{
+									continue;
+								}
+							}
+							else
+							{
+								compareIndex = condition.indexOf("<");
+								if (compareIndex > 0)
+								{
+									make = condition.substring(0, compareIndex);
+									int version = Integer.parseInt(condition.substring(compareIndex+1));
+									if (android.os.Build.VERSION.SDK_INT >= version)
+									{
+										continue;
+									}
+								}
+								else
+								{
+									compareIndex = condition.indexOf(">=");
+									if (compareIndex > 0)
+									{
+										make = condition.substring(0, compareIndex);
+										int version = Integer.parseInt(condition.substring(compareIndex+1));
+										if (android.os.Build.VERSION.SDK_INT < version)
+										{
+											continue;
+										}
+									}
+									else
+									{
+										compareIndex = condition.indexOf(">");
+										if (compareIndex > 0)
+										{
+											make = condition.substring(0, compareIndex);
+											int version = Integer.parseInt(condition.substring(compareIndex+1));
+											if (android.os.Build.VERSION.SDK_INT <= version)
+											{
+												continue;
+											}
+										}
+										else
+										{
+											compareIndex = condition.indexOf("==");
+											if (compareIndex > 0)
+											{
+												make = condition.substring(0, compareIndex);
+												int version = Integer.parseInt(condition.substring(compareIndex+1));
+												if (android.os.Build.VERSION.SDK_INT != version)
+												{
+													continue;
+												}
+											}
+											else
+											{
+												compareIndex = condition.indexOf("!=");
+												if (compareIndex > 0)
+												{
+													make = condition.substring(0, compareIndex);
+													int version = Integer.parseInt(condition.substring(compareIndex+1));
+													if (android.os.Build.VERSION.SDK_INT == version)
+													{
+														continue;
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+						catch (Exception e)
+						{
+							Log.error("Error parsing required permissions: " + condition);
+							continue;
+						}
+						
+						if (make.equals("ALL") || make.equals(manufacturer))
 						{
 							keptPermissions.add(required.substring(conditionalIndex + 1));
 							break;

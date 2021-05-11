@@ -168,7 +168,7 @@ private:
 				, Material(Accessor.GetMaterialForObject(Object))
 			{}
 
-			virtual void RestoreState(UObject& Object, IMovieScenePlayer& Player) override
+			virtual void RestoreState(UObject& Object, const UE::MovieScene::FRestoreStateParams& Params) override
 			{
 				if (UMaterialInterface* PinnedMaterial = Material.Get())
 				{

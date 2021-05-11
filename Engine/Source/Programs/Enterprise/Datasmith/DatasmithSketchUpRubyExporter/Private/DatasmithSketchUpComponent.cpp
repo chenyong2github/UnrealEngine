@@ -35,10 +35,6 @@ void FNodeOccurence::AddChildOccurrence(FExportContext& Context, FComponentInsta
 	SULayerRef ChildEffectiveLayerRef = DatasmithSketchUpUtils::GetEffectiveLayer(ChildComponentInstance.GetComponentInstanceRef(), EffectiveLayerRef);
 	ChildNode.EffectiveLayerRef = ChildEffectiveLayerRef;
 
-	// Add the normal component instance metadata into the dictionary of metadata definitions.
-	// todo: move to ComponentInstance update
-	FDatasmithSketchUpMetadata::AddMetadataDefinition(ChildComponentInstance.GetComponentInstanceRef());
-
 	// todo: rename ToDatasmith - this just creates hierarchy
 	ChildNode.ToDatasmith(Context);
 }
@@ -276,6 +272,25 @@ void FNodeOccurence::RemoveOccurrence(FExportContext& Context)
 	}
 }
 
+void FNodeOccurence::ResetMetadataElement(FExportContext& Context)
+{
+	// Create a Datasmith metadata element for the SketckUp component instance metadata definition.
+	FString MetadataElementName = FString::Printf(TEXT("%ls_DATA"), DatasmithActorElement->GetName());
+	
+	if (!DatasmithMetadataElement.IsValid())
+	{
+		DatasmithMetadataElement = FDatasmithSceneFactory::CreateMetaData(*MetadataElementName);
+		DatasmithMetadataElement->SetAssociatedElement(DatasmithActorElement);
+		Context.DatasmithScene->AddMetaData(DatasmithMetadataElement);
+	}
+	else
+	{
+		DatasmithMetadataElement->SetName(*MetadataElementName);
+	}
+	DatasmithMetadataElement->SetLabel(*DatasmithActorLabel);
+	DatasmithMetadataElement->ResetProperties();
+}
+
 void FNodeOccurence::SetVisibility(bool bValue)
 {
 	bVisible = bValue;
@@ -299,9 +314,21 @@ void FModelDefinition::UpdateGeometry(FExportContext& Context)
 	Entities->UpdateGeometry(Context);
 }
 
+void FModelDefinition::UpdateMetadata(FExportContext& Context)
+{
+}
+
 void FModelDefinition::InvalidateInstancesGeometry(FExportContext& Context)
 {
 	Context.Model->InvalidateEntityGeometry();
+}
+
+void FModelDefinition::InvalidateInstancesMetadata(FExportContext& Context)
+{
+}
+
+void FModelDefinition::FillOccurrenceActorMetadata(FNodeOccurence& Node)
+{
 }
 
 void FModelDefinition::CreateActor(FExportContext& Context, FNodeOccurence& Node)
@@ -371,20 +398,6 @@ void FComponentDefinition::CreateActor(FExportContext& Context, FNodeOccurence& 
 	Node.DatasmithActorElement = FDatasmithSceneFactory::CreateActor(*Node.DatasmithActorName); // a EDatasmithElementType::Actor
 
 	{
-		// Create a Datasmith metadata element for the SketckUp component instance metadata definition.
-		FString MetadataElementName = FString::Printf(TEXT("%ls_DATA"), Node.DatasmithActorElement->GetName());
-		// todo: metadata
-		//TSharedPtr<IDatasmithMetaDataElement> DMetadataElementPtr = FDatasmithSketchUpMetadata::CreateMetadataElement(InSComponentInstanceRef, MetadataElementName);
-		//if (DMetadataElementPtr.IsValid())
-		//{
-		//	// Set the Datasmith actor associated with the Datasmith metadata element.
-		//	DMetadataElementPtr->SetAssociatedElement(DActorPtr);
-
-		//	// Add the Datasmith metadata element to the Datasmith scene.
-		//	DatasmithSceneRef->AddMetaData(DMetadataElementPtr);
-		//}
-		//Instance->DatasmithMetadataElement = DMetadataElementPtr;
-
 		// Add the Datasmith actor component depth tag.
 		// We use component depth + 1 to factor in the added Datasmith scene root once imported in Unreal.
 		FString ComponentDepthTag = FString::Printf(TEXT("SU.DEPTH.%d"), Node.Depth);
@@ -421,6 +434,11 @@ void FComponentDefinition::UpdateGeometry(FExportContext& Context)
 	Entities->UpdateGeometry(Context);
 }
 
+void FComponentDefinition::UpdateMetadata(FExportContext& Context)
+{
+	ParsedMetadata = MakeUnique<FMetadata>(SUComponentDefinitionToEntity(ComponentDefinitionRef));;
+}
+
 void FComponentDefinition::BuildNodeNames(FNodeOccurence& Node)
 {
 	// Get the SketckUp component instance persistent ID.
@@ -445,6 +463,31 @@ void FComponentDefinition::InvalidateInstancesGeometry(FExportContext& Context)
 	for (const SUComponentInstanceRef& InstanceRef : InstanceRefs)
 	{
 		Context.ComponentInstances.InvalidateComponentInstanceGeometry(DatasmithSketchUpUtils::GetComponentInstanceID(InstanceRef));
+	}
+}
+
+void FComponentDefinition::InvalidateInstancesMetadata(FExportContext& Context)
+{
+	// todo: keep all instances or incapsulate enumeration(duplicated) of FComponentInstance
+	size_t InstanceCount = 0;
+	SUComponentDefinitionGetNumInstances(ComponentDefinitionRef, &InstanceCount);
+
+	TArray<SUComponentInstanceRef> InstanceRefs;
+	InstanceRefs.Init(SU_INVALID, InstanceCount);
+	SUComponentDefinitionGetInstances(ComponentDefinitionRef, InstanceCount, InstanceRefs.GetData(), &InstanceCount);
+	InstanceRefs.SetNum(InstanceCount);
+
+	for (const SUComponentInstanceRef& InstanceRef : InstanceRefs)
+	{
+		Context.ComponentInstances.InvalidateComponentInstanceMetadata(DatasmithSketchUpUtils::GetComponentInstanceID(InstanceRef));
+	}
+}
+
+void FComponentDefinition::FillOccurrenceActorMetadata(FNodeOccurence& Node)
+{
+	if (ParsedMetadata)
+	{
+		ParsedMetadata->AddMetadata(Node.DatasmithMetadataElement);
 	}
 }
 
@@ -513,6 +556,8 @@ void FEntity::UpdateOccurrence(FExportContext& Context, FNodeOccurence& Node)
 			}
 		}
 	}
+
+	
 }
 
 void FEntity::UpdateEntityGeometry(FExportContext& Context)
@@ -532,6 +577,8 @@ void FEntity::UpdateEntityProperties(FExportContext& Context)
 		// When transform changes each node needs its parent transform to be already calculated 
 		// So we postpone occurrence nodes updates until we do update with respect to hierarchy(top first)
 		InvalidateOccurrencesProperties(Context);
+		UpdateMetadata(Context);
+		
 		bPropertiesInvalidated = false;
 	}
 }
@@ -598,12 +645,9 @@ void FComponentInstance::UpdateOccurrence(FExportContext& Context, FNodeOccurenc
 	// Set the Datasmith actor world transform.
 	DatasmithSketchUpUtils::SetActorTransform(Node.DatasmithActorElement, SComponentInstanceWorldTransform);
 
-	if (Node.DatasmithMetadataElement.IsValid())
-	{
-		// Set the metadata element label used in the Unreal UI.
-		Node.DatasmithMetadataElement->SetLabel(*Node.DatasmithActorLabel);
-	}
-
+	Node.ResetMetadataElement(Context);// todo: can enable/disable metadata export by toggling this code
+	FillOccurrenceActorMetadata(Node);
+	
 	// Update Datasmith Mesh Actors
 	for (int32 MeshIndex = 0; MeshIndex < Node.MeshActors.Num(); ++MeshIndex)
 	{
@@ -614,6 +658,8 @@ void FComponentInstance::UpdateOccurrence(FExportContext& Context, FNodeOccurenc
 		MeshActor->SetRotation(Node.DatasmithActorElement->GetRotation());
 		MeshActor->SetTranslation(Node.DatasmithActorElement->GetTranslation());
 	}
+
+	
 
 	Super::UpdateOccurrence(Context, Node);
 }
@@ -643,6 +689,11 @@ void FComponentInstance::DeleteOccurrence(FExportContext& Context, FNodeOccurenc
 {
 	Occurrences.Remove(Node);
 	delete Node;
+}
+
+void FComponentInstance::UpdateMetadata(FExportContext& Context)
+{
+	ParsedMetadata = MakeUnique<FMetadata>(SUComponentInstanceToEntity(GetComponentInstanceRef()));
 }
 
 void FComponentInstance::InvalidateOccurrencesGeometry(FExportContext& Context)
@@ -702,6 +753,32 @@ bool FComponentInstance::RetrieveHidden()
 	bool bResult = false;
 	SUDrawingElementGetHidden(SUComponentInstanceToDrawingElement(GetComponentInstanceRef()), &bResult);
 	return bResult;
+}
+
+void FComponentInstance::FillOccurrenceActorMetadata(FNodeOccurence& Node)
+{
+	if (!Node.DatasmithMetadataElement)
+	{
+		return;
+	}
+
+	// Add original instance/component names to metadata
+	TSharedPtr<IDatasmithKeyValueProperty> EntityName = FDatasmithSceneFactory::CreateKeyValueProperty(TEXT("Instance"));
+	EntityName->SetValue(*GetName());
+	Node.DatasmithMetadataElement->AddProperty(EntityName);
+
+	TSharedPtr<IDatasmithKeyValueProperty> DefinitionName = FDatasmithSceneFactory::CreateKeyValueProperty(TEXT("Definition"));
+	DefinitionName->SetValue(*GetDefinition()->GetSketchupSourceName());
+	Node.DatasmithMetadataElement->AddProperty(DefinitionName);
+
+	// Add instance metadata
+	if (ParsedMetadata)
+	{
+		ParsedMetadata->AddMetadata(Node.DatasmithMetadataElement);
+	}
+
+	// Add definition metadata
+	GetDefinition()->FillOccurrenceActorMetadata(Node);
 }
 
 void FComponentInstance::UpdateOccurrenceVisibility(FExportContext& Context, FNodeOccurence& Node)
@@ -818,6 +895,10 @@ void FModel::DeleteOccurrence(FExportContext& Context, FNodeOccurence* Node)
 	// Model occurrence is not deleted by any parent
 }
 
+void FModel::UpdateMetadata(FExportContext& Context)
+{
+}
+
 void FDefinition::EntityVisible(FEntity* Entity, bool bVisible)
 {
 	if (bVisible)
@@ -844,6 +925,14 @@ void FDefinition::UpdateDefinition(FExportContext& Context)
 			bMeshesAdded = false;
 
 			bGeometryInvalidated = false;
+		}
+
+		if (bPropertiesInvalidated)
+		{
+			UpdateMetadata(Context);
+			InvalidateInstancesMetadata(Context); // Make sure instances keep up with definition changes
+
+			bPropertiesInvalidated = false;
 		}
 
 		if (!bMeshesAdded)

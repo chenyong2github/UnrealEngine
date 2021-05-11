@@ -74,13 +74,13 @@ public:
 	 * This is called when an actor was removed from the world since the snapshot had been taken.
 	 * @return Whether to track the removed actor
 	 */
-	virtual EFilterResult::Type IsDeletedActorValid(const FIsDeletedActorValidParams& Params);
+	virtual EFilterResult::Type IsDeletedActorValid(const FIsDeletedActorValidParams& Params) const;
 
 	/**
 	 * This is called when an actor was added to the world since the snapshot had been taken. 
 	 * @return Whether to track the added actor
 	 */
-	virtual EFilterResult::Type IsAddedActorValid(const FIsAddedActorValidParams& Params);
+	virtual EFilterResult::Type IsAddedActorValid(const FIsAddedActorValidParams& Params) const;
 };
 
 /**
@@ -110,12 +110,12 @@ public:
 	* @return Whether to track the removed actor
 	*/
 	UFUNCTION(BlueprintNativeEvent, Category = "Level Snapshots")
-	EFilterResult::Type IsDeletedActorValid(const FIsDeletedActorValidParams& Params) override;
+	EFilterResult::Type IsDeletedActorValid(const FIsDeletedActorValidParams& Params) const override;
 
 	/**
 	* This is called when an actor was added to the world since the snapshot had been taken. 
 	* @return Whether to track the added actor
 	*/
 	UFUNCTION(BlueprintNativeEvent, Category = "Level Snapshots")
-	EFilterResult::Type IsAddedActorValid(const FIsAddedActorValidParams& Params) override;
+	EFilterResult::Type IsAddedActorValid(const FIsAddedActorValidParams& Params) const override;
 };

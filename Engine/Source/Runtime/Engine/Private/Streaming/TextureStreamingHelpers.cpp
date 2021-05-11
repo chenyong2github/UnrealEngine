@@ -129,7 +129,8 @@ TAutoConsoleVariable<int32> CVarStreamingDropMips(
 	0,
 	TEXT("0: Drop No Mips \n")
 	TEXT("1: Drop Cached Mips\n")
-	TEXT("2: Drop Cached and Hidden Mips"),
+	TEXT("2: Drop Cached and Hidden Mips\n")
+	TEXT("3: Drop cached mips and non-inlined LODs of no-ref meshes"),
 	ECVF_Cheat);
 
 TAutoConsoleVariable<int32> CVarStreamingHLODStrategy(

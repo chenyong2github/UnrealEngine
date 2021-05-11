@@ -15,6 +15,7 @@ UWrapBox::UWrapBox(const FObjectInitializer& ObjectInitializer)
 	Visibility = ESlateVisibility::SelfHitTestInvisible;
 	WrapSize = 500;
 	bExplicitWrapSize = false;
+	HorizontalAlignment = HAlign_Left;
 	Orientation = EOrientation::Orient_Horizontal;
 }
 
@@ -22,6 +23,7 @@ void UWrapBox::PostLoad()
 {
 	Super::PostLoad();
 
+#if WITH_EDITORONLY_DATA
 	if (WrapWidth_DEPRECATED != 0.0f)
 	{
 		WrapSize = WrapWidth_DEPRECATED;
@@ -33,6 +35,7 @@ void UWrapBox::PostLoad()
 		bExplicitWrapSize = bExplicitWrapWidth_DEPRECATED;
 		bExplicitWrapWidth_DEPRECATED = false;
 	}
+#endif
 }
 
 void UWrapBox::ReleaseSlateResources(bool bReleaseChildren)
@@ -84,6 +87,7 @@ TSharedRef<SWidget> UWrapBox::RebuildWidget()
 	MyWrapBox = SNew(SWrapBox)
 		.UseAllottedSize(!bExplicitWrapSize)
 		.PreferredSize(WrapSize)
+		.HAlign(HorizontalAlignment)
 		.Orientation(Orientation);
 
 	for ( UPanelSlot* PanelSlot : Slots )
@@ -105,6 +109,7 @@ void UWrapBox::SynchronizeProperties()
 	MyWrapBox->SetInnerSlotPadding(InnerSlotPadding);
 	MyWrapBox->SetUseAllottedSize(!bExplicitWrapSize);
 	MyWrapBox->SetWrapSize(WrapSize);
+	MyWrapBox->SetHorizontalAlignment(HorizontalAlignment);
 	MyWrapBox->SetOrientation(Orientation);
 }
 
@@ -115,6 +120,16 @@ void UWrapBox::SetInnerSlotPadding(FVector2D InPadding)
 	if ( MyWrapBox.IsValid() )
 	{
 		MyWrapBox->SetInnerSlotPadding(InPadding);
+	}
+}
+
+void UWrapBox::SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment)
+{
+	HorizontalAlignment = InHorizontalAlignment;
+
+	if (MyWrapBox.IsValid())
+	{
+		MyWrapBox->SetHorizontalAlignment(InHorizontalAlignment);
 	}
 }
 

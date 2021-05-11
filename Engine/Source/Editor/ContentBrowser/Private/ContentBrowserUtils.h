@@ -78,10 +78,10 @@ namespace ContentBrowserUtils
 	void AppendAssetFilterToContentBrowserFilter(const FARFilter& InAssetFilter, const TSharedPtr<FBlacklistNames>& InAssetClassBlacklist, const TSharedPtr<FBlacklistPaths>& InFolderBlacklist, FContentBrowserDataFilter& OutDataFilter);
 
 	/** Shared logic to know if we can perform certain operation depending on which view it occurred, either PathView or AssetView */
-	bool CanDeleteFromAssetView(TWeakPtr<SAssetView> AssetView);
-	bool CanRenameFromAssetView(TWeakPtr<SAssetView> AssetView);
-	bool CanDeleteFromPathView(TWeakPtr<SPathView> PathView);
-	bool CanRenameFromPathView(TWeakPtr<SPathView> PathView);
+	bool CanDeleteFromAssetView(TWeakPtr<SAssetView> AssetView, FText* OutErrorMsg = nullptr);
+	bool CanRenameFromAssetView(TWeakPtr<SAssetView> AssetView, FText* OutErrorMsg = nullptr);
+	bool CanDeleteFromPathView(TWeakPtr<SPathView> PathView, FText* OutErrorMsg = nullptr);
+	bool CanRenameFromPathView(TWeakPtr<SPathView> PathView, FText* OutErrorMsg = nullptr);
 
 	/** Returns if this folder has been marked as a favorite folder */
 	bool IsFavoriteFolder(const FString& FolderPath);

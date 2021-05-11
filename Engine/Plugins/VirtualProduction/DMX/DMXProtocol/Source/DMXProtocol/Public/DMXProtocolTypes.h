@@ -52,6 +52,13 @@ public:
 		, ChannelData(InChannelData)
 	{}
 
+	void Serialize(FArchive& Ar)
+	{
+		Ar << Timestamp;
+		Ar << ExternUniverseID;
+		Ar << ChannelData;
+	}
+
 	double Timestamp;
 
 	int32 ExternUniverseID;

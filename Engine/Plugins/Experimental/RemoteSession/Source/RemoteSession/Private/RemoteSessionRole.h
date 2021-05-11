@@ -6,7 +6,6 @@
 #include "BackChannel/Protocol/OSC/BackChannelOSCConnection.h"
 #include "HAL/CriticalSection.h"
 
-
 class FBackChannelOSCConnection;
 enum class ERemoteSessionChannelMode;
 
@@ -159,12 +158,29 @@ protected:
 	TArray<FRemoteSessionChannelInfo> SupportedChannels;
 
 private:
+	void			RemoveRouteDelegates();
+
 
 	FString					RemoteVersion;
 
 	FString					ErrorMessage;
-	
-	TArray<TSharedPtr<IRemoteSessionChannel>> Channels;	
+
+	TSharedPtr<struct FRemoteSessionRoleCancellationToken>  CancelCloseToken;
+
+	TArray<TSharedPtr<IRemoteSessionChannel>> Channels;
+
+	TWeakPtr<IBackChannelConnection, ESPMode::ThreadSafe> BackChannelConnection;
+
+	struct FRouteDelegates
+	{
+		FDelegateHandle Hello;
+		FDelegateHandle Goodbye;
+		FDelegateHandle Ping;
+		FDelegateHandle Pong;
+		FDelegateHandle LegacyReceive;
+		FDelegateHandle ChangeChannel;
+	};
+	FRouteDelegates			RouteDelegates;
 
 	ConnectionState			CurrentState = ConnectionState::Disconnected;
 

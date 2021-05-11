@@ -10,10 +10,12 @@
 	Texture2D<int4>			Texture2DObject;
 	Texture2DArray<int4>	Texture2DArrayObject;
 	Texture3D<int4>			Texture3DObject;
+	TextureCube<int4>		TextureCubeObject;
 #else
 	Texture2D<float4>		Texture2DObject;
 	Texture2DArray<float4>	Texture2DArrayObject;
 	Texture3D<float4>		Texture3DObject;
+	TextureCube<float4>		TextureCubeObject;
 #endif
 SamplerState	TextureSampler;
 
@@ -152,7 +154,6 @@ void Main(
 	}
 // Texture 3D
 #elif TEXTURE_TYPE == 2
-
 	float4 Color = float4(0,0,0,1);
 	if ( NumAttributesToVisualize > 0 )
 	{
@@ -191,6 +192,20 @@ void Main(
 		Color = Texture3DObject.Load(LoadLocation);
 	#else
 		Color = Texture3DObject.Sample(TextureSampler, float3(Input.UV, W));
+	#endif
+	}
+// TextureCube
+#elif TEXTURE_TYPE == 3
+	float4 Color = float4(0,0,0,1);
+	{
+		const float PI = 3.14159265;
+		float p = Input.UV.x * PI * 2.0f;
+		float t = (-Input.UV.y + 0.5f) * PI;
+
+		float3 CubeDir = float3(cos(p)*cos(t), sin(t), sin(p) * cos(t));
+
+	#if !TEXTURE_INTEGER
+		Color = TextureCubeObject.Sample(TextureSampler, CubeDir);
 	#endif
 	}
 #endif

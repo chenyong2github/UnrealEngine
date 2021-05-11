@@ -430,7 +430,7 @@ void UNiagaraDataInterfaceAudioPlayer::GetVMExternalFunction(const FVMExternalFu
 	}
 	else
 	{
-		UE_LOG(LogNiagara, Error, TEXT("Could not find data interface external function. Expected Name: %s  Actual Name: %s"), *PlayAudioName.ToString(), *BindingInfo.Name.ToString());
+		UE_LOG(LogNiagara, Display, TEXT("Could not find data interface external function in %s. Expected Name: %s  Actual Name: %s"), *GetPathNameSafe(this), *PlayAudioName.ToString(), *BindingInfo.Name.ToString());
 	}
 }
 

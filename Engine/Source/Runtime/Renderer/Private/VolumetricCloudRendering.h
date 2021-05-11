@@ -102,6 +102,7 @@ private:
 
 bool ShouldRenderVolumetricCloud(const FScene* Scene, const FEngineShowFlags& EngineShowFlags);
 bool ShouldViewVisualizeVolumetricCloudConservativeDensity(const FViewInfo& ViewInfo, const FEngineShowFlags& EngineShowFlags);
+uint32 GetVolumetricCloudDebugSampleCountMode(const FEngineShowFlags& ShowFlags);
 
 
 // Structure with data necessary to specify a cloud render.
@@ -130,7 +131,7 @@ struct FCloudRenderContext
 	bool bSecondAtmosphereLightEnabled;
 
 	bool bAsyncCompute;
-	bool bVisualizeConservativeDensity;
+	bool bVisualizeConservativeDensityOrDebugSampleCount;
 
 	FUintVector4 TracingCoordToZbufferCoordScaleBias;
 	uint32 NoiseFrameIndexModPattern;

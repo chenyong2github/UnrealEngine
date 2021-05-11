@@ -2,10 +2,13 @@
 
 #include "ApplySnapshotFilter.h"
 
+#include "IPropertyComparer.h"
 #include "Data/LevelSnapshot.h"
 #include "Data/PropertySelection.h"
 #include "LevelSnapshotFilters.h"
 #include "LevelSnapshotsLog.h"
+#include "LevelSnapshotsModule.h"
+#include "PropertyComparisonParams.h"
 #include "Restorability/SnapshotRestorability.h"
 
 #include "Components/ActorComponent.h"
@@ -31,7 +34,7 @@ namespace
 		}
 
 		UActorComponent* SnapshotComponent = *PossibleResult;
-		if (SnapshotComponent->GetClass() != WorldComponent->GetClass())
+		if (!ensure(SnapshotComponent->GetClass() == WorldComponent->GetClass()))
 		{
 			UE_LOG(LogLevelSnapshots, Error, TEXT("Snapshot component called  %s of snapshot actor called %s has class %s while world component called %s in world actor called %s had class %s. Components are expected to not change classes. Did you change the class of a component?"),
                 *SnapshotComponent->GetName(),
@@ -55,7 +58,7 @@ FApplySnapshotFilter FApplySnapshotFilter::Make(ULevelSnapshot* Snapshot, AActor
 
 void FApplySnapshotFilter::ApplyFilterToFindSelectedProperties(FPropertySelectionMap& MapToAddTo)
 {
-	if (EnsureParametersAreValid() && FSnapshotRestorability::IsActorDesirableForCapture(WorldActor))
+	if (EnsureParametersAreValid() && FSnapshotRestorability::IsActorDesirableForCapture(WorldActor) && EFilterResult::CanInclude(Filter->IsActorValid({ DeserializedSnapshotActor, WorldActor })))
 	{
 		FilterActorPair(MapToAddTo);
 		AnalyseComponentProperties(MapToAddTo);
@@ -90,8 +93,10 @@ bool FApplySnapshotFilter::EnsureParametersAreValid() const
 	{
 		return false;
 	}
-	
-	if (!ensure(WorldActor->GetClass() == DeserializedSnapshotActor->GetClass()))
+
+	UClass* WorldClass = WorldActor->GetClass();
+	UClass* DeserializedClass = DeserializedSnapshotActor->GetClass();
+	if (!ensure(WorldClass == DeserializedClass))
 	{
 		UE_LOG(
             LogLevelSnapshots,
@@ -140,7 +145,7 @@ void FApplySnapshotFilter::FilterActorPair(FPropertySelectionMap& MapToAddTo)
         WorldActor->GetClass()
         );
 	
-	AnalyseProperties(ActorContext);
+	AnalyseRootProperties(ActorContext, DeserializedSnapshotActor, WorldActor);
 	MapToAddTo.AddObjectProperties(WorldActor, ActorSelection);
 }
 
@@ -156,8 +161,8 @@ void FApplySnapshotFilter::FilterComponentPair(FPropertySelectionMap& MapToAddTo
         FLevelSnapshotPropertyChain(),
 		WorldComponent->GetClass()
         );
-
-	AnalyseProperties(ComponentContext);
+	
+	AnalyseRootProperties(ComponentContext, SnapshotComponent, WorldComponent);
 	MapToAddTo.AddObjectProperties(WorldComponent, ComponentSelection);
 }
 
@@ -172,11 +177,34 @@ void FApplySnapshotFilter::FilterStructPair(FPropertyContainerContext& Parent, F
         Parent.RootClass
         );
 	StructContext.AuthoredPathInformation.Add(StructProperty->GetAuthoredName());
-	
-	AnalyseProperties(StructContext);
+	AnalyseStructProperties(StructContext);
 }
 
-void FApplySnapshotFilter::AnalyseProperties(FPropertyContainerContext& ContainerContext)
+void FApplySnapshotFilter::AnalyseRootProperties(FPropertyContainerContext& ContainerContext, UObject* SnapshotObject, UObject* WorldObject)
+{
+	FLevelSnapshotsModule& Module = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
+	const FPropertyComparerArray PropertyComparers = Module.GetPropertyComparerForClass(ContainerContext.RootClass);
+	
+	for (TFieldIterator<FProperty> FieldIt(ContainerContext.ContainerClass); FieldIt; ++FieldIt)
+	{
+		// Ask external modules about the property
+		const FPropertyComparisonParams Params { ContainerContext.RootClass, *FieldIt, ContainerContext.SnapshotContainer, ContainerContext.WorldContainer, SnapshotObject, WorldObject, DeserializedSnapshotActor, WorldActor} ;
+		const IPropertyComparer::EPropertyComparison ComparisonResult = Module.ShouldConsiderPropertyEqual(PropertyComparers, Params);
+		if (ComparisonResult == IPropertyComparer::EPropertyComparison::TreatEqual)
+		{
+			continue;
+		} 
+		
+		const ECheckSubproperties CheckSubpropertyBehaviour = AnalyseProperty(ContainerContext, *FieldIt);
+		if (CheckSubpropertyBehaviour == ECheckSubproperties::CheckSubproperties)
+		{
+			HandleStructProperties(ContainerContext, *FieldIt);
+			// TODO: To analyse subobjects, you'd add another utility function here
+		}
+	}
+}
+
+void FApplySnapshotFilter::AnalyseStructProperties(FPropertyContainerContext& ContainerContext)
 {
 	for (TFieldIterator<FProperty> FieldIt(ContainerContext.ContainerClass); FieldIt; ++FieldIt)
 	{

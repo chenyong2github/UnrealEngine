@@ -78,11 +78,17 @@ namespace EpicGame
 		/// Should this test assign a random test account?
 		/// </summary>
 		[AutoParam]
-        public bool PreAssignAccount = true;
+		public bool PreAssignAccount = true;
+
+		/// <summary>
+		/// Does the current test require a user to be logged in to function correctly?
+		/// </summary>
+		[AutoParam]
+		public bool RequiresLogin = false;
 
 
-        // incrementing value to ensure we can assign unique values to ports etc
-        static private int NumberOfConfigsCreated = 0;
+		// incrementing value to ensure we can assign unique values to ports etc
+		static private int NumberOfConfigsCreated = 0;
 
 		public EpicGameTestConfig()
 		{
@@ -219,6 +225,16 @@ namespace EpicGame
 				AppConfig.CommandLine += McpString;
 			}
 
+			if (ConfigRole.RoleType.IsClient() || RequiresLogin)
+			{
+				// select an account
+				if (NoMCP == false && ConfigRole.Platform != UnrealTargetPlatform.PS4 && PreAssignAccount == true)
+				{
+					Account UserAccount = AccountPool.Instance.ReserveAccount();
+					UserAccount.ApplyToConfig(AppConfig);
+				}
+			}
+
 			if (ConfigRole.RoleType.IsClient())
 			{
                 if (LogPSO)
@@ -239,13 +255,6 @@ namespace EpicGame
 				{
 					// turn off skill-based matchmaking, turn off porta;
 					AppConfig.CommandLine += " -noepicportal";
-				}
-
-				// select an account
-				if (NoMCP == false && ConfigRole.Platform != UnrealTargetPlatform.PS4 && PreAssignAccount == true)
-				{
-					Account UserAccount = AccountPool.Instance.ReserveAccount();
-					UserAccount.ApplyToConfig(AppConfig);
 				}
 
 				// turn off voice chat, otherwise will open blocking permission requests on mobile

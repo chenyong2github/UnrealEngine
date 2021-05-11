@@ -25,6 +25,10 @@ public:
 	UCommonGameViewportClient(FVTableHelper& Helper);
 	virtual ~UCommonGameViewportClient();
 
+	// UObject interface begin
+	virtual void PostInitProperties() override;
+	// UObject interface end
+
 	// UGameViewportClient interface begin
 	virtual bool InputKey(const FInputKeyEventArgs& EventArgs) override;
 	virtual bool InputAxis(FViewport* InViewport, int32 UserId, FKey Key, float Delta, float DeltaTime, int32 NumSamples = 1, bool bGamepad = false) override;

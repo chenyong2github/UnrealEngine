@@ -36,7 +36,7 @@ void UChaosClothingInteractor::SetLongRangeAttachmentLinear(float TetherStiffnes
 	// Deprecated
 	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([TetherStiffnessLinear](FClothingSimulationCloth* Cloth)
 	{
-		const FVec2 TetherStiffness((FReal)FMath::Clamp(FMath::Loge(TetherStiffnessLinear) / FMath::Loge(1.e3f) + 1.f, 0.f, 1.f), (FReal)1.f);
+		const TVec2<FRealSingle> TetherStiffness((FMath::Clamp(FMath::Loge(TetherStiffnessLinear) / FMath::Loge(1.e3f) + 1.f, 0.f, 1.f)), 1.f);
 		Cloth->SetLongRangeAttachmentProperties(TetherStiffness);
 	}));
 }
@@ -65,11 +65,11 @@ void UChaosClothingInteractor::SetDamping(float DampingCoefficient)
 	}));
 }
 
-void UChaosClothingInteractor::SetAerodynamics(float DragCoefficient, float LiftCoefficient)
+void UChaosClothingInteractor::SetAerodynamics(float DragCoefficient, float LiftCoefficient, FVector WindVelocity)
 {
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([DragCoefficient, LiftCoefficient](FClothingSimulationCloth* Cloth)
+	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([DragCoefficient, LiftCoefficient, WindVelocity](FClothingSimulationCloth* Cloth)
 	{
-		Cloth->SetAerodynamicsProperties(DragCoefficient, LiftCoefficient);
+		Cloth->SetAerodynamicsProperties(DragCoefficient, LiftCoefficient, WindVelocity);
 	}));
 }
 
@@ -87,8 +87,8 @@ void UChaosClothingInteractor::SetAnimDriveLinear(float AnimDriveStiffnessLinear
 	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([AnimDriveStiffnessLinear](FClothingSimulationCloth* Cloth)
 	{
 		// The Anim Drive stiffness Low value needs to be 0 in order to keep backward compatibility with existing mask (this wouldn't be an issue if this property had no legacy mask)
-		const FVec2 AnimDriveStiffness((FReal)0.f, (FReal)FMath::Clamp(FMath::Loge(AnimDriveStiffnessLinear) / FMath::Loge(1.e3f) + 1.f, 0.f, 1.f));
-		const FVec2 AnimDriveDamping((FReal)0.f, (FReal)1.f);
+		const TVec2<FRealSingle> AnimDriveStiffness(0.f, FMath::Clamp(FMath::Loge(AnimDriveStiffnessLinear) / FMath::Loge(1.e3f) + 1.f, 0.f, 1.f));
+		const TVec2<FRealSingle> AnimDriveDamping(0.f, 1.f);
 		Cloth->SetAnimDriveProperties(AnimDriveStiffness, AnimDriveDamping);
 	}));
 }
@@ -97,7 +97,7 @@ void UChaosClothingInteractor::SetAnimDrive(FVector2D AnimDriveStiffness, FVecto
 {
 	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([AnimDriveStiffness, AnimDriveDamping](FClothingSimulationCloth* Cloth)
 	{
-		Cloth->SetAnimDriveProperties(FVec2(AnimDriveStiffness.X, AnimDriveStiffness.Y), FVec2(AnimDriveDamping.X, AnimDriveDamping.Y));
+		Cloth->SetAnimDriveProperties(TVec2<FRealSingle>(AnimDriveStiffness.X, AnimDriveStiffness.Y), TVec2<FRealSingle>(AnimDriveDamping.X, AnimDriveDamping.Y));
 	}));
 }
 

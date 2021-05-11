@@ -36,6 +36,7 @@ namespace
 {
 	// If we want to load into memory the modules symbol file, it will be allocated to this pointer
 	uint8_t* GModuleSymbolFileMemory = nullptr;
+	size_t   GModuleSymbolFileMemorySize = 0U;
 }
 
 void CORE_API UnixPlatformStackWalk_PreloadModuleSymbolFile()
@@ -56,17 +57,17 @@ void CORE_API UnixPlatformStackWalk_PreloadModuleSymbolFile()
 		else
 		{
 			lseek(SymbolFileFD, 0, SEEK_END);
-			size_t FileSize = lseek(SymbolFileFD, 0, SEEK_CUR);
+			GModuleSymbolFileMemorySize = lseek(SymbolFileFD, 0, SEEK_CUR);
 			lseek(SymbolFileFD, 0, SEEK_SET);
 
-			GModuleSymbolFileMemory = (uint8_t*)FMemory::Malloc(FileSize);
+			GModuleSymbolFileMemory = (uint8_t*)FMemory::Malloc(GModuleSymbolFileMemorySize);
 
-			ssize_t BytesRead = read(SymbolFileFD, GModuleSymbolFileMemory, FileSize);
+			ssize_t BytesRead = read(SymbolFileFD, GModuleSymbolFileMemory, GModuleSymbolFileMemorySize);
 
 			close(SymbolFileFD);
 
 			// Did not read expected amount of bytes
-			if (BytesRead != FileSize)
+			if (BytesRead != GModuleSymbolFileMemorySize)
 			{
 				FMemory::Free(GModuleSymbolFileMemory);
 
@@ -123,9 +124,10 @@ namespace
 	class MemoryReader : public RecordReader
 	{
 	public:
-		void Init(const uint8_t* InRecordMemory)
+		void Init(const uint8_t* InRecordMemory, size_t InMemorySize)
 		{
 			RecordMemory = InRecordMemory;
+			MemorySize   = InMemorySize;
 		}
 
 		bool IsValid() const override
@@ -135,11 +137,19 @@ namespace
 
 		void Read(void* Buffer, uint32_t Size, uint32_t Offset) const override
 		{
-			memcpy(Buffer, RecordMemory + Offset, Size);
+			if (Offset >= MemorySize)
+			{
+				return;
+			}
+
+			uint32_t MaxSize = MemorySize - Offset;
+
+			memcpy(Buffer, RecordMemory + Offset, FMath::Min(Size, MaxSize));
 		}
 
 	private:
 		const uint8_t* RecordMemory = nullptr;
+		size_t MemorySize = 0U;
 	};
 
 	class FDReader : public RecordReader
@@ -335,7 +345,7 @@ namespace
 			// module we can use this preloaded reader
 			if (GModuleSymbolFileMemory && !FCStringAnsi::Strcmp(SOName, TCHAR_TO_UTF8(FPlatformProcess::ExecutableName())))
 			{
-				ModuleMemoryReader.Init(GModuleSymbolFileMemory);
+				ModuleMemoryReader.Init(GModuleSymbolFileMemory, GModuleSymbolFileMemorySize);
 				RecordReader = &ModuleMemoryReader;
 			}
 			else

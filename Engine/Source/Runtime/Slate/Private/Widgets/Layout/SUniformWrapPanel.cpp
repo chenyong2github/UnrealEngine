@@ -32,10 +32,8 @@ void SUniformWrapPanel::Construct( const FArguments& InArgs )
 
 void SUniformWrapPanel::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const
 {
-
 	if ( Children.Num() > 0)
 	{
-
 		FVector2D CellSize = ComputeUniformCellSize();
 		NumColumns = FMath::Max(1, FMath::Min(NumVisibleChildren, FMath::FloorToInt( AllottedGeometry.GetLocalSize().X / CellSize.X )));
 		NumRows = FMath::CeilToInt ( (float) NumVisibleChildren / (float) NumColumns );
@@ -227,16 +225,7 @@ SUniformWrapPanel::FSlot& SUniformWrapPanel::AddSlot()
 
 bool SUniformWrapPanel::RemoveSlot( const TSharedRef<SWidget>& SlotWidget )
 {
-	for (int32 SlotIdx = 0; SlotIdx < Children.Num(); ++SlotIdx)
-	{
-		if ( SlotWidget == Children[SlotIdx].GetWidget() )
-		{
-			Children.RemoveAt(SlotIdx);
-			return true;
-		}
-	}
-	
-	return false;
+	return Children.Remove(SlotWidget) != INDEX_NONE;
 }
 
 void SUniformWrapPanel::ClearChildren()

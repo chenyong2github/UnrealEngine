@@ -72,9 +72,8 @@ FReply SDetailMultiTopLevelObjectTableRow::OnMouseButtonDoubleClick( const FGeom
 }
 
 
-FDetailMultiTopLevelObjectRootNode::FDetailMultiTopLevelObjectRootNode( const FDetailNodeList& InChildNodes, const TSharedPtr<IDetailRootObjectCustomization>& InRootObjectCustomization, IDetailsViewPrivate* InDetailsView, const FObjectPropertyNode* RootNode)
-	: ChildNodes(InChildNodes)
-	, DetailsView(InDetailsView)
+FDetailMultiTopLevelObjectRootNode::FDetailMultiTopLevelObjectRootNode(const TSharedPtr<IDetailRootObjectCustomization>& InRootObjectCustomization, IDetailsViewPrivate* InDetailsView, const FObjectPropertyNode* RootNode)
+	: DetailsView(InDetailsView)
 	, RootObjectCustomization(InRootObjectCustomization)
 	, bShouldBeVisible(false)
 	, bHasFilterStrings(false)
@@ -88,6 +87,16 @@ FDetailMultiTopLevelObjectRootNode::FDetailMultiTopLevelObjectRootNode( const FD
 	RootObjectSet.CommonBaseClass = RootNode->GetObjectBaseClass();
 
 	NodeName = RootObjectSet.CommonBaseClass->GetFName();
+}
+
+void FDetailMultiTopLevelObjectRootNode::SetChildren(const FDetailNodeList& InChildNodes)
+{
+	ChildNodes = InChildNodes;
+
+	for (TSharedRef<FDetailTreeNode> Node : ChildNodes)
+	{
+		Node->SetParentNode(AsShared());
+	}
 }
 
 void FDetailMultiTopLevelObjectRootNode::OnItemExpansionChanged(bool bIsExpanded, bool bShouldSaveState)

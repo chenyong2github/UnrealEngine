@@ -52,10 +52,16 @@ private:
 	UPROPERTY(Transient)
 	TMap<FRCPropertyContainerKey, TSubclassOf<URCPropertyContainerBase>> CachedContainerClasses;
 
+	/** Finds (cached) or creates a new container for the given property. */
 	TSubclassOf<URCPropertyContainerBase>& FindOrAddContainerClass(const FName& InValueTypeName, const FProperty* InValueSrcProperty);
 };
 
 namespace PropertyContainers
 {
 	REMOTECONTROLCOMMON_API URCPropertyContainerBase* CreateContainerForProperty(UObject* InOwner, const FProperty* InSrcProperty);
+
+#if WITH_EDITOR
+	/** @note: use with caution, currently only used for testing */
+	REMOTECONTROLCOMMON_API FProperty* CreateProperty(const FFieldVariant& InParent, const FFieldVariant& InChild, const FName& InPropertyName = NAME_None, EObjectFlags InObjectFlags = EObjectFlags::RF_Public);
+#endif
 }

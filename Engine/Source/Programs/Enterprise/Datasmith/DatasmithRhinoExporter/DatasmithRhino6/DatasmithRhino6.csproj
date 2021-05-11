@@ -50,10 +50,13 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform_OS)' == 'Win64'">
-    <DefineConstants>$(DefineConstants)WIN64_OS</DefineConstants>
+    <DefineConstants>$(DefineConstants);WIN64_OS</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform_OS)' == 'Mac'">
-    <DefineConstants>$(DefineConstants)MAC_OS</DefineConstants>
+    <DefineConstants>$(DefineConstants);MAC_OS</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(DATASMITHRHINO_EXPERIMENTAL)' == 'TRUE'">
+    <DefineConstants>$(DefineConstants);DATASMITHRHINO_EXPERIMENTAL</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -81,12 +84,32 @@
     <Compile Include="$(AssemblyInfo)">
       <Link>Properties\AssemblyInfo.cs</Link>
     </Compile>
-    <Compile Include="..\Private\**\*.cs">
-      <Link>DatasmithRhinoExporter\%(RecursiveDir)%(Filename)%(Extension)</Link>
-    </Compile>
     <!-- DatasmithCSharpFacade API, possibly change that. -->
     <Compile Include="..\..\..\..\..\..\Binaries\$(Platform_OS)\DatasmithFacadeCSharp\Public\*.cs">
       <Link>DatasmithSwigFacade\%(Filename)%(Extension)</Link>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup Condition="'$(Platform_OS)' == 'Win64'">
+    <Compile Include="..\Private\**\*.cs">
+      <Link>DatasmithRhinoExporter\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Compile>
+  </ItemGroup>
+  <!-- TODO Remove this explicit definition once .net uses msbuild on Mac -->
+  <ItemGroup Condition="'$(Platform_OS)' == 'Mac'">
+    <Compile Include="..\Private\Commands\*.cs">
+      <Link>DatasmithRhinoExporter\Commands\%(Filename)%(Extension)</Link>
+    </Compile>
+    <Compile Include="..\Private\DirectLink\*.cs">
+      <Link>DatasmithRhinoExporter\DirectLink\%(Filename)%(Extension)</Link>
+    </Compile>
+    <Compile Include="..\Private\ElementExporters\*.cs">
+      <Link>DatasmithRhinoExporter\ElementExporters\%(Filename)%(Extension)</Link>
+    </Compile>
+    <Compile Include="..\Private\Utils\*.cs">
+      <Link>DatasmithRhinoExporter\Utils\%(Filename)%(Extension)</Link>
+    </Compile>
+    <Compile Include="..\Private\*.cs">
+      <Link>DatasmithRhinoExporter\%(Filename)%(Extension)</Link>
     </Compile>
   </ItemGroup>
   <ItemGroup>

@@ -47,6 +47,12 @@ public:
 	virtual int32 GetCameraSpeedSetting() const override;
 	virtual void SetCameraSpeedSetting(int32 SpeedSetting) override;
 
+
+	/**
+	 * Gets the hit proxy at the specified viewport coordinates when viewport gizmos such as the axis widget are filtered out.
+	 */
+	HHitProxy* GetHitProxyWithoutGizmos(int32 X, int32 Y);
+
 	/**
 	 * Recreates the preview scene and invalidates the owning viewport.
 	 *
@@ -127,6 +133,16 @@ public:
 	bool GetShowOrigin() const;
 
 	/**
+	 * Returns true if AA enabled.
+	 */
+	bool GetEnableAA() const;
+
+	/**
+	 * Enables or disables AA.
+	 */
+	void ToggleEnableAA();
+	
+	/**
 	 * Shows the preview components.
 	 */
 	void ToggleShowPreview();
@@ -156,6 +172,12 @@ public:
 	 */
 	bool CanToggleViewportNames() const;
 
+	/** @return The current preview scale. */
+	TOptional<float> GetPreviewResolutionScale() const;
+
+	/** Sets the preview scale. */
+	void SetPreviewResolutionScale(float InScale);
+	
 	/** @return The current xform gizmo scale. */
 	TOptional<float> GetXformGizmoScale() const;
 

@@ -50,6 +50,10 @@ struct FJointSolverGaussSeidel
 	FVector LinearDriveLambdas;
 	FVector RotationDriveLambdas;
 	
+	// Solver stiffness - increased over iterations for stability
+	// @todo(chaos): remove Stiffness from SolverSettings (because it is not a solver constant)
+	float SolverStiffness;
+
 	// Constraint padding which can act something like a velocity constraint (for restitution)
 	FVector LinearConstraintPadding;
 	FVector AngularConstraintPadding;
@@ -127,32 +131,29 @@ static inline uniform FVector CalculateVelocity(const uniform FVector& P0, const
 static inline void ApplyPositionDelta(
 	uniform FJointSolverGaussSeidel * uniform M,
 	const uniform int Index,
-	const uniform float Stiffness,
 	const uniform FVector& DP)
 {
-	M->Ps[Index] = M->Ps[Index] + (Stiffness * DP);
+	M->Ps[Index] = M->Ps[Index] + DP;
 }
 
 static inline void ApplyPositionDelta(
 	uniform FJointSolverGaussSeidel * uniform M,
-	const uniform float Stiffness,
 	const uniform FVector& DP0,
 	const uniform FVector& DP1)
 {
-	M->Ps[0] = M->Ps[0] + (Stiffness * DP0);
-	M->Ps[1] = M->Ps[1] + (Stiffness * DP1);
+	M->Ps[0] = M->Ps[0] + DP0;
+	M->Ps[1] = M->Ps[1] + DP1;
 }
 
 static inline void ApplyRotationDelta(
 	uniform FJointSolverGaussSeidel * uniform M,
 	const uniform int Index,
-	const uniform float Stiffness,
-	const uniform FVector& DR)
+	const uniform FVector& InDR)
 {
 	const uniform FVector4 Qs = M->Qs[Index];
-	const uniform FVector4 DRStiffness = SetVector4(DR * Stiffness, 0);
+	const uniform FVector4 DR = SetVector4(InDR, 0);
 
-	const uniform FVector4 DQ = VectorQuaternionMultiply2(DRStiffness, Qs) * 0.5f;
+	const uniform FVector4 DQ = VectorQuaternionMultiply2(DR, Qs) * 0.5f;
 
 	const uniform FVector4 QsNorm = VectorNormalizeQuaternion(Qs + DQ);
 
@@ -172,15 +173,14 @@ static inline void ApplyRotationDelta(
 
 static inline void ApplyRotationDelta(
 	uniform FJointSolverGaussSeidel * uniform M,
-	const uniform float Stiffness,
-	const uniform FVector& DR0,
-	const uniform FVector& DR1)
+	const uniform FVector& InDR0,
+	const uniform FVector& InDR1)
 {
 	if (M->InvMs[0] > 0.0f)
 	{
 		const uniform FVector4 Qs0 = M->Qs[0];
-		const uniform FVector4 DR0Stiffness = SetVector4(DR0 * Stiffness, 0);
-		const uniform FVector4 DQ0 = VectorQuaternionMultiply2(DR0Stiffness, Qs0) * 0.5f;
+		const uniform FVector4 DR0 = SetVector4(InDR0, 0);
+		const uniform FVector4 DQ0 = VectorQuaternionMultiply2(DR0, Qs0) * 0.5f;
 		const uniform FVector4 Q0 = VectorNormalizeQuaternion(Qs0 + DQ0);
 		M->Qs[0] = Q0;
 		M->Xs[0] = M->Ps[0] + VectorQuaternionRotateVector(Q0, M->XLs[0].Translation);
@@ -191,8 +191,8 @@ static inline void ApplyRotationDelta(
 	if (M->InvMs[1] > 0.0f)
 	{
 		const uniform FVector4 Qs1 = M->Qs[1];
-		const uniform FVector4 DR1Stiffness = SetVector4(DR1 * Stiffness, 0);
-		const uniform FVector4 DQ1 = VectorQuaternionMultiply2(DR1Stiffness, Qs1) * 0.5f;
+		const uniform FVector4 DR1 = SetVector4(InDR1, 0);
+		const uniform FVector4 DQ1 = VectorQuaternionMultiply2(DR1, Qs1) * 0.5f;
 		const uniform FVector4 Q1 = VectorNormalizeQuaternion(Qs1 + DQ1);
 		M->Qs[1] = Q1;
 		M->Xs[1] = M->Ps[1] + VectorQuaternionRotateVector(Q1, M->XLs[1].Translation);
@@ -206,55 +206,51 @@ static inline void ApplyRotationDelta(
 
 export void ApplyRotationDelta2(
 	uniform FJointSolverGaussSeidel * uniform M,
-	const uniform float Stiffness,
 	const uniform FVector& DR0,
 	const uniform FVector& DR1)
 {
-	ApplyRotationDelta(M, Stiffness, DR0, DR1);
+	ApplyRotationDelta(M, DR0, DR1);
 }
 
 static inline void ApplyDelta(
 	uniform FJointSolverGaussSeidel * uniform M,
 	const uniform int Index,
-	const uniform float Stiffness,
 	const uniform FVector& DP,
 	const uniform FVector& DR)
 {
-	ApplyPositionDelta(M, Index, Stiffness, DP);
-	ApplyRotationDelta(M, Index, Stiffness, DR);
+	ApplyPositionDelta(M, Index, DP);
+	ApplyRotationDelta(M, Index, DR);
 }
 
 static inline void ApplyVelocityDelta(
 	uniform FJointSolverGaussSeidel * uniform M,
-	const uniform float Stiffness,
 	const uniform FVector& DV0,
 	const uniform FVector& DW0,
 	const uniform FVector& DV1,
 	const uniform FVector& DW1)
 {
-	M->Vs[0] = M->Vs[0] + Stiffness * DV0;
-	M->Vs[1] = M->Vs[1] + Stiffness * DV1;
-	M->Ws[0] = M->Ws[0] + Stiffness * DW0;
-	M->Ws[1] = M->Ws[1] + Stiffness * DW1;
+	M->Vs[0] = M->Vs[0] + DV0;
+	M->Vs[1] = M->Vs[1] + DV1;
+	M->Ws[0] = M->Ws[0] + DW0;
+	M->Ws[1] = M->Ws[1] + DW1;
 }
 
 
 static inline void ApplyVelocityDelta(
 	uniform FJointSolverGaussSeidel * uniform M,
 	const uniform int Index,
-	const uniform float Stiffness,
 	const uniform FVector& DV,
 	const uniform FVector& DW)
 {
-	M->Vs[Index] = M->Vs[Index] + Stiffness * DV;
-	M->Ws[Index] = M->Ws[Index] + Stiffness * DW;
+	M->Vs[Index] = M->Vs[Index] + DV;
+	M->Ws[Index] = M->Ws[Index] + DW;
 }
 
 export void ApplyPositionConstraintSoft(
 	uniform FJointSolverGaussSeidel * uniform M,
 	const uniform float Dt,
-	const uniform float Stiffness,
-	const uniform float Damping,
+	const uniform float JointStiffness,
+	const uniform float JointDamping,
 	const uniform bool bAccelerationMode,
 	const uniform FVector& Axis,
 	const uniform float Delta,
@@ -271,7 +267,7 @@ export void ApplyPositionConstraintSoft(
 	const uniform float II = (M->InvMs[0] + II0 + M->InvMs[1] + II1);
 
 	uniform float VelDt = 0;
-	if (Damping > KINDA_SMALL_NUMBER)
+	if (JointDamping > KINDA_SMALL_NUMBER)
 	{
 		const uniform FVector V0Dt = CalculateVelocity(M->InitXs[0], M->Xs[0], 1.0f);
 		const uniform FVector V1Dt = CalculateVelocity(M->InitXs[1], M->Xs[1], 1.0f);
@@ -279,18 +275,18 @@ export void ApplyPositionConstraintSoft(
 	}
 
 	const uniform float SpringMassScale = (bAccelerationMode) ? 1.0f / (M->InvMs[0] + M->InvMs[1]) : 1.0f;
-	const uniform float S = SpringMassScale * Stiffness * Dt * Dt;
-	const uniform float D = SpringMassScale * Damping * Dt;
+	const uniform float S = SpringMassScale * JointStiffness * Dt * Dt;
+	const uniform float D = SpringMassScale * JointDamping * Dt;
 	const uniform float Multiplier = 1.0f / ((S + D) * II + 1.0f);
-	const uniform float DLambda = Multiplier * (S * Delta - D * VelDt - Lambda);
+	const uniform float DLambda = M->SolverStiffness * Multiplier * (S * Delta - D * VelDt - Lambda);
 	
 	const uniform FVector DP0 = (M->InvMs[0] * DLambda) * Axis;
 	const uniform FVector DP1 = (-M->InvMs[1] * DLambda) * Axis;
 	const uniform FVector DR0 = DLambda * Multiply(M->InvIs[0], AngularAxis0);
 	const uniform FVector DR1 = -DLambda * Multiply(M->InvIs[1], AngularAxis1);
 
-	ApplyPositionDelta(M, 1.0f, DP0, DP1);
-	ApplyRotationDelta(M, 1.0f, DR0, DR1);
+	ApplyPositionDelta(M, DP0, DP1);
+	ApplyRotationDelta(M, DR0, DR1);
 
 	Lambda += DLambda;
 	M->NetLinearImpulse = M->NetLinearImpulse + DLambda * Axis;
@@ -302,8 +298,8 @@ export void ApplyRotationConstraintSoftKD(
 	const uniform int KIndex,
 	const uniform int DIndex,
 	const uniform float Dt,
-	const uniform float Stiffness,
-	const uniform float Damping,
+	const uniform float JointStiffness,
+	const uniform float JointDamping,
 	const uniform bool bAccelerationMode,
 	const uniform FVector& Axis,
 	const uniform float Angle,
@@ -319,7 +315,7 @@ export void ApplyRotationConstraintSoftKD(
 
 	// Damping angular velocity
 	uniform float AngVelDt = 0;
-	if (Damping > KINDA_SMALL_NUMBER)
+	if (JointDamping > KINDA_SMALL_NUMBER)
 	{
 		const uniform FVector W0Dt = CalculateAngularVelocity(M->InitRs[KIndex], M->Rs[KIndex], 1.0f);
 		const uniform FVector W1Dt = CalculateAngularVelocity(M->InitRs[DIndex], M->Rs[DIndex], 1.0f);
@@ -327,15 +323,15 @@ export void ApplyRotationConstraintSoftKD(
 	}
 
 	const uniform float SpringMassScale = (bAccelerationMode) ? 1.0f / II : 1.0f;
-	const uniform float S = SpringMassScale * Stiffness * Dt * Dt;
-	const uniform float D = SpringMassScale * Damping * Dt;
+	const uniform float S = SpringMassScale * JointStiffness * Dt * Dt;
+	const uniform float D = SpringMassScale * JointDamping * Dt;
 	const uniform float Multiplier = 1.0f / ((S + D) * II + 1.0f);
-	const uniform float DLambda = Multiplier * (S * Angle - D * AngVelDt - Lambda);
+	const uniform float DLambda = M->SolverStiffness * Multiplier * (S * Angle - D * AngVelDt - Lambda);
 
 	//const FVec3 DR1 = IA1 * -DLambda;
 	const uniform FVector DR1 = Axis * -(DLambda * II1);
 
-	ApplyRotationDelta(M, DIndex, 1.0f, DR1);
+	ApplyRotationDelta(M, DIndex, DR1);
 
 	Lambda += DLambda;
 	M->NetAngularImpulse = M->NetAngularImpulse + (KIndex == 0 ? 1 : -1) * DLambda * Axis;
@@ -344,8 +340,8 @@ export void ApplyRotationConstraintSoftKD(
 export void ApplyRotationConstraintSoftDD(
 	uniform FJointSolverGaussSeidel * uniform M,
 	const uniform float Dt,
-	const uniform float Stiffness,
-	const uniform float Damping,
+	const uniform float JointStiffness,
+	const uniform float JointDamping,
 	const uniform bool bAccelerationMode,
 	const uniform FVector& Axis,
 	const uniform float Angle,
@@ -363,7 +359,7 @@ export void ApplyRotationConstraintSoftDD(
 
 	// Damping angular velocity
 	uniform float AngVelDt = 0;
-	if (Damping > KINDA_SMALL_NUMBER)
+	if (JointDamping > KINDA_SMALL_NUMBER)
 	{
 		const uniform FVector W0Dt = CalculateAngularVelocity(M->InitRs[0], M->Rs[0], 1.0f);
 		const uniform FVector W1Dt = CalculateAngularVelocity(M->InitRs[1], M->Rs[1], 1.0f);
@@ -371,17 +367,17 @@ export void ApplyRotationConstraintSoftDD(
 	}
 
 	const uniform float SpringMassScale = (bAccelerationMode) ? 1.0f / II : 1.0f;
-	const uniform float S = SpringMassScale * Stiffness * Dt * Dt;
-	const uniform float D = SpringMassScale * Damping * Dt;
+	const uniform float S = SpringMassScale * JointStiffness * Dt * Dt;
+	const uniform float D = SpringMassScale * JointDamping * Dt;
 	const uniform float Multiplier = 1.0f / ((S + D) * II + 1.0f);
-	const uniform float DLambda = Multiplier * (S * Angle - D * AngVelDt - Lambda);
+	const uniform float DLambda = M->SolverStiffness * Multiplier * (S * Angle - D * AngVelDt - Lambda);
 
 	//const FVec3 DR0 = IA0 * DLambda;
 	//const FVec3 DR1 = IA1 * -DLambda;
 	const uniform FVector DR0 = Axis * (DLambda * II0);
 	const uniform FVector DR1 = Axis * -(DLambda * II1);
 
-	ApplyRotationDelta(M, 1.0f, DR0, DR1);
+	ApplyRotationDelta(M, DR0, DR1);
 
 	Lambda += DLambda;
 	M->NetAngularImpulse = M->NetAngularImpulse + DLambda * Axis;
@@ -393,44 +389,44 @@ export void ApplyPointPositionConstraintKD(
 	const uniform int KIndex,
 	const uniform int DIndex,
 	const uniform FVector &CX,
-	const uniform float LinearStiffness)
+	const uniform float InStiffness)
 {
 
 	// Calculate constraint correction
 	const uniform FMatrix33 M1 = ComputeJointFactorMatrix(M->Xs[DIndex] - M->Ps[DIndex], M->InvIs[DIndex], M->InvMs[DIndex]);
 	const uniform FMatrix33 MI = MatrixInverse(M1);
-	const uniform FVector DX = Multiply(MI, CX);
+	const uniform FVector DX = InStiffness * Multiply(MI, CX);
 
 	// Apply constraint correction
-	const uniform FVector DP1 = DX * -M->InvMs[DIndex];
+	const uniform FVector DP1 = (DX * -M->InvMs[DIndex]);
 	const uniform FVector DR1 = Multiply(M->InvIs[DIndex], VectorCross(M->Xs[DIndex] - M->Ps[DIndex], VectorNegate(DX)));
 
-	ApplyDelta(M, DIndex, LinearStiffness, DP1, DR1);
+	ApplyDelta(M, DIndex, DP1, DR1);
 
-	M->NetLinearImpulse = M->NetLinearImpulse + (KIndex == 0 ? 1 : -1) * LinearStiffness * DX;
+	M->NetLinearImpulse = M->NetLinearImpulse + ((KIndex == 0) ? DX : VectorNegate(DX));
 }
 
 export void ApplyPointPositionConstraintDD(
 	uniform FJointSolverGaussSeidel * uniform M,
 	const uniform FVector &CX,
-	const uniform float LinearStiffness)
+	const uniform float InStiffness)
 {
 	// Calculate constraint correction
 	uniform FMatrix33 M0 = ComputeJointFactorMatrix(M->Xs[0] - M->Ps[0], M->InvIs[0], M->InvMs[0]);
 	uniform FMatrix33 M1 = ComputeJointFactorMatrix(M->Xs[1] - M->Ps[1], M->InvIs[1], M->InvMs[1]);
 	const uniform FMatrix33 MI = MatrixInverse(AddAB(M0, M1));
-	const uniform FVector DX = Multiply(MI, CX);
+	const uniform FVector DX = InStiffness * Multiply(MI, CX);
 
 	// Apply constraint correction
-	const uniform FVector DP0 = DX * M->InvMs[0];
-	const uniform FVector DP1 = DX * -M->InvMs[1];
+	const uniform FVector DP0 = (DX * M->InvMs[0]);
+	const uniform FVector DP1 = (DX * -M->InvMs[1]);
 	const uniform FVector DR0 = Multiply(M->InvIs[0], VectorCross(M->Xs[0] - M->Ps[0], DX));
 	const uniform FVector DR1 = Multiply(M->InvIs[1], VectorCross(M->Xs[1] - M->Ps[1], VectorNegate(DX)));
 
-	ApplyPositionDelta(M, LinearStiffness, DP0, DP1);
-	ApplyRotationDelta(M, LinearStiffness, DR0, DR1);
+	ApplyPositionDelta(M, DP0, DP1);
+	ApplyRotationDelta(M, DR0, DR1);
 
-	M->NetLinearImpulse = M->NetLinearImpulse + LinearStiffness * DX;
+	M->NetLinearImpulse = M->NetLinearImpulse + DX;
 }
 
 //

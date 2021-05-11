@@ -107,6 +107,10 @@ bool UE::PipelineCacheUtilities::LoadStableKeysFile(const FStringView& Filename,
 		HashIdx = ReadVarUIntFromArchive(*Archive);
 		Item.OutputHash = Hashes[static_cast<int32>(HashIdx)];
 
+		// Standardize on all CompactNames being parsed from string. This is a temporary hack until the names are parsed from CSV when reading StablePC
+		FString StringRep = Item.ClassNameAndObjectPath.ToString();
+		Item.ClassNameAndObjectPath.ParseFromString(StringRep);
+
 		Item.ComputeKeyHash();
 		InOutArray.Add(Item);
 	}

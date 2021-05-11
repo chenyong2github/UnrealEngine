@@ -16,31 +16,31 @@ struct DISPLAYCLUSTER_API FDisplayClusterViewportContext
 
 public:
 	// Viewport Name
-	UPROPERTY(EditAnywhere, Category = "Display Cluster")
+	UPROPERTY(EditAnywhere, Category = "NDisplay")
 	FString ViewportID;
 
 	// Location on a backbuffer.
-	UPROPERTY(EditAnywhere, Category = "Display Cluster")
+	UPROPERTY(EditAnywhere, Category = "NDisplay")
 	FIntPoint RectLocation;
 
 	// Size on a backbuffer.
-	UPROPERTY(EditAnywhere, Category = "Display Cluster")
+	UPROPERTY(EditAnywhere, Category = "NDisplay")
 	FIntPoint RectSize;
 
 	// Camera view location
-	UPROPERTY(EditAnywhere, Category = "Display Cluster")
+	UPROPERTY(EditAnywhere, Category = "NDisplay")
 	FVector  ViewLocation;
 
 	// Camera view rotation
-	UPROPERTY(EditAnywhere, Category = "Display Cluster")
+	UPROPERTY(EditAnywhere, Category = "NDisplay")
 	FRotator ViewRotation;
 
 	// Camera projection Matrix
-	UPROPERTY(EditAnywhere, Category = "Display Cluster")
+	UPROPERTY(EditAnywhere, Category = "NDisplay")
 	FMatrix ProjectionMatrix;
 
 	// Rendering status for this viewport (Overlay and other configuration rules can disable rendering for this viewport.)
-	UPROPERTY(EditAnywhere, Category = "Display Cluster")
+	UPROPERTY(EditAnywhere, Category = "NDisplay")
 	bool bIsRendering;
 };
 
@@ -51,30 +51,30 @@ struct DISPLAYCLUSTER_API FDisplayClusterViewportStereoContext
 
 public:
 	// Viewport Name
-	UPROPERTY(EditAnywhere, Category = "Display Cluster")
+	UPROPERTY(EditAnywhere, Category = "NDisplay")
 	FString ViewportID;
 
 	// Location on a backbuffer.
-	UPROPERTY(EditAnywhere, Category = "Display Cluster")
+	UPROPERTY(EditAnywhere, Category = "NDisplay")
 	FIntPoint RectLocation;
 
 	// Size on a backbuffer.
-	UPROPERTY(EditAnywhere, Category = "Display Cluster")
+	UPROPERTY(EditAnywhere, Category = "NDisplay")
 	FIntPoint RectSize;
 
 	// Camera view location
-	UPROPERTY(EditAnywhere, Category = "Display Cluster")
+	UPROPERTY(EditAnywhere, Category = "NDisplay")
 	TArray<FVector> ViewLocation;
 
 	// Camera view rotation
-	UPROPERTY(EditAnywhere, Category = "Display Cluster")
+	UPROPERTY(EditAnywhere, Category = "NDisplay")
 	TArray<FRotator> ViewRotation;
 
 	// Camera projection Matrix
-	UPROPERTY(EditAnywhere, Category = "Display Cluster")
+	UPROPERTY(EditAnywhere, Category = "NDisplay")
 	TArray<FMatrix> ProjectionMatrix;
 
 	// Rendering status for this viewport (Overlay and other configuration rules can disable rendering for this viewport.)
-	UPROPERTY(EditAnywhere, Category = "Display Cluster")
+	UPROPERTY(EditAnywhere, Category = "NDisplay")
 	bool bIsRendering;
 };

@@ -15,6 +15,7 @@
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 #include "Framework/Threading.h"
 #include "Math/NumericLimits.h"
+#include "RewindData.h"
 
 namespace Chaos
 {
@@ -808,6 +809,27 @@ public:
 		});
 	}
 
+	void SetSleepType(ESleepType InSleepType)
+	{
+		Write([InSleepType](auto* Particle)
+		{
+			if (auto Rigid = Particle->CastToRigidParticle())
+			{
+				return Rigid->SetSleepType(InSleepType);
+			}
+		});
+	}
+
+	ESleepType SleepType() const
+	{
+		if (auto Rigid = Particle->CastToRigidParticle())
+		{
+			return Rigid->SleepType();
+		}
+
+		return ESleepType::MaterialSleep;
+	}
+
 protected:
 	void VerifyContext() const
 	{
@@ -851,6 +873,13 @@ private:
 		}
 		else
 		{
+			//Mark entire particle as dirty from PT. TODO: use property system
+			FPhysicsSolverBase* SolverBase = GetSolverBase();	//internal so must have solver already
+			if(FRewindData* RewindData = SolverBase->GetRewindData())
+			{
+				RewindData->MarkDirtyFromPT(*GetHandle_LowLevel());
+			}
+
 			Lambda(GetHandle_LowLevel());
 			//todo: write to extra buffer
 		}

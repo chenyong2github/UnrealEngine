@@ -56,7 +56,7 @@ TSharedPtr<FDataprepSchemaAction> FDataprepOperationMenuActionCollector::CreateM
 
 		return MakeShared< FDataprepSchemaAction >( Operation->GetCategory()
 			, Operation->GetDisplayOperationName(), Operation->GetTooltip()
-			, 0, Operation->GetAdditionalKeyword(), OnExcuteMenuAction
+			, 0, Operation->GetAdditionalKeyword(), OnExcuteMenuAction, DataprepMenuActionCollectorUtils::EDataprepMenuActionCategory::Operation
 			);
 	}
 

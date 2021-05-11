@@ -464,6 +464,7 @@ public:
 	CORE_API bool GetText( const TCHAR* Section, const TCHAR* Key, FText& Value ) const;
 	CORE_API bool GetInt(const TCHAR* Section, const TCHAR* Key, int32& Value) const;
 	CORE_API bool GetFloat(const TCHAR* Section, const TCHAR* Key, float& Value) const;
+	CORE_API bool GetDouble(const TCHAR* Section, const TCHAR* Key, double& Value) const;
 	CORE_API bool GetInt64( const TCHAR* Section, const TCHAR* Key, int64& Value ) const;
 	CORE_API bool GetBool( const TCHAR* Section, const TCHAR* Key, bool& Value ) const;
 	CORE_API int32 GetArray(const TCHAR* Section, const TCHAR* Key, TArray<FString>& Value) const;
@@ -485,6 +486,10 @@ public:
 	{
 		return GetFloat(Section, Key, Value);
 	}
+	bool GetValue(const TCHAR* Section, const TCHAR* Key, double& Value) const
+	{
+		return GetDouble(Section, Key, Value);
+	}
 	bool GetValue(const TCHAR* Section, const TCHAR* Key, int64& Value) const
 	{
 		return GetInt64(Section, Key, Value);
@@ -500,6 +505,8 @@ public:
 
 	CORE_API void SetString( const TCHAR* Section, const TCHAR* Key, const TCHAR* Value );
 	CORE_API void SetText( const TCHAR* Section, const TCHAR* Key, const FText& Value );
+	CORE_API void SetFloat( const TCHAR* Section, const TCHAR* Key, float Value );
+	CORE_API void SetDouble( const TCHAR* Section, const TCHAR* Key, double Value );
 	CORE_API void SetInt64( const TCHAR* Section, const TCHAR* Key, const int64 Value );
 	CORE_API void SetArray(const TCHAR* Section, const TCHAR* Key, const TArray<FString>& Value);
 	

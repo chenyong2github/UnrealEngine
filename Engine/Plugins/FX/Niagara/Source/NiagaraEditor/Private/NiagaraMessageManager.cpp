@@ -161,12 +161,15 @@ void FNiagaraMessageManager::RegisterAdditionalMessageLogTopic(FName MessageLogT
 	AdditionalMessageLogTopics.AddUnique(MessageLogTopicName);
 }
 
-uint32 FNiagaraMessageManager::GetMessageTopicBitflag(FName TopicName) const
+uint32 FNiagaraMessageManager::GetMessageTopicBitflag(FName TopicName)
 {
 	const uint32* TopicBitflag = RegisteredTopicToBitflagsMap.Find(TopicName);
-	checkf(TopicBitflag != nullptr,
-		TEXT("Tried to get topic bitflag for topic '%s' but the topic has not been registered!"),
-			*TopicName.ToString());
+	if (TopicBitflag == nullptr)
+	{
+		// It is possible the message topic has not been registered yet. If so, register now.
+		RegisterMessageTopic(TopicName);
+		return *(RegisteredTopicToBitflagsMap.Find(TopicName));
+	}
 
 	return *TopicBitflag;
 }

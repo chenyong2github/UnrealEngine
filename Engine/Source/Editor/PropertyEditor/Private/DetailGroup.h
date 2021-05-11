@@ -15,7 +15,7 @@
 
 class IDetailPropertyRow;
 
-class FDetailGroup : public IDetailGroup, public TSharedFromThis<FDetailGroup>
+class FDetailGroup : public IDetailGroup, public IDetailLayoutRow, public TSharedFromThis<FDetailGroup>
 {
 public:
 	FDetailGroup( const FName InGroupName, TSharedRef<FDetailCategoryImpl> InParentCategory, const FText& InLocalizedDisplayName, const bool bStartExpanded = false );
@@ -29,6 +29,9 @@ public:
 
 	virtual void ToggleExpansion( bool bExpand ) override;
 	virtual bool GetExpansionState() const override;
+
+	/** IDetailLayoutRow interface */
+	virtual FName GetRowName() const override { return GetGroupName(); }
 
 	TSharedPtr<FDetailPropertyRow> GetHeaderPropertyRow() const;
 	TSharedPtr<FPropertyNode> GetHeaderPropertyNode() const;

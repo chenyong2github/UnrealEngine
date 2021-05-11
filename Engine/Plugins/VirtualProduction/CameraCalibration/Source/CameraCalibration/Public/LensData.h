@@ -18,7 +18,7 @@ struct CAMERACALIBRATION_API FEncoderPoint
 
 public:
 
-	//Homed value in the range of [0..1]
+	/** Homed value in the range of [0..1] */
 	UPROPERTY(EditAnywhere, Category = "Point")
 	float NormalizedValue = 0.0f;
 
@@ -72,6 +72,10 @@ public:
 	/** Generic array of floating-point lens distortion parameters */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
 	TArray<float> Parameters;
+
+	/** Value expected to be normalized (unitless) */
+	UPROPERTY(EditAnywhere, Category = "Camera")
+	FVector2D FxFy = FVector2D(1.0f, (16.0f / 9.0f));
 };
 
 /**
@@ -83,12 +87,7 @@ struct CAMERACALIBRATION_API FIntrinsicParameters
 	GENERATED_BODY()
 
 public:
-
-	// Value expected to be normalized (unitless)
-	UPROPERTY(EditAnywhere, Category = "Camera")
-	FVector2D FxFy = FVector2D(1.0f, (16.0f / 9.0f));
-
-	// Value expected to be normalized [0,1]
+	/** Value expected to be normalized [0,1] */
 	UPROPERTY(EditAnywhere, Category = "Camera", meta = (DisplayName = "Image Center"))
 	FVector2D PrincipalPoint = FVector2D(0.5f, 0.5f);
 };

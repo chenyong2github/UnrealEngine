@@ -235,8 +235,6 @@ namespace DatasmithRevitExporter
 			string OutputPath = Path.Combine(Path.GetTempPath(), SceneName);
 			DatasmithScene.SetName(SceneName);
 			DatasmithScene.SetLabel(SceneName);
-			DatasmithScene.SetOutputPath(OutputPath);
-			Directory.CreateDirectory(OutputPath);
 
 			DocumentChangedHandler = new EventHandler<DocumentChangedEventArgs>(OnDocumentChanged);
 			InDocument.Application.DocumentChanged += DocumentChangedHandler;
@@ -367,6 +365,8 @@ namespace DatasmithRevitExporter
 		{
 			StopMetadataExport();
 
+			SetSceneCachePath();
+
 			foreach (var Link in RootCache.LinkedDocumentsCache.Values)
 			{
 				if (ModifiedLinkedDocuments.Contains(Link.SourceDocument))
@@ -418,6 +418,28 @@ namespace DatasmithRevitExporter
 			}
 
 			PrevSectionBoxes = CurrentSectionBoxes;
+		}
+
+		void SetSceneCachePath()
+		{
+			string OutputPath = null;
+
+			IDirectLinkUI DirectLinkUI = IDatasmithExporterUIModule.Get()?.GetDirectLinkExporterUI();
+			if (DirectLinkUI != null)
+			{
+				OutputPath = Path.Combine(DirectLinkUI.GetDirectLinkCacheDirectory(), SceneName);
+			}
+			else
+			{
+				OutputPath = Path.Combine(Path.GetTempPath(), SceneName);
+			}
+
+			if (!Directory.Exists(OutputPath))
+			{
+				Directory.CreateDirectory(OutputPath);
+			}
+
+			DatasmithScene.SetOutputPath(OutputPath);
 		}
 
 		void MarkIntersectedElementsAsModified(FCachedDocumentData InData, Element InSectionBox, BoundingBoxXYZ InSectionBoxBounds)
@@ -499,21 +521,8 @@ namespace DatasmithRevitExporter
 			RootCache.ClearModified();
 			RootCache.ExportedElements.Clear();
 
-			string OutputPath = null;
-
-			IDirectLinkUI DirectLinkUI = IDatasmithExporterUIModule.Get()?.GetDirectLinkExporterUI();
-			if (DirectLinkUI != null)
-			{
-				OutputPath = DirectLinkUI.GetDirectLinkCacheDirectory();
-			}
-			else
-			{
-				OutputPath = Path.Combine(Path.GetTempPath(), SceneName);
-			}
-
 			DatasmithScene.CleanUp();
-
-			bool bUpdateOk = DatasmithDirectLink.UpdateScene(DatasmithScene);
+			DatasmithDirectLink.UpdateScene(DatasmithScene);
 
 			// Sync materials: DatasmithScene.CleanUp() might have deleted some materials that are not referenced by meshes anymore, so we need to update our map.
 			HashSet<string> SceneMaterials = new HashSet<string>();

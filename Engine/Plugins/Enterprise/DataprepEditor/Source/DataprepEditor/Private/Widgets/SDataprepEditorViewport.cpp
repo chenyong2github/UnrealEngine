@@ -361,7 +361,25 @@ void SDataprepEditorViewport::UpdateScene()
 			FScopedSlowTask SlowTask( 100.0f, LOCTEXT("UpdateMeshes_Title", "Updating 3D viewport ...") );
 			SlowTask.MakeDialog(false);
 
+			// Unregister all actors components to avoid excessive refresh in the 3D engine while updating materials.
+			for (TObjectIterator<AActor> ActorIterator; ActorIterator; ++ActorIterator)
+			{
+				if (ActorIterator->GetWorld())
+				{
+					ActorIterator->UnregisterAllComponents( /* bForReregister = */true);
+				}
+			}
+
 			InitializeDefaultMaterials();
+
+			// Materials have been updated, we can register everything back.
+			for (TObjectIterator<AActor> ActorIterator; ActorIterator; ++ActorIterator)
+			{
+				if (ActorIterator->GetWorld())
+				{
+					ActorIterator->RegisterAllComponents();
+				}
+			}
 
 			PreviewMeshComponents.Empty( SceneMeshComponents.Num() );
 

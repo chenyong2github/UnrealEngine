@@ -2,14 +2,15 @@
 
 #include "NiagaraCommon.h"
 #include "NiagaraComponent.h"
-#include "NiagaraSystemInstance.h"
-#include "NiagaraParameterCollection.h"
 #include "NiagaraConstants.h"
 #include "NiagaraCustomVersion.h"
+#include "NiagaraParameterCollection.h"
+#include "NiagaraParameterDefinitionsBase.h"
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraStats.h"
-#include "UObject/Class.h"
+#include "NiagaraSystemInstance.h"
 #include "NiagaraWorldManager.h"
+#include "UObject/Class.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - Utilities - PrepareRapidIterationParameters"), STAT_Niagara_Utilities_PrepareRapidIterationParameters, STATGROUP_Niagara);
 
@@ -29,6 +30,14 @@ FAutoConsoleVariableRef CVarAllowGPUParticles(
 	GNiagaraAllowGPUParticles,
 	TEXT("If true, allow the usage of GPU particles for Niagara."),
 	ECVF_Default);
+
+int32 GNiagaraGPUCulling = 1;
+FAutoConsoleVariableRef CVarNiagaraGPUCulling(
+	TEXT("Niagara.GPUCulling"),
+	GNiagaraGPUCulling,
+	TEXT("Whether to frustum and camera distance cull particles on the GPU"),
+	ECVF_Default
+);
 
 int32 GNiagaraMaxStatInstanceReports = 20;
 FAutoConsoleVariableRef CVarMaxStatInstanceReportss(
@@ -819,6 +828,17 @@ bool FNiagaraUtilities::AllowComputeShaders(EShaderPlatform ShaderPlatform)
 	return RHISupportsComputeShaders(ShaderPlatform) && GNiagaraAllowComputeShaders && GRHISupportsDrawIndirect;
 }
 
+bool FNiagaraUtilities::AllowGPUSorting(EShaderPlatform ShaderPlatform)
+{
+	static const IConsoleVariable* AllowGPUSortingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("FX.AllowGPUSorting"));
+	return ensure(AllowGPUSortingCVar) && (AllowGPUSortingCVar->GetInt() != 0);
+}
+
+bool FNiagaraUtilities::AllowGPUCulling(EShaderPlatform ShaderPlatform)
+{
+	return GNiagaraGPUCulling && AllowGPUSorting(ShaderPlatform) && AllowComputeShaders(ShaderPlatform);
+}
+
 ENiagaraCompileUsageStaticSwitch FNiagaraUtilities::ConvertScriptUsageToStaticSwitchUsage(ENiagaraScriptUsage ScriptUsage)
 {
 	if (ScriptUsage == ENiagaraScriptUsage::ParticleEventScript)
@@ -1189,3 +1209,11 @@ bool FVMExternalFunctionBindingInfo::Serialize(FArchive& Ar)
 
 const FString FNiagaraCompileOptions::CpuScriptDefine = TEXT("CPUSim");
 const FString FNiagaraCompileOptions::GpuScriptDefine = TEXT("GPUComputeSim");
+
+FSynchronizeWithParameterDefinitionsArgs::FSynchronizeWithParameterDefinitionsArgs()
+	: SpecificDefinitionsUniqueIds(TArray<FGuid>())
+	, SpecificDestScriptVarIds(TArray<FGuid>())
+	, bForceSynchronizeDefinitions(false)
+	, bSubscribeAllNameMatchParameters(false)
+{
+}

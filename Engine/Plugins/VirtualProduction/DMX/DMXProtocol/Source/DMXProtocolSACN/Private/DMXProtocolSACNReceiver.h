@@ -94,7 +94,7 @@ private:
 	uint32 GetIpForUniverseID(uint16 InUniverseID);
 
 	/** Map of universes with their sender IP */
-	TMap<TSharedRef<FInternetAddr> /** Multicast Group Addr */, uint16 /** UniverseID */> MulticastGroupAddrToUniverseIDMap;
+	TMap<uint32 /** Multicast Group Addr */, uint16 /** UniverseID */> MulticastGroupAddrToUniverseIDMap;
 
 	/** The highest priority received */
 	int32 HighestReceivedPriority;

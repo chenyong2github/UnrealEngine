@@ -128,7 +128,7 @@ struct AUDIOMIXER_API FSwapAudioOutputResult
 
 	FSwapAudioOutputResult() = default;
 
-	/** ID of the currently set device. */
+	/** ID of the currently set device.  This is the device at the time of the call, NOT the resulting deviceId */
 	UPROPERTY(BlueprintReadOnly, Category = "Audio")
 	FString CurrentDeviceId;
 

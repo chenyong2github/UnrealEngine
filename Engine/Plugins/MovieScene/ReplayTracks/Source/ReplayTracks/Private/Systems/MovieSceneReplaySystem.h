@@ -55,11 +55,6 @@ private:
 
 	void OnRunInstantiation();
 	void OnRunEvaluation();
-	void OnRunFinalization();
-
-	static void OnPreLoadMap(const FString& MapName, IMovieScenePlayer* Player);
-	static void OnPostLoadMap(UWorld* World, IMovieScenePlayer* LastPlayer, FMovieSceneContext LastContext);
-	static void OnReplayStarted(UWorld* World, IMovieScenePlayer* LastPlayer, FMovieSceneContext LastContext);
 
 private:
 
@@ -80,12 +75,30 @@ private:
 		}
 	};
 
+	void StartReplay(const FReplayInfo& ReplayInfo);
+	void StopReplay(const FReplayInfo& ReplayInfo);
+
+private:
+
 	TArray<FReplayInfo> CurrentReplayInfos;
+	bool bReplayActive = false;
+	bool bNeedsInit = true;
+
+	EMovieScenePlayerStatus::Type PreviousPlayerStatus = EMovieScenePlayerStatus::Stopped;
 
 	IConsoleVariable* ShowFlagMotionBlur = nullptr;
 
+private:
+
+	// Handlers for replay events. These are all static because they happen across level reloads,
+	// which mean that the current object may have been wiped out and re-created, so we can't rely
+	// on any instance data.
+	static void OnPreLoadMap(const FString& MapName, IMovieScenePlayer* Player);
+	static void OnPostLoadMap(UWorld* World, IMovieScenePlayer* LastPlayer, FMovieSceneContext LastContext);
+	static void OnEndPlayMap();
+
 	static FDelegateHandle PreLoadMapHandle;
 	static FDelegateHandle PostLoadMapHandle;
-	static FDelegateHandle ReplayStartedHandle;
+	static FDelegateHandle EndPlayMapHandle;
 	static FTimerHandle ReEvaluateHandle;
 };

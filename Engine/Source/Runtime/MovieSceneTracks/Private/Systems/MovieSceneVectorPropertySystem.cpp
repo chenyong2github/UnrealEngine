@@ -4,7 +4,6 @@
 #include "EntitySystem/MovieSceneBoundObjectInstantiator.h"
 #include "EntitySystem/MovieSceneDecompositionQuery.h"
 #include "EntitySystem/MovieSceneEntitySystemTypes.h"
-#include "EntitySystem/MovieScenePreAnimatedPropertyHelper.h"
 #include "MovieSceneTracksComponentTypes.h"
 #include "Systems/FloatChannelEvaluatorSystem.h"
 #include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"

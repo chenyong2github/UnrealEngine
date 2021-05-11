@@ -27,6 +27,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
+#include "PhysicsField/PhysicsFieldComponent.h"
 #include "Engine/InstancedStaticMesh.h"
 
 #if WITH_EDITOR
@@ -2568,16 +2569,16 @@ void FScopedColorEdit::UpdateBoneColors()
 
 void UGeometryCollectionComponent::ApplyKinematicField(float Radius, FVector Position)
 {
-	FName TargetName = GetGeometryCollectionPhysicsTypeName(EGeometryCollectionPhysicsTypeEnum::Chaos_DynamicState);
-	DispatchFieldCommand({ TargetName,new FRadialIntMask(Radius, Position, (int32)Chaos::EObjectStateType::Dynamic,
-		(int32)Chaos::EObjectStateType::Kinematic, ESetMaskConditionType::Field_Set_IFF_NOT_Interior) });
+	FFieldSystemCommand Command = FFieldObjectCommands::CreateFieldCommand(EFieldPhysicsType::Field_DynamicState, new FRadialIntMask(Radius, Position, (int32)Chaos::EObjectStateType::Dynamic,
+			(int32)Chaos::EObjectStateType::Kinematic, ESetMaskConditionType::Field_Set_IFF_NOT_Interior));
+	DispatchFieldCommand(Command);
 }
 
 void UGeometryCollectionComponent::ApplyPhysicsField(bool Enabled, EGeometryCollectionPhysicsTypeEnum Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field)
 {
 	if (Enabled && Field)
 	{
-		FFieldSystemCommand Command = FFieldObjectCommands::CreateFieldCommand(GetGeometryCollectionPhysicsTypeName(Target), Field, MetaData);
+		FFieldSystemCommand Command = FFieldObjectCommands::CreateFieldCommand(GetGeometryCollectionPhysicsType(Target), Field, MetaData);  
 		DispatchFieldCommand(Command);
 	}
 }
@@ -2590,7 +2591,12 @@ void UGeometryCollectionComponent::DispatchFieldCommand(const FFieldSystemComman
 		checkSlow(ChaosModule);
 
 		auto Solver = PhysicsProxy->GetSolver<Chaos::FPBDRigidsSolver>();
-		Solver->EnqueueCommandImmediate([Solver, PhysicsProxy = this->PhysicsProxy, NewCommand = InCommand]()
+		const FName Name = GetOwner() ? *GetOwner()->GetName() : TEXT("");
+
+		FFieldSystemCommand LocalCommand = InCommand;
+		LocalCommand.InitFieldNodes(Solver->GetSolverTime(), Name);
+
+		Solver->EnqueueCommandImmediate([Solver, PhysicsProxy = this->PhysicsProxy, NewCommand = LocalCommand]()
 		{
 			// Pass through nullptr here as geom component commands can never affect other solvers
 			PhysicsProxy->BufferCommand(Solver, NewCommand);
@@ -2618,9 +2624,12 @@ void UGeometryCollectionComponent::GetInitializationCommands(TArray<FFieldSystem
 				// Legacy path : only there for old levels. New ones will have the commands directly stored onto the component
 				else if (FieldSystemActor->GetFieldSystemComponent()->GetFieldSystem())
 				{
+					const FName Name = GetOwner() ? *GetOwner()->GetName() : TEXT("");
 					for (const FFieldSystemCommand& Command : FieldSystemActor->GetFieldSystemComponent()->GetFieldSystem()->Commands)
 					{
 						FFieldSystemCommand NewCommand = { Command.TargetAttribute, Command.RootNode->NewCopy() };
+						NewCommand.InitFieldNodes(0.0, Name);
+
 						for (auto& Elem : Command.MetaData)
 						{
 							NewCommand.MetaData.Add(Elem.Key, TUniquePtr<FFieldSystemMetaData>(Elem.Value->NewCopy()));

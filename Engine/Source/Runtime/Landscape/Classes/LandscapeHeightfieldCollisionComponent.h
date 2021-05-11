@@ -281,6 +281,7 @@ public:
 	 * in a tile defined by the starting point (Offset) and the stride/row
 	 */
 	LANDSCAPE_API bool FillHeightTile(TArrayView<float> Heights, int32 Offset, int32 Stride) const;
+	LANDSCAPE_API bool FillMaterialIndexTile(TArrayView<uint8> Materials, int32 Offset, int32 Stride) const;
 };
 
 

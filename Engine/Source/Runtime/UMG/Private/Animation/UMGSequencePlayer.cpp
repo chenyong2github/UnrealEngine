@@ -181,12 +181,12 @@ void UUMGSequencePlayer::Tick(float DeltaTime)
 
 void UUMGSequencePlayer::PlayInternal(double StartAtTime, double EndAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed, bool bInRestoreState)
 {
+	RootTemplateInstance.Initialize(*Animation, *this, nullptr);
+
 	if (bInRestoreState)
 	{
-		PreAnimatedState.EnableGlobalCapture();
+		RootTemplateInstance.EnableGlobalPreAnimatedStateCapture();
 	}
-
-	RootTemplateInstance.Initialize(*Animation, *this, nullptr);
 
 	bRestoreState = bInRestoreState;
 	PlaybackSpeed = FMath::Abs(InPlaybackSpeed);

@@ -17,6 +17,7 @@ class IDatasmithMeshElement;
 class IDatasmithTextureElement;
 class IDatasmithUEPbrMaterialElement;
 class FSceneImporter;
+class UBodySetup;
 class UClass;
 class UMaterial;
 class UMaterialInstanceDynamic;
@@ -27,6 +28,7 @@ struct FTextureData;
 struct FActorData;
 struct FDatasmithMeshElementPayload;
 struct FMeshDescription;
+struct FStaticMeshLODResources;
 
 namespace DatasmithRuntime
 {
@@ -53,6 +55,9 @@ namespace DatasmithRuntime
 
 	// Borrowed from FDatasmithStaticMeshImporter::ProcessCollision(UStaticMesh* StaticMesh, const TArray< FVector >& VertexPositions)
 	extern void ProcessCollision(UStaticMesh* StaticMesh, FDatasmithMeshElementPayload& Payload);
+
+	extern void BuildCollision(UBodySetup* Body, ECollisionTraceFlag CollisionFlag, const FStaticMeshLODResources& Resources);
+
 
 	extern bool /*FDatasmithStaticMeshImporter::*/ShouldRecomputeNormals(const FMeshDescription& MeshDescription, int32 BuildRequirements);
 

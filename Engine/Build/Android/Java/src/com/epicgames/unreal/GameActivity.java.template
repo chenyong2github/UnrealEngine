@@ -846,6 +846,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	{
 		if (bytesToDecompress == null)
 		{
+			Log.debug("configrulesversion: no data");
 			return -1;
 		}
 
@@ -853,6 +854,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		int sizeCompressed = bytesToDecompress.length - headerSize;
 		if (sizeCompressed < 0)
 		{
+			Log.debug("configrulesversion: size ("+bytesToDecompress.length+", "+headerSize+")");
 			return -1;
 		}
 
@@ -860,6 +862,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		int signature = buffer.getShort();
 		if (signature != 0x39d8)
 		{
+			Log.debug("configrulesversion: token ("+signature+")");
 			return -1;
 		}
 		return buffer.getInt();

@@ -18,13 +18,6 @@ FAutoConsoleVariableRef CVarRex(
 	TEXT("Edit menus in modal window"),
 	ECVF_Default);
 
-FAutoConsoleCommand ToolMenusEditMenusModeCVar = FAutoConsoleCommand(
-	TEXT("ToolMenus.EditMenusMode"),
-	TEXT("Enable edit menus mode toggle in level editor's windows menu"),
-	FConsoleCommandDelegate::CreateLambda([]() {
-		IToolMenusEditorModule::Get().RegisterShowEditMenusModeCheckbox();
-	}));
-
 /**
  * Implements the Tool menus module.
  */
@@ -50,24 +43,27 @@ public:
 		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.Window");
 		FToolMenuSection& Section = Menu->FindOrAddSection("WindowLayout");
 
-		Section.AddMenuEntry(
-			"EnableMenuEditing",
-			LOCTEXT("EnableMenuEditing", "Enable Menu Editing"),
-			LOCTEXT("EnableMenuEditing_ToolTip", "Adds command to each menu and toolbar for editing"),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda([]()
-				{
-					UToolMenus* ToolMenus = UToolMenus::Get();
-					ToolMenus->SetEditMenusMode(!ToolMenus->GetEditMenusMode());
-				}),
-				FCanExecuteAction(),
-				FGetActionCheckState::CreateLambda([]()
-				{
-					return UToolMenus::Get()->GetEditMenusMode() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; 
-				})),
-			EUserInterfaceActionType::ToggleButton
-		);
+		if (!Section.FindEntry("EnableMenuEditing"))
+		{
+			Section.AddMenuEntry(
+				"EnableMenuEditing",
+				LOCTEXT("EnableMenuEditing", "Enable Menu Editing"),
+				LOCTEXT("EnableMenuEditing_ToolTip", "Adds command to each menu and toolbar for editing"),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateLambda([]()
+					{
+						UToolMenus* ToolMenus = UToolMenus::Get();
+						ToolMenus->SetEditMenusMode(!ToolMenus->GetEditMenusMode());
+					}),
+					FCanExecuteAction(),
+					FGetActionCheckState::CreateLambda([]()
+					{
+						return UToolMenus::Get()->GetEditMenusMode() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; 
+					})),
+				EUserInterfaceActionType::ToggleButton
+			);
+		}
 	}
 
 	virtual void OpenEditToolMenuDialog(UToolMenu* ToolMenu) const

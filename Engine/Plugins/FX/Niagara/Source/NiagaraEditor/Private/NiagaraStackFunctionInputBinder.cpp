@@ -21,6 +21,7 @@ FNiagaraStackFunctionInputBinder::FNiagaraStackFunctionInputBinder()
 bool FNiagaraStackFunctionInputBinder::TryBind(
 	UNiagaraScript* InScript,
 	TArray<UNiagaraScript*> InDependentScripts,
+	FCompileConstantResolver InConstantResolver,
 	FString InOwningEmitterUniqueName,
 	UNiagaraNodeFunctionCall* InFunctionCallNode,
 	FName InMetaDataKey,
@@ -48,13 +49,14 @@ bool FNiagaraStackFunctionInputBinder::TryBind(
 	
 	FText InputMatchDescription = FText::Format(LOCTEXT("MetadataMatchDescriptionFormat", "metadata key = '{0}' and value = '{1}'"),
 		FText::FromName(InMetaDataKey), FText::FromString(InMetaDataValue));
-	return TryBindInternal(InScript, InDependentScripts, InOwningEmitterUniqueName, InFunctionCallNode, InputMatches,
+	return TryBindInternal(InScript, InDependentScripts, InConstantResolver, InOwningEmitterUniqueName, InFunctionCallNode, InputMatches,
 		InputMatchDescription, InInputType, bInIsRequired, OutErrorMessage);
 }
 
 bool FNiagaraStackFunctionInputBinder::TryBind(
 	UNiagaraScript* InScript,
 	TArray<UNiagaraScript*> InDependentScripts,
+	FCompileConstantResolver InConstantResolver,
 	FString InOwningEmitterUniqueName,
 	UNiagaraNodeFunctionCall* InFunctionCallNode,
 	FName InInputName,
@@ -69,13 +71,14 @@ bool FNiagaraStackFunctionInputBinder::TryBind(
 	});
 
 	FText InputMatchDescription = FText::Format(LOCTEXT("NameMatchDescriptionFormat", "name = '{0}'"), FText::FromName(InInputName));
-	return TryBindInternal(InScript, InDependentScripts, InOwningEmitterUniqueName, InFunctionCallNode, InputMatches,
+	return TryBindInternal(InScript, InDependentScripts, InConstantResolver, InOwningEmitterUniqueName, InFunctionCallNode, InputMatches,
 		InputMatchDescription, InInputType, bInIsRequired, OutErrorMessage);
 }
 
 bool FNiagaraStackFunctionInputBinder::TryBindInternal(
 	UNiagaraScript* InScript,
 	TArray<UNiagaraScript*> InDependentScripts,
+	FCompileConstantResolver InConstantResolver,
 	FString InOwningEmitterUniqueName,
 	UNiagaraNodeFunctionCall* InFunctionCallNode,
 	FInputMatchesPredicate InputMatchesCallback,
@@ -92,12 +95,17 @@ bool FNiagaraStackFunctionInputBinder::TryBindInternal(
 	FunctionCallNode = InFunctionCallNode;
 
 	TArray<const UEdGraphPin*> InputPins;
-	FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*FunctionCallNode, InputPins, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
-	
+	TSet<const UEdGraphPin*> HiddenInputPins;
+	FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*FunctionCallNode, InputPins, HiddenInputPins, InConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
 	bool bInputFound = false;
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
 	for (const UEdGraphPin* InputPin : InputPins)
 	{
+		if (HiddenInputPins.Contains(InputPin))
+		{
+			continue;
+		}
+
 		FNiagaraVariable InputVariable = Schema->PinToNiagaraVariable(InputPin);
 		if(InputMatchesCallback.Execute(InputVariable))
 		{

@@ -93,16 +93,22 @@ void UNiagaraStackItem::PostRefreshChildrenInternal()
 	bool bHasChangedContent = false;
 	TArray<UNiagaraStackItemContent*> ContentChildren;
 	GetContentChildren(*this, ContentChildren);
+	bool bHasAdvancedIssues = false;
 	for (UNiagaraStackItemContent* ContentChild : ContentChildren)
 	{
 		if (ContentChild->GetIsAdvanced())
 		{
 			bHasAdvancedContent = true;
 			bHasChangedContent |= ContentChild->HasOverridenContent();
+			bHasAdvancedIssues |= ContentChild->HasIssuesOrAnyChildHasIssues();
 		}
-		
 	}
 	ItemFooter->SetHasAdvancedContent(bHasAdvancedContent, bHasChangedContent);
+
+	if (bHasAdvancedIssues)
+	{
+		GetStackEditorData().SetStackItemShowAdvanced(GetStackEditorDataKey(), true);
+	}
 }
 
 int32 UNiagaraStackItem::GetChildIndentLevel() const

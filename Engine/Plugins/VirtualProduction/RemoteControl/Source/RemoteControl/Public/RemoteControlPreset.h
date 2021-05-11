@@ -444,7 +444,6 @@ public:
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
-	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
 #if WITH_EDITOR
 	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
 #endif /*WITH_EDITOR*/
@@ -692,7 +691,13 @@ public:
 	void CacheLayoutData();
 
 	/** Resolves exposed property/function bounded objects */
+	UE_DEPRECATED(4.27, "ResolvedBoundObjects is deprecated, you can now resolve bound objects using FRemoteControlEntity.")
 	TArray<UObject*> ResolvedBoundObjects(FName FieldLabel);
+
+	/**
+	 * Attempt to rebind all currently unbound properties.
+	 */
+	void RebindUnboundEntities();
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPresetEntityEvent, URemoteControlPreset* /*Preset*/, const FGuid& /*EntityId*/);
 	FOnPresetEntityEvent& OnEntityExposed() { return OnEntityExposedDelegate; }
@@ -775,7 +780,6 @@ private:
 	void OnReplaceObjects(const TMap<UObject*, UObject*>& ReplacementObjectMap);
 	void OnEndFrame();
 	void OnMapChange(uint32 /*MapChangeFlags*/);
-	
 #endif
 	
 	/** Get a field ptr using it's id. */

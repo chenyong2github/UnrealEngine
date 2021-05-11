@@ -26,19 +26,19 @@ public:
 
 public:
 	// Disable default render, and resolve SourceTexture to viewport
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
 	bool bAllowOverride = false;
 
 	// This texture resolved to target
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
 	UTexture2D* SourceTexture = nullptr;
 
 	// Use TextureRegion rect on SourceTexture to resolve
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
 	bool bShouldUseTextureRegion = false;
 
 	// Resolve this region from OverrideTexture
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
 	FDisplayClusterConfigurationRectangle TextureRegion;
 };
 
@@ -52,13 +52,13 @@ public:
 	//UDisplayClusterConfigurationPostRender_BlurPostprocess();
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
 	EDisplayClusterConfiguration_PostRenderBlur Mode = EDisplayClusterConfiguration_PostRenderBlur::None;
 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
 	int   KernelRadius = 1;
 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
 	float KernelScale = 1;
 };
 
@@ -73,24 +73,24 @@ public:
 
 public:
 	// Allow autogenerate num mips for this target
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
 	bool bAutoGenerateMips = false;
 
 	// Control mips generator settings
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
 	TEnumAsByte<enum TextureFilter> MipsSamplerFilter = TF_Trilinear;
 
 	/**  AutoGenerateMips sampler address mode for U channel. Defaults to clamp. */
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
 	TEnumAsByte<enum TextureAddress> MipsAddressU = TA_Clamp;
 
 	/**  AutoGenerateMips sampler address mode for V channel. Defaults to clamp. */
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
 	TEnumAsByte<enum TextureAddress> MipsAddressV = TA_Clamp;
 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
 	bool bShouldUseMaxNumMips = false;
 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
 	int MaxNumMips = 0;
 };

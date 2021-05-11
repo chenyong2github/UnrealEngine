@@ -60,6 +60,8 @@ struct FDetailLayoutCustomization
 	bool bAdvanced { false };
 	/** Whether or not this customization is custom or a default one. */
 	bool bCustom { false };
+	/** @return The name of the row depending on which type of customization this is, then the name of the property node, then NAME_None. */
+	FName GetName() const;
 };
 
 class FDetailLayout

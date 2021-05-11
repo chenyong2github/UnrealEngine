@@ -40,7 +40,7 @@ class UDisplayClusterPreviewComponent;
 /**
  * VR root. This contains nDisplay VR hierarchy in the game.
  */
-UCLASS()
+UCLASS(meta=(DisplayName = "nDisplay Root Actor"))
 class DISPLAYCLUSTER_API ADisplayClusterRootActor
 	: public AActor
 {
@@ -109,64 +109,64 @@ protected:
 	bool BuildHierarchy();
 
 public:
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Screens Amount"), Category = "DisplayCluster|Components")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Screens Amount"), Category = "NDisplay|Components")
 	int32 GetScreensAmount() const;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Screen By ID"), Category = "DisplayCluster|Components")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Screen By ID"), Category = "NDisplay|Components")
 	UDisplayClusterScreenComponent* GetScreenById(const FString& ScreenId) const;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get All Screens"), Category = "DisplayCluster|Components")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get All Screens"), Category = "NDisplay|Components")
 	void GetAllScreens(TMap<FString, UDisplayClusterScreenComponent*>& OutScreens) const;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Cameras Amount"), Category = "DisplayCluster|Components")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Cameras Amount"), Category = "NDisplay|Components")
 	int32 GetCamerasAmount() const;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Cameras By ID"), Category = "DisplayCluster|Components")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Cameras By ID"), Category = "NDisplay|Components")
 	UDisplayClusterCameraComponent* GetCameraById(const FString& CameraId) const;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get All Cameras"), Category = "DisplayCluster|Components")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get All Cameras"), Category = "NDisplay|Components")
 	void GetAllCameras(TMap<FString, UDisplayClusterCameraComponent*>& OutCameras) const;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Default Camera"), Category = "DisplayCluster|Components")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Default Camera"), Category = "NDisplay|Components")
 	UDisplayClusterCameraComponent* GetDefaultCamera() const;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Default Camera"), Category = "DisplayCluster|Components")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Default Camera"), Category = "NDisplay|Components")
 	void SetDefaultCamera(const FString& CameraId);
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Meshes Amount"), Category = "DisplayCluster|Components")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Meshes Amount"), Category = "NDisplay|Components")
 	int32 GetMeshesAmount() const;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Mesh By ID"), Category = "DisplayCluster|Components")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Mesh By ID"), Category = "NDisplay|Components")
 	UStaticMeshComponent* GetMeshById(const FString& MeshId) const;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get All Meshes"), Category = "DisplayCluster|Components")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get All Meshes"), Category = "NDisplay|Components")
 	void GetAllMeshes(TMap<FString, UDisplayClusterMeshComponent*>& OutMeshes) const;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Xforms Amount"), Category = "DisplayCluster|Components")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Xforms Amount"), Category = "NDisplay|Components")
 	int32 GetXformsAmount() const;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Xform By ID"), Category = "DisplayCluster|Components")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Xform By ID"), Category = "NDisplay|Components")
 	UDisplayClusterXformComponent* GetXformById(const FString& XformId) const;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get All Xforms"), Category = "DisplayCluster|Components")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get All Xforms"), Category = "NDisplay|Components")
 	void GetAllXforms(TMap<FString, UDisplayClusterXformComponent*>& OutXforms) const;
 
 	UE_DEPRECATED(4.27, "Use 'GetComponentsByClass' instead and retrieve the length")
-	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "Use 'GetComponentsByClass' instead and retrieve the length", DisplayName = "Get All Components Amount"), Category = "DisplayCluster|Components")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "Use 'GetComponentsByClass' instead and retrieve the length", DisplayName = "Get All Components Amount"), Category = "NDisplay|Components")
 	int32 GetComponentsAmount() const;
 
 	UE_DEPRECATED(4.27, "Use 'GetComponentsByClass' instead")
-	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "Use 'GetComponentsByClass' instead", DisplayName = "Get All Components"), Category = "DisplayCluster|Components")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "Use 'GetComponentsByClass' instead", DisplayName = "Get All Components"), Category = "NDisplay|Components")
 	void GetAllComponents(TMap<FString, UDisplayClusterSceneComponent*>& OutComponents) const;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Component By ID"), Category = "DisplayCluster|Components")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Component By ID"), Category = "NDisplay|Components")
 	UDisplayClusterSceneComponent* GetComponentById(const FString& ComponentId) const;
 
 public:
-	UPROPERTY(EditAnywhere, Category = "DisplayCluster|Settings")
+	UPROPERTY(EditAnywhere, Category = "NDisplay|Settings", NoClear)
 	UDisplayClusterConfigurationICVFX_StageSettings* StageSettings;
 
-	UPROPERTY(EditAnywhere, Category = "DisplayCluster|Settings")
+	UPROPERTY(EditAnywhere, Category = "NDisplay|Settings", NoClear)
 	UDisplayClusterConfigurationRenderFrame* RenderFrameSettings;
 
 	IDisplayClusterViewportManager* GetViewportManager() const
@@ -175,7 +175,10 @@ public:
 	}
 
 protected:
-	UPROPERTY(EditAnywhere, Category = "DisplayCluster", meta = (DisplayName = "Exit when ESC pressed"))
+	UPROPERTY(EditAnywhere, Category = "NDisplay", meta = (DisplayName = "Follow Local Player Camera"))
+	bool bFollowLocalPlayerCamera;
+
+	UPROPERTY(EditAnywhere, Category = "NDisplay", meta = (DisplayName = "Exit when ESC pressed"))
 	bool bExitOnEsc;
 
 	// Unique viewport manager for this configuration
@@ -200,7 +203,7 @@ private:
 	 * Must have CPF_Edit(such as VisibleDefaultsOnly) on property for Live Link.
 	 * nDisplay details panel will hide this from actually being visible.
 	 */
-	UPROPERTY(VisibleDefaultsOnly, Category = "nDisplay")
+	UPROPERTY(VisibleDefaultsOnly, Category = "NDisplay")
 	USceneComponent* DisplayClusterRootComponent;
 	
 	UPROPERTY()
@@ -237,33 +240,33 @@ private:
 #if WITH_EDITORONLY_DATA 
 public:
 	// Render single node preview or whole cluster
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
 	FString PreviewNodeId = DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll;
 
 	// Render mode for PIE
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
 	EDisplayClusterConfigurationRenderMode RenderMode = EDisplayClusterConfigurationRenderMode::Mono;
 
 	// Allow preview render
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
 	bool bPreviewEnable = true;
 
 	// Update preview texture period in tick
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)", meta = (ClampMin = "1", UIMin = "1", ClampMax = "200", UIMax = "200"))
+	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)", meta = (ClampMin = "1", UIMin = "1", ClampMax = "200", UIMax = "200"))
 	int TickPerFrame = 1;
 
 	// Preview texture size get from viewport, and scaled by this value
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
+	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
 	float PreviewRenderTargetRatioMult = 0.25;
 
 	// Extra settings for preview
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
 	UDisplayClusterConfigurationViewportPreview* PreviewSettings;
 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
 	float XformGizmoScale = 1.0f;
 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
 	bool bAreXformGizmosVisible = true;
 
 private:

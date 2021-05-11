@@ -566,7 +566,7 @@ void UCineCameraComponent::CreateDebugFocusPlane()
 	{
 		if (DebugFocusPlaneComponent == nullptr)
 		{
-			DebugFocusPlaneComponent = NewObject<UStaticMeshComponent>(MyOwner, NAME_None, RF_Transactional | RF_TextExportTransient);
+			DebugFocusPlaneComponent = NewObject<UStaticMeshComponent>(MyOwner, NAME_None, RF_Transient | RF_Transactional | RF_TextExportTransient);
 			DebugFocusPlaneComponent->SetupAttachment(this);
 			DebugFocusPlaneComponent->SetIsVisualizationComponent(true);
 			DebugFocusPlaneComponent->SetStaticMesh(FocusPlaneVisualizationMesh);

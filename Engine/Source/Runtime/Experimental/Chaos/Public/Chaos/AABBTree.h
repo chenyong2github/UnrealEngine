@@ -339,6 +339,20 @@ public:
 	{
 	}
 
+	virtual void Reset() override
+	{
+		Nodes.Reset();
+		Leaves.Reset();
+		DirtyElements.Reset();
+		GlobalPayloads.Reset();
+		PayloadToInfo.Reset();
+
+		NumProcessedThisSlice = 0;
+		WorkStack.Reset();
+		WorkPoolFreeList.Reset();
+		WorkPool.Reset();
+	}
+
 	virtual void ProgressAsyncTimeSlicing(bool ForceBuildCompletion) override
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AABBTreeProgressTimeSlice);
@@ -758,7 +772,11 @@ private:
 		};
 
 		TArray<FNodeQueueEntry> NodeStack;
-		NodeStack.Add(FNodeQueueEntry{ 0, 0 });
+		if (Nodes.Num())
+		{
+			NodeStack.Add(FNodeQueueEntry{ 0, 0 });
+		}
+
 		while (NodeStack.Num())
 		{
 			const FNodeQueueEntry NodeEntry = NodeStack.Pop(false);

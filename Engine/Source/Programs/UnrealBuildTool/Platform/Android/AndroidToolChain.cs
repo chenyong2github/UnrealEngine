@@ -13,6 +13,43 @@ using EpicGames.Core;
 
 namespace UnrealBuildTool
 {
+	/// <summary>
+	/// Option flags for the Android toolchain
+	/// </summary>
+	[Flags]
+	enum AndroidToolChainOptions
+	{
+		/// <summary>
+		/// No custom options
+		/// </summary>
+		None = 0,
+
+		/// <summary>
+		/// Enable address sanitizer
+		/// </summary>
+		EnableAddressSanitizer = 0x1,
+
+		/// <summary>
+		/// Enable HW address sanitizer
+		/// </summary>
+		EnableHWAddressSanitizer = 0x2,
+
+		/// <summary>
+		/// Enable thread sanitizer
+		/// </summary>
+		EnableThreadSanitizer = 0x4,
+
+		/// <summary>
+		/// Enable undefined behavior sanitizer
+		/// </summary>
+		EnableUndefinedBehaviorSanitizer = 0x8,
+
+		/// <summary>
+		/// Enable undefined behavior sanitizer
+		/// </summary>
+		EnableMinimalUndefinedBehaviorSanitizer = 0x10,
+	}
+
 	class AndroidToolChain : ISPCToolChain, IAndroidToolChain
 	{
 		public static readonly string[] AllCpuSuffixes =
@@ -44,7 +81,7 @@ namespace UnrealBuildTool
 			HwAddress,
 			UndefinedBehavior,
 			UndefinedBehaviorMinimal,
-			//Thread,
+			Thread,
 		};
 
 		public static string GetCompilerOption(ClangSanitizer Sanitizer)
@@ -55,7 +92,7 @@ namespace UnrealBuildTool
 				case ClangSanitizer.HwAddress: return "hwaddress";
 				case ClangSanitizer.UndefinedBehavior:
 				case ClangSanitizer.UndefinedBehaviorMinimal: return "undefined";
-				//case ClangSanitizer.Thread: return "thread";
+				case ClangSanitizer.Thread: return "thread";
 				default: return "";
 			}
 		}
@@ -81,6 +118,8 @@ namespace UnrealBuildTool
 		protected List<string> GPUArchitectures = null;
 		// a list of all architecture+GPUArchitecture names (-armv7-es2, etc)
 		protected List<string> AllComboNames = null;
+
+		private AndroidToolChainOptions Options;
 
 		static private Dictionary<string, string[]> AllArchNames = new Dictionary<string, string[]> {
 			{ "-arm64", new string[] { "arm64", "arm64-v8a", } },
@@ -143,12 +182,18 @@ namespace UnrealBuildTool
 		protected bool bEnableGcSections = true;
 
 		public AndroidToolChain(FileReference InProjectFile, bool bInUseLdGold, IReadOnlyList<string> InAdditionalArches, IReadOnlyList<string> InAdditionalGPUArches)
-			: this(InProjectFile, bInUseLdGold, InAdditionalArches, InAdditionalGPUArches, false)
+			: this(InProjectFile, bInUseLdGold, InAdditionalArches, InAdditionalGPUArches, false, AndroidToolChainOptions.None)
 		{
 		}
 
-		protected AndroidToolChain(FileReference InProjectFile, bool bInUseLdGold, IReadOnlyList<string> InAdditionalArches, IReadOnlyList<string> InAdditionalGPUArches, bool bAllowMissingNDK)
+		public AndroidToolChain(FileReference InProjectFile, bool bInUseLdGold, IReadOnlyList<string> InAdditionalArches, IReadOnlyList<string> InAdditionalGPUArches, AndroidToolChainOptions ToolchainOptions)
+			: this(InProjectFile, bInUseLdGold, InAdditionalArches, InAdditionalGPUArches, false, ToolchainOptions)
 		{
+		}
+
+		protected AndroidToolChain(FileReference InProjectFile, bool bInUseLdGold, IReadOnlyList<string> InAdditionalArches, IReadOnlyList<string> InAdditionalGPUArches, bool bAllowMissingNDK, AndroidToolChainOptions ToolchainOptions)
+		{
+			Options = ToolchainOptions;
 			ProjectFile = InProjectFile;
 			bUseLdGold = bInUseLdGold;
 			AdditionalArches = new List<string>();
@@ -757,7 +802,7 @@ namespace UnrealBuildTool
 				Result += " -march=atom";
 			}
 
-			ClangSanitizer Sanitizer = BuildWithSanitizer(ProjectFile);
+			ClangSanitizer Sanitizer = BuildWithSanitizer();
 			if (Sanitizer != ClangSanitizer.None)
 			{
 				Result += " -fsanitize=" + GetCompilerOption(Sanitizer);
@@ -936,7 +981,7 @@ namespace UnrealBuildTool
 			// verbose output from the linker
 			// Result += " -v";
 
-			ClangSanitizer Sanitizer = BuildWithSanitizer(ProjectFile);
+			ClangSanitizer Sanitizer = BuildWithSanitizer();
 			if (Sanitizer != ClangSanitizer.None)
 			{
 				Result += " -fsanitize=" + GetCompilerOption(Sanitizer);
@@ -2321,21 +2366,30 @@ namespace UnrealBuildTool
 			CompileOrLinkAction.CommandDescription = CommandDescription;
 		}
 
-		public static ClangSanitizer BuildWithSanitizer(FileReference ProjectFile)
+		public ClangSanitizer BuildWithSanitizer()
 		{
-			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.Android);
-			string Sanitizer;
-			Ini.GetString("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "ClangSanitizer", out Sanitizer);
-
-			switch (Sanitizer.ToLower())
+			if (Options.HasFlag(AndroidToolChainOptions.EnableAddressSanitizer))
 			{
-				case "address": return ClangSanitizer.Address;
-				case "hwaddress": return ClangSanitizer.HwAddress;
-				case "undefinedbehavior": return ClangSanitizer.UndefinedBehavior;
-				case "undefinedbehaviorminimal": return ClangSanitizer.UndefinedBehaviorMinimal;
-				//case "thread": return ClangSanitizer.Thread;
-				default: return ClangSanitizer.None;
+				return ClangSanitizer.Address;
 			}
+			else if (Options.HasFlag(AndroidToolChainOptions.EnableHWAddressSanitizer))
+			{
+				return ClangSanitizer.HwAddress;
+			}
+			else if (Options.HasFlag(AndroidToolChainOptions.EnableThreadSanitizer))
+			{
+				return ClangSanitizer.Thread;
+			}
+			else if (Options.HasFlag(AndroidToolChainOptions.EnableUndefinedBehaviorSanitizer))
+			{
+				return ClangSanitizer.UndefinedBehavior;
+			}
+			else if (Options.HasFlag(AndroidToolChainOptions.EnableMinimalUndefinedBehaviorSanitizer))
+			{
+				return ClangSanitizer.UndefinedBehaviorMinimal;
+			}
+
+			return ClangSanitizer.None;
 		}
 	};
 }

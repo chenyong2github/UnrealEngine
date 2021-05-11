@@ -92,6 +92,20 @@ private:
 	FMovieSceneSequenceID RootOverrideSequenceID;
 };
 
+FFrameNumber ImportTimeFromContext(const FMovieSceneContext& Context)
+{
+	TRange<FFrameNumber> Range = Context.GetFrameNumberRange();
+
+	FFrameTime Epsilon(0, 1.f - FFrameTime::MaxSubframe);
+	if (Context.GetDirection() == EPlayDirection::Forwards)
+	{
+		return DiscreteExclusiveUpper(Range)-1;
+	}
+	else
+	{
+		return DiscreteInclusiveLower(Range);
+	}
+}
 
 void DissectRange(TArrayView<const FFrameTime> InDissectionTimes, const TRange<FFrameTime>& Bounds, TArray<TRange<FFrameTime>>& OutDissections)
 {
@@ -105,14 +119,9 @@ void DissectRange(TArrayView<const FFrameTime> InDissectionTimes, const TRange<F
 	for (int32 Index = 0; Index < InDissectionTimes.Num(); ++Index)
 	{
 		FFrameTime DissectionTime = InDissectionTimes[Index];
-		if (Index > 0 && InDissectionTimes[Index-1] == DissectionTime)
-		{
-			// Skip duplicates
-			continue;
-		}
 
 		TRange<FFrameTime> Dissection(LowerBound, TRangeBound<FFrameTime>::Exclusive(DissectionTime));
-		ensureMsgf(Bounds.Contains(Dissection), TEXT("Dissection specified for a range outside of the current bounds"));
+		ensureAlwaysMsgf(Bounds.Contains(Dissection), TEXT("Dissection specified for a range outside of the current bounds"));
 
 		OutDissections.Add(Dissection);
 
@@ -120,13 +129,13 @@ void DissectRange(TArrayView<const FFrameTime> InDissectionTimes, const TRange<F
 	}
 
 	TRange<FFrameTime> TailRange(LowerBound, Bounds.GetUpperBound());
-	if (!TailRange.IsEmpty())
+	if (!TailRange.IsEmpty() && !TailRange.IsDegenerate())
 	{
 		OutDissections.Add(TailRange);
 	}
 }
 
-TArrayView<const FFrameTime> GetFencesWithinRange(TArrayView<const FFrameTime> Fences, const TRange<FFrameNumber>& Boundary)
+TArrayView<const FFrameTime> GetFencesWithinRange(TArrayView<const FFrameTime> Fences, const TRange<FFrameTime>& Boundary)
 {
 	if (Fences.Num() == 0 || Boundary.IsEmpty())
 	{
@@ -134,13 +143,13 @@ TArrayView<const FFrameTime> GetFencesWithinRange(TArrayView<const FFrameTime> F
 	}
 
 	// Take care to include or exclude the lower bound of the range if it's on a whole frame numbe
-	const int32 StartFence = Boundary.GetLowerBound().IsClosed() ? Algo::LowerBound(Fences, DiscreteInclusiveLower(Boundary.GetLowerBoundValue())) : 0;
+	const int32 StartFence = Boundary.GetLowerBound().IsClosed() ? Algo::LowerBound(Fences, Boundary.GetLowerBoundValue()) : 0;
 	if (StartFence >= Fences.Num())
 	{
 		return TArrayView<const FFrameTime>();
 	}
 
-	const int32 EndFence = Boundary.GetUpperBound().IsClosed() ? Algo::UpperBound(Fences, DiscreteExclusiveUpper(Boundary.GetUpperBoundValue())) : Fences.Num();
+	const int32 EndFence = Boundary.GetUpperBound().IsClosed() ? Algo::UpperBound(Fences, Boundary.GetUpperBoundValue()) : Fences.Num();
 	const int32 NumFences = FMath::Max(0, EndFence - StartFence);
 	if (NumFences == 0)
 	{
@@ -210,7 +219,7 @@ void FSequenceUpdater_Flat::DissectContext(UMovieSceneEntitySystemLinker* Linker
 
 	if (CachedDeterminismFences->Num() != 0)
 	{
-		TArrayView<const FFrameTime> TraversedFences = GetFencesWithinRange(CachedDeterminismFences.GetValue(), Context.GetFrameNumberRange());
+		TArrayView<const FFrameTime> TraversedFences = GetFencesWithinRange(CachedDeterminismFences.GetValue(), Context.GetRange());
 		UE::MovieScene::DissectRange(TraversedFences, Context.GetRange(), OutDissections);
 	}
 }
@@ -234,12 +243,14 @@ void FSequenceUpdater_Flat::Update(UMovieSceneEntitySystemLinker* Linker, FInsta
 
 	FMovieSceneEvaluationFieldEntitySet EntitiesScratch;
 
-	const bool bOutsideCachedRange = !CachedEntityRange.Contains(Context.GetTime().FrameNumber);
+	FFrameNumber ImportTime = ImportTimeFromContext(Context);
+		
+	const bool bOutsideCachedRange = !CachedEntityRange.Contains(ImportTime);
 	if (bOutsideCachedRange)
 	{
 		if (ComponentField)
 		{
-			ComponentField->QueryPersistentEntities(Context.GetTime().FrameNumber, CachedEntityRange, EntitiesScratch);
+			ComponentField->QueryPersistentEntities(ImportTime, CachedEntityRange, EntitiesScratch);
 		}
 		else
 		{
@@ -248,6 +259,7 @@ void FSequenceUpdater_Flat::Update(UMovieSceneEntitySystemLinker* Linker, FInsta
 
 		FEntityImportSequenceParams Params;
 		Params.InstanceHandle = InstanceHandle;
+		Params.RootInstanceHandle = InstanceHandle;
 		Params.DefaultCompletionMode = Sequence->DefaultCompletionMode;
 		Params.HierarchicalBias = 0;
 
@@ -264,6 +276,7 @@ void FSequenceUpdater_Flat::Update(UMovieSceneEntitySystemLinker* Linker, FInsta
 		{
 			FEntityImportSequenceParams Params;
 			Params.InstanceHandle = InstanceHandle;
+			Params.RootInstanceHandle = InstanceHandle;
 			Params.DefaultCompletionMode = Sequence->DefaultCompletionMode;
 			Params.HierarchicalBias = 0;
 
@@ -312,7 +325,7 @@ void FSequenceUpdater_Hierarchical::DissectContext(UMovieSceneEntitySystemLinker
 
 	{
 		const FMovieSceneCompiledDataEntry& DataEntry       = CompiledDataManager->GetEntryRef(CompiledDataID);
-		TArrayView<const FFrameTime>        TraversedFences = GetFencesWithinRange(DataEntry.DeterminismFences, Context.GetFrameNumberRange());
+		TArrayView<const FFrameTime>        TraversedFences = GetFencesWithinRange(DataEntry.DeterminismFences, Context.GetRange());
 
 		UE::MovieScene::DissectRange(TraversedFences, Context.GetRange(), OutDissections);
 	}
@@ -349,9 +362,8 @@ void FSequenceUpdater_Hierarchical::DissectContext(UMovieSceneEntitySystemLinker
 				if (SubDeterminismFences.Num() > 0)
 				{
 					TRange<FFrameTime>   InnerRange           = SubData->RootToSequenceTransform.TransformRangeUnwarped(RootClampRange);
-					TRange<FFrameNumber> InnerTraversedFrames = FMovieSceneEvaluationRange::TimeRangeToNumberRange(InnerRange);
 
-					TArrayView<const FFrameTime> TraversedFences  = GetFencesWithinRange(SubDeterminismFences, InnerTraversedFrames);
+					TArrayView<const FFrameTime> TraversedFences  = GetFencesWithinRange(SubDeterminismFences, InnerRange);
 					if (TraversedFences.Num() > 0)
 					{
 						FMovieSceneWarpCounter WarpCounter;
@@ -441,8 +453,8 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 		}
 	}
 
-	const FFrameNumber RootTime = RootContext.GetTime().FrameNumber;
-	const bool bGatherEntities = !CachedEntityRange.Contains(RootTime);
+	FFrameNumber ImportTime = ImportTimeFromContext(RootContext);
+	const bool bGatherEntities = !CachedEntityRange.Contains(ImportTime);
 
 	// ------------------------------------------------------------------------------------------------
 	// Handle the root sequence entities first
@@ -463,10 +475,11 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 			// Update entities if necessary
 			if (bGatherEntities)
 			{
-				CachedEntityRange = UpdateEntitiesForSequence(RootComponentField, RootTime, EntitiesScratch);
+				CachedEntityRange = UpdateEntitiesForSequence(RootComponentField, ImportTime, EntitiesScratch);
 
 				FEntityImportSequenceParams Params;
 				Params.InstanceHandle = RootInstanceHandle;
+				Params.RootInstanceHandle = RootInstanceHandle;
 				Params.DefaultCompletionMode = RootSequence->DefaultCompletionMode;
 				Params.HierarchicalBias = 0;
 
@@ -483,6 +496,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 				{
 					FEntityImportSequenceParams Params;
 					Params.InstanceHandle = RootInstanceHandle;
+					Params.RootInstanceHandle = RootInstanceHandle;
 					Params.DefaultCompletionMode = RootSequence->DefaultCompletionMode;
 					Params.HierarchicalBias = 0;
 
@@ -497,7 +511,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 	const FMovieSceneSequenceHierarchy* RootOverrideHierarchy = CompiledDataManager->FindHierarchy(RootCompiledDataID);
 	if (RootOverrideHierarchy)
 	{
-		FMovieSceneEvaluationTreeRangeIterator SubSequenceIt = RootOverrideHierarchy->GetTree().IterateFromTime(RootTime);
+		FMovieSceneEvaluationTreeRangeIterator SubSequenceIt = RootOverrideHierarchy->GetTree().IterateFromTime(ImportTime);
 		
 		if (bGatherEntities)
 		{
@@ -561,10 +575,11 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 				const FMovieSceneEntityComponentField* SubComponentField = CompiledDataManager->FindEntityComponentField(SubDataID);
 
 				// Update entities if necessary
-				const FFrameTime SubSequenceTime = SubContext.GetTime();
+				const FFrameTime SubSequenceTime = ImportTimeFromContext(SubContext);
 
 				FEntityImportSequenceParams Params;
 				Params.InstanceHandle = SubSequenceHandle;
+				Params.RootInstanceHandle = RootInstanceHandle;
 				Params.DefaultCompletionMode = SubSequence->DefaultCompletionMode;
 				Params.HierarchicalBias = SubData->HierarchicalBias;
 				Params.bPreRoll  = bIsPreRoll;
@@ -582,7 +597,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 					// Clamp to the current warp loop if necessary
 					FMovieSceneWarpCounter WarpCounter;
 					FFrameTime Unused;
-					SubData->RootToSequenceTransform.TransformTime(RootTime, Unused, WarpCounter);
+					SubData->RootToSequenceTransform.TransformTime(ImportTime, Unused, WarpCounter);
 
 					if (WarpCounter.WarpCounts.Num() > 0)
 					{

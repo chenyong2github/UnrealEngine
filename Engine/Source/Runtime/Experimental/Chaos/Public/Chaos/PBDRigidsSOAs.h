@@ -858,6 +858,7 @@ private:
 				ReturnHandles[Count]->SetUniqueIdx(UniqueIndices.GenerateUniqueIdx());
 			}
 			ParticleHandles.Handle(HandleIdx) = MoveTemp(NewParticleHandle);
+			Particles->HasCollision(ParticleIdx) = true;	//todo: find a better place for this
 		}
 
 		return ReturnHandles;

@@ -314,6 +314,12 @@ bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOr
 			Lines[EntryIndex].ReplaceInline(TEXT("\r"), TEXT(""));
 			Lines[EntryIndex].ReplaceInline(TEXT("\n"), TEXT(""));
 			const TCHAR* OrderLinePtr = *(Lines[EntryIndex]);
+			// Skip comments
+			if (FCString::Strncmp(OrderLinePtr, TEXT("#"), 1) == 0 || FCString::Strncmp(OrderLinePtr, TEXT("//"), 2) == 0)
+			{
+				continue;
+			}
+
 			if (!FParse::Token(OrderLinePtr, Path, false))
 			{
 				UE_LOG(LogPakFile, Error, TEXT("Invlaid entry in the response file %s."), *Lines[EntryIndex]);
@@ -2472,52 +2478,11 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		AsyncCompressors[FileIndex].CleanUp();
 	}
 
-	uint64 LastEntryOffset = PakFileHandle->Tell();
-
 	FMemory::Free(PaddingBuffer);
 	FMemory::Free(ReadBuffer);
 	ReadBuffer = NULL;
 
 	FThreadLocalScratchSpace::Get().CleanUpAll();
-	
-	// log per-compressor stats :
-	for (int32 MethodIndex = 0; MethodIndex < CompressionFormatsAndNone_Num; MethodIndex++)
-	{
-		FName CompressionMethod = CompressionFormatsAndNone[MethodIndex];
-		UE_LOG(LogPakFile, Display, TEXT("CompressionFormat %d [%s] : %d files, %lld -> %lld bytes"), MethodIndex, *(CompressionMethod.ToString()),
-			Compressor_Stat_Count[MethodIndex],
-			Compressor_Stat_RawBytes[MethodIndex],
-			Compressor_Stat_CompBytes[MethodIndex]
-			);
-	}
-
-	auto FinalizeIndexBlockSize = [&Info](TArray<uint8>& IndexData)
-	{
-		if (Info.bEncryptedIndex)
-		{
-			int32 OriginalSize = IndexData.Num();
-			int32 AlignedSize = Align(OriginalSize, FAES::AESBlockSize);
-
-			for (int32 PaddingIndex = IndexData.Num(); PaddingIndex < AlignedSize; ++PaddingIndex)
-			{
-				uint8 Byte = IndexData[PaddingIndex % OriginalSize];
-				IndexData.Add(Byte);
-			}
-		}
-	};
-	auto FinalizeIndexBlock = [&TotalEncryptedDataSize, &InKeyChain, &Info, PakHandle = PakFileHandle.Get(), &FinalizeIndexBlockSize] (TArray<uint8>& IndexData, FSHAHash& OutHash)
-	{
-		FinalizeIndexBlockSize(IndexData);
-
-		FSHA1::HashBuffer(IndexData.GetData(), IndexData.Num(), OutHash.Hash);
-
-		if (Info.bEncryptedIndex)
-		{
-			check(InKeyChain.MasterEncryptionKey);
-			FAES::EncryptData(IndexData.GetData(), IndexData.Num(), InKeyChain.MasterEncryptionKey->Key);
-			TotalEncryptedDataSize += IndexData.Num();
-		}
-	};
 
 	if (RequiredPatchPadding > 0)
 	{
@@ -2540,131 +2505,28 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		}
 	}
 
-	// Create the second copy of the FPakEntries stored in the Index at the end of the PakFile
-	// FPakEntries in the Index are stored as compacted bytes in EncodedPakEntries if possible, or in uncompacted NonEncodableEntries if not.
-	// At the same time, create the two Indexes that map to the encoded-or-not given FPakEntry.  The runtime will only load one of these, depending
-	// on whether it needs to be able to do DirectorySearches.
-	TArray<uint8> EncodedPakEntries;
-	int32 NumEncodedEntries = 0;
-	int32 NumDeletedEntries = 0;
-	TArray<FPakEntry> NonEncodableEntries;
 
-	FPakFile::FDirectoryIndex DirectoryIndex;
-	FPakFile::FPathHashIndex PathHashIndex;
-	TMap<uint64, FString> CollisionDetection; // Currently detecting Collisions only within the files stored into a single Pak.  TODO: Create separate job to detect collisions over all files in the export.
-	uint64 PathHashSeed;
-	int32 NextIndex = 0;
-	auto ReadNextEntry = [&Index, &NextIndex]() -> FPakEntryPair&
+	FPakFooterInfo Footer(Filename, MountPoint, Info, Index);
+	Footer.SetEncryptionInfo(InKeyChain, &TotalEncryptedDataSize);
+	Footer.SetFileRegionInfo(CmdLineParameters.bFileRegions, AllFileRegions);
+	WritePakFooter(*PakFileHandle, Footer);
+
+	
+	// log per-compressor stats :
+	for (int32 MethodIndex = 0; MethodIndex < CompressionFormatsAndNone_Num; MethodIndex++)
 	{
-		return Index[NextIndex++];
-	};
-
-	FPakFile::EncodePakEntriesIntoIndex(Index.Num(), ReadNextEntry, Filename, Info, MountPoint, NumEncodedEntries, NumDeletedEntries, &PathHashSeed,
-		&DirectoryIndex, &PathHashIndex, EncodedPakEntries, NonEncodableEntries, &CollisionDetection, FPakInfo::PakFile_Version_Latest);
-	VerifyIndexesMatch(Index, DirectoryIndex, PathHashIndex, PathHashSeed, MountPoint, EncodedPakEntries, NonEncodableEntries, NumEncodedEntries, NumDeletedEntries, Info);
-
-	// We write one PrimaryIndex and two SecondaryIndexes to the Pak File
-	// PrimaryIndex
-	//		Common scalar data such as MountPoint
-	//		PresenceBit and Offset,Size,Hash for the SecondaryIndexes
-	//		PakEntries (Encoded and NonEncoded)
-	// SecondaryIndex PathHashIndex: used by default in shipped versions of games.  Uses less memory, but does not provide access to all filenames.
-	//		TMap from hash of FilePath to FPakEntryLocation
-	//		Pruned DirectoryIndex, containing only the FilePaths that were requested kept by whitelist config variables
-	// SecondaryIndex FullDirectoryIndex: used for developer tools and for titles that opt out of PathHashIndex because they need access to all filenames.
-	//		TMap from DirectoryPath to FDirectory, which itself is a TMap from CleanFileName to FPakEntryLocation
-	// Each Index is separately encrypted and hashed.  Runtime consumer such as the tools or the client game will only load one of these off of disk (unless runtime verification is turned on).
-
-	// Create the pruned DirectoryIndex for use in the Primary Index
-	TMap<FString, FPakDirectory> PrunedDirectoryIndex;
-	FPakFile::PruneDirectoryIndex(DirectoryIndex, &PrunedDirectoryIndex, MountPoint);
-
-	bool bWritePathHashIndex = FPakFile::IsPakWritePathHashIndex();
-	bool bWriteFullDirectoryIndex = FPakFile::IsPakWriteFullDirectoryIndex();
-	checkf(bWritePathHashIndex || bWriteFullDirectoryIndex, TEXT("At least one of Engine:[Pak]:WritePathHashIndex and Engine:[Pak]:WriteFullDirectoryIndex must be true"));
-
-	TArray<uint8> PrimaryIndexData;
-	TArray<uint8> PathHashIndexData;
-	TArray<uint8> FullDirectoryIndexData;
-	Info.IndexOffset = PakFileHandle->Tell();
-	// Write PrimaryIndex bytes
-	{
-		FMemoryWriter PrimaryIndexWriter(PrimaryIndexData);
-		PrimaryIndexWriter.SetByteSwapping(PakFileHandle->ForceByteSwapping());
-
-		PrimaryIndexWriter << MountPoint;
-		int32 NumEntries = Index.Num();
-		PrimaryIndexWriter << NumEntries;
-		PrimaryIndexWriter << PathHashSeed;
-
-		FSecondaryIndexWriter PathHashIndexWriter(PathHashIndexData, bWritePathHashIndex, PrimaryIndexData, PrimaryIndexWriter);
-		PathHashIndexWriter.WritePlaceholderToPrimary();
-
-		FSecondaryIndexWriter FullDirectoryIndexWriter(FullDirectoryIndexData, bWriteFullDirectoryIndex, PrimaryIndexData, PrimaryIndexWriter);
-		FullDirectoryIndexWriter.WritePlaceholderToPrimary();
-
-		PrimaryIndexWriter << EncodedPakEntries;
-		int32 NonEncodableEntriesNum = NonEncodableEntries.Num();
-		PrimaryIndexWriter << NonEncodableEntriesNum;
-		for (FPakEntry& PakEntry : NonEncodableEntries)
-		{
-			PakEntry.Serialize(PrimaryIndexWriter, FPakInfo::PakFile_Version_Latest);
-		}
-
-		// Finalize the size of the PrimaryIndex (it may change due to alignment padding) because we need the size to know the offset of the SecondaryIndexes which come after it in the PakFile.
-		// Do not encrypt and hash it yet, because we still need to replace placeholder data in it for the Offset,Size,Hash of each SecondaryIndex
-		FinalizeIndexBlockSize(PrimaryIndexData);
-
-		// Write PathHashIndex bytes
-		if (bWritePathHashIndex)
-		{
-			{
-				FMemoryWriter& SecondaryWriter = PathHashIndexWriter.GetSecondaryWriter();
-				SecondaryWriter << PathHashIndex;
-				SecondaryWriter << PrunedDirectoryIndex;
-			}
-			PathHashIndexWriter.FinalizeAndRecordOffset(Info.IndexOffset + PrimaryIndexData.Num(), FinalizeIndexBlock);
-		}
-
-		// Write FullDirectoryIndex bytes
-		if (bWriteFullDirectoryIndex)
-		{
-			{
-				FMemoryWriter& SecondaryWriter = FullDirectoryIndexWriter.GetSecondaryWriter();
-				SecondaryWriter << DirectoryIndex;
-			}
-			FullDirectoryIndexWriter.FinalizeAndRecordOffset(Info.IndexOffset + PrimaryIndexData.Num() + PathHashIndexData.Num(), FinalizeIndexBlock);
-		}
-
-		// Encrypt and Hash the PrimaryIndex now that we have filled in the SecondaryIndex information
-		FinalizeIndexBlock(PrimaryIndexData, Info.IndexHash);
-	}
-
-	// Write the bytes for each Index into the PakFile
-	Info.IndexSize = PrimaryIndexData.Num();
-	PakFileHandle->Serialize(PrimaryIndexData.GetData(), PrimaryIndexData.Num());
-	if (bWritePathHashIndex)
-	{
-		PakFileHandle->Serialize(PathHashIndexData.GetData(), PathHashIndexData.Num());
-	}
-	if (bWriteFullDirectoryIndex)
-	{
-		PakFileHandle->Serialize(FullDirectoryIndexData.GetData(), FullDirectoryIndexData.Num());
-	}
-
-	// Save the FPakInfo, which has offset, size, and hash value for the PrimaryIndex, at the end of the PakFile
-	Info.Serialize(*PakFileHandle, FPakInfo::PakFile_Version_Latest);
-
-	if (CmdLineParameters.bFileRegions)
-	{
-		// Add a final region to include the headers / data at the end of the .pak, after the last file payload.
-		FFileRegion::AccumulateFileRegions(AllFileRegions, LastEntryOffset, LastEntryOffset, PakFileHandle->Tell(), {});
+		FName CompressionMethod = CompressionFormatsAndNone[MethodIndex];
+		UE_LOG(LogPakFile, Display, TEXT("CompressionFormat %d [%s] : %d files, %lld -> %lld bytes"), MethodIndex, *(CompressionMethod.ToString()),
+			Compressor_Stat_Count[MethodIndex],
+			Compressor_Stat_RawBytes[MethodIndex],
+			Compressor_Stat_CompBytes[MethodIndex]
+			);
 	}
 
 	UE_LOG(LogPakFile, Display, TEXT("Added %d files, %lld bytes total, time %.2lfs."), Index.Num(), PakFileHandle->TotalSize(), FPlatformTime::Seconds() - StartTime);
-	UE_LOG(LogPakFile, Display, TEXT("PrimaryIndex size: %d bytes"), PrimaryIndexData.Num());
-	UE_LOG(LogPakFile, Display, TEXT("PathHashIndex size: %d bytes"), PathHashIndexData.Num());
-	UE_LOG(LogPakFile, Display, TEXT("FullDirectoryIndex size: %d bytes"), FullDirectoryIndexData.Num());
+	UE_LOG(LogPakFile, Display, TEXT("PrimaryIndex size: %d bytes"), Footer.PrimaryIndexSize);
+	UE_LOG(LogPakFile, Display, TEXT("PathHashIndex size: %d bytes"), Footer.PathHashIndexSize);
+	UE_LOG(LogPakFile, Display, TEXT("FullDirectoryIndex size: %d bytes"), Footer.FullDirectoryIndexSize);
 	if (TotalUncompressedSize)
 	{
 		float PercentLess = ((float)TotalCompressedSize / (TotalUncompressedSize / 100.f));
@@ -2729,6 +2591,166 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 	UE_LOG(LogPakFile, Display, TEXT("DDC Sync Write Time: %lf"), ((double)GDDCSyncWriteTime) * FPlatformTime::GetSecondsPerCycle());
 #endif
 	return true;
+}
+
+void WritePakFooter(FArchive& PakHandle, FPakFooterInfo& Footer)
+{
+	// Create the second copy of the FPakEntries stored in the Index at the end of the PakFile
+	// FPakEntries in the Index are stored as compacted bytes in EncodedPakEntries if possible, or in uncompacted NonEncodableEntries if not.
+	// At the same time, create the two Indexes that map to the encoded-or-not given FPakEntry.  The runtime will only load one of these, depending
+	// on whether it needs to be able to do DirectorySearches.
+	auto FinalizeIndexBlockSize = [&Footer](TArray<uint8>& IndexData)
+	{
+		if (Footer.Info.bEncryptedIndex)
+		{
+			int32 OriginalSize = IndexData.Num();
+			int32 AlignedSize = Align(OriginalSize, FAES::AESBlockSize);
+
+			for (int32 PaddingIndex = IndexData.Num(); PaddingIndex < AlignedSize; ++PaddingIndex)
+			{
+				uint8 Byte = IndexData[PaddingIndex % OriginalSize];
+				IndexData.Add(Byte);
+			}
+		}
+	};
+	auto FinalizeIndexBlock = [&PakHandle, &Footer, &FinalizeIndexBlockSize](TArray<uint8>& IndexData, FSHAHash& OutHash)
+	{
+		FinalizeIndexBlockSize(IndexData);
+
+		FSHA1::HashBuffer(IndexData.GetData(), IndexData.Num(), OutHash.Hash);
+
+		if (Footer.Info.bEncryptedIndex)
+		{
+			check(Footer.KeyChain && Footer.KeyChain->MasterEncryptionKey && Footer.TotalEncryptedDataSize);
+			FAES::EncryptData(IndexData.GetData(), IndexData.Num(), Footer.KeyChain->MasterEncryptionKey->Key);
+			*Footer.TotalEncryptedDataSize += IndexData.Num();
+		}
+	};
+
+	TArray<uint8> EncodedPakEntries;
+	int32 NumEncodedEntries = 0;
+	int32 NumDeletedEntries = 0;
+	TArray<FPakEntry> NonEncodableEntries;
+
+	FPakFile::FDirectoryIndex DirectoryIndex;
+	FPakFile::FPathHashIndex PathHashIndex;
+	TMap<uint64, FString> CollisionDetection; // Currently detecting Collisions only within the files stored into a single Pak.  TODO: Create separate job to detect collisions over all files in the export.
+	uint64 PathHashSeed;
+	int32 NextIndex = 0;
+	auto ReadNextEntry = [&Footer, &NextIndex]() -> FPakEntryPair&
+	{
+		return Footer.Index[NextIndex++];
+	};
+
+	FPakFile::EncodePakEntriesIntoIndex(Footer.Index.Num(), ReadNextEntry, Footer.Filename,
+		Footer.Info, Footer.MountPoint, NumEncodedEntries, NumDeletedEntries, &PathHashSeed,
+		&DirectoryIndex, &PathHashIndex, EncodedPakEntries, NonEncodableEntries, &CollisionDetection,
+		FPakInfo::PakFile_Version_Latest);
+	VerifyIndexesMatch(Footer.Index, DirectoryIndex, PathHashIndex, PathHashSeed, Footer.MountPoint,
+		EncodedPakEntries, NonEncodableEntries, NumEncodedEntries, NumDeletedEntries, Footer.Info);
+
+	// We write one PrimaryIndex and two SecondaryIndexes to the Pak File
+	// PrimaryIndex
+	//		Common scalar data such as MountPoint
+	//		PresenceBit and Offset,Size,Hash for the SecondaryIndexes
+	//		PakEntries (Encoded and NonEncoded)
+	// SecondaryIndex PathHashIndex: used by default in shipped versions of games.  Uses less memory, but does not provide access to all filenames.
+	//		TMap from hash of FilePath to FPakEntryLocation
+	//		Pruned DirectoryIndex, containing only the FilePaths that were requested kept by whitelist config variables
+	// SecondaryIndex FullDirectoryIndex: used for developer tools and for titles that opt out of PathHashIndex because they need access to all filenames.
+	//		TMap from DirectoryPath to FDirectory, which itself is a TMap from CleanFileName to FPakEntryLocation
+	// Each Index is separately encrypted and hashed.  Runtime consumer such as the tools or the client game will only load one of these off of disk (unless runtime verification is turned on).
+
+	// Create the pruned DirectoryIndex for use in the Primary Index
+	TMap<FString, FPakDirectory> PrunedDirectoryIndex;
+	FPakFile::PruneDirectoryIndex(DirectoryIndex, &PrunedDirectoryIndex, Footer.MountPoint);
+
+	bool bWritePathHashIndex = FPakFile::IsPakWritePathHashIndex();
+	bool bWriteFullDirectoryIndex = FPakFile::IsPakWriteFullDirectoryIndex();
+	checkf(bWritePathHashIndex || bWriteFullDirectoryIndex, TEXT("At least one of Engine:[Pak]:WritePathHashIndex and Engine:[Pak]:WriteFullDirectoryIndex must be true"));
+
+	TArray<uint8> PrimaryIndexData;
+	TArray<uint8> PathHashIndexData;
+	TArray<uint8> FullDirectoryIndexData;
+	Footer.Info.IndexOffset = PakHandle.Tell();
+	// Write PrimaryIndex bytes
+	{
+		FMemoryWriter PrimaryIndexWriter(PrimaryIndexData);
+		PrimaryIndexWriter.SetByteSwapping(PakHandle.ForceByteSwapping());
+
+		PrimaryIndexWriter << const_cast<FString&>(Footer.MountPoint);
+		int32 NumEntries = Footer.Index.Num();
+		PrimaryIndexWriter << NumEntries;
+		PrimaryIndexWriter << PathHashSeed;
+
+		FSecondaryIndexWriter PathHashIndexWriter(PathHashIndexData, bWritePathHashIndex, PrimaryIndexData, PrimaryIndexWriter);
+		PathHashIndexWriter.WritePlaceholderToPrimary();
+
+		FSecondaryIndexWriter FullDirectoryIndexWriter(FullDirectoryIndexData, bWriteFullDirectoryIndex, PrimaryIndexData, PrimaryIndexWriter);
+		FullDirectoryIndexWriter.WritePlaceholderToPrimary();
+
+		PrimaryIndexWriter << EncodedPakEntries;
+		int32 NonEncodableEntriesNum = NonEncodableEntries.Num();
+		PrimaryIndexWriter << NonEncodableEntriesNum;
+		for (FPakEntry& PakEntry : NonEncodableEntries)
+		{
+			PakEntry.Serialize(PrimaryIndexWriter, FPakInfo::PakFile_Version_Latest);
+		}
+
+		// Finalize the size of the PrimaryIndex (it may change due to alignment padding) because we need the size to know the offset of the SecondaryIndexes which come after it in the PakFile.
+		// Do not encrypt and hash it yet, because we still need to replace placeholder data in it for the Offset,Size,Hash of each SecondaryIndex
+		FinalizeIndexBlockSize(PrimaryIndexData);
+
+		// Write PathHashIndex bytes
+		if (bWritePathHashIndex)
+		{
+			{
+				FMemoryWriter& SecondaryWriter = PathHashIndexWriter.GetSecondaryWriter();
+				SecondaryWriter << PathHashIndex;
+				SecondaryWriter << PrunedDirectoryIndex;
+			}
+			PathHashIndexWriter.FinalizeAndRecordOffset(Footer.Info.IndexOffset + PrimaryIndexData.Num(), FinalizeIndexBlock);
+		}
+
+		// Write FullDirectoryIndex bytes
+		if (bWriteFullDirectoryIndex)
+		{
+			{
+				FMemoryWriter& SecondaryWriter = FullDirectoryIndexWriter.GetSecondaryWriter();
+				SecondaryWriter << DirectoryIndex;
+			}
+			FullDirectoryIndexWriter.FinalizeAndRecordOffset(Footer.Info.IndexOffset + PrimaryIndexData.Num() + PathHashIndexData.Num(), FinalizeIndexBlock);
+		}
+
+		// Encrypt and Hash the PrimaryIndex now that we have filled in the SecondaryIndex information
+		FinalizeIndexBlock(PrimaryIndexData, Footer.Info.IndexHash);
+	}
+
+	// Write the bytes for each Index into the PakFile
+	Footer.Info.IndexSize = PrimaryIndexData.Num();
+	PakHandle.Serialize(PrimaryIndexData.GetData(), PrimaryIndexData.Num());
+	if (bWritePathHashIndex)
+	{
+		PakHandle.Serialize(PathHashIndexData.GetData(), PathHashIndexData.Num());
+	}
+	if (bWriteFullDirectoryIndex)
+	{
+		PakHandle.Serialize(FullDirectoryIndexData.GetData(), FullDirectoryIndexData.Num());
+	}
+
+	// Save the FPakInfo, which has offset, size, and hash value for the PrimaryIndex, at the end of the PakFile
+	Footer.Info.Serialize(PakHandle, FPakInfo::PakFile_Version_Latest);
+
+	if (Footer.bFileRegions)
+	{
+		check(Footer.AllFileRegions);
+		// Add a final region to include the headers / data at the end of the .pak, after the last file payload.
+		FFileRegion::AccumulateFileRegions(*Footer.AllFileRegions, Footer.Info.IndexOffset, Footer.Info.IndexOffset, PakHandle.Tell(), {});
+	}
+
+	Footer.PrimaryIndexSize = PrimaryIndexData.Num();
+	Footer.PathHashIndexSize = PathHashIndexData.Num();
+	Footer.FullDirectoryIndexSize = FullDirectoryIndexData.Num();
 }
 
 bool TestPakFile(const TCHAR* Filename, bool TestHashes)

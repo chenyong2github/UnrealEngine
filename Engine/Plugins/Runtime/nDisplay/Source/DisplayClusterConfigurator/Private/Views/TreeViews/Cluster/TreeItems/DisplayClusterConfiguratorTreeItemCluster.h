@@ -20,6 +20,7 @@ public:
 		bool InbRoot = false);
 
 	//~ Begin IDisplayClusterConfiguratorTreeItem Interface
+	virtual void OnItemDoubleClicked() override;
 	virtual void OnMouseEnter() override;
 	virtual void OnMouseLeave() override;
 	virtual bool IsHovered() const override;

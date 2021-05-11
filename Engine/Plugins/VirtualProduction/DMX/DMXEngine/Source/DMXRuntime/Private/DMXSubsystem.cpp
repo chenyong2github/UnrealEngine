@@ -2,7 +2,10 @@
 
 #include "DMXSubsystem.h"
 
+#include "DMXAttribute.h"
+#include "DMXProtocolSettings.h"
 #include "DMXProtocolTypes.h"
+#include "DMXUtils.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "IO/DMXPortManager.h"
 #include "IO/DMXInputPort.h"
@@ -16,17 +19,101 @@
 
 #include "AssetData.h"
 #include "AssetRegistryModule.h"
+#include "EngineAnalytics.h"
 #include "EngineUtils.h"
-#include "UObject/UObjectIterator.h"
 #include "Async/Async.h"
 #include "Engine/Engine.h"
-#include "DMXAttribute.h"
-#include "DMXUtils.h"
-
-const FName InvalidUniverseError = FName("InvalidUniverseError");
-
+#include "UObject/UObjectIterator.h"
 
 DECLARE_LOG_CATEGORY_CLASS(DMXSubsystemLog, Log, All);
+
+namespace
+{
+	const FName InvalidUniverseError = FName("InvalidUniverseError");
+
+#if WITH_EDITOR
+	/** Helper to create analytics for dmx libraries in use */
+	void CreateEngineAnalytics(const TArray<UDMXLibrary*>& DMXLibraries)
+	{
+		if (FEngineAnalytics::IsAvailable())
+		{
+			// DMX Library usage statistics
+			{
+				int32 CountLibraries = 0;
+				int32 CountPatches = 0;
+				int32 CountChannels = 0;
+
+				for (UDMXLibrary* Library : DMXLibraries)
+				{
+					CountLibraries++;
+
+					for (UDMXEntity* Entity : Library->GetEntities())
+					{
+						if (UDMXEntityFixturePatch* Patch = Cast<UDMXEntityFixturePatch>(Entity))
+						{
+							CountPatches++;
+							CountChannels += Patch->GetChannelSpan();
+						}
+					}
+				}
+
+				TArray<FAnalyticsEventAttribute> LibraryEventAttributes;
+				LibraryEventAttributes.Add(FAnalyticsEventAttribute(TEXT("NumDMXLibraries"), CountLibraries));
+				LibraryEventAttributes.Add(FAnalyticsEventAttribute(TEXT("NumDMXPatches"), CountPatches));
+				LibraryEventAttributes.Add(FAnalyticsEventAttribute(TEXT("NumDMXChannels"), CountChannels));
+				FEngineAnalytics::GetProvider().RecordEvent(TEXT("Usage.DMX.DMXLibraries"), LibraryEventAttributes);
+			}
+
+			// DMX Port usage statistics
+			{
+
+				int32 CountArtNetPorts = 0;
+				int32 CountSACNPorts = 0;
+				int32 CountOtherPorts = 0;
+				const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+				for (const FDMXInputPortConfig& Config : ProtocolSettings->InputPortConfigs)
+				{
+					if (Config.ProtocolName == "Art-Net")
+					{
+						CountArtNetPorts++;
+					}
+					else if (Config.ProtocolName == "sACN")
+					{
+						CountSACNPorts++;
+					}
+					else
+					{
+						CountOtherPorts++;
+					}
+				}
+
+				for (const FDMXOutputPortConfig& Config : ProtocolSettings->OutputPortConfigs)
+				{
+					if (Config.ProtocolName == "Art-Net")
+					{
+						CountArtNetPorts++;
+					}
+					else if (Config.ProtocolName == "sACN")
+					{
+						CountSACNPorts++;
+					}
+					else
+					{
+						CountOtherPorts++;
+					}
+				}
+
+				TArray<FAnalyticsEventAttribute> PortEventAttributes;
+				PortEventAttributes.Add(FAnalyticsEventAttribute(TEXT("NumArtNetPorts"), CountArtNetPorts));
+				PortEventAttributes.Add(FAnalyticsEventAttribute(TEXT("NumSACNPorts"), CountSACNPorts));
+				PortEventAttributes.Add(FAnalyticsEventAttribute(TEXT("NumOtherPorts"), CountOtherPorts));
+				FEngineAnalytics::GetProvider().RecordEvent(TEXT("Usage.DMX.DMXPorts"), PortEventAttributes);
+			}
+		}
+	}
+#endif // WITH_EDITOR
+}
+
 
 void UDMXSubsystem::SendDMX(UDMXEntityFixturePatch* FixturePatch, TMap<FDMXAttributeName, int32> AttributeMap, EDMXSendResult& OutResult)
 {
@@ -705,6 +792,12 @@ void UDMXSubsystem::OnAssetRegistryFinishedLoadingFiles()
 		UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject);
 		LoadedDMXLibraries.AddUnique(Library);
 	}
+
+#if WITH_EDITOR
+	CreateEngineAnalytics(LoadedDMXLibraries);
+#endif // WITH_EDITOR
+
+	OnAllDMXLibraryAssetsLoaded.Broadcast();
 }
 
 void UDMXSubsystem::OnAssetRegistryAddedAsset(const FAssetData& Asset)
@@ -714,6 +807,8 @@ void UDMXSubsystem::OnAssetRegistryAddedAsset(const FAssetData& Asset)
 		UObject* AssetObject = Asset.GetAsset();
 		UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject);
 		LoadedDMXLibraries.AddUnique(Library);
+
+		OnDMXLibraryAssetAdded.Broadcast(Library);
 	}
 }
 
@@ -724,5 +819,7 @@ void UDMXSubsystem::OnAssetRegistryRemovedAsset(const FAssetData& Asset)
 		UObject* AssetObject = Asset.GetAsset();
 		UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject);
 		LoadedDMXLibraries.Remove(Library);
+
+		OnDMXLibraryAssetRemoved.Broadcast(Library);
 	}
 }

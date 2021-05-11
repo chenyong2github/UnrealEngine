@@ -13,7 +13,7 @@ THIRD_PARTY_INCLUDES_END
 
 #include "Misc/CoreDelegates.h"
 
-TSharedPtr<FMediaFoundationMovieStreamer> MovieStreamer;
+TSharedPtr<FMediaFoundationMovieStreamer, ESPMode::ThreadSafe> MovieStreamer;
 
 class FWindowsMoviePlayerModule : public IModuleInterface
 {

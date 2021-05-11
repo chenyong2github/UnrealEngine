@@ -59,7 +59,7 @@ void UMockRootMotionSourceClassMap::BuildClassMap_Internal()
 	TArray<UClass*> Classes;
 	GetDerivedClasses(UMockRootMotionSource::StaticClass(), Classes, true);
 
-	UE_LOG(LogTemp, Warning, TEXT("UMockRootMotionSourceClassMap::BuildClassMap. Found %d classes."), Classes.Num());
+	//UE_LOG(LogTemp, Warning, TEXT("UMockRootMotionSourceClassMap::BuildClassMap. Found %d classes."), Classes.Num());
 
 	SourceList.Reset();
 	LookupMap.Reset();
@@ -85,7 +85,7 @@ void UMockRootMotionSourceClassMap::BuildClassMap_Internal()
 	
 	TArray<FAssetData> AssetDataList;
 
-	UE_LOG(LogTemp, Warning, TEXT("Scanning Asset Registry for root motion source objects"));
+	//UE_LOG(LogTemp, Warning, TEXT("Scanning Asset Registry for root motion source objects"));
 
 	UObjectLibrary* Lib = UObjectLibrary::CreateLibrary(UMockRootMotionSource::StaticClass(), true, true);
 
@@ -119,7 +119,7 @@ void UMockRootMotionSourceClassMap::BuildClassMap_Internal()
 			LookupMap.Add(LoadedClass, It.GetIndex());
 		}
 
-		UE_LOG(LogTemp, Warning, TEXT("%s = %d (%s)"), *Subclass.ToString(), It.GetIndex(), LoadedClass ? TEXT("Loaded") : TEXT("Unloaded"));
+		//UE_LOG(LogTemp, Warning, TEXT("%s = %d (%s)"), *Subclass.ToString(), It.GetIndex(), LoadedClass ? TEXT("Loaded") : TEXT("Unloaded"));
 	}
 
 	// Verify lookup table (note that unloaded entries won't be in LookupMap

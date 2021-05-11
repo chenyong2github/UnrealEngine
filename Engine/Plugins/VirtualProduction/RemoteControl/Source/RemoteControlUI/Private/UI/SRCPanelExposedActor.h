@@ -23,7 +23,7 @@ struct SRCPanelExposedActor : public SCompoundWidget, public SRCPanelExposedEnti
 		SLATE_ATTRIBUTE(bool, EditMode)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlActor> InWeakActor, URemoteControlPreset* InPreset);
+	void Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlActor> InWeakActor, URemoteControlPreset* InPreset, FRCColumnSizeData InColumnSizeData);
 
 	//~ Tick
 	virtual void Tick(const FGeometry&, const double, const float) override;

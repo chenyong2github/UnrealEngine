@@ -971,7 +971,9 @@ void UClothingAssetCommon::PostLoad()
 	CalculateReferenceBoneIndex();
 
 	const int32 PhysicsObjectVersion = GetLinkerCustomVersion(FPhysicsObjectVersion::GUID);
-	if (PhysicsObjectVersion < FPhysicsObjectVersion::ChaosClothFixLODTransitionMaps)
+	const int32 FortniteMainBranchObjectVersion = GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+	if (PhysicsObjectVersion < FPhysicsObjectVersion::ChaosClothFixLODTransitionMaps ||
+		FortniteMainBranchObjectVersion < FFortniteMainBranchObjectVersion::ChaosClothFixLODTransitionMaps)
 	{
 		BuildLodTransitionData();
 	}
@@ -983,6 +985,7 @@ void UClothingAssetCommon::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 	Ar.UsingCustomVersion(FAnimPhysObjectVersion::GUID);
 	Ar.UsingCustomVersion(FClothingAssetCustomVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 	Ar.UsingCustomVersion(FPhysicsObjectVersion::GUID);
 }
 

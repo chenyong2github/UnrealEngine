@@ -4,10 +4,11 @@
 #include "Containers/Ticker.h"
 #include "InstallBundleManagerPrivatePCH.h"
 #include "Stats/Stats.h"
+#include "Algo/Transform.h"
 
-FInstallBundleCombinedProgressTracker::FInstallBundleCombinedProgressTracker()
+FInstallBundleCombinedProgressTracker::FInstallBundleCombinedProgressTracker(bool bAutoTick /*= true*/)
 {
-	SetupDelegates();
+	SetupDelegates(bAutoTick);
 }
 
 FInstallBundleCombinedProgressTracker::~FInstallBundleCombinedProgressTracker()
@@ -37,7 +38,7 @@ FInstallBundleCombinedProgressTracker& FInstallBundleCombinedProgressTracker::op
 		InstallBundleManager = Other.InstallBundleManager;
 		
 		//Don't copy TickHandle as we want to setup our own here
-		SetupDelegates();
+		SetupDelegates(Other.TickHandle.IsValid());
 	}
 	
 	return *this;
@@ -48,7 +49,7 @@ FInstallBundleCombinedProgressTracker& FInstallBundleCombinedProgressTracker::op
 	if (this != &Other)
 	{
 		//Just copy small data
-		CurrentCombinedProgress = Other.CurrentCombinedProgress;		
+		CurrentCombinedProgress = Other.CurrentCombinedProgress;
 		InstallBundleManager = Other.InstallBundleManager;
 
 		//Move bigger data
@@ -60,19 +61,22 @@ FInstallBundleCombinedProgressTracker& FInstallBundleCombinedProgressTracker::op
 		Other.CleanUpDelegates();
 	
 		//Don't copy TickHandle as we want to setup our own here
-		SetupDelegates();
+		SetupDelegates(Other.TickHandle.IsValid());
 	}
 	
 	return *this;
 }
 
-void FInstallBundleCombinedProgressTracker::SetupDelegates()
+void FInstallBundleCombinedProgressTracker::SetupDelegates(bool bAutoTick)
 {
 	CleanUpDelegates();
 	
 	IInstallBundleManager::InstallBundleCompleteDelegate.AddRaw(this, &FInstallBundleCombinedProgressTracker::OnBundleInstallComplete);
 	IInstallBundleManager::PausedBundleDelegate.AddRaw(this, &FInstallBundleCombinedProgressTracker::OnBundleInstallPauseChanged);
-	TickHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FInstallBundleCombinedProgressTracker::Tick));
+	if (bAutoTick)
+	{
+		TickHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FInstallBundleCombinedProgressTracker::Tick));
+	}
 }
 
 void FInstallBundleCombinedProgressTracker::CleanUpDelegates()
@@ -91,7 +95,7 @@ void FInstallBundleCombinedProgressTracker::SetBundlesToTrackFromContentState(co
 	RequiredBundleNames.Empty();
 	CachedBundleWeights.Empty();
 	BundleStatusCache.Empty();
-	
+
 	bool bBundleNeedsUpdate = false;
 	float TotalWeight = 0.0f;
 	for (const FName& Bundle : BundlesToTrack)
@@ -113,7 +117,7 @@ void FInstallBundleCombinedProgressTracker::SetBundlesToTrackFromContentState(co
 	}
 
 	CurrentCombinedProgress.bBundleRequiresUpdate = bBundleNeedsUpdate;
-	
+
 	if (TotalWeight > 0.0f)
 	{
 		for (TPair<FName, float>& BundleWeightPair : CachedBundleWeights)
@@ -128,7 +132,7 @@ void FInstallBundleCombinedProgressTracker::SetBundlesToTrackFromContentState(co
 		CurrentCombinedProgress.ProgressPercent = 1.0f;
 		CurrentCombinedProgress.CombinedStatus = ECombinedBundleStatus::Finished;
 	}
-	
+
 	//Go ahead and calculate initial values from the Bundle Cache
 	UpdateBundleCache();
 }

@@ -86,6 +86,8 @@ void FDisplayClusterConfiguratorUtils::AddRootActorComponentsToBlueprint(UDispla
 	// Already added as default subobjects.
 	AllComponents.Remove(RootActor->GetRootComponent());
 	AllComponents.Remove(RootActor->GetSyncTickComponent());
+	AllComponents.Remove(RootActor->GetRenderFrameSettings());
+	AllComponents.Remove(RootActor->GetStageSettings());
 	
 	if (NewRootNode == nullptr)
 	{
@@ -213,6 +215,12 @@ FName FDisplayClusterConfiguratorUtils::CreateUniqueName(const FName& TargetName
 		UniqueCandidateName = FString::Printf(TEXT("%s_%02i"), *BaseCandidateName, NameIndex);
 	}
 	return *UniqueCandidateName;
+}
+
+FString FDisplayClusterConfiguratorUtils::FormatNDisplayComponentName(UClass* ComponentClass)
+{
+	check(ComponentClass);
+	return ComponentClass->GetDisplayNameText().ToString().Replace(TEXT(" "), TEXT("")).Replace(TEXT("NDisplay"), TEXT("nDisplay"));
 }
 
 #undef LOCTEXT_NAMESPACE

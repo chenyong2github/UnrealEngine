@@ -3,9 +3,37 @@
 #pragma once
 
 #include "EntitySystem/MovieSceneEntityInstantiatorSystem.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateStorage.h"
 
 #include "MovieScenePreAnimatedStateSystem.generated.h"
 
+namespace UE
+{
+namespace MovieScene
+{
+
+/** Structure that manages the lifetime of the pre-animated state extension while entities exist with the restore state tag */
+struct FPreAnimatedStateExtensionReference
+{
+	FPreAnimatedStateExtensionReference() = default;
+	FPreAnimatedStateExtensionReference(UMovieSceneEntitySystemLinker* Linker)
+	{
+		Update(Linker);
+	}
+
+	TSharedPtr<FPreAnimatedStateExtension> Get() const;
+
+	TSharedPtr<FPreAnimatedStateExtension> Update(UMovieSceneEntitySystemLinker* Linker);
+
+private:
+	/** Weak ref to the extension - this is always used for access, and will remain valid as long as there are any global state captures, or RestoreState entities */
+	TWeakPtr<FPreAnimatedStateExtension>   WeakPreAnimatedStateExtension;
+	/** Strong ref to the extension that keeps the extension alive if there are RestoreState entities in the entity manager */
+	TSharedPtr<FPreAnimatedStateExtension> PreAnimatedStateExtensionRef;
+};
+
+} // namespace MovieScene
+} // namespace UE
 
 UINTERFACE()
 class UMovieScenePreAnimatedStateSystemInterface : public UInterface
@@ -23,14 +51,27 @@ class IMovieScenePreAnimatedStateSystemInterface
 public:
 	GENERATED_BODY()
 
-	virtual void SavePreAnimatedState(UE::MovieScene::FSystemTaskPrerequisites& InPrerequisites, UE::MovieScene::FSystemSubsequentTasks& Subsequents) {}
-	virtual void SaveGlobalPreAnimatedState(UE::MovieScene::FSystemTaskPrerequisites& InPrerequisites, UE::MovieScene::FSystemSubsequentTasks& Subsequents) {}
+	struct FPreAnimationParameters
+	{
+		UE::MovieScene::FSystemTaskPrerequisites* Prerequisites;
+		UE::MovieScene::FSystemSubsequentTasks* Subsequents;
+		UE::MovieScene::FPreAnimatedStateExtension* CacheExtension;
+	};
 
-	virtual void RestorePreAnimatedState(UE::MovieScene::FSystemTaskPrerequisites& InPrerequisites, UE::MovieScene::FSystemSubsequentTasks& Subsequents) {}
+	virtual void SavePreAnimatedState(const FPreAnimationParameters& InParameters) {}
+	virtual void RestorePreAnimatedState(const FPreAnimationParameters& InParameters) {}
 
-	virtual void DiscardPreAnimatedStateForObject(UObject& Object) {}
+private:
+
+	UE_DEPRECATED(4.26, "Please override the method that takes a FPreAnimationParameters")
+	virtual void SavePreAnimatedState(UE::MovieScene::FSystemTaskPrerequisites& InPrerequisites, UE::MovieScene::FSystemSubsequentTasks& Subsequents) final {}
+
+	UE_DEPRECATED(4.26, "Please override the method that takes a FPreAnimationParameters")
+	virtual void SaveGlobalPreAnimatedState(UE::MovieScene::FSystemTaskPrerequisites& InPrerequisites, UE::MovieScene::FSystemSubsequentTasks& Subsequents) final {}
+
+	UE_DEPRECATED(4.26, "Please override the method that takes a FPreAnimationParameters")
+	virtual void RestorePreAnimatedState(UE::MovieScene::FSystemTaskPrerequisites& InPrerequisites, UE::MovieScene::FSystemSubsequentTasks& Subsequents) final {}
 };
-
 
 
 /**
@@ -54,7 +95,10 @@ private:
 
 	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
 	virtual void OnLink() override;
+	virtual void OnUnlink() override;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override final;
+
+	UE::MovieScene::FPreAnimatedStateExtensionReference PreAnimatedStateRef;
 };
 
 
@@ -76,9 +120,12 @@ public:
 
 	UMovieSceneRestorePreAnimatedStateSystem(const FObjectInitializer& ObjInit);
 
-	MOVIESCENE_API void DiscardPreAnimatedStateForObject(UObject& Object);
-
 private:
 
+	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
+	virtual void OnLink() override;
+	virtual void OnUnlink() override;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override final;
+
+	TSharedPtr<UE::MovieScene::FPreAnimatedStateExtension> PreAnimatedStateRef;
 };

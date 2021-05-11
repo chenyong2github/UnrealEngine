@@ -31,15 +31,15 @@ namespace Chaos
 			TArray<FClothingSimulationCollider*>&& InColliders,
 			uint32 InGroupId,
 			EMassMode InMassMode,
-			FReal InMassValue,
-			FReal InMinPerParticleMass,
+			FRealSingle InMassValue,
+			FRealSingle InMinPerParticleMass,
 			FRealSingle InEdgeStiffness,
 			FRealSingle InBendingStiffness,
 			bool bInUseBendingElements,
 			FRealSingle InAreaStiffness,
 			FRealSingle InVolumeStiffness,
 			bool bInUseThinShellVolumeConstraints,
-			const FVec2& InTetherStiffness,
+			const TVec2<FRealSingle>& InTetherStiffness,
 			FRealSingle InLimitScale,
 			ETetherMode InTetherMode,
 			FRealSingle InMaxDistancesMultiplier,
@@ -77,15 +77,14 @@ namespace Chaos
 		void SetMaxDistancesMultiplier(FRealSingle InMaxDistancesMultiplier) { MaxDistancesMultiplier = InMaxDistancesMultiplier; }
 
 		void SetMaterialProperties(FRealSingle InEdgeStiffness, FRealSingle InBendingStiffness, FRealSingle InAreaStiffness) { EdgeStiffness = InEdgeStiffness; BendingStiffness = InBendingStiffness; AreaStiffness = InAreaStiffness; }
-		void SetLongRangeAttachmentProperties(const FVec2& InTetherStiffness) { TetherStiffness = InTetherStiffness; }
+		void SetLongRangeAttachmentProperties(const TVec2<FRealSingle>& InTetherStiffness) { TetherStiffness = InTetherStiffness; }
 		void SetCollisionProperties(FRealSingle InCollisionThickness, FRealSingle InFrictionCoefficient, bool bInUseCCD, FRealSingle InSelfCollisionThickness) { CollisionThickness = InCollisionThickness; FrictionCoefficient = InFrictionCoefficient; bUseCCD = bInUseCCD; SelfCollisionThickness = InSelfCollisionThickness; }
 		void SetDampingProperties(FRealSingle InDampingCoefficient) { DampingCoefficient = InDampingCoefficient; }
-		void SetAerodynamicsProperties(FRealSingle InDragCoefficient, FRealSingle InLiftCoefficient) { DragCoefficient = InDragCoefficient; LiftCoefficient = InLiftCoefficient; }
+		void SetAerodynamicsProperties(FRealSingle InDragCoefficient, FRealSingle InLiftCoefficient, const FVec3& InWindVelocity) { DragCoefficient = InDragCoefficient; LiftCoefficient = InLiftCoefficient; WindVelocity = InWindVelocity; }
 		void SetGravityProperties(FRealSingle InGravityScale, bool bInIsGravityOverridden, const FVec3& InGravityOverride) { GravityScale = InGravityScale; bIsGravityOverridden = bInIsGravityOverridden; GravityOverride = InGravityOverride; }
-		void SetAnimDriveProperties(const FVec2& InAnimDriveStiffness, const FVec2& InAnimDriveDamping) { AnimDriveStiffness = InAnimDriveStiffness; AnimDriveDamping = InAnimDriveDamping; }
+		void SetAnimDriveProperties(const TVec2<FRealSingle>& InAnimDriveStiffness, const TVec2<FRealSingle>& InAnimDriveDamping) { AnimDriveStiffness = InAnimDriveStiffness; AnimDriveDamping = InAnimDriveDamping; }
+		void GetAnimDriveProperties(TVec2<FRealSingle>& OutAnimDriveStiffness, TVec2<FRealSingle>& OutAnimDriveDamping) { OutAnimDriveStiffness = AnimDriveStiffness; OutAnimDriveDamping = AnimDriveDamping; }
 		void SetVelocityScaleProperties(const FVec3& InLinearVelocityScale, FRealSingle InAngularVelocityScale, FRealSingle InFictitiousAngularScale) { LinearVelocityScale = InLinearVelocityScale; AngularVelocityScale = InAngularVelocityScale; FictitiousAngularScale = InFictitiousAngularScale;  }
-
-		void GetAnimDriveProperties(FVec2& OutAnimDriveStiffness, FVec2& OutAnimDriveDamping) { OutAnimDriveStiffness = AnimDriveStiffness; OutAnimDriveDamping = AnimDriveDamping; }
 
 		void Reset() { bNeedsReset = true; }
 		void Teleport() { bNeedsTeleport = true; }
@@ -183,20 +182,20 @@ namespace Chaos
 		TArray<FClothingSimulationCollider*> Colliders;
 		uint32 GroupId;
 		EMassMode MassMode;
-		FReal MassValue;
-		FReal MinPerParticleMass;
+		FRealSingle MassValue;
+		FRealSingle MinPerParticleMass;
 		FRealSingle EdgeStiffness;
 		FRealSingle BendingStiffness;
 		bool bUseBendingElements;
 		FRealSingle AreaStiffness;
 		FRealSingle VolumeStiffness;
 		bool bUseThinShellVolumeConstraints;
-		FVec2 TetherStiffness;
+		TVec2<FRealSingle> TetherStiffness;
 		FRealSingle LimitScale;
 		ETetherMode TetherMode;
-		FRealSingle MaxDistancesMultiplier;
-		TVec2<FRealSingle> AnimDriveStiffness;
-		TVec2<FRealSingle> AnimDriveDamping;
+		FRealSingle MaxDistancesMultiplier;  // Animatable
+		TVec2<FRealSingle> AnimDriveStiffness;  // Animatable
+		TVec2<FRealSingle> AnimDriveDamping;  // Animatable
 		FRealSingle ShapeTargetStiffness;
 		bool bUseXPBDConstraints;
 		FRealSingle GravityScale;
@@ -207,6 +206,7 @@ namespace Chaos
 		FRealSingle FictitiousAngularScale;
 		FRealSingle DragCoefficient;
 		FRealSingle LiftCoefficient;
+		FVec3 WindVelocity;
 		bool bUseLegacyWind;
 		FRealSingle DampingCoefficient;
 		FRealSingle CollisionThickness;

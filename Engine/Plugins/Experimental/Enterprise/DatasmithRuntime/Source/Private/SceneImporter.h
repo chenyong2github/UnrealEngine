@@ -13,6 +13,7 @@
 #include "Containers/Queue.h"
 #include "HAL/ThreadSafeBool.h"
 #include "HAL/ThreadSafeCounter.h"
+#include "MeshDescription.h"
 #include "PixelFormat.h"
 #include "RHI.h"
 #include "Templates/Casts.h"
@@ -570,6 +571,12 @@ namespace DatasmithRuntime
 
 		/** Asynchronous build of a static mesh */
 		bool CreateStaticMesh(FSceneGraphId ElementId);
+
+		/** Update StaticMaterials array based on mesh description and mesh element */
+		void FillStaticMeshMaterials(FAssetData& MeshData, TArray< FMeshDescription >& MeshDescriptions);
+
+		/** Update StaticMaterials array based on mesh description and mesh element */
+		void UpdateStaticMeshMaterials(FAssetData& MeshData);
 
 		/** Create and add a static mesh component to the root component */
 		EActionResult::Type CreateMeshComponent(FSceneGraphId ActorId, UStaticMesh* StaticMesh);

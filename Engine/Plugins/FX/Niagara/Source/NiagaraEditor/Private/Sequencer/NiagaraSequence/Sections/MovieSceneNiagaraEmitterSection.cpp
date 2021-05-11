@@ -22,6 +22,7 @@ FString KeyTimelineModeValue("Key");
 
 FName InputUsageKey("TimelineInputUsage");
 
+FString UseStartTimeInputUsageValue("UseStartTime");
 FString StartTimeInputUsageValue("StartTime");
 FString LengthInputUsageValue("Length");
 FString NumLoopsInputUsageValue("NumLoops");
@@ -160,10 +161,26 @@ bool UMovieSceneNiagaraEmitterSection::TryAddTimeRangeModule(UNiagaraNodeFunctio
 	UNiagaraScript* SystemUpdateScript = GetSystemViewModel().GetSystem().GetSystemUpdateScript();
 	TArray<UNiagaraScript*> BinderDependentScripts;
 	BinderDependentScripts.Add(SystemUpdateScript);
+	FCompileConstantResolver EmitterUpdateConstantResolver = FCompileConstantResolver(GetEmitterHandleViewModel()->GetEmitterHandle()->GetInstance(), EmitterUpdateScript->GetUsage());
+
+	FText UseStartTimeErrorText;
+	bool bUseStartTimeIsRequired = false;
+	bool bUseStartTime = true;
+	
+	if (UseStartTimeBinder.TryBind(EmitterUpdateScript, BinderDependentScripts, EmitterUpdateConstantResolver, GetEmitterHandleViewModel()->GetEmitterHandle()->GetUniqueInstanceName(), SectionTimingModule.Get(),
+		InputUsageKey, UseStartTimeInputUsageValue, FNiagaraTypeDefinition::GetBoolDef(), bUseStartTimeIsRequired, UseStartTimeErrorText) == false)
+	{
+		OutErrorMessage = FText::Format(LOCTEXT("StartTimeErrorFormat", "Failed to bind 'use start time' for module.  Message: {0}"), UseStartTimeErrorText);
+		return false;
+	}
+	else
+	{
+		bUseStartTime = UseStartTimeBinder.IsValid() && UseStartTimeBinder.GetValue<bool>();
+	}
 
 	FText StartTimeErrorText;
-	bool bStartTimeIsRequired = true;
-	if (StartTimeBinder.TryBind(EmitterUpdateScript, BinderDependentScripts, GetEmitterHandleViewModel()->GetEmitterHandle()->GetUniqueInstanceName(), SectionTimingModule.Get(),
+	bool bStartTimeIsRequired = bUseStartTime;
+	if (StartTimeBinder.TryBind(EmitterUpdateScript, BinderDependentScripts, EmitterUpdateConstantResolver, GetEmitterHandleViewModel()->GetEmitterHandle()->GetUniqueInstanceName(), SectionTimingModule.Get(),
 		InputUsageKey, StartTimeInputUsageValue, FNiagaraTypeDefinition::GetFloatDef(), bStartTimeIsRequired, StartTimeErrorText) == false)
 	{
 		OutErrorMessage = FText::Format(LOCTEXT("StartTimeErrorFormat", "Failed to bind 'start time' for module.  Message: {0}"), StartTimeErrorText);
@@ -172,7 +189,7 @@ bool UMovieSceneNiagaraEmitterSection::TryAddTimeRangeModule(UNiagaraNodeFunctio
 
 	FText LengthErrorText;
 	bool bLengthIsRequired = true;
-	if (LengthBinder.TryBind(EmitterUpdateScript, BinderDependentScripts, GetEmitterHandleViewModel()->GetEmitterHandle()->GetUniqueInstanceName(), SectionTimingModule.Get(),
+	if (LengthBinder.TryBind(EmitterUpdateScript, BinderDependentScripts, EmitterUpdateConstantResolver, GetEmitterHandleViewModel()->GetEmitterHandle()->GetUniqueInstanceName(), SectionTimingModule.Get(),
 		InputUsageKey, LengthInputUsageValue, FNiagaraTypeDefinition::GetFloatDef(), bLengthIsRequired, LengthErrorText) == false)
 	{
 		OutErrorMessage = FText::Format(LOCTEXT("LengthErrorFormat", "Failed to bind 'length' for module.  Message: {0}"), LengthErrorText);
@@ -181,7 +198,7 @@ bool UMovieSceneNiagaraEmitterSection::TryAddTimeRangeModule(UNiagaraNodeFunctio
 
 	FText NumLoopsErrorText;
 	bool bNumLoopsIsRequired = false;
-	if (NumLoopsBinder.TryBind(EmitterUpdateScript, BinderDependentScripts, GetEmitterHandleViewModel()->GetEmitterHandle()->GetUniqueInstanceName(), SectionTimingModule.Get(),
+	if (NumLoopsBinder.TryBind(EmitterUpdateScript, BinderDependentScripts, EmitterUpdateConstantResolver, GetEmitterHandleViewModel()->GetEmitterHandle()->GetUniqueInstanceName(), SectionTimingModule.Get(),
 		InputUsageKey, NumLoopsInputUsageValue, FNiagaraTypeDefinition::GetIntDef(), bNumLoopsIsRequired, NumLoopsErrorText) == false)
 	{
 		OutErrorMessage = FText::Format(LOCTEXT("NumLoopsErrorFormat", "Failed to bind 'num loops' for module.  Message: {0}"), NumLoopsErrorText);
@@ -190,7 +207,7 @@ bool UMovieSceneNiagaraEmitterSection::TryAddTimeRangeModule(UNiagaraNodeFunctio
 
 	FText StartTimeIncludedInFirstLoopOnlyErrorText;
 	bool bStartTimeIncludedInFirstLoopOnlyIsRequired = false;
-	if (StartTimeIncludedInFirstLoopOnlyBinder.TryBind(EmitterUpdateScript, BinderDependentScripts, GetEmitterHandleViewModel()->GetEmitterHandle()->GetUniqueInstanceName(), SectionTimingModule.Get(),
+	if (StartTimeIncludedInFirstLoopOnlyBinder.TryBind(EmitterUpdateScript, BinderDependentScripts, EmitterUpdateConstantResolver, GetEmitterHandleViewModel()->GetEmitterHandle()->GetUniqueInstanceName(), SectionTimingModule.Get(),
 		InputUsageKey, StartTimeIncludedInFirstLoopOnlyInputUsageValue, FNiagaraTypeDefinition::GetBoolDef(), bStartTimeIncludedInFirstLoopOnlyIsRequired, StartTimeIncludedInFirstLoopOnlyErrorText) == false)
 	{
 		OutErrorMessage = FText::Format(LOCTEXT("StartTimeIncludedInFirstLoopOnlyErrorFormat", "Failed to bind 'start time included in first loop only' for module.  Message: {0}"), StartTimeIncludedInFirstLoopOnlyErrorText);
@@ -228,13 +245,14 @@ bool UMovieSceneNiagaraEmitterSection::TrySetupModuleAndBinders(UNiagaraNodeFunc
 	UNiagaraScript* SystemUpdateScript = GetSystemViewModel().GetSystem().GetSystemUpdateScript();
 	TArray<UNiagaraScript*> BinderDependentScripts;
 	BinderDependentScripts.Add(SystemUpdateScript);
+	FCompileConstantResolver EmitterUpdateConstantResolver = FCompileConstantResolver(GetEmitterHandleViewModel()->GetEmitterHandle()->GetInstance(), EmitterUpdateScript->GetUsage());
 
 	InOutModuleAndBinders.Module = &InModule;
 
 	bool bRequired = true;
 
 	FText TimeErrorText;
-	if (InOutModuleAndBinders.TimeBinder.TryBind(EmitterUpdateScript, BinderDependentScripts, GetEmitterHandleViewModel()->GetEmitterHandle()->GetUniqueInstanceName(), &InModule,
+	if (InOutModuleAndBinders.TimeBinder.TryBind(EmitterUpdateScript, BinderDependentScripts, EmitterUpdateConstantResolver, GetEmitterHandleViewModel()->GetEmitterHandle()->GetUniqueInstanceName(), &InModule,
 		InputUsageKey, KeyTimeInputUsageValue, FNiagaraTypeDefinition::GetFloatDef(), bRequired, TimeErrorText) == false)
 	{
 		OutErrorMessage = FText::Format(LOCTEXT("TimeErrorFormat", "Failed to bind 'time' for module.\nMessage: {0}"), TimeErrorText);
@@ -242,7 +260,7 @@ bool UMovieSceneNiagaraEmitterSection::TrySetupModuleAndBinders(UNiagaraNodeFunc
 	}
 
 	FText ValueErrorText;
-	if (InOutModuleAndBinders.ValueBinder.TryBind(EmitterUpdateScript, BinderDependentScripts, GetEmitterHandleViewModel()->GetEmitterHandle()->GetUniqueInstanceName(), &InModule,
+	if (InOutModuleAndBinders.ValueBinder.TryBind(EmitterUpdateScript, BinderDependentScripts, EmitterUpdateConstantResolver, GetEmitterHandleViewModel()->GetEmitterHandle()->GetUniqueInstanceName(), &InModule,
 		InputUsageKey, KeyValueInputUsageValue, TOptional<FNiagaraTypeDefinition>(), bRequired, ValueErrorText) == false)
 	{
 		OutErrorMessage = FText::Format(LOCTEXT("ValueErrorFormat", "Failed to bind 'value' for module.\nMessage: {0}"), ValueErrorText);
@@ -268,10 +286,10 @@ void UMovieSceneNiagaraEmitterSection::UpdateSectionFromModules(const FFrameRate
 
 void UMovieSceneNiagaraEmitterSection::UpdateSectionFromTimeRangeModule(const FFrameRate& InTickResolution)
 {
-
-	if (StartTimeBinder.IsValid() && LengthBinder.IsValid())
+	bool bUseStartTime = UseStartTimeBinder.IsValid() == false || UseStartTimeBinder.GetValue<bool>();
+	if ((bUseStartTime == false || StartTimeBinder.IsValid()) && LengthBinder.IsValid())
 	{
-		float ModuleStartTime = StartTimeBinder.GetValue<float>();
+		float ModuleStartTime = bUseStartTime ? StartTimeBinder.GetValue<float>() : 0.0f;
 		float ModuleLength = LengthBinder.GetValue<float>();
 
 		if (ModuleLength < 0)
@@ -344,13 +362,37 @@ void UMovieSceneNiagaraEmitterSection::UpdateModulesFromSection(const FFrameRate
 
 void UMovieSceneNiagaraEmitterSection::UpdateTimeRangeModuleFromSection(const FFrameRate& InTickResolution)
 {
-	if (StartTimeBinder.IsValid() && LengthBinder.IsValid())
+	bool bUseStartTime = UseStartTimeBinder.IsValid() == false || UseStartTimeBinder.GetValue<bool>();
+	if(bUseStartTime)
 	{
-		float StartTime = (float)InTickResolution.AsSeconds(GetInclusiveStartFrame());
-		float EndTime = (float)InTickResolution.AsSeconds(GetExclusiveEndFrame());
+		if(StartTimeBinder.IsValid() && LengthBinder.IsValid())
+		{
+			float StartTime = (float)InTickResolution.AsSeconds(GetInclusiveStartFrame());
+			float EndTime = (float)InTickResolution.AsSeconds(GetExclusiveEndFrame());
 
-		StartTimeBinder.SetValue<float>(StartTime);
-		LengthBinder.SetValue<float>(EndTime - StartTime);
+			StartTimeBinder.SetValue<float>(StartTime);
+			LengthBinder.SetValue<float>(EndTime - StartTime);
+		}
+	}
+	else
+	{
+		if(LengthBinder.IsValid())
+		{
+			float StartTime = (float)InTickResolution.AsSeconds(GetInclusiveStartFrame());
+			float EndTime = (float)InTickResolution.AsSeconds(GetExclusiveEndFrame());
+			float Length = EndTime - StartTime;
+			if (StartTime != 0.0f)
+			{
+				// If we're not using the start time and the start time was changed by sequencer, reset the section bounds and ignore the change.
+				FFrameNumber StartFrame = 0;
+				FFrameNumber EndFrame = (LengthBinder.GetValue<float>() * InTickResolution).RoundToFrame();
+				SetRange(TRange<FFrameNumber>(StartFrame, EndFrame));
+			}
+			else
+			{
+				LengthBinder.SetValue<float>(Length);
+			}
+		}
 	}
 
 	if (NumLoopsBinder.IsValid())

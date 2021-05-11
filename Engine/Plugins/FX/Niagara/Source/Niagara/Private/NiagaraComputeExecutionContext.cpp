@@ -42,17 +42,14 @@ void FNiagaraComputeExecutionContext::Reset(NiagaraEmitterInstanceBatcher* Batch
 	);
 }
 
-void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const uint32 InDefaultSimulationStageIndex, const int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages)
+void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget)
 {
 	GPUScript = InGPUComputeScript;
 	CombinedParamStore.InitFromOwningContext(InGPUComputeScript, InSimTarget, true);
-	DefaultSimulationStageIndex = InDefaultSimulationStageIndex;
-	MaxUpdateIterations = InMaxUpdateIterations;
 	SpawnStages.Empty();
-
-	SpawnStages.Append(InSpawnStages);
 	
 	HasInterpolationParameters = GPUScript && GPUScript->GetComputedVMCompilationId().HasInterpolatedParameters();
+	MaxUpdateIterations = 1;
 
 	if (InGPUComputeScript)
 	{
@@ -136,8 +133,6 @@ void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScr
 					SpawnStages.Add(SimStageInfo[i].MinStage);
 				}
 			}
-
-			
 		}
 	}
 
@@ -188,10 +183,6 @@ bool FNiagaraComputeExecutionContext::IsOutputStage(FNiagaraDataInterfaceProxy* 
 		if (MetaData->OutputDestinations.Contains(DIProxy->SourceDIName))
 			return true;
 	}
-	else if (DIProxy && SimStageInfo.Num() == 0)
-	{
-		return DIProxy->IsOutputStage_DEPRECATED(CurrentStage);
-	}
 	return false;
 }
 
@@ -205,10 +196,6 @@ bool FNiagaraComputeExecutionContext::IsIterationStage(FNiagaraDataInterfaceProx
 
 		if (MetaData->IterationSource == DIProxy->SourceDIName)
 			return true;
-	}
-	else if (DIProxy && SimStageInfo.Num() == 0)
-	{
-		return DIProxy->IsIterationStage_DEPRECATED(CurrentStage);
 	}
 	return false;
 }
@@ -230,15 +217,6 @@ FNiagaraDataInterfaceProxyRW* FNiagaraComputeExecutionContext::FindIterationInte
 		UE_LOG(LogNiagara, Verbose, TEXT("FNiagaraComputeExecutionContext::FindIterationInterface could not find IterationInterface %s"), *MetaData->IterationSource.ToString());
 
 		return nullptr;
-	}
-	else if (SimStageInfo.Num() == 0)
-	{
-		// Fallback to old shader stages
-		for (FNiagaraDataInterfaceProxyRW* Proxy : InProxies)
-		{
-			if (Proxy->IsIterationStage_DEPRECATED(CurrentStage))
-				return Proxy;
-		}
 	}
 
 	return nullptr;
@@ -383,11 +361,7 @@ void FNiagaraComputeExecutionContext::SetTranslucentDataToRender(FNiagaraDataBuf
 
 bool FNiagaraComputeInstanceData::IsOutputStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const
 {
-	if (bUsesOldShaderStages)
-	{
-		return DIProxy->IsOutputStage_DEPRECATED(CurrentStage);
-	}
-	else if (bUsesSimStages)
+	if (bUsesSimStages)
 	{
 		return Context->IsOutputStage(DIProxy, CurrentStage);
 	}
@@ -396,12 +370,7 @@ bool FNiagaraComputeInstanceData::IsOutputStage(FNiagaraDataInterfaceProxy* DIPr
 
 bool FNiagaraComputeInstanceData::IsIterationStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const
 {
-
-	if (bUsesOldShaderStages)
-	{
-		return DIProxy->IsIterationStage_DEPRECATED(CurrentStage);
-	}
-	else if (bUsesSimStages)
+	if (bUsesSimStages)
 	{
 		return Context->IsIterationStage(DIProxy, CurrentStage);
 	}
@@ -410,27 +379,7 @@ bool FNiagaraComputeInstanceData::IsIterationStage(FNiagaraDataInterfaceProxy* D
 
 FNiagaraDataInterfaceProxyRW* FNiagaraComputeInstanceData::FindIterationInterface(uint32 SimulationStageIndex) const
 {
-	if (bUsesOldShaderStages)
-	{
-		FNiagaraDataInterfaceProxyRW* IterationInterface = nullptr;
-		for (FNiagaraDataInterfaceProxyRW* Interface : IterationDataInterfaceProxies)
-		{
-			if (Interface->IsIterationStage_DEPRECATED(SimulationStageIndex))
-			{
-				if (IterationInterface)
-				{
-					UE_LOG(LogNiagara, Error, TEXT("Multiple output Data Interfaces found for current stage"));
-				}
-				else
-				{
-					IterationInterface = Interface;
-				}
-			}
-		}
-
-		return IterationInterface;
-	}
-	else if (bUsesSimStages)
+	if (bUsesSimStages)
 	{
 		return Context->FindIterationInterface(IterationDataInterfaceProxies, SimulationStageIndex);
 	}

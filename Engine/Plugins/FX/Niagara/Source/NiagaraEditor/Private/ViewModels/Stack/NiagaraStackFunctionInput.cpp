@@ -39,6 +39,7 @@
 #include "Toolkits/NiagaraSystemToolkit.h"
 #include "UObject/StructOnScope.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
+#include "ViewModels/NiagaraPlaceholderDataInterfaceManager.h"
 #include "ViewModels/NiagaraScratchPadScriptViewModel.h"
 #include "ViewModels/NiagaraScratchPadViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
@@ -164,9 +165,12 @@ void UNiagaraStackFunctionInput::Initialize(
 		AffectedScriptsNotWeak.Add(AffectedScript.Get());
 	}
 
+	FCompileConstantResolver ConstantResolver = GetEmitterViewModel().IsValid()
+		? FCompileConstantResolver(GetEmitterViewModel()->GetEmitter(), SourceScript->GetUsage())
+		: FCompileConstantResolver(&GetSystemViewModel()->GetSystem(), SourceScript->GetUsage());
 	FString UniqueEmitterName = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter()->GetUniqueEmitterName() : FString();
-	EditCondition.Initialize(SourceScript.Get(), AffectedScriptsNotWeak, UniqueEmitterName, OwningFunctionCallNode.Get());
-	VisibleCondition.Initialize(SourceScript.Get(), AffectedScriptsNotWeak, UniqueEmitterName, OwningFunctionCallNode.Get());
+	EditCondition.Initialize(SourceScript.Get(), AffectedScriptsNotWeak, ConstantResolver, UniqueEmitterName, OwningFunctionCallNode.Get());
+	VisibleCondition.Initialize(SourceScript.Get(), AffectedScriptsNotWeak, ConstantResolver, UniqueEmitterName, OwningFunctionCallNode.Get());
 
 	MessageLogGuid = GetSystemViewModel()->GetMessageLogGuid();
 }
@@ -191,6 +195,11 @@ void UNiagaraStackFunctionInput::FinalizeInternal()
 			  DisplayName
 			, MessageLogGuid
 			, MessageManagerRegistrationKey);
+	}
+
+	if (PlaceholderDataInterfaceHandle.IsValid())
+	{
+		PlaceholderDataInterfaceHandle.Reset();
 	}
 
 	Super::FinalizeInternal();
@@ -827,16 +836,6 @@ FString UNiagaraStackFunctionInput::ResolveDisplayNameArgument(const FString& In
 	return FString();
 }
 
-void UNiagaraStackFunctionInput::ApplyModuleChanges()
-{
-	UEdGraphPin* OverridePin = GetOverridePin();
-	if (OverridePin == nullptr && InputType.IsDataInterface() && DefaultInputValues.Mode != EValueMode::Linked && DefaultInputValues.DataObject.IsValid())
-	{
-		// Data interfaces must always be overridden in the stack. If there wasn't an override pin found, reset the override pin since the stack graph state isn't valid.
-		ResetDataInterfaceOverride();
-	}
-}
-
 void UNiagaraStackFunctionInput::RefreshValues()
 {
 	if (ensureMsgf(IsStaticParameter() || InputParameterHandle.IsModuleHandle(), TEXT("Function inputs can only be generated for module paramters.")) == false)
@@ -857,14 +856,35 @@ void UNiagaraStackFunctionInput::RefreshValues()
 	if (OverridePin != nullptr)
 	{
 		UpdateValuesFromOverridePin(OldValues, InputValues, *OverridePin);
+		if (InputValues.Mode == EValueMode::Data)
+		{
+			FGuid EmitterHandleId = GetEmitterViewModel().IsValid()
+				? FNiagaraEditorUtilities::GetEmitterHandleForEmitter(GetSystemViewModel()->GetSystem(), *GetEmitterViewModel()->GetEmitter())->GetId()
+				: FGuid();
+			PlaceholderDataInterfaceHandle = GetSystemViewModel()->GetPlaceholderDataInterfaceManager()->GetPlaceholderDataInterface(EmitterHandleId, *OwningFunctionCallNode.Get(), InputParameterHandle);
+			if (PlaceholderDataInterfaceHandle.IsValid())
+			{
+				// If there is an active placeholder data interface, display and edit it to keep other views consistent.  Changes to it will be copied to the target data interface
+				// by the placeholder manager.
+				InputValues.DataObject = PlaceholderDataInterfaceHandle->GetDataInterface();
+			}
+		}
 	}
 	else
 	{
 		if (InputType.IsDataInterface())
 		{
-			// Data interfaces must always be overridden in the stack. If there wasn't an override pin found set the mode to invalid override since the
-			// stack graph state isn't valid.
-			InputValues.Mode = EValueMode::InvalidOverride;
+			// If the input it a data interface but hasn't been edited yet, we need to provide a placeholder data interface to edit.
+			FGuid EmitterHandleId = GetEmitterViewModel().IsValid()
+				? FNiagaraEditorUtilities::GetEmitterHandleForEmitter(GetSystemViewModel()->GetSystem(), *GetEmitterViewModel()->GetEmitter())->GetId()
+				: FGuid();
+			PlaceholderDataInterfaceHandle = GetSystemViewModel()->GetPlaceholderDataInterfaceManager()->GetOrCreatePlaceholderDataInterface(EmitterHandleId, *OwningFunctionCallNode.Get(), InputParameterHandle, InputType.GetClass());
+			InputValues.Mode = EValueMode::Data;
+			InputValues.DataObject = PlaceholderDataInterfaceHandle->GetDataInterface();
+			if (DefaultInputValues.DataObject.IsValid() && InputValues.DataObject->Equals(DefaultInputValues.DataObject.Get()) == false)
+			{
+				DefaultInputValues.DataObject->CopyTo(InputValues.DataObject.Get());
+			}
 		}
 		else if (IsRapidIterationCandidate())
 		{
@@ -1317,7 +1337,7 @@ void UNiagaraStackFunctionInput::GetAvailableDynamicInputs(TArray<UNiagaraScript
 	}
 }
 
-void UNiagaraStackFunctionInput::SetDynamicInput(UNiagaraScript* DynamicInput, FString SuggestedName)
+void UNiagaraStackFunctionInput::SetDynamicInput(UNiagaraScript* DynamicInput, FString SuggestedName, const FGuid& InScriptVersion)
 {
 	FScopedTransaction ScopedTransaction(LOCTEXT("SetDynamicInput", "Make dynamic input"));
 
@@ -1329,7 +1349,7 @@ void UNiagaraStackFunctionInput::SetDynamicInput(UNiagaraScript* DynamicInput, F
 	}
 
 	UNiagaraNodeFunctionCall* FunctionCallNode;
-	FNiagaraStackGraphUtilities::SetDynamicInputForFunctionInput(OverridePin, DynamicInput, FunctionCallNode, FGuid(), SuggestedName);
+	FNiagaraStackGraphUtilities::SetDynamicInputForFunctionInput(OverridePin, DynamicInput, FunctionCallNode, FGuid(), SuggestedName, InScriptVersion);
 	FNiagaraStackGraphUtilities::InitializeStackFunctionInputs(GetSystemViewModel(), GetEmitterViewModel(), GetStackEditorData(), *OwningModuleNode, *FunctionCallNode);
 	FNiagaraStackGraphUtilities::RelayoutGraph(*OwningFunctionCallNode->GetGraph());
 
@@ -1473,11 +1493,8 @@ void UNiagaraStackFunctionInput::SetLocalValue(TSharedRef<FStructOnScope> InLoca
 
 		if (InputMetaData.IsSet())
 		{
-			FName VariableName;
-			if (InputMetaData->GetParameterName(VariableName))
-			{
-				OwningFunctionCallNode->UpdateInputNameBinding(InputMetaData->GetVariableGuid(), VariableName);
-			}
+			FName VariableName = FNiagaraParameterHandle(RapidIterationParameter.GetName()).GetName();
+			OwningFunctionCallNode->UpdateInputNameBinding(InputMetaData->GetVariableGuid(), VariableName);
 		}
 	}
 	
@@ -1566,24 +1583,6 @@ bool UNiagaraStackFunctionInput::RemoveRapidIterationParametersForAffectedScript
 	return true;
 }
 
-void UNiagaraStackFunctionInput::ResetDataInterfaceOverride()
-{
-	UEdGraphPin& OverridePin = GetOrCreateOverridePin();
-	RemoveNodesForOverridePin(OverridePin);
-
-	FString InputNodeName = InputParameterHandlePath[0].GetName().ToString();
-	for (int32 i = 1; i < InputParameterHandlePath.Num(); i++)
-	{
-		InputNodeName += "." + InputParameterHandlePath[i].GetName().ToString();
-	}
-
-	UNiagaraDataInterface* InputValueObject;
-	FNiagaraStackGraphUtilities::SetDataValueObjectForFunctionInput(OverridePin, const_cast<UClass*>(InputType.GetClass()), InputNodeName, InputValueObject);
-	DefaultInputValues.DataObject->CopyTo(InputValueObject);
-
-	FNiagaraStackGraphUtilities::RelayoutGraph(*OwningFunctionCallNode->GetGraph());
-}
-
 void UNiagaraStackFunctionInput::Reset()
 {
 	if (CanReset())
@@ -1592,17 +1591,8 @@ void UNiagaraStackFunctionInput::Reset()
 		if (DefaultInputValues.Mode == EValueMode::Data)
 		{
 			FScopedTransaction ScopedTransaction(LOCTEXT("ResetInputObjectTransaction", "Reset the inputs data interface object to default."));
-			if (InputValues.Mode == EValueMode::Data)
-			{
-				// If there is already a valid data object just copy from the default to the current value.
-				InputValues.DataObject->Modify();
-				DefaultInputValues.DataObject->CopyTo(InputValues.DataObject.Get());
-			}
-			else
-			{
-				// Otherwise remove the current nodes from the override pin and set a new data object and copy the values from the default.
-				ResetDataInterfaceOverride();
-			}
+			RemoveOverridePin();
+			PlaceholderDataInterfaceHandle.Reset();
 			bBroadcastDataObjectChanged = true;
 		}
 		else if (DefaultInputValues.Mode == EValueMode::Linked)
@@ -2019,7 +2009,6 @@ void UNiagaraStackFunctionInput::ChangeScriptVersion(FGuid NewScriptVersion)
       FCompileConstantResolver(GetEmitterViewModel()->GetEmitter(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*GetDynamicInputNode())) :
       FCompileConstantResolver(&GetSystemViewModel()->GetSystem(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*GetDynamicInputNode()));
 	GetDynamicInputNode()->ChangeScriptVersion(NewScriptVersion, UpgradeContext, true);
-	ApplyModuleChanges();
 }
 
 const UNiagaraClipboardFunctionInput* UNiagaraStackFunctionInput::ToClipboardFunctionInput(UObject* InOuter) const
@@ -2048,7 +2037,7 @@ const UNiagaraClipboardFunctionInput* UNiagaraStackFunctionInput::ToClipboardFun
 		break;
 	case EValueMode::Dynamic:
 	{
-		ClipboardInput = UNiagaraClipboardFunctionInput::CreateDynamicValue(InOuter, InputName, InputType, bEditConditionValue, InputValues.DynamicNode->GetFunctionName(), InputValues.DynamicNode->FunctionScript);
+		ClipboardInput = UNiagaraClipboardFunctionInput::CreateDynamicValue(InOuter, InputName, InputType, bEditConditionValue, InputValues.DynamicNode->GetFunctionName(), InputValues.DynamicNode->FunctionScript, InputValues.DynamicNode->SelectedScriptVersion);
 
 		TArray<UNiagaraStackFunctionInputCollection*> DynamicInputCollections;
 		GetUnfilteredChildrenOfType(DynamicInputCollections);
@@ -2123,7 +2112,7 @@ void UNiagaraStackFunctionInput::SetValueFromClipboardFunctionInput(const UNiaga
 						// Otherwise it's a scratch pad script from another asset so we need to add a duplicate scratch pad script to this asset.
 						NewDynamicInputScript = GetSystemViewModel()->GetScriptScratchPadViewModel()->CreateNewScriptAsDuplicate(ClipboardFunctionScript)->GetOriginalScript();
 					}
-					SetDynamicInput(NewDynamicInputScript, ClipboardFunctionInput.Dynamic->FunctionName);
+					SetDynamicInput(NewDynamicInputScript, ClipboardFunctionInput.Dynamic->FunctionName, ClipboardFunctionInput.Dynamic->ScriptVersion);
 
 					TArray<UNiagaraStackFunctionInputCollection*> DynamicInputCollections;
 					GetUnfilteredChildrenOfType(DynamicInputCollections);
@@ -2430,7 +2419,7 @@ void UNiagaraStackFunctionInput::UpdateValuesFromScriptDefaults(FInputValues& In
 		// Static switch parameters are always locally set values.
 		if (InputScriptVariable != nullptr)
 		{
-			TSharedPtr<FStructOnScope> StaticSwitchLocalStruct = FNiagaraEditorUtilities::StaticSwitchDefaultIntToStructOnScope(InputScriptVariable->Metadata.GetStaticSwitchDefaultValue(), InputType);
+			TSharedPtr<FStructOnScope> StaticSwitchLocalStruct = FNiagaraEditorUtilities::StaticSwitchDefaultIntToStructOnScope(InputScriptVariable->GetStaticSwitchDefaultValue(), InputType);
 			if(ensureMsgf(StaticSwitchLocalStruct.IsValid(), TEXT("Unsupported static struct default value.")))
 			{ 
 				InInputValues.Mode = EValueMode::Local;

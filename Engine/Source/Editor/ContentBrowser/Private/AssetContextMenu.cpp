@@ -411,7 +411,7 @@ bool FAssetContextMenu::AddCommonMenuOptions(UToolMenu* Menu)
 			// Delete
 			Section.AddMenuEntry(FGenericCommands::Get().Delete,
 				LOCTEXT("Delete", "Delete"),
-				LOCTEXT("DeleteTooltip", "Delete the selected items."),
+				TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &FAssetContextMenu::GetDeleteToolTip)),
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Delete")
 			);
 		}
@@ -905,6 +905,17 @@ bool FAssetContextMenu::CanExecuteRename() const
 bool FAssetContextMenu::CanExecuteDelete() const
 {
 	return ContentBrowserUtils::CanDeleteFromAssetView(AssetView);
+}
+
+FText FAssetContextMenu::GetDeleteToolTip() const
+{
+	FText ErrorMessage;
+	if (!ContentBrowserUtils::CanDeleteFromAssetView(AssetView, &ErrorMessage) && !ErrorMessage.IsEmpty())
+	{
+		return ErrorMessage;
+	}
+
+	return LOCTEXT("DeleteTooltip", "Delete the selected items.");
 }
 
 bool FAssetContextMenu::CanExecuteSaveAsset() const

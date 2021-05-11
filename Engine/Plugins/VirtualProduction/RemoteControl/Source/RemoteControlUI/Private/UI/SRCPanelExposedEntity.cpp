@@ -2,6 +2,8 @@
 
 #include "SRCPanelExposedEntity.h"
 
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ActorTreeItem.h"
 #include "GameFramework/Actor.h"
 #include "RemoteControlEntity.h"
@@ -15,16 +17,25 @@
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanel"
 
+TSharedPtr<SWidget> SRCPanelExposedEntity::GetContextMenu()
+{
+	FMenuBuilder MenuBuilder(true, TSharedPtr<const FUICommandList>());
+	MenuBuilder.AddSubMenu(
+		LOCTEXT("EntityRebindSubmenuLabel", "Rebind"),
+		LOCTEXT("EntityRebindSubmenuToolTip", "Pick an object to rebind this exposed entity."),
+		FNewMenuDelegate::CreateLambda([this](FMenuBuilder& SubMenuBuilder)
+		{
+			constexpr bool bNoIndent = true;
+			SubMenuBuilder.AddWidget(CreateRebindMenuContent(), FText::GetEmpty(), bNoIndent);
+		}));
+	return MenuBuilder.MakeWidget();
+}
+
 TSharedRef<SWidget> SRCPanelExposedEntity::CreateInvalidWidget()
 {
-	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
-	FSceneOutlinerInitializationOptions Options;
-	Options.Filters = MakeShared<FSceneOutlinerFilters>();
-	Options.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateRaw(this, &SRCPanelExposedEntity::IsActorSelectable));
-
 	return SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
-	    .AutoWidth()
+		.AutoWidth()
 		[
 			SNew(SComboButton)
 			.ButtonContent()
@@ -38,10 +49,25 @@ TSharedRef<SWidget> SRCPanelExposedEntity::CreateInvalidWidget()
 				.MaxDesiredHeight(400.0f)
 				.WidthOverride(300.0f)
 				[
-					SceneOutlinerModule.CreateActorPicker(Options, FOnActorPicked::CreateRaw(this, &SRCPanelExposedEntity::OnActorSelected), nullptr)
+					CreateRebindMenuContent()
 				]
 			]
 		];
+}
+
+TSharedRef<SWidget> SRCPanelExposedEntity::CreateRebindMenuContent()
+{
+	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
+	FSceneOutlinerInitializationOptions Options;
+	Options.Filters = MakeShared<FSceneOutlinerFilters>();
+	Options.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateRaw(this, &SRCPanelExposedEntity::IsActorSelectable));
+
+	return SNew(SBox)
+	.MaxDesiredHeight(400.0f)
+	.WidthOverride(300.0f)
+	[
+		SceneOutlinerModule.CreateActorPicker(Options, FOnActorPicked::CreateRaw(this, &SRCPanelExposedEntity::OnActorSelected), nullptr)
+	];
 }
 
 void SRCPanelExposedEntity::OnActorSelected(AActor* InActor) const
@@ -50,6 +76,8 @@ void SRCPanelExposedEntity::OnActorSelected(AActor* InActor) const
 	{
 		Entity->BindObject(InActor);
 	}
+
+	FSlateApplication::Get().DismissAllMenus();
 }
 
 bool SRCPanelExposedEntity::IsActorSelectable(const AActor* Actor) const

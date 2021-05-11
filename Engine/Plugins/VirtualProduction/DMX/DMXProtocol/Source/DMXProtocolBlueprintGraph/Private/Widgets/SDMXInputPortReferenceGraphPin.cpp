@@ -18,13 +18,14 @@ void SDMXInputPortReferenceGraphPin::Construct(const FArguments& InArgs, UEdGrap
 
 TSharedRef<SWidget> SDMXInputPortReferenceGraphPin::GetDefaultValueWidget()
 {
+	FDMXInputPortReference InitiallySelectedPortReference = GetPinValue();
+
 	// Create entity picker button
 	PortSelector = SNew(SDMXPortSelector)
 		.Mode(EDMXPortSelectorMode::SelectFromAvailableInputs)
+		.InitialSelection(InitiallySelectedPortReference.GetPortGuid())
 		.OnPortSelected(this, &SDMXInputPortReferenceGraphPin::OnPortSelected)
 		.Visibility(this, &SGraphPin::GetDefaultValueVisibility);
-
-	OnPortSelected();
 	
 	return PortSelector.ToSharedRef();
 }

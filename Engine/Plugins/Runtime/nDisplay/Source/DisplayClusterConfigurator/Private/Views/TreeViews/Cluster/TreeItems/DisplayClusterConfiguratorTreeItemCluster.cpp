@@ -4,6 +4,7 @@
 
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
+#include "Interfaces/Views/OutputMapping/IDisplayClusterConfiguratorViewOutputMapping.h"
 
 
 FDisplayClusterConfiguratorTreeItemCluster::FDisplayClusterConfiguratorTreeItemCluster(const FName& InName,
@@ -16,6 +17,15 @@ FDisplayClusterConfiguratorTreeItemCluster::FDisplayClusterConfiguratorTreeItemC
 	, Name(InName)
 	, IconStyle(InIconStyle)
 {}
+
+void FDisplayClusterConfiguratorTreeItemCluster::OnItemDoubleClicked()
+{
+	if (ToolkitPtr.IsValid())
+	{
+		TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
+		Toolkit->GetViewOutputMapping()->JumpToObject(GetObject());
+	}
+}
 
 void FDisplayClusterConfiguratorTreeItemCluster::OnMouseEnter()
 {

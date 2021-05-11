@@ -19,16 +19,7 @@ SGridPanel::FSlot& SGridPanel::AddSlot( int32 Column, int32 Row, SGridPanel::Lay
 
 bool SGridPanel::RemoveSlot(const TSharedRef<SWidget>& SlotWidget)
 {
-	for ( int32 SlotIdx = 0; SlotIdx < Slots.Num(); ++SlotIdx )
-	{
-		if ( SlotWidget == Slots[SlotIdx].GetWidget() )
-		{
-			Slots.RemoveAt(SlotIdx);
-			return true;
-		}
-	}
-
-	return false;
+	return Slots.Remove(SlotWidget) != INDEX_NONE;
 }
 
 void SGridPanel::ClearChildren()

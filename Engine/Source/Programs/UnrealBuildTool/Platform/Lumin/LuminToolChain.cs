@@ -53,7 +53,7 @@ namespace UnrealBuildTool
 		public LuminToolChain(FileReference InProjectFile, bool bInUseLdGold = true, IReadOnlyList<string> InAdditionalArches = null, IReadOnlyList<string> InAdditionalGPUArches = null, bool bAllowMissingNDK = true)
 			: base(InProjectFile,
 				  // @todo Lumin: ld gold?
-				  true, null, null, true)
+				  true, null, null, true, AndroidToolChainOptions.None)
 
 		{
 			AdditionalGPUArches = new List<string>();

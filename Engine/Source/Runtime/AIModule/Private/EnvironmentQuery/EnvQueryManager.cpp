@@ -1022,6 +1022,19 @@ bool UEnvQueryManager::Exec(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar
 }
 
 
+void UEnvQueryManager::Configure(const FEnvQueryManagerConfig& NewConfig)
+{
+	UE_LOG(LogEQS, Log, TEXT("Applying new FEnvQueryManagerConfig: %s"), *NewConfig.ToString());
+
+	MaxAllowedTestingTime = NewConfig.MaxAllowedTestingTime;
+	bTestQueriesUsingBreadth = NewConfig.bTestQueriesUsingBreadth;
+	QueryCountWarningThreshold = NewConfig.QueryCountWarningThreshold;
+	QueryCountWarningInterval = NewConfig.QueryCountWarningInterval;
+	ExecutionTimeWarningSeconds = NewConfig.ExecutionTimeWarningSeconds;
+	HandlingResultTimeWarningSeconds = NewConfig.HandlingResultTimeWarningSeconds;
+	GenerationTimeWarningSeconds = NewConfig.GenerationTimeWarningSeconds;	
+}
+
 //----------------------------------------------------------------------//
 // FEQSDebugger
 //----------------------------------------------------------------------//
@@ -1190,3 +1203,11 @@ void FEQSDebugger::LoadStats(const FString& FileName)
 }
 
 #endif // USE_EQS_DEBUGGER
+
+//----------------------------------------------------------------------//
+// FEnvQueryManagerConfig
+//----------------------------------------------------------------------//
+FString FEnvQueryManagerConfig::ToString() const
+{
+	return FString::Printf(TEXT("MaxAllowedTestingTime=%f bTestQueriesUsingBreadth=%d QueryCountWarningThreshold=%d QueryCountWarningInterval=%f ExecutionTimeWarningSeconds=%f HandlingResultTimeWarningSeconds=%f GenerationTimeWarningSeconds=%f"), MaxAllowedTestingTime, bTestQueriesUsingBreadth, QueryCountWarningThreshold, QueryCountWarningInterval, ExecutionTimeWarningSeconds, HandlingResultTimeWarningSeconds, GenerationTimeWarningSeconds);
+}

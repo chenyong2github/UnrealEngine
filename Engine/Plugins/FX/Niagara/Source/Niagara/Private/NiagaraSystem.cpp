@@ -77,6 +77,22 @@ static FAutoConsoleVariableRef CVarNiagaraScalabiltiyMinumumMaxDistance(
 	ECVF_Default
 );
 
+static float GNiagaraCompileWaitLoggingThreshold = 30.0f;
+static FAutoConsoleVariableRef CVarNiagaraCompileWaitLoggingThreshold(
+	TEXT("fx.Niagara.CompileWaitLoggingThreshold"),
+	GNiagaraCompileWaitLoggingThreshold,
+	TEXT("During automation, how long do we wait for a compile result before logging."),
+	ECVF_Default
+);
+
+static int GNiagaraCompileWaitLoggingTerminationCap = 3;
+static FAutoConsoleVariableRef CVarNiagaraCompileWaitLoggingTerminationCap(
+	TEXT("fx.Niagara.CompileWaitLoggingCap"),
+	GNiagaraCompileWaitLoggingTerminationCap,
+	TEXT("During automation, how many times do we log before failing compilation?"),
+	ECVF_Default
+);
+
 //////////////////////////////////////////////////////////////////////////
 
 UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
@@ -130,6 +146,8 @@ void UNiagaraSystem::BeginDestroy()
 	{
 		QueryCompileComplete(true, false, true);
 	}
+
+	CleanupParameterDefinitionsSubscriptions();
 #endif
 
 	//Should we just destroy all system sims here to simplify cleanup?
@@ -209,6 +227,32 @@ void UNiagaraSystem::HandleVariableRemoved(const FNiagaraVariable& InOldVariable
 		FNiagaraSystemUpdateContext UpdateCtx(this, true);
 	}
 }
+
+TArray<UNiagaraScriptSourceBase*> UNiagaraSystem::GetAllSourceScripts()
+{
+	return { SystemSpawnScript->GetLatestSource(), SystemUpdateScript->GetLatestSource() };
+}
+
+FString UNiagaraSystem::GetSourceObjectPathName() const
+{
+	return GetPathName();
+}
+
+TArray<UNiagaraEditorParametersAdapterBase*> UNiagaraSystem::GetEditorOnlyParametersAdapters()
+{
+	return { GetEditorParameters() };
+}
+
+TArray<INiagaraParameterDefinitionsSubscriber*> UNiagaraSystem::GetOwnedParameterDefinitionsSubscribers()
+{
+	TArray<INiagaraParameterDefinitionsSubscriber*> OutSubscribers;
+	for (const FNiagaraEmitterHandle& EmitterHandle : GetEmitterHandles())
+	{
+		OutSubscribers.Add(EmitterHandle.GetInstance());
+	}
+	return OutSubscribers;
+}
+
 #endif
 
 void UNiagaraSystem::PostInitProperties()
@@ -228,6 +272,11 @@ void UNiagaraSystem::PostInitProperties()
 #if WITH_EDITORONLY_DATA && WITH_EDITOR
 		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
 		EditorData = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorData(this);
+
+		if (EditorParameters == nullptr)
+		{
+			EditorParameters = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorParameters(this);
+		}
 #endif
 	}
 
@@ -376,27 +425,6 @@ void UNiagaraSystem::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 	if (GIsCookerLoadingPackage && Ar.IsLoading())
 	{
-		// start temp fix
-		// we will disable the default behavior of baking out the rapid iteration parameters on cook if one of the emitters
-		// is using the old experimental sim stages as FHlslNiagaraTranslator::RegisterFunctionCall hardcodes the use of the
-		// symbolic constants that are being stripped out
-		bool UsingOldSimStages = false;
-
-		for (const FNiagaraEmitterHandle& EmitterHandle : EmitterHandles)
-		{
-			if (const UNiagaraEmitter* Emitter = EmitterHandle.GetInstance())
-			{
-				if (Emitter->bDeprecatedShaderStagesEnabled)
-				{
-					UsingOldSimStages = true;
-					break;
-				}
-			}
-		}
-
-		bBakeOutRapidIterationOnCook = bBakeOutRapidIterationOnCook && !UsingOldSimStages;
-		// end temp fix
-
 		bBakeOutRapidIteration = bBakeOutRapidIteration || bBakeOutRapidIterationOnCook;
 		bTrimAttributes = bTrimAttributes || bTrimAttributesOnCook;
 
@@ -536,6 +564,12 @@ void UNiagaraSystem::PostLoad()
 
 	if (!GetOutermost()->bIsCookedForEditor && !bIsDedicatedServer)
 	{
+		if (EditorParameters == nullptr)
+		{
+			INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
+			EditorParameters = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorParameters(this);
+		}
+
 		TArray<UNiagaraScript*> AllSystemScripts;
 		UNiagaraScriptSourceBase* SystemScriptSource = nullptr;
 		if (SystemSpawnScript == nullptr)
@@ -669,6 +703,24 @@ void UNiagaraSystem::PostLoad()
 		}
 #endif
 
+		// Synchronize with definitions before compiling.
+		const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+		check(Settings);
+		TArray<FGuid> DefaultDefinitionsUniqueIds;
+		for (const FSoftObjectPath& DefaultLinkedParameterDefinitionObjPath : Settings->DefaultLinkedParameterDefinitions)
+		{
+			UNiagaraParameterDefinitionsBase* DefaultLinkedParameterDefinitions = CastChecked<UNiagaraParameterDefinitionsBase>(DefaultLinkedParameterDefinitionObjPath.TryLoad());
+			DefaultDefinitionsUniqueIds.Add(DefaultLinkedParameterDefinitions->GetDefinitionsUniqueId());
+			const bool bDoNotAssertIfAlreadySubscribed = true;
+			SubscribeToParameterDefinitions(DefaultLinkedParameterDefinitions, bDoNotAssertIfAlreadySubscribed);
+		}
+		FSynchronizeWithParameterDefinitionsArgs Args;
+		Args.SpecificDefinitionsUniqueIds = DefaultDefinitionsUniqueIds;
+		Args.bForceSynchronizeDefinitions = true;
+		Args.bSubscribeAllNameMatchParameters = true;
+		SynchronizeWithParameterDefinitions(Args);
+		InitParameterDefinitionsSubscriptions();
+
 		if (bSystemScriptsAreSynchronized == false || bEmitterScriptsAreSynchronized == false)
 		{
 			// Call modify here so that the system will resave the compile ids and script vm when running the resave
@@ -700,6 +752,12 @@ void UNiagaraSystem::PostLoad()
 		WaitForCompilationComplete();
 		bBakeOutRapidIteration = true;
 		RequestCompile(false);
+	}
+
+	// see the equivalent in NiagaraEmitter for details
+	if(bIsTemplateAsset_DEPRECATED)
+	{
+		TemplateSpecification = bIsTemplateAsset_DEPRECATED ? ENiagaraScriptTemplateSpecification::Template : ENiagaraScriptTemplateSpecification::None;
 	}
 #endif // WITH_EDITORONLY_DATA
 
@@ -748,6 +806,11 @@ UNiagaraEditorDataBase* UNiagaraSystem::GetEditorData()
 const UNiagaraEditorDataBase* UNiagaraSystem::GetEditorData() const
 {
 	return EditorData;
+}
+
+UNiagaraEditorParametersAdapterBase* UNiagaraSystem::GetEditorParameters()
+{
+	return EditorParameters;
 }
 
 bool UNiagaraSystem::ReferencesInstanceEmitter(UNiagaraEmitter& Emitter)
@@ -1053,7 +1116,10 @@ void UNiagaraSystem::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 		++StringIter;
 	}
 
-
+	// TemplateSpecialization
+	FName TemplateSpecificationName = GET_MEMBER_NAME_CHECKED(UNiagaraSystem, TemplateSpecification);
+	FText TemplateSpecializationValueString = StaticEnum<ENiagaraScriptTemplateSpecification>()->GetDisplayNameTextByValue((int64) TemplateSpecification);
+	OutTags.Add(FAssetRegistryTag(TemplateSpecificationName, TemplateSpecializationValueString.ToString(), FAssetRegistryTag::TT_Alphabetical));
 
 	/*for (const UNiagaraDataInterface* DI : DataInterfaces)
 	{
@@ -1655,9 +1721,9 @@ FNiagaraEmitterHandle UNiagaraSystem::AddEmitterHandle(UNiagaraEmitter& InEmitte
 {
 	UNiagaraEmitter* NewEmitter = UNiagaraEmitter::CreateWithParentAndOwner(InEmitter, this, EmitterName, ~(RF_Public | RF_Standalone));
 	FNiagaraEmitterHandle EmitterHandle(*NewEmitter);
-	if (InEmitter.bIsTemplateAsset)
+	if (InEmitter.TemplateSpecification == ENiagaraScriptTemplateSpecification::Template || InEmitter.TemplateSpecification == ENiagaraScriptTemplateSpecification::Behavior)
 	{
-		NewEmitter->bIsTemplateAsset = false;
+		NewEmitter->TemplateSpecification = ENiagaraScriptTemplateSpecification::None;
 		NewEmitter->TemplateAssetDescription = FText();
 		NewEmitter->RemoveParent();
 	}
@@ -1786,6 +1852,10 @@ void UNiagaraSystem::WaitForCompilationComplete(bool bIncludingGPUShaders, bool 
 		Progress.MakeDialog();
 	}
 
+	double StartTime = FPlatformTime::Seconds();
+	double TimeLogThreshold = GNiagaraCompileWaitLoggingThreshold;
+	uint32 NumLogIterations = GNiagaraCompileWaitLoggingTerminationCap;
+
 	while (ActiveCompilations.Num() > 0)
 	{
 		if (QueryCompileComplete(true, ActiveCompilations.Num() == 1))
@@ -1793,6 +1863,27 @@ void UNiagaraSystem::WaitForCompilationComplete(bool bIncludingGPUShaders, bool 
 			// make sure to only mark progress if we actually have accomplished something in the QueryCompileComplete
 			Progress.EnterProgressFrame();
 		}
+	
+
+#if WITH_EDITORONLY_DATA
+		if (GIsAutomationTesting)
+		{
+			double CurrentTime = FPlatformTime::Seconds();
+			double DeltaTimeSinceLastLog = CurrentTime - StartTime;
+			if (DeltaTimeSinceLastLog > TimeLogThreshold)
+			{
+				StartTime = CurrentTime;
+				UE_LOG(LogNiagara, Log, TEXT("Waiting for %f seconds > %s"), (float)DeltaTimeSinceLastLog, *GetPathNameSafe(this));
+				NumLogIterations--;
+			}
+
+			if (NumLogIterations == 0)
+			{
+				UE_LOG(LogNiagara, Warning, TEXT("Timed out for compiling > %s"), *GetPathNameSafe(this));
+				break;
+			}
+		}
+#endif
 	}
 	
 	for (FNiagaraShaderScript* ShaderScript : GPUScripts)

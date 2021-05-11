@@ -88,9 +88,14 @@ TSharedPtr<FDisplayClusterBlueprintEditorSCSEditorUICustomization> FDisplayClust
 
 FDisplayClusterConfiguratorBlueprintEditor::~FDisplayClusterConfiguratorBlueprintEditor()
 {
-	if (UpdateOutputMappingHandle.IsValid() && ViewOutputMapping.IsValid())
+	if (ViewOutputMapping.IsValid())
 	{
-		ViewOutputMapping->UnregisterOnOutputMappingBuilt(UpdateOutputMappingHandle);
+		ViewOutputMapping->Cleanup();
+
+		if (UpdateOutputMappingHandle.IsValid())
+		{
+			ViewOutputMapping->UnregisterOnOutputMappingBuilt(UpdateOutputMappingHandle);
+		}
 	}
 
 	if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(GetPreviewActor()))
@@ -387,6 +392,19 @@ UDisplayClusterConfigurationData* FDisplayClusterConfiguratorBlueprintEditor::Ge
 		return Data;
 	}
 	
+	return nullptr;
+}
+
+ADisplayClusterRootActor* FDisplayClusterConfiguratorBlueprintEditor::GetDefaultRootActor() const
+{
+	if (UBlueprint* Blueprint = GetBlueprintObj())
+	{
+		if (Blueprint->GeneratedClass)
+		{
+			return Cast<ADisplayClusterRootActor>(Blueprint->GeneratedClass->ClassDefaultObject);
+		}
+	}
+
 	return nullptr;
 }
 
@@ -1172,6 +1190,14 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorBlueprintEditor::CreateSCSEditorE
 
 					bool bAddedComponent = false;
 
+					// Rename the asset to our display names by creating a template.
+					// Otherwise the DisplayCluster class name is used, not the custom nDisplay display name.
+					if (AssetOverride == nullptr && NewClass->IsClassGroupName(TEXT("DisplayCluster")))
+					{
+						const FString DisplayName =  FDisplayClusterConfiguratorUtils::FormatNDisplayComponentName(NewClass);
+						AssetOverride = NewObject<UActorComponent>(GetTransientPackage(), NewClass, *DisplayName);
+					}
+					
 					// This adds components according to the type selected in the drop down. If the user
 					// has the appropriate objects selected in the content browser then those are added,
 					// else we go down the previous route of adding components by type.
@@ -1202,7 +1228,7 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorBlueprintEditor::CreateSCSEditorE
 						// As the SCS splits up the scene and actor components, can now add directly
 						NewComponent = SCSEditor->AddNewComponent(NewClass, AssetOverride);
 					}
-
+					
 					SCSEditor->UpdateTree();
 				}
 

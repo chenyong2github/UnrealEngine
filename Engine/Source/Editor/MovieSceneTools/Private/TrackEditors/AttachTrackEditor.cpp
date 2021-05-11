@@ -468,12 +468,12 @@ FTransform GetLocationAtTime(UMovieScene3DTransformTrack* TransformTrack, FFrame
 	Interrogator.AddInterrogation(KeyTime);
 	Interrogator.Update();
 
-	TArray<UE::MovieScene::FIntermediate3DTransform> Transforms;
-	Interrogator.QueryLocalSpaceTransforms(UE::MovieScene::FInterrogationChannel::Default(), Transforms);
+	TArray<FTransform> Transforms;
+	Interrogator.QueryWorldSpaceTransforms(UE::MovieScene::FInterrogationChannel::Default(), Transforms);
 
 	if (Transforms.Num())
 	{
-		FTransform Transform(Transforms[0].GetRotation(), Transforms[0].GetTranslation(), Transforms[0].GetScale());
+		FTransform Transform(Transforms[0].GetRotation(), Transforms[0].GetTranslation(), Transforms[0].GetScale3D());
 		return Transform;
 	}
 

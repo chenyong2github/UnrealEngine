@@ -489,7 +489,7 @@ void FSourceCodeNavigationImpl::NavigateToFunctionSource( const FString& Functio
 		uint32 SourceColumnNumber = 0;
 		if( SymGetLineFromAddr64( ProcessHandle, SymbolInfoPtr->Address, (::DWORD *)&SourceColumnNumber, &FileAndLineInfo ) )
 		{
-			const FString SourceFileName( (const ANSICHAR*)(FileAndLineInfo.FileName) );
+			FString SourceFileName( (const ANSICHAR*)(FileAndLineInfo.FileName) );
 			int32 SourceLineNumber = 1;
 			if( bIgnoreLineNumber )
 			{
@@ -498,6 +498,62 @@ void FSourceCodeNavigationImpl::NavigateToFunctionSource( const FString& Functio
 			else
 			{
 				SourceLineNumber = FileAndLineInfo.LineNumber;
+			}
+
+			//If the file cannot be found, we are likely in a case of an Installed Build or a Project that was relocated post compilation. Try to rebuild the path from known roots.
+ 			if (FPaths::FileExists(SourceFileName) == false)
+			{
+				bool bFoundSource = false;
+				TArray<FString> Tokens;
+
+				//Split path from the PDB on backslashes 
+				SourceFileName.ParseIntoArray(Tokens, TEXT("\\"));
+
+				auto PathSearch = [&Tokens, &SourceFileName](const FString& BasePath) {
+					FString PathTail;
+					PathTail.Reserve(SourceFileName.Len());
+					FString TempPath;
+					TempPath.Reserve(SourceFileName.Len());
+
+					int32 index = Tokens.Num() - 1;
+
+					//Add the file name
+					PathTail = Tokens[index--];
+
+					//Successively prepend the folders until the file is found on disk or the full path is consumed.
+					do
+					{
+						TempPath = BasePath + PathTail;
+						
+						if (FPaths::FileExists(TempPath) == true)
+						{
+							//Resolve the path to an absolute path.
+							SourceFileName = IFileManager::Get().GetFilenameOnDisk(*TempPath);
+							return true;
+						}
+
+						//Prepend another folder to the current tail
+						PathTail = Tokens[index] + TEXT("\\") + PathTail;
+					} while (--index > 0);
+
+					return false;
+				};
+
+				const FString EnginePath = FPaths::EngineDir();
+				const FString ProjectPath = FPaths::ProjectDir();
+				
+				if((PathSearch(EnginePath) == false) && (PathSearch(ProjectPath) == false))
+				{
+					UE_LOG(LogSelectionDetails, Warning, TEXT("NavigateToFunctionSource:  Didn't find source file for [%s] - File [%s], Line [%i], Column [%i]"),
+						*FunctionSymbolName,
+						*SourceFileName,
+						(uint32)FileAndLineInfo.LineNumber,
+						SourceColumnNumber);
+				}
+				else
+				{
+					UE_LOG(LogSelectionDetails, Verbose, TEXT("NavigateToFunctionSource:  Found symbol file in renamed or moved code base."));
+				}
 			}
 
 			UE_LOG(LogSelectionDetails, Verbose, TEXT( "NavigateToFunctionSource:  Found symbols for [%s] - File [%s], Line [%i], Column [%i]" ),

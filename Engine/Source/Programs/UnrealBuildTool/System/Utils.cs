@@ -1010,7 +1010,7 @@ namespace UnrealBuildTool
 				string DirectoryName = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
 				if(String.IsNullOrEmpty(DirectoryName))
 				{
-					return null;
+					return DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Saved");
 				}
 				else
 				{

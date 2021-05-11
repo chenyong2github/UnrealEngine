@@ -103,6 +103,16 @@ bool UContentBrowserDataSource::IsVirtualPathUnderMountRoot(const FName InPath) 
 	return TryConvertVirtualPath(InPath, ConvertedPath) != EContentBrowserPathType::None;
 }
 
+EContentBrowserPathType UContentBrowserDataSource::TryConvertVirtualPath(const FStringView InPath, FStringBuilderBase& OutPath) const
+{
+	return RootPathVirtualTree.TryConvertVirtualPathToInternal(InPath, OutPath);
+}
+
+EContentBrowserPathType UContentBrowserDataSource::TryConvertVirtualPath(const FStringView InPath, FString& OutPath) const
+{
+	return RootPathVirtualTree.TryConvertVirtualPathToInternal(InPath, OutPath);
+}
+
 EContentBrowserPathType UContentBrowserDataSource::TryConvertVirtualPath(const FName InPath, FName& OutPath) const
 {
 	return RootPathVirtualTree.TryConvertVirtualPathToInternal(InPath, OutPath);

@@ -140,6 +140,7 @@ void FObjectDetails::AddCallInEditorMethods(IDetailLayoutBuilder& DetailBuilder)
 		struct FCategoryEntry
 		{
 			FName CategoryName;
+			FName RowTag;
 			TSharedPtr<SWrapBox> WrapBox;
 			FTextBuilder FunctionSearchText;
 
@@ -187,6 +188,7 @@ void FObjectDetails::AddCallInEditorMethods(IDetailLayoutBuilder& DetailBuilder)
 				.ToolTipText(FText::Format(LOCTEXT("CallInEditorTooltip", "Call an event on the selected object(s)\n\n\n{0}"), FunctionTooltip))
 			];
 
+			CategoryEntry.RowTag = Function->GetFName();
 			CategoryEntry.FunctionSearchText.AppendLine(ButtonCaption);
 			CategoryEntry.FunctionSearchText.AppendLine(FunctionTooltip);
 		}
@@ -196,6 +198,7 @@ void FObjectDetails::AddCallInEditorMethods(IDetailLayoutBuilder& DetailBuilder)
 		{
 			IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(CategoryEntry.CategoryName);
 			CategoryBuilder.AddCustomRow(CategoryEntry.FunctionSearchText.ToText())
+			.RowTag(CategoryEntry.RowTag)
 			[
 				CategoryEntry.WrapBox.ToSharedRef()
 			];

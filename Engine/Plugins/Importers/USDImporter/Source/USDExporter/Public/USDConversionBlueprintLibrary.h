@@ -14,6 +14,9 @@ class USDEXPORTER_API UUsdConversionBlueprintLibrary : public UObject
 
 public:
 
+	UFUNCTION( BlueprintCallable, Category = "World utils" )
+	static TSet<AActor*> GetActorsToConvert( UWorld* World );
+
 	UFUNCTION( BlueprintCallable, Category = "Layer utils" )
 	static FString MakePathRelativeToLayer( const FString& AnchorLayerPath, const FString& PathToMakeRelative );
 

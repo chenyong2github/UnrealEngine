@@ -14,6 +14,7 @@ NETWORKPREDICTION_API DECLARE_LOG_CATEGORY_EXTERN(LogNetworkPhysics, Log, All);
 
 struct FNetworkPhysicsRewindCallback;
 class FMockObjectManager;
+class FSingleParticlePhysicsProxy;
 
 struct FBasePhysicsState
 {
@@ -23,6 +24,7 @@ struct FBasePhysicsState
 	Chaos::FVec3 LinearVelocity;
 	Chaos::FVec3 AngularVelocity;
 };
+
 
 // PhysicsState that is networked and marshelled between GT and PT
 USTRUCT()

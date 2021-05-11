@@ -81,6 +81,9 @@ protected:
 // UCommonTreeView
 //////////////////////////////////////////////////////////////////////////
 
+/**
+ * TreeView specialized to navigate on focus for consoles & enable scrolling when not focused for touch
+ */
 UCLASS()
 class COMMONUI_API UCommonTreeView : public UTreeView
 {

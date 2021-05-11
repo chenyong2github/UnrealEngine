@@ -362,6 +362,11 @@ public:
 	 */
 	virtual void RemoveWindSource(class UWindDirectionalSourceComponent* WindComponent) = 0;
 	/**
+	 * Update a wind source component from the scene.
+	 * @param WindComponent - The component to update.
+	 */
+	virtual void UpdateWindSource(class UWindDirectionalSourceComponent* WindComponent) = 0;
+	/**
 	 * Accesses the wind source list.  Must be called in the rendering thread.
 	 * @return The list of wind sources in the scene.
 	 */

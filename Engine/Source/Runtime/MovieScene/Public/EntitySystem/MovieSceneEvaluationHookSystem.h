@@ -25,6 +25,8 @@ struct FMovieSceneEvaluationHookEvent
 	FFrameTime RootTime;
 
 	UE::MovieScene::EEvaluationHookEvent Type;
+
+	bool bRestoreState = false;
 };
 
 USTRUCT()

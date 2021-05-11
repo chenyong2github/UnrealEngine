@@ -47,6 +47,12 @@ namespace UsdUtils
 	USDUTILITIES_API TOptional< FString > BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< const SWidget > OriginatingWidget );
 #endif // #if WITH_EDITOR
 
+	/**
+	 * Converts the file path from being absolute or relative to engine binary, into being relative to the current project's directory.
+	 * It will only do this if the file is actually within the project's directory (or within its folder tree). Otherwise it will return an absolute path
+	 */
+	USDUTILITIES_API FString MakePathRelativeToProjectDir( const FString& Path );
+
 	/** Creates a new layer with a default prim */
 	USDUTILITIES_API TUsdStore< pxr::SdfLayerRefPtr > CreateNewLayer( TUsdStore< pxr::UsdStageRefPtr > UsdStage, const TUsdStore< pxr::SdfLayerRefPtr >& ParentLayer, const TCHAR* LayerFilePath );
 

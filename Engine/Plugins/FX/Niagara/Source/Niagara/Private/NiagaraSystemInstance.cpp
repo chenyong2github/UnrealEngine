@@ -101,8 +101,6 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& 
 	, ParametersValid(false)
 	, bSolo(false)
 	, bForceSolo(false)
-	, bPendingSpawn(false)
-	, bPaused(false)
 	, bDataInterfacesHaveTickPrereqs(false)
 	, bDataInterfacesInitialized(false)
 	, bAlreadyBound(false)
@@ -468,9 +466,8 @@ void FNiagaraSystemInstance::SetSolo(bool bInSolo)
 		TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> NewSoloSim = MakeShared<FNiagaraSystemSimulation, ESPMode::ThreadSafe>();
 		NewSoloSim->Init(System, World, true, TG_MAX);
 
-		NewSoloSim->TransferInstance(SystemSimulation.Get(), this);
+		NewSoloSim->TransferInstance(this);
 
-		SystemSimulation = NewSoloSim;
 		bSolo = true;
 	}
 	else
@@ -478,9 +475,8 @@ void FNiagaraSystemInstance::SetSolo(bool bInSolo)
 		const ETickingGroup TickGroup = CalculateTickGroup();
 		TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> NewSim = GetWorldManager()->GetSystemSimulation(TickGroup, System);
 
-		NewSim->TransferInstance(SystemSimulation.Get(), this);
+		NewSim->TransferInstance(this);
 
-		SystemSimulation = NewSim;
 		bSolo = false;
 	}
 
@@ -713,7 +709,7 @@ void FNiagaraSystemInstance::OnPooledReuse(UWorld& NewWorld)
 
 void FNiagaraSystemInstance::SetPaused(bool bInPaused)
 {
-	if (bInPaused == bPaused)
+	if (bInPaused == IsPaused())
 	{
 		return;
 	}
@@ -736,8 +732,6 @@ void FNiagaraSystemInstance::SetPaused(bool bInPaused)
 			}
 		}
 	}
-
-	bPaused = bInPaused;
 }
 
 void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
@@ -872,8 +866,6 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 void FNiagaraSystemInstance::ResetInternal(bool bResetSimulations)
 {
 	check(SystemInstanceIndex == INDEX_NONE);
-	ensure(bPendingSpawn == false);
-	ensure(bPaused == false);
 	ensure(!FinalizeRef.IsPending());
 
 	Age = 0;
@@ -1003,8 +995,6 @@ bool DoSystemDataInterfacesRequireSolo(const UNiagaraSystem& System, const FNiag
 void FNiagaraSystemInstance::ReInitInternal()
 {
 	check(SystemInstanceIndex == INDEX_NONE);
-	ensure(bPendingSpawn == false);
-	ensure(bPaused == false);
 	ensure(!FinalizeRef.IsPending());
 
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemReinit);
@@ -1042,7 +1032,10 @@ void FNiagaraSystemInstance::ReInitInternal()
 	if (!System->IsValid())
 	{
 		SetRequestedExecutionState(ENiagaraExecutionState::Disabled);
-		UE_LOG(LogNiagara, Warning, TEXT("Failed to activate Niagara System due to invalid asset! System(%s) Component(%s)"), *System->GetName(), *GetFullNameSafe(AttachComponent.Get()));
+		if ( Emitters.Num() != 0 )
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("Failed to activate Niagara System due to invalid asset! System(%s) Component(%s)"), *System->GetName(), *GetFullNameSafe(AttachComponent.Get()));
+		}
 		return;
 	}
 

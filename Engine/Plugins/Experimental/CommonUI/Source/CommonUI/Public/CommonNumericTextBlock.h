@@ -55,6 +55,9 @@ enum class ECommonNumericType : uint8
 	Distance
 };
 
+/**
+ * Numeric text block that provides interpolation, and some type support (numbers, percents, seconds, distance).
+ */
 UCLASS(BlueprintType)
 class COMMONUI_API UCommonNumericTextBlock : public UCommonTextBlock
 {

@@ -46,9 +46,10 @@ private:
 class FDetailCategoryGroupNode : public FDetailTreeNode, public TSharedFromThis<FDetailCategoryGroupNode>
 {
 public:
-	FDetailCategoryGroupNode( const FDetailNodeList& InChildNodes, FName InGroupName, FDetailCategoryImpl& InParentCategory );
+	FDetailCategoryGroupNode(FName InGroupName, TSharedRef<FDetailCategoryImpl> InParentCategory);
 
 public:
+	void SetChildren(const FDetailNodeList& InChildNodes);
 
 	void SetShowBorder(bool bInShowBorder) { bShowBorder = bInShowBorder; }
 	bool GetShowBorder() const { return bShowBorder; }

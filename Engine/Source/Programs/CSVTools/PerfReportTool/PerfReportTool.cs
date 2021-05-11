@@ -22,7 +22,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.45";
+        private static string VersionString = "4.46";
 
         public static string Get() { return VersionString; }
     };
@@ -523,6 +523,8 @@ namespace PerfReportTool
 			"       -listFiles : just list all files that pass the metadata query. Don't generate any reports.\n" +
 			"       -reportLinkRootPath : Make report links relative to this\n" +
 			"       -csvLinkRootPath : Make CSV file links relative to this\n" +
+			"       -weightByColumn : weight collated table averages by this column (overrides value specified in the report XML)\n" +
+			"       -noWeightedAvg : Don't use weighted averages for the collated table\n" +
 			"\n" +
 			"Performance args for bulk mode:\n" +
 			"       -precacheCount <n> : number of CSV files to precache in the lookahead cache (0 for no precache)\n" +
@@ -905,6 +907,7 @@ namespace PerfReportTool
 				bool bCsvTable = GetBoolArg("csvTable");
 				bool bCollateTable = GetBoolArg("collateTable");
 				bool bSpreadsheetFriendlyStrings = GetBoolArg("spreadsheetFriendly");
+				string weightByColumnName = GetArg("weightByColumn", null);
 				if (customSummaryTableFilter.Length > 0)
 				{
 					string customSummaryTableRowSort = GetArg("customTableSort");
@@ -912,11 +915,11 @@ namespace PerfReportTool
 					{
 						customSummaryTableRowSort = "buildversion,deviceprofile";
 					}
-					WriteSummaryTableReport(outputDir, summaryTableFilename, summaryTable, customSummaryTableFilter.Split(',').ToList(), customSummaryTableRowSort.Split(',').ToList(), false, bCsvTable, bSpreadsheetFriendlyStrings, null);
+					WriteSummaryTableReport(outputDir, summaryTableFilename, summaryTable, customSummaryTableFilter.Split(',').ToList(), customSummaryTableRowSort.Split(',').ToList(), false, bCsvTable, bSpreadsheetFriendlyStrings, null, null);
 
 					if (bCollateTable)
 					{
-						WriteSummaryTableReport(outputDir, summaryTableFilename+"_Collated", summaryTable, customSummaryTableFilter.Split(',').ToList(), customSummaryTableRowSort.Split(',').ToList(), true, bCsvTable, bSpreadsheetFriendlyStrings, null);
+						WriteSummaryTableReport(outputDir, summaryTableFilename+"_Collated", summaryTable, customSummaryTableFilter.Split(',').ToList(), customSummaryTableRowSort.Split(',').ToList(), true, bCsvTable, bSpreadsheetFriendlyStrings, null, weightByColumnName);
 					}
 				}
 				else
@@ -927,10 +930,10 @@ namespace PerfReportTool
 						summaryTableName = "default";
 					}
 					SummaryTableInfo tableInfo = reportXML.GetSummaryTable(summaryTableName);
-					WriteSummaryTableReport(outputDir, summaryTableFilename, summaryTable, tableInfo, false, bCsvTable, bSpreadsheetFriendlyStrings );
+					WriteSummaryTableReport(outputDir, summaryTableFilename, summaryTable, tableInfo, false, bCsvTable, bSpreadsheetFriendlyStrings, null );
 					if (bCollateTable)
 					{
-						WriteSummaryTableReport(outputDir, summaryTableFilename, summaryTable, tableInfo, true, bCsvTable, bSpreadsheetFriendlyStrings);
+						WriteSummaryTableReport(outputDir, summaryTableFilename, summaryTable, tableInfo, true, bCsvTable, bSpreadsheetFriendlyStrings, weightByColumnName);
 					}
 				}
 
@@ -939,7 +942,7 @@ namespace PerfReportTool
 				if (GetBoolArg("emailSummary") || GetBoolArg("emailTable") || condensedSummaryTable != null)
 				{
 					SummaryTableInfo tableInfo = reportXML.GetSummaryTable(condensedSummaryTable == null ? "condensed" : condensedSummaryTable);
-					WriteSummaryTableReport(outputDir, summaryTableFilename+"_Email", summaryTable, tableInfo, true, false, bSpreadsheetFriendlyStrings);
+					WriteSummaryTableReport(outputDir, summaryTableFilename+"_Email", summaryTable, tableInfo, true, false, bSpreadsheetFriendlyStrings, weightByColumnName);
 				}
                 perfLog.LogTiming("WriteSummaryTable");
             }
@@ -952,13 +955,18 @@ namespace PerfReportTool
             perfLog.LogTotalTiming();
         }
 
-        void WriteSummaryTableReport(string outputDir, string filenameWithoutExtension, SummaryTable table, SummaryTableInfo tableInfo, bool bCollated, bool bToCSV, bool bSpreadsheetFriendlyStrings)
+        void WriteSummaryTableReport(string outputDir, string filenameWithoutExtension, SummaryTable table, SummaryTableInfo tableInfo, bool bCollated, bool bToCSV, bool bSpreadsheetFriendlyStrings, string weightByColumnNameOverride)
 		{
-			WriteSummaryTableReport(outputDir, filenameWithoutExtension, table, tableInfo.columnFilterList, tableInfo.rowSortList, bCollated, bToCSV, bSpreadsheetFriendlyStrings, tableInfo.sectionBoundary);
+			string weightByColumnName = weightByColumnNameOverride != null ? weightByColumnNameOverride : tableInfo.weightByColumn;
+			WriteSummaryTableReport(outputDir, filenameWithoutExtension, table, tableInfo.columnFilterList, tableInfo.rowSortList, bCollated, bToCSV, bSpreadsheetFriendlyStrings, tableInfo.sectionBoundary, weightByColumnName);
 		}
 
-		void WriteSummaryTableReport(string outputDir, string filenameWithoutExtension, SummaryTable table, List<string> columnFilterList, List<string> rowSortList, bool bCollated, bool bToCSV, bool bSpreadsheetFriendlyStrings, SummarySectionBoundaryInfo sectionBoundaryInfo)
+		void WriteSummaryTableReport(string outputDir, string filenameWithoutExtension, SummaryTable table, List<string> columnFilterList, List<string> rowSortList, bool bCollated, bool bToCSV, bool bSpreadsheetFriendlyStrings, SummarySectionBoundaryInfo sectionBoundaryInfo, string weightByColumnName)
 		{
+			if (GetBoolArg("noWeightedAvg"))
+			{
+				weightByColumnName = null;
+			}
 			bool reverseSort = GetBoolArg("reverseTable");
 			bool bScrollableTable = GetBoolArg("scrollableTable");
 			bool addMinMaxColumns = !GetBoolArg("noSummaryMinMax");
@@ -967,7 +975,7 @@ namespace PerfReportTool
                 filenameWithoutExtension = Path.Combine(outputDir, filenameWithoutExtension);
             }
 
-            SummaryTable filteredTable = table.SortAndFilter(columnFilterList, rowSortList, reverseSort);
+            SummaryTable filteredTable = table.SortAndFilter(columnFilterList, rowSortList, reverseSort, weightByColumnName);
 			if (bCollated)
 			{
 				filteredTable = filteredTable.CollateSortedTable(rowSortList, addMinMaxColumns);
@@ -980,7 +988,7 @@ namespace PerfReportTool
 			{
 				filteredTable.ApplyDisplayNameMapping(statDisplaynameMapping);
 				string VersionString = GetBoolArg("noWatermarks") ? "" : Version.Get();
-				filteredTable.WriteToHTML(filenameWithoutExtension+".html", VersionString, bSpreadsheetFriendlyStrings, sectionBoundaryInfo, bScrollableTable, addMinMaxColumns, GetIntArg("maxSummaryTableStringLength", -1), reportXML.summaryTableLowIsBadStatList);
+				filteredTable.WriteToHTML(filenameWithoutExtension+".html", VersionString, bSpreadsheetFriendlyStrings, sectionBoundaryInfo, bScrollableTable, addMinMaxColumns, GetIntArg("maxSummaryTableStringLength", -1), reportXML.summaryTableLowIsBadStatList, weightByColumnName);
 			}
 		}
 

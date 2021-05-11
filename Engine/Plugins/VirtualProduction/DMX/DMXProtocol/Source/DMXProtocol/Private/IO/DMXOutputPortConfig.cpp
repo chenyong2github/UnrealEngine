@@ -22,16 +22,15 @@ FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid)
 	, Priority(100)
 	, PortGuid(InPortGuid)
 {
-	// May be called before the protocol module is loaded, at this point we only expect already sanetized structs
-	if (FModuleManager::Get().IsModuleLoaded("DMXProtocol"))
-	{
-		SanetizePortName();
-		SanetizeProtocolName();
-		SanetizeCommunicationType();
+	// Cannot create port configs before the protocol module is up (it is required to sanetize protocol names).
+	check(FModuleManager::Get().IsModuleLoaded("DMXProtocol"));
 
-		IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName);
-		check(Protocol.IsValid());
-	}
+	SanetizePortName();
+	SanetizeProtocolName();
+	SanetizeCommunicationType();
+
+	IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName);
+	check(Protocol.IsValid());
 }
 
 const FGuid& FDMXOutputPortConfig::GetPortGuid() const

@@ -395,7 +395,7 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(NiagaraEmitterIn
 			else
 			{
 				// This can happen if there are no InstanceCountClearTasks and all DrawIndirectArgGenTasks are using culled counts
-				CountsUAV = Batcher.GetEmptyRWBufferFromPool(RHICmdList, PF_R32_UINT);
+				CountsUAV = Batcher.GetEmptyUAVFromPool(RHICmdList, PF_R32_UINT, ENiagaraEmptyUAVType::Buffer);
 			}
 
 			if (CulledCountBuffer.SRV.IsValid())
@@ -431,7 +431,7 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(NiagaraEmitterIn
 				}
 				else
 				{
-					ArgsUAV = Batcher.GetEmptyRWBufferFromPool(RHICmdList, PF_R32_UINT);
+					ArgsUAV = Batcher.GetEmptyUAVFromPool(RHICmdList, PF_R32_UINT, ENiagaraEmptyUAVType::Buffer);
 				}
 
 				const bool bIsLastDispatch = DispatchIdx == (NumDispatches - 1);

@@ -270,6 +270,16 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 #if WITH_EDITOR
 			const bool bMarkDirty = false;
 			SpawnedActor->SetActorLabel( Prim.GetName().ToString(), bMarkDirty );
+
+			// If our AUsdStageActor is in a hidden level/layer and we spawn actors, they should also be hidden
+			if ( Context->ParentComponent )
+			{
+				if ( AActor* ParentActor = Context->ParentComponent->GetOwner() )
+				{
+					SpawnedActor->bHiddenEdLevel = ParentActor->bHiddenEdLevel;
+					SpawnedActor->bHiddenEdLayer = ParentActor->bHiddenEdLayer;
+				}
+			}
 #endif // WITH_EDITOR
 
 			// Hack to show transient actors in world outliner

@@ -872,7 +872,9 @@ void FWindowsPlatformMisc::SetUTF8Output()
 
 void FWindowsPlatformMisc::LocalPrint( const TCHAR *Message )
 {
+#if USE_DEBUG_LOGGING
 	OutputDebugString(Message);
+#endif
 }
 
 void FWindowsPlatformMisc::RequestExit( bool Force )

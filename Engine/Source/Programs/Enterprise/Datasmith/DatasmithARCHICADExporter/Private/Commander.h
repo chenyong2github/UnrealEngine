@@ -11,7 +11,7 @@ class FCommander
 {
   public:
 	static void DoSnapshot();
-	static void ToggleLiveLink();
+	static void ToggleAutoSync();
 	static void ShowConnectionsDialog();
 	static void Export3DToFile();
 	static void ShowMessagesDialog();
@@ -20,7 +20,7 @@ class FCommander
 	static void ShowAboutOf();
 	static void ZapDB();
 
-	static bool IsLiveLinkEnabled();
+	static bool IsAutoSyncEnabled();
 
   private:
 	static void DoSnapshotOrExport(const IO::Location* InExportedFile);

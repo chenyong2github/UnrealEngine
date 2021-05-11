@@ -460,6 +460,25 @@ private:
 	void IssueModified();
 
 	void InvalidateFilteredChildren();
+
+	struct FCollectedIssueData
+	{
+		FCollectedIssueData()
+			: TotalNumberOfInfoIssues(0)
+			, TotalNumberOfWarningIssues(0)
+			, TotalNumberOfErrorIssues(0)
+		{
+		}
+
+		bool HasAnyIssues() const { return TotalNumberOfInfoIssues > 0 || TotalNumberOfWarningIssues > 0 || TotalNumberOfErrorIssues > 0; }
+
+		int32 TotalNumberOfInfoIssues;
+		int32 TotalNumberOfWarningIssues;
+		int32 TotalNumberOfErrorIssues;
+		TArray<UNiagaraStackEntry*> ChildrenWithIssues;
+	};
+
+	const FCollectedIssueData& GetCollectedIssueData() const;
 	
 	TWeakPtr<FNiagaraSystemViewModel> SystemViewModel;
 	TWeakPtr<FNiagaraEmitterViewModel> EmitterViewModel;
@@ -503,8 +522,6 @@ private:
 	
 	TArray<FStackIssue> StackIssues;
 
-	TArray<UNiagaraStackEntry*> ChildrenWithIssues;
-
 	bool bIsFinalized;
 
 	bool bIsSearchResult;
@@ -515,7 +532,5 @@ private:
 
 	TOptional<FText> AlternateDisplayName;
 
-	int32 TotalNumberOfInfoIssues;
-	int32 TotalNumberOfWarningIssues;
-	int32 TotalNumberOfErrorIssues;
+	mutable TOptional<FCollectedIssueData> CachedCollectedIssueData;
 };

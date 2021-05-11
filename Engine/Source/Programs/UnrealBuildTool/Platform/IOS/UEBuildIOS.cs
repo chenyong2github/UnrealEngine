@@ -80,6 +80,24 @@ namespace UnrealBuildTool
 		/// Cached project settings for the target (set in ResetTarget)
 		/// </summary>
 		public IOSProjectSettings ProjectSettings = null;
+
+		/// <summary>
+		/// Enables address sanitizer (ASan)
+		/// </summary>
+		[CommandLine("-EnableASan")]
+		public bool bEnableAddressSanitizer = false;
+
+		/// <summary>
+		/// Enables thread sanitizer (TSan)
+		/// </summary>
+		[CommandLine("-EnableTSan")]
+		public bool bEnableThreadSanitizer = false;
+
+		/// <summary>
+		/// Enables undefined behavior sanitizer (UBSan)
+		/// </summary>
+		[CommandLine("-EnableUBSan")]
+		public bool bEnableUndefinedBehaviorSanitizer = false;
 	}
 
 	/// <summary>
@@ -160,7 +178,22 @@ namespace UnrealBuildTool
 		{
 			get { return float.Parse(Inner.ProjectSettings.RuntimeVersion, System.Globalization.CultureInfo.InvariantCulture); }
 		}
-		
+
+		public bool bEnableAddressSanitizer
+		{
+			get { return Inner.bEnableAddressSanitizer; }
+		}
+
+		public bool bEnableThreadSanitizer
+		{
+			get { return Inner.bEnableThreadSanitizer; }
+		}
+
+		public bool bEnableUndefinedBehaviorSanitizer
+		{
+			get { return Inner.bEnableUndefinedBehaviorSanitizer; }
+		}
+
 #pragma warning restore CS1591
 		#endregion
 	}
@@ -1167,8 +1200,22 @@ namespace UnrealBuildTool
 		/// <returns>New toolchain instance.</returns>
 		public override UEToolChain CreateToolChain(ReadOnlyTargetRules Target)
 		{
+			IOSToolChainOptions Options = IOSToolChainOptions.None;
+			if (Target.IOSPlatform.bEnableAddressSanitizer)
+			{
+				Options |= IOSToolChainOptions.EnableAddressSanitizer;
+			}
+			if (Target.IOSPlatform.bEnableThreadSanitizer)
+			{
+				Options |= IOSToolChainOptions.EnableThreadSanitizer;
+			}
+			if (Target.IOSPlatform.bEnableUndefinedBehaviorSanitizer)
+			{
+				Options |= IOSToolChainOptions.EnableUndefinedBehaviorSanitizer;
+			}
+
 			IOSProjectSettings ProjectSettings = ReadProjectSettings(Target.ProjectFile);
-			return new IOSToolChain(Target, ProjectSettings);
+			return new IOSToolChain(Target, ProjectSettings, Options);
 		}
 
 		/// <summary>

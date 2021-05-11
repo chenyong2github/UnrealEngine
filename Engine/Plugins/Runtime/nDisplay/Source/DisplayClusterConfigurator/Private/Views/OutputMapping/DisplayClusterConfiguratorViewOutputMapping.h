@@ -27,6 +27,8 @@ public:
 	//~ End IDisplayClusterConfiguratorView Interface
 
 	//~ Begin IDisplayClusterConfiguratorView Interface
+	virtual void Cleanup() override;
+
 	virtual FOnOutputMappingBuilt& GetOnOutputMappingBuiltDelegate() override { return OnOutputMappingBuilt; }
 	virtual FDelegateHandle RegisterOnOutputMappingBuilt(const FOnOutputMappingBuiltDelegate& Delegate) override;
 	virtual void UnregisterOnOutputMappingBuilt(FDelegateHandle DelegateHandle) override;
@@ -41,6 +43,9 @@ public:
 	virtual FNodeAlignmentSettings& GetNodeAlignmentSettings() override { return NodeAlignmentSettings; }
 
 	virtual void FindAndSelectObjects(const TArray<UObject*>& ObjectsToSelect) override;
+
+	virtual void JumpToObject(UObject* InObject) override;
+
 	//~ End IDisplayClusterConfiguratorView Interface
 
 	void RefreshNodePositions();

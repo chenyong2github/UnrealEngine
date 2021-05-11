@@ -406,6 +406,15 @@ enum class ENiagaraPythonUpdateScriptReference : uint8
     DirectTextEntry
 };
 
+UENUM()
+enum class ENiagaraOrientationAxis : uint32
+{
+	XAxis UMETA(DisplayName="X Axis"),
+	YAxis UMETA(DisplayName = "Y Axis"),
+	ZAxis UMETA(DisplayName = "Z Axis"),
+};
+
+
 USTRUCT()
 struct NIAGARA_API FNiagaraCompileHashVisitorDebugInfo
 {
@@ -537,78 +546,6 @@ public:
 	}
 };
 
-
-UENUM()
-enum class ENiagaraParameterScope : uint32
-{
-	/** Parameter that is an input argument into this graph.*/
-	Input UMETA(DisplayName = "Input"),
-
-	/** Parameter that is exposed to the owning component for editing and are read-only when used in the graph*/
-	User UMETA(DisplayName = "User"),
-
-	/** Parameter provided by the engine. These are explicitly defined by the engine codebase and read-only. */
-	Engine UMETA(DisplayName = "Engine (Generic)", Hidden),
-
-	/** Parameter provided by the engine focused on the owning component. These are explicitly defined by the engine codebase and read-only.*/
-	Owner UMETA(DisplayName = "Engine (Owner)", Hidden),
-
-	/** Parameter is an attribute of the owning system payload. It is persistent across frames and initialized in the System Spawn stage of the stack.*/
-	System  UMETA(DisplayName = "System"),
-
-	/** Parameter is an attribute of the owning emitter payload. It is persistent across frames and initialized in the Emitter Spawn stage of the stack.*/
-	Emitter   UMETA(DisplayName = "Emitter"),
-
-	/** Parameter is an attribute of the owning particle payload. It is persistent across frames and initialized in the Particle Spawn stage of the stack.*/
-	Particles  UMETA(DisplayName = "Particles"),
-
-	/** Parameter is initialized in the appropriate spawn stage for the stack. It is persistent from frame to frame. For example, if used consistently in an Emitter stage, this parameter will turn into an emitter attribute. Similarly, if used in a Particle stage, it will turn into a particle attribute.*/
-	ScriptPersistent UMETA(DisplayName = "Stage (Persistent)", Hidden), //@todo(ng) hiding until autotest verification is made.
-
-	/** Parameter is initialized at the start of this stage and can be shared amongst other modules within this stack stage, but is not persistent across runs or from stack stage to stack stage.*/
-	ScriptTransient UMETA(DisplayName = "Stage (Transient)"),
-	
-	/** Parameter is initialized at the start of this script and is only used within the context of this script. It is invisible to the parent stage stack.*/
-	Local UMETA(DisplayName = "Local"), //Convenience markup for ScopeToString functions, only use in conjunction with ENiagaraScriptParameterUsage::Local.
-
-	Custom UMETA(Hidden), //Convenience markup for expressing parameters using legacy editor mode to freetype namespace and name.
-
-	DISPLAY_ONLY_StaticSwitch UMETA(DisplayName="Static Switch", Hidden), //Only use for display string in SEnumComboBoxes; does not have implementation for classes that interact with ENiagaraParameterScope.
-	
-	/** Parameter is output to the owning stack stage from this script, but is only meaningful if bound elsewhere in the stage.*/
-	Output UMETA(DisplayName = "Output"),
-
-	// insert new scopes before
-	None UMETA(Hidden),
-
-	Num UMETA(Hidden)
-};
-
-// helper methods for basic struct definitions
-struct NIAGARA_API FNiagaraTypeUtilities
-{
-	static FString GetNamespaceStringForScriptParameterScope(const ENiagaraParameterScope& InScope);
-};
-
-UENUM()
-enum class ENiagaraScriptParameterUsage : uint32
-{
-	Input,
-
-	Output,
-
-	Local,
-
-	InputOutput,
-
-	InitialValueInput,
-
-	// insert new script parameter usages before
-	None UMETA(Hidden),
-	
-	Num UMETA(Hidden)
-};
-
 /** Defines options for conditionally editing and showing script inputs in the UI. */
 USTRUCT()
 struct NIAGARA_API FNiagaraInputConditionMetadata
@@ -625,81 +562,6 @@ public:
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraParameterScopeInfo
-{
-	GENERATED_BODY();
-
-public:
-	FNiagaraParameterScopeInfo()
-		: Scope(ENiagaraParameterScope::None)
-		, NamespaceString()
-	{};
-
-	FNiagaraParameterScopeInfo(const ENiagaraParameterScope InScope, const FString& InNamespaceString)
-		: Scope(InScope)
-		, NamespaceString(InNamespaceString)
-	{};
-
-	bool operator == (const FNiagaraParameterScopeInfo& Other) const
-	{
-		return Scope == Other.Scope && NamespaceString == Other.NamespaceString;
-	}
-
-	ENiagaraParameterScope GetScope() const { return Scope; };
-	const FString& GetNamespaceString() const { return NamespaceString; };
-
-private:
-	UPROPERTY()
-		ENiagaraParameterScope Scope;
-
-	UPROPERTY()
-		FString NamespaceString;
-};
-
-UENUM()
-enum class ENiagaraParameterPanelCategory : uint32
-{
-	/** Parameter that is an input argument into this graph.*/
-	Input UMETA(DisplayName = "Module Inputs"),
-
-	Attributes UMETA(DisplayName = "Input Attributes"),
-
-	/** Parameter is output to the owning stack stage from this script, but is only meaningful if bound elsewhere in the stage.*/
-	Output UMETA(DisplayName = "Output Attributes"),
-
-	/** Parameter is initialized at the start of this script and is only used within the context of this script. It is invisible to the parent stage stack.*/
-	Local UMETA(DisplayName = "Local"),
-
-	/** Parameter that is exposed to the owning component for editing and are read-only when used in the graph*/
-	User UMETA(DisplayName = "User"),
-
-	/** Parameter provided by the engine. These are explicitly defined by the engine codebase and read-only. */
-	Engine UMETA(DisplayName = "Engine (Generic)", Hidden),
-
-	/** Parameter provided by the engine focused on the owning component. These are explicitly defined by the engine codebase and read-only.*/
-	Owner UMETA(DisplayName = "Engine (Owner)", Hidden),
-
-	/** Parameter is an attribute of the owning system payload. It is persistent across frames and initialized in the System Spawn stage of the stack.*/
-	System  UMETA(DisplayName = "System"),
-
-	/** Parameter is an attribute of the owning emitter payload. It is persistent across frames and initialized in the Emitter Spawn stage of the stack.*/
-	Emitter   UMETA(DisplayName = "Emitter"),
-
-	/** Parameter is an attribute of the owning particle payload. It is persistent across frames and initialized in the Particle Spawn stage of the stack.*/
-	Particles  UMETA(DisplayName = "Particles"),
-
-	/** Parameter is initialized at the start of this stage and can be shared amongst other modules within this stack stage, but is not persistent across runs or from stack stage to stack stage.*/
-	ScriptTransient UMETA(DisplayName = "Stage (Transient)"),
-
-	StaticSwitch UMETA(DisplayName = "Static Switch"),
-
-	// insert new categories before
-	None UMETA(Hidden),
-
-	Num UMETA(Hidden)
-};
-
-USTRUCT()
 struct NIAGARA_API FNiagaraVariableMetaData
 {
 	GENERATED_USTRUCT_BODY()
@@ -708,14 +570,8 @@ struct NIAGARA_API FNiagaraVariableMetaData
 		: bAdvancedDisplay(false)
 		, EditorSortPriority(0)
 		, bInlineEditConditionToggle(false)
-		, ScopeName()
-		, Usage(ENiagaraScriptParameterUsage::None)
-		, bIsStaticSwitch(false)
-		, StaticSwitchDefaultValue(0)
-		, bAddedToNodeGraphDeepCopy(false)
-		, bOutputIsPersistent(false)
-		, bCreatedInSystemEditor(false)
-		, bUseLegacyNameString(false)
+		, bIsStaticSwitch_DEPRECATED(false)
+		, StaticSwitchDefaultValue_DEPRECATED(0)
 	{};
 
 	UPROPERTY(EditAnywhere, Category = "Variable", meta = (MultiLine = true, SkipForCompileHash = "true"))
@@ -750,88 +606,36 @@ struct NIAGARA_API FNiagaraVariableMetaData
 	UPROPERTY(EditAnywhere, Category = "Variable", meta = (ToolTip = "If set, this attribute is visually displayed as a child under the given parent attribute. Currently, only static switches are supported as parent attributes!", SkipForCompileHash = "true"))
 	FName ParentAttribute;
 
-	const FName& GetScopeName() const { return ScopeName; };
-	void SetScopeName(const FName& InScopeName) { ScopeName = InScopeName; };
+	bool GetIsStaticSwitch_DEPRECATED() const { return bIsStaticSwitch_DEPRECATED; };
 
-	ENiagaraScriptParameterUsage GetUsage() const { return Usage; };
-	void SetUsage(ENiagaraScriptParameterUsage InUsage) { Usage = InUsage; };
-
-	/** Gets the CachedNamespacelessParameterName and notifies if it cannot be returned due to an override being set.
-	 * @params OutName		The Name to return;
-	 * @return bool			Whether the CachedNamespacelessParameterName can be returned. Is false if bUseLegacyNameString is set.
-	 */
-	bool GetParameterName(FName& OutName) const;
-	void SetCachedNamespacelessVariableName(const FName& InVariableName);;
-
-	bool GetWasCreatedInSystemEditor() const { return bCreatedInSystemEditor; };
-	void SetWasCreatedInSystemEditor(bool bWasCreatedInSystemEditor) { bCreatedInSystemEditor = bWasCreatedInSystemEditor; };
-
-	bool GetWasAddedToNodeGraphDeepCopy() const { return bAddedToNodeGraphDeepCopy; };
-	void SetWasAddedToNodeGraphDeepCopy(bool bWasAddedToNodeGraphDeepCopy) { bAddedToNodeGraphDeepCopy = bWasAddedToNodeGraphDeepCopy; };
-
-	bool GetIsStaticSwitch() const { return bIsStaticSwitch; };
-	void SetIsStaticSwitch(bool bInIsStaticSwitch) { bIsStaticSwitch = bInIsStaticSwitch; };
-
-	int32 GetStaticSwitchDefaultValue() const { return StaticSwitchDefaultValue; };
-	void SetStaticSwitchDefaultValue(int32 InStaticSwitchDefaultValue) { StaticSwitchDefaultValue = InStaticSwitchDefaultValue; };
-
-	bool GetOutputIsPersistent() const { return bOutputIsPersistent; };
-	void SetOutputIsPersistent(bool bInOutputIsPersistent) { bOutputIsPersistent = bInOutputIsPersistent; };
-
-	bool GetIsUsingLegacyNameString() const { return bUseLegacyNameString; };
-	void SetIsUsingLegacyNameString(bool bInUseLegacyNameString) { bUseLegacyNameString = bInUseLegacyNameString; };
-
-	void CopyPerScriptMetaData(const FNiagaraVariableMetaData& OtherMetaData);
+	int32 GetStaticSwitchDefaultValue_DEPRECATED() const { return StaticSwitchDefaultValue_DEPRECATED; };
 
 	/** Copies all the properties that are marked as editable for the user (e.g. EditAnywhere). */
 	void CopyUserEditableMetaData(const FNiagaraVariableMetaData& OtherMetaData);
 
 	FGuid GetVariableGuid() const { return VariableGuid; };
+
+	/** Note, the Variable Guid is generally expected to be immutable. This method is provided to upgrade existing variables to have the same Guid as variable definitions. */
+	void SetVariableGuid(const FGuid& InVariableGuid ) { VariableGuid = InVariableGuid; };
 	void CreateNewGuid() { VariableGuid = FGuid::NewGuid(); };
 
 private:
-	/** Defines the scope of a variable that is an input to a script. Used to lookup registered scope infos and resolve the actual ENiagaraParameterScope and Namespace string to use. */
-	UPROPERTY(meta = (SkipForCompileHash = "true"))
-	FName ScopeName;
-
-	/** Defines the usage of a variable as an argument or output relative to the script. */
-	UPROPERTY(meta = (SkipForCompileHash = "true"))
-	ENiagaraScriptParameterUsage Usage;
-
 	/** A unique identifier for the variable that can be used by function call nodes to find renamed variables. */
 	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	FGuid VariableGuid;
 
-	/** This is a read-only variable that designates if the metadata is tied to a static switch or not. */
+	/** This is a read-only variable that designates if the metadata is tied to a static switch or not.
+	 * DEPRECATED: Migrated to UNiagaraScriptVariable::bIsStaticSwitch.
+	 */
 	UPROPERTY()
-	bool bIsStaticSwitch; // TODO: This should be moved to the UNiagaraScriptVariable in the future
+	bool bIsStaticSwitch_DEPRECATED;
 
-	/** The default value to use when creating new pins or stack entries for a static switch parameter */
+	/** The default value to use when creating new pins or stack entries for a static switch parameter
+	 * DEPRECATED: Migrated to UNiagaraScriptVariable::StaticSwitchDefaultValue.
+	 */
 	UPROPERTY()
-	int32 StaticSwitchDefaultValue;  // TODO: This should be moved to the UNiagaraScriptVariable in the future
+	int32 StaticSwitchDefaultValue_DEPRECATED;  // TODO: This should be moved to the UNiagaraScriptVariable in the future
 
-	/** Transient data to mark variables set in the node graph deep copy as having been derived from a module namespace parameter default. */
-	UPROPERTY(Transient, meta = (SkipForCompileHash = "true"))
-	bool bAddedToNodeGraphDeepCopy;
-
-	/** Only valid if Usage is Output. Marks the associated FNiagaraVariable as Persistent across script runs and therefore should be retained in the Dataset during compilation/translation. */
-	UPROPERTY(meta = (SkipForCompileHash = "true"))
-	bool bOutputIsPersistent;
-
-	/** Namespace-less name for associated FNiagaraVariable. Edited directly by user and then used to generate full Name of associated FNiagaraVariable. */
-	UPROPERTY(DisplayName = "Property Name", meta = (SkipForCompileHash = "true"))
-	FName CachedNamespacelessVariableName;
-
-	/** Track if the associated parameter was created in the Emitter/System editor. Used to determine whether the associated parameter can be deleted from the Emitter/System editor. */
-	UPROPERTY(meta = (SkipForCompileHash = "true"))
-	bool bCreatedInSystemEditor;
-
-	UPROPERTY(meta = (ToolTip = "Enable using a legacy custom name string.", SkipForCompileHash = "true"))
-	bool bUseLegacyNameString;
-
-public:
-	FORCEINLINE bool IsInputUsage() const { return Usage == ENiagaraScriptParameterUsage::Input || Usage == ENiagaraScriptParameterUsage::InputOutput; };
-	FORCEINLINE bool IsInputOrLocalUsage() const { return Usage == ENiagaraScriptParameterUsage::Input || Usage == ENiagaraScriptParameterUsage::InputOutput || Usage == ENiagaraScriptParameterUsage::InitialValueInput || Usage == ENiagaraScriptParameterUsage::Local; };
 };
 
 USTRUCT()
@@ -1103,6 +907,7 @@ public:
 
 	static UEnum* GetExecutionStateEnum() { return ExecutionStateEnum; }
 	static UEnum* GetCoordinateSpaceEnum() { return CoordinateSpaceEnum; }
+	static UEnum* GetOrientationAxisEnum() { return OrientationAxisEnum; }
 	static UEnum* GetExecutionStateSouceEnum() { return ExecutionStateSourceEnum; }
 	static UEnum* GetSimulationTargetEnum() { return SimulationTargetEnum; }
 	static UEnum* GetScriptUsageEnum() { return ScriptUsageEnum; }
@@ -1185,6 +990,7 @@ private:
 	static UEnum* ScriptContextEnum;
 	static UEnum* ExecutionStateEnum;
 	static UEnum* CoordinateSpaceEnum;
+	static UEnum* OrientationAxisEnum;
 	static UEnum* ExecutionStateSourceEnum;
 
 	static UEnum* ParameterScopeEnum;

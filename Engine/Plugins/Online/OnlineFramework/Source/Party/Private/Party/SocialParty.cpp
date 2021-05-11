@@ -1838,3 +1838,14 @@ void USocialParty::UpdatePlatformSessionLeader(const FString& SessionType)
 		}
 	}
 }
+
+bool USocialParty::ShouldAlwaysJoinPlatformSession(const FSessionId& SessionId) const
+{
+	// Don't force a join, let other logic dictate if we should
+	return true;
+}
+
+void USocialParty::JoinSessionCompleteAnalytics(const FSessionId& SessionId, const FString& JoinBootableGroupSessionResult)
+{
+	// Work is to be done in the override
+}

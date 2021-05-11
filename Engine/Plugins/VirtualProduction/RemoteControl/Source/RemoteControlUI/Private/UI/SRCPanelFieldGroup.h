@@ -19,67 +19,48 @@ struct FSlateBrush;
 class SInlineEditableTextBlock;
 class URemoteControlPreset;
 
-/**
- * Holds information about a group which contains exposed entities.
- */
-struct FRCPanelGroup : public SRCPanelTreeNode, public TSharedFromThis<FRCPanelGroup>
+/** Widget representing a group. */
+class SRCPanelGroup : public SRCPanelTreeNode, public SCompoundWidget
 {
-	FRCPanelGroup(FName InName, FGuid InId)
-		: Name(InName)
-		, Id(InId)
-	{}
+public:
+	using SWidget::SharedThis;
+	using SWidget::AsShared;
 
-	FRCPanelGroup(FName InName, FGuid InId, TArray<TSharedPtr<SRCPanelTreeNode>> InNodes)
-		: Name(InName)
-		, Id(InId)
-		, Nodes(MoveTemp(InNodes))
+public:
+	DECLARE_DELEGATE_RetVal_ThreeParams(FReply, FOnFieldDropEvent, const TSharedPtr<FDragDropOperation>& /* Event */, const TSharedPtr<SRCPanelTreeNode>& /* TargetField */, const TSharedPtr<SRCPanelGroup>& /* DragTargetGroup */);
+	DECLARE_DELEGATE_RetVal_OneParam(FGuid, FOnGetGroupId, const FGuid& /* EntityId */);
+	DECLARE_DELEGATE_OneParam(FOnDeleteGroup, const TSharedPtr<SRCPanelGroup>&);
+
+	SLATE_BEGIN_ARGS(SRCPanelGroup)
+		: _EditMode(true)
 	{}
+		SLATE_ARGUMENT(FGuid, Id)
+		SLATE_ARGUMENT(FName, Name)
+		SLATE_ARGUMENT(TArray<TSharedPtr<SRCPanelTreeNode>>, Children)
+		SLATE_EVENT(FOnFieldDropEvent, OnFieldDropEvent)
+		SLATE_EVENT(FOnGetGroupId, OnGetGroupId)
+		SLATE_EVENT(FOnDeleteGroup, OnDeleteGroup)
+		SLATE_ATTRIBUTE(bool, EditMode)
+		
+	SLATE_END_ARGS()
+
+	void Tick(const FGeometry&, const double, const float);
+	void Construct(const FArguments& InArgs, URemoteControlPreset* InPreset, FRCColumnSizeData IInColumnSizeData);
+
+	/** Get this group's name. */
+	FName GetGroupName() const;
+
+	/** Set this widget's name. */
+	void SetName(FName InName);
+
+	/** Get raw access to this group's child nodes. */
+	TArray<TSharedPtr<SRCPanelTreeNode>>& GetNodes() { return Nodes; }
 
 	//~ SRCPanelTreeNode Interface
 	virtual void GetNodeChildren(TArray<TSharedPtr<SRCPanelTreeNode>>& OutChildren) const override;
 	virtual FGuid GetId() const override;
 	virtual ENodeType GetType() const override;
-	virtual TSharedPtr<FRCPanelGroup> AsGroup() override;
-
-public:
-	/** Name of the group. */
-	FName Name;
-	/** Id for this group. (Matches the one in the preset layout data. */
-	FGuid Id;
-	/** This group's child nodes */
-	TArray<TSharedPtr<SRCPanelTreeNode>> Nodes;
-};
-
-/** Widget representing a group. */
-class SFieldGroup : public STableRow<TSharedPtr<FRCPanelGroup>>
-{
-public:
-	DECLARE_DELEGATE_RetVal_ThreeParams(FReply, FOnFieldDropEvent, const TSharedPtr<FDragDropOperation>& /* Event */, const TSharedPtr<SRCPanelTreeNode>& /* TargetField */, const TSharedPtr<FRCPanelGroup>& /* DragTargetGroup */);
-	DECLARE_DELEGATE_RetVal_OneParam(FGuid, FOnGetGroupId, const FGuid& /* EntityId */);
-	DECLARE_DELEGATE_OneParam(FOnDeleteGroup, const TSharedPtr<FRCPanelGroup>&);
-
-	SLATE_BEGIN_ARGS(SFieldGroup)
-		: _EditMode(true)
-	{}
-		SLATE_EVENT(FOnFieldDropEvent, OnFieldDropEvent)
-		SLATE_EVENT(FOnGetGroupId, OnGetGroupId)
-		SLATE_EVENT(FOnDeleteGroup, OnDeleteGroup)
-		SLATE_ATTRIBUTE(bool, EditMode)
-	SLATE_END_ARGS()
-
-	void Tick(const FGeometry&, const double, const float);
-	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const TSharedPtr<FRCPanelGroup>& InFieldGroup, URemoteControlPreset* InPreset);
-
-	/** Refresh this groups' node list. */
-	void Refresh();
-
-	/** Get this group's name. */
-	FName GetGroupName() const;
-	/** Get this widget's underlying group. */
-	TSharedPtr<FRCPanelGroup> GetGroup() const;
-
-	/** Set this widget's name. */
-	void SetName(FName Name);
+	virtual TSharedPtr<SRCPanelGroup> AsGroup() override;
 
 private:
 	//~ Handle drag/drop events
@@ -101,10 +82,6 @@ private:
 	void OnLabelCommitted(const FText& InLabel, ETextCommit::Type InCommitInfo);
 
 private:
-	/** Holds the list view widget. */
-	TSharedPtr<SListView<TSharedPtr<SRCPanelTreeNode>>> NodesListView;
-	/** The field group that interfaces with the underlying data. */
-	TSharedPtr<FRCPanelGroup> FieldGroup;
 	/** Event called when something is dropped on this group. */
 	FOnFieldDropEvent OnFieldDropEvent;
 	/** Getter for this group's name. */
@@ -119,6 +96,12 @@ private:
 	bool bNeedsRename = false;
 	/** Weak ptr to the preset that contains the field group. */
 	TWeakObjectPtr<URemoteControlPreset> Preset;
+	/** Name of the group. */
+	FName Name;
+	/** Id for this group. (Matches the one in the preset layout data. */
+	FGuid Id;
+	/** This group's child nodes */
+	TArray<TSharedPtr<SRCPanelTreeNode>> Nodes;
 };
 
 
@@ -127,9 +110,9 @@ class FFieldGroupDragDropOp : public FDecoratedDragDropOp
 public:
 	DRAG_DROP_OPERATOR_TYPE(FFieldGroupDragDropOp, FDragDropOperation)
 
-	using WidgetType = SFieldGroup;
+	using WidgetType = SRCPanelGroup;
 
-	FFieldGroupDragDropOp(TSharedPtr<SFieldGroup> InWidget, FGuid InId)
+	FFieldGroupDragDropOp(TSharedPtr<SRCPanelGroup> InWidget, FGuid InId)
 		: Id(MoveTemp(InId))
 	{
 		DecoratorWidget = SNew(SBorder)
@@ -161,7 +144,6 @@ public:
 private:
 	/** Id of the held group. */
 	FGuid Id;
-
 	/** Holds the displayed widget. */
 	TSharedPtr<SWidget> DecoratorWidget;
 };

@@ -59,8 +59,6 @@ void UAISystem::PostInitProperties()
 
 		BehaviorTreeManager = NewObject<UBehaviorTreeManager>(this);
 		ensure(BehaviorTreeManager != nullptr);
-		EnvironmentQueryManager = NewObject<UEnvQueryManager>(this);
-		ensure(EnvironmentQueryManager != nullptr);
 		NavLocalGrids = NewObject<UNavLocalGridManager>(this);
 		ensure(NavLocalGrids != nullptr);
 
@@ -75,6 +73,13 @@ void UAISystem::PostInitProperties()
 		{
 			PerceptionSystem = NewObject<UAIPerceptionSystem>(this, PerceptionSystemClass, TEXT("PerceptionSystem"));
 		}
+
+		TSubclassOf<UEnvQueryManager> EnvQueryManagerClass = EnvQueryManagerClassName.IsValid() ? LoadClass<UEnvQueryManager>(NULL, *EnvQueryManagerClassName.ToString(), NULL, LOAD_None, NULL) : UEnvQueryManager::StaticClass();
+		if (EnvQueryManagerClass)
+		{
+			EnvironmentQueryManager = NewObject<UEnvQueryManager>(this, EnvQueryManagerClass, TEXT("EnvironmentQueryManager"));
+		}
+		ensure(EnvironmentQueryManager != nullptr);
 
 		if (WorldOuter)
 		{

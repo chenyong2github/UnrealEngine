@@ -193,7 +193,9 @@ public:
 	/** Returns the window containing the user widget content */
 	TSharedPtr<SWindow> GetSlateWindow() const;
 
-	/** Returns the user widget displayed by this component */
+	/**  
+	 *  Gets the widget that is used by this Widget Component. It will be null if a Slate Widget was set using SetSlateWidget function.
+	 */ 
 	UFUNCTION(BlueprintCallable, Category=UserInterface)
 	virtual UUserWidget* GetWidget() const;
 

@@ -1549,7 +1549,7 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 	// Subsystems.
 	FURL::StaticInit();
 	FLinkerLoad::StaticInit(UTexture2D::StaticClass());
-	EngineSubsystemCollection.Initialize(this);
+	EngineSubsystemCollection->Initialize(this);
 
 #if !UE_BUILD_SHIPPING
 	// Check for overrides to the default map on the command line
@@ -1937,7 +1937,7 @@ void UEngine::PreExit()
 	NextDynamicResolutionState.Reset();
 #endif
 
-	EngineSubsystemCollection.Deinitialize();
+	EngineSubsystemCollection->Deinitialize();
 }
 
 void UEngine::ShutdownHMD()
@@ -10757,7 +10757,16 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 			}
 
 			MessageY += 250.0f;
+
+			// Swap the shadow for a background to improve readability
+			static FVector2D PrevDrawnSize(0.f); // one frame behind, but much faster than calling GetTextSize
+			const FLinearColor BackgroundColor = FLinearColor(0.02f, 0.02f, 0.02f, 0.88f); // color used by stat group tables
+			SmallTextItem.DisableShadow();
+			Canvas->DrawTile(MessageX - 1.0f, MessageY - 1.0f, PrevDrawnSize.X + 2.0f, PrevDrawnSize.Y + 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
+
 			Canvas->DrawItem(SmallTextItem, FVector2D(MessageX, MessageY));
+			SmallTextItem.EnableShadow(FLinearColor::Black); // reset
+			PrevDrawnSize = SmallTextItem.DrawnSize;
 			MessageY += FontSizeY;
 		}
 #endif
@@ -11951,6 +11960,9 @@ void DestroyNamedNetDriver_Local(FWorldContext &Context, FName NetDriverName)
 		if (NetDriver && NetDriver->NetDriverName == NetDriverName)
 		{
 			UE_LOG(LogNet, Log, TEXT("DestroyNamedNetDriver %s [%s]"), *NetDriver->GetName(), *NetDriverName.ToString());
+			
+			ensureMsgf(!NetDriver->IsInTick(), TEXT("Attempting to destroy NetDriver %s [%s] while it is ticking."), *NetDriver->GetName(), *NetDriverName.ToString());
+
 			NetDriver->SetWorld(NULL);
 			NetDriver->Shutdown();
 			NetDriver->LowLevelDestroy();

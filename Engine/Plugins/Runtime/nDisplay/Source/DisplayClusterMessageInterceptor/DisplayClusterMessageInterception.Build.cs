@@ -15,5 +15,16 @@ public class DisplayClusterMessageInterception : ModuleRules
 				"Engine",
 				"Messaging"
 			});
+		if (Target.Type == TargetType.Editor || Target.Type == TargetType.Program)
+		{
+			PrivateDefinitions.Add("WITH_CONCERT=1");
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"Concert",
+					"ConcertSyncClient",
+					"ConcertSyncCore",
+					"ConcertTransport"
+				});
+		}
 	}
 }

@@ -92,7 +92,7 @@ public:
 };
 
 bool FWidgetBlueprintEditorUtils::VerifyWidgetRename(TSharedRef<class FWidgetBlueprintEditor> BlueprintEditor, FWidgetReference Widget, const FText& NewName, FText& OutErrorMessage)
-{	
+{
 	if (NewName.IsEmptyOrWhitespace())
 	{
 		OutErrorMessage = LOCTEXT("EmptyWidgetName", "Empty Widget Name");
@@ -1427,7 +1427,7 @@ TArray<UWidget*> FWidgetBlueprintEditorUtils::PasteWidgetsInternal(TSharedRef<FW
 
 	// If we're pasting into a content widget of the same type, treat it as a sibling duplication
 	UWidget* FirstPastedWidget = *PastedWidgets.CreateIterator();
-	if (FirstPastedWidget->IsA(UContentWidget::StaticClass()) && 
+	if (FirstPastedWidget->IsA(UContentWidget::StaticClass()) &&
 		ParentWidgetRef.IsValid() &&
 		FirstPastedWidget->GetClass() == ParentWidgetRef.GetTemplate()->GetClass())
 	{

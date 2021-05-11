@@ -503,13 +503,18 @@ namespace AutomationTool
 				if (ScopedProperties[ScopeIdx].TryGetValue(Name, out ScopeValue))
 				{
 					Value = ScopeValue;
-					if (ValueLength > 0)
+
+					// Handle $(PropName:-6) where PropName might be "Foo"
+					if (Value.Length > Math.Abs(ValueLength))
 					{
-						Value = Value.Substring(0, ValueLength);
-					}
-					if (ValueLength < 0)
-					{
-						Value = Value.Substring(Value.Length + ValueLength, -ValueLength);
+						if (ValueLength > 0)
+						{
+							Value = Value.Substring(0, ValueLength);
+						}
+						if (ValueLength < 0)
+						{
+							Value = Value.Substring(Value.Length + ValueLength, -ValueLength);
+						}
 					}
 					return true;
 				}

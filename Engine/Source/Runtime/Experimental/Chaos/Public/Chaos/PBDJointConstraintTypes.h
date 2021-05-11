@@ -101,6 +101,8 @@ namespace Chaos
 	public:
 		FPBDJointSettings();
 
+		// Ensure that settings are consistent and within valid ranges. Should be called
+		// whenever settings change.
 		void Sanitize();
 
 		FReal Stiffness;
@@ -185,23 +187,30 @@ namespace Chaos
 		FReal MinParentMassRatio;
 		FReal MaxInertiaRatio;
 
+		// Solver Stiffness (increases over iterations)
+		FReal MinSolverStiffness;
+		FReal MaxSolverStiffness;
+		FReal NumIterationsAtMaxSolverStiffness;
+
 		// @todo(ccaulfield): remove these TEMP overrides for testing
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;
 		bool bEnableDrives;
-		FReal LinearProjection;
-		FReal AngularProjection;
-		FReal Stiffness;
-		FReal LinearDriveStiffness;
-		FReal LinearDriveDamping;
-		FReal AngularDriveStiffness;
-		FReal AngularDriveDamping;
-		FReal SoftLinearStiffness;
-		FReal SoftLinearDamping;
-		FReal SoftTwistStiffness;
-		FReal SoftTwistDamping;
-		FReal SoftSwingStiffness;
-		FReal SoftSwingDamping;
+		FReal LinearStiffnessOverride;
+		FReal TwistStiffnessOverride;
+		FReal SwingStiffnessOverride;
+		FReal LinearProjectionOverride;
+		FReal AngularProjectionOverride;
+		FReal LinearDriveStiffnessOverride;
+		FReal LinearDriveDampingOverride;
+		FReal AngularDriveStiffnessOverride;
+		FReal AngularDriveDampingOverride;
+		FReal SoftLinearStiffnessOverride;
+		FReal SoftLinearDampingOverride;
+		FReal SoftTwistStiffnessOverride;
+		FReal SoftTwistDampingOverride;
+		FReal SoftSwingStiffnessOverride;
+		FReal SoftSwingDampingOverride;
 	};
 
 }

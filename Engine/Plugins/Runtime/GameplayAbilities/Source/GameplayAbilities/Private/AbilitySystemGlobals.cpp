@@ -314,6 +314,16 @@ FAttributeSetInitter* UAbilitySystemGlobals::GetAttributeSetInitter() const
 	return GlobalAttributeSetInitter.Get();
 }
 
+void UAbilitySystemGlobals::AddAttributeDefaultTables(const TArray<FSoftObjectPath>& AttribDefaultTableNames)
+{
+	for (const FSoftObjectPath& TableName : AttribDefaultTableNames)
+	{
+		GlobalAttributeSetDefaultsTableNames.AddUnique(TableName);
+	}
+
+	InitAttributeDefaults();
+}
+
 void UAbilitySystemGlobals::InitAttributeDefaults()
 {
  	bool bLoadedAnyDefaults = false;
@@ -324,7 +334,7 @@ void UAbilitySystemGlobals::InitAttributeDefaults()
 		UCurveTable* AttribTable = Cast<UCurveTable>(GlobalAttributeSetDefaultsTableName.TryLoad());
 		if (AttribTable)
 		{
-			GlobalAttributeDefaultsTables.Add(AttribTable);
+			GlobalAttributeDefaultsTables.AddUnique(AttribTable);
 			bLoadedAnyDefaults = true;
 		}
 	}
@@ -337,7 +347,7 @@ void UAbilitySystemGlobals::InitAttributeDefaults()
 			UCurveTable* AttribTable = Cast<UCurveTable>(AttribDefaultTableName.TryLoad());
 			if (AttribTable)
 			{
-				GlobalAttributeDefaultsTables.Add(AttribTable);
+				GlobalAttributeDefaultsTables.AddUnique(AttribTable);
 				bLoadedAnyDefaults = true;
 			}
 		}

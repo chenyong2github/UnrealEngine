@@ -15,9 +15,7 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRotated, int32, Value);
 
 /**
-* A simple widget that shows a sliding bar with a handle that allows you to control the value between 0..1.
-*
-* * No Children
+* A button that can rotate between given text labels.
 */
 UCLASS(meta = (DisableNativeTick))
 class COMMONUI_API UCommonRotator : public UCommonButtonBase

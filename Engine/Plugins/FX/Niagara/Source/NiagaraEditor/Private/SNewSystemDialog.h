@@ -52,7 +52,7 @@ private:
 
 	TSharedPtr<SWrapBox> SelectedEmitterBox;
 
-	TSharedPtr<SNiagaraAssetPickerList> TemplateAssetPicker;
+	TSharedPtr<SNiagaraAssetPickerList> TemplateBehaviorAssetPicker;
 
 	TSharedPtr<SNiagaraAssetPickerList> EmitterAssetPicker;
 

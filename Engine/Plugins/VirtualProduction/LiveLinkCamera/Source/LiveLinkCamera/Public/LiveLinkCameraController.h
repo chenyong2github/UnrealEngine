@@ -17,6 +17,41 @@
 struct FLiveLinkCameraStaticData;
 struct FLiveLinkCameraFrameData;
 
+/** Flags to control whether incoming values from LiveLink Camera FrameData should be applied or not */
+USTRUCT()
+struct FLiveLinkCameraControllerUpdateFlags
+{
+	GENERATED_BODY()
+
+	/** Whether to apply FOV if it's available in LiveLink FrameData */
+	UPROPERTY(EditAnywhere, Category = "Updates")
+	bool bApplyFieldOfView = true;
+	
+	/** Whether to apply Aspect Ratio if it's available in LiveLink FrameData */
+	UPROPERTY(EditAnywhere, Category = "Updates")
+	bool bApplyAspectRatio = true;
+
+	/** Whether to apply Focal Length if it's available in LiveLink FrameData */
+	UPROPERTY(EditAnywhere, Category = "Updates")
+	bool bApplyFocalLength = true;
+
+	/** Whether to apply Projection Mode if it's available in LiveLink FrameData */
+	UPROPERTY(EditAnywhere, Category = "Updates")
+	bool bApplyProjectionMode= true;
+
+	/** Whether to apply Filmback if it's available in LiveLink StaticData */
+	UPROPERTY(EditAnywhere, Category = "Updates")
+	bool bApplyFilmBack = true;
+
+	/** Whether to apply Aperture if it's available in LiveLink FrameData */
+	UPROPERTY(EditAnywhere, Category = "Updates")
+	bool bApplyAperture = true;
+
+	/** Whether to apply Focus Distance if it's available in LiveLink FrameData */
+	UPROPERTY(EditAnywhere, Category = "Updates")
+	bool bApplyFocusDistance = true;
+};
+
 /**
  */
 UCLASS()
@@ -33,21 +68,25 @@ public:
 	FLiveLinkTransformControllerData TransformData_DEPRECATED;
 #endif
 
+	/** Should encoder mapping (normalized to physical units) be done using lens file or camera component range */
+	UPROPERTY(EditAnywhere, Category = "Camera Calibration")
+	bool bUseLensFileForEncoderMapping = true;
+
 	/** Asset containing encoder and fiz mapping */
-	UPROPERTY(EditAnywhere, Category = "Lens")
+	UPROPERTY(EditAnywhere, Category = "Camera Calibration")
 	FLensFilePicker LensFilePicker;
 
 	/** Apply nodel offset from lens file if enabled */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lens")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera Calibration")
 	bool bApplyNodalOffset = true;
 
 protected:
 	/** Whether or not to apply a post-process distortion effect directly to the attached CineCamera */
-	UPROPERTY(EditAnywhere, Category = "Lens Distortion")
+	UPROPERTY(EditAnywhere, Category = "Camera Calibration")
 	bool bApplyDistortion = false;
 
 	/** Cached distortion handler associated with attached camera component */
-	UPROPERTY(EditAnywhere, Category = "Lens Distortion", Transient)
+	UPROPERTY(EditAnywhere, Category = "Camera Calibration", Transient)
 	ULensDistortionModelHandlerBase* LensDistortionHandler = nullptr;
 
 	/** Cached distortion MID the handler produced. Used to clean up old one in case it changes */
@@ -66,6 +105,16 @@ protected:
 	UPROPERTY()
 	FVector OriginalCameraLocation;
 
+	/** Used to control which data from LiveLink is actually applied to camera */
+	UPROPERTY(EditAnywhere, Category="Settings")
+	FLiveLinkCameraControllerUpdateFlags UpdateFlags;
+
+#if WITH_EDITORONLY_DATA
+	/** Whether to refresh frustum drawing on value change */
+	UPROPERTY(EditAnywhere, Category="Debug")
+	bool bShouldUpdateVisualComponentOnChange = true;
+#endif
+
 private:
 	
 	/** Whether incoming data requires encoder mapping */
@@ -80,6 +129,7 @@ private:
 
 	//Last values used to detect changes made by the user and update our original caches
 	float LastFocalLength = -1.0f;
+	FCameraFilmbackSettings LastFilmback;
 	FRotator LastRotation;
 	FVector LastLocation;
 

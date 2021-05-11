@@ -8,6 +8,7 @@
 #include "DataprepAssetView.h"
 #include "DataprepEditorLogCategory.h"
 #include "DataprepEditorUtils.h"
+#include "SelectionSystem/DataprepStringFilter.h"
 #include "DataprepParameterizableObject.h"
 #include "Parameterization/DataprepParameterizationUtils.h"
 #include "Widgets/Parameterization/SDataprepParameterizationLinkIcon.h"
@@ -271,12 +272,39 @@ void SDataprepCategoryWidget::Construct( const FArguments& InArgs, TSharedRef< S
 	);
 }
 
-void SDataprepDetailsView::CreateDefaultWidget( int32 Index, TSharedPtr< SWidget >& NameWidget, TSharedPtr< SWidget >& ValueWidget, float LeftPadding, const FDataprepParameterizationContext& ParameterizationContext)
+void SDataprepDetailsView::CreateDefaultWidget( int32 Index, TSharedPtr< SWidget >& NameWidget, TSharedPtr< SWidget >& ValueWidget, float LeftPadding, const FDataprepParameterizationContext& ParameterizationContext, bool bAddExpander, bool bChildNode )
 {
 	TSharedRef<SHorizontalBox> NameColumn = SNew(SHorizontalBox)
 		.Clipping(EWidgetClipping::OnDemand);
 
 	NameWidget->SetClipping( EWidgetClipping::OnDemand );
+
+	if ( bAddExpander && StringArrayDetailedObject )
+	{
+		NameColumn->AddSlot()
+		.AutoWidth()
+		.VAlign( VAlign_Center )
+		[
+			SNew( SButton )
+			.ButtonStyle( FEditorStyle::Get(), "FlatButton.Primary" )
+			.ButtonColorAndOpacity( FLinearColor::Transparent )
+			.ForegroundColor( FLinearColor::White )
+			.ContentPadding( FMargin(6, 2) )
+			.Cursor( EMouseCursor::Default )
+			.Content()
+			[
+				SNew(STextBlock)
+				.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Text_Lambda( [this](){ return StringArrayDetailedObject->bExpanded ? FEditorFontGlyphs::Caret_Down: FEditorFontGlyphs::Caret_Right; } )
+			]
+			.OnClicked_Lambda( [this]()
+			{
+				StringArrayDetailedObject->bExpanded = !StringArrayDetailedObject->bExpanded;
+				return (FReply::Handled()); 
+			} )
+		];
+	}
 
 	// Add the name widget
 	NameColumn->AddSlot()
@@ -322,6 +350,14 @@ void SDataprepDetailsView::CreateDefaultWidget( int32 Index, TSharedPtr< SWidget
 	[
 		SNew(SDataprepContextMenuOverride)
 		.OnContextMenuOpening(OnContextMenuOpening)
+		.Visibility_Lambda([this, bChildNode]() -> EVisibility 
+		{ 
+			if ( bChildNode && StringArrayDetailedObject )
+			{
+				return StringArrayDetailedObject->bExpanded ? EVisibility::Visible : EVisibility::Collapsed; 
+			}
+			return EVisibility::Visible; 
+		})
 		[
 			DataprepWidgetUtils::CreatePropertyWidget( NameColumn, ValueWidget, ColumnSizeData, Spacing, bResizableColumn )
 		]
@@ -334,24 +370,24 @@ void SDataprepDetailsView::CreateDefaultWidget( int32 Index, TSharedPtr< SWidget
 		.Padding(5.0f, 5.0f, 0.0f, 5.0f)
 		[
 			SNew(SHorizontalBox)
-	+ SHorizontalBox::Slot()
-	.VAlign(VAlign_Center)
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Right)
 			.AutoWidth()
-	[
+			[
 				SNew(SButton)
 				.IsFocusable(false)
 				.Visibility(EVisibility::Hidden)
 				.IsEnabled(false)
 				.VAlign(VAlign_Top)
 				.Content()
-		[
+				[
 					SNew(STextBlock)
 					.Font(FDataprepEditorUtils::GetGlyphFont())
 					.ColorAndOpacity(FLinearColor::Transparent)
 					.Text(FEditorFontGlyphs::Exclamation_Triangle)
 				]
-		]
+			]
 		];
 
 		GridPanel->AddSlot(2, Index)
@@ -374,9 +410,9 @@ void SDataprepDetailsView::CreateDefaultWidget( int32 Index, TSharedPtr< SWidget
 					.Font(FDataprepEditorUtils::GetGlyphFont())
 					.ColorAndOpacity(FLinearColor::Transparent)
 					.Text(FEditorFontGlyphs::Exclamation_Triangle)
+				]
 			]
-		]
-	];
+		];
 	}
 }
 
@@ -430,7 +466,7 @@ void SDataprepDetailsView::OnObjectTransacted(UObject* Object, const class FTran
 	}
 }
 
-void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode > >& DetailTree, int32& Index, float LeftPadding, const FDataprepParameterizationContext& InParameterizationContext)
+void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode > >& DetailTree, int32& Index, float LeftPadding, const FDataprepParameterizationContext& InParameterizationContext, bool bChildNodes )
 {
 	auto IsDetailNodeDisplayable = []( const TSharedPtr< IPropertyHandle >& PropertyHandle)
 	{
@@ -523,15 +559,16 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 				TSharedPtr< SWidget > ValueWidget;
 				DetailPropertyRow->GetDefaultWidgets( NameWidget, ValueWidget, Row, true );
 
-				CreateDefaultWidget( Index, NameWidget, ValueWidget, LeftPadding, CurrentParameterizationContext );
-				Index++;
-
 				TArray< TSharedRef< IDetailTreeNode > > Children;
 				ChildNode->GetChildren( Children );
+
+				CreateDefaultWidget( Index, NameWidget, ValueWidget, LeftPadding, CurrentParameterizationContext, Children.Num() > 0, false );
+				Index++;
+
 				if( Children.Num() > 0 )
 				{
 					// #ueent_todo: Find a way to add collapse/expand capability for property with children
-					AddWidgets( Children, Index, LeftPadding + 10.f, CurrentParameterizationContext );
+					AddWidgets( Children, Index, LeftPadding + 10.f, CurrentParameterizationContext, true );
 				}
 
 				TrackedProperties.Add( PropertyHandle );
@@ -564,7 +601,7 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 
 			if( NameWidget.IsValid() && ValueWidget.IsValid() )
 			{
-				CreateDefaultWidget( Index, NameWidget, ValueWidget, LeftPadding, CurrentParameterizationContext );
+				CreateDefaultWidget( Index, NameWidget, ValueWidget, LeftPadding, CurrentParameterizationContext, false, bChildNodes );
 				Index++;
 
 				bool bDisplayChildren = true;
@@ -598,6 +635,8 @@ void SDataprepDetailsView::Construct(const FArguments& InArgs)
 	Spacing = InArgs._Spacing;
 	bColumnPadding = InArgs._ColumnPadding;
 	bResizableColumn = InArgs._ResizableColumn;
+
+	StringArrayDetailedObject = Cast<UDataprepStringFilterMatchingArray>( DetailedObject );
 
 	if ( InArgs._ColumnSizeData.IsValid() )
 	{

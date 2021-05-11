@@ -492,11 +492,11 @@ void FContentBrowserSingleton::GetSelectedPathViewFolders(TArray<FString>& Selec
 	}
 }
 
-FString FContentBrowserSingleton::GetCurrentPath()
+FString FContentBrowserSingleton::GetCurrentPath(const EContentBrowserPathType PathType)
 {
 	if (PrimaryContentBrowser.IsValid())
 	{
-		return PrimaryContentBrowser.Pin()->GetCurrentPath();
+		return PrimaryContentBrowser.Pin()->GetCurrentPath(PathType);
 	}
 	return FString();
 }

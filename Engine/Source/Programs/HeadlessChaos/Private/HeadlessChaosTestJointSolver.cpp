@@ -33,6 +33,7 @@ namespace ChaosTest
 		FRigidTransform3 Connector1;
 		FPBDJointSolverSettings SolverSettings;
 		FPBDJointSettings JointSettings;
+		FReal SolverStiffness;
 
 		// Derived Settings
 		FReal IM0;
@@ -69,6 +70,7 @@ namespace ChaosTest
 			, Inertia1(FVec3(0))
 			, Connector0(FRigidTransform3(FVec3(0), FRotation3::FromIdentity()))
 			, Connector1(FRigidTransform3(FVec3(0), FRotation3::FromIdentity()))
+			, SolverStiffness(1)
 			, IM0(0)
 			, II0(FVec3(0))
 			, IM1(0)
@@ -146,6 +148,7 @@ namespace ChaosTest
 
 			Solver.Update(
 				Dt,
+				SolverStiffness,
 				SolverSettings,
 				JointSettings,
 				P0,

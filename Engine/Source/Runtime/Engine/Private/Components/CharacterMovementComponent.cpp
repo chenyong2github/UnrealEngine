@@ -2221,20 +2221,11 @@ void UCharacterMovementComponent::UpdateBasedRotation(FRotator& FinalRotation, c
 	AController* Controller = CharacterOwner ? CharacterOwner->Controller : nullptr;
 	float ControllerRoll = 0.f;
 
-	// NOTE: Adding these floats temporarily just to help debug an issue.  Will remove them again shortly.
-	float Stage1RollForDebugging = 0.f;
-	float Stage2RollForDebugging = 0.f;
-	float Stage3RollForDebugging = 0.f;
-	float Stage4RollForDebugging = 0.f;
-
 	if ((Controller != nullptr) && !bIgnoreBaseRotation)
 	{
 		FRotator ControllerRot = Controller->GetControlRotation();
 		ControllerRoll = ControllerRot.Roll;
-		Stage1RollForDebugging = ControllerRoll;
 		Controller->SetControlRotation(ControllerRot + ReducedRotation);
-		ControllerRot = Controller->GetControlRotation();
-		Stage2RollForDebugging = ControllerRot.Roll;
 	}
 
 	// Remove roll
@@ -2243,29 +2234,9 @@ void UCharacterMovementComponent::UpdateBasedRotation(FRotator& FinalRotation, c
 	{
 		check(UpdatedComponent != nullptr);
 		FinalRotation.Roll = UpdatedComponent->GetComponentRotation().Roll;
-		Stage3RollForDebugging = FinalRotation.Roll;
 		FRotator NewRotation = Controller->GetControlRotation();
 		NewRotation.Roll = ControllerRoll;
-		Stage4RollForDebugging = NewRotation.Roll;
 		Controller->SetControlRotation(NewRotation);
-	}
-
-	// NOTE: This logging is temporary and will be removed soon.
-	if ((Stage1RollForDebugging == 0.f) && (Stage4RollForDebugging != 0.f))
-	{	// Roll went from zero to non-zero
-		UE_LOG(LogCharacterMovement, Warning,
-			TEXT("Character Movement Component owned by Character %s with Controller %s has changed roll for the ControlRotation to a non-zero value.  Value at each stage: %f, %f, %f, %f."),
-			*GetNameSafe(CharacterOwner), *GetNameSafe(Controller),
-			Stage1RollForDebugging, Stage2RollForDebugging, Stage3RollForDebugging, Stage4RollForDebugging
-			  );
-	}
-	else if ((Stage1RollForDebugging != 0.f) && (Stage4RollForDebugging == 0.f))
-	{	// Roll went from non-zero to zero.
-		UE_LOG(LogCharacterMovement, Warning,
-			TEXT("Character Movement Component owned by Character %s with Controller %s has restored roll for the ControlRotation to zero from a non-zero value.  Value at each stage: %f, %f, %f, %f."),
-			*GetNameSafe(CharacterOwner), *GetNameSafe(Controller),
-			Stage1RollForDebugging, Stage2RollForDebugging, Stage3RollForDebugging, Stage4RollForDebugging
-			);
 	}
 }
 
@@ -8606,15 +8577,34 @@ void UCharacterMovementComponent::ServerMoveDualHybridRootMotion_Implementation(
 
 bool UCharacterMovementComponent::VerifyClientTimeStamp(float TimeStamp, FNetworkPredictionData_Server_Character& ServerData)
 {
+	UWorld* World = GetWorld();
+
+	const bool bFirstMoveAfterForcedUpdates = ServerData.bTriggeringForcedUpdates;
+	if (bFirstMoveAfterForcedUpdates)
+	{
+		// We have been performing ForcedUpdates because we hadn't received any moves from this connection in a while but we've now received a new move!
+		// Let's sync up to this TimeStamp in order to resolve movement desyncs ASAP
+		// This will result in this move having a zero DeltaTime, so it will perform no movement but it will send a correction, and we should be able to process the next move that arrives.
+		UE_LOG(LogNetPlayerMovement, Log, TEXT("Received a new move after performing ForcedUpdates.  Updating CurrentClientTimeStamp from %f to %f"), ServerData.CurrentClientTimeStamp, TimeStamp);
+		ServerData.CurrentClientTimeStamp = TimeStamp;
+		if (World != nullptr)
+		{
+			ServerData.ServerTimeStamp = World->GetTimeSeconds();
+		}
+	}
+
 	bool bTimeStampResetDetected = false;
 	bool bNeedsForcedUpdate = false;
-	const bool bIsValid = IsClientTimeStampValid(TimeStamp, ServerData, bTimeStampResetDetected);
+	const bool bIsValid = bFirstMoveAfterForcedUpdates || IsClientTimeStampValid(TimeStamp, ServerData, bTimeStampResetDetected);
 	if (bIsValid)
 	{
 		if (bTimeStampResetDetected)
 		{
 			UE_LOG(LogNetPlayerMovement, Log, TEXT("TimeStamp reset detected. CurrentTimeStamp: %f, new TimeStamp: %f"), ServerData.CurrentClientTimeStamp, TimeStamp);
-			LastTimeStampResetServerTime = GetWorld()->GetTimeSeconds();
+			if (World != nullptr)
+			{
+				LastTimeStampResetServerTime = World->GetTimeSeconds();
+			}
 			OnClientTimeStampResetDetected();
 			ServerData.CurrentClientTimeStamp -= MinTimeBetweenTimeStampResets;
 

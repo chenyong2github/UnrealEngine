@@ -35,9 +35,10 @@ public:
 
 	//~ Begin SDisplayClusterConfiguratorBaseNode interface
 	virtual bool IsNodeVisible() const override;
-	virtual int32 GetNodeLayerIndex() const override { return DefaultZOrder; }
 	virtual bool CanNodeOverlapSiblings() const override { return false; }
 	virtual bool CanNodeBeSnapAligned() const override { return true; }
+	virtual bool CanNodeBeResized() const { return !IsViewportLocked(); }
+	virtual bool IsAspectRatioFixed() const override;
 	//~ End of SDisplayClusterConfiguratorBaseNode interface
 
 private:
@@ -49,8 +50,6 @@ private:
 	FText GetPositionAndSizeText() const;
 	FMargin GetBackgroundPosition() const;
 	FMargin GetAreaResizeHandlePosition() const;
-	EVisibility GetAreaResizeHandleVisibility() const;
-	bool IsAspectRatioFixed() const;
 	bool IsViewportLocked() const;
 	EVisibility GetLockIconVisibility() const;
 
@@ -61,7 +60,4 @@ private:
 	TSharedPtr<SImage> BackgroundImage;
 
 	UTexture* CachedTexture;
-
-public:
-	static const int32 DefaultZOrder;
 };

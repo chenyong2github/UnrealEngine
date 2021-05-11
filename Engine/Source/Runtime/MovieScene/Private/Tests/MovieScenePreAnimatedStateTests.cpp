@@ -4,8 +4,13 @@
 #include "Misc/AutomationTest.h"
 #include "MovieSceneExecutionToken.h"
 #include "IMovieScenePlayer.h"
+#include "Compilation/MovieSceneCompiledDataManager.h"
 #include "Evaluation/MovieScenePreAnimatedState.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateExtension.h"
+#include "MovieSceneTestObjects.h"
+#include "UObject/Package.h"
 
 #define LOCTEXT_NAMESPACE "MovieScenePreAnimatedStateTests"
 
@@ -18,7 +23,7 @@ namespace Impl
 
 		FPreAnimatedToken(int32* InPtr, int32 InValue) : Ptr(InPtr), Value(InValue) {}
 
-		virtual void RestoreState(IMovieScenePlayer& Player) override
+		virtual void RestoreState(const UE::MovieScene::FRestoreStateParams& Params) override
 		{
 			*Ptr = Value;
 		}
@@ -70,6 +75,17 @@ namespace Impl
 	FMovieSceneAnimTypeID AnimType1 = FMovieSceneAnimTypeID::Unique();
 	FMovieSceneAnimTypeID AnimType2 = FMovieSceneAnimTypeID::Unique();
 
+	TStrongObjectPtr<UMovieSceneEntitySystemLinker> GEntitySystemLinker;
+
+	UMovieSceneEntitySystemLinker* GetTestLinker()
+	{
+		if (!GEntitySystemLinker)
+		{
+			GEntitySystemLinker.Reset(NewObject<UMovieSceneEntitySystemLinker>(GetTransientPackage()));
+		}
+		return GEntitySystemLinker.Get();
+	}
+
 	void Assert(FAutomationTestBase* Test, int32 Actual, int32 Expected, const TCHAR* Message)
 	{
 		if (Actual != Expected)
@@ -85,17 +101,60 @@ namespace Impl
 	}
 }
 
+void UTestMovieSceneEvalHookSection::Begin(IMovieScenePlayer* Player, const UE::MovieScene::FEvaluationHookParams& Params) const
+{
+	using namespace Impl;
+
+	FScopedPreAnimatedCaptureSource CaptureSource(&Player->PreAnimatedState, this, Params.SequenceID, EvalOptions.CompletionMode == EMovieSceneCompletionMode::RestoreState);
+	Player->SavePreAnimatedState(AnimType1, FPreAnimatedTokenProducer(&TestValue1));
+
+	TestValue1 = StartValue;
+}
+void UTestMovieSceneEvalHookSection::Update(IMovieScenePlayer* Player, const UE::MovieScene::FEvaluationHookParams& Params) const
+{
+	using namespace Impl;
+
+	FScopedPreAnimatedCaptureSource CaptureSource(&Player->PreAnimatedState, this, Params.SequenceID, EvalOptions.CompletionMode == EMovieSceneCompletionMode::RestoreState);
+	Player->SavePreAnimatedState(AnimType1, FPreAnimatedTokenProducer(&TestValue1));
+
+	++TestValue1;
+}
+void UTestMovieSceneEvalHookSection::End(IMovieScenePlayer* Player, const UE::MovieScene::FEvaluationHookParams& Params) const
+{
+	using namespace Impl;
+
+	FScopedPreAnimatedCaptureSource CaptureSource(&Player->PreAnimatedState, this, Params.SequenceID, EvalOptions.CompletionMode == EMovieSceneCompletionMode::RestoreState);
+	Player->SavePreAnimatedState(AnimType1, FPreAnimatedTokenProducer(&TestValue1));
+
+	TestValue1 = EndValue;
+}
+void UTestMovieSceneEvalHookSection::Trigger(IMovieScenePlayer* Player, const UE::MovieScene::FEvaluationHookParams& Params) const
+{
+	using namespace Impl;
+
+	FScopedPreAnimatedCaptureSource CaptureSource(&Player->PreAnimatedState, this, Params.SequenceID, EvalOptions.CompletionMode == EMovieSceneCompletionMode::RestoreState);
+	Player->SavePreAnimatedState(AnimType1, FPreAnimatedTokenProducer(&TestValue1));
+
+	--TestValue1;
+}
+
 /** Tests that multiple calls to SavePreAnimated state works correctly */
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieScenePreAnimatedStateGlobalTest, "System.Engine.Sequencer.Pre-Animated State.Global", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FMovieScenePreAnimatedStateGlobalTest::RunTest(const FString& Parameters)
 {
 	using namespace Impl;
-	FTestMovieScenePlayer TestPlayer;
+	using namespace UE::MovieScene;
+
+	UMovieSceneEntitySystemLinker* Linker = GetTestLinker();
 
 	ResetValues();
 
+	TSharedPtr<FPreAnimatedStateExtension> GlobalPreAnimatedState = MakeShared<FPreAnimatedStateExtension>(Linker);
+	++GlobalPreAnimatedState->NumRequestsForGlobalState;
+
 	FMovieScenePreAnimatedState State;
-	State.EnableGlobalCapture();
+	State.Initialize(Linker, FInstanceHandle());
+	State.OnEnableGlobalCapture(GlobalPreAnimatedState);
 
 	FPreAnimatedTokenProducer Producer(&TestValue1);
 
@@ -109,7 +168,7 @@ bool FMovieScenePreAnimatedStateGlobalTest::RunTest(const FString& Parameters)
 
 	TestValue1 = 50;
 
-	State.RestorePreAnimatedState(TestPlayer);
+	State.RestorePreAnimatedState();
 
 	Assert(this, TestValue1, TestMagicNumber, TEXT("TestValue1 did not restore correctly."));
 
@@ -121,28 +180,36 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieScenePreAnimatedStateEntityTest, "System.
 bool FMovieScenePreAnimatedStateEntityTest::RunTest(const FString& Parameters)
 {
 	using namespace Impl;
-	FTestMovieScenePlayer TestPlayer;
+	using namespace UE::MovieScene;
 
 	ResetValues();
 
+	UMovieSceneEntitySystemLinker* Linker = GetTestLinker();
+
+	TSharedPtr<FPreAnimatedStateExtension> GlobalPreAnimatedState = MakeShared<FPreAnimatedStateExtension>(Linker);
+	++GlobalPreAnimatedState->NumRequestsForGlobalState;
+
 	FMovieScenePreAnimatedState State;
-	State.EnableGlobalCapture();
+	State.Initialize(Linker, FInstanceHandle());
+	State.OnEnableGlobalCapture(GlobalPreAnimatedState);
 
 	FPreAnimatedTokenProducer Producer(&TestValue1);
-	
-	State.SetCaptureEntity(SectionKey1, EMovieSceneCompletionMode::RestoreState);
-	State.SavePreAnimatedState(AnimType1, Producer);
+
+	{
+		FScopedPreAnimatedCaptureSource CaptureSource(&State, SectionKey1, true);
+		State.SavePreAnimatedState(AnimType1, Producer);
+	}
 
 	Assert(this, Producer.InitializeCount, 1, TEXT("Should have called FPreAnimatedTokenProducer::InitializeForAnimation exactly once."));
 	Assert(this, TestValue1, 0, TEXT("TestValue1 did not initialize correctly."));
 
 	TestValue1 = 50;
 
-	State.RestorePreAnimatedState(TestPlayer, SectionKey1);
+	State.OnFinishedEvaluating(SectionKey1);
 	Assert(this, TestValue1, TestMagicNumber, TEXT("Section did not restore correctly."));
 
 	TestValue1 = 100;
-	State.RestorePreAnimatedState(TestPlayer);
+	State.RestorePreAnimatedState();
 	Assert(this, TestValue1, 100, TEXT("Global state should not still exist (it should have been cleared with the entity)."));
 	return true;
 }
@@ -152,12 +219,19 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieScenePreAnimatedStateOverlappingEntitiesT
 bool FMovieScenePreAnimatedStateOverlappingEntitiesTest::RunTest(const FString& Parameters)
 {
 	using namespace Impl;
-	FTestMovieScenePlayer TestPlayer;
+	using namespace UE::MovieScene;
+
 
 	ResetValues();
 
+	UMovieSceneEntitySystemLinker* Linker = GetTestLinker();
+
+	TSharedPtr<FPreAnimatedStateExtension> GlobalPreAnimatedState = MakeShared<FPreAnimatedStateExtension>(Linker);
+	++GlobalPreAnimatedState->NumRequestsForGlobalState;
+
 	FMovieScenePreAnimatedState State;
-	State.EnableGlobalCapture();
+	State.Initialize(Linker, FInstanceHandle());
+	State.OnEnableGlobalCapture(GlobalPreAnimatedState);
 
 	FPreAnimatedTokenProducer Producer(&TestValue1);
 
@@ -171,7 +245,7 @@ bool FMovieScenePreAnimatedStateOverlappingEntitiesTest::RunTest(const FString& 
 
 	// 2. Save a token for the track's evaluation
 	{
-		State.SetCaptureEntity(TrackKey1, EMovieSceneCompletionMode::RestoreState);
+		FScopedPreAnimatedCaptureSource CaptureSource(&State, TrackKey1, true);
 		State.SavePreAnimatedState(AnimType1, Producer);
 
 		TestValue1 = 50;
@@ -180,7 +254,7 @@ bool FMovieScenePreAnimatedStateOverlappingEntitiesTest::RunTest(const FString& 
 
 	// 3. Save a token for the section's evaluation
 	{
-		State.SetCaptureEntity(SectionKey1, EMovieSceneCompletionMode::RestoreState);
+		FScopedPreAnimatedCaptureSource CaptureSource(&State, SectionKey1, true);
 		State.SavePreAnimatedState(AnimType1, Producer);
 
 		TestValue1 = 100;
@@ -189,7 +263,7 @@ bool FMovieScenePreAnimatedStateOverlappingEntitiesTest::RunTest(const FString& 
 
 	// 4. Save a token for another section's evaluation
 	{
-		State.SetCaptureEntity(SectionKey2, EMovieSceneCompletionMode::RestoreState);
+		FScopedPreAnimatedCaptureSource CaptureSource(&State, SectionKey2, true);
 		State.SavePreAnimatedState(AnimType1, Producer);
 
 		TestValue1 = 150;
@@ -197,19 +271,19 @@ bool FMovieScenePreAnimatedStateOverlappingEntitiesTest::RunTest(const FString& 
 	}
 
 	// Restore the section first - ensure it does not restore the value (because the track is still animating it)
-	State.RestorePreAnimatedState(TestPlayer, SectionKey1);
+	State.OnFinishedEvaluating(SectionKey1);
 	Assert(this, TestValue1, 150, TEXT("Section 1 should not have restored."));
 
 	// Restore the track - it should not restore either, because section 2 is still active
-	State.RestorePreAnimatedState(TestPlayer, TrackKey1);
+	State.OnFinishedEvaluating(TrackKey1);
 	Assert(this, TestValue1, 150, TEXT("Track should not have restored."));
 
 	// Restore the section - since it's the last entity animating the object with 'RestoreState' it should restore to the orignal value
-	State.RestorePreAnimatedState(TestPlayer, SectionKey2);
+	State.OnFinishedEvaluating(SectionKey2);
 	Assert(this, TestValue1, 0, TEXT("Section 2 did not restore correctly."));
 
 	// Restore globally - ensure that test value goes back to the original value
-	State.RestorePreAnimatedState(TestPlayer);
+	State.RestorePreAnimatedState();
 	Assert(this, TestValue1, TestMagicNumber, TEXT("Global state did not restore correctly."));
 
 	return true;
@@ -220,19 +294,28 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieScenePreAnimatedStateKeepThenRestoreEntit
 bool FMovieScenePreAnimatedStateKeepThenRestoreEntityTest::RunTest(const FString& Parameters)
 {
 	using namespace Impl;
-	FTestMovieScenePlayer TestPlayer;
+	using namespace UE::MovieScene;
+
 
 	ResetValues();
 
+	UMovieSceneEntitySystemLinker* Linker = GetTestLinker();
+
+	TSharedPtr<FPreAnimatedStateExtension> GlobalPreAnimatedState = MakeShared<FPreAnimatedStateExtension>(Linker);
+	++GlobalPreAnimatedState->NumRequestsForGlobalState;
+
 	FMovieScenePreAnimatedState State;
-	State.EnableGlobalCapture();
+	State.Initialize(Linker, FInstanceHandle());
+	State.OnEnableGlobalCapture(GlobalPreAnimatedState);
 
 	FPreAnimatedTokenProducer Producer(&TestValue1);
 
 	// Indicate that the entity should not capture state
-	State.SetCaptureEntity(SectionKey1, EMovieSceneCompletionMode::KeepState);
-	// Save state - this will only save globally
-	State.SavePreAnimatedState(AnimType1, Producer);
+	{
+		FScopedPreAnimatedCaptureSource CaptureSource(&State, SectionKey1, false);
+		// Save state - this will only save globally
+		State.SavePreAnimatedState(AnimType1, Producer);
+	}
 
 	Assert(this, Producer.InitializeCount, 1, TEXT("Should have called FPreAnimatedTokenProducer::InitializeForAnimation exactly once."));
 	Assert(this, TestValue1, 0, TEXT("TestValue1 did not initialize correctly."));
@@ -240,24 +323,126 @@ bool FMovieScenePreAnimatedStateKeepThenRestoreEntityTest::RunTest(const FString
 	TestValue1 = 50;
 
 	// Restore state for the entity only - this should not do anything since we specified KeepState above
-	State.RestorePreAnimatedState(TestPlayer, SectionKey1);
+	State.OnFinishedEvaluating(SectionKey1);
 	Assert(this, TestValue1, 50, TEXT("Section should not have restored state."));
 
-	// Indicate that SectionKey2 is now animating, and wants to restore state
-	State.SetCaptureEntity(SectionKey2, EMovieSceneCompletionMode::RestoreState);
-	State.SavePreAnimatedState(AnimType1, Producer);
+	{
+		// Indicate that SectionKey2 is now animating, and wants to restore state
+		FScopedPreAnimatedCaptureSource CaptureSource(&State, SectionKey2, true);
+		State.SavePreAnimatedState(AnimType1, Producer);
+	}
 
 	Assert(this, Producer.InitializeCount, 1, TEXT("Should not have called FPreAnimatedTokenProducer::InitializeForAnimation a second time."));
 
 	TestValue1 = 100;
 
 	// Restoring section key 2 here should result in the test value being the same value that was set while section 1 was evaluating (50)
-	State.RestorePreAnimatedState(TestPlayer, SectionKey2);
+	State.OnFinishedEvaluating(SectionKey2);
 	Assert(this, TestValue1, 50, TEXT("Section 2 did not restore to the correct value. It should restore back to the value that was set in section 1 (it doesn't restore state)."));
 
 	// We should still have the global state of the object cached which will restore it to the original state
-	State.RestorePreAnimatedState(TestPlayer);
+	State.RestorePreAnimatedState();
 	Assert(this, TestValue1, TestMagicNumber, TEXT("Global state did not restore correctly."));
+
+	return true;
+}
+
+/** Tests that templates, evaluation hooks and track instances all save/restore state correctly */
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieScenePreAnimatedStateTrackTypesTest, "System.Engine.Sequencer.Pre-Animated State.Track Types", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FMovieScenePreAnimatedStateTrackTypesTest::RunTest(const FString& Parameters)
+{
+	using namespace Impl;
+	using namespace UE::MovieScene;
+
+	ResetValues();
+
+	static const int32 StartValue    = 1000;
+	static const int32 EndValue      = 2000;
+	static const int32 SectionLength = 1000;
+
+	FFrameRate TickResolution(1000, 1);
+
+	UTestMovieSceneSequence* Sequence = NewObject<UTestMovieSceneSequence>(GetTransientPackage());
+	Sequence->MovieScene->SetTickResolutionDirectly(TickResolution);
+
+	// Make a keep-state eval hook section
+	{
+		UTestMovieSceneEvalHookTrack*   Track = Sequence->MovieScene->AddMasterTrack<UTestMovieSceneEvalHookTrack>();
+		UTestMovieSceneEvalHookSection* Section = NewObject<UTestMovieSceneEvalHookSection>(Track);
+
+		Section->EvalOptions.CompletionMode = EMovieSceneCompletionMode::KeepState;
+		Section->StartValue   = StartValue;
+		Section->EndValue     = EndValue;
+
+		Section->SetRange(TRange<FFrameNumber>(0, SectionLength));
+		Track->SectionArray.Add(Section);
+	}
+	// Make a restore-state eval hook section
+	{
+		UTestMovieSceneEvalHookTrack*   Track = Sequence->MovieScene->AddMasterTrack<UTestMovieSceneEvalHookTrack>();
+		UTestMovieSceneEvalHookSection* Section = NewObject<UTestMovieSceneEvalHookSection>(Track);
+
+		Section->EvalOptions.CompletionMode = EMovieSceneCompletionMode::RestoreState;
+		Section->StartValue   = StartValue;
+		Section->EndValue     = EndValue;
+
+		Section->SetRange(TRange<FFrameNumber>(2000, 2000+SectionLength));
+		Track->SectionArray.Add(Section);
+	}
+
+	FTestMovieScenePlayer TestPlayer;
+
+	UMovieSceneCompiledDataManager* CompiledDataManager = UMovieSceneCompiledDataManager::GetPrecompiledData();
+
+	FMovieSceneCompiledDataID DataID = CompiledDataManager->Compile(Sequence);
+	TestPlayer.Template.Initialize(*Sequence, TestPlayer, CompiledDataManager);
+	TestPlayer.Template.EnableGlobalPreAnimatedStateCapture();
+
+	// Test the keep state section
+	{
+		static const int32 NumEvaluations = 100;
+		for (int32 i = 0; i < NumEvaluations; ++i)
+		{
+			FMovieSceneEvaluationRange EvaluatedRange(TRange<FFrameTime>(i*(SectionLength/NumEvaluations), (i+1)*(SectionLength/NumEvaluations)), TickResolution, EPlayDirection::Forwards);
+			TestPlayer.Template.Evaluate(EvaluatedRange, TestPlayer);
+
+			TestPlayer.Template.GetEntitySystemRunner().Flush();
+			if (i == NumEvaluations-1)
+			{
+				Assert(this, TestValue1, EndValue, TEXT("EvaluationHook did not End correctly."));
+			}
+			else
+			{
+				Assert(this, TestValue1, StartValue + i, TEXT("EvaluationHook did not Begin or Update correctly."));
+			}
+		}
+
+		TestPlayer.RestorePreAnimatedState();
+		Assert(this, TestValue1, TestMagicNumber, TEXT("Global pre-animated state did not restore correctly."));
+	}
+
+	// Test the Restore state section
+	{
+		static const int32 NumEvaluations = 100;
+		for (int32 i = 0; i < NumEvaluations; ++i)
+		{
+			FMovieSceneEvaluationRange EvaluatedRange(TRange<FFrameTime>(2000 + i*(SectionLength/NumEvaluations), 2000 + (i+1)*(SectionLength/NumEvaluations)), TickResolution, EPlayDirection::Forwards);
+			TestPlayer.Template.Evaluate(EvaluatedRange, TestPlayer);
+
+			TestPlayer.Template.GetEntitySystemRunner().Flush();
+			if (i == NumEvaluations-1)
+			{
+				Assert(this, TestValue1, TestMagicNumber, TEXT("EvaluationHook did not End correctly."));
+			}
+			else
+			{
+				Assert(this, TestValue1, StartValue + i, TEXT("EvaluationHook did not Begin or Update correctly."));
+			}
+		}
+
+		TestPlayer.RestorePreAnimatedState();
+		Assert(this, TestValue1, TestMagicNumber, TEXT("Global pre-animated state did not restore correctly."));
+	}
 
 	return true;
 }
@@ -267,16 +452,24 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieScenePreAnimatedStatePerformanceTest, "Sy
 bool FMovieScenePreAnimatedStatePerformanceTest::RunTest(const FString& Parameters)
 {
 	using namespace Impl;
+	using namespace UE::MovieScene;
+
 
 	ResetValues();
 
+	UMovieSceneEntitySystemLinker* Linker = GetTestLinker();
+
+	TSharedPtr<FPreAnimatedStateExtension> GlobalPreAnimatedState = MakeShared<FPreAnimatedStateExtension>(Linker);
+	++GlobalPreAnimatedState->NumRequestsForGlobalState;
+
 	FMovieScenePreAnimatedState State;
-	State.EnableGlobalCapture();
+	State.Initialize(Linker, FInstanceHandle());
+	State.OnEnableGlobalCapture(GlobalPreAnimatedState);
 
 	FPreAnimatedTokenProducer Producer(&TestValue1);
 
 	// Indicate that the entity should not capture state
-	State.SetCaptureEntity(SectionKey1, EMovieSceneCompletionMode::KeepState);
+	FScopedPreAnimatedCaptureSource CaptureSource(&State, SectionKey1, false);
 
 	for (int32 Iteration = 0; Iteration < 1000000; ++Iteration)
 	{

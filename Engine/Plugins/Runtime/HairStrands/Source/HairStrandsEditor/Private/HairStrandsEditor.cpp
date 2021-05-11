@@ -138,11 +138,17 @@ void FGroomEditor::ShutdownModule()
 		SequencerModulePtr->UnRegisterTrackEditor(TrackEditorBindingHandle);
 	}
 
-	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyModule.UnregisterCustomClassLayout(UGroomComponent::StaticClass()->GetFName());
-	PropertyModule.UnregisterCustomClassLayout(UGroomBindingAsset::StaticClass()->GetFName());
-	PropertyModule.UnregisterCustomClassLayout(UGroomCreateBindingOptions::StaticClass()->GetFName());
-	PropertyModule.UnregisterCustomPropertyTypeLayout(FGroomCacheImportSettings::StaticStruct()->GetFName());
+	if (UObjectInitialized())
+	{
+		FPropertyEditorModule* PropertyModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
+		if (PropertyModule)
+		{
+			PropertyModule->UnregisterCustomClassLayout(UGroomComponent::StaticClass()->GetFName());
+			PropertyModule->UnregisterCustomClassLayout(UGroomBindingAsset::StaticClass()->GetFName());
+			PropertyModule->UnregisterCustomClassLayout(UGroomCreateBindingOptions::StaticClass()->GetFName());
+			PropertyModule->UnregisterCustomPropertyTypeLayout(FGroomCacheImportSettings::StaticStruct()->GetFName());
+		}
+	}
 
 	// #ueent_todo: Unregister the translators
 	FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");

@@ -87,20 +87,17 @@ utf8_string FElement2String::GetElementAsString(const API_Element& InElement)
 	// Compute MD5 of memo
 	API_Guid MemoMD5 = APINULLGuid;
 	{
-		API_ElementMemo Memo;
-		Zap(&Memo);
-		GSErr = ACAPI_Element_GetMemo(InElement.header.guid, &Memo, APIMemoMask_All);
-		if (GSErr == NoError)
+		FAutoMemo AutoMemo(InElement.header.guid, APIMemoMask_All);
+		if (AutoMemo.GSErr == NoError)
 		{
-			FAutoMemo	   AutoMemo(&Memo);
 			MD5::Generator MD5Generator;
-			if (Memo.params)
+			if (AutoMemo.Memo.params)
 			{
-				MD5Generator.Update(*Memo.params, BMGetHandleSize((GSConstHandle)Memo.params));
+				MD5Generator.Update(*AutoMemo.Memo.params, BMGetHandleSize((GSConstHandle)AutoMemo.Memo.params));
 			}
-			if (Memo.sideMaterials)
+			if (AutoMemo.Memo.sideMaterials)
 			{
-				MD5Generator.Update(Memo.sideMaterials, sizeof(*Memo.sideMaterials));
+				MD5Generator.Update(AutoMemo.Memo.sideMaterials, sizeof(*AutoMemo.Memo.sideMaterials));
 			}
 			MD5::FingerPrint fp;
 			MD5Generator.Finish(fp);
@@ -108,7 +105,7 @@ utf8_string FElement2String::GetElementAsString(const API_Element& InElement)
 		}
 		else
 		{
-			UE_AC_DebugF("FElement2String::GetElementAsString - Error=%d when getting element memo\n", GSErr);
+			UE_AC_DebugF("FElement2String::GetElementAsString - Error=%d when getting element memo\n", AutoMemo.GSErr);
 		}
 	}
 
@@ -294,20 +291,17 @@ void FElement2String::DumpInfo(const API_Guid& InElementGuid)
 // Tool:Return parameters as a string
 utf8_string FElement2String::GetParametersAsString(const API_Guid& InElementGuid)
 {
-	API_ElementMemo Memo;
-	Zap(&Memo);
-	GSErrCode GSErr = ACAPI_Element_GetMemo(InElementGuid, &Memo, APIMemoMask_AddPars);
-	if (GSErr == NoError)
+	FAutoMemo AutoMemo(InElementGuid, APIMemoMask_AddPars);
+	if (AutoMemo.GSErr == NoError)
 	{
-		FAutoMemo AutoMemo(&Memo);
-		if (Memo.params) // Can be null on AC21
+		if (AutoMemo.Memo.params) // Can be null on AC21
 		{
-			return GetParametersAsString(Memo.params);
+			return GetParametersAsString(AutoMemo.Memo.params);
 		}
 	}
 	else
 	{
-		UE_AC_DebugF("FElement2String::GetParametersAsString - Error=%d when getting element memo\n", GSErr);
+		UE_AC_DebugF("FElement2String::GetParametersAsString - Error=%d when getting element memo\n", AutoMemo.GSErr);
 	}
 	return utf8_string();
 }

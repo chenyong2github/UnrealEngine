@@ -86,6 +86,23 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	bool IsShutdownRequested() const { return bShutdownRequested; }
 
+	/**
+	* Returns the time this movie pipeline was initialized at.
+	*/
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	FDateTime GetInitializationTime() const { return InitializationTime; }
+
+	/**
+	* Override the time this movie pipeline was initialized at. This can be used for render farms
+	* to ensure that jobs on all machines use the same date/time instead of each calculating it locally.
+	*
+	* Needs to be called after ::Initialize(...)
+	*
+	* @param InDateTime - The DateTime object to return for GetInitializationTime.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	void SetInitializationTime(const FDateTime& InDateTime) { InitializationTime = InDateTime; }
+
 	/** Deprecated. Use OnMoviePipelineWorkFinished() instead. */
 	UE_DEPRECATED(4.27, "Use OnMoviePipelineWorkFinished() instead.")
 	FMoviePipelineFinishedNative& OnMoviePipelineFinished()
@@ -170,7 +187,6 @@ public:
 	const FMovieSceneExportMetadata& GetOutputMetadata() const { return OutputMetadata; }
 #endif
 
-	FDateTime GetInitializationTime() const { return InitializationTime; }
 public:
 #if WITH_EDITOR
 	void AddFrameToOutputMetadata(const FString& ClipName, const FString& ImageSequenceFileName, const FMoviePipelineFrameOutputState& FrameOutputState, const FString& Extension, const bool bHasAlpha);

@@ -4,12 +4,15 @@
 
 #include "LevelSnapshotSelections.h"
 #include "LevelSnapshotsLog.h"
+#include "LevelSnapshotsModule.h"
 #include "LevelSnapshotsStats.h"
 #include "PropertyInfoHelpers.h"
+#include "Restorability/PropertyComparisonParams.h"
 
+#include "Algo/Accumulate.h"
 #include "EngineUtils.h"
-#include "SnapshotRestorability.h"
 #include "GameFramework/Actor.h"
+#include "SnapshotRestorability.h"
 #include "UObject/Package.h"
 
 #if WITH_EDITOR
@@ -152,15 +155,32 @@ bool ULevelSnapshot::HasOriginalChangedPropertiesSinceSnapshotWasTaken(AActor* S
 	TInlineComponentArray<TPair<UObject*, UObject*>> SnapshotOriginalPairsToProcess;
 	SnapshotOriginalPairsToProcess.Add(TPair<UObject*, UObject*>(SnapshotActor, WorldActor));
 	EnqueueMatchingComponents(SnapshotOriginalPairsToProcess, SnapshotActor, WorldActor);
-	
+
+	FLevelSnapshotsModule& Module = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
 	for (const TPair<UObject*, UObject*>& NextPair : SnapshotOriginalPairsToProcess)
 	{
 		UClass* ClassToIterate = NextPair.Key->GetClass();
+		UObject* const SnapshotObject = NextPair.Key;
+		UObject* const WorldObject = NextPair.Value;
+		
+		const FPropertyComparerArray PropertyComparers = Module.GetPropertyComparerForClass(ClassToIterate);
 		for (TFieldIterator<FProperty> FieldIt(ClassToIterate); FieldIt; ++FieldIt)
 		{
-			if (!AreSnapshotAndOriginalPropertiesEquivalent(*FieldIt, NextPair.Key, NextPair.Value, SnapshotActor, WorldActor))
+			// Ask external modules about the property
+			const FPropertyComparisonParams Params { WorldClass, *FieldIt, SnapshotObject, WorldObject, SnapshotObject, WorldObject, SnapshotActor, WorldActor} ;
+			const IPropertyComparer::EPropertyComparison ComparisonResult = Module.ShouldConsiderPropertyEqual(PropertyComparers, Params);
+			
+			switch (ComparisonResult)
 			{
+			case IPropertyComparer::EPropertyComparison::TreatEqual:
+				continue;
+			case IPropertyComparer::EPropertyComparison::TreatUnequal:
 				return true;
+			default:
+				if (!AreSnapshotAndOriginalPropertiesEquivalent(*FieldIt, SnapshotObject, WorldObject, SnapshotActor, WorldActor))
+				{
+					return true;
+				}
 			}
 		}
 	}
@@ -180,6 +200,25 @@ bool ULevelSnapshot::AreSnapshotAndOriginalPropertiesEquivalent(const FProperty*
 	{
 		void* SnapshotValuePtr = LeafProperty->ContainerPtrToValuePtr<void>(SnapshotContainer, i);
 		void* WorldValuePtr = LeafProperty->ContainerPtrToValuePtr<void>(WorldContainer, i);
+
+		// Check whether float is nearly equal instead of exactly equal
+		if (const FNumericProperty* NumericProperty = CastField<FNumericProperty>(LeafProperty))
+		{
+			return FPropertyInfoHelpers::AreNumericPropertiesNearlyEqual(NumericProperty, SnapshotValuePtr, WorldValuePtr);
+		}
+		
+		// Use our custom equality function for struct properties
+		if (const FStructProperty* StructProperty = CastField<FStructProperty>(LeafProperty))
+		{
+			for (TFieldIterator<FProperty> FieldIt(StructProperty->Struct); FieldIt; ++FieldIt)
+			{
+				if (!AreSnapshotAndOriginalPropertiesEquivalent(*FieldIt, SnapshotValuePtr, WorldValuePtr, SnapshotActor, WorldActor))
+				{
+					return false;
+				}
+			}
+			return true;
+		}
 
 		// Check whether property value points to a subobject
 		if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(LeafProperty))
@@ -220,28 +259,6 @@ bool ULevelSnapshot::AreSnapshotAndOriginalPropertiesEquivalent(const FProperty*
 		{
 			// TODO: Use custom function. Need to do something similar to UE4SetProperty_Private::IsPermutation
 		}
-
-
-		// Check whether float is nearly equal instead of exactly equal
-		if (const FNumericProperty* NumericProperty = CastField<FNumericProperty>(LeafProperty))
-		{
-			return FPropertyInfoHelpers::AreNumericPropertiesNearlyEqual(NumericProperty, SnapshotValuePtr, WorldValuePtr);
-		}
-
-		
-		// Use our custom equality function for struct properties
-		if (const FStructProperty* StructProperty = CastField<FStructProperty>(LeafProperty))
-		{
-			for (TFieldIterator<FProperty> FieldIt(StructProperty->Struct); FieldIt; ++FieldIt)
-			{
-				if (!AreSnapshotAndOriginalPropertiesEquivalent(*FieldIt, SnapshotValuePtr, WorldValuePtr, SnapshotActor, WorldActor))
-				{
-					return false;
-				}
-			}
-			return true;
-		}
-
 		
 		// Use normal property comparison for all other properties
 		if (!LeafProperty->Identical_InContainer(SnapshotContainer, WorldContainer, i, PPF_DeepComparison | PPF_DeepCompareDSOsOnly))
@@ -295,12 +312,17 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedAc
 	}
 
 	// Find actors that are not present in the snapshot
+	TSet<AActor*> AllActors;
+	const int32 NumActorsInWorld = Algo::Accumulate(World->GetLevels(), 0, [](int64 Size, const ULevel* Level){ return Size + Level->Actors.Num(); });
+	AllActors.Reserve(NumActorsInWorld);
 	for (ULevel* Level : World->GetLevels())
 	{
 		for (AActor* ActorInLevel : Level->Actors)
 		{
-			// Warning: ActorInLevel can be null
-			if (IsValid(ActorInLevel) && FSnapshotRestorability::IsActorDesirableForCapture(ActorInLevel) && !SerializedData.HasMatchingSavedActor(ActorInLevel))
+			AllActors.Add(ActorInLevel);
+			
+			// Warning: ActorInLevel can be null, e.g. when an actor was just removed from the world (and still in undo buffer)
+			if (IsValid(ActorInLevel) && !SerializedData.HasMatchingSavedActor(ActorInLevel) && FSnapshotRestorability::ShouldConsiderNewActorForRemoval(ActorInLevel))
 			{
 				HandleAddedActor.Execute(ActorInLevel);
 			}
@@ -308,13 +330,16 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedAc
 	}
 
 	// Try to find world actors and call appropriate callback
-	SerializedData.ForEachOriginalActor([&HandleMatchedActor, &HandleRemovedActor](const FSoftObjectPath& OriginalActorPath)
+	SerializedData.ForEachOriginalActor([&HandleMatchedActor, &HandleRemovedActor, &AllActors](const FSoftObjectPath& OriginalActorPath)
     {
 		// TODO: we need to check whether the actor's class was blacklisted in the project settings
-		const bool bWasRemovedFromWorld = OriginalActorPath.ResolveObject() == nullptr;
+		UObject* ResolvedActor = OriginalActorPath.ResolveObject();
+		// OriginalActorPath may still resolve to a live actor if it was just removed. We need to check the ULevel::Actors to see whether it was removed.
+		const bool bWasRemovedFromWorld = ResolvedActor == nullptr || !AllActors.Contains(Cast<AActor>(ResolvedActor));
+
+		// We do not need to call IsActorDesirableForCapture: it was already called when we took this snapshot
 		if (bWasRemovedFromWorld)
 		{
-			// We do not need to call IsActorDesirableForCapture: it was already called when we took this snapshot
 			HandleRemovedActor.Execute(OriginalActorPath);
 		}
 		else

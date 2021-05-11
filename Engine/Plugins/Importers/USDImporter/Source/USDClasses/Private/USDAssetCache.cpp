@@ -35,7 +35,7 @@ void UUsdAssetCache::CacheAsset( const FString& Hash, UObject* Asset, const FStr
 
 	FScopeLock Lock( &CriticalSection );
 
-	if ( !bAllowPersistentStorage || Asset->HasAnyFlags( RF_Transient ) )
+	if ( !bAllowPersistentStorage || Asset->HasAnyFlags( RF_Transient ) || Asset->GetOutermost() == GetTransientPackage() )
 	{
 		TransientStorage.Add( Hash, Asset );
 	}

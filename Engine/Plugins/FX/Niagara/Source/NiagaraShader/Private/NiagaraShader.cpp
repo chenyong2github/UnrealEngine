@@ -423,10 +423,8 @@ void FNiagaraShaderType::BeginCompileShader(
 	}
 	else
 	{
-		const bool bUsesOldShaderStages = Script->GetUsesOldShaderStages();
-
 		NewJob->Input.Environment.SetDefine(TEXT("NIAGARA_SHADER_PERMUTATIONS"), 0);
-		NewJob->Input.Environment.SetDefine(TEXT("USE_SIMULATION_STAGES"), bUsesOldShaderStages ? 1 : 0);
+		NewJob->Input.Environment.SetDefine(TEXT("USE_SIMULATION_STAGES"), 0);
 	}
 
 	NewJob->Input.Environment.SetDefine(TEXT("NIAGARA_COMPRESSED_ATTRIBUTES_ENABLED"), Script->GetUsesCompressedAttributes() ? 1 : 0);
@@ -1218,8 +1216,6 @@ void FNiagaraShader::BindParams(const TArray<FNiagaraDataInterfaceGPUParamInfo>&
 
 	NumSpawnedInstancesParam.Bind(ParameterMap, TEXT("SpawnedInstances"));
 	UpdateStartInstanceParam.Bind(ParameterMap, TEXT("UpdateStartInstance"));
-	DefaultSimulationStageIndexParam.Bind(ParameterMap, TEXT("DefaultSimulationStageIndex"));
-	SimulationStageIndexParam.Bind(ParameterMap, TEXT("SimulationStageIndex"));
 
 	SimulationStageIterationInfoParam.Bind(ParameterMap, TEXT("SimulationStageIterationInfo"));
 	SimulationStageNormalizedIterationIndexParam.Bind(ParameterMap, TEXT("SimulationStageNormalizedIterationIndex"));

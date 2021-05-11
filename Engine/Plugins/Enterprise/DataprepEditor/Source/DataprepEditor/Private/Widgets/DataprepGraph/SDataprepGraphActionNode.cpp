@@ -12,6 +12,7 @@
 #include "Widgets/DataprepGraph/SDataprepGraphTrackNode.h"
 
 // Engine Includes
+#include "DragAndDrop/AssetDragDropOp.h"
 #include "EditorFontGlyphs.h"
 #include "GraphEditorSettings.h"
 #include "NodeFactory.h"
@@ -393,6 +394,17 @@ void SDataprepGraphBaseActionNode::Initialize(TWeakPtr<FDataprepEditor> InDatapr
 
 	ProxyNodePtr = SNew(SDataprepGraphActionProxyNode, SharedThis(this))
 	.InlineEditableText(InlineEditableText);
+}
+
+FReply SDataprepGraphBaseActionNode::OnDragOver(const FGeometry & MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	TSharedPtr<FAssetDragDropOp> AssetOp = DragDropEvent.GetOperationAs<FAssetDragDropOp>();
+	if (AssetOp.IsValid())
+	{
+		return FReply::Handled();
+	}
+
+	return SGraphNodeResizable::OnDragOver(MyGeometry, DragDropEvent);
 }
 
 FVector2D SDataprepGraphBaseActionNode::ComputeDesiredSize(float f) const 

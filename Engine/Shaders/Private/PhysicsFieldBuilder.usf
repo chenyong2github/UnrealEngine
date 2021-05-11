@@ -331,13 +331,13 @@ void SetFalloffValue(in int FieldFalloff, in float FieldMagnitude, in float Delt
 	{
 		OutNodeResult = FieldMagnitude * DeltaDistance * DeltaDistance;
 	}
-	else if (FieldFalloff == FALLOFF_INVERSE && DeltaDistance > 1e-6)
+	else if (FieldFalloff == FALLOFF_INVERSE)
 	{
-		OutNodeResult = FieldMagnitude / DeltaDistance;
+		OutNodeResult = FieldMagnitude * 2.0 * (1.0 - 1.0 / (DeltaDistance+1.0));
 	}
 	else if (FieldFalloff == FALLOFF_LOGARITHMIC)
 	{
-		OutNodeResult = FieldMagnitude * log(DeltaDistance + 1.0) / log(10.0);
+		OutNodeResult = FieldMagnitude * log(DeltaDistance + 1.0) / log(2.0);
 	}
 	else
 	{

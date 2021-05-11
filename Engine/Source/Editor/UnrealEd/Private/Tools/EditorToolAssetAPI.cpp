@@ -18,7 +18,7 @@
 FString FEditorToolAssetAPI::GetActiveAssetFolderPath()
 {
 	IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
-	return ContentBrowser.GetCurrentPath();
+	return ContentBrowser.GetCurrentPath(EContentBrowserPathType::Internal);
 }
 
 FString FEditorToolAssetAPI::GetWorldRelativeAssetRootPath(const UWorld* World)

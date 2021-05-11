@@ -363,7 +363,7 @@ namespace WindowsMixedReality
 		HMDTrackingStatus GetControllerTrackingStatus(HMDHand hand);
 		bool SupportsHandTracking();
 		bool SupportsHandedness();
-		bool GetControllerOrientationAndPosition(HMDHand hand, FRotator & OutOrientation, FVector & OutPosition);
+		bool GetControllerOrientationAndPosition(HMDHand hand, FRotator & OutOrientation, FVector & OutPosition, float WorldScale = 1);
 		bool GetHandJointOrientationAndPosition(HMDHand hand, HMDHandJoint joint, FRotator& OutOrientation, FVector& OutPosition, float& OutRadius);
 		bool PollInput();
 		bool PollHandTracking();

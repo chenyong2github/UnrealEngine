@@ -140,6 +140,9 @@ public:
 	void ImplReleaseOpenColorIODisplayExtension();
 
 public:
+	FIntRect GetValidRect(const FIntRect& InRect, const TCHAR* DbgSourceName);
+
+public:
 	// Support OCIO:
 	FSceneViewExtensionIsActiveFunctor GetSceneViewExtensionIsActiveFunctor() const;
 

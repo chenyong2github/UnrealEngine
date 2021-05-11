@@ -16,6 +16,7 @@
 
 
 class FLensFilePreComputeDataProcessor;
+class UCineCameraComponent;
 class ULensDistortionModelHandlerBase;
 
 
@@ -263,7 +264,7 @@ public:
 	bool EvaluateIntrinsicParameters(float InFocus, float InZoom, FIntrinsicParameters& OutEvaluatedValue);
 
 	/** Draws the distortion map based on evaluation point*/
-	bool EvaluateDistortionData(float InFocus, float InZoom, ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData);
+	bool EvaluateDistortionData(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler, FDistortionData& OutDistortionData);
 
 	/** Returns interpolated nodal point offset based on input focus and zoom */
 	bool EvaluateNodalPointOffset(float InFocus, float InZoom, FNodalPointOffset& OutEvaluatedValue);
@@ -289,6 +290,9 @@ public:
 	/** Callbacked when stmap derived data has completed */
 	void OnDistortionDerivedDataJobCompleted(const FDerivedDistortionDataJobOutput& JobOutput);
 
+	/** Whether the sensor dimensions in the lens file will be compatible with the sensor dimensions of the input CineCameraComponent */
+	bool IsCineCameraCompatible(const UCineCameraComponent* CineCameraComponent);
+
 protected:
 
 	/** Updates derived data entries to make sure it matches what is assigned in map points based on data mode */
@@ -301,10 +305,10 @@ protected:
 	void SetupNoDistortionOutput(ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData) const;
 
 	/** Evaluates distortion based on InFocus and InZoom using parameters */
-	bool EvaluateDistortionForParameters(float InFocus, float InZoom, ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData);
+	bool EvaluateDistortionForParameters(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData);
 	
 	/** Evaluates distortion based on InFocus and InZoom using STMaps */
-	bool EvaluteDistortionForSTMaps(float InFocus, float InZoom, ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData);
+	bool EvaluteDistortionForSTMaps(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData);
 	
 public:
 

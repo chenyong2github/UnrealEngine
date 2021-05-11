@@ -2983,7 +2983,7 @@ bool ULandscapeHeightfieldCollisionComponent::FillHeightTile(TArrayView<float> H
 #if WITH_CHAOS
 	TUniquePtr<Chaos::FHeightField>& HeightFieldData = HeightfieldRef->Heightfield;
 
-	// If we are expecting height data, but it isn't there, clear the return array, and exit
+	// If the heightfield data isn't valid, simply return
 	if (HeightFieldData.IsValid())
 	{
 		const int32 NumX = HeightFieldData->GetNumCols();
@@ -3008,7 +3008,45 @@ bool ULandscapeHeightfieldCollisionComponent::FillHeightTile(TArrayView<float> H
 				const float WorldHeight = WorldTransform.TransformPositionNoScale(FVector(0, 0, CurrHeight)).Z;
 
 				// write output
-				Heights[Offset + y * Stride + x] = WorldHeight;
+				const int32 WriteIndex = Offset + y * Stride + x;
+				Heights[WriteIndex] = WorldHeight;
+			}
+		}
+
+		return true;
+	}
+#endif
+
+	return false;
+}
+
+bool ULandscapeHeightfieldCollisionComponent::FillMaterialIndexTile(TArrayView<uint8> Materials, int32 Offset, int32 Stride) const
+{
+#if WITH_CHAOS
+	TUniquePtr<Chaos::FHeightField>& HeightFieldData = HeightfieldRef->Heightfield;
+
+	// If the heightfield data isn't valid, simply return
+	if (HeightFieldData.IsValid())
+	{
+		// material indices are stored per cell rather than per vertex
+		const int32 NumX = HeightFieldData->GetNumCols() - 1;
+		const int32 NumY = HeightFieldData->GetNumRows() - 1;
+
+		const int32 LastTiledIndex = Offset + FMath::Max(0, NumX - 1) + Stride * FMath::Max(0, NumY - 1);
+
+		if (!Materials.IsValidIndex(LastTiledIndex))
+		{
+			return false;
+		}
+
+		// Write all values to output array
+		for (int32 y = 0; y < NumY; ++y)
+		{
+			for (int32 x = 0; x < NumX; ++x)
+			{
+				// write output
+				const int32 WriteIndex = Offset + y * Stride + x;
+				Materials[WriteIndex] = HeightFieldData->GetMaterialIndex(x, y);
 			}
 		}
 

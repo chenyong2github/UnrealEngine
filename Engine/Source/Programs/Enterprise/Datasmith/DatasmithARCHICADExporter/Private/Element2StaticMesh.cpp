@@ -66,7 +66,7 @@ FString FElement2StaticMesh::ComputeMeshElementName(const TCHAR* InMeshFileHash)
 {
 	FDatasmithHash HashName;
 	HashName.Update(InMeshFileHash);
-	for (size_t i = 0; i < GlobalMaterialsUsed.size(); ++i)
+	for (VecMaterialSyncData::SizeType i = 0; i < GlobalMaterialsUsed.Num(); ++i)
 	{
 		HashName.Update(GlobalMaterialsUsed[i]->GetDatasmithId());
 	}
@@ -219,7 +219,7 @@ void FElement2StaticMesh::AddVertex(GS::Int32 InBodyVertex, const Geometry::Vect
 		}
 
 		// Rotate texture and size the texture (ideally build a material that implement this functionality)
-		ModelerAPI::TextureCoordinate UV;
+		FTextureCoordinate UV;
 		UV.u = AcUV.u; //(MatData.CosAngle * AcUV.u - MatData.SinAngle * AcUV.v) * MatData.InvXSize;
 		UV.v = -AcUV.v; //(-MatData.SinAngle * AcUV.u - MatData.CosAngle * AcUV.v) * MatData.InvYSize;
 #if PIVOT_0_5_0_5
@@ -227,21 +227,21 @@ void FElement2StaticMesh::AddVertex(GS::Int32 InBodyVertex, const Geometry::Vect
 		UV.v += 0.5;
 #endif
 		// Convert Vertex coordinate to texture coordinate.
-		MapUVs::iterator ItUV = UVs.find(UV);
-		if (ItUV == UVs.end())
+		int* UVFound = UVs.Find(UV);
+		if (UVFound == nullptr)
 		{
-			ObjectUV = (int)UVs.size();
-			UVs[UV] = ObjectUV;
+			ObjectUV = (int)UVs.Num();
+			UVs.Add(UV, ObjectUV);
 			bSomeHasTextures = true;
 		}
 		else
 		{
-			ObjectUV = ItUV->second;
+			ObjectUV = *UVFound;
 		}
 	}
 
 	Geometry::Vector3D VertexWorldNormal = bIsIdentity ? VertexNormal : Matrix * VertexNormal;
-	FVector CurrentNormal(-float(VertexWorldNormal.x), float(VertexWorldNormal.y), float(VertexWorldNormal.z));
+	FVector CurrentNormal(float(VertexWorldNormal.x), -float(VertexWorldNormal.y), float(VertexWorldNormal.z));
 
 	// Create triangles
 	if (VertexCount == 0)
@@ -281,7 +281,7 @@ void FElement2StaticMesh::AddVertex(GS::Int32 InBodyVertex, const Geometry::Vect
 				}
 			}
 #endif
-			Triangles.push_back(CurrentTriangle);
+			Triangles.Add(CurrentTriangle);
 		}
 		CurrentTriangle.V1 = ObjectVertex;
 		CurrentTriangle.UV1 = ObjectUV;
@@ -302,15 +302,15 @@ void FElement2StaticMesh::InitPolygonMaterial()
 		SyncContext, MaterialIdx, TextureIdx, bIsSurfaceBody ? kDoubleSide : kSingleSide);
 
 	// Performance heuristic, we presume reuse of previous one
-	if (LocalMaterialIndex >= GlobalMaterialsUsed.size() || GlobalMaterialsUsed[LocalMaterialIndex] != CurrentMaterial)
+	if (LocalMaterialIndex >= GlobalMaterialsUsed.Num() || GlobalMaterialsUsed[LocalMaterialIndex] != CurrentMaterial)
 	{
-		for (LocalMaterialIndex = GlobalMaterialsUsed.size();;)
+		for (LocalMaterialIndex = GlobalMaterialsUsed.Num();;)
 		{
 			if (LocalMaterialIndex == 0)
 			{
 				// Not found, add it to the vector and quit the loop
-				LocalMaterialIndex = GlobalMaterialsUsed.size();
-				GlobalMaterialsUsed.push_back(CurrentMaterial);
+				LocalMaterialIndex = GlobalMaterialsUsed.Num();
+				GlobalMaterialsUsed.Add(CurrentMaterial);
 				break;
 			}
 			if (GlobalMaterialsUsed[--LocalMaterialIndex] == CurrentMaterial)
@@ -321,7 +321,7 @@ void FElement2StaticMesh::InitPolygonMaterial()
 		}
 	}
 
-	UE_AC_Assert(LocalMaterialIndex < GlobalMaterialsUsed.size() ||
+	UE_AC_Assert(LocalMaterialIndex < GlobalMaterialsUsed.Num() ||
 				 GlobalMaterialsUsed[LocalMaterialIndex] == CurrentMaterial);
 	CurrentTriangle.LocalMatID = (int)LocalMaterialIndex;
 }
@@ -352,8 +352,8 @@ void FElement2StaticMesh::AddElementGeometry(const ModelerAPI::Element&		   InMo
 		InModelElement.GetTessellatedBody(IndexBody, &CurrentBody);
 		bIsSurfaceBody = CurrentBody.IsSurfaceBody();
 		GS::Int32 NbVertices = CurrentBody.GetVertexCount();
-		StartVertex = (int)Vertices.size();
-		Vertices.resize(StartVertex + NbVertices); // Set space for bodies vertex
+		StartVertex = (int)Vertices.Num();
+		Vertices.AddZeroed(NbVertices); // Set space for bodies vertex
 
 		// Collect triangles from body's polygon
 		GS::Int32 NbPolygons = CurrentBody.GetPolygonCount();
@@ -410,9 +410,9 @@ void FElement2StaticMesh::AddElementGeometry(const ModelerAPI::Element&		   InMo
 void FElement2StaticMesh::FillMesh(FDatasmithMesh* OutMesh)
 {
 	// Count used vertices and set new index value
-	int32  VertexUsedCount = 0;
-	size_t NbVertices = Vertices.size();
-	size_t IndexVertex;
+	int32				  VertexUsedCount = 0;
+	VecVertices::SizeType NbVertices = Vertices.Num();
+	VecVertices::SizeType IndexVertex;
 	for (IndexVertex = 0; IndexVertex < NbVertices; IndexVertex++)
 	{
 		FVertex& vertex = Vertices[IndexVertex];
@@ -443,7 +443,7 @@ void FElement2StaticMesh::FillMesh(FDatasmithMesh* OutMesh)
 
 			WorldPt *= SyncContext.ScaleLength;
 
-			OutMesh->SetVertex(vertex.Index, -(float)WorldPt.x, (float)WorldPt.y, (float)WorldPt.z);
+			OutMesh->SetVertex(vertex.Index, (float)WorldPt.x, -(float)WorldPt.y, (float)WorldPt.z);
 		}
 	}
 
@@ -451,17 +451,17 @@ void FElement2StaticMesh::FillMesh(FDatasmithMesh* OutMesh)
 	int32 UVChannel = OutMesh->GetUVChannelsCount();
 	UE_AC_Assert(UVChannel == 0); // Must be 0
 	OutMesh->AddUVChannel();
-	OutMesh->SetUVCount(UVChannel, int32(UVs.size()));
-	UE_AC_STAT(SyncContext.Stats.TotalUVPts += int32(UVs.size()));
-	for (MapUVs::iterator ItUV = UVs.begin(); ItUV != UVs.end(); ItUV++)
+	OutMesh->SetUVCount(UVChannel, int32(UVs.Num()));
+	UE_AC_STAT(SyncContext.Stats.TotalUVPts += int32(UVs.Num()));
+	for (const TPair< FTextureCoordinate, int >& ItUV : UVs)
 	{
-		OutMesh->SetUV(UVChannel, ItUV->second, ItUV->first.u, ItUV->first.v);
+		OutMesh->SetUV(UVChannel, ItUV.Value, ItUV.Key.u, ItUV.Key.v);
 	}
 
 	// Count valid triangles
-	int32  TrianglesValidCount = 0;
-	size_t NbTriangles = Triangles.size();
-	size_t IndexTriangle;
+	int32				   TrianglesValidCount = 0;
+	VecTriangles::SizeType NbTriangles = Triangles.Num();
+	VecTriangles::SizeType IndexTriangle;
 	for (IndexTriangle = 0; IndexTriangle < NbTriangles; IndexTriangle++)
 	{
 		if (Triangles[IndexTriangle].IsValid())
@@ -474,7 +474,7 @@ void FElement2StaticMesh::FillMesh(FDatasmithMesh* OutMesh)
 	UE_AC_STAT(SyncContext.Stats.TotalTriangles += TrianglesValidCount);
 	OutMesh->SetFacesCount(TrianglesValidCount);
 	int32 IndexFace = 0;
-	for (size_t IndexTriangle = 0; IndexTriangle < NbTriangles; IndexTriangle++)
+	for (IndexTriangle = 0; IndexTriangle < NbTriangles; IndexTriangle++)
 	{
 		const FTriangle& triangle = Triangles[IndexTriangle];
 		if (triangle.IsValid())
@@ -544,7 +544,7 @@ TSharedPtr< IDatasmithMeshElement > FElement2StaticMesh::CreateMesh()
 
 	if (MeshElement.IsValid())
 	{
-		for (size_t i = 0; i < GlobalMaterialsUsed.size(); ++i)
+		for (VecMaterialSyncData::SizeType i = 0; i < GlobalMaterialsUsed.Num(); ++i)
 		{
 			MeshElement->SetMaterial(*GlobalMaterialsUsed[i]->GetDatasmithId(), (int32)i);
 		}

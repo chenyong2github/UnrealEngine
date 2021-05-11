@@ -12,6 +12,7 @@
 #include "EntitySystem/MovieScenePropertyComponentHandler.h"
 #include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
 #include "EntitySystem/MovieScenePropertyMetaDataTraits.inl"
+#include "PreAnimatedState/MovieScenePreAnimatedComponentTransformStorage.h"
 #include "Systems/MovieSceneColorPropertySystem.h"
 #include "Systems/MovieSceneVectorPropertySystem.h"
 #include "MovieSceneObjectBindingID.h"
@@ -118,12 +119,10 @@ void ConvertOperationalProperty(const FVector4& In, FIntermediateVector& Out)
 }
 
 
-
 FIntermediate3DTransform GetComponentTransform(const UObject* Object)
 {
 	const USceneComponent* SceneComponent = CastChecked<const USceneComponent>(Object);
-	FIntermediate3DTransform Result;
-	ConvertOperationalProperty(SceneComponent->GetRelativeTransform(), Result);
+	FIntermediate3DTransform Result(SceneComponent->GetRelativeLocation(), SceneComponent->GetRelativeRotation(), SceneComponent->GetRelativeScale3D());
 	return Result;
 }
 
@@ -408,6 +407,15 @@ struct FVectorHandler : TPropertyComponentHandler<FVectorPropertyTraits, float, 
 	}
 };
 
+
+struct FTransformHandler : TPropertyComponentHandler<FTransformPropertyTraits, float, float, float, float, float, float, float, float, float>
+{
+	TSharedPtr<IPreAnimatedStorage> GetPreAnimatedStateStorage(const FPropertyDefinition& Definition, FPreAnimatedStateExtension* Container) override
+	{
+		return Container->GetOrCreateStorage<FPreAnimatedComponentTransformStorage>();
+	}
+};
+
 FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 {
 	FComponentRegistry* ComponentRegistry = UMovieSceneEntitySystemLinker::GetComponents();
@@ -422,13 +430,10 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 
 	ComponentRegistry->NewPropertyType(Transform, TEXT("FTransform"));
 	ComponentRegistry->NewPropertyType(EulerTransform, TEXT("FEulerTransform"));
+	ComponentRegistry->NewPropertyType(ComponentTransform, TEXT("Component Transform"));
 
 	Color.MetaDataComponents.Initialize(ComponentRegistry, TEXT("Color Type"));
 	Vector.MetaDataComponents.Initialize(ComponentRegistry, TEXT("Num Vector Channels"));
-
-	// We purposefully do not use a preanimated token for component properties
-	ComponentTransform.PropertyTag = ComponentRegistry->NewTag(TEXT("Component Transform"), EComponentTypeFlags::CopyToChildren);
-	ComponentRegistry->NewComponentType(&ComponentTransform.InitialValue, TEXT("Initial Component Transform"), EComponentTypeFlags::Preserved);
 
 	ComponentRegistry->NewComponentType(&QuaternionRotationChannel[0], TEXT("Quaternion Rotation Channel 0"));
 	ComponentRegistry->NewComponentType(&QuaternionRotationChannel[1], TEXT("Quaternion Rotation Channel 1"));
@@ -561,7 +566,7 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 		.AddComposite(BuiltInComponents->FloatResult[7], &FIntermediate3DTransform::S_Y)
 		.AddComposite(BuiltInComponents->FloatResult[8], &FIntermediate3DTransform::S_Z)
 		.SetCustomAccessors(&Accessors.ComponentTransform)
-		.Commit();
+		.Commit(FTransformHandler());
 	}
 
 	// --------------------------------------------------------------------------------------------

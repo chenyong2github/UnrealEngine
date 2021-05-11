@@ -1391,6 +1391,8 @@ void UNetConnection::PreTickDispatch()
 
 void UNetConnection::PostTickDispatch()
 {
+	const bool bIsServer = Driver != nullptr && Driver->ServerConnection == nullptr;
+
 	if (!IsInternalAck())
 	{
 #if DO_ENABLE_NET_TEST
@@ -1400,8 +1402,6 @@ void UNetConnection::PostTickDispatch()
 		FlushPacketOrderCache(/*bFlushWholeCache=*/true);
 		PacketAnalytics.Tick();
 	}
-
-	const bool bIsServer = Driver->ServerConnection == nullptr;
 
 	if (bIsServer && !IsReplay())
 	{

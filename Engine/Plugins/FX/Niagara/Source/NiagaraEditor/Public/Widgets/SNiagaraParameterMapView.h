@@ -58,7 +58,67 @@ namespace NiagaraParameterMapSectionID
 
 	static FText OnGetSectionTitle(const NiagaraParameterMapSectionID::Type InSection);
 	void OnGetSectionNamespaces(const NiagaraParameterMapSectionID::Type InSection, TArray<FName>& OutSectionNamespaces);
-	static NiagaraParameterMapSectionID::Type OnGetSectionFromVariable(const FNiagaraVariable& InVar, bool IsStaticSwitchVariable, FNiagaraParameterHandle& OutParameterHandle, const NiagaraParameterMapSectionID::Type DefaultType = NiagaraParameterMapSectionID::Type::NONE);
+	static NiagaraParameterMapSectionID::Type OnGetSectionFromVariable(const FNiagaraVariable& InVar, bool IsStaticSwitchVariable, FNiagaraParameterHandle& OutParameterHandle, const NiagaraParameterMapSectionID::Type DefaultType = NiagaraParameterMapSectionID::Type::NONE)
+	{
+		OutParameterHandle = FNiagaraParameterHandle(InVar.GetName());
+		Type SectionID = DefaultType;
+		if (IsStaticSwitchVariable)
+		{
+			SectionID = NiagaraParameterMapSectionID::STATIC_SWITCH;
+		}
+		else if (OutParameterHandle.IsEmitterHandle())
+		{
+			SectionID = NiagaraParameterMapSectionID::EMITTER;
+		}
+		else if (OutParameterHandle.IsModuleHandle())
+		{
+			SectionID = NiagaraParameterMapSectionID::MODULE_INPUT;
+		}
+		else if (OutParameterHandle.IsOutputHandle())
+		{
+			SectionID = NiagaraParameterMapSectionID::MODULE_OUTPUT;
+		}
+		else if (OutParameterHandle.IsLocalHandle())
+		{
+			SectionID = NiagaraParameterMapSectionID::MODULE_LOCAL;
+		}
+		else if (OutParameterHandle.IsUserHandle())
+		{
+			SectionID = NiagaraParameterMapSectionID::USER;
+		}
+		else if (OutParameterHandle.IsEngineHandle())
+		{
+			SectionID = NiagaraParameterMapSectionID::ENGINE;
+		}
+		else if (OutParameterHandle.IsSystemHandle())
+		{
+			SectionID = NiagaraParameterMapSectionID::SYSTEM;
+		}
+		else if (OutParameterHandle.IsParticleAttributeHandle())
+		{
+			SectionID = NiagaraParameterMapSectionID::PARTICLE;
+		}
+		else if (OutParameterHandle.IsParameterCollectionHandle())
+		{
+			SectionID = NiagaraParameterMapSectionID::PARAMETERCOLLECTION;
+		}
+		else if (OutParameterHandle.IsTransientHandle())
+		{
+			SectionID = NiagaraParameterMapSectionID::TRANSIENT;
+		}
+		else if (OutParameterHandle.IsDataInstanceHandle())
+		{
+			SectionID = NiagaraParameterMapSectionID::DATA_INSTANCE;
+		}
+		else if (OutParameterHandle.IsStackContextHandle())
+		{
+			SectionID = NiagaraParameterMapSectionID::STACK_CONTEXT;
+		}
+
+		return SectionID;
+	}
+	static bool GetSectionIsAdvancedForScript(const NiagaraParameterMapSectionID::Type InSection);
+	static bool GetSectionIsAdvancedForSystem(const NiagaraParameterMapSectionID::Type InSection);
 };
 
 /** A widget for viewing and editing a set of selected objects with a details panel. */
@@ -94,6 +154,8 @@ public:
 	static TSharedRef<SExpanderArrow> CreateCustomActionExpander(const struct FCustomExpanderData& ActionMenuData);
 
 	static bool IsStaticSwitchParameter(const FNiagaraVariable& Variable, const TArray<TWeakObjectPtr<UNiagaraGraph>>& Graphs);
+
+	static NiagaraParameterMapSectionID::Type NamespaceMetaDataToSectionID(const FNiagaraNamespaceMetadata& NamespaceMetaData);
 
 private:
 	/** Function to bind to SNiagaraAddParameterMenus to filter types we allow creating in generic parameters*/
@@ -263,7 +325,7 @@ public:
 
 	void Construct(const FArguments& InArgs, TArray<TWeakObjectPtr<UNiagaraGraph>> InGraphs);
 
-	TSharedRef<SEditableTextBox> GetSearchBox();
+	TSharedPtr<SEditableTextBox> GetSearchBox();
 
 	void AddParameterGroup(
 		FGraphActionListBuilderBase& OutActions,

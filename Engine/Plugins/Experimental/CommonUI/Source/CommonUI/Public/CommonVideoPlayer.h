@@ -16,7 +16,7 @@ class USoundClass;
 
 enum class EMediaEvent;
 
-UCLASS()
+UCLASS(ClassGroup = UI, meta = (Category = "Common UI"))
 class COMMONUI_API UCommonVideoPlayer : public UWidget
 {
 	GENERATED_BODY()

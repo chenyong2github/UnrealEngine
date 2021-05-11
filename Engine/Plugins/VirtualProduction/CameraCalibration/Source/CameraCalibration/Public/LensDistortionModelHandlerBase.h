@@ -21,10 +21,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
 	FDistortionInfo DistortionInfo;
 
-	/** Normalized distance from the center of projection to the image plane */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
-	FVector2D FxFy = FVector2D(1.0f, (16.0f / 9.0f));
-
 	/** Normalized center of the image, in the range [0.0f, 1.0f] */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion", meta = (DisplayName = "Image Center"))
 	FVector2D PrincipalPoint = FVector2D(0.5f, 0.5f);
@@ -78,8 +74,8 @@ public:
 	/** Get the normalized center of projection of the image, in the range [0.0f, 1.0f] */
 	FVector2D GetPrincipalPoint() const { return CurrentState.PrincipalPoint; }
 
-	/** Get the focal length of the camera, in millimeters */
-	FVector2D GetFxFy() const { return CurrentState.FxFy; }
+	/** Get the normalized focal length (unitless) */
+	FVector2D GetFxFy() const { return CurrentState.DistortionInfo.FxFy; }
 
 	/** Updates overscan factor and applies to material instances */
 	void SetOverscanFactor(float OverscanFactor);

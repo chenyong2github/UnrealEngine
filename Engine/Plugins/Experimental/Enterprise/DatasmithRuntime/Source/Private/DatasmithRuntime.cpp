@@ -147,6 +147,8 @@ void ADatasmithRuntimeActor::BeginPlay()
 
 void ADatasmithRuntimeActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	Reset();
+
 	// Unregister to DirectLink
 	DirectLinkHelper->UnregisterDestination();
 	DirectLinkHelper.Reset();
@@ -186,7 +188,6 @@ void ADatasmithRuntimeActor::OnNewScene(const DirectLink::FSceneIdentifier& Scen
 
 void ADatasmithRuntimeActor::OnAddElement(DirectLink::FSceneGraphId ElementId, TSharedPtr<IDatasmithElement> Element)
 {
-	UE_LOG(LogDatasmithRuntime, Log, TEXT("ADatasmithRuntimeActor::OnAddElement"));
 	Progress += ElementDeltaStep;
 	if (bNewScene == false)
 	{
@@ -197,14 +198,12 @@ void ADatasmithRuntimeActor::OnAddElement(DirectLink::FSceneGraphId ElementId, T
 void ADatasmithRuntimeActor::OnRemovedElement(DirectLink::FSceneGraphId ElementId)
 {
 	Progress += ElementDeltaStep;
-	UE_LOG(LogDatasmithRuntime, Log, TEXT("ADatasmithRuntimeActor::OnRemovedElement"));
 	UpdateContext.Deletions.Add(ElementId);
 }
 
 void ADatasmithRuntimeActor::OnChangedElement(DirectLink::FSceneGraphId ElementId, TSharedPtr<IDatasmithElement> Element)
 {
 	Progress += ElementDeltaStep;
-	UE_LOG(LogDatasmithRuntime, Log, TEXT("ADatasmithRuntimeActor::OnUpdateElement"));
 	UpdateContext.Updates.Add(Element);
 }
 
@@ -347,10 +346,12 @@ bool ADatasmithRuntimeActor::LoadFile(const FString& FilePath)
 		FPlatformProcess::SleepNoStats(0.1f);
 	}
 
-#if WITH_EDITOR
-	// Temporarily manually disable load of PlmXml, Rhino and wire files
+	// Temporarily manually disable load of ifc, gltf, PlmXml, Rhino and wire files
 	FString Extension = FPaths::GetExtension(FilePath);
 	bool bUnsupported = Extension.Equals(TEXT("3dm"), ESearchCase::IgnoreCase)
+						|| Extension.Equals(TEXT("ifc"), ESearchCase::IgnoreCase)
+						|| Extension.Equals(TEXT("glb"), ESearchCase::IgnoreCase)
+						|| Extension.Equals(TEXT("gltf"), ESearchCase::IgnoreCase)
 						|| Extension.Equals(TEXT("xml"), ESearchCase::IgnoreCase)
 						|| Extension.Equals(TEXT("plmxml"), ESearchCase::IgnoreCase)
 						|| Extension.Equals(TEXT("wire"), ESearchCase::IgnoreCase);
@@ -360,6 +361,7 @@ bool ADatasmithRuntimeActor::LoadFile(const FString& FilePath)
 		return false;
 	}
 
+#if WITH_EDITOR
 	EnableThreadedImport = MAX_int32;
 	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.CADTranslator.EnableThreadedImport")))
 	{

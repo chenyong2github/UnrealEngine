@@ -200,7 +200,6 @@ TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_CustomToolbar(const 
 	
 	return SNew(SDockTab)
         .Label(LOCTEXT("Levelsnapshots.Toolkit.ToolbarTitle", "Toolbar"))
-		.OnCanCloseTab_Lambda([]() {return false; })
 		.ShouldAutosize(true)
         [
 	        SNew(SBorder)
@@ -252,7 +251,6 @@ TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_CustomToolbar(const 
 TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_Input(const FSpawnTabArgs& Args)
 {	
 	TSharedPtr<SDockTab> DetailsTab = SNew(SDockTab)
-		.OnCanCloseTab_Lambda([]() {return false; })
 		.Label(LOCTEXT("Levelsnapshots.Toolkit.InputTitle", "Input"))
 		.ShouldAutosize(true)
 		[
@@ -265,7 +263,6 @@ TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_Input(const FSpawnTa
 TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_Filter(const FSpawnTabArgs& Args)
 {
 	TSharedPtr<SDockTab> DetailsTab = SNew(SDockTab)
-		.OnCanCloseTab_Lambda([]() {return false; })
 		.Label(LOCTEXT("Levelsnapshots.Toolkit.FilterTitle", "Filter"))
 		[
 			EditorFilters->GetOrCreateWidget()
@@ -277,7 +274,6 @@ TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_Filter(const FSpawnT
 TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_Results(const FSpawnTabArgs& Args)
 {
 	TSharedPtr<SDockTab> DetailsTab = SNew(SDockTab)
-		.OnCanCloseTab_Lambda([]() {return false; })
 		.Label(LOCTEXT("Levelsnapshots.Toolkit.ResultTitle", "Result"))
 		[
 			EditorResults->GetOrCreateWidget()

@@ -662,7 +662,10 @@ public:
 	 *
 	 * @return None if virtual path prefix of InPath does not exist, Virtual if path exists and is fully virtual (stops before it reaches internal root), Internal if virtual path part of prefix exists and there is text after the virtual prefix
 	 */
-	EContentBrowserPathType TryConvertVirtualPath(const FName InPath, FName& OutInternalPath) const;
+	EContentBrowserPathType TryConvertVirtualPath(const FStringView InPath, FStringBuilderBase& OutPath) const;
+	EContentBrowserPathType TryConvertVirtualPath(const FStringView InPath, FString& OutPath) const;
+	EContentBrowserPathType TryConvertVirtualPath(const FStringView InPath, FName& OutPath) const;
+	EContentBrowserPathType TryConvertVirtualPath(const FName InPath, FName& OutPath) const;
 
 	/**
 	 * Rebuilds the tree of virtual paths that ends with internal roots

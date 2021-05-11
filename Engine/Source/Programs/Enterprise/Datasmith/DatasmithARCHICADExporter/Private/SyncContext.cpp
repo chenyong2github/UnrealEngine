@@ -32,14 +32,14 @@ void FSyncContext::FStats::ResetAll()
 void FSyncContext::FStats::Print()
 {
 #if UE_AC_DO_STATS
-	UE_AC_TraceF("AC Elements %d, AC Elements with geometry %d, AC Elements modified %d\n", int(TotalElements),
-				 int(TotalElementsWithGeometry), int(TotalElementsModified));
-	UE_AC_TraceF("Owner %d, Mesh Actors %d, Meshes %d, Empty Actors %d, Meshes reused %d\n", int(TotalOwnerCreated),
-				 int(TotalActorsCreated), int(TotalMeshesCreated), int(TotalEmptyActorsCreated),
-				 int(TotalMeshesReused));
+	UE_AC_ReportF("ARCHICAD Elements: Total=%d, With geometry=%d, Modified=%d\n", int(TotalElements),
+				  int(TotalElementsWithGeometry), int(TotalElementsModified));
+	UE_AC_ReportF("Datasmith Actors : Owner=%d, Created With Mesh=%d, Created Empty %d\n", int(TotalOwnerCreated),
+				  int(TotalActorsCreated), int(TotalEmptyActorsCreated));
+	UE_AC_ReportF("Datasmith Meshes : Created=%d, Reused=%d\n", int(TotalMeshesCreated), int(TotalMeshesReused));
 	if (TotalBugsCount != 0)
 	{
-		UE_AC_TraceF("Conversion bug count=%d\n", int(TotalBugsCount));
+		UE_AC_ReportF("Conversion bug count=%d\n", int(TotalBugsCount));
 	}
 	#if UE_AC_VERBOSEF_ON
 	UE_AC_TraceF("Bodies %s\n", BodiesStats.asStrings().c_str());

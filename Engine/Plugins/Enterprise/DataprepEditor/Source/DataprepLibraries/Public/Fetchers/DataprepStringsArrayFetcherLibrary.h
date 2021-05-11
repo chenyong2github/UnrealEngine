@@ -8,7 +8,7 @@
 
 #include "DataprepStringsArrayFetcherLibrary.generated.h"
 
-UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName = "Actor Tag", ToolTip = "Return the tags of an actor."))
+UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName = "Tag Value", ToolTip = "Filter actors based on the key values of their tags."))
 class UDataprepStringActorTagsFetcher final : public UDataprepStringsArrayFetcher
 {
 	GENERATED_BODY()
@@ -24,7 +24,7 @@ public:
 	//~ End of UDataprepFetcher interface
 };
 
-UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName = "Actor Layer", ToolTip = "Return the layers of an actor."))
+UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName = "Actor Layer", ToolTip = "Filter actors based on their layers."))
 class UDataprepStringActorLayersFetcher final : public UDataprepStringsArrayFetcher
 {
 	GENERATED_BODY()

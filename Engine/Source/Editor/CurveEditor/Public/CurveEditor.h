@@ -185,6 +185,11 @@ public:
 	void JumpToStart();
 	void JumpToEnd();
 
+	/** Selection range for ie. looping playback */
+	void SetSelectionRangeStart();
+	void SetSelectionRangeEnd();
+	void ClearSelectionRange();
+
 	/** Toggle the expansion state of the selected nodes or all nodes if none selected */
 	void ToggleExpandCollapseNodes(bool bRecursive);
 

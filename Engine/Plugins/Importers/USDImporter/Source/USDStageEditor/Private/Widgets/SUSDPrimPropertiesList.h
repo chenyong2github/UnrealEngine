@@ -13,12 +13,12 @@ class SUsdPrimPropertiesList : public SListView< TSharedPtr< FUsdPrimAttributeVi
 	SLATE_END_ARGS()
 
 public:
-	void Construct( const FArguments& InArgs, const TCHAR* InPrimPath );
-	void SetPrimPath( const TCHAR* InPrimPath );
+	void Construct( const FArguments& InArgs, const UE::FUsdStage& UsdStage, const TCHAR* InPrimPath );
+	void SetPrimPath( const UE::FUsdStage& UsdStage, const TCHAR* InPrimPath );
 
 protected:
 	TSharedRef< ITableRow > OnGenerateRow( TSharedPtr< FUsdPrimAttributeViewModel > InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable );
-	void GeneratePropertiesList( const TCHAR* InPrimPath );
+	void GeneratePropertiesList( const UE::FUsdStage& UsdStage, const TCHAR* InPrimPath );
 
 private:
 	FUsdPrimAttributesViewModel ViewModel;

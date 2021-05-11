@@ -647,7 +647,6 @@ public:
 	bool CacheShaders(const FNiagaraShaderMapId& ShaderMapId, bool bApplyCompletedShaderMapForRendering, bool bForceRecompile, bool bSynchronous = false);
 
 	NIAGARASHADER_API bool GetUsesSimulationStages() const;
-	NIAGARASHADER_API bool GetUsesOldShaderStages() const;
 
 	NIAGARASHADER_API bool GetUsesCompressedAttributes() const;
 

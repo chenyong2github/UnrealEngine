@@ -8,9 +8,8 @@
 bool FLensDistortionState::operator==(const FLensDistortionState& Other) const
 {
 	return ((DistortionInfo.Parameters == Other.DistortionInfo.Parameters)
-		&& (PrincipalPoint == Other.PrincipalPoint)
- 		&& (FxFy == Other.FxFy));
-	return false;
+		&& (DistortionInfo.FxFy == Other.DistortionInfo.FxFy)
+		&& (PrincipalPoint == Other.PrincipalPoint));
 }
 
 bool ULensDistortionModelHandlerBase::IsModelSupported(const TSubclassOf<ULensModel>& ModelToSupport) const
@@ -205,9 +204,15 @@ void ULensDistortionModelHandlerBase::ProcessCurrentDistortion()
 		UpdateMaterialParameters();
 
 		// Draw the undistortion displacement map
-		UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, UndistortionDisplacementMapRT, UndistortionDisplacementMapMID);
+		if (UndistortionDisplacementMapMID)
+		{
+			UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, UndistortionDisplacementMapRT, UndistortionDisplacementMapMID);
+		}
 
 		// Draw the distortion displacement map
-		UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, DistortionDisplacementMapRT, DistortionDisplacementMapMID);
+		if (DistortionDisplacementMapMID)
+		{
+			UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, DistortionDisplacementMapRT, DistortionDisplacementMapMID);
+		}
 	}
 }

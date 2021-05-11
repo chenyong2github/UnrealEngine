@@ -52,7 +52,7 @@ void FDisplayClusterRootActorDetailsCustomization::CustomizeDetails(IDetailLayou
 	}
 
 	// Store preview category
-	CategoryPreview = &InLayoutBuilder.EditCategory("Display Cluster Preview (Editor only)");
+	CategoryPreview = &InLayoutBuilder.EditCategory("NDisplay Preview (Editor only)");
 	check(CategoryPreview);
 
 	// Finally, do the customization

@@ -159,7 +159,24 @@ struct FAudioComponentParam
 		, SoundWaveParam(nullptr)
 	{
 	}
+};
 
+/**
+ *	Convenience class to get audio parameters set on an active sound's playback
+ */
+UCLASS(BlueprintType)
+class UInitialActiveSoundParams : public UObject
+{
+	GENERATED_UCLASS_BODY()
+
+	// Collection of parameters to be sent to the active sound
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TArray<FAudioComponentParam> AudioParams;
+
+	void Reset(int32 ReserveSize = 0)
+	{
+		AudioParams.Reset(ReserveSize);
+	}
 };
 
 /**
@@ -455,7 +472,7 @@ public:
 	 * @param FadeVolumeLevel The percentage of the AudioComponents's calculated volume to fade to
 	 * @param FadeCurve The curve to use when interpolating between the old and new volume
 	 */
-	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
+	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio", meta=(AdvancedDisplay = 1))
 	virtual void FadeIn(float FadeInDuration, float FadeVolumeLevel = 1.0f, float StartTime = 0.0f, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear);
 
 	/**
@@ -466,7 +483,7 @@ public:
 	 * @param FadeVolumeLevel the percentage of the AudioComponents's calculated volume in which to fade to
 	 * @param FadeCurve The curve to use when interpolating between the old and new volume
 	 */
-	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
+	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio", meta = (AdvancedDisplay = 1))
 	virtual	void FadeOut(float FadeOutDuration, float FadeVolumeLevel, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear);
 
 	/** Begins playing the targeted Audio Component’s sound at the designated Start Time, seeking into a sound. 

@@ -21,12 +21,14 @@ UFieldSystemMetaDataProcessingResolution* UFieldSystemMetaDataProcessingResoluti
 FFieldSystemMetaData*
 UFieldSystemMetaDataFilter::NewMetaData() const
 {
-	return new FFieldSystemMetaDataFilter(FilterType);
+	return new FFieldSystemMetaDataFilter(FilterType, ObjectType, PositionType);
 }
 
-UFieldSystemMetaDataFilter* UFieldSystemMetaDataFilter::SetMetaDataFilterType(EFieldFilterType FilterTypeIn)
+UFieldSystemMetaDataFilter* UFieldSystemMetaDataFilter::SetMetaDataFilterType(EFieldFilterType FilterTypeIn, EFieldObjectType ObjectTypeIn, EFieldPositionType PositionTypeIn)
 {
 	this->FilterType = FilterTypeIn;
+	this->ObjectType = ObjectTypeIn;
+	this->PositionType = PositionTypeIn;
 	return this;
 }
 

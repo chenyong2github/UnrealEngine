@@ -134,6 +134,25 @@ FName FSkeletalMeshComponentEndPhysicsTickFunction::DiagnosticContext(bool bDeta
 	return FName(TEXT("SkeletalMeshComponentEndPhysicsTick"));
 }
 
+USkeletalMeshComponent::FClothCollisionSource::FClothCollisionSource(USkeletalMeshComponent* InSourceComponent, UPhysicsAsset* InSourcePhysicsAsset, const FOnBoneTransformsFinalizedMultiCast::FDelegate& InOnBoneTransformsFinalizedDelegate)
+	: SourceComponent(InSourceComponent)
+	, SourcePhysicsAsset(InSourcePhysicsAsset)
+	, bCached(false)
+{
+	if (SourceComponent.IsValid())
+	{
+		OnBoneTransformsFinalizedHandle = InSourceComponent->RegisterOnBoneTransformsFinalizedDelegate(InOnBoneTransformsFinalizedDelegate);
+	}
+}
+
+USkeletalMeshComponent::FClothCollisionSource::~FClothCollisionSource()
+{
+	if (SourceComponent.IsValid() && OnBoneTransformsFinalizedHandle.IsValid())
+	{
+		SourceComponent->UnregisterOnBoneTransformsFinalizedDelegate(OnBoneTransformsFinalizedHandle);
+	}
+}
+
 void USkeletalMeshComponent::CreateBodySetup()
 {
 	if (BodySetup == NULL)
@@ -3167,9 +3186,14 @@ void USkeletalMeshComponent::AddClothCollisionSource(USkeletalMeshComponent* InS
 
 		if(FoundCollisionSource == nullptr)
 		{
-			ClothCollisionSources.Emplace(InSourceComponent, InSourcePhysicsAsset);
+			// Add an UpdateClothTransform delegate after the transform buffer flip, so that the cloths' transform gets updated when the component owning the cloth isn't moving, but the collision source is
+			const FOnBoneTransformsFinalizedMultiCast::FDelegate OnBoneTransformsFinalizedDelegate =
+				FOnBoneTransformsFinalizedMultiCast::FDelegate::CreateUObject(this, &USkeletalMeshComponent::UpdateClothTransform);
 
-			// Add prerequisite so we dont end up with a frame delay
+			// Add the new collision source
+			ClothCollisionSources.Emplace(InSourceComponent, InSourcePhysicsAsset, OnBoneTransformsFinalizedDelegate);
+
+			// Add prerequisite so we don't end up with a frame delay
 			ClothTickFunction.AddPrerequisite(InSourceComponent, InSourceComponent->PrimaryComponentTick);
 		}
 	}

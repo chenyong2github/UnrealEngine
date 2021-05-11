@@ -299,7 +299,7 @@ void FElectraRendererVideo::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 	LLM_SCOPE(ELLMTag::ElectraPlayer);
 	CSV_SCOPED_TIMING_STAT(ElectraPlayer, MEDIArendererVideoUE_Tick);
 
-	check(IsInGameThread());
+	check(IsInGameThread() || IsInSlateThread());
 
 	// Keep stats up to date
 	SET_DWORD_STAT(STAT_ElectraPlayer_MEDIArendererVideoUE_NumUsedOutputVideoSamples, NumOutputTexturesInUse);

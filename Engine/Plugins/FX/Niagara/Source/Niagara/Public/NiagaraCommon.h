@@ -19,6 +19,7 @@ class UNiagaraDataInterface;
 class UNiagaraEmitter;
 class FNiagaraSystemInstance;
 class UNiagaraParameterCollection;
+class UNiagaraParameterDefinitionsBase;
 struct FNiagaraParameterStore;
 
 //#define NIAGARA_NAN_CHECKING 1
@@ -1114,6 +1115,12 @@ namespace FNiagaraUtilities
 	// Whether compute shaders are allowed. Could change depending on config and runtime switches.
 	bool AllowComputeShaders(EShaderPlatform ShaderPlatform);
 
+	// Are we able to use the GPU for culling?
+	bool AllowGPUCulling(EShaderPlatform ShaderPlatform);
+
+	// Are we able to use the GPU for sorting?
+	bool AllowGPUSorting(EShaderPlatform ShaderPlatform);
+
 	ENiagaraCompileUsageStaticSwitch NIAGARA_API ConvertScriptUsageToStaticSwitchUsage(ENiagaraScriptUsage ScriptUsage);
 	ENiagaraScriptContextStaticSwitch NIAGARA_API ConvertScriptUsageToStaticSwitchContext(ENiagaraScriptUsage ScriptUsage);
 	
@@ -1385,8 +1392,47 @@ enum class ENCPoolMethod : uint8
 };
 
 UENUM()
+enum class ENiagaraSystemInstanceState : uint8
+{
+	None,
+	PendingSpawn,
+	PendingSpawnPaused,
+	Spawning,
+	Running,
+	Paused,
+	Num
+};
+
+UENUM()
 enum class ENiagaraFunctionDebugState : uint8
 {
 	NoDebug,
 	Basic,
 };
+
+/** Args struct for INiagaraParameterDefinitionsSubscriberViewModel::SynchronizeWithParameterDefinitions(...). */
+struct NIAGARA_API FSynchronizeWithParameterDefinitionsArgs
+{
+	FSynchronizeWithParameterDefinitionsArgs();
+
+	/** If set, instead of gathering all available parameter libraries, only consider subscribed parameter definitions that have a matching Id. */
+	TArray<FGuid> SpecificDefinitionsUniqueIds;
+
+	/** If set, instead of synchronizing to all destination script variables (UNiagaraScriptVariable owned by the object the INiagaraParameterDefinitionsSubscriberViewModel is viewing,
+	 *  only synchronize destination script variables that have a matching Id.
+	 */
+	TArray<FGuid> SpecificDestScriptVarIds;
+
+	/** Default false; If true, instead of gathering available parameter definitions to synchronize via INiagaraParameterDefinitionsSubscriber::GetSubscribedParameterDefinitionsPendingSynchronization(),
+	 *  ignore the pending synchronization flag and gather via INiagaraParameterDefinitionsSubscriber::GetSubscribedParameterDefinitions().
+	 *  Note: If true, SpecificDefinitionsUniqueIds and SpecificDestScriptVarIds will still apply.
+	 */
+	bool bForceSynchronizeDefinitions;
+
+	/** Default false; If true, set all parameters that name match parameter definitions as subscribed to the parameter definitions. */
+	bool bSubscribeAllNameMatchParameters;
+
+	/** If set, the subscriber will also synchronize the additional parameter definitions in addition to those it is normally subscribed to. */
+	TArray<UNiagaraParameterDefinitionsBase*> AdditionalParameterDefinitions;
+};
+

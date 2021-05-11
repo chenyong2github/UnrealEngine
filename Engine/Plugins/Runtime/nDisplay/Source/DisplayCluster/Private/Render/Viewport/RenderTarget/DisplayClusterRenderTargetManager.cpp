@@ -138,7 +138,7 @@ bool FDisplayClusterRenderTargetManager::AllocateRenderFrameResources(class FVie
 
 bool FDisplayClusterRenderTargetManager::AllocateFrameTargets(const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, const FIntPoint& InViewportSize, FDisplayClusterRenderFrame& InOutRenderFrame)
 {
-	uint32 FrameTargetsAmmount = 0;
+	uint32 FrameTargetsAmount = 0;
 
 	// Support side_by_side and top_bottom eye offset, aligned to Viewport size:
 	FIntPoint TargetLocation(ForceInitToZero);
@@ -148,27 +148,24 @@ bool FDisplayClusterRenderTargetManager::AllocateFrameTargets(const FDisplayClus
 	switch (InRenderFrameSettings.RenderMode)
 	{
 	case EDisplayClusterRenderFrameMode::PreviewMono:
-	{
 		// Preview model: render to external RTT resource
 		return true;
-		break;
-	}
 
 	case EDisplayClusterRenderFrameMode::Mono:
-		FrameTargetsAmmount = 1;
+		FrameTargetsAmount = 1;
 		break;
 
 	case EDisplayClusterRenderFrameMode::Stereo:
-		FrameTargetsAmmount = 2;
+		FrameTargetsAmount = 2;
 		break;
 
 	case EDisplayClusterRenderFrameMode::SideBySide:
-		FrameTargetsAmmount = 2;
+		FrameTargetsAmount = 2;
 		TargetOffset.X = InViewportSize.X / 2;
 		break;
 
 	case EDisplayClusterRenderFrameMode::TopBottom:
-		FrameTargetsAmmount = 2;
+		FrameTargetsAmount = 2;
 		TargetOffset.Y = InViewportSize.Y / 2;
 		break;
 
@@ -177,13 +174,11 @@ bool FDisplayClusterRenderTargetManager::AllocateFrameTargets(const FDisplayClus
 		return false;
 	}
 
-	check(FrameTargetsAmmount > 0);
-
 	// Reallocate frame target resources
 	TArray<FDisplayClusterTextureResource*> NewFrameTargetResources;
 	TArray<FDisplayClusterTextureResource*> NewAdditionalFrameTargetableResources;
 
-	for (uint32 FrameTargetsIt = 0; FrameTargetsIt < FrameTargetsAmmount; FrameTargetsIt++)
+	for (uint32 FrameTargetsIt = 0; FrameTargetsIt < FrameTargetsAmount; FrameTargetsIt++)
 	{
 		FDisplayClusterTextureResource* NewResource = ResourcesPool->AllocateTextureResource(InOutRenderFrame.FrameRect.Size(), true, PF_Unknown);
 		if (NewResource)

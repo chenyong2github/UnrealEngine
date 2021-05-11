@@ -19,6 +19,8 @@
 #include "ContentBrowserModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
+#include "EditorReimportHandler.h"
+#include "EditorFramework/AssetImportData.h"
 #include "AnimationBlueprintLibrary.h"
 
 #define LOCTEXT_NAMESPACE "EditorAnimUtils"
@@ -202,6 +204,42 @@ namespace EditorAnimUtils
 
 			DuplicatedAnimAssets = DuplicateAssets<UAnimationAsset>(AnimationAssetsToDuplicate, DestinationPackage, NameRule);
 			DuplicatedBlueprints = DuplicateAssets<UAnimBlueprint>(AnimBlueprintsToDuplicate, DestinationPackage, NameRule);
+
+			// If we are moving the new asset to a different directory we need to fixup the reimport path. This should only effect source FBX paths within the project.
+			if (!NameRule->FolderPath.IsEmpty())
+			{
+				for (TPair<UAnimationAsset*, UAnimationAsset*>& Pair : DuplicatedAnimAssets)
+				{
+					UAnimSequence* SourceSequence = Cast<UAnimSequence>(Pair.Key);
+					UAnimSequence* DestinationSequence = Cast<UAnimSequence>(Pair.Value);
+					if (SourceSequence && DestinationSequence)
+					{
+						for (int index = 0; index < SourceSequence->AssetImportData->SourceData.SourceFiles.Num(); index++)
+						{
+							const FString& RelativeFilename = SourceSequence->AssetImportData->SourceData.SourceFiles[index].RelativeFilename;
+							const FString OldPackagePath = FPackageName::GetLongPackagePath(SourceSequence->GetPathName()) / TEXT("");
+							const FString NewPackagePath = FPackageName::GetLongPackagePath(DestinationSequence->GetPathName()) / TEXT("");
+
+							if (NewPackagePath != OldPackagePath)
+							{
+								const FString AbsoluteSrcPath = FPaths::ConvertRelativePathToFull(FPackageName::LongPackageNameToFilename(OldPackagePath));
+								const FString SrcFile = AbsoluteSrcPath / RelativeFilename;
+
+								if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*SrcFile))
+								{
+									FString OldSourceFilePath = FPaths::ConvertRelativePathToFull(FPackageName::LongPackageNameToFilename(OldPackagePath), RelativeFilename);
+
+									TArray<FString> Paths;
+									Paths.Add(OldSourceFilePath);
+
+									// Update the reimport file names
+									FReimportManager::Instance()->UpdateReimportPaths(DestinationSequence, Paths);
+								}
+							}
+						}
+					}
+				}
+			}
 
 			// Remapped assets needs the duplicated ones added
 			RemappedAnimAssets.Append(DuplicatedAnimAssets);
@@ -501,7 +539,11 @@ namespace EditorAnimUtils
 
 	void CopyAnimCurves(USkeleton* OldSkeleton, USkeleton* NewSkeleton, UAnimSequenceBase* SequenceBase, const FName ContainerName, ERawCurveTrackTypes CurveType)
 	{
-		UAnimationBlueprintLibrary::CopyAnimationCurveNamesToSkeleton(OldSkeleton, NewSkeleton, SequenceBase, CurveType);
+		// In some circumstances the asset may have already been updated during the retarget process (eg. retargeting of child assets for blendspaces, etc)
+		if (NewSkeleton != SequenceBase->GetSkeleton())
+		{
+			UAnimationBlueprintLibrary::CopyAnimationCurveNamesToSkeleton(OldSkeleton, NewSkeleton, SequenceBase, CurveType);
+		}
 	}
 
 	FString FNameDuplicationRule::Rename(const UObject* Asset) const

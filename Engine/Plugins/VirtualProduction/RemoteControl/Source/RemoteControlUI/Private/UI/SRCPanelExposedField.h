@@ -17,7 +17,6 @@ enum class EExposedFieldType : uint8;
 struct FSlateBrush;
 struct FRemoteControlField;
 struct FGuid;
-class IPropertyRowGenerator;
 class IDetailTreeNode;
 class SInlineEditableTextBlock;
 struct SRCPanelFieldChildNode;
@@ -41,7 +40,7 @@ struct SRCPanelExposedField : public SCompoundWidget, public SRCPanelExposedEnti
 	using SWidget::SharedThis;
 	using SWidget::AsShared;
 
-	void Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlField> Field);
+	void Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlField> Field, FRCColumnSizeData ColumnSizeData);
 
 	void Tick(const FGeometry&, const double, const float);
 
@@ -103,6 +102,7 @@ private:
 	/** Handles calling an exposed function.*/
 	FReply OnClickFunctionButton();
 private:
+	/** Weak pointer to the underlying RC Field. */
 	TWeakPtr<FRemoteControlField> WeakField;
 	/** Display name of the field. */
 	FName CachedLabel;
@@ -118,8 +118,6 @@ private:
 	TSharedPtr<SWidget> OptionsWidget;
 	/** This exposed field's child widgets (ie. An array's rows) */
 	TArray<TSharedPtr<SRCPanelFieldChildNode>> ChildWidgets;
-	/** Holds the generator that creates the widgets. */
-	TSharedPtr<IPropertyRowGenerator> RowGenerator;
 	/** Whether the panel is in edit mode or not. */
 	TAttribute<bool> bEditMode;
 	/** The underlying preset. */
@@ -138,7 +136,7 @@ struct SRCPanelFieldChildNode : public SCompoundWidget, public SRCPanelTreeNode
 	{}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<IDetailTreeNode>& InNode);
+	void Construct(const FArguments& InArgs, const TSharedRef<IDetailTreeNode>& InNode, FRCColumnSizeData InColumnSizeData);
 	virtual void GetNodeChildren(TArray<TSharedPtr<SRCPanelTreeNode>>& OutChildren) const { return OutChildren.Append(ChildrenNodes); }
 	virtual FGuid GetId() const { return FGuid(); }
 	virtual ENodeType GetType() const { return SRCPanelTreeNode::FieldChild; }

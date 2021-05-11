@@ -31,7 +31,7 @@ class DisplayClusterViewportConfigurationHelpers
 public:
 	static void UpdateViewportOCIOConfiguration(FDisplayClusterViewport& DstViewport, const FOpenColorIODisplayConfiguration& InOCIO_Configuration)
 	{
-		if (InOCIO_Configuration.bIsEnabled)
+		if (InOCIO_Configuration.bIsEnabled && InOCIO_Configuration.ColorConfiguration.IsValid())
 		{
 			// Create/Update OCIO:
 			if (DstViewport.OpenColorIODisplayExtension.IsValid() == false)
@@ -78,6 +78,131 @@ public:
 		if (InCustomPostprocessConfiguration.Final.bIsEnabled)
 		{
 			ImplUpdateViewportSetting_CustomPostprocess(DstViewport, InCustomPostprocessConfiguration.Final, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Final);
+		}
+	}
+
+	#define PP_CONDITIONAL_BLEND_WITH_OFFSET(OP, NAME, OFFSET) \
+		OutputPP.bOverride_##NAME = ClusterPPSettings.bOverride_##NAME || ViewportPPSettings.bOverride_##NAME; \
+		if (ClusterPPSettings.bOverride_##NAME && ViewportPPSettings.bOverride_##NAME) \
+		{ \
+			OutputPP.##NAME = ClusterPPSettings.##NAME ##OP ViewportPPSettings.##NAME ##OP ##OFFSET; \
+		} \
+		else if (ClusterPPSettings.bOverride_##NAME) \
+		{ \
+			OutputPP.##NAME = ClusterPPSettings.##NAME; \
+		} \
+		else if (ViewportPPSettings.bOverride_##NAME) \
+		{ \
+			OutputPP.##NAME = ViewportPPSettings.##NAME; \
+		} \
+
+	// Note that skipped parameters in macro definitions will just evaluate to nothing
+	// This is intentional to get around the inconsistent naming in the color grading fields in FPostProcessSettings
+	#define PP_CONDITIONAL_BLEND_COLOR(OP, OUTGROUP, INGROUP, NAME) \
+		OutputPP.bOverride_Color##NAME##OUTGROUP = ClusterPPSettings.##INGROUP.bOverride_##NAME || ViewportPPSettings.##INGROUP.bOverride_##NAME; \
+		if (ClusterPPSettings.##INGROUP.bOverride_##NAME && ViewportPPSettings.##INGROUP.bOverride_##NAME) \
+		{ \
+			OutputPP.Color##NAME##OUTGROUP = ClusterPPSettings.##INGROUP.##NAME ##OP ViewportPPSettings.##INGROUP.##NAME; \
+		} \
+		else if (ClusterPPSettings.##INGROUP.bOverride_##NAME) \
+		{ \
+			OutputPP.Color##NAME##OUTGROUP = ClusterPPSettings.##INGROUP.##NAME; \
+		} \
+		else if (ViewportPPSettings.##INGROUP.bOverride_##NAME) \
+		{ \
+			OutputPP.Color##NAME##OUTGROUP = ViewportPPSettings.##INGROUP.##NAME; \
+		} \
+
+	static void BlendPostProcessSettings(FPostProcessSettings& OutputPP, const FDisplayClusterConfigurationViewport_PerViewportSettings& ClusterPPSettings, const FDisplayClusterConfigurationViewport_PerViewportSettings& ViewportPPSettings)
+	{
+		PP_CONDITIONAL_BLEND_WITH_OFFSET(+, WhiteTemp, -6500.0f);
+		PP_CONDITIONAL_BLEND_WITH_OFFSET(+, WhiteTint, 0.0f);
+		PP_CONDITIONAL_BLEND_WITH_OFFSET(+, AutoExposureBias, 0.0f);
+
+		PP_CONDITIONAL_BLEND_COLOR(*, , Global, Saturation);
+		PP_CONDITIONAL_BLEND_COLOR(*, , Global, Contrast);
+		PP_CONDITIONAL_BLEND_COLOR(*, , Global, Gamma);
+		PP_CONDITIONAL_BLEND_COLOR(*, , Global, Gain);
+		PP_CONDITIONAL_BLEND_COLOR(+, , Global, Offset);
+
+		PP_CONDITIONAL_BLEND_COLOR(*, Shadows, Shadows, Saturation);
+		PP_CONDITIONAL_BLEND_COLOR(*, Shadows, Shadows, Contrast);
+		PP_CONDITIONAL_BLEND_COLOR(*, Shadows, Shadows, Gamma);
+		PP_CONDITIONAL_BLEND_COLOR(*, Shadows, Shadows, Gain);
+		PP_CONDITIONAL_BLEND_COLOR(+, Shadows, Shadows, Offset);
+
+		PP_CONDITIONAL_BLEND_COLOR(*, Midtones, Midtones, Saturation);
+		PP_CONDITIONAL_BLEND_COLOR(*, Midtones, Midtones, Contrast);
+		PP_CONDITIONAL_BLEND_COLOR(*, Midtones, Midtones, Gamma);
+		PP_CONDITIONAL_BLEND_COLOR(*, Midtones, Midtones, Gain);
+		PP_CONDITIONAL_BLEND_COLOR(+, Midtones, Midtones, Offset);
+
+		PP_CONDITIONAL_BLEND_COLOR(*, Highlights, Highlights, Saturation);
+		PP_CONDITIONAL_BLEND_COLOR(*, Highlights, Highlights, Contrast);
+		PP_CONDITIONAL_BLEND_COLOR(*, Highlights, Highlights, Gamma);
+		PP_CONDITIONAL_BLEND_COLOR(*, Highlights, Highlights, Gain);
+		PP_CONDITIONAL_BLEND_COLOR(+, Highlights, Highlights, Offset);
+	}
+
+	static void UpdateViewportPostProcessSettings(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationViewport_PostProcessSettings& InPostProcessSettings)
+	{
+		// Check and apply the overall cluster post process settings
+		if (ADisplayClusterRootActor* RootActor = DstViewport.GetOwner().GetRootActor())
+		{
+			if (UDisplayClusterConfigurationData* ConfigData = RootActor->GetConfigData())
+			{
+				if (UDisplayClusterConfigurationCluster* ClusterConfig = ConfigData->Cluster)
+				{
+					if (ClusterConfig->bUseOverallClusterPostProcess)
+					{
+						FDisplayClusterConfigurationViewport_CustomPostprocessSettings CustomPPS;
+						CustomPPS.bIsEnabled = true;
+						CustomPPS.bIsOneFrame = true;
+						CustomPPS.BlendWeight = ClusterConfig->OverallClusterPostProcessSettings.BlendWeight;
+
+						const FDisplayClusterConfigurationViewport_PerViewportSettings EmptyPPSettings;
+
+						if (InPostProcessSettings.bIsEnabled)
+						{
+							if (InPostProcessSettings.bExcludeFromOverallClusterPostProcess)
+							{
+								// This viewport is excluded from the overall cluster, so only use the per-viewport settings and blend weight
+								BlendPostProcessSettings(CustomPPS.PostProcessSettings, EmptyPPSettings, InPostProcessSettings.ViewportSettings);
+								CustomPPS.BlendWeight = InPostProcessSettings.ViewportSettings.BlendWeight;
+							}
+							else
+							{
+								// This viewport should use a blend of the overall cluster and the per-viewport settings, so multiply the blend weights
+								BlendPostProcessSettings(CustomPPS.PostProcessSettings, ClusterConfig->OverallClusterPostProcessSettings, InPostProcessSettings.ViewportSettings);
+								CustomPPS.BlendWeight *= InPostProcessSettings.ViewportSettings.BlendWeight;
+							}
+						}
+						else
+						{
+							// This viewport doesn't use per-viewport settings, so just use the overall cluster settings and blend weight
+							BlendPostProcessSettings(CustomPPS.PostProcessSettings, ClusterConfig->OverallClusterPostProcessSettings, EmptyPPSettings);
+						}
+
+						ImplUpdateViewportSetting_CustomPostprocess(DstViewport, CustomPPS, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Override);
+
+						return;
+					}
+				}
+			}
+		}
+
+		// If there isn't a global PP set, then just apply the per-viewport settings and blend weight
+		if (InPostProcessSettings.bIsEnabled)
+		{
+			FDisplayClusterConfigurationViewport_CustomPostprocessSettings CustomPPS;
+			CustomPPS.bIsEnabled = true;
+			CustomPPS.bIsOneFrame = true;
+			CustomPPS.BlendWeight = InPostProcessSettings.ViewportSettings.BlendWeight;
+
+			const FDisplayClusterConfigurationViewport_PerViewportSettings EmptyPPSettings;
+
+			BlendPostProcessSettings(CustomPPS.PostProcessSettings, EmptyPPSettings, InPostProcessSettings.ViewportSettings);
+			ImplUpdateViewportSetting_CustomPostprocess(DstViewport, CustomPPS, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Override);
 		}
 	}
 
@@ -159,7 +284,7 @@ public:
 				DstViewport.PostRenderSettings.Override.TextureRHI = TextureRHI;
 				FIntVector Size = TextureRHI->GetSizeXYZ();
 
-				DstViewport.PostRenderSettings.Override.Rect = (InOverride.bShouldUseTextureRegion) ? InOverride.TextureRegion.ToRect() : FIntRect(FIntPoint(0, 0), FIntPoint(Size.X, Size.Y));
+				DstViewport.PostRenderSettings.Override.Rect = DstViewport.GetValidRect((InOverride.bShouldUseTextureRegion) ? InOverride.TextureRegion.ToRect() : FIntRect(FIntPoint(0, 0), FIntPoint(Size.X, Size.Y)), TEXT("Configuration Override"));
 			}
 		}
 	};
@@ -251,7 +376,7 @@ public:
 			}
 
 			DstViewport.RenderSettings.CameraId = InConfigurationViewport.Camera;
-			DstViewport.RenderSettings.Rect = InConfigurationViewport.Region.ToRect();
+			DstViewport.RenderSettings.Rect = DstViewport.GetValidRect(InConfigurationViewport.Region.ToRect(), TEXT("Configuration Region"));
 
 			DstViewport.RenderSettings.GPUIndex = InConfigurationViewport.GPUIndex;
 			DstViewport.RenderSettings.OverlapOrder = InConfigurationViewport.OverlapOrder;
@@ -259,6 +384,9 @@ public:
 
 		// OCIO
 		UpdateViewportOCIOConfiguration(DstViewport, InConfigurationViewport.OCIO_Configuration);
+
+		// Additional per-viewport PostProcess
+		UpdateViewportPostProcessSettings(DstViewport, InConfigurationViewport.PostProcessSettings);
 
 		// FDisplayClusterConfigurationViewport_RenderSettings
 		const FDisplayClusterConfigurationViewport_RenderSettings& InRenderSettings = InConfigurationViewport.RenderSettings;
@@ -377,7 +505,7 @@ public:
 			DesiredSize.X = FMath::Max(16, DesiredSize.X);
 			DesiredSize.Y = FMath::Max(16, DesiredSize.Y);
 
-			DstViewport.RenderSettings.Rect = FIntRect(FIntPoint(0, 0), DesiredSize);
+			DstViewport.RenderSettings.Rect = DstViewport.GetValidRect(FIntRect(FIntPoint(0, 0), DesiredSize), TEXT("Configuration Camera Frame Size"));
 
 			UpdateViewportSetting_CustomPostprocess(DstViewport, InCameraRenderSettings.CustomPostprocess);
 

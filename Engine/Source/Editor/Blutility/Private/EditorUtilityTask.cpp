@@ -18,7 +18,7 @@ UEditorUtilityTask::UEditorUtilityTask()
 void UEditorUtilityTask::Run()
 {
 	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-	EditorUtilitySubsystem->RegisterAndExecuteTask(this);
+	EditorUtilitySubsystem->RegisterAndExecuteTask(this, nullptr);
 }
 
 UWorld* UEditorUtilityTask::GetWorld() const
@@ -45,6 +45,8 @@ void UEditorUtilityTask::StartExecutingTask()
 
 void UEditorUtilityTask::FinishExecutingTask()
 {
+	SetTaskNotificationText(LOCTEXT("TaskComplete", "Complete"));
+
 	if (ensure(MyTaskManager))
 	{
 		MyTaskManager->RemoveTaskFromActiveList(this);
@@ -57,6 +59,9 @@ void UEditorUtilityTask::FinishExecutingTask()
 	}
 
 	GIsRunningUnattendedScript = Cached_GIsRunningUnattendedScript;
+
+	// Notify anyone who needs to know that we're done.
+	OnFinished.Broadcast(this);
 }
 
 void UEditorUtilityTask::CreateNotification()
@@ -70,7 +75,17 @@ void UEditorUtilityTask::CreateNotification()
 
 void UEditorUtilityTask::RequestCancel()
 {
-	bCancelRequested = true;
+	if (!bCancelRequested)
+	{
+		bCancelRequested = true;
+
+		SetTaskNotificationText(LOCTEXT("TaskCanceling", "Canceling"));
+
+		CancelRequested();
+		ReceiveCancelRequested();
+
+		FinishExecutingTask();
+	}
 }
 
 bool UEditorUtilityTask::WasCancelRequested() const

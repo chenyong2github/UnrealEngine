@@ -304,8 +304,8 @@ private:
 	void DestroyAllNodes();
 
 public:
-	int32 GetTotalDisplayNodeCount() const { return DisplayNodeCount; }
-	int32 GetFilteredDisplayNodeCount() const { return FilteredNodes.Num(); }
+	int32 GetTotalDisplayNodeCount() const;
+	int32 GetFilteredDisplayNodeCount() const;
 
 private:
 

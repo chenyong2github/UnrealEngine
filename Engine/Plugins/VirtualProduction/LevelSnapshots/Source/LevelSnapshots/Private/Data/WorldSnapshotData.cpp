@@ -224,21 +224,26 @@ void FWorldSnapshotData::ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& Eval
 	// 1st pass: allocate the actors. Serialisation is done in separate step so object references to other deleted actors resolve correctly.
 	for (const FSoftObjectPath& OriginalRemovedActorPath : PropertiesToSerialize.GetDeletedActorsToRespawn())
 	{
-		// Not checking this will cause a fatal crash when spawning the actor since the object name is already taken
-		if (ensureAlwaysMsgf(!OriginalRemovedActorPath.ResolveObject(), TEXT("Object '%s' was marked to be restored but it already exists in the world.")))
-		{
-			continue;
-		}
 		FActorSnapshotData* ActorSnapshot = ActorData.Find(OriginalRemovedActorPath);
 		if (!ensure(ActorSnapshot))
 		{
 			continue;	
 		}
+
 		UClass* ActorClass = ActorSnapshot->GetActorClass().ResolveClass();
-		if (ensure(ActorClass))
+		if (!ensure(ActorClass))
 		{
 			UE_LOG(LogLevelSnapshots, Warning, TEXT("Failed to resolve class '%s'. Was it removed?"), *ActorSnapshot->GetActorClass().ToString());
 			continue;
+		}
+		
+		// The actor may have just been removed and still exist in memory
+		if (UObject* StillExistingRemovedActor = OriginalRemovedActorPath.ResolveObject())
+		{
+			AActor* Actor = Cast<AActor>(StillExistingRemovedActor);
+			// We need to rename the trash object otherwise SpawnActor will have a name collision and assert.
+			const FName NewName = MakeUniqueObjectName(Actor->GetWorld(), ActorClass, *Actor->GetName().Append(TEXT("_TRASH")));
+			Actor->Rename(*NewName.ToString());
 		}
 		
 		// Example: /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42.StaticMeshComponent becomes /Game/MapName.MapName
@@ -262,14 +267,14 @@ void FWorldSnapshotData::ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& Eval
 			// Full string: /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42 SubPath: PersistentLevel.StaticMeshActor_42 
 			checkf(LastDotIndex != INDEX_NONE, TEXT("There should always be at least one dot after PersistentLevel"));
 			
-			const int32 NameLength = SubObjectPath.Len() - LastDotIndex;
+			const int32 NameLength = SubObjectPath.Len() - LastDotIndex - 1;
 			const FString ActorName = SubObjectPath.Right(NameLength);
 			
 			FActorSpawnParameters SpawnParameters;
 			SpawnParameters.Name = FName(*ActorName);
 			SpawnParameters.bNoFail = true;
 			SpawnParameters.Template = Cast<AActor>(GetClassDefault(ActorClass));
-			OwningLevelWorld->SpawnActor(ActorClass, nullptr, SpawnParameters);
+			RecreatedActors.Add(OriginalRemovedActorPath, OwningLevelWorld->SpawnActor(ActorClass, nullptr, SpawnParameters));
 		}
 	}
 	
@@ -281,10 +286,13 @@ void FWorldSnapshotData::ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& Eval
 #endif
 		if (FActorSnapshotData* ActorSnapshot = ActorData.Find(OriginalRemovedActorPath))
 		{
-			AActor* RecreatedActor = *RecreatedActors.Find(OriginalRemovedActorPath);
-			// Otherwise we'll serialize it again when we look for world actors matching the snapshot
-			EvaluatedActors.Add(RecreatedActor);
-			ActorSnapshot->DeserializeIntoRecreatedWorldActor(TempActorWorld.Get(), RecreatedActor, *this);
+			AActor** RecreatedActor = RecreatedActors.Find(OriginalRemovedActorPath);
+			if (ensure(RecreatedActor))
+			{
+				// Mark it, otherwise we'll serialize it again when we look for world actors matching the snapshot
+				EvaluatedActors.Add(*RecreatedActor);
+				ActorSnapshot->DeserializeIntoRecreatedWorldActor(TempActorWorld.Get(), *RecreatedActor, *this);
+			}
 		}
 	}
 }
@@ -424,9 +432,14 @@ UObject* FWorldSnapshotData::GetClassDefault(UClass* Class)
 		return ClassDefaultData->CachedLoadedClassDefault;
 	}
 	
-	UObject* Default = NewObject<UObject>(GetTransientPackage(), Class);
+	UObject* Default = NewObject<UObject>(
+		GetTransientPackage(),
+		Class,
+		*FString("SnapshotCDO_").Append(*MakeUniqueObjectName(GetTransientPackage(), Class).ToString())
+		);
 	FTakeClassDefaultObjectSnapshotArchive RestoreArchive = FTakeClassDefaultObjectSnapshotArchive::MakeArchiveForRestoringClassDefaultObject(*ClassDefaultData, *this);
-	Default->SetFlags(RF_ArchetypeObject); // No direct reason for this though it acts as as archetype so we should probably mark it as such
+	// TODO: Test how this affect class reinstancing
+	//Default->SetFlags(RF_ArchetypeObject); // No direct reason for this though it acts as as archetype so we should probably mark it as such
 	Default->Serialize(RestoreArchive);
 
 	ClassDefaultData->CachedLoadedClassDefault = Default;

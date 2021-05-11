@@ -12,9 +12,6 @@ export function init(_root: string) {
 	// branchSpecsRootPath = root
 }
 
-/**
-Going to make bot name optional, filter on that if present
-*/
 export async function getPreview(cl: number, singleBot?: string) {
 	// @todo print content from shelf
 	if (!p4) {
@@ -31,6 +28,8 @@ export async function getPreview(cl: number, singleBot?: string) {
 		}
 	}
 
+	const allStreamSpecs = await p4.streams()
+
 	for (const [bot, path] of bots) {
 		if (singleBot && bot.toLowerCase() !== singleBot.toLowerCase()) {
 			continue
@@ -38,7 +37,7 @@ export async function getPreview(cl: number, singleBot?: string) {
 		const fileText = await p4.print(`${path}@=${cl}`)
 
 		const validationErrors: string[] = []
-		const result = BranchDefs.parseAndValidate(validationErrors, fileText)
+		const result = BranchDefs.parseAndValidate(validationErrors, fileText, allStreamSpecs)
 
 		if (!result.branchGraphDef) {
 			throw new Error(validationErrors.length === 0 ? 'Failed to parse' : validationErrors.join('\n'))

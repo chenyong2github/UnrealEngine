@@ -362,6 +362,13 @@ public:
 
 	void RegisterQoSSettingsChangedDelegate(const FSimpleDelegate& OnQoSSettingsChanged);
 
+	DECLARE_MULTICAST_DELEGATE(FOnQosEvalCompleteDelegate);
+
+	/**
+	 * Get the delegate that is invoked when the current/next QoS evaluation completes.
+	 */
+	FOnQosEvalCompleteDelegate& OnQosEvalComplete() { return OnQosEvalCompleteDelegate; }
+
 public:
 
 	/** Begin UObject interface */
@@ -426,7 +433,8 @@ private:
 	UPROPERTY()
 	FString SelectedRegionId;
 
-	TArray<FSimpleDelegate> OnQosEvalCompleteDelegate;
+	FOnQosEvalCompleteDelegate OnQosEvalCompleteDelegate;
+
 	FSimpleDelegate OnQoSSettingsChangedDelegate;
 };
 

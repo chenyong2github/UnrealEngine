@@ -52,4 +52,5 @@ private:
 	TSharedPtr<IPropertyHandle> RowNamePropertyHandle;
 	/** The MetaData derived filter for the row type */
 	FName RowTypeFilter;
+	UScriptStruct* RowFilterStruct;
 };

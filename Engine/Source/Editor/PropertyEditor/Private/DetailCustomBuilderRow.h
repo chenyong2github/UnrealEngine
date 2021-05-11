@@ -6,16 +6,21 @@
 #include "Misc/Attribute.h"
 #include "DetailWidgetRow.h"
 #include "SDetailsViewBase.h"
+#include "DetailCategoryBuilder.h"
 
 class FCustomChildrenBuilder;
 class FDetailCategoryImpl;
 class FDetailItemNode;
 class IDetailCustomNodeBuilder;
 
-class FDetailCustomBuilderRow : public TSharedFromThis<FDetailCustomBuilderRow>
+class FDetailCustomBuilderRow : public IDetailLayoutRow, public TSharedFromThis<FDetailCustomBuilderRow>
 {
 public:
 	FDetailCustomBuilderRow( TSharedRef<IDetailCustomNodeBuilder> CustomBuilder );
+	virtual ~FDetailCustomBuilderRow() {}
+
+	/** IDetailLayoutRow interface */
+	virtual FName GetRowName() const override { return GetCustomBuilderName(); }
 
 	void Tick( float DeltaTime );
 	bool RequiresTick() const;

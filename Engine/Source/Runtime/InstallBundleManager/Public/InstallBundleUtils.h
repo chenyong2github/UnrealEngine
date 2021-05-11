@@ -46,6 +46,23 @@ namespace InstallBundleUtil
 		return static_cast<UnderType>(Type);
 	}
 
+	template<typename EnumType, typename StringArrType>
+	const TCHAR* TLexToString(EnumType E, const StringArrType& Strings)
+	{
+		constexpr auto Count = InstallBundleUtil::CastToUnderlying(EnumType::Count);
+		static_assert(Count == UE_ARRAY_COUNT(Strings), "");
+
+		auto Idx = InstallBundleUtil::CastToUnderlying(E);
+		if (Idx >= 0 && Idx < Count)
+		{
+			return Strings[Idx];
+		}
+		else
+		{
+			return TEXT("");
+		}
+	}
+
 	// Keep the engine awake via RAII when running as an embedded app
 	class INSTALLBUNDLEMANAGER_API FInstallBundleManagerKeepAwake : public FEmbeddedKeepAwake
 	{

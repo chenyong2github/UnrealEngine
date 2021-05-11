@@ -3,6 +3,7 @@
 #include "Tracks/MovieSceneEventTrack.h"
 #include "MovieSceneCommonHelpers.h"
 #include "Sections/MovieSceneEventSection.h"
+#include "Sections/MovieSceneEventSectionBase.h"
 #include "Sections/MovieSceneEventTriggerSection.h"
 #include "Sections/MovieSceneEventRepeaterSection.h"
 #include "Evaluation/MovieSceneEventTemplate.h"
@@ -32,6 +33,22 @@ void UMovieSceneEventTrack::Serialize(FArchive& Ar)
 	}
 
 	Super::Serialize(Ar);
+}
+
+void UMovieSceneEventTrack::PostRename(UObject* OldOuter, const FName OldName)
+{
+	if (OldOuter != GetOuter())
+	{
+		Super::PostRename(OldOuter, OldName);
+
+		for (UMovieSceneSection* Section : Sections)
+		{
+			if (UMovieSceneEventSectionBase* EventSection = Cast<UMovieSceneEventSectionBase>(Section))
+			{
+				EventSection->PostDuplicateSectionEvent.Execute(EventSection);
+			}
+		}
+	}
 }
 #endif// WITH_EDITOR
 
@@ -127,6 +144,12 @@ void UMovieSceneEventTrack::PostCompile(FMovieSceneEvaluationTrack& Track, const
 	}
 
 	Track.SetEvaluationMethod(EEvaluationMethod::Swept);
+}
+
+void UMovieSceneEventTrack::PopulateDeterminismData(FMovieSceneDeterminismData& OutData, const TRange<FFrameNumber>& Range) const
+{
+	OutData.bParentSequenceRequiresLowerFence = true;
+	OutData.bParentSequenceRequiresUpperFence = true;
 }
 
 #if WITH_EDITORONLY_DATA

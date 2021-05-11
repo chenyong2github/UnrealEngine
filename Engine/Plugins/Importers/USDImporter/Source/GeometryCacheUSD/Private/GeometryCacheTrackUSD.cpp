@@ -38,7 +38,7 @@ const bool UGeometryCacheTrackUsd::UpdateBoundsData(const float Time, const bool
 {
 	const int32 SampleIndex = FindSampleIndexFromTime(Time, bLooping);
 
-	FGeometryCacheTrackSampleInfo SampledInfo = GetSampleInfo(Time, bLooping);
+	const FGeometryCacheTrackSampleInfo& SampledInfo = GetSampleInfo(Time, bLooping);
 	if (InOutBoundsSampleIndex != SampleIndex)
 	{
 		OutBounds = SampledInfo.BoundingBox;
@@ -52,23 +52,43 @@ const int32 UGeometryCacheTrackUsd::FindSampleIndexFromTime(const float Time, co
 {
 	// Treat the time as the frame index
 	int32 FrameIndex = (int32) Time;
-	return FMath::Clamp(FrameIndex, StartFrameIndex, EndFrameIndex);
+	return FMath::Clamp(FrameIndex, StartFrameIndex, EndFrameIndex - 1);
 }
 
 const FGeometryCacheTrackSampleInfo& UGeometryCacheTrackUsd::GetSampleInfo(float Time, bool bLooping)
 {
-	// Update the mesh data as required
-	int32 ThisSampleIndex = FindSampleIndexFromTime(Time, bLooping);
-	GetMeshData(ThisSampleIndex, MeshData);
+	if (SampleInfos.Num() == 0)
+	{
+		if (Duration > 0.f)
+		{
+			// Duration is the number of frames
+			SampleInfos.SetNum((int32)Duration);
+		}
+		else
+		{
+			return FGeometryCacheTrackSampleInfo::EmptySampleInfo;
+		}
+	}
 
-	SampleInfo = FGeometryCacheTrackSampleInfo(
-		Time,
-		MeshData.BoundingBox,
-		MeshData.Positions.Num(),
-		MeshData.Indices.Num()
-	);
+	// The sample info index must start from 0, while the sample index is between the range of the animation
+	const int32 SampleInfoIndex = FindSampleIndexFromTime(Time, bLooping) - StartFrameIndex;
 
-	return SampleInfo;
+	FGeometryCacheTrackSampleInfo& CurrentSampleInfo = SampleInfos[SampleInfoIndex];
+
+	if (CurrentSampleInfo.SampleTime == 0.0f && CurrentSampleInfo.NumVertices == 0 && CurrentSampleInfo.NumIndices == 0)
+	{
+		FGeometryCacheMeshData TempMeshData;
+		GetMeshData(SampleInfoIndex, TempMeshData);
+
+		CurrentSampleInfo = FGeometryCacheTrackSampleInfo(
+			Time,
+			MeshData.BoundingBox,
+			MeshData.Positions.Num(),
+			MeshData.Indices.Num()
+		);
+	}
+
+	return CurrentSampleInfo;
 }
 
 bool UGeometryCacheTrackUsd::GetMeshData(int32 SampleIndex, FGeometryCacheMeshData& OutMeshData)

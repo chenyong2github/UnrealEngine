@@ -7,6 +7,7 @@
 #include "PartyPackage.h"
 
 enum class EMemberExitedReason : uint8;
+typedef TSharedRef<const IOnlinePartyRequestToJoinInfo> IOnlinePartyRequestToJoinInfoConstRef;
 
 class FSocialUserList : public ISocialUserList, public FGCObject, public TSharedFromThis<FSocialUserList>
 {
@@ -55,6 +56,9 @@ private:
 	
 	void HandleUserPresenceChanged(ESocialSubsystem SubsystemType, USocialUser* User);
 	void HandleUserGameSpecificStatusChanged(USocialUser* User);
+
+	void HandleRequestToJoinReceived(USocialUser& SocialUser, IOnlinePartyRequestToJoinInfoConstRef Request);
+	void HandleRequestToJoinRemoved(USocialUser& SocialUser, IOnlinePartyRequestToJoinInfoConstRef Request, EPartyRequestToJoinRemovedReason Reason);
 
 	void MarkUserAsDirty(USocialUser& User);
 

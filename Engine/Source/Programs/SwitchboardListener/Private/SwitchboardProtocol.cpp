@@ -257,6 +257,11 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 			return true;
 		}
 	}
+	else if (CommandName == TEXT("refresh mosaics"))
+	{
+		OutTask = MakeUnique<FSwitchboardRefreshMosaicsTask>(MessageID, InEndpoint);
+		return true;
+	}
 
 	return false;
 }

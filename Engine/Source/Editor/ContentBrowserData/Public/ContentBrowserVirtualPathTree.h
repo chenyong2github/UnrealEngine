@@ -82,7 +82,9 @@ public:
 	 * Returns Internal if virtual prefix portion of the path exists in this path tree and there is text afterwards
 	 * @Note: When Internal is the return value it does not check to see if the internal path actually exists or not
 	 */
-	EContentBrowserPathType TryConvertVirtualPathToInternal(FName Path, FName& OutPath) const;
+	EContentBrowserPathType TryConvertVirtualPathToInternal(FStringView InPath, FStringBuilderBase& OutPath) const;
+	EContentBrowserPathType TryConvertVirtualPathToInternal(FStringView InPath, FString& OutPath) const;
+	EContentBrowserPathType TryConvertVirtualPathToInternal(FName InPath, FName& OutPath) const;
 
 private:
 

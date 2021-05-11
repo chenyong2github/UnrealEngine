@@ -822,6 +822,31 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 			}
 		}));
 
+		static FAutoConsoleCommand ToolMenusEditMenusModeCVar = FAutoConsoleCommand(
+			TEXT("ToolMenus.Edit"),
+			TEXT("Experimental: Enable edit menus mode toggle in level editor's windows menu"),
+			FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+		{
+			IToolMenusEditorModule::Get().RegisterShowEditMenusModeCheckbox();
+
+			if (!UToolMenus::Get()->EditMenuDelegate.IsBound())
+			{
+				UToolMenus::Get()->EditMenuDelegate.BindLambda([](UToolMenu* InMenu)
+				{
+					IToolMenusEditorModule::Get().OpenEditToolMenuDialog(InMenu);
+				});
+			}
+
+			bool bNewSetEditMenusMode = true;
+			if (Args.Num() > 0)
+			{
+				bNewSetEditMenusMode = (Args[0] == TEXT("1")) || FCString::ToBool(*Args[0]);
+			}
+
+			UE_LOG(LogEditor, Log, TEXT("%s menu editing"), bNewSetEditMenusMode ? TEXT("Enable") : TEXT("Disable"));			
+			UToolMenus::Get()->SetEditMenusMode(bNewSetEditMenusMode);
+		}));
+
 		bool bEnableEditToolMenusUI = false;
 		GConfig->GetBool(TEXT("/Script/UnrealEd.EditorExperimentalSettings"), TEXT("bEnableEditToolMenusUI"), bEnableEditToolMenusUI, GEditorPerProjectIni);
 		if (bEnableEditToolMenusUI)
@@ -876,7 +901,7 @@ void UEditorEngine::HandleSettingChanged( FName Name )
 
 void UEditorEngine::InitializeObjectReferences()
 {
-	EditorSubsystemCollection.Initialize(this);
+	EditorSubsystemCollection->Initialize(this);
 
 	Super::InitializeObjectReferences();
 
@@ -1245,7 +1270,7 @@ void UEditorEngine::FinishDestroy()
 			ToolMenus->UnregisterStringCommandHandler("Command");
 		}
 
-		EditorSubsystemCollection.Deinitialize();
+		EditorSubsystemCollection->Deinitialize();
 
 		// Unregister events
 		FEditorDelegates::MapChange.RemoveAll(this);

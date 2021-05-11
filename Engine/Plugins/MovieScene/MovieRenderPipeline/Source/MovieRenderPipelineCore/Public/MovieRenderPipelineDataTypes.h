@@ -317,6 +317,9 @@ namespace MoviePipeline
 		bool bOriginalCameraCutIsActive;
 		bool bOriginalShotSectionIsActive;
 
+		/** An array of sections that we should expand, as well as their original range for restoration later. */
+		TArray<TTuple<UMovieSceneSection*, TRange<FFrameNumber>>> AdditionalSectionsToExpand;
+
 		EMovieSceneEvaluationType EvaluationType;
 		FMovieSceneSequenceID NodeID;
 
@@ -506,6 +509,9 @@ public:
 
 	/** The current tick of this shot that we're on in master space */
 	FFrameNumber CurrentTickInMaster;
+
+	/** Converts from the outermost space into the innermost space. Only works with linear transforms. */
+	FMovieSceneTimeTransform OuterToInnerTransform;
 	
 	/** The total range of output frames in master space */
 	TRange<FFrameNumber> TotalOutputRangeMaster;

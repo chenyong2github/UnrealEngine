@@ -14,6 +14,12 @@ class FDetailWidgetRow;
 class IDetailGroup;
 class IDetailPropertyRow;
 
+/** Interface for the various types of rows that can be created through a detail layout customization */
+class IDetailLayoutRow
+{
+	virtual FName GetRowName() const = 0;
+};
+
 /** The location of a property within a category */
 namespace EPropertyLocation
 {

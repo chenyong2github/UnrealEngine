@@ -68,9 +68,9 @@ namespace DatasmithRuntime
 	extern const FString MaterialPrefix;
 	extern const FString MeshPrefix;
 
-	static TMap< UMaterial*, FMaterialParameters > MaterialParametersCache;
+	static TMap< UMaterialInterface*, FMaterialParameters > MaterialParametersCache;
 
-	const FMaterialParameters& GetMaterialParameters(UMaterial* Material)
+	const FMaterialParameters& GetMaterialParameters(UMaterialInterface* Material)
 	{
 		check(Material);
 
@@ -139,7 +139,7 @@ namespace DatasmithRuntime
 
 		TSharedPtr< FDatasmithMasterMaterialSelector > MaterialSelector = FDatasmithMasterMaterialManager::Get().GetSelector(Host);
 
-		UMaterial* Material = nullptr;
+		UMaterialInterface* Material = nullptr;
 
 		if (MasterMaterialElement->GetMaterialType() == EDatasmithMasterMaterialType::Custom)
 		{
@@ -149,7 +149,7 @@ namespace DatasmithRuntime
 
 			if (CustomMasterMaterial.IsValid())
 			{
-				Material =  CustomMasterMaterial.GetMaterial();
+				Material = CustomMasterMaterial.GetMaterial();
 			}
 		}
 		else if (MaterialSelector.IsValid() && MaterialSelector->IsValid())
@@ -158,7 +158,7 @@ namespace DatasmithRuntime
 
 			if (MasterMaterial.IsValid())
 			{
-				Material =  MasterMaterial.GetMaterial();
+				Material = MasterMaterial.GetMaterial();
 			}
 		}
 
@@ -180,13 +180,12 @@ namespace DatasmithRuntime
 					}
 				}
 			}
-
 		}
 
 		return MaterialRequirement;
 	}
 
-	bool LoadMasterMaterial(UMaterialInstanceDynamic* MaterialInstance, TSharedPtr<IDatasmithMasterMaterialElement>& MaterialElement )
+	bool LoadMasterMaterial(UMaterialInstanceDynamic* MaterialInstance, TSharedPtr<IDatasmithMasterMaterialElement>& MaterialElement)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::LoadMasterMaterial);
 
@@ -194,7 +193,7 @@ namespace DatasmithRuntime
 		const FString Host = MaterialManager.GetHostFromString( MATERIAL_HOST );
 		TSharedPtr< FDatasmithMasterMaterialSelector > MaterialSelector = MaterialManager.GetSelector( MATERIAL_HOST );
 
-		UMaterial* MasterMaterial = nullptr;
+		UMaterialInterface* ParentMaterial = nullptr;
 
 		{
 			if ( MaterialElement->GetMaterialType() == EDatasmithMasterMaterialType::Custom )
@@ -202,23 +201,23 @@ namespace DatasmithRuntime
 				FDatasmithMasterMaterial CustomMasterMaterial;
 
 				CustomMasterMaterial.FromSoftObjectPath( FSoftObjectPath( MaterialElement->GetCustomMaterialPathName() ) );
-				MasterMaterial = CustomMasterMaterial.GetMaterial();
+				ParentMaterial = CustomMasterMaterial.GetMaterial();
 			}
 			else if ( MaterialSelector.IsValid() )
 			{
 				const FDatasmithMasterMaterial& DatasmithMasterMaterial = MaterialSelector->GetMasterMaterial(MaterialElement);
-				MasterMaterial = DatasmithMasterMaterial.GetMaterial();
+				ParentMaterial = DatasmithMasterMaterial.GetMaterial();
 			}
 		}
 
-		if (MasterMaterial == nullptr)
+		if (ParentMaterial == nullptr)
 		{
 			return false;
 		}
 
-		MaterialInstance->Parent = MasterMaterial;
+		MaterialInstance->Parent = ParentMaterial;
 
-		const FMaterialParameters& MaterialParameters = GetMaterialParameters(MasterMaterial);
+		const FMaterialParameters& MaterialParameters = GetMaterialParameters(ParentMaterial);
 
 		for (int Index = 0; Index < MaterialElement->GetPropertiesCount(); ++Index)
 		{

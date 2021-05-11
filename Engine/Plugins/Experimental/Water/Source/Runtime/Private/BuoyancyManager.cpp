@@ -109,7 +109,8 @@ void ABuoyancyManager::Unregister(UBuoyancyComponent* BuoyancyComponent)
 
 void ABuoyancyManager::Update(FPhysScene* PhysScene, float DeltaTime)
 {
-	if (UWorld* World = GetWorld())
+	UWorld* World = GetWorld();
+	if (World && AsyncCallback)
 	{
 		// Collect active buoyancy components
 		{
@@ -248,6 +249,7 @@ void ABuoyancyManager::BeginPlay()
 	{
 		if (FPhysScene* PhysScene = World->GetPhysicsScene())
 		{
+			OnPhysScenePreTickHandle = PhysScene->OnPhysScenePreTick.AddUObject(this, &ABuoyancyManager::Update);
 #if WITH_CHAOS
 			OnPhysScenePreTickHandle = PhysScene->OnPhysScenePreTick.AddUObject(this, &ABuoyancyManager::Update);
 			AsyncCallback = PhysScene->GetSolver()->CreateAndRegisterSimCallbackObject_External<FBuoyancyManagerAsyncCallback>();
@@ -268,18 +270,19 @@ void ABuoyancyManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	PendingOutputs.Empty();
 	LatestOutput = Chaos::TSimCallbackOutputHandle<FBuoyancyManagerAsyncOutput>();
 
-	if (AsyncCallback)
+	if (UWorld* World = GetWorld())
 	{
-		if (UWorld* World = GetWorld())
+		if (FPhysScene* PhysScene = World->GetPhysicsScene())
 		{
-			if (FPhysScene* PhysScene = World->GetPhysicsScene())
-			{
+			PhysScene->OnPhysScenePreTick.Remove(OnPhysScenePreTickHandle);
 #if WITH_CHAOS
+			if (AsyncCallback)
+			{
 				PhysScene->GetSolver()->UnregisterAndFreeSimCallbackObject_External(AsyncCallback);
 				PhysScene->OnPhysScenePreTick.Remove(OnPhysScenePreTickHandle);
 				AsyncCallback = nullptr;
-#endif
 			}
+#endif
 		}
 	}
 }

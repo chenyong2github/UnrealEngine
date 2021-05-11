@@ -465,6 +465,9 @@ bool FOutputDeviceFile::CreateWriter(uint32 MaxAttempts)
 		{
 			Logf(TEXT("Log file open, %s"), FPlatformTime::StrTimestamp());
 		}
+
+		IFileManager::Get().SetTimeStamp(Filename, FDateTime::UtcNow());
+
 		return true;
 	}
 	else

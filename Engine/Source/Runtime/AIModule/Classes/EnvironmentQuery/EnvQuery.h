@@ -44,6 +44,7 @@ public:
 	/** QueryName patching up */
 	virtual void PostLoad() override;
 #if WITH_EDITOR
+	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 #endif // WITH_EDITOR
 

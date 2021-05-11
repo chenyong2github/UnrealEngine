@@ -48,6 +48,9 @@ private:
 	// Gets text for the enable paint tools button
 	FText GetPaintToolsButtonText(TWeakPtr<ISkeletalMeshEditor> InSkeletalMeshEditor) const;
 
+	// Gets tool tip for the enable paint tools button
+	FText GetPaintToolsButtonToolTip(TWeakPtr<ISkeletalMeshEditor> InSkeletalMeshEditor) const;
+
 	// Whether paint mode is active
 	bool GetIsPaintToolsButtonChecked(TWeakPtr<ISkeletalMeshEditor> InSkeletalMeshEditor) const;
 

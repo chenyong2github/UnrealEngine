@@ -13,6 +13,8 @@
 #include "NiagaraDataSetAccessor.h"
 #include "NiagaraBoundsCalculator.h"
 #include "NiagaraRendererProperties.h"
+#include "NiagaraParameterDefinitionsBase.h"
+#include "NiagaraParameterDefinitionsSubscriber.h"
 #include "NiagaraEmitter.generated.h"
 
 class UMaterial;
@@ -207,7 +209,7 @@ struct MemoryRuntimeEstimation
  *	that need to be serialized and are used for its initialization 
  */
 UCLASS(MinimalAPI)
-class UNiagaraEmitter : public UObject
+class UNiagaraEmitter : public UObject, public INiagaraParameterDefinitionsSubscriber
 {
 	GENERATED_UCLASS_BODY()
 
@@ -252,6 +254,22 @@ public:
 	virtual bool IsEditorOnly() const override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	//End UObject Interface
+
+#if WITH_EDITORONLY_DATA
+	//~ Begin INiagaraParameterDefinitionsSubscriber Interface
+	virtual const TArray<FParameterDefinitionsSubscription>& GetParameterDefinitionsSubscriptions() const override { return ParameterDefinitionsSubscriptions; };
+	virtual TArray<FParameterDefinitionsSubscription>& GetParameterDefinitionsSubscriptions() override { return ParameterDefinitionsSubscriptions; };
+
+	/** Get all UNiagaraScriptSourceBase of this subscriber. */
+	virtual TArray<UNiagaraScriptSourceBase*> GetAllSourceScripts() override;
+
+	/** Get the path to the UObject of this subscriber. */
+	virtual FString GetSourceObjectPathName() const override;
+
+	/** Get All adapters to editor only script vars owned directly by this subscriber. */
+	virtual TArray<UNiagaraEditorParametersAdapterBase*> GetEditorOnlyParametersAdapters() override;
+	//~ End INiagaraParameterDefinitionsSubscriber Interface
+#endif
 
 	bool IsEnabledOnPlatform(const FString& PlatformName)const;
 
@@ -353,25 +371,13 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter", meta = (EditCondition = "bLimitDeltaTime"))
 	float MaxDeltaTimePerTick;
 
-	/** Get the default shader stage index. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stages", meta = (EditCondition = "bDeprecatedShaderStagesEnabled", DisplayAfter = "bDeprecatedShaderStagesEnabled"))
-	uint32 DefaultShaderStageIndex;
-
-	/** Get the number of shader stages that we fire off. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stages", meta = (EditCondition = "bDeprecatedShaderStagesEnabled", DisplayAfter = "DefaultShaderStageIndex"))
-	uint32 MaxUpdateIterations;
-
-	/** Get whether or not shaderstages spwn. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stages", meta = (EditCondition = "bDeprecatedShaderStagesEnabled", DisplayAfter = "MaxUpdateIterations"))
-	TSet<uint32> SpawnStages;
+	/** Get whether or not to use old shader stages, these are no longer supported and content must be updated to use simulation stages! */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stages", meta = (DisplayName = "Enable Deprecated Shader Stages (Experimental GPU Only)"))
+	uint32 bDeprecatedShaderStagesEnabled : 1;
 
 	/** Get whether or not to use simulation stages. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stages", meta = (DisplayName = "Enable Simulation Stages (Experimental GPU Only)"))
 	uint32 bSimulationStagesEnabled : 1;
-
-	/** Get whether or not to use shader stages. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stages", meta = (DisplayName = "Enable Deprecated Shader Stages (Experimental GPU Only)"))
-	uint32 bDeprecatedShaderStagesEnabled : 1;
 
 	/** Whether to limit the max tick delta time or not. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter", meta = (InlineEditConditionToggle))
@@ -405,6 +411,7 @@ public:
 	FGuid NIAGARA_API GetChangeId() const;
 
 	NIAGARA_API UNiagaraEditorDataBase* GetEditorData() const;
+	NIAGARA_API UNiagaraEditorParametersAdapterBase* GetEditorParameters();
 
 	NIAGARA_API void SetEditorData(UNiagaraEditorDataBase* InEditorData);
 
@@ -419,10 +426,13 @@ public:
 	/* If this emitter is exposed to the library. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
 	bool bExposeToLibrary;
+	
+	UPROPERTY()
+	bool bIsTemplateAsset_DEPRECATED;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
-	bool bIsTemplateAsset;
-
+	ENiagaraScriptTemplateSpecification TemplateSpecification;
+	
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
 	FText TemplateAssetDescription;
 
@@ -597,6 +607,10 @@ private:
 	UPROPERTY()
 	TObjectPtr<UNiagaraEditorDataBase> EditorData;
 
+	/** Wrapper for editor only parameters. */
+	UPROPERTY()
+	UNiagaraEditorParametersAdapterBase* EditorParameters;
+
 	/** A multicast delegate which is called whenever all the scripts for this emitter have been compiled (successfully or not). */
 	FOnEmitterCompiled OnVMScriptCompiledDelegate;
 
@@ -634,6 +648,11 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UNiagaraEmitter> ParentAtLastMerge;
+
+	/** Subscriptions to definitions of parameters. */
+	UPROPERTY()
+	TArray<FParameterDefinitionsSubscription> ParameterDefinitionsSubscriptions;
+
 #endif
 
 #if WITH_EDITOR

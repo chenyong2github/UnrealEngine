@@ -4,6 +4,7 @@
 #include "Chaos/Box.h"
 #include "Chaos/Collision/SpatialAccelerationBroadPhase.h"
 #include "Chaos/Collision/StatsData.h"
+#include "ChaosStats.h"
 #include "GeometryParticlesfwd.h"
 
 #include <tuple>
@@ -275,6 +276,24 @@ struct TSpatialAccelerationCollectionHelper
 		}
 	}
 
+	static void Reset(const Tuple& Types)
+	{
+		auto& Accelerations = GetAccelerationsPerType<TypeIdx>(Types).Objects;
+		for (auto& Accelerator : Accelerations)
+		{
+			if (Accelerator)
+			{
+				Accelerator->Reset();
+			}
+		}
+
+		constexpr int NextType = TypeIdx + 1;
+		if (NextType < NumTypes)
+		{
+			TSpatialAccelerationCollectionHelper < NextType < NumTypes ? NextType : 0, NumTypes, Tuple, TPayloadType, T, d>::Reset(Types);
+		}
+	}
+
 	static uint16 FindTypeIdx(const Tuple& Types, SpatialAccelerationType Type)
 	{
 		using AccelType = typename std::remove_pointer<typename decltype(GetAccelerationsPerType<TypeIdx>(Types).Objects)::ElementType>::type;
@@ -389,6 +408,12 @@ public:
 		}
 
 		return nullptr;
+	}
+	
+	virtual void Reset() override
+	{
+		SCOPE_CYCLE_COUNTER(STAT_AccelerationStructureReset);
+		TSpatialAccelerationCollectionHelper<0, NumTypes, decltype(Types), TPayloadType, T, d>::Reset(Types);
 	}
 
 	virtual void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, ISpatialVisitor<TPayloadType, T>& Visitor) const override

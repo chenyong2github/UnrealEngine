@@ -159,12 +159,10 @@ void FMetaData::AddMetaDataProperty(API_VariantType variantType, const GS::UniSt
 
 void FMetaData::ExportElementIDProperty(const API_Guid& ElementId)
 {
-	API_ElementMemo Memo;
-	Zap(&Memo);
-	GSErrCode GSErr = ACAPI_Element_GetMemo(ElementId, &Memo, APIMemoMask_ElemInfoString);
-	if (GSErr == NoError && Memo.elemInfoString != nullptr)
+	FAutoMemo AutoMemo(ElementId, APIMemoMask_ElemInfoString);
+	if (AutoMemo.GSErr == NoError && AutoMemo.Memo.elemInfoString != nullptr)
 	{
-		AddMetaDataProperty(API_PropertyStringValueType, "ID", *Memo.elemInfoString);
+		AddMetaDataProperty(API_PropertyStringValueType, "ID", *AutoMemo.Memo.elemInfoString);
 	}
 }
 

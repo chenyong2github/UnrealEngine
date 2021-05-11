@@ -10,6 +10,7 @@
 #include "MetaData.h"
 #include "GeometryUtil.h"
 #include "Utils/AutoChangeDatabase.h"
+#include "Utils/TimeStat.h"
 
 DISABLE_SDK_WARNINGS_START
 #include "Transformation.hpp"
@@ -17,6 +18,8 @@ DISABLE_SDK_WARNINGS_START
 DISABLE_SDK_WARNINGS_END
 
 BEGIN_NAMESPACE_UE_AC
+
+#define TRACE_ATTACH_OBSERVERS 0
 
 // Constructor
 FSyncData::FSyncData(const GS::Guid& InGuid)
@@ -34,10 +37,10 @@ FSyncData::~FSyncData()
 		Parent->RemoveChild(this);
 		Parent = nullptr;
 	}
-	for (size_t i = Childs.size(); i != 0; --i)
+	for (FChildsArray::SizeType i = Childs.Num(); i != 0; --i)
 	{
 		Childs[0]->SetParent(nullptr);
-		UE_AC_Assert(i == Childs.size());
+		UE_AC_Assert(i == Childs.Num());
 	}
 }
 
@@ -57,21 +60,33 @@ void FSyncData::Update(const FElementID& InElementId)
 	// If AC element has been modified, recheck connections
 	if (ModificationStamp != InElementId.ElementHeader.modiStamp)
 	{
+		if (ModificationStamp > InElementId.ElementHeader.modiStamp)
+		{
+			UE_AC_DebugF("FSyncData::Update {%s} New stamp younger: %lld, %lld\n",
+						 APIGuidToString(InElementId.ElementHeader.guid).ToUtf8(), ModificationStamp,
+						 InElementId.ElementHeader.modiStamp);
+		}
 		ModificationStamp = InElementId.ElementHeader.modiStamp;
 		InElementId.HandleDepedencies();
 		bIsModified = true;
 	}
+	if (ModificationStamp == 0)
+	{
+		UE_AC_DebugF("FSyncData::Update {%s} ModificationStamp == 0\n",
+					 APIGuidToString(InElementId.ElementHeader.guid).ToUtf8());
+	}
+
 	SetDefaultParent(InElementId);
 }
 
 // Recursively clean. Delete element that hasn't 3d geometry related to it
 void FSyncData::CleanAfterScan(FSyncDatabase* IOSyncDatabase)
 {
-	for (size_t IdxChild = Childs.size(); IdxChild != 0;)
+	for (FChildsArray::SizeType IdxChild = Childs.Num(); IdxChild != 0;)
 	{
 		Childs[--IdxChild]->CleanAfterScan(IOSyncDatabase);
 	}
-	if (Childs.size() == 0 && Index3D == 0)
+	if (Childs.Num() == 0 && Index3D == 0)
 	{
 		DeleteMe(IOSyncDatabase);
 	}
@@ -129,7 +144,7 @@ void FSyncData::SetDefaultParent(const FElementID& InElementID)
 void FSyncData::ProcessTree(FProcessInfo* IOProcessInfo)
 {
 	Process(IOProcessInfo);
-	for (size_t IterChild = 0; IterChild < Childs.size(); ++IterChild)
+	for (FChildsArray::SizeType IterChild = 0; IterChild < Childs.Num(); ++IterChild)
 	{
 		IOProcessInfo->Index = IterChild;
 		Childs[IterChild]->ProcessTree(IOProcessInfo);
@@ -149,21 +164,16 @@ void FSyncData::AddChild(FSyncData* InChild)
 			return;
 		}
 	}
-	Childs.push_back(InChild);
+	Childs.Add(InChild);
 }
 
 // Remove a child from this sync data
 void FSyncData::RemoveChild(FSyncData* InChild)
 {
-	for (std::vector< FSyncData* >::iterator IterChild = Childs.begin(); IterChild != Childs.end(); ++IterChild)
+	if (Childs.RemoveSingle(InChild) == 0)
 	{
-		if (*IterChild == InChild)
-		{
-			Childs.erase(IterChild);
-			return;
-		}
+		UE_AC_VerboseF("FSyncData::RemoveChild - Child not present\n");
 	}
-	UE_AC_VerboseF("FSyncData::RemoveChild - Child not present\n");
 }
 
 // Return true if this element and all it's childs have been cut out
@@ -375,9 +385,9 @@ void FSyncData::FActor::SetActorElement(const TSharedPtr< IDatasmithActorElement
 }
 
 // Add tags data
-void FSyncData::FActor::UpdateTags(const std::vector< FString >& InTags)
+void FSyncData::FActor::UpdateTags(const FTagsArray& InTags)
 {
-	int32 Count = (int32)InTags.size();
+	int32 Count = (int32)InTags.Num();
 	int32 Index = 0;
 	if (ActorElement->GetTagsCount() == Count)
 	{
@@ -403,29 +413,31 @@ void FSyncData::FActor::AddTags(const FElementID& InElementID)
 {
 	UE_AC_Assert(ActorElement.IsValid());
 
-	std::vector< FString > Tags;
+	FTagsArray Tags;
 
 	static GS::UniString PrefixTagUniqueID("Archicad.Element.UniqueID.");
 	GS::UniString		 TagUniqueID = PrefixTagUniqueID + ElementId.ToUniString();
-	Tags.push_back(GSStringToUE(TagUniqueID));
+	Tags.Add(GSStringToUE(TagUniqueID));
 
 	static GS::UniString PrefixTagType("Archicad.Element.Type.");
 	GS::UniString		 TagElementType = PrefixTagType + FElementTools::TypeName(InElementID.ElementHeader.typeID);
-	Tags.push_back(GSStringToUE(TagElementType));
+	Tags.Add(GSStringToUE(TagElementType));
 
 	GS::Array< GS::Pair< API_ClassificationSystem, API_ClassificationItem > > ApiClassifications;
 	GSErrCode GSErr = FElementTools::GetElementClassifications(ApiClassifications, InElementID.ElementHeader.guid);
 
 	if (GSErr == NoError)
 	{
-		std::set< GS::UniString > ClassificationIds;
-		static GS::UniString	  PrefixTagClassificationID("Archicad.Classification.ID.");
+		TSet< FString > ClassificationIds;
+		static FString	PrefixTagClassificationID(TEXT("Archicad.Classification.ID."));
 		for (const GS::Pair< API_ClassificationSystem, API_ClassificationItem >& Classification : ApiClassifications)
 		{
-			GS::UniString TagClassificationID = PrefixTagClassificationID + Classification.second.id;
-			if (ClassificationIds.insert(TagClassificationID).second == true)
+			FString TagClassificationID = PrefixTagClassificationID + GSStringToUE(Classification.second.id);
+			bool	bTagClassificationIsAlreadyInSet = false;
+			ClassificationIds.Add(TagClassificationID, &bTagClassificationIsAlreadyInSet);
+			if (!bTagClassificationIsAlreadyInSet)
 			{
-				Tags.push_back(GSStringToUE(TagClassificationID));
+				Tags.Add(TagClassificationID);
 			}
 		}
 	}
@@ -656,7 +668,7 @@ bool FSyncData::FElement::CheckAllCutOut()
 	{
 		return false;
 	}
-	for (size_t IterChild = 0; IterChild < Childs.size(); ++IterChild)
+	for (FChildsArray::SizeType IterChild = 0; IterChild < Childs.Num(); ++IterChild)
 	{
 		if (!Childs[IterChild]->CheckAllCutOut())
 		{
@@ -687,6 +699,7 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 		{
 			IOProcessInfo->ElementID.InitElement(this);
 			IOProcessInfo->ElementID.InitHeader(GSGuid2APIGuid(ElementId));
+			CheckModificationStamp(IOProcessInfo->ElementID.ElementHeader.modiStamp);
 
 			UE_AC_STAT(IOProcessInfo->SyncContext.Stats.TotalOwnerCreated++);
 			TSharedRef< IDatasmithActorElement > NewActor =
@@ -807,17 +820,54 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 			ConvertGeometry2MeshElement->CreateDatasmithMesh();
 		}
 	}
+}
+
+// Attach observer for Auto Sync
+bool FSyncData::FElement::AttachObserver(FAttachObservers* IOAttachObservers)
+{
+	bool bChanged = false;
 
 	// We attach observer only when we will need it
-	if (bIsObserved == false && IOProcessInfo->SyncContext.IsSynchronizer() && FCommander::IsLiveLinkEnabled())
+	if (bIsObserved == false)
 	{
+#if ATTACH_ONSERVER_STAT
+		FTimeStat SlotStart;
+#endif
 		bIsObserved = true;
 		GSErrCode GSErr = ACAPI_Element_AttachObserver(GSGuid2APIGuid(ElementId), APINotifyElement_EndEvents);
 		if (GSErr != NoError && GSErr != APIERR_LINKEXIST)
 		{
-			UE_AC_DebugF("FSyncData::FElement::Process - ACAPI_Element_AttachObserver error=%s\n", GetErrorName(GSErr));
+			UE_AC_DebugF("FSyncData::FElement::AttachObserver - ACAPI_Element_AttachObserver error=%s\n",
+						 GetErrorName(GSErr));
 		}
+#if ATTACH_ONSERVER_STAT
+		double AfterAttachObserver = FTimeStat::CpuTimeClock();
+#endif
+
+		API_Elem_Head ElementHead;
+		Zap(&ElementHead);
+		ElementHead.guid = GSGuid2APIGuid(ElementId);
+		GSErr = ACAPI_Element_GetHeader(&ElementHead);
+		if (GSErr == NoError)
+		{
+			bChanged = ElementHead.modiStamp != ModificationStamp;
+			if (bChanged)
+			{
+				UE_AC_TraceF("FSyncData::FElement::AttachObserver - Object {%s} - ModificationStamp %lld -> %lld\n",
+							 ElementId.ToUniString().ToUtf8(), ModificationStamp, ElementHead.modiStamp);
+			}
+		}
+		else
+		{
+			UE_AC_DebugF("FSyncData::FElement::AttachObserver - ACAPI_Element_GetHeader error=%s\n",
+						 GetErrorName(GSErr));
+		}
+#if ATTACH_ONSERVER_STAT
+		IOAttachObservers->CumulateStats(SlotStart, AfterAttachObserver);
+#endif
 	}
+
+	return bChanged;
 }
 
 // Delete this sync data
@@ -943,7 +993,7 @@ void FSyncData::FCamera::InitWithCameraElement()
 	{
 		cameraSetLabel = Parent->GetElement()->GetLabel();
 	}
-	CameraElement.SetLabel(*FString::Printf(TEXT("%s %d"), cameraSetLabel, Index));
+	CameraElement.SetLabel(*FString::Printf(TEXT("%s Camera %d"), cameraSetLabel, Index));
 
 	const API_PerspPars& camPars = camera.camera.perspCam.persp;
 
@@ -1189,5 +1239,135 @@ void FSyncData::FHotLinkInstance::Process(FProcessInfo* IOProcessInfo)
 		}
 	}
 }
+
+// Constructor
+FSyncData::FAttachObservers::FAttachObservers() {}
+
+// Destructor
+FSyncData::FAttachObservers::~FAttachObservers() {}
+
+// Start the process with this root observer
+void FSyncData::FAttachObservers::Start(FSyncData* Root)
+{
+	Stop();
+	Stack.Add({Root, 0});
+
+#if ATTACH_ONSERVER_STAT
+	AttachObserverProcessTimeStart.ReStart();
+	AttachObserverProcessTimeEnd = AttachObserverProcessTimeStart;
+	AttachObserverStartTime = FTimeStat::RealTimeClock();
+	AttachObserverTime = 0.0;
+	GetHeaderTime = 0.0;
+	AttachCount = 0;
+#endif
+}
+
+// Stop processing
+void FSyncData::FAttachObservers::Stop()
+{
+	// Stop process
+	Stack.Empty();
+}
+
+// Process attachment until done or until time slice finish
+bool FSyncData::FAttachObservers::ProcessUntil(double TimeSliceEnd)
+{
+	int NbProcessed = 0;
+#if TRACE_ATTACH_OBSERVERS
+	double startTime = FTimeStat::RealTimeClock();
+#endif
+	while (FTimeStat::RealTimeClock() < TimeSliceEnd)
+	{
+		FSyncData* Current = Next();
+		if (Current != nullptr)
+		{
+			++NbProcessed;
+			bool bNeedUpdate = Current->AttachObserver(this);
+			if (bNeedUpdate)
+			{
+				Stop();
+#if TRACE_ATTACH_OBSERVERS
+				UE_AC_TraceF("FSyncData::FAttachObservers::ProcessUntil - Nb Processed = %d (Start=%lf, Stop=%lf)\n",
+							 NbProcessed, startTime, FTimeStat::RealTimeClock());
+#endif
+#if ATTACH_ONSERVER_STAT
+				PrintStat();
+#endif
+				return true; // Request an update
+			}
+		}
+		else
+		{
+#if TRACE_ATTACH_OBSERVERS || ATTACH_ONSERVER_STAT
+			if (NbProcessed != 0)
+			{
+	#if TRACE_ATTACH_OBSERVERS
+				UE_AC_TraceF(
+					"FSyncData::FAttachObservers::ProcessUntil - Nb Processed = %d (Start=%lf, Finished=%lf)\n",
+					NbProcessed, startTime, FTimeStat::RealTimeClock());
+	#endif
+	#if ATTACH_ONSERVER_STAT
+				PrintStat();
+	#endif
+			}
+#endif
+			return false; // Process done, everything is attached
+		}
+	}
+#if TRACE_ATTACH_OBSERVERS
+	UE_AC_TraceF("FSyncData::FAttachObservers::ProcessUntil - Nb Processed = %d (Start=%lf, End=%lf)\n", NbProcessed,
+				 startTime, FTimeStat::RealTimeClock());
+#endif
+	return false; // Time slice end, wait for another idle
+}
+
+// Return the next FSyncData
+FSyncData* FSyncData::FAttachObservers::Next()
+{
+	FSyncData* Current = nullptr;
+	while (Stack.Num() != 0 && Current == nullptr)
+	{
+		FSyncData*			   Parent = Stack.Top().Parent;
+		FChildsArray::SizeType ChildIndex = Stack.Top().ChildIndex;
+		if (ChildIndex < Parent->Childs.Num())
+		{
+			Current = Parent->Childs[ChildIndex++];
+			Stack.Top().ChildIndex = ChildIndex;
+			Stack.Add({Current, 0});
+		}
+		else
+		{
+			Stack.Pop(false);
+		}
+	}
+	return Current;
+}
+
+#if ATTACH_ONSERVER_STAT
+void FSyncData::FAttachObservers::CumulateStats(const FTimeStat& SlotStart, double AfterAttachObserver)
+{
+	++AttachCount;
+	AttachObserverTime += AfterAttachObserver - SlotStart.GetCpuTime();
+	GetHeaderTime += FTimeStat::CpuTimeClock() - AfterAttachObserver;
+	AttachObserverProcessTimeEnd.AddDiff(SlotStart);
+}
+
+// Log attcah observer statistics
+void FSyncData::FAttachObservers::PrintStat()
+{
+	if (AttachCount != 0)
+	{
+		double AttachObserversTime = FTimeStat::RealTimeClock() - AttachObserverStartTime;
+		if (AttachObserversTime < 0.0)
+		{
+			AttachObserversTime += AttachObserversTime + 24 * 60 * 60;
+		}
+		UE_AC_ReportF("TraceObserverStat - Count = %d TotalTime=%.1lfs (AttachObserver=%.1lfns, GetHeader=%.1lfns)\n",
+					  AttachCount, AttachObserversTime, AttachObserverTime / AttachCount * 1000000.0,
+					  GetHeaderTime / AttachCount * 1000000.0);
+		AttachObserverProcessTimeEnd.PrintDiff("Attach Observers", AttachObserverProcessTimeStart);
+	}
+}
+#endif
 
 END_NAMESPACE_UE_AC

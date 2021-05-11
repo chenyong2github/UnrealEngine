@@ -20,16 +20,7 @@ SResponsiveGridPanel::FSlot& SResponsiveGridPanel::AddSlot(int32 Row)
 
 bool SResponsiveGridPanel::RemoveSlot(const TSharedRef<SWidget>& SlotWidget)
 {
-	for (int32 SlotIdx = 0; SlotIdx < Slots.Num(); ++SlotIdx)
-	{
-		if (SlotWidget == Slots[SlotIdx].GetWidget())
-		{
-			Slots.RemoveAt(SlotIdx);
-			return true;
-		}
-	}
-
-	return false;
+	return Slots.Remove(SlotWidget) != INDEX_NONE;
 }
 
 void SResponsiveGridPanel::ClearChildren()

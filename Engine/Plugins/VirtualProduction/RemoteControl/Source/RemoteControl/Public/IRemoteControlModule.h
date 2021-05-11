@@ -167,19 +167,23 @@ public:
 
 	/** Delegate triggered when a preset has been registered */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPresetRegistered, FName /*PresetName*/);
+	UE_DEPRECATED(4.27, "OnPresetUnregistered is deprecated.")
 	virtual FOnPresetRegistered& OnPresetRegistered() = 0;
 
 	/** Delegate triggered when a preset has been unregistered */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPresetUnregistered, FName /*PresetName*/);
+	UE_DEPRECATED(4.27, "OnPresetUnregistered is deprecated.")
 	virtual FOnPresetUnregistered& OnPresetUnregistered() = 0;
 
 	/**
 	 * Register the preset with the module, enabling using the preset remotely using its name.
 	 * @return whether registration was successful.
 	 */
+	UE_DEPRECATED(4.27, "RegisterPreset is deprecated.")
 	virtual bool RegisterPreset(FName Name, URemoteControlPreset* Preset) = 0;
 
 	/** Unregister a preset */
+	UE_DEPRECATED(4.27, "UnregisterPreset is deprecated.")
 	virtual void UnregisterPreset(FName Name) = 0;
 
 	/**

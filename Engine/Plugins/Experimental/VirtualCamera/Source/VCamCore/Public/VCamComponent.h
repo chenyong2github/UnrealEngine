@@ -6,9 +6,11 @@
 #include "VCamTypes.h"
 #include "Roles/LiveLinkCameraTypes.h"
 #include "VCamOutputProviderBase.h"
+#include "GameplayTagContainer.h"
 
 #if WITH_EDITOR
 #include "UnrealEdMisc.h"
+#include "VCamMultiUser.h"
 #endif
 
 #include "VCamComponent.generated.h"
@@ -207,17 +209,32 @@ private:
 	bool bEnabled = true;
 
 public:
+	/**
+	 * The role of this virtual camera.  If this value is set and the corresponding tag set on the editor matches this value, then this
+	 * camera is the sender and the authority in the case when connected to a multi-user session.
+	 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VirtualCamera")
+	FGameplayTag Role;
+
 	// LiveLink subject name for the incoming camera transform
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="VirtualCamera")
-	FLiveLinkSubjectName LiveLinkSubject;	
+	FLiveLinkSubjectName LiveLinkSubject;
 
 	// If true, render the viewport from the point of view of the parented CineCamera
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="VirtualCamera")
-    bool bLockViewportToCamera = false;
+	bool bLockViewportToCamera = false;
 
 	// If true, the component will force bEnabled to false when it is part of a spawnable in Sequencer
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VirtualCamera")
 	bool bDisableComponentWhenSpawnedBySequencer = true;
+
+	/** Do we disable the output if the virtual camera is in a Multi-user session and the camera is a "receiver" from multi-user */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "VirtualCamera")
+	bool bDisableOutputOnMultiUserReceiver = true;
+
+	/** Indicates the frequency which camera updates are sent when in Multi-user mode. This has a minimum value of 30ms. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category="VirtualCamera", meta=(ForceUnits=ms, ClampMin = "30.0"), DisplayName="Update Frequencey")
+	float UpdateFrequencyMs = 66.6f;
 
 	// Which viewport to use for this VCam
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VirtualCamera")
@@ -250,7 +267,42 @@ private:
 
 	void OnBeginPIE(const bool bInIsSimulating);
 	void OnEndPIE(const bool bInIsSimulating);
+
+	// Multi-user support
+	void HandleCameraComponentEventData(const FConcertSessionContext& InEventContext, const FMultiUserVCamCameraComponentEvent& InEvent);
+
+	void SessionStartup(TSharedRef<IConcertClientSession> InSession);
+	void SessionShutdown(TSharedRef<IConcertClientSession> InSession);
+
+	FString GetNameForMultiUser() const;
+
+	void MultiUserStartup();
+	void MultiUserShutdown();
+
+	/** Delegate handle for a the callback when a session starts up */
+	FDelegateHandle OnSessionStartupHandle;
+
+	/** Delegate handle for a the callback when a session shuts down */
+	FDelegateHandle OnSessionShutdownHandle;
+
+	/** Weak pointer to the client session with which to send events. May be null or stale. */
+	TWeakPtr<IConcertClientSession> WeakSession;
+
+	double SecondsSinceLastLocationUpdate = 0;
+	double PreviousUpdateTime = 0;
 #endif
+
+	/** Is the camera currently in a role assigned to the session. */
+	bool IsCameraInVPRole() const;
+
+	/** Send the current camera state via Multi-user if connected and in a */
+	void SendCameraDataViaMultiUser();
+
+	/** Are we in a multi-user session. */
+	bool IsMultiUserSession() const;
+
+	/** Can the modifier stack be evaluated. */
+	bool CanEvaluateModifierStack() const;
 
 	// When another component replaces us, get a notification so we can clean up
 	void NotifyComponentWasReplaced(UVCamComponent* ReplacementComponent);

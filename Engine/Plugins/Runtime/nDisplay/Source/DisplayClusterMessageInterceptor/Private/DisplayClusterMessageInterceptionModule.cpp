@@ -15,6 +15,14 @@
 #include "IMessageBus.h"
 #include "IMessagingModule.h"
 
+#if defined(WITH_CONCERT)
+#include "IConcertClient.h"
+#include "IConcertSyncClient.h"
+#include "IConcertSession.h"
+#include "IConcertClientWorkspace.h"
+#include "IConcertSyncClientModule.h"
+#endif
+
 #if WITH_EDITOR
 	#include "ISettingsModule.h"
 	#include "ISettingsSection.h"
@@ -25,8 +33,9 @@
 
 namespace DisplayClusterInterceptionModuleUtils
 {
-	static const FString MessageInterceptionSetupEventCategory = TEXT("nDCISetup");
-	static const FString MessageInterceptionSetupEventParameterSettings = TEXT("Settings");
+	static const FString EventSetup = TEXT("nDCISetup");
+	static const FString EventSync = TEXT("nDCIMUSync");
+	static const FString EventParameterSettings = TEXT("Settings");
 }
 
 /**
@@ -77,6 +86,18 @@ public:
 		}
 #endif
 
+#if defined(WITH_CONCERT)
+		if (IConcertSyncClientModule::IsAvailable())
+		{
+			if (TSharedPtr<IConcertSyncClient> ConcertSyncClient = IConcertSyncClientModule::Get().GetClient(TEXT("MultiUser")))
+			{
+				IConcertClientRef ConcertClient = ConcertSyncClient->GetConcertClient();
+				ConcertClient->OnSessionStartup().RemoveAll(this);
+				ConcertClient->OnSessionShutdown().RemoveAll(this);
+			}
+		}
+#endif
+
 		if (IDisplayCluster::IsAvailable())
 		{
 			// Unregister cluster event listening
@@ -98,6 +119,33 @@ public:
 	}
 
 private:
+
+	void SetupForMultiUser()
+	{
+#if defined(WITH_CONCERT)
+		if (TSharedPtr<IConcertSyncClient> ConcertSyncClient = IConcertSyncClientModule::Get().GetClient(TEXT("MultiUser")))
+		{
+			TSharedPtr<IConcertClientWorkspace> Workspace = ConcertSyncClient->GetWorkspace();
+			IConcertClientRef ConcertClient = ConcertSyncClient->GetConcertClient();
+
+			ConcertClient->OnSessionStartup().AddRaw(this, &FDisplayClusterMessageInterceptionModule::OnMultiUserStartup);
+			ConcertClient->OnSessionShutdown().AddRaw(this, &FDisplayClusterMessageInterceptionModule::OnMultiUserShutdown);
+			ConcertClient->OnSessionConnectionChanged().AddRaw(this, &FDisplayClusterMessageInterceptionModule::OnSessionConnectionChanged);
+
+			if (Workspace.IsValid())
+			{
+				Workspace->RemoveWorkspaceFinalizeDelegate(TEXT("nDisplay Interceptor"));
+				Workspace->OnWorkspaceSynchronized().RemoveAll(this);
+			}
+		}
+		else
+		{
+			UE_LOG(LogDisplayClusterInterception, Display, TEXT("No multi-user detected. Not intercepting initial activity sync."));
+		}
+#else
+		UE_LOG(LogDisplayClusterInterception, Display, TEXT("No multi-user available."));
+#endif
+	}
 	void OnNewSceneEvent()
 	{
 		IDisplayClusterClusterManager* ClusterManager = IDisplayCluster::Get().GetClusterMgr();
@@ -107,26 +155,96 @@ private:
 			// the event queues during EndScene / NewScene.  Re-establish the event here:
 			ResendSyncEvent(ClusterManager);
 		}
+		UE_LOG(LogDisplayClusterInterception, Display, TEXT("New scene event"));
 	}
 
 	void ResendSyncEvent(IDisplayClusterClusterManager* ClusterManager)
-			{
-				//Master will send out its interceptor settings to the cluster so everyone uses the same things
-				if (ClusterManager->IsMaster())
-				{
-					FString ExportedSettings;
-					const UDisplayClusterMessageInterceptionSettings* CurrentSettings = GetDefault<UDisplayClusterMessageInterceptionSettings>();
-					FMessageInterceptionSettings::StaticStruct()->ExportText(ExportedSettings, &CurrentSettings->InterceptionSettings, nullptr, nullptr, PPF_None, nullptr);
+	{
+		//Master will send out its interceptor settings to the cluster so everyone uses the same things
+		if (ClusterManager->IsMaster())
+		{
+			FString ExportedSettings;
+			const UDisplayClusterMessageInterceptionSettings* CurrentSettings = GetDefault<UDisplayClusterMessageInterceptionSettings>();
+			FMessageInterceptionSettings::StaticStruct()->ExportText(ExportedSettings, &CurrentSettings->InterceptionSettings, nullptr, nullptr, PPF_None, nullptr);
 
-					FDisplayClusterClusterEventJson SettingsEvent;
-					SettingsEvent.Category = DisplayClusterInterceptionModuleUtils::MessageInterceptionSetupEventCategory;
-					SettingsEvent.Name = ClusterManager->GetNodeId();
-					SettingsEvent.bIsSystemEvent = true;
-					SettingsEvent.Parameters.FindOrAdd(DisplayClusterInterceptionModuleUtils::MessageInterceptionSetupEventParameterSettings) = MoveTemp(ExportedSettings);
+			FDisplayClusterClusterEventJson SettingsEvent;
+			SettingsEvent.Category = DisplayClusterInterceptionModuleUtils::EventSetup;
+			SettingsEvent.Name = ClusterManager->GetNodeId();
+			SettingsEvent.bIsSystemEvent = true;
+			SettingsEvent.Parameters.FindOrAdd(DisplayClusterInterceptionModuleUtils::EventParameterSettings) = MoveTemp(ExportedSettings);
 			const bool bMasterOnly = true;
-					ClusterManager->EmitClusterEventJson(SettingsEvent, bMasterOnly);
-				}
-			}
+			ClusterManager->EmitClusterEventJson(SettingsEvent, bMasterOnly);
+		}
+	}
+
+	void WorkspaceSyncEvent()
+	{
+		if (bWasEverDisconnected)
+		{
+			return;
+		}
+
+		UE_LOG(LogDisplayClusterInterception, Display, TEXT("Sending activity sync event."));
+		IDisplayClusterClusterManager* ClusterManager = IDisplayCluster::Get().GetClusterMgr();
+		check(ClusterManager != nullptr);
+
+		FDisplayClusterClusterEventJson SyncMessagesEvent;
+		SyncMessagesEvent.Category = DisplayClusterInterceptionModuleUtils::EventSync;
+		SyncMessagesEvent.Type = TEXT("WorkspaceSync");			// Required by nDisplay or message is discarded.
+		SyncMessagesEvent.Name = ClusterManager->GetNodeId();	// which node got the message
+		SyncMessagesEvent.bIsSystemEvent = true;				// nDisplay internal event
+		SyncMessagesEvent.bShouldDiscardOnRepeat = false;		// Don' discard the events with the same cat/type/name
+		const bool bMasterOnly = false;							// All nodes are broadcasting events to synchronize them across cluster
+		ClusterManager->EmitClusterEventJson(SyncMessagesEvent, bMasterOnly);
+	}
+
+	bool CanFinalizeWorkspaceSync() const
+	{
+		return bCanFinalizeWorkspace || bWasEverDisconnected;
+	}
+
+#if defined(WITH_CONCERT)
+	void OnSessionConnectionChanged(IConcertClientSession& InSession, EConcertConnectionStatus ConnectionStatus)
+	{
+		TSharedPtr<IConcertSyncClient> ConcertSyncClient = IConcertSyncClientModule::Get().GetClient(TEXT("MultiUser"));
+		check(ConcertSyncClient.IsValid());
+
+		TSharedPtr<IConcertClientWorkspace> Workspace = ConcertSyncClient->GetWorkspace();
+		if (ConnectionStatus == EConcertConnectionStatus::Connected)
+		{
+			ResetFinalizeSync();
+			Workspace->OnWorkspaceSynchronized().AddRaw(this, &FDisplayClusterMessageInterceptionModule::WorkspaceSyncEvent);
+			Workspace->AddWorkspaceFinalizeDelegate(TEXT("nDisplay Interceptor"),
+													FCanFinalizeWorkspaceDelegate::CreateRaw(
+														this, &FDisplayClusterMessageInterceptionModule::CanFinalizeWorkspaceSync));
+		}
+		else if (ConnectionStatus == EConcertConnectionStatus::Disconnected)
+		{
+			// Once we disconnect from MU it is not possible to coordinate an activity sync any longer because other
+			// nodes may be still connected and not expected to re-connect. In this case we never reenter into an
+			// activity sync event.
+			//
+			bWasEverDisconnected = true;
+			bCanFinalizeWorkspace = true;
+
+			Workspace->RemoveWorkspaceFinalizeDelegate(TEXT("nDisplay Interceptor"));
+			Workspace->OnWorkspaceSynchronized().RemoveAll(this);
+		}
+	}
+
+	void OnMultiUserStartup(TSharedRef<IConcertClientSession> InSession)
+	{
+		if (InSession->GetConnectionStatus() == EConcertConnectionStatus::Connected)
+		{
+			OnSessionConnectionChanged(*InSession, EConcertConnectionStatus::Connected);
+		}
+	}
+
+	void OnMultiUserShutdown(TSharedRef<IConcertClientSession> InSession)
+	{
+		bCanFinalizeWorkspace = true;
+	}
+#endif
 
 	void OnDisplayClusterStartSession()
 	{
@@ -150,14 +268,20 @@ private:
 			// Register cluster session events
 			IDisplayCluster::Get().OnDisplayClusterEndSession().AddRaw(this, &FDisplayClusterMessageInterceptionModule::StopInterception);
 			IDisplayCluster::Get().OnDisplayClusterPreTick().AddRaw(this, &FDisplayClusterMessageInterceptionModule::HandleClusterPreTick);
+
+			SetupForMultiUser();
 		}
 	}
 
 	void HandleClusterEvent(const FDisplayClusterClusterEventJson& InEvent)
 	{
-		if (InEvent.Category == DisplayClusterInterceptionModuleUtils::MessageInterceptionSetupEventCategory)
+		if (InEvent.Category == DisplayClusterInterceptionModuleUtils::EventSetup)
 		{
 			HandleMessageInterceptorSetupEvent(InEvent);
+		}
+		else if (InEvent.Category == DisplayClusterInterceptionModuleUtils::EventSync)
+		{
+			HandleWorkspaceSyncEvent(InEvent);
 		}
 		else
 		{
@@ -206,11 +330,28 @@ private:
 		}
 	}
 
+	void HandleWorkspaceSyncEvent(const FDisplayClusterClusterEventJson& InEvent)
+	{
+		UE_LOG(LogDisplayClusterInterception, Display, TEXT("Handle multi-user workspace sync -> %s."), *InEvent.Name);
+		if (bCanFinalizeWorkspace)
+		{
+			return;
+		}
+
+		IDisplayClusterClusterManager* ClusterManager = IDisplayCluster::Get().GetClusterMgr();
+		NodesReady.Add(InEvent.Name);
+		if (NodesReady.Num() >= (int32)ClusterManager->GetNodesAmount())
+		{
+			UE_LOG(LogDisplayClusterInterception, Display, TEXT("Allowing multi-user workspace sync."));
+			bCanFinalizeWorkspace = true;
+		}
+	}
+
 	void HandleMessageInterceptorSetupEvent(const FDisplayClusterClusterEventJson& InEvent)
 	{
 		if (Interceptor)
 		{
-			const FString& ExportedSettings = InEvent.Parameters.FindChecked(DisplayClusterInterceptionModuleUtils::MessageInterceptionSetupEventParameterSettings);
+			const FString& ExportedSettings = InEvent.Parameters.FindChecked(DisplayClusterInterceptionModuleUtils::EventParameterSettings);
 			FMessageInterceptionSettings::StaticStruct()->ImportText(*ExportedSettings, &SynchronizedSettings, nullptr, EPropertyPortFlags::PPF_None, GLog, FMessageInterceptionSettings::StaticStruct()->GetName());
 
 			IDisplayClusterClusterManager* ClusterManager = IDisplayCluster::Get().GetClusterMgr();
@@ -225,6 +366,16 @@ private:
 	}
 
 private:
+	void ResetFinalizeSync()
+	{
+		UE_LOG(LogDisplayClusterInterception, Display, TEXT("Temporarily disabling multi-user workspace sync."));
+		bCanFinalizeWorkspace = false;
+		NodesReady.Empty();
+	}
+
+	bool bWasEverDisconnected = false;
+	bool bCanFinalizeWorkspace = true;
+	TSet<FString> NodesReady;
 
 	/** MessageBus interceptor */
 	TSharedPtr<FDisplayClusterMessageInterceptor, ESPMode::ThreadSafe> Interceptor;

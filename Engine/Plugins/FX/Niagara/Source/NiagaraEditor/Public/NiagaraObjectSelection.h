@@ -87,6 +87,12 @@ public:
 		return OnSelectedObjectsChangedDelegate;
 	}
 
+	/** Refresh all views subscribed to OnSelectedObjectsChanged. */
+	void Refresh()
+	{
+		OnSelectedObjectsChangedDelegate.Broadcast();
+	}
+
 private:
 	/** The set of selected objects. */
 	TSet<SelectedItemType> SelectedObjects;

@@ -2,6 +2,11 @@
 
 #include "BodyInstanceCore.h"
 #include "BodySetupCore.h"
+#include "HAL/IConsoleManager.h"
+
+int32 UseDeprecatedBehaviorUpdateMassScaleChanges = 0;
+FAutoConsoleVariableRef CVarUseDeprecatedBehaviorUpdateMassScaleChanges(TEXT("p.UseDeprecatedBehaviorUpdateMassScaleChanges"),
+	UseDeprecatedBehaviorUpdateMassScaleChanges, TEXT("Allows FBodyInstanceCore::bUpdateMassWhenScaleChanges to default to false. This has potential issues, but allows existing projects to retain old behavior"));
 
 FBodyInstanceCore::FBodyInstanceCore()
 : bSimulatePhysics(false)
@@ -10,7 +15,8 @@ FBodyInstanceCore::FBodyInstanceCore()
 , bAutoWeld(false)
 , bStartAwake(true)
 , bGenerateWakeEvents(false)
-, bUpdateMassWhenScaleChanges(false)
+, bUpdateMassWhenScaleChanges(!UseDeprecatedBehaviorUpdateMassScaleChanges)
+, bDirtyMassProps(false)
 {
 }
 

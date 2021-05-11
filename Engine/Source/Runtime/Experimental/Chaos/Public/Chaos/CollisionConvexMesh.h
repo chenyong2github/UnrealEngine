@@ -829,7 +829,7 @@ namespace Chaos
 
 			//find farthest D along normal
 			const FVec3 AToC = InVertices[C->Vertex] - InVertices[A->Vertex];
-			const FVec3 Normal = FVec3::CrossProduct(AToB, AToC);
+			const FVec3 Normal = FVec3::CrossProduct(AToB, AToC).GetSafeNormal();
 
 			FReal MaxPosDistance = Epsilon;
 			FReal MaxNegDistance = Epsilon;

@@ -144,7 +144,8 @@ void UChaosClothConfig::PostLoad()
 		bUseLegacyBackstop = true;
 	}
 
-	if (PhysicsObjectVersion < FPhysicsObjectVersion::ChaosClothAddWeightedValue)
+	if (PhysicsObjectVersion < FPhysicsObjectVersion::ChaosClothAddWeightedValue ||
+		FortniteMainBranchObjectVersion < FFortniteMainBranchObjectVersion::ChaosClothAddWeightedValue)
 	{
 		AnimDriveStiffness.Low = 0.f;
 		AnimDriveStiffness.High = FMath::Clamp(FMath::Loge(AnimDriveSpringStiffness_DEPRECATED) / FMath::Loge(1.e3f) + 1.f, 0.f, 1.f);
@@ -162,7 +163,8 @@ void UChaosClothConfig::PostLoad()
 		FictitiousAngularScale = 0.f;  // Maintain early behavior with no fictitious forces
 	}
 
-	if (PhysicsObjectVersion < FPhysicsObjectVersion::ChaosClothAddTetherStiffnessWeightMap)
+	if (PhysicsObjectVersion < FPhysicsObjectVersion::ChaosClothAddTetherStiffnessWeightMap ||
+		FortniteMainBranchObjectVersion < FFortniteMainBranchObjectVersion::ChaosClothAddTetherStiffnessWeightMap)
 	{
 		// Note: Unlike AnimDriveStiffness, Low is updated here, because there was no existing weight map before this version
 		TetherStiffness.Low = FMath::Clamp(FMath::Loge(StrainLimitingStiffness_DEPRECATED) / FMath::Loge(1.e3f) + 1.f, 0.f, 1.f);

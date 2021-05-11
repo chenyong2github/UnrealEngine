@@ -102,14 +102,6 @@ public:
 
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
-	bool ShouldCaptureGlobalState() const
-	{
-		return GlobalStateCaptureToken.Pin().IsValid();
-	}
-
-	TSharedRef<bool> CaptureGlobalState();
-
-
 	/**
 	 * Retrieve this linker's context, specifying what kinds of systems should be allowed or disallowed
 	 */
@@ -185,7 +177,7 @@ public:
 	 * @return A pointer to the extension, or nullptr if it is not active.
 	 */
 	template<typename ExtensionType>
-	ExtensionType* FindExtension(UE::MovieScene::TEntitySystemLinkerExtensionID<ExtensionType> InID)
+	ExtensionType* FindExtension(UE::MovieScene::TEntitySystemLinkerExtensionID<ExtensionType> InID) const
 	{
 		const int32 Index = InID.ID;
 		if (ExtensionsByID.IsValidIndex(Index))
@@ -204,7 +196,7 @@ public:
 	 * @return A pointer to the extension, or nullptr if it is not active.
 	 */
 	template<typename ExtensionType>
-	ExtensionType* FindExtension()
+	ExtensionType* FindExtension() const
 	{
 		const int32 Index = ExtensionType::GetExtensionID().ID;
 		if (ExtensionsByID.IsValidIndex(Index))
@@ -213,6 +205,21 @@ public:
 		}
 
 		return nullptr;
+	}
+
+
+	/**
+	 * Remove an extension, if it exists
+	 *
+	 * @param InID        The unique identifier for the type of extension (retrieved from RegisterExtension)
+	 */
+	void RemoveExtension(UE::MovieScene::FEntitySystemLinkerExtensionID ExtensionID)
+	{
+		const int32 Index = ExtensionID.ID;
+		if (ExtensionsByID.IsValidIndex(Index))
+		{
+			ExtensionsByID.RemoveAt(Index);
+		}
 	}
 
 public:

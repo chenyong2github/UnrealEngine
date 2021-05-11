@@ -2993,6 +2993,22 @@ class EXPORT_API CommandName : public IAutomationLatentCommand \
 	ParamType ParamName; \
 }
 
+#define DEFINE_EXPORTED_LATENT_AUTOMATION_COMMAND_TWO_PARAMETER(EXPORT_API, CommandName,ParamType0,ParamName0,ParamType1,ParamName1)	\
+class EXPORT_API CommandName : public IAutomationLatentCommand \
+	{ \
+	public: \
+	CommandName(ParamType0 InputParam0, ParamType1 InputParam1) \
+	: ParamName0(InputParam0) \
+	, ParamName1(InputParam1) \
+		{} \
+		virtual ~CommandName() \
+		{} \
+		virtual bool Update() override; \
+	private: \
+	ParamType0 ParamName0; \
+	ParamType1 ParamName1; \
+}
+
 #define DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND(CommandName)	\
 	DEFINE_EXPORTED_LATENT_AUTOMATION_COMMAND(ENGINE_API, CommandName)
 

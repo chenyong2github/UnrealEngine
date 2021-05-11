@@ -147,6 +147,12 @@ public:
 	void GetENUVectorsAtECEFLocation(const FCartesianCoordinates& ECEFCoordinates, FVector& East, FVector& North, FVector& Up);
 
 	/**
+	 * Get the East North Up vectors at a specific location - Not in engine frame, but in pure ECEF Frame !
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeoReferencing|ENU")
+	void GetECEFENUVectorsAtECEFLocation(const FCartesianCoordinates& ECEFCoordinates, FVector& ECEFEast, FVector& ECEFNorth, FVector& ECEFUp);
+
+	/**
 	 * Get the the transform to locate an object tangent to Ellipsoid at a specific location
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GeoReferencing|TangentTransforms")

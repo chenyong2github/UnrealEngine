@@ -868,13 +868,20 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceA
 	{
 		TArray<FString> SuccessfullyCopiedDestinationFiles;
 		TArray<FName> SuccessfullyCopiedSourcePackages;
-		TArray<UObject*> ExistingObjects;
+		TArray<TMap<TSoftObjectPtr<UObject>, TSoftObjectPtr<UObject>>> DuplicatedObjectsForEachPackage;
 		TSet<UObject*> ExistingObjectSet;
-		TArray<UObject*> NewObjects;
 		TSet<UObject*> NewObjectSet;
 		FString CopyErrors;
+
+		SuccessfullyCopiedDestinationFiles.Reserve(SourceAndDestPackages.Num());
+		SuccessfullyCopiedSourcePackages.Reserve(SourceAndDestPackages.Num());
+		DuplicatedObjectsForEachPackage.Reserve(SourceAndDestPackages.Num());
+		ExistingObjectSet.Reserve(SourceAndDestPackages.Num());
+		NewObjectSet.Reserve(SourceAndDestPackages.Num());
+
 		FScopedSlowTask LoopProgress(SourceAndDestPackages.Num() * 2 , LOCTEXT("AdvancedCopying", "Copying files and dependencies..."));
 		LoopProgress.MakeDialog();
+
 		for (const auto& Package : SourceAndDestPackages)
 		{
 			const FString& PackageName = Package.Key;
@@ -917,13 +924,13 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceA
 						MoveDialogInfo.PGN.ObjectName = FPaths::GetBaseFilename(DestFilename);
 						MoveDialogInfo.PGN.PackageName = DestFilename;
 						const bool bShouldPromptForDestinationConflict = !bCopyOverAllDestinationOverlaps;
-						UObject* NewObject = ObjectTools::DuplicateSingleObject(ExistingObject, MoveDialogInfo.PGN, ObjectsUserRefusedToFullyLoad, bShouldPromptForDestinationConflict);
-						if (NewObject)
+						TMap<TSoftObjectPtr<UObject>, TSoftObjectPtr<UObject>> DuplicatedObjects;
+
+						if (UObject* NewObject = ObjectTools::DuplicateSingleObject(ExistingObject, MoveDialogInfo.PGN, ObjectsUserRefusedToFullyLoad, bShouldPromptForDestinationConflict, &DuplicatedObjects))
 						{
-							ExistingObjects.Add(ExistingObject);
 							ExistingObjectSet.Add(ExistingObject);
-							NewObjects.Add(NewObject);
 							NewObjectSet.Add(NewObject);
+							DuplicatedObjectsForEachPackage.Add(MoveTemp(DuplicatedObjects));
 							SuccessfullyCopiedSourcePackages.Add(FName(*PackageName));
 							SuccessfullyCopiedDestinationFiles.Add(DestFilename);
 						}
@@ -945,23 +952,25 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceA
 			AssetRegistryModule.Get().GetDependencies(SuccessfullyCopiedPackage, Dependencies);
 			for (FName Dependency : Dependencies)
 			{
-				if (SuccessfullyCopiedSourcePackages.Contains(Dependency))
+				const int32 DependencyIndex = SuccessfullyCopiedSourcePackages.IndexOfByKey(Dependency);
+				if (DependencyIndex != INDEX_NONE)
 				{
-					int32 DependencyIndex = ExistingObjects.IndexOfByPredicate([Dependency](UObject* Object)
-						{
-							return Object && Object->IsValidLowLevel() && Object->GetOuter()->GetFName() == Dependency;
-						});
-					if (DependencyIndex != INDEX_NONE)
+					for (const auto& DuplicatedObjectPair : DuplicatedObjectsForEachPackage[DependencyIndex])
 					{
-						ObjectsToReplace.Reset();
-						ObjectsToReplace.Add(ExistingObjects[DependencyIndex]);
-						ObjectTools::ConsolidateObjects(NewObjects[DependencyIndex], ObjectsToReplace, ObjectsAndSubObjectsToReplaceWithin, ExistingObjectSet, false);
+						UObject* SourceObject = DuplicatedObjectPair.Key.Get();
+						UObject* NewObject = DuplicatedObjectPair.Value.Get();
+						if (SourceObject && NewObject)
+						{
+							ObjectsToReplace.Reset();
+							ObjectsToReplace.Add(SourceObject);
+							ObjectTools::ConsolidateObjects(NewObject, ObjectsToReplace, ObjectsAndSubObjectsToReplaceWithin, ExistingObjectSet, false);
+						}
 					}
 				}
 			}
 		}
 
-		ObjectTools::CompileBlueprintsAfterRefUpdate(NewObjects);
+		ObjectTools::CompileBlueprintsAfterRefUpdate(NewObjectSet.Array());
 
 		FString SourceControlErrors;
 

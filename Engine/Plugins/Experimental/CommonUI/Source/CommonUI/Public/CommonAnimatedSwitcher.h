@@ -11,6 +11,9 @@
 class SOverlay;
 class SSpacer;
 
+/**
+ * A widget switcher that activates / deactivates CommonActivatableWidgets, allowing for associated animations to trigger.
+ */
 UCLASS()
 class COMMONUI_API UCommonAnimatedSwitcher : public UWidgetSwitcher
 {

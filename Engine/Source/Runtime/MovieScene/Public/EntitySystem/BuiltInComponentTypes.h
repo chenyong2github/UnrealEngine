@@ -168,6 +168,8 @@ public:
 
 	TComponentTypeID<FInstanceHandle>     InstanceHandle;
 
+	TComponentTypeID<FInstanceHandle>     RootInstanceHandle;
+
 	TComponentTypeID<FFrameTime>          EvalTime;
 
 public:
@@ -286,7 +288,6 @@ public:
 		FComponentTypeID NeedsUnlink;
 
 		FComponentTypeID MigratedFromFastPath;
-		FComponentTypeID CachePreAnimatedValue;
 
 		FComponentTypeID ImportedEntity;
 		FComponentTypeID Master;

@@ -2274,6 +2274,12 @@ namespace EpicGames.MCP.Config
                     Type[] AllTypes = Dll.SafeGetLoadedTypes();
                     foreach (var PotentialConfigType in AllTypes)
                     {
+						// do not attempt to instantiate abstract (base) configs
+						if(PotentialConfigType.IsAbstract)
+						{
+							continue;
+						}
+
                         if (PotentialConfigType != typeof(McpConfigData) && typeof(McpConfigData).IsAssignableFrom(PotentialConfigType))
                         {
                             try

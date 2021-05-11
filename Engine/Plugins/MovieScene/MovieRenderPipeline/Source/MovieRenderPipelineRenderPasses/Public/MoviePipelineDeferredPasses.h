@@ -84,6 +84,12 @@ public:
 	bool bDisableMultisampleEffects;
 
 	/**
+	* Should the additional post-process materials write out to a 32-bit render target instead of 16-bit?
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deferred Renderer Data")
+	bool bUse32BitPostProcessMaterials;
+
+	/**
 	* An array of additional post-processing materials to run after the frame is rendered. Using this feature may add a notable amount of render time.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deferred Renderer Data")
@@ -128,6 +134,11 @@ protected:
 
 	// Cache the custom stencil value. Only has meaning if they have stencil layers.
 	TOptional<int32> PreviousCustomDepthValue;
+	
+	/** Cache the previous dump frames as HDR value. Only used if using 32-bit post processing. */
+	TOptional<int32> PreviousDumpFramesValue;
+	/** Cache the previous color format value. Only used if using 32-bit post processing. */
+	TOptional<int32> PreviousColorFormatValue;
 
 public:
 	static FString StencilLayerMaterialAsset;
@@ -239,7 +250,7 @@ public:
 		PassIdentifier = FMoviePipelinePassIdentifier("PathTracer");
 	}
 #if WITH_EDITOR
-	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSetting_DisplayName_PathTracer", "Deferred Rendering (Path Tracer)"); }
+	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSetting_DisplayName_PathTracer", "Path Tracer"); }
 #endif
 	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const override
 	{

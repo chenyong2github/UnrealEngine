@@ -98,6 +98,7 @@ FMockState_PT
 #include "UObject/UObjectIterator.h"
 #include "GameFramework/PlayerController.h"
 #include "DrawDebugHelpers.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
 // ==================================================
 

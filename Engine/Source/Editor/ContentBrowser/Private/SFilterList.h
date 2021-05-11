@@ -11,7 +11,8 @@
 #include "ARFilter.h"
 #include "FrontendFilterBase.h"
 
-class FMenuBuilder;
+class UToolMenu;
+struct FToolMenuSection;
 class SFilter;
 class SWrapBox;
 enum class ECheckBoxState : uint8;
@@ -118,13 +119,16 @@ private:
 	void FrontendFilterChanged(TSharedRef<FFrontendFilter> FrontendFilter);
 
 	/** Handler for when the add filter menu is populated by a category */
-	void CreateFiltersMenuCategory(FMenuBuilder& MenuBuilder, const TArray<TWeakPtr<IAssetTypeActions>> AssetTypeActionsList) const;
+	void CreateFiltersMenuCategory(FToolMenuSection& Section, const TArray<TWeakPtr<IAssetTypeActions>> AssetTypeActionsList) const;
+	void CreateFiltersMenuCategory(UToolMenu* InMenu, const TArray<TWeakPtr<IAssetTypeActions>> AssetTypeActionsList) const;
 
 	/** Handler for when the add filter menu is populated by a non-category */
-	void CreateOtherFiltersMenuCategory(FMenuBuilder& MenuBuilder, TSharedPtr<FFrontendFilterCategory> MenuCategory) const;
+	void CreateOtherFiltersMenuCategory(FToolMenuSection& Section, TSharedPtr<FFrontendFilterCategory> MenuCategory) const;
+	void CreateOtherFiltersMenuCategory(UToolMenu* InMenu, TSharedPtr<FFrontendFilterCategory> MenuCategory) const;
 
 	/** Handler for when the add filter button was clicked */
 	TSharedRef<SWidget> MakeAddFilterMenu(EAssetTypeCategories::Type MenuExpansion = EAssetTypeCategories::Basic);
+	void PopulateAddFilterMenu(UToolMenu* Menu);
 
 	/** Handler for when filter by type is selected */
 	void FilterByTypeClicked(TWeakPtr<IAssetTypeActions> AssetTypeActions);

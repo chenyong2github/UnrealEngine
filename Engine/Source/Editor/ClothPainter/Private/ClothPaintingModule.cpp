@@ -136,7 +136,7 @@ void FClothPaintingModule::RegisterMenus()
 				InSection.AddEntry(FToolMenuEntry::InitToolBarButton(
 					FClothPainterCommands::Get().TogglePaintMode,
 					TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FClothPaintingModule::GetPaintToolsButtonText, Context->SkeletalMeshEditor)),
-					FText(),
+					TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FClothPaintingModule::GetPaintToolsButtonToolTip, Context->SkeletalMeshEditor)),
 					FSlateIcon(FAppStyle::Get().GetStyleSetName(), "MeshPaint.Brush")
 				));	
 			}
@@ -157,6 +157,21 @@ FText FClothPaintingModule::GetPaintToolsButtonText(TWeakPtr<ISkeletalMeshEditor
 	}
 
 	return LOCTEXT("ToggleButton_Activate", "Activate Cloth Paint");
+}
+
+FText FClothPaintingModule::GetPaintToolsButtonToolTip(TWeakPtr<ISkeletalMeshEditor> InSkeletalMeshEditor) const
+{
+	TSharedPtr<SClothPaintTab> ClothTab = GetActiveClothTab(InSkeletalMeshEditor, false);
+
+	if(ClothTab.IsValid())
+	{
+		if(ClothTab->IsPaintModeActive())
+		{
+			return LOCTEXT("ToggleButton_Deactivate_ToolTip", "Deactivate the cloth paint tool, and go back to the current selection mode.");
+		}
+	}
+
+	return LOCTEXT("ToggleButton_Activate_ToolTip", "Activate the cloth paint tool, and open the Clothing window to allow selection of the clothing assets and of their paint targets.");
 }
 
 bool FClothPaintingModule::GetIsPaintToolsButtonChecked(TWeakPtr<ISkeletalMeshEditor> InSkeletalMeshEditor) const

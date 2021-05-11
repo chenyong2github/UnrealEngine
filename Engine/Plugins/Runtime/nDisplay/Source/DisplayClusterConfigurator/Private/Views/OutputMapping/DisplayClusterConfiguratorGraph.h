@@ -33,6 +33,9 @@ public:
 	virtual void PostEditUndo() override;
 	// End UObject Interface
 
+	/** Cleans up the graph and its nodes. */
+	void Cleanup();
+
 	/** Removes all nodes from the graph. */
 	void Empty();
 
@@ -44,6 +47,9 @@ public:
 
 	/** Recomputes the global positions of all graph nodes. */
 	void RefreshNodePositions();
+
+	/** Gets the graph node that contains the specified object. */
+	UDisplayClusterConfiguratorBaseNode* GetNodeFromObject(UObject* InObject);
 
 	/** @return The root canvas node of the graph. */
 	UDisplayClusterConfiguratorCanvasNode* GetRootNode() const;
@@ -59,9 +65,9 @@ public:
 
 private:
 	UDisplayClusterConfiguratorCanvasNode* BuildCanvasNode(UDisplayClusterConfigurationCluster* ClusterConfig);
-	UDisplayClusterConfiguratorHostNode* BuildHostNode(UDisplayClusterConfiguratorBaseNode* ParentNode, UDisplayClusterConfigurationHostDisplayData* HostDisplayData, FString NodeName);
-	UDisplayClusterConfiguratorWindowNode* BuildWindowNode(UDisplayClusterConfiguratorBaseNode* ParentNode, FString NodeName, UDisplayClusterConfigurationClusterNode* ClusterNodeConfig);
-	UDisplayClusterConfiguratorViewportNode* BuildViewportNode(UDisplayClusterConfiguratorBaseNode* ParentNode, FString NodeName, UDisplayClusterConfigurationViewport* ViewportConfig);
+	UDisplayClusterConfiguratorHostNode* BuildHostNode(UDisplayClusterConfiguratorBaseNode* ParentNode, FString NodeName, int32 NodeIndex, UDisplayClusterConfigurationHostDisplayData* HostDisplayData);
+	UDisplayClusterConfiguratorWindowNode* BuildWindowNode(UDisplayClusterConfiguratorBaseNode* ParentNode, FString NodeName, int32 NodeIndex, UDisplayClusterConfigurationClusterNode* ClusterNodeConfig);
+	UDisplayClusterConfiguratorViewportNode* BuildViewportNode(UDisplayClusterConfiguratorBaseNode* ParentNode, FString NodeName, int32 NodeIndex, UDisplayClusterConfigurationViewport* ViewportConfig);
 
 private:
 	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;

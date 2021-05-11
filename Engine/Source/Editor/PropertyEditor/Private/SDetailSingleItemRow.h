@@ -84,6 +84,14 @@ private:
 	bool CanFavorite() const;
 	bool IsFavorite() const;
 
+	/** UIActions to help populate the PropertyEditorWhitelist, which must first be turned on through FPropertyEditorWhitelist::Get().SetShouldShowMenuEntries */
+	void CopyWhitelistText() const;
+	void OnToggleWhitelist() const;
+	bool IsWhitelistChecked() const;
+	void OnToggleBlacklist() const;
+	bool IsBlacklistChecked() const;
+
+
 	void OnArrayDragEnter(const FDragDropEvent& DragDropEvent);
 	void OnArrayDragLeave(const FDragDropEvent& DragDropEvent);
 	FReply OnArrayDrop(const FDragDropEvent& DragDropEvent);

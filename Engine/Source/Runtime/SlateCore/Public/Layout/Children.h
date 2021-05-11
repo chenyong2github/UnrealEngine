@@ -414,6 +414,21 @@ public:
 		SlotToRemove.Reset();
 	}
 
+	/** Removes the corresponding widget from the set of children if it exists.  Returns the index it found the child at, INDEX_NONE otherwise. */
+	int32 Remove(const TSharedRef<SWidget>& SlotWidget)
+	{
+		for (int32 SlotIdx = 0; SlotIdx < Num(); ++SlotIdx)
+		{
+			if (SlotWidget == Children[SlotIdx]->GetWidget())
+			{
+				Children.RemoveAt(SlotIdx);
+				return SlotIdx;
+			}
+		}
+
+		return INDEX_NONE;
+	}
+
 	void Empty(int32 Slack = 0)
 	{
 		// NOTE:

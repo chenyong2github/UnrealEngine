@@ -7,6 +7,7 @@
 
 // SketchUp to Datasmith exporter classes.
 #include "DatasmithSketchUpMaterial.h"
+#include "DatasmithSketchUpMetadata.h"
 #include "DatasmithSketchUpString.h"
 #include "DatasmithSketchUpSummary.h"
 #include "DatasmithSketchUpComponent.h"

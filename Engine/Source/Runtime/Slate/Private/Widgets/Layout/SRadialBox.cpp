@@ -22,16 +22,7 @@ SRadialBox::FSlot& SRadialBox::AddSlot()
 
 int32 SRadialBox::RemoveSlot( const TSharedRef<SWidget>& SlotWidget )
 {
-	for (int32 SlotIdx = 0; SlotIdx < Slots.Num(); ++SlotIdx)
-	{
-		if ( SlotWidget == Slots[SlotIdx].GetWidget() )
-		{
-			Slots.RemoveAt(SlotIdx);
-			return SlotIdx;
-		}
-	}
-
-	return -1;
+	return Slots.Remove(SlotWidget);
 }
 
 void SRadialBox::Construct( const FArguments& InArgs )

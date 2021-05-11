@@ -13,13 +13,16 @@
 #include "Widgets/DataprepWidgets.h"
 #include "Widgets/Parameterization/SDataprepParameterizationLinkIcon.h"
 
+#include "GraphEditorSettings.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Internationalization/Text.h"
 #include "Misc/AssertionMacros.h"
 #include "ScopedTransaction.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
@@ -95,6 +98,8 @@ void SDataprepStringFilter<FilterType>::UpdateVisualDisplay()
 	TSharedPtr<SHorizontalBox> MatchInArrayHorizontalBox;
 	TSharedPtr<SHorizontalBox> MatchingArrayHorizontalBox;
 
+	const UGraphEditorSettings* Settings = GetDefault<UGraphEditorSettings>();
+
 	ChildSlot
 	[
 		SNew( SBox )
@@ -106,6 +111,38 @@ void SDataprepStringFilter<FilterType>::UpdateVisualDisplay()
 			.AutoHeight()
 			[
 				SNew( SHorizontalBox )
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew( SDataprepContextMenuOverride )
+					.OnContextMenuOpening( this, &SDataprepStringFilter<FilterType>::OnGetContextMenuForMatchInArray )
+					[
+						SAssignNew( MatchInArrayHorizontalBox, SHorizontalBox )
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							SNew( SButton )
+							.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+							.ToolTipText_Lambda( [this]()
+							{
+								return Filter->GetMatchInArray() ?
+									LOCTEXT( "SwitchToSingleTooltip", "Switch to single" ) : LOCTEXT( "SwitchToArrayTooltip", "Switch to array" );
+							})
+							.Cursor( EMouseCursor::Default )
+							.OnClicked( this, &SDataprepStringFilter<FilterType>::OnMatchInArrayClicked )
+							.Content()
+							[
+								SNew( SImage )
+								.Image_Lambda( [this]()
+								{
+									return Filter->GetMatchInArray() ? 
+										FEditorStyle::GetBrush(TEXT("Kismet.VariableList.ArrayTypeIcon")) : FEditorStyle::GetBrush(TEXT("Kismet.VariableList.TypeIcon"));
+								})
+								.ColorAndOpacity( Settings->StringPinTypeColor )
+							]
+						]
+					]
+				]
 				+ SHorizontalBox::Slot()
 				.Padding( 0, 0, 6, 0 )
 				[
@@ -119,6 +156,7 @@ void SDataprepStringFilter<FilterType>::UpdateVisualDisplay()
 							.OptionsSource( &StringMatchingOptions )
 							.OnGenerateWidget( this, &SDataprepStringFilter::OnGenerateWidgetForMatchingCriteria )
 							.OnSelectionChanged( this, &SDataprepStringFilter::OnSelectedCriteriaChanged )
+							.Cursor( EMouseCursor::Default )
 							.OnComboBoxOpening( this, &SDataprepStringFilter::OnCriteriaComboBoxOpenning )
 							[
 								SNew( STextBlock )
@@ -157,35 +195,6 @@ void SDataprepStringFilter<FilterType>::UpdateVisualDisplay()
 			]
 			+ SVerticalBox::Slot()
 			.Padding( 5.f )
-			[
-				SNew( SDataprepContextMenuOverride )
-				.OnContextMenuOpening( this, &SDataprepStringFilter<FilterType>::OnGetContextMenuForMatchInArray )
-				[
-					SAssignNew( MatchInArrayHorizontalBox, SHorizontalBox )
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew( SCheckBox )
-						.ToolTipText(LOCTEXT( "MatchInArrayToolTip", "Match string in array." ))
-						.IsChecked_Lambda([this]() -> ECheckBoxState
-						{
-							if ( Filter )
-							{
-								return Filter->GetMatchInArray() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-							}
-							return ECheckBoxState::Unchecked;
-						})
-						.OnCheckStateChanged( this, &SDataprepStringFilter::OnCheckStateMatchInArrayChanged )
-						.Content()
-						[
-							SNew( STextBlock )
-							.Text( LOCTEXT("MatchInArray", "Match in array") )
-						]
-					]
-				]
-			]
-			+ SVerticalBox::Slot()
-			.Padding( 5.f )
 			.AutoHeight()
 			[
 				SAssignNew( MatchInArrayHorizontalBox, SHorizontalBox )
@@ -193,6 +202,7 @@ void SDataprepStringFilter<FilterType>::UpdateVisualDisplay()
 				[
 					SNew( SDataprepDetailsView )
 					.Object( Filter ? Filter->GetStringArray() : nullptr )
+					.Cursor( EMouseCursor::Default )
 					.Visibility_Lambda([this]() -> EVisibility
 					{
 						if ( Filter )
@@ -318,13 +328,13 @@ TSharedPtr<SWidget> SDataprepStringFilter<FilterType>::OnGetContextMenuForMatchI
 }
 
 template <class FilterType>
-void SDataprepStringFilter<FilterType>::OnCheckStateMatchInArrayChanged(ECheckBoxState CheckState) 
+FReply SDataprepStringFilter<FilterType>::OnMatchInArrayClicked() 
 {
 	check( Filter );
 
 	FScopedTransaction Transaction( LOCTEXT("MatchInArrayChangedTransaction","Changed match in array") );
 
-	Filter->SetMatchInArray( CheckState == ECheckBoxState::Checked );
+	Filter->SetMatchInArray( !Filter->GetMatchInArray() );
 
 	FProperty* Property = Filter->GetClass()->FindPropertyByName( TEXT("bMatchInArray") );
 	check( Property );
@@ -335,6 +345,8 @@ void SDataprepStringFilter<FilterType>::OnCheckStateMatchInArrayChanged(ECheckBo
 	FPropertyChangedEvent EditPropertyChangeEvent( Property, EPropertyChangeType::ValueSet );
 	FPropertyChangedChainEvent EditChangeChainEvent( EditChain, EditPropertyChangeEvent );
 	Filter->PostEditChangeChainProperty( EditChangeChainEvent );
+
+	return FReply::Handled();
 }
 
 template <class FilterType>

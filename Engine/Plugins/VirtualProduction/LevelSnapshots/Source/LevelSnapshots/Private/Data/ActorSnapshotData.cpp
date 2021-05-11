@@ -106,12 +106,15 @@ TOptional<AActor*> FActorSnapshotData::GetPreallocated(UWorld* SnapshotWorld, FW
 		// TODO: Maybe there is a faster way than calling SpawnActor...
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.Template = Cast<AActor>(WorldData.GetClassDefault(TargetClass));
+		SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
 		if (ensureMsgf(SpawnParams.Template, TEXT("Failed to class default. This should not happen. Investigate.")))
 		{
 			// We're passing in SpawnParams.Template->GetClass() instead of TargetClass:
-				// When you recompile a Blueprint, it creates a new (temporary) class.
+				// When you recompile a Blueprint, it creates a new REINST class.
 				// This would cause the SpawnParams.Template to have a different class than TargetClass: that would cause SpawnActor to fail.
-			CachedSnapshotActor = SnapshotWorld->SpawnActor<AActor>(SpawnParams.Template->GetClass(), SpawnParams);
+			UClass* ClassToUse = SpawnParams.Template->GetClass();
+			SpawnParams.Name = *FString("SnapshotObjectInstance_").Append(*MakeUniqueObjectName(SnapshotWorld, ClassToUse).ToString());
+			CachedSnapshotActor = SnapshotWorld->SpawnActor<AActor>(ClassToUse, SpawnParams);
 		}
 		else
 		{

@@ -66,6 +66,17 @@ void SDisplayClusterConfiguratorGraphEditor::FindAndSelectObjects(const TArray<U
 	bSelectionSetDirectly = false;
 }
 
+void SDisplayClusterConfiguratorGraphEditor::JumpToObject(UObject* InObject)
+{
+	UDisplayClusterConfiguratorGraph* ConfiguratorGraph = ClusterConfiguratorGraph.Get();
+	check(ConfiguratorGraph != nullptr);
+
+	if (UDisplayClusterConfiguratorBaseNode* GraphNode = ConfiguratorGraph->GetNodeFromObject(InObject))
+	{
+		JumpToNode(GraphNode, false, false);
+	}
+}
+
 void SDisplayClusterConfiguratorGraphEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 {
 	// If the selection has been set directly in code, don't propagate the selection change to the toolkit.
@@ -84,6 +95,11 @@ void SDisplayClusterConfiguratorGraphEditor::OnSelectedNodesChanged(const TSet<U
 	}
 
 	ToolkitPtr.Pin()->SelectObjects(Selection);
+}
+
+void SDisplayClusterConfiguratorGraphEditor::OnNodeDoubleClicked(UEdGraphNode* ClickedNode)
+{
+	JumpToNode(ClickedNode, false, false);
 }
 
 void SDisplayClusterConfiguratorGraphEditor::OnObjectSelected()
@@ -118,11 +134,6 @@ void SDisplayClusterConfiguratorGraphEditor::OnObjectSelected()
 
 	TSharedPtr<FDisplayClusterConfiguratorViewOutputMapping> OutputMapping = ViewOutputMappingPtr.Pin();
 	check(OutputMapping.IsValid());
-
-	if (OutputMapping->GetOutputMappingSettings().bZoomToSelectedClusterItems)
-	{
-		ZoomToFit(true);
-	}
 }
 
 void SDisplayClusterConfiguratorGraphEditor::OnConfigReloaded()
@@ -844,6 +855,7 @@ void SDisplayClusterConfiguratorGraphEditor::Construct(const FArguments& InArgs,
 	SGraphEditor::FGraphEditorEvents GraphEvents;
 	GraphEvents.OnSelectionChanged = SGraphEditor::FOnSelectionChanged::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::OnSelectedNodesChanged);
 	GraphEvents.OnCreateNodeOrPinMenu = SGraphEditor::FOnCreateNodeOrPinMenu::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::OnCreateNodeOrPinMenu);
+	GraphEvents.OnNodeDoubleClicked = FSingleNodeEvent::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::OnNodeDoubleClicked);
 
 	FGraphAppearanceInfo AppearanceInfo;
 	AppearanceInfo.CornerText = LOCTEXT("AppearanceCornerText", "STEP 3");

@@ -66,7 +66,7 @@ public:
 	virtual void GetSelectedAssets(TArray<FAssetData>& SelectedAssets) override;
 	virtual void GetSelectedFolders(TArray<FString>& SelectedFolders) override;
 	virtual void GetSelectedPathViewFolders(TArray<FString>& SelectedFolders) override;
-	virtual FString GetCurrentPath() override;
+	virtual FString GetCurrentPath(const EContentBrowserPathType PathType) override;
 	virtual void CaptureThumbnailFromViewport(FViewport* InViewport, TArray<FAssetData>& SelectedAssets) override;
 	virtual void SetSelectedPaths(const TArray<FString>& FolderPaths, bool bNeedsRefresh = false, bool bPathsAreVirtual = false) override;
 	virtual void ForceShowPluginContent(bool bEnginePlugin) override;

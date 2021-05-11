@@ -289,9 +289,10 @@ void FMaterialInfo::UpdateMaterial(const TSharedPtr< IDatasmithUEPbrMaterialElem
 		DSMaterial->SetTwoSided(bTwoSide);
 	}
 
+#if 0
 	// Metallic
 	float Metallic = 0.0;
-	if (DatasmithLabel.Contains(TEXT("Metal")))
+	if (DatasmithLabel.Contains(TEXT("Metal"))) // Experimental
 	{
 		Metallic = 1.0;
 	}
@@ -300,6 +301,7 @@ void FMaterialInfo::UpdateMaterial(const TSharedPtr< IDatasmithUEPbrMaterialElem
 	MetallicExpression->GetScalar() = Metallic;
 	MetallicExpression->SetName(TEXT("Metallic"));
 	MetallicExpression->ConnectExpression(DSMaterial->GetMetallic());
+#endif
 }
 
 // Constructor
@@ -311,8 +313,8 @@ FMaterialsDatabase::~FMaterialsDatabase() {}
 // Reset
 void FMaterialsDatabase::Clear()
 {
-	MapMaterials.clear();
-	MaterialsNamesSet.clear();
+	MapMaterials.Reset();
+	MaterialsNamesSet.Reset();
 }
 
 // Return true if at least one material have been modified
@@ -320,9 +322,9 @@ bool FMaterialsDatabase::CheckModify()
 {
 	FAutoChangeDatabase changeDB(APIWind_3DModelID);
 
-	for (MapSyncData::iterator Iter = MapMaterials.begin(); Iter != MapMaterials.end(); ++Iter)
+	for (TPair< FMaterialKey, FMaterialSyncData >& Iter : MapMaterials)
 	{
-		if (Iter->second.CheckModify(Iter->first))
+		if (Iter.Value.CheckModify(Iter.Key))
 		{
 			return true;
 		}
@@ -333,9 +335,9 @@ bool FMaterialsDatabase::CheckModify()
 // Scan all material and update modified ones
 void FMaterialsDatabase::UpdateModified(const FSyncContext& SyncContext)
 {
-	for (MapSyncData::iterator Iter = MapMaterials.begin(); Iter != MapMaterials.end(); ++Iter)
+	for (TPair< FMaterialKey, FMaterialSyncData >& Iter : MapMaterials)
 	{
-		Iter->second.Update(SyncContext, Iter->first);
+		Iter.Value.Update(SyncContext, Iter.Key);
 	}
 }
 
@@ -388,7 +390,7 @@ const FMaterialsDatabase::FMaterialSyncData& FMaterialsDatabase::GetMaterial(con
 	}
 	FMaterialKey MaterialKey(inACMaterialIndex, inACTextureIndex, InSided);
 
-	FMaterialsDatabase::FMaterialSyncData& material = MapMaterials[MaterialKey];
+	FMaterialsDatabase::FMaterialSyncData& material = MapMaterials.FindOrAdd(MaterialKey);
 	if (!material.bIsInitialized)
 	{
 		material.Init(SyncContext, MaterialKey);
@@ -425,12 +427,12 @@ void FMaterialsDatabase::FMaterialSyncData::Init(const FSyncContext& SyncContext
 		bHasTexture = MaterialInfo.Texture != nullptr;
 
 		FMaterialsDatabase::SetMaterialsNames& MaterialsNamesSet = SyncContext.GetMaterialsDatabase().MaterialsNamesSet;
-		if (MaterialsNamesSet.find(DatasmithId) != MaterialsNamesSet.end())
+		if (MaterialsNamesSet.Find(DatasmithId) != nullptr)
 		{
 			bIsDuplicate = true;
 			return; // An identical material already exist (Can happen for simulated Guid)
 		}
-		MaterialsNamesSet.insert(DatasmithId);
+		MaterialsNamesSet.Add(DatasmithId);
 
 		Element = FDatasmithSceneFactory::CreateUEPbrMaterial(*MaterialInfo.DatasmithId);
 		MaterialInfo.UpdateMaterial(Element);

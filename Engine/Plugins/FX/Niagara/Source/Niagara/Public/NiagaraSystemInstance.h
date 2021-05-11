@@ -97,6 +97,8 @@ public:
 		None
 	};
 
+	ENiagaraSystemInstanceState SystemInstanceState = ENiagaraSystemInstanceState::None;
+
 	FORCEINLINE bool GetAreDataInterfacesInitialized() const { return bDataInterfacesInitialized; }
 
 	/** Creates a new Niagara system instance. */
@@ -118,7 +120,7 @@ public:
 	void OnPooledReuse(UWorld& NewWorld);
 
 	void SetPaused(bool bInPaused);
-	FORCEINLINE bool IsPaused()const { return bPaused; }
+	FORCEINLINE bool IsPaused() const { return (SystemInstanceState == ENiagaraSystemInstanceState::PendingSpawnPaused) || (SystemInstanceState == ENiagaraSystemInstanceState::Paused); }
 
 	void SetSolo(bool bInSolo);
 
@@ -281,8 +283,7 @@ public:
 	bool UsesCollection(const UNiagaraParameterCollection* Collection) const;
 #endif
 
-	FORCEINLINE bool IsPendingSpawn() const { return bPendingSpawn; }
-	FORCEINLINE void SetPendingSpawn(bool bInValue) { bPendingSpawn = bInValue; }
+	FORCEINLINE bool IsPendingSpawn() const { return (SystemInstanceState == ENiagaraSystemInstanceState::PendingSpawn) || (SystemInstanceState == ENiagaraSystemInstanceState::PendingSpawnPaused); }
 
 	FORCEINLINE float GetAge() const { return Age; }
 	FORCEINLINE int32 GetTickCount() const { return TickCount; }
@@ -498,11 +499,8 @@ private:
 	uint32 bSolo : 1;
 	uint32 bForceSolo : 1;
 
-	uint32 bPendingSpawn : 1;
 	uint32 bNotifyOnCompletion : 1;
 
-	/** If this system is paused. When paused it will not tick and never complete etc. */
-	uint32 bPaused : 1;
 	/** If this system has emitters that will run GPU Simulations */
 	uint32 bHasGPUEmitters : 1;
 	/** The system contains data interfaces that can have tick group prerequisites. */
