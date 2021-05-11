@@ -30,7 +30,7 @@ namespace HordeServer
 {
 	static class LoggerExtensions
 	{
-		public static Serilog.LoggerConfiguration Console(this LoggerSinkConfiguration SinkConfig, ServerSettings Settings)
+		public static LoggerConfiguration Console(this LoggerSinkConfiguration SinkConfig, ServerSettings Settings)
 		{
 			if (Settings.LogJsonToStdOut)
 			{
@@ -62,13 +62,14 @@ namespace HordeServer
 				.SetBasePath(AppDir.FullName)
 				.AddJsonFile("appsettings.json", optional: false)
 				.AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}.json", optional: true)
+				.AddJsonFile("appsettings.User.json", optional: true)
 				.AddEnvironmentVariables()
 				.Build();
 
 			ServerSettings HordeSettings = new ServerSettings();
 			Config.GetSection("Horde").Bind(HordeSettings);
 
-			Serilog.Log.Logger = new Serilog.LoggerConfiguration()
+			Log.Logger = new LoggerConfiguration()
 				.MinimumLevel.Debug()
 //				.MinimumLevel.Override("HordeServer.Services.DatabaseService", LogEventLevel.Verbose) // For MongoDB query tracing
 				.MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
@@ -88,27 +89,28 @@ namespace HordeServer
 			{
 				using (X509Certificate2? GrpcCertificate = ReadGrpcCertificate(HordeSettings))
 				{
-					CreateHostBuilderWithCert(Args, GrpcCertificate).Build().Run();
+					CreateHostBuilderWithCert(Args, Config, GrpcCertificate).Build().Run();
 				}
 			}
 #pragma warning disable CA1031 // Do not catch general exception types
 			catch (Exception Ex)
 #pragma warning restore CA1031 // Do not catch general exception types
 			{
-				Serilog.Log.Logger.Error(Ex, "Unhandled exception");
+				Log.Logger.Error(Ex, "Unhandled exception");
 			}
 		}
 
 		// Used by WebApplicationFactory in controller tests. Uses reflection to call this exact function signature.
 		public static IHostBuilder CreateHostBuilder(string[] Args)
 		{
-			return CreateHostBuilderWithCert(Args, null);
+			return CreateHostBuilderWithCert(Args, new ConfigurationBuilder().Build(), null);
 		}
 
-		public static IHostBuilder CreateHostBuilderWithCert(string[] Args, X509Certificate2? SslCert)
+		public static IHostBuilder CreateHostBuilderWithCert(string[] Args, IConfiguration Config, X509Certificate2? SslCert)
 		{
 			return Host.CreateDefaultBuilder(Args)
 				.UseSerilog()
+				.ConfigureAppConfiguration(Builder => Builder.AddConfiguration(Config))
 				.ConfigureWebHostDefaults(WebBuilder => 
 				{
 					WebBuilder.ConfigureKestrel(Options =>

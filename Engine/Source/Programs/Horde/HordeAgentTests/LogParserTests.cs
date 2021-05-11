@@ -484,8 +484,8 @@ namespace HordeAgentTests
 		{
 			List<CapturedEvent> Events = Parse(@"  C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Current\Bin\Microsoft.Common.CurrentVersion.targets(4207,5): warning MSB3026: Could not copy ""obj\Development\DotNETUtilities.dll"" to ""..\..\..\..\Binaries\DotNET\DotNETUtilities.dll"". Beginning retry 2 in 1000ms. The process cannot access the file '..\..\..\..\Binaries\DotNET\DotNETUtilities.dll' because it is being used by another process. The file is locked by: ""UnrealAutomationTool(13236)"" [C:\Horde\Engine\Source\Programs\DotNETCommon\DotNETUtilities\DotNETUtilities.csproj]");
 			Assert.AreEqual(1, Events.Count);
-			Assert.AreEqual(LogLevel.Warning, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.MSBuild, Events[0].Id);
+			Assert.AreEqual(LogLevel.Information, Events[0].Level);
+			Assert.AreEqual(KnownLogEvents.Systemic_MSBuild, Events[0].Id);
 			Assert.AreEqual("warning", Events[0].Properties["severity"].ToString());
 			
 			// FIXME: Fails on Linux. Properties dict is empty
@@ -801,6 +801,31 @@ namespace HordeAgentTests
 			CapturedEvent Event = Events[0];
 			Assert.AreEqual(LogLevel.Error, Event.Level);
 			Assert.AreEqual(KnownLogEvents.Gauntlet, Event.Id);
+		}
+
+		[TestMethod]
+		public void DockerWarningMatcher()
+		{
+			string[] Lines =
+			{
+				@"#14 8.477 cc -O2 -Wall -DLUA_ANSI -DENABLE_CJSON_GLOBAL -DREDIS_STATIC=''    -c -o lauxlib.o lauxlib.c",
+				@"#14 8.499 lauxlib.c: In function 'luaL_loadfile':",
+				@"#14 8.499 lauxlib.c:577:4: warning: this 'while' clause does not guard... [-Wmisleading-indentation]",
+				@"#14 8.499     while ((c = getc(lf.f)) != EOF && c != LUA_SIGNATURE[0]) ;",
+				@"#14 8.499     ^~~~~",
+				@"#14 8.499 lauxlib.c:578:5: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'while'",
+				@"#14 8.499      lf.extraline = 0;",
+				@"#14 8.499      ^~",
+				@"#14 8.643 cc -O2 -Wall -DLUA_ANSI -DENABLE_CJSON_GLOBAL -DREDIS_STATIC=''    -c -o lbaselib.o lbaselib.c",
+			};
+
+			List<CapturedEvent> Events = Parse(Lines);
+			Assert.AreEqual(1, Events.Count);
+
+			Assert.AreEqual(LogLevel.Warning, Events[0].Level);
+			Assert.AreEqual(KnownLogEvents.Compiler, Events[0].Id);
+			Assert.AreEqual(2, Events[0].LineIndex);
+			Assert.AreEqual(1, Events[0].LineCount);
 		}
 
 		[TestMethod]

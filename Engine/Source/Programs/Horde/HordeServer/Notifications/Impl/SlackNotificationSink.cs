@@ -278,7 +278,14 @@ namespace HordeServer.Notifications.Impl
 				else
 				{
 					Attachment.Color = BlockKitAttachmentColors.Warning;
-					Attachment.Blocks.Add(new SectionBlock($"Files in CL {Job.PreflightChange} were *not submitted*. Please resolve the following issues and submit manually.\n\n```{Job.AutoSubmitMessage}```"));
+
+					string AutoSubmitMessage = String.Empty;
+					if (!String.IsNullOrEmpty(Job.AutoSubmitMessage))
+					{
+						AutoSubmitMessage = $"\n\n```{Job.AutoSubmitMessage}```";
+					}
+
+					Attachment.Blocks.Add(new SectionBlock($"Files in CL {Job.PreflightChange} were *not submitted*. Please resolve the following issues and submit manually.{Job.AutoSubmitMessage}"));
 				}
 			}
 
@@ -423,10 +430,12 @@ namespace HordeServer.Notifications.Impl
 		/// <inheritdoc/>
 		public async Task NotifyIssueUpdatedAsync(IIssue Issue)
 		{
+			IIssueDetails Details = await IssueService.GetIssueDetailsAsync(Issue);
+
 			HashSet<ObjectId> UserIds = new HashSet<ObjectId>();
 			if (Issue.NotifySuspects)
 			{
-				UserIds.UnionWith(Issue.Suspects.Select(x => x.AuthorId));
+				UserIds.UnionWith(Details.Suspects.Select(x => x.AuthorId));
 			}
 			if (Issue.OwnerId.HasValue)
 			{
@@ -448,9 +457,7 @@ namespace HordeServer.Notifications.Impl
 				}
 			}
 
-			IIssueDetails Details = await IssueService.GetIssueDetailsAsync(Issue);
-
-			if (Issue.OwnerId == null && (Issue.Suspects.Count == 0 || Issue.Suspects.All(x => x.DeclinedAt != null) || Issue.CreatedAt < DateTime.UtcNow - TimeSpan.FromHours(1.0)))
+			if (Issue.OwnerId == null && (Details.Suspects.Count == 0 || Details.Suspects.All(x => x.DeclinedAt != null) || Issue.CreatedAt < DateTime.UtcNow - TimeSpan.FromHours(1.0)))
 			{
 				foreach (IIssueSpan Span in Details.Spans)
 				{
@@ -558,10 +565,17 @@ namespace HordeServer.Notifications.Impl
 
 			if (Issue.FixChange != null)
 			{
+				IIssueStep? FixFailedStep = Issue.FindFixFailedStep(Details.Spans);
+
 				string Text;
 				if (Issue.FixChange.Value < 0)
 				{
 					Text = ":tick: Marked as a systemic issue.";
+				}
+				else if (FixFailedStep != null)
+				{
+					Uri FixFailedUrl = new Uri(Settings.DashboardUrl, $"job/{FixFailedStep.JobId}?step={FixFailedStep.StepId}&issue={Issue.Id}");
+					Text = $":cross: Marked fixed in *CL {Issue.FixChange.Value}*, but seen again at *<{FixFailedUrl}|CL {FixFailedStep.Change}>*";
 				}
 				else
 				{
@@ -590,7 +604,7 @@ namespace HordeServer.Notifications.Impl
 					}
 					else
 					{
-						List<int> Changes = Issue.Suspects.Where(x => x.AuthorId == UserId).Select(x => x.Change).OrderBy(x => x).ToList();
+						List<int> Changes = Details.Suspects.Where(x => x.AuthorId == UserId).Select(x => x.Change).OrderBy(x => x).ToList();
 						if (Changes.Count > 0)
 						{
 							string Text = $"Horde has determined that {StringUtils.FormatList(Changes.Select(x => $"CL {x}"), "or")} is the most likely cause for this issue.";
@@ -626,7 +640,7 @@ namespace HordeServer.Notifications.Impl
 			}
 			else if (UserId != null)
 			{
-				IIssueSuspect? Suspect = Issue.Suspects.FirstOrDefault(x => x.AuthorId == UserId);
+				IIssueSuspect? Suspect = Details.Suspects.FirstOrDefault(x => x.AuthorId == UserId);
 				if (Suspect != null)
 				{
 					if (Suspect.DeclinedAt != null)
@@ -644,10 +658,10 @@ namespace HordeServer.Notifications.Impl
 					}
 				}
 			}
-			else if (Issue.Suspects.Count > 0)
+			else if (Details.Suspects.Count > 0)
 			{
 				List<string> DeclinedLines = new List<string>();
-				foreach (IIssueSuspect Suspect in Issue.Suspects)
+				foreach (IIssueSuspect Suspect in Details.Suspects)
 				{
 					if (Suspect.DeclinedAt == null)
 					{
@@ -718,11 +732,11 @@ namespace HordeServer.Notifications.Impl
 			}
 			else if (String.Equals(Verb, "accept", StringComparison.Ordinal))
 			{
-				await IssueService.UpdateIssueAsync(IssueId, Owner: UserName, Acknowledged: true);
+				await IssueService.UpdateIssueAsync(IssueId, OwnerId: UserId, Acknowledged: true);
 			}
 			else if (String.Equals(Verb, "decline", StringComparison.Ordinal))
 			{
-				await IssueService.UpdateIssueAsync(IssueId, DeclinedBy: UserName);
+				await IssueService.UpdateIssueAsync(IssueId, DeclinedById: UserId);
 			}
 
 			IIssue? NewIssue = await IssueService.GetIssueAsync(IssueId);

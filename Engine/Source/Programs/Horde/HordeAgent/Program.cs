@@ -118,6 +118,9 @@ namespace HordeAgent
 		/// <returns>Exit code</returns>
 		static async Task<int> GuardedMain(string[] Args, ILogger Logger)
 		{
+			// Enable unencrypted HTTP/2 for gRPC channel without TLS
+			AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+			
 			// Find all the command types
 			List<(CommandAttribute, Type)> Commands = new List<(CommandAttribute, Type)>();
 			foreach (Type Type in Assembly.GetExecutingAssembly().GetTypes())

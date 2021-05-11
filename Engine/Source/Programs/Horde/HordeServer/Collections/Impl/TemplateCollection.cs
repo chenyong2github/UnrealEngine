@@ -50,7 +50,7 @@ namespace HordeServer.Collections.Impl
 		class TemplateDocument : ITemplate
 		{
 			[BsonRequired, BsonId]
-			public ContentHash Id { get; private set; }
+			public ContentHash Id { get; private set; } = ContentHash.Empty;
 
 			[BsonRequired]
 			public string Name { get; private set; }
@@ -73,7 +73,6 @@ namespace HordeServer.Collections.Impl
 			[BsonConstructor]
 			private TemplateDocument()
 			{
-				Id = ContentHash.Empty;
 				Name = null!;
 			}
 

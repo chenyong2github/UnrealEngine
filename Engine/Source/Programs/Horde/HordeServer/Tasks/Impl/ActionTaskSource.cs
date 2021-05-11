@@ -23,6 +23,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 
 namespace HordeServer.Tasks.Impl
 {
@@ -294,6 +295,7 @@ namespace HordeServer.Tasks.Impl
 		Dictionary<ObjectId, ExecuteOperation>[] ActiveOperationBuckets = new Dictionary<ObjectId, ExecuteOperation>[NumBuckets];
 		Random Random = new Random();
 		ILogger Logger;
+		RemoteExecSettings RemoteExecSettings;
 
 		/// <inheritdoc/>
 		public MessageDescriptor Descriptor => ActionTask.Descriptor;
@@ -304,11 +306,13 @@ namespace HordeServer.Tasks.Impl
 		/// <param name="ActionCacheService"></param>
 		/// <param name="LogFileService">The log file service instance</param>
 		/// <param name="Logger">The logger instance</param>
-		public ActionTaskSource(ActionCacheService ActionCacheService, ILogFileService LogFileService, ILogger<ActionTaskSource> Logger)
+		/// <param name="Settings">For getting the remote exec settings</param>
+		public ActionTaskSource(ActionCacheService ActionCacheService, ILogFileService LogFileService, ILogger<ActionTaskSource> Logger, IOptionsMonitor<ServerSettings> Settings)
 		{
 			this.ActionCacheService = ActionCacheService;
 			this.LogFileService = LogFileService;
 			this.Logger = Logger;
+			this.RemoteExecSettings = Settings.CurrentValue.RemoteExecSettings;
 
 			for (int Idx = 0; Idx < NumBuckets; Idx++)
 			{
@@ -408,8 +412,27 @@ namespace HordeServer.Tasks.Impl
 				ILogFile LogFile = await LogFileService.CreateLogFileAsync(ObjectId.Empty, Subscription.Agent.SessionId, LogType.Json);
 
 				ActionTask ActionTask = new ActionTask();
+				ActionTask.InstanceName = Request.InstanceName;
 				ActionTask.Digest = Request.ActionDigest;
 				ActionTask.LogId = LogFile.Id.ToString();
+
+				if (Request.InstanceName != null && RemoteExecSettings.Instances.TryGetValue(Request.InstanceName, out var InstanceSettings))
+				{
+					if (InstanceSettings.CasUrl != null)
+					{
+						ActionTask.CasUrl = InstanceSettings.CasUrl.ToString();
+					}
+					
+					if (InstanceSettings.ActionCacheUrl != null)
+					{
+						ActionTask.ActionCacheUrl = InstanceSettings.ActionCacheUrl.ToString();
+					}
+					
+					if (InstanceSettings.ServiceAccountToken != null)
+					{
+						ActionTask.ServiceAccountToken = InstanceSettings.ServiceAccountToken;
+					}
+				}
 
 				byte[] Payload = Any.Pack(ActionTask).ToByteArray();
 				AgentLease Lease = new AgentLease(Operation.Id, LeaseName, null, null, LogFile.Id, LeaseState.Pending, Payload, new AgentRequirements(), null);

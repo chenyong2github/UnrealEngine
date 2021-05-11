@@ -55,12 +55,21 @@ namespace HordeAgent.Services
 		{
 			return CreateGrpcChannel(ServerProfile.Token);
 		}
-
+		
 		/// <summary>
 		/// Create a GRPC channel with the given bearer token
 		/// </summary>
 		/// <returns>New grpc channel</returns>
 		public GrpcChannel CreateGrpcChannel(string BearerToken)
+		{
+			return CreateGrpcChannel(ServerProfile.Url, new AuthenticationHeaderValue("Bearer", BearerToken));
+		}
+
+		/// <summary>
+		/// Create a GRPC channel with the given auth header value
+		/// </summary>
+		/// <returns>New grpc channel</returns>
+		public GrpcChannel CreateGrpcChannel(string Address, AuthenticationHeaderValue? AuthHeaderValue)
 		{
 			HttpClientHandler CustomCertHandler = new HttpClientHandler();
 			CustomCertHandler.ServerCertificateCustomValidationCallback += (Sender, Cert, Chain, Errors) => CertificateHelper.CertificateValidationCallBack(Logger, Sender, Cert, Chain, Errors, ServerProfile);
@@ -72,11 +81,15 @@ namespace HordeAgent.Services
 
 			HttpClient HttpClient = new HttpClient(RetryHandler);
 			HttpClient.DefaultRequestHeaders.Add("Accept", "application/json");
-			HttpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", BearerToken);
+			if (AuthHeaderValue != null)
+			{
+				HttpClient.DefaultRequestHeaders.Authorization = AuthHeaderValue;
+			}
+
 			HttpClient.Timeout = TimeSpan.FromSeconds(210); // Need to make sure this doesn't cancel any long running gRPC streaming calls (eg. session update)
 
 			Logger.LogInformation("Connecting to rpc server {BaseUrl}", ServerProfile.Url);
-			return GrpcChannel.ForAddress(ServerProfile.Url, new GrpcChannelOptions { HttpClient = HttpClient, DisposeHttpClient = true });
+			return GrpcChannel.ForAddress(Address, new GrpcChannelOptions { HttpClient = HttpClient, DisposeHttpClient = true });
 		}
 	}
 }

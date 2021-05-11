@@ -297,7 +297,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Hash of the template definition
 		/// </summary>
-		public ContentHash Hash { get; set; } = ContentHash.Empty;
+		public ContentHash Hash { get; set; }
 
 		/// <summary>
 		/// Whether to show badges in UGS for this schedule
@@ -347,6 +347,7 @@ namespace HordeServer.Models
 		private TemplateRef()
 		{
 			this.Name = null!;
+			this.Hash = null!;
 		}
 
 		/// <summary>

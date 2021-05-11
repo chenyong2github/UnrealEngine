@@ -22,6 +22,8 @@ namespace HordeServer.Collections.Impl
 		/// </summary>
 		class ServiceAccountDocument : IServiceAccount
 		{
+			public const string ClaimSeparator = "###";
+			
 			[BsonRequired, BsonId]
 			public ObjectId Id { get; set; }
 
@@ -29,7 +31,7 @@ namespace HordeServer.Collections.Impl
 			public string SecretToken { get; set; } = "empty";
 
 			[BsonRequired]
-			public IReadOnlyDictionary<string, string> Claims { get; set; } = new Dictionary<string, string>();
+			public List<string> Claims { get; set; } = new List<string>();
 			
 			public bool Enabled { get; set; }
 			public string Description { get; set; } = "empty";
@@ -39,13 +41,29 @@ namespace HordeServer.Collections.Impl
 			{
 			}
 
-			public ServiceAccountDocument(ObjectId Id, string SecretToken, IReadOnlyDictionary<string, string> Claims, bool Enabled, string Description)
+			public ServiceAccountDocument(ObjectId Id, string SecretToken, List<string> Claims, bool Enabled, string Description)
 			{
 				this.Id = Id;
 				this.SecretToken = SecretToken;
 				this.Claims = Claims;
 				this.Enabled = Enabled;
 				this.Description = Description;
+			}
+			
+			/// <inheritdoc/>
+			public void AddClaim(string Type, string Value)
+			{
+				Claims.Add(Type + ClaimSeparator + Value);
+			}
+
+			/// <inheritdoc/>
+			public IReadOnlyList<(string Type, string Value)> GetClaims()
+			{
+				return Claims.Select(x =>
+				{
+					string[] Split = x.Split(ClaimSeparator);
+					return (Split[0], Split[1]);
+				}).ToList();
 			}
 
 			protected bool Equals(ServiceAccountDocument other)
@@ -89,7 +107,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IServiceAccount> AddAsync(string SecretToken, Dictionary<string, string> Claims, string Description)
+		public async Task<IServiceAccount> AddAsync(string SecretToken, List<string> Claims, string Description)
 		{
 			ServiceAccountDocument NewSession = new ServiceAccountDocument(ObjectId.GenerateNewId(), SecretToken, Claims, true, Description);
 			await ServiceAccounts.InsertOneAsync(NewSession);
@@ -109,7 +127,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task UpdateAsync(ObjectId Id, string? SecretToken, Dictionary<string, string>? Claims, bool? Enabled, string? Description)
+		public Task UpdateAsync(ObjectId Id, string? SecretToken, List<string>? Claims, bool? Enabled, string? Description)
 		{
 			UpdateDefinitionBuilder<ServiceAccountDocument> Update = Builders<ServiceAccountDocument>.Update;
 			List<UpdateDefinition<ServiceAccountDocument>> Updates = new List<UpdateDefinition<ServiceAccountDocument>>();

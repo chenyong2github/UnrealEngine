@@ -291,6 +291,7 @@ namespace HordeServer
 			Services.AddGrpc(Options =>
 			{
 				Options.EnableDetailedErrors = true;
+				Options.MaxReceiveMessageSize = 20 * 1024 * 1024; // 20 MB (packaged builds of Horde agent can be large) 
 				Options.Interceptors.Add(typeof(LifetimeGrpcInterceptor));
 				Options.Interceptors.Add(typeof(GrpcExceptionInterceptor));
 			});
@@ -367,13 +368,20 @@ namespace HordeServer
 			Services.AddSingleton<ILogFileService, LogFileService>();
 			Services.AddSingleton<INotificationService, NotificationService>();			
 
-			if (String.IsNullOrEmpty(Settings.PerforceBridge))
+			
+			if (!String.IsNullOrEmpty(Settings.PerforceBridge))
 			{
-				Services.AddSingleton<IPerforceService, LocalPerforceService>();
+				// Python P4 bridge service
+				Services.AddSingleton<IPerforceService, BridgePerforceService>(SP => new BridgePerforceService(Settings.PerforceBridge!, SP.GetService<ILogger<BridgePerforceService>>()));				
+			}
+			else if (!String.IsNullOrEmpty(Settings.P4BridgeServer))
+			{
+				// Native P4 API
+				Services.AddSingleton<IPerforceService, P4APIPerforceService>();
 			}
 			else
 			{
-				Services.AddSingleton<IPerforceService, BridgePerforceService>(SP => new BridgePerforceService(Settings.PerforceBridge!, SP.GetRequiredService<ILogger<BridgePerforceService>>()));
+				Services.AddSingleton<IPerforceService, LocalPerforceService>();
 			}
 
 			Services.AddSingleton<PerforceLoadBalancer>();
@@ -585,12 +593,12 @@ namespace HordeServer
 				}
 				else
 				{
-					return new RedisLogBuilder(RedisConnectionPool, Provider.GetRequiredService<ILogger<RedisLogBuilder>>());
+					return new RedisLogBuilder(RedisConnectionPool, Provider.GetService<ILogger<RedisLogBuilder>>());
 				}
 			});
 			Services.AddSingleton<ILogStorage>(Provider =>
 			{
-				ILogStorage Storage = new PersistentLogStorage(Provider.GetRequiredService<IStorageBackend>(), Provider.GetRequiredService<ILogger<PersistentLogStorage>>());
+				ILogStorage Storage = new PersistentLogStorage(Provider.GetService<IStorageBackend>(), Provider.GetService<ILogger<PersistentLogStorage>>());
 
 //				IDatabase? RedisDb = Provider.GetService<IDatabase>();
 //				if (RedisDb != null)

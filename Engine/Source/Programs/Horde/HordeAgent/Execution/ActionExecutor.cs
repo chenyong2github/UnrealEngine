@@ -35,6 +35,11 @@ namespace HordeAgent
 	class ActionExecutor
 	{
 		/// <summary>
+		/// The instance name
+		/// </summary>
+		string InstanceName;
+		
+		/// <summary>
 		/// The storage wrapper
 		/// </summary>
 		ContentAddressableStorage.ContentAddressableStorageClient Storage;
@@ -57,13 +62,17 @@ namespace HordeAgent
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Channel"></param>
+		/// <param name="InstanceName"></param>
+		/// <param name="CasChannel"></param>
+		/// <param name="ActionCacheChannel"></param>
+		/// <param name="ActionRpcChannel"></param>
 		/// <param name="Logger"></param>
-		public ActionExecutor(GrpcChannel Channel, ILogger Logger)
+		public ActionExecutor(string InstanceName, GrpcChannel CasChannel, GrpcChannel ActionCacheChannel, GrpcChannel ActionRpcChannel, ILogger Logger)
 		{
-			this.Storage = new ContentAddressableStorage.ContentAddressableStorageClient(Channel);
-			this.Cache = new ActionCache.ActionCacheClient(Channel);
-			this.ActionRpc = new ActionRpc.ActionRpcClient(Channel);
+			this.InstanceName = InstanceName;
+			this.Storage = new ContentAddressableStorage.ContentAddressableStorageClient(CasChannel);
+			this.Cache = new ActionCache.ActionCacheClient(ActionCacheChannel);
+			this.ActionRpc = new ActionRpc.ActionRpcClient(ActionRpcChannel);
 			this.Logger = Logger;
 		}
 
@@ -76,7 +85,7 @@ namespace HordeAgent
 		/// <returns>The action result</returns>
 		public async Task<ActionResult> ExecuteActionAsync(string LeaseId, ActionTask ActionTask, DirectoryReference SandboxDir)
 		{
-			Action? Action = await Storage.GetProtoMessageAsync<Action>(ActionTask.Digest);
+			Action? Action = await Storage.GetProtoMessageAsync<Action>(InstanceName, ActionTask.Digest);
 			if (Action == null)
 			{
 				throw new RpcException(new Grpc.Core.Status(StatusCode.NotFound, "Unable to find action message"));
@@ -85,10 +94,10 @@ namespace HordeAgent
 			DirectoryReference.CreateDirectory(SandboxDir);
 			FileUtils.ForceDeleteDirectoryContents(SandboxDir);
 
-			Directory InputDirectory = await Storage.GetProtoMessageAsync<Directory>(Action.InputRootDigest);
+			Directory InputDirectory = await Storage.GetProtoMessageAsync<Directory>(InstanceName, Action.InputRootDigest);
 			await SetupSandboxAsync(InputDirectory, SandboxDir);
 
-			RpcCommand Command = await Storage.GetProtoMessageAsync<RpcCommand>(Action.CommandDigest);
+			RpcCommand Command = await Storage.GetProtoMessageAsync<RpcCommand>(InstanceName, Action.CommandDigest);
 
 			foreach (string OutputFile in Command.OutputFiles)
 			{
@@ -132,8 +141,8 @@ namespace HordeAgent
 					}
 
 					Result = new ActionResult();
-					Result.StdoutDigest = await Storage.PutBulkDataAsync(StdOutData);
-					Result.StderrDigest = await Storage.PutBulkDataAsync(StdErrData);
+					Result.StdoutDigest = await Storage.PutBulkDataAsync(InstanceName, StdOutData);
+					Result.StderrDigest = await Storage.PutBulkDataAsync(InstanceName, StdErrData);
 					Result.ExitCode = Process.ExitCode;
 
 					foreach (string Line in Encoding.UTF8.GetString(StdOutData).Split('\n'))
@@ -153,7 +162,7 @@ namespace HordeAgent
 						if (FileReference.Exists(FileRef))
 						{
 							byte[] Bytes = await FileReference.ReadAllBytesAsync(FileRef);
-							Digest Digest = await Storage.PutBulkDataAsync(Bytes);
+							Digest Digest = await Storage.PutBulkDataAsync(InstanceName, Bytes);
 
 							OutputFile OutputFileInfo = new OutputFile();
 							OutputFileInfo.Path = OutputFile;
@@ -173,6 +182,7 @@ namespace HordeAgent
 					if (!Action.DoNotCache)
 					{
 						UpdateActionResultRequest Request = new UpdateActionResultRequest();
+						Request.InstanceName = InstanceName;
 						Request.ActionDigest = ActionTask.Digest;
 						Request.ActionResult = Result;
 						await Cache.UpdateActionResultAsync(Request);
@@ -197,7 +207,7 @@ namespace HordeAgent
 
 			foreach (FileNode FileNode in InputDirectory.Files)
 			{
-				ReadOnlyMemory<byte> Data = await Storage.GetBulkDataAsync(FileNode.Digest);
+				ReadOnlyMemory<byte> Data = await Storage.GetBulkDataAsync(InstanceName, FileNode.Digest);
 				FileReference File = FileReference.Combine(OutputDir, FileNode.Name);
 				Logger.LogInformation("Writing {File} (digest: {Digest}, size: {Size})", File, FileNode.Digest.Hash, FileNode.Digest.SizeBytes);
 				await FileReference.WriteAllBytesAsync(File, Data.ToArray());
@@ -205,7 +215,7 @@ namespace HordeAgent
 
 			foreach (DirectoryNode DirectoryNode in InputDirectory.Directories)
 			{
-				Directory InputSubDirectory = await Storage.GetProtoMessageAsync<Directory>(DirectoryNode.Digest);
+				Directory InputSubDirectory = await Storage.GetProtoMessageAsync<Directory>(InstanceName, DirectoryNode.Digest);
 				DirectoryReference OutputSubDirectory = DirectoryReference.Combine(OutputDir, DirectoryNode.Name);
 				await SetupSandboxAsync(InputSubDirectory, OutputSubDirectory);
 			}

@@ -188,7 +188,7 @@ namespace HordeServer.Collections.Impl
 			public StreamId StreamId { get; set; }
 			public TemplateRefId TemplateId { get; set; }
 			public ContentHash? TemplateHash { get; set; }
-			public ContentHash GraphHash { get; set; } = ContentHash.Empty;
+			public ContentHash GraphHash { get; set; }
 
 			[BsonIgnoreIfNull]
 			public ObjectId? StartedByUserId { get; set; }
@@ -265,6 +265,7 @@ namespace HordeServer.Collections.Impl
 			private JobDocument()
 			{
 				Name = null!;
+				GraphHash = null!;
 			}
 
 			public JobDocument(ObjectId Id, StreamId StreamId, TemplateRefId TemplateId, ContentHash TemplateHash, ContentHash GraphHash, string Name, int Change, int CodeChange, int PreflightChange, int ClonedPreflightChange, ObjectId? StartedByUserId, string? StartedByUserName, Priority? Priority, bool? AutoSubmit, DateTime CreateTimeUtc, List<ChainedJobDocument> ChainedJobs, bool ShowUgsBadges, bool ShowUgsAlerts, string? NotificationChannel, string? NotificationChannelFilter, string? HelixSwarmCallbackUrl, List<string>? Arguments)

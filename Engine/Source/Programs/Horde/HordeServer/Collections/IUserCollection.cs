@@ -25,6 +25,13 @@ namespace HordeServer.Collections
 		Task<IUser?> GetUserAsync(ObjectId Id);
 
 		/// <summary>
+		/// Gets a cached user by unique id
+		/// </summary>
+		/// <param name="Id">Id of the user</param>
+		/// <returns>The user information</returns>
+		Task<IUser?> GetCachedUserAsync(ObjectId Id);
+
+		/// <summary>
 		/// Gets a user by unique id
 		/// </summary>
 		/// <param name="Ids">Ids of the users</param>

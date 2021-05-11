@@ -499,17 +499,19 @@ namespace HordeServer.Api
 		/// Constructs a new issue
 		/// </summary>
 		/// <param name="Details">Issue to construct from</param>
+		/// <param name="Owner"></param>
+		/// <param name="NominatedBy"></param>
 		/// <param name="bNotify">Whether to notify the user about this issue</param>
 		/// <param name="BuildUrl">Link to the last build for this issue</param>
-		public GetUgsIssueResponse(IIssueDetails Details, bool bNotify, Uri? BuildUrl)
+		public GetUgsIssueResponse(IIssueDetails Details, IUser? Owner, IUser? NominatedBy, bool bNotify, Uri? BuildUrl)
 		{
 			IIssue Issue = Details.Issue;
 			this.Id = Issue.Id;
 			this.CreatedAt = Issue.CreatedAt;
 			this.RetrievedAt = DateTime.UtcNow;
 			this.Summary = Issue.Summary;
-			this.Owner = Issue.Owner;
-			this.NominatedBy = Issue.NominatedBy;
+			this.Owner = Owner?.Login;
+			this.NominatedBy = NominatedBy?.Login;
 			this.AcknowledgedAt = Issue.AcknowledgedAt;
 			this.FixChange = Issue.FixChange;
 			this.ResolvedAt = Issue.ResolvedAt;
@@ -554,5 +556,10 @@ namespace HordeServer.Api
 		/// Whether the issue should be marked as resolved
 		/// </summary>
 		public bool? Resolved { get; set; }
+
+		/// <summary>
+		/// Name of the user that resolved the issue
+		/// </summary>
+		public string? ResolvedBy { get; set; }
 	}
 }

@@ -106,6 +106,10 @@ namespace HordeServerTests
 		ILogFileService LogFileService => TestSetup.LogFileService;
 		IIssueService IssueService => TestSetup.IssueService;
 
+		ObjectId TimId;
+		ObjectId JerryId;
+		ObjectId BobId;
+
 		DirectoryReference WorkspaceDir;
 
 		public IssueServiceTests()
@@ -147,6 +151,10 @@ namespace HordeServerTests
 			Mock<IGraph> GraphMock = new Mock<IGraph>(MockBehavior.Strict);
 			GraphMock.SetupGet(x => x.Groups).Returns(new List<INodeGroup> { Group.Object });
 			Graph = GraphMock.Object;
+
+			TimId = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Tim").Result.Id;
+			JerryId = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Jerry").Result.Id;
+			BobId = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Bob").Result.Id;
 		}
 
 		public static INode MockNode(string Name)
@@ -156,7 +164,7 @@ namespace HordeServerTests
 			return Node.Object;
 		}
 
-		public IJob CreateJob(StreamId StreamId, int Change, string Name, IGraph Graph)
+		public IJob CreateJob(StreamId StreamId, int Change, string Name, IGraph Graph, TimeSpan Time = default)
 		{
 			ObjectId JobId = ObjectId.GenerateNewId();
 
@@ -176,7 +184,7 @@ namespace HordeServerTests
 					Step.SetupGet(x => x.Id).Returns(StepId);
 					Step.SetupGet(x => x.NodeIdx).Returns(NodeIdx);
 					Step.SetupGet(x => x.LogId).Returns(LogFile.Id);
-					Step.SetupGet(x => x.StartTimeUtc).Returns(DateTime.UtcNow);
+					Step.SetupGet(x => x.StartTimeUtc).Returns(DateTime.UtcNow + Time);
 
 					Steps.Add(Step.Object);
 				}
@@ -211,7 +219,7 @@ namespace HordeServerTests
 
 			JobStepRefId JobStepRefId = new JobStepRefId(Job.Id, Batch.Id, Step.Id);
 			string NodeName = Graph.Groups[Batch.GroupIdx].Nodes[Step.NodeIdx].Name;
-			await TestSetup.JobStepRefCollection.InsertOrReplaceAsync(JobStepRefId, "TestJob", NodeName, Job.StreamId, Job.TemplateId, Job.Change, Step.LogId, null, null, Outcome, 0.0f, 0.0f, DateTime.MinValue, null);
+			await TestSetup.JobStepRefCollection.InsertOrReplaceAsync(JobStepRefId, "TestJob", NodeName, Job.StreamId, Job.TemplateId, Job.Change, Step.LogId, null, null, Outcome, 0.0f, 0.0f, Step.StartTimeUtc!.Value, Step.StartTimeUtc);
 		}
 
 		async Task AddEvent(IJob Job, int BatchIdx, int StepIdx, object Data, EventSeverity Severity = EventSeverity.Error)
@@ -277,12 +285,12 @@ namespace HordeServerTests
 				await AddEvent(Job, 0, 2, new { });
 				await UpdateCompleteStep(Job, 0, 2, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
+				List<IIssue> Issues = (await IssueService.FindIssuesAsync()).OrderBy(x => x.Summary).ToList();
 				Assert.AreEqual(3, Issues.Count);
 
-				Assert.AreEqual("Warnings in Update Version Files", Issues[0].Summary);
+				Assert.AreEqual("Errors in Compile ShooterGameEditor Win64", Issues[0].Summary);
 				Assert.AreEqual("Errors in Compile UnrealHeaderTool Win64", Issues[1].Summary);
-				Assert.AreEqual("Errors in Compile ShooterGameEditor Win64", Issues[2].Summary);
+				Assert.AreEqual("Warnings in Update Version Files", Issues[2].Summary);
 			}
 
 			// #3
@@ -293,12 +301,12 @@ namespace HordeServerTests
 				await AddEvent(Job, 0, 0, new { });
 				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
+				List<IIssue> Issues = (await IssueService.FindIssuesAsync()).OrderBy(x => x.Summary).ToList();
 				Assert.AreEqual(3, Issues.Count);
 
-				Assert.AreEqual("Errors in Update Version Files", Issues[0].Summary);
+				Assert.AreEqual("Errors in Compile ShooterGameEditor Win64", Issues[0].Summary);
 				Assert.AreEqual("Errors in Compile UnrealHeaderTool Win64", Issues[1].Summary);
-				Assert.AreEqual("Errors in Compile ShooterGameEditor Win64", Issues[2].Summary);
+				Assert.AreEqual("Errors in Update Version Files", Issues[2].Summary);
 			}
 
 			// #4
@@ -438,19 +446,19 @@ namespace HordeServerTests
 				Assert.AreEqual(105, Stream.LastSuccess?.Change);
 				Assert.AreEqual(null, Stream.NextSuccess?.Change);
 
-				IReadOnlyList<IIssueSuspect> Suspects = Issue.Suspects;
+				IReadOnlyList<IIssueSuspect> Suspects = await IssueService.GetIssueSuspectsAsync(Issue);
 				Assert.AreEqual(3, Suspects.Count);
 
 				Assert.AreEqual(120, Suspects[0].Change);
-				Assert.AreEqual("Tim", Suspects[0].Author);
+				Assert.AreEqual(TimId, Suspects[0].AuthorId);
 				//				Assert.AreEqual(null, Suspects[0].OriginatingChange);
 
 				Assert.AreEqual(75 /*115*/, Suspects[1].Change);
-				Assert.AreEqual("Jerry", Suspects[1].Author);
+				Assert.AreEqual(JerryId, Suspects[1].AuthorId);
 				//				Assert.AreEqual(75, Suspects[1].OriginatingChange);
 
 				Assert.AreEqual(110, Suspects[2].Change);
-				Assert.AreEqual("Bob", Suspects[2].Author);
+				Assert.AreEqual(BobId, Suspects[2].AuthorId);
 				//			Assert.AreEqual(null, Suspects[2].OriginatingChange);
 
 				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync(Resolved: false);
@@ -475,14 +483,14 @@ namespace HordeServerTests
 				Assert.AreEqual(110, Stream.LastSuccess?.Change);
 				Assert.AreEqual(null, Stream.NextSuccess?.Change);
 
-				IReadOnlyList<IIssueSuspect> Suspects = Issue.Suspects;
+				IReadOnlyList<IIssueSuspect> Suspects = (await IssueService.GetIssueSuspectsAsync(Issue)).OrderByDescending(x => x.Change).ToList();
 				Assert.AreEqual(2, Suspects.Count);
 
 				Assert.AreEqual(120, Suspects[0].Change);
-				Assert.AreEqual("Tim", Suspects[0].Author);
+				Assert.AreEqual(TimId, Suspects[0].AuthorId);
 
 				Assert.AreEqual(75, Suspects[1].Change);
-				Assert.AreEqual("Jerry", Suspects[1].Author);
+				Assert.AreEqual(JerryId, Suspects[1].AuthorId);
 
 				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync(Resolved: false);
 				Assert.AreEqual(1, OpenIssues.Count);
@@ -495,7 +503,7 @@ namespace HordeServerTests
 				IJob Job = CreateJob(MainStreamId, 125, "Test Build", Graph);
 				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
+				List<IIssue> Issues = await IssueService.FindIssuesAsync(Resolved: true);
 				Assert.AreEqual(1, Issues.Count);
 
 				IIssue Issue = Issues[0];
@@ -523,7 +531,7 @@ namespace HordeServerTests
 				await ParseEventsAsync(Job, 0, 0, Lines);
 				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
+				List<IIssue> Issues = await IssueService.FindIssuesAsync(Resolved: true);
 				Assert.AreEqual(1, Issues.Count);
 
 				IIssue Issue = Issues[0];
@@ -546,8 +554,11 @@ namespace HordeServerTests
 				await AddEvent(Job, 0, 1, new { });
 				await UpdateCompleteStep(Job, 0, 1, JobStepOutcome.Failure);
 
-				List<IIssue> Issues = await IssueService.FindIssuesAsync();
-				Assert.AreEqual(2, Issues.Count);
+				List<IIssue> ResolvedIssues = await IssueService.FindIssuesAsync(Resolved: true);
+				Assert.AreEqual(1, ResolvedIssues.Count);
+
+				List<IIssue> UnresolvedIssues = await IssueService.FindIssuesAsync(Resolved: false);
+				Assert.AreEqual(1, UnresolvedIssues.Count);
 			}
 		}
 
@@ -585,10 +596,12 @@ namespace HordeServerTests
 				List<IIssue> Issues = await IssueService.FindIssuesAsync();
 				Assert.AreEqual(1, Issues.Count);
 
-				List<string> PrimarySuspects = Issues[0].Suspects.Select(x => x.Author).OrderBy(x => x).ToList();
+				List<IIssueSuspect> Suspects = await IssueService.GetIssueSuspectsAsync(Issues[0]);
+
+				List<ObjectId> PrimarySuspects = Suspects.Select(x => x.AuthorId).ToList();
 				Assert.AreEqual(2, PrimarySuspects.Count);
-				Assert.AreEqual("Jerry", PrimarySuspects[0]); // 115
-				Assert.AreEqual("Tim", PrimarySuspects[1]); // 120
+				Assert.IsTrue(PrimarySuspects.Contains(JerryId)); // 115
+				Assert.IsTrue(PrimarySuspects.Contains(TimId)); // 120
 			}
 
 			// #3
@@ -602,11 +615,11 @@ namespace HordeServerTests
 				Assert.AreEqual(1, Issues.Count);
 
 				IIssue Issue = Issues[0];
-				Assert.AreEqual("Tim", Issue.Owner);
+				Assert.AreEqual(TimId, Issue.OwnerId);
 
 				// Also check updating an issue doesn't clear the owner
 				Assert.IsTrue(await IssueService.UpdateIssueAsync(Issue.Id));
-				Assert.AreEqual("Tim", Issue!.Owner);
+				Assert.AreEqual(TimId, Issue!.OwnerId);
 			}
 		}
 
@@ -687,9 +700,11 @@ namespace HordeServerTests
 				List<IIssue> Issues = await IssueService.FindIssuesAsync();
 				Assert.AreEqual(1, Issues.Count);
 
-				List<string> PrimarySuspects = Issues[0].Suspects.Select(x => x.Author).OrderBy(x => x).ToList();
+				List<IIssueSuspect> Suspects = await IssueService.GetIssueSuspectsAsync(Issues[0]);
+
+				List<ObjectId> PrimarySuspects = Suspects.Select(x => x.AuthorId).ToList();
 				Assert.AreEqual(1, PrimarySuspects.Count);
-				Assert.AreEqual("Jerry", PrimarySuspects[0]); // 115
+				Assert.AreEqual(JerryId, PrimarySuspects[0]); // 115
 			}
 		}
 
@@ -727,10 +742,12 @@ namespace HordeServerTests
 				List<IIssue> Issues = await IssueService.FindIssuesAsync();
 				Assert.AreEqual(1, Issues.Count);
 
-				List<string> PrimarySuspects = Issues[0].Suspects.Select(x => x.Author).OrderBy(x => x).ToList();
+				List<IIssueSuspect> Suspects = await IssueService.GetIssueSuspectsAsync(Issues[0]);
+
+				List<ObjectId> PrimarySuspects = Suspects.Select(x => x.AuthorId).ToList();
 				Assert.AreEqual(2, PrimarySuspects.Count);
-				Assert.AreEqual("Jerry", PrimarySuspects[0]); // 115
-				Assert.AreEqual("Tim", PrimarySuspects[1]); // 120
+				Assert.IsTrue(PrimarySuspects.Contains(JerryId)); // 115
+				Assert.IsTrue(PrimarySuspects.Contains(TimId)); // 120
 			}
 
 			// #3
@@ -739,14 +756,16 @@ namespace HordeServerTests
 			{
 				List<IIssue> Issues = await IssueService.FindIssuesAsync();
 				Assert.AreEqual(1, Issues.Count);
-				await IssueService.UpdateIssueAsync(Issues[0].Id, DeclinedBy: "Tim");
+				await IssueService.UpdateIssueAsync(Issues[0].Id, DeclinedById: TimId);
 
 				Issues = await IssueService.FindIssuesAsync();
 				Assert.AreEqual(1, Issues.Count);
 
-				List<string> PrimarySuspects = Issues[0].Suspects.Where(x => x.DeclinedAt == null).Select(x => x.Author).OrderBy(x => x).ToList();
+				List<IIssueSuspect> Suspects = await IssueService.GetIssueSuspectsAsync(Issues[0]);
+
+				List<ObjectId> PrimarySuspects = Suspects.Where(x => x.DeclinedAt == null).Select(x => x.AuthorId).ToList();
 				Assert.AreEqual(1, PrimarySuspects.Count);
-				Assert.AreEqual("Jerry", PrimarySuspects[0]); // 115
+				Assert.AreEqual(JerryId, PrimarySuspects[0]); // 115
 			}
 		}
 
@@ -789,9 +808,11 @@ namespace HordeServerTests
 				Assert.AreEqual(105, Stream.LastSuccess?.Change);
 				Assert.AreEqual(null, Stream.NextSuccess?.Change);
 
-				List<string> PrimarySuspects = Issue.Suspects.Select(x => x.Author).ToList();
+				List<IIssueSuspect> Suspects = await IssueService.GetIssueSuspectsAsync(Issues[0]);
+
+				List<ObjectId> PrimarySuspects = Suspects.Select(x => x.AuthorId).ToList();
 				Assert.AreEqual(1, PrimarySuspects.Count);
-				Assert.AreEqual("Jerry", PrimarySuspects[0]); // 115 = foo.cpp
+				Assert.AreEqual(JerryId, PrimarySuspects[0]); // 115 = foo.cpp
 			}
 		}
 
@@ -1025,6 +1046,153 @@ namespace HordeServerTests
 				Assert.AreEqual(Spans.Count, 1);
 				Assert.AreEqual(Issue.Fingerprint.Type, "Gauntlet");
 				Assert.AreEqual(Issue.Summary, "HLOD test failures: SectionFlags, SimpleMerge and SingleLODMerge");
+			}
+		}
+
+		[TestMethod]
+		public async Task FixFailedTest()
+		{
+			int IssueId;
+
+			// #1
+			// Scenario: Warning in first step
+			// Expected: Default issue is created
+			{
+				IJob Job = CreateJob(MainStreamId, 105, "Test Build", Graph);
+				await AddEvent(Job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Warnings);
+
+				List<IIssue> Issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, Issues.Count);
+				Assert.AreEqual(IssueSeverity.Warning, Issues[0].Severity);
+
+				Assert.AreEqual("Warnings in Update Version Files", Issues[0].Summary);
+
+				IssueId = Issues[0].Id;
+			}
+
+			// #2
+			// Scenario: Issue is marked fixed
+			// Expected: Resolved time, owner is set
+			{
+				await IssueService.UpdateIssueAsync(IssueId, ResolvedById: BobId);
+
+				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, OpenIssues.Count);
+
+				IIssue Issue = (await IssueService.GetIssueAsync(IssueId))!;
+				Assert.IsNotNull(Issue.ResolvedAt);
+				Assert.AreEqual(BobId, Issue.OwnerId);
+				Assert.AreEqual(BobId, Issue.ResolvedById);
+			}
+
+			// #3
+			// Scenario: Issue recurs an hour later
+			// Expected: Issue is still marked as resolved
+			{
+				IJob Job = CreateJob(MainStreamId, 110, "Test Build", Graph, TimeSpan.FromHours(1.0));
+				await AddEvent(Job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Warnings);
+
+				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, OpenIssues.Count);
+
+				IIssue Issue = (await IssueService.GetIssueAsync(IssueId))!;
+				Assert.IsNotNull(Issue.ResolvedAt);
+				Assert.AreEqual(BobId, Issue.OwnerId);
+				Assert.AreEqual(BobId, Issue.ResolvedById);
+			}
+
+			// #4
+			// Scenario: Issue recurs a day later at the same change
+			// Expected: Issue is reopened
+			{
+				IJob Job = CreateJob(MainStreamId, 110, "Test Build", Graph, TimeSpan.FromHours(25.0));
+				await AddEvent(Job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Warnings);
+
+				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, OpenIssues.Count);
+
+				IIssue Issue = OpenIssues[0];
+				Assert.AreEqual(IssueId, Issue.Id);
+				Assert.IsNull(Issue.ResolvedAt);
+				Assert.AreEqual(BobId, Issue.OwnerId);
+				Assert.IsNull(Issue.ResolvedById);
+			}
+
+			// #5
+			// Scenario: Issue is marked fixed again, at a particular changelist
+			// Expected: Resolved time, owner is set
+			{
+				await IssueService.UpdateIssueAsync(IssueId, ResolvedById: BobId, FixChange: 115);
+
+				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, OpenIssues.Count);
+
+				IIssue Issue = (await IssueService.GetIssueAsync(IssueId))!;
+				Assert.IsNotNull(Issue.ResolvedAt);
+				Assert.AreEqual(BobId, Issue.OwnerId);
+				Assert.AreEqual(BobId, Issue.ResolvedById);
+			}
+
+			// #6
+			// Scenario: Issue fails again at a later changelist
+			// Expected: Issue is reopened
+			{
+				IJob Job = CreateJob(MainStreamId, 120, "Test Build", Graph, TimeSpan.FromHours(25.0));
+				await AddEvent(Job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Warnings);
+
+				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, OpenIssues.Count);
+
+				IIssue Issue = OpenIssues[0];
+				Assert.AreEqual(IssueId, Issue.Id);
+				Assert.IsNull(Issue.ResolvedAt);
+				Assert.AreEqual(BobId, Issue.OwnerId);
+				Assert.IsNull(Issue.ResolvedById);
+			}
+
+			// #7
+			// Scenario: Issue is marked fixed again, at a particular changelist
+			// Expected: Resolved time, owner is set
+			{
+				await IssueService.UpdateIssueAsync(IssueId, ResolvedById: BobId, FixChange: 125);
+
+				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, OpenIssues.Count);
+
+				IIssue Issue = (await IssueService.GetIssueAsync(IssueId))!;
+				Assert.IsNotNull(Issue.ResolvedAt);
+				Assert.AreEqual(BobId, Issue.OwnerId);
+				Assert.AreEqual(BobId, Issue.ResolvedById);
+			}
+
+			// #8
+			// Scenario: Issue succeeds at a later changelist
+			// Expected: Issue remains closed
+			{
+				IJob Job = CreateJob(MainStreamId, 125, "Test Build", Graph, TimeSpan.FromHours(25.0));
+				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+
+				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, OpenIssues.Count);
+			}
+
+			// #9
+			// Scenario: Issue fails at a later changelist
+			// Expected: New issue is opened
+			{
+				IJob Job = CreateJob(MainStreamId, 130, "Test Build", Graph, TimeSpan.FromHours(25.0));
+				await AddEvent(Job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Warnings);
+
+				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, OpenIssues.Count);
+
+				IIssue Issue = OpenIssues[0];
+				Assert.AreNotEqual(IssueId, Issue.Id);
 			}
 		}
 

@@ -39,52 +39,67 @@ namespace HordeServer.Services.Impl
 	/// </summary>
 	class IssueDetails : IIssueDetails
 	{
-		/// <summary>
-		/// The issue instance
-		/// </summary>
+		/// <inheritdoc/>
 		public IIssue Issue { get; }
 
-		/// <summary>
-		/// List of spans for this issue
-		/// </summary>
+		/// <inheritdoc/>
+		public IUser? Owner { get; }
+
+		/// <inheritdoc/>
+		public IUser? NominatedBy { get; }
+
+		/// <inheritdoc/>
+		public IUser? ResolvedBy { get; }
+
+		/// <inheritdoc/>
 		public IReadOnlyList<IIssueSpan> Spans { get; }
 
-		/// <summary>
-		/// List of steps for the spans
-		/// </summary>
+		/// <inheritdoc/>
 		public IReadOnlyList<IIssueStep> Steps { get; }
 
-		/// <summary>
-		/// Whether to show desktop alerts for this issue
-		/// </summary>
+		/// <inheritdoc/>
+		public IReadOnlyList<IIssueSuspect> Suspects { get; }
+
+		/// <inheritdoc/>
+		public IReadOnlyList<IUser> SuspectUsers { get; }
+
+		/// <inheritdoc/>
 		bool ShowDesktopAlerts;
 
-		/// <summary>
-		/// Set of primary suspects
-		/// </summary>
-		HashSet<string> NotifyUsers;
+		/// <inheritdoc/>
+		HashSet<ObjectId> NotifyUsers;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Issue"></param>
+		/// <param name="Owner"></param>
+		/// <param name="NominatedBy"></param>
+		/// <param name="ResolvedBy"></param>
 		/// <param name="Spans">Spans for this issue</param>
 		/// <param name="Steps">Steps for this issue</param>
+		/// <param name="Suspects"></param>
+		/// <param name="SuspectUsers"></param>
 		/// <param name="ShowDesktopAlerts"></param>
-		public IssueDetails(IIssue Issue, IReadOnlyList<IIssueSpan> Spans, IReadOnlyList<IIssueStep> Steps, bool ShowDesktopAlerts)
+		public IssueDetails(IIssue Issue, IUser? Owner, IUser? NominatedBy, IUser? ResolvedBy, IReadOnlyList<IIssueSpan> Spans, IReadOnlyList<IIssueStep> Steps, IReadOnlyList<IIssueSuspect> Suspects, IReadOnlyList<IUser> SuspectUsers, bool ShowDesktopAlerts)
 		{
 			this.Issue = Issue;
+			this.Owner = Owner;
+			this.NominatedBy = NominatedBy;
+			this.ResolvedBy = ResolvedBy;
 			this.Spans = Spans;
 			this.Steps = Steps;
+			this.Suspects = Suspects;
+			this.SuspectUsers = SuspectUsers;
 			this.ShowDesktopAlerts = ShowDesktopAlerts;
 
-			if (Issue.Owner == null)
+			if (Issue.OwnerId == null)
 			{
-				NotifyUsers = new HashSet<string>(Issue.Suspects.Select(x => x.Author), StringComparer.OrdinalIgnoreCase);
+				NotifyUsers = new HashSet<ObjectId>(Suspects.Select(x => x.AuthorId));
 			}
 			else
 			{
-				NotifyUsers = new HashSet<string> { Issue.Owner };
+				NotifyUsers = new HashSet<ObjectId> { Issue.OwnerId.Value };
 			}
 		}
 
@@ -100,18 +115,18 @@ namespace HordeServer.Services.Impl
 		/// <summary>
 		/// Determines if the issue is relevant to the given user
 		/// </summary>
-		/// <param name="User">The user to query</param>
+		/// <param name="UserId">The user to query</param>
 		/// <returns>True if the issue is relevant to the given user</returns>
-		public bool IncludeForUser(string User)
+		public bool IncludeForUser(ObjectId UserId)
 		{
-			return NotifyUsers.Contains(User);
+			return NotifyUsers.Contains(UserId);
 		}
 	}
 
 	/// <summary>
 	/// Wraps funtionality for manipulating build health issues
 	/// </summary>
-	public class IssueService : TickedBackgroundService, IIssueService
+	public class IssueService : ElectedBackgroundService, IIssueService
 	{
 		/// <summary>
 		/// Maximum number of changes to query from Perforce in one go
@@ -137,6 +152,11 @@ namespace HordeServer.Services.Impl
 		/// Collection of stream documents
 		/// </summary>
 		IStreamCollection Streams;
+
+		/// <summary>
+		/// Collection of user documents
+		/// </summary>
+		IUserCollection UserCollection;
 
 		/// <summary>
 		/// Collection of commit documents
@@ -166,7 +186,7 @@ namespace HordeServer.Services.Impl
 		/// <summary>
 		/// Cached list of currently open issues
 		/// </summary>
-		IReadOnlyList<IssueDetails> CachedIssues = new List<IssueDetails>();
+		IReadOnlyList<IIssueDetails> CachedIssues = new List<IIssueDetails>();
 
 		/// <summary>
 		/// Cache of templates to show desktop alerts for
@@ -186,15 +206,17 @@ namespace HordeServer.Services.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="DatabaseService"></param>
 		/// <param name="IssueCollection">Collection of issue documents</param>
 		/// <param name="Jobs">Collection of job documents</param>
 		/// <param name="JobStepRefs">Collection of jobstepref documents</param>
 		/// <param name="Streams">Collection of stream documents</param>
+		/// <param name="UserCollection"></param>
 		/// <param name="Perforce">The perforce service instance</param>
 		/// <param name="LogFileService">Collection of event documents</param>
 		/// <param name="Logger">The logger instance</param>
-		public IssueService(IIssueCollection IssueCollection, IJobCollection Jobs, IJobStepRefCollection JobStepRefs, IStreamCollection Streams, IPerforceService Perforce, ILogFileService LogFileService, ILogger<IssueService> Logger)
-			: base(TimeSpan.FromSeconds(20.0), Logger)
+		public IssueService(DatabaseService DatabaseService, IIssueCollection IssueCollection, IJobCollection Jobs, IJobStepRefCollection JobStepRefs, IStreamCollection Streams, IUserCollection UserCollection, IPerforceService Perforce, ILogFileService LogFileService, ILogger<IssueService> Logger)
+			: base(DatabaseService, ObjectId.Parse("609542152fb0794700a6c3df"), Logger)
 		{
 			Type[] IssueTypes = Assembly.GetExecutingAssembly().GetTypes().Where(x => !x.IsAbstract && typeof(IIssue).IsAssignableFrom(x)).ToArray();
 			foreach (Type IssueType in IssueTypes)
@@ -207,6 +229,7 @@ namespace HordeServer.Services.Impl
 			this.Jobs = Jobs;
 			this.JobStepRefs = JobStepRefs;
 			this.Streams = Streams;
+			this.UserCollection = UserCollection;
 			this.Perforce = Perforce;
 			this.LogFileService = LogFileService;
 			this.Logger = Logger;
@@ -232,8 +255,10 @@ namespace HordeServer.Services.Impl
 		/// </summary>
 		/// <param name="StoppingToken">Token to indicate that the service should stop</param>
 		/// <returns>Async task</returns>
-		protected override async Task TickAsync(CancellationToken StoppingToken)
+		protected override async Task<DateTime> TickLeaderAsync(CancellationToken StoppingToken)
 		{
+			DateTime UtcNow = DateTime.UtcNow;
+
 			Dictionary<StreamId, HashSet<TemplateRefId>> NewCachedDesktopAlerts = new Dictionary<StreamId, HashSet<TemplateRefId>>();
 
 			List<IStream> CachedStreams = await Streams.FindAllAsync();
@@ -248,16 +273,27 @@ namespace HordeServer.Services.Impl
 
 			CachedDesktopAlerts = NewCachedDesktopAlerts;
 
+			// Resolve any issues that haven't been seen in a week
 			List<IIssue> OpenIssues = await FindIssuesAsync(Resolved: false);
+			for (int Idx = 0; Idx < OpenIssues.Count; Idx++)
+			{
+				IIssue OpenIssue = OpenIssues[Idx];
+				if (OpenIssue.LastSeenAt < UtcNow - TimeSpan.FromDays(7.0))
+				{
+					await IssueCollection.UpdateIssueAsync(OpenIssue, NewResolvedById: IIssue.ResolvedByTimeoutId);
+					OpenIssues.RemoveAt(Idx--);
+				}
+			}
 
-			List<IssueDetails> NewCachedOpenIssues = new List<IssueDetails>();
+			// Cache the details for any issues that are still open
+			List<IIssueDetails> NewCachedOpenIssues = new List<IIssueDetails>();
 			foreach(IIssue OpenIssue in OpenIssues)
 			{
-				List<IIssueSpan> Spans = await IssueCollection.FindSpansAsync(OpenIssue.Id);
-				List<IIssueStep> Steps = await IssueCollection.FindStepsAsync(Spans.Select(x => x.Id));
-				NewCachedOpenIssues.Add(new IssueDetails(OpenIssue, Spans, Steps, ShowDesktopAlertsForIssue(OpenIssue, Spans)));
+				NewCachedOpenIssues.Add(await GetIssueDetailsAsync(OpenIssue));
 			}
 			CachedIssues = NewCachedOpenIssues;
+
+			return UtcNow + TimeSpan.FromMinutes(1.0);
 		}
 
 		/// <inheritdoc/>
@@ -278,9 +314,25 @@ namespace HordeServer.Services.Impl
 		/// <inheritdoc/>
 		public async Task<IIssueDetails> GetIssueDetailsAsync(IIssue Issue)
 		{
+			IUser? Owner = Issue.OwnerId.HasValue ? await UserCollection.GetCachedUserAsync(Issue.OwnerId.Value) : null;
+			IUser? NominatedBy = Issue.NominatedById.HasValue ? await UserCollection.GetCachedUserAsync(Issue.NominatedById.Value) : null;
+			IUser? ResolvedBy = (Issue.ResolvedById.HasValue && Issue.ResolvedById != IIssue.ResolvedByTimeoutId && Issue.ResolvedById != IIssue.ResolvedByUnknownId)? await UserCollection.GetCachedUserAsync(Issue.ResolvedById.Value) : null;
+
 			List<IIssueSpan> Spans = await IssueCollection.FindSpansAsync(Issue.Id);
 			List<IIssueStep> Steps = await IssueCollection.FindStepsAsync(Spans.Select(x => x.Id));
-			return new IssueDetails(Issue, Spans, Steps, ShowDesktopAlertsForIssue(Issue, Spans));
+			List<IIssueSuspect> Suspects = await IssueCollection.GetSuspectsAsync(Issue);
+
+			List<IUser> SuspectUsers = new List<IUser>();
+			foreach (ObjectId SuspectUserId in Suspects.Select(x => x.AuthorId).Distinct())
+			{
+				IUser? SuspectUser = await UserCollection.GetCachedUserAsync(SuspectUserId);
+				if (SuspectUser != null)
+				{
+					SuspectUsers.Add(SuspectUser);
+				}
+			}
+
+			return new IssueDetails(Issue, Owner, NominatedBy, ResolvedBy, Spans, Steps, Suspects, SuspectUsers, ShowDesktopAlertsForIssue(Issue, Spans));
 		}
 
 		/// <inheritdoc/>
@@ -296,13 +348,19 @@ namespace HordeServer.Services.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? Ids = null, StreamId? StreamId = null, int? MinChange = null, int? MaxChange = null, bool? Resolved = null, int? Index = null, int? Count = null)
+		public Task<List<IIssueSuspect>> GetIssueSuspectsAsync(IIssue Issue)
 		{
-			return await IssueCollection.FindIssuesAsync(Ids, StreamId, MinChange, MaxChange, Resolved, Index, Count);
+			return IssueCollection.GetSuspectsAsync(Issue);
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IIssue>> FindIssuesForJobAsync(int[]? Ids, IJob Job, IGraph Graph, SubResourceId? StepId, SubResourceId? BatchId, int? LabelIdx, bool? Resolved, int Index, int Count)
+		public async Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? Ids = null, ObjectId? UserId = null, StreamId? StreamId = null, int? MinChange = null, int? MaxChange = null, bool? Resolved = null, int? Index = null, int? Count = null)
+		{
+			return await IssueCollection.FindIssuesAsync(Ids, UserId, StreamId, MinChange, MaxChange, Resolved, Index, Count);
+		}
+
+		/// <inheritdoc/>
+		public async Task<List<IIssue>> FindIssuesForJobAsync(int[]? Ids, IJob Job, IGraph Graph, SubResourceId? StepId = null, SubResourceId? BatchId = null, int? LabelIdx = null, ObjectId? UserId = null, bool? Resolved = null, int? Index = null, int? Count = null)
 		{
 			List<IIssueStep> Steps = await IssueCollection.FindStepsAsync(Job.Id, BatchId, StepId);
 			List<IIssueSpan> Spans = await IssueCollection.FindSpansAsync(Steps.Select(x => x.SpanId));
@@ -322,7 +380,12 @@ namespace HordeServer.Services.Impl
 				}
 			}
 
-			return await FindIssuesAsync(Ids: IssueIds, Index: Index, Count: Count);
+			if(IssueIds.Count == 0)
+			{
+				return new List<IIssue>();
+			}
+
+			return await FindIssuesAsync(Ids: IssueIds, UserId: UserId, Resolved: Resolved, Index: Index, Count: Count);
 		}
 
 		/// <inheritdoc/>
@@ -358,8 +421,9 @@ namespace HordeServer.Services.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> UpdateIssueAsync(int Id, string? UserSummary = null, string? Owner = null, string? NominatedBy = null, bool? Acknowledged = null, string? DeclinedBy = null, int? FixChange = null, bool? Resolved = null)
+		public async Task<bool> UpdateIssueAsync(int Id, string? UserSummary = null, ObjectId? OwnerId = null, ObjectId? NominatedById = null, bool? Acknowledged = null, ObjectId? DeclinedById = null, int? FixChange = null, ObjectId? ResolvedById = null)
 		{
+			Dictionary<StreamId, bool>? NewFixStreamIds = null;
 			for (; ; )
 			{
 				IIssue? Issue = await IssueCollection.GetIssueAsync(Id);
@@ -368,8 +432,12 @@ namespace HordeServer.Services.Impl
 					return false;
 				}
 
-				string? OldOwner = Issue.Owner;
-				Issue = await IssueCollection.UpdateIssueAsync(Issue, NewUserSummary: UserSummary, NewOwner: Owner, NewNominatedBy: NominatedBy, NewAcknowledged: Acknowledged, NewDeclinedBy: DeclinedBy, NewFixChange: FixChange, NewResolved: Resolved);
+				if (FixChange != null && FixChange.Value > 0)
+				{
+					NewFixStreamIds = await GetFixStreamsAsync(Issue.Id, FixChange.Value, NewFixStreamIds ?? ((FixChange == Issue.FixChange)? Issue.GetFixStreamIds() : null));
+				}
+
+				Issue = await IssueCollection.UpdateIssueAsync(Issue, NewUserSummary: UserSummary, NewOwnerId: OwnerId ?? ResolvedById, NewNominatedById: NominatedById, NewAcknowledged: Acknowledged, NewDeclinedById: DeclinedById, NewFixChange: FixChange, NewFixStreamIds: NewFixStreamIds, NewResolvedById: ResolvedById);
 
 				if(Issue != null)
 				{
@@ -640,18 +708,32 @@ namespace HordeServer.Services.Impl
 					List<NewEventGroup> MatchEventGroups = NewEventGroups.Where(x => OpenSpan.Fingerprint.IsMatch(x.Fingerprint)).ToList();
 					if (MatchEventGroups.Count > 0)
 					{
+						// Get the severity of these events
+						IssueSeverity Severity = MatchEventGroups.SelectMany(x => x.Events).Any(x => x.Event.Severity == EventSeverity.Error) ? IssueSeverity.Error : IssueSeverity.Warning;
+
 						// Get the new severity
 						IssueSeverity? NewSeverity = null;
-						if (OpenSpan.Severity == IssueSeverity.Warning && MatchEventGroups.SelectMany(x => x.Events).Any(x => x.Event.Severity == EventSeverity.Error))
+						if (OpenSpan.Severity == IssueSeverity.Warning && Severity == IssueSeverity.Error)
 						{
 							NewSeverity = IssueSeverity.Error;
 						}
 
 						// Get the new step data
-						NewIssueStepData NewFailure = new NewIssueStepData(Job, Batch, Step, NotifySuspects);
+						NewIssueStepData NewFailure = new NewIssueStepData(Job, Batch, Step, Severity, NotifySuspects);
+
+						// Figure out whether we need to update the issue
+						bool bMarkAsModified = NewSeverity != null;
+						if (OpenSpan.IssueId != null)
+						{
+							IIssue? Issue = await IssueCollection.GetIssueAsync(OpenSpan.IssueId.Value);
+							if (Issue != null)
+							{
+								bMarkAsModified |= Issue.ResolvedAt != null;
+							}
+						}
 
 						// Update the span
-						IIssueSpan? NewSpan = await IssueCollection.UpdateSpanAsync(OpenSpan, NewSeverity: NewSeverity, NewFailure: NewFailure, NewModified: NewSeverity != null);
+						IIssueSpan? NewSpan = await IssueCollection.UpdateSpanAsync(OpenSpan, NewSeverity: NewSeverity, NewFailure: NewFailure, NewModified: bMarkAsModified);
 						if (NewSpan == null)
 						{
 							return false;
@@ -735,10 +817,10 @@ namespace HordeServer.Services.Impl
 				}
 
 				// Get the step data
-				NewIssueStepData StepData = new NewIssueStepData(Job, Batch, Step, NotifySuspects);
+				NewIssueStepData StepData = new NewIssueStepData(Job, Batch, Step, GetIssueSeverity(EventGroup.Events), NotifySuspects);
 
 				// Create the new span
-				IIssueSpan? NewSpan = await AddEventToNewSpanAsync(Token, Stream, Job, Node, GetIssueSeverity(EventGroup.Events), EventGroup.Fingerprint, StepData);
+				IIssueSpan? NewSpan = await AddEventToNewSpanAsync(Token, Stream, Job, Node, EventGroup.Fingerprint, StepData);
 				if(NewSpan == null)
 				{
 					return false;
@@ -762,11 +844,10 @@ namespace HordeServer.Services.Impl
 		/// <param name="Stream">Stream containing the job</param>
 		/// <param name="Job">Job that spawned the event</param>
 		/// <param name="Node">Node that was running</param>
-		/// <param name="Severity">Severity of the issue</param>
 		/// <param name="Fingerprint">Fingerprint for the event</param>
 		/// <param name="NewFailure">Information about the step that failed</param>
 		/// <returns>The new span, or null if the insert failed</returns>
-		async Task<IIssueSpan?> AddEventToNewSpanAsync(IIssueSequenceToken Token, IStream Stream, IJob Job, INode Node, IssueSeverity Severity, NewIssueFingerprint Fingerprint, NewIssueStepData NewFailure)
+		async Task<IIssueSpan?> AddEventToNewSpanAsync(IIssueSequenceToken Token, IStream Stream, IJob Job, INode Node, NewIssueFingerprint Fingerprint, NewIssueStepData NewFailure)
 		{
 			// Get the previous job in this span
 			IJobStepRef? PrevJob = await JobStepRefs.GetPrevStepForNodeAsync(Job.StreamId, Job.TemplateId, Node.Name, Job.Change);
@@ -794,7 +875,7 @@ namespace HordeServer.Services.Impl
 			}
 
 			// Add the span
-			return await IssueCollection.AddSpanAsync(Token, Stream, Job.TemplateId, Node.Name, Severity, Fingerprint, LastSuccess, NewFailure, NextSuccess, Suspects);
+			return await IssueCollection.AddSpanAsync(Token, Stream, Job.TemplateId, Node.Name, Fingerprint, LastSuccess, NewFailure, NextSuccess, Suspects);
 		}
 
 		/// <summary>
@@ -814,26 +895,26 @@ namespace HordeServer.Services.Impl
 				}
 
 				// Try to find an issue for it
+				IIssue? Issue;
 				if (Span.IssueId == null)
 				{
-					IIssue? ExistingIssue = await FindIssueForSpanAsync(Span);
-					if (ExistingIssue == null)
+					Issue = await FindIssueForSpanAsync(Span);
+					if (Issue == null)
 					{
-						IIssue? NewIssue = await IssueCollection.AddIssueAsync(Token, GetSummary(Span.Fingerprint, Span.Severity), Span);
-						if (NewIssue == null)
+						Issue = await IssueCollection.AddIssueAsync(Token, GetSummary(Span.Fingerprint, Span.Severity), Span);
+						if (Issue == null)
 						{
 							await Token.ResetAsync();
 							continue;
 						}
-						OnIssueUpdated?.Invoke(NewIssue);
 					}
 					else
 					{
-						NewIssueFingerprint NewFingerprint = NewIssueFingerprint.Merge(ExistingIssue.Fingerprint, Span.Fingerprint);
-						IssueSeverity NewSeverity = (ExistingIssue.Severity > Span.Severity) ? ExistingIssue.Severity : Span.Severity;
+						NewIssueFingerprint NewFingerprint = NewIssueFingerprint.Merge(Issue.Fingerprint, Span.Fingerprint);
+						IssueSeverity NewSeverity = (Issue.Severity > Span.Severity) ? Issue.Severity : Span.Severity;
 						string NewSummary = GetSummary(NewFingerprint, NewSeverity);
 
-						if (!await IssueCollection.AttachSpanToIssueAsync(Token, Span, ExistingIssue, NewSeverity, NewFingerprint, NewSummary))
+						if (!await IssueCollection.AttachSpanToIssueAsync(Token, Span, Issue, NewSeverity, NewFingerprint, NewSummary))
 						{
 							await Token.ResetAsync();
 							continue;
@@ -843,7 +924,7 @@ namespace HordeServer.Services.Impl
 				else
 				{
 					// Update the issue that it belongs to
-					IIssue? Issue = await GetIssueAsync(Span.IssueId.Value);
+					Issue = await GetIssueAsync(Span.IssueId.Value);
 					if (Issue != null)
 					{
 						Issue = await UpdateIssueDerivedDataAsync(Issue);
@@ -854,9 +935,101 @@ namespace HordeServer.Services.Impl
 					}
 				}
 
+				// Perform any shared issue updates
+				if (Issue != null)
+				{
+					Issue = await UpdateResolvedStateAsync(Issue, Span);
+					if(Issue == null)
+					{
+						continue;
+					}
+					OnIssueUpdated?.Invoke(Issue);
+				}
+
 				// Clear the modified flag
 				await IssueCollection.UpdateSpanAsync(Span, NewModified: false);
 			}
+		}
+
+		async Task<IIssue?> UpdateResolvedStateAsync(IIssue? Issue, IIssueSpan Span)
+		{
+			// Update the fix streams
+			if (Issue != null && Issue.FixChange != null && Issue.FixChange.Value > 0)
+			{
+				Dictionary<StreamId, bool>? FixStreamIds = await GetFixStreamsAsync(Issue.Id, Issue.FixChange.Value, Issue.GetFixStreamIds());
+				if (FixStreamIds != null)
+				{
+					Issue = await IssueCollection.UpdateIssueAsync(Issue, NewFixStreamIds: FixStreamIds);
+				}
+			}
+
+			// Update the resolved flag
+			if (Issue != null && Issue.ResolvedAt != null && ShouldMarkFixFailed(Issue, Span))
+			{
+				Issue = await IssueCollection.UpdateIssueAsync(Issue, NewResolvedById: ObjectId.Empty);
+			}
+
+			return Issue;
+		}
+
+		/// <summary>
+		/// Determine if an issue should be marked as fix failed
+		/// </summary>
+		/// <param name="Issue"></param>
+		/// <param name="Span"></param>
+		/// <returns></returns>
+		static bool ShouldMarkFixFailed(IIssue Issue, IIssueSpan Span)
+		{
+			if (Issue.ResolvedAt != null && Span.NextSuccess == null)
+			{
+				if (Issue.FixChange != null && (Issue.Streams.FirstOrDefault(x => x.StreamId == Span.StreamId)?.ContainsFix ?? false))
+				{
+					if (Span.LastFailure.Change > Issue.FixChange.Value)
+					{
+						return true;
+					}
+				}
+				else
+				{
+					if (Span.LastFailure.StepTime > Issue.ResolvedAt.Value + TimeSpan.FromHours(24.0))
+					{
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+
+		/// <summary>
+		/// Finds the streams affected by an issue
+		/// </summary>
+		/// <param name="IssueId"></param>
+		/// <param name="FixChange"></param>
+		/// <param name="PrevFixStreamIds"></param>
+		/// <returns></returns>
+		async Task<Dictionary<StreamId, bool>?> GetFixStreamsAsync(int IssueId, int FixChange, IReadOnlyDictionary<StreamId, bool>? PrevFixStreamIds = null)
+		{
+			List<IIssueSpan> Spans = await IssueCollection.FindSpansAsync(IssueId);
+			if(Spans.Count == 0)
+			{
+				return null;
+			}
+
+			Dictionary<StreamId, bool> NextFixStreamIds = new Dictionary<StreamId, bool>();
+			foreach (IIssueSpan Span in Spans)
+			{
+				if (!NextFixStreamIds.ContainsKey(Span.StreamId))
+				{
+					bool ContainsFix;
+					if (PrevFixStreamIds == null || !PrevFixStreamIds.TryGetValue(Span.StreamId, out ContainsFix))
+					{
+						List<ChangeSummary> Changes = await Perforce.GetChangesAsync(Span.StreamName, FixChange, FixChange, 1, null);
+						ContainsFix = Changes.Count > 0;
+					}
+					NextFixStreamIds[Span.StreamId] = ContainsFix;
+				}
+			}
+			return NextFixStreamIds;
 		}
 
 		/// <summary>
@@ -928,48 +1101,23 @@ namespace HordeServer.Services.Impl
 			return ExistingIssues.FirstOrDefault(x => x.Fingerprint.IsMatch(Span.Fingerprint));
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="Issue"></param>
+		/// <returns></returns>
 		async Task<IIssue?> UpdateIssueDerivedDataAsync(IIssue Issue)
 		{
-			for (; ; )
+			IIssue? NewIssue = await IssueCollection.UpdateIssueDerivedDataAsync(Issue);
+			if (NewIssue != null)
 			{
-				List<NewIssueSuspectData> NewSuspects = new List<NewIssueSuspectData>();
-
-				// Find all the spans that are attached to the issue
-				List<IIssueSpan> Spans = await IssueCollection.FindSpansAsync(Issue.Id);
-				if (Spans.Count > 0)
+				string NewSummary = GetSummary(Issue.Fingerprint, Issue.Severity);
+				if (!NewSummary.Equals(Issue.Summary, StringComparison.Ordinal))
 				{
-					// Get the intersection of changes that are suspects for causing this issue
-					HashSet<int> SuspectChanges = new HashSet<int>(Spans[0].Suspects.Select(x => x.OriginatingChange ?? x.Change));
-					for (int SpanIdx = 1; SpanIdx < Spans.Count; SpanIdx++)
-					{
-						SuspectChanges.IntersectWith(Spans[SpanIdx].Suspects.Select(x => x.OriginatingChange ?? x.Change));
-					}
-
-					// Update the list of suspects to match
-					NewSuspects.AddRange(Issue.Suspects.Where(x => SuspectChanges.Contains(x.Change)).Select(x => new NewIssueSuspectData(x.Author, x.Change, x.DeclinedAt)));
-					SuspectChanges.ExceptWith(NewSuspects.Select(x => x.Change));
-					NewSuspects.AddRange(Spans[0].Suspects.Where(x => SuspectChanges.Contains(x.OriginatingChange ?? x.Change)).Select(x => new NewIssueSuspectData(x.Author, x.OriginatingChange ?? x.Change, null)));
-				}
-
-				// Update the issue
-				IssueSeverity NewSeverity = Spans.Any(x => x.Severity == IssueSeverity.Error) ? IssueSeverity.Error : IssueSeverity.Warning;
-				string NewSummary = GetSummary(Issue.Fingerprint, NewSeverity);
-				bool NewResolved = Spans.All(x => x.NextSuccess != null);
-				bool NewNotifySuspects = Spans.Any(x => x.NotifySuspects);
-
-				IIssue ? NewIssue = await IssueCollection.UpdateIssueAsync(Issue, NewSeverity: NewSeverity, NewSummary: NewSummary, NewResolved: NewResolved, NewNotifySuspects: NewNotifySuspects, NewSuspects: NewSuspects);
-				if (NewIssue != null)
-				{
-					return NewIssue;
-				}
-
-				// Try to get the new issue state
-				NewIssue = await IssueCollection.GetIssueAsync(Issue.Id);
-				if (NewIssue == null)
-				{
-					return null;
+					NewIssue = await IssueCollection.UpdateIssueAsync(NewIssue, NewSummary: NewSummary);
 				}
 			}
+			return NewIssue;
 		}
 
 		/// <summary>
@@ -1005,7 +1153,7 @@ namespace HordeServer.Services.Impl
 			{
 				if (Job.Change < Span.FirstFailure.Change && (Span.LastSuccess == null || Job.Change > Span.LastSuccess.Change))
 				{
-					NewIssueStepData NewLastSuccess = new NewIssueStepData(Job.Change, Job.Name, Job.Id, Batch.Id, Step.Id, Step.StartTimeUtc ?? default, Step.LogId, false);
+					NewIssueStepData NewLastSuccess = new NewIssueStepData(Job.Change, IssueSeverity.Unspecified, Job.Name, Job.Id, Batch.Id, Step.Id, Step.StartTimeUtc ?? default, Step.LogId, false);
 					List<NewIssueSpanSuspectData> NewSuspects = await FindSuspectsForSpanAsync(Stream, Span.Fingerprint, Job.Change + 1, Span.FirstFailure.Change);
 
 					if (await IssueCollection.UpdateSpanAsync(Span, NewLastSuccess: NewLastSuccess, NewSuspects: NewSuspects, NewModified: true) == null)
@@ -1017,7 +1165,7 @@ namespace HordeServer.Services.Impl
 				}
 				else if (Job.Change > Span.LastFailure.Change && (Span.NextSuccess == null || Job.Change < Span.NextSuccess.Change))
 				{
-					NewIssueStepData NewNextSucccess = new NewIssueStepData(Job.Change, Job.Name, Job.Id, Batch.Id, Step.Id, Step.StartTimeUtc ?? default, Step.LogId, false);
+					NewIssueStepData NewNextSucccess = new NewIssueStepData(Job.Change, IssueSeverity.Unspecified, Job.Name, Job.Id, Batch.Id, Step.Id, Step.StartTimeUtc ?? default, Step.LogId, false);
 					if (await IssueCollection.UpdateSpanAsync(Span, NewNextSuccess: NewNextSucccess, NewModified: true) == null)
 					{
 						return false;

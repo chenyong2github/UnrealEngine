@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using HordeServer.Services;
+using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,6 +20,21 @@ namespace HordeServer.Models
 		IIssue Issue { get; }
 
 		/// <summary>
+		/// The user that currently owns this issue
+		/// </summary>
+		IUser? Owner { get; }
+
+		/// <summary>
+		/// The user that nominated the current owner
+		/// </summary>
+		IUser? NominatedBy { get; }
+
+		/// <summary>
+		/// The user that resolved the issue
+		/// </summary>
+		IUser? ResolvedBy { get; }
+
+		/// <summary>
 		/// List of spans for the issue
 		/// </summary>
 		IReadOnlyList<IIssueSpan> Spans { get; }
@@ -29,6 +45,16 @@ namespace HordeServer.Models
 		IReadOnlyList<IIssueStep> Steps { get; }
 
 		/// <summary>
+		/// List of suspects for the issue
+		/// </summary>
+		IReadOnlyList<IIssueSuspect> Suspects { get; }
+
+		/// <summary>
+		/// List of users that are suspects for this issue
+		/// </summary>
+		IReadOnlyList<IUser> SuspectUsers { get; }
+
+		/// <summary>
 		/// Determines whether the given user should be notified about the given issue
 		/// </summary>
 		/// <returns>True if the user should be notified for this change</returns>
@@ -37,9 +63,9 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Determines if the issue is relevant to the given user
 		/// </summary>
-		/// <param name="User">The user to query</param>
+		/// <param name="UserId">The user to query</param>
 		/// <returns>True if the issue is relevant to the given user</returns>
-		bool IncludeForUser(string User);
+		bool IncludeForUser(ObjectId UserId);
 	}
 
 	/// <summary>
