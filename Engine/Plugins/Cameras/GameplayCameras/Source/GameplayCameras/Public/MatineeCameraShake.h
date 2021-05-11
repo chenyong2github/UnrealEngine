@@ -123,7 +123,7 @@ struct FVOscillator
 /**
  * Legacy camera shake which can do either oscillation or run camera anims.
  */
-UCLASS(Blueprintable)
+UCLASS(Blueprintable, HideCategories=(CameraShakePattern))
 class GAMEPLAYCAMERAS_API UMatineeCameraShake : public UCameraShakeBase
 {
 	GENERATED_UCLASS_BODY()
@@ -308,7 +308,7 @@ private:
  * was left on the shake class itself... so this pattern delegates everything back
  * to the owner shake.
  */
-UCLASS()
+UCLASS(HideDropdown)
 class GAMEPLAYCAMERAS_API UMatineeCameraShakePattern : public UCameraShakePattern
 {
 	GENERATED_BODY()

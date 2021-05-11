@@ -533,7 +533,7 @@ protected:
 private:
 
 	/** The root pattern for this camera shake */
-	UPROPERTY(EditAnywhere, Instanced, Category=CameraShake)
+	UPROPERTY(EditAnywhere, Instanced, Category=CameraShakePattern)
 	TObjectPtr<UCameraShakePattern> RootShakePattern;
 
 	/** The camera manager owning this camera shake. Only valid when the shake is active. */
