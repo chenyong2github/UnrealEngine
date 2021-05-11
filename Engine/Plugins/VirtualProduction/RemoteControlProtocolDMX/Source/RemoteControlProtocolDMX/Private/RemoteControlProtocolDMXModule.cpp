@@ -14,7 +14,7 @@ public:
 	//~ Begin IModuleInterface
 	virtual void StartupModule() override
 	{
-		IRemoteControlProtocolModule::Get().AddProtocol("DMX", MakeShared<FRemoteControlProtocolDMX>());
+		IRemoteControlProtocolModule::Get().AddProtocol(FRemoteControlProtocolDMX::ProtocolName, MakeShared<FRemoteControlProtocolDMX>());
 	}
 	//~ End IModuleInterface
 };
