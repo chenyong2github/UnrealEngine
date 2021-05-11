@@ -344,21 +344,28 @@ UObject* USoundFactory::CreateObject
 		// otherwise create new sound and import raw data.
 		USoundWave* Sound = (bUseExistingSettings && ExistingSound) ? ExistingSound : NewObject<USoundWave>(InParent, Name, Flags, TemplateSoundWave.Get());
 
+		// If we're a multi-channel file, we're going to spoof the behavior of the SoundSurroundFactory
+		int32 ChannelCount = (int32)*WaveInfo.pChannels;
+		check(ChannelCount >0);
+
 		// These get wiped in PostInitProperties by defaults set from Audio Settings,
 		// so set back to template in this specialized case
 		if (TemplateSoundWave.IsValid())
 		{
 			Sound->SoundClassObject = TemplateSoundWave->SoundClassObject;
 			Sound->ConcurrencySet = TemplateSoundWave->ConcurrencySet;
+
+			// we do not want to inherit these values from the template, as the data may be incorrect
+			// rather we re-parse them from the incoming file.
+			Sound->NumChannels = 0;
+			Sound->ChannelOffsets.Reset();
+			Sound->ChannelSizes.Reset();
 		}
 
 		Sound->CompressionQuality = 100;
 		Sound->bStreaming = true;
 		Sound->bSeekableStreaming = true;
 
-		// If we're a multi-channel file, we're going to spoof the behavior of the SoundSurroundFactory
-		int32 ChannelCount = (int32)*WaveInfo.pChannels;
-		check(ChannelCount >0);
 
 		int32 SizeOfSample = (*WaveInfo.pBitsPerSample) / 8;
 
