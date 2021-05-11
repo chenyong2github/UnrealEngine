@@ -1569,6 +1569,7 @@ public:
 	}
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
+		FOptionalTaskTagScope Scope(ETaskTag::EParallelGameThread);
 		Manager->UpdateStreamingRenderAssets(StageIdx, NumUpdateStages, bWaitForMipFading, true);
 		CompletionEvent->Trigger();
 	}
