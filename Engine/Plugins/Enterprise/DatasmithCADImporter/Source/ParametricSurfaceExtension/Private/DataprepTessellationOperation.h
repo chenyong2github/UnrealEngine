@@ -15,7 +15,7 @@ namespace CADLibrary
 	struct FImportParameters;
 }
 struct FMeshDescription;
-class UCoreTechParametricSurfaceData;
+class UParametricSurfaceData;
 class UDatasmithStaticMeshCADImportData;
 
 UCLASS(Experimental, Category = MeshOperation, Meta = (DisplayName="Datasmith Tessellation", ToolTip = "For each static mesh to process, retessellate the mesh if the object contains the required data") )

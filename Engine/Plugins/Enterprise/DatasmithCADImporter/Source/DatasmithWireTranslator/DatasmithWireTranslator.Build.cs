@@ -27,7 +27,8 @@ public class DatasmithWireTranslator : ModuleRules
 				"DatasmithTranslator",
 				"Engine",
 				"MeshDescription",
-                "StaticMeshDescription",
+				"ParametricSurface",
+				"StaticMeshDescription",
             }
         );
 

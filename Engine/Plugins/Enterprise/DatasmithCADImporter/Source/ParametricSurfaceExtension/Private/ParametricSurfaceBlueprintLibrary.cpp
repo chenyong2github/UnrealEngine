@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreTechBlueprintLibrary.h"
+#include "ParametricSurfaceBlueprintLibrary.h"
 
-#include "CoreTechRetessellateAction.h"
+#include "ParametricRetessellateAction.h"
 #include "DatasmithAdditionalData.h"
 #include "DatasmithStaticMeshImporter.h" // Call to BuildStaticMesh
 #include "DatasmithUtils.h"
@@ -14,22 +14,22 @@
 #include "Toolkits/ToolkitManager.h"
 
 
-#define LOCTEXT_NAMESPACE "CoreTechRetessellateAction"
+#define LOCTEXT_NAMESPACE "ParametricRetessellateAction"
 
 
-bool UCoreTechBlueprintLibrary::RetessellateStaticMesh(UStaticMesh* StaticMesh, const FDatasmithRetessellationOptions& TessellationSettings, FText& FailureReason)
+bool UParametricSurfaceBlueprintLibrary::RetessellateStaticMesh(UStaticMesh* StaticMesh, const FDatasmithRetessellationOptions& TessellationSettings, FText& FailureReason)
 {
 	return RetessellateStaticMeshWithNotification(StaticMesh, TessellationSettings, true, FailureReason);
 }
 
-bool UCoreTechBlueprintLibrary::RetessellateStaticMeshWithNotification(UStaticMesh* StaticMesh, const FDatasmithRetessellationOptions& TessellationSettings, bool bApplyChanges, FText& FailureReason)
+bool UParametricSurfaceBlueprintLibrary::RetessellateStaticMeshWithNotification(UStaticMesh* StaticMesh, const FDatasmithRetessellationOptions& TessellationSettings, bool bApplyChanges, FText& FailureReason)
 {
 	bool bTessellationOutcome = false;
 
 	int32 LODIndex = 0;
 
 	FAssetData AssetData( StaticMesh );
-	if (UCoreTechParametricSurfaceData* CoreTechData = Datasmith::GetAdditionalData<UCoreTechParametricSurfaceData>(AssetData))
+	if (UParametricSurfaceData* ParametricSurfaceData = Datasmith::GetAdditionalData<UParametricSurfaceData>(AssetData))
 	{
 		// Make sure MeshDescription exists
 		FMeshDescription* DestinationMeshDescription = StaticMesh->GetMeshDescription( LODIndex );
@@ -47,7 +47,7 @@ bool UCoreTechBlueprintLibrary::RetessellateStaticMeshWithNotification(UStaticMe
 			}
 
 			const int32 OldNumberOfUVChannels = FStaticMeshAttributes(*DestinationMeshDescription).GetVertexInstanceUVs().GetNumChannels();
-			if (FCoreTechRetessellate_Impl::ApplyOnOneAsset( *StaticMesh, *CoreTechData, TessellationSettings ))
+			if (ParametricSurfaceData->Tessellate(*StaticMesh, TessellationSettings))
 			{
 				const int32 NumberOfUVChannels = FStaticMeshAttributes(*DestinationMeshDescription).GetVertexInstanceUVs().GetNumChannels();
 				if (NumberOfUVChannels < OldNumberOfUVChannels)
@@ -81,7 +81,7 @@ bool UCoreTechBlueprintLibrary::RetessellateStaticMeshWithNotification(UStaticMe
 				}
 
 				// Save last tessellation settings
-				CoreTechData->LastTessellationOptions = TessellationSettings;
+				ParametricSurfaceData->LastTessellationOptions = TessellationSettings;
 
 				bTessellationOutcome = true;
 			}

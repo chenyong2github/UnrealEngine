@@ -29,6 +29,7 @@ namespace UnrealBuildTool.Rules
 					"DatasmithTranslator",
 					"Engine",
 					"MeshDescription",
+					"ParametricSurface",
 					"Sockets",
 				}
 			);

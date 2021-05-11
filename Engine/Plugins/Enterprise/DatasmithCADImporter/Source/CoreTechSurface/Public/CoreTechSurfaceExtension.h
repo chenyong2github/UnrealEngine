@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+#include "ParametricSurfaceExtension.h"
 #include "DatasmithAdditionalData.h"
 #include "DatasmithCustomAction.h"
 #include "DatasmithImportOptions.h"
@@ -11,44 +12,8 @@
 
 #include "CoreTechSurfaceExtension.generated.h"
 
-
-USTRUCT(BlueprintType)
-struct CORETECHSURFACE_API FCoreTechSceneParameters
-{
-	GENERATED_BODY()
-
-	// value from FDatasmithUtils::EModelCoordSystem
-	UPROPERTY()
-	uint8 ModelCoordSys = (uint8)FDatasmithUtils::EModelCoordSystem::ZUp_LeftHanded;
-
-	UPROPERTY()
-	float MetricUnit = 0.01f;
-
-	UPROPERTY()
-	float ScaleFactor = 1.0f;
-};
-
-USTRUCT()
-struct CORETECHSURFACE_API FCoreTechMeshParameters
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	bool bNeedSwapOrientation = false;
-
-	UPROPERTY()
-	bool bIsSymmetric = false;
-
-	UPROPERTY()
-	FVector SymmetricOrigin = FVector::ZeroVector;
-
-	UPROPERTY()
-	FVector SymmetricNormal = FVector::ZeroVector;
-};
-
-
-UCLASS(meta = (DisplayName = "Parametric Surface Data"))
-class CORETECHSURFACE_API UCoreTechParametricSurfaceData : public UDatasmithAdditionalData
+UCLASS(meta = (DisplayName = "Kernel IO Parametric Surface Data"))
+class CORETECHSURFACE_API UCoreTechParametricSurfaceData : public UParametricSurfaceData
 {
 	GENERATED_BODY()
 
@@ -59,14 +24,12 @@ public:
 	// Too costly to serialize as a UPROPERTY, will use custom serialization.
 	TArray<uint8> RawData;
 
-	UPROPERTY()
-	FCoreTechSceneParameters SceneParameters;
-
-	UPROPERTY()
-	FCoreTechMeshParameters MeshParameters;
-
-	UPROPERTY(EditAnywhere, Category=NURBS)
-	FDatasmithTessellationOptions LastTessellationOptions;
+	virtual bool IsValid() override
+	{
+		return RawData.Num() > 0;
+	}
+	
+	virtual bool Tessellate(UStaticMesh& StaticMesh, const FDatasmithRetessellationOptions& RetessellateOptions) override;
 
 private:
 	UPROPERTY()
@@ -74,17 +37,3 @@ private:
 
 	virtual void Serialize(FArchive& Ar) override;
 };
-
-class IDatasmithMeshElement;
-struct FDatasmithMeshElementPayload;
-
-namespace CADLibrary
-{
-	struct FImportParameters;
-	struct FMeshParameters;
-}
-
-namespace CoreTechSurface
-{
-	void CORETECHSURFACE_API AddCoreTechSurfaceDataForMesh(const TSharedRef<IDatasmithMeshElement>& InMeshElement, const CADLibrary::FImportParameters& InSceneParameters, const CADLibrary::FMeshParameters&, const FDatasmithTessellationOptions& InTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload);
-}

@@ -9,12 +9,12 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "UObject/TextProperty.h"
 
-#include "CoreTechBlueprintLibrary.generated.h"
+#include "ParametricSurfaceBlueprintLibrary.generated.h"
 
 class UStaticMesh;
 
 UCLASS(Blueprintable, BlueprintType, meta = (DisplayName = "CAD Surface Operations Library"))
-class PARAMETRICSURFACEEXTENSION_API UCoreTechBlueprintLibrary : public UBlueprintFunctionLibrary
+class PARAMETRICSURFACEEXTENSION_API UParametricSurfaceBlueprintLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 

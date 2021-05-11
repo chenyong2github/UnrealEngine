@@ -2,11 +2,11 @@
 
 #include "DataprepTessellationOperation.h"
 
-#include "CoreTechHelper.h"
-#include "CoreTechBlueprintLibrary.h"
+#include "ParametricSurfaceBlueprintLibrary.h"
 #include "DatasmithAdditionalData.h"
 #include "DatasmithAssetImportData.h"
 #include "DatasmithUtils.h"
+#include "MeshDescriptionHelper.h"
 
 #include "IDataprepProgressReporter.h"
 
@@ -84,7 +84,7 @@ void UDataprepTessellationOperation::OnExecution_Implementation(const FDataprepC
 			if( StaticMesh->IsMeshDescriptionValid( 0 ) )
 			{
 				FText OutReason;
-				if( UCoreTechBlueprintLibrary::RetessellateStaticMeshWithNotification( StaticMesh, TessellationSettings, false, OutReason ) )
+				if( UParametricSurfaceBlueprintLibrary::RetessellateStaticMeshWithNotification( StaticMesh, TessellationSettings, false, OutReason ) )
 				{
 					ModifiedStaticMeshes.Add( StaticMesh );
 					if (!OutReason.IsEmpty())

@@ -1,16 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "DatasmithMeshBuilder.h"
 
-#include "CoreTechHelper.h"
-
+#include "CADData.h"
 #include "IDatasmithSceneElements.h"
+#include "MeshDescriptionHelper.h"
 #include "Utility/DatasmithMeshHelper.h"
 
 #include "HAL/FileManager.h"
 #include "MeshDescription.h"
 #include "Misc/Paths.h"
-
-using namespace CADLibrary;
 
 FDatasmithMeshBuilder::FDatasmithMeshBuilder(TMap<uint32, FString>& CADFileToMeshFile, const FString& InCachePath, const CADLibrary::FImportParameters& InImportParameters)
 	: CachePath(InCachePath)
@@ -32,7 +30,7 @@ void FDatasmithMeshBuilder::LoadMeshFiles(TMap<uint32, FString>& CADFileToMeshFi
 		}
 		TArray<CADLibrary::FBodyMesh>& BodyMeshSet = BodyMeshes.Emplace_GetRef();
 		DeserializeBodyMeshFile(*MeshFile, BodyMeshSet);
-		for (FBodyMesh& Body : BodyMeshSet)
+		for (CADLibrary::FBodyMesh& Body : BodyMeshSet)
 		{
 			MeshActorNameToBodyMesh.Emplace(Body.MeshActorName, &Body);
 		}
@@ -48,13 +46,13 @@ TOptional<FMeshDescription> FDatasmithMeshBuilder::GetMeshDescription(TSharedRef
 		return TOptional<FMeshDescription>();
 	}
 
-	FBodyMesh** PPBody = MeshActorNameToBodyMesh.Find(BodyUuid);
+	CADLibrary::FBodyMesh** PPBody = MeshActorNameToBodyMesh.Find(BodyUuid);
 	if(PPBody == nullptr || *PPBody == nullptr)
 	{
 		return TOptional<FMeshDescription>();
 	}
 
-	FBodyMesh& Body = **PPBody;
+	CADLibrary::FBodyMesh& Body = **PPBody;
 
 	// FDatasmithSceneBaseGraphBuilder::BuildBody is performing a special treatment for
 	// FBodyMesh without color. Replicate the treatment here too.
@@ -66,7 +64,7 @@ TOptional<FMeshDescription> FDatasmithMeshBuilder::GetMeshDescription(TSharedRef
 
 		Body.ColorSet.Add(MaterialSlotId);
 
-		for (FTessellationData& Face : Body.Faces)
+		for (CADLibrary::FTessellationData& Face : Body.Faces)
 		{
 			Face.ColorName = MaterialSlotId;
 		}

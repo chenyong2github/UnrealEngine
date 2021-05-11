@@ -4,13 +4,13 @@
 
 #include "CoreMinimal.h"
 
-#include "CoreTechTranslator.h"
+#include "ParametricSurfaceTranslator.h"
 #include "UObject/ObjectMacros.h"
 
 class FWireTranslatorImpl;
 
 
-class FDatasmithWireTranslator : public FCoreTechTranslator
+class FDatasmithWireTranslator : public FParametricSurfaceTranslator
 {
 public:
 	FDatasmithWireTranslator();

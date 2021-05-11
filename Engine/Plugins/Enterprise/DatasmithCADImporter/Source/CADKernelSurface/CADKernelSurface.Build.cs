@@ -4,9 +4,9 @@ using System.IO;
 
 namespace UnrealBuildTool.Rules
 {
-	public class CoreTechSurface : ModuleRules
+	public class CADKernelSurface : ModuleRules
 	{
-		public CoreTechSurface(ReadOnlyTargetRules Target) : base(Target)
+		public CADKernelSurface(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PublicDependencyModuleNames.AddRange(
 				new string[]
@@ -18,12 +18,11 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"CADInterfaces",
 					"CADLibrary",
 					"CADTools",
-					"Core",
 					"CoreUObject",
 					"DatasmithContent",
+					"DatasmithCore",
 					"DatasmithTranslator",
 					"Engine",
 					"MeshDescription",

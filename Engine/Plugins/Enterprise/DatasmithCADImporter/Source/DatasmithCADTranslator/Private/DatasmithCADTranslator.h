@@ -4,18 +4,17 @@
 
 #include "CoreMinimal.h"
 
-#include "CoreTechTranslator.h"
-
 #include "CADOptions.h"
-#include "DatasmithDispatcher.h"
 #include "DatasmithMeshBuilder.h"
 #include "DatasmithSceneGraphBuilder.h"
-
+#include "ParametricSurfaceTranslator.h"
 #include "UObject/ObjectMacros.h"
 
 class IDatasmithMeshElement;
+class IDatasmithScene;
+struct FDatasmithMeshElementPayload;
 
-class FDatasmithCADTranslator : public FCoreTechTranslator
+class FDatasmithCADTranslator : public FParametricSurfaceTranslator
 {
 public:
 	virtual FName GetFName() const override { return "DatasmithCADTranslator"; };
@@ -27,8 +26,6 @@ public:
 	virtual void UnloadScene() override;
 
 	virtual bool LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload) override;
-
-	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options) override;
 
 private:
 	TMap<uint32, FString> CADFileToUEGeomMap;

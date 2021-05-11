@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreTechExtensionModule.h"
+#include "ParametricSurfaceExtensionModule.h"
 
-#include "CoreTechRetessellateAction.h"
+#include "ParametricRetessellateAction.h"
+#include "ParametricRetessellateAction_Impl.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IStaticMeshEditor.h"
@@ -23,7 +24,7 @@ namespace StaticMeshEditorExtenser
 		TArray<FAssetData> AssetData;
 		AssetData.Emplace(Target);
 
-		FCoreTechRetessellate_Impl RetessellateAction;
+		FParametricRetessellateAction_Impl RetessellateAction;
 		return RetessellateAction.CanApplyOnAssets(AssetData);
 	}
 
@@ -32,15 +33,15 @@ namespace StaticMeshEditorExtenser
 		TArray<FAssetData> AssetData;
 		AssetData.Emplace(Target);
 
-		FCoreTechRetessellate_Impl RetessellateAction;
+		FParametricRetessellateAction_Impl RetessellateAction;
 		RetessellateAction.ApplyOnAssets(AssetData);
 	}
 
 	void ExtendAssetMenu(FMenuBuilder& MenuBuilder, UStaticMesh* Target)
 	{
 		MenuBuilder.AddMenuEntry(
-			FCoreTechRetessellate_Impl::Label,
-			FCoreTechRetessellate_Impl::Tooltip,
+			FParametricRetessellateAction_Impl::Label,
+			FParametricRetessellateAction_Impl::Tooltip,
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateStatic(&StaticMeshEditorExtenser::Execute, Target),
@@ -77,17 +78,17 @@ namespace StaticMeshEditorExtenser
 	}
 };
 
-FCoreTechExtensionModule& FCoreTechExtensionModule::Get()
+FParametricSurfaceExtensionModule& FParametricSurfaceExtensionModule::Get()
 {
-	return FModuleManager::LoadModuleChecked< FCoreTechExtensionModule >(PARAMETRICSURFACEEXTENSION_MODULE_NAME);
+	return FModuleManager::LoadModuleChecked< FParametricSurfaceExtensionModule >(PARAMETRICSURFACEEXTENSION_MODULE_NAME);
 }
 
-bool FCoreTechExtensionModule::IsAvailable()
+bool FParametricSurfaceExtensionModule::IsAvailable()
 {
 	return FModuleManager::Get().IsModuleLoaded(PARAMETRICSURFACEEXTENSION_MODULE_NAME);
 }
 
-void FCoreTechExtensionModule::StartupModule()
+void FParametricSurfaceExtensionModule::StartupModule()
 {
 	if (!IsRunningCommandlet())
 	{
@@ -95,7 +96,7 @@ void FCoreTechExtensionModule::StartupModule()
 	}
 }
 
-IMPLEMENT_MODULE(FCoreTechExtensionModule, CoreTechExtension);
+IMPLEMENT_MODULE(FParametricSurfaceExtensionModule, CoreTechExtension);
 
 #undef LOCTEXT_NAMESPACE // "DatasmithCoreTechExtensionModule"
 
