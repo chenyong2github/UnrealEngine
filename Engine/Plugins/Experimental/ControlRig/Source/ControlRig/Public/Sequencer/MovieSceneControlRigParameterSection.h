@@ -158,11 +158,18 @@ public:
 
 	TArray<FIntegerParameterNameAndCurve>& GetIntegerParameterNamesAndCurves();
 	const TArray<FIntegerParameterNameAndCurve>& GetIntegerParameterNamesAndCurves() const;
-public:
+
+private:
 
 	/** Control Rig that controls us*/
 	UPROPERTY()
 	UControlRig* ControlRig;
+
+public:
+
+	/** The class of control rig to instantiate */
+	UPROPERTY(EditAnywhere, Category = "Animation")
+	TSubclassOf<UControlRig> ControlRigClass;
 
 	/** Mask for controls themselves*/
 	UPROPERTY()
@@ -274,8 +281,14 @@ public:
 	}
 
 public:
+
 	/** Recreate with this Control Rig*/
 	void RecreateWithThisControlRig(UControlRig* InControlRig, bool bSetDefault);
+
+	/* Set the control rig for this section */
+	void SetControlRig(UControlRig* InControlRig);
+	/* Get the control rig for this section */
+	UControlRig* GetControlRig() const { return ControlRig; }
 
 	/** Whether or not to key currently, maybe evaluating so don't*/
 	void  SetDoNotKey(bool bIn) const { bDoNotKey = bIn; }
