@@ -28,7 +28,7 @@
 #include "TextureDerivedDataTask.h"
 #include "Interfaces/ITextureFormat.h"
 #include "Interfaces/ITextureFormatModule.h"
-#include "UObject/UE5CookerObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 #if WITH_EDITOR
 #include "TextureCompiler.h"
@@ -454,9 +454,7 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 
 void UTexture::Serialize(FArchive& Ar)
 {
-#if UE_USE_VIRTUALBULKDATA
-	Ar.UsingCustomVersion(FUE5CookerObjectVersion::GUID);
-#endif //UE_USE_VIRTUALBULKDATA
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	Super::Serialize(Ar);
 
@@ -470,18 +468,31 @@ void UTexture::Serialize(FArchive& Ar)
 		FWriteScopeLock BulkDataExclusiveScope(Source.BulkDataLock.Get());
 #endif
 
-#if UE_USE_VIRTUALBULKDATA
-		if (Ar.IsLoading() && Ar.CustomVer(FUE5CookerObjectVersion::GUID) < FUE5CookerObjectVersion::TextureSourceVirtualization)
+		if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::TextureSourceVirtualization)
 		{
+#if UE_USE_VIRTUALBULKDATA
 			FByteBulkData TempBulkData;
 			TempBulkData.Serialize(Ar, this);
 
 			Source.BulkData.CreateFromBulkData(TempBulkData, Source.GetId());
+#else
+			Source.BulkData.Serialize(Ar, this);
+#endif //UE_USE_VIRTUALBULKDATA
 		}
 		else
-#endif //UE_USE_VIRTUALBULKDATA
 		{
-			Source.BulkData.Serialize(Ar, this);
+#if !UE_USE_VIRTUALBULKDATA && UE_VBD_TO_OLD_BULKDATA_PATH
+			if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::DisabledVirtualization)
+			{
+				UE::Virtualization::FByteVirtualizedBulkData TempVirtualBulkData;
+				TempVirtualBulkData.Serialize(Ar, this);
+				TempVirtualBulkData.ConvertToOldBulkData(Source.BulkData);
+			}
+			else
+#endif // !UE_USE_VIRTUALBULKDATA && UE_VBD_TO_OLD_BULKDATA_PATH
+			{
+				Source.BulkData.Serialize(Ar, this);
+			}
 		}
 	}
 

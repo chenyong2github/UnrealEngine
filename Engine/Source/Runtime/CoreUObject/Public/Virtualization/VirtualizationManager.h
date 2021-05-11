@@ -7,7 +7,22 @@
 #include "Logging/LogMacros.h"
 #include "Virtualization/PayloadId.h"
 
-#define UE_USE_VIRTUALBULKDATA 0
+#define UE_USE_VIRTUALBULKDATA 1
+
+// Enables a code path that will allow VBD to be converted back to old style bulkdata if we need to revert for some reason
+#if !UE_USE_VIRTUALBULKDATA
+	#define UE_VBD_TO_OLD_BULKDATA_PATH 1
+
+	// When reverting to old bulkdata we will need to add a new version to FUE5MainStreamObjectVersion, but since it is unlikely
+	// that we will ever do this, I'd prefer not to submit it to FUE5MainStreamObjectVersion in a disabled form.
+	// This static assert will remind anyone turning on this path that the version needs to be updated and hopefully we can just
+	// delete this without ever enabling it once we take the plunge and strip out UE_USE_VIRTUALBULKDATA.
+	static_assert(false, "Add the following two lines to FUE5MainStreamObjectVersion!");
+	//	// Disabled content virtualization due to crippling problems, sadly StaticMesh and Textures saved with virtualization will need reverting.
+	//	DisabledVirtualization,
+#else
+	#define UE_VBD_TO_OLD_BULKDATA_PATH 0
+#endif //UE_VBD_TO_OLD_BULKDATA_PATH
 
 // TODO: Do we want to keep this header public for UE5 release? If the only interaction should be
 //		 via FVirtualizedUntypedBulkData or other such classes we might not want to expose this 
