@@ -254,8 +254,10 @@ AGeometryCollectionActor* UFractureToolGenerateAsset::ConvertActorsToGeometryCol
 	if (FracturedGeometryCollection->EnableNanite)
 	{
 		FracturedGeometryCollection->InvalidateCollection();
-		FracturedGeometryCollection->EnsureDataIsCooked(false /* init resources */);
+		FracturedGeometryCollection->EnsureDataIsCooked(true /* init resources */);
 	}
+
+	NewActor->GetGeometryCollectionComponent()->MarkRenderStateDirty();
 
 	// Add and initialize guids
 	::GeometryCollection::GenerateTemporaryGuids(FracturedGeometryCollection->GetGeometryCollection().Get(), 0 , true);

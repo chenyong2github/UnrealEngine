@@ -416,6 +416,11 @@ void FGeometryCollectionTreeItemComponent::GetChildrenForBone(FGeometryCollectio
 	{
 		if (FGeometryCollection* Collection = RestCollection->GetGeometryCollection().Get())
 		{
+			if (!Collection->HasAttribute("GUID", "Transform"))
+			{
+				GeometryCollection::GenerateTemporaryGuids(Collection);
+			}
+
 			if (const int32* BoneIndex = GuidIndexMap.Find(BoneItem.GetGuid()))
 			{
 				const TManagedArray<TSet<int32>>& Children = Collection->Children;
