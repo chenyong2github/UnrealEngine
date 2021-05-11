@@ -131,7 +131,25 @@ namespace Metasound
 			}
 			// End of IDetailCustomization interface
 
-			virtual void OnDisplayNameChanged(const FText& InNewText) = 0;
+			void OnDisplayNameChanged(const FText& InNewName)
+			{
+				using namespace Frontend;
+
+				bIsNameInvalid = false;
+				DisplayNameEditableTextBox->SetError(FText::GetEmpty());
+
+				if (!ensure(GraphVariable.IsValid()))
+				{
+					return;
+				}
+
+				FText Error;
+				if (!GraphVariable->CanRename(InNewName, Error))
+				{
+					bIsNameInvalid = true;
+					DisplayNameEditableTextBox->SetError(Error);
+				}
+			}
 
 			FText GetDisplayName() const
 			{
@@ -164,6 +182,13 @@ namespace Metasound
 				{
 					const FText TransactionLabel = FText::Format(LOCTEXT("SetTooltip", "Set the MetaSound {0}'s tooltip"), VariableLabel);
 					const FScopedTransaction Transaction(TransactionLabel);
+
+					GraphVariable->Modify();
+					if (UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(GraphVariable->GetOuter()))
+					{
+						Graph->GetMetasoundChecked().Modify();
+					}
+
 					FNodeHandle NodeHandle = GraphVariable->GetNodeHandle();
 					NodeHandle->SetDescription(InNewText);
 				}
@@ -187,14 +212,11 @@ namespace Metasound
 
 				if (!bIsNameInvalid && GraphVariable.IsValid())
 				{
-					const FText TransactionLabel = FText::Format(LOCTEXT("Rename Variable", "Rename Metasound {0}"), VariableLabel);
-					const FScopedTransaction Transaction(TransactionLabel);
-					FNodeHandle NodeHandle = GraphVariable->GetNodeHandle();
-					NodeHandle->SetDisplayName(InNewName);
-
-					GraphVariable->NameChanged.Broadcast(NodeHandle->GetID());
-					DisplayNameEditableTextBox->SetError(FText::GetEmpty());
+					GraphVariable->SetDisplayName(InNewName);
 				}
+
+				DisplayNameEditableTextBox->SetError(FText::GetEmpty());
+				bIsNameInvalid = false;
 			}
 
 			ECheckBoxState OnGetPrivateCheckboxState() const
@@ -242,9 +264,6 @@ namespace Metasound
 			virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 			// End of IDetailCustomization interface
 
-		protected:
-			virtual void OnDisplayNameChanged(const FText& InNewText) override;
-
 		private:
 			void SetDefaultPropertyMetaData(TSharedRef<IPropertyHandle> InDefaultPropertyHandle) const;
 
@@ -262,9 +281,6 @@ namespace Metasound
 			// IDetailCustomization interface
 			virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 			// End of IDetailCustomization interface
-
-		protected:
-			virtual void OnDisplayNameChanged(const FText& InNewText) override;
 
 		private:
 			void SetDefaultPropertyMetaData(TSharedRef<IPropertyHandle> InDefaultPropertyHandle) const;
