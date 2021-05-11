@@ -683,6 +683,9 @@ public:
 	// returns all found instruction indices for a given callpath
 	TArray<int32> GetAllInstructionIndicesForCallPath(const FString& InCallPath, bool bStartsWith = false, bool bEndsWith = false) const;
 
+	// returns the callstack which was used to inject a given instruction
+	const TArray<UObject*>* GetCallstackForInstruction(int32 InInstructionIndex) const;
+
 #endif
 
 private:
@@ -713,12 +716,13 @@ private:
 	TMap<UObject*, TArray<int32>> SubjectToInstructions;
 	TArray<FString> CallPathPerInstruction;
 	TMap<FString, TArray<int32>> CallPathToInstructions;
+	TArray<TArray<UObject*>> CallstackPerInstruction;
 
 #endif
 
 #if WITH_EDITOR
 
-	void SetSubject(int32 InInstructionIndex, UObject* InSubject, const FString& InCallPath);
+	void SetSubject(int32 InInstructionIndex, const FString& InCallPath, const TArray<UObject*>& InCallstack);
 
 #endif
 
