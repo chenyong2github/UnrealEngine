@@ -153,7 +153,7 @@ bool FLightmapRayTracingMeshProcessor::Process(
 
 	FMaterialShaderTypes ShaderTypes;
 
-	if (MaterialResource.IsMasked() || MaterialResource.GetBlendMode() == BLEND_Translucent)
+	if (MaterialResource.IsMasked() || MaterialResource.GetBlendMode() != BLEND_Opaque)
 	{
 		ShaderTypes.AddShaderType<TLightmapMaterialCHS<true>>();
 	}
