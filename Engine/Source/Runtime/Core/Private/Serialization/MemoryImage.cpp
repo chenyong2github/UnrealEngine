@@ -280,7 +280,7 @@ void InternalDeleteObjectFromLayout(void* Object, const FTypeLayoutDesc& TypeDes
 	// DestroyFunc may be nullptr for types with trivial destructors
 	if (TypeDesc.DestroyFunc)
 	{
-		TypeDesc.DestroyFunc(Object, TypeDesc, PtrTable);
+		TypeDesc.DestroyFunc(Object, TypeDesc, PtrTable, bIsFrozen);
 	}
 	if (!bIsFrozen)
 	{
