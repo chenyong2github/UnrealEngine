@@ -756,6 +756,8 @@ public:
 
 	void CHAOS_API RemoveParticle(const FUniqueIdx UniqueIdx);
 
+	int32 CHAOS_API GetEarliestFrame_Internal() const { return CurFrame - FramesSaved; }
+
 	TArray<FDesyncedParticleInfo> CHAOS_API ComputeDesyncInfo() const;
 
 	/* Query the state of particles from the past. Once a rewind happens state captured must be queried using GetFutureStateAtFrame */

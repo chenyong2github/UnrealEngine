@@ -590,7 +590,7 @@ bool FRewindData::RewindToFrame(int32 Frame)
 {
 	ensure(IsInPhysicsThreadContext());
 	//Can't go too far back
-	const int32 EarliestFrame = CurFrame - FramesSaved;
+	const int32 EarliestFrame = GetEarliestFrame_Internal();
 	if(Frame < EarliestFrame)
 	{
 		return false;
@@ -672,6 +672,8 @@ void FRewindData::RemoveParticle(const FUniqueIdx UniqueIdx)
 FGeometryParticleState FRewindData::GetPastStateAtFrame(const FGeometryParticleHandle& Handle,int32 Frame) const
 {
 	ensure(!IsResim());
+	ensure(Frame >= GetEarliestFrame_Internal());	//can't get state from before the frame we rewound to
+
 	const FDirtyParticleInfo* Info = FindParticle(Handle.UniqueIdx());
 	const FGeometryParticleStateBase* State = Info ? GetStateAtFrameImp(*Info, Frame) : nullptr;
 	return FGeometryParticleState(State,Handle, PropertiesPool);
