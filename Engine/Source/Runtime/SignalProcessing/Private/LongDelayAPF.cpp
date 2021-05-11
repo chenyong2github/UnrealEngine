@@ -17,7 +17,7 @@ FLongDelayAPF::FLongDelayAPF(float InG, int32 InNumDelaySamples, int32 InMaxNumI
 		NumInternalBufferSamples = NumDelaySamples;
 
 		// Block size must be divisible by simd alignment to support simd operations.
-		NumInternalBufferSamples -= (NumInternalBufferSamples % AUDIO_SIMD_FLOAT_ALIGNMENT);
+		NumInternalBufferSamples -= (NumInternalBufferSamples % AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER);
 	}
 
 	checkf(NumInternalBufferSamples > 1, TEXT("Invalid internal buffer length"));
@@ -105,7 +105,7 @@ void FLongDelayAPF::ProcessAudioBlock(const float* InSamples, const float* InDel
 	//WeightedSumBuffer(InDelaySamples, G, InSamples, OutDelaySamples, InNum);
 	
 	
-	int32 NumToSIMD = InNum - (InNum % AUDIO_SIMD_FLOAT_ALIGNMENT);
+	int32 NumToSIMD = InNum - (InNum % AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER);
 
 	VectorRegister VG = MakeVectorRegister(G, G, G, G);
 	VectorRegister VNG = MakeVectorRegister(-G, -G, -G, -G);

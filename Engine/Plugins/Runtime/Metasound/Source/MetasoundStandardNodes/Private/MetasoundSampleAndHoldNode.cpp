@@ -128,37 +128,10 @@ namespace Metasound
 
 				const int32 NumSamples = EndFrame - StartFrame;
 
-				// if CurrOutputPtr is on the last float of a (4)aligned block, StartAlignment will be 3,
-				// and we want LeadingNonSIMDCount below to be 1 (4-1)
-				const int32 StartAlignment = (uintptr_t)((void*)CurrOutputPtr) % AUDIO_SIMD_FLOAT_ALIGNMENT;
-
-				// if start alignment is 0, we are already aligned (hence the !!)
-				int32 SamplesRemaining = NumSamples;
-				const int32 LeadingNonSIMDCount = (StartAlignment == 0)? 0 : (AUDIO_SIMD_FLOAT_ALIGNMENT - StartAlignment);
-
-				SamplesRemaining -= LeadingNonSIMDCount;
-				const int32 SIMDCount = SamplesRemaining - (SamplesRemaining % AUDIO_SIMD_FLOAT_ALIGNMENT);
-
-				SamplesRemaining -= SIMDCount;
-				const int32 TrailingNonSIMDCount = SamplesRemaining;
-
-
-				// leading non-simd
-				for (int32 i = 0; i < LeadingNonSIMDCount; ++i)
+				// non-SIMD version
+				for (int32 i = 0; i < NumSamples; ++i)
 				{
-					*(CurrOutputPtr++) = HoldValue;
-				}
-
-				// simd
-				if (SIMDCount)
-				{
-					Audio::BufferSetToConstantInplace(CurrOutputPtr, SIMDCount, HoldValue);
-				}
-
-				// trailing non-simd
-				for (int32 i = 0; i < TrailingNonSIMDCount; ++i)
-				{
-					*(CurrOutputPtr++) = HoldValue;
+					CurrOutputPtr[i] = HoldValue;
 				}
 			};
 

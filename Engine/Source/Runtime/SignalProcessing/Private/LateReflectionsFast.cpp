@@ -120,7 +120,7 @@ FLateReflectionsPlate::FLateReflectionsPlate(
 	if (NumInternalBufferSamples > PlateDelays.NumSamplesDelayI) {
 		NumInternalBufferSamples = PlateDelays.NumSamplesDelayI;
 	}
-	NumInternalBufferSamples -= (NumInternalBufferSamples % AUDIO_SIMD_FLOAT_ALIGNMENT);
+	NumInternalBufferSamples -= (NumInternalBufferSamples % AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER);
 
 	checkf(NumInternalBufferSamples > 0, TEXT("InDelays.DelaySample2C too small"));
 

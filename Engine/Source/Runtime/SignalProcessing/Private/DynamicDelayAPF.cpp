@@ -22,7 +22,7 @@ FDynamicDelayAPF::FDynamicDelayAPF(float InG, int32 InMinDelay, int32 InMaxDelay
 	{
 		NumInternalBufferSamples = MaxBufferSamples;
 		// Block length must be divisible by simd alignment to support simd operations.
-		NumInternalBufferSamples -= (NumInternalBufferSamples % AUDIO_SIMD_FLOAT_ALIGNMENT);
+		NumInternalBufferSamples -= (NumInternalBufferSamples % AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER);
 	}
 
 	checkf(NumInternalBufferSamples > 0, TEXT("Invalid internal buffer length"));
