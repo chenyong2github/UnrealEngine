@@ -554,7 +554,7 @@ void FFeaturePackContentSource::ParseAndImportPacks()
 			}
 		}
 	}
-	UE_LOG(LogFeaturePack, Warning, TEXT("Inserted %d feature packs"), PacksInserted++);
+	UE_LOG(LogFeaturePack, Log, TEXT("Inserted %d feature packs"), PacksInserted);
 }
 
 void FFeaturePackContentSource::RecordAndLogError(const FString& ErrorString)
