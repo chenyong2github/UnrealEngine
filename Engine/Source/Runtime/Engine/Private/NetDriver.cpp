@@ -2982,6 +2982,40 @@ bool UNetDriver::HandleNetDumpDormancy(const TCHAR* Cmd, FOutputDevice& Ar)
 	Ar.Logf(TEXT(""));
 	return true;
 }
+
+bool UNetDriver::HandleDumpSubObjectsCommand(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+#if WITH_SERVER_CODE
+	for(UNetConnection* ClientConnection : ClientConnections)
+	{
+		Ar.Logf(TEXT("Logging subobjects for %d open actor channels on %s"), ClientConnection->OpenChannels.Num(), *GetNameSafe(ClientConnection));
+		Ar.Logf(TEXT(""));
+
+		for (const UChannel* Channel : ClientConnection->OpenChannels)
+		{
+			if (const UActorChannel* ActorChannel = Cast<UActorChannel>(Channel))
+			{
+				if (ActorChannel->ReplicationMap.Num() > 1)
+				{
+					Ar.Logf(TEXT("   Actor: %s"), *GetFullNameSafe(ActorChannel->Actor));
+
+					for (auto RepComp = ActorChannel->ReplicationMap.CreateConstIterator(); RepComp; ++RepComp)
+					{
+						const TSharedRef<FObjectReplicator>& LocalReplicator = RepComp.Value();
+						const UObject* Obj = LocalReplicator->GetWeakObjectPtr().Get();
+
+						if (Obj != ActorChannel->Actor)
+						{
+							Ar.Logf(TEXT("       Object: %s Class: %s"), *GetNameSafe(Obj), *GetNameSafe(LocalReplicator->ObjectClass));
+						}
+					}
+				}
+			}
+		}
+	}
+#endif
+	return true;
+}
 #endif // !UE_BUILD_SHIPPING
 
 void UNetDriver::HandlePacketLossBurstCommand( int32 DurationInMilliseconds )
@@ -3095,6 +3129,11 @@ bool UNetDriver::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	else if (FParse::Command(&Cmd, TEXT("FLUSHALLNETDORMANCY")))
 	{
 		HandleNetFlushAllDormancy(this, InWorld);
+		return true;
+	}
+	else if (FParse::Command(&Cmd, TEXT("DUMPSUBOBJECTS")))
+	{
+		HandleDumpSubObjectsCommand(Cmd, Ar);
 		return true;
 	}
 	else

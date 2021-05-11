@@ -3057,7 +3057,7 @@ int64 UActorChannel::ReplicateActor()
 		UE_LOG(LogNet, Warning, TEXT("ReplicateActor: PackageMap->GetMustBeMappedGuidsInLastBunch().Num() != 0: %i"), PackageMapClient->GetMustBeMappedGuidsInLastBunch().Num());
 	}
 
-	bool WroteSomethingImportant = bIsNewlyReplicationUnpaused || bIsNewlyReplicationPaused;
+	bool bWroteSomethingImportant = bIsNewlyReplicationUnpaused || bIsNewlyReplicationPaused;
 
 	// Create an outgoing bunch, and skip this actor if the channel is saturated.
 	FOutBunch Bunch( this, 0 );
@@ -3134,7 +3134,7 @@ int64 UActorChannel::ReplicateActor()
 		UE_NET_TRACE_SCOPE(NewActor, Bunch, GetTraceCollector(Bunch), ENetTraceVerbosity::Trace);
 
 		Connection->PackageMap->SerializeNewActor(Bunch, this, static_cast<AActor*&>(Actor));
-		WroteSomethingImportant = true;
+		bWroteSomethingImportant = true;
 
 		Actor->OnSerializeNewActor(Bunch);
 	}
@@ -3164,55 +3164,59 @@ int64 UActorChannel::ReplicateActor()
 		// The Actor
 		{
 			UE_NET_TRACE_OBJECT_SCOPE(ActorReplicator->ObjectNetGUID, Bunch, GetTraceCollector(Bunch), ENetTraceVerbosity::Trace);
-			WroteSomethingImportant |= ActorReplicator->ReplicateProperties(Bunch, RepFlags);
+			bWroteSomethingImportant |= ActorReplicator->ReplicateProperties(Bunch, RepFlags);
 		}
 
 		// The SubObjects
-		WroteSomethingImportant |= Actor->ReplicateSubobjects(this, &Bunch, &RepFlags);
+		bWroteSomethingImportant |= Actor->ReplicateSubobjects(this, &Bunch, &RepFlags);
 
 		if (Connection->ResendAllDataState != EResendAllDataState::None)
 		{
-			if (WroteSomethingImportant)
+			if (bWroteSomethingImportant)
 			{
 				SendBunch(&Bunch, 1);
 			}
 
 			MemMark.Pop();
 
-			return WroteSomethingImportant;
+			return bWroteSomethingImportant;
 		}
 
-		// Look for deleted subobjects
-		FObjectReplicator* LocalActorReplicator = ActorReplicator.Get();
-		for (auto RepComp = ReplicationMap.CreateIterator(); RepComp; ++RepComp)
 		{
-			TSharedRef<FObjectReplicator>& LocalReplicator = RepComp.Value();
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_NetDeletedSubObjects);
 
-			if (!LocalReplicator->GetWeakObjectPtr().IsValid())
+			// Look for deleted subobjects
+			FObjectReplicator* LocalActorReplicator = ActorReplicator.Get();
+			for (auto RepComp = ReplicationMap.CreateIterator(); RepComp; ++RepComp)
 			{
-				if (LocalReplicator->ObjectNetGUID.IsValid())
-				{
-					// Write a deletion content header:
-					WriteContentBlockForSubObjectDelete(Bunch, LocalReplicator->ObjectNetGUID);
+				TSharedRef<FObjectReplicator>& LocalReplicator = RepComp.Value();
 
-					WroteSomethingImportant = true;
-					Bunch.bReliable = true;
-				}
-				else
+				if (!LocalReplicator->GetWeakObjectPtr().IsValid())
 				{
-					UE_LOG(LogNetTraffic, Error, TEXT("Unable to write subobject delete for (%s), object replicator has invalid NetGUID"), *GetPathNameSafe(Actor));
-				}
+					if (LocalReplicator->ObjectNetGUID.IsValid())
+					{
+						// Write a deletion content header:
+						WriteContentBlockForSubObjectDelete(Bunch, LocalReplicator->ObjectNetGUID);
 
-				// The only way this case would be possible is if someone tried destroying the Actor as a part of
-				// a Subobject's Pre / Post replication, during Replicate Subobjects, or OnSerializeNewActor.
-				// All of those are bad.
-				if (!ensureMsgf(LocalActorReplicator != &LocalReplicator.Get(), TEXT("UActorChannel::ReplicateActor: Actor was deleting during replication: %s"), *Describe()))
-				{
-					ActorReplicator.Reset();
-				}
+						bWroteSomethingImportant = true;
+						Bunch.bReliable = true;
+					}
+					else
+					{
+						UE_LOG(LogNetTraffic, Error, TEXT("Unable to write subobject delete for (%s), object replicator has invalid NetGUID"), *GetPathNameSafe(Actor));
+					}
 
-				LocalReplicator->CleanUp();
-				RepComp.RemoveCurrent();
+					// The only way this case would be possible is if someone tried destroying the Actor as a part of
+					// a Subobject's Pre / Post replication, during Replicate Subobjects, or OnSerializeNewActor.
+					// All of those are bad.
+					if (!ensureMsgf(LocalActorReplicator != &LocalReplicator.Get(), TEXT("UActorChannel::ReplicateActor: Actor was deleting during replication: %s"), *Describe()))
+					{
+						ActorReplicator.Reset();
+					}
+
+					LocalReplicator->CleanUp();
+					RepComp.RemoveCurrent();
+				}
 			}
 		}
 	}
@@ -3224,7 +3228,7 @@ int64 UActorChannel::ReplicateActor()
 	// -----------------------------
 
 	int64 NumBitsWrote = 0;
-	if (WroteSomethingImportant)
+	if (bWroteSomethingImportant)
 	{
 		FPacketIdRange PacketRange = SendBunch( &Bunch, 1 );
 
@@ -4216,16 +4220,16 @@ bool UActorChannel::ReplicateSubobject(UObject *Obj, FOutBunch &Bunch, const FRe
 		NewSubobject = true;
 	}
 	UE_NET_TRACE_OBJECT_SCOPE(ObjectReplicator->ObjectNetGUID, Bunch, GetTraceCollector(Bunch), ENetTraceVerbosity::Trace);
-	bool WroteSomething = ObjectReplicator.Get().ReplicateProperties(Bunch, RepFlags);
-	if (NewSubobject && !WroteSomething)
+	bool bWroteSomething = ObjectReplicator.Get().ReplicateProperties(Bunch, RepFlags);
+	if (NewSubobject && !bWroteSomething)
 	{
 		// Write empty payload to force object creation
 		FNetBitWriter EmptyPayload;
 		WriteContentBlockPayload( Obj, Bunch, false, EmptyPayload );
-		WroteSomething= true;
+		bWroteSomething = true;
 	}
 
-	return WroteSomething;
+	return bWroteSomething;
 }
 
 //------------------------------------------------------

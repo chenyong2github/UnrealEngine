@@ -1394,13 +1394,14 @@ public:
 	/**
 	 * Exec command handlers
 	 */
-	bool HandleSocketsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandlePackageMapCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleNetFloodCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleNetDebugTextCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleNetDisconnectCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleNetDumpServerRPCCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleNetDumpDormancy( const TCHAR* Cmd, FOutputDevice& Ar );
+	bool HandleSocketsCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	bool HandlePackageMapCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	bool HandleNetFloodCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	bool HandleNetDebugTextCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	bool HandleNetDisconnectCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	bool HandleNetDumpServerRPCCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	bool HandleNetDumpDormancy(const TCHAR* Cmd, FOutputDevice& Ar);
+	bool HandleDumpSubObjectsCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 #endif
 
 	void HandlePacketLossBurstCommand( int32 DurationInMilliseconds );
