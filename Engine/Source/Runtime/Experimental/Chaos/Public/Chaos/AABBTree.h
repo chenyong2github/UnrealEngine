@@ -671,10 +671,10 @@ private:
 		TRACE_CPUPROFILER_EVENT_SCOPE(TAABBTree::ReoptimizeTree);
 		TArray<FElement> AllElements;
 
-		SIZE_T ReserveCount = DirtyElements.Num() + GlobalPayloads.Num();
+		int32 ReserveCount = DirtyElements.Num() + GlobalPayloads.Num();
 		for (const auto& Leaf : Leaves)
 		{
-			ReserveCount += Leaf.GetReserveCount();
+			ReserveCount += static_cast<int32>(Leaf.GetReserveCount());
 		}
 
 		AllElements.Reserve(ReserveCount);
@@ -921,7 +921,7 @@ private:
 
 			if(WorkSnapshot.Elems.Num())
 			{
-				WorkSnapshot.AverageCenter = CenterSum * ((FReal)1 / WorkSnapshot.Elems.Num());
+				WorkSnapshot.AverageCenter = CenterSum * ((FReal)1 / (FReal)WorkSnapshot.Elems.Num());
 			}
 			else
 			{
@@ -1190,8 +1190,8 @@ private:
 				WorkPool[FirstChildIdx].NewNodeIdx = Nodes[NewNodeIdx].ChildrenNodes[0];
 				WorkPool[SecondChildIdx].NewNodeIdx = Nodes[NewNodeIdx].ChildrenNodes[1];
 
-				WorkPool[FirstChildIdx].AverageCenter *= ((FReal)1 / WorkPool[FirstChildIdx].Elems.Num());
-				WorkPool[SecondChildIdx].AverageCenter *= ((FReal)1 / WorkPool[SecondChildIdx].Elems.Num());
+				WorkPool[FirstChildIdx].AverageCenter *= ((FReal)1 / (FReal)WorkPool[FirstChildIdx].Elems.Num());
+				WorkPool[SecondChildIdx].AverageCenter *= ((FReal)1 / (FReal)WorkPool[SecondChildIdx].Elems.Num());
 
 				//push these two new nodes onto the stack
 				WorkStack.Add(SecondChildIdx);

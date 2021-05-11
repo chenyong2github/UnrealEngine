@@ -135,7 +135,7 @@ public:
 
 		const TVector<T, d> DirTowardsPlane = SignedDist < 0 ? MNormal : -MNormal;
 		const T RayProjectedTowardsPlane = TVector<T, d>::DotProduct(Dir, DirTowardsPlane);
-		const T Epsilon = 1e-7;
+		const T Epsilon = 1e-7f;
 		if (RayProjectedTowardsPlane < Epsilon)	//moving parallel or away
 		{
 			return false;
@@ -357,7 +357,7 @@ const TVector<T, d> FindClosestPointOnLineSegment(const TVector<T, d>& P0, const
 template<typename T, int d>
 TVector<T, d> FindClosestPointOnTriangle(const TVector<T, d>& ClosestPointOnPlane, const TVector<T, d>& P0, const TVector<T, d>& P1, const TVector<T, d>& P2, const TVector<T, d>& P)
 {
-	const T Epsilon = 1e-4;
+	const T Epsilon = 1e-4f;
 
 	const TVector<T, 2> Bary = ComputeBarycentricInPlane(P0, P1, P2, ClosestPointOnPlane);
 

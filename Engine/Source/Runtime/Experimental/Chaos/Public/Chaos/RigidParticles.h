@@ -58,11 +58,11 @@ constexpr int8 NumBitsNeeded(const int8 MaxValue)
 // Make a bitmask which covers the lowest NumBits bits with 1's.
 constexpr int8 LowBitsMask(const int8 NumBits)
 {
-	return NumBits == 0 ? 0 : (1 << (NumBits - 1)) | LowBitsMask(NumBits - 1);
+	return NumBits == 0 ? 0 : (int8)((1 << (NumBits - 1)) | LowBitsMask(NumBits - 1));
 }
 
 // Count N, the number of bits needed to store an object state
-static constexpr int8 ObjectStateBitCount = NumBitsNeeded((int8)EObjectStateType::Count - 1);
+static constexpr int8 ObjectStateBitCount = NumBitsNeeded((int8)EObjectStateType::Count - (int8)1);
 
 template<class T, int d>
 class TRigidParticles : public TKinematicGeometryParticles<T, d>

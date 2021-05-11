@@ -120,7 +120,7 @@ void FGeometryCollectionProximityUtility::UpdateProximity(FGeometryCollection* G
 	TManagedArray<FVector3f>& BreakingRegionNormalArray = GeometryCollection->GetAttribute<FVector3f>("BreakingRegionNormal", FGeometryCollection::BreakingGroup);
 	TManagedArray<float>& BreakingRegionRadiusArray = GeometryCollection->GetAttribute<float>("BreakingRegionRadius", FGeometryCollection::BreakingGroup);
 
-	float DistanceThreshold = 1e-2;
+	float DistanceThreshold = 1e-2f;
 	float DistanceThresholdSquared = DistanceThreshold * DistanceThreshold;
 	TArray<FFaceTransformData> FaceTransformDataArray;
 	FaceTransformDataArray.Empty();
@@ -337,7 +337,7 @@ void FGeometryCollectionProximityUtility::UpdateProximity(FGeometryCollection* G
 					FVector OtherEdge2(VertexInWorldArray[IndicesArray[IdxOtherFace][2]] - VertexInWorldArray[IndicesArray[IdxOtherFace][0]]);
 					FVector OtherFaceN(OtherEdge1 ^ OtherEdge2);
 
-					if (FVector::Parallel(FaceN, OtherFaceN, 1e-1))
+					if (FVector::Parallel(FaceN, OtherFaceN, 1e-1f))
 					{
 						FVector FaceCenter((VertexInWorldArray[IndicesArray[IdxFace][0]] + VertexInWorldArray[IndicesArray[IdxFace][1]] + VertexInWorldArray[IndicesArray[IdxFace][2]]) / 3.f);
 						FVector OtherFaceCenter = (VertexInWorldArray[IndicesArray[IdxOtherFace][0]] + VertexInWorldArray[IndicesArray[IdxOtherFace][1]] + VertexInWorldArray[IndicesArray[IdxOtherFace][2]]) / 3.f;
@@ -376,10 +376,10 @@ void FGeometryCollectionProximityUtility::UpdateProximity(FGeometryCollection* G
 								LocalOverlappingFacePairSet.Add(FOverlappingFacePair{ FMath::Min(IdxFace, IdxOtherFace), FMath::Max(IdxFace, IdxOtherFace) });
 							}
 						}
-						else if (IsPointInsideOfTriangle(FaceCenter, VertexInWorldArray[IndicesArray[IdxOtherFace][0]], VertexInWorldArray[IndicesArray[IdxOtherFace][1]], VertexInWorldArray[IndicesArray[IdxOtherFace][2]], 1e-1) ||
-							IsPointInsideOfTriangle(PointInFace1, VertexInWorldArray[IndicesArray[IdxOtherFace][0]], VertexInWorldArray[IndicesArray[IdxOtherFace][1]], VertexInWorldArray[IndicesArray[IdxOtherFace][2]], 1e-1) ||
-							IsPointInsideOfTriangle(PointInFace2, VertexInWorldArray[IndicesArray[IdxOtherFace][0]], VertexInWorldArray[IndicesArray[IdxOtherFace][1]], VertexInWorldArray[IndicesArray[IdxOtherFace][2]], 1e-1) ||
-							IsPointInsideOfTriangle(PointInFace3, VertexInWorldArray[IndicesArray[IdxOtherFace][0]], VertexInWorldArray[IndicesArray[IdxOtherFace][1]], VertexInWorldArray[IndicesArray[IdxOtherFace][2]], 1e-1))
+						else if (IsPointInsideOfTriangle(FaceCenter, VertexInWorldArray[IndicesArray[IdxOtherFace][0]], VertexInWorldArray[IndicesArray[IdxOtherFace][1]], VertexInWorldArray[IndicesArray[IdxOtherFace][2]], 1e-1f) ||
+							IsPointInsideOfTriangle(PointInFace1, VertexInWorldArray[IndicesArray[IdxOtherFace][0]], VertexInWorldArray[IndicesArray[IdxOtherFace][1]], VertexInWorldArray[IndicesArray[IdxOtherFace][2]], 1e-1f) ||
+							IsPointInsideOfTriangle(PointInFace2, VertexInWorldArray[IndicesArray[IdxOtherFace][0]], VertexInWorldArray[IndicesArray[IdxOtherFace][1]], VertexInWorldArray[IndicesArray[IdxOtherFace][2]], 1e-1f) ||
+							IsPointInsideOfTriangle(PointInFace3, VertexInWorldArray[IndicesArray[IdxOtherFace][0]], VertexInWorldArray[IndicesArray[IdxOtherFace][1]], VertexInWorldArray[IndicesArray[IdxOtherFace][2]], 1e-1f))
 						{
 							if (!LocalOverlappingFacePairSet.Contains(FOverlappingFacePair{ FMath::Min(IdxFace, IdxOtherFace), FMath::Max(IdxFace, IdxOtherFace) }))
 							{
@@ -393,10 +393,10 @@ void FGeometryCollectionProximityUtility::UpdateProximity(FGeometryCollection* G
 							PointInFace3 = (VertexInWorldArray[IndicesArray[IdxOtherFace][2]] + OtherFaceCenter) / 2.f;
 
 							// Check if points in OtherFace are in Face
-							if (IsPointInsideOfTriangle(OtherFaceCenter, VertexInWorldArray[IndicesArray[IdxFace][0]], VertexInWorldArray[IndicesArray[IdxFace][1]], VertexInWorldArray[IndicesArray[IdxFace][2]], 1e-1) ||
-								IsPointInsideOfTriangle(PointInFace1, VertexInWorldArray[IndicesArray[IdxFace][0]], VertexInWorldArray[IndicesArray[IdxFace][1]], VertexInWorldArray[IndicesArray[IdxFace][2]], 1e-1) ||
-								IsPointInsideOfTriangle(PointInFace2, VertexInWorldArray[IndicesArray[IdxFace][0]], VertexInWorldArray[IndicesArray[IdxFace][1]], VertexInWorldArray[IndicesArray[IdxFace][2]], 1e-1) ||
-								IsPointInsideOfTriangle(PointInFace3, VertexInWorldArray[IndicesArray[IdxFace][0]], VertexInWorldArray[IndicesArray[IdxFace][1]], VertexInWorldArray[IndicesArray[IdxFace][2]], 1e-1))
+							if (IsPointInsideOfTriangle(OtherFaceCenter, VertexInWorldArray[IndicesArray[IdxFace][0]], VertexInWorldArray[IndicesArray[IdxFace][1]], VertexInWorldArray[IndicesArray[IdxFace][2]], 1e-1f) ||
+								IsPointInsideOfTriangle(PointInFace1, VertexInWorldArray[IndicesArray[IdxFace][0]], VertexInWorldArray[IndicesArray[IdxFace][1]], VertexInWorldArray[IndicesArray[IdxFace][2]], 1e-1f) ||
+								IsPointInsideOfTriangle(PointInFace2, VertexInWorldArray[IndicesArray[IdxFace][0]], VertexInWorldArray[IndicesArray[IdxFace][1]], VertexInWorldArray[IndicesArray[IdxFace][2]], 1e-1f) ||
+								IsPointInsideOfTriangle(PointInFace3, VertexInWorldArray[IndicesArray[IdxFace][0]], VertexInWorldArray[IndicesArray[IdxFace][1]], VertexInWorldArray[IndicesArray[IdxFace][2]], 1e-1f))
 							{
 								if (!LocalOverlappingFacePairSet.Contains(FOverlappingFacePair{ FMath::Min(IdxFace, IdxOtherFace), FMath::Max(IdxFace, IdxOtherFace) }))
 								{

@@ -96,8 +96,8 @@ FRecordedTransformTrack FRecordedTransformTrack::ProcessRawRecordedData(const FR
 		UScriptStruct* RecordedTrackStructType = FRecordedTransformTrack::StaticStruct();
 		RecordedTrackStructType->SerializeTaggedProperties(AfterAr, (uint8*)&RecordedData, RecordedTrackStructType, nullptr);
 
-		const int32 ArchiveBeforeSize = BeforeAr.GetNum();
-		const int32 ArchiveAfterSize = AfterAr.GetNum();
+		const int32 ArchiveBeforeSize = static_cast<int32>(BeforeAr.GetNum());
+		const int32 ArchiveAfterSize = static_cast<int32>(AfterAr.GetNum());
 
 		// Dump data reduction stats.
 		FNumberFormattingOptions Opts;

@@ -44,7 +44,7 @@ namespace Chaos
 		T PrevDist2 = FLT_MAX;
 		const T ThicknessA = A.GetMargin() + InThicknessA;
 		const T ThicknessB = B.GetMargin() + InThicknessB;
-		const T Inflation = ThicknessA + ThicknessB + 1e-3;
+		const T Inflation = ThicknessA + ThicknessB + static_cast<T>(1e-3);
 		const T Inflation2 = Inflation * Inflation;
 		do
 		{
@@ -113,7 +113,7 @@ namespace Chaos
 	// the Thickness) use GJKPenetration().
 	//
 	template <bool bNegativePenetrationAllowed = false, typename T, typename TGeometryA, typename TGeometryB>
-	bool GJKPenetration(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, int32& OutClosestVertexIndexA, int32& OutClosestVertexIndexB, const T InThicknessA = 0.0f, const T InThicknessB = 0.0f, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T Epsilon = 1.e-3)
+	bool GJKPenetration(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, int32& OutClosestVertexIndexA, int32& OutClosestVertexIndexB, const T InThicknessA = 0.0f, const T InThicknessB = 0.0f, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T Epsilon = 1.e-3f)
 	{
 		int32 VertexIndexA = INDEX_NONE;
 		int32 VertexIndexB = INDEX_NONE;
@@ -469,7 +469,7 @@ namespace Chaos
 
 		T Barycentric[4] = { -1,-1,-1,-1 };	//not needed, but compiler warns
 		const T Inflation = MarginA + MarginB;
-		const T Inflation2 = Inflation*Inflation + 1e-6;
+		const T Inflation2 = Inflation * Inflation + static_cast<T>(1e-6);
 
 		FSimplex SimplexIDs;
 		const TRotation<T, 3> BToARotation = StartTM.GetRotation();
@@ -499,7 +499,7 @@ namespace Chaos
 		TVector<T, 3> Normal(0,0,1);
 
 		const T InitialPreDist2 = V.SizeSquared();
-		constexpr T Eps2 = 1e-6;
+		constexpr T Eps2 = 1e-6f;
 		//mtd needs to find closest point even in inflation region, so can only skip if we found the closest points
 		bool bCloseEnough = InitialPreDist2 < Inflation2 && (!bComputeMTD || InitialPreDist2 < Eps2);
 		bool bDegenerate = false;

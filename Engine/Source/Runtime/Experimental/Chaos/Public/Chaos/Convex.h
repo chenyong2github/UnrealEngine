@@ -415,7 +415,7 @@ namespace Chaos
 			return FVec3(0.f, 0.f, 1.f);
 		}
 
-		virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01) const override;
+		virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01f) const override;
 
 		// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales (See ImplicitObjectScaled)
 		FReal GetWindingOrder() const

@@ -42,11 +42,11 @@ void FPBDAxialSpringConstraints::ApplyImp(FPBDParticles& InParticles, const FRea
 		{
 			InParticles.P(i1) -= Multiplier * InParticles.InvM(i1) * Delta;
 		}
-		if (InParticles.InvM(i2))
+		if (InParticles.InvM(i2) > 0)
 		{
 			InParticles.P(i2) += Multiplier * InParticles.InvM(i2) * MBarys[i] * Delta;
 		}
-		if (InParticles.InvM(i3))
+		if (InParticles.InvM(i3) > 0)
 		{
 			InParticles.P(i3) += Multiplier * InParticles.InvM(i3) * (1 - MBarys[i]) * Delta;
 		}

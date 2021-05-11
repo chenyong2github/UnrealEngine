@@ -58,10 +58,10 @@ struct FSharedSimulationParameters
 {
 	FSharedSimulationParameters()
 	: bMassAsDensity(false)
-	, Mass(1.0)
-	, MinimumMassClamp(0.1)								// todo : Expose to users with better initial values
+	, Mass(1.0f)
+	, MinimumMassClamp(0.1f)							// todo : Expose to users with better initial values
 	, MaximumMassClamp(1e5f)							// todo : Expose to users with better initial values
-	, MinimumBoundingExtentClamp(0.1)					// todo : Expose to users with better initial values
+	, MinimumBoundingExtentClamp(0.1f)					// todo : Expose to users with better initial values
 	, MaximumBoundingExtentClamp(1e6f)					// todo : Expose to users with better initial values
 	, MinimumInertiaTensorDiagonalClamp(SMALL_NUMBER)	// todo : Expose to users with better initial values
 	, MaximumInertiaTensorDiagonalClamp(1e20f)			// todo : Expose to users with better initial values

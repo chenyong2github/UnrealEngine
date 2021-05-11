@@ -130,7 +130,7 @@ void FGeometryCollectionClusteringUtility::ClusterAllBonesUnderNewRoot(FGeometry
 		}
 		ExplodedTransforms[RootNoneIndex] = Transforms[RootNoneIndex];
 		// This bones offset is the average of all the selected bones
-		ExplodedVectors[RootNoneIndex] = SumOfOffsets / ChildBones.Num();
+		ExplodedVectors[RootNoneIndex] = SumOfOffsets / static_cast<float>(ChildBones.Num());
 	}
 
 	// Selected Bone Setup

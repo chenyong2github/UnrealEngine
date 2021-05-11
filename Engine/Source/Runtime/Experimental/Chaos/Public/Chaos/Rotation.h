@@ -195,7 +195,6 @@ namespace Chaos
 		    const ::Chaos::TVector<FReal, 3>& FinalVector)
 		{
 			typedef Chaos::TVector<FReal, 3> TV;
-			typedef double T;
 			checkSlow(FMath::Abs(InitialVector.Size() - 1.0) < KINDA_SMALL_NUMBER);
 			checkSlow(FMath::Abs(FinalVector.Size() - 1.0) < KINDA_SMALL_NUMBER);
 
@@ -208,11 +207,11 @@ namespace Chaos
 				return TRotation<FReal, 3>::FromElements(InitialVector, 0.f);
 			}
 
-			const T SSquared = .5 * (1.0 + CosTheta); // Uses the half angle formula
-			const T VMagnitudeDesired = sqrt(1.0 - SSquared);
-			V *= (VMagnitudeDesired / VMagnitude);
+			const FRealDouble SSquared = .5 * (1.0 + CosTheta); // Uses the half angle formula
+			const FRealDouble VMagnitudeDesired = sqrt(1.0 - SSquared);
+			V *= static_cast<FReal>(VMagnitudeDesired / VMagnitude);
 
-			return TRotation<FReal, 3>::FromElements(V, sqrt(SSquared));
+			return TRotation<FReal, 3>::FromElements(V, static_cast<FReal>(sqrt(SSquared)));
 		}
 
 		/**

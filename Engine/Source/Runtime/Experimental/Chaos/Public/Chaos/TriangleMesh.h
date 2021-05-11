@@ -232,9 +232,9 @@ namespace Chaos
 			const int32 Idx = Particles.Size();
 			Particles.AddParticles(3);
 			// Left handed
-			Particles.X(Idx + 0) = FVec3(0., 0.8083, 0.);
-			Particles.X(Idx + 1) = FVec3(0.7, -0.4041, 0.);
-			Particles.X(Idx + 2) = FVec3(-0.7, -0.4041, 0.);
+			Particles.X(Idx + 0) = FVec3((FReal)0., (FReal)0.8083, (FReal)0.);
+			Particles.X(Idx + 1) = FVec3((FReal)0.7, (FReal)-0.4041, (FReal)0.);
+			Particles.X(Idx + 2) = FVec3((FReal)-0.7, (FReal)-0.4041, (FReal)0.);
 
 			TArray<TVec3<int32>> Elements;
 			Elements.SetNum(1);
@@ -247,9 +247,9 @@ namespace Chaos
 			const int32 Idx = Particles.Size();
 			Particles.AddParticles(3);
 			// Left handed
-			Particles.X(Idx + 0) = FVec3(0., 0., 0.8083);
-			Particles.X(Idx + 1) = FVec3(0., 0.7, -0.4041);
-			Particles.X(Idx + 2) = FVec3(0., -0.7, -0.4041);
+			Particles.X(Idx + 0) = FVec3((FReal)0., (FReal)0., (FReal)0.8083);
+			Particles.X(Idx + 1) = FVec3((FReal)0., (FReal)0.7, (FReal)-0.4041);
+			Particles.X(Idx + 2) = FVec3((FReal)0., (FReal)-0.7, (FReal)-0.4041);
 
 			TArray<TVec3<int32>> Elements;
 			Elements.SetNum(1);

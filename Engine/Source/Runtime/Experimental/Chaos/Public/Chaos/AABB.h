@@ -365,7 +365,7 @@ namespace Chaos
 				ChosenPt[Axis] = Direction[Axis] < 0 ? MMin[Axis] : MMax[Axis];
 			}
 
-			if (Thickness)
+			if (Thickness != (T)0)
 			{
 				//We want N / ||N|| and to avoid inf
 				//So we want N / ||N|| < 1 / eps => N eps < ||N||, but this is clearly true for all eps < 1 and N > 0
@@ -477,7 +477,7 @@ namespace Chaos
 		}
 
 		FORCEINLINE T GetArea() const { return GetArea(Extents()); }
-		FORCEINLINE static T GetArea(const TVector<T, d>& Dim) { return d == 2 ? Dim.Product() : 2. * (Dim[0] * Dim[1] + Dim[0] * Dim[2] + Dim[1] * Dim[2]); }
+		FORCEINLINE static T GetArea(const TVector<T, d>& Dim) { return d == 2 ? Dim.Product() : (T)2. * (Dim[0] * Dim[1] + Dim[0] * Dim[2] + Dim[1] * Dim[2]); }
 
 		FORCEINLINE T GetVolume() const { return GetVolume(Extents()); }
 		FORCEINLINE static T GetVolume(const TVector<T, 3>& Dim) { return Dim.Product(); }

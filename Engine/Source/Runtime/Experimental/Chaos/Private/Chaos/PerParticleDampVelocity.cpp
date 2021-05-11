@@ -38,10 +38,11 @@ void FPerParticleDampVelocity::UpdatePositionBasedState(const FPBDParticles& Par
 
 		for (int32 Index = Offset; Index < Range; ++Index)
 		{
-			if (!Particles.InvM(Index))
+			if (Particles.InvM(Index) == (FReal)0)
 			{
 				continue;
 			}
+
 			MXcm += Particles.X(Index) * Particles.M(Index);
 			MVcm += Particles.V(Index) * Particles.M(Index);
 			Mcm += Particles.M(Index);
@@ -57,10 +58,11 @@ void FPerParticleDampVelocity::UpdatePositionBasedState(const FPBDParticles& Par
 		FMatrix33 I(0);
 		for (int32 Index = Offset; Index < Range; ++Index)
 		{
-			if (!Particles.InvM(Index))
+			if (Particles.InvM(Index) == (FReal)0)
 			{
 				continue;
 			}
+
 			const FVec3 V = Particles.X(Index) - MXcm;
 			L += FVec3::CrossProduct(V, Particles.M(Index) * Particles.V(Index));
 			const FMatrix33 M(0, V[2], -V[1], -V[2], 0, V[0], V[1], -V[0], 0);

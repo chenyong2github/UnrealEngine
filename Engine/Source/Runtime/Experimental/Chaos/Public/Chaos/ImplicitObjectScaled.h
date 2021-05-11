@@ -717,8 +717,10 @@ public:
 		// Compute final normal
 		const TVector<T, d> LocalNormal = MObject->FindGeometryOpposingNormal(LocalDenormDir, HintFaceIndex, LocalOriginalNormal);
 		TVector<T, d> Normal = LocalNormal * MInvScale;
-		if (CHAOS_ENSURE(Normal.SafeNormalize(TNumericLimits<T>::Min())) == 0)
+		FReal NormalLength = Normal.SafeNormalize(TNumericLimits<T>::Min());
+		if (NormalLength == 0)
 		{
+			CHAOS_ENSURE(false);
 			Normal = TVector<T, 3>(0, 0, 1);
 		}
 
@@ -748,7 +750,7 @@ public:
 		return ClosestIntersection;
 	}
 
-	virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01) const override
+	virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01f) const override
 	{
 		const FVec3 UnscaledPoint = MInvScale * Position;
 		const FReal UnscaledSearchDist = SearchDist * MInvScale.Max();	//this is not quite right since it's no longer a sphere, but the whole thing is fuzzy anyway
@@ -783,7 +785,7 @@ public:
 
 	void SetScale(const FVec3& Scale)
 	{
-		constexpr FReal MinMagnitude = 1e-6;
+		constexpr FReal MinMagnitude = 1e-6f;
 		for (int Axis = 0; Axis < 3; ++Axis)
 		{
 			if (!CHAOS_ENSURE(FMath::Abs(Scale[Axis]) >= MinMagnitude))

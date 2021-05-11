@@ -37,7 +37,7 @@ namespace Chaos
 				FRealSingle InAngVelScale,
 				FRealSingle InImpulseScale,
 				float InInertiaScale,
-				int InDrawPriority,
+				uint8 InDrawPriority,
 				bool bInShowSimpleCollision,
 				bool bInShowComplexCollision,
 				bool bInShowLevelSetCollision
@@ -84,7 +84,7 @@ namespace Chaos
 			FRealSingle AngVelScale;
 			FRealSingle ImpulseScale;
 			FRealSingle InertiaScale;
-			int DrawPriority;
+			uint8 DrawPriority;
 			bool bShowSimpleCollision;
 			bool bShowComplexCollision;
 			bool bShowLevelSetCollision;

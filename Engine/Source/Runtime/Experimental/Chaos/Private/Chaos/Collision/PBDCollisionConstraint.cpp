@@ -98,7 +98,7 @@ namespace Chaos
 				FReal DRLen2 = DR.SizeSquared();
 				if (DRLen2 < DistanceTolerance2)
 				{
-					OutScore = FMath::Clamp(1. - DRLen2 / DistanceTolerance2, 0., 1.);
+					OutScore = FMath::Clamp(1.f - DRLen2 / DistanceTolerance2, 0.f, 1.f);
 					return true;
 				}
 			}

@@ -341,10 +341,14 @@ namespace Chaos
 		TSegment<FReal> GetSegment() const { return TSegment<FReal>(GetX1(), GetX2()); }
 
 		FReal GetArea() const { return GetArea(GetHeight(), GetRadius()); }
-		static FReal GetArea(const FReal Height, const FReal Radius) { static const FReal PI2 = 2. * PI; return PI2 * Radius * (Height + 2.*Radius); }
+		static FReal GetArea(const FReal Height, const FReal Radius)
+		{
+			static const FReal PI2 = 2.f * PI;
+			return PI2 * Radius * (Height + 2.f * Radius); 
+		}
 
 		FReal GetVolume() const { return GetVolume(GetHeight(), GetRadius()); }
-		static FReal GetVolume(const FReal Height, const FReal Radius) { static const FReal FourThirds = 4. / 3; return PI * Radius*Radius * (Height + FourThirds * Radius); }
+		static FReal GetVolume(const FReal Height, const FReal Radius) { static const FReal FourThirds = 4.0f / 3.0f; return PI * Radius * Radius * (Height + FourThirds * Radius); }
 
 		FMatrix33 GetInertiaTensor(const FReal Mass) const { return GetInertiaTensor(Mass, GetHeight(), GetRadius()); }
 		static FMatrix33 GetInertiaTensor(const FReal Mass, const FReal Height, const FReal Radius)
@@ -356,9 +360,9 @@ namespace Chaos
 			const FReal HH = H * H;
 
 			// (5H^3 + 20*H^2R + 45HR^2 + 32R^3) / (60H + 80R)
-			const FReal Diag12 = Mass * (5.*HH*H + 20.*HH*R + 45.*H*RR + 32.*RR*R) / (60.*H + 80.*R);
+			const FReal Diag12 = static_cast<FReal>(Mass * (5.*HH*H + 20.*HH*R + 45.*H*RR + 32.*RR*R) / (60.*H + 80.*R));
 			// (R^2 * (15H + 16R) / (30H +40R))
-			const FReal Diag3 = Mass * (RR * (15.*H + 16.*R)) / (30.*H + 40.*R);
+			const FReal Diag3 = static_cast<FReal>(Mass * (RR * (15.*H + 16.*R)) / (30.*H + 40.*R));
 
 			return FMatrix33(Diag12, Diag12, Diag3);
 		}
@@ -424,11 +428,11 @@ namespace Chaos
 			int32 NumPointsEndCap;
 			int32 NumPointsCylinder;
 			const FReal CapArea = 4 * PI * Radius * Radius;
-			const FReal CylArea = 2.0 * PI * Radius * Height;
+			const FReal CylArea = static_cast<FReal>(2.0 * PI * Radius * Height);
 			if (CylArea > KINDA_SMALL_NUMBER)
 			{
 				const FReal AllArea = CylArea + CapArea;
-				NumPointsCylinder = static_cast<int32>(round(CylArea / AllArea * NumPoints));
+				NumPointsCylinder = static_cast<int32>(round(CylArea / AllArea * static_cast<FReal>(NumPoints)));
 				NumPointsCylinder += (NumPoints - NumPointsCylinder) % 2;
 				NumPointsEndCap = (NumPoints - NumPointsCylinder) / 2;
 			}

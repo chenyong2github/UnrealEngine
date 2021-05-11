@@ -140,7 +140,7 @@ namespace Chaos
 			// to support loading. Cast const away here to get bytes written
 			const_cast<FHeightField*>(this)->Serialize(ChaosAr);
 
-			return FCrc::MemCrc32(Bytes.GetData(), Bytes.GetAllocatedSize());
+			return FCrc::MemCrc32(Bytes.GetData(), (int32)Bytes.GetAllocatedSize());
 		}
 
 		static constexpr EImplicitObjectType StaticType()
