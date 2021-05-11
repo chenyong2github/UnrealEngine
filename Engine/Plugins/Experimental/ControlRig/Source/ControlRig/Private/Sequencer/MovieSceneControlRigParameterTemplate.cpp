@@ -863,7 +863,7 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 		MOVIESCENE_DETAILED_SCOPE_CYCLE_COUNTER(MovieSceneEval_ControlRigParameterTrack_TokenExecute)
 		
 		FMovieSceneSequenceID SequenceID = Operand.SequenceID;
-		UControlRig* ControlRig = Section->ControlRig;
+		UControlRig* ControlRig = Section->GetControlRig();
 
 		// Update the animation's state
 		
@@ -956,20 +956,20 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 		bWasDoNotKey = Section->GetDoNotKey();
 		Section->SetDoNotKey(true);
 
-		if (Section->ControlRig)
+		if (Section->GetControlRig())
 		{
 			const bool bSetupUndo = false;
-			Section->ControlRig->SetAbsoluteTime((float)Context.GetFrameRate().AsSeconds(Context.GetTime()));
+			Section->GetControlRig()->SetAbsoluteTime((float)Context.GetFrameRate().AsSeconds(Context.GetTime()));
 			if (Section->bAdditive == false)
 			{
 				for (const FBoolParameterStringAndValue& BoolNameAndValue : BoolValues)
 				{
 					if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(BoolNameAndValue.ParameterName))
 					{
-						FRigControlElement* RigControl = Section->ControlRig->FindControl(BoolNameAndValue.ParameterName);
+						FRigControlElement* RigControl = Section->GetControlRig()->FindControl(BoolNameAndValue.ParameterName);
 						if (RigControl && RigControl->Settings.ControlType == ERigControlType::Bool)
 						{
-							Section->ControlRig->SetControlValue<bool>(BoolNameAndValue.ParameterName, BoolNameAndValue.Value, true, EControlRigSetKey::Never,bSetupUndo);
+							Section->GetControlRig()->SetControlValue<bool>(BoolNameAndValue.ParameterName, BoolNameAndValue.Value, true, EControlRigSetKey::Never,bSetupUndo);
 						}
 					}
 				}
@@ -978,10 +978,10 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 				{
 					if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(IntegerNameAndValue.ParameterName))
 					{
-						FRigControlElement* RigControl = Section->ControlRig->FindControl(IntegerNameAndValue.ParameterName);
+						FRigControlElement* RigControl = Section->GetControlRig()->FindControl(IntegerNameAndValue.ParameterName);
 						if (RigControl && RigControl->Settings.ControlType == ERigControlType::Integer)
 						{
-							Section->ControlRig->SetControlValue<int32>(IntegerNameAndValue.ParameterName, IntegerNameAndValue.Value, true, EControlRigSetKey::Never,bSetupUndo);
+							Section->GetControlRig()->SetControlValue<int32>(IntegerNameAndValue.ParameterName, IntegerNameAndValue.Value, true, EControlRigSetKey::Never,bSetupUndo);
 						}
 					}
 				}
@@ -1022,12 +1022,12 @@ struct TControlRigParameterActuatorFloat : TMovieSceneBlendingActuator<FControlR
 	{
 		const UMovieSceneControlRigParameterSection* Section = SectionData.Get();
 
-		if (Section && Section->ControlRig)
+		if (Section && Section->GetControlRig())
 		{
-			FRigControlElement* ControlElement = Section->ControlRig->FindControl(ParameterName);
+			FRigControlElement* ControlElement = Section->GetControlRig()->FindControl(ParameterName);
 			if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::Float)
 			{
-				const float Val = Section->ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<float>();
+				const float Val = Section->GetControlRig()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<float>();
 				return FControlRigTrackTokenFloat(Val);
 			}
 
@@ -1046,12 +1046,12 @@ struct TControlRigParameterActuatorFloat : TMovieSceneBlendingActuator<FControlR
 			bWasDoNotKey = Section->GetDoNotKey();
 			Section->SetDoNotKey(true);
 
-			if (Section->ControlRig && (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(ParameterName)))
+			if (Section->GetControlRig() && (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(ParameterName)))
 			{
-				FRigControlElement* ControlElement = Section->ControlRig->FindControl(ParameterName);
+				FRigControlElement* ControlElement = Section->GetControlRig()->FindControl(ParameterName);
 				if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::Float)
 				{
-					Section->ControlRig->SetControlValue<float>(ParameterName, InFinalValue.Value, true, EControlRigSetKey::Never,bSetupUndo);
+					Section->GetControlRig()->SetControlValue<float>(ParameterName, InFinalValue.Value, true, EControlRigSetKey::Never,bSetupUndo);
 				}
 			}
 
@@ -1088,12 +1088,12 @@ struct TControlRigParameterActuatorVector2D : TMovieSceneBlendingActuator<FContr
 	{
 		const UMovieSceneControlRigParameterSection* Section = SectionData.Get();
 
-		if (Section && Section->ControlRig)
+		if (Section && Section->GetControlRig())
 		{
-			FRigControlElement* ControlElement = Section->ControlRig->FindControl(ParameterName);
+			FRigControlElement* ControlElement = Section->GetControlRig()->FindControl(ParameterName);
 			if (ControlElement && (ControlElement->Settings.ControlType == ERigControlType::Vector2D))
 			{
-				FVector2D Val = Section->ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector2D>();
+				FVector2D Val = Section->GetControlRig()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector2D>();
 				return FControlRigTrackTokenVector2D(Val);
 			}
 		}
@@ -1111,12 +1111,12 @@ struct TControlRigParameterActuatorVector2D : TMovieSceneBlendingActuator<FContr
 			bWasDoNotKey = Section->GetDoNotKey();
 			Section->SetDoNotKey(true);
 
-			if (Section->ControlRig && (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(ParameterName)))
+			if (Section->GetControlRig() && (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(ParameterName)))
 			{
-				FRigControlElement* ControlElement = Section->ControlRig->FindControl(ParameterName);
+				FRigControlElement* ControlElement = Section->GetControlRig()->FindControl(ParameterName);
 				if (ControlElement && (ControlElement->Settings.ControlType == ERigControlType::Vector2D))
 				{
-					Section->ControlRig->SetControlValue<FVector2D>(ParameterName, InFinalValue.Value, true, EControlRigSetKey::Never,bSetupUndo);
+					Section->GetControlRig()->SetControlValue<FVector2D>(ParameterName, InFinalValue.Value, true, EControlRigSetKey::Never,bSetupUndo);
 				}
 			}
 
@@ -1151,12 +1151,12 @@ struct TControlRigParameterActuatorVector : TMovieSceneBlendingActuator<FControl
 	{
 		const UMovieSceneControlRigParameterSection* Section = SectionData.Get();
 
-		if (Section->ControlRig)
+		if (Section->GetControlRig())
 		{
-			FRigControlElement* ControlElement = Section->ControlRig->FindControl(ParameterName);
+			FRigControlElement* ControlElement = Section->GetControlRig()->FindControl(ParameterName);
 			if (ControlElement && (ControlElement->Settings.ControlType == ERigControlType::Position || ControlElement->Settings.ControlType == ERigControlType::Scale || ControlElement->Settings.ControlType == ERigControlType::Rotator))
 			{
-				FVector Val = Section->ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector>();
+				FVector Val = Section->GetControlRig()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector>();
 				return FControlRigTrackTokenVector(Val);
 			}
 		}
@@ -1173,12 +1173,12 @@ struct TControlRigParameterActuatorVector : TMovieSceneBlendingActuator<FControl
 			const bool bSetupUndo = false;
 			bWasDoNotKey = Section->GetDoNotKey();
 			Section->SetDoNotKey(true);
-			if (Section->ControlRig && (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(ParameterName)))
+			if (Section->GetControlRig() && (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(ParameterName)))
 			{
-				FRigControlElement* ControlElement = Section->ControlRig->FindControl(ParameterName);
+				FRigControlElement* ControlElement = Section->GetControlRig()->FindControl(ParameterName);
 				if (ControlElement && (ControlElement->Settings.ControlType == ERigControlType::Position || ControlElement->Settings.ControlType == ERigControlType::Scale || ControlElement->Settings.ControlType == ERigControlType::Rotator))
 				{
-						Section->ControlRig->SetControlValue<FVector>(ParameterName, InFinalValue.Value, true, EControlRigSetKey::Never,bSetupUndo);
+						Section->GetControlRig()->SetControlValue<FVector>(ParameterName, InFinalValue.Value, true, EControlRigSetKey::Never,bSetupUndo);
 				}
 			}
 
@@ -1213,23 +1213,23 @@ struct TControlRigParameterActuatorTransform : TMovieSceneBlendingActuator<FCont
 	{
 		const UMovieSceneControlRigParameterSection* Section = SectionData.Get();
 
-		if (Section->ControlRig && (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(ParameterName)))
+		if (Section->GetControlRig() && (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(ParameterName)))
 		{
-			FRigControlElement* ControlElement = Section->ControlRig->FindControl(ParameterName);
+			FRigControlElement* ControlElement = Section->GetControlRig()->FindControl(ParameterName);
 			if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::Transform)
 			{
-				FTransform Val = Section->ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FTransform>();
+				FTransform Val = Section->GetControlRig()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FTransform>();
 				return FControlRigTrackTokenTransform(Val);
 			}
 			else if(ControlElement && ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
 			{
-				FTransformNoScale ValNoScale = Section->ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FTransformNoScale>();
+				FTransformNoScale ValNoScale = Section->GetControlRig()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FTransformNoScale>();
 				FTransform Val = ValNoScale;
 				return FControlRigTrackTokenTransform(Val);
 			}
 			else if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 			{
-				FEulerTransform Euler = Section->ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FEulerTransform>();
+				FEulerTransform Euler = Section->GetControlRig()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FEulerTransform>();
 				FTransform Val = Euler.ToFTransform();
 				return FControlRigTrackTokenTransform(Val);
 		}
@@ -1255,22 +1255,22 @@ struct TControlRigParameterActuatorTransform : TMovieSceneBlendingActuator<FCont
 			bWasDoNotKey = Section->GetDoNotKey();
 			Section->SetDoNotKey(true);
 			const bool bSetupUndo = false;
-			if (Section->ControlRig && (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(ParameterName)))
+			if (Section->GetControlRig() && (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(ParameterName)))
 			{
-				FRigControlElement* ControlElement = Section->ControlRig->FindControl(ParameterName);
+				FRigControlElement* ControlElement = Section->GetControlRig()->FindControl(ParameterName);
 				if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::Transform)
 				{
-						Section->ControlRig->SetControlValue<FTransform>(ParameterName, InFinalValue.Value,true, EControlRigSetKey::Never,bSetupUndo);
+						Section->GetControlRig()->SetControlValue<FTransform>(ParameterName, InFinalValue.Value,true, EControlRigSetKey::Never,bSetupUndo);
 				}
 				else if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
 				{
 					FTransformNoScale NoScale = InFinalValue.Value;
-						Section->ControlRig->SetControlValue<FTransformNoScale>(ParameterName, NoScale, true, EControlRigSetKey::Never,bSetupUndo);
+						Section->GetControlRig()->SetControlValue<FTransformNoScale>(ParameterName, NoScale, true, EControlRigSetKey::Never,bSetupUndo);
 				}
 				else if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 				{
 					FEulerTransform Euler = InFinalValue.Value;
-					Section->ControlRig->SetControlValue<FEulerTransform>(ParameterName, Euler, true, EControlRigSetKey::Never,bSetupUndo);
+					Section->GetControlRig()->SetControlValue<FEulerTransform>(ParameterName, Euler, true, EControlRigSetKey::Never,bSetupUndo);
 				}
 			}
 
@@ -1295,7 +1295,7 @@ void FMovieSceneControlRigParameterTemplate::Evaluate(const FMovieSceneEvaluatio
 	const FFrameTime Time = Context.GetTime();
 
 	const UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(GetSourceSection());
-	if (Section && Section->ControlRig)
+	if (Section && Section->GetControlRig())
 	{
 		FEvaluatedControlRigParameterSectionChannelMasks* ChannelMasks = PersistentData.FindSectionData<FEvaluatedControlRigParameterSectionChannelMasks>();
 		if (!ChannelMasks)
@@ -1332,7 +1332,7 @@ void FMovieSceneControlRigParameterTemplate::Evaluate(const FMovieSceneEvaluatio
 		FControlRigParameterExecutionToken ExecutionToken(Section,Values);
 		ExecutionTokens.Add(MoveTemp(ExecutionToken));
 
-		FControlRigAnimTypeIDsPtr TypeIDs = FControlRigAnimTypeIDs::Get(Section->ControlRig);
+		FControlRigAnimTypeIDsPtr TypeIDs = FControlRigAnimTypeIDs::Get(Section->GetControlRig());
 
 		for (const FScalarParameterStringAndValue& ScalarNameAndValue : Values.ScalarValues)
 		{
@@ -1589,7 +1589,7 @@ void FMovieSceneControlRigParameterTemplate::Interrogate(const FMovieSceneContex
 	const FFrameTime Time = Context.GetTime();
 
 	const UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(GetSourceSection());
-	if (Section && Section->ControlRig)
+	if (Section && Section->GetControlRig())
 	{
 		FEvaluatedControlRigParameterSectionChannelMasks ChannelMasks;
 		ChannelMasks.Initialize(Section, Scalars, Bools, Integers, Enums, Vector2Ds, Vectors, Colors, Transforms);
@@ -1601,7 +1601,7 @@ void FMovieSceneControlRigParameterTemplate::Interrogate(const FMovieSceneContex
 		EvaluateCurvesWithMasks(Context, Values);
 		HACK_ChannelMasks = nullptr;
 
-		FControlRigAnimTypeIDsPtr TypeIDs = FControlRigAnimTypeIDs::Get(Section->ControlRig);
+		FControlRigAnimTypeIDsPtr TypeIDs = FControlRigAnimTypeIDs::Get(Section->GetControlRig());
 
 		float Weight = 1.f;
 

@@ -37,7 +37,7 @@ bool UMovieSceneControlRigParameterTrack::SupportsType(TSubclassOf<UMovieSceneSe
 UMovieSceneSection* UMovieSceneControlRigParameterTrack::CreateNewSection()
 {
 	UMovieSceneControlRigParameterSection* NewSection = NewObject<UMovieSceneControlRigParameterSection>(this, NAME_None, RF_Transactional);
-	NewSection->ControlRig = ControlRig;
+	NewSection->SetControlRig(ControlRig);
 	bool bSetDefault = false;
 	if (Sections.Num() == 0)
 	{
@@ -71,9 +71,9 @@ void UMovieSceneControlRigParameterTrack::AddSection(UMovieSceneSection& Section
 	Sections.Add(&Section);
 	if (UMovieSceneControlRigParameterSection* CRSection = Cast<UMovieSceneControlRigParameterSection>(&Section))
 	{
-		if (CRSection->ControlRig != ControlRig)
+		if (CRSection->GetControlRig() != ControlRig)
 		{
-			CRSection->ControlRig = ControlRig;
+			CRSection->SetControlRig(ControlRig);
 		}
 		CRSection->ReconstructChannelProxy(true);
 	}
@@ -372,7 +372,7 @@ CONTROLRIG_API void UMovieSceneControlRigParameterTrack::ReplaceControlRig(UCont
 			}
 			else
 			{
-				CRSection->ControlRig = NewControlRig;
+				CRSection->SetControlRig(NewControlRig);
 			}
 		}	
 	}

@@ -131,7 +131,7 @@ void FSequencerTrailHierarchy::Destroy()
 	for (const TPair<UMovieSceneSection*, FControlRigDelegateHandles>& SectionHandlesPair : ControlRigDelegateHandles)
 	{
 		UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(SectionHandlesPair.Key);
-		URigHierarchy* RigHierarchy = Section->ControlRig->GetHierarchy();
+		URigHierarchy* RigHierarchy = Section->GetControlRig()->GetHierarchy();
 		RigHierarchy->OnModified().Remove(SectionHandlesPair.Value.OnHierarchyModified);
 	}
 
@@ -684,7 +684,7 @@ void FSequencerTrailHierarchy::AddControlsToHierarchy(class USkeletalMeshCompone
 	UMovieSceneControlRigParameterSection* CRParamSection = Cast<UMovieSceneControlRigParameterSection>(Sections[0]);
 	check(CRParamSection);
 
-	URigHierarchy* RigHierarchy = CRParamSection->ControlRig->GetHierarchy();
+	URigHierarchy* RigHierarchy = CRParamSection->GetControlRig()->GetHierarchy();
 	if (!ControlRigDelegateHandles.Contains(CRParamSection))
 	{
 		RegisterControlRigDelegates(CompToAdd, CRParamSection);
@@ -693,7 +693,7 @@ void FSequencerTrailHierarchy::AddControlsToHierarchy(class USkeletalMeshCompone
 	CRParamSection->ReconstructChannelProxy(true);
 
 	TArray<FRigControlElement*> SortedControls;
-	CRParamSection->ControlRig->GetControlsInOrder(SortedControls);
+	CRParamSection->GetControlRig()->GetControlsInOrder(SortedControls);
 	
 	for (const TPair<FName, FChannelMapInfo>& NameInfoPair : CRParamSection->ControlChannelMap)
 	{
@@ -722,7 +722,7 @@ void FSequencerTrailHierarchy::AddControlsToHierarchy(class USkeletalMeshCompone
 
 void FSequencerTrailHierarchy::RegisterControlRigDelegates(USkeletalMeshComponent* Component, class UMovieSceneControlRigParameterSection* CRParamSection)
 {
-	URigHierarchy* RigHierarchy = CRParamSection->ControlRig->GetHierarchy();
+	URigHierarchy* RigHierarchy = CRParamSection->GetControlRig()->GetHierarchy();
 	FControlRigDelegateHandles& DelegateHandles = ControlRigDelegateHandles.Add(CRParamSection);
 	DelegateHandles.OnHierarchyModified = RigHierarchy->OnModified().AddLambda(
 		[this, RigHierarchy, Component, CRParamSection](ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement) {
