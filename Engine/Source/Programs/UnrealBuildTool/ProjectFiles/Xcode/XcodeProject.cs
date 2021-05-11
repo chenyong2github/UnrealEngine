@@ -1570,63 +1570,70 @@ namespace UnrealBuildTool
 								{
 									if (MSBuildProjectFile.IsValidProjectPlatformAndConfiguration(ProjectTarget, Platform, Configuration, PlatformProjectGenerators))
 									{
-										// Figure out if this is a monolithic build
-										bool bShouldCompileMonolithic = BuildPlatform.ShouldCompileMonolithicBinary(Platform);
-										bShouldCompileMonolithic |= (ProjectTarget.CreateRulesDelegate(Platform, Configuration).LinkType == TargetLinkType.Monolithic);
-
-										string ConfigName = Configuration.ToString();
-										if (ProjectTarget.TargetRules.Type != TargetType.Game && ProjectTarget.TargetRules.Type != TargetType.Program)
+										try
 										{
-											ConfigName += " " + ProjectTarget.TargetRules.Type.ToString();
-										}
+											// Figure out if this is a monolithic build
+											bool bShouldCompileMonolithic = BuildPlatform.ShouldCompileMonolithicBinary(Platform);
+											bShouldCompileMonolithic |= (ProjectTarget.CreateRulesDelegate(Platform, Configuration).LinkType == TargetLinkType.Monolithic);
 
-										if (BuildConfigs.Where(Config => Config.DisplayName == ConfigName).ToList().Count == 0)
-										{
-											string TargetName = ProjectTarget.TargetFilePath.GetFileNameWithoutAnyExtensions();
-
-											// Get the output directory
-											DirectoryReference RootDirectory = UnrealBuildTool.EngineDirectory;
-											if ((ProjectTarget.TargetRules.Type == TargetType.Game || ProjectTarget.TargetRules.Type == TargetType.Client || ProjectTarget.TargetRules.Type == TargetType.Server) && bShouldCompileMonolithic)
+											string ConfigName = Configuration.ToString();
+											if (ProjectTarget.TargetRules.Type != TargetType.Game && ProjectTarget.TargetRules.Type != TargetType.Program)
 											{
-												if(ProjectTarget.UnrealProjectFilePath != null)
+												ConfigName += " " + ProjectTarget.TargetRules.Type.ToString();
+											}
+
+											if (BuildConfigs.Where(Config => Config.DisplayName == ConfigName).ToList().Count == 0)
+											{
+												string TargetName = ProjectTarget.TargetFilePath.GetFileNameWithoutAnyExtensions();
+
+												// Get the output directory
+												DirectoryReference RootDirectory = UnrealBuildTool.EngineDirectory;
+												if ((ProjectTarget.TargetRules.Type == TargetType.Game || ProjectTarget.TargetRules.Type == TargetType.Client || ProjectTarget.TargetRules.Type == TargetType.Server) && bShouldCompileMonolithic)
+												{
+													if (ProjectTarget.UnrealProjectFilePath != null)
+													{
+														RootDirectory = ProjectTarget.UnrealProjectFilePath.Directory;
+													}
+												}
+
+												if (ProjectTarget.TargetRules.Type == TargetType.Program && ProjectTarget.UnrealProjectFilePath != null)
 												{
 													RootDirectory = ProjectTarget.UnrealProjectFilePath.Directory;
 												}
-											}
 
-											if(ProjectTarget.TargetRules.Type == TargetType.Program && ProjectTarget.UnrealProjectFilePath != null)
-											{
-												RootDirectory = ProjectTarget.UnrealProjectFilePath.Directory;
-											}
+												// Get the output directory
+												DirectoryReference OutputDirectory = DirectoryReference.Combine(RootDirectory, "Binaries");
 
-											// Get the output directory
-											DirectoryReference OutputDirectory = DirectoryReference.Combine(RootDirectory, "Binaries");
-
-											string ExeName = TargetName;
-											if (!bShouldCompileMonolithic && ProjectTarget.TargetRules.Type != TargetType.Program)
-											{
-												// Figure out what the compiled binary will be called so that we can point the IDE to the correct file
-												if (ProjectTarget.TargetRules.Type != TargetType.Game)
+												string ExeName = TargetName;
+												if (!bShouldCompileMonolithic && ProjectTarget.TargetRules.Type != TargetType.Program)
 												{
-													ExeName = "UE4" + ProjectTarget.TargetRules.Type.ToString();
+													// Figure out what the compiled binary will be called so that we can point the IDE to the correct file
+													if (ProjectTarget.TargetRules.Type != TargetType.Game)
+													{
+														ExeName = "UE4" + ProjectTarget.TargetRules.Type.ToString();
+													}
+												}
+
+												if (BuildPlatform.Platform == UnrealTargetPlatform.Mac)
+												{
+													string MacExecutableName = MakeExecutableFileName(ExeName, UnrealTargetPlatform.Mac, Configuration, ProjectTarget.TargetRules.Architecture, ProjectTarget.TargetRules.UndecoratedConfiguration);
+													string IOSExecutableName = MacExecutableName.Replace("-Mac-", "-IOS-");
+													string TVOSExecutableName = MacExecutableName.Replace("-Mac-", "-TVOS-");
+													BuildConfigs.Add(new XcodeBuildConfig(ConfigName, TargetName, FileReference.Combine(OutputDirectory, "Mac", MacExecutableName), FileReference.Combine(OutputDirectory, "IOS", IOSExecutableName), FileReference.Combine(OutputDirectory, "TVOS", TVOSExecutableName), ProjectTarget, Configuration));
+												}
+												else if (BuildPlatform.Platform == UnrealTargetPlatform.IOS || BuildPlatform.Platform == UnrealTargetPlatform.TVOS)
+												{
+													string IOSExecutableName = MakeExecutableFileName(ExeName, UnrealTargetPlatform.IOS, Configuration, ProjectTarget.TargetRules.Architecture, ProjectTarget.TargetRules.UndecoratedConfiguration);
+													string TVOSExecutableName = IOSExecutableName.Replace("-IOS-", "-TVOS-");
+													//string MacExecutableName = IOSExecutableName.Replace("-IOS-", "-Mac-");
+													BuildConfigs.Add(new XcodeBuildConfig(ConfigName, TargetName, FileReference.Combine(OutputDirectory, "Mac", IOSExecutableName), FileReference.Combine(OutputDirectory, "IOS", IOSExecutableName), FileReference.Combine(OutputDirectory, "TVOS", TVOSExecutableName), ProjectTarget, Configuration));
 												}
 											}
-
-                                            if (BuildPlatform.Platform == UnrealTargetPlatform.Mac)
-                                            {
-                                                string MacExecutableName = MakeExecutableFileName(ExeName, UnrealTargetPlatform.Mac, Configuration, ProjectTarget.TargetRules.Architecture, ProjectTarget.TargetRules.UndecoratedConfiguration);
-                                                string IOSExecutableName = MacExecutableName.Replace("-Mac-", "-IOS-");
-                                                string TVOSExecutableName = MacExecutableName.Replace("-Mac-", "-TVOS-");
-                                                BuildConfigs.Add(new XcodeBuildConfig(ConfigName, TargetName, FileReference.Combine(OutputDirectory, "Mac", MacExecutableName), FileReference.Combine(OutputDirectory, "IOS", IOSExecutableName), FileReference.Combine(OutputDirectory, "TVOS", TVOSExecutableName), ProjectTarget, Configuration));
-                                            }
-                                            else if (BuildPlatform.Platform == UnrealTargetPlatform.IOS || BuildPlatform.Platform == UnrealTargetPlatform.TVOS)
-                                            {
-                                                string IOSExecutableName = MakeExecutableFileName(ExeName, UnrealTargetPlatform.IOS, Configuration, ProjectTarget.TargetRules.Architecture, ProjectTarget.TargetRules.UndecoratedConfiguration);
-                                                string TVOSExecutableName = IOSExecutableName.Replace("-IOS-", "-TVOS-");
-                                                //string MacExecutableName = IOSExecutableName.Replace("-IOS-", "-Mac-");
-                                                BuildConfigs.Add(new XcodeBuildConfig(ConfigName, TargetName, FileReference.Combine(OutputDirectory, "Mac", IOSExecutableName), FileReference.Combine(OutputDirectory, "IOS", IOSExecutableName), FileReference.Combine(OutputDirectory, "TVOS", TVOSExecutableName), ProjectTarget, Configuration));
-                                            }
-                                        }
+										}
+										catch (BuildException)
+										{
+											// skip target for this platform
+										}
 									}
 								}
 							}
