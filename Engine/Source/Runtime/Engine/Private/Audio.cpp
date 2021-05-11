@@ -1247,6 +1247,89 @@ struct FExtendedFormatChunk
 #pragma pack(pop)
 #endif
 
+bool IsKnownChunkId(uint32 ChunkId)
+{
+	uint32 KnownIds[] =
+	{
+		UE_mmioFOURCC('f', 'm', 't', ' '),
+		UE_mmioFOURCC('d', 'a', 't', 'a'),
+		UE_mmioFOURCC('f', 'a', 'c', 't'),
+		UE_mmioFOURCC('c', 'u', 'e', ' '),
+		UE_mmioFOURCC('p', 'l', 's', 't'),
+		UE_mmioFOURCC('l', 'i', 's', 't'),
+		UE_mmioFOURCC('l', 'a', 'b', 'l'),
+		UE_mmioFOURCC('l', 't', 'x', 't'),
+		UE_mmioFOURCC('n', 'o', 't', 'e'),
+		UE_mmioFOURCC('s', 'm', 'p', 'l'),
+		UE_mmioFOURCC('i', 'n', 's', 't'),
+		UE_mmioFOURCC('a', 'c', 'i', 'd'),
+	};
+
+	return Algo::Find(KnownIds, ChunkId) != nullptr;
+}
+
+FRiffChunkOld* FindRiffChunk(FRiffChunkOld* RiffChunkStart, const uint8* RiffChunkEnd, uint32 ChunkId)
+{
+	// invalid RiffChunkStart
+	if (!ensure(RiffChunkStart))
+	{
+		return nullptr;
+	}
+
+	// invalid RiffChunkEnd
+	if (!ensure(RiffChunkEnd))
+	{
+		return nullptr;
+	}
+
+
+	FRiffChunkOld* RiffChunk = RiffChunkStart;
+
+
+	while ((uint8*)RiffChunk < RiffChunkEnd)
+	{
+		if (INTEL_ORDER32(RiffChunk->ChunkID) == ChunkId)
+		{
+			return RiffChunk;
+		}
+
+		// If the file has non standard chunks identifiers AND is not padding then we cannot be sure what sort of values 
+		// RiffChunk can contain as we will be reading garbage and potentially 'ChunkLen' could be zero which would lead 
+		// to an infinite loop, so check for that here.
+		if (RiffChunk->ChunkLen == 0)
+		{
+			return nullptr;
+		}
+
+		// The format specifies that chunks should be word aligned however some content creation tools seem to ignore this. 
+		// If ChunkLen is even then we can just advance to the next chunk. If it is odd then we need to try and determine if
+		// this file obeys the padding rule.
+		if (INTEL_ORDER32(RiffChunk->ChunkLen) % 2 == 0)
+		{
+			RiffChunk = (FRiffChunkOld*)((uint8*)RiffChunk + INTEL_ORDER32(RiffChunk->ChunkLen) + 8);
+		}
+		else
+		{
+			// First we find the next chunk if the file is not obeying the padding rule, note that we must check to make sure
+			// that the chunk is still within the bounds of our memory as at this point we can no longer trust the data.
+			// If the next chunk (NoPaddingChunk) has an identifier that we recognize then we assume that the current chunk
+			// (RiffChunk) was not padded. If we do not find a chunk id that we recognize we should assume that padding is
+			// required and try that instead.
+			FRiffChunkOld* NoPaddingChunk = (FRiffChunkOld*)((uint8*)RiffChunk + INTEL_ORDER32(RiffChunk->ChunkLen) + 8);
+			if ((uint8*)NoPaddingChunk + 8 < RiffChunkEnd && IsKnownChunkId(NoPaddingChunk->ChunkID))
+			{
+				RiffChunk = NoPaddingChunk;
+			}
+			else
+			{
+				RiffChunk = (FRiffChunkOld*)((uint8*)RiffChunk + FWaveModInfo::Pad16Bit(INTEL_ORDER32(RiffChunk->ChunkLen)) + 8);
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 //
 //	Figure out the WAVE file layout.
 //
@@ -1287,16 +1370,12 @@ bool FWaveModInfo::ReadWaveInfo( const uint8* WaveData, int32 WaveDataSize, FStr
 #endif
 
 	FRiffChunkOld* RiffChunkStart = (FRiffChunkOld*)&WaveData[3 * 4];
-	FRiffChunkOld* RiffChunk = RiffChunkStart;
 	pMasterSize = &RiffHdr->ChunkLen;
 
 	// Look for the 'fmt ' chunk.
-	while ((((uint8*)RiffChunk + 8) < WaveDataEnd) && (INTEL_ORDER32(RiffChunk->ChunkID) != UE_mmioFOURCC('f','m','t',' ')))
-	{
-		RiffChunk = (FRiffChunkOld*)((uint8*)RiffChunk + Pad16Bit(INTEL_ORDER32(RiffChunk->ChunkLen)) + 8);
-	}
+	FRiffChunkOld* RiffChunk = FindRiffChunk(RiffChunkStart, WaveDataEnd, UE_mmioFOURCC('f', 'm', 't', ' '));
 
-	if (INTEL_ORDER32(RiffChunk->ChunkID) != UE_mmioFOURCC('f','m','t',' '))
+	if (RiffChunk == nullptr)
 	{
 		#if !PLATFORM_LITTLE_ENDIAN  // swap them back just in case.
 			if( !AlreadySwapped )
@@ -1306,7 +1385,11 @@ bool FWaveModInfo::ReadWaveInfo( const uint8* WaveData, int32 WaveDataSize, FStr
 				RiffHdr->wID = INTEL_ORDER32( RiffHdr->wID );
 			}
 		#endif
-		if (ErrorReason) *ErrorReason = TEXT("Invalid WAVE file.");
+			if (ErrorReason)
+			{
+				*ErrorReason = TEXT("Invalid WAVE file.");
+			}
+
 		return( false );
 	}
 
@@ -1384,16 +1467,11 @@ bool FWaveModInfo::ReadWaveInfo( const uint8* WaveData, int32 WaveDataSize, FStr
 		pFormatTag = reinterpret_cast<uint16*>(&FmtChunkEx->SubFormat.Data1);
 	}
 
-	// re-initialize the RiffChunk pointer
-	RiffChunk = RiffChunkStart;
 
 	// Look for the 'data' chunk.
-	while ((((uint8*)RiffChunk + 8) < WaveDataEnd) && (INTEL_ORDER32(RiffChunk->ChunkID) != UE_mmioFOURCC('d','a','t','a')))
-	{
-		RiffChunk = (FRiffChunkOld*)((uint8*)RiffChunk + Pad16Bit(INTEL_ORDER32(RiffChunk->ChunkLen)) + 8);
-	}
+	RiffChunk = FindRiffChunk(RiffChunkStart, WaveDataEnd, UE_mmioFOURCC('d', 'a', 't', 'a'));
 
-	if (INTEL_ORDER32(RiffChunk->ChunkID) != UE_mmioFOURCC('d','a','t','a'))
+	if (RiffChunk == nullptr)
 	{
 		#if !PLATFORM_LITTLE_ENDIAN  // swap them back just in case.
 			if (!AlreadySwapped)
@@ -1493,16 +1571,10 @@ bool FWaveModInfo::ReadWaveInfo( const uint8* WaveData, int32 WaveDataSize, FStr
 #endif
 
 	// Look for the cue chunks
-	RiffChunk = RiffChunkStart;
-
-	// Look for the 'cue ' chunk.
-	while ((((uint8*)RiffChunk + 8) < WaveDataEnd) && (INTEL_ORDER32(RiffChunk->ChunkID) != UE_mmioFOURCC('c', 'u', 'e', ' ')))
-	{
-		RiffChunk = (FRiffChunkOld*)((uint8*)RiffChunk + Pad16Bit(INTEL_ORDER32(RiffChunk->ChunkLen)) + 8);
-	}
+	RiffChunk = FindRiffChunk(RiffChunkStart, WaveDataEnd, UE_mmioFOURCC('c', 'u', 'e', ' '));
 
 	// Cue chunks are optional
-	if (reinterpret_cast<uint8*>(RiffChunk) + sizeof(RiffChunk->ChunkID) <= WaveDataEnd && INTEL_ORDER32(RiffChunk->ChunkID) == UE_mmioFOURCC('c', 'u', 'e', ' '))
+	if (RiffChunk != nullptr)
 	{
 		FRiffCueChunk* CueChunk = (FRiffCueChunk*)((uint8*)RiffChunk);
 
@@ -1519,17 +1591,12 @@ bool FWaveModInfo::ReadWaveInfo( const uint8* WaveData, int32 WaveDataSize, FStr
 		
 		}
 		
-		// Now look for labl chunk for labels for cues
-		RiffChunk = RiffChunkStart;
-
+		// Now look for label chunk for labels for cues
 		// Look for the 'list' chunk.
-		while ((((uint8*)RiffChunk + 8) < WaveDataEnd) && (INTEL_ORDER32(RiffChunk->ChunkID) != UE_mmioFOURCC('L', 'I', 'S', 'T')))
-		{
-			RiffChunk = (FRiffChunkOld*)((uint8*)RiffChunk + Pad16Bit(INTEL_ORDER32(RiffChunk->ChunkLen)) + 8);
-		}
+		RiffChunk = FindRiffChunk(RiffChunkStart, WaveDataEnd, UE_mmioFOURCC('L', 'I', 'S', 'T'));
 
 		// Label chunks are also optional
-		if (reinterpret_cast<uint8*>(RiffChunk) + sizeof(RiffChunk->ChunkID) <= WaveDataEnd && INTEL_ORDER32(RiffChunk->ChunkID) == UE_mmioFOURCC('L', 'I', 'S', 'T'))
+		if (RiffChunk != nullptr)
 		{
 			FRiffListChunk* ListChunk = (FRiffListChunk*)((uint8*)RiffChunk);
 			
@@ -1721,4 +1788,5 @@ void SerializeWaveFile(TArray<uint8>& OutWaveFileData, const uint8* InPCMData, c
 	// Copy the raw PCM data to the audio file
 	FMemory::Memcpy(&OutWaveFileData[WaveDataByteIndex], InPCMData, NumBytes);
 }
+
 
