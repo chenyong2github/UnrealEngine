@@ -635,7 +635,7 @@ void FPlaylistReaderHLS::FPlaylistRequest::Execute(TSharedPtrTS<IElectraHttpMana
 	HTTPRequest->ReceiveBuffer    = ReceiveBuffer;
 	HTTPRequest->ProgressListener = InProgressListener;
 	// Add the request.
-	InPlayerSessionServices->GetHTTPManager()->AddRequest(HTTPRequest);
+	InPlayerSessionServices->GetHTTPManager()->AddRequest(HTTPRequest, false);
 }
 
 void FPlaylistReaderHLS::FPlaylistRequest::Cancel(IPlayerSessionServices* InPlayerSessionServices)
@@ -647,7 +647,7 @@ void FPlaylistReaderHLS::FPlaylistRequest::Cancel(IPlayerSessionServices* InPlay
 	}
 	if (HTTPRequest.IsValid())
 	{
-		InPlayerSessionServices->GetHTTPManager()->RemoveRequest(HTTPRequest);
+		InPlayerSessionServices->GetHTTPManager()->RemoveRequest(HTTPRequest, false);
 		HTTPRequest.Reset();
 	}
 }

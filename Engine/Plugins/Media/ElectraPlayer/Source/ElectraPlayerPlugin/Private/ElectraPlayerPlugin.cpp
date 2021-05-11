@@ -374,18 +374,6 @@ bool FElectraPlayerPlugin::Open(const FString& Url, const IMediaOptions* Options
 		PlayerOptions.Set("seekable_range_live_end_offset_conservative", Electra::FVariantValue(bUseConservativeLiveEdgeDistance));
 		UE_LOG(LogElectraPlayerPlugin, Log, TEXT("[%p] IMediaPlayer::Open: Using conservative live edge for distance calculation"), this);
 	}
-	bool bDontAllowInsecureForMediaSegments = Options->GetMediaOption(TEXT("ElectraDontAllowInsecureForEncryptedMediaSegments"), (bool)false);
-	if (bDontAllowInsecureForMediaSegments)
-	{
-		PlayerOptions.Set("dont_use_insecure_for_media_segments", Electra::FVariantValue(bDontAllowInsecureForMediaSegments));
-		UE_LOG(LogElectraPlayerPlugin, Log, TEXT("[%p] IMediaPlayer::Open: Do not allow downgrade to http for encrypted media segments"), this);
-	}
-	bool bDontAllowInsecureForInitSegments = Options->GetMediaOption(TEXT("ElectraDontAllowInsecureForInitSegments"), (bool)false);
-	if (bDontAllowInsecureForInitSegments)
-	{
-		PlayerOptions.Set("dont_use_insecure_for_init_segments", Electra::FVariantValue(bDontAllowInsecureForInitSegments));
-		UE_LOG(LogElectraPlayerPlugin, Log, TEXT("[%p] IMediaPlayer::Open: Do not allow downgrade to http for init segments"), this);
-	}
 	bool bThrowErrorWhenRebuffering = Options->GetMediaOption(TEXT("ElectraThrowErrorWhenRebuffering"), (bool)false);
 	if (bThrowErrorWhenRebuffering)
 	{

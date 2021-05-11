@@ -24,6 +24,7 @@
 #include "Utilities/Utilities.h"
 #include "Utilities/TimeUtilities.h"
 
+#include "Player/DRM/DRMManager.h"
 
 #define ERRCODE_DASH_MPD_BUILDER_INTERNAL							1
 #define ERRCODE_DASH_MPD_BUILDER_UNSUPPORTED_PROFILE				100
@@ -87,7 +88,27 @@ namespace
 		TEXT("urn:mpeg:dash:urlparam:2016"),
 	};
 
+    const TCHAR* const Scheme_urn_mpeg_dash_mp4protection_2011 = TEXT("urn:mpeg:dash:mp4protection:2011");
 }
+
+
+namespace DASHAttributeHelpers
+{
+	const IDashMPDElement::FXmlAttribute* GetAttribute(const TSharedPtrTS<FDashMPD_DescriptorType>& InDescriptor, const TCHAR* InAttribute, const TCHAR* InOptionalNamespace)
+	{
+		const TArray<IDashMPDElement::FXmlAttribute>& Attributes = InDescriptor->GetOtherAttributes();
+		FString NameWithNS = InOptionalNamespace ? FString::Printf(TEXT("%s:%s"), InOptionalNamespace, InAttribute) : FString(InAttribute);
+		for(int32 i=0; i<Attributes.Num(); ++i)
+		{
+			if (Attributes[i].GetName().Equals(NameWithNS) || Attributes[i].GetName().Equals(InAttribute))
+			{
+				return &Attributes[i];
+			}
+		}
+		return nullptr;
+	}
+};
+
 
 namespace DASHUrlHelpers
 {
@@ -1340,10 +1361,10 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 					continue;
 				}
 
-				// Encryption?
-				if (MPDRepresentation->GetContentProtections().Num() || MPDAdaptationSet->GetContentProtections().Num())
+				// Encryption on representation level is not supported. As per DASH-IF-IOP v4.3 encryption must be specified on adaptation set level.
+				if (MPDRepresentation->GetContentProtections().Num())
 				{
-					LogMessage(PlayerSessionServices, IInfoLog::ELevel::Warning, FString::Printf(TEXT("ContentProtection is not supported, ignoring this Representation.")));
+					LogMessage(PlayerSessionServices, IInfoLog::ELevel::Warning, FString::Printf(TEXT("ContentProtection in Representation is not supported. Must be on enclosing AdaptationSet! Ignoring this Representation.")));
 					continue;
 				}
 
@@ -1523,9 +1544,20 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 				RepresentationQualityIndexMap.Add(MPDRepresentation->GetBandwidth(), Representation);
 			}
 
+
 			// If the adaptation set contains usable Representations we mark the AdaptationSet as usable as well.
 			if (AdaptationSet->Representations.Num())
 			{
+				// Encryption?
+				if (MPDAdaptationSet->GetContentProtections().Num())
+				{
+					if (!CanUseEncryptedAdaptation(AdaptationSet))
+					{
+						LogMessage(PlayerSessionServices, IInfoLog::ELevel::Warning, FString::Printf(TEXT("ContentProtection is not supported, ignoring this AdaptationSet.")));
+						continue;
+					}
+				}
+
 				RepresentationQualityIndexMap.KeySort([](int32 A, int32 B){return A<B;});
 				int32 CurrentQualityIndex = -1;
 				int32 CurrentQualityBitrate = -1;
@@ -1545,6 +1577,74 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 		}
 		Period->SetHasBeenPrepared(true);
 	}
+}
+
+
+bool FManifestDASHInternal::CanUseEncryptedAdaptation(const TSharedPtrTS<FAdaptationSet>& InAdaptationSet)
+{
+	TSharedPtrTS<FDRMManager> DRMManager = PlayerSessionServices->GetDRMManager();
+	if (DRMManager.IsValid())
+	{
+		const TSharedPtrTS<FDashMPD_AdaptationSetType> MPDAdaptationSet = InAdaptationSet->AdaptationSet.Pin();
+		const TArray<TSharedPtrTS<FDashMPD_DescriptorType>>& ContentProtections = MPDAdaptationSet->GetContentProtections();
+		FString Mime = InAdaptationSet->GetCodec().GetMimeTypeWithCodecAndFeatures();
+		// See if there is a DASH scheme saying that common encryption is in use.
+		for(int32 i=0; i<ContentProtections.Num(); ++i)
+		{
+			if (ContentProtections[i]->GetSchemeIdUri().Equals(Scheme_urn_mpeg_dash_mp4protection_2011, ESearchCase::IgnoreCase))
+			{
+				InAdaptationSet->CommonEncryptionScheme = ContentProtections[i]->GetValue();
+				const IDashMPDElement::FXmlAttribute* default_KID = DASHAttributeHelpers::GetAttribute(ContentProtections[i], TEXT("default_KID"), TEXT("cenc"));
+				InAdaptationSet->DefaultKID = default_KID ? default_KID->GetValue() : FString();
+				break;
+			}
+		}
+		for(int32 i=0; i<ContentProtections.Num(); ++i)
+		{
+			TSharedPtr<ElectraCDM::IMediaCDMCapabilities, ESPMode::ThreadSafe> DRMCapabilities;
+			// Skip over the common encryption scheme which we handled in the first pass already.
+			if (ContentProtections[i]->GetSchemeIdUri().Equals(Scheme_urn_mpeg_dash_mp4protection_2011, ESearchCase::IgnoreCase))
+			{
+				continue;
+			}
+
+			// Get the scheme specific attributes and child elements as a JSON. If this does not exist yet
+			// create it and store with the descriptor for later use.
+			FString SchemeSpecificData = ContentProtections[i]->GetCustomElementAndAttributeJSON();
+			if (SchemeSpecificData.IsEmpty())
+			{
+				FString AttrPrefix, TextProp;
+				bool bNoNamespaces = false;
+				DRMManager->GetCDMCustomJSONPrefixes(ContentProtections[i]->GetSchemeIdUri(), ContentProtections[i]->GetValue(), AttrPrefix, TextProp, bNoNamespaces);
+				IManifestParserDASH::BuildJSONFromCustomElement(SchemeSpecificData, ContentProtections[i], false, bNoNamespaces, false, true, *AttrPrefix, *TextProp);
+				ContentProtections[i]->SetCustomElementAndAttributeJSON(SchemeSpecificData);
+			}
+
+			DRMCapabilities = DRMManager->GetCDMCapabilitiesForScheme(ContentProtections[i]->GetSchemeIdUri(), ContentProtections[i]->GetValue(), SchemeSpecificData);
+			if (DRMCapabilities.IsValid())
+			{
+				ElectraCDM::IMediaCDMCapabilities::ESupportResult Result;
+				Result = DRMCapabilities->SupportsType(Mime);
+				if (Result != ElectraCDM::IMediaCDMCapabilities::ESupportResult::Supported)
+				{
+					continue;
+				}
+				Result = DRMCapabilities->RequiresSecureDecoder(Mime);
+				if (Result == ElectraCDM::IMediaCDMCapabilities::ESupportResult::SecureDecoderRequired)
+				{
+					//LogMessage(PlayerSessionServices, IInfoLog::ELevel::Warning, FString::Printf(TEXT("Use of secure decoders is not supported.")));
+					continue;
+				}
+
+				FAdaptationSet::FContentProtection Prot;
+				Prot.Descriptor = ContentProtections[i];
+				Prot.DefaultKID = InAdaptationSet->GetDefaultKID();
+				Prot.CommonScheme = InAdaptationSet->GetCommonEncryptionScheme();
+				InAdaptationSet->PossibleContentProtections.Emplace(MoveTemp(Prot));
+			}
+		}
+	}
+	return InAdaptationSet->PossibleContentProtections.Num() > 0;
 }
 
 

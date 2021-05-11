@@ -61,6 +61,10 @@ namespace Electra
 			return StreamType;
 		}
 
+		FString GetMimeType() const;
+		FString GetMimeTypeWithCodec() const;
+		FString GetMimeTypeWithCodecAndFeatures() const;
+
 		bool ParseFromRFC6381(const FString& CodecOTI);
 
 		void SetStreamType(EStreamType InStreamType)

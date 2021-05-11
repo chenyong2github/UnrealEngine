@@ -39,6 +39,7 @@ namespace Electra
 			DASHManifest,
 			DASHFMP4Reader,
 			EntityCache,
+			DRM,
 			LastEntry = 255
 		};
 
@@ -98,6 +99,8 @@ namespace Electra
 					return TEXT("DASH fmp4 reader");
 				case EFacility::EntityCache:
 					return TEXT("Entity cache");
+				case EFacility::DRM:
+					return TEXT("DRM");
 			}
 			return TEXT("???");
 		}

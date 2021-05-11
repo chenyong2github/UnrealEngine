@@ -7,7 +7,6 @@
 #include "InfoLog.h"
 #include "StreamTypes.h"
 
-
 namespace Electra
 {
 	class ISynchronizedUTCTime;
@@ -19,6 +18,7 @@ namespace Electra
 	class IPlayerEntityCache;
 	class IPlaylistReader;
 	class IAdaptiveStreamingPlayerAEMSHandler;
+	class FDRMManager;
 
 
 	class IPlayerMessage
@@ -126,6 +126,11 @@ namespace Electra
 		 * pass values between internal sub systems.
 		 */
 		 virtual FParamDict& GetOptions() = 0;
+
+		 /**
+		  * Returns the DRM manager, if any.
+		  */
+		virtual TSharedPtrTS<FDRMManager> GetDRMManager() = 0;
 	};
 
 

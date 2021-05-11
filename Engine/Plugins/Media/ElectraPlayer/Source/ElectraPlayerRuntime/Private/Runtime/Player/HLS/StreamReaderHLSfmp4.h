@@ -200,7 +200,7 @@ private:
 
 		IPlayerSessionServices*									PlayerSessionService;
 		FReadBuffer												ReadBuffer;
-		TSharedPtr<IStreamDecrypterAES128, ESPMode::ThreadSafe>	Decrypter;
+		TSharedPtr<ElectraCDM::IStreamDecrypterAES128, ESPMode::ThreadSafe>	Decrypter;
 		FMediaEvent												DownloadCompleteSignal;
 		TSharedPtrTS<IParserISO14496_12>						MP4Parser;
 		int32													NumMOOFBoxesFound;
@@ -220,8 +220,6 @@ private:
 		void SignalWork();
 		void WorkerThread();
 		void HandleRequest();
-		FString DemoteMediaURLToHTTP(const FString& InURL, bool bIsEncrypted);
-		FString DemoteInitURLToHTTP(const FString& InURL, bool bIsEncrypted);
 		EInitSegmentResult GetInitSegment(FErrorDetail& OutErrorDetail, TSharedPtrTS<const IParserISO14496_12>& OutMP4InitSegment, const TSharedPtrTS<FStreamSegmentRequestHLSfmp4>& InRequest);
 		ELicenseKeyResult GetLicenseKey(FErrorDetail& OutErrorDetail, TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe>& OutLicenseKeyData, const TSharedPtrTS<FStreamSegmentRequestHLSfmp4>& InRequest, const TSharedPtr<const FManifestHLSInternal::FMediaStream::FDRMKeyInfo, ESPMode::ThreadSafe>& LicenseKeyInfo);
 
@@ -250,9 +248,6 @@ private:
 	IPlayerSessionServices*				PlayerSessionService;
 	bool								bIsStarted;
 	FErrorDetail						ErrorDetail;
-
-	static const FString		OptionKeyDontUseInsecureForEncryptedMediaSegments;		//!< (bool) if false and media segment is using EXT-X-KEY encryption fetch it via http even if it should be https, otherwise keep the original scheme.
-	static const FString		OptionKeyDontUseInsecureForInitSegments;				//!< (bool) if false the init segment is fetched via http even if it should be https, otherwise keep the original scheme.
 };
 
 

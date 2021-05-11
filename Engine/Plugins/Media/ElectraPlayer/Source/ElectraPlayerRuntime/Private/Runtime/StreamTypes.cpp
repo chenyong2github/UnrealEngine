@@ -7,6 +7,40 @@
 namespace Electra
 {
 
+	FString FStreamCodecInformation::GetMimeType() const
+	{
+		switch(GetCodec())
+		{
+			case ECodec::H264:
+				return FString(TEXT("video/mp4"));
+			case ECodec::H265:
+				return FString(TEXT("video/mp4"));
+			case ECodec::AAC:
+				return FString(TEXT("audio/mp4"));
+			case ECodec::EAC3:
+				return FString(TEXT("audio/mp4"));
+			case ECodec::WebVTT:
+				return FString(TEXT("application/mp4"));
+			default:
+				return FString(TEXT("application/octet-stream"));
+		}
+	}
+
+	FString FStreamCodecInformation::GetMimeTypeWithCodec() const
+	{
+		return GetMimeType() + FString::Printf(TEXT("; codecs=\"%s\""), *GetCodecSpecifierRFC6381());
+	}
+
+	FString FStreamCodecInformation::GetMimeTypeWithCodecAndFeatures() const
+	{
+		if (GetStreamType() == EStreamType::Video && GetResolution().Width && GetResolution().Height)
+		{
+			return GetMimeTypeWithCodec() + FString::Printf(TEXT("; resolution=%dx%d"), GetResolution().Width, GetResolution().Height);
+		}
+		return GetMimeTypeWithCodec();
+	}
+
+
 	bool FStreamCodecInformation::ParseFromRFC6381(const FString& CodecOTI)
 	{
 		if (CodecOTI.StartsWith("avc"))

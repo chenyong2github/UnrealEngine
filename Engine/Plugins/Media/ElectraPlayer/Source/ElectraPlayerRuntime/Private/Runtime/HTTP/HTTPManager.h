@@ -62,6 +62,20 @@ namespace Electra
 		{
 			FString	Header;
 			FString	Value;
+
+			void SetFromString(const FString& InString)
+			{
+				int32 ColonPos;
+				if (InString.FindChar(TCHAR(':'), ColonPos))
+				{
+					Header = InString.Left(ColonPos);
+					Value = InString.Mid(ColonPos + 2);
+				}
+			}
+			static void ParseFromString(FHTTPHeader& OutHeader, const FString& InString)
+			{
+				OutHeader.SetFromString(InString);
+			}
 		};
 
 		struct FConnectionInfo
@@ -385,6 +399,17 @@ namespace Electra
 				int64			EndIncluding = -1;
 				int64			DocumentSize = -1;
 			};
+
+			void AddFromHeaderList(const TArray<FString>& InHeaderList)
+			{
+				for(int32 i=0; i<InHeaderList.Num(); ++i)
+				{
+					HTTP::FHTTPHeader h;
+					h.SetFromString(InHeaderList[i]);
+					RequestHeaders.Emplace(MoveTemp(h));
+				}
+			}
+
 			FString								URL;							//!< URL
 			FString								Verb;							//!< GET (default if not set), HEAD, OPTIONS,....
 			FRange								Range;							//!< Optional request range
@@ -393,6 +418,7 @@ namespace Electra
 			TMediaOptionalValue<FString>		AcceptEncoding;					//!< Optional accepted encoding
 			FTimeValue							ConnectTimeout;					//!< Optional timeout for connecting to the server
 			FTimeValue							NoDataTimeout;					//!< Optional timeout when no data is being received
+			TArray<uint8>						PostData;						//!< Data for POST
 		};
 
 
@@ -403,10 +429,11 @@ namespace Electra
 			HTTP::FConnectionInfo				ConnectionInfo;
 			TWeakPtrTS<FReceiveBuffer>			ReceiveBuffer;
 			TWeakPtrTS<FProgressListener>		ProgressListener;
+			bool								bAutoRemoveWhenComplete = false;
 		};
 
-		virtual void AddRequest(TSharedPtrTS<FRequest> Request) = 0;
-		virtual void RemoveRequest(TSharedPtrTS<FRequest> Request) = 0;
+		virtual void AddRequest(TSharedPtrTS<FRequest> Request, bool bAutoRemoveWhenComplete) = 0;
+		virtual void RemoveRequest(TSharedPtrTS<FRequest> Request, bool bDoNotWaitForRemoval) = 0;
 
 	};
 
