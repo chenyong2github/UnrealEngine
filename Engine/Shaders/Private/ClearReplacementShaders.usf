@@ -55,6 +55,12 @@
 		#define ADDR(p) (p).x
 		#define COMP(a,b) ((a).x < (b).x)
 
+	#elif RESOURCE_TYPE == 5
+	
+		RWBuffer        <VALUE_TYPE> ClearResource;
+		#define ADDR(p) (p).x
+		#define COMP(a,b) ((a).x < (b).x)
+
 	#endif
 
 	[numthreads(THREADGROUPSIZE_X, THREADGROUPSIZE_Y, THREADGROUPSIZE_Z)]
