@@ -19,8 +19,6 @@
 namespace UE::DerivedData::Private
 {
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 class FBuildDefinitionBuilderInternal final : public IBuildDefinitionBuilderInternal
 {
 public:
@@ -29,9 +27,9 @@ public:
 		, Function(InFunction)
 	{
 		checkf(!Name.IsEmpty(), TEXT("A build definition requires a non-empty name."));
-		checkf(!Function.IsEmpty(), TEXT("A build definition requires a non-empty function name."));
-		checkf(Algo::AllOf(Function, FChar::IsAlnum), TEXT("A build definition requires an alphanumeric function name. ")
-			TEXT("Definition: %s; Function: %s"), *Name, *Function);
+		checkf(!Function.IsEmpty(), TEXT("A build definition requires a non-empty function name for build of '%s'."), *Name);
+		checkf(Algo::AllOf(Function, FChar::IsAlnum), TEXT("Definition requires an alphanumeric function name for ")
+			TEXT("build of '%s' by %s."), *Name, *Function);
 	}
 
 	~FBuildDefinitionBuilderInternal() final = default;
@@ -74,9 +72,9 @@ private:
 	inline void Add(FStringView Key, ArgType&& Value)
 	{
 		const uint32 KeyHash = GetTypeHash(Key);
-		checkf(!Key.IsEmpty(), TEXT("Empty key used in the %s build input for %s."), *Function, *Name);
-		checkf(!Inputs.ContainsByHash(KeyHash, Key), TEXT("Duplicate key %.*s used in the %s build input for %s."),
-			Key.Len(), Key.GetData(), *Function, *Name);
+		checkf(!Key.IsEmpty(), TEXT("Empty key used in definition for build of '%s' by %s."), *Name, *Function);
+		checkf(!Inputs.ContainsByHash(KeyHash, Key), TEXT("Duplicate key '%.*s' used in definition for "),
+			TEXT("build of '%s' by %s."), Key.Len(), Key.GetData(), *Name, *Function);
 		Inputs.EmplaceByHash(KeyHash, Key, InputType(TInPlaceType<ValueType>(), Forward<ArgType>(Value)));
 	}
 };
@@ -321,8 +319,6 @@ FBuildDefinitionBuilder CreateBuildDefinitionBuilder(IBuildDefinitionBuilderInte
 	return FBuildDefinitionBuilder(DefinitionBuilder);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 FBuildDefinitionBuilder CreateBuildDefinition(FStringView Name, FStringView Function)
 {
 	return CreateBuildDefinitionBuilder(new FBuildDefinitionBuilderInternal(Name, Function));
@@ -332,7 +328,5 @@ FBuildDefinition LoadBuildDefinition(FStringView Name, FCbObject&& Definition)
 {
 	return CreateBuildDefinition(new FBuildDefinitionInternal(Name, MoveTemp(Definition)));
 }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 } // UE::DerivedData::Private
