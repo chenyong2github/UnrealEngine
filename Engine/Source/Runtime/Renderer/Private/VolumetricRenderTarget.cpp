@@ -357,6 +357,14 @@ FUintVector4 FVolumetricRenderTargetViewStateData::GetTracingCoordToZbufferCoord
 		CurrentPixelOffset.Y * VolumetricReconstructRTDownsampleFactor / VolumetricReconstructRTDownsampleFactor);
 }
 
+FUintVector4 FVolumetricRenderTargetViewStateData::GetTracingCoordToFullResPixelCoordScaleBias() const
+{
+	// In this case, the source depth buffer full resolution depth buffer is the full resolution scene one
+	const uint32 CombinedDownsampleFactor = VolumetricReconstructRTDownsampleFactor * VolumetricTracingRTDownsampleFactor;
+	return FUintVector4(CombinedDownsampleFactor, CombinedDownsampleFactor,																// Scale is the combined downsample factor
+		CurrentPixelOffset.X * VolumetricReconstructRTDownsampleFactor, CurrentPixelOffset.Y * VolumetricReconstructRTDownsampleFactor);// Each sample will then sample from full res according to reconstructed RT offset times its downsample factor
+}
+
 
 /*=============================================================================
 	FSceneRenderer implementation.
