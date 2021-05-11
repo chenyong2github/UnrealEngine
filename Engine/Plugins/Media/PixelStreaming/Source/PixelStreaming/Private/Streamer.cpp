@@ -362,18 +362,8 @@ void FStreamer::AddStreams(FPlayerId PlayerId)
 		case webrtc::DegradationPreference::MAINTAIN_RESOLUTION:
 			VideoTrack->set_content_hint(webrtc::VideoTrackInterface::ContentHint::kDetailed);
 			break;
-		}
-		else
-		{
-			switch (GetDegradationPreferenceCVar())
-			{
-			case webrtc::DegradationPreference::MAINTAIN_FRAMERATE:
-				VideoTrack->set_content_hint(webrtc::VideoTrackInterface::ContentHint::kFluid);
-				break;
-			case webrtc::DegradationPreference::MAINTAIN_RESOLUTION:
-				VideoTrack->set_content_hint(webrtc::VideoTrackInterface::ContentHint::kDetailed);
-				break;
-			}
+		default:
+			break;
 		}
 	}
 }

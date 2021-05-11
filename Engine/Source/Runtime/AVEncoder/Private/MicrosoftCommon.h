@@ -4,7 +4,7 @@
 
 #include "Containers/UnrealString.h"
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 
 #include "VideoCommon.h"
 
@@ -77,7 +77,7 @@ inline const FString GetComErrorDescription(HRESULT Res)
 		}\
 	}
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	#include "Windows/HideWindowsPlatformTypes.h"
 #elif PLATFORM_XBOXONE
 	#include "XboxCommonHidePlatformTypes.h"

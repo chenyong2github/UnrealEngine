@@ -7,7 +7,10 @@
 //
 // Windows only include
 //
-#if PLATFORM_WINDOWS
+#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+
+#pragma warning(push)
+#pragma warning(disable: 4005)
 
 THIRD_PARTY_INCLUDES_START
 #include "Windows/AllowWindowsPlatformTypes.h"
