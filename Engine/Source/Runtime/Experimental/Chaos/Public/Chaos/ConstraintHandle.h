@@ -30,8 +30,8 @@ namespace Chaos
 
 		using FGeometryParticleHandle = TGeometryParticleHandle<FReal, 3>;
 
-		FConstraintHandle() : Type(EType::Invalid), ConstraintIndex(INDEX_NONE) { }
-		FConstraintHandle(EType InType, int32 InConstraintIndex): Type(InType), ConstraintIndex(InConstraintIndex) {}
+		FConstraintHandle() : Type(EType::Invalid), ConstraintIndex(INDEX_NONE), ConstraintGraphIndex(INDEX_NONE) { }
+		FConstraintHandle(EType InType, int32 InConstraintIndex): Type(InType), ConstraintIndex(InConstraintIndex), ConstraintGraphIndex(INDEX_NONE) {}
 		virtual ~FConstraintHandle() {}
 
 		bool IsValid() const
@@ -44,6 +44,17 @@ namespace Chaos
 			return ConstraintIndex;
 		}
 
+		int32 GetConstraintGraphIndex() const
+		{
+			return ConstraintGraphIndex;
+		}
+
+		void SetConstraintGraphIndex(int32 InIndex)
+		{
+			ConstraintGraphIndex = InIndex;
+		}
+
+
 		virtual void SetEnabled(bool InEnabled) = 0;
 		virtual bool IsEnabled() const = 0;
 
@@ -55,6 +66,7 @@ namespace Chaos
 
 		EType Type;
 		int32 ConstraintIndex;
+		int32 ConstraintGraphIndex; // @todo(chaos): move constraint graph index to base constraint container
 	};
 
 
