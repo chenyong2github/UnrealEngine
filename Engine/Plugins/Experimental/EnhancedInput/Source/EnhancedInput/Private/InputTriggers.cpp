@@ -16,11 +16,11 @@ ETriggerState UInputTriggerTimedBase::UpdateState_Implementation(const UEnhanced
 {
 	ETriggerState State = ETriggerState::None;
 
-	// Transition to Ongoing on actuation.
+	// Transition to Ongoing on actuation. Update the held duration.
 	if (IsActuated(ModifiedValue))
 	{
 		State = ETriggerState::Ongoing;
-		HeldDuration += DeltaTime;	// TODO: When attached directly to an Action this will tick N times a frame where N is the number of evaluated (actively held) mappings.
+		HeldDuration = CalculateHeldDuration(PlayerInput, DeltaTime);
 	}
 	else
 	{
@@ -29,6 +29,15 @@ ETriggerState UInputTriggerTimedBase::UpdateState_Implementation(const UEnhanced
 	}
 
 	return State;
+}
+
+float UInputTriggerTimedBase::CalculateHeldDuration(const UEnhancedPlayerInput* const PlayerInput, const float DeltaTime) const
+{
+	check(PlayerInput && PlayerInput->GetOuterAPlayerController());
+	const float TimeDilation = PlayerInput->GetOuterAPlayerController()->GetActorTimeDilation();
+	
+	// Calculates the new held duration, applying time dilation if desired
+	return HeldDuration + (!bAffectedByTimeDilation ? DeltaTime : DeltaTime * TimeDilation);
 }
 
 
@@ -83,7 +92,7 @@ ETriggerState UInputTriggerHoldAndRelease::UpdateState_Implementation(const UEnh
 {
 	// Evaluate the updated held duration prior to calling Super to update the held timer
 	// This stops us failing to trigger if the input is released on the threshold frame due to HeldDuration being 0.
-	float TickHeldDuration = HeldDuration + DeltaTime;
+	const float TickHeldDuration = CalculateHeldDuration(PlayerInput, DeltaTime);
 
 	// Update HeldDuration and derive base state
 	ETriggerState State = Super::UpdateState_Implementation(PlayerInput, ModifiedValue, DeltaTime);

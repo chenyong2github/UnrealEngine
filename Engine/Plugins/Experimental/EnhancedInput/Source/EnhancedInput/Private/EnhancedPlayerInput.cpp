@@ -28,6 +28,7 @@ ETriggerEventInternal UEnhancedPlayerInput::GetTriggerStateChangeEvent(ETriggerS
 	// Ongoing	 -> Ongoing		= Ongoing
 	// Ongoing	 -> Triggered	= Triggered
 	// Triggered -> Triggered	= Triggered
+	// Triggered -> Ongoing		= Ongoing
 	// Triggered -> None	    = Completed
 
 	switch (LastTriggerState)
@@ -60,6 +61,10 @@ ETriggerEventInternal UEnhancedPlayerInput::GetTriggerStateChangeEvent(ETriggerS
 		if (NewTriggerState == ETriggerState::Triggered)
 		{
 			return ETriggerEventInternal::Triggered;	// Don't re-raise Started event for multiple completed ticks.
+		}
+		else if (NewTriggerState == ETriggerState::Ongoing)
+		{
+			return ETriggerEventInternal::Ongoing;
 		}
 		else if (NewTriggerState == ETriggerState::None)
 		{
@@ -182,6 +187,11 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 	// Process Action bindings
 	ActionsWithEventsThisTick.Reset();
 
+	// Use non-dilated delta time for processing
+	check(GetOuterAPlayerController());
+	const float Dilation = GetOuterAPlayerController()->GetActorTimeDilation();
+	const float NonDilatedDeltaTime = DeltaTime / Dilation;
+
 	// Handle input devices, applying modifiers and triggers
 	for (FEnhancedActionKeyMapping& Mapping : EnhancedActionMappings)
 	{
@@ -209,7 +219,7 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		EKeyEvent KeyEvent = bKeyIsHeld ? EKeyEvent::Held : ((bKeyIsDown || bKeyIsReleased) ? EKeyEvent::Actuated : EKeyEvent::None);
 
 		// Perform update
-		ProcessActionMappingEvent(Mapping.Action, DeltaTime, bGamePaused, RawKeyValue, KeyEvent, Mapping.Modifiers, Mapping.Triggers);
+		ProcessActionMappingEvent(Mapping.Action, NonDilatedDeltaTime, bGamePaused, RawKeyValue, KeyEvent, Mapping.Modifiers, Mapping.Triggers);
 	}
 
 
@@ -226,7 +236,7 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		else if (!InputsInjectedThisTick.Contains(InjectedAction))
 		{
 			// Reset action state by "releasing the key".
-			ProcessActionMappingEvent(InjectedAction, DeltaTime, bGamePaused, FInputActionValue(), EKeyEvent::Actuated, {}, {});
+			ProcessActionMappingEvent(InjectedAction, NonDilatedDeltaTime, bGamePaused, FInputActionValue(), EKeyEvent::Actuated, {}, {});
 			It.RemoveCurrent();
 		}
 	}
@@ -249,7 +259,7 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		for (FInjectedInput& InjectedInput : InjectedPair.Value.Injected)
 		{
 			// Perform update
-			ProcessActionMappingEvent(InjectedAction, DeltaTime, bGamePaused, InjectedInput.RawValue, KeyEvent, InjectedInput.Modifiers, InjectedInput.Triggers);
+			ProcessActionMappingEvent(InjectedAction, NonDilatedDeltaTime, bGamePaused, InjectedInput.RawValue, KeyEvent, InjectedInput.Modifiers, InjectedInput.Triggers);
 		}
 	}
 	InputsInjectedThisTick.Reset();
@@ -267,10 +277,10 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		if (ActionsWithEventsThisTick.Contains(Action))
 		{
 			// Apply modifiers
-			ActionData.Value = ApplyModifiers(ActionData.Modifiers, ActionData.Value, DeltaTime);
+			ActionData.Value = ApplyModifiers(ActionData.Modifiers, ActionData.Value, NonDilatedDeltaTime);
 
 			// Evaluate triggers
-			TriggerState = CalcTriggerState(ActionData.Triggers, ActionData.Value, DeltaTime);
+			TriggerState = CalcTriggerState(ActionData.Triggers, ActionData.Value, NonDilatedDeltaTime);
 
 			// Any mapping triggers applied should limit the final state.
 			TriggerState = ActionData.bMappingTriggerApplied ? FMath::Min(TriggerState, ActionData.MappingTriggerState) : TriggerState;
@@ -288,8 +298,8 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		ActionData.TriggerEvent = ConvertInternalTriggerEvent(ActionData.TriggerEventInternal);
 		ActionData.LastTriggerState = TriggerState;
 		// Evaluate time per action after establishing the internal trigger state across all mappings
-		ActionData.ElapsedProcessedTime += TriggerState != ETriggerState::None ? DeltaTime : 0.f;
-		ActionData.ElapsedTriggeredTime += (ActionData.TriggerEvent == ETriggerEvent::Triggered) ? DeltaTime : 0.f;
+		ActionData.ElapsedProcessedTime += TriggerState != ETriggerState::None ? NonDilatedDeltaTime : 0.f;
+		ActionData.ElapsedTriggeredTime += (ActionData.TriggerEvent == ETriggerEvent::Triggered) ? NonDilatedDeltaTime : 0.f;
 	}
 
 

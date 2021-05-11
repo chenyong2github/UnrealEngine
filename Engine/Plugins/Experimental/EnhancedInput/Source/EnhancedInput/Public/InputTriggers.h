@@ -142,7 +142,14 @@ protected:
 	// Transitions to Ongoing on actuation. Never triggers.
 	virtual ETriggerState UpdateState_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue ModifiedValue, float DeltaTime) override;
 
+	// Calculates the new held duration given the current player input and delta time
+	float CalculateHeldDuration(const UEnhancedPlayerInput* const PlayerInput, const float DeltaTime) const;
+
 public:
+
+	// Should global time dilation be applied to the held duration?
+	UPROPERTY(BlueprintReadWrite, Category = "Trigger Settings")
+	bool bAffectedByTimeDilation = false;
 
 	virtual FString GetDebugState() const override { return HeldDuration ? FString::Printf(TEXT("Held:%.2f"), HeldDuration) : FString(); }
 };
@@ -267,7 +274,8 @@ public:
 
 /** UInputTriggerPulse
 	Trigger that fires at an Interval, in seconds, while input is actuated. 
-	Note: Completed only fires when the repeat limit is reached or when input is released immediately after being triggered.
+	Note:	Completed only fires when the repeat limit is reached or when input is released immediately after being triggered.
+			Otherwise, Canceled is fired when input is released.
 	*/
 UCLASS(NotBlueprintable, MinimalAPI, meta = (DisplayName = "Pulse"))
 class UInputTriggerPulse final : public UInputTriggerTimedBase
