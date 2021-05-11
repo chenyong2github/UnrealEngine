@@ -25,7 +25,7 @@ public:
 	 * - Game's primary
 	 * If it is none of the above, it emits no opinion about activating the Scene View Extension.
 	 */
-	UFUNCTION(BlueprintPure, Category = "Virtual Production | Rendering")
+	UFUNCTION(BlueprintPure, Category = "Virtual Production|Rendering")
 	static void GenerateSceneViewExtensionIsActiveFunctorForViewportType(
 		FSceneViewExtensionIsActiveFunctor& OutIsActiveFunction,
 		bool bPIE = false,
