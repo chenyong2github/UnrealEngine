@@ -7,8 +7,7 @@
 #include "Logging/LogMacros.h"
 #include "Virtualization/PayloadId.h"
 
-// For UE_USE_VIRTUALBULKDATA
-#include "UObject/UE5CookerObjectVersion.h"
+#define UE_USE_VIRTUALBULKDATA 0
 
 // TODO: Do we want to keep this header public for UE5 release? If the only interaction should be
 //		 via FVirtualizedUntypedBulkData or other such classes we might not want to expose this 
