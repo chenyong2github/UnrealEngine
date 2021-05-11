@@ -927,7 +927,9 @@ static void BlueprintActionDatabaseImpl::GetNodeSpecificActions(TSubclassOf<UEdG
 	else if (NodeClass == UEdGraphNode_Documentation::StaticClass())
 	{
 		// @TODO: BOOOOOOO! (see comment above)
-		Registrar.AddBlueprintAction(MakeDocumentationNodeSpawner<UEdGraphNode_Documentation>());
+		UBlueprintNodeSpawner* DocumentationSpawner = MakeDocumentationNodeSpawner<UEdGraphNode_Documentation>();
+		DocumentationSpawner->DefaultMenuSignature.Category = LOCTEXT("DocumentationNodeCategory", "Documentation");
+		Registrar.AddBlueprintAction(DocumentationSpawner);
 	}
 }
 

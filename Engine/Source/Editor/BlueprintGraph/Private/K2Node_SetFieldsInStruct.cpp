@@ -371,4 +371,10 @@ bool UK2Node_SetFieldsInStruct::CanSplitPin(const UEdGraphPin* Pin) const
 }
 
 
+void UK2Node_SetFieldsInStruct::GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
+{
+	// Use Make's filter function but auto promote for output pins
+	Super::SetupMenuActions(ActionRegistrar, FMakeStructSpawnerAllowedDelegate::CreateStatic(&UK2Node_MakeStruct::CanBeMade), EGPD_Output);
+}
+
 #undef LOCTEXT_NAMESPACE
