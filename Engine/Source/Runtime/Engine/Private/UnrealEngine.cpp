@@ -9537,11 +9537,13 @@ void UEngine::AddTextureStreamingSlaveLoc(FVector InLoc, float BoostFactor, bool
 FGuid UEngine::GetPackageGuid(FName PackageName, bool bForPIE)
 {
 	FGuid Result(0,0,0,0);
-	FPackagePath PackagePath;
-	if (!FPackagePath::TryFromMountedName(PackageName.ToString(), PackagePath))
-
 	// There is no package guid support when using the I/O dispatcher
 	if (FIoDispatcher::IsInitialized())
+	{
+		return Result;
+	}
+	FPackagePath PackagePath;
+	if (!FPackagePath::TryFromMountedName(PackageName.ToString(), PackagePath))
 	{
 		return Result;
 	}
