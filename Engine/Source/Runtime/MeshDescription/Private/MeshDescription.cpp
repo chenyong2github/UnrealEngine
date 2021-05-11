@@ -1960,9 +1960,6 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 	Ar.UsingCustomVersion( FReleaseObjectVersion::GUID );
 	Ar.UsingCustomVersion( FEnterpriseObjectVersion::GUID );
 	Ar.UsingCustomVersion( FUE5MainStreamObjectVersion::GUID );
-#if UE_USE_VIRTUALBULKDATA
-	Ar.UsingCustomVersion(FUE5CookerObjectVersion::GUID);
-#endif //UE_USE_VIRTUALBULKDATA
 
 	// Make sure to serialize only actual data
 	if (Ar.ShouldSkipBulkData() || Ar.IsObjectReferenceCollector())
@@ -2007,19 +2004,32 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 		}
 	}
 
-#if UE_USE_VIRTUALBULKDATA
 	bool bSerializedOldDataTypes = false;
 	FByteBulkData TempBulkData;
-	if (Ar.IsLoading() && Ar.CustomVer(FUE5CookerObjectVersion::GUID) < FUE5CookerObjectVersion::MeshDescriptionVirtualization)
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::MeshDescriptionVirtualization)
 	{
+#if UE_USE_VIRTUALBULKDATA
 		// Serialize the old BulkData format and mark that we require a conversion after the guid has been serialized
 		TempBulkData.Serialize(Ar, Owner);
 		bSerializedOldDataTypes = true;
+#else
+		BulkData.Serialize(Ar, Owner);
+#endif //UE_USE_VIRTUALBULKDATA
 	}
 	else
-#endif //UE_USE_VIRTUALBULKDATA	
 	{
-		BulkData.Serialize(Ar, Owner);
+#if !UE_USE_VIRTUALBULKDATA && UE_VBD_TO_OLD_BULKDATA_PATH
+		if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::DisabledVirtualization)
+		{
+			UE::Virtualization::FByteVirtualizedBulkData TempVirtualBulkData;
+			TempVirtualBulkData.Serialize(Ar, Owner);
+			TempVirtualBulkData.ConvertToOldBulkData(BulkData);
+		}
+		else
+#endif // !UE_USE_VIRTUALBULKDATA && UE_VBD_TO_OLD_BULKDATA_PATH
+		{
+			BulkData.Serialize(Ar, Owner);
+		}
 	}
 
 	if( Ar.IsLoading() && Ar.CustomVer( FEditorObjectVersion::GUID ) < FEditorObjectVersion::MeshDescriptionBulkDataGuid )

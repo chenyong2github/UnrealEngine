@@ -361,7 +361,7 @@ void FStaticMeshSourceModel::FillMaterialName(TMap<int32, FName>& OutMaterialMap
 // If static mesh derived data needs to be rebuilt (new format, serialization differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID and set this new GUID as the version.
 #if UE_USE_VIRTUALBULKDATA
-#define MESHDATAKEY_STATICMESH_DERIVEDDATA_VER TEXT("80264C99E2AD4D83A1DDBBB8D93D8AEF")
+#define MESHDATAKEY_STATICMESH_DERIVEDDATA_VER TEXT("97E1F285E9824AD83693BB8BF976461")
 #else
 #define MESHDATAKEY_STATICMESH_DERIVEDDATA_VER TEXT("B3CE4F8E59E542D4A721EE56068AD214")
 #endif

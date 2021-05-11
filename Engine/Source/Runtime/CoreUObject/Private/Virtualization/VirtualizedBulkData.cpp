@@ -111,33 +111,28 @@ void FVirtualizedUntypedBulkData::CreateFromBulkData(FUntypedBulkData& InBulkDat
 
 	Reset();
 
-	auto AssignGuid = [this, &InBulkData](const FGuid& InGuid)
+	// We only need to set up the bulkdata/content identifiers if we have a valid payload
+	if (InBulkData.GetBulkDataSize() > 0)
 	{
-		// Only use the guid if we will have a valid payload
-		if (InBulkData.GetBulkDataSize() > 0)
+		if (InGuid.IsValid())
 		{
 			BulkDataId = InGuid;
 		}
+		else
+		{
+			UE_LOG(LogVirtualization, Warning,
+				TEXT("CreateFromBulkData recieved an invalid FGuid. A temporary one will be generated until the package is next re-saved! Package: '%s'"),
+				*InBulkData.GetPackagePath().GetDebugName());
+
+			BulkDataId = FGuid::NewGuid();
+		}
 
 		PayloadContentId = FPayloadId(InGuid);
-	};
-
-	if (InGuid.IsValid())
-	{
-		AssignGuid(InGuid);
+		bWasKeyGuidDerived = true;
 	}
-	else
-	{
-		UE_LOG(LogVirtualization, Warning,
-			TEXT("CreateFromBulkData recieved an invalid FGuid. A temporary one will be generated until the package is next re-saved! Package: '%s'"),
-			*InBulkData.GetPackagePath().GetDebugName());
-
-		AssignGuid(FGuid::NewGuid());
-	}	
 	
 	PayloadSize = InBulkData.GetBulkDataSize();
 	
-	bWasKeyGuidDerived = true;
 	PackagePath = InBulkData.GetPackagePath();
 	PackageSegment = InBulkData.GetPackageSegment();
 	
@@ -156,6 +151,36 @@ void FVirtualizedUntypedBulkData::CreateFromBulkData(FUntypedBulkData& InBulkDat
 		EnumAddFlags(Flags, EFlags::DisablePayloadCompression);
 	}
 }
+
+#if UE_VBD_TO_OLD_BULKDATA_PATH
+void FVirtualizedUntypedBulkData::ConvertToOldBulkData(FUntypedBulkData& BulkData)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::ConvertToOldBulkData);
+
+	FSharedBuffer UncompressedPayload = GetDataInternal().Decompress();
+
+	checkf(!IsDataVirtualized(), TEXT("Trying to convert data that has been virtualized, this system should've been removed before this could occur!"));
+	checkf(UncompressedPayload.GetSize() % BulkData.GetElementSize() == 0, TEXT("Payload does not match the element size for bulkdata!"));
+
+	const int64 ElementCount = UncompressedPayload.GetSize() / BulkData.GetElementSize();
+
+	BulkData.Lock(LOCK_READ_WRITE);
+
+	// It would be faster if we could 'release' the FSharedBuffer data to bulkdata but neither API supports
+	// this sort of thing. Give this is throw away code that we don't expect to have run it is not worth 
+	// adding support if this is the only usecase.
+	void* BulkDataPtr = BulkData.Realloc(ElementCount);
+	FMemory::Memcpy(BulkDataPtr, UncompressedPayload.GetData(), UncompressedPayload.GetSize());
+
+	BulkData.Unlock();
+
+	// If the virtual bulkdata has not disabled compression we should apply it to the old bulkdata
+	if (!EnumHasAnyFlags(Flags, EFlags::DisablePayloadCompression))
+	{
+		BulkData.StoreCompressedOnDisk(NAME_Zlib);
+	}
+}
+#endif // UE_VBD_TO_OLD_BULKDATA_PATH
 
 void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 {
