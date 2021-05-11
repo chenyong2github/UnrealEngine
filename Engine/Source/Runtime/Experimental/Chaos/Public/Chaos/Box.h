@@ -5,6 +5,7 @@
 
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/AABB.h"
+#include "Chaos/ConvexHalfEdgeStructureData.h"
 #include "Chaos/Transform.h"
 #include "ChaosArchive.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
@@ -207,12 +208,6 @@ namespace Chaos
 			return GetMostOpposingPlane(Normal);
 		}
 
-		// Get the index of the plane that most opposes the normal (VertexIndex is ignored)
-		int32 GetMostOpposingPlaneWithVertex(int32 VertexIndex, const TVector<T, d>& Normal) const
-		{
-			return GetMostOpposingPlane(Normal);
-		}
-
 		// Get the nearest point on an edge
 		TVector<T, d> GetClosestEdgePosition(int32 PlaneIndexHint, const TVector<T, d>& Position) const
 		{
@@ -292,36 +287,30 @@ namespace Chaos
 			return false;
 		}
 
-
-		// The number of planes that use the specified vertex
-		int32 NumVertexPlanes(int32 VertexIndex) const
+		// Get an array of all the plane indices that belong to a vertex (up to MaxVertexPlanes).
+		// Returns the number of planes found.
+		int32 FindVertexPlanes(int32 VertexIndex, int32* OutVertexPlanes, int32 MaxVertexPlanes) const
 		{
-			return 3;
-		}
-
-		// Get the plane index of one of the planes that uses the specified vertex
-		int32 GetVertexPlane(int32 VertexIndex, int32 VertexPlaneIndex) const
-		{
-			return SVertexPlanes[VertexIndex][VertexPlaneIndex];
+			return SStructureData.FindVertexPlanes(VertexIndex, OutVertexPlanes, MaxVertexPlanes);
 		}
 
 		// The number of vertices that make up the corners of the specified face
 		int32 NumPlaneVertices(int32 PlaneIndex) const
 		{
-			return 4;
+			return SStructureData.NumPlaneVertices(PlaneIndex);
 		}
 
 		// Get the vertex index of one of the vertices making up the corners of the specified face
 		int32 GetPlaneVertex(int32 PlaneIndex, int32 PlaneVertexIndex) const
 		{
-			return SPlaneVertices[PlaneIndex][PlaneVertexIndex];
+			return SStructureData.GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
 		}
 
-		int32 NumPlanes() const { return 6; }
+		int32 NumPlanes() const { return SNormals.Num(); }
 
-		int32 NumVertices() const { return 8; }
+		int32 NumVertices() const { return SVertices.Num(); }
 
-		// Get the plane at the specified index (e.g., indices from GetVertexPlane)
+		// Get the plane at the specified index (e.g., indices from FindVertexPlanes)
 		const TPlaneConcrete<FReal, 3> GetPlane(int32 FaceIndex) const
 		{
 			const FVec3& PlaneN = SNormals[FaceIndex];
@@ -329,7 +318,7 @@ namespace Chaos
 			return TPlaneConcrete<FReal, 3>(PlaneX, PlaneN);
 		}
 
-		// Get the vertex at the specified index (e.g., indices from GetPlaneVertex)
+		// Get the vertex at the specified index (e.g., indices from GetPlaneVertexs)
 		const FVec3 GetVertex(int32 VertexIndex) const
 		{
 			const FVec3& Vertex = SVertices[VertexIndex];
@@ -480,13 +469,20 @@ namespace Chaos
 			return AABB.GetTypeHash();
 		}
 
+		static void InitializeStructureData();
+
 	private:
 		TAABB<T, d> AABB;
 
 		// Structure data shared by all boxes and used for manifold creation
-		static TArray<TArray<int32>> SVertexPlanes;
-		static TArray<TArray<int32>> SPlaneVertices;
 		static TArray<FVec3> SNormals;
 		static TArray<FVec3> SVertices;
+		static FConvexHalfEdgeStructureDataS16 SStructureData;
+
+		struct FStaticInitializer
+		{
+			FStaticInitializer();
+		};
+		static FStaticInitializer SInitializer;
 	};
 }
