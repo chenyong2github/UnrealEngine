@@ -178,6 +178,23 @@ TAutoConsoleVariable<int32> CVarPathTracingLightGridVisualize(
 	ECVF_RenderThreadSafe
 );
 
+BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingData, )
+	SHADER_PARAMETER(uint32, Iteration)
+	SHADER_PARAMETER(uint32, TemporalSeed)
+	SHADER_PARAMETER(uint32, MaxSamples)
+	SHADER_PARAMETER(uint32, MaxBounces)
+	SHADER_PARAMETER(uint32, MaxSSSBounces)
+	SHADER_PARAMETER(uint32, MISMode)
+	SHADER_PARAMETER(uint32, ApproximateCaustics)
+	SHADER_PARAMETER(uint32, EnableCameraBackfaceCulling)
+	SHADER_PARAMETER(uint32, EnableDirectLighting)
+	SHADER_PARAMETER(uint32, EnableEmissive)
+	SHADER_PARAMETER(uint32, SamplerType)
+	SHADER_PARAMETER(uint32, VisualizeLightGrid)
+	SHADER_PARAMETER(float, MaxPathIntensity)
+	SHADER_PARAMETER(float, MaxNormalBias)
+	SHADER_PARAMETER(float, FilterWidth)
+END_SHADER_PARAMETER_STRUCT()
 
 // This function prepares the portion of shader arguments that may involve invalidating the path traced state
 static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTracingData) {

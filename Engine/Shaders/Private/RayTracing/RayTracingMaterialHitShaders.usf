@@ -501,7 +501,26 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	 * Set material attributes for simplified materials
 	 **/
 	// Anything unsupported will be forced to default lit
-	if (Payload.ShadingModelID != SHADINGMODELID_TWOSIDED_FOLIAGE || Payload.ShadingModelID != SHADINGMODELID_THIN_TRANSLUCENT)
+#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
+	if (Payload.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+	{
+		Payload.CustomData = GetMaterialSubsurfaceData(PixelMaterialInputs);
+	}
+	else
+#endif
+#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+	if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
+	{
+		Payload.CustomData.xyz = GetThinTranslucentMaterialOutput0(MaterialParameters);
+	}
+	else
+#endif
+#if MATERIAL_SHADINGMODEL_UNLIT
+	if (Payload.ShadingModelID == SHADINGMODELID_UNLIT)
+	{
+	}
+	else
+#endif
 	{
 		Payload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
 	}
@@ -512,13 +531,8 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	Payload.Specular = 0;
 	Payload.Roughness = 1;
 	Payload.Metallic = 0;
-
-#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
-	if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
-	{
-		Payload.CustomData.xyz = GetThinTranslucentMaterialOutput0(MaterialParameters);
-	}
-#endif
+	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
+	Payload.Ior = 1;
 
 #endif
 
@@ -629,7 +643,7 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 	// Assume Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT
 	float3 Transmission = GetThinTranslucentMaterialOutput0(MaterialParameters);
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
-#if REFRACTION_USE_INDEX_OF_REFRACTION
+#if REFRACTION_USE_INDEX_OF_REFRACTION && !SIMPLIFIED_MATERIAL_SHADER
 	float Ior = GetMaterialRefraction(PixelMaterialInputs).x;
 	Ior = Ior == 0 ? 1.0 : Ior;
 #else
@@ -639,6 +653,7 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 	float3 V = WorldRayDirection();
 	float3 N = normalize(MaterialParameters.WorldNormal);
 	float VoN = abs(dot(V, N));
+#if !SIMPLIFIED_MATERIAL_SHADER
 	if (Opacity < 1.0 && Ior != 1.0)
 	{
 		float PathRoughness = PackedPayload.GetPathRoughness();
@@ -655,6 +670,7 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 		Transparency *= (1 - Roughness * Roughness) * saturate(PathRoughness - Roughness);
 	}
 	else
+#endif
 	{
 		// no bending at the interface so no fresnel - equation above simplifies to just A
 		float3 A = pow(Transmission, 1.0 / VoN);
@@ -666,12 +682,13 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 #elif MATERIALBLENDING_TRANSLUCENT
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
 	float Transparency = 1 - Opacity;
-#if REFRACTION_USE_INDEX_OF_REFRACTION
+#if REFRACTION_USE_INDEX_OF_REFRACTION && !SIMPLIFIED_MATERIAL_SHADER
 	float Ior = GetMaterialRefraction(PixelMaterialInputs).x;
 #else
 	float Ior = 1.0;
 #endif
 
+#if !SIMPLIFIED_MATERIAL_SHADER
 	// Is refraction enabled?
 	if (Transparency > 0 && Ior != 1.0)
 	{
@@ -695,6 +712,7 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 		float Fr = FresnelReflectance(VoN, Eta);
 		Transparency *= pow(1 - Fr, 2) * (1 - Roughness * Roughness) * saturate(PathRoughness - Roughness);
 	}
+#endif
 #else
 #error "Control flow does not account for all blending modes!"
 #endif
