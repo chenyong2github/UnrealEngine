@@ -34,6 +34,7 @@ namespace UnrealBuildTool.Rules
 					"DatasmithCADTranslator", // for DatasmithMeshBuilder
                     "DatasmithTranslator",
                     "DatasmithDispatcher",
+					"ParametricSurface",
 
                     "DatasmithContent",
                 }

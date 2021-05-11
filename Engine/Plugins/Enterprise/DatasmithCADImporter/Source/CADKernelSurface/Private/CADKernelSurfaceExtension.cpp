@@ -1,51 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreTechSurfaceExtension.h"
+#include "CADKernelSurfaceExtension.h"
 
-#include "CADInterfacesModule.h"
-#include "CoreTechSurfaceHelper.h"
-#include "CoreTechTypes.h"
-#include "DatasmithAdditionalData.h"
+#include "CADOptions.h"
 #include "DatasmithPayload.h"
 #include "Engine/StaticMesh.h"
-#include "HAL/PlatformFileManager.h"
-#include "IDatasmithSceneElements.h"
+#include "MeshDescription.h"
 #include "MeshDescriptionHelper.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
 #include "StaticMeshAttributes.h"
 #include "UObject/EnterpriseObjectVersion.h"
 
-void UCoreTechParametricSurfaceData::Serialize(FArchive& Ar)
+void UCADKernelParametricSurfaceData::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FEnterpriseObjectVersion::GUID);
-
 	Super::Serialize(Ar);
-
-	if (Ar.IsSaving() || (Ar.IsLoading() && Ar.CustomVer(FEnterpriseObjectVersion::GUID) >= FEnterpriseObjectVersion::CoreTechParametricSurfaceOptim))
-	{
-		Ar << RawData;
-	}
-
-	if (RawData_DEPRECATED.Num() && RawData.Num() == 0)
-	{
-		RawData = MoveTemp(RawData_DEPRECATED);
-	}
+	Ar << RawData;
 }
 
-bool UCoreTechParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const FDatasmithRetessellationOptions& RetessellateOptions)
+bool UCADKernelParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const FDatasmithRetessellationOptions& RetessellateOptions)
 {
 	bool bSuccessfulTessellation = false;
 
 #if WITH_EDITOR
-	// make a temporary file as CoreTech can only deal with files.
-	int32 Hash = GetTypeHash(StaticMesh.GetPathName());
-	FString ResourceFile = FPaths::ConvertRelativePathToFull(FPaths::ProjectIntermediateDir() / FString::Printf(TEXT("0x%08x.ct"), Hash));
-
-	FFileHelper::SaveArrayToFile(RawData, *ResourceFile);
-
-	CADLibrary::FCTMesh Mesh;
-
 	CADLibrary::FImportParameters ImportParameters;
 	ImportParameters.MetricUnit = SceneParameters.MetricUnit;
 	ImportParameters.ScaleFactor = SceneParameters.ScaleFactor;
@@ -73,7 +49,7 @@ bool UCoreTechParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const F
 			CADLibrary::CopyPatchGroups(*DestinationMeshDescription, MeshDescription);
 		}
 
-		if (CoreTechSurface::LoadFile(ResourceFile, MeshDescription, ImportParameters, CadMeshParameters))
+		if (false /*CADLibrary::LoadFile(ResourceFile, MeshDescription, ImportParameters, CadMeshParameters)*/)
 		{
 			// To update the SectionInfoMap 
 			{
@@ -96,11 +72,34 @@ bool UCoreTechParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const F
 			bSuccessfulTessellation = true;
 		}
 	}
+#endif 
 
-	// Remove temporary file
-	FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*ResourceFile);
-#endif
 	return bSuccessfulTessellation;
 }
 
+namespace CADKernelSurface
+{
+	void AddSurfaceDataForMesh(const TSharedRef<IDatasmithMeshElement>& InMeshElement, const CADLibrary::FImportParameters& InSceneParameters, const CADLibrary::FMeshParameters& InMeshParameters, const FDatasmithTessellationOptions& InTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload)
+	{
+		// Store CADKernel additional data if provided
+		// TODO
+		TArray<uint8> ByteArray;
+		if (ByteArray.Num() > 0)
+		{
+			UCADKernelParametricSurfaceData* CADKernelData = Datasmith::MakeAdditionalData<UCADKernelParametricSurfaceData>();
+			CADKernelData->RawData = MoveTemp(ByteArray);
+			CADKernelData->SceneParameters.ModelCoordSys = uint8(InSceneParameters.ModelCoordSys);
+			CADKernelData->SceneParameters.MetricUnit = InSceneParameters.MetricUnit;
+			CADKernelData->SceneParameters.ScaleFactor = InSceneParameters.ScaleFactor;
 
+			CADKernelData->MeshParameters.bNeedSwapOrientation = InMeshParameters.bNeedSwapOrientation;
+			CADKernelData->MeshParameters.bIsSymmetric = InMeshParameters.bIsSymmetric;
+			CADKernelData->MeshParameters.SymmetricNormal = InMeshParameters.SymmetricNormal;
+			CADKernelData->MeshParameters.SymmetricOrigin = InMeshParameters.SymmetricOrigin;
+
+			CADKernelData->LastTessellationOptions = InTessellationOptions;
+			OutMeshPayload.AdditionalData.Add(CADKernelData);
+		}
+	}
+
+}

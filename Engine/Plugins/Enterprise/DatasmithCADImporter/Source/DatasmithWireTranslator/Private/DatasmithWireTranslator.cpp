@@ -28,6 +28,7 @@
 #include "AliasCoretechWrapper.h" // requires CoreTech as public dependency
 #include "CADInterfacesModule.h"
 #include "CoreTechSurfaceExtension.h"
+#include "CoreTechSurfaceHelper.h"
 
 #ifdef USE_OPENMODEL
 #include <AlChannel.h>
@@ -2119,7 +2120,14 @@ bool FDatasmithWireTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshEle
 	{
 		OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
 
-		CoreTechSurface::AddCoreTechSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, GetCommonTessellationOptions(), OutMeshPayload);
+		if (ImportParameters.bEnableKernelIOTessellation)
+		{
+			CoreTechSurface::AddSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, GetCommonTessellationOptions(), OutMeshPayload);
+		}
+		else
+		{
+			//CADKernelSurface::AddSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, GetCommonTessellationOptions(), OutMeshPayload);
+		}
 	}
 	return OutMeshPayload.LodMeshes.Num() > 0;
 #else
@@ -2130,7 +2138,7 @@ bool FDatasmithWireTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshEle
 void FDatasmithWireTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
 #ifdef USE_OPENMODEL
-	FCoreTechTranslator::SetSceneImportOptions(Options);
+	FParametricSurfaceTranslator::SetSceneImportOptions(Options);
 
 	if (Translator)
 	{

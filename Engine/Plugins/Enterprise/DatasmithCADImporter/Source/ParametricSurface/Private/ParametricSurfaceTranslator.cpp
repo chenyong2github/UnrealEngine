@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreTechTranslator.h"
+#include "ParametricSurfaceTranslator.h"
 
 #include "DatasmithImportOptions.h"
 
-void FCoreTechTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
+void FParametricSurfaceTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
 	FString Extension = GetSource().GetSourceFileExtension();
 	if (Extension == "cgr" || Extension == "3dxml")
@@ -19,7 +19,7 @@ void FCoreTechTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmi
 	Options.Add(CommonTessellationOptionsPtr);
 }
 
-void FCoreTechTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
+void FParametricSurfaceTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
 	for (const TStrongObjectPtr<UDatasmithOptionsBase>& OptionPtr : Options)
 	{

@@ -4,7 +4,7 @@
 
 
 #ifdef USE_OPENNURBS
-#include "CoreTechHelper.h"
+#include "CoreTechSurfaceHelper.h"
 
 #pragma warning(push)
 #pragma warning(disable:4265)
@@ -399,7 +399,7 @@ void BRepToKernelIOBodyTranslator::CreateCTFace(const ON_BrepFace& Face, TArray<
 
 bool FRhinoCoretechWrapper::Tessellate(FMeshDescription& Mesh, CADLibrary::FMeshParameters& MeshParameters)
 {
-	return CADLibrary::Tessellate(MainObjectId, ImportParams, Mesh, MeshParameters);
+	return CoreTechSurface::Tessellate(MainObjectId, ImportParams, Mesh, MeshParameters);
 }
 
 uint64 BRepToKernelIOBodyTranslator::CreateBody(const ON_3dVector& Offset)

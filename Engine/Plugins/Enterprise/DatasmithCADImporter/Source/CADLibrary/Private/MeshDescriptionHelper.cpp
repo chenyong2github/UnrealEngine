@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "CoreTechHelper.h"
-
-
-#include "CoreTechTypes.h"
+#include "MeshDescriptionHelper.h"
 
 #include "CADData.h"
-#include "CoreTechFileParser.h"
+#include "CADOptions.h"
 #include "DatasmithMaterialElements.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithUtils.h"
@@ -15,7 +12,6 @@
 #include "Misc/FileHelper.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
-#include "CADData.h"
 
 typedef uint32 TriangleIndex[3];
 
@@ -622,51 +618,4 @@ namespace CADLibrary
 
 		return MaterialElement;
 	}
-
-	bool Tessellate(uint64 MainObjectId, const FImportParameters& ImportParams, FMeshDescription& MeshDesc, FMeshParameters& MeshParameters)
-	{
-		CTKIO_SetCoreTechTessellationState(ImportParams);
-
-		FBodyMesh BodyMesh;
-		BodyMesh.BodyID = 1;
-
-		CTKIO_GetTessellation(MainObjectId, BodyMesh, false);
-
-		if (BodyMesh.Faces.Num() == 0)
-		{
-			return false;
-		}
-
-		if (!ConvertBodyMeshToMeshDescription(ImportParams, MeshParameters, BodyMesh, MeshDesc))
-		{
-			ensureMsgf(false, TEXT("Error during mesh conversion"));
-			return false;
-		}
-
-		return true;
-	}
-
-	bool LoadFile(const FString& FileName, FMeshDescription& MeshDescription, const FImportParameters& ImportParameters, FMeshParameters& MeshParameters)
-	{
-		FCoreTechSessionBase Session(TEXT("CoreTechMeshLoader::LoadFile"), ImportParameters.MetricUnit);
-		if (!Session.IsSessionValid())
-		{
-			return false;
-		}
-
-		uint64 MainObjectID;
-		if(!CTKIO_LoadModel(*FileName, MainObjectID, 0x00020000 /* CT_LOAD_FLAGS_READ_META_DATA */))
-		{
-			// Something wrong happened during the load, abort
-			return false;
-		}
-
-		if (ImportParameters.StitchingTechnique != StitchingNone)
-		{
-			CTKIO_Repair(MainObjectID, StitchingHeal);
-		}
-
-		return Tessellate(MainObjectID, ImportParameters, MeshDescription, MeshParameters);
-	}
-
 }

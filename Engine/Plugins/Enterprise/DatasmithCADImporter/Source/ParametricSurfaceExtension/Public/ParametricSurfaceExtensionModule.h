@@ -9,10 +9,10 @@
 /**
  * This module exposes additional features for assets containing CoreTech data.
  */
-class FCoreTechExtensionModule : public IModuleInterface
+class FParametricSurfaceExtensionModule : public IModuleInterface
 {
 public:
-    static FCoreTechExtensionModule& Get();
+    static FParametricSurfaceExtensionModule& Get();
     static bool IsAvailable();
 
 private:
