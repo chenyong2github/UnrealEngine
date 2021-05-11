@@ -66,7 +66,7 @@ DEFINE_LOG_CATEGORY(LogNanite);
 
 #define NANITE_MATERIAL_STENCIL 1
 
-int32 GNaniteAsyncRasterization = 1;
+int32 GNaniteAsyncRasterization = 0; // @todo: Disabled because GPUScene/Nanite resource transitions are not correct for async compute rasterization
 static FAutoConsoleVariableRef CVarNaniteEnableAsyncRasterization(
 	TEXT("r.Nanite.AsyncRasterization"),
 	GNaniteAsyncRasterization,
