@@ -721,46 +721,11 @@ void SDetailsView::ReplaceObjects(const TMap<UObject*, UObject*>& OldToNewObject
 		}
 	}
 
-	if (!bNeedRefresh)
-	{
-		bNeedRefresh |= AreExternalObjectsReplaced(OldToNewObjectMap);
-	}
-
 	if (bNeedRefresh)
 	{
 		UnfilteredSelectedObjects = MoveTemp(NewUnfilteredSelectedObjects);
 		SetObjectArrayPrivate(NewObjectList);
 	}
-}
-
-bool SDetailsView::AreExternalObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewObjectMap) const
-{
-	for (const FDetailLayoutData& Layout : DetailLayouts)
-	{
-		FRootPropertyNodeList& ExternalRootPropertyNodes = Layout.DetailLayout->GetExternalRootPropertyNodes();
-		for (TSharedPtr<FComplexPropertyNode>& ExternalRootNode : ExternalRootPropertyNodes)
-		{
-			if (ExternalRootNode.IsValid())
-			{
-				FObjectPropertyNode* ObjectNode = ExternalRootNode->AsObjectNode();
-				if (ObjectNode)
-				{
-					const int32 Objects = ObjectNode->GetNumObjects();
-					for (int32 ObjectIndex = 0; ObjectIndex < Objects; ObjectIndex++)
-					{
-						TWeakObjectPtr<UObject> ObjectPtr = ObjectNode->GetInstanceAsUObject(ObjectIndex);
-						UObject* Replacement = OldToNewObjectMap.FindRef(ObjectPtr.GetEvenIfUnreachable());
-						if (Replacement)
-						{
-							return true;
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return false;
 }
 
 void SDetailsView::RemoveDeletedObjects(const TArray<UObject*>& DeletedObjects)
