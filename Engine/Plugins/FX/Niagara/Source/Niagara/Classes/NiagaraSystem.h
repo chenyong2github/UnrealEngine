@@ -258,6 +258,7 @@ public:
 
 private:
 	bool IsValidInternal() const;
+	void EnsureFullyLoaded() const;
 public:
 	/** Returns true if this system is valid and can be instanced. False otherwise. */
 	bool IsValid() const { return FPlatformProperties::RequiresCookedData() ? bIsValidCached : IsValidInternal(); }
@@ -266,6 +267,9 @@ public:
 	/** Adds a new emitter handle to this System.  The new handle exposes an Instance value which is a copy of the
 		original asset. */
 	FNiagaraEmitterHandle AddEmitterHandle(UNiagaraEmitter& SourceEmitter, FName EmitterName);
+
+	/** Adds a new emitter handle to this system without copying the original asset. This should only be used for temporary systems and never for live assets. */
+	void AddEmitterHandleDirect(FNiagaraEmitterHandle& EmitterHandleToAdd);
 
 	/** Duplicates an existing emitter handle and adds it to the System.  The new handle will reference the same source asset,
 		but will have a copy of the duplicated Instance value. */
@@ -405,6 +409,8 @@ public:
 	UPROPERTY(transient)
 	FNiagaraSystemUpdateContext UpdateContext;
 #endif
+
+	void UpdateSystemAfterLoad();
 
 	bool ShouldAutoDeactivate() const { return bAutoDeactivate; }
 	bool IsLooping() const;
@@ -684,6 +690,9 @@ protected:
 	UNiagaraBakerSettings* BakerGeneratedSettings;
 #endif
 
+	// Reference to the async system update task that is responsible to do any outstanding work like emitter merging or script compilation 
+	FGraphEventRef UpdateTaskRef;
+	
 	UPROPERTY()
 	bool bHasSystemScriptDIsWithPerInstanceData;
 

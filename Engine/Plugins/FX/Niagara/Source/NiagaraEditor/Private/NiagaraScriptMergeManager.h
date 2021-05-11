@@ -332,6 +332,7 @@ struct FNiagaraEmitterDiffResults
 	const TArray<FText>& GetErrorMessages() const;
 
 	FString GetErrorMessagesString() const;
+	bool HasVersionChanges() const;
 
 	TArray<FProperty*> DifferentEmitterProperties;
 
@@ -382,6 +383,8 @@ public:
 	};
 
 public:
+	void UpdateModuleVersions(UNiagaraEmitter& Instance, const FNiagaraEmitterDiffResults& EmitterDiffResults) const;
+	
 	virtual INiagaraMergeManager::FMergeEmitterResults MergeEmitter(UNiagaraEmitter& Parent, UNiagaraEmitter* ParentAtLastMerge, UNiagaraEmitter& Instance) const override;
 
 	static TSharedRef<FNiagaraScriptMergeManager> Get();
