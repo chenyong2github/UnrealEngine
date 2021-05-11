@@ -708,7 +708,7 @@ namespace Metasound
 				const float* OperandData = InAdditionalOperands[i]->GetData();
 				float* OutData = OutResult->GetData();
 
-				if (NumSamples % AUDIO_SIMD_FLOAT_ALIGNMENT)
+				if (NumSamples % AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER)
 				{
 					for (int32 SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
 					{
@@ -802,7 +802,7 @@ namespace Metasound
 		{
 			FMemory::Memcpy(OutResult->GetData(), InPrimaryOperand->GetData(), sizeof(float) * OutResult->Num());
 
-			const int32 SIMDRemainder = OutResult->Num() % AUDIO_SIMD_FLOAT_ALIGNMENT;
+			const int32 SIMDRemainder = OutResult->Num() % AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER;
 			const int32 SIMDCount = OutResult->Num() - SIMDRemainder;
 
 			for (int32 i = 0; i < InAdditionalOperands.Num(); ++i)
@@ -926,7 +926,7 @@ namespace Metasound
 				const float* OperandData = InAdditionalOperands[i]->GetData();
 				float* OutData = OutResult->GetData();
 
-				if (NumSamples % AUDIO_SIMD_FLOAT_ALIGNMENT)
+				if (NumSamples % AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER)
 				{
 					for (int32 SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
 					{
@@ -1094,7 +1094,7 @@ namespace Metasound
 				const float* OperandData = InAdditionalOperands[i]->GetData();
 				float* OutData = OutResult->GetData();
 
-				if (NumSamples % AUDIO_SIMD_FLOAT_ALIGNMENT)
+				if (NumSamples % AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER)
 				{
 					for (int32 SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
 					{
@@ -1159,7 +1159,7 @@ namespace Metasound
 			float NewGain = 1.0f;
 			for (int32 i = 0; i < InAdditionalOperands.Num(); ++i)
 			{
-				const int32 SIMDRemainder = OutResult->Num() % AUDIO_SIMD_FLOAT_ALIGNMENT;
+				const int32 SIMDRemainder = OutResult->Num() % AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER;
 				const int32 SIMDCount = OutResult->Num() - SIMDRemainder;
 
 				Audio::FadeBufferFast(OutResult->GetData(), SIMDCount, InInstanceData.LastGain, *InAdditionalOperands[i]);

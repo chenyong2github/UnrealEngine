@@ -18,13 +18,13 @@ FLinearInterpFractionalDelay::FLinearInterpFractionalDelay(int32 InMaxDelay, int
 		MaxDelay = 1;
 	}
 
-	while (0 != (NumInternalBufferSamples % AUDIO_SIMD_FLOAT_ALIGNMENT))
+	while (0 != (NumInternalBufferSamples % AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER))
 	{
 		NumInternalBufferSamples--;
 	}
 	if (NumInternalBufferSamples < 1)
 	{
-		NumInternalBufferSamples = AUDIO_SIMD_FLOAT_ALIGNMENT;
+		NumInternalBufferSamples = AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER;
 	}
 
 	// Allocate and prepare delay line for maximum delay.
@@ -99,9 +99,9 @@ void FLinearInterpFractionalDelay::ProcessAudio(const FAlignedFloatBuffer& InSam
 void FLinearInterpFractionalDelay::ProcessAudioBlock(const float* InSamples, const float* InDelays, const int32 InNum, float* OutSamples)
 {
 	checkf(0 == (InNum % 4), TEXT("Array length must be multiple of 4"));
-	checkf(IsAligned<const float*>(InSamples, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
-	checkf(IsAligned<const float*>(InDelays, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
-	checkf(IsAligned<float*>(OutSamples, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+	checkf(IsAligned<const float*>(InSamples, AUDIO_SIMD_BYTE_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+	checkf(IsAligned<const float*>(InDelays, AUDIO_SIMD_BYTE_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+	checkf(IsAligned<float*>(OutSamples, AUDIO_SIMD_BYTE_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
 
 
 	// Update delay line.
