@@ -167,6 +167,23 @@ void DIGBuffer_DecodeDepth(in float2 ScreenUV, out bool IsValid, out float OutVa
 #endif
 }
 
+#if 0
+// This has not been tested yet
+void DIGBuffer_DecodeStencil(in float2 ScreenUV, out bool IsValid, out int OutValue)
+{
+#if NDIGBUFFER_HAS_GBUFFER
+	IsValid = true;
+
+	uint2 IntUV = (uint2)(ScreenUV.xy * (float2)View.BufferSizeAndInvSize.xy);
+	uint Stencil = SceneStencilTexture.Load(uint3(IntUV, 0)) STENCIL_COMPONENT_SWIZZLE;
+	OutValue = int(Stencil);
+#else
+	IsValid = false;
+	OutValue = 0;
+#endif
+}
+#endif
+
 void DIGBuffer_DecodeCustomDepth(in float2 ScreenUV, out bool IsValid, out float OutValue)
 {
 #if NDIGBUFFER_HAS_GBUFFER
