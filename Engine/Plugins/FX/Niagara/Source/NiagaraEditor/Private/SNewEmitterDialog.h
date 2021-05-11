@@ -21,23 +21,23 @@ public:
 
 	void Construct(const FArguments& InArgs);
 
-	TOptional<FAssetData> GetSelectedEmitterAsset() const;
+	TOptional<FAssetData> GetSelectedEmitterAsset();
 
 	bool GetUseInheritance() const;
 
 private:
-	void GetSelectedEmitterAssets_NewAssets(TArray<FAssetData>& OutSelectedAssets) const;
+	void GetSelectedEmitterTemplateAssets(TArray<FAssetData>& OutSelectedAssets);
 
-	void GetSelectedEmitterAssets_CopyAssets(TArray<FAssetData>& OutSelectedAssets) const;
+	void GetSelectedParentEmitterAssets(TArray<FAssetData>& OutSelectedAssets);
+
+	void GetSelectedProjectEmiterAssets(TArray<FAssetData>& OutSelectedAssets);
 
 	void InheritanceOptionConfirmed();
 
-	void CheckUseInheritance();
-
 private:
-	TSharedPtr<SNiagaraAssetPickerList> NewAssetPicker;
+	TSharedPtr<SNiagaraAssetPickerList> TemplateAssetPicker;
 	TSharedPtr<SNiagaraAssetPickerList> InheritAssetPicker;
 	TSharedPtr<SNiagaraAssetPickerList> CopyAssetPicker;
 
-	bool bUseInheritance = false;
+	bool bUseInheritance;
 };
