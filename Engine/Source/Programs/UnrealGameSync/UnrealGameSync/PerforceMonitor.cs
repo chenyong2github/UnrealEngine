@@ -280,7 +280,10 @@ namespace UnrealGameSync
 				}
 				catch (Exception Ex)
 				{
-					LogWriter.WriteException(Ex, "Unhandled exception in PollForUpdatesInner()");
+					if(!bDisposing)
+					{
+						LogWriter.WriteException(Ex, "Unhandled exception in PollForUpdatesInner()");
+					}
 				}
 			}
 		}
