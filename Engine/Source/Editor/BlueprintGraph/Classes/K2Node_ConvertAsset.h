@@ -12,6 +12,7 @@ class FBlueprintActionDatabaseRegistrar;
 class UEdGraph;
 class UEdGraphPin;
 
+/** This node converts between hard and soft references, for both objects and classes. The name is historical from when they were called asset IDs */
 UCLASS(MinimalAPI)
 class UK2Node_ConvertAsset : public UK2Node
 {
@@ -20,10 +21,10 @@ public:
 
 	/** Returns the class for the object being converted */
 	UClass* GetTargetClass() const;
-	/** True if this is converting an Asset Class, false for Asset Id */
-	bool IsAssetClassType() const;
-	/** True if this is going from object to asset, false for default of asset to object */
-	bool IsConvertToAsset() const;
+	/** True if this is converting a class, false for object or unknown */
+	bool IsClassType() const;
+	/** True if this is going from hard to soft, false for opposite or unknown */
+	bool IsConvertToSoft() const;
 
 	// UEdGraphNode interface
 	virtual void AllocateDefaultPins() override;
