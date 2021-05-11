@@ -1590,6 +1590,64 @@ void FDynamicMeshEditor::AppendMesh(const FDynamicMesh3* AppendMesh,
 
 
 
+
+void FDynamicMeshEditor::AppendMesh(const TTriangleMeshAdapter<double>* AppendMesh,
+	FMeshIndexMappings& IndexMapsOut, 
+	TFunction<FVector3d(int, const FVector3d&)> PositionTransform)
+{
+	IndexMapsOut.Reset();
+	//IndexMapsOut.Initialize(Mesh);		// not supported
+
+	FIndexMapi& VertexMap = IndexMapsOut.GetVertexMap();
+	VertexMap.Reserve(AppendMesh->VertexCount());
+	int32 MaxVertexID = AppendMesh->MaxVertexID();
+	for ( int32 VertID = 0; VertID < MaxVertexID; ++VertID )
+	{
+		if (AppendMesh->IsVertex(VertID) == false) continue;
+
+		FVector3d Position = AppendMesh->GetVertex(VertID);
+		if (PositionTransform != nullptr)
+		{
+			Position = PositionTransform(VertID, Position);
+		}
+		int NewVertID = Mesh->AppendVertex(Position);
+		VertexMap.Add(VertID, NewVertID);
+	}
+
+	// set face normals if they exist
+	FDynamicMeshNormalOverlay* SetNormals = Mesh->HasAttributes() ? Mesh->Attributes()->PrimaryNormals() : nullptr;
+
+	FIndexMapi& TriangleMap = IndexMapsOut.GetTriangleMap();
+	int32 MaxTriangleID = AppendMesh->MaxTriangleID();
+	for (int TriID = 0; TriID < MaxTriangleID; ++TriID )
+	{
+		if (AppendMesh->IsTriangle(TriID) == false) continue;
+
+		int GroupID = FDynamicMesh3::InvalidID;
+		FIndex3i Tri = AppendMesh->GetTriangle(TriID);
+		FIndex3i NewTri = FIndex3i(VertexMap.GetTo(Tri.A), VertexMap.GetTo(Tri.B), VertexMap.GetTo(Tri.C));
+		int NewTriID = Mesh->AppendTriangle(NewTri.A, NewTri.B, NewTri.C, GroupID);
+		TriangleMap.Add(TriID, NewTriID);
+
+		if (SetNormals)
+		{
+			FVector3f TriNormal = Mesh->GetTriNormal(NewTriID);
+			FIndex3i NormalTri;
+			for (int32 j = 0; j < 3; ++j)
+			{
+				NormalTri[j] = SetNormals->AppendElement(TriNormal);
+				SetNormals->SetParentVertex(NormalTri[j], NewTri[j]);
+			}
+			SetNormals->SetTriangle(NewTriID, NormalTri);
+		}
+	}
+}
+
+
+
+
+
+
 void FDynamicMeshEditor::AppendNormals(const FDynamicMesh3* AppendMesh, 
 	const FDynamicMeshNormalOverlay* FromNormals, FDynamicMeshNormalOverlay* ToNormals,
 	const FIndexMapi& VertexMap, const FIndexMapi& TriangleMap,

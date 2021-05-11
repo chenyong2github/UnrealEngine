@@ -6,6 +6,7 @@
 #include "VectorTypes.h"
 #include "GeometryTypes.h"
 #include "MeshRegionBoundaryLoops.h"
+#include "DynamicMeshChangeTracker.h"
 
 
 namespace UE

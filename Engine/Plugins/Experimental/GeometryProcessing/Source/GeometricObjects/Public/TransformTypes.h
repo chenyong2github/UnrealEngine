@@ -124,9 +124,22 @@ public:
 		Scale3D = ScaleIn;
 	}
 
-	RealType GetDeterminant()
+	/**
+	 * @return determinant of scale matrix
+	 */
+	RealType GetDeterminant() const
 	{
 		return Scale3D.X * Scale3D.Y * Scale3D.Z;
+	}
+
+	/**
+	 * @return true if scale is nonuniform, within tolerance
+	 */
+	bool HasNonUniformScale(RealType Tolerance = TMathUtil<RealType>::ZeroTolerance) const
+	{
+		return (TMathUtil<RealType>::Abs(Scale3D.X - Scale3D.Y) > Tolerance)
+			|| (TMathUtil<RealType>::Abs(Scale3D.X - Scale3D.Z) > Tolerance)
+			|| (TMathUtil<RealType>::Abs(Scale3D.Y - Scale3D.Z) > Tolerance);
 	}
 
 	/**

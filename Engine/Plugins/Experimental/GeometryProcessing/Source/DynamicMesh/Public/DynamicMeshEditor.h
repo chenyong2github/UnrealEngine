@@ -9,6 +9,7 @@
 #include "EdgeLoop.h"
 #include "Util/SparseIndexCollectionTypes.h"
 #include "MeshIndexMappings.h"
+#include "MeshAdapter.h"
 
 namespace UE
 {
@@ -443,6 +444,16 @@ public:
 	void AppendMesh(const FDynamicMesh3* AppendMesh, FMeshIndexMappings& IndexMapsOut, 
 		TFunction<FVector3d(int, const FVector3d&)> PositionTransform = nullptr,
 		TFunction<FVector3d(int, const FVector3d&)> NormalTransform = nullptr);
+
+	/**
+	 * Append input mesh to our internal Mesh. If the internal Mesh has attributes enabled,
+	 * per-triangle normals will be computed and set. No other attributes are initialized.
+	 * @param AppendMesh mesh to append
+	 * @param IndexMapsOut mesh element index mappings generated in this append operation
+	 * @param PositionTransform optional transformation function applied to mesh vertex positions
+	 */
+	void AppendMesh(const TTriangleMeshAdapter<double>* AppendMesh, FMeshIndexMappings& IndexMapsOut,
+		TFunction<FVector3d(int, const FVector3d&)> PositionTransform = nullptr);
 
 
 	/**

@@ -6,6 +6,7 @@
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
 #include "Spatial/MeshAABBTree3.h"
+#include "MeshAdapter.h"
 
 
 /**
@@ -233,3 +234,39 @@ public:
 	}
 };
 
+
+
+/**
+ * TTriangleMeshAdapter version of FMeshDescriptionTriangleMeshAdapter
+ */
+struct FMeshDescriptionMeshAdapterd : public UE::Geometry::TTriangleMeshAdapter<double>
+{
+	FMeshDescriptionTriangleMeshAdapter ParentAdapter;
+
+	FMeshDescriptionMeshAdapterd(const FMeshDescription* MeshIn) : ParentAdapter(MeshIn)
+	{
+		IsTriangle = [&](int index) { return ParentAdapter.IsTriangle(index);};
+		IsVertex = [&](int index) { return ParentAdapter.IsVertex(index); };
+		MaxTriangleID = [&]() { return ParentAdapter.MaxTriangleID();};
+		MaxVertexID = [&]() { return ParentAdapter.MaxVertexID();};
+		TriangleCount = [&]() { return ParentAdapter.TriangleCount();};
+		VertexCount = [&]() { return ParentAdapter.VertexCount();};
+		GetShapeTimestamp = [&]() { return ParentAdapter.GetShapeTimestamp();};
+		GetTriangle = [&](int32 TriangleID) { return ParentAdapter.GetTriangle(TriangleID); };
+		GetVertex = [&](int32 VertexID) { return ParentAdapter.GetVertex(VertexID); };
+	}
+
+	FMeshDescriptionMeshAdapterd(FMeshDescriptionTriangleMeshAdapter ParentAdapterIn) : ParentAdapter(ParentAdapterIn)
+	{
+		IsTriangle = [&](int index) { return ParentAdapter.IsTriangle(index);};
+		IsVertex = [&](int index) { return ParentAdapter.IsVertex(index); };
+		MaxTriangleID = [&]() { return ParentAdapter.MaxTriangleID();};
+		MaxVertexID = [&]() { return ParentAdapter.MaxVertexID();};
+		TriangleCount = [&]() { return ParentAdapter.TriangleCount();};
+		VertexCount = [&]() { return ParentAdapter.VertexCount();};
+		GetShapeTimestamp = [&]() { return ParentAdapter.GetShapeTimestamp();};
+		GetTriangle = [&](int32 TriangleID) { return ParentAdapter.GetTriangle(TriangleID); };
+		GetVertex = [&](int32 VertexID) { return ParentAdapter.GetVertex(VertexID); };
+	}
+
+};
