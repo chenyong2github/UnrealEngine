@@ -18,8 +18,6 @@ namespace UE::DerivedData { class FBuildDefinitionBuilder; }
 namespace UE::DerivedData { struct FBuildKey; }
 namespace UE::DerivedData { struct FBuildPayloadKey; }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 namespace UE::DerivedData::Private
 {
 
@@ -57,8 +55,6 @@ public:
 FBuildDefinitionBuilder CreateBuildDefinitionBuilder(IBuildDefinitionBuilderInternal* DefinitionBuilder);
 
 } // UE::DerivedData::Private
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace UE::DerivedData
 {
@@ -178,7 +174,7 @@ public:
 	/**
 	 * Add a bulk data input with a key that is unique within this definition.
 	 *
-	 * @param BulkDataId   Identifier that uniquely identifies this data in the IBuildInputProvider.
+	 * @param BulkDataId   Identifier that uniquely identifies this data in the IBuildInputResolver.
 	 */
 	inline void AddInputBulkData(FStringView Key, const FGuid& BulkDataId)
 	{
@@ -198,7 +194,7 @@ public:
 	/**
 	 * Add a hash input with a key that is unique within this definition.
 	 *
-	 * @param RawHash   Hash of the raw data that will resolve it in the IBuildInputProvider.
+	 * @param RawHash   Hash of the raw data that will resolve it in the IBuildInputResolver.
 	 */
 	inline void AddInputHash(FStringView Key, const FIoHash& RawHash)
 	{
@@ -223,16 +219,6 @@ private:
 	}
 
 	TUniquePtr<Private::IBuildDefinitionBuilderInternal> DefinitionBuilder;
-};
-
-/**
- * A build definition provider finds a definition from its key.
- */
-class IBuildDefinitionProvider
-{
-public:
-	/** Returns a definition matching the key, or a definition with an empty key on error. */
-	virtual FBuildDefinition GetDefinition(const FBuildKey& Key) = 0;
 };
 
 } // UE::DerivedData
