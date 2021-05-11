@@ -544,12 +544,26 @@ UObject* FCameraAnimToTemplateSequenceConverter::ConvertSingleCameraAnimToTempla
 		}
 	}
 
+	auto EnsureCameraComponentBinding = [&CameraComponentBindingID, CameraTemplate, SpawnableGuid, NewMovieScene, NewSequence]()
+	{
+		if (!CameraComponentBindingID.IsValid())
+		{
+			// We need to create an object binding for the camera component.
+			UCameraComponent* CameraComponent = CameraTemplate->GetCameraComponent();
+			CameraComponentBindingID = NewMovieScene->AddPossessable(CameraComponent->GetName(), CameraComponent->GetClass());
+			FMovieScenePossessable* CameraComponentPossessable = NewMovieScene->FindPossessable(CameraComponentBindingID);
+			CameraComponentPossessable->SetParent(SpawnableGuid);
+			NewSequence->BindPossessableObject(CameraComponentBindingID, *CameraComponent, nullptr);
+		}
+	};
+
 	// Add a track for the post FX blend weight if it wasn't animated.
 	if (CameraAnimToConvert->BasePostProcessBlendWeight != 1.f)
 	{
 		const FName PostProcessBlendWeightPropertyName = GET_MEMBER_NAME_CHECKED(UCameraComponent, PostProcessBlendWeight);
 
-		ensure(CameraComponentBindingID.IsValid());
+		EnsureCameraComponentBinding();
+
 		UMovieSceneFloatTrack* PPBlendWeightTrack = NewMovieScene->FindTrack<UMovieSceneFloatTrack>(CameraComponentBindingID, PostProcessBlendWeightPropertyName);
 		if (!PPBlendWeightTrack)
 		{
@@ -606,6 +620,8 @@ UObject* FCameraAnimToTemplateSequenceConverter::ConvertSingleCameraAnimToTempla
 			// This override toggle property isn't checked.
 			continue;
 		}
+
+		EnsureCameraComponentBinding();
 
 		const FName OverridenPropertyClassName = OverridenProperty->GetClass()->GetFName();
 		if (OverridenProperty->IsA<FBoolProperty>())
