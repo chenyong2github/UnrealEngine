@@ -37,8 +37,6 @@ public:
 	void SetIsLocked(bool bInIsLocked) { bIsLocked = bInIsLocked; }
 
 	bool IsDynamicallyLoadedInEditor() const { return bIsDynamicallyLoadedInEditor; }
-	bool ShouldGenerateHLODs() const { return IsDynamicallyLoaded() && bGeneratesHLODs; }
-	class UHLODLayer* GetDefaultHLODLayer() const { return ShouldGenerateHLODs() ? DefaultHLODLayer : nullptr; }
 
 	static FText GetDataLayerText(const UDataLayer* InDataLayer);
 
@@ -92,14 +90,6 @@ private:
 	/** Whether this data layer is locked, which means the user can't change actors assignation, remove or rename it */
 	UPROPERTY()
 	uint32 bIsLocked : 1;
-
-	/** Whether HLODs should be generated for actors in this layer */
-	UPROPERTY(Category = "Data Layer - HLODs", EditAnywhere, meta = (EditConditionHides, EditCondition = "bIsDynamicallyLoaded"))
-	uint32 bGeneratesHLODs : 1;
-
-	// Default HLOD layer
-	UPROPERTY(Category = "Data Layer - HLODs", EditAnywhere, meta = (EditConditionHides, EditCondition = "bIsDynamicallyLoaded && bGeneratesHLODs"))
-	TObjectPtr<class UHLODLayer> DefaultHLODLayer;
 #endif
 
 	/** The display name of the Data Layer */
