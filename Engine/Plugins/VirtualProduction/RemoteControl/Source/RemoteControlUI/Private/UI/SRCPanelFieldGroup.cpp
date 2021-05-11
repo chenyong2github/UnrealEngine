@@ -21,7 +21,7 @@
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanel"
 
-void SFieldGroup::Tick(const FGeometry&, const double, const float)
+void SRCPanelGroup::Tick(const FGeometry&, const double, const float)
 {
 	if (bNeedsRename)
 	{
@@ -33,7 +33,7 @@ void SFieldGroup::Tick(const FGeometry&, const double, const float)
 	}
 }
 
-void SFieldGroup::Construct(const FArguments& InArgs, URemoteControlPreset* InPreset, FRCColumnSizeData InColumnSizeData)
+void SRCPanelGroup::Construct(const FArguments& InArgs, URemoteControlPreset* InPreset, FRCColumnSizeData InColumnSizeData)
 {
 	Preset = InPreset;
 	
@@ -58,7 +58,7 @@ void SFieldGroup::Construct(const FArguments& InArgs, URemoteControlPreset* InPr
 		[
 			SNew(SBox)
 			.Padding(FMargin(0.0f, 2.0f) )
-			.Visibility(this, &SFieldGroup::GetVisibilityAccordingToEditMode, EVisibility::Collapsed)
+			.Visibility(this, &SRCPanelGroup::GetVisibilityAccordingToEditMode, EVisibility::Collapsed)
 			[
 				SNew(SRCPanelDragHandle<FFieldGroupDragDropOp>, Id)
 				.Widget(SharedThis(this))
@@ -72,11 +72,11 @@ void SFieldGroup::Construct(const FArguments& InArgs, URemoteControlPreset* InPr
 		.AutoWidth()
 		[
 			SAssignNew(NameTextBox, SInlineEditableTextBlock)
-			.ColorAndOpacity(this, &SFieldGroup::GetGroupNameTextColor)
+			.ColorAndOpacity(this, &SRCPanelGroup::GetGroupNameTextColor)
 			.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			.Text(FText::FromName(Name))
-			.OnTextCommitted(this, &SFieldGroup::OnLabelCommitted)
-			.OnVerifyTextChanged(this, &SFieldGroup::OnVerifyItemLabelChanged)
+			.OnTextCommitted(this, &SRCPanelGroup::OnLabelCommitted)
+			.OnVerifyTextChanged(this, &SRCPanelGroup::OnVerifyItemLabelChanged)
 			.IsReadOnly_Lambda([this]() { return !bEditMode.Get(); })
 		]
 		+ SHorizontalBox::Slot()
@@ -86,7 +86,7 @@ void SFieldGroup::Construct(const FArguments& InArgs, URemoteControlPreset* InPr
 		.HAlign(HAlign_Left)
 		[
 			SNew(SButton)
-			.Visibility(this, &SFieldGroup::GetVisibilityAccordingToEditMode, EVisibility::Collapsed)
+			.Visibility(this, &SRCPanelGroup::GetVisibilityAccordingToEditMode, EVisibility::Collapsed)
 			.ButtonStyle(FEditorStyle::Get(), "FlatButton")
 			.OnClicked_Lambda([this] () 
 				{
@@ -110,8 +110,8 @@ void SFieldGroup::Construct(const FArguments& InArgs, URemoteControlPreset* InPr
 		.FillWidth(1.f)
 		[
 			SNew(SButton)
-			.Visibility_Raw(this, &SFieldGroup::GetVisibilityAccordingToEditMode, EVisibility::Hidden)
-			.OnClicked(this, &SFieldGroup::HandleDeleteGroup)
+			.Visibility_Raw(this, &SRCPanelGroup::GetVisibilityAccordingToEditMode, EVisibility::Hidden)
+			.OnClicked(this, &SRCPanelGroup::HandleDeleteGroup)
 			.ButtonStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.UnexposeButton")
 			[
 				SNew(STextBlock)
@@ -125,15 +125,15 @@ void SFieldGroup::Construct(const FArguments& InArgs, URemoteControlPreset* InPr
 	[
 		SNew(SBorder)
 		.Padding(0.f)
-		.BorderImage(this, &SFieldGroup::GetBorderImage)
+		.BorderImage(this, &SRCPanelGroup::GetBorderImage)
 		.VAlign(VAlign_Fill)
 		[
 			SNew(SDropTarget)
 			.VerticalImage(FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.VerticalDash"))
 			.HorizontalImage(FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.HorizontalDash"))
 			.OnDrop_Lambda([this](TSharedPtr<FDragDropOperation> DragDropOperation) { return OnFieldDropGroup(DragDropOperation, nullptr); })
-			.OnAllowDrop(this, &SFieldGroup::OnAllowDropFromOtherGroup)
-			.OnIsRecognized(this, &SFieldGroup::OnAllowDropFromOtherGroup)
+			.OnAllowDrop(this, &SRCPanelGroup::OnAllowDropFromOtherGroup)
+			.OnIsRecognized(this, &SRCPanelGroup::OnAllowDropFromOtherGroup)
 			[
 				MakeSplitRow(LeftColumn, RightColumn)
 			]
@@ -141,38 +141,38 @@ void SFieldGroup::Construct(const FArguments& InArgs, URemoteControlPreset* InPr
 	];
 }
 
-FName SFieldGroup::GetGroupName() const
+FName SRCPanelGroup::GetGroupName() const
 {
 	return Name;
 }
 
-void SFieldGroup::SetName(FName InName)
+void SRCPanelGroup::SetName(FName InName)
 {
 	Name = InName;
 	NameTextBox->SetText(FText::FromName(Name));
 }
 
-void SFieldGroup::GetNodeChildren(TArray<TSharedPtr<SRCPanelTreeNode>>& OutChildren) const
+void SRCPanelGroup::GetNodeChildren(TArray<TSharedPtr<SRCPanelTreeNode>>& OutChildren) const
 {
 	OutChildren.Append(Nodes);
 }
 
-FGuid SFieldGroup::GetId() const
+FGuid SRCPanelGroup::GetId() const
 {
 	return Id;
 }
 
-SRCPanelTreeNode::ENodeType SFieldGroup::GetType() const
+SRCPanelTreeNode::ENodeType SRCPanelGroup::GetType() const
 {
 	return SRCPanelTreeNode::Group;
 }
 
-TSharedPtr<SFieldGroup> SFieldGroup::AsGroup()
+TSharedPtr<SRCPanelGroup> SRCPanelGroup::AsGroup()
 {
-	return StaticCastSharedRef<SFieldGroup>(AsShared());
+	return StaticCastSharedRef<SRCPanelGroup>(AsShared());
 }
 
-FReply SFieldGroup::OnFieldDropGroup(const FDragDropEvent& Event, TSharedPtr<SRCPanelTreeNode> TargetField)
+FReply SRCPanelGroup::OnFieldDropGroup(const FDragDropEvent& Event, TSharedPtr<SRCPanelTreeNode> TargetField)
 {
 	if (TSharedPtr<FExposedEntityDragDrop> DragDropOp = Event.GetOperationAs<FExposedEntityDragDrop>())
 	{
@@ -181,7 +181,7 @@ FReply SFieldGroup::OnFieldDropGroup(const FDragDropEvent& Event, TSharedPtr<SRC
 	return FReply::Unhandled();
 }
 
-FReply SFieldGroup::OnFieldDropGroup(TSharedPtr<FDragDropOperation> DragDropOperation, TSharedPtr<SRCPanelTreeNode> TargetField)
+FReply SRCPanelGroup::OnFieldDropGroup(TSharedPtr<FDragDropOperation> DragDropOperation, TSharedPtr<SRCPanelTreeNode> TargetField)
 {
 	if (DragDropOperation)
 	{
@@ -198,7 +198,7 @@ FReply SFieldGroup::OnFieldDropGroup(TSharedPtr<FDragDropOperation> DragDropOper
 	return FReply::Unhandled();
 }
 
-bool SFieldGroup::OnAllowDropFromOtherGroup(TSharedPtr<FDragDropOperation> DragDropOperation)
+bool SRCPanelGroup::OnAllowDropFromOtherGroup(TSharedPtr<FDragDropOperation> DragDropOperation)
 {
 	if (DragDropOperation->IsOfType<FExposedEntityDragDrop>())
 	{
@@ -225,28 +225,28 @@ bool SFieldGroup::OnAllowDropFromOtherGroup(TSharedPtr<FDragDropOperation> DragD
 	return false;
 }
 
-FReply SFieldGroup::HandleDeleteGroup()
+FReply SRCPanelGroup::HandleDeleteGroup()
 {
 	OnDeleteGroup.ExecuteIfBound(AsGroup());
 	return FReply::Handled();
 }
 
-FSlateColor SFieldGroup::GetGroupNameTextColor() const
+FSlateColor SRCPanelGroup::GetGroupNameTextColor() const
 {
 	return FLinearColor(1, 1, 1, 0.7);
 }
 
-const FSlateBrush* SFieldGroup::GetBorderImage() const
+const FSlateBrush* SRCPanelGroup::GetBorderImage() const
 {
 	return FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.GroupBorder");
 }
 
-EVisibility SFieldGroup::GetVisibilityAccordingToEditMode(EVisibility NonEditModeVisibility) const
+EVisibility SRCPanelGroup::GetVisibilityAccordingToEditMode(EVisibility NonEditModeVisibility) const
 {
 	return bEditMode.Get() ? EVisibility::Visible : NonEditModeVisibility;
 }
 
-bool SFieldGroup::OnVerifyItemLabelChanged(const FText& InLabel, FText& OutErrorMessage)
+bool SRCPanelGroup::OnVerifyItemLabelChanged(const FText& InLabel, FText& OutErrorMessage)
 {
 	check(Preset.IsValid());
 	FName TentativeName = FName(*InLabel.ToString());
@@ -259,7 +259,7 @@ bool SFieldGroup::OnVerifyItemLabelChanged(const FText& InLabel, FText& OutError
 	return true;
 }
 
-void SFieldGroup::OnLabelCommitted(const FText& InLabel, ETextCommit::Type InCommitInfo)
+void SRCPanelGroup::OnLabelCommitted(const FText& InLabel, ETextCommit::Type InCommitInfo)
 {
 	check(Preset.IsValid());
 	FScopedTransaction Transaction(LOCTEXT("RenameGroup", "Rename Group"));
