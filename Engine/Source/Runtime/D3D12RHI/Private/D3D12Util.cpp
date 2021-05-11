@@ -578,8 +578,15 @@ void LogPageFaultData(FD3D12Adapter* InAdapter, D3D12_GPU_VIRTUAL_ADDRESS InPage
 		{
 			FD3D12Adapter::FAllocatedResourceResult OverlappingResource = OverlappingResources[Index];
 			D3D12_GPU_VIRTUAL_ADDRESS ResourceAddress = OverlappingResource.Allocation->GetGPUVirtualAddress();
-			UE_LOG(LogD3D12RHI, Error, TEXT("\tGPU Address: \"0x%llX\" - Size: %3.2f MB - Distance to page fault: %3.2f MB - Transient: %d - Name: %s"),
-				(long long)ResourceAddress, OverlappingResource.Allocation->GetSize() / (1024.0f * 1024), OverlappingResource.Distance / (1024.0f * 1024), OverlappingResource.Allocation->IsTransient(), *OverlappingResource.Allocation->GetResource()->GetName().ToString());
+			UE_LOG(LogD3D12RHI, Error, TEXT("\tGPU Address: [0x%llX .. 0x%llX] - Size: %lld bytes, %3.2f MB - Distance to page fault: %lld bytes, %3.2f MB - Transient: %d - Name: %s"),
+				(uint64)ResourceAddress,
+				(uint64)ResourceAddress + OverlappingResource.Allocation->GetSize(),
+				OverlappingResource.Allocation->GetSize(),
+				OverlappingResource.Allocation->GetSize() / (1024.0f * 1024), 
+				OverlappingResource.Distance,
+				OverlappingResource.Distance / (1024.0f * 1024), 
+				OverlappingResource.Allocation->IsTransient(), 
+				*OverlappingResource.Allocation->GetResource()->GetName().ToString());
 		}
 	}
 
@@ -593,8 +600,15 @@ void LogPageFaultData(FD3D12Adapter* InAdapter, D3D12_GPU_VIRTUAL_ADDRESS InPage
 		for (uint32 Index = 0; Index < PrintCount; ++Index)
 		{
 			FD3D12Adapter::FReleasedAllocationData& AllocationData = ReleasedResources[Index];
-			UE_LOG(LogD3D12RHI, Error, TEXT("\tGPU Address: \"0x%llX\" - Size: %3.2f MB - FrameID: %4d - DefragFree: %d - Transient: %d - Name: %s"),
-				(long long)AllocationData.GPUVirtualAddress, AllocationData.AllocationSize / (1024.0f * 1024), AllocationData.ReleasedFrameID, AllocationData.bDefragFree, AllocationData.bTransient, *AllocationData.ResourceName.ToString());
+			UE_LOG(LogD3D12RHI, Error, TEXT("\tGPU Address: [0x%llX .. 0x%llX] - Size: %lld bytes, %3.2f MB - FrameID: %4d - DefragFree: %d - Transient: %d - Name: %s"),
+				(uint64)AllocationData.GPUVirtualAddress,
+				(uint64)AllocationData.GPUVirtualAddress + AllocationData.AllocationSize,
+				AllocationData.AllocationSize,
+				AllocationData.AllocationSize / (1024.0f * 1024),
+				AllocationData.ReleasedFrameID,
+				AllocationData.bDefragFree,
+				AllocationData.bTransient,
+				*AllocationData.ResourceName.ToString());
 		}
 	}
 }
