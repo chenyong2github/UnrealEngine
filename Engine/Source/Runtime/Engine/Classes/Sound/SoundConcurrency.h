@@ -24,6 +24,7 @@ using FSoundOwnerObjectID = uint32;
 /** Sound instance (USoundBase) object ID. */
 using FSoundObjectID = uint32;
 
+ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogAudioConcurrency, Verbose, All);
 
 UENUM()
 namespace EMaxConcurrentResolutionRule
