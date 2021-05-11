@@ -84,11 +84,11 @@
 		</graph>
 
 		<graph title="Demo Recording" hidestatprefix="basic/" maxy="15" thickness="5" showaverages="1">
-			<statString>Basic/GameThread/ConcurrentWithSlateTickT*,Basic/TaskGraphThreadHP 0/DemoRecordTime,Basic/TaskGraphThreadHP 1/DemoRecordTime,Basic/TaskGraphThreadHP 2/DemoRecordTime,Basic/TaskGraphThreadHP 3/DemoRecordTime,Basic/TaskGraphThreadHP 4/DemoRecordTime,Basic/TaskGraphThreadHP 5/DemoRecordTime,Basic/TaskGraphThreadHP 6/DemoRecordTime,Basic/TaskGraphThreadHP 7/DemoRecordTime</statString>
+			<statString>Basic/GameThread/ConcurrentWithSlateTickT*,Basic/TaskGraphThread*/DemoRecordTime</statString>
 		</graph>
 
 		<graph title="Demo Recording (unsmoothed)" hidestatprefix="basic/" maxy="0" thickness="5" showaverages="1" smooth="0">
-			<statString>Basic/GameThread/ConcurrentWithSlateTickT*,Basic/TaskGraphThreadHP 0/DemoRecordTime,Basic/TaskGraphThreadHP 1/DemoRecordTime,Basic/TaskGraphThreadHP 2/DemoRecordTime,Basic/TaskGraphThreadHP 3/DemoRecordTime,Basic/TaskGraphThreadHP 4/DemoRecordTime,Basic/TaskGraphThreadHP 5/DemoRecordTime,Basic/TaskGraphThreadHP 6/DemoRecordTime,Basic/TaskGraphThreadHP 7/DemoRecordTime</statString>
+			<statString>Basic/GameThread/ConcurrentWithSlateTickT*,Basic/TaskGraphThread*/DemoRecordTime</statString>
 		</graph>
 
 		<graph title="Animation Budget" showAverages="0" hideStatPrefix="Exclusive/GameThread/" mainStat="Exclusive/GameThread/Animation" thickness="4" smooth="1" filterOutZeros="0">
