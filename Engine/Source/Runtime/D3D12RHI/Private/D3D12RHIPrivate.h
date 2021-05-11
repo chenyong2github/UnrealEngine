@@ -1511,6 +1511,9 @@ static void TranslateRenderTargetFormats(
 
 } // namespace D3D12RHI
 
+// Returns the given format as a string. Unsupported formats are treated as DXGI_FORMAT_UNKNOWN.
+const TCHAR* LexToString(DXGI_FORMAT Format);
+
 #if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 
 #ifndef DXGI_PRESENT_ALLOW_TEARING
