@@ -633,16 +633,24 @@ namespace Audio
 		{
 			FSourceInfo& SourceInfo = SourceInfos[SourceId];
 
-			// Unregister these source effect instances from their owning USoundEffectInstance on the next audio thread tick.
-			FAudioThread::RunCommandOnAudioThread([SourceEffects = MoveTemp(SourceInfo.SourceEffects)]() mutable
+			// Unregister these source effect instances from their owning USoundEffectInstance on the audio thread.
+			// Have to pass to Game Thread prior to processing on AudioThread to avoid race condition with GC.
+			// (RunCommandOnAudioThread is not safe to call from any thread other than the GameThread).
+			if (!SourceInfo.SourceEffects.IsEmpty())
 			{
-				for (int32 i = 0; i < SourceEffects.Num(); ++i)
+				AsyncTask(ENamedThreads::GameThread, [GTSourceEffects = MoveTemp(SourceInfo.SourceEffects)]() mutable
 				{
-					USoundEffectPreset::UnregisterInstance(SourceEffects[i]);
-				}
-			});
+					FAudioThread::RunCommandOnAudioThread([ATSourceEffects = MoveTemp(GTSourceEffects)]() mutable
+					{
+						for (const TSoundEffectSourcePtr& EffectPtr : ATSourceEffects)
+						{
+							USoundEffectPreset::UnregisterInstance(EffectPtr);
+						}
+					});
+				});
 
-			SourceInfo.SourceEffects.Reset();
+				SourceInfo.SourceEffects.Reset();
+			}
 			SourceInfo.SourceEffectPresets.Reset();
 		}
 	}
