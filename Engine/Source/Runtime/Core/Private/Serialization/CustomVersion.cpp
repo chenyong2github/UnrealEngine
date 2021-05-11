@@ -363,7 +363,7 @@ const FCustomVersion* FCustomVersionContainer::GetVersion(FGuid Key) const
 
 const FName FCustomVersionContainer::GetFriendlyName(FGuid Key) const
 {
-	FName FriendlyName = NAME_Name;
+	FName FriendlyName = NAME_None;
 	const FCustomVersion* CustomVersion = GetVersion(Key);
 	if (CustomVersion)
 	{
