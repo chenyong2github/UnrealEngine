@@ -139,6 +139,8 @@ TArray<FLayoutGeometry> SSplitter::ArrangeChildrenForLayout(const FGeometry& All
 	TArray<float, TMemStackAllocator<>> SlotSizes;
 	SlotSizes.Empty(Children.Num());
 
+	float ExtraRequiredSpace = 0;
+
 	// calculate slot sizes
 	for (int32 ChildIndex = 0; ChildIndex < Children.Num(); ++ChildIndex)
 	{
@@ -151,9 +153,18 @@ TArray<FLayoutGeometry> SSplitter::ArrangeChildrenForLayout(const FGeometry& All
 			continue;
 		}
 
-		float ChildSpace = (CurSlot.SizingRule.Get() == SSplitter::SizeToContent)
-			? CurSlot.GetWidget()->GetDesiredSize()[AxisIndex]
-			: ResizableSpace * CurSlot.SizeValue.Get() / CoefficientTotal;
+		float ChildSpace;
+		
+		if (CurSlot.SizingRule.Get() == SSplitter::SizeToContent)
+		{
+			ChildSpace = CurSlot.GetWidget()->GetDesiredSize()[AxisIndex];
+		}
+		else
+		{
+			ChildSpace = ResizableSpace * CurSlot.SizeValue.Get() / CoefficientTotal  - ExtraRequiredSpace;
+			ExtraRequiredSpace = 0;
+		}
+
 
 		// we have enough space to clamp this and steal space from earlier slots
 		if (ResizableSpace >= MinResizableSpace)
@@ -174,6 +185,12 @@ TArray<FLayoutGeometry> SSplitter::ArrangeChildrenForLayout(const FGeometry& All
 						CurrentRequiredSpace -= SpaceToSteal;
 					}
 				}
+			}
+			
+			if (CurrentRequiredSpace > 0)
+			{
+				// we weren't able to steal enough space from previous children, store this value to try and take it from following children
+				ExtraRequiredSpace = CurrentRequiredSpace;
 			}
 
 			ChildSpace = ClampedSpace;
