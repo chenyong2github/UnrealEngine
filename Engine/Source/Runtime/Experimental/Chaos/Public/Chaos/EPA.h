@@ -40,7 +40,7 @@ struct TEPAEntry
 		const TVec3<T> V0V2 = V2 - V0;
 		const TVec3<T> Norm = TVec3<T>::CrossProduct(V0V1, V0V2);
 		PlaneNormal = Norm.GetSafeNormal();
-		constexpr T Eps = 1e-4;
+		constexpr T Eps = 1e-4f;
 		if (PlaneNormal.SizeSquared() < Eps)
 		{
 			return false;
@@ -420,7 +420,7 @@ EEPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, c
 	T LowerBound = TNumericLimits<T>::Lowest();
 
 	// @todo(chaos): Should we pass in Eps? Does it need to match anything used in GJK?
-	constexpr T Eps = 1e-2;
+	constexpr T Eps = 1e-2f;
 	constexpr T OriginInsideEps = 0.0f;
 
 	TArray<TEPAEntry<T>> Entries;

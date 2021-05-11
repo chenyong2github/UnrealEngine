@@ -8,6 +8,7 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Defines.h"
 #include "Chaos/Particles.h"
+#include <limits>
 
 namespace Chaos
 {
@@ -318,7 +319,10 @@ namespace Chaos
 					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 					if (RigidHandle)
 					{
-						const int8 ResultState = ResultsView[Index.Result];
+						const int32 CurrResult = ResultsView[Index.Result];
+						check(CurrResult < std::numeric_limits<int8>::max());
+
+						const int8 ResultState = static_cast<int8>(CurrResult);
 						bHasStateChanged |= ReportDynamicStateResult(RigidSolver, static_cast<Chaos::EObjectStateType>(ResultState), RigidHandle,
 							false, Chaos::FVec3(0), false, Chaos::FVec3(0));
 					}

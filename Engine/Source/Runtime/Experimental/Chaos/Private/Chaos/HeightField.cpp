@@ -328,8 +328,8 @@ namespace Chaos
 		const int32 NumHeights = BufferView.Num();
 		OutData.Heights.SetNum(NumHeights);
 
-		OutData.NumRows = NumRows;
-		OutData.NumCols = NumCols;
+		OutData.NumRows = static_cast<uint16>(NumRows);
+		OutData.NumCols = static_cast<uint16>(NumCols);
 		OutData.MinValue = ToRealFunc(BufferView[0]);
 		OutData.MaxValue = ToRealFunc(BufferView[0]);
 		OutData.Scale = InScale;
@@ -540,8 +540,8 @@ namespace Chaos
 	{
 		if (FlatGrid.IsValid(InCoord))
 		{
-			OutBounds.Min = FVec2(InCoord[0], InCoord[1]);
-			OutBounds.Max = FVec2(InCoord[0] + 1, InCoord[1] + 1);
+			OutBounds.Min = FVec2(static_cast<FReal>(InCoord[0]), static_cast<FReal>(InCoord[1]));
+			OutBounds.Max = FVec2(static_cast<FReal>(InCoord[0] + 1), static_cast<FReal>(InCoord[1] + 1));
 			OutBounds.Min -= InInflate;
 			OutBounds.Max += InInflate;
 
@@ -675,8 +675,8 @@ namespace Chaos
 			FVec3 Min,Max;
 			CalcCellBounds3D(InCoord,Min,Max);
 
-			OutMin = FVec3(InCoord[0], InCoord[1], GeomData.GetMinHeight());
-			OutMax = FVec3(InCoord[0] + 1, InCoord[1] + 1, Max[2]);
+			OutMin = FVec3(static_cast<FReal>(InCoord[0]), static_cast<FReal>(InCoord[1]), GeomData.GetMinHeight());
+			OutMax = FVec3(static_cast<FReal>(InCoord[0] + 1), static_cast<FReal>(InCoord[1] + 1), Max[2]);
 			OutMin = OutMin - InInflate;
 			OutMax = OutMax + InInflate;
 
@@ -690,8 +690,8 @@ namespace Chaos
 	{
 		if (FlatGrid.IsValid(InCoord))
 		{
-			OutBounds.Min = FVec2(InCoord[0], InCoord[1]);
-			OutBounds.Max = FVec2(InCoord[0] + 1, InCoord[1] + 1);
+			OutBounds.Min = FVec2(static_cast<FReal>(InCoord[0]), static_cast<FReal>(InCoord[1]));
+			OutBounds.Max = FVec2(static_cast<FReal>(InCoord[0] + 1), static_cast<FReal>(InCoord[1] + 1));
 			OutBounds.Min -= InInflate;
 			OutBounds.Max += InInflate;
 			const FVec2 Scale2D = FVec2(GeomData.Scale[0], GeomData.Scale[1]);
@@ -711,8 +711,8 @@ namespace Chaos
 			FVec3 Min,Max;
 			CalcCellBounds3D(InCoord,Min,Max);
 
-			OutMin = FVec3(InCoord[0], InCoord[1], GeomData.GetMinHeight());
-			OutMax = FVec3(InCoord[0] + 1, InCoord[1] + 1, Max[2]);
+			OutMin = FVec3(static_cast<FReal>(InCoord[0]), static_cast<FReal>(InCoord[1]), GeomData.GetMinHeight());
+			OutMax = FVec3(static_cast<FReal>(InCoord[0] + 1), static_cast<FReal>(InCoord[1] + 1), Max[2]);
 			OutMin = OutMin * GeomData.Scale - InInflate;
 			OutMax = OutMax * GeomData.Scale + InInflate;
 			return true;
@@ -783,12 +783,12 @@ namespace Chaos
 		if(Bounds.RaycastFast(StartPoint, Dir, InvDir, bParallel, Length, InvCurrentLength, TOI, NextStart))
 		{
 			const FVec2 Scale2D(GeomData.Scale[0],GeomData.Scale[1]);
-			TVec2<int32> CellIdx = FlatGrid.Cell(TVec2<int32>(NextStart[0] / Scale2D[0], NextStart[1] / Scale2D[1]));
+			TVec2<int32> CellIdx = FlatGrid.Cell(TVec2<int32>(static_cast<int32>(NextStart[0] / Scale2D[0]), static_cast<int32>(NextStart[1] / Scale2D[1])));
 
 			// Boundaries might push us one cell over
 			CellIdx = FlatGrid.ClampIndex(CellIdx);
 			const FReal ZDx = Bounds.Extents()[2];
-			const FReal ZMidPoint = Bounds.Min()[2] + ZDx * 0.5;
+			const FReal ZMidPoint = Bounds.Min()[2] + ZDx * 0.5f;
 			const FVec3 ScaledDx(FlatGrid.Dx()[0] * Scale2D[0],FlatGrid.Dx()[1] * Scale2D[1],ZDx);
 			const FVec2 ScaledDx2D(ScaledDx[0],ScaledDx[1]);
 			const FVec2 ScaledMin = FlatGrid.MinCorner() * Scale2D;
@@ -815,7 +815,7 @@ namespace Chaos
 				//find next cell
 
 				//We want to know which plane we used to cross into next cell
-				const FVec2 ScaledCellCenter2D = ScaledMin + FVec2(CellIdx[0] + 0.5,CellIdx[1] + 0.5) * ScaledDx2D;
+				const FVec2 ScaledCellCenter2D = ScaledMin + FVec2(static_cast<FReal>(CellIdx[0]) + 0.5f, static_cast<FReal>(CellIdx[1]) + 0.5f) * ScaledDx2D;
 				const FVec3 ScaledCellCenter(ScaledCellCenter2D[0], ScaledCellCenter2D[1], ZMidPoint);
 
 				FReal Times[3];
@@ -896,7 +896,7 @@ namespace Chaos
 			int32 Idx = Coordinate[1] * NumX + Coordinate[0];
 			int32 ByteIdx = Idx / 8;
 			int32 BitIdx = Idx % 8;
-			uint8 Mask = 1 << BitIdx;
+			uint8 Mask = static_cast<uint8>(1 << BitIdx);
 			check(ByteIdx >= 0 && ByteIdx < DataSize);
 			Data[ByteIdx] |= Mask;
 		}
@@ -1069,9 +1069,17 @@ namespace Chaos
 					if(CellCoord.ToI < 0)
 					{
 						// Perform expansion for thickness
-						const int32 ExpandAxis = ThickenDir[0] == 0 ? 1 : 0;
-						const FReal ExpandSize = HalfExtents3D[ExpandAxis];
-						const int32 Steps = FMath::RoundFromZero(ExpandSize / GeomData.Scale[ExpandAxis]);
+						int32 ExpandAxis;
+						if(ThickenDir[0] == 0)
+						{
+							ExpandAxis = 1;
+						}
+						else
+						{
+							ExpandAxis = 0;
+						}
+						FReal ExpandSize = HalfExtents3D[ExpandAxis];
+						int32 Steps = FMath::TruncToInt(FMath::RoundFromZero(ExpandSize / GeomData.Scale[ExpandAxis]));
 
 						Expand(Coord, ThickenDir, Steps);
 						Expand(Coord, -ThickenDir, Steps);
@@ -1747,7 +1755,7 @@ namespace Chaos
 			const FVec3 AC = C - A;
 			FVec3 Normal = FVec3::CrossProduct(AB, AC);
 			const FReal Length = Normal.SafeNormalize();
-			ensure(Length);
+			ensure(Length > 0);
 			return Normal;
 		}
 
@@ -1772,7 +1780,7 @@ namespace Chaos
 		TVec2<int32> Cells(GeomData.NumCols - 1, GeomData.NumRows - 1);
 		
 		FVec2 MinCorner(0, 0);
-		FVec2 MaxCorner(GeomData.NumCols - 1, GeomData.NumRows - 1);
+		FVec2 MaxCorner(static_cast<FReal>(GeomData.NumCols - 1), static_cast<FReal>(GeomData.NumRows - 1));
 		//MaxCorner *= {GeomData.Scale[0], GeomData.Scale[1]};
 
 		FlatGrid = TUniformGrid<FReal, 2>(MinCorner, MaxCorner, Cells);

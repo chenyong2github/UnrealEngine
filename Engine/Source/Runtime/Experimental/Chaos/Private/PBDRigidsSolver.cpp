@@ -89,7 +89,7 @@ Chaos::DebugDraw::FChaosDebugDrawSettings ChaosSolverDebugDebugDrawSettings(
 	/* AngVelScale =		*/ 0.0f,
 	/* ImpulseScale =		*/ 0.0f,
 	/* InertiaScale =				*/ 1.0f,
-	/* DrawPriority =				*/ 10.0f,
+	/* DrawPriority =				*/ 10,
 	/* bShowSimple =				*/ true,
 	/* bShowComplex =				*/ false,
 	/* bInShowLevelSetCollision =	*/ true
@@ -716,11 +716,11 @@ namespace Chaos
 			{
 				SetCollisionPushOutPairIterations(ChaosSolverCollisionPushOutIterations);
 			}
-			if (ChaosSolverJointPairIterations >= 0.0f)
+			if (ChaosSolverJointPairIterations >= 0)
 			{
 				SetJointPairIterations(ChaosSolverJointPairIterations);
 			}
-			if (ChaosSolverJointPushOutPairIterations >= 0.0f)
+			if (ChaosSolverJointPushOutPairIterations >= 0)
 			{
 				SetJointPushOutPairIterations(ChaosSolverJointPushOutPairIterations);
 			}
@@ -767,7 +767,7 @@ namespace Chaos
 		//TODO: interpolate some data based on num steps
 
 		FPushPhysicsData* PushData = MarshallingManager.GetProducerData_External();
-		const FReal DynamicsWeight = FReal(1) / NumExternalSteps;
+		const FReal DynamicsWeight = FReal(1) / FReal(NumExternalSteps);
 		FDirtySet* DirtyProxiesData = &PushData->DirtyProxiesDataBuffer;
 		FDirtyPropertiesManager* Manager = &PushData->DirtyPropertiesManager;
 

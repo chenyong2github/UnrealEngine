@@ -702,8 +702,8 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 					Mass[TransformGroupIndex],
 					InertiaTensor[TransformGroupIndex],
 					WorldTransform,
-					(uint8)DynamicState[TransformGroupIndex],
-					CollisionGroup[TransformGroupIndex]);
+					static_cast<uint8>(DynamicState[TransformGroupIndex]),
+					static_cast<int16>(CollisionGroup[TransformGroupIndex]));
 
 				if (Parameters.EnableClustering)
 				{
@@ -715,8 +715,8 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 				CollisionParticles.Reset(Simplicials[TransformGroupIndex]?Simplicials[TransformGroupIndex]->NewCopy():nullptr); // @chaos(optimize) : maybe just move this memory instead. 
 				if (CollisionParticles)
 				{
-					int32 NumCollisionParticles = CollisionParticles->Size();
-					int32 CollisionParticlesSize = FMath::Max(0, FMath::Min(int(NumCollisionParticles * CollisionParticlesPerObjectFraction), NumCollisionParticles));
+					Chaos::FReal NumCollisionParticles = static_cast<Chaos::FReal>(CollisionParticles->Size());
+					int32 CollisionParticlesSize = FMath::TruncToInt(Chaos::FReal(FMath::Max(0, FMath::Min(int(NumCollisionParticles * CollisionParticlesPerObjectFraction), NumCollisionParticles))));
 					CollisionParticles->Resize(CollisionParticlesSize); // Truncates!
 				}
 
@@ -1007,9 +1007,9 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 	ClusterCreationParameters.ConnectionMethod = Parameters.ClusterConnectionMethod;
 	if (ClusterCreationParameters.CollisionParticles)
 	{
-		const int32 NumCollisionParticles = ClusterCreationParameters.CollisionParticles->Size();
+		const Chaos::FReal NumCollisionParticles = static_cast<Chaos::FReal>(ClusterCreationParameters.CollisionParticles->Size());
 		const int32 ClampedCollisionParticlesSize = 
-			FMath::Max(0, FMath::Min(int(NumCollisionParticles * CollisionParticlesPerObjectFraction), NumCollisionParticles));
+			FMath::TruncToInt(Chaos::FReal(FMath::Max(0, FMath::Min(int(NumCollisionParticles * CollisionParticlesPerObjectFraction), NumCollisionParticles))));
 		ClusterCreationParameters.CollisionParticles->Resize(ClampedCollisionParticlesSize);
 	}
 	TArray<Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>*> ChildHandlesCopy(ChildHandles);
@@ -1961,10 +1961,10 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 					{
 						FVector Extents = BoundingBox[GeometryIndex].GetExtent();
 						MassProperties.Volume = Extents.X * Extents.Y * Extents.Z;
-						float ExtentsYZ = Extents.Y * Extents.Y + Extents.Z * Extents.Z;
-						float ExtentsXZ = Extents.X * Extents.X + Extents.Z * Extents.Z;
-						float ExtentsXY = Extents.X * Extents.X + Extents.Y * Extents.Y;
-						MassProperties.InertiaTensor = PMatrix<FReal, 3, 3>(ExtentsYZ / 12., ExtentsXZ / 12., ExtentsXY / 12.);
+						FRealSingle ExtentsYZ = Extents.Y * Extents.Y + Extents.Z * Extents.Z;
+						FRealSingle ExtentsXZ = Extents.X * Extents.X + Extents.Z * Extents.Z;
+						FRealSingle ExtentsXY = Extents.X * Extents.X + Extents.Y * Extents.Y;
+						MassProperties.InertiaTensor = PMatrix<FRealSingle, 3, 3>(ExtentsYZ / 12.f, ExtentsXZ / 12.f, ExtentsXY / 12.f);
 						MassProperties.CenterOfMass = BoundingBox[GeometryIndex].GetCenter();
 						CollectionMassToLocal[TransformGroupIndex] = FTransform(FQuat::Identity, MassProperties.CenterOfMass);
 						InertiaComputationNeeded[GeometryIndex] = false;
@@ -2376,11 +2376,11 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 					const float ScaleMax = Scale.GetAbsMax();
 					const float ScaleMin = Scale.GetAbsMin();
 
-					float MinResolution = ScaleMin * SizeSpecificData.MinLevelSetResolution;
-					MinResolution = FMath::Clamp<float>(MinResolution, SizeSpecificData.MinLevelSetResolution, SizeSpecificData.MinClusterLevelSetResolution);
+					float MinResolution = ScaleMin * static_cast<float>(SizeSpecificData.MinLevelSetResolution);
+					MinResolution = FMath::Clamp<float>(MinResolution, static_cast<float>(SizeSpecificData.MinLevelSetResolution), static_cast<float>(SizeSpecificData.MinClusterLevelSetResolution));
 
-					float MaxResolution = ScaleMax * SizeSpecificData.MaxLevelSetResolution;
-					MaxResolution = FMath::Clamp<float>(MaxResolution, SizeSpecificData.MaxLevelSetResolution, SizeSpecificData.MaxClusterLevelSetResolution);
+					float MaxResolution = ScaleMax * static_cast<float>(SizeSpecificData.MaxLevelSetResolution);
+					MaxResolution = FMath::Clamp<float>(MaxResolution, static_cast<float>(SizeSpecificData.MaxLevelSetResolution), static_cast<float>(SizeSpecificData.MaxClusterLevelSetResolution));
 
 					//don't support non level-set serialization
 					ErrorReporter.SetPrefix(BaseErrorPrefix + " | Cluster Transform Index: " + FString::FromInt(ClusterTransformIdx));
@@ -2390,8 +2390,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 							MassSpaceParticles,
 							*UnionMesh,
 							InstanceBoundingBox,
-							MinResolution,
-							MaxResolution,
+							FMath::FloorToInt(MinResolution),
+							FMath::FloorToInt(MaxResolution),
 							SizeSpecificData.CollisionObjectReductionPercentage,
 							SizeSpecificData.CollisionType));
 					// Fall back on sphere if level set rasterization failed.
@@ -2630,7 +2630,11 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPBDRi
 								Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 								if (RigidHandle)
 								{
-									const int8 ResultState = ResultsView[Index.Result];  
+									const int32 CurrResult = ResultsView[Index.Result];
+									check(CurrResult <= std::numeric_limits<int8>::max() &&
+										  CurrResult >= std::numeric_limits<int8>::min());
+
+									const int8 ResultState = static_cast<int8>(CurrResult);
 									const int32 TransformIndex = HandleToTransformGroupIndex[RigidHandle];
 
 									// Update of the handles object state. No need to update 

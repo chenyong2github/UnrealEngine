@@ -176,7 +176,7 @@ namespace GeometryCollectionAlgo
 
 	void
 	CHAOS_API
-	TriangulateBoundaries(FGeometryCollection* GeometryCollection, const TArray<TArray<TArray<int32>>> &BoundaryVertexIndices, bool bWoundClockwise = true, float MinTriangleAreaSq = 1e-4);
+	TriangulateBoundaries(FGeometryCollection* GeometryCollection, const TArray<TArray<TArray<int32>>> &BoundaryVertexIndices, bool bWoundClockwise = true, float MinTriangleAreaSq = 1e-4f);
 
 	void
 	CHAOS_API
@@ -196,7 +196,7 @@ namespace GeometryCollectionAlgo
 
 	void
 	CHAOS_API
-	DeleteCoincidentVertices(FGeometryCollection* GeometryCollection, float Tolerance = 1e-2);
+	DeleteCoincidentVertices(FGeometryCollection* GeometryCollection, float Tolerance = 1e-2f);
 
 	void
 	CHAOS_API
@@ -204,7 +204,7 @@ namespace GeometryCollectionAlgo
 
 	void
 	CHAOS_API
-	DeleteZeroAreaFaces(FGeometryCollection* GeometryCollection, float Tolerance = 1e-4);
+	DeleteZeroAreaFaces(FGeometryCollection* GeometryCollection, float Tolerance = 1e-4f);
 
 	void
 	CHAOS_API

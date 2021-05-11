@@ -157,7 +157,7 @@ namespace GeometryCollectionAlgo
 		}
 		if (NumIndices > 1)
 		{
-			Translation /= NumIndices;
+			Translation /= static_cast<float>(NumIndices);
 		}
 		return Translation;
 	}
@@ -520,7 +520,7 @@ namespace GeometryCollectionAlgo
 			{
 				if (SurfaceParticlesCount[i])
 				{
-					CenterOfMass[i] /= SurfaceParticlesCount[i];
+					CenterOfMass[i] /= static_cast<float>(SurfaceParticlesCount[i]);
 
 					FTransform Tmp(CenterOfMass[i]);
 
@@ -531,7 +531,7 @@ namespace GeometryCollectionAlgo
 				}
 			}
 
-			CombinedCenterOfMassWorld /= Transform.Num();
+			CombinedCenterOfMassWorld /= static_cast<float>(Transform.Num());
 
 			for (int i = 0; i < Vertex.Num(); i++)
 			{

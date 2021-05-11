@@ -26,9 +26,9 @@ class CHAOS_API TUniformGridBase
 		MDx = TVector<T, d>(MMaxCorner - MMinCorner) / MCells;
 		if (GhostCells > 0)
 		{
-			MMinCorner -= MDx * GhostCells;
-			MMaxCorner += MDx * GhostCells;
-			MCells += TVector<T, d>(2 * GhostCells);
+			MMinCorner -= MDx * static_cast<T>(GhostCells);
+			MMaxCorner += MDx * static_cast<T>(GhostCells);
+			MCells += TVector<T, d>(2 * static_cast<T>(GhostCells));
 		}
 
 		if (MDx >= TVector<T, d>(SMALL_NUMBER))

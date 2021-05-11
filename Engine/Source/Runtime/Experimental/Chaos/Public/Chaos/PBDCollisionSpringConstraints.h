@@ -43,15 +43,15 @@ public:
 		{
 			Particles.P(i1) += Multiplier * Particles.InvM(i1) * Delta;
 		}
-		if (Particles.InvM(i2))
+		if (Particles.InvM(i2) > 0)
 		{
 			Particles.P(i2) -= Multiplier * Particles.InvM(i2) * Barys[i][0] * Delta;
 		}
-		if (Particles.InvM(i3))
+		if (Particles.InvM(i3) > 0)
 		{
 			Particles.P(i3) -= Multiplier * Particles.InvM(i3) * Barys[i][1] * Delta;
 		}
-		if (Particles.InvM(i4))
+		if (Particles.InvM(i4) > 0)
 		{
 			Particles.P(i4) -= Multiplier * Particles.InvM(i4) * Barys[i][2] * Delta;
 		}

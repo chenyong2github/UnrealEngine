@@ -27,9 +27,9 @@ namespace Chaos
 	void FFixedTimeStep::Update()
 	{
 		CurrentTime = FPlatformTime::Seconds();
-		ActualDt = CurrentTime - LastTime;
+		ActualDt = static_cast<float>(CurrentTime - LastTime);
 
-		if((float)ActualDt > TargetDt)
+		if(ActualDt > TargetDt)
 		{
 			UE_LOG(LogChaosDebug, Verbose, TEXT("PhysAdvance: Exceeded requested Dt of %.3f (%.2fFPS). Ran for %.3f"), TargetDt, 1.0f / TargetDt, ActualDt);
 		}
@@ -39,7 +39,7 @@ namespace Chaos
 
 			// #BG TODO need some way to handle abandonning this when the gamethread requests a sync
 			// Or just running more commands in general otherwise this is dead time.
-			FPlatformProcess::Sleep((float)(TargetDt - ActualDt));
+			FPlatformProcess::Sleep(TargetDt - ActualDt);
 		}
 
 		LastTime = FPlatformTime::Seconds();
@@ -76,7 +76,7 @@ namespace Chaos
 	void FVariableTimeStep::Update()
 	{
 		double CurrentTime = FPlatformTime::Seconds();
-		Dt = FPlatformTime::Seconds() - LastTime;
+		Dt = static_cast<float>(FPlatformTime::Seconds() - LastTime);
 		LastTime = CurrentTime;
 	}
 
@@ -97,11 +97,11 @@ namespace Chaos
 	void FVariableMinimumWithCapTimestep::Update()
 	{
 		CurrentTime = FPlatformTime::Seconds();
-		ActualDt = CurrentTime - LastTime;
+		ActualDt = static_cast<float>(CurrentTime - LastTime);
 
 		if(ActualDt < TargetDt)
 		{
-			FPlatformProcess::Sleep((float)(TargetDt - ActualDt));
+			FPlatformProcess::Sleep(TargetDt - ActualDt);
 			Dt = TargetDt;
 		}
 		else
@@ -139,7 +139,7 @@ namespace Chaos
 	void FVariableWithCapTimestep::Update()
 	{
 		CurrentTime = FPlatformTime::Seconds();
-		ActualDt = CurrentTime - LastTime;
+		ActualDt = static_cast<float>(CurrentTime - LastTime);
 
 		float Cap = CVarVariableTickCap.GetValueOnAnyThread();
 		Dt = FMath::Min(ActualDt, Cap);

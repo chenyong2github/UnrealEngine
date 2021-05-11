@@ -415,7 +415,7 @@ inline TArray<FVec3> CleanCollisionParticles(
 
 	int32 NumCoincident = 0;
 	const int64 Resolution = static_cast<int64>(floor(MaxBBoxDim / FMath::Max(SnapDistance,(FReal)KINDA_SMALL_NUMBER)));
-	const FReal CellSize = MaxBBoxDim / Resolution;
+	const FReal CellSize = static_cast<FReal>(static_cast<double>(MaxBBoxDim) / static_cast<double>(Resolution));
 	for (int32 i = 0; i < 2; i++)
 	{
 		Redundant.Reset();
@@ -423,14 +423,14 @@ inline TArray<FVec3> CleanCollisionParticles(
 		// Shift the grid by 1/2 a grid cell the second iteration so that
 		// we don't miss slightly adjacent coincident points across cell
 		// boundaries.
-		const FVec3 GridCenter = FVec3(0) - FVec3(i * CellSize / 2);
+		const FVec3 GridCenter = FVec3(0) - FVec3(static_cast<FReal>(i) * CellSize / 2);
 		for (int32 j = 0; j < Points.Num(); j++)
 		{
 			const FVec3 Pos = Points[j] - PointsCenter; // Centered at the origin
 			const TVec3<int64> Coord(
-				static_cast<int64>(floor((Pos[0] - GridCenter[0]) / CellSize + Resolution / 2)),
-				static_cast<int64>(floor((Pos[1] - GridCenter[1]) / CellSize + Resolution / 2)),
-				static_cast<int64>(floor((Pos[2] - GridCenter[2]) / CellSize + Resolution / 2)));
+				static_cast<int64>(FMath::Floor((Pos[0] - GridCenter[0]) / CellSize + static_cast<double>(Resolution) / 2)),
+				static_cast<int64>(FMath::Floor((Pos[1] - GridCenter[1]) / CellSize + static_cast<double>(Resolution) / 2)),
+				static_cast<int64>(FMath::Floor((Pos[2] - GridCenter[2]) / CellSize + static_cast<double>(Resolution) / 2)));
 			const int64 FlatIdx =
 				((Coord[0] * Resolution + Coord[1]) * Resolution) + Coord[2];
 
@@ -504,7 +504,7 @@ inline TArray<FVec3> CleanCollisionParticles(
 	}
 #endif
 
-	CollisionVertices.AddUninitialized(std::min(NumGoodPoints, static_cast<int32>(ceil(NumGoodPoints * Fraction))));
+	CollisionVertices.AddUninitialized(FMath::Min(NumGoodPoints, static_cast<int32>(ceil(static_cast<FReal>(NumGoodPoints) * Fraction))));
 	for (int i = 0; i < CollisionVertices.Num(); i++)
 	{
 		CollisionVertices[i] = Vertices[Ordering[i]];
@@ -525,7 +525,7 @@ inline void CleanCollisionParticles(
 	TArray<int32> CoincidentVertices;
 	const TArray<int32> Ordering = TriMesh.GetVertexImportanceOrdering(Vertices, &CoincidentVertices, true);
 	int32 NumGoodPoints = Ordering.Num() - CoincidentVertices.Num();
-	NumGoodPoints = std::min(NumGoodPoints, static_cast<int32>(ceil(NumGoodPoints * Fraction)));
+	NumGoodPoints = FMath::Min(NumGoodPoints, static_cast<int32>(ceil(static_cast<FReal>(NumGoodPoints) * Fraction)));
 
 	ResultingIndices.Reserve(NumGoodPoints);
 	for (int32 i = 0; i < NumGoodPoints; i++)

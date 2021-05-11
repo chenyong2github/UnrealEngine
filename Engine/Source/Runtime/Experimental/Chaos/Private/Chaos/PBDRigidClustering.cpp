@@ -316,7 +316,7 @@ namespace Chaos
 		Parent->X() /= Parent->M();
 		Parent->V() /= Parent->M();
 		Parent->PreV() = Parent->V();
-		Parent->InvM() = 1. / Parent->M();
+		Parent->InvM() = static_cast<FReal>(1.0) / Parent->M();
 		if (ForceMassOrientation)
 		{
 			Parent->X() = ForceMassOrientation->GetLocation();
@@ -482,7 +482,7 @@ namespace Chaos
 		}
 		if (ChildrenSet.Num())
 		{
-			NewParticle->Strains() /= ChildrenSet.Num();
+			NewParticle->Strains() /= static_cast<FReal>(ChildrenSet.Num());
 		}
 
 		ensureMsgf(!ProxyGeometry || ForceMassOrientation, TEXT("If ProxyGeometry is passed, we must override the mass orientation as they are tied"));
@@ -644,7 +644,7 @@ namespace Chaos
 
 				TArray<FPBDRigidParticleHandle*> ActiveCluster = Group.Value;
 
-				FClusterCreationParameters Parameters(0.3, 100, false, !!UnionsHaveCollisionParticles);
+				FClusterCreationParameters Parameters(0.3f, 100, false, !!UnionsHaveCollisionParticles);
 				Parameters.ConnectionMethod = MClusterUnionConnectionType;
 				TPBDRigidClusteredParticleHandleImp<FReal, 3, true>* Handle = CreateClusterParticle(-ClusterGroupID, MoveTemp(Group.Value), Parameters, TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>());
 				Handle->SetInternalCluster(true);

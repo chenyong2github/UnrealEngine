@@ -52,7 +52,7 @@ FCollisionStructureManager::NewSimplicial(
 		{
 			Extent = Implicit->HasBoundingBox() ? Implicit->BoundingBox().Extents().Size() : 1.f;
 
-			Chaos::FReal Threshold = Extent * 0.01;
+			Chaos::FReal Threshold = Extent * 0.01f;
 
 			//
 			//  Remove particles inside the levelset. (I think this is useless) 

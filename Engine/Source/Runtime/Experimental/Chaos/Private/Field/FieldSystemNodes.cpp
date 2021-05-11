@@ -4,6 +4,7 @@
 #include "Field/FieldSystemNoiseAlgo.h"
 #include "Async/ParallelFor.h"
 #include "Chaos/Vector.h"
+#include <type_traits>
 
 FFieldNodeBase * FieldNodeFactory(FFieldNodeBase::EFieldType BaseType,FFieldNodeBase::ESerializationType Type)
 {
@@ -131,7 +132,7 @@ void FRadialIntMask::Evaluate(FFieldContext& Context, TArrayView<int32>& Results
 	{
 		const FFieldContextIndex& Index = Context.SampleIndices[SampleIndex];
 		{
-			float Result;
+			int32 Result;
 			float Delta2 = (Position - Context.Samples[Index.Sample]).SizeSquared();
 
 			if(Delta2 < Radius2)
@@ -148,12 +149,14 @@ void FRadialIntMask::Evaluate(FFieldContext& Context, TArrayView<int32>& Results
 			case ESetMaskConditionType::Field_Set_Always:
 				Results[Index.Result] = Result;
 				break;
+
 			case ESetMaskConditionType::Field_Set_IFF_NOT_Interior:
 				if (Results[Index.Result] != InteriorValue) 
 				{
 					Results[Index.Result] = Result;
 				}
 				break;
+
 			case ESetMaskConditionType::Field_Set_IFF_NOT_Exterior:
 				if (Results[Index.Result] != ExteriorValue) 
 				{
@@ -221,9 +224,9 @@ bool FUniformScalar::operator==(const FFieldNodeBase& Node)
 */
 void FWaveScalar::Evaluate(FFieldContext& Context, TArrayView<float>& Results) const
 {
-	const float Velocity = (Period != 0.0 ) ? Wavelength / Period : 0.0;
+	const float Velocity = (Period != 0.0f ) ? Wavelength / Period : 0.0f;
 
-	const float Wavenumber = (Wavelength != 0.0 ) ? 2.0 * PI / Wavelength : 0.0;
+	const float Wavenumber = (Wavelength != 0.0f ) ? 2.0f * PI / Wavelength : 0.0f;
 	const float DeltaTime = FMath::Max(Context.TimeSeconds, 0.0f);
 	const float Radius = Wavelength * DeltaTime / Period;
 	const float Decay = DeltaTime / Period;
@@ -248,7 +251,7 @@ void FWaveScalar::Evaluate(FFieldContext& Context, TArrayView<float>& Results) c
 		{
 			if (Distance < Radius && Radius > 0)
 			{
-				const float Fraction = (1.0 - Distance / Radius);
+				const float Fraction = (1.0f - Distance / Radius);
 				if (Falloff == EFieldFalloffType::Field_FallOff_None)
 				{
 					Results[Index.Result] = Magnitude;
@@ -261,18 +264,18 @@ void FWaveScalar::Evaluate(FFieldContext& Context, TArrayView<float>& Results) c
 				{
 					Results[Index.Result] =  Magnitude * Fraction * Fraction;
 				}
-				else if (Falloff == EFieldFalloffType::Field_Falloff_Inverse && Fraction > 0.0)
+				else if (Falloff == EFieldFalloffType::Field_Falloff_Inverse && Fraction > 0.0f)
 				{
 					Results[Index.Result] =  Magnitude / Fraction;
 				}
 				else if (Falloff == EFieldFalloffType::Field_Falloff_Logarithmic)
 				{
-					Results[Index.Result] = Magnitude * FMath::Loge(Fraction + 1.0) / FMath::Loge(10.0);
+					Results[Index.Result] = Magnitude * FMath::Loge(Fraction + 1.0f) / FMath::Loge(10.0f);
 				}
 			}
 			else
 			{
-				Results[Index.Result] = 0.0;
+				Results[Index.Result] = 0.0f;
 			}
 		}
 		else if (Function == EWaveFunctionType::Field_Wave_Decay)
@@ -343,13 +346,13 @@ float EvalFalloffFunction<EFieldFalloffType::Field_Falloff_Squared>(const float&
 template<>
 float EvalFalloffFunction<EFieldFalloffType::Field_Falloff_Inverse>(const float& MinRange, const float& DeltaRange, const float& NodeMagnitude, const float& FalloffValue)
 {
-	return (FalloffValue > SMALL_NUMBER) ? ScaleFunctionResult(MinRange, DeltaRange, NodeMagnitude, 1.0 / FalloffValue) : 0.0;
+	return (FalloffValue > SMALL_NUMBER) ? ScaleFunctionResult(MinRange, DeltaRange, NodeMagnitude, 1.0f / FalloffValue) : 0.0f;
 }
 
 template<>
 float EvalFalloffFunction<EFieldFalloffType::Field_Falloff_Logarithmic>(const float& MinRange, const float& DeltaRange, const float& NodeMagnitude, const float& FalloffValue)
 {
-	return ScaleFunctionResult(MinRange, DeltaRange, NodeMagnitude, FMath::LogX(10, FalloffValue + 1.0));
+	return ScaleFunctionResult(MinRange, DeltaRange, NodeMagnitude, FMath::LogX(10.0f, FalloffValue + 1.0f));
 }
 
 /**
@@ -372,7 +375,7 @@ void FRadialFalloff::Evaluator(const FFieldContext& Context, TArrayView<float>& 
 
 				if (Delta < Radius)
 				{
-					const float Function = 1.0 - Delta / Radius;
+					const float Function = 1.0f - Delta / Radius;
 					Results[Index.Result] = EvalFalloffFunction<FalloffType>(MinRange, DeltaRange, Magnitude, Function);
 				}
 			}
@@ -450,7 +453,7 @@ void FPlaneFalloff::Evaluator(const FFieldContext& Context, const FPlane& Plane,
 
 				if (Delta < -SMALL_NUMBER && Delta > -Distance)
 				{
-					const float Function = 1.0 + Delta / Distance;
+					const float Function = 1.0f + Delta / Distance;
 					Results[Index.Result] = EvalFalloffFunction<FalloffType>(MinRange, DeltaRange, Magnitude, Function);
 				}
 			}
@@ -608,17 +611,17 @@ FNoiseField::Evaluate(FFieldContext& Context, TArrayView<float>& Results) const
 
 		float Dummy = 0.0f;
 		FVector LocalPoint = Transform.InverseTransformPosition(Context.Samples[Index.Sample]);
-		LocalPoint = FVector(FMath::Modf(LocalPoint.X, &Dummy) * 0.5 + 0.5, 
-							 FMath::Modf(LocalPoint.Y, &Dummy) * 0.5 + 0.5,
-							 FMath::Modf(LocalPoint.Z, &Dummy) * 0.5 + 0.5) * 255;
+		LocalPoint = FVector(FMath::Modf(LocalPoint.X, &Dummy) * 0.5f + 0.5f, 
+							 FMath::Modf(LocalPoint.Y, &Dummy) * 0.5f + 0.5f,
+							 FMath::Modf(LocalPoint.Z, &Dummy) * 0.5f + 0.5f) * 255;
 
 		// Samples for the Perlin noise must be btw 0->255
-		float PerlinValue = 0.0;
+		float PerlinValue = 0.0f;
 		Field::PerlinNoise::Sample(&PerlinValue, LocalPoint.X, LocalPoint.Y, LocalPoint.Z);
 
 		// Perlin noise result is btw -1 -> 1
-		PerlinValue = 0.5 * ( PerlinValue + 1.0 );
-		Results[Index.Result] = ScaleFunctionResult(MinRange, DeltaRange, 1.0, PerlinValue);
+		PerlinValue = 0.5f * ( PerlinValue + 1.0f );
+		Results[Index.Result] = ScaleFunctionResult(MinRange, DeltaRange, 1.0f, PerlinValue);
 	}
 }
 void FNoiseField::Serialize(FArchive& Ar)
@@ -999,10 +1002,13 @@ bool FSumVector::operator==(const FFieldNodeBase& Node)
 template<class InT, class OutT>
 void FConversionField<InT,OutT>::Evaluate(FFieldContext& Context, TArrayView<OutT>& Results) const
 {
+	static_assert(std::is_arithmetic_v<InT>, "Arithmetic types required for field conversion");
+	static_assert(std::is_arithmetic_v<OutT>, "Arithmetic types required for field conversion");
+
 	int32 NumSamples = Context.SampleIndices.Num();
 
 	TArray<InT> Array;
-	Array.Init(0.f, Results.Num());
+	Array.Init(static_cast<InT>(0), Results.Num());
 	TArrayView<InT> ArrayView(&(Array[0]), Array.Num());
 	InputField->Evaluate(Context, ArrayView);
 

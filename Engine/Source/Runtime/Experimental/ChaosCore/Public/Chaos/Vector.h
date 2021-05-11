@@ -458,22 +458,22 @@ namespace Chaos
 		template<class T2>
 		TVector<FReal, 3> operator+(const TVector<T2, 3>& Other) const
 		{
-			return TVector<FReal, 3>(X + Other[0], Y + Other[1], Z + Other[2]);
+			return TVector<FReal, 3>(X + static_cast<FReal>(Other[0]), Y + static_cast<FReal>(Other[1]), Z + static_cast<FReal>(Other[2]));
 		}
 		template<class T2>
 		TVector<FReal, 3> operator-(const TVector<T2, 3>& Other) const
 		{
-			return TVector<FReal, 3>(X - Other[0], Y - Other[1], Z - Other[2]);
+			return TVector<FReal, 3>(X - static_cast<FReal>(Other[0]), Y - static_cast<FReal>(Other[1]), Z - static_cast<FReal>(Other[2]));
 		}
 		template<class T2>
 		TVector<FReal, 3> operator*(const TVector<T2, 3>& Other) const
 		{
-			return TVector<FReal, 3>(X * Other[0], Y * Other[1], Z * Other[2]);
+			return TVector<FReal, 3>(X * static_cast<FReal>(Other[0]), Y * static_cast<FReal>(Other[1]), Z * static_cast<FReal>(Other[2]));
 		}
 		template<class T2>
 		TVector<FReal, 3> operator/(const TVector<T2, 3>& Other) const
 		{
-			return TVector<FReal, 3>(X / Other[0], Y / Other[1], Z / Other[2]);
+			return TVector<FReal, 3>(X / static_cast<FReal>(Other[0]), Y / static_cast<FReal>(Other[1]), Z / static_cast<FReal>(Other[2]));
 		}
 		FReal Product() const
 		{
@@ -524,7 +524,7 @@ namespace Chaos
 					return MakePair(max.Z, 2);
 			}
 		}
-		FReal SafeNormalize(FReal Epsilon = 1e-4)
+		FReal SafeNormalize(FReal Epsilon = 1e-4f)
 		{
 			FReal Size = SizeSquared();
 			if (Size < Epsilon)
@@ -639,7 +639,7 @@ namespace Chaos
 		template<class T2>
 		TVector<FReal, 2> operator/(const TVector<T2, 2>& Other) const
 		{
-			return TVector<FReal, 2>(X / Other[0], Y / Other[1]);
+			return TVector<FReal, 2>(X / static_cast<FReal>(Other[0]), Y / static_cast<FReal>(Other[1]));
 		}
 		TVector<FReal, 2> operator/(const FReal Other) const
 		{

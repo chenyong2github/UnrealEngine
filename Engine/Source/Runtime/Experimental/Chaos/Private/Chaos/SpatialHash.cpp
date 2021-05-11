@@ -13,7 +13,7 @@ namespace Chaos
 		double Time = 0.0;
 		FDurationTimer Timer(Time);
 
-		MCellSize = 2.0 * Radius;
+		MCellSize = (T)2.0 * Radius;
 
 		MBoundingBox = TAABB<T, 3>(TVector<T, 3>(0.0), Chaos::TVector<T, 3>(0.0));
 		for (int32 Idx = 0; Idx < MParticles.Num(); ++Idx)
@@ -26,13 +26,13 @@ namespace Chaos
 		T SmallestAxisLength = Extents[SmallestAxis()];
 		if (MCellSize > SmallestAxisLength)
 		{
-			MCellSize = SmallestAxisLength / 2.0;
+			MCellSize = SmallestAxisLength / (T)2.0;
 		}
 
 		T PrincipalAxisLength = Extents[MBoundingBox.LargestAxis()];
 		int32 NumberOfCellsOnPrincipalAxis = FMath::CeilToInt(PrincipalAxisLength / MCellSize);
 		MCellSize = PrincipalAxisLength / (T)NumberOfCellsOnPrincipalAxis;
-		T CellSizeInv = 1.0 / MCellSize;
+		T CellSizeInv = (T)1.0 / MCellSize;
 
 		MNumberOfCellsX = FMath::CeilToInt(Extents[0] * CellSizeInv) + 1;
 		MNumberOfCellsY = FMath::CeilToInt(Extents[1] * CellSizeInv) + 1;
@@ -72,12 +72,12 @@ namespace Chaos
 
 		// MCellSize needs to be smaller than smallest axis length
 		T SmallestAxisLength = Extents[SmallestAxis()];
-		MCellSize = SmallestAxisLength / 10.0;
+		MCellSize = SmallestAxisLength / (T)10.0;
 
 		T PrincipalAxisLength = Extents[MBoundingBox.LargestAxis()];
 		int32 NumberOfCellsOnPrincipalAxis = FMath::CeilToInt(PrincipalAxisLength / MCellSize);
 		MCellSize = PrincipalAxisLength / (T)NumberOfCellsOnPrincipalAxis;
-		T CellSizeInv = 1.0 / MCellSize;
+		T CellSizeInv = (T)1.0 / MCellSize;
 
 		MNumberOfCellsX = FMath::CeilToInt(Extents[0] * CellSizeInv) + 1;
 		MNumberOfCellsY = FMath::CeilToInt(Extents[1] * CellSizeInv) + 1;
@@ -370,8 +370,8 @@ namespace Chaos
 	template<class T>
 	void TSpatialHash<T>::ComputeGridXYZ(const TVector<T, 3>& Particle, int32& XIndex, int32& YIndex, int32& ZIndex)
 	{
-		T CellSizeInv = 1.0 / MCellSize;
-		TVector<T, 3> Location = Particle - MBoundingBox.Min() + TVector<T, 3>(0.5 * MCellSize);
+		T CellSizeInv = (T)1.0 / MCellSize;
+		TVector<T, 3> Location = Particle - MBoundingBox.Min() + TVector<T, 3>((T)0.5 * MCellSize);
 		XIndex = (int32)(Location.X * CellSizeInv);
 		YIndex = (int32)(Location.Y * CellSizeInv);
 		ZIndex = (int32)(Location.Z * CellSizeInv);

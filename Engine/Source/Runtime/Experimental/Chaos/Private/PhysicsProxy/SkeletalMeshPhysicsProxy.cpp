@@ -137,7 +137,7 @@ void FSkeletalMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particle
 			check(WorldTransform);
 
 			Chaos::FReal TotalMass = 0.;
-			const Chaos::FReal DensityKgCm3 = Parameters.Density / 1000.;
+			const Chaos::FReal DensityKgCm3 = Parameters.Density / 1000.f;
 			Chaos::FMassProperties MassProperties = Group->BuildMassProperties(DensityKgCm3, TotalMass);
 
 			const bool DoCollisionGeom = Parameters.CollisionType == ECollisionTypeEnum::Chaos_Surface_Volumetric;

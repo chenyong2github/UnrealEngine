@@ -240,7 +240,11 @@ int32 FGeometryCollection::AppendGeometry(const FGeometryCollection & Element, i
 		{
 			Center += Vertices[vdx];
 		}
-		if (NumNewVertices) Center /= NumNewVertices;
+
+		if(NumNewVertices)
+		{
+			Center /= static_cast<float>(NumNewVertices);
+		}
 
 		//
 		//  Inner/Outer Radius
@@ -270,7 +274,7 @@ int32 FGeometryCollection::AppendGeometry(const FGeometryCollection & Element, i
 				{
 					Centroid += Vertices[FaceIndices[fdx][e]];
 				}
-				Centroid /= 3;
+				Centroid /= 3.0f;
 
 				float Delta = (Center - Centroid).Size();
 				InnerR[GeometryIndex] = FMath::Min(InnerR[GeometryIndex], Delta);

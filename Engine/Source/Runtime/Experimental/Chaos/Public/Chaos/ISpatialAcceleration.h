@@ -16,7 +16,7 @@ struct CHAOS_API FQueryFastData
 		, InvDir( (InDir[0] == 0) ? 0 : 1 / Dir[0], (InDir[1] == 0) ? 0 : 1 / Dir[1], (InDir[2] == 0) ? 0 : 1 / Dir[2])
 		, bParallel{ InDir[0] == 0, InDir[1] == 0, InDir[2] == 0 }
 	{
-		CHAOS_ENSURE(InLength);
+		CHAOS_ENSURE(InLength != 0.0f);
 		SetLength(InLength);
 	}
 
@@ -39,7 +39,7 @@ struct CHAOS_API FQueryFastData
 	{
 		CurrentLength = InLength;
 
-		if(InLength)
+		if(InLength != 0.0f)
 		{
 			InvCurrentLength = 1 / InLength;
 		}

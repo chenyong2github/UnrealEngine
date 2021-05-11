@@ -154,7 +154,7 @@ namespace Chaos
 		// the position error is less than the position change from constant external forces
 		// (e.g., gravity). So, we are saying that the tolerance was chosen because the position
 		// error is less that F.dt^2. We need to scale the tolerance to work at our current dt.
-		const FReal ToleranceScale = FMath::Min(1., 60. * 60. * Dt * Dt);
+		const FReal ToleranceScale = FMath::Min(1.f, 60.f * 60.f * Dt * Dt);
 		PositionTolerance = ToleranceScale * SolverSettings.PositionTolerance;
 		AngleTolerance = ToleranceScale * SolverSettings.AngleTolerance;
 
@@ -859,7 +859,7 @@ namespace Chaos
 		const FVec3 DR1 = IA1 * -(Angle / II1);
 		ApplyRotationDelta(DIndex, Stiffness, DR1);
 
-		NetAngularImpulse += (KIndex == 0 ? 1 : -1) * Axis * (Stiffness * Angle / II1);
+		NetAngularImpulse += (KIndex == 0 ? 1.0f : -1.0f) * Axis * (Stiffness * Angle / II1);
 	}
 
 

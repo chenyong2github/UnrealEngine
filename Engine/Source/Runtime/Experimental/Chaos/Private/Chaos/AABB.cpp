@@ -89,7 +89,7 @@ bool TAABB<T, d>::Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& 
 	//If the box is rounded we have to consider corners and edges.
 	//Break the box into voronoi regions based on features (corner, edge, face) and see which region the raycast hit
 
-	if (Thickness)
+	if (Thickness != (T)0)
 	{
 		check(d == 3);
 		TVector<T, d> GeomStart;

@@ -73,8 +73,8 @@ FLevelSet::FLevelSet(FErrorReporter& ErrorReporter, const TUniformGrid<FReal, 3>
 		ErrorReporter.ReportError(TEXT("Error calling FLevelSet::ComputeDistancesNearZeroIsocontour"));
 		return;
 	}
-	FReal StoppingDistance = MBandWidth * MGrid.Dx().Max();
-	if (StoppingDistance)
+	FReal StoppingDistance = static_cast<FReal>(MBandWidth) * MGrid.Dx().Max();
+	if (StoppingDistance != 0)
 	{
 		for (int32 i = 0; i < MGrid.Counts().Product(); ++i)
 		{
@@ -83,7 +83,7 @@ FLevelSet::FLevelSet(FErrorReporter& ErrorReporter, const TUniformGrid<FReal, 3>
 	}
 	CorrectSign(BlockedFaceX, BlockedFaceY, BlockedFaceZ, InterfaceIndices);
 	FillWithFastMarchingMethod(StoppingDistance, InterfaceIndices);
-	if (StoppingDistance)
+	if (StoppingDistance != 0)
 	{
 		for (int32 i = 0; i < MGrid.Counts().Product(); ++i)
 		{
@@ -128,8 +128,8 @@ FLevelSet::FLevelSet(FErrorReporter& ErrorReporter, const TUniformGrid<FReal, 3>
 	}
 	TArray<TVec3<int32>> InterfaceIndices;
 	ComputeDistancesNearZeroIsocontour(InObject, ObjectPhi, InterfaceIndices);
-	FReal StoppingDistance = MBandWidth * MGrid.Dx().Max();
-	if (StoppingDistance)
+	FReal StoppingDistance = static_cast<FReal>(MBandWidth) * MGrid.Dx().Max();
+	if (StoppingDistance != 0)
 	{
 		for (int32 i = 0; i < MGrid.Counts().Product(); ++i)
 		{
@@ -142,7 +142,7 @@ FLevelSet::FLevelSet(FErrorReporter& ErrorReporter, const TUniformGrid<FReal, 3>
 		MPhi[i] *= FMath::Sign(ObjectPhi[i]);
 	}
 	FillWithFastMarchingMethod(StoppingDistance, InterfaceIndices);
-	if (StoppingDistance)
+	if (StoppingDistance != 0)
 	{
 		for (int32 i = 0; i < MGrid.Counts().Product(); ++i)
 		{
@@ -218,8 +218,8 @@ bool FLevelSet::ComputeMassProperties(FReal& OutVolume, FVec3& OutCOM, FMatrix33
 	}
 
 	const int32 NumCellsWithVolume = CellsWithVolume.Num();
-	FReal Volume = NumCellsWithVolume * CellVolume;
-	FMatrix33 Inertia = CellInertia * NumCellsWithVolume;
+	FReal Volume = static_cast<FReal>(NumCellsWithVolume) * CellVolume;
+	FMatrix33 Inertia = CellInertia * (FReal)NumCellsWithVolume;
 	if (Volume > 0)
 	{
 		COM /= Volume;
@@ -297,7 +297,7 @@ FReal FLevelSet::ComputeLevelSetError(const FParticles& InParticles, const TArra
 			//AngleErrorValues[i] = FMath::Acos(FVec3::DotProduct(MeshFaceNormal, GridNormal));
 
 			// triangle area used for weighted average
-			TriangleArea[i] = .5 * sqrt(FVec3::CrossProduct(InParticles.X(CurrMeshFace[1]) - InParticles.X(CurrMeshFace[0]), InParticles.X(CurrMeshFace[2]) - InParticles.X(CurrMeshFace[0])).SizeSquared());
+			TriangleArea[i] = (FReal)0.5 * sqrt(FVec3::CrossProduct(InParticles.X(CurrMeshFace[1]) - InParticles.X(CurrMeshFace[0]), InParticles.X(CurrMeshFace[2]) - InParticles.X(CurrMeshFace[0])).SizeSquared());
 		}
 	});
 
@@ -331,7 +331,7 @@ FReal FLevelSet::ComputeLevelSetError(const FParticles& InParticles, const TArra
 	// dist error is a percentage deviation away from geometry bounds, which
 	// normalizes error metrics with respect to world space size
 	FVec3 BoxExtents = MLocalBoundingBox.Extents();
-	FReal AvgExtents = (BoxExtents[0] + BoxExtents[1] + BoxExtents[2]) / 3.;
+	FReal AvgExtents = (BoxExtents[0] + BoxExtents[1] + BoxExtents[2]) / (FReal)3.0;
 
 	// degenerate case where extents are very small
 	if (AvgExtents < 1e-5)
@@ -661,8 +661,8 @@ bool FLevelSet::ComputeDistancesNearZeroIsocontour(FErrorReporter& ErrorReporter
 		TriangleBounds.GrowToInclude(InParticles.X(Element[2]));
 		MOriginalLocalBoundingBox.GrowToInclude(TriangleBounds); //also save the original bounding box
 
-		TVec3<int32> StartIndex = MGrid.ClampIndex(MGrid.Cell(TriangleBounds.Min() - FVec3((0.5 + KINDA_SMALL_NUMBER) * MGrid.Dx())));
-		TVec3<int32> EndIndex = MGrid.ClampIndex(MGrid.Cell(TriangleBounds.Max() + FVec3((0.5 + KINDA_SMALL_NUMBER) * MGrid.Dx())));
+		TVec3<int32> StartIndex = MGrid.ClampIndex(MGrid.Cell(TriangleBounds.Min() - FVec3((0.5f + KINDA_SMALL_NUMBER) * MGrid.Dx())));
+		TVec3<int32> EndIndex = MGrid.ClampIndex(MGrid.Cell(TriangleBounds.Max() + FVec3((0.5f + KINDA_SMALL_NUMBER) * MGrid.Dx())));
 		for (int32 i = StartIndex[0]; i <= EndIndex[0]; ++i)
 		{
 			for (int32 j = StartIndex[1]; j <= EndIndex[1]; ++j)
@@ -1004,7 +1004,7 @@ void FLevelSet::FillWithFastMarchingMethod(const FReal StoppingDistance, const T
 		Pair<FReal*, TVec3<int32>> Smallest;
 		Heap.HeapPop(Smallest, Compare);
 		check(InHeap(Smallest.Second));
-		if (StoppingDistance && FGenericPlatformMath::Abs(*Smallest.First) > StoppingDistance)
+		if (StoppingDistance != 0 && FGenericPlatformMath::Abs(*Smallest.First) > StoppingDistance)
 		{
 			break;
 		}
@@ -1040,7 +1040,7 @@ void FLevelSet::FillWithFastMarchingMethod(const FReal StoppingDistance, const T
 FReal SolveQuadraticEquation(const FReal Phi, const FReal PhiX, const FReal PhiY, const FReal Dx, const FReal Dy)
 {
 	check(FMath::Sign(PhiX) == FMath::Sign(PhiY) || FMath::Sign(PhiX) == 0 || FMath::Sign(PhiY) == 0);
-	FReal Sign = Phi > 0 ? 1 : -1;
+	FReal Sign = Phi > 0 ? (FReal)1.0 : (FReal)-1.0;
 	if (FMath::Abs(PhiX) >= (FMath::Abs(PhiY) + Dy))
 	{
 		return PhiY + Sign * Dy;
@@ -1093,7 +1093,7 @@ FReal FLevelSet::ComputePhi(const TArrayND<bool, 3>& Done, const TVec3<int32>& C
 	}
 	if (NumberOfAxes == 1)
 	{
-		FReal Sign = MPhi(CellIndex) > 0 ? 1 : -1;
+		FReal Sign = MPhi(CellIndex) > 0 ? (FReal)1.0 : (FReal)-1.0;
 		FReal NewPhi = FGenericPlatformMath::Abs(NeighborPhi[0]) + Dx[0];
 		check(NewPhi <= FGenericPlatformMath::Abs(MPhi(CellIndex)));
 		return Sign * NewPhi;
@@ -1114,7 +1114,7 @@ FReal FLevelSet::ComputePhi(const TArrayND<bool, 3>& Done, const TVec3<int32>& C
 		return QuadraticYZ;
 	}
 	// Cubic
-	FReal Sign = MPhi(CellIndex) > 0 ? 1 : -1;
+	FReal Sign = MPhi(CellIndex) > 0 ? (FReal)1.0 : (FReal)-1;
 	FReal Dx2 = Dx[0] * Dx[0];
 	FReal Dy2 = Dx[1] * Dx[1];
 	FReal Dz2 = Dx[2] * Dx[2];
@@ -1289,8 +1289,8 @@ void FLevelSet::ComputeNormals(const FParticles& InParticles, const FTriangleMes
 		TriangleBounds.GrowToInclude(InParticles.X(Element[2]));
 		MOriginalLocalBoundingBox.GrowToInclude(TriangleBounds); //also save the original bounding box
 
-		TVec3<int32> StartIndex = MGrid.ClampIndex(MGrid.Cell(TriangleBounds.Min() - FVec3((0.5 + KINDA_SMALL_NUMBER) * MGrid.Dx())));
-		TVec3<int32> EndIndex = MGrid.ClampIndex(MGrid.Cell(TriangleBounds.Max() + FVec3((0.5 + KINDA_SMALL_NUMBER) * MGrid.Dx())));
+		TVec3<int32> StartIndex = MGrid.ClampIndex(MGrid.Cell(TriangleBounds.Min() - FVec3((0.5f + KINDA_SMALL_NUMBER) * MGrid.Dx())));
+		TVec3<int32> EndIndex = MGrid.ClampIndex(MGrid.Cell(TriangleBounds.Max() + FVec3((0.5f + KINDA_SMALL_NUMBER) * MGrid.Dx())));
 		for (int32 i = StartIndex[0]; i <= EndIndex[0]; ++i)
 		{
 			for (int32 j = StartIndex[1]; j <= EndIndex[1]; ++j)
@@ -1383,14 +1383,14 @@ FReal FLevelSet::SignedDistance(const FVec3& x) const
 	FVec3 Location = MGrid.ClampMinusHalf(x);
 	FReal SizeSquared = (Location - x).SizeSquared();
 	FReal Phi = MGrid.LinearlyInterpolate(MPhi, Location);
-	return SizeSquared ? (sqrt(SizeSquared) + Phi) : Phi;
+	return SizeSquared > 0 ? (sqrt(SizeSquared) + Phi) : Phi;
 }
 
 FReal FLevelSet::PhiWithNormal(const FVec3& x, FVec3& Normal) const
 {
 	FVec3 Location = MGrid.ClampMinusHalf(x);
 	FReal SizeSquared = (Location - x).SizeSquared();
-	if (SizeSquared)
+	if (SizeSquared > 0)
 	{
 		MLocalBoundingBox.PhiWithNormal(Location, Normal);
 	}
@@ -1409,7 +1409,7 @@ FReal FLevelSet::PhiWithNormal(const FVec3& x, FVec3& Normal) const
 		}
 	}
 	FReal Phi = MGrid.LinearlyInterpolate(MPhi, Location);
-	return SizeSquared ? (sqrt(SizeSquared) + Phi) : Phi;
+	return SizeSquared > 0 ? (sqrt(SizeSquared) + Phi) : Phi;
 }
 
 void GetGeomSurfaceSamples(const TSphere<FReal, 3>& InGeom, TArray<FVec3>& OutSamples)

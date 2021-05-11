@@ -41,10 +41,10 @@ void FFFT3::MakeDivergenceFree(const FUniformGrid& Grid, FArrayNDOfComplex& u, F
 		u(i, 0, 0) = FComplex(0, 0);
 	for (int i = 0; i < Grid.Counts()[0]; ++i)
 	{
-		FReal k1 = Coefficients[0] * (i <= Grid.Counts()[0] / 2 ? i : i - Grid.Counts()[0]);
+		FReal k1 = Coefficients[0] * (i <= Grid.Counts()[0] / 2 ? (FReal)i : (FReal)i - (FReal)(Grid.Counts()[0]));
 		for (int j = 1; j <= Grid.Counts()[1] / 2; ++j)
 		{
-			FReal k2 = Coefficients[1] * j;
+			FReal k2 = Coefficients[1] * (FReal)j;
 			FReal OneOverKSquared = 1 / (k1 * k1 + k2 * k2);
 			FComplex correction = (k1 * u(i, j, 0) + k2 * v(i, j, 0)) * OneOverKSquared;
 			u(i, j, 0) -= correction * k1;
@@ -54,13 +54,13 @@ void FFFT3::MakeDivergenceFree(const FUniformGrid& Grid, FArrayNDOfComplex& u, F
 	// volume
 	for (int i = 0; i < Grid.Counts()[0]; ++i)
 	{
-		FReal k1 = Coefficients[0] * (i <= Grid.Counts()[0] / 2 ? i : i - Grid.Counts()[0]);
+		FReal k1 = Coefficients[0] * (i <= Grid.Counts()[0] / 2 ? (FReal)i : (FReal)i - (FReal)Grid.Counts()[0]);
 		for (int j = 0; j < Grid.Counts()[1]; ++j)
 		{
-			FReal k2 = Coefficients[1] * (j <= Grid.Counts()[1] / 2 ? j : j - Grid.Counts()[1]);
+			FReal k2 = Coefficients[1] * (j <= Grid.Counts()[1] / 2 ? (FReal)j : (FReal)j - (FReal)Grid.Counts()[1]);
 			for (int k = 1; k <= Grid.Counts()[2] / 2; ++k)
 			{
-				FReal k3 = Coefficients[2] * k;
+				FReal k3 = Coefficients[2] * (FReal)k;
 				FReal OneOverKSquared = 1 / (k1 * k1 + k2 * k2 + k3 * k3);
 				FComplex correction = (k1 * u(i, j, k) + k2 * v(i, j, k) + k3 * w(i, j, k)) * OneOverKSquared;
 				u(i, j, k) -= correction * k1;
@@ -123,7 +123,7 @@ void NRFourn(const int isign, const TVector<int32, d>& counts, TArray<FReal>& Da
 		while (ifp1 < ip2)
 		{
 			ifp2 = ifp1 << 1;
-			theta = isign * 6.28318530717959 / (ifp2 / ip1);
+			theta = isign * 6.28318530717959 / (FReal)(ifp2 / ip1);
 			wtemp = sin(.5 * theta);
 			wpr = -2 * wtemp * wtemp;
 			wpi = sin(theta);

@@ -86,7 +86,7 @@ namespace Chaos
 			, VelScale(0.0f)
 			, AngVelScale(0.0f)
 			, ImpulseScale(0.0f)
-			, DrawPriority(10.0f)
+			, DrawPriority(10)
 		{
 		}
 
