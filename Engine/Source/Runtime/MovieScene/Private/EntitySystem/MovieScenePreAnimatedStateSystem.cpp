@@ -36,6 +36,7 @@ TSharedPtr<FPreAnimatedStateExtension> FPreAnimatedStateExtensionReference::Upda
 		if (ExistingExtension)
 		{
 			PreAnimatedStateExtensionRef = ExistingExtension->AsShared();
+			WeakPreAnimatedStateExtension = PreAnimatedStateExtensionRef;
 		}
 		else
 		{
@@ -155,6 +156,9 @@ void UMovieSceneRestorePreAnimatedStateSystem::OnLink()
 		// FPreAnimatedStateExtension automatically adds itself to the linker
 		PreAnimatedStateRef = MakeShared<FPreAnimatedStateExtension>(Linker);
 	}
+
+	UMovieSceneCachePreAnimatedStateSystem* CacheSystem = Linker->LinkSystem<UMovieSceneCachePreAnimatedStateSystem>();
+	Linker->SystemGraph.AddReference(this, CacheSystem);
 }
 
 void UMovieSceneRestorePreAnimatedStateSystem::OnUnlink()
