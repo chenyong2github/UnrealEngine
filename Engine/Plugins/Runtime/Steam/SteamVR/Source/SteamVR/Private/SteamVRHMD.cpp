@@ -897,6 +897,16 @@ bool FSteamVRHMD::GetFloorToEyeTrackingTransform(FTransform& OutStandingToSeated
 	return bSuccess;
 }
 
+FVector2D FSteamVRHMD::GetPlayAreaBounds(EHMDTrackingOrigin::Type Origin) const
+{
+	FVector2D Bounds;
+	if (Origin == EHMDTrackingOrigin::Stage && VRChaperone->GetPlayAreaSize(&Bounds.X, &Bounds.Y))
+	{
+		return Bounds;
+	}
+	return FVector2D::ZeroVector;
+}
+
 void FSteamVRHMD::RecordAnalytics()
 {
 	if (FEngineAnalytics::IsAvailable())

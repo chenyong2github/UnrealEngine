@@ -124,6 +124,7 @@ public:
 	virtual void SetTrackingOrigin(EHMDTrackingOrigin::Type NewOrigin) override;
 	virtual EHMDTrackingOrigin::Type GetTrackingOrigin() const override;
 	virtual bool GetFloorToEyeTrackingTransform(FTransform& OutFloorToEye) const override;
+	virtual FVector2D GetPlayAreaBounds(EHMDTrackingOrigin::Type Origin) const override;
 
 public:
 	/** IHeadMountedDisplay interface */

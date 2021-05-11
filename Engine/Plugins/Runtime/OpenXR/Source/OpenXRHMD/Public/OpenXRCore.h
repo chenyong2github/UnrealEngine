@@ -81,6 +81,11 @@ FORCEINLINE XrRect2Di ToXrRect(FIntRect Rect)
 	return XrRect2Di{ { Rect.Min.X, Rect.Min.Y }, { Rect.Width(), Rect.Height() } };
 }
 
+FORCEINLINE FVector2D ToFVector2D(XrExtent2Df Extent, float Scale = 1.0f)
+{
+	return FVector2D(Extent.width * Scale, Extent.height * Scale);
+}
+
 FORCEINLINE XrExtent2Df ToXrExtent2D(FVector2D Vector, float Scale = 1.0f)
 {
 	if (Vector.IsZero())

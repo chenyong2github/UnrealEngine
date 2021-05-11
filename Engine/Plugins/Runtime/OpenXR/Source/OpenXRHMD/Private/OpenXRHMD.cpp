@@ -881,6 +881,28 @@ float FOpenXRHMD::GetWorldToMetersScale() const
 	return WorldToMetersScale;
 }
 
+FVector2D FOpenXRHMD::GetPlayAreaBounds(EHMDTrackingOrigin::Type Origin) const
+{
+	XrReferenceSpaceType Space = XR_REFERENCE_SPACE_TYPE_STAGE;
+	switch (Origin)
+	{
+	case EHMDTrackingOrigin::Eye:
+		Space = XR_REFERENCE_SPACE_TYPE_VIEW;
+		break;
+	case EHMDTrackingOrigin::Floor:
+		Space = XR_REFERENCE_SPACE_TYPE_LOCAL;
+		break;
+	case EHMDTrackingOrigin::Stage:
+		Space = XR_REFERENCE_SPACE_TYPE_STAGE;
+		break;
+	default:
+		break;
+	}
+	XrExtent2Df Bounds;
+	XR_ENSURE(xrGetReferenceSpaceBoundsRect(Session, Space, &Bounds));
+	return ToFVector2D(Bounds, WorldToMetersScale);
+}
+
 bool FOpenXRHMD::IsHMDEnabled() const
 {
 	return true;
