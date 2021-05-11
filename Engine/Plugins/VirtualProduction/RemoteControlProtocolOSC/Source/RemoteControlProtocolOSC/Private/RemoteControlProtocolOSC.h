@@ -38,6 +38,10 @@ public:
 class FRemoteControlProtocolOSC : public FRemoteControlProtocol
 {
 public:
+	FRemoteControlProtocolOSC()
+		: FRemoteControlProtocol(ProtocolName)
+	{}
+	
 	//~ Begin IRemoteControlProtocol interface
 	virtual void Bind(FRemoteControlProtocolEntityPtr InRemoteControlProtocolEntityPtr) override;
 	virtual void Unbind(FRemoteControlProtocolEntityPtr InRemoteControlProtocolEntityPtr) override;
