@@ -37,8 +37,8 @@ void FRemoteControlProtocolMIDIModule::StartupModule()
 	}
 #endif // WITH_EDITOR
 
-	IRemoteControlProtocolModule::Get().AddProtocol("MIDI", MakeShared<FRemoteControlProtocolMIDI>());
 	GetOnMIDIDevicesUpdated().AddRaw(this, &FRemoteControlProtocolMIDIModule::HandleMIDIDevicesUpdated);
+	IRemoteControlProtocolModule::Get().AddProtocol(FRemoteControlProtocolMIDI::ProtocolName, MakeShared<FRemoteControlProtocolMIDI>());
 }
 
 void FRemoteControlProtocolMIDIModule::ShutdownModule()

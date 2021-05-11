@@ -466,15 +466,15 @@ public:
 			UStruct* ContainerType = ObjectAccess.ContainerType.Get();
 
 #if WITH_EDITOR
-			bool bGenerateTransaction = ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
-			FScopedTransaction Transaction(LOCTEXT("RemoteSetPropertyTransaction", "Remote Set Object Property"), bGenerateTransaction);
-
+			const bool bGenerateTransaction = ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
 			if (bGenerateTransaction)
 			{
-				FEditPropertyChain PreEditChain;
-				ObjectAccess.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
-				Object->PreEditChange(PreEditChain);
+				GEditor->BeginTransaction(LOCTEXT("RemoteSetPropertyTransaction", "Remote Set Object Property"));
 			}
+
+			FEditPropertyChain PreEditChain;
+			ObjectAccess.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
+			Object->PreEditChange(PreEditChain);
 #endif
 
 			FStructDeserializerPolicies Policies;
@@ -508,14 +508,15 @@ public:
 				bSuccess = FStructDeserializer::Deserialize(ObjectAccess.ContainerAdress, *ContainerType, Backend, Policies);
 			}
 
-			// if we are generating a transaction, also generate post edit property event, event if the change ended up unsuccessful
-			// this is to match the pre edit change call that can unregister components for example
+			// Generate post edit property event independently from a transaction
 #if WITH_EDITOR
 			if (bGenerateTransaction)
 			{
-				FPropertyChangedEvent PropertyEvent = ObjectAccess.PropertyPathInfo.ToPropertyChangedEvent();
-				Object->PostEditChangeProperty(PropertyEvent);
+				GEditor->EndTransaction();
 			}
+			
+			FPropertyChangedEvent PropertyEvent = ObjectAccess.PropertyPathInfo.ToPropertyChangedEvent();
+			Object->PostEditChangeProperty(PropertyEvent);
 #endif
 			return bSuccess;
 		}

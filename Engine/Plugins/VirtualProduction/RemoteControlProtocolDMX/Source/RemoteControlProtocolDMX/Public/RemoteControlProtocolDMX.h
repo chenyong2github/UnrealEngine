@@ -94,22 +94,20 @@ private:
 /**
  * DMX protocol implementation for Remote Control
  */
-class FRemoteControlProtocolDMX : public FRemoteControlProtocol, public FTickableGameObject
+class FRemoteControlProtocolDMX : public FRemoteControlProtocol
 {
 public:
+	FRemoteControlProtocolDMX()
+		: FRemoteControlProtocol(ProtocolName)
+	{}
+	
 	//~ Begin IRemoteControlProtocol interface
 	virtual void Bind(FRemoteControlProtocolEntityPtr InRemoteControlProtocolEntityPtr) override;
 	virtual void Unbind(FRemoteControlProtocolEntityPtr InRemoteControlProtocolEntityPtr) override;
 	virtual void UnbindAll() override;
 	virtual UScriptStruct* GetProtocolScriptStruct() const override { return FRemoteControlDMXProtocolEntity::StaticStruct(); }
+	virtual void OnEndFrame() override;
 	//~ End IRemoteControlProtocol interface
-
-	//~ Begin FTickableGameObject interface
-	virtual void Tick(float DeltaTime) override;
-	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
-	virtual bool IsTickableInEditor() const override { return true; }
-	virtual TStatId GetStatId() const override;
-	//~ End FTickableGameObject interface
 
 private:
 	/**
@@ -123,4 +121,8 @@ private:
 private:
 	/** Binding for the DMX protocol */
 	TArray<FRemoteControlProtocolEntityWeakPtr> ProtocolsBindings;
+
+public:
+	/** DMX protocol name */
+	static const FName ProtocolName;
 };

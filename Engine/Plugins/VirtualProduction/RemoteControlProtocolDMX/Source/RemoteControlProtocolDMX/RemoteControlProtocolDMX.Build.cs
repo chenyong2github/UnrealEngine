@@ -17,7 +17,6 @@ public class RemoteControlProtocolDMX : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"DMXProtocol",
-				"Engine",
 				"RemoteControl",
 				"RemoteControlProtocol",
 			}

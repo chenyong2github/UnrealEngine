@@ -3,10 +3,13 @@
 #include "RemoteControlProtocolMIDI.h"
 
 #include "MIDIDeviceManager.h"
+#include "RemoteControlLogger.h"
 #include "RemoteControlProtocolMIDIModule.h"
 #include "RemoteControlProtocolMIDISettings.h"
 
 #define LOCTEXT_NAMESPACE "FRemoteControlProtocolMIDI"
+
+const FName FRemoteControlProtocolMIDI::ProtocolName = TEXT("MIDI");
 
 int32 FRemoteControlMIDIDevice::ResolveDeviceId(const TArray<FFoundMIDIDevice>& InFoundDevices)
 {
@@ -26,6 +29,7 @@ int32 FRemoteControlMIDIDevice::ResolveDeviceId(const TArray<FFoundMIDIDevice>& 
 		{
 			return ResolvedDeviceId = INDEX_NONE;
 		}
+
 
 		return ResolvedDeviceId = MIDISettings->DefaultDevice.ResolveDeviceId(InFoundDevices);
 	}
@@ -48,10 +52,8 @@ int32 FRemoteControlMIDIDevice::ResolveDeviceId(const TArray<FFoundMIDIDevice>& 
 					FoundDeviceId = FoundDevice.DeviceID;
 					break;
 				}
-				else
-				{
-					return ResolvedDeviceId = FoundDevice.DeviceID;	
-				}
+
+				return ResolvedDeviceId = FoundDevice.DeviceID;
 			}
 		}
 
@@ -143,21 +145,32 @@ void FRemoteControlProtocolMIDI::Bind(FRemoteControlProtocolEntityPtr InRemoteCo
 		MIDIDevices.Add(MIDIDeviceId, MIDIDeviceInputController);
 	}
 
-	TMap<int32, TArray<FRemoteControlProtocolEntityWeakPtr>>* EntityBindingsMapPtr = MIDIDeviceBindings.Find(MIDIDeviceInputControllerPtr->Get());
-	if (EntityBindingsMapPtr == nullptr)
+	if (MIDIProtocolEntity->EventType == EMIDIEventType::NoteOn)
 	{
-		EntityBindingsMapPtr = &MIDIDeviceBindings.Add(MIDIDeviceInputControllerPtr->Get());
+		MIDIDeviceBindings_NoteOn.Add(MIDIProtocolEntity->GetPropertyId(), InRemoteControlProtocolEntityPtr);
 	}
-
-	if (TArray<FRemoteControlProtocolEntityWeakPtr>* ProtocolEntityBindingsArrayPtr = EntityBindingsMapPtr->Find(MIDIProtocolEntity->MessageData1))
+	else if (MIDIProtocolEntity->EventType == EMIDIEventType::ChannelAfterTouch)
 	{
-		ProtocolEntityBindingsArrayPtr->Emplace(MoveTemp(InRemoteControlProtocolEntityPtr));
+		MIDIDeviceBindings_ChannelAfterTouch.Add(MIDIProtocolEntity->GetPropertyId(), InRemoteControlProtocolEntityPtr);
 	}
-	else
+	else if (MIDIProtocolEntity->EventType == EMIDIEventType::ControlChange)
 	{
-		TArray<FRemoteControlProtocolEntityWeakPtr> NewEntityBindingsArrayPtr { MoveTemp(InRemoteControlProtocolEntityPtr) };
+		TMap<int32, TArray<FRemoteControlProtocolEntityWeakPtr>>* EntityBindingsMapPtr = MIDIDeviceBindings_ControlChange.Find(MIDIDeviceInputControllerPtr->Get());
+		if (EntityBindingsMapPtr == nullptr)
+		{
+			EntityBindingsMapPtr = &MIDIDeviceBindings_ControlChange.Add(MIDIDeviceInputControllerPtr->Get());
+		}
 
-		EntityBindingsMapPtr->Add(MIDIProtocolEntity->MessageData1, MoveTemp(NewEntityBindingsArrayPtr));
+		if (TArray<FRemoteControlProtocolEntityWeakPtr>* ProtocolEntityBindingsArrayPtr = EntityBindingsMapPtr->Find(MIDIProtocolEntity->MessageData1))
+		{
+			ProtocolEntityBindingsArrayPtr->Emplace(MoveTemp(InRemoteControlProtocolEntityPtr));
+		}
+		else
+		{
+			TArray<FRemoteControlProtocolEntityWeakPtr> NewEntityBindingsArrayPtr { MoveTemp(InRemoteControlProtocolEntityPtr) };
+
+			EntityBindingsMapPtr->Add(MIDIProtocolEntity->MessageData1, MoveTemp(NewEntityBindingsArrayPtr));
+		}	
 	}
 }
 
@@ -169,44 +182,105 @@ void FRemoteControlProtocolMIDI::Unbind(FRemoteControlProtocolEntityPtr InRemote
 	}
 
 	FRemoteControlMIDIProtocolEntity* MIDIProtocolEntity = InRemoteControlProtocolEntityPtr->CastChecked<FRemoteControlMIDIProtocolEntity>();
-	for (TPair<UMIDIDeviceInputController*, TMap<int32, TArray<FRemoteControlProtocolEntityWeakPtr>>>& BindingsPair : MIDIDeviceBindings)
-	{
-		TMap<int32, TArray<FRemoteControlProtocolEntityWeakPtr>>& BindingMap = BindingsPair.Value;
 
-		for (TPair<int32, TArray<FRemoteControlProtocolEntityWeakPtr>>& BindingMapPair : BindingMap)
+	if (MIDIProtocolEntity->EventType  == EMIDIEventType::NoteOn)
+	{
+		MIDIDeviceBindings_NoteOn.Remove(MIDIProtocolEntity->GetPropertyId());
+	}
+	else if (MIDIProtocolEntity->EventType == EMIDIEventType::ChannelAfterTouch)
+	{
+		MIDIDeviceBindings_ChannelAfterTouch.Remove(MIDIProtocolEntity->GetPropertyId());
+	}
+	else if (MIDIProtocolEntity->EventType == EMIDIEventType::ControlChange)
+	{
+		for (TPair<UMIDIDeviceInputController*, TMap<int32, TArray<FRemoteControlProtocolEntityWeakPtr>>>& BindingsPair : MIDIDeviceBindings_ControlChange)
 		{
-			BindingMapPair.Value.RemoveAllSwap(CreateProtocolComparator(MIDIProtocolEntity->GetPropertyId()));
+			TMap<int32, TArray<FRemoteControlProtocolEntityWeakPtr>>& BindingMap = BindingsPair.Value;
+
+			for (TPair<int32, TArray<FRemoteControlProtocolEntityWeakPtr>>& BindingMapPair : BindingMap)
+			{
+				BindingMapPair.Value.RemoveAllSwap(CreateProtocolComparator(MIDIProtocolEntity->GetPropertyId()));
+			}
 		}
 	}
 }
 
 void FRemoteControlProtocolMIDI::OnReceiveEvent(UMIDIDeviceInputController* MIDIDeviceController, int32 Timestamp, int32 Type, int32 Channel, int32 MessageData1, int32 MessageData2)
 {
-	if (const TMap<int32, TArray<FRemoteControlProtocolEntityWeakPtr>>* MIDIMapBindingsPtr = MIDIDeviceBindings.Find(MIDIDeviceController))
-	{
-		if (const TArray<FRemoteControlProtocolEntityWeakPtr>* ProtocolEntityArrayPtr = MIDIMapBindingsPtr->Find(MessageData1))
+	const EMIDIEventType MIDIEventType = static_cast<EMIDIEventType>(Type);
+
+#if WITH_EDITOR
+	{		
+		FRemoteControlLogger::Get().Log(ProtocolName, [Type, Channel, MessageData1, MessageData2]
 		{
-			for (const FRemoteControlProtocolEntityWeakPtr& ProtocolEntityWeakPtr : *ProtocolEntityArrayPtr)
+			const FString TypeName = StaticEnum<EMIDIEventType>()->GetNameStringByValue(Type);
+			return FText::Format(LOCTEXT("MIDIEventLog","Type {0} TypeName {1}, Channel {2}, MessageData1 {3}, MessageData2 {4}"), Type, FText::FromString(TypeName), Channel, MessageData1, MessageData2);
+		});
+	}
+#endif
+
+	if (MIDIEventType == EMIDIEventType::NoteOn)
+	{
+		for (const TPair<FGuid, FRemoteControlProtocolEntityWeakPtr>& MIDIDeviceBindingPair : MIDIDeviceBindings_NoteOn)
+		{
+			if (const TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> ProtocolEntityPtr = MIDIDeviceBindingPair.Value.Pin())
 			{
-				if (const TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> ProtocolEntityPtr = ProtocolEntityWeakPtr.Pin())
+				const FRemoteControlMIDIProtocolEntity* MIDIProtocolEntity = ProtocolEntityPtr->CastChecked<FRemoteControlMIDIProtocolEntity>();
+				if (MIDIEventType != MIDIProtocolEntity->EventType || Channel != MIDIProtocolEntity->Channel)
 				{
-					const FRemoteControlMIDIProtocolEntity* MIDIProtocolEntity = ProtocolEntityPtr->CastChecked<FRemoteControlMIDIProtocolEntity>();
-
-					if (Type != MIDIProtocolEntity->EventType || Channel != MIDIProtocolEntity->Channel)
-					{
-						continue;
-					}
-
-					MIDIProtocolEntity->ApplyProtocolValueToProperty(MessageData2);
+					continue;
 				}
+
+				QueueValue(ProtocolEntityPtr, MessageData2);
 			}
 		}
+	}
+	else if (MIDIEventType == EMIDIEventType::ChannelAfterTouch)
+	{
+		for (const TPair<FGuid, FRemoteControlProtocolEntityWeakPtr>& MIDIDeviceBindingPair : MIDIDeviceBindings_ChannelAfterTouch)
+		{
+			if (const TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> ProtocolEntityPtr = MIDIDeviceBindingPair.Value.Pin())
+			{
+				const FRemoteControlMIDIProtocolEntity* MIDIProtocolEntity = ProtocolEntityPtr->CastChecked<FRemoteControlMIDIProtocolEntity>();
+				if (MIDIEventType != MIDIProtocolEntity->EventType || Channel != MIDIProtocolEntity->Channel)
+				{
+					continue;
+				}
+
+				QueueValue(ProtocolEntityPtr, MessageData1);
+			}
+		}
+	}
+	else if (MIDIEventType == EMIDIEventType::ControlChange)
+	{
+		if (const TMap<int32, TArray<FRemoteControlProtocolEntityWeakPtr>>* MIDIMapBindingsPtr = MIDIDeviceBindings_ControlChange.Find(MIDIDeviceController))
+		{
+			if (const TArray<FRemoteControlProtocolEntityWeakPtr>* ProtocolEntityArrayPtr = MIDIMapBindingsPtr->Find(MessageData1))
+			{
+				for (const FRemoteControlProtocolEntityWeakPtr& ProtocolEntityWeakPtr : *ProtocolEntityArrayPtr)
+				{
+					if (const TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> ProtocolEntityPtr = ProtocolEntityWeakPtr.Pin())
+					{
+						const FRemoteControlMIDIProtocolEntity* MIDIProtocolEntity = ProtocolEntityPtr->CastChecked<FRemoteControlMIDIProtocolEntity>();
+
+						if (MIDIEventType != MIDIProtocolEntity->EventType || Channel != MIDIProtocolEntity->Channel)
+						{
+							continue;
+						}
+
+						QueueValue(ProtocolEntityPtr, MessageData2);
+					}
+				}
+			}
+		}	
 	}
 }
 
 void FRemoteControlProtocolMIDI::UnbindAll()
 {
-	MIDIDeviceBindings.Empty();
+	MIDIDeviceBindings_NoteOn.Empty();
+	MIDIDeviceBindings_ControlChange.Empty();
+	MIDIDeviceBindings_ChannelAfterTouch.Empty();
 	MIDIDevices.Empty();
 }
 
