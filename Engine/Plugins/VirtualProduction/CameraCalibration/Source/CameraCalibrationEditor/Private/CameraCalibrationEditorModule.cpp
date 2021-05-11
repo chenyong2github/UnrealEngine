@@ -6,6 +6,8 @@
 #include "AssetEditor/CameraCalibrationCommands.h"
 #include "AssetToolsModule.h"
 #include "AssetTypeActions/AssetTypeActions_LensFile.h"
+#include "CameraCalibrationTypes.h"
+#include "DistortionHandlerPickerDetailCustomization.h"
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
 #include "LensFile.h"
@@ -47,6 +49,9 @@ void FCameraCalibrationEditorModule::StartupModule()
 			true);
 	}
 
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyEditorModule.RegisterCustomPropertyTypeLayout(FDistortionHandlerPicker::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDistortionHandlerPickerDetailCustomization::MakeInstance));
+
 	FCameraCalibrationMenuEntry::Register();
 }
 
@@ -60,6 +65,7 @@ void FCameraCalibrationEditorModule::ShutdownModule()
 
 		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.UnregisterCustomClassLayout(ULensFile::StaticClass()->GetFName());
+		PropertyModule.UnregisterCustomPropertyTypeLayout(FDistortionHandlerPicker::StaticStruct()->GetFName());
 
 		// Unregister AssetTypeActions
 		FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");

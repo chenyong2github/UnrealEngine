@@ -105,6 +105,10 @@ protected:
 	UPROPERTY()
 	FVector OriginalCameraLocation;
 
+	/** Unique identifier representing the source of distortion data */
+	UPROPERTY(DuplicateTransient)
+	FGuid DistortionProducerID;
+
 	/** Used to control which data from LiveLink is actually applied to camera */
 	UPROPERTY(EditAnywhere, Category="Settings")
 	FLiveLinkCameraControllerUpdateFlags UpdateFlags;
@@ -147,6 +151,8 @@ public:
 	//~ End ULiveLinkControllerBase interface
 
 	//~ Begin UObject interface
+	virtual void PostDuplicate(bool bDuplicateForPIE) override;
+	virtual void PostEditImport() override;
 	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;

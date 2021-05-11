@@ -23,7 +23,6 @@
 #include "Kismet2/ComponentEditorUtils.h"
 #endif
 
-
 DEFINE_LOG_CATEGORY_STATIC(LogLiveLinkCameraController, Log, All);
 
 ULiveLinkCameraController::ULiveLinkCameraController()
@@ -32,6 +31,8 @@ ULiveLinkCameraController::ULiveLinkCameraController()
 	{
 		//Hook up to PostActorTick to handle nodal offset
 		FWorldDelegates::OnWorldPostActorTick.AddUObject(this, &ULiveLinkCameraController::OnPostActorTick);
+
+		DistortionProducerID = FGuid::NewGuid();
 	}
 }
 
@@ -157,6 +158,14 @@ void ULiveLinkCameraController::Cleanup()
 {
 	CleanupDistortion();
 
+	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(AttachedComponent))
+	{
+		if (UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>())
+		{
+			SubSystem->UnregisterDistortionModelHandler(CineCameraComponent, LensDistortionHandler);
+		}
+	}
+
 	FWorldDelegates::OnWorldPostActorTick.RemoveAll(this);
 }
 
@@ -164,6 +173,26 @@ void ULiveLinkCameraController::OnEvaluateRegistered()
 {
 	//Reset flag until the next tick with actual data
 	bIsEncoderMappingNeeded = false;
+}
+
+void ULiveLinkCameraController::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+
+	if (!DistortionProducerID.IsValid())
+	{
+		DistortionProducerID = FGuid::NewGuid();
+	}
+}
+
+void ULiveLinkCameraController::PostEditImport()
+{
+	Super::PostEditImport();
+
+	if (!DistortionProducerID.IsValid())
+	{
+		DistortionProducerID = FGuid::NewGuid();
+	}
 }
 
 #if WITH_EDITOR
@@ -191,10 +220,16 @@ void ULiveLinkCameraController::PostEditChangeProperty(struct FPropertyChangedEv
 			{
 				// Static lens model data may not be available because the controller may not be ticking, so query the subsystem for any distortion handler
 				UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
-				ULensDistortionModelHandlerBase* Handler = SubSystem->GetDistortionModelHandler(CineCameraComponent);
+				FDistortionHandlerPicker DistortionHandlerPicker;
+				DistortionHandlerPicker.TargetCameraComponent = CineCameraComponent;
+				DistortionHandlerPicker.DistortionProducerID = DistortionProducerID;
+				ULensDistortionModelHandlerBase* Handler = SubSystem->FindDistortionModelHandler(DistortionHandlerPicker);
 
 				// Try to remove the post-process material from the cine camera's blendables. 
-				CineCameraComponent->RemoveBlendable(Handler->GetDistortionMID());
+				if (Handler)
+				{
+					CineCameraComponent->RemoveBlendable(Handler->GetDistortionMID());
+				}
 
 				const float OriginalFOV = FMath::RadiansToDegrees(2.0f * FMath::Atan(CineCameraComponent->Filmback.SensorWidth / (2.0f * UndistortedFocalLength)));
 				CineCameraComponent->SetFieldOfView(OriginalFOV);
@@ -399,8 +434,11 @@ void ULiveLinkCameraController::ApplyDistortion(ULensFile* LensFile, UCineCamera
 
 	if (LensFile)
 	{
-		UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
-		LensDistortionHandler = SubSystem->FindOrCreateDistortionModelHandler(CineCameraComponent, LensFile->LensInfo.LensModel);
+		UCameraCalibrationSubsystem* const SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
+		const FString HandlerDisplayName = FString::Format(TEXT("{0} (Lens File)"), { LensFile->GetFName().ToString() });
+
+		FDistortionHandlerPicker DistortionHandlerPicker = { CineCameraComponent, DistortionProducerID, HandlerDisplayName };
+		LensDistortionHandler = SubSystem->FindOrCreateDistortionModelHandler(DistortionHandlerPicker, LensFile->LensInfo.LensModel);
 	}
 
 	if (LensDistortionHandler)

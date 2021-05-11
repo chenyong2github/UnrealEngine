@@ -4,32 +4,14 @@
 
 #include "Subsystems/EngineSubsystem.h"
 
+#include "CameraCalibrationTypes.h"
 #include "LensDistortionModelHandlerBase.h"
 #include "LensFile.h"
 #include "UObject/ObjectKey.h"
 
 #include "CameraCalibrationSubsystem.generated.h"
 
-class UActorComponent;
-
-UENUM(BlueprintType)
-enum class EHandlerOverrideMode : uint8
-{
-	/** If a component already has a lens handler that supports a different lens model, do not override the existing handler */
-	NoOverride,
-
-	/** 
-	 * If a component already has a lens handler that supports a different lens model, but that model is not authoritative,
-	 * remove the existing handler, create a new handler for the new model, and mark that new model as the authoritative one for that component
-	 */
-	SoftOverride,
-
-	/**
-	 * If a component already has a lens handler that supports a different lens model, regardless of any previous authoritative models,
-	 * remove the existing handler, create a new handler for the new model, and mark that new model as the authoritative one for that component
-	 */
-	 ForceOverride
-};
+class UCineCameraComponent;
 
 /**
  * Camera Calibration subsystem
@@ -53,21 +35,28 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lens Distortion")
 	ULensFile* GetLensFile(const FLensFilePicker& Picker) const;
 
-	/** Get the lens distortion model handler owned by the input actor component (returns the first instance if there are multiple) */
+	/** Return all handlers associated with the input camera component */
 	UFUNCTION(BlueprintCallable, Category = "Lens Distortion")
-	ULensDistortionModelHandlerBase* GetDistortionModelHandler(UActorComponent* Component);
+	TArray<ULensDistortionModelHandlerBase*> GetDistortionModelHandlers(UCineCameraComponent* Component);
 
 	/** 
-	 * Get the lens distortion model handler owned by the input actor component that supports the input lens model.
-	 * If no such handler exists, creates a new instance of one that supports the input lens model and gives ownership of the handler to the input component. 
-	 * If the input component already has a model handler that does not support the input model, that handler is removed.
+	 * Return the handler associated with the input distortion source, if one exists 
+	 * If bUpdatePicker is true, the input picker reference will be updated so that its properties match those of the found handler
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Lens Distortion")
-	ULensDistortionModelHandlerBase* FindOrCreateDistortionModelHandler(UActorComponent* Component, TSubclassOf<ULensModel> LensModelClass, EHandlerOverrideMode OverrideMode = EHandlerOverrideMode::NoOverride);
+	ULensDistortionModelHandlerBase* FindDistortionModelHandler(FDistortionHandlerPicker& DistortionHandlerPicker, bool bUpdatePicker = true) const;
+
+	/** Return the handler associated with the input distortion source, if one exists that also matches the input model. If none exist, create a new handler and return it. */
+	UFUNCTION(BlueprintCallable, Category = "Lens Distortion")
+	ULensDistortionModelHandlerBase* FindOrCreateDistortionModelHandler(FDistortionHandlerPicker& DistortionHandlerPicker, const TSubclassOf<ULensModel> LensModelClass);
+
+	/** Disassociate the input handler from the input camera component in the subsystem's handler map */
+	UFUNCTION(BlueprintCallable, Category = "Lens Distortion")
+	void UnregisterDistortionModelHandler(UCineCameraComponent* Component, ULensDistortionModelHandlerBase* Handler);
 
 	/** Return the ULensModel subclass that was registered with the input model name */
 	UFUNCTION(BlueprintCallable, Category = "Lens Distortion")
-	TSubclassOf<ULensModel> GetRegisteredLensModel(FName ModelName);
+	TSubclassOf<ULensModel> GetRegisteredLensModel(FName ModelName) const;
 
 public:
 	//~ Begin USubsystem interface
@@ -91,4 +80,8 @@ private:
 
 	/** Map of actor components to the authoritative lens model that should be used with that component */
 	TMap<FObjectKey, TSubclassOf<ULensModel>> ComponentsWithAuthoritativeModels;
+
+	/** Map of actor components to the authoritative lens model that should be used with that component */
+	TMultiMap<FObjectKey, ULensDistortionModelHandlerBase*> LensDistortionHandlerMap;
+
 };
