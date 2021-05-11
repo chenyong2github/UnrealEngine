@@ -344,6 +344,18 @@ public:
 
 	void ResetPreviousTransforms_RenderThread();
 
+	void FlushGPUSceneUpdate_GameThread();
+
+	FORCEINLINE void SetRequiresGPUSceneUpdate_RenderThread(bool bRequireUpdate)
+	{
+		bRequiresGPUSceneUpdate = bRequireUpdate;
+	}
+
+	FORCEINLINE bool GetRequiresGPUSceneUpdate_RenderThread() const
+	{
+		return bRequiresGPUSceneUpdate;
+	}
+
 	const FORCEINLINE TArray<Nanite::FResources*>& GetResources() const
 	{
 		return Resources;
@@ -378,4 +390,5 @@ protected:
 	uint32 bReverseCulling : 1;
 	uint32 bHasMaterialErrors : 1;
 	uint32 bCurrentlyInMotion : 1;
+	uint32 bRequiresGPUSceneUpdate : 1;
 };

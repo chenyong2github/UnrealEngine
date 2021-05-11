@@ -544,10 +544,14 @@ FPrimitiveSceneProxy* UGeometryCollectionComponent::CreateSceneProxy()
 							GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
 						}
 
+						bool bValidUpdate = false;
 						if (FPrimitiveSceneInfo* PrimitiveSceneInfo = GeometryCollectionSceneProxy->GetPrimitiveSceneInfo())
 						{
-							PrimitiveSceneInfo->RequestGPUSceneUpdate();
+							bValidUpdate = PrimitiveSceneInfo->RequestGPUSceneUpdate();
 						}
+
+						// Deferred the GPU Scene update if the primitive scene info is not yet initialized with a valid index.
+						GeometryCollectionSceneProxy->SetRequiresGPUSceneUpdate_RenderThread(!bValidUpdate);
 					}
 				);
 			}
@@ -1630,12 +1634,18 @@ void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTic
 	//if (bRenderStateDirty && DynamicCollection)	//todo: always send for now
 	if (RestCollection)
 	{
-		if(CHAOS_ENSURE(DynamicCollection)) //, TEXT("No dynamic collection available for component %s during tick."), *GetName()))
+		if (CHAOS_ENSURE(DynamicCollection)) //, TEXT("No dynamic collection available for component %s during tick."), *GetName()))
 		{
-			if(RestCollection->HasVisibleGeometry() || DynamicCollection->IsDirty())
+			if (RestCollection->HasVisibleGeometry() || DynamicCollection->IsDirty())
 			{
 				// #todo review: When we've made changes to ISMC, we need to move this function call to SetRenderDynamicData_Concurrent
 				RefreshEmbeddedGeometry();
+
+				if (SceneProxy && SceneProxy->IsNaniteMesh())
+				{
+					FNaniteGeometryCollectionSceneProxy* NaniteProxy = static_cast<FNaniteGeometryCollectionSceneProxy*>(SceneProxy);
+					NaniteProxy->FlushGPUSceneUpdate_GameThread();
+				}
 				
 				MarkRenderTransformDirty();
 				MarkRenderDynamicDataDirty();

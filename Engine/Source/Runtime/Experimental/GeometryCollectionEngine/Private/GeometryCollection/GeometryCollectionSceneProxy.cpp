@@ -8,6 +8,7 @@
 #include "Materials/Material.h"
 #include "RenderCore/Public/CommonRenderResources.h"
 #include "Rendering/NaniteResources.h"
+#include "PrimitiveSceneInfo.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "RHIDefinitions.h"
@@ -1060,6 +1061,7 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 : Nanite::FSceneProxyBase(Component)
 , GeometryCollection(Component->GetRestCollection())
 , bCurrentlyInMotion(false)
+, bRequiresGPUSceneUpdate(false)
 {
 	LLM_SCOPE_BYTAG(Nanite);
 
@@ -1437,6 +1439,22 @@ void FNaniteGeometryCollectionSceneProxy::ResetPreviousTransforms_RenderThread()
 		Instance.PrevLocalToWorld = Instance.LocalToWorld;
 		Instance.PrevInstanceToLocal = Instance.InstanceToLocal;
 	}
+}
+
+void FNaniteGeometryCollectionSceneProxy::FlushGPUSceneUpdate_GameThread()
+{
+	ENQUEUE_RENDER_COMMAND(NaniteProxyUpdateGPUScene)(
+		[this](FRHICommandListImmediate& RHICmdList)
+		{
+			FPrimitiveSceneInfo* NanitePrimitiveInfo = GetPrimitiveSceneInfo();
+			if (NanitePrimitiveInfo && GetRequiresGPUSceneUpdate_RenderThread())
+			{
+				// Attempt to queue up a GPUScene update - maintain dirty flag if the request fails.
+				const bool bRequiresUpdate = !NanitePrimitiveInfo->RequestGPUSceneUpdate();
+				SetRequiresGPUSceneUpdate_RenderThread(bRequiresUpdate);
+			}
+		}
+	);
 }
 
 void FNaniteGeometryCollectionSceneProxy::OnMotionBegin()
