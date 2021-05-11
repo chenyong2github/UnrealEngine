@@ -23,6 +23,7 @@ class UK2Node_SetFieldsInStruct : public UK2Node_MakeStruct
 	virtual void ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const override;
 	virtual bool IsConnectionDisallowed(const UEdGraphPin* MyPin, const UEdGraphPin* OtherPin, FString& OutReason) const override;
 	virtual bool CanSplitPin(const UEdGraphPin* Pin) const override;
+	virtual void GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;
 	//~ End  UEdGraphNode Interface
 
 	//~ Begin K2Node Interface

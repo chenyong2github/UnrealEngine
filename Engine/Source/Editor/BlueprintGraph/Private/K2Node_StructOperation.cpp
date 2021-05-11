@@ -6,6 +6,9 @@
 #include "UserDefinedStructure/UserDefinedStructEditorData.h"
 #include "Kismet2/StructureEditorUtils.h"
 #include "BlueprintActionFilter.h"
+#include "BlueprintFieldNodeSpawner.h"
+#include "EditorCategoryUtils.h"
+#include "BlueprintActionDatabaseRegistrar.h"
 
 //////////////////////////////////////////////////////////////////////////
 // UK2Node_StructOperation
@@ -81,6 +84,48 @@ bool UK2Node_StructOperation::DoRenamedPinsMatch(const UEdGraphPin* NewPin, cons
 		}
 	}
 	return false;
+}
+
+void UK2Node_StructOperation::SetupMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar, const FMakeStructSpawnerAllowedDelegate& AllowedDelegate, EEdGraphPinDirection PinDirectionToPromote) const
+{
+	struct GetMenuActions_Utils
+	{
+		static void SetNodeStruct(UEdGraphNode* NewNode, FFieldVariant /*StructField*/, TWeakObjectPtr<UScriptStruct> NonConstStructPtr)
+		{
+			UK2Node_StructOperation* StructNode = CastChecked<UK2Node_StructOperation>(NewNode);
+			StructNode->StructType = NonConstStructPtr.Get();
+		}
+
+		static void OverrideCategory(FBlueprintActionContext const& Context, IBlueprintNodeBinder::FBindingSet const& /*Bindings*/, FBlueprintActionUiSpec* UiSpecOut, TWeakObjectPtr<UScriptStruct> StructPtr, EEdGraphPinDirection PinDirectionToPromote)
+		{
+			for (UEdGraphPin* Pin : Context.Pins)
+			{
+				UScriptStruct* PinStruct = Cast<UScriptStruct>(Pin->PinType.PinSubCategoryObject.Get());
+				if ((PinStruct != nullptr) && (StructPtr.Get() == PinStruct) && (Pin->Direction == PinDirectionToPromote))
+				{
+					UiSpecOut->Category = NSLOCTEXT("BlueprintFunctionNodeSpawner", "EmptyFunctionCategory", "|");
+					break;
+				}
+			}
+		}
+	};
+
+	UClass* NodeClass = GetClass();
+	ActionRegistrar.RegisterStructActions(FBlueprintActionDatabaseRegistrar::FMakeStructSpawnerDelegate::CreateLambda([NodeClass, AllowedDelegate, PinDirectionToPromote](const UScriptStruct* Struct)->UBlueprintNodeSpawner*
+	{
+		UBlueprintFieldNodeSpawner* NodeSpawner = nullptr;
+
+		if (AllowedDelegate.Execute(Struct, false))
+		{
+			NodeSpawner = UBlueprintFieldNodeSpawner::Create(NodeClass, const_cast<UScriptStruct*>(Struct));
+			check(NodeSpawner != nullptr);
+			TWeakObjectPtr<UScriptStruct> NonConstStructPtr = MakeWeakObjectPtr(const_cast<UScriptStruct*>(Struct));
+			NodeSpawner->SetNodeFieldDelegate = UBlueprintFieldNodeSpawner::FSetNodeFieldDelegate::CreateStatic(GetMenuActions_Utils::SetNodeStruct, NonConstStructPtr);
+			NodeSpawner->DynamicUiSignatureGetter = UBlueprintFieldNodeSpawner::FUiSpecOverrideDelegate::CreateStatic(GetMenuActions_Utils::OverrideCategory, NonConstStructPtr, PinDirectionToPromote);
+
+		}
+		return NodeSpawner;
+	}));
 }
 
 FString UK2Node_StructOperation::GetPinMetaData(FName InPinName, FName InKey)
