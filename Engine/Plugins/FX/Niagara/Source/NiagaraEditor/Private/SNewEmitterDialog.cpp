@@ -17,47 +17,49 @@ typedef SItemSelector<FText, FAssetData> SNiagaraAssetItemSelector;
 
 void SNewEmitterDialog::Construct(const FArguments& InArgs)
 {
-	FNiagaraAssetPickerListViewOptions TemplateOnlyViewOptions;
-	TemplateOnlyViewOptions.SetOnlyShowTemplatesAndCategorizeByAssetPath(true);
-	TemplateOnlyViewOptions.SetExpandTemplateAndLibraryAssets(true);
-	TemplateOnlyViewOptions.SetCategorizeTemplateAssets(true);
-	TemplateOnlyViewOptions.SetCategorizeLibraryAssets(true);
-
 	FNiagaraAssetPickerListViewOptions DisplayAllViewOptions;
 	DisplayAllViewOptions.SetExpandTemplateAndLibraryAssets(true);
-	DisplayAllViewOptions.SetCategorizeTemplateAssets(true);
 	DisplayAllViewOptions.SetCategorizeLibraryAssets(true);
+	DisplayAllViewOptions.SetAddLibraryOnlyCheckbox(true);
 
+	FNiagaraAssetPickerTabOptions TabOptions;
+	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Template, true);
+	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::None, true);
+	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Behavior, true);
+
+	SAssignNew(NewAssetPicker, SNiagaraAssetPickerList, UNiagaraEmitter::StaticClass())
+		.ViewOptions(DisplayAllViewOptions)
+		.TabOptions(TabOptions);
+
+	SAssignNew(CopyAssetPicker, SNiagaraAssetPickerList, UNiagaraEmitter::StaticClass())
+		.ViewOptions(DisplayAllViewOptions)
+		.TabOptions(TabOptions);
+	
 	SNiagaraNewAssetDialog::Construct(SNiagaraNewAssetDialog::FArguments(), UNiagaraEmitter::StaticClass()->GetFName(), LOCTEXT("AssetTypeName", "emitter"),
 		{
 			SNiagaraNewAssetDialog::FNiagaraNewAssetDialogOption(
-				LOCTEXT("CreateFromTemplateLabel", "New emitter from a template"),
-				LOCTEXT("CreateFromTemplateDescription", "Create a new emitter from an emitter template (no inheritance)"),
-				LOCTEXT("TemplatesPickerHeader", "Select a Template Emitter"),
-				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker::CreateSP(this, &SNewEmitterDialog::GetSelectedEmitterTemplateAssets),
-				SNiagaraNewAssetDialog::FOnSelectionConfirmed(),
-				SAssignNew(TemplateAssetPicker, SNiagaraAssetPickerList, UNiagaraEmitter::StaticClass())
-				.ViewOptions(TemplateOnlyViewOptions)),
-			SNiagaraNewAssetDialog::FNiagaraNewAssetDialogOption(
-				LOCTEXT("InheritFromOtherEmitterLabel", "Inherit from an existing emitter"),
-				LOCTEXT("InheritFromOtherEmitterDescription", "Create an inheritance chain between the new emitter and an existing emitter"),
-				LOCTEXT("InheritProjectEmitterPickerHeader", "Select a Parent Project Emitter"),
-				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker::CreateSP(this, &SNewEmitterDialog::GetSelectedParentEmitterAssets),
-				SNiagaraNewAssetDialog::FOnSelectionConfirmed::CreateSP(this, &SNewEmitterDialog::InheritanceOptionConfirmed),
-				SAssignNew(InheritAssetPicker, SNiagaraAssetPickerList, UNiagaraEmitter::StaticClass())
-				.ViewOptions(DisplayAllViewOptions)),
+				LOCTEXT("CreateFromEmitterLabel", "New emitter"),
+				LOCTEXT("CreateFromEmitterDescription", "Create a new emitter from a template or behavior emitter (no inheritance) or from a parent (inheritance)"),
+				LOCTEXT("EmitterPickerHeader", "Select an Emitter"),
+				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker::CreateSP(this, &SNewEmitterDialog::GetSelectedEmitterAssets_NewAssets),
+				SNiagaraNewAssetDialog::FOnSelectionConfirmed::CreateSP(this, &SNewEmitterDialog::CheckUseInheritance),
+				NewAssetPicker.ToSharedRef(), NewAssetPicker->GetSearchBox() 
+				),
 			SNiagaraNewAssetDialog::FNiagaraNewAssetDialogOption(
 				LOCTEXT("CreateFromOtherEmitterLabel", "Copy existing emitter"),
 				LOCTEXT("CreateFromOtherEmitterDescription", "Copies an existing emitter from your project content"),
 				LOCTEXT("ProjectEmitterPickerHeader", "Select a Project Emitter"),
-				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker::CreateSP(this, &SNewEmitterDialog::GetSelectedProjectEmiterAssets),
-				SNiagaraNewAssetDialog::FOnSelectionConfirmed(),
-				SAssignNew(CopyAssetPicker, SNiagaraAssetPickerList, UNiagaraEmitter::StaticClass())
-				.ViewOptions(DisplayAllViewOptions))
+				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker::CreateSP(this, &SNewEmitterDialog::GetSelectedEmitterAssets_CopyAssets),
+				SNiagaraNewAssetDialog::FOnSelectionConfirmed::CreateLambda([&]()
+				{
+					bUseInheritance = false;
+				}),
+				CopyAssetPicker.ToSharedRef(), CopyAssetPicker->GetSearchBox()
+				)
 		});
 }
 
-TOptional<FAssetData> SNewEmitterDialog::GetSelectedEmitterAsset()
+TOptional<FAssetData> SNewEmitterDialog::GetSelectedEmitterAsset() const
 {
 	const TArray<FAssetData>& SelectedEmitterAssets = GetSelectedAssets();
 	if (SelectedEmitterAssets.Num() > 0)
@@ -72,25 +74,30 @@ bool SNewEmitterDialog::GetUseInheritance() const
 	return bUseInheritance;
 }
 
-void SNewEmitterDialog::GetSelectedEmitterTemplateAssets(TArray<FAssetData>& OutSelectedAssets)
+void SNewEmitterDialog::GetSelectedEmitterAssets_NewAssets(TArray<FAssetData>& OutSelectedAssets) const
 {
-	OutSelectedAssets.Append(TemplateAssetPicker->GetSelectedAssets());
+	OutSelectedAssets.Append(NewAssetPicker->GetSelectedAssets());
 }
 
-void SNewEmitterDialog::GetSelectedParentEmitterAssets(TArray<FAssetData>& OutSelectedAssets)
-{
-	OutSelectedAssets.Append(InheritAssetPicker->GetSelectedAssets());
-}
-
-void SNewEmitterDialog::GetSelectedProjectEmiterAssets(TArray<FAssetData>& OutSelectedAssets)
+void SNewEmitterDialog::GetSelectedEmitterAssets_CopyAssets(TArray<FAssetData>& OutSelectedAssets) const
 {
 	OutSelectedAssets.Append(CopyAssetPicker->GetSelectedAssets());
 }
 
-
 void SNewEmitterDialog::InheritanceOptionConfirmed()
 {
 	bUseInheritance = true;
+}
+
+void SNewEmitterDialog::CheckUseInheritance()
+{
+	TOptional<FAssetData> EmitterAssetData = GetSelectedEmitterAsset();
+
+	if(EmitterAssetData.IsSet())
+	{
+		UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(EmitterAssetData.GetValue().GetAsset());
+		bUseInheritance = Emitter->TemplateSpecification == ENiagaraScriptTemplateSpecification::None;
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
