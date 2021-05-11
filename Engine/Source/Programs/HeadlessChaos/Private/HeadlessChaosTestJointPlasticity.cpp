@@ -127,7 +127,7 @@ namespace ChaosTest {
 	template <typename TEvolution>
 	void JointPlasticity_UnderLinearPlasticityThreshold()
 	{
-		const FReal PlasticityRatio = 0.3;
+		const FReal PlasticityLimit = 10;
 		const int32 NumIterations = 1;
 		const FReal Gravity = 980;
 		const FReal Dt = 0.01f;
@@ -140,12 +140,13 @@ namespace ChaosTest {
 		Test.JointSettings[0].AngularMotionTypes = { EJointMotionType::Locked, EJointMotionType::Locked , EJointMotionType::Locked };
 		Test.JointSettings[0].LinearMotionTypes = { EJointMotionType::Limited, EJointMotionType::Limited , EJointMotionType::Limited };
 		Test.JointSettings[0].bSoftLinearLimitsEnabled = true;
+		Test.JointSettings[0].bLinearPositionDriveEnabled = { true, true, true };
 		Test.JointSettings[0].LinearLimit = 0;
 		Test.JointSettings[0].LinearSoftForceMode = EJointForceMode::Force;
-		Test.JointSettings[0].SoftLinearStiffness = 100000;
-		Test.JointSettings[0].SoftLinearDamping = 100;
+		Test.JointSettings[0].SoftLinearStiffness = 1000000;
+		Test.JointSettings[0].SoftLinearDamping = 1000;
 
-		Test.JointSettings[0].LinearPlasticityLimit = PlasticityRatio;
+		Test.JointSettings[0].LinearPlasticityLimit = PlasticityLimit;
 
 		Test.Create();
 		Test.AddParticleBox(FVec3(0, 0, 100), FRotation3::Identity, FVec3(10.f), 100.f);
@@ -182,7 +183,7 @@ namespace ChaosTest {
 	template <typename TEvolution>
 	void JointPlasticity_OverLinearPlasticityThreshold()
 	{
-		const FReal PlasticityRatio = 0.15;
+		const FReal PlasticityLimit = 1;
 		const int32 NumIterations = 1;
 		const FReal Gravity = 980;
 		const FReal Dt = 0.01f;
@@ -195,12 +196,13 @@ namespace ChaosTest {
 		Test.JointSettings[0].AngularMotionTypes = { EJointMotionType::Locked, EJointMotionType::Locked , EJointMotionType::Locked };
 		Test.JointSettings[0].LinearMotionTypes = { EJointMotionType::Limited, EJointMotionType::Limited , EJointMotionType::Limited };
 		Test.JointSettings[0].bSoftLinearLimitsEnabled = true;
+		Test.JointSettings[0].bLinearPositionDriveEnabled = {true, true, true};
 		Test.JointSettings[0].LinearLimit = 0;
 		Test.JointSettings[0].LinearSoftForceMode = EJointForceMode::Force;
-		Test.JointSettings[0].SoftLinearStiffness = 100000;
+		Test.JointSettings[0].SoftLinearStiffness = 10000;
 		Test.JointSettings[0].SoftLinearDamping = 100;
 
-		Test.JointSettings[0].LinearPlasticityLimit = PlasticityRatio;
+		Test.JointSettings[0].LinearPlasticityLimit = PlasticityLimit;
 
 		Test.Create();
 		Test.AddParticleBox(FVec3(0, 0, 100), FRotation3::Identity, FVec3(10.f), 100.f);
@@ -222,7 +224,7 @@ namespace ChaosTest {
 		FReal DeltaPosPost = (Test.SOAs.GetDynamicParticles().X(0)).Size();
 
 		// The linear spring should have reset. 
-		EXPECT_TRUE(DeltaPosPost < DeltaPos * (1.f-PlasticityRatio) );
+		EXPECT_TRUE(DeltaPosPost < DeltaPos - PlasticityLimit);
 		EXPECT_TRUE(Test.SOAs.GetDynamicParticles().X(0).Z > 0.f);
 	}
 
