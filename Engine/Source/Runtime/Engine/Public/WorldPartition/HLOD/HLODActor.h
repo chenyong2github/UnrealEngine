@@ -61,6 +61,9 @@ protected:
 	//~ Begin UObject Interface.
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void RerunConstructionScripts() override;
+#if WITH_EDITORONLY_DATA
+	virtual void PostLoad() override;
+#endif
 	//~ End UObject Interface.
 
 	//~ Begin AActor Interface.
@@ -101,6 +104,10 @@ private:
 
 	UPROPERTY()
 	uint32 HLODHash;
+
+	// Deprecated. Stored in SourceCell instead.
+	UPROPERTY()
+	FName CellName_DEPRECATED;
 #endif
 
 	UPROPERTY()
