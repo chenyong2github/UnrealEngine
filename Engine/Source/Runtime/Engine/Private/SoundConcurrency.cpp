@@ -869,9 +869,9 @@ FActiveSound* FSoundConcurrencyManager::CreateAndEvictActiveSounds(const FActive
 			continue;
 		}
 
-		if (SoundToEvict->Sound)
+		if (SoundToEvict->GetSound())
 		{
-			UE_LOG(LogAudioConcurrency, VeryVerbose, TEXT("Evicting Sound %s due to concurrency"), *(SoundToEvict->Sound->GetName()));
+			UE_LOG(LogAudioConcurrency, VeryVerbose, TEXT("Evicting Sound %s due to concurrency"), *(SoundToEvict->GetSound()->GetName()));
 		}
 
 		StopDueToVoiceStealing(*SoundToEvict);
