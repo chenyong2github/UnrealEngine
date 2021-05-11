@@ -45,7 +45,7 @@ void FIntegerDelay::SetDelayLengthSamples(int32 InNumDelaySamples)
 	// and abide by alignment rules of FAlignedBlockBuffer
 	NumDelayLineOffsetSamples = MaxNumDelaySamples - NumDelaySamples;
 	NumBufferOffsetSamples = 0;
-	while (0 != (NumDelayLineOffsetSamples % AUDIO_SIMD_FLOAT_ALIGNMENT))
+	while (0 != (NumDelayLineOffsetSamples % AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER))
 	{
 		NumDelayLineOffsetSamples--;
 		NumBufferOffsetSamples++;

@@ -12,7 +12,7 @@
 #endif
 
 #define AUDIO_SIMD_BYTE_ALIGNMENT (16)
-#define AUDIO_SIMD_FLOAT_ALIGNMENT (4)
+#define AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER (4)
 
 namespace Audio
 {

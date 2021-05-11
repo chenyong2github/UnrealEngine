@@ -14,7 +14,7 @@ namespace Metasound
 		static constexpr float MinimumTargetBlockRate = 1.0f;
 
 		// Using same alignment as in BufferVectorOperations.h
-		static constexpr int32 FloatAlignment = AUDIO_SIMD_FLOAT_ALIGNMENT;
+		static constexpr int32 FloatAlignment = AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER;
 
 		static constexpr int32 MinimumNumFramesPerBlock = FloatAlignment;
 		static constexpr int32 MaximumNumFramesPerBlock = 16384;
