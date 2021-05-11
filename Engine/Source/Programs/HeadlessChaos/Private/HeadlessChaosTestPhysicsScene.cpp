@@ -1011,6 +1011,142 @@ namespace ChaosTest {
 		EXPECT_NEAR(Particle.V()[2], ZVel, 1e-2);
 	}
 
+	GTEST_TEST(EngineInterface, SetKinematicTarget)
+	{
+		// Need to test:
+		// GT particle position is immediately updated after calling SetKinematicTarget_AssumesLocked
+		// GT particle positions and velocities are correctly updated
+		// PT particle positions and velocities are correctly updated
+		// Velocity becomes zero if no KinematicTarget is set in the current frame
+		// Particle positions and velocities are correct after SetKinematicTarget_AssumesLocked, SetKinematicTarget_AssumesLocked
+		// Velocity is zero if only SetGlobalPose_AssumesLocked is called (Teleport)
+		// Particle positions and velocities are correct after SetGlobalPose_AssumesLocked, SetKinematicTarget_AssumesLocked (Teleport)
+		// Particle positions and velocities are correct after SetKinematicTarget_AssumesLocked, SetGlobalPose_AssumesLocked (Teleport, KinematicTarget is cleared)
+		FChaosScene Scene(nullptr);
+		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+
+		FActorCreationParams Params;
+		Params.Scene = &Scene;
+
+		FPhysicsActorHandle Proxy = nullptr;
+
+		FChaosEngineInterface::CreateActor(Params, Proxy);
+		auto& Particle = Proxy->GetGameThreadAPI();
+		{
+			auto Sphere = MakeUnique<TSphere<FReal, 3>>(FVec3(0), 3);
+			Particle.SetGeometry(MoveTemp(Sphere));
+		}
+
+		TArray<FPhysicsActorHandle> Proxys = { Proxy };
+		Scene.AddActorsToScene_AssumesLocked(Proxys);
+		Particle.SetObjectState(EObjectStateType::Kinematic);
+
+		struct FDummyInput : FSimCallbackInput
+		{
+			FSingleParticlePhysicsProxy* Proxy;
+			FVec3 CorrectX;
+			FVec3 CorrectV;
+			void Reset() {}
+		};
+
+		struct FCallback : public TSimCallbackObject<FDummyInput>
+		{
+			virtual void OnPreSimulate_Internal() override
+			{
+				auto Handle = GetConsumerInput_Internal()->Proxy->GetPhysicsThreadAPI();
+				EXPECT_EQ(Handle->X(), GetConsumerInput_Internal()->CorrectX);
+				EXPECT_EQ(Handle->V(), GetConsumerInput_Internal()->CorrectV);
+			}
+		};
+
+		auto Callback = Scene.GetSolver()->CreateAndRegisterSimCallbackObject_External<FCallback>();
+
+		Callback->GetProducerInputData_External()->Proxy = Proxy;
+
+		FVec3 Grav(0, 0, 0);
+		float Dt = 1;
+
+		auto AdvanceFrameAndRunTest = [&](const FVec3 &CorrectX, const FVec3 &CorrectV)
+		{
+			Scene.SetUpForFrame(&Grav, Dt, 99999, 99999, 10, false);
+			Scene.StartFrame();
+			Scene.EndFrame();
+			// Test X and V on GT
+			EXPECT_EQ(Particle.X(), CorrectX);
+			EXPECT_EQ(Particle.V(), CorrectV);
+			// Test X and V on PT, this is going to be used in OnPreSimulate_Internal in next frame.
+			Callback->GetProducerInputData_External()->CorrectX = CorrectX;
+			Callback->GetProducerInputData_External()->CorrectV = CorrectV;
+		};
+
+		// Set initial transform
+		FVec3 CurrentX = FVec3(1, 2, 3);
+		FVec3 CurrentV = FVec3(0, 0, 0);
+		FChaosEngineInterface::SetGlobalPose_AssumesLocked(Proxy, FTransform(CurrentX));
+
+		Callback->GetProducerInputData_External()->CorrectX = CurrentX;
+		Callback->GetProducerInputData_External()->CorrectV = CurrentV;
+		AdvanceFrameAndRunTest(CurrentX, CurrentV);
+
+		// Test SetKinematicTarget_AssumesLocked
+		CurrentX = FVec3(2, 3, 4);
+		CurrentV = FVec3(1, 1, 1);
+		FChaosEngineInterface::SetKinematicTarget_AssumesLocked(Proxy, FTransform(CurrentX));
+
+		// Test if position is immediately updated on GT after SetKinematicTarget_AssumesLocked
+		EXPECT_EQ(Particle.X(), CurrentX);
+
+		AdvanceFrameAndRunTest(CurrentX, CurrentV);
+
+		// Test if velocity becomes zero when no kinematic target is set
+		CurrentX = FVec3(2, 3, 4);
+		CurrentV = FVec3(0, 0, 0);
+
+		AdvanceFrameAndRunTest(CurrentX, CurrentV);
+
+		// Test if particle positions and velocities are correct after SetKinematicTarget_AssumesLocked, SetKinematicTarget_AssumesLocked
+		CurrentX = FVec3(0, 0, 0);
+		CurrentV = FVec3(-2, -3, -4);
+		FChaosEngineInterface::SetKinematicTarget_AssumesLocked(Proxy, FTransform(FVec3(1, 2, 3)));
+		FChaosEngineInterface::SetKinematicTarget_AssumesLocked(Proxy, FTransform(CurrentX));
+
+		AdvanceFrameAndRunTest(CurrentX, CurrentV);
+
+		// Test if velocity is zero if only SetGlobalPose_AssumesLocked is called (Teleport)
+		CurrentX = FVec3(0, 0, 0);
+		CurrentV = FVec3(0, 0, 0);
+		FChaosEngineInterface::SetGlobalPose_AssumesLocked(Proxy, FTransform(CurrentX));
+
+		Callback->GetProducerInputData_External()->CorrectX = CurrentX;
+		AdvanceFrameAndRunTest(CurrentX, CurrentV);
+
+		// Test if particle positions and velocities are correct after SetGlobalPose_AssumesLocked, SetKinematicTarget_AssumesLocked
+		CurrentX = FVec3(-1, -2, -3);
+		CurrentV = FVec3(0, 0, 0);
+		FChaosEngineInterface::SetGlobalPose_AssumesLocked(Proxy, FTransform(CurrentX));
+		FChaosEngineInterface::SetKinematicTarget_AssumesLocked(Proxy, FTransform(CurrentX));
+
+		Callback->GetProducerInputData_External()->CorrectX = CurrentX;
+		AdvanceFrameAndRunTest(CurrentX, CurrentV);
+
+		// Test if particle positions and velocities are correct after SetKinematicTarget_AssumesLocked, SetGlobalPose_AssumesLocked
+		CurrentX = FVec3(3, 2, 1);
+		CurrentV = FVec3(0, 0, 0);
+		FChaosEngineInterface::SetKinematicTarget_AssumesLocked(Proxy, FTransform(CurrentX));
+		FChaosEngineInterface::SetGlobalPose_AssumesLocked(Proxy, FTransform(CurrentX));
+
+		// Test if KinematicTarget is cleared
+		EXPECT_EQ(Particle.IsKinematicTargetDirty(), false);
+
+		Callback->GetProducerInputData_External()->CorrectX = CurrentX;
+		AdvanceFrameAndRunTest(CurrentX, CurrentV);
+
+		// Test if the PT positions and velocities are right from previous frame
+		CurrentX = FVec3(3, 2, 1);
+		CurrentV = FVec3(0, 0, 0);
+		AdvanceFrameAndRunTest(CurrentX, CurrentV);
+	}
+
 	GTEST_TEST(EngineInterface, PerPropertySetOnGT)
 	{
 		//Need to test:

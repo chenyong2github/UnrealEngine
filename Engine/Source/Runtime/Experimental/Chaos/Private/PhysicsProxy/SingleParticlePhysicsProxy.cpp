@@ -67,13 +67,17 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 			KinematicHandle->SetVelocities(*NewVelocities);
 		}
 
-		auto NewKinematicTarget = bHasKinematicData ? ParticleData.FindKinematicTarget(Manager, DataIdx) : nullptr;
-		if (NewKinematicTarget)
+		auto NewKinematicTargetGT = bHasKinematicData ? ParticleData.FindKinematicTarget(Manager, DataIdx) : nullptr;
+		if (NewKinematicTargetGT)
 		{
-			KinematicHandle->SetKinematicTarget(*NewKinematicTarget);
+			const TRigidTransform<float, 3>& TargetTransform = NewKinematicTargetGT->GetTarget();
+			const TRigidTransform<float, 3> PreviousTransform(KinematicHandle->X(), KinematicHandle->R());
+			TKinematicTarget<float, 3> NewKinematicTargetPT;
+			NewKinematicTargetPT.SetTargetMode(TargetTransform, PreviousTransform);
+			KinematicHandle->SetKinematicTarget(NewKinematicTargetPT);
 		}
 
-		if(NewXR || NewNonFrequentData || NewVelocities || NewKinematicTarget)
+		if(NewXR || NewNonFrequentData || NewVelocities || NewKinematicTargetGT)
 		{
 			const auto& Geometry = Handle->Geometry();
 			if(Geometry && Geometry->HasBoundingBox())

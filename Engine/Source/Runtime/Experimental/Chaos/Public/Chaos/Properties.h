@@ -41,6 +41,18 @@ public:
 		MarkDirty(bInvalidate, Dirty, Proxy);
 	}
 
+	void Clear(FParticleDirtyFlags& Dirty, IPhysicsProxyBase* Proxy)
+	{
+		Dirty.MarkClean(PropertyFlag);
+		if (Proxy && Dirty.IsClean())
+		{
+			if (FPhysicsSolverBase* PhysicsSolverBase = Proxy->GetSolver<FPhysicsSolverBase>())
+			{
+				PhysicsSolverBase->RemoveDirtyProxy(Proxy);
+			}
+		}
+	}
+
 	void SyncRemote(FDirtyPropertiesManager& Manager, int32 DataIdx, const FParticleDirtyData& Remote) const
 	{
 		Remote.SyncRemote<T,PropName>(Manager, DataIdx, Property);

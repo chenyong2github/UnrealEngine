@@ -1647,6 +1647,10 @@ FChaosScene* FChaosEngineInterface::GetCurrentScene(const FPhysicsActorHandle& I
 void FChaosEngineInterface::SetGlobalPose_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FTransform& InNewPose,bool bAutoWake)
 {
 	Chaos::FRigidBodyHandle_External& Body_External = InActorReference->GetGameThreadAPI();
+	if (Body_External.IsKinematicTargetDirty())
+	{
+		Body_External.ClearKinematicTarget();
+	}
 	Body_External.SetX(InNewPose.GetLocation());
 	Body_External.SetR(InNewPose.GetRotation());
 	Body_External.UpdateShapeBounds();
@@ -1658,13 +1662,16 @@ void FChaosEngineInterface::SetGlobalPose_AssumesLocked(const FPhysicsActorHandl
 void FChaosEngineInterface::SetKinematicTarget_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FTransform& InNewTarget)
 {
 	{
-		Chaos::TKinematicTarget<Chaos::FReal, 3> newKinematicTarget;
-		Chaos::TRigidTransform<Chaos::FReal, 3> PreviousTM(InActorReference->GetGameThreadAPI().X(), InActorReference->GetGameThreadAPI().R());
-		newKinematicTarget.SetTargetMode(InNewTarget, PreviousTM);
-		InActorReference->GetGameThreadAPI().SetKinematicTarget(newKinematicTarget);
+		Chaos::TKinematicTarget <Chaos::FReal, 3 > NewKinematicTarget;
+		// SetKinematicTarget_AssumesLocked could be called multiple times in one time step
+		// Don't update Previous here. Previous is updated in FSingleParticlePhysicsProxy::PushToPhysicsState. Previous is not used in game thread and set to identity.
+		// @todo(chaos): create a new KinematicTarget class for game thread that does not have Preivous 
+		Chaos::FRigidTransform3 IdentityTransform;
+		NewKinematicTarget.SetTargetMode(InNewTarget, IdentityTransform);
+		InActorReference->GetGameThreadAPI().SetKinematicTarget(NewKinematicTarget);
 
-		InActorReference->GetGameThreadAPI().SetX(InNewTarget.GetLocation());
-		InActorReference->GetGameThreadAPI().SetR(InNewTarget.GetRotation());
+		InActorReference->GetGameThreadAPI().SetX(InNewTarget.GetLocation(), false);
+		InActorReference->GetGameThreadAPI().SetR(InNewTarget.GetRotation(), false);
 		InActorReference->GetGameThreadAPI().UpdateShapeBounds();
 
 		FChaosScene* Scene = GetCurrentScene(InActorReference);
