@@ -67,6 +67,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bDiscardAttributes;
 
+	/** If true, then simplification will consider geometric deviation with the input mesh  */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bGeometricConstraint;
+
+	/** Geometric deviation tolerance used when bGeometricConstraint is enabled, to limit the geometric deviation between the simplified and original meshes */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0.0", UIMax = "10.0", ClampMin = "0.0", ClampMax = "10000000.0", EditCondition = "bGeometricConstraint && SimplifierType != ESimplifyType::UEStandard"))
+	float GeometricTolerance;
+
 	/** If true, display wireframe */
 	UPROPERTY(EditAnywhere, Category = Display)
 	bool bShowWireframe;

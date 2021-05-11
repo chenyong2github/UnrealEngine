@@ -63,6 +63,7 @@ USimplifyMeshToolProperties::USimplifyMeshToolProperties()
 	bReproject = false;
 	bPreventNormalFlips = true;
 	bDiscardAttributes = false;
+	bGeometricConstraint = false;
 	bShowWireframe = true;
 	bShowGroupColors = false;
 	GroupBoundaryConstraint = EGroupBoundaryConstraint::Ignore;
@@ -196,6 +197,8 @@ TUniquePtr<FDynamicMeshOperator> USimplifyMeshTool::MakeNewOperator()
 	Op->MeshBoundaryConstraint = (EEdgeRefineFlags)SimplifyProperties->MeshBoundaryConstraint;
 	Op->GroupBoundaryConstraint = (EEdgeRefineFlags)SimplifyProperties->GroupBoundaryConstraint;
 	Op->MaterialBoundaryConstraint = (EEdgeRefineFlags)SimplifyProperties->MaterialBoundaryConstraint;
+	Op->bGeometricDeviationConstraint = SimplifyProperties->bGeometricConstraint;
+	Op->GeometricTolerance = SimplifyProperties->GeometricTolerance;
 	FTransform LocalToWorld = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform();
 	Op->SetTransform(LocalToWorld);
 

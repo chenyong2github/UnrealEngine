@@ -26,7 +26,8 @@ enum class ESimplificationResult
 	Ignored_CreatesFlip = 5,
 	Failed_OpNotSuccessful = 6,
 	Failed_NotAnEdge = 7,
-	Failed_IsolatedTriangle = 8
+	Failed_IsolatedTriangle = 8,
+	Failed_GeometricDeviation = 9
 };
 
 /**
@@ -77,6 +78,23 @@ public:
 
 	/** When using the constraint system, these options will apply to the appropriate boundaries. */
 	EEdgeRefineFlags MeshBoundaryConstraint, GroupBoundaryConstraint, MaterialBoundaryConstraint;
+
+
+	/** Ways to measure geometric error */
+	enum class EGeometricErrorCriteria
+	{
+		/** No geometric error checking */
+		None = 0,
+		/** Fixed envelope around projection target */
+		PredictedPointToProjectionTarget = 1
+	};
+
+	/** Geometric error measurement/check to perform before allowing an edge collapse */
+	EGeometricErrorCriteria GeometricErrorConstraint = EGeometricErrorCriteria::None;
+
+	/** Tolerance to use in geometric error checking */
+	double GeometricErrorTolerance = 0.0;
+
 
 	TMeshSimplification(FDynamicMesh3* m) : FMeshRefinerBase(m)
 	{
@@ -323,6 +341,16 @@ protected:
 
 	virtual void ApplyToProjectVertices(const TFunction<void(int)>& apply_f);
 
+
+	/**
+	 * Check if edge collapse would violate geometric error criteria
+	 * @param vid first vertex of edge
+	 * @param vother other vertex of edge
+	 * @param newv new vertex position after collapse
+	 * @param tc triangle on one side of edge
+	 * @param td triangle on other side of edge
+	 */
+	bool CheckIfCollapseWithinGeometricTolerance(int vid, int vother, const FVector3d& newv, int tc, int td);
 
 
 	/*

@@ -1328,8 +1328,8 @@ ESimplificationResult TMeshSimplification<QuadricErrorType>::CollapseEdge(int ed
 		
 		// [TODO] maybe skip Projection call when !bModeAllowsVertMovment.
 		vNewPos = GetProjectedCollapsePosition(iKeep, vNewPos);
-		double div = Distance(vA, vB);
-		collapse_t = (div < FMathd::ZeroTolerance) ? 0.5 : (Distance(vNewPos, Mesh->GetVertex(iKeep))) / div;
+		double EdgeLength = Distance(vA, vB);
+		collapse_t = (EdgeLength < FMathd::ZeroTolerance) ? 0.5 : (Distance(vNewPos, Mesh->GetVertex(iKeep))) / EdgeLength;
 		collapse_t = VectorUtil::Clamp(collapse_t, 0.0, 1.0);
 
 		if (bMinimalVertexMode)
@@ -1337,6 +1337,24 @@ ESimplificationResult TMeshSimplification<QuadricErrorType>::CollapseEdge(int ed
 			// this _should_ already be 0 or 1 with perfect precision. 
 			// round here to make sure later attribute lerps don't change values
 			collapse_t = FMath::RoundToDouble(collapse_t);
+		}
+
+		// If vertex is not explicitly constrained, and geometric error constraint is requested, we check it here.
+		// If the check with the predicted vNewPos fails, try a second time with the linear-interpolated point.
+		// (could optionally do a line search here, and/or be smarter about avoiding duplicate work, although
+		//  it is small in the context of the larger algorithm)
+		if (GeometricErrorConstraint != EGeometricErrorCriteria::None )
+		{
+			if (CheckIfCollapseWithinGeometricTolerance(iKeep, iCollapse, vNewPos, t0, t1) == false)
+			{
+				// project new position back onto the edge
+				vNewPos = (1.0-collapse_t)*Mesh->GetVertex(iKeep) + (collapse_t)*Mesh->GetVertex(iCollapse);
+				if (CheckIfCollapseWithinGeometricTolerance(iKeep, iCollapse, vNewPos, t0, t1) == false)
+				{
+					ProfileEndCollapse();
+					return ESimplificationResult::Failed_GeometricDeviation;
+				}
+			}
 		}
 	}
 	else
@@ -1441,6 +1459,80 @@ ESimplificationResult TMeshSimplification<QuadricErrorType>::CollapseEdge(int ed
 	return retVal;
 }
 
+template <typename QuadricErrorType>
+bool TMeshSimplification<QuadricErrorType>::CheckIfCollapseWithinGeometricTolerance(int vKeep, int vRemove, const FVector3d& NewPosition, int tc, int td)
+{
+	if (GeometricErrorConstraint == EGeometricErrorCriteria::PredictedPointToProjectionTarget)
+	{
+		// currently assuming projection target is what we want to measure geometric error against
+		if (ProjectionTarget() != nullptr)
+		{
+			double ToleranceSqr = GeometricErrorTolerance * GeometricErrorTolerance;
+
+			// test new position to see if it is within geometric tolerance of projection surface
+			FVector3d TargetPos = ProjectionTarget()->Project(NewPosition);
+			double DistSqr = DistanceSquared(TargetPos, NewPosition);
+			if (DistSqr > ToleranceSqr)
+			{
+				return false;
+			}
+
+			// test edge midpoints, except the edge being collapsed
+			int32 CollapseEdgeID = Mesh->FindEdge(vKeep, vRemove);
+			auto EdgeMidpointsWithinTolerance = [this, CollapseEdgeID, NewPosition, ToleranceSqr](int32 vid) {
+				for ( int32 eid : Mesh->VtxEdgesItr(vid) )
+				{
+					if (eid != CollapseEdgeID)
+					{
+						FIndex2i EdgeV = Mesh->GetEdgeV(eid);
+						FVector3d OtherVertexPos = (EdgeV.A == vid) ? Mesh->GetVertex(EdgeV.B) : Mesh->GetVertex(EdgeV.A);
+						FVector3d NewMidpoint = (OtherVertexPos + NewPosition) * 0.5;
+						FVector3d MidpointTargetPos = ProjectionTarget()->Project(NewMidpoint);
+						if (DistanceSquared(NewMidpoint, MidpointTargetPos) > ToleranceSqr)
+						{
+							return false;
+						}
+					}
+				}
+				return true;
+			};
+			if (EdgeMidpointsWithinTolerance(vKeep) == false || EdgeMidpointsWithinTolerance(vRemove) == false)
+			{
+				return false;
+			}
+
+
+			// check tri centers, except the triangles being collapsed
+			auto CentroidsWithinToleranceFunc = [this, vKeep, vRemove, tc, td, NewPosition, ToleranceSqr](int32 vid) {
+				bool bInTolerance = true;
+				Mesh->EnumerateVertexTriangles(vid, [&](int32 tid)
+					{
+						if (bInTolerance && tid != tc && tid != td)
+						{
+							FIndex3i Tri = Mesh->GetTriangle(tid);
+							FVector3d NewCentroid = FVector3d::Zero();
+							for (int32 j = 0; j < 3; ++j)
+							{
+								NewCentroid += (Tri[j] == vRemove || Tri[j] == vKeep) ? NewPosition : Mesh->GetVertex(Tri[j]);
+							}
+							NewCentroid *= (1.0 / 3.0);
+							FVector3d CentroidTargetPos = ProjectionTarget()->Project(NewCentroid);
+							if (DistanceSquared(NewCentroid, CentroidTargetPos) > ToleranceSqr)
+							{
+								bInTolerance = false;
+							}
+						}
+					});
+				return bInTolerance;
+			};
+			if (CentroidsWithinToleranceFunc(vKeep) == false || CentroidsWithinToleranceFunc(vRemove) == false)
+			{
+				return false;
+			}
+		}
+	}
+	return true;
+}
 
 template <typename QuadricErrorType>
 bool TMeshSimplification<QuadricErrorType>::RemoveIsolatedTriangle(int tID)
