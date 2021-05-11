@@ -2787,6 +2787,7 @@ void UGroomAsset::CreateDebugData()
 			ENQUEUE_RENDER_COMMAND(HairStrandsDebugResourceCommand)(
 				[InData, InResource](FRHICommandListImmediate& RHICmdList)
 				{
+					FMemMark Mark(FMemStack::Get());
 					FRDGBuilder GraphBuilder(RHICmdList);
 					CreateHairStrandsDebugResources(GraphBuilder, InData, InResource);
 					GraphBuilder.Execute();
