@@ -865,44 +865,6 @@ namespace Metasound
 			return TypeName;
 		}
 
-		void FMetasoundInputDetailCustomization::OnDisplayNameChanged(const FText& InNewName)
-		{
-			using namespace Frontend;
-
-			bIsNameInvalid = false;
-			DisplayNameEditableTextBox->SetError(FText::GetEmpty());
-
-			if (!ensure(GraphVariable.IsValid()))
-			{
-				return;
-			}
-
-			if (InNewName.IsEmpty())
-			{
-				bIsNameInvalid = true;
-				DisplayNameEditableTextBox->SetError(FText::Format(LOCTEXT("InputRenameInvalid_NameEmpty", "{0} cannot be empty string."), InNewName));
-				return;
-			}
-
-			FConstNodeHandle NodeHandle = GraphVariable->GetConstNodeHandle();
-			FConstGraphHandle GraphHandle = NodeHandle->GetOwningGraph();
-			const FGuid NodeID = NodeHandle->GetID();
-
-			GraphHandle->IterateConstNodes([this, NodeID, InNewName](FConstNodeHandle NodeToCompare)
-			{
-				// Disregard display name collisions with hidden nodes
-				const bool bIsVisible = NodeToCompare->GetNodeStyle().Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Visible;
-				if (NodeID != NodeToCompare->GetID() && bIsVisible)
-				{
-					if (InNewName.CompareToCaseIgnored(NodeToCompare->GetDisplayName()) == 0)
-					{
-						bIsNameInvalid = true;
-						DisplayNameEditableTextBox->SetError(FText::Format(LOCTEXT("InputRenameInvalid_NameTaken", "{0} is already in use"), InNewName));
-					}
-				}
-			}, EMetasoundFrontendClassType::Input);
-		}
-
 		void FMetasoundOutputDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 		{
 			using namespace Frontend;
@@ -1047,42 +1009,6 @@ namespace Metasound
 			});
 
 			return TypeName;
-		}
-
-		void FMetasoundOutputDetailCustomization::OnDisplayNameChanged(const FText& InNewName)
-		{
-			using namespace Frontend;
-
-			bIsNameInvalid = false;
-			DisplayNameEditableTextBox->SetError(FText::GetEmpty());
-
-			if (!ensure(GraphVariable.IsValid()))
-			{
-				return;
-			}
-
-			if (InNewName.IsEmpty())
-			{
-				bIsNameInvalid = true;
-				DisplayNameEditableTextBox->SetError(FText::Format(LOCTEXT("OutputRenameInvalid_NameEmpty", "{0} cannot be empty string."), InNewName));
-				return;
-			}
-
-			FConstNodeHandle NodeHandle = GraphVariable->GetConstNodeHandle();
-			FConstGraphHandle GraphHandle = NodeHandle->GetOwningGraph();
-			const FGuid NodeID = NodeHandle->GetID();
-
-			GraphHandle->IterateConstNodes([this, NodeID, InNewName](FConstNodeHandle NodeToCompare)
-			{
-				if (NodeID != NodeToCompare->GetID())
-				{
-					if (InNewName.CompareToCaseIgnored(NodeToCompare->GetDisplayName()) == 0)
-					{
-						bIsNameInvalid = true;
-						DisplayNameEditableTextBox->SetError(FText::Format(LOCTEXT("OutputRenameInvalid_NameTaken", "{0} is already in use"), InNewName));
-					}
-				}
-			}, EMetasoundFrontendClassType::Output);
 		}
 	} // namespace Editor
 } // namespace Metasound
