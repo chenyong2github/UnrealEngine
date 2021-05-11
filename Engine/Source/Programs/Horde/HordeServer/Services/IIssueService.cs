@@ -77,9 +77,17 @@ namespace HordeServer.Services
 		Task<List<IIssueStep>> GetIssueStepsAsync(IIssueSpan Span);
 
 		/// <summary>
+		/// Gets the suspects for an issue
+		/// </summary>
+		/// <param name="Issue"></param>
+		/// <returns></returns>
+		Task<List<IIssueSuspect>> GetIssueSuspectsAsync(IIssue Issue);
+
+		/// <summary>
 		/// Searches for open issues
 		/// </summary>
 		/// <param name="Ids">List of issue ids to include</param>
+		/// <param name="UserId">User to filter issues returned by</param>
 		/// <param name="StreamId">The stream to return issues for</param>
 		/// <param name="MinChange">The minimum changelist number to include</param>
 		/// <param name="MaxChange">The maximum changelist number to include</param>
@@ -87,7 +95,7 @@ namespace HordeServer.Services
 		/// <param name="Index">Index within the results to return</param>
 		/// <param name="Count">Number of results</param>
 		/// <returns>List of streams open in the given stream at the given changelist</returns>
-		Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? Ids = null, StreamId? StreamId = null, int? MinChange = null, int? MaxChange = null, bool? Resolved = null, int? Index = null, int? Count = null);
+		Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? Ids = null, ObjectId? UserId = null, StreamId? StreamId = null, int? MinChange = null, int? MaxChange = null, bool? Resolved = null, int? Index = null, int? Count = null);
 
 		/// <summary>
 		/// Searches for open issues affecting a job
@@ -98,11 +106,12 @@ namespace HordeServer.Services
 		/// <param name="StepId"></param>
 		/// <param name="BatchId"></param>
 		/// <param name="LabelIdx"></param>
+		/// <param name="UserId"></param>
 		/// <param name="Resolved">Whether to include results that are resolved</param>
 		/// <param name="Index">Index within the results to return</param>
 		/// <param name="Count">Number of results</param>
 		/// <returns></returns>
-		Task<List<IIssue>> FindIssuesForJobAsync(int[]? Ids, IJob Job, IGraph Graph, SubResourceId? StepId, SubResourceId? BatchId, int? LabelIdx, bool? Resolved, int Index, int Count);
+		Task<List<IIssue>> FindIssuesForJobAsync(int[]? Ids, IJob Job, IGraph Graph, SubResourceId? StepId = null, SubResourceId? BatchId = null, int? LabelIdx = null, ObjectId? UserId = null, bool? Resolved = null, int? Index = null, int? Count = null);
 
 		/// <summary>
 		/// Find the events for a particular issue
@@ -119,14 +128,14 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="Id">The current issue id</param>
 		/// <param name="Summary">New summary for the issue</param>
-		/// <param name="Owner">New owner of the issue</param>
-		/// <param name="NominatedBy">Person that nominated the new owner</param>
+		/// <param name="OwnerId">New owner of the issue</param>
+		/// <param name="NominatedById">Person that nominated the new owner</param>
 		/// <param name="Acknowledged">Whether the issue has been acknowledged</param>
-		/// <param name="DeclinedBy">Name of the user that has declined this issue</param>
+		/// <param name="DeclinedById">Name of the user that has declined this issue</param>
 		/// <param name="FixChange">Fix changelist for the issue</param>
-		/// <param name="Resolved">Whether the issue has been resolved</param>
+		/// <param name="ResolvedById">Whether the issue has been resolved</param>
 		/// <returns>True if the issue was updated</returns>
-		Task<bool> UpdateIssueAsync(int Id, string? Summary = null, string? Owner = null, string? NominatedBy = null, bool? Acknowledged = null, string? DeclinedBy = null, int? FixChange = null, bool? Resolved = null);
+		Task<bool> UpdateIssueAsync(int Id, string? Summary = null, ObjectId? OwnerId = null, ObjectId? NominatedById = null, bool? Acknowledged = null, ObjectId? DeclinedById = null, int? FixChange = null, ObjectId? ResolvedById = null);
 
 		/// <summary>
 		/// Marks a step as complete

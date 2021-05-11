@@ -58,6 +58,11 @@ namespace HordeServer.Controllers
 		private readonly ILogEventCollection LogEventCollection;
 
 		/// <summary>
+		/// Collection of users
+		/// </summary>
+		private readonly IUserCollection UserCollection;
+
+		/// <summary>
 		/// The log file service
 		/// </summary>
 		private readonly ILogFileService LogFileService;
@@ -80,16 +85,18 @@ namespace HordeServer.Controllers
 		/// <param name="StreamService">Collection of stream documents</param>
 		/// <param name="UgsMetadataCollection">Collection of UGS metadata documents</param>
 		/// <param name="LogEventCollection">Collection of log event documents</param>
+		/// <param name="UserCollection">Collection of user documents</param>
 		/// <param name="LogFileService">The log file service</param>
 		/// <param name="OptionsMonitor">The server settings</param>
 		/// <param name="Logger">Logger</param>
-		public UgsController(IIssueService IssueService, JobService JobService, StreamService StreamService, IUgsMetadataCollection UgsMetadataCollection, ILogEventCollection LogEventCollection, ILogFileService LogFileService, IOptionsMonitor<ServerSettings> OptionsMonitor, ILogger<UgsController> Logger)
+		public UgsController(IIssueService IssueService, JobService JobService, StreamService StreamService, IUgsMetadataCollection UgsMetadataCollection, ILogEventCollection LogEventCollection, IUserCollection UserCollection, ILogFileService LogFileService, IOptionsMonitor<ServerSettings> OptionsMonitor, ILogger<UgsController> Logger)
 		{
 			this.IssueService = IssueService;
 			this.JobService = JobService;
 			this.StreamService = StreamService;
 			this.UgsMetadataCollection = UgsMetadataCollection;
 			this.LogEventCollection = LogEventCollection;
+			this.UserCollection = UserCollection;
 			this.LogFileService = LogFileService;
 			this.Settings = OptionsMonitor.CurrentValue;
 			this.Logger = Logger;
@@ -183,6 +190,8 @@ namespace HordeServer.Controllers
 		[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "<Pending>")]
 		public async Task<ActionResult<List<GetUgsIssueResponse>>> GetIssuesAsync([FromQuery] string? User = null, [FromQuery] bool IncludeResolved = false, [FromQuery] int MaxResults = 100)
 		{
+			IUser? UserInfo = (User != null) ? await UserCollection.FindUserByLoginAsync(User) : null;
+
 			List<GetUgsIssueResponse> Responses = new List<GetUgsIssueResponse>();
 			if (IncludeResolved)
 			{
@@ -190,8 +199,8 @@ namespace HordeServer.Controllers
 				foreach(IIssue Issue in Issues)
 				{
 					IIssueDetails Details = await IssueService.GetIssueDetailsAsync(Issue);
-					bool bNotify = User != null && Issue.Suspects.Any(x => x.Author.Equals(User, StringComparison.OrdinalIgnoreCase));
-					Responses.Add(CreateIssueResponse(Details, bNotify));
+					bool bNotify = UserInfo != null && Details.Suspects.Any(x => x.AuthorId == UserInfo.Id);
+					Responses.Add(await CreateIssueResponseAsync(Details, bNotify));
 				}
 			}
 			else
@@ -205,8 +214,8 @@ namespace HordeServer.Controllers
 
 					if (CachedOpenIssue.ShowNotifications())
 					{
-						bool bNotify = User != null && CachedOpenIssue.IncludeForUser(User);
-						Responses.Add(CreateIssueResponse(CachedOpenIssue, bNotify));
+						bool bNotify = UserInfo != null && CachedOpenIssue.IncludeForUser(UserInfo.Id);
+						Responses.Add(await CreateIssueResponseAsync(CachedOpenIssue, bNotify));
 					}
 				}
 			}
@@ -230,7 +239,7 @@ namespace HordeServer.Controllers
 				return NotFound();
 			}
 
-			return PropertyFilter.Apply(CreateIssueResponse(Issue, false), Filter);
+			return PropertyFilter.Apply(await CreateIssueResponseAsync(Issue, false), Filter);
 		}
 
 		/// <summary>
@@ -312,13 +321,17 @@ namespace HordeServer.Controllers
 		/// <summary>
 		/// Gets the URL for a failing step in the
 		/// </summary>
-		/// <param name="Issue">The issue to get a URL for</param>
+		/// <param name="Details">The issue to get a URL for</param>
 		/// <param name="bNotify">Whether to show notifications for this issue</param>
 		/// <returns>The issue response</returns>
-		GetUgsIssueResponse CreateIssueResponse(IIssueDetails Issue, bool bNotify)
+		async Task<GetUgsIssueResponse> CreateIssueResponseAsync(IIssueDetails Details, bool bNotify)
 		{
-			Uri? BuildUrl = GetIssueBuildUrl(Issue);
-			return new GetUgsIssueResponse(Issue, bNotify, BuildUrl);
+			Uri? BuildUrl = GetIssueBuildUrl(Details);
+
+			IUser? Owner = Details.Issue.OwnerId.HasValue ? await UserCollection.GetCachedUserAsync(Details.Issue.OwnerId.Value) : null;
+			IUser? NominatedBy = Details.Issue.NominatedById.HasValue ? await UserCollection.GetCachedUserAsync(Details.Issue.NominatedById.Value) : null;
+
+			return new GetUgsIssueResponse(Details, Owner, NominatedBy, bNotify, BuildUrl);
 		}
 
 		/// <summary>
@@ -368,7 +381,35 @@ namespace HordeServer.Controllers
 		[Route("/ugs/api/issues/{IssueId}")]
 		public async Task<ActionResult> UpdateIssueAsync(int IssueId, [FromBody] UpdateUgsIssueRequest Request)
 		{
-			if (!await IssueService.UpdateIssueAsync(IssueId, null, Request.Owner, Request.NominatedBy, Request.Acknowledged, Request.DeclinedBy, Request.FixChange, Request.Resolved))
+			ObjectId? NewOwnerId = null;
+			if (!String.IsNullOrEmpty(Request.Owner))
+			{
+				NewOwnerId = (await UserCollection.FindOrAddUserByLoginAsync(Request.Owner))?.Id;
+			}
+
+			ObjectId? NewNominatedById = null;
+			if (!String.IsNullOrEmpty(Request.NominatedBy))
+			{
+				NewNominatedById = (await UserCollection.FindOrAddUserByLoginAsync(Request.NominatedBy))?.Id;
+			}
+
+			ObjectId? NewDeclinedById = null;
+			if (!String.IsNullOrEmpty(Request.DeclinedBy))
+			{
+				NewDeclinedById = (await UserCollection.FindOrAddUserByLoginAsync(Request.DeclinedBy))?.Id;
+			}
+
+			ObjectId? NewResolvedById = null;
+			if (!String.IsNullOrEmpty(Request.ResolvedBy))
+			{
+				NewResolvedById = (await UserCollection.FindOrAddUserByLoginAsync(Request.ResolvedBy))?.Id;
+			}
+			if (NewResolvedById == null && Request.Resolved.HasValue)
+			{
+				NewResolvedById = Request.Resolved.Value ? IIssue.ResolvedByUnknownId : ObjectId.Empty;
+			}
+
+			if (!await IssueService.UpdateIssueAsync(IssueId, null, NewOwnerId, NewNominatedById, Request.Acknowledged, NewDeclinedById, Request.FixChange, NewResolvedById))
 			{
 				return NotFound();
 			}

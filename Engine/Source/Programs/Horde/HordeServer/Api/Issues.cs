@@ -27,6 +27,11 @@ namespace HordeServer.Api
 		public int Change { get; set; }
 
 		/// <summary>
+		/// Severity of the issue in this step
+		/// </summary>
+		public IssueSeverity Severity { get; set; }
+
+		/// <summary>
 		/// Name of the job containing this step
 		/// </summary>
 		public string JobName { get; set; }
@@ -63,6 +68,7 @@ namespace HordeServer.Api
 		public GetIssueStepResponse(IIssueStep IssueStep)
 		{
 			this.Change = IssueStep.Change;
+			this.Severity = IssueStep.Severity;
 			this.JobName = IssueStep.JobName;
 			this.JobId = IssueStep.JobId.ToString();
 			this.BatchId = IssueStep.BatchId.ToString();
@@ -417,6 +423,11 @@ namespace HordeServer.Api
 		public string? Owner { get; set; }
 
 		/// <summary>
+		/// User id of the owner
+		/// </summary>
+		public string? OwnerId { get; set; }
+
+		/// <summary>
 		/// User that nominated the current owner
 		/// </summary>
 		public string? NominatedBy { get; set; }
@@ -435,6 +446,26 @@ namespace HordeServer.Api
 		/// Time at which the issue was resolved
 		/// </summary>
 		public DateTime? ResolvedAt { get; set; }
+
+		/// <summary>
+		/// Name of the user that resolved the issue
+		/// </summary>
+		public string? ResolvedBy { get; set; }
+
+		/// <summary>
+		/// User id of the person that resolved the issue
+		/// </summary>
+		public string? ResolvedById { get; set; }
+
+		/// <summary>
+		/// Time at which the issue was verified
+		/// </summary>
+		public DateTime? VerifiedAt { get; set; }
+
+		/// <summary>
+		/// Time that the issue was last seen
+		/// </summary>
+		public DateTime LastSeenAt { get; set; }
 
 		/// <summary>
 		/// List of stream paths affected by this issue
@@ -480,11 +511,16 @@ namespace HordeServer.Api
 			this.RetrievedAt = DateTime.UtcNow;
 			this.Summary = String.IsNullOrEmpty(Issue.UserSummary)? Issue.Summary : Issue.UserSummary;
 			this.Severity = Issue.Severity;
-			this.Owner = Issue.Owner;
-			this.NominatedBy = Issue.NominatedBy;
+			this.Owner = Details.Owner?.Login;
+			this.OwnerId = (Details.Owner == null)? null : Details.Owner.Id.ToString();
+			this.NominatedBy = Details.NominatedBy?.Login;
 			this.AcknowledgedAt = Issue.AcknowledgedAt;
 			this.FixChange = Issue.FixChange;
 			this.ResolvedAt = Issue.ResolvedAt;
+			this.ResolvedBy = Details.ResolvedBy?.Login;
+			this.ResolvedById = (Details.ResolvedBy == null) ? null : Details.ResolvedBy.Id.ToString();
+			this.VerifiedAt = Issue.VerifiedAt;
+			this.LastSeenAt = Issue.LastSeenAt;
 			this.Streams = Details.Spans.Select(x => x.StreamName).Distinct().ToList()!;
 			this.ResolvedStreams = new List<string>();
 			this.UnresolvedStreams = new List<string>();
@@ -500,7 +536,7 @@ namespace HordeServer.Api
 					this.UnresolvedStreams.Add(Stream.Key.ToString());
 				}
 			}
-			this.PrimarySuspects = Issue.Suspects.Select(x => x.Author).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+			this.PrimarySuspects = Details.SuspectUsers.Where(x => x.Login != null).Select(x => x.Login).ToList();
 			this.ShowDesktopAlerts = ShowDesktopAlerts;
 		}
 	}

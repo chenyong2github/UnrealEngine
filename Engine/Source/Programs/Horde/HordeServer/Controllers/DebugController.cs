@@ -38,6 +38,7 @@ using HordeServer.Services.Impl;
 using Microsoft.Net.Http.Headers;
 using HordeServer.Storage;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using StatsdClient;
 
 namespace HordeServer.Controllers
@@ -53,7 +54,7 @@ namespace HordeServer.Controllers
 		/// The connection tracker service singleton
 		/// </summary>
 		RequestTrackerService RequestTrackerService;
-		
+
 		IHostApplicationLifetime ApplicationLifetime;
 
 		IDogStatsd DogStatsd;
@@ -91,7 +92,7 @@ namespace HordeServer.Controllers
 			Content.Append("</pre></body></html>");
 			return new ContentResult { ContentType = "text/html", StatusCode = (int)HttpStatusCode.OK, Content = Content.ToString() };
 		}
-		
+
 		/// <summary>
 		/// Waits specified number of milliseconds and then returns a response
 		/// Used for testing timeouts proxy settings.
@@ -105,7 +106,7 @@ namespace HordeServer.Controllers
 			string Content = $"Waited {WaitTimeMs} ms. " + new Random().Next(0, 10000000);
 			return new ContentResult { ContentType = "text/plain", StatusCode = (int)HttpStatusCode.OK, Content = Content };
 		}
-		
+
 		/// <summary>
 		/// Waits specified number of milliseconds and then throws an exception
 		/// Used for testing graceful shutdown and interruption of outstanding requests.
@@ -118,7 +119,7 @@ namespace HordeServer.Controllers
 			await Task.Delay(WaitTimeMs);
 			throw new Exception("Test exception triggered by debug controller!");
 		}
-		
+
 		/// <summary>
 		/// Trigger an increment of a DogStatsd metric
 		/// </summary>
@@ -130,7 +131,7 @@ namespace HordeServer.Controllers
 			DogStatsd.Increment("hordeMetricTest", Value);
 			return Ok("Incremented metric 'hordeMetricTest' Type: " + DogStatsd.GetType());
 		}
-		
+
 		/// <summary>
 		/// Display metrics related to the .NET runtime
 		/// </summary>
@@ -145,14 +146,14 @@ namespace HordeServer.Controllers
 
 			int BusyIoThreads = MaxIoThreads - FreeIoThreads;
 			int BusyWorkerThreads = MaxWorkerThreads - FreeWorkerThreads;
-			
+
 			StringBuilder Content = new StringBuilder();
 			Content.AppendLine("Threads:");
 			Content.AppendLine("-------------------------------------------------------------");
 			Content.AppendLine("Worker busy={0,-5} free={1,-5} min={2,-5} max={3,-5}", BusyWorkerThreads, FreeWorkerThreads, MinWorkerThreads, MaxWorkerThreads);
 			Content.AppendLine("  IOCP busy={0,-5} free={1,-5} min={2,-5} max={3,-5}", BusyIoThreads, FreeIoThreads, MinIoThreads, MaxWorkerThreads);
 
-			
+
 			NumberFormatInfo Nfi = (NumberFormatInfo)CultureInfo.InvariantCulture.NumberFormat.Clone();
 			Nfi.NumberGroupSeparator = " ";
 
@@ -160,7 +161,7 @@ namespace HordeServer.Controllers
 			{
 				return (Number / 1024 / 1024).ToString("#,0", Nfi) + " MB";
 			}
-			
+
 			GCMemoryInfo GcMemoryInfo = GC.GetGCMemoryInfo();
 			Content.AppendLine("");
 			Content.AppendLine("");
@@ -175,7 +176,7 @@ namespace HordeServer.Controllers
 			Content.AppendLine("               Memory Load: " + FormatBytes(GcMemoryInfo.MemoryLoadBytes));
 			Content.AppendLine("    Total available memory: " + FormatBytes(GcMemoryInfo.TotalAvailableMemoryBytes));
 			Content.AppendLine("High memory load threshold: " + FormatBytes(GcMemoryInfo.HighMemoryLoadThresholdBytes));
-			
+
 			return Ok(Content.ToString());
 		}
 
@@ -213,9 +214,9 @@ namespace HordeServer.Controllers
 			Content.AppendLine("<th>Age</th>");
 			Content.AppendLine("</tr>");
 
-			List<KeyValuePair<string,TrackedRequest>> Requests = RequestTrackerService.GetRequestsInProgress().ToList();
+			List<KeyValuePair<string, TrackedRequest>> Requests = RequestTrackerService.GetRequestsInProgress().ToList();
 			Requests.Sort((A, B) => A.Value.StartedAt.CompareTo(B.Value.StartedAt));
-			
+
 			foreach (KeyValuePair<string, TrackedRequest> Entry in Requests)
 			{
 				Content.Append("<tr>");
@@ -324,16 +325,21 @@ namespace HordeServer.Controllers
 		/// The storage provider
 		/// </summary>
 		IStorageBackend StorageProvider;
-		
+
 		/// <summary>
 		/// Perforce client
 		/// </summary>
 		IPerforceService Perforce;
-		
+
 		/// <summary>
 		/// Fleet manager
 		/// </summary>
 		IFleetManager FleetManager;
+
+		/// <summary>
+		/// Settings
+		/// </summary>
+		private IOptionsMonitor<ServerSettings> Settings;
 
 		/// <summary>
 		/// Constructor
@@ -354,7 +360,8 @@ namespace HordeServer.Controllers
 		/// <param name="StorageProvider">The storage provider</param>
 		/// <param name="Perforce">Perforce client</param>
 		/// <param name="FleetManager">The default fleet manager</param>
-		public SecureDebugController(AclService AclService, DatabaseService DatabaseService, JobTaskSource JobTaskSource, ISingletonDocument<Globals> GlobalsSingleton, IPoolCollection PoolCollection, IProjectCollection ProjectCollection, IAgentCollection AgentCollection, ISessionCollection SessionCollection, ILeaseCollection LeaseCollection, ITemplateCollection TemplateCollection, IStreamCollection StreamCollection, IGraphCollection GraphCollection, ILogFileCollection LogFileCollection, IStorageBackend StorageProvider, IPerforceService Perforce, IFleetManager FleetManager)
+		/// <param name="Settings">Settings</param>
+		public SecureDebugController(AclService AclService, DatabaseService DatabaseService, JobTaskSource JobTaskSource, ISingletonDocument<Globals> GlobalsSingleton, IPoolCollection PoolCollection, IProjectCollection ProjectCollection, IAgentCollection AgentCollection, ISessionCollection SessionCollection, ILeaseCollection LeaseCollection, ITemplateCollection TemplateCollection, IStreamCollection StreamCollection, IGraphCollection GraphCollection, ILogFileCollection LogFileCollection, IStorageBackend StorageProvider, IPerforceService Perforce, IFleetManager FleetManager, IOptionsMonitor<ServerSettings> Settings)
 		{
 			this.AclService = AclService;
 			this.DatabaseService = DatabaseService;
@@ -372,6 +379,7 @@ namespace HordeServer.Controllers
 			this.StorageProvider = StorageProvider;
 			this.Perforce = Perforce;
 			this.FleetManager = FleetManager;
+			this.Settings = Settings;
 		}
 
 		/// <summary>
@@ -603,6 +611,27 @@ namespace HordeServer.Controllers
 
 			return await JobTaskSource.GetStatus();
 		}
+		
+		/// <summary>
+		/// Returns the complete config Horde uses
+		/// </summary>
+		/// <returns>Information about the config</returns>
+		[HttpGet]
+		[Route("/api/v1/debug/config")]
+		public async Task<ActionResult> GetConfig()
+		{
+			if (!await AclService.AuthorizeAsync(AclAction.AdminRead, User))
+			{
+				return Forbid();
+			}
+
+			JsonSerializerOptions Options = new JsonSerializerOptions
+			{
+				WriteIndented = true
+			};
+			
+			return Ok(JsonSerializer.Serialize(Settings.CurrentValue, Options));
+		}
 
 		/// <summary>
 		/// Queries for all graphs
@@ -657,7 +686,7 @@ namespace HordeServer.Controllers
 			}
 
 			ReadOnlyMemory<byte>? Data = await StorageProvider.ReadAsync(Path);
-			if(Data == null)
+			if (Data == null)
 			{
 				return NotFound();
 			}
@@ -752,7 +781,7 @@ namespace HordeServer.Controllers
 			List<Dictionary<string, object>> Documents = await Collection.Find(Filter ?? "{}").Skip(Index).Limit(Count).ToListAsync();
 			return Documents;
 		}
-		
+
 		/// <summary>
 		/// Create P4 login ticket for the specified username
 		/// </summary>
@@ -773,7 +802,162 @@ namespace HordeServer.Controllers
 
 			return await Perforce.CreateTicket(Username);
 		}
-				
+
+
+		/// <summary>
+		/// Debugs perforce service commands
+		/// </summary>
+		/// <returns>Perforce ticket</returns>
+		[HttpGet]
+		[Route("/api/v1/debug/perforce/commands")]
+		public async Task<ActionResult<string>> Get()
+		{
+			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
+			{
+				return Forbid();
+			}
+
+			const string DevBuild = "//UE4/Dev-Build";
+			// a test CL I have setup in Dev-Build
+			const int TestCL = 16242697;
+
+			string? PerforceUser = User.GetPerforceUser();
+
+			if (string.IsNullOrEmpty(PerforceUser))
+			{
+				throw new Exception("Perforce user required");
+			}
+
+			Dictionary<string, string> Results = new Dictionary<string, string>();
+
+			int NewChangeId = await Perforce.CreateNewChangeAsync("//UE4/Private-Build", "Counter.txt");
+
+			List<ChangeDetails> ChangeDetails = await Perforce.GetChangeDetailsAsync("//UE4/Private-Build", new int[]{NewChangeId}, PerforceUser);
+
+			Results.Add("CreateNewChangeAsync", $"{NewChangeId} : {ChangeDetails[0].Description}"); 
+
+			await Perforce.UpdateChangelistDescription(TestCL, $"Updated Description: New Change CL was {NewChangeId}");			
+
+			ChangeDetails = await Perforce.GetChangeDetailsAsync(DevBuild, new int[]{TestCL}, PerforceUser);
+
+			Results.Add("UpdateChangelistDescription", $"{TestCL} : {ChangeDetails[0].Description}"); 
+
+			int LatestChange = await Perforce.GetLatestChangeAsync(DevBuild, PerforceUser);
+			Results.Add("GetLatestChangeAsync", LatestChange.ToString(CultureInfo.InvariantCulture));
+
+			int CodeChange = await Perforce.GetCodeChangeAsync(DevBuild, LatestChange);
+			Results.Add("GetCodeChangeAsync", CodeChange.ToString(CultureInfo.InvariantCulture));
+			
+			PerforceUserInfo? UserInfo =  await Perforce.GetUserInfoAsync(PerforceUser);
+
+			if (UserInfo == null)
+			{
+				Results.Add("GetUserInfoAsync", "null");
+			}
+			else
+			{
+				Results.Add("GetUserInfoAsync", $"{UserInfo.Name} : {UserInfo.Email}");
+			}
+
+			// changes
+			List<ChangeSummary> Changes = await Perforce.GetChangesAsync(DevBuild, null, LatestChange, 10, PerforceUser);
+			int Count = 0;
+			foreach (ChangeSummary Summary in Changes)
+			{
+				Results.Add($"GetChangesAsync Result {Count++}", $"{Summary.Number} : {Summary.Author} - {Summary.Description}");
+			}
+
+			ChangeDetails = await Perforce.GetChangeDetailsAsync(DevBuild, Changes.Select(Change => Change.Number).ToArray(), PerforceUser);			
+			Count = 0;
+			foreach (ChangeDetails Details in ChangeDetails)
+			{
+				Results.Add($"GetChangeDetailsAsync Result {Count++}", $"{Details.Number} : {Details.Author} - {Details.Files.ToJson()}");
+			}
+			
+			String Ticket = "Failed (Expected if not running service account)";
+			try 
+			{
+				await Perforce.CreateTicket(PerforceUser);
+				Ticket = "Success";
+			}
+			catch 
+			{
+
+			}
+
+			Results.Add($"CreateTicket", $"{Ticket}");
+			List<FileSummary> FileSummaries = await Perforce.FindFilesAsync(ChangeDetails.SelectMany(Details => Details.Files).Select(File => $"{DevBuild}{File}"));
+			Count = 0;
+			foreach (FileSummary File in FileSummaries)
+			{
+				Results.Add($"FindFilesAsync Result {Count++}", $"{File.Change} : {File.DepotPath} : {File.Exists}");
+			}
+
+			// print async
+
+			byte[] Bytes = await Perforce.PrintAsync($"{DevBuild}/RunUAT.bat");
+			Results.Add($"PrintAsync: {DevBuild}/RunUAT.bat ",  $"{System.Text.Encoding.Default.GetString(Bytes)}");
+
+			Bytes = await Perforce.PrintAsync($"{DevBuild}/RunUAT.bat@13916380");
+			Results.Add($"PrintAsync: {DevBuild}/RunUAT.bat@13916380",  $"{System.Text.Encoding.Default.GetString(Bytes)}");
+
+
+			// DuplicateShelvedChangeAsync is disabled due to issue with p4 librarian
+			/*
+			// need to be running as service account for these
+
+			int? DuplicateCL = null;
+
+			int ShelvedChangeOnDevBuild = 16158333;
+
+			try 
+			{
+				DuplicateCL = await Perforce.DuplicateShelvedChangeAsync(ShelvedChangeOnDevBuild);
+			}
+			catch 
+			{
+				Results.Add($"DuplicateShelvedChangeAsync",  "Failed - expected unless using service account");
+			}
+
+			if (DuplicateCL.HasValue)
+			{
+				// Note change client much exist for the update
+				ChangeDetails = await Perforce.GetChangeDetailsAsync(DevBuild, new int[]{NewChangeId}, PerforceUser);
+
+				Results.Add("UpdateChangelistDescription - PreUpdate", $"{DuplicateCL} : {ChangeDetails[0].Description}"); 
+
+				try 
+				{
+					await Perforce.UpdateChangelistDescription(DuplicateCL.Value, "Updated Description from Horde");
+
+					ChangeDetails = await Perforce.GetChangeDetailsAsync(DevBuild, new int[]{NewChangeId}, PerforceUser);
+
+					Results.Add("UpdateChangelistDescription - PostUpdate", $"{DuplicateCL} : {ChangeDetails[0].Description}"); 
+				}
+				catch 
+				{
+					Results.Add("UpdateChangelistDescription - Faile", $"Client from change {DuplicateCL} must exist"); 
+				}
+
+				await Perforce.DeleteShelvedChangeAsync(DuplicateCL.Value);
+
+				ChangeDetails = await Perforce.GetChangeDetailsAsync(DevBuild,new int[] {DuplicateCL.Value} , PerforceUser);
+
+				Results.Add("GetChangeDetailsAsync - After Delete", $"ChangeDetails.Count: {ChangeDetails.Count}"); 
+
+			}
+			*/			
+			StringBuilder Content = new StringBuilder();
+			Content.AppendLine("<html><body><pre>");
+			foreach (KeyValuePair<string, string> Pair in Results)
+			{
+				Content.AppendLine(HttpUtility.HtmlEncode($"{Pair.Key}={Pair.Value}"));
+			}
+			Content.Append("</pre></body></html>");
+			return new ContentResult { ContentType = "text/html", StatusCode = (int)HttpStatusCode.OK, Content = Content.ToString() };
+
+		}
+
 		/// <summary>
 		/// Debugging fleet managers
 		/// </summary>
@@ -786,7 +970,7 @@ namespace HordeServer.Controllers
 			{
 				return Forbid();
 			}
-			
+
 			if (PoolId == null)
 			{
 				return BadRequest("Missing 'PoolId' query parameter");
@@ -797,12 +981,12 @@ namespace HordeServer.Controllers
 			{
 				return BadRequest($"Pool with ID '{PoolId}' not found");
 			}
-			
+
 			if (!(ChangeType == "expand" || ChangeType == "shrink"))
 			{
 				return BadRequest("Missing 'ChangeType' query parameter and/or must be set to 'expand' or 'shrink'");
 			}
-			
+
 			if (Count == null || Count.Value <= 0)
 			{
 				return BadRequest("Missing 'Count' query parameter and/or must be greater than 0");
@@ -810,7 +994,7 @@ namespace HordeServer.Controllers
 
 			List<IAgent> Agents = new List<IAgent>();
 			string Message = "No operation";
-				
+
 			if (ChangeType == "expand")
 			{
 				await FleetManager.ExpandPool(Pool, Agents, Count.Value);
@@ -823,7 +1007,7 @@ namespace HordeServer.Controllers
 				await FleetManager.ShrinkPool(Pool, Agents, Count.Value);
 				Message = $"Shrank pool {Pool.Name} by {Count}";
 			}
-			
+
 			return new ContentResult { ContentType = "text/plain", StatusCode = (int)HttpStatusCode.OK, Content = Message };
 		}
 	}

@@ -25,11 +25,31 @@ namespace HordeServer.Utilities
 		/// <returns>New query</returns>
 		public static IFindFluent<TDocument, TProjection> Range<TDocument, TProjection>(this IFindFluent<TDocument, TProjection> Query, int? Index, int? Count)
 		{
-			if (Index != null)
+			if (Index != null && Index.Value != 0)
 			{
 				Query = Query.Skip(Index.Value);
 			}
 			if(Count != null)
+			{
+				Query = Query.Limit(Count.Value);
+			}
+			return Query;
+		}
+
+		/// <summary>
+		/// Filters the documents returned from a search
+		/// </summary>
+		/// <param name="Query">The query to filter</param>
+		/// <param name="Index">Index of the first document to return</param>
+		/// <param name="Count">Number of documents to return</param>
+		/// <returns>New query</returns>
+		public static IAggregateFluent<TDocument> Range<TDocument>(this IAggregateFluent<TDocument> Query, int? Index, int? Count)
+		{
+			if (Index != null && Index.Value != 0)
+			{
+				Query = Query.Skip(Index.Value);
+			}
+			if (Count != null)
 			{
 				Query = Query.Limit(Count.Value);
 			}
@@ -78,6 +98,37 @@ namespace HordeServer.Utilities
 					return false;
 				}
 				else
+				{
+					throw;
+				}
+			}
+		}
+
+		/// <summary>
+		/// Attempts to insert a document into a collection, handling the error case that a document with the given key already exists
+		/// </summary>
+		/// <typeparam name="TDocument"></typeparam>
+		/// <param name="Collection">Collection to insert into</param>
+		/// <param name="NewDocuments">The document to insert</param>
+		public static async Task InsertManyIgnoreDuplicatesAsync<TDocument>(this IMongoCollection<TDocument> Collection, List<TDocument> NewDocuments)
+		{
+			try
+			{
+				if (NewDocuments.Count > 0)
+				{
+					await Collection.InsertManyAsync(NewDocuments, new InsertManyOptions { IsOrdered = false });
+				}
+			}
+			catch (MongoWriteException Ex)
+			{
+				if (Ex.WriteError.Category != ServerErrorCategory.DuplicateKey)
+				{
+					throw;
+				}
+			}
+			catch (MongoBulkWriteException Ex)
+			{
+				if(Ex.WriteErrors.Any(x => x.Category != ServerErrorCategory.DuplicateKey))
 				{
 					throw;
 				}

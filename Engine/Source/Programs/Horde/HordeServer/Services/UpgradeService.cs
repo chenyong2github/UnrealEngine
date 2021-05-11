@@ -81,13 +81,13 @@ namespace HordeServer.Services
 
 				if (SchemaVersion == 3)
 				{
-					IJobCollection JobCollection = ServiceProvider.GetRequiredService<IJobCollection>();
+					IJobCollection JobCollection = ServiceProvider.GetService<IJobCollection>();
 					await JobCollection.UpgradeDocumentsAsync();
 				}
 				if (SchemaVersion == 4)
 				{
 					UserCollectionV1 UserCollectionV1 = new UserCollectionV1(ServiceProvider.GetRequiredService<DatabaseService>());
-					UserCollectionV2 UserCollectionV2 = new UserCollectionV2(ServiceProvider.GetRequiredService<DatabaseService>(), ServiceProvider.GetRequiredService<ILogger<UserCollectionV2>>());
+					using UserCollectionV2 UserCollectionV2 = new UserCollectionV2(ServiceProvider.GetRequiredService<DatabaseService>(), ServiceProvider.GetRequiredService<ILogger<UserCollectionV2>>());
 					await UserCollectionV2.ResaveDocumentsAsync(UserCollectionV1);
 				}
 

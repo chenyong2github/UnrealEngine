@@ -25,7 +25,7 @@ namespace HordeAgent.Parser.Matchers
 
 			int LineCount = 0;
 			bool bIsWarning = true;
-			while (Cursor.IsMatch(LineCount, @": In function |: undefined reference to |undefined symbol|^\s*(ld|ld.lld):|[^a-zA-Z]ld: |^\s*>>>"))
+			while (Cursor.IsMatch(LineCount, @": undefined reference to |undefined symbol|^\s*(ld|ld.lld):|[^a-zA-Z]ld: |^\s*>>>"))
 			{
 				bIsWarning &= Cursor.IsMatch("warning:");
 				LineCount++;

@@ -24,6 +24,12 @@ namespace HordeServer.Utilities
 	public struct StringId<T> : IEquatable<StringId<T>>
 	{
 		/// <summary>
+		/// Empty string
+		/// </summary>
+		[SuppressMessage("Design", "CA1000:Do not declare static members on generic types", Justification = "<Pending>")]
+		public static StringId<T> Empty { get; } = new StringId<T>(String.Empty);
+
+		/// <summary>
 		/// The text representing this id
 		/// </summary>
 		readonly string Text;

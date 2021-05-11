@@ -183,6 +183,11 @@ namespace HordeServer.Collections
 		public int Change { get; set; }
 
 		/// <summary>
+		/// Severity of the issue
+		/// </summary>
+		public IssueSeverity Severity { get; set; }
+
+		/// <summary>
 		/// Name of the job
 		/// </summary>
 		public string JobName { get; set; }
@@ -221,6 +226,7 @@ namespace HordeServer.Collections
 		/// Constructor
 		/// </summary>
 		/// <param name="Change">The changelist number for this job</param>
+		/// <param name="Severity">Severity of the issue in this step</param>
 		/// <param name="JobName">The job name</param>
 		/// <param name="JobId">The unique job id</param>
 		/// <param name="BatchId">The batch id</param>
@@ -228,9 +234,10 @@ namespace HordeServer.Collections
 		/// <param name="StepTime">Time that the step started</param>
 		/// <param name="LogId">Unique id of the log file for this step</param>
 		/// <param name="NotifySuspects">Whether to notify suspects for this step</param>
-		public NewIssueStepData(int Change, string JobName, ObjectId JobId, SubResourceId BatchId, SubResourceId StepId, DateTime StepTime, ObjectId? LogId, bool NotifySuspects)
+		public NewIssueStepData(int Change, IssueSeverity Severity, string JobName, ObjectId JobId, SubResourceId BatchId, SubResourceId StepId, DateTime StepTime, ObjectId? LogId, bool NotifySuspects)
 		{
 			this.Change = Change;
+			this.Severity = Severity;
 			this.JobName = JobName;
 			this.JobId = JobId;
 			this.BatchId = BatchId;
@@ -246,9 +253,10 @@ namespace HordeServer.Collections
 		/// <param name="Job">The job being built</param>
 		/// <param name="Batch">Batch of the job for the step</param>
 		/// <param name="Step">The step being built</param>
+		/// <param name="Severity">Severity of the issue in this step</param>
 		/// <param name="NotifySuspects">Whether to notify suspects for this step failing</param>
-		public NewIssueStepData(IJob Job, IJobStepBatch Batch, IJobStep Step, bool NotifySuspects)
-			: this(Job.Change, Job.Name, Job.Id, Batch.Id, Step.Id, Step.StartTimeUtc ?? default, Step.LogId, NotifySuspects)
+		public NewIssueStepData(IJob Job, IJobStepBatch Batch, IJobStep Step, IssueSeverity Severity, bool NotifySuspects)
+			: this(Job.Change, Severity, Job.Name, Job.Id, Batch.Id, Step.Id, Step.StartTimeUtc ?? default, Step.LogId, NotifySuspects)
 		{
 		}
 
@@ -257,7 +265,7 @@ namespace HordeServer.Collections
 		/// </summary>
 		/// <param name="JobStepRef">The jobstep reference</param>
 		public NewIssueStepData(IJobStepRef JobStepRef)
-			: this(JobStepRef.Change, JobStepRef.JobName, JobStepRef.Id.JobId, JobStepRef.Id.BatchId, JobStepRef.Id.StepId, JobStepRef.StartTimeUtc, JobStepRef.LogId, false)
+			: this(JobStepRef.Change, IssueSeverity.Unspecified, JobStepRef.JobName, JobStepRef.Id.JobId, JobStepRef.Id.BatchId, JobStepRef.Id.StepId, JobStepRef.StartTimeUtc, JobStepRef.LogId, false)
 		{
 		}
 	}
@@ -270,7 +278,7 @@ namespace HordeServer.Collections
 		/// <summary>
 		/// Author of the changelist
 		/// </summary>
-		public string Author { get; set; }
+		public ObjectId AuthorId { get; set; }
 
 		/// <summary>
 		/// The submitted changelist
@@ -285,12 +293,12 @@ namespace HordeServer.Collections
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Author">Author of the change</param>
+		/// <param name="AuthorId">Author of the change</param>
 		/// <param name="Change">The changelist number</param>
 		/// <param name="DeclinedAt">The time that the user declined this issue</param>
-		public NewIssueSuspectData(string Author, int Change, DateTime? DeclinedAt)
+		public NewIssueSuspectData(ObjectId AuthorId, int Change, DateTime? DeclinedAt)
 		{
-			this.Author = Author;
+			this.AuthorId = AuthorId;
 			this.Change = Change;
 			this.DeclinedAt = DeclinedAt;
 		}
@@ -378,9 +386,17 @@ namespace HordeServer.Collections
 		Task<IIssue?> GetIssueAsync(int IssueId);
 
 		/// <summary>
+		/// Gets the suspects for an issue
+		/// </summary>
+		/// <param name="Issue">The issue to retrieve suspects for</param>
+		/// <returns>List of suspects</returns>
+		Task<List<IIssueSuspect>> GetSuspectsAsync(IIssue Issue);
+
+		/// <summary>
 		/// Searches for open issues
 		/// </summary>
 		/// <param name="Ids">Set of issue ids to find</param>
+		/// <param name="UserId">The user to find issues for</param>
 		/// <param name="StreamId">The stream affected by the issue</param>
 		/// <param name="MinChange">Minimum changelist affected by the issue</param>
 		/// <param name="MaxChange">Maximum changelist affected by the issue</param>
@@ -388,7 +404,7 @@ namespace HordeServer.Collections
 		/// <param name="Index">Index within the results to return</param>
 		/// <param name="Count">Number of results</param>
 		/// <returns>List of streams open in the given stream at the given changelist</returns>
-		Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? Ids = null, StreamId? StreamId = null, int? MinChange = null, int? MaxChange = null, bool? Resolved = null, int? Index = null, int? Count = null);
+		Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? Ids = null, ObjectId? UserId = null, StreamId? StreamId = null, int? MinChange = null, int? MaxChange = null, bool? Resolved = null, int? Index = null, int? Count = null);
 
 		/// <summary>
 		/// Searches for open issues
@@ -404,16 +420,24 @@ namespace HordeServer.Collections
 		/// <param name="NewSeverity">New severity for the issue</param>
 		/// <param name="NewSummary">New summary for the issue</param>
 		/// <param name="NewUserSummary">New user summary for the issue</param>
-		/// <param name="NewOwner">New owner of the issue</param>
-		/// <param name="NewNominatedBy">Person that nominated the new owner</param>
+		/// <param name="NewOwnerId">New owner of the issue</param>
+		/// <param name="NewNominatedById">Person that nominated the new owner</param>
 		/// <param name="NewAcknowledged">Whether the issue has been acknowledged</param>
-		/// <param name="NewDeclinedBy">Name of a user that has declined the issue</param>
+		/// <param name="NewDeclinedById">Name of a user that has declined the issue</param>
 		/// <param name="NewFixChange">Fix changelist for the issue. Pass 0 to clear the fix changelist, -1 for systemic issue.</param>
-		/// <param name="NewResolved">Whether the issue has been resolved</param>
+		/// <param name="NewFixStreamIds">List of stream ids with a bool indicating whether the fix changelist is in this stream</param>
+		/// <param name="NewResolvedById">User that resolved the issue (may be ObjectId.Empty to clear)</param>
+		/// <param name="NewLastSeenAt"></param>
 		/// <param name="NewNotifySuspects">Whether all suspects should be notified about this issue</param>
-		/// <param name="NewSuspects">New list of suspects for this issue</param>
 		/// <returns>True if the issue was updated</returns>
-		Task<IIssue?> UpdateIssueAsync(IIssue Issue, IssueSeverity? NewSeverity = null, string? NewSummary = null, string? NewUserSummary = null, string? NewOwner = null, string? NewNominatedBy = null, bool? NewAcknowledged = null, string? NewDeclinedBy = null, int? NewFixChange = null, bool? NewResolved = null, bool? NewNotifySuspects = null, List<NewIssueSuspectData>? NewSuspects = null);
+		Task<IIssue?> UpdateIssueAsync(IIssue Issue, IssueSeverity? NewSeverity = null, string? NewSummary = null, string? NewUserSummary = null, ObjectId? NewOwnerId = null, ObjectId? NewNominatedById = null, bool? NewAcknowledged = null, ObjectId? NewDeclinedById = null, int? NewFixChange = null, Dictionary<StreamId, bool>? NewFixStreamIds = null, ObjectId? NewResolvedById = null, DateTime? NewLastSeenAt = null, bool? NewNotifySuspects = null);
+
+		/// <summary>
+		/// Updates the list of suspects for an issue, and optionally sets the resolved state
+		/// </summary>
+		/// <param name="Issue">The issue to update</param>
+		/// <returns>True if the issue was updated</returns>
+		Task<IIssue?> UpdateIssueDerivedDataAsync(IIssue Issue);
 
 		#endregion
 
@@ -426,14 +450,13 @@ namespace HordeServer.Collections
 		/// <param name="Stream">The stream containing the span</param>
 		/// <param name="TemplateRefId">The template being executed</param>
 		/// <param name="NodeName">Name of the step</param>
-		/// <param name="Severity">Severity of this span</param>
 		/// <param name="Fingerprint">Fingerprint for this issue</param>
 		/// <param name="LastSuccess">Last time the build succeeded before the span</param>
 		/// <param name="Failure">List of failing steps</param>
 		/// <param name="NextSuccess">First time the build succeeded after the span</param>
 		/// <param name="Suspects">Suspects for this span</param>
 		/// <returns>New span, or null if the sequence token is not valid</returns>
-		Task<IIssueSpan?> AddSpanAsync(IIssueSequenceToken Token, IStream Stream, TemplateRefId TemplateRefId, string NodeName, IssueSeverity Severity, NewIssueFingerprint Fingerprint, NewIssueStepData? LastSuccess, NewIssueStepData Failure, NewIssueStepData? NextSuccess, List<NewIssueSpanSuspectData> Suspects);
+		Task<IIssueSpan?> AddSpanAsync(IIssueSequenceToken Token, IStream Stream, TemplateRefId TemplateRefId, string NodeName, NewIssueFingerprint Fingerprint, NewIssueStepData? LastSuccess, NewIssueStepData Failure, NewIssueStepData? NextSuccess, List<NewIssueSpanSuspectData> Suspects);
 
 		/// <summary>
 		/// Gets a particular span

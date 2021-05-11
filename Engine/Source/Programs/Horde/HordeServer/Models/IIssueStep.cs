@@ -26,6 +26,11 @@ namespace HordeServer.Models
 		public int Change { get; }
 
 		/// <summary>
+		/// Severity of the issue in this step
+		/// </summary>
+		public IssueSeverity Severity { get; }
+
+		/// <summary>
 		/// Name of the job
 		/// </summary>
 		public string JobName { get; }

@@ -39,7 +39,7 @@ namespace HordeServerTests
 				.AddLogging(Builder => Builder.AddConsole().SetMinimumLevel(LogLevel.Debug))
 				.BuildServiceProvider();
 
-			ILoggerFactory LoggerFactory = ServiceProvider.GetRequiredService<ILoggerFactory>();
+			ILoggerFactory LoggerFactory = ServiceProvider.GetService<ILoggerFactory>();
 			ILogger<LogFileService> Logger = LoggerFactory.CreateLogger<LogFileService>();
 
 			// Just to satisfy the parameter, need to be fixed

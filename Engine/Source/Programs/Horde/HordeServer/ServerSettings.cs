@@ -52,6 +52,45 @@ namespace HordeServer
 		Aws,
 	}
 
+	
+	/// <summary>
+	/// Settings for a remote execution instance
+	///
+	/// Instances are a concept from Google's remote execution API that Horde implements.
+	/// They are used for separating different type of executions into groups.
+	/// </summary>
+	public class RemoteExecInstanceSettings
+	{
+		/// <summary>
+		/// gRPC URL for the content-addressable storage to be used for this instance
+		/// </summary>
+		[Required]
+		public Uri? CasUrl { get; set; }
+		
+		/// <summary>
+		/// gRPC URL for the action cache to be used for this instance
+		/// </summary>
+		[Required]
+		public Uri? ActionCacheUrl { get; set; }
+		
+		/// <summary>
+		/// Service account token for accessing the gRPC URLs
+		/// </summary>
+		[Required]
+		public string? ServiceAccountToken { get; set; }
+	}
+	
+	/// <summary>
+	/// Settings for remote execution
+	/// </summary>
+	public class RemoteExecSettings
+	{
+		/// <summary>
+		/// Mapping instance names to instance settings
+		/// </summary>
+		public Dictionary<string, RemoteExecInstanceSettings> Instances { get; set; } = new Dictionary<string, RemoteExecInstanceSettings>();
+	}
+
 	/// <summary>
 	/// Global settings for the application
 	/// </summary>
@@ -315,7 +354,22 @@ namespace HordeServer
 		/// Multiple projects can be specified, separated by comma.
 		/// </summary>
 		public string? HelixSwarmProjects { get; set; }
-		
+
+		/// <summary>
+		/// The p4 bridge server
+		/// </summary>
+		public string? P4BridgeServer { get; set; }
+
+		/// <summary>
+		/// The p4 bridge service username
+		/// </summary>
+		public string? P4BridgeServiceUsername { get; set; }
+
+		/// <summary>
+		/// The p4 bridge service password
+		/// </summary>
+		public string? P4BridgeServicePassword { get; set; }
+
 		/// <summary>
 		/// Set the minimum size of the global thread pool
 		/// This value has been found in need of tweaking to avoid timeouts with the Redis client during bursts
@@ -323,6 +377,11 @@ namespace HordeServer
 		/// is receiving. For Epic's internal deployment, this is set to 40.
 		/// </summary>
 		public int? GlobalThreadPoolMinSize { get; set; }
+
+		/// <summary>
+		/// Settings for remote execution
+		/// </summary>
+		public RemoteExecSettings RemoteExecSettings { get; set; } = new RemoteExecSettings();
 		
 		/// <summary>
 		/// Lazily computed timezone value

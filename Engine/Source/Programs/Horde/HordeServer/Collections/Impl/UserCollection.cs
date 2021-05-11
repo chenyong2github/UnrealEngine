@@ -103,6 +103,12 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
+		public Task<IUser?> GetCachedUserAsync(ObjectId Id)
+		{
+			return GetUserAsync(Id);
+		}
+
+		/// <inheritdoc/>
 		public async Task<List<IUser>> FindUsersAsync(IEnumerable<ObjectId>? Ids, int? Index, int? Count)
 		{
 			FilterDefinition<UserDocument> Filter = Builders<UserDocument>.Filter.In(x => x.Id, Ids);
