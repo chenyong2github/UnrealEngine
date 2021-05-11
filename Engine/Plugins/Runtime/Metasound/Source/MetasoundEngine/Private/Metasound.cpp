@@ -42,15 +42,17 @@ void UMetaSound::SetGraph(UEdGraph* InGraph)
 #endif // WITH_EDITORONLY_DATA
 
 // Returns document object responsible for serializing asset
-Metasound::Frontend::TAccessPtr<FMetasoundFrontendDocument> UMetaSound::GetDocument()
+Metasound::Frontend::FDocumentAccessPtr UMetaSound::GetDocument()
 {
-	return Metasound::Frontend::MakeAccessPtr(MetasoundDocument.AccessPoint, MetasoundDocument);
+	using namespace Metasound::Frontend;
+	return MakeAccessPtr<FDocumentAccessPtr>(MetasoundDocument.AccessPoint, MetasoundDocument);
 }
 
 // Returns document object responsible for serializing asset
-Metasound::Frontend::TAccessPtr<const FMetasoundFrontendDocument> UMetaSound::GetDocument() const
+Metasound::Frontend::FConstDocumentAccessPtr UMetaSound::GetDocument() const
 {
-	return Metasound::Frontend::MakeAccessPtr<const FMetasoundFrontendDocument>(MetasoundDocument.AccessPoint, MetasoundDocument);
+	using namespace Metasound::Frontend;
+	return Metasound::Frontend::MakeAccessPtr<FConstDocumentAccessPtr>(MetasoundDocument.AccessPoint, MetasoundDocument);
 }
 
 const TArray<FMetasoundFrontendArchetype>& UMetaSound::GetPreferredMetasoundArchetypes() const

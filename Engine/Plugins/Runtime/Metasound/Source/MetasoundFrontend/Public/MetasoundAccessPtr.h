@@ -10,22 +10,32 @@
 #else
 #define METASOUND_FRONTEND_ACCESSPTR_DEBUG_INFO 0
 #endif
+
 namespace Metasound
 {
 	namespace Frontend
 	{
-
 		class FAccessPoint;
 
+		/** The access token mirrors the lifespan of a object in a non-intrusive
+		 * manner. A TAccessPtr<> can be created to reference an object, but use
+		 * an access token to determine whether the referenced object is accessible.
+		 * When the access token is destroyed, the access pointer becomes invalid.
+		 */
 		struct FAccessToken {};
 
 		/** TAccessPtr
 		 *
 		 * TAccessPtr is used to determine whether an object has been destructed or not.
 		 * It is useful when an object cannot be wrapped in a TSharedPtr. A TAccessPtr
-		 * works similar to a TWeakPtr, but it cannot pin the object. Object pointers 
-		 * held within a TAccessPtr must only be accessed on the thread where the objects
-		 * gets destructed to avoid having the object destructed while in use.
+		 * is functionally similar to a TWeakPtr, but it cannot pin the object. 
+		 * In order to determine whether an object as accessible, the TAccessPtr
+		 * executes a TFunctions<> which returns object. If a nullptr is returned,
+		 * then the object is not accessible. 
+		 *
+		 * Object pointers  held within a TAccessPtr must only be accessed on 
+		 * the thread where the objects gets destructed to avoid having the object 
+		 * destructed while in use.
 		 *
 		 * If the TAccessPtr's underlying object is accessed when the pointer is invalid,
 		 * a fallback object will be returned. 
@@ -35,10 +45,12 @@ namespace Metasound
 		template<typename Type>
 		class TAccessPtr
 		{
-			enum EConstCast { Tag };
+			enum class EConstCast { Tag };
+			enum class EDerivedCopy { Tag };
 
 		public:
 			using FTokenType = FAccessToken;
+			using ObjectType = Type;
 
 			static Type FallbackObject;
 
@@ -51,6 +63,9 @@ namespace Metasound
 				return IsValid();
 			}
 
+			/** Returns a pointer to the accessible object. If the object is 
+			 * inaccessible, a nullptr is returned. 
+			 */
 			Type* Get() const
 			{
 #if METASOUND_FRONTEND_ACCESSPTR_DEBUG_INFO 
@@ -59,6 +74,10 @@ namespace Metasound
 				return GetObject();
 			}
 
+			/** Returns a pointer to the accessible object. If the object is 
+			 * inaccessible, an assert is triggered and the static fallback object
+			 * is returned. 
+			 */
 			Type& operator*() const
 			{
 				if (Type* Object = Get())
@@ -70,6 +89,9 @@ namespace Metasound
 				return FallbackObject;
 			}
 
+			/** Returns a pointer to the accessible object. If the object is 
+			 * inaccessible, a nullptr is returned. 
+			 */
 			Type* operator->() const
 			{
 				if (Type* Object = Get())
@@ -80,9 +102,18 @@ namespace Metasound
 				return &FallbackObject;
 			}
 
-			template<typename MemberType>
-			TAccessPtr<MemberType> GetMemberAccessPtr(TFunction<MemberType*(Type&)> InGetMember) const
+			/** Returns an access pointer to a member of the wrapped object. 
+			 *
+			 * @tparam AccessPtrType - The access pointer type to return.
+			 * @tparam FunctionType - A type which is callable accepts a reference to the wrapped object and returns a pointer to the member.
+			 *
+			 * @param InGetMember - A FunctionType accepts a reference to the wrapped object and returns a pointer to the member.
+			 */
+			template<typename AccessPtrType, typename FunctionType>
+			AccessPtrType GetMemberAccessPtr(FunctionType InGetMember) const
 			{
+				using MemberType = typename AccessPtrType::ObjectType;
+
 				TFunction<MemberType*()> GetMemberFromObject = [=]() -> MemberType*
 				{
 					if (Type* Object = Get())
@@ -92,12 +123,10 @@ namespace Metasound
 					return static_cast<MemberType*>(nullptr);
 				};
 
-				return TAccessPtr<MemberType>(GetMemberFromObject);
+				return AccessPtrType(GetMemberFromObject);
 			}
 
-
 			TAccessPtr()
-			//: Object(nullptr)
 			: GetObject([]() { return static_cast<Type*>(nullptr); })
 			{
 #if METASOUND_FRONTEND_ACCESSPTR_DEBUG_INFO 
@@ -105,11 +134,29 @@ namespace Metasound
 #endif
 			}
 
+			/** Creates a access pointer using an access token. */
+			TAccessPtr(TWeakPtr<FTokenType> AccessToken, Type& InRef)
+			{
+				Type* RefPtr = &InRef;
 
+				GetObject = [=]() -> Type*
+				{
+					Type* Object = nullptr;
+					if (AccessToken.IsValid())
+					{
+						Object = RefPtr;
+					}
+					return Object;
+				};
+#if METASOUND_FRONTEND_ACCESSPTR_DEBUG_INFO 
+				Get();
+#endif
+			}
+
+
+			/** Creates an access pointer from another using a const casts. */
 			template<typename OtherType>
 			TAccessPtr(const TAccessPtr<OtherType>& InOther, EConstCast InTag)
-			//: Token(InOther.Token)
-			//, Object(const_cast<Type*>(InOther.Object))
 			{
 				TFunction<OtherType*()> OtherGetObject = InOther.GetObject;
 				GetObject = [=]() -> Type*
@@ -121,13 +168,12 @@ namespace Metasound
 #endif
 			} 
 
+			/** Creates an access pointer from another using a static cast. */
 			template <
 				typename OtherType,
 				typename = decltype(ImplicitConv<Type*>((OtherType*)nullptr))
 			>
-			TAccessPtr(const TAccessPtr<OtherType>& InOther)
-			//: Token(InOther.Token)
-			//, Object(InOther.Object)
+			TAccessPtr(const TAccessPtr<OtherType>& InOther, EDerivedCopy InTag=EDerivedCopy::Tag)
 			{
 				TFunction<OtherType*()> OtherGetObject = InOther.GetObject;
 
@@ -146,12 +192,13 @@ namespace Metasound
 			TAccessPtr(TAccessPtr<Type>&& InOther) = default;
 			TAccessPtr& operator=(TAccessPtr<Type>&& InOther) = default;
 
-		private:
-			template<typename RelatedType>
-			friend TAccessPtr<RelatedType> MakeAccessPtr(const FAccessPoint& InAccessPoint, RelatedType& InRef);
+		protected:
 
-			template<typename ToType, typename FromType> 
-			friend TAccessPtr<ToType> ConstCastAccessPtr(const TAccessPtr<FromType>& InAccessPtr);
+			template<typename RelatedAccessPtrType, typename RelatedType>
+			friend RelatedAccessPtrType MakeAccessPtr(const FAccessPoint& InAccessPoint, RelatedType& InRef);
+
+			template<typename ToAccessPtrType, typename FromAccessPtrType> 
+			friend ToAccessPtrType ConstCastAccessPtr(const FromAccessPtrType& InAccessPtr);
 
 			template<typename OtherType>
 			friend class TAccessPtr;
@@ -169,27 +216,11 @@ namespace Metasound
 #endif
 			}
 
-			TAccessPtr(TWeakPtr<FTokenType> AccessToken, Type& InRef)
-			{
-				Type* RefPtr = &InRef;
-
-				GetObject = [=]() -> Type*
-				{
-					Type* Object = nullptr;
-					if (AccessToken.IsValid())
-					{
-						Object = RefPtr;
-					}
-					return Object;
-				};
-#if METASOUND_FRONTEND_ACCESSPTR_DEBUG_INFO 
-				Get();
-#endif
-			}
 		};
 
 		template<typename Type>
 		Type TAccessPtr<Type>::FallbackObject = Type();
+
 
 		/** FAccessPoint acts as a lifecycle tracker for the TAccessPtrs it creates. 
 		 * When this object is destructed, all associated TAccessPtrs will become invalid.
@@ -217,8 +248,8 @@ namespace Metasound
 			}
 
 		private:
-			template<typename Type>
-			friend TAccessPtr<Type> MakeAccessPtr(const FAccessPoint& InAccessPoint, Type& InRef);
+			template<typename AccessPtrType, typename Type>
+			friend AccessPtrType MakeAccessPtr(const FAccessPoint& InAccessPoint, Type& InRef);
 
 			FAccessPoint(FAccessPoint&&) = delete;
 			FAccessPoint& operator=(FAccessPoint&&) = delete;
@@ -226,16 +257,16 @@ namespace Metasound
 			TSharedPtr<FTokenType> Token;
 		};
 
-		template<typename Type>
-		TAccessPtr<Type> MakeAccessPtr(const FAccessPoint& InAccessPoint, Type& InRef)
+		template<typename AccessPtrType, typename Type>
+		AccessPtrType MakeAccessPtr(const FAccessPoint& InAccessPoint, Type& InRef)
 		{
-			return TAccessPtr<Type>(InAccessPoint.Token, InRef);
+			return AccessPtrType(InAccessPoint.Token, InRef);
 		}
 
-		template<typename ToType, typename FromType> 
-		TAccessPtr<ToType> ConstCastAccessPtr(const TAccessPtr<FromType>& InAccessPtr)
+		template<typename ToAccessPtrType, typename FromAccessPtrType> 
+		ToAccessPtrType ConstCastAccessPtr(const FromAccessPtrType& InAccessPtr)
 		{
-			return TAccessPtr<ToType>(InAccessPtr, TAccessPtr<ToType>::EConstCast::Tag);
+			return ToAccessPtrType(InAccessPtr, ToAccessPtrType::EConstCast::Tag);
 		}
 	}
 }

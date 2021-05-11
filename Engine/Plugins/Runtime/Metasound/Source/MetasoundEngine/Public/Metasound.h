@@ -2,9 +2,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MetasoundAssetBase.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendDocument.h"
-#include "MetasoundAssetBase.h"
+#include "MetasoundFrontendDocumentAccessPtr.h"
 
 
 #if WITH_EDITORONLY_DATA
@@ -33,10 +34,10 @@ protected:
 	FMetasoundFrontendDocument MetasoundDocument;
 
 	// Returns document object responsible for serializing asset
-	Metasound::Frontend::TAccessPtr<FMetasoundFrontendDocument> GetDocument() override;
+	Metasound::Frontend::FDocumentAccessPtr GetDocument() override;
 
 	// Returns document object responsible for serializing asset
-	Metasound::Frontend::TAccessPtr<const FMetasoundFrontendDocument> GetDocument() const override;
+	Metasound::Frontend::FConstDocumentAccessPtr GetDocument() const override;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

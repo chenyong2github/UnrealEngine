@@ -8,6 +8,7 @@
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendBaseClasses.h"
 #include "MetasoundFrontendDocument.h"
+#include "MetasoundFrontendDocumentAccessPtr.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundGraph.h"
 
@@ -56,22 +57,6 @@ namespace Metasound
 		using FDocumentHandle = TSharedRef<IDocumentController>;
 		using FConstDocumentHandle = TSharedRef<const IDocumentController>;
 
-		using FVertexAccessPtr = TAccessPtr<FMetasoundFrontendVertex>;
-		using FConstVertexAccessPtr = TAccessPtr<const FMetasoundFrontendVertex>;
-		using FClassOutputAccessPtr = TAccessPtr<FMetasoundFrontendClassOutput>;
-		using FConstClassOutputAccessPtr = TAccessPtr<const FMetasoundFrontendClassOutput>;
-		using FClassInputAccessPtr = TAccessPtr<FMetasoundFrontendClassInput>;
-		using FConstClassInputAccessPtr = TAccessPtr<const FMetasoundFrontendClassInput>;
-		using FNodeAccessPtr = TAccessPtr<FMetasoundFrontendNode>;
-		using FConstNodeAccessPtr = TAccessPtr<const FMetasoundFrontendNode>;
-		using FGraphAccessPtr = TAccessPtr<FMetasoundFrontendGraph>;
-		using FConstGraphAccessPtr = TAccessPtr<const FMetasoundFrontendGraph>;
-		using FClassAccessPtr = TAccessPtr<FMetasoundFrontendClass>;
-		using FConstClassAccessPtr = TAccessPtr<const FMetasoundFrontendClass>;
-		using FGraphClassAccessPtr = TAccessPtr<FMetasoundFrontendGraphClass>;
-		using FConstGraphClassAccessPtr = TAccessPtr<const FMetasoundFrontendGraphClass>;
-		using FDocumentAccessPtr = TAccessPtr<FMetasoundFrontendDocument>;
-		using FConstDocumentAccessPtr = TAccessPtr<const FMetasoundFrontendDocument>;
 
 		// Container holding various access pointers to the FMetasoundFrontendDocument
 		struct FConstDocumentAccess
@@ -682,9 +667,9 @@ namespace Metasound
 			static FDocumentHandle GetInvalidHandle();
 
 			/** Create a document from FMetasoundFrontendDocument description pointer. */
-			static FDocumentHandle CreateDocumentHandle(TAccessPtr<FMetasoundFrontendDocument> InDocument);
+			static FDocumentHandle CreateDocumentHandle(FDocumentAccessPtr InDocument);
 			/** Create a document from FMetasoundFrontendDocument description pointer. */
-			static FConstDocumentHandle CreateDocumentHandle(TAccessPtr<const FMetasoundFrontendDocument> InDocument);
+			static FConstDocumentHandle CreateDocumentHandle(FConstDocumentAccessPtr InDocument);
 
 			IDocumentController() = default;
 			virtual ~IDocumentController() = default;

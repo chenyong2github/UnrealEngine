@@ -6,6 +6,7 @@
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendBaseClasses.h"
 #include "MetasoundFrontendController.h"
+#include "MetasoundFrontendDocumentAccessPtr.h"
 #include "MetasoundGraph.h"
 #include "MetasoundLog.h"
 #include "UObject/WeakObjectPtrTemplates.h"
@@ -126,10 +127,10 @@ public:
 protected:
 
 	// Returns an access pointer to the document.
-	virtual Metasound::Frontend::TAccessPtr<FMetasoundFrontendDocument> GetDocument() = 0;
+	virtual Metasound::Frontend::FDocumentAccessPtr GetDocument() = 0;
 
 	// Returns an access pointer to the document.
-	virtual Metasound::Frontend::TAccessPtr<const FMetasoundFrontendDocument> GetDocument() const = 0;
+	virtual Metasound::Frontend::FConstDocumentAccessPtr GetDocument() const = 0;
 
 	// Returns the owning asset responsible for transactions applied to metasound
 	virtual UObject* GetOwningAsset() = 0;

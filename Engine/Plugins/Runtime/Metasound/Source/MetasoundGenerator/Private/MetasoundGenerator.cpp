@@ -22,9 +22,10 @@ namespace Metasound
 
 	void FAsyncMetaSoundBuilder::DoWork()
 	{
+		using namespace Frontend;
 		// Create handles for new root graph
-		Frontend::FConstDocumentHandle NewDocumentHandle = Frontend::IDocumentController::CreateDocumentHandle(Frontend::MakeAccessPtr<const FMetasoundFrontendDocument>(InitParams.DocumentCopy.AccessPoint, InitParams.DocumentCopy));
-		Frontend::FConstGraphHandle RootGraph = NewDocumentHandle->GetRootGraph();
+		FConstDocumentHandle NewDocumentHandle = IDocumentController::CreateDocumentHandle(MakeAccessPtr<FConstDocumentAccessPtr>(InitParams.DocumentCopy.AccessPoint, InitParams.DocumentCopy));
+		FConstGraphHandle RootGraph = NewDocumentHandle->GetRootGraph();
 		ensureAlways(RootGraph->IsValid());
 
 		TArray<IOperatorBuilder::FBuildErrorPtr> BuildErrors;
