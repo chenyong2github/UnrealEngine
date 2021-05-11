@@ -23,8 +23,8 @@ namespace Private
 #endif
 
 	/**
-	* Ordered list of WidgetIndex. The order is based on the WidgetSortIndex.
-	*/
+	 * Ordered list of WidgetIndex. The order is based on the WidgetSortIndex.
+	 */
 	struct FSlateInvalidationWidgetHeapElement
 	{
 	public:
@@ -101,14 +101,14 @@ public:
 	}
 	
 	/** Returns the biggest WidgetIndex from the list. */
-	inline FSlateInvalidationWidgetIndex HeapPeek() const
+	UE_NODISCARD inline FSlateInvalidationWidgetIndex HeapPeek() const
 	{
 		check(Heap.Num() > 0);
 		return Heap.HeapTop().GetWidgetIndex();
 	}
 	
 	/** Returns the biggest WidgetIndex from the list. */
-	inline const FElement& HeapPeekElement() const
+	UE_NODISCARD inline const FElement& HeapPeekElement() const
 	{
 		check(Heap.Num() > 0);
 		return Heap.HeapTop();
@@ -147,13 +147,13 @@ public:
 	}
 
 	/** Returns the number of elements in the list. */
-	inline int32 Num() const
+	UE_NODISCARD inline int32 Num() const
 	{
 		return Heap.Num();
 	}
 
 	/** Does it contains the widget index. */
-	bool Contains_Debug(const FSlateInvalidationWidgetIndex WidgetIndex) const
+	UE_NODISCARD bool Contains_Debug(const FSlateInvalidationWidgetIndex WidgetIndex) const
 	{
 		return Heap.ContainsByPredicate([WidgetIndex](const FElement& Element)
 			{
@@ -162,13 +162,13 @@ public:
 	}
 
 	/** @retuns true if the heap is heapified. */
-	inline bool IsValidHeap_Debug()
+	UE_NODISCARD inline bool IsValidHeap_Debug()
 	{
 		return Algo::IsHeap(Heap, SortPredicate());
 	}
 
 	/** Returns the raw list. */
-	inline const FElementContainer& GetRaw() const
+	UE_NODISCARD inline const FElementContainer& GetRaw() const
 	{
 		return Heap;
 	}
@@ -189,7 +189,7 @@ private:
 #if UE_SLATE_WITH_INVALIDATIONWIDGETHEAP_DEBUGGING
 		if (UE::Slate::Private::GSlateInvalidationWidgetHeapVerifyWidgetContains)
 		{
-			check(Contains_Debug(InvalidationWidget.Index) == InvalidationWidget.bContainedByWidgetPostHeap);
+			check(Contains_Debug(InvalidationWidget.Index) == InvalidationWidget.bContainedByWidgetPreHeap);
 		}
 #endif
 	}
@@ -265,7 +265,7 @@ public:
 	}
 
 	/** Returns and removes the biggest WidgetIndex from the list. */
-	FSlateInvalidationWidgetIndex HeapPop()
+	UE_NODISCARD FSlateInvalidationWidgetIndex HeapPop()
 	{
 		check(bIsHeap == true);
 		FSlateInvalidationWidgetIndex Result = Heap.HeapTop().GetWidgetIndex();
@@ -317,19 +317,19 @@ public:
 	}
 
 	/** Returns the number of elements in the list. */
-	inline int32 Num() const
+	UE_NODISCARD inline int32 Num() const
 	{
 		return Heap.Num();
 	}
 
 	/** Returns the number of elements in the list. */
-	inline bool IsHeap() const
+	UE_NODISCARD inline bool IsHeap() const
 	{
 		return bIsHeap;
 	}
 
 	/** Does it contains the widget index. */
-	bool Contains_Debug(const FSlateInvalidationWidgetIndex WidgetIndex) const
+	UE_NODISCARD bool Contains_Debug(const FSlateInvalidationWidgetIndex WidgetIndex) const
 	{
 		return Heap.ContainsByPredicate([WidgetIndex](const FElement& Element)
 			{
@@ -338,13 +338,13 @@ public:
 	}
 
 	/** @retuns true if the heap is heapified. */
-	inline bool IsValidHeap_Debug()
+	UE_NODISCARD inline bool IsValidHeap_Debug()
 	{
 		return Algo::IsHeap(Heap, SortPredicate());
 	}
 
 	/** Returns the raw list. */
-	inline const FElementContainer& GetRaw() const
+	UE_NODISCARD inline const FElementContainer& GetRaw() const
 	{
 		return Heap;
 	}
@@ -398,5 +398,169 @@ private:
 	FElementContainer Heap;
 	FSlateInvalidationWidgetList& OwnerList;
 	FSlateInvalidationWidgetIndex WidgetCannotBeAdded;
+	bool bIsHeap;
+};
+
+/**
+ * Heap of widget, ordered by increasing sort order, of the widgets that need a SlatePrepass.
+ * Since a SlatePrepass of a parent widget will call the SlatePrepass of a child, only the parent will be in the list.
+ */
+class FSlateInvalidationWidgetPrepassHeap
+{
+public:
+	using FElement = UE::Slate::Private::FSlateInvalidationWidgetHeapElement;
+	struct FWidgetOrderGreater
+	{
+		FORCEINLINE bool operator()(const FElement& A, const FElement& B) const
+		{
+			return A.GetWidgetSortOrder() < B.GetWidgetSortOrder();
+		}
+	};
+	using SortPredicate = FWidgetOrderGreater;
+
+	static constexpr int32 NumberOfPreAllocatedElement = 32;
+	using FElementContainer = TArray<FElement, TInlineAllocator<NumberOfPreAllocatedElement>>;
+
+	FSlateInvalidationWidgetPrepassHeap(FSlateInvalidationWidgetList& InOwnerList)
+		: OwnerList(InOwnerList)
+		, bIsHeap(false)
+	{ }
+
+public:
+	/** Insert into the list at the proper order (see binary heap) but only if it's not already contains by the list. */
+	void HeapPushUnique(FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget)
+	{
+		check(bIsHeap);
+		check(InvalidationWidget.Index != FSlateInvalidationWidgetIndex::Invalid);
+		VerifyContainsFlag(InvalidationWidget);
+
+		if (!InvalidationWidget.bContainedByWidgetPrepassList)
+		{
+			InvalidationWidget.bContainedByWidgetPrepassList = true;
+			Heap.HeapPush(FElement{ InvalidationWidget.Index, FSlateInvalidationWidgetSortOrder{OwnerList, InvalidationWidget.Index} }, SortPredicate());
+		}
+	}
+
+	/** Insert at the end of the list but only if it's not already contains by the list. */
+	void PushBackUnique(FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget)
+	{
+		check(bIsHeap == false);
+		check(InvalidationWidget.Index != FSlateInvalidationWidgetIndex::Invalid);
+		VerifyContainsFlag(InvalidationWidget);
+
+		if (!InvalidationWidget.bContainedByWidgetPrepassList)
+		{
+			InvalidationWidget.bContainedByWidgetPrepassList = true;
+			Heap.Emplace(InvalidationWidget.Index, FSlateInvalidationWidgetSortOrder{ OwnerList, InvalidationWidget.Index });
+		}
+	}
+
+	/** Returns and removes the biggest WidgetIndex from the list. */
+	UE_NODISCARD FElement HeapPop()
+	{
+		check(bIsHeap == true);
+		FElement Result = Heap.HeapTop();
+		Heap.HeapPopDiscard(SortPredicate(), false);
+		OwnerList[Result.GetWidgetIndex()].bContainedByWidgetPrepassList = false;
+		return Result;
+	}
+
+	/** Remove range */
+	int32 RemoveRange(const FSlateInvalidationWidgetList::FIndexRange& Range)
+	{
+		check(bIsHeap == false);
+		int32 RemoveCount = 0;
+		for (int32 Index = Heap.Num() - 1; Index >= 0; --Index)
+		{
+			if (Range.Include(Heap[Index].GetWidgetSortOrder()))
+			{
+				const FSlateInvalidationWidgetIndex WidgetIndex = Heap[Index].GetWidgetIndex();
+				OwnerList[WidgetIndex].bContainedByWidgetPrepassList = false;
+				Heap.RemoveAtSwap(Index);
+				++RemoveCount;
+			}
+		}
+
+		return RemoveCount;
+	}
+
+	/** Empties the list, but doesn't change memory allocations. */
+	void Reset(bool bResetContained)
+	{
+		if (bResetContained)
+		{
+			for (const FElement& Element : Heap)
+			{
+				OwnerList[Element.GetWidgetIndex()].bContainedByWidgetPrepassList = false;
+			}
+		}
+
+		// Destroy the second allocator, if it exists.
+		Heap.Empty(NumberOfPreAllocatedElement);
+		bIsHeap = false;
+	}
+
+	void Heapify()
+	{
+		check(!bIsHeap);
+		Heap.Heapify(SortPredicate());
+		bIsHeap = true;
+	}
+
+	/** Returns the number of elements in the list. */
+	UE_NODISCARD inline int32 Num() const
+	{
+		return Heap.Num();
+	}
+
+	/** Returns the number of elements in the list. */
+	UE_NODISCARD inline bool IsHeap() const
+	{
+		return bIsHeap;
+	}
+
+	/** Does it contains the widget index. */
+	UE_NODISCARD bool Contains_Debug(const FSlateInvalidationWidgetIndex WidgetIndex) const
+	{
+		return Heap.ContainsByPredicate([WidgetIndex](const FElement& Element)
+			{
+				return Element.GetWidgetIndex() == WidgetIndex;
+			});
+	}
+
+	/** @retuns true if the heap is heapified. */
+	UE_NODISCARD inline bool IsValidHeap_Debug()
+	{
+		return Algo::IsHeap(Heap, SortPredicate());
+	}
+
+	/** Returns the raw list. */
+	UE_NODISCARD inline const FElementContainer& GetRaw() const
+	{
+		return Heap;
+	}
+
+	template<typename Predicate>
+	void ForEachIndexes(Predicate Pred)
+	{
+		for (FElement& Element : Heap)
+		{
+			Pred(Element);
+		}
+	}
+
+private:
+	void VerifyContainsFlag(const FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget)
+	{
+#if UE_SLATE_WITH_INVALIDATIONWIDGETHEAP_DEBUGGING
+		if (UE::Slate::Private::GSlateInvalidationWidgetHeapVerifyWidgetContains)
+		{
+			check(Contains_Debug(InvalidationWidget.Index) == InvalidationWidget.bContainedByWidgetPrepassList);
+		}
+#endif
+	}
+
+	FElementContainer Heap;
+	FSlateInvalidationWidgetList& OwnerList;
 	bool bIsHeap;
 };

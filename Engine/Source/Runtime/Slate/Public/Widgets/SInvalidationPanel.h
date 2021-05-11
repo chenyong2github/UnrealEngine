@@ -44,16 +44,19 @@ public:
 
 	void SetCanCache(bool InCanCache);
 
-	// SWidget overrides
+	//~ SWidget overrides
 	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
 	virtual FChildren* GetChildren() override;
-	virtual FChildren* GetAllChildren() override;
-	// End SWidget
+#if WITH_SLATE_DEBUGGING
+	virtual FChildren* Debug_GetChildrenForReflector() override;
+#endif
+	//~ End SWidget
 
 	void SetContent(const TSharedRef< SWidget >& InContent);
 
 protected:
 	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
+	virtual bool ComputeVolatility() const { return GetCanCache() || SCompoundWidget::ComputeVolatility(); }
 	virtual bool Advanced_IsInvalidationRoot() const override;
 	virtual const FSlateInvalidationRoot* Advanced_AsInvalidationRoot() const override;
 	virtual TSharedRef<SWidget> GetRootWidget() override;

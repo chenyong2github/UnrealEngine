@@ -79,12 +79,11 @@ public:
 
 	void SetTextureParameter(FName TextureParameter);
 
-	/** SWidget interface */
+	//~ SWidget interface
 	virtual FChildren* GetChildren() override;
-	virtual FChildren* GetAllChildren() override;
-
-	/** FInvalidationRoot interface */
-	virtual bool PaintRetainedContent(const FSlateInvalidationContext& Context, const FGeometry& AllottedGeometry);
+#if WITH_SLATE_DEBUGGING
+	virtual FChildren* Debug_GetChildrenForReflector() override;
+#endif
 
 	void SetWorld(UWorld* World);
 
@@ -92,6 +91,7 @@ protected:
 	/** SCompoundWidget interface */
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 	virtual FVector2D ComputeDesiredSize(float Scale) const override;
+	virtual bool ComputeVolatility() const { return bEnableRetainedRendering || SCompoundWidget::ComputeVolatility(); }
 	virtual bool Advanced_IsInvalidationRoot() const { return bEnableRetainedRendering; }
 	virtual const FSlateInvalidationRoot* Advanced_AsInvalidationRoot() const override { return bEnableRetainedRendering ? this : nullptr; }
 	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
@@ -108,7 +108,7 @@ protected:
 		TextureSizeTooBig,
 		TextureSizeZero,
 	};
-	EPaintRetainedContentResult PaintRetainedContentImpl(const FSlateInvalidationContext& Context, const FGeometry& AllottedGeometry);
+	EPaintRetainedContentResult PaintRetainedContentImpl(const FSlateInvalidationContext& Context, const FGeometry& AllottedGeometry, int32 LayerId);
 	//~ End FSlateInvalidationRoot interface
 
 	void RefreshRenderingMode();
@@ -127,11 +127,12 @@ private:
 
 	mutable FSlateBrush SurfaceBrush;
 
-	FVector2D PreviousRenderSize;
+	FIntPoint PreviousRenderSize;
 	FGeometry PreviousAllottedGeometry;
-	FVector2D PreviousClipRectSize;
+	FIntPoint PreviousClipRectSize;
 	TOptional<FSlateClippingState> PreviousClippingState;
-	FLinearColor PreviousColorAndOpacity;
+	FColor PreviousColorAndOpacity;
+	int32 LastIncomingLayerId;
 
 	void UpdateWidgetRenderer();
 
