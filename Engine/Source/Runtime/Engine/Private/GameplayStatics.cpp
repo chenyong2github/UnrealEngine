@@ -2290,7 +2290,7 @@ float UGameplayStatics::GetAudioTimeSeconds(const UObject* WorldContextObject)
 	return World ? World->GetAudioTimeSeconds() : 0.f;
 }
 
-void UGameplayStatics::GetAccurateRealTime(const UObject* WorldContextObject, int32& Seconds, float& PartialSeconds)
+void UGameplayStatics::GetAccurateRealTime(int32& Seconds, float& PartialSeconds)
 {
 	double TimeSeconds = FPlatformTime::Seconds() - GStartTime;
 	Seconds = floor(TimeSeconds);
