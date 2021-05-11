@@ -315,7 +315,7 @@ class DeviceUnreal(Device):
     @QtCore.Slot()
     def _queue_notify_redeploy(self):
         # Ensure this code is run from the main thread
-        if threading.current_thread().name != 'MainThread':
+        if threading.current_thread() is not threading.main_thread():
             QtCore.QMetaObject.invokeMethod(self, '_queue_notify_redeploy', QtCore.Qt.QueuedConnection)
             return
 
@@ -553,7 +553,7 @@ class DeviceUnreal(Device):
     def connect_listener(self):
         ''' Connects to the listener '''
         # Ensure this code is run from the main thread
-        if threading.current_thread().name != 'MainThread':
+        if threading.current_thread() is not threading.main_thread():
             QtCore.QMetaObject.invokeMethod(self, 'connect_listener', QtCore.Qt.QueuedConnection)
             return
 
@@ -569,7 +569,7 @@ class DeviceUnreal(Device):
     def disconnect_listener(self):
         ''' Disconnects from the listener '''
         # Ensure this code is run from the main thread
-        if threading.current_thread().name != 'MainThread':
+        if threading.current_thread() is not threading.main_thread():
             QtCore.QMetaObject.invokeMethod(self, 'disconnect_listener', QtCore.Qt.QueuedConnection)
             return
 

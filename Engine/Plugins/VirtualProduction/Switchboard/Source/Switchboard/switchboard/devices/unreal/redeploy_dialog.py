@@ -98,7 +98,7 @@ class RedeployListenerEndpoint(QtCore.QObject):
     @QtCore.Slot()
     def connect_client(self):
         # Ensure this code is run from the main thread
-        if threading.current_thread().name != 'MainThread':
+        if threading.current_thread() is not threading.main_thread():
             QtCore.QMetaObject.invokeMethod(self, 'connect_client', QtCore.Qt.QueuedConnection)
             return
 
