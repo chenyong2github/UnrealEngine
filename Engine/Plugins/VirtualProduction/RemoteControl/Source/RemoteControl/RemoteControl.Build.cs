@@ -17,6 +17,7 @@ public class RemoteControl : ModuleRules
 			new string[] {
 				"Cbor",
 				"Engine",
+				"MessageLog",
 				"RemoteControlInterception",
 				"Serialization",
 			}

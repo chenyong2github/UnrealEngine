@@ -25,6 +25,7 @@
 #include "RemoteControlActor.h"
 #include "RemoteControlEntity.h"
 #include "RemoteControlField.h"
+#include "RemoteControlLogger.h"
 #include "RemoteControlPanelStyle.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlUIModule.h"
@@ -178,6 +179,22 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 					.IsChecked_Lambda([this]() { return this->bIsInEditMode ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
 					.OnCheckStateChanged(this, &SRemoteControlPanel::OnEditModeCheckboxToggle)
 				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f, 0)
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("EnableLogLabel", "Enable Log: "))
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SCheckBox)
+					.IsChecked_Lambda([]() { return FRemoteControlLogger::Get().IsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+					.OnCheckStateChanged(this, &SRemoteControlPanel::OnLogCheckboxToggle)
+				]
 			]
 		]
 		+ SVerticalBox::Slot()
@@ -186,51 +203,73 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			.Padding(FMargin(0.f, 5.f, 0.f, 0.f))
 			.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 			[
-				SNew(SWidgetSwitcher)
-				.WidgetIndex_Lambda([this](){ return !bIsInEditMode ? 0 : 1; })
-				+ SWidgetSwitcher::Slot()
+				SNew(SSplitter)
+				.Orientation(Orient_Vertical)
+				+ SSplitter::Slot()
+				.Value(.8f)
 				[
-					// Exposed entities List
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.Padding(FMargin(0.f, 5.f, 0.f, 0.f))
+					.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 					[
-						EntityList.ToSharedRef()
-					]
-				]
-				+ SWidgetSwitcher::Slot()
-				[
-					SNew(SSplitter)
-					.Orientation(EOrientation::Orient_Vertical)
-					+ SSplitter::Slot()
-					.Value(0.7f)
-					[
-						// Exposed entities List
-						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						SNew(SWidgetSwitcher)
+						.WidgetIndex_Lambda([this](){ return !bIsInEditMode ? 0 : 1; })
+						+ SWidgetSwitcher::Slot()
 						[
-							EntityList.ToSharedRef()
+							// Exposed entities List
+							SNew(SBorder)
+							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							[
+								EntityList.ToSharedRef()
+							]
 						]
-					]
-					+ SSplitter::Slot()
-					.Value(0.3f)
-					[
-						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-						.Padding(5.f)
+						+ SWidgetSwitcher::Slot()
 						[
 							SNew(SSplitter)
-							.Orientation(Orient_Vertical)
+							.Orientation(EOrientation::Orient_Vertical)
 							+ SSplitter::Slot()
-							.Value(0.4f)
+							.Value(0.7f)
 							[
-								CreateEntityDetailsView()
+								// Exposed entities List
+								SNew(SBorder)
+								.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+								[
+									EntityList.ToSharedRef()
+								]
 							]
 							+ SSplitter::Slot()
-							.Value(0.6f)
+							.Value(0.3f)
 							[
-								EntityProtocolDetails.ToSharedRef()
+								SNew(SBorder)
+								.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+								.Padding(5.f)
+								[
+									SNew(SSplitter)
+									.Orientation(Orient_Vertical)
+									+ SSplitter::Slot()
+									.Value(0.4f)
+									[
+										CreateEntityDetailsView()
+									]
+									+ SSplitter::Slot()
+									.Value(0.6f)
+									[
+										EntityProtocolDetails.ToSharedRef()
+									]
+								]
 							]
 						]
+					]
+				]
+				+ SSplitter::Slot()
+				.Value(.2f)
+				[
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+					.Visibility_Lambda([](){ return FRemoteControlLogger::Get().IsEnabled() ? EVisibility::Visible : EVisibility::Collapsed; })
+					.Padding(2.f)
+					[
+						FRemoteControlLogger::Get().GetWidget()
 					]
 				]
 			]
@@ -240,7 +279,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	for (const TSharedRef<SWidget>& Widget : ExtensionWidgets)
 	{
 		// We want to insert the widgets before the edit mode buttons.
-		TopExtensions->InsertSlot(TopExtensions->NumSlots()-2)
+		TopExtensions->InsertSlot(TopExtensions->NumSlots()-4)
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
@@ -257,6 +296,9 @@ SRemoteControlPanel::~SRemoteControlPanel()
 {
 	UnregisterEvents();
 	FRCPanelWidgetRegistry::Get().Clear();
+
+	// Clear the log
+	FRemoteControlLogger::Get().ClearLog();
 }
 
 void SRemoteControlPanel::PostUndo(bool bSuccess)
@@ -697,8 +739,14 @@ void SRemoteControlPanel::Unexpose(const TSharedPtr<IPropertyHandle>& Handle)
 
 void SRemoteControlPanel::OnEditModeCheckboxToggle(ECheckBoxState State)
 {
-	bIsInEditMode = State == ECheckBoxState::Checked ? true : false;
+	bIsInEditMode = (State == ECheckBoxState::Checked) ? true : false;
 	OnEditModeChange.ExecuteIfBound(SharedThis(this), bIsInEditMode);
+}
+
+void SRemoteControlPanel::OnLogCheckboxToggle(ECheckBoxState State)
+{
+	const bool bIsLogEnabled = (State == ECheckBoxState::Checked) ? true : false;
+	FRemoteControlLogger::Get().EnableLog(bIsLogEnabled);
 }
  
 void SRemoteControlPanel::OnBlueprintReinstanced()
