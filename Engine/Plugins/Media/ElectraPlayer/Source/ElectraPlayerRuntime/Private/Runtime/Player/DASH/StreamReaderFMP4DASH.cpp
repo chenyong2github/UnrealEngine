@@ -726,6 +726,7 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 			uint32 TrackTimescale = 0;
 			bool bDone = false;
 			bool bIsFirstAU = true;
+			bool bReadPastLastPTS = false;
 
 			// Encrypted?
 			TSharedPtr<ElectraCDM::IMediaCDMDecrypter, ESPMode::ThreadSafe> Decrypter;
@@ -916,6 +917,27 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 										AccessUnit = nullptr;
 										bDone = true;
 										break;
+									}
+
+									// Check if the AU is outside the time range we are allowed to read.
+									// The last one (the one that is already outside the range, actually) is tagged as such and sent into the buffer.
+									// The respective decoder has to handle this flag if necessary and/or drop the AU.
+									if (AccessUnit)
+									{
+										// Already sent the last one?
+										if (bReadPastLastPTS)
+										{
+											// Yes. Release this AU and do not forward it. Continue reading however.
+											FAccessUnit::Release(AccessUnit);
+											AccessUnit = nullptr;
+										}
+										else if ((AccessUnit->DropState & (FAccessUnit::EDropState::PtsTooLate | FAccessUnit::EDropState::DtsTooLate)) == (FAccessUnit::EDropState::PtsTooLate | FAccessUnit::EDropState::DtsTooLate))
+										{
+											// Tag the last one and send it off, but stop doing so for the remainder of the segment.
+											// Note: we continue reading this segment all the way to the end on purpose in case there are further 'emsg' boxes.
+											AccessUnit->bIsLastInPeriod = true;
+											bReadPastLastPTS = true;
+										}
 									}
 
 									if (AccessUnit)

@@ -68,6 +68,7 @@ namespace Electra
 		TSharedPtrTS<CodecData>		AUCodecData;					//!< If set, points to sideband data for this access unit.
 		uint8						DropState;						//!< If set this access unit is not to be rendered. If possible also not to be decoded.
 		bool						bIsFirstInSequence;				//!< true for the first AU in a segment
+		bool						bIsLastInPeriod;				//!< true if this is the last AU in the playing period.
 		bool						bIsSyncSample;					//!< true if this is a sync sample (keyframe)
 		bool						bIsDummyData;					//!< True if the decoder must be reset before decoding this AU.
 		bool						bTrackChangeDiscontinuity;		//!< True if this is the first AU after a track change.
@@ -155,6 +156,7 @@ namespace Electra
 			AUMemoryProvider = nullptr;
 			DropState = EDropState::None;
 			bIsFirstInSequence = false;
+			bIsLastInPeriod = false;
 			bIsSyncSample = false;
 			bIsDummyData = false;
 			bTrackChangeDiscontinuity = false;
