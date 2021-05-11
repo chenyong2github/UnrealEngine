@@ -1115,6 +1115,12 @@ namespace FNiagaraUtilities
 	// Whether compute shaders are allowed. Could change depending on config and runtime switches.
 	bool AllowComputeShaders(EShaderPlatform ShaderPlatform);
 
+	// Are we able to use the GPU for culling?
+	bool AllowGPUCulling(EShaderPlatform ShaderPlatform);
+
+	// Are we able to use the GPU for sorting?
+	bool AllowGPUSorting(EShaderPlatform ShaderPlatform);
+
 	ENiagaraCompileUsageStaticSwitch NIAGARA_API ConvertScriptUsageToStaticSwitchUsage(ENiagaraScriptUsage ScriptUsage);
 	ENiagaraScriptContextStaticSwitch NIAGARA_API ConvertScriptUsageToStaticSwitchContext(ENiagaraScriptUsage ScriptUsage);
 	

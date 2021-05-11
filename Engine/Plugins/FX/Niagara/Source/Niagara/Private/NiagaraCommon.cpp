@@ -31,6 +31,14 @@ FAutoConsoleVariableRef CVarAllowGPUParticles(
 	TEXT("If true, allow the usage of GPU particles for Niagara."),
 	ECVF_Default);
 
+int32 GNiagaraGPUCulling = 1;
+FAutoConsoleVariableRef CVarNiagaraGPUCulling(
+	TEXT("Niagara.GPUCulling"),
+	GNiagaraGPUCulling,
+	TEXT("Whether to frustum and camera distance cull particles on the GPU"),
+	ECVF_Default
+);
+
 int32 GNiagaraMaxStatInstanceReports = 20;
 FAutoConsoleVariableRef CVarMaxStatInstanceReportss(
     TEXT("fx.NiagaraMaxStatInstanceReports"),
@@ -818,6 +826,17 @@ bool FNiagaraUtilities::AllowGPUParticles(EShaderPlatform ShaderPlatform)
 bool FNiagaraUtilities::AllowComputeShaders(EShaderPlatform ShaderPlatform)
 {
 	return RHISupportsComputeShaders(ShaderPlatform) && GNiagaraAllowComputeShaders && GRHISupportsDrawIndirect;
+}
+
+bool FNiagaraUtilities::AllowGPUSorting(EShaderPlatform ShaderPlatform)
+{
+	static const IConsoleVariable* AllowGPUSortingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("FX.AllowGPUSorting"));
+	return ensure(AllowGPUSortingCVar) && (AllowGPUSortingCVar->GetInt() != 0);
+}
+
+bool FNiagaraUtilities::AllowGPUCulling(EShaderPlatform ShaderPlatform)
+{
+	return GNiagaraGPUCulling && AllowGPUSorting(ShaderPlatform) && AllowComputeShaders(ShaderPlatform);
 }
 
 ENiagaraCompileUsageStaticSwitch FNiagaraUtilities::ConvertScriptUsageToStaticSwitchUsage(ENiagaraScriptUsage ScriptUsage)
