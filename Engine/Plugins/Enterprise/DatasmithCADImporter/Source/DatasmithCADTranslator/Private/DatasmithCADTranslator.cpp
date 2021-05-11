@@ -3,17 +3,12 @@
 #include "DatasmithCADTranslator.h"
 
 #include "CADInterfacesModule.h"
-#include "CoreTechFileParser.h"
-#include "CoreTechSurfaceExtension.h"
+#include "CoreTechSurfaceHelper.h"
 #include "DatasmithCADTranslatorModule.h"
 #include "DatasmithDispatcher.h"
 #include "DatasmithMeshBuilder.h"
 #include "DatasmithSceneGraphBuilder.h"
 #include "DatasmithUtils.h"
-#include "IDatasmithSceneElements.h"
-
-#include "HAL/IConsoleManager.h"
-#include "Misc/FileHelper.h"
 
 static TAutoConsoleVariable<int32> CVarStaticCADTranslatorEnableThreadedImport(
 	TEXT("r.CADTranslator.EnableThreadedImport"),
@@ -181,7 +176,7 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 
 void FDatasmithCADTranslator::UnloadScene()
 {
-	MeshBuilderPtr = nullptr;
+	MeshBuilderPtr.Reset();
 
 	CADFileToUEGeomMap.Empty();
 }
@@ -198,17 +193,15 @@ bool FDatasmithCADTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElem
 	if (TOptional< FMeshDescription > Mesh = MeshBuilderPtr->GetMeshDescription(MeshElement, MeshParameters))
 	{
 		OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
-
-		CoreTechSurface::AddCoreTechSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, GetCommonTessellationOptions(), OutMeshPayload);
+		if(ImportParameters.bEnableKernelIOTessellation)
+		{
+			CoreTechSurface::AddSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, GetCommonTessellationOptions(), OutMeshPayload);
+		}
+		else
+		{
+			//CADKernelSurface::AddSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, GetCommonTessellationOptions(), OutMeshPayload);
+		}
 	}
 	return OutMeshPayload.LodMeshes.Num() > 0;
 }
-
-void FDatasmithCADTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
-{
-	FCoreTechTranslator::SetSceneImportOptions(Options);
-}
-
-
-
 

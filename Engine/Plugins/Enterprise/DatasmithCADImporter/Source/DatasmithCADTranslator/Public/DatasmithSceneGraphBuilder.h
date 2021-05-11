@@ -5,10 +5,10 @@
 
 #include "CADData.h"
 #include "CADSceneGraph.h"
-#include "CoreTechHelper.h"
 #include "CoreTechTypes.h"
 #include "CTSession.h"
 #include "DatasmithImportOptions.h"
+#include "MeshDescriptionHelper.h"
 
 #include "Containers/Map.h"
 #include "Containers/Queue.h"

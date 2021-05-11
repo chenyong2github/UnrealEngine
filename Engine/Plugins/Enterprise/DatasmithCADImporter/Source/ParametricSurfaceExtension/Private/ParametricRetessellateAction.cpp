@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreTechRetessellateAction.h"
+#include "ParametricRetessellateAction.h"
 
-#include "CoreTechHelper.h"
-#include "CoreTechTypes.h"
+#include "ParametricRetessellateAction_Impl.h"
 
 #include "DatasmithAdditionalData.h"
 #include "DatasmithStaticMeshImporter.h" // Call to BuildStaticMesh
 #include "DatasmithUtils.h"
 #include "DatasmithTranslator.h"
 #include "UI/DatasmithDisplayHelper.h"
+#include "MeshDescriptionHelper.h"
 
 #include "Algo/AnyOf.h"
 #include "AssetData.h"
@@ -25,20 +25,37 @@
 #include "UObject/StrongObjectPtr.h"
 #include "Algo/Transform.h"
 
+#define LOCTEXT_NAMESPACE "ParametricRetessellateAction"
 
-#define LOCTEXT_NAMESPACE "CoreTechRetessellateAction"
+const FText FParametricRetessellateAction_Impl::Label = LOCTEXT("RetessellateActionLabel", "Retessellate");
+const FText FParametricRetessellateAction_Impl::Tooltip = LOCTEXT("RetessellateActionTooltip", "Tessellate the original NURBS surfaces to re-generate the mesh geometry");
 
-
-const FText FCoreTechRetessellate_Impl::Label = LOCTEXT("RetessellateActionLabel", "Retessellate");
-const FText FCoreTechRetessellate_Impl::Tooltip = LOCTEXT("RetessellateActionTooltip", "Tessellate the original NURBS surfaces to re-generate the mesh geometry");
-
-
-bool FCoreTechRetessellate_Impl::CanApplyOnAssets(const TArray<FAssetData>& SelectedAssets)
+const FText& UParametricRetessellateAction::GetLabel()
 {
-	return Algo::AnyOf(SelectedAssets, [](const FAssetData& Asset){ return Datasmith::GetAdditionalData<UCoreTechParametricSurfaceData>(Asset) != nullptr; });
+	return FParametricRetessellateAction_Impl::Label;
 }
 
-void FCoreTechRetessellate_Impl::ApplyOnAssets(const TArray<FAssetData>& SelectedAssets)
+const FText& UParametricRetessellateAction::GetTooltip()
+{
+	return FParametricRetessellateAction_Impl::Tooltip;
+}
+
+bool UParametricRetessellateAction::CanApplyOnAssets(const TArray<FAssetData>& SelectedAssets)
+{
+	return FParametricRetessellateAction_Impl::CanApplyOnAssets(SelectedAssets);
+}
+
+void UParametricRetessellateAction::ApplyOnAssets(const TArray<FAssetData>& SelectedAssets)
+{
+	return FParametricRetessellateAction_Impl::ApplyOnAssets(SelectedAssets);
+}
+
+bool FParametricRetessellateAction_Impl::CanApplyOnAssets(const TArray<FAssetData>& SelectedAssets)
+{
+	return Algo::AnyOf(SelectedAssets, [](const FAssetData& Asset){ return Datasmith::GetAdditionalData<UParametricSurfaceData>(Asset) != nullptr; });
+}
+
+void FParametricRetessellateAction_Impl::ApplyOnAssets(const TArray<FAssetData>& SelectedAssets)
 {
 	TFunction<void(UStaticMesh*)> FinalizeChanges = [](UStaticMesh* StaticMesh) -> void
 	{
@@ -53,7 +70,7 @@ void FCoreTechRetessellate_Impl::ApplyOnAssets(const TArray<FAssetData>& Selecte
 		}
 	};
 
-	TStrongObjectPtr<UCoreTechRetessellateActionOptions> RetessellateOptions = Datasmith::MakeOptions<UCoreTechRetessellateActionOptions>();
+	TStrongObjectPtr<UParametricRetessellateActionOptions> RetessellateOptions = Datasmith::MakeOptions<UParametricRetessellateActionOptions>();
 
 	bool bSameOptionsForAll = false;
 	int32 NumAssetsToProcess = SelectedAssets.Num();
@@ -67,9 +84,9 @@ void FCoreTechRetessellate_Impl::ApplyOnAssets(const TArray<FAssetData>& Selecte
 	for (const FAssetData& Asset : SelectedAssets)
 	{
 		AssetIndex++;
-		if (UCoreTechParametricSurfaceData* CoreTechData = Datasmith::GetAdditionalData<UCoreTechParametricSurfaceData>(Asset))
+		if (UParametricSurfaceData* ParametricSurfaceData = Datasmith::GetAdditionalData<UParametricSurfaceData>(Asset))
 		{
-			if (CoreTechData->RawData.Num())
+			if (ParametricSurfaceData->IsValid())
 			{
 				if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(Asset.GetAsset()))
 				{
@@ -80,14 +97,13 @@ void FCoreTechRetessellate_Impl::ApplyOnAssets(const TArray<FAssetData>& Selecte
 						Parameters.WindowTitle = LOCTEXT("OptionWindow_WindowTitle", "Datasmith Retessellation Options");
 						Parameters.FileLabel = FText::Format(LOCTEXT("OptionWindow_AssetLabel", "Tessellate StaticMesh: {0}"), FText::FromString(StaticMesh->GetName()));
 						Parameters.FileTooltip = FText::FromString(StaticMesh->GetPathName());
-// 						Parameters.PackageLabel = FText::FromName(StaticMesh->GetOutermost()->FileName);
 						Parameters.ProceedButtonLabel = LOCTEXT("OptionWindow_ProceedButtonLabel", "Tessellate");
 						Parameters.ProceedButtonTooltip = LOCTEXT("OptionWindow_ProceedButtonTooltip", "Retessellate this mesh based on included nurbs data");
 						Parameters.CancelButtonLabel = LOCTEXT("OptionWindow_CancelButtonLabel", "Cancel");
 						Parameters.CancelButtonTooltip = LOCTEXT("OptionWindow_CancelButtonTooltip", "Cancel the retessellation operation");
 
 						bAskForSameOption = false; // ask only the fist time
-						RetessellateOptions->Options = CoreTechData->LastTessellationOptions;
+						RetessellateOptions->Options = ParametricSurfaceData->LastTessellationOptions;
 						Datasmith::FDisplayResult Result = Datasmith::DisplayOptions(RetessellateOptions, Parameters);
 						if (!Result.bValidated)
 						{
@@ -95,7 +111,7 @@ void FCoreTechRetessellate_Impl::ApplyOnAssets(const TArray<FAssetData>& Selecte
 						}
 						bSameOptionsForAll |= Result.bUseSameOption;
 					}
-					CoreTechData->LastTessellationOptions = RetessellateOptions->Options;
+					ParametricSurfaceData->LastTessellationOptions = RetessellateOptions->Options;
 
 					int32 RemainingAssetsToProcess = NumAssetsToProcess - AssetIndex;
 					if (bSameOptionsForAll && !Progress.IsValid() && RemainingAssetsToProcess > 1)
@@ -128,7 +144,7 @@ void FCoreTechRetessellate_Impl::ApplyOnAssets(const TArray<FAssetData>& Selecte
 						StaticMesh->Modify();
 						StaticMesh->PreEditChange( nullptr );
 
-						if( ApplyOnOneAsset(*StaticMesh, *CoreTechData, RetessellateOptions->Options) )
+						if(ParametricSurfaceData != nullptr && ParametricSurfaceData->Tessellate(*StaticMesh, RetessellateOptions->Options))
 						{
 							TessellatedMeshes.Add(StaticMesh);
 						}
@@ -163,75 +179,6 @@ void FCoreTechRetessellate_Impl::ApplyOnAssets(const TArray<FAssetData>& Selecte
 	}
 }
 
-bool FCoreTechRetessellate_Impl::ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreTechParametricSurfaceData& CoreTechData, const FDatasmithRetessellationOptions& RetessellateOptions)
-{
-	bool bSuccessfulTessellation = false;
-
-	// make a temporary file as CoreTech can only deal with files.
-	int32 Hash = GetTypeHash(StaticMesh.GetPathName());
-	FString ResourceFile = FPaths::ConvertRelativePathToFull(FPaths::ProjectIntermediateDir() / FString::Printf(TEXT("0x%08x.ct"), Hash));
-
-	FFileHelper::SaveArrayToFile(CoreTechData.RawData, *ResourceFile);
-
-	CADLibrary::FCTMesh Mesh;
-
-	CADLibrary::FImportParameters ImportParameters;
-	ImportParameters.MetricUnit = CoreTechData.SceneParameters.MetricUnit;
-	ImportParameters.ScaleFactor = CoreTechData.SceneParameters.ScaleFactor;
-	ImportParameters.ChordTolerance = RetessellateOptions.ChordTolerance;
-	ImportParameters.MaxEdgeLength = RetessellateOptions.MaxEdgeLength;
-	ImportParameters.MaxNormalAngle = RetessellateOptions.NormalTolerance;
-	ImportParameters.ModelCoordSys = static_cast<FDatasmithUtils::EModelCoordSystem>(CoreTechData.SceneParameters.ModelCoordSys);
-	ImportParameters.StitchingTechnique = CADLibrary::EStitchingTechnique(RetessellateOptions.StitchingTechnique);
-
-	CADLibrary::FMeshParameters MeshParameters;
-	MeshParameters.bNeedSwapOrientation = CoreTechData.MeshParameters.bNeedSwapOrientation;
-	MeshParameters.bIsSymmetric = CoreTechData.MeshParameters.bIsSymmetric;
-	MeshParameters.SymmetricNormal = CoreTechData.MeshParameters.SymmetricNormal;
-	MeshParameters.SymmetricOrigin = CoreTechData.MeshParameters.SymmetricOrigin;
-
-	// Previous MeshDescription is get to be able to create a new one with the same order of PolygonGroup (the matching of color and partition is currently based on their order)
-	if(FMeshDescription* DestinationMeshDescription = StaticMesh.GetMeshDescription(0))
-	{
-		FMeshDescription MeshDescription;
-		FStaticMeshAttributes MeshDescriptionAttributes(MeshDescription);
-		MeshDescriptionAttributes.Register();
-
-		if (RetessellateOptions.RetessellationRule == EDatasmithCADRetessellationRule::SkipDeletedSurfaces)
-		{
-			CADLibrary::CopyPatchGroups(*DestinationMeshDescription, MeshDescription);
-		}
-
-		if ( CADLibrary::LoadFile(ResourceFile, MeshDescription, ImportParameters, MeshParameters))
-		{
-			// To update the SectionInfoMap 
-			{
-				TPolygonGroupAttributesConstRef<FName> MaterialSlotNames = MeshDescriptionAttributes.GetPolygonGroupMaterialSlotNames();
-				FMeshSectionInfoMap& SectionInfoMap = StaticMesh.GetSectionInfoMap();
-
-				for (FPolygonGroupID PolygonGroupID : MeshDescription.PolygonGroups().GetElementIDs())
-				{
-					FMeshSectionInfo Section = SectionInfoMap.Get(0, PolygonGroupID.GetValue());
-					int32 MaterialIndex = StaticMesh.GetMaterialIndex(MaterialSlotNames[PolygonGroupID]);
-					if (MaterialIndex < 0)
-					{
-						MaterialIndex = 0;
-					}
-					Section.MaterialIndex = MaterialIndex;
-					SectionInfoMap.Set(0, PolygonGroupID.GetValue(), Section);
-				}
-			}
-			*DestinationMeshDescription = MoveTemp(MeshDescription);
-			bSuccessfulTessellation = true;
-		}
-	}
-
-	// Remove temporary file
-	FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*ResourceFile);
-
-	return bSuccessfulTessellation;
-}
-
 TSet<UStaticMesh*> GetReferencedStaticMeshes(const TArray<AActor*>& SelectedActors)
 {
 	TSet<UStaticMesh*> ReferencedStaticMeshes;
@@ -253,13 +200,13 @@ TSet<UStaticMesh*> GetReferencedStaticMeshes(const TArray<AActor*>& SelectedActo
 	return ReferencedStaticMeshes;
 }
 
-bool UCoreTechRetessellateAction::CanApplyOnActors(const TArray<AActor*>& SelectedActors)
+bool UParametricRetessellateAction::CanApplyOnActors(const TArray<AActor*>& SelectedActors)
 {
 	const TSet<UStaticMesh*> ReferencedStaticMeshes = GetReferencedStaticMeshes(SelectedActors);
-	return Algo::AnyOf(ReferencedStaticMeshes, [](const UStaticMesh* Mesh){ return Datasmith::GetAdditionalData<UCoreTechParametricSurfaceData>(FAssetData(Mesh)); });
+	return Algo::AnyOf(ReferencedStaticMeshes, [](const UStaticMesh* Mesh){ return Datasmith::GetAdditionalData<UParametricSurfaceData>(FAssetData(Mesh)); });
 }
 
-void UCoreTechRetessellateAction::ApplyOnActors(const TArray<AActor*>& SelectedActors)
+void UParametricRetessellateAction::ApplyOnActors(const TArray<AActor*>& SelectedActors)
 {
 	TArray<FAssetData> AssetData;
 	Algo::Transform(GetReferencedStaticMeshes(SelectedActors), AssetData, [](UStaticMesh* Mesh){ return FAssetData(Mesh);});

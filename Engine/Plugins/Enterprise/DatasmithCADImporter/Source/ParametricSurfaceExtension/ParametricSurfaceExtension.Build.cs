@@ -23,7 +23,7 @@ namespace UnrealBuildTool.Rules
 					"MeshDescription",
 					"DataprepCore",
 					"DatasmithContent",
-					"CoreTechSurface",
+					"ParametricSurface",
 					"DatasmithImporter",
 					"Engine",
 					"StaticMeshEditor",

@@ -82,6 +82,22 @@
 			]
 		},
 		{
+			"Name": "ParametricSurface",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "CADKernelSurface",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
 			"Name": "CoreTechSurface",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",

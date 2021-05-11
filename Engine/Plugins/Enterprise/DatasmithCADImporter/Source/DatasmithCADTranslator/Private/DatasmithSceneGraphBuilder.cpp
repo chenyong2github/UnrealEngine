@@ -4,11 +4,11 @@
 #include "CADData.h"
 #include "CADSceneGraph.h"
 #include "CoreTechFileParser.h"
-#include "CoreTechHelper.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithSceneSource.h"
+#include "DatasmithUtils.h"
 #include "IDatasmithSceneElements.h"
-
+#include "MeshDescriptionHelper.h"
 #include "Misc/FileHelper.h"
 
 namespace

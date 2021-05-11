@@ -4,7 +4,7 @@
 
 #include "Hal/PlatformMemory.h"
 
-#include "CoreTechHelper.h"
+#include "CoreTechSurfaceHelper.h"
 #include "CoreTechTypes.h"
 
 #ifdef USE_OPENMODEL
@@ -99,7 +99,7 @@ bool FAliasCoretechWrapper::Tessellate(FMeshDescription& Mesh, FMeshParameters& 
 	TopoFixes(1.);
 
 	// Perform tessellation
-	return CADLibrary::Tessellate(MainObjectId, ImportParams, Mesh, MeshParameters);
+	return CoreTechSurface::Tessellate(MainObjectId, ImportParams, Mesh, MeshParameters);
 }
 
 uint64 FAliasCoretechWrapper::Add3DCurve(AlCurve& Curve)
