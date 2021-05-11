@@ -1294,6 +1294,7 @@ FVideoDecoderH264::EDecodeResult FVideoDecoderH264::Decode(FAccessUnit* AccessUn
 void FVideoDecoderH264::WorkerThread()
 {
 	bool bDone  = false;
+    bool bGotLastSequenceAU = false;
 
 	bError = false;
 
@@ -1385,8 +1386,9 @@ void FVideoDecoderH264::WorkerThread()
 					ReplayAccessUnitBuffer.Flush();
 				}
 
-				bool bStreamFormatChanged = CurrentStreamFormatInfo.IsDifferentFrom(AccessUnit);
+				bool bStreamFormatChanged = CurrentStreamFormatInfo.IsDifferentFrom(AccessUnit) || bGotLastSequenceAU;
 				bool bNeedNewDecoder = false;
+                bGotLastSequenceAU = AccessUnit->bIsLastInPeriod;
 				if (bStreamFormatChanged || !DecoderHandle)
 				{
 					CMFormatDescriptionRef NewFormatDescr = nullptr;
