@@ -104,7 +104,7 @@ struct CORE_API FUE5MainStreamObjectVersion
 		BlendSpaceRuntimeTriangulation,
 
 		// Fix to the Cubic smoothing, plus introduction of new smoothing types
-        BlendSpaceSmoothingImprovements,
+		BlendSpaceSmoothingImprovements,
 
 		// Removing Tessellation parameters from Materials
 		RemovingTessellationParameters,
@@ -133,7 +133,13 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Changed how actor descriptors compute their bounds
 		WorldPartitionActorDescGetStreamingBounds,
 
-        // -----<new versions can be added above this line>-------------------------------------------------
+		// Switch FMeshDescriptionBulkData to use virtualized bulkdata
+		MeshDescriptionVirtualization,
+		
+		// Switch FTextureSource to use virtualized bulkdata
+		TextureSourceVirtualization,
+
+		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
 	};

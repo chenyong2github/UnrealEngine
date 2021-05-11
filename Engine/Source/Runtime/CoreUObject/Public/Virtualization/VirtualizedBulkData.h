@@ -68,6 +68,19 @@ public:
 	 */
 	void CreateFromBulkData(FUntypedBulkData& BulkData, const FGuid& Guid);
 
+#if UE_VBD_TO_OLD_BULKDATA_PATH
+	/**
+	 * Convenience method to make it easier to convert from FVirtualizedBulkData to BulkData. This is not very
+	 * efficient as it will load the payload from disk and the old bulkdata object will hold it in memory. It 
+	 * is provided in case virtualized bulkdata needs to be disabled once it goes live and we need a way to 
+	 * re-save packages back to the older format.
+	 * 
+	 * @param BulkData	The bulkdata object to be provided with the payload that the virtualized bulkdata object
+	 *					represents.
+	 */
+	void ConvertToOldBulkData(FUntypedBulkData& BulkData);
+#endif //UE_VBD_TO_OLD_BULKDATA_PATH
+
 	void Serialize(FArchive& Ar, UObject* Owner);
 
 	/** Reset to a truly empty state */
