@@ -685,7 +685,8 @@ uint32 FThreadHeartBeat::CheckCheckpointHeartBeat(double& OutHangDuration)
 {
 	// Editor and debug builds run too slow to measure them correctly
 #if USE_HANG_DETECTION
-	bool CheckBeats = IsEnabled();
+	static bool bCheckpointDisabled = FParse::Param(FCommandLine::Get(), TEXT("nocheckpointhangdetector"));
+	bool CheckBeats = IsEnabled() && !bCheckpointDisabled;
 
 	if (CheckBeats)
 	{
