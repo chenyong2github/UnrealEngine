@@ -149,14 +149,37 @@ FAutoConsoleVariableRef CVarLumenGIRecaptureLumenSceneEveryFrame(
 	ECVF_RenderThreadSafe
 );
 
+int32 GLumenSceneNaniteMultiViewRaster = 1;
+FAutoConsoleVariableRef CVarLumenSceneNaniteMultiViewRaster(
+	TEXT("r.LumenScene.SurfaceCache.NaniteMultiViewRaster"),
+	GLumenSceneNaniteMultiViewRaster,
+	TEXT("Toggle multi view Lumen Nanite Card rasterization for debugging."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		extern int32 GLumenSceneSurfaceCacheReset;
+		if (GLumenSceneSurfaceCacheReset <= 0)
+		{
+			GLumenSceneSurfaceCacheReset = 1;
+		}
+	}),
+	ECVF_RenderThreadSafe
+);
+
 int32 GLumenSceneNaniteMultiViewCapture = 1;
 FAutoConsoleVariableRef CVarLumenSceneNaniteMultiViewCapture(
 	TEXT("r.LumenScene.SurfaceCache.NaniteMultiViewCapture"),
 	GLumenSceneNaniteMultiViewCapture,
-	TEXT(""),
+	TEXT("Toggle multi view Lumen Nanite Card capture for debugging."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		extern int32 GLumenSceneSurfaceCacheReset;
+		if (GLumenSceneSurfaceCacheReset <= 0)
+		{
+			GLumenSceneSurfaceCacheReset = 1;
+		}
+	}),
 	ECVF_RenderThreadSafe
 );
-
 
 int32 GLumenSceneGlobalDFResolution = 224;
 FAutoConsoleVariableRef CVarLumenSceneGlobalDFResolution(
@@ -304,6 +327,7 @@ protected:
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FLumenCardVS, TEXT("/Engine/Private/Lumen/LumenCardVertexShader.usf"), TEXT("Main"), SF_Vertex);
 
+template<bool bMultiViewCapture>
 class FLumenCardPS : public FMeshMaterialShader
 {
 	DECLARE_SHADER_TYPE(FLumenCardPS, MeshMaterial);
@@ -311,6 +335,11 @@ class FLumenCardPS : public FMeshMaterialShader
 public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
+		if (Parameters.VertexFactoryType->SupportsNaniteRendering() != bMultiViewCapture)
+		{
+			return false;
+		}
+
 		//@todo DynamicGI - filter
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
 	}
@@ -320,9 +349,17 @@ public:
 	{}
 
 	FLumenCardPS() = default;
+
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		OutEnvironment.SetDefine(TEXT("LUMEN_MULTI_VIEW_CAPTURE"), bMultiViewCapture);
+	}
 };
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FLumenCardPS, TEXT("/Engine/Private/Lumen/LumenCardPixelShader.usf"), TEXT("Main"), SF_Pixel);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FLumenCardPS<false>, TEXT("/Engine/Private/Lumen/LumenCardPixelShader.usf"), TEXT("Main"), SF_Pixel);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FLumenCardPS<true>, TEXT("/Engine/Private/Lumen/LumenCardPixelShader.usf"), TEXT("Main"), SF_Pixel);
 
 class FLumenCardMeshProcessor : public FMeshPassProcessor
 {
@@ -359,13 +396,14 @@ void FLumenCardMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 		{
 			const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 			FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
+			constexpr bool bMultiViewCapture = false;
 
 			TMeshProcessorShaders<
 				FLumenCardVS,
-				FLumenCardPS> PassShaders;
+				FLumenCardPS<bMultiViewCapture>> PassShaders;
 
 			PassShaders.VertexShader = Material.GetShader<FLumenCardVS>(VertexFactoryType);
-			PassShaders.PixelShader = Material.GetShader<FLumenCardPS>(VertexFactoryType);
+			PassShaders.PixelShader = Material.GetShader<FLumenCardPS<bMultiViewCapture>>(VertexFactoryType);
 
 			FMeshMaterialShaderElementData ShaderElementData;
 			ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
@@ -441,7 +479,7 @@ FLumenCardNaniteMeshProcessor::FLumenCardNaniteMeshProcessor(
 {
 }
 
-using FLumenCardNanitePassShaders = TMeshProcessorShaders<FNaniteMaterialVS, FLumenCardPS>;
+using FLumenCardNanitePassShaders = TMeshProcessorShaders<FNaniteMaterialVS, FLumenCardPS<true>>;
 
 void FLumenCardNaniteMeshProcessor::AddMeshBatch(
 	const FMeshBatch& RESTRICT MeshBatch,
@@ -491,9 +529,10 @@ bool FLumenCardNaniteMeshProcessor::TryAddMeshBatch(
 
 	const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 	FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
+	constexpr bool bMultiViewCapture = true;
 
 	FMaterialShaderTypes ShaderTypes;
-	ShaderTypes.AddShaderType<FLumenCardPS>();
+	ShaderTypes.AddShaderType<FLumenCardPS<bMultiViewCapture>>();
 
 	FMaterialShaders Shaders;
 	if (!Material.TryGetShaders(ShaderTypes, VertexFactoryType, Shaders))
@@ -2334,7 +2373,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 					bForceHWRaster,
 					bPrimaryContext);
 
-				if (GLumenSceneNaniteMultiViewCapture)
+				if (GLumenSceneNaniteMultiViewRaster != 0)
 				{
 					// Multi-view rendering path
 					const uint32 NumCardPagesToRender = CardPagesToRender.Num();
@@ -2445,22 +2484,51 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 					}
 				}
 
-				Nanite::DrawLumenMeshCapturePass(
-					GraphBuilder,
-					*Scene,
-					SharedView,
-					CardPagesToRender,
-					CullingContext,
-					RasterContext,
-					PassUniformParameters,
-					CardCaptureRectBufferSRV,
-					CardPagesToRender.Num(),
-					CardCaptureAtlas.Size,
-					CardCaptureAtlas.Albedo,
-					CardCaptureAtlas.Normal,
-					CardCaptureAtlas.Emissive,
-					CardCaptureAtlas.DepthStencil
-				);
+				if (GLumenSceneNaniteMultiViewCapture != 0)
+				{
+					Nanite::DrawLumenMeshCapturePass(
+						GraphBuilder,
+						*Scene,
+						SharedView,
+						TArrayView<const FCardPageRenderData>(CardPagesToRender),
+						CullingContext,
+						RasterContext,
+						PassUniformParameters,
+						CardCaptureRectBufferSRV,
+						CardPagesToRender.Num(),
+						CardCaptureAtlas.Size,
+						CardCaptureAtlas.Albedo,
+						CardCaptureAtlas.Normal,
+						CardCaptureAtlas.Emissive,
+						CardCaptureAtlas.DepthStencil
+					);
+				}
+				else
+				{
+					// Single capture per card. Slow path, only for debugging.
+					for (int32 PageIndex = 0; PageIndex < CardPagesToRender.Num(); ++PageIndex)
+					{
+						if (CardPagesToRender[PageIndex].NaniteCommandInfos.Num() > 0)
+						{
+							Nanite::DrawLumenMeshCapturePass(
+								GraphBuilder,
+								*Scene,
+								SharedView,
+								TArrayView<const FCardPageRenderData>(&CardPagesToRender[PageIndex], 1),
+								CullingContext,
+								RasterContext,
+								PassUniformParameters,
+								CardCaptureRectBufferSRV,
+								CardPagesToRender.Num(),
+								CardCaptureAtlas.Size,
+								CardCaptureAtlas.Albedo,
+								CardCaptureAtlas.Normal,
+								CardCaptureAtlas.Emissive,
+								CardCaptureAtlas.DepthStencil
+							);
+						}
+					}
+				}
 			}
 
 			UploadCardPagesToRenderIndexBuffers(GraphBuilder, CardPagesToRender, LumenCardRenderer);

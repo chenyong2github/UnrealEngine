@@ -20,6 +20,9 @@ struct FVertexFactoryInterpolantsVSToPS
 //#if INSTANCED_STEREO
 	nointerpolation uint EyeIndex : PACKED_EYE_INDEX;
 //#endif
+//#if NANITE_MULTI_VIEW
+	nointerpolation uint ViewIndex : PACKED_VIEW_INDEX;
+//#endif
 };
 
 #if NEEDS_LIGHTMAP_COORDINATE
@@ -62,7 +65,7 @@ void SetLightMapDataIndex(inout FVertexFactoryInterpolantsVSToPS Interpolants, u
 #endif // NEEDS_LIGHTMAP_COORDINATE
 
 /** Converts from vertex factory specific interpolants to a FMaterialPixelParameters, which is used by material inputs. */
-FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
+FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
 {
 	FMaterialPixelParameters Result = (FMaterialPixelParameters)0;
 
@@ -74,8 +77,6 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 	uint TriIndex = 0;
 	UnpackVisPixel(Pixel, DepthInt, VisibleClusterIndex, TriIndex);
 
-	const FNaniteView NaniteView = GetNaniteView(0);
-	
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
 		FVisibleCluster VisibleCluster           = GetVisibleCluster(VisibleClusterIndex);
@@ -94,10 +95,10 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		const float4 PointClip1 = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToClip);
 		const float4 PointClip2 = mul(float4(PointLocal2, 1), InstanceDynamicData.LocalToClip);
 
-		const float2 PixelClip = (SvPosition.xy - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw * float2(2, -2) + float2(-1, 1);
+		const float2 PixelClip = (SvPosition.xy - NaniteView.ViewRect.xy) * NaniteView.ViewSizeAndInvSize.zw * float2(2, -2) + float2(-1, 1);
 
 		// Calculate perspective correct barycentric coordinates with screen derivatives
-		const FBarycentrics Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2, View.ViewSizeAndInvSize.zw);
+		const FBarycentrics Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2, NaniteView.ViewSizeAndInvSize.zw);
 
 	#if NEEDS_LIGHTMAP_COORDINATE
 		// Materials without any texture coordinates referenced will
@@ -245,6 +246,12 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 	}
 
 	return Result;
+}
+
+FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
+{
+	const FNaniteView NaniteView = GetNaniteView(0);
+	return GetMaterialPixelParameters(NaniteView, Interpolants, SvPosition);
 }
 
 struct FVertexFactoryRayTracingInterpolants
