@@ -16,7 +16,6 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
 
-#include "Algo/AnyOf.h"
 #include "Algo/ForEach.h"
 
 #include "EngineUtils.h"
@@ -113,10 +112,9 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 	auto ShouldGenerateHLODs = [&AlwaysLoadedCell](const FSquare2DGridHelper::FGridLevel::FGridCell& GridCell, const FSquare2DGridHelper::FGridLevel::FGridCellDataChunk& GridCellDataChunk)
 	{
 		const bool bIsCellAlwaysLoaded = &GridCell == &AlwaysLoadedCell;
-		const bool bShouldGenerateHLODForDataLayers = GridCellDataChunk.GetDataLayers().IsEmpty() ? true : Algo::AnyOf(GridCellDataChunk.GetDataLayers(), [](const UDataLayer* DataLayer) { return DataLayer->ShouldGenerateHLODs(); });
 		const bool bChunkHasActors = !GridCellDataChunk.GetActors().IsEmpty();
 
-		const bool bShouldGenerateHLODs = !bIsCellAlwaysLoaded && bShouldGenerateHLODForDataLayers && bChunkHasActors;
+		const bool bShouldGenerateHLODs = !bIsCellAlwaysLoaded && bChunkHasActors;
 		return bShouldGenerateHLODs;
 	};
 
