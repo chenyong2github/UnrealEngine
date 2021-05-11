@@ -452,15 +452,19 @@ public:
 
 	/** remove a list of constraints from the constraint graph (see AddConstraintsToConstraintGraph) */
 	CHAOS_API void RemoveConstraintsFromConstraintGraph(const TArray<FConstraintHandle*>& Constraints)
-		{
+	{
 		for (FConstraintHandle* BaseConstraintHandle : Constraints)
+		{
+			if (FPBDJointConstraintHandle* ConstraintHandle = BaseConstraintHandle->As<FPBDJointConstraintHandle>())
 			{
-				if (FPBDJointConstraintHandle* ConstraintHandle = BaseConstraintHandle->As<FPBDJointConstraintHandle>())
+				// if it is already disabled then it will have already been removed from the graph
+				if (ConstraintHandle->IsConstraintEnabled())
 				{
-						ConstraintGraph.RemoveConstraint(ConstraintHandle->GetConstraintIndex(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
-					}
+					ConstraintGraph.RemoveConstraint(ConstraintHandle->GetConstraintIndex(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
 				}
 			}
+		}
+	}
 
 	/** Add a list of constraints to the constraint graph (see RemoveConstraintsFromConstraintGraph) */
 	CHAOS_API void AddConstraintsToConstraintGraph(const TArray<FConstraintHandle*>& Constraints)
@@ -472,7 +476,7 @@ public:
 				ConstraintGraph.AddConstraint(ConstraintHandle->GetConstraintIndex(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
 			}
 		}
-		}
+	}
 
 	/** Disconnect constraints from a set of particles to be removed (or destroyed) 
 	* this will set the constraints to Enbaled = false and set their respective bodies handles to nullptr
@@ -491,7 +495,7 @@ public:
 	}
 
 	/** Disconnect constraints from a set of particles to be removed (or destroyed)
-	* this will set the constraints to Enbaled = false, but leave connections to the 
+	* this will set the constraints to Enabled = false, but leave connections to the 
 	* particles. 
 	*/
 	CHAOS_API void DisableConstraints(const TSet<FGeometryParticleHandle*>& DisabledParticles)
