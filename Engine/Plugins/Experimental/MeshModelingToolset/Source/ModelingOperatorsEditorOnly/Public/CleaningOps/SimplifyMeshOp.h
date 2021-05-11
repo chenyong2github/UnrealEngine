@@ -76,6 +76,9 @@ public:
 	/** Angle threshold in degrees used for testing if two triangles should be considered coplanar, or two lines collinear */
 	float MinimalPlanarAngleThresh = 0.01f;
 
+	bool bGeometricDeviationConstraint = false;
+	float GeometricTolerance = 0.0f;
+
 	// stored for the UEStandard path
 	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> OriginalMeshDescription;
 	// stored for the GeometryProcessing custom simplifier paths (currently precomputed once in tool setup)

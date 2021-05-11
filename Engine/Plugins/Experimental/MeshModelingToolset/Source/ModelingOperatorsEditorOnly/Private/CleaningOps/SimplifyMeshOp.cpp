@@ -34,7 +34,8 @@ void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject,
 					 const float TargetPercentage, const int TargetCount, const float TargetEdgeLength,
 					 const float AngleThreshold,
 	                 typename SimplificationType::ESimplificationCollapseModes CollapseMode,
-					 bool bUseQuadricMemory)
+					 bool bUseQuadricMemory,
+					 float GeometricTolerance )
 {
 	SimplificationType Reducer(TargetMesh);
 
@@ -71,17 +72,25 @@ void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject,
 	Reducer.GroupBoundaryConstraint = GroupBoundaryConstraint;
 	Reducer.MaterialBoundaryConstraint = MaterialBoundaryConstraint;
 	
-
-	FMeshProjectionTarget  ProjTarget(&OriginalMesh, &OriginalMeshSpatial);
-	if (bReproject)
-	{
-		Reducer.SetProjectionTarget(&ProjTarget);
-	}
-
 	// MinimalPlanar is a special path that ignores the collapse mode (and quadric error ), so don't bother setting it.
 	if (TargetMode != ESimplifyTargetType::MinimalPlanar)
 	{
 		Reducer.CollapseMode = CollapseMode;
+		GeometricTolerance = 0;		// MinimalPlanar does not allow vertices to move off the input surface
+	}
+
+	// use projection target if we are reprojecting or doing geometric error checking
+	FMeshProjectionTarget ProjTarget(&OriginalMesh, &OriginalMeshSpatial);
+	if (bReproject || GeometricTolerance > 0)
+	{
+		Reducer.SetProjectionTarget(&ProjTarget);
+	}
+
+	// configure geometric error settings
+	if (GeometricTolerance > 0)
+	{
+		Reducer.GeometricErrorConstraint = SimplificationType::EGeometricErrorCriteria::PredictedPointToProjectionTarget;
+		Reducer.GeometricErrorTolerance = GeometricTolerance;
 	}
 
 	if (TargetMode == ESimplifyTargetType::Percentage)
@@ -127,6 +136,7 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 	}
 
 	int OriginalTriCount = OriginalMesh->TriangleCount();
+	double UseGeometricTolerance = (bGeometricDeviationConstraint) ? GeometricTolerance : 0.0;
 	if (SimplifierType == ESimplifyType::QEM)
 	{
 		bool bUseQuadricMemory = true;
@@ -137,7 +147,8 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 											MaterialBoundaryConstraint,
 											bPreserveSharpEdges, bAllowSeamCollapse,
 											TargetMode, TargetPercentage, TargetCount, TargetEdgeLength, MinimalPlanarAngleThresh,
-											FQEMSimplification::ESimplificationCollapseModes::MinimalQuadricPositionError, bUseQuadricMemory);
+											FQEMSimplification::ESimplificationCollapseModes::MinimalQuadricPositionError, bUseQuadricMemory, 
+											UseGeometricTolerance);
 	}
 	else if (SimplifierType == ESimplifyType::Attribute)
 	{
@@ -153,7 +164,8 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 													MaterialBoundaryConstraint,
 													bPreserveSharpEdges, bAllowSeamCollapse,
 													TargetMode, TargetPercentage, TargetCount, TargetEdgeLength, MinimalPlanarAngleThresh,
-													FAttrMeshSimplification::ESimplificationCollapseModes::MinimalQuadricPositionError, bUseQuadricMemory);
+													FAttrMeshSimplification::ESimplificationCollapseModes::MinimalQuadricPositionError, bUseQuadricMemory,
+													UseGeometricTolerance);
 	}
 	else if (SimplifierType == ESimplifyType::MinimalPlanar)
 	{
@@ -169,7 +181,8 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 			MaterialBoundaryConstraint,
 			bPreserveSharpEdges, bAllowSeamCollapse,
 			ESimplifyTargetType::MinimalPlanar, TargetPercentage, TargetCount, TargetEdgeLength, MinimalPlanarAngleThresh,
-			FAttrMeshSimplification::ESimplificationCollapseModes::MinimalQuadricPositionError, bUseQuadricMemory);
+			FAttrMeshSimplification::ESimplificationCollapseModes::MinimalQuadricPositionError, bUseQuadricMemory,
+			UseGeometricTolerance);
 	}
 	else if (SimplifierType == ESimplifyType::MinimalExistingVertex)
 	{
@@ -181,7 +194,8 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 			MaterialBoundaryConstraint,
 			bPreserveSharpEdges, bAllowSeamCollapse,
 			TargetMode, TargetPercentage, TargetCount, TargetEdgeLength, MinimalPlanarAngleThresh, 
-			FQEMSimplification::ESimplificationCollapseModes::MinimalExistingVertexError, bUseQuadricMemory);
+			FQEMSimplification::ESimplificationCollapseModes::MinimalExistingVertexError, bUseQuadricMemory,
+			UseGeometricTolerance);
 	}
 	else // SimplifierType == ESimplifyType::UEStandard
 	{
