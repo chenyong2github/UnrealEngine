@@ -181,6 +181,12 @@ private:
 	 */
 	void InitializeFromParameters();
 
+	/**
+     * Returns true if notification widgets should be shown when recording.
+	 * It takes into account TakeRecorder project settings, the command line, and global unattended settings.
+     */
+	bool ShouldShowNotifications();
+
 private:
 
 	/** Called by Tick and Start to make sure we record at start */
