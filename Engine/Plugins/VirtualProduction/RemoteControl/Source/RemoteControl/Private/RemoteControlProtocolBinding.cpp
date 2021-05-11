@@ -4,18 +4,14 @@
 
 #include "IRemoteControlModule.h"
 #include "RemoteControlPreset.h"
+#include "RemoteControlSettings.h"
 
+#include "CborWriter.h"
 #include "Algo/Sort.h"
 #include "Backends/CborStructDeserializerBackend.h"
-#include "CborWriter.h"
-#include "Engine/Engine.h"
-#include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
 #include "UObject/StructOnScope.h"
-
-#if WITH_EDITOR
-#include "ScopedTransaction.h"
-#endif
 
 #define LOCTEXT_NAMESPACE "RemoteControl"
 
@@ -474,7 +470,14 @@ bool FRemoteControlProtocolEntity::ApplyProtocolValueToProperty(double InProtoco
 
 	FRCObjectReference ObjectRef;
 	ObjectRef.Property = Property;
-	ObjectRef.Access = bGenerateTransaction ? ERCAccess::WRITE_TRANSACTION_ACCESS : ERCAccess::WRITE_ACCESS;
+	ObjectRef.Access = ERCAccess::WRITE_ACCESS;
+
+	const URemoteControlSettings* RemoteControlSettings = GetDefault<URemoteControlSettings>();
+	if (RemoteControlSettings->bProtocolsGenerateTransactions)
+	{
+		ObjectRef.Access = ERCAccess::WRITE_TRANSACTION_ACCESS;
+	}
+	
 	ObjectRef.PropertyPathInfo = RemoteControlProperty->FieldPathInfo.ToString();
 
 	bool bSuccess = true;

@@ -377,10 +377,6 @@ protected:
 	UPROPERTY()
 	FGuid PropertyId;
 
-	/** Should property generate transaction events? */
-	UPROPERTY(EditAnywhere, Category = Mapping)
-	bool bGenerateTransaction = true;
-
 protected:
 	/** 
 	 * Property mapping ranges set
