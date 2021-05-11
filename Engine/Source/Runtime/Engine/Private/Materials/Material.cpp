@@ -3874,7 +3874,7 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			MoveConnectionTo(EmissiveColor, TopSlabBSDF, 13);							// Emissive
 
 			// Now weight the top base material by opacity
-			UMaterialExpressionStrataMultiply* TopMaterialWithCoverage = NewObject<UMaterialExpressionStrataMultiply>(this);
+			UMaterialExpressionStrataWeight* TopMaterialWithCoverage = NewObject<UMaterialExpressionStrataWeight>(this);
 			TopMaterialWithCoverage->GetInput(0)->Connect(0, TopSlabBSDF);				// TopSlabBSDF -> A
 			MoveConnectionTo(Opacity, TopMaterialWithCoverage, 1);						// Opacity -> Weight
 
@@ -3973,7 +3973,7 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			}
 
 			// Now weight the top base material by ClearCoat
-			UMaterialExpressionStrataMultiply* TopSlabBSDFWithCoverage = NewObject<UMaterialExpressionStrataMultiply>(this);
+			UMaterialExpressionStrataWeight* TopSlabBSDFWithCoverage = NewObject<UMaterialExpressionStrataWeight>(this);
 			TopSlabBSDFWithCoverage->GetInput(0)->Connect(0, TopSlabBSDF);				// TopSlabBSDF -> A
 			MoveConnectionTo(ClearCoat, TopSlabBSDFWithCoverage, 1);					// ClearCoat -> Weight
 

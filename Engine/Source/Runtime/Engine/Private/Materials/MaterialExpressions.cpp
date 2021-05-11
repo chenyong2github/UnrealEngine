@@ -21120,7 +21120,7 @@ void UMaterialExpressionStrataAdd::GatherStrataMaterialInfo(FStrataMaterialInfo&
 
 
 
-UMaterialExpressionStrataMultiply::UMaterialExpressionStrataMultiply(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionStrataWeight::UMaterialExpressionStrataWeight(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	struct FConstructorStatics
@@ -21135,7 +21135,7 @@ UMaterialExpressionStrataMultiply::UMaterialExpressionStrataMultiply(const FObje
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionStrataMultiply::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionStrataWeight::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if (!A.GetTracedInput().Expression)
 	{
@@ -21145,29 +21145,29 @@ int32 UMaterialExpressionStrataMultiply::Compile(class FMaterialCompiler* Compil
 	int32 ACodeChunk = A.Compile(Compiler);
 	int32 WeightCodeChunk = Weight.GetTracedInput().Expression ? Weight.Compile(Compiler) : Compiler->Constant(1.0f);
 
-	int32 OutputCodeChunk = Compiler->StrataMultiply(ACodeChunk, WeightCodeChunk);
+	int32 OutputCodeChunk = Compiler->StrataWeight(ACodeChunk, WeightCodeChunk);
 
 	if (!Compiler->StrataCompilationInfoContainsCodeChunk(ACodeChunk))
 	{
 		return Compiler->Errorf(TEXT("Could not find ACodeChunk to multiply"));
 	}
-	FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoMultiply(Compiler, Compiler->GetStrataCompilationInfo(ACodeChunk));
+	FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoWeight(Compiler, Compiler->GetStrataCompilationInfo(ACodeChunk));
 	Compiler->StrataCompilationInfoRegisterCodeChunk(OutputCodeChunk, StrataInfo);
 
 	return OutputCodeChunk;
 }
 
-void UMaterialExpressionStrataMultiply::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionStrataWeight::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("Strata BSDF Weight"));
 }
 
-uint32 UMaterialExpressionStrataMultiply::GetOutputType(int32 OutputIndex)
+uint32 UMaterialExpressionStrataWeight::GetOutputType(int32 OutputIndex)
 {
 	return MCT_Strata;
 }
 
-uint32 UMaterialExpressionStrataMultiply::GetInputType(int32 InputIndex)
+uint32 UMaterialExpressionStrataWeight::GetInputType(int32 InputIndex)
 {
 	if (InputIndex == 0)
 	{
@@ -21176,12 +21176,12 @@ uint32 UMaterialExpressionStrataMultiply::GetInputType(int32 InputIndex)
 	return MCT_Float1;
 }
 
-bool UMaterialExpressionStrataMultiply::IsResultStrataMaterial(int32 OutputIndex)
+bool UMaterialExpressionStrataWeight::IsResultStrataMaterial(int32 OutputIndex)
 {
 	return true;
 }
 
-void UMaterialExpressionStrataMultiply::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+void UMaterialExpressionStrataWeight::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
 {
 	if (A.GetTracedInput().Expression)
 	{

@@ -9177,14 +9177,14 @@ int32 FHLSLMaterialTranslator::StrataAddParameterBlending(int32 A, int32 B, cons
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataMultiply(int32 A, int32 Weight)
+int32 FHLSLMaterialTranslator::StrataWeight(int32 A, int32 Weight)
 {
 	if (A == INDEX_NONE || Weight == INDEX_NONE)
 	{
 		return INDEX_NONE;
 	}
 	return AddCodeChunk(
-		MCT_Strata, TEXT("StrataMultiply(%s, %s)"),
+		MCT_Strata, TEXT("StrataWeight(%s, %s)"),
 		*GetParameterCode(A),
 		*GetParameterCode(Weight)
 	);
