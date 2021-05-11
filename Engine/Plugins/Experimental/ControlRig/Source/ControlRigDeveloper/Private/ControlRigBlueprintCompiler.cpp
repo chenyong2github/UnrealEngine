@@ -91,7 +91,17 @@ void FControlRigBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObjec
 	if (ControlRigBlueprint)
 	{
 		UControlRig* ControlRig = CastChecked<UControlRig>(DefaultObject);
-		ControlRig->GetHierarchy()->CopyHierarchy(ControlRigBlueprint->Hierarchy);
+		
+		// copy hierarchy
+		{
+			TGuardValue<bool> Guard(ControlRig->GetHierarchy()->GetSuspendNotificationsFlag(), false);
+			ControlRig->GetHierarchy()->CopyHierarchy(ControlRigBlueprint->Hierarchy);
+			ControlRig->GetHierarchy()->ResetPoseToInitial(ERigElementType::All);
+		}
+
+		// notify clients that the hierarchy has changed
+		ControlRig->GetHierarchy()->Notify(ERigHierarchyNotification::HierarchyReset, nullptr);
+
 		ControlRig->DrawContainer = ControlRigBlueprint->DrawContainer;
 		ControlRig->Influences = ControlRigBlueprint->Influences;
 	}
