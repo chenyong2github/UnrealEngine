@@ -4,6 +4,9 @@
 
 struct FPackedNaniteView
 {
+	float4x4	SVPositionToTranslatedWorld;
+	float4x4	ViewToTranslatedWorld;
+
 	float4x4	TranslatedWorldToView;
 	float4x4	TranslatedWorldToClip;
 	float4x4	ViewToClip;

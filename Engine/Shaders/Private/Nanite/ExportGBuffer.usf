@@ -394,22 +394,41 @@ void EmitEditorSelectionDepthPS(
 #endif
 
 float MaterialDepth;
+uint InstanceBaseOffset;
 
 struct FVertexFactoryInterpolantsVSToPS
 {
 	float4 LightMapCoordinate : TEXCOORD3;
 	uint LightmapDataIndex : LIGHTMAP_ID;
 	uint EyeIndex : PACKED_EYE_INDEX;
+	uint ViewIndex : PACKED_VIEW_INDEX;
 };
 
 void FullScreenVS(
-	float2 InPosition	: ATTRIBUTE0,
-	uint TileIndex		: SV_InstanceID,
+	float2 InPosition : ATTRIBUTE0,
+	uint InstanceIndex : SV_InstanceID,
 	out FVertexFactoryInterpolantsVSToPS Output,	// Always produce all outputs to work around shader linkage errors without introducing permutations.
 	out float4 Position : SV_Position
-	
+
 )
 {
+	Output = (FVertexFactoryInterpolantsVSToPS)0;
+
+	uint TileIndex = InstanceIndex;
+	float4 RectScaleOffset = Nanite.RectScaleOffset;
+
+	BRANCH
+	if (Nanite.MultiViewEnabled > 0)
+	{
+		// Treat InstanceIndex for view indexing if multi view rendering is enabled
+		TileIndex = 0;
+
+		const uint ViewIndex = Nanite.MultiViewIndices[InstanceBaseOffset + InstanceIndex];
+		RectScaleOffset = Nanite.MultiViewRectScaleOffsets[ViewIndex];
+		Output.ViewIndex = ViewIndex;	
+	}
+
+
 	const uint  CullMode = Nanite.MaterialConfig.x;
 	const uint2 GridSize = Nanite.MaterialConfig.yz;
 
@@ -418,14 +437,12 @@ void FullScreenVS(
 
 	// Input position is in [0,0 .. 1,1] range.
 	float2 TilePosition = (InPosition + (float2)GridPos) * GridStep;
-	TilePosition.xy = TilePosition.xy * Nanite.RectScaleOffset.xy + Nanite.RectScaleOffset.zw;
+	TilePosition.xy = TilePosition.xy * RectScaleOffset.xy + RectScaleOffset.zw;
 
 	const float Depth = MaterialDepth;
 	const uint MaterialBucketId = GetMaterialBucketIdFromDepth(Depth);
 
 	Position = float4(TilePosition.x * 2.0 - 1.0, 1.0 - 2.0 * TilePosition.y, Depth, 1);
-
-	Output = (FVertexFactoryInterpolantsVSToPS)0;
 
 	// Mode 0: no culling
 	// Mode 1: cull full screen passes (32bit mask)

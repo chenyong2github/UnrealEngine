@@ -9,6 +9,7 @@
 #include "UnifiedBuffer.h"
 #include "Rendering/NaniteResources.h"
 
+struct FLumenMeshCaptureMaterialPass;
 class FCardPageRenderData;
 class FVirtualShadowMapArray;
 class FLumenCardPassUniformParameters;
@@ -44,6 +45,11 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
 	SHADER_PARAMETER_TEXTURE(Texture2D<UlongType>,	VisBuffer64)
 	SHADER_PARAMETER_TEXTURE(Texture2D<UlongType>,	DbgBuffer64)
 	SHADER_PARAMETER_TEXTURE(Texture2D<uint>,		DbgBuffer32)
+	// Multi view
+	SHADER_PARAMETER(uint32,												MultiViewEnabled)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>,					MultiViewIndices)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>,				MultiViewRectScaleOffsets)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedNaniteView>,	InViews)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FNaniteVisualizeLevelInstanceParameters, )
@@ -208,6 +214,7 @@ class FNaniteMaterialVS : public FNaniteShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(float, MaterialDepth)
+		SHADER_PARAMETER(uint32, InstanceBaseOffset)
 	END_SHADER_PARAMETER_STRUCT()
 
 	FNaniteMaterialVS()
@@ -384,6 +391,9 @@ enum class EOutputBufferMode : uint8
 
 struct FPackedView
 {
+	FMatrix		SVPositionToTranslatedWorld;
+	FMatrix		ViewToTranslatedWorld;
+
 	FMatrix		TranslatedWorldToView;
 	FMatrix		TranslatedWorldToClip;
 	FMatrix		ViewToClip;
@@ -664,9 +674,9 @@ void DrawBasePass(
 
 void DrawLumenMeshCapturePass(
 	FRDGBuilder& GraphBuilder,
-	const FScene& Scene,
+	FScene& Scene,
 	FViewInfo* SharedView,
-	const TArray<FCardPageRenderData, SceneRenderingAllocator>& CardPagesToRender,
+	TArrayView<const FCardPageRenderData> CardPagesToRender,
 	const FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
 	FLumenCardPassUniformParameters* PassUniformParameters,

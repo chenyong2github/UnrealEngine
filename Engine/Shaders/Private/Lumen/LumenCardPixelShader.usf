@@ -27,8 +27,22 @@ void Main(
 	out float4 OutTarget2 : SV_Target2)
 {
 	ResolvedView = ResolveView();
+	FMaterialPixelParameters MaterialParameters;
 
-	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
+	#if LUMEN_MULTI_VIEW_CAPTURE
+	{
+		FPackedNaniteView PackedView = Nanite.InViews[Interpolants.ViewIndex];
+		FNaniteView NaniteView = UnpackNaniteView(PackedView);
+
+		PatchViewState(NaniteView, ResolvedView);
+		MaterialParameters = GetMaterialPixelParameters(NaniteView, Interpolants, SvPosition);
+	}
+	#else
+	{
+		MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
+	}
+	#endif
+
 	FPixelMaterialInputs PixelMaterialInputs;
 	
 	{
@@ -51,7 +65,6 @@ void Main(
 
 	EnvBRDFApproxFullyRough(DiffuseColor, SpecularColor);
 
-	//@todo DynamicGI better encoding for low precision, hemispherical normal encoding
 	OutTarget0 = float4(sqrt(DiffuseColor), Opacity);
 	OutTarget1 = float4(MaterialParameters.WorldNormal * .5f + .5f, 0);
 	OutTarget2 = float4(GetMaterialEmissive(PixelMaterialInputs), 0);

@@ -235,6 +235,9 @@ struct FInstanceDynamicData
 
 struct FNaniteView
 {
+	float4x4	SVPositionToTranslatedWorld;
+	float4x4	ViewToTranslatedWorld;
+
 	float4x4	TranslatedWorldToView;
 	float4x4	TranslatedWorldToClip;
 	float4x4	ViewToClip;
@@ -604,6 +607,9 @@ FNaniteView UnpackNaniteView(FPackedNaniteView PackedView)
 {
 	FNaniteView NaniteView;
 	
+	NaniteView.SVPositionToTranslatedWorld	= PackedView.SVPositionToTranslatedWorld;
+	NaniteView.ViewToTranslatedWorld		= PackedView.ViewToTranslatedWorld;
+
 	NaniteView.TranslatedWorldToView		= PackedView.TranslatedWorldToView;
 	NaniteView.TranslatedWorldToClip		= PackedView.TranslatedWorldToClip;
 	NaniteView.ViewToClip					= PackedView.ViewToClip;
@@ -643,6 +649,9 @@ FNaniteView GetNaniteView( uint ViewIndex )
 {
 #if NANITE_USE_VIEW_UNIFORM_BUFFER
 	FNaniteView NaniteView;
+
+	NaniteView.SVPositionToTranslatedWorld  = View.SVPositionToTranslatedWorld;
+	NaniteView.ViewToTranslatedWorld		= View.ViewToTranslatedWorld;
 
 	NaniteView.TranslatedWorldToView		= View.TranslatedWorldToView;
 	NaniteView.TranslatedWorldToClip		= View.TranslatedWorldToClip;
@@ -686,4 +695,29 @@ FNaniteView GetNaniteView( uint ViewIndex )
 #endif // NANITE_USE_VIEW_UNIFORM_BUFFER
 
 	return NaniteView;
+}
+
+// Fill ViewState using data from a NaniteView
+void PatchViewState(FNaniteView NaniteView, inout ViewState InOutView)
+{
+	InOutView.SVPositionToTranslatedWorld	= NaniteView.SVPositionToTranslatedWorld;
+	InOutView.ViewToTranslatedWorld			= NaniteView.ViewToTranslatedWorld;
+
+	InOutView.TranslatedWorldToView			= NaniteView.TranslatedWorldToView;
+	InOutView.TranslatedWorldToClip			= NaniteView.TranslatedWorldToClip;
+	InOutView.ViewToClip					= NaniteView.ViewToClip;
+	InOutView.ClipToWorld					= NaniteView.ClipToWorld;
+
+	InOutView.PrevTranslatedWorldToView		= NaniteView.PrevTranslatedWorldToView;
+	InOutView.PrevTranslatedWorldToClip		= NaniteView.PrevTranslatedWorldToClip;
+	InOutView.PrevViewToClip				= NaniteView.PrevViewToClip;
+	InOutView.PrevInvViewProj				= NaniteView.PrevClipToWorld;
+
+	InOutView.ViewSizeAndInvSize			= NaniteView.ViewSizeAndInvSize;
+	InOutView.ViewRectMin.xy				= NaniteView.ViewRect.xy - 0.5f; // Convert from float2 with a half texel offset to an int2 texel coord
+	InOutView.PreViewTranslation			= NaniteView.PreViewTranslation;
+	InOutView.PrevPreViewTranslation		= NaniteView.PrevPreViewTranslation;
+	InOutView.WorldCameraOrigin				= NaniteView.WorldCameraOrigin;
+	InOutView.ViewForward					= NaniteView.ViewForward;
+	InOutView.NearPlane						= NaniteView.NearPlane;
 }
