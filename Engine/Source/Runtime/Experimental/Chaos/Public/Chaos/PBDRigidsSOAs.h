@@ -235,7 +235,7 @@ public:
 
 		if (!Params.bStartSleeping)
 		{
-			InsertToMapAndArray(Results, ActiveParticlesToIndex, ActiveParticlesArray);
+			AddToActiveArray(Results);
 		}
 		UpdateViews();
 		return Results;
