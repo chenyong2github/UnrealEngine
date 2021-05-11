@@ -1728,3 +1728,50 @@ bool FRigVMSetRemappedVariableAction::Redo(URigVMController* InController)
 	}
 	return FRigVMBaseAction::Redo(InController);
 }
+
+FRigVMAddLocalVariableAction::FRigVMAddLocalVariableAction(const FRigVMGraphVariableDescription& InLocalVariable)
+	: LocalVariable(InLocalVariable)
+{
+	
+}
+
+bool FRigVMAddLocalVariableAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	return InController->RemoveLocalVariable(LocalVariable.Name);
+}
+
+bool FRigVMAddLocalVariableAction::Redo(URigVMController* InController)
+{
+	if (!LocalVariable.Name.IsNone())
+	{
+		return InController->AddLocalVariable(LocalVariable.Name, LocalVariable.CPPType, LocalVariable.CPPTypeObject, LocalVariable.DefaultValue);
+	}
+	return FRigVMBaseAction::Redo(InController);
+}
+
+FRigVMRemoveLocalVariableAction::FRigVMRemoveLocalVariableAction(const FRigVMGraphVariableDescription& InLocalVariable)
+	: LocalVariable(InLocalVariable)
+{
+}
+
+bool FRigVMRemoveLocalVariableAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	return InController->AddLocalVariable(LocalVariable.Name, LocalVariable.CPPType, LocalVariable.CPPTypeObject, LocalVariable.DefaultValue, false);
+}
+
+bool FRigVMRemoveLocalVariableAction::Redo(URigVMController* InController)
+{
+	if (!LocalVariable.Name.IsNone())
+	{
+		return InController->RemoveLocalVariable(LocalVariable.Name, false);
+	}
+	return FRigVMBaseAction::Redo(InController);
+}

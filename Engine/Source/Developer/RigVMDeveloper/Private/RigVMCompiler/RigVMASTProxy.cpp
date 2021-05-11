@@ -59,7 +59,7 @@ const UObject* FRigVMCallstack::operator[](int32 InIndex) const
 	return Stack[InIndex];
 }
 
-bool FRigVMCallstack::Contains(UObject* InEntry) const
+bool FRigVMCallstack::Contains(const UObject* InEntry) const
 {
 	return Stack.Contains(InEntry);
 }

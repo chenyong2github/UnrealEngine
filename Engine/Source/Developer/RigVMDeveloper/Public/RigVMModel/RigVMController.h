@@ -582,6 +582,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	bool RemoveFunctionFromLibrary(const FName& InFunctionName, bool bSetupUndoRedo = true);
 
+	// Add a local variable to the graph
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool AddLocalVariable(const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, const FString& InDefaultValue, bool bSetupUndoRedo = true);
+
+	// Remove a local variable from the graph
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool RemoveLocalVariable(const FName& InVariableName, bool bSetupUndoRedo = true);
+
 	// Determine affected function references for a potential bulk edit on a library node
 	TArray<TSoftObjectPtr<URigVMFunctionReferenceNode>> GetAffectedReferences(ERigVMControllerBulkEditType InEditType, bool bForceLoad = false, bool bNotify = true);
 

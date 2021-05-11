@@ -119,7 +119,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	void SetDefaultFunctionLibrary(URigVMFunctionLibrary* InFunctionLibrary);
 
+	// Returns true if the variable was added to the graph's local variables
+	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
+	bool AddLocalVariable(const FRigVMGraphVariableDescription& InVariable);
+
+	// Returns true if the variable was removed from the graph's local variables
+	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
+	bool RemoveLocalVariable(const FName& InVariableName);
+
 	TArray<FRigVMExternalVariable> GetExternalVariables() const;
+
+	TArray<FRigVMGraphVariableDescription> GetLocalVariables() const { return LocalVariables; }
 
 	// Returns the modified event, which can be used to 
 	// subscribe to changes happening within the Graph.
@@ -156,6 +166,9 @@ private:
 	TArray<TSharedPtr<FString>> VariableNames;
 	TArray<TSharedPtr<FString>> ParameterNames;
 #endif
+
+	UPROPERTY()
+	TArray<FRigVMGraphVariableDescription> LocalVariables;
 
 	bool IsNameAvailable(const FString& InName);
 

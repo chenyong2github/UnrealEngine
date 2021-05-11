@@ -536,6 +536,7 @@ void FRigVMByteCode::Reset()
 	SubjectToInstructions.Reset();
 	CallPathPerInstruction.Reset();
 	CallPathToInstructions.Reset();
+	CallstackPerInstruction.Reset();
 #endif
 }
 
@@ -551,6 +552,7 @@ void FRigVMByteCode::Empty()
 	SubjectToInstructions.Empty();
 	CallPathPerInstruction.Empty();
 	CallPathToInstructions.Empty();
+	CallstackPerInstruction.Empty();
 #endif
 }
 
@@ -1327,14 +1329,15 @@ TArray<int32> FRigVMByteCode::GetAllInstructionIndicesForCallPath(const FString&
 	return MatchedInstructions;
 }
 
-void FRigVMByteCode::SetSubject(int32 InInstructionIndex, UObject* InSubject, const FString& InCallPath)
+void FRigVMByteCode::SetSubject(int32 InInstructionIndex, const FString& InCallPath, const TArray<UObject*>& InCallstack)
 {
+	UObject* Subject = InCallstack.Last();
 	if (SubjectPerInstruction.Num() <= InInstructionIndex)
 	{
 		SubjectPerInstruction.AddZeroed(1 + InInstructionIndex - SubjectPerInstruction.Num());
 	}
-	SubjectPerInstruction[InInstructionIndex] = InSubject;
-	SubjectToInstructions.FindOrAdd(InSubject).Add(InInstructionIndex);
+	SubjectPerInstruction[InInstructionIndex] = Subject;
+	SubjectToInstructions.FindOrAdd(Subject).Add(InInstructionIndex);
 
 	if (CallPathPerInstruction.Num() <= InInstructionIndex)
 	{
@@ -1342,6 +1345,21 @@ void FRigVMByteCode::SetSubject(int32 InInstructionIndex, UObject* InSubject, co
 	}
 	CallPathPerInstruction[InInstructionIndex] = InCallPath;
 	CallPathToInstructions.FindOrAdd(InCallPath).Add(InInstructionIndex);
+
+	if (CallstackPerInstruction.Num() <= InInstructionIndex)
+	{
+		CallstackPerInstruction.AddZeroed(1 + InInstructionIndex - CallstackPerInstruction.Num());
+	}
+	CallstackPerInstruction[InInstructionIndex] = InCallstack;
+}
+
+const TArray<UObject*>* FRigVMByteCode::GetCallstackForInstruction(int32 InInstructionIndex) const
+{
+	if (CallstackPerInstruction.IsValidIndex(InInstructionIndex))
+	{
+		return &CallstackPerInstruction[InInstructionIndex];
+	}
+	return nullptr;
 }
 
 #endif
