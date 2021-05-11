@@ -61,13 +61,37 @@ void AWorldPartitionHLOD::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 	if(Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionStreamingCellsNamingShortened)
 	{
-		SourceCell = SourceCell.ToString().Replace(TEXT("WPRT_"), TEXT(""), ESearchCase::CaseSensitive).Replace(TEXT("Cell_"), TEXT(""), ESearchCase::CaseSensitive);
+		auto FixupCellName = [](const FString& CellName) { return CellName.Replace(TEXT("WPRT_"), TEXT(""), ESearchCase::CaseSensitive).Replace(TEXT("Cell_"), TEXT(""), ESearchCase::CaseSensitive); };
+		CellName_DEPRECATED = FName(FixupCellName(CellName_DEPRECATED.ToString()));
+		SourceCell = FixupCellName(SourceCell.ToString());
 	}
 #endif
 }
 
 void AWorldPartitionHLOD::RerunConstructionScripts()
 {}
+
+#if WITH_EDITORONLY_DATA
+void AWorldPartitionHLOD::PostLoad()
+{
+	Super::PostLoad();
+
+	// Convert CellName to a soft object path referencing the RuntimeCell object.
+	if (!CellName_DEPRECATED.IsNone() && SourceCell.IsNull())
+	{
+		GetWorld()->ConditionalPostLoad();
+
+		UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition();
+		if (ensure(WorldPartition))
+		{
+			FSoftObjectPath WorldPartitionPath(WorldPartition);
+			FString CellObjectPath = FString::Printf(TEXT("%s.%s"), *WorldPartitionPath.ToString(), *CellName_DEPRECATED.ToString());
+			TSoftObjectPtr<UWorldPartitionRuntimeCell> RuntimeCell(CellObjectPath);
+			SourceCell = RuntimeCell;
+		}
+	}
+}
+#endif
 
 #if WITH_EDITOR
 
