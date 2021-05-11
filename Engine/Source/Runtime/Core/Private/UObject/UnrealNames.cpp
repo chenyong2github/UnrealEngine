@@ -1303,7 +1303,7 @@ static FNamePool& GetNamePoolPostInit()
 
 bool operator==(FNameEntryId Id, EName Ename)
 {
-	return Id == GetNamePoolPostInit().Find(Ename);
+	return Ename == NAME_None ? !Id : Id == GetNamePoolPostInit().Find(Ename);
 }
 
 static int32 CompareDifferentIdsAlphabetically(FNameEntryId AId, FNameEntryId BId)
