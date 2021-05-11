@@ -550,7 +550,6 @@ uint32 GetTypeHash(const TArray<FDataprepPropertyLink>& PropertyLinks)
 	return Hash;
 }
 
-
 bool UDataprepParameterizationBindings::ContainsBinding(const TSharedRef<FDataprepParameterizationBinding>& Binding) const
 {
 	return BindingToParameterName.Contains( Binding );
@@ -896,23 +895,6 @@ UDataprepParameterization::UDataprepParameterization()
 	OnObjectModifiedHandle = FCoreUObjectDelegates::OnObjectModified.AddUObject( this, &UDataprepParameterization::OnObjectModified );
 }
 
-UDataprepParameterization::~UDataprepParameterization()
-{
-	FCoreUObjectDelegates::OnObjectModified.Remove( OnObjectModifiedHandle );
-
-	if ( BindingsContainer )
-	{
-		TArray<UDataprepParameterizableObject*> ParameterizedObjects = BindingsContainer->GetParameterizedObjects();
-		for ( UDataprepParameterizableObject* Object : ParameterizedObjects )
-		{
-			if ( Object )
-			{
-				RemoveBindingToPostEditOfParameterizableObject( *Object, false );
-			}
-		}
-	}
-}
-
 void UDataprepParameterization::PostInitProperties()
 {
 	Super::PostInitProperties();
@@ -1003,6 +985,24 @@ void UDataprepParameterization::PostTransacted(const FTransactionObjectEvent& Tr
 	}
 }
 
+void UDataprepParameterization::FinishDestroy()
+{
+	FCoreUObjectDelegates::OnObjectModified.Remove( OnObjectModifiedHandle );
+
+	if ( BindingsContainer )
+	{
+		TArray<UDataprepParameterizableObject*> ParameterizedObjects = BindingsContainer->GetParameterizedObjects();
+		for ( UDataprepParameterizableObject* Object : ParameterizedObjects )
+		{
+			if ( Object )
+			{
+				RemoveBindingToPostEditOfParameterizableObject( *Object, false );
+			}
+		}
+	}
+
+	Super::FinishDestroy();
+}
 
 void UDataprepParameterization::OnObjectModified(UObject* Object)
 {
