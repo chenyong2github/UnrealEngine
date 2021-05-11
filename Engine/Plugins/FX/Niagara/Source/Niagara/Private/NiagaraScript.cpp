@@ -2333,7 +2333,7 @@ bool UNiagaraScript::IsEditorOnly() const
 	return Super::IsEditorOnly();
 }
 
-void UNiagaraScript::ModifyCompilationEnvironment(struct FShaderCompilerEnvironment& OutEnvironment) const
+void UNiagaraScript::ModifyCompilationEnvironment(EShaderPlatform Platform, struct FShaderCompilerEnvironment& OutEnvironment) const
 {
 	// Add all data interfaces
 	TSet<UClass*> DIUniqueClasses;
@@ -2350,7 +2350,7 @@ void UNiagaraScript::ModifyCompilationEnvironment(struct FShaderCompilerEnvironm
 	{
 		if ( UNiagaraDataInterface* DICDO = CastChecked<UNiagaraDataInterface>(DIClass->GetDefaultObject(true)) )
 		{
-			DICDO->ModifyCompilationEnvironment(OutEnvironment);
+			DICDO->ModifyCompilationEnvironment(Platform, OutEnvironment);
 		}
 	}
 }

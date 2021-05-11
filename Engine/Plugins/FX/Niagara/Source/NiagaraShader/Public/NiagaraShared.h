@@ -667,7 +667,7 @@ public:
 	 * Allow Niagara script the opportunity to modify the compilation environment for GPU simulations.
 	 * Generally used for data interfaces to inject project defines.
 	*/
-	NIAGARASHADER_API  virtual void ModifyCompilationEnvironment(struct FShaderCompilerEnvironment& OutEnvironment) const;
+	NIAGARASHADER_API  virtual void ModifyCompilationEnvironment(EShaderPlatform Platform, struct FShaderCompilerEnvironment& OutEnvironment) const;
 
 	/** Serializes the script. */
 	NIAGARASHADER_API  virtual void LegacySerialize(FArchive& Ar);

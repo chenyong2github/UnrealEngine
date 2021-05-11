@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "/Engine/Private/RayTracing/RayTracingCommon.ush"
+#define NIAGARA_USE_RAYTRACING        (NIAGARA_SUPPORTS_RAY_TRACING && (FEATURE_LEVEL >= FEATURE_LEVEL_SM5))
 
-#define NIAGARA_USE_RAYTRACING        (FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
+#if NIAGARA_USE_RAYTRACING
+
+#include "/Engine/Private/RayTracing/RayTracingCommon.ush"
 
 // payload structure for Niagara ray traces
 struct FNiagaraRayTracingPayload : FMinimalPayload
@@ -12,3 +14,5 @@ struct FNiagaraRayTracingPayload : FMinimalPayload
 	float3 WorldPosition;
 	float3 WorldNormal;
 };
+
+#endif // NIAGARA_USE_RAYTRACING
