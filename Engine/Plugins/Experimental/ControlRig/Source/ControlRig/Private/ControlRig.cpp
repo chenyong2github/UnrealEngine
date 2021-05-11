@@ -173,8 +173,14 @@ void UControlRig::InitializeFromCDO()
 		UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>();
 
 		// copy hierarchy
-		GetHierarchy()->CopyHierarchy(CDO->GetHierarchy());
-		GetHierarchy()->ResetPoseToInitial(ERigElementType::All);
+		{
+			TGuardValue<bool> Guard(GetHierarchy()->GetSuspendNotificationsFlag(), true);
+			GetHierarchy()->CopyHierarchy(CDO->GetHierarchy());
+			GetHierarchy()->ResetPoseToInitial(ERigElementType::All);
+		}
+
+		// notify clients that the hierarchy has changed
+		GetHierarchy()->Notify(ERigHierarchyNotification::HierarchyReset, nullptr);
 
 		// copy draw container
 		DrawContainer = CDO->DrawContainer;
