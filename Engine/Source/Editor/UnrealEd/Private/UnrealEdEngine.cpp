@@ -1294,7 +1294,7 @@ void UUnrealEdEngine::FixAnyInvertedBrushes(UWorld* World)
 
 void UUnrealEdEngine::RegisterComponentVisualizer(FName ComponentClassName, TSharedPtr<FComponentVisualizer> Visualizer)
 {
-	if( ComponentClassName != NAME_Name )
+	if( !ComponentClassName.IsNone() )
 	{
 		ComponentVisualizerMap.Add(ComponentClassName, Visualizer);		
 	}
