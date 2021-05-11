@@ -108,7 +108,7 @@ struct FFieldLayoutDesc
 
 struct FTypeLayoutDesc
 {
-	typedef void (FDestroyFunc)(void* Object, const FTypeLayoutDesc& TypeDesc, const FPointerTableBase* PtrTable);
+	typedef void (FDestroyFunc)(void* Object, const FTypeLayoutDesc& TypeDesc, const FPointerTableBase* PtrTable, bool bIsFrozen);
 	typedef void (FWriteFrozenMemoryImageFunc)(FMemoryImageWriter& Writer, const void* Object, const FTypeLayoutDesc& TypeDesc, const FTypeLayoutDesc& DerivedTypeDesc);
 	typedef uint32 (FUnfrozenCopyFunc)(const FMemoryUnfreezeContent& Context, const void* Object, const FTypeLayoutDesc& TypeDesc, void* OutDst);
 	typedef uint32 (FAppendHashFunc)(const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher);
@@ -245,10 +245,20 @@ namespace Freeze
 	CORE_API void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, void*, const FTypeLayoutDesc&);
 
 	// Override for types that need access to a PointerTable in order to destroy frozen data
-	FORCEINLINE void CleanupObject(void* Object, const FPointerTableBase* PtrTable) {}
-
+	// WARNING! Frozen data may have deduplicated portions, so it's possible that a given object may have multiple references
+	// Any attempt to cleanup/destroy frozen data must take care to safely allow DestroyObject to be called multiple times on the same frozen object
+	// Generally speaking, it's *NOT* safe to invoke the built-in destructor multiple times
 	template<typename T>
-	FORCEINLINE void CallDestructor(T* Object) { Object->~T(); }
+	FORCEINLINE void DestroyObject(T* Object, const FPointerTableBase* PtrTable, bool bIsFrozen)
+	{
+		// Only call destructor for non-frozen objects
+		if (!bIsFrozen)
+		{
+			Object->~T();
+		}
+		// Wipe destroyed memory to a common pattern
+		FMemory::Memset(Object, 0xfe, sizeof(T));
+	}
 
 	template<typename T>
 	FORCEINLINE void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const T& Object, const FTypeLayoutDesc& TypeDesc)
@@ -531,9 +541,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	UE_DECLARE_INTERNAL_LINK_BASE(InternalLinkType) { UE_STATIC_ONLY(InternalLinkType); static FORCEINLINE void Initialize(FTypeLayoutDesc& TypeDesc) {} }
 
 #define INTERNAL_DECLARE_INLINE_TYPE_LAYOUT(T, InInterface) \
-	private: static void InternalDestroy(void* Object, const FTypeLayoutDesc&, const FPointerTableBase* PtrTable) { \
-		Freeze::CleanupObject(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)*>(Object), PtrTable); \
-		Freeze::CallDestructor(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)*>(Object)); \
+	private: static void InternalDestroy(void* Object, const FTypeLayoutDesc&, const FPointerTableBase* PtrTable, bool bIsFrozen) { \
+		Freeze::DestroyObject(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)*>(Object), PtrTable, bIsFrozen); \
 	} \
 	public: static FTypeLayoutDesc& StaticGetTypeLayout() { \
 		static_assert(TValidateInterfaceHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T), ETypeLayoutInterface::InInterface>::Value, #InInterface " is invalid interface for " #T); \
@@ -562,7 +571,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	INTERNAL_DECLARE_TYPE_LAYOUT_COMMON(T, InInterface)
 
 #define INTERNAL_DECLARE_TYPE_LAYOUT(T, InInterface, RequiredAPI) \
-	private: static void InternalDestroy(void* Object, const FTypeLayoutDesc&, const FPointerTableBase* PtrTable); \
+	private: static void InternalDestroy(void* Object, const FTypeLayoutDesc&, const FPointerTableBase* PtrTable, bool bIsFrozen); \
 	public: RequiredAPI static FTypeLayoutDesc& StaticGetTypeLayout(); \
 	public: INTERNAL_LAYOUT_INTERFACE_PREFIX(InInterface)(RequiredAPI) const FTypeLayoutDesc& GetTypeLayout() const INTERNAL_LAYOUT_INTERFACE_SUFFIX(InInterface) \
 	INTERNAL_DECLARE_TYPE_LAYOUT_COMMON(T, InInterface)
@@ -583,9 +592,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #define DECLARE_EXPORTED_TYPE_LAYOUT_EXPLICIT_BASES(T, RequiredAPI, Interface, ...) INTERNAL_DECLARE_LAYOUT_EXPLICIT_BASES(T, __VA_ARGS__); INTERNAL_DECLARE_TYPE_LAYOUT(T, Interface, RequiredAPI)
 
 #define INTERNAL_IMPLEMENT_TYPE_LAYOUT_COMMON(TemplatePrefix, T) \
-	PREPROCESSOR_REMOVE_OPTIONAL_PARENS(TemplatePrefix) void PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)::InternalDestroy(void* Object, const FTypeLayoutDesc&, const FPointerTableBase* PtrTable) { \
-		Freeze::CleanupObject(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)*>(Object), PtrTable); \
-		Freeze::CallDestructor(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)*>(Object)); \
+	PREPROCESSOR_REMOVE_OPTIONAL_PARENS(TemplatePrefix) void PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)::InternalDestroy(void* Object, const FTypeLayoutDesc&, const FPointerTableBase* PtrTable, bool bIsFrozen) { \
+		Freeze::DestroyObject(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)*>(Object), PtrTable, bIsFrozen); \
 	} \
 	PREPROCESSOR_REMOVE_OPTIONAL_PARENS(TemplatePrefix) FTypeLayoutDesc& PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)::StaticGetTypeLayout() { \
 		static_assert(TValidateInterfaceHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T), InterfaceType>::Value, "Invalid interface for " #T); \
@@ -698,9 +706,8 @@ inline void DeleteObjectFromLayout(T* Object, const FPointerTableBase* PtrTable 
 		static void CallToString(const void* Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext) { \
 			return Freeze::IntrinsicToString(*static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T) const*>(Object), TypeDesc, LayoutParams, OutContext); \
 		} \
-		static void CallDestroy(void* Object, const FTypeLayoutDesc&, const FPointerTableBase* PtrTable) { \
-			Freeze::CleanupObject(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)*>(Object), PtrTable); \
-			Freeze::CallDestructor(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)*>(Object)); \
+		static void CallDestroy(void* Object, const FTypeLayoutDesc&, const FPointerTableBase* PtrTable, bool bIsFrozen) { \
+			Freeze::DestroyObject(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)*>(Object), PtrTable, bIsFrozen); \
 		} \
 		static const FTypeLayoutDesc& Do() { \
 			alignas(FTypeLayoutDesc) static uint8 TypeBuffer[sizeof(FTypeLayoutDesc)] = { 0 }; \
@@ -734,7 +741,7 @@ inline void DeleteObjectFromLayout(T* Object, const FPointerTableBase* PtrTable 
 		static uint32 CallAppendHash(const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher); \
 		static uint32 CallGetTargetAlignment(const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams); \
 		static void CallToString(const void* Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext); \
-		static void CallDestroy(void* Object, const FTypeLayoutDesc&, const FPointerTableBase* PtrTable); \
+		static void CallDestroy(void* Object, const FTypeLayoutDesc&, const FPointerTableBase* PtrTable, bool bIsFrozen); \
 		RequiredAPI static const FTypeLayoutDesc& Do(); }; \
 	PREPROCESSOR_REMOVE_OPTIONAL_PARENS(TemplatePrefix) struct TGetTypeLayoutHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)> { \
 		UE_STATIC_ONLY(TGetTypeLayoutHelper); \
@@ -756,9 +763,8 @@ inline void DeleteObjectFromLayout(T* Object, const FPointerTableBase* PtrTable 
 		void TStaticGetTypeLayoutHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)>::CallToString(const void* Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext) { \
 			return Freeze::IntrinsicToString(*static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T) const*>(Object), TypeDesc, LayoutParams, OutContext); \
 		} \
-		void TStaticGetTypeLayoutHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)>::CallDestroy(void* Object, const FTypeLayoutDesc&, const FPointerTableBase* PtrTable) { \
-			Freeze::CleanupObject(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)*>(Object), PtrTable); \
-			Freeze::CallDestructor(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)*>(Object)); \
+		void TStaticGetTypeLayoutHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)>::CallDestroy(void* Object, const FTypeLayoutDesc&, const FPointerTableBase* PtrTable, bool bIsFrozen) { \
+			Freeze::DestroyObject(static_cast<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)*>(Object), PtrTable, bIsFrozen); \
 		} \
 		const FTypeLayoutDesc& TStaticGetTypeLayoutHelper<PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T)>::Do() { \
 			alignas(FTypeLayoutDesc) static uint8 TypeBuffer[sizeof(FTypeLayoutDesc)] = { 0 }; \
