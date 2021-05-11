@@ -392,7 +392,7 @@ void FGlobalShaderMap::Empty()
 {
 	for (const auto& It : SectionMap)
 	{
-		It.Value->GetMutableContent()->Empty(&It.Value->GetPointerTable());
+		It.Value->GetMutableContent()->Empty();
 	}
 }
 

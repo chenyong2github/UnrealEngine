@@ -684,24 +684,13 @@ void FShaderMapContent::UpdateHash(FSHA1& Hasher) const
 	}
 }
 
-void FShaderMapContent::Empty(const FPointerTableBase* PointerTable)
+void FShaderMapContent::Empty()
 {
-	EmptyShaderPipelines(PointerTable);
+	EmptyShaderPipelines();
 	for (int32 i = 0; i < Shaders.Num(); ++i)
 	{
 		TMemoryImagePtr<FShader>& Shader = Shaders[i];
-		// It's possible that frozen shader map may have certain shaders embedded that are compiled out of the target build
-		// In this case, we won't be able to find the shader type, and SafeDelete() will crash, as DeleteObjectFromLayout() relies on getting FTypeLayoutDesc from the shader type
-		// In the future, we should ensure that we're not including these shaders at all, but for now it should be OK to skip them
-		if (Shader->GetType(PointerTable))
-		{
-			Shader.SafeDelete(PointerTable);
-		}
-		else
-		{
-			// If we can't find the type, and the shadermap isn't frozen, then something has gone wrong
-			checkf(Shader.IsFrozen(), TEXT("Shader type %016X is missing, but shader isn't frozen"), ShaderTypes[i].GetHash());
-		}
+		Shader.SafeDelete();
 	}
 	Shaders.Empty();
 	ShaderTypes.Empty();
@@ -709,11 +698,11 @@ void FShaderMapContent::Empty(const FPointerTableBase* PointerTable)
 	ShaderHash.Clear();
 }
 
-void FShaderMapContent::EmptyShaderPipelines(const FPointerTableBase* PointerTable)
+void FShaderMapContent::EmptyShaderPipelines()
 {
 	for (TMemoryImagePtr<FShaderPipeline>& Pipeline : ShaderPipelines)
 	{
-		Pipeline.SafeDelete(PointerTable);
+		Pipeline.SafeDelete();
 	}
 	ShaderPipelines.Empty();
 }

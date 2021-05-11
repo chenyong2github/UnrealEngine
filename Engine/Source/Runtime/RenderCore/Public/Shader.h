@@ -1839,7 +1839,7 @@ public:
 	/** Destructor ensures pipelines cleared up. */
 	~FShaderMapContent()
 	{
-		Empty(nullptr);
+		Empty();
 	}
 
 	EShaderPlatform GetShaderPlatform() const { return Platform; }
@@ -1947,7 +1947,7 @@ public:
 	}
 
 	/** clears out all shaders and deletes shader pipelines held in the map */
-	void Empty(const FPointerTableBase* PointerTable);
+	void Empty();
 
 	inline FShaderPipeline* GetShaderPipeline(const FHashedName& PipelineTypeName) const
 	{
@@ -1970,7 +1970,7 @@ public:
 	void UpdateHash(FSHA1& Hasher) const;
 
 protected:
-	void EmptyShaderPipelines(const FPointerTableBase* PointerTable);
+	void EmptyShaderPipelines();
 
 	using FMemoryImageHashTable = THashTable<FMemoryImageAllocator>;
 
@@ -1982,14 +1982,6 @@ protected:
 	/** The platform this shader map was compiled with */
 	LAYOUT_FIELD(TEnumAsByte<EShaderPlatform>, Platform);
 };
-
-namespace Freeze
-{
-	inline void CleanupObject(FShaderMapContent* Object, const FPointerTableBase* PtrTable)
-	{
-		Object->Empty(PtrTable);
-	}
-}
 
 class RENDERCORE_API FShaderMapBase
 {
