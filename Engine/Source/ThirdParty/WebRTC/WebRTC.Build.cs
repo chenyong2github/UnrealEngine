@@ -59,9 +59,9 @@ public class WebRTC : ModuleRules
 
 				string LibraryPath = "";
 				if(Target.CppStandard == CppStandardVersion.Cpp17 && Target.Platform == UnrealTargetPlatform.Win64) {
-					LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, "Cpp11", ConfigPath);
-				} else {
 					LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, VisualStudioVersionFolder, ConfigPath);
+				} else {
+					LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, "Cpp11", ConfigPath);
 				}
 
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "webrtc.lib"));
