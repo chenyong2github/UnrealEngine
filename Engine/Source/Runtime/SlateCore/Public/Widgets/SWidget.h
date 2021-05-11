@@ -738,6 +738,8 @@ public:
 	}
 
 protected:
+	void SetVolatilePrepass(bool bVolatile) { bVolatile ? AddUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePrepass) : RemoveUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePrepass); }
+
 	virtual bool CustomPrepass(float LayoutScaleMultiplier) { return false; }
 
 	/**
@@ -786,21 +788,16 @@ private:
 
 	void AddUpdateFlags(EWidgetUpdateFlags FlagsToAdd)
 	{
+		EWidgetUpdateFlags Previous = UpdateFlags;
 		UpdateFlags |= FlagsToAdd;
-		FastPathProxyHandle.UpdateWidgetFlags(this, UpdateFlags);
+		FastPathProxyHandle.UpdateWidgetFlags(this, Previous, UpdateFlags);
 	}
 
 	void RemoveUpdateFlags(EWidgetUpdateFlags FlagsToRemove)
 	{
+		EWidgetUpdateFlags Previous = UpdateFlags;
 		UpdateFlags &= (~FlagsToRemove);
-		FastPathProxyHandle.UpdateWidgetFlags(this, UpdateFlags);
-
-#if WITH_SLATE_DEBUGGING
-		if (EnumHasAnyFlags(FlagsToRemove, EWidgetUpdateFlags::NeedsRepaint))
-		{
-			Debug_UpdateLastPaintFrame();
-		}
-#endif
+		FastPathProxyHandle.UpdateWidgetFlags(this, Previous, UpdateFlags);
 	}
 
 	void UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementsHandle& CacheHandle);
@@ -860,13 +857,27 @@ public:
 	void ArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren, bool bUpdateAttributes = false) const;
 
 	/**
-	 * Every widget that has children must implement this method. This allows for iteration over the Widget's
-	 * children regardless of how they are actually stored.
+	 * Returns the useful children (if any) of this widget. Some widget type may hide widget if they are needed by the system.
+	 * Allows for iteration over the Widget's children regardless of how they are actually stored.
+	 * @note Should be renamed to GetVisibleChildren (not ALL children will be returned in all cases).
 	 */
-	 // @todo Slate: Consider renaming to GetVisibleChildren  (not ALL children will be returned in all cases)
 	virtual FChildren* GetChildren() = 0;
 
+	/**
+	 * Returns the children (if any) of this widget that are used by the invalidation system.
+	 * This is used by the FastPath system to generate the correct information for every widget.
+	 * @note Prefer GetChildren. Some widget may hide widget from you.
+	 * @note Should be name GetFastPathChildren or GetInvalidationChildren
+	 */
 	virtual FChildren* GetAllChildren() { return GetChildren(); }
+
+#if WITH_SLATE_DEBUGGING
+	/**
+	 * Returns all Widgets, including widget hidden from the invalidation system.
+	 * This is used by the WidgetReflector.
+	 */
+	virtual FChildren* Debug_GetChildrenForReflector() { return GetAllChildren(); }
+#endif
 
 	/**
 	 * Checks to see if this widget supports keyboard focus.  Override this in derived classes.

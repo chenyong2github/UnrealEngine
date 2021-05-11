@@ -753,26 +753,35 @@ void SWidget::UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementsHandle& Ca
 	// Account for the case when the widget gets a new handle for some reason.  This should really never happen
 	if (PersistentState.CachedElementHandle.IsValid() && PersistentState.CachedElementHandle != CacheHandle)
 	{
-		ensureMsgf(!CacheHandle.IsValid(), TEXT("Widget was assigned a new cache handle.  This is not expected to happen."));
+		ensureMsgf(!CacheHandle.IsValid()
+			, TEXT("Widget '%s' was assigned a new cache handle. This is not expected to happen.")
+			, *FReflectionMetaData::GetWidgetPath(this));
 		PersistentState.CachedElementHandle.RemoveFromCache();
 	}
 	PersistentState.CachedElementHandle = CacheHandle;
 	PersistentState.OutgoingLayerId = NewLayerId;
 
+#if WITH_SLATE_DEBUGGING
 	if (FastPathProxyHandle.IsValid(this))
 	{
-		FWidgetProxy& MyProxy = FastPathProxyHandle.GetProxy();
-		MyProxy.Visibility = GetVisibility();
+		const FWidgetProxy& MyProxy = FastPathProxyHandle.GetProxy();
+		ensureMsgf(MyProxy.Visibility.IsVisibleDirectly() == GetVisibility().IsVisible()
+			, TEXT("The visibility of the widget '%s' changed during Paint")
+			, *FReflectionMetaData::GetWidgetPath(this));
 		if ((IsVolatile() && !IsVolatileIndirectly()) || (Advanced_IsInvalidationRoot() && !Advanced_IsWindow()))
 		{
-			AddUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint);
+			ensureMsgf(HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint)
+				, TEXT("The votality of the widget '%s' changed during Paint")
+				, *FReflectionMetaData::GetWidgetPath(this));
 		}
 		else
 		{
-			RemoveUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint);
+			ensureMsgf(!HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint)
+				, TEXT("The votality of the widget '%s' changed during Paint")
+				, *FReflectionMetaData::GetWidgetPath(this));
 		}
-		FastPathProxyHandle.MarkWidgetUpdatedThisFrame();
 	}
+#endif
 }
 
 void SWidget::SetFastPathSortOrder(const FSlateInvalidationWidgetSortOrder InSortOrder)
@@ -831,7 +840,7 @@ void SWidget::UpdateFastPathVisibility(FSlateInvalidationWidgetVisibility Parent
 	if (FastPathProxyHandle.IsValid(this))
 	{	
 		// Try and remove this from the current handles hit test grid.  If we are in a nested invalidation situation the hittest grid may have changed
-		HittestGridToRemoveFrom = FastPathProxyHandle.GetInvalidationRoot()->GetHittestGrid();
+		HittestGridToRemoveFrom = FastPathProxyHandle.GetInvalidationRoot_NoCheck()->GetHittestGrid();
 		FWidgetProxy& Proxy = FastPathProxyHandle.GetProxy();
 		Proxy.Visibility = NewVisibility;
 	}
@@ -859,7 +868,7 @@ void SWidget::UpdateFastPathWidgetRemoved(FHittestGrid* ParentHittestGrid)
 
 	if (FSlateInvalidationRoot* InvalidationRoot = FastPathProxyHandle.GetInvalidationRootHandle().GetInvalidationRoot())
 	{
-		HittestGridToRemoveFrom = FastPathProxyHandle.GetInvalidationRoot()->GetHittestGrid();
+		HittestGridToRemoveFrom = FastPathProxyHandle.GetInvalidationRoot_NoCheck()->GetHittestGrid();
 		InvalidationRoot->OnWidgetDestroyed(this);
 	}
 	FastPathProxyHandle = FWidgetProxyHandle();
@@ -1230,7 +1239,7 @@ void SWidget::Invalidate(EInvalidateWidgetReason InvalidateReason)
 		if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidgetReason::Visibility))
 		{
 			SCOPED_NAMED_EVENT(SWidget_UpdateFastPathVisibility, FColor::Red);
-			UpdateFastPathVisibility(FastPathProxyHandle.GetProxy().Visibility.MimicAsParent(), FastPathProxyHandle.GetInvalidationRoot()->GetHittestGrid());
+			UpdateFastPathVisibility(FastPathProxyHandle.GetProxy().Visibility.MimicAsParent(), FastPathProxyHandle.GetInvalidationRoot_NoCheck()->GetHittestGrid());
 		}
 
 		if (bVolatilityChanged)
@@ -1244,7 +1253,7 @@ void SWidget::Invalidate(EInvalidateWidgetReason InvalidateReason)
 			ensure(!IsVolatile() || IsVolatileIndirectly() || EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsVolatilePaint));
 		}
 
-		FastPathProxyHandle.MarkWidgetDirty(InvalidateReason);
+		FastPathProxyHandle.MarkWidgetDirty_NoCheck(InvalidateReason);
 	}
 	else
 	{
@@ -1509,6 +1518,9 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 
 	// Just repainted
 	MutableThis->RemoveUpdateFlags(EWidgetUpdateFlags::NeedsRepaint);
+#if WITH_SLATE_DEBUGGING
+	MutableThis->Debug_UpdateLastPaintFrame();
+#endif
 
 	// Detect children that should have been painted, but were skipped during the paint process.
 	// this will result in geometry being left on screen and not cleared, because it's visible, yet wasn't painted.

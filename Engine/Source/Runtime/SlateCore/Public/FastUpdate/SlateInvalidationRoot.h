@@ -12,6 +12,7 @@
 struct FSlateCachedElementData;
 class FSlateInvalidationWidgetList;
 class FSlateInvalidationWidgetPreHeap;
+class FSlateInvalidationWidgetPrepassHeap;
 class FSlateInvalidationWidgetPostHeap;
 class FSlateWindowElementList;
 class FWidgetStyle;
@@ -100,8 +101,6 @@ public:
 	const FSlateCachedElementData& GetCachedElements() const { return *CachedElementData; }
 	/** @return the invalidation root as a widget. */
 	const SWidget* GetInvalidationRootWidget() const { return InvalidationRootWidget; }
-	/** @return the the generation number the widget proxy handle should have to be valid. */
-	int32 GetFastPathGenerationNumber() const { return FastPathGenerationNumber; }
 	/** @return the Handle of the InvalidationRoot. */
 	FSlateInvalidationRootHandle GetInvalidationRootHandle() const { return InvalidationRootHandle; }
 	/** @return the list of widgets that are controlled by the InvalidationRoot. */
@@ -151,6 +150,8 @@ private:
 
 	/** Update child order and slate attribute */
 	void ProcessPreUpdate();
+	/** Call slate prepass. */
+	void ProcessPrepassUpdate();
 	/** Update layout, and update the FinalUpdateList */
 	bool ProcessPostUpdate();
 
@@ -158,15 +159,18 @@ private:
 	/** List of all the Widget included by this SlateInvalidationRoot. */
 	TUniquePtr<FSlateInvalidationWidgetList> FastWidgetPathList;
 
-	/**
-	 * Index of widgets that are dirty (child order)
-	 * and need to be updated before the Post list.
-	 */
+	/** Index of widgets that have the child order invalidated. They affect the widgets index/order. */
 	TUniquePtr<FSlateInvalidationWidgetPreHeap> WidgetsNeedingPreUpdate;
 
 	/**
-	 * Index to widgets that are dirty (volatile, or need some sort of per frame update such as a tick or timer)
-	 * and need to be updated after the Pre list.
+	 * Index of widgets that have the Prepass invalidated.
+	 * They will be updated before the the other layout invalidations to reduce the number of SlatePrepass call.
+	 */
+	TUniquePtr<FSlateInvalidationWidgetPrepassHeap> WidgetsNeedingPrepassUpdate;
+
+	/**
+	 * Index of widgets that have invalidation (volatile, or need some sort of per frame update such as a tick or timer).
+	 * They will be added to the FinalUpdateList to be updated.
 	 */
 	TUniquePtr<FSlateInvalidationWidgetPostHeap> WidgetsNeedingPostUpdate;
 
@@ -179,22 +183,14 @@ private:
 
 	FHittestGrid* RootHittestGrid;
 
-	/**
-	 * The purpose of this number is as a unique Id for all widget proxy handles to validate themselves.
-	 * As widgets are added and removed, all their children are indirectly added or remove so it is necessary to invalidate all their handles.
-	 * Bumping the generation number is an efficient way to do this compared to iterating all the handles
-	 * The generation number is always incrementing
-	 */
-	int32 FastPathGenerationNumber;
-
 	int32 CachedMaxLayerId;
 
 	FSlateInvalidationRootHandle InvalidationRootHandle;
 
-	bool bChildOrderInvalidated;
 	bool bNeedsSlowPath;
 	bool bNeedScreenPositionShift;
 	bool bProcessingPreUpdate;
+	bool bProcessingPrepassUpdate;
 	bool bProcessingPostUpdate;
 	bool bBuildingWidgetList;
 	bool bProcessingChildOrderInvalidation;

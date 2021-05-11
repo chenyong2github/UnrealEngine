@@ -8,6 +8,7 @@
 #include "FastUpdate/SlateInvalidationRootHandle.h"
 #include "FastUpdate/SlateInvalidationWidgetIndex.h"
 #include "FastUpdate/SlateInvalidationWidgetSortOrder.h"
+#include "FastUpdate/WidgetUpdateFlags.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/SWidget.h"
 
@@ -97,9 +98,6 @@ public:
 	/** Get the root the widget list was built with. */
 	const TWeakPtr<SWidget> GetRoot() const { return Root; };
 
-	/** Get the Generation number the list was built on. */
-	int32 GetGenerationNumber() const { return GenerationNumber; }
-
 	/** */
 	struct IProcessChildOrderInvalidationCallback
 	{
@@ -139,11 +137,11 @@ public:
 	bool ProcessChildOrderInvalidation(const InvalidationWidgetType& InvalidationWidget, IProcessChildOrderInvalidationCallback& Callback);
 
 
-	/**
-	 * Test, then adds or removes from the registered attribute list.
-	 * @returns true if the Widget go added to the registered attribute list.
-	 */
+	/** Test, then adds or removes from the registered attribute list. */
 	void ProcessAttributeRegistrationInvalidation(const InvalidationWidgetType& InvalidationWidget);
+
+	/** Test, then adds or removes from the volatile update list. */
+	void ProcessVolatileUpdateInvalidation(InvalidationWidgetType& InvalidationWidget);
 
 	/** Performs an operation on all SWidget in the list. */
 	template<typename Predicate>
@@ -236,6 +234,41 @@ public:
 	{
 		return FWidgetAttributeIterator(*this);
 	}
+
+public:
+	/** Iterator that goes over all the widgets that needs to be updated every frame. */
+	struct FWidgetVolatileUpdateIterator
+	{
+	private:
+		const FSlateInvalidationWidgetList& WidgetList;
+		FSlateInvalidationWidgetIndex CurrentWidgetIndex;
+		int32 AttributeIndex;
+		bool bSkipCollapsed;
+
+	public:
+		FWidgetVolatileUpdateIterator(const FSlateInvalidationWidgetList& InWidgetList, bool bInSkipCollapsed);
+
+		/** Get the current widget index the iterator is pointing to. */
+		FSlateInvalidationWidgetIndex GetCurrentIndex() const { return CurrentWidgetIndex; }
+
+		/** Advance the iterator to the next valid widget index. */
+		void Advance();
+
+		/** Is the iterator pointing to a valid widget index. */
+		bool IsValid() const { return CurrentWidgetIndex != FSlateInvalidationWidgetIndex::Invalid; }
+
+	private:
+		void Internal_Advance();
+		void SkipToNextExpend();
+		void Seek(FSlateInvalidationWidgetIndex SeekTo);
+		void AdvanceArray(int32 ArrayIndex);
+	};
+
+	FWidgetVolatileUpdateIterator CreateWidgetVolatileUpdateIterator(bool bSkipCollapsed) const
+	{
+		return FWidgetVolatileUpdateIterator(*this, bSkipCollapsed);
+	}
+
 
 public:
 	/** Returns reference to element at give index. */
@@ -360,6 +393,18 @@ public:
 	{
 		return Widget->HasRegisteredSlateAttribute() && Widget->IsAttributesUpdatesEnabled();
 	}
+	static bool HasVolatileUpdateFlags(EWidgetUpdateFlags UpdateFlags)
+	{
+		return EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsTick | EWidgetUpdateFlags::NeedsActiveTimerUpdate | EWidgetUpdateFlags::NeedsVolatilePaint | EWidgetUpdateFlags::NeedsVolatilePrepass);
+	}
+	static bool ShouldBeAddedToVolatileUpdateList(const SWidget* Widget)
+	{
+		return Widget->HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsTick | EWidgetUpdateFlags::NeedsActiveTimerUpdate | EWidgetUpdateFlags::NeedsVolatilePaint | EWidgetUpdateFlags::NeedsVolatilePrepass);
+	}
+	static bool ShouldBeAddedToVolatileUpdateList(const TSharedRef<SWidget>& Widget)
+	{
+		return ShouldBeAddedToVolatileUpdateList(&Widget.Get());
+	}
 
 private:
 	template <typename... ArgsType>
@@ -400,7 +445,7 @@ private:
 	using FFindChildrenElement = TPair<SWidget*, FSlateInvalidationWidgetIndex>;
 	void Internal_FindChildren(FSlateInvalidationWidgetIndex WidgetIndex, TArray<FFindChildrenElement, TMemStackAllocator<>>& Widgets) const;
 	void Internal_RemoveRangeFromSameParent(const FIndexRange Range);
-	FCutResult _CutArray(const FSlateInvalidationWidgetIndex WhereToCut);
+	FCutResult Internal_CutArray(const FSlateInvalidationWidgetIndex WhereToCut);
 
 private:
 	struct FArrayNode
@@ -412,6 +457,7 @@ private:
 		IndexType StartIndex = 0; // The array may start further in the ElementList as a result of a split.
 		ElementListType ElementList;
 		WidgetListType ElementIndexList_WidgetWithRegisteredSlateAttribute;
+		WidgetListType ElementIndexList_VolatileUpdateWidget;
 
 		void RemoveElementIndexBiggerOrEqualThan(IndexType ElementIndex);
 		void RemoveElementIndexBetweenOrEqualThan(IndexType StartElementIndex, IndexType EndElementIndex);
@@ -423,7 +469,6 @@ private:
 	TWeakPtr<SWidget> Root;
 	int32 FirstArrayIndex = INDEX_NONE;
 	int32 LastArrayIndex = INDEX_NONE;
-	int32 GenerationNumber = INDEX_NONE;
 	IProcessChildOrderInvalidationCallback* CurrentInvalidationCallback = nullptr;
 	const FArguments WidgetListConfig;
 };

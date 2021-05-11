@@ -20,6 +20,9 @@ enum class EWidgetUpdateFlags : uint8
 
 	/** Needs repaint because the widget is volatile */
 	NeedsVolatilePaint = 1 << 6,
+
+	/** Needs slate prepass because the widget is volatile */
+	NeedsVolatilePrepass = 1 << 7,
 	
 	AnyUpdate = 0xff,
 };
