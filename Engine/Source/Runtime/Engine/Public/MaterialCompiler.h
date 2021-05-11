@@ -445,7 +445,7 @@ public:
 	virtual int32 StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedNormalIndexMacro, int32 TopBSDFNormalCodeChunk) = 0;
 	virtual int32 StrataAdd(int32 A, int32 B) = 0;
 	virtual int32 StrataAddParameterBlending(int32 A, int32 B, const FString& SharedNormalIndexMacro) = 0;
-	virtual int32 StrataMultiply(int32 A, int32 Weight) = 0;
+	virtual int32 StrataWeight(int32 A, int32 Weight) = 0;
 	virtual int32 StrataTransmittanceToMFP(int32 TransmittanceColor, int32 DesiredThickness, int32 OutputIndex) = 0;
 
 	virtual void StrataCompilationInfoRegisterCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) = 0;
@@ -1006,9 +1006,9 @@ public:
 		return Compiler->StrataAddParameterBlending(A, B, SharedNormalIndexMacro);
 	}
 
-	virtual int32 StrataMultiply(int32 A, int32 Weight) override
+	virtual int32 StrataWeight(int32 A, int32 Weight) override
 	{
-		return Compiler->StrataMultiply(A, Weight);
+		return Compiler->StrataWeight(A, Weight);
 	}
 
 	virtual int32 StrataTransmittanceToMFP(int32 TransmittanceColor, int32 DesiredThickness, int32 OutputIndex) override

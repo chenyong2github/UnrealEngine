@@ -504,7 +504,7 @@ class UMaterialExpressionStrataAdd : public UMaterialExpressionStrataBSDF
 };
 
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, DisplayName = "Strata BSDF Weight")
-class UMaterialExpressionStrataMultiply : public UMaterialExpressionStrataBSDF
+class UMaterialExpressionStrataWeight : public UMaterialExpressionStrataBSDF
 {
 	GENERATED_UCLASS_BODY()
 

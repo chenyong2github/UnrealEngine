@@ -853,7 +853,7 @@ FStrataData StrataAdd(FStrataData A, FStrataData B)
 	return StrataData;
 }
 
-FStrataData StrataMultiply(FStrataData A, float Weight)
+FStrataData StrataWeight(FStrataData A, float Weight)
 {
 	const float SafeWeight = saturate(Weight);
 	FStrataData StrataData = A;
@@ -877,8 +877,8 @@ FStrataData StrataHorizontalMixing(FStrataData Foreground, FStrataData Backgroun
 	const float ForegroundMixFactor = saturate(Mix);
 	const float BackgroundMixFactor = 1.0 - ForegroundMixFactor;
 
-	FStrataData A = StrataMultiply(Foreground, ForegroundMixFactor);
-	FStrataData B = StrataMultiply(Background, BackgroundMixFactor);
+	FStrataData A = StrataWeight(Foreground, ForegroundMixFactor);
+	FStrataData B = StrataWeight(Background, BackgroundMixFactor);
 	return StrataAdd(A, B);
 }
 
