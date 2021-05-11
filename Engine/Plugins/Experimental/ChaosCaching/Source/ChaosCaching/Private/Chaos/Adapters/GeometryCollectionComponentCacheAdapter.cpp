@@ -628,16 +628,25 @@ namespace Chaos
 	bool FGeometryCollectionCacheAdapter::InitializeForPlayback(UPrimitiveComponent* InComponent, UChaosCache* InCache) const
 	{
 		UGeometryCollectionComponent*    Comp  = CastChecked<UGeometryCollectionComponent>(InComponent);
-		FGeometryCollectionPhysicsProxy* Proxy = Comp->GetPhysicsProxy();
-
-		FGeometryDynamicCollection& Collection = Proxy->GetPhysicsCollection();
-
-		for (int32& State : Collection.DynamicState)
+		if (!Comp)
 		{
-			State = (int32)EObjectStateTypeEnum::Chaos_Object_Kinematic;
+			return false;
 		}
 
-		return true;
+		FGeometryCollectionPhysicsProxy* Proxy = Comp->GetPhysicsProxy();
+
+		if (ensure(Proxy))
+		{
+			FGeometryDynamicCollection& Collection = Proxy->GetPhysicsCollection();
+
+			const int32 NumDynamicState = Collection.DynamicState.Num();
+			for (int32 StateIdx = 0; StateIdx < NumDynamicState; ++StateIdx)
+			{
+				Collection.DynamicState[StateIdx] = (int32)EObjectStateTypeEnum::Chaos_Object_Kinematic;
+			}
+		}
+		
+		return true;		
 	}
 
 	void FGeometryCollectionCacheAdapter::HandleBreakingEvents(const Chaos::FBreakingEventData& Event)
