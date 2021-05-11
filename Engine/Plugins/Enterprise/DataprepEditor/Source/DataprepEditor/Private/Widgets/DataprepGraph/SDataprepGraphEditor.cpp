@@ -555,6 +555,10 @@ void SDataprepGraphEditor::DeleteSelectedNodes()
 	{
 		Transaction.Cancel();
 	}
+	else
+	{
+		ClearSelectionSet();
+	}
 }
 
 bool SDataprepGraphEditor::CanDeleteNodes() const
