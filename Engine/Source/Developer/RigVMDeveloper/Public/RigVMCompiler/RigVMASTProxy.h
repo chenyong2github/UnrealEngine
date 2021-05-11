@@ -27,7 +27,7 @@ public:
 	const UObject* operator[](int32 InIndex) const;
 
 	// Returns true if the stack contains a given entry
-	bool Contains(UObject* InEntry) const;
+	bool Contains(const UObject* InEntry) const;
 
 	friend FORCEINLINE uint32 GetTypeHash(const FRigVMCallstack& Callstack)
 	{
@@ -94,6 +94,8 @@ public:
 
 		return operator[](0) > Other[0];
 	}
+
+	FORCEINLINE TArray<UObject*> GetStack() const { return Stack; }
 
 private:
 

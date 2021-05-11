@@ -418,27 +418,42 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 		{
 			if(URigVMLibraryNode* OuterFunction = OuterLibrary->FindFunctionForNode(Graph->GetTypedOuter<URigVMCollapseNode>()))
 			{
-				TArray<FRigVMExternalVariable> ExternalVariables = OuterFunction->GetContainedGraph()->GetExternalVariables();
-
-				bool bFoundExternalVariable = false;
-				for(const FRigVMExternalVariable& ExternalVariable : ExternalVariables)
+				// Make sure there is no local variable with that name
+				bool bFoundLocalVariable = false;
+				for (FRigVMGraphVariableDescription& LocalVariable : OuterFunction->GetContainedGraph()->LocalVariables)
 				{
-					if(ExternalVariable.Name == InVariableName)
+					if (LocalVariable.Name == InVariableName)
 					{
-						bFoundExternalVariable = true;
+						bFoundLocalVariable = true;
 						break;
 					}
 				}
 
-				if(!bFoundExternalVariable)
+				if (!bFoundLocalVariable)
 				{
-					if(RequestBulkEditDialogDelegate.IsBound())
+					// Make sure there is no external variable with that name
+					TArray<FRigVMExternalVariable> ExternalVariables = OuterFunction->GetContainedGraph()->GetExternalVariables();
+					bool bFoundExternalVariable = false;
+					for(const FRigVMExternalVariable& ExternalVariable : ExternalVariables)
 					{
-						if(!RequestBulkEditDialogDelegate.Execute(OuterFunction, ERigVMControllerBulkEditType::AddVariable))
+						if(ExternalVariable.Name == InVariableName)
 						{
-							return nullptr;
+							bFoundExternalVariable = true;
+							break;
 						}
-						bSetupUndoRedo = false;
+					}
+
+					if(!bFoundExternalVariable)
+					{
+						// Warn the user the changes are not undoable
+						if(RequestBulkEditDialogDelegate.IsBound())
+						{
+							if(!RequestBulkEditDialogDelegate.Execute(OuterFunction, ERigVMControllerBulkEditType::AddVariable))
+							{
+								return nullptr;
+							}
+							bSetupUndoRedo = false;
+						}
 					}
 				}
 			}
@@ -6616,6 +6631,103 @@ bool URigVMController::RemoveFunctionFromLibrary(const FName& InFunctionName, bo
 	}
 
 	return RemoveNodeByName(InFunctionName, bSetupUndoRedo);
+}
+
+bool URigVMController::AddLocalVariable(const FName& InVariableName,
+	const FString& InCPPType, UObject* InCPPTypeObject, const FString& InDefaultValue, bool bSetupUndoRedo)
+{
+	if (!IsValidGraph())
+	{
+		return false;
+	}
+	
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	if (Graph->GetParentGraph() && !Graph->GetParentGraph()->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Can only add local variables to root graphs."));
+		return false;
+	}
+
+	TArray<FRigVMGraphVariableDescription>& LocalVariables = Graph->LocalVariables;
+	for (FRigVMGraphVariableDescription& Variable : LocalVariables)
+	{
+		if (Variable.Name == InVariableName)
+		{
+			return false;
+		}
+	}
+
+	FRigVMGraphVariableDescription NewVariable;
+	NewVariable.Name = InVariableName;
+	NewVariable.CPPType = InCPPType;
+	NewVariable.CPPTypeObject = InCPPTypeObject;
+	NewVariable.DefaultValue = InDefaultValue;
+
+	LocalVariables.Add(NewVariable);
+
+	if (bSetupUndoRedo)
+	{
+		FRigVMInverseAction InverseAction;
+		InverseAction.Title = FString::Printf(TEXT("Add Local Variable %s"), *InVariableName.ToString());
+
+		ActionStack->BeginAction(InverseAction);
+		ActionStack->AddAction(FRigVMRemoveLocalVariableAction(NewVariable));
+		ActionStack->EndAction(InverseAction);
+	}
+
+	if (!bSuspendNotifications)
+	{
+		Graph->MarkPackageDirty();
+	}
+
+	return true;
+}
+
+bool URigVMController::RemoveLocalVariable(const FName& InVariableName, bool bSetupUndoRedo)
+{
+	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	TArray<FRigVMGraphVariableDescription>& LocalVariables = Graph->LocalVariables;
+	int32 FoundIndex = INDEX_NONE;
+	for (int32 Index = 0; Index < LocalVariables.Num(); ++Index)
+	{
+		if (LocalVariables[Index].Name == InVariableName)
+		{
+			FoundIndex = Index;
+			break;
+		}
+	}
+
+	if (FoundIndex != INDEX_NONE)
+	{
+		if (!bSuspendNotifications)
+		{
+			Graph->MarkPackageDirty();
+		}
+		
+		if (bSetupUndoRedo)
+		{
+			FRigVMInverseAction InverseAction;
+			InverseAction.Title = FString::Printf(TEXT("Remove Local Variable %s"), *InVariableName.ToString());
+
+			ActionStack->BeginAction(InverseAction);
+			ActionStack->AddAction(FRigVMAddLocalVariableAction(LocalVariables[FoundIndex]));
+			ActionStack->EndAction(InverseAction);
+		}	
+		
+		LocalVariables.RemoveAt(FoundIndex);
+		return true;
+	}
+
+	return false;
 }
 
 TArray<TSoftObjectPtr<URigVMFunctionReferenceNode>> URigVMController::GetAffectedReferences(ERigVMControllerBulkEditType InEditType, bool bForceLoad, bool bNotify)

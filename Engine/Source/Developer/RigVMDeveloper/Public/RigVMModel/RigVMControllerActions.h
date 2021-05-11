@@ -1467,3 +1467,43 @@ public:
 	UPROPERTY()
 	FName NewOuterVariableName;
 };
+
+/**
+* An action to add a local variable.
+*/
+USTRUCT()
+struct FRigVMAddLocalVariableAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMAddLocalVariableAction() {}
+	FRigVMAddLocalVariableAction(const FRigVMGraphVariableDescription& InLocalVariable);
+	virtual ~FRigVMAddLocalVariableAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FRigVMGraphVariableDescription LocalVariable;
+};
+
+/**
+* An action to remove a local variable.
+*/
+USTRUCT()
+struct FRigVMRemoveLocalVariableAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMRemoveLocalVariableAction() {}
+	FRigVMRemoveLocalVariableAction(const FRigVMGraphVariableDescription& InLocalVariable);
+	virtual ~FRigVMRemoveLocalVariableAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FRigVMGraphVariableDescription LocalVariable;
+};
