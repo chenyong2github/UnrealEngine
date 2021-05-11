@@ -242,7 +242,6 @@ public:
 	GENERATED_BODY()
 
 	UDataprepParameterization();
-	virtual ~UDataprepParameterization();
 
 	// UObject interface
 	virtual void PostInitProperties() override;
@@ -250,6 +249,7 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
+	virtual void FinishDestroy() override;
 	// End of UObject interface
 
 	void OnObjectModified(UObject* Object);
