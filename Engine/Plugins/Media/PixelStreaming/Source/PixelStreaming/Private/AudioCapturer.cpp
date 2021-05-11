@@ -25,8 +25,8 @@ DEFINE_LOG_CATEGORY(LogAudioCapturer);
 		};                       \
 	}
 
-const int FAudioCapturer::SampleRate;
-const int FAudioCapturer::NumChannels;
+// const int FAudioCapturer::SampleRate;
+// const int FAudioCapturer::NumChannels;
 
 void FAudioCapturer::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 InNumChannels, const int32 InSampleRate, double AudioClock)
 {
