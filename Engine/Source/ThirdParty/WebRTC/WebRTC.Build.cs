@@ -57,7 +57,13 @@ public class WebRTC : ModuleRules
 				string AbslthirdPartyIncludePath = Path.Combine(WebRtcSdkPath, "Include", "third_party", "abseil-cpp");
 				PublicSystemIncludePaths.Add(AbslthirdPartyIncludePath);
 
-				string LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, VisualStudioVersionFolder, ConfigPath);
+				string LibraryPath = "";
+				if(Target.CppStandard == CppStandardVersion.Cpp17 && Target.Platform == UnrealTargetPlatform.Win64) {
+					LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, "Cpp11", ConfigPath);
+				} else {
+					LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, VisualStudioVersionFolder, ConfigPath);
+				}
+
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "webrtc.lib"));
 
 				// Additional System library
