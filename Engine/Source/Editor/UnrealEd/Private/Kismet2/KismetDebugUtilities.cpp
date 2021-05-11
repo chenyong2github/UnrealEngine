@@ -234,7 +234,7 @@ void FKismetDebugUtilities::OnScriptException(const UObject* ActiveObject, const
 		UWorld* WorldBeingDebugged = BlueprintObj->GetWorldBeingDebugged();
 		const FString& PathToDebug = BlueprintObj->GetObjectPathToDebug();
 		
-		if (ObjectBeingDebugged == nullptr)
+		if (ObjectBeingDebugged == nullptr && !PathToDebug.IsEmpty())
 		{
 			// Check if we need to update the object being debugged
 			UObject* ObjectToDebug = FindObjectSafe<UObject>(nullptr, *PathToDebug);
