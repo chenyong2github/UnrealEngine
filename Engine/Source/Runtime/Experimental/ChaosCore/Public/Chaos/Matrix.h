@@ -99,7 +99,7 @@ namespace Chaos
 
 		PMatrix<FReal, 2, 2> Inverse() const
 		{
-			const FReal OneOverDeterminant = 1.0 / (M[0] * M[3] - M[1] * M[2]);
+			const FReal OneOverDeterminant = static_cast<FReal>(1.0) / (M[0] * M[3] - M[1] * M[2]);
 			return PMatrix<FReal, 2, 2>(
 			    OneOverDeterminant * M[3],
 			    -OneOverDeterminant * M[1],

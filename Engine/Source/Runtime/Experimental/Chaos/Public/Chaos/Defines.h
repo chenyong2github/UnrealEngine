@@ -75,7 +75,7 @@ namespace Chaos
 		FChaosPhysicsMaterial()
 			: Friction(0.5)
 			, StaticFriction(0.0)
-			, Restitution(0.1)
+			, Restitution(0.1f)
 			, LinearEtherDrag(0.0)
 			, AngularEtherDrag(0.0)
 			, SleepingLinearThreshold(1)

@@ -311,7 +311,7 @@ namespace Chaos
 
 				InternalDt = AsyncDt;
 				NumSteps = FMath::FloorToInt(AccumulatedTime / InternalDt);
-				AccumulatedTime -= InternalDt * NumSteps;
+				AccumulatedTime -= InternalDt * static_cast<FReal>(NumSteps);
 			}
 		}
 		else if (bSubstepping && InDt > 0)
@@ -326,7 +326,7 @@ namespace Chaos
 			}
 			else
 			{
-				InternalDt = DtWithPause / NumSteps;
+				InternalDt = DtWithPause / static_cast<FReal>(NumSteps);
 			}
 		}
 

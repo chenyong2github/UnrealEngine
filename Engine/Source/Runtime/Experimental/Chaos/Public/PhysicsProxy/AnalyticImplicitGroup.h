@@ -200,11 +200,11 @@ public:
 					{
 						const Chaos::FReal VolI = BoxI.GetVolume();
 						const Chaos::FReal VolJ = BoxJ.GetVolume();
-						const Chaos::FReal PctOverlapI = VolI > KINDA_SMALL_NUMBER ? VolIJ / VolI : 0.;
-						const Chaos::FReal PctOverlapJ = VolJ > KINDA_SMALL_NUMBER ? VolIJ / VolJ : 0.;
+						const Chaos::FReal PctOverlapI = VolI > KINDA_SMALL_NUMBER ? VolIJ / VolI : 0.f;
+						const Chaos::FReal PctOverlapJ = VolJ > KINDA_SMALL_NUMBER ? VolIJ / VolJ : 0.f;
 						// Split the overlapping volume between i and j
-						MPArray[i].Volume *= (1.0 - PctOverlapI / 2);
-						MPArray[j].Volume *= (1.0 - PctOverlapJ / 2);
+						MPArray[i].Volume *= static_cast<Chaos::FReal>(1.0 - PctOverlapI / 2.0);
+						MPArray[j].Volume *= static_cast<Chaos::FReal>(1.0 - PctOverlapJ / 2.0);
 					}
 				}
 			}

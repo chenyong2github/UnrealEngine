@@ -368,17 +368,17 @@ void AddTrianglesToHull(const TConstArrayView<FVec3>& Points, const int32 I0, co
 		FVec3 Normal1 = FVec3::CrossProduct(V1, V2).GetSafeNormal();
 		if (FVec3::DotProduct(Normal1, X2 - X0) > 0)
 		{
-			Normal1 *= -1;
+			Normal1 *= -1.0f;
 		}
 		FVec3 Normal2 = FVec3::CrossProduct(V1, V3).GetSafeNormal();
 		if (FVec3::DotProduct(Normal2, X1 - X0) > 0)
 		{
-			Normal2 *= -1;
+			Normal2 *= -1.0f;
 		}
 		FVec3 Normal3 = FVec3::CrossProduct(V2, V3).GetSafeNormal();
 		if (FVec3::DotProduct(Normal3, X0 - X1) > 0)
 		{
-			Normal3 *= -1;
+			Normal3 *= -1.0f;
 		}
 		TPlane<FReal, 3> NewPlane1(NewX, Normal1);
 		TPlane<FReal, 3> NewPlane2(NewX, Normal2);
@@ -781,7 +781,7 @@ TMap<int32, int32> FTriangleMesh::FindCoincidentVertexRemappings(
 		return Remappings;
 	}
 
-	LocalBBox.Thicken(1.0e-3);
+	LocalBBox.Thicken(1.0e-3f);
 	const FVec3 LocalCenter = LocalBBox.Center();
 	const FVec3& LocalMin = LocalBBox.Min();
 
@@ -793,8 +793,8 @@ TMap<int32, int32> FTriangleMesh::FindCoincidentVertexRemappings(
 	TMap<int64, TSet<int32>> OccupiedCells;
 	OccupiedCells.Reserve(NumPoints);
 
-	const int64 Resolution = static_cast<int64>(floor(MaxBBoxDim / 0.01));
-	const FReal CellSize = MaxBBoxDim / Resolution;
+	const int64 Resolution = static_cast<int64>(floor(MaxBBoxDim / 0.01f));
+	const FReal CellSize = static_cast<FReal>(static_cast<double>(MaxBBoxDim) / static_cast<double>(Resolution));
 	for (int i = 0; i < 2; i++)
 	{
 		OccupiedCells.Reset();
@@ -802,7 +802,7 @@ TMap<int32, int32> FTriangleMesh::FindCoincidentVertexRemappings(
 		// Shift the grid by 1/2 a grid cell the second iteration so that
 		// we don't miss slightly adjacent coincident points across cell
 		// boundaries.
-		const FVec3 GridCenter = LocalCenter - FVec3(i * CellSize / 2);
+		const FVec3 GridCenter = LocalCenter - FVec3(static_cast<FReal>(i) * CellSize / 2.0f);
 		for (int32 LocalIdx = 0; LocalIdx < NumPoints; LocalIdx++)
 		{
 			const int32 Idx = TestIndices[LocalIdx];
@@ -814,9 +814,9 @@ TMap<int32, int32> FTriangleMesh::FindCoincidentVertexRemappings(
 
 			const FVec3& Pos = LocalPoints[LocalIdx];
 			const TVec3<int64> Coord(
-				static_cast<int64>(floor((Pos[0] - GridCenter[0]) / CellSize + Resolution / 2)),
-				static_cast<int64>(floor((Pos[1] - GridCenter[1]) / CellSize + Resolution / 2)),
-				static_cast<int64>(floor((Pos[2] - GridCenter[2]) / CellSize + Resolution / 2)));
+				static_cast<int64>(FMath::Floor((Pos[0] - GridCenter[0]) / CellSize + static_cast<double>(Resolution) / 2.0f)),
+				static_cast<int64>(FMath::Floor((Pos[1] - GridCenter[1]) / CellSize + static_cast<double>(Resolution) / 2.0f)),
+				static_cast<int64>(FMath::Floor((Pos[2] - GridCenter[2]) / CellSize + static_cast<double>(Resolution) / 2.0f)));
 			const int64 FlatIdx =
 				((Coord[0] * Resolution + Coord[1]) * Resolution) + Coord[2];
 
@@ -1012,7 +1012,7 @@ TArray<int32> FTriangleMesh::GetVertexImportanceOrdering(
 		LocalPoints[i] = Points[Offset + i] - Center;
 		LocalBBox.GrowToInclude(LocalPoints[i]);
 	}
-	LocalBBox.Thicken(1.0e-3);
+	LocalBBox.Thicken(1.0e-3f);
 	const FVec3 LocalCenter = LocalBBox.Center();
 	const FVec3& LocalMin = LocalBBox.Min();
 
@@ -1053,7 +1053,7 @@ TArray<int32> FTriangleMesh::GetVertexImportanceOrdering(
 	AscendingPredicate<uint8> AscendingRankPred(Rank, Offset); // low to high
 	{
 		const int64 Resolution = static_cast<int64>(floor(MaxBBoxDim / 0.01));
-		const FReal CellSize = MaxBBoxDim / Resolution;
+		const FReal CellSize = static_cast<FReal>(static_cast<double>(MaxBBoxDim) / static_cast<double>(Resolution));
 		for (int i = 0; i < 2; i++)
 		{
 			OccupiedCells.Reset();
@@ -1062,16 +1062,16 @@ TArray<int32> FTriangleMesh::GetVertexImportanceOrdering(
 			// Shift the grid by 1/2 a grid cell the second iteration so that
 			// we don't miss slightly adjacent coincident points across cell
 			// boundaries.
-			const FVec3 GridCenter = LocalCenter - FVec3(i * CellSize / 2);
+			const FVec3 GridCenter = LocalCenter - FVec3(static_cast<FReal>(i) * CellSize / 2);
 			const int NumCoincidentPrev = NumCoincident;
 			for (int j = 0; j < NumPoints - NumCoincidentPrev; j++)
 			{
 				const int32 Idx = PointOrder[j];
 				const FVec3& Pos = LocalPoints[Idx - Offset];
 				const TVec3<int64> Coord(
-				    static_cast<int64>(floor((Pos[0] - GridCenter[0]) / CellSize + Resolution / 2)),
-				    static_cast<int64>(floor((Pos[1] - GridCenter[1]) / CellSize + Resolution / 2)),
-				    static_cast<int64>(floor((Pos[2] - GridCenter[2]) / CellSize + Resolution / 2)));
+				    static_cast<int64>(FMath::Floor((Pos[0] - GridCenter[0]) / CellSize + static_cast<double>(Resolution) / 2)),
+				    static_cast<int64>(FMath::Floor((Pos[1] - GridCenter[1]) / CellSize + static_cast<double>(Resolution) / 2)),
+				    static_cast<int64>(FMath::Floor((Pos[2] - GridCenter[2]) / CellSize + static_cast<double>(Resolution) / 2)));
 				const int64 FlatIdx =
 				    ((Coord[0] * Resolution + Coord[1]) * Resolution) + Coord[2];
 
@@ -1106,7 +1106,7 @@ TArray<int32> FTriangleMesh::GetVertexImportanceOrdering(
 		const int32 Resolution = i;
 		check(Resolution > 0);
 		check(Resolution % 2 == 0);
-		const FReal CellSize = MaxBBoxDim / Resolution;
+		const FReal CellSize = MaxBBoxDim / static_cast<FReal>(Resolution);
 
 		// The order in which we process these points matters.  Must do
 		// the current highest rank first.
@@ -1116,9 +1116,9 @@ TArray<int32> FTriangleMesh::GetVertexImportanceOrdering(
 			const FVec3& Pos = LocalPoints[Idx - Offset];
 			// grid center co-located at bbox center:
 			const TVec3<int64> Coord(
-			    static_cast<int64>(floor((Pos[0] - LocalCenter[0]) / CellSize)) + Resolution / 2,
-			    static_cast<int64>(floor((Pos[1] - LocalCenter[1]) / CellSize)) + Resolution / 2,
-			    static_cast<int64>(floor((Pos[2] - LocalCenter[2]) / CellSize)) + Resolution / 2);
+			    static_cast<int64>(FMath::Floor((Pos[0] - LocalCenter[0]) / CellSize)) + Resolution / 2,
+			    static_cast<int64>(FMath::Floor((Pos[1] - LocalCenter[1]) / CellSize)) + Resolution / 2,
+			    static_cast<int64>(FMath::Floor((Pos[2] - LocalCenter[2]) / CellSize)) + Resolution / 2);
 			const int64 FlatIdx =
 			    ((Coord[0] * Resolution + Coord[1]) * Resolution) + Coord[2];
 

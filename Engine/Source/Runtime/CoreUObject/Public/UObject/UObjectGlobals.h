@@ -589,7 +589,7 @@ COREUOBJECT_API void GatherUnreachableObjects(bool bForceSingleThreaded);
  * @param	bUseTimeLimit	whether the time limit parameter should be used
  * @param	TimeLimit		soft time limit for this function call
  */
-COREUOBJECT_API void IncrementalPurgeGarbage( bool bUseTimeLimit, float TimeLimit = 0.002 );
+COREUOBJECT_API void IncrementalPurgeGarbage( bool bUseTimeLimit, float TimeLimit = 0.002f );
 
 /**
  * Create a unique name by combining a base name and an arbitrary number string.

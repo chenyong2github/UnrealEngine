@@ -71,10 +71,10 @@ namespace Chaos
 					}
 				}
 
-				const float CountPerChar = MaxBucketCount / 20.f;
+				const float CountPerChar = static_cast<float>(MaxBucketCount) / 20.f;
 				for (int32 Idx = 1; Idx < UE_ARRAY_COUNT(BucketSizes2); ++Idx)
 				{
-					int32 NumChars = BucketCount[Idx] / CountPerChar;
+					int32 NumChars = static_cast<int32>(static_cast<float>(BucketCount[Idx]) / CountPerChar);
 					if (Idx < UE_ARRAY_COUNT(BucketSizes2) - 1)
 					{
 						OutLog += FString::Printf(TEXT("\t[%4d - %4d) (%4d) |"), BucketSizes2[Idx - 1], BucketSizes2[Idx], BucketCount[Idx]);
@@ -106,7 +106,7 @@ namespace Chaos
 
 			void RecordBoundsData(const FAABB3& Box1)
 			{
-				BoundsDistribution.Record(Box1.Extents().GetMax());
+				BoundsDistribution.Record(static_cast<int32>(Box1.Extents().GetMax()));
 			}
 
 			void RecordBroadphasePotentials(int32 Num)

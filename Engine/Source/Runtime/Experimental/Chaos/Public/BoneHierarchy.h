@@ -163,9 +163,9 @@ public:
 		FTransform& TargetXf = LocalSpaceTransforms[TransformIndex];
 		// FTransform::Equals() is flakey.
 		//if (!TargetXf.Equals(BoneXf, 1.0e-8))
-		if (!TargetXf.GetTranslation().Equals(BoneXf.GetTranslation(), 1.0e-8) ||
-			!TargetXf.GetRotation().Equals(BoneXf.GetRotation(), 1.0e-8) ||
-			!TargetXf.GetScale3D().Equals(BoneXf.GetScale3D(), 1.0e-8))
+		if (!TargetXf.GetTranslation().Equals(BoneXf.GetTranslation(), 1.0e-8f) ||
+			!TargetXf.GetRotation().Equals(BoneXf.GetRotation(), 1.0e-8f) ||
+			!TargetXf.GetScale3D().Equals(BoneXf.GetScale3D(), 1.0e-8f))
 		{
 			TargetXf = BoneXf;
 			SetAnimLocalDirty(TransformIndex);
@@ -182,9 +182,9 @@ public:
 		// FTransform::Equals() is flakey.
 		//ActorLocalToWorldDirty |= !ActorLocalToWorld.FTransform::Equals(InActorLocalToWorld);
 		ActorLocalToWorldDirty |=
-			!ActorLocalToWorld.GetTranslation().Equals(InActorLocalToWorld.GetTranslation(), 1.0e-8) ||
-			!ActorLocalToWorld.GetRotation().Equals(InActorLocalToWorld.GetRotation(), 1.0e-8) ||
-			!ActorLocalToWorld.GetScale3D().Equals(InActorLocalToWorld.GetScale3D(), 1.0e-8);
+			!ActorLocalToWorld.GetTranslation().Equals(InActorLocalToWorld.GetTranslation(), 1.0e-8f) ||
+			!ActorLocalToWorld.GetRotation().Equals(InActorLocalToWorld.GetRotation(), 1.0e-8f) ||
+			!ActorLocalToWorld.GetScale3D().Equals(InActorLocalToWorld.GetScale3D(), 1.0e-8f);
 		ActorLocalToWorld = InActorLocalToWorld;
 	}
 

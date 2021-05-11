@@ -149,9 +149,14 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 						ErrorReporter,
 						MeshParticles, *TriangleMesh,
 						Bounds,
-						FVector::Distance(FVector(0.f, 0.f, 0.f), Bounds.GetExtent())*0.5,
-						Parameters.MinRes, Parameters.MaxRes, 0.f,
-						CollisionType, Parameters.ShapeType)));
+						FVector::Distance(FVector(0.f, 0.f, 0.f), 
+						Bounds.GetExtent()) * 0.5f,
+						Parameters.MinRes, 
+						Parameters.MaxRes, 
+						0.f,
+						CollisionType, 
+						Parameters.ShapeType)));
+
 			if (!ensure(Parameters.MeshVertexPositions.Size()))
 			{
 				Parameters.MeshVertexPositions.AddParticles(1);
@@ -185,7 +190,7 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 		}
 		else if (Parameters.ShapeType == EImplicitTypeEnum::Chaos_Implicit_Box)
 		{
-			Chaos::FVec3 HalfExtents = Parameters.ShapeParams.BoxExtents / 2;
+			Chaos::FVec3 HalfExtents = Parameters.ShapeParams.BoxExtents / static_cast<Chaos::FReal>(2);
 			Chaos::TBox<Chaos::FReal,3>* Box = new Chaos::TBox<Chaos::FReal, 3>(-HalfExtents, HalfExtents);
 			Bounds.Min = Box->Min();
 			Bounds.Max = Box->Max();

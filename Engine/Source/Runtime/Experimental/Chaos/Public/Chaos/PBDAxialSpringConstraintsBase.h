@@ -26,9 +26,9 @@ public:
 			FReal Bary2 = FindBary(InParticles, i2, i3, i1);
 			FReal Bary3 = FindBary(InParticles, i3, i1, i2);
 			FReal Bary = Bary1;
-			FReal Bary1dist = FGenericPlatformMath::Abs(Bary1 - 0.5);
-			FReal Bary2dist = FGenericPlatformMath::Abs(Bary2 - 0.5);
-			FReal Bary3dist = FGenericPlatformMath::Abs(Bary3 - 0.5);
+			FReal Bary1dist = FGenericPlatformMath::Abs(Bary1 - 0.5f);
+			FReal Bary2dist = FGenericPlatformMath::Abs(Bary2 - 0.5f);
+			FReal Bary3dist = FGenericPlatformMath::Abs(Bary3 - 0.5f);
 			if (Bary3dist < Bary2dist && Bary3dist < Bary1dist)
 			{
 				Constraint[0] = i3;

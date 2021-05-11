@@ -115,7 +115,7 @@ namespace Chaos
 			int VertexPlanesArrayStart = 0;
 			for (int32 VertexIndex = 0; VertexIndex < NumVerts; ++VertexIndex)
 			{
-				VertexPlanesOffsetCount[VertexIndex].Key = VertexPlanesArrayStart;
+				VertexPlanesOffsetCount[VertexIndex].Key = static_cast<FOffsetIndex>(VertexPlanesArrayStart);
 				VertexPlanesArrayStart += VertexPlanesOffsetCount[VertexIndex].Value;
 				VertexPlanesOffsetCount[VertexIndex].Value = 0;
 			}
@@ -128,8 +128,8 @@ namespace Chaos
 			int32 PlaneVerticesArrayStart = 0;
 			for (int32 PlaneIndex = 0; PlaneIndex < InPlaneVertices.Num(); ++PlaneIndex)
 			{
-				PlaneVerticesOffsetCount[PlaneIndex].Key = PlaneVerticesArrayStart;
-				PlaneVerticesOffsetCount[PlaneIndex].Value = InPlaneVertices[PlaneIndex].Num();
+				PlaneVerticesOffsetCount[PlaneIndex].Key = static_cast<FOffsetIndex>(PlaneVerticesArrayStart);
+				PlaneVerticesOffsetCount[PlaneIndex].Value = static_cast<FIndex>(InPlaneVertices[PlaneIndex].Num());
 				PlaneVerticesArrayStart += InPlaneVertices[PlaneIndex].Num();
 
 				for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < InPlaneVertices[PlaneIndex].Num(); ++PlaneVertexIndex)
@@ -137,11 +137,11 @@ namespace Chaos
 					const int32 VertexIndex = InPlaneVertices[PlaneIndex][PlaneVertexIndex];
 
 					const int32 PlaneVertexFlatArrayIndex = PlaneVerticesOffsetCount[PlaneIndex].Key + PlaneVertexIndex;
-					PlaneVertices[PlaneVertexFlatArrayIndex] = VertexIndex;
+					PlaneVertices[PlaneVertexFlatArrayIndex] = static_cast<FIndex>(VertexIndex);
 
 					const int32 VertexPlaneFlatArrayIndex = VertexPlanesOffsetCount[VertexIndex].Key + VertexPlanesOffsetCount[VertexIndex].Value;
 					VertexPlanesOffsetCount[VertexIndex].Value++;
-					VertexPlanes[VertexPlaneFlatArrayIndex] = PlaneIndex;
+					VertexPlanes[VertexPlaneFlatArrayIndex] = static_cast<FIndex>(PlaneIndex);
 				}
 			}
 		}

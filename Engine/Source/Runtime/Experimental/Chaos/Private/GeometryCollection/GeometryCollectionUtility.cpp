@@ -9,6 +9,7 @@
 
 #include "CoreMinimal.h"
 #include "Templates/SharedPointer.h"
+#include "Chaos/Real.h"
 
 DEFINE_LOG_CATEGORY_STATIC(FGeometryCollectionUtilityLogging, Log, All);
 
@@ -154,7 +155,7 @@ namespace GeometryCollection
 	{
 		check(RestCollectionIn.IsValid());
 
-		float domain = 10;
+		float domain = 10.f;
 		FVector Stack(domain);
 		float numElements = powf(domain, 3);
 
@@ -166,16 +167,16 @@ namespace GeometryCollection
 		FVector MinCorner = -Length * Expansion / 2.f * Stackf;
 
 
-		for (int32 i = 0; i < Stack[0]; ++i)
+		for (int32 i = 0; i < FMath::TruncToInt(Stack[0]); ++i)
 		{
-			for (int32 j = 0; j < Stack[1]; ++j)
+			for (int32 j = 0; j < FMath::TruncToInt(Stack[1]); ++j)
 			{
-				for (int32 k = 0; k < Stack[2]; ++k)
+				for (int32 k = 0; k < FMath::TruncToInt(Stack[2]); ++k)
 				{
 					FVector Delta(j % 2 == 1 ? Length / 2.f : 0.f, 0.f, j % 2 == 1 ? Length / 2.f : 0.f);
-					FVector CenterOfMass = FVector(MinCorner[0] + Expansion * Length * i + Length * (Expansion / 2.f),
-						MinCorner[0] + Expansion * Length * j + Length * (Expansion / 2.f),
-						MinCorner[0] + Expansion * Length * k + Length * (Expansion / 2.f)) + Delta;
+					FVector CenterOfMass = FVector(MinCorner[0] + Expansion * Length * static_cast<Chaos::FReal>(i) + Length * (Expansion / 2.f),
+						MinCorner[0] + Expansion * Length * static_cast<Chaos::FReal>(j) + Length * (Expansion / 2.f),
+						MinCorner[0] + Expansion * Length * static_cast<Chaos::FReal>(k) + Length * (Expansion / 2.f)) + Delta;
 					TSharedPtr<FGeometryCollection> Element = MakeCubeElement(FTransform(CenterOfMass), FVector(Length) );
 					RestCollectionIn->AppendGeometry(*Element);
 				}
@@ -336,7 +337,7 @@ namespace GeometryCollection
 					{
 						if (VertexCount[GeometryIndex])
 						{
-							Center[GeometryIndex] /= VertexCount[GeometryIndex];
+							Center[GeometryIndex] /= static_cast<Chaos::FReal>(VertexCount[GeometryIndex]);
 						}
 					}
 
@@ -387,7 +388,7 @@ namespace GeometryCollection
 						{
 							Centroid += Vertex[FaceIndices[fdx][e]];
 						}
-						Centroid /= 3;
+						Centroid /= 3.0f;
 
 						float Delta = (Center[GeometryIndex] - Centroid).Size();
 						InnerRadius[GeometryIndex] = FMath::Min(InnerRadius[GeometryIndex], Delta);

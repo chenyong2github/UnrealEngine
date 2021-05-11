@@ -137,7 +137,7 @@ namespace Chaos
 		/**
 		 * Set the maximum number of springs
 		 */
-		void SetMaxSprings(const FReal InMaxSprings)
+		void SetMaxSprings(const int32 InMaxSprings)
 		{
 			MaxSprings = InMaxSprings;
 		}

@@ -291,7 +291,7 @@ public:
 	@param FaceIndices - Vertices that lie on the face plane.
 	@param SearchDistance - distance to surface [def:0.01]
 	*/
-	virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01) const
+	virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01f) const
 	{
 		//Many objects have no concept of a face
 		return INDEX_NONE;

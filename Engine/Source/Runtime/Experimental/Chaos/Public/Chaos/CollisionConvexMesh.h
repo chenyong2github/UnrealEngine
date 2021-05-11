@@ -685,7 +685,7 @@ namespace Chaos
 			FHalfEdge* Cur = OldList;
 			while(Cur)
 			{
-				FReal MaxD = 1e-4;
+				FReal MaxD = 1e-4f;
 				int32 MaxIdx = -1;
 				for(int32 Idx = 0; Idx < NumFaces; ++Idx)
 				{
@@ -746,7 +746,7 @@ namespace Chaos
 				return nullptr;
 			}
 
-			constexpr FReal Epsilon = 1e-4;
+			constexpr FReal Epsilon = 1e-4f;
 
 			const int32 NumVertices = InVertices.Num();
 

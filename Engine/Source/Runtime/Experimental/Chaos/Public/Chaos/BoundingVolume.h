@@ -385,11 +385,11 @@ public:
 		}
 	}
 
-	SIZE_T GetReserveCount() const
+	int32 GetReserveCount() const
 	{
 		// Optimize for fewer memory allocations.
-		const auto& Counts = MGrid.Counts(); 
-		const SIZE_T GridCount = Counts[0] * Counts[1] * Counts[2] * MElements.Num();
+		const TVector<int32, d>& Counts = MGrid.Counts();
+		const int32 GridCount = Counts[0] * Counts[1] * Counts[2] * MElements.Num();
 		return MGlobalPayloads.Num() + MDirtyElements.Num() + GridCount;
 	}
 
@@ -564,7 +564,7 @@ private:
 
 				for (int Axis = 0; Axis < d; ++Axis)
 				{
-					constexpr T Epsilon = 1e-2;	//if raycast is slightly off we still count it as hitting the cell surface
+					constexpr T Epsilon = 1e-2f;	//if raycast is slightly off we still count it as hitting the cell surface
 					CellIdx[Axis] += (Times[Axis] <= BestTime + Epsilon) ? (CurData.Dir[Axis] > 0 ? 1 : -1) : 0;
 					if (CellIdx[Axis] < 0 || CellIdx[Axis] >= MGrid.Counts()[Axis])
 					{
@@ -919,7 +919,7 @@ private:
 
 		AllBounds.SetNum(Particles.Num());
 		HasBounds.SetNum(Particles.Num());
-		int32 MaxPayloadBoundsCopy = MaxPayloadBounds;
+		T MaxPayloadBoundsCopy = MaxPayloadBounds;
 		auto GetValidBounds = [MaxPayloadBoundsCopy, bUseVelocity, Dt](const auto& Particle, TAABB<T,d>& OutBounds) -> bool
 		{
 			if (HasBoundingBox(Particle))
@@ -1252,7 +1252,7 @@ private:
 			int32 Idx = (NumY * NumZ) * Coordinate[0] + (NumZ * Coordinate[1]) + Coordinate[2];
 			int32 ByteIdx = Idx / 8;
 			int32 BitIdx = Idx % 8;
-			uint8 Mask = 1 << BitIdx;
+			uint8 Mask = static_cast<uint8>(1 << BitIdx);
 			Data[ByteIdx] |= Mask;
 		}
 

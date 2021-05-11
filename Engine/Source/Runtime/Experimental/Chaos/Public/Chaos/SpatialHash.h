@@ -38,7 +38,7 @@ private:
 	void Init(const T Radius);
 	void Init();
 	
-	T SmallestAxis() const
+	int32 SmallestAxis() const
 	{
 		TVec3<T> Extents = MBoundingBox.Extents();
 

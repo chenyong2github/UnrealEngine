@@ -34,6 +34,8 @@ namespace UnrealBuildTool.Rules
             {
                 PublicDefinitions.Add("CHAOS_CHECKED=0");
             }
-        }
+
+			UnsafeTypeCastWarningLevel = WarningLevel.Warning;
+		}
     }
 }

@@ -132,7 +132,7 @@ namespace Chaos
 			const FReal R2R2 = Radius2 * Radius2;
 			const FReal R1R2 = Radius1 * Radius2;
 			//  compute center of mass as a distance along the axis from the origin as the shape as the axis as a symmetry line 
-			FReal TaperedSectionCenterOfMass = (Height * (R1R1 + 2.*R1R2 + 3.*R2R2) / 4.*(R1R1 + R1R2 + R2R2));
+			FReal TaperedSectionCenterOfMass = (Height * (R1R1 + (FReal)2.0 * R1R2 + (FReal)3.0 * R2R2) / (FReal)4.0 * (R1R1 + R1R2 + R2R2));
 			FReal Hemisphere1CenterOfMass = -((FReal)3.0 * Radius1 / (FReal)8.0);
 			FReal Hemisphere2CenterOfMass = (Height + ((FReal)3.0 * Radius2 / (FReal)8.0));
 
@@ -191,12 +191,12 @@ namespace Chaos
 			const FReal R1R2 = R1 * R2;
 			const FReal R2R2 = R2 * R2;
 
-			const FReal Num1 = 2. * HH * (R1R1 + 3. * R1R2 + 6. * R2R2); // 2H^2 * (R1^2 + 3R1R2 + 6R2^2)
-			const FReal Num2 = 3. * (R1R1 * R1R1 + R1R1 * R1R2 + R1R2 * R1R2 + R1R2 * R2R2 + R2R2 * R2R2); // 3 * (R1^4 + R1^3R2 + R1^2R2^2 + R1R2^3 + R2^4)
+			const FReal Num1 = (FReal)2.0 * HH * (R1R1 + (FReal)3.0 * R1R2 + (FReal)6.0 * R2R2); // 2H^2 * (R1^2 + 3R1R2 + 6R2^2)
+			const FReal Num2 = (FReal)3.0 * (R1R1 * R1R1 + R1R1 * R1R2 + R1R2 * R1R2 + R1R2 * R2R2 + R2R2 * R2R2); // 3 * (R1^4 + R1^3R2 + R1^2R2^2 + R1R2^3 + R2^4)
 			const FReal Den1 = PI * (R1R1 + R1R2 + R2R2); // PI * (R1^2 + R1R2 + R2^2)
 
-			const FReal Diag12 = Mass * (Num1 + Num2) / (20. * Den1);
-			const FReal Diag3 = Mass * Num2 / (10. * Den1);
+			const FReal Diag12 = Mass * (Num1 + Num2) / ((FReal)20.0 * Den1);
+			const FReal Diag3 = Mass * Num2 / ((FReal)10.0 * Den1);
 
 			return FMatrix33(Diag12, Diag12, Diag3);
 		}
@@ -372,8 +372,8 @@ namespace Chaos
 			const FReal AllArea = TaperedSectionArea + Cap1Area + Cap2Area;
 			if (AllArea > KINDA_SMALL_NUMBER)
 			{
-				NumPointsEndCap1 = static_cast<int32>(round(Cap1Area / AllArea * NumPoints));
-				NumPointsEndCap2 = static_cast<int32>(round(Cap2Area / AllArea * NumPoints));
+				NumPointsEndCap1 = static_cast<int32>(round(Cap1Area / AllArea * static_cast<FReal>(NumPoints)));
+				NumPointsEndCap2 = static_cast<int32>(round(Cap2Area / AllArea * static_cast<FReal>(NumPoints)));
 				NumPointsTaperedSection = NumPoints - NumPointsEndCap1 - NumPointsEndCap2;
 			}
 			else

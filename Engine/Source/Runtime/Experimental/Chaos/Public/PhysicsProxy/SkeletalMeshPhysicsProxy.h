@@ -21,7 +21,7 @@ struct CHAOS_API FSkeletalMeshPhysicsProxyParams
 		, ObjectType(EObjectStateTypeEnum::Chaos_Object_Kinematic)
 
 		, CollisionType(ECollisionTypeEnum::Chaos_Volumetric)
-		, ParticlesPerUnitArea(0.1)
+		, ParticlesPerUnitArea(0.1f)
 		, MinNumParticles(0)
 		, MaxNumParticles(50)
 		, MinRes(5)
@@ -31,11 +31,11 @@ struct CHAOS_API FSkeletalMeshPhysicsProxyParams
 		, bEnableClustering(false)
 		, ClusterGroupIndex(0)
 		, MaxClusterLevel(100)
-		, DamageThreshold(250.)
+		, DamageThreshold(250.f)
 #endif
-		, Density(2.4)
-		, MinMass(0.001)
-		, MaxMass(1.e6)
+		, Density(2.4f)
+		, MinMass(0.001f)
+		, MaxMass(1.e6f)
 
 		, bSimulating(false)
 	{}

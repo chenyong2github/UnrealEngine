@@ -63,7 +63,7 @@ void TPerParticlePBDCollisionConstraint<EGeometryParticlesSimType::Other>::Apply
 	const FReal PerGroupFriction = MPerGroupFriction[DynamicGroupId];
 	const FReal PerGroupThickness = MPerGroupThickness[DynamicGroupId];
 
-	const int32 NumBatches = FMath::CeilToInt((Range - Offset) / (FReal)Chaos_PerParticleCollision_ISPC_ParallelBatchSize);
+	const int32 NumBatches = FMath::CeilToInt((FReal)(Range - Offset) / (FReal)Chaos_PerParticleCollision_ISPC_ParallelBatchSize);
 
 	if (Chaos_PerParticleCollision_ISPC_FastFriction)
 	{

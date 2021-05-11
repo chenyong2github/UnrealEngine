@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Containers/ChunkedArray.h"
 #include "Templates/UnrealTemplate.h"
+#include <limits>
 
 // Indicates how many "k / 2" there are in the k-DOP. 3 == AABB == 6 DOP. The code relies on this being 3.
 #define NUM_PLANES	3
@@ -613,7 +614,9 @@ struct TkDOPNode
 
 			// No need to subdivide further so make this a leaf node
 			bIsLeaf = 1;
-			Occupancy = NumTris;
+
+			check(NumTris <= std::numeric_limits<uint8>::max());
+			Occupancy = static_cast<uint8>(NumTris);
 			
 			// Generate bounding volume for leaf which is passed up the call chain.
 			FBox BoundingVolume(ForceInit);

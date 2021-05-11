@@ -780,7 +780,7 @@ namespace Chaos
 				{
 					AverageLocation += PotentialConstraints[ConstraintIdx];
 				}
-				Contact.Location = AverageLocation / NumConstraints;
+				Contact.Location = AverageLocation / static_cast<FReal>(NumConstraints);
 			}
 
 			Contact.ShapeMargins[0] = 0.0f;
