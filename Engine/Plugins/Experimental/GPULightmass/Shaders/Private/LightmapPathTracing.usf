@@ -5,6 +5,7 @@ PathTracingRayGenShader.usf: Reference path tracing
 ===============================================================================================*/
 
 #define SIMPLIFIED_MATERIAL_SHADER 1
+#define RANDSEQ_UNROLL_SOBOL 0
 
 // Needs to be defined before the uniform buffer struct header is included, very unfortunately
 struct FIrradianceCacheRecord
@@ -124,18 +125,18 @@ FThreeBandSHVectorFloat SHBasisFunction3Float(float3 InputVector)
 	#define USE_IRRADIANCE_CACHING 0
 #endif
 
-uint MaxBounces;
+static const uint MaxBounces = 32;
 
 // 0: only Material sampling
 // 1: only Light sampling
 // 2: both Material and Light
-uint MISMode;
+static const uint MISMode = 2;
 
-uint ApproximateCaustics;
-uint EnableCameraBackfaceCulling;
-uint EnableDirectLighting;
-uint EnableEmissive;
-float MaxNormalBias;
+static const uint ApproximateCaustics = 1;
+static const uint EnableCameraBackfaceCulling = 0;
+static const uint EnableDirectLighting = 1;
+static const uint EnableEmissive = 1;
+static const float MaxNormalBias = 0.1;
 
 RaytracingAccelerationStructure TLAS;
 uint SceneVisibleLightCount;
@@ -405,7 +406,7 @@ void PathTracingKernel(
 		}
 		else
 		{
-			Payload = TraceTransparentRay(Ray, RayCone, bIsCameraRay, bIsLastBounce, bIncludeEmissive, LaunchIndex, NumVisibleLights, RandSequence, PathThroughput, Radiance);
+			Payload = TraceTransparentRay(Ray, RayCone, false , bIsLastBounce, bIncludeEmissive, LaunchIndex, NumVisibleLights, RandSequence, PathThroughput, Radiance);
 		}
 		
 		if (Payload.IsMiss())
