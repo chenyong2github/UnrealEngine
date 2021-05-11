@@ -4,25 +4,26 @@
 
 #include "MediaPacket.h"
 #include "Templates/RefCounting.h"
+#include "VideoCommon.h"
 
 #if PLATFORM_WINDOWS || (PLATFORM_XBOXONE && WITH_LEGACY_XDK)
 
-#if PLATFORM_WINDOWS
+// #if PLATFORM_WINDOWS
 
-#include "Windows/AllowWindowsPlatformTypes.h"
-#include "Windows/PreWindowsApi.h"
-	#include <mftransform.h>
-#include "Windows/PostWindowsApi.h"
-#include "Windows/HideWindowsPlatformTypes.h"
+// #include "Windows/AllowWindowsPlatformTypes.h"
+// #include "Windows/PreWindowsApi.h"
+// 	#include <mftransform.h>
+// #include "Windows/PostWindowsApi.h"
+// #include "Windows/HideWindowsPlatformTypes.h"
 
-#elif PLATFORM_XBOXONE
+// #elif PLATFORM_XBOXONE
 
-#include "XboxCommonAllowPlatformTypes.h"
-#include "XboxCommonPreApi.h"
-	#include <mftransform.h>
-#include "XboxCommonPostApi.h"
-#include "XboxCommonHidePlatformTypes.h"
-#endif
+// #include "XboxCommonAllowPlatformTypes.h"
+// #include "XboxCommonPreApi.h"
+// 	#include <mftransform.h>
+// #include "XboxCommonPostApi.h"
+// #include "XboxCommonHidePlatformTypes.h"
+// #endif
 
 namespace AVEncoder
 {
