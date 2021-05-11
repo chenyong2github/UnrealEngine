@@ -7,6 +7,11 @@
 #include "RewindDebuggerModule.h"
 
 
+namespace TraceServices
+{
+	class IAnalysisSession;
+}
+
 // Singleton class that handles the logic for the Rewind Debugger
 // handles:
 //  Playback/Scrubbing state
@@ -86,6 +91,7 @@ private:
 	void OnPIEResumed(bool bSimulating);
 	void OnPIEStopped(bool bSimulating);
 
+	const TraceServices::IAnalysisSession* GetAnalysisSession();
 	UWorld* GetWorldToVisualize() const;
 
 	void SetCurrentScrubTime(float Time);
