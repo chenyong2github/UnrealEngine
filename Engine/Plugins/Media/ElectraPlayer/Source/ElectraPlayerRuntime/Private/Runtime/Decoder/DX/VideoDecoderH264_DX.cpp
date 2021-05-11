@@ -1296,6 +1296,7 @@ void FVideoDecoderH264::WorkerThread()
 
 	bool bDone = false;
 	bool bInDummyDecodeMode = false;
+	bool bGotLastSequenceAU = false;
 
 	// Require a new media input type based on the actual first access unit.
 	bool bNeedInitialReconfig = true;
@@ -1354,7 +1355,7 @@ void FVideoDecoderH264::WorkerThread()
 					if (!bError)
 					{
 						// Update the buffer acquisition after a change in streams?
-						bool bFormatChangedJustNow = CurrentSampleInfo.IsDifferentFromOtherVideo(NewSampleInfo);
+						bool bFormatChangedJustNow = CurrentSampleInfo.IsDifferentFromOtherVideo(NewSampleInfo) || bGotLastSequenceAU;
 
 						if (bInDummyDecodeMode)
 						{
@@ -1383,7 +1384,7 @@ void FVideoDecoderH264::WorkerThread()
 							SetupBufferAcquisitionProperties();
 						}
 						bNeedInitialReconfig = false;
-
+						bGotLastSequenceAU = CurrentAccessUnit->bIsLastInPeriod;
 						if (!Decode(CurrentAccessUnit, false))
 						{
 							bError = true;
