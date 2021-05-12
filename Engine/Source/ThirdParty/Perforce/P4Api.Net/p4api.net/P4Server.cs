@@ -1460,6 +1460,19 @@ namespace Perforce.P4
                 P4Bridge.SetDataSetA(pServer, cmdId, value);
             }
         }
+
+        // Epic
+        public void SetConnectionHost(string hostname)
+        {
+            if (!IsConnected())
+            {
+                throw new Exception("Must be connected to set connection host");
+            }
+
+            P4Bridge.SetConnectionHost(pServer, hostname);
+        }
+
+
         public String GetDataSet(uint cmdId)
         {
             IntPtr pData = P4Bridge.GetDataSet(pServer, cmdId);

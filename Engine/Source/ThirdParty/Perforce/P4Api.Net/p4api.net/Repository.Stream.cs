@@ -550,7 +550,7 @@ namespace Perforce.P4
         /// </example>
 		public Stream GetStream(string stream)
 		{
-			return GetStream(stream, null, null);
+			return GetStream(stream, null);
 		}
         /// <summary>
         /// Get a list of streams from the repository
@@ -790,7 +790,8 @@ namespace Perforce.P4
                     throw new ArgumentNullException("Parent");
                 }
 
-                return GetStream(stream.Id, stream.Parent.ToString(), null).ParentView;
+                return GetStream(stream.Id, new StreamCmdOptions(StreamCmdFlags.None, stream.Parent.ToString(),stream.Type.ToString())).ParentView;                
+                //return GetStream(stream.Id, stream.Parent.ToString(), null).ParentView;
             }
         }
 	}
