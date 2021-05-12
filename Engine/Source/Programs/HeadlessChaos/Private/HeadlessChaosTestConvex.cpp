@@ -109,10 +109,14 @@ namespace ChaosTest
 		// Check all per-vertex data
 		for (int32 VertexIndex = 0; VertexIndex < Convex.NumVertices(); ++VertexIndex)
 		{
-			// All planes should pass through the vertex
-			for (int32 VertexPlaneIndex = 0; VertexPlaneIndex < Convex.NumVertexPlanes(VertexIndex); ++VertexPlaneIndex)
+			// Get all the planes for the vertex
+			TArray<int32> PlaneIndices;
+			PlaneIndices.SetNum(128);
+			int32 NumPlanes = Convex.FindVertexPlanes(VertexIndex, PlaneIndices.GetData(), PlaneIndices.Num());
+			PlaneIndices.SetNum(NumPlanes);
+
+			for (int32 PlaneIndex : PlaneIndices)
 			{
-				const int32 PlaneIndex = Convex.GetVertexPlane(VertexIndex, VertexPlaneIndex);
 				const TPlaneConcrete<FReal, 3> Plane = Convex.GetPlane(PlaneIndex);
 				const FVec3 Vertex = Convex.GetVertex(VertexIndex);
 				const FReal VertexDistance = FVec3::DotProduct(Plane.Normal(), Vertex - Plane.X());
@@ -158,6 +162,7 @@ namespace ChaosTest
 	GTEST_TEST(ConvexStructureTests, TestConvexStructureData2)
 	{
 		const FVec3 Vertices[] =
+
 		{
 			FVec3(0, 0, 12.0f),
 			FVec3(-0.707f, -0.707f, 10.0f),
@@ -203,7 +208,7 @@ namespace ChaosTest
 	void TestConvexStructureDataMapping(const T_STRUCTUREDATA& StructureData)
 	{
 		// For each plane, get the list of vertices that make its edges.
-		// Then check that we list of planes used by that vertex contains the original plane
+		// Then check that the list of planes used by that vertex contains the original plane
 		for (int32 PlaneIndex = 0; PlaneIndex < StructureData.NumPlanes(); ++PlaneIndex)
 		{
 			for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < StructureData.NumPlaneVertices(PlaneIndex); ++PlaneVertexIndex)
@@ -211,16 +216,12 @@ namespace ChaosTest
 				const int32 VertexIndex = StructureData.GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
 
 				// Check that the plane's vertex has the plane in its list
-				bool bFoundPlane = false;
-				for (int32 VertexPlaneIndex = 0; VertexPlaneIndex < StructureData.NumVertexPlanes(VertexIndex); ++VertexPlaneIndex)
-				{
-					const int32 SearchPlaneIndex = StructureData.GetVertexPlane(VertexIndex, VertexPlaneIndex);
-					if (PlaneIndex == SearchPlaneIndex)
-					{
-						bFoundPlane = true;
-						break;
-					}
-				}
+				TArray<int32> PlaneIndices;
+				PlaneIndices.SetNum(128);
+				const int32 NumPlanes = StructureData.FindVertexPlanes(VertexIndex, PlaneIndices.GetData(), PlaneIndices.Num());
+				PlaneIndices.SetNum(NumPlanes);
+
+				const bool bFoundPlane = PlaneIndices.Contains(PlaneIndex);
 				EXPECT_TRUE(bFoundPlane);
 			}
 		}
@@ -248,7 +249,7 @@ namespace ChaosTest
 
 		FConvex Convex(Particles, 0.0f);
 
-		const FConvexStructureDataU8& StructureData = Convex.GetStructureData().Data8();
+		const FConvexStructureData::FConvexStructureDataMedium& StructureData = Convex.GetStructureData().DataM();
 		TestConvexStructureDataMapping(StructureData);
 		TestConvexStructureDataImpl(Convex);
 	}
@@ -256,11 +257,12 @@ namespace ChaosTest
 
 	// Check that the structure data is good for convex shapes that have faces merged during construction
 	// This test uses the large index size in StructureData.
-	GTEST_TEST(ConvexStructureTests, TestLargeIndexStructureData2)
+	// This test is disabled - the convex building is too slow for this many verts
+	GTEST_TEST(ConvexStructureTests, DISABLED_TestLargeIndexStructureData2)
 	{
 		FMath::RandInit(53799058);
-		const FReal Radius = 1000.0f;
-		const int32 NumVertices = 1000;
+		const FReal Radius = 10000.0f;
+		const int32 NumVertices = 50000;
 
 		// Make a convex with points on a sphere.
 		TArray<FVec3> Vertices;
@@ -277,7 +279,7 @@ namespace ChaosTest
 		EXPECT_GT(Convex.NumVertices(), 800);
 		EXPECT_GT(Convex.NumPlanes(), 500);
 
-		const FConvexStructureDataS32& StructureData = Convex.GetStructureData().Data32();
+		const FConvexStructureData::FConvexStructureDataLarge& StructureData = Convex.GetStructureData().DataL();
 		TestConvexStructureDataMapping(StructureData);
 		TestConvexStructureDataImpl(Convex);
 	}
@@ -371,5 +373,89 @@ namespace ChaosTest
 
 		// Check that we've failed to build a 3D convex hull and safely returned
 		EXPECT_EQ(Planes.Num(), 0);
+	}
+
+	GTEST_TEST(ConvexStructureTests, TestConvexHalfEdgeStructureData_Box)
+	{
+		const TArray<FVec3> InputVertices =
+		{
+			FVec3(-50,		-50,	-50),
+			FVec3(-50,		-50,	50),
+			FVec3(-50,		50,		-50),
+			FVec3(-50,		50,		50),
+			FVec3(50,		-50,	-50),
+			FVec3(50,		-50,	50),
+			FVec3(50,		50,		-50),
+			FVec3(50,		50,		50),
+		};
+
+		TArray<TPlaneConcrete<FReal, 3>> Planes;
+		TArray<TArray<int32>> FaceVertices;
+		TArray<Chaos::FVec3> Vertices;
+		TAABB<FReal, 3> LocalBounds;
+		FConvexBuilder::Build(InputVertices, Planes, FaceVertices, Vertices, LocalBounds);
+		FConvexBuilder::MergeFaces(Planes, FaceVertices, Vertices, 1.0f);
+
+		FConvex Convex(Vertices, 0.0f);
+
+		const FConvexStructureData::FConvexStructureDataSmall& StructureData = Convex.GetStructureData().DataS();
+
+		EXPECT_EQ(StructureData.NumPlanes(), 6);
+		EXPECT_EQ(StructureData.NumHalfEdges(), 24);
+		EXPECT_EQ(StructureData.NumVertices(), 8);
+
+		// Count how many times each vertex and edge is referenced
+		TArray<int32> VertexIndexCount;
+		TArray<int32> EdgeIndexCount;
+		VertexIndexCount.SetNumZeroed(StructureData.NumVertices());
+		EdgeIndexCount.SetNumZeroed(StructureData.NumHalfEdges());
+		for (int32 PlaneIndex = 0; PlaneIndex < StructureData.NumPlanes(); ++PlaneIndex)
+		{
+			EXPECT_EQ(StructureData.NumPlaneHalfEdges(PlaneIndex), 4);
+			for (int32 PlaneEdgeIndex = 0; PlaneEdgeIndex < StructureData.NumPlaneHalfEdges(PlaneIndex); ++PlaneEdgeIndex)
+			{
+				const int32 EdgeIndex = StructureData.GetPlaneHalfEdge(PlaneIndex, PlaneEdgeIndex);
+				const int32 VertexIndex = StructureData.GetHalfEdgeVertex(EdgeIndex);
+				EdgeIndexCount[EdgeIndex]++;
+				VertexIndexCount[VertexIndex]++;
+			}
+		}
+
+		// Every vertex is used by 3 half-edges (and planes)
+		for (int32 VertexCount : VertexIndexCount)
+		{
+			EXPECT_EQ(VertexCount, 3);
+		}
+
+		// Each half edge is used by a single plane
+		for (int32 EdgeCount : EdgeIndexCount)
+		{
+			EXPECT_EQ(EdgeCount, 1);
+		}
+
+		// Vertex Plane iterator generates 3 planes and all the edges have the same primary vertex
+		for (int32 VertexIndex = 0; VertexIndex < StructureData.NumVertices(); ++VertexIndex)
+		{
+			int32 PlaneCount = 0;
+
+			TArray<int32> VertexPlanes;
+			VertexPlanes.SetNum(128);
+			const int32 NumPlanes = StructureData.FindVertexPlanes(VertexIndex, VertexPlanes.GetData(), VertexPlanes.Num());
+			VertexPlanes.SetNum(NumPlanes);
+
+			for (int32 PlaneIndex : VertexPlanes)
+			{
+				EXPECT_NE(PlaneIndex, INDEX_NONE);
+
+				++PlaneCount;
+			}
+
+			// Everty vertex belongs to 3 planes
+			EXPECT_EQ(PlaneCount, 3);
+
+			// Every vertex's first edge should have that vertex as its root vertex
+			const int32 VertexHalfEdgeIndex = StructureData.GetVertexFirstHalfEdge(VertexIndex);
+			EXPECT_EQ(VertexIndex, StructureData.GetHalfEdgeVertex(VertexHalfEdgeIndex));
+		}
 	}
 }

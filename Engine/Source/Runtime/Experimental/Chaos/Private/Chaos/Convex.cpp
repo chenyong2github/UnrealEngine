@@ -144,33 +144,6 @@ namespace Chaos
 		return MostOpposingIdx;
 	}
 
-
-
-	int32 FConvex::GetMostOpposingPlaneWithVertex(int32 VertexIndex, const FVec3& Normal) const
-	{
-		const int32 VertexPlaneNum = NumVertexPlanes(VertexIndex);
-		if ((VertexIndex == INDEX_NONE) || (VertexPlaneNum == 0))
-		{
-			return GetMostOpposingPlane(Normal);
-		}
-
-		int32 MostOpposingIdx = INDEX_NONE;
-		FReal MostOpposingDot = TNumericLimits<FReal>::Max();
-		for (int32 VertexPlaneIndex = 0; VertexPlaneIndex < VertexPlaneNum; ++VertexPlaneIndex)
-		{
-			const int32 PlaneIndex = GetVertexPlane(VertexIndex, VertexPlaneIndex);
-			const TPlaneConcrete<FReal, 3>& Plane = Planes[PlaneIndex];
-			const FReal Dot = FVec3::DotProduct(Plane.Normal(), Normal);
-			if (Dot < MostOpposingDot)
-			{
-				MostOpposingDot = Dot;
-				MostOpposingIdx = PlaneIndex;
-			}
-		}
-		CHAOS_ENSURE(MostOpposingIdx != INDEX_NONE);
-		return MostOpposingIdx;
-	}
-
 	FVec3 FConvex::GetClosestEdgePosition(int32 PlaneIndex, const FVec3& Position) const
 	{
 		FVec3 ClosestEdgePosition = FVec3(0);
@@ -236,23 +209,13 @@ namespace Chaos
 		return false;
 	}
 
-
-	int32 FConvex::NumVertexPlanes(int32 VertexIndex) const
+	int32 FConvex::FindVertexPlanes(int32 VertexIndex, int32* OutVertexPlanes, int32 MaxVertexPlanes) const
 	{
 		if (StructureData.IsValid())
 		{
-			return StructureData.NumVertexPlanes(VertexIndex);
+			return StructureData.FindVertexPlanes(VertexIndex, OutVertexPlanes, MaxVertexPlanes);
 		}
 		return 0;
-	}
-
-	int32 FConvex::GetVertexPlane(int32 VertexIndex, int32 VertexPlaneIndex) const
-	{
-		if (StructureData.IsValid())
-		{
-			return StructureData.GetVertexPlane(VertexIndex, VertexPlaneIndex);
-		}
-		return INDEX_NONE;
 	}
 
 	int32 FConvex::NumPlaneVertices(int32 PlaneIndex) const

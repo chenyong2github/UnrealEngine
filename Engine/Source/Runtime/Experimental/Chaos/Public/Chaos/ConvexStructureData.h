@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/ImplicitObject.h"
-#include "Chaos/AABB.h"
-#include "Chaos/MassProperties.h"
-#include "CollisionConvexMesh.h"
+#include "Chaos/Core.h"
+#include "Chaos/ConvexFlattenedArrayStructureData.h"
+#include "Chaos/ConvexHalfEdgeStructureData.h"
 #include "ChaosArchive.h"
 #include "ChaosCheck.h"
 #include "ChaosLog.h"
@@ -13,196 +12,81 @@
 
 namespace Chaos
 {
-	// Base class for TConvexStructureDataImp.
-	// NOTE: Deliberately no-virtual destructor so it should never be deleted from a 
-	// base class pointer.
-	class CHAOS_API FConvexStructureDataImp
-	{
-	public:
-		FConvexStructureDataImp() {}
-		~FConvexStructureDataImp() {}
-	};
-
-	// A container for the convex structure data arrays.
-	// This is templated on the index type required, which needs to
-	// be large enough to hold the max of the number of vertices or 
-	// planes on the convex.
-	// 
-	// T_INDEX:			the type used to index into the convex vertices 
-	//					and planes array (in the outer convex). Must be 
-	//					able to contain max(NumPlanes, NumVerts).
-	//
-	// T_OFFSETINDEX:	the type used to index the flattened array of
-	//					indices. Must be able to contain 
-	//					Max(NumPlanes*AverageVertsPerPlane)
-	//
-	template<typename T_INDEX, typename T_OFFSETINDEX>
-	class CHAOS_API TConvexStructureDataImp : public FConvexStructureDataImp
-	{
-	public:
-		using FIndex = T_INDEX;
-		using FOffsetIndex = T_OFFSETINDEX;
-
-		FORCEINLINE bool IsValid() const
-		{
-			return PlaneVertices.Num() > 0;
-		}
-
-		FORCEINLINE int32 NumVertices() const
-		{
-			return VertexPlanesOffsetCount.Num();
-		}
-
-		// The number of planes that use the specified vertex
-		FORCEINLINE int32 NumVertexPlanes(int32 VertexIndex) const
-		{
-			return VertexPlanesOffsetCount[VertexIndex].Value;
-		}
-
-		// Get the plane index (in the outer convex container) of one of the planes that uses the specified vertex
-		FORCEINLINE int32 GetVertexPlane(int32 VertexIndex, int32 VertexPlaneIndex) const
-		{
-			check(VertexPlaneIndex < NumVertexPlanes(VertexIndex));
-
-			const int32 VertexPlaneFlatArrayIndex = VertexPlanesOffsetCount[VertexIndex].Key + VertexPlaneIndex;
-			return (int32)VertexPlanes[VertexPlaneFlatArrayIndex];
-		}
-
-		FORCEINLINE int32 NumPlanes() const
-		{
-			return PlaneVerticesOffsetCount.Num();
-		}
-
-		// The number of vertices that make up the corners of the specified face
-		FORCEINLINE int32 NumPlaneVertices(int32 PlaneIndex) const
-		{
-			return PlaneVerticesOffsetCount[PlaneIndex].Value;
-		}
-
-		// Get the vertex index (in the outer convex container) of one of the vertices making up the corners of the specified face
-		FORCEINLINE int32 GetPlaneVertex(int32 PlaneIndex, int32 PlaneVertexIndex) const
-		{
-			check(PlaneVertexIndex < PlaneVerticesOffsetCount[PlaneIndex].Value);
-
-			const int32 PlaneVertexFlatArrayIndex = PlaneVerticesOffsetCount[PlaneIndex].Key + PlaneVertexIndex;
-			return (int32)PlaneVertices[PlaneVertexFlatArrayIndex];
-		}
-
-		void SetPlaneVertices(const TArray<TArray<int32>>& InPlaneVertices, int32 NumVerts)
-		{
-			// We flatten the ragged arrays into a single array, and store a seperate
-			// arrray of [index,count] tuples to reproduce the ragged arrays.
-			Reset();
-
-			// Generate the ragged array [offset,count] tuples
-			PlaneVerticesOffsetCount.SetNumZeroed(InPlaneVertices.Num());
-			VertexPlanesOffsetCount.SetNumZeroed(NumVerts);
-
-			// Count the number of planes for each vertex (store it in the tuple)
-			int FlatArrayIndexCount = 0;
-			for (int32 PlaneIndex = 0; PlaneIndex < InPlaneVertices.Num(); ++PlaneIndex)
-			{
-				FlatArrayIndexCount += InPlaneVertices[PlaneIndex].Num();
-
-				for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < InPlaneVertices[PlaneIndex].Num(); ++PlaneVertexIndex)
-				{
-					const int32 VertexIndex = InPlaneVertices[PlaneIndex][PlaneVertexIndex];
-					VertexPlanesOffsetCount[VertexIndex].Value++;
-				}
-			}
-
-			// Initialize the flattened arrary offsets and reset the count (we re-increment it when copying the data below)
-			int VertexPlanesArrayStart = 0;
-			for (int32 VertexIndex = 0; VertexIndex < NumVerts; ++VertexIndex)
-			{
-				VertexPlanesOffsetCount[VertexIndex].Key = static_cast<FOffsetIndex>(VertexPlanesArrayStart);
-				VertexPlanesArrayStart += VertexPlanesOffsetCount[VertexIndex].Value;
-				VertexPlanesOffsetCount[VertexIndex].Value = 0;
-			}
-
-			// Allocate space for the flattened arrays
-			PlaneVertices.SetNumZeroed(FlatArrayIndexCount);
-			VertexPlanes.SetNumZeroed(FlatArrayIndexCount);
-
-			// Copy the indices into the flattened arrays
-			int32 PlaneVerticesArrayStart = 0;
-			for (int32 PlaneIndex = 0; PlaneIndex < InPlaneVertices.Num(); ++PlaneIndex)
-			{
-				PlaneVerticesOffsetCount[PlaneIndex].Key = static_cast<FOffsetIndex>(PlaneVerticesArrayStart);
-				PlaneVerticesOffsetCount[PlaneIndex].Value = static_cast<FIndex>(InPlaneVertices[PlaneIndex].Num());
-				PlaneVerticesArrayStart += InPlaneVertices[PlaneIndex].Num();
-
-				for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < InPlaneVertices[PlaneIndex].Num(); ++PlaneVertexIndex)
-				{
-					const int32 VertexIndex = InPlaneVertices[PlaneIndex][PlaneVertexIndex];
-
-					const int32 PlaneVertexFlatArrayIndex = PlaneVerticesOffsetCount[PlaneIndex].Key + PlaneVertexIndex;
-					PlaneVertices[PlaneVertexFlatArrayIndex] = static_cast<FIndex>(VertexIndex);
-
-					const int32 VertexPlaneFlatArrayIndex = VertexPlanesOffsetCount[VertexIndex].Key + VertexPlanesOffsetCount[VertexIndex].Value;
-					VertexPlanesOffsetCount[VertexIndex].Value++;
-					VertexPlanes[VertexPlaneFlatArrayIndex] = static_cast<FIndex>(PlaneIndex);
-				}
-			}
-		}
-
-		void Reset()
-		{
-			PlaneVerticesOffsetCount.Reset();
-			VertexPlanesOffsetCount.Reset();
-			PlaneVertices.Reset();
-			VertexPlanes.Reset();
-		}
-
-		void Serialize(FArchive& Ar)
-		{
-			Ar << PlaneVerticesOffsetCount;
-			Ar << VertexPlanesOffsetCount;
-			Ar << PlaneVertices;
-			Ar << VertexPlanes;
-		}
-
-		friend FArchive& operator<<(FArchive& Ar, TConvexStructureDataImp<T_INDEX, T_OFFSETINDEX>& Value)
-		{
-			Value.Serialize(Ar);
-			return Ar;
-		}
-
-
-		// Array of [offset, count] for each plane that gives the set of indices in the PlaneVertices flattened array
-		TArray<TPair<FOffsetIndex, FIndex>> PlaneVerticesOffsetCount;
-
-		// Array of [offset, count] for each vertex that gives the set of indices in the VertexPlanes flattened array
-		TArray<TPair<FOffsetIndex, FIndex>> VertexPlanesOffsetCount;
-
-		// A flattened ragged array. For each plane: the set of vertex indices that form the corners of the face in counter-clockwise order
-		TArray<FIndex> PlaneVertices;
-
-		// A flattened ragged array. For each vertex: the set of plane indices that use the vertex
-		TArray<FIndex> VertexPlanes;
-	};
-
-	using FConvexStructureDataS32 = TConvexStructureDataImp<int32, int32>;
-	using FConvexStructureDataU8 = TConvexStructureDataImp<uint8, uint16>;
 
 	// Metadata for a convex shape used by the manifold generation system and anything
 	// else that can benefit from knowing which vertices are associated with the faces.
 	class CHAOS_API FConvexStructureData
 	{
-	private:
-		FORCEINLINE FConvexStructureDataS32& Data32() { return static_cast<FConvexStructureDataS32&>(*Data); }
-		FORCEINLINE FConvexStructureDataU8& Data8() { return static_cast<FConvexStructureDataU8&>(*Data); }
-
 	public:
+		using FConvexStructureDataLarge = FConvexHalfEdgeStructureDataS32;
+		using FConvexStructureDataMedium = FConvexHalfEdgeStructureDataS16;
+		using FConvexStructureDataSmall = FConvexHalfEdgeStructureDataU8;
+
+		// Note: this is serialized (do not change order without adding a new ObjectVersion and legacy load path)
 		enum class EIndexType : int8
 		{
 			None,
-			S32,
-			U8,
+			Small,
+			Medium,
+			Large,
 		};
 
+		// Cats the inner data container to the correct index size
+		// Do not use - only public for unit tests
+		const FConvexStructureDataLarge& DataL() const { checkSlow(IndexType == EIndexType::Large); return *Data.DataL; }
+		const FConvexStructureDataMedium& DataM() const { checkSlow(IndexType == EIndexType::Medium); return *Data.DataM; }
+		const FConvexStructureDataSmall& DataS() const { checkSlow(IndexType == EIndexType::Small); return *Data.DataS; }
+
+	private:
+		FConvexStructureDataLarge& DataL() { checkSlow(IndexType == EIndexType::Large); return *Data.DataL; }
+		FConvexStructureDataMedium& DataM() { checkSlow(IndexType == EIndexType::Medium); return *Data.DataM; }
+		FConvexStructureDataSmall& DataS() { checkSlow(IndexType == EIndexType::Small); return *Data.DataS; }
+
+		// Call a function on the read-only data (cast to Small, Medium or Large indices as appropriate).
+		// It will call "Op" on the down-casted data container if we have a valid container. It will
+		// call EmptyOp if the container has not been set up (IndexType is None).
+		// Note: This expands into a switch statement, calling the lambda with a container of each index size.
+		//
+		// Must be used with an auto lambda to handle the downcasting, e.g.:
+		//		int32 Plane0VertexCount = ConstDataOp(
+		//			[](const auto& ConcreteData) { return ConcreteData.NumPlaneVertices(0); },
+		//			[]() { return 0; });
+		//
+		template<typename T_OP, typename T_EMPTYOP>
+		auto ConstDataOp(const T_OP& Op, const T_EMPTYOP& EmptyOp) const
+		{
+			switch (IndexType)
+			{
+			case EIndexType::Small:
+				return Op(DataS());
+			case EIndexType::Medium:
+				return Op(DataM());
+			case EIndexType::Large:
+				return Op(DataL());
+			}
+			return EmptyOp();
+		}
+
+		// A write-enabled version of ConstDataOp
+		template<typename T_OP, typename T_EMPTYOP>
+		auto NonConstDataOp(const T_OP& Op, const T_EMPTYOP& EmptyOp)
+		{
+			switch (IndexType)
+			{
+			case EIndexType::Small:
+				return Op(DataS());
+			case EIndexType::Medium:
+				return Op(DataM());
+			case EIndexType::Large:
+				return Op(DataL());
+			}
+			return EmptyOp();
+		}
+
+	public:
+
 		FConvexStructureData()
-			: Data(nullptr)
+			: Data{ nullptr }
 			, IndexType(EIndexType::None)
 		{
 		}
@@ -223,116 +107,60 @@ namespace Chaos
 
 		FConvexStructureData& operator=(FConvexStructureData&& Other)
 		{
-			Data = Other.Data;
+			Data.Ptr = Other.Data.Ptr;
 			IndexType = Other.IndexType;
 
-			Other.Data = nullptr;
+			Other.Data.Ptr = nullptr;
 			Other.IndexType = EIndexType::None;
 
 			return *this;
 		}
 
 
-		FORCEINLINE bool IsValid() const
+		bool IsValid() const
 		{
-			return (Data != nullptr);
+			return (Data.Ptr != nullptr);
 		}
 
-		FORCEINLINE EIndexType GetIndexType() const
+		EIndexType GetIndexType() const
 		{
 			return IndexType;
 		}
 
-		// Only exposed for unit tests
-		FORCEINLINE const FConvexStructureDataS32& Data32() const
+		int32 FindVertexPlanes(int32 VertexIndex, int32* VertexPlanes, int32 MaxVertexPlanes) const
 		{
-			checkSlow(IndexType == EIndexType::S32);
-			return static_cast<FConvexStructureDataS32&>(*Data);
-		}
-
-		// Only exposed for unit tests
-		FORCEINLINE const FConvexStructureDataU8& Data8() const
-		{
-			checkSlow(IndexType == EIndexType::U8);
-			return static_cast<FConvexStructureDataU8&>(*Data);
-		}
-
-		// The number of planes that use the specified vertex
-		FORCEINLINE int32 NumVertexPlanes(int32 VertexIndex) const
-		{
-			if (IndexType == EIndexType::S32)
-			{
-				return Data32().NumVertexPlanes(VertexIndex);
-			}
-			else if (IndexType == EIndexType::U8)
-			{
-				return Data8().NumVertexPlanes(VertexIndex);
-			}
-			else
-			{
-				return 0;
-			}
-		}
-
-		// Get the plane index (in the outer convex container) of one of the planes that uses the specified vertex
-		FORCEINLINE int32 GetVertexPlane(int32 VertexIndex, int32 VertexPlaneIndex) const
-		{
-			checkSlow(IsValid());
-			if (IndexType == EIndexType::S32)
-			{
-				return Data32().GetVertexPlane(VertexIndex, VertexPlaneIndex);
-			}
-			else
-			{
-				return Data8().GetVertexPlane(VertexIndex, VertexPlaneIndex);
-			}
+			return ConstDataOp(
+				[VertexIndex, VertexPlanes, MaxVertexPlanes](const auto& ConcreteData) { return ConcreteData.FindVertexPlanes(VertexIndex, VertexPlanes, MaxVertexPlanes); },
+				[]() { return 0; });
 		}
 
 		// The number of vertices that make up the corners of the specified face
-		FORCEINLINE int32 NumPlaneVertices(int32 PlaneIndex) const
+		int32 NumPlaneVertices(int32 PlaneIndex) const
 		{
-			if (IndexType == EIndexType::S32)
-			{
-				return Data32().NumPlaneVertices(PlaneIndex);
-			}
-			else if (IndexType == EIndexType::U8)
-			{
-				return Data8().NumPlaneVertices(PlaneIndex);
-			}
-			else
-			{
-				return 0;
-			}
+			return ConstDataOp(
+				[PlaneIndex](const auto& ConcreteData) { return ConcreteData.NumPlaneVertices(PlaneIndex); },
+				[]() { return 0; });
 		}
 
 		// Get the vertex index (in the outer convex container) of one of the vertices making up the corners of the specified face
-		FORCEINLINE int32 GetPlaneVertex(int32 PlaneIndex, int32 PlaneVertexIndex) const
+		int32 GetPlaneVertex(int32 PlaneIndex, int32 PlaneVertexIndex) const
 		{
 			checkSlow(IsValid());
-			if (IndexType == EIndexType::S32)
-			{
-				return Data32().GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
-			}
-			else
-			{
-				return Data8().GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
-			}
+
+			return ConstDataOp(
+				[PlaneIndex, PlaneVertexIndex](const auto& ConcreteData) { return ConcreteData.GetPlaneVertex(PlaneIndex, PlaneVertexIndex); },
+				[]() { return (int32)INDEX_NONE; });
 		}
 
 		// Initialize the structure data from the set of vertices for each face of the convex
 		void SetPlaneVertices(const TArray<TArray<int32>>& InPlaneVertices, int32 NumVerts)
 		{
-			const EIndexType NewIndexType = GetRequiredIndexType(InPlaneVertices.Num(), NumVerts);
+			const EIndexType NewIndexType = GetRequiredIndexType(InPlaneVertices, NumVerts);
 			CreateDataContainer(NewIndexType);
 
-			if (IndexType == EIndexType::S32)
-			{
-				Data32().SetPlaneVertices(InPlaneVertices, NumVerts);
-			}
-			else if (IndexType == EIndexType::U8)
-			{
-				Data8().SetPlaneVertices(InPlaneVertices, NumVerts);
-			}
+			NonConstDataOp(
+				[InPlaneVertices, NumVerts](auto& ConcreteData) { ConcreteData.SetPlaneVertices(InPlaneVertices, NumVerts); },
+				[]() {});
 		}
 
 		void Serialize(FArchive& Ar)
@@ -340,23 +168,18 @@ namespace Chaos
 			Ar.UsingCustomVersion(FPhysicsObjectVersion::GUID);
 			Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
-			bool bUseVariableSizeStructureDataUE4 = Ar.CustomVer(FPhysicsObjectVersion::GUID) >= FPhysicsObjectVersion::VariableConvexStructureData;
-			bool bUseVariableSizeStructureDataFN = Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::ChaosConvexVariableStructureDataAndVerticesArray;
-			bool bUseVariableSizeStructureData = bUseVariableSizeStructureDataUE4 || bUseVariableSizeStructureDataFN;
-
-			if (!bUseVariableSizeStructureData)
+			const bool bUseHalfEdgeStructureData = Ar.CustomVer(FPhysicsObjectVersion::GUID) >= FPhysicsObjectVersion::ConvexUsesHalfEdges;
+			
+			// Load and convert the legacy structure if necessary
+			if (Ar.IsLoading() && !bUseHalfEdgeStructureData)
 			{
-				// Orginal structure used 32bit indices regardless of max index, and they were store in ragged TArray<TArray<int32>>
-				TArray<TArray<int32>> OldPlaneVertices;
-				TArray<TArray<int32>> OldVertexPlanes;
-				Ar << OldPlaneVertices;
-				Ar << OldVertexPlanes;
-				SetPlaneVertices(OldPlaneVertices, OldVertexPlanes.Num());
+				LoadLegacyData(Ar);
 				return;
 			}
 
 			if (Ar.IsLoading())
 			{
+				// Create the container with the appropriate index size
 				EIndexType NewIndexType;
 				Ar << NewIndexType;
 				CreateDataContainer(NewIndexType);
@@ -366,14 +189,10 @@ namespace Chaos
 				Ar << IndexType;
 			}
 
-			if (IndexType == EIndexType::S32)
-			{
-				Ar << Data32();
-			}
-			else if (IndexType == EIndexType::U8)
-			{
-				Ar << Data8();
-			}
+			// Serialize the container with the correct index type
+			NonConstDataOp(
+				[&Ar](auto& ConcreteData) { Ar << ConcreteData; },
+				[]() {});
 		}
 
 		friend FArchive& operator<<(FArchive& Ar, FConvexStructureData& Value)
@@ -383,16 +202,32 @@ namespace Chaos
 		}
 
 	private:
-		// Determine the minimum index size we need for the specified convex size
-		EIndexType GetRequiredIndexType(int32 NumPlanes, int32 NumVerts)
+
+		// Load data from an asset saved before we had a proper half-edge data structure
+		void LoadLegacyData(FArchive& Ar)
 		{
-			if ((NumPlanes > 255) || (NumVerts > 255))
+			TArray<TArray<int32>> OldPlaneVertices;
+			int32 OldNumVertices = 0;
+
+			Legacy::FLegacyConvexStructureDataLoader::Load(Ar, OldPlaneVertices, OldNumVertices);
+
+			SetPlaneVertices(OldPlaneVertices, OldNumVertices);
+		}
+
+		// Determine the minimum index size we need for the specified convex size
+		EIndexType GetRequiredIndexType(const TArray<TArray<int32>>& InPlaneVertices, int32 NumVerts)
+		{
+			if (FConvexStructureDataSmall::CanMake(InPlaneVertices, NumVerts))
 			{
-				return EIndexType::S32;
+				return EIndexType::Small;
+			}
+			else if (FConvexStructureDataMedium::CanMake(InPlaneVertices, NumVerts))
+			{
+				return EIndexType::Medium;
 			}
 			else
 			{
-				return EIndexType::U8;
+				return EIndexType::Large;
 			}
 		}
 
@@ -401,16 +236,20 @@ namespace Chaos
 		{
 			DestroyDataContainer();
 
-			check(Data == nullptr);
+			check(Data.Ptr == nullptr);
 			check(IndexType == EIndexType::None);
 
-			if (InIndexType == EIndexType::S32)
+			if (InIndexType == EIndexType::Large)
 			{
-				Data = new TConvexStructureDataImp<int32, int32>();
+				Data.DataL = new FConvexStructureDataLarge();
 			}
-			else if (InIndexType == EIndexType::U8)
+			else if (InIndexType == EIndexType::Medium)
 			{
-				Data = new TConvexStructureDataImp<uint8, uint16>();
+				Data.DataM = new FConvexStructureDataMedium();
+			}
+			else if (InIndexType == EIndexType::Small)
+			{
+				Data.DataS = new FConvexStructureDataSmall();
 			}
 
 			IndexType = InIndexType;
@@ -419,28 +258,30 @@ namespace Chaos
 		// Destroy the container we created in CreateDataContainer
 		void DestroyDataContainer()
 		{
-			if (Data != nullptr)
+			if (Data.Ptr != nullptr)
 			{
 				check(IndexType != EIndexType::None);
 
-				if (IndexType == EIndexType::S32)
-				{
-					delete &Data32();
-				}
-				else if (IndexType == EIndexType::U8)
-				{
-					delete &Data8();
-				}
+				NonConstDataOp(
+					[](auto& ConcreteData) 
+					{ 
+						delete &ConcreteData;
+					},
+					[]() {});
 
-				Data = nullptr;
 				IndexType = EIndexType::None;
+				Data.Ptr = nullptr;
 			}
 		}
 
-		// A pointer to the data base class which has no API. Must be downcast 
-		// using Data32() or Data8() depending on IndexType.
-		// Note: not using TUniquePtr here because we don't want a vptr in FConvexStructureDataImp
-		FConvexStructureDataImp* Data;
+		union FStructureData
+		{
+			void* Ptr;
+			FConvexStructureDataLarge* DataL;
+			FConvexStructureDataMedium* DataM;
+			FConvexStructureDataSmall* DataS;
+		};
+		FStructureData Data;
 
 		// The index type we require for the structure data
 		EIndexType IndexType;
