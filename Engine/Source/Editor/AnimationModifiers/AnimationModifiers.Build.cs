@@ -25,7 +25,8 @@ public class AnimationModifiers : ModuleRules
                 "ClassViewer",
                 "AnimationEditor",
                 "SkeletonEditor",
-                "AssetRegistry"                
+                "AssetRegistry",
+                "AnimationBlueprintLibrary",
             }
 		);
     }
