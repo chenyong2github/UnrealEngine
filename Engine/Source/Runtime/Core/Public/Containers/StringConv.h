@@ -1332,32 +1332,16 @@ typedef TStringPointer<wchar_t, TCHAR> FWCharToTCHAR;
  * @param Str The null-terminated source string to convert.
  */
 template <typename To, typename From>
-FORCEINLINE typename TEnableIf<FPlatformString::TAreEncodingsCompatible<To, From>::Value, TStringPointer<To>>::Type StringCast(const From* Str)
+FORCEINLINE auto StringCast(const From* Str)
 {
-	return TStringPointer<To>((const To*)Str);
-}
-
-/**
- * Creates an object which acts as a source of a given string type.  See example above.
- *
- * @param Str The null-terminated source string to convert.
- */
-template <typename To, typename From>
-FORCEINLINE typename TEnableIf<!FPlatformString::TAreEncodingsCompatible<To, From>::Value, TStringConversion<TStringConvert<From, To>>>::Type StringCast(const From* Str)
-{
-	return TStringConversion<TStringConvert<From, To>>(Str);
-}
-
-/**
- * Creates an object which acts as a source of a given string type.  See example above.
- *
- * @param Str The source string to convert, not necessarily null-terminated.
- * @param Len The number of From elements in Str.
- */
-template <typename To, typename From>
-FORCEINLINE typename TEnableIf<FPlatformString::TAreEncodingsCompatible<To, From>::Value, TStringPointer<To>>::Type StringCast(const From* Str, int32 Len)
-{
-	return TStringPointer<To>((const To*)Str, Len);
+	if constexpr (FPlatformString::IsCharEncodingCompatibleWith<From, To>())
+	{
+		return TStringPointer<To>((const To*)Str);
+	}
+	else
+	{
+		return TStringConversion<TStringConvert<From, To>>(Str);
+	}
 }
 
 /**
@@ -1367,9 +1351,16 @@ FORCEINLINE typename TEnableIf<FPlatformString::TAreEncodingsCompatible<To, From
  * @param Len The number of From elements in Str.
  */
 template <typename To, typename From>
-FORCEINLINE typename TEnableIf<!FPlatformString::TAreEncodingsCompatible<To, From>::Value, TStringConversion<TStringConvert<From, To>>>::Type StringCast(const From* Str, int32 Len)
+FORCEINLINE auto StringCast(const From* Str, int32 Len)
 {
-	return TStringConversion<TStringConvert<From, To>>(Str, Len);
+	if constexpr (FPlatformString::IsCharEncodingCompatibleWith<From, To>())
+	{
+		return TStringPointer<To>((const To*)Str, Len);
+	}
+	else
+	{
+		return TStringConversion<TStringConvert<From, To>>(Str, Len);
+	}
 }
 
 

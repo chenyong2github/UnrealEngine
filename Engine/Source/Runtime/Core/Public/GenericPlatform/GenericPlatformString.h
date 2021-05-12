@@ -5,7 +5,7 @@
 #include "CoreTypes.h"
 #include "Templates/EnableIf.h"
 #include "GenericPlatform/GenericPlatformStricmp.h"
-
+#include <type_traits>
 
 /**
  * Generic string implementation for most platforms
@@ -97,9 +97,44 @@ struct FGenericPlatformString : public FGenericPlatformStricmp
 	 * Same size is a minimum requirement.
 	 */
 	template <typename EncodingA, typename EncodingB>
-	struct TAreEncodingsCompatible
+	struct UE_DEPRECATED(5.0, "TAreEncodingsCompatible is deprecated, use IsCharEncodingCompatibleWith<SrcEncoding, DestEncoding>() instead.") TAreEncodingsCompatible
 	{
 		enum { Value = TIsFixedWidthEncoding<EncodingA>::Value && TIsFixedWidthEncoding<EncodingB>::Value && sizeof(EncodingA) == sizeof(EncodingB) };
+	};
+
+	/**
+	 * Function which returns whether one encoding type is binary compatible with another.
+	 *
+	 * Unlike TAreEncodingsCompatible, this is not commutative.  For example, ANSI is compatible with
+	 * UTF-8, but UTF-8 is not compatible with ANSI.
+	 */
+	template <typename SrcEncoding, typename DestEncoding>
+	static constexpr bool IsCharEncodingCompatibleWith()
+	{
+		if constexpr (std::is_same_v<SrcEncoding, DestEncoding>)
+		{
+			return true;
+		}
+		else if constexpr (std::is_same_v<SrcEncoding, ANSICHAR> && std::is_same_v<DestEncoding, UTF8CHAR>)
+		{
+			return true;
+		}
+		else if constexpr (std::is_same_v<SrcEncoding, UCS2CHAR> && std::is_same_v<DestEncoding, UTF16CHAR>)
+		{
+			return true;
+		}
+		else if constexpr (std::is_same_v<SrcEncoding, WIDECHAR> && std::is_same_v<DestEncoding, UCS2CHAR>)
+		{
+			return true;
+		}
+		else if constexpr (std::is_same_v<SrcEncoding, UCS2CHAR> && std::is_same_v<DestEncoding, WIDECHAR>)
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
 	};
 
 	/**
@@ -115,61 +150,45 @@ struct FGenericPlatformString : public FGenericPlatformStricmp
 	 * @return          A pointer to one past the last-written element.
 	 */
 	template <typename SourceEncoding, typename DestEncoding>
-	static FORCEINLINE typename TEnableIf<
-		// This overload should be called when SourceEncoding and DestEncoding are 'compatible', i.e. they're the same type or equivalent (e.g. like UCS2CHAR and WIDECHAR are on Windows).
-		TAreEncodingsCompatible<SourceEncoding, DestEncoding>::Value,
-		DestEncoding*
-	>::Type Convert(DestEncoding* Dest, int32 DestSize, const SourceEncoding* Src, int32 SrcSize, DestEncoding BogusChar = (DestEncoding)'?')
+	static FORCEINLINE DestEncoding* Convert(DestEncoding* Dest, int32 DestSize, const SourceEncoding* Src, int32 SrcSize, DestEncoding BogusChar = (DestEncoding)'?')
 	{
-		if (DestSize < SrcSize)
-			return nullptr;
-
-		return (DestEncoding*)Memcpy(Dest, Src, SrcSize * sizeof(SourceEncoding)) + SrcSize;
-	}
-
-	/**
-	 * Converts the [Src, Src+SrcSize) string range from SourceEncoding to DestEncoding and writes it to the [Dest, Dest+DestSize) range.
-	 * The Src range should contain a null terminator if a null terminator is required in the output.
-	 * If the Dest range is not big enough to hold the converted output, NULL is returned.  In this case, nothing should be assumed about the contents of Dest.
-	 *
-	 * @param Dest      The start of the destination buffer.
-	 * @param DestSize  The size of the destination buffer.
-	 * @param Src       The start of the string to convert.
-	 * @param SrcSize   The number of Src elements to convert.
-	 * @param BogusChar The char to use when the conversion process encounters a character it cannot convert.
-	 * @return          A pointer to one past the last-written element.
-	 */
-	template <typename SourceEncoding, typename DestEncoding>
-	static typename TEnableIf<
-		// This overload should be called when the types are not compatible but the source is fixed-width, e.g. ANSICHAR->WIDECHAR.
-		!TAreEncodingsCompatible<SourceEncoding, DestEncoding>::Value && TIsFixedWidthEncoding<SourceEncoding>::Value,
-		DestEncoding*
-	>::Type Convert(DestEncoding* Dest, int32 DestSize, const SourceEncoding* Src, int32 SrcSize, DestEncoding BogusChar = (DestEncoding)'?')
-	{
-		const int32 Size = DestSize <= SrcSize ? DestSize : SrcSize;
-		bool bInvalidChars = false;
-		for (int I = 0; I < Size; ++I)
+		if constexpr (IsCharEncodingCompatibleWith<SourceEncoding, DestEncoding>())
 		{
-			SourceEncoding SrcCh = Src[I];
-			Dest[I] = (DestEncoding)SrcCh;
-			bInvalidChars |= !CanConvertChar<DestEncoding>(SrcCh);
-		}
-
-		if (bInvalidChars)
-		{
-			for (int I = 0; I < Size; ++I)
+			if (DestSize < SrcSize)
 			{
-				if (!CanConvertChar<DestEncoding>(Src[I]))
-				{
-					Dest[I] = BogusChar;
-				}
+				return nullptr;
 			}
 
-			LogBogusChars<DestEncoding>(Src, Size);
+			return (DestEncoding*)Memcpy(Dest, Src, SrcSize * sizeof(SourceEncoding)) + SrcSize;
 		}
+		else
+		{
+			const int32 Size = DestSize <= SrcSize ? DestSize : SrcSize;
+			bool bInvalidChars = false;
+			for (int I = 0; I < Size; ++I)
+			{
+				SourceEncoding SrcCh = Src[I];
+				Dest[I] = (DestEncoding)SrcCh;
+				bInvalidChars |= !CanConvertChar<DestEncoding>(SrcCh);
+			}
 
-		return DestSize < SrcSize ? nullptr : Dest + Size;
+			if (bInvalidChars)
+			{
+				for (int I = 0; I < Size; ++I)
+				{
+					if (!CanConvertChar<DestEncoding>(Src[I]))
+					{
+						Dest[I] = BogusChar;
+					}
+				}
+
+				LogBogusChars<DestEncoding>(Src, Size);
+			}
+
+			return DestSize < SrcSize ? nullptr : Dest + Size;
+		}
 	}
+
 
 	/**
 	 * Returns the required buffer length for the [Src, Src+SrcSize) string when converted to the DestChar encoding.

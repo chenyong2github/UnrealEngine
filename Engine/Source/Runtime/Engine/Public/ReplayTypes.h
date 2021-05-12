@@ -436,7 +436,7 @@ public:
 private:
 	void EnableFastStringSerialization()
 	{
-		if (FPlatformString::TAreEncodingsCompatible<WIDECHAR, TCHAR>::Value)
+		if (FPlatformString::IsCharEncodingCompatibleWith<WIDECHAR, TCHAR>())
 		{
 			Archive.SetForceUnicode(true);
 		}
@@ -444,7 +444,7 @@ private:
 
 	void RestoreStringSerialization()
 	{
-		if (FPlatformString::TAreEncodingsCompatible<WIDECHAR, TCHAR>::Value)
+		if (FPlatformString::IsCharEncodingCompatibleWith<WIDECHAR, TCHAR>())
 		{
 			Archive.SetForceUnicode(bWasUnicode);
 		}
