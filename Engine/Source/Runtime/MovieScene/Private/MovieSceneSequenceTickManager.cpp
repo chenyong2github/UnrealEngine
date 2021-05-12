@@ -36,6 +36,25 @@ void UMovieSceneSequenceTickManager::BeginDestroy()
 	Super::BeginDestroy();
 }
 
+void UMovieSceneSequenceTickManager::RegisterSequenceActor(AActor* InActor)
+{
+	TScriptInterface<IMovieSceneSequenceActor> SequenceActorInterface(InActor);
+	if (ensureMsgf(SequenceActorInterface, TEXT("The given actor doesn't implement the IMovieSceneSequenceActor interface!")))
+	{
+		SequenceActors.Add(FMovieSceneSequenceActorPointers{ InActor, SequenceActorInterface });
+	}
+}
+
+void UMovieSceneSequenceTickManager::UnregisterSequenceActor(AActor* InActor)
+{
+	TScriptInterface<IMovieSceneSequenceActor> SequenceActorInterface(InActor);
+	if (ensureMsgf(SequenceActorInterface, TEXT("The given actor doesn't implement the IMovieSceneSequenceActor interface!")))
+	{
+		int32 NumRemoved = SequenceActors.RemoveAll([=](FMovieSceneSequenceActorPointers& Item) { return Item.SequenceActor == InActor; });
+		ensureMsgf(NumRemoved > 0, TEXT("The given sequence actor wasn't registered"));
+	}
+}
+
 void UMovieSceneSequenceTickManager::TickSequenceActors(float DeltaSeconds)
 {
 	SCOPE_CYCLE_COUNTER(MovieSceneEval_SequenceTickManager);
@@ -56,12 +75,14 @@ void UMovieSceneSequenceTickManager::TickSequenceActors(float DeltaSeconds)
 
 	for (int32 i = SequenceActors.Num() - 1; i >= 0; --i)
 	{
-		if (AActor* SequenceActor = SequenceActors[i])
+		const FMovieSceneSequenceActorPointers& Pointers(SequenceActors[i]);
+		if (Pointers.SequenceActor)
 		{
-			if (!bIsPaused || SequenceActor->GetTickableWhenPaused())
+			if (!bIsPaused || Pointers.SequenceActor->GetTickableWhenPaused())
 			{
-				check(SequenceActor->GetWorld() == World);
-				SequenceActor->Tick(DeltaSeconds);
+				check(Pointers.SequenceActorInterface);
+				check(Pointers.SequenceActor->GetWorld() == World);
+				Pointers.SequenceActorInterface->TickFromSequenceTickManager(DeltaSeconds);
 				bHasTasks = true;
 			}
 		}

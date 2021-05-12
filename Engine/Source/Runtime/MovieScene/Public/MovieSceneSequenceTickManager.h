@@ -12,6 +12,9 @@ class UMovieSceneEntitySystemLinker;
 
 DECLARE_DELEGATE(FMovieSceneSequenceLatentActionDelegate);
 
+/**
+ * Utility class for running latent actions created from sequence players.
+ */
 class MOVIESCENE_API FMovieSceneLatentActionManager
 {
 public:
@@ -30,6 +33,40 @@ private:
 };
 
 /**
+ * Interface for sequence actors that are to be ticked by the tick manager.
+ */
+UINTERFACE()
+class MOVIESCENE_API UMovieSceneSequenceActor
+	: public UInterface
+{
+public:
+	GENERATED_BODY()
+};
+
+class MOVIESCENE_API IMovieSceneSequenceActor
+{
+public:
+	GENERATED_BODY()
+
+	virtual void TickFromSequenceTickManager(float DeltaSeconds) = 0;
+};
+
+/**
+ * A structure for storing pointers to a sequence actor.
+ */
+USTRUCT()
+struct FMovieSceneSequenceActorPointers
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TObjectPtr<AActor> SequenceActor;
+
+	UPROPERTY()
+	TScriptInterface<IMovieSceneSequenceActor> SequenceActorInterface;
+};
+
+/**
  * An automatically created global object that will manage all level sequence actors' updates.
  */
 UCLASS()
@@ -43,6 +80,9 @@ public:
 	UMovieSceneEntitySystemLinker* GetLinker() { return Linker; }
 	FMovieSceneEntitySystemRunner& GetRunner() { return Runner; }
 
+	void RegisterSequenceActor(AActor* InActor);
+	void UnregisterSequenceActor(AActor* InActor);
+
 	void AddLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
 	void RunLatentActions();
 
@@ -55,11 +95,11 @@ private:
 
 	void TickSequenceActors(float DeltaSeconds);
 
-public:
-	UPROPERTY(transient)
-	TArray<TObjectPtr<AActor>> SequenceActors;
-
 private:
+
+	UPROPERTY(transient)
+	TArray<FMovieSceneSequenceActorPointers> SequenceActors;
+
 	UPROPERTY(transient)
 	TObjectPtr<UMovieSceneEntitySystemLinker> Linker;
 
