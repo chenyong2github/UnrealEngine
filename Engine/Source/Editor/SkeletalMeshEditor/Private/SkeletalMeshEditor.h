@@ -71,6 +71,9 @@ public:
 	virtual void OnToolkitHostingStarted(const TSharedRef<class IToolkit>& Toolkit) override;
 	virtual void OnToolkitHostingFinished(const TSharedRef<class IToolkit>& Toolkit) override;
 
+	virtual void AddViewportOverlayWidget(TSharedRef<SWidget> InOverlaidWidget) override;
+	virtual void RemoveViewportOverlayWidget(TSharedRef<SWidget> InOverlaidWidget) override;
+	
 	/** FBaseToolkit overrides */
 	virtual bool ProcessCommandBindings(const FKeyEvent& InKeyEvent) const override;
 	
@@ -106,6 +109,8 @@ public:
 	void HandleDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView);
 
 	void HandleMeshDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView);
+
+	void HandleViewportCreated(const TSharedRef<class IPersonaViewport>& InViewport);
 
 	UObject* HandleGetAsset();
 
