@@ -73,7 +73,7 @@ private:
 		{
 			IStageDataProvider* StageDataProvider = &IModularFeatures::Get().GetModularFeature<IStageDataProvider>(IStageDataProvider::ModularFeatureName);
 
-			static_assert(TIsDerivedFrom<MessageType, FStageProviderMessage>::IsDerived, "MessageType must be a FStageProviderMessage derived UStruct.");
+			static_assert(TIsDerivedFrom<MessageType, FStageProviderEventMessage>::IsDerived || TIsDerivedFrom<MessageType, FStageProviderPeriodicMessage>::IsDerived, "MessageType must be a FStageProviderEventMessage or FStageProviderPeriodicMessage derived UStruct.");
 			return StageDataProvider->SendMessageInternal(&Message, MessageType::StaticStruct(), InFlags);
 		}
 
