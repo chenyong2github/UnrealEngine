@@ -735,12 +735,12 @@ FReload::~FReload()
 
 bool FReload::GetEnableReinstancing(bool bHasChanged) const  
 { 
-	if (bHasChanged && !bEnabledMessage)
+	if (bHasChanged && !bEnableReinstancing  && !bEnabledMessage)
 	{
 		bEnabledMessage = true;
 		Ar.Logf(ELogVerbosity::Display, TEXT("Re-instancing has been disabled.  Some changes will be ignored."));
 	}
-	return bEnableReinstancing; 
+	return bEnableReinstancing;
 }
 
 
