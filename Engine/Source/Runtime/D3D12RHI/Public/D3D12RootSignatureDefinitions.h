@@ -68,7 +68,7 @@ namespace D3D12ShaderUtils
 	};
 
 	// Fat/Static Gfx Root Signature
-	inline void CreateGfxRootSignature(FRootSignatureCreator* Creator)
+	inline void CreateGfxRootSignature(FRootSignatureCreator* Creator, bool bAllowMeshShaders)
 	{
 		// Ensure the creator starts in a clean state (in cases of creator reuse, etc.).
 		Creator->Reset();
@@ -85,6 +85,15 @@ namespace D3D12ShaderUtils
 		Creator->AddTable(SF_Geometry, FRootSignatureCreator::SRV, MAX_SRVS);
 		Creator->AddTable(SF_Geometry, FRootSignatureCreator::CBV, MAX_CBS);
 		Creator->AddTable(SF_Geometry, FRootSignatureCreator::Sampler, MAX_SAMPLERS);
+		if (bAllowMeshShaders)
+		{
+			Creator->AddTable(SF_Mesh, FRootSignatureCreator::SRV, MAX_SRVS);
+			Creator->AddTable(SF_Mesh, FRootSignatureCreator::CBV, MAX_CBS);
+			Creator->AddTable(SF_Mesh, FRootSignatureCreator::Sampler, MAX_SAMPLERS);
+			Creator->AddTable(SF_Amplification, FRootSignatureCreator::SRV, MAX_SRVS);
+			Creator->AddTable(SF_Amplification, FRootSignatureCreator::CBV, MAX_CBS);
+			Creator->AddTable(SF_Amplification, FRootSignatureCreator::Sampler, MAX_SAMPLERS);
+		}
 		Creator->AddTable(SF_NumFrequencies, FRootSignatureCreator::UAV, MAX_UAVS);
 	}
 
@@ -163,7 +172,7 @@ namespace D3D12ShaderUtils
 
 		void Compile()
 		{
-			D3D12ShaderUtils::CreateGfxRootSignature(this);
+			D3D12ShaderUtils::CreateGfxRootSignature(this, false);
 
 			// Patch pointers
 			for (auto& Pair : ParameterToRangeMap)

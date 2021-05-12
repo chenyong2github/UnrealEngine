@@ -43,9 +43,6 @@ public:
 	inline const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& GetDesc() const { return RootDesc; }
 
 	static const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& GetStaticGraphicsRootSignatureDesc();
-#if PLATFORM_SUPPORTS_MESH_SHADERS
-	static const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& GetStaticMeshRootSignatureDesc();
-#endif
 	static const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& GetStaticComputeRootSignatureDesc();
 	static const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& GetStaticRayTracingGlobalRootSignatureDesc();
 	static const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& GetStaticRayTracingLocalRootSignatureDesc();
