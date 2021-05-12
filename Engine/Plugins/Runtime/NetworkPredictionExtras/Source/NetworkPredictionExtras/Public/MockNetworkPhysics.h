@@ -142,17 +142,22 @@ struct FMockState_PT
 	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
 	int32 CheckSum = 0;
 
+	// Frame we started "in air recovery" on
+	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
+	int32 RecoveryFrame = 0;
+
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
 		Ar << JumpCooldownMS;
 		Ar << JumpCount;
-		Ar << CheckSum;		
+		Ar << CheckSum;	
+		Ar << RecoveryFrame;
 		return true;
 	}
 
 	bool ShouldReconcile(const FMockState_PT& AuthState) const
 	{
-		return JumpCooldownMS != AuthState.JumpCooldownMS || JumpCount != AuthState.JumpCount;
+		return JumpCooldownMS != AuthState.JumpCooldownMS || JumpCount != AuthState.JumpCount || RecoveryFrame != AuthState.RecoveryFrame;
 	}
 };
 
@@ -317,6 +322,13 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Mock Input")
 	FMockState_PT GetMockState_PT() const { return OutManagedState.PT_State; }
+
+	// ----------------------------------------------------------------
+	// Misc API
+	// ----------------------------------------------------------------
+
+	UFUNCTION(BlueprintPure, Category = "Network Physics")
+	int32 GetNetworkPredictionLOD() const { return NetworkPhysicsState.LocalLOD; }
 
 protected:
 

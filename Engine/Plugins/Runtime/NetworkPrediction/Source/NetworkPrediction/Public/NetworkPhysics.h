@@ -16,6 +16,9 @@ struct FNetworkPhysicsRewindCallback;
 class FMockObjectManager;
 class FSingleParticlePhysicsProxy;
 
+namespace Chaos { struct FSimCallbackInputAndObject; }
+
+// FIXME: use FRigidBodyState instead
 struct FBasePhysicsState
 {
 	Chaos::EObjectStateType ObjectState = Chaos::EObjectStateType::Uninitialized;
@@ -67,6 +70,10 @@ struct FNetworkPhysicsState
 		Ar << Physics.AngularVelocity;
 		return true;
 	}
+
+	// LOD: should probably be moved out of this struct
+	int32 LocalLOD = 0;
+	AActor* OwningActor = nullptr;
 };
 
 template<>
@@ -86,6 +93,18 @@ public:
 	virtual ~INetworkPhysicsSubsystem() = default;
 	virtual void PostNetRecv(UWorld* World, int32 LocalOffset, int32 LastProcessedFrame) = 0;
 	virtual void PreNetSend(UWorld* World, float DeltaSeconds) = 0;
+
+	// Finalizes InputCmds, marshalls them to PT and Network.
+	virtual void ProcessInputs_External(int32 PhysicsStep, int32 LocalFrameOffset, bool& bOutSendClientInputCmd) { }
+	
+	// Records "Final" Inputs for a frame and marshalls them back to GT for networking
+	virtual void ProcessInputs_Internal(int32 PhysicsStep) { }
+
+	// ShouldReconcile
+	virtual int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep) { return INDEX_NONE; }
+
+	// Applies Corrections
+	virtual void PreResimStep_Internal(int32 PhysicsStep, bool bFirst) { }
 };
 
 
@@ -152,4 +171,7 @@ private:
 	TMap<FSingleParticlePhysicsProxy*, TUniqueFunction<void(const FDrawDebugParams&)>> DrawDebugMap;
 	
 	TArray<TPair<FName, TUniquePtr<INetworkPhysicsSubsystem>>> SubSystems;
+
+	friend struct FNetworkPhysicsRewindCallback;
+	void ProcessInputs_External(int32 PhysicsStep, const TArray<Chaos::FSimCallbackInputAndObject>& SimCallbackInputs);
 };

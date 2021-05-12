@@ -116,28 +116,86 @@ namespace UE_NETWORK_PHYSICS
 
 	bool MockDebug=false;
 	FAutoConsoleVariableRef CVarMockDebug(TEXT("np2.Mock.Debug"), MockDebug, TEXT("Enabled spammy log debugging of mock physics object state"));
+
+	bool bEnableMock=true;
+	FAutoConsoleVariableRef CVarbEnableMock(TEXT("np2.Mock.Enable"), bEnableMock, TEXT("Enable Mock implementation"));
+		
+	// Mock Movement tweaking
+	float DragK=200.f;
+	FAutoConsoleVariableRef CVarDragK(TEXT("np2.Mock.DragK"), DragK, TEXT("Drag Coefficient (higher=more drag)"));
+
+	float MovementK=2.5f;
+	FAutoConsoleVariableRef CVarMovementK(TEXT("np2.Mock.MovementK"), MovementK, TEXT("Movement Coefficient (higher=faster movement)"));
+
+	float TurnK=100000.f;
+	FAutoConsoleVariableRef CVarTurnK(TEXT("np2.Mock.TurnK"), TurnK, TEXT("Coefficient for automatic turning (higher=quicker turning)"));
+
+	float TurnDampK=20.f;
+	FAutoConsoleVariableRef CVarTurnDampK(TEXT("np2.Mock.TurnDampK"), TurnDampK, TEXT("Coefficient for damping portion of turn. Higher=more damping but too higher will lead to instability."));
 }
 
 void FMockManagedState::AsyncTick(UWorld* World, Chaos::FPhysicsSolver* Solver, const float DeltaSeconds, const int32 SimulationFrame, const int32 LocalStorageFrame)
 {
 	// FIXME: PT_State is the only thing that should be writable here
-	// FIXME: DeltaSeconds/TotalSecond are local time and therefor worthless. This needs to be server frame/time
-
 	if (ensure(Proxy))
 	{
 		if (auto* PT = Proxy->GetPhysicsThreadAPI())
 		{
-			if (InputCmd.bBrakesPressed)
+			const float UpDot = FVector::DotProduct(PT->R().GetUpVector(), FVector::UpVector);
+			if (PT_State.RecoveryFrame == 0)
 			{
-				PT->SetV( Chaos::FVec3(0.f));				
+				if (UpDot < 0.2f)
+				{
+					PT_State.RecoveryFrame = SimulationFrame;
+				}
+			}
+			
+			if (PT_State.RecoveryFrame != 0)
+			{
+				if (UpDot > 0.7f)
+				{
+					// Recovered
+					PT_State.RecoveryFrame = 0;
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("In Air"));
+
+					FRotator Rot = PT->R().Rotator();
+					const float DeltaRoll = FRotator::NormalizeAxis( -1.f * (Rot.Roll + (PT->W().X * UE_NETWORK_PHYSICS::TurnDampK)));
+					const float DeltaPitch = FRotator::NormalizeAxis( -1.f * (Rot.Pitch + (PT->W().Y * UE_NETWORK_PHYSICS::TurnDampK)));
+
+					PT->AddTorque(FVector(DeltaRoll, DeltaPitch, 0.f) * UE_NETWORK_PHYSICS::TurnK * 1.5f);
+					PT->AddForce(FVector(0.f, 0.f, 600.f));
+				}
+			}
+
+			else if (InputCmd.bBrakesPressed)
+			{
+				FVector NewV = PT->V();
+				if (NewV.SizeSquared2D() < 1.f)
+				{
+					PT->SetV( Chaos::FVec3(0.f, 0.f, NewV.Z));
+				}
+				else
+				{
+					PT->SetV( Chaos::FVec3(NewV.X * 0.8f, NewV.Y * 0.8f, NewV.Z));
+				}
+				/*
+
+				PT->SetV( Chaos::FVec3(0.f));
 				PT->SetW( Chaos::FVec3(0.f));
 
 				UE_CLOG(UE_NETWORK_PHYSICS::MockDebug, LogNetworkPhysics, Log, TEXT("[%d/%d] Applied Break. Rot was: %s"), SimulationFrame, LocalStorageFrame, *PT->R().Rotator().ToString());
+				
 				Chaos::FRotation3 NewR = PT->R();
 				FRotator Rot = NewR.Rotator();
 				Rot.Pitch = 0.f;
 				Rot.Roll = 0.f;
-				PT->SetR( FQuat(Rot));
+				//PT->SetR( FQuat(Rot));				
+				//PT->SetR(FQuat(FRotator(-90.f, -71.f, 39.f)));
+				PT->SetR(FQuat(FRotator(-90.f, -71.f, 39.f)));
+				*/
 			}
 			else
 			{
@@ -146,8 +204,24 @@ void FMockManagedState::AsyncTick(UWorld* World, Chaos::FPhysicsSolver* Solver, 
 					//UE_LOG(LogTemp, Warning, TEXT("Applied Force. Frame: %d"), LocalFrame);
 					//UE_LOG(LogTemp, Warning, TEXT("0x%X ForceMultiplier: %f (Rand: %d)"), (int64)Proxy, GT_State.ForceMultiplier, GT_State.RandValue);
 					//UE_CLOG(PC == nullptr && InputCmd.Force.SizeSquared() > 0.f, LogTemp, Warning, TEXT("0x%X ForceMultiplier: %f (Rand: %d)"), (int64)Proxy, GT_State.ForceMultiplier, GT_State.RandValue);
-					PT->AddForce(InputCmd.Force * GT_State.ForceMultiplier);
+					
+					PT->AddForce(InputCmd.Force * GT_State.ForceMultiplier * UE_NETWORK_PHYSICS::MovementK);
+
+					const float CurrentYaw = PT->R().Rotator().Yaw + (PT->W().Z * UE_NETWORK_PHYSICS::TurnDampK);
+					const float DesiredYaw = InputCmd.Force.Rotation().Yaw;
+					const float DeltaYaw = FRotator::NormalizeAxis( DesiredYaw - CurrentYaw );
+					
+					PT->AddTorque(FVector(0.f, 0.f, DeltaYaw * UE_NETWORK_PHYSICS::TurnK));
 				}
+
+				FVector V = PT->V();
+				V.Z = 0.f;
+				if (V.SizeSquared() > 0.1f)
+				{
+					FVector Drag = -1.f * V * UE_NETWORK_PHYSICS::DragK;
+					PT->AddForce(Drag);
+				}
+
 				
 				if (FMath::Abs<float>(InputCmd.Turn) > 0.001f)
 				{
@@ -755,6 +829,11 @@ void UNetworkPhysicsComponent::InitializeComponent()
 #if WITH_CHAOS
 	Super::InitializeComponent();
 
+	if (!UE_NETWORK_PHYSICS::bEnableMock)
+	{
+		return;
+	}
+
 	UWorld* World = GetWorld();	
 	checkSlow(World);
 	UNetworkPhysicsManager* Manager = World->GetSubsystem<UNetworkPhysicsManager>();
@@ -779,6 +858,9 @@ void UNetworkPhysicsComponent::InitializeComponent()
 	if (ensureMsgf(PrimitiveComponent, TEXT("No PrimitiveComponent found on %s"), *GetPathName()))
 	{
 		NetworkPhysicsState.Proxy = PrimitiveComponent->BodyInstance.ActorHandle;
+		NetworkPhysicsState.OwningActor = GetOwner();
+		ensure(NetworkPhysicsState.OwningActor);
+
 		Manager->RegisterPhysicsProxy(&NetworkPhysicsState);
 
 		Manager->RegisterPhysicsProxyDebugDraw(&NetworkPhysicsState, [this](const UNetworkPhysicsManager::FDrawDebugParams& P)
@@ -809,6 +891,13 @@ void UNetworkPhysicsComponent::InitializeComponent()
 void UNetworkPhysicsComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
+#if WITH_CHAOS
+
+	if (!UE_NETWORK_PHYSICS::bEnableMock)
+	{
+		return;
+	}
+
 	//UE_LOG(LogTemp, Warning, TEXT("EndPlay %s"), *GetPathNameSafe(this));
 	if (UWorld* World = GetWorld())
 	{
@@ -822,11 +911,18 @@ void UNetworkPhysicsComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 			Manager->UnregisterPhysicsProxy(&NetworkPhysicsState);
 		}
 	}
+#endif
 }
 
 void UNetworkPhysicsComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+#if WITH_CHAOS
+
+	if (!UE_NETWORK_PHYSICS::bEnableMock)
+	{
+		return;
+	}
 
 	APlayerController* PC = GetOwnerPC();
 	if (PC && PC->IsLocalController())
@@ -838,6 +934,7 @@ void UNetworkPhysicsComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 	ReplicatedManagedState.PC = PC;
 	InManagedState.PC = PC;
 	OutManagedState.PC = PC;
+#endif
 }
 
 APlayerController* UNetworkPhysicsComponent::GetOwnerPC() const
@@ -856,7 +953,6 @@ void UNetworkPhysicsComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 	DOREPLIFETIME( UNetworkPhysicsComponent, NetworkPhysicsState);
 	DOREPLIFETIME( UNetworkPhysicsComponent, ReplicatedManagedState);
 }
-
 
 // ============================================================================================================
 // ============================================================================================================
