@@ -20,9 +20,13 @@ public:
 	void InitializeFromConvexElements(const TArray<FKConvexElem>& ConvexElements);
 
 	virtual bool IsZeroExtent() const override { return BoundingBox.GetExtent().IsZero(); }
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const;
 	virtual UBodySetup* GetBodySetup() override;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	// The scene proxy is only for debug purposes :
+	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 	/** Collects custom navigable geometry of component.
 	*   Substract the MaxWaveHeight to the Ocean collision so nav mesh geometry is exported a ground level

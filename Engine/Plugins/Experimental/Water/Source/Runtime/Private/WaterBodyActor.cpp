@@ -56,6 +56,13 @@ TAutoConsoleVariable<float> CVarWaterOceanFallbackDepth(
 	TEXT("Depth to report for the ocean when no terrain is found under the query location. Not used when <= 0."),
 	ECVF_Default);
 
+TAutoConsoleVariable<float> CVarWaterSplineResampleMaxDistance(
+	TEXT("r.Water.WaterSplineResampleMaxDistance"),
+	50.0f,
+	TEXT("Maximum distance between the sample segments and the spline when converting the water spline shapes to polygons (as distance discreases, the number of vertices will increase, \
+		, the physics shapes will be more accurate, the water tiles will match more closely, but the computational cost will also increase)."),
+	ECVF_Default);
+
 const FName AWaterBody::WaterBodyIndexParamName(TEXT("WaterBodyIndex"));
 const FName AWaterBody::WaterVelocityAndHeightName(TEXT("WaterVelocityAndHeight"));
 const FName AWaterBody::GlobalOceanHeightName(TEXT("GlobalOceanHeight"));

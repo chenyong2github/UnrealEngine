@@ -1514,6 +1514,105 @@ FTransform USplineComponent::FindTransformClosestToWorldLocation(const FVector& 
 	return GetTransformAtSplineInputKey(Param, CoordinateSpace, bUseScale);
 }
 
+bool USplineComponent::DivideSplineIntoPolylineRecursive(float StartDistanceAlongSpline, float EndDistanceAlongSpline, ESplineCoordinateSpace::Type CoordinateSpace, const float MaxSquareDistanceFromSpline, TArray<FVector>& OutPoints) const
+{
+	double Dist = EndDistanceAlongSpline - StartDistanceAlongSpline;
+	if (Dist <= 0.0f)
+	{
+		return false;
+	}
+	double MiddlePointDistancAlongSpline = StartDistanceAlongSpline + Dist / 2.0f;
+
+	FVector Samples[3];
+	Samples[0] = GetLocationAtDistanceAlongSpline(StartDistanceAlongSpline, CoordinateSpace);
+	Samples[1] = GetLocationAtDistanceAlongSpline(MiddlePointDistancAlongSpline, CoordinateSpace);
+	Samples[2] = GetLocationAtDistanceAlongSpline(EndDistanceAlongSpline, CoordinateSpace);
+
+	if (FMath::PointDistToSegmentSquared(Samples[1], Samples[0], Samples[2]) > MaxSquareDistanceFromSpline)
+	{
+		TArray<FVector> NewPoints[2];
+		DivideSplineIntoPolylineRecursive(StartDistanceAlongSpline, MiddlePointDistancAlongSpline, CoordinateSpace, MaxSquareDistanceFromSpline, NewPoints[0]);
+		DivideSplineIntoPolylineRecursive(MiddlePointDistancAlongSpline, EndDistanceAlongSpline, CoordinateSpace, MaxSquareDistanceFromSpline, NewPoints[1]);
+		if ((NewPoints[0].Num() > 0) && (NewPoints[1].Num() > 0))
+		{
+			check(NewPoints[0].Last() == NewPoints[1][0]);
+			NewPoints[0].RemoveAt(NewPoints[0].Num() - 1);
+		}
+		NewPoints[0].Append(NewPoints[1]);
+		OutPoints.Append(NewPoints[0]);
+	}
+	else
+	{
+		// The middle point is close enough to the other 2 points, let's keep those and stop the recursion :
+		OutPoints.Add(Samples[0]);
+		OutPoints.Add(Samples[2]);
+	}
+
+	return (OutPoints.Num() > 0);
+}
+
+bool USplineComponent::ConvertSplineSegmentToPolyLine(int32 SplinePointStartIndex, ESplineCoordinateSpace::Type CoordinateSpace, const float MaxSquareDistanceFromSpline, TArray<FVector>& OutPoints) const
+{
+	OutPoints.Empty();
+
+	const double StartDist = GetDistanceAlongSplineAtSplinePoint(SplinePointStartIndex);
+	const double StopDist = GetDistanceAlongSplineAtSplinePoint(SplinePointStartIndex + 1);
+
+	const int32 NumLines = 2; // Dichotomic subdivision of the spline segment
+	double Dist = StopDist - StartDist;
+	double SubstepSize = Dist / NumLines;
+	if (SubstepSize == 0.0)
+	{
+		// Make sure there's at least 1 sub-step so that we get a single spline vertex for constant interpolation : 
+		SubstepSize = StopDist + 1.0;
+	}
+
+	double SubstepStartDist = StartDist;
+	for (int32 i = 0; i < NumLines; ++i)
+	{
+		double SubstepEndDist = SubstepStartDist + SubstepSize;
+		TArray<FVector> NewPoints;
+		// Recursively sub-divide each segment until the requested precision is reached :
+		if (DivideSplineIntoPolylineRecursive(SubstepStartDist, SubstepEndDist, CoordinateSpace, MaxSquareDistanceFromSpline, NewPoints))
+		{
+			if (OutPoints.Num() > 0)
+			{
+				check(OutPoints.Last() == NewPoints[0]); // our last point must be the same as the new segment's first
+				OutPoints.RemoveAt(OutPoints.Num() - 1);
+			}
+			OutPoints.Append(NewPoints);
+		}
+
+		SubstepStartDist = SubstepEndDist;
+	}
+
+	return (OutPoints.Num() > 0);
+}
+
+
+bool USplineComponent::ConvertSplineToPolyLine(ESplineCoordinateSpace::Type CoordinateSpace, const float MaxSquareDistanceFromSpline, TArray<FVector>& OutPoints) const
+{
+	int32 NumSegments = GetNumberOfSplineSegments();
+	OutPoints.Empty();
+	OutPoints.Reserve(NumSegments * 2); // We sub-divide each segment in at least 2 sub-segments, so let's start with this amount of points
+
+	TArray<FVector> SegmentPoints;
+	for (int32 SegmentIndex = 0; SegmentIndex < NumSegments; ++SegmentIndex)
+	{
+		if (ConvertSplineSegmentToPolyLine(SegmentIndex, CoordinateSpace, MaxSquareDistanceFromSpline, SegmentPoints))
+		{
+			if (OutPoints.Num() > 0)
+			{
+				check(OutPoints.Last() == SegmentPoints[0]); // our last point must be the same as the new segment's first
+				OutPoints.RemoveAt(OutPoints.Num() - 1);
+			}
+			OutPoints.Append(SegmentPoints);
+		}
+	}
+
+	return (OutPoints.Num() > 0);
+}
+
 template<class T>
 T GetPropertyValueAtSplinePoint(const USplineMetadata* Metadata, int32 Index, FName PropertyName)
 {
