@@ -1492,7 +1492,7 @@ void SPathView::DefaultSort(const FTreeItem* InTreeItem, TArray<TSharedPtr<FTree
 		else
 		{
 			// Two non special folders of the same priority, sort alphabetically
-			const int32 CompareResult = SortInfoA.FolderName.Compare(SortInfoB.FolderName);
+			const int32 CompareResult = SortInfoA.FolderName.Compare(SortInfoB.FolderName, ESearchCase::IgnoreCase);
 			if (CompareResult != 0)
 			{
 				return CompareResult < 0;
