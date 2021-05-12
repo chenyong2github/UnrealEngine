@@ -99,7 +99,7 @@ int32 FLinkerPlaceholderObjectImpl::ResolvePlaceholderValues(const TArray<FField
 		else if (const FArrayProperty* ArrayProperty = Property.Get<FArrayProperty>())
 		{
 #if USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
-			const FProperty* NextProperty = PropertyChain[PropertyIndex - 1];
+			const FProperty* NextProperty = PropertyChain[PropertyIndex - 1].Get<FProperty>();
 			check(NextProperty == ArrayProperty->Inner);
 #endif // USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
 
@@ -124,7 +124,7 @@ int32 FLinkerPlaceholderObjectImpl::ResolvePlaceholderValues(const TArray<FField
 		else if (const FSetProperty* SetProperty = Property.Get<FSetProperty>())
 		{
 #if USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
-			const FProperty* NextProperty = PropertyChain[PropertyIndex - 1];
+			const FProperty* NextProperty = PropertyChain[PropertyIndex - 1].Get<FProperty>();
 			check(NextProperty == SetProperty->ElementProp);
 #endif // USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
 
@@ -472,7 +472,7 @@ bool FLinkerPlaceholderBase::AddReferencingPropertyValue(FFieldVariant Referenci
 	if (ReferencingContainer != nullptr)
 	{
 #if USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
-		check(ReferencingProperty->GetObjectPropertyValue(DataPtr) == GetPlaceholderAsUObject());
+		check(ReferencingProperty.Get<FObjectProperty>()->GetObjectPropertyValue(DataPtr) == GetPlaceholderAsUObject());
 		check(PropertyChain.IsValid());
 #endif // USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
 
