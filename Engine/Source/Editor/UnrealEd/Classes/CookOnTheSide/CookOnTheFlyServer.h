@@ -796,9 +796,12 @@ private:
 	 *
 	 * @param BuildFilename long package name of the package to load 
 	 * @param OutPackage UPackage of the package loaded, non-null on success, may be non-null on failure if the UPackage existed but had another failure
+	 * @param OverrideFileName Filename to use instead of PackageData.GetFileName(), for e.g. generated packages
+	 * @param ReportingPackageData PackageData which caused the load, for e.g. generated packages
 	 * @return Whether LoadPackage was completely successful and the package can be cooked
 	 */
-	bool LoadPackageForCooking(UE::Cook::FPackageData& PackageData, UPackage*& OutPackage);
+	bool LoadPackageForCooking(UE::Cook::FPackageData& PackageData, UPackage*& OutPackage, FString* LoadFromFileName = nullptr,
+		UE::Cook::FPackageData* ReportingPackageData = nullptr);
 
 	/**
 	* Initialize the sandbox for @param TargetPlatforms

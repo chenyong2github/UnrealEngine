@@ -49,6 +49,20 @@ public:
 	/** Return the list of packages to generate. */
 	virtual TArray<FGeneratedPackage> GetGenerateList(const UPackage* OwnerPackage, const UObject* OwnerObject) = 0;
 
+	struct FGeneratedPackageForPopulate
+	{
+		/** RelativePath returned from GetGenerateList */
+		FString RelativePath;
+		/**
+		 * Non-null, constructed package. May have been previously passed into PreSaveGeneratedPackage,
+		 * or may be completely empty if that previous package was garbage collected before this call.
+		 */
+		UPackage* Package = nullptr;
+		/** *GetCreateAsMap returned from GetGenerateList. The package filename extension has already been set based on this. */
+		bool bCreatedAsMap = false;
+		/** Whether the Package was populated by PreSave or constructed empty */
+		bool bPopulatedByPreSave = false;
+	};
 	/**
 	 * Try to populate a generated package.
 	 *
@@ -59,19 +73,29 @@ public:
 	 *
 	 * @param OwnerPackage				The parent package being split
 	 * @param OwnerObject				The SplitDataClass instance that this CookPackageSplitter instance was created for
-	 * @param GeneratedPackage			The package the cooker generated for the given FGeneratedPackage
-	 * @param RelativePath				The relative path from the given FGeneratedPackage
-	 * @param GeneratedPackageCookName	The name that will be given for the cooked package (differs from the uncooked package)
+	 * @param GeneratedPackage			Pointer and information about the package to populate
 	 * @return							True if successfully populates,  false on error (this will cause a cook error).
 	 */
-	virtual bool TryPopulatePackage(const UPackage* OwnerPackage, const UObject* OwnerObject, UPackage* GeneratedPackage, const FStringView& RelativePath, const FStringView& GeneratedPackageCookName) = 0;
+	virtual bool TryPopulatePackage(const UPackage* OwnerPackage, const UObject* OwnerObject, const FGeneratedPackageForPopulate& GeneratedPackage) = 0;
 
+	struct FGeneratedPackageForPreSave
+	{
+		/** RelativePath returned from GetGenerateList */
+		FString RelativePath;
+		/**
+		 * Non-null, constructed package. May have been previously passed into PreSaveGeneratedPackage,
+		 * or may be completely empty if that previous package was garbage collected before this call.
+		 */
+		UPackage* Package = nullptr;
+		/** *GetCreateAsMap returned from GetGenerateList. The package filename extension has already been set based on this. */
+		bool bCreatedAsMap = false;
+	};
 	/**
 	 * Called before saving the parent generator package. Depending on the value of UseDeferredPopulate, this may be
 	 * before or after the TryPopulatePackage calls.
 	 * Make any required adjustments to the parent package before it is saved into the target domain.
 	 */
-	virtual void PreSaveGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject) {}
+	virtual void PreSaveGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject, const TArray<FGeneratedPackageForPreSave>& PlaceholderPackages) {}
 
 	/**
 	 * Called after saving the parent generator package. Undo any required adjustments to the parent package that

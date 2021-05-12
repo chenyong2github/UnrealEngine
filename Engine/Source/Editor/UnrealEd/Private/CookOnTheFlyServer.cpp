@@ -44,6 +44,7 @@
 #include "UObject/SavePackage.h"
 #include "UObject/MetaData.h"
 #include "UObject/ConstructorHelpers.h"
+#include "UObject/ReferenceChainSearch.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectArray.h"
 #include "Misc/PackageName.h"
@@ -228,7 +229,7 @@ namespace UE
 {
 namespace Cook
 {
-static const TCHAR* GeneratedPackageSubPath = TEXT("_Generated_");
+const TCHAR* GeneratedPackageSubPath = TEXT("_Generated_");
 }
 }
 
@@ -1925,7 +1926,7 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 	OutNumPushed = 0;
 
 	FName PackageFileName(PackageData.GetFileName());
-	if (PackageData.IsLoadFromDisk())
+	if (!PackageData.IsGenerated())
 	{
 		bool bLoadFullySuccessful = LoadPackageForCooking(PackageData, LoadedPackage);
 		if (!bLoadFullySuccessful)
@@ -1971,7 +1972,6 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 	}
 	else
 	{
-		check(PackageData.IsGenerated());
 		FGeneratorPackage* GeneratorStruct = PackageData.GetGeneratedOwner();
 		if (!GeneratorStruct)
 		{
@@ -1979,7 +1979,6 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 			RejectPackageToLoad(PackageData, TEXT("is an orphaned generated package"));
 			return;
 		}
-		check(GeneratorStruct->IsDeferredPopulate());
 		FGeneratorPackage::FGeneratedStruct* GeneratedStruct = GeneratorStruct->FindGeneratedStruct(&PackageData);
 		if (!GeneratedStruct)
 		{
@@ -1987,24 +1986,49 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 			RejectPackageToLoad(PackageData, TEXT("is an orphaned generated package"));
 			return;
 		}
-		const FPackageData& OwnerPackageData = GeneratorStruct->GetOwner();
 
-		UPackage* OwnerPackage = LoadPackage(nullptr, *OwnerPackageData.GetFileName().ToString(), LOAD_None);
-		if (!OwnerPackage)
+		if (GeneratorStruct->IsDeferredPopulate())
 		{
-			ResultFlags |= COSR_ErrorLoadingPackage;
-			UE_LOG(LogCook, Error, TEXT("Package %s is a generated package and we could not load it's generator package %s. It can not be loaded."),
-				*PackageFileName.ToString(), *OwnerPackageData.GetFileName().ToString());
-			RejectPackageToLoad(PackageData, TEXT("is a generated package which could not load its generator"));
-			return;
+			FPackageData& OwnerPackageData = const_cast<FPackageData&>(GeneratorStruct->GetOwner());
+			UPackage* OwnerPackage;
+			bool bLoadFullySuccessful = LoadPackageForCooking(OwnerPackageData, OwnerPackage, nullptr, &PackageData);
+			if (!bLoadFullySuccessful)
+			{
+				ResultFlags |= COSR_ErrorLoadingPackage;
+				UE_LOG(LogCook, Error, TEXT("Package %s is a generated package and we could not load it's generator package %s. It can not be loaded."),
+					*PackageFileName.ToString(), *OwnerPackageData.GetFileName().ToString());
+				RejectPackageToLoad(PackageData, TEXT("is a generated package which could not load its generator"));
+				return;
+			}
+			FPopulatePackageContext Context(GeneratorStruct, OwnerPackage);
+			Context.GeneratedStruct = GeneratedStruct;
+			LoadedPackage = TryPopulateGeneratedPackage(Context);
+			if (!LoadedPackage)
+			{
+				RejectPackageToLoad(PackageData, TEXT("is a generated package which could not be populated"));
+				return;
+			}
 		}
-		FPopulatePackageContext Context(GeneratorStruct, OwnerPackage);
-		Context.GeneratedStruct = GeneratedStruct;
-		LoadedPackage = TryPopulateGeneratedPackage(Context);
-		if (!LoadedPackage)
+		else
 		{
-			RejectPackageToLoad(PackageData, TEXT("is a generated package which could not be populated"));
-			return;
+			FString LoadFromFileName = GeneratorStruct->GetIntermediateLocalPath(*GeneratedStruct);
+			bool bLoadFullySuccessful = LoadPackageForCooking(PackageData, LoadedPackage, &LoadFromFileName);
+			if (!bLoadFullySuccessful)
+			{
+				ResultFlags |= COSR_ErrorLoadingPackage;
+				UE_LOG(LogCook, Verbose, TEXT("Not cooking package %s"), *LoadFromFileName);
+				RejectPackageToLoad(PackageData, TEXT("failed to load"));
+				return;
+			}
+			check(LoadedPackage != nullptr && LoadedPackage->IsFullyLoaded());
+			if (LoadedPackage->GetFName() != PackageData.GetPackageName())
+			{
+				ResultFlags |= COSR_ErrorLoadingPackage;
+				UE_LOG(LogCook, Error, TEXT("Generated package loaded for package name %s, but received package name %s. Remapping of names for generated packages is not supported so it can not be loaded."),
+					*PackageData.GetPackageName().ToString(), *LoadedPackage->GetName());
+				RejectPackageToLoad(PackageData, TEXT("had a remapped name"));
+				return;
+			}
 		}
 	}
 
@@ -2208,23 +2232,6 @@ UE::Cook::FGeneratorPackage* UCookOnTheFlyServer::CreateGeneratorPackage(UE::Coo
 
 	UE_LOG(LogCook, Display, TEXT("Splitting Package %s with class %s acting on object %s."), *PackageData.GetPackageName().ToString(), *Splitter->GetSplitDataClass()->GetName(), *SplitDataObject->GetFullName());
 
-	// Prepare necessary paths
-	const UPackage* GeneratorPackage = PackageData.GetPackage();
-	const FString GeneratorPackagePath = FPackageName::GetLongPackagePath(GeneratorPackage->GetPathName());
-	const FString GeneratorPackageShortName = FPackageName::GetShortName(GeneratorPackage->GetName());
-	const FString GeneratedUncookedRootPath = FPaths::RemoveDuplicateSlashes(FString::Printf(TEXT("/%s%s/"), *GeneratorPackageShortName, UE::Cook::GeneratedPackageSubPath));
-	const FString GeneratedUncookedContentPath = FPaths::RemoveDuplicateSlashes(FString::Printf(TEXT("%s/Cooked/%s/%s/"), *FPaths::ProjectIntermediateDir(), *GeneratorPackageShortName, UE::Cook::GeneratedPackageSubPath));
-
-	// Empty the uncooked intermediate directory
-	const FString GeneratedDirectoryToDelete = FPaths::ConvertRelativePathToFull(FPaths::CreateStandardFilename(GeneratedUncookedContentPath));
-	GetAsyncIODelete().DeleteDirectory(*GeneratedDirectoryToDelete);
-
-	// Register Mount Point for Generator Package : /<GeneratorPackageShortName>_Generated_/ -> <ProjectIntermediateDir>/Cooked/<GeneratorPackageShortName>/_Generated_/
-	if (!FPackageName::MountPointExists(GeneratedUncookedRootPath))
-	{
-		FPackageName::RegisterMountPoint(GeneratedUncookedRootPath, GeneratedUncookedContentPath);
-	}
-
 	// Create instance of CookPackageSplitter class
 	ICookPackageSplitter* SplitterInstance = Splitter->CreateInstance(SplitDataObject);
 	if (!SplitterInstance)
@@ -2234,9 +2241,21 @@ UE::Cook::FGeneratorPackage* UCookOnTheFlyServer::CreateGeneratorPackage(UE::Coo
 	}
 
 	// Create a FGeneratorPackage helper object using this CookPackageSplitter instance and return it
-	PackageData.CreateGeneratorPackage(SplitDataObject, SplitterInstance, GeneratedUncookedRootPath);
-
-	return PackageData.GetGeneratorPackage();
+	PackageData.CreateGeneratorPackage(SplitDataObject, SplitterInstance);
+	UE::Cook::FGeneratorPackage* GeneratorPackage = PackageData.GetGeneratorPackage();
+	if (!SplitterInstance->UseDeferredPopulate())
+	{
+		// Prepare the uncooked intermediate mountpoint directory
+		FString MountPackagePath;
+		FString MountLocalFilePath;
+		GeneratorPackage->GetIntermediateMountPoint(MountPackagePath, MountLocalFilePath);
+		GetAsyncIODelete().DeleteDirectory(*MountLocalFilePath);
+		if (!FPackageName::MountPointExists(MountPackagePath))
+		{
+			FPackageName::RegisterMountPoint(MountPackagePath, MountLocalFilePath);
+		}
+	}
+	return GeneratorPackage;
 }
 
 void UCookOnTheFlyServer::SplitPackage(UE::Cook::FGeneratorPackage* GeneratorStruct, bool& bOutCompleted, bool& bOutError)
@@ -2246,74 +2265,128 @@ void UCookOnTheFlyServer::SplitPackage(UE::Cook::FGeneratorPackage* GeneratorStr
 	bOutCompleted = false;
 	bOutError = false;
 	check(GeneratorStruct);
-
 	ICookPackageSplitter* Splitter = GeneratorStruct->GetCookPackageSplitterInstance();
-	if (Splitter->UseDeferredPopulate())
+	UObject* SplitObject = GeneratorStruct->FindSplitDataObject();
+	if (!SplitObject)
 	{
-		while (const FGeneratorPackage::FGeneratedStruct* GeneratedStruct = GeneratorStruct->GetNextPackageToGenerate())
-		{
-			FPackageData* GeneratedPackageData = GeneratedStruct->PackageData;
-			if (!GeneratedPackageData)
-			{
-				UE_LOG(LogCook, Error, TEXT("PackageSplitter was not given valid PackageData to queue for generated package: no package data. Splitter=%s, Generated=%s."),
-					*GeneratorStruct->GetSplitDataObjectName().ToString(), *GeneratedStruct->GeneratorData.RelativePath);
-				bOutError = true;
-				return;
-			}
-			GeneratedPackageData->ClearCookedPlatformData();
-			QueueDiscoveredPackageData(*GeneratedPackageData);
-		}
+		UE_LOG(LogCook, Error, TEXT("Could not find SplitDataObject %s"), *GeneratorStruct->GetSplitDataObjectName().ToString());
+		bOutError = true;
+		return;
 	}
-	else
+
+	if (!GeneratorStruct->HasGeneratedList())
 	{
-		UPackage* Owner = GeneratorStruct->GetOwner().GetPackage();
-		FPopulatePackageContext Context(GeneratorStruct, Owner);
-
-		// Start Splitting
-		while (const FGeneratorPackage::FGeneratedStruct* GeneratedStruct = GeneratorStruct->GetNextPackageToGenerate())
+		// Call the splitter to generate the list
+		if (!GeneratorStruct->TryGenerateList(SplitObject, GetPackageNameCache(), *PackageDatas))
 		{
-			FPackageData* GeneratedPackageData = GeneratedStruct->PackageData;
-			if (!GeneratedPackageData)
+			bOutError = true;
+			return;
+		}
+		GeneratorStruct->SetGeneratedList();
+	}
+
+	if (!GeneratorStruct->HasClearedOldPackages())
+	{
+		for (const FGeneratorPackage::FGeneratedStruct& GeneratedStruct : GeneratorStruct->GetPackagesToGenerate())
+		{
+			const FString GeneratedPackageName = GeneratedStruct.PackageData->GetPackageName().ToString();
+			if (FindObject<UPackage>(nullptr, *GeneratedPackageName))
 			{
-				UE_LOG(LogCook, Error, TEXT("PackageSplitter was not given valid PackageData to queue for generated package: no package data. Splitter=%s, Generated=%s."),
-					*GeneratorStruct->GetSplitDataObjectName().ToString(), *GeneratedStruct->GeneratorData.RelativePath);
-				bOutError = true;
-				return;
-			}
-			GeneratedPackageData->ClearCookedPlatformData();
-
-			Context.GeneratedStruct = GeneratedStruct;
-			UPackage* GeneratedPackage = TryPopulateGeneratedPackage(Context);
-			if (!GeneratedPackage)
-			{
-				bOutError = true;
-				return;
-			}
-
-			// Save package into the uncooked intermediate directory
-			FSavePackageResultStruct SaveResult = GEditor->Save(GeneratedPackage, nullptr, RF_Standalone,
-				*GeneratedPackageData->GetFileName().ToString(), GError, nullptr, /*bForceByteSwapping*/ false,
-				/*bWarnOfLongFilename*/ true, SAVE_None);
-			if (SaveResult.Result != ESavePackageResult::Success)
-			{
-				UE_LOG(LogCook, Error, TEXT("PackageSplitter could not save uncooked generated package. Splitter=%s, Generated=%s."),
-					*GeneratorStruct->GetSplitDataObjectName().ToString(), *GeneratedPackageData->GetFileName().ToString());
-				bOutError = true;
-				return;
-			}
-
-			// Update Asset Registry with the generated package
-			AssetRegistry->ScanFilesSynchronous({ GeneratedPackageData->GetFileName().ToString() }, true);
-
-			// Queue the generated package
-			QueueDiscoveredPackageData(*GeneratedPackageData, true /* bLoadReady */);
-
-			if (HasExceededMaxMemory())
-			{
-				return;
+				if (GeneratorStruct->HasClearedOldPackagesWithGC())
+				{
+					UE_LOG(LogCook, Error, TEXT("PackageSplitter was unable to construct new generated packages because an old version of the package is already in memory and GC did not remove it. Splitter=%s, Generated=%s."),
+						*GeneratorStruct->GetSplitDataObjectName().ToString(), *GeneratedStruct.RelativePath);
+					bOutError = true;
+					return;
+				}
+				else
+				{
+					GeneratorStruct->SetClearedOldPackagesWithGC();
+					return;
+				}
 			}
 		}
+
+		GeneratorStruct->SetClearedOldPackages();
 	}
+
+	if (!GeneratorStruct->HasQueuedGeneratedPackages())
+	{
+		if (Splitter->UseDeferredPopulate())
+		{
+			for (const FGeneratorPackage::FGeneratedStruct& GeneratedStruct : GeneratorStruct->GetPackagesToGenerate())
+			{
+				FPackageData* GeneratedPackageData = GeneratedStruct.PackageData;
+				GeneratedPackageData->ClearCookedPlatformData();
+				QueueDiscoveredPackageData(*GeneratedPackageData);
+			}
+		}
+		else
+		{
+			UPackage* Owner = GeneratorStruct->GetOwner().GetPackage();
+			FPopulatePackageContext Context(GeneratorStruct, Owner);
+			TArrayView<FGeneratorPackage::FGeneratedStruct> PackagesToGenerate = GeneratorStruct->GetPackagesToGenerate();
+			// Start Splitting
+			int32& NextIndex = GeneratorStruct->GetNextPopulateIndex();
+			while (NextIndex < PackagesToGenerate.Num())
+			{
+				const FGeneratorPackage::FGeneratedStruct& GeneratedStruct = PackagesToGenerate[NextIndex++];
+				FPackageData* GeneratedPackageData = GeneratedStruct.PackageData;
+				GeneratedPackageData->ClearCookedPlatformData();
+
+				Context.GeneratedStruct = &GeneratedStruct;
+				UPackage* GeneratedPackage = TryPopulateGeneratedPackage(Context);
+				if (!GeneratedPackage)
+				{
+					bOutError = true;
+					return;
+				}
+
+				// Save package into the uncooked intermediate directory
+				FString IntermediateFile = GeneratorStruct->GetIntermediateLocalPath(GeneratedStruct);
+				FSavePackageResultStruct SaveResult = GEditor->Save(GeneratedPackage, nullptr, RF_Standalone,
+					*IntermediateFile, GError, nullptr, /*bForceByteSwapping*/ false,
+					/*bWarnOfLongFilename*/ true, SAVE_None);
+				if (SaveResult.Result != ESavePackageResult::Success)
+				{
+					UE_LOG(LogCook, Error, TEXT("PackageSplitter could not save uncooked generated package. Splitter=%s, Generated=%s."),
+						*GeneratorStruct->GetSplitDataObjectName().ToString(), *IntermediateFile);
+					bOutError = true;
+					return;
+				}
+
+				// Queue the generated package
+				QueueDiscoveredPackageData(*GeneratedPackageData, true /* bLoadReady */);
+
+				if (HasExceededMaxMemory())
+				{
+					return;
+				}
+			}
+		}
+		GeneratorStruct->SetQueuedGeneratedPackages();
+	}
+
+	TArrayView<FGeneratorPackage::FGeneratedStruct> PackagesToGenerate = GeneratorStruct->GetPackagesToGenerate();
+	TArray<ICookPackageSplitter::FGeneratedPackageForPreSave> SplitterDatas;
+	SplitterDatas.Reserve(PackagesToGenerate.Num());
+	for (const FGeneratorPackage::FGeneratedStruct& GeneratedStruct : PackagesToGenerate)
+	{
+		ICookPackageSplitter::FGeneratedPackageForPreSave& SplitterData = SplitterDatas.Emplace_GetRef();
+		SplitterData.RelativePath = GeneratedStruct.RelativePath;
+		SplitterData.bCreatedAsMap = GeneratedStruct.bCreateAsMap;
+
+		const FString GeneratedPackageName = GeneratedStruct.PackageData->GetPackageName().ToString();
+		SplitterData.Package = FindObject<UPackage>(nullptr, *GeneratedPackageName);
+		if (!SplitterData.Package)
+		{
+			SplitterData.Package = CreatePackage(*GeneratedPackageName);
+		}
+	}
+
+	UPackage* OwnerPackage = GeneratorStruct->GetOwner().GetPackage();
+	check(OwnerPackage);
+	GeneratorStruct->GetCookPackageSplitterInstance()->PreSaveGeneratorPackage(OwnerPackage, SplitObject, SplitterDatas);
 
 	bOutCompleted = true;
 }
@@ -2323,8 +2396,8 @@ UPackage* UCookOnTheFlyServer::TryPopulateGeneratedPackage(UE::Cook::FPopulatePa
 	using namespace UE::Cook;
 
 	FGeneratorPackage* GeneratorStruct = Context.GeneratorStruct;
+	const FGeneratorPackage::FGeneratedStruct& GeneratedStruct = *Context.GeneratedStruct;
 	const UPackage* OwnerPackage = Context.OwnerPackage;
-	const ICookPackageSplitter::FGeneratedPackage& GeneratorData = Context.GeneratedStruct->GeneratorData;
 	UE::Cook::FPackageData* GeneratedPackageData = Context.GeneratedStruct->PackageData;
 	const FString GeneratedPackageName = GeneratedPackageData->GetPackageName().ToString();
 
@@ -2347,45 +2420,62 @@ UPackage* UCookOnTheFlyServer::TryPopulateGeneratedPackage(UE::Cook::FPopulatePa
 			*Context.GeneratorPackagePath, *Context.GeneratorPackageShortName, UE::Cook::GeneratedPackageSubPath));
 	}
 
-	check(GeneratorData.GetCreateAsMap().IsSet()); // Should have been confirmed in TryGenerateList and not allowed to get here if not set
 	check(GeneratedPackageData); // Caller already checked this
 
-	// Make package name to fit Mounted GeneratedUncookedRootPath
-	const FString GeneratedPackageCookedName = FPaths::RemoveDuplicateSlashes(FString::Printf(TEXT("/%s/%s"), *Context.GeneratedCookedRootPath, *GeneratorData.RelativePath));
-	const FString GeneratedPackageExtension = FString(FPathViews::GetExtension(GeneratedPackageData->GetFileName().ToString(), true /* bIncludeDot */));
+	ICookPackageSplitter* Splitter = GeneratorStruct->GetCookPackageSplitterInstance();
 
 	// Create package
-	if (FindObject<UPackage>(nullptr, *GeneratedPackageName))
+	UPackage* GeneratedPackage = FindObject<UPackage>(nullptr, *GeneratedPackageName);
+	bool bPopulatedByPreSave = false;
+	if (GeneratedPackage)
 	{
-		UE_LOG(LogCook, Error, TEXT("PackageSplitter found an existing copy of a package it was trying to generate; this is not yet supported. Splitter=%s, Generated=%s."),
-			*GeneratorStruct->GetSplitDataObjectName().ToString(), *GeneratedPackageName);
-		return nullptr;
+		if (!Splitter->UseDeferredPopulate())
+		{
+			UE_LOG(LogCook, Error, TEXT("PackageSplitter found an existing copy of a package it was trying to populate;")
+				TEXT("this is unexpected since we previously checked and did not find it. Splitter=%s, Generated=%s."),
+				*GeneratorStruct->GetSplitDataObjectName().ToString(), *GeneratedPackageName);
+			return nullptr;
+		}
+		else if (GeneratorStruct->HasGCOccurredAfterGenerate())
+		{
+			UE_LOG(LogCook, Error, TEXT("PackageSplitter found an existing copy of a package it was trying to populate;")
+				TEXT("this is unexpected since garbage has been collected and the package should have been unreferenced so it should have been collected.")
+				TEXT("Splitter=%s, Generated=%s."),
+				*GeneratorStruct->GetSplitDataObjectName().ToString(), *GeneratedPackageName);
+			FReferenceChainSearch RefChainSearch(GeneratedPackage, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintAllResults);
+			return nullptr;
+		}
+		// Otherwise this is the package that was created and passed to presave, and it is still valid because there has not been a GC since
+		// we created it. Mark its state and use it
+		bPopulatedByPreSave = true;
 	}
-	UPackage* GeneratedPackage = CreatePackage(*GeneratedPackageName);
+	else
+	{
+		GeneratedPackage = CreatePackage(*GeneratedPackageName);
+	}
 
 	// Populate package using CookPackageSplitterInstance and pass GeneratedPackage's cooked name for it to
 	// properly setup any internal reference to this package (SoftObjectPaths or others)
-	if (!GeneratorStruct->GetCookPackageSplitterInstance()->TryPopulatePackage(OwnerPackage, Context.OwnerObject, GeneratedPackage,
-		GeneratorData.RelativePath, GeneratedPackageCookedName))
+	ICookPackageSplitter::FGeneratedPackageForPopulate PopulateData;
+	PopulateData.RelativePath = GeneratedStruct.RelativePath;
+	PopulateData.Package = GeneratedPackage;
+	PopulateData.bPopulatedByPreSave = bPopulatedByPreSave;
+	PopulateData.bCreatedAsMap = GeneratedStruct.bCreateAsMap;
+	if (!Splitter->TryPopulatePackage(OwnerPackage, Context.OwnerObject, PopulateData))
 	{
 		UE_LOG(LogCook, Error, TEXT("PackageSplitter returned false from TryPopulatePackage. Splitter=%s, Generated=%s."),
 			*GeneratorStruct->GetSplitDataObjectName().ToString(), *GeneratedPackageName);
 		return nullptr;
 	}
 	bool bPackageIsMap = GeneratedPackage->ContainsMap();
-	if (bPackageIsMap != *GeneratorData.GetCreateAsMap())
+	if (bPackageIsMap != GeneratedStruct.bCreateAsMap)
 	{
 		UE_LOG(LogCook, Error, TEXT("PackageSplitter specified generated package is %s in GetGenerateList results, but then in TryPopulatePackage created it as %s. Splitter=%s, Generated=%s."),
-			(*GeneratorData.GetCreateAsMap() ? TEXT("map") : TEXT("uasset")), (bPackageIsMap ? TEXT("map") : TEXT("uasset")),
+			(GeneratedStruct.bCreateAsMap ? TEXT("map") : TEXT("uasset")), (bPackageIsMap ? TEXT("map") : TEXT("uasset")),
 			*GeneratorStruct->GetSplitDataObjectName().ToString(), *GeneratedPackageName);
 		return nullptr;
 	}
-
-	// Set override cooked FileName to be used when saving the cooked generated package
-	const FString GeneratePackageCookedFileName = FPaths::RemoveDuplicateSlashes(FString::Printf(TEXT("%s/%s/%s/%s%s"),
-		*FPaths::GetPath(GeneratorStruct->GetOwner().GetFileName().ToString()), *Context.GeneratorPackageShortName,
-		UE::Cook::GeneratedPackageSubPath, *GeneratorData.RelativePath, *GeneratedPackageExtension));
-	GeneratedPackageData->SetCookedFileName(FPackageNameCache::GetStandardFileName(GeneratePackageCookedFileName));
+	GeneratedPackage->MarkAsFullyLoaded();
 
 	return GeneratedPackage;
 }
@@ -2451,13 +2541,6 @@ bool UCookOnTheFlyServer::BeginPrepareSave(UE::Cook::FPackageData& PackageData, 
 					PackageData.SetHasBeginPrepareSaveFailed(true);
 					return false;
 				}
-
-				// Call the splitter to generate the list
-				if (!Generator->TryGenerateList(Package, SplitDataObject, GetPackageNameCache(), *PackageDatas))
-				{
-					PackageData.SetHasBeginPrepareSaveFailed(true);
-					return false;
-				}
 			}
 		}
 		else
@@ -2483,14 +2566,6 @@ bool UCookOnTheFlyServer::BeginPrepareSave(UE::Cook::FPackageData& PackageData, 
 			{
 				return false;
 			}
-			UObject* SplitObject = Generator->FindSplitDataObject();
-			if (!SplitObject)
-			{
-				UE_LOG(LogCook, Error, TEXT("Could not find SplitDataObject for %s"), *Package->GetName());
-				PackageData.SetHasBeginPrepareSaveFailed(true);
-				return false;
-			}
-			Generator->GetCookPackageSplitterInstance()->PreSaveGeneratorPackage(Package, SplitObject);
 		}
 		PackageData.SetCompletedGeneration(true);
 	}
@@ -2721,7 +2796,8 @@ void UCookOnTheFlyServer::TickCancels()
 	PackageDatas->PollPendingCookedPlatformDatas();
 }
 
-bool UCookOnTheFlyServer::LoadPackageForCooking(UE::Cook::FPackageData& PackageData, UPackage*& OutPackage)
+bool UCookOnTheFlyServer::LoadPackageForCooking(UE::Cook::FPackageData& PackageData, UPackage*& OutPackage, FString* LoadFromFilename,
+	UE::Cook::FPackageData* ReportingPackageData)
 {
 	UE_SCOPED_HIERARCHICAL_COOKTIMER_AND_DURATION(LoadPackageForCooking, DetailedCookStats::TickCookOnTheSideLoadPackagesTimeSec);
 
@@ -2732,13 +2808,13 @@ bool UCookOnTheFlyServer::LoadPackageForCooking(UE::Cook::FPackageData& PackageD
 		PackageTracker->LoadingPackageData = nullptr;
 	};
 
-	OutPackage = NULL;
-	FString PackageNameString;
-	OutPackage = FindObject<UPackage>(ANY_PACKAGE, *PackageData.GetPackageName().ToString());
+	FString PackageName = PackageData.GetPackageName().ToString();
+	OutPackage = FindObject<UPackage>(ANY_PACKAGE, *PackageName);
 
-	FString FileName(PackageData.GetFileName().ToString());
+	FString FileName(LoadFromFilename ? *LoadFromFilename : PackageData.GetFileName().ToString());
+	FString ReportingFileName(ReportingPackageData ? ReportingPackageData->GetFileName().ToString() : FileName);
 #if DEBUG_COOKONTHEFLY
-	UE_LOG(LogCook, Display, TEXT("Processing request %s"), *FileName);
+	UE_LOG(LogCook, Display, TEXT("Processing request %s"), *ReportingFileName);
 #endif
 	static TSet<FString> CookWarningsList;
 	if (CookWarningsList.Contains(FileName) == false)
@@ -2753,7 +2829,21 @@ bool UCookOnTheFlyServer::LoadPackageForCooking(UE::Cook::FPackageData& PackageD
 	{
 		bool bWasPartiallyLoaded = OutPackage != nullptr;
 		GIsCookerLoadingPackage = true;
-		UPackage* LoadedPackage = LoadPackage(NULL, *FileName, LOAD_None);
+		UPackage* LoadIntoPackage = nullptr;
+		if (LoadFromFilename)
+		{
+			// When loading from a specified filename, we provide the packagename to load into via LoadPackage's first argument - the InOuter package
+			if (OutPackage)
+			{
+				LoadIntoPackage = OutPackage;
+			}
+			else
+			{
+				LoadIntoPackage = CreatePackage(*PackageName);
+			}
+		}
+
+		UPackage* LoadedPackage = LoadPackage(LoadIntoPackage, *FileName, LOAD_None);
 		if (LoadedPackage)
 		{
 			OutPackage = LoadedPackage;
@@ -2777,7 +2867,7 @@ bool UCookOnTheFlyServer::LoadPackageForCooking(UE::Cook::FPackageData& PackageD
 #if DEBUG_COOKONTHEFLY
 	else
 	{
-		UE_LOG(LogCook, Display, TEXT("Package already loaded %s avoiding reload"), *FileName);
+		UE_LOG(LogCook, Display, TEXT("Package already loaded %s avoiding reload"), *ReportingFileName);
 	}
 #endif
 
@@ -2785,7 +2875,7 @@ bool UCookOnTheFlyServer::LoadPackageForCooking(UE::Cook::FPackageData& PackageD
 	{
 		if ((!IsCookOnTheFlyMode()) || (!IsCookingInEditor()))
 		{
-			LogCookerMessage(FString::Printf(TEXT("Error loading %s!"), *FileName), EMessageSeverity::Error);
+			LogCookerMessage(FString::Printf(TEXT("Error loading %s!"), *ReportingFileName), EMessageSeverity::Error);
 		}
 	}
 	GOutputCookingWarnings = false;
@@ -3864,6 +3954,14 @@ void UCookOnTheFlyServer::PostGarbageCollect()
 	check(!SavingPackageData || SavingPackageData->GetPackage() != nullptr);
 
 	GCKeepObjects.Empty();
+
+	for (FPackageData* PackageData : *PackageDatas.Get())
+	{
+		if (FGeneratorPackage* GeneratorPackage = PackageData->GetGeneratorPackage())
+		{
+			GeneratorPackage->PostGarbageCollect();
+		}
+	}
 }
 
 void UCookOnTheFlyServer::BeginDestroy()
@@ -4168,12 +4266,6 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 		{
 			UE_LOG(LogCook, Warning, TEXT("Package %s marked as reloading for cook by was requested to save"), *Package->GetName());
 			UE_LOG(LogCook, Fatal, TEXT("Package %s marked as reloading for cook by was requested to save"), *Package->GetName());
-		}
-
-		// If valid, override cooked FileName. Currently used for Generated Packages (see SplitPackage)
-		if (PackageData.GetCookedFileName() != NAME_None)
-		{
-			Filename = PackageData.GetCookedFileName().ToString();
 		}
 
 		// Use SandboxFile to do path conversion to properly handle sandbox paths (outside of standard paths in particular).

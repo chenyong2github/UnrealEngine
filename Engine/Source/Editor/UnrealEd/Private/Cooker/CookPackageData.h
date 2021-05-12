@@ -37,6 +37,8 @@ namespace Cook
 	class FPackageDataQueue;
 	struct FPendingCookedPlatformDataCancelManager;
 
+	extern const TCHAR* GeneratedPackageSubPath;
+
 	/** Flags specifying the behavior of FPackageData::SendToState */
 	enum class ESendFlags
 	{
@@ -258,10 +260,6 @@ namespace Cook
 		bool GetHasBeginPrepareSaveFailed() const { return static_cast<bool>(bHasBeginPrepareSaveFailed); }
 		void SetHasBeginPrepareSaveFailed(bool bValue) { bHasBeginPrepareSaveFailed = bValue != 0; }
 
-		/** Get/Set override filename to be used when saving cooked package. */
-		FName GetCookedFileName() const { return CookedFileName; }
-		void SetCookedFileName(FName InCookedFileName) { CookedFileName = InCookedFileName; }
-
 		/** Validate that the fields related to the BeginCacheForCookedPlatformData calls are empty, as required when not in the save state. */
 		void CheckCookedPlatformDataEmpty() const;
 		/** Clear the fields related to the BeginCacheForCookedPlatformData calls, when e.g. leaving the save state. Caller is responsible for having already executed any required cancellation steps to avoid dangling pending operations. */
@@ -281,7 +279,7 @@ namespace Cook
 		void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
 
 		/** Create and return a GeneratorPackage helper object for a given CookPackageSplitter. */
-		FGeneratorPackage* CreateGeneratorPackage(const UObject* InSplitDataObject, ICookPackageSplitter* InCookPackageSplitterInstance, const FString& InGeneratedUncookedRootPath);
+		FGeneratorPackage* CreateGeneratorPackage(const UObject* InSplitDataObject, ICookPackageSplitter* InCookPackageSplitterInstance);
 		/** Destroy GeneratorPackage helper object. */
 		void DestroyGeneratorPackage() { GeneratorPackage.Reset(); }
 		/** Get GeneratorPackage helper object. */
@@ -304,8 +302,6 @@ namespace Cook
 		void SetGeneratedOwner(FGeneratorPackage* InGeneratedOwner);
 		/** Return the owning generator PackageData. Will be null if not a generated package or if orphaned */
 		FGeneratorPackage* GetGeneratedOwner() const { return GeneratedOwner; }
-		/** Return whether PumpLoads should load the package from disk or from the special generated path */
-		bool IsLoadFromDisk() const;
 
 		/** Return whether a GC is required by a generator package as soon as possible. */
 		bool GeneratorPackageRequiresGC() const;
@@ -374,7 +370,6 @@ namespace Cook
 		FCompletionCallback CompletionCallback;
 		FName PackageName;
 		FName FileName;
-		FName CookedFileName; // Override filename to be used when saving cooked package (used by generated packages)
 		TWeakObjectPtr<UPackage> Package;
 		FPackageDatas& PackageDatas; // The one-per-CookOnTheFlyServer owner of this PackageData
 		/**
@@ -419,20 +414,23 @@ namespace Cook
 	public:
 		struct FGeneratedStruct
 		{
-			ICookPackageSplitter::FGeneratedPackage GeneratorData;
+			FString RelativePath;
+			TArray<FName> Dependencies;
 			FPackageData* PackageData = nullptr;
+			bool bCreateAsMap = false;
 		};
 
 		/** Store the provided CookPackageSplitter and prepare the packages to generate. */
-		FGeneratorPackage(UE::Cook::FPackageData& InOwner, const UObject* InSplitDataObject, ICookPackageSplitter* InCookPackageSplitterInstance, const FString& InGeneratedUncookedRootPath);
+		FGeneratorPackage(UE::Cook::FPackageData& InOwner, const UObject* InSplitDataObject, ICookPackageSplitter* InCookPackageSplitterInstance);
 		~FGeneratorPackage();
 		/** Clear references to owned generated packages, and mark those packages as orphaned */
 		void ClearGeneratedPackages();
 
 		/** Call the Splitter's GetGenerateList and create the PackageDatas */
-		bool TryGenerateList(UPackage* OwnerPackage, UObject* OwnerObject, const FPackageNameCache& PackageNameCache, FPackageDatas& PackageDatas);
-		/** Return next package to generate. */
-		const FGeneratedStruct* GetNextPackageToGenerate();
+		bool TryGenerateList(UObject* OwnerObject, const FPackageNameCache& PackageNameCache, FPackageDatas& PackageDatas);
+
+		/** Accessor for the packages to generate */
+		TArrayView<FGeneratedStruct> GetPackagesToGenerate() { return PackagesToGenerate; }
 
 		/** Return CookPackageSplitter. */
 		ICookPackageSplitter* GetCookPackageSplitterInstance() const { return CookPackageSplitterInstance.Get(); }
@@ -440,8 +438,17 @@ namespace Cook
 		const UE::Cook::FPackageData& GetOwner() const { return Owner; }
 		/** Return the SplitDataObject's FullObjectPath. */
 		const FName GetSplitDataObjectName() const { return SplitDataObjectName; }
-		/** Returns root path of generated packages. */
-		const FString& GetGeneratedUncookedRootPath() const { return GeneratedUncookedRootPath; }
+		/**
+		 * Return the packagepath and localpath to the owner's mount point used for loading generated packages,
+		 * if we need to save them to disk.
+		 */
+		void GetIntermediateMountPoint(FString& OutPackagePath, FString& OutLocalPath) const;
+		/**
+		 * Return the standard path to the temporary file (including extension) where we store the given
+		 * generated package, if we need to save it to disk for later retrieval in the cook session.
+		 */
+		FString GetIntermediateLocalPath(const FGeneratorPackage::FGeneratedStruct& GeneratedStruct) const;
+
 		/** Splitter capability for whether the generated packages should populate from owner rather than load from disk */
 		bool IsDeferredPopulate() const { return CookPackageSplitterInstance->UseDeferredPopulate(); }
 		/** Return the FGeneratedStruct with the given PackageData, or null if not found. */
@@ -452,13 +459,47 @@ namespace Cook
 		 */
 		UObject* FindSplitDataObject() const;
 
+		/** State variables for reentrant SplitPackage calls */
+		bool HasGeneratedList() const { return bGeneratedList; }
+		void SetGeneratedList() { bGeneratedList = true; }
+		bool HasClearedOldPackages() { return bClearedOldPackages; }
+		void SetClearedOldPackages() { bClearedOldPackages = true; }
+		bool HasClearedOldPackagesWithGC() { return bClearedOldPackagesWithGC; }
+		void SetClearedOldPackagesWithGC() { bClearedOldPackagesWithGC = true; }
+		bool HasQueuedGeneratedPackages() const { return bQueuedGeneratedPackages; }
+		void SetQueuedGeneratedPackages() { bQueuedGeneratedPackages = true; }
+		int32& GetNextPopulateIndex() { return NextPopulateIndex; }
+
+		/**
+		 * Records whether GC occurred after creating the placeholder packages.
+		 * If GC has occurred, we expect to no longer find the placeholder packages in memory,
+		 * and if we do find them its an error because we no longer know which objects are in the packages.
+		 */
+		bool HasGCOccurredAfterGenerate() const { return bGCOccurredAfterGenerate; }
+
+		/** Callback during garbage collection */
+		void PostGarbageCollect();
+
 	private:
+		/** PackageData for the package that is being split */
 		const UE::Cook::FPackageData& Owner;
+		/** Name of the object that prompted the splitter creation */
 		FName SplitDataObjectName;
-		const FString GeneratedUncookedRootPath;
-		TUniquePtr<ICookPackageSplitter> CookPackageSplitterInstance; // Cached CookPackageSplitter
-		TArray<FGeneratedStruct> PackagesToGenerate; // Generator's packages to generate
-		int32 PackageToGenerateNextIndex = 0; // Index of next package to generate
+		/** Cached CookPackageSplitter */
+		TUniquePtr<ICookPackageSplitter> CookPackageSplitterInstance;
+		/** Recorded list of packages to generate from the splitter, and data we need about them */
+		TArray<FGeneratedStruct> PackagesToGenerate;
+
+		/** State variables for reentrant SplitPackage calls */
+		int32 NextPopulateIndex = 0;
+		bool bGeneratedList = false;
+		bool bClearedOldPackages = false;
+		bool bClearedOldPackagesWithGC = false;
+		bool bQueuedGeneratedPackages = false;
+
+		/** Records whether GC occurred after creating the placeholder packages. */
+		bool bGCOccurredAfterGenerate = false;
+
 	};
 
 

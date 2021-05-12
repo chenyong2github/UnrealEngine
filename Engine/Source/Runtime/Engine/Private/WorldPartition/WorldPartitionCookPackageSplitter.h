@@ -15,8 +15,10 @@ public:
 	virtual bool UseDeferredPopulate() { return false; }
 	virtual ~FWorldPartitionCookPackageSplitter() {}
 	virtual TArray<ICookPackageSplitter::FGeneratedPackage> GetGenerateList(const UPackage* OwnerPackage, const UObject* OwnerObject) override;
-	virtual bool TryPopulatePackage(const UPackage* OwnerPackage, const UObject* OwnerObject, UPackage* GeneratedPackage, const FStringView& RelativePath, const FStringView& GeneratedPackageCookName) override;
-	virtual void PreSaveGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject) override;
+	virtual bool TryPopulatePackage(const UPackage* OwnerPackage, const UObject* OwnerObject,
+		const ICookPackageSplitter::FGeneratedPackageForPopulate& GeneratedPackage) override;
+	virtual void PreSaveGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject,
+		const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& PlaceholderPackages) override;
 	//~ End of ICookPackageSplitter
 
 private:
