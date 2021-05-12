@@ -690,6 +690,8 @@ protected:
 		return true;
 	}
 
+	bool ShouldCreateNaniteProxy() const;	
+
 public:
 
 	void ReleaseResources();

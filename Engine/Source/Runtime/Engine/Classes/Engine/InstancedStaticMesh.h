@@ -60,7 +60,7 @@ class FStaticMeshInstanceBuffer : public FRenderResource
 public:
 
 	/** Default constructor. */
-	FStaticMeshInstanceBuffer(ERHIFeatureLevel::Type InFeatureLevel, bool InRequireCPUAccess);
+	FStaticMeshInstanceBuffer(ERHIFeatureLevel::Type InFeatureLevel, bool InRequireCPUAccess, bool bDeferGPUUploadIn);
 
 	/** Destructor. */
 	~FStaticMeshInstanceBuffer();
@@ -113,29 +113,60 @@ public:
 
 	void BindInstanceVertexBuffer(const class FVertexFactory* VertexFactory, struct FInstancedStaticMeshDataType& InstancedStaticMeshData) const;
 
+	/**
+	 * Call to flush any pending GPU data copies, if bFlushToGPUPending is false it does nothing. Should be called by the Proxy on the render thread
+	 * for example in CreateRenderThreadResources().
+	 */
+	void FlushGPUUpload();
 public:
 	/** The vertex data storage type */
 	TSharedPtr<FStaticMeshInstanceData, ESPMode::ThreadSafe> InstanceData;
 
-	/** Keep CPU copy of instance data*/
+	/** Keep CPU copy of instance data */
 	bool RequireCPUAccess;
 
 	FBufferRHIRef GetInstanceOriginBuffer()
 	{
+		check(!bFlushToGPUPending);
 		return InstanceOriginBuffer.VertexBufferRHI;
 	}
 
 	FBufferRHIRef GetInstanceTransformBuffer()
 	{
+		check(!bFlushToGPUPending);
 		return InstanceTransformBuffer.VertexBufferRHI;
 	}
 
 	FBufferRHIRef GetInstanceLightmapBuffer()
 	{
+		check(!bFlushToGPUPending);
 		return InstanceLightmapBuffer.VertexBufferRHI;
 	}
 
+	/**
+	 * Set flush to GPU as pending if the bDeferGPUUpload flag is true.
+	 * Returns bDeferGPUUpload (so if it returns false, the update should be done at once).
+	 */
+	bool CondSetFlushToGPUPending()
+	{
+		if (bDeferGPUUpload)
+		{
+			bFlushToGPUPending = true;
+			return true;
+		}
+		return bDeferGPUUpload;
+	}
 private:
+
+	/** Defer GPU Upload until we can know if it is needed (that is on the render thread) */
+	bool bDeferGPUUpload;
+
+	/** If true, then we have updates to the host data not yet committed to the GPU. This in turn means
+	 * that bDeferGPUUpload is true, and the Proxy is expected to either call FlushGPUUpload() OR never 
+	 * use the instance data buffers (either is fine).
+	 */
+	bool bFlushToGPUPending;
+
 	class FInstanceOriginBuffer : public FVertexBuffer
 	{
 		virtual FString GetFriendlyName() const override { return TEXT("FInstanceOriginBuffer"); }
@@ -352,8 +383,7 @@ struct FInstanceUpdateCmdBuffer;
 struct FPerInstanceRenderData
 {
 	// Should be always constructed on main thread
-	FPerInstanceRenderData(FStaticMeshInstanceData& Other, ERHIFeatureLevel::Type InFeaureLevel, bool InRequireCPUAccess);
-	FPerInstanceRenderData(FStaticMeshInstanceData& Other, ERHIFeatureLevel::Type InFeaureLevel, bool InRequireCPUAccess, FBox InBounds, bool bTrack);
+	FPerInstanceRenderData(FStaticMeshInstanceData& Other, ERHIFeatureLevel::Type InFeaureLevel, bool InRequireCPUAccess, FBox InBounds, bool bTrack, bool bDeferGPUUploadIn);
 	~FPerInstanceRenderData();
 
 	/**
