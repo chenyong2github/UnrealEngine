@@ -5,6 +5,8 @@
 #if VULKAN_RHI_RAYTRACING
 
 class FVulkanCommandListContext;
+class FVulkanResourceMultiBuffer;
+class FVulkanAccelerationStructureBuffer;
 
 #define ENUM_VK_ENTRYPOINTS_RAYTRACING(EnumMacro) \
 	EnumMacro(PFN_vkCreateAccelerationStructureKHR, vkCreateAccelerationStructureKHR) \
@@ -37,6 +39,13 @@ struct FVkRtAllocation
 	VkDeviceMemory Memory = VK_NULL_HANDLE;
 	VkBuffer Buffer = VK_NULL_HANDLE;
 	VkDeviceAddress Address = 0;
+};
+
+class FVulkanRayTracingAllocator
+{
+public:
+	static void Allocate(VkPhysicalDevice Gpu, VkDevice Device, VkDeviceSize Size, VkBufferUsageFlags UsageFlags, VkMemoryPropertyFlags MemoryFlags, FVkRtAllocation& Result);
+	static void Free(FVkRtAllocation& Allocation);
 };
 
 struct FVkRtTLASBuildData
@@ -107,10 +116,15 @@ public:
 	FVulkanRayTracingScene(const FRayTracingSceneInitializer& Initializer, const FVulkanDevice* InDevice);
 	~FVulkanRayTracingScene();
 
-	void BuildAccelerationStructure(FVulkanCommandListContext& CommandContext);
+	void BindBuffer(FRHIBuffer* InBuffer, uint32 InBufferOffset);
+	void BuildAccelerationStructure(
+		FVulkanCommandListContext& CommandContext, 
+		FVulkanResourceMultiBuffer* ScratchBuffer, uint32 ScratchOffset, 
+		FVulkanResourceMultiBuffer* InstanceBuffer, uint32 InstanceOffset, 
+		uint32 NumInstanceDescs);
 
 	VkAccelerationStructureKHR Handle = VK_NULL_HANDLE;
-	FVkRtAllocation Allocation;
+	TRefCountPtr<FVulkanAccelerationStructureBuffer> AccelerationStructureBuffer;
 	FVkRtAllocation Scratch;
 	FVkRtAllocation InstanceBuffer;
 
@@ -119,6 +133,8 @@ public:
 	TArray<TRefCountPtr<const FVulkanRayTracingGeometry>> ReferencedGeometry;
 	FName DebugName;
 	uint32 NumInstances = 0;
+	uint32 BufferOffset = 0;
+	FRayTracingAccelerationStructureSize SizeInfo;
 
 private:
 	const FVulkanDevice* Device = nullptr;

@@ -104,7 +104,7 @@ static uint32 FindMemoryType(VkPhysicalDevice Gpu, uint32 Filter, VkMemoryProper
 }
 
 // Temporary brute force allocation
-static void Allocate(VkPhysicalDevice Gpu, VkDevice Device, VkDeviceSize Size, VkBufferUsageFlags UsageFlags, VkMemoryPropertyFlags MemoryFlags, FVkRtAllocation& Result)
+void FVulkanRayTracingAllocator::Allocate(VkPhysicalDevice Gpu, VkDevice Device, VkDeviceSize Size, VkBufferUsageFlags UsageFlags, VkMemoryPropertyFlags MemoryFlags, FVkRtAllocation& Result)
 {
 	VkBufferCreateInfo CreateInfo;
 	ZeroVulkanStruct(CreateInfo, VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
@@ -131,7 +131,7 @@ static void Allocate(VkPhysicalDevice Gpu, VkDevice Device, VkDeviceSize Size, V
 }
 
 // Temporary brute force deallocation
-static void Free(FVkRtAllocation& Allocation)
+void FVulkanRayTracingAllocator::Free(FVkRtAllocation& Allocation)
 {
 	if (Allocation.Buffer != VK_NULL_HANDLE)
 	{
@@ -259,7 +259,7 @@ FVulkanRayTracingGeometry::FVulkanRayTracingGeometry(const FRayTracingGeometryIn
 		EAccelerationStructureBuildMode::Build,
 		BuildData);
 
-	Allocate(
+	FVulkanRayTracingAllocator::Allocate(
 		Device->GetPhysicalHandle(), 
 		Device->GetInstanceHandle(),
 		BuildData.SizesInfo.accelerationStructureSize,
@@ -267,7 +267,7 @@ FVulkanRayTracingGeometry::FVulkanRayTracingGeometry(const FRayTracingGeometryIn
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		Allocation);
 
-	Allocate(
+	FVulkanRayTracingAllocator::Allocate(
 		Device->GetPhysicalHandle(),
 		Device->GetInstanceHandle(),
 		BuildData.SizesInfo.buildScratchSize,
@@ -283,8 +283,8 @@ FVulkanRayTracingGeometry::FVulkanRayTracingGeometry(const FRayTracingGeometryIn
 
 FVulkanRayTracingGeometry::~FVulkanRayTracingGeometry()
 {
-	Free(Allocation);
-	Free(Scratch);
+	FVulkanRayTracingAllocator::Free(Allocation);
+	FVulkanRayTracingAllocator::Free(Scratch);
 }
 
 void FVulkanRayTracingGeometry::BuildAccelerationStructure(FVulkanCommandListContext& CommandContext, EAccelerationStructureBuildMode BuildMode)
@@ -329,7 +329,7 @@ void FVulkanRayTracingGeometry::BuildAccelerationStructure(FVulkanCommandListCon
 	// No longer need scratch memory for a static build
 	if (!bAllowUpdate)
 	{
-		Free(Scratch);
+		FVulkanRayTracingAllocator::Free(Scratch);
 	}
 }
 
@@ -442,7 +442,7 @@ FVulkanRayTracingScene::FVulkanRayTracingScene(const FRayTracingSceneInitializer
 	// Allocate instance buffer
 	const uint32 InstanceBufferByteSize = static_cast<uint32>(NumInstances) * sizeof(VkAccelerationStructureInstanceKHR);
 
-	Allocate(
+	FVulkanRayTracingAllocator::Allocate(
 		Device->GetPhysicalHandle(),
 		Device->GetInstanceHandle(),
 		InstanceBufferByteSize,
@@ -469,48 +469,65 @@ FVulkanRayTracingScene::FVulkanRayTracingScene(const FRayTracingSceneInitializer
 	InstanceDescs.Empty();
 	InstanceGeometry.Empty();
 
-	// Allocate buffers
-	FVkRtTLASBuildData BuildData;
-	GetTLASBuildData(Device->GetInstanceHandle(), NumInstances, 0, BuildData);
-
-	Allocate(
-		Device->GetPhysicalHandle(),
-		Device->GetInstanceHandle(),
-		BuildData.SizesInfo.accelerationStructureSize,
-		VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		Allocation);
-
-	Allocate(
-		Device->GetPhysicalHandle(),
-		Device->GetInstanceHandle(),
-		BuildData.SizesInfo.buildScratchSize,
-		VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		Scratch);
-
-	Scratch.Address = GetDeviceAddress(Device->GetInstanceHandle(), Scratch.Buffer);
+	const ERayTracingAccelerationStructureFlags BuildFlags = ERayTracingAccelerationStructureFlags::FastTrace; // #yuriy_todo: pass this in
+	SizeInfo = RHICalcRayTracingSceneSize(NumInstances, BuildFlags);
 }
 
 FVulkanRayTracingScene::~FVulkanRayTracingScene()
+{}
+
+void FVulkanRayTracingScene::BindBuffer(FRHIBuffer* InBuffer, uint32 InBufferOffset)
 {
-	Free(Allocation);
+	check(SizeInfo.ResultSize + InBufferOffset <= InBuffer->GetSize());
+	check(InBufferOffset % 256 == 0); // Spec requires offset to be a multiple of 256
+	AccelerationStructureBuffer = static_cast<FVulkanAccelerationStructureBuffer*>(InBuffer);
+	BufferOffset = InBufferOffset;
 }
 
-void FVulkanRayTracingScene::BuildAccelerationStructure(FVulkanCommandListContext& CommandContext)
+void FVulkanRayTracingScene::BuildAccelerationStructure(
+	FVulkanCommandListContext& CommandContext,
+	FVulkanResourceMultiBuffer* InScratchBuffer, uint32 InScratchOffset,
+	FVulkanResourceMultiBuffer* InInstanceBuffer, uint32 InInstanceOffset,
+	uint32 NumInstanceDescs)
 {
+	check(AccelerationStructureBuffer.IsValid());
+	check(InInstanceBuffer == nullptr); // External instance buffer not supported yet
+	const bool bExternalScratchBuffer = InScratchBuffer != nullptr;
+
 	FVkRtTLASBuildData BuildData;
 	GetTLASBuildData(Device->GetInstanceHandle(), NumInstances, InstanceBuffer.Address, BuildData);
 
+	if (!bExternalScratchBuffer)
+	{
+		FVulkanRayTracingAllocator::Allocate(
+			Device->GetPhysicalHandle(),
+			Device->GetInstanceHandle(),
+			BuildData.SizesInfo.buildScratchSize,
+			VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			Scratch);
+
+		Scratch.Address = GetDeviceAddress(Device->GetInstanceHandle(), Scratch.Buffer);
+	}
+
 	VkAccelerationStructureCreateInfoKHR TLASCreateInfo;
 	ZeroVulkanStruct(TLASCreateInfo, VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR);
-	TLASCreateInfo.buffer = Allocation.Buffer;
+	TLASCreateInfo.buffer = AccelerationStructureBuffer->GetBuffer();
+	TLASCreateInfo.offset = BufferOffset;
 	TLASCreateInfo.size = BuildData.SizesInfo.accelerationStructureSize;
 	TLASCreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
 	VERIFYVULKANRESULT(vkCreateAccelerationStructureKHR(Device->GetInstanceHandle(), &TLASCreateInfo, VULKAN_CPU_ALLOCATOR, &Handle));
 
 	BuildData.GeometryInfo.dstAccelerationStructure = Handle;
-	BuildData.GeometryInfo.scratchData.deviceAddress = Scratch.Address;
+
+	if (bExternalScratchBuffer)
+	{
+		BuildData.GeometryInfo.scratchData.deviceAddress = GetDeviceAddress(Device->GetInstanceHandle(), InScratchBuffer->GetHandle()) + InScratchOffset;
+	}
+	else
+	{
+		BuildData.GeometryInfo.scratchData.deviceAddress = Scratch.Address;
+	}
 
 	VkAccelerationStructureBuildRangeInfoKHR TLASBuildRangeInfo;
 	TLASBuildRangeInfo.primitiveCount = NumInstances;
@@ -527,8 +544,12 @@ void FVulkanRayTracingScene::BuildAccelerationStructure(FVulkanCommandListContex
 	CommandBufferManager.SubmitActiveCmdBuffer();
 	CommandBufferManager.PrepareForNewActiveCommandBuffer();
 
-	Free(InstanceBuffer);
-	Free(Scratch);
+	FVulkanRayTracingAllocator::Free(InstanceBuffer);
+
+	if (!bExternalScratchBuffer)
+	{
+		FVulkanRayTracingAllocator::Free(Scratch);
+	}
 }
 
 FRayTracingAccelerationStructureSize FVulkanDynamicRHI::RHICalcRayTracingSceneSize(uint32 MaxInstances, ERayTracingAccelerationStructureFlags Flags)
@@ -578,6 +599,11 @@ FRayTracingGeometryRHIRef FVulkanDynamicRHI::RHICreateRayTracingGeometry(const F
 	return new FVulkanRayTracingGeometry(Initializer, GetDevice());
 }
 
+void FVulkanCommandListContext::RHIBindAccelerationStructureMemory(FRHIRayTracingScene* Scene, FRHIBuffer* Buffer, uint32 BufferOffset)
+{
+	ResourceCast(Scene)->BindBuffer(Buffer, BufferOffset);
+}
+
 // Todo: High level rhi call should have transitioned and verified vb and ib to read for each segment
 void FVulkanCommandListContext::RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params)
 {
@@ -596,7 +622,13 @@ void FVulkanCommandListContext::RHIBuildAccelerationStructures(const TArrayView<
 void FVulkanCommandListContext::RHIBuildAccelerationStructure(const FRayTracingSceneBuildParams& SceneBuildParams)
 {
 	FVulkanRayTracingScene* const Scene = ResourceCast(SceneBuildParams.Scene);
-	Scene->BuildAccelerationStructure(*this);
+	FVulkanResourceMultiBuffer* const ScratchBuffer = ResourceCast(SceneBuildParams.ScratchBuffer);
+	FVulkanResourceMultiBuffer* const InstanceBuffer = ResourceCast(SceneBuildParams.InstanceBuffer);
+	Scene->BuildAccelerationStructure(
+		*this, 
+		ScratchBuffer, SceneBuildParams.ScratchBufferOffset, 
+		InstanceBuffer, SceneBuildParams.InstanceBufferOffset, 
+		SceneBuildParams.NumInstances);
 }
 
 void FVulkanCommandListContext::RHIRayTraceOcclusion(FRHIRayTracingScene* Scene, FRHIShaderResourceView* Rays, FRHIUnorderedAccessView* Output, uint32 NumRays)
