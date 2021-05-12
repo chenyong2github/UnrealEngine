@@ -44,7 +44,7 @@ public:
 	static UIKRigProcessor* MakeNewIKRigProcessor(UObject* Outer);
 	 
 	/** setup a new processor to run the given IKRig asset  */
-	void Initialize(UIKRigDefinition* InRigDefinition);
+	void Initialize(UIKRigDefinition* InRigDefinition, const FReferenceSkeleton& RefSkeleton);
 
 	//
 	// BEGIN UPDATE SEQUENCE FUNCTIONS
