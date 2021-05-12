@@ -62,19 +62,22 @@ public:
  */
 struct FLidarPointCloudBatchElementUserData
 {
+	FRHIShaderResourceView* TreeBuffer;
 	FRHIShaderResourceView* DataBuffer;
 	int32 bEditorView;
 	FVector SelectionColor;
-	int32 IndexDivisor;
 	FVector LocationOffset;
+	float RootCellSize;
+	FVector RootExtent;
+	int32 bUsePerPointScaling;
 	float VirtualDepth;
-	float SpriteSize;
-	int32 bUseLODColoration;
 	float SpriteSizeMultiplier;
+	float ReversedVirtualDepthMultiplier;
 	FVector ViewRightVector;
 	FVector ViewUpVector;
 	int32 bUseCameraFacing;
 	int32 bUseScreenSizeScaling;
+	int32 bUseStaticBuffers;
 	FVector BoundsSize;
 	FVector ElevationColorBottom;
 	FVector ElevationColorTop;
@@ -110,19 +113,22 @@ public:
 	void GetElementShaderBindings(const class FSceneInterface* Scene, const FSceneView* View, const FMeshMaterialShader* Shader, const EVertexInputStreamType InputStreamType, ERHIFeatureLevel::Type FeatureLevel,
 		const FVertexFactory* VertexFactory, const FMeshBatchElement& BatchElement, class FMeshDrawSingleShaderBindings& ShaderBindings, FVertexInputStreamArray& VertexStreams) const;
 
+	LAYOUT_FIELD(FShaderResourceParameter, TreeBuffer);
 	LAYOUT_FIELD(FShaderResourceParameter, DataBuffer);
 	LAYOUT_FIELD(FShaderParameter, bEditorView);
 	LAYOUT_FIELD(FShaderParameter, SelectionColor);
-	LAYOUT_FIELD(FShaderParameter, IndexDivisor);
 	LAYOUT_FIELD(FShaderParameter, LocationOffset);
+	LAYOUT_FIELD(FShaderParameter, RootCellSize);
+	LAYOUT_FIELD(FShaderParameter, RootExtent);
+	LAYOUT_FIELD(FShaderParameter, bUsePerPointScaling);
 	LAYOUT_FIELD(FShaderParameter, VirtualDepth);
-	LAYOUT_FIELD(FShaderParameter, SpriteSize);
-	LAYOUT_FIELD(FShaderParameter, bUseLODColoration);
 	LAYOUT_FIELD(FShaderParameter, SpriteSizeMultiplier);
+	LAYOUT_FIELD(FShaderParameter, ReversedVirtualDepthMultiplier);
 	LAYOUT_FIELD(FShaderParameter, ViewRightVector);
 	LAYOUT_FIELD(FShaderParameter, ViewUpVector);
 	LAYOUT_FIELD(FShaderParameter, bUseCameraFacing);
 	LAYOUT_FIELD(FShaderParameter, bUseScreenSizeScaling);
+	LAYOUT_FIELD(FShaderParameter, bUseStaticBuffers);
 	LAYOUT_FIELD(FShaderParameter, BoundsSize);
 	LAYOUT_FIELD(FShaderParameter, ElevationColorBottom);
 	LAYOUT_FIELD(FShaderParameter, ElevationColorTop);
@@ -142,33 +148,48 @@ public:
 	LAYOUT_FIELD(FShaderParameter, bStartClipped);
 };
 
-/**
- * Implementation of the custom Vertex Factory, containing only a ZeroStride position stream.
- */
-class FLidarPointCloudVertexFactory : public FVertexFactory
+class FLidarPointCloudVertexFactoryBase : public FVertexFactory
 {
-	DECLARE_VERTEX_FACTORY_TYPE(FLidarPointCloudVertexFactory);
+	DECLARE_VERTEX_FACTORY_TYPE(FLidarPointCloudVertexFactoryBase);
 
 public:
 	static bool ShouldCache(const FVertexFactoryShaderPermutationParameters& Parameters) { return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5); }
-    static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
-	FLidarPointCloudVertexFactory() : FVertexFactory(ERHIFeatureLevel::SM5) { }
+	FLidarPointCloudVertexFactoryBase() : FVertexFactory(ERHIFeatureLevel::SM5) { }
+};
+
+class FLidarPointCloudVertexFactory : public FLidarPointCloudVertexFactoryBase
+{
+public:
+	void Initialize(FLidarPointCloudPoint* Data, int32 NumPoints);
 
 private:
+	class FPointCloudVertexBuffer : public FVertexBuffer
+	{
+		FLidarPointCloudPoint* Data;
+		int32 NumPoints;
+
+	public:
+		virtual void InitRHI() override;
+		virtual FString GetFriendlyName() const override { return TEXT("FPointCloudVertexBuffer"); }
+		friend FLidarPointCloudVertexFactory;
+	} VertexBuffer;
+
+	virtual void InitRHI() override;
+	virtual void ReleaseRHI() override;
+};
+
+/**
+ * Implementation of the custom Vertex Factory, containing only a ZeroStride position stream.
+ */
+class FLidarPointCloudSharedVertexFactory : public FLidarPointCloudVertexFactoryBase
+{
 	/** Very simple implementation of a ZeroStride Vertex Buffer */
 	class FPointCloudVertexBuffer : public FVertexBuffer
 	{
 	public:
-		virtual void InitRHI() override
-		{
-			FRHIResourceCreateInfo CreateInfo(TEXT("FPointCloudVertexBuffer"));
-			VertexBufferRHI = RHICreateBuffer(sizeof(FVector), BUF_Static | BUF_VertexBuffer | BUF_ZeroStride, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-			void* Buffer = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector), RLM_WriteOnly);
-			FMemory::Memzero(Buffer, sizeof(FVector));
-			RHIUnlockBuffer(VertexBufferRHI);
-		}
-
+		virtual void InitRHI() override;
 		virtual FString GetFriendlyName() const override { return TEXT("FPointCloudVertexBuffer"); }
 	} VertexBuffer;
 
@@ -178,4 +199,4 @@ private:
 
 /** A set of global render resources shared between all Lidar Point Cloud proxies */
 extern TGlobalResource<FLidarPointCloudIndexBuffer> GLidarPointCloudIndexBuffer;
-extern TGlobalResource<FLidarPointCloudVertexFactory> GLidarPointCloudVertexFactory;
+extern TGlobalResource<FLidarPointCloudSharedVertexFactory> GLidarPointCloudSharedVertexFactory;

@@ -53,6 +53,11 @@ void FLidarPointCloudStyle::Initialize()
 
 	StyleSet->Set("LidarPointCloudEditor.EditMode", new IMAGE_PLUGIN_BRUSH("icon_edit_40", Icon40x40));
 	
+	StyleSet->Set("LidarPointCloudEditor.BoxSelection", new IMAGE_PLUGIN_BRUSH("icon_selbox_40", Icon40x40));
+	StyleSet->Set("LidarPointCloudEditor.PolygonalSelection", new IMAGE_PLUGIN_BRUSH("icon_selpoly_40", Icon40x40));
+	StyleSet->Set("LidarPointCloudEditor.LassoSelection", new IMAGE_PLUGIN_BRUSH("icon_sellasso_40", Icon40x40));
+	StyleSet->Set("LidarPointCloudEditor.PaintSelection", new IMAGE_PLUGIN_BRUSH("icon_selpaint_40", Icon40x40));
+
 	StyleSet->Set("LidarPointCloudEditor.InvertSelection", new IMAGE_PLUGIN_BRUSH("icon_invsel_40", Icon40x40));
 
 	StyleSet->Set("LidarPointCloudEditor.HideSelected", new IMAGE_PLUGIN_BRUSH("icon_hideselected_40", Icon40x40));

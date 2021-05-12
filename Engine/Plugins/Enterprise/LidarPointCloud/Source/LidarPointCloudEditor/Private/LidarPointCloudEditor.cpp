@@ -2,10 +2,10 @@
 
 #include "LidarPointCloudEditor.h"
 #include "LidarPointCloudEditorViewport.h"
+#include "LidarPointCloudEditorViewportClient.h"
 #include "LidarPointCloud.h"
 #include "LidarPointCloudShared.h"
 #include "ILidarPointCloudEditorModule.h"
-
 #include "LidarPointCloudEditorCommands.h"
 
 #include "Misc/ScopedSlowTask.h"
@@ -27,6 +27,45 @@ const FName PointCloudEditorAppName = FName(TEXT("LidarPointCloudEditorApp"));
 
 const FName FLidarPointCloudEditor::DetailsTabId(TEXT("Details"));
 const FName FLidarPointCloudEditor::ViewportTabId(TEXT("Viewport"));
+
+void SetSelectionMethod(FLidarPointCloudEditor* Editor, ELidarPointCloudSelectionMethod NewSelectionMethod)
+{
+	if (SLidarPointCloudEditorViewport* ViewportPtr = Editor->GetViewport().Get())
+	{
+		if (FLidarPointCloudEditorViewportClient* ViewportClientPtr = ViewportPtr->GetEditorViewportClient().Get())
+		{
+			ViewportClientPtr->SetSelectionMethod(NewSelectionMethod);
+		}
+	}
+
+	Editor->RegenerateMenusAndToolbars();
+}
+
+FName GetSelectionIcon(FLidarPointCloudEditor* Editor)
+{
+	if (SLidarPointCloudEditorViewport* ViewportPtr = Editor->GetViewport().Get())
+	{
+		if (FLidarPointCloudEditorViewportClient* ViewportClientPtr = ViewportPtr->GetEditorViewportClient().Get())
+		{
+			switch (ViewportClientPtr->GetSelectionMethod())
+			{
+			case ELidarPointCloudSelectionMethod::Box:
+				return "LidarPointCloudEditor.BoxSelection";
+
+			case ELidarPointCloudSelectionMethod::Polygonal:
+				return "LidarPointCloudEditor.PolygonalSelection";
+
+			case ELidarPointCloudSelectionMethod::Lasso:
+				return "LidarPointCloudEditor.LassoSelection";
+
+			case ELidarPointCloudSelectionMethod::Paint:
+				return "LidarPointCloudEditor.PaintSelection";
+			}
+		}
+	}
+
+	return "";
+}
 
 /////////////////////////////////////////////////////
 // SPointCloudPropertiesTabBody
@@ -188,12 +227,12 @@ void FLidarPointCloudEditor::InitPointCloudEditor(const EToolkitMode::Type Mode,
 	RegenerateMenusAndToolbars();
 }
 
-void FLidarPointCloudEditor::SelectPointsByFrustum(const FConvexVolume& SelectionFrustum, bool bAdditive)
+void FLidarPointCloudEditor::SelectPointsByConvexVolume(const FConvexVolume& ConvexVolume, bool bAdditive)
 {
 	if (bAdditive && SelectedPoints.Num() > 0)
 	{
-		TArray<FLidarPointCloudPoint*> NewSelectedPoints;
-		PointCloudBeingEdited->GetPointsInFrustum(NewSelectedPoints, SelectionFrustum, true);
+		TArray64<FLidarPointCloudPoint*> NewSelectedPoints;
+		PointCloudBeingEdited->GetPointsInConvexVolume(NewSelectedPoints, ConvexVolume, true);
 
 		// Merge selections and set selection flag for new selection of points
 		for (FLidarPointCloudPoint** Data = NewSelectedPoints.GetData(), **DataEnd = Data + NewSelectedPoints.Num(); Data != DataEnd; ++Data)
@@ -210,7 +249,7 @@ void FLidarPointCloudEditor::SelectPointsByFrustum(const FConvexVolume& Selectio
 		// Clear any existing selection
 		DeselectPoints();
 
-		PointCloudBeingEdited->GetPointsInFrustum(SelectedPoints, SelectionFrustum, true);
+		PointCloudBeingEdited->GetPointsInConvexVolume(SelectedPoints, ConvexVolume, true);
 
 		// Set selection flag for new selection of points
 		for (FLidarPointCloudPoint** Data = SelectedPoints.GetData(), **DataEnd = Data + SelectedPoints.Num(); Data != DataEnd; ++Data)
@@ -219,13 +258,13 @@ void FLidarPointCloudEditor::SelectPointsByFrustum(const FConvexVolume& Selectio
 		}
 	}	
 
-	PointCloudBeingEdited->Octree.MarkRenderDataInFrustumDirty(SelectionFrustum);
+	PointCloudBeingEdited->Octree.MarkRenderDataInConvexVolumeDirty(ConvexVolume);
 }
 
-void FLidarPointCloudEditor::DeselectPointsByFrustum(const FConvexVolume& SelectionFrustum)
+void FLidarPointCloudEditor::DeselectPointsByConvexVolume(const FConvexVolume& ConvexVolume)
 {
-	TArray<FLidarPointCloudPoint*> NewSelectedPoints;
-	PointCloudBeingEdited->GetPointsInFrustum(NewSelectedPoints, SelectionFrustum, true);
+	TArray64<FLidarPointCloudPoint*> NewSelectedPoints;
+	PointCloudBeingEdited->GetPointsInConvexVolume(NewSelectedPoints, ConvexVolume, true);
 
 	// Unset selection flag for selection of points
 	for (FLidarPointCloudPoint** Data = NewSelectedPoints.GetData(), **DataEnd = Data + NewSelectedPoints.Num(); Data != DataEnd; ++Data)
@@ -246,7 +285,57 @@ void FLidarPointCloudEditor::DeselectPointsByFrustum(const FConvexVolume& Select
 
 	SelectedPoints.Shrink();
 
-	PointCloudBeingEdited->Octree.MarkRenderDataInFrustumDirty(SelectionFrustum);
+	PointCloudBeingEdited->Octree.MarkRenderDataInConvexVolumeDirty(ConvexVolume);
+}
+
+void FLidarPointCloudEditor::SelectPointsBySphere(const FSphere& Sphere)
+{
+	TArray64<FLidarPointCloudPoint*> NewSelectedPoints;
+	PointCloudBeingEdited->GetPointsInSphere(NewSelectedPoints, Sphere, true);
+
+	// Reserve space
+	const int64 NeededSlack = FMath::Max(0LL, NewSelectedPoints.Num() - SelectedPoints.GetSlack());
+	if (NeededSlack > 0)
+	{
+		SelectedPoints.Reserve(NeededSlack);
+	}
+
+	// Merge selections and set selection flag for new selection of points
+	for (FLidarPointCloudPoint** Data = NewSelectedPoints.GetData(), **DataEnd = Data + NewSelectedPoints.Num(); Data != DataEnd; ++Data)
+	{
+		if (!(*Data)->bSelected)
+		{
+			(*Data)->bSelected = true;
+			SelectedPoints.Add(*Data);
+		}
+	}
+
+	PointCloudBeingEdited->Octree.MarkRenderDataInSphereDirty(Sphere);
+}
+
+void FLidarPointCloudEditor::DeselectPointsBySphere(const FSphere& Sphere)
+{
+	TArray64<FLidarPointCloudPoint*> NewSelectedPoints;
+	PointCloudBeingEdited->GetPointsInSphere(NewSelectedPoints, Sphere, true);
+
+	// Unset selection flag for selection of points
+	for (FLidarPointCloudPoint** Data = NewSelectedPoints.GetData(), **DataEnd = Data + NewSelectedPoints.Num(); Data != DataEnd; ++Data)
+	{
+		(*Data)->bSelected = false;
+	}
+
+	// Remove deselected points from the selection list
+	FLidarPointCloudPoint** Data = SelectedPoints.GetData();
+	for (int32 i = 0; i < SelectedPoints.Num(); ++Data, ++i)
+	{
+		if (!(*Data)->bSelected)
+		{
+			SelectedPoints.RemoveAtSwap(i--, 1, false);
+			--Data;
+		}
+	}
+
+	PointCloudBeingEdited->Octree.MarkRenderDataInSphereDirty(Sphere);
 }
 
 void FLidarPointCloudEditor::DeselectPoints()
@@ -475,6 +564,28 @@ TSharedRef<SWidget> FLidarPointCloudEditor::GenerateDeleteMenuContent()
 	return MenuBuilder.MakeWidget();
 }
 
+TSharedRef<SWidget> FLidarPointCloudEditor::GenerateSelectionMenuContent()
+{
+	FMenuBuilder MenuBuilder(true, Viewport->GetCommandList());
+
+	MenuBuilder.BeginSection("SelectionMethod", LOCTEXT("SelectionMethod", "Selection Method"));
+	{
+		MenuBuilder.AddMenuEntry(FLidarPointCloudEditorCommands::Get().BoxSelection);
+		MenuBuilder.AddMenuEntry(FLidarPointCloudEditorCommands::Get().PolygonalSelection);
+		MenuBuilder.AddMenuEntry(FLidarPointCloudEditorCommands::Get().LassoSelection);
+		MenuBuilder.AddMenuEntry(FLidarPointCloudEditorCommands::Get().PaintSelection);
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("SelectionOptions", LOCTEXT("SelectionOptions", "Selection Options"));
+	{
+		MenuBuilder.AddMenuEntry(FLidarPointCloudEditorCommands::Get().InvertSelection);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
 void FLidarPointCloudEditor::ExtendToolBar()
 {
 	struct Local
@@ -507,7 +618,13 @@ void FLidarPointCloudEditor::ExtendToolBar()
 			ToolbarBuilder.BeginSection("LidarPointCloudEdit");
 			{
 				ToolbarBuilder.AddToolBarButton(Commands->EditMode);
-				ToolbarBuilder.AddToolBarButton(Commands->InvertSelection);
+				ToolbarBuilder.AddComboButton(
+					FUIAction(FExecuteAction(), FCanExecuteAction::CreateSP(ThisEditor, &FLidarPointCloudEditor::IsEditMode)),
+					FOnGetContent::CreateSP(ThisEditor, &FLidarPointCloudEditor::GenerateSelectionMenuContent),
+					LOCTEXT("Selection_Label", "Selection"),
+					LOCTEXT("Selection_Tooltip", "Selection options"),
+					FSlateIcon(FLidarPointCloudStyle::GetStyleSetName(), GetSelectionIcon(ThisEditor))
+				);			
 				ToolbarBuilder.AddToolBarButton(Commands->HideSelected);
 				ToolbarBuilder.AddToolBarButton(Commands->UnhideAll);
 				ToolbarBuilder.AddComboButton(
@@ -553,6 +670,10 @@ void FLidarPointCloudEditor::BindEditorCommands()
 	CommandList->MapAction(Commands.BuildCollision, FExecuteAction::CreateSP(this, &FLidarPointCloudEditor::BuildCollision));
 	CommandList->MapAction(Commands.RemoveCollision, FExecuteAction::CreateSP(this, &FLidarPointCloudEditor::RemoveCollision), FCanExecuteAction::CreateSP(this, &FLidarPointCloudEditor::HasCollisionData));
 	CommandList->MapAction(Commands.EditMode, FExecuteAction::CreateSP(this, &FLidarPointCloudEditor::ToggleEditMode), FCanExecuteAction(), FIsActionChecked::CreateSP(this, &FLidarPointCloudEditor::IsEditMode));
+	CommandList->MapAction(Commands.BoxSelection, FExecuteAction::CreateLambda([this]{ SetSelectionMethod(this, ELidarPointCloudSelectionMethod::Box); }), FCanExecuteAction::CreateSP(this, &FLidarPointCloudEditor::IsEditMode));
+	CommandList->MapAction(Commands.PolygonalSelection, FExecuteAction::CreateLambda([this]{ SetSelectionMethod(this, ELidarPointCloudSelectionMethod::Polygonal); }), FCanExecuteAction::CreateSP(this, &FLidarPointCloudEditor::IsEditMode));
+	CommandList->MapAction(Commands.LassoSelection, FExecuteAction::CreateLambda([this] { SetSelectionMethod(this, ELidarPointCloudSelectionMethod::Lasso); }), FCanExecuteAction::CreateSP(this, &FLidarPointCloudEditor::IsEditMode));
+	CommandList->MapAction(Commands.PaintSelection, FExecuteAction::CreateLambda([this] { SetSelectionMethod(this, ELidarPointCloudSelectionMethod::Paint); }), FCanExecuteAction::CreateSP(this, &FLidarPointCloudEditor::IsEditMode));
 	CommandList->MapAction(Commands.InvertSelection, FExecuteAction::CreateSP(this, &FLidarPointCloudEditor::InvertSelection), FCanExecuteAction::CreateSP(this, &FLidarPointCloudEditor::HasSelectedPoints));
 	CommandList->MapAction(Commands.UnhideAll, FExecuteAction::CreateSP(this, &FLidarPointCloudEditor::UnhideAll));
 	CommandList->MapAction(Commands.HideSelected, FExecuteAction::CreateSP(this, &FLidarPointCloudEditor::HidePoints), FCanExecuteAction::CreateSP(this, &FLidarPointCloudEditor::HasSelectedPoints));

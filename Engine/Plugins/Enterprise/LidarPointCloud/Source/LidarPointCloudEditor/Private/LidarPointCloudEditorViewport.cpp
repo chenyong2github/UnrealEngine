@@ -10,6 +10,7 @@
 #include "EditorStyleSet.h"
 #include "ComponentReregisterContext.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Components/StaticMeshComponent.h"
 
 ///////////////////////////////////////////////////////////
 // SPointCloudEditorViewportToolbar
@@ -73,12 +74,29 @@ void SLidarPointCloudEditorViewport::Construct(const FArguments& InArgs)
 
 	SetPreviewCloud(PointCloud);
 
+	// Add Paint Brush
+	static UStaticMesh* PaintBrushMesh = Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere")));
+	static UMaterialInterface* PaintBrushMat = Cast<UMaterialInterface>(StaticLoadObject(UMaterialInterface::StaticClass(), nullptr, TEXT("/LidarPointCloud/Materials/M_LidarSelectionBrush.M_LidarSelectionBrush")));
+
+	PaintBrush = NewObject<UStaticMeshComponent>();
+	PaintBrush->SetMobility(EComponentMobility::Movable);
+	PaintBrush->SetVisibility(false);
+	PaintBrush->SetStaticMesh(PaintBrushMesh);
+	PaintBrush->SetMaterial(0, PaintBrushMat);
+	PreviewScene.AddComponent(PaintBrush, FTransform::Identity);
+
 	ViewportOverlay->AddSlot()
 		.VAlign(VAlign_Top)
 		.HAlign(HAlign_Left)
-		.Padding(FMargin(10.0f, 40.0f, 10.0f, 10.0f))
+		.Padding(FMargin(4.0f, 35.0f))
 		[
-			SAssignNew(OverlayTextVerticalBox, SVerticalBox)
+			SAssignNew(OverlayTextBackground, SBorder)
+				.BorderBackgroundColor(FSlateColor(FLinearColor(0,0,0,0)))
+				.BorderImage(FCoreStyle::Get().GetBrush("GenericWhiteBox"))
+				.Padding(FMargin(10.0f))
+				[
+					SAssignNew(OverlayTextVerticalBox, SVerticalBox)
+				]
 		];
 }
 
@@ -105,6 +123,7 @@ SLidarPointCloudEditorViewport::~SLidarPointCloudEditorViewport()
 void SLidarPointCloudEditorViewport::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject(PreviewCloudComponent);
+	Collector.AddReferencedObject(PaintBrush);
 	Collector.AddReferencedObject(PointCloud);
 }
 
@@ -145,6 +164,8 @@ void SLidarPointCloudEditorViewport::PopulateOverlayText(const TArray<FOverlayTe
 				.TextStyle(FEditorStyle::Get(), TextItem.Style)
 			];
 	}
+
+	OverlayTextBackground->SetBorderBackgroundColor(FSlateColor(FLinearColor(0, 0, 0, TextItems.Num() > 0 ? 0.45f : 0)));
 }
 
 bool SLidarPointCloudEditorViewport::IsVisible() const

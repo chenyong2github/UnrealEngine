@@ -11,6 +11,7 @@
 #include "Serialization/CustomVersion.h"
 #include "Misc/ScopeTryLock.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Engine/Engine.h"
 #include "LatentActions.h"
 #include "PhysicsEngine/BodySetup.h"
@@ -273,6 +274,7 @@ ULidarPointCloud::ULidarPointCloud()
 	: MaxCollisionError(100)
 	, NormalsQuality(40)
 	, NormalsNoiseTolerance(1)
+	, bOptimizedForDynamicData(false)
 	, Octree(this)
 	, OriginalCoordinates(FDoubleVector::ZeroVector)
 	, LocationOffset(FDoubleVector::ZeroVector)
@@ -397,6 +399,11 @@ void ULidarPointCloud::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 			SetSourcePath(SourcePath.FilePath);
 		}
 
+		if (IS_PROPERTY(bOptimizedForDynamicData))
+		{
+			SetOptimizedForDynamicData(bOptimizedForDynamicData);
+		}
+
 		if (IS_PROPERTY(MaxCollisionError))
 		{
 			if (MaxCollisionError < Octree.GetEstimatedPointSpacing())
@@ -464,14 +471,24 @@ void ULidarPointCloud::GetPointsInBox(TArray<FLidarPointCloudPoint*>& SelectedPo
 	GetPointsInBox_Internal(SelectedPoints, Box, bVisibleOnly);
 }
 
+void ULidarPointCloud::GetPointsInConvexVolume(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly)
+{
+	GetPointsInConvexVolume_Internal(SelectedPoints, ConvexVolume, bVisibleOnly);
+}
+
+void ULidarPointCloud::GetPointsInConvexVolume(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly)
+{
+	GetPointsInConvexVolume_Internal(SelectedPoints, ConvexVolume, bVisibleOnly);
+}
+
 void ULidarPointCloud::GetPointsInFrustum(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly)
 {
-	GetPointsInFrustum_Internal(SelectedPoints, Frustum, bVisibleOnly);
+	GetPointsInConvexVolume_Internal(SelectedPoints, Frustum, bVisibleOnly);
 }
 
 void ULidarPointCloud::GetPointsInFrustum(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly)
 {
-	GetPointsInFrustum_Internal(SelectedPoints, Frustum, bVisibleOnly);
+	GetPointsInConvexVolume_Internal(SelectedPoints, Frustum, bVisibleOnly);
 }
 
 TArray<FLidarPointCloudPoint> ULidarPointCloud::GetPointsAsCopies(bool bReturnWorldSpace, int32 StartIndex, int32 Count) const
@@ -558,6 +575,25 @@ void ULidarPointCloud::SetSourcePath(const FString& NewSourcePath)
 	}
 }
 
+void ULidarPointCloud::SetOptimizedForDynamicData(bool bNewOptimizedForDynamicData)
+{
+#if WITH_EDITOR
+	FScopedSlowTask ProgressDialog(1, LOCTEXT("Optimize", "Optimizing Point Clouds..."));
+	ProgressDialog.MakeDialog();
+#endif
+
+	bOptimizedForDynamicData = bNewOptimizedForDynamicData;
+
+	if (bOptimizedForDynamicData)
+	{
+		Octree.OptimizeForDynamicData();
+	}
+	else
+	{
+		Octree.OptimizeForStaticData();
+	}
+}
+
 void ULidarPointCloud::BuildCollision()
 {
 	if (bCollisionBuildInProgress)
@@ -636,6 +672,9 @@ void ULidarPointCloud::Reimport(const FLidarPointCloudAsyncParameters& AsyncPara
 		TSharedRef<FLidarPointCloudNotification, ESPMode::ThreadSafe> Notification = Notifications.Create("Importing Point Cloud", &bAsyncCancelled);
 
 		const bool bCenter = GetDefault<ULidarPointCloudSettings>()->bAutoCenterOnImport;
+
+		// Reset the data optimization flag on import
+		bOptimizedForDynamicData = false;
 
 		// The actual import function to be executed
 		auto ImportFunction = [this, Notification, AsyncParameters, bCenter]
@@ -873,72 +912,86 @@ bool ULidarPointCloud::InsertPoints_NoLock(FLidarPointCloudPoint** InPoints, con
 template<typename T>
 bool ULidarPointCloud::InsertPoints_NoLock_Internal(T InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled, TFunction<void(float)> ProgressCallback)
 {
-	const int32 MaxBatchSize = GetDefault<ULidarPointCloudSettings>()->MultithreadingInsertionBatchSize;
-	
-	// Minimum amount of points to progress to count as 1%
-	int64 RefreshStatusFrequency = Count * 0.01f;
-	FThreadSafeCounter64 ProcessedPoints(0);
-	int64 TotalProcessedPoints = 0;
-
-	const int32 NumThreads = FMath::Min(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 1, (int32)(Count / MaxBatchSize) + 1);
-	TArray<TFuture<void>>ThreadResults;
-	ThreadResults.Reserve(NumThreads);
-	const int64 NumPointsPerThread = Count / NumThreads + 1;
-
-	FCriticalSection ProgressCallbackLock;
-
-	// Fire threads
-	for (int32 ThreadID = 0; ThreadID < NumThreads; ThreadID++)
+	if (bOptimizedForDynamicData)
 	{
-		ThreadResults.Add(Async(EAsyncExecution::Thread, [this, ThreadID, DuplicateHandling, bRefreshPointsBounds, MaxBatchSize, NumPointsPerThread, RefreshStatusFrequency, &ProcessedPoints, &TotalProcessedPoints, InPoints, Count, &ProgressCallback, &ProgressCallbackLock, &bCanceled, &Translation]
+		Octree.InsertPoints(InPoints, Count, DuplicateHandling, bRefreshPointsBounds, Translation);
+		
+		if (ProgressCallback)
 		{
-			int64 Idx = ThreadID * NumPointsPerThread;
-			int64 MaxIdx = FMath::Min(Idx + NumPointsPerThread, Count);
-			T DataPointer = InPoints + Idx;
+			ProgressCallback(1.0);
+		}
+		
+		return true;
+	}
+	else
+	{
+		const int32 MaxBatchSize = GetDefault<ULidarPointCloudSettings>()->MultithreadingInsertionBatchSize;
 
-			while (Idx < MaxIdx)
-			{
-				int32 BatchSize = FMath::Min(MaxIdx - Idx, (int64)MaxBatchSize);
+		// Minimum amount of points to progress to count as 1%
+		int64 RefreshStatusFrequency = Count * 0.01f;
+		FThreadSafeCounter64 ProcessedPoints(0);
+		int64 TotalProcessedPoints = 0;
 
-				Octree.InsertPoints(DataPointer, BatchSize, DuplicateHandling, bRefreshPointsBounds, Translation);
+		const int32 NumThreads = FMath::Min(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 1, (int32)(Count / MaxBatchSize) + 1);
+		TArray<TFuture<void>>ThreadResults;
+		ThreadResults.Reserve(NumThreads);
+		const int64 NumPointsPerThread = Count / NumThreads + 1;
 
-				if (ProgressCallback)
+		FCriticalSection ProgressCallbackLock;
+
+		// Fire threads
+		for (int32 ThreadID = 0; ThreadID < NumThreads; ThreadID++)
+		{
+			ThreadResults.Add(Async(EAsyncExecution::Thread, [this, ThreadID, DuplicateHandling, bRefreshPointsBounds, MaxBatchSize, NumPointsPerThread, RefreshStatusFrequency, &ProcessedPoints, &TotalProcessedPoints, InPoints, Count, &ProgressCallback, &ProgressCallbackLock, &bCanceled, &Translation]
 				{
-					ProcessedPoints.Add(BatchSize);
-					if (ProcessedPoints.GetValue() > RefreshStatusFrequency)
+					int64 Idx = ThreadID * NumPointsPerThread;
+					int64 MaxIdx = FMath::Min(Idx + NumPointsPerThread, Count);
+					T DataPointer = InPoints + Idx;
+
+					while (Idx < MaxIdx)
 					{
-						FScopeLock Lock(&ProgressCallbackLock);
-						TotalProcessedPoints += ProcessedPoints.GetValue();
-						ProcessedPoints.Reset();
-						ProgressCallback((double)TotalProcessedPoints / Count);
+						int32 BatchSize = FMath::Min(MaxIdx - Idx, (int64)MaxBatchSize);
+
+						Octree.InsertPoints(DataPointer, BatchSize, DuplicateHandling, bRefreshPointsBounds, Translation);
+
+						if (ProgressCallback)
+						{
+							ProcessedPoints.Add(BatchSize);
+							if (ProcessedPoints.GetValue() > RefreshStatusFrequency)
+							{
+								FScopeLock Lock(&ProgressCallbackLock);
+								TotalProcessedPoints += ProcessedPoints.GetValue();
+								ProcessedPoints.Reset();
+								ProgressCallback((double)TotalProcessedPoints / Count);
+							}
+						}
+
+						if (bCanceled && *bCanceled)
+						{
+							break;
+						}
+
+						Idx += BatchSize;
+						DataPointer += BatchSize;
 					}
-				}
+				}));
+		}
 
-				if (bCanceled && *bCanceled)
-				{
-					break;
-				}
+		// Sync
+		for (const TFuture<void>& ThreadResult : ThreadResults)
+		{
+			ThreadResult.Get();
+		}
 
-				Idx += BatchSize;
-				DataPointer += BatchSize;
-			}
-		}));
+		// Do not attempt to touch Render Data if being destroyed
+		if (!HasAnyFlags(RF_BeginDestroyed))
+		{
+			// Update PointCloudAssetRegistryCache
+			PointCloudAssetRegistryCache.PointCount = FString::FromInt(Octree.GetNumPoints());
+		}
+
+		return !bCanceled || !(*bCanceled);
 	}
-
-	// Sync
-	for (const TFuture<void>& ThreadResult : ThreadResults)
-	{
-		ThreadResult.Get();
-	}
-
-	// Do not attempt to touch Render Data if being destroyed
-	if (!HasAnyFlags(RF_BeginDestroyed))
-	{
-		// Update PointCloudAssetRegistryCache
-		PointCloudAssetRegistryCache.PointCount = FString::FromInt(Octree.GetNumPoints());
-	}
-
-	return !bCanceled || !(*bCanceled);
 }
 
 template<typename T>
@@ -1367,9 +1420,9 @@ void ULidarPointCloud::GetPointsInBox_Internal(TArray<FLidarPointCloudPoint*, T>
 }
 
 template <typename T>
-void ULidarPointCloud::GetPointsInFrustum_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly)
+void ULidarPointCloud::GetPointsInConvexVolume_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly)
 {
-	Octree.GetPointsInFrustum(SelectedPoints, Frustum, bVisibleOnly);
+	Octree.GetPointsInConvexVolume(SelectedPoints, ConvexVolume, bVisibleOnly);
 }
 
 template <typename T>

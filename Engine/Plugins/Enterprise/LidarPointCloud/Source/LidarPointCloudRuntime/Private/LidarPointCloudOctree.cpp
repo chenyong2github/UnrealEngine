@@ -11,8 +11,6 @@
 #include "Misc/FileHelper.h"
 #include "Rendering/LidarPointCloudRenderBuffers.h"
 
-DECLARE_CYCLE_STAT(TEXT("Node Streaming"), STAT_NodeStreaming, STATGROUP_LidarPointCloud);
-
 int32 FLidarPointCloudOctree::MaxNodeDepth = (1 << (sizeof(FLidarPointCloudOctreeNode::Depth) * 8)) - 1;
 int32 FLidarPointCloudOctree::MaxBucketSize = 200;
 int32 FLidarPointCloudOctree::NodeGridResolution = 96;
@@ -125,6 +123,7 @@ FLidarPointCloudOctreeNode::FLidarPointCloudOctreeNode(FLidarPointCloudOctree* T
 	, NumPoints(0)
 	, bHasData(false)
 	, DataCache(nullptr)
+	, VertexFactory(nullptr)
 	, bRenderDataDirty(true)
 	, bHasDataPending(false)
 	, bCanReleaseData(true)
@@ -143,17 +142,7 @@ FLidarPointCloudOctreeNode::~FLidarPointCloudOctreeNode()
 		Children[i] = nullptr;
 	}
 
-	if (DataCache)
-	{
-		FLidarPointCloudRenderBuffer* Tmp = DataCache;
-		ENQUEUE_RENDER_COMMAND(LidarPointCloudOctreeNode_ReleaseDataCache)([Tmp](FRHICommandListImmediate& RHICmdList)
-			{
-				Tmp->ReleaseResource();
-				delete Tmp;
-			});
-
-		DataCache = nullptr;
-	}
+	ReleaseDataCache();
 }
 
 void FLidarPointCloudOctreeNode::UpdateNumVisiblePoints()
@@ -198,28 +187,64 @@ FLidarPointCloudPoint* FLidarPointCloudOctreeNode::GetPersistentData() const
 	return GetData();
 }
 
-bool FLidarPointCloudOctreeNode::BuildDataCache()
+bool FLidarPointCloudOctreeNode::BuildDataCache(bool bUseStaticBuffers)
 {
-	// Only inlcude nodes with available data
+	// Only include nodes with available data
 	if (HasData() && GetNumVisiblePoints())
 	{
-		if (!DataCache)
+		// Make sure to release the unnecessary buffer
+		if (bUseStaticBuffers)
 		{
-			DataCache = new FLidarPointCloudRenderBuffer();
-			bRenderDataDirty = true;
+			if (DataCache)
+			{
+				DataCache->ReleaseResource();
+				delete DataCache;
+				DataCache = nullptr;
+				bRenderDataDirty = true;
+			}
+
+			if (!VertexFactory)
+			{
+				VertexFactory = new FLidarPointCloudVertexFactory();
+				bRenderDataDirty = true;
+			}
+		}
+		else
+		{
+			if (VertexFactory)
+			{
+				VertexFactory->ReleaseResource();
+				delete VertexFactory;
+				VertexFactory = nullptr;
+				bRenderDataDirty = true;
+			}
+
+			if (!DataCache)
+			{
+				DataCache = new FLidarPointCloudRenderBuffer();
+				bRenderDataDirty = true;
+			}
 		}
 
 		if (bRenderDataDirty)
 		{
-			DataCache->Resize(GetNumVisiblePoints() * 5);
-
-			uint8* StructuredBuffer = (uint8*)RHILockBuffer(DataCache->Buffer, 0, GetNumVisiblePoints() * 20, RLM_WriteOnly);
-			for (FLidarPointCloudPoint* P = GetData(), *DataEnd = P + GetNumVisiblePoints(); P != DataEnd; ++P)
+			if (DataCache)
 			{
-				FMemory::Memcpy(StructuredBuffer, P, 20);
-				StructuredBuffer += 20;
+				DataCache->Resize(GetNumVisiblePoints() * 5);
+
+				uint8* StructuredBuffer = (uint8*)RHILockBuffer(DataCache->Buffer, 0, GetNumVisiblePoints() * sizeof(FLidarPointCloudPoint), RLM_WriteOnly);
+				for (FLidarPointCloudPoint* P = GetData(), *DataEnd = P + GetNumVisiblePoints(); P != DataEnd; ++P)
+				{
+					FMemory::Memcpy(StructuredBuffer, P, sizeof(FLidarPointCloudPoint));
+					StructuredBuffer += sizeof(FLidarPointCloudPoint);
+				}
+				RHIUnlockBuffer(DataCache->Buffer);
 			}
-			RHIUnlockBuffer(DataCache->Buffer);
+
+			if (VertexFactory)
+			{
+				VertexFactory->Initialize(GetData(), GetNumVisiblePoints());
+			}
 
 			bRenderDataDirty = false;
 		}
@@ -253,7 +278,39 @@ FLidarPointCloudOctreeNode* FLidarPointCloudOctreeNode::GetChildNodeAtLocation(c
 	return nullptr;
 }
 
+uint8 FLidarPointCloudOctreeNode::GetChildrenBitmask() const
+{
+	uint8 Bitmask = 0;
+
+	for (FLidarPointCloudOctreeNode* Child : Children)
+	{
+		Bitmask |= 1 << Child->LocationInParent;
+	}
+
+	return Bitmask;
+}
+
 void FLidarPointCloudOctreeNode::InsertPoints(const FLidarPointCloudPoint* Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation)
+{
+	InsertPoints_Internal(Points, Count, DuplicateHandling, Translation);
+}
+
+void FLidarPointCloudOctreeNode::InsertPoints_Dynamic(const FLidarPointCloudPoint* Points, const int64& Count, const FVector& Translation)
+{
+	if (Translation.IsNearlyZero())
+	{
+		Data.Append(Points, Count);
+	}
+	else
+	{
+		for (const FLidarPointCloudPoint* PointsPtr = Points, *DataEnd = PointsPtr + Count; PointsPtr != DataEnd; ++PointsPtr)
+		{
+			Data.Emplace(PointsPtr->Location + Translation, PointsPtr->Color, !!PointsPtr->bVisible, PointsPtr->ClassificationID, PointsPtr->Normal);
+		}
+	}
+}
+
+void FLidarPointCloudOctreeNode::InsertPoints_Static(const FLidarPointCloudPoint* Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation)
 {
 	const FLidarPointCloudOctree::FSharedLODData& LODData = Tree->SharedData[Depth];
 
@@ -438,12 +495,36 @@ void FLidarPointCloudOctreeNode::InsertPoints(const FLidarPointCloudPoint* Point
 	{
 		if (PointBuckets[i].Num() > 0)
 		{
-			GetChildNodeAtLocation(i)->InsertPoints(PointBuckets[i].GetData(), PointBuckets[i].Num(), DuplicateHandling, FVector::ZeroVector);
+			GetChildNodeAtLocation(i)->InsertPoints_Static(PointBuckets[i].GetData(), PointBuckets[i].Num(), DuplicateHandling, FVector::ZeroVector);
 		}
 	}
 }
 
 void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudPoint** Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation)
+{
+	InsertPoints_Internal(Points, Count, DuplicateHandling, Translation);
+}
+
+void FLidarPointCloudOctreeNode::InsertPoints_Dynamic(FLidarPointCloudPoint** Points, const int64& Count, const FVector& Translation)
+{
+	if (Translation.IsNearlyZero())
+	{
+		for (FLidarPointCloudPoint** PointsPtr = Points, **DataEnd = PointsPtr + Count; PointsPtr != DataEnd; ++PointsPtr)
+		{
+			Data.Add(**PointsPtr);
+		}
+	}
+	else
+	{
+		for (FLidarPointCloudPoint** PointsPtr = Points, **DataEnd = PointsPtr + Count; PointsPtr != DataEnd; ++PointsPtr)
+		{
+			const FLidarPointCloudPoint* PointData = *PointsPtr;
+			Data.Emplace(PointData->Location + Translation, PointData->Color, !!PointData->bVisible, PointData->ClassificationID, PointData->Normal);
+		}
+	}
+}
+
+void FLidarPointCloudOctreeNode::InsertPoints_Static(FLidarPointCloudPoint** Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation)
 {
 	const FLidarPointCloudOctree::FSharedLODData& LODData = Tree->SharedData[Depth];
 
@@ -628,8 +709,30 @@ void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudPoint** Points, co
 	{
 		if (PointBuckets[i].Num() > 0)
 		{
-			GetChildNodeAtLocation(i)->InsertPoints(PointBuckets[i].GetData(), PointBuckets[i].Num(), DuplicateHandling, FVector::ZeroVector);
+			GetChildNodeAtLocation(i)->InsertPoints_Static(PointBuckets[i].GetData(), PointBuckets[i].Num(), DuplicateHandling, FVector::ZeroVector);
 		}
+	}
+}
+
+template <typename T>
+void FLidarPointCloudOctreeNode::InsertPoints_Internal(T Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation)
+{
+	if (Tree->IsOptimizedForDynamicData())
+	{
+		Data.Reserve(NumPoints + Count);
+
+		InsertPoints_Dynamic(Points, Count, Translation);
+
+		NumPoints = Data.Num();
+		bCanReleaseData = false;
+		bRenderDataDirty = true;
+		bHasData = true;
+
+		AddPointCount(Count);
+	}
+	else
+	{
+		InsertPoints_Static(Points, Count, DuplicateHandling, Translation);
 	}
 }
 
@@ -640,6 +743,7 @@ void FLidarPointCloudOctreeNode::Empty(bool bRecursive)
 		bHasData = false;
 		bInUse = false;
 		NumPoints = 0;
+		NumVisiblePoints = 0;
 		Data.Empty();
 	}
 
@@ -704,16 +808,30 @@ void FLidarPointCloudOctreeNode::ReleaseData(bool bForce)
 		}
 	}
 
-	if (DataCache)
+	ReleaseDataCache();
+}
+
+void FLidarPointCloudOctreeNode::ReleaseDataCache()
+{
+	if (VertexFactory || DataCache)
 	{
-		FLidarPointCloudRenderBuffer* Tmp = DataCache;
-		ENQUEUE_RENDER_COMMAND(LidarPointCloudOctreeNode_ReleaseDataCache)([Tmp](FRHICommandListImmediate& RHICmdList)
+		ENQUEUE_RENDER_COMMAND(LidarPointCloudOctreeNode_ReleaseDataCache)([DataCache = DataCache, VertexFactory = VertexFactory](FRHICommandListImmediate& RHICmdList)
 			{
-				Tmp->ReleaseResource();
-				delete Tmp;
+				if (DataCache)
+				{
+					DataCache->ReleaseResource();
+					delete DataCache;
+				}
+
+				if (VertexFactory)
+				{
+					VertexFactory->ReleaseResource();
+					delete VertexFactory;
+				}
 			});
 
 		DataCache = nullptr;
+		VertexFactory = nullptr;
 	}
 }
 
@@ -1007,10 +1125,10 @@ void FLidarPointCloudOctree::GetPointsInBox_Internal(TArray<const FLidarPointClo
 }
 
 template <typename T>
-void FLidarPointCloudOctree::GetPointsInFrustum_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly)
+void FLidarPointCloudOctree::GetPointsInConvexVolume_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly)
 {
 	SelectedPoints.Reset();
-	PROCESS_IN_FRUSTUM({ SelectedPoints.Add(Point); });
+	PROCESS_IN_CONVEX_VOLUME({ SelectedPoints.Add(Point); });
 }
 
 template <typename T>
@@ -1147,14 +1265,24 @@ void FLidarPointCloudOctree::GetPointsInBox(TArray<const FLidarPointCloudPoint*>
 	GetPointsInBox_Internal(SelectedPoints, Box, bVisibleOnly);
 }
 
-void FLidarPointCloudOctree::GetPointsInFrustum(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly)
+void FLidarPointCloudOctree::GetPointsInConvexVolume(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly)
 {
-	GetPointsInFrustum_Internal(SelectedPoints, Frustum, bVisibleOnly);
+	GetPointsInConvexVolume_Internal(SelectedPoints, ConvexVolume, bVisibleOnly);
+}
+
+void FLidarPointCloudOctree::GetPointsInConvexVolume(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly)
+{
+	GetPointsInConvexVolume_Internal(SelectedPoints, ConvexVolume, bVisibleOnly);
 }
 
 void FLidarPointCloudOctree::GetPointsInFrustum(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly)
 {
-	GetPointsInFrustum_Internal(SelectedPoints, Frustum, bVisibleOnly);
+	GetPointsInConvexVolume_Internal(SelectedPoints, Frustum, bVisibleOnly);
+}
+
+void FLidarPointCloudOctree::GetPointsInFrustum(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly)
+{
+	GetPointsInConvexVolume_Internal(SelectedPoints, Frustum, bVisibleOnly);
 }
 
 void FLidarPointCloudOctree::GetPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, const FTransform* LocalToWorld, int64 StartIndex /*= 0*/, int64 Count /*= -1*/) const
@@ -1584,9 +1712,20 @@ void FLidarPointCloudOctree::MarkRenderDataDirty()
 	ITERATE_NODES({ CurrentNode->bRenderDataDirty = true; }, true);
 }
 
+void FLidarPointCloudOctree::MarkRenderDataInSphereDirty(const FSphere& Sphere)
+{
+	const FBox Box(Sphere.Center - FVector(Sphere.W), Sphere.Center + FVector(Sphere.W));
+	ITERATE_NODES({ CurrentNode->bRenderDataDirty = true; }, NODE_IN_BOX);
+}
+
+void FLidarPointCloudOctree::MarkRenderDataInConvexVolumeDirty(const FConvexVolume& ConvexVolume)
+{
+	ITERATE_NODES({ CurrentNode->bRenderDataDirty = true; }, NODE_IN_CONVEX_VOLUME);
+}
+
 void FLidarPointCloudOctree::MarkRenderDataInFrustumDirty(const FConvexVolume& Frustum)
 {
-	ITERATE_NODES({ CurrentNode->bRenderDataDirty = true; }, NODE_IN_FRUSTUM);
+	MarkRenderDataInConvexVolumeDirty(Frustum);
 }
 
 void FLidarPointCloudOctree::Initialize(const FVector& InExtent)
@@ -1914,8 +2053,6 @@ void FLidarPointCloudOctree::Empty(bool bDestroyNodes)
 
 		QueuedNodes.Empty();
 		NodesInUse.Reset();
-
-		MarkTraversalOctreesForInvalidation();
 	}
 	else
 	{
@@ -1927,6 +2064,8 @@ void FLidarPointCloudOctree::Empty(bool bDestroyNodes)
 	{
 		Count.Reset();
 	}
+
+	MarkTraversalOctreesForInvalidation();
 }
 
 void FLidarPointCloudOctree::UnregisterTraversalOctree(FLidarPointCloudTraversalOctree* TraversalOctree)
@@ -1961,86 +2100,72 @@ void FLidarPointCloudOctree::UnregisterTraversalOctree(FLidarPointCloudTraversal
 	}
 }
 
-void FLidarPointCloudOctree::QueueNode(FLidarPointCloudOctreeNode* Node, float Lifetime)
+void FLidarPointCloudOctree::StreamNodes(TArray<FLidarPointCloudOctreeNode*>& Nodes, const float& CurrentTime)
 {
-	if (!Node)
+	const float BulkDataLifetime = CurrentTime + GetDefault<ULidarPointCloudSettings>()->CachedNodeLifetime;
+
+	for (FLidarPointCloudOctreeNode* Node : Nodes)
 	{
-		return;
+		// Refresh lifetime of the BulkData
+		Node->BulkDataLifetime = BulkDataLifetime;
+
+		// Enqueue for processing
+		QueuedNodes.Enqueue(Node);
 	}
 
-	// Refresh lifetime of the BulkData, if requested
-	if (Lifetime > -1)
+	// Only one process at a time
+	if (!bStreamingBusy)
 	{
-		Node->BulkDataLifetime = Lifetime;
-	}
+		bStreamingBusy = true;
 
-	// Mark the node as being in use
-	if (!Node->bInUse)
-	{
-		Node->bInUse = true;
-		NodesInUse.Add(Node);
-	}
-
-	// No need to do anything, if the node already has data loaded or loading
-	if (Node->HasData() || Node->bHasDataPending)
-	{
-		return;
-	}
-
-	QueuedNodes.Enqueue(Node);
-	Node->bHasDataPending = true;
-}
-
-void FLidarPointCloudOctree::StreamQueuedNodes()
-{
-	SCOPE_CYCLE_COUNTER(STAT_NodeStreaming);
-
-	// Only one streaming operation at a time
-	if (bStreamingBusy)
-	{
-		return;
-	}
-
-	bStreamingBusy = true;
-	
-	// Perform data streaming in a separate thread
-	Async(EAsyncExecution::ThreadPool, [this]
-	{
-		SCOPE_CYCLE_COUNTER(STAT_NodeStreaming);
-
-		FLidarPointCloudOctreeNode* CurrentNode = nullptr;
-		while (QueuedNodes.Dequeue(CurrentNode))
+		// Add previously queued nodes
+		FLidarPointCloudOctreeNode* QueuedNode;
+		while (QueuedNodes.Dequeue(QueuedNode))
 		{
-			StreamNodeData(CurrentNode);
-			CurrentNode->bHasDataPending = false;
+			if (!QueuedNode->bInUse)
+			{
+				NodesInUse.Add(QueuedNode);
+			}
+		}
+
+		// Process nodes' streaming requests
+		// If the release lock has been acquired, release unused nodes in one go
+		// Otherwise, just load the ones requested
+		FScopeTryLock ReleaseLock(&DataReleaseLock);
+		if(ReleaseLock.IsLocked())
+		{
+			for (int32 i = 0; i < NodesInUse.Num(); ++i)
+			{
+				FLidarPointCloudOctreeNode* Node = NodesInUse[i];
+
+				// Check if the node should still be in use
+				Node->bInUse = Node->BulkDataLifetime >= CurrentTime;
+
+				// If node is alive, make sure it has data loaded
+				if (Node->bInUse)
+				{
+					Node->GetData();
+				}
+				// ... otherwise, release it
+				else
+				{
+					Node->ReleaseData();				
+					NodesInUse.RemoveAtSwap(i--, 1, false);
+				}
+			}
+		}
+		else
+		{
+			for (FLidarPointCloudOctreeNode* Node : NodesInUse)
+			{
+				if (Node->BulkDataLifetime >= CurrentTime)
+				{
+					Node->GetData();
+				}
+			}
 		}
 
 		bStreamingBusy = false;
-	});
-}
-
-void FLidarPointCloudOctree::UnloadOldNodes(const float& CurrentTime)
-{
-	SCOPE_CYCLE_COUNTER(STAT_NodeStreaming);
-
-	// Skip if the data is locked
-	FScopeTryLock ReleaseLock(&DataReleaseLock);
-	if (!ReleaseLock.IsLocked())
-	{
-		return;
-	}
-
-	for(int32 i = 0; i < NodesInUse.Num(); ++i)
-	{
-		FLidarPointCloudOctreeNode* Node = NodesInUse[i];
-
-		// Unload data, if it expired
-		if (Node->BulkDataLifetime < CurrentTime)
-		{
-			Node->ReleaseData();
-			Node->bInUse = false;
-			NodesInUse.RemoveAtSwap(i--, 1, false);
-		}
 	}
 }
 
@@ -2064,6 +2189,52 @@ void FLidarPointCloudOctree::ReleaseAllNodes(bool bIncludePersistent)
 	if (bIncludePersistent)
 	{
 		bIsFullyLoaded = false;
+	}
+}
+
+bool FLidarPointCloudOctree::IsOptimizedForDynamicData() const
+{
+	return Owner && Owner->IsOptimizedForDynamicData();
+}
+
+void FLidarPointCloudOctree::OptimizeForDynamicData()
+{
+	if (!IsOptimizedForDynamicData())
+	{
+		// Move all data from the nodes
+		TArray<FLidarPointCloudPoint> SourceData;
+		SourceData.Reserve(GetNumPoints());
+		
+		ITERATE_NODES(
+		{
+			SourceData.Append(CurrentNode->Data);
+			CurrentNode->Data.Empty();
+		}, true);
+
+		// Destroy current tree structure
+		Empty(true);
+
+		bIsFullyLoaded = true;
+
+		// Insert data back into the tree
+		InsertPoints_Internal(SourceData.GetData(), SourceData.Num(), ELidarPointCloudDuplicateHandling::Ignore, false, FVector::ZeroVector);
+	}
+}
+
+void FLidarPointCloudOctree::OptimizeForStaticData()
+{
+	if (IsOptimizedForDynamicData())
+	{
+		// Move data out of the root node
+		TArray<FLidarPointCloudPoint> SourceData = MoveTemp(Root.Data);
+		
+		// Destroy current tree structure
+		Empty(true);
+
+		bIsFullyLoaded = true;
+
+		// Insert data back into the tree
+		InsertPoints_Internal(SourceData.GetData(), SourceData.Num(), ELidarPointCloudDuplicateHandling::Ignore, false, FVector::ZeroVector);
 	}
 }
 
@@ -2426,8 +2597,9 @@ FLidarPointCloudTraversalOctreeNode::FLidarPointCloudTraversalOctreeNode()
 
 }
 
-void FLidarPointCloudTraversalOctreeNode::Build(FLidarPointCloudOctreeNode* Node, const FTransform& LocalToWorld, const FVector& LocationOffset)
+void FLidarPointCloudTraversalOctreeNode::Build(FLidarPointCloudTraversalOctree* TraversalOctree, FLidarPointCloudOctreeNode* Node, const FTransform& LocalToWorld, const FVector& LocationOffset)
 {
+	Octree = TraversalOctree;
 	DataNode = Node;
 	Center = LocalToWorld.TransformPosition(Node->Center + LocationOffset);
 	Depth = Node->Depth;
@@ -2437,18 +2609,21 @@ void FLidarPointCloudTraversalOctreeNode::Build(FLidarPointCloudOctreeNode* Node
 	{
 		if (Node->Children[i])
 		{
-			Children[i].Build(Node->Children[i], LocalToWorld, LocationOffset);
+			Children[i].Build(Octree, Node->Children[i], LocalToWorld, LocationOffset);
 			Children[i].Parent = this;
 		}
 	}
 }
 
-uint8 FLidarPointCloudTraversalOctreeNode::CalculateVirtualDepth(const TArray<float>& LevelWeights, const float& VDMultiplier, const float& PointSizeBias) const
+void FLidarPointCloudTraversalOctreeNode::CalculateVirtualDepth(const TArray<float>& LevelWeights, const float& PointSizeBias)
 {
 	if (!IsAvailable())
 	{
-		return 0;
+		VirtualDepth = 255;
+		return;
 	}
+
+	const float& VDMultiplier = Octree->VirtualDepthMultiplier;
 
 	TQueue<const FLidarPointCloudTraversalOctreeNode*> Nodes;
 	const FLidarPointCloudTraversalOctreeNode* CurrentNode = nullptr;
@@ -2466,7 +2641,7 @@ uint8 FLidarPointCloudTraversalOctreeNode::CalculateVirtualDepth(const TArray<fl
 			}
 		}
 
-		float LocalVDFactor = CurrentNode->Depth * CurrentNode->DataNode->GetNumPoints() * LevelWeights[CurrentNode->Depth];
+		float LocalVDFactor = CurrentNode->Depth * CurrentNode->DataNode->GetNumVisiblePoints() * LevelWeights[CurrentNode->Depth];
 
 		if (CurrentNode != this && PointSizeBias > 0)
 		{
@@ -2489,11 +2664,20 @@ uint8 FLidarPointCloudTraversalOctreeNode::CalculateVirtualDepth(const TArray<fl
 			}
 		}
 
-		NumPoints += CurrentNode->DataNode->GetNumPoints() * LevelWeights[CurrentNode->Depth];
+		NumPoints += CurrentNode->DataNode->GetNumVisiblePoints() * LevelWeights[CurrentNode->Depth];
 	}
 
 	// Calculate the Virtual Depth
-	return VDFactor / NumPoints * VDMultiplier;
+	VirtualDepth = VDFactor / NumPoints * VDMultiplier;
+}
+
+//////////////////////////////////////////////////////////// FLidarPointCloudTraversalOctreeNodeSizeData
+
+FLidarPointCloudTraversalOctreeNodeSizeData::FLidarPointCloudTraversalOctreeNodeSizeData(FLidarPointCloudTraversalOctreeNode* Node, const float& Size, const int32& ProxyIndex)
+	: Node(Node)
+	, Size(Size)
+	, ProxyIndex(ProxyIndex)
+{
 }
 
 //////////////////////////////////////////////////////////// FLidarPointCloudTraversalOctree
@@ -2538,9 +2722,71 @@ FLidarPointCloudTraversalOctree::FLidarPointCloudTraversalOctree(FLidarPointClou
 	}
 
 	// Star cloning the node data
-	Root.Build(&Octree->Root, LocalToWorld, Octree->Owner->GetLocationOffset().ToVector());
+	Root.Build(this, &Octree->Root, LocalToWorld, Octree->Owner->GetLocationOffset().ToVector());
 
 	bValid = true;
+}
+
+void FLidarPointCloudTraversalOctree::CalculateVisibilityStructure(TArray<uint32>& OutData)
+{
+	FLidarPointCloudTraversalOctreeNode* CurrentNode = nullptr;
+	TQueue<FLidarPointCloudTraversalOctreeNode*> Nodes;
+	Nodes.Enqueue(&Root);
+
+	uint16 NumNodesInQueue = 1;
+
+	while (Nodes.Dequeue(CurrentNode))
+	{
+		uint32& Data = OutData[OutData.AddZeroed()];
+		Data |= (0x00FFFF00 & (NumNodesInQueue-- << 8));
+		Data |= 0xFF000000 & (CurrentNode->VirtualDepth << 24);
+
+		for (uint8 i = 0; i < 8; ++i)
+		{
+			for (FLidarPointCloudTraversalOctreeNode& Child : CurrentNode->Children)
+			{
+				if (Child.bSelected && Child.DataNode->LocationInParent == i)
+				{
+					Nodes.Enqueue(&Child);
+					Data |= 1 << i;
+					++NumNodesInQueue;
+				}
+			}
+		}
+	}
+}
+
+void FLidarPointCloudTraversalOctree::CalculateLevelWeightsForSelectedNodes(TArray<float>& OutLevelWeights)
+{
+	FLidarPointCloudTraversalOctreeNode* CurrentNode = nullptr;
+	TQueue<FLidarPointCloudTraversalOctreeNode*> Nodes;
+	Nodes.Enqueue(&Root);
+
+	OutLevelWeights.Empty();
+	OutLevelWeights.AddZeroed(NumLODs);
+	TArray<int64> PointCount;
+	PointCount.AddZeroed(NumLODs);
+	int64 NumPoints = 0;
+
+	while (Nodes.Dequeue(CurrentNode))
+	{
+		for (FLidarPointCloudTraversalOctreeNode& Child : CurrentNode->Children)
+		{
+			if (Child.bSelected)
+			{
+				Nodes.Enqueue(&Child);
+			}
+		}
+
+		const int32 NumPointsInNode = CurrentNode->DataNode->GetNumVisiblePoints();
+		PointCount[CurrentNode->Depth] += NumPointsInNode;
+		NumPoints += NumPointsInNode;
+	}
+
+	for (int32 i = 0; i < OutLevelWeights.Num(); i++)
+	{
+		OutLevelWeights[i] = NumPoints > 0 ? (float)PointCount[i] / NumPoints : 0;
+	}
 }
 
 FLidarPointCloudTraversalOctree::~FLidarPointCloudTraversalOctree()
