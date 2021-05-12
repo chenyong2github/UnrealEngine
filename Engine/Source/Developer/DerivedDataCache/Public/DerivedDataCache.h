@@ -131,6 +131,10 @@ public:
 	 * The callback will always be called for every key, and may be called from an arbitrary thread.
 	 * Records may finish storing in any order, and from multiple threads concurrently.
 	 *
+	 * A cache store is free to interpret a record containing only a key as a request to delete that
+	 * record from the store. Records containing payloads without data must be supported, and should
+	 * reference matching payloads that it already has stored, or otherwise return an error.
+	 *
 	 * @param Records      The cache records to store. Must have a key.
 	 * @param Context      A description of the request. An object path is typically sufficient.
 	 * @param Policy       Flags to control the behavior of the request. See ECachePolicy.
@@ -228,7 +232,7 @@ struct FCacheGetCompleteParams
 	 * The key is always populated. The remainder of the record is populated when Status is Ok.
 	 *
 	 * The value, attachments, and metadata may be skipped based on cache policy flags. When a value
-	 * or attachment has been skipped, it will have a payload but its buffer will be null.
+	 * or attachment has been skipped, it will have a payload but its data will be null.
 	 */
 	FCacheRecord&& Record;
 
@@ -247,7 +251,7 @@ struct FCacheGetPayloadCompleteParams
 	 *
 	 * The ID is always populated.
 	 * The hash and size are populated when Status is Ok.
-	 * The buffer is populated when Status is Ok and the data was not skipped by the cache policy.
+	 * The data is populated when Status is Ok and the data was not skipped by the cache policy.
 	 */
 	FPayload&& Payload;
 

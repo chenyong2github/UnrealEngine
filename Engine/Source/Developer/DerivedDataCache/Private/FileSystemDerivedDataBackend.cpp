@@ -943,7 +943,7 @@ public:
 			{
 				UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%.*s'"),
 					*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
-				COOK_STAT(Timer.AddHit(Payload.GetData().GetRawSize()));
+				COOK_STAT(Timer.AddHit(Payload.GetRawSize()));
 				if (OnComplete)
 				{
 					OnComplete({Key.CacheKey, MoveTemp(Payload), EStatus::Ok});
@@ -968,9 +968,8 @@ private:
 	uint64 MeasureCacheRecord(const FCacheRecord& Record) const
 	{
 		return Record.GetMeta().GetSize() +
-			Record.GetValuePayload().GetData().GetRawSize() +
-			Algo::TransformAccumulate(Record.GetAttachmentPayloads(),
-				[](const FPayload& Payload) { return Payload.GetData().GetRawSize(); }, uint64(0));
+			Record.GetValuePayload().GetRawSize() +
+			Algo::TransformAccumulate(Record.GetAttachmentPayloads(), &FPayload::GetRawSize, uint64(0));
 	}
 
 	bool PutCacheRecord(const FCacheRecord& Record, FStringView Context, ECachePolicy Policy) const
@@ -1144,8 +1143,9 @@ private:
 
 	bool PutCachePayload(const FCacheKey& Key, FStringView Context, const FPayload& Payload, FCbWriter& Writer, bool bStoreInline) const
 	{
-		const FCompressedBuffer& CompressedBuffer = Payload.GetData();
-		const FIoHash RawHash = CompressedBuffer.GetRawHash();
+		const FIoHash& RawHash = Payload.GetRawHash();
+		const bool bHasData = Payload.HasData();
+		bStoreInline &= bHasData;
 
 		if (!bStoreInline)
 		{
@@ -1153,7 +1153,12 @@ private:
 			BuildCachePayloadPath(Key, RawHash, Path);
 			if (!FileExists(Path))
 			{
+				if (!bHasData)
+				{
+					return false;
+				}
 				// Save the compressed buffer with its hash as a header.
+				const FCompressedBuffer& CompressedBuffer = Payload.GetData();
 				const FIoHash CompressedHash = FIoHash::HashBuffer(CompressedBuffer.GetCompressed());
 				const FCompositeBuffer BufferWithHash(
 					FSharedBuffer::Clone(MakeMemoryView(CompressedHash.GetBytes())),
@@ -1172,9 +1177,10 @@ private:
 
 		Writer.BeginObject();
 		Writer.AddObjectId("Id"_ASV, FCbObjectId(Payload.GetId().GetView()));
-		Writer.AddInteger("RawSize"_ASV, CompressedBuffer.GetRawSize());
+		Writer.AddInteger("RawSize"_ASV, Payload.GetRawSize());
 		if (bStoreInline)
 		{
+			const FCompressedBuffer& CompressedBuffer = Payload.GetData();
 			Writer.AddHash("RawHash"_ASV, RawHash);
 			Writer.AddHash("CompressedHash"_ASV, FIoHash::HashBuffer(CompressedBuffer.GetCompressed()));
 			Writer.AddBinary("CompressedData"_ASV, CompressedBuffer.GetCompressed());
@@ -1221,7 +1227,7 @@ private:
 
 	FPayload GetCachePayload(const FCacheKey& Key, FStringView Context, ECachePolicy Policy, const FPayload& Payload) const
 	{
-		if (Payload.GetData())
+		if (Payload.HasData())
 		{
 			return Payload;
 		}
