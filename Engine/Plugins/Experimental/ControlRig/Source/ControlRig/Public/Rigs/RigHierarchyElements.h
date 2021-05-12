@@ -535,6 +535,9 @@ public:
 
 protected:
 
+	// helper function to be called as part of URigHierarchy::CopyHierarchy
+	virtual void CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy) {}
+
 	mutable uint16 TopologyVersion;
 	mutable TArray<FRigBaseElement*> CachedChildren;
 
@@ -600,9 +603,11 @@ protected:
 public:
 	
 	virtual void CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial) override;
-
-protected:
 	
+protected:
+
+	virtual void CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy) override;
+
 	friend struct FRigBaseElement;
 	friend struct FRigSingleParentElement;
 	friend struct FRigMultiParentElement;
@@ -631,7 +636,9 @@ public:
 	FRigTransformElement* ParentElement;
 
 protected:
-	
+
+	virtual void CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy) override;
+
 	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
 	{
 		return InElement->GetType() == ERigElementType::Bone ||
@@ -658,7 +665,7 @@ public:
 
 	virtual void Save(FArchive& A, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
 	virtual void Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
-
+	
 	UPROPERTY(BlueprintReadOnly, Category = RigElement)
 	FRigCurrentAndInitialTransform Parent;
 
@@ -668,6 +675,8 @@ public:
 	TMap<FRigElementKey, int32> IndexLookup;
 
 protected:
+
+	virtual void CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy) override;
 
 	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
 	{
@@ -709,7 +718,9 @@ public:
 	ERigBoneType BoneType;
 
 protected:
-	
+
+	virtual void CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy) override;
+
 	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
 	{
 		return InElement->GetType() == ERigElementType::Bone;
@@ -879,6 +890,12 @@ struct CONTROLRIG_API FRigControlElement : public FRigMultiParentElement
 	virtual void Save(FArchive& A, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
 	virtual void Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
 
+private:
+
+	virtual void CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy) override;
+
+public:
+
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Control, meta=(ShowOnlyInnerProperties))
 	FRigControlSettings Settings;
 
@@ -924,6 +941,12 @@ public:
 	virtual void Save(FArchive& A, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
 	virtual void Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
 
+private:
+
+	virtual void CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy) override;
+
+public:
+	
 	float Value;
 	
 	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
@@ -974,6 +997,12 @@ public:
 	virtual void Save(FArchive& A, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
 	virtual void Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
 
+private:
+
+	virtual void CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy) override;
+
+public:
+
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Control, meta=(ShowOnlyInnerProperties))
 	FRigRigidBodySettings Settings;
 
@@ -1013,6 +1042,8 @@ public:
 protected:
 
 	FRigSocketGetWorldTransformDelegate GetWorldTransformDelegate;
+
+	virtual void CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy) override;
 
 	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
 	{

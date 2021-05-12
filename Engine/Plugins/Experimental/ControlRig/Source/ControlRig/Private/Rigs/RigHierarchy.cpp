@@ -105,49 +105,12 @@ void URigHierarchy::Load(FArchive& Ar)
 		FRigElementKey Key;
 		Ar << Key;
 
-		FRigBaseElement* Element = nullptr;
-		switch(Key.Type)
-		{
-			case ERigElementType::Bone:
-			{
-				Element = new FRigBoneElement();
-				break;
-			}
-			case ERigElementType::Null:
-			{
-				Element = new FRigNullElement();
-				break;
-			}
-			case ERigElementType::Control:
-			{
-				Element = new FRigControlElement();
-				break;
-			}
-			case ERigElementType::Curve:
-			{
-				Element = new FRigCurveElement();
-				break;
-			}
-			case ERigElementType::RigidBody:
-			{
-				Element = new FRigRigidBodyElement();
-				break;
-			}
-			case ERigElementType::Socket:
-			{
-				Element = new FRigSocketElement();
-				break;
-			}
-			default:
-			{
-				ensure(false);
-			}
-		}
-
+		FRigBaseElement* Element = MakeElement(Key.Type);
 		check(Element);
 
 		Element->SubIndex = Num(Key.Type);
 		Element->Index = Elements.Add(Element);
+		ElementsPerType[(int32)Key.Type].Add(Element);
 		IndexLookup.Add(Key, Element->Index);
 		
 		Element->Load(Ar, this, FRigBaseElement::StaticData);
@@ -182,45 +145,8 @@ void URigHierarchy::Load(FArchive& Ar)
 		}
 	}
 
-	TArray<int32> CountedAsChild;
-	CountedAsChild.AddZeroed(Elements.Num());
-
-	for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
-	{
-		TArray<FRigBaseElement*> Children = GetChildren(Elements[ElementIndex]);
-		for (FRigBaseElement* Child : Children)
-		{
-			CountedAsChild[Child->Index]++;
-		}
-	}
-
-	for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
-	{
-		FRigBaseElement* Element = Elements[ElementIndex];
-		if(GetNumberOfParents(Element) > 0)
-		{
-			continue;
-		}
-		
-		Traverse(Element, true, [this, &CountedAsChild](FRigBaseElement* InElement, bool& bContinue)
-		{
-
-			int32& Count = CountedAsChild[InElement->Index];
-			Count = FMath::Max(Count - 1, 0);
-
-			// if the count is 0 it means we have hit all parents
-			// and we can finally notify of our existence
-			if(Count == 0)
-			{
-				Notify(ERigHierarchyNotification::ElementAdded, InElement);
-				bContinue = true;
-			}
-			else if(Count > 0)
-			{
-				bContinue = false;
-			}
-		});
-	}
+	UpdateAllCachedChildren();
+	Notify(ERigHierarchyNotification::HierarchyReset, nullptr);
 }
 
 void URigHierarchy::Reset()
@@ -233,6 +159,11 @@ void URigHierarchy::Reset()
 		delete Elements[ElementIndex];
 	}
 	Elements.Reset();
+	ElementsPerType.Reset();
+	for(int32 TypeIndex=0;TypeIndex<(int32)ERigElementType::All;TypeIndex++)
+	{
+		ElementsPerType.Add(TArray<FRigBaseElement*>());
+	}
 	IndexLookup.Reset();
 
 	Notify(ERigHierarchyNotification::HierarchyReset, nullptr);
@@ -244,14 +175,33 @@ void URigHierarchy::CopyHierarchy(URigHierarchy* InHierarchy)
 	
 	Reset();
 
-	FRigVMByteArray ArchiveBytes;
-	FMemoryWriter ArchiveWriter(ArchiveBytes);
-	InHierarchy->Save(ArchiveWriter);
+	for(int32 Index = 0; Index < InHierarchy->Num(); Index++)
+	{
+		FRigBaseElement* Source = InHierarchy->Get(Index);
+		const FRigElementKey& Key = Source->Key;
 
-	FMemoryReader ArchiveReader(ArchiveBytes);
-	Load(ArchiveReader);
+		FRigBaseElement* Target = MakeElement(Key.Type);
+		
+		Target->Key = Key;
+		Target->SubIndex = Num(Target->GetType());
+		Target->Index = Elements.Add(Target);
+
+		ElementsPerType[(int32)Key.Type].Add(Target);
+		IndexLookup.Add(Key, Target->Index);
+
+		check(Source->Index == Index);
+		check(Target->Index == Index);
+	}
+
+	for(int32 Index = 0; Index < InHierarchy->Num(); Index++)
+	{
+		FRigBaseElement* Source = InHierarchy->Get(Index);
+		FRigBaseElement* Target = Elements[Index];
+		Target->CopyFrom(this, Source, InHierarchy);
+	}
 
 	TopologyVersion = InHierarchy->GetTopologyVersion();
+	UpdateAllCachedChildren();
 }
 
 void URigHierarchy::CopyPose(URigHierarchy* InHierarchy, bool bCurrent, bool bInitial)
@@ -363,16 +313,7 @@ void URigHierarchy::ResetCurveValues()
 
 int32 URigHierarchy::Num(ERigElementType InElementType) const
 {
-	int32 Count = 0;
-	for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
-	{
-		FRigBaseElement* Element = Elements[ElementIndex];
-		if(Element->IsTypeOf(InElementType))
-		{
-			Count++;
-		}
-	}
-	return Count;
+	return ElementsPerType[(int32)InElementType].Num();
 }
 
 TArray<FRigBaseElement*> URigHierarchy::GetSelectedElements(ERigElementType InTypeFilter) const
@@ -1797,6 +1738,89 @@ void URigHierarchy::UpdateCachedChildren(const FRigBaseElement* InElement, bool 
 	}
 
 	InElement->TopologyVersion = TopologyVersion;
+}
+
+void URigHierarchy::UpdateAllCachedChildren() const
+{
+	TArray<bool> ParentVisited;
+	ParentVisited.AddZeroed(Elements.Num());
+	
+	for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
+	{
+		FRigBaseElement* Element = Elements[ElementIndex];
+		Element->TopologyVersion = TopologyVersion;
+		
+		if(FRigSingleParentElement* SingleParentElement = Cast<FRigSingleParentElement>(Element))
+		{
+			if(FRigTransformElement* ParentElement = SingleParentElement->ParentElement)
+			{
+				if(!ParentVisited[ParentElement->Index])
+				{
+					ParentElement->CachedChildren.Reset();
+					ParentVisited[ParentElement->Index] = true;
+				}
+				ParentElement->CachedChildren.Add(Element);
+			}
+		}
+		else if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(Element))
+		{
+			for(FRigTransformElement* ParentElement : MultiParentElement->ParentElements)
+			{
+				if(ParentElement)
+				{
+					if(!ParentVisited[ParentElement->Index])
+					{
+						ParentElement->CachedChildren.Reset();
+						ParentVisited[ParentElement->Index] = true;
+					}
+					ParentElement->CachedChildren.Add(Element);
+				}
+			}
+		}
+	}
+}
+
+FRigBaseElement* URigHierarchy::MakeElement(ERigElementType InElementType)
+{
+	FRigBaseElement* Element = nullptr;
+	switch(InElementType)
+	{
+		case ERigElementType::Bone:
+		{
+			Element = new FRigBoneElement();
+			break;
+		}
+		case ERigElementType::Null:
+		{
+			Element = new FRigNullElement();
+			break;
+		}
+		case ERigElementType::Control:
+		{
+			Element = new FRigControlElement();
+			break;
+		}
+		case ERigElementType::Curve:
+		{
+			Element = new FRigCurveElement();
+			break;
+		}
+		case ERigElementType::RigidBody:
+		{
+			Element = new FRigRigidBodyElement();
+			break;
+		}
+		case ERigElementType::Socket:
+		{
+			Element = new FRigSocketElement();
+			break;
+		}
+		default:
+		{
+			ensure(false);
+		}
+	}
+	return Element;
 }
 
 #if URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION

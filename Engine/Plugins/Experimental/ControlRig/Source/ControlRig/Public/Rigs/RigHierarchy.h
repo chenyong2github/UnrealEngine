@@ -32,7 +32,9 @@ public:
 	, bTransactingForTransformChange(false)
 	, bIsInteracting(false)
 	, bSuspendNotifications(false)
-	{}
+	{
+		Reset();
+	}
 
 	virtual ~URigHierarchy();
 
@@ -2024,6 +2026,17 @@ private:
 	void UpdateCachedChildren(const FRigBaseElement* InElement, bool bForce = false) const;
 
 	/**
+	* Updates the transient cached children table for all elements if needed (or if bForce == true).
+	* @param bForce If set to true the table will always be updated
+	*/
+	void UpdateAllCachedChildren() const;
+
+	/*
+	 * Helper function to create an element for a given type
+	 */
+	static FRigBaseElement* MakeElement(ERigElementType InElementType); 
+
+	/**
 	 * Marks all affected elements of a given element as dirty
 	 * @param InTransformElement The element that has changed
 	 * @param bInitial If true the initial transform will be dirtied
@@ -2050,6 +2063,9 @@ private:
 
 	// Storage for the elements
 	mutable TArray<FRigBaseElement*> Elements;
+
+	// Storage for the elements
+	mutable TArray<TArray<FRigBaseElement*>> ElementsPerType;
 
 	// Managed lookup from Key to Index
 	TMap<FRigElementKey, int32> IndexLookup;
