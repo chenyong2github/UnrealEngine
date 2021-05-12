@@ -150,7 +150,7 @@ void FDistortionHandlerPickerDetailCustomization::OnDistortionHandlerSelected(FD
 	InDistortionHandlerPicker->DistortionProducerID = DistortionProducerID;
 	InDistortionHandlerPicker->HandlerDisplayName = HandlerDisplayName;
 
-	StructPropertyHandle->NotifyPostChange();
+	StructPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 }
 
 bool FDistortionHandlerPickerDetailCustomization::IsDistortionHandlerSelected(FDistortionHandlerPicker* InDistortionHandlerPicker, FString InDisplayName) const
