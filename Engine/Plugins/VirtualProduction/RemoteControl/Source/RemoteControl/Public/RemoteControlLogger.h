@@ -68,8 +68,11 @@ public:
 	void ClearLog() const;
 
 private:
+
+#if WITH_EDITOR
 	/** Log listening interface */
 	TSharedPtr<IMessageLogListing> MessageLogListing;
+#endif
 
 	/** Pointer to log widget */
 	TSharedPtr<SWidget> LogListingWidget;
