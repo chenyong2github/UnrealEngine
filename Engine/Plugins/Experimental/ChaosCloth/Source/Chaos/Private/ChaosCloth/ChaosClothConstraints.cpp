@@ -329,7 +329,10 @@ void FClothConstraints::SetVolumeConstraints(TArray<TVec3<int32>>&& SurfaceEleme
 	++NumConstraintRules;
 }
 
-void FClothConstraints::SetLongRangeConstraints(const TMap<int32, TSet<int32>>& PointToNeighborsMap, const TConstArrayView<FRealSingle>& TetherStiffnessMultipliers, const FVec2& TetherStiffness, FReal LimitScale, ETetherMode TetherMode, bool bUseXPBDConstraints)
+void FClothConstraints::SetLongRangeConstraints(const TMap<int32, TSet<int32>>& PointToNeighborsMap,
+	const TConstArrayView<FRealSingle>& TetherStiffnessMultipliers, const TConstArrayView<FRealSingle>& TetherScaleMultipliers,
+	const FVec2& TetherStiffness, const FVec2& TetherScale,
+	ETetherMode TetherMode, bool bUseXPBDConstraints)
 {
 	check(Evolution);
 
@@ -343,8 +346,11 @@ void FClothConstraints::SetLongRangeConstraints(const TMap<int32, TSet<int32>>& 
 			NumParticles,
 			PointToNeighborsMap,
 			TetherStiffnessMultipliers,
+			TetherScaleMultipliers,
 			MaxNumTetherIslands,
-			TetherStiffness);  // TODO: Add LimitScale to the XPBD constraint
+			TetherStiffness,
+			TetherScale,
+			TetherMode);
 	}
 	else
 	{
@@ -354,9 +360,10 @@ void FClothConstraints::SetLongRangeConstraints(const TMap<int32, TSet<int32>>& 
 			NumParticles,
 			PointToNeighborsMap,
 			TetherStiffnessMultipliers,
+			TetherScaleMultipliers,
 			MaxNumTetherIslands,
 			TetherStiffness,
-			LimitScale,
+			TetherScale,
 			TetherMode);
 	}
 	++NumConstraintInits;  // Uses init to update the property tables

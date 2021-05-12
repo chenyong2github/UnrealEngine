@@ -69,7 +69,16 @@ void UChaosClothingInteractor::SetAerodynamics(float DragCoefficient, float Lift
 {
 	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([DragCoefficient, LiftCoefficient, WindVelocity](FClothingSimulationCloth* Cloth)
 	{
-		Cloth->SetAerodynamicsProperties(DragCoefficient, LiftCoefficient, WindVelocity);
+		constexpr FRealSingle AirDensity = 1.225e-6f;
+		Cloth->SetAerodynamicsProperties(TVec2<FRealSingle>(DragCoefficient, DragCoefficient), TVec2<FRealSingle>(LiftCoefficient, LiftCoefficient), AirDensity, WindVelocity);
+	}));
+}
+
+void UChaosClothingInteractor::SetWind(FVector2D Drag, FVector2D Lift, float AirDensity, FVector WindVelocity)
+{
+	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([Drag, Lift, AirDensity, WindVelocity](FClothingSimulationCloth* Cloth)
+	{
+		Cloth->SetAerodynamicsProperties(TVec2<FRealSingle>(Drag[0], Drag[1]), TVec2<FRealSingle>(Lift[0], Lift[1]), AirDensity, WindVelocity);
 	}));
 }
 

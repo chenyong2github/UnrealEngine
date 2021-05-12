@@ -141,9 +141,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Long Range Attachment", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
 	FChaosClothWeightedValue TetherStiffness = { 1.f, 1.f };
 
-	/** The limit scale of the long range attachment constraints (aka tether limit). */
+	/**
+	 * The limit scale of the long range attachment constraints (aka tether limit).
+	 * If an enabled Weight Map (A.K.A. Mask) targeting the "Tether Scale" is added to the cloth, 
+	 * then both the Low and High values will be used in conjunction with the per particle Weight stored
+	 * in the Weight Map to interpolate the final value from them.
+	 * Otherwise only the Low value is meaningful and sufficient to set the tethers' scale.
+	*/
 	UPROPERTY(EditAnywhere, Category = "Long Range Attachment", meta = (UIMin = "1.", UIMax = "1.1", ClampMin = "0.01", ClampMax = "10"))
-	float LimitScale = 1.f;
+	FChaosClothWeightedValue TetherScale = { 1.f, 1.f };
 
 	/**
 	 * Use geodesic instead of euclidean distance calculations for the Long Range Attachment constraint,
@@ -201,13 +207,25 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Environmental Properties")
 	bool bUsePointBasedWindModel = false;
 
-	// The aerodynamic coefficient of drag applying on each particle.
+	/**
+	 * The aerodynamic coefficient of drag applying on each particle.
+	 * If an enabled Weight Map (A.K.A. Mask) targeting the "Drag" is added to the cloth, 
+	 * then both the Low and High values will be used in conjunction with the per particle Weight stored
+	 * in the Weight Map to interpolate the final value from them.
+	 * Otherwise only the Low value is meaningful and sufficient to set the aerodynamic drag.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Environmental Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "10", EditCondition = "!bUsePointBasedWindModel"))
-	float DragCoefficient = 0.07f;
+	FChaosClothWeightedValue Drag = { 0.035f, 1.f };
 
-	// The aerodynamic coefficient of lift applying on each particle.
+	/**
+	 * The aerodynamic coefficient of lift applying on each particle.
+	 * If an enabled Weight Map (A.K.A. Mask) targeting the "Lift" is added to the cloth, 
+	 * then both the Low and High values will be used in conjunction with the per particle Weight stored
+	 * in the Weight Map to interpolate the final value from them.
+	 * Otherwise only the Low value is meaningful and sufficient to set the aerodynamic lift.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Environmental Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "10", EditCondition = "!bUsePointBasedWindModel"))
-	float LiftCoefficient = 0.035f;
+	FChaosClothWeightedValue Lift = { 0.035f, 1.f };
 
 	// Use the config gravity value instead of world gravity.
 	UPROPERTY(EditAnywhere, Category = "Environmental Properties", meta = (InlineEditConditionToggle))
@@ -281,6 +299,15 @@ public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	EChaosClothTetherMode TetherMode_DEPRECATED = EChaosClothTetherMode::MaxChaosClothTetherMode;
+
+	UPROPERTY()
+	float LimitScale_DEPRECATED = 1.f;
+
+	UPROPERTY()
+	float DragCoefficient_DEPRECATED = 0.07f;
+
+	UPROPERTY()
+	float LiftCoefficient_DEPRECATED = 0.035f;
 
 	UPROPERTY()
 	float AnimDriveSpringStiffness_DEPRECATED = 0.f;

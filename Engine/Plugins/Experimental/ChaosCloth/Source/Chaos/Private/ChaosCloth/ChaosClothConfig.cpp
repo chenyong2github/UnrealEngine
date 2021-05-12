@@ -61,12 +61,12 @@ void UChaosClothConfig::MigrateFrom(const FClothConfig_Legacy& ClothConfig)
 
 	TetherStiffness.Low = FMath::Clamp(ClothConfig.TetherStiffness, 0.f, 1.f);
 	TetherStiffness.High = 1.f;
-	LimitScale = FMath::Clamp(ClothConfig.TetherLimit, 0.01f, 10.f);
+	TetherScale.Low = TetherScale.High = FMath::Clamp(ClothConfig.TetherLimit, 0.01f, 10.f);
 	ShapeTargetStiffness = 0.f;
 
 	bUsePointBasedWindModel = (ClothConfig.WindMethod == EClothingWindMethod_Legacy::Legacy);
-	DragCoefficient = bUsePointBasedWindModel ? 0.07f  : ClothConfig.WindDragCoefficient;  // Only Accurate wind uses the WindDragCoefficient
-	LiftCoefficient = bUsePointBasedWindModel ? 0.035f : ClothConfig.WindLiftCoefficient;  // Only Accurate wind uses the WindLiftCoefficient
+	Drag.Low = Drag.High = bUsePointBasedWindModel ? 0.07f  : ClothConfig.WindDragCoefficient;  // Only Accurate wind uses the WindDragCoefficient
+	Lift.Low = Lift.High = bUsePointBasedWindModel ? 0.035f : ClothConfig.WindLiftCoefficient;  // Only Accurate wind uses the WindLiftCoefficient
 
 	const float Damping = (ClothConfig.Damping.X + ClothConfig.Damping.Y + ClothConfig.Damping.Z) / 3.f;
 	DampingCoefficient = FMath::Clamp(Damping * Damping * 0.7f, 0.f, 1.f);  // Nv Cloth seems to have a different damping formulation.
@@ -131,7 +131,7 @@ void UChaosClothConfig::PostLoad()
 
 	if (ChaosClothConfigCustomVersion < FChaosClothConfigCustomVersion::UpdateDragDefault)
 	{
-		DragCoefficient = 0.07f;  // Reset to a more appropriate default for chaos cloth assets saved before this custom version
+		DragCoefficient_DEPRECATED = 0.07f;  // Reset to a more appropriate default for chaos cloth assets saved before this custom version that had too high drag
 	}
 
 	if (ChaosClothConfigCustomVersion < FChaosClothConfigCustomVersion::RemoveInternalConfigParameters)
@@ -168,7 +168,14 @@ void UChaosClothConfig::PostLoad()
 	{
 		// Note: Unlike AnimDriveStiffness, Low is updated here, because there was no existing weight map before this version
 		TetherStiffness.Low = FMath::Clamp(FMath::Loge(StrainLimitingStiffness_DEPRECATED) / FMath::Loge(1.e3f) + 1.f, 0.f, 1.f);
-		TetherStiffness.High = 0.f;
+		TetherStiffness.High = 1.f;
+	}
+
+	if (FortniteMainBranchObjectVersion < FFortniteMainBranchObjectVersion::ChaosClothAddTetherScaleAndDragLiftWeightMaps)
+	{
+		TetherScale.Low = TetherScale.High = LimitScale_DEPRECATED;
+		Drag.Low = Drag.High = DragCoefficient_DEPRECATED;
+		Lift.Low = Lift.High = LiftCoefficient_DEPRECATED;
 	}
 #endif  // #if WITH_EDITORONLY_DATA
 }

@@ -194,12 +194,14 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	{
 		const TMap<int32, TSet<int32>>& PointToNeighborsMap = TriangleMesh.GetPointToNeighborsMap();
 		const TConstArrayView<FRealSingle>& TetherStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::TetherStiffness];
+		const TConstArrayView<FRealSingle>& TetherScaleMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::TetherScale];
 
 		ClothConstraints.SetLongRangeConstraints(
 			PointToNeighborsMap,
 			TetherStiffnessMultipliers,
+			TetherScaleMultipliers,
 			FVec2((FReal)Cloth->TetherStiffness[0], (FReal)Cloth->TetherStiffness[1]),
-			(FReal)Cloth->LimitScale,
+			FVec2((FReal)Cloth->TetherScale[0], (FReal)Cloth->TetherScale[1]),
 			Cloth->TetherMode,
 			Cloth->bUseXPBDConstraints);
 	}
@@ -341,7 +343,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	FRealSingle InVolumeStiffness,
 	bool bInUseThinShellVolumeConstraints,
 	const TVec2<FRealSingle>& InTetherStiffness,
-	FRealSingle InLimitScale,
+	const TVec2<FRealSingle>& InTetherScale,
 	ETetherMode InTetherMode,
 	FRealSingle InMaxDistancesMultiplier,
 	const TVec2<FRealSingle>& InAnimDriveStiffness,
@@ -354,8 +356,8 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	const FVec3& InLinearVelocityScale,
 	FRealSingle InAngularVelocityScale,
 	FRealSingle InFictitiousAngularScale,
-	FRealSingle InDragCoefficient,
-	FRealSingle InLiftCoefficient,
+	const TVec2<FRealSingle>& InDrag,
+	const TVec2<FRealSingle>& InLift,
 	bool bInUseLegacyWind,
 	FRealSingle InDampingCoefficient,
 	FRealSingle InCollisionThickness,
@@ -379,7 +381,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	, VolumeStiffness(InVolumeStiffness)
 	, bUseThinShellVolumeConstraints(bInUseThinShellVolumeConstraints)
 	, TetherStiffness(InTetherStiffness)
-	, LimitScale(InLimitScale)
+	, TetherScale(InTetherScale)
 	, TetherMode(InTetherMode)
 	, MaxDistancesMultiplier(InMaxDistancesMultiplier)
 	, AnimDriveStiffness(InAnimDriveStiffness)
@@ -392,9 +394,10 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	, LinearVelocityScale(InLinearVelocityScale)
 	, AngularVelocityScale(InAngularVelocityScale)
 	, FictitiousAngularScale(InFictitiousAngularScale)
-	, DragCoefficient(InDragCoefficient)
-	, LiftCoefficient(InLiftCoefficient)
+	, Drag(InDrag)
+	, Lift(InLift)
 	, WindVelocity((FReal)0., (FReal)0., (FReal)0.)  // Set by clothing interactor
+	, AirDensity(1.225e-6f)  // Set by clothing interactor
 	, bUseLegacyWind(bInUseLegacyWind)
 	, DampingCoefficient(InDampingCoefficient)
 	, CollisionThickness(InCollisionThickness)
@@ -712,6 +715,12 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 				Solver->GetParticlePs(Offset),
 				Solver->GetParticleXs(Offset),
 				Solver->GetParticleVs(Offset));
+
+				// Update the wind velocity field for the new LOD mesh
+				const TConstArrayView<FRealSingle>& DragMultipliers = LODData[LODIndex].WeightMaps[(int32)EChaosWeightMapTarget::Drag];
+				const TConstArrayView<FRealSingle>& LiftMultipliers = LODData[LODIndex].WeightMaps[(int32)EChaosWeightMapTarget::Lift];
+
+				Solver->SetWindGeometry(GroupId, GetTriangleMesh(Solver), DragMultipliers, LiftMultipliers);
 		}
 		else
 		{
@@ -736,11 +745,11 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 
 		if (bUseLegacyWind && ChaosClothingSimulationClothConsoleVariables::CVarLegacyDisablesAccurateWind.GetValueOnAnyThread())
 		{
-			Solver->SetWindVelocityField(GroupId, 0.f, 0.f, &GetTriangleMesh(Solver));
+			Solver->SetWindProperties(GroupId, FVec2::ZeroVector, FVec2::ZeroVector, (FReal)0.);  // Disable the wind velocity field
 		}
 		else
 		{
-			Solver->SetWindVelocityField(GroupId, DragCoefficient, LiftCoefficient, &GetTriangleMesh(Solver));
+			Solver->SetWindProperties(GroupId, FVec2((FReal)Drag[0], (FReal)Drag[1]), FVec2((FReal)Lift[0], (FReal)Lift[1]), (FReal)AirDensity);  // TODO: Pass AirDensity too
 		}
 		Solver->SetWindVelocity(GroupId, WindVelocity + Solver->GetWindVelocity());
 
