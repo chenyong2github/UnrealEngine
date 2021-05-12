@@ -6,6 +6,7 @@
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataRequest.h"
 #include "Misc/EnumClassFlags.h"
+#include "Templates/Function.h"
 
 namespace UE::DerivedData
 {
