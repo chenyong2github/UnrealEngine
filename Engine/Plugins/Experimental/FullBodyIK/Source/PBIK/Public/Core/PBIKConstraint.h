@@ -83,22 +83,37 @@ private:
 
 struct FPinConstraint : public FConstraint
 {
-	FVector GoalPoint;
+private:
+	
+	FVector GoalPosition;
+	FQuat GoalRotation;
+	
 	FRigidBody* A;
 	FVector PinPointLocalToA;
 	float Alpha = 1.0;
+	FQuat ARotLocalToPin;
+	bool bPinRotation = false;
 
 public:
-
-	FPinConstraint(FRigidBody* InBody, const FVector& InPinPoint);
+	
+	FPinConstraint(
+		FRigidBody* InBody,
+		const FVector& InPinPositionOrig,
+		const FQuat& InPinRotationOrig,
+		const bool bInPinRotation);
 
 	virtual ~FPinConstraint() {};
 
 	virtual void Solve(bool bMoveSubRoots) override;
 
+	void SetGoal(const FVector& InGoalPosition, const FQuat& InGoalRotation, const float InAlpha);
+
 private:
 
 	FVector GetPositionCorrection(FVector& OutBodyToPinPoint) const;
+
+	friend FRigidBody;
+	friend FJointConstraint;
 };
 
 } // namespace

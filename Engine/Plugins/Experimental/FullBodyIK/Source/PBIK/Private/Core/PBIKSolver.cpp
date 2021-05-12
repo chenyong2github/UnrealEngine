@@ -36,13 +36,12 @@ namespace PBIK
 	{
 		Position = FMath::Lerp(PositionOrig, PositionGoal, TransformAlpha);
 		Rotation = FMath::Lerp(RotationOrig, RotationGoal, TransformAlpha);
-		Pin.Pin()->GoalPoint = Position;
-		Pin.Pin()->Alpha = StrengthAlpha;
+		Pin.Pin()->SetGoal(Position, Rotation, StrengthAlpha);
 
 		// update length of chain this effector controls in the input pose
 		if (ParentSubRoot)
 		{
-			FEffector* ParentEffector = ParentSubRoot->AttachedEffector;
+			FEffector* ParentEffector = ParentSubRoot->Effector;
 			const FVector ParentSubRootPosition = ParentEffector ? ParentEffector->PositionOrig : ParentSubRoot->Bone->Position;
 			LengthOfChainInInputPose = (ParentSubRootPosition - Bone->Position).Size();
 		}
@@ -66,9 +65,9 @@ namespace PBIK
 		}
 
 		// we have to be careful here when calculating the distance to the parent sub-root.
-		// if the the parent sub-root is attached to an effector, use the effector's position
+		// if the parent sub-root is attached to an effector, use the effector's position
 		// otherwise use the current position of the FRigidBody
-		FEffector* ParentEffector = ParentSubRoot->AttachedEffector;
+		FEffector* ParentEffector = ParentSubRoot->Effector;
 		const FVector ParentSubRootPosition = ParentEffector ? ParentEffector->Position : ParentSubRoot->Position;
 		const float DistToParentSubRoot = (ParentSubRootPosition - Position).Size();
 		if (DistToParentSubRoot >= LengthOfChainInInputPose)
@@ -125,7 +124,7 @@ void FPBIKSolver::Solve(const FPBIKSolverSettings& Settings)
 
 	// initialize local bone transforms
 	// this has to be done every tick because incoming animation can modify these
-	// even the LocalPosition has to be updated incase translation is animated
+	// even the LocalPosition has to be updated in case translation is animated
 	for (FBone& Bone : Bones)
 	{
 		FBone* Parent = Bone.Parent;
@@ -463,19 +462,21 @@ bool FPBIKSolver::InitConstraints()
 		}
 
 		FRigidBody* Body = BodyBone->Body;
-		TSharedPtr<FPinConstraint> Constraint = MakeShared<FPinConstraint>(Body, Effector.Position);
+		TSharedPtr<FPinConstraint> Constraint = MakeShared<FPinConstraint>(Body, Effector.Position, Effector.Rotation, false);
 		Effector.Pin = Constraint;
-		Body->AttachedEffector = &Effector;
+		Body->Effector = &Effector;
+		Body->Pin = Constraint.Get();
 		Constraints.Add(Constraint);
 	}
 
 	// pin root body to animated location 
 	// this constraint is by default off in solver settings
-	if (!SolverRoot->Body->AttachedEffector) // only add if user hasn't added their own root effector
+	if (!SolverRoot->Body->Effector) // only add if user hasn't added their own root effector
 	{
-		const TSharedPtr<FPinConstraint> RootConstraint = MakeShared<FPinConstraint>(SolverRoot->Body, SolverRoot->Position);
+		const TSharedPtr<FPinConstraint> RootConstraint = MakeShared<FPinConstraint>(SolverRoot->Body, SolverRoot->Position, SolverRoot->Rotation, true);
 		Constraints.Add(RootConstraint);
 		RootPin = RootConstraint;
+		SolverRoot->Body->Pin = RootConstraint.Get();
 	}
 
 	// constrain all bodies together (child to parent)
