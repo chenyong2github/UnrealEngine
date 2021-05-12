@@ -10,10 +10,10 @@ struct FPBIKSolverSettings;
 
 namespace PBIK
 {
-
-struct FJointConstraint;
-struct FRigidBody;
-struct FEffector;
+	struct FPinConstraint;
+	struct FJointConstraint;
+	struct FRigidBody;
+	struct FEffector;
 
 struct FBone
 {
@@ -75,6 +75,8 @@ struct FRigidBody
 {
 	FBone* Bone = nullptr;
 	FBoneSettings J;
+	FPinConstraint* Pin = nullptr;
+	FEffector* Effector = nullptr;
 
 	FVector Position;
 	FQuat Rotation;
@@ -83,7 +85,6 @@ struct FRigidBody
 	TArray<FVector> ChildLocalPositions;
 
 	float InvMass = 0.0f;
-	FEffector* AttachedEffector = nullptr;
 	float Length;
 	
 private:
@@ -105,6 +106,8 @@ public:
 	void ApplyPushToRotateBody(const FVector& Push, const FVector& Offset);
 	
 	void ApplyPushToPosition(const FVector& Push);
+
+	void ApplyRotationDelta(const FQuat& InDelta, const bool bNegated);
 };
 
 // for sorting Bodies hierarchically (root to leaf order)

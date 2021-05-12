@@ -3,6 +3,8 @@
 #include "Core/PBIKBody.h"
 #include "Core/PBIKSolver.h"
 
+//#pragma optimize("", off)
+
 namespace PBIK
 {
 
@@ -73,9 +75,12 @@ void FRigidBody::Initialize(FBone* SolverRoot)
 
 void FRigidBody::UpdateFromInputs(const FPBIKSolverSettings& Settings)
 {
-	// set to input pose
-	Position = Bone->Position - Bone->Rotation * BoneLocalPosition;
-	Rotation = Bone->Rotation;
+	if (Settings.bStartSolveFromInputPose)
+	{
+		// set to input pose
+		Position = Bone->Position - Bone->Rotation * BoneLocalPosition;
+		Rotation = Bone->Rotation;
+	}
 
 	// Body.Length used as rough approximation of the mass of the body
 	// for fork joints (multiple solved children) we sum lengths to all children (see Initialize)
@@ -99,24 +104,20 @@ FRigidBody* FRigidBody::GetParentBody() const
 
 void FRigidBody::ApplyPushToRotateBody(const FVector& Push, const FVector& Offset)
 {
+	if (Pin && Pin->bEnabled && Pin->bPinRotation)
+	{
+		return; // rotation of this body is pinned
+	}
+	
 	// equation 8 in "Detailed Rigid Body Simulation with XPBD"
 	FVector Omega = InvMass * (1.0f - J.RotationStiffness) * FVector::CrossProduct(Offset, Push);
 	FQuat OQ(Omega.X, Omega.Y, Omega.Z, 0.0f);
-	OQ = OQ * Rotation;
-	OQ.X *= 0.5f;
-	OQ.Y *= 0.5f;
-	OQ.Z *= 0.5f;
-	OQ.W *= 0.5f;
-	Rotation.X = Rotation.X + OQ.X;
-	Rotation.Y = Rotation.Y + OQ.Y;
-	Rotation.Z = Rotation.Z + OQ.Z;
-	Rotation.W = Rotation.W + OQ.W;
-	Rotation.Normalize();
+	ApplyRotationDelta(OQ, false);
 }
 
 void FRigidBody::ApplyPushToPosition(const FVector& Push)
 {
-	if (AttachedEffector)
+	if (Pin && Pin->bEnabled)
 	{
 		return; // pins are locked
 	}
@@ -124,4 +125,23 @@ void FRigidBody::ApplyPushToPosition(const FVector& Push)
 	Position += Push * (1.0f - J.PositionStiffness);
 }
 
+void FRigidBody::ApplyRotationDelta(const FQuat& InDelta, const bool bNegated)
+{
+	if (Pin && Pin->bEnabled && Pin->bPinRotation)
+	{
+		return; // rotation of this body is pinned
+	}
+
+	/** InDelta is assumed to be a "pure" quaternion representing an infintesimal rotation */
+	FQuat Delta = InDelta * Rotation;
+	Delta.X *= 0.5f;
+	Delta.Y *= 0.5f;
+	Delta.Z *= 0.5f;
+	Delta.W *= 0.5f;
+	Rotation.X = Rotation.X + (bNegated ? -Delta.X : Delta.X);
+	Rotation.Y = Rotation.Y + (bNegated ? -Delta.Y : Delta.Y);
+	Rotation.Z = Rotation.Z + (bNegated ? -Delta.Z : Delta.Z);
+	Rotation.W = Rotation.W + (bNegated ? -Delta.W : Delta.W);
+	Rotation.Normalize();
+}
 } // namespace
