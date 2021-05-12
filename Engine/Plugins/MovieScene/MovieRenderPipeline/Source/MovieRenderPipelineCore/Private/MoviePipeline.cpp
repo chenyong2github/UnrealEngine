@@ -936,10 +936,13 @@ void UMoviePipeline::TeardownShot(UMoviePipelineExecutorShot* InShot)
 		ProcessOutstandingFutures();
 
 		TArray<FMoviePipelineShotOutputData> LatestShotData;
-		LatestShotData.Add(GeneratedShotOutputData.Last());
+		if (GeneratedShotOutputData.Num() > 0)
+		{
+			LatestShotData.Add(GeneratedShotOutputData.Last());
 
-		// Temporarily remove it from the global array, as the encode may modify it.
-		GeneratedShotOutputData.RemoveAt(GeneratedShotOutputData.Num() - 1);
+			// Temporarily remove it from the global array, as the encode may modify it.
+			GeneratedShotOutputData.RemoveAt(GeneratedShotOutputData.Num() - 1);
+		}
 
 		// We call the command line encoder as a special case here because it may want to modify the file list
 		// ie: if it deletes the file after use we probably don't want scripting looking for those files.
