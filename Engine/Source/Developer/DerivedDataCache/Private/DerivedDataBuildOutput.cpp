@@ -55,10 +55,10 @@ public:
 
 	~FBuildOutputBuilderInternal() final = default;
 
-	bool HasError() const final { return bHasError; }
 	void SetMeta(FCbObject&& InMeta) final { Meta = MoveTemp(InMeta); }
-	void AddDiagnostic(const FBuildDiagnostic& Diagnostic) final;
 	void AddPayload(const FPayload& Payload) final;
+	void AddDiagnostic(const FBuildDiagnostic& Diagnostic) final;
+	bool HasError() const final { return bHasError; }
 	FBuildOutput Build() final;
 
 	FString Name;
@@ -85,10 +85,10 @@ public:
 
 	const FCbObject& GetMeta() const final { return Meta; }
 
-	bool HasError() const final;
-	void IterateDiagnostics(TFunctionRef<void (const FBuildDiagnostic& Diagnostic)> Visitor) const final;
 	const FPayload& GetPayload(const FPayloadId& Id) const final;
 	TConstArrayView<FPayload> GetPayloads() const final { return Payloads; }
+	void IterateDiagnostics(TFunctionRef<void (const FBuildDiagnostic& Diagnostic)> Visitor) const final;
+	bool HasError() const final;
 
 	void Save(FCbWriter& Writer) const;
 	void Save(FCacheRecordBuilder& RecordBuilder) const;
@@ -154,19 +154,10 @@ FBuildOutputInternal::FBuildOutputInternal(FStringView Name, FStringView Functio
 	}
 }
 
-bool FBuildOutputInternal::HasError() const
+const FPayload& FBuildOutputInternal::GetPayload(const FPayloadId& Id) const
 {
-	for (FCbFieldView Field : Diagnostics.CreateViewIterator())
-	{
-		const FCbObjectView Diagnostic = Field.AsObjectView();
-		EBuildDiagnosticLevel Level;
-		LexFromString(Level, Diagnostic["Level"_ASV].AsString());
-		if (Level == EBuildDiagnosticLevel::Error)
-		{
-			return true;
-		}
-	}
-	return false;
+	const int32 Index = Algo::BinarySearchBy(Payloads, Id, &FPayload::GetId);
+	return Payloads.IsValidIndex(Index) ? Payloads[Index] : FPayload::Null;
 }
 
 void FBuildOutputInternal::IterateDiagnostics(TFunctionRef<void (const FBuildDiagnostic& Diagnostic)> Visitor) const
@@ -182,10 +173,19 @@ void FBuildOutputInternal::IterateDiagnostics(TFunctionRef<void (const FBuildDia
 	}
 }
 
-const FPayload& FBuildOutputInternal::GetPayload(const FPayloadId& Id) const
+bool FBuildOutputInternal::HasError() const
 {
-	const int32 Index = Algo::BinarySearchBy(Payloads, Id, &FPayload::GetId);
-	return Payloads.IsValidIndex(Index) ? Payloads[Index] : FPayload::Null;
+	for (FCbFieldView Field : Diagnostics.CreateViewIterator())
+	{
+		const FCbObjectView Diagnostic = Field.AsObjectView();
+		EBuildDiagnosticLevel Level;
+		LexFromString(Level, Diagnostic["Level"_ASV].AsString());
+		if (Level == EBuildDiagnosticLevel::Error)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 void FBuildOutputInternal::Save(FCbWriter& Writer) const

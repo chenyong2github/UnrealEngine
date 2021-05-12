@@ -13,7 +13,6 @@
 #include "Misc/TVariant.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
-#include "Templates/Function.h"
 #include <atomic>
 
 namespace UE::DerivedData::Private
