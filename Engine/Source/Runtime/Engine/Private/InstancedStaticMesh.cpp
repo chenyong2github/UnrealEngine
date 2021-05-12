@@ -311,9 +311,11 @@ void FInstanceUpdateCmdBuffer::Reset()
 	NumEdits = 0;
 }
 
-FStaticMeshInstanceBuffer::FStaticMeshInstanceBuffer(ERHIFeatureLevel::Type InFeatureLevel, bool InRequireCPUAccess)
+FStaticMeshInstanceBuffer::FStaticMeshInstanceBuffer(ERHIFeatureLevel::Type InFeatureLevel, bool InRequireCPUAccess, bool bDeferGPUUploadIn)
 	: FRenderResource(InFeatureLevel)
 	, RequireCPUAccess(InRequireCPUAccess)
+	, bDeferGPUUpload(bDeferGPUUploadIn)
+	, bFlushToGPUPending(false)
 {
 }
 
@@ -411,7 +413,10 @@ void FStaticMeshInstanceBuffer::UpdateFromCommandBuffer_RenderThread(FInstanceUp
 		}
 	}
 
-	UpdateRHI();
+	if (!CondSetFlushToGPUPending())
+	{
+		UpdateRHI();
+	}
 }
 
 /**
@@ -568,6 +573,24 @@ void FStaticMeshInstanceBuffer::BindInstanceVertexBuffer(const class FVertexFact
 			VET_Short4N,
 			EVertexStreamUsage::ManualFetch | EVertexStreamUsage::Instancing
 		);
+	}
+}
+
+void FStaticMeshInstanceBuffer::FlushGPUUpload()
+{
+	if (bFlushToGPUPending)
+	{
+		check(bDeferGPUUpload);
+
+		if (!IsInitialized())
+		{
+			InitResource();
+		}
+		else
+		{
+			UpdateRHI();
+		}
+		bFlushToGPUPending = false;
 	}
 }
 
@@ -890,6 +913,8 @@ void FInstancedStaticMeshRenderData::InitVertexFactories()
 	ENQUEUE_RENDER_COMMAND(InstancedStaticMeshRenderData_InitVertexFactories)(
 		[this, LightMapCoordinateIndex](FRHICommandListImmediate& RHICmdList)
 	{
+		PerInstanceRenderData->InstanceBuffer.FlushGPUUpload();
+
 		for (int32 LODIndex = 0; LODIndex < VertexFactories.Num(); LODIndex++)
 		{
 			const FStaticMeshLODResources* RenderData = &LODModels[LODIndex];
@@ -925,29 +950,20 @@ void FInstancedStaticMeshRenderData::InitVertexFactories()
 	});
 }
 
-FPerInstanceRenderData::FPerInstanceRenderData(FStaticMeshInstanceData& Other, ERHIFeatureLevel::Type InFeaureLevel, bool InRequireCPUAccess)
-	: ResourceSize(InRequireCPUAccess ? Other.GetResourceSize() : 0)
-	, InstanceBuffer(InFeaureLevel, InRequireCPUAccess)
-	, bTrackBounds(false)
-	, bBoundsTransformsDirty(true)
-{
-	InstanceBuffer.InitFromPreallocatedData(Other);
-	InstanceBuffer_GameThread = InstanceBuffer.InstanceData;
 
-	BeginInitResource(&InstanceBuffer);
-}
-
-FPerInstanceRenderData::FPerInstanceRenderData(FStaticMeshInstanceData& Other, ERHIFeatureLevel::Type InFeaureLevel, bool InRequireCPUAccess, FBox InBounds, bool bTrack)
+FPerInstanceRenderData::FPerInstanceRenderData(FStaticMeshInstanceData& Other, ERHIFeatureLevel::Type InFeaureLevel, bool InRequireCPUAccess, FBox InBounds, bool bTrack, bool bDeferGPUUploadIn)
 	: ResourceSize(InRequireCPUAccess ? Other.GetResourceSize() : 0)
-	, InstanceBuffer(InFeaureLevel, InRequireCPUAccess)
+	, InstanceBuffer(InFeaureLevel, InRequireCPUAccess, bDeferGPUUploadIn)
 	, InstanceLocalBounds(InBounds)
 	, bTrackBounds(bTrack)
 	, bBoundsTransformsDirty(true)
 {
 	InstanceBuffer.InitFromPreallocatedData(Other);
 	InstanceBuffer_GameThread = InstanceBuffer.InstanceData;
-
-	BeginInitResource(&InstanceBuffer);
+	if (!InstanceBuffer.CondSetFlushToGPUPending())
+	{
+		BeginInitResource(&InstanceBuffer);
+	}
 	UpdateBoundsTransforms_Concurrent();
 }
 
@@ -976,7 +992,10 @@ void FPerInstanceRenderData::UpdateFromPreallocatedData(FStaticMeshInstanceData&
 		[InInstanceBufferDataPtr, InInstanceBuffer, this](FRHICommandListImmediate& RHICmdList)
 		{
 			InInstanceBuffer->InstanceData = InInstanceBufferDataPtr;
-			InInstanceBuffer->UpdateRHI();
+			if (!InInstanceBuffer->CondSetFlushToGPUPending())
+			{
+				InInstanceBuffer->UpdateRHI();
+			}
 			UpdateBoundsTransforms_Concurrent();
 		}
 	);
@@ -1265,6 +1284,13 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 void FInstancedStaticMeshSceneProxy::CreateRenderThreadResources()
 {
 	FStaticMeshSceneProxy::CreateRenderThreadResources();
+	
+	// Flush upload of GPU data for ISM/HISM
+	if (ensure(InstancedRenderData.PerInstanceRenderData.IsValid()))
+	{
+		FStaticMeshInstanceBuffer& InstanceBuffer = InstancedRenderData.PerInstanceRenderData->InstanceBuffer;
+		InstanceBuffer.FlushGPUUpload();
+	}
 
 #if GPUCULL_TODO
 	if (UseGPUScene(GetScene().GetShaderPlatform(), GetScene().GetFeatureLevel()))
@@ -1953,8 +1979,7 @@ FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 		
 		ProxySize = PerInstanceRenderData->ResourceSize;
 
-		// TODO: Abstract with a common helper
-		if (UseNanite(GetScene()->GetShaderPlatform()) && GetStaticMesh()->GetRenderData()->NaniteResources.PageStreamingStates.Num())
+		if (ShouldCreateNaniteProxy())
 		{
 			return ::new Nanite::FSceneProxy(this);
 		}
@@ -3511,9 +3536,15 @@ void UInstancedStaticMeshComponent::InitPerInstanceRenderData(bool InitializeFro
 	FBox LocalBounds;
 	GetLocalBounds(LocalBounds.Min, LocalBounds.Max);
 
+	// If Nanite is used, we should defer the upload to GPU as the Nanite proxy simply will skip this step.
+	// We can't just disable the upload, because at this point we can't know whether the Nanite proxy will be created in the end
+	// this depends on the static mesh which may still be compiling/loading.
+	// TODO: Perhaps make this specific to if this ISM actually has Nanite (if this can be detected reliably at this point) 
+	const bool bDeferGPUUpload = UseNanite(GetFeatureLevelShaderPlatform(FeatureLevel));
+
 	if (InSharedInstanceBufferData != nullptr)
 	{
-		PerInstanceRenderData = MakeShareable(new FPerInstanceRenderData(*InSharedInstanceBufferData, FeatureLevel, KeepInstanceBufferCPUAccess, LocalBounds, bTrackBounds));
+		PerInstanceRenderData = MakeShareable(new FPerInstanceRenderData(*InSharedInstanceBufferData, FeatureLevel, KeepInstanceBufferCPUAccess, LocalBounds, bTrackBounds, bDeferGPUUpload));
 	}
 	else
 	{
@@ -3527,7 +3558,7 @@ void UInstancedStaticMeshComponent::InitPerInstanceRenderData(bool InitializeFro
 			BuildRenderData(InstanceBufferData, HitProxies);
 		}
 		
-		PerInstanceRenderData = MakeShareable(new FPerInstanceRenderData(InstanceBufferData, FeatureLevel, KeepInstanceBufferCPUAccess, LocalBounds, bTrackBounds));
+		PerInstanceRenderData = MakeShareable(new FPerInstanceRenderData(InstanceBufferData, FeatureLevel, KeepInstanceBufferCPUAccess, LocalBounds, bTrackBounds, bDeferGPUUpload));
 		PerInstanceRenderData->HitProxies = MoveTemp(HitProxies);
 	}
 }

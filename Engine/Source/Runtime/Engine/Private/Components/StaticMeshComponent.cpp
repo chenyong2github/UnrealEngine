@@ -1486,6 +1486,18 @@ void UStaticMeshComponent::UpdatePreCulledData(int32 LODIndex, const TArray<uint
 	}
 }
 
+bool UStaticMeshComponent::ShouldCreateNaniteProxy() const
+{
+	// Whether or not to allow Nanite for this component
+#if WITH_EDITORONLY_DATA
+	const bool bAllowNanite = !bDisplayNaniteProxyMesh;
+#else
+	const bool bAllowNanite = true;
+#endif
+
+	return bAllowNanite && UseNanite(GetScene()->GetShaderPlatform()) && GetStaticMesh()->GetRenderData()->NaniteResources.PageStreamingStates.Num();
+}
+
 void UStaticMeshComponent::ReleaseResources()
 {
 	for(int32 LODIndex = 0;LODIndex < LODData.Num();LODIndex++)
