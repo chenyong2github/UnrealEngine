@@ -22,18 +22,20 @@ public:
 
 protected:
 	// IDetailCustomization interface
-	virtual void CustomizeDetails(class IDetailLayoutBuilder& LayoutBuilder) override;
+	virtual void CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder) override;
 	// End IDetailCustomization interface
 
 protected:
-	void BuildLayout();
+	void BuildLayout(IDetailLayoutBuilder& InLayoutBuilder);
 
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// Node ID
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	void AddNodeIdRow();
+	TSharedRef<SWidget> CreateCustomNodeIdWidget();
 	bool RebuildNodeIdOptionsList();
+	void UpdateNodeIdSelection();
+
 	void OnNodeIdSelected(TSharedPtr<FString> NodeId, ESelectInfo::Type SelectInfo);
 	FText GetSelectedNodeIdText() const;
 
@@ -72,9 +74,4 @@ protected:
 protected:
 	// ADisplayClusterRootActor on which we're acting
 	TWeakObjectPtr<ADisplayClusterRootActor> EditedObject;
-
-	// Keep a reference to force refresh the layout
-	IDetailLayoutBuilder* LayoutBuilder = nullptr;
-	// The layout category we'll be dealing with
-	IDetailCategoryBuilder* CategoryPreview;
 };
