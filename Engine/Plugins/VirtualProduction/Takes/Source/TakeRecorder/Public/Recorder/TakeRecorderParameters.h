@@ -115,6 +115,10 @@ struct FTakeRecorderProjectParameters
 	/** List of property names for which movie scene tracks will always record. */
 	UPROPERTY(config, EditAnywhere, Category = "Take Recorder")
 	TArray<FTakeRecorderTrackSettings> DefaultTracks;
+
+	/** Whether to show notification windows or not when recording */
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Take Recorder")
+	bool bShowNotifications;
 };
 
 UENUM(BlueprintType)
