@@ -49,6 +49,8 @@ enum class NIAGARAEDITOR_API ENiagaraSystemViewModelEditMode
 	SystemAsset,
 	/** An emitter asset is being edited.  In this mode the system scripts will not be editable and all emitter editing options are available. */
 	EmitterAsset,
+	/** Special case where an emitter asset is being edited during a merge. In this mode changes made to the emitter being edited don't have to be applied, but directly affect the source. */
+	EmitterDuringMerge,
 };
 
 /** Defines options for the niagara System view model */
