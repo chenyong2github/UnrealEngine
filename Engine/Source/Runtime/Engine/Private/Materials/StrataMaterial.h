@@ -26,6 +26,7 @@ struct FStrataMaterialCompilationInfo
 		bool  bHasEdgeColor;
 		bool  bHasThinFilm;
 		bool  bHasFuzz;
+		bool  bHasHaziness;
 	};
 
 	struct FLayer
@@ -55,7 +56,7 @@ FStrataRegisteredSharedNormal StrataCompilationInfoCreateSharedNormal(FMaterialC
 void  StrataCompilationInfoCreateNullBSDF(FMaterialCompiler* Compiler, int32 CodeChunk);
 void  StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk, 
 	const FStrataRegisteredSharedNormal& RegisteredSharedNormal,
-	uint8 BSDFType, bool bHasSSS = false, bool bHasDMFPPluggedIn = false, bool bHasEdgeColor = false, bool bHasThinFilm = false, bool bHasFuzz = false);
+	uint8 BSDFType, bool bHasSSS = false, bool bHasDMFPPluggedIn = false, bool bHasEdgeColor = false, bool bHasThinFilm = false, bool bHasFuzz = false, bool bHasHaziness = false);
 
 FStrataMaterialCompilationInfo StrataCompilationInfoWeight(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A);
 FStrataMaterialCompilationInfo StrataCompilationInfoAdd(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B);

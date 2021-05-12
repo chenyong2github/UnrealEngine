@@ -176,6 +176,7 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	bool HasEdgeColor() const;
 	bool HasThinFilm() const;
 	bool HasFuzz() const;
+	bool HasHaziness() const;
 	bool HasSSS() const;
 	bool HasSSSProfile() const;
 	bool HasDMFPPluggedIn() const;
