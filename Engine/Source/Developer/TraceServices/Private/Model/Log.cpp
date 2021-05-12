@@ -52,6 +52,8 @@ FLogCategoryInfo& FLogProvider::GetCategory(uint64 CategoryPointer)
 	else
 	{
 		FLogCategoryInfo& Category = Categories.PushBack();
+		Category.Name = TEXT("N/A");
+		Category.DefaultVerbosity = ELogVerbosity::All;
 		CategoryMap.Add(CategoryPointer, &Category);
 		return Category;
 	}

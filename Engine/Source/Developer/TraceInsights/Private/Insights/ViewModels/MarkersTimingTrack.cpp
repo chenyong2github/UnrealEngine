@@ -371,7 +371,7 @@ void FMarkersTimingTrack::UpdateBookmarkCategory()
 
 		LogProvider.EnumerateCategories([this](const TraceServices::FLogCategoryInfo& Category)
 		{
-			if (FCString::Strcmp(Category.Name, TEXT("LogBookmark")) == 0)
+			if (Category.Name && FCString::Strcmp(Category.Name, TEXT("LogBookmark")) == 0)
 			{
 				BookmarkCategory = &Category;
 			}
