@@ -123,28 +123,11 @@ void FAnimNode_IKRig::Initialize_AnyThread(const FAnimationInitializeContext& Co
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	FAnimNode_Base::Initialize_AnyThread(Context);
 	Source.Initialize(Context);
-	if (!IKRigProcessor)
-	{
-		return;
-	}
-
-	// cache list of goal creator components on the actor
-	GoalCreators.Reset();
-	USkeletalMeshComponent* SkelMeshComponent = Context.AnimInstanceProxy->GetSkelMeshComponent();
-	AActor* OwningActor = SkelMeshComponent->GetOwner();
-	TArray<UActorComponent*> GoalCreatorComponents =  OwningActor->GetComponentsByInterface( UIKGoalCreatorInterface::StaticClass() );
-	for (UActorComponent* GoalCreatorComponent : GoalCreatorComponents)
-	{
-		IIKGoalCreatorInterface* GoalCreator = Cast<IIKGoalCreatorInterface>(GoalCreatorComponent);
-		if (!ensureMsgf(GoalCreator, TEXT("Goal creator component failed cast to IIKGoalCreatorInterface.")))
-		{
-			continue;
-		}
-		GoalCreators.Add(GoalCreator);
-	}
-
+	
+	// get the retargeted local ref pose to initialize the IK with
+	const FReferenceSkeleton& RefSkeleton = Context.AnimInstanceProxy->GetSkelMeshComponent()->SkeletalMesh->GetRefSkeleton();
 	// initialize the IK Rig
-	IKRigProcessor->Initialize(RigDefinitionAsset);
+	IKRigProcessor->Initialize(RigDefinitionAsset, RefSkeleton);
 }
 
 void FAnimNode_IKRig::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
@@ -160,6 +143,24 @@ void FAnimNode_IKRig::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy
 
 void FAnimNode_IKRig::PreUpdate(const UAnimInstance* InAnimInstance)
 {
+	// cache list of goal creator components on the actor
+	// TODO tried doing this in Initialize_AnyThread but it would miss some GoalCreator components
+	// so it was moved here to be more robust, but we need to profile this and make sure it's not hurting perf
+	// (it may be enough to run this once and then never again...needs testing)
+	GoalCreators.Reset();
+	USkeletalMeshComponent* SkelMeshComponent = InAnimInstance->GetSkelMeshComponent();
+	AActor* OwningActor = SkelMeshComponent->GetOwner();
+	TArray<UActorComponent*> GoalCreatorComponents =  OwningActor->GetComponentsByInterface( UIKGoalCreatorInterface::StaticClass() );
+	for (UActorComponent* GoalCreatorComponent : GoalCreatorComponents)
+	{
+		IIKGoalCreatorInterface* GoalCreator = Cast<IIKGoalCreatorInterface>(GoalCreatorComponent);
+		if (!ensureMsgf(GoalCreator, TEXT("Goal creator component failed cast to IIKGoalCreatorInterface.")))
+		{
+			continue;
+		}
+		GoalCreators.Add(GoalCreator);
+	}
+	
 	// pull all the goals out of any goal creators on the owning actor
 	// this is done on the main thread because we're talking to actor components here
 	GoalsFromGoalCreators.Reset();

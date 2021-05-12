@@ -313,7 +313,7 @@ private:
 		
 	bool InitializeBoneChainPairs();
 	
-	bool InitializeIKRig(UObject* Outer);
+	bool InitializeIKRig(UObject* Outer, const FReferenceSkeleton& InRefSkeleton);
 
 	void RunRootRetarget(
 		const TArray<FTransform>& InGlobalTransforms,
