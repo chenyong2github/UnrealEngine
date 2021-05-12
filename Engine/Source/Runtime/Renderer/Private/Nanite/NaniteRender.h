@@ -391,18 +391,18 @@ enum class EOutputBufferMode : uint8
 
 struct FPackedView
 {
-	FMatrix		SVPositionToTranslatedWorld;
-	FMatrix		ViewToTranslatedWorld;
+	FMatrix44f	SVPositionToTranslatedWorld;
+	FMatrix44f	ViewToTranslatedWorld;
 
-	FMatrix		TranslatedWorldToView;
-	FMatrix		TranslatedWorldToClip;
-	FMatrix		ViewToClip;
-	FMatrix		ClipToWorld;
+	FMatrix44f	TranslatedWorldToView;
+	FMatrix44f	TranslatedWorldToClip;
+	FMatrix44f	ViewToClip;
+	FMatrix44f	ClipToWorld;
 	
-	FMatrix		PrevTranslatedWorldToView;
-	FMatrix		PrevTranslatedWorldToClip;
-	FMatrix		PrevViewToClip;
-	FMatrix		PrevClipToWorld;
+	FMatrix44f	PrevTranslatedWorldToView;
+	FMatrix44f	PrevTranslatedWorldToClip;
+	FMatrix44f	PrevViewToClip;
+	FMatrix44f	PrevClipToWorld;
 
 	FIntVector4	ViewRect;
 	FVector4	ViewSizeAndInvSize;
