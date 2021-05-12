@@ -447,6 +447,10 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 	// Initialize Trace
 	UE::Trace::FInitializeDesc Desc;
 	Desc.bUseWorkerThread = FPlatformProcess::SupportsMultithreading();
+	if (FParse::Value(CommandLine, TEXT("-tracetailmb="), Desc.TailSizeBytes))
+	{
+		Desc.TailSizeBytes <<= 20;
+	}
 	UE::Trace::Initialize(Desc);
 
 	FCoreDelegates::OnEndFrame.AddStatic(UE::Trace::Update);
