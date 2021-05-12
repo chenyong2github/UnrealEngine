@@ -371,6 +371,7 @@ public:
 	void SetIsSpectator(const bool bNewSpectator);
 
 	/** Gets the literal value of bOnlySpectator. */
+	UFUNCTION(BlueprintCallable, Category = "PlayerState")
 	bool IsOnlyASpectator() const
 	{
 		return bOnlySpectator;
