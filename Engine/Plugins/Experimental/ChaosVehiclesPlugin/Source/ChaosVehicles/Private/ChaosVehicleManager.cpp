@@ -23,7 +23,10 @@ uint32 FChaosVehicleManager::VehicleSetupTag = 0;
 
 FDelegateHandle FChaosVehicleManager::OnPostWorldInitializationHandle;
 FDelegateHandle FChaosVehicleManager::OnWorldCleanupHandle;
+
+#if WITH_CHAOS
 bool FChaosVehicleManager::GInitialized = false;
+#endif
 
 FChaosVehicleManager::FChaosVehicleManager(FPhysScene* PhysScene)
 #if WITH_CHAOS
@@ -35,6 +38,7 @@ FChaosVehicleManager::FChaosVehicleManager(FPhysScene* PhysScene)
 {
 	check(PhysScene);
 	
+#if WITH_CHAOS
 	if (!GInitialized)
 	{
 		GInitialized = true;
@@ -49,20 +53,24 @@ FChaosVehicleManager::FChaosVehicleManager(FPhysScene* PhysScene)
 
 	// Add to Scene-To-Manager map
 	FChaosVehicleManager::SceneToVehicleManagerMap.Add(PhysScene, this);
+#endif
 }
 
 
 void FChaosVehicleManager::RegisterCallbacks()
 {
+#if WITH_CHAOS
 	OnPhysScenePreTickHandle = Scene.OnPhysScenePreTick.AddRaw(this, &FChaosVehicleManager::Update);
 	OnPhysScenePostTickHandle = Scene.OnPhysScenePostTick.AddRaw(this, &FChaosVehicleManager::PostUpdate);
 
 	check(AsyncCallback == nullptr);
 	AsyncCallback = Scene.GetSolver()->CreateAndRegisterSimCallbackObject_External<FChaosVehicleManagerAsyncCallback>(true);
+#endif
 }
 
 void FChaosVehicleManager::UnregisterCallbacks()
 {
+#if WITH_CHAOS
 	Scene.OnPhysScenePreTick.Remove(OnPhysScenePreTickHandle);
 	Scene.OnPhysScenePostTick.Remove(OnPhysScenePostTickHandle);
 
@@ -71,6 +79,7 @@ void FChaosVehicleManager::UnregisterCallbacks()
 		Scene.GetSolver()->UnregisterAndFreeSimCallbackObject_External(AsyncCallback);
 		AsyncCallback = nullptr;
 	}
+#endif
 }
 
 void FChaosVehicleManager::OnPostWorldInitialization(UWorld* InWorld, const UWorld::InitializationValues)
@@ -163,6 +172,7 @@ void FChaosVehicleManager::ScenePreTick(FPhysScene* PhysScene, float DeltaTime)
 
 void FChaosVehicleManager::Update(FPhysScene* PhysScene, float DeltaTime)
 {
+#if WITH_CHAOS
 	SCOPE_CYCLE_COUNTER(STAT_ChaosVehicleManager_Update);
 
 	UWorld* World = Scene.GetOwningWorld();
@@ -182,6 +192,7 @@ void FChaosVehicleManager::Update(FPhysScene* PhysScene, float DeltaTime)
 			Vehicle->FinalizeSimCallbackData(*AsyncInput);
 		}
 	}
+#endif
 }
 
 void FChaosVehicleManager::PostUpdate(FChaosScene* PhysScene)
@@ -191,6 +202,7 @@ void FChaosVehicleManager::PostUpdate(FChaosScene* PhysScene)
 
 void FChaosVehicleManager::ParallelUpdateVehicles(float DeltaSeconds)
 {
+#if WITH_CHAOS
 	SCOPE_CYCLE_COUNTER(STAT_ChaosVehicleManager_ParallelUpdateVehicles);
 
 	FChaosVehicleManagerAsyncInput* AsyncInput = AsyncCallback->GetProducerInputData_External();
@@ -298,4 +310,5 @@ void FChaosVehicleManager::ParallelUpdateVehicles(float DeltaSeconds)
 
 	bool ForceSingleThread = !GVehicleDebugParams.EnableMultithreading;
 	ParallelFor(AwakeVehiclesBatch.Num(), LambdaParallelUpdate, ForceSingleThread);
+#endif
 }

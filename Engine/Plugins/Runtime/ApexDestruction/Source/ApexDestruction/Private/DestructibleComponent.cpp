@@ -1099,7 +1099,7 @@ bool UDestructibleComponent::DoCustomNavigableGeometryExport(FNavigableGeometryE
 #if WITH_EDITORONLY_DATA
 		if (DestructibleMesh && DestructibleMesh->SourceStaticMesh)
 		{
-			GeomExport.ExportRigidBodySetup(*DestructibleMesh->SourceStaticMesh->BodySetup, GetComponentTransform());
+			GeomExport.ExportRigidBodySetup(*DestructibleMesh->SourceStaticMesh->GetBodySetup(), GetComponentTransform());
 			bExportFromBodySetup = false;
 		}
 #endif	// WITH_EDITORONLY_DATA

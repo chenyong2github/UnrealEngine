@@ -253,7 +253,7 @@ bool FDestructibleMeshEditorViewportClient::CanRefreshFromStaticMesh()
 		return false;
 	}
 
-	const auto* ImportInfo = DestructibleMesh->SourceStaticMesh->AssetImportData;
+	const TObjectPtr<UAssetImportData> ImportInfo = DestructibleMesh->SourceStaticMesh->AssetImportData;
 	FDateTime CurrentSourceTimestamp = FDateTime::MinValue();
 	if (ImportInfo && ImportInfo->SourceData.SourceFiles.Num() == 1)
 	{
