@@ -1227,6 +1227,13 @@ void UNiagaraEmitter::CacheFromShaderCompiled()
 
 void UNiagaraEmitter::UpdateEmitterAfterLoad()
 {
+	if (bFullyLoaded)
+	{
+		return;
+	}
+	bFullyLoaded = true;
+	UpdateTaskRef = nullptr;
+	
 #if WITH_EDITORONLY_DATA
 	check(IsInGameThread());
 	if (GetOuter()->IsA<UNiagaraEmitter>())

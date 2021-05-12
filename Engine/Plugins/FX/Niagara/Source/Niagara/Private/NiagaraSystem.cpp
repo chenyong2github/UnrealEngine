@@ -351,6 +351,11 @@ bool UNiagaraSystem::UsesCollection(const UNiagaraParameterCollection* Collectio
 void UNiagaraSystem::UpdateSystemAfterLoad()
 {
 	// guard against deadlocks by having wait called on it during the update
+	if (bFullyLoaded)
+	{
+		return;
+	}
+	bFullyLoaded = true;
 	UpdateTaskRef = nullptr;
 	
 #if WITH_EDITORONLY_DATA
@@ -532,7 +537,7 @@ void UNiagaraSystem::UpdateSystemAfterLoad()
 }
 
 #if WITH_EDITORONLY_DATA
-bool UNiagaraSystem::UsesScript(const UNiagaraScript* Script)const
+bool UNiagaraSystem::UsesScript(const UNiagaraScript* Script) const
 {
 	EnsureFullyLoaded();
 	if (SystemSpawnScript == Script ||
@@ -974,7 +979,7 @@ bool UNiagaraSystem::IsReadyToRunInternal() const
 
 void UNiagaraSystem::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
-	//EnsureFullyLoaded();
+	EnsureFullyLoaded();
 #if WITH_EDITOR
 	OutTags.Add(FAssetRegistryTag("HasGPUEmitter", HasAnyGPUEmitters() ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
 
@@ -1727,9 +1732,17 @@ void UNiagaraSystem::EnsureFullyLoaded() const
 {
 	if (UpdateTaskRef.IsValid() && UpdateTaskRef->IsComplete() == false)
 	{
-		UpdateTaskRef->Wait();
-	}
-	ensureMsgf(UpdateTaskRef.IsValid() == false || UpdateTaskRef->IsComplete(), TEXT("Niagara system data was accessed before being fully loaded! Asset %s"), *GetPathName());
+		ensureMsgf(FUObjectThreadContext::Get().IsRoutingPostLoad == false, TEXT("Niagara system data was forced to load during PostLoad instead of the taskgraph! Asset %s"), *GetPathName());
+		for (const FNiagaraEmitterHandle& EmitterHandle : EmitterHandles)
+		{
+			if (UNiagaraEmitter* NiagaraEmitter = EmitterHandle.GetInstance())
+			{
+				NiagaraEmitter->UpdateEmitterAfterLoad();
+			}
+		}
+		UNiagaraSystem* System = const_cast<UNiagaraSystem*>(this); // Sadly necessary because we are called from other const functions
+		System->UpdateSystemAfterLoad();
+	}	
 }
 
 
