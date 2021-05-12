@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "Engine/AssetUserData.h"
-
 #include "CoreMinimal.h"
 #include "LensData.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Misc/Guid.h"
 #include "Models/LensModel.h"
 
 #include "LensDistortionModelHandlerBase.generated.h"
@@ -32,7 +31,7 @@ public:
 
 /** Asset user data that can be used on Camera Actors to manage lens distortion state and utilities  */
 UCLASS(Abstract)
-class CAMERACALIBRATION_API ULensDistortionModelHandlerBase : public UAssetUserData
+class CAMERACALIBRATION_API ULensDistortionModelHandlerBase : public UObject
 {
 	GENERATED_BODY()
 
@@ -70,6 +69,18 @@ public:
 
 	/** Get the specified lens model that characterizes the distortion effect */
 	const TSubclassOf<ULensModel>& GetLensModelClass() const { return LensModelClass; };
+
+	/** Get the UObject that produces the distortion state for this handler */
+	FGuid GetDistortionProducerID() const { return DistortionProducerID; }
+
+	/** Set the UObject that produces the distortion state for this handler */
+	void SetDistortionProducerID(const FGuid& InDistortionProducerID) { DistortionProducerID = InDistortionProducerID; }
+
+	/** Get the display name of this lens distortion model handler */
+	FString GetDisplayName() const { return DisplayName; }
+
+	/** Set the display name of this lens distortion model handler */
+	void SetDisplayName(FString InDisplayName) { DisplayName = InDisplayName; }
 
 	/** Get the normalized center of projection of the image, in the range [0.0f, 1.0f] */
 	FVector2D GetPrincipalPoint() const { return CurrentState.PrincipalPoint; }
@@ -127,6 +138,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Distortion", meta = (ShowOnlyInnerProperties))
 	FLensDistortionState CurrentState;
 
+	/** Display name, used to identify handler in-editor details panels */
+	UPROPERTY(VisibleAnywhere, Category = "Distortion")
+	FString DisplayName;
+
 	/** Computed overscan factor needed to scale the camera's FOV (read-only) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Distortion")
 	float OverscanFactor = 1.0f;
@@ -146,6 +161,10 @@ protected:
 	/** UV displacement map used to distort an undistorted image */
 	UPROPERTY(Transient)
 	UTextureRenderTarget2D* DistortionDisplacementMapRT = nullptr;
+
+	/** UObject that is producing the distortion state for this handler */
+	UPROPERTY()
+	FGuid DistortionProducerID;
 
 private:
 	static constexpr uint32 DisplacementMapWidth = 256;
