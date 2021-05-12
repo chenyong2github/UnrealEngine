@@ -32,6 +32,7 @@ URigVMController::URigVMController()
 	, bSuspendNotifications(false)
 	, bReportWarningsAndErrors(true)
 	, bIgnoreRerouteCompactnessChanges(false)
+	, bIsRunningUnitTest(false)
 {
 	SetExecuteContextStruct(FRigVMExecuteContext::StaticStruct());
 }
@@ -6412,7 +6413,7 @@ URigVMFunctionReferenceNode* URigVMController::AddFunctionReferenceNode(URigVMLi
 		return nullptr;
 	}
 
-	if (Graph->GetOutermost() == GetTransientPackage())
+	if (Graph->GetOutermost() == GetTransientPackage() && !bIsRunningUnitTest)
 	{
 		// don't allow linking to transient graphs, which usually mean template nodes
 		return nullptr;
