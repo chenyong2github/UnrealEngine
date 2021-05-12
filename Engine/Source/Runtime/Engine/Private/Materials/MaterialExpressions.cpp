@@ -19925,6 +19925,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 	const bool bHasEdgeColor = HasEdgeColor(); // This accounts for EdgeColor and also F90 when the non metalness worfklow is selected.
 	const bool bHasThinFilm = HasThinFilm();
 	const bool bHasFuzz = HasFuzz();
+	const bool bHasHaziness = HasHaziness();
 	const bool bHasDMFPPluggedIn = HasDMFPPluggedIn();
 
 	int32 SSSProfileCodeChunk = INDEX_NONE;
@@ -19970,7 +19971,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		NormalCodeChunk,
 		TangentCodeChunk,
 		Compiler->GetStrataSharedNormalIndexMacro(NewRegisteredSharedNormal));
-	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, NewRegisteredSharedNormal, STRATA_BSDF_TYPE_SLAB, bHasSSS, bHasDMFPPluggedIn, bHasEdgeColor, bHasThinFilm, bHasFuzz);
+	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, NewRegisteredSharedNormal, STRATA_BSDF_TYPE_SLAB, bHasSSS, bHasDMFPPluggedIn, bHasEdgeColor, bHasThinFilm, bHasFuzz, bHasHaziness);
 
 	return OutputCodeChunk;
 }
@@ -20381,6 +20382,11 @@ bool UMaterialExpressionStrataSlabBSDF::HasThinFilm() const
 bool UMaterialExpressionStrataSlabBSDF::HasFuzz() const
 {
 	return FuzzAmount.IsConnected();
+}
+
+bool UMaterialExpressionStrataSlabBSDF::HasHaziness() const
+{
+	return Haziness.IsConnected();
 }
 
 bool UMaterialExpressionStrataSlabBSDF::HasAnisotropy() const

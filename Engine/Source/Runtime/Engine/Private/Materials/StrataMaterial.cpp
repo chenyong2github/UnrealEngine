@@ -65,7 +65,7 @@ FStrataRegisteredSharedNormal StrataCompilationInfoCreateSharedNormal(FMaterialC
 
 void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk,
 	const FStrataRegisteredSharedNormal& RegisteredSharedNormal,
-	uint8 BSDFType, bool bHasSSS, bool bHasDMFPPluggedIn, bool bHasEdgeColor, bool bHasThinFilm, bool bHasFuzz)
+	uint8 BSDFType, bool bHasSSS, bool bHasDMFPPluggedIn, bool bHasEdgeColor, bool bHasThinFilm, bool bHasFuzz, bool bHasHaziness)
 {
 	FStrataMaterialCompilationInfo StrataInfo;
 	StrataInfo.LayerCount = 1;
@@ -77,6 +77,7 @@ void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, 
 	StrataInfo.Layers[0].BSDFs[0].bHasEdgeColor = bHasEdgeColor;
 	StrataInfo.Layers[0].BSDFs[0].bHasThinFilm = bHasThinFilm;
 	StrataInfo.Layers[0].BSDFs[0].bHasFuzz = bHasFuzz;
+	StrataInfo.Layers[0].BSDFs[0].bHasHaziness = bHasHaziness;
 	UpdateTotalBSDFCount(Compiler, StrataInfo);
 	Compiler->StrataCompilationInfoRegisterCodeChunk(CodeChunk, StrataInfo);
 }
@@ -145,6 +146,7 @@ FStrataMaterialCompilationInfo StrataCompilationInfoAddParamBlend(FMaterialCompi
 	NewBSDF.bHasEdgeColor		|=	OtherBSDF.bHasEdgeColor;
 	NewBSDF.bHasThinFilm		|=	OtherBSDF.bHasThinFilm;
 	NewBSDF.bHasFuzz			|=	OtherBSDF.bHasFuzz;
+	NewBSDF.bHasHaziness		|=	OtherBSDF.bHasHaziness;
 	UpdateTotalBSDFCount(Compiler, StrataInfo);
 	return StrataInfo;
 }
@@ -174,6 +176,7 @@ FStrataMaterialCompilationInfo StrataCompilationInfoHorizontalMixingParamBlend(F
 	NewBSDF.bHasEdgeColor		|=	OtherBSDF.bHasEdgeColor;
 	NewBSDF.bHasThinFilm		|=	OtherBSDF.bHasThinFilm;
 	NewBSDF.bHasFuzz			|=	OtherBSDF.bHasFuzz;
+	NewBSDF.bHasHaziness		|=	OtherBSDF.bHasHaziness;
 	UpdateTotalBSDFCount(Compiler, StrataInfo);
 	return StrataInfo;
 }
@@ -218,6 +221,7 @@ FStrataMaterialCompilationInfo StrataCompilationInfoVerticalLayeringParamBlend(F
 //	NewBSDF.bHasDMFPPluggedIn	= TopBSDF.bHasDMFPPluggedIn;	// Idem
 	NewBSDF.bHasEdgeColor		|= TopBSDF.bHasEdgeColor;		// We keep the union of both, even though it will be hard to get a perfect match.
 	NewBSDF.bHasFuzz			|= TopBSDF.bHasFuzz;			// Idem
+	NewBSDF.bHasHaziness		|= TopBSDF.bHasHaziness;		// Idem
 	NewBSDF.bHasThinFilm		 = TopBSDF.bHasThinFilm;		// We only keep thin film from the top layer, because its color is otherwise not controlable
 
 	UpdateTotalBSDFCount(Compiler, StrataInfo);
@@ -373,7 +377,7 @@ FStrataMaterialAnalysisResult StrataCompilationInfoMaterialAnalysis(FMaterialCom
 
 				Result.RequestedByteCount += UintByteSize;
 				Result.RequestedByteCount += UintByteSize;
-				if (BSDF.bHasEdgeColor || BSDF.bHasThinFilm)
+				if (BSDF.bHasEdgeColor || BSDF.bHasThinFilm || BSDF.bHasHaziness)
 				{
 					Result.RequestedByteCount += UintByteSize;
 				}
