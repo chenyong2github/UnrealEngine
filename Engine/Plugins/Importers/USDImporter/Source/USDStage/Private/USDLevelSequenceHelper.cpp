@@ -37,6 +37,7 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "Editor/TransBuffer.h"
 #include "ILevelSequenceEditorToolkit.h"
 #include "ISequencer.h"
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -230,17 +231,23 @@ private:
 
 // Changes handling
 public:
-	void StartMonitoringChanges() { bMonitorChanges = true; }
-	void StopMonitoringChanges() { bMonitorChanges = false; }
+	void StartMonitoringChanges() { MonitoringChangesWhenZero.Decrement(); }
+	void StopMonitoringChanges() { MonitoringChangesWhenZero.Increment(); }
+	bool IsMonitoringChanges() const { return MonitoringChangesWhenZero.GetValue() == 0; }
+
+	/**
+	 * Used as a fire-and-forget block that will prevent any levelsequence object (tracks, moviescene, sections, etc.) change from being written to the stage.
+	 * We unblock during HandleTransactionStateChanged.
+	 */
+	void BlockMonitoringChangesForThisTransaction();
 
 private:
 	void OnObjectTransacted(UObject* Object, const class FTransactionObjectEvent& Event);
+	void HandleTransactionStateChanged( const FTransactionContext& InTransactionContext, const ETransactionStateEventType InTransactionState );
 	void HandleMovieSceneChange(UMovieScene& MovieScene);
 	void HandleSubSectionChange(UMovieSceneSubSection& Section);
 	void HandleTransformTrackChange( const UMovieScene3DTransformTrack& TransformTrack, bool bIsMuteChange );
 	void HandleDisplayRateChange(const double DisplayRate);
-
-	bool bMonitorChanges; // Flag to handle or not changes done to the level sequence or one of its subobjects
 
 	FDelegateHandle OnObjectTransactedHandle;
 	FDelegateHandle OnStageEditTargetChangedHandle;
@@ -262,6 +269,13 @@ private:
 	TWeakObjectPtr<AUsdStageActor> StageActor;
 	FGuid StageActorBinding;
 
+	// Only when this is zero we write LevelSequence object (tracks, moviescene, sections, etc.) transactions back to the USD stage
+	FThreadSafeCounter MonitoringChangesWhenZero;
+
+	// When we call BlockMonitoringChangesForThisTransaction, we record the FGuid of the current transaction. We'll early out of all OnObjectTransacted calls for that transaction
+	// We keep a set here in order to remember all the blocked transactions as we're going through them
+	TSet<FGuid> BlockedTransactionGuids;
+
 	UE::FUsdStage UsdStage;
 };
 
@@ -272,10 +286,17 @@ const double FUsdLevelSequenceHelperImpl::EmptySubSectionRange = 10.0;
 
 FUsdLevelSequenceHelperImpl::FUsdLevelSequenceHelperImpl()
 	: MainLevelSequence( nullptr )
-	, bMonitorChanges( true )
 {
 #if WITH_EDITOR
 	OnObjectTransactedHandle = FCoreUObjectDelegates::OnObjectTransacted.AddRaw(this, &FUsdLevelSequenceHelperImpl::OnObjectTransacted);
+
+	if ( GEditor )
+	{
+		if ( UTransBuffer* Transactor = Cast<UTransBuffer>( GEditor->Trans ) )
+		{
+			Transactor->OnTransactionStateChanged().AddRaw( this, &FUsdLevelSequenceHelperImpl::HandleTransactionStateChanged );
+		}
+	}
 #endif // WITH_EDITOR
 }
 
@@ -290,6 +311,14 @@ FUsdLevelSequenceHelperImpl::~FUsdLevelSequenceHelperImpl()
 #if WITH_EDITOR
 	FCoreUObjectDelegates::OnObjectTransacted.Remove(OnObjectTransactedHandle);
 	OnObjectTransactedHandle.Reset();
+
+	if ( GEditor )
+	{
+		if ( UTransBuffer* Transactor = Cast<UTransBuffer>( GEditor->Trans ) )
+		{
+			Transactor->OnTransactionStateChanged().RemoveAll( this );
+		}
+	}
 #endif // WITH_EDITOR
 }
 
@@ -1252,9 +1281,28 @@ void FUsdLevelSequenceHelperImpl::UpdateMovieSceneTimeRanges( UMovieScene& Movie
 	MovieScene.SetDisplayRate( FFrameRate( FramesPerSecond, 1 ) );
 }
 
+void FUsdLevelSequenceHelperImpl::BlockMonitoringChangesForThisTransaction()
+{
+	if ( ITransaction* Trans = GUndo )
+	{
+		FTransactionContext Context = Trans->GetContext();
+
+		// We're already blocking this one, so ignore this so that we don't increment our counter too many times
+		if ( BlockedTransactionGuids.Contains( Context.TransactionId ) )
+		{
+			return;
+		}
+
+		BlockedTransactionGuids.Add( Context.TransactionId );
+	}
+
+	// Also block via the regular way in case we're receiving a notice due to a Python change and the user hasn't manually created a transaction
+	StopMonitoringChanges();
+}
+
 void FUsdLevelSequenceHelperImpl::OnObjectTransacted(UObject* Object, const class FTransactionObjectEvent& Event)
 {
-	if ( !MainLevelSequence || !bMonitorChanges || !Object || Object->IsPendingKill() || !UsdStage )
+	if ( !MainLevelSequence || !IsMonitoringChanges() || !Object || Object->IsPendingKill() || !UsdStage || BlockedTransactionGuids.Contains( Event.GetTransactionId() ) )
 	{
 		return;
 	}
@@ -1279,6 +1327,14 @@ void FUsdLevelSequenceHelperImpl::OnObjectTransacted(UObject* Object, const clas
 			const bool bIsMuteChange = Event.GetChangedProperties().Contains( TEXT( "bIsActive" ) );
 			HandleTransformTrackChange( *SectionTrack, bIsMuteChange );
 		}
+	}
+}
+
+void FUsdLevelSequenceHelperImpl::HandleTransactionStateChanged( const FTransactionContext& InTransactionContext, const ETransactionStateEventType InTransactionState )
+{
+	if ( InTransactionState == ETransactionStateEventType::TransactionFinalized && BlockedTransactionGuids.Contains( InTransactionContext.TransactionId ) )
+	{
+		StartMonitoringChanges();
 	}
 }
 
@@ -1620,6 +1676,7 @@ public:
 
 	void StartMonitoringChanges() {}
 	void StopMonitoringChanges() {}
+	void BlockMonitoringChangesForThisTransaction() {}
 
 	ULevelSequence* GetMainLevelSequence() const { return nullptr; }
 	TArray< ULevelSequence* > GetSubSequences() const { return {}; }
@@ -1734,6 +1791,14 @@ void FUsdLevelSequenceHelper::StopMonitoringChanges()
 	if (UsdSequencerImpl.IsValid())
 	{
 		UsdSequencerImpl->StopMonitoringChanges();
+	}
+}
+
+void FUsdLevelSequenceHelper::BlockMonitoringChangesForThisTransaction()
+{
+	if ( UsdSequencerImpl.IsValid() )
+	{
+		UsdSequencerImpl->BlockMonitoringChangesForThisTransaction();
 	}
 }
 

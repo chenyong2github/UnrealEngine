@@ -55,6 +55,7 @@ public:
 	/** Blocks updating the level sequences & tracks from object changes. */
 	void StartMonitoringChanges();
 	void StopMonitoringChanges();
+	void BlockMonitoringChangesForThisTransaction();
 
 	ULevelSequence* GetMainLevelSequence() const;
 	TArray< ULevelSequence* > GetSubSequences() const;
