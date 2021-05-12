@@ -34,7 +34,7 @@ enum class ETimedDataMonitorEvaluationState : uint8
 };
 
 USTRUCT(meta = (DisplayName = "TimedSourcesConnectionEvent"))
-struct FTimedDataMonitorChannelConnectionStateEvent : public FStageProviderMessage
+struct FTimedDataMonitorChannelConnectionStateEvent : public FStageProviderEventMessage
 {
 	GENERATED_BODY()
 
@@ -62,7 +62,7 @@ public:
 };
 
 USTRUCT(meta = (DisplayName = "TimedSourcesEvaluationEvent"))
-struct FTimedDataMonitorChannelEvaluationStateEvent : public FStageProviderMessage
+struct FTimedDataMonitorChannelEvaluationStateEvent : public FStageProviderEventMessage
 {
 	GENERATED_BODY()
 
