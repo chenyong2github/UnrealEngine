@@ -346,8 +346,8 @@ bool UObjectBase::IsValidLowLevelFast(bool bRecursive /*= true*/) const
 #endif
 		{
 			UE_LOG(LogUObjectBase, Error, TEXT("Class pointer is invalid or CDO is invalid."));
+			return false;
 		}
-		return false;
 	}
 	// Avoid infinite recursion so call IsValidLowLevelFast on the class object with bRecirsive = false.
 	if (bRecursive && !ClassPrivate->IsValidLowLevelFast(false))
