@@ -44,6 +44,9 @@ namespace Chaos
 		FAutoConsoleVariableRef CVarChaosDebugDrawCoreShapes(TEXT("p.Chaos.DebugDraw.ShowCoreShapes"), bChaosDebugDebugDrawCoreShapes, TEXT("Whether to show the core (margin-reduced) shape where applicable"));
 		FAutoConsoleVariableRef CVarChaosDebugDrawExactShapes(TEXT("p.Chaos.DebugDraw.ShowExactCoreShapes"), bChaosDebugDebugDrawExactCoreShapes, TEXT("Whether to show the exact core shape. NOTE: Extremely expensive and should only be used on a small scene with a couple convex shapes in it"));
 
+		bool bChaosDebugDebugDrawContactGraph = false;
+		FAutoConsoleVariableRef CVarChaosDebugDrawContactGraph(TEXT("p.Chaos.DebugDraw.ShowContactGraph"), bChaosDebugDebugDrawContactGraph, TEXT("Whether to show the contactgraph when drawing islands"));
+
 
 		// NOTE: These settings should never really be used - they are the fallback defaults
 		// if the user does not specify settings in the debug draw call.
@@ -846,16 +849,33 @@ namespace Chaos
 			};
 			const int32 NumIslandColors = UE_ARRAY_COUNT(IslandColors);
 
-			auto DrawGraphCollision = [&](const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraintHandle& CollisionConstraint,  int32 IslandIndex, int32 LevelIndex, int32 ColorIndex, const FChaosDebugDrawSettings& Settings)
+			auto DrawGraphCollision = [&](const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraintHandle& CollisionConstraint,  int32 IslandIndex, int32 LevelIndex, int32 ColorIndex, int32 OrderIndex, const FChaosDebugDrawSettings& Settings)
 			{
 				FColor IslandColor = IslandColors[IslandIndex % NumIslandColors];
 
 				const FRigidTransform3 Transform0 = FParticleUtilities::GetCoMWorldTransform(FConstGenericParticleHandle(CollisionConstraint.GetConstrainedParticles()[0])) * SpaceTransform;
 				const FRigidTransform3 Transform1 = FParticleUtilities::GetCoMWorldTransform(FConstGenericParticleHandle(CollisionConstraint.GetConstrainedParticles()[1])) * SpaceTransform;
-				const FVec3 TextPos = 0.5f * (Transform0.GetLocation() + Transform1.GetLocation());
-				FDebugDrawQueue::GetInstance().DrawDebugLine(Transform0.GetLocation(), TextPos, FColor::Black, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
-				FDebugDrawQueue::GetInstance().DrawDebugLine(Transform1.GetLocation(), TextPos, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
-				FDebugDrawQueue::GetInstance().DrawDebugString(TextPos, FString::Format(TEXT("{0}-{1}-{2}"), { IslandIndex, LevelIndex, ColorIndex }), nullptr, FColor::Yellow, KINDA_SMALL_NUMBER, false, Settings.FontScale);
+
+				FVec3 ContactPos = CollisionConstraint.GetContactLocation();
+				if (CollisionConstraint.GetContact().GetType() == FCollisionConstraintBase::FType::SinglePoint)
+				{
+					const FRigidBodyPointContactConstraint* Constraint = CollisionConstraint.GetContact().template As<const FRigidBodyPointContactConstraint>();
+					if ((Constraint != nullptr) && (Constraint->GetManifoldPoints().Num() > 0))
+					{
+						ContactPos = FVec3(0);
+						for (const FManifoldPoint& ManifoldPoint : Constraint->GetManifoldPoints())
+						{
+							ContactPos += Transform0.TransformPositionNoScale(ManifoldPoint.CoMContactPoints[0]);
+							ContactPos += Transform1.TransformPositionNoScale(ManifoldPoint.CoMContactPoints[1]);
+						}
+						ContactPos /= (FReal)(2 * Constraint->GetManifoldPoints().Num());
+					}
+				}
+
+
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Transform0.GetLocation(), ContactPos, FColor::Black, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Transform1.GetLocation(), ContactPos, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugString(ContactPos, FString::Format(TEXT("{0}-{1}-{2}"), { LevelIndex, ColorIndex, OrderIndex }), nullptr, FColor::Yellow, KINDA_SMALL_NUMBER, false, Settings.FontScale);
 
 			};
 
@@ -873,8 +893,10 @@ namespace Chaos
 						if (LevelColorConstraintMap[LevelIndex].Contains(ColorIndex) && LevelColorConstraintMap[LevelIndex][ColorIndex].Num())
 						{
 							const TArray<FConstraintHandle*>& ConstraintHandles = LevelColorConstraintMap[LevelIndex][ColorIndex];
-							for (const FConstraintHandle* ConstraintHandle : ConstraintHandles)
+							for (int32 HandleIndex = 0; HandleIndex < ConstraintHandles.Num(); ++HandleIndex)
 							{
+								const FConstraintHandle* ConstraintHandle = ConstraintHandles[HandleIndex];
+
 								if (const FPBDCollisionConstraintHandle* CollisionHandle = ConstraintHandle->As<FPBDCollisionConstraintHandle>())
 								{
 									if (CollisionHandle->GetConstrainedParticles()[0]->HasBounds() && (CollisionHandle->GetConstrainedParticles()[0]->ObjectState() == EObjectStateType::Dynamic))
@@ -885,7 +907,11 @@ namespace Chaos
 									{
 										IslandAABB.GrowToInclude(CollisionHandle->GetConstrainedParticles()[1]->WorldSpaceInflatedBounds());
 									}
-									//DrawGraphCollision(SpaceTransform, *CollisionHandle, IslandIndex, LevelIndex, ColorIndex, Settings);
+
+									if (bChaosDebugDebugDrawContactGraph)
+									{
+										DrawGraphCollision(SpaceTransform, *CollisionHandle, IslandIndex, LevelIndex, ColorIndex, HandleIndex, Settings);
+									}
 								}
 							}
 
