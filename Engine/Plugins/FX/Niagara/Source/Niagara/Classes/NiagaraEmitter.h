@@ -632,6 +632,8 @@ private:
 	/** A multicast delegate which is called whenever all the scripts for this emitter have been compiled (successfully or not). */
 	FOnEmitterCompiled OnGPUScriptCompiledDelegate;
 
+	bool bFullyLoaded = false;
+
 	void RaiseOnEmitterGPUCompiled(UNiagaraScript* InScript, const FGuid& ScriptVersion);
 #endif
 
