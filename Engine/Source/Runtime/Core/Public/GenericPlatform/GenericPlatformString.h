@@ -74,11 +74,12 @@ struct FGenericPlatformString : public FGenericPlatformStricmp
 		enum { Value = false };
 	};
 
-	template <bool Dummy> struct TIsFixedWidthEncoding_Helper<Dummy, ANSICHAR> { enum { Value = true }; };
-	template <bool Dummy> struct TIsFixedWidthEncoding_Helper<Dummy, WIDECHAR> { enum { Value = true }; };
-	template <bool Dummy> struct TIsFixedWidthEncoding_Helper<Dummy, UCS2CHAR> { enum { Value = true }; };
+	template <bool Dummy> struct TIsFixedWidthEncoding_Helper<Dummy, ANSICHAR>  { enum { Value = true }; };
+	template <bool Dummy> struct TIsFixedWidthEncoding_Helper<Dummy, WIDECHAR>  { enum { Value = true }; };
+	template <bool Dummy> struct TIsFixedWidthEncoding_Helper<Dummy, UCS2CHAR>  { enum { Value = true }; };
+	template <bool Dummy> struct TIsFixedWidthEncoding_Helper<Dummy, UTF32CHAR> { enum { Value = true }; };
 #if PLATFORM_TCHAR_IS_CHAR16
-	template <bool Dummy> struct TIsFixedWidthEncoding_Helper<Dummy, wchar_t> { enum { Value = true }; };
+	template <bool Dummy> struct TIsFixedWidthEncoding_Helper<Dummy, wchar_t>   { enum { Value = true }; };
 #endif
 
 	template <typename T>
