@@ -63,8 +63,8 @@ inline const FPayloadId FPayloadId::Null;
 /**
  * A payload is described by an ID and by the hash and size of its raw buffer (uncompressed).
  *
- * Payloads may be constructed with or without a compressed buffer. A payload without a buffer is
- * used to uniquely describe a payload without the overhead of its buffer.
+ * Payloads may be constructed with or without data in the form of a compressed buffer. A payload
+ * without data can be used as a reference to the payload.
  */
 class FPayload
 {
@@ -72,7 +72,7 @@ public:
 	/** Construct a null payload. */
 	FPayload() = default;
 
-	/** Construct a payload with no hash, size, or buffer. */
+	/** Construct a payload with no hash, size, or data. */
 	inline explicit FPayload(const FPayloadId& Id);
 
 	/** Construct a payload from a the hash and size of the raw buffer. */
@@ -93,6 +93,9 @@ public:
 
 	/** Returns the compressed buffer for the payload. May be null. */
 	inline const FCompressedBuffer& GetData() const { return Data; }
+
+	/** Whether the compressed buffer for the payload is available. */
+	inline bool HasData() const { return !!Data; }
 
 	/** Whether this is null. */
 	inline bool IsNull() const { return Id.IsNull(); }
@@ -228,22 +231,6 @@ inline bool operator<(const FPayload& A, const FPayload& B)
 	const FIoHash& HashB = B.GetRawHash();
 	return !(IdA == IdB) ? IdA < IdB : !(HashA == HashB) ? HashA < HashB : A.GetRawSize() < B.GetRawSize();
 }
-
-/** Compare payloads by their ID. */
-struct FPayloadEqualById
-{
-	inline bool operator()(const FPayload& A, const FPayload& B) const { return A.GetId() == B.GetId(); }
-	inline bool operator()(const FPayload& A, const FPayloadId& B) const { return A.GetId() == B; }
-	inline bool operator()(const FPayloadId& A, const FPayload& B) const { return A == B.GetId(); }
-};
-
-/** Compare payloads by their ID. */
-struct FPayloadLessById
-{
-	inline bool operator()(const FPayload& A, const FPayload& B) const { return A.GetId() < B.GetId(); }
-	inline bool operator()(const FPayload& A, const FPayloadId& B) const { return A.GetId() < B; }
-	inline bool operator()(const FPayloadId& A, const FPayload& B) const { return A < B.GetId(); }
-};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

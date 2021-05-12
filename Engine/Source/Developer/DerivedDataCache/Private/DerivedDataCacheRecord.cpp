@@ -25,10 +25,10 @@ public:
 	void SetMeta(FCbObject&& Meta) final;
 
 	FPayloadId SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id) final;
-	FPayloadId SetValue(FPayload&& Payload) final;
+	FPayloadId SetValue(const FPayload& Payload) final;
 
 	FPayloadId AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id) final;
-	FPayloadId AddAttachment(FPayload&& Payload) final;
+	FPayloadId AddAttachment(const FPayload& Payload) final;
 
 	FCacheRecord Build() final;
 	FRequest BuildAsync(FOnCacheRecordComplete&& OnComplete, EPriority Priority) final;
@@ -138,8 +138,8 @@ const FPayload& FCacheRecordInternal::GetValuePayload() const
 
 FSharedBuffer FCacheRecordInternal::GetAttachment(const FPayloadId& Id) const
 {
-	const int32 Index = Algo::LowerBound(Attachments, Id, FPayloadLessById());
-	if (Attachments.IsValidIndex(Index) && FPayloadEqualById()(Attachments[Index], Id))
+	const int32 Index = Algo::BinarySearchBy(Attachments, Id, &FPayload::GetId);
+	if (Attachments.IsValidIndex(Index))
 	{
 		if (FReadScopeLock Lock(CacheLock); AttachmentsCache.IsValidIndex(Index) && AttachmentsCache[Index])
 		{
@@ -162,12 +162,8 @@ FSharedBuffer FCacheRecordInternal::GetAttachment(const FPayloadId& Id) const
 
 const FPayload& FCacheRecordInternal::GetAttachmentPayload(const FPayloadId& Id) const
 {
-	const int32 Index = Algo::LowerBound(Attachments, Id, FPayloadLessById());
-	if (Attachments.IsValidIndex(Index) && FPayloadEqualById()(Attachments[Index], Id))
-	{
-		return Attachments[Index];
-	}
-	return FPayload::Null;
+	const int32 Index = Algo::BinarySearchBy(Attachments, Id, &FPayload::GetId);
+	return Attachments.IsValidIndex(Index) ? Attachments[Index] : FPayload::Null;
 }
 
 TConstArrayView<FPayload> FCacheRecordInternal::GetAttachmentPayloads() const
@@ -200,14 +196,18 @@ FPayloadId FCacheRecordBuilderInternal::SetValue(const FSharedBuffer& Buffer, co
 	return SetValue(FPayload(ValueId, MoveTemp(CompressedBuffer)));
 }
 
-FPayloadId FCacheRecordBuilderInternal::SetValue(FPayload&& Payload)
+FPayloadId FCacheRecordBuilderInternal::SetValue(const FPayload& Payload)
 {
 	checkf(Payload, TEXT("Failed to set value on %s because the payload is null."), *WriteToString<96>(Key));
+	const FPayloadId& Id = Payload.GetId();
 	checkf(Value.IsNull(),
 		TEXT("Cache: Failed to set value on %s with ID %s because it has an existing value with ID %s."),
-		*WriteToString<96>(Key), *WriteToString<32>(Payload.GetId()), *WriteToString<32>(Value.GetId()));
-	Value = MoveTemp(Payload);
-	return Value.GetId();
+		*WriteToString<96>(Key), *WriteToString<32>(Id), *WriteToString<32>(Value.GetId()));
+	checkf(Algo::BinarySearchBy(Attachments, Id, &FPayload::GetId) == INDEX_NONE,
+		TEXT("Failed to set on %s with ID %s because it has an existing attachment with that ID."),
+		*WriteToString<96>(Key), *WriteToString<32>(Id));
+	Value = Payload;
+	return Id;
 }
 
 FPayloadId FCacheRecordBuilderInternal::AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id)
@@ -217,15 +217,16 @@ FPayloadId FCacheRecordBuilderInternal::AddAttachment(const FSharedBuffer& Buffe
 	return AddAttachment(FPayload(AttachmentId, MoveTemp(CompressedBuffer)));
 }
 
-FPayloadId FCacheRecordBuilderInternal::AddAttachment(FPayload&& Payload)
+FPayloadId FCacheRecordBuilderInternal::AddAttachment(const FPayload& Payload)
 {
 	checkf(Payload, TEXT("Failed to add attachment on %s because the payload is null."), *WriteToString<96>(Key));
-	const int32 Index = Algo::LowerBound(Attachments, Payload, FPayloadLessById());
-	checkf(!Attachments.IsValidIndex(Index) || !FPayloadEqualById()(Attachments[Index], Payload),
-		TEXT("Failed to add attachment on %s with ID %s because it has an existing attachment with that ID."),
-		*WriteToString<96>(Key), *WriteToString<32>(Payload.GetId()));
-	Attachments.Insert(MoveTemp(Payload), Index);
-	return Attachments[Index].GetId();
+	const FPayloadId& Id = Payload.GetId();
+	const int32 Index = Algo::LowerBoundBy(Attachments, Id, &FPayload::GetId);
+	checkf(!(Attachments.IsValidIndex(Index) && Attachments[Index].GetId() == Id) && Value.GetId() != Id,
+		TEXT("Failed to add attachment on %s with ID %s because it has an existing attachment or value with that ID."),
+		*WriteToString<96>(Key), *WriteToString<32>(Id));
+	Attachments.Insert(Payload, Index);
+	return Id;
 }
 
 FCacheRecord FCacheRecordBuilderInternal::Build()
