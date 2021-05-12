@@ -683,6 +683,11 @@ public:
 	 */
 	void SuspendNotifications(bool bSuspend) { bSuspendNotifications = bSuspend; }
 
+	/**
+	 * Helper function to disable a series of checks that can be ignored during a unit test
+	 */
+	void SetIsRunningUnitTest(bool bIsRunning) { bIsRunningUnitTest = bIsRunning; }
+
 private:
 
 	UPROPERTY(BlueprintReadOnly, Category = RigVMController, meta = (ScriptName = "ModifiedEvent", AllowPrivateAccess = "true"))
@@ -823,6 +828,8 @@ private:
 	FCriticalSection PinPathCoreRedirectorsLock;
 
 	FRigVMUnitNodeCreatedContext UnitNodeCreatedContext;
+
+	bool bIsRunningUnitTest;
 
 	friend class URigVMGraph;
 	friend class URigVMActionStack;
