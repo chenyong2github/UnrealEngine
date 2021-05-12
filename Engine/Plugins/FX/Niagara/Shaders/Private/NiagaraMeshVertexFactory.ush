@@ -1023,7 +1023,7 @@ UNROLL
 #endif
 
 #if PASS_NEEDS_VERTEX_ID
-		Input.VertexId : Tri.Indices[VertexIndex];
+		Input.VertexId = VertexId;
 #endif // #if PASS_NEEDS_VERTEX_ID
 
 		return Input;
