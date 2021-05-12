@@ -1233,11 +1233,7 @@ void UControlRigComponent::ValidateMappingData()
 					{
 						if (USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
 						{
-							if (MappedElement.ElementType == ERigElementType::Bone)
-							{
-								MappedElement.SubIndex = Skeleton->GetReferenceSkeleton().FindBoneIndex(MappedElement.TransformName);
-							}
-							else if (MappedElement.ElementType == ERigElementType::Curve)
+							if (MappedElement.ElementType == ERigElementType::Curve)
 							{
 								const FSmartNameMapping* CurveNameMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
 								if (CurveNameMapping)
@@ -1248,6 +1244,10 @@ void UControlRigComponent::ValidateMappingData()
 										MappedElement.SubIndex = (int32)SmartName.UID;
 									}
 								}
+							} 
+							else
+							{
+								MappedElement.SubIndex = Skeleton->GetReferenceSkeleton().FindBoneIndex(MappedElement.TransformName);
 							}
 						}
 						else
