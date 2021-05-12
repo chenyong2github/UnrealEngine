@@ -19,6 +19,7 @@
 #include "DerivedDataBackendInterface.h"
 #include "DerivedDataBuild.h"
 #include "DerivedDataBuildDefinition.h"
+#include "DerivedDataBuildOutput.h"
 #include "DerivedDataBuildPrivate.h"
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheRecord.h"
@@ -724,6 +725,21 @@ public:
 	FBuildDefinition LoadDefinition(FStringView Name, FCbObject&& Definition) final
 	{
 		return Private::LoadBuildDefinition(Name, MoveTemp(Definition));
+	}
+
+	FBuildOutputBuilder CreateOutput(FStringView Name, FStringView Function) final
+	{
+		return Private::CreateBuildOutput(Name, Function);
+	}
+
+	FBuildOutput LoadOutput(FStringView Name, FStringView Function, const FCbObject& Output) final
+	{
+		return Private::LoadBuildOutput(Name, Function, Output);
+	}
+
+	FBuildOutput LoadOutput(FStringView Name, FStringView Function, const FCacheRecord& Output) final
+	{
+		return Private::LoadBuildOutput(Name, Function, Output);
 	}
 };
 
