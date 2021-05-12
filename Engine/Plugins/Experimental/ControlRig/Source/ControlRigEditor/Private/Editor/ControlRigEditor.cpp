@@ -119,6 +119,9 @@ FControlRigEditor::~FControlRigEditor()
 	UControlRigBlueprint* RigBlueprint = GetControlRigBlueprint();
 	if (RigBlueprint)
 	{
+		// clear editor related data from the debugged control rig instance 
+		RigBlueprint->SetObjectBeingDebugged(nullptr);
+
 		UControlRigBlueprint::sCurrentlyOpenedRigBlueprints.Remove(RigBlueprint);
 
 		RigBlueprint->Hierarchy->OnModified().RemoveAll(this);
