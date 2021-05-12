@@ -37,6 +37,12 @@ public:
 	/** Promps a slate window to allow the user to populate specific material baking settings used while baking out materials */
 	virtual bool SetupMaterialBakeSettings(TArray<TWeakObjectPtr<UObject>>& OptionObjects, int32 NumLODs) override;
 
+	/** Outputs true HDR version of emissive color */
+	virtual void SetEmissiveHDR(bool bHDR) override;
+
+	/** Bakes all material properties to linear textures, except for colors */
+	virtual void SetLinearBake(bool bCorrectLinear) override;
+
 protected:
 	/* Creates and adds or reuses a RenderTarget from the pool */
 	UTextureRenderTarget2D* CreateRenderTarget(bool bInForceLinearGamma, EPixelFormat InPixelFormat, const FIntPoint& InTargetSize);
@@ -57,6 +63,12 @@ protected:
 	void OnPreGarbageCollect();
 
 private:
+	enum EPropertyColorSpace
+	{
+		Linear,
+		sRGB,
+	};
+
 	/** Pool of available render targets, cached for re-using on consecutive property rendering */
 	TArray<UTextureRenderTarget2D*> RenderTargetPool;
 
@@ -70,5 +82,9 @@ private:
 	TMap<FMaterialPropertyEx, EPixelFormat> PerPropertyFormat;
 
 	/** Whether or not to enforce gamma correction while baking out specific material properties */
-	TSet<FMaterialPropertyEx> PerPropertyGamma;
+	TMap<FMaterialPropertyEx, EPropertyColorSpace> PerPropertyColorSpace;
+
+	EPropertyColorSpace DefaultColorSpace;
+
+	bool bEmissiveHDR;
 };

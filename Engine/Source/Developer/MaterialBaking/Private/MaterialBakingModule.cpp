@@ -258,11 +258,10 @@ namespace FMaterialBakingModuleImpl
 
 void FMaterialBakingModule::StartupModule()
 {
+	bEmissiveHDR = false;
+
 	// Set which properties should enforce gamma correction
-	PerPropertyGamma.Add(MP_Normal);
-	PerPropertyGamma.Add(MP_Opacity);
-	PerPropertyGamma.Add(MP_OpacityMask);
-	PerPropertyGamma.Add(TEXT("ClearCoatBottomNormal"));
+	SetLinearBake(false);
 
 	// Set which pixel format should be used for the possible baked out material properties
 	PerPropertyFormat.Add(MP_EmissiveColor, PF_FloatRGBA);
@@ -351,6 +350,11 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 		for (TPair<FMaterialPropertyEx, TArray<FColor>>& PropertyDataPair : BakeOutputEx.PropertyData)
 		{
 			BakeOutput.PropertyData.Add(PropertyDataPair.Key.Type, MoveTemp(PropertyDataPair.Value));
+		}
+
+		for (TPair<FMaterialPropertyEx, TArray<FFloat16Color>>& PropertyDataPair : BakeOutputEx.HDRPropertyData)
+		{
+			BakeOutput.HDRPropertyData.Add(PropertyDataPair.Key.Type, MoveTemp(PropertyDataPair.Value));
 		}
 	}
 }
@@ -540,6 +544,10 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 			{
 				const FMaterialPropertyEx& Property = MaterialPropertiesToBakeOut[PropertyIndex];
 				CurrentOutput.PropertyData.Add(Property);
+				if (bEmissiveHDR && Property == MP_EmissiveColor)
+				{
+					CurrentOutput.HDRPropertyData.Add(Property);
+				}
 			}
 
 			for (int32 PropertyIndex = 0; PropertyIndex < NumPropertiesToRender; ++PropertyIndex)
@@ -557,12 +565,13 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 				}
 
 				// Lookup gamma and format settings for property, if not found use default values
-				const bool bForceLinearGamma = PerPropertyGamma.Contains(Property);
-				EPixelFormat PixelFormat = PerPropertyFormat.Contains(Property) ? PerPropertyFormat[Property] : PF_B8G8R8A8;
+				const EPropertyColorSpace* OverrideColorSpace = PerPropertyColorSpace.Find(Property);
+				const EPropertyColorSpace ColorSpace = OverrideColorSpace ? *OverrideColorSpace : DefaultColorSpace;
+				const EPixelFormat PixelFormat = PerPropertyFormat.Contains(Property) ? PerPropertyFormat[Property] : PF_B8G8R8A8;
 
 				// It is safe to reuse the same render target for each draw pass since they all execute sequentially on the GPU and are copied to staging buffers before
 				// being reused.
-				UTextureRenderTarget2D* RenderTarget = CreateRenderTarget(bForceLinearGamma, PixelFormat, CurrentOutput.PropertySizes[Property]);
+				UTextureRenderTarget2D* RenderTarget = CreateRenderTarget((ColorSpace == EPropertyColorSpace::sRGB), PixelFormat, CurrentOutput.PropertySizes[Property]);
 				if (RenderTarget != nullptr)
 				{
 					// Perform everything left of the operation directly on the render thread since we need to modify some RenderItem's properties
@@ -607,7 +616,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 							// Prepare a lambda for final processing that will be executed asynchronously
 							NumTasks++;
 							auto FinalProcessing_AnyThread =
-								[&NumTasks, bSaveIntermediateTextures, CurrentMaterialSettings, &StagingBufferPool, &Output, Property, MaterialIndex](FTexture2DRHIRef& StagingBuffer, void * Data, int32 DataWidth, int32 DataHeight)
+								[&NumTasks, bSaveIntermediateTextures, CurrentMaterialSettings, &StagingBufferPool, &Output, Property, MaterialIndex, bEmissiveHDR = bEmissiveHDR](FTexture2DRHIRef& StagingBuffer, void * Data, int32 DataWidth, int32 DataHeight)
 								{
 									TRACE_CPUPROFILER_EVENT_SCOPE(FinalProcessing)
 
@@ -621,6 +630,13 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 									{
 										// Only one thread will write to CurrentOutput.EmissiveScale since there can be only one emissive channel property per FBakeOutputEx
 										FMaterialBakingModule::ProcessEmissiveOutput((const FFloat16Color*)Data, DataWidth, OutputSize, OutputColor, CurrentOutput.EmissiveScale);
+
+										if (bEmissiveHDR)
+										{
+											TArray<FFloat16Color>& OutputHDRColor = CurrentOutput.HDRPropertyData[Property];
+											OutputHDRColor.SetNum(OutputSize.X * OutputSize.Y);
+											ConvertRawR16G16B16A16FDataToFFloat16Color(OutputSize.X, OutputSize.Y, (uint8*)Data, DataWidth * sizeof(FFloat16Color), OutputHDRColor.GetData());
+										}
 									}
 									else
 									{
@@ -772,6 +788,32 @@ bool FMaterialBakingModule::SetupMaterialBakeSettings(TArray<TWeakObjectPtr<UObj
 	}
 
 	return false;
+}
+
+void FMaterialBakingModule::SetEmissiveHDR(bool bHDR)
+{
+	bEmissiveHDR = bHDR;
+}
+
+void FMaterialBakingModule::SetLinearBake(bool bCorrectLinear)
+{
+	// PerPropertyGamma ultimately sets whether the render target is linear
+	PerPropertyColorSpace.Reset();
+	if (bCorrectLinear)
+	{
+		DefaultColorSpace = EPropertyColorSpace::Linear;
+		PerPropertyColorSpace.Add(MP_BaseColor, EPropertyColorSpace::sRGB);
+		PerPropertyColorSpace.Add(MP_EmissiveColor, EPropertyColorSpace::sRGB);
+		PerPropertyColorSpace.Add(MP_SubsurfaceColor, EPropertyColorSpace::sRGB);
+	}
+	else
+	{
+		DefaultColorSpace = EPropertyColorSpace::sRGB;
+		PerPropertyColorSpace.Add(MP_Normal, EPropertyColorSpace::Linear);
+		PerPropertyColorSpace.Add(MP_Opacity, EPropertyColorSpace::Linear);
+		PerPropertyColorSpace.Add(MP_OpacityMask, EPropertyColorSpace::Linear);
+		PerPropertyColorSpace.Add(TEXT("ClearCoatBottomNormal"), EPropertyColorSpace::Linear);
+	}
 }
 
 static void DeleteCachedMaterialProxy(FExportMaterialProxy* Proxy)
