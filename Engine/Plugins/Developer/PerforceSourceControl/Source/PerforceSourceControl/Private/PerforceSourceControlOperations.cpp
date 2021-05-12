@@ -233,7 +233,7 @@ static bool CheckWorkspaceRecordSet(const FP4RecordSet& InRecords, TArray<FText>
 	return false;
 }
 
-static void AppendChangelistParameter(TArray<FString>& InOutParams)
+static bool AppendChangelistParameter(TArray<FString>& InOutParams)
 {
 	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::GetModuleChecked<FPerforceSourceControlModule>("PerforceSourceControl");
 	FPerforceSourceControlSettings& Settings = PerforceSourceControl.AccessSettings();
@@ -243,7 +243,11 @@ static void AppendChangelistParameter(TArray<FString>& InOutParams)
 	{
 		InOutParams.Add(TEXT("-c"));
 		InOutParams.Add(ChangelistNumber);
+
+		return true;
 	}
+
+	return false;
 }
 
 FName FPerforceConnectWorker::GetName() const
@@ -310,7 +314,16 @@ bool FPerforceCheckOutWorker::Execute(FPerforceSourceControlCommand& InCommand)
 		FPerforceConnection& Connection = ScopedConnection.GetConnection();
 		TArray<FString> Parameters;
 
-		AppendChangelistParameter(Parameters);
+		if ((!AppendChangelistParameter(Parameters)) && InCommand.Changelist.IsInitialized())
+		{
+			FString ChangelistNumber = InCommand.Changelist.ToString();
+
+			if (!ChangelistNumber.IsEmpty())
+			{
+				Parameters.Add(TEXT("-c"));
+				Parameters.Add(ChangelistNumber);
+			}
+		}
 
 		Parameters.Append(InCommand.Files);
 		FP4RecordSet Records;

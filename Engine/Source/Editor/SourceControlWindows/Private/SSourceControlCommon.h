@@ -95,6 +95,9 @@ struct FUncontrolledChangelistTreeItem : public IChangelistTreeItem
 	FUncontrolledChangelistStateRef UncontrolledChangelistState;
 };
 
+typedef TSharedPtr<FUncontrolledChangelistTreeItem> FUncontrolledChangelistTreeItemPtr;
+typedef TSharedRef<FUncontrolledChangelistTreeItem> FUncontrolledChangelistTreeItemRef;
+
 struct FShelvedChangelistTreeItem : public IChangelistTreeItem
 {
 	FShelvedChangelistTreeItem()
@@ -184,6 +187,9 @@ private:
 	/** Matching asset(s) to facilitate Locate in content browser */
 	TArray<FAssetData> Assets;
 };
+
+typedef TSharedPtr<FFileTreeItem> FFileTreeItemPtr;
+typedef TSharedRef<FFileTreeItem> FFileTreeItemRef;
 
 struct FShelvedFileTreeItem : public FFileTreeItem
 {
