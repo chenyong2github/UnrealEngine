@@ -15,6 +15,7 @@
 #include "WaterSubsystem.h"
 #include "WaterModule.h"
 #include "Math/NumericLimits.h"
+#include "Algo/Transform.h"
 
 /** Scalability CVars*/
 static TAutoConsoleVariable<int32> CVarWaterMeshLODCountBias(
@@ -53,6 +54,9 @@ static TAutoConsoleVariable<int32> CVarWaterMeshEnabled(
 	TEXT("If the water mesh is enabled or disabled. This affects both rendering and the water tile generation"),
 	ECVF_RenderThreadSafe
 );
+
+extern TAutoConsoleVariable<float> CVarWaterSplineResampleMaxDistance;
+
 
 // ----------------------------------------------------------------------------------
 
@@ -331,41 +335,83 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 			TRACE_CPUPROFILER_EVENT_SCOPE(Lake);
 
 			const UWaterSplineComponent* SplineComp = WaterBody->GetWaterSpline();
-			const int32 NumOriginaSplinePoints = SplineComp->GetNumberOfSplinePoints();
-			
-			// Skip lakes with less than 3 spline points
-			if (NumOriginaSplinePoints < 3)
-			{
-				break;
-			}
-
-			const float SplineLength = SplineComp->GetSplineLength();
-			// LeafSize * 1.5 is roughly the max distance along the spline we aim to sample at
-			const int32 NumSamplePoints = FMath::Max(FMath::FloorToInt(SplineLength / (WaterQuadTree.GetLeafSize() * 1.5f)), NumOriginaSplinePoints);
-			const float DistDelta = SplineLength / NumSamplePoints;
-
-			TArray<FVector2D> SplinePoints;
-
-			// Allocate the number of spline points we'll be using and fill it from the actual spline
-			SplinePoints.SetNum(NumSamplePoints);
-			for (int32 i = 0; i < NumSamplePoints; i++)
-			{
-				SplinePoints[i] = FVector2D(SplineComp->GetLocationAtDistanceAlongSpline(i*DistDelta, ESplineCoordinateSpace::World));
-				
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-				if (!!CVarWaterMeshShowTileGenerationGeometry.GetValueOnGameThread())
-				{
-					FVector Point0 = SplineComp->GetLocationAtDistanceAlongSpline(i*DistDelta, ESplineCoordinateSpace::World);
-					FVector Point1 = SplineComp->GetLocationAtDistanceAlongSpline(((i + 1) % NumSamplePoints)*DistDelta, ESplineCoordinateSpace::World);
-					DrawDebugLine(GetWorld(), Point0, Point1, FColor::Green);
-				}
-#endif
-			}
+			const int32 NumOriginalSplinePoints = SplineComp->GetNumberOfSplinePoints();
+			float ConstantZ = SplineComp->GetLocationAtDistanceAlongSpline(0.0f, ESplineCoordinateSpace::World).Z;
 
 			FBox LakeBounds = WaterBody->GetComponentsBoundingBox();
 			LakeBounds.Max.Z += WaterBody->GetMaxWaveHeight();
 
-			WaterQuadTree.AddLake(SplinePoints, LakeBounds, WaterBodyRenderDataIndex);
+			// Skip lakes with less than 3 spline points
+			if (NumOriginalSplinePoints < 3)
+			{
+				break;
+			}
+
+			TArray<TArray<FVector2D>> PolygonBatches;
+			// Reuse the convex hulls generated for the physics shape because the work has already been done, but we can fallback to a simple spline evaluation method in case there's no physics:
+			bool bUseFallbackMethod = true;
+
+			TArray<UPrimitiveComponent*> CollisionComponents = WaterBody->GetCollisionComponents();
+			if (CollisionComponents.Num() > 0)
+			{
+				UPrimitiveComponent* Comp = CollisionComponents[0];
+				if (UBodySetup* BodySetup = (Comp != nullptr) ? Comp->GetBodySetup() : nullptr)
+				{
+					FTransform CompTransform = Comp->GetComponentTransform();
+					// Go through all sub shapes on the bodysetup to get a tight fit along water body
+					for (const FKConvexElem& ConvElem : BodySetup->AggGeom.ConvexElems)
+					{
+						TRACE_CPUPROFILER_EVENT_SCOPE(Add);
+
+						// Vertex data contains the bottom vertices first, then the top ones :
+						int32 TotalNumVertices = ConvElem.VertexData.Num();
+						check(TotalNumVertices % 2 == 0);
+						int32 NumVertices = TotalNumVertices / 2;
+						if (NumVertices > 0)
+						{ 
+							bUseFallbackMethod = false;
+
+							// Because the physics shape is made of multiple convex hulls, we cannot simply add their vertices to one big list but have to have 1 batch of polygons per convex hull
+							TArray<FVector2D>& Polygon = PolygonBatches.Emplace_GetRef();
+							Polygon.SetNum(NumVertices);
+							for (int32 i = 0; i < NumVertices; ++i)
+							{
+								// Gather the top vertices :
+								Polygon[i] = FVector2D(CompTransform.TransformPosition(ConvElem.VertexData[NumVertices + i]));
+							}
+						}
+					}
+				}
+			}
+
+			if (bUseFallbackMethod)
+			{
+				TArray<FVector> PolyLineVertices;
+				SplineComp->ConvertSplineToPolyLine(ESplineCoordinateSpace::World, FMath::Square(CVarWaterSplineResampleMaxDistance.GetValueOnGameThread()), PolyLineVertices);
+
+				TArray<FVector2D>& Polygon = PolygonBatches.Emplace_GetRef();
+				Polygon.Reserve(PolyLineVertices.Num());
+				Algo::Transform(PolyLineVertices, Polygon, [](const FVector& Vertex) { return FVector2D(Vertex); });
+			}
+
+			for (const TArray<FVector2D>& Polygon : PolygonBatches)
+			{
+				WaterQuadTree.AddLake(Polygon, LakeBounds, WaterBodyRenderDataIndex);
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+				if (!!CVarWaterMeshShowTileGenerationGeometry.GetValueOnGameThread())
+				{
+					float Z = SplineComp->GetLocationAtDistanceAlongSpline(0.0f, ESplineCoordinateSpace::World).Z;
+					int32 NumVertices = Polygon.Num();
+					for (int32 i = 0; i < NumVertices; i++)
+					{
+						const FVector2D& Point0 = Polygon[i];
+						const FVector2D& Point1 = Polygon[(i + 1) % NumVertices];
+						DrawDebugLine(GetWorld(), FVector(Point0.X, Point0.Y, Z), FVector(Point1.X, Point1.Y, Z), FColor::Green);
+					}
+				}
+#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			}
 
 			break;
 		}
@@ -383,35 +429,38 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 			else
 			{
 				const UWaterSplineComponent* SplineComp = WaterBody->GetWaterSpline();
-				const int32 NumSamplePoints = SplineComp->GetNumberOfSplinePoints();
+				const int32 NumOriginalSplinePoints = SplineComp->GetNumberOfSplinePoints();
 
 				// Skip oceans with less than 3 spline points
-				if (NumSamplePoints < 3)
+				if (NumOriginalSplinePoints < 3)
 				{
 					break;
 				}
 
-				TArray<FVector2D> SplinePoints;
+				TArray<FVector2D> Polygon;
 
-				// Allocate the number of spline points we'll be using and fill it from the actual spline
-				SplinePoints.SetNum(NumSamplePoints);
-				for (int32 i = 0; i < NumSamplePoints; i++)
-				{
-					SplinePoints[i] = FVector2D(SplineComp->GetLocationAtSplinePoint(i, ESplineCoordinateSpace::World));
+				TArray<FVector> PolyLineVertices;
+				SplineComp->ConvertSplineToPolyLine(ESplineCoordinateSpace::World, FMath::Square(CVarWaterSplineResampleMaxDistance.GetValueOnGameThread()), PolyLineVertices);
+
+				Polygon.Reserve(PolyLineVertices.Num());
+				Algo::Transform(PolyLineVertices, Polygon, [](const FVector& Vertex) { return FVector2D(Vertex); });
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-					if (!!CVarWaterMeshShowTileGenerationGeometry.GetValueOnGameThread())
+				if (!!CVarWaterMeshShowTileGenerationGeometry.GetValueOnGameThread())
+				{
+					float Z = SplineComp->GetLocationAtDistanceAlongSpline(0.0f, ESplineCoordinateSpace::World).Z;
+					int32 NumVertices = Polygon.Num();
+					for (int32 i = 0; i < NumVertices; i++)
 					{
-						FVector Point0 = SplineComp->GetLocationAtSplinePoint(i, ESplineCoordinateSpace::World);
-						FVector Point1 = SplineComp->GetLocationAtSplinePoint(((i + 1) % NumSamplePoints), ESplineCoordinateSpace::World);
-						DrawDebugLine(GetWorld(), Point0, Point1, FColor::Blue);
+						const FVector2D& Point0 = Polygon[i];
+						const FVector2D& Point1 = Polygon[(i + 1) % NumVertices];
+						DrawDebugLine(GetWorld(), FVector(Point0.X, Point0.Y, Z), FVector(Point1.X, Point1.Y, Z), FColor::Blue);
 					}
-#endif
 				}
+#endif //!(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 				const FBox OceanBounds = WaterBody->GetComponentsBoundingBox();
-
-				WaterQuadTree.AddOcean(SplinePoints, FVector2D(OceanBounds.Min.Z, OceanBounds.Max.Z + WaterBody->GetMaxWaveHeight()), WaterBodyRenderDataIndex);
+				WaterQuadTree.AddOcean(Polygon, FVector2D(OceanBounds.Min.Z, OceanBounds.Max.Z + WaterBody->GetMaxWaveHeight()), WaterBodyRenderDataIndex);
 			}
 
 			// Place far mesh height just below the ocean level

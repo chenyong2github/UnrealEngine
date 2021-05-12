@@ -12,6 +12,15 @@
 #include "PhysicsEngine/ConvexElem.h"
 #include "AI/NavigationSystemHelpers.h"
 #include "WaterUtils.h"
+#include "Algo/Transform.h"
+
+
+// ----------------------------------------------------------------------------------
+
+extern TAutoConsoleVariable<float> CVarWaterSplineResampleMaxDistance;
+
+
+// ----------------------------------------------------------------------------------
 
 ULakeCollisionComponent::ULakeCollisionComponent(const FObjectInitializer& ObjectInitializer)
 	: UPrimitiveComponent(ObjectInitializer)
@@ -44,9 +53,11 @@ void ULakeCollisionComponent::UpdateCollision(FVector InBoxExtent, bool bSplineP
 	}
 }
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
 FPrimitiveSceneProxy* ULakeCollisionComponent::CreateSceneProxy()
 {
-	/** Represents a UBoxComponent to the scene manager. */
+	/** Represents a ULakeCollisionComponent to the scene manager. */
 	class FLakeCollisionSceneProxy final : public FPrimitiveSceneProxy
 	{
 	public:
@@ -58,9 +69,14 @@ FPrimitiveSceneProxy* ULakeCollisionComponent::CreateSceneProxy()
 
 		FLakeCollisionSceneProxy(const ULakeCollisionComponent* InComponent)
 			: FPrimitiveSceneProxy(InComponent)
-			, BodySetup(InComponent->CachedBodySetup)
 		{
 			bWillEverBeLit = false;
+
+			if (InComponent->CachedBodySetup)
+			{
+				// copy the geometry for being able to access it on the render thread : 
+				AggregateGeom = InComponent->CachedBodySetup->AggGeom;
+			}
 		}
 
 		virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override
@@ -70,26 +86,23 @@ FPrimitiveSceneProxy* ULakeCollisionComponent::CreateSceneProxy()
 
 			const bool bDrawCollision = ViewFamily.EngineShowFlags.Collision && IsCollisionEnabled();
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
 				if (VisibilityMap & (1 << ViewIndex))
 				{
 					const FSceneView* View = Views[ViewIndex];
 
-					if (bDrawCollision && BodySetup && AllowDebugViewmodes())
+					if (bDrawCollision && AllowDebugViewmodes())
 					{
 						FColor CollisionColor(157, 149, 223, 255);
 						const bool bPerHullColor = false;
 						const bool bDrawSolid = false;
-						BodySetup->AggGeom.GetAggGeom(LocalToWorldTransform, GetSelectionColor(CollisionColor, IsSelected(), IsHovered()).ToFColor(true), nullptr, bPerHullColor, bDrawSolid, DrawsVelocity(), ViewIndex, Collector);
+						AggregateGeom.GetAggGeom(LocalToWorldTransform, GetSelectionColor(CollisionColor, IsSelected(), IsHovered()).ToFColor(true), nullptr, bPerHullColor, bDrawSolid, DrawsVelocity(), ViewIndex, Collector);
 					}
 	
 					RenderBounds(Collector.GetPDI(ViewIndex), View->Family->EngineShowFlags, GetBounds(), IsSelected());
-
 				}
 			}
-#endif
 		}
 
 		virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
@@ -108,11 +121,12 @@ FPrimitiveSceneProxy* ULakeCollisionComponent::CreateSceneProxy()
 		uint32 GetAllocatedSize(void) const { return(FPrimitiveSceneProxy::GetAllocatedSize()); }
 
 	private:
-		UBodySetup* BodySetup;
+		FKAggregateGeom AggregateGeom;
 	};
 
 	return new FLakeCollisionSceneProxy(this);
 }
+#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 FBoxSphereBounds ULakeCollisionComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
@@ -340,6 +354,8 @@ bool TriangulateSimpleXYPlanarPolygon(const TArray<FVector>& VertexPositions, TA
 
 void ULakeCollisionComponent::UpdateBodySetup()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULakeCollisionComponent::UpdateBodySetup);
+
 	CreateLakeBodySetupIfNeeded();
 	
 	FGuid PreviousBodySetupGuid = CachedBodySetup->BodySetupGuid;
@@ -363,45 +379,18 @@ void ULakeCollisionComponent::UpdateBodySetup()
 		const float MinZ = BoxExtent.Z;
 
 		// Generate planes
-		const int32 NumIterationsPerSegment = 3;
 		const int32 NumPoints = SplineComp->GetNumberOfSplinePoints();
 		// lakes are closed loops so add 1 to the end 
 		const int32 NumSteps = NumPoints + 1;
-		const double FinalStopDist = SplineComp->GetDistanceAlongSplineAtSplinePoint(NumPoints-1);
 
-		SplineVerts.Reserve(NumSteps * NumIterationsPerSegment);
-
-		for (int32 StepIndex = 0; StepIndex < NumSteps; ++StepIndex)
 		{
-			const int32 StartIndex = StepIndex;
-			const int32 StopIndex = StartIndex + 1;
+			TRACE_CPUPROFILER_EVENT_SCOPE(ResampleSpline);
 
-			const double StartDist = SplineComp->GetDistanceAlongSplineAtSplinePoint(StartIndex);
-			const double StopDist = SplineComp->GetDistanceAlongSplineAtSplinePoint(StopIndex);
-
-			double SubstepSize = FMath::Abs(StopDist - StartDist) / NumIterationsPerSegment;
-			if (SubstepSize == 0.0)
-			{
-				// Make sure there's at least 1 sub-step so that we get a single spline vertex for constant interpolation : 
-				SubstepSize = StopDist + 1.0;
-			}
-
-			int32 SubstepIndex = 0;
-			double SubstepDist = StartDist;
-			while (SubstepDist <= StopDist)
-			{
-				// Get world location since local space would be relative to the spline comp
-				FVector Location = SplineComp->GetLocationAtDistanceAlongSpline(SubstepDist, ESplineCoordinateSpace::World);
-
-				// Transform to local space of this component
-				FVector LocalSpace = GetComponentToWorld().InverseTransformPosition(Location);
-
-				SplineVerts.Add(FVector2D(LocalSpace));
-
-				SubstepDist += SubstepSize;
-			}
+			TArray<FVector> PolyLineVertices;
+			SplineComp->ConvertSplineToPolyLine(ESplineCoordinateSpace::World, FMath::Square(CVarWaterSplineResampleMaxDistance.GetValueOnGameThread()), PolyLineVertices);
+			// Transform to local space of this component :
+			Algo::Transform(PolyLineVertices, SplineVerts, [this](const FVector& Vertex) { return FVector2D(GetComponentToWorld().InverseTransformPosition(Vertex)); });
 		}
-
 
 		TArray<FVector2D> CorrectedSplineVertices;
 		FGeomTools2D::CorrectPolygonWinding(CorrectedSplineVertices, SplineVerts, false);
@@ -415,27 +404,30 @@ void ULakeCollisionComponent::UpdateBodySetup()
 		TArray<TArray<FVector2D>> ConvexHulls;
 		FGeomTools2D::GenerateConvexPolygonsFromTriangles(ConvexHulls, OutCleanTris);
 
-		for (const auto& Hull : ConvexHulls)
 		{
-			TArray<FVector> Hull3DVerts;
-			Hull3DVerts.Reserve(Hull.Num());
-
-			for (int32 PointIdx = 0; PointIdx < Hull.Num(); ++PointIdx)
+			TRACE_CPUPROFILER_EVENT_SCOPE(GenerateHull);
+			for (const auto& Hull : ConvexHulls)
 			{
-				Hull3DVerts.Emplace(FVector(Hull[PointIdx], 0));
-			}
+				TArray<FVector> Hull3DVerts;
+				Hull3DVerts.Reserve(Hull.Num());
 
-			if(Hull3DVerts.Num() > 2)
-			{
-				TArray<FVector> ExtrudedVerts;
-				TArray<FIntVector> Indices;
-				ExtrudeZSimplePolygon(Hull3DVerts, MinZ, MaxZ, ExtrudedVerts, Indices);
+				for (int32 PointIdx = 0; PointIdx < Hull.Num(); ++PointIdx)
+				{
+					Hull3DVerts.Emplace(FVector(Hull[PointIdx], 0));
+				}
 
-				FKConvexElem Convex;
-				Convex.VertexData = MoveTemp(ExtrudedVerts);
-				Convex.UpdateElemBox();
+				if(Hull3DVerts.Num() > 2)
+				{
+					TArray<FVector> ExtrudedVerts;
+					TArray<FIntVector> Indices;
+					ExtrudeZSimplePolygon(Hull3DVerts, MinZ, MaxZ, ExtrudedVerts, Indices);
 
-				CachedBodySetup->AggGeom.ConvexElems.Add(Convex);
+					FKConvexElem Convex;
+					Convex.VertexData = MoveTemp(ExtrudedVerts);
+					Convex.UpdateElemBox();
+
+					CachedBodySetup->AggGeom.ConvexElems.Add(Convex);
+				}
 			}
 		}
 
