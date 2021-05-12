@@ -147,10 +147,10 @@ void UWorldPartitionRuntimeLevelStreamingCell::MoveAlwaysLoadedContentToPersiste
 	}
 }
 
-bool UWorldPartitionRuntimeLevelStreamingCell::PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageCookName)
+bool UWorldPartitionRuntimeLevelStreamingCell::PopulateGeneratedPackageForCook(UPackage* InPackage)
 {
 	check(!IsAlwaysLoaded());
-	if (!InPackage || InPackageCookName.IsEmpty())
+	if (!InPackage)
 	{
 		return false;
 	}
@@ -159,7 +159,7 @@ bool UWorldPartitionRuntimeLevelStreamingCell::PopulateGeneratedPackageForCook(U
 	{
 		UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 		UWorld* OuterWorld = WorldPartition->GetTypedOuter<UWorld>();
-		ULevelStreaming* NewLevelStreaming = CreateLevelStreaming(InPackageCookName);
+		ULevelStreaming* NewLevelStreaming = CreateLevelStreaming(InPackage->GetName());
 		check(NewLevelStreaming)
 
 		// Load cell Actors
