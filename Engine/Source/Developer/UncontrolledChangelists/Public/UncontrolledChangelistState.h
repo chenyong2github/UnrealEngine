@@ -16,8 +16,13 @@ public:
 
 	enum class ECheckFlags
 	{
+		/** No Check */
 		None			= 0,
+
+		/** File has been modified */
 		Modified		= 1,
+
+		/** File is not checked out */
 		NotCheckedOut	= 1 << 1
 	};
 
@@ -76,11 +81,17 @@ public:
 	bool Deserialize(const TSharedRef<FJsonObject> InJsonValue);
 
 	/**
-	 * Adds a file to this Uncontrolled Changelist State.
-	 * @param 	InFilename 		The file to be added.
-	 * @param 	bInCheckStatus 	Tells whether we should verify if the file has been modified.
+	 * Adds files to this Uncontrolled Changelist State.
+	 * @param 	InFilenames		The files to be added.
+	 * @param 	InCheckFlags 	Tells which checks have to pass to add a file.
 	 */	
 	void AddFiles(const TArray<FString>& InFilenames, const ECheckFlags InCheckFlags);
+
+	/**
+	 * Removes files from this Uncontrolled Changelist State if present.
+	 * @param 	InFileStates 	The files to be removed.
+	 */
+	void RemoveFiles(const TArray<FSourceControlStateRef>& InFileStates);
 
 	/**
 	 * Updates the status of all files.

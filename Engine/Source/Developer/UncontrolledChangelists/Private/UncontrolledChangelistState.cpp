@@ -3,6 +3,7 @@
 #include "UncontrolledChangelistState.h"
 
 #include "Algo/Transform.h"
+#include "Algo/ForEach.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 #include "ISourceControlModule.h"
@@ -119,6 +120,11 @@ void FUncontrolledChangelistState::AddFiles(const TArray<FString>& InFilenames, 
 			}
 		}
 	}
+}
+
+void FUncontrolledChangelistState::RemoveFiles(const TArray<FSourceControlStateRef>& InFileStates)
+{
+	Algo::ForEach(InFileStates, [&Files = Files](const FSourceControlStateRef& FileState) { Files.Remove(FileState); });
 }
 
 void FUncontrolledChangelistState::UpdateStatus()

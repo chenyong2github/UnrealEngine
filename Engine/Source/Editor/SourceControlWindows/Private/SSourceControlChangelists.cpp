@@ -53,10 +53,13 @@ struct FSCCFileDragDropOp : public FDragDropOperation
 
 	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override
 	{
-		return SSourceControlCommon::GetSCCFileWidget(Files[0]);
+		FSourceControlStateRef FileState = Files.IsEmpty() ? UncontrolledFiles[0] : Files[0];
+
+		return SSourceControlCommon::GetSCCFileWidget(MoveTemp(FileState));
 	}
 
 	TArray<FSourceControlStateRef> Files;
+	TArray<FSourceControlStateRef> UncontrolledFiles;
 };
 
 //////////////////////////////
@@ -1210,7 +1213,10 @@ protected:
 			Algo::Transform(Operation->Files, Files, [](const FSourceControlStateRef& State) { return State->GetFilename(); });
 
 			ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+			FUncontrolledChangelistsModule& UncontrolledChangelistModule = FUncontrolledChangelistsModule::Get();
+			
 			SourceControlProvider.Execute(ISourceControlOperation::Create<FMoveToChangelist>(), Changelist, Files);
+			UncontrolledChangelistModule.MoveFilesToControlledChangelist(Operation->UncontrolledFiles, Changelist);
 		}
 
 		return FReply::Handled();
@@ -1320,16 +1326,7 @@ protected:
 		
 		if (Operation.IsValid())
 		{
-			TArray<FString> Files;
-			Algo::Transform(Operation->Files, Files, [](const FSourceControlStateRef& State) { return State->GetFilename(); });
-
-			ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-			auto RevertOperation = ISourceControlOperation::Create<FRevert>();
-
-			RevertOperation->SetSoftRevert(true);
-			SourceControlProvider.Execute(RevertOperation, Files);
-
-			FUncontrolledChangelistsModule::Get().OnFilesMovedToUncontrolledChangelist(Files, TreeItem->UncontrolledChangelistState->Changelist);
+			FUncontrolledChangelistsModule::Get().MoveFilesToUncontrolledChangelist(Operation->Files, Operation->UncontrolledFiles, TreeItem->UncontrolledChangelistState->Changelist);
 		}
 
 		return FReply::Handled();
@@ -1562,10 +1559,27 @@ FReply SSourceControlChangelistsWidget::OnFilesDragged(const FGeometry& InGeomet
 	{
 		TSharedRef<FSCCFileDragDropOp> Operation = MakeShareable(new FSCCFileDragDropOp());
 
-		Algo::Transform(TreeView->GetSelectedItems(), Operation->Files, [](FChangelistTreeItemPtr InTreeItem) { check(InTreeItem->GetTreeItemType() == IChangelistTreeItem::File); return static_cast<FFileTreeItem*>(InTreeItem.Get())->FileState; });
+		for (FChangelistTreeItemPtr InTreeItem : TreeView->GetSelectedItems())
+		{
+			if (InTreeItem->GetTreeItemType() == IChangelistTreeItem::File)
+			{
+				FFileTreeItemRef FileTreeItem = StaticCastSharedRef<FFileTreeItem>(InTreeItem.ToSharedRef());
+				FSourceControlStateRef FileState = FileTreeItem->FileState;
+
+				if (FileTreeItem->GetParent()->GetTreeItemType() == IChangelistTreeItem::UncontrolledChangelist)
+				{
+					Operation->UncontrolledFiles.Add(MoveTemp(FileState));
+				}
+				else
+				{
+					Operation->Files.Add(MoveTemp(FileState));
+				}
+			}
+		}
+		
 		Operation->Construct();
 
-		return FReply::Handled().BeginDragDrop(Operation);
+ 		return FReply::Handled().BeginDragDrop(Operation);
 	}
 
 	return FReply::Unhandled();
