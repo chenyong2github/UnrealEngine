@@ -152,6 +152,33 @@ namespace Chaos
 				[]() { return (int32)INDEX_NONE; });
 		}
 
+		int32 NumEdges() const
+		{
+			return ConstDataOp(
+				[](const auto& ConcreteData) { return ConcreteData.NumEdges(); },
+				[]() { return 0; });
+		}
+
+		int32 GetEdgeVertex(int32 EdgeIndex, int32 EdgeVertexIndex) const
+		{
+			return ConstDataOp(
+				[EdgeIndex, EdgeVertexIndex](const auto& ConcreteData)
+				{
+					return ConcreteData.GetEdgeVertex(EdgeIndex, EdgeVertexIndex);
+				},
+				[]() { return (int32)INDEX_NONE; });
+		}
+
+		int32 GetEdgePlane(int32 EdgeIndex, int32 EdgePlaneIndex) const
+		{
+			return ConstDataOp(
+				[EdgeIndex, EdgePlaneIndex](const auto& ConcreteData)
+				{
+					return ConcreteData.GetEdgePlane(EdgeIndex, EdgePlaneIndex);
+				},
+				[]() { return (int32)INDEX_NONE; });
+		}
+
 		// Initialize the structure data from the set of vertices for each face of the convex
 		void SetPlaneVertices(const TArray<TArray<int32>>& InPlaneVertices, int32 NumVerts)
 		{
@@ -168,7 +195,7 @@ namespace Chaos
 			Ar.UsingCustomVersion(FPhysicsObjectVersion::GUID);
 			Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
-			const bool bUseHalfEdgeStructureData = Ar.CustomVer(FPhysicsObjectVersion::GUID) >= FPhysicsObjectVersion::ConvexUsesHalfEdges;
+			const bool bUseHalfEdgeStructureData = Ar.CustomVer(FPhysicsObjectVersion::GUID) >= FPhysicsObjectVersion::ChaosConvexUsesHalfEdges;
 			
 			// Load and convert the legacy structure if necessary
 			if (Ar.IsLoading() && !bUseHalfEdgeStructureData)

@@ -370,10 +370,16 @@ namespace Chaos
 		// Get the vertex index of one of the vertices making up the corners of the specified face
 		int32 GetPlaneVertex(int32 PlaneIndex, int32 PlaneVertexIndex) const;
 
+		int32 GetEdgeVertex(int32 EdgeIndex, int32 EdgeVertexIndex) const;
+
+		int32 GetEdgePlane(int32 EdgeIndex, int32 EdgePlaneIndex) const;
+
 		int32 NumPlanes() const
 		{
 			return Planes.Num();
 		}
+
+		int32 NumEdges() const;
 
 		int32 NumVertices() const
 		{
