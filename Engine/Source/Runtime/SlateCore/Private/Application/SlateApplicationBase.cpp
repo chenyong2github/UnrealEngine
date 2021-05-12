@@ -161,10 +161,53 @@ bool FSlateApplicationBase::IsSlateAsleep()
 	return bIsSlateAsleep;
 }
 
+void FSlateApplicationBase::UpdateCustomSafeZone(const FMargin& NewSafeZoneRatio, bool bShouldRecacheMetrics)
+{
+	if (bShouldRecacheMetrics)
+	{
+		FDisplayMetrics DisplayMetrics;
+		GetDisplayMetrics(DisplayMetrics);
+	}
+	CustomSafeZoneRatio = NewSafeZoneRatio;
+
+	// Allow for a custom margin of zero when explictly set
+	if (CustomSafeZoneState != ECustomSafeZoneState::Set)
+	{
+		CustomSafeZoneState = NewSafeZoneRatio == FMargin() ? ECustomSafeZoneState::Unset : ECustomSafeZoneState::Debug;
+	}
+}
+
+#if WITH_EDITOR
+void FSlateApplicationBase::SwapSafeZoneTypes()
+{
+	FDisplayMetrics DisplayMetrics;
+	GetDisplayMetrics(DisplayMetrics);
+
+	if (FDisplayMetrics::GetDebugTitleSafeZoneRatio() < 1.0f)
+	{
+		ResetCustomSafeZone();
+		CustomSafeZoneState = ECustomSafeZoneState::Debug;
+		OnDebugSafeZoneChanged.Broadcast(FMargin(), false);
+	}
+}
+#endif // WITH_EDITOR
+
 void FSlateApplicationBase::ResetCustomSafeZone()
 {
 	CustomSafeZoneRatio = FMargin();
 	CustomSafeZoneState = ECustomSafeZoneState::Unset;
+}
+
+bool FSlateApplicationBase::IsCustomSafeZoneSet() const
+{
+	return CustomSafeZoneState == ECustomSafeZoneState::Set 
+		|| CustomSafeZoneState == ECustomSafeZoneState::Debug && CustomSafeZoneRatio != FMargin();
+}
+
+void FSlateApplicationBase::SetCustomSafeZone(const FMargin& InSafeZone)
+{
+	CustomSafeZoneRatio = InSafeZone;
+	CustomSafeZoneState = ECustomSafeZoneState::Set;
 }
 
 void FSlateApplicationBase::ToggleGlobalInvalidation(bool bIsGlobalInvalidationEnabled)
