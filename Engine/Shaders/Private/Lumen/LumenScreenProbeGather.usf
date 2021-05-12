@@ -1230,8 +1230,8 @@ void ScreenProbeTemporalReprojectionDepthRejectionPS(
 
 
 	/////////////////
-	//OutDiffuseIndirect.xyz = NeighborhoodClampAmount;
-	//OutRoughSpecularIndirect.xyz = bHistoryWasOffscreen ? 0 : PositionWeight;
+	//OutRoughSpecularIndirect.xyz = OutDiffuseIndirect.xyz = NeighborhoodClampAmount;
+	//OutRoughSpecularIndirect.xyz = OutDiffuseIndirect.xyz = bHistoryWasOffscreen ? 0 : PositionWeight;
 
 	OutDiffuseIndirect.rgb = -min(-OutDiffuseIndirect.rgb, 0.0f);
 	OutRoughSpecularIndirect.rgb = -min(-OutRoughSpecularIndirect.rgb, 0.0f);

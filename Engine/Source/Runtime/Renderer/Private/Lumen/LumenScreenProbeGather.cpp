@@ -137,7 +137,7 @@ FAutoConsoleVariableRef CVarLumenScreenProbeUseHistoryNeighborhoodClamp(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-float GLumenScreenProbeHistoryDistanceThreshold = 30;
+float GLumenScreenProbeHistoryDistanceThreshold = 10;
 FAutoConsoleVariableRef CVarLumenScreenProbeHistoryDistanceThreshold(
 	TEXT("r.Lumen.ScreenProbeGather.Temporal.DistanceThreshold"),
 	GLumenScreenProbeHistoryDistanceThreshold,
