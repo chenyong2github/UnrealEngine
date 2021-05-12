@@ -427,7 +427,7 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	 * @param	Command			Command to send to the console
 	 * @param	SpecificPlayer	If specified, the console command will be routed through the specified player
 	 */
-	UFUNCTION(BlueprintCallable, Category="Development",meta=(WorldContext="WorldContextObject"))
+	UFUNCTION(BlueprintCallable, Category="Development",meta=(WorldContext="WorldContextObject", CallableWithoutWorldContext))
 	static void ExecuteConsoleCommand(const UObject* WorldContextObject, const FString& Command, class APlayerController* SpecificPlayer = NULL );
 
 	/**
@@ -463,7 +463,7 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	 * @param	QuitPreference	Form of quitting.
 	 * @param	bIgnorePlatformRestrictions	Ignores and best-practices based on platform (e.g PS4 games should never quit). Non-shipping only
 	 */
-	UFUNCTION(BlueprintCallable, Category="Game",meta=(WorldContext="WorldContextObject"))
+	UFUNCTION(BlueprintCallable, Category="Game",meta=(WorldContext="WorldContextObject", CallableWithoutWorldContext))
 	static void QuitGame(const UObject* WorldContextObject, class APlayerController* SpecificPlayer, TEnumAsByte<EQuitPreference::Type> QuitPreference, bool bIgnorePlatformRestrictions);
 	
 #if WITH_EDITOR

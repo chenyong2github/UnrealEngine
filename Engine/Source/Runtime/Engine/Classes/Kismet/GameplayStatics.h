@@ -1103,8 +1103,8 @@ public:
 	static float GetAudioTimeSeconds(const UObject* WorldContextObject);
 
 	/** Returns time in seconds since the application was started. Unlike the other time functions this is accurate to the exact time this function is called instead of set once per frame. */
-	UFUNCTION(BlueprintPure, Category="Utilities|Time", meta=(WorldContext="WorldContextObject"))
-	static void GetAccurateRealTime(const UObject* WorldContextObject, int32& Seconds, float& PartialSeconds);
+	UFUNCTION(BlueprintPure, Category="Utilities|Time")
+	static void GetAccurateRealTime(int32& Seconds, float& PartialSeconds);
 
 	/*~ DVRStreaming API */
 	
