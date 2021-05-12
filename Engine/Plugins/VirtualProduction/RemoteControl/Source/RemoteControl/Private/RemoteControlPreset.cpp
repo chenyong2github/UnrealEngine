@@ -1633,11 +1633,12 @@ void URemoteControlPreset::OnActorDeleted(AActor* Actor)
 	{
 		if (Entity)
 		{
-			for (TWeakObjectPtr<URemoteControlBinding> Binding : Entity->Bindings)
+			for (auto It = Entity->Bindings.CreateIterator(); It; ++It)
 			{
-				if (ModifiedBindings.Contains(Binding.Get()))
+				if (ModifiedBindings.Contains(It->Get()))
 				{
 					PerFrameUpdatedEntities.Add(Entity->GetId());
+					It.RemoveCurrent();
 					break;
 				}
 			}

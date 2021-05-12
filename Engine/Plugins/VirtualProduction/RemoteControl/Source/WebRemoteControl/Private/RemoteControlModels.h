@@ -337,19 +337,19 @@ struct FRCPresetLayoutGroupDescription
 		: Name(Group.Name)
 	{
 		checkSlow(Preset);
-		for (const FGuid& FieldId : Group.GetFields())
+		for (const FGuid& EntityId : Group.GetFields())
 		{
-			AddExposedField(Preset, FieldId);
+			AddExposedField(Preset, EntityId);
 		}
 	}
 
-	FRCPresetLayoutGroupDescription(const URemoteControlPreset* Preset, const FRemoteControlPresetGroup& Group, const TArray<FName>& FieldLabels)
+	FRCPresetLayoutGroupDescription(const URemoteControlPreset* Preset, const FRemoteControlPresetGroup& Group, const TArray<FGuid>& EntityIds)
 		: Name(Group.Name)
 	{
 		checkSlow(Preset);
-		for (FName FieldLabel : FieldLabels)
+		for (const FGuid& Id : EntityIds)
 		{
-			AddExposedField(Preset, Preset->GetExposedEntityId(FieldLabel));
+			AddExposedField(Preset, Id);
 		}
 	}
 
@@ -368,23 +368,23 @@ public:
 
 private:
 	/** Add an exposed field to this group description. */
-	void AddExposedField(const URemoteControlPreset* Preset, const FGuid& FieldId)
+	void AddExposedField(const URemoteControlPreset* Preset, const FGuid& EntityId)
 	{
-		if (TSharedPtr<const FRemoteControlProperty> RCProperty = Preset->GetExposedEntity<FRemoteControlProperty>(FieldId).Pin())
+		if (TSharedPtr<const FRemoteControlProperty> RCProperty = Preset->GetExposedEntity<FRemoteControlProperty>(EntityId).Pin())
 		{
 			if (FProperty* Property = RCProperty->GetProperty())
 			{
 				ExposedProperties.Emplace(*RCProperty);	
 			}
 		}
-		else if (TSharedPtr<const FRemoteControlFunction> RCFunction = Preset->GetExposedEntity<FRemoteControlFunction>(FieldId).Pin())
+		else if (TSharedPtr<const FRemoteControlFunction> RCFunction = Preset->GetExposedEntity<FRemoteControlFunction>(EntityId).Pin())
 		{
 			if (RCFunction->GetFunction())
 			{
 				ExposedFunctions.Emplace(*RCFunction);
 			}
 		}
-		else if (TSharedPtr<const FRemoteControlActor> RCActor = Preset->GetExposedEntity<FRemoteControlActor>(FieldId).Pin())
+		else if (TSharedPtr<const FRemoteControlActor> RCActor = Preset->GetExposedEntity<FRemoteControlActor>(EntityId).Pin())
 		{
 			if (RCActor->GetActor())
 			{
@@ -441,7 +441,7 @@ USTRUCT()
 struct FRCShortPresetDescription
 {
 	GENERATED_BODY()
-
+ 
 	FRCShortPresetDescription() = default;
 
 	FRCShortPresetDescription(const FAssetData& PresetAsset)

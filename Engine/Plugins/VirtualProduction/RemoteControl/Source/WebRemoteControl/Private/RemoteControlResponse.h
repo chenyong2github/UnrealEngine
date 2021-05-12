@@ -253,11 +253,12 @@ struct FRCPresetFieldsRemovedEvent
 
 	FRCPresetFieldsRemovedEvent() = default;
 
-	FRCPresetFieldsRemovedEvent(FName InPresetName, TArray<FName> InRemovedFields)
+	FRCPresetFieldsRemovedEvent(FName InPresetName, TArray<FName> InRemovedFields, const TArray<FGuid>& InRemovedFieldIDs)
 		: Type(TEXT("PresetFieldsRemoved"))
 		, PresetName(InPresetName)
 		, RemovedFields(MoveTemp(InRemovedFields))
 	{
+		Algo::Transform(InRemovedFieldIDs, RemovedFieldIds, [](const FGuid& Id){ return Id.ToString(); });
 	}
 
 	UPROPERTY()
@@ -268,6 +269,9 @@ struct FRCPresetFieldsRemovedEvent
 
 	UPROPERTY()
 	TArray<FName> RemovedFields;
+
+	UPROPERTY()
+	TArray<FString> RemovedFieldIds;
 };
 
 USTRUCT()
