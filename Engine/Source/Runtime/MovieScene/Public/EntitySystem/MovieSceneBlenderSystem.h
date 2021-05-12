@@ -3,6 +3,8 @@
 #pragma once
 
 #include "EntitySystem/MovieSceneEntitySystem.h"
+#include "EntitySystem/MovieSceneBlenderSystemTypes.h"
+#include "Math/NumericLimits.h"
 #include "Templates/SubclassOf.h"
 
 #include "MovieSceneBlenderSystem.generated.h"
@@ -39,19 +41,41 @@ public:
 	GENERATED_BODY()
 
 	/**
+	 * Get a blender system class, given a blender system ID.
+	 */
+	static TSubclassOf<UMovieSceneBlenderSystem> GetBlenderSystemClass(FMovieSceneBlenderSystemID InSystemID);
+
+	/**
+	 * Get the unique ID for a given blender system type.
+	 */
+	template<typename BlenderSystemClass>
+	static FMovieSceneBlenderSystemID GetBlenderSystemID()
+	{
+		UMovieSceneBlenderSystem* DefaultObject = BlenderSystemClass::StaticClass()->GetDefaultObject<UMovieSceneBlenderSystem>();
+		check(DefaultObject);
+		return DefaultObject->SystemID;
+	}
+
+	/**
+	 * Get the unique ID for this blender system's underlying type.
+	 */
+	FMovieSceneBlenderSystemID GetBlenderSystemID() const;
+
+	/**
 	 * Allocate a new blend channel.
 	 * @note Must be released when it is no longer needed in order to prevent leaking channels.
 	 */
-	uint16 AllocateBlendChannel();
-
+	FMovieSceneBlendChannelID AllocateBlendChannel();
 
 	/**
 	 * Release a previously allocated blend channel.
 	 */
-	void ReleaseBlendChannel(uint16 BlendChannelID);
+	void ReleaseBlendChannel(FMovieSceneBlendChannelID BlendChannelID);
 
 
 protected:
+
+	UMovieSceneBlenderSystem(const FObjectInitializer& ObjInit);
 
 	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
 
@@ -59,4 +83,9 @@ protected:
 
 	/** Bit array specifying currently allocated blend channels */
 	TBitArray<> AllocatedBlendChannels;
+
+private:
+
+	/** Cached blender system ID */
+	FMovieSceneBlenderSystemID SystemID;
 };
