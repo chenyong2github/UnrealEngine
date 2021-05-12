@@ -1584,7 +1584,7 @@ namespace UnrealBuildTool
 												ConfigName += " " + ProjectTarget.TargetRules.Type.ToString();
 											}
 
-											if (BuildConfigs.Where(Config = > Config.DisplayName == ConfigName).ToList().Count == 0)
+											if (BuildConfigs.Where(Config => Config.DisplayName == ConfigName).ToList().Count == 0)
 											{
 												string TargetName = ProjectTarget.TargetFilePath.GetFileNameWithoutAnyExtensions();
 
