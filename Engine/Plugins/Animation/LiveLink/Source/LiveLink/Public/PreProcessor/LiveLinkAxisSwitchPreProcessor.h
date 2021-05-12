@@ -36,6 +36,12 @@ public:
 		ELiveLinkAxis RightAxis = ELiveLinkAxis::Y;
 		ELiveLinkAxis UpAxis = ELiveLinkAxis::Z;
 
+		bool bUseOffsetPosition = false;
+		bool bUseOffsetOrientation = false;
+
+		FVector OffsetPosition = FVector::ZeroVector;
+		FRotator OffsetOrientation = FRotator::ZeroRotator;
+
 		virtual TSubclassOf<ULiveLinkRole> GetRole() const override;
 		virtual bool PreProcessFrame(FLiveLinkFrameDataStruct& InOutFrame) const override;
 	};
@@ -62,6 +68,16 @@ protected:
 	ELiveLinkAxis RightAxis = ELiveLinkAxis::Y;
 	UPROPERTY(EditAnywhere, Category = "LiveLink")
 	ELiveLinkAxis UpAxis = ELiveLinkAxis::Z;
+
+	UPROPERTY(EditAnywhere, Category = "Enables", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	bool bUseOffsetPosition = false;
+	UPROPERTY(EditAnywhere, Category = "Enables", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	bool bUseOffsetOrientation = false;
+
+	UPROPERTY(EditAnywhere, Category = "LiveLink", meta = (EditCondition = "bUseOffsetPosition"))
+	FVector OffsetPosition = FVector::ZeroVector;
+	UPROPERTY(EditAnywhere, Category = "LiveLink", meta = (EditCondition = "bUseOffsetOrientation"))
+	FRotator OffsetOrientation = FRotator::ZeroRotator;
 
 public:
 	virtual TSubclassOf<ULiveLinkRole> GetRole() const override;
