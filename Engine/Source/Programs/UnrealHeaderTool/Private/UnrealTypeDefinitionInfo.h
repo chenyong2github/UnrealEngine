@@ -219,6 +219,17 @@ public:
 	}
 
 	/**
+	 * Perform any post parsing finalization and validation
+	 */
+	virtual void PostParseFinalize()
+	{}
+
+	/**
+	 * Return the C++ type name that represents this type (i.e. UClass)
+	 */
+	virtual const TCHAR* GetSimplifiedTypeClass() const = 0;
+
+	/**
 	 * Return the compilation scope associated with this object
 	 */
 	virtual TSharedRef<FScope> GetScope();
@@ -324,6 +335,14 @@ public:
 	virtual FUnrealPropertyDefinitionInfo* AsProperty() override
 	{
 		return this;
+	}
+
+	/**
+	 * Return the C++ type name that represents this type (i.e. UClass)
+	 */
+	virtual const TCHAR* GetSimplifiedTypeClass() const override
+	{
+		return TEXT("UProperty");
 	}
 
 	/**
@@ -437,6 +456,14 @@ public:
 	}
 
 	/**
+	 * Return the C++ type name that represents this type (i.e. UClass)
+	 */
+	virtual const TCHAR* GetSimplifiedTypeClass() const override
+	{
+		return TEXT("UPackage");
+	}
+
+	/**
 	 * Return the module information from the manifest associated with this package
 	 */
 	const FManifestModule& GetModule()
@@ -493,10 +520,47 @@ public:
 		return ShortUpperName;
 	}
 
+	/**
+	 * Perform any post parsing finalization and validation
+	 */
+	virtual void PostParseFinalize() override;
+
+	/**
+	 * Add a unique cross module reference for this field
+	 */
+	void AddCrossModuleReference(TSet<FString>* UniqueCrossModuleReferences) const;
+
+	/**
+	 * Return the name of the singleton for this field.  Only valid post parsing
+	 */
+	const FString& GetSingletonName() const
+	{
+		return SingletonName;
+	}
+
+	/**
+	 * Return the name of the singleton without the trailing "()" for this field.  Only valid post parsing
+	 */
+	const FString& GetSingletonNameChopped() const
+	{
+		return SingletonNameChopped;
+	}
+
+	/**
+	 * Return the external declaration for this field.  Only valid post parsing
+	 */
+	const FString& GetExternDecl() const
+	{
+		return ExternDecl;
+	}
+
 private:
 	const FManifestModule& Module;
 	TArray<TSharedRef<FUnrealSourceFile>> AllSourceFiles;
 	TArray<UClass*> AllClasses;
+	FString SingletonName;
+	FString SingletonNameChopped;
+	FString ExternDecl;
 	FString ShortUpperName;
 	FString API;
 	bool bWriteClassesH = false;
@@ -526,7 +590,44 @@ public:
 		return static_cast<UField*>(GetObject());
 	}
 
+	/**
+	 * Perform any post parsing finalization and validation
+	 */
+	virtual void PostParseFinalize() override;
+
+	/**
+	 * Add a unique cross module reference for this field
+	 */
+	void AddCrossModuleReference(TSet<FString>* UniqueCrossModuleReferences, bool bRequiresValidObject) const;
+
+	/**
+	 * Return the name of the singleton for this field.  Only valid post parsing
+	 */
+	const FString& GetSingletonName(bool bRequiresValidObject) const
+	{
+		return SingletonName[bRequiresValidObject];
+	}
+
+	/**
+	 * Return the name of the singleton without the trailing "()" for this field.  Only valid post parsing
+	 */
+	const FString& GetSingletonNameChopped(bool bRequiresValidObject) const
+	{
+		return SingletonNameChopped[bRequiresValidObject];
+	}
+
+	/**
+	 * Return the external declaration for this field.  Only valid post parsing
+	 */
+	const FString& GetExternDecl(bool bRequiresValidObject) const
+	{
+		return ExternDecl[bRequiresValidObject];
+	}
+
 private:
+	FString SingletonName[2];
+	FString SingletonNameChopped[2];
+	FString ExternDecl[2];
 };
 
 /**
@@ -542,6 +643,14 @@ public:
 	virtual FUnrealEnumDefinitionInfo* AsEnum() override
 	{
 		return this;
+	}
+
+	/**
+	 * Return the C++ type name that represents this type (i.e. UClass)
+	 */
+	virtual const TCHAR* GetSimplifiedTypeClass() const override
+	{
+		return TEXT("UEnum");
 	}
 
 	/**
@@ -638,6 +747,14 @@ public:
 	virtual uint32 GetHash(bool bIncludeNoExport = true) const override;
 
 	/**
+	 * Return the C++ type name that represents this type (i.e. UClass)
+	 */
+	virtual const TCHAR* GetSimplifiedTypeClass() const override
+	{
+		return TEXT("UScriptStruct");
+	}
+
+	/**
 	 * Return the Engine instance associated with the compiler instance
 	 */
 	UScriptStruct* GetScriptStruct() const
@@ -680,6 +797,14 @@ public:
 	virtual FUnrealFunctionDefinitionInfo* AsFunction() override
 	{
 		return this;
+	}
+
+	/**
+	 * Return the C++ type name that represents this type (i.e. UClass)
+	 */
+	virtual const TCHAR* GetSimplifiedTypeClass() const override
+	{
+		return TEXT("UFunction");
 	}
 
 	/**
@@ -799,6 +924,14 @@ public:
 	virtual FUnrealClassDefinitionInfo* AsClass() override
 	{
 		return this;
+	}
+
+	/**
+	 * Return the C++ type name that represents this type (i.e. UClass)
+	 */
+	virtual const TCHAR* GetSimplifiedTypeClass() const override
+	{
+		return TEXT("UClass");
 	}
 
 	virtual uint32 GetHash(bool bIncludeNoExport = true) const override;

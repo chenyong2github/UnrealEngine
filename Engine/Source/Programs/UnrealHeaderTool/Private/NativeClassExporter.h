@@ -329,14 +329,14 @@ private:
 	 */
 	static void ExportProperties(FOutputDevice& Out, UStruct* Struct, int32 TextIndent);
 
-	/** Return the name of the singleton function that returns the UObject for Item */
-	static const FString& GetPackageSingletonName(const UPackage* Item, TSet<FString>* UniqueCrossModuleReferences);
+	/** Return the name of the singleton function */
+	static const FString& GetPackageSingletonName(UPackage* Item, TSet<FString>* UniqueCrossModuleReferences);
 
-	/** Return the name of the singleton function that returns the UObject for Item */
-	static const FString& GetSingletonName(UField* Item, TSet<FString>* UniqueCrossModuleReferences, bool bRequiresValidObject=true);
+	/** Return the address of the singleton function */
+	static const FString& GetPackageSingletonNameFuncAddr(UPackage* Item, TSet<FString>* UniqueCrossModuleReferences);
 
 	/** Return the address of the singleton function - handles nullptr */
-	static FString GetSingletonNameFuncAddr(UField* Item, TSet<FString>* UniqueCrossModuleReferences, bool bRequiresValidObject=true);
+	static const FString& GetSingletonNameFuncAddr(UField* Item, TSet<FString>* UniqueCrossModuleReferences, bool bRequiresValidObject = true);
 
 	/**
 	 * Returns the name (overridden if marked up) or "" wrappers for use in a string literal.
