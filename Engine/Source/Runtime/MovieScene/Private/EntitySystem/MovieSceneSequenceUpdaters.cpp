@@ -121,11 +121,14 @@ void DissectRange(TArrayView<const FFrameTime> InDissectionTimes, const TRange<F
 		FFrameTime DissectionTime = InDissectionTimes[Index];
 
 		TRange<FFrameTime> Dissection(LowerBound, TRangeBound<FFrameTime>::Exclusive(DissectionTime));
-		ensureAlwaysMsgf(Bounds.Contains(Dissection), TEXT("Dissection specified for a range outside of the current bounds"));
+		if (!Dissection.IsEmpty())
+		{
+			ensureAlwaysMsgf(Bounds.Contains(Dissection), TEXT("Dissection specified for a range outside of the current bounds"));
 
-		OutDissections.Add(Dissection);
+			OutDissections.Add(Dissection);
 
-		LowerBound = TRangeBound<FFrameTime>::Inclusive(DissectionTime);
+			LowerBound = TRangeBound<FFrameTime>::Inclusive(DissectionTime);
+		}
 	}
 
 	TRange<FFrameTime> TailRange(LowerBound, Bounds.GetUpperBound());
@@ -143,7 +146,7 @@ TArrayView<const FFrameTime> GetFencesWithinRange(TArrayView<const FFrameTime> F
 	}
 
 	// Take care to include or exclude the lower bound of the range if it's on a whole frame numbe
-	const int32 StartFence = Boundary.GetLowerBound().IsClosed() ? Algo::LowerBound(Fences, Boundary.GetLowerBoundValue()) : 0;
+	const int32 StartFence = Boundary.GetLowerBound().IsClosed() ? Algo::UpperBound(Fences, Boundary.GetLowerBoundValue()) : 0;
 	if (StartFence >= Fences.Num())
 	{
 		return TArrayView<const FFrameTime>();
