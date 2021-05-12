@@ -1228,14 +1228,19 @@ bool SGraphPin::IsEditingEnabled() const
 bool SGraphPin::UseLowDetailPinNames() const
 {
 	SGraphNode* MyOwnerNode = OwnerNodePtr.Pin().Get();
-	if (MyOwnerNode && MyOwnerNode->GetOwnerPanel().IsValid())
+	if (MyOwnerNode)
 	{
-		return MyOwnerNode->GetOwnerPanel()->GetCurrentLOD() <= EGraphRenderingLOD::LowDetail;
+		if(MyOwnerNode->UseLowDetailPinNames())
+		{
+			return true;
+		}
+
+		if(MyOwnerNode->GetOwnerPanel().IsValid())
+		{
+			return MyOwnerNode->GetOwnerPanel()->GetCurrentLOD() <= EGraphRenderingLOD::LowDetail;
+		}
 	}
-	else
-	{
-		return false;
-	}
+	return false;
 }
 
 EVisibility SGraphPin::GetPinVisiblity() const
