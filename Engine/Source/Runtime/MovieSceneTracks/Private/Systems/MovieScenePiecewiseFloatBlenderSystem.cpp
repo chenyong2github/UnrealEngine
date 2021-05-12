@@ -65,7 +65,7 @@ struct FAccumulationTask
 	{}
 
 	/** Task entry point - iterates the allocation's headers and accumulates float results for any required components */
-	void ForEachAllocation(FEntityAllocationIteratorItem InItem, TRead<uint16> BlendIDs, TReadOptional<float> OptionalEasingAndWeights)
+	void ForEachAllocation(FEntityAllocationIteratorItem InItem, TRead<FMovieSceneBlendChannelID> BlendIDs, TReadOptional<float> OptionalEasingAndWeights)
 	{
 		const FEntityAllocation* Allocation = InItem;
 		const FComponentMask& AllocationType = InItem;
@@ -86,15 +86,20 @@ struct FAccumulationTask
 
 private:
 
-	void AccumulateResults(const FEntityAllocation* InAllocation, const float* InFloatResults, const uint16* BlendIDs, const float* OptionalEasingAndWeights, TArray<FBlendResult>& OutBlendResults)
+	void AccumulateResults(const FEntityAllocation* InAllocation, const float* InFloatResults, const FMovieSceneBlendChannelID* BlendIDs, const float* OptionalEasingAndWeights, TArray<FBlendResult>& OutBlendResults)
 	{
+		static const FMovieSceneBlenderSystemID FloatBlenderSystemID = UMovieSceneBlenderSystem::GetBlenderSystemID<UMovieScenePiecewiseFloatBlenderSystem>();
+
 		const int32 Num = InAllocation->Num();
 		if (OptionalEasingAndWeights)
 		{
 			// We have some easing/weight factors to multiply values with.
 			for (int32 Index = 0; Index < Num; ++Index)
 			{
-				FBlendResult& Result = OutBlendResults[BlendIDs[Index]];
+				const FMovieSceneBlendChannelID& BlendID(BlendIDs[Index]);
+				ensureMsgf(BlendID.SystemID == FloatBlenderSystemID, TEXT("Overriding the standard blender system of standard types isn't supported."));
+
+				FBlendResult& Result = OutBlendResults[BlendID.ChannelID];
 
 				const float Weight = OptionalEasingAndWeights[Index];
 				Result.Total  += InFloatResults[Index] * Weight;
@@ -106,7 +111,10 @@ private:
 			// Faster path for when there's no weight to multiply values with.
 			for (int32 Index = 0; Index < Num; ++Index)
 			{
-				FBlendResult& Result = OutBlendResults[BlendIDs[Index]];
+				const FMovieSceneBlendChannelID& BlendID(BlendIDs[Index]);
+				ensureMsgf(BlendID.SystemID == FloatBlenderSystemID, TEXT("Overriding the standard blender system of standard types isn't supported."));
+
+				FBlendResult& Result = OutBlendResults[BlendID.ChannelID];
 				Result.Total  += InFloatResults[Index];
 				Result.Weight += 1.f;
 			}
@@ -124,7 +132,7 @@ struct FAdditiveFromBaseBlendTask
 {
 	TSortedMap<FComponentTypeID, FAdditiveFromBaseBuffer>* AccumulationBuffers;
 
-	void ForEachAllocation(FEntityAllocationIteratorItem InItem, TRead<uint16> BlendIDs, TReadOptional<float> EasingAndWeightResults)
+	void ForEachAllocation(FEntityAllocationIteratorItem InItem, TRead<FMovieSceneBlendChannelID> BlendIDs, TReadOptional<float> EasingAndWeightResults)
 	{
 		FEntityAllocation* Allocation = InItem;
 		const FComponentMask& AllocationType = InItem;
@@ -143,15 +151,20 @@ struct FAdditiveFromBaseBlendTask
 
 private:
 
-	void AccumulateResults(const FEntityAllocation* InAllocation, const float* FloatResults, const float* BaseValues, const uint16* BlendIDs, const float* OptionalEasingAndWeights, TArray<FBlendResult>& OutBlendResults)
+	void AccumulateResults(const FEntityAllocation* InAllocation, const float* FloatResults, const float* BaseValues, const FMovieSceneBlendChannelID* BlendIDs, const float* OptionalEasingAndWeights, TArray<FBlendResult>& OutBlendResults)
 	{
+		static const FMovieSceneBlenderSystemID FloatBlenderSystemID = UMovieSceneBlenderSystem::GetBlenderSystemID<UMovieScenePiecewiseFloatBlenderSystem>();
+		
 		const int32 Num = InAllocation->Num();
 
 		if (OptionalEasingAndWeights)
 		{
 			for (int32 Index = 0; Index < Num; ++Index)
 			{
-				FBlendResult& Result = OutBlendResults[BlendIDs[Index]];
+				const FMovieSceneBlendChannelID& BlendID(BlendIDs[Index]);
+				ensureMsgf(BlendID.SystemID == FloatBlenderSystemID, TEXT("Overriding the standard blender system of standard types isn't supported."));
+
+				FBlendResult& Result = OutBlendResults[BlendID.ChannelID];
 
 				const float Weight = OptionalEasingAndWeights[Index];
 				Result.Total  += (FloatResults[Index] - BaseValues[Index]) * Weight;
@@ -163,7 +176,10 @@ private:
 			// Faster path for when there's no weight to multiply values with.
 			for (int32 Index = 0; Index < Num; ++Index)
 			{
-				FBlendResult& Result = OutBlendResults[BlendIDs[Index]];
+				const FMovieSceneBlendChannelID& BlendID(BlendIDs[Index]);
+				ensureMsgf(BlendID.SystemID == FloatBlenderSystemID, TEXT("Overriding the standard blender system of standard types isn't supported."));
+
+				FBlendResult& Result = OutBlendResults[BlendID.ChannelID];
 				Result.Total  += (FloatResults[Index] - BaseValues[Index]);
 				Result.Weight += 1.f;
 			}
@@ -181,7 +197,7 @@ struct FCombineBlends
 		, WriteContext(InWriteContext)
 	{}
 
-	void ForEachAllocation(FEntityAllocationIteratorItem InItem, TRead<uint16> BlendIDs)
+	void ForEachAllocation(FEntityAllocationIteratorItem InItem, TRead<FMovieSceneBlendChannelID> BlendIDs)
 	{
 		FEntityAllocation* Allocation = InItem;
 		const FComponentMask& AllocationType = InItem;
@@ -200,10 +216,11 @@ struct FCombineBlends
 
 private:
 
-	void ProcessPropertyType(FEntityAllocation* Allocation, const FComponentMask& AllocationType, const FPropertyDefinition& PropertyDefinition, const uint16* BlendIDs)
+	void ProcessPropertyType(FEntityAllocation* Allocation, const FComponentMask& AllocationType, const FPropertyDefinition& PropertyDefinition, const FMovieSceneBlendChannelID* BlendIDs)
 	{
-		TArrayView<const FPropertyCompositeDefinition> Composites = PropertyRegistry->GetComposites(PropertyDefinition);
+		static const FMovieSceneBlenderSystemID FloatBlenderSystemID = UMovieSceneBlenderSystem::GetBlenderSystemID<UMovieScenePiecewiseFloatBlenderSystem>();
 
+		TArrayView<const FPropertyCompositeDefinition> Composites = PropertyRegistry->GetComposites(PropertyDefinition);
 
 		FOptionalComponentReader OptInitialValues = Allocation->TryReadComponentsErased(PropertyDefinition.InitialValueType);
 
@@ -232,15 +249,17 @@ private:
 				{
 					for (int32 Index = 0; Index < Allocation->Num(); ++Index)
 					{
+						ensureMsgf(BlendIDs[Index].SystemID == FloatBlenderSystemID, TEXT("Overriding the standard blender system of standard types isn't supported."));
 						const float InitialValue = *reinterpret_cast<const float*>(static_cast<const uint8*>(OptInitialValues[Index]) + InitialValueProjectionOffset);
-						BlendResultsWithInitial(Results, BlendIDs[Index], InitialValue, FloatResults[Index]);
+						BlendResultsWithInitial(Results, BlendIDs[Index].ChannelID, InitialValue, FloatResults[Index]);
 					}
 				}
 				else
 				{
 					for (int32 Index = 0; Index < Allocation->Num(); ++Index)
 					{
-						BlendResults(Results, BlendIDs[Index], FloatResults[Index]);
+						ensureMsgf(BlendIDs[Index].SystemID == FloatBlenderSystemID, TEXT("Overriding the standard blender system of standard types isn't supported."));
+						BlendResults(Results, BlendIDs[Index].ChannelID, FloatResults[Index]);
 					}
 				}
 			}
@@ -608,14 +627,19 @@ FGraphEventRef UMovieScenePiecewiseFloatBlenderSystem::DispatchDecomposeTask(con
 			EntitiesToDecompose.Append(Params.Query.Entities.GetData(), Params.Query.Entities.Num());
 		}
 
-		void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FMovieSceneEntityID> EntityToDecomposeIDs, TRead<uint16> BlendChannels, TRead<float> FloatResultComponent, TReadOptional<float> OptionalWeightComponent)
+		void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FMovieSceneEntityID> EntityToDecomposeIDs, TRead<FMovieSceneBlendChannelID> BlendChannels, TRead<float> FloatResultComponent, TReadOptional<float> OptionalWeightComponent)
 		{
+			static const FMovieSceneBlenderSystemID FloatBlenderSystemID = UMovieSceneBlenderSystem::GetBlenderSystemID<UMovieScenePiecewiseFloatBlenderSystem>();
+
 			const bool bAdditive = Allocation->HasComponent(AdditiveBlendTag);
 
 			const int32 Num = Allocation->Num();
 			for (int32 EntityIndex = 0; EntityIndex < Num; ++EntityIndex)
 			{
-				if (BlendChannels[EntityIndex] != DecomposeBlendChannel)
+				const FMovieSceneBlendChannelID& BlendChannel(BlendChannels[EntityIndex]);
+				ensureMsgf(BlendChannel.SystemID == FloatBlenderSystemID, TEXT("Overriding the standard blender system of standard types isn't supported."));
+
+				if (BlendChannel.ChannelID != DecomposeBlendChannel)
 				{
 					continue;
 				}

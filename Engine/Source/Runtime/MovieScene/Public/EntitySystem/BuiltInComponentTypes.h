@@ -4,6 +4,7 @@
 
 #include "EntitySystem/MovieSceneEntityManager.h"
 #include "UObject/GCObjectScopeGuard.h"
+#include "EntitySystem/MovieSceneBlenderSystemTypes.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
 #include "Evaluation/Blending/MovieSceneBlendType.h"
@@ -69,7 +70,6 @@ struct FMovieSceneEvaluationHookComponent
 
 	FGuid ObjectBindingID;
 };
-
 
 
 USTRUCT()
@@ -174,11 +174,11 @@ public:
 
 public:
 
-	TComponentTypeID<uint16>              BlendChannelInput;
+	TComponentTypeID<FMovieSceneBlendChannelID> BlendChannelInput;
+
+	TComponentTypeID<FMovieSceneBlendChannelID> BlendChannelOutput;
 
 	TComponentTypeID<int16>               HierarchicalBias;
-
-	TComponentTypeID<uint16>              BlendChannelOutput;
 
 	TComponentTypeID<FInitialValueIndex>  InitialValueIndex;
 public:

@@ -181,7 +181,8 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::UpdateOutput(UE::MovieSc
 	UMovieSceneBlenderSystem* ExistingBlender = Output->Blender.Get();
 	if (ExistingBlender && BlenderClass != ExistingBlender->GetClass())
 	{
-		ExistingBlender->ReleaseBlendChannel(Output->BlendChannel);
+		const FMovieSceneBlendChannelID BlendChannel(ExistingBlender->GetBlenderSystemID(), Output->BlendChannel);
+		ExistingBlender->ReleaseBlendChannel(BlendChannel);
 		Output->BlendChannel = INVALID_BLEND_CHANNEL;
 	}
 
@@ -190,7 +191,8 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::UpdateOutput(UE::MovieSc
 	const bool bWasAlreadyBlended = Output->BlendChannel != INVALID_BLEND_CHANNEL;
 	if (!bWasAlreadyBlended)
 	{
-		Output->BlendChannel = Output->Blender->AllocateBlendChannel();
+		const FMovieSceneBlendChannelID BlendChannel = Output->Blender->AllocateBlendChannel();
+		Output->BlendChannel = BlendChannel.ChannelID;
 	}
 
 	FComponentMask NewMask;
@@ -220,10 +222,12 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::UpdateOutput(UE::MovieSc
 		}
 		NewMask.Set(PropertyDefinition->PropertyType);
 
+		const FMovieSceneBlendChannelID BlendChannel(Output->Blender->GetBlenderSystemID(), Output->BlendChannel);
+
 		// Never seen this property before
 		FMovieSceneEntityID NewEntityID = FEntityBuilder()
 		.Add(BuiltInComponents->Interrogation.OutputKey, Key)
-		.Add(BuiltInComponents->BlendChannelOutput, Output->BlendChannel)
+		.Add(BuiltInComponents->BlendChannelOutput, BlendChannel)
 		.AddTagConditional(BuiltInComponents->Tags.MigratedFromFastPath, Output->PropertyEntityID.IsValid())
 		.AddTag(BuiltInComponents->Tags.NeedsLink)
 		.AddMutualComponents()
@@ -235,7 +239,7 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::UpdateOutput(UE::MovieSc
 			Linker->EntityManager.CopyComponents(Output->PropertyEntityID, NewEntityID, Linker->EntityManager.GetComponents()->GetMigrationMask());
 
 			// Add blend inputs on the first contributor, which was using the fast-path
-			Linker->EntityManager.AddComponent(Output->PropertyEntityID, BuiltInComponents->BlendChannelInput, Output->BlendChannel);
+			Linker->EntityManager.AddComponent(Output->PropertyEntityID, BuiltInComponents->BlendChannelInput, BlendChannel);
 			Linker->EntityManager.RemoveComponents(Output->PropertyEntityID, CleanFastPathMask);
 		}
 
@@ -262,7 +266,8 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::UpdateOutput(UE::MovieSc
 	// Ensure contributors all have the necessary blend inputs and tags
 	for (FMovieSceneEntityID Input : Inputs)
 	{
-		Linker->EntityManager.AddComponent(Input, BuiltInComponents->BlendChannelInput, Output->BlendChannel);
+		const FMovieSceneBlendChannelID BlendChannel(Output->Blender->GetBlenderSystemID(), Output->BlendChannel);
+		Linker->EntityManager.AddComponent(Input, BuiltInComponents->BlendChannelInput, BlendChannel);
 		Linker->EntityManager.RemoveComponents(Input, CleanFastPathMask);
 	}
 }
@@ -273,7 +278,8 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::DestroyOutput(UE::MovieS
 	{
 		if (UMovieSceneBlenderSystem* Blender = Output->Blender.Get())
 		{
-			Blender->ReleaseBlendChannel(Output->BlendChannel);
+			const FMovieSceneBlendChannelID BlendChannel(Blender->GetBlenderSystemID(), Output->BlendChannel);
+			Blender->ReleaseBlendChannel(BlendChannel);
 		}
 		Linker->EntityManager.AddComponents(Output->PropertyEntityID, BuiltInComponents->FinishedMask);
 	}
