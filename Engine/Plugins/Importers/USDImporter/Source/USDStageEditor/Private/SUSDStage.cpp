@@ -754,35 +754,27 @@ void SUsdStage::OnPrimSelectionChanged( const TArray<FString>& PrimPaths )
 
 void SUsdStage::OpenStage( const TCHAR* FilePath )
 {
-	// This scope is important so that we can resume monitoring the level sequence after our scoped transaction is finished
+	// Create the transaction before calling UsdStageModule.GetUsdStageActor as that may create the actor, and we want
+	// the actor spawning to be part of the transaction
+	FScopedTransaction Transaction( FText::Format(
+		LOCTEXT( "OpenStageTransaction", "Open USD stage '{0}'" ),
+		FText::FromString( FilePath )
+	) );
+
+	if ( !ViewModel.UsdStageActor.IsValid() )
 	{
-		// Create the transaction before calling UsdStageModule.GetUsdStageActor as that may create the actor, and we want
-		// the actor spawning to be part of the transaction
-		FScopedTransaction Transaction( FText::Format(
-			LOCTEXT( "OpenStageTransaction", "Open USD stage '{0}'" ),
-			FText::FromString( FilePath )
-		) );
+		IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
+		ViewModel.UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
 
-		if ( !ViewModel.UsdStageActor.IsValid() )
-		{
-			IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
-			ViewModel.UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
-
-			SetupStageActorDelegates();
-		}
-
-		// Block writing level sequence changes back to the USD stage until we finished this transaction, because once we do
-		// the movie scene and tracks will all trigger OnObjectTransacted. We listen for those on FUsdLevelSequenceHelperImpl::OnObjectTransacted,
-		// and would otherwise end up writing all of the data we just loaded back to the USD stage
-		ViewModel.UsdStageActor->StopMonitoringLevelSequence();
-
-		ViewModel.OpenStage( FilePath );
+		SetupStageActorDelegates();
 	}
 
-	if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
-	{
-		StageActor->ResumeMonitoringLevelSequence();
-	}
+	// Block writing level sequence changes back to the USD stage until we finished this transaction, because once we do
+	// the movie scene and tracks will all trigger OnObjectTransacted. We listen for those on FUsdLevelSequenceHelperImpl::OnObjectTransacted,
+	// and would otherwise end up writing all of the data we just loaded back to the USD stage
+	ViewModel.UsdStageActor->BlockMonitoringLevelSequenceForThisTransaction();
+
+	ViewModel.OpenStage( FilePath );
 }
 
 void SUsdStage::Refresh()
