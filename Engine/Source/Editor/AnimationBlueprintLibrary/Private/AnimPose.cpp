@@ -3,6 +3,8 @@
 #include "AnimPose.h"
 #include "PreviewScene.h"
 #include "Animation/AnimNode_LinkedInputPose.h"
+#include "Animation/AnimBlueprint.h"
+#include "Animation/AnimBlueprintGeneratedClass.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAnimationPoseScripting, Verbose, All);
 
