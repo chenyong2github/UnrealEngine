@@ -1191,6 +1191,14 @@ public:
 private:
 	bool IncrementalRegisterComponents(bool bPreRegisterComponents, int32 NumComponentsToUpdate, FRegisterComponentContext* Context);
 	bool IncrementalRunConstructionScripts(bool bProcessAllActors);
+
+#if WITH_EDITOR
+	/** Attempts to detect and fix any issues with the level script blueprint and associated objects */
+	void RepairLevelScript();
+
+	/** Replace the existing LSA (if set) by spawning a new one based on this level's script blueprint */
+	void RegenerateLevelScriptActor();
+#endif // WITH_EDITOR
 };
 
 

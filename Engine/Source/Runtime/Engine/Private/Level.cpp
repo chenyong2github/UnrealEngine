@@ -884,13 +884,7 @@ void ULevel::PostLoad()
 		LevelSimplification[Index].PostLoadDeprecated();
 	}
 
-	if (LevelScriptActor)
-	{
-		if (ULevelScriptBlueprint* LevelBlueprint = Cast<ULevelScriptBlueprint>(LevelScriptActor->GetClass()->ClassGeneratedBy))
-		{
-			FBlueprintEditorUtils::FixLevelScriptActorBindings(LevelScriptActor, LevelBlueprint);
-		}
-	}
+	RepairLevelScript();
 #endif
 }
 
@@ -2663,47 +2657,10 @@ void ULevel::CleanupLevelScriptBlueprint()
 
 void ULevel::OnLevelScriptBlueprintChanged(ULevelScriptBlueprint* InBlueprint)
 {
-	if( !InBlueprint->bIsRegeneratingOnLoad && 
-		// Make sure this is OUR level scripting blueprint
-		ensureMsgf(InBlueprint == LevelScriptBlueprint, TEXT("Level ('%s') received OnLevelScriptBlueprintChanged notification for the wrong Blueprint ('%s')."), LevelScriptBlueprint ? *LevelScriptBlueprint->GetPathName() : TEXT("NULL"), *InBlueprint->GetPathName()) )
-	{
-		bool bResetDebugObject = false;
-
-		UClass* SpawnClass = (LevelScriptBlueprint->GeneratedClass) ? LevelScriptBlueprint->GeneratedClass : LevelScriptBlueprint->SkeletonGeneratedClass;
-
-		// Get rid of the old LevelScriptActor
-		if( LevelScriptActor )
-		{
-			// Clear the current debug object and indicate that it needs to be reset (below).
-			if (InBlueprint->GetObjectBeingDebugged() == LevelScriptActor)
-			{
-				bResetDebugObject = true;
-				InBlueprint->SetObjectBeingDebugged(nullptr);
-			}
-
-			LevelScriptActor->MarkPendingKill();
-			LevelScriptActor = nullptr;
-		}
-
-		check( OwningWorld );
-		// Create the new one
-		FActorSpawnParameters SpawnInfo;
-		SpawnInfo.OverrideLevel = this;
-		LevelScriptActor = OwningWorld->SpawnActor<ALevelScriptActor>( SpawnClass, SpawnInfo );
-
-		if( LevelScriptActor )
-		{
-			// Reset the current debug object to the new instance if it was previously set to the old instance.
-			if (bResetDebugObject)
-			{
-				InBlueprint->SetObjectBeingDebugged(LevelScriptActor);
-			}
-
-			LevelScriptActor->ClearFlags(RF_Transactional);
-			check(LevelScriptActor->GetLevel() == this);
-			// Finally, fixup all the bound events to point to their new LSA
-			FBlueprintEditorUtils::FixLevelScriptActorBindings(LevelScriptActor, InBlueprint);
-		}		
+	if (!InBlueprint->bIsRegeneratingOnLoad &&
+		ensureMsgf(InBlueprint == LevelScriptBlueprint, TEXT("Level ('%s') received OnLevelScriptBlueprintChanged   for the wrong Blueprint ('%s')."), LevelScriptBlueprint ? *LevelScriptBlueprint->GetPathName() : TEXT("NULL"), *InBlueprint->GetPathName()))
+	{	    
+		RegenerateLevelScriptActor();
 	}
 }	
 
@@ -3046,3 +3003,79 @@ void ULevel::SetPartitionSubLevel(ULevel* SubLevel)
 }
 
 #endif // #if WITH_EDITORONLY_DATA
+
+#if WITH_EDITOR
+void ULevel::RepairLevelScript()
+{
+	// Ensure bound events point to the level script actor
+	if (LevelScriptActor)
+	{
+		if (ULevelScriptBlueprint* LevelBlueprint = Cast<ULevelScriptBlueprint>(LevelScriptActor->GetClass()->ClassGeneratedBy))
+		{
+			FBlueprintEditorUtils::FixLevelScriptActorBindings(LevelScriptActor, LevelBlueprint);
+		}
+	}
+
+	// Verify that the LSA class matches the desired level script blueprint class
+	if (LevelScriptActor && LevelScriptBlueprint)
+	{
+		UClass* SpawnClass = (LevelScriptBlueprint->GeneratedClass) ? LevelScriptBlueprint->GeneratedClass : LevelScriptBlueprint->SkeletonGeneratedClass;
+		UClass* LSAClass = LevelScriptActor->GetClass();
+
+		if (SpawnClass && LSAClass != SpawnClass)
+		{
+			RegenerateLevelScriptActor();
+		}
+	}
+
+	// Catch the edge case where we have a level blueprint but have never created the LevelScriptActor based on it.
+	//    This could happen if a new level is saved before the level blueprint is compiled.
+	if (!LevelScriptActor && LevelScriptBlueprint && !LevelScriptBlueprint->bIsRegeneratingOnLoad)
+	{
+		RegenerateLevelScriptActor();
+	}	
+}
+
+void ULevel::RegenerateLevelScriptActor()
+{
+	bool bResetDebugObject = false;
+
+	check(LevelScriptBlueprint);
+	UClass* SpawnClass = (LevelScriptBlueprint->GeneratedClass) ? LevelScriptBlueprint->GeneratedClass : LevelScriptBlueprint->SkeletonGeneratedClass;
+	check(SpawnClass);
+
+	// Get rid of the old LevelScriptActor
+	if (LevelScriptActor)
+	{
+		// Clear the current debug object and indicate that it needs to be reset (below).
+		if (LevelScriptBlueprint->GetObjectBeingDebugged() == LevelScriptActor)
+		{
+			bResetDebugObject = true;
+			LevelScriptBlueprint->SetObjectBeingDebugged(nullptr);
+		}
+
+		LevelScriptActor->MarkPendingKill();
+		LevelScriptActor = nullptr;
+	}
+
+	check(OwningWorld);
+	// Create the new one
+	FActorSpawnParameters SpawnInfo;
+	SpawnInfo.OverrideLevel = this;
+	LevelScriptActor = OwningWorld->SpawnActor<ALevelScriptActor>(SpawnClass, SpawnInfo);
+
+	if (LevelScriptActor)
+	{
+		// Reset the current debug object to the new instance if it was previously set to the old instance.
+		if (bResetDebugObject)
+		{
+			LevelScriptBlueprint->SetObjectBeingDebugged(LevelScriptActor);
+		}
+
+		LevelScriptActor->ClearFlags(RF_Transactional);
+		check(LevelScriptActor->GetLevel() == this);
+		// Finally, fixup all the bound events to point to their new LSA
+		FBlueprintEditorUtils::FixLevelScriptActorBindings(LevelScriptActor, LevelScriptBlueprint);
+	}
+}
+#endif // WITH_EDITOR
