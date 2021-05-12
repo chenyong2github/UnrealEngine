@@ -17,7 +17,6 @@ from . import switchboard_utils
 import switchboard.switchboard_widgets as sb_widgets
 
 import datetime
-from enum import IntEnum, unique, auto
 import logging
 import os
 import threading
@@ -27,14 +26,6 @@ from PySide2 import QtCore, QtGui, QtUiTools, QtWidgets
 ENGINE_PATH = "../../../../.."
 RELATIVE_PATH = os.path.dirname(__file__)
 EMPTY_SYNC_ENTRY = "-- None --"
-
-
-@unique
-class ApplicationStatus(IntEnum):
-    DISCONNECTED = auto()
-    CLOSED = auto()
-    SYNCING = auto()
-    OPEN = auto()
 
 
 class SwitchboardDialog(QtCore.QObject):
