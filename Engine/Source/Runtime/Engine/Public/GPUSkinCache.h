@@ -212,6 +212,26 @@ public:
 		NUM_BUFFERS = 2,
 	};
 
+	struct FSkinCacheRWBuffer
+	{
+		FRWBuffer	Buffer;
+		ERHIAccess	AccessState = ERHIAccess::Unknown;	// Keep track of current access state
+
+		void Release()
+		{
+			Buffer.Release();
+			AccessState = ERHIAccess::Unknown;
+		}
+
+		// Update the access state and return transition info
+		FRHITransitionInfo UpdateAccessState(ERHIAccess NewState)
+		{
+			ERHIAccess OldState = AccessState;
+			AccessState = NewState;
+			return FRHITransitionInfo(Buffer.UAV.GetReference(), OldState, AccessState);
+		}
+	};
+
 	struct FRWBuffersAllocation
 	{
 		friend struct FRWBufferTracker;
@@ -221,21 +241,25 @@ public:
 		{
 			for (int32 Index = 0; Index < NUM_BUFFERS; ++Index)
 			{
-				PositionBuffers[Index].Initialize(TEXT("SkinCachePositions"), PosBufferBytesPerElement, NumVertices * 3, PF_R32_FLOAT, BUF_Static);
+				PositionBuffers[Index].Buffer.Initialize(TEXT("SkinCachePositions"), PosBufferBytesPerElement, NumVertices * 3, PF_R32_FLOAT, BUF_Static);
+				PositionBuffers[Index].AccessState = ERHIAccess::Unknown;
 			}
 			if (WithTangents)
 			{
-				Tangents.Initialize(TEXT("SkinCacheTangents"), TangentBufferBytesPerElement, NumVertices * 2, PF_R16G16B16A16_SNORM, BUF_Static);
+				Tangents.Buffer.Initialize(TEXT("SkinCacheTangents"), TangentBufferBytesPerElement, NumVertices * 2, PF_R16G16B16A16_SNORM, BUF_Static);
+				Tangents.AccessState = ERHIAccess::Unknown;
 				if (FGPUSkinCache::UseIntermediateTangents())
 				{
-					IntermediateTangents.Initialize(TEXT("SkinCacheIntermediateTangents"), TangentBufferBytesPerElement, NumVertices * 2, PF_R16G16B16A16_SNORM, BUF_Static);
+					IntermediateTangents.Buffer.Initialize(TEXT("SkinCacheIntermediateTangents"), TangentBufferBytesPerElement, NumVertices * 2, PF_R16G16B16A16_SNORM, BUF_Static);
+					IntermediateTangents.AccessState = ERHIAccess::Unknown;
 				}
 			}
 			if (NumTriangles > 0)
 			{
-				IntermediateAccumulatedTangents.Initialize(TEXT("SkinCacheIntermediateAccumulatedTangents"), sizeof(int32), NumTriangles * 3 * FGPUSkinCache::IntermediateAccumBufferNumInts, PF_R32_SINT, BUF_UnorderedAccess);
+				IntermediateAccumulatedTangents.Buffer.Initialize(TEXT("SkinCacheIntermediateAccumulatedTangents"), sizeof(int32), NumTriangles * 3 * FGPUSkinCache::IntermediateAccumBufferNumInts, PF_R32_SINT, BUF_UnorderedAccess);
+				IntermediateAccumulatedTangents.AccessState = ERHIAccess::Unknown;
 				// The UAV must be zero-filled. We leave it zeroed after each round (see RecomputeTangentsPerVertexPass.usf), so this is only needed on when the buffer is first created.
-				RHICmdList.ClearUAVUint(IntermediateAccumulatedTangents.UAV, FUintVector4(0, 0, 0, 0));
+				RHICmdList.ClearUAVUint(IntermediateAccumulatedTangents.Buffer.UAV, FUintVector4(0, 0, 0, 0));
 			}
 		}
 
@@ -274,30 +298,30 @@ public:
 			return CalculateRequiredMemory(NumVertices, WithTangents, NumTriangles);
 		}
 
-		FRWBuffer* GetTangentBuffer()
+		FSkinCacheRWBuffer* GetTangentBuffer()
 		{
 			return WithTangents ? &Tangents : nullptr;
 		}
 
-		FRWBuffer* GetIntermediateTangentBuffer()
+		FSkinCacheRWBuffer* GetIntermediateTangentBuffer()
 		{
 			return WithTangents ? &IntermediateTangents : nullptr;
 		}
 
-		FRWBuffer* GetIntermediateAccumulatedTangentBuffer()
+		FSkinCacheRWBuffer* GetIntermediateAccumulatedTangentBuffer()
 		{
 			return NumTriangles > 0 ? &IntermediateAccumulatedTangents : nullptr;
 		}
 
-		void RemoveAllFromTransitionArray(TSet<FRHIUnorderedAccessView*>& BuffersToTransition);
+		void RemoveAllFromTransitionArray(TSet<FSkinCacheRWBuffer*>& BuffersToTransition);
 
 	private:
 		// Output of the GPU skinning (ie Pos, Normals)
-		FRWBuffer PositionBuffers[NUM_BUFFERS];
+		FSkinCacheRWBuffer PositionBuffers[NUM_BUFFERS];
 
-		FRWBuffer Tangents;
-		FRWBuffer IntermediateTangents;
-		FRWBuffer IntermediateAccumulatedTangents;	// Intermediate buffer used to accumulate results of triangle pass to be passed onto vertex pass
+		FSkinCacheRWBuffer Tangents;
+		FSkinCacheRWBuffer IntermediateTangents;
+		FSkinCacheRWBuffer IntermediateAccumulatedTangents;	// Intermediate buffer used to accumulate results of triangle pass to be passed onto vertex pass
 
 		const uint32 NumVertices;
 		const bool WithTangents;
@@ -331,7 +355,7 @@ public:
 			return Allocation->GetNumBytes();
 		}
 
-		FRWBuffer* Find(const FVertexBufferAndSRV& BoneBuffer, uint32 Revision)
+		FSkinCacheRWBuffer* Find(const FVertexBufferAndSRV& BoneBuffer, uint32 Revision)
 		{
 			for (int32 Index = 0; Index < NUM_BUFFERS; ++Index)
 			{
@@ -344,17 +368,17 @@ public:
 			return nullptr;
 		}
 
-		FRWBuffer* GetTangentBuffer()
+		FSkinCacheRWBuffer* GetTangentBuffer()
 		{
 			return Allocation ? Allocation->GetTangentBuffer() : nullptr;
 		}
 
-		FRWBuffer* GetIntermediateTangentBuffer()
+		FSkinCacheRWBuffer* GetIntermediateTangentBuffer()
 		{
 			return Allocation ? Allocation->GetIntermediateTangentBuffer() : nullptr;
 		}
 
-		FRWBuffer* GetIntermediateAccumulatedTangentBuffer()
+		FSkinCacheRWBuffer* GetIntermediateAccumulatedTangentBuffer()
 		{
 			return Allocation ? Allocation->GetIntermediateAccumulatedTangentBuffer() : nullptr;
 		}
@@ -418,9 +442,10 @@ public:
 	inline ERHIFeatureLevel::Type GetFeatureLevel() const { return FeatureLevel; }
 
 protected:
-	void MakeBufferTransitions(FRHICommandListImmediate& RHICmdList, TArray<FRHIUnorderedAccessView*>& Buffers, ERHIAccess FromState, ERHIAccess ToState);
+	void MakeBufferTransitions(FRHICommandListImmediate& RHICmdList, TArray<FSkinCacheRWBuffer*>& Buffers, ERHIAccess ToState);
+	void GetBufferUAVs(const TArray<FSkinCacheRWBuffer*>& InBuffers, TArray<FRHIUnorderedAccessView*>& OutUAVs);
 
-	TSet<FRHIUnorderedAccessView*> BuffersToTransitionToRead;
+	TSet<FSkinCacheRWBuffer*> BuffersToTransitionToRead;
 #if RHI_RAYTRACING
 	TMap<FRayTracingGeometry*, EAccelerationStructureBuildMode> RayTracingGeometriesToUpdate;
 	uint64 RayTracingGeometryMemoryPendingRelease = 0;
@@ -433,13 +458,13 @@ protected:
 	FRWBuffersAllocation* TryAllocBuffer(uint32 NumVertices, bool WithTangnents, uint32 NumTriangles, FRHICommandListImmediate& RHICmdList);
 	void DoDispatch(FRHICommandListImmediate& RHICmdList);
 	void DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* SkinCacheEntry, int32 Section, int32 RevisionNumber);
-	void DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* Entry, int32 SectionIndex, FRWBuffer*& StagingBuffer, bool bTrianglePass);
+	void DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* Entry, int32 SectionIndex, FSkinCacheRWBuffer*& StagingBuffer, bool bTrianglePass);
 
 	void PrepareUpdateSkinning(
 		FGPUSkinCacheEntry* Entry, 
 		int32 Section, 
 		uint32 RevisionNumber, 
-		TArray<FRHIUnorderedAccessView*>* OverlappedUAVs
+		TArray<FSkinCacheRWBuffer*>* OverlappedUAVs
 		);
 
 	void DispatchUpdateSkinning(
@@ -460,7 +485,7 @@ protected:
 	bool bShouldBatchDispatches = false;
 
 	// For recompute tangents, holds the data required between compute shaders
-	TArray<FRWBuffer> StagingBuffers;
+	TArray<FSkinCacheRWBuffer> StagingBuffers;
 	int32 CurrentStagingBufferIndex;
 
 	ERHIFeatureLevel::Type FeatureLevel;
