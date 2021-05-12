@@ -31,7 +31,7 @@ using FGuidReferencesMap = TMap<int32, FGuidReferences>;
  * Guid References may also be nested in properties (like dynamic arrays), so we'll recursively track
  * those as well.
  */
-class ENGINE_API FGuidReferences
+class NETCORE_API FGuidReferences
 {
 public:
 	FGuidReferences():

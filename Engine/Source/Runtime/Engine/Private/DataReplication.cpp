@@ -61,7 +61,7 @@ static FAutoConsoleVariableRef CVarSupportsFastArrayDelta(
 	TEXT("Whether or not Fast Array Struct Delta Serialization is enabled.")
 );
 
-extern TAutoConsoleVariable<int32> CVarNetEnableDetailedScopeCounters;
+extern NETCORE_API TAutoConsoleVariable<int32> CVarNetEnableDetailedScopeCounters;
 
 class FNetSerializeCB : public INetSerializeCB
 {
