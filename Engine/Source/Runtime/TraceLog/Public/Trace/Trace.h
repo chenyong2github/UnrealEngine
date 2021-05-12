@@ -23,6 +23,7 @@ enum WideString {};
 
 struct FInitializeDesc
 {
+	uint32			TailSizeBytes		= 4 << 20;
 	bool			bUseWorkerThread	= true;
 };
 

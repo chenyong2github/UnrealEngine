@@ -14,7 +14,7 @@ namespace Trace {
 namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
-void			Writer_SendData(uint32, uint8* __restrict, uint32);
+void			Writer_TailAppend(uint32, uint8* __restrict, uint32, bool);
 FWriteBuffer*	Writer_AllocateBlockFromPool();
 uint32			Writer_GetThreadId();
 void			Writer_FreeBlockListToPool(FWriteBuffer*, FWriteBuffer*);
@@ -143,7 +143,9 @@ static bool Writer_DrainBuffer(uint32 ThreadId, FWriteBuffer* Buffer)
 		BytesReaped += SizeToReap;
 		BytesSent += /*...*/
 #endif
-		Writer_SendData(ThreadId, Buffer->Reaped, SizeToReap);
+		bool bPartial = (Buffer->Partial == 1);
+		bPartial &= UPTRINT(Buffer->Reaped + Buffer->Size) == UPTRINT(Buffer);
+		Writer_TailAppend(ThreadId, Buffer->Reaped, SizeToReap, bPartial);
 		Buffer->Reaped = Committed;
 	}
 
