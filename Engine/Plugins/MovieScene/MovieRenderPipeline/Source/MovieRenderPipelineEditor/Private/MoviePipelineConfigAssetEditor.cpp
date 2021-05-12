@@ -95,7 +95,6 @@ TSharedRef<SDockTab> FMoviePipelineConfigAssetEditor::SpawnTab_ConfigEditor(cons
 	const FSlateBrush* BackgroundBrush = &FCoreStyle::Get().GetWidgetStyle<FWindowStyle>("Window").ChildBackgroundBrush;
 
 	TSharedRef<SDockTab> NewDockTab = SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("CurveAssetEditor.Tabs.Properties"))
 		.TabColorScale(GetTabColorScale())
 		[
 			SNew(SOverlay)
