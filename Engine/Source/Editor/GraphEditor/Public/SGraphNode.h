@@ -243,6 +243,10 @@ public:
 	
 	/** Called when ed graph data is cleared, indicating this widget can no longer safely access GraphNode - forwards call to owned pins: */
 	void InvalidateGraphData();
+
+	/** Returns true if the node is hiding its pins */
+	virtual bool IsHidingPinWidgets() const { return false; }
+	
 protected:
 	SGraphNode();
 
@@ -307,6 +311,13 @@ protected:
 	// Should we use low-detail node titles?
 	virtual bool UseLowDetailNodeTitles() const;
 
+public:
+	
+	// Should we use low-detail pin names?
+	virtual bool UseLowDetailPinNames() const { return false; }
+
+protected:
+	
 	/** Return the desired comment bubble color */
 	virtual FSlateColor GetCommentColor() const { return FLinearColor::White; }
 
