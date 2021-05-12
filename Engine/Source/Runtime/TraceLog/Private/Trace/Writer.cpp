@@ -33,6 +33,10 @@ namespace Private {
 ////////////////////////////////////////////////////////////////////////////////
 int32			Encode(const void*, int32, void*, int32);
 void			Writer_SendData(uint32, uint8* __restrict, uint32);
+void			Writer_InitializeTail(int32);
+void			Writer_ShutdownTail();
+void			Writer_TailAppend(uint32, uint8* __restrict, uint32, bool=false);
+void			Writer_TailOnConnect();
 void			Writer_InitializeSharedBuffers();
 void			Writer_ShutdownSharedBuffers();
 void			Writer_UpdateSharedBuffers();
@@ -171,7 +175,7 @@ void* Writer_MemoryAllocate(SIZE_T Size, uint32 Alignment)
 	if (TraceData.GetSize())
 	{
 		uint32 ThreadId = Writer_GetThreadId();
-		Writer_SendData(ThreadId, TraceData.GetData(), TraceData.GetSize());
+		Writer_TailAppend(ThreadId, TraceData.GetData(), TraceData.GetSize());
 	}
 
 #if TRACE_PRIVATE_STATISTICS
@@ -216,7 +220,7 @@ void Writer_MemoryFree(void* Address, uint32 Size)
 	if (TraceData.GetSize())
 	{
 		uint32 ThreadId = Writer_GetThreadId();
-		Writer_SendData(ThreadId, TraceData.GetData(), TraceData.GetSize());
+		Writer_TailAppend(ThreadId, TraceData.GetData(), TraceData.GetSize());
 	}
 #endif // TRACE_PRIVATE_STOMP
 
@@ -437,6 +441,7 @@ static bool Writer_UpdateConnection()
 	Writer_SendData(ETransportTid::Internal, HeaderEvents.GetData(), HeaderEvents.GetSize());
 
 	Writer_CacheOnConnect();
+	Writer_TailOnConnect();
 
 	GSerialSyncPending = true;
 	return true;
@@ -578,6 +583,7 @@ static void Writer_InternalShutdown()
 	Writer_ShutdownControl();
 	Writer_ShutdownPool();
 	Writer_ShutdownSharedBuffers();
+	Writer_ShutdownTail();
 
 	GInitialized = false;
 }
@@ -611,6 +617,8 @@ void Writer_InternalInitialize()
 ////////////////////////////////////////////////////////////////////////////////
 void Writer_Initialize(const FInitializeDesc& Desc)
 {
+	Writer_InitializeTail(Desc.TailSizeBytes);
+
 	if (Desc.bUseWorkerThread)
 	{
 		Writer_WorkerCreate();
