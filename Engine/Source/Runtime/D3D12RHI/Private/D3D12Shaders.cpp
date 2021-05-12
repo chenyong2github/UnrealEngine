@@ -407,7 +407,7 @@ FD3D12BoundShaderState::FD3D12BoundShaderState(
 	INC_DWORD_STAT(STAT_D3D12NumBoundShaderState);
 
 #if USE_STATIC_ROOT_SIGNATURE
-	pRootSignature = InAdapter->GetStaticMeshRootSignature();
+	pRootSignature = InAdapter->GetStaticGraphicsRootSignature();
 #else
 	const D3D12_RESOURCE_BINDING_TIER Tier = InAdapter->GetResourceBindingTier();
 	FD3D12QuantizedBoundShaderState QuantizedBoundShaderState;

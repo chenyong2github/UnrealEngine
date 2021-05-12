@@ -75,6 +75,7 @@ FD3D12_GRAPHICS_PIPELINE_STATE_STREAM FD3D12_GRAPHICS_PIPELINE_STATE_DESC::Pipel
 	return Stream;
 }
 
+#if PLATFORM_SUPPORTS_MESH_SHADERS
 FD3D12_MESH_PIPELINE_STATE_STREAM FD3D12_GRAPHICS_PIPELINE_STATE_DESC::MeshPipelineStateStream() const
 {
 	FD3D12_MESH_PIPELINE_STATE_STREAM Stream{};
@@ -95,6 +96,7 @@ FD3D12_MESH_PIPELINE_STATE_STREAM FD3D12_GRAPHICS_PIPELINE_STATE_DESC::MeshPipel
 	Stream.CachedPSO = this->CachedPSO;
 	return Stream;
 }
+#endif // PLATFORM_SUPPORTS_MESH_SHADERS
 
 D3D12_GRAPHICS_PIPELINE_STATE_DESC FD3D12_GRAPHICS_PIPELINE_STATE_DESC::GraphicsDescV0() const
 {
@@ -871,6 +873,7 @@ static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter*
 
 	// Use pipeline streams if the system supports it.
 	ID3D12Device2* const pDevice2 = Adapter->GetD3DDevice2();
+#if PLATFORM_SUPPORTS_MESH_SHADERS
 	if (CreationArgs->Desc.UsesMeshShaders())
 	{
 		check(pDevice2);
@@ -892,7 +895,9 @@ static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter*
 			}
 		}
 	}
-	else if (pDevice2 && bUseStream)
+	else
+#endif // PLATFORM_SUPPORTS_MESH_SHADERS
+	if (pDevice2 && bUseStream)
 	{
 		FD3D12_GRAPHICS_PIPELINE_STATE_STREAM Stream = CreationArgs->Desc.Desc.PipelineStateStream();
 		const D3D12_PIPELINE_STATE_STREAM_DESC StreamDesc = { sizeof(Stream), &Stream };

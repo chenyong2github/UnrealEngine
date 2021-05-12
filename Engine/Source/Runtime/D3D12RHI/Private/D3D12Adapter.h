@@ -121,12 +121,16 @@ public:
 	FORCEINLINE const D3D_FEATURE_LEVEL GetFeatureLevel() const { return Desc.MaxSupportedFeatureLevel; }
 	FORCEINLINE D3D_SHADER_MODEL GetHighestShaderModel() const { return Desc.MaxSupportedShaderModel; }
 	FORCEINLINE ID3D12Device* GetD3DDevice() const { return RootDevice.GetReference(); }
+#if D3D12_MAX_DEVICE_INTERFACE >= 1
 	FORCEINLINE ID3D12Device1* GetD3DDevice1() const { return RootDevice1.GetReference(); }
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 2
 	FORCEINLINE ID3D12Device2* GetD3DDevice2() const { return RootDevice2.GetReference(); }
 #endif
-#if D3D12_RHI_RAYTRACING
+#if D3D12_MAX_DEVICE_INTERFACE >= 5
 	FORCEINLINE ID3D12Device5* GetD3DDevice5() { return RootDevice5.GetReference(); }
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 7
 	FORCEINLINE ID3D12Device7* GetD3DDevice7() { return RootDevice7.GetReference(); }
 #endif // D3D12_RHI_RAYTRACING
 	FORCEINLINE void SetDeviceRemoved(bool value) { bDeviceRemoved = value; }
@@ -165,13 +169,6 @@ public:
 		static const FD3D12RootSignature StaticGraphicsRootSignature(this, FD3D12RootSignatureDesc::GetStaticGraphicsRootSignatureDesc());
 		return &StaticGraphicsRootSignature;
 	}
-#if PLATFORM_SUPPORTS_MESH_SHADERS
-	FORCEINLINE const FD3D12RootSignature* GetStaticMeshRootSignature()
-	{
-		static const FD3D12RootSignature StaticMeshRootSignature(this, FD3D12RootSignatureDesc::GetStaticMeshRootSignatureDesc());
-		return &StaticMeshRootSignature;
-	}
-#endif
 	FORCEINLINE const FD3D12RootSignature* GetStaticComputeRootSignature()
 	{
 		static const FD3D12RootSignature StaticComputeRootSignature(this, FD3D12RootSignatureDesc::GetStaticComputeRootSignatureDesc());
@@ -410,17 +407,33 @@ protected:
 
 	// LDA setups have one ID3D12Device
 	TRefCountPtr<ID3D12Device> RootDevice;
+#if D3D12_MAX_DEVICE_INTERFACE >= 1
 	TRefCountPtr<ID3D12Device1> RootDevice1;
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 2
 	TRefCountPtr<ID3D12Device2> RootDevice2;
-	TRefCountPtr<IDXGIDebug> DXGIDebug;
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 3
+	TRefCountPtr<ID3D12Device3> RootDevice3;
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 4
+	TRefCountPtr<ID3D12Device4> RootDevice4;
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 5
+	TRefCountPtr<ID3D12Device5> RootDevice5;
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 6
+	TRefCountPtr<ID3D12Device6> RootDevice6;
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 7
+	TRefCountPtr<ID3D12Device7> RootDevice7;
+#endif
 
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+	TRefCountPtr<IDXGIDebug> DXGIDebug;
 	HANDLE ExceptionHandlerHandle = INVALID_HANDLE_VALUE;
 #endif
-#if D3D12_RHI_RAYTRACING
-	TRefCountPtr<ID3D12Device5> RootDevice5;
-	TRefCountPtr<ID3D12Device7> RootDevice7;
-#endif // D3D12_RHI_RAYTRACING
+
 	D3D12_RESOURCE_HEAP_TIER ResourceHeapTier;
 	D3D12_RESOURCE_BINDING_TIER ResourceBindingTier;
 	D3D_ROOT_SIGNATURE_VERSION RootSignatureVersion;

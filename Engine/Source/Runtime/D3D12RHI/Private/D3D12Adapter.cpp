@@ -829,15 +829,46 @@ void FD3D12Adapter::InitializeDevices()
 		}
 		else
 		{
+#if D3D12_MAX_DEVICE_INTERFACE >= 1
 			if (SUCCEEDED(RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice1.GetInitReference()))))
 			{
 				UE_LOG(LogD3D12RHI, Log, TEXT("ID3D12Device1 is supported."));
 			}
-
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 2
 			if (SUCCEEDED(RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice2.GetInitReference()))))
 			{
 				UE_LOG(LogD3D12RHI, Log, TEXT("ID3D12Device2 is supported."));
+			}
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 3
+			if (SUCCEEDED(RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice3.GetInitReference()))))
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("ID3D12Device3 is supported."));
+			}
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 4
+			if (SUCCEEDED(RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice4.GetInitReference()))))
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("ID3D12Device4 is supported."));
+			}
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 5
+			if (SUCCEEDED(RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice5.GetInitReference()))))
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("ID3D12Device5 is supported."));
+			}
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 6
+			if (SUCCEEDED(RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice6.GetInitReference()))))
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("ID3D12Device6 is supported."));
+			}
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 7
+			if (SUCCEEDED(RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice7.GetInitReference()))))
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("ID3D12Device7 is supported."));
 			}
 #endif
 
@@ -848,16 +879,6 @@ void FD3D12Adapter::InitializeDevices()
 			ResourceBindingTier = D3D12Caps.ResourceBindingTier;
 
 #if D3D12_RHI_RAYTRACING
-			if (SUCCEEDED(RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice5.GetInitReference()))))
-			{
-				UE_LOG(LogD3D12RHI, Log, TEXT("ID3D12Device5 is supported."));
-			}
-
-			if (SUCCEEDED(RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice7.GetInitReference()))))
-			{
-				UE_LOG(LogD3D12RHI, Log, TEXT("ID3D12Device7 is supported."));
-			}
-
 			D3D12_FEATURE_DATA_D3D12_OPTIONS5 D3D12Caps5 = {};
 			if (SUCCEEDED(RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &D3D12Caps5, sizeof(D3D12Caps5))))
 			{
