@@ -1670,6 +1670,8 @@ public:
 	virtual bool CanBeEvicted() override;
 	virtual void TryEvictGLResource() override;
 private:
+	void Fill2DGLTextureImage(const FOpenGLTextureFormat& GLFormat, const bool bSRGB, uint32 MipIndex, const void* LockedBuffer, uint32 LockedSize, uint32 ArrayIndex);
+
 	TArray< TRefCountPtr<FOpenGLPixelBuffer> > PixelBuffers;
 
 	uint32 GetEffectiveSizeZ( void ) { return this->GetSizeZ() ? this->GetSizeZ() : 1; }
