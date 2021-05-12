@@ -137,6 +137,25 @@ void FRigTransformElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, boo
 	}
 }
 
+void FRigTransformElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther,
+	URigHierarchy* InOtherHierarchy)
+{
+	Super::CopyFrom(InHierarchy, InOther, InOtherHierarchy);
+	
+	const FRigTransformElement* SourceTransform = CastChecked<FRigTransformElement>(InOther);
+	Pose = SourceTransform->Pose;
+
+	ElementsToDirty.Reset();
+	for(int32 ElementToDirtyIndex = 0; ElementToDirtyIndex < SourceTransform->ElementsToDirty.Num(); ElementToDirtyIndex++)
+	{
+		const FElementToDirty& Source = SourceTransform->ElementsToDirty[ElementToDirtyIndex];
+		FRigTransformElement* TargetTransform = CastChecked<FRigTransformElement>(InHierarchy->Get(Source.Element->Index));
+		const FElementToDirty Target(TargetTransform, Source.HierarchyDistance);
+		ElementsToDirty.Add(Target);
+		check(ElementsToDirty[ElementToDirtyIndex].Element->GetKey() == Source.Element->GetKey());
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // FRigSingleParentElement
 ////////////////////////////////////////////////////////////////////////////////
@@ -169,6 +188,23 @@ void FRigSingleParentElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESeri
 		{
 			ParentElement = Hierarchy->FindChecked<FRigTransformElement>(ParentKey);
 		}
+	}
+}
+
+void FRigSingleParentElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther,
+	URigHierarchy* InOtherHierarchy)
+{
+	Super::CopyFrom(InHierarchy, InOther, InOtherHierarchy);
+
+	const FRigSingleParentElement* Source = CastChecked<FRigSingleParentElement>(InOther); 
+	if(Source->ParentElement)
+	{
+		ParentElement = CastChecked<FRigTransformElement>(InHierarchy->Get(Source->ParentElement->Index));
+		check(ParentElement->GetKey() == Source->ParentElement->GetKey());
+	}
+	else
+	{
+		ParentElement = nullptr;
 	}
 }
 
@@ -237,6 +273,25 @@ void FRigMultiParentElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESeria
 	}
 }
 
+void FRigMultiParentElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther,
+	URigHierarchy* InOtherHierarchy)
+{
+	Super::CopyFrom(InHierarchy, InOther, InOtherHierarchy);
+	
+	const FRigMultiParentElement* Source = CastChecked<FRigMultiParentElement>(InOther);
+	Parent = Source->Parent;
+	ParentElements.Reset();
+	ParentWeights = Source->ParentWeights;
+	ParentWeightsInitial = Source->ParentWeightsInitial;
+
+	for(int32 ParentIndex = 0; ParentIndex < Source->ParentElements.Num(); ParentIndex++)
+	{
+		const FRigTransformElement* SourceParentElement = Source->ParentElements[ParentIndex];
+		ParentElements.Add(CastChecked<FRigTransformElement>(InHierarchy->Get(SourceParentElement->Index)));
+		check(ParentElements[ParentIndex]->GetKey() == SourceParentElement->GetKey());
+	}
+}
+
 void FRigMultiParentElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial)
 {
 	Super::CopyPose(InOther, bCurrent, bInitial);
@@ -281,6 +336,14 @@ void FRigBoneElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializatio
 		Ar << TypeName;
 		BoneType = (ERigBoneType)BoneTypeEnum->GetValueByName(TypeName);
 	}
+}
+
+void FRigBoneElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy)
+{
+	Super::CopyFrom(InHierarchy, InOther, InOtherHierarchy);
+	
+	const FRigBoneElement* Source = CastChecked<FRigBoneElement>(InOther);
+	BoneType = Source->BoneType;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -409,6 +472,16 @@ void FRigControlElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializa
 	}
 }
 
+void FRigControlElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy)
+{
+	Super::CopyFrom(InHierarchy, InOther, InOtherHierarchy);
+	
+	const FRigControlElement* Source = CastChecked<FRigControlElement>(InOther);
+	Settings = Source->Settings;
+	Offset = Source->Offset;
+	Gizmo = Source->Gizmo;
+}
+
 void FRigControlElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial)
 {
 	Super::CopyPose(InOther, bCurrent, bInitial);
@@ -462,6 +535,12 @@ void FRigCurveElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bI
 	}
 }
 
+void FRigCurveElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy)
+{
+	Super::CopyFrom(InHierarchy, InOther, InOtherHierarchy);
+	Value = CastChecked<FRigCurveElement>(InOther)->Value;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // FRigRigidBodySettings
 ////////////////////////////////////////////////////////////////////////////////
@@ -505,6 +584,15 @@ void FRigRigidBodyElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESeriali
 	}
 }
 
+void FRigRigidBodyElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther,
+	URigHierarchy* InOtherHierarchy)
+{
+	Super::CopyFrom(InHierarchy, InOther, InOtherHierarchy);
+	
+	const FRigRigidBodyElement* Source = CastChecked<FRigRigidBodyElement>(InOther);
+	Settings = Source->Settings;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // FRigSocketElement
 ////////////////////////////////////////////////////////////////////////////////
@@ -517,6 +605,14 @@ void FRigSocketElement::Save(FArchive& Ar, URigHierarchy* Hierarchy, ESerializat
 void FRigSocketElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase)
 {
 	Super::Load(Ar, Hierarchy, SerializationPhase);
+}
+
+void FRigSocketElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy)
+{
+	Super::CopyFrom(InHierarchy, InOther, InOtherHierarchy);
+	
+	const FRigSocketElement* Source = CastChecked<FRigSocketElement>(InOther);
+	GetWorldTransformDelegate = Source->GetWorldTransformDelegate;
 }
 
 FTransform FRigSocketElement::GetSocketWorldTransform(const FRigUnitContext* InContext, bool bInitial) const

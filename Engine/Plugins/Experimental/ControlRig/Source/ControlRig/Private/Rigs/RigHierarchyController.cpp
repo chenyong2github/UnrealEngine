@@ -1142,6 +1142,7 @@ int32 URigHierarchyController::AddElement(FRigBaseElement* InElementToAdd, FRigB
 
 	InElementToAdd->SubIndex = Hierarchy->Num(InElementToAdd->Key.Type);
 	InElementToAdd->Index = Hierarchy->Elements.Add(InElementToAdd);
+	Hierarchy->ElementsPerType[(int32)InElementToAdd->GetKey().Type].Add(InElementToAdd);
 
 	Hierarchy->IndexLookup.Add(InElementToAdd->Key, InElementToAdd->Index);
 	Hierarchy->TopologyVersion++;
@@ -1230,6 +1231,9 @@ bool URigHierarchyController::RemoveElement(FRigBaseElement* InElement)
 
 	const int32 NumElementsRemoved = Hierarchy->Elements.Remove(InElement);
 	ensure(NumElementsRemoved == 1);
+
+	const int32 NumTypeElementsRemoved = Hierarchy->ElementsPerType[(int32)InElement->GetKey().Type].Remove(InElement);
+	ensure(NumTypeElementsRemoved == 1);
 
 	const int32 NumLookupsRemoved = Hierarchy->IndexLookup.Remove(InElement->Key);
 	ensure(NumLookupsRemoved == 1);
