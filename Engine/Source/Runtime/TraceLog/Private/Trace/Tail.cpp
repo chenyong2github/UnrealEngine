@@ -283,7 +283,7 @@ void Writer_InitializeTail(int32 BufferSize)
 		BufferSize = 128 << 10;
 	}
 
-	//GPacketRing.Initialize(BufferSize);
+	GPacketRing.Initialize(BufferSize);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
