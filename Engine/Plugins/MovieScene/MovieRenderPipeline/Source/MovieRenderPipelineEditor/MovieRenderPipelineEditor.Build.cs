@@ -57,6 +57,7 @@ public class MovieRenderPipelineEditor : ModuleRules
 				"DeveloperSettings",
 				"MessageLog",
 				"Sequencer",
+				"ToolMenus"
 			}
         );
 

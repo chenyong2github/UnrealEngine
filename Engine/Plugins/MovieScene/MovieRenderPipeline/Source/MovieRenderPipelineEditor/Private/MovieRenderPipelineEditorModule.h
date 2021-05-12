@@ -24,5 +24,8 @@ private:
 	void RegisterMovieRenderer();
 	void UnregisterMovieRenderer();
 
+	TSharedPtr<class FAssetTypeActions_PipelineMasterConfig> MasterConfigAssetActions;
+	TSharedPtr<class FAssetTypeActions_PipelineShotConfig> ShotConfigAssetActions;
+	TSharedPtr<class FAssetTypeActions_PipelineQueue> QueueAssetActions;
 	FDelegateHandle MovieRendererDelegate;
 };
