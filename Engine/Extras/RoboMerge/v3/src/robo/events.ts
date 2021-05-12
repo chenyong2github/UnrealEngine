@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 import { AlreadyIntegrated, Blockage, ChangeInfo, ForcedCl, PendingChange } from './branch-interfaces';
-import { BeginIntegratingToGateEvent, EndIntegratingToGateEvent } from './branch-interfaces';
+import { BeginIntegratingToGateEvent, GateEventContext } from './branch-interfaces';
 import { BotConfig } from './branchdefs';
 import { PersistentConflict } from './conflict-interfaces';
 
@@ -15,7 +15,7 @@ type OnNonSkipLastClChange = (arg: ForcedCl) => void
 type OnBranchUnblocked = (arg: PersistentConflict) => void
 type OnConflictStatus = (arg: boolean) => void
 type OnBeginIntegratingToGate = (arg: BeginIntegratingToGateEvent) => void
-type OnEndIntegratingToGate = (arg: EndIntegratingToGateEvent) => void
+type OnEndIntegratingToGate = (arg: GateEventContext) => void
 
 export interface BotEventHandler {
 	onChangeParsed?: OnChangeParsed
@@ -186,7 +186,7 @@ export class BotEventTriggers extends BotEvents {
 		}
 	}
 
-	reportEndIntegratingToGate(arg: EndIntegratingToGateEvent) {
+	reportEndIntegratingToGate(arg: GateEventContext) {
 		for (const listener of this.endIntegratingToGateListeners) {
 			listener(arg)
 		}
