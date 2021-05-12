@@ -299,104 +299,102 @@ FNaniteAttributeData GetAttributeData(
 	}
 #endif
 
-	// Protect against case where Nanite max UV count is lower than what the material may define.
-	if (NumTexCoordInterpolators > 0)
+	const uint CompileTimeNumTexCoords = max(1, min(MAX_NANITE_UVS, NumTexCoordInterpolators));	// Always process first UV set. Even if it isn't used, we might still need TangentToWorld.
+	UNROLL
+	for (uint TexCoordIndex = 0; TexCoordIndex < CompileTimeNumTexCoords; ++TexCoordIndex)
 	{
-		UNROLL
-		for (uint TexCoordIndex = 0; TexCoordIndex < MAX_NANITE_UVS; ++TexCoordIndex)
+	#if USE_UNCOMPRESSED_VERTEX_DATA
+		float2 TexCoord0 = asfloat(ClusterPageData.Load2(ReadOffset.x));
+		float2 TexCoord1 = asfloat(ClusterPageData.Load2(ReadOffset.y));
+		float2 TexCoord2 = asfloat(ClusterPageData.Load2(ReadOffset.z));
+	#else
+		uint2 UVPrec = uint2(BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8), BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8 + 4));
+		uint2 Bits0_UV = BitStreamReader_Read2(AttributeStream0, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
+		uint2 Bits1_UV = BitStreamReader_Read2(AttributeStream1, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
+		uint2 Bits2_UV = BitStreamReader_Read2(AttributeStream2, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
+	#endif
+
+		if (TexCoordIndex < Cluster.NumUVs)
 		{
-			// Make sure we're within our interpolator range
-			if (TexCoordIndex < NumTexCoordInterpolators)
+		#if USE_UNCOMPRESSED_VERTEX_DATA
+			ReadOffset += 8;
+		#else
+			FUVRange UVRange = GetUVRange(ClusterPageData, DecodeInfoOffset, TexCoordIndex);
+			float2 TexCoord0 = UnpackTexCoord(Bits0_UV, UVRange);
+			float2 TexCoord1 = UnpackTexCoord(Bits1_UV, UVRange);
+			float2 TexCoord2 = UnpackTexCoord(Bits2_UV, UVRange);
+		#endif
+
+			float2 TexCoord10 = TexCoord1 - TexCoord0;
+			float2 TexCoord20 = TexCoord2 - TexCoord0;
+
+			float2 TexCoord = TexCoord0 + Barycentrics.UVW.y * TexCoord10 + Barycentrics.UVW.z * TexCoord20;
+			AttributeData.TexCoords[TexCoordIndex] = TexCoord;
+			AttributeData.TexCoords_DDX[TexCoordIndex] = Barycentrics.UVW_dx.y * TexCoord10 + Barycentrics.UVW_dx.z * TexCoord20;
+			AttributeData.TexCoords_DDY[TexCoordIndex] = Barycentrics.UVW_dy.y * TexCoord10 + Barycentrics.UVW_dy.z * TexCoord20;
+
+			// Generate tangent frame for UV0
+			if (TexCoordIndex == 0)
 			{
-			#if USE_UNCOMPRESSED_VERTEX_DATA
-				float2 TexCoord0 = asfloat(ClusterPageData.Load2(ReadOffset.x));
-				float2 TexCoord1 = asfloat(ClusterPageData.Load2(ReadOffset.y));
-				float2 TexCoord2 = asfloat(ClusterPageData.Load2(ReadOffset.z));
-				ReadOffset += 8;
-			#else
-				uint2 UVPrec = uint2(BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8), BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8 + 4));
+				// Implicit tangent space
+				// Based on Christian Schlüler's derivation: http://www.thetenthplanet.de/archives/1180
+				// The technique derives a tangent space from the interpolated normal and (position,uv) deltas in two not necessarily orthogonal directions.
+				// The described technique uses screen space derivatives as a way to obtain these direction deltas in a pixel shader,
+				// but as we have the triangle vertices explicitly available using the local space corner deltas directly is faster and more convenient.
 
-				uint2 Bits0_UV = BitStreamReader_Read2(AttributeStream0, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
-				uint2 Bits1_UV = BitStreamReader_Read2(AttributeStream1, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
-				uint2 Bits2_UV = BitStreamReader_Read2(AttributeStream2, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
-			
-				FUVRange UVRange = GetUVRange(ClusterPageData, DecodeInfoOffset, TexCoordIndex);
-				float2 TexCoord0 = UnpackTexCoord(Bits0_UV, UVRange);
-				float2 TexCoord1 = UnpackTexCoord(Bits1_UV, UVRange);
-				float2 TexCoord2 = UnpackTexCoord(Bits2_UV, UVRange);
-			#endif
+				float3 PointLocal10 = PointLocal1 - PointLocal0;
+				float3 PointLocal20 = PointLocal2 - PointLocal0;
 
-				float2 TexCoord10 = TexCoord1 - TexCoord0;
-				float2 TexCoord20 = TexCoord2 - TexCoord0;
+				bool TangentXValid = abs(TexCoord10.x) + abs(TexCoord20.x) > 1e-6;
 
-				float2 TexCoord = TexCoord0 + Barycentrics.UVW.y * TexCoord10 + Barycentrics.UVW.z * TexCoord20;
-				AttributeData.TexCoords[TexCoordIndex] = TexCoord;
-				AttributeData.TexCoords_DDX[TexCoordIndex] = Barycentrics.UVW_dx.y * TexCoord10 + Barycentrics.UVW_dx.z * TexCoord20;
-				AttributeData.TexCoords_DDY[TexCoordIndex] = Barycentrics.UVW_dy.y * TexCoord10 + Barycentrics.UVW_dy.z * TexCoord20;
-
-				// Generate tangent frame for UV0
-				if (TexCoordIndex == 0)
+				float3 TangentX;
+				float3 TangentY;
+				if (TangentXValid)
 				{
-					// Implicit tangent space
-					// Based on Christian Schlüler's derivation: http://www.thetenthplanet.de/archives/1180
-					// The technique derives a tangent space from the interpolated normal and (position,uv) deltas in two not necessarily orthogonal directions.
-					// The described technique uses screen space derivatives as a way to obtain these direction deltas in a pixel shader,
-					// but as we have the triangle vertices explicitly available using the local space corner deltas directly is faster and more convenient.
+					float3 Perp2 = cross(TangentZ, PointLocal20);
+					float3 Perp1 = cross(PointLocal10, TangentZ);
+					float3 TangentU = Perp2 * TexCoord10.x + Perp1 * TexCoord20.x;
+					float3 TangentV = Perp2 * TexCoord10.y + Perp1 * TexCoord20.y;
 
-					float3 PointLocal10 = PointLocal1 - PointLocal0;
-					float3 PointLocal20 = PointLocal2 - PointLocal0;
+					TangentX = normalize(TangentU);
+					TangentY = cross(TangentZ, TangentX);
 
-					bool TangentXValid = abs(TexCoord10.x) + abs(TexCoord20.x) > 1e-6;
-
-					float3 TangentX;
-					float3 TangentY;
-					if (TangentXValid)
-					{
-						float3 Perp2 = cross(TangentZ, PointLocal20);
-						float3 Perp1 = cross(PointLocal10, TangentZ);
-						float3 TangentU = Perp2 * TexCoord10.x + Perp1 * TexCoord20.x;
-						float3 TangentV = Perp2 * TexCoord10.y + Perp1 * TexCoord20.y;
-
-						TangentX = normalize(TangentU);
-						TangentY = cross(TangentZ, TangentX);
-
-						AttributeData.UnMirrored = dot(TangentV, TangentY) < 0.0f ? -1.0f : 1.0f;
-						TangentY *= AttributeData.UnMirrored;
-					}
-					else
-					{
-						const float Sign = TangentZ.z >= 0 ? 1 : -1;
-						const float a = -rcp( Sign + TangentZ.z );
-						const float b = TangentZ.x * TangentZ.y * a;
-	
-						TangentX = float3(1 + Sign * a * Pow2(TangentZ.x), Sign * b, -Sign * TangentZ.x);
-						TangentY = float3(b,  Sign + a * Pow2(TangentZ.y), -TangentZ.y);
-
-						AttributeData.UnMirrored = 1;
-					}
-
-					float3x3 TangentToLocal = float3x3(TangentX, TangentY, TangentZ);
-
-					// Should be Pow2(InvScale) but that requires renormalization
-					float3x3 LocalToWorld = (float3x3)InstanceData.LocalToWorld;
-					float3 InvScale = InstanceData.InvNonUniformScaleAndDeterminantSign.xyz;
-					LocalToWorld[0] *= InvScale.x;
-					LocalToWorld[1] *= InvScale.y;
-					LocalToWorld[2] *= InvScale.z;
-					AttributeData.TangentToWorld = mul(TangentToLocal, LocalToWorld);
+					AttributeData.UnMirrored = dot(TangentV, TangentY) < 0.0f ? -1.0f : 1.0f;
+					TangentY *= AttributeData.UnMirrored;
 				}
+				else
+				{
+					const float Sign = TangentZ.z >= 0 ? 1 : -1;
+					const float a = -rcp( Sign + TangentZ.z );
+					const float b = TangentZ.x * TangentZ.y * a;
+	
+					TangentX = float3(1 + Sign * a * Pow2(TangentZ.x), Sign * b, -Sign * TangentZ.x);
+					TangentY = float3(b,  Sign + a * Pow2(TangentZ.y), -TangentZ.y);
+
+					AttributeData.UnMirrored = 1;
+				}
+
+				float3x3 TangentToLocal = float3x3(TangentX, TangentY, TangentZ);
+
+				// Should be Pow2(InvScale) but that requires renormalization
+				float3x3 LocalToWorld = (float3x3)InstanceData.LocalToWorld;
+				float3 InvScale = InstanceData.InvNonUniformScaleAndDeterminantSign.xyz;
+				LocalToWorld[0] *= InvScale.x;
+				LocalToWorld[1] *= InvScale.y;
+				LocalToWorld[2] *= InvScale.z;
+				AttributeData.TangentToWorld = mul(TangentToLocal, LocalToWorld);
+			}
+		}
+		else
+		{
+			AttributeData.TexCoords[TexCoordIndex]		= float2(0, 0);
+			AttributeData.TexCoords_DDX[TexCoordIndex]	= float2(0, 0);
+			AttributeData.TexCoords_DDY[TexCoordIndex]	= float2(0, 0);
+			if (TexCoordIndex == 0)
+			{
+				AttributeData.TangentToWorld = float3x3(float3(0, 0, 0), float3(0, 0, 0), mul(TangentZ * InstanceData.InvNonUniformScaleAndDeterminantSign.z, (float3x3)InstanceData.LocalToWorld));
 			}
 		}
 	}
-	else
-	{
-		// No texture coordinates, so there is no valid tangent frame.
-		// TangentToWorld.Z is still being used, so we still have to calculate it.
-
-		// Should be Pow2(InvScale) but that requires renormalization
-		half3 InvScale = InstanceData.InvNonUniformScaleAndDeterminantSign.xyz;
-		AttributeData.TangentToWorld = float3x3(float3(0,0,0), float3(0,0,0), mul(TangentZ * InvScale.z, (float3x3)InstanceData.LocalToWorld));
-	}
-
 	return AttributeData;
 }
