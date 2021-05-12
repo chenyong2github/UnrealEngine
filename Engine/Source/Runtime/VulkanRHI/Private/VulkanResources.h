@@ -1020,6 +1020,23 @@ protected:
 	friend class FVulkanCommandListContext;
 };
 
+#if VULKAN_RHI_RAYTRACING
+class FVulkanAccelerationStructureBuffer : public FRHIBuffer
+{
+public:
+	FVulkanAccelerationStructureBuffer(FVulkanDevice* InDevice, uint32 InSize, uint32 InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo);
+	virtual ~FVulkanAccelerationStructureBuffer();
+
+	inline VkBuffer GetBuffer() const
+	{
+		return Allocation.Buffer;
+	}
+
+private:
+	FVkRtAllocation Allocation;
+};
+#endif
+
 class FVulkanResourceMultiBuffer : public FRHIBuffer, public FVulkanEvictable, public VulkanRHI::FDeviceChild
 {
 	virtual void Evict(FVulkanDevice& Device);
