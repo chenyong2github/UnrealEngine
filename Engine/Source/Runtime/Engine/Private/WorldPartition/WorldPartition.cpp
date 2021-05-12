@@ -1197,10 +1197,10 @@ bool UWorldPartition::GenerateStreaming(EWorldPartitionStreamingMode Mode, TArra
 	return Result;
 }
 
-bool UWorldPartition::PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, const FString& InPackageCookName)
+bool UWorldPartition::PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath)
 {
 	check(RuntimeHash);
-	return RuntimeHash->PopulateGeneratedPackageForCook(InPackage, InPackageRelativePath, InPackageCookName);
+	return RuntimeHash->PopulateGeneratedPackageForCook(InPackage, InPackageRelativePath);
 }
 
 void UWorldPartition::FinalizeGeneratedPackageForCook()
