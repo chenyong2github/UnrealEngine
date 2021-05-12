@@ -4,6 +4,8 @@
 #include "Core/PBIKSolver.h"
 #include "Math/UnrealMathUtility.h"
 
+//#pragma optimize("", off)
+
 namespace PBIK
 {
 	
@@ -40,13 +42,13 @@ void FJointConstraint::Solve(bool bMoveSubRoots)
 
 	// calc inv mass of body A
 	float AInvMass = 1.0f;
-	AInvMass -= A->AttachedEffector ? A->AttachedEffector->StrengthAlpha : 0.0f;
+	AInvMass -= (A->Pin && A->Pin->bEnabled) ? A->Pin->Alpha : 0.0f;
 	AInvMass -= !bMoveSubRoots && A->Bone->bIsSubRoot ? 1.0f : 0.0f;
 	AInvMass = AInvMass <= 0.0f ? 0.0f : AInvMass;
 
 	// calc inv mass of body B
 	float BInvMass = 1.0f;
-	BInvMass -= B->AttachedEffector ? B->AttachedEffector->StrengthAlpha : 0.0f;
+	BInvMass -= (B->Pin && B->Pin->bEnabled) ? B->Pin->Alpha : 0.0f;
 	BInvMass -= !bMoveSubRoots && B->Bone->bIsSubRoot ? 1.0f : 0.0f;
 	BInvMass = BInvMass <= 0.0f ? 0.0f : BInvMass;
 
@@ -88,30 +90,8 @@ FVector FJointConstraint::GetPositionCorrection(FVector& OutBodyToA, FVector& Ou
 
 void FJointConstraint::ApplyRotationCorrection(FQuat PureRotA, FQuat PureRotB) const
 {
-	// https://matthias-research.github.io/pages/publications/PBDBodies.pdf/
-	// Equation 8 and 9 from "Detailed Rigid Body Simulation with Extended Position Based Dynamics"
-
-	PureRotA.X *= 0.5f;
-	PureRotA.Y *= 0.5f;
-	PureRotA.Z *= 0.5f;
-	PureRotB.X *= 0.5f;
-	PureRotB.Y *= 0.5f;
-	PureRotB.Z *= 0.5f;
-	PureRotA = PureRotA * A->Rotation;
-	PureRotB = PureRotB * B->Rotation;
-
-	A->Rotation.X = A->Rotation.X + PureRotA.X;
-	A->Rotation.Y = A->Rotation.Y + PureRotA.Y;
-	A->Rotation.Z = A->Rotation.Z + PureRotA.Z;
-	A->Rotation.W = A->Rotation.W + PureRotA.W;
-
-	B->Rotation.X = B->Rotation.X - PureRotB.X;
-	B->Rotation.Y = B->Rotation.Y - PureRotB.Y;
-	B->Rotation.Z = B->Rotation.Z - PureRotB.Z;
-	B->Rotation.W = B->Rotation.W - PureRotB.W;
-
-	A->Rotation.Normalize();
-	B->Rotation.Normalize();
+	A->ApplyRotationDelta(PureRotA, false);
+	B->ApplyRotationDelta(PureRotB, true);
 }
 
 void FJointConstraint::UpdateJointLimits()
@@ -287,11 +267,20 @@ float FJointConstraint::SignedAngleBetweenNormals(
 	return Dot >= 0 ? Angle : -Angle;
 }
 	
-FPinConstraint::FPinConstraint(FRigidBody* InBody, const FVector& InPinPoint)
+FPinConstraint::FPinConstraint(
+	FRigidBody* InBody,
+	const FVector& InPinPositionOrig,
+	const FQuat& InPinRotationOrig,
+	const bool bInPinRotation)
 {
+	GoalPosition = InPinPositionOrig;
+	GoalRotation = InPinRotationOrig;
+	
 	A = InBody;
-	PinPointLocalToA = A->Rotation.Inverse() * (InPinPoint - A->Position);
-	GoalPoint = InPinPoint;
+	PinPointLocalToA = A->Rotation.Inverse() * (GoalPosition - A->Position);
+
+	ARotLocalToPin = A->Rotation * GoalRotation.Inverse();
+	bPinRotation = bInPinRotation;
 }
 
 void FPinConstraint::Solve(bool bMoveSubRoots)
@@ -310,21 +299,37 @@ void FPinConstraint::Solve(bool bMoveSubRoots)
 	FVector AToPinPoint;
 	FVector Correction = GetPositionCorrection(AToPinPoint);
 
-	// rotate body from alignment of pin points
-	A->ApplyPushToRotateBody(Correction, AToPinPoint);
+	if (bPinRotation)
+	{
+		// move body to pin location
+		A->Position += Correction;
+		// keep body at fixed rotation relative to the pin goal rotation
+		A->Rotation = ARotLocalToPin * GoalRotation;
+	}else
+	{
+		// rotate body from alignment of pin points
+		A->ApplyPushToRotateBody(Correction, AToPinPoint);
 
-	// apply positional correction to Body to align with target (after rotation)
-	// (applying directly without considering PositionStiffness because PinConstraints need
-	// to precisely pull the attached body to achieve convergence)
-	Correction = GetPositionCorrection(AToPinPoint);
-	A->Position += Correction; 
+		// apply positional correction to Body to align with target (after rotation)
+		// (applying directly without considering PositionStiffness because PinConstraints need
+		// to precisely pull the attached body to achieve convergence)
+		Correction = GetPositionCorrection(AToPinPoint);
+		A->Position += Correction; 
+	}
+}
+
+void FPinConstraint::SetGoal(const FVector& InGoalPosition, const FQuat& InGoalRotation, const float InAlpha)
+{
+	GoalPosition = InGoalPosition;
+	GoalRotation = InGoalRotation;
+	Alpha = InAlpha;
 }
 
 FVector FPinConstraint::GetPositionCorrection(FVector& OutBodyToPinPoint) const
 {
 	OutBodyToPinPoint = A->Rotation * PinPointLocalToA;
 	const FVector PinPoint = A->Position + OutBodyToPinPoint;
-	return (GoalPoint - PinPoint) * Alpha;
+	return (GoalPosition - PinPoint) * Alpha;
 }
 
 } // namespace
