@@ -2,7 +2,7 @@
 
 #pragma once
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/AllowWindowsPlatformAtomics.h"
 
@@ -43,7 +43,7 @@ THIRD_PARTY_INCLUDES_END
 #include "Windows/HideWindowsPlatformAtomics.h"
 #include "Windows/HideWindowsPlatformTypes.h"
 
-#endif // PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#endif // PLATFORM_WINDOWS
 
 THIRD_PARTY_INCLUDES_START
 

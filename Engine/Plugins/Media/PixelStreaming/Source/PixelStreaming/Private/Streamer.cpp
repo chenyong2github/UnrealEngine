@@ -61,7 +61,7 @@ FStreamer::FStreamer(const FString& InSignallingServerUrl)
 FStreamer::~FStreamer()
 {
 	// stop WebRtc WndProc thread
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS
 	PostThreadMessage(WebRtcSignallingThreadId, WM_QUIT, 0, 0);
 
 	UE_LOG(PixelStreamer, Log, TEXT("Exiting WebRTC WndProc thread"));
@@ -84,7 +84,7 @@ void FStreamer::WebRtcSignallingThreadFunc()
 {
 	// initialisation of WebRTC stuff and things that depends on it should happen in WebRTC signalling thread
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS
 
 	// WebRTC assumes threads within which PeerConnectionFactory is created is the signalling thread
 	WebRtcSignallingThreadId = FPlatformTLS::GetCurrentThreadId();

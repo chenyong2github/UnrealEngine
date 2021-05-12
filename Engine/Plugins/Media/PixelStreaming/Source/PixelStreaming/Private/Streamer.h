@@ -54,7 +54,7 @@ private:
 private:
 	FString SignallingServerUrl;
 
-	#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+	#if PLATFORM_WINDOWS
 	DWORD WebRtcSignallingThreadId = 0;
 	TUniquePtr<FThread> WebRtcSignallingThread;
 	#elif PLATFORM_LINUX

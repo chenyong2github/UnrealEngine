@@ -115,7 +115,7 @@ void FPlayer::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 
 bool FPlayer::CreateManagerAndDevice()
 {
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS
 	// TODO (M84FIX) - Implement new Decoder 
 	return false;
 	//return FVideoDecoder::CreateDXManagerAndDevice();
@@ -127,7 +127,7 @@ bool FPlayer::CreateManagerAndDevice()
 
 bool FPlayer::DestroyManagerAndDevice()
 {
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS
 	// TODO (M84FIX) - Implement new Decoder 
 	return false;
 	//return FVideoDecoder::DestroyDXManagerAndDevice();
