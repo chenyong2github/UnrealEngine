@@ -37,6 +37,7 @@ struct FD3D12_GRAPHICS_PIPELINE_STATE_STREAM
 	//CD3DX12_PIPELINE_STATE_STREAM_VIEW_INSTANCING ViewInstancingDesc;
 };
 
+#if PLATFORM_SUPPORTS_MESH_SHADERS
 struct FD3D12_MESH_PIPELINE_STATE_STREAM
 {
 	// Note: Unused members are currently commented out to exclude them from the stream.
@@ -59,6 +60,7 @@ struct FD3D12_MESH_PIPELINE_STATE_STREAM
 	CD3DX12_PIPELINE_STATE_STREAM_CACHED_PSO CachedPSO;
 	//CD3DX12_PIPELINE_STATE_STREAM_VIEW_INSTANCING ViewInstancingDesc;
 };
+#endif
 
 // Compute pipeline stream struct that represents the latest version of PSO subobjects currently used by the RHI.
 struct FD3D12_COMPUTE_PIPELINE_STATE_STREAM
