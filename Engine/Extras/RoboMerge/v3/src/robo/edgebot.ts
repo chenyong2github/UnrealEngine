@@ -78,8 +78,12 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		this.p4 = new PerforceContext(this.edgeBotLogger)
 		this.eventTriggers.onChangeParsed((info: ChangeInfo) => this.onGlobalChange(info))
 		this.gate = new Gate(
-			this.lastCl,
-			this.options.pauseCISUnlessAtGate ? {from: this.sourceBranch, to: this.branch, eventTriggers: this.eventTriggers} : null,
+			{ from: this.sourceBranch
+			, to: this.branch
+			, pauseCIS: !!this.options.pauseCISUnlessAtGate
+			, edgeLastCl: this.lastCl
+			, eventTriggers: this.eventTriggers
+			},
 			{options, p4: this.p4, logger: this.edgeBotLogger.createChild('gate')},
 			this.settings
 		)
