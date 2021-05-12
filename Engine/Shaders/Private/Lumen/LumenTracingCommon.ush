@@ -12,6 +12,8 @@
 #include "../GlobalDistanceFieldShared.ush"
 #include "../GlobalDistanceFieldUtils.ush"
 #include "../DistanceFieldLightingShared.ush"
+#define USE_GLOBAL_GPU_SCENE_DATA 1
+#include "../SceneData.ush"
 
 Texture2D FinalLightingAtlas;
 Texture2D IrradianceAtlas;
@@ -294,6 +296,8 @@ struct FConeTraceInput
 	// Whether to sample high res surface cache data or low res always resident pages
 	bool bHiResSurface;
 
+	bool bCalculateHitVelocity;
+
 	// Mesh SDF traces
 	uint NumMeshSDFs;
 	uint MeshSDFStartOffset;
@@ -330,6 +334,7 @@ struct FConeTraceInput
 
 		ScreenCoord = uint2(0, 0);
 		bHiResSurface = false;
+		bCalculateHitVelocity = false;
 	}
 };
 
@@ -343,7 +348,7 @@ struct FConeTraceResult
 	float NumOverlaps;
 	float OpaqueHitDistance;
 	float3 Debug;
-	bool bOftenMoving;
+	float3 WorldVelocity;
 };
 
 void ConeTraceSingleLumenCard(
@@ -735,16 +740,26 @@ void RayTraceSingleMeshSDF(
 	}
 }
 
+float3 GetPrevWorldPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPUSceneInstanceIndex)
+{
+	FInstanceSceneData InstanceSceneData = GetInstanceData(GPUSceneInstanceIndex, View.InstanceDataSOAStride);
+	float4 LocalPosition = mul(float4(WorldPosition, 1), InstanceSceneData.WorldToLocal);
+	float3 PrevWorldPosition = mul(LocalPosition, InstanceSceneData.PrevLocalToWorld).xyz;
+	return PrevWorldPosition;
+}
+
 struct FTraceMeshSDFDerivedData
 {
 	float3 HitNormal;
 	bool bAccurateHit;
+	float3 WorldVelocity;
 };
 
 FTraceMeshSDFDerivedData CalculateMeshSDFDerivedData(
 	float3 WorldRayStart, 
 	float3 WorldRayDirection, 
 	float TraceDistance,
+	bool bCalculateHitVelocity,
 	FTraceMeshSDFResult TraceMeshSDFResult)
 {
 	FTraceMeshSDFDerivedData TraceSDFData;
@@ -768,6 +783,11 @@ FTraceMeshSDFDerivedData CalculateMeshSDFDerivedData(
 	TraceSDFData.HitNormal = WorldGradientLength > 0.0f ? WorldGradient / WorldGradientLength : 0;
 
 	TraceSDFData.bAccurateHit = !DFObjectData.bMostlyTwoSided;
+
+	if (bCalculateHitVelocity)
+	{
+		TraceSDFData.WorldVelocity = HitPosition - GetPrevWorldPositionFromGPUSceneInstanceIndex(HitPosition, DFObjectData.GPUSceneInstanceIndex);
+	}
 
 	return TraceSDFData;
 }
@@ -1191,6 +1211,7 @@ void ConeTraceMeshSDFsAndInterpolateFromCards(
 			TraceInput.ConeOrigin, 
 			TraceInput.ConeDirection, 
 			TraceInput.MaxTraceDistance, 
+			TraceInput.bCalculateHitVelocity,
 			TraceMeshSDFResult);
 
 		//OutResult.Lighting = frac(10 * TraceMeshSDFResult.HitDistance / TraceInput.MaxTraceDistance);
@@ -1214,7 +1235,7 @@ void ConeTraceMeshSDFsAndInterpolateFromCards(
 			TraceInput.bHiResSurface,
 			AtlasId);
 		OutResult.Transparency = 0;
-		OutResult.bOftenMoving = LoadDFObjectBounds(TraceMeshSDFResult.HitObject).OftenMoving != 0;
+		OutResult.WorldVelocity = TraceSDFData.WorldVelocity;
 	}
 
 	OutResult.OpaqueHitDistance = TraceMeshSDFResult.HitDistance;

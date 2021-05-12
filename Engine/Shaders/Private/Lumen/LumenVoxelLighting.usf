@@ -495,7 +495,7 @@ void VisBufferShadingCS(
 				TraceMeshSDFResult.HitDistance = RayLength * VisBuffer.NormalizedHitDistance;
 				TraceMeshSDFResult.HitObject = VisBuffer.HitObjectId;
 
-				FTraceMeshSDFDerivedData TraceSDFData = CalculateMeshSDFDerivedData(RayStart, RayDirection, RayLength, TraceMeshSDFResult);
+				FTraceMeshSDFDerivedData TraceSDFData = CalculateMeshSDFDerivedData(RayStart, RayDirection, RayLength, false, TraceMeshSDFResult);
 
 				float3 InterpolatePosition = RayStart + RayDirection * TraceMeshSDFResult.HitDistance;
 

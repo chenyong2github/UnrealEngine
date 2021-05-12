@@ -178,6 +178,8 @@ struct FDFObjectData
 	// For view distance culling to match main view rasterizer
 	float2 MinMaxDrawDistance2;
 
+	uint GPUSceneInstanceIndex;
+
 	// Transforms between world space and the volume space that tracing happens in
 	float4x4 WorldToVolume;
 	float4x4 VolumeToWorld;
@@ -206,6 +208,7 @@ FDFObjectData LoadDFObjectDataFromBuffer(StructuredBuffer<float4> SourceBuffer, 
 	float4 Vector4 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 4];
 	Data.MinMaxDrawDistance2 = Vector4.xy;
 	Data.SelfShadowBias = Vector4.z;
+	Data.GPUSceneInstanceIndex = asuint(Vector4.w);
 	
 	V0 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 5];
 	V1 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 6];

@@ -20,6 +20,33 @@
 #include "../RayTracing/RayTracingLightingCommon.ush"
 #include "LumenHardwareRayTracingPayloadCommon.ush"
 
+// GPU Scene ray-gen utilities
+uint GetGPUSceneInstanceIndex(uint PrimitiveIndex, uint InstanceIndex)
+{
+	// Matching auto-instancing workaround in CL 16210643
+	if (GetPrimitiveData(PrimitiveIndex).NumInstanceDataEntries == 1)
+	{
+		InstanceIndex = 0;
+	}
+
+	return GetPrimitiveData(PrimitiveIndex).InstanceDataOffset + InstanceIndex;
+}
+
+float3 CalcPrevWorldPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPUSceneInstanceIndex)
+{
+	FInstanceSceneData InstanceSceneData = GetInstanceData(GPUSceneInstanceIndex, View.InstanceDataSOAStride);
+	float4 LocalPosition = mul(float4(WorldPosition, 1), InstanceSceneData.WorldToLocal);
+	float3 PrevWorldPosition = mul(LocalPosition, InstanceSceneData.PrevLocalToWorld).xyz;
+	return PrevWorldPosition;
+}
+
+float3 CalcLocalPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPUSceneInstanceIndex)
+{
+	FInstanceSceneData InstanceSceneData = GetInstanceData(GPUSceneInstanceIndex, View.InstanceDataSOAStride);
+	float3 LocalPosition = mul(float4(WorldPosition, 1), InstanceSceneData.WorldToLocal).xyz;
+	return LocalPosition;
+}
+
 #define HIDE_INVALID_SDF 0
 
 // Lighting modes
@@ -52,6 +79,7 @@ struct FRayTracedLightingContext
 	// Whether to sample high res surface cache data or low res always resident pages
 	bool bHiResSurface;
 	bool bCullBackFacingTriangles;
+	bool bCalculateHitVelocity;
 };
 
 FRayTracedLightingContext CreateRayTracedLightingContext(
@@ -71,6 +99,7 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	Context.TranslucentSkipCountMax = TranslucentSkipCountMax;
 	Context.bHiResSurface = bHiResSurface;
 	Context.bCullBackFacingTriangles = bCullBackFacingTriangles;
+	Context.bCalculateHitVelocity = false;
 	return Context;
 }
 
@@ -343,10 +372,11 @@ bool TraceAndCalculateRayTracedLightingFromSurfaceCache(
 	in RayDesc Ray,
 	in FRayTracedLightingContext Context,
 	inout float TraceHitDistance,
-	inout float3 Radiance
-)
+	inout float3 WorldVelocity,
+	inout float3 Radiance)
 {
 	Radiance = 0;
+	WorldVelocity = 0;
 
 	FLumenMinimalPayload Payload = (FLumenMinimalPayload)0;
 	bool bHit = TraceLumenMinimalRay(Ray, Context, Payload);
@@ -363,6 +393,14 @@ bool TraceAndCalculateRayTracedLightingFromSurfaceCache(
 	if (bHit)
 	{
 		TraceHitDistance = Payload.HitT;
+
+		if (Context.bCalculateHitVelocity)
+		{
+			uint GPUSceneInstanceIndex = GetGPUSceneInstanceIndex(Payload.GetPrimitiveIndex(), Payload.GetInstanceIndex());
+			float3 WorldPosition = Ray.Origin + Ray.Direction * Payload.HitT;
+			WorldVelocity = WorldPosition - CalcPrevWorldPositionFromGPUSceneInstanceIndex(WorldPosition, GPUSceneInstanceIndex);
+		}
+
 		int DFObjectIndex = GetLumenDistanceFieldObjectIndex(Payload.GetPrimitiveIndex(), Payload.GetInstanceIndex());
 		if (DFObjectIndex != INVALID_DISTANCE_FIELD_OBJECT_INDEX)
 		{
@@ -377,37 +415,19 @@ bool TraceAndCalculateRayTracedLightingFromSurfaceCache(
 	return bHit;
 }
 
-// GPU Scene ray-gen utilities
-uint GetGPUSceneInstanceIndex(uint PrimitiveIndex, uint InstanceIndex)
+bool TraceAndCalculateRayTracedLightingFromSurfaceCache(
+	in RayDesc Ray,
+	in FRayTracedLightingContext Context,
+	inout float TraceHitDistance,
+	inout float3 Radiance)
 {
-	// Matching auto-instancing workaround in CL 16210643
-	if (GetPrimitiveData(PrimitiveIndex).NumInstanceDataEntries == 1)
-	{
-		InstanceIndex = 0;
-	}
+	Context.bCalculateHitVelocity = false;
+	float3 Unused;
 
-	return GetPrimitiveData(PrimitiveIndex).InstanceDataOffset + InstanceIndex;
-}
-
-float3 CalcVelocityFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPUSceneInstanceIndex)
-{
-	FInstanceSceneData InstanceSceneData = GetInstanceData(GPUSceneInstanceIndex, View.InstanceDataSOAStride);
-	float4 LocalPosition = mul(float4(WorldPosition, 1), InstanceSceneData.WorldToLocal);
-	float3 PrevWorldPosition = mul(LocalPosition, InstanceSceneData.PrevLocalToWorld).xyz;
-	return WorldPosition - PrevWorldPosition;
-}
-
-float3 CalcLocalPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPUSceneInstanceIndex)
-{
-	FInstanceSceneData InstanceSceneData = GetInstanceData(GPUSceneInstanceIndex, View.InstanceDataSOAStride);
-	float3 LocalPosition = mul(float4(WorldPosition, 1), InstanceSceneData.WorldToLocal).xyz;
-	return LocalPosition;
-}
-
-float3 CalcPrevWorldPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPUSceneInstanceIndex)
-{
-	FInstanceSceneData InstanceSceneData = GetInstanceData(GPUSceneInstanceIndex, View.InstanceDataSOAStride);
-	float4 LocalPosition = mul(float4(WorldPosition, 1), InstanceSceneData.WorldToLocal);
-	float3 PrevWorldPosition = mul(LocalPosition, InstanceSceneData.PrevLocalToWorld).xyz;
-	return PrevWorldPosition;
+	return TraceAndCalculateRayTracedLightingFromSurfaceCache(
+		Ray,
+		Context,
+		TraceHitDistance,
+		Unused,
+		Radiance);
 }
