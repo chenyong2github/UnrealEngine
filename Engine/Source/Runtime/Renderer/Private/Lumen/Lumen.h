@@ -37,7 +37,6 @@ namespace Lumen
 	bool IsLumenFeatureAllowedForView(const FScene* Scene, const FViewInfo& View, bool bRequireSoftwareTracing);
 	bool ShouldVisualizeHardwareRayTracing();
 	bool ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
-	bool IsPrimitiveToDFObjectMappingRequired();
 
 	// Hardware ray tracing
 	bool UseHardwareRayTracing();
@@ -60,7 +59,6 @@ namespace Lumen
 
 	const TCHAR* GetRayTracedLightingModeName(EHardwareRayTracingLightingMode LightingMode);
 	const TCHAR* GetRayTracedNormalModeName(int NormalMode);
-	void SetupViewUniformBufferParameters(FScene* Scene, FViewUniformShaderParameters& ViewUniformShaderParameters);
 	float GetHardwareRayTracingPullbackBias();
 };
 

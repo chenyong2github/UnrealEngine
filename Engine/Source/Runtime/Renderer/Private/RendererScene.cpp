@@ -4010,9 +4010,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 							GPUScene.AddPrimitiveToUpdate(SourceIndex);
 							GPUScene.AddPrimitiveToUpdate(DestIndex);
 
-							LumenSceneData->AddPrimitiveToUpdate(SourceIndex);
-							LumenSceneData->AddPrimitiveToUpdate(DestIndex);
-
 						#if RHI_RAYTRACING
 							// Update cached PrimitiveIndex after an index swap
 							Primitives[SourceIndex]->CachedRayTracingInstance.DefaultUserData = SourceIndex;
@@ -4229,7 +4226,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				PrimitiveSceneInfo->PackedIndex = SourceIndex;
 
 				GPUScene.AddPrimitiveToUpdate(SourceIndex);
-				LumenSceneData->AddPrimitiveToUpdate(SourceIndex);
 			}
 
 			bool EntryFound = false;
@@ -4325,7 +4321,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 							}
 
 							GPUScene.AddPrimitiveToUpdate(DestIndex);
-							LumenSceneData->AddPrimitiveToUpdate(DestIndex);
 
 						#if RHI_RAYTRACING
 							// Update cached PrimitiveIndex after an index swap

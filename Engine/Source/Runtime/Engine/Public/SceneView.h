@@ -823,12 +823,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 	SHADER_PARAMETER_TEXTURE(Texture3D<uint>, GlobalDistanceFieldPageTableTexture)
 	SHADER_PARAMETER_TEXTURE(Texture3D, GlobalDistanceFieldMipTexture)
 
-	// Lumen
-	SHADER_PARAMETER_SRV(ByteAddressBuffer, PrimitiveToLumenInstanceOffsetBuffer)
-	SHADER_PARAMETER_SRV(ByteAddressBuffer, LumenInstanceToDFObjectIndexBuffer)
-	SHADER_PARAMETER(uint32, PrimitiveToLumenInstanceOffsetBufferSize)
-	SHADER_PARAMETER(uint32, LumenInstanceToDFObjectIndexBufferSize)
-
 	SHADER_PARAMETER_TEXTURE(Texture2D, AtmosphereTransmittanceTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, AtmosphereTransmittanceTextureSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, AtmosphereIrradianceTexture)

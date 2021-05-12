@@ -751,6 +751,7 @@ float3 GetPrevWorldPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint 
 struct FTraceMeshSDFDerivedData
 {
 	float3 HitNormal;
+	uint SceneInstanceIndex;
 	bool bAccurateHit;
 	float3 WorldVelocity;
 };
@@ -764,8 +765,8 @@ FTraceMeshSDFDerivedData CalculateMeshSDFDerivedData(
 {
 	FTraceMeshSDFDerivedData TraceSDFData;
 
-	uint ObjectIndex = TraceMeshSDFResult.HitObject;
-	FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
+	uint DFObjectIndex = TraceMeshSDFResult.HitObject;
+	FDFObjectData DFObjectData = LoadDFObjectData(DFObjectIndex);
 
 	float3 HitPosition = WorldRayStart + WorldRayDirection * TraceMeshSDFResult.HitDistance;
 	float3 SampleVolumePosition = mul(float4(HitPosition, 1), DFObjectData.WorldToVolume).xyz;
@@ -788,6 +789,8 @@ FTraceMeshSDFDerivedData CalculateMeshSDFDerivedData(
 	{
 		TraceSDFData.WorldVelocity = HitPosition - GetPrevWorldPositionFromGPUSceneInstanceIndex(HitPosition, DFObjectData.GPUSceneInstanceIndex);
 	}
+
+	TraceSDFData.SceneInstanceIndex = DFObjectData.GPUSceneInstanceIndex;
 
 	return TraceSDFData;
 }
@@ -1046,132 +1049,135 @@ uint FindBestMeshCardIndex(FLumenMeshCardsData MeshCardsData, float3 SamplePosit
 	return LUMEN_INVALID_CARD_INDEX;
 }
 
-float4 SampleLumenMeshCardsWithWeight(uint2 ScreenCoord, uint DFObjectIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius, bool bHiResSurface, uint AtlasId)
+float4 SampleLumenMeshCardsWithWeight(uint2 ScreenCoord, uint SceneInstanceIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius, bool bHiResSurface, uint AtlasId)
 {
-	uint MeshCardId = LumenCardScene.DFObjectToMeshCardsIndexBuffer.Load(4 * DFObjectIndex);
-
-	FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardId);
-
-	float3 LocalSpaceHitNormal = normalize(mul(float4(SampleNormal, 0.0f), MeshCardsData.WorldToLocal).xyz);
-	float3 AxisWeights = LocalSpaceHitNormal * LocalSpaceHitNormal;
-	const uint CardOrientationX = (LocalSpaceHitNormal.x < 0.0f ? 0 : 1);
-	const uint CardOrientationY = (LocalSpaceHitNormal.y < 0.0f ? 2 : 3);
-	const uint CardOrientationZ = (LocalSpaceHitNormal.z < 0.0f ? 4 : 5);
-
-	uint CardIndexX = FindBestMeshCardIndex(MeshCardsData, SamplePosition, CardOrientationX);
-	uint CardIndexY = FindBestMeshCardIndex(MeshCardsData, SamplePosition, CardOrientationY);
-	uint CardIndexZ = FindBestMeshCardIndex(MeshCardsData, SamplePosition, CardOrientationZ);
-
-	FLumenCardSample CardSampleX;
-	SampleLumenCard(
-		SamplePosition,
-		SampleRadius,
-		bAccurateHit,
-		AxisWeights.x,
-		CardIndexX,
-		CardInterpolateDepthVisibilityRadius,
-		bHiResSurface,
-		/*AxisIndex*/ 0,
-		CardSampleX);
-
-	FLumenCardSample CardSampleY;
-	SampleLumenCard(
-		SamplePosition,
-		SampleRadius,
-		bAccurateHit,
-		AxisWeights.y,
-		CardIndexY,
-		CardInterpolateDepthVisibilityRadius,
-		bHiResSurface,
-		/*AxisIndex*/ 1,
-		CardSampleY);
-
-	FLumenCardSample CardSampleZ;
-	SampleLumenCard(
-		SamplePosition,
-		SampleRadius,
-		bAccurateHit,
-		AxisWeights.z,
-		CardIndexZ,
-		CardInterpolateDepthVisibilityRadius,
-		bHiResSurface,
-		/*AxisIndex*/ 2,
-		CardSampleZ);
-
-	// Stochastic tri-planar
-	float3 WeightPrefixSum;
-	WeightPrefixSum.x = CardSampleX.Weight;
-	WeightPrefixSum.y = CardSampleX.Weight + CardSampleY.Weight;
-	WeightPrefixSum.z = CardSampleX.Weight + CardSampleY.Weight + CardSampleZ.Weight;
-
-	float StochasticWeight = InterleavedGradientNoise(ScreenCoord, View.StateFrameIndexMod8) * WeightPrefixSum.z;
-
-	FLumenCardSample StochasticCardSample;
-	InitCardSample(StochasticCardSample, 0);
-	if (StochasticWeight < WeightPrefixSum.x)
-	{
-		StochasticCardSample = CardSampleX;
-	}
-	else if (StochasticWeight < WeightPrefixSum.y)
-	{
-		StochasticCardSample = CardSampleY;
-	}
-	else
-	{
-		StochasticCardSample = CardSampleZ;
-	}
-
-	#if SURFACE_CACHE_FEEDBACK
-	{
-		// Write every n-th element
-		if (all((ScreenCoord & SurfaceCacheFeedbackBufferTileWrapMask) == SurfaceCacheFeedbackBufferTileJitter)
-			&& SurfaceCacheFeedbackBufferSize > 0
-			&& StochasticCardSample.Weight > 0.1f
-			&& StochasticCardSample.PackedFeedback.x > 0)
-		{
-			uint WriteOffset = 0;
-			InterlockedAdd(RWSurfaceCacheFeedbackBufferAllocator[0], 1, WriteOffset);
-
-			if (WriteOffset < SurfaceCacheFeedbackBufferSize)
-			{
-				RWSurfaceCacheFeedbackBuffer[WriteOffset] = StochasticCardSample.PackedFeedback;
-			}
-		}
-	}
-	#endif
-
 	float3 Lighting = 0.0f;
 	float Weight = 0.0f;
 
-	const bool bUseStochasticInterpolation = false;
-	if (bUseStochasticInterpolation)
-	{
-		AccumulateLumenCardLighting(StochasticCardSample, AtlasId, Lighting, Weight);
-	}
-	else
-	{
-		AccumulateLumenCardLighting(CardSampleX, AtlasId, Lighting, Weight);
-		AccumulateLumenCardLighting(CardSampleY, AtlasId, Lighting, Weight);
-		AccumulateLumenCardLighting(CardSampleZ, AtlasId, Lighting, Weight);
-	}
+	uint MeshCardsIndex = LumenCardScene.SceneInstanceIndexToMeshCardsIndexBuffer.Load(4 * SceneInstanceIndex);
 
-	// Debug visualization
-	#if ENABLE_VISUALIZE_MODE == 1
+	if (MeshCardsIndex < LumenCardScene.NumMeshCards)
 	{
-		if (VisualizeMode == VISUALIZE_MODE_GEOMETRY_NORMALS)
+		FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);
+
+		float3 LocalSpaceHitNormal = normalize(mul(float4(SampleNormal, 0.0f), MeshCardsData.WorldToLocal).xyz);
+		float3 AxisWeights = LocalSpaceHitNormal * LocalSpaceHitNormal;
+		const uint CardOrientationX = (LocalSpaceHitNormal.x < 0.0f ? 0 : 1);
+		const uint CardOrientationY = (LocalSpaceHitNormal.y < 0.0f ? 2 : 3);
+		const uint CardOrientationZ = (LocalSpaceHitNormal.z < 0.0f ? 4 : 5);
+
+		uint CardIndexX = FindBestMeshCardIndex(MeshCardsData, SamplePosition, CardOrientationX);
+		uint CardIndexY = FindBestMeshCardIndex(MeshCardsData, SamplePosition, CardOrientationY);
+		uint CardIndexZ = FindBestMeshCardIndex(MeshCardsData, SamplePosition, CardOrientationZ);
+
+		FLumenCardSample CardSampleX;
+		SampleLumenCard(
+			SamplePosition,
+			SampleRadius,
+			bAccurateHit,
+			AxisWeights.x,
+			CardIndexX,
+			CardInterpolateDepthVisibilityRadius,
+			bHiResSurface,
+			/*AxisIndex*/ 0,
+			CardSampleX);
+
+		FLumenCardSample CardSampleY;
+		SampleLumenCard(
+			SamplePosition,
+			SampleRadius,
+			bAccurateHit,
+			AxisWeights.y,
+			CardIndexY,
+			CardInterpolateDepthVisibilityRadius,
+			bHiResSurface,
+			/*AxisIndex*/ 1,
+			CardSampleY);
+
+		FLumenCardSample CardSampleZ;
+		SampleLumenCard(
+			SamplePosition,
+			SampleRadius,
+			bAccurateHit,
+			AxisWeights.z,
+			CardIndexZ,
+			CardInterpolateDepthVisibilityRadius,
+			bHiResSurface,
+			/*AxisIndex*/ 2,
+			CardSampleZ);
+
+		// Stochastic tri-planar
+		float3 WeightPrefixSum;
+		WeightPrefixSum.x = CardSampleX.Weight;
+		WeightPrefixSum.y = CardSampleX.Weight + CardSampleY.Weight;
+		WeightPrefixSum.z = CardSampleX.Weight + CardSampleY.Weight + CardSampleZ.Weight;
+
+		float StochasticWeight = InterleavedGradientNoise(ScreenCoord, View.StateFrameIndexMod8) * WeightPrefixSum.z;
+
+		FLumenCardSample StochasticCardSample;
+		InitCardSample(StochasticCardSample, 0);
+		if (StochasticWeight < WeightPrefixSum.x)
 		{
-			Lighting = (SampleNormal * 0.5f + 0.5f) * View.OneOverPreExposure;
-			Weight = 1.0f;
+			StochasticCardSample = CardSampleX;
 		}
+		else if (StochasticWeight < WeightPrefixSum.y)
+		{
+			StochasticCardSample = CardSampleY;
+		}
+		else
+		{
+			StochasticCardSample = CardSampleZ;
+		}
+
+		#if SURFACE_CACHE_FEEDBACK
+		{
+			// Write every n-th element
+			if (all((ScreenCoord & SurfaceCacheFeedbackBufferTileWrapMask) == SurfaceCacheFeedbackBufferTileJitter)
+				&& SurfaceCacheFeedbackBufferSize > 0
+				&& StochasticCardSample.Weight > 0.1f
+				&& StochasticCardSample.PackedFeedback.x > 0)
+			{
+				uint WriteOffset = 0;
+				InterlockedAdd(RWSurfaceCacheFeedbackBufferAllocator[0], 1, WriteOffset);
+
+				if (WriteOffset < SurfaceCacheFeedbackBufferSize)
+				{
+					RWSurfaceCacheFeedbackBuffer[WriteOffset] = StochasticCardSample.PackedFeedback;
+				}
+			}
+		}
+		#endif
+
+		const bool bUseStochasticInterpolation = false;
+		if (bUseStochasticInterpolation)
+		{
+			AccumulateLumenCardLighting(StochasticCardSample, AtlasId, Lighting, Weight);
+		}
+		else
+		{
+			AccumulateLumenCardLighting(CardSampleX, AtlasId, Lighting, Weight);
+			AccumulateLumenCardLighting(CardSampleY, AtlasId, Lighting, Weight);
+			AccumulateLumenCardLighting(CardSampleZ, AtlasId, Lighting, Weight);
+		}
+
+		// Debug visualization
+		#if ENABLE_VISUALIZE_MODE == 1
+		{
+			if (VisualizeMode == VISUALIZE_MODE_GEOMETRY_NORMALS)
+			{
+				Lighting = (SampleNormal * 0.5f + 0.5f) * View.OneOverPreExposure;
+				Weight = 1.0f;
+			}
+		}
+		#endif
 	}
-	#endif
 
 	return float4(Lighting, Weight);
 }
 
-float3 SampleLumenMeshCards(uint2 ScreenCoord, uint DFObjectIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius, bool bHiResSurface, uint AtlasId)
+float3 SampleLumenMeshCards(uint2 ScreenCoord, uint SceneInstanceIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius, bool bHiResSurface, uint AtlasId)
 {
-	float4 LightingAndWeight = SampleLumenMeshCardsWithWeight(ScreenCoord, DFObjectIndex, SamplePosition, SampleNormal, SampleRadius, bAccurateHit, CardInterpolateDepthVisibilityRadius, bHiResSurface, AtlasId);
+	float4 LightingAndWeight = SampleLumenMeshCardsWithWeight(ScreenCoord, SceneInstanceIndex, SamplePosition, SampleNormal, SampleRadius, bAccurateHit, CardInterpolateDepthVisibilityRadius, bHiResSurface, AtlasId);
 
 	if (LightingAndWeight.w > 0)
 	{
@@ -1226,7 +1232,7 @@ void ConeTraceMeshSDFsAndInterpolateFromCards(
 		uint AtlasId = FINAL_LIGHTING_ATLAS_ID;
 		OutResult.Lighting = SampleLumenMeshCards(
 			TraceInput.ScreenCoord,
-			TraceMeshSDFResult.HitObject,
+			TraceSDFData.SceneInstanceIndex,
 			InterpolatePosition,
 			TraceSDFData.HitNormal,
 			InterpolateRadius,

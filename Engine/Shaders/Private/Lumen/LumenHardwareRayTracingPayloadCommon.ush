@@ -2,32 +2,18 @@
 
 #pragma once
 
-#define INVALID_LUMEN_INSTANCE_OFFSET 0xFFFFFFFFu
-#define LUMEN_SINGLE_INSTANCE_BIT 0x80000000u
-
-#define INVALID_DISTANCE_FIELD_OBJECT_INDEX -1
-
-int GetLumenDistanceFieldObjectIndex(int PrimitiveIndex, int PrimitiveInstanceIndex)
+uint GetGPUSceneInstanceIndex(uint PrimitiveIndex, uint InstanceIndex)
 {
-	int DFObjectIndex = INVALID_DISTANCE_FIELD_OBJECT_INDEX;
-
-	if (PrimitiveIndex < View.PrimitiveToLumenInstanceOffsetBufferSize)
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	// Handle ray tracing auto instancing which can cause PrimitiveInstanceIndex to be above 0 for meshes with a single instance
+	if (GetPrimitiveData(PrimitiveIndex).NumInstanceDataEntries == 1)
 	{
-		uint LumenInstanceOffset = View.PrimitiveToLumenInstanceOffsetBuffer.Load(PrimitiveIndex * 4);
-
-		//// Handle ray tracing auto instancing where PrimitiveInstanceIndex > 0 but real PrimitiveInstanceIndex is = 0
-		if (LumenInstanceOffset != INVALID_LUMEN_INSTANCE_OFFSET && (LumenInstanceOffset & LUMEN_SINGLE_INSTANCE_BIT))
-		{
-			LumenInstanceOffset &= ~LUMEN_SINGLE_INSTANCE_BIT;
-			PrimitiveInstanceIndex = 0;
-		}
-
-		const uint LumenInstanceIndex = LumenInstanceOffset + PrimitiveInstanceIndex;
-		if (LumenInstanceIndex < View.LumenInstanceToDFObjectIndexBufferSize)
-		{
-			DFObjectIndex = asint(View.LumenInstanceToDFObjectIndexBuffer.Load(LumenInstanceIndex * 4));
-		}
+		InstanceIndex = 0;
 	}
 
-	return DFObjectIndex;
+	return GetPrimitiveData(PrimitiveIndex).InstanceDataOffset + InstanceIndex;
+#else
+
+	return 0;
+#endif
 }
