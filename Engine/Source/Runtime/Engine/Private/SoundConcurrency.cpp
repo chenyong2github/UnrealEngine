@@ -402,7 +402,7 @@ bool FConcurrencyGroup::CanPlaySoundNow(float InCurrentTime) const
 		const float DeltaTime = InCurrentTime - LastTimePlayed;
 		if (DeltaTime < Settings.RetriggerTime)
 		{
-			UE_LOG(LogAudio, VeryVerbose, TEXT("Rejected Sound for Group ID (%d) with DeltaTime: %.2f"), GroupID, DeltaTime);
+			UE_LOG(LogAudioConcurrency, VeryVerbose, TEXT("Rejected Sound for Group ID (%d) with DeltaTime: %.2f"), GroupID, DeltaTime);
 			return false;
 		}
 	}

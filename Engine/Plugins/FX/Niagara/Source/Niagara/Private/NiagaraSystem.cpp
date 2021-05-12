@@ -93,6 +93,15 @@ static FAutoConsoleVariableRef CVarNiagaraCompileWaitLoggingTerminationCap(
 	ECVF_Default
 );
 
+
+static int GNiagaraCompileWaitLoggingTerminationCap = 3;
+static FAutoConsoleVariableRef CVarNiagaraCompileWaitLoggingTerminationCap(
+	TEXT("fx.Niagara.CompileWaitLoggingCap"),
+	GNiagaraCompileWaitLoggingTerminationCap,
+	TEXT("During automation, how many times do we log before failing compilation?"),
+	ECVF_Default
+);
+
 //////////////////////////////////////////////////////////////////////////
 
 UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
