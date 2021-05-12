@@ -13,6 +13,8 @@
 #include "Animation/AnimCurveTypes.h"
 #include "BonePose.h" 
 #include "Algo/Transform.h"
+#include "Modules/ModuleManager.h"
+#include "Modules/ModuleInterface.h"
 
 #include "AnimationRuntime.h"
 #include "Animation/AnimData/AnimDataModel.h"
