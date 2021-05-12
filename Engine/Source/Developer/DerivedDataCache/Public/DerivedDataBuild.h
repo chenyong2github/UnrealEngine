@@ -8,6 +8,9 @@ class FCbObject;
 
 namespace UE::DerivedData { class FBuildDefinition; }
 namespace UE::DerivedData { class FBuildDefinitionBuilder; }
+namespace UE::DerivedData { class FBuildOutput; }
+namespace UE::DerivedData { class FBuildOutputBuilder; }
+namespace UE::DerivedData { class FCacheRecord; }
 
 namespace UE::DerivedData
 {
@@ -38,6 +41,24 @@ public:
 	 * @return A valid build definition, or a build definition with an empty key on error.
 	 */
 	virtual FBuildDefinition LoadDefinition(FStringView Name, FCbObject&& Definition) = 0;
+
+	/**
+	 * Create a build output builder.
+	 *
+	 * @param Name       The name by which to identify this output for logging and profiling.
+	 * @param Function   The name of the build function that produced this output.
+	 */
+	virtual FBuildOutputBuilder CreateOutput(FStringView Name, FStringView Function) = 0;
+
+	/**
+	 * Load a build output.
+	 *
+	 * @param Name       The name by which to identify this output for logging and profiling.
+	 * @param Function   The name of the build function that produced this output.
+	 * @param Output     The saved output to load.
+	 */
+	virtual FBuildOutput LoadOutput(FStringView Name, FStringView Function, const FCbObject& Output) = 0;
+	virtual FBuildOutput LoadOutput(FStringView Name, FStringView Function, const FCacheRecord& Output) = 0;
 };
 
 } // UE::DerivedData
