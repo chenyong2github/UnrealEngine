@@ -4,7 +4,7 @@
 
 #include "PixelStreamingPrivate.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS
 #include "Windows/WindowsPlatformMisc.h"
 #elif PLATFORM_LINUX
 #include "Linux/LinuxPlatformMisc.h"
@@ -21,7 +21,7 @@
 
 #include <string>
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS
 inline bool IsWindows7Plus()
 {
 	return FPlatformMisc::VerifyWindowsVersion(6, 1);

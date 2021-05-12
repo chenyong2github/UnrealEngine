@@ -77,11 +77,7 @@ inline const FString GetComErrorDescription(HRESULT Res)
 		}\
 	}
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-	#include "Windows/HideWindowsPlatformTypes.h"
-#elif PLATFORM_XBOXONE
-	#include "XboxCommonHidePlatformTypes.h"
-#endif
+#include "Windows/HideWindowsPlatformTypes.h"
 
 // following commented include causes name clash between UE4 and Windows `IMediaEventSink`,
 // we just need a couple of GUIDs from there so the solution is to duplicate them below

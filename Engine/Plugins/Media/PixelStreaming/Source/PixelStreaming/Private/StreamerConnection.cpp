@@ -45,7 +45,7 @@ FStreamerConnection::~FStreamerConnection()
 	DataChannel = nullptr;
 	PeerConnection = nullptr;
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS
 	// stop Signalling Thread
 	check(SignallingThreadId != 0);
 	PostThreadMessage(SignallingThreadId, WM_QUIT, 0, 0);
@@ -63,7 +63,7 @@ void FStreamerConnection::SignallingThreadFunc()
 {
 	SignallingThreadId = FPlatformTLS::GetCurrentThreadId();
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS
 
 	// init WebRTC networking and inter-thread communication
 	rtc::WinsockInitializer WSInitialiser;
@@ -109,7 +109,7 @@ void FStreamerConnection::SignallingThreadFunc()
 	// now that everything is ready connect to SignallingServer
 	SignallingServerConnection = MakeUnique<FSignallingServerConnection>(SignallingServerAddress, *this);
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS
 	// WebRTC window messaging loop
 	MSG Msg;
 	BOOL Gm;

@@ -17,7 +17,7 @@
 #include "Engine/Texture2D.h"
 #include "Slate/SceneViewport.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
 #elif PLATFORM_LINUX
 #include "CudaModule.h"
@@ -54,7 +54,7 @@ namespace
 		ECVF_Default
 	);
 
-	#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+	#if PLATFORM_WINDOWS
 	// required for WMF video decoding
 	// some Windows versions don't have Media Foundation preinstalled. We configure MF DLLs as delay-loaded and load them manually here
 	// checking the result and avoiding error message box if failed
@@ -144,7 +144,7 @@ void FPixelStreamingModule::InitPlayer()
 {
 	check(!bPlayerInitialized);
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS
 	// Win7+ only
 	if (!IsWindows7Plus())
 	{
@@ -224,7 +224,7 @@ bool FPixelStreamingModule::CheckPlatformCompatibility() const
 {
 	bool bCompatible = true;
 
-	#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+	#if PLATFORM_WINDOWS
 	bool bWin8OrHigher = FPlatformMisc::VerifyWindowsVersion(6, 2);
 	if (!bWin8OrHigher)
 	{

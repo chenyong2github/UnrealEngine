@@ -59,7 +59,7 @@ private:
 private:
 	TUniquePtr<FThread> SignallingThread;
 	
-	#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+	#if PLATFORM_WINDOWS
 	DWORD SignallingThreadId = 0;
 	#elif PLATFORM_LINUX
 	FUnixPlatformTypes::DWORD SignallingThreadId = 0;
