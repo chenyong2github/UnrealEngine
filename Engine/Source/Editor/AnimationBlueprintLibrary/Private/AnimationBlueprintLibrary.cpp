@@ -20,6 +20,9 @@
 
 #define LOCTEXT_NAMESPACE "AnimationBlueprintLibrary"
 
+
+IMPLEMENT_MODULE(IModuleInterface, AnimationBlueprintLibrary);
+
 DEFINE_LOG_CATEGORY_STATIC(LogAnimationBlueprintLibrary, Verbose, All);
 
 void UAnimationBlueprintLibrary::GetNumFrames(const UAnimSequenceBase* AnimationSequenceBase, int32& NumFrames)
