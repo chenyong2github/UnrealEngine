@@ -1222,3 +1222,8 @@ CORE_API void DumpRecordedConfigReadsFromIni();
  * Helper function to clean up config read history
  */
 CORE_API void DeleteRecordedConfigReadsFromIni();
+
+/**
+ * Helper function to deal with "True","False","Yes","No","On","Off"
+ */
+CORE_API const TCHAR* ConvertValueFromHumanFriendlyValue(const TCHAR* Value);
