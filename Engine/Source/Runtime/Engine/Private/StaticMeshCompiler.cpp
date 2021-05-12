@@ -566,7 +566,6 @@ void FStaticMeshCompilingManager::FinishAllCompilation()
 
 void FStaticMeshCompilingManager::Reschedule()
 {
-	using namespace StaticMeshCompilingManagerImpl;
 	if (RegisteredStaticMesh.Num() > 1)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshCompilingManager::Reschedule);
@@ -599,35 +598,28 @@ void FStaticMeshCompilingManager::Reschedule()
 
 				const FVector Location = BestViewInfo ? BestViewInfo->ViewOrigin : FVector(0.0f, 0.0f, 0.0f);
 				{
-					for (const UStaticMeshComponent* StaticMeshComponent : ObjectCacheScope.GetContext().GetStaticMeshComponents())
+					for (UStaticMesh* StaticMesh : StaticMeshesToProcess)
 					{
-						if (StaticMeshComponent->IsRegistered() && StaticMeshesToProcess.Contains(StaticMeshComponent->GetStaticMesh()))
+						float NearestStaticMeshDistance = FLT_MAX;
+						for (const UStaticMeshComponent* StaticMeshComponent : ObjectCacheScope.GetContext().GetStaticMeshComponents(StaticMesh))
 						{
-							FVector ComponentLocation = StaticMeshComponent->GetComponentLocation();
-							float& Dist = DistanceToEditingViewport.FindOrAdd(StaticMeshComponent->GetStaticMesh(), FLT_MAX);
-							float ComponentDist = Location.Dist(ComponentLocation, Location);
-							if (ComponentDist < Dist)
+							if (StaticMeshComponent->IsRegistered())
 							{
-								Dist = ComponentDist;
+								FVector ComponentLocation = StaticMeshComponent->GetComponentLocation();
+								float ComponentDistance = Location.Dist(ComponentLocation, Location);
+								if (ComponentDistance < NearestStaticMeshDistance)
+								{
+									NearestStaticMeshDistance = ComponentDistance;
+								}
 							}
+						}
+
+						if (NearestStaticMeshDistance != FLT_MAX)
+						{
+							DistanceToEditingViewport.Add(StaticMesh, NearestStaticMeshDistance);
 						}
 					}
 				}
-			}
-
-			if (DistanceToEditingViewport.Num())
-			{
-				StaticMeshesToProcess.Sort(
-					[&DistanceToEditingViewport](const UStaticMesh& Lhs, const UStaticMesh& Rhs)
-					{
-						const float* ResultA = DistanceToEditingViewport.Find(&Lhs);
-						const float* ResultB = DistanceToEditingViewport.Find(&Rhs);
-
-						const float FinalResultA = ResultA ? *ResultA : FLT_MAX;
-						const float FinalResultB = ResultB ? *ResultB : FLT_MAX;
-						return FinalResultA < FinalResultB;
-					}
-				);
 			}
 
 			if (DistanceToEditingViewport.Num())
