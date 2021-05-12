@@ -5040,6 +5040,7 @@ void DrawLumenMeshCapturePass(
 					++NumMaterialQuads;
 				}
 			}
+			ensure(MaterialPasses.Num() > 0);
 		}
 
 		TArray<uint32, SceneRenderingAllocator> ViewIndices;
@@ -5054,6 +5055,7 @@ void DrawLumenMeshCapturePass(
 				ViewIndices.Add(ViewIndex);
 			}
 		}
+		ensure(ViewIndices.Num() > 0);
 
 		FRDGBufferRef ViewIndexBuffer = CreateStructuredBuffer(
 			GraphBuilder, 

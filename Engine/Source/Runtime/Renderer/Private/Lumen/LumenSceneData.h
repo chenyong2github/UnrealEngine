@@ -33,6 +33,7 @@ static constexpr uint32 MaxDistantCards = 8;
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, )
 	SHADER_PARAMETER(uint32, NumCards)
+	SHADER_PARAMETER(uint32, NumMeshCards)
 	SHADER_PARAMETER(uint32, NumCardPages)
 	SHADER_PARAMETER(uint32, MaxConeSteps)
 	SHADER_PARAMETER(FVector2D, PhysicalAtlasSize)
@@ -45,7 +46,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, )
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardPageData)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, MeshCardsData)
 	SHADER_PARAMETER_SRV(ByteAddressBuffer, PageTableBuffer)
-	SHADER_PARAMETER_SRV(ByteAddressBuffer, DFObjectToMeshCardsIndexBuffer)
+	SHADER_PARAMETER_SRV(ByteAddressBuffer, SceneInstanceIndexToMeshCardsIndexBuffer)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AlbedoAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, NormalAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EmissiveAtlas)
@@ -226,10 +227,6 @@ public:
 	float CardResolutionScale = 1.0f;
 	int32 NumMeshCards = 0;
 
-	// Mapping into LumenDFInstanceToDFObjectIndex
-	uint32 LumenDFInstanceOffset = UINT32_MAX;
-	int32 LumenNumDFInstances = 0;
-
 	int32 GetMeshCardsIndex(int32 InstanceIndex) const
 	{
 		if (bMergedInstances)
@@ -393,6 +390,7 @@ public:
 	FUniqueIndexList CardIndicesToUpdateInBuffer;
 	FRWBufferStructured CardBuffer;
 
+	// Modified bounds for caching voxel lighting
 	TArray<FBox> PrimitiveModifiedBounds;
 
 	// Lumen Primitives
@@ -401,24 +399,16 @@ public:
 	// Mesh Cards
 	FUniqueIndexList MeshCardsIndicesToUpdateInBuffer;
 	TSparseSpanArray<FLumenMeshCards> MeshCards;
-	TArray<int32, TInlineAllocator<8>> DistantCardIndices;
 	FRWBufferStructured MeshCardsBuffer;
-	FRWByteAddressBuffer DFObjectToMeshCardsIndexBuffer;
+
+	// GPUScene instance index to MeshCards mapping
+	FUniqueIndexList PrimitivesToUpdateMeshCards;
+	FRWByteAddressBuffer SceneInstanceIndexToMeshCardsIndexBuffer;
+
+	TArray<int32, TInlineAllocator<8>> DistantCardIndices;
 
 	// Single card tile per FLumenPageTableEntry. Used for various atlas update operations
 	FRWBufferStructured CardPageBuffer;
-
-	// Mapping from Primitive to LumenDFInstance
-	FUniqueIndexList PrimitivesToUpdate;
-	FRWByteAddressBuffer PrimitiveToDFLumenInstanceOffsetBuffer;
-	uint32 PrimitiveToLumenDFInstanceOffsetBufferSize = 0;
-
-	// Mapping from LumenDFInstance to DFObjectIndex
-	FUniqueIndexList DFObjectIndicesToUpdateInBuffer;
-	FUniqueIndexList LumenDFInstancesToUpdate;
-	TSparseSpanArray<int32> LumenDFInstanceToDFObjectIndex;
-	FRWByteAddressBuffer LumenDFInstanceToDFObjectIndexBuffer;
-	uint32 LumenDFInstanceToDFObjectIndexBufferSize = 0;
 
 	// --- Captured from the triangle scene ---
 	TRefCountPtr<IPooledRenderTarget> AlbedoAtlas;
@@ -452,15 +442,13 @@ public:
 	FLumenSceneData(EShaderPlatform ShaderPlatform, EWorldType::Type WorldType);
 	~FLumenSceneData();
 
-	void AddPrimitiveToUpdate(int32 PrimitiveIndex);
-
 	void AddPrimitive(FPrimitiveSceneInfo* InPrimitive);
 	void UpdatePrimitive(FPrimitiveSceneInfo* InPrimitive);
 	void RemovePrimitive(FPrimitiveSceneInfo* InPrimitive, int32 PrimitiveIndex);
 
 	void AddMeshCards(int32 LumenPrimitiveIndex, int32 LumenInstanceIndex);
 	void UpdateMeshCards(const FMatrix& LocalToWorld, int32 MeshCardsIndex, const FMeshCardsBuildData& MeshCardsBuildData);
-	void RemoveMeshCards(FLumenPrimitive& LumenPrimitive, FLumenPrimitiveInstance& LumenPrimitiveInstance);
+	void RemoveMeshCards(int32 ScenePrimitiveId, FLumenPrimitive& LumenPrimitive, FLumenPrimitiveInstance& LumenPrimitiveInstance);
 
 	void RemoveCardFromAtlas(int32 CardIndex);
 
@@ -468,8 +456,6 @@ public:
 	{
 		return PendingAddOperations.Num() > 0 || PendingUpdateOperations.Num() > 0 || PendingRemoveOperations.Num() > 0;
 	}
-
-	void UpdatePrimitiveToDistanceFieldInstanceMapping(FScene& Scene, FRHICommandListImmediate& RHICmdList);
 
 	void DumpStats(const FDistanceFieldSceneData& DistanceFieldSceneData);
 	bool UpdateAtlasSize();

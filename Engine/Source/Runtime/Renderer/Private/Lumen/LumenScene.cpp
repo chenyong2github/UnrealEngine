@@ -433,25 +433,21 @@ bool TrackPrimitiveInstanceForLumenScene(const FMatrix& LocalToWorld, const FBox
 	return LargestFaceArea > MinFaceSurfaceArea;
 }
 
-void FLumenSceneData::AddPrimitiveToUpdate(int32 PrimitiveIndex)
-{
-	if (bTrackAllPrimitives)
-	{
-		PrimitivesToUpdate.Add(PrimitiveIndex);
-	}
-}
-
 void FLumenSceneData::AddPrimitive(FPrimitiveSceneInfo* InPrimitive)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
-	const FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
-
-	if (bTrackAllPrimitives && TrackPrimitiveForLumenScene(Proxy))
+	if (bTrackAllPrimitives)
 	{
-		ensure(!PendingAddOperations.Contains(InPrimitive));
-		ensure(!PendingUpdateOperations.Contains(InPrimitive));
-		PendingAddOperations.Add(InPrimitive);
+		PrimitivesToUpdateMeshCards.Add(InPrimitive->GetIndex());
+
+		const FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
+		if (TrackPrimitiveForLumenScene(Proxy))
+		{
+			ensure(!PendingAddOperations.Contains(InPrimitive));
+			ensure(!PendingUpdateOperations.Contains(InPrimitive));
+			PendingAddOperations.Add(InPrimitive);
+		}
 	}
 }
 
@@ -499,11 +495,6 @@ void FLumenSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive, int32 Pr
 	}
 }
 
-bool Lumen::IsPrimitiveToDFObjectMappingRequired()
-{
-	return IsRayTracingEnabled();
-}
-
 double BoxSurfaceArea(FVector Extent)
 {
 	return 2.0 * (Extent.X * Extent.Y + Extent.Y * Extent.Z + Extent.Z * Extent.X);
@@ -541,15 +532,9 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 				{
 					FLumenPrimitive& LumenPrimitive = LumenSceneData.LumenPrimitives[RemoveInfo.LumenPrimitiveIndex];
 
-					if (LumenPrimitive.LumenNumDFInstances > 0)
-					{
-						LumenSceneData.LumenDFInstanceToDFObjectIndex.RemoveSpan(LumenPrimitive.LumenDFInstanceOffset, LumenPrimitive.LumenNumDFInstances);
-						LumenSceneData.AddPrimitiveToUpdate(RemoveInfo.PrimitiveIndex);
-					}
-
 					for (FLumenPrimitiveInstance& LumenPrimitiveInstance : LumenPrimitive.Instances)
 					{
-						LumenSceneData.RemoveMeshCards(LumenPrimitive, LumenPrimitiveInstance);
+						LumenSceneData.RemoveMeshCards(/*ScenePrimitiveId*/ -1, LumenPrimitive, LumenPrimitiveInstance);
 					}
 
 					ensure(LumenPrimitive.NumMeshCards == 0);
@@ -703,30 +688,6 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 					LumenPrimitive.Instances[0].MeshCardsIndex = -1;
 					LumenPrimitive.Instances[0].bValidMeshCards = true;
 				}
-
-				if (Lumen::IsPrimitiveToDFObjectMappingRequired())
-				{
-					TArray<FMatrix> ObjectLocalToWorldTransforms;
-					PrimitiveSceneInfo->Proxy->GetDistancefieldInstanceData(ObjectLocalToWorldTransforms);
-
-					LumenPrimitive.LumenNumDFInstances = FMath::Max(ObjectLocalToWorldTransforms.Num(), 1);
-					LumenPrimitive.LumenDFInstanceOffset = LumenSceneData.LumenDFInstanceToDFObjectIndex.AddSpan(LumenPrimitive.LumenNumDFInstances);
-
-					for (int32 InstanceIndex = 0; InstanceIndex < LumenPrimitive.LumenNumDFInstances; ++InstanceIndex)
-					{
-						int32 DistanceFieldObjectIndex = -1;
-						if (InstanceIndex < PrimitiveSceneInfo->DistanceFieldInstanceIndices.Num())
-						{
-							DistanceFieldObjectIndex = PrimitiveSceneInfo->DistanceFieldInstanceIndices[InstanceIndex];
-						}
-
-						const int32 LumenDFInstanceIndex = LumenPrimitive.LumenDFInstanceOffset + InstanceIndex;
-						LumenSceneData.LumenDFInstanceToDFObjectIndex[LumenDFInstanceIndex] = DistanceFieldObjectIndex;
-						LumenSceneData.LumenDFInstancesToUpdate.Add(LumenDFInstanceIndex);
-					}
-
-					LumenSceneData.AddPrimitiveToUpdate(PrimitiveSceneInfo->GetIndex());
-				}
 			}
 		}
 	}
@@ -802,7 +763,7 @@ void FLumenSceneData::RemoveAllMeshCards()
 		FLumenPrimitive& LumenPrimitive = LumenPrimitives[LumenPrimitiveIndex];
 		for (FLumenPrimitiveInstance& Instance : LumenPrimitive.Instances)
 		{
-			RemoveMeshCards(LumenPrimitive, Instance);
+			RemoveMeshCards(LumenPrimitive.Primitive->GetIndex(), LumenPrimitive, Instance);
 		}
 	}
 }
@@ -1320,8 +1281,7 @@ void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldScen
 	UE_LOG(LogRenderer, Log, TEXT("  MeshCardsBuffer: %.3fMb"), MeshCardsBuffer.NumBytes / (1024.0f * 1024.0f));
 	UE_LOG(LogRenderer, Log, TEXT("  PageTable: %.3fMb"), PageTableBuffer.NumBytes / (1024.0f * 1024.0f));
 	UE_LOG(LogRenderer, Log, TEXT("  CardPages: %.3fMb"), CardPageBuffer.NumBytes / (1024.0f * 1024.0f));
-	UE_LOG(LogRenderer, Log, TEXT("  DFObjectToMeshCardsIndexBuffer: %.3fMb"), DFObjectToMeshCardsIndexBuffer.NumBytes / (1024.0f * 1024.0f));
-	UE_LOG(LogRenderer, Log, TEXT("  LumenDFInstanceToDFObjectIndexBuffer: %.3fMb"), LumenDFInstanceToDFObjectIndexBuffer.NumBytes / (1024.0f * 1024.0f));
+	UE_LOG(LogRenderer, Log, TEXT("  SceneInstanceIndexToMeshCardsIndexBuffer: %.3fMb"), SceneInstanceIndexToMeshCardsIndexBuffer.NumBytes / (1024.0f * 1024.0f));
 	UE_LOG(LogRenderer, Log, TEXT("  UploadBuffer: %.3fMb"), UploadBuffer.GetNumBytes() / (1024.0f * 1024.0f));
 	UE_LOG(LogRenderer, Log, TEXT("  ByteBufferUploadBuffer: %.3fMb"), ByteBufferUploadBuffer.GetNumBytes() / (1024.0f * 1024.0f));
 }

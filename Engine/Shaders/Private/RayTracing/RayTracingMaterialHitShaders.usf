@@ -315,8 +315,8 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 		const int PrimitiveInstanceIndex = InstanceIndex() - GetBaseInstanceIndex();
 
 		PackedPayload.SetGeometryNormal(SurfaceNormal);
-		PackedPayload.SetDistanceFieldObjectIndex(
-			GetLumenDistanceFieldObjectIndex(PrimitiveIndex, PrimitiveInstanceIndex)
+		PackedPayload.SetSceneInstanceIndex(
+			GetGPUSceneInstanceIndex(PrimitiveIndex, PrimitiveInstanceIndex)
 		);
 	}
 
@@ -582,8 +582,8 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 		const int PrimitiveIndex = GetInstanceUserData();
 		const int PrimitiveInstanceIndex = InstanceIndex() - GetBaseInstanceIndex();
 
-		PackedPayload.SetDistanceFieldObjectIndex(
-			GetLumenDistanceFieldObjectIndex(PrimitiveIndex, PrimitiveInstanceIndex)
+		PackedPayload.SetSceneInstanceIndex(
+			GetGPUSceneInstanceIndex(PrimitiveIndex, PrimitiveInstanceIndex)
 		);
 	}
 
