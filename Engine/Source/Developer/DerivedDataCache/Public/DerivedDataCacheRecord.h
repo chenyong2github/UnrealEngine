@@ -45,9 +45,9 @@ public:
 	virtual ~ICacheRecordBuilderInternal() = default;
 	virtual void SetMeta(FCbObject&& Meta) = 0;
 	virtual FPayloadId SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id) = 0;
-	virtual FPayloadId SetValue(FPayload&& Payload) = 0;
+	virtual FPayloadId SetValue(const FPayload& Payload) = 0;
 	virtual FPayloadId AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id) = 0;
-	virtual FPayloadId AddAttachment(FPayload&& Payload) = 0;
+	virtual FPayloadId AddAttachment(const FPayload& Payload) = 0;
 	virtual FCacheRecord Build() = 0;
 	virtual FRequest BuildAsync(FOnCacheRecordComplete&& OnComplete, EPriority Priority) = 0;
 };
@@ -74,7 +74,7 @@ namespace UE::DerivedData
  *
  * The value, attachments, and metadata are optional and can be skipped when requesting a record.
  * When the value or attachments have been skipped, the record will contain a payload with a null
- * buffer but will otherwise be populated.
+ * data but will otherwise be populated.
  */
 class FCacheRecord
 {
@@ -91,19 +91,19 @@ public:
 	/** Returns the value. Null if no value or requested with ECachePolicy::SkipValue. */
 	inline FSharedBuffer GetValue() const { return Record->GetValue(); }
 
-	/** Returns the value payload. Null if no value. Buffer is null if value was skipped. */
+	/** Returns the value payload. Null if no value. Data is null if value was skipped. */
 	inline const FPayload& GetValuePayload() const { return Record->GetValuePayload(); }
 
 	/** Returns the attachment matching the ID. Null if no match or requested with ECachePolicy::SkipAttachments. */
 	inline FSharedBuffer GetAttachment(const FPayloadId& Id) const { return Record->GetAttachment(Id); }
 
-	/** Returns the attachment payload matching the ID. Null if no match. Buffer is null if attachments were skipped. */
+	/** Returns the attachment payload matching the ID. Null if no match. Data is null if attachments were skipped. */
 	inline const FPayload& GetAttachmentPayload(const FPayloadId& Id) const { return Record->GetAttachmentPayload(Id); }
 
-	/** Returns a view of the attachments. Always available in a non-null cache record, but buffer may be skipped. */
+	/** Returns a view of the attachments. Always available in a non-null cache record, but data may be skipped. */
 	inline TConstArrayView<FPayload> GetAttachmentPayloads() const { return Record->GetAttachmentPayloads(); }
 
-	/** Returns the payload matching the ID, whether value or attachment. Null if no match. Buffer is null if skipped. */
+	/** Returns the payload matching the ID, whether value or attachment. Null if no match. Data is null if skipped. */
 	inline const FPayload& GetPayload(const FPayloadId& Id) const { return Record->GetPayload(Id); }
 
 	/** Whether this is null. */
@@ -168,12 +168,12 @@ public:
 	/**
 	 * Set the value for the cache record.
 	 *
-	 * @param Payload   The value payload, which must have a buffer.
+	 * @param Payload   The payload, which must have data unless it is known to be in the cache.
 	 * @return The ID that was provided. Unique within the scope of the cache record.
 	 */
-	inline FPayloadId SetValue(FPayload&& Payload)
+	inline FPayloadId SetValue(const FPayload& Payload)
 	{
-		return RecordBuilder->SetValue(MoveTemp(Payload));
+		return RecordBuilder->SetValue(Payload);
 	}
 
 	/**
@@ -192,12 +192,12 @@ public:
 	/**
 	 * Add an attachment to the cache record.
 	 *
-	 * @param Payload   The attachment payload, which must have a buffer.
+	 * @param Payload   The payload, which must have data unless it is known to be in the cache.
 	 * @return The ID that was provided. Unique within the scope of the cache record.
 	 */
-	inline FPayloadId AddAttachment(FPayload&& Payload)
+	inline FPayloadId AddAttachment(const FPayload& Payload)
 	{
-		return RecordBuilder->AddAttachment(MoveTemp(Payload));
+		return RecordBuilder->AddAttachment(Payload);
 	}
 
 	/**

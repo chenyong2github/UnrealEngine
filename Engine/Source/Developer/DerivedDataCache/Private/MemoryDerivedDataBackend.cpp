@@ -3,6 +3,7 @@
 #include "MemoryDerivedDataBackend.h"
 
 #include "Algo/Accumulate.h"
+#include "Algo/AllOf.h"
 #include "Misc/ScopeExit.h"
 #include "Serialization/CompactBinary.h"
 #include "Templates/UniquePtr.h"
@@ -385,9 +386,8 @@ bool FMemoryDerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
 
 int64 FMemoryDerivedDataBackend::CalcRawCacheRecordSize(const FCacheRecord& Record) const
 {
-	const auto CalcCachePayloadSize = [](const FPayload& Payload) { return Payload.GetData().GetRawSize(); };
-	const uint64 ValueSize = CalcCachePayloadSize(Record.GetValuePayload());
-	return int64(Algo::TransformAccumulate(Record.GetAttachmentPayloads(), CalcCachePayloadSize, ValueSize));
+	const uint64 ValueSize = Record.GetValuePayload().GetRawSize();
+	return int64(Algo::TransformAccumulate(Record.GetAttachmentPayloads(), &FPayload::GetRawSize, ValueSize));
 }
 
 int64 FMemoryDerivedDataBackend::CalcSerializedCacheRecordSize(const FCacheRecord& Record) const
@@ -424,7 +424,15 @@ FRequest FMemoryDerivedDataBackend::Put(
 			}
 		};
 
-		if (!Record.GetValuePayload() && Record.GetAttachmentPayloads().IsEmpty())
+		const FPayload& Value = Record.GetValuePayload();
+		const TConstArrayView<FPayload> Attachments = Record.GetAttachmentPayloads();
+
+		if ((Value && !Value.HasData()) || !Algo::AllOf(Attachments, &FPayload::HasData))
+		{
+			continue;
+		}
+
+		if (!Value && Attachments.IsEmpty())
 		{
 			FScopeLock ScopeLock(&SynchronizationObject);
 			if (bDisabled)
