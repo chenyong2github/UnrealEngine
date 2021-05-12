@@ -47,7 +47,7 @@ bool FTidPacketTransport::ReadPacket()
 	}
 
 	uint32 DataSize = PacketBase->PacketSize - sizeof(FTidPacketBase);
-	if (PacketBase->ThreadId != ThreadId)
+	if (PacketBase->ThreadId & FTidPacketBase::EncodedMarker)
 	{
 		const auto* Packet = (const FTidPacketEncoded*)PacketBase;
 		uint16 DecodedSize = Packet->DecodedSize;
