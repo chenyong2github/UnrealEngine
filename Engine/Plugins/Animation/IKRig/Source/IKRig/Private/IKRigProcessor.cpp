@@ -10,18 +10,28 @@ UIKRigProcessor* UIKRigProcessor::MakeNewIKRigProcessor(UObject* Outer)
 	return NewObject<UIKRigProcessor>(Outer);
 }
 
-void UIKRigProcessor::Initialize(UIKRigDefinition* InRigDefinition)
+void UIKRigProcessor::Initialize(UIKRigDefinition* InRigDefinition, const FReferenceSkeleton& RefSkeleton)
 {
 	bInitialized = false;
 
-	if (!ensureMsgf(InRigDefinition, TEXT("Trying to initialize IKRigProcessor with a null IKRigDefinition asset.")))
+	if (!InRigDefinition)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a null IKRigDefinition asset."));
 		return;
 	}
 
 	// copy skeleton data from IKRigDefinition
-	Skeleton = InRigDefinition->Skeleton; // trivial copy assignment operator for POD
-
+	// we use the serialized bone names and parent indices (from when asset was initialized)
+	// but we use the CURRENT ref pose from the currently running skeletal mesh (RefSkeleton)
+	Skeleton.BoneNames = InRigDefinition->Skeleton.BoneNames;
+	Skeleton.ParentIndices = InRigDefinition->Skeleton.ParentIndices;
+	const bool bSkeletonIsCompatible = Skeleton.CopyPosesFromRefSkeleton(RefSkeleton);
+	if (!bSkeletonIsCompatible)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("IK Rig, %s trying to run on a skeleton that does not have the required bones."), *GetName());
+		return;
+	}
+	
 	// initialize goal names based on solvers
 	TArray<FIKRigEffectorGoal>& EffectorGoals = InRigDefinition->GetEffectorGoals();
 	GoalContainer.InitializeGoalsFromNames(EffectorGoals);

@@ -680,7 +680,7 @@ void UIKRetargeter::Initialize(USkeletalMesh* SourceSkeletalMesh, USkeletalMesh*
 	}
 
 	// initialize the IKRigProcessor for doing IK decoding
-	const bool bIKRigInitialized = InitializeIKRig(Outer);
+	const bool bIKRigInitialized = InitializeIKRig(Outer, TargetSkeletalMesh->GetRefSkeleton());
 	if (!bIKRigInitialized)
 	{
 		// couldn't initialize the IK Rig
@@ -780,7 +780,7 @@ bool UIKRetargeter::InitializeBoneChainPairs()
 	return !(ChainPairsIK.IsEmpty() && ChainPairsFK.IsEmpty());
 }
 
-bool UIKRetargeter::InitializeIKRig(UObject* Outer)
+bool UIKRetargeter::InitializeIKRig(UObject* Outer, const FReferenceSkeleton& InRefSkeleton)
 {
 	// make a new IKRigProcessor if we haven't already
 	if (!IKRigProcessor)
@@ -789,7 +789,7 @@ bool UIKRetargeter::InitializeIKRig(UObject* Outer)
 	}
 	
 	// initialize IK Rig runtime processor
-	IKRigProcessor->Initialize(TargetIKRigAsset);
+	IKRigProcessor->Initialize(TargetIKRigAsset, InRefSkeleton);
 	if (!IKRigProcessor->IsInitialized())
 	{
 		return false;

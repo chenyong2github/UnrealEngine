@@ -32,6 +32,13 @@ struct IKRIG_API FIKRigSkeleton
 	int32 GetBoneIndexFromName(const FName InName) const;
 	
 	int32 GetParentIndex(const int32 BoneIndex) const;
+
+	bool CopyPosesFromRefSkeleton(const FReferenceSkeleton& RefSkeleton);
+
+	static void ConvertLocalPoseToGlobal(
+		const TArray<int32>& InParentIndices,
+		const TArray<FTransform>& InLocalPose,
+		TArray<FTransform>& OutGlobalPose);
 	
 	void UpdateAllGlobalTransformFromLocal();
 	
@@ -43,7 +50,6 @@ struct IKRIG_API FIKRigSkeleton
 	
 	void PropagateGlobalPoseBelowBone(const int32 BoneIndex);
 
-	//static void NormalizeRotations(TArray<FTransform>& Transforms);
 	static void NormalizeRotations(TArray<FTransform>& Transforms);
 };
 
