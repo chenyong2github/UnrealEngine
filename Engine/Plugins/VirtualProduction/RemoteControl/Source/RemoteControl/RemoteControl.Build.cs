@@ -17,7 +17,6 @@ public class RemoteControl : ModuleRules
 			new string[] {
 				"Cbor",
 				"Engine",
-				"MessageLog",
 				"RemoteControlInterception",
 				"Serialization",
 			}
@@ -28,6 +27,7 @@ public class RemoteControl : ModuleRules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"DeveloperSettings",
+					"MessageLog",
 					"UnrealEd",
 				}
 			);
