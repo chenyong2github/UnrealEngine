@@ -31,7 +31,7 @@ DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnNotifyStateReplaced, UAnimNotifyState*, Ol
 
 /** Blueprint library for altering and analyzing animation / skeletal data */
 UCLASS(meta=(ScriptName="AnimationLibrary"))
-class ANIMATIONMODIFIERS_API UAnimationBlueprintLibrary : public UBlueprintFunctionLibrary
+class ANIMATIONBLUEPRINTLIBRARY_API UAnimationBlueprintLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 

@@ -198,6 +198,7 @@ public class UnrealEd : ModuleRules
 				"TraceAnalysis",
 				"DeveloperSettings",
 				"AnimationModifiers",
+				"AnimationBlueprintLibrary",
 				"MaterialBaking",
 			}
 		);
