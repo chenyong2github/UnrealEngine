@@ -71,6 +71,15 @@ struct FTypeDefinitionInfoMap : public FFreezableContainer
 		return **TypeDef;
 	}
 
+	template <typename Lambda>
+	void ForAllTypes(Lambda&& InLambda)
+	{
+		for (const TPair<UObject*, TSharedRef<FUnrealTypeDefinitionInfo>>& KVP : DefinitionsByUObject)
+		{
+			InLambda(*KVP.Value);
+		}
+	}
+
 	//NOTE: Currently UFunctions are created during the parsing phase and can not be frozen
 	void Add(UFunction* Object, TSharedRef<FUnrealTypeDefinitionInfo>&& Definition)
 	{
