@@ -55,10 +55,6 @@ public:
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 
-		// GPU Scene
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
-
 		// Lighting structures
 		SHADER_PARAMETER_STRUCT_REF(FRaytracingLightDataPacked, LightDataPacked)
 		SHADER_PARAMETER_SRV(StructuredBuffer<FRTLightingData>, LightDataBuffer)
@@ -120,7 +116,6 @@ void SetLumenHardwareRayTracingSharedParameters(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
-	const FGPUScene& GPUScene,
 	const FLumenCardTracingInputs& TracingInputs,
 	FLumenHardwareRayTracingRGS::FSharedParameters* SharedParameters);
 

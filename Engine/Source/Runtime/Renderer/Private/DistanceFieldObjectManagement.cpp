@@ -54,6 +54,18 @@ FAutoConsoleVariableRef CVarDFReverseAtlasAllocationOrder(
 	ECVF_RenderThreadSafe
 );
 
+float GMeshSDFSurfaceBiasExpand = .25f;
+FAutoConsoleVariableRef CVarMeshSDFSurfaceBiasExpand(
+	TEXT("r.DistanceFields.SurfaceBiasExpand"),
+	GMeshSDFSurfaceBiasExpand,
+	TEXT("Fraction of a Mesh SDF voxel to expand the surface during intersection.  Expanding the surface improves representation quality, at the cost of over-occlusion."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
+	ECVF_RenderThreadSafe
+);
+
 float GTwoSidedSurfaceBiasExpand = 4.0f;
 FAutoConsoleVariableRef CVarTwoSidedSurfaceBiasExpand(
 	TEXT("r.DistanceFields.TwoSidedSurfaceBiasExpand"),
@@ -634,6 +646,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 								if (Index >= 0 && Index < PrimitiveInstanceMapping.Num())
 								{
 									const FPrimitiveAndInstance& PrimAndInst = PrimitiveInstanceMapping[Index];
+									const FPrimitiveSceneProxy* PrimitiveSceneProxy = PrimAndInst.Primitive->Proxy;
 
 									if (RangeCount > 1)
 									{
@@ -650,7 +663,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 
 									const FDistanceFieldVolumeData* DistanceFieldData = nullptr;
 									float SelfShadowBias;
-									PrimAndInst.Primitive->Proxy->GetDistancefieldAtlasData(DistanceFieldData, SelfShadowBias);
+									PrimitiveSceneProxy->GetDistancefieldAtlasData(DistanceFieldData, SelfShadowBias);
 
 									const FBox LocalSpaceMeshBounds = DistanceFieldData->LocalSpaceMeshBounds;
 			
@@ -661,7 +674,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 									
 									UploadObjectBounds[0] = ObjectBoundingSphere;
 
-									const FGlobalDFCacheType CacheType = PrimAndInst.Primitive->Proxy->IsOftenMoving() ? GDF_Full : GDF_MostlyStatic;
+									const FGlobalDFCacheType CacheType = PrimitiveSceneProxy->IsOftenMoving() ? GDF_Full : GDF_MostlyStatic;
 									const float OftenMovingValue = CacheType == GDF_Full ? 1.0f : 0.0f;
 
 									const FVector4 ObjectWorldExtent(WorldSpaceMeshBounds.GetExtent(), OftenMovingValue);
@@ -685,7 +698,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 									UploadObjectData[2] = (*(FVector4*)&WorldToVolumeT.M[2]);
 
 									// Minimal surface bias which increases chance that ray hit will a surface located between two texels
-									float ExpandSurfaceDistance = (0.25f * VolumePositionExtent / FVector(DistanceFieldData->Mips[0].IndirectionDimensions * DistanceField::UniqueDataBrickSize)).Size();
+									float ExpandSurfaceDistance = (GMeshSDFSurfaceBiasExpand * VolumePositionExtent / FVector(DistanceFieldData->Mips[0].IndirectionDimensions * DistanceField::UniqueDataBrickSize)).Size();
 									if (DistanceFieldData->bMostlyTwoSided)
 									{
 										// Two sided meshes are not represented well with Signed Distance Fields, as no negative region gets created.  Expanding the surface improves representation quality, at the cost of over-occlusion.
@@ -702,12 +715,16 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 									// In this case, it will effectively disable max draw distance culling
 									float MaxDrawDist = FMath::Max(PrimBounds.MaxCullDistance, 0.f) * GetCachedScalabilityCVars().ViewDistanceScale;
 
+									const uint32 GPUSceneInstanceIndex = PrimitiveSceneProxy->SupportsInstanceDataBuffer() ? 
+										PrimAndInst.Primitive->GetInstanceDataOffset() + PrimAndInst.InstanceIndex :
+										PrimAndInst.Primitive->GetInstanceDataOffset();
+
 									// Bypass NaN checks in FVector4 ctor
 									FVector4 Vector4;
 									Vector4.X = MinDrawDist2;
 									Vector4.Y = MaxDrawDist * MaxDrawDist;
 									Vector4.Z = SelfShadowBias;
-									Vector4.W = 0;
+									Vector4.W = *(const float*)&GPUSceneInstanceIndex;
 									UploadObjectData[4] = Vector4;
 
 									FMatrix VolumeToWorldT = VolumeToWorld.GetTransposed();

@@ -242,7 +242,6 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 			GraphBuilder,
 			SceneTextures,
 			View,
-			Scene->GPUScene,
 			TracingInputs,
 			&PassParameters->SharedParameters);
 

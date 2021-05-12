@@ -88,6 +88,7 @@ void VisualizeQuadsCS(
 	//@todo - compute based on SDF voxel size, or card texel size
 	TraceInput.CardInterpolateDepthVisibilityRadius = 10.0f;
 	//Debug = TraceInput.NumMeshSDFs / 20.0f;
+	TraceInput.bCalculateHitVelocity = true;
 
 	FConeTraceResult TraceResult;
 
@@ -136,6 +137,8 @@ void VisualizeQuadsCS(
 		FinalColor = float4(frac(TraceResult.OpaqueHitDistance.xxx / 100.0f), 0);
 	#elif TRACE_VISUALIZE_MODE == 2
 		FinalColor = float4(TraceResult.Lighting + TraceResult.Debug, 0);
+	#elif TRACE_VISUALIZE_MODE == 3
+		FinalColor = float4(abs(TraceResult.WorldVelocity / 100.0f), 0);
 	#else 
 		FinalColor = float4(TraceResult.NumSteps.xxx / 100.0f, 0);
 	#endif

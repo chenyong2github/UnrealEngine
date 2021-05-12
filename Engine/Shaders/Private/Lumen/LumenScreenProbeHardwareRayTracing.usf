@@ -70,6 +70,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 		float3 WorldNormal = DecodeNormal(GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
 
 		bool bHit = false;
+		bool bMoving = false;
 		{
 			float2 ProbeUV;
 			float ConeHalfAngle;
@@ -96,6 +97,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 				ScreenTileCoord.y * ScreenProbeViewSize.x + ScreenTileCoord.x,
 				bCullBackFacingTriangles,
 				MaxTranslucentSkipCount);
+			Context.bCalculateHitVelocity = true;
 
 			bool bTraceRay = true;
 			if (DIM_DEFERRED_MATERIAL_MODE)
@@ -123,7 +125,14 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 				bool bUseMinimalPayload = (DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE) && (DIM_DEFERRED_MATERIAL_MODE == 0);
 				if (bUseMinimalPayload)
 				{
-					bHit = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context, TraceHitDistance, Radiance);
+					float3 HitWorldVelocity;
+					bHit = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context, TraceHitDistance, HitWorldVelocity, Radiance);
+
+					if (bHit)
+					{
+						float3 HitWorldPosition = Ray.Origin + Ray.Direction * TraceHitDistance;
+						bMoving = IsTraceMoving(WorldPosition, SceneDepth, ScreenProbeAtlasCoord, HitWorldPosition, HitWorldVelocity);
+					}
 				}
 				else
 				{
@@ -134,7 +143,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 			RWTraceRadiance[ScreenProbeTracingCoord] = Radiance;
 		}
 
-		RWTraceHit[ScreenProbeTracingCoord] = EncodeProbeRayDistance(TraceHitDistance, bHit, false);
+		RWTraceHit[ScreenProbeTracingCoord] = EncodeProbeRayDistance(TraceHitDistance, bHit, bMoving);
 	}
 }
 

@@ -171,7 +171,9 @@ float3 GetHistoryScreenPosition(float2 ScreenPosition, float2 ScreenUV, float De
 
 	{
 		float4 ThisClip = float4(HistoryScreenPosition, 1);
-		float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
+		//float4 PrevClip = mul(ThisClip, View.ClipToPrevClip); //<=== doesn't contain AA offsets
+		float4 PrevClip = mul(ThisClip, View.ClipToPrevClipWithAA);
+		
 		float3 PrevScreen = PrevClip.xyz / PrevClip.w;
 		float3 Velocity = HistoryScreenPosition - PrevScreen;
 		float4 EncodedVelocity = GBufferVelocityTexture.SampleLevel(GlobalPointClampedSampler, ScreenUV, 0);
@@ -246,6 +248,26 @@ float DecodeProbeRayDistance(uint Encoded)
 	bool bHit;
 	bool bMoving;
 	return DecodeProbeRayDistance(Encoded, bHit, bMoving);
+}
+
+bool IsTraceMoving(float3 ProbeWorldPosition, float ProbeSceneDepth, uint2 ScreenProbeAtlasCoord, float3 HitWorldPosition, float3 HitWorldVelocity)
+{
+	//@todo - for pixels that use the velocity texture in GetHistoryScreenPosition, velocities transformed to world space are too inaccurate to use for a dis-occlusion test
+	// See DEBUG_VISUALIZE_PROBE_WORLD_SPEED
+#define VELOCITY_IS_ACCURATE 0
+#if VELOCITY_IS_ACCURATE
+	float3 ProbeWorldVelocity = ScreenProbeWorldVelocity.Load(int3(ScreenProbeAtlasCoord, 0)).xyz;
+	float VelocityDampening = lerp(1, .1f, saturate(ProbeSceneDepth / 10000.0f));
+	float3 ProbeToHit = HitWorldPosition - ProbeWorldPosition;
+	float3 PrevProbeToPrevHit = HitWorldPosition - HitWorldVelocity * VelocityDampening - (ProbeWorldPosition - ProbeWorldVelocity * VelocityDampening);
+	float3 CosAngle = dot(ProbeToHit, PrevProbeToPrevHit) / max(length(ProbeToHit) * length(PrevProbeToPrevHit), .0001f);
+	float CosProbeTraceVelocityAngleThreshold = cos(1.0f * (float)PI / 180.0f);
+	return CosAngle < CosProbeTraceVelocityAngleThreshold;
+#else
+	float ProbeWorldSpeed = ScreenProbeWorldSpeed.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+
+	return abs(ProbeWorldSpeed - length(HitWorldVelocity)) / max(ProbeSceneDepth, 100.0f) > RelativeSpeedDifferenceToConsiderLightingMoving;
+#endif
 }
 
 Buffer<float> ScreenProbeMoving;
