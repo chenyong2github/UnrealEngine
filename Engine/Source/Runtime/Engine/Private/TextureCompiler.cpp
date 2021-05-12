@@ -421,6 +421,26 @@ void FTextureCompilingManager::FinishAllCompilation()
 	}
 }
 
+bool FTextureCompilingManager::GetCurrentPriority(UTexture* InTexture, EQueuedWorkPriority& OutPriority)
+{
+	using namespace TextureCompilingManagerImpl;
+	if (InTexture)
+	{
+		FTexturePlatformData** Data = InTexture->GetRunningPlatformData();
+		if (Data && *Data)
+		{
+			FTextureAsyncCacheDerivedDataTask* AsyncTask = (*Data)->AsyncTask;
+			if (AsyncTask)
+			{
+				OutPriority = AsyncTask->GetPriority();
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 bool FTextureCompilingManager::RequestPriorityChange(UTexture* InTexture, EQueuedWorkPriority InPriority)
 {
 	using namespace TextureCompilingManagerImpl;
@@ -507,60 +527,54 @@ void FTextureCompilingManager::ProcessTextures(bool bLimitExecutionTime, int32 M
 			}
 		}
 
+		if (GEngine)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCompilingManager::Reschedule);
 
-			TSet<UTexture*> ReferencedTextures;
-			if (GEngine)
+			auto TryRescheduleTexture = 
+				[this, &ObjectCacheScope](UTexture* Texture)
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(GatherSeenPrimitiveMaterials);
-
-				TSet<UMaterialInterface*> RenderedMaterials;
-				for (UPrimitiveComponent* Component : ObjectCacheScope.GetContext().GetPrimitiveComponents())
+				// Do not process anything for a texture that already has been prioritized
+				EQueuedWorkPriority OutCurrentPriority;
+				if (GetCurrentPriority(Texture, OutCurrentPriority) && OutCurrentPriority == GetBoostPriority(Texture))
 				{
-					if (Component->IsRegistered() && Component->IsRenderStateCreated() && Component->GetLastRenderTimeOnScreen() > 0.0f)
-					{
-						for (UMaterialInterface* MaterialInterface : ObjectCacheScope.GetContext().GetUsedMaterials(Component))
-						{
-							if (MaterialInterface)
-							{
-								RenderedMaterials.Add(MaterialInterface);
-							}
-						}
-					}
+					return;
 				}
 
-				for (UMaterialInterface* MaterialInstance : RenderedMaterials)
+				// Reschedule any texture that have been rendered with slightly higher priority 
+				// to improve the editor experience for low-core count.
+				//
+				// Keep in mind that some textures are only accessed once during the construction
+				// of a virtual texture, so we can't count on the LastRenderTime to be updated
+				// continuously for those even if they're in view.
+				if ((Texture->GetResource() && Texture->GetResource()->LastRenderTime > 0.0f) ||
+					Texture->TextureReference.GetLastRenderTime() > 0.0f)
 				{
-					for (UTexture* Texture : ObjectCacheScope.GetContext().GetUsedTextures(MaterialInstance))
-					{
-						ReferencedTextures.Add(Texture);
-					}
+					RequestPriorityChange(Texture, GetBoostPriority(Texture));
 				}
-			}
-
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(ApplyPriorityChanges);
-				// Reschedule higher priority if they have been rendered
-				for (TSet<TWeakObjectPtr<UTexture>>& Bucket : RegisteredTextureBuckets)
+				else
 				{
-					for (TWeakObjectPtr<UTexture>& WeakPtr : Bucket)
+					for (UMaterialInterface* MaterialInterface : ObjectCacheScope.GetContext().GetMaterialsAffectedByTexture(Texture))
 					{
-						if (UTexture* Texture = WeakPtr.Get())
+						for (UPrimitiveComponent* Component : ObjectCacheScope.GetContext().GetPrimitivesAffectedByMaterial(MaterialInterface))
 						{
-							// Reschedule any texture that have been rendered with slightly higher priority 
-							// to improve the editor experience for low-core count.
-							//
-							// Keep in mind that some textures are only accessed once during the construction
-							// of a virtual texture, so we can't count on the LastRenderTime to be updated
-							// continuously for those even if they're in view.
-							if (ReferencedTextures.Contains(Texture) ||
-								(Texture->Resource && Texture->Resource->LastRenderTime > 0.0f) ||
-								Texture->TextureReference.GetLastRenderTime() > 0.0f)
+							if (Component->IsRegistered() && Component->IsRenderStateCreated() && Component->GetLastRenderTimeOnScreen() > 0.0f)
 							{
 								RequestPriorityChange(Texture, GetBoostPriority(Texture));
+								return;
 							}
 						}
+					}
+				}
+			};
+
+			for (TSet<TWeakObjectPtr<UTexture>>& Bucket : RegisteredTextureBuckets)
+			{
+				for (TWeakObjectPtr<UTexture>& WeakPtr : Bucket)
+				{
+					if (UTexture* Texture = WeakPtr.Get())
+					{
+						TryRescheduleTexture(Texture);
 					}
 				}
 			}

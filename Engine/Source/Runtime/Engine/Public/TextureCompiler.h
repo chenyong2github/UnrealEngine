@@ -85,7 +85,8 @@ private:
 	void FinishCompilationsForGame();
 	void ProcessTextures(bool bLimitExecutionTime, int32 MaximumPriority = -1);
 	void UpdateCompilationNotification();
-	
+
+	bool GetCurrentPriority(UTexture* InTexture, EQueuedWorkPriority& OutPriority);
 	void PostCompilation(UTexture* Texture);
 	void PostCompilation(TArrayView<UTexture* const> InCompiledTextures);
 
