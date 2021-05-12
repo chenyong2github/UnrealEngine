@@ -229,6 +229,7 @@ public:
 	/** Prevents writing back data to the USD stage whenever our LevelSequences are modified */
 	USDSTAGE_API void StopMonitoringLevelSequence();
 	USDSTAGE_API void ResumeMonitoringLevelSequence();
+	USDSTAGE_API void BlockMonitoringLevelSequenceForThisTransaction();
 
 	UUsdPrimTwin* GetOrCreatePrimTwin( const UE::FSdfPath& UsdPrimPath );
 	UUsdPrimTwin* ExpandPrim( const UE::FUsdPrim& Prim, FUsdSchemaTranslationContext& TranslationContext );

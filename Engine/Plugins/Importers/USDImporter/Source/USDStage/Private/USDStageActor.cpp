@@ -623,6 +623,10 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 		}
 	}
 
+	// We may update our levelsequence objects (tracks, moviescene, sections, etc.) due to these changes. We definitely don't want to write anything
+	// back to USD when these objects change though
+	LevelSequenceHelper.BlockMonitoringChangesForThisTransaction();
+
 	// The most important thing here is to iterate in parent to child order, so build SortedPrimsChangedList
 	TArray< TPair< FString, bool > > SortedPrimsChangedList;
 	for ( const TPair<FString, TArray<UsdUtils::FObjectChangeNotice>>& InfoChange : InfoChanges )
@@ -836,6 +840,11 @@ void AUsdStageActor::StopMonitoringLevelSequence()
 void AUsdStageActor::ResumeMonitoringLevelSequence()
 {
 	LevelSequenceHelper.StartMonitoringChanges();
+}
+
+void AUsdStageActor::BlockMonitoringLevelSequenceForThisTransaction()
+{
+	LevelSequenceHelper.BlockMonitoringChangesForThisTransaction();
 }
 
 UUsdPrimTwin* AUsdStageActor::GetOrCreatePrimTwin( const UE::FSdfPath& UsdPrimPath )
@@ -1405,7 +1414,7 @@ void AUsdStageActor::UnloadUsdStage()
 
 	// Stop listening because we'll discard LevelSequence assets, which may trigger transactions
 	// and could lead to stage changes
-	StopMonitoringLevelSequence();
+	BlockMonitoringLevelSequenceForThisTransaction();
 
 	if ( AssetCache )
 	{

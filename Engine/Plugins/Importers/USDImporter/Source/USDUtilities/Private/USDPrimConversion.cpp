@@ -731,8 +731,9 @@ bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieScen
 		return false;
 	}
 
-	const UMovieScene* MovieScene = MovieSceneTrack.GetTypedOuter< UMovieScene >();
+	const FUsdStageInfo StageInfo( UsdPrim.GetStage() );
 
+	const UMovieScene* MovieScene = MovieSceneTrack.GetTypedOuter< UMovieScene >();
 	if ( !MovieScene )
 	{
 		return false;
@@ -741,14 +742,12 @@ bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieScen
 	FScopedUsdAllocs UsdAllocs;
 
 	pxr::UsdGeomXformable Xformable( UsdPrim );
-
 	if ( !Xformable )
 	{
 		return false;
 	}
 
 	UMovieScene3DTransformSection* TransformSection = Cast< UMovieScene3DTransformSection >( const_cast< UMovieScene3DTransformTrack& >( MovieSceneTrack ).FindSection( 0 ) );
-
 	if ( !TransformSection )
 	{
 		return false;
@@ -824,7 +823,6 @@ bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieScen
 
 	bool bIsDataOutOfSync = false;
 	{
-		const FUsdStageInfo StageInfo( UsdPrim.GetStage() );
 		int32 ValueIndex = 0;
 
 		FFrameTime UsdStartTime = FFrameRate::TransformTime( PlaybackRange.GetLowerBoundValue(), Resolution, StageFrameRate );
@@ -875,6 +873,19 @@ bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieScen
 
 		pxr::SdfChangeBlock ChangeBlock;
 
+		// Compensate different orientation for light or camera components
+		// TODO: Handle inverse compensation when the bound component is a child of a light/camera component
+		FTransform AdditionalRotation = FTransform::Identity;
+		if ( UsdPrim.IsA< pxr::UsdGeomCamera >() || UsdPrim.IsA< pxr::UsdLuxLight >() )
+		{
+			AdditionalRotation = FTransform( FRotator( 0.0f, 90.0f, 0.0f ) );
+
+			if ( StageInfo.UpAxis == EUsdUpAxis::ZAxis )
+			{
+				AdditionalRotation *= FTransform( FRotator( 90.0f, 0.0f, 0.0f ) );
+			}
+		}
+
 		int32 ValueIndex = 0;
 		for ( const TPair< FFrameNumber, float >& Value : LocationValuesX )
 		{
@@ -885,7 +896,7 @@ bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieScen
 			FVector Scale( ScaleValuesX[ ValueIndex ].Value, ScaleValuesY[ ValueIndex ].Value, ScaleValuesZ[ ValueIndex ].Value );
 
 			FTransform Transform( Rotation, Location, Scale );
-			ConvertXformable( Transform, UsdPrim, UsdFrameTime.AsDecimal() );
+			ConvertXformable( AdditionalRotation* Transform, UsdPrim, UsdFrameTime.AsDecimal() );
 
 			++ValueIndex;
 		}
