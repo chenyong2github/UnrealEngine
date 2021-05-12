@@ -414,8 +414,6 @@ public:
 	uint32 Size;
 	uint32 SizeUsed;
 	FD3D12CLSyncPoint SyncPoint;
-
-	uint64 FrameFence = 0;
 };
 
 

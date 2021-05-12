@@ -85,6 +85,8 @@ private:
 					if (Generation < GenerationSyncPoint.Key)
 					{
 						// The requested generation is older than the oldest tracked generation, so it must be complete.
+						// (LastCompleteGeneration probably updated while trying to take the lock)
+						check(Generation <= LastCompleteGeneration);
 						return true;
 					}
 					else
@@ -101,6 +103,11 @@ private:
 							return false;
 						}
 					}
+				}
+				else
+				{
+					// LastCompleteGeneration probably updated while trying to take the lock, validate that the GPU is actually processed this generation
+					check(Generation <= LastCompleteGeneration);
 				}
 			}
 
@@ -120,7 +127,6 @@ private:
 					while (ActiveGenerations.Peek(GenerationSyncPoint) && (Generation > LastCompleteGeneration))
 					{
 						check(Generation >= GenerationSyncPoint.Key);
-						ActiveGenerations.Dequeue(GenerationSyncPoint);
 
 						// Unblock other threads while we wait for the command list to complete
 						ActiveGenerationsCS.Unlock();
@@ -128,6 +134,7 @@ private:
 						GenerationSyncPoint.Value.WaitForCompletion();
 
 						ActiveGenerationsCS.Lock();
+						ActiveGenerations.Dequeue(GenerationSyncPoint);
 						LastCompleteGeneration = FMath::Max(LastCompleteGeneration, GenerationSyncPoint.Key);
 					}
 				}
