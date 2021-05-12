@@ -852,6 +852,13 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		return 1;
 	}
 
+	ON_SCOPE_EXIT
+	{
+		MainWorld->ClearWorldComponents();
+		MainWorld->CleanupWorld();
+		MainWorld->RemoveFromRoot();
+	};
+
 	UPackage* MainPackage = MainLevel->GetPackage();
 	AWorldDataLayers* MainWorldDataLayers = MainWorld->GetWorldDataLayers();
 	if (!MainWorldDataLayers)
