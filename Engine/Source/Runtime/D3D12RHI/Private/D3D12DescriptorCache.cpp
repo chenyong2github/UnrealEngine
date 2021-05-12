@@ -1097,8 +1097,6 @@ void FD3D12GlobalHeap::FreeHeapBlock(FD3D12GlobalHeapBlock* InHeapBlock)
 	INC_DWORD_STAT_BY(STAT_GlobalViewHeapUsedDescriptors, InHeapBlock->SizeUsed);
 	INC_DWORD_STAT_BY(STAT_GlobalViewHeapWastedDescriptors, InHeapBlock->Size - InHeapBlock->SizeUsed);
 
-	InHeapBlock->FrameFence = GetParentDevice()->GetParentAdapter()->GetFrameFence().GetCurrentFence();
-
 	ReleasedBlocks.Add(InHeapBlock);
 }
 
@@ -1108,12 +1106,11 @@ Find all the blocks which are not used by the GPU anymore
 **/
 void FD3D12GlobalHeap::UpdateFreeBlocks()
 {
-	FD3D12ManualFence& FrameFence = GetParentDevice()->GetParentAdapter()->GetFrameFence();
 	for (int32 BlockIndex = 0; BlockIndex < ReleasedBlocks.Num(); ++BlockIndex)
 	{
 		// Check if GPU is ready consuming the block data
 		FD3D12GlobalHeapBlock* ReleasedBlock = ReleasedBlocks[BlockIndex];
-		if (ReleasedBlock->SyncPoint.IsComplete() && FrameFence.IsFenceComplete(ReleasedBlock->FrameFence))
+		if (ReleasedBlock->SyncPoint.IsComplete())
 		{
 			// Update stats
 			DEC_DWORD_STAT_BY(STAT_GlobalViewHeapUsedDescriptors, ReleasedBlock->SizeUsed);
@@ -1141,7 +1138,7 @@ void FD3D12GlobalHeap::UpdateFreeBlocks()
 				}
 			}
 #endif  // PLATFORM_WINDOWS
-			
+
 			ReleasedBlock->SizeUsed = 0;
 			FreeBlocks.Enqueue(ReleasedBlock);
 
