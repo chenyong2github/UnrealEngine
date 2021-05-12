@@ -50,20 +50,14 @@ public class WebRTC : ModuleRules
 			{
 				PublicDefinitions.Add("WEBRTC_WIN=1");
 
-				string VisualStudioVersionFolder = "VS2015";
 
 				string IncludePath = Path.Combine(WebRtcSdkPath, "Include");
 				PublicSystemIncludePaths.Add(IncludePath);
 				string AbslthirdPartyIncludePath = Path.Combine(WebRtcSdkPath, "Include", "third_party", "abseil-cpp");
 				PublicSystemIncludePaths.Add(AbslthirdPartyIncludePath);
 
-				string LibraryPath = "";
-				if(Target.CppStandard == CppStandardVersion.Cpp17 && Target.Platform == UnrealTargetPlatform.Win64) {
-					LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, VisualStudioVersionFolder, ConfigPath);
-				} else {
-					LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, "Cpp11", ConfigPath);
-				}
-
+				string CppStandardVersionFolder = Target.CppStandard == CppStandardVersion.Cpp17 ? "Cpp17" : "Cpp11";
+				string LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, CppStandardVersionFolder, ConfigPath);
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "webrtc.lib"));
 
 				// Additional System library
