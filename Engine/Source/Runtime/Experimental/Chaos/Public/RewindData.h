@@ -833,6 +833,8 @@ public:
 
 	void CHAOS_API MarkDirtyFromPT(FGeometryParticleHandle& Handle);
 
+	void CHAOS_API SpawnProxyIfNeeded(FSingleParticlePhysicsProxy& Proxy);
+
 private:
 
 	struct FSimWritableState

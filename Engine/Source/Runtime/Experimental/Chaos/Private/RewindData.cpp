@@ -926,6 +926,18 @@ void FRewindData::PushGTDirtyData(const FDirtyPropertiesManager& SrcManager,cons
 	}
 }
 
+void FRewindData::SpawnProxyIfNeeded(FSingleParticlePhysicsProxy& Proxy)
+{
+	if(Proxy.GetInitializedStep() > CurFrame)
+	{
+		FGeometryParticleHandle* Handle = Proxy.GetHandle_LowLevel();
+		FindOrAddParticle(*Handle, CurFrame);
+
+		Solver->GetEvolution()->EnableParticle(Handle, nullptr);
+		Proxy.SetInitialized(CurFrame);
+	}
+}
+
 void FRewindData::MarkDirtyFromPT(FGeometryParticleHandle& Handle)
 {
 	FDirtyParticleInfo& Info = FindOrAddParticle(Handle);
@@ -1023,7 +1035,6 @@ FRewindData::FDirtyParticleInfo& FRewindData::FindOrAddParticle(TGeometryParticl
 	ParticleToAllDirtyIdx.Add(UniqueIdx,DirtyIdx);
 	if(InitializedOnFrame != INDEX_NONE)
 	{
-		ensure(AllDirtyParticles[DirtyIdx].InitializedOnStep == INDEX_NONE);	//initializing now, shouldn't have this marked already
 		AllDirtyParticles[DirtyIdx].InitializedOnStep = InitializedOnFrame;
 	}
 
