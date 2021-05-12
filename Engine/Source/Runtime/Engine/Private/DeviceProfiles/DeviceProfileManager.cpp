@@ -881,8 +881,12 @@ void UDeviceProfileManager::SetOverrideDeviceProfile(UDeviceProfile* DeviceProfi
 				FString OldValue = CVar->GetString();
 				PushedSettings.Add(Pair.Key, OldValue);
 
-				// set the cvar to the new value, with same priority that it was before (SetByMask means current priority)
-				CVar->SetWithCurrentPriority(*Pair.Value);
+				// cheat CVar can only be set in ConsoleVariables.ini
+				if (!CVar->TestFlags(EConsoleVariableFlags::ECVF_Cheat))
+				{
+					// set the cvar to the new value, with same priority that it was before (SetByMask means current priority)
+					CVar->SetWithCurrentPriority(ConvertValueFromHumanFriendlyValue(*Pair.Value));
+				}
 			}
 		}
 #else
