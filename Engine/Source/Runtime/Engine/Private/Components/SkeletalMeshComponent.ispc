@@ -34,26 +34,3 @@ export void FillComponentSpaceTransforms(uniform FTransform ComponentSpaceData[]
 		ComponentSpaceData[BoneIndex] = SpaceBase;
 	}
 }
-
-static inline float Lerp(float A, float B, float Alpha)
-{
-	return (1.0f-Alpha)*A + Alpha*B;
-}
-
-export void LerpCurves(uniform float CurveWeights[],
-						uniform uint32 ValidCurveWeights[],
-						const uniform float CachedCurveWeights[],
-						const uniform uint32 CachedValidCurveWeights[],
-						const uniform int CurveLength,
-						const uniform float Alpha)
-{
-	foreach (CurveId = 0 ... CurveLength)
-	{
-		CurveWeights[CurveId] = Lerp(CurveWeights[CurveId], CachedCurveWeights[CurveId], Alpha);
-	}
-
-	foreach (CurveSet = 0 ... CurveLength / 32)
-	{
-		ValidCurveWeights[CurveSet] |= CachedValidCurveWeights[CurveSet];
-	}
-}
