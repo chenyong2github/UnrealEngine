@@ -14,7 +14,7 @@
  */
 class UNCONTROLLEDCHANGELISTS_API FUncontrolledChangelistsModule : public IModuleInterface
 {
-	typedef TMap<FUncontrolledChangelist, TSharedRef<class FUncontrolledChangelistState, ESPMode::ThreadSafe>> FUncontrolledChangelistsStateCache;
+	typedef TMap<FUncontrolledChangelist, FUncontrolledChangelistStateRef> FUncontrolledChangelistsStateCache;
 
 public:
 	static constexpr const TCHAR* VERSION_NAME = TEXT("version");
@@ -78,13 +78,19 @@ public:
 	void OnObjectTransacted(UObject* InObject, const class FTransactionObjectEvent& InTransactionEvent);
 
 	/**
-	 * Called after an action moving files to an Uncontrolled Changelist (example: drag and drop).
-	 * Moves the files to the provided uncontrolled changelist.
-	 * @param 	InFilenames 	The files to move.
-	 * @param 	InChangelist 	The Uncontrolled Changelist where to move the files.
-	 * @return 	returnDesc
+	 * Moves files to an Uncontrolled Changelist.
+	 * @param 	InControlledFileStates 		The Controlled files to move.
+	 * @param 	InUncontrolledFileStates 	The Uncontrolled files to move.
+	 * @param 	InChangelist 				The Uncontrolled Changelist where to move the files.
 	 */
-	void OnFilesMovedToUncontrolledChangelist(const TArray<FString> InFilenames, const FUncontrolledChangelist& InChangelist);
+	void MoveFilesToUncontrolledChangelist(const TArray<FSourceControlStateRef>& InControlledFileStates, const TArray<FSourceControlStateRef>& InUncontrolledFileStates, const FUncontrolledChangelist& InUncontrolledChangelist);
+
+	/**
+	 * Moves files to a Controlled Changelist.
+	 * @param 	InUncontrolledFileStates 	The files to move.
+	 * @param 	InChangelist 				The Controlled Changelist where to move the files.
+	 */
+	void MoveFilesToControlledChangelist(const TArray<FSourceControlStateRef>& InUncontrolledFileStates, const FSourceControlChangelistPtr& InChangelist);
 
 private:
 	/**
@@ -109,6 +115,13 @@ private:
 	 * @return 	A String containing the filepath of the package.
 	 */
 	FString GetUObjectPackageFullpath(const UObject* InObject) const;
+
+	/**
+	 * Displays a Package Dialog warning the user about conflicting packages. 
+	 * @param 	InPackageConflicts 	The conflicting packages to display.
+	 * @return 	True if the user decided to proceed. False if they cancelled.
+	 */
+	bool ShowConflictDialog(TArray<UPackage*> InPackageConflicts);
 
 private:
 	FUncontrolledChangelistsStateCache UncontrolledChangelistsStateCache;

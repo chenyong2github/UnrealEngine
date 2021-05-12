@@ -37,6 +37,7 @@ public class UncontrolledChangelists : ModuleRules
 					"EditorFramework",
 					"Engine",
 					"UnrealEd",
+					"PackagesDialog",
 				}
 			);
         }
