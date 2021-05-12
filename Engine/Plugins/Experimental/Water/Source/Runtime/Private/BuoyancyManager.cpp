@@ -109,7 +109,8 @@ void ABuoyancyManager::Unregister(UBuoyancyComponent* BuoyancyComponent)
 
 void ABuoyancyManager::Update(FPhysScene* PhysScene, float DeltaTime)
 {
-	if (UWorld* World = GetWorld())
+	UWorld* World = GetWorld();
+	if (World && AsyncCallback)
 	{
 		// Collect active buoyancy components
 		{
