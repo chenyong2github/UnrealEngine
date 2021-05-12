@@ -5,7 +5,7 @@
 #include "WebRTCIncludes.h"
 
 // TODO: Add back in when we implement decoder.
-// #if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+// #if PLATFORM_WINDOWS
 // #include "WmfIncludes.h"
 // #endif
 
