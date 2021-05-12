@@ -185,7 +185,6 @@ void ScreenProbeTraceScreenTexturesCS(
 						RWTraceRadiance[TraceCoord] = Lighting;
 					#endif
 
-					float3 HitWorldVelocity;
 					{
 						float2 HitScreenUV = HitUVz.xy;
 						float2 HitScreenPosition = (HitScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
@@ -195,14 +194,10 @@ void ScreenProbeTraceScreenTexturesCS(
 						float3 HitHistoryScreenPosition = GetHistoryScreenPosition(HitScreenPosition, HitScreenUV, HitDeviceZ);
 
 						float3 HitTranslatedWorldPosition = mul(float4(HitScreenPosition * HitSceneDepth, HitSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
-						HitWorldVelocity = HitTranslatedWorldPosition - GetPrevTranslatedWorldPosition(HitHistoryScreenPosition);
+						float3 HitWorldVelocity = HitTranslatedWorldPosition - GetPrevTranslatedWorldPosition(HitHistoryScreenPosition);
+
+						bFastMoving = IsTraceMoving(WorldPosition, SceneDepth, ScreenProbeAtlasCoord, HitTranslatedWorldPosition - View.PreViewTranslation, HitWorldVelocity);
 					}
-
-					float ProbeWorldSpeed = ScreenProbeWorldSpeed.Load(int3(ScreenProbeAtlasCoord, 0)).x;
-					float HitWorldSpeed = length(HitWorldVelocity);
-
-					//@todo - take velocity direction into account
-					bFastMoving = abs(ProbeWorldSpeed - HitWorldSpeed) / max(SceneDepth, 100.0f) > RelativeSpeedDifferenceToConsiderLightingMoving;
 				}
 
 				if (bHit || bWriteDepthOnMiss)
@@ -352,6 +347,7 @@ void TraceMeshSDFs(
 			TraceInput.CardInterpolateInfluenceRadius = CardInterpolateInfluenceRadius;
 			//@todo - derive from card texel size
 			TraceInput.CardInterpolateDepthVisibilityRadius = 10;
+			TraceInput.bCalculateHitVelocity = true;
 
 			FConeTraceResult TraceResult;
 			ConeTraceLumenSceneCards(TraceInput, TraceResult);
@@ -360,8 +356,10 @@ void TraceMeshSDFs(
 			float Transparency = TraceResult.Transparency;
 			float OpaqueHitDistance = TraceResult.OpaqueHitDistance;
 
-			//@todo - compare velocities
-			//bMoving = TraceResult.bOftenMoving;
+			{
+				float3 HitWorldPosition = SamplePosition + WorldConeDirection * OpaqueHitDistance;
+				bMoving = IsTraceMoving(WorldPosition, SceneDepth, ScreenProbeAtlasCoord, HitWorldPosition, TraceResult.WorldVelocity);
+			}
 
 			float DistanceFromViewpoint = length(View.WorldCameraOrigin - WorldPosition);
 			float DistanceFade = saturate(6 * DistanceFromViewpoint / CardTraceEndDistanceFromCamera - 5);

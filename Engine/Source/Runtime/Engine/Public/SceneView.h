@@ -618,6 +618,7 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(FMatrix44f, PrevInvViewProj) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FMatrix44f, PrevScreenToTranslatedWorld) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FMatrix44f, ClipToPrevClip) \
+	VIEW_UNIFORM_BUFFER_MEMBER(FMatrix44f, ClipToPrevClipWithAA) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector4, TemporalAAJitter) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector4, GlobalClippingPlane) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector2D, FieldOfViewWideAngles) \

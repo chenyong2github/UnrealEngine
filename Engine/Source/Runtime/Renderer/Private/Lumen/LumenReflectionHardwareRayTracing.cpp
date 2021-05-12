@@ -279,7 +279,6 @@ void RenderLumenHardwareRayTracingReflections(
 			GraphBuilder,
 			SceneTextures,
 			View,
-			Scene->GPUScene,
 			TracingInputs,
 			&PassParameters->DeferredMaterialParameters.SharedParameters);
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
@@ -341,7 +340,6 @@ void RenderLumenHardwareRayTracingReflections(
 			GraphBuilder,
 			SceneTextures,
 			View,
-			Scene->GPUScene,
 			TracingInputs,
 			&PassParameters->SharedParameters
 		);

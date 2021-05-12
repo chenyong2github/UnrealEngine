@@ -939,11 +939,15 @@ void ScreenProbeIndirectCS(
 
 			float3 DiffuseIndirectOutput = DiffuseLighting * (bLightingIsValid ? 1.0f : 0.0f) * Diffuse_Lambert(float3(1, 1, 1));
 
+			#define DEBUG_VISUALIZE_PROBE_WORLD_SPEED 0
+			#if DEBUG_VISUALIZE_PROBE_WORLD_SPEED
+				float InterpolatedWorldSpeed = ScreenProbeWorldSpeed.Load(int3(ScreenProbeAtlasCoord[0], 0)).xyz * InterpolationWeights.x
+					+ ScreenProbeWorldSpeed.Load(int3(ScreenProbeAtlasCoord[1], 0)).xyz * InterpolationWeights.y
+					+ ScreenProbeWorldSpeed.Load(int3(ScreenProbeAtlasCoord[2], 0)).xyz * InterpolationWeights.z
+					+ ScreenProbeWorldSpeed.Load(int3(ScreenProbeAtlasCoord[3], 0)).xyz * InterpolationWeights.w;
 
-			///////////////////////
-			//DiffuseIndirectOutput = (dot(InterpolationWeights > Epsilon ? 1 : 0, 1)) / 4.0f;
-			//DiffuseIndirectOutput = dot(InterpolationWeights > Epsilon ? 1 : 0, 1) > 2 + Epsilon;
-			//DiffuseIndirectOutput = InterpolationWeights.x > Epsilon ? 1 : 0;
+				DiffuseIndirectOutput = abs(InterpolatedWorldSpeed) / 2.0f;
+			#endif
 
 			DebugVisualizeScreenProbePlacement(DispatchThreadId, DiffuseIndirectOutput);
 
