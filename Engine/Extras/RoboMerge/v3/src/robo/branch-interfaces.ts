@@ -196,13 +196,15 @@ export type GateInfo = {
 	date?: Date
 }
 
-export type BeginIntegratingToGateEvent = {
+export type GateEventContext = {
 	from: Branch
 	to: Branch
+	edgeLastCl: number
+	pauseCIS: boolean
+}
+
+export type BeginIntegratingToGateEvent = {
+	context: GateEventContext
 	info: GateInfo
 }
 
-export type EndIntegratingToGateEvent = {
-	from: Branch
-	to: Branch
-}
