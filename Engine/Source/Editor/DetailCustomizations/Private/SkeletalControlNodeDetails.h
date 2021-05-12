@@ -33,7 +33,7 @@ protected:
 	void OnShowPinChanged(ECheckBoxState InNewState, TSharedRef<IPropertyHandle> InElementProperty);
 
 	/** Handler to hide all unconnected pins on a BreakStruct node */
-	FReply HideAllUnconnectedPins();
+	FReply HideAllUnconnectedPins(const bool bHideInputPins);
 
 private:
 	IDetailCategoryBuilder* DetailCategory;
