@@ -587,17 +587,17 @@ namespace MoviePipeline
 			}
 		}
 
-		TSharedPtr<FCameraCutSubSectionHierarchyNode> ParentNode;
-		if (!ParentNode)
-		{
-			ParentNode = MakeShared<FCameraCutSubSectionHierarchyNode>();
-		}
-
-		OutSubsectionHierarchy->SetParent(ParentNode);
 		OutSubsectionHierarchy->MovieScene = TWeakObjectPtr<UMovieScene>(Sequence->GetMovieScene());
 		OutSubsectionHierarchy->NodeID = InSequenceId;
 
-		BuildSectionHierarchyRecursive(InHierarchy, InRootSequence, SequenceNode->ParentID, InSequenceId, ParentNode);
+		// Only try assigning the parent and diving in if this node isn't already the root, roots have no parents.
+		if (InSequenceId != MovieSceneSequenceID::Root)
+		{
+			TSharedPtr<FCameraCutSubSectionHierarchyNode> ParentNode = MakeShared<FCameraCutSubSectionHierarchyNode>();
+			OutSubsectionHierarchy->SetParent(ParentNode);
+
+			BuildSectionHierarchyRecursive(InHierarchy, InRootSequence, SequenceNode->ParentID, InSequenceId, ParentNode);
+		}
 	}
 
 
