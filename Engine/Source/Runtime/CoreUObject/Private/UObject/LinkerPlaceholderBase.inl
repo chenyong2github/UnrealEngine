@@ -87,19 +87,13 @@ void TLinkerImportPlaceholder<PlaceholderType>::AddReferencingProperty(FFieldVar
 	UObject* ThisAsObject = GetPlaceholderAsUObject();
 	check(ThisAsObject != nullptr);
 
-	FObjectImport* PlaceholderImport = nullptr;
-	if (FLinkerLoad* PropertyLinker = ReferencingProperty->GetLinker())
+	if (!ReferencingProperty.IsUObject())
 	{
-		for (FObjectImport& Import : PropertyLinker->ImportMap)
+		if (FLinkerLoad* PropertyLinker = ReferencingProperty.Get<FProperty>()->GetLinker())
 		{
-			if (Import.XObject == ThisAsObject)
-			{
-				PlaceholderImport = &Import;
-				break;
-			}
+			check(ThisAsObject->GetOutermost() == PropertyLinker->LinkerRoot);
+			check(PropertyLinker->LoadFlags & LOAD_DeferDependencyLoads);
 		}
-		check(ThisAsObject->GetOutermost() == PropertyLinker->LinkerRoot);
-		check(PropertyLinker->LoadFlags & LOAD_DeferDependencyLoads);
 	}
 	// if this check hits, then we're adding dependencies after we've 
 	// already resolved the placeholder (it won't be resolved again)
