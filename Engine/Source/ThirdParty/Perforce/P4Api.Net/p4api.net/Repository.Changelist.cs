@@ -41,8 +41,8 @@ using System.Text;
 namespace Perforce.P4
 {
 	public partial class Repository
-	{
-		internal Changelist SaveChangelist(Changelist change, Options options)
+	{		
+		internal Changelist SaveChangelist(Changelist change, Options options = null)
 		{
 			if (change == null)
 			{

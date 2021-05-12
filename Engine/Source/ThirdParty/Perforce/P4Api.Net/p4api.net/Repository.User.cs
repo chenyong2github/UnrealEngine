@@ -561,10 +561,11 @@ namespace Perforce.P4
             }
             else
             {
-                bool found = false;
+                bool found = false;			
                 foreach (TaggedObject to in results.TaggedOutput)
                 {
-                    if (to.ContainsKey("User") && to["User"] == user)
+					// EPIC: change to case insensitive 
+                    if (to.ContainsKey("User") && string.Equals(to["User"], user, StringComparison.OrdinalIgnoreCase))
                     {
                         found = true;
                         break;

@@ -49,7 +49,7 @@ namespace Perforce.P4
     /// </summary>
     public class P4MapApi : IDisposable
     {
-        const string bridgeDll = "p4bridge.dll";
+        const string bridgeDll = "p4bridge";
         static P4MapApi()
         {
             Assembly p4apinet = Assembly.GetExecutingAssembly();
@@ -60,6 +60,8 @@ namespace Perforce.P4
             // only set this path if it is Any CPU (ILOnly)
             if (peKind.ToString() == "ILOnly")
             {
+                // EPIC BEGIN
+                /*
                 string currentArchSubPath = "x86";
 
                 // Is this a 64 bits process?
@@ -67,12 +69,18 @@ namespace Perforce.P4
                 {
                     currentArchSubPath = "x64";
                 }
+                
                 SetDllDirectory(currentArchSubPath);
+                */
+                // EPIC END
             }
         }
 
-        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        static extern bool SetDllDirectory(string lpPathName);
+        // EPIC BEGIN
+        // Don't have this on Linux
+        // [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        // static extern bool SetDllDirectory(string lpPathName);
+        // EPIC END
 
         /// <summary>
         /// Translate a returned string based on the UseUnicode setting

@@ -201,15 +201,50 @@ namespace HordeServer.Services
 						P4.Client Client = GetOrCreateClient(Repository, Stream, Username, ReadOnly, CreateChange, ClientFromChange, UseClientFromChange, UsePortFromChange);
 						Repository.Connection.SetClient(Client.Name);
 
-						if (UseClientFromChange)
+					}
+
+					if (UseClientFromChange)
+					{
+						string? ClientHost = Repository.Connection.Client.Host;
+						if (!string.IsNullOrEmpty(ClientHost))
 						{
-							string? ClientHost = Repository.Connection.Client.Host;
-							if (!string.IsNullOrEmpty(ClientHost))
+							Repository.Connection.getP4Server().SetConnectionHost(ClientHost);
+						}
+					}
+
+					/*
+
+					This is disabled until https://jira.it.epicgames.com/servicedesk/customer/portal/1/ITH-144069 is resolved and edge server is sorted (required for things like deleting shelves)
+
+					string? ClientPort = null;
+
+					if (UsePortFromChange)
+					{
+						if (!Repository.Connection.Client.Name.StartsWith("horde-p4bridge-", StringComparison.OrdinalIgnoreCase))
+						{
+							using (P4.P4Command Cmd = new P4.P4Command(Repository, "info", true))
 							{
-								Repository.Connection.getP4Server().SetConnectionHost(ClientHost);
+								P4.P4CommandResult Results = Cmd.Run();
+
+								if (!Results.Success)
+								{
+									throw new Exception("Unable to get server info");
+								}
+
+								P4.TaggedObject? Tag = Results.TaggedOutput.Find(T => T.ContainsKey("changeServer"));
+
+								if (Tag != null)
+								{
+									if (!Tag.TryGetValue("changeServer", out ClientPort))
+									{
+										throw new Exception("Unable to get change server from tagged server info output");
+									}
+								}
 							}
 						}
 					}
+					*/
+
 				}
 				catch
 				{
@@ -223,7 +258,7 @@ namespace HordeServer.Services
 				throw new Exception($"Unable to get connection for Stream:{Stream} Username:{Username} ReadOnly:{ReadOnly} CreateChange:{CreateChange} ClientFromChange:{ClientFromChange} UseClientFromChange:{UseClientFromChange} UsePortFromChange:{UsePortFromChange}");
 			}
 
-			Repository.Connection.CommandEcho += (Data) => { Serilog.Log.Information(Data);};
+			Repository.Connection.CommandEcho += (Data) => { Serilog.Log.Information("Perforce: " + Data); };
 
 			return Repository;
 
@@ -261,7 +296,6 @@ namespace HordeServer.Services
 			P4.Client? Client = null;
 			P4.Changelist? Changelist = null;
 
-			string? ClientPort = null;
 			string? ClientHost = null;
 
 			if (ClientFromChange.HasValue)
@@ -280,31 +314,6 @@ namespace HordeServer.Services
 					throw new Exception($"Unable to get client for id {Changelist.ClientId}");
 				}
 
-				if (UsePortFromChange)
-				{
-					if (!Client.Name.StartsWith("horde-p4bridge-", StringComparison.OrdinalIgnoreCase))
-					{
-						using (P4.P4Command Cmd = new P4.P4Command(Repository, "info", true))
-						{
-							P4.P4CommandResult Results = Cmd.Run();
-
-							if (!Results.Success)
-							{
-								throw new Exception("Unable to get server info");
-							}
-
-							P4.TaggedObject? Tag = Results.TaggedOutput.Find(T => T.ContainsKey("changeServer"));
-
-							if (Tag != null)
-							{
-								if (!Tag.TryGetValue("changeServer", out ClientPort))
-								{
-									throw new Exception("Unable to get change server from tagged server info output");
-								}
-							}
-						}
-					}
-				}
 
 				Stream = Client.Stream;
 				Username = Client.OwnerName;
@@ -586,7 +595,7 @@ namespace HordeServer.Services
 					throw new Exception($"Unable to get shelved changelist client id for delete: {ShelvedChange}");
 				}
 
-				using (P4.Repository ClientRepository = GetConnection(Changelist.Stream, Changelist.OwnerName, ClientId: ClientId))
+				using (P4.Repository ClientRepository = GetConnection(Changelist.Stream, Changelist.OwnerName, ClientId: ClientId, UseClientFromChange: true, UsePortFromChange: true))
 				{
 
 					if (Changelist.Shelved)
@@ -612,10 +621,10 @@ namespace HordeServer.Services
 
 				// the client must exist for the change list, otherwise will fail (for example, CreateNewChangeAsync deletes the client before returning)
 				using (P4.Repository UpdateRepository = GetConnection(ClientFromChange: Change, UseClientFromChange: true, Username: Changelist.OwnerName))
-				{					
-					P4.Changelist UpdatedChangelist = UpdateRepository.GetChangelist(Change);		
+				{
+					P4.Changelist UpdatedChangelist = UpdateRepository.GetChangelist(Change);
 					UpdatedChangelist.Description = Description;
-					UpdateRepository.UpdateChangelist(UpdatedChangelist);					
+					UpdateRepository.UpdateChangelist(UpdatedChangelist);
 				}
 			}
 		}
@@ -860,13 +869,13 @@ namespace HordeServer.Services
 							}
 
 							int? SubmittedChangeId = null;
-							
+
 							foreach (P4.TaggedObject TaggedObject in Result.TaggedOutput)
 							{
 								string? Submitted;
 								if (TaggedObject.TryGetValue("submittedChange", out Submitted))
 								{
-									SubmittedChangeId = int.Parse(Submitted, CultureInfo.InvariantCulture);									
+									SubmittedChangeId = int.Parse(Submitted, CultureInfo.InvariantCulture);
 								}
 							}
 
@@ -875,7 +884,7 @@ namespace HordeServer.Services
 								throw new Exception($"Unable to get submitted changelist");
 							}
 
-							return (SubmittedChangeId, Changelist.Description);							
+							return (SubmittedChangeId, Changelist.Description);
 
 						}
 					}
