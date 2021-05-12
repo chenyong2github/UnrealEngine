@@ -7,6 +7,63 @@
 #include "Misc/PackageName.h"
 #include "UObject/ErrorException.h"
 
+namespace
+{
+	/**
+	 * As part of the singleton name, collect the parent chain names
+	 */
+	static void AddOuterNames(FUHTStringBuilder& Out, UObject* Outer)
+	{
+		if (Outer == nullptr)
+		{
+			return;
+		}
+
+		if (Cast<UClass>(Outer) || Cast<UScriptStruct>(Outer))
+		{
+			// Structs can also have UPackage outer.
+			if (!Outer->IsA<UClass>() && !Outer->GetOuter()->IsA<UPackage>())
+			{
+				AddOuterNames(Out, Outer->GetOuter());
+			}
+			Out.Append(TEXT("_"));
+			Out.Append(FNameLookupCPP::GetNameCPP(Cast<UStruct>(Outer)));
+		}
+		else if (UPackage* Package = Cast<UPackage>(Outer))
+		{
+			Out.Append(TEXT("_"));
+			Out.Append(FPackageName::GetShortName(Outer->GetName()));
+		}
+		else
+		{
+			AddOuterNames(Out, Outer->GetOuter());
+			Out.Append(TEXT("_"));
+			Out.Append(Outer->GetName());
+		}
+	}
+
+	/**
+	 * Generates singleton name.
+	 */
+	static void GenerateSingletonName(FUHTStringBuilder& Out, UField* Item, bool bRequiresValidObject)
+	{
+		check(Item);
+
+		Out.Append(TEXT("Z_Construct_"));
+		Out.Append(FNameLookupCPP::GetNameCPP(Item->GetClass()));
+		AddOuterNames(Out, Item);
+
+		if (UClass* ItemClass = Cast<UClass>(Item))
+		{
+			if (!bRequiresValidObject && !ItemClass->HasAllClassFlags(CLASS_Intrinsic))
+			{
+				Out.Append(TEXT("_NoRegister"));
+			}
+		}
+		Out.Append(TEXT("()"));
+	}
+}
+
 FUnrealPropertyDefinitionInfo* FUnrealTypeDefinitionInfo::AsProperty()
 {
 	return nullptr;
@@ -97,6 +154,58 @@ void FUnrealTypeDefinitionInfo::GetHashTag(FUHTStringBuilder& Out) const
 		else
 		{
 			Out.Appendf(TEXT(" %u"), TempHash);
+		}
+	}
+}
+
+void FUnrealPackageDefinitionInfo::PostParseFinalize()
+{
+	UPackage* Package = GetPackage();
+
+	FString PackageName = Package->GetName();
+	PackageName.ReplaceInline(TEXT("/"), TEXT("_"), ESearchCase::CaseSensitive);
+
+	SingletonName.Appendf(TEXT("Z_Construct_UPackage_%s()"), *PackageName);
+	SingletonNameChopped = SingletonName.LeftChop(2);
+	ExternDecl.Appendf(TEXT("\tUPackage* %s;\r\n"), *SingletonName);
+}
+
+void FUnrealPackageDefinitionInfo::AddCrossModuleReference(TSet<FString>* UniqueCrossModuleReferences) const
+{
+	if (UniqueCrossModuleReferences)
+	{
+		UniqueCrossModuleReferences->Add(GetExternDecl());
+	}
+}
+
+void FUnrealFieldDefinitionInfo::PostParseFinalize()
+{
+	const TCHAR* TypeStr = GetSimplifiedTypeClass();
+	UField* Field = GetField();
+	FString PackageShortName = FPackageName::GetShortName(Field->GetOutermost()).ToUpper();
+
+	FUHTStringBuilder Out;
+	GenerateSingletonName(Out, Field, false);
+	ExternDecl[0].Appendf(TEXT("\t%s_API %s* %s;\r\n"), *PackageShortName, TypeStr, *Out);
+	SingletonName[0] = Out;
+	SingletonNameChopped[0] = SingletonName[0].LeftChop(2);
+
+	Out.Reset();
+	GenerateSingletonName(Out, Field, true);
+	ExternDecl[1].Appendf(TEXT("\t%s_API %s* %s;\r\n"), *PackageShortName, TypeStr, *Out);
+	SingletonName[1] = Out;
+	SingletonNameChopped[1] = SingletonName[1].LeftChop(2);
+}
+
+void FUnrealFieldDefinitionInfo::AddCrossModuleReference(TSet<FString>* UniqueCrossModuleReferences, bool bRequiresValidObject) const
+{
+	// We don't need to export UFunction externs, though we may need the externs for UDelegateFunctions
+	if (UniqueCrossModuleReferences)
+	{
+		UField* Field = GetField();
+		if (!Field->IsA<UFunction>() || Field->IsA<UDelegateFunction>())
+		{
+			UniqueCrossModuleReferences->Add(GetExternDecl(bRequiresValidObject));
 		}
 	}
 }

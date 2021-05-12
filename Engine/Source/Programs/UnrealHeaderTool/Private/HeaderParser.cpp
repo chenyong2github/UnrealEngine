@@ -7385,7 +7385,7 @@ UDelegateFunction* FHeaderParser::CompileDelegateDeclaration(const TCHAR* Delega
 	FuncInfo.MacroLine = InputLine;
 	TSharedRef<FUnrealFunctionDefinitionInfo> FuncDef = MakeShareable(new FUnrealFunctionDefinitionInfo(SourceFile, InputLine, FString(FuncInfoFunctionIdentifier), MoveTemp(FuncInfo)));
 	FuncDef->SetObject(FuncDef->GetFunctionData().FunctionReference);
-	GTypeDefinitionInfoMap.Add(FuncDef->GetFunctionData().FunctionReference, MoveTemp(FuncDef));
+	GTypeDefinitionInfoMap.Add(FuncDef->GetFunctionData().FunctionReference, FuncDef);
 
 	// Create the return value property
 	if (bHasReturnValue)
@@ -7824,7 +7824,7 @@ void FHeaderParser::CompileFunctionDeclaration()
 
 	TSharedRef<FUnrealFunctionDefinitionInfo> FuncDef = MakeShareable(new FUnrealFunctionDefinitionInfo(SourceFile, InputLine, FString(FuncInfo.Function.Identifier), FFuncInfo(FuncInfo)));
 	FuncDef->SetObject(FuncDef->GetFunctionData().FunctionReference);
-	GTypeDefinitionInfoMap.Add(FuncDef->GetFunctionData().FunctionReference, MoveTemp(FuncDef));
+	GTypeDefinitionInfoMap.Add(FuncDef->GetFunctionData().FunctionReference, FuncDef);
 	if (FuncInfo.FunctionReference->HasAnyFunctionFlags(FUNC_Delegate))
 	{
 		GetCurrentClassData()->MarkContainsDelegate();
