@@ -33,7 +33,7 @@ static const TArray<FString>& GetDataDrivenIniFilenames()
 	{
 		bHasSearchedForFiles = true;
 
-		// look for the special files in any congfig subdirectories
+		// look for the special files in any config subdirectories
 		IFileManager::Get().FindFilesRecursive(DataDrivenIniFilenames, *FPaths::EngineConfigDir(), TEXT("DataDrivenPlatformInfo.ini"), true, false);
 
 		// manually look through the platform directories - we can't use GetExtensionDirs(), since that function uses the results of this function 
@@ -43,6 +43,18 @@ static const TArray<FString>& GetDataDrivenIniFilenames()
 		for (const FString& PlatformDir : PlatformDirs)
 		{
 			FString IniPath = FPaths::Combine(FPaths::EnginePlatformExtensionsDir(), PlatformDir, TEXT("Config/DataDrivenPlatformInfo.ini"));
+			if (IFileManager::Get().FileExists(*IniPath))
+			{
+				DataDrivenIniFilenames.Add(IniPath);
+			}
+		}
+
+		// look for the special files in any project config subdirectories
+		TArray<FString> ProjectPlatformDirs;
+		IFileManager::Get().FindFiles(ProjectPlatformDirs, *FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("*")), false, true);
+		for (const FString& PlatformDir : ProjectPlatformDirs)
+		{
+			FString IniPath = FPaths::Combine(FPaths::ProjectPlatformExtensionsDir(), PlatformDir, TEXT("Config/DataDrivenPlatformInfo.ini"));
 			if (IFileManager::Get().FileExists(*IniPath))
 			{
 				DataDrivenIniFilenames.Add(IniPath);
@@ -75,6 +87,10 @@ bool FDataDrivenPlatformInfoRegistry::LoadDataDrivenIniFile(int32 Index, FConfig
 
 		// platform extension paths are different (engine/platforms/platform/config, not engine/config/platform)
 		if (IniFilenames[Index].StartsWith(FPaths::EnginePlatformExtensionsDir()))
+		{
+			PlatformName = FPaths::GetCleanFilename(FPaths::GetPath(FPaths::GetPath(IniFilenames[Index])));
+		}
+		else if (IniFilenames[Index].StartsWith(FPaths::ProjectPlatformExtensionsDir()))
 		{
 			PlatformName = FPaths::GetCleanFilename(FPaths::GetPath(FPaths::GetPath(IniFilenames[Index])));
 		}
@@ -354,7 +370,7 @@ const TMap<FName, FDataDrivenPlatformInfo>& FDataDrivenPlatformInfoRegistry::Get
 			if (IniFile.Contains(TEXT("DataDrivenPlatformInfo")))
 			{
 				// cache info
-				FDataDrivenPlatformInfo& Info = DataDrivenPlatforms.Add(PlatformName, FDataDrivenPlatformInfo());
+				FDataDrivenPlatformInfo& Info = DataDrivenPlatforms.FindOrAdd(PlatformName, FDataDrivenPlatformInfo());
 				LoadDDPIIniSettings(IniFile, Info, PlatformName);
 
 				// get the parent to build list later

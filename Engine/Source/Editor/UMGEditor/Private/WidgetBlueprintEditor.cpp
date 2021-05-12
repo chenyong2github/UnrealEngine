@@ -1470,7 +1470,7 @@ void FWidgetBlueprintEditor::RemoveWidgetsFromTrack(const TArray<FWidgetReferenc
 			UWidget* PreviewWidget = Widget.GetPreview();
 			WidgetAnimation->RemoveBinding(*PreviewWidget);
 
-			Sequencer->RestorePreAnimatedState(*PreviewWidget);
+			Sequencer->PreAnimatedState.RestorePreAnimatedState(*PreviewWidget);
 		}
 
 		UpdateTrackName(ObjectId);
@@ -1497,7 +1497,7 @@ void FWidgetBlueprintEditor::RemoveAllWidgetsFromTrack(FGuid ObjectId)
 	{
 		if (UObject* Obj = WeakObject.Get())
 		{
-			Sequencer->RestorePreAnimatedState(*Obj);
+			Sequencer->PreAnimatedState.RestorePreAnimatedState(*Obj);
 		}
 	}
 

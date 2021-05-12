@@ -4,7 +4,7 @@
 #include "Layout/LayoutUtils.h"
 
 SWrapBox::SWrapBox()
-: Slots(this)
+	: Slots(this)
 {
 }
 
@@ -22,16 +22,7 @@ SWrapBox::FSlot& SWrapBox::AddSlot()
 
 int32 SWrapBox::RemoveSlot( const TSharedRef<SWidget>& SlotWidget )
 {
-	for (int32 SlotIdx = 0; SlotIdx < Slots.Num(); ++SlotIdx)
-	{
-		if ( SlotWidget == Slots[SlotIdx].GetWidget() )
-		{
-			Slots.RemoveAt(SlotIdx);
-			return SlotIdx;
-		}
-	}
-
-	return -1;
+	return Slots.Remove(SlotWidget);
 }
 
 void SWrapBox::Construct( const FArguments& InArgs )
@@ -47,6 +38,7 @@ void SWrapBox::Construct( const FArguments& InArgs )
 	InnerSlotPadding = InArgs._InnerSlotPadding;
 	bUseAllottedSize = InArgs._UseAllottedSize || InArgs._UseAllottedWidth;
 	Orientation = InArgs._Orientation;
+	HAlign = InArgs._HAlign;
 
 	// Copy the children from the declaration to the widget
 	for ( int32 ChildIndex=0; ChildIndex < InArgs.Slots.Num(); ++ChildIndex )
@@ -75,6 +67,8 @@ public:
 	{
 		FVector2D SlotOffset;
 		FVector2D SlotSize;
+		float WidthOfCurrentLine;
+		int ChildIndexRelativeToLine;
 	};
 
 	typedef TFunctionRef<void(const FSlot& Slot, const FArrangementData& ArrangementData)> FOnSlotArranged;
@@ -90,6 +84,7 @@ private:
 	const FOnSlotArranged& OnSlotArranged;
 	FVector2D Offset;
 	float MaximumSizeInCurrentLine;
+	float WidthOfCurrentLine;
 	int32 IndexOfFirstChildInCurrentLine;
 	TMap<int32, FArrangementData> OngoingArrangementDataMap;
 };
@@ -100,6 +95,7 @@ SWrapBox::FChildArranger::FChildArranger(const SWrapBox& InWrapBox, const FOnSlo
 	, OnSlotArranged(InOnSlotArranged)
 	, Offset(FVector2D::ZeroVector)
 	, MaximumSizeInCurrentLine(0.0f)
+	, WidthOfCurrentLine(0.0f)
 	, IndexOfFirstChildInCurrentLine(INDEX_NONE)
 {
 	OngoingArrangementDataMap.Reserve(WrapBox.Slots.Num());
@@ -153,8 +149,15 @@ void SWrapBox::FChildArranger::Arrange()
 		// Rule: If this child is not the first child in the line, "inner slot padding" needs to be injected left or top of it, dependently of the orientation.
 		if (!IsFirstChildInCurrentLine())
 		{
-			Offset.Y += ((WrapBox.Orientation == EOrientation::Orient_Vertical) * WrapBox.InnerSlotPadding.Y);
-			Offset.X += ((WrapBox.Orientation == EOrientation::Orient_Horizontal) * WrapBox.InnerSlotPadding.X);
+			if (WrapBox.Orientation == EOrientation::Orient_Horizontal)
+			{
+				Offset.X += WrapBox.InnerSlotPadding.X;
+				WidthOfCurrentLine += WrapBox.InnerSlotPadding.X;
+			}
+			else
+			{
+				Offset.Y += WrapBox.InnerSlotPadding.Y;
+			}
 		}
 
 		const FVector2D DesiredSizeOfSlot = Slot.GetPadding().GetDesiredSize() + Widget->GetDesiredSize();
@@ -247,6 +250,7 @@ void SWrapBox::FChildArranger::Arrange()
 
 			// Update current line maximum size.
 			MaximumSizeInCurrentLine = FMath::Max(MaximumSizeInCurrentLine, ArrangementData.SlotSize.Y);
+			WidthOfCurrentLine += ArrangementData.SlotSize.X;
 
 			// Update offset to right bound of child.
 			Offset.X = ArrangementData.SlotOffset.X + ArrangementData.SlotSize.X;
@@ -271,6 +275,14 @@ void SWrapBox::FChildArranger::FinalizeLine(int32 IndexOfLastChildInCurrentLine)
 		}
 	}
 
+	// If we're doing this on a line where we fill the empty space,
+	// the widget of the current line will just be the whole line.
+	if (WrapBox.Slots.IsValidIndex(IndexOfLastChildInCurrentLine) && WrapBox.Slots[IndexOfLastChildInCurrentLine].bSlotFillEmptySpace)
+	{
+		WidthOfCurrentLine = WrapBox.PreferredSize.Get();
+	}
+
+	int32 RelativeChildIndex = 0;
 	// Now iterate forward so tab navigation works properly
 	for (int32 ChildIndex = IndexOfFirstChildInCurrentLine; ChildIndex <= IndexOfLastChildInCurrentLine; ++ChildIndex)
 	{
@@ -284,6 +296,10 @@ void SWrapBox::FChildArranger::FinalizeLine(int32 IndexOfLastChildInCurrentLine)
 		}
 
 		FArrangementData& ArrangementData = OngoingArrangementDataMap[ChildIndex];
+		ArrangementData.ChildIndexRelativeToLine = RelativeChildIndex;
+		ArrangementData.WidthOfCurrentLine = WidthOfCurrentLine;
+
+		RelativeChildIndex++;
 
 		// Rule: The last uncollapsed child in a line may request to fill the remaining empty space in the line.
 		if (ChildIndex == IndexOfLastChildInCurrentLine && Slot.bSlotFillEmptySpace)
@@ -330,6 +346,7 @@ void SWrapBox::FChildArranger::FinalizeLine(int32 IndexOfLastChildInCurrentLine)
 		Offset.Y += MaximumSizeInCurrentLine + WrapBox.InnerSlotPadding.Y;
 	}
 
+	WidthOfCurrentLine = 0;
 	MaximumSizeInCurrentLine = 0.0f;
 	IndexOfFirstChildInCurrentLine = INDEX_NONE;
 }
@@ -341,17 +358,48 @@ void SWrapBox::FChildArranger::Arrange(const SWrapBox& WrapBox, const FOnSlotArr
 
 void SWrapBox::OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const
 {
+	const EHorizontalAlignment HAlignment = HAlign.Get();
+	
+	float LeftStop = 0;
 	FChildArranger::Arrange(*this, [&](const FSlot& Slot, const FChildArranger::FArrangementData& ArrangementData)
 	{
+		FVector2D AllottedSlotSize = ArrangementData.SlotSize;
+		float SlotSizeAdjustment = 0;
+		if (Orientation == EOrientation::Orient_Horizontal)
+		{
+			// Reset leftstop when the line changes.
+			if (ArrangementData.ChildIndexRelativeToLine == 0)
+			{
+				LeftStop = 0;
+			}
+
+			switch (HAlignment)
+			{
+			case HAlign_Right:
+				LeftStop = FMath::FloorToFloat(AllottedGeometry.GetLocalSize().X - ArrangementData.WidthOfCurrentLine);
+				break;
+			case HAlign_Center:
+				LeftStop = FMath::FloorToFloat((AllottedGeometry.GetLocalSize().X - ArrangementData.WidthOfCurrentLine) / 2.0f);
+				break;
+			case HAlign_Fill:
+				const float NewSlotSize = AllottedSlotSize.X / ArrangementData.WidthOfCurrentLine * AllottedGeometry.GetLocalSize().X;
+				SlotSizeAdjustment = NewSlotSize - AllottedSlotSize.X;
+				AllottedSlotSize.X = NewSlotSize;
+				break;
+			}
+		}
+
 		// Calculate offset and size in slot using alignment.
-		const AlignmentArrangeResult XResult = AlignChild<Orient_Horizontal>(ArrangementData.SlotSize.X, Slot, Slot.GetPadding());
-		const AlignmentArrangeResult YResult = AlignChild<Orient_Vertical>(ArrangementData.SlotSize.Y, Slot, Slot.GetPadding());
+		const AlignmentArrangeResult XResult = AlignChild<Orient_Horizontal>(AllottedSlotSize.X, Slot, Slot.GetPadding());
+		const AlignmentArrangeResult YResult = AlignChild<Orient_Vertical>(AllottedSlotSize.Y, Slot, Slot.GetPadding());
 
 		// Note: Alignment offset is relative to slot offset.
-		const FVector2D PostAlignmentOffset = ArrangementData.SlotOffset + FVector2D(XResult.Offset, YResult.Offset);
+		const FVector2D PostAlignmentOffset = ArrangementData.SlotOffset + FVector2D(XResult.Offset, YResult.Offset) + FVector2D(LeftStop, 0);
 		const FVector2D PostAlignmentSize = FVector2D(XResult.Size, YResult.Size);
 
 		ArrangedChildren.AddWidget(AllottedGeometry.MakeChild(Slot.GetWidget(), PostAlignmentOffset, PostAlignmentSize));
+
+		LeftStop += SlotSizeAdjustment;
 	});
 }
 
@@ -381,30 +429,51 @@ FChildren* SWrapBox::GetChildren()
 
 void SWrapBox::SetInnerSlotPadding(FVector2D InInnerSlotPadding)
 {
-	InnerSlotPadding = InInnerSlotPadding;
+	if (InnerSlotPadding != InInnerSlotPadding)
+	{
+		InnerSlotPadding = InInnerSlotPadding;
+		Invalidate(EInvalidateWidgetReason::Layout);
+	}
 }
 
 void SWrapBox::SetWrapWidth(const TAttribute<float>& InWrapWidth)
 {
-	PreferredSize = InWrapWidth;
+	SetAttribute(PreferredSize, InWrapWidth, EInvalidateWidgetReason::Layout);
 }
 
 void SWrapBox::SetWrapSize(const TAttribute<float>& InWrapSize)
 {
-	PreferredSize = InWrapSize;
+	SetAttribute(PreferredSize, InWrapSize, EInvalidateWidgetReason::Layout);
 }
 
 void SWrapBox::SetUseAllottedWidth(bool bInUseAllottedWidth)
 {
-	bUseAllottedSize = bInUseAllottedWidth;
+	if (bUseAllottedSize != bInUseAllottedWidth)
+	{
+		bUseAllottedSize = bInUseAllottedWidth;
+		Invalidate(EInvalidateWidgetReason::Layout);
+	}
 }
 
 void SWrapBox::SetUseAllottedSize(bool bInUseAllottedSize)
 {
-	bUseAllottedSize = bInUseAllottedSize;
+	if (bUseAllottedSize != bInUseAllottedSize)
+	{
+		bUseAllottedSize = bInUseAllottedSize;
+		Invalidate(EInvalidateWidgetReason::Layout);
+	}
 }
 
 void SWrapBox::SetOrientation(EOrientation InOrientation)
 {
-	Orientation = InOrientation;
+	if (Orientation != InOrientation)
+	{
+		Orientation = InOrientation;
+		Invalidate(EInvalidateWidgetReason::Layout);
+	}
+}
+
+void SWrapBox::SetHorizontalAlignment(TAttribute<EHorizontalAlignment> InHAlignment)
+{
+	SetAttribute(HAlign, InHAlignment, EInvalidateWidgetReason::Layout);
 }

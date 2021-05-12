@@ -81,23 +81,58 @@ public:
 class FNiagaraEmptyTextureSRV : public FRenderResource
 {
 public:
-	FNiagaraEmptyTextureSRV(EPixelFormat InPixelFormat, const FString& InDebugName) : PixelFormat(InPixelFormat), DebugName(InDebugName) {}
+	enum ETextureType
+	{
+		Texture2D,
+		Texture2DArray,
+		Texture3D
+	};
+
+	FNiagaraEmptyTextureSRV(EPixelFormat InPixelFormat, const FString& InDebugName, ETextureType InType) : PixelFormat(InPixelFormat), DebugName(InDebugName), Type(InType) {}
 	EPixelFormat PixelFormat;
 	FString DebugName;
-	FTexture2DRHIRef Texture;
+	ETextureType Type;
+	FTextureRHIRef Texture;
 	FShaderResourceViewRHIRef SRV;
 
 	virtual void InitRHI() override
 	{
 		// Create a 1x1 texture.
 		FRHIResourceCreateInfo CreateInfo(*DebugName);
-		Texture = RHICreateTexture2D(1, 1, PixelFormat, 1, 1, TexCreate_ShaderResource, CreateInfo);
 
-		// Zero the texture memory (there's only 1 row, so we can use the stride).
 		uint32 Stride;
-		void* Pixels = RHILockTexture2D(Texture, 0, RLM_WriteOnly, Stride, false);
-		FMemory::Memset(Pixels, 0, Stride);
-		RHIUnlockTexture2D(Texture, 0, false);
+		switch (Type)
+		{
+			case Texture2D:
+			{
+				FTexture2DRHIRef Tex2D = RHICreateTexture2D(1, 1, PixelFormat, 1, 1, TexCreate_ShaderResource, CreateInfo);
+				void* Pixels = RHILockTexture2D(Tex2D, 0, RLM_WriteOnly, Stride, false);
+				FMemory::Memset(Pixels, 0, Stride);
+				RHIUnlockTexture2D(Tex2D, 0, 0, false);
+				Texture = Tex2D;
+				break;
+			}
+
+			case Texture2DArray:
+			{
+				FTexture2DArrayRHIRef Tex2DArray = RHICreateTexture2DArray(1, 1, 1, PixelFormat, 1, 1, TexCreate_ShaderResource, CreateInfo);
+				void* Pixels = RHILockTexture2DArray(Tex2DArray, 0, 0, RLM_WriteOnly, Stride, false);
+				FMemory::Memset(Pixels, 0, Stride);
+				RHIUnlockTexture2DArray(Tex2DArray, 0, 0, false);
+				Texture = Tex2DArray;
+				break;
+			}
+
+			case Texture3D:
+			{
+				Texture = RHICreateTexture3D(1, 1, 1, PixelFormat, 1, TexCreate_ShaderResource, CreateInfo);
+				break;
+			}
+
+			default:
+				checkNoEntry();
+				return;
+		}
 
 		SRV = RHICreateShaderResourceView(Texture, 0);
 	}
@@ -162,8 +197,22 @@ FRHIShaderResourceView* FNiagaraRenderer::GetDummyUInt4Buffer()
 FRHIShaderResourceView* FNiagaraRenderer::GetDummyTextureReadBuffer2D()
 {
 	check(IsInRenderingThread());
-	static TGlobalResource<FNiagaraEmptyTextureSRV> DummyTextureReadBuffer2D(PF_R32_FLOAT, TEXT("NiagaraRenderer::DummyTextureReadBuffer2D"));
+	static TGlobalResource<FNiagaraEmptyTextureSRV> DummyTextureReadBuffer2D(PF_R32_FLOAT, TEXT("NiagaraRenderer::DummyTextureReadBuffer2D"), FNiagaraEmptyTextureSRV::Texture2D);
 	return DummyTextureReadBuffer2D.SRV;
+}
+
+FRHIShaderResourceView* FNiagaraRenderer::GetDummyTextureReadBuffer2DArray()
+{
+	check(IsInRenderingThread());
+	static TGlobalResource<FNiagaraEmptyTextureSRV> DummyTextureReadBuffer2DArray(PF_R32_FLOAT, TEXT("NiagaraRenderer::DummyTextureReadBuffer2DArray"), FNiagaraEmptyTextureSRV::Texture2DArray);
+	return DummyTextureReadBuffer2DArray.SRV;
+}
+
+FRHIShaderResourceView* FNiagaraRenderer::GetDummyTextureReadBuffer3D()
+{
+	check(IsInRenderingThread());
+	static TGlobalResource<FNiagaraEmptyTextureSRV> DummyTextureReadBuffer3D(PF_R32_FLOAT, TEXT("NiagaraRenderer::DummyTextureReadBuffer3D"), FNiagaraEmptyTextureSRV::Texture3D);
+	return DummyTextureReadBuffer3D.SRV;
 }
 
 FRHIShaderResourceView* FNiagaraRenderer::GetDummyHalfBuffer()

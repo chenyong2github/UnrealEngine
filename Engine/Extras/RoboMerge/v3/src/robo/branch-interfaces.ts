@@ -189,3 +189,20 @@ export interface ForcedCl {
 	culprit: string
 	reason: string
 }
+
+export type GateInfo = {
+	cl: number
+	link?: string
+	date?: Date
+}
+
+export type BeginIntegratingToGateEvent = {
+	from: Branch
+	to: Branch
+	info: GateInfo
+}
+
+export type EndIntegratingToGateEvent = {
+	from: Branch
+	to: Branch
+}

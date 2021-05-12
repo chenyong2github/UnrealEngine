@@ -93,7 +93,12 @@ FDMXEntityFixtureTypeRef::FDMXEntityFixtureTypeRef(UDMXEntityFixtureType* InFixt
 
 UDMXEntityFixtureType* FDMXEntityFixtureTypeRef::GetFixtureType() const
 {
-	return Cast<UDMXEntityFixtureType>(GetEntity());
+	if (!CachedEntityFixtureType.IsValid())
+	{
+		CachedEntityFixtureType = Cast<UDMXEntityFixtureType>(GetEntity());
+	}
+
+	return CachedEntityFixtureType.Get();
 }
 
 FDMXEntityFixturePatchRef::FDMXEntityFixturePatchRef()
@@ -107,7 +112,12 @@ FDMXEntityFixturePatchRef::FDMXEntityFixturePatchRef(UDMXEntityFixturePatch* InF
 
 UDMXEntityFixturePatch* FDMXEntityFixturePatchRef::GetFixturePatch() const
 {
-	return Cast<UDMXEntityFixturePatch>(GetEntity());
+	if (!CachedEntityFixturePatch.IsValid())
+	{
+		CachedEntityFixturePatch = Cast<UDMXEntityFixturePatch>(GetEntity());
+	}
+
+	return CachedEntityFixturePatch.Get();
 }
 
 //~ Type conversions extension for Entity Reference structs

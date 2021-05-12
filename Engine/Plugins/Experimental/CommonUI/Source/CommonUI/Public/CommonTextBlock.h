@@ -154,6 +154,9 @@ private:
 	TWeakObjectPtr<const UCommonTextScrollStyle> ScrollStyle;
 };
 
+/**
+ * Text block with automatic scrolling for FX / large texts, also supports a larger set of default styling, & custom mobile scaling.
+ */
 UCLASS(Config = CommonUI, DefaultConfig, ClassGroup = UI, meta = (Category = "Common UI", DisplayName = "Common Text"))
 class COMMONUI_API UCommonTextBlock : public UTextBlock
 {

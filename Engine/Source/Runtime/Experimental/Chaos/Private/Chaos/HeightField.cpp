@@ -579,7 +579,7 @@ namespace Chaos
 
 	uint8 Chaos::FHeightField::GetMaterialIndex(int32 InX, int32 InY) const
 	{
-		const int32 Index = InY * GeomData.NumCols + InX;
+		const int32 Index = InY * (GeomData.NumCols - 1) + InX;
 		return GetMaterialIndex(Index);
 	}
 

@@ -15,15 +15,6 @@ class IAssetTools;
 class IAssetTypeActions;
 
 
-/** Names of tabs in the DMX Editor */
-class FDMXEditorTabNames
-{
-public:
-	static const FName ChannelsMonitorTabName;
-	static const FName ActivityMonitorTabName;
-	static const FName OutputConsoleTabName;
-};
-
 /**
  * Implements the DMX Editor Module.
  */
@@ -113,22 +104,28 @@ protected:
 
 private:
 	/** Called when the nomad tab spawner tries to spawn a channels monitor tab */
-	TSharedRef<class SDockTab> OnSpawnChannelsMonitorTab(const class FSpawnTabArgs& InSpawnTabArgs);
+	static TSharedRef<class SDockTab> OnSpawnChannelsMonitorTab(const class FSpawnTabArgs& InSpawnTabArgs);
 
 	/** Called when the nomad tab spawner tries to spawn an activity monitor tab */
-	TSharedRef<class SDockTab> OnSpawnActivityMonitorTab(const class FSpawnTabArgs& InSpawnTabArgs);
+	static TSharedRef<class SDockTab> OnSpawnActivityMonitorTab(const class FSpawnTabArgs& InSpawnTabArgs);
 
 	/** Called when the nomad tab spawner tries to spawn an output console tab */
-	TSharedRef<class SDockTab> OnSpawnOutputConsoleTab(const class FSpawnTabArgs& InSpawnTabArgs);
+	static TSharedRef<class SDockTab> OnSpawnOutputConsoleTab(const class FSpawnTabArgs& InSpawnTabArgs);
 
-	/** Called when Open Channels Montior menu command is selected */
-	void OnOpenChannelsMonitor();
+	/** Called when the nomad tab spawner tries to spawn a patch tool tab */
+	static TSharedRef<class SDockTab> OnSpawnPatchToolTab(const class FSpawnTabArgs& InSpawnTabArgs);
 
-	/** Called when Open Universe Montior menu command is selected */
-	void OnOpenActivityMonitor();
+	/** Called when Open Channels Montior command is selected */
+	static void OnOpenChannelsMonitor();
 
-	/** Called when Open Output Console menu command is selected */
-	void OnOpenOutputConsole();
+	/** Called when Open Universe Montior command is selected */
+	static void OnOpenActivityMonitor();
+
+	/** Called when Open Output Console command is selected */
+	static void OnOpenOutputConsole();
+
+	/** Called when Open Patch Tool command is selected */
+	static void OnOpenPatchTool();
 
 	/** Called when the Toggle Receive DMX menu command is selected */
 	static void OnToggleSendDMX();

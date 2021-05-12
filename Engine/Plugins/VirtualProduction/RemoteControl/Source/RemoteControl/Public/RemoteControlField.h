@@ -197,8 +197,10 @@ public:
 	/**
 	 * The exposed function.
 	 */
-	UPROPERTY(BlueprintReadOnly, Category = "RemoteControlEntity")
-	mutable UFunction* Function = nullptr;
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	mutable UFunction* Function_DEPRECATED = nullptr;
+#endif
 
 	/**
 	 * The function arguments.

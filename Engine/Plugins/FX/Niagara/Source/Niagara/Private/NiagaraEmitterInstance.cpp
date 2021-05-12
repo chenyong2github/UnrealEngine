@@ -254,9 +254,22 @@ bool FNiagaraEmitterInstance::IsAllowedToExecute() const
 		}
 	}
 
-	// TODO: fall back to CPU sim instead once we have scalability functionality to do so
-	return (CachedEmitter->SimTarget != ENiagaraSimTarget::GPUComputeSim
-		|| (Batcher && FNiagaraUtilities::AllowGPUParticles(Batcher->GetShaderPlatform())));
+	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+	{
+		//-TODO: Could replace with CPU side sim in some cases
+		if ( !Batcher || !FNiagaraUtilities::AllowGPUParticles(Batcher->GetShaderPlatform()) )
+		{
+			return false;
+		}
+
+		// Don't allow deprecated shader stages to run
+		if ( CachedEmitter->bDeprecatedShaderStagesEnabled )
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID InSystemInstanceID)
@@ -408,8 +421,7 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 		{
 			GPUExecContext = new FNiagaraComputeExecutionContext();
-			const uint32 MaxUpdateIterations = CachedEmitter->bDeprecatedShaderStagesEnabled ? CachedEmitter->MaxUpdateIterations : 1;
-			GPUExecContext->InitParams(CachedEmitter->GetGPUComputeScript(), CachedEmitter->SimTarget, CachedEmitter->DefaultShaderStageIndex, MaxUpdateIterations, CachedEmitter->SpawnStages);
+			GPUExecContext->InitParams(CachedEmitter->GetGPUComputeScript(), CachedEmitter->SimTarget);
 			GPUExecContext->SetDebugSimName(CachedEmitter->GetDebugSimName());
 #if STATS
 			GPUExecContext->EmitterPtr = GetEmitterHandle().GetInstance();

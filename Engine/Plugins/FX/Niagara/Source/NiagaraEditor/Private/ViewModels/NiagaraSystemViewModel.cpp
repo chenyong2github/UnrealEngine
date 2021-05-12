@@ -7,6 +7,7 @@
 #include "NiagaraEmitterEditorData.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraSimulationStageBase.h"
+#include "NiagaraEditorData.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraDataInterfaceCurveBase.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
@@ -17,6 +18,7 @@
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
+#include "ViewModels/NiagaraPlaceholderDataInterfaceManager.h"
 #include "NiagaraSystemScriptViewModel.h"
 #include "NiagaraScriptGraphViewModel.h"
 #include "NiagaraSequence.h"
@@ -33,6 +35,7 @@
 #include "EdGraphSchema_NiagaraSystemOverview.h"
 #include "EdGraphUtilities.h"
 #include "ViewModels/NiagaraScratchPadUtilities.h"
+#include "NiagaraParameterDefinitions.h"
 
 #include "Editor.h"
 
@@ -52,6 +55,8 @@
 #include "NiagaraMessageUtilities.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "Framework/Application/SlateApplication.h"
+#include "NiagaraScriptVariable.h"
+#include "NiagaraParameterDefinitionsSubscriber.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - SystemViewModel - CompileSystem"), STAT_NiagaraEditor_SystemViewModel_CompileSystem, STATGROUP_NiagaraEditor);
 
@@ -121,6 +126,8 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 
 	CurveSelectionViewModel = NewObject<UNiagaraCurveSelectionViewModel>(GetTransientPackage());
 	CurveSelectionViewModel->Initialize(this->AsShared());
+
+	PlaceholderDataInterfaceManager = MakeShared<FNiagaraPlaceholderDataInterfaceManager>(this->AsShared());
 
 	SetupPreviewComponentAndInstance();
 	SetupSequencer();
@@ -216,6 +223,11 @@ void FNiagaraSystemViewModel::Cleanup()
 		CurveSelectionViewModel = nullptr;
 	}
 
+	if (PlaceholderDataInterfaceManager.IsValid())
+	{
+		PlaceholderDataInterfaceManager.Reset();
+	}
+
 	System = nullptr;
 }
 
@@ -226,12 +238,24 @@ FNiagaraSystemViewModel::~FNiagaraSystemViewModel()
 	UE_LOG(LogNiagaraEditor, Warning, TEXT("Deleting System view model %p"), this);
 }
 
+INiagaraParameterDefinitionsSubscriber* FNiagaraSystemViewModel::GetParameterDefinitionsSubscriber()
+{
+	if(EditMode == ENiagaraSystemViewModelEditMode::SystemAsset)
+	{ 
+		return System;
+	}
+	else /**EditMode == ENiagaraSystemViewModelEditMode::EmitterAsset */
+	{
+		return GetEmitterHandleViewModels()[0]->GetEmitterHandle()->GetInstance();
+	}
+}
+
 FText FNiagaraSystemViewModel::GetDisplayName() const
 {
 	return FText::FromString(System->GetName());
 }
 
-const TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& FNiagaraSystemViewModel::GetEmitterHandleViewModels()
+const TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& FNiagaraSystemViewModel::GetEmitterHandleViewModels() const
 {
 	return EmitterHandleViewModels;
 }
@@ -672,6 +696,11 @@ void FNiagaraSystemViewModel::Tick(float DeltaTime)
 		SelectionViewModel->Tick();
 	}
 
+	if (CurveSelectionViewModel != nullptr)
+	{
+		CurveSelectionViewModel->Tick();
+	}
+
 	if (bPendingAssetMessagesChanged)
 	{
 		bPendingAssetMessagesChanged = false;
@@ -772,6 +801,17 @@ const TArray<FNiagaraStackModuleData>& FNiagaraSystemViewModel::BuildAndCacheSta
 	return StackModuleData;
 }
 
+UNiagaraEditorParametersAdapter* FNiagaraSystemViewModel::GetEditorOnlyParametersAdapter() const
+{
+	if (EditMode == ENiagaraSystemViewModelEditMode::SystemAsset)
+	{
+		return CastChecked<UNiagaraEditorParametersAdapter>(System->GetEditorParameters());
+	}
+	/** else EditMode == ENiagaraSystemViewModelEditMode::EmitterAsset */
+	UNiagaraEmitter* Emitter = GetEmitterHandleViewModels()[0]->GetEmitterHandle()->GetInstance();
+	return CastChecked<UNiagaraEditorParametersAdapter>(Emitter->GetEditorParameters());
+}
+
 void FNiagaraSystemViewModel::GetOrderedScriptsForEmitterHandleId(FGuid EmitterHandleId, TArray<UNiagaraScript*>& OutScripts)
 {
 	UNiagaraEmitter* Emitter = nullptr;
@@ -831,6 +871,11 @@ TArray<float> FNiagaraSystemViewModel::OnGetPlaybackSpeeds() const
 TStatId FNiagaraSystemViewModel::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraSystemViewModel, STATGROUP_Tickables);
+}
+
+TSharedRef<FNiagaraPlaceholderDataInterfaceManager> FNiagaraSystemViewModel::GetPlaceholderDataInterfaceManager()
+{
+	return PlaceholderDataInterfaceManager.ToSharedRef();
 }
 
 void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const
@@ -1669,7 +1714,9 @@ void FNiagaraSystemViewModel::EmitterScriptGraphChanged(const FEdGraphEditAction
 	// Remove from cache on graph change
 	GuidToCachedStackModuleData.Remove(OwningEmitterHandleId);
 	InvalidateCachedCompileStatus();
-	CurveSelectionViewModel->Refresh();
+
+	// Do a deferred refresh when responding to graph changes since we may be mid change and the graph could be invalid.
+	CurveSelectionViewModel->RefreshDeferred();
 
 	bPendingAssetMessagesChanged = true;
 }
@@ -1678,7 +1725,8 @@ void FNiagaraSystemViewModel::SystemScriptGraphChanged(const FEdGraphEditAction&
 {
 	GuidToCachedStackModuleData.Empty();
 	InvalidateCachedCompileStatus();
-	CurveSelectionViewModel->Refresh();
+	// Do a deferred refresh when responding to graph changes since we may be mid change and the graph could be invalid.
+	CurveSelectionViewModel->RefreshDeferred();
 	bPendingAssetMessagesChanged = true;
 }
 

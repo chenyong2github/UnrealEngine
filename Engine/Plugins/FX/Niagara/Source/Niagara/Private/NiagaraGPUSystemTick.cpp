@@ -175,10 +175,9 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 			InstanceData->bStartNewOverlapGroup = bStartNewOverlapGroup;
 			bStartNewOverlapGroup = false;
 
-			InstanceData->bUsesSimStages = Emitter->bSimulationStagesEnabled/* TODO limit to just with stages in the future! Leaving like this so what can convert! && EmitterRaw->GetSimulationStages().Num() > 0*/;
-			InstanceData->bUsesOldShaderStages = Emitter->bDeprecatedShaderStagesEnabled;
+			InstanceData->bUsesSimStages = Emitter->bSimulationStagesEnabled; /* TODO limit to just with stages in the future! Leaving like this so what can convert! && EmitterRaw->GetSimulationStages().Num() > 0*/
 
-			if (InstanceData->bUsesSimStages || InstanceData->bUsesOldShaderStages)
+			if (InstanceData->bUsesSimStages)
 			{
 				NumInstancesWithSimStages++;
 			}

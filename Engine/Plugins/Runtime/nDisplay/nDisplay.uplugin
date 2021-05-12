@@ -95,6 +95,14 @@
 			"WhitelistPlatforms": [
 				"Win64"
 			]
+		},
+		{
+			"Name": "DisplayClusterMultiUser",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "PostEngineInit",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
 		}
 	],
 	"Plugins": [
@@ -112,6 +120,10 @@
 		},
 		{
 			"Name": "RemoteControlInterception",
+			"Enabled": true
+		},
+		{
+			"Name": "ConcertSyncClient",
 			"Enabled": true
 		}
 	]

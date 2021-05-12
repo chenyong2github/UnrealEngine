@@ -36,20 +36,22 @@ private:
 	UMovieSceneReplayTrack* FindOrCreateReplayTrack(bool* bWasCreated = nullptr);
 
 	TSharedRef<SWidget> HandleAddReplayTrackComboButtonGetMenuContent();
+	FText HandleGetToggleReplayButtonContent() const;
+	FSlateColor HandleGetToggleReplayButtonColor() const;
+	bool HandleToggleReplayButtonIsEnabled() const;
+	FText HandleToggleReplayButtonToolTipText() const;
+	FReply HandleToggleReplayButtonClicked();
 
 	FKeyPropertyResult AddKeyInternal(FFrameNumber AutoKeyTime);
 
 	void OnGlobalTimeChanged();
 
-	UWorld* GetPIEPlaybackWorld();
+	UWorld* GetPIEPlaybackWorld() const;
 	AActor* GetPIEViewportLockedActor();
 	void MoveLockedActorsToPIEViewTarget(UWorld* PlaybackWorld);
 	void MovePIEViewTargetToLockedActor(UWorld* PlaybackWorld);
 
 private:
-	FFrameTime LastCurrentTime;
-	EMovieScenePlayerStatus::Type LastPlaybackStatus;
-
 	TWeakObjectPtr<AActor> LastLockedActor;
 
 	FDelegateHandle GlobalTimeChangedHandle;

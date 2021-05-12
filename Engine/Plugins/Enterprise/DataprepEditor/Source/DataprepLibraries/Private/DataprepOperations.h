@@ -549,8 +549,11 @@ class UDataprepSetMaxTextureSizeOperation : public UDataprepOperation
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AssetOperation, Meta = (ToolTip = ""))
+	UPROPERTY(EditAnywhere, Category = AssetOperation, BlueprintReadWrite, meta = (UIMin = "1", ClampMin = "1"), Meta = (ToolTip = ""))
 	int32 MaxTextureSize;
+
+	UPROPERTY(EditAnywhere, Category = AssetOperation, BlueprintReadWrite, meta = (ToolTip = "If true, original texture size will be enforced to power of two before resizing (if it's a non-power of two size), else only POT textures will be affected."))
+	bool bAllowPadding = false;
 
 	//~ Begin UDataprepOperation Interface
 public:
@@ -562,24 +565,7 @@ public:
 protected:
 	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
 	//~ End UDataprepOperation Interface
-};
-// Customization of the details of the "Set Max Texture Size" operation.
-class FDataprepSetMaxTextureSizeDetails : public IDetailCustomization
-{
-public:
-	static TSharedRef< IDetailCustomization > MakeDetails() { return MakeShared<FDataprepSetMaxTextureSizeDetails>(); };
 
-	/** Called when details should be customized */
-	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailBuilder ) override;
-
-private:
-	void MaxSize_TextChanged(const FText& Text);
-	void MaxSize_TextCommited(const FText& InText, ETextCommit::Type InCommitType);
-
-private:
-	UDataprepSetMaxTextureSizeOperation* Operation = nullptr;
-
-	TSharedPtr<IPropertyHandle> MaxTextureSizePropertyHandle;
-
-	TSharedPtr< class SEditableTextBox > TextBox;
+	// Track changes of MaxTextureSize and force values to be power of two
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 };

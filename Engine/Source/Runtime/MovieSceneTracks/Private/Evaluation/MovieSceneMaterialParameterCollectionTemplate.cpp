@@ -22,7 +22,7 @@ struct FPreAnimatedMPCScalarToken : IMovieScenePreAnimatedToken
 		, Value(InValue)
 	{}
 
-	virtual void RestoreState(UObject& Object, IMovieScenePlayer& Player) override
+	virtual void RestoreState(UObject& Object, const UE::MovieScene::FRestoreStateParams& Params) override
 	{
 		UMaterialParameterCollectionInstance* Instance = CastChecked<UMaterialParameterCollectionInstance>(&Object);
 		Instance->SetScalarParameterValue(ParameterName, Value);
@@ -59,7 +59,7 @@ struct FPreAnimatedMPCVectorToken : IMovieScenePreAnimatedToken
 		, Value(InValue)
 	{}
 
-	virtual void RestoreState(UObject& Object, IMovieScenePlayer& Player) override
+	virtual void RestoreState(UObject& Object, const UE::MovieScene::FRestoreStateParams& Params) override
 	{
 		UMaterialParameterCollectionInstance* Instance = CastChecked<UMaterialParameterCollectionInstance>(&Object);
 		Instance->SetVectorParameterValue(ParameterName, Value);

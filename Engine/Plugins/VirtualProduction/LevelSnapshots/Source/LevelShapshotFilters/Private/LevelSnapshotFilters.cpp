@@ -12,12 +12,12 @@ EFilterResult::Type ULevelSnapshotFilter::IsPropertyValid(const FIsPropertyValid
 	return EFilterResult::DoNotCare;
 }
 
-EFilterResult::Type ULevelSnapshotFilter::IsDeletedActorValid(const FIsDeletedActorValidParams& Params)
+EFilterResult::Type ULevelSnapshotFilter::IsDeletedActorValid(const FIsDeletedActorValidParams& Params) const
 {
 	return EFilterResult::DoNotCare;
 }
 
-EFilterResult::Type ULevelSnapshotFilter::IsAddedActorValid(const FIsAddedActorValidParams& Params)
+EFilterResult::Type ULevelSnapshotFilter::IsAddedActorValid(const FIsAddedActorValidParams& Params) const
 {
 	return EFilterResult::DoNotCare;
 }
@@ -32,12 +32,12 @@ EFilterResult::Type ULevelSnapshotBlueprintFilter::IsPropertyValid_Implementatio
 	return EFilterResult::DoNotCare;
 }
 
-EFilterResult::Type ULevelSnapshotBlueprintFilter::IsDeletedActorValid_Implementation(const FIsDeletedActorValidParams& Params)
+EFilterResult::Type ULevelSnapshotBlueprintFilter::IsDeletedActorValid_Implementation(const FIsDeletedActorValidParams& Params) const
 {
 	return EFilterResult::DoNotCare;
 }
 
-EFilterResult::Type ULevelSnapshotBlueprintFilter::IsAddedActorValid_Implementation(const FIsAddedActorValidParams& Params)
+EFilterResult::Type ULevelSnapshotBlueprintFilter::IsAddedActorValid_Implementation(const FIsAddedActorValidParams& Params) const
 {
 	return EFilterResult::DoNotCare;
 }

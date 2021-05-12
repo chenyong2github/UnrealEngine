@@ -50,7 +50,8 @@ public:
 	};
 	
 public:
-	FInstallBundleCombinedProgressTracker();
+	/** bAutoTick Whehter this tracker should automatically Tick */
+	FInstallBundleCombinedProgressTracker(bool bAutoTick = true);
 	~FInstallBundleCombinedProgressTracker();
 	
 	FInstallBundleCombinedProgressTracker(const FInstallBundleCombinedProgressTracker& Other);
@@ -73,7 +74,7 @@ private:
 	void UpdateBundleCache();
 	void UpdateCombinedStatus();
 	
-	void SetupDelegates();
+	void SetupDelegates(bool bAutoTick);
 	void CleanUpDelegates();
 	
 	//Called so we can track when a bundle is finished

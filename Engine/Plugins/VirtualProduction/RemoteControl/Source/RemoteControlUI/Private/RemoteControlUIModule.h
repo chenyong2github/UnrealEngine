@@ -13,7 +13,6 @@
 
 class SRemoteControlPanel;
 class URemoteControlPreset;
-class SRCPanelInputBindings;
 
 /**
  * A Remote Control module that allows exposing objects and properties from the editor.
@@ -53,13 +52,6 @@ public:
 	 * @return The remote control widget.
 	 */
 	TSharedRef<SRemoteControlPanel> CreateRemoteControlPanel(URemoteControlPreset* Preset);
-
-	/**
-	 * Create an input bindings panel for a given preset.
-	 * @param The preset to display the information for.
-	 * @return the input 
-	 */
-	TSharedRef<SRCPanelInputBindings> CreateInputBindingsWidget(URemoteControlPreset* Preset);
 
 	/**
 	 * Get the map of entity metadata entry customizations.
@@ -140,9 +132,6 @@ private:
 
 	/** Holds a weak ptr to the active control panel. */
 	TWeakPtr<SRemoteControlPanel> WeakActivePanel;
-
-	/** Holds a weak ptr to the active input bindings panel. */
-	TWeakPtr<SRCPanelInputBindings> WeakActiveInputBindingsWidget;
 
 	/** Delegate called to gather extensions added externally to the panel. */
 	FOnGenerateExtensions ExtensionsGenerator;

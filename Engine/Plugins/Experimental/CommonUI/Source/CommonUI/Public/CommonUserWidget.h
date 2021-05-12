@@ -73,6 +73,10 @@ protected:
 	void RemoveActionBinding(FUIActionBindingHandle ActionBinding);
 	void AddActionBinding(FUIActionBindingHandle ActionBinding);
 
+	/** True to generally display this widget's actions in the action bar, assuming it has actions. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = true))
+	bool bDisplayInActionBar = false;
+
 private:
 
 	/** Set this to true if you don't want any pointer (mouse and touch) input to bubble past this widget */

@@ -316,15 +316,7 @@ SScrollBox::FSlot& SScrollBox::AddSlot()
 /** Removes a slot at the specified location */
 void SScrollBox::RemoveSlot( const TSharedRef<SWidget>& WidgetToRemove )
 {
-	TPanelChildren<SScrollBox::FSlot>& Children = ScrollPanel->Children;
-	for( int32 SlotIndex=0; SlotIndex < Children.Num(); ++SlotIndex )
-	{
-		if ( Children[SlotIndex].GetWidget() == WidgetToRemove )
-		{
-			Children.RemoveAt(SlotIndex);
-			return;
-		}
-	}
+	ScrollPanel->Children.Remove(WidgetToRemove);
 }
 
 void SScrollBox::ClearChildren()

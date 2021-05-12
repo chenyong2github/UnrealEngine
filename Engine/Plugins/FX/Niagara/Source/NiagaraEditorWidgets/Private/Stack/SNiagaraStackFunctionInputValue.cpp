@@ -885,7 +885,7 @@ bool SNiagaraStackFunctionInputValue::GetLibraryOnly() const
 void SNiagaraStackFunctionInputValue::SetLibraryOnly(bool bInIsLibraryOnly)
 {
 	bLibraryOnly = bInIsLibraryOnly;
-	ActionSelector->RefreshAllItems(true);
+	ActionSelector->RefreshAllCurrentItems(true);
 }
 
 FReply SNiagaraStackFunctionInputValue::ScratchButtonPressed() const
@@ -939,7 +939,7 @@ TArray<TSharedPtr<FNiagaraMenuAction_Generic>> SNiagaraStackFunctionInputValue::
 
 			TSharedPtr<FNiagaraMenuAction_Generic> DynamicInputAction(new FNiagaraMenuAction_Generic(
                 FNiagaraMenuAction_Generic::FOnExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputValue::DynamicInputScriptSelected, DynamicInputScript),
-                DisplayName, ScriptData->bSuggested ? ENiagaraMenuSections::Suggested : ENiagaraMenuSections::General, {CategoryName.ToString()}, Tooltip, FText()));
+                DisplayName, ScriptData->bSuggested ? ENiagaraMenuSections::Suggested : ENiagaraMenuSections::General, {CategoryName.ToString()}, Tooltip, ScriptData->Keywords));
 			
 			DynamicInputAction->SourceData = FNiagaraActionSourceData(Source.Key, Source.Value, true);
 			DynamicInputAction->bIsExperimental = ScriptData->bExperimental;
@@ -1166,7 +1166,7 @@ void SNiagaraStackFunctionInputValue::OnItemActivated(const TSharedPtr<FNiagaraM
 
 void SNiagaraStackFunctionInputValue::TriggerRefresh(const TMap<EScriptSource, bool>& SourceState)
 {
-	ActionSelector->RefreshAllItems();
+	ActionSelector->RefreshAllCurrentItems();
 
 	TArray<bool> States;
 	SourceState.GenerateValueArray(States);
@@ -1180,11 +1180,7 @@ void SNiagaraStackFunctionInputValue::TriggerRefresh(const TMap<EScriptSource, b
 		}
 	}
 
-	// whenever we have less than the last (so with 4 valid filters, at most 3) entry of filters, we expand the tree.
-	if(NumActive < (int32) EScriptSource::Unknown)
-	{
-		ActionSelector->ExpandTree();
-	}
+	ActionSelector->ExpandTree();
 }
 
 #undef LOCTEXT_NAMESPACE

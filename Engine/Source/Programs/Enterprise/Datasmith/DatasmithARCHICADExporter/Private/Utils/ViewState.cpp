@@ -121,7 +121,7 @@ void FViewState::CollectVisibleLayers()
 	GSErrCode		   GSErr = ACAPI_Attribute_GetNum(API_LayerID, &LayerCount);
 	if (GSErr == NoError)
 	{
-		VisibleLayers.reserve(LayerCount);
+		VisibleLayers.Reserve(LayerCount);
 
 		for (API_AttributeIndex Index = 1; Index <= LayerCount && GSErr == NoError; Index++)
 		{
@@ -131,7 +131,7 @@ void FViewState::CollectVisibleLayers()
 			{
 				if ((LayerAttribute.layer.head.flags & APILay_Hidden) == 0)
 				{
-					VisibleLayers.push_back(Index);
+					VisibleLayers.Add(Index);
 				}
 			}
 			else if (GSErr == APIERR_DELETED)
@@ -146,7 +146,7 @@ void FViewState::CollectVisibleLayers()
 
 void FViewState::GetCamera()
 {
-	bool bHas3DWindow = false;
+	bool				bHas3DWindow = false;
 	FAutoChangeDatabase changeDB(APIWind_3DModelID, &bHas3DWindow);
 	if (bHas3DWindow)
 	{

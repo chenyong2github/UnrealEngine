@@ -25,29 +25,25 @@ namespace GeometryCollectionTest
 	void Fields_NoiseSample()
 	{
 		int Bounds = 100;
-		TArray<FFieldContextIndex> IndicesArray;
-		FFieldContextIndex::ContiguousIndices(IndicesArray, Bounds*Bounds);
-		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
-
-		TArray<FVector> SamplesArray;
-		SamplesArray.Init(FVector(0.f), Bounds*Bounds);
+		FFieldExecutionDatas ExecutionDatas;
+		
+		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, Bounds*Bounds);
+		ExecutionDatas.SamplePositions.Init(FVector(0.f), Bounds*Bounds);
 		for (int32 Index = 0, i=0; i < Bounds; i++)
 		{
 			for (int32 j = 0; j < Bounds; j++)
 			{
-				SamplesArray[Index] = 1000.*FVector(i,j,0);
+				ExecutionDatas.SamplePositions[Index] = 1000.*FVector(i,j,0);
 				Index++;
 			}
 		}
-		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
 
 		Chaos::FReal MinDoimain = -1.0, MaxDomain = 1.0;
 		FTransform Transform(FQuat::MakeFromEuler(FVector(45,45,45)), FVector(100, 0, 0), FVector(2, 1, 1));
 		FNoiseField * NoiseField = new FNoiseField(MinDoimain, MaxDomain,Transform);
 
 		FFieldContext Context{
-			IndexView,
-			SamplesView,
+			ExecutionDatas,
 			FFieldContext::UniquePointerMap(), 
 			0.0
 		};
@@ -75,25 +71,21 @@ namespace GeometryCollectionTest
 
 	void Fields_RadialIntMask()
 	{
-		TArray<FFieldContextIndex> IndicesArray;
-		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		FFieldExecutionDatas ExecutionDatas;
 
-		TArray<FVector> SamplesArray;
-		SamplesArray.Init(FVector(0.f), 10);
+		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, 10);
+		ExecutionDatas.SamplePositions.Init(FVector(0.f), 10);
 		for (int32 Index = 0; Index < 10; Index++)
 		{
-			SamplesArray[Index] = FVector(Index);
+			ExecutionDatas.SamplePositions[Index] = FVector(Index);
 		}
-		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
 
 		FRadialIntMask * RadialMask = new FRadialIntMask(0.0, FVector(), 1.0, 0.0, ESetMaskConditionType::Field_Set_Always);
 		RadialMask->Position = FVector(0.0, 0.0, 0.0);
 		RadialMask->Radius = 5.0;
 
 		FFieldContext Context{
-			IndexView,
-			SamplesView,
+			ExecutionDatas,
 			FFieldContext::UniquePointerMap(),
 			0.0
 		};
@@ -121,17 +113,14 @@ namespace GeometryCollectionTest
 
 	void Fields_RadialFalloff()
 	{
-		TArray<FFieldContextIndex> IndicesArray;
-		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		FFieldExecutionDatas ExecutionDatas;
 
-		TArray<FVector> SamplesArray;
-		SamplesArray.Init(FVector(0.f), 10);
+		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, 10);
+		ExecutionDatas.SamplePositions.Init(FVector(0.f), 10);
 		for (int32 Index = 0; Index < 10; Index++)
 		{
-			SamplesArray[Index] = FVector(Index, 0, 0);
+			ExecutionDatas.SamplePositions[Index] = FVector(Index, 0, 0);
 		}
-		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
 
 		FRadialFalloff * RadialFalloff = new FRadialFalloff();
 		RadialFalloff->Position = FVector(0.0, 0.0, 0.0);
@@ -139,8 +128,7 @@ namespace GeometryCollectionTest
 		RadialFalloff->Magnitude = 3.0;
 
 		FFieldContext Context{
-			IndexView,
-			SamplesView,
+			ExecutionDatas,
 			FFieldContext::UniquePointerMap(),
 			0.0
 		};
@@ -164,7 +152,7 @@ namespace GeometryCollectionTest
 			}
 			//UE_LOG(GCTF_Log, Error, TEXT("[%d] sample:%3.5f (%3.5f,%3.5f,%3.5f) %3.5f"), Index,
 			//	ExpectedVal ,
-			//	SamplesArray[Index].X, SamplesArray[Index].Y, SamplesArray[Index].Z,
+			//	ExecutionDatas.SamplePositions[Index].X, ExecutionDatas.SamplePositions[Index].Y, ExecutionDatas.SamplePositions[Index].Z,
 			//	ResultsView[Index]);
 		}
 		delete RadialFalloff;
@@ -172,18 +160,14 @@ namespace GeometryCollectionTest
 
 	void Fields_PlaneFalloff()
 	{
-		TArray<FFieldContextIndex> IndicesArray;
-		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		FFieldExecutionDatas ExecutionDatas;
 
-
-		TArray<FVector> SamplesArray;
-		SamplesArray.Init(FVector(0.f), 10);
+		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, 10);
+		ExecutionDatas.SamplePositions.Init(FVector(0.f), 10);
 		for (int32 Index = 0; Index < 10; Index++)
 		{
-			SamplesArray[Index] = FVector(0, 0, Index-5);
+			ExecutionDatas.SamplePositions[Index] = FVector(0, 0, Index-5);
 		}
-		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
 
 		FPlaneFalloff * PlaneFalloff = new FPlaneFalloff();
 		PlaneFalloff->Position = FVector(0.0, 0.0, 0.0);
@@ -192,8 +176,7 @@ namespace GeometryCollectionTest
 		PlaneFalloff->Distance = 10.0;
 
 		FFieldContext Context{
-			IndexView,
-			SamplesView,
+			ExecutionDatas,
 			FFieldContext::UniquePointerMap(),
 			0.0
 		};
@@ -207,7 +190,7 @@ namespace GeometryCollectionTest
 		for (int32 Index = 0; Index < 10; Index++)
 		{
 			Chaos::FReal ExpectedVal = 0;
-			Chaos::FReal Distance = Plane.PlaneDot(SamplesArray[Index]);
+			Chaos::FReal Distance = Plane.PlaneDot(ExecutionDatas.SamplePositions[Index]);
 			if (Distance < -SMALL_NUMBER && Distance > -PlaneFalloff->Distance)
 			{
 				ExpectedVal = PlaneFalloff->Magnitude * ( 1.0 + Distance / PlaneFalloff->Distance);
@@ -220,26 +203,21 @@ namespace GeometryCollectionTest
 
 	void Fields_UniformVector()
 	{
-		TArray<FFieldContextIndex> IndicesArray;
-		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		FFieldExecutionDatas ExecutionDatas;
+		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, 10);
 
-
-		TArray<FVector> SamplesArray;
-		SamplesArray.Init(FVector(0.f), 10);
+		ExecutionDatas.SamplePositions.Init(FVector(0.f), 10);
 		for (int32 Index = 0; Index < 10; Index++)
 		{
-			SamplesArray[Index] = FVector(Index, 0, 0);
+			ExecutionDatas.SamplePositions[Index] = FVector(Index, 0, 0);
 		}
-		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
 
 		FUniformVector * UniformVector = new FUniformVector();
 		UniformVector->Direction = FVector(3, 5, 7);
 		UniformVector->Magnitude = 1.0;
 
 		FFieldContext Context{
-			IndexView,
-			SamplesView,
+			ExecutionDatas,
 			FFieldContext::UniquePointerMap(),
 			0.0
 		};
@@ -255,7 +233,7 @@ namespace GeometryCollectionTest
 			EXPECT_LT((ResultsView[Index] - ExpectedVal).Size(), KINDA_SMALL_NUMBER);
 			//UE_LOG(GCTF_Log, Error, TEXT("[%d] sample:(%3.5f,%3.5f,%3.5f) (%3.5f,%3.5f,%3.5f) (%3.5f,%3.5f,%3.5f)"), Index,
 			//	ExpectedVal.X, ExpectedVal.Y, ExpectedVal.Z,
-			//	SamplesArray[Index].X, SamplesArray[Index].Y, SamplesArray[Index].Z,
+			//	ExecutionDatas.SamplePositions[Index].X, ExecutionDatas.SamplePositions[Index].Y, ExecutionDatas.SamplePositions[Index].Z,
 			//	ResultsView[Index].X, ResultsView[Index].Y, ResultsView[Index].Z);
 		}
 		delete UniformVector;
@@ -263,26 +241,20 @@ namespace GeometryCollectionTest
 
 	void Fields_RaidalVector()
 	{
-		TArray<FFieldContextIndex> IndicesArray;
-		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
-
-
-		TArray<FVector> SamplesArray;
-		SamplesArray.Init(FVector(0.f), 10);
+		FFieldExecutionDatas ExecutionDatas;
+		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, 10);
+		ExecutionDatas.SamplePositions.Init(FVector(0.f), 10);
 		for (int32 Index = 0; Index < 10; Index++)
 		{
-			SamplesArray[Index] = FVector(100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5));
+			ExecutionDatas.SamplePositions[Index] = FVector(100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5));
 		}
-		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
 
 		FRadialVector * RadialVector = new FRadialVector();
 		RadialVector->Position = FVector(3, 4, 5);
 		RadialVector->Magnitude = 1.0;
 
 		FFieldContext Context{
-			IndexView,
-			SamplesView,
+			ExecutionDatas,
 			FFieldContext::UniquePointerMap(),
 			0.0
 		};
@@ -294,11 +266,11 @@ namespace GeometryCollectionTest
 
 		for (int32 Index = 0; Index < 10; Index++)
 		{
-			FVector ExpectedVal = RadialVector->Magnitude * (SamplesArray[Index] - RadialVector->Position).GetSafeNormal();
+			FVector ExpectedVal = RadialVector->Magnitude * (ExecutionDatas.SamplePositions[Index] - RadialVector->Position).GetSafeNormal();
 			EXPECT_LT((ResultsView[Index] - ExpectedVal).Size(), KINDA_SMALL_NUMBER);
 			//UE_LOG(GCTF_Log, Error, TEXT("[%d] sample:(%3.5f,%3.5f,%3.5f) (%3.5f,%3.5f,%3.5f) (%3.5f,%3.5f,%3.5f)"), Index,
 			//	ExpectedVal.X, ExpectedVal.Y, ExpectedVal.Z,
-			//	SamplesArray[Index].X, SamplesArray[Index].Y, SamplesArray[Index].Z,
+			//	ExecutionDatas.SamplePositions[Index].X, ExecutionDatas.SamplePositions[Index].Y, ExecutionDatas.SamplePositions[Index].Z,
 			//	ResultsView[Index].X, ResultsView[Index].Y, ResultsView[Index].Z);
 		}
 		delete RadialVector;
@@ -306,24 +278,21 @@ namespace GeometryCollectionTest
 
 	void Fields_SumVectorFullMult()
 	{
-		TArray<FFieldContextIndex> IndicesArray;
-		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
-
+		FFieldExecutionDatas ExecutionDatas;
+		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, 10);
+		
 		Chaos::FReal AverageSampleLength = 0.0;
-		TArray<FVector> SamplesArray;
-		SamplesArray.Init(FVector(0.f), 10);
+		ExecutionDatas.SamplePositions.Init(FVector(0.f), 10);
 		for (int32 Index = 0; Index < 10; Index++)
 		{
-			SamplesArray[Index] = FVector(0);
+			ExecutionDatas.SamplePositions[Index] = FVector(0);
 			if (Index > 0)
 			{
-				SamplesArray[Index] = FVector(100. * (FMath::SRand() - 0.5), 100. * (FMath::SRand() - 0.5), 100. * (FMath::SRand() - 0.5));
+				ExecutionDatas.SamplePositions[Index] = FVector(100. * (FMath::SRand() - 0.5), 100. * (FMath::SRand() - 0.5), 100. * (FMath::SRand() - 0.5));
 			}
-			AverageSampleLength += SamplesArray[Index].Size();
+			AverageSampleLength += ExecutionDatas.SamplePositions[Index].Size();
 		}
 		AverageSampleLength /= 10.0;
-		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
 
 		FRadialFalloff* RadialFalloff = new FRadialFalloff();
 		RadialFalloff->Position = FVector(0.0, 0.0, 0.0);
@@ -341,8 +310,7 @@ namespace GeometryCollectionTest
 		FSumVector* SumVector = new FSumVector(1.0, RadialFalloff, RadialVector, UniformVector, EFieldOperationType::Field_Multiply);
 
 		FFieldContext Context{
-			IndexView,
-			SamplesView,
+			ExecutionDatas,
 			FFieldContext::UniquePointerMap(),
 			0.0
 		};
@@ -356,8 +324,8 @@ namespace GeometryCollectionTest
 		for (int32 Index = 0; Index < 10; Index++)
 		{
 			FVector RightResult = UniformVector->Magnitude * UniformVector->Direction;
-			FVector LeftResult = RadialVector->Magnitude * (SamplesArray[Index] - RadialVector->Position).GetSafeNormal();
-			Chaos::FReal RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
+			FVector LeftResult = RadialVector->Magnitude * (ExecutionDatas.SamplePositions[Index] - RadialVector->Position).GetSafeNormal();
+			Chaos::FReal RadialFalloffDelta = (ExecutionDatas.SamplePositions[Index] - RadialFalloff->Position).Size();
 			Chaos::FReal ScalarResult = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffSize);
 			if (RadialFalloffDelta >= RadialFalloffSize)
 				ScalarResult = 0.f;
@@ -367,7 +335,7 @@ namespace GeometryCollectionTest
 			//UE_LOG(GCTF_Log, Error, TEXT("[%d:%3.5f] sample:(%3.5f,%3.5f,%3.5f) (%3.5f,%3.5f,%3.5f) (%3.5f,%3.5f,%3.5f)"), Index,
 			//	(ResultsView[Index] - ExpectedVal).Size(),
 			//	ExpectedVal.X, ExpectedVal.Y, ExpectedVal.Z,
-			//	SamplesArray[Index].X, SamplesArray[Index].Y, SamplesArray[Index].Z,
+			//	ExecutionDatas.SamplePositions[Index].X, ExecutionDatas.SamplePositions[Index].Y, ExecutionDatas.SamplePositions[Index].Z,
 			//	ResultsView[Index].X, ResultsView[Index].Y, ResultsView[Index].Z);
 
 			EXPECT_LT((ResultsView[Index] - ExpectedVal).Size(), KINDA_SMALL_NUMBER);
@@ -377,25 +345,24 @@ namespace GeometryCollectionTest
 
 	void Fields_SumVectorFullDiv()
 	{
-		TArray<FFieldContextIndex> IndicesArray;
-		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		FFieldExecutionDatas ExecutionDatas;
+		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, 10);
+		
 
 
 		Chaos::FReal AverageSampleLength = 0.0;
-		TArray<FVector> SamplesArray;
-		SamplesArray.Init(FVector(0.f), 10);
+		
+		ExecutionDatas.SamplePositions.Init(FVector(0.f), 10);
 		for (int32 Index = 0; Index < 10; Index++)
 		{
-			SamplesArray[Index] = FVector(0);
+			ExecutionDatas.SamplePositions[Index] = FVector(0);
 			if (Index > 0)
 			{
-				SamplesArray[Index] = FVector(100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5));
+				ExecutionDatas.SamplePositions[Index] = FVector(100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5));
 			}
-			AverageSampleLength += SamplesArray[Index].Size();
+			AverageSampleLength += ExecutionDatas.SamplePositions[Index].Size();
 		}
 		AverageSampleLength /= 10.0;
-		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
 
 		FRadialFalloff * RadialFalloff = new FRadialFalloff();
 		RadialFalloff->Position = FVector(0.0, 0.0, 0.0);
@@ -413,8 +380,7 @@ namespace GeometryCollectionTest
 		FSumVector * SumVector = new FSumVector(1.0, RadialFalloff, UniformVector, RadialVector,  EFieldOperationType::Field_Divide);
 
 		FFieldContext Context{
-			IndexView,
-			SamplesView,
+			ExecutionDatas,
 			FFieldContext::UniquePointerMap(),
 			0.0
 		};
@@ -428,8 +394,8 @@ namespace GeometryCollectionTest
 		for (int32 Index = 0; Index < 10; Index++)
 		{
 			FVector RightResult = UniformVector->Magnitude * UniformVector->Direction;
-			FVector LeftResult = RadialVector->Magnitude  * (SamplesArray[Index] - RadialVector->Position).GetSafeNormal();
-			Chaos::FReal RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
+			FVector LeftResult = RadialVector->Magnitude  * (ExecutionDatas.SamplePositions[Index] - RadialVector->Position).GetSafeNormal();
+			Chaos::FReal RadialFalloffDelta = (ExecutionDatas.SamplePositions[Index] - RadialFalloff->Position).Size();
 			Chaos::FReal ScalarResult = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta/ RadialFalloffSize);
 			if (RadialFalloffDelta >= RadialFalloffSize)
 				ScalarResult = 0.f;
@@ -439,7 +405,7 @@ namespace GeometryCollectionTest
 			//UE_LOG(GCTF_Log, Error, TEXT("[%d:%3.5f] sample:(%3.5f,%3.5f,%3.5f) (%3.5f,%3.5f,%3.5f) (%3.5f,%3.5f,%3.5f)"), Index,
 			//	(ResultsView[Index] - ExpectedVal).Size(),
 			//	ExpectedVal.X, ExpectedVal.Y, ExpectedVal.Z,
-			//	SamplesArray[Index].X, SamplesArray[Index].Y, SamplesArray[Index].Z,
+			//	ExecutionDatas.SamplePositions[Index].X, ExecutionDatas.SamplePositions[Index].Y, ExecutionDatas.SamplePositions[Index].Z,
 			//	ResultsView[Index].X, ResultsView[Index].Y, ResultsView[Index].Z);
 
 			EXPECT_LT((ResultsView[Index] - ExpectedVal).Size(), KINDA_SMALL_NUMBER);
@@ -449,26 +415,21 @@ namespace GeometryCollectionTest
 
 	void Fields_SumVectorFullAdd()
 	{
-		TArray<FFieldContextIndex> IndicesArray;
-		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
-
-
+		FFieldExecutionDatas ExecutionDatas;
+		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, 10);
+		
 		Chaos::FReal AverageSampleLength = 0.0;
-		TArray<FVector> SamplesArray;
-		SamplesArray.Init(FVector(0.f), 10);
+		ExecutionDatas.SamplePositions.Init(FVector(0.f), 10);
 		for (int32 Index = 0; Index < 10; Index++)
 		{
-			SamplesArray[Index] = FVector(0);
+			ExecutionDatas.SamplePositions[Index] = FVector(0);
 			if (Index > 0)
 			{
-				SamplesArray[Index] = FVector(100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5));
+				ExecutionDatas.SamplePositions[Index] = FVector(100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5));
 			}
-			AverageSampleLength += SamplesArray[Index].Size();
+			AverageSampleLength += ExecutionDatas.SamplePositions[Index].Size();
 		}
 		AverageSampleLength /= 10.0;
-		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
-
 
 		FRadialFalloff * RadialFalloff = new FRadialFalloff();
 		RadialFalloff->Position = FVector(0.0, 0.0, 0.0);
@@ -486,8 +447,7 @@ namespace GeometryCollectionTest
 		FSumVector * SumVector = new FSumVector(1.0, RadialFalloff, UniformVector, RadialVector, EFieldOperationType::Field_Add);
 
 		FFieldContext Context{
-			IndexView,
-			SamplesView,
+			ExecutionDatas,
 			FFieldContext::UniquePointerMap(),
 			0.0
 		};
@@ -501,8 +461,8 @@ namespace GeometryCollectionTest
 		for (int32 Index = 0; Index < 10; Index++)
 		{
 			FVector RightResult = UniformVector->Magnitude * UniformVector->Direction;
-			FVector LeftResult = RadialVector->Magnitude  * (SamplesArray[Index] - RadialVector->Position).GetSafeNormal();
-			Chaos::FReal RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
+			FVector LeftResult = RadialVector->Magnitude  * (ExecutionDatas.SamplePositions[Index] - RadialVector->Position).GetSafeNormal();
+			Chaos::FReal RadialFalloffDelta = (ExecutionDatas.SamplePositions[Index] - RadialFalloff->Position).Size();
 			Chaos::FReal ScalarResult = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffSize);
 			if (RadialFalloffDelta >= RadialFalloffSize)
 				ScalarResult = 0.f;
@@ -512,7 +472,7 @@ namespace GeometryCollectionTest
 			//UE_LOG(GCTF_Log, Error, TEXT("[%d:%3.5f] sample:(%3.5f,%3.5f,%3.5f) (%3.5f,%3.5f,%3.5f) (%3.5f,%3.5f,%3.5f)"), Index,
 			//	(ResultsView[Index] - ExpectedVal).Size(),
 			//	ExpectedVal.X, ExpectedVal.Y, ExpectedVal.Z,
-			//	SamplesArray[Index].X, SamplesArray[Index].Y, SamplesArray[Index].Z,
+			//	ExecutionDatas.SamplePositions[Index].X, ExecutionDatas.SamplePositions[Index].Y, ExecutionDatas.SamplePositions[Index].Z,
 			//	ResultsView[Index].X, ResultsView[Index].Y, ResultsView[Index].Z);
 
 			EXPECT_LT((ResultsView[Index] - ExpectedVal).Size(), KINDA_SMALL_NUMBER);
@@ -522,26 +482,21 @@ namespace GeometryCollectionTest
 
 	void Fields_SumVectorFullSub()
 	{
-		TArray<FFieldContextIndex> IndicesArray;
-		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
-
+		FFieldExecutionDatas ExecutionDatas;
+		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, 10);
 
 		Chaos::FReal AverageSampleLength = 0.0;
-		TArray<FVector> SamplesArray;
-		SamplesArray.Init(FVector(0.f), 10);
+		ExecutionDatas.SamplePositions.Init(FVector(0.f), 10);
 		for (int32 Index = 0; Index < 10; Index++)
 		{
-			SamplesArray[Index] = FVector(0);
+			ExecutionDatas.SamplePositions[Index] = FVector(0);
 			if (Index > 0)
 			{
-				SamplesArray[Index] = FVector(100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5));
+				ExecutionDatas.SamplePositions[Index] = FVector(100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5));
 			}
-			AverageSampleLength += SamplesArray[Index].Size();
+			AverageSampleLength += ExecutionDatas.SamplePositions[Index].Size();
 		}
 		AverageSampleLength /= 10.0;
-		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
-
 
 		FRadialFalloff * RadialFalloff = new FRadialFalloff();
 		RadialFalloff->Position = FVector(0.0, 0.0, 0.0);
@@ -559,8 +514,7 @@ namespace GeometryCollectionTest
 		FSumVector * SumVector = new FSumVector(1.0, RadialFalloff, UniformVector, RadialVector, EFieldOperationType::Field_Substract);
 
 		FFieldContext Context{
-			IndexView,
-			SamplesView,
+			ExecutionDatas,
 			FFieldContext::UniquePointerMap(),
 			0.0
 		};
@@ -574,8 +528,8 @@ namespace GeometryCollectionTest
 		for (int32 Index = 0; Index < 10; Index++)
 		{
 			FVector RightResult = UniformVector->Magnitude * UniformVector->Direction;
-			FVector LeftResult = RadialVector->Magnitude  * (SamplesArray[Index] - RadialVector->Position).GetSafeNormal();
-			Chaos::FReal RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
+			FVector LeftResult = RadialVector->Magnitude  * (ExecutionDatas.SamplePositions[Index] - RadialVector->Position).GetSafeNormal();
+			Chaos::FReal RadialFalloffDelta = (ExecutionDatas.SamplePositions[Index] - RadialFalloff->Position).Size();
 			Chaos::FReal ScalarResult = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffSize);
 			if (RadialFalloffDelta >= RadialFalloffSize)
 				ScalarResult = 0.0;
@@ -585,7 +539,7 @@ namespace GeometryCollectionTest
 			//UE_LOG(GCTF_Log, Error, TEXT("[%d:%3.5f] sample:(%3.5f,%3.5f,%3.5f) (%3.5f,%3.5f,%3.5f) (%3.5f,%3.5f,%3.5f)"), Index,
 			//	(ResultsView[Index] - ExpectedVal).Size(),
 			//	ExpectedVal.X, ExpectedVal.Y, ExpectedVal.Z,
-			//	SamplesArray[Index].X, SamplesArray[Index].Y, SamplesArray[Index].Z,
+			//	ExecutionDatas.SamplePositions[Index].X, ExecutionDatas.SamplePositions[Index].Y, ExecutionDatas.SamplePositions[Index].Z,
 			//	ResultsView[Index].X, ResultsView[Index].Y, ResultsView[Index].Z);
 
 			EXPECT_LT((ResultsView[Index] - ExpectedVal).Size(), KINDA_SMALL_NUMBER);
@@ -595,25 +549,21 @@ namespace GeometryCollectionTest
 
 	void Fields_SumVectorLeftSide()
 	{
-		TArray<FFieldContextIndex> IndicesArray;
-		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
-
+		FFieldExecutionDatas ExecutionDatas;
+		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, 10);
 
 		Chaos::FReal AverageSampleLength = 0.0;
-		TArray<FVector> SamplesArray;
-		SamplesArray.Init(FVector(0.f), 10);
+		ExecutionDatas.SamplePositions.Init(FVector(0.f), 10);
 		for (int32 Index = 0; Index < 10; Index++)
 		{
-			SamplesArray[Index] = FVector(0);
+			ExecutionDatas.SamplePositions[Index] = FVector(0);
 			if (Index > 0)
 			{
-				SamplesArray[Index] = FVector(100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5));
+				ExecutionDatas.SamplePositions[Index] = FVector(100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5));
 			}
-			AverageSampleLength += SamplesArray[Index].Size();
+			AverageSampleLength += ExecutionDatas.SamplePositions[Index].Size();
 		}
 		AverageSampleLength /= 10.0;
-		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
 
 		FRadialFalloff * RadialFalloff = new FRadialFalloff();
 		RadialFalloff->Position = FVector(0.0, 0.0, 0.0);
@@ -631,8 +581,7 @@ namespace GeometryCollectionTest
 		FSumVector * SumVector = new FSumVector(1.0, RadialFalloff, nullptr, RadialVector, EFieldOperationType::Field_Multiply);
 
 		FFieldContext Context{
-			IndexView,
-			SamplesView,
+			ExecutionDatas,
 			FFieldContext::UniquePointerMap(),
 			0.0
 		};
@@ -646,8 +595,8 @@ namespace GeometryCollectionTest
 		for (int32 Index = 0; Index < 10; Index++)
 		{
 			FVector RightResult = UniformVector->Magnitude * UniformVector->Direction;
-			FVector LeftResult = RadialVector->Magnitude  * (SamplesArray[Index] - RadialVector->Position).GetSafeNormal();
-			Chaos::FReal RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
+			FVector LeftResult = RadialVector->Magnitude  * (ExecutionDatas.SamplePositions[Index] - RadialVector->Position).GetSafeNormal();
+			Chaos::FReal RadialFalloffDelta = (ExecutionDatas.SamplePositions[Index] - RadialFalloff->Position).Size();
 			Chaos::FReal ScalarResult = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffSize);
 			if (RadialFalloffDelta >= RadialFalloffSize)
 				ScalarResult = 0.f;
@@ -657,7 +606,7 @@ namespace GeometryCollectionTest
 			//UE_LOG(GCTF_Log, Error, TEXT("[%d:%3.5f] sample:(%3.5f,%3.5f,%3.5f) (%3.5f,%3.5f,%3.5f) (%3.5f,%3.5f,%3.5f)"), Index,
 			//	(ResultsView[Index] - ExpectedVal).Size(),
 			//	ExpectedVal.X, ExpectedVal.Y, ExpectedVal.Z,
-			//	SamplesArray[Index].X, SamplesArray[Index].Y, SamplesArray[Index].Z,
+			//	ExecutionDatas.SamplePositions[Index].X, ExecutionDatas.SamplePositions[Index].Y, ExecutionDatas.SamplePositions[Index].Z,
 			//	ResultsView[Index].X, ResultsView[Index].Y, ResultsView[Index].Z);
 
 			EXPECT_LT((ResultsView[Index] - ExpectedVal).Size(), KINDA_SMALL_NUMBER);
@@ -668,25 +617,21 @@ namespace GeometryCollectionTest
 
 	void Fields_SumVectorRightSide()
 	{
-		TArray<FFieldContextIndex> IndicesArray;
-		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		FFieldExecutionDatas ExecutionDatas;
+		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, 10);
 
 		Chaos::FReal AverageSampleLength = 0.0;
-		TArray<FVector> SamplesArray;
-		SamplesArray.Init(FVector(0.f), 10);
+		ExecutionDatas.SamplePositions.Init(FVector(0.f), 10);
 		for (int32 Index = 0; Index < 10; Index++)
 		{
-			SamplesArray[Index] = FVector(0);
+			ExecutionDatas.SamplePositions[Index] = FVector(0);
 			if (Index > 0)
 			{
-				SamplesArray[Index] = FVector(100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5));
+				ExecutionDatas.SamplePositions[Index] = FVector(100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5), 100.*(FMath::SRand() - 0.5));
 			}
-			AverageSampleLength += SamplesArray[Index].Size();
+			AverageSampleLength += ExecutionDatas.SamplePositions[Index].Size();
 		}
 		AverageSampleLength /= 10.0;
-		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
-
 
 		FRadialFalloff * RadialFalloff = new FRadialFalloff();
 		RadialFalloff->Position = FVector(0.0, 0.0, 0.0);
@@ -704,8 +649,7 @@ namespace GeometryCollectionTest
 		FSumVector * SumVector = new FSumVector(1.0, RadialFalloff, UniformVector, nullptr, EFieldOperationType::Field_Multiply);
 
 		FFieldContext Context{
-			IndexView,
-			SamplesView,
+			ExecutionDatas,
 			FFieldContext::UniquePointerMap(),
 			0.0
 		};
@@ -719,8 +663,8 @@ namespace GeometryCollectionTest
 		for (int32 Index = 0; Index < 10; Index++)
 		{
 			FVector RightResult = UniformVector->Magnitude * UniformVector->Direction;
-			FVector LeftResult = RadialVector->Magnitude  * (SamplesArray[Index] - RadialVector->Position).GetSafeNormal();
-			Chaos::FReal RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
+			FVector LeftResult = RadialVector->Magnitude  * (ExecutionDatas.SamplePositions[Index] - RadialVector->Position).GetSafeNormal();
+			Chaos::FReal RadialFalloffDelta = (ExecutionDatas.SamplePositions[Index] - RadialFalloff->Position).Size();
 			Chaos::FReal ScalarResult = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffSize);
 			if (RadialFalloffDelta >= RadialFalloffSize)
 				ScalarResult = 0.0;
@@ -730,7 +674,7 @@ namespace GeometryCollectionTest
 			//UE_LOG(GCTF_Log, Error, TEXT("[%d:%3.5f] sample:(%3.5f,%3.5f,%3.5f) (%3.5f,%3.5f,%3.5f) (%3.5f,%3.5f,%3.5f)"), Index,
 			//	(ResultsView[Index] - ExpectedVal).Size(),
 			//	ExpectedVal.X, ExpectedVal.Y, ExpectedVal.Z,
-			//	SamplesArray[Index].X, SamplesArray[Index].Y, SamplesArray[Index].Z,
+			//	ExecutionDatas.SamplePositions[Index].X, ExecutionDatas.SamplePositions[Index].Y, ExecutionDatas.SamplePositions[Index].Z,
 			//	ResultsView[Index].X, ResultsView[Index].Y, ResultsView[Index].Z);
 
 			EXPECT_LT((ResultsView[Index] - ExpectedVal).Size(), KINDA_SMALL_NUMBER);
@@ -742,18 +686,14 @@ namespace GeometryCollectionTest
 	void Fields_SumScalar()
 	{
 		int32 NumPoints = 20;
-		TArray<FFieldContextIndex> IndicesArray;
-		FFieldContextIndex::ContiguousIndices(IndicesArray, NumPoints);
-		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
-
-
-		TArray<FVector> SamplesArray;
-		SamplesArray.Init(FVector(0.f), NumPoints);
+		FFieldExecutionDatas ExecutionDatas;
+		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, NumPoints);
+		
+		ExecutionDatas.SamplePositions.Init(FVector(0.f), NumPoints);
 		for (int32 Index = -10; Index < 10; Index++)
 		{
-			SamplesArray[Index + 10] = FVector(Index, 0, 0);
+			ExecutionDatas.SamplePositions[Index + 10] = FVector(Index, 0, 0);
 		}
-		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
 		
 		FRadialFalloff * RadialFalloff = new FRadialFalloff();
 		RadialFalloff->Position = FVector(5.0, 0.0, 0.0);
@@ -770,14 +710,13 @@ namespace GeometryCollectionTest
 		FSumScalar * SumScalar = new FSumScalar(1.f, RadialFalloff, RadialFalloff2,EFieldOperationType::Field_Multiply);
 
 		FFieldContext Context{
-			IndexView,
-			SamplesView,
+			ExecutionDatas,
 			FFieldContext::UniquePointerMap(),
 			0.0
 		};
 
 		TArray<float> ResultsArray;
-		ResultsArray.Init(0.f, SamplesArray.Num());
+		ResultsArray.Init(0.f, ExecutionDatas.SamplePositions.Num());
 		TArrayView<float> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumScalar->Evaluate(Context, ResultsView);
 
@@ -785,7 +724,7 @@ namespace GeometryCollectionTest
 		{
 			Chaos::FReal ScalarRight = 0.0;
 			{// FRadialFalloff::Evaluate
-				Chaos::FReal  RadialFalloffDelta = (RadialFalloff->Position - SamplesArray[Index]).Size();
+				Chaos::FReal  RadialFalloffDelta = (RadialFalloff->Position - ExecutionDatas.SamplePositions[Index]).Size();
 				if (RadialFalloffDelta < RadialFalloffRadius)
 				{
 					ScalarRight = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffRadius );
@@ -794,7 +733,7 @@ namespace GeometryCollectionTest
 
 			Chaos::FReal ScalarLeft = 0.0;
 			{ //  FRadialFalloff2::Evaluate
-				Chaos::FReal RadialFalloff2Delta = (RadialFalloff2->Position - SamplesArray[Index]).Size();
+				Chaos::FReal RadialFalloff2Delta = (RadialFalloff2->Position - ExecutionDatas.SamplePositions[Index]).Size();
 				if (RadialFalloff2Delta < RadialFalloff2Radius)
 				{
 					ScalarLeft = RadialFalloff2->Magnitude * (1.0 - RadialFalloff2Delta / RadialFalloff2Radius);
@@ -805,7 +744,7 @@ namespace GeometryCollectionTest
 
 			//UE_LOG(GCTF_Log, Error, TEXT("[%d:%3.5f] sample:(%3.5f,%3.5f,%3.5f) %3.5f -> %3.5f"), Index,
 			//	ResultsView[Index] - ExpectedVal,
-			//	SamplesArray[Index].X, SamplesArray[Index].Y, SamplesArray[Index].Z,
+			//	ExecutionDatas.SamplePositions[Index].X, ExecutionDatas.SamplePositions[Index].Y, ExecutionDatas.SamplePositions[Index].Z,
 			//	ExpectedVal, ResultsView[Index]);
 
 			EXPECT_LT(FMath::Abs(ResultsView[Index] - ExpectedVal), KINDA_SMALL_NUMBER);
@@ -816,17 +755,14 @@ namespace GeometryCollectionTest
 	void Fields_SumScalarRightSide()
 	{
 		int32 NumPoints = 20;
-		TArray<FFieldContextIndex> IndicesArray;
-		FFieldContextIndex::ContiguousIndices(IndicesArray, NumPoints);
-		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
-
-		TArray<FVector> SamplesArray;
-		SamplesArray.Init(FVector(0.f), NumPoints);
+		FFieldExecutionDatas ExecutionDatas;
+		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, NumPoints);
+		
+		ExecutionDatas.SamplePositions.Init(FVector(0.f), NumPoints);
 		for (int32 Index = -10; Index < 10; Index++)
 		{
-			SamplesArray[Index + 10] = FVector(Index, 0, 0);
+			ExecutionDatas.SamplePositions[Index + 10] = FVector(Index, 0, 0);
 		}
-		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
 
 		FRadialFalloff * RadialFalloff = new FRadialFalloff();
 		RadialFalloff->Position = FVector(5.0, 0.0, 0.0);
@@ -837,14 +773,13 @@ namespace GeometryCollectionTest
 		FSumScalar * SumScalar = new FSumScalar(1.f, RadialFalloff, nullptr, EFieldOperationType::Field_Multiply);
 
 		FFieldContext Context{
-			IndexView,
-			SamplesView,
+			ExecutionDatas,
 			FFieldContext::UniquePointerMap(),
 			0.0
 		};
 
 		TArray<float> ResultsArray;
-		ResultsArray.Init(0.f, SamplesArray.Num());
+		ResultsArray.Init(0.f, ExecutionDatas.SamplePositions.Num());
 		TArrayView<float> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumScalar->Evaluate(Context, ResultsView);
 
@@ -852,7 +787,7 @@ namespace GeometryCollectionTest
 		{
 			Chaos::FReal ScalarRight = 0.0;
 			{// FRadialFalloff::Evaluate
-				Chaos::FReal RadialFalloffDelta = (RadialFalloff->Position - SamplesArray[Index]).Size();
+				Chaos::FReal RadialFalloffDelta = (RadialFalloff->Position - ExecutionDatas.SamplePositions[Index]).Size();
 				if (RadialFalloffDelta < RadialFalloffRadius)
 				{
 					ScalarRight = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffRadius);
@@ -864,7 +799,7 @@ namespace GeometryCollectionTest
 
 			//UE_LOG(GCTF_Log, Error, TEXT("[%d:%3.5f] sample:(%3.5f,%3.5f,%3.5f) %3.5f -> %3.5f"), Index,
 			//	ResultsView[Index] - ExpectedVal,
-			//	SamplesArray[Index].X, SamplesArray[Index].Y, SamplesArray[Index].Z,
+			//	ExecutionDatas.SamplePositions[Index].X, ExecutionDatas.SamplePositions[Index].Y, ExecutionDatas.SamplePositions[Index].Z,
 			//	ExpectedVal, ResultsView[Index]);
 
 			EXPECT_LT(FMath::Abs(ResultsView[Index] - ExpectedVal), KINDA_SMALL_NUMBER);
@@ -875,17 +810,14 @@ namespace GeometryCollectionTest
 	void Fields_SumScalarLeftSide()
 	{
 		int32 NumPoints = 20;
-		TArray<FFieldContextIndex> IndicesArray;
-		FFieldContextIndex::ContiguousIndices(IndicesArray, NumPoints);
-		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		FFieldExecutionDatas ExecutionDatas;
+		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, NumPoints);
 
-		TArray<FVector> SamplesArray;
-		SamplesArray.Init(FVector(0.f), NumPoints);
+		ExecutionDatas.SamplePositions.Init(FVector(0.f), NumPoints);
 		for (int32 Index = -10; Index < 10; Index++)
 		{
-			SamplesArray[Index + 10] = FVector(Index, 0, 0);
+			ExecutionDatas.SamplePositions[Index + 10] = FVector(Index, 0, 0);
 		}
-		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
 
 		FRadialFalloff * RadialFalloff = new FRadialFalloff();
 		RadialFalloff->Position = FVector(5.0, 0.0, 0.0);
@@ -896,14 +828,13 @@ namespace GeometryCollectionTest
 		FSumScalar * SumScalar = new FSumScalar(1.f, nullptr, RadialFalloff, EFieldOperationType::Field_Multiply);
 
 		FFieldContext Context{
-			IndexView,
-			SamplesView,
+			ExecutionDatas,
 			FFieldContext::UniquePointerMap(),
 			0.0
 		};
 
 		TArray<float> ResultsArray;
-		ResultsArray.Init(0.f, SamplesArray.Num());
+		ResultsArray.Init(0.f, ExecutionDatas.SamplePositions.Num());
 		TArrayView<float> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumScalar->Evaluate(Context, ResultsView);
 
@@ -913,7 +844,7 @@ namespace GeometryCollectionTest
 
 			Chaos::FReal ScalarLeft = 0.0;
 			{ //  FRadialFalloff2::Evaluate
-				Chaos::FReal RadialFalloffDelta = (RadialFalloff->Position - SamplesArray[Index]).Size();
+				Chaos::FReal RadialFalloffDelta = (RadialFalloff->Position - ExecutionDatas.SamplePositions[Index]).Size();
 				if (RadialFalloffDelta < RadialFalloffRadius)
 				{
 					ScalarLeft = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffRadius );
@@ -924,7 +855,7 @@ namespace GeometryCollectionTest
 
 			//UE_LOG(GCTF_Log, Error, TEXT("[%d:%3.5f] sample:(%3.5f,%3.5f,%3.5f) %3.5f -> %3.5f"), Index,
 			//	ResultsView[Index] - ExpectedVal,
-			//	SamplesArray[Index].X, SamplesArray[Index].Y, SamplesArray[Index].Z,
+			//	ExecutionDatas.SamplePositions[Index].X, ExecutionDatas.SamplePositions[Index].Y, ExecutionDatas.SamplePositions[Index].Z,
 			//	ExpectedVal, ResultsView[Index]);
 
 			EXPECT_LT(FMath::Abs(ResultsView[Index] - ExpectedVal), KINDA_SMALL_NUMBER);
@@ -935,17 +866,14 @@ namespace GeometryCollectionTest
 	void Fields_Culling()
 	{
 		int32 NumPoints = 20;
-		TArray<FFieldContextIndex> IndicesArray;
-		FFieldContextIndex::ContiguousIndices(IndicesArray, NumPoints);
-		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		FFieldExecutionDatas ExecutionDatas;
+		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, NumPoints);
 
-		TArray<FVector> SamplesArray;
-		SamplesArray.Init(FVector(0.f), NumPoints);
+		ExecutionDatas.SamplePositions.Init(FVector(0.f), NumPoints);
 		for (int32 Index = -10; Index < 10; Index++)
 		{
-			SamplesArray[Index + 10] = FVector(Index, 0, 0);
+			ExecutionDatas.SamplePositions[Index + 10] = FVector(Index, 0, 0);
 		}
-		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
 
 		FRadialFalloff * RadialFalloff = new FRadialFalloff();
 		RadialFalloff->Position = FVector(0.0, 0.0, 0.0);
@@ -962,14 +890,13 @@ namespace GeometryCollectionTest
 		FCullingField<float> * CullingField = new FCullingField<float>(RadialFalloff, RadialFalloff2, EFieldCullingOperationType::Field_Culling_Outside);
 
 		FFieldContext Context{
-			IndexView,
-			SamplesView,
+			ExecutionDatas,
 			FFieldContext::UniquePointerMap(),
 			0.0
 		};
 
 		TArray<float> ResultsArray;
-		ResultsArray.Init(0.f, SamplesArray.Num());
+		ResultsArray.Init(0.f, ExecutionDatas.SamplePositions.Num());
 		TArrayView<float> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		CullingField->Evaluate(Context, ResultsView);
 
@@ -977,7 +904,7 @@ namespace GeometryCollectionTest
 		{
 			Chaos::FReal ScalarRight = 1.0;
 			{ 
-				Chaos::FReal RadialFalloffDelta = (RadialFalloff->Position - SamplesArray[Index]).Size();
+				Chaos::FReal RadialFalloffDelta = (RadialFalloff->Position - ExecutionDatas.SamplePositions[Index]).Size();
 				if (RadialFalloffDelta >= RadialFalloffRadius)
 				{
 					ScalarRight = 0.0;
@@ -986,7 +913,7 @@ namespace GeometryCollectionTest
 
 			Chaos::FReal ScalarLeft = 0.0;
 			{ //  FCullingField::Evaluate
-				Chaos::FReal RadialFalloff2Delta = (RadialFalloff2->Position - SamplesArray[Index]).Size();
+				Chaos::FReal RadialFalloff2Delta = (RadialFalloff2->Position - ExecutionDatas.SamplePositions[Index]).Size();
 				if (RadialFalloff2Delta < RadialFalloff2Radius)
 				{
 					ScalarLeft = RadialFalloff2->Magnitude * (1.0 - RadialFalloff2Delta / RadialFalloff2Radius);
@@ -997,7 +924,7 @@ namespace GeometryCollectionTest
 
 			//UE_LOG(GCTF_Log, Error, TEXT("[%d:%3.5f] sample:(%3.5f,%3.5f,%3.5f) %3.5f -> %3.5f"), Index,
 			//	ResultsView[Index] - ExpectedVal,
-			//	SamplesArray[Index].X, SamplesArray[Index].Y, SamplesArray[Index].Z,
+			//	ExecutionDatas.SamplePositions[Index].X, ExecutionDatas.SamplePositions[Index].Y, ExecutionDatas.SamplePositions[Index].Z,
 			//	ExpectedVal, ResultsView[Index]);
 
 			EXPECT_LT(FMath::Abs(ResultsView[Index] - ExpectedVal), KINDA_SMALL_NUMBER);

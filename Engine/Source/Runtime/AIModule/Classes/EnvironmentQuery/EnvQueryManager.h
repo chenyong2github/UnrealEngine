@@ -19,6 +19,52 @@ class UEnvQueryManager;
 class UEnvQueryOption;
 class UEnvQueryTest;
 
+//----------------------------------------------------------------------//
+// FEnvQueryManagerConfig
+//----------------------------------------------------------------------//
+
+/** Wrapper to hold config variables */
+USTRUCT()
+struct FEnvQueryManagerConfig
+{
+	GENERATED_BODY()
+
+public:
+
+	/** how long are we allowed to test per update, in seconds. */
+	UPROPERTY(config)
+	float MaxAllowedTestingTime = 0.003f;
+
+	/** whether we update EQS queries based on:
+	running a test on one query and move to the next (breadth) - default behavior,
+	or test an entire query before moving to the next one (depth). */
+	UPROPERTY(config)
+	bool bTestQueriesUsingBreadth = false;
+
+	/** if greater than zero, we will warn once when the number of queries is greater than or equal to this number, and log the queries out */
+	UPROPERTY(config)
+	int32 QueryCountWarningThreshold = 200;
+
+	/** how often (in seconds) we will warn about the number of queries (allows us to catch multiple occurrences in a session) */
+	UPROPERTY(config)
+	double QueryCountWarningInterval = 60.0f;
+
+	/** Maximum EQS execution duration (in seconds) before a warning is reported. */
+	UPROPERTY(config)
+	double ExecutionTimeWarningSeconds = 0.025f;
+
+	/** Maximum EQS Query FinishDelegate duration (in seconds) before a warning is reported. */
+	UPROPERTY(config)
+	double HandlingResultTimeWarningSeconds = 0.025f;
+
+	/** Maximum EQS Generator duration (in seconds) before a warning is reported. */
+	UPROPERTY(config)
+	double GenerationTimeWarningSeconds = 0.01f;
+
+public:
+	FString ToString() const;
+};
+
 /** wrapper for easy query execution */
 USTRUCT()
 struct AIMODULE_API FEnvQueryRequest
@@ -235,6 +281,9 @@ class AIMODULE_API UEnvQueryManager : public UAISubsystem, public FSelfRegisteri
 	//~ Begin FExec Interface
 	virtual bool Exec(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 	//~ End FExec Interface
+
+	/** Configure config variables during runtime */
+	void Configure(const FEnvQueryManagerConfig& NewConfig);
 
 protected:
 	friend UEnvQueryInstanceBlueprintWrapper;

@@ -22,13 +22,7 @@ bool FOpenXRLayer::NeedReAllocateTexture()
 		return true;
 	}
 
-	FRHITexture2D* SwapTexture = Swapchain->GetTexture2D();
-	if (!SwapTexture)
-	{
-		return true;
-	}
-
-	return SwapTexture->GetSizeXY() != Texture->GetSizeXY();
+	return SwapchainSize != Texture->GetSizeXY();
 }
 
 bool FOpenXRLayer::NeedReAllocateLeftTexture()
@@ -49,13 +43,7 @@ bool FOpenXRLayer::NeedReAllocateLeftTexture()
 		return true;
 	}
 
-	FRHITexture2D* SwapTexture = Swapchain->GetTexture2D();
-	if (!SwapTexture)
-	{
-		return true;
-	}
-
-	return SwapTexture->GetSizeXY() != Texture->GetSizeXY();
+	return SwapchainSize != Texture->GetSizeXY();
 }
 
 FIntRect FOpenXRLayer::GetViewport() const

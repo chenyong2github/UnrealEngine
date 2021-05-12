@@ -37,6 +37,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, NIAGARAVERTE
 	SHADER_PARAMETER(uint32, TexCoordWeightB)
 	SHADER_PARAMETER(float, DeltaSeconds)
 	SHADER_PARAMETER(uint32, MaterialParamValidMask)
+	SHADER_PARAMETER(int, SortedIndicesOffset)
 
 	SHADER_PARAMETER(int, PositionDataOffset)
 	SHADER_PARAMETER(int, PrevPositionDataOffset)
@@ -84,6 +85,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, NIAGARAVERTE
 	SHADER_PARAMETER(uint32, NiagaraFloatDataStride)
 	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataFloat)
 	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataHalf)
+	SHADER_PARAMETER_SRV(Buffer<int>, SortedIndices)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 typedef TUniformBufferRef<FNiagaraMeshUniformParameters> FNiagaraMeshUniformBufferRef;
@@ -106,7 +108,6 @@ public:
 		, LODIndex(-1)
 		, InstanceVerticesCPU(nullptr)
 		, FloatDataStride(0)
-		, SortedIndicesOffset(0)
 	{}
 
 	FNiagaraMeshVertexFactory()
@@ -115,7 +116,6 @@ public:
 		, LODIndex(-1)
 		, InstanceVerticesCPU(nullptr)
 		, FloatDataStride(0)
-		, SortedIndicesOffset(0)
 	{}
 
 	/**
@@ -136,22 +136,6 @@ public:
 		OutEnvironment.SetDefine(TEXT("NIAGARA_MESH_FACTORY"), TEXT("1"));
 		OutEnvironment.SetDefine(TEXT("NIAGARA_MESH_INSTANCED"), TEXT("1"));
 		OutEnvironment.SetDefine(TEXT("NiagaraVFLooseParameters"), TEXT("NiagaraMeshVF"));
-	}
-
-	void SetSortedIndices(const FShaderResourceViewRHIRef& InSortedIndicesSRV, uint32 InSortedIndicesOffset)
-	{
-		SortedIndicesSRV = InSortedIndicesSRV;
-		SortedIndicesOffset = InSortedIndicesOffset;
-	}
-
-	FORCEINLINE FRHIShaderResourceView* GetSortedIndicesSRV() const
-	{
-		return SortedIndicesSRV;
-	}
-
-	FORCEINLINE int32 GetSortedIndicesOffset() const
-	{
-		return SortedIndicesOffset;
 	}
 
 	/**
@@ -210,9 +194,6 @@ protected:
 
 	FShaderResourceViewRHIRef ParticleDataHalfSRV;
 	uint32 HalfDataStride;
-
-	FShaderResourceViewRHIRef SortedIndicesSRV;
-	uint32 SortedIndicesOffset;
 };
 
 /**

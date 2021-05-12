@@ -92,6 +92,7 @@ void PBDRigidParticleDefaultConstruct(FConcrete& Concrete, const FPBDRigidPartic
 	Concrete.SetCCDEnabled(Params.bCCDEnabled);
 	Concrete.SetDisabled(Params.bDisabled);
 	Concrete.SetResimType(EResimType::FullResim);
+	Concrete.SetSleepType(ESleepType::MaterialSleep);
 }
 
 
@@ -417,6 +418,13 @@ public:
 #endif
 	}
 
+	bool HasCollision() const { return GeometryParticles->HasCollision(ParticleIdx); }
+
+	void SetHasCollision(const bool bHasCollision)
+	{
+		GeometryParticles->HasCollision(ParticleIdx) = bHasCollision;
+	}
+
 	ESyncState SyncState() const
 	{
 		return GeometryParticles->SyncState(ParticleIdx);
@@ -690,6 +698,7 @@ protected:
 		SetObjectStateLowLevel(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 		SetIsland(INDEX_NONE);
 		SetToBeRemovedOnFracture(false);
+		SetSleepType(ESleepType::MaterialSleep);
 	}
 public:
 
@@ -818,6 +827,7 @@ public:
 		SetResimType(DynamicMisc.ResimType());
 		SetOneWayInteraction(DynamicMisc.OneWayInteraction());
 		AddCollisionConstraintFlag( (Chaos::ECollisionConstraintFlags)DynamicMisc.CollisionConstraintFlag() );
+		SetSleepType(DynamicMisc.SleepType());
 	}
 
 	void ResetSmoothedVelocities()
@@ -906,6 +916,9 @@ public:
 
 	void SetResimType(EResimType ResimType){ PBDRigidParticles->ResimType(ParticleIdx) = ResimType; }
 
+	ESleepType SleepType() const { return PBDRigidParticles->SleepType(ParticleIdx);}
+
+	void SetSleepType(ESleepType SleepType){ PBDRigidParticles->SetSleepType(ParticleIdx, SleepType); }
 
 
 	static constexpr EParticleType StaticType() { return EParticleType::Rigid; }
@@ -2308,7 +2321,7 @@ public:
 	}
 
 	EObjectStateType ObjectState() const { return MMiscData.Read().ObjectState(); }
-	void SetObjectState(const EObjectStateType InState, bool bAllowEvents = false, bool bInvalidate=true)
+	void SetObjectState(const EObjectStateType InState, bool bAllowEvents=false, bool bInvalidate=true)
 	{
 		if (bAllowEvents)
 		{
@@ -2339,6 +2352,21 @@ public:
 
 		MMiscData.Modify(bInvalidate,MDirtyFlags,Proxy,[&InState](auto& Data){ Data.SetObjectState(InState);});
 
+	}
+
+	void SetSleepType(ESleepType SleepType, bool bAllowEvents=false, bool bInvalidate=true)
+	{
+		MMiscData.Modify(true,MDirtyFlags,Proxy,[SleepType](auto& Data){ Data.SetSleepType(SleepType);});
+
+		if (SleepType == ESleepType::NeverSleep && ObjectState() == EObjectStateType::Sleeping)
+		{
+			SetObjectState(EObjectStateType::Dynamic, bAllowEvents, bInvalidate);
+		}
+	}
+
+	ESleepType SleepType() const
+	{
+		return MMiscData.Read().SleepType();
 	}
 
 	void ClearEvents() { MWakeEvent = EWakeEventEntry::None; }

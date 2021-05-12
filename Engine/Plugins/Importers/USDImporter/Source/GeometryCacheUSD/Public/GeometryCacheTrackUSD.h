@@ -38,7 +38,7 @@ public:
 
 private:
 	FGeometryCacheMeshData MeshData;
-	FGeometryCacheTrackSampleInfo SampleInfo;
+	TArray<FGeometryCacheTrackSampleInfo> SampleInfos;
 
 	int32 StartFrameIndex;
 	int32 EndFrameIndex;

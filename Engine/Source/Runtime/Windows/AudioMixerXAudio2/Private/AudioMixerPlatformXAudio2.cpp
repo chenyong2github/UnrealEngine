@@ -42,6 +42,7 @@
 
 #include "Misc/CoreDelegates.h"
 
+
 // Macro to check result code for XAudio2 failure, get the string version, log, and goto a cleanup
 #define XAUDIO2_GOTO_CLEANUP_ON_FAIL(Result)																										 \
 	if (FAILED(Result))																														 \
@@ -649,6 +650,7 @@ namespace Audio
 #if PLATFORM_WINDOWS
 		IMMDeviceEnumerator* DeviceEnumerator = nullptr;
 		IMMDeviceCollection* DeviceCollection = nullptr;
+		IMMDevice* DefaultDevice = nullptr;
 		IMMDevice* Device = nullptr;
 		bool bIsDefault = false;
 		bool bSucceeded = false;
@@ -671,13 +673,14 @@ namespace Audio
 			goto Cleanup;
 		}
 
+		// Get the default device
+		Result = DeviceEnumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &DefaultDevice);
+		XAUDIO2_GOTO_CLEANUP_ON_FAIL(Result);
+
 		// If we are asking to get info on default device
 		if (InDeviceIndex == AUDIO_MIXER_DEFAULT_DEVICE_INDEX)
 		{
-			// Get the default device
-			Result = DeviceEnumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &Device);
-			XAUDIO2_GOTO_CLEANUP_ON_FAIL(Result);
-
+			Device = DefaultDevice;
 			bIsDefault = true;
 		}
 		// Make sure we're not asking for a bad device index
@@ -698,7 +701,16 @@ namespace Audio
 			bSucceeded = GetMMDeviceInfo(Device, OutInfo);
 
 			// Fix up if this was a default device
-			OutInfo.bIsSystemDefault = bIsDefault;
+			if (bIsDefault)
+			{
+				OutInfo.bIsSystemDefault = true;
+			}
+			else if(DefaultDevice)
+			{
+				FAudioPlatformDeviceInfo DefaultInfo;
+				GetMMDeviceInfo(DefaultDevice, DefaultInfo);
+				OutInfo.bIsSystemDefault = OutInfo.DeviceId == DefaultInfo.DeviceId;
+			}
 		}
 
 	Cleanup:
@@ -1187,11 +1199,11 @@ namespace Audio
 
 		if (AudioDeviceSwapCriticalSection.TryLock())
 		{
-			UE_LOG(LogAudioMixer, Display, TEXT("Swapping audio render device to new device: %s."), *GetCurrentDeviceName());
+			UE_LOG(LogAudioMixer, Display, TEXT("Swapping audio render device to new device: %s."), *DeviceID);
 
 			NewAudioDeviceId = DeviceID;
 			bMoveAudioStreamToNewAudioDevice = true;
-
+			
 			AudioDeviceSwapCriticalSection.Unlock();
 
 			return true;
@@ -1214,13 +1226,24 @@ namespace Audio
 		// If we're running the null device, This function is called every second or so.
 		// Because of this, we early exit from this function if we're running the null device
 		// and there still are no devices.
-		if (bIsUsingNullDevice && !NumDevices)
+		const bool bTrySwitchToHardwareDevice = NumDevices > 0;
+		const bool bContinueUsingNullDevice = bIsUsingNullDevice && !bTrySwitchToHardwareDevice;
+		const bool bSwitchToNullDevice = !bIsUsingNullDevice && !bTrySwitchToHardwareDevice;
+
+		if (bContinueUsingNullDevice)
 		{
-			return true;
+			// Audio device was not changed. Return false to avoid downstream device change logic.
+			return false;
 		}
 
 		UE_LOG(LogAudioMixer, Log, TEXT("Resetting audio stream to device id %s"), *InNewDeviceId);
 
+		// Device swaps require reinitialization of output buffers to handle
+		// different channel formats. Stop generating audio to protect against
+		// accessing the OutputBuffer.
+		StopGeneratingAudio();
+
+		// Stop currently running device
 		if (bIsUsingNullDevice)
 		{
 			StopRunningNullDevice();
@@ -1265,11 +1288,12 @@ namespace Audio
 			bIsInDeviceSwap = false;
 		}
 
-		if (NumDevices > 0)
+		if (bTrySwitchToHardwareDevice)
 		{
 			if (!ResetXAudio2System())
 			{
 				// Reinitializing the XAudio2System failed, so we have to exit here.
+				BeginGeneratingAudio();
 				StartRunningNullDevice();
 				return true;
 			}
@@ -1330,18 +1354,33 @@ namespace Audio
 			Format.wBitsPerSample = sizeof(float) * 8;
 
 			// Create the output source voice
-			XAUDIO2_RETURN_ON_FAIL(XAudio2System->CreateSourceVoice(&OutputAudioStreamSourceVoice, &Format, XAUDIO2_VOICE_NOPITCH, 2.0f, &OutputVoiceCallback));
+			HRESULT Result = XAudio2System->CreateSourceVoice(&OutputAudioStreamSourceVoice, &Format, XAUDIO2_VOICE_NOPITCH, 2.0f, &OutputVoiceCallback);
+			if (FAILED(Result))
+			{
+				FString ErrorString = FString::Printf(TEXT("%s -> 0x%X: %s (line: %d)"), TEXT( "XAudio2System->CreateSourceVoice" ), Result, *GetErrorString(Result), __LINE__);
+				UE_LOG(LogAudioMixer, Error, TEXT("XAudio2 Error: %s"), *ErrorString);																 
+
+				// Switch to running null device by setting OutputAudioStreamSourceVoice to null.
+				// Will default to null device when calling `ResumePlaybackOnNewDevice()`
+				OutputAudioStreamSourceVoice = nullptr;
+
+				// Return true to signal that playback must be restarted. 
+				return true;
+			}
 
 			// Reinitialize the output circular buffer to match the buffer math of the new audio device.
 			const int32 NumOutputSamples = AudioStreamInfo.NumOutputFrames * AudioStreamInfo.DeviceInfo.NumChannels;
 			OutputBuffer.Init(AudioStreamInfo.AudioMixer, NumOutputSamples, NumOutputBuffers, AudioStreamInfo.DeviceInfo.Format);
-
-			const int32 NewNumSamples = OpenStreamParams.NumFrames * AudioStreamInfo.DeviceInfo.NumChannels;
 		}
 		else
 		{	
+			check(bSwitchToNullDevice);
+
 			// If we don't have any hardware playback devices available, use the null device callback to render buffers.
-			StartRunningNullDevice();
+			// NullDevice is started when OutputAudioStreamSourceVoice is null
+			check(nullptr == OutputAudioStreamSourceVoice);
+
+			return true;
 		}
 		
 #endif // #if PLATFORM_WINDOWS
@@ -1351,18 +1390,27 @@ namespace Audio
 
 	void FMixerPlatformXAudio2::ResumePlaybackOnNewDevice()
 	{
+		int32 NumSamplesPopped = 0;
+		TArrayView<const uint8> PoppedAudio = OutputBuffer.PopBufferData(NumSamplesPopped);
+		SubmitBuffer(PoppedAudio.GetData());
+
+		check(OpenStreamParams.NumFrames * AudioStreamInfo.DeviceInfo.NumChannels == OutputBuffer.GetNumSamples());
+
+		if (nullptr == AudioRenderEvent)
+		{
+			BeginGeneratingAudio();
+		}
+
+		AudioRenderEvent->Trigger();
+
 		if (OutputAudioStreamSourceVoice)
 		{
-			int32 NumSamplesPopped = 0;
-			TArrayView<const uint8> PoppedAudio = OutputBuffer.PopBufferData(NumSamplesPopped);
-			SubmitBuffer(PoppedAudio.GetData());
-
-			check(OpenStreamParams.NumFrames * AudioStreamInfo.DeviceInfo.NumChannels == OutputBuffer.GetNumSamples());
-
-			AudioRenderEvent->Trigger();
-
 			// Start the voice streaming
 			OutputAudioStreamSourceVoice->Start();
+		}
+		else
+		{
+			StartRunningNullDevice();
 		}
 	}
 

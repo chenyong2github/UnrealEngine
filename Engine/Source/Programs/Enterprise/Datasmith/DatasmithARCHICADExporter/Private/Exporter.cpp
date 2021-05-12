@@ -136,17 +136,16 @@ GSErrCode FExporter::DoChooseDestination(IO::Location* OutDestFile)
 {
 	DG::FileDialog fileDialog(DG::FileDialog::Save);
 
-	IO::fileSystem.GetSpecialLocation(IO::FileSystem::CurrentFolder, OutDestFile);
+	// IO::fileSystem.GetSpecialLocation(IO::FileSystem::CurrentFolder, OutDestFile);
 
 	FTM::FileTypeManager templateFileFTM("TemplateFileFTM");
-	FTM::TypeID			 datasmithTypeID =
-		templateFileFTM.AddType(FTM::FileType("Datasmith file", "udatasmith", 0, 0, -1, NULL));
+	FTM::TypeID datasmithTypeID = templateFileFTM.AddType(FTM::FileType("Datasmith file", "udatasmith", 0, 0, kIconDS));
 
-	fileDialog.SetTitle("Export BCF File");
+	fileDialog.SetTitle("Export Datasmith File");
 	fileDialog.AddFilter(datasmithTypeID);
 	fileDialog.AddFilter(FTM::RootGroup);
 	fileDialog.SelectFilter(0);
-	fileDialog.SetFolder(*OutDestFile);
+	//	fileDialog.SetFolder(*OutDestFile);
 
 	if (!fileDialog.Invoke())
 		return Cancel;

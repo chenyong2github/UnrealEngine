@@ -18,9 +18,9 @@ TStatId FRemoteControlProtocolDMX::GetStatId() const
 FRemoteControlDMXProtocolEntity::~FRemoteControlDMXProtocolEntity()
 {
 	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
-	if (PortConfigsChangedHandle.IsValid())
+	if (PortsChangedHandle.IsValid())
 	{
-		ProtocolSettings->OnPortConfigsChanged.Remove(PortConfigsChangedHandle);
+		FDMXPortManager::Get().OnPortsChanged.Remove(PortsChangedHandle);
 	}
 }
 
@@ -29,7 +29,7 @@ void FRemoteControlDMXProtocolEntity::Initialize()
 	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
 
 	// Add Delegates
-	PortConfigsChangedHandle = ProtocolSettings->OnPortConfigsChanged.AddRaw(this, &FRemoteControlDMXProtocolEntity::UpdateInputPort);
+	PortsChangedHandle = FDMXPortManager::Get().OnPortsChanged.AddRaw(this, &FRemoteControlDMXProtocolEntity::UpdateInputPort);
 
     // Assign InputPortReference
 	UpdateInputPort();

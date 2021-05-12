@@ -222,6 +222,13 @@ TArray<ESocialSubsystem> USocialUser::GetRelationshipSubsystems(ESocialRelations
 			RelationshipSubsystems.Add(ESocialSubsystem::Primary);
 		}
 	}
+	else if (Relationship == ESocialRelationship::JoinRequest)
+	{
+		if (HasRequestedToJoinUs())
+		{
+			RelationshipSubsystems.Add(ESocialSubsystem::Primary);
+		}
+	}
 	else
 	{
 		for (const TPair<ESocialSubsystem, FSubsystemUserInfo>& SubsystemInfoPair : SubsystemInfoByType)

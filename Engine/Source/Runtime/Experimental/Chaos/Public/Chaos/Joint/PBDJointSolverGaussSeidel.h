@@ -106,6 +106,7 @@ namespace Chaos
 
 		void Update(
 			const FReal Dt,
+			const FReal InSolverStiffness,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const FVec3& P0,
@@ -164,52 +165,45 @@ namespace Chaos
 
 		void ApplyPositionDelta(
 			const int32 BodyIndex,
-			const FReal Stiffness,
 			const FVec3& DP);
 
 		void ApplyPositionDelta(
-			const FReal Stiffness,
 			const FVec3& DP0,
 			const FVec3& DP1);
 
 		void ApplyRotationDelta(
 			const int32 BodyIndex,
-			const FReal Stiffness,
 			const FVec3& DR);
 
 		void ApplyRotationDelta(
-			const FReal Stiffness,
 			const FVec3& DR0,
 			const FVec3& DR1);
 
 		void ApplyDelta(
 			const int32 BodyIndex,
-			const FReal Stiffness,
 			const FVec3& DP,
 			const FVec3& DR1);
 
 		void ApplyVelocityDelta(
 			const int32 BodyIndex,
-			const FReal Stiffness,
 			const FVec3& DV,
 			const FVec3& DW);
 
 		void ApplyVelocityDelta(
-			const FReal Stiffness,
 			const FVec3& DV0,
 			const FVec3& DW0,
 			const FVec3& DV1,
 			const FVec3& DW1);
 
 		void ApplyPositionConstraint(
-			const FReal Stiffness,
+			const FReal JointStiffness,
 			const FVec3& Axis,
 			const FReal Delta);
 
 		void ApplyPositionConstraintSoft(
 			const FReal Dt,
-			const FReal Stiffness,
-			const FReal Damping,
+			const FReal JointStiffness,
+			const FReal JointDamping,
 			const bool bAccelerationMode,
 			const FVec3& Axis,
 			const FReal Delta,
@@ -217,26 +211,26 @@ namespace Chaos
 			FReal& Lambda);
 
 		void ApplyRotationConstraint(
-			const FReal Stiffness,
+			const FReal JointStiffness,
 			const FVec3& Axis,
 			const FReal Angle);
 
 		void ApplyRotationConstraintKD(
 			const int32 KIndex,
 			const int32 DIndex,
-			const FReal Stiffness,
+			const FReal JointStiffness,
 			const FVec3& Axis,
 			const FReal Angle);
 
 		void ApplyRotationConstraintDD(
-			const FReal Stiffness,
+			const FReal JointStiffness,
 			const FVec3& Axis,
 			const FReal Angle);
 
 		void ApplyRotationConstraintSoft(
 			const FReal Dt,
-			const FReal Stiffness,
-			const FReal Damping,
+			const FReal JointStiffness,
+			const FReal JointDamping,
 			const bool bAccelerationMode,
 			const FVec3& Axis,
 			const FReal Angle,
@@ -247,8 +241,8 @@ namespace Chaos
 			const int32 KIndex,
 			const int32 DIndex,
 			const FReal Dt,
-			const FReal Stiffness,
-			const FReal Damping,
+			const FReal JointStiffness,
+			const FReal JointDamping,
 			const bool bAccelerationMode,
 			const FVec3& Axis,
 			const FReal Angle,
@@ -257,8 +251,8 @@ namespace Chaos
 
 		void ApplyRotationConstraintSoftDD(
 			const FReal Dt,
-			const FReal Stiffness,
-			const FReal Damping,
+			const FReal JointStiffness,
+			const FReal JointDamping,
 			const bool bAccelerationMode,
 			const FVec3& Axis,
 			const FReal Angle,
@@ -576,6 +570,10 @@ namespace Chaos
 		FReal SwingSoftLambda;
 		FVec3 LinearDriveLambdas;
 		FVec3 RotationDriveLambdas;
+
+		// Solver stiffness - increased over iterations for stability
+		// @todo(chaos): remove Stiffness from SolverSettings (because it is not a solver constant)
+		FReal SolverStiffness;
 
 		// Constraint padding which can act something like a velocity constraint (for reslockfreetitution)
 		FVec3 LinearConstraintPadding;

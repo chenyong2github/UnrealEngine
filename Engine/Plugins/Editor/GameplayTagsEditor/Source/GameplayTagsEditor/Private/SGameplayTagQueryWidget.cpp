@@ -8,6 +8,7 @@
 #include "EditorStyleSet.h"
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
+#include "GameplayTagsManager.h"
 
 #define LOCTEXT_NAMESPACE "GameplayTagQueryWidget"
 
@@ -32,6 +33,8 @@ void SGameplayTagQueryWidget::Construct(const FArguments& InArgs, const TArray<F
 			TagQueryOwner->SetFlags(RF_Transactional);
 		}
 	}
+
+	UGameplayTagsManager::Get().OnGetCategoriesMetaFromPropertyHandle.AddSP(this, &SGameplayTagQueryWidget::OnGetCategoriesMetaFromPropertyHandle);
 
 	// build editable query object tree from the runtime query data
 	UEditableGameplayTagQuery* const EQ = CreateEditableQuery(*TagQueries[0].TagQuery);
@@ -86,6 +89,29 @@ void SGameplayTagQueryWidget::Construct(const FArguments& InArgs, const TArray<F
 		];
 }
 
+void SGameplayTagQueryWidget::OnGetCategoriesMetaFromPropertyHandle(TSharedPtr<IPropertyHandle> PropertyHandle, FString& MetaString)
+{
+	TArray<UObject*> OuterObjects;
+	PropertyHandle->GetOuterObjects(OuterObjects);
+	for (UObject* Object : OuterObjects)
+	{
+		UObject* Outer = Object->GetOuter();
+		while (Outer)
+		{
+			if (Outer == EditableQuery)
+			{
+				if(TagQueries.Num() > 0)
+				{
+					// This is us, re-route
+					MetaString = UGameplayTagsManager::StaticGetCategoriesMetaFromPropertyHandle(TagQueries[0].TagQueryPropertyHandle);
+				}
+				return;
+			}
+			Outer = Outer->GetOuter();
+		}
+	}
+}
+
 void SGameplayTagQueryWidget::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
 	// Auto saved changes will not call pre and post notify; auto save should only be used to make changes coming from blueprints
@@ -127,6 +153,8 @@ SGameplayTagQueryWidget::~SGameplayTagQueryWidget()
 	{
 		Q->RemoveFromRoot();
 	}
+	
+	UGameplayTagsManager::Get().OnGetCategoriesMetaFromPropertyHandle.RemoveAll(this);
 }
 
 

@@ -96,11 +96,14 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 		TEXT(""),
 		*FPaths::GetPath(FPaths::ConvertRelativePathToFull(GetSource().GetSourceFile())) );
 
-	if (FileDescription.Extension == TEXT("jt"))
+	// Do not change the model unit when translator is called by the Datasmith runtime plugin.
+#if WITH_EDITOR
+	if (FileDescription.Extension == TEXT("jt") && IsInGameThread())
 	{
 		ImportParameters.MetricUnit = 1.;
 		ImportParameters.ScaleFactor = 100.;
 	}
+#endif
 
 	ImportParameters.ModelCoordSys = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded;
 	if (FileDescription.Extension == TEXT("prt")) // NX

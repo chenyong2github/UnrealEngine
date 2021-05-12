@@ -1259,7 +1259,8 @@ void UPhysicsFieldComponent::OnRegister()
 		}
 		else
 		{
-			TArray<EFieldPhysicsType> TargetTypes = {   EFieldPhysicsType::Field_LinearForce,
+			TArray<EFieldPhysicsType> TargetTypes = {   EFieldPhysicsType::Field_DynamicState,
+														EFieldPhysicsType::Field_LinearForce,
 														EFieldPhysicsType::Field_ExternalClusterStrain,
 														EFieldPhysicsType::Field_Kill,
 														EFieldPhysicsType::Field_LinearVelocity,
@@ -1268,8 +1269,8 @@ void UPhysicsFieldComponent::OnRegister()
 														EFieldPhysicsType::Field_InternalClusterStrain,
 														EFieldPhysicsType::Field_DisableThreshold,
 														EFieldPhysicsType::Field_SleepingThreshold,
-														EFieldPhysicsType::Field_PositionTarget,
-														EFieldPhysicsType::Field_DynamicConstraint };
+														EFieldPhysicsType::Field_CollisionGroup,
+														EFieldPhysicsType::Field_ActivateDisabled };
 			TargetTypes.Sort();
 
 			FieldInstance->InitInstance(TargetTypes);

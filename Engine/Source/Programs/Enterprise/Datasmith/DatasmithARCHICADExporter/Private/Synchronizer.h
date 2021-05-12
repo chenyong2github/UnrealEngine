@@ -6,6 +6,7 @@
 #include "Utils/ViewState.h"
 
 #include "SyncContext.h"
+#include "Menus.h"
 
 #include "Model.hpp"
 
@@ -16,11 +17,27 @@ BEGIN_NAMESPACE_UE_AC
 // Class to synchronize 3D data thru  DirecLink
 class FSynchronizer
 {
-	FDatasmithDirectLink& DatasmithDirectLink;
-	FSyncDatabase*		  SyncDatabase = nullptr;
-	FViewState			  ViewState;
+	FDatasmithDirectLink&		DatasmithDirectLink;
+	FSyncDatabase*				SyncDatabase = nullptr;
+	FViewState					ViewState;
+	FSyncData::FAttachObservers AttachObservers;
 
   public:
+	// Register the Dynamic Link sync services
+	static GSErrCode Register();
+
+	// Enable handlers of the Dynamic Link sync services
+	static GSErrCode Initialize();
+
+	// Intra add-ons command handler
+	static GSErrCode __ACENV_CALL SyncCommandHandler(GSHandle ParHdl, GSPtr ResultData, bool SilentMode) noexcept;
+
+	// Process intra add-ons command
+	static GSErrCode DoSyncCommand(GSHandle ParHdl);
+
+	// Schedule a Auto Sync snapshot to be executed from the main thread event loop.
+	static void PostDoSnapshot(const utf8_t* InReason);
+
 	// Constructor
 	FSynchronizer();
 
@@ -48,11 +65,16 @@ class FSynchronizer
 	// Inform that the project has been closed
 	void ProjectClosed();
 
+	// Return the export path from the ExporterUIModule or a default one
+	static FString GetExportPath();
+
 	// Do a snapshot of the model 3D data
 	void DoSnapshot(const ModelerAPI::Model& InModel);
 
+	void DoIdle(int* IOCount);
+
 	// Return true if view or at least one material changed
-	bool NeedLiveLinkUpdate() const;
+	bool NeedAutoSyncUpdate() const;
 
 	static void GetProjectPathAndName(GS::UniString* OutPath, GS::UniString* OutName);
 

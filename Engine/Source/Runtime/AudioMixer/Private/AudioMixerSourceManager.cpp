@@ -2234,7 +2234,12 @@ namespace Audio
 				if (NumFadeFrames < NumOutputFrames)
 				{
 					int32 SamplesLeft = NumSamples - NumFadeSamples;
-					FMemory::Memzero(&PreDistanceAttenBufferPtr[NumFadeSamples], sizeof(float) * SamplesLeft);
+
+					// Protect memzero call with some sanity checking on the inputs.
+					if(SamplesLeft > 0 && NumFadeSamples >= 0 && NumFadeSamples < NumSamples)
+					{
+						FMemory::Memzero(&PreDistanceAttenBufferPtr[NumFadeSamples], sizeof(float) * SamplesLeft);
+					}
 				}
 			}
 			else

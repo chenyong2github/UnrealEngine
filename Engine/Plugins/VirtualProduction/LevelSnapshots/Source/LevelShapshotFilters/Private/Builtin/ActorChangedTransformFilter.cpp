@@ -14,5 +14,7 @@ EFilterResult::Type UActorChangedTransformFilter::IsActorValid(const FIsActorVal
 	const bool bIsScaleEqual = bIgnoreScale || WorldActorTransform.GetScale3D().Equals(SnapshotActorTransform.GetScale3D());
 
 	const bool bAreTransformsEqual = bIsLocationEqual && bIsRotationEqual && bIsScaleEqual;
-	return bAreTransformsEqual && TransformCheckRule == ETransformReturnType::IsValidWhenTransformStayedSame ? EFilterResult::Include : EFilterResult::Exclude; 
+	const bool bWantsEqualTransforms = TransformCheckRule == ETransformReturnType::IsValidWhenTransformStayedSame;
+	return (bAreTransformsEqual && bWantsEqualTransforms) || (!bAreTransformsEqual && !bWantsEqualTransforms) 
+		? EFilterResult::Include : EFilterResult::Exclude; 
 }

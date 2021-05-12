@@ -1103,6 +1103,18 @@ static TAutoConsoleVariable<int32> CVarGPUCrashDebuggingAftermathTrackAll(
 	ECVF_ReadOnly
 );
 
+static FAutoConsoleVariableRef CVarEnableVariableRateShading(
+	TEXT("r.VRS.Enable"),
+	GRHIVariableRateShadingEnabled,
+	TEXT("Toggle to enable Variable Rate Shading."),
+	ECVF_RenderThreadSafe);
+
+static FAutoConsoleVariableRef CVarEnableAttachmentVariableRateShading(
+	TEXT("r.VRS.EnableImage"),
+	GRHIAttachmentVariableRateShadingEnabled,
+	TEXT("Toggle to enable image-based Variable Rate Shading."),
+	ECVF_RenderThreadSafe);
+
 namespace RHIConfig
 {
 	bool ShouldSaveScreenshotAfterProfilingGPU()
@@ -1233,6 +1245,8 @@ bool GRHISupportsBackBufferWithCustomDepthStencil = true;
 bool GRHIIsHDREnabled = false;
 bool GRHISupportsHDROutput = false;
 
+bool GRHIVariableRateShadingEnabled = true;
+bool GRHIAttachmentVariableRateShadingEnabled = true;
 bool GRHISupportsPipelineVariableRateShading = false;
 bool GRHISupportsAttachmentVariableRateShading = false;
 bool GRHISupportsComplexVariableRateShadingCombinerOps = false;

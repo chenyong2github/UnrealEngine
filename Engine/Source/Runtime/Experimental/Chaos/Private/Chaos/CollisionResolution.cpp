@@ -85,6 +85,9 @@ FAutoConsoleVariableRef CVarCCDAllowedDepthBoundsScale(TEXT("p.Chaos.CCD.Allowed
 int32 CCDUseGenericSweptConvexConstraints = 1;
 FAutoConsoleVariableRef CVarUseGenericSweptConvexConstraints(TEXT("p.Chaos.CCD.UseGenericSweptConvexConstraints"), CCDUseGenericSweptConvexConstraints, TEXT("Use generic convex convex swept constraint generation for convex shape pairs which don't have specialized implementations."));
 
+int32 CCDOnlyConsiderDynamicStatic = 0;
+FAutoConsoleVariableRef CVarCCDOnlyConsiderDynamicStatic(TEXT("p.Chaos.CCD.OnlyConsiderDynamicStatic"), CCDOnlyConsiderDynamicStatic, TEXT("Only enable CCD for dynamic-static pairs."));
+
 int32 ConstraintsDetailedStats = 0;
 FAutoConsoleVariableRef CVarConstraintsDetailedStats(TEXT("p.Chaos.Constraints.DetailedStats"), ConstraintsDetailedStats, TEXT("When set to 1, will enable more detailed stats."));
 
@@ -147,7 +150,7 @@ namespace Chaos
 		// Determines if body should use CCD. If using CCD, computes Dir and Length of sweep.
 		bool UseCCD(const TGeometryParticleHandle<FReal, 3>* SweptParticle, const TGeometryParticleHandle<FReal, 3>* OtherParticle, const FImplicitObject* Implicit, FVec3& Dir, FReal& Length)
 		{
-			if (OtherParticle->ObjectState() != EObjectStateType::Static)
+			if (CCDOnlyConsiderDynamicStatic > 0 && OtherParticle->ObjectState() != EObjectStateType::Static)
 			{
 				return false;
 			}

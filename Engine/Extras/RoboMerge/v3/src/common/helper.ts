@@ -8,7 +8,7 @@ const helperLogger = new ContextualLogger('Helper')
 
 // fail hard on exceptions thrown in async functions
 process.on('unhandledRejection', async (reason, promise) => {
-	helperLogger.error(`Encountered unhandledRejection at: ${promise}\nreason: ${reason}`)
+	console.log('Encountered unhandledRejection at: ', promise, '\n\nreason:', reason)
 
 	if (process.env.EPIC_ENV === 'prod') {
 		// Sentry integration has a unhandledRejection listener, need to give it time to send to Sentry before throwing fatal err

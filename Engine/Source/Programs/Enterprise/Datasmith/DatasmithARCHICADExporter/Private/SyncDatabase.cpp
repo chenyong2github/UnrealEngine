@@ -40,14 +40,14 @@ FSyncDatabase::~FSyncDatabase()
 	// Delete all sync data content by simulatin an emptying a 3d model
 	ResetBeforeScan();
 	CleanAfterScan();
-	size_t RemainingCount = ElementsSyncDataMap.size();
+	int32 RemainingCount = ElementsSyncDataMap.Num();
 	if (RemainingCount != 0)
 	{
-		UE_AC_DebugF("FSyncDatabase::~FSyncDatabase - Database not emptied - %lu Remaining\n", RemainingCount);
-		for (FMapGuid2SyncData::iterator Iter = ElementsSyncDataMap.begin(); Iter != ElementsSyncDataMap.end(); ++Iter)
+		UE_AC_DebugF("FSyncDatabase::~FSyncDatabase - Database not emptied - %u Remaining\n", RemainingCount);
+		for (TPair< FGuid, FSyncData* >& Iter : ElementsSyncDataMap)
 		{
-			delete Iter->second;
-			Iter->second = nullptr;
+			delete Iter.Value;
+			Iter.Value = nullptr;
 		}
 	}
 
@@ -96,29 +96,35 @@ void FSyncDatabase::Synchronize(const FSyncContext& InSyncContext)
 // Before a scan we reset our sync data, so we can detect when an element has been modified or destroyed
 void FSyncDatabase::ResetBeforeScan()
 {
-	FMapGuid2SyncData::iterator MapEnd = ElementsSyncDataMap.end();
-	for (FMapGuid2SyncData::iterator SyncData = ElementsSyncDataMap.begin(); SyncData != MapEnd; ++SyncData)
+	for (const TPair< FGuid, FSyncData* >& Iter : ElementsSyncDataMap)
 	{
-		SyncData->second->ResetBeforeScan();
+		Iter.Value->ResetBeforeScan();
 	}
+}
+
+inline const FGuid& GSGuid2FGuid(const GS::Guid& InGuid)
+{
+	return reinterpret_cast< const FGuid& >(InGuid);
+}
+inline const GS::Guid& FGuid2GSGuid(const FGuid& InGuid)
+{
+	return reinterpret_cast< const GS::Guid& >(InGuid);
 }
 
 // After a scan, but before syncing, we delete obsolete syncdata (and it's Datasmith Element)
 void FSyncDatabase::CleanAfterScan()
 {
-	FMapGuid2SyncData::iterator ItSyncData = ElementsSyncDataMap.find(FSyncData::FScene::SceneGUID);
-	if (ItSyncData != ElementsSyncDataMap.end())
+	FSyncData** SyncData = ElementsSyncDataMap.Find(GSGuid2FGuid(FSyncData::FScene::SceneGUID));
+	if (SyncData != nullptr)
 	{
-		ItSyncData->second->CleanAfterScan(this);
+		(**SyncData).CleanAfterScan(this);
 	}
 }
 
 // Get existing sync data for the specified guid
 FSyncData*& FSyncDatabase::GetSyncData(const GS::Guid& InGuid)
 {
-	std::pair< GS::Guid, FSyncData* >			   value(InGuid, nullptr);
-	std::pair< FMapGuid2SyncData::iterator, bool > result = ElementsSyncDataMap.insert(value);
-	return result.first->second;
+	return ElementsSyncDataMap.FindOrAdd(GSGuid2FGuid(InGuid), nullptr);
 }
 
 FSyncData& FSyncDatabase::GetSceneSyncData()
@@ -145,10 +151,10 @@ FSyncData& FSyncDatabase::GetLayerSyncData(short InLayer)
 // Delete obsolete syncdata (and it's Datasmith Element)
 void FSyncDatabase::DeleteSyncData(const GS::Guid& InGuid)
 {
-	FMapGuid2SyncData::iterator ItSyncData = ElementsSyncDataMap.find(InGuid);
-	if (ItSyncData != ElementsSyncDataMap.end())
+	FSyncData** SyncData = ElementsSyncDataMap.Find(GSGuid2FGuid(InGuid));
+	if (SyncData != nullptr)
 	{
-		ElementsSyncDataMap.erase(ItSyncData);
+		ElementsSyncDataMap.Remove(GSGuid2FGuid(InGuid));
 	}
 	else
 	{
@@ -159,13 +165,14 @@ void FSyncDatabase::DeleteSyncData(const GS::Guid& InGuid)
 // Return the name of the specified layer
 const FString& FSyncDatabase::GetLayerName(short InLayerIndex)
 {
-	FMapLayerIndex2Name::iterator found = LayerIndex2Name.find(InLayerIndex);
-	if (found == LayerIndex2Name.end())
+	FString* Found = LayerIndex2Name.Find(InLayerIndex);
+	if (Found == nullptr)
 	{
-		LayerIndex2Name[InLayerIndex] = GSStringToUE(UE_AC::GetLayerName(InLayerIndex));
-		found = LayerIndex2Name.find(InLayerIndex);
+		LayerIndex2Name.Add(InLayerIndex, GSStringToUE(UE_AC::GetLayerName(InLayerIndex)));
+		Found = LayerIndex2Name.Find(InLayerIndex);
+		UE_AC_TestPtr(Found);
 	}
-	return found->second;
+	return *Found;
 }
 
 // Set the mesh in the handle and take care of mesh life cycle.
@@ -182,12 +189,14 @@ bool FSyncDatabase::SetMesh(TSharedPtr< IDatasmithMeshElement >*	   Handle,
 		{
 			GS::Guard< GS::Lock > lck(HashToMeshInfoAccesControl);
 
-			FMapHashToMeshInfo::iterator Older = HashToMeshInfo.find(Handle->Get()->GetName());
-			UE_AC_Assert(Older != HashToMeshInfo.end());
-			if (--Older->second.Count == 0)
+			typedef TMap< FString, FMeshInfo > FMapHashToMeshInfo;
+
+			FMeshInfo* Older = HashToMeshInfo.Find(Handle->Get()->GetName());
+			UE_AC_TestPtr(Older);
+			if (--Older->Count == 0)
 			{
-				Scene->RemoveMesh(Older->second.Mesh);
-				HashToMeshInfo.erase(Older);
+				Scene->RemoveMesh(Older->Mesh);
+				HashToMeshInfo.Remove(Handle->Get()->GetName());
 			}
 		}
 		Handle->Reset();
@@ -204,7 +213,7 @@ bool FSyncDatabase::SetMesh(TSharedPtr< IDatasmithMeshElement >*	   Handle,
 	{
 		{
 			GS::Guard< GS::Lock > lck(HashToMeshInfoAccesControl);
-			FMeshInfo&			  MeshInfo = HashToMeshInfo[InMesh->GetName()];
+			FMeshInfo&			  MeshInfo = HashToMeshInfo.FindOrAdd(InMesh->GetName());
 			if (!MeshInfo.Mesh.IsValid())
 			{
 				MeshInfo.Mesh = InMesh;
@@ -411,10 +420,12 @@ void FSyncDatabase::ScanCameras(const FSyncContext& /* InSyncContext */)
 		FSyncData*& CameraSetSyncData = FSyncDatabase::GetSyncData(APIGuid2GSGuid(cameraSet.header.guid));
 		if (CameraSetSyncData == nullptr)
 		{
-			CameraSetSyncData = new FSyncData::FCameraSet(APIGuid2GSGuid(cameraSet.header.guid), cameraSet.camset.name,
+			GS::UniString CamSetName(cameraSet.camset.name);
+			CameraSetSyncData = new FSyncData::FCameraSet(APIGuid2GSGuid(cameraSet.header.guid), CamSetName,
 														  cameraSet.camset.perspPars.openedPath);
 			CameraSetSyncData->SetParent(&GetSceneSyncData());
 		}
+		CameraSetSyncData->MarkAsExisting();
 
 		IndexCamera = 0;
 		NextCamera = cameraSet.camset.firstCam;
@@ -424,9 +435,9 @@ void FSyncDatabase::ScanCameras(const FSyncContext& /* InSyncContext */)
 			Zap(&camera);
 			camera.header.guid = NextCamera;
 			GSErr = ACAPI_Element_Get(&camera);
-			if (GSErr != NoError)
+			if (GSErr == NoError)
 			{
-				FSyncData*& CameraSyncData = FSyncDatabase::GetSyncData(APIGuid2GSGuid(cameraSet.header.guid));
+				FSyncData*& CameraSyncData = FSyncDatabase::GetSyncData(APIGuid2GSGuid(camera.header.guid));
 				if (CameraSyncData == nullptr)
 				{
 					CameraSyncData = new FSyncData::FCamera(APIGuid2GSGuid(camera.header.guid), ++IndexCamera);

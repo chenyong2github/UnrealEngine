@@ -6,6 +6,8 @@
 
 #include "MockNetworkPhysics.generated.h"
 
+class FSingleParticlePhysicsProxy;
+
 // ========================================================================================
 //	Temp WIP Mock Gameplay Code example, not final.
 // ========================================================================================

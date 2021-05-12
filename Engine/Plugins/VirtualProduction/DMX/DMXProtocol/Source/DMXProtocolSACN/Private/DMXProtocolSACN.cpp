@@ -104,7 +104,7 @@ bool FDMXProtocolSACN::RegisterInputPort(const TSharedRef<FDMXInputPort, ESPMode
 
 	if (!Receiver.IsValid())
 	{
-		UE_LOG(LogDMXProtocol, Warning, TEXT("Could not create Art-Net receiver for input port %s"), *InputPort->GetPortName());
+		UE_LOG(LogDMXProtocol, Warning, TEXT("Could not create sACN receiver for input port %s"), *InputPort->GetPortName());
 
 		return false;
 	}
@@ -152,39 +152,38 @@ TSharedPtr<IDMXSender> FDMXProtocolSACN::RegisterOutputPort(const TSharedRef<FDM
 	EDMXCommunicationType CommunicationType = OutputPort->GetCommunicationType();
 
 	// Try to use an existing receiver or create a new one
-	TSharedPtr<FDMXProtocolSACNSender> Sender;
-	if (!Sender.IsValid())
+	TSharedPtr<FDMXProtocolSACNSender> Sender = nullptr;
+	
+	if (CommunicationType == EDMXCommunicationType::Multicast)
 	{
-		if (CommunicationType == EDMXCommunicationType::Multicast)
-		{
-			Sender = FindExistingMulticastSender(NetworkInterfaceAddress);
+		Sender = FindExistingMulticastSender(NetworkInterfaceAddress);
 			
-			if (!Sender.IsValid())
-			{
-				Sender = FDMXProtocolSACNSender::TryCreateMulticastSender(SharedThis(this), NetworkInterfaceAddress);
-			}
-		}
-		else if (CommunicationType == EDMXCommunicationType::Unicast)
+		if (!Sender.IsValid())
 		{
-			const FString& UnicastAddress = OutputPort->GetDestinationAddress();
-
-			Sender = FindExistingUnicastSender(NetworkInterfaceAddress, UnicastAddress);
-
-			if (!Sender.IsValid())
-			{
-				Sender = FDMXProtocolSACNSender::TryCreateUnicastSender(SharedThis(this), NetworkInterfaceAddress, UnicastAddress);
-			}
-		}
-		else
-		{
-			// Invalid Communication Type
-			checkNoEntry();
+			Sender = FDMXProtocolSACNSender::TryCreateMulticastSender(SharedThis(this), NetworkInterfaceAddress);
 		}
 	}
+	else if (CommunicationType == EDMXCommunicationType::Unicast)
+	{
+		const FString& UnicastAddress = OutputPort->GetDestinationAddress();
+
+		Sender = FindExistingUnicastSender(NetworkInterfaceAddress, UnicastAddress);
+
+		if (!Sender.IsValid())
+		{
+			Sender = FDMXProtocolSACNSender::TryCreateUnicastSender(SharedThis(this), NetworkInterfaceAddress, UnicastAddress);
+		}
+	}
+	else
+	{
+		// Invalid Communication Type
+		checkNoEntry();
+	}
+	
 
 	if (!Sender.IsValid())
 	{
-		UE_LOG(LogDMXProtocol, Warning, TEXT("Could not create Art-Net sender for output port %s"), *OutputPort->GetPortName());
+		UE_LOG(LogDMXProtocol, Warning, TEXT("Could not create sACN sender for output port %s"), *OutputPort->GetPortName());
 
 		return nullptr;
 	}

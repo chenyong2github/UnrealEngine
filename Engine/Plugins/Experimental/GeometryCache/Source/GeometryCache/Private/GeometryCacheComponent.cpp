@@ -406,6 +406,8 @@ bool UGeometryCacheComponent::SetGeometryCache(UGeometryCache* NewGeomCache)
 		return false;
 	}
 
+	IGeometryCacheStreamingManager::Get().RemoveStreamingComponent(this);
+
 	ReleaseResources();
 	DetachFence.Wait();
 
@@ -415,7 +417,7 @@ bool UGeometryCacheComponent::SetGeometryCache(UGeometryCache* NewGeomCache)
 	SetupTrackData();
 
 	// This will cause us to prefetch the new data which is needed by the render state creation
-	IGeometryCacheStreamingManager::Get().PrefetchData(this);
+	IGeometryCacheStreamingManager::Get().AddStreamingComponent(this);
 
 	// Need to send this to render thread at some point
 	MarkRenderStateDirty();

@@ -56,4 +56,7 @@ public:
 
 	/** Return the "_impl" suffix used for visualization components. */
 	static FString GetImplSuffix() { return TEXT("_impl"); }
+
+	/** Format an nDisplay component name correctly. */
+	static FString FormatNDisplayComponentName(UClass* ComponentClass);
 };

@@ -34,7 +34,7 @@ namespace ETagCheckingBehavior
 
 /* Allows an actor if it has all or any of the specified tags. */
 UCLASS(meta = (CommonSnapshotFilter))
-class UActorHasTagFilter : public ULevelSnapshotFilter
+class LEVELSNAPSHOTFILTERS_API UActorHasTagFilter : public ULevelSnapshotFilter
 {
 	GENERATED_BODY()
 public:

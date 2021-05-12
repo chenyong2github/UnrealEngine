@@ -484,14 +484,17 @@ static void AssignPackagesDiskOrder(
 			}
 		}
 	}
-	const FFileOrderMap* LastBlameOrderMap = OrderMaps.Num() ? &OrderMaps[0] : nullptr;
+	const FFileOrderMap* LastBlameOrderMap = nullptr;
 	int32 LastAssignedCount = 0;
 	Algo::Sort(SortedPackages);
 	for (FPackageAndOrder& Entry : SortedPackages)
 	{
 		if (Entry.BlameOrderMap != LastBlameOrderMap)
 		{
-			UE_LOG(LogIoStore, Display, TEXT("Ordered %d/%d packages using order file %s"), AssignedPackages.Num() - LastAssignedCount, Packages.Num(), *LastBlameOrderMap->Name);
+			if( LastBlameOrderMap != nullptr )
+			{
+				UE_LOG(LogIoStore, Display, TEXT("Ordered %d/%d packages using order file %s"), AssignedPackages.Num() - LastAssignedCount, Packages.Num(), *LastBlameOrderMap->Name);
+			}
 			LastAssignedCount = AssignedPackages.Num();
 			LastBlameOrderMap = Entry.BlameOrderMap;
 		}
@@ -3093,6 +3096,13 @@ static bool ParsePakOrderFile(const TCHAR* FilePath, FFileOrderMap& Map, uint64&
 	{
 		const TCHAR* OrderLinePtr = *OrderLine;
 		FString Path;
+
+		// Skip comments
+		if (FCString::Strncmp(OrderLinePtr, TEXT("#"), 1) == 0 || FCString::Strncmp(OrderLinePtr, TEXT("//"), 2) == 0)
+		{
+			continue;
+		}
+
 		if (!FParse::Token(OrderLinePtr, Path, false))
 		{
 			UE_LOG(LogIoStore, Error, TEXT("Invalid line in order file '%s'."), *OrderLine);

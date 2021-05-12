@@ -7,11 +7,6 @@
 
 BEGIN_NAMESPACE_UE_AC
 
-enum : GSType
-{
-	DatasmithDynamicLink = 'DsDL'
-}; // Can be called by another Add-on
-
 // Add menu to the menu bar and also add an item to palette menu
 inline static void RegisterMenu(GSErrCode* IOGSErr, short InMenuResId, short InMenuHelpResId, APIMenuCodeID InMenuCode,
 								GSFlags InMenuFlags)
@@ -34,17 +29,14 @@ GSErrCode FMenus::Register()
 	RegisterMenuAndHelp(&GSErr, kStrListMenuDatasmith, MenuCode_Palettes, MenuFlag_Default);
 
 	RegisterMenuAndHelp(&GSErr, kStrListMenuItemSnapshot, MenuCode_UserDef, MenuFlag_Default);
-	RegisterMenuAndHelp(&GSErr, kStrListMenuItemLiveLink, MenuCode_UserDef, MenuFlag_Default);
+#if AUTO_SYNC
+	RegisterMenuAndHelp(&GSErr, kStrListMenuItemAutoSync, MenuCode_UserDef, MenuFlag_Default);
+#endif
 	RegisterMenuAndHelp(&GSErr, kStrListMenuItemConnections, MenuCode_UserDef, MenuFlag_Default);
 	RegisterMenuAndHelp(&GSErr, kStrListMenuItemExport, MenuCode_UserDef, MenuFlag_Default);
 	RegisterMenuAndHelp(&GSErr, kStrListMenuItemMessages, MenuCode_UserDef, MenuFlag_Default);
 	RegisterMenuAndHelp(&GSErr, kStrListMenuItemPalette, MenuCode_UserDef, MenuFlag_SeparatorBefore);
 	RegisterMenuAndHelp(&GSErr, kStrListMenuItemAbout, MenuCode_UserDef, MenuFlag_Default);
-
-	if (GSErr == NoError)
-	{
-		GSErr = ACAPI_Register_SupportedService(DatasmithDynamicLink, 1L);
-	}
 
 	return GSErr;
 }
@@ -66,11 +58,6 @@ GSErrCode FMenus::Initialize()
 	if (GSErr != NoError)
 	{
 		UE_AC_DebugF("FMenus::Initialize - ACAPI_Install_MenuHandler error=%s\n", GetErrorName(GSErr));
-	}
-	GSErr = ACAPI_Install_ModulCommandHandler(DatasmithDynamicLink, 1L, SyncCommandHandler);
-	if (GSErr != NoError)
-	{
-		UE_AC_DebugF("FMenus::Initialize - ACAPI_Install_ModulCommandHandler error=%s\n", GetErrorName(GSErr));
 	}
 	return GSErr;
 }
@@ -121,26 +108,27 @@ void FMenus::SetMenuItemText(short InMenu, short InItem, const GS::UniString& It
 	}
 }
 
-// LiveLink status changed
-void FMenus::LiveLinkChanged()
+// AutoSync status changed
+void FMenus::AutoSyncChanged()
 {
-	GS::UniString StartLiveLink("Start Live Link");
-	GS::UniString PauseLiveLink("Pause Live Link");
-	SetMenuItemText(kStrListMenuItemLiveLink, 1, FCommander::IsLiveLinkEnabled() ? PauseLiveLink : StartLiveLink);
-	SetMenuItemStatus(kStrListMenuItemLiveLink, 1, FCommander::IsLiveLinkEnabled(), API_MenuItemChecked);
+	GS::UniString StartAutoSync("Start Auto Sync");
+	GS::UniString PauseAutoSync("Pause Auto Sync");
+#if AUTO_SYNC
+	SetMenuItemText(kStrListMenuItemAutoSync, 1, FCommander::IsAutoSyncEnabled() ? PauseAutoSync : StartAutoSync);
+	SetMenuItemStatus(kStrListMenuItemAutoSync, 1, FCommander::IsAutoSyncEnabled(), API_MenuItemChecked);
+#endif
 }
 
 // Menu command handler
 GSErrCode __ACENV_CALL FMenus::MenuCommandHandler(const API_MenuParams* MenuParams) noexcept
 {
-	return TryFunction("FMenus::DoMenuCommand", FMenus::DoMenuCommand, (void*)MenuParams);
+	return TryFunctionCatchAndAlert("FMenus::DoMenuCommand",
+									[&MenuParams]() -> GSErrCode { return FMenus::DoMenuCommand(*MenuParams); });
 }
 
 // Process menu command
-GSErrCode FMenus::DoMenuCommand(void* InMenuParams, void*)
+GSErrCode FMenus::DoMenuCommand(const API_MenuParams& MenuParams)
 {
-	const API_MenuParams& MenuParams = *reinterpret_cast< const API_MenuParams* >(InMenuParams);
-
 	short MenuId = MenuParams.menuItemRef.menuResID - LocalizeResId(0);
 	if (MenuParams.menuItemRef.itemIndex != 1)
 	{
@@ -152,9 +140,11 @@ GSErrCode FMenus::DoMenuCommand(void* InMenuParams, void*)
 		case kStrListMenuItemSnapshot:
 			FCommander::DoSnapshot();
 			break;
-		case kStrListMenuItemLiveLink:
-			FCommander::ToggleLiveLink();
+#if AUTO_SYNC
+		case kStrListMenuItemAutoSync:
+			FCommander::ToggleAutoSync();
 			break;
+#endif
 		case kStrListMenuItemConnections:
 			FCommander::ShowConnectionsDialog();
 			break;
@@ -175,51 +165,6 @@ GSErrCode FMenus::DoMenuCommand(void* InMenuParams, void*)
 			break;
 	}
 	return GS::NoError;
-}
-
-// Intra add-ons command handler
-GSErrCode __ACENV_CALL FMenus::SyncCommandHandler(GSHandle /* ParHdl */, GSPtr /* ResultData */,
-												  bool /* silentMode */) noexcept
-{
-	return TryFunction("FMenus::DoSyncCommand", FMenus::DoSyncCommand);
-}
-
-static bool bPostSent = false;
-
-// Process intra add-ons command
-GSErrCode FMenus::DoSyncCommand(void*, void*)
-{
-	bPostSent = false;
-	if (Is3DCurrenWindow())
-	{
-		FCommander::DoSnapshot();
-	}
-	else
-	{
-		PostDoSnapshot();
-	}
-	return GS::NoError;
-}
-
-// Schedule a Live Link snapshot to be executed from the main thread event loop.
-void FMenus::PostDoSnapshot()
-{
-	if (bPostSent == false && FCommander::IsLiveLinkEnabled())
-	{
-		API_ModulID mdid;
-		Zap(&mdid);
-		mdid.developerID = kEpicGamesDevId;
-		mdid.localID = kDatasmithExporterId;
-		GSErrCode err = ACAPI_Command_CallFromEventLoop(&mdid, DatasmithDynamicLink, 1, nullptr, false, nullptr);
-		if (err == NoError)
-		{
-			bPostSent = true; // Only one post at a time
-		}
-		else
-		{
-			printf("FCommander::PostDoSnapshot - ACAPI_Command_CallFromEventLoop error %d\n", err);
-		}
-	}
 }
 
 END_NAMESPACE_UE_AC

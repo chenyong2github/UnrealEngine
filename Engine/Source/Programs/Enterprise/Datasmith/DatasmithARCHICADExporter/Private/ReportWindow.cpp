@@ -15,8 +15,6 @@ DISABLE_SDK_WARNINGS_END
 
 BEGIN_NAMESPACE_UE_AC
 
-#define TEST_PANEL_IDLE 1
-
 class FReportDialog : public DG::Palette,
 					  public DG::PanelObserver,
 					  public DG::ButtonItemObserver,
@@ -40,48 +38,6 @@ class FReportDialog : public DG::Palette,
   public:
 	FReportDialog();
 	~FReportDialog();
-
-#if TEST_PANEL_IDLE
-	virtual void PanelIdle(const DG::PanelIdleEvent& /* ev */) override
-	{
-		const int Delay = 10;
-		static int Count = Delay;
-		if (FCommander::IsLiveLinkEnabled() && Is3DCurrenWindow())
-		{
-			static DG::NativeUnit NativeXPos;
-			static DG::NativeUnit NativeYPos;
-			DGMousePosData PositionData;
-			short Result = DGGetMousePosition(0, &PositionData);
-			(void)Result;
-			if (PositionData.nativeXPos != NativeXPos || PositionData.nativeYPos != NativeYPos)
-			{
-				NativeXPos = PositionData.nativeXPos;
-				NativeYPos = PositionData.nativeYPos;
-				Count = Delay;
-			}
-			if (--Count == 0)
-			{
-				TryFunction("LiveLink - Check View State", [](void*, void*) -> GSErrCode {
-					FSynchronizer* Synchronizer = FSynchronizer::GetCurrent();
-					if (Synchronizer != nullptr)
-					{
-						if (Synchronizer->NeedLiveLinkUpdate())
-						{
-							FMenus::PostDoSnapshot();
-						}
-					}
-					return NoError;
-				});
-
-				Count = Delay;
-			}
-		}
-		else
-		{
-			Count = Delay;
-		}
-	}
-#endif
 
 	virtual void PanelClosed(const DG::PanelCloseEvent& ev) override {}
 
@@ -167,11 +123,6 @@ FReportDialog::FReportDialog()
 	Attach(*this);
 	AttachToAllItems(*this);
 	MessagesTextEdit.SetText(GS::UniString(FTraceListener::Get().Traces.c_str(), CC_UTF8));
-
-#if TEST_PANEL_IDLE
-	bool SendForInactiveApp = false;
-	EnableIdleEvent(SendForInactiveApp);
-#endif
 }
 
 FReportDialog::~FReportDialog()
@@ -293,8 +244,18 @@ FTraceListener::FTraceListener()
 
 void FTraceListener::NewTrace(EP2DB InTraceLevel, const utf8_string& InMsg)
 {
-	if (InTraceLevel <= kP2DB_Trace)
+#ifdef DEBUG
+	const EP2DB MessageLevel = kP2DB_Trace;
+#else
+	const EP2DB MessageLevel = kP2DB_Debug; // Put kP2DB_Report for final release
+#endif
+
+	if (InTraceLevel <= MessageLevel)
 	{
+		if (InTraceLevel != kP2DB_Report)
+		{
+			Traces.append("* ");
+		}
 		Traces.append(InMsg);
 		if (bScheduledForUpdate == false)
 		{

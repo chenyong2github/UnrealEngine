@@ -208,7 +208,7 @@ void SNiagaraGraphActionMenu::OnItemActivated(const TSharedPtr<FNiagaraAction_Ne
 
 void SNiagaraGraphActionMenu::TriggerRefresh(const TMap<EScriptSource, bool>& SourceState)
 {
-	ActionSelector->RefreshAllItems();
+	ActionSelector->RefreshAllCurrentItems();
 
 	TArray<bool> States;
 	SourceState.GenerateValueArray(States);
@@ -222,17 +222,13 @@ void SNiagaraGraphActionMenu::TriggerRefresh(const TMap<EScriptSource, bool>& So
 		}
 	}
 
-	// whenever we have less than the last (so with 4 valid filters, at most 3) entry of filters, we expand the tree.
-	if(NumActive < (int32) EScriptSource::Unknown)
-	{
-		ActionSelector->ExpandTree();
-	}
+	ActionSelector->ExpandTree();
 }
 
 void SNiagaraGraphActionMenu::SetLibraryOnly(bool bInIsLibraryOnly)
 {
 	bLibraryOnly = bInIsLibraryOnly;
-	ActionSelector->RefreshAllItems(true);
+	ActionSelector->RefreshAllCurrentItems(true);
 }
 
 bool SNiagaraGraphActionMenu::DoesItemPassCustomFilter(const TSharedPtr<FNiagaraAction_NewNode>& Item)

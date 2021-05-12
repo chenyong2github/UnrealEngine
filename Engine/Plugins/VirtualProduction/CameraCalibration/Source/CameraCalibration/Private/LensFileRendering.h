@@ -31,6 +31,9 @@ struct FDisplacementMapBlendingParams
 	float DeltaMinY = 0.0f;
 	float DeltaMaxY = 0.0f;
 
+	/** Scale parameter that allows displacement maps for one sensor size to be applied to camera's with a different sensor size */
+	FVector2D FxFyScale = { 1.0f, 1.0f };
+
 	/** Image center parameter to compute center shift needed to offset resulting map */
 	FVector2D PrincipalPoint = { 0.5f, 0.5f };
 };

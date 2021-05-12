@@ -42,35 +42,8 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 	Chaos::FVec3 LinearVelocity;
 	Chaos::FVec3 AngularVelocity;
 
-	static void NetSend(const FNetSerializeParams& P, FBodyInstance* BodyInstance)
-	{
-		npCheckSlow(BodyInstance);
-		FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
-		Chaos::FRigidBodyHandle_External& Body_External = Handle->GetGameThreadAPI();
-		if (NetworkPredictionPhysicsCvars::FullPrecision())
-		{
-			npEnsure(Body_External.CanTreatAsKinematic());
-			P.Ar << const_cast<Chaos::FVec3&>(Body_External.X());
-			P.Ar << const_cast<Chaos::FRotation3&>(Body_External.R());
-			Chaos::FVec3 V = Body_External.V();
-			Chaos::FVec3 W = Body_External.W();
-			P.Ar << V;
-			P.Ar << W;
-		}
-		else
-		{
-			bool bSuccess = true;
-			
-			SerializePackedVector<100, 30>(const_cast<Chaos::FVec3&>(Body_External.X()), P.Ar);
-			const_cast<Chaos::FRotation3&>(Body_External.R()).NetSerialize(P.Ar, nullptr, bSuccess);
-			
-			npEnsure(Body_External.CanTreatAsKinematic());
-			Chaos::FVec3 V = Body_External.V();
-			Chaos::FVec3 W = Body_External.W();
-			SerializePackedVector<100, 30>(V, P.Ar);
-			SerializePackedVector<100, 30>(W, P.Ar);
-		}
-	}
+	static void NetSend(const FNetSerializeParams& P, FBodyInstance* BodyInstance);
+	
 
 	static void NetRecv(const FNetSerializeParams& P, FNetworkPredictionPhysicsState* RecvState)
 	{
@@ -95,63 +68,8 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 		npEnsureSlow(!RecvState->ContainsNaN());
 	}
 
-	static bool ShouldReconcile(int32 PhysicsFrame, Chaos::FRewindData* RewindData, FBodyInstance* BodyInstance, FNetworkPredictionPhysicsState* RecvState)
-	{
-		npCheckSlow(BodyInstance);
-		FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
-
-		auto CompareVector = [](const FVector& Local, const FVector& Authority, const float Tolerance, const FAnsiStringView& DebugStr)
-		{
-			const FVector Delta = Local - Authority;
-
-			/*
-			if (Delta.SizeSquared() > (Tolerance * Tolerance))
-			{
-				UE_NP_TRACE_SYSTEM_FAULT("Physics Compare mismatch %s", StringCast<TCHAR>(DebugStr.GetData(), DebugStr.Len()).Get());
-				UE_NP_TRACE_SYSTEM_FAULT("   Pred: %s", *Local.ToString());				
-				UE_NP_TRACE_SYSTEM_FAULT("   Auth: %s", *Authority.ToString());
-				UE_NP_TRACE_SYSTEM_FAULT("   Delta: %s (%.f)", *Delta.ToString(), Delta.Size());
-			}
-			*/
-
-
-			UE_NP_TRACE_RECONCILE(Delta.SizeSquared() > (Tolerance * Tolerance), DebugStr);
-			
-			return false;
-		};
-
-		auto CompareQuat = [](const FQuat& Local, const FQuat& Authority, const float Tolerance, const FAnsiStringView& DebugStr)
-		{
-			const float Error = FQuat::ErrorAutoNormalize(Local, Authority);
-			UE_NP_TRACE_RECONCILE(Error > Tolerance, DebugStr);			
-			return false;
-		};
-
-		const Chaos::FGeometryParticleState LocalState = RewindData->GetPastStateAtFrame(*Handle->GetHandle_LowLevel(), PhysicsFrame);
-
-		if (CompareVector(LocalState.X(), RecvState->Location, NetworkPredictionPhysicsCvars::ToleranceX(), "X:"))
-		{
-			return true;
-		}
-
-		if (CompareVector(LocalState.V(), RecvState->LinearVelocity, NetworkPredictionPhysicsCvars::ToleranceV(), "V:"))
-		{
-			return true;
-		}
-
-		if (CompareVector(LocalState.W(), RecvState->AngularVelocity, NetworkPredictionPhysicsCvars::ToleranceW(), "W:"))
-		{
-			return true;
-		}
-
-		if (CompareQuat(LocalState.R(), RecvState->Rotation, NetworkPredictionPhysicsCvars::ToleranceR(), "R:"))
-		{
-			return true;
-		}
-
-		return false;
-	}
-
+	static bool ShouldReconcile(int32 PhysicsFrame, Chaos::FRewindData* RewindData, FBodyInstance* BodyInstance, FNetworkPredictionPhysicsState* RecvState);
+	
 	static void Interpolate(const FNetworkPredictionPhysicsState* From, const FNetworkPredictionPhysicsState* To, const float PCT, FNetworkPredictionPhysicsState* Out)
 	{
 		npCheckSlow(From);
@@ -182,26 +100,8 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 		MarshalPhysicsToComponent(PrimitiveComponent, BodyInstance);
 	}
 
-	static void PerformRollback(FBodyInstance* BodyInstance, FNetworkPredictionPhysicsState* RecvState)
-	{
-		FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
-		Chaos::FRigidBodyHandle_External& Body_External = Handle->GetGameThreadAPI();
-		
-		npCheckSlow(RecvState);
-
-		npEnsureSlow(RecvState->Rotation.IsNormalized());
-		npEnsureSlow(!RecvState->Location.ContainsNaN());
-
-		Body_External.SetX(RecvState->Location);
-		Body_External.SetR(RecvState->Rotation);
-
-		npEnsureSlow(!RecvState->LinearVelocity.ContainsNaN());
-		npEnsureSlow(!RecvState->AngularVelocity.ContainsNaN());
-
-		Body_External.SetV(RecvState->LinearVelocity);
-		Body_External.SetW(RecvState->AngularVelocity);
-	}
-
+	static void PerformRollback(FBodyInstance* BodyInstance, FNetworkPredictionPhysicsState* RecvState);
+	
 	static void MarshalPhysicsToComponent(UPrimitiveComponent* PrimitiveComponent, const FBodyInstance* BodyInstance)
 	{
 		const FTransform UnrealTransform = BodyInstance->GetUnrealWorldTransform();
@@ -240,36 +140,10 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 	}
 
 	// Locally stored state to string
-	static void ToString(int32 PhysicsFrame, Chaos::FRewindData* RewindData, FBodyInstance* BodyInstance, FAnsiStringBuilderBase& Builder)
-	{
-		FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
-		
-		const Chaos::FGeometryParticleState LocalState = RewindData->GetPastStateAtFrame(*Handle->GetHandle_LowLevel(), PhysicsFrame);
-		ToStringInternal(LocalState.X(), LocalState.R(), LocalState.V(), LocalState.W(), Builder);
-	}
-
+	static void ToString(int32 PhysicsFrame, Chaos::FRewindData* RewindData, FBodyInstance* BodyInstance, FAnsiStringBuilderBase& Builder);
+	
 	// Current state to string
-	static void ToString(FBodyInstance* BodyInstance, FAnsiStringBuilderBase& Builder)
-	{
-		if (BodyInstance)
-		{
-			FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
-			if (Handle)
-			{
-				Chaos::FRigidBodyHandle_External& Body_External = Handle->GetGameThreadAPI();
-				npEnsure(Body_External.CanTreatAsKinematic());
-				ToStringInternal(Body_External.X(), Body_External.R(), Body_External.V(), Body_External.W(), Builder);
-			}
-			else
-			{
-				Builder.Append("Null PhysicsActorHandle\n");
-			}
-		}
-		else
-		{
-			Builder.Append("Null BodyInstance\n");
-		}
-	}
+	static void ToString(FBodyInstance* BodyInstance, FAnsiStringBuilderBase& Builder);
 
 	bool ContainsNaN() const
 	{

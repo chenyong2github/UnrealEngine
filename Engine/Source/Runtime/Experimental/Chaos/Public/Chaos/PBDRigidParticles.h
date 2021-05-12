@@ -160,6 +160,16 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		this->ObjectState(Index) = InObjectState;
 	}
 
+	CHAOS_API void SetSleepType(int32 Index, ESleepType InSleepType)
+	{
+		if (InSleepType == ESleepType::NeverSleep && this->ObjectState(Index) == EObjectStateType::Sleeping)
+		{
+			SetObjectState(Index, EObjectStateType::Dynamic);
+		}
+
+		this->SleepType(Index) = InSleepType;
+	}
+
 
 	void ResetVSmoothFromForces(int32 Index)
 	{

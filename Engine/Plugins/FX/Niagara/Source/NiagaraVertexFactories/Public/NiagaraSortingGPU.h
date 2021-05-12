@@ -13,7 +13,6 @@ NiagaraSortingGPU.h: Niagara sorting shaders
 
 struct FNiagaraGPUSortInfo;
 
-extern NIAGARAVERTEXFACTORIES_API int32 GNiagaraGPUCulling;
 extern NIAGARAVERTEXFACTORIES_API int32 GNiagaraGPUSortingUseMaxPrecision;
 extern NIAGARAVERTEXFACTORIES_API int32 GNiagaraGPUSortingCPUToGPUThreshold;
 

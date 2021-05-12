@@ -42,6 +42,7 @@ public class VCamCore : ModuleRules
 				"SlateCore",
 				"UMG",
 				"CinematicCamera",
+				"GameplayTags",
 				"LiveLink",
 				"LiveLinkInterface",
 				"MediaIOCore",
@@ -61,9 +62,17 @@ public class VCamCore : ModuleRules
 
 		if (Target.bBuildEditor == true)
 		{
-			PrivateDependencyModuleNames.Add("EditorFramework");
-			PrivateDependencyModuleNames.Add("LevelEditor");
-			PrivateDependencyModuleNames.Add("UnrealEd");
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"EditorFramework",
+					"LevelEditor",
+					"UnrealEd",
+					"Concert",
+					"ConcertSyncClient",
+					"MultiUserClient"
+				}
+			);
 		}
 	}
 }

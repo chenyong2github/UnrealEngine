@@ -11,6 +11,7 @@ public:
 	{
 		IAudioDeviceModule::StartupModule();
 
+		FModuleManager::Get().LoadModuleChecked(TEXT("AudioMixer"));
 		FModuleManager::Get().LoadModuleChecked(TEXT("AudioMixerCore"));
 	}
 

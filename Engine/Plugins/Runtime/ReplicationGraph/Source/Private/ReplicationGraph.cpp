@@ -110,6 +110,10 @@ int32 CVar_RepGraph_DormantDynamicActorsDestruction = 0;
 static FAutoConsoleVariableRef CVarRepGraphDormantDynamicActorsDestruction(TEXT("Net.RepGraph.DormantDynamicActorsDestruction"), CVar_RepGraph_DormantDynamicActorsDestruction,
 	TEXT("If true, irrelevant dormant actors will be destroyed on the client"), ECVF_Default);
 
+int32 CVar_RepGraph_ReplicatedDormantDestructionInfosPerFrame = MAX_int32;
+static FAutoConsoleVariableRef CVarRepGraphReplicatedDormantDestructionInfosPerFrame(TEXT("Net.RepGraph.ReplicatedDormantDestructionInfosPerFrame"), CVar_RepGraph_ReplicatedDormantDestructionInfosPerFrame,
+	TEXT("If CVarRepGraphDormantDynamicActorsDestruction is true, this is the max number of destruction infos sent to a client per frame"), ECVF_Default);
+
 float CVar_RepGraph_OutOfRangeDistanceCheckRatio = 0.5f;
 static FAutoConsoleVariableRef CVarRepGraphOutOfRangeDistanceCheckRatio(TEXT("Net.RepGraph.OutOfRangeDistanceCheckRatio"), CVar_RepGraph_OutOfRangeDistanceCheckRatio,
 	TEXT("The ratio of DestructInfoMaxDistance that gives the distance traveled before we reevaluate the out of range destroyed actors list"), ECVF_Default);
@@ -2689,13 +2693,21 @@ int64 UNetReplicationGraphConnection::ReplicateDestructionInfos(const FNetViewer
 int64 UNetReplicationGraphConnection::ReplicateDormantDestructionInfos()
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(ReplicateDormantDestructionInfos);
+	QUICK_SCOPE_CYCLE_COUNTER(ReplicateDormantDestructionInfos);
 
 	int64 NumBits = 0;
 
 	if (NetConnection && NetConnection->Driver)
 	{
-		for (const FCachedDormantDestructInfo& Info : PendingDormantDestructList)
+		int32 NumToRemove = FMath::Min(PendingDormantDestructList.Num(), CVar_RepGraph_ReplicatedDormantDestructionInfosPerFrame);
+		if (NumToRemove > 0)
 		{
+			UE_LOG(LogReplicationGraph, Verbose, TEXT("UNetReplicationGraphConnection::ReplicateDormantDestructionInfos: Removing %d Actors (List size: %d)"), PendingDormantDestructList.Num(), NumToRemove);
+		}
+
+		for (int32 i = NumToRemove - 1; i >= 0; i--)
+		{
+			const FCachedDormantDestructInfo& Info = PendingDormantDestructList[i];
 			FActorDestructionInfo DestructInfo;
 			DestructInfo.DestroyedPosition = FVector::ZeroVector;
 			DestructInfo.NetGUID = Info.NetGUID;
@@ -2706,9 +2718,8 @@ int64 UNetReplicationGraphConnection::ReplicateDormantDestructionInfos()
 			DestructInfo.Reason = EChannelCloseReason::Relevancy;
 
 			NumBits += NetConnection->Driver->SendDestructionInfo(NetConnection, &DestructInfo);
+			PendingDormantDestructList.RemoveAt(i);
 		}
-
-		PendingDormantDestructList.Empty();
 	}
 
 	return NumBits;
@@ -4312,35 +4323,48 @@ void UReplicationGraphNode_DormancyNode::OnActorDormancyFlush(FActorRepListType 
 
 void UReplicationGraphNode_DormancyNode::ConditionalGatherDormantDynamicActors(FActorRepListRefView& RepList, const FConnectionGatherActorListParameters& Params, FActorRepListRefView* RemovedList, bool bEnforceReplistUniqueness)
 {
-	for (FActorRepListType& Actor : ReplicationActorList)
+	auto GatherDormantDynamicActorsForList = [&](const FActorRepListRefView& InReplicationActorList)
 	{
-		if (Actor && !Actor->IsNetStartupActor())
+		for (const FActorRepListType& Actor : InReplicationActorList)
 		{
-			if (FConnectionReplicationActorInfo* Info = Params.ConnectionManager.ActorInfoMap.Find(Actor))
+			if (Actor && !Actor->IsNetStartupActor())
 			{
-				if (Info->bDormantOnConnection)
+				if (FConnectionReplicationActorInfo* Info = Params.ConnectionManager.ActorInfoMap.Find(Actor))
 				{
-					if (RemovedList && RemovedList->Contains(Actor))
+					if (Info->bDormantOnConnection)
 					{
-						continue;
-					}
-
-					// Prevent adding actors if we already have added them, this saves on grow operations.
-					if (bEnforceReplistUniqueness)
-					{
-						if (Info->bGridSpatilization_AlreadyDormant)
+						if (RemovedList && RemovedList->Contains(Actor))
 						{
 							continue;
 						}
-						else
-						{
-							Info->bGridSpatilization_AlreadyDormant = true;
-						}
-					}
 
-					RepList.ConditionalAdd(Actor);
+						// Prevent adding actors if we already have added them, this saves on grow operations.
+						if (bEnforceReplistUniqueness)
+						{
+							if (Info->bGridSpatilization_AlreadyDormant)
+							{
+								continue;
+							}
+							else
+							{
+								Info->bGridSpatilization_AlreadyDormant = true;
+							}
+						}
+
+						RepList.ConditionalAdd(Actor);
+					}
 				}
 			}
+		}
+	};
+
+	GatherDormantDynamicActorsForList(ReplicationActorList);
+
+	for (const FStreamingLevelActorListCollection::FStreamingLevelActors& StreamingList : StreamingLevelCollection.StreamingLevelLists)
+	{
+		if (Params.CheckClientVisibilityForLevel(StreamingList.StreamingLevelName))
+		{
+			GatherDormantDynamicActorsForList(StreamingList.ReplicationActorList);
 		}
 	}
 }

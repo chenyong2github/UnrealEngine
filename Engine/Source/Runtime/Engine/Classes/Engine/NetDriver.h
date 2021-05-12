@@ -897,6 +897,7 @@ public:
 
 private:
 	double						ElapsedTime;
+	
 
 	/** Whether or not the NetDriver is ticking */
 	bool bInTick;

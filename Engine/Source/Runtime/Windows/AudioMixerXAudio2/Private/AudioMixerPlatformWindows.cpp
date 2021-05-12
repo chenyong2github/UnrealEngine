@@ -8,6 +8,7 @@
 
 #include "AudioMixerPlatformXAudio2.h"
 #include "AudioMixer.h"
+#include "AudioDeviceNotificationSubsystem.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -158,16 +159,18 @@ public:
 			return S_OK;
 		}
 
-		if (dwNewState == DEVICE_STATE_DISABLED || dwNewState == DEVICE_STATE_UNPLUGGED || dwNewState == DEVICE_STATE_NOTPRESENT)
+		if (dwNewState == DEVICE_STATE_ACTIVE || dwNewState == DEVICE_STATE_DISABLED || dwNewState == DEVICE_STATE_UNPLUGGED || dwNewState == DEVICE_STATE_NOTPRESENT)
 		{
 			for (Audio::IAudioMixerDeviceChangedListener* Listener : Listeners)
 			{
 				switch (dwNewState)
 				{
+				case DEVICE_STATE_ACTIVE:
+					Listener->OnDeviceStateChanged(FString(pwstrDeviceId), Audio::EAudioDeviceState::Active);
+					break;
 				case DEVICE_STATE_DISABLED:
 					Listener->OnDeviceStateChanged(FString(pwstrDeviceId), Audio::EAudioDeviceState::Disabled);
 					break;
-
 				case DEVICE_STATE_UNPLUGGED:
 					Listener->OnDeviceStateChanged(FString(pwstrDeviceId), Audio::EAudioDeviceState::Unplugged);
 					break;
@@ -279,6 +282,10 @@ namespace Audio
 
 	void FMixerPlatformXAudio2::OnDefaultCaptureDeviceChanged(const EAudioDeviceRole InAudioDeviceRole, const FString& DeviceId)
 	{
+		if (UAudioDeviceNotificationSubsystem* AudioDeviceNotifSubsystem = UAudioDeviceNotificationSubsystem::Get())
+		{
+			AudioDeviceNotifSubsystem->OnDefaultCaptureDeviceChanged(InAudioDeviceRole, DeviceId);
+		}
 	}
 
 	void FMixerPlatformXAudio2::OnDefaultRenderDeviceChanged(const EAudioDeviceRole InAudioDeviceRole, const FString& DeviceId)
@@ -298,6 +305,10 @@ namespace Audio
 			AudioDeviceSwapCriticalSection.Unlock();
 		}
 
+		if (UAudioDeviceNotificationSubsystem* AudioDeviceNotifSubsystem = UAudioDeviceNotificationSubsystem::Get())
+		{
+			AudioDeviceNotifSubsystem->OnDefaultRenderDeviceChanged(InAudioDeviceRole, DeviceId);
+		}
 	}
 
 	void FMixerPlatformXAudio2::OnDeviceAdded(const FString& DeviceId)
@@ -316,6 +327,11 @@ namespace Audio
 
 			AudioDeviceSwapCriticalSection.Unlock();
 		}
+
+		if (UAudioDeviceNotificationSubsystem* AudioDeviceNotifSubsystem = UAudioDeviceNotificationSubsystem::Get())
+		{
+			AudioDeviceNotifSubsystem->OnDeviceAdded(DeviceId);
+		}
 	}
 
 	void FMixerPlatformXAudio2::OnDeviceRemoved(const FString& DeviceId)
@@ -332,10 +348,19 @@ namespace Audio
 			}
 			AudioDeviceSwapCriticalSection.Unlock();
 		}
+
+		if (UAudioDeviceNotificationSubsystem* AudioDeviceNotifSubsystem = UAudioDeviceNotificationSubsystem::Get())
+		{
+			AudioDeviceNotifSubsystem->OnDeviceRemoved(DeviceId);
+		}
 	}
 
 	void FMixerPlatformXAudio2::OnDeviceStateChanged(const FString& DeviceId, const EAudioDeviceState InState)
 	{
+		if (UAudioDeviceNotificationSubsystem* AudioDeviceNotifSubsystem = UAudioDeviceNotificationSubsystem::Get())
+		{
+			AudioDeviceNotifSubsystem->OnDeviceStateChanged(DeviceId, InState);
+		}
 	}
 
 	FString FMixerPlatformXAudio2::GetDeviceId() const

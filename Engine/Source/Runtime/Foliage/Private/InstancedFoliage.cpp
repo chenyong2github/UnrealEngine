@@ -608,6 +608,12 @@ void UFoliageType::Serialize(FArchive& Ar)
 		Mobility = bEnableStaticLighting_DEPRECATED ? EComponentMobility::Static : EComponentMobility::Movable;
 	}
 
+	// Discard scalable Foliage data on load
+	if (Ar.IsLoading() && GetLinkerCustomVersion(FFoliageCustomVersion::GUID) < FFoliageCustomVersion::FoliageDiscardOnLoad)
+	{
+		bEnableDiscardOnLoad = bEnableDensityScaling;
+	}
+
 #if WITH_EDITORONLY_DATA
 	if (Ar.IsLoading())
 	{
@@ -663,6 +669,7 @@ void UFoliageType::PostLoad()
 	if (!IsTemplate())
 	{
 		BodyInstance.FixupData(this);
+
 	}
 }
 
@@ -4206,12 +4213,6 @@ void AInstancedFoliageActor::PostLoad()
 						}
 					}
 				}
-			}
-
-			// Discard scalable Foliage data on load
-			if (GetLinkerCustomVersion(FFoliageCustomVersion::GUID) < FFoliageCustomVersion::FoliageDiscardOnLoad)
-			{
-				FoliageType->bEnableDiscardOnLoad = FoliageType->bEnableDensityScaling;
 			}
 
 			// Fixup corrupted data

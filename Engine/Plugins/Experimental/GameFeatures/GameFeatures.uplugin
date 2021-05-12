@@ -38,6 +38,10 @@
 		{
 			"Name": "AssetReferenceRestrictions",
 			"Enabled": true
+		},
+		{
+			"Name": "GameplayAbilities",
+			"Enabled": true
 		}
 	]
 }

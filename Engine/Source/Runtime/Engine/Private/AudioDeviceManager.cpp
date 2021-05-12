@@ -687,8 +687,7 @@ FAudioDeviceHandle FAudioDeviceManager::CreateNewDevice(const FAudioDeviceParams
 
 bool FAudioDeviceManager::IsValidAudioDevice(Audio::FDeviceId Handle) const
 {
-	FCriticalSection* ConstCastCritSection = const_cast<FCriticalSection*>(&DeviceMapCriticalSection);
-	FScopeLock ScopeLock(ConstCastCritSection);
+	FScopeLock ScopeLock(&DeviceMapCriticalSection);
 
 	return Devices.Contains(Handle);
 }
@@ -781,6 +780,7 @@ FAudioDeviceHandle FAudioDeviceManager::GetAudioDevice(Audio::FDeviceId InDevice
 {
 	FScopeLock ScopeLock(&DeviceMapCriticalSection);
 	FAudioDeviceContainer* Container = Devices.Find(InDeviceID);
+
 	if (Container)
 	{
 		FAudioDeviceParams Params = FAudioDeviceParams();
@@ -792,7 +792,7 @@ FAudioDeviceHandle FAudioDeviceManager::GetAudioDevice(Audio::FDeviceId InDevice
 	}
 }
 
-FAudioDevice* FAudioDeviceManager::GetAudioDeviceRaw(Audio::FDeviceId InDeviceID)
+FAudioDevice* FAudioDeviceManager::GetAudioDeviceRaw(Audio::FDeviceId InDeviceID) 
 {
 	FScopeLock ScopeLock(&DeviceMapCriticalSection);
 	if (!IsValidAudioDevice(InDeviceID))
@@ -933,24 +933,22 @@ void FAudioDeviceManager::UpdateActiveAudioDevices(bool bGameTicking)
 
 void FAudioDeviceManager::IterateOverAllDevices(TUniqueFunction<void(Audio::FDeviceId, FAudioDevice*)> ForEachDevice)
 {
-	FScopeLock ScopeLock(&DeviceMapCriticalSection);
-	for (auto& DeviceContainer : Devices)
+	TArray<Audio::FDeviceId> DeviceIDs;
 	{
-		ForEachDevice(DeviceContainer.Key, DeviceContainer.Value.Device);
+		FScopeLock ScopeLock(&DeviceMapCriticalSection);
+		Devices.GetKeys(DeviceIDs);
+	}
+
+	for (const Audio::FDeviceId DeviceID : DeviceIDs)
+	{
+		FAudioDeviceHandle DeviceHandle = GetAudioDevice(DeviceID);
+		if (DeviceHandle.IsValid())
+		{
+			ForEachDevice(DeviceID, DeviceHandle.GetAudioDevice());
+		}
 	}
 }
 
-void FAudioDeviceManager::IterateOverAllDevices(TUniqueFunction<void(Audio::FDeviceId, const FAudioDevice*)> ForEachDevice) const
-{
-	// We have to cheat a little to make this safe: we cast our crit section to a mutable pointer in order to scope lock.
-	FCriticalSection* ConstCastCritSection = const_cast<FCriticalSection*>(&DeviceMapCriticalSection);
-	FScopeLock ScopeLock(ConstCastCritSection);
-
-	for (const auto& DeviceContainer : Devices)
-	{
-		ForEachDevice(DeviceContainer.Key, DeviceContainer.Value.Device);
-	}
-}
 
 void FAudioDeviceManager::AddReferencedObjects(FReferenceCollector& Collector)
 {
@@ -1116,15 +1114,13 @@ void FAudioDeviceManager::SetSoloDevice(Audio::FDeviceId InAudioDeviceHandle)
 
 uint8 FAudioDeviceManager::GetNumActiveAudioDevices() const
 {
-	FCriticalSection* ConstCastCritSection = const_cast<FCriticalSection*>(&DeviceMapCriticalSection);
-	FScopeLock ScopeLock(ConstCastCritSection);
+	FScopeLock ScopeLock(&DeviceMapCriticalSection);
 	return Devices.Num();
 }
 
 uint8 FAudioDeviceManager::GetNumMainAudioDeviceWorlds() const
 {
-	FCriticalSection* ConstCastCritSection = const_cast<FCriticalSection*>(&DeviceMapCriticalSection);
-	FScopeLock ScopeLock(ConstCastCritSection);
+	FScopeLock ScopeLock(&DeviceMapCriticalSection);
 
 	const Audio::FDeviceId MainDeviceID = MainAudioDeviceHandle.GetDeviceID();
 	if (Devices.Contains(MainDeviceID))

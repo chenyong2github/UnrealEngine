@@ -72,7 +72,7 @@ namespace Chaos
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 			, Planes(MoveTemp(InPlanes))
 		    , Vertices(MoveTemp(InVertices))
-		    , LocalBoundingBox(TAABB<FReal, 3>::EmptyAABB())
+		    , LocalBoundingBox(FAABB3::EmptyAABB())
 		{
 			for (int32 ParticleIndex = 0; ParticleIndex < Vertices.Num(); ++ParticleIndex)
 			{

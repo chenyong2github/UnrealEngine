@@ -8,7 +8,6 @@
 #include "SwitchboardPacket.h"
 #include "SwitchboardProtocol.h"
 #include "SwitchboardTasks.h"
-#include "SyncStatus.h"
 
 #include "Algo/Find.h"
 #include "Async/Async.h"
@@ -38,6 +37,8 @@
 #include "Windows/HideWindowsPlatformTypes.h"
 
 #pragma warning(pop)
+
+static void FillOutMosaicTopologies(TArray<FMosaicTopo>& MosaicTopos);
 
 #endif // PLATFORM_WINDOWS
 
@@ -197,6 +198,8 @@ FSwitchboardListener::FSwitchboardListener(const FSwitchboardCommandLineOptions&
 	: Options(InOptions)
 	, SocketListener(nullptr)
 	, CpuMonitor(MakeShared<FCpuUtilizationMonitor, ESPMode::ThreadSafe>())
+	, CachedMosaicToposLock(MakeShared<FRWLock, ESPMode::ThreadSafe>())
+	, CachedMosaicTopos(MakeShared<TArray<FMosaicTopo>, ESPMode::ThreadSafe>())
 {
 #if PLATFORM_WINDOWS
 	// initialize NvAPI
@@ -207,6 +210,8 @@ FSwitchboardListener::FSwitchboardListener(const FSwitchboardCommandLineOptions&
 			UE_LOG(LogSwitchboard, Fatal, TEXT("NvAPI_Initialize failed. Error code: %d"), Result);
 		}
 	}
+
+	FillOutMosaicTopologies(*CachedMosaicTopos);
 #endif // PLATFORM_WINDOWS
 
 	const FIPv4Address DefaultIp = FIPv4Address(0, 0, 0, 0);
@@ -445,6 +450,11 @@ bool FSwitchboardListener::RunScheduledTask(const FSwitchboardTask& InTask)
 		{
 			const FSwitchboardFixExeFlagsTask& Task = static_cast<const FSwitchboardFixExeFlagsTask&>(InTask);
 			return Task_FixExeFlags(Task);
+		}
+		case ESwitchboardTaskType::RefreshMosaics:
+		{
+			const FSwitchboardRefreshMosaicsTask& Task = static_cast<const FSwitchboardRefreshMosaicsTask&>(InTask);
+			return Task_RefreshMosaics(Task);
 		}
 		default:
 		{
@@ -719,7 +729,6 @@ bool FSwitchboardListener::Task_KillProcess(const FSwitchboardKillTask& KillTask
 	// Create our future message
 	FSwitchboardMessageFuture MessageFuture;
 
-	MessageFuture.TaskType = KillTask.Type;
 	MessageFuture.InEndpoint = KillTask.Recipient;
 	MessageFuture.EquivalenceHash = KillTask.GetEquivalenceHash();
 
@@ -1134,7 +1143,7 @@ static FCriticalSection SwitchboardListenerMutexNvapi;
 #endif // PLATFORM_WINDOWS
 
 #if PLATFORM_WINDOWS
-static void FillOutSyncTopologies(FSyncStatus& SyncStatus)
+static void FillOutSyncTopologies(TArray<FSyncTopo>& SyncTopos)
 {
 	FScopeLock LockNvapi(&SwitchboardListenerMutexNvapi);
 
@@ -1297,7 +1306,7 @@ static void FillOutSyncTopologies(FSyncStatus& SyncStatus)
 			SyncTopo.SyncControlParams.StartupDelay.NumPixels = GSyncControlParams.startupDelay.numPixels;
 		}
 
-		SyncStatus.SyncTopos.Emplace(SyncTopo);
+		SyncTopos.Emplace(SyncTopo);
 	}
 }
 #endif // PLATFORM_WINDOWS
@@ -1344,7 +1353,7 @@ static void FillOutTaskbarAutoHide(FSyncStatus& SyncStatus)
 
 
 #if PLATFORM_WINDOWS
-static void FillOutMosaicTopologies(FSyncStatus& SyncStatus)
+static void FillOutMosaicTopologies(TArray<FMosaicTopo>& MosaicTopos)
 {
 	FScopeLock LockNvapi(&SwitchboardListenerMutexNvapi);
 
@@ -1393,7 +1402,7 @@ static void FillOutMosaicTopologies(FSyncStatus& SyncStatus)
 			MosaicTopo.DisplaySettings.Height = GridTopo.displaySettings.height;
 			MosaicTopo.DisplaySettings.Width = GridTopo.displaySettings.width;
 
-			SyncStatus.MosaicTopos.Emplace(MosaicTopo);
+			MosaicTopos.Emplace(MosaicTopo);
 		}
 	}
 }
@@ -1752,31 +1761,40 @@ bool FSwitchboardListener::Task_GetSyncStatus(const FSwitchboardGetSyncStatusTas
 	// Create our future message
 	FSwitchboardMessageFuture MessageFuture;
 
-	MessageFuture.TaskType = InGetSyncStatusTask.Type;
 	MessageFuture.InEndpoint = InGetSyncStatusTask.Recipient;
 	MessageFuture.EquivalenceHash = InGetSyncStatusTask.GetEquivalenceHash();
 
-	TSharedPtr<FCpuUtilizationMonitor, ESPMode::ThreadSafe> CpuMon = CpuMonitor;
-	MessageFuture.Future = Async(EAsyncExecution::ThreadPool, [SyncStatus, CpuMon]() {
-		FillOutDriverVersion(SyncStatus.Get());
-		FillOutTaskbarAutoHide(SyncStatus.Get());
-		FillOutSyncTopologies(SyncStatus.Get());
-		FillOutMosaicTopologies(SyncStatus.Get());
+	MessageFuture.Future = Async(EAsyncExecution::ThreadPool,
+		[
+			SyncStatus,
+			CpuMonitor=CpuMonitor,
+			CachedMosaicToposLock=CachedMosaicToposLock,
+			CachedMosaicTopos=CachedMosaicTopos
+		]() {
+			FillOutDriverVersion(SyncStatus.Get());
+			FillOutTaskbarAutoHide(SyncStatus.Get());
+			FillOutSyncTopologies(SyncStatus->SyncTopos);
 
-		SyncStatus->PidInFocus = FindPidInFocus();
+			{
+				FReadScopeLock Lock(*CachedMosaicToposLock);
+				SyncStatus->MosaicTopos = *CachedMosaicTopos;
+			}
 
-		if (CpuMon)
-		{
-			CpuMon->GetPerCoreUtilization(SyncStatus->CpuUtilization);
+			SyncStatus->PidInFocus = FindPidInFocus();
+
+			if (CpuMonitor)
+			{
+				CpuMonitor->GetPerCoreUtilization(SyncStatus->CpuUtilization);
+			}
+
+			const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats();
+			SyncStatus->AvailablePhysicalMemory = MemStats.AvailablePhysical;
+
+			FillOutPhysicalGpuStats(SyncStatus.Get());
+
+			return CreateSyncStatusMessage(SyncStatus.Get());
 		}
-
-		const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats();
-		SyncStatus->AvailablePhysicalMemory = MemStats.AvailablePhysical;
-
-		FillOutPhysicalGpuStats(SyncStatus.Get());
-
-		return CreateSyncStatusMessage(SyncStatus.Get());
-	});
+	);
 
 	// Queue it to be sent when ready
 	MessagesFutures.Emplace(MoveTemp(MessageFuture));
@@ -1784,6 +1802,46 @@ bool FSwitchboardListener::Task_GetSyncStatus(const FSwitchboardGetSyncStatusTas
 	return true;
 #else
 	SendMessage(CreateTaskDeclinedMessage(InGetSyncStatusTask, "Platform not supported", {}), InGetSyncStatusTask.Recipient);
+	return false;
+#endif // PLATFORM_WINDOWS
+}
+
+bool FSwitchboardListener::Task_RefreshMosaics(const FSwitchboardRefreshMosaicsTask& InRefreshMosaicsTask)
+{
+#if PLATFORM_WINDOWS
+	// Reject request if an equivalent one is already in our future
+	if (EquivalentTaskFutureExists(InRefreshMosaicsTask.GetEquivalenceHash()))
+	{
+		SendMessage(
+			CreateTaskDeclinedMessage(InRefreshMosaicsTask, TEXT("Duplicate"), {}),
+			InRefreshMosaicsTask.Recipient
+		);
+
+		return false;
+	}
+
+	// Create our future
+	FSwitchboardMessageFuture TaskFuture;
+	TaskFuture.EquivalenceHash = InRefreshMosaicsTask.GetEquivalenceHash();
+	TaskFuture.Future = Async(EAsyncExecution::ThreadPool,
+		[
+			CachedMosaicToposLock=CachedMosaicToposLock,
+			CachedMosaicTopos=CachedMosaicTopos
+		]()
+		{
+			FWriteScopeLock Lock(*CachedMosaicToposLock);
+			CachedMosaicTopos->Reset();
+			FillOutMosaicTopologies(*CachedMosaicTopos);
+			
+			return FString();
+		}
+	);
+
+	MessagesFutures.Emplace(MoveTemp(TaskFuture));
+
+	return true;
+#else
+	SendMessage(CreateTaskDeclinedMessage(InRefreshMosaicsTask, "Platform not supported", {}), InRefreshMosaicsTask.Recipient);
 	return false;
 #endif // PLATFORM_WINDOWS
 }
@@ -1978,7 +2036,10 @@ void FSwitchboardListener::SendMessageFutures()
 		}
 
 		FString Message = MessageFuture.Future.Get();
-		SendMessage(Message, MessageFuture.InEndpoint);
+		if (!Message.IsEmpty())
+		{
+			SendMessage(Message, MessageFuture.InEndpoint);
+		}
 
 		Iter.RemoveCurrent();
 	}

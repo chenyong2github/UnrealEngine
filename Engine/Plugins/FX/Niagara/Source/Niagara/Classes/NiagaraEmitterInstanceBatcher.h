@@ -39,6 +39,15 @@ private:
 	class NiagaraEmitterInstanceBatcher& Batcher;
 };
 
+enum class ENiagaraEmptyUAVType
+{
+	Buffer,
+	Texture2D,
+	Texture2DArray,
+	Texture3D,
+	Num
+};
+
 class NiagaraEmitterInstanceBatcher : public FFXSystemInterface
 {
 	friend FNiagaraUAVPoolAccessScope;
@@ -131,9 +140,7 @@ public:
 	void PostSimulateInterface(FRHICommandList& RHICmdList, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData) const;
 
 	/** Grab a temporary dummy RW buffer from the pool.  Note: When doing this outside of Niagara you must be within a FNiagaraUAVPoolAccessScope. */
-	NIAGARA_API FRHIUnorderedAccessView* GetEmptyRWBufferFromPool(FRHICommandList& RHICmdList, EPixelFormat Format) const;
-	/** Grab a temporary dummy RW texture from the pool.  Note: When doing this outside of Niagara you must be within a FNiagaraUAVPoolAccessScope. */
-	NIAGARA_API FRHIUnorderedAccessView* GetEmptyRWTextureFromPool(FRHICommandList& RHICmdList, EPixelFormat Format) const;
+	NIAGARA_API FRHIUnorderedAccessView* GetEmptyUAVFromPool(FRHICommandList& RHICmdList, EPixelFormat Format, ENiagaraEmptyUAVType Type) const;
 
 	/** Get the shared SortManager, used in the rendering loop to call FGPUSortManager::OnPreRender() and FGPUSortManager::OnPostRenderOpaque() */
 	virtual FGPUSortManager* GetGPUSortManager() const override;
@@ -230,30 +237,27 @@ private:
 	FRWBuffer FreeIDListSizesBuffer;
 	uint32 NumAllocatedFreeIDListSizes = 0;
 
-	struct DummyUAV
+	struct FDummyUAV
 	{
 		FBufferRHIRef Buffer;
-		FTexture2DRHIRef Texture;
+		FTextureRHIRef Texture;
 		FUnorderedAccessViewRHIRef UAV;
 
-		~DummyUAV();
-		void Init(FRHICommandList& RHICmdList, EPixelFormat Format, bool IsTexture, const TCHAR* DebugName);
+		~FDummyUAV();
+		void Init(FRHICommandList& RHICmdList, EPixelFormat Format, ENiagaraEmptyUAVType Type, const TCHAR* DebugName);
 	};
 
-	struct DummyUAVPool
+	struct FDummyUAVPool
 	{
-		~DummyUAVPool();
+		~FDummyUAVPool();
 
 		int32 NextFreeIndex = 0;
-		TArray<DummyUAV> UAVs;
+		TArray<FDummyUAV> UAVs;
 	};
 
 	uint32 DummyUAVAccessCounter = 0;
-	mutable TMap<EPixelFormat, DummyUAVPool> DummyBufferPool;
-	mutable TMap<EPixelFormat, DummyUAVPool> DummyTexturePool;
+	mutable TMap<EPixelFormat, FDummyUAVPool> DummyUAVPools[(int)ENiagaraEmptyUAVType::Num];
 
-	FRHIUnorderedAccessView* GetEmptyUAVFromPool(FRHICommandList& RHICmdList, EPixelFormat Format, bool IsTexture) const;
-	void ResetEmptyUAVPool(TMap<EPixelFormat, DummyUAVPool>& UAVMap);
 	void ResetEmptyUAVPools();
 
 	uint32 NumProxiesThatRequireDistanceFieldData = 0;

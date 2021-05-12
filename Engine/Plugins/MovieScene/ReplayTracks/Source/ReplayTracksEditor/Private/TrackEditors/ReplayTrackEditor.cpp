@@ -3,17 +3,21 @@
 #include "TrackEditors/ReplayTrackEditor.h"
 #include "Editor.h"
 #include "EditorStyleSet.h"
+#include "Engine/EngineTypes.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpectatorPawn.h"
 #include "LevelEditorViewport.h"
 #include "Modules/ModuleManager.h"
 #include "MovieSceneCommonHelpers.h"
+#include "MovieSceneReplayManager.h"
 #include "ReplayTracksEditorModule.h"
 #include "Sections/MovieSceneReplaySection.h"
 #include "SequencerUtilities.h"
 #include "Tracks/MovieSceneReplayTrack.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "ReplayTrackEditor"
@@ -36,6 +40,24 @@ TSharedPtr<SWidget> FReplayTrackEditor::BuildOutlinerEditWidget(const FGuid& Obj
 		.VAlign(VAlign_Center)
 		[
 			FSequencerUtilities::MakeAddButton(LOCTEXT("AddReplayButton", "Replay"), FOnGetContent::CreateSP(this, &FReplayTrackEditor::HandleAddReplayTrackComboButtonGetMenuContent), Params.NodeIsHovered, GetSequencer())
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		[
+			SNew(SButton)
+			.ContentPadding(FMargin(5, 2))
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ForegroundColor(FSlateColor::UseForeground())
+			.IsEnabled(this, &FReplayTrackEditor::HandleToggleReplayButtonIsEnabled)
+			.ToolTipText(this, &FReplayTrackEditor::HandleToggleReplayButtonToolTipText)
+			.OnClicked(this, &FReplayTrackEditor::HandleToggleReplayButtonClicked)
+			[
+				SNew(STextBlock)
+				.Text(this, &FReplayTrackEditor::HandleGetToggleReplayButtonContent)
+			]
 		];
 }
 
@@ -82,6 +104,81 @@ void FReplayTrackEditor::HandleAddReplayTrackMenuEntryExecute()
 			GetSequencer()->OnAddTrack(ReplayTrack, FGuid());
 		}
 	}
+}
+
+FText FReplayTrackEditor::HandleGetToggleReplayButtonContent() const
+{
+	FMovieSceneReplayManager& Manager = FMovieSceneReplayManager::Get();
+	const bool bIsArmed = Manager.IsReplayArmed();
+	switch (Manager.GetReplayStatus())
+	{
+		case EMovieSceneReplayStatus::Stopped:
+		default:
+			return bIsArmed ? 
+					LOCTEXT("ReplayButtonArmed", "Ready for Replay") :
+					LOCTEXT("ReplayButtonDisarmed", "Start Replay");
+		case EMovieSceneReplayStatus::Loading:
+			return LOCTEXT("ReplayButtonLoading", "Loading Replay");
+		case EMovieSceneReplayStatus::Playing:
+			return LOCTEXT("ReplayButtonPlaying", "Stop Replay");
+	}
+}
+
+FSlateColor FReplayTrackEditor::HandleGetToggleReplayButtonColor() const
+{
+	FMovieSceneReplayManager& Manager = FMovieSceneReplayManager::Get();
+	if (Manager.IsReplayArmed())
+	{
+		return FSlateColor(FLinearColor(1.f, 0.1f, 0.f, 0.6f));
+	}
+	return FSlateColor(FLinearColor(1.f, 1.f, 1.f, 0.4f));
+}
+
+bool FReplayTrackEditor::HandleToggleReplayButtonIsEnabled() const
+{
+	UWorld* PlaybackWorld = GetPIEPlaybackWorld();
+	return PlaybackWorld != nullptr;
+}
+
+FText FReplayTrackEditor::HandleToggleReplayButtonToolTipText() const
+{
+	UWorld* PlaybackWorld = GetPIEPlaybackWorld();
+	if (!PlaybackWorld)
+	{
+		return LOCTEXT("ReplayButtonDisabledToolTip", "Please start PIE before starting the replay");
+	}
+	
+	FMovieSceneReplayManager& Manager = FMovieSceneReplayManager::Get();
+	const bool bIsArmed = Manager.IsReplayArmed();
+	switch (Manager.GetReplayStatus())
+	{
+		case EMovieSceneReplayStatus::Stopped:
+		default:
+			return LOCTEXT("ReplayButtonArmedToolTip", "Start the replay in PIE");
+		case EMovieSceneReplayStatus::Loading:
+			return LOCTEXT("ReplayButtonLoadingToolTip", "The replay is currently loading, please wait");
+		case EMovieSceneReplayStatus::Playing:
+			return LOCTEXT("ReplayButtonPlayingToolTip", "Replay is active, press the button to stop it");
+	}
+}
+
+FReply FReplayTrackEditor::HandleToggleReplayButtonClicked()
+{
+	TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
+	if (SequencerPtr.IsValid())
+	{
+		FMovieSceneReplayManager& Manager = FMovieSceneReplayManager::Get();
+		if (!Manager.IsReplayArmed())
+		{
+			Manager.ArmReplay();
+		}
+		else
+		{
+			Manager.DisarmReplay();
+		}
+		SequencerPtr->ForceEvaluate();
+	}
+	return FReply::Handled();
 }
 
 UMovieSceneReplayTrack* FReplayTrackEditor::FindOrCreateReplayTrack(bool* bWasCreated)
@@ -175,7 +272,7 @@ void FReplayTrackEditor::OnGlobalTimeChanged()
 	}
 }
 
-UWorld* FReplayTrackEditor::GetPIEPlaybackWorld()
+UWorld* FReplayTrackEditor::GetPIEPlaybackWorld() const
 {
 	const TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
 

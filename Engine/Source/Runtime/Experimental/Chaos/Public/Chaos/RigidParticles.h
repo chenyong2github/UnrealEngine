@@ -24,6 +24,12 @@ enum class EResimType : uint8
 	//ResimAsKinematic //treat as kinematic (UNIMPLEMENTED)
 };
 
+enum class ESleepType : uint8
+{
+	MaterialSleep,	//physics material determines sleep threshold
+	NeverSleep		//never falls asleep
+};
+
 template<class T, int d>
 struct TSleepData
 {
@@ -96,6 +102,7 @@ public:
 		TArrayCollection::AddArray(&MGravityEnabled);
 		TArrayCollection::AddArray(&MOneWayInteraction);
 		TArrayCollection::AddArray(&MResimType);
+		TArrayCollection::AddArray(&MSleepType);
 		TArrayCollection::AddArray(&bCCDEnabled);
 	}
 	TRigidParticles(const TRigidParticles<T, d>& Other) = delete;
@@ -122,6 +129,7 @@ public:
 		, MGravityEnabled(MoveTemp(Other.MGravityEnabled))
 		, MOneWayInteraction(MoveTemp(Other.MOneWayInteraction))
 		, MResimType(MoveTemp(Other.MResimType))
+		, MSleepType(MoveTemp(Other.MSleepType))
 		, bCCDEnabled(MoveTemp(Other.bCCDEnabled))
 	{
 		TArrayCollection::AddArray(&MVSmooth);
@@ -151,6 +159,7 @@ public:
 		TArrayCollection::AddArray(&MGravityEnabled);
 		TArrayCollection::AddArray(&MOneWayInteraction);
 		TArrayCollection::AddArray(&MResimType);
+		TArrayCollection::AddArray(&MSleepType);
 		TArrayCollection::AddArray(&bCCDEnabled);
 	}
 
@@ -246,6 +255,9 @@ public:
 	FORCEINLINE bool& CCDEnabled(const int32 Index) { return bCCDEnabled[Index]; }
 
 
+	FORCEINLINE ESleepType SleepType(const int32 Index) const { return MSleepType[Index]; }
+	FORCEINLINE ESleepType& SleepType(const int32 Index) { return MSleepType[Index]; }
+
 	FORCEINLINE TArray<TSleepData<T, d>>& GetSleepData() { return MSleepData; }
 	FORCEINLINE	void AddSleepData(TGeometryParticleHandle<T, d>* Particle, bool Sleeping)
 	{ 
@@ -308,7 +320,7 @@ public:
 			Ar << MLinearEtherDrag << MAngularEtherDrag;
 		}
 
-		Ar << MCollisionParticles << MCollisionGroup << MIsland << MDisabled << MObjectState;
+		Ar << MCollisionParticles << MCollisionGroup << MIsland << MDisabled << MObjectState << MSleepType;
 		//todo: add gravity enabled when we decide how we want to handle serialization
 	}
 
@@ -359,6 +371,7 @@ private:
 	TArrayCollectionArray<bool> MGravityEnabled;
 	TArrayCollectionArray<bool> MOneWayInteraction;
 	TArrayCollectionArray<EResimType> MResimType;
+	TArrayCollectionArray<ESleepType> MSleepType;
 	TArrayCollectionArray<bool> bCCDEnabled;
 
 	TArray<TSleepData<T, d>> MSleepData;

@@ -11,17 +11,17 @@ enum EDisplayClusterViewportICVFXFlags
 	ViewportICVFX_None = 0,
 
 	// Allow to use ICVFX for this viewport (Must be supported by projection policy)
-	ViewportICVFX_Enable = 1 << 1,
+	ViewportICVFX_Enable = 1 << 0,
 	// Disable incamera render to this viewport
-	ViewportICVFX_DisableCamera = 1 << 2,
+	ViewportICVFX_DisableCamera = 1 << 1,
 	// Disable chromakey render to this viewport
-	ViewportICVFX_DisableChromakey = 1 << 3,
+	ViewportICVFX_DisableChromakey = 1 << 2,
 	// Disable chromakey markers render to this viewport
-	ViewportICVFX_DisableChromakeyMarkers = 1 << 4,
+	ViewportICVFX_DisableChromakeyMarkers = 1 << 3,
 	// Disable lightcard render to this viewport
-	ViewportICVFX_DisableLightcard = 1 << 5,
+	ViewportICVFX_DisableLightcard = 1 << 4,
 	// Use unique lightcard mode for this viewport from param 'OverrideLightcardMode'
-	ViewportICVFX_OverrideLightcardMode = 1 << 6,
+	ViewportICVFX_OverrideLightcardMode = 1 << 5,
 };
 ENUM_CLASS_FLAGS(EDisplayClusterViewportICVFXFlags);
 
@@ -33,13 +33,13 @@ enum EDisplayClusterViewportRuntimeICVFXFlags
 	ViewportRuntimeICVFX_None = 0,
 
 	// Enable use icvfx only from projection policy for this viewport.
-	ViewportRuntime_ICVFXTarget = 1 << 1,
+	ViewportRuntime_ICVFXTarget = 1 << 0,
 
 	// viewport ICVFX usage
-	ViewportRuntime_ICVFXIncamera       = 1 << 2,
-	ViewportRuntime_ICVFXChromakey      = 1 << 3,
-	ViewportRuntime_ICVFXLightcard      = 1 << 4,
-	ViewportRuntime_ICVFXLightcard_OCIO = 1 << 5,
+	ViewportRuntime_ICVFXIncamera       = 1 << 1,
+	ViewportRuntime_ICVFXChromakey      = 1 << 2,
+	ViewportRuntime_ICVFXLightcard      = 1 << 3,
+	ViewportRuntime_ICVFXLightcard_OCIO = 1 << 4,
 
 	// This viewport used as internal icvfx composing resource (created and deleted inside icvfx logic)
 	ViewportRuntime_InternalResource = 1 << 30,

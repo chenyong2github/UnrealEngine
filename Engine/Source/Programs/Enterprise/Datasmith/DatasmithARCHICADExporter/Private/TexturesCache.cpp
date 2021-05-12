@@ -22,16 +22,16 @@ FTexturesCache::FTexturesCache()
 const FTexturesCache::FTexturesCacheElem& FTexturesCache::GetTexture(const FSyncContext& InSyncContext,
 																	 GS::Int32			 InTextureIndex)
 {
-	MapTextureIndex2CacheElem::iterator ExistingTexture = Textures.find(InTextureIndex);
-	if (ExistingTexture != Textures.end())
+	FTexturesCacheElem* ExistingTexture = Textures.Find(InTextureIndex);
+	if (ExistingTexture != nullptr)
 	{
-		return ExistingTexture->second;
+		return *ExistingTexture;
 	}
 
 	UE_AC_Assert(InTextureIndex > 0 && InTextureIndex <= InSyncContext.GetModel().GetTextureCount());
 
 	// Create an new texture element
-	FTexturesCacheElem& Texture = Textures[InTextureIndex];
+	FTexturesCacheElem& Texture = Textures.FindOrAdd(InTextureIndex);
 
 	ModelerAPI::Texture		   AcTexture;
 	ModelerAPI::AttributeIndex IndexTextureIndex(ModelerAPI::AttributeIndex::TextureIndex, InTextureIndex);
@@ -85,11 +85,11 @@ const FTexturesCache::FTexturesCacheElem& FTexturesCache::GetTexture(const FSync
 			// Create a unique name
 			Texture.TextureLabel = AcTexture.GetName();
 			unsigned int SequencialNumber = 0;
-			while (TexturesNameSet.find(&Texture.TextureLabel) != TexturesNameSet.end())
+			while (TexturesNameSet.Contains(&Texture.TextureLabel))
 			{
 				Texture.TextureLabel = AcTexture.GetName() + GS::UniString::Printf(" %d", ++SequencialNumber);
 			}
-			TexturesNameSet.insert(&Texture.TextureLabel);
+			TexturesNameSet.Add(&Texture.TextureLabel);
 
 			GS::UniString fp(AcTexture.GetFingerprint());
 			Texture.Fingerprint = GSGuid2APIGuid(GS::Guid(fp));
@@ -105,13 +105,15 @@ const FTexturesCache::FTexturesCacheElem& FTexturesCache::GetTexture(const FSync
 	{
 		GS::UniString fp(AcTexture.GetFingerprint());
 		Texture.Fingerprint = GSGuid2APIGuid(GS::Guid(fp));
-		UE_AC_DebugF("FTexturesCache::GetTexture - Texture name \"%s\" missing: ACFingerprint=%s\n",
-					 AcTexture.GetName().ToUtf8(), fp.ToUtf8());
+		UE_AC_ReportF("FTexturesCache::GetTexture - Texture name \"%s\" missing: ACFingerprint=%s\n",
+					  AcTexture.GetName().ToUtf8(), fp.ToUtf8());
 	}
 
 	GS::UniString Fingerprint = APIGuidToString(Texture.Fingerprint);
 	FString		  TextureId = GSStringToUE(Fingerprint);
-	if (TexturesIdsSet.find(TextureId) == TexturesIdsSet.end())
+	bool		  bTextureIdAlreadyInSet = false;
+	TexturesIdsSet.Add(TextureId, &bTextureIdAlreadyInSet);
+	if (!bTextureIdAlreadyInSet)
 	{
 		TSharedRef< IDatasmithTextureElement > BaseTexture =
 			FDatasmithSceneFactory::CreateTexture(GSStringToUE(Fingerprint));
@@ -126,8 +128,8 @@ const FTexturesCache::FTexturesCacheElem& FTexturesCache::GetTexture(const FSync
 		{
 			BaseTexture->SetFile(TEXT("Missing_Texture_File"));
 		}
+		BaseTexture->SetSRGB(EDatasmithColorSpace::sRGB);
 		InSyncContext.GetScene().AddTexture(BaseTexture);
-		TexturesIdsSet.insert(TextureId);
 	}
 
 	return Texture;

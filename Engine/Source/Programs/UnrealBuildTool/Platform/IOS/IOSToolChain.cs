@@ -20,6 +20,33 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace UnrealBuildTool
 {
+	/// <summary>
+	/// Option flags for the iOS toolchain
+	/// </summary>
+	[Flags]
+	enum IOSToolChainOptions
+	{
+		/// <summary>
+		/// No custom options
+		/// </summary>
+		None = 0,
+
+		/// <summary>
+		/// Enable address sanitizer
+		/// </summary>
+		EnableAddressSanitizer = 0x1,
+
+		/// <summary>
+		/// Enable thread sanitizer
+		/// </summary>
+		EnableThreadSanitizer = 0x2,
+
+		/// <summary>
+		/// Enable undefined behavior sanitizer
+		/// </summary>
+		EnableUndefinedBehaviorSanitizer = 0x4,
+	}
+
 	class IOSToolChainSettings : AppleToolChainSettings
 	{
 		/// <summary>
@@ -89,10 +116,12 @@ namespace UnrealBuildTool
 
 		public readonly ReadOnlyTargetRules Target;
 		protected IOSProjectSettings ProjectSettings;
+		private IOSToolChainOptions Options;
 
-		public IOSToolChain(ReadOnlyTargetRules Target, IOSProjectSettings InProjectSettings)
+		public IOSToolChain(ReadOnlyTargetRules Target, IOSProjectSettings InProjectSettings, IOSToolChainOptions ToolchainOptions)
 			: this(Target, InProjectSettings, () => new IOSToolChainSettings())
 		{
+			Options = ToolchainOptions;
 		}
 
 		protected IOSToolChain(ReadOnlyTargetRules Target, IOSProjectSettings InProjectSettings, Func<IOSToolChainSettings> InCreateSettings)
@@ -220,15 +249,20 @@ namespace UnrealBuildTool
 			}
 
 			string SanitizerMode = Environment.GetEnvironmentVariable("ENABLE_ADDRESS_SANITIZER");
-			if (SanitizerMode != null && SanitizerMode == "YES")
+			if ((SanitizerMode != null && SanitizerMode == "YES") || (Options.HasFlag(IOSToolChainOptions.EnableAddressSanitizer)))
 			{
-				Result += " -fsanitize=address";
+				Result += " -fsanitize=address -fno-omit-frame-pointer -DFORCE_ANSI_ALLOCATOR=1";
 			}
 
 			string UndefSanitizerMode = Environment.GetEnvironmentVariable("ENABLE_UNDEFINED_BEHAVIOR_SANITIZER");
-			if (UndefSanitizerMode != null && UndefSanitizerMode == "YES")
+			if ((UndefSanitizerMode != null && UndefSanitizerMode == "YES") || (Options.HasFlag(IOSToolChainOptions.EnableUndefinedBehaviorSanitizer)))
 			{
 				Result += " -fsanitize=undefined -fno-sanitize=bounds,enum,return,float-divide-by-zero";
+			}
+
+			if (Options.HasFlag(IOSToolChainOptions.EnableThreadSanitizer))
+			{
+				Result += " -fsanitize=thread";
 			}
 
 			Result += GetRTTIFlag(CompileEnvironment);
@@ -520,17 +554,23 @@ namespace UnrealBuildTool
 			}
 
 			string SanitizerMode = Environment.GetEnvironmentVariable("ENABLE_ADDRESS_SANITIZER");
-			if (SanitizerMode != null && SanitizerMode == "YES")
+			if ((SanitizerMode != null && SanitizerMode == "YES") || (Options.HasFlag(IOSToolChainOptions.EnableAddressSanitizer)))
 			{
 				Result += " -rpath \"@executable_path/Frameworks\"";
 				Result += " -fsanitize=address";
 			}
 
 			string UndefSanitizerMode = Environment.GetEnvironmentVariable("ENABLE_UNDEFINED_BEHAVIOR_SANITIZER");
-			if (UndefSanitizerMode != null && UndefSanitizerMode == "YES")
+			if ((UndefSanitizerMode != null && UndefSanitizerMode == "YES") || (Options.HasFlag(IOSToolChainOptions.EnableUndefinedBehaviorSanitizer)))
 			{
 				Result += " -rpath \"@executable_path/libclang_rt.ubsan_ios_dynamic.dylib\"";
 				Result += " -fsanitize=undefined";
+			}
+
+			if (Options.HasFlag(IOSToolChainOptions.EnableThreadSanitizer))
+			{
+				Result += " -rpath \"@executable_path/libclang_rt.tsan_ios_dynamic.dylib\"";
+				Result += " -fsanitize=thread";
 			}
 
 			// need to tell where to load Framework dylibs

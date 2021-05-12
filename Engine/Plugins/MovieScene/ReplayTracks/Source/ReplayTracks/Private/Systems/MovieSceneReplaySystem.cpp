@@ -8,11 +8,15 @@
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieSceneMasterInstantiatorSystem.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "GameDelegates.h"
+#include "GameFramework/GameState.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpectatorPawn.h"
 #include "GameFramework/SpectatorPawnMovement.h"
 #include "IMovieScenePlayer.h"
+#include "Misc/CoreMiscDefines.h"
 #include "MovieSceneFwd.h"
+#include "MovieSceneReplayManager.h"
 #include "Sections/MovieSceneReplaySection.h"
 #include "EntitySystem/MovieSceneEntityFactory.h"
 #include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
@@ -53,7 +57,7 @@ FReplayComponentTypes::FReplayComponentTypes()
 
 FDelegateHandle UMovieSceneReplaySystem::PreLoadMapHandle;
 FDelegateHandle UMovieSceneReplaySystem::PostLoadMapHandle;
-FDelegateHandle UMovieSceneReplaySystem::ReplayStartedHandle;
+FDelegateHandle UMovieSceneReplaySystem::EndPlayMapHandle;
 FTimerHandle UMovieSceneReplaySystem::ReEvaluateHandle;
 
 UMovieSceneReplaySystem::UMovieSceneReplaySystem(const FObjectInitializer& ObjInit)
@@ -64,7 +68,7 @@ UMovieSceneReplaySystem::UMovieSceneReplaySystem(const FObjectInitializer& ObjIn
 	const FReplayComponentTypes* ReplayComponents = FReplayComponentTypes::Get();
 	RelevantComponent = ReplayComponents->Replay;
 
-	Phase = ESystemPhase::Instantiation | ESystemPhase::Evaluation | ESystemPhase::Finalization;
+	Phase = ESystemPhase::Instantiation | ESystemPhase::Evaluation;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -93,10 +97,6 @@ void UMovieSceneReplaySystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, F
 	else if (CurrentPhase == ESystemPhase::Evaluation)
 	{
 		OnRunEvaluation();
-	}
-	else if (CurrentPhase == ESystemPhase::Finalization)
-	{
-		OnRunFinalization();
 	}
 }
 
@@ -146,7 +146,6 @@ void UMovieSceneReplaySystem::OnRunInstantiation()
 		.FilterAll({ BuiltInComponents->Tags.NeedsLink })
 		.Iterate_PerEntity(&Linker->EntityManager, AddNewReplayInfos);
 
-
 	// Check if we have any new current active replay.
 	FReplayInfo NewReplayInfo;
 	if (CurrentReplayInfos.Num() > 0)
@@ -154,25 +153,12 @@ void UMovieSceneReplaySystem::OnRunInstantiation()
 		NewReplayInfo = CurrentReplayInfos[0];
 	}
 
-	const FInstanceRegistry* InstanceRegistry = Linker->GetInstanceRegistry();
-
 	// If we have lost our previous replay, stop it.
-	if (PreviousReplayInfo.IsValid() &&
-		(NewReplayInfo != PreviousReplayInfo))
+	if (PreviousReplayInfo.IsValid() && (NewReplayInfo != PreviousReplayInfo))
 	{
-		const FSequenceInstance& Instance = InstanceRegistry->GetInstance(PreviousReplayInfo.InstanceHandle);
-		IMovieScenePlayer* Player = Instance.GetPlayer();
-		const UWorld* World = Player->GetPlaybackContext()->GetWorld();
-		UGameInstance* GameInstance = World->GetGameInstance();
-		UReplaySubsystem* ReplaySubsystem = GameInstance ? GameInstance->GetSubsystem<UReplaySubsystem>() : nullptr;
-		if (ReplaySubsystem != nullptr)
+		if (bReplayActive)
 		{
-			ReplaySubsystem->bLoadDefaultMapOnStop = false;
-
-			World->GetTimerManager().SetTimerForNextTick([ReplaySubsystem]()
-				{
-					ReplaySubsystem->StopReplay();
-				});
+			StopReplay(PreviousReplayInfo);
 		}
 	}
 
@@ -180,49 +166,22 @@ void UMovieSceneReplaySystem::OnRunInstantiation()
 	// This happens because the first time we get here, it runs the replay, which loads the replay's map, which wipes
 	// everything. Once the replay map is loaded, the new evaluation gets us back here and it *looks* like we have a brand
 	// new replay, but that's not really the case.
-	if (NewReplayInfo.IsValid() &&
-		NewReplayInfo != PreviousReplayInfo)
+	if (NewReplayInfo.IsValid() && (NewReplayInfo != PreviousReplayInfo))
 	{
-		const FSequenceInstance& Instance = InstanceRegistry->GetInstance(NewReplayInfo.InstanceHandle);
-		IMovieScenePlayer* Player = Instance.GetPlayer();
-		const FMovieSceneContext Context = Instance.GetContext();
-		const UWorld* World = Player->GetPlaybackContext()->GetWorld();
-
-		UDemoNetDriver* DemoNetDriver = World->GetDemoNetDriver();
-		if (DemoNetDriver == nullptr)
+		FMovieSceneReplayManager& Manager = FMovieSceneReplayManager::Get();
+		if (Manager.GetReplayStatus() == EMovieSceneReplayStatus::Loading)
 		{
-			UGameInstance* GameInstance = World->GetGameInstance();
-			UReplaySubsystem* ReplaySubsystem = GameInstance ? GameInstance->GetSubsystem<UReplaySubsystem>() : nullptr;
-			if (ReplaySubsystem != nullptr)
-			{
-				// Delay starting replay until next tick so that we don't have any problems loading a new level while we're
-				// in the middle of the sequencer evaluation.
-				const FString ReplayName = NewReplayInfo.Section->ReplayName;
-				World->GetTimerManager().SetTimerForNextTick([ReplaySubsystem, ReplayName]()
-					{
-						ReplaySubsystem->PlayReplay(ReplayName, nullptr, TArray<FString>());
-					});
+			// We were loading a replay and caught back to it (see comment above). Let's mark it as active in this new
+			// instance of the UMovieSceneReplaySystem and keep going.
+			bReplayActive = true;
 
-				// We have a few things to do just before/after the map has been loaded.
-				if (!PreLoadMapHandle.IsValid())
-				{
-					PreLoadMapHandle = FCoreUObjectDelegates::PreLoadMap.AddStatic(UMovieSceneReplaySystem::OnPreLoadMap, Player);
-				}
-				if (!PostLoadMapHandle.IsValid())
-				{
-					PostLoadMapHandle = FCoreUObjectDelegates::PostLoadMapWithWorld.AddStatic(UMovieSceneReplaySystem::OnPostLoadMap, Player, Context);
-				}
-
-				// Hook up a callback for when replay has started, so we can do a bunch of specific things.
-				// It must not rely on any current objects because this replay system, linker, and everything that goes with it
-				// will be torn down once the replay starts streaming in a new map.
-				if (!ReplayStartedHandle.IsValid())
-				{
-					ReplayStartedHandle = FNetworkReplayDelegates::OnReplayStarted.AddStatic(UMovieSceneReplaySystem::OnReplayStarted, Player, Context);
-				}
-			}
+			// Set the manager to the "playing" status so that we can start playing right away in the evaluation phase.
+			Manager.ReplayStatus = EMovieSceneReplayStatus::Playing;
 		}
-		// else: we are already in replay... we were just re-created in the loaded replay level.
+		else if (Manager.IsReplayArmed())
+		{
+			StartReplay(NewReplayInfo);
+		}
 	}
 
 	// Initialize other stuff we need for evaluation.
@@ -236,81 +195,222 @@ void UMovieSceneReplaySystem::OnRunEvaluation()
 {
 	using namespace UE::MovieScene;
 
-	FReplayInfo ActiveReplayInfo;
-	if (CurrentReplayInfos.Num() > 0)
+	// Check if we have a valid active replay.
+	if (CurrentReplayInfos.Num() == 0)
 	{
-		ActiveReplayInfo = CurrentReplayInfos[0];
+		return;
+	}
+	if (!ensure(CurrentReplayInfos[0].IsValid()))
+	{
+		return;
 	}
 
-	if (ActiveReplayInfo.IsValid())
+	// Bail out if we are still waiting for the game to be ready.
+	FMovieSceneReplayManager& Manager = FMovieSceneReplayManager::Get();
+	if (Manager.ReplayStatus == EMovieSceneReplayStatus::Loading)
 	{
-		const FInstanceRegistry* InstanceRegistry = Linker->GetInstanceRegistry();
-		const FSequenceInstance& Instance = InstanceRegistry->GetInstance(ActiveReplayInfo.InstanceHandle);
+		return;
+	}
 
-		IMovieScenePlayer* Player = Instance.GetPlayer();
-		const FMovieSceneContext& Context = Instance.GetContext();
+	// Stop the current replay if the user just disarmed it.
+	// Start the current replay if it's armed and we haven't started it yet.
+	const FReplayInfo& ActiveReplayInfo = CurrentReplayInfos[0];
+	if (!Manager.IsReplayArmed() && bReplayActive)
+	{
+		StopReplay(ActiveReplayInfo);
+		return;
+	}
+	else if (Manager.IsReplayArmed() && !bReplayActive)
+	{
+		StartReplay(ActiveReplayInfo);
+		return;
+	}
 
-		UWorld* World = Player->GetPlaybackContext()->GetWorld();
+	const FInstanceRegistry* InstanceRegistry = Linker->GetInstanceRegistry();
+	const FSequenceInstance& Instance = InstanceRegistry->GetInstance(ActiveReplayInfo.InstanceHandle);
+
+	IMovieScenePlayer* Player = Instance.GetPlayer();
+	const FMovieSceneContext& Context = Instance.GetContext();
+
+	UWorld* World = Player->GetPlaybackContext()->GetWorld();
+	UDemoNetDriver* DemoNetDriver = World->GetDemoNetDriver();
+
+	if (DemoNetDriver)
+	{
 		AWorldSettings* WorldSettings = World->GetWorldSettings();
-		UDemoNetDriver* DemoNetDriver = World->GetDemoNetDriver();
+		FMovieSceneReplayBroker* Broker = Manager.FindBroker(World);
 
-		if (DemoNetDriver)
+		const bool bIsInit = bNeedsInit;
+		if (bNeedsInit)
 		{
-			// Set time dilation and current demo time according to our current sequencer playback.
-			const bool bIsPlaying = (Player->GetPlaybackStatus() == EMovieScenePlayerStatus::Playing);
-			const bool bIsScrubbing = Context.HasJumped() ||
-				(Player->GetPlaybackStatus() == EMovieScenePlayerStatus::Scrubbing) ||
-				(Player->GetPlaybackStatus() == EMovieScenePlayerStatus::Jumping) ||
-				(Player->GetPlaybackStatus() == EMovieScenePlayerStatus::Stepping);
+			// First evaluation since the replay started and became ready.
+			// Let's notify the game-specific implementation.
+			bNeedsInit = false;
+			Broker->OnReplayStarted(World);
+		}
 
-			if (bIsPlaying)
-			{
-				WorldSettings->DemoPlayTimeDilation = 1.f;
-				WorldSettings->SetPauserPlayerState(nullptr);
-			}
-			else
-			{
-				// Some games don't support a true time dilation of zero so we need to respect
-				// their minimum time dilation value.
-				WorldSettings->DemoPlayTimeDilation = WorldSettings->MinGlobalTimeDilation;
-			}
+		// Set time dilation and current demo time according to our current sequencer playback.
+		const EMovieScenePlayerStatus::Type CurrentPlayerStatus = Player->GetPlaybackStatus();
 
-			const float CurrentTime = Context.GetFrameRate().AsSeconds(Context.GetTime());
-			if (bIsScrubbing)
-			{
-				DemoNetDriver->GotoTimeInSeconds(CurrentTime);
-			}
-			else
-			{
-				// Keep time in sync with sequencer while playing.
-				DemoNetDriver->SetDemoCurrentTime(CurrentTime);
-			}
+		const bool bIsPlaying = (CurrentPlayerStatus == EMovieScenePlayerStatus::Playing);
+		const bool bWasPlaying = (PreviousPlayerStatus == EMovieScenePlayerStatus::Playing);
 
-			// Set some CVars according to the playback state.
-			if (ShowFlagMotionBlur)
-			{
-				int32 ShowMotionBlur = bIsPlaying ? 1 : 0;
-				ShowFlagMotionBlur->Set(ShowMotionBlur);
-			}
+		const bool bIsPaused = (
+				CurrentPlayerStatus == EMovieScenePlayerStatus::Paused ||
+				CurrentPlayerStatus == EMovieScenePlayerStatus::Stopped);
+		const bool bWasPaused = (
+				PreviousPlayerStatus == EMovieScenePlayerStatus::Paused ||
+				PreviousPlayerStatus == EMovieScenePlayerStatus::Stopped);
 
-			// Hack some stuff for known spectator controllers.
-			if (APlayerController* PlayerController = World->GetFirstPlayerController())
+		if (bIsInit || (bIsPaused && !bWasPaused))
+		{
+			// Pause the replay.
+			WorldSettings->SetTimeDilation(0.f);
+			Broker->OnReplayPause(World);
+		}
+		else if (bIsPlaying && !bWasPlaying)
+		{
+			// Start playing.
+			WorldSettings->SetTimeDilation(1.f);
+			WorldSettings->SetPauserPlayerState(nullptr);
+			Broker->OnReplayPlay(World);
+		}
+
+		PreviousPlayerStatus = CurrentPlayerStatus;
+
+		// Update the current replay time.
+		const FFrameNumber SectionStartTime = ActiveReplayInfo.Section->GetTrueRange().GetLowerBoundValue();
+		const FFrameTime CurrentReplayTime = Context.GetTime() - SectionStartTime;
+		const float CurrentReplayTimeInSeconds = Context.GetFrameRate().AsSeconds(CurrentReplayTime);
+
+		const bool bIsScrubbing = Context.HasJumped() ||
+			(CurrentPlayerStatus == EMovieScenePlayerStatus::Scrubbing) ||
+			(CurrentPlayerStatus == EMovieScenePlayerStatus::Jumping) ||
+			(CurrentPlayerStatus == EMovieScenePlayerStatus::Stepping);
+
+		if (bIsScrubbing || bIsPaused)
+		{
+			// Scrub replay to the desired time.
+			DemoNetDriver->GotoTimeInSeconds(CurrentReplayTimeInSeconds);
+			Broker->OnGoToTime(World, CurrentReplayTimeInSeconds);
+		}
+		else if (bIsPlaying)
+		{
+			// Keep time in sync with sequencer while playing.
+			DemoNetDriver->SetDemoCurrentTime(CurrentReplayTimeInSeconds);
+		}
+
+		// Set some CVars according to the playback state.
+		if (ShowFlagMotionBlur)
+		{
+			int32 ShowMotionBlur = bIsPlaying ? 1 : 0;
+			ShowFlagMotionBlur->Set(ShowMotionBlur);
+		}
+
+		// Hack some stuff for known spectator controllers.
+		if (APlayerController* PlayerController = World->GetFirstPlayerController())
+		{
+			if (ASpectatorPawn* SpectatorPawn = PlayerController->GetSpectatorPawn())
 			{
-				if (ASpectatorPawn* SpectatorPawn = PlayerController->GetSpectatorPawn())
+				if (USpectatorPawnMovement* SpectatorPawnMovement = Cast<USpectatorPawnMovement>(SpectatorPawn->GetMovementComponent()))
 				{
-					if (USpectatorPawnMovement* SpectatorPawnMovement = Cast<USpectatorPawnMovement>(SpectatorPawn->GetMovementComponent()))
-					{
-						SpectatorPawnMovement->bIgnoreTimeDilation = true;
-					}
+					SpectatorPawnMovement->bIgnoreTimeDilation = true;
 				}
 			}
 		}
-		// else: replay hasn't yet started (loading map, etc.)
 	}
+	// else: replay hasn't yet started (loading map, etc.)
 }
 
-void UMovieSceneReplaySystem::OnRunFinalization()
+void UMovieSceneReplaySystem::StartReplay(const FReplayInfo& ReplayInfo)
 {
+	using namespace UE::MovieScene;
+
+	if (!ensure(ReplayInfo.IsValid()))
+	{
+		return;
+	}
+
+	const FInstanceRegistry* InstanceRegistry = Linker->GetInstanceRegistry();
+	const FSequenceInstance& Instance = InstanceRegistry->GetInstance(ReplayInfo.InstanceHandle);
+	IMovieScenePlayer* Player = Instance.GetPlayer();
+	const FMovieSceneContext Context = Instance.GetContext();
+	UWorld* World = Player->GetPlaybackContext()->GetWorld();
+
+	UDemoNetDriver* DemoNetDriver = World->GetDemoNetDriver();
+	if (!ensure(DemoNetDriver == nullptr))
+	{
+		// Are we already inside a replay?
+		return;
+	}
+	UGameInstance* GameInstance = World->GetGameInstance();
+	if (!ensure(GameInstance != nullptr))
+	{
+		// We need a game instance to start the replay.
+		return;
+	}
+
+	// Delay starting replay until next tick so that we don't have any problems loading a new level while we're
+	// in the middle of the sequencer evaluation.
+	World->GetTimerManager().SetTimerForNextTick([this, World, ReplayInfo]()
+		{
+			check(ReplayInfo.IsValid());
+			const FString ReplayName = ReplayInfo.Section->ReplayName;
+			World->GetGameInstance()->PlayReplay(ReplayName, nullptr, TArray<FString>());
+		});
+
+	// We have a few things to do just before/after the map has been loaded.
+	if (!PreLoadMapHandle.IsValid())
+	{
+		PreLoadMapHandle = FCoreUObjectDelegates::PreLoadMap.AddStatic(UMovieSceneReplaySystem::OnPreLoadMap, Player);
+	}
+	if (!PostLoadMapHandle.IsValid())
+	{
+		PostLoadMapHandle = FCoreUObjectDelegates::PostLoadMapWithWorld.AddStatic(UMovieSceneReplaySystem::OnPostLoadMap, Player, Context);
+	}
+	if (!EndPlayMapHandle.IsValid())
+	{
+		EndPlayMapHandle = FGameDelegates::Get().GetEndPlayMapDelegate().AddStatic(UMovieSceneReplaySystem::OnEndPlayMap);
+	}
+
+	// Update the replay status.
+	FMovieSceneReplayManager& Manager = FMovieSceneReplayManager::Get();
+	Manager.ReplayStatus = EMovieSceneReplayStatus::Loading;
+
+	bReplayActive = true;
+	bNeedsInit = true;
+}
+
+void UMovieSceneReplaySystem::StopReplay(const FReplayInfo& ReplayInfo)
+{
+	using namespace UE::MovieScene;
+
+	if (!ensure(ReplayInfo.IsValid() && bReplayActive))
+	{
+		return;
+	}
+
+	const FInstanceRegistry* InstanceRegistry = Linker->GetInstanceRegistry();
+	const FSequenceInstance& Instance = InstanceRegistry->GetInstance(ReplayInfo.InstanceHandle);
+	IMovieScenePlayer* Player = Instance.GetPlayer();
+	UWorld* World = Player->GetPlaybackContext()->GetWorld();
+	UGameInstance* GameInstance = World->GetGameInstance();
+	UReplaySubsystem* ReplaySubsystem = GameInstance ? GameInstance->GetSubsystem<UReplaySubsystem>() : nullptr;
+	if (ReplaySubsystem != nullptr)
+	{
+		ReplaySubsystem->bLoadDefaultMapOnStop = false;
+
+		World->GetTimerManager().SetTimerForNextTick([ReplaySubsystem]()
+			{
+				ReplaySubsystem->StopReplay();
+			});
+	}
+
+	FMovieSceneReplayManager& Manager = FMovieSceneReplayManager::Get();
+	Manager.ReplayStatus = EMovieSceneReplayStatus::Stopped;
+	Manager.FindBroker(World)->OnReplayStopped(World);
+
+	bReplayActive = false;
 }
 
 void UMovieSceneReplaySystem::OnPreLoadMap(const FString& MapName, IMovieScenePlayer* Player)
@@ -334,31 +434,36 @@ void UMovieSceneReplaySystem::OnPostLoadMap(UWorld* World, IMovieScenePlayer* La
 	FCoreUObjectDelegates::PostLoadMapWithWorld.Remove(PostLoadMapHandle);
 	PostLoadMapHandle.Reset();
 
-	// After the map has loaded, we wait for the pawn to respawn so we can re-evaluate the sequence to force re-creating the linker,
-	// systems, and so on inside the new map. Otherwise, the new map starts replay and we have nothing to control it (until the user scrubs).
-	//
-	// THIS IS WRONG: we have no idea if "LastPlayer" is still valid! In the case of the sequencer editor, it is, but we don't know that!
+	// After the map has loaded, we wait for the game to be ready to start showing the replay. This generally includes waiting
+	// for the replay pawn and player controller.
 	World->GetTimerManager().SetTimer(ReEvaluateHandle, [World, LastPlayer, LastContext]()
 		{
-			if (APlayerController* PlayerController = World->GetFirstPlayerController())
+			FMovieSceneReplayManager& Manager = FMovieSceneReplayManager::Get();
+			FMovieSceneReplayBroker* Broker = Manager.FindBroker(World);
+			if (Broker->CanStartReplay(World))
 			{
-				if (ASpectatorPawn* SpectatorPawn = PlayerController->GetSpectatorPawn())
-				{
-					World->GetTimerManager().ClearTimer(ReEvaluateHandle);
+				World->GetTimerManager().ClearTimer(ReEvaluateHandle);
 
-					FMovieSceneRootEvaluationTemplateInstance& RootEvalTemplate = LastPlayer->GetEvaluationTemplate();
-					RootEvalTemplate.Evaluate(LastContext, *LastPlayer);
-				}
+				FMovieSceneRootEvaluationTemplateInstance& RootEvalTemplate = LastPlayer->GetEvaluationTemplate();
+				RootEvalTemplate.Evaluate(LastContext, *LastPlayer);
 			}
 		},
 		0.1f,
 		true);
 }
 
-void UMovieSceneReplaySystem::OnReplayStarted(UWorld* World, IMovieScenePlayer* LastPlayer, FMovieSceneContext LastContext)
+void UMovieSceneReplaySystem::OnEndPlayMap()
 {
-	FNetworkReplayDelegates::OnReplayStarted.Remove(ReplayStartedHandle);
-	ReplayStartedHandle.Reset();
+	FGameDelegates::Get().GetEndPlayMapDelegate().Remove(EndPlayMapHandle);
+	EndPlayMapHandle.Reset();
+
+	// Disarm the replay when PIE ends since we don't want to re-start it immediately if we start PIE again.
+	// It might have already been disarmed if we scrubbed past the replay section, though.
+	FMovieSceneReplayManager& Manager = FMovieSceneReplayManager::Get();
+	if (Manager.IsReplayArmed())
+	{
+		Manager.DisarmReplay();
+	}
 }
 
 bool UMovieSceneReplaySystem::FReplayInfo::IsValid() const

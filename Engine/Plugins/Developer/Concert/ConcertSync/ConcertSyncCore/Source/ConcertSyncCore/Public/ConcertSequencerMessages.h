@@ -18,7 +18,6 @@ enum class EConcertMovieScenePlayerStatus : uint8
 {
 	Stopped,
 	Playing,
-	Recording,
 	Scrubbing,
 	Jumping,
 	Stepping,

@@ -1078,6 +1078,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 			const bool bMediumHit = CountToDebug > 0;
 			OutColor0 = float4(bMediumHit ? GetHSVDebugColor(saturate(float(CountToDebug) / 64.0f)) : float3(0.0f, 0.0f, 0.0), bMediumHit ? 0.0f : 1.0f);
 			OutColor1.x = bMediumHit ? OutColor1.x : MaxHalfFloat;
+			return;
 		}
 #endif
 	}

@@ -44,6 +44,10 @@ public:
 
 	FMargin GetOuterPadding() const;
 
+	// SWidget interface
+	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	// End of SWidget interface
+
 	//~ Begin SPanel Interface
 	virtual FVector2D ComputeDesiredSize(float f) const override;
 	//~ End SPanel Interface

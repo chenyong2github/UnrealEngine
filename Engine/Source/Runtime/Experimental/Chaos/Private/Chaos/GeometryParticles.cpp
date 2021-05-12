@@ -176,6 +176,7 @@ namespace Chaos
 		FShapesArray& ShapeArray = MShapesArray[Index];
 		Mapping.Reset();
 
+		bool bHasCollision = false;
 		for (int32 ShapeIndex = 0; ShapeIndex < ShapeArray.Num(); ++ ShapeIndex)
 		{
 			const FImplicitObject* ImplicitObject = ShapeArray[ShapeIndex]->GetGeometry().Get();
@@ -186,7 +187,12 @@ namespace Chaos
 			{
 				Mapping.Add(ImplicitChildObject, ShapeIndex);
 			}
+
+			const FCollisionData& CollisionData = ShapeArray[ShapeIndex]->GetCollisionData();
+			bHasCollision |= CollisionData.HasCollisionData();
 		}
+
+		HasCollision(Index) = bHasCollision;
 
 		if (MGeometry[Index])
 		{

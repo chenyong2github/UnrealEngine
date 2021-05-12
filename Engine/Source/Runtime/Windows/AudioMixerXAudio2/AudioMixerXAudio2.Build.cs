@@ -24,6 +24,7 @@ public class AudioMixerXAudio2 : ModuleRules
         PrivateDependencyModuleNames.AddRange(
 			new string[] {
 					"Core",
+					"AudioMixer",
 					"AudioMixerCore"
                 }
 		);

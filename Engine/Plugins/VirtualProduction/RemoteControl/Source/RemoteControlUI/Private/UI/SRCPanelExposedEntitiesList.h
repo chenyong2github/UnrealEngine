@@ -3,6 +3,7 @@
 #pragma once
 
 #include "RemoteControlPreset.h"
+#include "SRCPanelTreeNode.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STreeView.h"
@@ -18,6 +19,7 @@ struct FRemoteControlProperty;
 struct FRemoteControlPresetGroup;
 struct FRemoteControlFunction;
 class ITableRow;
+class SRCPanelGroup;
 struct SRCPanelTreeNode;
 class SRemoteControlTarget;
 struct SRCPanelExposedField;
@@ -27,18 +29,18 @@ class URemoteControlPreset;
 /** Holds information about a group drag and drop event  */
 struct FGroupDragEvent
 {
-	FGroupDragEvent(FRCPanelGroup& InDragOriginGroup, FRCPanelGroup& InDragTargetGroup)
-		: DragOriginGroup(InDragOriginGroup)
-		, DragTargetGroup(InDragTargetGroup)
+	FGroupDragEvent(TSharedPtr<SRCPanelGroup> InDragOriginGroup, TSharedPtr<SRCPanelGroup> InDragTargetGroup)
+		: DragOriginGroup(MoveTemp(InDragOriginGroup))
+		, DragTargetGroup(MoveTemp(InDragTargetGroup))
 	{
 	}
 
 	bool IsDraggedFromSameGroup() const;
 
 	/** Group the drag originated in. */
-	FRCPanelGroup& DragOriginGroup;
+	TSharedPtr<SRCPanelGroup> DragOriginGroup;
 	/** Group where the element was dropped. */
-	FRCPanelGroup& DragTargetGroup;
+	TSharedPtr<SRCPanelGroup> DragTargetGroup;
 };
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectionChange, const TSharedPtr<SRCPanelTreeNode>&/*SelectedNode*/);
@@ -52,6 +54,7 @@ public:
 	{}
 		SLATE_ATTRIBUTE(bool, EditMode)
 		SLATE_ARGUMENT(bool, DisplayValues)
+		SLATE_EVENT(FSimpleDelegate, OnEntityListUpdated)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, URemoteControlPreset* InPreset);
@@ -69,6 +72,9 @@ public:
 	/** Returns delegate called on selection change. */
 	FOnSelectionChange& OnSelectionChange() { return OnSelectionChangeDelegate; }
 
+	/** Returns delegate triggered upon a modification to an exposed entity. */
+	FSimpleDelegate OnEntityListUpdated() { return OnEntityListUpdatedDelegate; }
+	
 private:
 	/** Handles object property changes, used to update arrays correctly.  */
 	void OnObjectPropertyChange(UObject* InObject, FPropertyChangedEvent& InChangeEvent);
@@ -83,16 +89,27 @@ private:
 	/** Handle selection changes. */
 	void OnSelectionChanged(TSharedPtr<SRCPanelTreeNode> Node, ESelectInfo::Type SelectInfo);
 	/** Handlers for drag/drop events. */
-	FReply OnDropOnGroup(const TSharedPtr<FDragDropOperation>& DragDropOperation, const TSharedPtr<SRCPanelTreeNode>& TargetEntity, const TSharedPtr<FRCPanelGroup>& DragTargetGroup);
+	FReply OnDropOnGroup(const TSharedPtr<FDragDropOperation>& DragDropOperation, const TSharedPtr<SRCPanelTreeNode>& TargetEntity, const TSharedPtr<SRCPanelGroup>& DragTargetGroup);
 	/** Get the id of the group that holds a particular widget. */
 	FGuid GetGroupId(const FGuid& EntityId);
 	/** Handles group deletion. */
-	void OnDeleteGroup(const TSharedPtr<FRCPanelGroup>& PanelGroup);
+	void OnDeleteGroup(const TSharedPtr<SRCPanelGroup>& PanelGroup);
 	/** Select actors in the current level. */
 	void SelectActorsInlevel(const TArray<UObject*>& Objects);
 	//~ Register to engine/editor events in order to correctly update widgets.
 	void RegisterEvents();
 	void UnregisterEvents();
+
+	//~ Handlers for getting/setting the entity list's column width.
+	float OnGetLeftColumnWidth() const { return 1.0f - ColumnWidth; }
+	float OnGetRightColumnWidth() const { return ColumnWidth; }
+	void OnSetColumnWidth(float InWidth) { ColumnWidth = InWidth; }
+
+	/** Find a group using its id. */
+	TSharedPtr<SRCPanelGroup> FindGroupById(const FGuid& Id);
+
+	/** Handle context menu opening on a row. */
+	TSharedPtr<SWidget> OnContextMenuOpening();
 
 	//~ Register and handle preset delegates.
 	void RegisterPresetDelegates();
@@ -112,7 +129,7 @@ private:
 	/** Holds the fields list view. */
 	TSharedPtr<STreeView<TSharedPtr<SRCPanelTreeNode>>> TreeView;
 	/** Holds all the field groups. */
-	TArray<TSharedPtr<FRCPanelGroup>> FieldGroups;
+	TArray<TSharedPtr<SRCPanelGroup>> FieldGroups;
 	/** Map of field ids to field widgets. */
 	TMap<FGuid, TSharedPtr<SRCPanelTreeNode>> FieldWidgetMap;
 	/** Whether the panel is in edit mode. */
@@ -125,4 +142,10 @@ private:
 	FOnSelectionChange OnSelectionChangeDelegate;
 	/** Whether to display the values in the list. */
 	bool bDisplayValues = false;
+	/** The column data shared between all tree nodes in order to share a splitter amongst all rows. */
+	FRCColumnSizeData ColumnSizeData;
+	/** The actual width of the right column.  The left column is 1-ColumnWidth */
+	float ColumnWidth = 0.65f;
+	/** Event triggered when the entity list is updated. */
+	FSimpleDelegate OnEntityListUpdatedDelegate;
 };

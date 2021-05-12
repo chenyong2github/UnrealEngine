@@ -69,7 +69,7 @@ public:
 	void ImplUpdateViewports(const TArray<FDisplayClusterViewport*>& InViewports);
 	void ImplSafeRelease();
 
-	void ImplRenderFrame(const bool bWarpBlendEnabled, FRHITexture2D* FrameOutputRTT);
+	void ImplRenderFrame(const bool bWarpBlendEnabled, FViewport* InViewport);
 
 private:
 	TSharedPtr<FDisplayClusterRenderTargetManager>        RenderTargetManager;

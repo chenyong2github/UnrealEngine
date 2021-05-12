@@ -1,11 +1,15 @@
+
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 import { Badge } from '../common/badge';
 import { ContextualLogger } from '../common/logger';
 import { PerforceContext } from '../common/perforce';
 import { Blockage, Branch, BranchGraphInterface, ChangeInfo } from './branch-interfaces';
+import { BeginIntegratingToGateEvent, EndIntegratingToGateEvent } from './branch-interfaces';
 import { PersistentConflict, Resolution } from './conflict-interfaces';
 import { BotEventHandler, BotEvents } from './events';
+
+const CIS_PAUSE_REFRESH_INTERVAL_SECONDS = 30*60
 
 const BADGE_LABEL = 'Merge'
 
@@ -33,8 +37,6 @@ function isChangeUpstreamFromBadgeProject(change: ChangeInfo) {
 
 	return false
 }
-
-
 
 class BadgeHandler implements BotEventHandler {
 	public readonly p4: PerforceContext
@@ -92,6 +94,43 @@ class BadgeHandler implements BotEventHandler {
 		const status = anyConflicts ? Badge.FAILURE : Badge.SUCCESS
 		for (const stream of this.allBranchStreams.values()) {
 			this.sendBadge(status, stream, 0, undefined, 'RoboMerge')
+		}
+	}
+
+	// for now just a map from target stream to timeout
+	// could in theory keep counters to support multiple sources
+	// should also wait for responses to deal with unpauses happening before pause is complete
+	private pausedFlows = new Map<string, NodeJS.Timeout>();
+	onBeginIntegratingToGate(arg: BeginIntegratingToGateEvent) {
+		if (!this.pausedFlows.has(arg.to.upperName)) {
+			this.pausedFlows.set(arg.to.upperName, setTimeout(() => {
+				// @todo fill this in to pause!
+				const url = ''
+				const body = ''
+				Badge.postWithRetry({
+					url,
+					body,
+					contentType: 'application/json'
+				}, `Pause of CIS for ${arg.to}`)
+
+			}, CIS_PAUSE_REFRESH_INTERVAL_SECONDS * 1000.))
+		}
+	}
+
+	onEndIntegratingToGate(arg: EndIntegratingToGateEvent) {
+		const pauseRefresher = this.pausedFlows.get(arg.to.upperName)
+		if (pauseRefresher) {
+			// @todo fill this in to unpause!
+			const url = ''
+			const body = ''
+			Badge.postWithRetry({
+				url,
+				body,
+				contentType: 'application/json'
+			}, `Unpause of CIS for ${arg.to}`)
+
+			clearTimeout(pauseRefresher)
+			this.pausedFlows.delete(arg.to.upperName)
 		}
 	}
 

@@ -36,7 +36,29 @@ void UDisplayClusterBlueprint::UpdateConfigExportProperty()
 
 	if (UDisplayClusterConfigurationData* Config = GetOrLoadConfig())
 	{
-		bConfigExported = IDisplayClusterConfiguration::Get().ConfigAsString(Config, ConfigExport);
+		FString PrettyConfig;
+
+		bConfigExported = IDisplayClusterConfiguration::Get().ConfigAsString(Config, PrettyConfig);
+
+		if (bConfigExported)
+		{
+			// We cache a somewhat minified version of the config so that the context view of the asset registry data is less bloated.
+
+			ConfigExport.Empty(PrettyConfig.Len());
+
+			for (auto CharIt = PrettyConfig.CreateConstIterator(); CharIt; ++CharIt)
+			{
+				const TCHAR Char = *CharIt;
+
+				// Remove tabs, carriage returns and newlines.
+				if ((Char == TCHAR('\t')) || (Char == TCHAR('\r')) || (Char == TCHAR('\n')))
+				{
+					continue;
+				}
+
+				ConfigExport.AppendChar(Char);
+			}
+		}
 	}
 
 	if (!bConfigExported)

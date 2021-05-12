@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraMessages.h"
+
+#include "NiagaraEditorUtilities.h"
 #include "NiagaraMessageManager.h"
+#include "NiagaraMessageUtilities.h"
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeEmitter.h"
@@ -10,6 +13,17 @@
 
 const FName FNiagaraMessageTopics::CompilerTopicName = "Compiler";
 const FName FNiagaraMessageTopics::ObjectTopicName = "Object";
+const FName FNiagaraMessageTopics::CustomTopicName = "Custom";
+
+FText INiagaraMessage::GenerateMessageTitle() const
+{
+	return FText::GetEmpty();
+}
+
+bool INiagaraMessage::AllowDismissal() const
+{
+	return false;
+}
 
 FNiagaraMessageCompileEvent::FNiagaraMessageCompileEvent(
 	const FNiagaraCompileEvent& InCompileEvent
@@ -127,6 +141,40 @@ FText FNiagaraMessageCompileEvent::GenerateMessageText() const
 	{
 		return FText::FromString(CompileEvent.Message);
 	}
+}
+
+FText FNiagaraMessageCompileEvent::GenerateMessageTitle() const
+{
+	EStackIssueSeverity StackIssueSeverity;
+	switch (CompileEvent.Severity)
+	{
+	case FNiagaraCompileEventSeverity::Error:
+		StackIssueSeverity = EStackIssueSeverity::Error;
+		break;
+	case FNiagaraCompileEventSeverity::Warning:
+		StackIssueSeverity = EStackIssueSeverity::Warning;
+		break;
+	case FNiagaraCompileEventSeverity::Log:
+		StackIssueSeverity = EStackIssueSeverity::Info;
+		break;
+	default:
+		StackIssueSeverity = EStackIssueSeverity::Info;
+		break;
+	}
+
+	if (!CompileEvent.ShortDescription.IsEmpty())
+	{
+		return FText::FromString(CompileEvent.ShortDescription);
+	}
+	else
+	{
+		return FNiagaraMessageUtilities::GetShortDescriptionFromSeverity(StackIssueSeverity);
+	}
+}
+
+bool FNiagaraMessageCompileEvent::AllowDismissal() const
+{
+	return CompileEvent.bDismissable;
 }
 
 void FNiagaraMessageCompileEvent::GenerateLinks(TArray<FText>& OutLinkDisplayNames, TArray<FSimpleDelegate>& OutLinkNavigationActions) const
@@ -349,6 +397,16 @@ FText FNiagaraMessageText::GenerateMessageText() const
 	return MessageText;
 }
 
+FText FNiagaraMessageText::GenerateMessageTitle() const
+{
+	return ShortDescription;
+}
+
+bool FNiagaraMessageText::AllowDismissal() const
+{
+	return bAllowDismissal;
+}
+
 const uint32 INiagaraMessage::GetMessageTopicBitflag() const
 {
 	if (MessageTopicBitflag == 0)
@@ -365,14 +423,22 @@ void UNiagaraMessageDataText::Init(const FText& InMessageText, const ENiagaraMes
 	TopicName = InTopicName;
 }
 
+void UNiagaraMessageDataText::Init(const FText& InMessageText, const FText& InShortDescription,	const ENiagaraMessageSeverity InMessageSeverity, const FName& InTopicName)
+{
+	MessageText = InMessageText;
+	ShortDescription = InShortDescription;
+	MessageSeverity = InMessageSeverity;
+	TopicName = InTopicName;
+}
+
 TSharedRef<const INiagaraMessage> UNiagaraMessageDataText::GenerateNiagaraMessage(const FGenerateNiagaraMessageInfo& InGenerateInfo) const
 {
 	const TArray<FLinkNameAndDelegate>& Links = InGenerateInfo.GetLinks();
 	if (Links.Num() > 0)
 	{
-		return MakeShared<const FNiagaraMessageTextWithLinks>(MessageText, EMessageSeverity::Type(MessageSeverity), TopicName, Links, InGenerateInfo.GetAssociatedObjectKeys());
+		return MakeShared<const FNiagaraMessageTextWithLinks>(MessageText, ShortDescription, EMessageSeverity::Type(MessageSeverity), TopicName, bAllowDismissal, Links, InGenerateInfo.GetAssociatedObjectKeys());
 	}
-	return MakeShared<const FNiagaraMessageText>(MessageText, EMessageSeverity::Type(MessageSeverity), TopicName, InGenerateInfo.GetAssociatedObjectKeys());
+	return MakeShared<const FNiagaraMessageText>(MessageText, ShortDescription, EMessageSeverity::Type(MessageSeverity), TopicName, bAllowDismissal, InGenerateInfo.GetAssociatedObjectKeys());
 }
 
 TSharedRef<FTokenizedMessage> FNiagaraMessageTextWithLinks::GenerateTokenizedMessage() const

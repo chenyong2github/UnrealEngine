@@ -24,6 +24,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 
 	ComponentRegistry->NewComponentType(&ParentEntity,          TEXT("Parent Entity"));
 	ComponentRegistry->NewComponentType(&InstanceHandle,        TEXT("Instance Handle"));
+	ComponentRegistry->NewComponentType(&RootInstanceHandle,    TEXT("Root Instance Handle"));
 
 	ComponentRegistry->NewComponentType(&EvalTime,              TEXT("Eval Time"));
 
@@ -118,7 +119,6 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	Tags.NeedsLink               = ComponentRegistry->NewTag(TEXT("Needs Link"));
 	Tags.NeedsUnlink             = ComponentRegistry->NewTag(TEXT("Needs Unlink"));
 	Tags.MigratedFromFastPath    = ComponentRegistry->NewTag(TEXT("Migrated From Fast Path"));
-	Tags.CachePreAnimatedValue   = ComponentRegistry->NewTag(TEXT("Cache Pre Animated Value"));
 	Tags.Master                  = ComponentRegistry->NewTag(TEXT("Master"));
 	Tags.ImportedEntity          = ComponentRegistry->NewTag(TEXT("Imported Entity"));
 	Tags.Finished                = ComponentRegistry->NewTag(TEXT("Finished Evaluating"));
@@ -150,6 +150,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->Factories.DuplicateChildComponent(BaseValueEvalTime);
 
 	ComponentRegistry->Factories.DuplicateChildComponent(InstanceHandle);
+	ComponentRegistry->Factories.DuplicateChildComponent(RootInstanceHandle);
 	ComponentRegistry->Factories.DuplicateChildComponent(PropertyBinding);
 	ComponentRegistry->Factories.DuplicateChildComponent(HierarchicalBias);
 

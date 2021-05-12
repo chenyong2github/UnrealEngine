@@ -797,6 +797,11 @@ bool UNiagaraComponent::InitializeSystem()
 #endif
 
 		MarkRenderStateDirty();
+
+		if (GIsAutomationTesting && GetAsset())
+		{
+			UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent> System %s initialized."), *GetAsset()->GetPathName());
+		}
 		return true;
 	}
 	return false;
@@ -1276,6 +1281,11 @@ void UNiagaraComponent::OnSystemComplete(bool bExternalCompletion)
 				SystemInstanceController->NotifyRenderersComplete(*RenderData);
 			}
 		}
+	}
+
+	if (GIsAutomationTesting && GetAsset())
+	{
+		UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent> System %s completed."), *GetAsset()->GetPathName());
 	}
 }
 

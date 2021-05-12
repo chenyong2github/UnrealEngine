@@ -178,7 +178,9 @@ void FGenericCrashContext::Initialize()
 	// Create a unique base guid for bug report ids
 	const FGuid Guid = FGuid::NewGuid();
 	const FString IniPlatformName(FPlatformProperties::IniPlatformName());
-	NCached::Set(NCached::Session.CrashGUIDRoot, *FString::Printf(TEXT("%s%s-%s"), CrashGUIDRootPrefix, *IniPlatformName, *Guid.ToString(EGuidFormats::Digits)));
+	const FString CrashGUIDRoot = FString::Printf(TEXT("%s%s-%s"), CrashGUIDRootPrefix, *IniPlatformName, *Guid.ToString(EGuidFormats::Digits));
+	NCached::Set(NCached::Session.CrashGUIDRoot, *CrashGUIDRoot);
+	UE_LOG(LogInit, Log, TEXT("Session CrashGUID >====================================================\n         Session CrashGUID >   %s\n         Session CrashGUID >===================================================="), *CrashGUIDRoot);
 
 	if (GIsRunning)
 	{
@@ -1233,8 +1235,11 @@ void FAdditionalCrashContextStack::PopProvider()
 
 FCriticalSection* GetAdditionalProviderLock()
 {
-static FCriticalSection GAdditionalProviderLock;
-	return &GAdditionalProviderLock;
+	// Use a shared pointer to ensure that the critical section is not destroyed before the thread local object
+	static TSharedPtr<FCriticalSection, ESPMode::ThreadSafe> GAdditionalProviderLock = MakeShared<FCriticalSection, ESPMode::ThreadSafe>();
+	thread_local TSharedPtr<FCriticalSection, ESPMode::ThreadSafe> GAdditionalProviderLockLocal = GAdditionalProviderLock;
+
+	return GAdditionalProviderLockLocal.Get();
 }
 
 FAdditionalCrashContextStack::FAdditionalCrashContextStack()

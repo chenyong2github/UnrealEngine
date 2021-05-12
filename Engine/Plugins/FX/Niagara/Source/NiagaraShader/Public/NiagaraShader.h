@@ -113,8 +113,6 @@ public:
 	LAYOUT_FIELD(FShaderParameter, CopyInstancesBeforeStartParam);
 	LAYOUT_FIELD(FShaderParameter, NumSpawnedInstancesParam);
 	LAYOUT_FIELD(FShaderParameter, UpdateStartInstanceParam);
-	LAYOUT_FIELD(FShaderParameter, DefaultSimulationStageIndexParam);
-	LAYOUT_FIELD(FShaderParameter, SimulationStageIndexParam);
 
 	LAYOUT_FIELD(FShaderParameter, SimulationStageIterationInfoParam);
 	LAYOUT_FIELD(FShaderParameter, SimulationStageNormalizedIterationIndexParam);

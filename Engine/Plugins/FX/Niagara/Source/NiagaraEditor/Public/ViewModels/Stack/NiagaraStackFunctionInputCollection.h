@@ -42,8 +42,6 @@ public:
 
 	void GetChildInputs(TArray<UNiagaraStackFunctionInput*>& OutResult) const;
 
-	void ApplyModuleChanges();
-
 	static FText UncategorizedName;
 
 protected:

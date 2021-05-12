@@ -18,6 +18,7 @@ import { Context } from "./settings";
 import { SlackMessageStyles } from "./slack";
 import { EdgeOptions } from "./branchdefs";
 import { getIntegrationOwner } from "./targets";
+import { Gate } from "./gate";
 
 function matchPrefix(a: string, b: string) {
 	const len = Math.min(a.length, b.length)
@@ -46,9 +47,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 
 	// These are the quality control gates, usually driven by CI systems
 	// and inside //GamePlugins/Main/Programs/Robomerge/gates/
-	private lastGoodCL?: number
-	private lastGoodCLJobLink?: string
-	private lastGoodCLDate?: Date
+	private gate: Gate
 
 	// would like to encapsulate this in EdgeBot, but resolution is currently done by node bot
 	private currentIntegrationStartTimestamp = -1
@@ -78,6 +77,12 @@ class EdgeBotImpl extends PerforceStatefulBot {
 
 		this.p4 = new PerforceContext(this.edgeBotLogger)
 		this.eventTriggers.onChangeParsed((info: ChangeInfo) => this.onGlobalChange(info))
+		this.gate = new Gate(
+			this.lastCl,
+			this.options.pauseCISUnlessAtGate ? {from: this.sourceBranch, to: this.branch, eventTriggers: this.eventTriggers} : null,
+			{options, p4: this.p4, logger: this.edgeBotLogger.createChild('gate')},
+			this.settings
+		)
 
 		// Ensure edge's pause state isn't active but the parent node has a conflict assigned
 		if (!this.pauseState.isBlocked() && matchingNodeConflict && matchingNodeConflict.cl < this.lastCl) {
@@ -130,66 +135,14 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		return super._forceSetLastCl_NoReset(value)
 	}
 
+	/**
+	 return value ignored
+	 want to separate out edge bot's tick from Bot hierarchy
+	 (truthy tick not really part of bot interface)
+	 */
 	async tick() {
 		// Update the Last Good Change from the gate file in Perforce
-		if (!this.options.lastGoodCLPath) {
-			return true
-		}
-
-		if (typeof(this.options.lastGoodCLPath) === 'number') {
-			this.lastGoodCL = this.options.lastGoodCLPath
-			return true
-		}
-
-		let goodCL = -1
-		let clString = null
-		try {
-			clString = await this.p4.print(this.options.lastGoodCLPath)
-		}
-		catch (err) {
-			this.edgeBotLogger.printException(err, `Error reading last good CL from ${this.options.lastGoodCLPath}`)
-		}
-
-		if (clString) {
-			let clInfo: any;
-
-			try {
-				clInfo = JSON.parse(clString)
-			}
-			catch (err) {
-				this.edgeBotLogger.printException(err, `Error parsing last good CL from ${this.options.lastGoodCLPath}`)
-			}
-
-			if (clInfo.Change) {
-				goodCL = typeof(clInfo.Change) === 'string' ? parseInt(clInfo.Change) : clInfo.Change
-				if (!Number.isInteger(goodCL)) {
-					goodCL = -1
-				}
-				if (goodCL > 0) {
-					if (goodCL !== this.lastGoodCL) {
-						// new goodCL: update link and date
-						if (clInfo.Url) {
-							this.lastGoodCLJobLink = clInfo.Url
-						}
-						try {
-							const description = await this.p4.describe(goodCL)
-							if (description.date) {
-								this.lastGoodCLDate = description.date
-							}
-						}
-						catch (_err) {
-						}
-					}
-				}
-			}
-			
-			if (goodCL < 0) {
-				this.edgeBotLogger.warn(`No last good CL found in ${this.options.lastGoodCLPath}`)
-			}
-		}
-
-		// always set - if -1, prevents integrations until problem is sorted out
-		this.lastGoodCL = goodCL
+		this.gate.tick()
 		return true
 	}
 
@@ -198,39 +151,23 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		// if paused on a gate, normally this.lastGoodCL === this.lastCl
 		// (while C=this.lastGoodCL was being integrated, this.lastCl was still set to the previous CL. When
 		// the integration completes, this.lastCl gets set to C and isAvailable becomes false)
-		return super.isAvailable && (!this.lastGoodCL || this.lastGoodCL > this.lastCl)
+		return super.isAvailable && this.gate.isGateOpen()
 	}
 
 	preIntegrate(cl: number) {
-		// wind back to gate CL if it has been set to before the current cursor
-		if (this.lastGoodCL && cl > this.lastGoodCL && this.isAvailable) {
-			this.lastCl = this.lastGoodCL
+		const newLastCl = this.gate.preIntegrate(cl)
+		if (newLastCl) {
+			// do not call updateLastCl, since this request came from the gate object
+			this.lastCl = newLastCl
 		}
+
 	}
 
 	updateLastCl(changesFetched: Change[], changeIndex: number) {
 		this.lastCl = changesFetched[changeIndex].change
+		this.gate.setLastCl(this.lastCl)
 
-		if (!this.lastGoodCL) {
-			this.numChangesRemaining = changesFetched.length - changeIndex - 1
-		}
-		else if (this.lastCl >= this.lastGoodCL) {
-			this.numChangesRemaining = 0
-		}
-		else {
-			// e.g. say relevant changes sequential multiples of 10
-			//  integrating changes 30->80 inclusive, gate set to 60
-			//  index 0 is 30, 1 is 40 etc, to gateIndex to find is 3
-			//  non-exact matches:
-			//		if gate file was set to 45, we'll integrate up to 40, so find first CL >= to gate CL
-			let gateIndex = changeIndex
-			for (; gateIndex < changesFetched.length; ++gateIndex) {
-				if (changesFetched[gateIndex].change >= this.lastGoodCL) {
-					break
-				}
-			}
-			this.numChangesRemaining = gateIndex - changeIndex;
-		}
+		this.numChangesRemaining = this.gate.getNumChangesRemaining(changesFetched, changeIndex)
 	}
 
 	private async getPerforceRequestResultFromCL(changelist: number, path?: string, changelistStatus?: ChangelistStatus) : Promise<PerforceRequestResult> {
@@ -923,15 +860,8 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		status.is_blocked = this.isBlocked
 		status.is_paused = this.isManuallyPaused
 
-		if (this.lastGoodCL) {
-			status.lastGoodCL = this.lastGoodCL
-		}
-		if (this.lastGoodCLJobLink) {
-			status.lastGoodCLJobLink = this.lastGoodCLJobLink
-		}
-		if (this.lastGoodCLDate) {
-			status.lastGoodCLDate = this.lastGoodCLDate
-		}
+		this.gate.applyStatus(status)
+
 		if (this.lastBlockage > 0) {
 			status.lastBlockage = this.lastBlockage
 		}

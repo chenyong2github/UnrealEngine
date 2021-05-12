@@ -24,7 +24,9 @@ enum class ERichTextInlineIconDisplayMode : uint8
 	MAX
 };
 
-
+/**
+ * Text block that supports custom scaling for mobile platforms, with option to only show icons if space is sparse.
+ */
 UCLASS()
 class COMMONUI_API UCommonRichTextBlock : public URichTextBlock
 {

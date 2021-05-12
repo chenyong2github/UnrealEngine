@@ -222,7 +222,7 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 				// Delete
 				Section.AddMenuEntry(FGenericCommands::Get().Delete,
 					LOCTEXT("DeleteFolder", "Delete"),
-					LOCTEXT("DeleteFolderTooltip", "Removes this folder and all assets it contains.")
+					TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &FPathContextMenu::GetDeleteToolTip))
 					);
 			}
 		}
@@ -459,6 +459,23 @@ bool FPathContextMenu::CanExecuteDelete() const
 		bCanDelete |= SelectedItem.CanDelete();
 	}
 	return bCanDelete;
+}
+
+FText FPathContextMenu::GetDeleteToolTip() const
+{
+	FText ErrorMessage;
+	bool bCanDelete = false;
+	for (const FContentBrowserItem& SelectedItem : SelectedFolders)
+	{
+		bCanDelete |= SelectedItem.CanDelete(&ErrorMessage);
+	}
+
+	if (!bCanDelete && !ErrorMessage.IsEmpty())
+	{
+		return ErrorMessage;
+	}
+
+	return LOCTEXT("DeleteFolderTooltip", "Removes this folder and all assets it contains.");
 }
 
 void FPathContextMenu::ExecuteDelete()

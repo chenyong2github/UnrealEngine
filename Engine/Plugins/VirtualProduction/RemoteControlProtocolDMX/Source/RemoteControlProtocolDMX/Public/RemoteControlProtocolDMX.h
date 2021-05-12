@@ -87,8 +87,8 @@ private:
 	/** A single, generic DMX signal. One universe of raw DMX data received */
 	FDMXSignalSharedPtr LastSignalPtr;
 
-	/** Delegate for protocol configs changes */
-	FDelegateHandle PortConfigsChangedHandle;
+	/** Delegate for port changes */
+	FDelegateHandle PortsChangedHandle;
 };
 
 /**

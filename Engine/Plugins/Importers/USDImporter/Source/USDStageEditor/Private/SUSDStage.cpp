@@ -71,6 +71,12 @@ namespace SUSDStageImpl
 			}
 		}
 
+		// Don't deselect anything if we're not going to select anything
+		if ( ActorsToSelect.Num() == 0 && ComponentsToSelect.Num() == 0 )
+		{
+			return;
+		}
+
 		const bool bSelected = true;
 		const bool bNotifySelectionChanged = true;
 		const bool bDeselectBSPSurfs = true;
@@ -175,10 +181,10 @@ void SUsdStage::Construct( const FArguments& InArgs )
 
 void SUsdStage::SetupStageActorDelegates()
 {
+	ClearStageActorDelegates();
+
 	if ( ViewModel.UsdStageActor.IsValid() )
 	{
-		ClearStageActorDelegates();
-
 		OnPrimChangedHandle = ViewModel.UsdStageActor->OnPrimChanged.AddLambda(
 			[ this ]( const FString& PrimPath, bool bResync )
 			{
@@ -210,12 +216,14 @@ void SUsdStage::SetupStageActorDelegates()
 		OnStageChangedHandle = ViewModel.UsdStageActor->OnStageChanged.AddLambda(
 			[ this ]()
 			{
-				if ( ViewModel.UsdStageActor.IsValid() )
+				// So we can reset even if our actor is being destroyed right now
+				const bool bEvenIfPendingKill = true;
+				if ( ViewModel.UsdStageActor.IsValid( bEvenIfPendingKill ) )
 				{
 					if ( this->UsdPrimInfoWidget )
 					{
 						// The cast here forces us to use the const version of GetUsdStage, that won't force-load the stage in case it isn't opened yet
-						const UE::FUsdStage& UsdStage = const_cast< const AUsdStageActor* >( ViewModel.UsdStageActor.Get() )->GetUsdStage();
+						const UE::FUsdStage& UsdStage = static_cast< const AUsdStageActor* >( ViewModel.UsdStageActor.Get( bEvenIfPendingKill ) )->GetUsdStage();
 						this->UsdPrimInfoWidget->SetPrimPath( UsdStage, TEXT("/") );
 					}
 				}
@@ -248,13 +256,14 @@ void SUsdStage::SetupStageActorDelegates()
 
 void SUsdStage::ClearStageActorDelegates()
 {
-	if ( ViewModel.UsdStageActor.IsValid() )
+	const bool bEvenIfPendingKill = true;
+	if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get( bEvenIfPendingKill ) )
 	{
-		ViewModel.UsdStageActor->OnStageChanged.Remove( OnStageChangedHandle );
-		ViewModel.UsdStageActor->OnPrimChanged.Remove( OnPrimChangedHandle );
-		ViewModel.UsdStageActor->OnActorDestroyed.Remove ( OnActorDestroyedHandle );
+		StageActor->OnStageChanged.Remove( OnStageChangedHandle );
+		StageActor->OnPrimChanged.Remove( OnPrimChangedHandle );
+		StageActor->OnActorDestroyed.Remove ( OnActorDestroyedHandle );
 
-		ViewModel.UsdStageActor->GetUsdListener().GetOnStageEditTargetChanged().Remove( OnStageEditTargetChangedHandle );
+		StageActor->GetUsdListener().GetOnStageEditTargetChanged().Remove( OnStageEditTargetChangedHandle );
 	}
 }
 
@@ -867,10 +876,17 @@ void SUsdStage::OnViewportSelectionChanged( UObject* NewSelection )
 	TArray<FString> PrimPaths;
 	for ( USceneComponent* Component : SelectedComponents )
 	{
-		PrimPaths.Add( StageActor->GetSourcePrimPath( Component ) );
+		FString FoundPrimPath = StageActor->GetSourcePrimPath( Component );
+		if ( !FoundPrimPath.IsEmpty() )
+		{
+			PrimPaths.Add( FoundPrimPath );
+		}
 	}
 
-	UsdStageTreeView->SelectPrims( PrimPaths );
+	if ( PrimPaths.Num() > 0 )
+	{
+		UsdStageTreeView->SelectPrims( PrimPaths );
+	}
 }
 
 #endif // #if USE_USD_SDK

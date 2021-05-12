@@ -296,7 +296,6 @@ public:
 	void UpdateActiveAudioDevices(bool bGameTicking);
 
 	void IterateOverAllDevices(TUniqueFunction<void(Audio::FDeviceId, FAudioDevice*)> ForEachDevice);
-	void IterateOverAllDevices(TUniqueFunction<void(Audio::FDeviceId, const FAudioDevice*)> ForEachDevice) const;
 
 	/** Tracks objects in the active audio devices. */
 	void AddReferencedObjects(FReferenceCollector& Collector);
@@ -510,7 +509,7 @@ private:
 	* Bank of audio devices. Will increase in size as we create new audio devices,
 	*/
 	TMap<Audio::FDeviceId, FAudioDeviceContainer> Devices;
-	FCriticalSection DeviceMapCriticalSection;
+	mutable FCriticalSection DeviceMapCriticalSection;
 
 	/* Counter used by GetNewDeviceID() to generate a unique ID for a given audio device. */
 	uint32 DeviceIDCounter;

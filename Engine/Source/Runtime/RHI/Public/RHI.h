@@ -627,6 +627,12 @@ extern RHI_API bool GRHIIsHDREnabled;
 /** Whether the present adapter/display offers HDR output capabilities. */
 extern RHI_API bool GRHISupportsHDROutput;
 
+/** Whether VRS (in all flavors) is currently enabled (separate from whether it's supported/available). */
+extern RHI_API bool GRHIVariableRateShadingEnabled;
+
+/** Whether attachment (image-based) VRS is currently enabled (separate from whether it's supported/available). */
+extern RHI_API bool GRHIAttachmentVariableRateShadingEnabled;
+
 /** The maximum number of groups that can be dispatched in each dimensions. */
 extern RHI_API FIntVector GRHIMaxDispatchThreadGroupsPerDimension;
 

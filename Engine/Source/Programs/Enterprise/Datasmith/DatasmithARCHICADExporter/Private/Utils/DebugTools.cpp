@@ -82,6 +82,17 @@ void Write2Log(const utf8_string& InMsg)
 	}
 }
 
+static void ACWriteReport(const utf8_t* FormattedMessage)
+{
+	GS::UniString ReportMsg(FormattedMessage, CC_UTF8);
+	ReportMsg.ReplaceAll("%", "%%");
+	if (ReportMsg.EndsWith('\n'))
+	{
+		ReportMsg.DeleteLast();
+	}
+	ACAPI_WriteReport(ReportMsg, false);
+}
+
 // Print to debugger
 void Printf2DB(EP2DB InMsgLevel, const utf8_t* FormatString, ...)
 {
@@ -94,6 +105,10 @@ void Printf2DB(EP2DB InMsgLevel, const utf8_t* FormatString, ...)
 		if (InMsgLevel <= kP2DB_Trace)
 		{
 			Write2Log(FormattedMessage);
+		}
+		if (InMsgLevel == kP2DB_Report || InMsgLevel == kP2DB_ReportAndDebug)
+		{
+			ACWriteReport(FormattedMessage.c_str());
 		}
 		if (!STraceListeners.empty())
 		{

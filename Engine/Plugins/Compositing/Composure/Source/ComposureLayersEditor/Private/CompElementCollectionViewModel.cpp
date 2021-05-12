@@ -5,6 +5,7 @@
 #include "Kismet2/SClassPickerDialog.h"
 #include "CompositingElement.h"
 #include "ClassViewerFilter.h"
+#include "EngineAnalytics.h"
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
 #include "ComposureEditorSettings.h"
@@ -31,6 +32,20 @@ namespace CompElementCollectionViewModel_Impl
 	static UClass* PromptForElementClass(const FText& PromptTitle, const TArray< TSubclassOf<ACompositingElement> >& ChoiceClasses);
 	/** */
 	static TArray<FName> GetChildElementNamesRecursive(TWeakObjectPtr<ACompositingElement> RootElement);
+
+	/** Sends analytics of added compositing element */
+	static void SendAnalyticsElementAdded(const FString& AddedElementClassName)
+	{
+		if (!FEngineAnalytics::IsAvailable())
+		{
+			return;
+		}
+
+		TArray<FAnalyticsEventAttribute> EventAttributes;
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ClassName"), AddedElementClassName));
+
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Usage.Composure.AddedElement"), EventAttributes);
+	}
 }
 
 class FCompElementClassFilter : public IClassViewerFilter
@@ -356,6 +371,8 @@ void FCompElementCollectionViewModel::OnElementAdded(const TWeakObjectPtr<ACompo
 		OnResetElements();
 		return;
 	}
+	
+	CompElementCollectionViewModel_Impl::SendAnalyticsElementAdded(AddedElementObj->GetClass()->GetName());
 
 	const TSharedRef<FCompElementViewModel> NewElementModel = FCompElementViewModel::Create(AddedElementObj, CompElementManager);
 	if (ParentPtr)

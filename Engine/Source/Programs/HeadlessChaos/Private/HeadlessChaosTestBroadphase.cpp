@@ -670,6 +670,34 @@ namespace ChaosTest
 		}
 	}
 
+	// Verify we don't generate a NaN or invalid bounds if we build BoundingVolume with particles that have no bounds.
+	void BoundingVolumeNoBoundsTest()
+	{
+		TUniquePtr<TBox<FReal, 3>> Box;
+		Box = MakeUnique<TBox<FReal, 3>>(FVec3(0, 0, 0), FVec3(100));
+		auto Boxes = MakeUnique<FGeometryParticles>();
+
+		Boxes->AddParticles(1);
+
+		// Construct a particle and set HasBounds to false.
+		int32 Idx = 0;
+		Boxes->SetGeometry(Idx, MakeSerializable(Box));
+		Boxes->X(Idx) = FVec3(0);
+		Boxes->R(Idx) = FRotation3::Identity;
+		Boxes->LocalBounds(Idx) = Box->BoundingBox();
+		Boxes->SetWorldSpaceInflatedBounds(Idx, Box->BoundingBox().TransformedAABB(FRigidTransform3(Boxes->X(Idx), Boxes->R(Idx))));
+
+		// Tell BV we have no bounds, this used to cause issues.
+		Boxes->HasBounds(Idx) = false;
+
+		// Make Bounding Volume with only particles that have no bounds.
+		auto Spatial1 = MakeUnique<TBoundingVolume<int32>>(MakeParticleView(Boxes.Get()));
+
+		EXPECT_EQ(Spatial1->GetBounds().Min().ContainsNaN(), false);
+		EXPECT_EQ(Spatial1->GetBounds().Max().ContainsNaN(), false);
+		EXPECT_EQ(Spatial1->GetBounds().Extents().ContainsNaN(), false);
+	}
+
 
 	void SpatialAccelerationDirtyAndGlobalQueryStrestTest()
 	{

@@ -15,6 +15,7 @@
 			"Name": "EOSShared",
 			"Type": "Runtime",
 			"WhitelistPlatforms": [
+				"Android",
 				"IOS",
 				"Mac",
 				"Win64"

@@ -85,16 +85,8 @@ FText FNiagaraMessageUtilities::MakePostCompileSummaryText(const FText& Compiled
 
 UNiagaraStackEntry::FStackIssue FNiagaraMessageUtilities::MessageToStackIssue(TSharedRef<const INiagaraMessage> InMessage, FString InStackEditorDataKey)
 {
-	TSharedPtr<const INiagaraMessage> MessagePtr = InMessage;
-	TSharedPtr<const FNiagaraMessageCompileEvent> CompileEvent = StaticCastSharedPtr<const FNiagaraMessageCompileEvent>(MessagePtr);
-
-	bool bDismissable = false;
-	FText ShortDescription = FText::GetEmpty();
-	
-	if(CompileEvent.IsValid())
-	{
-		GetCompileMessageData(CompileEvent.ToSharedRef(), bDismissable, ShortDescription);	
-	}
+	bool bDismissable = InMessage->AllowDismissal();
+	FText ShortDescription = InMessage->GenerateMessageTitle();
 	
 	TSharedRef<FTokenizedMessage> TokenizedMessage = InMessage->GenerateTokenizedMessage();
 	EStackIssueSeverity StackIssueSeverity;
@@ -120,13 +112,13 @@ UNiagaraStackEntry::FStackIssue FNiagaraMessageUtilities::MessageToStackIssue(TS
 
 	if(ShortDescription.IsEmpty())
 	{
-		if(MessageTopic == FNiagaraMessageTopics::CompilerTopicName)
+		if(MessageTopic == FNiagaraMessageTopics::CustomTopicName)
 		{
-			ShortDescription = GetShortDescriptionFromSeverity(StackIssueSeverity);
+			ShortDescription = LOCTEXT("DefaultDescriptionCustomTopic", "Custom Note");
 		}
 		else
 		{
-			ShortDescription = LOCTEXT("UnspecifiedErrorShortDescription", "Unspecified Error");
+			ShortDescription = LOCTEXT("UnspecifiedTitle", "Note");
 		}
 	}
 

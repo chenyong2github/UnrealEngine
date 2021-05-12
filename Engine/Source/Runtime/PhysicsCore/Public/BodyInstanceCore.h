@@ -48,9 +48,12 @@ struct PHYSICSCORE_API FBodyInstanceCore
 	UPROPERTY(EditAnywhere,AdvancedDisplay,BlueprintReadOnly,Category = Physics)
 	uint8 bGenerateWakeEvents : 1;
 
-	/** If true, it will update mass when scale changes **/
-	UPROPERTY()
+	/** If true, it will update mass when scale change **/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category=Physics)
 	uint8 bUpdateMassWhenScaleChanges:1;
+
+	/** Indicates mass props need to be recomputed when switching from kinematic to simulated*/
+	uint8 bDirtyMassProps : 1;
 
 	/** Should Simulate Physics **/
 	bool ShouldInstanceSimulatingPhysics() const;

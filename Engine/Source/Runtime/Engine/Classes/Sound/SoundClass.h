@@ -130,7 +130,7 @@ struct FSoundClassProperties
 	FSoundModulationDefaultSettings ModulationSettings;
 
 	/** Which output target the sound should be played through */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Routing)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Legacy)
 	TEnumAsByte<EAudioOutputTarget::Type> OutputTarget;
 
 	/** Specifies how and when compressed audio data is loaded for asset if stream caching is enabled. */

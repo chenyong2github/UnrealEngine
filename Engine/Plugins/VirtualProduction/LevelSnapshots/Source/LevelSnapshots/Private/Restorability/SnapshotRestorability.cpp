@@ -10,6 +10,7 @@
 #include "Engine/LevelScriptActor.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/DefaultPhysicsVolume.h"
+#include "GameFramework/WorldSettings.h"
 #include "UObject/UnrealType.h"
 #if WITH_EDITOR
 #include "ActorEditorUtils.h"
@@ -36,7 +37,25 @@ namespace
 		return true;
 	}
 
-	bool DoesComponentHaveSupportedClass(const UActorComponent* Component)
+	bool DoesActorHaveSupportedClassForRemoving(const AActor* Actor)
+	{
+		const TSet<UClass*> UnsupportedClasses = 
+		{
+			AWorldSettings::StaticClass()			// Every sublevel creates a world settings. We do not want to be respawning them
+		};
+
+		for (UClass* Class : UnsupportedClasses)
+		{
+			if (Actor->IsA(Class))
+			{
+				return false;
+			}
+		}
+	
+		return true;
+	}
+
+	bool DoesComponentHaveSupportedClassForCapture(const UActorComponent* Component)
 	{
 		const TSet<UClass*> UnsupportedClasses = 
 		{
@@ -117,8 +136,13 @@ bool FSnapshotRestorability::IsComponentDesirableForCapture(const UActorComponen
 
 	
 	// We only support native components or the ones added through the component list in Blueprints for now
-	return IsValid(Component) && DoesComponentHaveSupportedClass(Component)
+	return IsValid(Component) && DoesComponentHaveSupportedClassForCapture(Component)
 		&& (Component->CreationMethod == EComponentCreationMethod::Native || Component->CreationMethod == EComponentCreationMethod::SimpleConstructionScript);
+}
+
+bool FSnapshotRestorability::ShouldConsiderNewActorForRemoval(const AActor* Actor)
+{
+	return DoesActorHaveSupportedClassForRemoving(Actor) && IsActorDesirableForCapture(Actor);
 }
 
 bool FSnapshotRestorability::IsRestorableProperty(const FProperty* LeafProperty)

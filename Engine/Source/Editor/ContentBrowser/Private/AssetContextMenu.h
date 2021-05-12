@@ -111,6 +111,9 @@ private:
 	/** Handler for confirmation of folder deletion */
 	FReply ExecuteDeleteFolderConfirmed();
 
+	/** Get tooltip for delete */
+	FText GetDeleteToolTip() const;
+
 	/** Handler for CopyReference */
 	void ExecuteCopyReference();
 

@@ -178,6 +178,7 @@ private:
 
 	TWeakObjectPtr<UNiagaraNodeFunctionCall> SectionTimingModule;
 
+	FNiagaraStackFunctionInputBinder UseStartTimeBinder;
 	FNiagaraStackFunctionInputBinder StartTimeBinder;
 	FNiagaraStackFunctionInputBinder LengthBinder;
 	FNiagaraStackFunctionInputBinder NumLoopsBinder;

@@ -23,8 +23,10 @@
 #include "Misc/SecureHash.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UnrealType.h"
+#include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraNodeStaticSwitch.h"
+
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeFunctionCall"
 
@@ -252,10 +254,10 @@ void UNiagaraNodeFunctionCall::AllocateDefaultPins()
 			NewPin->bDefaultValueIsIgnored = FindPropagatedVariable(Input) != nullptr;
 			
 			FString PinDefaultValue;
-			TOptional<FNiagaraVariableMetaData> MetaData = Graph->GetMetaData(Input);
-			if (MetaData.IsSet())
+			UNiagaraScriptVariable* ScriptVar = Graph->GetScriptVariable(Input);
+			if (ScriptVar)
 			{
-				int32 DefaultValue = MetaData->GetStaticSwitchDefaultValue();
+				int32 DefaultValue = ScriptVar->GetStaticSwitchDefaultValue();
 				Input.AllocateData();
 				Input.SetValue<FNiagaraInt32>({ DefaultValue });
 				
@@ -461,13 +463,18 @@ bool UNiagaraNodeFunctionCall::FixupPinNames()
 					{
 						if (Entry.Value && Entry.Key.IsInNameSpace(FNiagaraConstants::OutputNamespace))
 						{
-							FName MetadataName;
-							Entry.Value->Metadata.GetParameterName(MetadataName);
-							FString AliasedNamespace = *FString::Printf(TEXT("%s.%s"), *FNiagaraConstants::OutputNamespace.ToString(), *FunctionNode->GetFunctionName());
-							FNiagaraParameterHandle AliasedFunctionInputHandle(FName(AliasedNamespace), MetadataName);
-							FNiagaraVariable OutputVar = Entry.Key;
-							OutputVar.SetName(AliasedFunctionInputHandle.GetParameterHandleString());
-							GraphVariablesGuidMapping.FindOrAdd(Entry.Value->Metadata.GetVariableGuid()).Add(OutputVar);
+							TArray<FName> HandleParts = FNiagaraParameterHandle(Entry.Key.GetName()).GetHandleParts();
+							if (HandleParts.Num() >= 3 && HandleParts[1] == FNiagaraConstants::ModuleNamespace)
+							{
+								FString AliasedName = *FString::Printf(TEXT("%s.%s"), *FNiagaraConstants::OutputNamespace.ToString(), *FunctionNode->GetFunctionName());
+								for (int i = 2; i < HandleParts.Num(); i++)
+								{
+									AliasedName.Appendf(TEXT(".%s"), *HandleParts[i].ToString());
+								}
+								FNiagaraVariable OutputVar = Entry.Key;
+								OutputVar.SetName(FName(AliasedName));
+								GraphVariablesGuidMapping.FindOrAdd(Entry.Value->Metadata.GetVariableGuid()).Add(OutputVar);
+							}
 						}
 					}
 				}

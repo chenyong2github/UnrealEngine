@@ -490,15 +490,15 @@ namespace Gauntlet
 				{
 					TestInfo.PostStartTime = DateTime.Now;
 					Log.Info("Launched test {0} at {1}", Name, TestInfo.PostStartTime.ToString("h:mm:ss"));
+					return true;
 				}
 			}
 			catch (Exception Ex)
 			{
 				Log.Error("Test {0} threw an exception during launch. Skipping test. Ex: {1}\n{2}", Name, Ex.Message, Ex.StackTrace);
-				return false;
 			}			
 
-			return true;			
+			return false;			
 		}
 
 		/// <summary>

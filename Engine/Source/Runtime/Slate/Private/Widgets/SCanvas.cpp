@@ -28,16 +28,7 @@ void SCanvas::ClearChildren( )
 
 int32 SCanvas::RemoveSlot( const TSharedRef<SWidget>& SlotWidget )
 {
-	for (int32 SlotIdx = 0; SlotIdx < Children.Num(); ++SlotIdx)
-	{
-		if (SlotWidget == Children[SlotIdx].GetWidget())
-		{
-			Children.RemoveAt(SlotIdx);
-			return SlotIdx;
-		}
-	}
-
-	return -1;
+	return Children.Remove(SlotWidget);
 }
 
 void SCanvas::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const

@@ -20,7 +20,7 @@ struct FAddPropertyParams;
 class FCustomChildrenBuilder;
 class IDetailGroup;
 
-class FDetailPropertyRow : public IDetailPropertyRow, public IPropertyTypeCustomizationUtils, public TSharedFromThis<FDetailPropertyRow>
+class FDetailPropertyRow : public IDetailPropertyRow, public IPropertyTypeCustomizationUtils, public IDetailLayoutRow, public TSharedFromThis<FDetailPropertyRow>
 {
 public:
 	FDetailPropertyRow(TSharedPtr<FPropertyNode> InPropertyNode, TSharedRef<FDetailCategoryImpl> InParentCategory, TSharedPtr<FComplexPropertyNode> InExternalRootNode = nullptr);
@@ -44,6 +44,9 @@ public:
 	/** IPropertyTypeCustomizationUtils interface */
 	virtual TSharedPtr<class FAssetThumbnailPool> GetThumbnailPool() const override;
 	virtual TSharedPtr<class IPropertyUtilities> GetPropertyUtilities() const override;
+
+	/** IDetailLayoutRow interface */
+	virtual FName GetRowName() const override;
 
 	/** @return true if this row has widgets with columns */
 	bool HasColumns() const;
@@ -77,7 +80,7 @@ public:
 	/**
 	 * @return The property node for this row
 	 */
-	TSharedPtr<FPropertyNode> GetPropertyNode() { return PropertyNode; }
+	TSharedPtr<FPropertyNode> GetPropertyNode() const { return PropertyNode; }
 
 	/**
 	 * @return The external root node for this row if it has one.

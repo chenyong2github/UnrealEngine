@@ -10,6 +10,7 @@
 #include "Input/Reply.h"
 #include "Widgets/SCompoundWidget.h"
 #include "GameplayTagContainer.h"
+#include "PropertyHandle.h"
 
 class IDetailsView;
 struct FPropertyChangedEvent;
@@ -33,9 +34,10 @@ public:
 		struct FEditableGameplayTagQueryDatum
 	{
 		/** Constructor */
-		FEditableGameplayTagQueryDatum(class UObject* InOwnerObj, struct FGameplayTagQuery* InTagQuery, FString* InTagExportText=nullptr)
+		FEditableGameplayTagQueryDatum(class UObject* InOwnerObj, struct FGameplayTagQuery* InTagQuery, const TSharedPtr<IPropertyHandle> InTagQueryPropertyHandle, FString* InTagExportText=nullptr)
 			: TagQueryOwner(InOwnerObj)
 			, TagQuery(InTagQuery)
+			, TagQueryPropertyHandle(InTagQueryPropertyHandle)
 			, TagQueryExportText(InTagExportText)
 		{}
 
@@ -43,7 +45,10 @@ public:
 		TWeakObjectPtr<class UObject> TagQueryOwner;
 
 		/** Tag query to edit */
-		struct FGameplayTagQuery* TagQuery; 
+		struct FGameplayTagQuery* TagQuery;
+
+		/** Property that holds the tag query to be able to use metadata */
+		TSharedPtr<IPropertyHandle> TagQueryPropertyHandle;
 
 		/** The export text for FGameplayTagQuery, useful in some circumstances */
 		FString* TagQueryExportText;
@@ -55,6 +60,8 @@ public:
 	~SGameplayTagQueryWidget();
 
 private:
+
+	void OnGetCategoriesMetaFromPropertyHandle(TSharedPtr<IPropertyHandle> PropertyHandle, FString& MetaString);
 
 	/* Flag to set if the list is read only*/
 	uint32 bReadOnly : 1;

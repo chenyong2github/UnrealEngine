@@ -84,6 +84,9 @@ public:
 	FReply ExecuteDeleteFolderConfirmed();
 
 private:
+	/** Get tooltip for delete */
+	FText GetDeleteToolTip() const;
+
 	void SaveFilesWithinSelectedFolders(EContentBrowserItemSaveFlags InSaveFlags);
 
 	/** Checks to see if any of the selected paths use custom colors */

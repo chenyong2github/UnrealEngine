@@ -23,6 +23,27 @@ void FPropertyContainerSpec::Define()
 			TestNotNull("PropertyContainerRegistry", PropertyContainerRegistry);
 		});
 	});
+
+	// Check that property metadata is copied from the source property
+	Describe("Metadata", [this]
+	{
+		It("Clamp_Min_Max", [this]
+		{
+			FProperty* FloatProperty = UPropertyContainerTestObject::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UPropertyContainerTestObject, ClampedFloat));
+			check(FloatProperty);
+
+			TestTrue("ClampMin", FloatProperty->HasMetaData("ClampMin"));
+			TestTrue("ClampMax", FloatProperty->HasMetaData("ClampMax"));
+
+			TestEqual("ClampMin Value", FloatProperty->GetFloatMetaData("ClampMin"), -5.0f);
+			TestEqual("ClampMax Value", FloatProperty->GetFloatMetaData("ClampMax"), 99.0f);
+
+			URCPropertyContainerRegistry* PropertyContainerRegistry = GEditor->GetEditorSubsystem<URCPropertyContainerRegistry>();
+			URCPropertyContainerBase* Container = PropertyContainerRegistry->CreateContainer(GetTransientPackage(), NAME_FloatProperty, FloatProperty);
+
+			TestNotNull("Container", Container);
+		});
+	});
 	
 	Describe("Float", [this]
 	{

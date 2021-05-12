@@ -35,14 +35,20 @@ struct FSpawnTrackPreAnimatedTokenProducer : IMovieScenePreAnimatedTokenProducer
 			FMovieSceneEvaluationOperand OperandToDestroy;
 			FToken(FMovieSceneEvaluationOperand InOperand) : OperandToDestroy(InOperand) {}
 
-			virtual void RestoreState(UObject& InObject, IMovieScenePlayer& Player) override
+			virtual void RestoreState(UObject& Object, const UE::MovieScene::FRestoreStateParams& Params) override
 			{
-				if (!Player.GetSpawnRegister().DestroySpawnedObject(OperandToDestroy.ObjectBindingID, OperandToDestroy.SequenceID, Player))
+				IMovieScenePlayer* Player = Params.GetTerminalPlayer();
+				if (!ensure(Player))
+				{
+					return;
+				}
+
+				if (!Player->GetSpawnRegister().DestroySpawnedObject(OperandToDestroy.ObjectBindingID, OperandToDestroy.SequenceID, *Player))
 				{
 					// This branch should only be taken for Externally owned spawnables that have been 'forgotten',
 					// but still had RestoreState tokens generated for them (ie, in FSequencer, or if bRestoreState is enabled)
 					// on a UMovieSceneSequencePlayer
-					Player.GetSpawnRegister().DestroyObjectDirectly(InObject);
+					Player->GetSpawnRegister().DestroyObjectDirectly(Object);
 				}
 			}
 		};

@@ -176,7 +176,11 @@ void UNiagaraNodeParameterMapGet::OnNewTypedPinAdded(UEdGraphPin*& NewPin)
 		FPinCollectorArray OutputPins;
 		GetOutputPins(OutputPins);
 
-		FName NewPinName = NewPin->PinName;
+		// Use the friendly name to build the new parameter name since it's what is displayed in the UI.
+		FName NewPinName = NewPin->PinFriendlyName.IsEmpty() == false
+			? *NewPin->PinFriendlyName.ToString()
+			: NewPin->GetFName();
+
 		FName PinNameWithoutNamespace;
 		if (FNiagaraEditorUtilities::DecomposeVariableNamespace(NewPinName, PinNameWithoutNamespace).Num() == 0)
 		{
@@ -194,6 +198,7 @@ void UNiagaraNodeParameterMapGet::OnNewTypedPinAdded(UEdGraphPin*& NewPin)
 		const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(NewPinName, Names);
 
 		NewPin->PinName = NewUniqueName;
+		NewPin->PinFriendlyName = FText::FromName(NewPin->PinName);
 
 		UEdGraphPin* MatchingDefault = GetDefaultPin(NewPin);
 		if (MatchingDefault == nullptr)
@@ -202,7 +207,6 @@ void UNiagaraNodeParameterMapGet::OnNewTypedPinAdded(UEdGraphPin*& NewPin)
 		}
 
 		NewPin->PinType.PinSubCategory = UNiagaraNodeParameterMapBase::ParameterPinSubCategory;
-		UpdateAddedPinMetaData(NewPin);
 	}
 
 	if (HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedInitialization))
@@ -523,6 +527,13 @@ void UNiagaraNodeParameterMapGet::GatherExternalDependencyData(ENiagaraScriptUsa
 
 void UNiagaraNodeParameterMapGet::GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const
 {
+	FText Text;
+	if (GetTooltipTextForKnownPin(Pin, Text))
+	{
+		HoverTextOut = Text.ToString();
+		return;
+	}
+	
 	// Get hover text from metadata description.
 	const UNiagaraGraph* NiagaraGraph = GetNiagaraGraph();
 	if (NiagaraGraph)
@@ -561,14 +572,11 @@ void UNiagaraNodeParameterMapGet::GetPinHoverText(const UEdGraphPin& Pin, FStrin
 				if (Metadata.IsSet())
 				{
 					FText Description = Metadata->Description;
-					const FText TooltipFormat = LOCTEXT("Parameters", "Name: {0} \nType: {1}\nDescription: {2}\nScope: {3}\nUser Editable: {4}\nUsage: {5}");
+					const FText TooltipFormat = LOCTEXT("Parameters", "Name: {0} \nType: {1}\nDescription: {2}");
 					const FText Name = FText::FromName(Var.GetName());
 					FName CachedParamName;
-					Metadata->GetParameterName(CachedParamName);
-					const FText ScopeText = FText::FromName(Metadata->GetScopeName());
-					const FText UserEditableText = FText::FromName(CachedParamName);
-					const FText UsageText = StaticEnum<ENiagaraScriptParameterUsage>()->GetDisplayNameTextByValue((int64)Metadata->GetUsage());
-					const FText ToolTipText = FText::Format(TooltipFormat, FText::FromName(Var.GetName()), Var.GetType().GetNameText(), Description, ScopeText, UserEditableText, UsageText);
+
+					const FText ToolTipText = FText::Format(TooltipFormat, FText::FromName(Var.GetName()), Var.GetType().GetNameText(), Description);
 					HoverTextOut = ToolTipText.ToString();
 				}
 				else

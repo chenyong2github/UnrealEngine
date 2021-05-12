@@ -43,4 +43,35 @@ public:
 };
 
 
+// FDelayUntilNextTickAction
+// A simple delay action; triggers on the next update.
+class FDelayUntilNextTickAction : public FPendingLatentAction
+{
+public:
+	FName ExecutionFunction;
+	int32 OutputLink;
+	FWeakObjectPtr CallbackTarget;
+
+	FDelayUntilNextTickAction(const FLatentActionInfo& LatentInfo)
+		: ExecutionFunction(LatentInfo.ExecutionFunction)
+		, OutputLink(LatentInfo.Linkage)
+		, CallbackTarget(LatentInfo.CallbackTarget)
+	{
+	}
+
+	virtual void UpdateOperation(FLatentResponse& Response) override
+	{
+		Response.FinishAndTriggerIf(true, ExecutionFunction, OutputLink, CallbackTarget);
+	}
+
+#if WITH_EDITOR
+	// Returns a human readable description of the latent operation's current state
+	virtual FString GetDescription() const override
+	{
+		return NSLOCTEXT("DelayUntilNextTickAction", "DelayUntilNextTickActionFmt", "Delay for one tick").ToString();
+	}
+#endif
+};
+
+
 

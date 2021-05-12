@@ -484,6 +484,13 @@ void FOpenXRARSystem::EndMeshUpdates()
 
 void FOpenXRARSystem::ObjectUpdated(FOpenXRARTrackedGeometryData* InUpdate)
 {
+	// Convert input pointer to a SharedPtr so it will be refcounted in OnObjectUpdated_GameThread.
+	TSharedPtr<FOpenXRARTrackedGeometryData> SharedUpdate = MakeShareable(InUpdate);
+	ObjectUpdated(SharedUpdate);
+}
+
+void FOpenXRARSystem::ObjectUpdated(TSharedPtr<FOpenXRARTrackedGeometryData> InUpdate)
+{
 	auto Task = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(this, &FOpenXRARSystem::OnObjectUpdated_GameThread, InUpdate);
 	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(Task, GET_STATID(STAT_FOpenXRARSystem_ProcessPlaneUpdates), nullptr, ENamedThreads::GameThread);
 }
@@ -670,8 +677,13 @@ void FOpenXRARSystem::AddOrUpdatePlane_GameThread(FOpenXRPlaneUpdate* CurrentPla
 	}
 }
 
-void FOpenXRARSystem::OnObjectUpdated_GameThread(FOpenXRARTrackedGeometryData* InUpdate)
+void FOpenXRARSystem::OnObjectUpdated_GameThread(TSharedPtr<FOpenXRARTrackedGeometryData> InUpdate)
 {
+	if (InUpdate == nullptr)
+	{
+		return;
+	}
+	
 	FTrackedGeometryGroup* FoundTrackedGeometryGroup = TrackedGeometryGroups.Find(InUpdate->Id);
 	if (FoundTrackedGeometryGroup == nullptr)
 	{
@@ -753,27 +765,48 @@ void FOpenXRARSystem::OnSpawnARActor(AARActor* NewARActor, UARComponent* NewARCo
 
 void FOpenXRARSystem::ARTrackedGeometryAdded(FOpenXRARTrackedGeometryData* InData)
 {
+	TSharedPtr<FOpenXRARTrackedGeometryData> SharedData = MakeShareable(InData);
+	ARTrackedGeometryAdded(SharedData);
+}
+
+void FOpenXRARSystem::ARTrackedGeometryUpdated(FOpenXRARTrackedGeometryData* InData)
+{
+	TSharedPtr<FOpenXRARTrackedGeometryData> SharedData = MakeShareable(InData);
+	ARTrackedGeometryUpdated(SharedData);
+}
+
+void FOpenXRARSystem::ARTrackedGeometryRemoved(FOpenXRARTrackedGeometryData* InData)
+{
+	TSharedPtr<FOpenXRARTrackedGeometryData> SharedData = MakeShareable(InData);
+	ARTrackedGeometryRemoved(SharedData);
+}
+
+void FOpenXRARSystem::ARTrackedGeometryAdded(TSharedPtr<FOpenXRARTrackedGeometryData> InData)
+{
 	auto Task = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(this, &FOpenXRARSystem::ARTrackedGeometryAdded_GameThread, InData);
 	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(Task, GET_STATID(STAT_FOpenXRARSystem_ARTrackedGeometryAdded_GameThread), nullptr, ENamedThreads::GameThread);
 }
 
-void FOpenXRARSystem::ARTrackedGeometryUpdated(FOpenXRARTrackedGeometryData* InData)
+void FOpenXRARSystem::ARTrackedGeometryUpdated(TSharedPtr<FOpenXRARTrackedGeometryData> InData)
 {
 	auto Task = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(this, &FOpenXRARSystem::ARTrackedGeometryUpdated_GameThread, InData);
 	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(Task, GET_STATID(STAT_FOpenXRARSystem_ARTrackedGeometryUpdated_GameThread), nullptr, ENamedThreads::GameThread);
 
 }
 
-void FOpenXRARSystem::ARTrackedGeometryRemoved(FOpenXRARTrackedGeometryData* InData)
+void FOpenXRARSystem::ARTrackedGeometryRemoved(TSharedPtr<FOpenXRARTrackedGeometryData> InData)
 {
 	auto Task = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(this, &FOpenXRARSystem::ARTrackedGeometryRemoved_GameThread, InData);
 	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(Task, GET_STATID(STAT_FOpenXRARSystem_ARTrackedGeometryRemoved_GameThread), nullptr, ENamedThreads::GameThread);
 }
 
 
-void FOpenXRARSystem::ARTrackedGeometryAdded_GameThread(FOpenXRARTrackedGeometryData* InData)
+void FOpenXRARSystem::ARTrackedGeometryAdded_GameThread(TSharedPtr<FOpenXRARTrackedGeometryData> InData)
 {
-	if (InData == nullptr) { return; }
+	if (InData == nullptr) 
+	{ 
+		return; 
+	}
 
 	// We haven't seen this one before so add it to our set
 	FTrackedGeometryGroup TrackedGeometryGroup(InData->ConstructNewTrackedGeometry(TrackingSystem->GetARCompositionComponent()));
@@ -785,12 +818,14 @@ void FOpenXRARSystem::ARTrackedGeometryAdded_GameThread(FOpenXRARTrackedGeometry
 	{
 		AARActor::RequestSpawnARActor(InData->Id, SessionConfig->GetQRCodeComponentClass());
 	}
-	delete InData;
 }
 
-void FOpenXRARSystem::ARTrackedGeometryUpdated_GameThread(FOpenXRARTrackedGeometryData* InData)
+void FOpenXRARSystem::ARTrackedGeometryUpdated_GameThread(TSharedPtr<FOpenXRARTrackedGeometryData> InData)
 {
-	if (InData == nullptr) { return; }
+	if (InData == nullptr) 
+	{ 
+		return; 
+	}
 
 	FTrackedGeometryGroup* TrackedGeometryGroup = TrackedGeometryGroups.Find(InData->Id);
 	if (TrackedGeometryGroup != nullptr)
@@ -807,13 +842,14 @@ void FOpenXRARSystem::ARTrackedGeometryUpdated_GameThread(FOpenXRARTrackedGeomet
 			TriggerOnTrackableUpdatedDelegates(UpdatedQRCode);
 		}
 	}
-
-	delete InData;
 }
 
-void FOpenXRARSystem::ARTrackedGeometryRemoved_GameThread(FOpenXRARTrackedGeometryData* InData)
+void FOpenXRARSystem::ARTrackedGeometryRemoved_GameThread(TSharedPtr<FOpenXRARTrackedGeometryData> InData)
 {
-	if (InData == nullptr) { return; }
+	if (InData == nullptr) 
+	{ 
+		return; 
+	}
 
 	FTrackedGeometryGroup* TrackedGeometryGroup = TrackedGeometryGroups.Find(InData->Id);
 	if (TrackedGeometryGroup != nullptr)
@@ -832,8 +868,6 @@ void FOpenXRARSystem::ARTrackedGeometryRemoved_GameThread(FOpenXRARTrackedGeomet
 		TrackedGeometryGroups.Remove(InData->Id);
 		TriggerOnTrackableRemovedDelegates(TrackedGeometryGroup->TrackedGeometry);
 	}
-
-	delete InData;
 }
 
 

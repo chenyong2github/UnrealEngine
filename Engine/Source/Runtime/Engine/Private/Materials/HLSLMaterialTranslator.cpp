@@ -5948,7 +5948,7 @@ int32 FHLSLMaterialTranslator::PixelDepth()
 		return Errorf(TEXT("Invalid node used in hull/domain shader input!"));
 	}
 
-	FString FiniteCode = TEXT("GetScreenPosition(Parameters).w");
+	FString FiniteCode = TEXT("GetPixelDepth(Parameters)");
 	if (IsAnalyticDerivEnabled())
 	{
 		FString AnalyticCode = DerivativeAutogen.ConstructDeriv(TEXT("Parameters.ScreenPosition.w"), TEXT("Parameters.ScreenPosition_DDX.w"), TEXT("Parameters.ScreenPosition_DDY.w"), 0);
@@ -5956,7 +5956,7 @@ int32 FHLSLMaterialTranslator::PixelDepth()
 	}
 	else
 	{
-		return AddInlinedCodeChunk(MCT_Float, TEXT("GetScreenPosition(Parameters).w"));
+		return AddInlinedCodeChunk(MCT_Float, *FiniteCode);
 	}
 }
 
@@ -9524,6 +9524,11 @@ int32 FHLSLMaterialTranslator::CustomExpression( class UMaterialExpressionCustom
 	}
 
 	check(CustomEntry);
+	if (!CustomEntry->OutputCodeIndex.IsValidIndex(OutputIndex))
+	{
+		return Errorf(TEXT("Invalid custom expression OutputIndex %d"), OutputIndex);
+	}
+
 	int32 Result = CustomEntry->OutputCodeIndex[OutputIndex];
 	if (Custom->IsResultMaterialAttributes(OutputIndex))
 	{

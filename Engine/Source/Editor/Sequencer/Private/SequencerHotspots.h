@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Input/CursorReply.h"
+#include "Styling/SlateBrush.h"
 #include "SequencerSelectedKey.h"
 #include "ISequencerHotspot.h"
 
@@ -73,6 +74,7 @@ struct FSectionResizeHotspot
 	virtual TOptional<FFrameNumber> GetTime() const override;
 	virtual TSharedPtr<ISequencerEditToolDragOperation> InitiateDrag(ISequencer& Sequencer) override;
 	virtual FCursorReply GetCursor() const { return FCursorReply::Cursor( EMouseCursor::ResizeLeftRight ); }
+	virtual const FSlateBrush* GetCursorDecorator(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const;
 
 	/** The section */
 	TWeakObjectPtr<UMovieSceneSection> WeakSection;
@@ -95,6 +97,7 @@ struct FSectionEasingHandleHotspot
 	virtual TOptional<FFrameNumber> GetTime() const override;
 	virtual TSharedPtr<ISequencerEditToolDragOperation> InitiateDrag(ISequencer& Sequencer) override;
 	virtual FCursorReply GetCursor() const { return FCursorReply::Cursor( EMouseCursor::ResizeLeftRight ); }
+	virtual const FSlateBrush* GetCursorDecorator(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const;
 
 	/** Handle to the section */
 	TWeakObjectPtr<UMovieSceneSection> WeakSection;

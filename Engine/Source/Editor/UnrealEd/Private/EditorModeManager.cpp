@@ -247,7 +247,7 @@ bool FEditorModeTools::IsSelectionAllowed(AActor* InActor, const bool bInSelecte
 
 	for (const UEdMode* Mode : ActiveScriptableModes)
 	{
-		bSelectionAllowed = Mode->IsSelectionAllowed(InActor, bInSelected);
+		bSelectionAllowed |= Mode->IsSelectionAllowed(InActor, bInSelected);
 	}
 
 	return bSelectionAllowed;

@@ -15,6 +15,7 @@
 #include "IPropertyGenerationUtilities.h"
 #include "DetailBuilderTypes.h"
 #include "PropertyCustomizationHelpers.h"
+#include "PropertyEditorWhitelist.h"
 #include "Styling/StyleColors.h"
 
 namespace DetailLayoutConstants
@@ -105,6 +106,27 @@ FDetailWidgetRow FDetailLayoutCustomization::GetWidgetRow() const
 	{
 		return DetailGroup->GetWidgetRow();
 	}
+}
+
+FName FDetailLayoutCustomization::GetName() const
+{
+	if (HasCustomWidget())
+	{
+		return WidgetDecl->GetRowName();
+	}
+	else if (HasCustomBuilder())
+	{
+		return CustomBuilderRow->GetRowName();
+	}
+	else if (HasGroup())
+	{
+		return DetailGroup->GetRowName();
+	}
+	else if (GetPropertyNode())
+	{
+		return PropertyRow->GetRowName();
+	}
+	return NAME_None;
 }
 
 FDetailCategoryImpl::FDetailCategoryImpl(FName InCategoryName, TSharedRef<FDetailLayoutBuilderImpl> InDetailLayout)
@@ -798,10 +820,38 @@ static bool ShouldBeInlineNode(const TSharedRef<FDetailItemNode>& Node)
 	return false;
 }
 
+bool PassesInlineFilters(FDetailItemNode& Node)
+{
+	if (TSharedPtr<FPropertyNode> PropertyNode = Node.GetPropertyNode())
+	{
+		if (FPropertyNode* ParentNode = PropertyNode->GetParentNode())
+		{
+			if (FProperty* ParentProperty = ParentNode->GetProperty())
+			{
+				// If the DetailParentNode check below ends up having issues, removing it and checking ShowOnlyInnerProperties instead is safer,
+				// but may not catch some edge cases with certain customizations (eg PrimaryActorTick).
+				if (ParentProperty->GetClass() == FStructProperty::StaticClass()/* && ParentProperty->HasMetaData("ShowOnlyInnerProperties")*/)
+				{
+					if (TSharedPtr<FDetailTreeNode> DetailNodeParent = Node.GetParentNode().Pin())
+					{
+						// If the parent detail node's property node doesn't match the property node's parent node, there is a mismatch meaning
+						// the struct's properties are inlined. This means we must check separately to see if the struct property itself
+						// passes the filter before deciding whether to include its child properties.
+						if (ParentNode != DetailNodeParent->GetPropertyNode().Get())
+						{
+							return FPropertyEditorWhitelist::Get().DoesPropertyPassFilter(FDetailTreeNode::GetPropertyNodeBaseStructure(ParentNode->GetParentNode()), ParentProperty->GetFName());
+						}
+					}
+				}
+			}
+		}
+	}
+	return true;
+}
+
 void FDetailCategoryImpl::GenerateNodesFromCustomizations(const TArray<FDetailLayoutCustomization>& InCustomizationList, FDetailNodeList& OutNodeList)
 {
 	TAttribute<bool> IsParentEnabled(this, &FDetailCategoryImpl::IsParentEnabled);
-
 	for (const FDetailLayoutCustomization& Customization : InCustomizationList)
 	{
 		if (Customization.IsValidCustomization())
@@ -810,6 +860,15 @@ void FDetailCategoryImpl::GenerateNodesFromCustomizations(const TArray<FDetailLa
 			if (!IsCustomProperty(Customization.GetPropertyNode()) || Customization.bCustom)
 			{
 				TSharedRef<FDetailItemNode> NewNode = MakeShareable(new FDetailItemNode(Customization, AsShared(), IsParentEnabled));
+				// Discard nodes that don't pass the property whitelist. There is a special check here for properties in structs that do not have a
+				// parent struct node (eg ShowOnlyInnerProperties). Both the node and it's container must pass the filter.
+				if (FPropertyEditorWhitelist::Get().IsEnabled())
+				{
+					if (!FPropertyEditorWhitelist::Get().DoesPropertyPassFilter(NewNode->GetParentBaseStructure(), NewNode->GetNodeName()) || !PassesInlineFilters(NewNode.Get()))
+					{
+						continue;
+					}
+				}
 				NewNode->Initialize();
 
 				if (ShouldBeInlineNode(NewNode))
@@ -847,8 +906,8 @@ void FDetailCategoryImpl::GenerateChildrenForLayouts()
 		TAttribute<bool> ShowAdvanced(this, &FDetailCategoryImpl::ShouldShowAdvanced);
 		TAttribute<bool> IsEnabled(this, &FDetailCategoryImpl::IsAdvancedDropdownEnabled);
 
-		AdvancedDropdownNodeTop = MakeShareable(new FAdvancedDropdownNode(*this, true));
-		AdvancedDropdownNodeBottom = MakeShareable(new FAdvancedDropdownNode(*this, ShowAdvanced, IsEnabled, AdvancedChildNodes.Num() > 0, SimpleChildNodes.Num() == 0));
+		AdvancedDropdownNodeTop = MakeShared<FAdvancedDropdownNode>(AsShared(), true);
+		AdvancedDropdownNodeBottom = MakeShared<FAdvancedDropdownNode>(AsShared(), ShowAdvanced, IsEnabled, AdvancedChildNodes.Num() > 0, SimpleChildNodes.Num() == 0);
 	}
 }
 

@@ -7443,6 +7443,7 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 bool FPakPlatformFile::Unmount(const TCHAR* InPakFilename)
 {
 	TRefCountPtr<FPakFile> UnmountedPak;
+	bool bRemovedContainerFile = false;
 	{
 		FScopeLock ScopedLock(&PakListCritical);
 
@@ -7460,7 +7461,6 @@ bool FPakPlatformFile::Unmount(const TCHAR* InPakFilename)
 			}
 		}
 
-		bool bRemovedContainerFile = false;
 		if (FIoDispatcher::IsInitialized())
 		{
 			FString ContainerPath = FPaths::ChangeExtension(InPakFilename, FString());
@@ -7471,9 +7471,7 @@ bool FPakPlatformFile::Unmount(const TCHAR* InPakFilename)
 		if (UnmountedPak)
 		{
 			UnmountedPak->ReaderMap.Empty();
-			UnmountedPak->SetIsMounted(false);
 		}
-		return bRemovedPakFile || bRemovedContainerFile;
 	}
 #if USE_PAK_PRECACHE
 	if (GPakCache_Enable)
@@ -7491,7 +7489,7 @@ bool FPakPlatformFile::Unmount(const TCHAR* InPakFilename)
 			UnmountedPak->SetIsMounted(false);
 		}
 	}
-	return UnmountedPak.IsValid();
+	return UnmountedPak.IsValid() || bRemovedContainerFile;
 }
 
 bool FPakPlatformFile::ReloadPakReaders()

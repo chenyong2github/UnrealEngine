@@ -49,7 +49,7 @@ public:
     
     virtual void InitSettingsFromConfig(const FString& ConfigFileName) override;
 
-    virtual void RegisterMovieStreamer(TSharedPtr<IMovieStreamer> MovieStreamerIn);
+    virtual void RegisterMovieStreamer(TSharedPtr<IMovieStreamer, ESPMode::ThreadSafe> MovieStreamerIn);
 
 protected:
     FReply OnAnyDown();
@@ -60,7 +60,7 @@ protected:
     /** Attributes of the loading screen we are currently displaying */
     FPreLoadMovieAttributes MovieAttributes;
 
-    TSharedPtr<IMovieStreamer> MovieStreamer;
+    TSharedPtr<IMovieStreamer, ESPMode::ThreadSafe> MovieStreamer;
     TSharedPtr<SViewport> MovieViewport;
     TSharedPtr<SWidget> MoviePlayerContents;
 

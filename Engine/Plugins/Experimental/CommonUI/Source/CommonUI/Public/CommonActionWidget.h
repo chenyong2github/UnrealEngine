@@ -11,6 +11,9 @@ class SBox;
 class SImage;
 class UMaterialInstanceDynamic;
 
+/**
+ * A widget that shows a platform-specific icon for the given input action.
+ */
 UCLASS(BlueprintType, Blueprintable)
 class COMMONUI_API UCommonActionWidget: public UWidget
 {

@@ -55,6 +55,7 @@ DEFINE_STAT(STAT_GatherCollisionEvent)
 DEFINE_STAT(STAT_GatherBreakingEvent)
 DEFINE_STAT(STAT_GatherTrailingEvent)
 DEFINE_STAT(STAT_GatherSleepingEvent)
+DEFINE_STAT(STAT_AccelerationStructureReset);
 
 DEFINE_STAT(STAT_ParamUpdateObject);
 DEFINE_STAT(STAT_ParamUpdateField);

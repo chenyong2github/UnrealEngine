@@ -128,6 +128,29 @@ bool DisplayClusterConfiguratorPropertyUtils::RemoveKeyFromMap(uint8* MapOwner,
 	return true;
 }
 
+bool DisplayClusterConfiguratorPropertyUtils::EmptyMap(uint8* MapOwner, TSharedPtr<IPropertyHandle> PropertyHandle)
+{
+	check(MapOwner);
+	check(PropertyHandle.IsValid());
+
+	TSharedPtr<IPropertyHandleMap> MapHandle = PropertyHandle->AsMap();
+	check(MapHandle.IsValid());
+
+	FMapProperty* MapProperty = CastFieldChecked<FMapProperty>(PropertyHandle->GetProperty());
+
+	void* MapContainer = MapProperty->ContainerPtrToValuePtr<void*>(MapOwner);
+	FScriptMapHelper MapHelper(MapProperty, MapContainer);
+
+	{
+		const FPropertyAccess::Result Result = MapHandle->Empty();
+		check(Result == FPropertyAccess::Success);
+	}
+
+	MapHelper.Rehash();
+
+	return true;
+}
+
 int32 DisplayClusterConfiguratorPropertyUtils::FindMapHandleIndexFromKey(TSharedPtr<IPropertyHandleMap> MapHandle, FScriptMapHelper& MapHelper,
 	const FString& Key)
 {

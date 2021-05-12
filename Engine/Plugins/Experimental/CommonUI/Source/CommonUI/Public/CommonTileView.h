@@ -5,6 +5,9 @@
 #include "Components/TileView.h"
 #include "CommonTileView.generated.h"
 
+/**
+ * TileView specialized to navigate on focus for consoles & enable scrolling when not focused for touch
+ */
 UCLASS(meta = (DisableNativeTick))
 class COMMONUI_API UCommonTileView : public UTileView
 {

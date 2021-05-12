@@ -8,7 +8,7 @@
 
 #include "DataprepStringFetcherLibrary.generated.h"
 
-UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName="Object Name", ToolTip="Get the name of an object."))
+UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName="Object Name", ToolTip="Filter objects based on their names."))
 class UDataprepStringObjectNameFetcher final : public UDataprepStringFetcher
 {
 	GENERATED_BODY()
@@ -23,7 +23,7 @@ public:
 	//~ End of UDataprepFetcher interface
 };
 
-UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName="Actor Label", ToolTip="Return the label of an actor."))
+UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName="Actor Label", ToolTip="Filter actors based on their label."))
 class UDataprepStringActorLabelFetcher final : public UDataprepStringFetcher
 {
 	GENERATED_BODY()

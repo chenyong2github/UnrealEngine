@@ -158,11 +158,12 @@ namespace ObjectTools
 	 *
 	 * @param	Object									The objects to delete.
 	 * @param	PGN										The new package, group, and name of the object.
-	 * @param	InOutPackagesUserRefusedToFullyLoad		A set of packages the user opted out of fully loading. This is used internally to prevent asking multiple times.\
+	 * @param	InOutPackagesUserRefusedToFullyLoad		A set of packages the user opted out of fully loading. This is used internally to prevent asking multiple times.
 	 * @param	bPromptToOverwrite						If true the user will be prompted to overwrite if duplicating to an existing object.  If false, the duplication will always happen
+	 * @param	DuplicatedObjects						If non-null, the map is filled with all objects (including sub-objects) that were duplicated with their source object as key
 	 * @retun	The duplicated object or NULL if a failure occurred.
 	 */
-	UNREALED_API UObject* DuplicateSingleObject(UObject* Object, const FPackageGroupName& PGN, TSet<UPackage*>& InOutPackagesUserRefusedToFullyLoad, bool bPromptToOverwrite = true);
+	UNREALED_API UObject* DuplicateSingleObject(UObject* Object, const FPackageGroupName& PGN, TSet<UPackage*>& InOutPackagesUserRefusedToFullyLoad, bool bPromptToOverwrite = true, TMap<TSoftObjectPtr<UObject>, TSoftObjectPtr<UObject>>* DuplicatedObjects = nullptr);
 
 	/** Helper struct to detail the results of a consolidation operation */
 	struct UNREALED_API FConsolidationResults : public FGCObject
@@ -205,7 +206,7 @@ namespace ObjectTools
 	 */
 	UNREALED_API FConsolidationResults ConsolidateObjects( UObject* ObjectToConsolidateTo, TArray<UObject*>& ObjectsToConsolidate, bool bShowDeleteConfirmation = true );
 	UNREALED_API FConsolidationResults ConsolidateObjects(UObject* ObjectToConsolidateTo, TArray<UObject*>& ObjectsToConsolidate, TSet<UObject*>& ObjectsToConsolidateWithin, TSet<UObject*>& ObjectsToNotConsolidateWithin, bool bShouldDeleteAfterConsolidate, bool bWarnAboutRootSet = true);
-	UNREALED_API void CompileBlueprintsAfterRefUpdate(TArray<UObject*>& ObjectsConsolidatedWithin);
+	UNREALED_API void CompileBlueprintsAfterRefUpdate(const TArray<UObject*>& ObjectsConsolidatedWithin);
 	/**
 	 * Copies references for selected generic browser objects to the clipboard.
 	 */

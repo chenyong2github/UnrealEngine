@@ -134,7 +134,7 @@ struct FLevelStreamingPreAnimatedToken : IMovieScenePreAnimatedToken
 	{
 	}
 
-	virtual void RestoreState(UObject& Object, IMovieScenePlayer& Player) override
+	virtual void RestoreState(UObject& Object, const UE::MovieScene::FRestoreStateParams& Params) override
 	{
 		ULevelStreaming* LevelStreaming = CastChecked<ULevelStreaming>(&Object);
 		SetLevelVisibility(*LevelStreaming, bVisible);
@@ -481,15 +481,11 @@ void UMovieSceneLevelVisibilitySystem::OnRun(FSystemTaskPrerequisites& InPrerequ
 	SharedData.Flush(Linker);
 }
 
-void UMovieSceneLevelVisibilitySystem::SavePreAnimatedState(UE::MovieScene::FSystemTaskPrerequisites& InPrerequisites, UE::MovieScene::FSystemSubsequentTasks& Subsequents)
+void UMovieSceneLevelVisibilitySystem::SavePreAnimatedState(const FPreAnimationParameters& InParameters)
 {
 }
 
-void UMovieSceneLevelVisibilitySystem::SaveGlobalPreAnimatedState(UE::MovieScene::FSystemTaskPrerequisites& InPrerequisites, UE::MovieScene::FSystemSubsequentTasks& Subsequents)
-{
-}
-
-void UMovieSceneLevelVisibilitySystem::RestorePreAnimatedState(UE::MovieScene::FSystemTaskPrerequisites& InPrerequisites, UE::MovieScene::FSystemSubsequentTasks& Subsequents)
+void UMovieSceneLevelVisibilitySystem::RestorePreAnimatedState(const FPreAnimationParameters& InParameters)
 {
 	SharedData.RestoreLevels(Linker);
 }

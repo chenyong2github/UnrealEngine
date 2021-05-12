@@ -13,7 +13,7 @@ class FExport
 
 	static GSErrCode Initialize();
 
-	static GSErrCode SaveDatasmithFile(void* inIOParams, void* InSight);
+	static GSErrCode SaveDatasmithFile(const API_IOParams& IOParams, const Modeler::Sight& InSight);
 };
 
 END_NAMESPACE_UE_AC

@@ -11,6 +11,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "DetailCategoryBuilder.h"
 
 class FDetailWidgetRow;
 class FResetToDefaultOverride;
@@ -99,7 +100,7 @@ static FName InvalidDetailWidgetName = TEXT("SInvalidDetailWidget");
 /**
  * Represents a single row of custom widgets in a details panel 
  */
-class FDetailWidgetRow
+class FDetailWidgetRow : public IDetailLayoutRow
 {
 public:
 	PROPERTYEDITOR_API const static float DefaultValueMinWidth;
@@ -117,7 +118,6 @@ public:
 		, RowTagName()
 	{
 	}
-
 	FDetailWidgetRow& operator=(const FDetailWidgetRow& Other)
 	{
 		NameWidget = FDetailWidgetDecl(*this, Other.NameWidget);
@@ -136,6 +136,11 @@ public:
 		PropertyHandles = Other.PropertyHandles;
 		return *this;
 	}
+
+	virtual ~FDetailWidgetRow() {}
+
+	/** IDetailLayoutRow interface */
+	virtual FName GetRowName() const override { return RowTagName; }
 
 	/**
 	 * Assigns content to the entire row

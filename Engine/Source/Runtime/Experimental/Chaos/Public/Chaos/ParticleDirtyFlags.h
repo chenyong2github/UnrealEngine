@@ -24,6 +24,7 @@ namespace Chaos
 using FKinematicTarget = TKinematicTarget<FReal, 3>;
 
 enum class EResimType: uint8;
+enum class ESleepType: uint8;
 
 class FParticlePositionRotation
 {
@@ -260,7 +261,7 @@ public:
 		Ar << MAngularEtherDrag;
 		Ar << MObjectState;
 		Ar << MGravityEnabled;
-
+		Ar << MSleepType;
 		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddOneWayInteraction)
 		{
 			Ar << MOneWayInteraction;
@@ -303,6 +304,7 @@ public:
 		SetGravityEnabled(Other.GravityEnabled());
 		SetCollisionGroup(Other.CollisionGroup());
 		SetResimType(Other.ResimType());
+		SetSleepType(Other.SleepType());
 		SetOneWayInteraction(Other.OneWayInteraction());
 		SetCollisionConstraintFlag(Other.CollisionConstraintFlag());
 		SetCCDEnabled(Other.CCDEnabled());
@@ -320,6 +322,7 @@ public:
 			&& GravityEnabled() == Other.GravityEnabled()
 			&& CollisionGroup() == Other.CollisionGroup()
 			&& ResimType() == Other.ResimType()
+			&& SleepType() == Other.SleepType()
 			&& OneWayInteraction() == Other.OneWayInteraction() 
 			&& CollisionConstraintFlag() == Other.CollisionConstraintFlag()
 			&& CCDEnabled() == Other.CCDEnabled()
@@ -361,6 +364,9 @@ public:
 	EResimType ResimType() const { return MResimType; }
 	void SetResimType(EResimType Type) { MResimType = Type; }
 
+	ESleepType SleepType() const { return MSleepType; }
+	void SetSleepType(ESleepType Type) { MSleepType = Type; }
+
 	uint32 CollisionConstraintFlag() const { return MCollisionConstraintFlag; }
 	void SetCollisionConstraintFlag(uint32 InCollisionConstraintFlag) { MCollisionConstraintFlag = InCollisionConstraintFlag; }
 	bool OneWayInteraction() const { return MOneWayInteraction; }
@@ -378,6 +384,7 @@ private:
 
 	EObjectStateType MObjectState;
 	EResimType MResimType;
+	ESleepType MSleepType;
 
 	bool MGravityEnabled;
 	bool MOneWayInteraction = false;
@@ -483,6 +490,8 @@ struct FCollisionData
 	, bQueryCollision(true)
 	{
 	}
+
+	bool HasCollisionData() const { return bSimCollision || bQueryCollision; }
 
 	void Serialize(FChaosArchive& Ar)
 	{
@@ -1374,5 +1383,189 @@ void TRemoteProperty<T>::Write(FDirtyPropertiesManager& Manager,const T& Val)
 	}
 }
 #endif
+
+template <typename T>
+class TPropertyPool;
+
+template <typename T>
+class TPropertyRef
+{
+public:
+	TPropertyRef() = default;
+	TPropertyRef(TPropertyRef<T>&& Other)
+	: IdxPlusOne(Other.IdxPlusOne)
+	{
+		Other.IdxPlusOne = 0;
+	}
+	TPropertyRef(const TPropertyRef<T>& Other) = delete;	//use AddRef on TPropertyPool
+
+	~TPropertyRef() { ensure(!IsSet()); }	//use ReleaseRef on TPropertyPool before destructor is called
+
+	const bool IsSet() const { return IdxPlusOne != 0; }
+	const int32 GetIdx() const { return IdxPlusOne - 1; }
+
+	void SetRefFrom(const TPropertyRef<T>& Other, TPropertyPool<T>& Pool);
+private:
+
+	void SetIdx(const int32 InIdx)
+	{
+		IdxPlusOne = InIdx + 1;
+	}
+
+	int32 IdxPlusOne = 0;	//use 0 so that we can treat zeroed entries as invalid (Element is in Elements[IdxPlusOne-1])
+
+	template <typename R>
+	friend class TPropertyPool;
+
+	TPropertyRef(const int32 InIdx)
+	: IdxPlusOne(InIdx+1)
+	{}
+
+};
+
+
+template <typename T>
+class TPropertyPool
+{
+	static_assert(sizeof(TPropertyTypeTrait<T>::PoolIdx), "Property type must be registered. Is it in PropertiesTypes.inl?");
+public:
+
+	void AddElement(const T& Val, TPropertyRef<T>& OutRef)
+	{
+		//About to lose reference so make sure it's released (if set)
+		if(OutRef.IsSet())
+		{
+			DecRef(OutRef);
+		}
+
+		if(FreeList.Num())
+		{
+			const int32 Idx = FreeList.Pop();
+			Elements[Idx] = FPropertyAndCount(Val);
+			OutRef.SetIdx(Idx);
+		}
+		else
+		{
+			OutRef.SetIdx(Elements.Add(Val));
+		}
+	}
+
+	void IncRef(const TPropertyRef<T>& Ref)
+	{
+		ensure(Elements[Ref.GetIdx()].Count);	//must be that someone else is still holding a reference
+		++Elements[Ref.GetIdx()].Count;
+	}
+
+	void DecRef(TPropertyRef<T>& Ref)
+	{
+		ensure(Ref.IsSet());	//double release?
+		ensure(Elements[Ref.GetIdx()].Count > 0);	//double release?
+		
+		if(--Elements[Ref.GetIdx()].Count == 0)
+		{
+			//Can't use destructor because using TArray by value - this should be cheap anyway
+			Elements[Ref.GetIdx()] = FPropertyAndCount();
+			FreeList.Add(Ref.GetIdx());
+		}
+
+		Ref.SetIdx(INDEX_NONE);
+	}
+
+	const T& GetElement(const TPropertyRef<T>& Ref) const
+	{
+		ensure(Elements[Ref.GetIdx()].Count > 0);	//deleted ref?
+		return Elements[Ref.GetIdx()].Val;
+	}
+
+	T& GetElement(const TPropertyRef<T>& Ref)
+	{
+		ensure(Elements[Ref.GetIdx()].Count > 0);	//deleted ref?
+		return Elements[Ref.GetIdx()].Val;
+	}
+
+	~TPropertyPool()
+	{
+		ensure(Elements.Num() == FreeList.Num());	//All elements have been freed
+	}
+
+private:
+
+	struct FPropertyAndCount
+	{
+		FPropertyAndCount() = default;
+		FPropertyAndCount(const T& InVal)
+		: Val(InVal)
+		, Count(1)
+		{}
+
+		T Val;
+		int32 Count = 0;
+	};
+
+	TArray<FPropertyAndCount> Elements;
+	TArray<int32> FreeList;
+};
+
+//Similar to FDirtyPropertiesManager but is not needed to be used across threads
+//This means we just have one big pool per property that you can new/free into
+class FDirtyPropertiesPool
+{
+public:
+	template <typename T, EParticleProperty PropName>
+	TPropertyPool<T>& GetPool()
+	{
+		switch (PropName)
+		{
+#define PARTICLE_PROPERTY(PropName, Type) case EParticleProperty::PropName: return (TPropertyPool<T>&)PropName##Pool;
+#include "ParticleProperties.inl"
+#undef PARTICLE_PROPERTY
+		default: check(false);
+		}
+
+		static TPropertyPool<T> ErrorPool;
+		return ErrorPool;
+	}
+
+	template <typename T, EParticleProperty PropName>
+	const TPropertyPool<T>& GetPool() const
+	{
+		switch (PropName)
+		{
+#define PARTICLE_PROPERTY(PropName, Type) case EParticleProperty::PropName: return (TPropertyPool<T>&)PropName##Pool;
+#include "ParticleProperties.inl"
+#undef PARTICLE_PROPERTY
+		default: check(false);
+		}
+
+		static TPropertyPool<T> ErrorPool;
+		return ErrorPool;
+	}
+
+private:
+
+#define PARTICLE_PROPERTY(PropName, Type) TPropertyPool<Type> PropName##Pool;
+#include "ParticleProperties.inl"
+#undef PARTICLE_PROPERTY
+};
+
+template <typename T>
+void TPropertyRef<T>::SetRefFrom(const TPropertyRef<T>& Other, TPropertyPool<T>& Pool)
+{
+	//don't do anything unless different
+	if(IdxPlusOne != Other.IdxPlusOne)
+	{
+		if(IsSet())
+		{
+			Pool.DecRef(*this);
+		}
+
+		if(Other.IsSet())
+		{
+			Pool.IncRef(Other);
+		}
+
+		IdxPlusOne = Other.IdxPlusOne;
+	}
+}
 
 }

@@ -12,6 +12,9 @@
 
 class UEditorUtilitySubsystem;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEditorUtilityTaskDynamicDelegate, UEditorUtilityTask*, Task);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnEditorUtilityTaskDelegate, UEditorUtilityTask* /*Task*/);
+
 /**
  * 
  */
@@ -19,6 +22,9 @@ UCLASS(Abstract, Blueprintable, meta = (ShowWorldContextPin))
 class BLUTILITY_API UEditorUtilityTask : public UObject
 {
 	GENERATED_BODY()
+
+public:
+	FOnEditorUtilityTaskDelegate OnFinished;
 
 public:
 	UEditorUtilityTask();
@@ -35,14 +41,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Task)
 	void SetTaskNotificationText(const FText& Text);
 
+	// Calls CancelRequested() and ReceiveCancelRequested()
 	void RequestCancel();
+
+	UFUNCTION(BlueprintCallable, Category = Task)
 	bool WasCancelRequested() const;
 
 protected:
 	virtual void BeginExecution() {}
+	virtual void CancelRequested() {}
 
 	UFUNCTION(BlueprintImplementableEvent, Category=Task, meta=(DisplayName="BeginExecution"))
 	void ReceiveBeginExecution();
+
+	UFUNCTION(BlueprintImplementableEvent, Category=Task, meta=(DisplayName="CancelRequested"))
+	void ReceiveCancelRequested();
 
 private:
 	void CreateNotification();
@@ -53,6 +66,9 @@ private:
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UEditorUtilitySubsystem> MyTaskManager;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UEditorUtilityTask> MyParentTask;
 
 	UPROPERTY(Transient)
 	bool bCancelRequested = false;

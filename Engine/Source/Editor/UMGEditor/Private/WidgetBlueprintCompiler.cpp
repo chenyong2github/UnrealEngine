@@ -633,6 +633,8 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 			//ClonedAnimation->SetFlags(RF_Public); // Needs to be marked public so that it can be referenced from widget instances.
 			
 			if (OldWidgetAnimations.IsValidIndex(AnimIndex) && OldWidgetAnimations[AnimIndex])
+
+			if ((AnimIndex < OldWidgetAnimations.Num()) && OldWidgetAnimations[AnimIndex])
 			{
 				FLinkerLoad::PRIVATE_PatchNewObjectIntoExport(OldWidgetAnimations[AnimIndex], ClonedAnimation);
 			}

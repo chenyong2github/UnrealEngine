@@ -407,6 +407,7 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 			TTuple<FString, FString> Name;
 			TSharedPtr<MoviePipeline::FCameraCutSubSectionHierarchyNode> LeafNode;
 			TRange<FFrameNumber> CameraCutWarmUpRange;
+			FMovieSceneTimeTransform InnerToOuterTransform;
 		};
 
 		TArray<FLinearizedEntity> Entities;
@@ -487,6 +488,7 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 			Entity.CameraCutWarmUpRange = MoviePipeline::GetCameraWarmUpRangeFromSequence(InSequence, LeafNode->MovieScene->GetPlaybackRange().GetLowerBoundValue(), InnerToOuterTransform);
 			Entity.LeafNode = LeafNode;
 			Entity.Name = MoviePipeline::GetNameForShot(SequenceHierarchyCache, InSequence, LeafNode);
+			Entity.InnerToOuterTransform = InnerToOuterTransform;
 		}
 
 		// We need to generate all of the linearized segments first so that we have all of the names available.
@@ -564,6 +566,7 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 			NewShot->ShotInfo.SubSectionHierarchy = Entity.LeafNode;
 			NewShot->ShotInfo.TotalOutputRangeMaster = Entity.Range;
 			NewShot->ShotInfo.WarmupRangeMaster = Entity.CameraCutWarmUpRange;
+			NewShot->ShotInfo.OuterToInnerTransform = Entity.InnerToOuterTransform.Inverse();
 			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Registering range: %s (InnerName: %s OuterName: %s)"), *LexToString(NewShot->ShotInfo.TotalOutputRangeMaster), *NewShot->InnerName, *NewShot->OuterName);
 		}
 

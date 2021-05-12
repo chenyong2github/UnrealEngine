@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "ContentBrowserDelegates.h"
+#include "AssetTypeCategories.h"
 
 #include "ContentBrowserMenuContexts.generated.h"
 
@@ -13,6 +14,7 @@ class FAssetContextMenu;
 class IAssetTypeActions;
 class SAssetView;
 class SContentBrowser;
+class SFilterList;
 
 UCLASS()
 class CONTENTBROWSER_API UContentBrowserAssetContextMenuContext : public UObject
@@ -87,6 +89,18 @@ public:
 	int32 NumClassPaths;
 
 	FOnCreateNewFolder OnCreateNewFolder;
+};
+
+UCLASS()
+class CONTENTBROWSER_API UContentBrowserFilterListContext : public UObject
+{
+	GENERATED_BODY()
+
+public:
+
+	TWeakPtr<SFilterList> FilterList;
+
+	EAssetTypeCategories::Type MenuExpansion;
 };
 
 UCLASS()

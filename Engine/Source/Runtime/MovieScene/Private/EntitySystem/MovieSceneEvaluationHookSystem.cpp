@@ -25,23 +25,30 @@ struct FEvaluationHookUpdater
 		: HookSystem(InHookSystem), InstanceRegistry(InInstanceRegistry)
 	{}
 
-	void ForEachEntity(FInstanceHandle InstanceHandle, const FMovieSceneEvaluationHookComponent& Hook, FFrameTime EvalTime, FEvaluationHookFlags& InOutFlags)
+	void ForEachAllocation(FEntityAllocationIteratorItem Item, TRead<FInstanceHandle> InstanceHandles, TRead<FMovieSceneEvaluationHookComponent> Hooks, TRead<FFrameTime> EvalTimes, TWrite<FEvaluationHookFlags> WriteFlags)
 	{
-		if (InOutFlags.bHasBegun == false)
+		const int32 Num = Item.GetAllocation()->Num();
+		const bool bRestoreState = Item.GetAllocationType().Contains(FBuiltInComponentTypes::Get()->Tags.RestoreState);
+
+		for (int32 Index = 0; Index < Num; ++Index)
 		{
-			InOutFlags.bHasBegun = true;
-			return;
+			if (WriteFlags[Index].bHasBegun == false)
+			{
+				WriteFlags[Index].bHasBegun = true;
+				continue;
+			}
+
+			const FSequenceInstance& SequenceInstance = InstanceRegistry->GetInstance(InstanceHandles[Index]);
+
+			FMovieSceneEvaluationHookEvent NewEvent;
+			NewEvent.Hook          = Hooks[Index];
+			NewEvent.Type          = EEvaluationHookEvent::Update;
+			NewEvent.RootTime      = EvalTimes[Index] * SequenceInstance.GetContext().GetSequenceToRootTransform();
+			NewEvent.SequenceID    = SequenceInstance.GetSequenceID();
+			NewEvent.bRestoreState = bRestoreState;
+
+			HookSystem->AddEvent(SequenceInstance.GetRootInstanceHandle(), NewEvent);
 		}
-
-		const FSequenceInstance&  SequenceInstance = InstanceRegistry->GetInstance(InstanceHandle);
-
-		FMovieSceneEvaluationHookEvent NewEvent;
-		NewEvent.Hook       = Hook;
-		NewEvent.Type       = EEvaluationHookEvent::Update;
-		NewEvent.RootTime   = EvalTime * SequenceInstance.GetContext().GetSequenceToRootTransform();
-		NewEvent.SequenceID = SequenceInstance.GetSequenceID();
-
-		HookSystem->AddEvent(SequenceInstance.GetRootInstanceHandle(), NewEvent);
 	}
 };
 
@@ -121,7 +128,7 @@ void UMovieSceneEvaluationHookSystem::OnRun(FSystemTaskPrerequisites& InPrerequi
 		.Read(Components->EvaluationHook)
 		.Read(Components->EvalTime)
 		.Write(Components->EvaluationHookFlags)
-		.Dispatch_PerEntity<FEvaluationHookUpdater>(&Linker->EntityManager, InPrerequisites, &Subsequents, this, Linker->GetInstanceRegistry());
+		.Dispatch_PerAllocation<FEvaluationHookUpdater>(&Linker->EntityManager, InPrerequisites, &Subsequents, this, Linker->GetInstanceRegistry());
 
 		if (Linker->EntityManager.GetThreadingModel() == EEntityThreadingModel::NoThreading)
 		{
@@ -152,30 +159,44 @@ void UMovieSceneEvaluationHookSystem::UpdateHooks()
 
 	FInstanceRegistry* InstanceRegistry = Linker->GetInstanceRegistry();
 
-	auto VisitNew = [this, InstanceRegistry](FInstanceHandle InstanceHandle, FFrameTime EvalTime, const FMovieSceneEvaluationHookComponent& Hook)
+	auto VisitNew = [this, InstanceRegistry](FEntityAllocationIteratorItem Item, TRead<FInstanceHandle> InstanceHandles, TRead<FFrameTime> EvalTimes, TRead<FMovieSceneEvaluationHookComponent> Hooks)
 	{
-		const FSequenceInstance& SequenceInstance = InstanceRegistry->GetInstance(InstanceHandle);
+		const int32 Num = Item.GetAllocation()->Num();
+		const bool bRestoreState = Item.GetAllocationType().Contains(FBuiltInComponentTypes::Get()->Tags.RestoreState);
 
-		FMovieSceneEvaluationHookEvent NewEvent;
-		NewEvent.Hook       = Hook;
-		NewEvent.Type       = EEvaluationHookEvent::Begin;
-		NewEvent.RootTime   = EvalTime * SequenceInstance.GetContext().GetSequenceToRootTransform();
-		NewEvent.SequenceID = SequenceInstance.GetSequenceID();
+		for (int32 Index = 0; Index < Num; ++Index)
+		{
+			const FSequenceInstance& SequenceInstance = InstanceRegistry->GetInstance(InstanceHandles[Index]);
 
-		this->AddEvent(SequenceInstance.GetRootInstanceHandle(), NewEvent);
+			FMovieSceneEvaluationHookEvent NewEvent;
+			NewEvent.Hook          = Hooks[Index];
+			NewEvent.Type          = EEvaluationHookEvent::Begin;
+			NewEvent.RootTime      = EvalTimes[Index] * SequenceInstance.GetContext().GetSequenceToRootTransform();
+			NewEvent.SequenceID    = SequenceInstance.GetSequenceID();
+			NewEvent.bRestoreState = bRestoreState;
+
+			this->AddEvent(SequenceInstance.GetRootInstanceHandle(), NewEvent);
+		}
 	};
 
-	auto VisitOld = [this, InstanceRegistry](FInstanceHandle InstanceHandle, FFrameTime EvalTime, const FMovieSceneEvaluationHookComponent& Hook)
+	auto VisitOld = [this, InstanceRegistry](FEntityAllocationIteratorItem Item, TRead<FInstanceHandle> InstanceHandles, TRead<FFrameTime> EvalTimes, TRead<FMovieSceneEvaluationHookComponent> Hooks)
 	{
-		const FSequenceInstance& SequenceInstance = InstanceRegistry->GetInstance(InstanceHandle);
+		const int32 Num = Item.GetAllocation()->Num();
+		const bool bRestoreState = Item.GetAllocationType().Contains(FBuiltInComponentTypes::Get()->Tags.RestoreState);
 
-		FMovieSceneEvaluationHookEvent NewEvent;
-		NewEvent.Hook       = Hook;
-		NewEvent.Type       = EEvaluationHookEvent::End;
-		NewEvent.RootTime   = EvalTime * SequenceInstance.GetContext().GetSequenceToRootTransform();
-		NewEvent.SequenceID = SequenceInstance.GetSequenceID();
+		for (int32 Index = 0; Index < Num; ++Index)
+		{
+			const FSequenceInstance& SequenceInstance = InstanceRegistry->GetInstance(InstanceHandles[Index]);
 
-		this->AddEvent(SequenceInstance.GetRootInstanceHandle(), NewEvent);
+			FMovieSceneEvaluationHookEvent NewEvent;
+			NewEvent.Hook          = Hooks[Index];
+			NewEvent.Type          = EEvaluationHookEvent::End;
+			NewEvent.RootTime      = EvalTimes[Index] * SequenceInstance.GetContext().GetSequenceToRootTransform();
+			NewEvent.SequenceID    = SequenceInstance.GetSequenceID();
+			NewEvent.bRestoreState = bRestoreState;
+
+			this->AddEvent(SequenceInstance.GetRootInstanceHandle(), NewEvent);
+		}
 	};
 
 	FEntityTaskBuilder()
@@ -183,14 +204,14 @@ void UMovieSceneEvaluationHookSystem::UpdateHooks()
 	.Read(Components->EvalTime)
 	.Read(Components->EvaluationHook)
 	.FilterAny({ Components->Tags.NeedsLink })
-	.Iterate_PerEntity(&Linker->EntityManager, VisitNew);
+	.Iterate_PerAllocation(&Linker->EntityManager, VisitNew);
 
 	FEntityTaskBuilder()
 	.Read(Components->InstanceHandle)
 	.Read(Components->EvalTime)
 	.Read(Components->EvaluationHook)
 	.FilterAny({ Components->Tags.Finished })
-	.Iterate_PerEntity(&Linker->EntityManager, VisitOld);
+	.Iterate_PerAllocation(&Linker->EntityManager, VisitOld);
 }
 
 void UMovieSceneEvaluationHookSystem::SortEvents()
@@ -236,6 +257,8 @@ void UMovieSceneEvaluationHookSystem::TriggerAllEvents()
 
 		for (const FMovieSceneEvaluationHookEvent& Event : Pair.Value.Events)
 		{
+			FScopedPreAnimatedCaptureSource CaptureSource(&Player->PreAnimatedState, Event.Hook.Interface.GetObject(), Event.SequenceID, Event.bRestoreState);
+
 			FEvaluationHookParams Params = {
 				Event.Hook.ObjectBindingID, RootContext, Event.SequenceID, Event.TriggerIndex
 			};
@@ -259,6 +282,7 @@ void UMovieSceneEvaluationHookSystem::TriggerAllEvents()
 					break;
 				case EEvaluationHookEvent::End:
 					Event.Hook.Interface->End(Player, Params);
+					Player->PreAnimatedState.OnFinishedEvaluating(Event.Hook.Interface.GetObject(), Event.SequenceID);
 					break;
 
 				case EEvaluationHookEvent::Trigger:

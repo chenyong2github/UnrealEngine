@@ -169,6 +169,19 @@ namespace Chaos
 			return !(L == R);
 		}
 
+		bool ContainsNaN() const
+		{
+			for (int32 i = 0; i < NumElements; ++i)
+			{
+				if (!FMath::IsFinite(V[i]))
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
 
 		// @todo(ccaulfield): the following should only be available for TVector of numeric types
 //		T Size() const
@@ -749,6 +762,11 @@ namespace Chaos
 			Size = sqrt(Size);
 			*this = (*this) / Size;
 			return Size;
+		}
+
+		FORCEINLINE bool ContainsNaN() const
+		{
+			return !FMath::IsFinite(X) || !FMath::IsFinite(Y) || !FMath::IsFinite(Z);
 		}
 
 		FORCEINLINE T operator[](int32 Idx) const { return (static_cast<const T*>(&X))[Idx]; }

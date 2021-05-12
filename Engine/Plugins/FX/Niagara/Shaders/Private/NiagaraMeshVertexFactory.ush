@@ -8,6 +8,11 @@
 #include "NiagaraCommon.ush"
 #include "NiagaraVFCommon.usf"
 
+#if COMPUTESHADER || RAYHITGROUPSHADER
+#include "/Engine/Private/RayTracing/RayTracingCommon.ush"
+#include "/Engine/Private/RayTracing/RayTracingHitGroupCommon.ush"
+#endif
+
 #define USE_PARTICLE_POSITION (NEEDS_PARTICLE_POSITION)
 #define USE_PARTICLE_VELOCITY (NEEDS_PARTICLE_VELOCITY)
 #define USE_PARTICLE_TIME (NEEDS_PARTICLE_TIME)
@@ -89,10 +94,6 @@ float3 WorldToSimVec(float3 InVector, float4x4 LocalToWorld)
 #define SPACE_SIMULATION 0
 #define SPACE_WORLD 1
 #define SPACE_LOCAL 2
-
-/** Sorted index buffer for particles if we need to sort their draw order (translucency etc). */
-Buffer<int> SortedIndices;
-uint SortedIndicesOffset;
 
 struct FVertexFactoryInput
 {
@@ -671,9 +672,9 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Input.InstanceId = GetInstanceId(Input.InstanceId); // NOTE: Handles instanced stereo
 
 	Intermediates.SortedInstanceId = Input.InstanceId;
-	if (SortedIndicesOffset != 0xFFFFFFFF)
+	if (NiagaraMeshVF.SortedIndicesOffset != 0xFFFFFFFF)
 	{
-		Intermediates.SortedInstanceId = SortedIndices[SortedIndicesOffset + Intermediates.SortedInstanceId];
+		Intermediates.SortedInstanceId = NiagaraMeshVF.SortedIndices[NiagaraMeshVF.SortedIndicesOffset + Intermediates.SortedInstanceId];
 	}
 
 	Intermediates.ParticleColor = SafeGetVec4(NiagaraMeshVF.ColorDataOffset, Intermediates.SortedInstanceId, NiagaraMeshVF.DefaultColor);
@@ -913,7 +914,7 @@ float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolant
 	return float4(0,0,0,0);
 }
 
-#if NEEDS_VERTEX_FACTORY_INTERPOLATION
+#if NEEDS_VERTEX_FACTORY_INTERPOLATION || RAYHITGROUPSHADER
 	struct FVertexFactoryRayTracingInterpolants
 	{
 		FVertexFactoryInterpolantsVSToPS InterpolantsVSToPS;
@@ -993,4 +994,41 @@ float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolant
 	}
 #endif // #if NEEDS_VERTEX_FACTORY_INTERPOLATION
 
+// RHI_RAYTRACING
+#if RAYHITGROUPSHADER
+	FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
+	{
+		FVertexFactoryInput Input;
+
+		FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(TriangleIndex);
+		uint VertexId = Tri.Indices[VertexIndex];
+		
+		Input.InstanceId = InstanceIndex() - GetBaseInstanceIndex();
+
+		// Fill FVertexFactoryInput with dummy values, the real ones will be fetched later from NiagaraMeshVF using InstanceId  
+		Input.Position = float4(Tri.LocalPositions[VertexIndex], 1.0f);
+		Input.TangentX = 1.0;
+		Input.TangentZ = 0.0;
+		Input.VertexColor = float4(1.0, 1.0, 1.0, 0.5);
+#if NUM_MATERIAL_TEXCOORDS_VERTEX
+UNROLL
+		for (int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS_VERTEX; CoordinateIndex++)
+		{
+			Input.TexCoords[CoordinateIndex].x = 0.5f;
+			Input.TexCoords[CoordinateIndex].y = 0.5f;
+		}
+#elif USE_PARTICLE_SUBUVS
+		Input.TexCoords[0].x = 0.5f;
+		Input.TexCoords[0].y = 0.5f;
+#endif
+
+#if PASS_NEEDS_VERTEX_ID
+		Input.VertexId : Tri.Indices[VertexIndex];
+#endif // #if PASS_NEEDS_VERTEX_ID
+
+		return Input;
+	}
+#endif // #if COMPUTESHADER || RAYHITGROUPSHADER
+
 #include "/Engine/Private/VertexFactoryDefaultInterface.ush"
+

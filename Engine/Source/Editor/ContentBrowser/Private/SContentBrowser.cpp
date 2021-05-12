@@ -2120,13 +2120,24 @@ TSharedRef<SWidget> SContentBrowser::GetPathPickerContent()
 		];
 }
 
-FString SContentBrowser::GetCurrentPath() const
+FString SContentBrowser::GetCurrentPath(const EContentBrowserPathType PathType) const
 {
 	FString CurrentPath;
 	const FSourcesData& SourcesData = AssetViewPtr->GetSourcesData();
 	if ( SourcesData.HasVirtualPaths() && SourcesData.VirtualPaths[0] != NAME_None )
 	{
-		CurrentPath = SourcesData.VirtualPaths[0].ToString();
+		if (PathType == EContentBrowserPathType::Virtual)
+		{
+			SourcesData.VirtualPaths[0].ToString(CurrentPath);
+		}
+		else if (IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(FNameBuilder(SourcesData.VirtualPaths[0]), CurrentPath) != PathType)
+		{
+			const EContentBrowserPathType ConvertedPathType = IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(FNameBuilder(SourcesData.VirtualPaths[0]), CurrentPath);
+			if (ConvertedPathType != PathType)
+			{
+				CurrentPath.Reset();
+			}
+		}
 	}
 
 	return CurrentPath;

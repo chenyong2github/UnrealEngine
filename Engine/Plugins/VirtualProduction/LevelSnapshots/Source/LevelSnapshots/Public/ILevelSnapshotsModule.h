@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
+#include "IPropertyComparer.h"
 #include "ISnapshotRestorabilityOverrider.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
@@ -22,6 +22,11 @@ public:
 	/* Unregisters an overrider previously registered. */
 	virtual void UnregisterRestorabilityOverrider(TSharedRef<ISnapshotRestorabilityOverrider> Overrider) = 0;
 
+	/* Registers a callback for deciding whether a property should be considered changed. Applies to all sub-classes. */
+	virtual void RegisterPropertyComparer(UClass* Class, TSharedRef<IPropertyComparer> Comparer) = 0;
+	virtual void UnregisterPropertyComparer(UClass* Class, TSharedRef<IPropertyComparer> Comparer) = 0;
+	
+	
 	/**
 	 * Adds properties that snapshots will capture and restore from now on. This allows support for properties that are skipped by default.
 	 * Important: Only add add native properties; Blueprint properties may be invalidated (and left dangeling) when recompiled.
@@ -34,5 +39,4 @@ public:
 	 */
 	virtual void AddBlacklistedProperties(const TSet<const FProperty*>& Properties) = 0;
 	virtual void RemoveBlacklistedProperties(const TSet<const FProperty*>& Properties) = 0;
-	
 };

@@ -489,15 +489,6 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
  * -----------------------------------------------------------------
  */
 #if GPU_SIMULATION
-	/*
-	 * declared as int instead of uint to avoid compiler warnings because we can't expose uint on Niagara module parameters.  
-	 * This is still declared as a uint in the corresponding C++ classes
-	 */
-	#if NIAGARA_SHADER_PERMUTATIONS == 0
-		int DefaultSimulationStageIndex;
-		int SimulationStageIndex;
-	#endif
-
 	uint ComponentBufferSizeRead;
 	uint ComponentBufferSizeWrite;
 	int	NumEventsPerParticle;

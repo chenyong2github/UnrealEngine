@@ -8,9 +8,11 @@
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 
 #include "CpuUtilizationMonitor.h"
+#include "SyncStatus.h"
 
 
 struct FRunningProcess;
+struct FSwitchboardMessageFuture;
 struct FSwitchboardTask;
 struct FSwitchboardDisconnectTask;
 struct FSwitchboardSendFileToClientTask;
@@ -18,7 +20,7 @@ struct FSwitchboardStartTask;
 struct FSwitchboardKillTask;
 struct FSwitchboardReceiveFileFromClientTask;
 struct FSwitchboardGetSyncStatusTask;
-struct FSwitchboardMessageFuture;
+struct FSwitchboardRefreshMosaicsTask;
 struct FSwitchboardRedeployListenerTask;
 struct FSwitchboardFixExeFlagsTask;
 
@@ -117,6 +119,7 @@ private:
 	bool Task_RedeployListener(const FSwitchboardRedeployListenerTask& InRedeployListenerTask);
 	bool Task_SendFileToClient(const FSwitchboardSendFileToClientTask& InSendFileToClientTask);
 	bool Task_GetSyncStatus(const FSwitchboardGetSyncStatusTask& InGetSyncStatusTask);
+	bool Task_RefreshMosaics(const FSwitchboardRefreshMosaicsTask& InRefreshMosaicsTask);
 	bool Task_FixExeFlags(const FSwitchboardFixExeFlagsTask& InFixExeFlagsTask);
 
 	bool KillProcessNow(FRunningProcess* InProcess, float SoftKillTimeout = 0.0f);
@@ -149,6 +152,9 @@ private:
 	TArray<TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>> FlipModeMonitors;
 	TArray<FSwitchboardMessageFuture> MessagesFutures;
 	TSharedPtr<FCpuUtilizationMonitor, ESPMode::ThreadSafe> CpuMonitor;
+
+	TSharedPtr<FRWLock, ESPMode::ThreadSafe> CachedMosaicToposLock;
+	TSharedPtr<TArray<FMosaicTopo>, ESPMode::ThreadSafe> CachedMosaicTopos;
 
 	FRedeployStatus RedeployStatus;
 };

@@ -9,7 +9,7 @@
 /**
  * Synchronization component. Synchronizes himself
  */
-UCLASS(ClassGroup = (DisplayCluster), Blueprintable, meta = (BlueprintSpawnableComponent))
+UCLASS(ClassGroup = (DisplayCluster), Blueprintable, meta = (BlueprintSpawnableComponent, DisplayName = "NDisplay Sync This"))
 class DISPLAYCLUSTER_API UDisplayClusterSceneComponentSyncThis
 	: public UDisplayClusterSceneComponentSync
 {

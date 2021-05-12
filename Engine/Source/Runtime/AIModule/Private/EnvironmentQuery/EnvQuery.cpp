@@ -142,6 +142,13 @@ void UEnvQuery::PostLoad()
 }
 
 #if WITH_EDITOR
+void UEnvQuery::PostRename(UObject* OldOuter, const FName OldName)
+{
+	Super::PostRename(OldOuter, OldName);
+
+	QueryName = GetFName();
+}
+
 void UEnvQuery::PostDuplicate(bool bDuplicateForPIE)
 {
 	if (bDuplicateForPIE == false)

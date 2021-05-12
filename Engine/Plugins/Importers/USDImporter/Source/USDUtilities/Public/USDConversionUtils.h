@@ -159,5 +159,13 @@ namespace UsdUtils
 	 * @return True if we managed to rename
 	 */
 	USDUTILITIES_API bool RenamePrim( UE::FUsdPrim& Prim, const TCHAR* NewPrimName );
+
+	/**
+	 * Returns a modified version of InIdentifier that can be used as a USD prim or property name.
+	 * This means only allowing letters, numbers and the underscore character. All others are replaced with underscores.
+	 * Additionally, the first character cannot be a number.
+	 * Note that this obviously doesn't check for a potential name collision.
+	 */
+	USDUTILITIES_API FString SanitizeUsdIdentifier( const TCHAR* InIdentifier );
 }
 

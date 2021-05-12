@@ -356,18 +356,19 @@ const FString& FContentBrowserVirtualPathTree::GetAllFolderPrefix() const
 	return EmptyString;
 }
 
-EContentBrowserPathType FContentBrowserVirtualPathTree::TryConvertVirtualPathToInternal(FName Path, FName& OutPath) const
+EContentBrowserPathType FContentBrowserVirtualPathTree::TryConvertVirtualPathToInternal(FStringView InPath, FStringBuilderBase& OutPath) const
 {
+	OutPath.Reset();
+
 	// Special case
-	static const FName RootPath("/");
-	if (Path == RootPath)
+	static const FStringView RootPath(TEXT("/"));
+	if (InPath.Equals(RootPath))
 	{
-		OutPath = RootPath;
+		OutPath.Append(InPath);
 		return EContentBrowserPathType::Virtual;
 	}
 
-	FNameBuilder VirtualPathBuffer(Path);
-	if (VirtualPathBuffer.Len() == 0)
+	if (InPath.Len() == 0)
 	{
 		return EContentBrowserPathType::None;
 	}
@@ -376,12 +377,12 @@ EContentBrowserPathType FContentBrowserVirtualPathTree::TryConvertVirtualPathToI
 	bool bReachedMountPoint = false;
 	bool bFailedPathExists = false;
 	int32 SplitIndex = 0;
-	const TCHAR* PathStr = *VirtualPathBuffer;
+	const TCHAR* PathStr = InPath.GetData();
+	const TCHAR* PathStrEnd = PathStr + InPath.Len();
 	const TCHAR* PathCharPtr = PathStr + 1;
 	for (;;)
 	{
-		const TCHAR PathChar = *PathCharPtr;
-		if (PathChar == TEXT('/') || PathChar == 0)
+		if (PathCharPtr >= PathStrEnd || *PathCharPtr == TEXT('/'))
 		{
 			const FName CheckPath(PathCharPtr - PathStr, PathStr);
 			bool bCheckPathIsFullyVirtual = false;
@@ -404,7 +405,7 @@ EContentBrowserPathType FContentBrowserVirtualPathTree::TryConvertVirtualPathToI
 			}
 		}
 
-		if (PathChar == 0)
+		if (PathCharPtr >= PathStrEnd)
 		{
 			// End of the string
 			break;
@@ -419,46 +420,60 @@ EContentBrowserPathType FContentBrowserVirtualPathTree::TryConvertVirtualPathToI
 		{
 			if (bFailedPathExists)
 			{
-				OutPath = NAME_None;
 				return EContentBrowserPathType::None;
 			}
 
 			// Strip "/All" to turn fully virtual path into something that can survive being saved/loaded to .ini file for favorites, colors and other systems
 			if (IsShowAllFolderEnabled())
 			{
-				FStringView InvariantPathView(VirtualPathBuffer);
+				FStringView InvariantPathView(InPath);
 				InvariantPathView.RightChopInline(GetAllFolderPrefix().Len());
 				if (InvariantPathView.Len() == 0)
 				{
-					OutPath = FName("/");
+					OutPath.Append(TEXT("/"));
 				}
 				else
 				{
-					OutPath = FName(InvariantPathView);
+					OutPath.Append(InvariantPathView);
 				}
 			}
 			else
 			{
-				OutPath = Path;
+				OutPath.Append(InPath);
 			}
 
 			return EContentBrowserPathType::Virtual;
 		}
 
-		FStringView InternalPathView(VirtualPathBuffer);
+		FStringView InternalPathView(InPath);
 		InternalPathView.RightChopInline(SplitIndex);
-		OutPath = FName(InternalPathView);
+		OutPath.Append(InternalPathView);
 		return EContentBrowserPathType::Internal;
 	}
 	else
 	{
 		if (bReachedMountPoint)
 		{
-			OutPath = Path;
+			OutPath.Append(InPath);
 			return EContentBrowserPathType::Internal;
 		}
 	}
 
-	OutPath = NAME_None;
 	return EContentBrowserPathType::None;
+}
+
+EContentBrowserPathType FContentBrowserVirtualPathTree::TryConvertVirtualPathToInternal(FStringView InPath, FString& OutPath) const
+{
+	FNameBuilder OutPathBuilder;
+	const EContentBrowserPathType ConvertedType = TryConvertVirtualPathToInternal(InPath, OutPathBuilder);
+	OutPath = FString(FStringView(OutPathBuilder));
+	return ConvertedType;
+}
+
+EContentBrowserPathType FContentBrowserVirtualPathTree::TryConvertVirtualPathToInternal(FName InPath, FName& OutPath) const
+{
+	FNameBuilder OutPathBuilder;
+	const EContentBrowserPathType ConvertedType = TryConvertVirtualPathToInternal(FNameBuilder(InPath), OutPathBuilder);
+	OutPath = FName(FStringView(OutPathBuilder));
+	return ConvertedType;
 }

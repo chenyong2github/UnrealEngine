@@ -16,6 +16,7 @@
 #include "Engine/Canvas.h"
 #include "Debug/ReporterGraph.h"
 #include "Misc/ScopeExit.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
 DEFINE_LOG_CATEGORY(LogNetworkPhysics);
 
@@ -197,6 +198,38 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 	
 	void ProcessInputs_Internal(int32 PhysicsStep, const TArray<Chaos::FSimCallbackInputAndObject>& SimCallbackInputs) override
 	{
+		// Apply Physics corrections if necessary
+		if (PendingCorrectionIdx != INDEX_NONE)
+		{
+			for (; PendingCorrectionIdx < PendingCorrections.Num(); ++PendingCorrectionIdx)
+			{
+				FNetworkPhysicsState& CorrectionState = PendingCorrections[PendingCorrectionIdx];
+				if (CorrectionState.Frame > PhysicsStep)
+				{
+					break;
+				}
+
+				if (auto* PT = CorrectionState.Proxy->GetPhysicsThreadAPI())
+				{
+					UE_LOG(LogNetworkPhysics, Log, TEXT("Applying Correction from frame %d (actual step: %d)"), CorrectionState.Frame, PhysicsStep);
+
+					PT->SetX(CorrectionState.Physics.Location);
+					PT->SetV(CorrectionState.Physics.LinearVelocity);
+					PT->SetR(CorrectionState.Physics.Rotation);
+					PT->SetW(CorrectionState.Physics.AngularVelocity);
+
+					if (PT->ObjectState() != CorrectionState.Physics.ObjectState)
+					{
+						ensure(CorrectionState.Physics.ObjectState != Chaos::EObjectStateType::Uninitialized);
+						UE_LOG(LogNetworkPhysics, Log, TEXT("Applying Correction State %d"), CorrectionState.Physics.ObjectState);
+						PT->SetObjectState(CorrectionState.Physics.ObjectState);
+					}
+				}
+			}
+		}
+
+		
+
 		// Marhsall data back to GT based on what was requested for networking (this should be server only)
 		FRequest Request;
 		while (DataRequested.Dequeue(Request));
@@ -261,37 +294,6 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 			}
 		}
 
-		// Apply Physics corrections if necessary
-		if (PendingCorrectionIdx == INDEX_NONE)
-		{
-			return;
-		}
-		
-		for (; PendingCorrectionIdx < PendingCorrections.Num(); ++PendingCorrectionIdx)
-		{
-			FNetworkPhysicsState& CorrectionState = PendingCorrections[PendingCorrectionIdx];
-			if (CorrectionState.Frame > PhysicsStep)
-			{
-				break;
-			}
-
-			if (auto* PT = CorrectionState.Proxy->GetPhysicsThreadAPI())
-			{
-				UE_LOG(LogNetworkPhysics, Log, TEXT("Applying Correction from frame %d (actual step: %d)"), CorrectionState.Frame, PhysicsStep);
-
-				PT->SetX(CorrectionState.Physics.Location);
-				PT->SetV(CorrectionState.Physics.LinearVelocity);
-				PT->SetR(CorrectionState.Physics.Rotation);
-				PT->SetW(CorrectionState.Physics.AngularVelocity);
-
-				if (PT->ObjectState() != CorrectionState.Physics.ObjectState)
-				{
-					ensure(CorrectionState.Physics.ObjectState != Chaos::EObjectStateType::Uninitialized);
-					UE_LOG(LogNetworkPhysics, Log, TEXT("Applying Correction State %d"), CorrectionState.Physics.ObjectState);
-					PT->SetObjectState(CorrectionState.Physics.ObjectState);
-				}
-			}
-		}
 	}
 
 	void PostResimStep_Internal(int32 PhysicsStep) override
@@ -308,6 +310,9 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 		if (World->GetNetMode() == NM_Client)
 		{
 			// Client:
+
+		
+
 			if (APlayerController* PC = World->GetFirstPlayerController())
 			{
 				// TODO: Broadcast delegate to generate new InputCmd from user code and call RPC to replicate it

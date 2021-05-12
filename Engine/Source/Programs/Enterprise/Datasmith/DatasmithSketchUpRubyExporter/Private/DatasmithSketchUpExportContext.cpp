@@ -102,11 +102,7 @@ void FExportContext::Populate()
 	Scenes.PopulateFromModel(ModelRef);
 	ComponentDefinitions.PopulateFromModel(ModelRef);
 
-	// Add the model metadata into the dictionary of metadata definitions.
-	FDatasmithSketchUpMetadata::AddMetadataDefinition(ModelRef);
-
 	RootNode->ToDatasmith(*this);
-
 }
 
 void FExportContext::Update()
@@ -225,9 +221,6 @@ void FComponentDefinitionCollection::PopulateFromModel(SUModelRef InModelRef)
 		for (SUComponentDefinitionRef SComponentDefinitionRef : SComponentDefinitions)
 		{
 			AddComponentDefinition(SComponentDefinitionRef);
-
-			// Add the normal component definition metadata into the dictionary of metadata definitions.
-			FDatasmithSketchUpMetadata::AddMetadataDefinition(SComponentDefinitionRef);
 		}
 	}
 
@@ -364,13 +357,13 @@ void FComponentInstanceCollection::InvalidateComponentInstanceGeometry(FComponen
 	{
 		(*Ptr)->InvalidateEntityGeometry();
 	}
-	else
+}
+
+void FComponentInstanceCollection::InvalidateComponentInstanceMetadata(FComponentInstanceIDType ComponentInstanceID)
+{
+	if (TSharedPtr<FComponentInstance>* Ptr = FindComponentInstance(ComponentInstanceID))
 	{
-		// todo: implement. This could happen if
-		//  - component instance was previously skipped because it doesn't contain meaningful data(probably it's not needed to process it it's still empty)
-		//  - was removed recently. Not sure if 'changed' can code after 'removed'
-		//  - addition wasn't handled
-		// - anything else?
+		(*Ptr)->InvalidateEntityProperties(); // Metadata is updated with properties
 	}
 }
 

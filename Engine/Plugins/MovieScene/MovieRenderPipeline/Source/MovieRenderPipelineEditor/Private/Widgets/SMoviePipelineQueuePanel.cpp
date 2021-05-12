@@ -134,7 +134,7 @@ void SMoviePipelineQueuePanel::Construct(const FArguments& InArgs)
 						.AutoWidth()
 						[
 							SNew(SImage)
-							.Image(FSlateIconFinder::FindIconBrushForClass(UMoviePipelineQueue::StaticClass()))
+							.Image(FEditorStyle::Get().GetBrush("AssetEditor.SaveAsset.Greyscale"))
 						]
 
 						+ SHorizontalBox::Slot()

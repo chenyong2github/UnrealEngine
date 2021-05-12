@@ -233,11 +233,12 @@ void ADisplayClusterRootActor::RenderPreview_Editor()
 	if (UpdatePreviewConfiguration_Editor())
 	{
 		// Update all preview components resources before render
-		TArray<UDisplayClusterPreviewComponent*> AllPreviewComponents;
-		GetComponents<UDisplayClusterPreviewComponent>(AllPreviewComponents);
-		for (UDisplayClusterPreviewComponent* PreviewComp : AllPreviewComponents)
+		for (const TTuple<FString, UDisplayClusterPreviewComponent*>& PreviewKeyVal : PreviewComponents)
 		{
-			PreviewComp->UpdatePreviewResources();
+			if (UDisplayClusterPreviewComponent* PreviewComp = PreviewKeyVal.Value)
+			{
+				PreviewComp->UpdatePreviewResources();
+			}
 		}
 
 		//@todo: add GUI to change preview scene
@@ -357,8 +358,7 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 					{
 						PreviewComp = NewObject<UDisplayClusterPreviewComponent>(this, FName(*PreviewCompId), RF_DuplicateTransient | RF_Transactional | RF_NonPIEDuplicateTransient);
 						check(PreviewComp);
-
-						AddInstanceComponent(PreviewComp);
+						
 						PreviewComponents.Emplace(PreviewCompId, PreviewComp);
 					}
 
@@ -386,7 +386,6 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 		{
 			PreviewComponents.Remove(ExistingComp->GetName());
 			
-			RemoveInstanceComponent(ExistingComp);
 			ExistingComp->UnregisterComponent();
 			ExistingComp->DestroyComponent();
 		}
@@ -401,7 +400,6 @@ void ADisplayClusterRootActor::ReleasePreviewComponents()
 	{
 		if (CompPair.Value)
 		{
-			RemoveInstanceComponent(CompPair.Value);
 			CompPair.Value->UnregisterComponent();
 			CompPair.Value->DestroyComponent();
 		}
@@ -413,7 +411,7 @@ void ADisplayClusterRootActor::ReleasePreviewComponents()
 
 FString ADisplayClusterRootActor::GeneratePreviewComponentName(const FString& NodeId, const FString& ViewportId) const
 {
-	return FString::Printf(TEXT("%s - %s"), *NodeId, *ViewportId);
+	return FString::Printf(TEXT("%s_%s"), *NodeId, *ViewportId);
 }
 
 UDisplayClusterPreviewComponent* ADisplayClusterRootActor::GetPreviewComponent(const FString& NodeId, const FString& ViewportId)

@@ -82,7 +82,7 @@ public:
 	/**
 	 * Set the path to the image sequence directory this source represents.
 	 *
-	 * @param Path The path to set.
+	 * @param Path The path to an image file in the desired directory.
 	 * @see GetSequencePath
 	 */
 	UFUNCTION(BlueprintCallable, Category="ImgMedia|ImgMediaSource")

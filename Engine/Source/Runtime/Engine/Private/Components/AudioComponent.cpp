@@ -34,6 +34,14 @@ FAutoConsoleVariableRef CVarPrimeSoundOnAudioComponentSpawn(
 
 
 /*-----------------------------------------------------------------------------
+UInitialActiveSoundParams implementation.
+-----------------------------------------------------------------------------*/
+UInitialActiveSoundParams::UInitialActiveSoundParams(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+/*-----------------------------------------------------------------------------
 UAudioComponent implementation.
 -----------------------------------------------------------------------------*/
 uint64 UAudioComponent::AudioComponentIDCounter = 0;

@@ -51,6 +51,7 @@ namespace DatasmithSketchUp
 
 		bool InvalidateComponentInstanceProperties(FComponentInstanceIDType ComponentInstanceID);
 		void InvalidateComponentInstanceGeometry(FComponentInstanceIDType ComponentInstanceID);
+		void InvalidateComponentInstanceMetadata(FComponentInstanceIDType ComponentInstanceID);
 		void UpdateProperties();
 		void UpdateGeometry();
 
@@ -94,7 +95,7 @@ namespace DatasmithSketchUp
 
 		TSharedPtr<FTexture> FindOrAdd(SUTextureRef);
 
-		FTexture* AddTexture(SUTextureRef TextureRef);
+		FTexture* AddTexture(SUTextureRef TextureRef, FString MaterialName);
 
 		// This texture is used in a colorized material so image will be saved in material-specific filename
 		FTexture* AddColorizedTexture(SUTextureRef TextureRef, FString MaterialName); 

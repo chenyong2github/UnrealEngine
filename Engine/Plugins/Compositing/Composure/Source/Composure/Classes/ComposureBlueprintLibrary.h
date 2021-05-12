@@ -14,8 +14,8 @@
 class UCameraComponent;
 class USceneCaptureComponent2D;
 
-UCLASS(MinimalAPI, meta=(ScriptName="ComposureLibrary"))
-class UComposureBlueprintLibrary : public UBlueprintFunctionLibrary
+UCLASS(meta=(ScriptName="ComposureLibrary"))
+class COMPOSURE_API UComposureBlueprintLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
 

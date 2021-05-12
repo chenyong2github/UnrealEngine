@@ -3,6 +3,7 @@
 #pragma once
 
 #include "NiagaraEditorDataBase.h"
+#include "NiagaraEditorData.h"
 #include "NiagaraSystemEditorData.generated.h"
 
 class UNiagaraStackEditorData;
@@ -43,7 +44,7 @@ private:
 	TArray<FGuid> ChildEmitterHandleIds;
 };
 
-/** Editor only UI data for systems. */
+/** Editor only data for systems. */
 UCLASS()
 class NIAGARAEDITOR_API UNiagaraSystemEditorData : public UNiagaraEditorDataBase
 {
@@ -52,9 +53,7 @@ class NIAGARAEDITOR_API UNiagaraSystemEditorData : public UNiagaraEditorDataBase
 public:
 	UNiagaraSystemEditorData(const FObjectInitializer& ObjectInitializer);
 
-	//~ Begin UObject Interface
 	void PostInitProperties();
-	//~ End UObject Interface
 
 	virtual void PostLoadFromOwner(UObject* InOwner) override;
 

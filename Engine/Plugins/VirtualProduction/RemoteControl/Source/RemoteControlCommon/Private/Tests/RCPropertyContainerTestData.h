@@ -22,6 +22,9 @@ public:
 	UPROPERTY()
 	FVector SomeVector;
 
+	UPROPERTY(meta = (ClampMin = -5.0f, ClampMax = 99.0f))
+	float ClampedFloat = 56.0f;
+	
 	UPropertyContainerTestObject()
 		: SomeUInt32(44),
 		SomeFloat(45.0f),

@@ -7,7 +7,7 @@ FName UContentBrowserToolbarMenuContext::GetCurrentPath() const
 {
 	if (TSharedPtr<SContentBrowser> Browser = ContentBrowser.Pin())
 	{
-		return *Browser->GetCurrentPath();
+		return *Browser->GetCurrentPath(EContentBrowserPathType::Virtual);
 	}
 
 	return NAME_None;

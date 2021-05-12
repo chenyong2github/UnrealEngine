@@ -244,7 +244,7 @@ struct FInstallBundleSourceBundleInfoQueryResultInfo
 	TMap<FName, FInstallBundleSourceBundleInfo> SourceBundleInfoMap;
 };
 
-enum class EInstallBundleSourceUpdateBundleInfoResult : uint32
+enum class EInstallBundleSourceUpdateBundleInfoResult : uint8
 {
 	OK,
 	AlreadyMounted,
@@ -253,6 +253,7 @@ enum class EInstallBundleSourceUpdateBundleInfoResult : uint32
 	IllegalCacheStatus,
 	Count,
 };
+INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleSourceUpdateBundleInfoResult Result);
 
 struct FInstallBundleSourceUpdateContentResultInfo
 {

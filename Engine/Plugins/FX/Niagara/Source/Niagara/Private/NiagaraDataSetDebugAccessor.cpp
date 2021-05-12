@@ -44,43 +44,32 @@ bool FNiagaraDataSetDebugAccessor::Init(const FNiagaraDataSetCompiledData& Compi
 	return false;
 }
 
-FVector4 FNiagaraDataSetDebugAccessor::ReadFloats(const FNiagaraDataBuffer* DataBuffer, uint32 Instance) const
+float FNiagaraDataSetDebugAccessor::ReadFloat(const FNiagaraDataBuffer* DataBuffer, uint32 Instance, uint32 Component) const
 {
-	FVector4 Value = FVector4(0.0f);
-	if (DataBuffer != nullptr && ComponentIndex != INDEX_NONE && Instance < DataBuffer->GetNumInstances())
+	if (DataBuffer != nullptr && ComponentIndex != INDEX_NONE && Instance < DataBuffer->GetNumInstances() && Component < NumComponents)
 	{
 		if (bIsFloat)
 		{
-			for (uint32 i = 0; i < NumComponents; ++i)
-			{
-				const float* FloatData = reinterpret_cast<const float*>(DataBuffer->GetComponentPtrFloat(ComponentIndex + i));
-				Value[i] = FloatData[Instance];
-			}
+			const float* FloatData = reinterpret_cast<const float*>(DataBuffer->GetComponentPtrFloat(ComponentIndex + Component));
+			return *FloatData;
 		}
 		else if (bIsHalf)
 		{
-			for (uint32 i = 0; i < NumComponents; ++i)
-			{
-				const FFloat16* HalfData = reinterpret_cast<const FFloat16*>(DataBuffer->GetComponentPtrHalf(ComponentIndex + i));
-				Value[i] = HalfData[Instance];
-			}
+			const FFloat16* HalfData = reinterpret_cast<const FFloat16*>(DataBuffer->GetComponentPtrHalf(ComponentIndex + Component));
+			return *HalfData;
 		}
 	}
-	return Value;
+	return 0.0f;
 }
 
-FIntVector4 FNiagaraDataSetDebugAccessor::ReadInts(const FNiagaraDataBuffer* DataBuffer, uint32 Instance) const
+int32 FNiagaraDataSetDebugAccessor::ReadInt(const FNiagaraDataBuffer* DataBuffer, uint32 Instance, uint32 Component) const
 {
-	FIntVector4 Value = FIntVector4(0);
-	if (DataBuffer != nullptr && ComponentIndex != INDEX_NONE && Instance < DataBuffer->GetNumInstances())
+	if (DataBuffer != nullptr && ComponentIndex != INDEX_NONE && Instance < DataBuffer->GetNumInstances() && Component < NumComponents)
 	{
-		for (uint32 i = 0; i < NumComponents; ++i)
-		{
-			const int32* IntData = reinterpret_cast<const int32*>(DataBuffer->GetComponentPtrInt32(ComponentIndex + i));
-			Value[i] = IntData[Instance];
-		}
+		const int32* IntData = reinterpret_cast<const int32*>(DataBuffer->GetComponentPtrInt32(ComponentIndex + Component));
+		return *IntData;
 	}
-	return Value;
+	return 0;
 }
 
 bool FNiagaraDataSetDebugAccessor::ValidateDataBuffer(const FNiagaraDataSetCompiledData& CompiledData, const FNiagaraDataBuffer* DataBuffer, uint32 iInstance, TFunction<void(const FNiagaraVariable&, int32)> ErrorCallback)

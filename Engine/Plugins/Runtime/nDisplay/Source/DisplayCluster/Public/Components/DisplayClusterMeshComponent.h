@@ -36,7 +36,7 @@ protected:
 	virtual void ApplyConfigurationData() override;
 
 protected:
-	UPROPERTY(VisibleAnywhere, Category = "DisplayCluster")
+	UPROPERTY(VisibleAnywhere, Category = "NDisplay")
 	UStaticMeshComponent* WarpMeshComponent = nullptr;
 
 #if WITH_EDITOR 

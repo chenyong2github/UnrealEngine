@@ -70,11 +70,6 @@ bool FNiagaraShaderScript::GetUsesSimulationStages() const
 	return AdditionalDefines.Contains(TEXT("Emitter.UseSimulationStages"));
 }
 
-bool FNiagaraShaderScript::GetUsesOldShaderStages() const
-{
-	return AdditionalDefines.Contains(TEXT("Emitter.UseOldShaderStages"));
-}
-
 bool FNiagaraShaderScript::GetUsesCompressedAttributes() const
 {
 	return AdditionalDefines.Contains(TEXT("CompressAttributes"));

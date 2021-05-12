@@ -333,14 +333,9 @@ void UQosRegionManager::OnQosEvaluationComplete(EQosCompletionResult Result, con
 			TrySetDefaultRegion();
 		}
 	}
-	
-	// fire notifications
-	TArray<FSimpleDelegate> NotifyList = OnQosEvalCompleteDelegate;
-	OnQosEvalCompleteDelegate.Empty();
-	for (const auto& Callback : NotifyList)
-	{
-		Callback.ExecuteIfBound();
-	}
+
+	OnQosEvalCompleteDelegate.Broadcast();
+	OnQosEvalCompleteDelegate.Clear();
 }
 
 FString UQosRegionManager::GetRegionId() const

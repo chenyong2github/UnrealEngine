@@ -173,25 +173,32 @@ FString FSceneValidator::GetElementsDescription(const IDatasmithElement& InEleme
 
 void FSceneValidator::AddElements(const IDatasmithElement& InElement, FMapNameToUsage* IOMap)
 {
+	FNamePtr ElementName(InElement.GetName());
+
 	if (IOMap != nullptr)
 	{
-		FUsage& Usage = (*IOMap)[InElement.GetName()];
-		if (Usage.bExist == true)
+		FUsage* Usage = IOMap->Find(ElementName);
+		if (Usage != nullptr)
 		{
-			AddMessage(kBug, TEXT("Element duplicated %s"), *GetElementsDescription(InElement));
+			if (Usage->bExist == true)
+			{
+				AddMessage(kBug, TEXT("Element duplicated %s"), *GetElementsDescription(InElement));
+			}
 		}
-		Usage.bExist = true;
+		else
+		{
+			IOMap->Add(ElementName, {true, false});
+		}
 	}
 
-	std::pair< const TCHAR*, const IDatasmithElement* > value(InElement.GetName(), &InElement);
-	std::pair< MapNameToElement::iterator, bool >		result = NameToElementMap.insert(value);
-	if (result.second == false)
+	if (NameToElementMap.Contains(ElementName))
 	{
 		AddMessage(kError, TEXT("Elements with same\n\tNew Element %s\n\tOld Element %s"),
-				   *GetElementsDescription(InElement), *GetElementsDescription(*result.first->second));
+				   *GetElementsDescription(InElement), *GetElementsDescription(*NameToElementMap[ElementName]));
 	}
 	else
 	{
+		NameToElementMap.Add(ElementName, &InElement);
 		if (FCString::Strcmp(InElement.GetName(), *FDatasmithUtils::SanitizeObjectName(InElement.GetName())) != 0)
 		{
 			AddMessage(kError, TEXT("Elements name isn't Sanitized %s"), *GetElementsDescription(InElement));
@@ -203,7 +210,7 @@ void FSceneValidator::AddMessageImpl(TInfoLevel Level, const FString& Message)
 {
 	UE_AC_Assert(Level >= kBug && Level < kInfoLevelMax);
 	++MessagesCounts[Level];
-	Messages.push_back(FMessage(Level, Message));
+	Messages.Add(FMessage(Level, Message));
 }
 
 const utf8_t* FSceneValidator::LevelName(TInfoLevel Level)
@@ -434,13 +441,14 @@ void FSceneValidator::CheckActorsDependances(const IDatasmithActorElement& InAct
 	int32 Index;
 
 	{
-		std::set< FNamePtr > Tags;
+		TSet< FNamePtr > Tags;
 		Count = InActor.GetTagsCount();
 		for (Index = 0; Index < Count; ++Index)
 		{
-			const TCHAR*									  Tag = InActor.GetTag(Index);
-			std::pair< std::set< FNamePtr >::iterator, bool > insertedTag = Tags.insert(Tag);
-			if (!insertedTag.second)
+			const TCHAR* Tag = InActor.GetTag(Index);
+			bool		 bTagIsAlreadyInSet = false;
+			Tags.Add(Tag, &bTagIsAlreadyInSet);
+			if (bTagIsAlreadyInSet)
 			{
 				AddMessage(kError, TEXT("Tag \"%s\" present twice for actor %s"), Tag,
 						   *GetElementsDescription(InActor));
@@ -470,11 +478,10 @@ void FSceneValidator::CheckActorsDependances(const IDatasmithActorElement& InAct
 			}
 			if (MeshUsage.bExist && Count != 0)
 			{
-				MapNameToElement::iterator elementFound = NameToElementMap.find(MeshName);
-				if (elementFound != NameToElementMap.end() &&
-					elementFound->second->IsA(EDatasmithElementType::StaticMesh))
+				const IDatasmithElement** elementFound = NameToElementMap.Find(MeshName);
+				if (elementFound != nullptr && (*elementFound)->IsA(EDatasmithElementType::StaticMesh))
 				{
-					MeshPtr = static_cast< const IDatasmithMeshElement* >(elementFound->second);
+					MeshPtr = static_cast< const IDatasmithMeshElement* >(*elementFound);
 				}
 			}
 		}
@@ -484,15 +491,16 @@ void FSceneValidator::CheckActorsDependances(const IDatasmithActorElement& InAct
 		}
 
 		// Validate overload id
-		std::set< int32 > MaterialIds;
+		TSet< int32 > MaterialIds;
 		for (Index = 0; Index < Count; ++Index)
 		{
 			TSharedPtr< const IDatasmithMaterialIDElement > MaterialOverride = MeshActor.GetMaterialOverride(Index);
 			if (MaterialOverride.IsValid())
 			{
-				int32										   MaterialId = MaterialOverride->GetId();
-				std::pair< std::set< int32 >::iterator, bool > insertedTag = MaterialIds.insert(MaterialId);
-				if (!insertedTag.second)
+				int32 MaterialId = MaterialOverride->GetId();
+				bool  bOverloadIsAlreadyInSet = false;
+				MaterialIds.Add(MaterialId, &bOverloadIsAlreadyInSet);
+				if (bOverloadIsAlreadyInSet)
 				{
 					AddMessage(kError, TEXT("Multiple overload for same id (%d) for actor %d %s"), MaterialId, Index,
 							   *GetElementsDescription(MeshActor));

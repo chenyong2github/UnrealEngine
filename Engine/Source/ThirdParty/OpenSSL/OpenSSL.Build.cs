@@ -9,7 +9,6 @@ public class OpenSSL : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		string OpenSSL111Path = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1.1.1");
 		string OpenSSL111cPath = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1.1.1c");
 		string OpenSSL111kPath = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1.1.1k");
 
@@ -18,9 +17,9 @@ public class OpenSSL : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.IOS)
 		{
-			PublicIncludePaths.Add(Path.Combine(OpenSSL111Path, "Include", PlatformSubdir));
+			PublicIncludePaths.Add(Path.Combine(OpenSSL111kPath, "Include", PlatformSubdir));
 
-			string LibPath = Path.Combine(OpenSSL111Path, "Lib", PlatformSubdir);
+			string LibPath = Path.Combine(OpenSSL111kPath, "Lib", PlatformSubdir);
 
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libssl.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libcrypto.a"));
@@ -41,16 +40,13 @@ public class OpenSSL : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
-			// Our OpenSSL 1.1.1 libraries are built with zlib compression support
-			PrivateDependencyModuleNames.Add("zlib");
-
 			string VSVersion = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 
 			// Add includes
-			PublicIncludePaths.Add(Path.Combine(OpenSSL111Path, "include", PlatformSubdir, VSVersion));
+			PublicIncludePaths.Add(Path.Combine(OpenSSL111kPath, "include", PlatformSubdir, VSVersion));
 
 			// Add Libs
-			string LibPath = Path.Combine(OpenSSL111Path, "lib", PlatformSubdir, VSVersion, ConfigFolder);
+			string LibPath = Path.Combine(OpenSSL111kPath, "lib", PlatformSubdir, VSVersion, ConfigFolder);
 
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libssl.lib"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libcrypto.lib"));
@@ -67,7 +63,6 @@ public class OpenSSL : ModuleRules
 			PublicAdditionalLibraries.Add(LibraryPath + "/libcrypto.a");
 
 			PublicDependencyModuleNames.Add("zlib");
-//			PublicAdditionalLibraries.Add("z");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Android || Target.Platform == UnrealTargetPlatform.Lumin)
 		{

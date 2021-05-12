@@ -22,10 +22,24 @@
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "ProfilingDebugging/MiscTrace.h"
+#include "RenderingThread.h"
 
 namespace DatasmithRuntime
 {
 	extern void UpdateMaterials(TSet<FSceneGraphId>& MaterialElementSet, TMap< FSceneGraphId, FAssetData >& AssetDataList);
+
+	void DeleteSceneComponent(USceneComponent* SceneComponent);
+
+	// Recursively destroy actor from world. Children are deleted first.
+	void DeleteActorRecursive(UWorld* GameWorld, AActor* Actor);
+
+	// Set scene component's visibility to false and remove geometry from static mesh component
+	// Call before deletion to ensure no asset is used
+	void HideSceneComponent(USceneComponent* SceneComponent);
+
+	// Tag added to created scene components and actors
+	// Used during reset process
+	const FName RuntimeTag("Datasmith.Runtime.Tag");
 
 #ifdef LIVEUPDATE_TIME_LOGGING
 	Timer::Timer(double InTimeOrigin, const char* InText)
@@ -371,7 +385,7 @@ namespace DatasmithRuntime
 
 		bool bContinue = FPlatformTime::Seconds() < EndTime;
 
-		if (EnumHasAnyFlags(TasksToComplete, EWorkerTask::CollectSceneData))
+		if (bContinue && EnumHasAnyFlags(TasksToComplete, EWorkerTask::CollectSceneData))
 		{
 			CollectSceneData();
 			TasksToComplete &= ~EWorkerTask::CollectSceneData;
@@ -556,6 +570,18 @@ namespace DatasmithRuntime
 	{
 		bIncrementalUpdate = false;
 
+		// Hide all imported scene components if a new scene is going to be imported.
+		if (bIsNewScene)
+		{
+			for (TPair< FSceneGraphId, FActorData >& Pair : ActorDataList)
+			{
+				if (USceneComponent* SceneComponent = Pair.Value.GetObject<USceneComponent>())
+				{
+					HideSceneComponent(SceneComponent);
+				}
+			}
+		}
+
 		// Clear all cached data if it is a new scene
 		SceneElement.Reset();
 		LastSceneGuid = FGuid();
@@ -597,6 +623,9 @@ namespace DatasmithRuntime
 
 		if (UpdateContext.Deletions.Num() > 0)
 		{
+			// Terminate all rendering commands before deleting any component and asset
+			FlushRenderingCommands();
+
 			FActionTaskFunction TaskFunc = [this](UObject*, const FReferencer& Referencer) -> EActionResult::Type
 			{
 				EActionResult::Type Result = this->DeleteElement(Referencer.GetId());
@@ -625,6 +654,8 @@ namespace DatasmithRuntime
 					}
 					else if (ActorDataList.Contains(ElementId))
 					{
+						HideSceneComponent(ActorDataList[ElementId].GetObject<USceneComponent>());
+
 						AddToQueue(EQueueTask::DeleteCompQueue, { TaskFunc, FReferencer(ElementId) } );
 						TasksToComplete |= EWorkerTask::DeleteComponent;
 					}
@@ -1013,11 +1044,64 @@ namespace DatasmithRuntime
 
 	bool FSceneImporter::DeleteData()
 	{
+		// Terminate all rendering commands before deleting any component and asset
+		FlushRenderingCommands();
+
 		bool bGarbageCollect = false;
 
-		for (TPair< FSceneGraphId, FActorData >& Pair : ActorDataList)
+		TArray<AActor*> ChildActors;
+		RootComponent->GetOwner()->GetAttachedActors(ChildActors);
+
+		// Check to see if last import required to build the actor's hierarchy
+		bool bHasHierarchy = false;
+		for (AActor* ChildActor : ChildActors)
 		{
-			bGarbageCollect |= DeleteComponent(Pair.Value);
+			if (ChildActor->ActorHasTag(RuntimeTag))
+			{
+				bHasHierarchy = true;
+				break;
+			}
+		}
+
+		// If last import created actors, delete them from bottom to top
+		if (bHasHierarchy)
+		{
+			// Remove hold onto scene component as they will be deleted along with the owning actor.
+			for (TPair< FSceneGraphId, FActorData >& Pair : ActorDataList)
+			{
+				Pair.Value.Object.Reset();
+			}
+
+			UWorld* GameWorld = RootComponent->GetOwner()->GetWorld();
+
+			for (AActor* ChildActor : ChildActors)
+			{
+				// Only delete actors created by runtime import
+				if (ChildActor->ActorHasTag(RuntimeTag))
+				{
+					ChildActor->DetachFromActor(FDetachmentTransformRules::KeepRelativeTransform);
+					DeleteActorRecursive(GameWorld, ChildActor);
+				}
+			}
+
+			TArray<USceneComponent*> SceneComponents = RootComponent->GetAttachChildren();
+			for (USceneComponent* SceneComponent : SceneComponents)
+			{
+				// Only delete components created by runtime import
+				if (SceneComponent->ComponentHasTag(RuntimeTag))
+				{
+					DeleteSceneComponent(SceneComponent);
+				}
+			}
+
+			bGarbageCollect = true;
+		}
+		else
+		{
+			for (TPair< FSceneGraphId, FActorData >& Pair : ActorDataList)
+			{
+				bGarbageCollect |= DeleteComponent(Pair.Value);
+			}
 		}
 
 		for (TPair< FSceneGraphId, FAssetData >& Entry : AssetDataList)
@@ -1093,24 +1177,6 @@ namespace DatasmithRuntime
 	{
 		if (USceneComponent* SceneComponent = ActorData.GetObject<USceneComponent>())
 		{
-			TFunction<void()> DeleteSceneComponent = [SceneComponent]() -> void
-			{
-				SceneComponent->UnregisterComponent();
-
-				SceneComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
-
-				if (UStaticMeshComponent* MeshComponent = Cast< UStaticMeshComponent >(SceneComponent))
-				{
-					MeshComponent->OverrideMaterials.Reset();
-					MeshComponent->SetStaticMesh(nullptr);
-				}
-
-				SceneComponent->ClearFlags(RF_AllFlags);
-				SceneComponent->SetFlags(RF_Transient);
-				SceneComponent->Rename(nullptr, nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
-				SceneComponent->MarkPendingKill();
-			};
-
 			if (ImportOptions.BuildHierarchy !=  EBuildHierarchyMethod::None)
 			{
 				USceneComponent* ParentComponent = SceneComponent->GetAttachmentRoot();
@@ -1127,7 +1193,7 @@ namespace DatasmithRuntime
 						ChildComponent->AttachToComponent(ParentComponent, FAttachmentTransformRules::KeepRelativeTransform);
 					}
 
-					DeleteSceneComponent();
+					DeleteSceneComponent(SceneComponent);
 				}
 				else
 				{
@@ -1147,7 +1213,7 @@ namespace DatasmithRuntime
 			}
 			else if (SceneComponent->GetAttachmentRoot() == RootComponent.Get())
 			{
-				DeleteSceneComponent();
+				DeleteSceneComponent(SceneComponent);
 			}
 
 			ActorData.Object.Reset();
@@ -1227,6 +1293,7 @@ namespace DatasmithRuntime
 					UWorld* World = RootComponent->GetOwner()->GetWorld();
 
 					ACineCameraActor* CameraActor = Cast< ACineCameraActor >( World->SpawnActor( ACineCameraActor::StaticClass(), nullptr, nullptr ) );
+					CameraActor->Rename(CameraElement->GetName(), nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
 #if WITH_EDITOR
 					CameraActor->SetActorLabel(CameraElement->GetLabel());
 #endif
@@ -1489,15 +1556,27 @@ namespace DatasmithRuntime
 				SceneComponent->ComponentTags.Add(ActorElement->GetTag(Index));
 			}
 
+			// Add runtime tag if scene component is attached to runtime actor's component
+			if (ParentComponent == RootComponent)
+			{
+				SceneComponent->ComponentTags.Add(RuntimeTag);
+			}
+
 			if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None)
 			{
 				if (ActorElement->IsAComponent() && ParentComponent && SceneComponent->GetOwner() != ParentComponent->GetOwner())
 				{
-					FName UniqueName = MakeUniqueObjectName(ParentComponent->GetOwner(), SceneComponent->GetClass(), ActorElement->GetLabel());
+					FName UniqueName = MakeUniqueObjectName(ParentComponent->GetOwner(), SceneComponent->GetClass(), ActorElement->GetName());
 					SceneComponent->Rename(*UniqueName.ToString(), ParentComponent->GetOwner(), REN_NonTransactional | REN_DontCreateRedirectors);
 				}
 
 				SceneComponent->GetOwner()->AddInstanceComponent(SceneComponent);
+
+				// Add runtime tag on actor created on import.
+				if (SceneComponent->GetOwner() != RootComponent->GetOwner() && !SceneComponent->GetOwner()->ActorHasTag(RuntimeTag))
+				{
+					SceneComponent->GetOwner()->Tags.Add(RuntimeTag);
+				}
 			}
 
 			SceneComponent->RegisterComponentWithWorld(RootComponent->GetOwner()->GetWorld());
@@ -1507,4 +1586,53 @@ namespace DatasmithRuntime
 			ensure(false);
 		}
 	}
+
+	void DeleteActorRecursive(UWorld* GameWorld, AActor* Actor)
+	{
+		TArray<AActor*> ChildActors;
+		Actor->GetAttachedActors(ChildActors);
+
+		for (AActor* ChildActor : ChildActors)
+		{
+			ChildActor->DetachFromActor(FDetachmentTransformRules::KeepRelativeTransform);
+			DeleteActorRecursive(GameWorld, ChildActor);
+		}
+
+		ensure(GameWorld->DestroyActor(Actor));
+
+		// Since deletion can be delayed, rename to avoid future name collision
+		// Call UObject::Rename directly on actor to avoid AActor::Rename which unnecessarily sunregister and re-register components
+		Actor->UObject::Rename( nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders );
+	}
+
+	void HideSceneComponent(USceneComponent* SceneComponent)
+	{
+		if (SceneComponent)
+		{
+			SceneComponent->SetVisibility(false);
+
+			if (UStaticMeshComponent* MeshComponent = Cast< UStaticMeshComponent >(SceneComponent))
+			{
+				MeshComponent->OverrideMaterials.Reset();
+				MeshComponent->SetStaticMesh(nullptr);
+				MeshComponent->ReleaseResources();
+			}
+
+			SceneComponent->MarkRenderStateDirty();
+			SceneComponent->MarkRenderDynamicDataDirty();
+		}
+	}
+
+	void DeleteSceneComponent(USceneComponent* SceneComponent)
+	{
+		SceneComponent->UnregisterComponent();
+
+		SceneComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+
+		SceneComponent->ClearFlags(RF_AllFlags);
+		SceneComponent->SetFlags(RF_Transient);
+		SceneComponent->Rename(nullptr, nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
+		SceneComponent->MarkPendingKill();
+	}
+
 } // End of namespace DatasmithRuntime

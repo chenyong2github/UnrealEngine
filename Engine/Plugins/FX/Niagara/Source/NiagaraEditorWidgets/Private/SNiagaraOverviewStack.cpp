@@ -753,17 +753,20 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 		if (StackModuleItem && StackModuleItem->GetModuleNode().ContainsDebugSwitch())
 		{
 			ContentBox->AddSlot()
+				.VAlign(VAlign_Center)
 				.AutoWidth()
+				.Padding(3, 0, 0, 0)
 				[
 					SNew(SButton)
 					.ButtonColorAndOpacity(FLinearColor::Transparent)
-				.ForegroundColor(FLinearColor::Transparent)
-				.ToolTipText(LOCTEXT("EnableDebugDrawCheckBoxToolTip", "Enable or disable debug drawing for this item."))
-				.OnClicked(this, &SNiagaraOverviewStack::ToggleModuleDebugDraw, StackItem)
-				[
-					SNew(SImage)
-					.Image(this, &SNiagaraOverviewStack::GetDebugIconBrush, StackItem)
-				]
+					.ForegroundColor(FLinearColor::Transparent)
+					.ToolTipText(LOCTEXT("EnableDebugDrawCheckBoxToolTip", "Enable or disable debug drawing for this item."))
+					.OnClicked(this, &SNiagaraOverviewStack::ToggleModuleDebugDraw, StackItem)
+					.ContentPadding(FMargin(0, 0, 0, 0))
+					[
+						SNew(SImage)
+						.Image(this, &SNiagaraOverviewStack::GetDebugIconBrush, StackItem)
+					]
 				];
 		}
 

@@ -208,6 +208,16 @@ public:
 		return Results;
 	}
 
+	virtual void Reset() override
+	{
+		MGlobalPayloads.Reset();
+		MGrid.Reset();
+		MElements.Reset();
+		MDirtyElements.Reset();
+		MPayloadInfo.Reset();
+		bIsEmpty = true;
+	}
+
 	virtual void RemoveElement(const TPayloadType& Payload) override
 	{
 		SCOPE_CYCLE_COUNTER(STAT_BoundingVolumeRemoveElement);
@@ -1019,6 +1029,14 @@ private:
 				Cells[Axis] = MaxCells;
 			}
 		}
+
+#if ENABLE_NAN_DIAGNOSTIC
+		if (!ensure(!GlobalBox.Min().ContainsNaN() && !GlobalBox.Max().ContainsNaN()))
+		{
+			UE_LOG(LogChaos, Error, TEXT("BoundingVolume computed invalid GlobalBox from bounds: GlobalBox.Min(): (%f, %f, %f), GlobalBox.Max(): (%f, %f, %f)"),
+				GlobalBox.Min().X, GlobalBox.Min().Y, GlobalBox.Min().Z, GlobalBox.Max().X, GlobalBox.Max().Y, GlobalBox.Max().Z);
+		}
+#endif
 
 		MGrid = TUniformGrid<T, d>(GlobalBox.Min(), GlobalBox.Max(), Cells);
 		MElements = TArrayND<TArray<FCellElement>, d>(MGrid);

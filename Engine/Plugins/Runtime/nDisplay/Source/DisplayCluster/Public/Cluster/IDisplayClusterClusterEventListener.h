@@ -31,10 +31,10 @@ class DISPLAYCLUSTER_API IDisplayClusterClusterEventListener
 
 public:
 	// React on incoming JSON cluster events
-	UFUNCTION(BlueprintImplementableEvent, Category = "nDisplay")
+	UFUNCTION(BlueprintImplementableEvent, Category = "NDisplay")
 	void OnClusterEventJson(const FDisplayClusterClusterEventJson& Event);
 
 	// React on incoming binary cluster events
-	UFUNCTION(BlueprintImplementableEvent, Category = "nDisplay")
+	UFUNCTION(BlueprintImplementableEvent, Category = "NDisplay")
 	void OnClusterEventBinary(const FDisplayClusterClusterEventBinary& Event);
 };

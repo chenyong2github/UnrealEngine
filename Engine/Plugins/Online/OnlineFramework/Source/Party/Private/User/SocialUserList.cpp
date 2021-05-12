@@ -57,6 +57,10 @@ void FSocialUserList::InitializeList()
 	case ESocialRelationship::SuggestedFriend:
 		OwnerToolkit->OnFriendshipEstablished().AddSP(this, &FSocialUserList::HandleFriendshipEstablished);
 		break;
+	case ESocialRelationship::JoinRequest:
+		OwnerToolkit->OnPartyRequestToJoinReceived().AddSP(this, &FSocialUserList::HandleRequestToJoinReceived);
+		OwnerToolkit->OnPartyRequestToJoinRemoved().AddSP(this, &FSocialUserList::HandleRequestToJoinRemoved);
+		break;
 	}
 
 	OwnerToolkit->OnToolkitReset().AddSP(this, &FSocialUserList::HandleOwnerToolkitReset);
@@ -235,6 +239,18 @@ void FSocialUserList::HandleUserGameSpecificStatusChanged(USocialUser* User)
 {
 	MarkUserAsDirty(*User);
 	UpdateNow();
+}
+
+void FSocialUserList::HandleRequestToJoinReceived(USocialUser& SocialUser, IOnlinePartyRequestToJoinInfoConstRef Request)
+{
+	TryAddUser(SocialUser);
+	UpdateListInternal();
+}
+
+void FSocialUserList::HandleRequestToJoinRemoved(USocialUser& SocialUser, IOnlinePartyRequestToJoinInfoConstRef Request, EPartyRequestToJoinRemovedReason Reason)
+{
+	TryRemoveUser(SocialUser);
+	UpdateListInternal();
 }
 
 void FSocialUserList::MarkUserAsDirty(USocialUser& User)

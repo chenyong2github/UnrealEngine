@@ -192,6 +192,9 @@ DECLARE_DELEGATE_RetVal_TwoParams(bool, FGameFeaturePluginRequestStateMachineDep
 /** A request to update the state machine and process states */
 DECLARE_DELEGATE(FGameFeaturePluginRequestUpdateStateMachine);
 
+/** A request to update progress for the current state */
+DECLARE_DELEGATE_OneParam(FGameFeatureStateProgressUpdate, float Progress);
+
 /** The common properties that can be accessed by the states of the state machine */
 USTRUCT()
 struct FGameFeaturePluginStateMachineProperties
@@ -214,6 +217,13 @@ struct FGameFeaturePluginStateMachineProperties
 	/** Meta data parsed from the URL for a specific protocol. */
 	TUnion<FInstallBundlePluginProtocolMetaData> ProtocolMetadata;
 
+	/** The desired state during a transition. */
+	EGameFeaturePluginState DestinationState = EGameFeaturePluginState::Uninitialized;
+
+	/** The data asset describing this game feature */
+	UPROPERTY(Transient)
+	UGameFeatureData* GameFeatureData = nullptr;
+
 	/** Delegate for when a state transition request has completed. */
 	FGameFeatureStateTransitionComplete OnFeatureStateTransitionComplete;
 
@@ -223,19 +233,16 @@ struct FGameFeaturePluginStateMachineProperties
 	/** Delegate to request the state machine be updated. */
 	FGameFeaturePluginRequestUpdateStateMachine OnRequestUpdateStateMachine;
 
-	/** The desired state during a transition. */
-	EGameFeaturePluginState DestinationState;
+	/** Delegate for when a feature state needs to update progress. */
+	FGameFeatureStateProgressUpdate OnFeatureStateProgressUpdate;
 
-	/** The data asset describing this game feature */
-	UPROPERTY(Transient)
-	UGameFeatureData* GameFeatureData;
-
-	FGameFeaturePluginStateMachineProperties() : DestinationState(EGameFeaturePluginState::Uninitialized),  GameFeatureData(nullptr) {}
+	FGameFeaturePluginStateMachineProperties() = default;
 	FGameFeaturePluginStateMachineProperties(
 		const FString& InPluginURL,
 		EGameFeaturePluginState DesiredDestination,
 		const FGameFeaturePluginRequestStateMachineDependencies& RequestStateMachineDependenciesDelegate,
-		const TDelegate<void()>& RequestUpdateStateMachineDelegate);
+		const FGameFeaturePluginRequestUpdateStateMachine& RequestUpdateStateMachineDelegate,
+		const FGameFeatureStateProgressUpdate& FeatureStateProgressUpdateDelegate);
 
 	EGameFeaturePluginProtocol GetPluginProtocol() const;
 
@@ -250,16 +257,14 @@ struct FGameFeaturePluginStateStatus
 {
 private:
 	/** The state to transition to after UpdateState is complete. */
-	EGameFeaturePluginState TransitionToState;
+	EGameFeaturePluginState TransitionToState = EGameFeaturePluginState::Uninitialized;
 
 	/** Holds the current error for any state transition. */
-	UE::GameFeatures::FResult TransitionResult;
+	UE::GameFeatures::FResult TransitionResult{ MakeValue() };
 
 	friend class UGameFeaturePluginStateMachine;
 
 public:
-	FGameFeaturePluginStateStatus() : TransitionToState(EGameFeaturePluginState::Uninitialized), TransitionResult(MakeValue()) {}
-
 	void SetTransition(EGameFeaturePluginState InTransitionToState)
 	{
 		TransitionToState = InTransitionToState;
@@ -284,7 +289,7 @@ enum class EGameFeaturePluginStateType : uint8
 struct FGameFeaturePluginState
 {
 	FGameFeaturePluginState(FGameFeaturePluginStateMachineProperties& InStateProperties) : StateProperties(InStateProperties) {}
-	virtual ~FGameFeaturePluginState() {}
+	virtual ~FGameFeaturePluginState();
 
 	/** Called when this state becomes the active state */
 	virtual void BeginState() {}
@@ -303,6 +308,11 @@ struct FGameFeaturePluginState
 
 	void UpdateStateMachineDeferred(float Delay = 0.0f) const;
 	void UpdateStateMachineImmediate() const;
+
+	void UpdateProgress(float Progress) const;
+
+private:
+	mutable FDelegateHandle TickHandle;
 };
 
 /** Information about a given plugin state, used to expose information to external code */
@@ -373,6 +383,9 @@ private:
 
 	/** Processes the current state and looks for state transitions */
 	void UpdateStateMachine();
+
+	/** Update Progress for current state */
+	void UpdateCurrentStateProgress(float Progress);
 
 	/** Delegate for the machine's state changed. */
 	FGameFeaturePluginStateChanged OnStateChangedEvent;

@@ -24,7 +24,10 @@ void FDisplayClusterViewportConfigurationBase::Update(const TArray<FString>& InC
 		{
 			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportIt : ClusterNode->Viewports)
 			{
-				DesiredViewports.Add(ViewportIt.Key, ViewportIt.Value);
+				if (ViewportIt.Key.Len() && ViewportIt.Value)
+				{
+					DesiredViewports.Add(ViewportIt.Key, ViewportIt.Value);
+				}
 			}
 		}
 	}

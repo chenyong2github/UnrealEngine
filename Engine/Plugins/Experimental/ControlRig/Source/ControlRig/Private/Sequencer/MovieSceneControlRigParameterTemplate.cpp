@@ -636,7 +636,7 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 				SkeletalMeshRestoreState.SaveState(InComponent);
 			}
 
-			virtual void RestoreState(UObject& InObject, IMovieScenePlayer& Player) override
+			virtual void RestoreState(UObject& InObject, const UE::MovieScene::FRestoreStateParams& Params) override
 			{
 
 				if (UControlRig* ControlRig = Cast<UControlRig>(&InObject))

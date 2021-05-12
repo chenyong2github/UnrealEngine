@@ -18973,53 +18973,73 @@ void UMaterialExpressionCurveAtlasRowParameter::GetTexturesForceMaterialRecompil
 
 int32 UMaterialExpressionCurveAtlasRowParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	if (Atlas && Curve)
+	// Some error checking. Note that when bUseCustomPrimitiveData is true we don't rely on the Curve at all
+	if (Atlas == nullptr && Curve == nullptr)
 	{
-		// Retrieve the curve index directly from the atlas rather than relying on the scalar parameter defaults
-		int32 CurveIndex = 0;
-		
-		if (Atlas->GetCurveIndex(Curve, CurveIndex))
+		if (bUseCustomPrimitiveData)
 		{
-			DefaultValue = (float)CurveIndex;
-			int32 Slot = Compiler->ScalarParameter(ParameterName, DefaultValue);
-
-			// Get Atlas texture object and texture size
-			int32 AtlasRef = INDEX_NONE;
-			int32 AtlasCode = Compiler->Texture(Atlas, AtlasRef, SAMPLERTYPE_LinearColor, SSM_Clamp_WorldGroupSettings, TMVM_None);
-			if (AtlasCode != INDEX_NONE)
-			{
-				int32 AtlasHeight = Compiler->ComponentMask(Compiler->TextureProperty(AtlasCode, TMTM_TextureSize), false, true, false, false);
-				
-				// Calculate UVs from height and slot
-				// if the input is hooked up, use it, otherwise use the internal constant
-				int32 Arg1 = InputTime.GetTracedInput().Expression ? InputTime.Compile(Compiler) : Compiler->Constant(0);
-				int32 Arg2 = Compiler->Div(Compiler->Add(Slot, Compiler->Constant(0.5)), AtlasHeight);
-
-				int32 UV = Compiler->AppendVector(Arg1, Arg2);
-
-				// Sample texture
-				return Compiler->TextureSample(AtlasCode, UV, SAMPLERTYPE_LinearColor, INDEX_NONE, INDEX_NONE, TMVM_None, SSM_Clamp_WorldGroupSettings, AtlasRef, false);
-			}
-			else
-			{
-				return CompilerError(Compiler, TEXT("There was an error when compiling the texture."));
-			}
+			return CompilerError(Compiler, TEXT("The atlas are not currently set."));
 		}
 		else
 		{
-			return CompilerError(Compiler, TEXT("The curve is not contained within the atlas."));
+			return CompilerError(Compiler, TEXT("The curve and atlas are not currently set."));
 		}
 	}
-	else if (Atlas)
+	else if (Curve == nullptr && !bUseCustomPrimitiveData)
 	{
 		return CompilerError(Compiler, TEXT("The curve is not currently set."));
 	}
-	else if (Curve)
+	else if (Atlas == nullptr)
 	{
 		return CompilerError(Compiler, TEXT("The atlas is not currently set."));
 	}
 
-	return CompilerError(Compiler, TEXT("The curve and atlas are not currently set."));
+	int32 CurveIndex = 0;
+	int32 Slot = INDEX_NONE;
+
+	// Support for using the Custom Primitive Data to fetch an atlas index if that is chosen
+	if (bUseCustomPrimitiveData)
+	{
+		Slot = Compiler->CustomPrimitiveData(PrimitiveDataIndex, MCT_Float);
+
+		if (Slot == INDEX_NONE)
+		{
+			return CompilerError(Compiler, TEXT("Failed to compile the Custom Primitive Data index code."));
+		}
+	}
+	else if (Curve && Atlas->GetCurveIndex(Curve, CurveIndex))
+	{
+		// Retrieve the curve index directly from the atlas rather than relying on the scalar parameter defaults
+		DefaultValue = (float)CurveIndex;
+		Slot = Compiler->ScalarParameter(ParameterName, DefaultValue);
+
+		if (Slot == INDEX_NONE)
+		{
+			return CompilerError(Compiler, TEXT("The curve is not contained within the atlas."));
+		}
+	}
+
+	// Get Atlas texture object and texture size
+	int32 AtlasRef = INDEX_NONE;
+	int32 AtlasCode = Compiler->Texture(Atlas, AtlasRef, SAMPLERTYPE_LinearColor, SSM_Clamp_WorldGroupSettings, TMVM_None);
+	if (AtlasCode != INDEX_NONE)
+	{
+		int32 AtlasHeight = Compiler->ComponentMask(Compiler->TextureProperty(AtlasCode, TMTM_TextureSize), false, true, false, false);
+
+		// Calculate UVs from height and slot
+		// if the input is hooked up, use it, otherwise use the internal constant
+		int32 Arg1 = InputTime.GetTracedInput().Expression ? InputTime.Compile(Compiler) : Compiler->Constant(0);
+		int32 Arg2 = Compiler->Div(Compiler->Add(Slot, Compiler->Constant(0.5)), AtlasHeight);
+
+		int32 UV = Compiler->AppendVector(Arg1, Arg2);
+
+		// Sample texture
+		return Compiler->TextureSample(AtlasCode, UV, SAMPLERTYPE_LinearColor, INDEX_NONE, INDEX_NONE, TMVM_None, SSM_Clamp_WorldGroupSettings, AtlasRef, false);
+	}
+	else
+	{
+		return CompilerError(Compiler, TEXT("There was an error when compiling the texture."));
+	}
 }
 
 void UMaterialExpressionCurveAtlasRowParameter::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

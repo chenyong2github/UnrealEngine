@@ -16,7 +16,6 @@ struct FOutputMappingSettings
 	bool bKeepClusterNodesInHosts;
 	bool bLockViewports;
 	bool bLockClusterNodes;
-	bool bZoomToSelectedClusterItems;
 	bool bTintSelectedViewports;
 	float ViewScale;
 
@@ -29,7 +28,6 @@ struct FOutputMappingSettings
 		bKeepClusterNodesInHosts(true),
 		bLockViewports(false),
 		bLockClusterNodes(false),
-		bZoomToSelectedClusterItems(true),
 		bTintSelectedViewports(true),
 		ViewScale(1.0f)
 	{ }
@@ -84,6 +82,8 @@ public:
 	using FOnOutputMappingBuiltDelegate = FOnOutputMappingBuilt::FDelegate;
 
 public:
+	virtual void Cleanup() = 0;
+
 	virtual const FOutputMappingSettings& GetOutputMappingSettings() const = 0;
 	virtual FOutputMappingSettings& GetOutputMappingSettings() = 0;
 
@@ -98,4 +98,6 @@ public:
 	virtual void UnregisterOnOutputMappingBuilt(FDelegateHandle DelegateHandle) = 0;
 
 	virtual void FindAndSelectObjects(const TArray<UObject*>& ObjectsToSelect) = 0;
+
+	virtual void JumpToObject(UObject* InObject) = 0;
 };

@@ -62,6 +62,9 @@ FVideoEncoder::FLayerInfo::FLayerInfo(const FLayerConfig& InLayerConfig)
 	, MaxBitrate(InLayerConfig.MaxBitrate)
 	, TargetBitrate(InLayerConfig.TargetBitrate)
 	, QPMax(InLayerConfig.QPMax)
+	, QPMin(InLayerConfig.QPMin)
+	, RateControlMode(InLayerConfig.RateControlMode)
+	, FillData(InLayerConfig.FillData)
 {
 }
 

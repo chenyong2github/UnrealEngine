@@ -382,54 +382,80 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 	
 	bool bEnableGameOpenOrderSort = false;
 	bool bUseSecondaryOpenOrder = false;
+	TArray<FString> OrderFileSpecs;
 	{
 		FConfigFile PlatformIniFile;
 		FConfigCacheIni::LoadLocalIniFile(PlatformIniFile, TEXT("Game"), true, *TargetPlatform->IniPlatformName());
 		FString ConfigString;
 		PlatformIniFile.GetBool(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("bEnableAssetRegistryGameOpenOrderSort"), bEnableGameOpenOrderSort);
 		PlatformIniFile.GetBool(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("bPakUsesSecondaryOrder"), bUseSecondaryOpenOrder);
-	}
-	
 
-	bool bHaveGameOpenOrder = false;
+		PlatformIniFile.GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("PakOrderFileSpecs"), OrderFileSpecs);
+	}
+
 	// if a game open order can be found then use that to sort the filenames
 	FPakOrderMap OrderMap;
+	bool bHaveGameOpenOrder = false;
 	if (bEnableGameOpenOrderSort)
 	{
-		for (int32 SubOrderFile = 0; SubOrderFile < 10; ++SubOrderFile)
+		if (OrderFileSpecs.Num() == 0)
 		{
-			FString OpenOrderFileName = TEXT("GameOpenOrder.log");
-			if (SubOrderFile > 0)
+			OrderFileSpecs.Add(TEXT("GameOpenOrder*.log"));
+			if (bUseSecondaryOpenOrder)
 			{
-				OpenOrderFileName = FString::Printf(TEXT("GameOpenOrder_%d.log"), SubOrderFile);
-			}
-			FString OpenOrderFullPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectDir(), TEXT("Build"), Platform, TEXT("FileOpenOrder"), OpenOrderFileName));
-			UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Looking for game openorder in dir %s"), *OpenOrderFullPath);
-			if (IFileManager::Get().FileExists(*OpenOrderFullPath))
-			{
-				OrderMap.ProcessOrderFile(*OpenOrderFullPath, SubOrderFile!=0);
-				UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Found game open order %s using it to sort input files"), *OpenOrderFullPath);
-				bHaveGameOpenOrder = true;
+				OrderFileSpecs.Add(TEXT("CookerOpenOrder*.log"));
 			}
 		}
-		
-	}
-	if (bUseSecondaryOpenOrder)
-	{
-		for (int32 SubOrderFile = 0; SubOrderFile < 10; ++SubOrderFile)
+
+		TArray<FString> DirsToSearch;
+		DirsToSearch.Add(FPaths::Combine(FPaths::ProjectDir(), TEXT("Build"), TEXT("FileOpenOrder")));
+		FString PlatformsDir = FPaths::Combine(FPaths::ProjectDir(), TEXT("Platforms"), Platform, TEXT("Build"), TEXT("FileOpenOrder"));
+		if (IFileManager::Get().DirectoryExists(*PlatformsDir))
 		{
-			FString OpenOrderFileName = TEXT("CookerOpenOrder.log");
-			if (SubOrderFile > 0)
+			DirsToSearch.Add(PlatformsDir);
+		}
+		else
+		{
+			DirsToSearch.Add(FPaths::Combine(FPaths::ProjectDir(), TEXT("Build"), Platform, TEXT("FileOpenOrder")));
+		}
+		
+		TArray<FString> OrderFiles;
+		for (const FString& Spec : OrderFileSpecs)
+		{
+			TArray<FString> FoundFiles;
+			for (const FString& Directory : DirsToSearch)
 			{
-				OpenOrderFileName = FString::Printf(TEXT("CookerOpenOrder_%d.log"), SubOrderFile);
+				TArray<FString> LocalFoundFiles;
+				IFileManager::Get().FindFiles(LocalFoundFiles, *FPaths::Combine(Directory, Spec), true, false);
+
+				for (const FString& Filename : LocalFoundFiles)
+				{
+					FoundFiles.Add(FPaths::Combine(Directory, Filename));
+				}
 			}
-			FString OpenOrderFullPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectDir(), TEXT("Build"), Platform, TEXT("FileOpenOrder"), OpenOrderFileName));
-			UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Looking for secondary openorder in dir %s"), *OpenOrderFullPath);
-			if (IFileManager::Get().FileExists(*OpenOrderFullPath))
+			
+			Algo::SortBy(FoundFiles, [](const FString& Filename) {
+				FString Number;
+				int32 Order = 0;
+				if (Filename.Split(TEXT("_"), nullptr, &Number, ESearchCase::IgnoreCase, ESearchDir::FromEnd))
+				{
+					Order = FCString::Atoi(*Number);
+				}
+				return Order;
+			});
+
+			for (const FString& Found : FoundFiles)
 			{
-				OrderMap.ProcessOrderFile(*OpenOrderFullPath, true);
-				UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Found secondary open order %s using it to sort input files"), *OpenOrderFullPath);
+				bHaveGameOpenOrder = Found.Contains(TEXT("CookerOpenOrder")) == false;
+				UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Found order file %s"), *Found);
 			}
+
+			OrderFiles.Append(FoundFiles);
+		}
+
+		for (const FString& OrderFile : OrderFiles)
+		{
+			OrderMap.ProcessOrderFile(*OrderFile, OrderFile.Contains(TEXT("CookerOpenOrder")), &OrderFile != &OrderFiles[0]);
 		}
 	}
 

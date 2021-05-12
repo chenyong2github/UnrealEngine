@@ -494,7 +494,12 @@ bool FWebRemoteControlModule::HandleInfoRoute(const FHttpServerRequest& Request,
 {
 	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse(EHttpServerResponseCodes::Ok);
 
-	FAPIInfoResponse RCResponse{RegisteredHttpRoutes.Array()};
+	bool bInPackaged = false;
+#if !WITH_EDITOR
+	bInPackaged = true;
+#endif
+	
+	FAPIInfoResponse RCResponse{RegisteredHttpRoutes.Array(), bInPackaged};
 	WebRemoteControlUtils::SerializeResponse(MoveTemp(RCResponse), Response->Body);
 	OnComplete(MoveTemp(Response));
 	return true;
@@ -684,7 +689,7 @@ bool FWebRemoteControlModule::HandlePresetCallFunctionRoute(const FHttpServerReq
 	
 	TSharedPtr<FRemoteControlFunction> RCFunction = WebRemoteControl::GetRCEntity<FRemoteControlFunction>(Preset, *Args.FieldLabel);
 	
-	if (!RCFunction || !RCFunction->Function || !RCFunction->FunctionArguments || !RCFunction->FunctionArguments->IsValid())
+	if (!RCFunction || !RCFunction->GetFunction() || !RCFunction->FunctionArguments || !RCFunction->FunctionArguments->IsValid())
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
 		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset field."), Response->Body);
@@ -720,8 +725,8 @@ bool FWebRemoteControlModule::HandlePresetCallFunctionRoute(const FHttpServerReq
 		Reader.SetLimitSize(Delimiters.BlockEnd + 1);
 
 		// Copy the default arguments.
-		FStructOnScope FunctionArgs{ RCFunction->Function };
-		for (TFieldIterator<FProperty> It(RCFunction->Function); It; ++It)
+		FStructOnScope FunctionArgs{ RCFunction->GetFunction() };
+		for (TFieldIterator<FProperty> It(RCFunction->GetFunction()); It; ++It)
 		{
 			if (It->HasAnyPropertyFlags(CPF_Parm) && !It->HasAnyPropertyFlags(CPF_ReturnParm | CPF_OutParm))
 			{
@@ -737,7 +742,7 @@ bool FWebRemoteControlModule::HandlePresetCallFunctionRoute(const FHttpServerReq
 			{
 				FRCCallReference CallRef;
 				CallRef.Object = Object;
-				CallRef.Function = RCFunction->Function;
+				CallRef.Function = RCFunction->GetFunction();
 
 				FRCCall Call;
 				Call.CallRef = MoveTemp(CallRef);
@@ -751,7 +756,7 @@ bool FWebRemoteControlModule::HandlePresetCallFunctionRoute(const FHttpServerReq
 					TSet<FProperty*> OutProperties;
 
 					// Only copy the out/return parameters from the StructOnScope resulting from the call.
-					for (TFieldIterator<FProperty> It(RCFunction->Function); It; ++It)
+					for (TFieldIterator<FProperty> It(RCFunction->GetFunction()); It; ++It)
 					{
 						if (It->HasAnyPropertyFlags(CPF_ReturnParm | CPF_OutParm))
 						{

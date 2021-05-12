@@ -23,8 +23,6 @@
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorViewportNode"
 
-int32 const SDisplayClusterConfiguratorViewportNode::DefaultZOrder = 300;
-
 void SDisplayClusterConfiguratorViewportNode::Construct(const FArguments& InArgs,
                                                         UDisplayClusterConfiguratorViewportNode* InViewportNode,
                                                         const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
@@ -51,116 +49,97 @@ void SDisplayClusterConfiguratorViewportNode::UpdateGraphNode()
 	.VAlign(VAlign_Fill)
 	[
 		SNew(SDisplayClusterConfiguratorLayeringBox)
-		.LayerOffset(DefaultZOrder)
+		.LayerOffset(this, &SDisplayClusterConfiguratorViewportNode::GetNodeVisualLayer)
 		.ShadowBrush(this, &SDisplayClusterConfiguratorViewportNode::GetNodeShadowBrush)
 		[
-			SNew(SConstraintCanvas)
-
-			+ SConstraintCanvas::Slot()
-			.Offset(TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SDisplayClusterConfiguratorViewportNode::GetBackgroundPosition)))
-			.Alignment(FVector2D::ZeroVector)
+			SNew(SBox)
 			[
-				SNew(SBox)
+				SNew(SVerticalBox)
+				+SVerticalBox::Slot()
 				[
-					SNew(SVerticalBox)
-					+SVerticalBox::Slot()
+					SNew(SOverlay)
+
+					+ SOverlay::Slot()
+					.VAlign(VAlign_Fill)
+					.HAlign(HAlign_Fill)
 					[
-						SNew(SOverlay)
-
-						+ SOverlay::Slot()
-
-						+ SOverlay::Slot()
-						.VAlign(VAlign_Fill)
-						.HAlign(HAlign_Fill)
+						SNew(SBorder)
+						.BorderImage(FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Window.Border.Brush"))
+						.Padding(FMargin(0.f))
 						[
-							SNew(SBorder)
-							.BorderImage(FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Window.Border.Brush"))
-							.Padding(FMargin(0.f))
-							[
-								BackgroundImage.ToSharedRef()
-							]
+							BackgroundImage.ToSharedRef()
 						]
+					]
 
-						+ SOverlay::Slot()
-						.VAlign(VAlign_Center)
-						.HAlign(HAlign_Center)
-						.Padding(FMargin(15.f, 12.f))
+					+ SOverlay::Slot()
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Center)
+					.Padding(FMargin(15.f, 12.f))
+					[
+						SNew(SBox)
 						[
-							SNew(SBox)
+							SNew(SScaleBox)
+							.Stretch(EStretch::ScaleToFit)
+							.StretchDirection(EStretchDirection::DownOnly)
+							.VAlign(VAlign_Center)
 							[
-								SNew(SScaleBox)
-								.Stretch(EStretch::ScaleToFit)
-								.StretchDirection(EStretchDirection::DownOnly)
-								.VAlign(VAlign_Center)
+								SNew(SBorder)
+								.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+								.BorderBackgroundColor(this, &SDisplayClusterConfiguratorViewportNode::GetTextBoxColor)
+								.Padding(8.0f)
 								[
-									SNew(SBorder)
-									.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
-									.BorderBackgroundColor(this, &SDisplayClusterConfiguratorViewportNode::GetTextBoxColor)
-									.Padding(8.0f)
+									SNew( SVerticalBox )
+
+									+ SVerticalBox::Slot()
+									.VAlign(VAlign_Center)
+									.Padding(5.f, 2.f)
 									[
-										SNew( SVerticalBox )
+										SNew(STextBlock)
+										.Text(FText::FromString(ViewportEdNode->GetNodeName()))
+										.Justification(ETextJustify::Center)
+										.TextStyle(&FDisplayClusterConfiguratorStyle::GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Node.Text.Bold"))
+										.ColorAndOpacity(FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Text.Color.Regular"))
+									]
 
-										+ SVerticalBox::Slot()
-										.VAlign(VAlign_Center)
-										.Padding(5.f, 2.f)
-										[
-											SNew(STextBlock)
-											.Text(FText::FromString(ViewportEdNode->GetNodeName()))
-											.Justification(ETextJustify::Center)
-											.TextStyle(&FDisplayClusterConfiguratorStyle::GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Node.Text.Bold"))
-											.ColorAndOpacity(FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Text.Color.Regular"))
-										]
+									+ SVerticalBox::Slot()
+									.VAlign(VAlign_Center)
+									.Padding(5.f, 2.f)
+									[
+										SNew(STextBlock)
+										.Text(this, &SDisplayClusterConfiguratorViewportNode::GetPositionAndSizeText)
+										.Justification(ETextJustify::Center)
+										.TextStyle(&FDisplayClusterConfiguratorStyle::GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Node.Text.Regular"))
+										.ColorAndOpacity(FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Text.Color.WhiteGray"))
+									]
 
-										+ SVerticalBox::Slot()
-										.VAlign(VAlign_Center)
-										.Padding(5.f, 2.f)
+									+ SVerticalBox::Slot()
+									.VAlign(VAlign_Center)
+									.HAlign(HAlign_Center)
+									.AutoHeight()
+									.Padding(5.0f, 2.0f)
+									[
+										SNew(SBox)
+										.WidthOverride(32)
+										.HeightOverride(32)
+										.Visibility(this, &SDisplayClusterConfiguratorViewportNode::GetLockIconVisibility)
 										[
-											SNew(STextBlock)
-											.Text(this, &SDisplayClusterConfiguratorViewportNode::GetPositionAndSizeText)
-											.Justification(ETextJustify::Center)
-											.TextStyle(&FDisplayClusterConfiguratorStyle::GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Node.Text.Regular"))
-											.ColorAndOpacity(FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Text.Color.WhiteGray"))
-										]
-
-										+ SVerticalBox::Slot()
-										.VAlign(VAlign_Center)
-										.HAlign(HAlign_Center)
-										.AutoHeight()
-										.Padding(5.0f, 2.0f)
-										[
-											SNew(SBox)
-											.WidthOverride(32)
-											.HeightOverride(32)
-											.Visibility(this, &SDisplayClusterConfiguratorViewportNode::GetLockIconVisibility)
-											[
-												SNew(SImage)
-												.Image(FEditorStyle::GetBrush(TEXT("GenericLock")))
-											]
+											SNew(SImage)
+											.Image(FEditorStyle::GetBrush(TEXT("GenericLock")))
 										]
 									]
 								]
 							]
 						]
+					]
 
-						+ SOverlay::Slot()
-						.VAlign(VAlign_Fill)
-						.HAlign(HAlign_Fill)
-						[
-							SNew(SBorder)
-							.BorderImage(this, &SDisplayClusterConfiguratorViewportNode::GetBorderBrush)
-						]
+					+ SOverlay::Slot()
+					.VAlign(VAlign_Fill)
+					.HAlign(HAlign_Fill)
+					[
+						SNew(SBorder)
+						.BorderImage(this, &SDisplayClusterConfiguratorViewportNode::GetBorderBrush)
 					]
 				]
-			]
-
-			+ SConstraintCanvas::Slot()
-			.Offset(TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SDisplayClusterConfiguratorViewportNode::GetAreaResizeHandlePosition)))
-			.AutoSize(true)
-			.Alignment(FVector2D::ZeroVector)
-			[
-				SNew(SDisplayClusterConfiguratorResizer, ToolkitPtr.Pin().ToSharedRef(), SharedThis(this))
-				.Visibility(this, &SDisplayClusterConfiguratorViewportNode::GetAreaResizeHandleVisibility)
-				.IsFixedAspectRatio(this, &SDisplayClusterConfiguratorViewportNode::IsAspectRatioFixed)
 			]
 		]
 	];
@@ -194,6 +173,12 @@ bool SDisplayClusterConfiguratorViewportNode::IsNodeVisible() const
 	const bool bIsSelected = GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode);
 	const bool bIsVisible = bIsSelected || OutputMapping->GetOutputMappingSettings().bShowOutsideViewports || !ViewportEdNode->IsOutsideParent();
 	return SDisplayClusterConfiguratorBaseNode::IsNodeVisible() && bIsVisible;
+}
+
+bool SDisplayClusterConfiguratorViewportNode::IsAspectRatioFixed() const
+{
+	UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
+	return ViewportEdNode->IsFixedAspectRatio();
 }
 
 FSlateColor SDisplayClusterConfiguratorViewportNode::GetBackgroundColor() const
@@ -329,23 +314,6 @@ FMargin SDisplayClusterConfiguratorViewportNode::GetAreaResizeHandlePosition() c
 	const FVector2D NodeSize = GetSize();
 	return FMargin(NodeSize.X, NodeSize.Y, 0.f, 0.f);
 }
-
-EVisibility SDisplayClusterConfiguratorViewportNode::GetAreaResizeHandleVisibility() const
-{
-	if (IsViewportLocked())
-	{
-		return EVisibility::Collapsed;
-	}
-
-	return GetSelectionVisibility();
-}
-
-bool SDisplayClusterConfiguratorViewportNode::IsAspectRatioFixed() const
-{
-	UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
-	return ViewportEdNode->IsFixedAspectRatio();
-}
-
 
 bool SDisplayClusterConfiguratorViewportNode::IsViewportLocked() const
 {

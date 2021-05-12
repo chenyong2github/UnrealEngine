@@ -69,7 +69,7 @@ public:
 	virtual void FilterNode( const FDetailFilter& InFilter ) override;
 	virtual void Tick( float DeltaTime ) override;
 	virtual bool ShouldShowOnlyChildren() const override;
-	virtual FName GetNodeName() const override;
+	virtual FName GetNodeName() const override { return Customization.GetName(); }
 	virtual TSharedPtr<FDetailCategoryImpl> GetParentCategory() const override { return ParentCategory.Pin(); }
 	virtual FPropertyPath GetPropertyPath() const override;
 	virtual void SetIsHighlighted(bool bInIsHighlighted) override { bIsHighlighted = bInIsHighlighted; }

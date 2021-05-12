@@ -585,6 +585,37 @@ float4 GetScreenPosition(FMaterialPixelParameters Parameters)
 	return Parameters.ScreenPosition;
 }
 
+// Returns the pixel's depth, in world units. Works for both orthographic and perspective projections:
+float GetPixelDepth(FMaterialVertexParameters Parameters)
+{
+	FLATTEN
+	if (View.ViewToClip[3][3] < 1.0f)
+	{
+		// Perspective
+		return GetScreenPosition(Parameters).w;
+	}
+	else
+	{
+		// Ortho
+		return ConvertFromDeviceZ(GetScreenPosition(Parameters).z);
+	}
+}
+
+float GetPixelDepth(FMaterialPixelParameters Parameters)
+{
+	FLATTEN
+	if (View.ViewToClip[3][3] < 1.0f)
+	{
+		// Perspective
+		return GetScreenPosition(Parameters).w;
+	}
+	else
+	{
+		// Ortho
+		return ConvertFromDeviceZ(GetScreenPosition(Parameters).z);
+	}
+}
+
 float2 GetSceneTextureUV(FMaterialVertexParameters Parameters)
 {
 	return ScreenAlignedPosition(GetScreenPosition(Parameters));

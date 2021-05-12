@@ -41,6 +41,14 @@ static FAutoConsoleVariableRef CVarMaximumRenderTargetHeight
 	TEXT("Sets the maximum height of the render target used by a Widget Component.")
 );
 
+static bool bUseAutomaticTickModeByDefault = false;
+static FAutoConsoleVariableRef CVarbUseAutomaticTickModeByDefault
+(
+	TEXT("WidgetComponent.UseAutomaticTickModeByDefault"),
+	bUseAutomaticTickModeByDefault,
+	TEXT("Sets to true to Disable Tick by default on Widget Components when set to false, the tick will enabled by default.")
+);
+
 class FWorldWidgetScreenLayer : public IGameLayer
 {
 public:
@@ -616,7 +624,7 @@ UWidgetComponent::UWidgetComponent( const FObjectInitializer& PCIP )
 	, LayerZOrder(-100)
 	, GeometryMode(EWidgetGeometryMode::Plane)
 	, CylinderArcAngle(180.0f)
-	, TickMode(ETickMode::Enabled)
+	, TickMode(bUseAutomaticTickModeByDefault ? ETickMode::Automatic : ETickMode::Enabled)
     , bRenderCleared(false)
 	, bOnWidgetVisibilityChangedRegistered(false)
 {
@@ -1133,6 +1141,13 @@ void UWidgetComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+	if (IsRunningDedicatedServer())
+	{
+		SetTickMode(ETickMode::Disabled);
+		return;
+	}
+
+
 #if !UE_SERVER
 	if (!IsRunningDedicatedServer())
 	{
@@ -1532,6 +1547,12 @@ void UWidgetComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 
 void UWidgetComponent::InitWidget()
 {
+	if (IsRunningDedicatedServer())
+	{
+		SetTickMode(ETickMode::Disabled);
+		return;
+	}
+
 	// Don't do any work if Slate is not initialized
 	if ( FSlateApplication::IsInitialized() )
 	{

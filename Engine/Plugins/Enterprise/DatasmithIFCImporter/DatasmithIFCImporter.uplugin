@@ -16,7 +16,7 @@
 	"Modules": [
 		{
 			"Name": "DatasmithIFCTranslator",
-			"Type": "Runtime",
+			"Type": "Editor",
 			"WhitelistPlatforms": [
 				"Win64"
 			]

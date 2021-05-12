@@ -92,6 +92,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AnimNotify")
 	float GetNotifyProgress(UMeshComponent* MeshComp);
 
+	UPROPERTY(EditAnywhere, Category = NotifyProgress, meta = (DisplayName = "Enable Normalized Notify Progress", ToolTip = "This send a 0-1 value of the normalized progress to the FX Component to the float User Parameter."))
+	bool bEnableNormalizedNotifyProgress = true;
+
+	UPROPERTY(EditAnywhere, Category = NotifyProgress, meta = (DisplayName = "User Parameter", ToolTip = "The name of your niagara user variable you would like to send the normalized notify progress to."))
+	FName NotifyProgressUserParameter;
+
+
 protected:
 
 	struct FInstanceProgressInfo

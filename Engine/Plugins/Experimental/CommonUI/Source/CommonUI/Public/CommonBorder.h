@@ -26,7 +26,9 @@ public:
 	void GetBackgroundBrush(FSlateBrush& Brush) const;
 };
 
-
+/**
+ * Uses the border style template defined in CommonUI project settings by default
+ */
 UCLASS(Config = CommonUI, DefaultConfig, ClassGroup = UI, meta = (Category = "Common UI", DisplayName = "Common Border"))
 class COMMONUI_API UCommonBorder : public UBorder
 {

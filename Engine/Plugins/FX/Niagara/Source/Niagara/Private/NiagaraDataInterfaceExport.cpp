@@ -246,7 +246,7 @@ public:
 			if (InstanceData->WeakCallbackHandler.IsExplicitlyNull())
 			{
 				WriteBufferSize = 0;
-				RHICmdList.SetUAVParameter(Context.Shader.GetComputeShader(), WriteBufferParam.GetUAVIndex(), Context.Batcher->GetEmptyRWBufferFromPool(RHICmdList, PF_R32_UINT));
+				RHICmdList.SetUAVParameter(Context.Shader.GetComputeShader(), WriteBufferParam.GetUAVIndex(), Context.Batcher->GetEmptyUAVFromPool(RHICmdList, PF_R32_UINT, ENiagaraEmptyUAVType::Buffer));
 			}
 			else
 			{
@@ -502,7 +502,7 @@ void UNiagaraDataInterfaceExport::GetVMExternalFunction(const FVMExternalFunctio
 	}
 	else
 	{
-		UE_LOG(LogNiagara, Error, TEXT("Could not find data interface external function. Expected Name: %s  Actual Name: %s"), *NDIExportLocal::ExportDataName.ToString(), *BindingInfo.Name.ToString());
+		UE_LOG(LogNiagara, Display, TEXT("Could not find data interface external function in %s. Expected Name: %s  Actual Name: %s"), *GetPathNameSafe(this), *NDIExportLocal::ExportDataName.ToString(), *BindingInfo.Name.ToString());
 	}
 }
 

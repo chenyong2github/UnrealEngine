@@ -242,7 +242,7 @@ UObject* FLinkerPlaceholderObjectImpl::FindPlaceholderContainer(const FLinkerPla
 void* FLinkerPlaceholderObjectImpl::FindRawPlaceholderContainer(const FLinkerPlaceholderBase::FPlaceholderValuePropertyPath& PropertyChainRef)
 {
 	TArray<void*>& PossibleStructReferencers = FPlaceholderContainerTracker::Get().PerspectiveRootDataStack;
-	return PossibleStructReferencers[0];
+	return PossibleStructReferencers.Num() > 0 ? PossibleStructReferencers[0] : nullptr;
 }
 
 /*******************************************************************************

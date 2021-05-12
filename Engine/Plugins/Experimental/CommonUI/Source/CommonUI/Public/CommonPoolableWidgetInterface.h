@@ -13,6 +13,9 @@ class COMMONUI_API UCommonPoolableWidgetInterface : public UInterface
 	GENERATED_BODY()
 };
 
+/**
+ * Widget pool, if implemented WidgetFactory will attempt to reuse implementing widget objects.
+ */
 class COMMONUI_API ICommonPoolableWidgetInterface
 {
 	GENERATED_BODY()

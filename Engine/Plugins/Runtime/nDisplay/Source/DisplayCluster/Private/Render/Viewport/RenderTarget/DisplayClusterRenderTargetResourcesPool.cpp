@@ -63,6 +63,22 @@ FDisplayClusterRenderTargetResourcesPool::~FDisplayClusterRenderTargetResourcesP
 	ReleaseTextureResources(UnusedTextureResources);
 }
 
+bool FDisplayClusterRenderTargetResourcesPool::IsTextureSizeValid(const FIntPoint& InSize) const
+{
+	static const int32 MaxTextureSize = 1 << (GMaxTextureMipCount - 1);
+
+	// just check the texture size is valid
+	if (InSize.X <= 0 || InSize.Y <= 0 || InSize.X > MaxTextureSize || InSize.Y > MaxTextureSize)
+	{
+		return false;
+	}
+
+
+	//@todo - maybe check free size of video memory before texture allocation
+
+	return true;
+}
+
 // --------------------------------------------------------------------------------------------------------------------------------------
 
 bool FDisplayClusterRenderTargetResourcesPool::BeginReallocateRenderTargetResources(class FViewport* InViewport)
@@ -81,7 +97,7 @@ bool FDisplayClusterRenderTargetResourcesPool::BeginReallocateRenderTargetResour
 
 FDisplayClusterRenderTargetResource* FDisplayClusterRenderTargetResourcesPool::AllocateRenderTargetResource(const FIntPoint& InSize, enum EPixelFormat CustomPixelFormat)
 {
-	if (pRenderTargetResourceSettings == nullptr)
+	if (pRenderTargetResourceSettings == nullptr || !IsTextureSizeValid(InSize))
 	{
 		return nullptr;
 	}
@@ -163,7 +179,7 @@ bool FDisplayClusterRenderTargetResourcesPool::BeginReallocateTextureResources(c
 
 FDisplayClusterTextureResource* FDisplayClusterRenderTargetResourcesPool::AllocateTextureResource(const FIntPoint& InSize, bool bIsRenderTargetable, enum EPixelFormat CustomPixelFormat, int InNumMips)
 {
-	if (pTextureResourceSettings == nullptr)
+	if (pTextureResourceSettings == nullptr || !IsTextureSizeValid(InSize))
 	{
 		return nullptr;
 	}

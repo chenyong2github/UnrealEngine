@@ -574,6 +574,13 @@ private:
 			}
 		}
 
+		// Always render thumbnails with custom thumbnails
+		FString CustomThumbnailTagValue;
+		if (AssetData.GetTagValue(FAssetThumbnailPool::CustomThumbnailTagName, CustomThumbnailTagValue))
+		{
+			return true;
+		}
+
 		return false;
 	}
 

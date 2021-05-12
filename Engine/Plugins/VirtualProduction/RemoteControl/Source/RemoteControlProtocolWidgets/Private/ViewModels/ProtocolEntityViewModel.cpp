@@ -9,6 +9,10 @@
 #include "ProtocolCommandChange.h"
 #include "RemoteControlPreset.h"
 #include "ScopedTransaction.h"
+#include "Algo/AllOf.h"
+#include "Algo/AnyOf.h"
+#include "Algo/FindSequence.h"
+#include "Algo/Partition.h"
 
 #define LOCTEXT_NAMESPACE "ProtocolEntityViewModel"
 
@@ -207,6 +211,29 @@ void FProtocolEntityViewModel::RemoveBinding(const FGuid& InBindingId)
 	}
 
 	OnBindingRemovedDelegate.Broadcast(InBindingId);
+}
+
+TArray<TSharedPtr<FProtocolBindingViewModel>> FProtocolEntityViewModel::GetFilteredBindings(const TSet<FName>& InHiddenProtocolTypeNames)
+{
+	if(InHiddenProtocolTypeNames.Num() == 0)
+	{
+		return GetBindings();
+	}
+
+	TArray<TSharedPtr<FProtocolBindingViewModel>> FilteredBindings;
+	for(const TSharedPtr<FProtocolBindingViewModel>& Binding : Bindings)
+	{
+		// make sure this bindings protocol name is NOT in the Hidden list, then add it to FilteredBindings
+		if(Algo::NoneOf(InHiddenProtocolTypeNames, [&Binding](const FName& InHiddenTypeName)
+		{
+			return InHiddenTypeName == Binding->GetBinding()->GetProtocolName();
+		}))
+		{
+			FilteredBindings.Add(Binding);
+		}
+	}
+	
+	return FilteredBindings;
 }
 
 void FProtocolEntityViewModel::PostUndo(bool bSuccess)

@@ -494,8 +494,8 @@ namespace GeometryCollectionTest
 			}
 			if (Frame == 31)
 			{
-				FName TargetName = GetGeometryCollectionPhysicsTypeName(EGeometryCollectionPhysicsTypeEnum::Chaos_CollisionGroup);
-				Collection[1]->PhysObject->BufferCommand(UnitTest.Solver, { TargetName, RadialMask });
+				EFieldPhysicsType PhysicsType = GetGeometryCollectionPhysicsType(EGeometryCollectionPhysicsTypeEnum::Chaos_CollisionGroup);
+				Collection[1]->PhysObject->BufferCommand(UnitTest.Solver, { PhysicsType, RadialMask });
 			}
 		}
 		// The bottom boxes should have fallen below the ground level, box 2 now on the ground with box 3 on top

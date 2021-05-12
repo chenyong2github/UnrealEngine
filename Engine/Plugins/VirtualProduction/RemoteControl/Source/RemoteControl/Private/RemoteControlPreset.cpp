@@ -516,7 +516,7 @@ TOptional<FExposedFunction> FRemoteControlTarget::ResolveExposedFunction(FGuid F
 	if (TOptional<FRemoteControlFunction> RCFunction = GetFunction(FunctionId))
 	{
 		FExposedFunction ExposedFunction;
-		ExposedFunction.Function = RCFunction->Function;
+		ExposedFunction.Function = RCFunction->GetFunction();
 		ExposedFunction.DefaultParameters = RCFunction->FunctionArguments;
 		ExposedFunction.OwnerObjects = ResolveBoundObjects();
 		OptionalExposedFunction = MoveTemp(ExposedFunction);
@@ -636,7 +636,6 @@ void URemoteControlPreset::PostInitProperties()
 	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
 	{
 		RegisterDelegates();
-		IRemoteControlModule::Get().RegisterPreset(GetFName(), this);
 	}
 }
 
@@ -654,15 +653,12 @@ void URemoteControlPreset::PostEditChangeProperty(struct FPropertyChangedEvent& 
 void URemoteControlPreset::PostLoad()
 {
 	Super::PostLoad();
-	IRemoteControlModule::Get().RegisterPreset(GetFName(), this);
 
 	RegisterDelegates();
 
 	CacheFieldsData();
 
 	CacheFieldLayoutData();
-
-	RebindingManager->Rebind(this);
 
 	InitializeEntitiesMetadata();
 
@@ -672,15 +668,7 @@ void URemoteControlPreset::PostLoad()
 void URemoteControlPreset::BeginDestroy()
 {
 	UnregisterDelegates();
-	IRemoteControlModule::Get().UnregisterPreset(GetFName());
 	Super::BeginDestroy();
-}
-
-void URemoteControlPreset::PostRename(UObject* OldOuter, const FName OldName)
-{
-	Super::PostRename(OldOuter, OldName);
-	IRemoteControlModule::Get().UnregisterPreset(OldName);
-	IRemoteControlModule::Get().RegisterPreset(GetFName(), this);
 }
 
 FName URemoteControlPreset::GetOwnerAlias(FGuid FieldId) const
@@ -977,7 +965,7 @@ TOptional<FExposedFunction> URemoteControlPreset::ResolveExposedFunction(FName F
 		OptionalExposedFunction = FExposedFunction();
 		OptionalExposedFunction->DefaultParameters = RCProp->FunctionArguments;
 		OptionalExposedFunction->OwnerObjects = RCProp->GetBoundObjects();
-		OptionalExposedFunction->Function = RCProp->Function;
+		OptionalExposedFunction->Function = RCProp->GetFunction();
 	}
 
 	return OptionalExposedFunction;
@@ -1062,6 +1050,12 @@ TArray<UObject*> URemoteControlPreset::ResolvedBoundObjects(FName FieldLabel)
 	}
 
 	return Objects;
+}
+
+void URemoteControlPreset::RebindUnboundEntities()
+{
+	RebindingManager->Rebind(this);
+	Algo::Transform(Registry->GetExposedEntities(), PerFrameUpdatedEntities, [](const TSharedPtr<FRemoteControlEntity>& Entity) { return Entity->GetId(); });
 }
 
 void URemoteControlPreset::NotifyExposedPropertyChanged(FName PropertyLabel)
@@ -1297,6 +1291,7 @@ FName URemoteControlPreset::RenameExposedEntity(const FGuid& ExposedEntityId, FN
 
 bool URemoteControlPreset::IsExposed(const FGuid& ExposedEntityId) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("URemoteControlPreset::IsExposed"));
 	if (FieldCache.Contains(ExposedEntityId))
 	{
 		return true;
@@ -1699,10 +1694,9 @@ void URemoteControlPreset::OnEndFrame()
 
 void URemoteControlPreset::OnMapChange(uint32)
 {
-	// Delay the rebinding in order for the old actor points to be invalid, and for the new actors to be valid in the current map.
+	// Delay the refresh in order for the old actor points to be invalid.
 	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this]()
 		{
-			RebindingManager->Rebind(this);
 			Algo::Transform(Registry->GetExposedEntities(), PerFrameUpdatedEntities, [](const TSharedPtr<FRemoteControlEntity>& Entity) { return Entity->GetId(); });
 		}));
 }

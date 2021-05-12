@@ -384,12 +384,12 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		ClothConfig->AreaStiffness,
 		ClothConfig->VolumeStiffness,
 		ClothConfig->bUseThinShellVolumeConstraints,
-		TVector<float, 2>(ClothConfig->TetherStiffness.Low, ClothConfig->TetherStiffness.High),  // Animatable
+		TVec2<FRealSingle>(ClothConfig->TetherStiffness.Low, ClothConfig->TetherStiffness.High),  // Animatable
 		ClothConfig->LimitScale,
 		ClothConfig->bUseGeodesicDistance ? FClothingSimulationCloth::ETetherMode::Geodesic : FClothingSimulationCloth::ETetherMode::Euclidean,
 		/*MaxDistancesMultiplier =*/ 1.f,  // Animatable
-		FVec2(ClothConfig->AnimDriveStiffness.Low, ClothConfig->AnimDriveStiffness.High),  // Animatable
-		FVec2(ClothConfig->AnimDriveDamping.Low, ClothConfig->AnimDriveDamping.High),  // Animatable
+		TVec2<FRealSingle>(ClothConfig->AnimDriveStiffness.Low, ClothConfig->AnimDriveStiffness.High),  // Animatable
+		TVec2<FRealSingle>(ClothConfig->AnimDriveDamping.Low, ClothConfig->AnimDriveDamping.High),  // Animatable
 		ClothConfig->ShapeTargetStiffness,  // TODO: This is now deprecated
 		/*bUseXPBDConstraints =*/ false,  // Experimental
 		ClothConfig->GravityScale,
@@ -745,12 +745,12 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 			ClothConfig->AreaStiffness,
 			ClothConfig->VolumeStiffness,
 			ClothConfig->bUseThinShellVolumeConstraints,
-			TVector<float, 2>(ClothConfig->TetherStiffness.Low, ClothConfig->TetherStiffness.High),  // Animatable
+			TVec2<FRealSingle>(ClothConfig->TetherStiffness.Low, ClothConfig->TetherStiffness.High),  // Animatable
 			ClothConfig->LimitScale,
 			ClothConfig->bUseGeodesicDistance ? FClothingSimulationCloth::ETetherMode::Geodesic : FClothingSimulationCloth::ETetherMode::Euclidean,
 			/*MaxDistancesMultiplier =*/ 1.f,  // Animatable
-			TVector<float, 2>(ClothConfig->AnimDriveStiffness.Low, ClothConfig->AnimDriveStiffness.High),  // Animatable
-			TVector<float, 2>(ClothConfig->AnimDriveDamping.Low, ClothConfig->AnimDriveDamping.High),  // Animatable
+			TVec2<FRealSingle>(ClothConfig->AnimDriveStiffness.Low, ClothConfig->AnimDriveStiffness.High),  // Animatable
+			TVec2<FRealSingle>(ClothConfig->AnimDriveDamping.Low, ClothConfig->AnimDriveDamping.High),  // Animatable
 			ClothConfig->ShapeTargetStiffness,
 			/*bUseXPBDConstraints =*/ false,  // Experimental
 			ClothConfig->GravityScale,
@@ -1661,14 +1661,14 @@ void FClothingSimulation::DebugDrawAnimDrive(FPrimitiveDrawInterface* PDI) const
 			const TConstArrayView<FVec3> ParticlePositions = Cloth->GetParticlePositions(Solver.Get());
 
 			const FVec2 AnimDriveStiffness = AnimDriveConstraint->GetStiffness();
-			const float StiffnessOffset = AnimDriveStiffness[0];
-			const float StiffnessRange = AnimDriveStiffness[1] - AnimDriveStiffness[0];
+			const FRealSingle StiffnessOffset = AnimDriveStiffness[0];
+			const FRealSingle StiffnessRange = AnimDriveStiffness[1] - AnimDriveStiffness[0];
 
 			check(ParticlePositions.Num() == AnimationPositions.Num());
 
 			for (int32 Index = 0; Index < ParticlePositions.Num(); ++Index)
 			{
-				const FReal Stiffness = AnimDriveStiffnessMultipliers.IsValidIndex(Index) ?
+				const FRealSingle Stiffness = AnimDriveStiffnessMultipliers.IsValidIndex(Index) ?
 					StiffnessOffset + AnimDriveStiffnessMultipliers[Index] * StiffnessRange :
 					StiffnessOffset;
 

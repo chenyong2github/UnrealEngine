@@ -24,8 +24,6 @@
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorWindowNode"
 
-int32 const SDisplayClusterConfiguratorWindowNode::DefaultZOrder = 200;
-
 class SCornerImage
 	: public SCompoundWidget
 {
@@ -34,17 +32,14 @@ public:
 	SLATE_BEGIN_ARGS(SCornerImage)
 		: _ColorAndOpacity(FLinearColor::White)
 		, _Size(FVector2D(60.f))
-		, _ZIndexOffset(0)
 	{ }
 		SLATE_ATTRIBUTE(FSlateColor, ColorAndOpacity)
 		SLATE_ARGUMENT(FVector2D, Size)
-		SLATE_ARGUMENT(int32, ZIndexOffset)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TSharedPtr<SDisplayClusterConfiguratorWindowNode> InParentNode)
 	{
 		ParentNode = InParentNode;
-		ZIndexOffset = InArgs._ZIndexOffset;
 
 		SetCursor(EMouseCursor::CardinalCross);
 
@@ -69,18 +64,17 @@ public:
 		// windows, but the one exception is when the user clicks on the corner widget. To ensure that the window widget is selected, increase the window's 
 		// z-index temporarily as long as the mouse is over the corner widget.
 		SCompoundWidget::OnMouseEnter(MyGeometry, MouseEvent);
-		ParentNode->ZIndex += ZIndexOffset;
+		ParentNode->bLayerAboveViewports = true;
 	}
 
 	void OnMouseLeave(const FPointerEvent& MouseEvent)
 	{
 		SCompoundWidget::OnMouseLeave(MouseEvent);
-		ParentNode->ZIndex -= ZIndexOffset;
+		ParentNode->bLayerAboveViewports = false;
 	}
 
 private:
 	TSharedPtr<SDisplayClusterConfiguratorWindowNode> ParentNode;
-	int32 ZIndexOffset;
 };
 
 class SNodeInfo
@@ -207,13 +201,13 @@ public:
 		// windows, but the one exception is when the user clicks on the corner widget. To ensure that the window widget is selected, increase the window's 
 		// z-index temporarily as long as the mouse is over the corner widget.
 		SCompoundWidget::OnMouseEnter(MyGeometry, MouseEvent);
-		ParentNode->ZIndex += ZIndexOffset;
+		ParentNode->bLayerAboveViewports = true;
 	}
 
 	void OnMouseLeave(const FPointerEvent& MouseEvent)
 	{
 		SCompoundWidget::OnMouseLeave(MouseEvent);
-		ParentNode->ZIndex -= ZIndexOffset;
+		ParentNode->bLayerAboveViewports = false;
 	}
 
 	FText GetNodeName() const
@@ -282,58 +276,70 @@ void SDisplayClusterConfiguratorWindowNode::UpdateGraphNode()
 {
 	SDisplayClusterConfiguratorBaseNode::UpdateGraphNode();
 
-	CornerImageWidget = CreateCornerImageWidget();
-	InfoWidget = CreateInfoWidget();
+	// Add the corner image and node info widgets to the top-left slot of the node.
+	GetOrAddSlot(ENodeZone::TopLeft)
+	.HAlign(HAlign_Left)
+	.VAlign(VAlign_Top)
+	[
+		SNew(SDisplayClusterConfiguratorLayeringBox)
+		.LayerOffset(this, &SDisplayClusterConfiguratorWindowNode::GetNodeTitleLayerOffset)
+		.IsEnabled(this, &SDisplayClusterConfiguratorWindowNode::IsNodeEnabled)
+		[
+			SNew(SOverlay)
+
+			+SOverlay::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Top)
+			[
+				SNew(SCornerImage, SharedThis(this))
+				.Visibility(this, &SDisplayClusterConfiguratorWindowNode::GetCornerImageVisibility)
+				.ColorAndOpacity(this, &SDisplayClusterConfiguratorWindowNode::GetCornerColor)
+				.Size(FVector2D(128))
+			]
+
+			+SOverlay::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Top)
+			[
+				SNew(SNodeInfo, SharedThis(this))
+				.Visibility(this, &SDisplayClusterConfiguratorWindowNode::GetNodeInfoVisibility)
+				.ColorAndOpacity(this, &SDisplayClusterConfiguratorWindowNode::GetCornerColor)
+			]
+		]
+	];
 
 	GetOrAddSlot(ENodeZone::Center)
 	.HAlign(HAlign_Fill)
 	.VAlign(VAlign_Fill)
 	[
 		SNew(SDisplayClusterConfiguratorLayeringBox)
-		.LayerOffset(DefaultZOrder)
+		.LayerOffset(this, &SDisplayClusterConfiguratorWindowNode::GetNodeVisualLayer)
 		.ShadowBrush(this, &SDisplayClusterConfiguratorWindowNode::GetNodeShadowBrush)
 		[
-			SNew(SConstraintCanvas)
-
-			+ SConstraintCanvas::Slot()
-			.Offset(TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SDisplayClusterConfiguratorWindowNode::GetBackgroundPosition)))
-			.Alignment(FVector2D::ZeroVector)
+			SNew(SBox)
+			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Fill)
 			[
-				SNew(SBox)
+				SNew(SOverlay)
+
+				+ SOverlay::Slot()
 				.VAlign(VAlign_Fill)
 				.HAlign(HAlign_Fill)
 				[
-					SNew(SOverlay)
+					CreateBackground(FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Window.Inner.Background"))
+				]
 
-					+ SOverlay::Slot()
-					.VAlign(VAlign_Fill)
-					.HAlign(HAlign_Fill)
+				+ SOverlay::Slot()
+				.VAlign(VAlign_Fill)
+				.HAlign(HAlign_Fill)
+				[
+					SNew(SDisplayClusterConfiguratorLayeringBox)
+					.LayerOffset(this, &SDisplayClusterConfiguratorWindowNode::GetBorderLayerOffset)
 					[
-						CreateBackground(FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Window.Inner.Background"))
-					]
-
-					+ SOverlay::Slot()
-					.VAlign(VAlign_Fill)
-					.HAlign(HAlign_Fill)
-					[
-						SNew(SDisplayClusterConfiguratorLayeringBox)
-						.LayerOffset(this, &SDisplayClusterConfiguratorWindowNode::GetBorderLayerOffset)
-						[
-							SNew(SBorder)
-							.BorderImage(this, &SDisplayClusterConfiguratorWindowNode::GetBorderBrush)
-						]
+						SNew(SBorder)
+						.BorderImage(this, &SDisplayClusterConfiguratorWindowNode::GetBorderBrush)
 					]
 				]
-			]
-
-			+ SConstraintCanvas::Slot()
-			.Offset(TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SDisplayClusterConfiguratorWindowNode::GetAreaResizeHandlePosition)))
-			.AutoSize(true)
-			.Alignment(FVector2D::ZeroVector)
-			[
-				SNew(SDisplayClusterConfiguratorResizer, ToolkitPtr.Pin().ToSharedRef(), SharedThis(this))
-				.Visibility(this, &SDisplayClusterConfiguratorWindowNode::GetAreaResizeHandleVisibility)
-				.IsFixedAspectRatio(this, &SDisplayClusterConfiguratorWindowNode::IsAspectRatioFixed)
 			]
 		]
 	];
@@ -369,51 +375,6 @@ FVector2D SDisplayClusterConfiguratorWindowNode::GetPosition() const
 	return SDisplayClusterConfiguratorBaseNode::GetPosition() * WindowScaleFactor;
 }
 
-TArray<FOverlayWidgetInfo> SDisplayClusterConfiguratorWindowNode::GetOverlayWidgets(bool bSelected, const FVector2D& WidgetSize) const
-{
-	TArray<FOverlayWidgetInfo> Widgets = SDisplayClusterConfiguratorBaseNode::GetOverlayWidgets(bSelected, WidgetSize);
-
-	if (CanShowInfoWidget())
-	{
-		FOverlayWidgetInfo InfoWidgetInfo;
-		InfoWidgetInfo.OverlayOffset = FVector2D::ZeroVector;
-		InfoWidgetInfo.Widget = InfoWidget;
-
-		Widgets.Add(InfoWidgetInfo);
-	}
-
-	if (CanShowCornerImageWidget())
-	{
-		FOverlayWidgetInfo CornerWidgetInfo;
-		CornerWidgetInfo.OverlayOffset = FVector2D::ZeroVector;
-		CornerWidgetInfo.Widget = CornerImageWidget;
-
-		Widgets.Add(CornerWidgetInfo);
-	}
-
-	return Widgets;
-}
-
-int32 SDisplayClusterConfiguratorWindowNode::GetNodeLayerIndex() const
-{
-	int32 LayerIndex = DefaultZOrder;
-
-	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
-	check(Toolkit.IsValid());
-
-	TSharedRef<IDisplayClusterConfiguratorViewOutputMapping> OutputMapping = Toolkit->GetViewOutputMapping();
-	bool bAreViewportsLocked = OutputMapping->GetOutputMappingSettings().bLockViewports;
-
-	// If the alt key is down or viewports are locked, increase the window's layer index so that it is above the viewports, allowing
-	// users to select and drag it even if a viewport is in the way.
-	if (FSlateApplication::Get().GetModifierKeys().IsAltDown() || bAreViewportsLocked)
-	{
-		LayerIndex += (SDisplayClusterConfiguratorViewportNode::DefaultZOrder - DefaultZOrder) + 2;
-	}
-
-	return LayerIndex;
-}
-
 bool SDisplayClusterConfiguratorWindowNode::CanNodeExceedParentBounds() const
 {
 	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
@@ -423,35 +384,34 @@ bool SDisplayClusterConfiguratorWindowNode::CanNodeExceedParentBounds() const
 	return !OutputMapping->GetOutputMappingSettings().bKeepClusterNodesInHosts;
 }
 
-TSharedRef<SWidget> SDisplayClusterConfiguratorWindowNode::CreateCornerImageWidget()
+bool SDisplayClusterConfiguratorWindowNode::IsAspectRatioFixed() const
 {
 	UDisplayClusterConfiguratorWindowNode* WindowEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorWindowNode>();
-
-	// Offset the layer of the corner image so that it always draws on top of the viewport graph nodes.
-	return SNew(SDisplayClusterConfiguratorLayeringBox)
-		.LayerOffset(DefaultZOrder + 101)
-		.IsEnabled(this, &SDisplayClusterConfiguratorWindowNode::IsNodeEnabled)
-		[
-			SNew(SCornerImage, SharedThis(this))
-			.ColorAndOpacity(this, &SDisplayClusterConfiguratorWindowNode::GetCornerColor)
-			.Size(FVector2D(128))
-			.ZIndexOffset((SDisplayClusterConfiguratorViewportNode::DefaultZOrder - DefaultZOrder) + 2)
-		];
+	return WindowEdNode->IsFixedAspectRatio();
 }
 
-TSharedRef<SWidget> SDisplayClusterConfiguratorWindowNode::CreateInfoWidget()
+int32 SDisplayClusterConfiguratorWindowNode::GetNodeLogicalLayer() const
 {
 	UDisplayClusterConfiguratorWindowNode* WindowEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorWindowNode>();
+	if (bLayerAboveViewports)
+	{
+		return WindowEdNode->GetAuxiliaryLayer(GetOwnerPanel()->SelectionManager.SelectedNodes);
+	}
 
-	// Offset the layer of the info widget so that it always draws on top of the viewport graph nodes.
-	return SNew(SDisplayClusterConfiguratorLayeringBox)
-		.LayerOffset(DefaultZOrder + 100)
-		.IsEnabled(this, &SDisplayClusterConfiguratorWindowNode::IsNodeEnabled)
-		[
-			SNew(SNodeInfo, SharedThis(this))
-			.ColorAndOpacity(this, &SDisplayClusterConfiguratorWindowNode::GetCornerColor)
-			.ZIndexOffset((SDisplayClusterConfiguratorViewportNode::DefaultZOrder - DefaultZOrder) + 2)
-		];
+	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
+	check(Toolkit.IsValid());
+
+	TSharedRef<IDisplayClusterConfiguratorViewOutputMapping> OutputMapping = Toolkit->GetViewOutputMapping();
+	bool bAreViewportsLocked = OutputMapping->GetOutputMappingSettings().bLockViewports;
+
+	// If the alt key is down or viewports are locked, put the window in the aux layer so that it is above the viewports, allowing
+	// users to select and drag it even if a viewport is in the way.
+	if (FSlateApplication::Get().GetModifierKeys().IsAltDown() || bAreViewportsLocked)
+	{
+		return WindowEdNode->GetAuxiliaryLayer(GetOwnerPanel()->SelectionManager.SelectedNodes);
+	}
+
+	return SDisplayClusterConfiguratorBaseNode::GetNodeLogicalLayer();
 }
 
 TSharedRef<SWidget> SDisplayClusterConfiguratorWindowNode::CreateBackground(const TAttribute<FSlateColor>& InColorAndOpacity)
@@ -506,7 +466,14 @@ int32 SDisplayClusterConfiguratorWindowNode::GetBorderLayerOffset() const
 	// in the case that the child viewport nodes completely fill the window, since the border is a key indicator that the window node is selected.
 	if (GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode))
 	{
-		return SDisplayClusterConfiguratorViewportNode::DefaultZOrder - DefaultZOrder;
+		// The offset needs to factor out the window's base layer offset, as the border is part of the node's widget hierarchy, which is already offset to be in the correct 
+		// layer; we need to compute the offset needed to bump the border into the auxiliary layer.
+		UDisplayClusterConfiguratorWindowNode* WindowEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorWindowNode>();
+		int32 NodeLayerIndex = WindowEdNode->GetNodeLayer(GetOwnerPanel()->SelectionManager.SelectedNodes);
+		int32 AuxLayerIndex = WindowEdNode->GetAuxiliaryLayer(GetOwnerPanel()->SelectionManager.SelectedNodes);
+
+		// Subtract an extra buffer of 100 here to make sure the border doesn't bleed into another layer.
+		return AuxLayerIndex - NodeLayerIndex - 100;
 	}
 
 	return 0;
@@ -521,28 +488,6 @@ FMargin SDisplayClusterConfiguratorWindowNode::GetBackgroundPosition() const
 {
 	FVector2D NodeSize = GetSize();
 	return FMargin(0.f, 0.f, NodeSize.X, NodeSize.Y);
-}
-
-FMargin SDisplayClusterConfiguratorWindowNode::GetAreaResizeHandlePosition() const
-{
-	FVector2D NodeSize = GetSize();
-	return FMargin(NodeSize.X, NodeSize.Y, 0.f, 0.f);
-}
-
-EVisibility SDisplayClusterConfiguratorWindowNode::GetAreaResizeHandleVisibility() const
-{
-	if (IsClusterNodeLocked())
-	{
-		return EVisibility::Collapsed;
-	}
-
-	return GetSelectionVisibility();
-}
-
-bool SDisplayClusterConfiguratorWindowNode::IsAspectRatioFixed() const
-{
-	UDisplayClusterConfiguratorWindowNode* WindowEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorWindowNode>();
-	return WindowEdNode->IsFixedAspectRatio();
 }
 
 FSlateColor SDisplayClusterConfiguratorWindowNode::GetCornerColor() const
@@ -570,6 +515,23 @@ EVisibility SDisplayClusterConfiguratorWindowNode::GetPreviewImageVisibility() c
 	UDisplayClusterConfiguratorWindowNode* WindowEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorWindowNode>();
 	const FString& PreviewImagePath = WindowEdNode->GetPreviewImagePath();
 	return !PreviewImagePath.IsEmpty() ? EVisibility::Visible : EVisibility::Hidden;
+}
+
+
+int32 SDisplayClusterConfiguratorWindowNode::GetNodeTitleLayerOffset() const
+{
+	UDisplayClusterConfiguratorWindowNode* WindowEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorWindowNode>();
+	return WindowEdNode->GetAuxiliaryLayer(GetOwnerPanel()->SelectionManager.SelectedNodes);
+}
+
+EVisibility SDisplayClusterConfiguratorWindowNode::GetNodeInfoVisibility() const
+{
+	return CanShowInfoWidget() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility SDisplayClusterConfiguratorWindowNode::GetCornerImageVisibility() const
+{
+	return CanShowCornerImageWidget() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 bool SDisplayClusterConfiguratorWindowNode::CanShowInfoWidget() const

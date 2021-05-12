@@ -22,4 +22,11 @@ namespace DataprepMenuActionCollectorUtils
 	TArray<UClass*> GetNativeChildClasses(UClass&);
 
 	constexpr EClassFlags NonDesiredClassFlags = CLASS_Deprecated | CLASS_NewerVersionExists | CLASS_Abstract; 
+
+	enum EDataprepMenuActionCategory
+	{
+		Filter = 1,
+		SelectionTransform,
+		Operation
+	};
 }

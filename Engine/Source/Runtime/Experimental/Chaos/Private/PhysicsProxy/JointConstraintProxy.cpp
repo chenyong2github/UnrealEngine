@@ -239,7 +239,8 @@ void FJointConstraintPhysicsProxy::PushStateOnPhysicsThread(Chaos::FPBDRigidsSol
 	{
 		if (DirtyFlagsBuffer.IsDirty())
 		{
-			FConstraintData& ConstraintSettings = Handle->GetSettings();
+			FConstraintData ConstraintSettings = Handle->GetSettings();
+
 			if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::CollisionEnabled))
 			{
 				if (!JointSettingsBuffer.bCollisionEnabled)
@@ -375,6 +376,8 @@ void FJointConstraintPhysicsProxy::PushStateOnPhysicsThread(Chaos::FPBDRigidsSol
 				ConstraintSettings.TwistRestitution = JointSettingsBuffer.TwistRestitution;
 				ConstraintSettings.SwingRestitution = JointSettingsBuffer.SwingRestitution;
 			}
+
+			Handle->SetSettings(ConstraintSettings);
 
 			DirtyFlagsBuffer.Clear();
 		}

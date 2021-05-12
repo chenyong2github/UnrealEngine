@@ -1067,15 +1067,6 @@ namespace UnrealBuildTool
 				}
 			}
 
-			if (LinkEnvironment.Configuration == CppConfiguration.Shipping)
-			{
-				Result += " -Wl,--icf=safe"; // Enables ICF (Identical Code Folding). [all, safe] safe == fold functions that can be proven not to have their address taken.
-				if (!UsingLld(LinkEnvironment.Architecture))
-				{
-					Result += " -Wl,--icf-iterations=3";
-				}
-			}
-
 			// Profile Guided Optimization (PGO) and Link Time Optimization (LTO)
 			// Whether we actually can enable that is checked in CanUseAdvancedLinkerFeatures() earlier
 			if (LinkEnvironment.bPGOOptimize)

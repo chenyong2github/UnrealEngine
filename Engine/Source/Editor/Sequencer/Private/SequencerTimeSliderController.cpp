@@ -9,6 +9,8 @@
 #include "Fonts/FontMeasure.h"
 #include "Styling/CoreStyle.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -26,6 +28,7 @@
 #include "Compilation/MovieSceneCompiledDataManager.h"
 #include "Evaluation/MovieSceneSequenceHierarchy.h"
 
+#include "Misc/NotifyHook.h"
 #include "IDetailsView.h"
 #include "PropertyEditorModule.h"
 #include "ISinglePropertyView.h"
@@ -1447,25 +1450,57 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 
 		if (MarkedIndex != INDEX_NONE)
 		{
-			FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-			FDetailsViewArgs DetailsViewArgs;
-			DetailsViewArgs.bAllowSearch = false;
-			DetailsViewArgs.bShowScrollBar = false;
-			DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+			class SMarkedFramePropertyWidget : public SCompoundWidget, public FNotifyHook
+			{
+			public:
+				UMovieScene* MovieSceneToModify;
+				TSharedPtr<IStructureDetailsView> DetailsView;
 
-			FStructureDetailsViewArgs StructureDetailsViewArgs;
-			StructureDetailsViewArgs.bShowObjects = true;
-			StructureDetailsViewArgs.bShowAssets = true;
-			StructureDetailsViewArgs.bShowClasses = true;
-			StructureDetailsViewArgs.bShowInterfaces = true;
-			
-			TSharedPtr<FStructOnScope> StructOnScope = MakeShared<FStructOnScope>(FMovieSceneMarkedFrame::StaticStruct(), (uint8 *)&MovieScene->GetMarkedFrames()[MarkedIndex]);
+				SLATE_BEGIN_ARGS(SMarkedFramePropertyWidget){}
+				SLATE_END_ARGS()
 
-			TSharedRef<IStructureDetailsView> DetailsView = PropertyEditorModule.CreateStructureDetailView(DetailsViewArgs, StructureDetailsViewArgs, nullptr);
-			DetailsView->GetDetailsView()->RegisterInstancedCustomPropertyTypeLayout("FrameNumber", FOnGetPropertyTypeCustomizationInstance::CreateSP(this, &FSequencerTimeSliderController::CreateFrameNumberCustomization));
-			DetailsView->SetStructureData(StructOnScope);
+				void Construct(const FArguments& InArgs, UMovieScene* InMovieScene, int32 InMarkedFrameIndex)
+				{
+					MovieSceneToModify = InMovieScene;
 
-			MenuBuilder.AddWidget(DetailsView->GetWidget().ToSharedRef(), FText::GetEmpty(), false);
+					FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+					FDetailsViewArgs DetailsViewArgs;
+					DetailsViewArgs.bAllowSearch = false;
+					DetailsViewArgs.bShowScrollBar = false;
+					DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+					DetailsViewArgs.NotifyHook = this;
+
+					FStructureDetailsViewArgs StructureDetailsViewArgs;
+					StructureDetailsViewArgs.bShowObjects = true;
+					StructureDetailsViewArgs.bShowAssets = true;
+					StructureDetailsViewArgs.bShowClasses = true;
+					StructureDetailsViewArgs.bShowInterfaces = true;
+
+					TSharedPtr<FStructOnScope> StructOnScope = MakeShared<FStructOnScope>(FMovieSceneMarkedFrame::StaticStruct(), (uint8 *)&InMovieScene->GetMarkedFrames()[InMarkedFrameIndex]);
+
+					DetailsView = PropertyEditorModule.CreateStructureDetailView(DetailsViewArgs, StructureDetailsViewArgs, nullptr);
+					DetailsView->SetStructureData(StructOnScope);
+
+					ChildSlot
+					[
+						DetailsView->GetWidget().ToSharedRef()
+					];
+				}
+
+				virtual void NotifyPreChange( FProperty* PropertyAboutToChange ) override
+				{
+					MovieSceneToModify->Modify();
+				}
+
+				virtual void NotifyPreChange( class FEditPropertyChain* PropertyAboutToChange ) override
+				{
+					MovieSceneToModify->Modify();
+				}
+			};
+
+			TSharedRef<SMarkedFramePropertyWidget> Widget = SNew(SMarkedFramePropertyWidget, MovieScene, MarkedIndex);
+			Widget->DetailsView->GetDetailsView()->RegisterInstancedCustomPropertyTypeLayout("FrameNumber", FOnGetPropertyTypeCustomizationInstance::CreateSP(this, &FSequencerTimeSliderController::CreateFrameNumberCustomization));
+			MenuBuilder.AddWidget(Widget, FText::GetEmpty(), false);
 		}
 
 		if (MarkedIndex == INDEX_NONE)
@@ -1588,6 +1623,11 @@ void FSequencerTimeSliderController::SetPlayRange( FFrameNumber RangeStart, int3
 		// The  output is not bound to a delegate so we'll manage the value ourselves (no animation)
 		TimeSliderArgs.PlaybackRange.Set(NewRange);
 	}
+}
+
+void FSequencerTimeSliderController::SetSelectionRange(const TRange<FFrameNumber>& NewRange)
+{
+	TimeSliderArgs.OnSelectionRangeChanged.ExecuteIfBound(NewRange);
 }
 
 bool FSequencerTimeSliderController::ZoomByDelta( float InDelta, float MousePositionFraction )

@@ -31,6 +31,7 @@
 #include "NiagaraSystemEditorData.h"
 #include "NiagaraScriptStatsViewModel.h"
 #include "NiagaraBakerViewModel.h"
+#include "NiagaraToolkitCommon.h"
 
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
@@ -58,7 +59,10 @@
 #include "NiagaraScriptStatsViewModel.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
-#include "SNiagaraAssetPickerList.h"
+#include "NiagaraEditor/Private/SNiagaraAssetPickerList.h"
+#include "Widgets/SNiagaraParameterDefinitionsPanel.h"
+#include "ViewModels/NiagaraParameterDefinitionsPanelViewModel.h"
+
 
 #define LOCTEXT_NAMESPACE "NiagaraSystemEditor"
 
@@ -71,6 +75,7 @@ const FName FNiagaraSystemToolkit::SystemScriptTabID(TEXT("NiagaraSystemEditor_S
 const FName FNiagaraSystemToolkit::SystemDetailsTabID(TEXT("NiagaraSystemEditor_SystemDetails"));
 const FName FNiagaraSystemToolkit::SystemParametersTabID(TEXT("NiagaraSystemEditor_SystemParameters"));
 const FName FNiagaraSystemToolkit::SystemParametersTabID2(TEXT("NiagaraSystemEditor_SystemParameters2"));
+const FName FNiagaraSystemToolkit::SystemParameterDefinitionsTabID(TEXT("NiagaraSystemEditor_SystemParameterDefinitions"));
 const FName FNiagaraSystemToolkit::SelectedEmitterStackTabID(TEXT("NiagaraSystemEditor_SelectedEmitterStack"));
 const FName FNiagaraSystemToolkit::SelectedEmitterGraphTabID(TEXT("NiagaraSystemEditor_SelectedEmitterGraph"));
 const FName FNiagaraSystemToolkit::DebugSpreadsheetTabID(TEXT("NiagaraSystemEditor_DebugAttributeSpreadsheet"));
@@ -91,9 +96,6 @@ static FAutoConsoleVariableRef CVarSuppressNiagaraSystems(
 	TEXT("If > 0 Niagara Systems will be written to a text format when opened and closed in the editor. \n"),
 	ECVF_Default
 );
-
-bool FNiagaraSystemToolkit::bShowLibraryOnly = false;
-bool FNiagaraSystemToolkit::bShowTemplateOnly = false;
 
 void FNiagaraSystemToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
@@ -124,9 +126,12 @@ void FNiagaraSystemToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
 
 	InTabManager->RegisterTabSpawner(SystemParametersTabID2, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_SystemParameters2))
-		.SetDisplayName(LOCTEXT("SystemParameters2", "Parameters2"))
-		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
-		.SetAutoGenerateMenuEntry(GbShowNiagaraDeveloperWindows != 0);
+		.SetDisplayName(LOCTEXT("SystemParameters2", "Legacy Parameters"))
+		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
+
+	InTabManager->RegisterTabSpawner(SystemParameterDefinitionsTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_SystemParameterDefinitions))
+		.SetDisplayName(LOCTEXT("SystemParameterDefinitions", "Parameter Definitions"))
+		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
 
 	InTabManager->RegisterTabSpawner(SelectedEmitterStackTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_SelectedEmitterStack))
 		.SetDisplayName(LOCTEXT("SelectedEmitterStacks", "Selected Emitters"))
@@ -184,6 +189,8 @@ void FNiagaraSystemToolkit::UnregisterTabSpawners(const TSharedRef<class FTabMan
 	InTabManager->UnregisterTabSpawner(SystemScriptTabID);
 	InTabManager->UnregisterTabSpawner(SystemDetailsTabID);
 	InTabManager->UnregisterTabSpawner(SystemParametersTabID);
+	InTabManager->UnregisterTabSpawner(SystemParametersTabID2);
+	InTabManager->UnregisterTabSpawner(SystemParameterDefinitionsTabID);
 	InTabManager->UnregisterTabSpawner(SelectedEmitterStackTabID);
 	InTabManager->UnregisterTabSpawner(SelectedEmitterGraphTabID);
 	InTabManager->UnregisterTabSpawner(DebugSpreadsheetTabID);
@@ -197,6 +204,16 @@ void FNiagaraSystemToolkit::UnregisterTabSpawners(const TSharedRef<class FTabMan
 
 FNiagaraSystemToolkit::~FNiagaraSystemToolkit()
 {
+	// Cleanup viewmodels that use the system viewmodel before cleaning up the system viewmodel itself.
+	if (ParameterPanelViewModel.IsValid())
+	{
+		ParameterPanelViewModel->Cleanup();
+	}
+	if (ParameterDefinitionsPanelViewModel.IsValid())
+	{
+		ParameterDefinitionsPanelViewModel->Cleanup();
+	}
+
 	if (SystemViewModel.IsValid())
 	{
 		if (SystemViewModel->GetSelectionViewModel() != nullptr)
@@ -227,8 +244,17 @@ void FNiagaraSystemToolkit::InitializeWithSystem(const EToolkitMode::Type Mode, 
 
 	SystemViewModel = MakeShared<FNiagaraSystemViewModel>();
 	SystemViewModel->Initialize(*System, SystemOptions);
-	ParameterPanelViewModel = MakeShared<FNiagaraSystemToolkitParameterPanelViewModel>(SystemViewModel.ToSharedRef());
-	ParameterPanelViewModel->InitBindings();
+	SystemGraphSelectionViewModel = MakeShared<FNiagaraSystemGraphSelectionViewModel>();
+	SystemGraphSelectionViewModel->Init(SystemViewModel);
+	ParameterPanelViewModel = MakeShared<FNiagaraSystemToolkitParameterPanelViewModel>(SystemViewModel, TWeakPtr<FNiagaraSystemGraphSelectionViewModel>(SystemGraphSelectionViewModel));
+	ParameterDefinitionsPanelViewModel = MakeShared<FNiagaraSystemToolkitParameterDefinitionsPanelViewModel>(SystemViewModel, SystemGraphSelectionViewModel);
+	FSystemToolkitUIContext UIContext = FSystemToolkitUIContext(
+		FSimpleDelegate::CreateSP(ParameterPanelViewModel.ToSharedRef(), &INiagaraImmutableParameterPanelViewModel::Refresh),
+		FSimpleDelegate::CreateSP(ParameterDefinitionsPanelViewModel.ToSharedRef(), &INiagaraImmutableParameterPanelViewModel::Refresh)
+	);
+	ParameterPanelViewModel->Init(UIContext);
+	ParameterDefinitionsPanelViewModel->Init(UIContext);
+	
 	SystemViewModel->SetToolkitCommands(GetToolkitCommands());
 	SystemToolkitMode = ESystemToolkitMode::System;
 
@@ -277,7 +303,7 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 		ScriptToEmitterMap.Add(Emitter->GetGPUComputeScript(), Emitter);
 		ScriptDependencyMap.Add(Emitter->SpawnScriptProps.Script, Emitter->GetGPUComputeScript());
 		ScriptDependencyMap.Add(Emitter->UpdateScriptProps.Script, Emitter->GetGPUComputeScript());
-	}
+	} 
 	else if (Emitter->bInterpolatedSpawning)
 	{
 		ScriptDependencyMap.Add(Emitter->UpdateScriptProps.Script, Emitter->SpawnScriptProps.Script);
@@ -297,11 +323,18 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 
 	SystemViewModel = MakeShared<FNiagaraSystemViewModel>();
 	SystemViewModel->Initialize(*System, SystemOptions);
-	ParameterPanelViewModel = MakeShared<FNiagaraSystemToolkitParameterPanelViewModel>(SystemViewModel);
-	ParameterPanelViewModel->InitBindings();
 	SystemViewModel->GetEditorData().SetOwningSystemIsPlaceholder(true, *System);
 	SystemViewModel->SetToolkitCommands(GetToolkitCommands());
 	SystemViewModel->AddEmitter(*Emitter);
+
+	ParameterPanelViewModel = MakeShared<FNiagaraSystemToolkitParameterPanelViewModel>(SystemViewModel);
+	ParameterDefinitionsPanelViewModel = MakeShared<FNiagaraSystemToolkitParameterDefinitionsPanelViewModel>(SystemViewModel);
+	FSystemToolkitUIContext UIContext = FSystemToolkitUIContext(
+		FSimpleDelegate::CreateSP(ParameterPanelViewModel.ToSharedRef(), &INiagaraImmutableParameterPanelViewModel::Refresh),
+		FSimpleDelegate::CreateSP(ParameterDefinitionsPanelViewModel.ToSharedRef(), &INiagaraImmutableParameterPanelViewModel::Refresh)
+	);
+	ParameterPanelViewModel->Init(UIContext);
+	ParameterDefinitionsPanelViewModel->Init(UIContext);
 
 	// Adding the emitter to the system has made a copy of it and we set this to the copy's change id here instead of the original emitter's change 
 	// id because the copy's change id may have been updated from the original as part of post load and we use this id to detect if the editable 
@@ -540,17 +573,17 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_SystemParameters(const FSpa
 	TSharedRef<SDockTab> SpawnedTab =
 		SNew(SDockTab)
 		[
-			SAssignNew(ParameterMapView, SNiagaraParameterMapView, ObjectSelections, SNiagaraParameterMapView::EToolkitType::SYSTEM, GetToolkitCommands()) //@todo(ng) cleanup
+			SAssignNew(ParameterPanel, SNiagaraParameterPanel, ParameterPanelViewModel, GetToolkitCommands())
 		];
 	RefreshParameters();
 
 	return SpawnedTab;
 }
 
+//@todo(ng) cleanup
 TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_SystemParameters2(const FSpawnTabArgs& Args)
 {
 	check(Args.GetTabId().TabType == SystemParametersTabID2);
-
 
 	TArray<TSharedRef<FNiagaraObjectSelection>> ObjectSelections;
 	ObjectSelections.Add(ObjectSelectionForParameterMapView.ToSharedRef());
@@ -558,9 +591,22 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_SystemParameters2(const FSp
 	TSharedRef<SDockTab> SpawnedTab =
 		SNew(SDockTab)
 		[
-			SAssignNew(ParameterPanel, SNiagaraParameterPanel, ParameterPanelViewModel, GetToolkitCommands())
+			SAssignNew(ParameterMapView, SNiagaraParameterMapView, ObjectSelections, SNiagaraParameterMapView::EToolkitType::SYSTEM, GetToolkitCommands())
 		];
 	RefreshParameters();
+
+	return SpawnedTab;
+}
+
+TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_SystemParameterDefinitions(const FSpawnTabArgs& Args)
+{
+	checkf(Args.GetTabId().TabType == SystemParameterDefinitionsTabID, TEXT("Wrong tab ID in NiagaraScriptToolkit"));
+
+	TSharedRef<SDockTab> SpawnedTab =
+		SNew(SDockTab)
+		[
+			SNew(SNiagaraParameterDefinitionsPanel, ParameterDefinitionsPanelViewModel, GetToolkitCommands())
+		];
 
 	return SpawnedTab;
 }
@@ -1171,123 +1217,31 @@ TSharedRef<SWidget> FNiagaraSystemToolkit::CreateAddEmitterMenuContent()
 	RefreshItemSelectorDelegates.Add(&RefreshItemSelector);
 	FNiagaraAssetPickerListViewOptions ViewOptions;
 	ViewOptions.SetCategorizeUserDefinedCategory(true);
+	ViewOptions.SetCategorizeLibraryAssets(true);
+	ViewOptions.SetAddLibraryOnlyCheckbox(true);
+
+	FNiagaraAssetPickerTabOptions TabOptions;
+	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Template, true);
+	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::None, true);
+	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Behavior, true);
 
 	return SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.Padding(3)
-		.AutoHeight()
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-			.FillWidth(1.0f)
-			.HAlign(HAlign_Right)
-			[
-				SNew(SCheckBox)
-				.OnCheckStateChanged(this, &FNiagaraSystemToolkit::TemplateCheckBoxStateChanged)
-				.IsChecked(this, &FNiagaraSystemToolkit::GetTemplateCheckBoxState)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("TemplateOnly", "Template Only"))
-				]
-			]
-			+ SHorizontalBox::Slot()
-			.Padding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-			.AutoWidth()
-			.HAlign(HAlign_Right)
-			[
-				SNew(SCheckBox)
-		 		.OnCheckStateChanged(this, &FNiagaraSystemToolkit::LibraryCheckBoxStateChanged)
-				.IsChecked(this, &FNiagaraSystemToolkit::GetLibraryCheckBoxState)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("LibraryOnly", "Library Only"))
-				]
-			]
-		]
 		+SVerticalBox::Slot()
 		.FillHeight(1.0f)
 		[
 			SNew(SBox)
-			.HeightOverride(300.f)
-			.WidthOverride(300.f)
+			.WidthOverride(450.f)
+			.HeightOverride(500.f)
 			[
 				SNew(SNiagaraAssetPickerList, UNiagaraEmitter::StaticClass())
 				.ClickActivateMode(EItemSelectorClickActivateMode::SingleClick)
 				.ViewOptions(ViewOptions)
-				.OnDoesAssetPassCustomFilter(this, &FNiagaraSystemToolkit::ShouldFilterEmitter)
+				.TabOptions(TabOptions)
 				.RefreshItemSelectorDelegates(RefreshItemSelectorDelegates)
 				.OnTemplateAssetActivated(this, &FNiagaraSystemToolkit::EmitterAssetSelected)
 			]
 		];
 }
-
-void FNiagaraSystemToolkit::LibraryCheckBoxStateChanged(ECheckBoxState InCheckbox)
-{
-	FNiagaraSystemToolkit::bShowLibraryOnly = (InCheckbox == ECheckBoxState::Checked);
-	RefreshItemSelector.ExecuteIfBound();
-}
-
-ECheckBoxState FNiagaraSystemToolkit::GetLibraryCheckBoxState() const
-{
-	return FNiagaraSystemToolkit::bShowLibraryOnly ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-}
-
-void FNiagaraSystemToolkit::TemplateCheckBoxStateChanged(ECheckBoxState InCheckbox)
-{
-	FNiagaraSystemToolkit::bShowTemplateOnly = (InCheckbox == ECheckBoxState::Checked);
-	RefreshItemSelector.ExecuteIfBound();
-}
-
-ECheckBoxState FNiagaraSystemToolkit::GetTemplateCheckBoxState() const
-{
-	return FNiagaraSystemToolkit::bShowTemplateOnly ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-}
-
-bool FNiagaraSystemToolkit::ShouldFilterEmitter(const FAssetData& AssetData)
-{
-	// Check if library script
-	bool bScriptAllowed = true;
-	bool bInLibrary = false;
-	bool bIsTemplate = false;
-	if (FNiagaraSystemToolkit::bShowLibraryOnly == true)
-	{
-		bool bFoundLibraryTag = AssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bExposeToLibrary), bInLibrary);
-
-		if (bFoundLibraryTag == false)
-		{
-			if (AssetData.IsAssetLoaded())
-			{
-				UNiagaraEmitter* EmitterAsset = static_cast<UNiagaraEmitter*>(AssetData.GetAsset());
-				if (EmitterAsset != nullptr)
-				{
-					bInLibrary = EmitterAsset->bExposeToLibrary;
-				}
-			}
-		}
-		bScriptAllowed &= bInLibrary;
-	}
-	if (FNiagaraSystemToolkit::bShowTemplateOnly == true)
-	{
-		bool bFoundTemplateTag = AssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bIsTemplateAsset), bIsTemplate);
-
-		if (bFoundTemplateTag == false)
-		{
-			if (AssetData.IsAssetLoaded())
-			{
-				UNiagaraEmitter* EmitterAsset = static_cast<UNiagaraEmitter*>(AssetData.GetAsset());
-				if (EmitterAsset != nullptr)
-				{
-					bIsTemplate = EmitterAsset->bIsTemplateAsset;
-				}
-			}
-		}
-		bScriptAllowed &= bIsTemplate;
-	}
-
-	return bScriptAllowed;
-}
-
 
 TSharedRef<SWidget> FNiagaraSystemToolkit::GenerateCompileMenuContent()
 {

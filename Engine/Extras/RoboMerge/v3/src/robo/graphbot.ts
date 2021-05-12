@@ -4,7 +4,7 @@ import * as Sentry from '@sentry/node';
 import { ContextualLogger } from '../common/logger';
 import { Mailer } from '../common/mailer';
 import * as p4util from '../common/p4util';
-import { PerforceContext, Workspace } from '../common/perforce';
+import { PerforceContext, Workspace, StreamSpecs } from '../common/perforce';
 import { AutoBranchUpdater } from './autobranchupdater';
 import { bindBadgeHandler } from './badges';
 import { Bot } from './bot-interfaces';
@@ -35,14 +35,14 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 	reloadAsyncListeners = new Set<ReloadListeners>()
 	autoUpdater: AutoBranchUpdater | null
 
-	private botLogger : ContextualLogger
+	private botLogger: ContextualLogger;
 
 	// separate off into class that only exists while bots are running?
-	private eventTriggers?: BotEventTriggers
+	private eventTriggers?: BotEventTriggers;
 
-	private p4: PerforceContext
+	private p4: PerforceContext;
 
-	constructor(botname: string, private mailer: Mailer, private externalUrl: string) {
+	constructor(botname: string, private mailer: Mailer, private externalUrl: string, allStreamSpecs: StreamSpecs) {
 		if (!GraphBot.dataDirectory) {
 			throw new Error('Data directory must be set before creating a BranchGraph')
 		}
@@ -59,7 +59,7 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 		const fileText = require('fs').readFileSync(branchSettingsPath, 'utf8')
 
 		const validationErrors: string[] = []
-		const result = BranchDefs.parseAndValidate(validationErrors, fileText)
+		const result = BranchDefs.parseAndValidate(validationErrors, fileText, allStreamSpecs)
 		if (!result.branchGraphDef) {
 			throw new Error(validationErrors.length === 0 ? 'Failed to parse' : validationErrors.join('\n'))
 		}

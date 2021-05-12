@@ -18,7 +18,8 @@
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
 				"Win64",
-				"Mac"
+				"Mac",
+				"Android"
 			]
 		},
 		{
@@ -27,7 +28,8 @@
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
 				"Win64",
-				"Mac"
+				"Mac",
+				"Android"
 			]
 		}
 	],

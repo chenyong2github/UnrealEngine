@@ -1120,7 +1120,7 @@ public:
 		// The multiple nested folders make sure that the USD plugin plugInfo.json files can reference their library dlls in the engine folder or in the packaged game folder with the same relative path
 		FString BasePluginPath = FPaths::ConvertRelativePathToFull(
 			FPaths::Combine(
-				FPaths::ProjectDir(), TEXT( "Resources" ), TEXT( "RequiredNestedFolder" ), TEXT( "RequiredNestedFolder" ), TEXT( "RequiredNestedFolder" )
+				FPaths::ProjectDir(), TEXT( "Resources" ), TEXT( "F" ), TEXT( "F" ), TEXT( "F" )
 			)
 		);
 #endif // WITH_EDITOR

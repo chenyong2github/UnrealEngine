@@ -11,6 +11,7 @@
 #include "Tools/SequencerEditTool_Selection.h"
 #include "SequencerTrackNode.h"
 #include "Widgets/Layout/SBox.h"
+#include "EditorStyleSet.h"
 #include "Channels/MovieSceneChannel.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "MovieSceneTimeHelpers.h"
@@ -141,6 +142,18 @@ TSharedPtr<ISequencerEditToolDragOperation> FSectionResizeHotspot::InitiateDrag(
 	return MakeShareable( new FResizeSection(static_cast<FSequencer&>(Sequencer), Sequencer.GetSelection().GetSelectedSections(), HandleType == Right, bIsSlipping) );
 }
 
+const FSlateBrush* FSectionResizeHotspot::GetCursorDecorator(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const
+{
+	if (CursorEvent.IsControlDown())
+	{
+		return FEditorStyle::Get().GetBrush(TEXT("Sequencer.CursorDecorator_Retime"));
+	}
+	else
+	{
+		return ISequencerHotspot::GetCursorDecorator(MyGeometry, CursorEvent);
+	}
+}
+
 TOptional<FFrameNumber> FSectionEasingHandleHotspot::GetTime() const
 {
 	UMovieSceneSection* ThisSection = WeakSection.Get();
@@ -172,6 +185,11 @@ bool FSectionEasingHandleHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder,
 TSharedPtr<ISequencerEditToolDragOperation> FSectionEasingHandleHotspot::InitiateDrag(ISequencer& Sequencer)
 {
 	return MakeShareable( new FManipulateSectionEasing(static_cast<FSequencer&>(Sequencer), WeakSection, HandleType == ESequencerEasingType::In) );
+}
+
+const FSlateBrush* FSectionEasingHandleHotspot::GetCursorDecorator(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const
+{
+	return FEditorStyle::Get().GetBrush(TEXT("Sequencer.CursorDecorator_EasingHandle"));
 }
 
 bool FSectionEasingAreaHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, ISequencer& InSequencer, FFrameTime MouseDownTime)
