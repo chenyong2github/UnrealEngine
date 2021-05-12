@@ -3897,24 +3897,8 @@ void USkeletalMeshComponent::ParallelDuplicateAndInterpolate(FAnimationEvaluatio
 			FAnimationRuntime::LerpBoneTransforms(InAnimEvaluationContext.BoneSpaceTransforms, InAnimEvaluationContext.CachedBoneSpaceTransforms, Alpha, RequiredBones);
 			FillComponentSpaceTransforms(InAnimEvaluationContext.SkeletalMesh, InAnimEvaluationContext.BoneSpaceTransforms, InAnimEvaluationContext.ComponentSpaceTransforms);
 
-			if (INTEL_ISPC)
-			{
-#if INTEL_ISPC
-				ispc::LerpCurves(
-					InAnimEvaluationContext.Curve.CurveWeights.GetData(),
-					InAnimEvaluationContext.Curve.ValidCurveWeights.GetData(),
-					InAnimEvaluationContext.CachedCurve.CurveWeights.GetData(),
-					InAnimEvaluationContext.CachedCurve.ValidCurveWeights.GetData(),
-					InAnimEvaluationContext.Curve.CurveWeights.Num(),
-					Alpha
-				);
-#endif
-			}
-			else
-			{
-				// interpolate curve
-				InAnimEvaluationContext.Curve.LerpTo(InAnimEvaluationContext.CachedCurve, Alpha);
-			}
+			// interpolate curve
+			InAnimEvaluationContext.Curve.LerpTo(InAnimEvaluationContext.CachedCurve, Alpha);
 
 			UE::Anim::Attributes::InterpolateAttributes(InAnimEvaluationContext.CustomAttributes, InAnimEvaluationContext.CachedCustomAttributes, Alpha);
 		}
