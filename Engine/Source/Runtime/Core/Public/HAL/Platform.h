@@ -1014,9 +1014,11 @@ namespace TypeTests
 
 	static_assert(char(-1) < char(0), "Unsigned char type test failed.");
 
-	static_assert((!TAreTypesEqual<ANSICHAR, WIDECHAR>::Value), "ANSICHAR and WIDECHAR should be different types.");
-	static_assert((!TAreTypesEqual<ANSICHAR, UCS2CHAR>::Value), "ANSICHAR and CHAR16 should be different types.");
-	static_assert((!TAreTypesEqual<WIDECHAR, UCS2CHAR>::Value), "WIDECHAR and CHAR16 should be different types.");
+	static_assert((!TAreTypesEqual<ANSICHAR, WIDECHAR>::Value),  "ANSICHAR and WIDECHAR should be different types.");
+	static_assert((!TAreTypesEqual<ANSICHAR, UTF8CHAR>::Value),  "ANSICHAR and UTF8CHAR should be different types.");
+//	static_assert((!TAreTypesEqual<UCS2CHAR, UTF16CHAR>::Value), "UCS2CHAR and UTF16CHAR should be different types."); // should be true - not currently
+	static_assert((!TAreTypesEqual<ANSICHAR, UCS2CHAR>::Value),  "ANSICHAR and CHAR16 should be different types.");
+	static_assert((!TAreTypesEqual<WIDECHAR, UCS2CHAR>::Value),  "WIDECHAR and CHAR16 should be different types.");
 	static_assert((TAreTypesEqual<TCHAR, ANSICHAR>::Value == true || TAreTypesEqual<TCHAR, WIDECHAR>::Value == true), "TCHAR should either be ANSICHAR or WIDECHAR.");
 
 	static_assert(sizeof(uint8) == 1, "uint8 type size test failed.");
@@ -1049,7 +1051,10 @@ namespace TypeTests
 
 	static_assert(sizeof(WIDECHAR) == 2 || sizeof(WIDECHAR) == 4, "WIDECHAR type size test failed.");
 
-	static_assert(sizeof(UCS2CHAR) == 2, "UCS2CHAR type size test failed.");
+	static_assert(sizeof(UTF8CHAR)  == 1, "UTF8CHAR type size test failed.");
+	static_assert(sizeof(UCS2CHAR)  == 2, "UCS2CHAR type size test failed.");
+	static_assert(sizeof(UTF16CHAR) == 2, "UTF16CHAR type size test failed.");
+	static_assert(sizeof(UTF32CHAR) == 4, "UTF32CHAR type size test failed.");
 
 	static_assert(sizeof(PTRINT) == sizeof(void *), "PTRINT type size test failed.");
 	static_assert(PTRINT(-1) < PTRINT(0), "PTRINT type sign test failed.");

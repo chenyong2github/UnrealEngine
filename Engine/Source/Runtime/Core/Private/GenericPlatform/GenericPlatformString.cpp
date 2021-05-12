@@ -12,6 +12,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogGenericPlatformString, Log, All);
 template <> const TCHAR* FGenericPlatformString::GetEncodingTypeName<ANSICHAR>() { return TEXT("ANSICHAR"); }
 template <> const TCHAR* FGenericPlatformString::GetEncodingTypeName<WIDECHAR>() { return TEXT("WIDECHAR"); }
 template <> const TCHAR* FGenericPlatformString::GetEncodingTypeName<UCS2CHAR>() { return TEXT("UCS2CHAR"); }
+template <> const TCHAR* FGenericPlatformString::GetEncodingTypeName<UTF8CHAR>() { return TEXT("UTF8CHAR"); }
 #if PLATFORM_TCHAR_IS_CHAR16
 template <> const TCHAR* FGenericPlatformString::GetEncodingTypeName<wchar_t>() { return TEXT("WCHAR_T"); }
 #endif
