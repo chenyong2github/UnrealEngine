@@ -2,6 +2,8 @@
 
 #include "RemoteControlLogger.h"
 
+#if WITH_EDITOR
+
 #include "IMessageLogListing.h"
 #include "MessageLogModule.h"
 #include "Modules/ModuleManager.h"
@@ -74,3 +76,5 @@ void FRemoteControlLogger::ClearLog() const
 }
 
 #undef LOCTEXT_NAMESPACE
+
+#endif //WITH_EDITOR

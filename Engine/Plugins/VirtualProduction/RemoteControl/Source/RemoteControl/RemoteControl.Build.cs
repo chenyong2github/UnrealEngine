@@ -17,7 +17,6 @@ public class RemoteControl : ModuleRules
 			new string[] {
 				"Cbor",
 				"Engine",
-				"MessageLog",
 				"RemoteControlInterception",
 				"Serialization",
 			}
@@ -29,6 +28,7 @@ public class RemoteControl : ModuleRules
 				new string[] {
 					"DeveloperSettings",
 					"EditorFramework",
+					"MessageLog",
 					"UnrealEd",
 				}
 			);

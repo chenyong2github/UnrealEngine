@@ -2,6 +2,8 @@
 
 #pragma once
 
+#if WITH_EDITOR
+
 #include "CoreMinimal.h"
 
 class IMessageLogListing;
@@ -77,3 +79,5 @@ private:
 	/** Is the logger enabled */
 	bool bIsEnabled = false;
 };
+
+#endif // WITH_EDITOR
