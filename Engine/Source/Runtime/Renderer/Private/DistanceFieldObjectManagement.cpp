@@ -24,8 +24,6 @@
 #include "HAL/LowLevelMemStats.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
-extern void LumenUpdateDFObjectIndex(FScene* Scene, int32 MappingIndex);
-
 float GMeshDistanceFieldsMaxObjectBoundingRadius = 100000;
 FAutoConsoleVariableRef CVarMeshDistanceFieldsMaxObjectBoundingRadius(
 	TEXT("r.DistanceFields.MaxObjectBoundingRadius"),
@@ -259,7 +257,6 @@ void UpdateGlobalDistanceFieldObjectRemoves(FScene* Scene, TArray<FSetElementId>
 
 				DistanceFieldSceneData.PrimitiveInstanceMapping.RemoveAtSwap(RemoveIndex, 1, false);
 
-				LumenUpdateDFObjectIndex(Scene, RemoveIndex);
 				DistanceFieldSceneData.IndicesToUpdateInObjectBuffers.Add(RemoveIndex);
 
 				// Lumen caches distance field indices, which requires an update after a swap
@@ -433,7 +430,6 @@ bool ProcessPrimitiveUpdate(
 						const int32 MappingIndex = DistanceFieldSceneData.PrimitiveInstanceMapping.Add(FPrimitiveAndInstance(LocalToWorld, WorldBounds, PrimitiveSceneInfo, TransformIndex));
 						PrimitiveSceneInfo->DistanceFieldInstanceIndices[TransformIndex] = AddIndex;
 
-						LumenUpdateDFObjectIndex(Scene, MappingIndex);
 						AddModifiedBounds(Scene, CacheType, WorldBounds);
 						LogDistanceFieldUpdate(PrimitiveSceneInfo, BoundingRadius, bIsAddOperation);
 					}

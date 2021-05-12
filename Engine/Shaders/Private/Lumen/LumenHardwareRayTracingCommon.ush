@@ -20,18 +20,6 @@
 #include "../RayTracing/RayTracingLightingCommon.ush"
 #include "LumenHardwareRayTracingPayloadCommon.ush"
 
-// GPU Scene ray-gen utilities
-uint GetGPUSceneInstanceIndex(uint PrimitiveIndex, uint InstanceIndex)
-{
-	// Matching auto-instancing workaround in CL 16210643
-	if (GetPrimitiveData(PrimitiveIndex).NumInstanceDataEntries == 1)
-	{
-		InstanceIndex = 0;
-	}
-
-	return GetPrimitiveData(PrimitiveIndex).InstanceDataOffset + InstanceIndex;
-}
-
 float3 CalcPrevWorldPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPUSceneInstanceIndex)
 {
 	FInstanceSceneData InstanceSceneData = GetInstanceData(GPUSceneInstanceIndex, View.InstanceDataSOAStride);
@@ -46,8 +34,6 @@ float3 CalcLocalPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPU
 	float3 LocalPosition = mul(float4(WorldPosition, 1), InstanceSceneData.WorldToLocal).xyz;
 	return LocalPosition;
 }
-
-#define HIDE_INVALID_SDF 0
 
 // Lighting modes
 #define LIGHTING_FROM_SURFACE_CACHE 0
@@ -173,7 +159,7 @@ float3 CalculateSurfaceCacheLighting(
 	float3 RayHitWorldNormal,
 	bool bAccurateHit,
 	float HitDistance,
-	int DFObjectIndex,
+	uint SceneInstanceIndex,
 	float3 DiffuseColor,
 	int LightingMode
 )
@@ -188,7 +174,7 @@ float3 CalculateSurfaceCacheLighting(
 
 	float3 ResidualLighting = SampleLumenMeshCards(
 		Context.TraceCoord,
-		DFObjectIndex,
+		SceneInstanceIndex,
 		RayHitWorldPosition,
 		RayHitWorldNormal,
 		InterpolateRadius,
@@ -249,7 +235,7 @@ float3 CalculateRayTracedLightingFromSurfaceCache(
 	in FRayTracedLightingContext Context,
 	FLumenMinimalPayload Payload,
 	float HitDistance,
-	int DFObjectIndex
+	uint SceneInstanceIndex
 )
 {
 	float3 Radiance = 0;
@@ -258,7 +244,7 @@ float3 CalculateRayTracedLightingFromSurfaceCache(
 	float3 RayHitWorldNormal = Payload.GetWorldNormal();
 	float3 RayHitWorldPosition = Ray.Origin + Ray.Direction * HitDistance;
 	float3 DiffuseColor = 0;
-	Radiance += CalculateSurfaceCacheLighting(Ray, Context, RayHitWorldPosition, RayHitWorldNormal, bAccurateHit, HitDistance, DFObjectIndex, DiffuseColor, LIGHTING_FROM_SURFACE_CACHE);
+	Radiance += CalculateSurfaceCacheLighting(Ray, Context, RayHitWorldPosition, RayHitWorldNormal, bAccurateHit, HitDistance, SceneInstanceIndex, DiffuseColor, LIGHTING_FROM_SURFACE_CACHE);
 	return Radiance;
 }
 
@@ -267,7 +253,7 @@ float3 CalculateRayTracedLighting(
 	in FRayTracedLightingContext Context,
 	inout FPackedMaterialClosestHitPayload Payload,
 	float HitDistance,
-	int DFObjectIndex,
+	uint SceneInstanceIndex,
 	int LightingMode
 )
 {
@@ -283,11 +269,9 @@ float3 CalculateRayTracedLighting(
 		Radiance += CalculateDirectLighting(Ray, Context, Payload, RayHitWorldPosition, RayHitWorldNormal);
 	}
 
-	if (DFObjectIndex != INVALID_DISTANCE_FIELD_OBJECT_INDEX)
-	{
-		float3 DiffuseColor = Payload.GetDiffuseColor();
-		Radiance += CalculateSurfaceCacheLighting(Ray, Context, RayHitWorldPosition, RayHitWorldNormal, bAccurateHit, HitDistance, DFObjectIndex, DiffuseColor, LightingMode);
-	}
+	float3 DiffuseColor = Payload.GetDiffuseColor();
+	Radiance += CalculateSurfaceCacheLighting(Ray, Context, RayHitWorldPosition, RayHitWorldNormal, bAccurateHit, HitDistance, SceneInstanceIndex, DiffuseColor, LightingMode);
+
 	return Radiance;
 }
 
@@ -329,40 +313,10 @@ bool TraceAndCalculateRayTracedLighting(
 	bool bIsRTHit = Payload.IsHit();
 	if (bIsRTHit)
 	{
-		int DFObjectIndex = Payload.GetDistanceFieldObjectIndex();
-
-#if HIDE_INVALID_SDF
-		while (bIsRTHit && DFObjectIndex != INVALID_DISTANCE_FIELD_OBJECT_INDEX)
-		{
-			float Epsilon = 0.01;
-			Ray.TMin = Payload.HitT + Epsilon;
-			// Reset payload flag settings for the new trace
-			Payload.SetLumenPayload();
-			Payload.SetIgnoreTranslucentMaterials();
-			if (LightingMode == LIGHTING_FROM_SURFACE_CACHE)
-			{
-				Payload.SetMinimalPayloadMode();
-			}
-
-			// Trace visibility ray
-			TraceMaterialRayPacked(
-				Payload,
-				Context.TLAS,
-				RayFlags,
-				InstanceMask,
-				Ray,
-				Context.RayCone,
-				Context.TraceCoord,
-				bEnableSkyLightContribution);
-			bIsRTHit = Payload.IsHit();
-			DFObjectIndex = Payload.GetDistanceFieldObjectIndex();
-		}
-#else
+		uint SceneInstanceIndex = Payload.GetSceneInstanceIndex();
 		HitDistance = Payload.HitT;
 		bHit = true;
-#endif
-
-		Radiance = CalculateRayTracedLighting(Ray, Context, Payload, HitDistance, DFObjectIndex, LightingMode);
+		Radiance = CalculateRayTracedLighting(Ray, Context, Payload, HitDistance, SceneInstanceIndex, LightingMode);
 	}
 
 	return bHit;
@@ -401,11 +355,8 @@ bool TraceAndCalculateRayTracedLightingFromSurfaceCache(
 			WorldVelocity = WorldPosition - CalcPrevWorldPositionFromGPUSceneInstanceIndex(WorldPosition, GPUSceneInstanceIndex);
 		}
 
-		int DFObjectIndex = GetLumenDistanceFieldObjectIndex(Payload.GetPrimitiveIndex(), Payload.GetInstanceIndex());
-		if (DFObjectIndex != INVALID_DISTANCE_FIELD_OBJECT_INDEX)
-		{
-			Radiance = CalculateRayTracedLightingFromSurfaceCache(Ray, Context, Payload, TraceHitDistance, DFObjectIndex);
-		}
+		uint SceneInstanceIndex = GetGPUSceneInstanceIndex(Payload.GetPrimitiveIndex(), Payload.GetInstanceIndex());
+		Radiance = CalculateRayTracedLightingFromSurfaceCache(Ray, Context, Payload, TraceHitDistance, SceneInstanceIndex);
 	}
 	else
 	{

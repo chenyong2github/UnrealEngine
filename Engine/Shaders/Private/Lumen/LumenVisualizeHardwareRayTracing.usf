@@ -133,16 +133,13 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 						float4 ScreenPosition = mul(float4(WorldPosition, 1.0), View.WorldToClip);
 						float4 PrevScreenPosition = mul(float4(PrevWorldPosition, 1.0), View.WorldToClip);
 						float3 ScreenVelocity = Calculate3DVelocity(ScreenPosition, PrevScreenPosition);
-						Radiance = EncodeVelocityToTexture(ScreenVelocity);
+						Radiance = EncodeVelocityToTexture(ScreenVelocity).xyz;
 						Radiance *= View.OneOverPreExposure;
 					}
 					else // Visualize surface-cache property
 					{
-						int DFObjectIndex = GetLumenDistanceFieldObjectIndex(Payload.GetPrimitiveIndex(), Payload.GetInstanceIndex());
-						if (DFObjectIndex != INVALID_DISTANCE_FIELD_OBJECT_INDEX)
-						{
-							Radiance = CalculateRayTracedLightingFromSurfaceCache(Ray, Context, Payload, Payload.HitT, DFObjectIndex);
-						}
+						uint GPUSceneInstanceIndex = GetGPUSceneInstanceIndex(Payload.GetPrimitiveIndex(), Payload.GetInstanceIndex());
+						Radiance = CalculateRayTracedLightingFromSurfaceCache(Ray, Context, Payload, Payload.HitT, GPUSceneInstanceIndex);
 					}
 				}
 			}

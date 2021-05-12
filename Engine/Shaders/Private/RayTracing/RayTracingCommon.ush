@@ -501,9 +501,9 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	float3 GetSpecularColor() { return ComputeF0(GetSpecular(), GetBaseColor(), GetMetallic()); }
 
 	// Member function for (IsLumenPayload() == 1)
-	void SetDistanceFieldObjectIndex(int DistanceFieldObjectIndex)
+	void SetSceneInstanceIndex(uint GPUSceneInstanceIndex)
 	{
-		PackedCustomData = asuint(DistanceFieldObjectIndex);
+		PackedCustomData = GPUSceneInstanceIndex;
 	}
 
 	void SetGeometryNormal(float3 GeometryNormal)
@@ -513,7 +513,7 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 		RadianceAndNormal[2] |= f32tof16(GeometryNormal.z) << 16;
 	}
 
-	int GetDistanceFieldObjectIndex() { return asint(PackedCustomData); }
+	int GetSceneInstanceIndex() { return PackedCustomData; }
 	float3 GetGeometryNormal() { return GetWorldNormal(); }
 
 	// These method are meant to be used only when IsPathTracingVisibilityRay() is true

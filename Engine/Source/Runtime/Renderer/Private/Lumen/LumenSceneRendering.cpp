@@ -1508,7 +1508,7 @@ void UpdateSurfaceCachePrimitives(
 			FLumenPrimitive& LumenPrimitive = LumenSceneData.LumenPrimitives[MeshCardsRemove.LumenPrimitiveIndex];
 			FLumenPrimitiveInstance& LumenPrimitiveInstance = LumenPrimitive.Instances[MeshCardsRemove.LumenInstanceIndex];
 
-			LumenSceneData.RemoveMeshCards(LumenPrimitive, LumenPrimitiveInstance);
+			LumenSceneData.RemoveMeshCards(LumenPrimitive.Primitive->GetIndex(), LumenPrimitive, LumenPrimitiveInstance);
 		}
 	}
 
@@ -1819,6 +1819,7 @@ void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scen
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
 	OutParameters.NumCards = LumenSceneData.Cards.Num();
+	OutParameters.NumMeshCards = LumenSceneData.MeshCards.Num();
 	OutParameters.NumCardPages = LumenSceneData.GetNumCardPages();
 	OutParameters.MaxConeSteps = GLumenGIMaxConeSteps;	
 	OutParameters.PhysicalAtlasSize = LumenSceneData.GetPhysicalAtlasSize();
@@ -1865,6 +1866,15 @@ void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scen
 		OutParameters.PageTableBuffer = GNullCardBuffers.CardData.SRV;
 	}
 
+	if (LumenSceneData.SceneInstanceIndexToMeshCardsIndexBuffer.SRV)
+	{
+		OutParameters.SceneInstanceIndexToMeshCardsIndexBuffer = LumenSceneData.SceneInstanceIndexToMeshCardsIndexBuffer.SRV;
+	}
+	else
+	{
+		OutParameters.SceneInstanceIndexToMeshCardsIndexBuffer = GNullCardBuffers.CardData.SRV;
+	}
+
 	if (LumenSceneData.AlbedoAtlas.IsValid())
 	{
 		OutParameters.AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas, TEXT("Lumen.SceneAlbedo"));
@@ -1882,7 +1892,6 @@ void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scen
 	}
 	
 	OutParameters.MeshCardsData = LumenSceneData.MeshCardsBuffer.SRV;
-	OutParameters.DFObjectToMeshCardsIndexBuffer = LumenSceneData.DFObjectToMeshCardsIndexBuffer.SRV;
 }
 
 DECLARE_GPU_STAT(UpdateCardSceneBuffer);
@@ -1955,26 +1964,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardPassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
-
-void Lumen::SetupViewUniformBufferParameters(FScene* Scene, FViewUniformShaderParameters& ViewUniformShaderParameters)
-{
-	// #lumen_todo: Rename ViewUniformShaderParameters LumenInstance to LumenDFInstance in a separate CL
-	if (Scene && Scene->LumenSceneData && Scene->LumenSceneData->PrimitiveToLumenDFInstanceOffsetBufferSize > 0)
-	{
-		FLumenSceneData* LumenSceneData = Scene->LumenSceneData;
-		ViewUniformShaderParameters.PrimitiveToLumenInstanceOffsetBuffer = LumenSceneData->PrimitiveToDFLumenInstanceOffsetBuffer.SRV;
-		ViewUniformShaderParameters.PrimitiveToLumenInstanceOffsetBufferSize = LumenSceneData->PrimitiveToLumenDFInstanceOffsetBufferSize;
-		ViewUniformShaderParameters.LumenInstanceToDFObjectIndexBuffer = LumenSceneData->LumenDFInstanceToDFObjectIndexBuffer.SRV;
-		ViewUniformShaderParameters.LumenInstanceToDFObjectIndexBufferSize = LumenSceneData->LumenDFInstanceToDFObjectIndexBufferSize;
-	}
-	else
-	{
-		ViewUniformShaderParameters.PrimitiveToLumenInstanceOffsetBuffer = GIdentityPrimitiveBuffer.InstanceSceneDataBufferSRV;
-		ViewUniformShaderParameters.PrimitiveToLumenInstanceOffsetBufferSize = 0;
-		ViewUniformShaderParameters.LumenInstanceToDFObjectIndexBuffer = GIdentityPrimitiveBuffer.InstanceSceneDataBufferSRV;
-		ViewUniformShaderParameters.LumenInstanceToDFObjectIndexBufferSize = 0;
-	}
-}
 
 FIntPoint FLumenSceneData::GetCardCaptureAtlasSizeInPages() const
 {
@@ -2122,10 +2111,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 		RDG_EVENT_SCOPE(GraphBuilder, "LumenSceneUpdate: %u card captures %.3fM texels", CardPagesToRender.Num(), LumenCardRenderer.NumCardTexelsToCapture / (1024.0f * 1024.0f));
 
 		Lumen::UpdateCardSceneBuffer(GraphBuilder.RHICmdList, ViewFamily, Scene);
-
-		// Recreate the view uniform buffer now that we have updated Lumen's primitive mapping buffers
-		Lumen::SetupViewUniformBufferParameters(Scene, *View.CachedViewUniformShaderParameters);
-		View.ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*View.CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 
 		// Init transient render targets for capturing cards
 		FCardCaptureAtlas CardCaptureAtlas;
@@ -2337,7 +2322,11 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 
 			for (FCardPageRenderData& CardPageRenderData : CardPagesToRender)
 			{
-				bAnyNaniteMeshes = bAnyNaniteMeshes || CardPageRenderData.NaniteInstanceIds.Num() > 0 || CardPageRenderData.bDistantScene;
+				if (CardPageRenderData.NaniteCommandInfos.Num() > 0 && CardPageRenderData.NaniteInstanceIds.Num() > 0)
+				{
+					bAnyNaniteMeshes = true;
+					break;
+				}
 			}
 
 			if (UseNanite(ShaderPlatform) && ViewFamily.EngineShowFlags.NaniteMeshes && bAnyNaniteMeshes)
@@ -2553,5 +2542,4 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 	LumenSceneData.CardIndicesToUpdateInBuffer.Empty(1024);
 	LumenSceneData.MeshCardsIndicesToUpdateInBuffer.Empty(1024);
-	LumenSceneData.DFObjectIndicesToUpdateInBuffer.Empty(1024);
 }

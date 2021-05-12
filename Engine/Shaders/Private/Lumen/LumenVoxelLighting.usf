@@ -508,7 +508,7 @@ void VisBufferShadingCS(
 
 				float4 LightingAndWeight = SampleLumenMeshCardsWithWeight(
 					ScreenCoord,
-					TraceMeshSDFResult.HitObject,
+					TraceSDFData.SceneInstanceIndex,
 					InterpolatePosition,
 					-RayDirection,
 					InterpolateRadius,
