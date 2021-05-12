@@ -1281,6 +1281,7 @@ TArray<TArray<FVector2D>> FGeomTools2D::ReducePolygons(const TArray<TArray<FVect
 
 void FGeomTools2D::CorrectPolygonWinding(TArray<FVector2D>& OutVertices, const TArray<FVector2D>& Vertices, const bool bNegativeWinding)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FGeomTools2D::CorrectPolygonWinding);
 	if (Vertices.Num() >= 3)
 	{
 		// Make sure the polygon winding is correct
@@ -1419,6 +1420,7 @@ static bool AreEdgesMergeable(const FVector2D& V0, const FVector2D& V1, const FV
 // Expected input - PolygonVertices in CCW order, not overlapping
 bool FGeomTools2D::TriangulatePoly(TArray<FVector2D>& OutTris, const TArray<FVector2D>& InPolyVerts, bool bKeepColinearVertices)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FGeomTools2D::TriangulatePoly);
 	// Can't work if not enough verts for 1 triangle
 	if (InPolyVerts.Num() < 3)
 	{
@@ -1522,6 +1524,7 @@ bool FGeomTools2D::TriangulatePoly(TArray<FVector2D>& OutTris, const TArray<FVec
 // 2D version of GeomTools RemoveRedundantTriangles
 void FGeomTools2D::RemoveRedundantTriangles(TArray<FVector2D>& OutTriangles, const TArray<FVector2D>& InTriangleVertices)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FGeomTools2D::RemoveRedundantTriangles);
 	struct FLocalTriangle
 	{
 		int VertexA, VertexB, VertexC;
@@ -1569,6 +1572,7 @@ void FGeomTools2D::RemoveRedundantTriangles(TArray<FVector2D>& OutTriangles, con
 // Find convex polygons from triangle soup
 void FGeomTools2D::GenerateConvexPolygonsFromTriangles(TArray<TArray<FVector2D>>& OutPolygons, const TArray<FVector2D>& InTriangleVertices)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FGeomTools2D::GenerateConvexPolygonsFromTriangles);
 	struct FLocalTriangle
 	{
 		int VertexA, VertexB, VertexC;
