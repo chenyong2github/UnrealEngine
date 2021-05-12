@@ -157,6 +157,13 @@ TStridedView<ElementType> MakeStridedView(int32 BytesBetweenElements, ElementTyp
 	return TStridedView<ElementType>(BytesBetweenElements, FirstElement, Count);
 }
 
+template <typename BaseStructureType, typename DerivedStructureType>
+TStridedView<BaseStructureType> MakeStridedViewOfBase(TArrayView<DerivedStructureType> StructuredView)
+{
+	static_assert(TIsDerivedFrom<DerivedStructureType, BaseStructureType>::IsDerived, "Expecting derived structure type");
+	return MakeStridedView<BaseStructureType>((int32)sizeof(DerivedStructureType), GetData(StructuredView), (int32)GetNum(StructuredView));
+}
+
 template <typename StructureType>
 TStridedView<StructureType> MakeStridedView(TArrayView<StructureType> StructuredView)
 {

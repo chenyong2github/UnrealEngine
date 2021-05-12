@@ -265,15 +265,20 @@ bool FStridedViewTest::RunTest(const FString& Parameters)
 
 		// Explicitly construct view of base from derived
 		TStridedView<FMyStruct> ViewDerivedAsBase(sizeof(StructsDerived[0]), &static_cast<FMyStruct&>(StructsDerived[0]), Num);
+		TStridedView<FMyStruct> ViewDerivedAsBase2 = MakeStridedViewOfBase<FMyStruct>(MakeArrayView(StructsDerived));
 
 		TestEqual(TEXT("ViewDerived.GetStride()"), ViewDerived.GetStride(), (int32)sizeof(FMyStructDerived));
 		TestEqual(TEXT("ViewDerivedAsBase.GetStride()"), ViewDerivedAsBase.GetStride(), (int32)sizeof(FMyStructDerived));
+		TestEqual(TEXT("ViewDerivedAsBase2.GetStride()"), ViewDerivedAsBase2.GetStride(), (int32)sizeof(FMyStructDerived));
 
 		// Incorrect API usage : implicit conversion of derived view to base. Generates compile error (as expected).
 		// FVector Avg = ComputeMeanPositionStrided(ViewDerived);
 
 		FVector AvgDerivedAsBase = ComputeMeanPositionStrided(ViewDerivedAsBase);
 		TestEqual(TEXT("ComputeMeanPositionStrided(ViewDerivedAsBase)"), AvgDerivedAsBase, ExpectedAvg);
+
+		FVector AvgDerivedAsBase2 = ComputeMeanPositionStrided(ViewDerivedAsBase2);
+		TestEqual(TEXT("ComputeMeanPositionStrided(ViewDerivedAsBase2)"), AvgDerivedAsBase2, ExpectedAvg);
 	}
 
 	{
