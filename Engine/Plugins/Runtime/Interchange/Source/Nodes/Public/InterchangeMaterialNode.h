@@ -10,6 +10,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInterface.h"
+#include "Engine/Texture.h"
 
 #endif
 

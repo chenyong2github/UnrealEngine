@@ -1709,6 +1709,7 @@ TUniquePtr<FChaosVehicleAsyncOutput> FChaosVehicleDefaultAsyncInput::Simulate(UW
 /************************************************************************/
 void UChaosVehicleMovementComponent::Update(float DeltaTime)
 {
+#if WITH_CHAOS
 	if (CurAsyncInput)
 	{
 		if (const FBodyInstance* BodyInstance = GetBodyInstance())
@@ -1742,6 +1743,7 @@ void UChaosVehicleMovementComponent::Update(float DeltaTime)
 			}
 		}
 	}
+#endif
 }
 
 void UChaosVehicleMovementComponent::FinalizeSimCallbackData(FChaosVehicleManagerAsyncInput& Input)

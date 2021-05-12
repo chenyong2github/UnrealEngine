@@ -566,8 +566,8 @@ void ConvertQueryOverlap(const FPhysicsShape& Shape, const FPhysicsActor& Actor,
 		TWeakObjectPtr<UPrimitiveComponent> OwnerComponent = CustomPayload->GetOwningComponent();
 		if (UPrimitiveComponent* OwnerComponentRaw = OwnerComponent.Get())
 		{
-			OutOverlap.Actor = OwnerComponentRaw->GetOwner();
 			OutOverlap.Component = OwnerComponent; // Copying weak pointer is faster than assigning raw pointer.
+			OutOverlap.OverlapObjectHandle = FActorInstanceHandle(OutOverlap.Component->GetOwner());
 			OutOverlap.ItemIndex = OwnerComponent->bMultiBodyOverlap ? CustomPayload->GetItemIndex() : INDEX_NONE;
 		}
 	}

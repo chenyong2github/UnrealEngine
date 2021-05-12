@@ -594,6 +594,7 @@ void FPhysScene_Chaos::RemoveObject(FSingleParticlePhysicsProxy* InObject)
 
 void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 {
+#if WITH_CHAOS
 	Chaos::FPhysicsSolver* Solver = InObject->GetSolver<Chaos::FPhysicsSolver>();
 
 	for (TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>>& GTParticleUnique : InObject->GetExternalParticles())
@@ -612,6 +613,7 @@ void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 	}
 
 	RemoveFromComponentMaps(InObject);
+#endif
 }
 
 FPhysicsReplication* FPhysScene_Chaos::GetPhysicsReplication()

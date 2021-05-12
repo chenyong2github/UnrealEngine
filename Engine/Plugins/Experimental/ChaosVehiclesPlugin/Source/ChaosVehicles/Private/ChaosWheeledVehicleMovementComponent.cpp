@@ -1552,6 +1552,7 @@ void UChaosWheeledVehicleMovementComponent::Update(float DeltaTime)
 {
 	UChaosVehicleMovementComponent::Update(DeltaTime);
 
+#if WITH_CHAOS
 	if (CurAsyncInput)
 	{
 		if (const FBodyInstance* BodyInstance = GetBodyInstance())
@@ -1572,6 +1573,7 @@ void UChaosWheeledVehicleMovementComponent::Update(float DeltaTime)
 			}
 		}
 	}
+#endif
 }
 
 
