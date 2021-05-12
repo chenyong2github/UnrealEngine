@@ -3002,8 +3002,8 @@ namespace Perforce.P4
                 string jobview = string.Empty;
                 List<string> reviews = new List<string>();
                 UserType type = UserType.Standard;
-                FormSpec spec = new FormSpec(null, null, null, null, null, null, null);
-                User user = new User(id, fullname, password, emailaddress, updated, accessed, jobview, reviews, type, spec);
+                FormSpec spec = new FormSpec(null, null, null, null, null, null, null, null, null);
+                User user = new User(id, fullname, password, emailaddress, updated, accessed, jobview, "perforce", reviews, type, spec);
                 value.Add(user);
             }
             return value;

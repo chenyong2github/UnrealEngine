@@ -45,7 +45,7 @@ namespace Perforce.P4
 
     public class P4Debugging
     {
-		const string bridgeDll = "p4bridge.dll";
+		const string bridgeDll = "p4bridge";
 		static P4Debugging()
 		{
 			Assembly p4apinet = Assembly.GetExecutingAssembly();
@@ -56,6 +56,7 @@ namespace Perforce.P4
 			// only set this path if it is Any CPU (ILOnly)
 			if (peKind.ToString() == "ILOnly")
 			{
+				/*
 				string currentArchSubPath = "x86";
 
 				// Is this a 64 bits process?
@@ -64,11 +65,14 @@ namespace Perforce.P4
 					currentArchSubPath = "x64";
 				}
 				SetDllDirectory(currentArchSubPath);
+				*/
 			}
 		}
 
-		[DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-		static extern bool SetDllDirectory(string lpPathName);
+		// EPIC BEGIN
+		//[DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+		//static extern bool SetDllDirectory(string lpPathName);
+		// EPIC END
 
 		/* object allocation debugging functions, mostly for testing */
 		[DllImport(bridgeDll, CallingConvention = CallingConvention.Cdecl)]
@@ -258,7 +262,7 @@ namespace Perforce.P4
  * 
  **********************************************************************/
 
-        const string bridgeDll = "p4bridge.dll";
+        const string bridgeDll = "p4bridge";
 
 		static P4Bridge()
 		{
@@ -270,6 +274,7 @@ namespace Perforce.P4
 			// only set this path if it is Any CPU (ILOnly)
 			if (peKind.ToString()=="ILOnly")
 			{
+				/*
 				string currentArchSubPath = "x86";
 
 				// Is this a 64 bits process?
@@ -278,11 +283,12 @@ namespace Perforce.P4
 					currentArchSubPath = "x64";
 				}
 				SetDllDirectory(currentArchSubPath);
+				*/
 			}
 		}
 
-		[DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-		static extern bool SetDllDirectory(string lpPathName);
+		//[DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+		//static extern bool SetDllDirectory(string lpPathName);
 
 		/// <summary>
 		/// Create a new P4BridgeServer in the DLL and connect to the 
@@ -800,6 +806,10 @@ namespace Perforce.P4
 			CharSet = CharSet.Ansi)]
 		public static extern
 			void SetDataSetA(IntPtr pServer, uint cmdId, String data);
+
+		// Epic
+		[DllImport(bridgeDll, EntryPoint = "SetConnectionHost", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+		public static extern void SetConnectionHost(IntPtr pServer, String hostname);
 
 		/// <summary>
 		/// Read the data set
@@ -1474,7 +1484,7 @@ namespace Perforce.P4
 	/// </summary>
 	internal class P4ClientMergeBridge
 	{
-		const string bridgeDll = "p4bridge.dll";
+		const string bridgeDll = "p4bridge";
 		static P4ClientMergeBridge()
 		{
 			Assembly p4apinet = Assembly.GetExecutingAssembly();
@@ -1485,6 +1495,7 @@ namespace Perforce.P4
 			// only set this path if it is Any CPU (ILOnly)
 			if (peKind.ToString() == "ILOnly")
 			{
+				/*
 				string currentArchSubPath = "x86";
 
 				// Is this a 64 bits process?
@@ -1493,11 +1504,12 @@ namespace Perforce.P4
 					currentArchSubPath = "x64";
 				}
 				SetDllDirectory(currentArchSubPath);
+				*/
 			}
 		}
 
-		[DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-		static extern bool SetDllDirectory(string lpPathName);
+		//[DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+		//static extern bool SetDllDirectory(string lpPathName);
 
 		[DllImport(bridgeDll, CallingConvention = CallingConvention.Cdecl, EntryPoint = "CM_AutoResolve")]
 		public static extern int AutoResolve(IntPtr pObj, int forceMerge);
@@ -1577,7 +1589,7 @@ namespace Perforce.P4
 	/// </summary>
 	internal class P4ClientResolveBridge
 	{
-		const string bridgeDll = "p4bridge.dll";
+		const string bridgeDll = "p4bridge";
 		static P4ClientResolveBridge()
 		{
 			Assembly p4apinet = Assembly.GetExecutingAssembly();
@@ -1588,6 +1600,7 @@ namespace Perforce.P4
 			// only set this path if it is Any CPU (ILOnly)
 			if (peKind.ToString() == "ILOnly")
 			{
+				/*
 				string currentArchSubPath = "x86";
 
 				// Is this a 64 bits process?
@@ -1596,11 +1609,12 @@ namespace Perforce.P4
 					currentArchSubPath = "x64";
 				}
 				SetDllDirectory(currentArchSubPath);
+				*/
 			}
 		}
 
-		[DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-		static extern bool SetDllDirectory(string lpPathName);
+		//[DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+		//static extern bool SetDllDirectory(string lpPathName);
 
 		[DllImport(bridgeDll, CallingConvention = CallingConvention.Cdecl, EntryPoint = "CR_AutoResolve")]
 		public static extern int AutoResolve(IntPtr pObj, int force);

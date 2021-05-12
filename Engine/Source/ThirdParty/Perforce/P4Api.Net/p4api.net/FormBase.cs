@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Runtime.InteropServices;
 
 namespace Perforce.P4
 {
@@ -238,8 +239,13 @@ namespace Perforce.P4
         public static bool DSTMismatch(ServerMetaData smd)
         {
             DateTime serverDate = smd.Date;
-            bool UTC_dst =
-                TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time").IsDaylightSavingTime(serverDate);
+
+			string timeZoneId = "GMT Standard Time";
+			if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			{
+				timeZoneId = "Europe/London";
+			}
+            bool UTC_dst = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId).IsDaylightSavingTime(serverDate);
             bool server_dst = serverDate.IsDaylightSavingTime();
             if (server_dst && !UTC_dst)
             {
