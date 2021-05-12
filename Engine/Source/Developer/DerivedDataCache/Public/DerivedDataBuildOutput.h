@@ -5,13 +5,12 @@
 #include "CoreTypes.h"
 #include "Containers/ArrayView.h"
 #include "Containers/StringView.h"
+#include "Templates/Function.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 
 class FCbObject;
 class FCbWriter;
-
-template <typename FuncType> class TFunctionRef;
 
 namespace UE::DerivedData { class FBuildOutput; }
 namespace UE::DerivedData { class FBuildOutputBuilder; }
@@ -30,10 +29,10 @@ public:
 	virtual FStringView GetName() const = 0;
 	virtual FStringView GetFunction() const = 0;
 	virtual const FCbObject& GetMeta() const = 0;
-	virtual bool HasError() const = 0;
-	virtual void IterateDiagnostics(TFunctionRef<void (const FBuildDiagnostic& Diagnostic)> Visitor) const = 0;
 	virtual const FPayload& GetPayload(const FPayloadId& Id) const = 0;
 	virtual TConstArrayView<FPayload> GetPayloads() const = 0;
+	virtual void IterateDiagnostics(TFunctionRef<void (const FBuildDiagnostic& Diagnostic)> Visitor) const = 0;
+	virtual bool HasError() const = 0;
 	virtual void Save(FCbWriter& Writer) const = 0;
 	virtual void Save(FCacheRecordBuilder& RecordBuilder) const = 0;
 	virtual void AddRef() const = 0;
@@ -48,9 +47,9 @@ class IBuildOutputBuilderInternal
 public:
 	virtual ~IBuildOutputBuilderInternal() = default;
 	virtual void SetMeta(FCbObject&& Meta) = 0;
-	virtual bool HasError() const = 0;
-	virtual void AddDiagnostic(const FBuildDiagnostic& Diagnostic) = 0;
 	virtual void AddPayload(const FPayload& Payload) = 0;
+	virtual void AddDiagnostic(const FBuildDiagnostic& Diagnostic) = 0;
+	virtual bool HasError() const = 0;
 	virtual FBuildOutput Build() = 0;
 };
 
@@ -100,20 +99,20 @@ public:
 	/** Returns the optional metadata. */
 	inline const FCbObject& GetMeta() const { return Output->GetMeta(); }
 
-	/** Returns whether the output has any error diagnostics. */
-	inline bool HasError() const { return Output->HasError(); }
+	/** Returns the payload matching the ID. Null if no match. Buffer is null if skipped. */
+	inline const FPayload& GetPayload(const FPayloadId& Id) const { return Output->GetPayload(Id); }
 
 	/** Returns the payloads in the output in order by ID. */
 	inline TConstArrayView<FPayload> GetPayloads() const { return Output->GetPayloads(); }
-
-	/** Returns the payload matching the ID. Null if no match. Buffer is null if skipped. */
-	inline const FPayload& GetPayload(const FPayloadId& Id) const { return Output->GetPayload(Id); }
 
 	/** Visits every diagnostic in the order it was recorded. */
 	inline void IterateDiagnostics(TFunctionRef<void (const FBuildDiagnostic& Diagnostic)> Visitor) const
 	{
 		Output->IterateDiagnostics(Visitor);
 	}
+
+	/** Returns whether the output has any error diagnostics. */
+	inline bool HasError() const { return Output->HasError(); }
 
 	/** Saves the build output to a compact binary object with payloads as attachments. */
 	void Save(FCbWriter& Writer) const
@@ -149,12 +148,6 @@ private:
 class FBuildOutputBuilder
 {
 public:
-	/** Returns whether the output has any error diagnostics. */
-	inline bool HasError() const
-	{
-		return OutputBuilder->HasError();
-	}
-
 	/** Set the metadata for the build output. Holds a reference and is cloned if not owned. */
 	inline void SetMeta(FCbObject&& Meta)
 	{
@@ -177,6 +170,12 @@ public:
 	inline void AddWarning(FStringView Category, FStringView Message)
 	{
 		OutputBuilder->AddDiagnostic({Category, Message, EBuildDiagnosticLevel::Warning});
+	}
+
+	/** Returns whether the output has any error diagnostics. */
+	inline bool HasError() const
+	{
+		return OutputBuilder->HasError();
 	}
 
 	/** Build a build output, which makes this builder subsequently unusable. */

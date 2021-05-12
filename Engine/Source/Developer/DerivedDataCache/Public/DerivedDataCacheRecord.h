@@ -6,11 +6,11 @@
 #include "DerivedDataPayload.h"
 #include "DerivedDataRequest.h"
 #include "Memory/SharedBuffer.h"
+#include "Templates/Function.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 
 class FCbObject;
-template <typename FuncType> class TUniqueFunction;
 
 namespace UE::DerivedData { class FCacheRecord; }
 namespace UE::DerivedData { class FCacheRecordBuilder; }

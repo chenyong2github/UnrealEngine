@@ -9,7 +9,7 @@
 namespace UE::DerivedData
 {
 
-/** Base for the build function factory. DO NOT USE DIRECTLY. Use TBuildFunctionFactory. */
+/** DO NOT USE DIRECTLY. Base for the build function factory. Use TBuildFunctionFactory. */
 class IBuildFunctionFactory : public IModularFeature
 {
 public:
