@@ -29,6 +29,7 @@
 #include "IDetailsView.h"
 #include "IPersonaPreviewScene.h"
 #include "IPersonaToolkit.h"
+#include "IPersonaViewport.h"
 #include "ISkeletalMeshEditorModule.h"
 #include "ISkeletonEditorModule.h"
 #include "ISkeletonTree.h"
@@ -703,6 +704,24 @@ void FSkeletalMeshEditor::OnToolkitHostingFinished(const TSharedRef<IToolkit>& T
 	}
 }
 
+
+void FSkeletalMeshEditor::AddViewportOverlayWidget(TSharedRef<SWidget> InOverlaidWidget)
+{
+	if (Viewport.IsValid())
+	{
+		Viewport->AddOverlayWidget(InOverlaidWidget);
+	}	
+}
+
+
+void FSkeletalMeshEditor::RemoveViewportOverlayWidget(TSharedRef<SWidget> InOverlaidWidget)
+{
+	if (Viewport.IsValid())
+	{
+		Viewport->RemoveOverlayWidget(InOverlaidWidget);
+	}	
+}
+
 bool FSkeletalMeshEditor::ProcessCommandBindings(const FKeyEvent& InKeyEvent) const
 {
 	if (HostedToolkit.IsValid() && HostedToolkit->ProcessCommandBindings(InKeyEvent))
@@ -1242,6 +1261,11 @@ void FSkeletalMeshEditor::HandleMeshDetailsCreated(const TSharedRef<IDetailsView
 {
 	FPersonaModule& PersonaModule = FModuleManager::GetModuleChecked<FPersonaModule>("Persona");
 	PersonaModule.CustomizeMeshDetails(InDetailsView, GetPersonaToolkit());
+}
+
+void FSkeletalMeshEditor::HandleViewportCreated(const TSharedRef<IPersonaViewport>& InViewport)
+{
+	Viewport = InViewport;
 }
 
 UObject* FSkeletalMeshEditor::HandleGetAsset()

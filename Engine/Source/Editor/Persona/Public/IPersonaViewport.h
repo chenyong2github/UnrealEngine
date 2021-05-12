@@ -41,6 +41,12 @@ public:
 	 * @return the widget containing the notification
 	 */
 	virtual TWeakPtr<SWidget> AddNotification(TAttribute<EMessageSeverity::Type> InSeverity, TAttribute<bool> InCanBeDismissed, const TSharedRef<SWidget>& InNotificationWidget) = 0;
+	
+	/** 
+	* Remove a notification widget 
+	* @param	InContainingWidget		The containing widget returned from AddNotification()
+	*/
+	virtual void RemoveNotification(const TWeakPtr<SWidget>& InContainingWidget) = 0;
 
 	/** 
 	 * Adds an extender to the viewport's toolbar
@@ -54,9 +60,9 @@ public:
 	 */
 	virtual FPersonaViewportKeyDownDelegate& GetKeyDownDelegate() = 0;
 
-	/** 
-	 * Remove a notification widget 
-	 * @param	InContainingWidget		The containing widget returned from AddNotification()
-	 */
-	virtual void RemoveNotification(const TWeakPtr<SWidget>& InContainingWidget) = 0;
+	/** Overlay a widget over the whole viewport */
+	virtual void AddOverlayWidget( TSharedRef<SWidget> InOverlaidWidget ) = 0;
+
+	/** Remove an overlay widget from the viewport */
+	virtual void RemoveOverlayWidget( TSharedRef<SWidget> InOverlaidWidget ) = 0;
 };

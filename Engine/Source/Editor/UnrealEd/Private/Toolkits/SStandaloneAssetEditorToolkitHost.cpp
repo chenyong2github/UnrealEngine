@@ -342,6 +342,22 @@ UTypedElementCommonActions* SStandaloneAssetEditorToolkitHost::GetCommonActions(
 	return nullptr;
 }
 
+void SStandaloneAssetEditorToolkitHost::AddViewportOverlayWidget(TSharedRef<SWidget> InOverlaidWidget, TSharedPtr<IAssetViewport> InViewport)
+{
+	if (HostedAssetEditorToolkit.IsValid())
+	{
+		HostedAssetEditorToolkit->AddViewportOverlayWidget(InOverlaidWidget);
+	}
+}
+
+void SStandaloneAssetEditorToolkitHost::RemoveViewportOverlayWidget(TSharedRef<SWidget> InOverlaidWidget, TSharedPtr<IAssetViewport> InViewport)
+{
+	if (HostedAssetEditorToolkit.IsValid())
+	{
+		HostedAssetEditorToolkit->RemoveViewportOverlayWidget(InOverlaidWidget);
+	}
+}
+
 
 FReply SStandaloneAssetEditorToolkitHost::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent )
 {

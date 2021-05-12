@@ -215,6 +215,14 @@ public:
 	// Called when another toolkit (such as a ed mode toolkit) is no longer being hosted in this asset editor toolkit
 	virtual void OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit) {}
 
+	/* Called when a toolkit requests an overlay widget to be added to the viewport. Not relevant in the absence
+	 * of a viewport.
+	 */
+	virtual void AddViewportOverlayWidget(TSharedRef<SWidget> InViewportOverlayWidget) {}
+
+	/** Called when a toolkit requests the overlay widget to be removed. */
+	virtual void RemoveViewportOverlayWidget(TSharedRef<SWidget> InViewportOverlayWidget) {}
+	
 	/** Adds or removes extenders to the default menu or the toolbar menu this asset editor */
 	void AddMenuExtender(TSharedPtr<FExtender> Extender);
 	void RemoveMenuExtender(TSharedPtr<FExtender> Extender);

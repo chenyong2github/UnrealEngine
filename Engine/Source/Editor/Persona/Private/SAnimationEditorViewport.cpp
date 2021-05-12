@@ -411,17 +411,31 @@ TWeakPtr<SWidget> SAnimationEditorViewportTabBody::AddNotification(TAttribute<EM
 	return ContainingWidget;
 }
 
-void SAnimationEditorViewportTabBody::AddToolbarExtender(FName MenuToExtend, FMenuExtensionDelegate MenuBuilderDelegate)
-{
-	return ViewportWidget->ViewportToolbar->AddMenuExtender(MenuToExtend, MenuBuilderDelegate);
-}
-
 void SAnimationEditorViewportTabBody::RemoveNotification(const TWeakPtr<SWidget>& InContainingWidget)
 {
 	if(InContainingWidget.IsValid())
 	{
 		ViewportNotificationsContainer->RemoveSlot(InContainingWidget.Pin().ToSharedRef());
 	}
+}
+
+
+void SAnimationEditorViewportTabBody::AddToolbarExtender(FName MenuToExtend, FMenuExtensionDelegate MenuBuilderDelegate)
+{
+	return ViewportWidget->ViewportToolbar->AddMenuExtender(MenuToExtend, MenuBuilderDelegate);
+}
+
+void SAnimationEditorViewportTabBody::AddOverlayWidget(TSharedRef<SWidget> InOverlaidWidget)
+{
+	ViewportWidget->ViewportOverlay->AddSlot()
+	[
+		InOverlaidWidget
+	];
+}
+
+void SAnimationEditorViewportTabBody::RemoveOverlayWidget(TSharedRef<SWidget> InOverlaidWidget)
+{
+	ViewportWidget->ViewportOverlay->RemoveSlot(InOverlaidWidget);
 }
 
 void SAnimationEditorViewportTabBody::RefreshViewport()
