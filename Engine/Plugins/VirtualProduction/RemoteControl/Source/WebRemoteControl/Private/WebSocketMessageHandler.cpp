@@ -83,8 +83,8 @@ void FWebSocketMessageHandler::HandleWebSocketPresetRegister(const FRemoteContro
 
 		//Register to any useful callback for the given preset
 		Preset->OnExposedPropertyChanged().AddRaw(this, &FWebSocketMessageHandler::OnPresetExposedPropertyChanged);
-		Preset->OnPropertyExposed().AddRaw(this, &FWebSocketMessageHandler::OnPropertyExposed);
-		Preset->OnPropertyUnexposed().AddRaw(this, &FWebSocketMessageHandler::OnPropertyUnexposed);
+		Preset->OnEntityExposed().AddRaw(this, &FWebSocketMessageHandler::OnPropertyExposed);
+		Preset->OnEntityUnexposed().AddRaw(this, &FWebSocketMessageHandler::OnPropertyUnexposed);
 		Preset->OnFieldRenamed().AddRaw(this, &FWebSocketMessageHandler::OnFieldRenamed);
 		Preset->OnMetadataModified().AddRaw(this, &FWebSocketMessageHandler::OnMetadataModified);
 		Preset->OnActorPropertyModified().AddRaw(this, &FWebSocketMessageHandler::OnActorPropertyChanged);
@@ -175,7 +175,7 @@ void FWebSocketMessageHandler::ProcessChangedActorProperties()
 	PerFrameActorPropertyChanged.Empty();
 }
 
-void FWebSocketMessageHandler::OnPropertyExposed(URemoteControlPreset* Owner, FName PropertyLabel)
+void FWebSocketMessageHandler::OnPropertyExposed(URemoteControlPreset* Owner, const FGuid& EntityId)
 {
 	if (Owner == nullptr)
 	{
@@ -188,7 +188,7 @@ void FWebSocketMessageHandler::OnPropertyExposed(URemoteControlPreset* Owner, FN
 	}
 
 	//Cache the property field that was removed for end of frame notification
-	PerFrameAddedProperties.FindOrAdd(Owner->GetFName()).AddUnique(PropertyLabel);
+	PerFrameAddedProperties.FindOrAdd(Owner->GetFName()).AddUnique(EntityId);
 }
 
 void FWebSocketMessageHandler::OnPresetExposedPropertyChanged(URemoteControlPreset* Owner, const FRemoteControlProperty& PropertyChanged)
@@ -218,7 +218,7 @@ void FWebSocketMessageHandler::OnPresetExposedPropertyChanged(URemoteControlPres
 	}
 }
 
-void FWebSocketMessageHandler::OnPropertyUnexposed(URemoteControlPreset* Owner, FName PropertyLabel)
+void FWebSocketMessageHandler::OnPropertyUnexposed(URemoteControlPreset* Owner, const FGuid& EntityId)
 {
 	if (Owner == nullptr)
 	{
@@ -231,7 +231,7 @@ void FWebSocketMessageHandler::OnPropertyUnexposed(URemoteControlPreset* Owner, 
 	}
 
 	//Cache the property field that was removed for end of frame notification
-	PerFrameRemovedProperties.FindOrAdd(Owner->GetFName()).AddUnique(PropertyLabel);
+	PerFrameRemovedProperties.FindOrAdd(Owner->GetFName()).AddUnique(EntityId);
 }
 
 void FWebSocketMessageHandler::OnFieldRenamed(URemoteControlPreset* Owner, FName OldFieldLabel, FName NewFieldLabel)
@@ -351,7 +351,7 @@ void FWebSocketMessageHandler::OnEndFrame()
 
 void FWebSocketMessageHandler::ProcessAddedProperties()
 {
-	for (const TPair<FName, TArray<FName>>& Entry : PerFrameAddedProperties)
+	for (const TPair<FName, TArray<FGuid>>& Entry : PerFrameAddedProperties)
 	{
 		if (Entry.Value.Num() <= 0 || !ShouldProcessEventForPreset(Entry.Key))
 		{
@@ -367,18 +367,19 @@ void FWebSocketMessageHandler::ProcessAddedProperties()
 		FRCPresetDescription AddedPropertiesDescription;
 		AddedPropertiesDescription.Name = Preset->GetName();
 		AddedPropertiesDescription.Path = Preset->GetPathName();
+		AddedPropertiesDescription.Id = Preset->GetPresetId().ToString();
 
-		TMap<FRemoteControlPresetGroup*, TArray<FName>> GroupedNewFields;
+		TMap<FRemoteControlPresetGroup*, TArray<FGuid>> GroupedNewFields;
 
-		for (const FName& Label : Entry.Value)
+		for (const FGuid& Id : Entry.Value)
 		{
-			if (FRemoteControlPresetGroup* Group = Preset->Layout.FindGroupFromField(Preset->GetExposedEntityId(Label)))
+			if (FRemoteControlPresetGroup* Group = Preset->Layout.FindGroupFromField(Id))
 			{
-				GroupedNewFields.FindOrAdd(Group).Add(Label);
+				GroupedNewFields.FindOrAdd(Group).Add(Id);
 			}
 		}
 
-		for (const TTuple<FRemoteControlPresetGroup*, TArray<FName>>& Tuple : GroupedNewFields)
+		for (const TTuple<FRemoteControlPresetGroup*, TArray<FGuid>>& Tuple : GroupedNewFields)
 		{
 			AddedPropertiesDescription.Groups.Emplace(Preset, *Tuple.Key, Tuple.Value);
 		}
@@ -393,18 +394,33 @@ void FWebSocketMessageHandler::ProcessAddedProperties()
 
 void FWebSocketMessageHandler::ProcessRemovedProperties()
 {
-	for (const TPair<FName, TArray<FName>>& Entry : PerFrameRemovedProperties)
+	for (const TPair<FName, TArray<FGuid>>& Entry : PerFrameRemovedProperties)
 	{
 		if (Entry.Value.Num() <= 0 || !ShouldProcessEventForPreset(Entry.Key))
 		{
 			continue;
 		}
 
+		TArray<FName> Labels;
+		Labels.Reserve(Entry.Value.Num());
+		if (URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(Entry.Key))
+		{
+			for (const FGuid& Id : Entry.Value)
+			{
+				if (TSharedPtr<FRemoteControlEntity> Entity = Preset->GetExposedEntity(Id).Pin())
+				{
+					Labels.Add(Entity->GetLabel());
+				}
+			}
+		}
+
+		ensure(Labels.Num() == Entry.Value.Num());
+		
 		TArray<uint8> Payload;
-		WebRemoteControlUtils::SerializeResponse(FRCPresetFieldsRemovedEvent{ Entry.Key, Entry.Value }, Payload);
+		WebRemoteControlUtils::SerializeResponse(FRCPresetFieldsRemovedEvent{ Entry.Key, Labels, Entry.Value}, Payload);
 		BroadcastToListeners(Entry.Key, Payload);
 	}
-
+	
 	PerFrameRemovedProperties.Empty();
 }
 
@@ -487,6 +503,7 @@ bool FWebSocketMessageHandler::WritePropertyChangeEventPayload(URemoteControlPre
 				JsonWriter->WriteObjectStart();
 				{
 					JsonWriter->WriteValue(TEXT("PropertyLabel"), *Property.GetLabel().ToString());
+					JsonWriter->WriteValue(TEXT("Id"), *Property.GetId().ToString());
 
 					for (UObject* Object : Property.GetBoundObjects())
 					{
@@ -547,6 +564,8 @@ bool FWebSocketMessageHandler::WriteActorPropertyChangePayload(URemoteControlPre
 			}
 
 			FString RCActorName = Pair.Key.GetLabel().ToString();
+			
+			JsonWriter->WriteValue(TEXT("Id"), *Pair.Key.GetId().ToString());
 			JsonWriter->WriteValue(TEXT("DisplayName"), RCActorName);
 			JsonWriter->WriteValue(TEXT("Path"), Pair.Key.Path.ToString());
 

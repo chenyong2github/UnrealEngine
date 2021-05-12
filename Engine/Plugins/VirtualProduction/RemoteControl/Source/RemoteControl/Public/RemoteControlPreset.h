@@ -546,7 +546,7 @@ public:
 	 * @param ExposedEntityId The id of the entity to get.
 	 * @note ExposableEntityType must derive from FRemoteControlEntity.
 	 */
-	template <typename ExposableEntityType>
+	template <typename ExposableEntityType = FRemoteControlEntity>
 	TWeakPtr<const ExposableEntityType> GetExposedEntity(const FGuid& ExposedEntityId) const
 	{
 		static_assert(TIsDerivedFrom<ExposableEntityType, FRemoteControlEntity>::Value, "ExposableEntityType must derive from FRemoteControlEntity.");
@@ -558,7 +558,7 @@ public:
 	 * @param ExposedEntityId The id of the entity to get.
 	 * @note ExposableEntityType must derive from FRemoteControlEntity.
 	 */
-	template <typename ExposableEntityType>
+	template <typename ExposableEntityType = FRemoteControlEntity>
 	TWeakPtr<ExposableEntityType> GetExposedEntity(const FGuid& ExposedEntityId)
 	{
 		static_assert(TIsDerivedFrom<ExposableEntityType, FRemoteControlEntity>::Value, "ExposableEntityType must derive from FRemoteControlEntity.");
@@ -875,5 +875,6 @@ private:
 
 	friend FRemoteControlTarget;
 	friend FRemoteControlPresetLayout;
+	friend FRemoteControlEntity;
 };
 

@@ -48,6 +48,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSplitter.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
@@ -199,22 +200,32 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 		]
 		+ SVerticalBox::Slot()
 		[
-			SNew(SBorder)
-			.Padding(FMargin(0.f, 5.f, 0.f, 0.f))
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+			SNew(SSplitter)
+			.Orientation(Orient_Vertical)
+			+ SSplitter::Slot()
+			.Value(.8f)
 			[
-				SNew(SSplitter)
-				.Orientation(Orient_Vertical)
-				+ SSplitter::Slot()
-				.Value(.8f)
+				SNew(SBorder)
+				.Padding(FMargin(0.f, 5.f, 0.f, 0.f))
+				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 				[
-					SNew(SBorder)
-					.Padding(FMargin(0.f, 5.f, 0.f, 0.f))
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+					SNew(SWidgetSwitcher)
+					.WidgetIndex_Lambda([this](){ return !bIsInEditMode ? 0 : 1; })
+					+ SWidgetSwitcher::Slot()
 					[
-						SNew(SWidgetSwitcher)
-						.WidgetIndex_Lambda([this](){ return !bIsInEditMode ? 0 : 1; })
-						+ SWidgetSwitcher::Slot()
+						// Exposed entities List
+						SNew(SBorder)
+						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						[
+							EntityList.ToSharedRef()
+						]
+					]
+					+ SWidgetSwitcher::Slot()
+					[
+						SNew(SSplitter)
+						.Orientation(EOrientation::Orient_Vertical)
+						+ SSplitter::Slot()
+						.Value(0.7f)
 						[
 							// Exposed entities List
 							SNew(SBorder)
@@ -223,54 +234,42 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 								EntityList.ToSharedRef()
 							]
 						]
-						+ SWidgetSwitcher::Slot()
+						+ SSplitter::Slot()
+						.Value(0.3f)
 						[
 							SNew(SSplitter)
-							.Orientation(EOrientation::Orient_Vertical)
+							.Orientation(Orient_Vertical)
 							+ SSplitter::Slot()
-							.Value(0.7f)
+							.Value(0.4f)
 							[
-								// Exposed entities List
 								SNew(SBorder)
 								.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 								[
-									EntityList.ToSharedRef()
+									CreateEntityDetailsView()
 								]
 							]
 							+ SSplitter::Slot()
-							.Value(0.3f)
+							.Value(0.6f)
 							[
 								SNew(SBorder)
 								.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-								.Padding(5.f)
 								[
-									SNew(SSplitter)
-									.Orientation(Orient_Vertical)
-									+ SSplitter::Slot()
-									.Value(0.4f)
-									[
-										CreateEntityDetailsView()
-									]
-									+ SSplitter::Slot()
-									.Value(0.6f)
-									[
-										EntityProtocolDetails.ToSharedRef()
-									]
+									EntityProtocolDetails.ToSharedRef()
 								]
 							]
 						]
 					]
 				]
-				+ SSplitter::Slot()
-				.Value(.2f)
+			]
+			+ SSplitter::Slot()
+			.Value(.2f)
+			[
+				SNew(SBorder)
+				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+				.Visibility_Lambda([](){ return FRemoteControlLogger::Get().IsEnabled() ? EVisibility::Visible : EVisibility::Collapsed; })
+				.Padding(2.f)
 				[
-					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
-					.Visibility_Lambda([](){ return FRemoteControlLogger::Get().IsEnabled() ? EVisibility::Visible : EVisibility::Collapsed; })
-					.Padding(2.f)
-					[
-						FRemoteControlLogger::Get().GetWidget()
-					]
+					FRemoteControlLogger::Get().GetWidget()
 				]
 			]
 		]
@@ -689,6 +688,7 @@ void SRemoteControlPanel::Refresh()
 	BlueprintPicker->Refresh();
 	ActorFunctionPicker->Refresh();
 	SubsystemFunctionPicker->Refresh();
+	EntityList->Refresh();
 }
 
 void SRemoteControlPanel::Unexpose(const TSharedPtr<IPropertyHandle>& Handle)

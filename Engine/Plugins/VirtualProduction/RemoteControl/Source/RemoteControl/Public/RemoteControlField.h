@@ -216,6 +216,9 @@ private:
 	UPROPERTY()
 	FSoftObjectPath FunctionPath;
 
+	/** Cached resolved underlying function used to avoid doing a findobject while serializing. */
+	mutable TWeakObjectPtr<UFunction> CachedFunction;
+
 private:
 	/** Parse function metadata to get the function`s default parameters */
 	void AssignDefaultFunctionArguments();
@@ -236,5 +239,5 @@ template<> struct TStructOpsTypeTraits<FRemoteControlProperty> : public TStructO
 	{
 		WithSerializer = true,
 		WithPostSerialize = true
-    };
+	};
 };

@@ -41,8 +41,8 @@ private:
 
 	//Preset callbacks
 	void OnPresetExposedPropertyChanged(URemoteControlPreset* Owner, const FRemoteControlProperty& PropertyChanged);
-	void OnPropertyExposed(URemoteControlPreset* Owner, FName PropertyLabel);
-	void OnPropertyUnexposed(URemoteControlPreset* Owner, FName PropertyLabel);
+	void OnPropertyExposed(URemoteControlPreset* Owner,  const FGuid& EntityId);
+	void OnPropertyUnexposed(URemoteControlPreset* Owner, const FGuid& EntityId);
 	void OnFieldRenamed(URemoteControlPreset* Owner, FName OldFieldLabel, FName NewFieldLabel);
 	void OnMetadataModified(URemoteControlPreset* Owner);
 	void OnActorPropertyChanged(URemoteControlPreset* Owner, FRemoteControlActor& Actor, UObject* ModifiedObject, FProperty* ModifiedProperty);
@@ -119,10 +119,10 @@ private:
 	TMap<FName, TMap<FGuid, TMap<FRemoteControlActor, TArray<FRCObjectReference>>>> PerFrameActorPropertyChanged;
 
 	/** Properties that were exposed for a frame, per preset */
-	TMap<FName, TArray<FName>> PerFrameAddedProperties;
+	TMap<FName, TArray<FGuid>> PerFrameAddedProperties;
 
 	/** Properties that were unexposed for a frame, per preset */
-	TMap<FName, TArray<FName>> PerFrameRemovedProperties;
+	TMap<FName, TArray<FGuid>> PerFrameRemovedProperties;
 
 	/** Fields that were renamed for a frame, per preset */
 	TMap<FName, TArray<TTuple<FName, FName>>> PerFrameRenamedFields;
