@@ -109,6 +109,7 @@ public:
 	virtual bool OnStartGameFrame(FWorldContext& WorldContext) override;
 	virtual bool OnEndGameFrame(FWorldContext& WorldContext) override;
 	virtual class IXRLoadingScreen* CreateLoadingScreen() override { return GetSplash(); }
+	virtual FVector2D GetPlayAreaBounds(EHMDTrackingOrigin::Type Origin) const override;
 
 	// IHeadMountedDisplay
 	virtual bool IsHMDConnected() override;

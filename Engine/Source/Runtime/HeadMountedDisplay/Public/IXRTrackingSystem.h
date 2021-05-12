@@ -419,6 +419,11 @@ public:
 	virtual EXRDeviceConnectionResult::Type ConnectRemoteXRDevice(const FString& IpAddress, const int32 BitRate)
 	{ 
 		return EXRDeviceConnectionResult::FeatureNotSupported;
-	};
-	virtual void DisconnectRemoteXRDevice() {};
+	}
+	virtual void DisconnectRemoteXRDevice() {}
+
+	/**
+	 * Get the bounds of the area where the user can freely move while remaining tracked centered around the specified origin
+	 */
+	virtual FVector2D GetPlayAreaBounds(EHMDTrackingOrigin::Type Origin) const { return FVector2D::ZeroVector; }
 };
