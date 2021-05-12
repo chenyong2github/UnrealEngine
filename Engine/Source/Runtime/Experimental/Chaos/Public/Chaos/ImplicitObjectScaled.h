@@ -256,9 +256,24 @@ public:
 		return MObject->GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
 	}
 
+	int32 GetEdgeVertex(int32 EdgeIndex, int32 EdgeVertexIndex) const
+	{
+		return MObject->GetEdgeVertex(EdgeIndex, EdgeVertexIndex);
+	}
+
+	int32 GetEdgePlane(int32 EdgeIndex, int32 EdgePlaneIndex) const
+	{
+		return MObject->GetEdgePlane(EdgeIndex, EdgePlaneIndex);
+	}
+
 	int32 NumPlanes() const
 	{
 		return MObject->NumPlanes();
+	}
+
+	int32 NumEdges() const
+	{
+		return MObject->NumEdges();
 	}
 
 	int32 NumVertices() const
@@ -646,9 +661,24 @@ public:
 		return MObject->GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
 	}
 
+	int32 GetEdgeVertex(int32 EdgeIndex, int32 EdgeVertexIndex) const
+	{
+		return MObject->GetEdgeVertex(EdgeIndex, EdgeVertexIndex);
+	}
+
+	int32 GetEdgePlane(int32 EdgeIndex, int32 EdgePlaneIndex) const
+	{
+		return MObject->GetEdgePlane(EdgeIndex, EdgePlaneIndex);
+	}
+
 	int32 NumPlanes() const
 	{
 		return MObject->NumPlanes();
+	}
+
+	int32 NumEdges() const
+	{
+		return MObject->NumEdges();
 	}
 
 	int32 NumVertices() const

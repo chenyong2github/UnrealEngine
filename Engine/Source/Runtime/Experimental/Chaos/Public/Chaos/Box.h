@@ -306,7 +306,19 @@ namespace Chaos
 			return SStructureData.GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
 		}
 
+		int32 GetEdgeVertex(int32 EdgeIndex, int32 EdgeVertexIndex) const
+		{
+			return SStructureData.GetEdgeVertex(EdgeIndex, EdgeVertexIndex);
+		}
+
+		int32 GetEdgePlane(int32 EdgeIndex, int32 EdgePlaneIndex) const
+		{
+			return SStructureData.GetEdgePlane(EdgeIndex, EdgePlaneIndex);
+		}
+
 		int32 NumPlanes() const { return SNormals.Num(); }
+
+		int32 NumEdges() const { return SStructureData.NumEdges(); }
 
 		int32 NumVertices() const { return SVertices.Num(); }
 

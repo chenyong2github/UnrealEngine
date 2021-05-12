@@ -7,7 +7,6 @@
 #include "ChaosLog.h"
 #include "Math/NumericLimits.h"
 #include "UObject/PhysicsObjectVersion.h"
-#include "UObject/FortniteMainBranchObjectVersion.h"
 
 namespace Chaos
 {
@@ -31,8 +30,9 @@ namespace Chaos
 		static const FIndex MaxIndex = TNumericLimits<FIndex>::Max() - 1;
 	};
 
-	// Convex half-edge structure data. Supports different index sizes.
-	// Uses indices into packed arrays rather than pointers. Avoids prev/next indices by keeping a plane's edges in order and sequential.
+	// Convex half-edge structure data.
+	// Uses indices rather than pointers.
+	// Supports different index sizes.
 	template<typename T_INDEX>
 	class TConvexHalfEdgeStructureData
 	{
@@ -61,8 +61,9 @@ namespace Chaos
 
 		// Every plane is bounded by a sequence of edges, and every edge should be shared 
 		// by two planes. The edges that bound a plane are stored as a sequence of half-edges. 
-		// Each half-edge references the starting vertex of the edge, and the half-edge 
-		// pointing in the opposite direction (belonging to the plane that shares the edge).
+		// Each half-edge references the starting vertex of the edge, the half-edge 
+		// pointing in the opposite direction (belonging to the plane that shares the edge),
+		// and the next half-edge on the same plane.
 		struct FHalfEdgeData
 		{
 			FIndex PlaneIndex;			// index into Planes
@@ -115,10 +116,13 @@ namespace Chaos
 		int32 NumHalfEdges() const { return HalfEdges.Num(); }
 		int32 NumVertices() const { return Vertices.Num(); }
 
+		// Number of unique half-edges (no half edge's twin is in also the list). Should be NumHalfEdges/2
+		int32 NumEdges() const { return Edges.Num(); }		
+
 		FPlaneData& GetPlane(int32 PlaneIndex) { return Planes[PlaneIndex]; }
 		const FPlaneData& GetPlane(int32 PlaneIndex) const { return Planes[PlaneIndex]; }
-		FHalfEdgeData& GetHalfEdge(int32 EdgeIndex) { return HalfEdges[EdgeIndex]; }
-		const FHalfEdgeData& GetHalfEdge(int32 EdgeIndex) const { return HalfEdges[EdgeIndex]; }
+		FHalfEdgeData& GetHalfEdge(int32 HalfEdgeIndex) { return HalfEdges[HalfEdgeIndex]; }
+		const FHalfEdgeData& GetHalfEdge(int32 HalfEdgeIndex) const { return HalfEdges[HalfEdgeIndex]; }
 		FVertexData& GetVertex(int32 VertexIndex) { return Vertices[VertexIndex]; }
 		const FVertexData& GetVertex(int32 VertexIndex) const { return Vertices[VertexIndex]; }
 
@@ -152,51 +156,83 @@ namespace Chaos
 		// return value is in [0, NumVertices())
 		int32 GetPlaneVertex(int32 PlaneIndex, int32 PlaneVertexIndex) const
 		{
-			const int32 EdgeIndex = GetPlaneHalfEdge(PlaneIndex, PlaneVertexIndex);
-			return GetHalfEdge(EdgeIndex).VertexIndex;
+			const int32 HalfEdgeIndex = GetPlaneHalfEdge(PlaneIndex, PlaneVertexIndex);
+			return GetHalfEdge(HalfEdgeIndex).VertexIndex;
 		}
 
-		// EdgeIndex must be in range [0, NumHalfEdges())
+		// HalfEdgeIndex must be in range [0, NumHalfEdges())
 		// return value is in range [0, NumPlanes())
-		int32 GetHalfEdgePlane(int32 EdgeIndex) const
+		int32 GetHalfEdgePlane(int32 HalfEdgeIndex) const
 		{
-			return GetHalfEdge(EdgeIndex).PlaneIndex;
+			return GetHalfEdge(HalfEdgeIndex).PlaneIndex;
 		}
 
-		// EdgeIndex must be in range [0, NumHalfEdges())
+		// HalfEdgeIndex must be in range [0, NumHalfEdges())
 		// return value is in range [0, NumVertices())
-		int32 GetHalfEdgeVertex(int32 EdgeIndex) const
+		int32 GetHalfEdgeVertex(int32 HalfEdgeIndex) const
 		{
-			return GetHalfEdge(EdgeIndex).VertexIndex;
+			return GetHalfEdge(HalfEdgeIndex).VertexIndex;
 		}
 
-		// EdgeIndex must be in range [0, NumHalfEdges())
+		// HalfEdgeIndex must be in range [0, NumHalfEdges())
 		// return value is in range [0, NumHalfEdges())
-		int32 GetTwinHalfEdge(int32 EdgeIndex) const
+		int32 GetTwinHalfEdge(int32 HalfEdgeIndex) const
 		{
-			return GetHalfEdge(EdgeIndex).TwinHalfEdgeIndex;
+			return GetHalfEdge(HalfEdgeIndex).TwinHalfEdgeIndex;
 		}
 
 		// Get the previous half edge on the same plane
-		// EdgeIndex must be in range [0, NumHalfEdges())
+		// HalfEdgeIndex must be in range [0, NumHalfEdges())
 		// return value is in range [0, NumHalfEdges())
-		int32 GetPrevHalfEdge(int32 EdgeIndex) const
+		int32 GetPrevHalfEdge(int32 HalfEdgeIndex) const
 		{
 			// Calculate the edge index on the plane
-			const int32 PlaneIndex = GetHalfEdge(EdgeIndex).PlaneIndex;
-			const int32 PlaneEdgeIndex = EdgeIndex - GetPlane(PlaneIndex).FirstHalfEdgeIndex;
-			return GetPrevPlaneHalfEdge(PlaneIndex, PlaneEdgeIndex);
+			const int32 PlaneIndex = GetHalfEdge(HalfEdgeIndex).PlaneIndex;
+			const int32 PlaneHalfEdgeIndex = HalfEdgeIndex - GetPlane(PlaneIndex).FirstHalfEdgeIndex;
+			return GetPrevPlaneHalfEdge(PlaneIndex, PlaneHalfEdgeIndex);
 		}
 
 		// Get the next half edge on the same plane
-		// EdgeIndex must be in range [0, NumHalfEdges())
+		// HalfEdgeIndex must be in range [0, NumHalfEdges())
 		// return value is in range [0, NumHalfEdges())
-		int32 GetNextHalfEdge(int32 EdgeIndex) const
+		int32 GetNextHalfEdge(int32 HalfEdgeIndex) const
 		{
 			// Calculate the edge index on the plane
-			const int32 PlaneIndex = GetHalfEdge(EdgeIndex).PlaneIndex;
-			const int32 PlaneEdgeIndex = EdgeIndex - GetPlane(PlaneIndex).FirstHalfEdgeIndex;
-			return GetNextPlaneHalfEdge(PlaneIndex, PlaneEdgeIndex);
+			const int32 PlaneIndex = GetHalfEdge(HalfEdgeIndex).PlaneIndex;
+			const int32 PlaneHalfEdgeIndex = HalfEdgeIndex - GetPlane(PlaneIndex).FirstHalfEdgeIndex;
+			return GetNextPlaneHalfEdge(PlaneIndex, PlaneHalfEdgeIndex);
+		}
+
+		// Get a vertex in the specified Edge (NOTE: edge index, not half-edge index)
+		// EdgeIndex must be in range [0, NumEdges())
+		// EdgeVertexIndex must be 0 or 1
+		// return value is in range [0, NumVertices())
+		int32 GetEdgeVertex(int32 EdgeIndex, int32 EdgeVertexIndex) const
+		{
+			if (EdgeVertexIndex == 0)
+			{
+				return GetHalfEdgeVertex(Edges[EdgeIndex]);
+			}
+			else
+			{
+				return GetHalfEdgeVertex(GetTwinHalfEdge(Edges[EdgeIndex]));
+			}
+		}
+
+		// Get a plane for the specified Edge (NOTE: edge index, not half-edge index)
+		// EdgeIndex must be in range [0, NumEdges())
+		// EdgePlaneIndex must be 0 or 1
+		// return value is in range [0, NumPlanes())
+		int32 GetEdgePlane(int32 EdgeIndex, int32 EdgePlaneIndex) const
+		{
+			if (EdgePlaneIndex == 0)
+			{
+				return GetHalfEdgePlane(Edges[EdgeIndex]);
+			}
+			else
+			{
+				return GetHalfEdgePlane(GetTwinHalfEdge(Edges[EdgeIndex]));
+			}
 		}
 
 		// VertexIndex must be in range [0, NumVertices())
@@ -206,37 +242,46 @@ namespace Chaos
 			return GetVertex(VertexIndex).FirstHalfEdgeIndex;
 		}
 
-		// Iterate over the planes assiciated with a vertex.
+		// Iterate over the edges associated with a plane. These edges form the boundary of the plane.
 		// Visitor should return false to halt iteration.
-		void VisitVertexPlanes(int32 VertexIndex, const TFunction<bool(int32 PlaneIndex)>& Visitor) const
+		void VisitPlaneEdges(int32 PlaneIndex, const TFunction<bool(int32 HalfEdgeIndex, int32 NextHalfEdgeIndex)>& Visitor) const
 		{
-			const int32 FirstEdgeIndex = GetVertexFirstHalfEdge(VertexIndex);
-			int32 EdgeIndex = FirstEdgeIndex;
-			while (EdgeIndex != InvalidIndex)
+			const int32 FirstHalfEdgeIndex = GetPlane(PlaneIndex).FirstHalfEdgeIndex;
+			int32 HalfEdgeIndex0 = FirstHalfEdgeIndex;
+			if (HalfEdgeIndex0 != InvalidIndex)
 			{
-				// Send the plane to the visitor
-				const int32 PlaneIndex = GetHalfEdgePlane(EdgeIndex);
-				const bool bContinue = Visitor(PlaneIndex);
-				
-				// Stop if the vistor wants no more planes
-				if (!bContinue)
+				bool bContinue = true;
+				do
 				{
-					break;
-				}
+					const int32 HalfEdgeIndex1 = GetNextHalfEdge(HalfEdgeIndex0);
+					if (HalfEdgeIndex1 != InvalidIndex)
+					{
+						bContinue = Visitor(HalfEdgeIndex0, HalfEdgeIndex1);
+					}
+					HalfEdgeIndex0 = HalfEdgeIndex1;
+				} while (bContinue && (HalfEdgeIndex0 != FirstHalfEdgeIndex) && (HalfEdgeIndex0 != InvalidIndex));
+			}
+		}
 
-				const int32 TwinEdgeIndex = GetTwinHalfEdge(EdgeIndex);
-				if (TwinEdgeIndex == InvalidIndex)
+		// Iterate over the half-edges associated with a vertex (leading out from the vertex, so all half edges have the vertex as the root).
+		// Visitor should return false to halt iteration.
+		void VisitVertexHalfEdges(int32 VertexIndex, const TFunction<bool(int32 HalfEdgeIndex)>& Visitor) const
+		{
+			const int32 FirstHalfEdgeIndex = GetVertex(VertexIndex).FirstHalfEdgeIndex;
+			int32 HalfEdgeIndex = FirstHalfEdgeIndex;
+			if (HalfEdgeIndex != InvalidIndex)
+			{
+				bool bContinue = true;
+				do
 				{
-					// Malformed convex, but we need to handle it
-					break;
-				}
-
-				EdgeIndex = GetNextHalfEdge(TwinEdgeIndex);
-				if (EdgeIndex == FirstEdgeIndex)
-				{
-					// We have looped back to the first edge
-					break;
-				}
+					bContinue = Visitor(HalfEdgeIndex);
+					const int32 TwinHalfEdgeIndex = GetTwinHalfEdge(HalfEdgeIndex);
+					if (TwinHalfEdgeIndex == InvalidIndex)
+					{
+						break;
+					}
+					HalfEdgeIndex = GetNextHalfEdge(TwinHalfEdgeIndex);
+				} while (bContinue && (HalfEdgeIndex != FirstHalfEdgeIndex) && (HalfEdgeIndex != InvalidIndex));
 			}
 		}
 
@@ -247,10 +292,10 @@ namespace Chaos
 
 			if (MaxVertexPlanes > 0)
 			{
-				VisitVertexPlanes(VertexIndex, 
-					[PlaneIndices, MaxVertexPlanes, &NumPlanesFound](int32 PlaneIndex)
+				VisitVertexHalfEdges(VertexIndex,
+					[this, PlaneIndices, MaxVertexPlanes, &NumPlanesFound](int32 HalfEdgeIndex)
 					{
-						PlaneIndices[NumPlanesFound++] = PlaneIndex;
+						PlaneIndices[NumPlanesFound++] = GetHalfEdgePlane(HalfEdgeIndex);
 						return (NumPlanesFound < MaxVertexPlanes);
 					});
 			}
@@ -288,14 +333,14 @@ namespace Chaos
 			// Build the planes and edges. The edges for a plane are stored sequentially in the half-edge array.
 			// On the first pass, the edges contain 2 vertex indices, rather than a vertex index and a twin edge index.
 			// We fix this up on a second pass.
-			int32 NextEdgeIndex = 0;
+			int32 NextHalfEdgeIndex = 0;
 			for (int32 PlaneIndex = 0; PlaneIndex < InPlaneVertices.Num(); ++PlaneIndex)
 			{
 				const TArray<int32>& PlaneVertices = InPlaneVertices[PlaneIndex];
 
 				GetPlane(PlaneIndex) =
 				{
-					(FIndex)NextEdgeIndex,
+					(FIndex)NextHalfEdgeIndex,
 					(FIndex)PlaneVertices.Num()
 				};
 
@@ -304,7 +349,7 @@ namespace Chaos
 					// Add a new edge
 					const int32 VertexIndex0 = PlaneVertices[PlaneVertexIndex];
 					const int32 VertexIndex1 = PlaneVertices[(PlaneVertexIndex + 1) % PlaneVertices.Num()];
-					GetHalfEdge(NextEdgeIndex) =
+					GetHalfEdge(NextHalfEdgeIndex) =
 					{
 						(FIndex)PlaneIndex,
 						(FIndex)VertexIndex0,
@@ -314,10 +359,10 @@ namespace Chaos
 					// If this is the first time Vertex0 has showed up, set its edge index
 					if (Vertices[VertexIndex0].FirstHalfEdgeIndex == InvalidIndex)
 					{
-						Vertices[VertexIndex0].FirstHalfEdgeIndex = NextEdgeIndex;
+						Vertices[VertexIndex0].FirstHalfEdgeIndex = NextHalfEdgeIndex;
 					}
 
-					++NextEdgeIndex;
+					++NextHalfEdgeIndex;
 				}
 			}
 
@@ -325,30 +370,30 @@ namespace Chaos
 			// @todo(chaos): could use a map of vertex-index-pair to half edge to eliminate O(N^2) algorithm
 			TArray<FIndex> TwinHalfEdgeIndices;
 			TwinHalfEdgeIndices.SetNum(HalfEdges.Num());
-			for (int32 EdgeIndex = 0; EdgeIndex < TwinHalfEdgeIndices.Num(); ++EdgeIndex)
+			for (int32 HalfEdgeIndex = 0; HalfEdgeIndex < TwinHalfEdgeIndices.Num(); ++HalfEdgeIndex)
 			{
-				TwinHalfEdgeIndices[EdgeIndex] = InvalidIndex;
+				TwinHalfEdgeIndices[HalfEdgeIndex] = InvalidIndex;
 			}
-			for (int32 EdgeIndex0 = 0; EdgeIndex0 < HalfEdges.Num(); ++EdgeIndex0)
+			for (int32 HalfEdgeIndex0 = 0; HalfEdgeIndex0 < HalfEdges.Num(); ++HalfEdgeIndex0)
 			{
-				const int32 VertexIndex0 = HalfEdges[EdgeIndex0].VertexIndex;
-				const int32 VertexIndex1 = HalfEdges[EdgeIndex0].TwinHalfEdgeIndex;	// Actually a vertex index for now...
+				const int32 VertexIndex0 = HalfEdges[HalfEdgeIndex0].VertexIndex;
+				const int32 VertexIndex1 = HalfEdges[HalfEdgeIndex0].TwinHalfEdgeIndex;	// Actually a vertex index for now...
 
 				// Find the edge with the vertices the other way round
-				for (int32 EdgeIndex1 = 0; EdgeIndex1 < HalfEdges.Num(); ++EdgeIndex1)
+				for (int32 HalfEdgeIndex1 = 0; HalfEdgeIndex1 < HalfEdges.Num(); ++HalfEdgeIndex1)
 				{
-					if ((HalfEdges[EdgeIndex1].VertexIndex == VertexIndex1) && (HalfEdges[EdgeIndex1].TwinHalfEdgeIndex == VertexIndex0))
+					if ((HalfEdges[HalfEdgeIndex1].VertexIndex == VertexIndex1) && (HalfEdges[HalfEdgeIndex1].TwinHalfEdgeIndex == VertexIndex0))
 					{
-						TwinHalfEdgeIndices[EdgeIndex0] = (FIndex)EdgeIndex1;
+						TwinHalfEdgeIndices[HalfEdgeIndex0] = (FIndex)HalfEdgeIndex1;
 						break;
 					}
 				}
 			}
 
 			// Set the twin edge indices
-			for (int32 EdgeIndex = 0; EdgeIndex < HalfEdges.Num(); ++EdgeIndex)
+			for (int32 HalfEdgeIndex = 0; HalfEdgeIndex < HalfEdges.Num(); ++HalfEdgeIndex)
 			{
-				GetHalfEdge(EdgeIndex).TwinHalfEdgeIndex = (FIndex)TwinHalfEdgeIndices[EdgeIndex];
+				GetHalfEdge(HalfEdgeIndex).TwinHalfEdgeIndex = (FIndex)TwinHalfEdgeIndices[HalfEdgeIndex];
 			}
 
 			return true;
@@ -356,9 +401,21 @@ namespace Chaos
 
 		void Serialize(FArchive& Ar)
 		{
+			Ar.UsingCustomVersion(FPhysicsObjectVersion::GUID);
+
 			Ar << Planes;
 			Ar << HalfEdges;
 			Ar << Vertices;
+
+			const bool bHasUniqueEdgeList = Ar.CustomVer(FPhysicsObjectVersion::GUID) >= FPhysicsObjectVersion::ChaosConvexHasUniqueEdgeSet;
+			if (Ar.IsLoading() && !bHasUniqueEdgeList)
+			{
+				BuildUniqueEdgeList();
+			}
+			else
+			{
+				Ar << Edges;
+			}
 		}
 
 		friend FArchive& operator<<(FArchive& Ar, FConvexHalfEdgeStructureData& Value)
@@ -371,35 +428,60 @@ namespace Chaos
 
 		// The edge index of the previous edge on the plane (loops)
 		// PlaneIndex must be in range [0, NumPlanes())
-		// PlaneEdgeIndex must be in range [0, NumPlaneHalfEdges(PlaneIndex))
+		// PlaneHalfEdgeIndex must be in range [0, NumPlaneHalfEdges(PlaneIndex))
 		// return value is in range [0, NumHalfEdges())
-		int32 GetPrevPlaneHalfEdge(int32 PlaneIndex, int32 PlaneEdgeIndex) const
+		int32 GetPrevPlaneHalfEdge(int32 PlaneIndex, int32 PlaneHalfEdgeIndex) const
 		{
 			// A plane's edges are sequential and loop
-			check(PlaneEdgeIndex >= 0);
-			check(PlaneEdgeIndex < NumPlaneHalfEdges(PlaneIndex));
+			check(PlaneHalfEdgeIndex >= 0);
+			check(PlaneHalfEdgeIndex < NumPlaneHalfEdges(PlaneIndex));
 			const int32 PlaneHalfEdgeCount = NumPlaneHalfEdges(PlaneIndex);
-			const int32 PrevPlaneEdgeIndex = (PlaneEdgeIndex + PlaneHalfEdgeCount - 1) % PlaneHalfEdgeCount;
-			return GetPlaneHalfEdge(PlaneIndex, PrevPlaneEdgeIndex);
+			const int32 PrevPlaneHalfEdgeIndex = (PlaneHalfEdgeIndex + PlaneHalfEdgeCount - 1) % PlaneHalfEdgeCount;
+			return GetPlaneHalfEdge(PlaneIndex, PrevPlaneHalfEdgeIndex);
 		}
 
 		// The edge index of the next edge on the plane (loops)
 		// PlaneIndex must be in range [0, NumPlanes())
-		// PlaneEdgeIndex must be in range [0, NumPlaneHalfEdges(PlaneIndex))
+		// PlaneHalfEdgeIndex must be in range [0, NumPlaneHalfEdges(PlaneIndex))
 		// return value is in range [0, NumHalfEdges())
-		int32 GetNextPlaneHalfEdge(int32 PlaneIndex, int32 PlaneEdgeIndex) const
+		int32 GetNextPlaneHalfEdge(int32 PlaneIndex, int32 PlaneHalfEdgeIndex) const
 		{
 			// A plane's edges are sequential and loop
-			check(PlaneEdgeIndex >= 0);
-			check(PlaneEdgeIndex < NumPlaneHalfEdges(PlaneIndex));
+			check(PlaneHalfEdgeIndex >= 0);
+			check(PlaneHalfEdgeIndex < NumPlaneHalfEdges(PlaneIndex));
 			const int32 PlaneHalfEdgeCount = NumPlaneHalfEdges(PlaneIndex);
-			const int32 NextPlaneEdgeIndex = (PlaneEdgeIndex + 1) % PlaneHalfEdgeCount;
-			return GetPlaneHalfEdge(PlaneIndex, NextPlaneEdgeIndex);
+			const int32 NextPlaneHalfEdgeIndex = (PlaneHalfEdgeIndex + 1) % PlaneHalfEdgeCount;
+			return GetPlaneHalfEdge(PlaneIndex, NextPlaneHalfEdgeIndex);
+		}
+
+		// Generate the set of half-edges where none of the edge twins are also in the list.
+		// this is effectively the set of full edges. This will also exclude any malformed edges if they exist.
+		void BuildUniqueEdgeList()
+		{
+			Edges.Empty();
+			Edges.Reserve(NumHalfEdges() / 2);
+
+			for (int32 HalfEdgeIndex = 0; HalfEdgeIndex < NumHalfEdges(); ++HalfEdgeIndex)
+			{
+				const FHalfEdgeData& Edge = GetHalfEdge(HalfEdgeIndex);
+				if (Edge.TwinHalfEdgeIndex != InvalidIndex)
+				{
+					const FHalfEdgeData& TwinEdge = GetHalfEdge(Edge.TwinHalfEdgeIndex);
+					if ((Edge.VertexIndex != InvalidIndex) && (TwinEdge.VertexIndex != InvalidIndex))
+					{
+						if (Edge.VertexIndex < TwinEdge.VertexIndex)
+						{
+							Edges.Add(HalfEdgeIndex);
+						}
+					}
+				}
+			}
 		}
 
 		TArray<FPlaneData> Planes;
 		TArray<FHalfEdgeData> HalfEdges;
 		TArray<FVertexData> Vertices;
+		TArray<FIndex> Edges;
 	};
 
 
