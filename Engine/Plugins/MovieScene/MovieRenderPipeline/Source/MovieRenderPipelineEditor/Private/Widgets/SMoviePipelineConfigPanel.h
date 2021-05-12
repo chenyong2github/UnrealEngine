@@ -27,6 +27,7 @@ public:
 	SLATE_BEGIN_ARGS(SMoviePipelineConfigPanel)
 		: _BasePreset(nullptr)
 		,  _BaseConfig(nullptr)
+		, _AssetToEdit(nullptr)
 
 		{}
 		SLATE_ARGUMENT(TWeakObjectPtr<UMoviePipelineExecutorJob>, Job)
@@ -42,6 +43,10 @@ public:
 
 		/** An existing configuration to copy into the transient UI object. This will not get modified */
 		SLATE_ARGUMENT(UMoviePipelineConfigBase*, BaseConfig)
+
+		/** An existing asset to edit directly with no copy. Hides some of the UI. */
+		SLATE_ARGUMENT(UMoviePipelineConfigBase*, AssetToEdit)
+
 		/*-------------------------------------------------*/
 
 	SLATE_END_ARGS()
@@ -82,6 +87,9 @@ private:
 	void OnSaveAsPreset();
 
 	FText GetValidationWarningText() const;
+
+public:
+	TSharedRef<SWidget> MakeSettingsWidget();
 
 private:
 	/** The transient preset that we use - kept alive by AddReferencedObjects */
