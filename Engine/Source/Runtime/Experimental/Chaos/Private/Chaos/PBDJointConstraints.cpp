@@ -1468,7 +1468,6 @@ namespace Chaos
 
 		if(!Settings.bEnableDrives)
 		{
-			UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Linear or angular drive needs to be enabled in order to use plasticity."));
 			return;
 		}
 
@@ -1479,13 +1478,11 @@ namespace Chaos
 			const bool bLinearPositionDriveEnabled = JointSettings.bLinearPositionDriveEnabled[0] && JointSettings.bLinearPositionDriveEnabled[1] && JointSettings.bLinearPositionDriveEnabled[2];
 			if(!bLinearPositionDriveEnabled)
 			{
-				UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Plasticity only supports three-dimensional linear position drives."));
 				bApplyLinearPlasticityLimits = false;
 			}
 			const bool bLinearMotionLocked = JointSettings.LinearMotionTypes[0] == EJointMotionType::Locked || JointSettings.LinearMotionTypes[1] == EJointMotionType::Locked || JointSettings.LinearMotionTypes[2] == EJointMotionType::Locked;
 			if(bLinearMotionLocked)
 			{
-				UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Plasticity does not support locked linear motion."));
 				bApplyLinearPlasticityLimits = false;
 			}
 		}
@@ -1496,13 +1493,11 @@ namespace Chaos
 			const bool bAngularPositionDriveEnabled = JointSettings.bAngularSLerpPositionDriveEnabled || (JointSettings.bAngularSwingPositionDriveEnabled && JointSettings.bAngularTwistPositionDriveEnabled);
 			if(!bAngularPositionDriveEnabled)
 			{
-				UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Plasticity only supports three-dimensional angular position drives"));
 				bApplyAngularPlasticityLimits = false;
 			}
 			const bool bAngularMotionLocked = JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Locked || JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1] == EJointMotionType::Locked || JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2] == EJointMotionType::Locked;
 			if(bAngularMotionLocked)
 			{
-				UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Plasticity does not support locked angular motion."));
 				bApplyAngularPlasticityLimits = false;
 			}
 		}
