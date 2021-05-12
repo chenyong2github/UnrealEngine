@@ -203,6 +203,19 @@ static void GetVkStageAndAccessFlags(ERHIAccess RHIAccess, FRHITransitionInfo::E
 			AccessFlags = VK_ACCESS_TRANSFER_WRITE_BIT;
 			Layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 			return;
+
+#if VULKAN_RHI_RAYTRACING
+		// vkrt todo: Finer grain stage flags would be ideal here.
+		case ERHIAccess::BVHRead:
+			StageFlags = VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR | VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+			AccessFlags = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+			return;
+
+		case ERHIAccess::BVHWrite:
+			StageFlags = VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR | VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+			AccessFlags = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+			return;
+#endif // VULKAN_RHI_RAYTRACING
 	}
 
 	// If DSVWrite is set, we ignore everything else because it decides the layout.
@@ -623,6 +636,12 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, const FR
 				checkNoEntry();
 				continue;
 			}
+			break;
+		}
+
+		case FRHITransitionInfo::EType::BVH:
+		{
+			// Requires memory barrier
 			break;
 		}
 
