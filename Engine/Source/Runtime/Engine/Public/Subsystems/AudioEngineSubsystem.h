@@ -23,7 +23,10 @@ public:
 	/** Set the ID of the owning audio device */
 	void FORCEINLINE SetAudioDeviceID(Audio::FDeviceId DeviceID) { OwningDeviceID = DeviceID; }
 
-protected: 
+	/** Get the ID of the owning audio device */
+	Audio::FDeviceId GetAudioDeviceID() const { return OwningDeviceID; }
+
+protected:
 
 	Audio::FDeviceId OwningDeviceID = INDEX_NONE;
 };
@@ -41,5 +44,5 @@ public:
 
 	UAudioEngineSubsystem();
 
-	virtual FAudioDeviceHandle GetAudioDeviceHandle(Audio::FDeviceId InDeviceID);
+	virtual FAudioDeviceHandle GetAudioDeviceHandle() const final;
 };
