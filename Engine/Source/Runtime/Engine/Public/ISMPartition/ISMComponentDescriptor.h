@@ -77,7 +77,7 @@ public:
 	FLightingChannels LightingChannels;
 
 	UPROPERTY()
-	int32 RayTracingGroupId;
+	uint32 RayTracingGroupId;
 
 	UPROPERTY()
 	ERayTracingGroupCullingPriority RayTracingGroupCullingPriority;
