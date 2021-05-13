@@ -1878,6 +1878,11 @@ bool UMaterialInstanceDynamic::IsTwoSided() const
 	return Parent ? Parent->IsTwoSided() : false;
 }
 
+bool UMaterialInstanceDynamic::IsTranslucencyWritingVelocity() const
+{
+	return Parent ? Parent->IsTranslucencyWritingVelocity() : false;
+}
+
 bool UMaterialInstanceDynamic::IsDitheredLODTransition() const
 {
 	return Parent ? Parent->IsDitheredLODTransition() : false;
@@ -2728,6 +2733,7 @@ void UMaterialInstance::UpdateOverridableBaseProperties()
 		TwoSided = 0;
 		DitheredLODTransition = 0;
 		bIsShadingModelFromMaterialExpression = 0;
+		bOutputTranslucentVelocity = false;
 		return;
 	}
 
@@ -2749,6 +2755,16 @@ void UMaterialInstance::UpdateOverridableBaseProperties()
 	{
 		bCastDynamicShadowAsMasked = Parent->GetCastDynamicShadowAsMasked();
 		BasePropertyOverrides.bCastDynamicShadowAsMasked = bCastDynamicShadowAsMasked;
+	}
+
+	if(BasePropertyOverrides.bOverride_OutputTranslucentVelocity)
+	{
+		bOutputTranslucentVelocity = BasePropertyOverrides.bOutputTranslucentVelocity;
+	}
+	else
+	{
+		bOutputTranslucentVelocity = Parent->IsTranslucencyWritingVelocity();
+		BasePropertyOverrides.bOutputTranslucentVelocity = bOutputTranslucentVelocity;
 	}
 
 	if (BasePropertyOverrides.bOverride_BlendMode)
@@ -4510,6 +4526,15 @@ void UMaterialInstance::GetBasePropertyOverridesHash(FSHAHash& OutHash)const
 		bHasOverrides = true;
 	}
 
+	bool bUsedIsTranslucencyWritingVelocity = IsTranslucencyWritingVelocity();
+	if (bUsedIsTranslucencyWritingVelocity != Mat->IsTranslucencyWritingVelocity())
+	{
+		const FString HashString = TEXT("bOverride_OutputTranslucentVelocity");
+		Hash.UpdateWithString(*HashString, HashString.Len());
+		Hash.Update((uint8*)&bUsedIsTranslucencyWritingVelocity, sizeof(bUsedIsTranslucencyWritingVelocity));
+		bHasOverrides = true;
+	}
+
 	if (bHasOverrides)
 	{
 		Hash.Final();
@@ -4526,7 +4551,8 @@ bool UMaterialInstance::HasOverridenBaseProperties()const
 		(GetShadingModels() != Parent->GetShadingModels()) ||
 		(IsTwoSided() != Parent->IsTwoSided()) ||
 		(IsDitheredLODTransition() != Parent->IsDitheredLODTransition()) ||
-		(GetCastDynamicShadowAsMasked() != Parent->GetCastDynamicShadowAsMasked())
+		(GetCastDynamicShadowAsMasked() != Parent->GetCastDynamicShadowAsMasked()) ||
+		(IsTranslucencyWritingVelocity() != Parent->IsTranslucencyWritingVelocity())
 		))
 	{
 		return true;
@@ -4558,6 +4584,11 @@ bool UMaterialInstance::IsShadingModelFromMaterialExpression() const
 bool UMaterialInstance::IsTwoSided() const
 {
 	return TwoSided;
+}
+
+bool UMaterialInstance::IsTranslucencyWritingVelocity() const
+{
+	return bOutputTranslucentVelocity && IsTranslucentBlendMode(GetBlendMode());
 }
 
 bool UMaterialInstance::IsDitheredLODTransition() const
