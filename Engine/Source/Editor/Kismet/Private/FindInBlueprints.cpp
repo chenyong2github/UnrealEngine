@@ -431,7 +431,7 @@ FReply FFindInBlueprintsProperty::OnClick()
 							UActorComponent* Component = Node->GetActualComponentTemplate(GeneratedClass);
 							if (Component)
 							{
-								BlueprintEditor->FindAndSelectSCSEditorTreeNode(Component, false);
+								BlueprintEditor->FindAndSelectSubobjectEditorTreeNode(Component, false);
 							}
 						}
 						break;

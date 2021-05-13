@@ -271,7 +271,7 @@ TSharedRef<IBlueprintEditor> FBlueprintEditorModule::CreateBlueprintEditor(const
 	NewBlueprintEditor->InitBlueprintEditor(Mode, InitToolkitHost, BlueprintsToEdit, bShouldOpenInDefaultsMode);
 
 	NewBlueprintEditor->SetDetailsCustomization(DetailsObjectFilter, DetailsRootCustomization);
-	NewBlueprintEditor->SetSCSEditorUICustomization(SCSEditorUICustomization);
+	NewBlueprintEditor->SetSubobjectEditorUICustomization(SCSEditorUICustomization);
 
 	for(auto It(SCSEditorCustomizations.CreateConstIterator()); It; ++It)
 	{
@@ -345,13 +345,13 @@ void FBlueprintEditorModule::SetDetailsCustomization(TSharedPtr<FDetailsViewObje
 	}
 }
 
-void FBlueprintEditorModule::SetSCSEditorUICustomization(TSharedPtr<ISCSEditorUICustomization> InSCSEditorUICustomization)
+void FBlueprintEditorModule::SetSubobjectEditorUICustomization(TSharedPtr<ISCSEditorUICustomization> InSCSEditorUICustomization)
 {
 	SCSEditorUICustomization = InSCSEditorUICustomization;
 
 	for (const TSharedRef<IBlueprintEditor>& BlueprintEditor : GetBlueprintEditors())
 	{
-		StaticCastSharedRef<FBlueprintEditor>(BlueprintEditor)->SetSCSEditorUICustomization(SCSEditorUICustomization);
+		StaticCastSharedRef<FBlueprintEditor>(BlueprintEditor)->SetSubobjectEditorUICustomization(SCSEditorUICustomization);
 	}
 }
 

@@ -221,7 +221,7 @@ namespace BlueprintEditorPromotionUtils
 		// Recompile skeleton because of the new component we added
 		FKismetEditorUtilities::GenerateBlueprintSkeleton(InBlueprint, true);
 
-		CurrentBlueprintEditor->UpdateSCSPreview(true);
+		CurrentBlueprintEditor->UpdateSubobjectPreview(true);
 
 		return NewNode;
 	}

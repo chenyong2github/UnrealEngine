@@ -13,7 +13,7 @@
 #include "STimelineEditor.h"
 #include "Debugging/SKismetDebuggingView.h"
 #include "SKismetInspector.h"
-#include "SSCSEditor.h"
+#include "SSubobjectEditor.h"
 #include "SSCSEditorViewport.h"
 #include "SBlueprintPalette.h"
 #include "SBlueprintBookmarks.h"
@@ -299,7 +299,7 @@ TSharedRef<SWidget> FConstructionScriptEditorSummoner::CreateTabBody(const FWork
 {
 	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = StaticCastSharedPtr<FBlueprintEditor>(HostingApp.Pin());
 
-	return BlueprintEditorPtr->GetSCSEditor().ToSharedRef();
+	return BlueprintEditorPtr->GetSubobjectEditor().ToSharedRef();
 }
 
 FSCSViewportSummoner::FSCSViewportSummoner(TSharedPtr<class FAssetEditorToolkit> InHostingApp)
@@ -322,7 +322,7 @@ TSharedRef<SWidget> FSCSViewportSummoner::CreateTabBody(const FWorkflowTabSpawnI
 	TSharedPtr<SWidget> Result;
 	if (BlueprintEditorPtr->CanAccessComponentsMode())
 	{
-		Result = BlueprintEditorPtr->GetSCSViewport();
+		Result = BlueprintEditorPtr->GetSubobjectViewport();
 	}
 
 	if (Result.IsValid())
@@ -342,7 +342,7 @@ TSharedRef<SDockTab> FSCSViewportSummoner::SpawnTab(const FWorkflowTabSpawnInfo&
 	TSharedRef<SDockTab> Tab = FWorkflowTabFactory::SpawnTab(Info);
 
 	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = StaticCastSharedPtr<FBlueprintEditor>(HostingApp.Pin());
-	BlueprintEditorPtr->GetSCSViewport()->SetOwnerTab(Tab);
+	BlueprintEditorPtr->GetSubobjectViewport()->SetOwnerTab(Tab);
 
 	return Tab;
 }
