@@ -8,7 +8,7 @@ namespace Chaos
 {
 	// Velocity field basic implementation
 	// TODO: Add lift
-	class CHAOS_API FVelocityField
+	class CHAOS_API FVelocityField final
 	{
 	public:
 		static constexpr FReal DefaultDragCoefficient = (FReal)0.5;
@@ -17,12 +17,14 @@ namespace Chaos
 
 		// Construct an uninitialized field. Mesh, properties, and velocity will have to be set for this field to be valid.
 		FVelocityField()
-			: Range(-1)
+			: Offset(INDEX_NONE)
+			, NumParticles(0)
 		{
-			SetCoefficients((FReal)0., (FReal)0.);
+			SetProperties(FVec2::ZeroVector, FVec2::ZeroVector, (FReal)0.);
 		}
 
 		// Construct a uniform field.
+		UE_DEPRECATED(4.27, "Use Chaos fields instead.")
 		FVelocityField(
 			const FTriangleMesh& TriangleMesh,
 			const FVec3& InVelocity,
@@ -32,38 +34,38 @@ namespace Chaos
 			: PointToTriangleMap(TriangleMesh.GetPointToTriangleMap())
 			, Elements(TriangleMesh.GetElements())
 			, Velocity(InVelocity)
-			, Range(TriangleMesh.GetVertexRange())
+			, Offset(TriangleMesh.GetVertexRange()[0])
+			, NumParticles(TriangleMesh.GetVertexRange()[1] - TriangleMesh.GetVertexRange()[0] + 1)
 		{
 			Forces.SetNumUninitialized(Elements.Num());
-			SetCoefficients(InDragCoefficient, InLiftCoefficient);
-			SetFluidDensity(InFluidDensity);
+			SetProperties(InDragCoefficient, InLiftCoefficient, InFluidDensity);
 		}
 
 		// Construct a vector field.
+		UE_DEPRECATED(4.27, "Use Chaos fields instead.")
 		FVelocityField(
 			const FTriangleMesh& TriangleMesh,
-			TFunction<FVec3(const FVec3&)> InGetVelocity,
+			TFunction<FVec3(const FVec3&)> GetVelocity,
 			const FReal InDragCoefficient = DefaultDragCoefficient,
 			const FReal InLiftCoefficient = DefaultLiftCoefficient,
 			const FReal InFluidDensity = DefaultFluidDensity)
 			: PointToTriangleMap(TriangleMesh.GetPointToTriangleMap())
 			, Elements(TriangleMesh.GetElements())
-			, Velocity((FReal)0.)
-			, GetVelocity(InGetVelocity)
-			, Range(TriangleMesh.GetVertexRange())
+			, Velocity(GetVelocity(FVec3::ZeroVector))
+			, Offset(TriangleMesh.GetVertexRange()[0])
+			, NumParticles(TriangleMesh.GetVertexRange()[1] - TriangleMesh.GetVertexRange()[0] + 1)
 		{
 			Forces.SetNumUninitialized(Elements.Num());
-			SetCoefficients(InDragCoefficient, InLiftCoefficient);
-			SetFluidDensity(InFluidDensity);
+			SetProperties(InDragCoefficient, InLiftCoefficient, InFluidDensity);
 		}
 
-		virtual ~FVelocityField() {}
+		~FVelocityField() {}
 
 		void UpdateForces(const FPBDParticles& InParticles, const FReal /*Dt*/);
 
 		inline void Apply(FPBDParticles& InParticles, const FReal Dt, const int32 Index) const
 		{
-			checkSlow(Index >= Range[0] && Index <= Range[1]);  // The index should always match the original triangle mesh range
+			checkSlow(Index >= Offset && Index < Offset + NumParticles);  // The index should always match the original triangle mesh range
 
 			const TArray<int32>& ElementIndices = PointToTriangleMap[Index];
 			for (const int32 ElementIndex : ElementIndices)
@@ -72,56 +74,48 @@ namespace Chaos
 			}
 		}
 
+		UE_DEPRECATED(4.27, "Use SetProperties instead.")
 		void SetFluidDensity(const FReal InFluidDensity)
 		{
 			QuarterRho = (FReal)0.25 * InFluidDensity;
 		}
 
+		UE_DEPRECATED(4.27, "Use SetProperties instead.")
 		void SetCoefficients(const FReal InDragCoefficient, const FReal InLiftCoefficient)
 		{
-			Cd = InDragCoefficient;
-			Cl = InLiftCoefficient;
+			SetProperties(FVec2(InDragCoefficient), FVec2(InLiftCoefficient), (FReal)4. * QuarterRho);
 		}
 
-		bool IsActive() const
+		void SetProperties(const FVec2& Drag, const FVec2& Lift, const FReal FluidDensity)
 		{
-			return Cd > (FReal)0. || Cl > (FReal)0.;
+			constexpr FReal OneQuarter = (FReal)0.25;
+			QuarterRho = FluidDensity * OneQuarter;
+
+			constexpr FReal MinCoefficient = (FReal)0.;
+			constexpr FReal MaxCoefficient = (FReal)10.;
+			DragBase = FMath::Clamp(Drag[0], MinCoefficient, MaxCoefficient);
+			DragRange = FMath::Clamp(Drag[1], MinCoefficient, MaxCoefficient) - DragBase;
+			LiftBase = FMath::Clamp(Lift[0], MinCoefficient, MaxCoefficient);
+			LiftRange = FMath::Clamp(Lift[1], MinCoefficient, MaxCoefficient) - LiftBase;
 		}
 
-		void SetGeometry(const FTriangleMesh* TriangleMesh)
+		bool IsActive() const 
 		{
-			if (TriangleMesh)
-			{
-				PointToTriangleMap = TriangleMesh->GetPointToTriangleMap();
-				Elements = TriangleMesh->GetElements();
-				Range = TriangleMesh->GetVertexRange();
-				Forces.SetNumUninitialized(Elements.Num());
-			}
-			else
-			{
-				PointToTriangleMap = TArrayView<TArray<int32>>();
-				Elements = TArrayView<TVector<int32, 3>>();
-				Range = TVector<int32, 2>(-1);
-				Forces.Reset();
-			}
+			return (DragBase > (FReal)0. || DragRange != (FReal)0.) || (LiftBase > (FReal)0. || LiftRange != (FReal)0.);  // Note: range can be a negative value (although not when base is zero)
 		}
 
-		void SetVelocity(const FVec3& InVelocity)
-		{
-			Velocity = InVelocity;
-			GetVelocity = TFunction<FVec3(const FVec3&)>();
-		}
+		void SetGeometry(const FTriangleMesh* TriangleMesh, const TConstArrayView<FRealSingle>& DragMultipliers, const TConstArrayView<FRealSingle>& LiftMultipliers);
 
-		void SetVelocity(TFunction<FVec3(const FVec3&)> InGetVelocity)
-		{
-			GetVelocity = InGetVelocity;
-		}
+		void SetVelocity(const FVec3& InVelocity) { Velocity = InVelocity; }
+
+		UE_DEPRECATED(4.27, "Use SetVeloccity(const FVec3&) instead.")
+		void SetVelocity(TFunction<FVec3(const FVec3&)> GetVelocity)  { Velocity = GetVelocity(FVec3::ZeroVector); }
 
 		const TConstArrayView<TVector<int32, 3>>& GetElements() const { return Elements; }
 		TConstArrayView<FVec3> GetForces() const { return TConstArrayView<FVec3>(Forces); }
 
 	private:
-		inline void UpdateField(const FPBDParticles& InParticles, int32 ElementIndex, const FVec3& InVelocity)
+		void UpdateField(const FPBDParticles& InParticles, int32 ElementIndex, const FVec3& InVelocity, const FReal Cd, const FReal Cl)
 		{
 			const TVec3<int32>& Element = Elements[ElementIndex];
 
@@ -150,13 +144,16 @@ namespace Chaos
 	private:
 		TConstArrayView<TArray<int32>> PointToTriangleMap;
 		TConstArrayView<TVec3<int32>> Elements;
-		FVec3 Velocity;
-		TFunction<FVec3(const FVec3&)> GetVelocity;
 		TArray<FVec3> Forces;
+		TArray<FVec2> Multipliers;
+		FVec3 Velocity;
+		FReal DragBase;
+		FReal DragRange;
+		FReal LiftBase;
+		FReal LiftRange;
 		FReal QuarterRho;
-		FReal Cd;
-		FReal Cl;
-		TVec2<int32> Range;  // TODO: Remove? It is used by the check only
+		int32 Offset;
+		int32 NumParticles;
 	};
 }
 

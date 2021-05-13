@@ -3221,6 +3221,11 @@ void USkeletalMeshComponent::RemoveClothCollisionSource(USkeletalMeshComponent* 
 	}
 }
 
+void USkeletalMeshComponent::ResetClothCollisionSources()
+{
+	ClothCollisionSources.Reset();
+}
+
 #endif// #if WITH_CLOTH_COLLISION_DETECTION
 
 void USkeletalMeshComponent::EndPhysicsTickComponent(FSkeletalMeshComponentEndPhysicsTickFunction& ThisTickFunction)

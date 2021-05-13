@@ -16,9 +16,10 @@ FPBDLongRangeConstraintsBase::FPBDLongRangeConstraintsBase(
 	const int32 InParticleCount,
 	const TMap<int32, TSet<int32>>& PointToNeighbors,
 	const TConstArrayView<FRealSingle>& StiffnessMultipliers,
+	const TConstArrayView<FRealSingle>& ScaleMultipliers,
 	const int32 MaxNumTetherIslands,
 	const FVec2& InStiffness,
-	const FReal LimitScale,
+	const FVec2& Scale,
 	const EMode InMode)
 	: TethersView(Tethers)
 	, Stiffness(StiffnessMultipliers, InStiffness, InParticleCount)
@@ -40,9 +41,23 @@ FPBDLongRangeConstraintsBase::FPBDLongRangeConstraintsBase(
 	}
 
 	// Scale the tether's reference lengths
-	for (FTether& Tether : Tethers)
+	const FReal ScaleOffset = FMath::Clamp(Scale[0], (FReal)0.01, (FReal)10.);
+
+	if (ScaleMultipliers.Num() == InParticleCount)
 	{
-		Tether.RefLength *= LimitScale;
+		const FReal ScaleRange = FMath::Clamp(Scale[1], (FReal)0.01, (FReal)10.) - Scale[0];
+
+		for (FTether& Tether : Tethers)
+		{
+			Tether.RefLength *= ScaleOffset + ScaleRange * FMath::Clamp((FReal)ScaleMultipliers[Tether.End], (FReal)0., (FReal)1.);
+		}
+	}
+	else
+	{
+		for (FTether& Tether : Tethers)
+		{
+			Tether.RefLength *= ScaleOffset;
+		}
 	}
 }
 
