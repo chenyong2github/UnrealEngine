@@ -380,7 +380,6 @@ UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
 ,	NextTravelType(TRAVEL_Relative)
 ,	CleanupWorldTag(0)
 {
-	NextPreferredLevelPendingVisibility = nullptr;
 	TimerManager = new FTimerManager();
 #if WITH_EDITOR
 	SetPlayInEditorInitialNetMode(ENetMode::NM_Standalone);
@@ -2554,6 +2553,17 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 	bool bPerformedLastStep	= false;
 	const bool bIsGameWorld = IsGameWorld();
 
+	if (bExecuteNextStep)
+	{
+		ULevel* NextPreferredLevelPendingVisibility = CalculateNextPreferredLevelPendingVisibility();
+		if (NextPreferredLevelPendingVisibility != nullptr && NextPreferredLevelPendingVisibility != Level)
+		{
+			// Don't add to world if the level is not the preferred one
+			check(CurrentLevelPendingVisibility == nullptr);
+			bExecuteNextStep = false;
+		}
+	}
+
 	// Don't make this level visible if it's currently being made invisible
 	if( bExecuteNextStep && CurrentLevelPendingVisibility == NULL && CurrentLevelPendingInvisibility != Level )
 	{
@@ -2561,7 +2571,6 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 		
 		// Mark level as being the one in process of being made visible.
 		CurrentLevelPendingVisibility = Level;
-		NextPreferredLevelPendingVisibility = nullptr;
 
 		// Add to the UWorld's array of levels, which causes it to be rendered et al.
 		Levels.AddUnique( Level );
@@ -2720,7 +2729,7 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 			}
 
 			const float PreventNextStepTimeLimit = 0.0; // We will always run route actor initialize in its own frame if we are using a time limit
-			bExecuteNextStep = (!bConsiderTimeLimit || !IsTimeLimitExceeded( TEXT("initializing network actors"), StartTime, Level, PreventNextStepTimeLimit )); 
+			bExecuteNextStep = (!bConsiderTimeLimit || !IsTimeLimitExceeded( TEXT("initializing network actors"), StartTime, Level, PreventNextStepTimeLimit ));
 		}
 
 		// Route various initialization functions and set volumes.
@@ -3607,13 +3616,14 @@ void UWorld::InternalUpdateStreamingState()
 	}
 }
 
-void UWorld::UpdateNextPreferredLevelPendingVisibility()
+ULevel* UWorld::CalculateNextPreferredLevelPendingVisibility() const
 {
 	if (CurrentLevelPendingVisibility == nullptr)
 	{
 		const UWorldPartition* WorldPartition = GetWorldPartition();
-		NextPreferredLevelPendingVisibility = WorldPartition ? WorldPartition->GetPreferredLoadedLevelToAddToWorld() : nullptr;
+		return WorldPartition ? WorldPartition->GetPreferredLoadedLevelToAddToWorld() : nullptr;
 	}
+	return nullptr;
 }
 
 void UWorld::UpdateLevelStreaming()
@@ -3637,8 +3647,6 @@ void UWorld::UpdateLevelStreaming()
 	{
 		if (ULevelStreaming* StreamingLevel = StreamingLevelsToConsider.GetStreamingLevels()[Index])
 		{
-			UpdateNextPreferredLevelPendingVisibility();
-
 			bool bUpdateAgain = true;
 			bool bShouldContinueToConsider = true;
 			while (bUpdateAgain && bShouldContinueToConsider)
