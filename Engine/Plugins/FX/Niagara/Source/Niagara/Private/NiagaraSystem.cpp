@@ -362,7 +362,7 @@ void UNiagaraSystem::UpdateSystemAfterLoad()
 	const bool bIsDedicatedServer = !GIsClient && GIsServer;
 
 	if (!GetOutermost()->bIsCookedForEditor && !bIsDedicatedServer)
-	{		
+	{
 		TArray<UNiagaraScript*> AllSystemScripts;
 		UNiagaraScriptSourceBase* SystemScriptSource;
 		if (SystemSpawnScript == nullptr)
@@ -806,7 +806,18 @@ void UNiagaraSystem::PostLoad()
 	{
 		EditorData->PostLoadFromOwner(this);
 	}
-	
+
+	if (EditorParameters == nullptr)
+	{
+		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
+		EditorParameters = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorParameters(this);
+	}
+
+	// see the equivalent in NiagaraEmitter for details
+	if(bIsTemplateAsset_DEPRECATED)
+	{
+		TemplateSpecification = bIsTemplateAsset_DEPRECATED ? ENiagaraScriptTemplateSpecification::Template : ENiagaraScriptTemplateSpecification::None;
+	}
 #endif // WITH_EDITORONLY_DATA
 
 	// we are not yet finished, but we do the rest of the work after postload in a separate task
