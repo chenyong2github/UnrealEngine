@@ -97,7 +97,7 @@ protected:
 	// Set of spawnable tabs in this mode
 	FWorkflowAllowedTabSet BlueprintComponentsTabFactories;
 
-	TArray<TWeakObjectPtr<UActorComponent>> CachedComponentSelection;
+	TArray<TWeakObjectPtr<const UActorComponent>> CachedComponentSelection;
 };
 
 class KISMET_API FBlueprintInterfaceApplicationMode : public FApplicationMode

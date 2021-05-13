@@ -20,6 +20,7 @@
 #include "BlueprintEditorTabFactories.h"
 #include "BlueprintEditorSharedTabFactories.h"
 #include "BlueprintEditorSettings.h"
+#include "SSubobjectEditor.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintEditor"
 
@@ -272,18 +273,19 @@ void FBlueprintComponentsApplicationMode::PreDeactivateMode()
 	FApplicationMode::PreDeactivateMode();
 
 	TSharedPtr<FBlueprintEditor> BP = MyBlueprintEditor.Pin();
-	BP->GetSCSEditor()->SetEnabled(true);
-	BP->GetSCSEditor()->UpdateTree();
+	BP->GetSubobjectEditor()->SetEnabled(true);
+    BP->GetSubobjectEditor()->UpdateTree();
 	BP->GetInspector()->SetEnabled(true);
 	BP->GetInspector()->EnableComponentDetailsCustomization(false);
-	BP->EnableSCSPreview(false);
+	BP->EnableSubobjectPreview(false);
 
 	// Cache component selection before clearing so it can be restored
-	for( auto& SCSNode : BP->GetSCSEditor()->GetSelectedNodes() )
+	for(FSubobjectEditorTreeNodePtrType& Node : BP->GetSubobjectEditor()->GetSelectedNodes())
 	{
-		CachedComponentSelection.AddUnique(SCSNode->GetComponentTemplate());
+		CachedComponentSelection.AddUnique(Node->GetComponentTemplate());
 	}
-	BP->GetSCSEditor()->ClearSelection();
+	
+	BP->GetSubobjectEditor()->ClearSelection();
 }
 
 void FBlueprintComponentsApplicationMode::PostActivateMode()
@@ -291,25 +293,25 @@ void FBlueprintComponentsApplicationMode::PostActivateMode()
 	TSharedPtr<FBlueprintEditor> BP = MyBlueprintEditor.Pin();
 	if (BP.IsValid())
 	{
-		auto SCSEditor = BP->GetSCSEditor();
-		SCSEditor->UpdateTree();
-		BP->EnableSCSPreview(true);
-		BP->UpdateSCSPreview();
+		TSharedPtr<SSubobjectEditor> SubobjectEditor = BP->GetSubobjectEditor();
+		SubobjectEditor->UpdateTree();
+		BP->EnableSubobjectPreview(true);
+		BP->UpdateSubobjectPreview();
 		BP->GetInspector()->EnableComponentDetailsCustomization(true);
 
 		// Reselect the cached components
 		TArray<TSharedPtr<FSCSEditorTreeNode>> Selection;
-		for (auto Component : CachedComponentSelection)
+		for (TWeakObjectPtr<const UActorComponent>& Component : CachedComponentSelection)
 		{
 			if (Component.IsValid())
 			{
-				SCSEditor->SCSTreeWidget->SetItemSelection(SCSEditor->GetNodeFromActorComponent(Component.Get()), true);
+				SubobjectEditor->GetDragDropTree()->SetItemSelection(SubobjectEditor->FindSlateNodeForObject(Component.Get()), true);
 			}
 		}
 
-		if (BP->GetSCSViewport()->GetIsSimulateEnabled())
+		if (BP->GetSubobjectViewport()->GetIsSimulateEnabled())
 		{
-			SCSEditor->SetEnabled(false);
+			SubobjectEditor->SetEnabled(false);
 			BP->GetInspector()->SetEnabled(false);
 		}
 	}

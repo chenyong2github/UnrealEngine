@@ -53,7 +53,10 @@
 #include "IDetailsView.h"
 #include "Widgets/Colors/SColorPicker.h"
 #include "SKismetInspector.h"
-#include "SSCSEditor.h"
+#include "Widgets/SToolTip.h"
+#include "SSubobjectEditor.h"
+#include "SSubobjectBlueprintEditor.h"
+#include "SubobjectDataSubsystem.h"
 #include "SPinTypeSelector.h"
 #include "NodeFactory.h"
 #include "Kismet2/Kismet2NameValidators.h"
@@ -2417,7 +2420,7 @@ EVisibility FBlueprintVarActionDetails::ReplicationVisibility() const
 
 TSharedRef<SWidget> FBlueprintVarActionDetails::BuildEventsMenuForVariable() const
 {
-	if( MyBlueprint.IsValid() )
+	if(MyBlueprint.IsValid())
 	{
 		TSharedPtr<SMyBlueprint> MyBlueprintPtr = MyBlueprint.Pin();
 		FEdGraphSchemaAction_K2Var* Variable = MyBlueprintPtr->SelectionAsVar();
@@ -2425,8 +2428,8 @@ TSharedRef<SWidget> FBlueprintVarActionDetails::BuildEventsMenuForVariable() con
 		TWeakPtr<FBlueprintEditor> BlueprintEditorPtr = MyBlueprintPtr->GetBlueprintEditor();
 		if( BlueprintEditorPtr.IsValid() && ComponentProperty )
 		{
-			TSharedPtr<SSCSEditor> Editor =  BlueprintEditorPtr.Pin()->GetSCSEditor();
-			FMenuBuilder MenuBuilder( true, NULL );
+			TSharedPtr<SSubobjectBlueprintEditor> Editor = StaticCastSharedPtr<SSubobjectBlueprintEditor>(BlueprintEditorPtr.Pin()->GetSubobjectEditor());
+			FMenuBuilder MenuBuilder(true, nullptr);
 			Editor->BuildMenuEventsSection( MenuBuilder, BlueprintEditorPtr.Pin()->GetBlueprintObj(), ComponentProperty->PropertyClass, 
 											FCanExecuteAction::CreateSP(BlueprintEditorPtr.Pin().Get(), &FBlueprintEditor::InEditingMode),
 											FGetSelectedObjectsDelegate::CreateSP(MyBlueprintPtr.Get(), &SMyBlueprint::GetSelectedItemsForContextMenu));
@@ -5836,12 +5839,12 @@ void FBlueprintGlobalOptionsDetails::CustomizeDetails(IDetailLayoutBuilder& Deta
 void FBlueprintComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {
 	check( BlueprintEditorPtr.IsValid() );
-	TSharedPtr<SSCSEditor> Editor = BlueprintEditorPtr.Pin()->GetSCSEditor();
+	TSharedPtr<SSubobjectEditor> Editor = BlueprintEditorPtr.Pin()->GetSubobjectEditor();
 	check( Editor.IsValid() );
 	const UBlueprint* BlueprintObj = GetBlueprintObj();
 	check(BlueprintObj != nullptr);
 
-	TArray<FSCSEditorTreeNodePtrType> Nodes = Editor->GetSelectedNodes();
+	TArray<FSubobjectEditorTreeNodePtrType> Nodes = Editor->GetSelectedNodes();
 
 	if (!Nodes.Num())
 	{
@@ -5939,7 +5942,7 @@ void FBlueprintComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLa
 		// Keep an easy way to disable UI to specify overriden component class until there is confidence that it is robust
 		if (GetAllowNativeComponentClassOverrides())
 		{
-			UActorComponent* ComponentTemplate = (CachedNodePtr->IsNativeComponent() ? CachedNodePtr->GetComponentTemplate() : nullptr);
+			const UActorComponent* ComponentTemplate = (CachedNodePtr->IsNativeComponent() ? CachedNodePtr->GetComponentTemplate() : nullptr);
 			if (ComponentTemplate)
 			{
 				UClass* BaseClass = ComponentTemplate->GetClass();
@@ -6025,7 +6028,7 @@ void FBlueprintComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLa
 	if ( FBlueprintEditorUtils::DoesSupportEventGraphs(BlueprintObj) && Nodes.Num() == 1 )
 	{
 		// Use the component template to support native components as well
-		if (UActorComponent* ComponentTemplate = CachedNodePtr->GetComponentTemplate())
+		if (const UActorComponent* ComponentTemplate = CachedNodePtr->GetComponentTemplate())
 		{
 			AddEventsCategory(DetailLayout, CachedNodePtr->GetVariableName(), ComponentTemplate->GetClass());
 		}
@@ -6062,17 +6065,12 @@ void FBlueprintComponentDetails::OnVariableTextChanged(const FText& InNewText)
 
 	const FString& NewTextStr = InNewText.ToString();
 
-	if (USCS_Node* SCS_Node = CachedNodePtr->GetSCSNode())
+	if (USubobjectDataSubsystem* System = USubobjectDataSubsystem::Get())
 	{
-		if (!NewTextStr.IsEmpty() && !FComponentEditorUtils::IsValidVariableNameString(SCS_Node->ComponentTemplate, NewTextStr))
+		FText ErrorMsg;
+		if (!System->IsValidRename(CachedNodePtr->GetDataHandle(), InNewText, ErrorMsg))
 		{
-			VariableNameEditableTextBox->SetError(LOCTEXT("ComponentVariableRenameFailed_NotValid", "This name is reserved for engine use."));
-			return;
-		}
-
-		if (!FComponentEditorUtils::IsComponentNameAvailable(NewTextStr, SCS_Node->ComponentTemplate->GetOuter(), SCS_Node->ComponentTemplate))
-		{
-			VariableNameEditableTextBox->SetError(FText::Format(LOCTEXT("ComponentVariableRenameFailed_InUse", "{0} is in use by another variable or function!"), InNewText));
+			VariableNameEditableTextBox->SetError(ErrorMsg);
 			return;
 		}
 	}
@@ -6101,16 +6099,12 @@ void FBlueprintComponentDetails::OnVariableTextChanged(const FText& InNewText)
 
 void FBlueprintComponentDetails::OnVariableTextCommitted(const FText& InNewName, ETextCommit::Type InTextCommit)
 {
-	if ( !bIsVariableNameInvalid )
+	if (!bIsVariableNameInvalid)
 	{
 		check(CachedNodePtr.IsValid());
 
-		USCS_Node* SCS_Node = CachedNodePtr->GetSCSNode();
-		if(SCS_Node != NULL)
-		{
-			const FScopedTransaction Transaction( LOCTEXT("RenameComponentVariable", "Rename Component Variable") );
-			FBlueprintEditorUtils::RenameComponentMemberVariable(GetBlueprintObj(), CachedNodePtr->GetSCSNode(), FName( *InNewName.ToString() ));
-		}
+		const FScopedTransaction Transaction(LOCTEXT("RenameComponentVariable", "Rename Component Variable"));
+		USubobjectDataSubsystem::RenameSubobjectMemberVariable(GetBlueprintObj(), CachedNodePtr->GetDataHandle(), FName(*InNewName.ToString()));
 	}
 
 	bIsVariableNameInvalid = false;
@@ -6140,8 +6134,8 @@ void FBlueprintComponentDetails::OnTooltipTextCommitted(const FText& NewText, ET
 bool FBlueprintComponentDetails::OnVariableCategoryChangeEnabled() const
 {
 	check(CachedNodePtr.IsValid());
-	
-	return !CachedNodePtr->IsInheritedComponent();
+	const FSubobjectData* Data = CachedNodePtr->GetDataSource();
+	return !Data->IsInheritedComponent();
 }
 
 FText FBlueprintComponentDetails::OnGetVariableCategoryText() const
@@ -6249,7 +6243,7 @@ const UClass* FBlueprintComponentDetails::GetSelectedEntryClass() const
 {
 	check(CachedNodePtr.IsValid());
 
-	if (UActorComponent* ComponentTemplate = CachedNodePtr->GetComponentTemplate())
+	if (const UActorComponent* ComponentTemplate = CachedNodePtr->GetComponentTemplate())
 	{
 		UBlueprint* BlueprintObj = GetBlueprintObj();
 		check(BlueprintObj);
@@ -6280,7 +6274,7 @@ void FBlueprintComponentDetails::HandleNewEntryClassSelected(const UClass* NewEn
 	{
 		check(CachedNodePtr.IsValid());
 
-		if (UActorComponent* ComponentTemplate = CachedNodePtr->GetComponentTemplate())
+		if (const UActorComponent* ComponentTemplate = CachedNodePtr->GetComponentTemplate())
 		{
 			const FScopedTransaction Transaction(LOCTEXT("SetComponentClassOverride", "Set Component Class Override"));
 
@@ -6333,10 +6327,9 @@ void FBlueprintComponentDetails::HandleNewEntryClassSelected(const UClass* NewEn
 FText FBlueprintComponentDetails::GetSocketName() const
 {
 	check(CachedNodePtr.IsValid());
-
-	if (CachedNodePtr->GetSCSNode() != NULL)
+	if (FSubobjectData* Data = CachedNodePtr->GetDataSource())
 	{
-		return FText::FromName(CachedNodePtr->GetSCSNode()->AttachToName);
+		return Data->GetSocketName();
 	}
 	return FText::GetEmpty();
 }
@@ -6345,9 +6338,9 @@ bool FBlueprintComponentDetails::CanChangeSocket() const
 {
 	check(CachedNodePtr.IsValid());
 
-	if (CachedNodePtr->GetSCSNode() != NULL)
+	if (FSubobjectData* Data = CachedNodePtr->GetDataSource())
 	{
-		return !CachedNodePtr->IsInheritedComponent();
+		return !Data->IsInheritedComponent();
 	}
 	return true;
 }
@@ -6355,17 +6348,18 @@ bool FBlueprintComponentDetails::CanChangeSocket() const
 void FBlueprintComponentDetails::OnBrowseSocket()
 {
 	check(CachedNodePtr.IsValid());
-
-	if (CachedNodePtr->GetSCSNode() != NULL)
+	FSubobjectData* Data = CachedNodePtr->GetDataSource();
+	if (Data && Data->HasValidSocket())
 	{
-		TSharedPtr<SSCSEditor> Editor = BlueprintEditorPtr.Pin()->GetSCSEditor();
-		check( Editor.IsValid() );
+		TSharedPtr<SSubobjectEditor> Editor = BlueprintEditorPtr.Pin()->GetSubobjectEditor();
+		check(Editor.IsValid());
 
-		FSCSEditorTreeNodePtrType ParentFNode = CachedNodePtr->GetParent();
-
-		if (ParentFNode.IsValid())
+		FSubobjectEditorTreeNodePtrType ParentFNode = CachedNodePtr->GetParent();
+		FSubobjectData* ParentData = ParentFNode.IsValid() ? ParentFNode->GetDataSource() : nullptr;
+		if (ParentData)
 		{
-			if (USceneComponent* ParentSceneComponent = Cast<USceneComponent>(ParentFNode->GetOrCreateEditableComponentTemplate(Editor->GetBlueprint())))
+			// #TODO_BH Remove const cast
+			if (USceneComponent* ParentSceneComponent = const_cast<USceneComponent*>(ParentData->GetObjectForBlueprint<USceneComponent>(Editor->GetBlueprint())))
 			{
 				if (ParentSceneComponent->HasAnySockets())
 				{
@@ -6388,23 +6382,24 @@ void FBlueprintComponentDetails::OnBrowseSocket()
 void FBlueprintComponentDetails::OnClearSocket()
 {
 	check(CachedNodePtr.IsValid());
-
-	if (CachedNodePtr->GetSCSNode() != NULL)
+	FSubobjectData* Data = CachedNodePtr->GetDataSource();
+	
+	if (Data && Data->HasValidSocket())
 	{
-		CachedNodePtr->GetSCSNode()->AttachToName = NAME_None;
+		Data->SetupAttachment(NAME_None);
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetBlueprintObj());
 	}
 }
 
-void FBlueprintComponentDetails::OnSocketSelection( FName SocketName )
+void FBlueprintComponentDetails::OnSocketSelection(FName SocketName)
 {
 	check(CachedNodePtr.IsValid());
 
-	USCS_Node* SCS_Node = CachedNodePtr->GetSCSNode();
-	if (SCS_Node != NULL)
+	FSubobjectData* Data = CachedNodePtr->GetDataSource();
+	if (Data && Data->HasValidSocket())
 	{
 		// Record selection if there is an actual asset attached
-		SCS_Node->AttachToName = SocketName;
+		Data->SetSocketName(SocketName);
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetBlueprintObj());
 	}
 }

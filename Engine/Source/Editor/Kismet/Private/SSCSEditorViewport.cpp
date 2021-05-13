@@ -6,7 +6,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EditorStyleSet.h"
 #include "BlueprintEditorCommands.h"
-#include "SSCSEditor.h"
+#include "SSubobjectEditor.h"
 #include "Slate/SceneViewport.h"
 #include "SViewportToolBar.h"
 #include "STransformViewportToolbar.h"
@@ -283,8 +283,9 @@ void SSCSEditorViewport::BindCommands()
 	FSCSEditorViewportCommands::Register(); // make sure the viewport specific commands have been registered
 
 	TSharedPtr<FBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin();
-	TSharedPtr<SSCSEditor> SCSEditorWidgetPtr = BlueprintEditor->GetSCSEditor();
-	SSCSEditor* SCSEditorWidget = SCSEditorWidgetPtr.Get();
+	TSharedPtr<SSubobjectEditor> SubobjectEditorPtr = BlueprintEditor->GetSubobjectEditor();
+	SSubobjectEditor* SubobjectEditorWidget = SubobjectEditorPtr.Get(); 
+	
 	// for mac, we have to bind a command that would override the BP-Editor's 
 	// "NavigateToParentBackspace" command, because the delete key is the 
 	// backspace key for that platform (and "NavigateToParentBackspace" does not 
@@ -292,13 +293,18 @@ void SSCSEditorViewport::BindCommands()
 	// 
 	// NOTE: this needs to come before we map any other actions (so it is 
 	// prioritized first)
-	CommandList->MapAction(
-		FSCSEditorViewportCommands::Get().DeleteComponent,
-		FExecuteAction::CreateSP(SCSEditorWidget, &SSCSEditor::OnDeleteNodes),
-		FCanExecuteAction::CreateSP(SCSEditorWidget, &SSCSEditor::CanDeleteNodes)
-	);
 
-	CommandList->Append(BlueprintEditor->GetSCSEditor()->CommandList.ToSharedRef());
+	if(SubobjectEditorWidget)
+	{
+		CommandList->MapAction(
+		    FSCSEditorViewportCommands::Get().DeleteComponent,
+		    FExecuteAction::CreateSP(SubobjectEditorWidget, &SSubobjectEditor::OnDeleteNodes),
+		    FCanExecuteAction::CreateSP(SubobjectEditorWidget, &SSubobjectEditor::CanDeleteNodes)
+		);
+		
+		CommandList->Append(SubobjectEditorWidget->GetCommandList().ToSharedRef());
+	}
+	
 	CommandList->Append(BlueprintEditor->GetToolkitCommands());
 	SEditorViewport::BindCommands();
 
@@ -418,8 +424,9 @@ TSharedPtr<SDockTab> SSCSEditorViewport::GetOwnerTab() const
 
 FReply SSCSEditorViewport::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
-	TSharedPtr<SSCSEditor> SCSEditor = BlueprintEditorPtr.Pin()->GetSCSEditor();
-	return SCSEditor->TryHandleAssetDragDropOperation(DragDropEvent);
+	TSharedPtr<SSubobjectEditor> SubobjectEditor = BlueprintEditorPtr.Pin()->GetSubobjectEditor();
+
+	return SubobjectEditor->TryHandleAssetDragDropOperation(DragDropEvent);
 }
 
 EActiveTimerReturnType SSCSEditorViewport::DeferredUpdatePreview(double InCurrentTime, float InDeltaTime, bool bResetCamera)
