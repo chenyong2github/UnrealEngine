@@ -145,6 +145,14 @@ export const _api = {
     },
     asset: (asset: string, action: AssetAction, meta?: any) => {
       _socket.emit('asset', asset, action, meta);
+    },
+    rename: (type: 'property' | 'function', property: string, label: string, callback: (label: string) => void) => {
+      const preset = _internal.getPreset();
+      _socket.emit('rename', preset, type, property, label, callback);
+    },
+    metadata: (property: string, meta: string, value: string, callback: () => void) => {
+      const preset = _internal.getPreset();
+      _socket.emit('metadata', preset, property, meta, value, callback);
     }
   },
   actor: {
