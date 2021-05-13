@@ -14,6 +14,15 @@ namespace DisplayClusterConfigurationStrings
 		}
 	}
 
+	// Property Categories
+	namespace categories
+	{
+		static constexpr auto DefaultCategory = TEXT("NDisplay");
+		static constexpr auto ClusterCategory = TEXT("NDisplay Cluster");
+		static constexpr auto ConfigurationCategory = TEXT("NDisplay Configuration");
+		static constexpr auto PreviewCategory = TEXT("NDisplay Preview (Editor only)");
+	}
+
 	// Command line arguments
 	namespace args
 	{

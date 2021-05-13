@@ -163,10 +163,10 @@ public:
 	UDisplayClusterSceneComponent* GetComponentById(const FString& ComponentId) const;
 
 public:
-	UPROPERTY(EditAnywhere, Category = "NDisplay|Settings", NoClear)
+	UPROPERTY(EditAnywhere, Category = "NDisplay", NoClear)
 	UDisplayClusterConfigurationICVFX_StageSettings* StageSettings;
 
-	UPROPERTY(EditAnywhere, Category = "NDisplay|Settings", NoClear)
+	UPROPERTY(EditAnywhere, Category = "NDisplay", NoClear)
 	UDisplayClusterConfigurationRenderFrame* RenderFrameSettings;
 
 	IDisplayClusterViewportManager* GetViewportManager() const
@@ -195,7 +195,7 @@ private:
 	/**
 	 * If set from the DisplayCluster BP Compiler it will be loaded from the class default subobjects in run-time.
 	 */
-	UPROPERTY(VisibleAnywhere, Instanced, Category = "Config Data")
+	UPROPERTY(VisibleAnywhere, Instanced, Category = "NDisplay")
 	UDisplayClusterConfigurationData* CurrentConfigData;
 
 	/**

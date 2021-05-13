@@ -30,19 +30,37 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 
+#define BEGIN_CATEGORY(CategoryName) { \
+	IDetailCategoryBuilder& CurrentCategory = InLayoutBuilder.EditCategory(CategoryName);
+
+#define END_CATEGORY() }
+
+#define ADD_PROPERTY(ClassName, PropertyName) { \
+	TSharedRef<IPropertyHandle> PropertyHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ClassName, PropertyName)); \
+	check(PropertyHandle->IsValidHandle()); \
+	CurrentCategory.AddProperty(PropertyHandle); \
+}
+
+#define ADD_EXPANDED_PROPERTY(ClassName, PropertyName) { \
+	TSharedRef<IPropertyHandle> PropertyHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ClassName, PropertyName)); \
+	check(PropertyHandle->IsValidHandle()); \
+	CurrentCategory.AddProperty(PropertyHandle).ShouldAutoExpand(true); \
+}
+
+#define ADD_CUSTOM_PROPERTY(FilterText) CurrentCategory.AddCustomRow(FilterText)
+
+#define REPLACE_PROPERTY_WITH_CUSTOM(ClassName, PropertyName, Widget) { \
+	TSharedRef<IPropertyHandle> PropertyHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ClassName, PropertyName)); \
+	check(PropertyHandle->IsValidHandle()); \
+	InLayoutBuilder.HideProperty(PropertyHandle); \
+	CurrentCategory.AddCustomRow(PropertyHandle->GetPropertyDisplayName()).NameContent()[PropertyHandle->CreatePropertyNameWidget()].ValueContent()[Widget]; \
+}
 
 #define LOCTEXT_NAMESPACE "FDisplayClusterConfiguratorDetailCustomization"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Base UCLASS Detail Customization
 //////////////////////////////////////////////////////////////////////////////////////////////
-
-FDisplayClusterConfiguratorDetailCustomization::FDisplayClusterConfiguratorDetailCustomization()
-	: ToolkitPtr(nullptr)
-	, LayoutBuilder(nullptr)
-	, NDisplayCategory(nullptr)
-{}
-
 void FDisplayClusterConfiguratorDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder)
 {
 	UObject* ObjectBeingEdited = nullptr;
@@ -72,20 +90,14 @@ void FDisplayClusterConfiguratorDetailCustomization::CustomizeDetails(IDetailLay
 
 	check(RootActorPtr.IsValid() || ToolkitPtr.IsValid());
 	
-	LayoutBuilder = &InLayoutBuilder;
-	NDisplayCategory = &LayoutBuilder->EditCategory("NDisplay", FText::GetEmpty());
-	NDisplayCategory->InitiallyCollapsed(false);
-
-	// Hide properties that should only be visible on the instance. VisibleInstanceOnly doesn't work with these properties.
-	TArray<TSharedRef<IPropertyHandle>> CategoryProperties;
-	NDisplayCategory->GetDefaultProperties(CategoryProperties);
-
-	for (TSharedRef<IPropertyHandle>& PropertyHandle : CategoryProperties)
+	// Iterate over all of the properties in the object being edited to find properties marked with specific custom metadata tags and hide those properties if necessary
+	for (TFieldIterator<FProperty> It(ObjectBeingEdited->GetClass()); It; ++It)
 	{
-		FProperty* Property = PropertyHandle->GetProperty();
+		FProperty* Property = *It;
+		TSharedRef<IPropertyHandle> PropertyHandle = InLayoutBuilder.GetProperty(Property->GetFName());
 
-		const bool bShouldHide = PropertyHandle->HasMetaData("nDisplayHidden") || 
-			(IsRunningForBlueprintEditor() ? 
+		const bool bShouldHide = PropertyHandle->HasMetaData("nDisplayHidden") ||
+			(IsRunningForBlueprintEditor() ?
 				PropertyHandle->HasMetaData("nDisplayInstanceOnly") || Property && Property->HasAnyPropertyFlags(CPF_DisableEditOnTemplate) :
 				false);
 
@@ -154,17 +166,11 @@ void FDisplayClusterConfiguratorDataDetailCustomization::CustomizeDetails(IDetai
 {
 	Super::CustomizeDetails(InLayoutBuilder);
 
-	TSharedRef<IPropertyHandle> InfoHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationData, Info));
-	check(InfoHandle->IsValidHandle());
-	NDisplayCategory->AddProperty(InfoHandle).ShouldAutoExpand(true);
-
-	TSharedRef<IPropertyHandle> DiagnosticsHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationData, Diagnostics));
-	check(DiagnosticsHandle->IsValidHandle());
-	NDisplayCategory->AddProperty(DiagnosticsHandle).ShouldAutoExpand(true);
-
-	TSharedPtr<IPropertyHandle> CustomParamsHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationData, CustomParameters));
-	check(CustomParamsHandle->IsValidHandle());
-	NDisplayCategory->AddProperty(CustomParamsHandle).ShouldAutoExpand(false);
+	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ConfigurationCategory)
+		ADD_EXPANDED_PROPERTY(UDisplayClusterConfigurationData, Info);
+		ADD_EXPANDED_PROPERTY(UDisplayClusterConfigurationData, Diagnostics);
+		ADD_PROPERTY(UDisplayClusterConfigurationData, CustomParameters);
+	END_CATEGORY()
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -174,48 +180,41 @@ void FDisplayClusterConfiguratorClusterDetailCustomization::CustomizeDetails(IDe
 {
 	Super::CustomizeDetails(InLayoutBuilder);
 
-	NDisplayCategory->InitiallyCollapsed(false);
-
-	TSharedPtr<IPropertyHandle> MasterNodeHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationCluster, MasterNode), UDisplayClusterConfigurationCluster::StaticClass());
-	check(MasterNodeHandle->IsValidHandle());
-
-	TSharedPtr<IPropertyHandle> SyncHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationCluster, Sync), UDisplayClusterConfigurationCluster::StaticClass());
-	check(SyncHandle->IsValidHandle());
-
-	TSharedPtr<IPropertyHandle> NetworkHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationCluster, Network), UDisplayClusterConfigurationCluster::StaticClass());
-	check(NetworkHandle->IsValidHandle());
-
-	NDisplayCategory->AddProperty(MasterNodeHandle).ShouldAutoExpand(true);
-	NDisplayCategory->AddProperty(SyncHandle).ShouldAutoExpand(true);
-	NDisplayCategory->AddProperty(NetworkHandle).ShouldAutoExpand(true);
-
+	// Store the Nodes property handle for use later
 	ClusterNodesHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationCluster, Nodes));
 	check(ClusterNodesHandle->IsValidHandle());
 
-	if (!IsRunningForBlueprintEditor())
-	{
-		// Add a reset cluster nodes default button. Normal reset to defaults on the map won't display because of EditFixedSize flag.
-		// This is also handy since UE will stop propagating CDO container structure changes when an instanced value is modified.
-		
-		NDisplayCategory->AddCustomRow(ClusterNodesHandle->GetDefaultCategoryText())
-		.NameContent()
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.FillWidth(1.0f)
-			.HAlign(HAlign_Fill)
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("ResetClusterNodesButton_Label", "Reset Cluster Nodes"))
-				.ToolTipText(LOCTEXT("ResetClusterNodesButton_Tooltip", "Reset all cluster nodes to class defaults."))
-				.OnClicked(FOnClicked::CreateLambda([this]()
-				{
-					ClusterNodesHandle->ResetToDefault();
-					return FReply::Handled();
-				}))
-			]
-		];
-	}
+	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ClusterCategory)
+		ADD_EXPANDED_PROPERTY(UDisplayClusterConfigurationCluster, MasterNode);
+		ADD_EXPANDED_PROPERTY(UDisplayClusterConfigurationCluster, Sync);
+		ADD_EXPANDED_PROPERTY(UDisplayClusterConfigurationCluster, Network);
+		ADD_PROPERTY(UDisplayClusterConfigurationCluster, bUseOverallClusterPostProcess);
+		ADD_PROPERTY(UDisplayClusterConfigurationCluster, OverallClusterPostProcessSettings);
+
+		if (!IsRunningForBlueprintEditor())
+		{
+			ADD_CUSTOM_PROPERTY(LOCTEXT("ResetClusterNodesButton_Label", "Reset Cluster Nodes"))
+				.NameContent()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					.HAlign(HAlign_Fill)
+					[
+						SNew(SButton)
+						.Text(LOCTEXT("ResetClusterNodesButton_Label", "Reset Cluster Nodes"))
+						.ToolTipText(LOCTEXT("ResetClusterNodesButton_Tooltip", "Reset all cluster nodes to class defaults."))
+						.OnClicked(FOnClicked::CreateLambda([this]()
+						{
+							ClusterNodesHandle->ResetToDefault();
+							return FReply::Handled();
+						}))
+					]
+				];
+		}
+
+		ADD_PROPERTY(UDisplayClusterConfigurationCluster, Nodes);
+	END_CATEGORY()
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -241,13 +240,14 @@ void FDisplayClusterConfiguratorViewportDetailCustomization::CustomizeDetails(ID
 	}
 	check(ConfigurationViewportPtr != nullptr);
 
-	// Hide properties
-	CameraHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, Camera), UDisplayClusterConfigurationViewport::StaticClass());
-	check(CameraHandle->IsValidHandle());
-	InLayoutBuilder.HideProperty(CameraHandle);
+	CameraHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, Camera));
+	check(CameraHandle.IsValid());
 
 	ResetCameraOptions();
-	AddCameraRow();
+
+	BEGIN_CATEGORY(CameraHandle->GetDefaultCategoryName())
+		REPLACE_PROPERTY_WITH_CUSTOM(UDisplayClusterConfigurationViewport, Camera, CreateCustomCameraWidget());
+	END_CATEGORY()
 }
 
 void FDisplayClusterConfiguratorViewportDetailCustomization::ResetCameraOptions()
@@ -281,21 +281,14 @@ void FDisplayClusterConfiguratorViewportDetailCustomization::ResetCameraOptions(
 	}
 }
 
-void FDisplayClusterConfiguratorViewportDetailCustomization::AddCameraRow()
+TSharedRef<SWidget> FDisplayClusterConfiguratorViewportDetailCustomization::CreateCustomCameraWidget()
 {
 	if (CameraComboBox.IsValid())
 	{
-		return;
+		return CameraComboBox.ToSharedRef();
 	}
-	
-	NDisplayCategory->AddCustomRow(CameraHandle->GetPropertyDisplayName())
-	.NameContent()
-	[
-		CameraHandle->CreatePropertyNameWidget()
-	]
-	.ValueContent()
-	[
-		SAssignNew(CameraComboBox, SDisplayClusterConfigurationSearchableComboBox)
+
+	return SAssignNew(CameraComboBox, SDisplayClusterConfigurationSearchableComboBox)
 		.OptionsSource(&CameraOptions)
 		.OnGenerateWidget(this, &FDisplayClusterConfiguratorViewportDetailCustomization::MakeCameraOptionComboWidget)
 		.OnSelectionChanged(this, &FDisplayClusterConfiguratorViewportDetailCustomization::OnCameraSelected)
@@ -305,8 +298,7 @@ void FDisplayClusterConfiguratorViewportDetailCustomization::AddCameraRow()
 		[
 			SNew(STextBlock)
 			.Text(this, &FDisplayClusterConfiguratorViewportDetailCustomization::GetSelectedCameraText)
-		]
-	];
+		];
 }
 
 TSharedRef<SWidget> FDisplayClusterConfiguratorViewportDetailCustomization::MakeCameraOptionComboWidget(TSharedPtr<FString> InItem)

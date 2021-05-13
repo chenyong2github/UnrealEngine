@@ -42,8 +42,6 @@ class FDisplayClusterConfiguratorDetailCustomization
 	: public IDetailCustomization
 {
 public:
-	FDisplayClusterConfiguratorDetailCustomization();
-
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder) override;
 	/** End IDetailCustomization interface */
@@ -65,12 +63,8 @@ protected:
 	bool IsRunningForBlueprintEditor() const { return ToolkitPtr.IsValid(); }
 
 protected:
-	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
+	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr = nullptr;
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActorPtr;
-	
-	IDetailLayoutBuilder* LayoutBuilder;
-
-	IDetailCategoryBuilder* NDisplayCategory;
 };
 
 /**
@@ -117,7 +111,7 @@ public:
 private:
 	void ResetCameraOptions();
 
-	void AddCameraRow();
+	TSharedRef<SWidget> CreateCustomCameraWidget();
 
 	TSharedRef<SWidget> MakeCameraOptionComboWidget(TSharedPtr<FString> InItem);
 
