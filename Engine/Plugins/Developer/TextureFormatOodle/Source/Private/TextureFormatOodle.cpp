@@ -16,6 +16,9 @@
 #include "Engine/Texture.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "IImageWrapper.h"
+#include "IImageWrapperModule.h"
+#include "Misc/FileHelper.h"
 
 #include "oodle2tex.h"
 
@@ -214,6 +217,100 @@ static FName GSupportedTextureFormatNames[] =
 };
 #undef DECL_FORMAT_NAME_ENTRY
 #undef ENUSUPPORTED_FORMATS
+
+class FImageDumper
+{
+
+public:
+
+	FImageDumper()
+		: ImageWrapperModule(nullptr)
+		, ImageFormat(EImageFormat::Invalid)
+		, RGBFormat(ERGBFormat::Invalid)
+		, BytesPerPixel(0)
+		, BitDepth(0)
+		, Extension(nullptr)
+	{ }
+
+	bool Initialize(const ERawImageFormat::Type InImageFormat)
+	{
+		ImageWrapper.Reset();
+
+		switch (InImageFormat)
+		{
+		case ERawImageFormat::RGBA32F:
+			ImageFormat = EImageFormat::EXR;
+			RGBFormat = ERGBFormat::RGBAF;
+			BytesPerPixel = 16;
+			BitDepth = 32;
+			Extension = TEXT(".exr");
+			break;
+
+		case ERawImageFormat::RGBA16:
+			ImageFormat = EImageFormat::PNG;
+			RGBFormat = ERGBFormat::RGBA;
+			BytesPerPixel = 8;
+			BitDepth = 16;
+			Extension = TEXT(".png");
+			break;
+
+		case ERawImageFormat::BGRA8:
+			ImageFormat = EImageFormat::PNG;
+			RGBFormat = ERGBFormat::BGRA;
+			BytesPerPixel = 4;
+			BitDepth = 8;
+			Extension = TEXT(".png");
+			break;
+
+		default:
+			return false;
+		}
+
+		if (!ImageWrapperModule)
+		{
+			ImageWrapperModule = FModuleManager::GetModulePtr<IImageWrapperModule>("ImageWrapper");
+		}
+
+		if (ImageWrapperModule)
+		{
+			ImageWrapper = ImageWrapperModule->CreateImageWrapper(ImageFormat);
+		}
+
+		return ImageWrapper.IsValid();
+	}
+
+	bool DumpImage(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const int32 InSlice, const int32 InRDOLambda, const OodleTex_BC InOodleBCN)
+	{
+		check(InRawData);
+		check(InWidth > 0);
+		check(InHeight > 0);
+		check(InRawSize == (int64)BytesPerPixel * InWidth * InHeight);
+
+		if (!ImageWrapper.IsValid() || !ImageWrapper->SetRaw(InRawData, InRawSize, InWidth, InHeight, RGBFormat, BitDepth))
+		{
+			return false;
+		}
+
+		FMD5 MD5;
+		FString ImageHash = MD5.HashBytes(static_cast<const uint8*>(InRawData), InRawSize);
+		FString OodleBCName(OodleTex_BC_GetName(InOodleBCN));
+		FString Filename = FString::Printf(TEXT("%s.w%d.h%d.s%d.rdo%d.%s%s"), *ImageHash, InWidth, InHeight, InSlice, InRDOLambda, *OodleBCName, Extension);
+		FString Path = FPaths::ProjectSavedDir() / TEXT("Oodle") / TEXT("DebugDump") / Filename;
+		const TArray64<uint8>& CompressedImage = ImageWrapper->GetCompressed((int32)EImageCompressionQuality::Uncompressed);
+		return FFileHelper::SaveArrayToFile(CompressedImage, *Path);
+	}
+
+private:
+
+	IImageWrapperModule* ImageWrapperModule;
+	TSharedPtr<IImageWrapper> ImageWrapper;
+
+	EImageFormat ImageFormat;
+	ERGBFormat RGBFormat;
+	int32 BytesPerPixel;
+	int32 BitDepth;
+	const TCHAR* Extension;
+};
 
 class FTextureFormatOodle : public ITextureFormat
 {
@@ -762,6 +859,20 @@ public:
 
 		uint8 * OutBlocksBasePtr = (uint8 *) &OutImage.RawData[0];
 
+		FImageDumper ImageDumper;
+		bool bImageDump = false;
+		if (bDebugDump && !bDebugColor)
+		{
+			if (ImageDumper.Initialize(ImageFormat))
+			{
+				bImageDump = true;
+			}
+			else
+			{
+				UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture debug dump initialization failed!"));
+			}
+		}
+
 		// encode each slice
 		// @todo Oodle alternatively could do [Image.NumSlices] array of OodleTex_Surface
 		//	and call OodleTex_Encode with the array
@@ -774,9 +885,9 @@ public:
 			InSurf.pixels = ImageBasePtr + Slice * InBytesPerSlice;
 			uint8 * OutSlicePtr = OutBlocksBasePtr + Slice * OutBytesPerSlice;
 
-			if ( bDebugDump )
+			if (bImageDump && !ImageDumper.DumpImage(InSurf.pixels, (int64)Image.GetBytesPerPixel() * Image.SizeX * Image.SizeY, Image.SizeX, Image.SizeY, Slice, RDOLambda, OodleBCN))
 			{
-				// @todo Ooodle save InSurf to file
+				UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture debug dump failed!"));
 			}
 
 			OodleTex_Err OodleErr;
