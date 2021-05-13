@@ -26,25 +26,6 @@ public:
 	virtual void* GetGraphicsBinding() = 0;
 	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, const FClearValueBinding& ClearValueBinding) = 0;
 
-	FXRSwapChainPtr CreateSwapchain(XrSession InSession, FRHITexture2D* Template, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags)
-	{
-		if (!Template)
-		{
-			return nullptr;
-		}
-
-		return CreateSwapchain(InSession,
-			Template->GetFormat(),
-			Template->GetSizeX(),
-			Template->GetSizeY(),
-			1,
-			Template->GetNumMips(),
-			Template->GetNumSamples(),
-			Template->GetFlags() | Flags,
-			TargetableTextureFlags,
-			Template->GetClearBinding());
-	}
-
 	/** FRHICustomPresent */
 	virtual bool Present(int32& InOutSyncInterval) override;
 
