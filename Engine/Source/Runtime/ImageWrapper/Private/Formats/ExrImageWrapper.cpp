@@ -349,6 +349,7 @@ void FExrImageWrapper::CompressRaw(const sourcetype* SrcData, bool bIgnoreAlpha)
 	}
 
 	CompressedData = MoveTemp(MemFile.Data);
+	CompressedData.SetNum(FileLength);
 
 	const double DeltaTime = FPlatformTime::Seconds() - StartTime;
 	UE_LOG(LogImageWrapper, Verbose, TEXT("Compressed image in %.3f seconds"), DeltaTime);
