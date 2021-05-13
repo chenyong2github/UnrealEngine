@@ -186,7 +186,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 			PointLocal2,
 			Barycentrics,
 			InstanceData,
-			Cluster.NumUVs
+			MAX_NANITE_UVS
 		);
 
 		const int HierarchyOffset = InstanceData.NaniteHierarchyOffset;
