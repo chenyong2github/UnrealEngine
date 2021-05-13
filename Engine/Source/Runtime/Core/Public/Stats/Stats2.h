@@ -199,6 +199,16 @@ struct TStatId
 		return StatIdPtr->StatDescriptionWide.Get();
 	}
 
+	FORCEINLINE bool operator==(TStatId Other) const
+	{
+		return StatIdPtr == Other.StatIdPtr;
+	}
+
+	FORCEINLINE bool operator!=(TStatId Other) const
+	{
+		return StatIdPtr != Other.StatIdPtr;
+	}
+
 private:
 	/** NAME_None. */
 	CORE_API static TStatIdData TStatId_NAME_None;
