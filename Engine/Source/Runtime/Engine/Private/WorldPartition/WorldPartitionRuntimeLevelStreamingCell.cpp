@@ -147,6 +147,25 @@ void UWorldPartitionRuntimeLevelStreamingCell::MoveAlwaysLoadedContentToPersiste
 	}
 }
 
+// Do all necessary work to prepare cell object for cook.
+bool UWorldPartitionRuntimeLevelStreamingCell::PrepareCellForCook(UPackage* InPackage)
+{
+	// LevelStreaming could already be created
+	if (!LevelStreaming && GetActorCount() > 0)
+	{
+		if (!InPackage)
+		{
+			return false;
+		}
+
+		ULevelStreaming* NewLevelStreaming = CreateLevelStreaming(InPackage->GetName());
+		LevelStreaming = Cast<UWorldPartitionLevelStreamingDynamic>(NewLevelStreaming);
+		check(LevelStreaming);
+	}
+
+	return true;
+}
+
 bool UWorldPartitionRuntimeLevelStreamingCell::PopulateGeneratedPackageForCook(UPackage* InPackage)
 {
 	check(!IsAlwaysLoaded());
@@ -157,18 +176,22 @@ bool UWorldPartitionRuntimeLevelStreamingCell::PopulateGeneratedPackageForCook(U
 
 	if (GetActorCount() > 0)
 	{
-		UWorldPartition* WorldPartition = GetOuterUWorldPartition();
-		UWorld* OuterWorld = WorldPartition->GetTypedOuter<UWorld>();
-		ULevelStreaming* NewLevelStreaming = CreateLevelStreaming(InPackage->GetName());
-		check(NewLevelStreaming)
+		// When cook splitter doesn't use deferred populate, cell needs to be prepared here.
+		if (!PrepareCellForCook(InPackage))
+		{
+			return false;
+		}
 
 		// Load cell Actors
 		LoadActorsForCook();
-		
-		LevelStreaming = Cast<UWorldPartitionLevelStreamingDynamic>(NewLevelStreaming);
-		ULevel* NewLevel = FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(OuterWorld, NewLevelStreaming->GetWorldAsset().ToString(), InPackage);
+
+		// Create a level and move these actors in it
+		UWorldPartition* WorldPartition = GetOuterUWorldPartition();
+		UWorld* OuterWorld = WorldPartition->GetTypedOuter<UWorld>();
+		ULevel* NewLevel = FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(OuterWorld, LevelStreaming->GetWorldAsset().ToString(), InPackage);
 		check(NewLevel->GetPackage() == InPackage);
 		FWorldPartitionLevelHelper::MoveExternalActorsToLevel(Packages, NewLevel);
+
 		// Remap Level's SoftObjectPaths
 		FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(NewLevel, WorldPartition);
 	}
