@@ -15,6 +15,7 @@ GPUSkinCache.cpp: Performs skinning on a compute shader into a buffer to avoid v
 #include "ClearQuad.h"
 #include "Shader.h"
 #include "MeshMaterialShader.h"
+#include "RenderCaptureInterface.h"
 #include "RenderGraphResources.h"
 #include "Algo/Unique.h"
 #include "HAL/IConsoleManager.h"
@@ -145,6 +146,12 @@ FAutoConsoleVariableRef CVarGPUSkinCachePrintMemorySummary(
 	TEXT(" 2: print every frame"),
 	ECVF_RenderThreadSafe
 );
+
+int32 GNumDispatchesToCapture = 0;
+static FAutoConsoleVariableRef CVarGPUSkinCacheNumDispatchesToCapture(
+	TEXT("r.SkinCache.Capture"),
+	GNumDispatchesToCapture,
+	TEXT("Trigger a render capture for the next skin cache dispatches."));
 
 static int32 GGPUSkinCacheFlushCounter = 0;
 
@@ -502,6 +509,8 @@ public:
 		}
 	}
 #endif // RHI_RAYTRACING
+
+	TArray<FSectionDispatchData>& GetDispatchData() { return DispatchData; }
 
 protected:
 	FGPUSkinCache::FRWBuffersAllocation* PositionAllocation;
@@ -1307,10 +1316,14 @@ void FGPUSkinCache::GetBufferUAVs(const TArray<FSkinCacheRWBuffer*>& InBuffers, 
 
 void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList)
 {
-	SCOPED_GPU_STAT(RHICmdList, GPUSkinCache);
-
 	int32 BatchCount = BatchDispatches.Num();
 	INC_DWORD_STAT_BY(STAT_GPUSkinCache_TotalNumChunks, BatchCount);
+
+	bool bCapture = BatchCount > 0 && GNumDispatchesToCapture > 0;
+	RenderCaptureInterface::FScopedCapture RenderCapture(bCapture, &RHICmdList, TEXT("GPUSkinCache"));
+	GNumDispatchesToCapture -= bCapture ? 1 : 0;
+
+	SCOPED_GPU_STAT(RHICmdList, GPUSkinCache);
 
 	TArray<FSkinCacheRWBuffer*> BuffersToTransitionForSkinning;
 	BuffersToTransitionForSkinning.Reserve(BatchCount * 2);
@@ -1413,6 +1426,9 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList)
 
 void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* SkinCacheEntry, int32 Section, int32 RevisionNumber)
 {
+	RenderCaptureInterface::FScopedCapture RenderCapture(GNumDispatchesToCapture > 0, &RHICmdList, TEXT("GPUSkinCache"));
+	GNumDispatchesToCapture = FMath::Max(GNumDispatchesToCapture - 1, 0);
+
 	SCOPED_GPU_STAT(RHICmdList, GPUSkinCache);
 
 	INC_DWORD_STAT(STAT_GPUSkinCache_TotalNumChunks);
@@ -1425,7 +1441,7 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCac
 	GetBufferUAVs(BuffersToTransitionForSkinning, SkinningBuffersToOverlap);
 	RHICmdList.BeginUAVOverlap(SkinningBuffersToOverlap);
 	{
-		DispatchUpdateSkinning(RHICmdList, SkinCacheEntry, Section, RevisionNumber);
+	DispatchUpdateSkinning(RHICmdList, SkinCacheEntry, Section, RevisionNumber);
 	}
 	RHICmdList.EndUAVOverlap(SkinningBuffersToOverlap);
 
@@ -2207,6 +2223,48 @@ void FGPUSkinCache::InvalidateAllEntries()
 	}
 	StagingBuffers.SetNum(0, false);
 	SET_MEMORY_STAT(STAT_GPUSkinCache_TangentsIntermediateMemUsed, 0);
+}
+
+FRWBuffer* FGPUSkinCache::GetPositionBuffer(uint32 ComponentId, uint32 SectionIndex) const
+{
+	for (FGPUSkinCacheEntry* Entry : Entries)
+	{
+		if (Entry && Entry->GPUSkin && Entry->GPUSkin->GetComponentId() == ComponentId)
+		{
+			FGPUSkinCacheEntry::FSectionDispatchData& DispatchData = Entry->GetDispatchData()[SectionIndex];
+			FSkinCacheRWBuffer* SkinCacheRWBuffer = DispatchData.PreviousPositionBuffer != nullptr ? DispatchData.PreviousPositionBuffer : DispatchData.PositionBuffer;
+			return SkinCacheRWBuffer != nullptr ? &SkinCacheRWBuffer->Buffer : nullptr;
+		}
+	}
+
+	return nullptr;
+}
+
+FRWBuffer* FGPUSkinCache::GetTangentBuffer(uint32 ComponentId, uint32 SectionIndex) const
+{
+	for (FGPUSkinCacheEntry* Entry : Entries)
+	{
+		if (Entry && Entry->GPUSkin && Entry->GPUSkin->GetComponentId() == ComponentId)
+		{
+			FGPUSkinCacheEntry::FSectionDispatchData& DispatchData = Entry->GetDispatchData()[SectionIndex];
+			FSkinCacheRWBuffer* SkinCacheRWBuffer = DispatchData.GetTangentRWBuffer();
+			return SkinCacheRWBuffer != nullptr ? &SkinCacheRWBuffer->Buffer : nullptr;
+		}
+	}
+
+	return nullptr;
+}
+
+FRHIShaderResourceView* FGPUSkinCache::GetBoneBuffer(uint32 ComponentId, uint32 SectionIndex) const
+{
+	for (FGPUSkinCacheEntry* Entry : Entries)
+	{
+		FGPUSkinCacheEntry::FSectionDispatchData& DispatchData = Entry->GetDispatchData()[SectionIndex];
+		FGPUBaseSkinVertexFactory::FShaderDataType& ShaderData = DispatchData.SourceVertexFactory->GetShaderData();
+		return ShaderData.GetBoneBufferForReading(false).VertexBufferSRV;
+	}
+
+	return nullptr;
 }
 
 FCachedGeometry FGPUSkinCache::GetCachedGeometry(uint32 ComponentId) const
