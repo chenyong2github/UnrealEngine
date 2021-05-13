@@ -45,6 +45,7 @@ namespace UnrealBuildTool.Rules
 					"EditorWidgets",
 					"ToolMenus",
 					"Kismet",
+					"SubobjectEditor",
 				});
 			}
 		}
