@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ComputeFramework/ComputeGraphComponent.h"
-#include "ComputeFramework/ComputeGraph.h"
-#include "ComputeFramework/ComputeFramework.h"
-#include "SceneInterface.h"
 
+#include "ComputeFramework/ComputeDataInterface.h"
+#include "ComputeFramework/ComputeDataProvider.h"
+#include "ComputeFramework/ComputeGraph.h"
+#include "ComputeFramework/ComputeGraphScheduler.h"
+#include "SceneInterface.h"
 
 UComputeGraphComponent::UComputeGraphComponent()
 {
@@ -12,9 +14,18 @@ UComputeGraphComponent::UComputeGraphComponent()
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 }
 
+void UComputeGraphComponent::SetDataProvider(int32 Index, UComputeDataProvider* DataProvider)
+{
+	if (DataProviders.Num() <= Index)
+	{
+		DataProviders.SetNumZeroed(Index + 1);
+	}
+	DataProviders[Index] = DataProvider;
+}
+
 void UComputeGraphComponent::QueueExecute()
 {
-	if (!ComputeGraph || !GetScene()->GetComputeFramework())
+	if (ComputeGraph == nullptr || GetScene() == nullptr || GetScene()->GetComputeGraphScheduler() == nullptr)
 	{
 		return;
 	}
@@ -24,19 +35,41 @@ void UComputeGraphComponent::QueueExecute()
 
 void UComputeGraphComponent::SendRenderDynamicData_Concurrent()
 {
-	check(ComputeGraph);
 	Super::SendRenderDynamicData_Concurrent();
 	
-	FComputeFramework* ComputeFramework = GetScene()->GetComputeFramework();
-	check(ComputeFramework);
+	if (!ensure(ComputeGraph))
+	{
+		return;
+	}
 
-	FComputeGraph* ComputeGraphProxy = new FComputeGraph();
+	FSceneInterface* Scene = GetScene();
+	FComputeGraphScheduler* ComputeGraphScheduler = Scene != nullptr ? Scene->GetComputeGraphScheduler() : nullptr;
+	if (!ensure(ComputeGraphScheduler))
+	{
+		return;
+	}
+
+	FComputeGraphProxy* ComputeGraphProxy = new FComputeGraphProxy();
 	ComputeGraphProxy->Initialize(ComputeGraph);
 
+	TArray<FComputeDataProviderRenderProxy*> ComputeDataProviderProxies;
+	for (UComputeDataProvider* DataProvider : DataProviders)
+	{
+		// Add null provider slots because we want to maintain consistent array indices.
+		FComputeDataProviderRenderProxy* ProviderProxy = DataProvider != nullptr ? DataProvider->GetRenderProxy() : nullptr;
+		ComputeDataProviderProxies.Add(ProviderProxy);
+	}
+
 	ENQUEUE_RENDER_COMMAND(ComputeFrameworkEnqueueExecutionCommand)(
-		[ComputeFramework, ComputeGraphProxy](FRHICommandListImmediate& RHICmdList)
+		[ComputeGraphScheduler, ComputeGraphProxy, ProviderProxies = MoveTemp(ComputeDataProviderProxies)](FRHICommandListImmediate& RHICmdList)
 		{
-			ComputeFramework->EnqueueForExecution(ComputeGraphProxy);
+			ComputeGraphScheduler->EnqueueForExecution(ComputeGraphProxy, ProviderProxies);
+			
+			for (FComputeDataProviderRenderProxy* ProviderProxy : ProviderProxies)
+			{
+				delete ProviderProxy;
+			}
+
 			delete ComputeGraphProxy;
 		});
 }

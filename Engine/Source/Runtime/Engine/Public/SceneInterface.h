@@ -33,7 +33,7 @@ class UStaticMeshComponent;
 class UTextureCube;
 class FViewInfo;
 class FSceneRenderer;
-class FComputeFramework;
+class FComputeGraphScheduler;
 class FInstanceCullingManager;
 struct FHairStrandsInstance;
 
@@ -451,7 +451,7 @@ public:
 		return nullptr;
 	}
 
-	virtual FComputeFramework* GetComputeFramework()
+	virtual FComputeGraphScheduler* GetComputeGraphScheduler()
 	{
 		return nullptr;
 	}

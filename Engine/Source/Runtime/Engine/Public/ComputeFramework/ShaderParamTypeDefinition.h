@@ -4,13 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NameTypes.h"
-
 #include "ShaderParamTypeDefinition.generated.h"
-
 
 class FArchive;
 struct FShaderValueType;
-
 
 /* The base types of data that shaders can consume/expose */
 UENUM()
@@ -40,14 +37,17 @@ enum class EShaderFundamentalDimensionType : uint8
 UENUM()
 enum class EShaderParamBindingType : uint8
 {
+	None,
 	ConstantParameter,
 	ReadOnlyResource,  // SRV, treated as Inputs
 	ReadWriteResource, // UAV, treated as Outputs
 };
 
+/*  */
 UENUM()
 enum class EShaderResourceType : uint8
 {
+	None,
 	Texture1D,
 	Texture2D,
 	Texture3D,
@@ -57,6 +57,7 @@ enum class EShaderResourceType : uint8
 	ByteAddressBuffer,
 };
 
+/*  */
 USTRUCT()
 struct FShaderValueTypeHandle
 {
@@ -86,7 +87,7 @@ struct FShaderValueTypeHandle
 
 };
 
-
+/*  */
 USTRUCT()
 struct ENGINE_API FShaderValueType
 {
@@ -111,8 +112,6 @@ struct ENGINE_API FShaderValueType
 		FName Name;
 		FShaderValueTypeHandle Type;
 	};
-
-
 
 	/** Returns a scalar value type. If the fundamental type given is invalid for scalar values 
 	  * (e.g. struct), then this function returns a nullptr. 
@@ -180,7 +179,6 @@ private:
 */
 uint32 GetTypeHash(const FShaderValueType& InShaderValueType);
 
-
 /* Fully describes the name and type of a parameter a shader exposes. */
 USTRUCT()
 struct FShaderParamTypeDefinition
@@ -240,8 +238,8 @@ public:
 
 		struct
 		{
-			uint8 MatrixColumnCount : 2;
-			uint8 MatrixRowCount : 2;
+			uint8 MatrixRowCount : 3;
+			uint8 MatrixColumnCount : 3;
 		};
 	};
 
@@ -294,4 +292,24 @@ public:
 
 	void ResetTypeDeclaration(
 		);
+};
+
+/* Describes a shader function signature. */
+USTRUCT()
+struct FShaderFunctionDefinition
+{
+	GENERATED_BODY()
+
+public:
+	/** Function name. */
+	UPROPERTY(VisibleAnywhere, Category = "Kernel")
+	FString	Name;
+
+	/** Function parameter types. */
+	UPROPERTY(VisibleAnywhere, Category = "Kernel")
+	TArray<FShaderParamTypeDefinition> ParamTypes;
+
+	/** If set to true then the first element of ParamTypes is the return type. Otherwise return type is void. */
+	UPROPERTY()
+	bool bHasReturnType;
 };

@@ -182,7 +182,8 @@ void FComputeKernelResource::SerializeShaderMap(FArchive& Ar)
 				TRefCountPtr<FComputeKernelShaderMap> LoadedShaderMap = new FComputeKernelShaderMap();
 				bool bSuccessfullyLoaded = LoadedShaderMap->Serialize(Ar);
 
-				// Toss the loaded shader data if this is a server only instance (@todo - don't cook it in the first place) or if it's for a different RHI than the current one
+				// Toss the loaded shader data if this is a server only instance or if it's for a different RHI than the current one.
+				// todo[CF] Don't cook it in the first place
 				if (bSuccessfullyLoaded && FApp::CanEverRender())
 				{
 					GameThreadShaderMap = RenderingThreadShaderMap = LoadedShaderMap;
@@ -194,58 +195,19 @@ void FComputeKernelResource::SerializeShaderMap(FArchive& Ar)
 
 void FComputeKernelResource::SetupResource(
 	ERHIFeatureLevel::Type InFeatureLevel,
-	const UComputeKernelSource* Source,
-	FString InFriendlyName
+	FString const& InFriendlyName,
+	FString const& InShaderEntryPoint,
+	FString InShaderSource,
+	uint64 InShaderCodeHash,
+	FShaderParametersMetadata* InShaderMetadata
 	)
 {
 	FeatureLevel = InFeatureLevel;
-	ShaderCodeHash = Source->GetSourceHashCode();
-	ShaderEntryPoint = Source->GetEntryPoint();
-	ShaderSource = Source->GetSource();
-	FriendlyName = MoveTemp(InFriendlyName);
-
-	FShaderParametersMetadataBuilder Builder;
-
-	for (auto& Input : Source->InputParams)
-	{
-		ensureAlways(Input.DimType == EShaderFundamentalDimensionType::Scalar);
-
-		switch (Input.FundamentalType)
-		{
-			case EShaderFundamentalType::Bool:
-				Builder.AddParam<bool>(*Input.Name);
-				break;
-
-			case EShaderFundamentalType::Int:
-				Builder.AddParam<int32>(*Input.Name);
-				break;
-
-			case EShaderFundamentalType::Uint:
-				Builder.AddParam<uint32>(*Input.Name);
-				break;
-
-			case EShaderFundamentalType::Float:
-				Builder.AddParam<float>(*Input.Name);
-				break;
-		}
-	}
-
-	for(auto& Input : Source->InputSRVs)
-	{
-		Builder.AddRDGBufferSRV(*Input.Name, *Input.TypeDeclaration);
-	}
-
-	for (auto& Output : Source->Outputs)
-	{
-		Builder.AddRDGBufferUAV(*Output.Name, *Output.TypeDeclaration);
-	}
-
-	ShaderMetadata.Reset(
-		Builder.Build(
-			FShaderParametersMetadata::EUseCase::ShaderParameterStruct, 
-			*FriendlyName
-			)
-		);
+	FriendlyName = InFriendlyName;
+	ShaderEntryPoint = InShaderEntryPoint;
+	ShaderSource = MoveTemp(InShaderSource);
+	ShaderCodeHash = InShaderCodeHash;
+	ShaderMetadata.Reset(InShaderMetadata);
 }
 
 void FComputeKernelResource::SetRenderingThreadShaderMap(FComputeKernelShaderMap* InShaderMap)

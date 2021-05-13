@@ -2,188 +2,114 @@
 
 #pragma once
 
-#include "PixelFormat.h"
+#include "CoreMinimal.h"
+#include "RHIDefinitions.h"
 #include "ComputeGraph.generated.h"
 
-class UComputeKernelSource;
+class FComputeKernelResource;
+class UComputeDataInterface;
 class UComputeKernel;
 
-/* Identifies a specific kernel invocation within a compute graph. */
-struct FComputeKernelInvocationHandle
+/** Compute Kernel compilation flags. */
+enum class EComputeKernelCompilationFlags
 {
-	uint16 InvocationIdx = 0xFFFF;
-	uint16 GenerationIdx = 0xFFFF;
+	None = 0,
+
+	/* Force recompilation even if kernel is not dirty and/or DDC data is available. */
+	Force = 1 << 0,
+
+	/* Compile the shader while blocking the main thread. */
+	Synchronous = 1 << 1,
+
+	/* Replaces all instances of the shader with the newly compiled version. */
+	ApplyCompletedShaderMapForRendering = 1 << 2,
+
+	IsCooking = 1 << 3,
 };
 
-/* Identifies a specific resource within a compute graph. */
-struct FComputeResourceHandle
-{
-	uint16 ResourceIdx = 0xFFFF;
-	uint16 GenerationIdx = 0xFFFF;
-};
-
-/* Identifies a specific binding within a compute graph. */
-struct FComputeBindingHandle
-{
-	uint16 BindingIdx = 0xFFFF;
-	uint16 GenerationIdx = 0xFFFF;
-};
-
-UENUM()
-enum class EComputeGraphResourceType : uint8
-{
-	Buffer,
-	Texture1D,
-	Texture2D,
-	Texture3D,
-};
-
-/* Defines creation format and dimensions of a resource. */
-struct FComputeResourceDesc
-{
-	EPixelFormat ResourceFormat = EPixelFormat::PF_Unknown;
-	uint16 X = 0;
-	uint16 Y = 0;	// Only used for Tex2D and Tex3D
-	uint16 Z = 0;	// Only used for Tex3D
-	EComputeGraphResourceType Type = EComputeGraphResourceType::Buffer;
-	uint8 ArrayCount = 0;
-	uint8 MipLevels = 0;
-	uint8 Flags = 0;
-	uint8 SampleCount = 0;
-	uint8 SampleQuality = 0;
-};
-
-/*
- * Defines view into an externally allocated resouse and valid uses.
- * Less params are necessary than FComputeResourceDesc since only
- * bindings/types are validated with external resources.
+/** 
+ * Description of a single edge in a UComputeGraph. 
+ * todo[CF]: Consider better storage for graph data structure that is easier to interrogate efficiently.
  */
-struct FComputeResourceExternalDesc
-{
-	EPixelFormat ResourceFormat = EPixelFormat::PF_Unknown;
-	EComputeGraphResourceType Type = EComputeGraphResourceType::Buffer;
-	uint8 Flags = 0;
-};
-
 USTRUCT()
-struct FComputeKernelInvocation
+struct FComputeGraphEdge
 {
 	GENERATED_BODY()
 
-	static constexpr uint32 MAX_NAME_LENGTH = 32;
-
-	UPROPERTY()
-	TObjectPtr<UComputeKernel> ComputeKernel = nullptr;
-	
-	UPROPERTY()
-	uint16 GenerationIdx = 0xFFFF;
-
-	FComputeKernelInvocation() = default;
-	FComputeKernelInvocation(UComputeKernel* InComputeKernel, uint16 InGenerationIdx)
-		: ComputeKernel(InComputeKernel)
-		, GenerationIdx(InGenerationIdx)
-	{}
+	bool bKernelInput;
+	int32 KernelIndex;
+	int32 KernelBindingIndex;
+	int32 DataInterfaceIndex;
+	int32 DataInterfaceBindingIndex;
 };
 
-USTRUCT()
-struct FComputeResource
-{
-	GENERATED_BODY()
-
-	static constexpr uint32 MAX_NAME_LENGTH = 32;
-
-	UPROPERTY()
-	uint16 GenerationIdx = 0xFFFF;
-};
-
-/* Identifies a specific kernel invocation AND parameter slot within a compute graph. */
-struct FComputeKernelInvocationBindPoint
-{
-	FComputeKernelInvocationHandle KernelInvocation;
-	FString BindPointName;
-};
-
-/* Define is the binding data flows from resource into kernel or kernel into resource. */
-enum class EComputeGraphBindingType : uint8
-{
-	Input,	// Resource       ->   Kernel Input
-	Output, // Kernel Output  ->   Resource
-};
-
-/* Identifies a specific data flow between a kernel and resource with the compute graph. */
-USTRUCT()
-struct FKernelBinding
-{
-	GENERATED_BODY()
-
-	EComputeGraphBindingType BindingType = EComputeGraphBindingType::Input;
-	FComputeKernelInvocationBindPoint InvocationBindPoint;
-	FComputeResourceHandle Resource;
-};
-
-/*
- * Graph representing the logical execution and data flow topology as a DAG. The underlying
- * scheduler will extract parallel/serial execution from this DAG description.
+/** 
+ * Class representing a Compute Graph.
+ * This holds the basic topology of the graph and is responsible for linking Kernels with Data Interfaces and compiling the resulting shader code.
+ * Multiple Compute Graph asset types can derive from this to specialize the graph creation process. 
+ * For example the Animation Deformer system provides a UI for creating UComputeGraph assets.
  */
 UCLASS()
 class ENGINE_API UComputeGraph : public UObject
 {
 	GENERATED_BODY()
 
-public:
-	//===================================
-	// Add/Remove "nodes" in the graph
-	//===================================
+protected:
+	/** Kernels in the graph. */
+	UPROPERTY()
+	TArray< TObjectPtr<UComputeKernel> > KernelInvocations;
 
-	/* May fail and return nullptr. */
-	FComputeKernelInvocationHandle AddKernel(UComputeKernelSource* KernelSource);
+	/** Data interfaces in the graph. */
+	UPROPERTY()
+	TArray< TObjectPtr<UComputeDataInterface> > DataInterfaces;
 
-	/* Returns true if kernel successfully removed. When a kernel is removed all associated bindings are also removed. */
-	bool RemoveKernel(FComputeKernelInvocationHandle KernelInvocation);
+	/** Edges in the graph between kernels and data interfaces. */
+	UPROPERTY()
+	TArray<FComputeGraphEdge> GraphEdges;
 
-	/*
-	 * Compute resource are parameters/buffers/textures that hold data during the execution of the 
-	 * compute graph. They can either be transient - their lifetime does not out live the execution 
-	 * of the graph, or external - the resource out lives the graph and acts as the mechanism to 
-	 * bring data in or move data out of the compute graph.
+	/** 
+	 * Kernel resources that hold the compiled shader resources.
+	 * This is stored with the same indexing as the KernelInvocations array. 
 	 */
-	FComputeResourceHandle AddResource(FString Name, FComputeResourceDesc Desc);
-	FComputeResourceHandle AddResource(FString Name, FComputeResourceExternalDesc Desc);
+	TArray< TUniquePtr<FComputeKernelResource> > KernelResources;
 
-	/* Returns true if resource successfully removed. When a resource is removed all associated bindings are also removed. */
-	bool RemoveResource(FComputeResourceHandle Resource);
+public:
+	UComputeGraph(const FObjectInitializer& ObjectInitializer);
+	UComputeGraph(FVTableHelper& Helper);
+	virtual ~UComputeGraph();
+	
+	/** Get the kernel instances in the graph. Note that it is valid for the array to have holes in it. */
+	TArray< TObjectPtr<UComputeKernel> > const& GetKernelInvocations() const { return KernelInvocations; }
+	/** Get the kernel resources in the graph. This array is in sync with the one returned by GetKernelInvocations(). */
+	TArray< TUniquePtr<FComputeKernelResource> > const& GetKernelResources() const { return KernelResources; }
 
+	/** Returns true if graph is valid. A valid graph should be guaranteed to compile, assuming the underlying shader code is well formed. */
+	bool ValidateGraph(FString* OutErrors = nullptr);
 
+	/**
+	 * Get unique data interface id.
+	 * This is just a string containing the index of the data interface in UComputeGraph::DataInterfaces.
+	 * It is used as a prefix to disambiguate shader code etc.
+	 * This function permanently allocates the UID on first use so that returned TCHAR pointers can be held by structures with long lifetimes.
+	 */
+	static TCHAR const* GetDataInterfaceUID(int32 DataInterfaceIndex);
 
-	//===================================
-	// Add/Remove edges in the graph
-	//===================================
-
-	/* Creates a binding, aka data flow, from src to dest. */
-	FComputeBindingHandle AddBinding(
-		EComputeGraphBindingType BindingType,
-		FComputeKernelInvocationBindPoint InvocationBindPoint,
-		FComputeResourceHandle Resource
-		);
-
-	void RemoveBinding(FComputeBindingHandle Binding);
-
-	TArray<FComputeKernelInvocation> GetShaderInvocationList() { return KernelInvocations; }
-
-
-	// TEMP
+protected:
+	//~ Begin UObject Interface.
 	void PostLoad() override;
+	//~ End UObject Interface.
 
-private:
-	/* Represents all the invocation nodes of the graph. */
-	UPROPERTY()
-	TArray<FComputeKernelInvocation> KernelInvocations;
+#if WITH_EDITOR
+	/** Triggers compilation of all kernels in the graph. */
+	void CacheResourceShadersForRendering();
+	void CacheResourceShadersForRendering(uint32 CompilationFlags);
 
-	/* Represents all the data nodes of the graph */
-	UPROPERTY()
-	TArray<FComputeResource> Resources;
-
-	/* Represents all the edges of the graph. */
-	UPROPERTY()
-	TArray<FKernelBinding> 	Bindings;
+	/** Trigger compilation of a specific kernel. */
+	static void CacheShadersForResource(
+		EShaderPlatform ShaderPlatform,
+		const ITargetPlatform* TargetPlatform,
+		uint32 CompilationFlags,
+		FComputeKernelResource* Kernel
+	);
+#endif
 };

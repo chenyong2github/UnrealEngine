@@ -22,6 +22,7 @@ class FComputeKernelShaderMap;
 class FComputeKernelShader;
 class FComputeKernelShaderMapId;
 class UComputeKernelSource;
+class FShaderParametersMetadata;
 
 
 /** Stores outputs from the  kernel compile that need to be saved. */
@@ -419,9 +420,12 @@ public:
 
 	void SetupResource(
 		ERHIFeatureLevel::Type InFeatureLevel,
-		const UComputeKernelSource* Source,
-		FString InFriendlyName
-		);
+		FString const& InFriendlyName,
+		FString const& InShaderEntryPoint,
+		FString InShaderSource,
+		uint64 InShaderCodeHash,
+		FShaderParametersMetadata* InShaderMetadata
+	);
 
 	void SetCompileErrors(TArray<FString> &InErrors)
 	{
