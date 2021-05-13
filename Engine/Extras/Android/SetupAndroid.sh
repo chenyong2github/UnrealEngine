@@ -25,7 +25,7 @@ else
     PAUSE="pausefunc"
 fi
 
-rem hardcoded versions for compatibility with non-Turnkey manual running
+# hardcoded versions for compatibility with non-Turnkey manual running
 if [[ -z "${PLATFORMS_VERSION}" ]]; then
     PLATFORMS_VERSION="android-28"
 fi
@@ -50,10 +50,7 @@ fi
 echo Android Studio Path: $STUDIO_PATH
 
 if [ "$STUDIO_SDK_PATH" == "" ]; then
-	STUDIO_SDK_PATH=$HOME/Android/Sdk
-fi
-if [ "$1" != "" ]; then
-	STUDIO_SDK_PATH=$1
+	STUDIO_SDK_PATH="$HOME/Android/Sdk"
 fi
 if [ ! -d "$STUDIO_SDK_PATH" ]; then
 	echo Android SDK not found at: $STUDIO_SDK_PATH
