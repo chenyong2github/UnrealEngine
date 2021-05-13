@@ -393,7 +393,7 @@ TSharedRef<SWidget> FMainFrameModule::MakeDeveloperTools( const TArray<FMainFram
 #if STALL_DETECTOR
 		static FText GetStallCountAsString()
 		{
-			return FText::AsNumber(UE::FStallDetectorStats::TotalTriggeredCount);
+			return FText::AsNumber(UE::FStallDetectorStats::TotalTriggeredCount.Get());
 		}
 #endif // STALL_DETECTOR
 

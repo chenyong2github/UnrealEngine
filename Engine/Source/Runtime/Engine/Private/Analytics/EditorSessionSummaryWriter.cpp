@@ -356,8 +356,8 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 		CurrentSession->TopStallTriggerCount = TopResult.TriggerCount;
 	}
 
-	CurrentSession->TotalStallCount = UE::FStallDetectorStats::TotalTriggeredCount;
-	CurrentSession->TotalStallReported = UE::FStallDetectorStats::TotalReportedCount;
+	CurrentSession->TotalStallCount = UE::FStallDetectorStats::TotalTriggeredCount.Get();
+	CurrentSession->TotalStallReported = UE::FStallDetectorStats::TotalReportedCount.Get();
 #endif // STALL_DETECTOR
 
 	if (bSaveSession)

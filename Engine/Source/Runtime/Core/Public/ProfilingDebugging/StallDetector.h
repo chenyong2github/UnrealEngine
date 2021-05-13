@@ -10,6 +10,7 @@
 #include "HAL/PreprocessorHelpers.h"
 #include "Logging/LogMacros.h"
 #include "Misc/ScopeLock.h"
+#include "ProfilingDebugging/CountersTrace.h"
 
 #include <atomic>
 
@@ -108,17 +109,19 @@ namespace UE
 		bool bReported;
 
 		// The total number of times all callsites have been triggered
-		static std::atomic<uint32> TotalTriggeredCount;
+		static FCountersTrace::TCounter<std::atomic<int64>, TraceCounterType_Int> TotalTriggeredCount;
 
 		// The total number of reports that have been sent
-		static std::atomic<uint32> TotalReportedCount;
+		static FCountersTrace::TCounter<std::atomic<int64>, TraceCounterType_Int> TotalReportedCount;
 
 	private:
 		// The number of times this callsite has been triggered
-		uint32 TriggerCount;
+		FCountersTrace::TCounter<int64, TraceCounterType_Int> TriggerCount;
+		TCHAR TriggerCountCounterName[256];
 
 		// The cumulative overage time for this callsite
-		double OverageSeconds;
+		FCountersTrace::TCounter<double, TraceCounterType_Float> OverageSeconds;
+		TCHAR OverageSecondsCounterName[256];
 
 		// Guards access to the stats from multiple threads, for coherency
 		mutable FCriticalSection StatsSection;
