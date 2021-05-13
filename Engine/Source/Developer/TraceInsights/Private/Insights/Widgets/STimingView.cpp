@@ -117,8 +117,6 @@ STimingView::~STimingView()
 	ForegroundTracks.Reset();
 
 	SelectedEvent.Reset();
-	UpdateEventRelations();
-
 	for (Insights::ITimingViewExtender* Extender : GetExtenders())
 	{
 		Extender->OnEndSession(*this);
@@ -3521,7 +3519,6 @@ void STimingView::OnSelectedTimingEventChanged()
 		}
 	}
 
-	UpdateEventRelations();
 	OnSelectedEventChangedDelegate.Broadcast(SelectedEvent);
 }
 
@@ -4170,8 +4167,11 @@ TArray<Insights::ITimingViewExtender*> STimingView::GetExtenders() const
 
 void STimingView::ContextMenu_ShowTaskDependecies_Execute()
 {
-	bShowEventRelations = !bShowEventRelations;
-	UpdateEventRelations();
+	TSharedPtr<Insights::FTaskGraphProfilerManager> TaskGraphManager = Insights::FTaskGraphProfilerManager::Get();
+	if (TaskGraphManager.IsValid() && TaskGraphManager->GetIsAvailable())
+	{
+		TaskGraphManager->SetShowRelations(!TaskGraphManager->GetShowRelations());
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4185,19 +4185,8 @@ bool STimingView::ContextMenu_ShowTaskDependecies_CanExecute()
 
 bool STimingView::ContextMenu_ShowTaskDependecies_IsChecked()
 {
-	return Insights::FTaskGraphProfilerManager::Get().IsValid() && Insights::FTaskGraphProfilerManager::Get()->GetIsAvailable() && bShowEventRelations;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingView::UpdateEventRelations()
-{
-	ClearRelations();
-
-	if (bShowEventRelations && SelectedEvent.IsValid())
-	{
-		SelectedEvent->GetTrack()->GetEventRelations(*SelectedEvent, CurrentRelations);
-	}
+	TSharedPtr<Insights::FTaskGraphProfilerManager> TaskGraphManager = Insights::FTaskGraphProfilerManager::Get();
+	return TaskGraphManager.IsValid() && TaskGraphManager->GetIsAvailable() && TaskGraphManager->GetShowRelations();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

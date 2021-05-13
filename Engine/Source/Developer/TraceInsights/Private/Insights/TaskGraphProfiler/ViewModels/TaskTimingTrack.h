@@ -8,6 +8,7 @@
 #include "Insights/ITimingViewExtender.h"
 #include "Insights/ViewModels/TimingEventsTrack.h"
 
+class FThreadTrackEvent;
 class STimingView;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -44,10 +45,15 @@ public:
 
 	void SetTaskId(uint32 InTaskId);
 
+	void SetResetOnNextTick(bool bInValue) { bResetOnNextTick = bInValue; }
+
+	STimingView* GetTimingView() { return TimingView; }
+
 private:
 	STimingView* TimingView;
 
 	bool bShowHideTaskTrack;
+	bool bResetOnNextTick = false;
 
 	TSharedPtr<FTaskTimingTrack> TaskTrack;
 };
@@ -59,6 +65,7 @@ class FTaskTimingTrack : public FTimingEventsTrack
 	INSIGHTS_DECLARE_RTTI(FTaskTimingTrack, FTimingEventsTrack)
 
 public:
+	static const uint32 InvalidTaskId;
 
 	struct FPendingEventInfo
 	{
@@ -81,6 +88,7 @@ public:
 
 	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
 	virtual void BuildFilteredDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
 	virtual void PostDraw(const ITimingTrackDrawContext& Context) const override;
 
@@ -92,9 +100,9 @@ public:
 	uint32 GetTaskId() { return TaskId; }
 	
 	void OnTimingEventSelected(TSharedPtr<const ITimingEvent> InSelectedEvent);
+	void GetEventRelations(const FThreadTrackEvent& InSelectedEvent);
 
 private:
-	static const uint32 InvalidTaskId;
 	uint32 TimelineIndex;
 
 	FTaskTimingSharedState& SharedState;

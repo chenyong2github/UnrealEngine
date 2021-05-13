@@ -14,7 +14,10 @@
 #include "Insights/TaskGraphProfiler/Widgets/STaskTableTreeView.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/TaskGraphRelation.h"
+#include "Insights/ViewModels/ThreadTimingTrack.h"
+#include "Insights/ViewModels/ThreadTrackEvent.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
+#include "Insights/Widgets/STimingView.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -253,51 +256,55 @@ void FTaskGraphProfilerManager::OnTaskTableTreeViewTabClosed(TSharedRef<SDockTab
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTaskGraphProfilerManager::GetTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, FAddRelationCallback Callback)
+void FTaskGraphProfilerManager::ShowTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, const FThreadTrackEvent* InSelectedEvent)
 {
 	check(Task != nullptr);
 
-	auto GetSingleTaskRelationsForAll = [this, TasksProvider, &Callback](const TArray< TraceServices::FTaskInfo::FRelationInfo>& Collection)
+	if (!bShowRelations)
+	{
+		return;
+	}
+
+	auto GetSingleTaskRelationsForAll = [this, TasksProvider, InSelectedEvent](const TArray< TraceServices::FTaskInfo::FRelationInfo>& Collection)
 	{
 		for (const TraceServices::FTaskInfo::FRelationInfo& Relation : Collection)
 		{
 			const TraceServices::FTaskInfo* Task = TasksProvider->TryGetTask(Relation.RelativeId);
 			if (Task != nullptr)
 			{
-				GetSingleTaskRelations(Task, TasksProvider, Callback);
+				GetSingleTaskRelations(Task, TasksProvider, InSelectedEvent);
 			}
 		}
 	};
 
-
 	GetSingleTaskRelationsForAll(Task->Prerequisites);
-	GetSingleTaskRelations(Task, TasksProvider, Callback);
+	GetSingleTaskRelations(Task, TasksProvider, InSelectedEvent);
 	GetSingleTaskRelationsForAll(Task->NestedTasks);
 	GetSingleTaskRelationsForAll(Task->Subsequents);
 }
 
-void FTaskGraphProfilerManager::GetSingleTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, FAddRelationCallback Callback)
+void FTaskGraphProfilerManager::GetSingleTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, const FThreadTrackEvent* InSelectedEvent)
 {
 	const int32 MaxTasksToShow = 30;
 
 	if (Task->CreatedTimestamp != Task->LaunchedTimestamp || Task->CreatedThreadId != Task->LaunchedThreadId)
 	{
-		Callback(Task->CreatedTimestamp, Task->CreatedThreadId, Task->LaunchedTimestamp, Task->LaunchedThreadId, ETaskEventType::Created);
+		AddRelation(InSelectedEvent, Task->CreatedTimestamp, Task->CreatedThreadId, Task->LaunchedTimestamp, Task->LaunchedThreadId, ETaskEventType::Created);
 	}
 
-	Callback(Task->LaunchedTimestamp, Task->LaunchedThreadId, Task->ScheduledTimestamp, Task->ScheduledThreadId, ETaskEventType::Launched);
+	AddRelation(InSelectedEvent, Task->LaunchedTimestamp, Task->LaunchedThreadId, Task->ScheduledTimestamp, Task->ScheduledThreadId, ETaskEventType::Launched);
 
 	int32 NumPrerequisitesToShow = FMath::Min(Task->Prerequisites.Num(), MaxTasksToShow);
 	for (int32 i = 0; i != NumPrerequisitesToShow; ++i)
 	{
 		const TraceServices::FTaskInfo* Prerequisite = TasksProvider->TryGetTask(Task->Prerequisites[i].RelativeId);
 		check(Prerequisite != nullptr);
-		Callback(Prerequisite->CompletedTimestamp, Prerequisite->CompletedThreadId, Task->ScheduledTimestamp, Task->ScheduledThreadId, ETaskEventType::Prerequisite);
+		AddRelation(InSelectedEvent, Prerequisite->CompletedTimestamp, Prerequisite->CompletedThreadId, Task->ScheduledTimestamp, Task->ScheduledThreadId, ETaskEventType::Prerequisite);
 	}
 
 	if (Task->LaunchedTimestamp != Task->ScheduledTimestamp || Task->LaunchedThreadId != Task->ScheduledThreadId)
 	{
-		Callback(Task->ScheduledTimestamp, Task->ScheduledThreadId, Task->StartedTimestamp, Task->StartedThreadId, ETaskEventType::Scheduled);
+		AddRelation(InSelectedEvent, Task->ScheduledTimestamp, Task->ScheduledThreadId, Task->StartedTimestamp, Task->StartedThreadId, ETaskEventType::Scheduled);
 	}
 
 	int32 NumNestedToShow = FMath::Min(Task->NestedTasks.Num(), MaxTasksToShow);
@@ -307,9 +314,9 @@ void FTaskGraphProfilerManager::GetSingleTaskRelations(const TraceServices::FTas
 		const TraceServices::FTaskInfo* NestedTask = TasksProvider->TryGetTask(RelationInfo.RelativeId);
 		check(NestedTask != nullptr);
 
-		Callback(RelationInfo.Timestamp, Task->StartedThreadId, NestedTask->StartedTimestamp, NestedTask->StartedThreadId, ETaskEventType::AddedNested);
+		AddRelation(InSelectedEvent, RelationInfo.Timestamp, Task->StartedThreadId, NestedTask->StartedTimestamp, NestedTask->StartedThreadId, ETaskEventType::AddedNested);
 
-		Callback(NestedTask->CompletedTimestamp, NestedTask->CompletedThreadId, NestedTask->CompletedTimestamp, Task->StartedThreadId, ETaskEventType::NestedCompleted);
+		AddRelation(InSelectedEvent, NestedTask->CompletedTimestamp, NestedTask->CompletedThreadId, NestedTask->CompletedTimestamp, Task->StartedThreadId, ETaskEventType::NestedCompleted);
 	}
 
 	int32 NumSubsequentsToShow = FMath::Min(Task->Subsequents.Num(), MaxTasksToShow);
@@ -319,19 +326,19 @@ void FTaskGraphProfilerManager::GetSingleTaskRelations(const TraceServices::FTas
 		check(Subsequent != nullptr);
 		if (Task->CompletedTimestamp < Subsequent->ScheduledTimestamp)
 		{
-			Callback(Task->CompletedTimestamp, Task->CompletedThreadId, Subsequent->ScheduledTimestamp, Subsequent->ScheduledThreadId, ETaskEventType::Subsequent);
+			AddRelation(InSelectedEvent, Task->CompletedTimestamp, Task->CompletedThreadId, Subsequent->ScheduledTimestamp, Subsequent->ScheduledThreadId, ETaskEventType::Subsequent);
 		}
 	}
 
 	if (Task->FinishedTimestamp != Task->CompletedTimestamp || Task->CompletedThreadId != Task->StartedThreadId)
 	{
-		Callback(Task->FinishedTimestamp, Task->StartedThreadId, Task->CompletedTimestamp, Task->StartedThreadId, ETaskEventType::Completed);
+		AddRelation(InSelectedEvent, Task->FinishedTimestamp, Task->StartedThreadId, Task->CompletedTimestamp, Task->StartedThreadId, ETaskEventType::Completed);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTaskGraphProfilerManager::GetTaskRelations(double Time, uint32 ThreadId, FAddRelationCallback Callback)
+void FTaskGraphProfilerManager::ShowTaskRelations(const FThreadTrackEvent* InSelectedEvent, uint32 ThreadId)
 {
 	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (!Session.IsValid())
@@ -348,17 +355,18 @@ void FTaskGraphProfilerManager::GetTaskRelations(double Time, uint32 ThreadId, F
 		return;
 	}
 
-	const TraceServices::FTaskInfo* Task = TasksProvider->TryGetTask(ThreadId, Time);
+	const TraceServices::FTaskInfo* Task = TasksProvider->TryGetTask(ThreadId, InSelectedEvent->GetStartTime());
+	ClearTaskRelations();
 
 	if (Task != nullptr)
 	{
-		GetTaskRelations(Task, TasksProvider, Callback);
+		ShowTaskRelations(Task, TasksProvider, InSelectedEvent);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTaskGraphProfilerManager::GetTaskRelations(uint32 TaskId, FAddRelationCallback Callback)
+void FTaskGraphProfilerManager::ShowTaskRelations(uint32 TaskId)
 {
 	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (!Session.IsValid())
@@ -376,10 +384,11 @@ void FTaskGraphProfilerManager::GetTaskRelations(uint32 TaskId, FAddRelationCall
 	}
 
 	const TraceServices::FTaskInfo* Task = TasksProvider->TryGetTask(TaskId);
+	ClearTaskRelations();
 
 	if (Task != nullptr)
 	{
-		GetTaskRelations(Task, TasksProvider, Callback);
+		ShowTaskRelations(Task, TasksProvider, nullptr);
 	}
 }
 
@@ -420,6 +429,113 @@ FLinearColor FTaskGraphProfilerManager::GetColorForTaskEvent(ETaskEventType InEv
 {
 	check(InEvent < ETaskEventType::NumTaskEventTypes);
 	return ColorCode[static_cast<uint32>(InEvent)];
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTaskGraphProfilerManager::AddRelation(const FThreadTrackEvent* InSelectedEvent, double SourceTimestamp, uint32 SourceThreadId, double TargetTimestamp, uint32 TargetThreadId, ETaskEventType Type)
+{
+	if (SourceTimestamp == TraceServices::FTaskInfo::InvalidTimestamp || TargetTimestamp == TraceServices::FTaskInfo::InvalidTimestamp)
+	{
+		return;
+	}
+
+	TSharedPtr<class STimingProfilerWindow> TimingWindow = FTimingProfilerManager::Get()->GetProfilerWindow();
+	if (!TimingWindow.IsValid())
+	{
+		return;
+	}
+
+	TSharedPtr<STimingView> TimingView = TimingWindow->GetTimingView();
+	if (!TimingView.IsValid())
+	{
+		return;
+	}
+
+	TSharedPtr<FThreadTimingSharedState> ThreadSharedState = TimingView->GetThreadTimingSharedState();
+
+	TUniquePtr<ITimingEventRelation> Relation = MakeUnique<FTaskGraphRelation>(SourceTimestamp, SourceThreadId, TargetTimestamp, TargetThreadId, Type);
+	FTaskGraphRelation* TaskRelationPtr = StaticCast<FTaskGraphRelation*>(Relation.Get());
+
+	// If we have a valid event, we can try getting the tracks and depths using this faster approach.
+	if (InSelectedEvent)
+	{
+		TSharedPtr<const FThreadTimingTrack> EventTrack = StaticCastSharedRef<const FThreadTimingTrack>(InSelectedEvent->GetTrack());
+		uint32 ThreadId = EventTrack->GetThreadId();
+
+		if (TaskRelationPtr->GetSourceThreadId() == ThreadId)
+		{
+			TaskRelationPtr->SetSourceTrack(EventTrack);
+			TaskRelationPtr->SetSourceDepth(InSelectedEvent->GetDepth());
+		}
+
+		if (TaskRelationPtr->GetTargetThreadId() == ThreadId)
+		{
+			TaskRelationPtr->SetTargetTrack(EventTrack);
+			TaskRelationPtr->SetTargetDepth(InSelectedEvent->GetDepth());
+		}
+	}
+
+	if(!TaskRelationPtr->GetSourceTrack().IsValid())
+	{
+		TSharedPtr<FCpuTimingTrack> Track = ThreadSharedState->GetCpuTrack(TaskRelationPtr->GetSourceThreadId());
+		if (Track.IsValid())
+		{
+			TaskRelationPtr->SetSourceTrack(Track);
+			TaskRelationPtr->SetSourceDepth(Track->GetDepthAt(TaskRelationPtr->GetSourceTime()) - 1);
+		}
+	}
+
+	if (!TaskRelationPtr->GetTargetTrack().IsValid())
+
+	{
+		TSharedPtr<FCpuTimingTrack> Track = ThreadSharedState->GetCpuTrack(TaskRelationPtr->GetTargetThreadId());
+		if (Track.IsValid())
+		{
+			TaskRelationPtr->SetTargetTrack(Track);
+			TaskRelationPtr->SetTargetDepth(Track->GetDepthAt(TaskRelationPtr->GetTargetTime()) - 1);
+		}
+	}
+
+	if (TaskRelationPtr->GetSourceTrack().IsValid() && TaskRelationPtr->GetTargetTrack().IsValid())
+	{
+		TimingView->AddRelation(Relation);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTaskGraphProfilerManager::ClearTaskRelations()
+{
+	TSharedPtr<class STimingProfilerWindow> TimingWindow = FTimingProfilerManager::Get()->GetProfilerWindow();
+	if (!TimingWindow.IsValid())
+	{
+		return;
+	}
+
+	TSharedPtr<STimingView> TimingView = TimingWindow->GetTimingView();
+	if (!TimingView.IsValid())
+	{
+		return;
+	}
+
+	TArray<TUniquePtr<ITimingEventRelation>>& Relations = TimingView->EditCurrentRelations();
+	Relations.RemoveAll([](TUniquePtr<ITimingEventRelation>& Relations)
+		{
+			return Relations->Is<FTaskGraphRelation>();
+		});
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTaskGraphProfilerManager::SetShowRelations(bool bInValue)
+{
+	bShowRelations = bInValue;
+	if (!bShowRelations)
+	{
+		ClearTaskRelations();
+		TaskTimingSharedState->SetTaskId(FTaskTimingTrack::InvalidTaskId);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
