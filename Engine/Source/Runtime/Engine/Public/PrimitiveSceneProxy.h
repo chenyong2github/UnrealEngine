@@ -1089,7 +1089,7 @@ private:
 	uint8 LightingChannelMask;
 
 	// Run-time groups of proxies
-	int32 RayTracingGroupId;
+	uint32 RayTracingGroupId;
 	uint8 RayTracingGroupCullingPriority;
 
 protected:
