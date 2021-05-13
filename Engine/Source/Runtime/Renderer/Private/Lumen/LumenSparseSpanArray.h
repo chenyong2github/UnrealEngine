@@ -61,8 +61,7 @@ public:
 		for (int32 ElementIndex = FirstElementIndex; ElementIndex < FirstElementIndex + NumElements; ++ElementIndex)
 		{
 			checkSlow(IsAllocated(ElementIndex));
-
-			Elements[ElementIndex].~ElementType();
+			Elements[ElementIndex] = ElementType();
 		}
 
 		RemoveFromFreeSpans(FirstElementIndex, NumElements);
