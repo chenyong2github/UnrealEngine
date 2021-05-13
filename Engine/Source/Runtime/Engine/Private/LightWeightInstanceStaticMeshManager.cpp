@@ -2,7 +2,6 @@
 
 #include "GameFramework/LightWeightInstanceStaticMeshManager.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
-#include "Engine/StaticMesh.h"
 #include "Net/UnrealNetwork.h"
 
 ALightWeightInstanceStaticMeshManager::ALightWeightInstanceStaticMeshManager(const FObjectInitializer& ObjectInitializer)
@@ -76,9 +75,8 @@ void ALightWeightInstanceStaticMeshManager::AddNewInstanceAt(FLWIData* InitData,
 
 void ALightWeightInstanceStaticMeshManager::RemoveInstance(const int32 Index)
 {
-	Super::RemoveInstance(Index);
-
 	RemoveInstanceFromRendering(Index);
+	Super::RemoveInstance(Index);
 }
 
 void ALightWeightInstanceStaticMeshManager::RemoveInstanceFromRendering(int32 DataIndex)

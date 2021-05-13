@@ -3,24 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectBaseUtility.h"
-#include "UObject/Object.h"
-#include "Engine/EngineTypes.h"
-#include "Engine/EngineBaseTypes.h"
-#include "Kismet/BlueprintFunctionLibrary.h"
-#include "Templates/SharedPointer.h"
+#include "Engine/StaticMesh.h"
 #include "GameFramework/LightWeightInstanceManager.h"
-
-#include "Actor.h"
 
 #include "LightWeightInstanceStaticMeshManager.generated.h"
 
 DECLARE_DYNAMIC_DELEGATE_RetVal_OneParam(FActorInstanceHandle, FOnActorReady, FActorInstanceHandle, InHandle);
-
-
-
-
 
 UCLASS(BlueprintType, Blueprintable)
 class ENGINE_API ALightWeightInstanceStaticMeshManager : public ALightWeightInstanceManager
