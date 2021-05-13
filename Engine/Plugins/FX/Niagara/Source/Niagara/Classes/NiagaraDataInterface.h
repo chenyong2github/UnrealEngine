@@ -695,6 +695,14 @@ struct FNDIInputParam<FNiagaraBool>
 };
 
 template<>
+struct FNDIInputParam<bool>
+{
+	VectorVM::FExternalFuncInputHandler<FNiagaraBool> Data;
+	FORCEINLINE FNDIInputParam(FVectorVMContext& Context) : Data(Context) {}
+	FORCEINLINE bool GetAndAdvance() { return Data.GetAndAdvance().GetValue(); }
+};
+
+template<>
 struct FNDIInputParam<FVector2D>
 {
 	VectorVM::FExternalFuncInputHandler<float> X;
@@ -767,6 +775,15 @@ struct FNDIOutputParam
 
 template<>
 struct FNDIOutputParam<FNiagaraBool>
+{
+	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> Data;
+	FORCEINLINE FNDIOutputParam(FVectorVMContext& Context) : Data(Context) {}
+	FORCEINLINE bool IsValid() const { return Data.IsValid(); }
+	FORCEINLINE void SetAndAdvance(bool Val) { Data.GetDestAndAdvance()->SetValue(Val); }
+};
+
+template<>
+struct FNDIOutputParam<bool>
 {
 	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> Data;
 	FORCEINLINE FNDIOutputParam(FVectorVMContext& Context) : Data(Context) {}

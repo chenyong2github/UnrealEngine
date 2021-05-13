@@ -53,6 +53,7 @@ public:
 	void GetSpawnedIDAtIndex(FVectorVMContext& Context);
 	void GetNumParticles(FVectorVMContext& Context);
 	void GetParticleIndex(FVectorVMContext& Context);
+	void GetParticleIndexFromIDTable(FVectorVMContext& Context);
 	void ReadInt(FVectorVMContext& Context, FName AttributeToRead);
 	void ReadBool(FVectorVMContext& Context, FName AttributeToRead);
 	void ReadFloat(FVectorVMContext& Context, FName AttributeToRead);
