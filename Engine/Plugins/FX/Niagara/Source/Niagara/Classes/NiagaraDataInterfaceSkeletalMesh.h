@@ -438,8 +438,8 @@ public:
 
 	virtual FString GetFriendlyName() const override { return TEXT("FSkeletalMeshGpuSpawnStaticBuffers"); }
 
-	FShaderResourceViewRHIRef GetBufferTriangleUniformSamplerProbAliasSRV() const { return BufferTriangleUniformSamplerProbAliasSRV; }
-	FShaderResourceViewRHIRef GetBufferTriangleMatricesOffsetSRV() const { return BufferTriangleMatricesOffsetSRV; }
+	FRHIShaderResourceView* GetBufferTriangleUniformSamplerProbAliasSRV() const { return BufferTriangleUniformSamplerProbAliasSRV; }
+	FRHIShaderResourceView* GetBufferTriangleMatricesOffsetSRV() const { return BufferTriangleMatricesOffsetSRV; }
 	uint32 GetTriangleCount() const { return TriangleCount; }
 	uint32 GetVertexCount() const { return VertexCount; }
 
@@ -447,9 +447,9 @@ public:
 	bool IsUseGpuUniformlyDistributedSampling() const { return bUseGpuUniformlyDistributedSampling; }
 	int32 GetNumSamplingRegionTriangles() const { return NumSamplingRegionTriangles; }
 	int32 GetNumSamplingRegionVertices() const { return NumSamplingRegionVertices; }
-	FShaderResourceViewRHIRef GetSampleRegionsProbAliasSRV() const { return SampleRegionsProbAliasSRV; }
-	FShaderResourceViewRHIRef GetSampleRegionsTriangleIndicesSRV() const { return SampleRegionsTriangleIndicesSRV; }
-	FShaderResourceViewRHIRef GetSampleRegionsVerticesSRV() const { return SampleRegionsVerticesSRV; }
+	FRHIShaderResourceView* GetSampleRegionsProbAliasSRV() const { return SampleRegionsProbAliasSRV; }
+	FRHIShaderResourceView* GetSampleRegionsTriangleIndicesSRV() const { return SampleRegionsTriangleIndicesSRV; }
+	FRHIShaderResourceView* GetSampleRegionsVerticesSRV() const { return SampleRegionsVerticesSRV; }
 
 	FRHIShaderResourceView* GetBufferPositionSRV() const { return MeshVertexBufferSrv; }
 	FRHIShaderResourceView* GetBufferIndexSRV() const { return MeshIndexBufferSrv; }
@@ -674,11 +674,12 @@ struct FNDISkeletalMesh_InstanceData
 	/** The referenced LOD data, used to prevent streaming out LODs while they are being referenced*/
 	TRefCountPtr<const FSkeletalMeshLODRenderData> CachedLODData;
 
-	FORCEINLINE_DEBUGGABLE bool ResetRequired(UNiagaraDataInterfaceSkeletalMesh* Interface, FNiagaraSystemInstance* SystemInstance) const;
+	bool ResetRequired(UNiagaraDataInterfaceSkeletalMesh* Interface, FNiagaraSystemInstance* SystemInstance) const;
 
 	bool Init(UNiagaraDataInterfaceSkeletalMesh* Interface, FNiagaraSystemInstance* SystemInstance);
-	FORCEINLINE_DEBUGGABLE bool Tick(UNiagaraDataInterfaceSkeletalMesh* Interface, FNiagaraSystemInstance* SystemInstance, float InDeltaSeconds);
-	FORCEINLINE_DEBUGGABLE void Release();
+	bool Tick(UNiagaraDataInterfaceSkeletalMesh* Interface, FNiagaraSystemInstance* SystemInstance, float InDeltaSeconds);
+	void Release();
+
 	FORCEINLINE int32 GetLODIndex()const { return CachedLODIdx; }
 
 	FORCEINLINE_DEBUGGABLE const FSkinWeightVertexBuffer* GetSkinWeights()
@@ -1078,22 +1079,22 @@ public:
 
 struct FNiagaraDISkeletalMeshPassedDataToRT
 {
-	FSkeletalMeshGpuSpawnStaticBuffers* StaticBuffers;
-	FSkeletalMeshGpuDynamicBufferProxy* DynamicBuffer;
-	const FSkinWeightDataVertexBuffer* MeshSkinWeightBuffer;
-	const FSkinWeightLookupVertexBuffer* MeshSkinWeightLookupBuffer;
-	const FSkeletalMeshUvMappingBufferProxy* UvMappingBuffer;
-	const FSkeletalMeshConnectivityProxy* ConnectivityBuffer;
+	FSkeletalMeshGpuSpawnStaticBuffers* StaticBuffers = nullptr;
+	FSkeletalMeshGpuDynamicBufferProxy* DynamicBuffer = nullptr;
+	const FSkinWeightDataVertexBuffer* MeshSkinWeightBuffer = nullptr;
+	const FSkinWeightLookupVertexBuffer* MeshSkinWeightLookupBuffer = nullptr;
+	const FSkeletalMeshUvMappingBufferProxy* UvMappingBuffer = nullptr;
+	const FSkeletalMeshConnectivityProxy* ConnectivityBuffer = nullptr;
 
-	bool bIsGpuUniformlyDistributedSampling;
+	bool bIsGpuUniformlyDistributedSampling = false;
 
-	bool bUnlimitedBoneInfluences;
-	uint32 MeshWeightStrideByte;
-	uint32 MeshSkinWeightIndexSizeByte;
-	FMatrix44f Transform;
-	FMatrix44f PrevTransform;
-	float DeltaSeconds;
-	uint32 UvMappingSet;
+	bool bUnlimitedBoneInfluences = false;
+	uint32 MeshWeightStrideByte = 0;
+	uint32 MeshSkinWeightIndexSizeByte = 0;
+	FMatrix44f Transform = FMatrix44f::Identity;
+	FMatrix44f PrevTransform = FMatrix44f::Identity;
+	float DeltaSeconds = 0.0f;
+	uint32 UvMappingSet = 0;
 };
 
 typedef FNiagaraDISkeletalMeshPassedDataToRT FNiagaraDataInterfaceProxySkeletalMeshData;
