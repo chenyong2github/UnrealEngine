@@ -12306,7 +12306,7 @@ void UCharacterMovementComponent::BuildAsyncInput()
 		FCharacterMovementAsyncInput* Input = AsyncCallback->GetProducerInputData_External();
 		if (Input->bInitialized == false)
 		{
-			Input->Initialize<FCharacterMovementAsyncInput, FCharacterMovementAsyncOutput>();
+			Input->Initialize<FCharacterMovementAsyncInput::FCharacterInput, FCharacterMovementAsyncInput::FUpdatedComponentInput>();
 		}
 
 		if (AsyncSimState.IsValid() == false)

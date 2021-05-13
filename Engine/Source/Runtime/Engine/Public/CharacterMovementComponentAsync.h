@@ -445,11 +445,11 @@ struct ENGINE_API FCharacterMovementAsyncInput : public Chaos::FSimCallbackInput
 
 	virtual ~FCharacterMovementAsyncInput() {}
 	
-	template <typename FMovementInput, typename FMovementOutput> 
+	template <typename FCharacterInput, typename FUpdatedComponentInput> 
 	void Initialize()
 	{
-		CharacterInput = MakeUnique<FMovementInput::FCharacterInput>();
-		UpdatedComponentInput = MakeUnique<FMovementInput::FUpdatedComponentInput>();
+		CharacterInput = MakeUnique<FCharacterInput>();
+		UpdatedComponentInput = MakeUnique<FUpdatedComponentInput>();
 	}
 
 	void Reset()
