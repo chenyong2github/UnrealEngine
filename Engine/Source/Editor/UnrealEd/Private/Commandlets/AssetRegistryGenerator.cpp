@@ -446,7 +446,7 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 
 			for (const FString& Found : FoundFiles)
 			{
-				bHaveGameOpenOrder = Found.Contains(TEXT("CookerOpenOrder")) == false;
+				bHaveGameOpenOrder = bHaveGameOpenOrder || Found.Contains(TEXT("CookerOpenOrder")) == false;
 				UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Found order file %s"), *Found);
 			}
 
