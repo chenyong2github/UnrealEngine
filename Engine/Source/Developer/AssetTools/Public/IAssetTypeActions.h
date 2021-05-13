@@ -73,6 +73,9 @@ public:
 	/** Returns true if this class can be used as a filter in the content browser */
 	virtual bool CanFilter() = 0;
 
+	/** Returns name to use for filter in the content browser */
+	virtual FName GetFilterName() const = 0;
+
 	/** Returns true if this class can be localized */
 	virtual bool CanLocalize() const = 0;
 

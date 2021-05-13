@@ -315,8 +315,17 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 
 void UAssetToolsImpl::RegisterAssetTypeActions(const TSharedRef<IAssetTypeActions>& NewActions)
 {
-	const UClass* SupportedClass = NewActions->GetSupportedClass();
-	NewActions->SetSupported(SupportedClass && AssetClassBlacklist->PassesFilter(SupportedClass->GetFName()));
+	bool bSupported = false;
+	if (const UClass* SupportedClass = NewActions->GetSupportedClass())
+	{
+		bSupported = AssetClassBlacklist->PassesFilter(SupportedClass->GetFName());
+	}
+	else
+	{
+		bSupported = !NewActions->GetFilterName().IsNone();
+	}
+
+	NewActions->SetSupported(bSupported);
 
 	AssetTypeActionsList.Add(NewActions);
 }
@@ -3365,8 +3374,17 @@ void UAssetToolsImpl::AssetClassBlacklistChanged()
 {
 	for (TSharedRef<IAssetTypeActions>& ActionsIt : AssetTypeActionsList)
 	{
-		const UClass* SupportedClass = ActionsIt->GetSupportedClass();
-		ActionsIt->SetSupported(SupportedClass && AssetClassBlacklist->PassesFilter(SupportedClass->GetFName()));
+		bool bSupported = false;
+		if (const UClass* SupportedClass = ActionsIt->GetSupportedClass())
+		{
+			bSupported = AssetClassBlacklist->PassesFilter(SupportedClass->GetFName());
+		}
+		else
+		{
+			bSupported = !ActionsIt->GetFilterName().IsNone();
+		}
+
+		ActionsIt->SetSupported(bSupported);
 	}
 }
 
