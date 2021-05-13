@@ -1655,11 +1655,7 @@ void FAnimationBlueprintEditor::OnBlueprintChangedImpl(UBlueprint* InBlueprint, 
 
 void FAnimationBlueprintEditor::CreateEditorModeManager()
 {
-	TSharedPtr<FAssetEditorModeManager> ModeManager = MakeShareable(FModuleManager::LoadModuleChecked<FPersonaModule>("Persona").CreatePersonaEditorModeManager());
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	SetAssetEditorModeManager(ModeManager.Get());
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	EditorModeManager = MakeShareable(FModuleManager::LoadModuleChecked<FPersonaModule>("Persona").CreatePersonaEditorModeManager());
 }
 
 void FAnimationBlueprintEditor::JumpToHyperlink(const UObject* ObjectReference, bool bRequestRename)
