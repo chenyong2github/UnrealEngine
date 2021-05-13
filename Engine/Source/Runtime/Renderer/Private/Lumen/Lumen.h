@@ -50,6 +50,7 @@ namespace Lumen
 		LightingFromSurfaceCache = 0,
 		EvaluateMaterial,
 		EvaluateMaterialAndDirectLighting,
+		EvaluateMaterialAndDirectLightingAndSkyLighting,
 		MAX
 	};
 	EHardwareRayTracingLightingMode GetReflectionsHardwareRayTracingLightingMode(const FViewInfo& View);
