@@ -48,6 +48,12 @@ namespace BuildGraph.Tasks
 		public string Arguments = "";
 
 		/// <summary>
+		/// Optional path to what editor executable to run for cooking.
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public string EditorExe = "";
+
+		/// <summary>
 		/// Tag to be applied to build products of this task.
 		/// </summary>
 		[TaskParameter(Optional = true, ValidationType = TaskParameterValidationType.TagList)]
@@ -98,7 +104,8 @@ namespace BuildGraph.Tasks
 			{
 				string[] Maps = (Parameters.Maps == null)? null : Parameters.Maps.Split(new char[]{ '+' });
 				string Arguments = (Parameters.Versioned ? "" : "-Unversioned ") + "-LogCmds=\"LogSavePackage Warning\" " + Parameters.Arguments;
-				CommandUtils.CookCommandlet(ProjectFile, "UE4Editor-Cmd.exe", Maps, null, null, null, Parameters.Platform, Arguments);
+				string EditorExe = (string.IsNullOrWhiteSpace(Parameters.EditorExe) ? "UE4Editor-Cmd.exe" : Parameters.EditorExe);
+				CommandUtils.CookCommandlet(ProjectFile, EditorExe, Maps, null, null, null, Parameters.Platform, Arguments);
 			}
 
 			// Find all the cooked files
