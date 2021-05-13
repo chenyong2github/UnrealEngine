@@ -8,6 +8,7 @@
 #include "Misc/CompilationResult.h"
 #include "Scope.h"
 #include "UnrealTypeDefinitionInfo.h"
+#include "GeneratedCodeVersion.h"
 
 class UClass;
 enum class EGeneratedCodeVersion : uint8;

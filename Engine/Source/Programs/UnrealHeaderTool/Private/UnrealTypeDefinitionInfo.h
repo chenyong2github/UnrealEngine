@@ -387,7 +387,20 @@ public:
 		return AllocatorType;
 	}
 
+	/**
+	 * Return the token associated with the property parsing
+	 */
+	FToken& GetToken()
+	{
+		return Token;
+	}
+	const FToken& GetToken() const
+	{
+		return Token;
+	}
+
 private:
+	FToken Token;
 	FString ArrayDimensions;
 	FProperty* Property = nullptr;
 	EAllocatorType AllocatorType = EAllocatorType::Default;
@@ -723,8 +736,31 @@ public:
 		return static_cast<UStruct*>(GetObject());
 	}
 
+	/**
+	 * Add a new property to the structure
+	 */
+	virtual void AddProperty(FUnrealPropertyDefinitionInfo& PropertyDef)
+	{
+		Properties.Add(&PropertyDef);
+	}
+
+	/**
+	 * Get the collection of properties
+	 */
+	const TArray<FUnrealPropertyDefinitionInfo*> GetProperties() const
+	{
+		return Properties;
+	}
+	TArray<FUnrealPropertyDefinitionInfo*> GetParameters()
+	{
+		return Properties;
+	}
+
 private:
 	TSharedPtr<FScope> StructScope;
+
+	/** Properties of the structure */
+	TArray<FUnrealPropertyDefinitionInfo*> Properties;
 };
 
 /**
@@ -817,11 +853,9 @@ public:
 
 	/** @name getters */
 	//@{
-	const	FFuncInfo& GetFunctionData()	const { return FunctionData; }
-	const	FToken& GetReturnData()		const { return ReturnTypeData.Token; }
-	const	FPropertyData& GetParameterData()	const { return ParameterData; }
-	FPropertyData& GetParameterData() { return ParameterData; }
-	FTokenData* GetReturnTokenData() { return &ReturnTypeData; }
+	FFuncInfo& GetFunctionData() { return FunctionData; }
+	const FFuncInfo& GetFunctionData() const { return FunctionData; }
+	FUnrealPropertyDefinitionInfo* GetReturn() const { return ReturnProperty; }
 	//@}
 
 	void UpdateFunctionData(FFuncInfo& UpdatedFuncData)
@@ -838,19 +872,19 @@ public:
 	 *
 	 * @param	PropertyToken	the property to add
 	 */
-	void AddProperty(FToken&& PropertyToken)
+	virtual void AddProperty(FUnrealPropertyDefinitionInfo& PropertyDef) override
 	{
-		const FProperty* Prop = PropertyToken.TokenProperty;
-		check(Prop);
+		const FProperty* Prop = PropertyDef.GetProperty();
 		check((Prop->PropertyFlags & CPF_Parm) != 0);
 
 		if ((Prop->PropertyFlags & CPF_ReturnParm) != 0)
 		{
-			SetReturnData(MoveTemp(PropertyToken));
+			check(ReturnProperty == nullptr);
+			ReturnProperty = &PropertyDef;
 		}
 		else
 		{
-			AddParameter(MoveTemp(PropertyToken));
+			FUnrealStructDefinitionInfo::AddProperty(PropertyDef);
 		}
 	}
 
@@ -871,36 +905,12 @@ public:
 	}
 
 private:
-	/**
-	 * Adds a new parameter token
-	 *
-	 * @param	PropertyToken	token that should be added to the list
-	 */
-	void AddParameter(FToken&& PropertyToken)
-	{
-		check(PropertyToken.TokenProperty);
-		ParameterData.Set(PropertyToken.TokenProperty, MoveTemp(PropertyToken));
-	}
-
-	/**
-	 * Sets the value of the return token for this function
-	 *
-	 * @param	PropertyToken	token that should be added
-	 */
-	void SetReturnData(FToken&& PropertyToken)
-	{
-		check(PropertyToken.TokenProperty);
-		ReturnTypeData.Token = MoveTemp(PropertyToken);
-	}
 
 	/** info about the function associated with this FFunctionData */
-	FFuncInfo		FunctionData;
+	FFuncInfo FunctionData;
 
 	/** return value for this function */
-	FTokenData		ReturnTypeData;
-
-	/** function parameter data */
-	FPropertyData	ParameterData;
+	FUnrealPropertyDefinitionInfo* ReturnProperty = nullptr;
 };
 
 /**

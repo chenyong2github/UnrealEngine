@@ -1174,82 +1174,6 @@ struct FFuncInfo
 };
 
 /**
- * Stores "compiler" data about an FToken.  "Compiler" data is data that is associated with a
- * specific property, function or class that is only needed during script compile.
- * This class is designed to make adding new compiler data very simple.
- *
- * - stores the raw evaluated bytecode associated with an FToken
- */
-struct FTokenData
-{
-	/** The token tracked by this FTokenData. */
-	FToken Token;
-
-	FTokenData() = default;
-	FTokenData(FTokenData&&) = default;
-	FTokenData& operator=(FTokenData&&) = default;
-	FTokenData(FToken&& InToken)
-		: Token(MoveTemp(InToken))
-	{
-	}
-};
-
-/**
- * Class for storing data about a list of properties.  Though FToken contains a reference to its
- * associated FProperty, it's faster lookup to use the FProperty as the key in a TMap.
- */
-class FPropertyData
-{
-	TMap<FProperty*, TSharedPtr<FTokenData>> PropertyMap;
-
-public:
-	/**
-	 * Returns the value associated with a specified key.
-	 * @param	Key - The key to search for.
-	 * @return	A pointer to the value associated with the specified key, or NULL if the key isn't contained in this map.  The pointer
-	 *			is only valid until the next change to any key in the map.
-	 */
-	FTokenData* Find(FProperty* Key)
-	{
-		FTokenData* Result = NULL;
-
-		TSharedPtr<FTokenData>* pResult = PropertyMap.Find(Key);
-		if ( pResult != NULL )
-		{
-			Result = pResult->Get();
-		}
-		return Result;
-	}
-	const FTokenData* Find(FProperty* Key) const
-	{
-		const FTokenData* Result = NULL;
-
-		const TSharedPtr<FTokenData>* pResult = PropertyMap.Find(Key);
-		if ( pResult != NULL )
-		{
-			Result = pResult->Get();
-		}
-		return Result;
-	}
-
-	void Shrink()
-	{
-		PropertyMap.Shrink();
-	}
-
-	/**
-	 * Sets the value associated with a key.  If the key already exists in the map, uses the same
-	 * value pointer and reinitalized the FTokenData with the input value.
-	 *
-	 * @param	InKey	the property to get a token wrapper for
-	 * @param	InValue	the token wrapper for the specified key
-	 *
-	 * @return	a pointer to token data created associated with the property
-	 */
-	FTokenData* Set(FProperty* InKey, FTokenData&& InValue);
-};
-
-/**
  * Tracks information about a multiple inheritance parent declaration for native script classes.
  */
 struct FMultipleInheritanceBaseClass
@@ -1292,9 +1216,6 @@ enum class EParsedInterface
  */
 class FClassMetaData
 {
-	/** member properties for this class */
-	FPropertyData											GlobalPropertyData;
-
 	/** base classes to multiply inherit from (other than the main base class */
 	TArray<FMultipleInheritanceBaseClass*>					MultipleInheritanceParents;
 
@@ -1456,7 +1377,7 @@ public:
 	 *			is declared in a package that is already compiled and has had its
 	 *			source stripped)
 	 */
-	FTokenData* FindTokenData( FProperty* Prop );
+	FToken* FindTokenData( FProperty* Prop );
 
 	/**
 	 * Add a string to the list of inheritance parents for this class.
@@ -1495,7 +1416,6 @@ public:
 	 */
 	void Shrink()
 	{
-		GlobalPropertyData.Shrink();
 		MultipleInheritanceParents.Shrink();
 	}
 
@@ -1516,8 +1436,6 @@ public:
 
 	/** Parsed interface state */
 	EParsedInterface ParsedInterface = EParsedInterface::NotAnInterface;
-
-	friend struct FClassMetaDataArchiveProxy;
 };
 
 /**
