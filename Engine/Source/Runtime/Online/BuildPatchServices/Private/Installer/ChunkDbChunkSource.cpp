@@ -223,7 +223,7 @@ namespace BuildPatchServices
 
 		// Start threaded load worker.
 		TFunction<void()> Task = [this]() { return ThreadRun(); };
-		Future = Async(EAsyncExecution::Thread, MoveTemp(Task));
+		Future = Async(EAsyncExecution::ThreadIfForkSafe, MoveTemp(Task));
 	}
 
 	FChunkDbChunkSource::~FChunkDbChunkSource()

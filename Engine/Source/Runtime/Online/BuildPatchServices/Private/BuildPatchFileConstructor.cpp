@@ -275,9 +275,21 @@ FBuildPatchFileConstructor::FBuildPatchFileConstructor(FFileConstructorConfig In
 		}
 		ConstructionStack[(ConstructListNum - 1) - ConstructListIdx] = ConstructListElem;
 	}
+
 	// Start thread!
 	const TCHAR* ThreadName = TEXT("FileConstructorThread");
-	Thread = FRunnableThread::Create(this, ThreadName);
+
+	// Ideally this would check if we were forkable or a forked child process but there is 
+	// currently no in-engine way to check that.  Since BPS does not currently support
+	// FRunnableThread::ThreadType::Fake or FRunnableThread::ThreadType::Forkable 
+	// this check ends up being equivalent for now.  We most likely *never* want support 
+	// forking while an installer is running.
+	if (FPlatformProcess::SupportsMultithreading() || FForkProcessHelper::IsForkedMultithreadInstance())
+	{
+		Thread = FForkProcessHelper::CreateForkableThread(this, ThreadName);
+		check(Thread != nullptr);
+		check(Thread->GetThreadType() == FRunnableThread::ThreadType::Real);
+	}
 }
 
 FBuildPatchFileConstructor::~FBuildPatchFileConstructor()
