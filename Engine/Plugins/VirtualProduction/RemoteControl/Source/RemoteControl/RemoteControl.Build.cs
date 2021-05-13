@@ -27,7 +27,6 @@ public class RemoteControl : ModuleRules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"DeveloperSettings",
-					"EditorFramework",
 					"MessageLog",
 					"UnrealEd",
 				}

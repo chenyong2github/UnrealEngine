@@ -1,17 +1,19 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RemoteControlLogger.h"
 
-#if WITH_EDITOR
+#include "Modules/ModuleManager.h"
 
+#if WITH_EDITOR
 #include "IMessageLogListing.h"
 #include "MessageLogModule.h"
-#include "Modules/ModuleManager.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "RemoteControlLogger"
 
 FRemoteControlLogger::FRemoteControlLogger()
 {
+#if WITH_EDITOR
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 
 	FMessageLogInitializationOptions LogOptions;
@@ -26,15 +28,21 @@ FRemoteControlLogger::FRemoteControlLogger()
 
 	// Create widget
 	LogListingWidget = MessageLogModule.CreateLogListingWidget(MessageLogListing.ToSharedRef());
+#endif
 }
 
 TSharedRef<SWidget> FRemoteControlLogger::GetWidget() const
 {
+#if WITH_EDITOR
 	return LogListingWidget.ToSharedRef();
+#else
+	return SNullWidget::NullWidget;
+#endif
 }
 
 void FRemoteControlLogger::Log(const FName& InputType, FLogCallback InLogTextCallback, EVerbosityLevel Verbosity)
 {
+#if WITH_EDITOR
 	if (!bIsEnabled)
 	{
 		return;
@@ -63,6 +71,7 @@ void FRemoteControlLogger::Log(const FName& InputType, FLogCallback InLogTextCal
 	// Always select last message, that keep the UI widget scrolling
 	constexpr bool bSelected = true;
 	MessageLogListing->SelectMessage(Line, bSelected);
+#endif
 }
 
 void FRemoteControlLogger::EnableLog(const bool bEnable)
@@ -72,9 +81,9 @@ void FRemoteControlLogger::EnableLog(const bool bEnable)
 
 void FRemoteControlLogger::ClearLog() const
 {
+#if WITH_EDITOR
 	MessageLogListing->ClearMessages();
+#endif
 }
 
 #undef LOCTEXT_NAMESPACE
-
-#endif //WITH_EDITOR

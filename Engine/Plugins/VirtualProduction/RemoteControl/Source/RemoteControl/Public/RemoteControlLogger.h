@@ -1,8 +1,6 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-
-#if WITH_EDITOR
 
 #include "CoreMinimal.h"
 
@@ -70,8 +68,11 @@ public:
 	void ClearLog() const;
 
 private:
+
+#if WITH_EDITOR
 	/** Log listening interface */
 	TSharedPtr<IMessageLogListing> MessageLogListing;
+#endif
 
 	/** Pointer to log widget */
 	TSharedPtr<SWidget> LogListingWidget;
@@ -79,5 +80,3 @@ private:
 	/** Is the logger enabled */
 	bool bIsEnabled = false;
 };
-
-#endif // WITH_EDITOR
