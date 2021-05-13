@@ -865,6 +865,11 @@ void FDeferredShadingSceneRenderer::CreateIndirectCapsuleShadows()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_CreateIndirectCapsuleShadows);
 
+	if (!SupportsCapsuleIndirectShadows(FeatureLevel, ShaderPlatform))
+	{
+		return;
+	}
+
 	for (int32 PrimitiveIndex = 0; PrimitiveIndex < Scene->DynamicIndirectCasterPrimitives.Num(); PrimitiveIndex++)
 	{
 		FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene->DynamicIndirectCasterPrimitives[PrimitiveIndex];
