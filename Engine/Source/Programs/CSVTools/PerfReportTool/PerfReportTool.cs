@@ -22,7 +22,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.46";
+        private static string VersionString = "4.47";
 
         public static string Get() { return VersionString; }
     };
@@ -1471,9 +1471,16 @@ namespace PerfReportTool
 
 			bool bIncludeSummaryCsv = GetBoolArg("writeSummaryCsv") && !bBulkMode;
 
-            // If the reporttype has summary info, then write out the summary]
-            PeakSummary peakSummary = null;
-            foreach (Summary summary in reportTypeInfo.summaries)
+			List<Summary> summaries = new List<Summary>(reportTypeInfo.summaries);
+			bool bExtraLinksSummary = GetBoolArg("extraLinksSummary");
+			if (bExtraLinksSummary)
+			{
+				summaries.Insert(0,new ExtraLinksSummary(null, null));
+			}
+
+			// If the reporttype has summary info, then write out the summary]
+			PeakSummary peakSummary = null;
+            foreach (Summary summary in summaries)
             {
                 summary.WriteSummaryData(htmlFile, summary.useUnstrippedCsvStats ? unstrippedCsvStats : csvStats, bIncludeSummaryCsv, summaryRowData, htmlFilename);
                 if ( summary.GetType() == typeof(PeakSummary) )
@@ -1895,34 +1902,7 @@ namespace PerfReportTool
 						summaryElement = child;
 					}
 					string summaryType = summaryElement.Attribute("type").Value;
-					if (summaryType == "histogram")
-					{
-						summaries.Add(new HistogramSummary(summaryElement, baseXmlDirectory));
-					}
-					else if (summaryType == "peak")
-					{
-						summaries.Add(new PeakSummary(summaryElement, baseXmlDirectory));
-					}
-					else if (summaryType == "fpschart")
-					{
-						summaries.Add(new FPSChartSummary(summaryElement, baseXmlDirectory));
-					}
-					else if (summaryType == "hitches")
-					{
-						summaries.Add(new HitchSummary(summaryElement, baseXmlDirectory));
-					}
-					else if (summaryType == "event")
-					{
-						summaries.Add(new EventSummary(summaryElement, baseXmlDirectory));
-					}
-					else if (summaryType == "boundedstatvalues")
-					{
-						summaries.Add(new BoundedStatValuesSummary(summaryElement, baseXmlDirectory));
-					}
-					else if (summaryType == "mapoverlay")
-					{
-						summaries.Add(new MapOverlaySummary(summaryElement, baseXmlDirectory));
-					}
+					summaries.Add(SummaryFactory.Create(summaryType, summaryElement, baseXmlDirectory));
 				}
 				else if (child.Name == "metadataToShow")
 				{
