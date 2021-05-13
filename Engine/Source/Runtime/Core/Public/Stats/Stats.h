@@ -119,6 +119,16 @@ struct TStatId
 	{
 		return StatString != nullptr;
 	}
+
+	FORCEINLINE bool operator==(TStatId Other) const
+	{
+		return StatString == Other.StatString;
+	}
+
+	FORCEINLINE bool operator!=(TStatId Other) const
+	{
+		return StatString != Other.StatString;
+	}
 };
 
 #if USE_LIGHTWEIGHT_STATS_FOR_HITCH_DETECTION && USE_HITCH_DETECTION
