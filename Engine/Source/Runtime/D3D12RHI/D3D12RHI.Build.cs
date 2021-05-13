@@ -41,8 +41,6 @@ public class D3D12RHI : ModuleRules
         if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) ||
             Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
-			PrivateDefinitions.Add("D3D12RHI_USE_PIPELINE_STATE_STREAM=1");
-
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
