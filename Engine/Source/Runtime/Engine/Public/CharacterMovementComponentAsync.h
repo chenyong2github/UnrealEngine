@@ -2,11 +2,124 @@
 
 #pragma once
 #include "GameFramework/RootMotionSource.h"
-#include "GameFramework/CharacterMovementComponent.h"
 #include "Chaos/SimCallbackObject.h"
+#include "CharacterMovementComponentAsync.generated.h"
 
-struct FFindFloorResult;
-struct FStepDownResult;
+
+struct FCharacterMovementAsyncOutput;
+struct FCharacterMovementAsyncInput;
+
+// TODO move these common structures to separate header?
+
+// Enum used to control GetPawnCapsuleExtent behavior
+enum EShrinkCapsuleExtent
+{
+	SHRINK_None,			// Don't change the size of the capsule
+	SHRINK_RadiusCustom,	// Change only the radius, based on a supplied param
+	SHRINK_HeightCustom,	// Change only the height, based on a supplied param
+	SHRINK_AllCustom,		// Change both radius and height, based on a supplied param
+};
+
+/** Data about the floor for walking movement, used by CharacterMovementComponent. */
+USTRUCT(BlueprintType)
+struct ENGINE_API FFindFloorResult
+{
+	GENERATED_USTRUCT_BODY()
+
+		/**
+		* True if there was a blocking hit in the floor test that was NOT in initial penetration.
+		* The HitResult can give more info about other circumstances.
+		*/
+		UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = CharacterFloor)
+		uint32 bBlockingHit : 1;
+
+	/** True if the hit found a valid walkable floor. */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = CharacterFloor)
+		uint32 bWalkableFloor : 1;
+
+	/** True if the hit found a valid walkable floor using a line trace (rather than a sweep test, which happens when the sweep test fails to yield a walkable surface). */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = CharacterFloor)
+		uint32 bLineTrace : 1;
+
+	/** The distance to the floor, computed from the swept capsule trace. */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = CharacterFloor)
+		float FloorDist;
+
+	/** The distance to the floor, computed from the trace. Only valid if bLineTrace is true. */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = CharacterFloor)
+		float LineDist;
+
+	/** Hit result of the test that found a floor. Includes more specific data about the point of impact and surface normal at that point. */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = CharacterFloor)
+		FHitResult HitResult;
+
+public:
+
+	FFindFloorResult()
+		: bBlockingHit(false)
+		, bWalkableFloor(false)
+		, bLineTrace(false)
+		, FloorDist(0.f)
+		, LineDist(0.f)
+		, HitResult(1.f)
+	{
+	}
+
+	/** Returns true if the floor result hit a walkable surface. */
+	bool IsWalkableFloor() const
+	{
+		return bBlockingHit && bWalkableFloor;
+	}
+
+	void Clear()
+	{
+		bBlockingHit = false;
+		bWalkableFloor = false;
+		bLineTrace = false;
+		FloorDist = 0.f;
+		LineDist = 0.f;
+		HitResult.Reset(1.f, false);
+	}
+
+	/** Gets the distance to floor, either LineDist or FloorDist. */
+	float GetDistanceToFloor() const
+	{
+		// When the floor distance is set using SetFromSweep, the LineDist value will be reset.
+		// However, when SetLineFromTrace is used, there's no guarantee that FloorDist is set.
+		return bLineTrace ? LineDist : FloorDist;
+	}
+
+	void SetFromSweep(const FHitResult& InHit, const float InSweepFloorDist, const bool bIsWalkableFloor);
+	void SetFromLineTrace(const FHitResult& InHit, const float InSweepFloorDist, const float InLineDist, const bool bIsWalkableFloor);
+};
+
+
+/** Struct updated by StepUp() to return result of final step down, if applicable. */
+struct FStepDownResult
+{
+	uint32 bComputedFloor : 1;		// True if the floor was computed as a result of the step down.
+	FFindFloorResult FloorResult;	// The result of the floor test if the floor was updated.
+
+	FStepDownResult()
+		: bComputedFloor(false)
+	{
+	}
+};
+
+struct FCharacterAsyncOutput
+{
+	virtual ~FCharacterAsyncOutput() {}
+
+	// Character Owner Data
+	FRotator Rotation;
+	int32 JumpCurrentCountPreJump;
+	int32 JumpCurrentCount;
+	float JumpForceTimeRemaining;
+	bool bWasJumping;
+	bool bPressedJump;
+	float JumpKeyHoldTime;
+	bool bClearJumpInput; // If true when applying output we will clear bPressedJump on game thread.
+};
 
 struct FUpdatedComponentAsyncOutput
 {
@@ -37,7 +150,30 @@ struct FUpdatedComponentAsyncOutput
 
 struct FCharacterMovementAsyncOutput : public Chaos::FSimCallbackOutput
 {
-	void Reset() { }
+	using FCharacterOutput = FCharacterAsyncOutput;
+
+	FCharacterMovementAsyncOutput()
+		: FSimCallbackOutput()
+		, bIsValid(false)
+	{
+		Pawn = MakeUnique<FCharacterOutput>();
+	}
+
+	FCharacterMovementAsyncOutput(TUniquePtr<FCharacterOutput>&& PawnOutput)
+		: FSimCallbackOutput()
+		, Pawn(MoveTemp(PawnOutput))
+		, bIsValid(false)
+	{
+	}
+
+	virtual ~FCharacterMovementAsyncOutput() {}
+
+public:
+	void Reset() { bIsValid = false; }
+
+	ENGINE_API void Copy(const FCharacterMovementAsyncOutput& Value);
+	
+	bool IsValid() const { return bIsValid; }
 
 	bool bWasSimulatingRootMotion;
 	EMovementMode MovementMode;
@@ -85,17 +221,10 @@ struct FCharacterMovementAsyncOutput : public Chaos::FSimCallbackOutput
 	UPrimitiveComponent* NewMovementBase; // call SetBase
 	AActor* NewMovementBaseOwner; // make sure this is set whenever base component is. TODO
 
-	// UpdatedComponent data
 	FUpdatedComponentAsyncOutput UpdatedComponent;
+	TUniquePtr<FCharacterAsyncOutput> Pawn;
 
-	// Character Ownner Data
-	FRotator CharacterOwnerRotation; 
-	int32 JumpCurrentCountPreJump;
-	int32 JumpCurrentCount;
-	float JumpForceTimeRemaining;
-	bool bWasJumping;
-	bool bPressedJump;
-	float JumpKeyHoldTime;
+	bool bIsValid;
 };
 
 // Don't read into this part too much it needs to be changed.
@@ -126,7 +255,7 @@ struct FCachedMovementBaseAsyncData
 };
 
 // Data and implementation that lives on movement component's character owner
-struct FCharacterAsyncInput
+struct ENGINE_API FCharacterAsyncInput
 {
 	virtual ~FCharacterAsyncInput() {}
 
@@ -147,10 +276,11 @@ struct FCharacterAsyncInput
 	virtual void ClearJumpInput(float DeltaSeconds, const FCharacterMovementAsyncInput& Input, FCharacterMovementAsyncOutput& Output) const;
 	virtual bool CanJump(const FCharacterMovementAsyncInput& Input, FCharacterMovementAsyncOutput& Output) const;
 	virtual void ResetJumpState(const FCharacterMovementAsyncInput& Input, FCharacterMovementAsyncOutput& Output) const;
+	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, const FCharacterMovementAsyncInput& Input, FCharacterMovementAsyncOutput& Output, uint8 PreviousCustomMode = 0);
 };
 
 // Represents the UpdatedComponent's state and implementation
-struct FUpdatedComponentAsyncInput
+struct ENGINE_API FUpdatedComponentAsyncInput
 {
 	virtual ~FUpdatedComponentAsyncInput() {}
 
@@ -191,14 +321,40 @@ struct FUpdatedComponentAsyncInput
 	FVector Scale;
 };
 
+
+// This contains inputs from GT that are applied to async sim state before simulation.
+struct FCharacterMovementGTInputs
+{
+	bool bWantsToCrouch;
+	
+	bool bValidMovementMode; // Should we actually copy movement mode?
+	EMovementMode MovementMode;
+
+	// Pawn inputs
+	bool bPressedJump;
+
+	void UpdateOutput(FCharacterMovementAsyncOutput& Output) const
+	{
+		Output.bWantsToCrouch = bWantsToCrouch;
+		if (bValidMovementMode)
+		{
+			Output.MovementMode = MovementMode;
+		}
+		Output.Pawn->bPressedJump = bPressedJump;
+	}
+};
+
 /*
 * Contains all input and implementation required to run async character movement.
 * Base implementation is from CharacterMovementComponent.
 * Contains 'CharacterInput' and 'UpdatedComponentInput' represent data/impl of Character and our UpdatedComponent.
-* All input is const, non-const data goes in output. 'InitialOutput' member is copied to output before sim to initialize non-const data.
+* All input is const, non-const data goes in output. 'AsyncSimState' points to non-const sim state.
 */
-struct FCharacterMovementAsyncInput : public Chaos::FSimCallbackInput
+struct ENGINE_API FCharacterMovementAsyncInput : public Chaos::FSimCallbackInput
 {
+	using FCharacterInput = FCharacterAsyncInput;
+	using FUpdatedComponentInput = FUpdatedComponentAsyncInput;
+
 	// Has this been filled out?
 	bool bInitialized = false;
 
@@ -281,16 +437,37 @@ struct FCharacterMovementAsyncInput : public Chaos::FSimCallbackInput
 	FCollisionQueryParams CapsuleParams;
 	FRandomStream RandomStream;
 
-	// When filling inputs we put initial value of outputs in here.
-	// This initializes callback output at beginning of sim,
-	// and callback output is copied back onto this at end of sim,
-	// so it may be used to initialize subsequent steps using this same input
-	TUniquePtr<FCharacterMovementAsyncOutput> InitialOutput;
+	
+	// This is the latest simulated state of this movement component.
+	TSharedPtr<FCharacterMovementAsyncOutput, ESPMode::ThreadSafe> AsyncSimState;
+
+	FCharacterMovementGTInputs GTInputs;
+
+	virtual ~FCharacterMovementAsyncInput() {}
+	
+	template <typename FMovementInput, typename FMovementOutput> 
+	void Initialize()
+	{
+		CharacterInput = MakeUnique<FMovementInput::FCharacterInput>();
+		UpdatedComponentInput = MakeUnique<FMovementInput::FUpdatedComponentInput>();
+	}
+
+	void Reset()
+	{
+		/* TODO Should actually implement this.*/
+		bInitialized = false;
+		CharacterInput.Reset();
+		UpdatedComponentInput.Reset();
+		AsyncSimState.Reset();
+	}
+
+	void UpdateAsyncStateFromGTInputs_Internal() const
+	{
+		GTInputs.UpdateOutput(*AsyncSimState);
+	}
 
 	// Entry point of async tick
 	void Simulate(const float DeltaSeconds, FCharacterMovementAsyncOutput& Output) const;
-	void Reset() { bInitialized = false; /* TODO, currently writing everything each frame. Should actually implement this.*/ }
-	virtual ~FCharacterMovementAsyncInput() {}
 
 	// TODO organize these
 	virtual void ControlledCharacterMove(const float DeltaSeconds, FCharacterMovementAsyncOutput& Output) const;
@@ -398,3 +575,36 @@ class FCharacterMovementAsyncCallback : public Chaos::TSimCallbackObject<FCharac
 private:
 	virtual void OnPreSimulate_Internal() override;
 };
+
+
+template <typename FAsyncCallbackInput, typename FAsyncCallbackOutput, typename FAsyncCallback>
+void PreSimulateImpl(FAsyncCallback& Callback)
+{
+	const FAsyncCallbackInput* Input = Callback.GetConsumerInput_Internal();
+	if (Input && Input->bInitialized)
+	{
+		// Update sim state from game thread inputs
+		Input->UpdateAsyncStateFromGTInputs_Internal();
+
+		// Ensure that if we reset jump recently we do not process stale inputs enqueued from game thread.
+		if (Input->AsyncSimState->Pawn->bClearJumpInput)
+		{
+			if (Input->GTInputs.bPressedJump == false)
+			{
+				// Game thread has consumed output clearing jump input, reset our flag so we accept next jump input.
+				Input->AsyncSimState->Pawn->bClearJumpInput = false;
+			}
+			else
+			{
+				// Game thread has not consumed output clearing jump input yet, this is stale input that we do not want
+				Input->AsyncSimState->Pawn->bPressedJump = false;
+			}
+		}
+
+		Input->Simulate(Callback.GetDeltaTime_Internal(), static_cast<FAsyncCallbackOutput&>(*Input->AsyncSimState));
+
+		//  Copy sim state to callback output that will be pushed to game thread
+		FAsyncCallbackOutput& Output = Callback.GetProducerOutputData_Internal();
+		Output.Copy(static_cast<FAsyncCallbackOutput&>(*Input->AsyncSimState));
+	}
+}
