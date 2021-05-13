@@ -44,6 +44,8 @@ public class DisplayClusterConfigurator : ModuleRules
 				"SlateCore",
 				"ToolMenus",
 				"UnrealEd",
+				"SubobjectEditor",
+				"SubobjectDataInterface"
 			});
 	}
 }
