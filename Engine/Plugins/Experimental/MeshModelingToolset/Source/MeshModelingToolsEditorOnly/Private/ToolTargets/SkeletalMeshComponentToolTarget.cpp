@@ -3,6 +3,8 @@
 #include "ToolTargets/SkeletalMeshComponentToolTarget.h"
 
 #include "Components/SkinnedMeshComponent.h"
+#include "DynamicMeshToMeshDescription.h"
+#include "MeshDescriptionToDynamicMesh.h"
 #include "Rendering/SkeletalMeshModel.h"
 
 
@@ -199,6 +201,40 @@ void USkeletalMeshComponentToolTarget::CommitMeshDescription(const FCommitter& C
 
 	// this rebuilds physics, but it doesn't undo!
 	Component->RecreatePhysicsState();
+}
+
+TSharedPtr<FDynamicMesh3> USkeletalMeshComponentToolTarget::GetDynamicMesh()
+{
+	TSharedPtr<FDynamicMesh3> DynamicMesh = MakeShared<FDynamicMesh3>();
+	FMeshDescriptionToDynamicMesh Converter;
+	Converter.Convert(GetMeshDescription(), *DynamicMesh);
+	return DynamicMesh;
+}
+
+void USkeletalMeshComponentToolTarget::CommitDynamicMesh(const FDynamicMesh3& Mesh, const FDynamicMeshCommitInfo& CommitInfo)
+{
+	FConversionToMeshDescriptionOptions ConversionOptions;
+	ConversionOptions.bSetPolyGroups = CommitInfo.bPolygroupsChanged;
+	ConversionOptions.bUpdatePositions = CommitInfo.bPositionsChanged;
+	ConversionOptions.bUpdateNormals = CommitInfo.bNormalsChanged;
+	ConversionOptions.bUpdateTangents = CommitInfo.bTangentsChanged;
+	ConversionOptions.bUpdateUVs = CommitInfo.bUVsChanged;
+	ConversionOptions.bUpdateVtxColors = CommitInfo.bVertexColorsChanged;
+
+	CommitMeshDescription([&CommitInfo, &ConversionOptions, &Mesh](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+		{
+			FDynamicMeshToMeshDescription Converter(ConversionOptions);
+
+			if (!CommitInfo.bTopologyChanged)
+			{
+				Converter.UpdateUsingConversionOptions(&Mesh, *CommitParams.MeshDescriptionOut);
+			}
+			else
+			{
+				// Do a full conversion.
+				Converter.Convert(&Mesh, *CommitParams.MeshDescriptionOut);
+			}
+		});
 }
 
 USkeletalMesh* USkeletalMeshComponentToolTarget::GetSkeletalMesh() const
