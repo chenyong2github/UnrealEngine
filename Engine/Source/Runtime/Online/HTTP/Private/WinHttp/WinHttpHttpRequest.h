@@ -70,8 +70,7 @@ protected:
 
 	void UpdateResponseBody(bool bForceResponseExist = false);
 
-	void FinishRequestOnGameThread();
-
+	void OnWinHttpRequestComplete();
 private:
 	struct FWinHttpHttpRequestData
 	{
@@ -102,7 +101,7 @@ private:
 	/** Current status of request being processed */
 	EHttpRequestStatus::Type State = EHttpRequestStatus::NotStarted;
 
-	/** Final status of request after being processed. Will be copied to current state in FinishRequest */
+	/** Status of request available via GetStatus */
 	EHttpRequestStatus::Type CompletionStatus = EHttpRequestStatus::NotStarted;
 
 	/** */
