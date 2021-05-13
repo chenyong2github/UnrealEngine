@@ -32,5 +32,9 @@
 		}
 	],
 	"Plugins": [
+		{
+			"Name": "GameFeatures",
+			"Enabled": true
+		}
 	]
 }

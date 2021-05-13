@@ -12,6 +12,7 @@
 class UGameFeaturePluginStateMachine;
 class UGameFeatureStateChangeObserver;
 struct FStreamableHandle;
+struct FAssetIdentifier;
 class UGameFeatureData;
 class UGameFeaturesProjectPolicies;
 enum class EGameFeaturePluginState : uint8;
@@ -153,10 +154,10 @@ public:
 	void LoadAndActivateGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginLoadComplete& CompleteDelegate);
 
 	/** Gets the Install_Percent for single game feature plugin if it is active. */
-	bool GetGameFeaturePluginInstallPercent(const FString& PluginURL, float& Install_Percent);
+	bool GetGameFeaturePluginInstallPercent(const FString& PluginURL, float& Install_Percent) const;
 
 	/** Determines if a plugin is in the Active state.*/
-	bool IsGameFeaturePluginActive(const FString& PluginURL);
+	bool IsGameFeaturePluginActive(const FString& PluginURL) const;
 
 	/** Deactivates the specified plugin */
 	void DeactivateGameFeaturePlugin(const FString& PluginURL);
@@ -171,10 +172,13 @@ public:
 	void UninstallGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginUninstallComplete& CompleteDelegate);
 
 	/** If the specified plugin is a built-in plugin, return the URL used to identify it. Returns true if the plugin exists, false if it was not found */
-	bool GetPluginURLForBuiltInPluginByName(const FString& PluginName, FString& OutPluginURL);
+	bool GetPluginURLForBuiltInPluginByName(const FString& PluginName, FString& OutPluginURL) const;
 	
+	/** Get the plugin path from the plugin name */
+	FString GetPluginFilenameFromPluginName(const FString& PluginName);
+
 	/** Get the plugin path from the plugin URL */
-	FString GetPluginFilenameFromPluginURL(const FString& PluginURL);
+	FString GetPluginFilenameFromPluginURL(const FString& PluginURL) const;
 
 	/** Fixes a package path/directory to either be relative to plugin root or not. Paths relative to different roots will not be modified */
 	static void FixPluginPackagePath(FString& PathToFix, const FString& PluginRootPath, bool bMakeRelativeToPluginRoot);
@@ -198,7 +202,16 @@ public:
 	//@TODO: GameFeaturePluginEnginePush: Might not be general enough for engine level, TBD
 	void GetLoadedGameFeaturePluginFilenamesForCooking(TArray<FString>& OutLoadedPluginFilenames) const;
 	
-	/** Broadcasts when a plugin is activated and the GameFeatureData is available */
+	/** Is content inside inactive plugin? */
+	bool IsContentWithinInactivePlugin(const FString& ObjectOrPackagePath) const;
+
+	/** Removes assets that are in plugins we know to be inactive.  Order is not maintained. */
+	void FilterInactivePluginAssets(TArray<FAssetIdentifier>& AssetsToFilter) const;
+
+	/** Removes assets that are in plugins we know to be inactive.  Order is not maintained. */
+	void FilterInactivePluginAssets(TArray<FAssetData>& AssetsToFilter) const;
+
+    /** Broadcasts when a plugin is activated and the GameFeatureData is available */
 	static FGameFeaturePluginLoadCompleteDataReady& OnPluginLoadCompleteDataReady() { return PluginLoadedGameFeatureDataReadyDelegate; }
 
 	/** Broadcasts when a plugin is deactivated */
@@ -216,10 +229,10 @@ private:
 	void OnGameFeatureRegistering(const UGameFeatureData* GameFeatureData, const FString& PluginName);
 	friend struct FGameFeaturePluginState_Registering;
 
-	void OnGameFeatureActivating(const UGameFeatureData* GameFeatureData);
+	void OnGameFeatureActivating(const UGameFeatureData* GameFeatureData, const FString& PluginName);
 	friend struct FGameFeaturePluginState_Activating;
 
-	void OnGameFeatureDeactivating(const UGameFeatureData* GameFeatureData, FGameFeatureDeactivatingContext& Context);
+	void OnGameFeatureDeactivating(const UGameFeatureData* GameFeatureData, const FString& PluginName, FGameFeatureDeactivatingContext& Context);
 	friend struct FGameFeaturePluginState_Deactivating;
 
 	void OnGameFeatureLoading(const UGameFeatureData* GameFeatureData);
@@ -238,8 +251,14 @@ private:
 	/** Gets relevant properties out of a uplugin file */
 	bool GetGameFeaturePluginDetails(const FString& PluginDescriptorFilename, struct FGameFeaturePluginDetails& OutPluginDetails) const;
 
-	/** Gets the state machine associated with the specified URL, creates it if it doesnt exist when bCreateIfItDoesntExist is true */
-	UGameFeaturePluginStateMachine* GetGameFeaturePluginStateMachine(const FString& PluginURL, bool bCreateIfItDoesntExist);
+	/** Gets the state machine associated with the specified plugin name */
+	UGameFeaturePluginStateMachine* FindGameFeaturePluginStateMachineByPluginName(const FString& PluginName) const;
+
+	/** Gets the state machine associated with the specified URL */
+	UGameFeaturePluginStateMachine* FindGameFeaturePluginStateMachine(const FString& PluginURL) const;
+
+	/** Gets the state machine associated with the specified URL, creates it if it doesnt exist */
+	UGameFeaturePluginStateMachine* FindOrCreateGameFeaturePluginStateMachine(const FString& PluginURL);
 
 	/** Notification that a game feature has finished loading, and whether it was successful */
 	void LoadGameFeaturePluginComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result);
@@ -267,8 +286,10 @@ private:
 	UPROPERTY(Transient)
 	TMap<FString, UGameFeaturePluginStateMachine*> GameFeaturePluginStateMachines;
 
-
 	TMap<FString, FString> GameFeaturePluginNameToPathMap;
+
+	/** The set of plugins that are currently registered, but inactive. */
+	TSet<FString> InactivePluginNames;
 
 	UPROPERTY(Transient)
 	TArray<UGameFeatureStateChangeObserver*> Observers;

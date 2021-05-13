@@ -301,6 +301,8 @@ void UGameFeaturesSubsystem::OnGameFeatureRegistering(const UGameFeatureData* Ga
 	check(GameFeatureData);
 	AddGameFeatureToAssetManager(GameFeatureData, PluginName);
 
+	InactivePluginNames.Add(PluginName);
+
 	for (UGameFeatureStateChangeObserver* Observer : Observers)
 	{
 		Observer->OnGameFeatureRegistering(GameFeatureData, PluginName);
@@ -332,9 +334,11 @@ void UGameFeaturesSubsystem::OnGameFeatureLoading(const UGameFeatureData* GameFe
 	}
 }
 
-void UGameFeaturesSubsystem::OnGameFeatureActivating(const UGameFeatureData* GameFeatureData)
+void UGameFeaturesSubsystem::OnGameFeatureActivating(const UGameFeatureData* GameFeatureData, const FString& PluginName)
 {
 	check(GameFeatureData);
+	
+	InactivePluginNames.Remove(PluginName);
 
 	for (UGameFeatureStateChangeObserver* Observer : Observers)
 	{
@@ -350,9 +354,12 @@ void UGameFeaturesSubsystem::OnGameFeatureActivating(const UGameFeatureData* Gam
 	}
 }
 
-void UGameFeaturesSubsystem::OnGameFeatureDeactivating(const UGameFeatureData* GameFeatureData, FGameFeatureDeactivatingContext& Context)
+void UGameFeaturesSubsystem::OnGameFeatureDeactivating(const UGameFeatureData* GameFeatureData, const FString& PluginName, FGameFeatureDeactivatingContext& Context)
 {
 	check(GameFeatureData);
+
+	InactivePluginNames.Add(PluginName);
+
 	for (UGameFeatureStateChangeObserver* Observer : Observers)
 	{
 		Observer->OnGameFeatureDeactivating(GameFeatureData, Context);
@@ -390,7 +397,7 @@ void UGameFeaturesSubsystem::GetGameFeatureDataForActivePlugins(TArray<const UGa
 
 const UGameFeatureData* UGameFeaturesSubsystem::GetGameFeatureDataForActivePluginByURL(const FString& PluginURL)
 {
-	if (UGameFeaturePluginStateMachine* GFSM = GetGameFeaturePluginStateMachine(PluginURL, false))
+	if (UGameFeaturePluginStateMachine* GFSM = FindGameFeaturePluginStateMachine(PluginURL))
 	{
 		return GFSM->GetGameFeatureDataForActivePlugin();
 	}
@@ -423,7 +430,7 @@ void UGameFeaturesSubsystem::LoadAndActivateGameFeaturePlugin(const FString& Plu
 {
 	if (GameSpecificPolicies->IsPluginAllowed(PluginURL))
 	{
-		UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, true);
+		UGameFeaturePluginStateMachine* StateMachine = FindOrCreateGameFeaturePluginStateMachine(PluginURL);
 		StateMachine->SetDestinationState(EGameFeaturePluginState::Active, FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::LoadExternallyRequestedGameFeaturePluginComplete, CompleteDelegate));
 	}
 	else
@@ -432,9 +439,9 @@ void UGameFeaturesSubsystem::LoadAndActivateGameFeaturePlugin(const FString& Plu
 	}
 }
 
-bool UGameFeaturesSubsystem::GetGameFeaturePluginInstallPercent(const FString& PluginURL, float& Install_Percent)
+bool UGameFeaturesSubsystem::GetGameFeaturePluginInstallPercent(const FString& PluginURL, float& Install_Percent) const
 {
-	if (UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, false))
+	if (const UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
 	{
 		if (StateMachine->IsStatusKnown() && StateMachine->IsAvailable())
 		{
@@ -456,9 +463,9 @@ bool UGameFeaturesSubsystem::GetGameFeaturePluginInstallPercent(const FString& P
 	return false;
 }
 
-bool UGameFeaturesSubsystem::IsGameFeaturePluginActive(const FString& PluginURL)
+bool UGameFeaturesSubsystem::IsGameFeaturePluginActive(const FString& PluginURL) const
 {
-	if (UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, false))
+	if (const UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
 	{
 		return StateMachine->GetCurrentState() == EGameFeaturePluginState::Active;
 	}
@@ -474,7 +481,7 @@ void UGameFeaturesSubsystem::DeactivateGameFeaturePlugin(const FString& PluginUR
 
 void UGameFeaturesSubsystem::DeactivateGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginDeactivateComplete& CompleteDelegate)
 {
-	if (UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, false))
+	if (UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
 	{
 		ensureAlwaysMsgf(StateMachine->GetCurrentState() == StateMachine->GetDestinationState(), TEXT("Setting a new destination state while state machine is running!"));
 
@@ -509,7 +516,7 @@ void UGameFeaturesSubsystem::UnloadGameFeaturePlugin(const FString& PluginURL, b
 
 void UGameFeaturesSubsystem::UnloadGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginUnloadComplete& CompleteDelegate, bool bKeepRegistered)
 {
-	if (UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, false))
+	if (UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
 	{
 		ensureAlwaysMsgf(StateMachine->GetCurrentState() == StateMachine->GetDestinationState(), TEXT("Setting a new destination state while state machine is running!"));
 
@@ -545,7 +552,7 @@ void UGameFeaturesSubsystem::UninstallGameFeaturePlugin(const FString& PluginURL
 
 void UGameFeaturesSubsystem::UninstallGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginUninstallComplete& CompleteDelegate)
 {
-	if (UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, false))
+	if (UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
 	{
 		ensureAlwaysMsgf(StateMachine->GetCurrentState() == StateMachine->GetDestinationState(), TEXT("Setting a new destination state while state machine is running!"));
 
@@ -590,7 +597,7 @@ void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlug
 				bool bShouldProcess = AdditionalFilter(PluginDescriptorFilename, PluginDetails, BehaviorOptions);
 				if (bShouldProcess)
 				{
-					UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, true);
+					UGameFeaturePluginStateMachine* StateMachine = FindOrCreateGameFeaturePluginStateMachine(PluginURL);
 
 					const EBuiltInAutoState InitialAutoState = (BehaviorOptions.AutoStateOverride != EBuiltInAutoState::Invalid) ? BehaviorOptions.AutoStateOverride : PluginDetails.BuiltInAutoState;
 						
@@ -629,9 +636,9 @@ void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugins(FBuiltInPluginAdditio
 	UAssetManager::Get().PopBulkScanning();
 }
 
-bool UGameFeaturesSubsystem::GetPluginURLForBuiltInPluginByName(const FString& PluginName, FString& OutPluginURL)
+bool UGameFeaturesSubsystem::GetPluginURLForBuiltInPluginByName(const FString& PluginName, FString& OutPluginURL) const
 {
-	if (FString* PluginURL = GameFeaturePluginNameToPathMap.Find(PluginName))
+	if (const FString* PluginURL = GameFeaturePluginNameToPathMap.Find(PluginName))
 	{
 		OutPluginURL = *PluginURL;
 		return true;
@@ -640,10 +647,10 @@ bool UGameFeaturesSubsystem::GetPluginURLForBuiltInPluginByName(const FString& P
 	return false;
 }
 
-FString UGameFeaturesSubsystem::GetPluginFilenameFromPluginURL(const FString& PluginURL)
+FString UGameFeaturesSubsystem::GetPluginFilenameFromPluginURL(const FString& PluginURL) const
 {
 	FString PluginFilename;
-	if (UGameFeaturePluginStateMachine* GFSM = GetGameFeaturePluginStateMachine(PluginURL, false))
+	if (const UGameFeaturePluginStateMachine* GFSM = FindGameFeaturePluginStateMachine(PluginURL))
 	{
 		GFSM->GetPluginFilename(PluginFilename);
 	}
@@ -788,17 +795,38 @@ bool UGameFeaturesSubsystem::GetGameFeaturePluginDetails(const FString& PluginDe
 	return true;
 }
 
-UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::GetGameFeaturePluginStateMachine(const FString& PluginURL, bool bCreateIfItDoesntExist)
+UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::FindGameFeaturePluginStateMachineByPluginName(const FString& PluginName) const
 {
-	UGameFeaturePluginStateMachine** ExistingStateMachine = GameFeaturePluginStateMachines.Find(PluginURL);
+	for (auto StateMachineIt = GameFeaturePluginStateMachines.CreateConstIterator(); StateMachineIt; ++StateMachineIt)
+	{
+		if (UGameFeaturePluginStateMachine* GFSM = StateMachineIt.Value())
+		{
+			if (GFSM->GetGameFeatureName() == PluginName)
+			{
+				return GFSM;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::FindGameFeaturePluginStateMachine(const FString& PluginURL) const
+{
+	UGameFeaturePluginStateMachine* const* ExistingStateMachine = GameFeaturePluginStateMachines.Find(PluginURL);
 	if (ExistingStateMachine)
 	{
 		return *ExistingStateMachine;
 	}
 
-	if (!bCreateIfItDoesntExist)
+	return nullptr;
+}
+
+UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::FindOrCreateGameFeaturePluginStateMachine(const FString& PluginURL)
+{
+	if (UGameFeaturePluginStateMachine* ExistingStateMachine = FindGameFeaturePluginStateMachine(PluginURL))
 	{
-		return nullptr;
+		return ExistingStateMachine;
 	}
 
 	UGameFeaturePluginStateMachine* NewStateMachine = NewObject<UGameFeaturePluginStateMachine>(this);
@@ -868,7 +896,7 @@ bool UGameFeaturesSubsystem::HandleRequestPluginDependencyStateMachines(const FS
 	{
 		for (const FString& DependencyURL : Details.PluginDependencies)
 		{
-			UGameFeaturePluginStateMachine* Dependency = GetGameFeaturePluginStateMachine(DependencyURL, true);
+			UGameFeaturePluginStateMachine* Dependency = FindOrCreateGameFeaturePluginStateMachine(DependencyURL);
 			check(Dependency);
 			OutDependencyMachines.Add(Dependency);
 		}
@@ -926,6 +954,35 @@ void UGameFeaturesSubsystem::ListGameFeaturePlugins(const TArray<FString>& Args,
 	}
 
 	Ar.Logf(TEXT("Total Game Feature Plugins: %d"), PluginCount);
+}
+
+bool UGameFeaturesSubsystem::IsContentWithinInactivePlugin(const FString& InObjectOrPackagePath) const
+{
+	// Look for the first slash beyond the first one we start with.
+	const int32 RootEndIndex = InObjectOrPackagePath.Find(TEXT("/"), ESearchCase::IgnoreCase, ESearchDir::FromStart, 1);
+
+	const FString ObjectPathRootName = InObjectOrPackagePath.Mid(1, RootEndIndex - 1);
+
+	if (InactivePluginNames.Contains(ObjectPathRootName))
+	{
+		return true;
+	}
+	
+	return false;
+}
+
+void UGameFeaturesSubsystem::FilterInactivePluginAssets(TArray<FAssetIdentifier>& AssetsToFilter) const
+{
+	AssetsToFilter.RemoveAllSwap([&](const FAssetIdentifier& Asset) {
+		return IsContentWithinInactivePlugin(Asset.PackageName.ToString());
+	});
+}
+
+void UGameFeaturesSubsystem::FilterInactivePluginAssets(TArray<FAssetData>& AssetsToFilter) const
+{
+	AssetsToFilter.RemoveAllSwap([&](const FAssetData& Asset) {
+		return IsContentWithinInactivePlugin(Asset.ObjectPath.ToString());
+	});
 }
 
 EBuiltInAutoState UGameFeaturesSubsystem::DetermineBuiltInInitialFeatureState(TSharedPtr<FJsonObject> Descriptor, const FString& ErrorContext)
