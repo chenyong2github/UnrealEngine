@@ -450,6 +450,8 @@ void FMovieSceneEntitySystemRunner::GameThread_EvaluationFinalizationPhase()
 	}
 	bCanQueueEventTriggers = false;
 
+	GetInstanceRegistry()->FinalizeFrame();
+
 	CurrentPhase = ESystemPhase::None;
 
 	// We are now done with the current update batch. Let's unlock the completion task to unblock
