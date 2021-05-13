@@ -11,6 +11,10 @@
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
 
+// counters for sending information into trace system
+TRACE_DECLARE_INT_COUNTER(StallCount, TEXT("StallDetector/Count"));
+TRACE_DECLARE_FLOAT_COUNTER(StallTimeSeconds, TEXT("StallDetector/TimeSeconds"));
+
 // force normal behavior in the face of debug configuration and debugger attached
 #define STALL_DETECTOR_DEBUG 0
 
@@ -127,16 +131,26 @@ uint32 UE::FStallDetectorRunnable::Run()
 
 FCriticalSection UE::FStallDetectorStats::InstancesSection;
 TSet<UE::FStallDetectorStats*> UE::FStallDetectorStats::Instances;
-std::atomic<uint32> UE::FStallDetectorStats::TotalTriggeredCount;
-std::atomic<uint32> UE::FStallDetectorStats::TotalReportedCount;
+FCountersTrace::TCounter<std::atomic<int64>, TraceCounterType_Int> UE::FStallDetectorStats::TotalTriggeredCount (TEXT("StallDetector/TotalTriggeredCount"), TraceCounterDisplayHint_None);
+FCountersTrace::TCounter<std::atomic<int64>, TraceCounterType_Int> UE::FStallDetectorStats::TotalReportedCount (TEXT("StallDetector/TotalReportedCount"), TraceCounterDisplayHint_None);
 
 UE::FStallDetectorStats::FStallDetectorStats(const TCHAR* InName, const double InBudgetSeconds, const EStallDetectorReportingMode InReportingMode)
 	: Name(InName)
 	, BudgetSeconds(InBudgetSeconds)
 	, ReportingMode(InReportingMode)
 	, bReported(false)
-	, TriggerCount(0)
-	, OverageSeconds(0.0)
+	, TriggerCount(
+		(
+			FCString::Strcat(TriggerCountCounterName, TEXT("StallDetector/")),
+			FCString::Strcat(TriggerCountCounterName, InName),
+			FCString::Strcat(TriggerCountCounterName, TEXT(" TriggerCount"))
+		), TraceCounterDisplayHint_None)
+	, OverageSeconds(
+		(
+			FCString::Strcat(OverageSecondsCounterName, TEXT("StallDetector/")),
+			FCString::Strcat(OverageSecondsCounterName, InName),
+			FCString::Strcat(OverageSecondsCounterName, TEXT(" OverageSeconds"))
+		), TraceCounterDisplayHint_None)
 {
 	// Add at the end of construction
 	FScopeLock ScopeLock(&InstancesSection);
@@ -154,8 +168,8 @@ void UE::FStallDetectorStats::OnStallCompleted(double InOverageSeconds)
 {
 	// we sync access around these for coherency reasons, can be polled from another thread (tabulation)
 	FScopeLock StatsLock(&StatsSection);
-	TriggerCount++;
-	OverageSeconds += InOverageSeconds;
+	TriggerCount.Increment();
+	OverageSeconds.Add(InOverageSeconds);
 }
 
 void UE::FStallDetectorStats::TabulateStats(TArray<TabulatedResult>& TabulatedResults)
@@ -169,9 +183,9 @@ void UE::FStallDetectorStats::TabulateStats(TArray<TabulatedResult>& TabulatedRe
 			, OverageRatio(0.0)
 		{
 			FScopeLock Lock(&InStats->StatsSection);
-			if (InStats->TriggerCount && InStats->BudgetSeconds > 0.0)
+			if (InStats->TriggerCount.Get() && InStats->BudgetSeconds > 0.0)
 			{
-				OverageRatio = (InStats->OverageSeconds / InStats->TriggerCount) / InStats->BudgetSeconds;
+				OverageRatio = (InStats->OverageSeconds.Get() / InStats->TriggerCount.Get()) / InStats->BudgetSeconds;
 			}
 		}
 
@@ -189,7 +203,7 @@ void UE::FStallDetectorStats::TabulateStats(TArray<TabulatedResult>& TabulatedRe
 	FScopeLock InstancesLock(&UE::FStallDetectorStats::GetInstancesSection());
 	for (const UE::FStallDetectorStats* StallStats : UE::FStallDetectorStats::GetInstances())
 	{
-		if (StallStats->TriggerCount && StallStats->ReportingMode != UE::EStallDetectorReportingMode::Disabled)
+		if (StallStats->TriggerCount.Get() && StallStats->ReportingMode != UE::EStallDetectorReportingMode::Disabled)
 		{
 			StatsArray.Emplace(StallStats);
 		}
@@ -207,8 +221,8 @@ void UE::FStallDetectorStats::TabulateStats(TArray<TabulatedResult>& TabulatedRe
 
 			// we sync access around these for coherency reasons, can be polled from another thread (detector or scope)
 			FScopeLock Lock(&Result.Stats->StatsSection);
-			Result.TriggerCount = Result.Stats->TriggerCount;
-			Result.OverageSeconds = Result.Stats->OverageSeconds;
+			Result.TriggerCount = Result.Stats->TriggerCount.Get();
+			Result.OverageSeconds = Result.Stats->OverageSeconds.Get();
 		}
 	}
 }
@@ -345,7 +359,7 @@ void UE::FStallDetector::CheckAndReset()
 
 void UE::FStallDetector::OnStallDetected(uint32 InThreadId, const double InElapsedSeconds)
 {
-	Stats.TotalTriggeredCount++;
+	Stats.TotalTriggeredCount.Increment();
 
 	//
 	// Determine if we want to undermine the specified reporting mode
@@ -396,7 +410,7 @@ void UE::FStallDetector::OnStallDetected(uint32 InThreadId, const double InElaps
 	if (bSendReport)
 	{
 		Stats.bReported = true;
-		Stats.TotalReportedCount++;
+		Stats.TotalReportedCount.Increment();
 		const int NumStackFramesToIgnore = FPlatformTLS::GetCurrentThreadId() == InThreadId ? 2 : 0;
 		UE_LOG(LogStall, Log, TEXT("Stall detector '%s' exceeded budget of %fs, reporting..."), Stats.Name, Stats.BudgetSeconds);
 		double ReportSeconds = FStallDetector::Seconds();
