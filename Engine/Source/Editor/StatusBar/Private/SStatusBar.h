@@ -26,6 +26,7 @@ class SStatusBarProgressWidget;
 namespace StatusBarDrawerIds
 {
 	const FName ContentBrowser("ContentBrowser");
+	const FName OutputLog("OutputLog");
 }
 
 /** Data payload for messages in the status bar */
@@ -71,6 +72,7 @@ struct FStatusBarDrawer
 	FOnStatusBarDrawerOpened OnDrawerOpenedDelegate;
 	FOnStatusBarDrawerDismissed OnDrawerDismissedDelegate;
 
+	TSharedPtr<SWidget> CustomWidget;
 	FText ButtonText;
 	FText ToolTipText;
 	const FSlateBrush* Icon;
@@ -86,11 +88,27 @@ struct FStatusBarDrawer
 	}
 };
 
+struct FOpenDrawerData
+{
+	FName DrawerId;
+	TSharedPtr<SDrawerOverlay> DrawerOverlay;
+	TWeakPtr<SWindow> WindowWithOverlayContent;
+
+	bool IsValid() const
+	{
+		return !DrawerId.IsNone();
+	}
+
+	bool operator==(const FName InDrawerId) const
+	{
+		return DrawerId == InDrawerId;
+	}
+};
+
 class SStatusBar : public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS(SStatusBar)	
 	{}
-		SLATE_EVENT(FSimpleDelegate, OnConsoleClosed)
 	SLATE_END_ARGS()
 
 public:
@@ -143,12 +161,21 @@ public:
 	 */
 	bool CancelProgressNotification(FProgressNotificationHandle InHandle);
 
+	/**
+	 * Gets the owning major tab that this status bar is in
+	 */
 	TSharedPtr<SDockTab> GetParentTab() const;
-	bool FocusDebugConsole();
-	bool IsDebugConsoleFocused() const;
 
+	/**
+	 * Registers a new drawer with this status bar. Registering will add a button to open and close the drawer
+	 */
 	void RegisterDrawer(FStatusBarDrawer&& Drawer);
 
+	/**
+	 * Opens a drawer
+	 * 
+	 * @param DrawerId Name of the registered drawer to open 
+	 */
 	void OpenDrawer(const FName DrawerId);
 
 	/**
@@ -156,9 +183,18 @@ public:
 	 */
 	void DismissDrawer(const TSharedPtr<SWidget>& NewlyFocusedWidget);
 
-	void CloseDrawerImmediately();
+	/**
+	 * Closes a drawer immediately with no closing animation. Needed for when UI is shutting down or to prevent conflicts where a drawer is open in two places at once. 
+	 * @param DrawerId The name of the drawer to close. If no name is specified all drawers are closed immediately
+	 */
+	void CloseDrawerImmediately(FName DrawerId = NAME_None);
 
+	/** Is a specific registered drawer currently open */
 	bool IsDrawerOpened(const FName DrawerId) const;
+
+	/** Is any drawer other than the one specified by DrawerId opened */
+	bool IsAnyOtherDrawerOpened(const FName DrawerId) const;
+
 private:
 	/** Called when global focus changes which is used to determine if we should close an opened content browser drawer */
 	void OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWeakWidgetPath& OldFocusedWidgetPath, const TSharedPtr<SWidget>& OldFocusedWidget, const FWidgetPath& NewFocusedWidgetPath, const TSharedPtr<SWidget>& NewFocusedWidget);
@@ -170,24 +206,14 @@ private:
 
 	EVisibility GetHelpIconVisibility() const;
 
-	bool GetContentBrowserExpanded() const;
-
 	FText GetStatusBarMessage() const;
 
 	TSharedRef<SWidget> MakeStatusBarDrawerButton(const FStatusBarDrawer& Drawer);
-
 	TSharedRef<SWidget> MakeStatusBarToolBarWidget();
-	TSharedRef<SWidget> MakeDebugConsoleWidget(FSimpleDelegate OnConsoleClosed);
 	TSharedRef<SWidget> MakeStatusMessageWidget();
 	TSharedRef<SWidget> MakeProgressBar();
 
-	void MakeDrawerButtons(TSharedRef<SHorizontalBox> DrawerBox);
-
 	FReply OnDrawerButtonClicked(const FName DrawerId);
-
-	void CreateAnimationTimerIfNeeded();
-
-	EActiveTimerReturnType UpdateDrawerAnimation(double CurrentTime, float DeltaTime);
 
 	void RegisterStatusBarMenu();
 
@@ -201,22 +227,20 @@ private:
 	
 	TSharedRef<SWidget> OnGetProgressBarMenuContent();
 
+	void CloseDrawerImmediatelyInternal(const FOpenDrawerData& Data);
 private:
 	TArray<FStatusBarMessage> MessageStack;
 	TArray<FStatusBarProgress> ProgressNotifications;
 
-	TSharedPtr<SMultiLineEditableTextBox> ConsoleEditBox;
 	TWeakPtr<SDockTab> ParentTab;
 
 	TArray<FStatusBarDrawer> RegisteredDrawers;
 
-	TWeakPtr<SWindow> WindowWithOverlayContent;
+	FOpenDrawerData OpenedDrawer;
 
-	TPair<FName,TSharedPtr<SDrawerOverlay>> OpenedDrawerData;
+	TArray<FOpenDrawerData> DismissingDrawers;
 
 	TSharedPtr<SHorizontalBox> DrawerBox;
-
-	TSharedPtr<FActiveTimerHandle> DrawerOpenCloseTimer;
 
 	TSharedPtr<SStatusBarProgressArea> ProgressBar;
 
@@ -224,9 +248,6 @@ private:
 
 	TWeakPtr<SStatusBarProgressWidget> ActiveNotificationProgressWidget;
 
-
-	FCurveSequence DrawerEasingCurve;
-	FThrottleRequest AnimationThrottle;
 	const FSlateBrush* UpArrow = nullptr;
 	const FSlateBrush* DownArrow = nullptr;
 	FName StatusBarName;

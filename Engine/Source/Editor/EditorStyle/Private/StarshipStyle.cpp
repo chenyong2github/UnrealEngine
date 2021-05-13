@@ -48,7 +48,7 @@ void FStarshipEditorStyle::Initialize()
 	PropertyEditorModule.RegisterCustomPropertyTypeLayout("StyleColorList", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FStyleColorListCustomization::MakeInstance));
 
 	// Background
-	USlateThemeManager::Get().SetDefaultColor(EStyleColor::User1, USlateThemeManager::Get().GetColor(EStyleColor::Input));
+	USlateThemeManager::Get().SetDefaultColor(EStyleColor::User1, USlateThemeManager::Get().GetColor(EStyleColor::Recessed));
 	USlateThemeManager::Get().SetColorDisplayName(EStyleColor::User1, LOCTEXT("UserColor_OutputLogBackground", "Log Background"));
 	// Selection highlight
 	USlateThemeManager::Get().SetDefaultColor(EStyleColor::User2, USlateThemeManager::Get().GetColor(EStyleColor::Highlight));
@@ -981,7 +981,7 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 			.SetBackgroundImageHovered( BOX_BRUSH( "Common/WhiteGroupBorder", FMargin(4.0f/16.0f) ) )
 			.SetBackgroundImageFocused( BOX_BRUSH( "Common/WhiteGroupBorder", FMargin(4.0f/16.0f) ) )
 			.SetBackgroundImageReadOnly( BOX_BRUSH( "Common/WhiteGroupBorder", FMargin(4.0f/16.0f) ) )
-			.SetBackgroundColor( LogColor_Background )
+			.SetBackgroundColor(FStyleColors::Recessed)
 			);
 
 		Set("DebugConsole.Background", new FSlateNoResource());

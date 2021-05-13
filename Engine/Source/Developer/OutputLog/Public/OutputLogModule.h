@@ -10,6 +10,10 @@
 #include "HAL/IConsoleManager.h"
 
 class SMultiLineEditableTextBox;
+class FOutputLogHistory;
+class SOutputLog;
+class SDockTab;
+class FSpawnTabArgs;
 
 /** Style of the debug console */
 namespace EDebugConsoleStyle
@@ -37,9 +41,13 @@ public:
 	virtual void StartupModule();
 	virtual void ShutdownModule();
 
+	static OUTPUTLOG_API FOutputLogModule& Get();
+
 	/** Generates a console input box widget.  Remember, this widget will become invalid if the
 		output log DLL is unloaded on the fly. */
-	virtual TSharedRef<SWidget> MakeConsoleInputBox(TSharedPtr<SMultiLineEditableTextBox>& OutExposedEditableTextBox, const FSimpleDelegate& OnCloseConsole) const;
+	virtual TSharedRef<SWidget> MakeConsoleInputBox(TSharedPtr<SMultiLineEditableTextBox>& OutExposedEditableTextBox, const FSimpleDelegate& OnCloseConsole, const FSimpleDelegate& OnConsoleCommandExecuted) const;
+
+	virtual TSharedRef<SWidget> MakeOutputLogDrawerWidget(const FSimpleDelegate& OnCloseConsole);
 
 	/** Opens a debug console in the specified window, if not already open */
 	virtual void ToggleDebugConsoleForWindow(const TSharedRef<SWindow>& Window, const EDebugConsoleStyle::Type InStyle, const FDebugConsoleDelegates& DebugConsoleDelegates);
@@ -49,7 +57,28 @@ public:
 
 	virtual void ClearOnPIE(const bool bIsSimulating);
 
+	virtual void FocusOutputLogConsoleBox(const TSharedRef<SWidget> OutputLogToFocus);
+
+	virtual const TSharedPtr<SWidget> GetOutputLog() const;
+	const TSharedPtr<SDockTab> GetOutputLogTab() const { return OutputLogTab.Pin(); }
+
 private:
+	TSharedRef<SDockTab> SpawnOutputLogTab(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnDeviceOutputLogTab(const FSpawnTabArgs& Args);
+
+private:
+	/** Our global output log app spawner */
+	TSharedPtr<FOutputLogHistory> OutputLogHistory;
+
+	/** Our global active output log that belongs to a tab */
+	TWeakPtr<SOutputLog> OutputLog;
+
+	/** Global tab that the output log resides in */
+	TWeakPtr<SDockTab> OutputLogTab;
+
+	/** The output log that lives in a status bar drawer */
+	TWeakPtr<SOutputLog> OutputLogDrawer;
+
 	/** Weak pointer to a debug console that's currently open, if any */
 	TWeakPtr<SWidget> DebugConsole;
 
