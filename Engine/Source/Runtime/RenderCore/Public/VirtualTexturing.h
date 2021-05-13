@@ -385,6 +385,7 @@ public:
 protected:
 	friend class FVirtualTextureSystem;
 	virtual void Destroy(class FVirtualTextureSystem* InSystem) = 0;
+	virtual bool TryMapLockedTiles(class FVirtualTextureSystem* InSystem) const = 0;
 	virtual ~IAllocatedVirtualTexture() {}
 
 	FAllocatedVTDescription Description;
