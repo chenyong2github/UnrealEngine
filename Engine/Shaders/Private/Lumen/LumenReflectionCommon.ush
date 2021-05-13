@@ -14,6 +14,7 @@ uint2 ReflectionTracingBufferSize;
 // Downsample factor from full res to tracing res
 uint ReflectionDownsampleFactor;
 float MaxRayIntensity;
+float ReflectionSmoothBias;
 
 // Note: negative if invalid ray
 Texture2D DownsampledDepth;
@@ -132,4 +133,18 @@ void DecodeTraceTexel(uint2 TraceTexelData, inout uint2 ReflectionTracingCoord, 
 	ReflectionTracingCoord.x = TraceTexelData.x & 0xFFFF;
 	ReflectionTracingCoord.y = (TraceTexelData.x >> 16) & 0xFFFF;
 	TraceHitDistance = asfloat(TraceTexelData.y);
+}
+
+float ApplySmoothBias(float Roughness)
+{
+	if (ReflectionSmoothBias > 0)
+	{
+		// SmoothStep-like function up to SmoothBias, original value above
+		float X = saturate(Roughness / ReflectionSmoothBias);
+		return Roughness * X * X * (3.0 - 2.0 * X);
+	}
+	else
+	{
+		return Roughness;
+	}
 }

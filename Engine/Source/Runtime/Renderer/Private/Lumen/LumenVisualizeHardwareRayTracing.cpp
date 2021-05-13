@@ -35,7 +35,8 @@ static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracingLightingM
 	TEXT("Determines the lighting mode (Default = 0)\n")
 	TEXT("0: interpolate final lighting from the surface cache\n")
 	TEXT("1: evaluate material, and interpolate irradiance and indirect irradiance from the surface cache\n")
-	TEXT("2: evaluate material and direct lighting, and interpolate indirect irradiance from the surface cache"),
+	TEXT("2: evaluate material and direct lighting, and interpolate indirect irradiance from the surface cache\n")
+	TEXT("3: evaluate material, direct lighting, and unshadowed skylighting at the hit point"),
 	ECVF_RenderThreadSafe
 );
 
@@ -67,7 +68,7 @@ namespace Lumen
 	EHardwareRayTracingLightingMode GetVisualizeHardwareRayTracingLightingMode()
 	{
 #if RHI_RAYTRACING
-		return EHardwareRayTracingLightingMode(FMath::Clamp(CVarLumenVisualizeHardwareRayTracingLightingMode.GetValueOnRenderThread(), 0, 2));
+		return EHardwareRayTracingLightingMode(FMath::Clamp(CVarLumenVisualizeHardwareRayTracingLightingMode.GetValueOnRenderThread(), 0, (int32)EHardwareRayTracingLightingMode::MAX));
 #else
 		return EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
 #endif
