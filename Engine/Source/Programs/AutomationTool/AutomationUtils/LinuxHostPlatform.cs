@@ -38,6 +38,11 @@ namespace AutomationTool
 			return CachedFrameworkMsbuildTool;
 		}
 
+		public override FileReference GetDotnetExe()
+		{
+			return FileReference.Combine(CommandUtils.EngineDirectory, @"Binaries\ThirdParty\DotNet\Linux\dotnet");
+		}
+
 		public override string GetDotnetMsbuildExe()
 		{
 			return "../../ThirdParty/DotNet/Linux/dotnet";
