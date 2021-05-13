@@ -26,6 +26,7 @@ protected:
 	static void OnSummonedAssetPicker();
 	static void OnSummonedConsoleCommandBox();
 	static void OnOpenContentBrowserDrawer();
+	static void OnOpenOutputLogDrawer();
 
 	static TSharedPtr<IMenu> OpenPopupMenu(TSharedRef<SWidget> WindowContents, const FVector2D& PopupDesiredSize);
 public:
@@ -38,6 +39,7 @@ public:
 	TSharedPtr<FUICommandInfo> SummonOpenAssetDialogAlternate;
 	TSharedPtr<FUICommandInfo> OpenDocumentation;
 	TSharedPtr<FUICommandInfo> OpenConsoleCommandBox;
+	TSharedPtr<FUICommandInfo> OpenOutputLogDrawer;
 	TSharedPtr<FUICommandInfo> OpenContentBrowserDrawer;
 };
 

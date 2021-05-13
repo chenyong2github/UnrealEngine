@@ -21,6 +21,9 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Misc/ConfigCacheIni.h"
+#include "OutputLogModule.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "Classes/EditorStyleSettings.h"
 
 #define LOCTEXT_NAMESPACE "StatusBar"
 
@@ -217,28 +220,74 @@ void UStatusBarSubsystem::Deinitialize()
 	FSlateNotificationManager::Get().SetProgressNotificationHandler(nullptr);
 
 	StatusBarContentBrowser.Reset();
+	StatusBarOutputLog.Reset();
 }
 
-bool UStatusBarSubsystem::FocusDebugConsole(TSharedRef<SWindow> ParentWindow)
+bool UStatusBarSubsystem::ToggleDebugConsole(TSharedRef<SWindow> ParentWindow, bool bAlwaysToggleDrawer)
 {
-	bool bFocusedSuccessfully = false;
+	bool bToggledSuccessfully = false;
+
+	FOutputLogModule& OutputLogModule = FOutputLogModule::Get();
+
+	// Get the global output log tab if it exists. If it exists and is in the same editor as the status bar we'll focus that instead
+	TSharedPtr<SDockTab> MainOutputLogTab = OutputLogModule.GetOutputLogTab();
+	
+	const bool bCycleToOutputLogDrawer = GetDefault<UEditorStyleSettings>()->bCycleToOutputLogDrawer || bAlwaysToggleDrawer;
 
 	for (auto StatusBar : StatusBars)
 	{
-		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.Pin())
+		FStatusBarData& SBData = StatusBar.Value;
+		if (TSharedPtr<SStatusBar> StatusBarPinned = SBData.StatusBarWidget.Pin())
 		{
 			TSharedPtr<SDockTab> ParentTab = StatusBarPinned->GetParentTab();
 			if (ParentTab && ParentTab->IsForeground() && ParentTab->GetParentWindow() == ParentWindow)
 			{
-				// Cache off the previously focused widget so we can restore focus if the user hits the focus key again
-				PreviousKeyboardFocusedWidget = FSlateApplication::Get().GetKeyboardFocusedWidget();
-				bFocusedSuccessfully = StatusBarPinned->FocusDebugConsole();
+				if (!bAlwaysToggleDrawer && MainOutputLogTab && MainOutputLogTab->GetTabManager()->GetOwnerTab() == ParentTab)
+				{
+					OutputLogModule.FocusOutputLogConsoleBox(OutputLogModule.GetOutputLog().ToSharedRef());
+				}
+				else
+				{
+					// This toggles between 3 states: 
+					// If the drawer is opened, close it
+					// if the console edit box is focused, open the drawer
+					// if something else is focused, focus the console edit box
+					if (StatusBarPinned->IsDrawerOpened(StatusBarDrawerIds::OutputLog))
+					{
+						StatusBarPinned->DismissDrawer(nullptr);
+					}
+					else if (SBData.ConsoleEditBox->HasKeyboardFocus() || bAlwaysToggleDrawer)
+					{
+						if (bCycleToOutputLogDrawer)
+						{
+							StatusBarPinned->OpenDrawer(StatusBarDrawerIds::OutputLog);
+						}
+						else
+						{
+							// Restore previous focus
+							FSlateApplication::Get().SetKeyboardFocus(PreviousKeyboardFocusedWidget.Pin(), EFocusCause::SetDirectly);
+
+							PreviousKeyboardFocusedWidget.Reset();
+						}
+					}
+					else
+					{
+
+						// Cache off the previously focused widget so we can restore focus if the user hits the focus key again
+						PreviousKeyboardFocusedWidget = FSlateApplication::Get().GetKeyboardFocusedWidget();
+
+						TSharedPtr<SWidget> WidgetToFocus = SBData.ConsoleEditBox;
+						FSlateApplication::Get().SetKeyboardFocus(WidgetToFocus, EFocusCause::SetDirectly);
+					}
+				}
+
+				bToggledSuccessfully = true;
 				break;
 			}
 		}
 	}
 
-	return bFocusedSuccessfully;
+	return bToggledSuccessfully;
 }
 
 bool UStatusBarSubsystem::OpenContentBrowserDrawer()
@@ -264,12 +313,34 @@ bool UStatusBarSubsystem::OpenContentBrowserDrawer()
 	return false;
 }
 
+bool UStatusBarSubsystem::OpenOutputLogDrawer()
+{
+	TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().GetActiveTopLevelWindow();
+	if (!ParentWindow.IsValid())
+	{
+		if (TSharedPtr<SDockTab> ActiveTab = FGlobalTabmanager::Get()->GetActiveTab())
+		{
+			if (TSharedPtr<SDockTab> ActiveMajorTab = FGlobalTabmanager::Get()->GetMajorTabForTabManager(ActiveTab->GetTabManager()))
+			{
+				ParentWindow = ActiveMajorTab->GetParentWindow();
+			}
+		}
+	}
+
+	if (ParentWindow.IsValid() && ParentWindow->GetType() == EWindowType::Normal)
+	{
+		return ToggleDebugConsole(ParentWindow.ToSharedRef(), true);
+	}
+
+	return false;
+}
+
 bool UStatusBarSubsystem::ForceDismissDrawer()
 {
 	bool bWasDismissed = false;
 	for (auto StatusBar : StatusBars)
 	{
-		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.Pin())
+		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.StatusBarWidget.Pin())
 		{
 			if (StatusBarPinned->IsDrawerOpened(StatusBarDrawerIds::ContentBrowser))
 			{
@@ -290,7 +361,7 @@ bool UStatusBarSubsystem::ToggleContentBrowser(TSharedRef<SWindow> ParentWindow)
 
 	for (auto StatusBar : StatusBars)
 	{
-		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.Pin())
+		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.StatusBarWidget.Pin())
 		{
 			if(StatusBarPinned->IsDrawerOpened(StatusBarDrawerIds::ContentBrowser))
 			{
@@ -318,8 +389,7 @@ TSharedRef<SWidget> UStatusBarSubsystem::MakeStatusBarWidget(FName StatusBarName
 	CreateContentBrowserIfNeeded();
 
 	TSharedRef<SStatusBar> StatusBar =
-		SNew(SStatusBar, StatusBarName, InParentTab)
-		.OnConsoleClosed_UObject(this, &UStatusBarSubsystem::OnDebugConsoleClosed);
+		SNew(SStatusBar, StatusBarName, InParentTab);
 
 	FStatusBarDrawer ContentBrowserDrawer(StatusBarDrawerIds::ContentBrowser);
 	ContentBrowserDrawer.GetDrawerContentDelegate.BindUObject(this, &UStatusBarSubsystem::OnGetContentBrowser);
@@ -331,16 +401,54 @@ TSharedRef<SWidget> UStatusBarSubsystem::MakeStatusBarWidget(FName StatusBarName
 
 	StatusBar->RegisterDrawer(MoveTemp(ContentBrowserDrawer));
 
+	FOutputLogModule& OutputLogModule = FOutputLogModule::Get();
+
+	TWeakPtr<SStatusBar> StatusBarWeakPtr = StatusBar;
+
+	FSimpleDelegate OnConsoleClosed = FSimpleDelegate::CreateUObject(this, &UStatusBarSubsystem::OnDebugConsoleClosed, StatusBarWeakPtr);
+	FSimpleDelegate OnConsoleCommandExecuted;
+
+	TSharedPtr<SMultiLineEditableTextBox> ConsoleEditBox;
+	TSharedRef<SWidget> OutputLog = 
+			SNew(SBorder)
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
+			.VAlign(VAlign_Center)
+			.Padding(FMargin(6.0f, 0.0f))
+			[
+				SNew(SBox)
+				.WidthOverride(350.f)
+				[
+					OutputLogModule.MakeConsoleInputBox(ConsoleEditBox, OnConsoleClosed, OnConsoleCommandExecuted)
+				]
+			];
+	
+
+	FStatusBarDrawer OutputLogDrawer(StatusBarDrawerIds::OutputLog);
+
+	OutputLogDrawer.GetDrawerContentDelegate.BindUObject(this, &UStatusBarSubsystem::OnGetOutputLog);
+	OutputLogDrawer.OnDrawerOpenedDelegate.BindUObject(this, &UStatusBarSubsystem::OnOutputLogOpened);
+	OutputLogDrawer.OnDrawerDismissedDelegate.BindUObject(this, &UStatusBarSubsystem::OnOutputLogDismised);
+	OutputLogDrawer.CustomWidget = OutputLog;
+
+	OutputLogDrawer.ButtonText = LOCTEXT("StatusBar_OutputLogButton", "Output Log");
+	OutputLogDrawer.ToolTipText = FText::Format(LOCTEXT("StatusBar_OutputLogButtonTip", "Opens a temporary output log which will dismiss when it loses focus ({0})"), FGlobalEditorCommonCommands::Get().OpenConsoleCommandBox->GetInputText());
+	OutputLogDrawer.Icon = FAppStyle::Get().GetBrush("Log.TabIcon");
+	StatusBar->RegisterDrawer(MoveTemp(OutputLogDrawer));
+
 	// Clean up stale status bars
 	for (auto It = StatusBars.CreateIterator(); It; ++It)
 	{
-		if (!It.Value().IsValid())
+		if (!It.Value().StatusBarWidget.IsValid())
 		{
 			It.RemoveCurrent();
 		}
 	}
 
-	StatusBars.Add(StatusBarName, StatusBar);
+	FStatusBarData StatusBarData;
+	StatusBarData.StatusBarWidget = StatusBar;
+	StatusBarData.ConsoleEditBox = ConsoleEditBox;
+
+	StatusBars.Add(StatusBarName, StatusBarData);
 
 	return StatusBar;
 }
@@ -393,7 +501,7 @@ void UStatusBarSubsystem::StartProgressNotification(FProgressNotificationHandle 
 	// Find the active status bar to display the progress in
 	for (auto StatusBar : StatusBars)
 	{
-		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.Pin())
+		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.StatusBarWidget.Pin())
 		{
 			TSharedPtr<SDockTab> ParentTab = StatusBarPinned->GetParentTab();
 			if (ParentTab && ParentTab->IsForeground() && ParentTab->GetParentWindow() == ActiveWindow)
@@ -409,7 +517,7 @@ void UStatusBarSubsystem::UpdateProgressNotification(FProgressNotificationHandle
 {
 	for (auto StatusBar : StatusBars)
 	{
-		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.Pin())
+		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.StatusBarWidget.Pin())
 		{
 			if (StatusBarPinned->UpdateProgressNotification(Handle, TotalWorkDone, UpdatedTotalWorkToDo, UpdatedDisplayText))
 			{
@@ -424,7 +532,7 @@ void UStatusBarSubsystem::CancelProgressNotification(FProgressNotificationHandle
 {
 	for (auto StatusBar : StatusBars)
 	{
-		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.Pin())
+		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.StatusBarWidget.Pin())
 		{
 			if (StatusBarPinned->CancelProgressNotification(Handle))
 			{
@@ -434,12 +542,12 @@ void UStatusBarSubsystem::CancelProgressNotification(FProgressNotificationHandle
 	}
 }
 
-void UStatusBarSubsystem::OnDebugConsoleClosed()
+void UStatusBarSubsystem::OnDebugConsoleClosed(TWeakPtr<SStatusBar> OwningStatusBar)
 {
-	if (PreviousKeyboardFocusedWidget.IsValid())
+	if (TSharedPtr<SStatusBar> OwningStatusBarPinned = OwningStatusBar.Pin())
 	{
-		FSlateApplication::Get().SetKeyboardFocus(PreviousKeyboardFocusedWidget.Pin());
-		PreviousKeyboardFocusedWidget.Reset();
+		TSharedPtr<SWindow> OwningWindow = OwningStatusBarPinned->GetParentTab()->GetParentWindow();
+		ToggleDebugConsole(OwningWindow.ToSharedRef());
 	}
 }
 
@@ -457,7 +565,7 @@ void UStatusBarSubsystem::CreateContentBrowserIfNeeded()
 			{
 				for (auto StatusBar : StatusBars)
 				{
-					if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.Pin())
+					if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.StatusBarWidget.Pin())
 					{
 						if (StatusBarPinned->IsDrawerOpened(StatusBarDrawerIds::ContentBrowser))
 						{
@@ -515,7 +623,7 @@ void UStatusBarSubsystem::CreateAndShowNewUserTipIfNeeded(TSharedPtr<SWindow> Pa
 
 TSharedPtr<SStatusBar> UStatusBarSubsystem::GetStatusBar(FName StatusBarName) const
 {
-	return StatusBars.FindRef(StatusBarName).Pin();
+	return StatusBars.FindRef(StatusBarName).StatusBarWidget.Pin();
 }
 
 TSharedRef<SWidget> UStatusBarSubsystem::OnGetContentBrowser()
@@ -532,9 +640,9 @@ void UStatusBarSubsystem::OnContentBrowserOpened(TSharedRef<SStatusBar>& StatusB
 	// Dismiss any other content browser that is opened when one status bar opens it.  The content browser is a shared resource and shouldn't be in the layout twice
 	for (auto StatusBar : StatusBars)
 	{
-		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.Pin())
+		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.StatusBarWidget.Pin())
 		{
-			if (StatusBarWithContentBrowser != StatusBarPinned && StatusBarPinned->IsDrawerOpened(StatusBarDrawerIds::ContentBrowser))
+			if (StatusBarWithContentBrowser != StatusBarPinned || StatusBarPinned->IsAnyOtherDrawerOpened(StatusBarDrawerIds::ContentBrowser))
 			{
 				StatusBarPinned->CloseDrawerImmediately();
 			}
@@ -566,13 +674,65 @@ void UStatusBarSubsystem::HandleDeferredOpenContentBrowser(TSharedPtr<SWindow> P
 {
 	for (auto StatusBar : StatusBars)
 	{
-		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.Pin())
+		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.StatusBarWidget.Pin())
 		{
 			TSharedPtr<SDockTab> ParentTab = StatusBarPinned->GetParentTab();
 			if (ParentTab && ParentTab->IsForeground() && ParentTab->GetParentWindow() == ParentWindow)
 			{
 				StatusBarPinned->OpenDrawer(StatusBarDrawerIds::ContentBrowser);
-				IContentBrowserSingleton& ContentBrowserSingleton = FModuleManager::Get().GetModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
+				break;
+			}
+		}
+	}
+}
+
+TSharedRef<SWidget> UStatusBarSubsystem::OnGetOutputLog()
+{
+	if (!StatusBarOutputLog)
+	{
+		StatusBarOutputLog = FOutputLogModule::Get().MakeOutputLogDrawerWidget(FSimpleDelegate::CreateUObject(this, &UStatusBarSubsystem::OnDebugConsoleDrawerClosed));
+	}
+
+	return StatusBarOutputLog.ToSharedRef();
+}
+
+void UStatusBarSubsystem::OnOutputLogOpened(TSharedRef<SStatusBar>& StatusBarWithContentBrowser)
+{
+	// Dismiss any other content browser that is opened when one status bar opens it.  The content browser is a shared resource and shouldn't be in the layout twice
+	for (auto StatusBar : StatusBars)
+	{
+		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.StatusBarWidget.Pin())
+		{
+			if (StatusBarWithContentBrowser != StatusBarPinned || StatusBarPinned->IsAnyOtherDrawerOpened(StatusBarDrawerIds::OutputLog))
+			{
+				StatusBarPinned->CloseDrawerImmediately();
+			}
+		}
+	}
+
+	FOutputLogModule::Get().FocusOutputLogConsoleBox(StatusBarOutputLog.ToSharedRef());
+}
+
+void UStatusBarSubsystem::OnOutputLogDismised(const TSharedPtr<SWidget>& NewlyFocusedWidget)
+{
+	if (PreviousKeyboardFocusedWidget.IsValid() && !NewlyFocusedWidget.IsValid())
+	{
+		FSlateApplication::Get().SetKeyboardFocus(PreviousKeyboardFocusedWidget.Pin());
+	}
+
+	PreviousKeyboardFocusedWidget.Reset();
+
+}
+
+void UStatusBarSubsystem::OnDebugConsoleDrawerClosed()
+{
+	for (auto StatusBar : StatusBars)
+	{
+		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.StatusBarWidget.Pin())
+		{
+			if (StatusBarPinned->IsDrawerOpened(StatusBarDrawerIds::OutputLog))
+			{
+				ToggleDebugConsole(StatusBarPinned->GetParentTab()->GetParentWindow().ToSharedRef());
 				break;
 			}
 		}

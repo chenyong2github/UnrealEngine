@@ -26,6 +26,10 @@
 #include "Misc/CoreDelegates.h"
 #include "HAL/PlatformOutputDevices.h"
 #include "HAL/FileManager.h"
+#include "Widgets/Input/SButton.h"
+#include "Framework/Docking/TabManager.h"
+#include "Widgets/Docking/SDockTab.h"
+#include "OutputLogModule.h"
 
 #define LOCTEXT_NAMESPACE "SOutputLog"
 /** Expression context to test the given messages against the current text filter */
@@ -88,7 +92,7 @@ void SConsoleInputBox::Construct(const FArguments& InArgs)
 			[
 				SNew(SComboButton)
 				.IsEnabled(this, &SConsoleInputBox::IsCommandExecutorMenuEnabled)
-				.ComboButtonStyle(FAppStyle::Get(), "DebugConsole.ComboButton")
+				.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
 				.ContentPadding(0)
 				.OnGetMenuContent(this, &SConsoleInputBox::GetCommandExecutorMenuContent)
 				.ButtonContent()
@@ -835,8 +839,10 @@ FOutputLogTextLayoutMarshaller::FOutputLogTextLayoutMarshaller(TArray< TSharedPt
 }
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-void SOutputLog::Construct( const FArguments& InArgs )
+void SOutputLog::Construct( const FArguments& InArgs, bool bIsDrawerOutputLog)
 {
+	bIsInDrawer = bIsDrawerOutputLog;
+
 	// Build list of available log categories from historical logs
 	for (const auto& Message : InArgs._Messages)
 	{
@@ -856,125 +862,108 @@ void SOutputLog::Construct( const FArguments& InArgs )
 		.ContextMenuExtender(this, &SOutputLog::ExtendTextBoxMenu);
 
 	ChildSlot
+	.Padding(3)
 	[
-		SNew(SBorder)
-		.Padding(3)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		SNew(SVerticalBox)
+
+		// Output Log Filter
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(FMargin(0.0f, 4.0f, 0.0f, 4.0f))
 		[
-			SNew(SVerticalBox)
-
-			// Output Log Filter
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(FMargin(0.0f, 0.0f, 0.0f, 4.0f))
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.Padding(0, 0, 4, 0)
+			.FillWidth(.65f)
 			[
-				SNew(SHorizontalBox)
-			
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SComboButton)
-					.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
-					.ForegroundColor(FLinearColor::White)
-					.ContentPadding(0)
-					.ToolTipText(LOCTEXT("AddFilterToolTip", "Add an output log filter."))
-					.OnGetMenuContent(this, &SOutputLog::MakeAddFilterMenu)
-					.HasDownArrow(true)
-					.ContentPadding(FMargin(1, 0))
-					.ButtonContent()
-					[
-						SNew(SHorizontalBox)
-
-						+SHorizontalBox::Slot()
-						.AutoWidth()
-						[
-							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
-							.Text(FText::FromString(FString(TEXT("\xf0b0"))) /*fa-filter*/)
-						]
-
-						+SHorizontalBox::Slot()
-						.AutoWidth()
-						.Padding(2, 0, 0, 0)
-						[
-							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
-							.Text(LOCTEXT("Filters", "Filters"))
-						]
-					]
-				]
-
-				+SHorizontalBox::Slot()
-				.Padding(4, 1, 0, 0)
-				[
-					SAssignNew(FilterTextBox, SSearchBox)
-					.HintText(LOCTEXT("SearchLogHint", "Search Log"))
-					.OnTextChanged(this, &SOutputLog::OnFilterTextChanged)
-					.OnTextCommitted(this, &SOutputLog::OnFilterTextCommitted)
-					.DelayChangeNotificationsWhileTyping(true)
-				]
+				SAssignNew(FilterTextBox, SSearchBox)
+				.HintText(LOCTEXT("SearchLogHint", "Search Log"))
+				.OnTextChanged(this, &SOutputLog::OnFilterTextChanged)
+				.OnTextCommitted(this, &SOutputLog::OnFilterTextCommitted)
+				.DelayChangeNotificationsWhileTyping(true)
 			]
-
-			// Output log area
-			+SVerticalBox::Slot()
-			.FillHeight(1)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
 			[
-				MessagesTextBox.ToSharedRef()
-			]
-
-			// The console input box
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(SHorizontalBox)
-
-				+SHorizontalBox::Slot()
-				.FillWidth(1.f)
-				.VAlign(VAlign_Center)
-				.Padding(FMargin(0.0f, 1.0f, 0.0f, 0.0f))
+				SNew(SComboButton)
+				.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+				.ToolTipText(LOCTEXT("AddFilterToolTip", "Add an output log filter."))
+				.OnGetMenuContent(this, &SOutputLog::MakeAddFilterMenu)
+				.ButtonContent()
 				[
-					SNew(SBox)
-					.MaxDesiredHeight(180.0f)
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.AutoWidth()
 					[
-						SNew(SConsoleInputBox)
-						.OnConsoleCommandExecuted(this, &SOutputLog::OnConsoleCommandExecuted)
-
-						// Always place suggestions above the input line for the output log widget
-						.SuggestionListPlacement(MenuPlacement_AboveAnchor)
+						SNew(SImage)
+						.Image(FAppStyle::Get().GetBrush("Icons.Filter"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
-				]
-
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(4, 0, 0, 0)
-				[
-					SAssignNew(ViewOptionsComboButton, SComboButton)
-					.ContentPadding(0)
-					.ForegroundColor( this, &SOutputLog::GetViewButtonForegroundColor )
-					.ButtonStyle( FEditorStyle::Get(), "ToggleButton" ) // Use the tool bar item style for this button
-					.OnGetMenuContent( this, &SOutputLog::GetViewButtonContent )
-					.ButtonContent()
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(2, 0, 0, 0)
 					[
-						SNew(SHorizontalBox)
- 
-						+SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						[
-							SNew(SImage).Image( FEditorStyle::GetBrush("GenericViewButton") )
-						]
- 
-						+SHorizontalBox::Slot()
-						.AutoWidth()
-						.Padding(2, 0, 0, 0)
-						.VAlign(VAlign_Center)
-						[
-							SNew(STextBlock).Text( LOCTEXT("ViewButton", "View Options") )
-						]
+						SNew(STextBlock)
+						.Text(LOCTEXT("Filters", "Filters"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
 				]
 			]
+			+SHorizontalBox::Slot()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			.Padding(4, 0)
+			[
+				CreateDrawerDockButton()
+			]
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Right)
+			.AutoWidth()
+			[
+				SNew(SComboButton)
+				.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+				.OnGetMenuContent(this, &SOutputLog::GetViewButtonContent)
+				.ButtonContent()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					[
+						SNew(SImage)
+						.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(2, 0, 0, 0)
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("SettingsButton", "Settings"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
+					]
+				]
+			]
+		]
+
+		// Output log area
+		+SVerticalBox::Slot()
+		.FillHeight(1)
+		[
+			MessagesTextBox.ToSharedRef()
+		]
+
+		// The console input box
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SAssignNew(ConsoleInputBox, SConsoleInputBox)
+			.OnConsoleCommandExecuted(this, &SOutputLog::OnConsoleCommandExecuted)
+			.OnCloseConsole(InArgs._OnCloseConsole)
+			// Always place suggestions above the input line for the output log widget
+			.SuggestionListPlacement(MenuPlacement_AboveAnchor) 
 		]
 	];
 
@@ -1107,14 +1096,6 @@ void SOutputLog::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const 
 	MessagesTextMarshaller->AppendPendingMessage(V, Verbosity, Category);
 }
 
-FSlateColor SOutputLog::GetViewButtonForegroundColor() const
-{
-	static const FName InvertedForegroundName("InvertedForeground");
-	static const FName DefaultForegroundName("DefaultForeground");
-
-	return ViewOptionsComboButton->IsHovered() ? FEditorStyle::GetSlateColor(InvertedForegroundName) : FEditorStyle::GetSlateColor(DefaultForegroundName);
-}
-
 void SOutputLog::ExtendTextBoxMenu(FMenuBuilder& Builder)
 {
 	FUIAction ClearOutputLogAction(
@@ -1148,6 +1129,11 @@ void SOutputLog::OnUserScrolled(float ScrollOffset)
 bool SOutputLog::CanClearLog() const
 {
 	return MessagesTextMarshaller->GetNumMessages() > 0;
+}
+
+void SOutputLog::FocusConsoleCommandBox()
+{
+	FSlateApplication::Get().SetKeyboardFocus(ConsoleInputBox->GetEditableTextBox(), EFocusCause::SetDirectly);
 }
 
 void SOutputLog::OnConsoleCommandExecuted()
@@ -1466,6 +1452,46 @@ TSharedRef<SWidget> SOutputLog::GetViewButtonContent()
 	return MenuBuilder.MakeWidget();
 }
 
+TSharedRef<SWidget> SOutputLog::CreateDrawerDockButton()
+{
+	if (bIsInDrawer)
+	{
+		return
+			SNew(SButton)
+			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+			.ToolTipText(LOCTEXT("DockInLayout_Tooltip", "Docks this output log in the current layout.\nThe drawer will still be usable as a temporary log."))
+			.ContentPadding(FMargin(1, 0))
+			.Visibility_Lambda(
+				[]()
+				{
+					return FOutputLogModule::Get().GetOutputLogTab() == nullptr ? EVisibility::Visible : EVisibility::Hidden;
+				})
+			.OnClicked(this, &SOutputLog::OnDockInLayoutClicked)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(4.0, 0.0f)
+				[
+					SNew(SImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image(FAppStyle::Get().GetBrush("EditorViewport.SubMenu.Layouts"))
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding(4.0, 0.0f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("DockInLayout", "Dock in Layout"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			];
+	}
+
+	return SNullWidget::NullWidget;
+}
+
 void SOutputLog::OpenLogFileInExplorer()
 {
 	FString Path = FPaths::ConvertRelativePathToFull(FPaths::ProjectLogDir());
@@ -1486,7 +1512,26 @@ void SOutputLog::OpenLogFileInExternalEditor()
 	}
 
 	FPlatformProcess::LaunchFileInDefaultExternalApplication(*Path, NULL, ELaunchVerb::Open);
-} 
+}
+
+FReply SOutputLog::OnDockInLayoutClicked()
+{
+	TSharedPtr<SDockTab> DockedTab;
+
+	static const FName OutputLogTabName = FName("OutputLog");
+	if (TSharedPtr<SDockTab> ActiveTab = FGlobalTabmanager::Get()->GetActiveTab())
+	{
+		DockedTab = ActiveTab->GetTabManager()->TryInvokeTab(OutputLogTabName);
+	}
+	
+	if (!DockedTab)
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(OutputLogTabName);
+	}
+
+	return FReply::Handled();
+}
+
 
 bool FOutputLogFilter::IsMessageAllowed(const TSharedPtr<FOutputLogMessage>& Message)
 {

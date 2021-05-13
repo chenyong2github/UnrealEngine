@@ -47,6 +47,12 @@ private:
 	int32 Id;
 };
 
+struct FStatusBarData
+{
+	TWeakPtr<SStatusBar> StatusBarWidget;
+	TSharedPtr<SWidget> ConsoleEditBox;
+};
+
 UCLASS()
 class STATUSBAR_API UStatusBarSubsystem : public UEditorSubsystem, public IProgressNotificationHandler
 {
@@ -65,12 +71,13 @@ public:
 	virtual void Deinitialize() override final;
 
 	/**
-	 * Focuses the debug console on the status bar for status bar residing in the passed in parent window 
+	 * Focuses the debug console or opens the output log drawer on the status bar for status bar residing in the passed in parent window 
 	 *
-	 * @param ParentWindow The parent window of the status bar 
+	 * @param ParentWindow			The parent window of the status bar 
+	 * @param bAlwaysToggleDrawer	If true, the output log drawer will be toggled without focusing the debug console first
 	 * @return true of a status bar debug console was found and focused 
 	 */
-	bool FocusDebugConsole(TSharedRef<SWindow> ParentWindow);
+	bool ToggleDebugConsole(TSharedRef<SWindow> ParentWindow, bool bAlwaysToggleDrawer=false);
 
 	/**
 	 * Opens the content browser drawer for a status bar residing in the active window 
@@ -78,6 +85,13 @@ public:
 	 * @return true if the content browser was opened or false if no status bar in the active window was found
 	 */
 	bool OpenContentBrowserDrawer();
+
+	/**
+	 * Opens the output log drawer for a status bar residing in the active window
+	 *
+	 * @return true if the output log was opened or false if no status bar in the active window was found
+	 */
+	bool OpenOutputLogDrawer();
 
 	/**
 	 * Forces the drawer to dismiss. Usually it dismisses with focus. Only call this if there is some reason an open drawer would be invalid for the current state of the editor.
@@ -124,7 +138,7 @@ private:
 	virtual void CancelProgressNotification(FProgressNotificationHandle Handle) override;
 
 	bool ToggleContentBrowser(TSharedRef<SWindow> ParentWindow);
-	void OnDebugConsoleClosed();
+	void OnDebugConsoleClosed(TWeakPtr<SStatusBar> OwningStatusBar);
 	void CreateContentBrowserIfNeeded();
 	void CreateAndShowNewUserTipIfNeeded(TSharedPtr<SWindow> ParentWindow, bool bIsNewProjectDialog);
 
@@ -133,10 +147,17 @@ private:
 	void OnContentBrowserOpened(TSharedRef<SStatusBar>& StatusBarWithContentBrowser);
 	void OnContentBrowserDismissed(const TSharedPtr<SWidget>& NewlyFocusedWidget);
 	void HandleDeferredOpenContentBrowser(TSharedPtr<SWindow> ParentWindow);
+
+	TSharedRef<SWidget> OnGetOutputLog();
+	void OnOutputLogOpened(TSharedRef<SStatusBar>& StatusBarWithContentBrowser);
+	void OnOutputLogDismised(const TSharedPtr<SWidget>& NewlyFocusedWidget);
+
+	void OnDebugConsoleDrawerClosed();
 private:
-	TMap<FName, TWeakPtr<SStatusBar>> StatusBars;
+	TMap<FName, FStatusBarData> StatusBars;
 	TWeakPtr<SWidget> PreviousKeyboardFocusedWidget;
 	/** The floating content browser that is opened via the content browser button in the status bar */
 	TSharedPtr<SWidget> StatusBarContentBrowser;
+	TSharedPtr<SWidget> StatusBarOutputLog;
 	static int32 MessageHandleCounter;
 };

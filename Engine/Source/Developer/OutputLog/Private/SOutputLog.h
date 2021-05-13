@@ -313,6 +313,8 @@ public:
 		: _Messages()
 		{}
 		
+		SLATE_EVENT(FSimpleDelegate, OnCloseConsole)
+
 		/** All messages captured before this log window has been created */
 		SLATE_ARGUMENT( TArray< TSharedPtr<FOutputLogMessage> >, Messages )
 
@@ -326,7 +328,7 @@ public:
 	 *
 	 * @param	InArgs	Declaration used by the SNew() macro to construct this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	void Construct( const FArguments& InArgs, bool bIsDrawerOutputLog );
 
 	// SWidget interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
@@ -354,6 +356,8 @@ public:
 	 */
 	bool CanClearLog() const;
 
+	/** Focuses the edit box where you type in console commands */
+	void FocusConsoleCommandBox();
 protected:
 
 	virtual void Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category ) override;
@@ -448,15 +452,20 @@ private:
 
 	TSharedRef<SWidget> GetViewButtonContent();
 
+	TSharedRef<SWidget> CreateDrawerDockButton();
+
 	void OpenLogFileInExplorer();
 
 	void OpenLogFileInExternalEditor();
 
-public:
+	FReply OnDockInLayoutClicked();
+protected:
+	TSharedPtr<SConsoleInputBox> ConsoleInputBox;
+
 	/** Visible messages filter */
 	FOutputLogFilter Filter;
 
-	TSharedPtr<class SComboButton> ViewOptionsComboButton;
+	bool bIsInDrawer = false;
 };
 
 /** Output log text marshaller to convert an array of FOutputLogMessages into styled lines to be consumed by an FTextLayout */
