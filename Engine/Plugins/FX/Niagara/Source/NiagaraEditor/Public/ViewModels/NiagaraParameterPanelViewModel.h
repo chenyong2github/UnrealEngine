@@ -309,6 +309,8 @@ private:
 	void OnParameterRenamedExternally(const FNiagaraVariableBase& InOldVar, const FNiagaraVariableBase& InNewVar, UNiagaraEmitter* InOptionalEmitter);
 	void OnParameterRemovedExternally(const FNiagaraVariableBase& InOldVar, UNiagaraEmitter* InOptionalEmitter); 
 
+	void ReconcileOnGraphChangedBindings();
+
 private:
 	// Graphs viewed to gather UNiagaraScriptVariables that are displayed by the Parameter Panel.
 	TWeakObjectPtr<UNiagaraGraph> SystemScriptGraph;
@@ -317,6 +319,7 @@ private:
 	TWeakPtr<FNiagaraSystemGraphSelectionViewModel> SystemGraphSelectionViewModelWeak;
 
 	FDelegateHandle UserParameterStoreChangedHandle;
+	TMap<uint32, FDelegateHandle> GraphIdToOnGraphChangedHandleMap;
 
 	mutable FSystemToolkitUIContext UIContext;
 
@@ -415,9 +418,9 @@ public:
 	/** Construct a ParameterDefinitionsToolkit Parameter Panel View Model from a Parameter Definitions. */
 	FNiagaraParameterDefinitionsToolkitParameterPanelViewModel(UNiagaraParameterDefinitions* InParameterDefinitions, const TSharedPtr<FNiagaraObjectSelection>& InObjectSelection);
 
-	~FNiagaraParameterDefinitionsToolkitParameterPanelViewModel();
-
 	void Init(const FParameterDefinitionsToolkitUIContext& InUIContext);
+
+	void Cleanup();
 
 	//~ Begin INiagaraImmutableParameterPanelViewModel interface
 	//NOTE: The ParameterDefinitionsToolkitParameterPanelViewModel does not edit any graphs, so return an empty array.
@@ -467,7 +470,7 @@ public:
 	void AddParameterFromMenu(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename) const;
 
 private:
-	UNiagaraParameterDefinitions* ParameterDefinitions;
+	TWeakObjectPtr<UNiagaraParameterDefinitions> ParameterDefinitionsWeak;
 	mutable FParameterDefinitionsToolkitUIContext UIContext;
 
 	TSharedPtr<FNiagaraObjectSelection> VariableObjectSelection;
