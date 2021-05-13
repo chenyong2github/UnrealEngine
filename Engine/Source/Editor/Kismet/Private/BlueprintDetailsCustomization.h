@@ -29,6 +29,7 @@ class SEditableTextBox;
 class SMultiLineEditableTextBox;
 class UEdGraphNode_Documentation;
 class UK2Node_Variable;
+class FSubobjectEditorTreeNode;
 
 /**
  * Variable network replication options.
@@ -897,7 +898,7 @@ private:
 	TWeakPtr<FBlueprintEditor> BlueprintEditorPtr;
 
 	/** The cached tree Node we're editing */
-	TSharedPtr<class FSCSEditorTreeNode> CachedNodePtr;
+	TSharedPtr<FSubobjectEditorTreeNode> CachedNodePtr;
 
 	/** The widget used when in variable name editing mode */ 
 	TSharedPtr<SEditableTextBox> VariableNameEditableTextBox;

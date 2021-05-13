@@ -8,6 +8,8 @@
 #include "BlueprintEditorModule.h"
 #include "ISCSEditorCustomization.h"
 
+class USceneComponent;
+
 class FInstancedStaticMeshSCSEditorCustomization : public ISCSEditorCustomization
 {
 public:
@@ -16,9 +18,9 @@ public:
 public:
 	/** ISCSEditorCustomization interface */
 	virtual bool HandleViewportClick(const TSharedRef<FEditorViewportClient>& InViewportClient, class FSceneView& InView, class HHitProxy* InHitProxy, FKey InKey, EInputEvent InEvent, uint32 InHitX, uint32 InHitY) override;
-	virtual bool HandleViewportDrag(class USceneComponent* InComponentScene, class USceneComponent* InComponentTemplate, const FVector& InDeltaTranslation, const FRotator& InDeltaRotation, const FVector& InDeltaScale, const FVector& InPivot) override;
-	virtual bool HandleGetWidgetLocation(class USceneComponent* InSceneComponent, FVector& OutWidgetLocation) override;
-	virtual bool HandleGetWidgetTransform(class USceneComponent* InSceneComponent, FMatrix& OutWidgetTransform) override;
+	virtual bool HandleViewportDrag(const USceneComponent* InComponentScene, class USceneComponent* InComponentTemplate, const FVector& InDeltaTranslation, const FRotator& InDeltaRotation, const FVector& InDeltaScale, const FVector& InPivot) override;
+	virtual bool HandleGetWidgetLocation(const USceneComponent* InSceneComponent, FVector& OutWidgetLocation) override;
+	virtual bool HandleGetWidgetTransform(const USceneComponent* InSceneComponent, FMatrix& OutWidgetTransform) override;
 
 protected:
 	/** Ensure that selection bits are in sync w/ the number of instances */

@@ -6,6 +6,8 @@
 #include "InputCoreTypes.h"
 #include "EditorViewportClient.h"
 
+class USceneComponent;
+
 /**
  * Customization class that allows per-component type handling of various SCS editor functionality.
  */
@@ -37,7 +39,7 @@ public:
 	 * @param	InPivot					The povot point for any transformations
 	 * @return true if the operation was handled.
 	 */
-	virtual bool HandleViewportDrag(class USceneComponent* InSceneComponent, class USceneComponent* InComponentTemplate, const FVector& InDeltaTranslation, const FRotator& InDeltaRotation, const FVector& InDeltaScale, const FVector& InPivot) = 0;
+	virtual bool HandleViewportDrag(const USceneComponent* InSceneComponent, class USceneComponent* InComponentTemplate, const FVector& InDeltaTranslation, const FRotator& InDeltaRotation, const FVector& InDeltaScale, const FVector& InPivot) = 0;
 
 	/**
 	 * Get the widget location for this scene component
@@ -45,7 +47,7 @@ public:
 	 * @param	OutWidgetLocation		The output widget location
 	 * @return true if the operation was handled.
 	 */
-	virtual bool HandleGetWidgetLocation(class USceneComponent* InSceneComponent, FVector& OutWidgetLocation) = 0;
+	virtual bool HandleGetWidgetLocation(const USceneComponent* InSceneComponent, FVector& OutWidgetLocation) = 0;
 
 	/**
 	 * Get the widget transform for this scene component
@@ -53,5 +55,5 @@ public:
 	 * @param	OutWidgetLocation		The output widget transform
 	 * @return true if the operation was handled.
 	 */
-	virtual bool HandleGetWidgetTransform(class USceneComponent* InSceneComponent, FMatrix& OutWidgetTransform) = 0;
+	virtual bool HandleGetWidgetTransform(const USceneComponent* InSceneComponent, FMatrix& OutWidgetTransform) = 0;
 };

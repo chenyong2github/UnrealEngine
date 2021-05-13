@@ -52,6 +52,8 @@ class UK2Node_FunctionEntry;
 class UK2Node_Event;
 class UToolMenu;
 class FBlueprintNamespaceHelper;
+class SSubobjectEditor;
+class FSubobjectEditorTreeNode;
 
 /* Enums to use when grouping the blueprint members in the list panel. The order here will determine the order in the list */
 namespace NodeSectionID
@@ -90,7 +92,7 @@ public:
 
 public:
 	FCustomDebugObject()
-		: Object(NULL)
+		: Object(nullptr)
 	{
 	}
 
@@ -226,8 +228,15 @@ public:
 	virtual void SummonSearchUI(bool bSetFindWithinBlueprint, FString NewSearchTerms = FString(), bool bSelectFirstResult = false) override;
 	virtual void SummonFindAndReplaceUI() override;
 	virtual TSharedPtr<SGraphEditor> OpenGraphAndBringToFront(UEdGraph* Graph, bool bSetFocus = true) override;
-	virtual TArray<TSharedPtr<class FSCSEditorTreeNode> > GetSelectedSCSEditorTreeNodes() const override;
-	virtual TSharedPtr<class FSCSEditorTreeNode> FindAndSelectSCSEditorTreeNode(const UActorComponent* InComponent, bool IsCntrlDown) override;
+
+	UE_DEPRECATED(5.0, "GetSelectedSCSEditorTreeNodes has been deprecated. Use GetSelectedSubobjectEditorTreeNodes instead.")
+	virtual TArray<TSharedPtr<class FSCSEditorTreeNode>> GetSelectedSCSEditorTreeNodes() const override;
+	
+	UE_DEPRECATED(5.0, "FindAndSelectSCSEditorTreeNode has been deprecated. Use FindAndSelectSubobjectEditorTreeNode instead.")
+	virtual TSharedPtr<class FSCSEditorTreeNode> FindAndSelectSCSEditorTreeNode(const UActorComponent* InComponent, bool IsCntrlDown) override { return nullptr; }
+
+	virtual TArray<TSharedPtr<FSubobjectEditorTreeNode>> GetSelectedSubobjectEditorTreeNodes() const override;
+	virtual TSharedPtr<FSubobjectEditorTreeNode> FindAndSelectSubobjectEditorTreeNode(const UActorComponent* InComponent, bool IsCntrlDown) override;
 	virtual int32 GetNumberOfSelectedNodes() const override;
 	virtual void AnalyticsTrackNodeEvent(UBlueprint* Blueprint, UEdGraphNode *GraphNode, bool bNodeDelete = false) const override;
 	void AnalyticsTrackCompileEvent(UBlueprint* Blueprint, int32 NumErrors, int32 NumWarnings) const;
@@ -260,19 +269,22 @@ public:
 	bool IsEditingSingleBlueprint() const;
 
 	/** Getters for the various Kismet2 widgets */
-	TSharedRef<class SKismetInspector> GetInspector() const { return Inspector.ToSharedRef(); }
-	TSharedRef<class SKismetInspector> GetDefaultEditor() const { return DefaultEditor.ToSharedRef(); }
-	TSharedRef<class SKismetDebuggingView> GetDebuggingView() const { return DebuggingView.ToSharedRef(); }
-	TSharedRef<class SBlueprintPalette> GetPalette() const { return Palette.ToSharedRef(); }
-	TSharedRef<class SBlueprintBookmarks> GetBookmarksWidget() const { return BookmarksWidget.ToSharedRef(); }
-	TSharedRef<class SWidget> GetCompilerResults() const { return CompilerResults.ToSharedRef(); }
-	TSharedRef<class SFindInBlueprints> GetFindResults() const { return FindResults.ToSharedRef(); }
+	TSharedRef<SKismetInspector> GetInspector() const { return Inspector.ToSharedRef(); }
+	TSharedRef<SKismetInspector> GetDefaultEditor() const { return DefaultEditor.ToSharedRef(); }
+	TSharedRef<SKismetDebuggingView> GetDebuggingView() const { return DebuggingView.ToSharedRef(); }
+	TSharedRef<SBlueprintPalette> GetPalette() const { return Palette.ToSharedRef(); }
+	TSharedRef<SBlueprintBookmarks> GetBookmarksWidget() const { return BookmarksWidget.ToSharedRef(); }
+	TSharedRef<SWidget> GetCompilerResults() const { return CompilerResults.ToSharedRef(); }
+	TSharedRef<SFindInBlueprints> GetFindResults() const { return FindResults.ToSharedRef(); }
 
 	/** Getters for the various optional Kismet2 widgets */
-	TSharedPtr<class SSCSEditor> GetSCSEditor() const { return SCSEditor; }
-	TSharedPtr<class SSCSEditorViewport> GetSCSViewport() const { return SCSViewport; }
-	TSharedPtr<class SMyBlueprint> GetMyBlueprintWidget() const { return MyBlueprintWidget; }
-	TSharedPtr<class SReplaceNodeReferences> GetReplaceReferencesWidget() const { return ReplaceReferencesWidget; }
+	UE_DEPRECATED(5.0, "GetSCSEditor has been deprecated. Use GetSubobjectEditor instead.")
+	TSharedPtr<SSCSEditor> GetSCSEditor() const { return nullptr; }
+	
+	TSharedPtr<SSubobjectEditor> GetSubobjectEditor() const { return SubobjectEditor; }
+	TSharedPtr<SSCSEditorViewport> GetSubobjectViewport() const { return SubobjectViewport; }
+	TSharedPtr<SMyBlueprint> GetMyBlueprintWidget() const { return MyBlueprintWidget; }
+	TSharedPtr<SReplaceNodeReferences> GetReplaceReferencesWidget() const { return ReplaceReferencesWidget; }
 
 	/**
 	 * Provides access to the preview actor.
@@ -472,20 +484,30 @@ public:
 	/** Called when the graph editor tab is backgrounded */
 	virtual void OnGraphEditorBackgrounded(const TSharedRef<SGraphEditor>& InGraphEditor);
 
-	/** Enable/disable the SCS editor preview viewport */
-	void EnableSCSPreview(bool bEnable);
+	/** Enable/disable the subobject editor preview viewport */
+	void EnableSubobjectPreview(bool bEnable);
 
-	/** Refresh the preview viewport to reflect changes in the SCS */
-	void UpdateSCSPreview(bool bUpdateNow = false);
+	/** Refresh the preview viewport to reflect changes in the subobject */
+	void UpdateSubobjectPreview(bool bUpdateNow = false);
 
-	/** Delegate invoked when the SCS editor needs to obtain the Actor context for editing */
-	AActor* GetSCSEditorActorContext() const;
+	///////////////////////////////////////////////////////
+	// Subobject Editor Callbacks
+	/** Delegate invoked when the Subobject editor needs to obtain the object context for editing */
+	UObject* GetSubobjectEditorObjectContext() const;
 
-	/** Delegate invoked when the selection is changed in the SCS editor widget */
-	virtual void OnSelectionUpdated(const TArray<TSharedPtr<class FSCSEditorTreeNode>>& SelectedNodes);
+	/** Delegate invoked when the selection is changed in the subobject editor widget */
+	virtual void OnSelectionUpdated(const TArray<TSharedPtr<class FSubobjectEditorTreeNode>>& SelectedNodes);
 
-	/** Delegate invoked when an item is double clicked in the SCS editor widget */
-	virtual void OnComponentDoubleClicked(TSharedPtr<class FSCSEditorTreeNode> Node);
+	/** Delegate invoked when an item is double clicked in the subobject editor widget */
+	virtual void OnComponentDoubleClicked(TSharedPtr<class FSubobjectEditorTreeNode> Node);
+	
+	/** Delegate invoked when the selection is changed in the subobject editor widget */
+	UE_DEPRECATED(5.0, "OnSelectionUpdated(const TArray<TSharedPtr<class FSCSEditorTreeNode>>&) has been deprecated. Use OnSelectionUpdated(const TArray<TSharedPtr<class FSubobjectEditorTreeNode>>&) instead.")
+	virtual void OnSelectionUpdated(const TArray<TSharedPtr<class FSCSEditorTreeNode>>& SelectedNodes) {}
+
+	/** Delegate invoked when an item is double clicked in the subobject editor widget */
+	UE_DEPRECATED(5.0, "OnComponentDoubleClicked(TSharedPtr<class FSCSEditorTreeNode>) has been deprecated. Use OnComponentDoubleClicked(TSharedPtr<class FSubobjectEditorTreeNode>) instead.")
+	virtual void OnComponentDoubleClicked(TSharedPtr<class FSCSEditorTreeNode> Node) {}
 
 	/** Pin visibility accessors */
 	void SetPinVisibility(SGraphEditor::EPinVisibility Visibility);
@@ -573,18 +595,24 @@ public:
 	/** Sets customizations for the BP editor details panel. */
 	void SetDetailsCustomization(TSharedPtr<class FDetailsViewObjectFilter> DetailsObjectFilter, TSharedPtr<class IDetailRootObjectCustomization> DetailsRootCustomization);
 
-	/** Sets SCS editor UI customization */
-	void SetSCSEditorUICustomization(TSharedPtr<class ISCSEditorUICustomization> SCSEditorUICustomization);
+	/** Sets subobject editor UI customization */
+	void SetSubobjectEditorUICustomization(TSharedPtr<class ISCSEditorUICustomization> SCSEditorUICustomization);
+
+	UE_DEPRECATED(5.0, "SetSCSEditorUICustomization has been deprecated. Use SetSubobjectEditorUICustomization instead.")
+	void SetSCSEditorUICustomization(TSharedPtr<class ISCSEditorUICustomization> SCSEditorUICustomization)
+	{
+		return SetSubobjectEditorUICustomization(SCSEditorUICustomization);
+	}
 
 	/**
-	 * Register a customization for interacting with the SCS editor
+	 * Register a customization for interacting with the subobject editor
 	 * @param	InComponentName			The name of the component to customize behavior for
 	 * @param	InCustomization			The customization instance to use
 	 */
 	void RegisterSCSEditorCustomization(const FName& InComponentName, TSharedPtr<class ISCSEditorCustomization> InCustomization);
 
 	/**
-	 * Unregister a previously registered customization for interacting with the SCS editor
+	 * Unregister a previously registered customization for interacting with the subobject editor
 	 * @param	InComponentName			The name of the component to customize behavior for
 	 */
 	void UnregisterSCSEditorCustomization(const FName& InComponentName);
@@ -603,11 +631,17 @@ public:
 	void OnDumpCachedIndexDataForBlueprint();
 
 	/**
-	 * Check to see if we can customize the SCS editor for the passed-in scene component
+	 * Check to see if we can customize the subobject editor for the passed-in scene component
 	 * @param	InComponentToCustomize	The component to check to see if a customization exists
-	 * @return an SCS editor customization instance, if one exists.
+	 * @return an subobject editor customization instance, if one exists.
 	 */
-	TSharedPtr<class ISCSEditorCustomization> CustomizeSCSEditor(USceneComponent* InComponentToCustomize) const;
+	TSharedPtr<class ISCSEditorCustomization> CustomizeSubobjectEditor(const USceneComponent* InComponentToCustomize) const;
+
+	UE_DEPRECATED(5.0, "CustomizeSCSEditor has been deprecated. Use CustomizeSubobjectEditor instead.")
+	TSharedPtr<class ISCSEditorCustomization> CustomizeSCSEditor(USceneComponent* InComponentToCustomize) const
+	{
+		return CustomizeSubobjectEditor(InComponentToCustomize);
+	}
 
 	/**
 	 * Returns the currently focused graph in the Blueprint editor
@@ -784,7 +818,7 @@ protected:
 	void OpenBlueprintDebugger();
 	bool CanOpenBlueprintDebugger() const;
 
-	// Utility helper to get the currently hovered pin in the currently visible graph, or NULL if there isn't one
+	// Utility helper to get the currently hovered pin in the currently visible graph, or nullptr if there isn't one
 	UEdGraphPin* GetCurrentlySelectedPin() const;
 
 	// UI Action functionality
@@ -1143,8 +1177,8 @@ private:
 	/** Function to check whether the give graph is a subgraph */
 	static bool IsASubGraph( const class UEdGraph* GraphPtr );
 
-	/** Creates the SCSEditor tree component view and the SCS Viewport. */
-	void CreateSCSEditors();
+	/** Creates the Subobject Editor tree component view and the Subobject Viewport. */
+	void CreateSubobjectEditors();
 
 	/** Callback when a token is clicked on in the compiler results log */
 	void OnLogTokenClicked(const TSharedRef<class IMessageToken>& Token);
@@ -1241,10 +1275,14 @@ protected:
 	TArray<UBlueprint*> StandardLibraries;
 
 	/** SCS editor */
+	UE_DEPRECATED(5.0, "SCSEditor has been deprecated. Use SubobjectEditor instead.")
 	TSharedPtr<class SSCSEditor> SCSEditor;
 
+	/** Subobject Editor */
+	TSharedPtr<SSubobjectEditor> SubobjectEditor;
+
 	/** Viewport widget */
-	TSharedPtr<class SSCSEditorViewport> SCSViewport;
+	TSharedPtr<SSCSEditorViewport> SubobjectViewport;
 
 	/** Node inspector widget */
 	TSharedPtr<class SKismetInspector> Inspector;
@@ -1413,8 +1451,8 @@ private:
 	/** analytics statistics for the Editor */ 
 	FAnalyticsStatistics AnalyticsStats;
 
-	/** Customizations for the SCS editor */
-	TMap< FName, TSharedPtr<ISCSEditorCustomization> > SCSEditorCustomizations;
+	/** Customizations for the Subobject editor */
+	TMap<FName, TSharedPtr<ISCSEditorCustomization>> SubobjectEditorCustomizations;
 
 	/** Whether the current project is C++ or blueprint based */
 	bool bCodeBasedProject;
