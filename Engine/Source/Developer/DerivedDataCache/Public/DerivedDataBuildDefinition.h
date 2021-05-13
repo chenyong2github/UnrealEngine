@@ -28,6 +28,8 @@ public:
 	virtual const FBuildKey& GetKey() const = 0;
 	virtual FStringView GetName() const = 0;
 	virtual FStringView GetFunction() const = 0;
+	virtual bool HasConstants() const = 0;
+	virtual bool HasInputs() const = 0;
 	virtual void IterateConstants(TFunctionRef<void (FStringView Key, FCbObject&& Value)> Visitor) const = 0;
 	virtual void IterateInputBuilds(TFunctionRef<void (FStringView Key, const FBuildPayloadKey& PayloadKey)> Visitor) const = 0;
 	virtual void IterateInputBulkData(TFunctionRef<void (FStringView Key, const FGuid& BulkDataId)> Visitor) const = 0;
@@ -84,22 +86,19 @@ class FBuildDefinition
 {
 public:
 	/** Returns the key that uniquely identifies this build definition. */
-	inline const FBuildKey& GetKey() const
-	{
-		return Definition->GetKey();
-	}
+	inline const FBuildKey& GetKey() const { return Definition->GetKey(); }
 
 	/** Returns the name by which to identify this definition for logging and profiling. */
-	inline FStringView GetName() const
-	{
-		return Definition->GetName();
-	}
+	inline FStringView GetName() const { return Definition->GetName(); }
 
 	/** Returns the name of the build function with which to build this definition. */
-	inline FStringView GetFunction() const
-	{
-		return Definition->GetFunction();
-	}
+	inline FStringView GetFunction() const { return Definition->GetFunction(); }
+
+	/** Returns whether the definition has any constants. */
+	inline bool HasConstants() const { return Definition->HasConstants(); }
+
+	/** Returns whether the definition has any inputs. */
+	inline bool HasInputs() const { return Definition->HasInputs(); }
 
 	/** Visits every constant in order by key. */
 	inline void IterateConstants(TFunctionRef<void (FStringView Key, FCbObject&& Value)> Visitor) const

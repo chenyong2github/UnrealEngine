@@ -93,6 +93,9 @@ public:
 	FStringView GetName() const final { return Name; }
 	FStringView GetFunction() const final { return Function; }
 
+	bool HasConstants() const final;
+	bool HasInputs() const final;
+
 	void IterateConstants(TFunctionRef<void (FStringView Key, FCbObject&& Value)> Visitor) const final;
 	void IterateInputBuilds(TFunctionRef<void (FStringView Key, const FBuildPayloadKey& PayloadKey)> Visitor) const final;
 	void IterateInputBulkData(TFunctionRef<void (FStringView Key, const FGuid& BulkDataId)> Visitor) const final;
@@ -160,6 +163,8 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FBuildDefinitionBuilderIntern
 		}
 	}
 
+	const bool bHasInputs = bHasBuilds | bHasBulkData | bHasFiles | bHasHashes;
+
 	TCbWriter<2048> Writer;
 	Writer.BeginObject();
 	Writer.AddString("Function"_ASV, Function);
@@ -175,6 +180,11 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FBuildDefinitionBuilderIntern
 			}
 		}
 		Writer.EndObject();
+	}
+
+	if (bHasInputs)
+	{
+		Writer.BeginObject("Inputs"_ASV);
 	}
 
 	if (bHasBuilds)
@@ -233,6 +243,11 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FBuildDefinitionBuilderIntern
 		Writer.EndObject();
 	}
 
+	if (bHasInputs)
+	{
+		Writer.EndObject();
+	}
+
 	Writer.EndObject();
 	Definition = Writer.Save().AsObject();
 	Key = FBuildKey{Definition.GetHash()};
@@ -251,6 +266,16 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FStringView InName, FCbObject
 	}
 }
 
+bool FBuildDefinitionInternal::HasConstants() const
+{
+	return Definition["Constants"_ASV].HasValue();
+}
+
+bool FBuildDefinitionInternal::HasInputs() const
+{
+	return Definition["Inputs"_ASV].HasValue();
+}
+
 void FBuildDefinitionInternal::IterateConstants(TFunctionRef<void (FStringView Key, FCbObject&& Value)> Visitor) const
 {
 	for (FCbField Field : Definition["Constants"_ASV])
@@ -261,7 +286,7 @@ void FBuildDefinitionInternal::IterateConstants(TFunctionRef<void (FStringView K
 
 void FBuildDefinitionInternal::IterateInputBuilds(TFunctionRef<void (FStringView Key, const FBuildPayloadKey& PayloadKey)> Visitor) const
 {
-	for (FCbFieldView Field : Definition.FindView("Builds"_ASV))
+	for (FCbFieldView Field : Definition.FindView("Inputs"_ASV).AsObjectView().FindView("Builds"_ASV))
 	{
 		FCbObjectView Build = Field.AsObjectView();
 		const FBuildKey BuildKey{Build["Build"_ASV].AsHash()};
@@ -272,7 +297,7 @@ void FBuildDefinitionInternal::IterateInputBuilds(TFunctionRef<void (FStringView
 
 void FBuildDefinitionInternal::IterateInputBulkData(TFunctionRef<void (FStringView Key, const FGuid& BulkDataId)> Visitor) const
 {
-	for (FCbFieldView Field : Definition.FindView("BulkData"_ASV))
+	for (FCbFieldView Field : Definition.FindView("Inputs"_ASV).AsObjectView().FindView("BulkData"_ASV))
 	{
 		Visitor(FUTF8ToTCHAR(Field.GetName()), Field.AsUuid());
 	}
@@ -280,7 +305,7 @@ void FBuildDefinitionInternal::IterateInputBulkData(TFunctionRef<void (FStringVi
 
 void FBuildDefinitionInternal::IterateInputFiles(TFunctionRef<void (FStringView Key, FStringView Path)> Visitor) const
 {
-	for (FCbFieldView Field : Definition.FindView("Files"_ASV))
+	for (FCbFieldView Field : Definition.FindView("Inputs"_ASV).AsObjectView().FindView("Files"_ASV))
 	{
 		Visitor(FUTF8ToTCHAR(Field.GetName()), FUTF8ToTCHAR(Field.AsString()));
 	}
@@ -288,7 +313,7 @@ void FBuildDefinitionInternal::IterateInputFiles(TFunctionRef<void (FStringView 
 
 void FBuildDefinitionInternal::IterateInputHashes(TFunctionRef<void (FStringView Key, const FIoHash& RawHash)> Visitor) const
 {
-	for (FCbFieldView Field : Definition.FindView("Hashes"_ASV))
+	for (FCbFieldView Field : Definition.FindView("Inputs"_ASV).AsObjectView().FindView("Hashes"_ASV))
 	{
 		Visitor(FUTF8ToTCHAR(Field.GetName()), Field.AsBinaryAttachment());
 	}
