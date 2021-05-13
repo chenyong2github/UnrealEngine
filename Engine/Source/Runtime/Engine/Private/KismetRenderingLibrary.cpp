@@ -172,35 +172,23 @@ void UKismetRenderingLibrary::DrawMaterialToRenderTarget(UObject* WorldContextOb
 		Canvas->Init(TextureRenderTarget->SizeX, TextureRenderTarget->SizeY, nullptr, &RenderCanvas);
 		Canvas->Update();
 
-		FDrawEvent* DrawMaterialToTargetEvent = new FDrawEvent();
+		{
+			SCOPED_DRAW_EVENTF_GAMETHREAD(DrawMaterialToRenderTarget, *TextureRenderTarget->GetFName().ToString());
 
-		FName RTName = TextureRenderTarget->GetFName();
-		ENQUEUE_RENDER_COMMAND(BeginDrawEventCommand)(
-			[RTName, DrawMaterialToTargetEvent, RenderTargetResource](FRHICommandListImmediate& RHICmdList)
-			{
-				RenderTargetResource->FlushDeferredResourceUpdate(RHICmdList);
+			ENQUEUE_RENDER_COMMAND(FlushDeferredResourceUpdateCommand)(
+				[RenderTargetResource](FRHICommandListImmediate& RHICmdList)
+				{
+					RenderTargetResource->FlushDeferredResourceUpdate(RHICmdList);
+				});
 
-				BEGIN_DRAW_EVENTF(
-					RHICmdList, 
-					DrawCanvasToTarget, 
-					(*DrawMaterialToTargetEvent), 
-					*RTName.ToString());
-			});
+			Canvas->K2_DrawMaterial(Material, FVector2D(0, 0), FVector2D(TextureRenderTarget->SizeX, TextureRenderTarget->SizeY), FVector2D(0, 0));
 
-		Canvas->K2_DrawMaterial(Material, FVector2D(0, 0), FVector2D(TextureRenderTarget->SizeX, TextureRenderTarget->SizeY), FVector2D(0, 0));
+			RenderCanvas.Flush_GameThread();
+			Canvas->Canvas = nullptr;
 
-		RenderCanvas.Flush_GameThread();
-		Canvas->Canvas = NULL;
-
-		//UpdateResourceImmediate must be called here to ensure mips are generated.
-		TextureRenderTarget->UpdateResourceImmediate(false);
-		ENQUEUE_RENDER_COMMAND(CanvasRenderTargetResolveCommand)(
-			[DrawMaterialToTargetEvent](FRHICommandList& RHICmdList)
-			{
-				STOP_DRAW_EVENT((*DrawMaterialToTargetEvent));
-				delete DrawMaterialToTargetEvent;
-			}
-		);
+			//UpdateResourceImmediate must be called here to ensure mips are generated.
+			TextureRenderTarget->UpdateResourceImmediate(false);
+		}
 	}
 }
 
@@ -452,7 +440,7 @@ void UKismetRenderingLibrary::CreateTexture2DFromRenderTarget(UObject* WorldCont
 
 		//FImageUtils::CreateTexture2D
 
-		UTexture2D* NewTexture = RenderTarget->ConstructTexture2D(Texture->GetOuter(), Texture->GetName(), RenderTarget->GetMaskedFlags(), CTF_Default, NULL);
+		UTexture2D* NewTexture = RenderTarget->ConstructTexture2D(Texture->GetOuter(), Texture->GetName(), RenderTarget->GetMaskedFlags(), CTF_Default, nullptr);
 
 		check(NewTexture == Texture);
 		NewTexture->UpdateResource();
@@ -506,7 +494,7 @@ UTexture2D* UKismetRenderingLibrary::RenderTargetCreateStaticTexture2DEditorOnly
 		UObject* NewObj = nullptr;
 
 		// create a static 2d texture
-		NewObj = RenderTarget->ConstructTexture2D(CreatePackage( *PackageName), Name, RenderTarget->GetMaskedFlags() | RF_Public | RF_Standalone, CTF_Default | CTF_AllowMips, NULL);
+		NewObj = RenderTarget->ConstructTexture2D(CreatePackage( *PackageName), Name, RenderTarget->GetMaskedFlags() | RF_Public | RF_Standalone, CTF_Default | CTF_AllowMips, nullptr);
 		UTexture2D* NewTex = Cast<UTexture2D>(NewObj);
 
 		if (NewTex != nullptr)
@@ -550,7 +538,7 @@ void UKismetRenderingLibrary::ConvertRenderTargetToTexture2DEditorOnly( UObject*
 	}
 	else
 	{
-		UTexture2D* NewTexture = RenderTarget->ConstructTexture2D(Texture->GetOuter(), Texture->GetName(), RenderTarget->GetMaskedFlags() | RF_Public | RF_Standalone, CTF_Default, NULL);
+		UTexture2D* NewTexture = RenderTarget->ConstructTexture2D(Texture->GetOuter(), Texture->GetName(), RenderTarget->GetMaskedFlags() | RF_Public | RF_Standalone, CTF_Default, nullptr);
 
 		check(NewTexture == Texture);
 
@@ -619,7 +607,7 @@ UTexture2D* UKismetRenderingLibrary::ImportBufferAsTexture2D(UObject* WorldConte
 
 void UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(UObject* WorldContextObject, UTextureRenderTarget2D* TextureRenderTarget, UCanvas*& Canvas, FVector2D& Size, FDrawToRenderTargetContext& Context)
 {
-	Canvas = NULL;
+	Canvas = nullptr;
 	Size = FVector2D(0, 0);
 	Context = FDrawToRenderTargetContext();
 	
@@ -664,20 +652,15 @@ void UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(UObject* WorldContex
 		Canvas->Init(TextureRenderTarget->SizeX, TextureRenderTarget->SizeY, nullptr, NewCanvas);
 		Canvas->Update();
 
+#if  WANTS_DRAW_MESH_EVENTS
 		Context.DrawEvent = new FDrawEvent();
+		BEGIN_DRAW_EVENTF_GAMETHREAD(DrawCanvasToTarget, (*Context.DrawEvent), *TextureRenderTarget->GetFName().ToString())
+#endif // WANTS_DRAW_MESH_EVENTS
 
-		FName RTName = TextureRenderTarget->GetFName();
-		FDrawEvent* DrawEvent = Context.DrawEvent;
-		ENQUEUE_RENDER_COMMAND(BeginDrawEventCommand)(
-			[RTName, DrawEvent, RenderTargetResource](FRHICommandListImmediate& RHICmdList)
+		ENQUEUE_RENDER_COMMAND(FlushDeferredResourceUpdateCommand)(
+			[RenderTargetResource](FRHICommandListImmediate& RHICmdList)
 			{
 				RenderTargetResource->FlushDeferredResourceUpdate(RHICmdList);
-
-				BEGIN_DRAW_EVENTF(
-					RHICmdList, 
-					DrawCanvasToTarget, 
-					(*DrawEvent), 
-					*RTName.ToString());
 			});
 	}
 }
@@ -706,15 +689,19 @@ void UKismetRenderingLibrary::EndDrawCanvasToRenderTarget(UObject* WorldContextO
 		if (Context.RenderTarget)
 		{
 			FTextureRenderTargetResource* RenderTargetResource = Context.RenderTarget->GameThread_GetRenderTargetResource();
-			FDrawEvent* DrawEvent = Context.DrawEvent;
+
 			ENQUEUE_RENDER_COMMAND(CanvasRenderTargetResolveCommand)(
-				[RenderTargetResource, DrawEvent](FRHICommandList& RHICmdList)
+				[RenderTargetResource](FRHICommandList& RHICmdList)
 				{
 					RHICmdList.CopyToResolveTarget(RenderTargetResource->GetRenderTargetTexture(), RenderTargetResource->TextureRHI, FResolveParams());
-					STOP_DRAW_EVENT((*DrawEvent));
-					delete DrawEvent;
 				}
 			);
+
+#if WANTS_DRAW_MESH_EVENTS
+			STOP_DRAW_EVENT_GAMETHREAD(*Context.DrawEvent);
+			delete Context.DrawEvent;
+#endif // WANTS_DRAW_MESH_EVENTS
+
 
 			// Remove references to the context now that we've resolved it, to avoid a crash when EndDrawCanvasToRenderTarget is called multiple times with the same context
 			// const cast required, as BP will treat Context as an output without the const

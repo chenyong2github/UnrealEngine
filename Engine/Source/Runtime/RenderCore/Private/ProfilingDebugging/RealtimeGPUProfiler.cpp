@@ -4,6 +4,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ProfilingDebugging/TracingProfiler.h"
 #include "RenderCore.h"
+#include "RenderingThread.h"
 #include "GPUProfiler.h"
 
 // Only exposed for debugging. Disabling this carries a severe performance penalty
@@ -64,14 +65,61 @@ void FDrawEvent::Start(FRHIComputeCommandList& InRHICmdList, FColor Color, const
 		RHICmdList = &InRHICmdList;
 		va_end(ptr);
 	}
+	bStarted = true;
+}
+
+void FDrawEvent::Start(FRHIComputeCommandList* InRHICmdList, FColor Color, const TCHAR* Fmt, ...)
+{
+	bool bIsRenderingOrRHIThread = IsInParallelRenderingThread() || IsInRHIThread();
+	// A command list must be passed if on the rendering or RHI thread, otherwise (game thread), a command will be enqueued on the immediate command list
+	{
+		va_list ptr;
+		va_start(ptr, Fmt);
+		TCHAR TempStr[256];
+		// Build the string in the temp buffer
+		FCString::GetVarArgs(TempStr, UE_ARRAY_COUNT(TempStr), Fmt, ptr);
+
+		if (InRHICmdList != nullptr)
+		{
+			check(!GUseThreadedRendering || bIsRenderingOrRHIThread); // A command list is needed on rendering/RHI threads (see comment above)
+			InRHICmdList->PushEvent(TempStr, Color);
+			RHICmdList = InRHICmdList;
+		}
+		else
+		{
+			check(!GUseThreadedRendering || !bIsRenderingOrRHIThread); // The command list should be null on game thread (see comment above)
+			ENQUEUE_RENDER_COMMAND(PushEventCommand)([EventName = FString(TempStr), Color](FRHICommandListImmediate& RHICommandListLocal)
+			{
+				RHICommandListLocal.PushEvent(*EventName, Color);
+			});
+		}
+
+		va_end(ptr);
+	}
+	bStarted = true;
 }
 
 void FDrawEvent::Stop()
 {
-	if (RHICmdList)
+	if (bStarted)
 	{
+		bool bIsRenderingOrRHIThread = IsInParallelRenderingThread() || IsInRHIThread();
+		// if we have a command list, we must be on the rendering or RHI thread, otherwise (game thread), a command will be enqueued on the immediate command list :
+		if (RHICmdList != nullptr)
+	{
+			check(!GUseThreadedRendering || bIsRenderingOrRHIThread); // A command list is needed on rendering/RHI threads (see comment above)
 		RHICmdList->PopEvent();
-		RHICmdList = NULL;
+			RHICmdList = nullptr;
+		}
+		else
+		{
+			check(!GUseThreadedRendering || !bIsRenderingOrRHIThread); // The command list should be null on game thread (see comment above)
+			ENQUEUE_RENDER_COMMAND(PopEventCommand)([](FRHICommandListImmediate& RHICommandListLocal)
+			{
+				RHICommandListLocal.PopEvent();
+			});
+		}
+		bStarted = false;
 	}
 }
 
