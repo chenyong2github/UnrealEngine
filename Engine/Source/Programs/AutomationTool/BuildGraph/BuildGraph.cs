@@ -172,17 +172,40 @@ namespace AutomationTool
 			Dictionary<string, string> Arguments = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
 			foreach (string Param in Params)
 			{
-				const string Prefix = "set:";
-				if(Param.StartsWith(Prefix, StringComparison.InvariantCultureIgnoreCase))
+				const string SetPrefix = "set:";
+				if(Param.StartsWith(SetPrefix, StringComparison.InvariantCultureIgnoreCase))
 				{
 					int EqualsIdx = Param.IndexOf('=');
 					if(EqualsIdx >= 0)
 					{
-						Arguments[Param.Substring(Prefix.Length, EqualsIdx - Prefix.Length)] = Param.Substring(EqualsIdx + 1);
+						Arguments[Param.Substring(SetPrefix.Length, EqualsIdx - SetPrefix.Length)] = Param.Substring(EqualsIdx + 1);
 					}
 					else
 					{
-						LogWarning("Missing value for '{0}'", Param.Substring(Prefix.Length));
+						LogWarning("Missing value for '{0}'", Param.Substring(SetPrefix.Length));
+					}
+				}
+
+				const string AppendPrefix = "append:";
+				if(Param.StartsWith(AppendPrefix, StringComparison.InvariantCultureIgnoreCase))
+				{
+					int EqualsIdx = Param.IndexOf('=');
+					if(EqualsIdx >= 0)
+					{
+						string Property = Param.Substring(AppendPrefix.Length, EqualsIdx - AppendPrefix.Length);
+						string Value = Param.Substring(EqualsIdx + 1);
+						if (Arguments.ContainsKey(Property))
+						{
+							Arguments[Property] = Arguments[Property] + ";" + Value;
+						}
+						else
+						{
+							Arguments[Property] = Value;
+						}
+					}
+					else
+					{
+						LogWarning("Missing value for '{0}'", Param.Substring(AppendPrefix.Length));
 					}
 				}
 			}
