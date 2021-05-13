@@ -14,6 +14,7 @@
 #include "Misc/CoreStats.h"
 #include "Misc/IQueuedWork.h"
 #include "Misc/QueuedThreadPool.h"
+#include "Misc/Fork.h"
 #include "Stats/Stats.h"
 #include "Templates/Function.h"
 
@@ -28,8 +29,11 @@ enum class EAsyncExecution
 	/** Execute in Task Graph on the main thread (for short running tasks). */
 	TaskGraphMainThread,
 
-	/** Execute in separate thread (for long running tasks). */
+	/** Execute in separate thread if supported (for long running tasks). */
 	Thread,
+
+	/** Execute in separate thread if supported or supported post fork (see FForkProcessHelper::CreateThreadIfForkSafe) (for long running tasks). */
+	ThreadIfForkSafe,
 
 	/** Execute in global queued thread pool. */
 	ThreadPool,
@@ -310,6 +314,27 @@ auto Async(EAsyncExecution Execution, CallableType&& Callable, TUniqueFunction<v
 			FRunnableThread* RunnableThread = FRunnableThread::Create(Runnable, *TAsyncThreadName);
 
 			check(RunnableThread != nullptr);
+			check(RunnableThread->GetThreadType() == FRunnableThread::ThreadType::Real);
+
+			ThreadPromise.SetValue(RunnableThread);
+		}
+		else
+		{
+			SetPromise(Promise, Function);
+		}
+		break;
+
+	case EAsyncExecution::ThreadIfForkSafe:
+		if (FPlatformProcess::SupportsMultithreading() || FForkProcessHelper::IsForkedMultithreadInstance())
+		{
+			TPromise<FRunnableThread*> ThreadPromise;
+			TAsyncRunnable<ResultType>* Runnable = new TAsyncRunnable<ResultType>(MoveTemp(Function), MoveTemp(Promise), ThreadPromise.GetFuture());
+
+			const FString TAsyncThreadName = FString::Printf(TEXT("TAsync %d"), FAsyncThreadIndex::GetNext());
+			FRunnableThread* RunnableThread = FForkProcessHelper::CreateForkableThread(Runnable, *TAsyncThreadName);
+
+			check(RunnableThread != nullptr);
+			check(RunnableThread->GetThreadType() == FRunnableThread::ThreadType::Real);
 
 			ThreadPromise.SetValue(RunnableThread);
 		}

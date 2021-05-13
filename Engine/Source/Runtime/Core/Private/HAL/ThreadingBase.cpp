@@ -408,6 +408,11 @@ public:
 		FThreadManager::Get().RemoveThread(this);
 	}
 
+	virtual FRunnableThread::ThreadType GetThreadType() const override
+	{
+		return ThreadType::Fake;
+	}
+
 	virtual bool CreateInternal(FRunnable* InRunnable, const TCHAR* InThreadName,
 		uint32 InStackSize,
 		EThreadPriority InThreadPri, uint64 InThreadAffinityMask,
@@ -425,13 +430,6 @@ public:
 			Runnable = InRunnable;
 		}
 		return SingleThreadRunnable != nullptr;
-	}
-
-protected:
-
-	virtual FRunnableThread::ThreadType GetThreadType() const override
-	{
-		return ThreadType::Fake;
 	}
 };
 uint32 FFakeThread::ThreadIdCounter = 0xffff;
@@ -1419,6 +1417,11 @@ public:
 		Super::WaitForCompletion();
 	}
 
+	virtual FRunnableThread::ThreadType GetThreadType() const override
+	{
+		return ThreadType::Forkable;
+	}
+
 	virtual bool CreateInternal(FRunnable* InRunnable, const TCHAR* InThreadName, uint32 InStackSize, EThreadPriority InThreadPri, uint64 InThreadAffinityMask, EThreadCreateFlags InCreateFlags) override
 	{
 		checkf(FForkProcessHelper::SupportsMultithreadingPostFork(), TEXT("ForkableThreads should only be created when -PostForkThreading is enabled"));
@@ -1460,11 +1463,6 @@ protected:
 			delete RealThread;
 			RealThread = nullptr;
 		}
-	}
-
-	virtual FRunnableThread::ThreadType GetThreadType() const override
-	{
-		return ThreadType::Forkable;
 	}
 };
 

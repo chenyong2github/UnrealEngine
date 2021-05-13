@@ -506,19 +506,19 @@ public:
 	{
 		if (!Future.IsValid())
 		{
-			Future = Async(EAsyncExecution::Thread, Function);
+			Future = Async(EAsyncExecution::Thread, MoveTemp(Function));
 		}
 
 		return Future.IsReady();
 	}
 
-	FThreadedAutomationLatentCommand(TFunction<void()> InFunction)
-		: Function(InFunction)
+	FThreadedAutomationLatentCommand(TUniqueFunction<void()> InFunction)
+		: Function(MoveTemp(InFunction))
 	{ }
 
 protected:
 
-	const TFunction<void()> Function;
+	TUniqueFunction<void()> Function;
 
 	TFuture<void> Future;
 
