@@ -660,10 +660,7 @@ void FTimingViewDrawHelper::DrawRelations(const TArray<TUniquePtr<ITimingEventRe
 {
 	for (const TUniquePtr<ITimingEventRelation> &Relation : Relations)
 	{
-		if (Relation->IsSolved())
-		{
-			Relation->Draw(DrawContext, Viewport, *this, Filter);
-		}
+		Relation->Draw(DrawContext, Viewport, *this, Filter);
 	}
 }
 

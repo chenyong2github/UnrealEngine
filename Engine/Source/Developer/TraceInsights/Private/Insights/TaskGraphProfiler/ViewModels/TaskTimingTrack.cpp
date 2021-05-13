@@ -65,6 +65,17 @@ void FTaskTimingSharedState::Tick(Insights::ITimingViewSession& InSession, const
 
 		InSession.AddTopDockedTrack(TaskTrack);
 	}
+
+	if (bResetOnNextTick)
+	{
+		bResetOnNextTick = false;
+		if (!TimingView->GetSelectedEvent().IsValid() && 
+			(!TimingView->GetSelectedTrack().IsValid() || TimingView->GetSelectedTrack().Get() != TaskTrack.Get()))
+		{
+			SetTaskId(FTaskTimingTrack::InvalidTaskId);
+			FTaskGraphProfilerManager::Get()->ClearTaskRelations();
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -154,10 +165,26 @@ void FTaskTimingTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 
 void FTaskTimingTrack::OnTimingEventSelected(TSharedPtr<const ITimingEvent> InSelectedEvent)
 {
+	if (!FTaskGraphProfilerManager::Get()->GetShowRelations())
+	{
+		return;
+	}
+
+	if ((InSelectedEvent.IsValid() && InSelectedEvent->GetTrack()->Is<FTaskTimingTrack>())
+		|| IsSelected())
+	{
+		// The user has selected a Task Event. Do nothing.
+		return;
+	}
+
 	if (!InSelectedEvent.IsValid() || !InSelectedEvent->Is<FThreadTrackEvent>())
 	{
-		TaskId = InvalidTaskId;
-		SetDirtyFlag();
+		if (TaskId != InvalidTaskId)
+		{
+			TaskId = InvalidTaskId;
+			FTaskGraphProfilerManager::Get()->ClearTaskRelations();
+			SetDirtyFlag();
+		}
 		return;
 	}
 
@@ -177,6 +204,8 @@ void FTaskTimingTrack::OnTimingEventSelected(TSharedPtr<const ITimingEvent> InSe
 	}
 
 	const FThreadTrackEvent &ThreadEvent = InSelectedEvent->As<FThreadTrackEvent>();
+	GetEventRelations(ThreadEvent);
+
 	uint32 ThreadId = StaticCastSharedRef<const FThreadTimingTrack>(ThreadEvent.GetTrack())->GetThreadId();
 	const TraceServices::FTaskInfo* Task = TasksProvider->TryGetTask(ThreadId, ThreadEvent.GetStartTime());
 
@@ -267,6 +296,59 @@ void FTaskTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITimin
 	InOutTooltip.ResetContent();
 
 	// The rest of the implemention will follow
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTaskTimingTrack::GetEventRelations(const FThreadTrackEvent& InSelectedEvent)
+{
+	const int32 MaxTasksToShow = 30;
+	double StartTime = InSelectedEvent.GetStartTime();
+
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	const TraceServices::ITasksProvider* TasksProvider = TraceServices::ReadTasksProvider(*Session.Get());
+	if (TasksProvider)
+	{
+		STimingView* TimingView = SharedState.GetTimingView();
+		TSharedRef<const FThreadTimingTrack> EventTrack = StaticCastSharedRef<const FThreadTimingTrack>(InSelectedEvent.GetTrack());
+		uint32 ThreadId = EventTrack->GetThreadId();
+		
+		FTaskGraphProfilerManager::Get()->ShowTaskRelations(&InSelectedEvent, ThreadId);
+
+		// if it's an event waiting for tasks completeness, add relations to these tasks
+		const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
+		const TraceServices::ITimingProfilerTimerReader* TimerReader;
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TimingProfilerProvider.ReadTimers([&TimerReader](const TraceServices::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
+
+		const FThreadTrackEvent& ThreadTrackEvent = *static_cast<const FThreadTrackEvent*>(&InSelectedEvent);
+		const TraceServices::FTimingProfilerTimer* Timer = TimerReader->GetTimer(ThreadTrackEvent.GetTimerIndex());
+		check(Timer != nullptr);
+
+		const TraceServices::FWaitingForTasks* Waiting = TasksProvider->TryGetWaiting(Timer->Name, ThreadId, StartTime);
+		if (Waiting != nullptr)
+		{
+			int32 NumWaitedTasksToShow = FMath::Min(Waiting->Tasks.Num(), MaxTasksToShow);
+			for (int32 TaskIndex = 0; TaskIndex != NumWaitedTasksToShow; ++TaskIndex)
+			{
+				const TraceServices::FTaskInfo* WaitedTask = TasksProvider->TryGetTask(Waiting->Tasks[TaskIndex]);
+				if (WaitedTask != nullptr)
+				{
+					FTaskGraphProfilerManager::Get()->AddRelation(&InSelectedEvent, StartTime, ThreadId, WaitedTask->StartedTimestamp, WaitedTask->StartedThreadId, ETaskEventType::AddedNested);
+					FTaskGraphProfilerManager::Get()->AddRelation(&InSelectedEvent, WaitedTask->CompletedTimestamp, WaitedTask->CompletedThreadId, WaitedTask->CompletedTimestamp, ThreadId, ETaskEventType::NestedCompleted);
+				}
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply FTaskTimingTrack::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	SharedState.SetResetOnNextTick(true);
+
+	return FReply::Unhandled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

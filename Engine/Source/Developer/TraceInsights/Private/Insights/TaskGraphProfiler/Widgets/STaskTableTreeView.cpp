@@ -435,28 +435,14 @@ void STaskTableTreeView::ContextMenu_GoToTask_Execute()
 		return;
 	}
 
-	TimingView->ClearRelations();
-
-	auto AddRelation = [&TimingView](double SourceTimestamp, uint32 SourceThreadId, double TargetTimestamp, uint32 TargetThreadId, ETaskEventType Type)
-	{
-		if (SourceTimestamp == TraceServices::FTaskInfo::InvalidTimestamp || TargetTimestamp == TraceServices::FTaskInfo::InvalidTimestamp)
-		{
-			return;
-		}
-
-		TUniquePtr<ITimingEventRelation> Relation = MakeUnique<FTaskGraphRelation>(SourceTimestamp, SourceThreadId, TargetTimestamp, TargetThreadId, Type);
-
-		TimingView->AddRelation(Relation);
-	};
-
-	FTaskGraphProfilerManager::Get()->GetTaskRelations(SelectedTask->GetTask()->GetId(), AddRelation);
+	FTaskGraphProfilerManager::Get()->ShowTaskRelations(SelectedTask->GetTask()->GetId());
 
 	double Duration = (SelectedTask->GetTask()->GetFinishedTimestamp() - SelectedTask->GetTask()->GetCreatedTimestamp()) * 1.5;
 	TimingView->ZoomOnTimeInterval(SelectedTask->GetTask()->GetCreatedTimestamp() - Duration * 0.15, Duration);
 
 	TSharedPtr<FTaskTimingSharedState> TaskSharedState = FTaskGraphProfilerManager::Get()->GetTaskTimingSharedState();
 
-	if (TaskSharedState.IsValid())
+	if (TaskSharedState.IsValid() && FTaskGraphProfilerManager::Get()->GetShowRelations())
 	{
 		TaskSharedState->SetTaskId(SelectedTask->GetTask()->GetId());
 	}

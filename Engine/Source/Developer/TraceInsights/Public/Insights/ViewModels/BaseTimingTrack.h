@@ -255,10 +255,6 @@ public:
 	// Called back from the timing view when an event is copied to the clipboard with Ctrl+C.
 	virtual void OnClipboardCopyEvent(const ITimingEvent& InSelectedEvent) const {}
 
-	virtual void GetEventRelations(const ITimingEvent& InSelectedEvent, TArray<TUniquePtr<ITimingEventRelation>>& Dependencies) const {}
-
-	virtual void SolveEventRelations(const TArray<TUniquePtr<ITimingEventRelation>>& Dependencies) const {}
-
 	// Returns number of text lines needed to display the debug string.
 	//TODO: virtual int GetDebugStringLineCount() const { return 0; }
 

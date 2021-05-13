@@ -16,11 +16,9 @@
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/ITimingViewSession.h"
-#include "Insights/TaskGraphProfiler/TaskGraphProfilerManager.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/Filters.h"
 #include "Insights/ViewModels/FilterConfigurator.h"
-#include "Insights/ViewModels/TaskGraphRelation.h"
 #include "Insights/ViewModels/TimerNode.h"
 #include "Insights/ViewModels/ThreadTrackEvent.h"
 #include "Insights/ViewModels/TimingEventSearch.h"
@@ -1502,104 +1500,6 @@ bool FThreadTimingTrack::HasCustomFilter() const
 	}
 
 	return false;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FThreadTimingTrack::GetEventRelations(const ITimingEvent& InSelectedEvent, TArray<TUniquePtr<ITimingEventRelation>>& Relations) const
-{
-	const int32 MaxTasksToShow = 30;
-	double StartTime = InSelectedEvent.GetStartTime();
-
-	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	const TraceServices::ITasksProvider* TasksProvider = TraceServices::ReadTasksProvider(*Session.Get());
-	if (TasksProvider)
-	{
-		auto AddRelation = [this, &InSelectedEvent, &Relations](double SourceTimestamp, uint32 SourceThreadId, double TargetTimestamp, uint32 TargetThreadId, ETaskEventType Type)
-		{
-			if (SourceTimestamp == TraceServices::FTaskInfo::InvalidTimestamp || TargetTimestamp == TraceServices::FTaskInfo::InvalidTimestamp)
-			{
-				return;
-			}
-
-			TUniquePtr<FTaskGraphRelation> Relation = MakeUnique<FTaskGraphRelation>(SourceTimestamp, SourceThreadId, TargetTimestamp, TargetThreadId, Type);
-
-			if (Relation->GetSourceThreadId() == ThreadId)
-			{
-				Relation->SetSourceTrack(SharedThis(this));
-				Relation->SetSourceDepth(InSelectedEvent.GetDepth());
-			}
-			if (Relation->GetTargetThreadId() == ThreadId)
-			{
-				Relation->SetTargetTrack(SharedThis(this));
-				Relation->SetTargetDepth(InSelectedEvent.GetDepth());
-			}
-			if (Relation->GetSourceThreadId() == ThreadId && Relation->GetTargetThreadId() == ThreadId)
-			{
-				Relation->SetIsSolved(true);
-			}
-
-			Relations.Add(MoveTemp(Relation));
-		};
-
-		FTaskGraphProfilerManager::Get()->GetTaskRelations(InSelectedEvent.GetStartTime(), ThreadId, AddRelation);
-
-		// if it's an event waiting for tasks completeness, add relations to these tasks
-		const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
-		const TraceServices::ITimingProfilerTimerReader* TimerReader;
-		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		TimingProfilerProvider.ReadTimers([&TimerReader](const TraceServices::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
-
-		const FThreadTrackEvent& ThreadTrackEvent = *static_cast<const FThreadTrackEvent*>(&InSelectedEvent);
-		const TraceServices::FTimingProfilerTimer* Timer = TimerReader->GetTimer(ThreadTrackEvent.GetTimerIndex());
-		check(Timer != nullptr);
-
-		const TraceServices::FWaitingForTasks* Waiting = TasksProvider->TryGetWaiting(Timer->Name, ThreadId, StartTime);
-		if (Waiting != nullptr)
-		{
-			int32 NumWaitedTasksToShow = FMath::Min(Waiting->Tasks.Num(), MaxTasksToShow);
-			for (int32 i = 0; i != NumWaitedTasksToShow; ++i)
-			{
-				const TraceServices::FTaskInfo* WaitedTask = TasksProvider->TryGetTask(Waiting->Tasks[i]);
-				if (WaitedTask != nullptr)
-				{
-					AddRelation(StartTime, ThreadId, WaitedTask->StartedTimestamp, WaitedTask->StartedThreadId, ETaskEventType::AddedNested);
-					AddRelation(WaitedTask->CompletedTimestamp, WaitedTask->CompletedThreadId, WaitedTask->CompletedTimestamp, ThreadId, ETaskEventType::NestedCompleted);
-				}
-			}
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FThreadTimingTrack::SolveEventRelations(const TArray<TUniquePtr<ITimingEventRelation>>& Relations) const
-{
-	for (const TUniquePtr<ITimingEventRelation>& Relation : Relations)
-	{
-		if (!Relation->IsSolved())
-		{
-			// A check that we have the correct type will need to be added
-			FTaskGraphRelation* TaskRelation = StaticCast<FTaskGraphRelation*>(Relation.Get());
-
-			if (TaskRelation->GetSourceThreadId() == ThreadId && !TaskRelation->GetSourceTrack())
-			{
-				TaskRelation->SetSourceTrack(StaticCastSharedRef<const FBaseTimingTrack>(SharedThis(this)));
-				TaskRelation->SetSourceDepth(GetDepthAt(TaskRelation->GetSourceTime()) - 1);
-			}
-
-			if (TaskRelation->GetTargetThreadId() == ThreadId && !TaskRelation->GetTargetTrack())
-			{
-				TaskRelation->SetTargetTrack(StaticCastSharedRef<const FBaseTimingTrack>(SharedThis(this)));
-				TaskRelation->SetTargetDepth(GetDepthAt(TaskRelation->GetTargetTime()) - 1);
-			}
-
-			if (TaskRelation->GetSourceTrack() && TaskRelation->GetTargetTrack())
-			{
-				TaskRelation->SetIsSolved(true);
-			}
-		}
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

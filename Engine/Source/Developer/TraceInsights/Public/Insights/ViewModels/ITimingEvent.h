@@ -69,6 +69,8 @@ public:
 
 class ITimingEventRelation
 {
+	INSIGHTS_DECLARE_RTTI_BASE(ITimingEventRelation)
+
 public:
 	enum class EDrawFilter
 	{
@@ -78,7 +80,6 @@ public:
 
 	ITimingEventRelation() {}
 	virtual ~ITimingEventRelation() {}
-	virtual bool IsSolved() = 0;
 	virtual void Draw(const FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const ITimingViewDrawHelper& Helper, const EDrawFilter Filter) = 0;
 };
 
