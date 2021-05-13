@@ -630,10 +630,10 @@ public:
 
 	/**
 	 * Defines run-time groups of components. For example allows to assemble multiple parts of a building at runtime.
-	 * -1 means that component doesn't belong to any group.
+	 * 0 means that component doesn't belong to any group.
 	 */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = RayTracing)
-	int32 RayTracingGroupId;
+	uint32 RayTracingGroupId;
 
 	/**
 	 * Defines how quickly it should be culled. For example buildings should have a low priority, but small dressing should have a high priority.
