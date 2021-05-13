@@ -149,6 +149,13 @@ public:
 	UPROPERTY(EditAnywhere, config, Category="Output Log")
 	bool bPromoteOutputLogWarningsDuringPIE;
 
+	/**
+	 * If checked pressing the console command shortcut will cycle between focusing the status bar console, opening the output log drawer, and back to the previous focus target. 
+	 * If unchecked, the console command shortcut will only focus the status bar console
+	 */
+	UPROPERTY(EditAnywhere, config, Category = "Output Log", meta = (DisplayName = "Open Output Log Drawer with Console Command Shortcut"))
+	bool bCycleToOutputLogDrawer;
+
 	/** New asset editor tabs will open at the specified location. */
 	UPROPERTY(EditAnywhere, config, Category=UserInterface)
 	EAssetEditorOpenLocation AssetEditorOpenLocation;

@@ -39,6 +39,9 @@ void FGlobalEditorCommonCommands::RegisterCommands()
 	UI_COMMAND(FindInContentBrowser, "Browse to Asset", "Browses to the associated asset and selects it in the most recently used Content Browser (summoning one if necessary)", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::B));
 
 	UI_COMMAND(OpenConsoleCommandBox, "Open Console Command Box", "Opens an edit box where you can type in a console command", EUserInterfaceActionType::Button, FInputChord(EKeys::Tilde));
+	
+	UI_COMMAND(OpenOutputLogDrawer, "Open Output Log Drawer", "Opens the output log drawer from the active asset editor status bar", EUserInterfaceActionType::Button, FInputChord());
+
 	UI_COMMAND(OpenDocumentation, "Open Documentation...", "Opens documentation for this tool", EUserInterfaceActionType::Button, FInputChord(EKeys::F1));
 
 #if PLATFORM_MAC
@@ -84,6 +87,10 @@ void FGlobalEditorCommonCommands::MapActions(TSharedRef<FUICommandList>& Toolkit
 	ToolkitCommands->MapAction(
 		Get().OpenContentBrowserDrawer,
 		FExecuteAction::CreateStatic(&FGlobalEditorCommonCommands::OnOpenContentBrowserDrawer));
+
+	ToolkitCommands->MapAction(
+		Get().OpenOutputLogDrawer,
+		FExecuteAction::CreateStatic(&FGlobalEditorCommonCommands::OnOpenOutputLogDrawer));
 }
 
 void FGlobalEditorCommonCommands::OnPressedCtrlTab(TSharedPtr<FUICommandInfo> TriggeringCommand)
@@ -166,7 +173,7 @@ void FGlobalEditorCommonCommands::OnSummonedConsoleCommandBox()
 		TSharedRef<SWindow> WindowRef = ParentWindow.ToSharedRef();
 		FOutputLogModule& OutputLogModule = FModuleManager::LoadModuleChecked<FOutputLogModule>(TEXT("OutputLog"));
 
-		if (!GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->FocusDebugConsole(ParentWindow.ToSharedRef()))
+		if (!GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->ToggleDebugConsole(ParentWindow.ToSharedRef()))
 		{
 			// A status bar was not found, pop open a floating window instead
 			FDebugConsoleDelegates Delegates;
@@ -181,6 +188,11 @@ void FGlobalEditorCommonCommands::OnSummonedConsoleCommandBox()
 void FGlobalEditorCommonCommands::OnOpenContentBrowserDrawer()
 {
 	GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->OpenContentBrowserDrawer();
+}
+
+void FGlobalEditorCommonCommands::OnOpenOutputLogDrawer()
+{
+	GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->OpenOutputLogDrawer();
 }
 
 //////////////////////////////////////////////////////////////////////////

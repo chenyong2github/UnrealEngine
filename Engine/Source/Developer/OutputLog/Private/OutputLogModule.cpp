@@ -67,23 +67,26 @@ private:
 	TArray< TSharedPtr<FOutputLogMessage> > Messages;
 };
 
-/** Our global output log app spawner */
-static TSharedPtr<FOutputLogHistory> OutputLogHistory;
 
-/** Our global active output log */
-static TWeakPtr<SOutputLog> OutputLog;
-
-TSharedRef<SDockTab> SpawnOutputLog(const FSpawnTabArgs& Args)
+TSharedRef<SDockTab> FOutputLogModule::SpawnOutputLogTab(const FSpawnTabArgs& Args)
 {
-	return SNew(SDockTab)
+	TSharedRef<SOutputLog> NewLog = SNew(SOutputLog, false).Messages(OutputLogHistory->GetMessages());
+
+	OutputLog = NewLog;
+
+	TSharedRef<SDockTab> NewTab = SNew(SDockTab)
 		.TabRole(ETabRole::NomadTab)
 		.Label(NSLOCTEXT("OutputLog", "TabTitle", "Output Log"))
 		[
-			SAssignNew(OutputLog, SOutputLog).Messages(OutputLogHistory->GetMessages())
+			NewLog
 		];
+
+	OutputLogTab = NewTab;
+
+	return NewTab;
 }
 
-TSharedRef<SDockTab> SpawnDeviceOutputLog(const FSpawnTabArgs& Args)
+TSharedRef<SDockTab> FOutputLogModule::SpawnDeviceOutputLogTab(const FSpawnTabArgs& Args)
 {
 	return SNew(SDockTab)
 		.TabRole(ETabRole::NomadTab)
@@ -95,13 +98,13 @@ TSharedRef<SDockTab> SpawnDeviceOutputLog(const FSpawnTabArgs& Args)
 
 void FOutputLogModule::StartupModule()
 {
-	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(OutputLogModule::OutputLogTabName, FOnSpawnTab::CreateStatic(&SpawnOutputLog))
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(OutputLogModule::OutputLogTabName, FOnSpawnTab::CreateRaw(this, &FOutputLogModule::SpawnOutputLogTab))
 		.SetDisplayName(NSLOCTEXT("UnrealEditor", "OutputLogTab", "Output Log"))
 		.SetTooltipText(NSLOCTEXT("UnrealEditor", "OutputLogTooltipText", "Open the Output Log tab."))
 		.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsLogCategory())
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Log.TabIcon"));
 
-	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(OutputLogModule::DeviceOutputLogTabName, FOnSpawnTab::CreateStatic(&SpawnDeviceOutputLog))
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(OutputLogModule::DeviceOutputLogTabName, FOnSpawnTab::CreateRaw(this, &FOutputLogModule::SpawnDeviceOutputLogTab))
 		.SetDisplayName(NSLOCTEXT("UnrealEditor", "DeviceOutputLogTab", "Device Output Log"))
 		.SetTooltipText(NSLOCTEXT("UnrealEditor", "DeviceOutputLogTooltipText", "Open the Device Output Log tab."))
 		.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsLogCategory())
@@ -129,14 +132,38 @@ void FOutputLogModule::ShutdownModule()
 	OutputLogHistory.Reset();
 }
 
-TSharedRef< SWidget > FOutputLogModule::MakeConsoleInputBox(TSharedPtr<SMultiLineEditableTextBox>& OutExposedEditableTextBox, const FSimpleDelegate& OnCloseConsole) const
+FOutputLogModule& FOutputLogModule::Get()
 {
-	TSharedRef< SConsoleInputBox > NewConsoleInputBox =
+	static const FName OutputLog("OutputLog");
+
+	return FModuleManager::Get().LoadModuleChecked<FOutputLogModule>(OutputLog);
+}
+
+TSharedRef<SWidget> FOutputLogModule::MakeConsoleInputBox(TSharedPtr<SMultiLineEditableTextBox>& OutExposedEditableTextBox, const FSimpleDelegate& OnCloseConsole, const FSimpleDelegate& OnConsoleCommandExecuted) const
+{
+	TSharedRef<SConsoleInputBox> NewConsoleInputBox =
 		SNew(SConsoleInputBox)
-		.OnCloseConsole(OnCloseConsole);
+		.OnCloseConsole(OnCloseConsole)
+		.OnConsoleCommandExecuted(OnConsoleCommandExecuted);
 
 	OutExposedEditableTextBox = NewConsoleInputBox->GetEditableTextBox();
 	return NewConsoleInputBox;
+}
+
+TSharedRef<SWidget> FOutputLogModule::MakeOutputLogDrawerWidget(const FSimpleDelegate& OnCloseConsole)
+{
+	TSharedPtr<SOutputLog> OutputLogDrawerPinned = OutputLogDrawer.Pin();
+
+	if (!OutputLogDrawerPinned.IsValid())
+	{
+		OutputLogDrawerPinned = 
+			SNew(SOutputLog, true)
+			.OnCloseConsole(OnCloseConsole)
+			.Messages(OutputLogHistory->GetMessages());
+		OutputLogDrawer = OutputLogDrawerPinned;
+	}
+
+	return OutputLogDrawerPinned.ToSharedRef();
 }
 
 void FOutputLogModule::ToggleDebugConsoleForWindow(const TSharedRef<SWindow>& Window, const EDebugConsoleStyle::Type InStyle, const FDebugConsoleDelegates& DebugConsoleDelegates)
@@ -169,7 +196,7 @@ void FOutputLogModule::ToggleDebugConsoleForWindow(const TSharedRef<SWindow>& Wi
 	}
 
 	TSharedPtr<SDockTab> ActiveTab = FGlobalTabmanager::Get()->GetActiveTab();
-	if (ActiveTab.IsValid() && ActiveTab->GetLayoutIdentifier() == FTabId(OutputLogModule::OutputLogTabName))
+	if (ActiveTab.IsValid() && ActiveTab == OutputLogTab)
 	{
 		FGlobalTabmanager::Get()->DrawAttention(ActiveTab.ToSharedRef());
 		bShouldOpen = false;
@@ -214,19 +241,42 @@ void FOutputLogModule::CloseDebugConsole()
 
 void FOutputLogModule::ClearOnPIE(const bool bIsSimulating)
 {
-	if (OutputLog.IsValid())
+	bool bClearOnPIEEnabled = false;
+	GConfig->GetBool(TEXT("/Script/UnrealEd.EditorPerProjectUserSettings"), TEXT("bEnableOutputLogClearOnPIE"), bClearOnPIEEnabled, GEditorPerProjectIni);
+
+	if (bClearOnPIEEnabled)
 	{
-		bool bClearOnPIEEnabled = false;
-		GConfig->GetBool(TEXT("/Script/UnrealEd.EditorPerProjectUserSettings"), TEXT("bEnableOutputLogClearOnPIE"), bClearOnPIEEnabled, GEditorPerProjectIni);
-
-		if (bClearOnPIEEnabled)
+		if(TSharedPtr<SOutputLog> OutputLogPinned = OutputLog.Pin())
 		{
-			TSharedPtr<SOutputLog> OutputLogShared = OutputLog.Pin();
-
-			if (OutputLogShared->CanClearLog())
+			if (OutputLogPinned->CanClearLog())
 			{
-				OutputLogShared->OnClearLog();
+				OutputLogPinned->OnClearLog();
+			}
+		}
+
+		if (TSharedPtr<SOutputLog> OutputLogPinned = OutputLogDrawer.Pin())
+		{
+			if (OutputLogPinned->CanClearLog())
+			{
+				OutputLogPinned->OnClearLog();
 			}
 		}
 	}
+}
+
+void FOutputLogModule::FocusOutputLogConsoleBox(const TSharedRef<SWidget> OutputLogToFocus)
+{
+	if (OutputLog == OutputLogToFocus)
+	{
+		OutputLog.Pin()->FocusConsoleCommandBox();
+	}
+	else if (OutputLogDrawer == OutputLogToFocus)
+	{
+		OutputLogDrawer.Pin()->FocusConsoleCommandBox();
+	}
+}
+
+const TSharedPtr<SWidget> FOutputLogModule::GetOutputLog() const
+{
+	return OutputLog.Pin();
 }

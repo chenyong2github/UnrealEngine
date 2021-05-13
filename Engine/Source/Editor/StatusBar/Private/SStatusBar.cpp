@@ -11,7 +11,6 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SSeparator.h"
@@ -19,7 +18,6 @@
 #include "Framework/Commands/Commands.h"
 #include "ToolMenuContext.h"
 #include "ToolMenus.h"
-#include "OutputLogModule.h"
 #include "SourceControlMenuHelpers.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SSplitter.h"
@@ -55,14 +53,13 @@ class SDrawerOverlay : public SCompoundWidget
 		SLATE_ARGUMENT(float, MaxDrawerHeight)
 		SLATE_ARGUMENT(float, TargetDrawerHeight)
 		SLATE_EVENT(FOnStatusBarDrawerTargetHeightChanged, OnTargetHeightChanged)
+		SLATE_EVENT(FSimpleDelegate, OnDismissComplete)
 		SLATE_ARGUMENT(FVector2D, ShadowOffset)
 	SLATE_END_ARGS()
 
-	void UpdateHeightInterp(float InAlpha)
+	~SDrawerOverlay()
 	{
-		float NewHeight = FMath::Lerp(0.0f, TargetHeight, InAlpha);
-
-		SetHeight(NewHeight);
+		FSlateThrottleManager::Get().LeaveResponsiveMode(AnimationThrottle);
 	}
 
 	void Construct(const FArguments& InArgs)
@@ -89,10 +86,21 @@ class SDrawerOverlay : public SCompoundWidget
 		bIsResizeHandleHovered = false;
 		bIsResizing = false;
 
+		OnDismissComplete = InArgs._OnDismissComplete;
+
+		DrawerEasingCurve = FCurveSequence(0.0f, 0.15f, ECurveEaseFunction::QuadOut);
+
 		ChildSlot
 		[
 			InArgs._Content.Widget
 		];
+	}
+
+	void UpdateHeightInterp(float InAlpha)
+	{
+		float NewHeight = FMath::Lerp(0.0f, TargetHeight, InAlpha);
+
+		SetHeight(NewHeight);
 	}
 
 	virtual bool SupportsKeyboardFocus() const override
@@ -253,6 +261,30 @@ class SDrawerOverlay : public SCompoundWidget
 
 	}
 
+	void Open()
+	{
+		DrawerEasingCurve.Play(AsShared(), false, DrawerEasingCurve.IsPlaying() ? DrawerEasingCurve.GetSequenceTime() : 0.0f, false);
+
+		if (!DrawerOpenCloseTimer.IsValid())
+		{
+			AnimationThrottle = FSlateThrottleManager::Get().EnterResponsiveMode();
+			DrawerOpenCloseTimer = RegisterActiveTimer(0.0f, FWidgetActiveTimerDelegate::CreateSP(this, &SDrawerOverlay::UpdateDrawerAnimation));
+		}
+	}
+
+	void Dismiss()
+	{
+		if (DrawerEasingCurve.IsForward())
+		{
+			DrawerEasingCurve.Reverse();
+		}
+
+		if (!DrawerOpenCloseTimer.IsValid())
+		{
+			AnimationThrottle = FSlateThrottleManager::Get().EnterResponsiveMode();
+			DrawerOpenCloseTimer = RegisterActiveTimer(0.0f, FWidgetActiveTimerDelegate::CreateSP(this, &SDrawerOverlay::UpdateDrawerAnimation));
+		}
+	}
 private:
 	FGeometry GetRenderTransformedGeometry(const FGeometry& AllottedGeometry) const
 	{
@@ -268,14 +300,39 @@ private:
 	{
 		CurrentHeight = FMath::Clamp(NewHeight, MinHeight, TargetHeight);
 	}
+
+	EActiveTimerReturnType UpdateDrawerAnimation(double CurrentTime, float DeltaTime)
+	{
+		UpdateHeightInterp(DrawerEasingCurve.GetLerp());
+
+		if (!DrawerEasingCurve.IsPlaying())
+		{
+			if (DrawerEasingCurve.IsAtStart())
+			{
+				OnDismissComplete.ExecuteIfBound();
+			}
+
+			FSlateThrottleManager::Get().LeaveResponsiveMode(AnimationThrottle);
+			DrawerOpenCloseTimer.Reset();
+			return EActiveTimerReturnType::Stop;
+		}
+
+		return EActiveTimerReturnType::Continue;
+	}
+
+
 private:
 	FGeometry InitialResizeGeometry;
+	TSharedPtr<FActiveTimerHandle> DrawerOpenCloseTimer;
 	FOnStatusBarDrawerTargetHeightChanged OnTargetHeightChanged;
+	FCurveSequence DrawerEasingCurve;
+	FSimpleDelegate OnDismissComplete;
 	const FSlateBrush* BackgroundBrush;
 	const FSlateBrush* ShadowBrush;
 	const FSlateBrush* BorderBrush;
 	const FSplitterStyle* SplitterStyle;
 	FVector2D ShadowOffset;
+	FThrottleRequest AnimationThrottle;
 	FThrottleRequest ResizeThrottleHandle;
 	float ExpanderSize;
 	float CurrentHeight;
@@ -527,7 +584,6 @@ void SStatusBar::Construct(const FArguments& InArgs, FName InStatusBarName, cons
 
 	const FSlateBrush* StatusBarBackground = FAppStyle::Get().GetBrush("Brushes.Panel");
 
-	DrawerEasingCurve = FCurveSequence(0.0f, 0.15f, ECurveEaseFunction::QuadOut);
 
 	FSlateApplication::Get().OnFocusChanging().AddSP(this, &SStatusBar::OnGlobalFocusChanging);
 	FGlobalTabmanager::Get()->OnActiveTabChanged_Subscribe(FOnActiveTabChanged::FDelegate::CreateSP(this, &SStatusBar::OnActiveTabChanged));
@@ -547,18 +603,6 @@ void SStatusBar::Construct(const FArguments& InArgs, FName InStatusBarName, cons
 			+SHorizontalBox::Slot()
 			[
 				SNew(SHorizontalBox)
-				 +SHorizontalBox::Slot()
-			    .AutoWidth()
-			    .Padding(1.0f, 0.0f)
-			    [
-				    SNew(SBorder)
-				    .BorderImage(StatusBarBackground)
-				    .VAlign(VAlign_Center)
-				    .Padding(FMargin(6.0f, 0.0f))
-				    [
-					    MakeDebugConsoleWidget(InArgs._OnConsoleClosed)
-				    ]
-			    ]
 				+SHorizontalBox::Slot()
 				.FillWidth(1.0f)
 				.Padding(1.0f, 0.0f)
@@ -708,16 +752,6 @@ TSharedPtr<SDockTab> SStatusBar::GetParentTab() const
 	return ParentTab.Pin();
 }
 
-bool SStatusBar::FocusDebugConsole()
-{
-	return FSlateApplication::Get().SetKeyboardFocus(ConsoleEditBox, EFocusCause::SetDirectly);
-}
-
-bool SStatusBar::IsDebugConsoleFocused() const
-{
-	return ConsoleEditBox->HasKeyboardFocus();
-}
-
 void SStatusBar::OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWeakWidgetPath& OldFocusedWidgetPath, const TSharedPtr<SWidget>& OldFocusedWidget, const FWidgetPath& NewFocusedWidgetPath, const TSharedPtr<SWidget>& NewFocusedWidget)
 {
 	// Sometimes when dismissing focus can change which will trigger this again
@@ -730,9 +764,9 @@ void SStatusBar::OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWea
 		TSharedRef<SWidget> ThisWidget = AsShared();
 
 		TSharedPtr<SWidget> ActiveDrawerOverlayContent;
-		if (!OpenedDrawerData.Key.IsNone())
+		if (OpenedDrawer.IsValid())
 		{
-			ActiveDrawerOverlayContent = OpenedDrawerData.Value;
+			ActiveDrawerOverlayContent = OpenedDrawer.DrawerOverlay;
 		}
 
 		bool bShouldDismiss = false;
@@ -808,7 +842,7 @@ TSharedRef<SWidget> SStatusBar::MakeStatusBarDrawerButton(const FStatusBarDrawer
 {
 	const FName DrawerId = Drawer.UniqueId;
 
-	return
+	TSharedRef<SWidget> DrawerButton = 
 		SNew(SButton)
 		.IsFocusable(false)
 		.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("StatusBar.StatusBarButton"))
@@ -824,7 +858,7 @@ TSharedRef<SWidget> SStatusBar::MakeStatusBarDrawerButton(const FStatusBarDrawer
 			[
 				SNew(SImage)
 				.ColorAndOpacity(FSlateColor::UseForeground())
-				.Image_Lambda([this, DrawerId](){ return IsDrawerOpened(DrawerId) ? DownArrow : UpArrow; })
+				.Image_Lambda([this, DrawerId]() { return IsDrawerOpened(DrawerId) ? DownArrow : UpArrow; })
 			]
 			+ SHorizontalBox::Slot()
 			.Padding(2.0f)
@@ -844,7 +878,29 @@ TSharedRef<SWidget> SStatusBar::MakeStatusBarDrawerButton(const FStatusBarDrawer
 				.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
 				.Text(Drawer.ButtonText)
 			]
-		];	
+		];
+
+
+	if (Drawer.CustomWidget)
+	{
+		return
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+			.AutoWidth()
+			[
+				DrawerButton
+			]
+			+ SHorizontalBox::Slot()
+			[
+				Drawer.CustomWidget.ToSharedRef()
+			];
+	
+	}
+	else
+	{
+		return DrawerButton;
+	}
 }
 
 TSharedRef<SWidget> SStatusBar::MakeStatusBarToolBarWidget()
@@ -855,18 +911,6 @@ TSharedRef<SWidget> SStatusBar::MakeStatusBarToolBarWidget()
 	RegisterSourceControlStatus();
 
 	return UToolMenus::Get()->GenerateWidget(StatusBarToolBarName, MenuContext);
-}
-
-TSharedRef<SWidget> SStatusBar::MakeDebugConsoleWidget(FSimpleDelegate OnConsoleClosed)
-{
-	FOutputLogModule& OutputLogModule = FModuleManager::LoadModuleChecked<FOutputLogModule>(TEXT("OutputLog"));
-
-	return
-		SNew(SBox)
-		.WidthOverride(350.f)
-		[
-			OutputLogModule.MakeConsoleInputBox(ConsoleEditBox, OnConsoleClosed)
-		];
 }
 
 TSharedRef<SWidget> SStatusBar::MakeStatusMessageWidget()
@@ -904,7 +948,12 @@ TSharedRef<SWidget> SStatusBar::MakeProgressBar()
 
 bool SStatusBar::IsDrawerOpened(const FName DrawerId) const
 {
-	return OpenedDrawerData.Key == DrawerId ? true : false;
+	return OpenedDrawer == DrawerId ? true : false;
+}
+
+bool SStatusBar::IsAnyOtherDrawerOpened(const FName DrawerId) const
+{
+	return OpenedDrawer.IsValid() && OpenedDrawer.DrawerId != DrawerId ? true : false;
 }
 
 FReply SStatusBar::OnDrawerButtonClicked(const FName DrawerId)
@@ -922,35 +971,15 @@ FReply SStatusBar::OnDrawerButtonClicked(const FName DrawerId)
 }
 
 
-EActiveTimerReturnType SStatusBar::UpdateDrawerAnimation(double CurrentTime, float DeltaTime)
-{
-	check(OpenedDrawerData.Value.IsValid());
-
-	OpenedDrawerData.Value->UpdateHeightInterp(DrawerEasingCurve.GetLerp());
-
-	if (!DrawerEasingCurve.IsPlaying())
-	{
-		if(DrawerEasingCurve.IsAtStart())
-		{
-			CloseDrawerImmediately();
-		}
-
-		FSlateThrottleManager::Get().LeaveResponsiveMode(AnimationThrottle);
-		DrawerOpenCloseTimer.Reset();
-		return EActiveTimerReturnType::Stop;
-	}
-
-	return EActiveTimerReturnType::Continue;
-}
 
 void SStatusBar::OnDrawerHeightChanged(float TargetHeight)
 {
-	TSharedPtr<SWindow> MyWindow = WindowWithOverlayContent.Pin();
+	TSharedPtr<SWindow> MyWindow = OpenedDrawer.WindowWithOverlayContent.Pin();
 
 	// Save the height has a percentage of the screen
 	const float TargetDrawerHeightPct = TargetHeight / (MyWindow->GetSizeInScreen().Y / MyWindow->GetDPIScaleFactor());
 
-	GConfig->SetFloat(TEXT("DrawerSizes"), *(StatusBarName.ToString() + TEXT(".") + OpenedDrawerData.Key.ToString()), TargetDrawerHeightPct, GEditorSettingsIni);
+	GConfig->SetFloat(TEXT("DrawerSizes"), *(StatusBarName.ToString() + TEXT(".") + OpenedDrawer.DrawerId.ToString()), TargetDrawerHeightPct, GEditorSettingsIni);
 }
 
 void SStatusBar::RegisterStatusBarMenu()
@@ -1135,6 +1164,20 @@ TSharedRef<SWidget> SStatusBar::OnGetProgressBarMenuContent()
 		];
 }
 
+void SStatusBar::CloseDrawerImmediatelyInternal(const FOpenDrawerData& Data)
+{
+	if (Data.IsValid())
+	{
+		TSharedRef<SWidget> DrawerOverlayContent = Data.DrawerOverlay.ToSharedRef();
+
+		// Remove the content browser from the window
+		if (TSharedPtr<SWindow> Window = Data.WindowWithOverlayContent.Pin())
+		{
+			Window->RemoveOverlaySlot(DrawerOverlayContent);
+		}
+	}
+}
+
 void SStatusBar::RegisterDrawer(FStatusBarDrawer&& Drawer)
 {
 	const int32 NumDrawers = RegisteredDrawers.Num();
@@ -1162,7 +1205,7 @@ void SStatusBar::RegisterDrawer(FStatusBarDrawer&& Drawer)
 void SStatusBar::OpenDrawer(const FName DrawerId)
 {
 	// Close any other open drawer
-	if (DrawerId != OpenedDrawerData.Key)
+	if (OpenedDrawer.DrawerId != DrawerId && DismissingDrawers.IndexOfByKey(DrawerId) == INDEX_NONE)
 	{
 		DismissDrawer(nullptr);
 
@@ -1182,31 +1225,34 @@ void SStatusBar::OpenDrawer(const FName DrawerId)
 			float TargetDrawerHeight = (MyWindow->GetSizeInScreen().Y * TargetDrawerHeightPct) / MyWindow->GetDPIScaleFactor();
 
 			const float MinDrawerHeight = GetTickSpaceGeometry().GetLocalSize().Y + MyWindow->GetWindowBorderSize().Bottom;
-			DrawerEasingCurve.Play(ThisStatusBar, false, DrawerEasingCurve.IsPlaying() ? DrawerEasingCurve.GetSequenceTime() : 0.0f, false);
+	
+			FOpenDrawerData NewlyOpenedDrawer;
 
 			MyWindow->AddOverlaySlot()
 				.VAlign(VAlign_Bottom)
 				.Padding(FMargin(10.0f, 20.0f, 10.0f, MinDrawerHeight))
 				[
-					SAssignNew(OpenedDrawerData.Value, SDrawerOverlay)
+					SAssignNew(NewlyOpenedDrawer.DrawerOverlay, SDrawerOverlay)
 					.MinDrawerHeight(MinDrawerHeight)
 					.TargetDrawerHeight(TargetDrawerHeight)
 					.MaxDrawerHeight(MaxDrawerHeight)
+					.OnDismissComplete_Lambda(
+						[DrawerId, this]()
+						{
+							CloseDrawerImmediately(DrawerId);
+						})
 					.OnTargetHeightChanged(this, &SStatusBar::OnDrawerHeightChanged)
 					[
 						DrawerData->GetDrawerContentDelegate.Execute()
 					]
 				];
 
-			WindowWithOverlayContent = MyWindow;
+			NewlyOpenedDrawer.WindowWithOverlayContent = MyWindow;
+			NewlyOpenedDrawer.DrawerId = DrawerId;
+			NewlyOpenedDrawer.DrawerOverlay->Open();
 
-			if (!DrawerOpenCloseTimer.IsValid())
-			{
-				AnimationThrottle = FSlateThrottleManager::Get().EnterResponsiveMode();
-				DrawerOpenCloseTimer = RegisterActiveTimer(0.0f, FWidgetActiveTimerDelegate::CreateSP(ThisStatusBar, &SStatusBar::UpdateDrawerAnimation));
-			}
+			OpenedDrawer = MoveTemp(NewlyOpenedDrawer);
 
-			OpenedDrawerData.Key = DrawerId;
 			DrawerData->OnDrawerOpenedDelegate.ExecuteIfBound(ThisStatusBar);
 		}
 	}
@@ -1214,50 +1260,48 @@ void SStatusBar::OpenDrawer(const FName DrawerId)
 
 void SStatusBar::DismissDrawer(const TSharedPtr<SWidget>& NewlyFocusedWidget)
 {
-	if (!OpenedDrawerData.Key.IsNone())
+	if (OpenedDrawer.IsValid())
 	{
-		FStatusBarDrawer* Drawer = RegisteredDrawers.FindByKey(OpenedDrawerData.Key);
+		FStatusBarDrawer* Drawer = RegisteredDrawers.FindByKey(OpenedDrawer.DrawerId);
 
-		if (DrawerEasingCurve.IsForward())
-		{
-			DrawerEasingCurve.Reverse();
-		}
+		OpenedDrawer.DrawerOverlay->Dismiss();
+		DismissingDrawers.Add(MoveTemp(OpenedDrawer));
 
-		if (!DrawerOpenCloseTimer.IsValid())
-		{
-			AnimationThrottle = FSlateThrottleManager::Get().EnterResponsiveMode();
-			DrawerOpenCloseTimer = RegisterActiveTimer(0.0f, FWidgetActiveTimerDelegate::CreateSP(this, &SStatusBar::UpdateDrawerAnimation));
-		}
+		OpenedDrawer = FOpenDrawerData();
 
 		Drawer->OnDrawerDismissedDelegate.ExecuteIfBound(NewlyFocusedWidget);
 	}
 }
 
-void SStatusBar::CloseDrawerImmediately()
+void SStatusBar::CloseDrawerImmediately(FName DrawerId)
 {
-	if (!OpenedDrawerData.Key.IsNone())
+	// If no ID is specified remove all drawers
+	if (DrawerId.IsNone())
 	{
-		TSharedRef<SWidget> DrawerOverlayContent = OpenedDrawerData.Value.ToSharedRef();
-
-		// Remove the content browser from the window
-		if (TSharedPtr<SWindow> Window = WindowWithOverlayContent.Pin())
+		for (const FOpenDrawerData& Data : DismissingDrawers)
 		{
-			Window->RemoveOverlaySlot(DrawerOverlayContent);
+			CloseDrawerImmediatelyInternal(Data);
 		}
 
-		OpenedDrawerData = TPair<FName, TSharedPtr<SDrawerOverlay>>();
+		DismissingDrawers.Empty();
 
-		WindowWithOverlayContent.Reset();
+		CloseDrawerImmediatelyInternal(OpenedDrawer);
 
-		if (DrawerOpenCloseTimer.IsValid())
+		OpenedDrawer = FOpenDrawerData();
+	}
+	else
+	{
+		int32 Index = DismissingDrawers.IndexOfByKey(DrawerId);
+		if (Index != INDEX_NONE)
 		{
-			FSlateThrottleManager::Get().LeaveResponsiveMode(AnimationThrottle);
-			UnRegisterActiveTimer(DrawerOpenCloseTimer.ToSharedRef());
+			CloseDrawerImmediatelyInternal(DismissingDrawers[Index]);
+			DismissingDrawers.RemoveAtSwap(Index);
 		}
-
-		DrawerOpenCloseTimer.Reset();
-		DrawerEasingCurve.JumpToStart();
-		DrawerEasingCurve.Pause();
+		else if (OpenedDrawer == DrawerId)
+		{
+			CloseDrawerImmediatelyInternal(OpenedDrawer);
+			OpenedDrawer = FOpenDrawerData();
+		}
 	}
 }
 
