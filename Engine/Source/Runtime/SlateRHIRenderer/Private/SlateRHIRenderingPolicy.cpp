@@ -784,7 +784,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				false);
 
 			const uint32 PrimitiveCount = RenderBatch.DrawPrimitiveType == ESlateDrawPrimitive::LineList ? RenderBatch.NumIndices / 2 : RenderBatch.NumIndices / 3;
-
+			check(ShaderResource == nullptr || !ShaderResource->Debug_IsDestroyed());
 			ESlateShaderResource::Type ResourceType = ShaderResource ? ShaderResource->GetType() : ESlateShaderResource::Invalid;
 			if (ResourceType != ESlateShaderResource::Material && ShaderType != ESlateShader::PostProcess)
 			{

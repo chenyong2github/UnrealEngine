@@ -65,14 +65,24 @@ public:
 
 #if SLATE_CHECK_UOBJECT_RENDER_RESOURCES
 	virtual void CheckForStaleResources() const { }
-#else
-	FORCEINLINE void CheckForStaleResources() const { }
-#endif
-
-public:
+	bool Debug_IsDestroyed() const { return DestroyState != 0x21; }
 
 	/** Virtual destructor. */
-	virtual ~FSlateShaderResource() { }
+	virtual ~FSlateShaderResource() { DestroyState = 0x84; }
+#else
+	FORCEINLINE void CheckForStaleResources() const { }
+	bool Debug_IsDestroyed() const { return false; }
+
+	/** Virtual destructor. */
+	virtual ~FSlateShaderResource() = default;
+#endif
+
+
+#if SLATE_CHECK_UOBJECT_RENDER_RESOURCES
+private:
+	// Use an int, instead of a bool, to make sure the value is "exactly" what it's set in the destructor.
+	uint8 DestroyState = 0x21;
+#endif
 };
 
 /**
