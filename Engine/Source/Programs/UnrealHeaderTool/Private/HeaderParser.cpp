@@ -3158,14 +3158,14 @@ void FHeaderParser::FixupDelegateProperties( UStruct* Struct, FScope& Scope, TMa
 				// this property and verify that the delegate property's "type" is an actual delegate function
 				FClassMetaData* StructData = GScriptHelper.FindClassData(Struct);
 				check(StructData);
-				FTokenData* DelegatePropertyToken = StructData->FindTokenData(Property);
+				FToken* DelegatePropertyToken = StructData->FindTokenData(Property);
 				check(DelegatePropertyToken);
 
 				// attempt to find the delegate function in the map of functions we've already found
-				UFunction* SourceDelegateFunction = DelegateCache.FindRef(DelegatePropertyToken->Token.DelegateName);
+				UFunction* SourceDelegateFunction = DelegateCache.FindRef(DelegatePropertyToken->DelegateName);
 				if (SourceDelegateFunction == nullptr)
 				{
-					FString NameOfDelegateFunction = DelegatePropertyToken->Token.DelegateName.ToString() + FString( HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX );
+					FString NameOfDelegateFunction = DelegatePropertyToken->DelegateName.ToString() + FString( HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX );
 					if ( !NameOfDelegateFunction.Contains(TEXT(".")) )
 					{
 						// an unqualified delegate function name - search for a delegate function by this name within the current scope
@@ -3173,8 +3173,8 @@ void FHeaderParser::FixupDelegateProperties( UStruct* Struct, FScope& Scope, TMa
 						if (SourceDelegateFunction == nullptr)
 						{
 							// Try to find in other packages.
-							UObject* DelegateSignatureOuter = DelegatePropertyToken->Token.DelegateSignatureOwnerClass 
-								? ((UObject*)DelegatePropertyToken->Token.DelegateSignatureOwnerClass) 
+							UObject* DelegateSignatureOuter = DelegatePropertyToken->DelegateSignatureOwnerClass 
+								? ((UObject*)DelegatePropertyToken->DelegateSignatureOwnerClass) 
 								: ((UObject*)ANY_PACKAGE);
 							SourceDelegateFunction = Cast<UFunction>(StaticFindObject(UFunction::StaticClass(), DelegateSignatureOuter, *NameOfDelegateFunction));
 
@@ -3193,14 +3193,14 @@ void FHeaderParser::FixupDelegateProperties( UStruct* Struct, FScope& Scope, TMa
 						// verify that we got a valid string for the class name
 						if ( DelegateClassName.Len() == 0 )
 						{
-							UngetToken(DelegatePropertyToken->Token);
+							UngetToken(*DelegatePropertyToken);
 							FError::Throwf(TEXT("Invalid scope specified in delegate property function reference: '%s'"), *NameOfDelegateFunction);
 						}
 
 						// verify that we got a valid string for the name of the function
 						if ( DelegateName.Len() == 0 )
 						{
-							UngetToken(DelegatePropertyToken->Token);
+							UngetToken(*DelegatePropertyToken);
 							FError::Throwf(TEXT("Invalid delegate name specified in delegate property function reference '%s'"), *NameOfDelegateFunction);
 						}
 
@@ -3215,12 +3215,12 @@ void FHeaderParser::FixupDelegateProperties( UStruct* Struct, FScope& Scope, TMa
 
 					if ( SourceDelegateFunction == NULL )
 					{
-						UngetToken(DelegatePropertyToken->Token);
+						UngetToken(*DelegatePropertyToken);
 						FError::Throwf(TEXT("Failed to find delegate function '%s'"), *NameOfDelegateFunction);
 					}
 					else if ( (SourceDelegateFunction->FunctionFlags&FUNC_Delegate) == 0 )
 					{
-						UngetToken(DelegatePropertyToken->Token);
+						UngetToken(*DelegatePropertyToken);
 						FError::Throwf(TEXT("Only delegate functions can be used as the type for a delegate property; '%s' is not a delegate."), *NameOfDelegateFunction);
 					}
 				}
@@ -3228,14 +3228,14 @@ void FHeaderParser::FixupDelegateProperties( UStruct* Struct, FScope& Scope, TMa
 				// successfully found the delegate function that this delegate property corresponds to
 
 				// save this into the delegate cache for faster lookup later
-				DelegateCache.Add(DelegatePropertyToken->Token.DelegateName, SourceDelegateFunction);
+				DelegateCache.Add(DelegatePropertyToken->DelegateName, SourceDelegateFunction);
 
 				// bind it to the delegate property
 				if( DelegateProperty != NULL )
 				{
 					if( !SourceDelegateFunction->HasAnyFunctionFlags( FUNC_MulticastDelegate ) )
 					{
-						DelegateProperty->SignatureFunction = DelegatePropertyToken->Token.Function = SourceDelegateFunction;
+						DelegateProperty->SignatureFunction = DelegatePropertyToken->Function = SourceDelegateFunction;
 					}
 					else
 					{
@@ -3246,7 +3246,7 @@ void FHeaderParser::FixupDelegateProperties( UStruct* Struct, FScope& Scope, TMa
 				{
 					if( SourceDelegateFunction->HasAnyFunctionFlags( FUNC_MulticastDelegate ) )
 					{
-						MulticastDelegateProperty->SignatureFunction = DelegatePropertyToken->Token.Function = SourceDelegateFunction;
+						MulticastDelegateProperty->SignatureFunction = DelegatePropertyToken->Function = SourceDelegateFunction;
 
 						if(MulticastDelegateProperty->HasAnyPropertyFlags(CPF_BlueprintAssignable | CPF_BlueprintCallable))
 						{
@@ -3528,11 +3528,11 @@ void FHeaderParser::VerifyPropertyMarkups( UClass* TargetClass )
 
 			FClassMetaData* TargetClassData = GScriptHelper.FindClassData(TargetClass);
 			check(TargetClassData);
-			FTokenData* PropertyToken = TargetClassData->FindTokenData(Prop);
+			FToken* PropertyToken = TargetClassData->FindTokenData(Prop);
 			check(PropertyToken);
 
-			TGuardValue<int32> GuardedInputPos(InputPos, PropertyToken->Token.StartPos);
-			TGuardValue<int32> GuardedInputLine(InputLine, PropertyToken->Token.StartLine);
+			TGuardValue<int32> GuardedInputPos(InputPos, PropertyToken->StartPos);
+			TGuardValue<int32> GuardedInputLine(InputLine, PropertyToken->StartLine);
 
 			if (Prop->HasAnyPropertyFlags(CPF_RepNotify))
 			{
@@ -7358,6 +7358,15 @@ UDelegateFunction* FHeaderParser::CompileDelegateDeclaration(const TCHAR* Delega
 		SDF->DelegateName = DelegateName.Identifier;
 	}
 
+
+	// Save off function identifier in case we need it to error later, since we are moving the FuncInfo
+	TCHAR FuncInfoFunctionIdentifier[NAME_SIZE];
+	FCString::Strncpy(FuncInfoFunctionIdentifier, FuncInfo.Function.Identifier, NAME_SIZE);
+
+	TSharedRef<FUnrealFunctionDefinitionInfo> FuncDef = MakeShareable(new FUnrealFunctionDefinitionInfo(SourceFile, InputLine, FString(FuncInfoFunctionIdentifier), MoveTemp(FuncInfo)));
+	FuncDef->SetObject(FuncDef->GetFunctionData().FunctionReference);
+	GTypeDefinitionInfoMap.Add(FuncDef->GetFunctionData().FunctionReference, FuncDef);
+
 	// Get parameter list.
 	if (FoundParamCount)
 	{
@@ -7378,14 +7387,8 @@ UDelegateFunction* FHeaderParser::CompileDelegateDeclaration(const TCHAR* Delega
 		RequireSymbol(TEXT(')'), TEXT("Delegate Declaration"));
 	}
 
-	// Save off function identifier in case we need it to error later, since we are moving the FuncInfo
-	TCHAR FuncInfoFunctionIdentifier[NAME_SIZE];
-	FCString::Strncpy(FuncInfoFunctionIdentifier, FuncInfo.Function.Identifier, NAME_SIZE);
-
-	FuncInfo.MacroLine = InputLine;
-	TSharedRef<FUnrealFunctionDefinitionInfo> FuncDef = MakeShareable(new FUnrealFunctionDefinitionInfo(SourceFile, InputLine, FString(FuncInfoFunctionIdentifier), MoveTemp(FuncInfo)));
-	FuncDef->SetObject(FuncDef->GetFunctionData().FunctionReference);
-	GTypeDefinitionInfoMap.Add(FuncDef->GetFunctionData().FunctionReference, FuncDef);
+	// The macro line must be set here
+	FuncDef->GetFunctionData().MacroLine = InputLine;
 
 	// Create the return value property
 	if (bHasReturnValue)
