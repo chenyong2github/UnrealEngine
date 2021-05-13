@@ -4,16 +4,7 @@
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/ComputeKernelCommon.ush"
 
-KERNEL_SRV(Buffer<float>, a);
-
-KERNEL_SRV(Buffer<float>, b);
-
-KERNEL_UAV(RWBuffer<float>, c);
-
 [numthreads(32, 1, 1)]
-KERNEL_ENTRY_POINT(LinearBlendSkinning)
+KERNEL_ENTRY_POINT(ComputeKernelNull)
 {
-	c[DTid.x] = a[DTid.x]
-	 + 
-	b[DTid.x]; 
 }

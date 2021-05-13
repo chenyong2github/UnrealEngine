@@ -4,11 +4,10 @@
 
 #include "ComputeKernelSource.h"
 #include "Engine/EngineTypes.h"
-
 #include "ComputeKernelFromText.generated.h"
 
-/* 
- * Responsible for loading HLSL text and parsing the options available.
+/**
+ * Class responsible for loading HLSL text and parsing the options available.
  */
 UCLASS(BlueprintType)
 class ENGINE_API UComputeKernelFromText : public UComputeKernelSource
@@ -18,20 +17,24 @@ class ENGINE_API UComputeKernelFromText : public UComputeKernelSource
 public:
 	UComputeKernelFromText();
 
-	/* Filepath to the source file containing the kernel entry points. */
+	/** Filepath to the source file containing the kernel entry points and all options for parsing. */
 	UPROPERTY(EditDefaultsOnly, AssetRegistrySearchable, meta = (ContentDir, RelativeToGameContentDir, FilePathFilter = "Unreal Shader File (*.usf)|*.usf"), Category = "Kernel")
 	FFilePath SourceFile;
 
+	/** Kernel entry point. */
 	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, Category = "Kernel")
 	FString EntryPointName;
 
+	/** A unique id for the asset. */
 	UPROPERTY()
 	FGuid UniqueId;
 
+	/** Stored hash for the kernel source. */
 	UPROPERTY()
 	uint64 SourceHash = 0;
 
-
+protected:
+	//~ Begin UComputeKernelSource Interface.
 	FString GetEntryPoint() const override
 	{
 		return EntryPointName;
@@ -46,23 +49,26 @@ public:
 #endif
 	}
 
-	uint64 GetSourceHashCode() const override
+	uint64 GetSourceCodeHash() const override
 	{
 		return SourceHash;
 	}
-
-	void PostLoad() override;
+	//~ End UComputeKernelSource Interface.
 
 #if WITH_EDITOR
-	FString KernelSourceText;
-	FFilePath PrevSourceFile;
-
-	virtual void PreEditChange(FEditPropertyChain& PropertyAboutToChange) override;
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	//~ Begin UObject Interface.
+	void PostLoad() override;
+	void PreEditChange(FEditPropertyChain& PropertyAboutToChange) override;
+	void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	//~ End UObject Interface.
 #endif
 
 private:
 #if WITH_EDITOR
+	/** Parse the kernel source to get the kernel external functions and other data. */
 	void ReparseKernelSourceText();
+
+	FString KernelSourceText;
+	FFilePath PrevSourceFile;
 #endif
 };

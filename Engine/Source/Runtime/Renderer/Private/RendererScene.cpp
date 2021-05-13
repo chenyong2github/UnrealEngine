@@ -56,6 +56,7 @@
 #include "Engine/StaticMesh.h"
 #include "GPUSkinCache.h"
 #include "ComputeFramework/ComputeFramework.h"
+#include "ComputeFramework/ComputeGraphScheduler.h"
 #include "DynamicShadowMapChannelBindingHelper.h"
 #include "GPUScene.h"
 #include "HAL/LowLevelMemTracker.h"
@@ -1083,7 +1084,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 
 	if (SupportsComputeFramework(InFeatureLevel, GetFeatureLevelShaderPlatform(InFeatureLevel)))
 	{
-		ComputeFramework = new FComputeFramework();
+		ComputeGraphScheduler = new FComputeGraphScheduler();
 	}
 
 #if RHI_RAYTRACING

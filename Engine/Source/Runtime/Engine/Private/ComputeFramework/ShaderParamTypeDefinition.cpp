@@ -2,11 +2,10 @@
 
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 
+#include "Algo/Find.h"
+#include "Misc/DefaultValueHelper.h"
 #include "Serialization/Archive.h"
 #include "Templates/TypeHash.h"
-#include "Misc/DefaultValueHelper.h"
-#include "Algo/Find.h"
-
 
 // Storage for shared shader value types.
 static uint32 GetTypeHash(const FShaderValueTypeHandle& InTypeHandle)
@@ -33,10 +32,7 @@ struct HandleKeyFuncs : BaseKeyFuncs<FShaderValueTypeHandle,FShaderValueTypeHand
 	}
 };
 
-
 static TSet<FShaderValueTypeHandle, HandleKeyFuncs> GloballyKnownValueTypes;
-
-
 
 FShaderValueTypeHandle FShaderValueType::Get(EShaderFundamentalType InType)
 {
@@ -52,7 +48,6 @@ FShaderValueTypeHandle FShaderValueType::Get(EShaderFundamentalType InType)
 	return GetOrCreate(MoveTemp(ValueType));
 }
 
-
 FShaderValueTypeHandle FShaderValueType::Get(EShaderFundamentalType InType, int32 InElemCount)
 {
 	if (InType == EShaderFundamentalType::Struct || InElemCount < 1 || InElemCount > 4)
@@ -67,7 +62,6 @@ FShaderValueTypeHandle FShaderValueType::Get(EShaderFundamentalType InType, int3
 
 	return GetOrCreate(MoveTemp(ValueType));
 }
-
 
 FShaderValueTypeHandle FShaderValueType::Get(EShaderFundamentalType InType, int32 InRowCount, int32 InColumnCount)
 {
@@ -86,7 +80,6 @@ FShaderValueTypeHandle FShaderValueType::Get(EShaderFundamentalType InType, int3
 
 	return GetOrCreate(MoveTemp(ValueType));
 }
-
 
 FShaderValueTypeHandle FShaderValueType::Get(
 	FName InName, 
@@ -128,7 +121,6 @@ FShaderValueTypeHandle FShaderValueType::Get(
 	return GetOrCreate(MoveTemp(ValueType));
 }
 
-
 FShaderValueTypeHandle FShaderValueType::GetOrCreate(FShaderValueType&& InValueType)
 {
 	FShaderValueTypeHandle Handle;
@@ -144,7 +136,6 @@ FShaderValueTypeHandle FShaderValueType::GetOrCreate(FShaderValueType&& InValueT
 	GloballyKnownValueTypes.Add(Handle);
 	return Handle;
 }
-
 
 bool FShaderValueType::operator==(const FShaderValueType& InOtherType) const
 {
@@ -222,7 +213,6 @@ uint32 GetTypeHash(const FShaderValueType& InShaderValueType)
 	return Hash;
 }
 
-
 FString FShaderValueType::ToString() const
 {
 	// FIXME: Cache on create?
@@ -257,7 +247,6 @@ FString FShaderValueType::ToString() const
 
 	return BaseName;
 }
-
 
 FString FShaderValueType::GetTypeDeclaration() const
 {
@@ -323,14 +312,12 @@ FArchive& operator<<(FArchive& InArchive, FShaderValueTypeHandle& InHandle)
 	return InArchive;
 }
 
-
 FArchive& operator<<(FArchive& InArchive, FShaderValueType::FStructElement& InElement)
 {
 	InArchive << InElement.Name;
 	InArchive << InElement.Type;
 	return InArchive;
 }
-
 
 using FFundamentalStingPair = TPair<EShaderFundamentalType, FString>;
 using FResourceStingPair = TPair<EShaderResourceType, FString>;
@@ -418,8 +405,7 @@ EShaderResourceType FShaderParamTypeDefinition::ParseResource(const FString& Str
 		}
 	}
 
-	check(!"Unknown Type");
-	return EShaderResourceType::Buffer;
+	return EShaderResourceType::None;
 }
 
 void FShaderParamTypeDefinition::ResetTypeDeclaration(
@@ -431,7 +417,8 @@ void FShaderParamTypeDefinition::ResetTypeDeclaration(
 		TypeDecl.Append(TEXT("RW"));
 	}
 
-	if (BindingType != EShaderParamBindingType::ConstantParameter)
+	const bool bIsResourceType = BindingType == EShaderParamBindingType::ReadOnlyResource || BindingType == EShaderParamBindingType::ReadWriteResource;
+	if (bIsResourceType)
 	{
 		auto* foundItem = Algo::FindByPredicate(
 			ResTypeStringMap, 
@@ -468,7 +455,7 @@ void FShaderParamTypeDefinition::ResetTypeDeclaration(
 		break;
 	};
 
-	if (BindingType != EShaderParamBindingType::ConstantParameter)
+	if (bIsResourceType)
 	{
 		TypeDecl.AppendChar(TEXT('>'));
 	}

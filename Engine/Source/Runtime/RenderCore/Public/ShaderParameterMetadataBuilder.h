@@ -38,6 +38,44 @@ public:
 		NextMemberOffset += sizeof(typename TParamTypeInfo::TAlignedType);
 	}
 
+	template<typename T>
+	void AddNestedStruct(
+		const TCHAR* Name,
+		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
+		)
+	{
+		using TParamTypeInfo = TShaderParameterStructTypeInfo<T>;
+
+		NextMemberOffset = Align(NextMemberOffset, TParamTypeInfo::Alignment);
+
+		new(Members) FShaderParametersMetadata::FMember(
+			Name,
+			TEXT(""),
+			__LINE__,
+			NextMemberOffset,
+			UBMT_NESTED_STRUCT,
+			Precision,
+			TParamTypeInfo::NumRows,
+			TParamTypeInfo::NumColumns,
+			TParamTypeInfo::NumElements,
+			TParamTypeInfo::GetStructMetadata()
+		);
+
+		NextMemberOffset += sizeof(typename TParamTypeInfo::TAlignedType);
+	}
+
+	void AddBufferSRV(
+		const TCHAR* Name,
+		const TCHAR* ShaderType,
+		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
+		);
+
+	void AddBufferUAV(
+		const TCHAR* Name,
+		const TCHAR* ShaderType,
+		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
+		);
+
 	void AddRDGBufferSRV(
 		const TCHAR* Name,
 		const TCHAR* ShaderType,
