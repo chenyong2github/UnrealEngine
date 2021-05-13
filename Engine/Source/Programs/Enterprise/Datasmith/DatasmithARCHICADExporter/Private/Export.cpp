@@ -35,7 +35,7 @@ static GSErrCode __ACENV_CALL SaveToDatasmithFile(const API_IOParams* IOParams, 
 
 GSErrCode FExport::Register()
 {
-	return ACAPI_Register_FileType(kDatasmithFileRefCon, kStrFileType, kStrFileCreator, StrFileExtension, kIconDS,
+	return ACAPI_Register_FileType(kDatasmithFileRefCon, kStrFileType, kStrFileCreator, StrFileExtension, kIconDSFile,
 								   LocalizeResId(kStrListFileTypes), 0, SaveAs3DSupported);
 }
 

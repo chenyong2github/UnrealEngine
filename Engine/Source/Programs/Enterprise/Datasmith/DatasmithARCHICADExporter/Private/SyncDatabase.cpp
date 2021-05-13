@@ -11,6 +11,8 @@
 #include "Utils/Element2String.h"
 
 #include "DatasmithUtils.h"
+#include "IDirectLinkUI.h"
+#include "IDatasmithExporterUIModule.h"
 
 #include "ModelMeshBody.hpp"
 #include "Light.hpp"
@@ -25,11 +27,12 @@ BEGIN_NAMESPACE_UE_AC
 #endif
 
 // Constructor
-FSyncDatabase::FSyncDatabase(const TCHAR* InSceneName, const TCHAR* InSceneLabel, const TCHAR* InAssetsPath)
+FSyncDatabase::FSyncDatabase(const TCHAR* InSceneName, const TCHAR* InSceneLabel, const TCHAR* InAssetsPath,
+							 const GS::UniString& InAssetsCache)
 	: Scene(FDatasmithSceneFactory::CreateScene(*FDatasmithUtils::SanitizeObjectName(InSceneName)))
 	, AssetsFolderPath(InAssetsPath)
 	, MaterialsDatabase(new FMaterialsDatabase())
-	, TexturesCache(new FTexturesCache())
+	, TexturesCache(new FTexturesCache(InAssetsCache))
 {
 	Scene->SetLabel(InSceneLabel);
 }
@@ -227,6 +230,75 @@ bool FSyncDatabase::SetMesh(TSharedPtr< IDatasmithMeshElement >*	   Handle,
 	return true;
 }
 
+// Return the libpart from it's index
+FLibPartInfo* FSyncDatabase::GetLibPartInfo(GS::Int32 InIndex)
+{
+	TUniquePtr< FLibPartInfo >* LibPartInfo = IndexToLibPart.Find(InIndex);
+	if (LibPartInfo == nullptr)
+	{
+		LibPartInfo = &IndexToLibPart.Add(InIndex, MakeUnique< FLibPartInfo >());
+		LibPartInfo->Get()->Initialize(InIndex);
+	}
+	return LibPartInfo->Get();
+}
+
+// Return the libpart from it's unique id
+FLibPartInfo* FSyncDatabase::GetLibPartInfo(const char* InUnID)
+{
+	FGSUnID	  UnID;
+	GSErrCode GSErr = UnID.InitWithString(InUnID);
+	if (GSErr != NoError)
+	{
+		UE_AC_DebugF("FSyncDatabase::GetLibPartInfo - InitWithString(\"%s\") return error\n", InUnID);
+		return nullptr;
+	}
+	if (UnID.Main == GS::NULLGuid && UnID.Rev == GS::NULLGuid)
+	{
+		return nullptr;
+	}
+
+	FLibPartInfo** LibPartInfoPtr = UnIdToLibPart.Find(UnID);
+	if (LibPartInfoPtr == nullptr)
+	{
+		API_LibPart LibPart;
+		Zap(&LibPart);
+		strncpy(LibPart.ownUnID, InUnID, sizeof(LibPart.ownUnID));
+		GSErrCode err = ACAPI_LibPart_Search(&LibPart, false);
+		if (err != NoError)
+		{
+			UE_AC_DebugF("FSyncDatabase::GetLibPartInfo - Can't find libpart \"%s\"\n", InUnID);
+			return nullptr;
+		}
+		FLibPartInfo* LibPartInfo = GetLibPartInfo(LibPart.index);
+		UnIdToLibPart.Add(UnID, LibPartInfo);
+		return LibPartInfo;
+	}
+	return *LibPartInfoPtr;
+}
+
+// Return the cache path
+GS::UniString FSyncDatabase::GetCachePath()
+{
+	const TCHAR*				CacheDirectory = nullptr;
+	IDatasmithExporterUIModule* DsExporterUIModule = IDatasmithExporterUIModule::Get();
+	if (DsExporterUIModule != nullptr)
+	{
+		IDirectLinkUI* DLUI = DsExporterUIModule->GetDirectLinkExporterUI();
+		if (DLUI != nullptr)
+		{
+			CacheDirectory = DLUI->GetDirectLinkCacheDirectory();
+		}
+	}
+	if (CacheDirectory != nullptr && *CacheDirectory != 0)
+	{
+		return UEToGSString(CacheDirectory);
+	}
+	else
+	{
+		return GetAddonDataDirectory();
+	}
+}
+
 // SetSceneInfo
 void FSyncDatabase::SetSceneInfo()
 {
@@ -264,7 +336,7 @@ UInt32 FSyncDatabase::ScanElements(const FSyncContext& InSyncContext)
 			continue;
 		}
 
-		API_Guid ElementGuid = GSGuid2APIGuid(ElementID.Element3D.GetElemGuid());
+		API_Guid ElementGuid = GSGuid2APIGuid(ElementID.GetElement3D().GetElemGuid());
 		if (ElementGuid == APINULLGuid)
 		{
 #if UE_AC_DO_TRACE && 1
@@ -285,7 +357,7 @@ UInt32 FSyncDatabase::ScanElements(const FSyncContext& InSyncContext)
 #endif
 
 		// Check 3D geometry bounding box
-		Box3D box = ElementID.Element3D.GetBounds(ModelerAPI::CoordinateSystem::ElemLocal);
+		Box3D box = ElementID.GetElement3D().GetBounds(ModelerAPI::CoordinateSystem::ElemLocal);
 
 		// Bonding box is empty, must not happen, but it happen
 		if (box.xMin > box.xMax || box.yMin > box.yMax || box.zMin > box.zMax)
@@ -310,12 +382,12 @@ UInt32 FSyncDatabase::ScanElements(const FSyncContext& InSyncContext)
 		UE_AC_STAT(InSyncContext.Stats.TotalElementsWithGeometry++);
 
 		// Get sync data for this element (Create or reuse already existing)
-		FSyncData*& SyncData = GetSyncData(APIGuid2GSGuid(ElementID.ElementHeader.guid));
+		FSyncData*& SyncData = GetSyncData(APIGuid2GSGuid(ElementID.GetHeader().guid));
 		if (SyncData == nullptr)
 		{
-			SyncData = new FSyncData::FElement(APIGuid2GSGuid(ElementID.ElementHeader.guid), InSyncContext);
+			SyncData = new FSyncData::FElement(APIGuid2GSGuid(ElementID.GetHeader().guid), InSyncContext);
 		}
-		ElementID.SyncData = SyncData;
+		ElementID.SetSyncData(SyncData);
 		SyncData->Update(ElementID);
 		if (SyncData->IsModified())
 		{
@@ -323,7 +395,7 @@ UInt32 FSyncDatabase::ScanElements(const FSyncContext& InSyncContext)
 		}
 
 		// Add lights
-		if (ElementID.Element3D.GetLightCount() > 0)
+		if (ElementID.GetElement3D().GetLightCount() > 0)
 		{
 			ScanLights(ElementID);
 		}
@@ -345,29 +417,55 @@ UInt32 FSyncDatabase::ScanElements(const FSyncContext& InSyncContext)
 // Scan all lights of this element
 void FSyncDatabase::ScanLights(const FElementID& InElementID)
 {
-	GS::Int32 LightsCount = InElementID.Element3D.GetLightCount();
+	GS::Int32 LightsCount = InElementID.GetElement3D().GetLightCount();
 	if (LightsCount > 0)
 	{
+		const API_Elem_Head& Header = InElementID.GetHeader();
 #if UE_AC_DO_TRACE_LIGHTS
-		UE_AC_TraceF("%s", FElement2String::GetElementAsShortString(InElementID.ElementHeader.guid).c_str());
-		UE_AC_TraceF("%s", FElement2String::GetParametersAsString(InElementID.ElementHeader.guid).c_str());
+		UE_AC_TraceF("%s", FElement2String::GetElementAsShortString(Header.guid).c_str());
+		UE_AC_TraceF("%s", FElement2String::GetParametersAsString(Header.guid).c_str());
 		UE_AC_TraceF("%s", F3DElement2String::ElementLight2String(InElementID.Element3D).c_str());
 #endif
+		double		  Intensity = 1.0;
+		bool		  bUseIES = false;
+		GS::UniString IESFileName;
+		FAutoMemo	  AutoMemo(Header.guid, APIMemoMask_AddPars);
+		if (AutoMemo.GSErr == NoError)
+		{
+			if (AutoMemo.Memo.params) // Can be null
+			{
+				double value;
+				if (GetParameter(AutoMemo.Memo.params, "gs_light_intensity", &value))
+				{
+					Intensity = value / 100.0;
+				}
+				if (GetParameter(AutoMemo.Memo.params, "c4dPhoPhotometric", &value))
+				{
+					bUseIES = value != 0;
+				}
+				GetParameter(AutoMemo.Memo.params, "c4dPhoIESFile", &IESFileName);
+			}
+		}
+		else
+		{
+			UE_AC_DebugF("FSyncDatabase::ScanLights - Error=%d when getting element memo\n", AutoMemo.GSErr);
+		}
+
 		ModelerAPI::Light Light;
 
 		for (GS::Int32 LightIndex = 1; LightIndex <= LightsCount; ++LightIndex)
 		{
-			InElementID.Element3D.GetLight(LightIndex, &Light);
+			InElementID.GetElement3D().GetLight(LightIndex, &Light);
 			ModelerAPI::Light::Type LightType = Light.GetType();
 			if (LightType == ModelerAPI::Light::DirectionLight || LightType == ModelerAPI::Light::SpotLight ||
 				LightType == ModelerAPI::Light::PointLight)
 			{
-				API_Guid	LightId = CombineGuid(InElementID.ElementHeader.guid, GuidFromMD5(LightIndex));
+				API_Guid	LightId = CombineGuid(Header.guid, GuidFromMD5(LightIndex));
 				FSyncData*& SyncData = FSyncDatabase::GetSyncData(APIGuid2GSGuid(LightId));
 				if (SyncData == nullptr)
 				{
 					SyncData = new FSyncData::FLight(APIGuid2GSGuid(LightId), LightIndex);
-					SyncData->SetParent(InElementID.SyncData);
+					SyncData->SetParent(InElementID.GetSyncData());
 					SyncData->MarkAsModified();
 				}
 				FSyncData::FLight& LightSyncData = static_cast< FSyncData::FLight& >(*SyncData);
@@ -376,7 +474,9 @@ void FSyncDatabase::ScanLights(const FElementID& InElementID)
 				const float	 InnerConeAngle = float(Light.GetFalloffAngle1() * 180.0f / PI);
 				const float	 OuterConeAngle = float(Light.GetFalloffAngle2() * 180.0f / PI);
 				FLinearColor LightColor = ACRGBColorToUELinearColor(Light.GetColor());
+
 				LightSyncData.SetValues(LightType, InnerConeAngle, OuterConeAngle, LightColor);
+				LightSyncData.SetValuesFromParameters(Intensity, bUseIES, IESFileName);
 				LightSyncData.Placement(FGeometryUtil::GetTranslationVector(Light.GetPosition()),
 										FGeometryUtil::GetRotationQuat(Light.GetDirection()));
 			}

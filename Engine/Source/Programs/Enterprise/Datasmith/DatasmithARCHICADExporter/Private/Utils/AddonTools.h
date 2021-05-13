@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "WarningsDisabler.h"
+
 #if defined(WIN32)
 	#pragma warning(push)
 	#pragma warning(disable : 4800)
@@ -15,9 +17,11 @@
 	#pragma warning(pop)
 #endif
 
+DISABLE_SDK_WARNINGS_START
 #include "APIEnvir.h"
 #include "ACAPinc.h"
 #include "Md5.hpp"
+DISABLE_SDK_WARNINGS_END
 
 #include "LocalizeTools.h"
 #include "DebugTools.h"
@@ -39,11 +43,20 @@ utf8_string Utf8StringFormat(const utf8_t* InFmt, ...) __printflike(1, 2);
 // Short way to get TCHAR pointer of a GS::UniString
 #define GSStringToUE(InGSString) UTF16_TO_TCHAR(InGSString.ToUStr().Get())
 
+// Convert a UE String to GS::UniString
+inline GS::UniString UEToGSString(const TCHAR* InUEString)
+{
+	return GS::UniString(reinterpret_cast< const GS::UniChar::Layout* >(InUEString));
+}
+
 // Convert an Archicad fingerprint to an API_Guid
 inline const API_Guid& Fingerprint2API_Guid(const MD5::FingerPrint& inFP)
 {
 	return *(const API_Guid*)&inFP;
 }
+
+// Compute Guid of the string
+API_Guid String2API_Guid(const GS::UniString& inString);
 
 // Compute Guid from MD5 of the value
 template < class T > inline API_Guid GuidFromMD5(const T& inV)
@@ -126,33 +139,14 @@ class FAutoHandle
 enum ENames
 {
 	kName_Invalid,
-	kName_Company,
-	kName_Floor,
-	kName_Layer,
-	kName_Group,
-	kName_LayerDeleted,
-	kName_LayerError,
-	kName_ElementType,
-	kName_InvalidGroupId,
-	kName_UndefinedValueType,
-	kName_InvalidVariant,
-	kName_UndefinedCollectionType,
-	kName_InvalidCollectionType,
-	kName_InvalidPrimitiveType,
-	kName_IFCAttributes,
-	kName_IFC_,
-	kName_Camera,
-	kName_Textures,
-	kName__Assets,
 	kName_TextureExtension,
 	kName_TextureMime,
-	kName_SyncOptions,
-	kName_ExportOptions,
-	kName_Unknown,
 	kName_ShowPalette,
 	kName_HidePalette,
-	kName_OkButtonLabel,
-	kName_CancelButtonLabel,
+	kName_DatasmithFileTypeName,
+	kName_ExportToDatasmithFile,
+	kName_StartAutoSync,
+	kName_PauseAutoSync,
 	kName_Undefined,
 	kName_NBNames
 };

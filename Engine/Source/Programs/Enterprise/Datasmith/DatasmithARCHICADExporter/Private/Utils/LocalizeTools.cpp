@@ -177,7 +177,7 @@ const GS::UniString& FMultiString::GetGSString(Int32 InStrIndex)
 {
 	if (!IsValidIndex(InStrIndex))
 	{
-		static GS::UniString invalid("(Invalid string index)");
+		static const GS::UniString invalid("(Invalid string index)");
 		return invalid;
 	}
 	return mGSStrings[size_t(InStrIndex - StartIndex)];

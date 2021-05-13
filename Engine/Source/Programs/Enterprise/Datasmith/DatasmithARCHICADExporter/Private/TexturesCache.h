@@ -61,23 +61,46 @@ class FTexturesCache
 		bool bUsed = false; // True if this texture is used
 	};
 
-	FTexturesCache();
+	class FIESTexturesCacheElem
+	{
+	  public:
+		FIESTexturesCacheElem(FString& InTexturePath)
+			: TexturePath(InTexturePath)
+		{
+		}
+
+		FString TexturePath; // Path of the written texture
+	};
+
+	FTexturesCache(const GS::UniString& InAssetsCache);
 
 	// Return the texture specified by the index. (Will throw an exception if index is invalid)
 	const FTexturesCacheElem& GetTexture(const FSyncContext& InSyncContext, GS::Int32 InTextureIndex);
 
+	// Create IES texture
+	const FIESTexturesCacheElem& GetIESTexture(const FSyncContext& InSyncContext, const FString& InIESFilePath);
+
+	// Write the texture to the cache
 	void WriteTexture(const ModelerAPI::Texture& inACTexture, const GS::UniString& InPath, bool InIsFingerprint) const;
 
 	size_t GetCount() const { return Textures.Num(); }
 
+	// Insure we have a copy of the IES file in the cache folder
+	GS::UniString CopyIESFile(const GS::UniString& InIESFileName);
+
   private:
-	typedef TMap< GS::Int32, FTexturesCacheElem > MapTextureIndex2CacheElem;
+	void CreateCacheFolders();
+
+	typedef TMap< GS::Int32, FTexturesCacheElem >  MapTextureIndex2CacheElem;
+	typedef TMap< FString, FIESTexturesCacheElem > MapIESTexture2CacheElem;
 
 	typedef TSet< FString >	  SetTexturesIds;
 	MapTextureIndex2CacheElem Textures;
+	MapIESTexture2CacheElem	  IESTextures;
+	bool					  bCacheFoldersCreated = false;
+	GS::UniString			  AssetsCache;
 	GS::UniString			  AbsolutePath;
-	GS::UniString			  RelativePath;
-	bool					  bUseRelative;
+	GS::UniString			  IESTexturesPath;
 
 	typedef TSet< FUniStringPtr > SetStrings;
 

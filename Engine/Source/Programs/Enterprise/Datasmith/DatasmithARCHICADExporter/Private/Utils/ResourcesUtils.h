@@ -33,11 +33,10 @@
 #define kStrListENames 331
 
 #define kAlertUnhandledError 350
-#define kAlertSaveFileError 351
-#define kAlertACDBError 352
-#define kAlertPlugInError 353
-#define kAlertNot3DViewError 354
-#define kAlertUserCancelledError 355
+#define kAlertACDBError 351
+#define kAlertPlugInError 352
+#define kAlertNot3DViewError 353
+#define kAlertUserCancelledError 354
 
 #define LocalizeResId(id) short(UE_AC::GetCurrentLanguage() * 1000 + id)
 
@@ -45,20 +44,4 @@
 #define UE_AC_STRINGIZE_A(arg) UE_AC_STRINGIZE_I arg
 #define UE_AC_STRINGIZE_I(text) #text
 
-#ifndef RICKAD
-	#define RICKAD 0
-#endif
-
-#if RIKCAD
-	#define AC_RK_LR(l, r) AC_RK_TXT(l RIKCAD r)
-	#define AC_RK_L(l) AC_RK_TXT(l RIKCAD)
-	#define AC_RK_R(r) AC_RK_TXT(RIKCAD r)
-#else
-	#define AC_RK_LR(l, r) AC_RK_TXT(l ARCHICAD r)
-	#define AC_RK_L(l) AC_RK_TXT(l ARCHICAD)
-	#define AC_RK_R(r) AC_RK_TXT(ARCHICAD r)
-#endif
-#define AC_RK_TXT(text) #text
-
-#define ADDON_SYNC_NAME AC_RK_LR(Datasmith, Exporter)
 #define ADDON_MENU_TITLE "Datasmith"

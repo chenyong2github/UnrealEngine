@@ -62,9 +62,6 @@
     <ClCompile Include="..\..\Private\MaterialsDatabase.cpp">
       <Filter>Private</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Private\Progression.cpp">
-      <Filter>Private</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\Private\SyncContext.cpp">
       <Filter>Private</Filter>
     </ClCompile>
@@ -140,6 +137,15 @@
     <ClCompile Include="..\..\Private\Utils\ViewState.cpp">
       <Filter>Private\Utils</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Private\Utils\Progression.cpp">
+      <Filter>Private\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Private\Utils\TaskMgr.cpp">
+      <Filter>Private\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Private\Utils\LibPartInfo.cpp">
+      <Filter>Private\Utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Private\LoadDatasmithDlls.h">
@@ -185,9 +191,6 @@
       <Filter>Private</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Private\Preferences.h">
-      <Filter>Private</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Private\Progression.h">
       <Filter>Private</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Private\SyncContext.h">
@@ -280,15 +283,21 @@
     <ClInclude Include="..\..\Private\Utils\ViewState.h">
       <Filter>Private\Utils</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\Private\Utils\Progression.h">
+      <Filter>Private\Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Private\Utils\TaskMgr.h">
+      <Filter>Private\Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Private\Utils\LibPartInfo.h">
+      <Filter>Private\Utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\..\Resources\RFIX\DatasmithARCHICADExporterFix.grc">
       <Filter>Resources</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Resources\RFIX.WIN\DatasmithARCHICADExporter.rc2">
-      <Filter>Resources</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Resources\RINT\DatasmithARCHICADExporter.grc">
       <Filter>Resources</Filter>
     </CustomBuild>
   </ItemGroup>
@@ -298,6 +307,12 @@
     </None>
     <None Include="..\..\Private\Utils\MacOS.mm">
       <Filter>Private\Utils</Filter>
+    </None>
+    <None Include="..\..\Resources\RINT\en.lproj\DatasmithARCHICADExporter.grc">
+      <Filter>Resources</Filter>
+    </None>
+    <None Include="..\..\Resources\RINT\fr.lproj\DatasmithARCHICADExporter.grc">
+      <Filter>Resources</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
