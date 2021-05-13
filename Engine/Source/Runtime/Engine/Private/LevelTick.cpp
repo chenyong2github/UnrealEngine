@@ -41,6 +41,8 @@
 #include "TimerManager.h"
 #include "Camera/CameraPhotography.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "ProfilingDebugging/RealtimeGPUProfiler.h"
+
 #if ENABLE_COLLISION_ANALYZER
 #include "PhysicsEngine/CollisionAnalyzerCapture.h"
 #endif
@@ -66,7 +68,7 @@
 #include "ComputeFramework/ComputeFramework.h"
 
 #if WITH_EDITOR
-#include "Editor.h"
+	#include "Editor.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "ObjectCacheEventSink.h"
 #endif
@@ -970,83 +972,74 @@ bool UWorld::HasEndOfFrameUpdates() const
 
 struct FSendAllEndOfFrameUpdates
 {
+	FSendAllEndOfFrameUpdates(FSceneInterface* InScene)
+	{
+		if (InScene != nullptr)
+		{
+			GPUSkinCache = InScene->GetGPUSkinCache();
+			ComputeFramework = InScene->GetComputeFramework();
+			FeatureLevel = InScene->GetFeatureLevel();
+		}
+	}
+	
 	FGPUSkinCache* GPUSkinCache = nullptr;
 	FComputeFramework* ComputeFramework = nullptr;
 	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::Num;
 
 #if WANTS_DRAW_MESH_EVENTS
 	FDrawEvent DrawEvent;
-#endif
+#endif // WANTS_DRAW_MESH_EVENTS
 };
 
-FSendAllEndOfFrameUpdates* BeginSendEndOfFrameUpdatesDrawEvent(
-	FGPUSkinCache* GPUSkinCache,
-	FComputeFramework* ComputeFramework,
-	ERHIFeatureLevel::Type FeatureLevel
-	)
+void BeginSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates& SendAllEndOfFrameUpdates)
 {
-	FSendAllEndOfFrameUpdates* SendAllEndOfFrameUpdates = new FSendAllEndOfFrameUpdates;
-	SendAllEndOfFrameUpdates->GPUSkinCache = GPUSkinCache;
-	SendAllEndOfFrameUpdates->ComputeFramework = ComputeFramework;
-	SendAllEndOfFrameUpdates->FeatureLevel = FeatureLevel;
-
-#if WANTS_DRAW_MESH_EVENTS
+	BEGIN_DRAW_EVENTF_GAMETHREAD(SendAllEndOfFrameUpdates, SendAllEndOfFrameUpdates.DrawEvent, TEXT("SendAllEndOfFrameUpdates"));
+	
 	ENQUEUE_RENDER_COMMAND(BeginDrawEventCommand)(
-		[SendAllEndOfFrameUpdates](FRHICommandListImmediate& RHICmdList)
+		[GPUSkinCache = SendAllEndOfFrameUpdates.GPUSkinCache](FRHICommandListImmediate& RHICmdList)
 		{
-			BEGIN_DRAW_EVENTF(
-				RHICmdList, 
-				SendAllEndOfFrameUpdates, 
-				SendAllEndOfFrameUpdates->DrawEvent,
-				TEXT("SendAllEndOfFrameUpdates"));
-
-			if (SendAllEndOfFrameUpdates->GPUSkinCache)
+			if (GPUSkinCache != nullptr)
 			{
-				SendAllEndOfFrameUpdates->GPUSkinCache->BeginBatchDispatch(RHICmdList);
+				GPUSkinCache->BeginBatchDispatch(RHICmdList);
 			}
 		});
-#endif
-
-	return SendAllEndOfFrameUpdates;
 }
 
 DECLARE_GPU_STAT(EndOfFrameUpdates);
 DECLARE_GPU_STAT(GPUSkinCacheRayTracingGeometry);
 DECLARE_GPU_STAT(ComputeFrameworkExecuteBatches);
-void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates* SendAllEndOfFrameUpdates)
+void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates& SendAllEndOfFrameUpdates)
 {
 	ENQUEUE_RENDER_COMMAND(EndDrawEventCommand)(
-		[SendAllEndOfFrameUpdates](FRHICommandListImmediate& RHICmdList)
-	{
-		SCOPED_GPU_STAT(RHICmdList, EndOfFrameUpdates);
-
-		if (SendAllEndOfFrameUpdates->GPUSkinCache)
+		[GPUSkinCache = SendAllEndOfFrameUpdates.GPUSkinCache, ComputeFramework = SendAllEndOfFrameUpdates.ComputeFramework, FeatureLevel = SendAllEndOfFrameUpdates.FeatureLevel](FRHICommandListImmediate& RHICmdList)
 		{
+			SCOPED_GPU_STAT(RHICmdList, EndOfFrameUpdates);
+
+			if (GPUSkinCache != nullptr)
 			{
 				// Once all the individual components have received their DoDeferredRenderUpdates_Concurrent()
 				// allow the GPU Skin Cache system to update.
-				SendAllEndOfFrameUpdates->GPUSkinCache->EndBatchDispatch(RHICmdList);
+				GPUSkinCache->EndBatchDispatch(RHICmdList);
 
 				// Flush any remaining pending resource barriers.
-				SendAllEndOfFrameUpdates->GPUSkinCache->TransitionAllToReadable(RHICmdList);
+				GPUSkinCache->TransitionAllToReadable(RHICmdList);
+
+#if RHI_RAYTRACING
+				{
+					SCOPED_GPU_STAT(RHICmdList, GPUSkinCacheRayTracingGeometry);
+					GPUSkinCache->CommitRayTracingGeometryUpdates(RHICmdList);
+				}
+#endif // RHI_RAYTRACING
 			}
 
-		#if RHI_RAYTRACING
+			if (ComputeFramework != nullptr)
 			{
-				SCOPED_GPU_STAT(RHICmdList, GPUSkinCacheRayTracingGeometry);
-				SendAllEndOfFrameUpdates->GPUSkinCache->CommitRayTracingGeometryUpdates(RHICmdList);
+				SCOPED_GPU_STAT(RHICmdList, ComputeFrameworkExecuteBatches);
+				ComputeFramework->ExecuteBatches(RHICmdList, FeatureLevel);
 			}
-		#endif // RHI_RAYTRACING
-		}
+		});
 
-		if (SendAllEndOfFrameUpdates->ComputeFramework)
-		{
-			SCOPED_GPU_STAT(RHICmdList, ComputeFrameworkExecuteBatches);
-			SendAllEndOfFrameUpdates->ComputeFramework->ExecuteBatches(RHICmdList, SendAllEndOfFrameUpdates->FeatureLevel);
-		}
-
-		delete SendAllEndOfFrameUpdates;
-	});
+	STOP_DRAW_EVENT_GAMETHREAD(SendAllEndOfFrameUpdates.DrawEvent);
 }
 
 /**
@@ -1106,11 +1099,8 @@ void UWorld::SendAllEndOfFrameUpdates()
 	}
 
 	// Issue a GPU event to wrap GPU work done during SendAllEndOfFrameUpdates, like skin cache updates
-	FSendAllEndOfFrameUpdates* SendAllEndOfFrameUpdates = BeginSendEndOfFrameUpdatesDrawEvent(
-		Scene ? Scene->GetGPUSkinCache() : nullptr,
-		Scene ? Scene->GetComputeFramework() : nullptr,
-		Scene ? Scene->GetFeatureLevel() : ERHIFeatureLevel::Num
-		);
+	FSendAllEndOfFrameUpdates SendAllEndOfFrameUpdates(Scene);
+	BeginSendEndOfFrameUpdatesDrawEvent(SendAllEndOfFrameUpdates);
 
 	// update all dirty components. 
 	FGuardValue_Bitfield(bPostTickComponentUpdate, true); 
@@ -1331,34 +1321,6 @@ DECLARE_CYCLE_STAT(TEXT("TG_LastDemotable"), STAT_TG_LastDemotable, STATGROUP_Ti
 
 #include "GameFramework/SpawnActorTimer.h"
 
-FDrawEvent* BeginTickDrawEvent()
-{
-	FDrawEvent* TickDrawEvent = new FDrawEvent();
-	FDrawEvent* InTickDrawEvent = TickDrawEvent;
-	ENQUEUE_RENDER_COMMAND(BeginDrawEventCommand)(
-		[InTickDrawEvent](FRHICommandList& RHICmdList)
-		{
-			BEGIN_DRAW_EVENTF(
-				RHICmdList, 
-				WorldTick, 
-				(*InTickDrawEvent),
-				TEXT("WorldTick"));
-		});
-
-	return TickDrawEvent;
-}
-
-void EndTickDrawEvent(FDrawEvent* TickDrawEvent)
-{
-	FDrawEvent* InTickDrawEvent = TickDrawEvent;
-	ENQUEUE_RENDER_COMMAND(EndDrawEventCommand)(
-		[InTickDrawEvent](FRHICommandList& RHICmdList)
-		{
-			STOP_DRAW_EVENT((*InTickDrawEvent));
-			delete InTickDrawEvent;
-		});
-}
-
 /**
  * Update the level after a variable amount of time, DeltaSeconds, has passed.
  * All child actors are ticked after their owners have been ticked.
@@ -1375,7 +1337,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 		return;
 	}
 
-	FDrawEvent* TickDrawEvent = BeginTickDrawEvent();
+	SCOPED_DRAW_EVENT_GAMETHREAD(WorldTick);
 
 	FWorldDelegates::OnWorldTickStart.Broadcast(this, TickType, DeltaSeconds);
 
@@ -1853,8 +1815,6 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 				WorldParam->PerfTrackers->GetInGamePerformanceTracker((EInGamePerfTrackers)Tracker, EInGamePerfTrackerThreads::RenderThread).Tick();
 			}
 		});
-
-	EndTickDrawEvent(TickDrawEvent);
 }
 
 void UWorld::CleanupActors()

@@ -8,6 +8,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "ProfilingDebugging/RealtimeGPUProfiler.h"
 #include "Camera/CameraTypes.h"
 #include "KismetRenderingLibrary.generated.h"
 
@@ -21,15 +22,12 @@ struct FDrawToRenderTargetContext
 {
 	GENERATED_USTRUCT_BODY()
 
-	FDrawToRenderTargetContext() :
-		RenderTarget(NULL),
-		DrawEvent(NULL)
-	{}
-
 	UPROPERTY()
 	TObjectPtr<UTextureRenderTarget2D> RenderTarget;
 
-	FDrawEvent* DrawEvent;
+#if WANTS_DRAW_MESH_EVENTS
+	FDrawEvent* DrawEvent = nullptr;
+#endif // WANTS_DRAW_MESH_EVENTS
 };
 
 UCLASS(MinimalAPI, meta=(ScriptName="RenderingLibrary"))
@@ -121,7 +119,7 @@ class UKismetRenderingLibrary : public UBlueprintFunctionLibrary
 
 	/**
     * Incredibly inefficient and slow operation! Read an area of values as-is from a render target using a rectangle defined by integer pixel coordinates.
-    */
+	*/
 	UFUNCTION(BlueprintCallable, Category = "Rendering", meta = (Keywords = "ReadRenderTarget", WorldContext = "WorldContextObject"))
 	static ENGINE_API TArray<FLinearColor> ReadRenderTargetRawPixelArea(UObject* WorldContextObject, UTextureRenderTarget2D* TextureRenderTarget, int32 MinX, int32 MinY, int32 MaxX, int32 MaxY, bool bNormalize = true);
 
