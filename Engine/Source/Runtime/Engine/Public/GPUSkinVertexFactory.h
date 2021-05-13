@@ -659,7 +659,7 @@ public:
 			Reset();
 		}
 
-		bool UpdateClothSimulData(FRHICommandListImmediate& RHICmdList, const TArray<FVector>& InSimulPositions, const TArray<FVector>& InSimulNormals, uint32 FrameNumber, ERHIFeatureLevel::Type FeatureLevel);
+		bool UpdateClothSimulData(FRHICommandListImmediate& RHICmdList, const TArray<FVector3f>& InSimulPositions, const TArray<FVector3f>& InSimulNormals, uint32 FrameNumber, ERHIFeatureLevel::Type FeatureLevel);
 
 		void ReleaseClothSimulData()
 		{
@@ -716,7 +716,7 @@ public:
 			return ClothSimulPositionNormalBuffer[Index];
 		}
 		
-		FMatrix& GetClothLocalToWorldForWriting(uint32 FrameNumber)
+		FMatrix44f& GetClothLocalToWorldForWriting(uint32 FrameNumber)
 		{
 			uint32 Index = GetOldestIndex(FrameNumber);
 			Index = (BufferFrameNumber[0] == FrameNumber) ? 0 : Index;
@@ -725,7 +725,7 @@ public:
 			return ClothLocalToWorld[Index];
 		}
 
-		const FMatrix& GetClothLocalToWorldForReading(bool bPrevious, uint32 FrameNumber) const
+		const FMatrix44f& GetClothLocalToWorldForReading(bool bPrevious, uint32 FrameNumber) const
 		{
 			int32 Index = GetMostRecentIndex(FrameNumber);
 
@@ -754,7 +754,7 @@ public:
 		/**
 		 * Matrix to apply to positions/normals
 		 */
-		FMatrix ClothLocalToWorld[2];
+		FMatrix44f ClothLocalToWorld[2];
 
 		// @return 0 / 1, index into ClothSimulPositionNormalBuffer[]
 		uint32 GetMostRecentIndex(uint32 FrameNumber) const
@@ -819,8 +819,8 @@ public:
 			BufferFrameNumber[0] = -1;
 			BufferFrameNumber[1] = -1;
 
-			ClothLocalToWorld[0] = FMatrix::Identity;
-			ClothLocalToWorld[1] = FMatrix::Identity;
+			ClothLocalToWorld[0] = FMatrix44f::Identity;
+			ClothLocalToWorld[1] = FMatrix44f::Identity;
 		}
 	};
 

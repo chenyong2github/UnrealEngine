@@ -17,10 +17,10 @@ struct FClothSimulData
 	}
 
 	// Positions of the simulation mesh particles
-	TArray<FVector> Positions;
+	TArray<FVector3f> Positions;
 
 	// Normals at the simulation mesh particles
-	TArray<FVector> Normals;
+	TArray<FVector3f> Normals;
 
 	// Transform applied per position/normal element when loaded
 	FTransform Transform;
