@@ -4406,7 +4406,10 @@ void FEngineLoop::Exit()
 	if (!IStreamingManager::HasShutdown())
 	{
 		UTexture2D::CancelPendingTextureStreaming();
-		IStreamingManager::Get().BlockTillAllRequestsFinished();
+		if (FStreamingManagerCollection* StreamingManager = IStreamingManager::Get_Concurrent())
+		{
+			StreamingManager->BlockTillAllRequestsFinished();
+		}
 	}
 	FAudioDeviceManager::Shutdown();
 
