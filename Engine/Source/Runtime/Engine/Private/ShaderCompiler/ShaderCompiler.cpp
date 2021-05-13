@@ -116,6 +116,14 @@ static FAutoConsoleVariableRef CVarShaderCompilerCacheStatsPrintoutInterval(
 	ECVF_Default
 );
 
+int32 GShaderCompilerAllowDistributedCompilation = 1;
+static FAutoConsoleVariableRef CVarShaderCompilerAllowDistributedCompilation(
+	TEXT("r.ShaderCompiler.AllowDistributedCompilation"),
+	GShaderCompilerAllowDistributedCompilation,
+	TEXT("If 0, only local (spawned by the engine) ShaderCompileWorkers will be used. If 1, SCWs will be distributed using one of several possible backends (XGE, FASTBuild, SN-DBS)"),
+	ECVF_Default
+);
+
 /** Helper functions for logging more debug info */
 namespace ShaderCompiler
 {
@@ -168,6 +176,18 @@ namespace ShaderCompiler
 	bool IsJobCacheEnabled()
 	{
 		return GShaderCompilerJobCache != 0;
+	}
+
+	bool IsRemoteCompilingAllowed()
+	{
+		// commandline switches override the CVars
+		static bool bDisabledFromCommandline = FParse::Param(FCommandLine::Get(), TEXT("NoRemoteShaderCompile"));
+		if (bDisabledFromCommandline)
+		{
+			return false;
+		}
+
+		return GShaderCompilerAllowDistributedCompilation != 0;
 	}
 }
 
@@ -300,7 +320,7 @@ void FShaderCompileJobCollection::InternalSetPriority(FShaderCommonCompileJob* J
 		Job->PendingPriority = InPriority;
 	}
 	else if (!Job->bFinalized &&
-		Job->CurrentWorker == EShaderCompilerWorkerType::XGE &&
+		Job->CurrentWorker == EShaderCompilerWorkerType::Distributed &&
 		InPriority == EShaderCompileJobPriority::ForceLocal)
 	{
 		FShaderCommonCompileJob* NewJob = CloneJob(Job);
@@ -2991,7 +3011,7 @@ FShaderCompilingManager::FShaderCompilingManager() :
 
 	TUniquePtr<FShaderCompileThreadRunnableBase> RemoteCompileThread;
 #if PLATFORM_WINDOWS
-	const bool bCanUseRemoteCompiling = bAllowCompilingThroughWorkers && AllTargetPlatformSupportsRemoteShaderCompiling();
+	const bool bCanUseRemoteCompiling = bAllowCompilingThroughWorkers && ShaderCompiler::IsRemoteCompilingAllowed() && AllTargetPlatformSupportsRemoteShaderCompiling();
 	BuildDistributionController = bCanUseRemoteCompiling ? FindRemoteCompilerController() : nullptr;
 	
 	if (BuildDistributionController)
@@ -3002,7 +3022,7 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	else
 #endif // PLATFORM_WINDOWS
 #if PLATFORM_DESKTOP
-	if (bAllowCompilingThroughWorkers && FShaderCompileFASTBuildThreadRunnable::IsSupported())
+	if (bAllowCompilingThroughWorkers && ShaderCompiler::IsRemoteCompilingAllowed() && FShaderCompileFASTBuildThreadRunnable::IsSupported())
 	{
 		UE_LOG(LogShaderCompilers, Display, TEXT("Using FASTBuild Shader Compiler."));
 		RemoteCompileThread = MakeUnique<FShaderCompileFASTBuildThreadRunnable>(this);
@@ -3014,6 +3034,8 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	TUniquePtr<FShaderCompileThreadRunnableBase> LocalThread = MakeUnique<FShaderCompileThreadRunnable>(this);
 	if (RemoteCompileThread)
 	{
+		checkf(ShaderCompiler::IsRemoteCompilingAllowed(), TEXT("We have a remote compiling thread without the remote compilation being allowed"));
+
 		// Only force-local jobs are guaranteed to stay on the local machine. Going wide with High priority jobs is important for the startup times,
 		// since special materials use High priority. Possibly the partition by priority is too rigid in general.
 		RemoteCompileThread->SetPriorityRange(EShaderCompileJobPriority::Low, EShaderCompileJobPriority::High);

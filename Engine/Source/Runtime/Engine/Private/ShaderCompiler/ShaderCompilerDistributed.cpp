@@ -6,14 +6,20 @@
 
 namespace DistributedShaderCompilerVariables
 {
-	//TODO: Remove XGE from the name after ensuring that we are not breaking existing configs by doing so.
+	//TODO: Remove the XGE doublet
 	int32 MinBatchSize = 20;
 	FAutoConsoleVariableRef CVarXGEShaderCompileMinBatchSize(
         TEXT("r.XGEShaderCompile.MinBatchSize"),
         MinBatchSize,
-        TEXT("Minimum number of shaders to compile with XGE.\n")
-        TEXT("Smaller number of shaders will compile locally."),
+        TEXT("This CVar is deprecated, please use r.ShaderCompiler.DistributedMinBatchSize"),
         ECVF_Default);
+
+	FAutoConsoleVariableRef CVarDistributedMinBatchSize(
+		TEXT("r.ShaderCompiler.DistributedMinBatchSize"),
+		MinBatchSize,
+		TEXT("Minimum number of shaders to compile with a distributed controller.\n")
+		TEXT("Smaller number of shaders will compile locally."),
+		ECVF_Default);
 
 	static int32 GDistributedControllerTimeout = 5 * 60;	// 
 	static FAutoConsoleVariableRef CVarDistributedControllerTimeout(
@@ -174,10 +180,10 @@ int32 FShaderCompileDistributedThreadRunnable_Interface::CompilingLoop()
 			// Grab as many jobs from the job queue as we can
 			const EShaderCompileJobPriority Priority = (EShaderCompileJobPriority)PriorityIndex;
 			const int32 MinBatchSize = (Priority == EShaderCompileJobPriority::Low) ? 1 : DistributedShaderCompilerVariables::MinBatchSize;
-			const int32 NumJobs = Manager->AllJobs.GetPendingJobs(EShaderCompilerWorkerType::XGE, Priority, MinBatchSize, INT32_MAX, PendingJobs);
+			const int32 NumJobs = Manager->AllJobs.GetPendingJobs(EShaderCompilerWorkerType::Distributed, Priority, MinBatchSize, INT32_MAX, PendingJobs);
 			if (NumJobs > 0)
 			{
-				UE_LOG(LogShaderCompilers, Display, TEXT("Started %d 'XGE' shader compile jobs with '%s' priority"),
+				UE_LOG(LogShaderCompilers, Verbose, TEXT("Started %d 'Distributed' shader compile jobs with '%s' priority"),
 					NumJobs,
 					ShaderCompileJobPriorityToString((EShaderCompileJobPriority)PriorityIndex));
 			}
@@ -331,7 +337,7 @@ int32 FShaderCompileDistributedThreadRunnable_Interface::CompilingLoop()
 			if (bOutputFileReadFailed)
 			{
 				// Reading result from XGE job failed, so recompile shaders in current job batch locally
-				UE_LOG(LogShaderCompilers, Log, TEXT("Rescheduling shader compilation to run locally after XGE job failed: %s"), *Task->OutputFilePath);
+				UE_LOG(LogShaderCompilers, Log, TEXT("Rescheduling shader compilation to run locally after distributed job failed: %s"), *Task->OutputFilePath);
 
 				for (FShaderCommonCompileJobPtr Job : Task->ShaderJobs)
 				{

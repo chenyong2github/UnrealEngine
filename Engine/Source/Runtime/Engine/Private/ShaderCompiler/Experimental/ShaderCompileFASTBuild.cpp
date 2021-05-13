@@ -688,7 +688,7 @@ int32 FShaderCompileFASTBuildThreadRunnable::CompilingLoop()
 		{
 			const EShaderCompileJobPriority Priority = (EShaderCompileJobPriority)PriorityIndex;
 			const int32 MinBatchSize = (Priority == EShaderCompileJobPriority::Low) ? 1 : FASTBuildShaderCompilerVariables::MinBatchSize;
-			const int32 NumJobs = Manager->AllJobs.GetPendingJobs(EShaderCompilerWorkerType::XGE, Priority, MinBatchSize, INT32_MAX, JobQueue);
+			const int32 NumJobs = Manager->AllJobs.GetPendingJobs(EShaderCompilerWorkerType::Distributed, Priority, MinBatchSize, INT32_MAX, JobQueue);
 			if (NumJobs > 0)
 			{
 				UE_LOG(LogShaderCompilers, Display, TEXT("Started %d 'FASTBuild' shader compile jobs with '%s' priority"),
