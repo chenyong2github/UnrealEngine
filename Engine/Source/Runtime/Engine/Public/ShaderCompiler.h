@@ -43,7 +43,7 @@ enum class EShaderCompilerWorkerType : uint8
 {
 	None,
 	LocalThread,
-	XGE,
+	Distributed,
 };
 
 enum class EShaderCompileJobType : uint8
@@ -649,99 +649,6 @@ namespace FShaderCompileUtilities
 	FGBufferParams FetchGBufferParamsPipeline(EShaderPlatform Platform);
 
 }
-
-#if PLATFORM_WINDOWS // XGE shader compilation is only supported on Windows.
-
-class FShaderCompileXGEThreadRunnable_XmlInterface : public FShaderCompileThreadRunnableBase
-{
-private:
-	/** The handle referring to the XGE console process, if a build is in progress. */
-	FProcHandle BuildProcessHandle;
-	
-	/** Process ID of the XGE console, if a build is in progress. */
-	uint32 BuildProcessID;
-
-	/**
-	 * A map of directory paths to shader jobs contained within that directory.
-	 * One entry per XGE task.
-	 */
-	class FShaderBatch
-	{
-		TArray<FShaderCommonCompileJobPtr> Jobs;
-		bool bTransferFileWritten;
-
-	public:
-		const FString& DirectoryBase;
-		const FString& InputFileName;
-		const FString& SuccessFileName;
-		const FString& OutputFileName;
-
-		int32 BatchIndex;
-		int32 DirectoryIndex;
-
-		FString WorkingDirectory;
-		FString OutputFileNameAndPath;
-		FString SuccessFileNameAndPath;
-		FString InputFileNameAndPath;
-		
-		FShaderBatch(const FString& InDirectoryBase, const FString& InInputFileName, const FString& InSuccessFileName, const FString& InOutputFileName, int32 InDirectoryIndex, int32 InBatchIndex)
-			: bTransferFileWritten(false)
-			, DirectoryBase(InDirectoryBase)
-			, InputFileName(InInputFileName)
-			, SuccessFileName(InSuccessFileName)
-			, OutputFileName(InOutputFileName)
-		{
-			SetIndices(InDirectoryIndex, InBatchIndex);
-		}
-
-		void SetIndices(int32 InDirectoryIndex, int32 InBatchIndex);
-
-		void CleanUpFiles(bool keepInputFile);
-
-		inline int32 NumJobs()
-		{
-			return Jobs.Num();
-		}
-		inline const TArray<FShaderCommonCompileJobPtr>& GetJobs() const
-		{
-			return Jobs;
-		}
-
-		void AddJob(FShaderCommonCompileJobPtr Job);
-		
-		void WriteTransferFile();
-	};
-	TArray<FShaderBatch*> ShaderBatchesInFlight;
-	TArray<FShaderBatch*> ShaderBatchesFull;
-	TSparseArray<FShaderBatch*> ShaderBatchesIncomplete;
-
-	/** The full path to the two working directories for XGE shader builds. */
-	const FString XGEWorkingDirectory;
-	uint32 XGEDirectoryIndex;
-
-	uint64 LastAddTime;
-	uint64 StartTime;
-	int32 BatchIndexToCreate;
-	int32 BatchIndexToFill;
-
-	FDateTime ScriptFileCreationTime;
-
-	void PostCompletedJobsForBatch(FShaderBatch* Batch);
-
-	void GatherResultsFromXGE();
-
-public:
-	/** Initialization constructor. */
-	FShaderCompileXGEThreadRunnable_XmlInterface(class FShaderCompilingManager* InManager);
-	virtual ~FShaderCompileXGEThreadRunnable_XmlInterface();
-
-	/** Main work loop. */
-	virtual int32 CompilingLoop() override;
-
-	static bool IsSupported();
-};
-
-#endif // PLATFORM_WINDOWS
 
 class FShaderCompileDistributedThreadRunnable_Interface : public FShaderCompileThreadRunnableBase
 {
