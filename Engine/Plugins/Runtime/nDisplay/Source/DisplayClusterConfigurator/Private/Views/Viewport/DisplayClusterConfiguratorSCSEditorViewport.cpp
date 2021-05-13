@@ -15,7 +15,7 @@
 
 #include "EngineUtils.h"
 #include "BlueprintEditor.h"
-#include "SSCSEditor.h"
+#include "SSubobjectEditor.h"
 #include "EditorViewportCommands.h"
 #include "STransformViewportToolbar.h"
 #include "SEditorViewportToolBarMenu.h"
@@ -600,7 +600,7 @@ void SDisplayClusterConfiguratorSCSEditorViewport::PopulateViewportOverlays(TSha
 void SDisplayClusterConfiguratorSCSEditorViewport::BindCommands()
 {
 	TSharedPtr<FBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin();
-	CommandList->Append(BlueprintEditor->GetSCSEditor()->CommandList.ToSharedRef());
+	CommandList->Append(BlueprintEditor->GetSubobjectEditor()->GetCommandList().ToSharedRef());
 	CommandList->Append(BlueprintEditor->GetToolkitCommands());
 	
 	const FDisplayClusterConfiguratorCommands& Commands = FDisplayClusterConfiguratorCommands::Get();
