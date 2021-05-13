@@ -1,0 +1,168 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Private/ComputeKernelCommon.ush"
+#include "/Engine/Private/GpuSkinCommon.ush"
+
+uint DI_LOCAL(NumVertices);
+uint DI_LOCAL(NumTriangles);
+uint DI_LOCAL(InputStreamStart);
+uint DI_LOCAL(InputWeightStart);
+uint DI_LOCAL(InputWeightStride);
+uint DI_LOCAL(InputWeightIndexSize);
+uint DI_LOCAL(IndexBufferStart);
+
+Buffer<float> DI_LOCAL(PositionInputBuffer);
+Buffer<SNORM float4> DI_LOCAL(TangentInputBuffer);
+Buffer<float2> DI_LOCAL(UVInputBuffer);
+Buffer<float4> DI_LOCAL(BoneMatrices);
+Buffer<uint> DI_LOCAL(InputWeightStream);
+Buffer<uint> DI_LOCAL(InputWeightLookupStream);
+Buffer<uint> DI_LOCAL(IndexBuffer);
+
+DI_IMPL_READ(ReadNumVertices, uint, void)
+{
+	return DI_LOCAL(NumVertices);
+}
+
+DI_IMPL_READ(ReadNumTriangles, uint, void)
+{
+	return DI_LOCAL(NumTriangles);
+}
+
+DI_IMPL_READ(ReadPosition, float3, uint VertexIndex)
+{
+	uint BufferIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * 3;
+	return float3(DI_LOCAL(PositionInputBuffer)[BufferIndex], DI_LOCAL(PositionInputBuffer)[BufferIndex + 1], DI_LOCAL(PositionInputBuffer)[BufferIndex + 2]);
+}
+
+DI_IMPL_READ(ReadTangentX, float4, uint VertexIndex)
+{
+	uint BufferIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * 2;
+	return TangentBias_SkinCache(DI_LOCAL(TangentInputBuffer)[BufferIndex]);
+}
+
+DI_IMPL_READ(ReadTangentZ, float4, uint VertexIndex)
+{
+	uint BufferIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * 2;
+	return TangentBias_SkinCache(DI_LOCAL(TangentInputBuffer)[BufferIndex + 1]);
+}
+
+DI_IMPL_READ(ReadUV, float2, uint VertexIndex)
+{
+	uint BufferIndex = DI_LOCAL(InputStreamStart) + VertexIndex;
+	return DI_LOCAL(UVInputBuffer)[BufferIndex];
+}
+#if !GPUSKIN_UNLIMITED_BONE_INFLUENCE
+
+int4 DI_LOCAL(GetBlendIndices)(uint StreamOffset, uint ExtraInfluenceIndex)
+{
+	int4 UnpackedBlendIndices = 0;
+
+#if GPUSKIN_BONE_INDEX_UINT16
+	StreamOffset += GPUSKIN_VB_OFFSET_INFLUENCEBONES + 2 * ExtraInfluenceIndex;
+	uint PackedBlendIndices = DI_LOCAL(InputWeightStream)[StreamOffset];
+	UnpackedBlendIndices.x = PackedBlendIndices & 0xffff;
+	UnpackedBlendIndices.y = PackedBlendIndices >> 16 & 0xffff;
+	PackedBlendIndices = DI_LOCAL(InputWeightStream)[StreamOffset + 1];
+	UnpackedBlendIndices.z = PackedBlendIndices & 0xffff;
+	UnpackedBlendIndices.w = PackedBlendIndices >> 16 & 0xffff;
+#else // GPUSKIN_BONE_INDEX_UINT16
+	StreamOffset += GPUSKIN_VB_OFFSET_INFLUENCEBONES + ExtraInfluenceIndex;
+	uint PackedBlendIndices = DI_LOCAL(InputWeightStream)[StreamOffset];
+	UnpackedBlendIndices.x = PackedBlendIndices & 0xff;
+	UnpackedBlendIndices.y = PackedBlendIndices >> 8 & 0xff;
+	UnpackedBlendIndices.z = PackedBlendIndices >> 16 & 0xff;
+	UnpackedBlendIndices.w = PackedBlendIndices >> 24 & 0xff;
+#endif // GPUSKIN_BONE_INDEX_UINT16
+
+	return UnpackedBlendIndices;
+}
+
+float4 DI_LOCAL(GetBlendWeights)(uint StreamOffset, uint ExtraInfluenceIndex)
+{
+	StreamOffset += GPUSKIN_VB_OFFSET_INFLUENCEWEIGHTS + ExtraInfluenceIndex;
+	uint PackedBlendWeights = DI_LOCAL(InputWeightStream)[StreamOffset];
+	
+	float4 UnpackedBlendWeights = 0;
+	UnpackedBlendWeights.x = float(PackedBlendWeights & 0xff) / 255.0f;
+	UnpackedBlendWeights.y = float(PackedBlendWeights >> 8 & 0xff) / 255.0f;
+	UnpackedBlendWeights.z = float(PackedBlendWeights >> 16 & 0xff) / 255.0f;
+	UnpackedBlendWeights.w = float(PackedBlendWeights >> 24 & 0xff) / 255.0f;
+	return UnpackedBlendWeights;
+}
+
+#endif // GPUSKIN_UNLIMITED_BONE_INFLUENCE
+
+float3x4 DI_LOCAL(GetBoneMatrix)(uint BoneIndex)
+{
+	uint BufferIndex = BoneIndex * 3;
+	return float3x4(DI_LOCAL(BoneMatrices)[BufferIndex], DI_LOCAL(BoneMatrices)[BufferIndex + 1], DI_LOCAL(BoneMatrices)[BufferIndex + 2]);
+}
+
+DI_IMPL_READ(ReadBlendMatrix, float3x4, uint VertexIndex)
+{
+	float3x4 BlendMatrix = (float3x4)0;
+
+#if GPUSKIN_UNLIMITED_BONE_INFLUENCE
+
+	uint BlendOffsetCount = DI_LOCAL(InputWeightLookupStream)[VertexIndex];
+	int NumBoneInfluences = BlendOffsetCount & 0xff;
+	int StreamOffset = BlendOffsetCount >> 8;
+	int WeightsOffset = StreamOffset + (DI_LOCAL(InputWeightIndexSize) * NumBoneInfluences);
+
+	for (int InfluenceIndex = 0; InfluenceIndex < NumBoneInfluences; InfluenceIndex++)
+	{
+		int BoneIndexOffset = StreamOffset + (DI_LOCAL(InputWeightIndexSize) * InfluenceIndex);
+		int BoneIndex = DI_LOCAL(InputWeightStream)[BoneIndexOffset];
+		if (DI_LOCAL(InputWeightIndexSize) > 1)
+		{
+			BoneIndex = DI_LOCAL(InputWeightStream)[BoneIndexOffset + 1] << 8 | BoneIndex;
+		}
+		float BoneWeight = float(DI_LOCAL(InputWeightStream)[WeightsOffset + InfluenceIndex]) / 255.0f;
+		BlendMatrix += BoneWeight * GetBoneMatrix(BoneIndex);
+	}
+
+#else // GPUSKIN_UNLIMITED_BONE_INFLUENCE
+
+	uint StreamOffset = DI_LOCAL(InputWeightStart) + (VertexIndex * (DI_LOCAL(InputWeightStride) / 4));
+
+	int4 BlendIndices = DI_LOCAL(GetBlendIndices)(StreamOffset, 0);
+	float4 BlendWeights = DI_LOCAL(GetBlendWeights)(StreamOffset, 0);
+	
+	BlendMatrix += BlendWeights.x * DI_LOCAL(GetBoneMatrix)(BlendIndices.x);
+	BlendMatrix += BlendWeights.y * DI_LOCAL(GetBoneMatrix)(BlendIndices.y);
+	BlendMatrix += BlendWeights.z * DI_LOCAL(GetBoneMatrix)(BlendIndices.z);
+	BlendMatrix += BlendWeights.w * DI_LOCAL(GetBoneMatrix)(BlendIndices.w);
+
+#if GPUSKIN_USE_EXTRA_INFLUENCES
+
+	BlendIndices = DI_LOCAL(GetBlendIndices)(StreamOffset, 1);
+	BlendWeights = DI_LOCAL(GetBlendWeights)(StreamOffset, 1);
+
+	BlendMatrix += BlendWeights.x * DI_LOCAL(GetBoneMatrix)(BlendIndices.x);
+	BlendMatrix += BlendWeights.y * DI_LOCAL(GetBoneMatrix)(BlendIndices.y);
+	BlendMatrix += BlendWeights.z * DI_LOCAL(GetBoneMatrix)(BlendIndices.z);
+	BlendMatrix += BlendWeights.w * DI_LOCAL(GetBoneMatrix)(BlendIndices.w);
+
+#endif // GPUSKIN_USE_EXTRA_INFLUENCES
+
+#endif // GPUSKIN_UNLIMITED_BONE_INFLUENCE
+
+	return BlendMatrix;
+}
+
+DI_IMPL_READ(ReadBoneMatrix, float3x4, uint BoneIndex)
+{
+	return DI_LOCAL(GetBoneMatrix)(BoneIndex);
+}
+
+DI_IMPL_READ(ReadTriangleVertexIndices, uint3, uint TriangleIndex)
+{
+	uint BufferIndex = DI_LOCAL(IndexBufferStart) + TriangleIndex * 3;
+
+	uint3 Indices;
+	Indices.x = DI_LOCAL(IndexBuffer)[BufferIndex + 0];
+	Indices.y = DI_LOCAL(IndexBuffer)[BufferIndex + 1];
+	Indices.z = DI_LOCAL(IndexBuffer)[BufferIndex + 2];
+	return Indices;
+}

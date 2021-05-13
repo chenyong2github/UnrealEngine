@@ -1,0 +1,29 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Private/ComputeKernelCommon.ush"
+#include "/Engine/Private/GpuSkinCommon.ush"
+
+uint DI_LOCAL(OutputStreamStart);
+
+RWBuffer<float> DI_LOCAL(PositionBufferUAV);
+RWBuffer<SNORM float4> DI_LOCAL(TangentBufferUAV);
+
+DI_IMPL_WRITE(WritePosition, uint VertexIndex, float3 Position)
+{
+	uint BufferIndex = (DI_LOCAL(OutputStreamStart) + VertexIndex) * 3;
+	DI_LOCAL(PositionBufferUAV)[BufferIndex + 0] = Position.x;
+	DI_LOCAL(PositionBufferUAV)[BufferIndex + 1] = Position.y;
+	DI_LOCAL(PositionBufferUAV)[BufferIndex + 2] = Position.z;
+}
+
+DI_IMPL_WRITE(WriteTangentX, uint VertexIndex, float4 TangentX)
+{
+	uint BufferIndex = (DI_LOCAL(OutputStreamStart) + VertexIndex) * 2;
+	DI_LOCAL(TangentBufferUAV)[BufferIndex + 0] = TangentUnbias_SkinCache(TangentX);
+}
+
+DI_IMPL_WRITE(WriteTangentZ, uint VertexIndex, float4 TangentZ)
+{
+	uint BufferIndex = (DI_LOCAL(OutputStreamStart) + VertexIndex) * 2;
+	DI_LOCAL(TangentBufferUAV)[BufferIndex + 1] = TangentUnbias_SkinCache(TangentZ);
+}

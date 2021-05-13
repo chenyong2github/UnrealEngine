@@ -2,16 +2,16 @@
 
 #include "OptimusEditorModule.h"
 
+#include "OptimusDataType.h"
 #include "OptimusDeformerAssetActions.h"
+#include "OptimusDetailsCustomization.h"
 #include "OptimusEditor.h"
 #include "OptimusEditorCommands.h"
 #include "OptimusEditorGraphNodeFactory.h"
 #include "OptimusEditorGraphPinFactory.h"
 #include "OptimusEditorStyle.h"
+#include "OptimusTestGraphAssetActions.h"
 #include "SOptimusEditorGraphExplorer.h"
-#include "OptimusDetailsCustomization.h"
-
-#include "OptimusDataType.h"
 
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
@@ -29,6 +29,10 @@ void FOptimusEditorModule::StartupModule()
 	TSharedRef<IAssetTypeActions> OptimusDeformerAssetAction = MakeShared<FOptimusDeformerAssetActions>();
 	AssetTools.RegisterAssetTypeActions(OptimusDeformerAssetAction);
 	RegisteredAssetTypeActions.Add(OptimusDeformerAssetAction);
+
+	TSharedRef<IAssetTypeActions> OptimusTestGraphAssetAction = MakeShared<FOptimusTestGraphAssetActions>();
+	AssetTools.RegisterAssetTypeActions(OptimusTestGraphAssetAction);
+	RegisteredAssetTypeActions.Add(OptimusTestGraphAssetAction);
 
 	FOptimusEditorCommands::Register();
 	FOptimusEditorGraphExplorerCommands::Register();
