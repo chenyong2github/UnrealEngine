@@ -207,15 +207,12 @@ namespace HoloLens.Automation
 
 		bool ProcessHasExited;
 
-		public HoloLensDevicePortalCreatedProcess(Microsoft.Tools.WindowsDevicePortal.DevicePortal InPortal, string InPackageName, string InFriendlyName, uint InProcId)
+		public HoloLensDevicePortalCreatedProcess(Microsoft.Tools.WindowsDevicePortal.DevicePortal InPortal, string InPackageName, string InFriendlyName)
 		{
 			Portal = InPortal;
-			ProcId = InProcId;
 			PackageName = InPackageName;
 			FriendlyName = InFriendlyName;
 			StateLock = new object();
-			Portal.RunningProcessesMessageReceived += Portal_RunningProcessesMessageReceived;
-			Portal.StartListeningForRunningProcessesAsync().Wait();
 			//MonitorThread = new System.Threading.Thread(()=>(MonitorProcess))
 
 			// No ETW on Xbox One, so can't collect trace that way
@@ -226,6 +223,13 @@ namespace HoloLens.Automation
 				Portal.RealtimeEventsMessageReceived += Portal_RealtimeEventsMessageReceived;
 				Portal.StartListeningForEtwEventsAsync().Wait();
 			}
+		}
+
+		public void SetProcId(uint InProcId)
+		{
+			ProcId = InProcId;
+			Portal.RunningProcessesMessageReceived += Portal_RunningProcessesMessageReceived;
+			Portal.StartListeningForRunningProcessesAsync().Wait();
 		}
 
 		private void Portal_RealtimeEventsMessageReceived(Microsoft.Tools.WindowsDevicePortal.DevicePortal sender, Microsoft.Tools.WindowsDevicePortal.WebSocketMessageReceivedEventArgs<Microsoft.Tools.WindowsDevicePortal.DevicePortal.EtwEvents> args)
@@ -1615,13 +1619,14 @@ namespace HoloLens.Automation
 					}
 				}
 
+				var Result = new HoloLensDevicePortalCreatedProcess(portal, FullName, Params.ShortProjectName);
 				var LaunchTask = portal.LaunchApplicationAsync(Aumid, FullName);
 
 				// Message back to the UE4 Editor to correctly set the app id for each device
 				Console.WriteLine("Running Package@Device:{0}@{1}", FullName, DeviceAddress);
 
 				LaunchTask.Wait();
-				IProcessResult Result = new HoloLensDevicePortalCreatedProcess(portal, FullName, Params.ShortProjectName, LaunchTask.Result);
+				Result.SetProcId(LaunchTask.Result);
 
 				ProcessManager.AddProcess(Result);
 				if (!ClientRunFlags.HasFlag(ERunOptions.NoWaitForExit))
