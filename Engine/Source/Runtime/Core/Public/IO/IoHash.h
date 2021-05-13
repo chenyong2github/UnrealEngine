@@ -58,9 +58,14 @@ public:
 	[[nodiscard]] static inline FIoHash HashBuffer(const void* Data, uint64 Size);
 	[[nodiscard]] static inline FIoHash HashBuffer(const FCompositeBuffer& Buffer);
 
+	/** A zero hash. */
+	static const FIoHash Zero;
+
 private:
 	alignas(uint32) ByteArray Hash{};
 };
+
+inline const FIoHash FIoHash::Zero;
 
 inline FIoHash::FIoHash(const ByteArray& InHash)
 {
