@@ -525,31 +525,14 @@ private:
 	void OnSectionShadowCastingChanged(ECheckBoxState NewState, int32 LODIndex, int32 SectionIndex);
 
 	/**
-	* Handler for check box display based on whether this section does recalculate normal or not
-	*
-	* @param LODIndex	The LODIndex we want to change
-	* @param SectionIndex	The SectionIndex we change the RecomputeTangent
-	*/
-	ECheckBoxState IsSectionRecomputeTangentEnabled(int32 LODIndex, int32 SectionIndex) const;
-
-	/**
-	* Handler for changing recalulate normal status on a section
-	*
-	* @param LODIndex	The LODIndex we want to change
-	* @param SectionIndex	The SectionIndex we change the RecomputeTangent
-	*/
-	void OnSectionRecomputeTangentChanged(ECheckBoxState NewState, int32 LODIndex, int32 SectionIndex);
-
-	/**
 	* Handler for selecting which vertex color to mask the blending of recomputing tangents
 	*
 	* @param LODIndex	The LODIndex we want to change
 	* @param SectionIndex	The SectionIndex we change the RecomputeTangent
 	*/
-	TSharedRef<class SWidget> OnGenerateRecomputeTangentsVertexChannelMaskPicker(int32 LODIndex, int32 SectionIndex);
-	bool IsGenerateRecomputeTangentsVertexChannelMaskPicker(int32 LODIndex, int32 SectionIndex) const;
-	FText GetCurrentRecomputeTangentsVertexChannelMaskName(int32 LODIndex, int32 SectionIndex) const;
-	void SetCurrentRecomputeTangentsVertexChannel(int32 LODIndex, int32 SectionIndex, int32 Index);
+	TSharedRef<class SWidget> OnGenerateRecomputeTangentsSetting(int32 LODIndex, int32 SectionIndex);
+	FText GetCurrentRecomputeTangentsSetting(int32 LODIndex, int32 SectionIndex) const;
+	void SetCurrentRecomputeTangentsSetting(int32 LODIndex, int32 SectionIndex, int32 Index);
 
 	/**
 	 * Handler for enabling delete button on materials
