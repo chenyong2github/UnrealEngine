@@ -111,12 +111,18 @@ class UWorldPartitionRuntimeCell : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
+	virtual void Load() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Load,);
+	virtual void Unload() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Unload,);
+	virtual void Activate() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Activate,);
+	virtual void Deactivate() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Deactivate,);
+	virtual bool IsAddedToWorld() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::IsAddedToWorld, return false;);
+	virtual bool CanAddToWorld() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::CanAddToWorld, return false;);
+	virtual ULevel* GetLevel() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetLevel, return nullptr;);
+	virtual EWorldPartitionRuntimeCellState GetCurrentState() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetCurrentState, return EWorldPartitionRuntimeCellState::Unloaded;);
 	virtual FLinearColor GetDebugColor() const { return FLinearColor::Black; }
 	virtual bool IsAlwaysLoaded() const { return bIsAlwaysLoaded; }
 	virtual void SetIsAlwaysLoaded(bool bInIsAlwaysLoaded) { bIsAlwaysLoaded = bInIsAlwaysLoaded; }
 	virtual void SetPriority(int32 InPriority) { Priority = InPriority; }
-	bool HasDataLayers() const { return !DataLayers.IsEmpty(); }
-	const TArray<FName>& GetDataLayers() const { return DataLayers; }
 	virtual EStreamingStatus GetStreamingStatus() const { return LEVEL_Unloaded; }
 	virtual bool IsLoading() const { return false; }
 	virtual const FString& GetDebugName() const { return DebugName; }
@@ -127,6 +133,9 @@ class UWorldPartitionRuntimeCell : public UObject
 	virtual bool CacheStreamingSourceInfo(const struct FWorldPartitionStreamingSource& Source) const;
 
 	static void DirtyStreamingSourceCacheEpoch() { ++UWorldPartitionRuntimeCell::StreamingSourceCacheEpoch; }
+
+	bool HasDataLayers() const { return !DataLayers.IsEmpty(); }
+	const TArray<FName>& GetDataLayers() const { return DataLayers; }
 
 #if WITH_EDITOR
 	void SetDataLayers(const TArray<const UDataLayer*>& InDataLayers);

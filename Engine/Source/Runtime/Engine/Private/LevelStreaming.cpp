@@ -588,7 +588,7 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 				bOutUpdateAgain = true;
 				bOutRedetermineTarget = true;
 			}
-			else if (!World->GetNextPreferredLevelPendingVisibility() || World->GetNextPreferredLevelPendingVisibility() == LoadedLevel)
+			else
 			{
 				World->AddToWorld(LoadedLevel, LevelTransform, !bShouldBlockOnLoad);
 

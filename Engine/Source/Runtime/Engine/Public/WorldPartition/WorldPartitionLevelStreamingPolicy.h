@@ -22,9 +22,6 @@ class UWorldPartitionLevelStreamingPolicy : public UWorldPartitionStreamingPolic
 	GENERATED_BODY()
 
 public:
-	virtual void SetTargetStateForCells(EWorldPartitionRuntimeCellState TargetState, const TSet<const UWorldPartitionRuntimeCell*>& Cells) override;
-	virtual EWorldPartitionRuntimeCellState GetCurrentStateForCell(const UWorldPartitionRuntimeCell* Cell) const override;
-	virtual class ULevel* GetPreferredLoadedLevelToAddToWorld() const override;
 	virtual void DrawRuntimeCellsDetails(class UCanvas* Canvas, FVector2D& Offset) override;
 	virtual void DrawStreamingStatusLegend(UCanvas* Canvas, FVector2D& Offset) override;
 
@@ -39,15 +36,11 @@ public:
 	virtual UObject* GetSubObject(const TCHAR* SubObjectPath) override;
 
 protected:
+	virtual int32 GetCellLoadingCount() const override;
+
 	void ForEachActiveRuntimeCell(TFunctionRef<void(const UWorldPartitionRuntimeCell*)> Func) const;
 
 private:
-	void SetCellsStateToLoaded(const TSet<const UWorldPartitionRuntimeCell*>& ToLoadCells);
-	void SetCellsStateToActivated(const TSet<const UWorldPartitionRuntimeCell*>& ToActivateCells);
-	void SetCellsStateToUnloaded(const TSet<const UWorldPartitionRuntimeCell*>& ToUnloadCells);
-	int32 GetCellLoadingCount() const;
-	int32 GetMaxCellsToLoad() const;
-
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TMap<FName, FName> ActorToCellRemapping;

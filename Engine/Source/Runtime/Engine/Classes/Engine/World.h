@@ -1004,7 +1004,7 @@ public:
 	ULevel* GetCurrentLevelPendingVisibility() const { return CurrentLevelPendingVisibility; }
 
 	/** Returns the best candidate level, if any, to become the CurrentLevelPendingVisibility */
-	ULevel* GetNextPreferredLevelPendingVisibility() { return NextPreferredLevelPendingVisibility; }
+	ULevel* CalculateNextPreferredLevelPendingVisibility() const;
 
 	/** Returns the level, if any, in the process of being made invisible */
 	ULevel* GetCurrentLevelPendingInvisibility() const { return CurrentLevelPendingInvisibility; }
@@ -1062,10 +1062,6 @@ private:
 	/** Pointer to the current level in the queue to be made visible, NULL if none are pending. */
 	UPROPERTY(Transient)
 	TObjectPtr<class ULevel>								CurrentLevelPendingVisibility;
-
-	/** Pointer to the next best candidate level to become the CurrentLevelPendingVisibility. */
-	UPROPERTY(Transient)
-	TObjectPtr<class ULevel>								NextPreferredLevelPendingVisibility;
 
 	/** Pointer to the current level in the queue to be made invisible, NULL if none are pending. */
 	UPROPERTY(Transient)
@@ -3454,9 +3450,6 @@ private:
 
 	/** Updates world's required streaming levels */
 	void InternalUpdateStreamingState();
-
-	/** Determine next making visible best candidate to AddToWorld */
-	void UpdateNextPreferredLevelPendingVisibility();
 
 #if WITH_EDITOR
 public:

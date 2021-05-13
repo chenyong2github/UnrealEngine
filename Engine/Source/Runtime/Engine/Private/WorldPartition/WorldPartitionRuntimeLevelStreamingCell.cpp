@@ -258,6 +258,23 @@ void UWorldPartitionRuntimeLevelStreamingCell::Activate() const
 	}
 }
 
+bool UWorldPartitionRuntimeLevelStreamingCell::IsAddedToWorld() const
+{
+	return LevelStreaming && LevelStreaming->GetLoadedLevel() && LevelStreaming->GetLoadedLevel()->bIsVisible;
+}
+
+bool UWorldPartitionRuntimeLevelStreamingCell::CanAddToWorld() const
+{
+	return LevelStreaming &&
+		   LevelStreaming->GetLoadedLevel() &&
+		   (LevelStreaming->GetCurrentState() == ULevelStreaming::ECurrentState::MakingVisible);
+}
+
+ULevel* UWorldPartitionRuntimeLevelStreamingCell::GetLevel() const 
+{
+	return LevelStreaming ? LevelStreaming->GetLoadedLevel() : nullptr;
+}
+
 void UWorldPartitionRuntimeLevelStreamingCell::Unload() const
 {
 #if WITH_EDITOR
