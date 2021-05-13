@@ -1277,10 +1277,6 @@ protected:
 	/** Macro/function libraries to keep loaded */
 	TArray<UBlueprint*> StandardLibraries;
 
-	/** SCS editor */
-	UE_DEPRECATED(5.0, "SCSEditor has been deprecated. Use SubobjectEditor instead.")
-	TSharedPtr<class SSCSEditor> SCSEditor;
-
 	/** Subobject Editor */
 	TSharedPtr<SSubobjectEditor> SubobjectEditor;
 
