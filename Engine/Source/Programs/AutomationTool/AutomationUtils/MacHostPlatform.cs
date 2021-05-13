@@ -37,6 +37,11 @@ namespace AutomationTool
 			return CachedFrameworkMsbuildExe;
 		}
 
+		public override FileReference GetDotnetExe()
+		{
+			return FileReference.Combine(CommandUtils.EngineDirectory, @"Binaries\ThirdParty\DotNet\Mac\dotnet");
+		}
+
 		public override string GetDotnetMsbuildExe()
 		{
 			return "../../ThirdParty/DotNet/Mac/dotnet";

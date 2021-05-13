@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Diagnostics;
+using EpicGames.Core;
 
 namespace AutomationTool
 {
@@ -70,6 +71,12 @@ namespace AutomationTool
 		/// </summary>
 		/// <returns></returns>
 		abstract public string GetFrameworkMsbuildExe();
+
+		/// <summary>
+		/// Gets the path to dotnet
+		/// </summary>
+		/// <returns></returns>
+		abstract public FileReference GetDotnetExe();
 
 		/// <summary>
 		/// Gets the build executable filename for NET Core projects. Typically, the path to the bundled dotnet executable.
