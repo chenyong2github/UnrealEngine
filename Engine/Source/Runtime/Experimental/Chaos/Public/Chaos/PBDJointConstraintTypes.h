@@ -190,7 +190,7 @@ namespace Chaos
 		// Solver Stiffness (increases over iterations)
 		FReal MinSolverStiffness;
 		FReal MaxSolverStiffness;
-		FReal NumIterationsAtMaxSolverStiffness;
+		int32 NumIterationsAtMaxSolverStiffness;
 
 		// @todo(ccaulfield): remove these TEMP overrides for testing
 		bool bEnableTwistLimits;
