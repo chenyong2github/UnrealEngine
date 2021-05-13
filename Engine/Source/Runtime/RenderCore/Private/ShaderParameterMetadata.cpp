@@ -934,6 +934,54 @@ FString FShaderParametersMetadata::GetFullMemberCodeName(uint16 MemberOffset) co
 	return MemberName;
 }
 
+void FShaderParametersMetadataBuilder::AddBufferSRV(
+	const TCHAR* Name,
+	const TCHAR* ShaderType,
+	EShaderPrecisionModifier::Type Precision /* = EShaderPrecisionModifier::Float */
+)
+{
+	NextMemberOffset = Align(NextMemberOffset, SHADER_PARAMETER_POINTER_ALIGNMENT);
+
+	new(Members) FShaderParametersMetadata::FMember(
+		Name,
+		ShaderType,
+		__LINE__,
+		NextMemberOffset,
+		UBMT_SRV,
+		Precision,
+		TShaderResourceParameterTypeInfo<FRHIShaderResourceView*>::NumRows,
+		TShaderResourceParameterTypeInfo<FRHIShaderResourceView*>::NumColumns,
+		TShaderResourceParameterTypeInfo<FRHIShaderResourceView*>::NumElements,
+		TShaderResourceParameterTypeInfo<FRHIShaderResourceView*>::GetStructMetadata()
+	);
+
+	NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
+}
+
+void FShaderParametersMetadataBuilder::AddBufferUAV(
+	const TCHAR* Name,
+	const TCHAR* ShaderType,
+	EShaderPrecisionModifier::Type Precision /* = EShaderPrecisionModifier::Float */
+)
+{
+	NextMemberOffset = Align(NextMemberOffset, SHADER_PARAMETER_POINTER_ALIGNMENT);
+
+	new(Members) FShaderParametersMetadata::FMember(
+		Name,
+		ShaderType,
+		__LINE__,
+		NextMemberOffset,
+		UBMT_UAV,
+		Precision,
+		TShaderResourceParameterTypeInfo<FRHIUnorderedAccessView*>::NumRows,
+		TShaderResourceParameterTypeInfo<FRHIUnorderedAccessView*>::NumColumns,
+		TShaderResourceParameterTypeInfo<FRHIUnorderedAccessView*>::NumElements,
+		TShaderResourceParameterTypeInfo<FRHIUnorderedAccessView*>::GetStructMetadata()
+	);
+
+	NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
+}
+
 void FShaderParametersMetadataBuilder::AddRDGBufferSRV(
 	const TCHAR* Name,
 	const TCHAR* ShaderType,
@@ -949,11 +997,11 @@ void FShaderParametersMetadataBuilder::AddRDGBufferSRV(
 		NextMemberOffset,
 		UBMT_RDG_BUFFER_SRV,
 		Precision,
-		TShaderResourceParameterTypeInfo<FRDGBufferSRV*>::NumRows,
-		TShaderResourceParameterTypeInfo<FRDGBufferSRV*>::NumColumns,
-		TShaderResourceParameterTypeInfo<FRDGBufferSRV*>::NumElements,
-		TShaderResourceParameterTypeInfo<FRDGBufferSRV*>::GetStructMetadata()
-		);
+ 		TShaderResourceParameterTypeInfo<FRDGBufferSRV*>::NumRows,
+ 		TShaderResourceParameterTypeInfo<FRDGBufferSRV*>::NumColumns,
+ 		TShaderResourceParameterTypeInfo<FRDGBufferSRV*>::NumElements,
+ 		TShaderResourceParameterTypeInfo<FRDGBufferSRV*>::GetStructMetadata()
+	);
 
 	NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
 }
@@ -973,10 +1021,10 @@ void FShaderParametersMetadataBuilder::AddRDGBufferUAV(
 		NextMemberOffset,
 		UBMT_RDG_BUFFER_UAV,
 		Precision,
-		TShaderResourceParameterTypeInfo<FRDGBufferUAV*>::NumRows,
-		TShaderResourceParameterTypeInfo<FRDGBufferUAV*>::NumColumns,
-		TShaderResourceParameterTypeInfo<FRDGBufferUAV*>::NumElements,
-		TShaderResourceParameterTypeInfo<FRDGBufferUAV*>::GetStructMetadata()
+ 		TShaderResourceParameterTypeInfo<FRDGBufferUAV*>::NumRows,
+ 		TShaderResourceParameterTypeInfo<FRDGBufferUAV*>::NumColumns,
+ 		TShaderResourceParameterTypeInfo<FRDGBufferUAV*>::NumElements,
+ 		TShaderResourceParameterTypeInfo<FRDGBufferUAV*>::GetStructMetadata()
 		);
 
 	NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;

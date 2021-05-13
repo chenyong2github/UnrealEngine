@@ -65,7 +65,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
 #include "GPUSkinCache.h"
-#include "ComputeFramework/ComputeFramework.h"
+#include "ComputeFramework/ComputeGraphScheduler.h"
 
 #if WITH_EDITOR
 	#include "Editor.h"
@@ -977,13 +977,13 @@ struct FSendAllEndOfFrameUpdates
 		if (InScene != nullptr)
 		{
 			GPUSkinCache = InScene->GetGPUSkinCache();
-			ComputeFramework = InScene->GetComputeFramework();
+			ComputeGraphScheduler = InScene->GetComputeGraphScheduler();
 			FeatureLevel = InScene->GetFeatureLevel();
 		}
 	}
 	
 	FGPUSkinCache* GPUSkinCache = nullptr;
-	FComputeFramework* ComputeFramework = nullptr;
+	FComputeGraphScheduler* ComputeGraphScheduler = nullptr;
 	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::Num;
 
 #if WANTS_DRAW_MESH_EVENTS
@@ -1011,7 +1011,7 @@ DECLARE_GPU_STAT(ComputeFrameworkExecuteBatches);
 void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates& SendAllEndOfFrameUpdates)
 {
 	ENQUEUE_RENDER_COMMAND(EndDrawEventCommand)(
-		[GPUSkinCache = SendAllEndOfFrameUpdates.GPUSkinCache, ComputeFramework = SendAllEndOfFrameUpdates.ComputeFramework, FeatureLevel = SendAllEndOfFrameUpdates.FeatureLevel](FRHICommandListImmediate& RHICmdList)
+		[GPUSkinCache = SendAllEndOfFrameUpdates.GPUSkinCache, ComputeGraphScheduler = SendAllEndOfFrameUpdates.ComputeGraphScheduler, FeatureLevel = SendAllEndOfFrameUpdates.FeatureLevel](FRHICommandListImmediate& RHICmdList)
 		{
 			SCOPED_GPU_STAT(RHICmdList, EndOfFrameUpdates);
 
@@ -1032,10 +1032,10 @@ void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates& SendAllEndOfFr
 #endif // RHI_RAYTRACING
 			}
 
-			if (ComputeFramework != nullptr)
+			if (ComputeGraphScheduler != nullptr)
 			{
 				SCOPED_GPU_STAT(RHICmdList, ComputeFrameworkExecuteBatches);
-				ComputeFramework->ExecuteBatches(RHICmdList, FeatureLevel);
+				ComputeGraphScheduler->ExecuteBatches(RHICmdList, FeatureLevel);
 			}
 		});
 
