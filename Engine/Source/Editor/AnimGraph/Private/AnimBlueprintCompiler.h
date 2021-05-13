@@ -202,6 +202,9 @@ private:
 	// Check whether an anim node participates in constant folding
 	bool IsAnimGraphNodeFolded(UAnimGraphNode_Base* InNode) const;
 
+	// Copy the AnimNodeData array etc. from root anim BP class to a derived anim BP 
+	void CopyAnimNodeDataFromRoot() const;
+	
 	// Get the folded property record, if any, for the supplied node & named property
 	const IAnimBlueprintCompilationContext::FFoldedPropertyRecord* GetFoldedPropertyRecord(UAnimGraphNode_Base* InNode, FName InPropertyName) const;
 };

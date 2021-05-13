@@ -705,8 +705,9 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 
 	if (bIsDerivedAnimBlueprint && DefaultAnimInstance)
 	{
-		// Make sure our sparse class data is re-created
-		RecreateSparseClassData();
+		// Ensure we have constant properties & anim node data rebuilt
+		NewAnimBlueprintClass->BuildConstantProperties();
+		CopyAnimNodeDataFromRoot();
 		
 		// If we are a derived animation graph; apply any stored overrides.
 		// Restore values from the root class to catch values where the override has been removed.
@@ -714,14 +715,6 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 		while (UAnimBlueprintGeneratedClass* NextClass = Cast<UAnimBlueprintGeneratedClass>(RootAnimClass->GetSuperClass()))
 		{
 			RootAnimClass = NextClass;
-		}
-
-		// Copy constant/folded data from root class, remapping the class
-		NewAnimBlueprintClass->AnimNodeData = RootAnimClass->AnimNodeData;
-		NewAnimBlueprintClass->NodeTypeMap = RootAnimClass->NodeTypeMap;
-		for(FAnimNodeData& NodeData : NewAnimBlueprintClass->AnimNodeData)
-		{
-			NodeData.AnimClassInterface = NewAnimBlueprintClass;
 		}
 		
 		UObject* RootDefaultObject = RootAnimClass->GetDefaultObject();
@@ -744,6 +737,24 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 			}
 		}
 
+		// Copy from root sparse class data to our new class
+		if(NewAnimBlueprintClass->GetConstantNodeData() && RootAnimClass->GetConstantNodeData())
+		{
+			check(NewAnimBlueprintClass->GetSparseClassDataStruct()->IsChildOf(RootAnimClass->GetSparseClassDataStruct()));
+
+			for (TFieldIterator<FProperty> PropertyIt(RootAnimClass->GetSparseClassDataStruct()); PropertyIt; ++PropertyIt)
+			{
+				FProperty* RootProperty = *PropertyIt;
+				FProperty* ChildProperty = FindFProperty<FProperty>(NewAnimBlueprintClass->GetSparseClassDataStruct(), *RootProperty->GetName());
+				check(ChildProperty);
+				
+				const uint8* SourcePtr = RootProperty->ContainerPtrToValuePtr<uint8>(RootAnimClass->GetConstantNodeData());
+				uint8* DestPtr = const_cast<uint8*>(ChildProperty->ContainerPtrToValuePtr<uint8>(NewAnimBlueprintClass->GetConstantNodeData()));
+				check(SourcePtr && DestPtr);
+				RootProperty->CopyCompleteValue(DestPtr, SourcePtr);
+			}
+		}
+		
 		// Re-initialize node data tables (they would be overwritten in the loop above)
 		NewAnimBlueprintClass->InitializeAnimNodeData(DefaultObject);
 	}
@@ -1083,6 +1094,9 @@ void FAnimBlueprintCompilerContext::MergeUbergraphPagesIn(UEdGraph* Ubergraph)
 	if (bIsDerivedAnimBlueprint)
 	{
 		// Skip any work related to an anim graph, it's all done by the parent class
+		// We do need to make sure that anim node data is correctly copied & remapped to this class
+		RecreateSparseClassData();
+		CopyAnimNodeDataFromRoot();
 	}
 	else
 	{
@@ -1143,6 +1157,26 @@ void FAnimBlueprintCompilerContext::MergeUbergraphPagesIn(UEdGraph* Ubergraph)
 	}
 }
 
+void FAnimBlueprintCompilerContext::CopyAnimNodeDataFromRoot() const
+{
+	check(bIsDerivedAnimBlueprint);
+
+	UAnimBlueprintGeneratedClass* NewAnimBlueprintClass = GetNewAnimBlueprintClass();
+	UAnimBlueprintGeneratedClass* RootAnimClass = NewAnimBlueprintClass;
+	while (UAnimBlueprintGeneratedClass* NextClass = Cast<UAnimBlueprintGeneratedClass>(RootAnimClass->GetSuperClass()))
+	{
+		RootAnimClass = NextClass;
+	}
+	
+	// Copy constant/folded data from root class, remapping the class
+	NewAnimBlueprintClass->AnimNodeData = RootAnimClass->AnimNodeData;
+	NewAnimBlueprintClass->NodeTypeMap = RootAnimClass->NodeTypeMap;
+	for(FAnimNodeData& NodeData : NewAnimBlueprintClass->AnimNodeData)
+	{
+		NodeData.AnimClassInterface = NewAnimBlueprintClass;
+	}
+}
+
 void FAnimBlueprintCompilerContext::ProcessOneFunctionGraph(UEdGraph* SourceGraph, bool bInternalFunction)
 {
 	if(!KnownGraphSchemas.FindByPredicate([SourceGraph](const TSubclassOf<UEdGraphSchema>& InSchemaClass)
@@ -1167,6 +1201,8 @@ void FAnimBlueprintCompilerContext::EnsureProperGeneratedClass(UClass*& TargetUC
 void FAnimBlueprintCompilerContext::RecreateSparseClassData()
 {
 	UAnimBlueprintGeneratedClass* NewAnimBlueprintClass = GetNewAnimBlueprintClass();
+
+	UScriptStruct* OldSparseClassDataStruct = NewAnimBlueprintClass->GetSparseClassDataStruct();
 	
 	// Set up our sparse class data struct
 	if (bIsDerivedAnimBlueprint)
@@ -1201,15 +1237,27 @@ void FAnimBlueprintCompilerContext::RecreateSparseClassData()
 		UScriptStruct* SuperStruct = ArchetypeStruct ? ArchetypeStruct : FAnimBlueprintConstantData::StaticStruct();
 		NewAnimBlueprintConstants->SetSuperStruct(SuperStruct);
 	}
+
+	if(OldSparseClassDataStruct)
+	{
+		FLinkerLoad::PRIVATE_PatchNewObjectIntoExport(OldSparseClassDataStruct, NewAnimBlueprintConstants);
+	}
 }
 
 void FAnimBlueprintCompilerContext::RecreateMutables()
 {
 	UAnimBlueprintGeneratedClass* NewAnimBlueprintClass = GetNewAnimBlueprintClass();
 
+	UScriptStruct* OldMutablesStruct = NewAnimBlueprintClass->MutableNodeDataProperty ? NewAnimBlueprintClass->MutableNodeDataProperty->Struct : nullptr;
+	
 	// Set up our mutables struct
 	NewAnimBlueprintMutables = NewObject<UScriptStruct>(NewAnimBlueprintClass, UAnimBlueprintGeneratedClass::GetMutablesStructName());
 	NewAnimBlueprintMutables->SetSuperStruct(FAnimBlueprintMutableData::StaticStruct());
+
+	if(OldMutablesStruct)
+	{
+		FLinkerLoad::PRIVATE_PatchNewObjectIntoExport(OldMutablesStruct, NewAnimBlueprintMutables);
+	}
 }
 
 void FAnimBlueprintCompilerContext::SpawnNewClass(const FString& NewClassName)
@@ -1253,8 +1301,6 @@ void FAnimBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedCla
 	Super::CleanAndSanitizeClass(ClassToClean, InOldCDO);
 
 	UAnimBlueprintGeneratedClass* AnimBlueprintClassToClean= CastChecked<UAnimBlueprintGeneratedClass>(ClassToClean);
-
-	AnimBlueprintClassToClean->SetSparseClassDataStruct(nullptr);
 
 	AnimBlueprintClassToClean->AnimBlueprintDebugData = FAnimBlueprintDebugData();
 
