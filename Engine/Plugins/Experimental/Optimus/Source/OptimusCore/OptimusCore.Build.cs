@@ -24,6 +24,8 @@ namespace UnrealBuildTool.Rules
                     "Core",
 					"CoreUObject",
 					"Engine",
+					"Projects",
+					"RenderCore",
 				}
 			);
 
